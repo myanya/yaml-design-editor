@@ -55,7 +55,8 @@ fun IdEntry.isAllowedBy(ref: RefEntry): Boolean =
 /**
  * 1 ドキュメントから ID 定義と参照を抽出するスキャナ。
  * - スキーマがある場合: type: id / type: ref のフィールドを正として扱う
- * - スキーマがない場合（またはスキーマ外のキー）: 命名規約ヒューリスティクスで検出する
+ * - スキーマがない場合: 命名規約ヒューリスティクスで検出する
+ * - スキーマ外のサブツリー: 未知項目の境界で走査を止める
  *   - ID:  キー名 "id"
  *   - 参照: キー名 "ref" / "*_ref"、および "refs" / "*_refs" / "depends_on" / "relates_to" 配下のスカラー配列
  */
@@ -95,7 +96,8 @@ object DocScanner {
                     if (effective?.type == FieldType.OBJECT) {
                         effective.fields.filter { (schemaDef?.resolve(it) ?: it).type == FieldType.ID }.forEach { it.key?.let(idKeys::add) }
                     }
-                    idKeys.add("id")
+                    // スキーマ適用中は、明示的に type: id とされた項目だけを索引化する。
+                    if (schemaDef == null) idKeys.add("id")
                     for (k in idKeys) {
                         val idText = scalarText(node.entries[k]) ?: continue
                         val title = scalarText(node.entries["title"]) ?: scalarText(node.entries["name"])
@@ -112,8 +114,10 @@ object DocScanner {
                             else -> null
                         }
                         val childPath = path + k
+                        // スキーマ外サブツリーは未知項目の境界で止め、ID・参照を索引化しない。
+                        if (schemaDef != null && childDef == null) continue
                         if (childDef == null) {
-                            // ヒューリスティクスによる参照検出（スキーマ外のキーのみ対象）
+                            // スキーマなし文書ではヒューリスティクスで参照を検出する。
                             if (isGenericRefKey(k) && child is YNode.Scalar) {
                                 scalarText(child)?.let { refs += RefEntry(it, file, childPath, k) }
                             } else if (isGenericRefListKey(k) && child is YNode.Seq) {

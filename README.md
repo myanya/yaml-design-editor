@@ -134,6 +134,7 @@ root:                                 # ルートのフィールド定義（通�
 | `item` | `array` の要素定義（フィールド定義を再帰的に記述） |
 | `value` | `map` の値定義（必須。フィールド定義を再帰的に記述） |
 | `fields` | `object` の子フィールド定義のリスト |
+| `unknownFields` | `object` のスキーマ外項目を `allow` / `warning` / `error` で扱う（省略時 `warning`） |
 | `idPattern` / `idPatterns` | `ref` の参照先IDをglob（`*`, `?`）で限定。複数指定はOR |
 | `scope.schemaIds` | 参照先を特定スキーマIDに限定。配列内はOR |
 | `scope.documentIds` | 参照先を特定ドキュメントIDに限定。配列内はOR |
@@ -158,6 +159,8 @@ root:                                 # ルートのフィールド定義（通�
 | `object` | 枠付きのネストフォーム | `fields` を再帰検証 |
 
 `object` / `array` / `map` は任意の深さでネストできます（例: サブ項目の配列の中に `id` を持たせて、サブ項目単位で参照させることも可能）。
+
+`object` にスキーマ外のキーがある場合、既定ではそのキーの位置に警告を1件表示します。`unknownFields: error` ならエラー、`allow` なら通知しません。未知キーの配下はスキーマ検証およびID・参照索引の対象外とし、配下の各要素へ同じ問題を重複表示しません。ルートの予約項目 `_document` はこの検査から除外されます。
 
 ### 任意キーのMap
 

@@ -27,6 +27,18 @@ enum class FieldType(val id: String) {
     }
 }
 
+/** `object` に含まれる未定義キーの検証方針。未指定時は WARNING。 */
+enum class UnknownFieldsPolicy(val id: String) {
+    ALLOW("allow"),
+    WARNING("warning"),
+    ERROR("error");
+
+    companion object {
+        fun parse(value: String?): UnknownFieldsPolicy? =
+            value?.let { raw -> entries.firstOrNull { it.id == raw } }
+    }
+}
+
 /**
  * スキーマ内の 1 フィールド定義。
  */
@@ -44,6 +56,7 @@ data class FieldDef(
     val default: Any? = null,                // 新規作成時の初期値
     val description: String? = null,         // フィールドの説明（フォームに表示）
     val ref: String? = null,                 // definitions 内の名前付き定義への参照
+    val unknownFields: UnknownFieldsPolicy? = null, // object の未定義キー。null は warning
 ) {
     val displayLabel: String get() = label ?: key ?: "(root)"
 }
@@ -82,6 +95,7 @@ data class SchemaDef(
                 description = current.description ?: target.description,
                 idPatterns = current.idPatterns.ifEmpty { target.idPatterns },
                 scope = if (current.scope == RefScope()) target.scope else current.scope,
+                unknownFields = current.unknownFields ?: target.unknownFields,
             )
         }
         return current
@@ -295,6 +309,9 @@ object SchemaLoader {
             default = m["default"],
             description = m["description"]?.toString(),
             ref = (m["\$ref"] ?: m["ref"])?.toString(),
+            unknownFields = m["unknownFields"]?.toString()?.let { raw ->
+                UnknownFieldsPolicy.parse(raw) ?: error("unknownFields は allow / warning / error のいずれかである必要があります: $raw")
+            },
         )
     }
 }

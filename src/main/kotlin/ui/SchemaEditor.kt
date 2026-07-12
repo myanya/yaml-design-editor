@@ -223,6 +223,7 @@ private fun FieldDefinitionEditor(map: YNode.Map, doc: OpenDocument, definitions
             ChoiceButton(scalar(map, "type") ?: "string", FieldType.entries.map { it.id }) {
                 map.entries["type"] = YNode.Scalar(it)
                 if (it != "object") map.entries.remove("fields")
+                if (it != "object") map.entries.remove("unknownFields")
                 if (it != "array") map.entries.remove("item")
                 if (it != "map") map.entries.remove("value")
                 doc.markEdited()
@@ -232,6 +233,14 @@ private fun FieldDefinitionEditor(map: YNode.Map, doc: OpenDocument, definitions
     if (ref != null) return
     when (scalar(map, "type") ?: "string") {
         "object" -> {
+            Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("スキーマ外項目", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+                ChoiceButton(scalar(map, "unknownFields") ?: "warning", listOf("allow", "warning", "error")) {
+                    if (it == "warning") map.entries.remove("unknownFields")
+                    else map.entries["unknownFields"] = YNode.Scalar(it)
+                    doc.markEdited()
+                }
+            }
             val fields = ensureSeq(map, "fields", doc, mark = false)
             fields.items.forEachIndexed { index, node ->
                 val child = node as? YNode.Map ?: return@forEachIndexed

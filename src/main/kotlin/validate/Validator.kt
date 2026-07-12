@@ -10,6 +10,7 @@ import model.pretty
 import model.scalarText
 import schema.FieldDef
 import schema.FieldType
+import schema.UnknownFieldsPolicy
 
 enum class Severity { ERROR, WARNING }
 
@@ -81,6 +82,20 @@ object Validator {
                     for (ch in f.fields) {
                         val key = ch.key ?: continue
                         checkField(ch, node.entries[key], path + key, issues, schema)
+                    }
+                    val definedKeys = f.fields.mapNotNull { it.key }.toSet()
+                    val unknownKeys = node.entries.keys.filter {
+                        it !in definedKeys && !(path.isEmpty() && it == "_document")
+                    }
+                    val severity = when (f.unknownFields ?: UnknownFieldsPolicy.WARNING) {
+                        UnknownFieldsPolicy.ALLOW -> null
+                        UnknownFieldsPolicy.WARNING -> Severity.WARNING
+                        UnknownFieldsPolicy.ERROR -> Severity.ERROR
+                    }
+                    if (severity != null) {
+                        unknownKeys.forEach { key ->
+                            issues += Issue(severity, "スキーマに定義されていない項目です: $key", path + key)
+                        }
                     }
                 }
             }
