@@ -1,0 +1,13 @@
+.gradle/
+build/
+**/build/
+workshop-data/
+*.log
+.idea/
+.DS_Store
+local.properties
+.VSCodeCounter/
+*.ttf
+.kotlin/
+sample-workspace/
+gradle/
