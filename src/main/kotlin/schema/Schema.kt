@@ -16,7 +16,7 @@ enum class FieldType(val id: String) {
     BOOLEAN("boolean"), // 真偽値
     ENUM("enum"),       // 選択肢（values 必須）
     DATE("date"),       // 日付 YYYY-MM-DD
-    ID("id"),           // この要素の ID（ワークスペース全体で一意）
+    ID("id"),           // 論理要素の ID（異なる文書での同一 ID を許容）
     REF("ref"),         // 他要素の ID への参照（リンク化される）
     ARRAY("array"),     // 配列（item 必須）
     MAP("map"),         // 任意キーの連想配列（value 必須）
@@ -39,7 +39,8 @@ data class FieldDef(
     val item: FieldDef? = null,              // ARRAY の要素定義
     val value: FieldDef? = null,             // MAP の値定義
     val fields: List<FieldDef> = emptyList(),// OBJECT の子フィールド定義
-    val kinds: List<String> = emptyList(),   // REF の参照先スキーマ名の制限（空 = 制限なし）
+    val idPatterns: List<String> = emptyList(), // REF の参照先 ID glob（空 = 制限なし）
+    val scope: RefScope = RefScope(),        // REF の探索範囲（空 = ワークスペース全体）
     val default: Any? = null,                // 新規作成時の初期値
     val description: String? = null,         // フィールドの説明（フォームに表示）
     val ref: String? = null,                 // definitions 内の名前付き定義への参照
@@ -47,10 +48,16 @@ data class FieldDef(
     val displayLabel: String get() = label ?: key ?: "(root)"
 }
 
+data class RefScope(
+    val schemaIds: List<String> = emptyList(),
+    val documentIds: List<String> = emptyList(),
+)
+
 /**
  * スキーマ 1 件。`match` の glob にマッチするファイルへ適用される。
  */
 data class SchemaDef(
+    val id: String,
     val name: String,
     val match: String,
     val root: FieldDef,
@@ -73,6 +80,8 @@ data class SchemaDef(
                 label = current.label ?: target.label,
                 required = current.required || target.required,
                 description = current.description ?: target.description,
+                idPatterns = current.idPatterns.ifEmpty { target.idPatterns },
+                scope = if (current.scope == RefScope()) target.scope else current.scope,
             )
         }
         return current
@@ -85,6 +94,7 @@ data class SchemaIssue(val message: String, val path: String)
 fun SchemaDef.validateDefinition(): List<SchemaIssue> {
     val issues = mutableListOf<SchemaIssue>()
     if (name.isBlank()) issues += SchemaIssue("スキーマ名が空です", "name")
+    if (id.isBlank()) issues += SchemaIssue("スキーマIDが空です", "id")
     if (match.isBlank()) issues += SchemaIssue("適用パターンが空です", "match")
     runCatching { globToRegex(match) }.onFailure { issues += SchemaIssue("適用パターンが不正です: ${it.message}", "match") }
 
@@ -222,13 +232,17 @@ object SchemaLoader {
                 }
             }.onFailure { errors += "${f.fileName}: ${it.message ?: it::class.simpleName}" }
         }
+        schemas.groupBy { it.id }.filterValues { it.size > 1 }.forEach { (id, duplicates) ->
+            errors += "スキーマID「$id」が重複しています（${duplicates.joinToString(", ") { it.source.fileName.toString() }}）"
+        }
         return LoadResult(schemas, errors)
     }
 
     fun parseSchemaText(text: String, source: Path): SchemaDef {
         val raw = YamlIO.parseToRaw(text) as? Map<*, *> ?: error("スキーマのルートはobjectである必要があります")
-        val name = raw["name"]?.toString()
-            ?: source.fileName.toString().substringBeforeLast('.')
+        val fallbackId = source.fileName.toString().substringBeforeLast('.')
+        val id = raw["id"]?.toString() ?: fallbackId
+        val name = raw["name"]?.toString() ?: id
         val match = raw["match"]?.toString() ?: "**/*.{yaml,yml}"
         val definitions = (raw["definitions"] as? Map<*, *>)?.entries?.associate { (name, value) ->
             val definition = value as? Map<*, *> ?: error("definitions.${name}: objectである必要があります")
@@ -236,7 +250,7 @@ object SchemaLoader {
         } ?: emptyMap()
         val rootMap = raw["root"] as? Map<*, *> ?: error("root定義が必要です")
         val root = parseField(rootMap, key = null)
-        return SchemaDef(name = name, match = match, root = root, definitions = definitions, source = source)
+        return SchemaDef(id = id, name = name, match = match, root = root, definitions = definitions, source = source)
     }
 
     private fun parseSchemaFile(file: Path): SchemaDef = parseSchemaText(Files.readString(file), file)
@@ -253,7 +267,17 @@ object SchemaLoader {
         val item = m["item"]?.let { parseField(it as? Map<*, *> ?: error("itemはobjectである必要があります"), null) }
         val value = m["value"]?.let { parseField(it as? Map<*, *> ?: error("valueはobjectである必要があります"), null) }
         val values = (m["values"] as? List<*>)?.map { it.toString() } ?: emptyList()
-        val kinds = (m["kinds"] as? List<*>)?.map { it.toString() } ?: emptyList()
+        val idPatterns = when (val rawPatterns = m["idPatterns"] ?: m["idPattern"]) {
+            is List<*> -> rawPatterns.map { it.toString() }
+            null -> emptyList()
+            else -> listOf(rawPatterns.toString())
+        }
+        val scopeMap = m["scope"] as? Map<*, *>
+        fun stringList(key: String): List<String> = when (val value = scopeMap?.get(key)) {
+            is List<*> -> value.map { it.toString() }
+            null -> emptyList()
+            else -> listOf(value.toString())
+        }
         return FieldDef(
             key = key,
             label = m["label"]?.toString(),
@@ -263,7 +287,11 @@ object SchemaLoader {
             item = item,
             value = value,
             fields = fields,
-            kinds = kinds,
+            idPatterns = idPatterns,
+            scope = RefScope(
+                schemaIds = stringList("schemaIds"),
+                documentIds = stringList("documentIds"),
+            ),
             default = m["default"],
             description = m["description"]?.toString(),
             ref = (m["\$ref"] ?: m["ref"])?.toString(),

@@ -1,6 +1,7 @@
 package ui
 
 import androidx.compose.foundation.VerticalScrollbar
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -11,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -27,6 +29,9 @@ import app.AppState
 import app.OpenDocument
 import index.DocScanner
 import index.IdEntry
+import index.IdIndex
+import index.RefEntry
+import index.isAllowedBy
 import model.YNode
 import model.YPath
 import schema.FieldDef
@@ -42,12 +47,17 @@ private val fieldTextStyle = TextStyle(fontSize = 13.sp)
 class FormCtx(
     val state: AppState,
     val doc: OpenDocument,
-    val localIds: Set<String>,
+    val localIds: List<IdEntry>,
 ) {
     fun markEdited() = doc.markEdited()
 
+    fun resolvable(ref: RefEntry): Boolean =
+        ref.targetId.isNotBlank() &&
+            (localIds.any { it.id == ref.targetId && it.isAllowedBy(ref) } || state.index.resolve(ref).isNotEmpty())
+
+    /** スキーマ外の汎用参照は、パターン／スコープ制約なしで解決する。 */
     fun resolvable(id: String): Boolean =
-        id.isNotBlank() && (id in localIds || state.index.entries.containsKey(id))
+        resolvable(RefEntry(id, doc.file, emptyList(), "ref"))
 
     /** スキーマ型に応じてスカラー値を変換して書き込む。 */
     fun setScalar(slot: Slot, raw: String, type: FieldType) {
@@ -118,7 +128,8 @@ fun FormView(state: AppState, doc: OpenDocument) {
     }
 
     val localIds = remember(doc, doc.version) {
-        DocScanner.scan(root, doc.file, doc.schema).first.map { it.id }.toSet()
+        val documentId = IdIndex.documentIdOf(root, state.relPath(doc.file))
+        DocScanner.scan(root, doc.file, doc.schema, documentId).first
     }
     val ctx = remember(doc, doc.version, state.indexVersion) { FormCtx(state, doc, localIds) }
 
@@ -162,7 +173,7 @@ fun ObjectFields(ctx: FormCtx, fields: List<FieldDef>, map: YNode.Map, path: YPa
         val key = field.key ?: continue
         FieldRow(ctx, field, MapSlot(map, key), path + key)
     }
-    val extraKeys = map.entries.keys.filter { it !in definedKeys }
+    val extraKeys = map.entries.keys.filter { it !in definedKeys && !(path.isEmpty() && it == "_document") }
     if (extraKeys.isNotEmpty()) {
         Spacer(Modifier.height(8.dp))
         Text("スキーマ外のキー", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Palette.WarnOrange)
@@ -283,19 +294,18 @@ private fun EnumEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
 @Composable
 private fun IdEditor(ctx: FormCtx, slot: Slot) {
     val text = (slot.get() as? YNode.Scalar)?.value?.toString() ?: ""
-    val dupInIndex = text.isNotBlank() &&
-            ctx.state.index.entries[text].orEmpty().any { it.file != ctx.doc.file }
+    val otherOccurrences = if (text.isBlank()) 0 else
+        ctx.state.index.entries[text].orEmpty().count { it.file != ctx.doc.file }
     Column {
         CompactTextField(
             value = text,
             onValueChange = { ctx.setScalar(slot, it, FieldType.ID) },
             singleLine = true,
-            isError = dupInIndex,
             textStyle = fieldTextStyle,
             modifier = Modifier.fillMaxWidth(),
         )
-        if (dupInIndex) {
-            Text("この ID は他のファイルでも定義されています", fontSize = 11.sp, color = Palette.ErrorRed)
+        if (otherOccurrences > 0) {
+            Text("同一論理IDの別文書での出現: $otherOccurrences 件", fontSize = 11.sp, color = Palette.SubText)
         } else if (text.isNotBlank()) {
             val backlinks = ctx.state.index.backlinksTo(setOf(text)).size
             if (backlinks > 0) {
@@ -309,20 +319,15 @@ private fun IdEditor(ctx: FormCtx, slot: Slot) {
 fun RefEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
     val current = (slot.get() as? YNode.Scalar)?.value?.toString() ?: ""
     var menuOpen by remember { mutableStateOf(false) }
-    val resolved = ctx.resolvable(current)
+    val refConstraint = RefEntry(current, ctx.doc.file, emptyList(), field.key ?: "ref", field.idPatterns, field.scope)
+    val resolved = ctx.resolvable(refConstraint)
 
-    // 候補: 索引上の ID（kinds 指定があれば絞り込み、入力文字列で部分一致）
-    val candidates: List<IdEntry> = remember(ctx.state.indexVersion, current, field.kinds) {
+    // 候補: ID パターンとスコープで絞り込み、同一論理 ID は1候補にまとめる。
+    val candidates: List<IdEntry> = remember(ctx.state.indexVersion, field.idPatterns, field.scope) {
         ctx.state.index.entries.values.asSequence()
-            .mapNotNull { it.firstOrNull() }
-            .filter { field.kinds.isEmpty() || it.kind in field.kinds }
-            .filter {
-                current.isBlank() ||
-                        it.id.contains(current, ignoreCase = true) ||
-                        (it.title?.contains(current, ignoreCase = true) == true)
-            }
+            .filter { occurrences -> occurrences.any { it.isAllowedBy(refConstraint) } }
+            .mapNotNull { occurrences -> occurrences.firstOrNull { it.isAllowedBy(refConstraint) } }
             .sortedBy { it.id }
-            .take(15)
             .toList()
     }
 
@@ -352,18 +357,33 @@ fun RefEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
                         onClick = { menuOpen = false }, enabled = false)
                 }
                 candidates.forEach { e ->
+                    val selected = e.id == current
                     DropdownMenuItem(text = {
                         Column {
-                            Text(e.id, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                e.id,
+                                fontSize = 13.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+                                color = if (selected) Palette.Primary else Palette.Text,
+                            )
                             Text(
                                 listOfNotNull(e.title, ctx.state.relPath(e.file)).joinToString(" — "),
                                 fontSize = 11.sp, color = Palette.SubText,
                             )
                         }
+                    }, trailingIcon = {
+                        if (selected) {
+                            Icon(
+                                Icons.Default.Check,
+                                contentDescription = "選択中",
+                                tint = Palette.Primary,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
                     }, onClick = {
                         ctx.setScalar(slot, e.id, FieldType.REF)
                         menuOpen = false
-                    })
+                    }, modifier = Modifier.background(if (selected) Palette.Selected else Color.Transparent))
                 }
             }
         }

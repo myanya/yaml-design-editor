@@ -3,6 +3,7 @@ package validate
 import app.OpenDocument
 import index.DocScanner
 import index.IdIndex
+import index.isAllowedBy
 import model.YNode
 import model.YPath
 import model.pretty
@@ -22,7 +23,7 @@ data class Issue(
  * 開いているドキュメントの検証。
  * - スキーマ適合（必須／型／enum／日付形式）
  * - 参照解決（索引 + 同一ドキュメント内の未保存 ID を考慮）
- * - ID 重複（ドキュメント内、およびワークスペース全体）
+ * - ID 重複（同一ドキュメント内）
  */
 object Validator {
 
@@ -38,7 +39,8 @@ object Validator {
         doc.schema?.let { checkField(it.root, root, emptyList(), issues, it) }
 
         // 2) ID / 参照の検証
-        val (localIds, localRefs) = DocScanner.scan(root, doc.file, doc.schema)
+        val documentId = indexObj.documentIdFor(doc.file, root)
+        val (localIds, localRefs) = DocScanner.scan(root, doc.file, doc.schema, documentId)
         val localIdSet = localIds.map { it.id }.toSet()
 
         // ドキュメント内の ID 重複
@@ -47,21 +49,16 @@ object Validator {
                 issues += Issue(Severity.ERROR, "ID「$id」がこのファイル内で重複しています", e.path)
             }
         }
-        // 他ファイルとの ID 重複（索引はディスク上の状態）
-        for (e in localIds) {
-            val others = indexObj.entries[e.id].orEmpty().filter { it.file != doc.file }
-            if (others.isNotEmpty()) {
-                val where = others.joinToString(", ") { it.file.fileName.toString() }
-                issues += Issue(Severity.ERROR, "ID「${e.id}」が他ファイルでも定義されています（$where）", e.path)
-            }
-        }
         // 未解決参照
         for (r in localRefs) {
-            val resolved = r.targetId in localIdSet || indexObj.entries.containsKey(r.targetId)
+            val localMatches = localIds.any { it.id == r.targetId && it.isAllowedBy(r) }
+            val resolved = localMatches || indexObj.resolve(r).isNotEmpty()
             if (!resolved) {
+                val existsOutsideScope = r.targetId in localIdSet || indexObj.entries.containsKey(r.targetId)
                 issues += Issue(
                     Severity.ERROR,
-                    "参照「${r.targetId}」（${r.path.pretty()}）を解決できません",
+                    if (existsOutsideScope) "参照「${r.targetId}」はパターンまたはスコープの対象外です"
+                    else "参照「${r.targetId}」（${r.path.pretty()}）を解決できません",
                     r.path,
                 )
             }

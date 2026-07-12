@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.AppState
 import index.DocScanner
+import index.isAllowedBy
 import model.pretty
 import validate.Severity
 import validate.Validator
@@ -56,7 +57,9 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
             Validator.validate(doc, state.index)
         }
         val scanned = remember(doc, doc.version) {
-            DocScanner.scan(doc.root, doc.file, doc.schema)
+            val root = doc.root
+            if (root == null) emptyList<index.IdEntry>() to emptyList<index.RefEntry>()
+            else DocScanner.scan(root, doc.file, doc.schema, state.index.documentIdFor(doc.file, root))
         }
         val (localIds, localRefs) = scanned
         val backlinks = remember(doc, doc.version, state.indexVersion) {
@@ -133,8 +136,8 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                 }
                 items(localRefs.size) { i ->
                     val ref = localRefs[i]
-                    val resolvable = state.index.entries.containsKey(ref.targetId) ||
-                            localIds.any { it.id == ref.targetId }
+                    val resolvable = state.index.resolve(ref).isNotEmpty() ||
+                            localIds.any { it.id == ref.targetId && it.isAllowedBy(ref) }
                     Row(
                         Modifier.fillMaxWidth()
                             .clickable(enabled = resolvable) { state.navigateToId(ref.targetId) }

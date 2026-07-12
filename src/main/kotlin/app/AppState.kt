@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import index.DocScanner
 import index.IdIndex
+import index.IdEntry
 import model.YNode
 import model.YPath
 import model.scalarText
@@ -122,6 +123,10 @@ class AppState {
 
     /** フォーム上でハイライト＆スクロール対象にするパス。 */
     var highlightPath by mutableStateOf<YPath?>(null)
+
+    /** 同一論理 ID に複数の出現箇所がある場合のジャンプ先候補。 */
+    var navigationCandidates by mutableStateOf<List<IdEntry>>(emptyList())
+        private set
 
     /** 0 = フォーム, 1 = ソース */
     var editorTab by mutableStateOf(0)
@@ -440,16 +445,17 @@ class AppState {
      * 索引（保存済みの状態）を優先し、見つからなければ現在のドキュメント内の未保存 ID を探す。
      */
     fun navigateToId(id: String) {
-        val entry = index.resolve(id)
-        if (entry != null) {
-            openFile(entry.file, entry.path)
-            editorTab = 0
+        val entries = index.occurrences(id)
+        if (entries.size > 1) {
+            navigationCandidates = entries
             return
         }
+        entries.firstOrNull()?.let { navigateToOccurrence(it); return }
         // 未保存ドキュメント内の ID を探す
         val doc = openDoc
         if (doc?.root != null) {
-            val (ids, _) = DocScanner.scan(doc.root, doc.file, doc.schema)
+            val documentId = IdIndex.documentIdOf(doc.root!!, relPath(doc.file))
+            val (ids, _) = DocScanner.scan(doc.root, doc.file, doc.schema, documentId)
             val local = ids.firstOrNull { it.id == id }
             if (local != null) {
                 highlightPath = local.path
@@ -459,4 +465,12 @@ class AppState {
         }
         status = "ID「$id」の定義が見つかりません（保存または再読込で索引が更新されます）"
     }
+
+    fun navigateToOccurrence(entry: IdEntry) {
+        navigationCandidates = emptyList()
+        openFile(entry.file, entry.path)
+        editorTab = 0
+    }
+
+    fun dismissNavigationCandidates() { navigationCandidates = emptyList() }
 }

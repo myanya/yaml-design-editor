@@ -135,6 +135,35 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
         StatusBar(state)
     }
     if (commandOpen) CommandPalette(state) { commandOpen = false }
+    if (state.navigationCandidates.isNotEmpty()) {
+        val candidates = state.navigationCandidates
+        AlertDialog(
+            onDismissRequest = state::dismissNavigationCandidates,
+            title = { Text("「${candidates.first().id}」の出現箇所") },
+            text = {
+                Column(Modifier.width(520.dp).heightIn(max = 460.dp)) {
+                    Text("同じ論理IDを持つ要素が ${candidates.size} 件あります。", fontSize = 12.sp, color = Palette.SubText)
+                    Spacer(Modifier.height(8.dp))
+                    candidates.forEach { entry ->
+                        TextButton(
+                            onClick = { state.navigateToOccurrence(entry) },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Column(Modifier.fillMaxWidth()) {
+                                Text(entry.title ?: entry.id, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    "${state.relPath(entry.file)} · ${entry.documentId}",
+                                    fontSize = 11.sp, color = Palette.SubText,
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = state::dismissNavigationCandidates) { Text("閉じる") } },
+        )
+    }
 }
 
 @Composable

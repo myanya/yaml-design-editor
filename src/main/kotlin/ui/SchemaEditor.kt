@@ -56,6 +56,7 @@ fun SchemaEditor(state: AppState, doc: OpenDocument) {
             Text("適用条件とフィールド構造を編集します。再帰構造は \$ref で名前付き定義を参照してください。",
                 fontSize = 11.sp, color = Palette.SubText)
             Spacer(Modifier.height(10.dp))
+            CompactScalar(root, "id", "スキーマID", doc)
             CompactScalar(root, "name", "スキーマ名", doc)
             CompactScalar(root, "match", "適用パターン", doc)
             if (schemaResult.isFailure) {
@@ -251,7 +252,12 @@ private fun FieldDefinitionEditor(map: YNode.Map, doc: OpenDocument, definitions
             FieldDefinitionEditor(ensureMap(map, "value", doc, mark = false), doc, definitions, allowKey = false, depth = depth + 1)
         }
         "enum" -> EnumValuesEditor(map, doc)
-        "ref" -> StringListEditor(map, "kinds", "参照先kind", "requirement, design-item", doc)
+        "ref" -> {
+            StringListEditor(map, "idPatterns", "IDパターン", "ACTOR-*, ROLE-*", doc)
+            val scope = ensureMap(map, "scope", doc, mark = false)
+            StringListEditor(scope, "schemaIds", "対象スキーマID", "system-concepts, actor-detail", doc)
+            StringListEditor(scope, "documentIds", "対象文書ID", "system-overview, actor-design", doc)
+        }
     }
     val currentType = scalar(map, "type") ?: "string"
     if (currentType !in setOf("object", "array", "map")) DefaultValueEditor(map, currentType, doc)
