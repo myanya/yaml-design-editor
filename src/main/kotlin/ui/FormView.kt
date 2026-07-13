@@ -138,6 +138,10 @@ fun FormView(state: AppState, doc: OpenDocument) {
         Column(
             Modifier.fillMaxSize().verticalScroll(scroll).padding(horizontal = 20.dp, vertical = 16.dp)
         ) {
+            if (!state.relPath(doc.file).startsWith("_schemas/") && root is YNode.Map) {
+                DocumentMetadataEditor(ctx, root)
+                Spacer(Modifier.height(16.dp))
+            }
             val schemaDef = doc.schema
             val rootDef = schemaDef?.resolve(schemaDef.root)
             if (rootDef?.type == FieldType.OBJECT && root is YNode.Map) {
@@ -160,6 +164,54 @@ fun FormView(state: AppState, doc: OpenDocument) {
             adapter = rememberScrollbarAdapter(scroll),
             modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
         )
+    }
+}
+
+/** `_document` のうち、人とLLMが文書を把握するための表示メタデータを編集する。 */
+private class DocumentMetadataSlot(private val root: YNode.Map, private val key: String) : Slot {
+    private fun metadata(): YNode.Map? = root.entries["_document"] as? YNode.Map
+    override fun get(): YNode? = metadata()?.entries?.get(key)
+    override fun set(n: YNode) {
+        val metadata = metadata() ?: YNode.Map().also { root.entries["_document"] = it }
+        metadata.entries[key] = n
+    }
+    override fun remove() { metadata()?.entries?.remove(key) }
+}
+
+@Composable
+private fun DocumentMetadataEditor(ctx: FormCtx, root: YNode.Map) {
+    val nameSlot = DocumentMetadataSlot(root, "name")
+    val descriptionSlot = DocumentMetadataSlot(root, "description")
+    Column(
+        Modifier.fillMaxWidth().background(Palette.PanelBg, PanelShape)
+            .border(1.dp, Palette.Border, PanelShape).padding(12.dp),
+    ) {
+        Text("文書メタデータ", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Palette.Primary)
+        Spacer(Modifier.height(8.dp))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            Text("文書名", fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.width(136.dp).padding(top = 9.dp))
+            CompactTextField(
+                value = (nameSlot.get() as? YNode.Scalar)?.value?.toString().orEmpty(),
+                onValueChange = { ctx.setScalar(nameSlot, it, FieldType.STRING) },
+                singleLine = true,
+                placeholder = { Text("この文書を表す名前", fontSize = 13.sp, color = Palette.SubText) },
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            Column(Modifier.width(136.dp).padding(top = 9.dp, end = 8.dp)) {
+                Text("概要", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Text("文書を開かずに内容を判断できる要約", fontSize = 10.sp, color = Palette.SubText)
+            }
+            CompactTextField(
+                value = (descriptionSlot.get() as? YNode.Scalar)?.value?.toString().orEmpty(),
+                onValueChange = { ctx.setScalar(descriptionSlot, it, FieldType.TEXT) },
+                placeholder = { Text("この文書が何を示し、何を含むかを簡潔に記述", fontSize = 13.sp, color = Palette.SubText) },
+                modifier = Modifier.weight(1f).heightIn(min = 84.dp),
+            )
+        }
     }
 }
 

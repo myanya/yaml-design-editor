@@ -192,5 +192,17 @@ class IdIndex {
             val metadata = (root as? YNode.Map)?.entries?.get("_document") as? YNode.Map
             return scalarText(metadata?.entries?.get("id")) ?: fallback
         }
+
+        /** ルートの予約メタデータに宣言された表示用の文書名。 */
+        fun documentNameOf(root: YNode): String? {
+            val metadata = (root as? YNode.Map)?.entries?.get("_document") as? YNode.Map
+            return scalarText(metadata?.entries?.get("name"))?.takeIf { it.isNotBlank() }
+        }
+
+        /** ルートの予約メタデータに宣言された、文書全体の概要。 */
+        fun documentDescriptionOf(root: YNode): String? {
+            val metadata = (root as? YNode.Map)?.entries?.get("_document") as? YNode.Map
+            return scalarText(metadata?.entries?.get("description"))?.takeIf { it.isNotBlank() }
+        }
     }
 }

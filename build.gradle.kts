@@ -20,6 +20,7 @@ dependencies {
     implementation(compose.material3)
     implementation(compose.materialIconsExtended)
     implementation("org.yaml:snakeyaml:2.3")
+    testImplementation(kotlin("test"))
 }
 
 kotlin {

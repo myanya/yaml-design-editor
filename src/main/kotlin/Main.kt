@@ -37,6 +37,7 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import app.AppState
 import index.IdEntry
+import index.IdIndex
 import ui.*
 import java.nio.file.Files
 import java.nio.file.Path
@@ -377,6 +378,9 @@ fun EditorArea(state: AppState) {
     }
 
     val isSchemaFile = state.relPath(doc.file).startsWith("_schemas/")
+    // root は通常の State ではないため、メタデータ編集時にもヘッダーを再描画させる。
+    doc.version
+    val documentName = doc.root?.let { IdIndex.documentNameOf(it) }
     Column(Modifier.fillMaxSize()) {
         if (doc.externalConflict) {
             Row(
@@ -389,12 +393,19 @@ fun EditorArea(state: AppState) {
                 TextButton(onClick = { state.keepLocalVersion() }) { Text("編集内容を維持", fontSize = 12.sp) }
             }
         }
-        // ヘッダ: ファイル名・スキーマ・ダーティ表示
+        // ヘッダ: 文書名・ファイル名・スキーマ・ダーティ表示
         Row(
             Modifier.fillMaxWidth().background(Palette.Surface).padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(state.relPath(doc.file), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            if (documentName != null && !isSchemaFile) {
+                Column {
+                    Text(documentName, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(state.relPath(doc.file), fontSize = 10.sp, color = Palette.SubText)
+                }
+            } else {
+                Text(state.relPath(doc.file), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            }
             if (doc.dirty) {
                 Spacer(Modifier.width(6.dp))
                 Text("●未保存", fontSize = 11.sp, color = Palette.WarnOrange)
