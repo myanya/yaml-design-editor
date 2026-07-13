@@ -48,4 +48,21 @@ class DiffPaneTest {
         assertEquals("tail", diff.last().disk)
         assertFalse(diff.last().changed)
     }
+
+    @Test
+    fun `inserted blank line is classified as a quiet change`() {
+        val diff = calculateDiff("one\ntwo", "one\n\ntwo")
+
+        val blankLine = diff.single { it.changed }
+        assertTrue(blankLine.blankOnlyChange)
+        assertNull(blankLine.disk)
+        assertEquals("", blankLine.edited)
+    }
+
+    @Test
+    fun `content replacement is not classified as a blank-only change`() {
+        val diff = calculateDiff("one\nold\nthree", "one\n\nthree")
+
+        assertFalse(diff.single { it.changed }.blankOnlyChange)
+    }
 }

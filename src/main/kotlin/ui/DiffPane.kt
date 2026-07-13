@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -22,7 +23,12 @@ internal data class DiffLine(
     val editedNumber: Int?,
     val edited: String?,
     val changed: Boolean,
-)
+) {
+    val blankOnlyChange: Boolean
+        get() = changed &&
+            (disk == null || disk.isBlank()) &&
+            (edited == null || edited.isBlank())
+}
 
 private sealed interface DiffOperation {
     data class Equal(val diskNumber: Int, val editedNumber: Int, val text: String) : DiffOperation
@@ -106,9 +112,14 @@ fun DiffPane(doc: OpenDocument) {
             val state = rememberLazyListState()
             LazyColumn(state = state, modifier = Modifier.fillMaxSize().padding(end = 8.dp)) {
                 items(lines) { line ->
-                    Row(Modifier.fillMaxWidth().background(if (line.changed) Palette.Highlight else androidx.compose.ui.graphics.Color.Transparent)) {
-                        DiffCell(line.diskNumber, line.disk, Modifier.weight(1f))
-                        DiffCell(line.editedNumber, line.edited, Modifier.weight(1f))
+                    val background = when {
+                        line.blankOnlyChange -> Palette.PanelBg.copy(alpha = .55f)
+                        line.changed -> Palette.Highlight
+                        else -> Color.Transparent
+                    }
+                    Row(Modifier.fillMaxWidth().background(background)) {
+                        DiffCell(line.diskNumber, line.disk, line.blankOnlyChange, Modifier.weight(1f))
+                        DiffCell(line.editedNumber, line.edited, line.blankOnlyChange, Modifier.weight(1f))
                     }
                 }
             }
@@ -118,11 +129,13 @@ fun DiffPane(doc: OpenDocument) {
 }
 
 @Composable
-private fun DiffCell(number: Int?, text: String?, modifier: Modifier) {
+private fun DiffCell(number: Int?, text: String?, blankOnlyChange: Boolean, modifier: Modifier) {
     Row(modifier.padding(vertical = 1.dp)) {
         Text(number?.toString().orEmpty(), fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = Palette.SubText,
             modifier = Modifier.width(36.dp).padding(end = 6.dp))
-        Text(text.orEmpty(), fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = Palette.Text,
+        val displayedText = if (blankOnlyChange && text != null && text.isBlank()) "· 空行" else text.orEmpty()
+        Text(displayedText, fontFamily = FontFamily.Monospace, fontSize = 11.sp,
+            color = if (blankOnlyChange) Palette.SubText.copy(alpha = .75f) else Palette.Text,
             modifier = Modifier.weight(1f))
     }
 }
