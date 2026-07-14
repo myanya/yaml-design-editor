@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -422,6 +423,17 @@ fun EditorArea(state: AppState) {
                 )
             } ?: Text("スキーマなし（汎用ビュー）", fontSize = 11.sp, color = Palette.SubText)
             Spacer(Modifier.weight(1f))
+            if (!isSchemaFile && doc.schema != null && doc.root != null) {
+                OutlinedButton(
+                    onClick = { state.requestAi(doc.schema!!.root, emptyList(), wholeDocument = true) },
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                ) {
+                    Icon(Icons.Default.AutoAwesome, contentDescription = null, Modifier.size(15.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("AIで作成", fontSize = 12.sp)
+                }
+                Spacer(Modifier.width(6.dp))
+            }
             IconButton(enabled = doc.canUndo(), onClick = state::undo, modifier = Modifier.size(34.dp)) {
                 Icon(Icons.Default.Undo, "元に戻す (Ctrl+Z)", Modifier.size(17.dp))
             }
@@ -468,6 +480,7 @@ fun EditorArea(state: AppState) {
             } else if (state.editorTab == 1) SourcePane(state, doc) else DiffPane(doc)
         }
     }
+    AiGenerationHost(state)
 }
 
 // ================================================================ ステータスバー

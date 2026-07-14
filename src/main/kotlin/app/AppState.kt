@@ -134,7 +134,17 @@ class AppState {
     var workspaceView by mutableStateOf(0)
 
     var status by mutableStateOf("「開く」からワークスペース（ディレクトリ）を選択してください")
+    var aiRequest by mutableStateOf<AiRequest?>(null)
+        private set
     private var workspaceStamp: Map<Path, Long> = emptyMap()
+
+    data class AiRequest(val field: FieldDef, val path: YPath, val wholeDocument: Boolean = false)
+
+    fun requestAi(field: FieldDef, path: YPath, wholeDocument: Boolean = false) {
+        aiRequest = AiRequest(field, path, wholeDocument)
+    }
+
+    fun dismissAi() { aiRequest = null }
 
     // ---------------------------------------------------------------- workspace
 

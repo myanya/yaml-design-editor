@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -244,6 +245,19 @@ private fun FieldRow(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
                 Row {
                     Text(effective.displayLabel, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     if (effective.required) Text(" *", color = Palette.ErrorRed, fontSize = 12.sp)
+                    if (effective.type != FieldType.ARRAY) {
+                        IconButton(
+                            onClick = { ctx.state.requestAi(effective, path) },
+                            modifier = Modifier.size(22.dp),
+                        ) {
+                            Icon(
+                                Icons.Default.AutoAwesome,
+                                contentDescription = "${effective.displayLabel}をAIで作成",
+                                modifier = Modifier.size(13.dp),
+                                tint = Palette.Primary,
+                            )
+                        }
+                    }
                 }
                 effective.description?.let { Text(it, fontSize = 10.sp, color = Palette.SubText, maxLines = 2) }
             }
@@ -530,6 +544,11 @@ private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) 
         }) {
             Icon(Icons.Default.Add, contentDescription = null, Modifier.size(16.dp))
             Text("追加", fontSize = 13.sp)
+        }
+        TextButton(onClick = { ctx.state.requestAi(field, path) }) {
+            Icon(Icons.Default.AutoAwesome, contentDescription = null, Modifier.size(15.dp))
+            Spacer(Modifier.width(4.dp))
+            Text("AIで候補追加", fontSize = 12.sp)
         }
         }
     }
