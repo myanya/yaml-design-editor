@@ -22,7 +22,7 @@ class OpenAiGeneratorTest {
     @Test
     fun `string field becomes string schema with description`() {
         val field = FieldDef(key = "title", type = FieldType.STRING, description = "タイトル")
-        val json = OpenAiGenerator.fieldToJsonSchema(field, schemaOf(field))
+        val json = fieldToJsonSchema(field, schemaOf(field))
         assertEquals("string", json["type"]?.jsonPrimitive?.content)
         assertEquals("タイトル", json["description"]?.jsonPrimitive?.content)
     }
@@ -31,7 +31,7 @@ class OpenAiGeneratorTest {
     fun `id ref date and text map to string`() {
         for (type in listOf(FieldType.ID, FieldType.REF, FieldType.DATE, FieldType.TEXT)) {
             val field = FieldDef(key = "f", type = type)
-            val json = OpenAiGenerator.fieldToJsonSchema(field, schemaOf(field))
+            val json = fieldToJsonSchema(field, schemaOf(field))
             assertEquals("string", json["type"]?.jsonPrimitive?.content, "type=$type")
         }
     }
@@ -39,7 +39,7 @@ class OpenAiGeneratorTest {
     @Test
     fun `enum field lists its values`() {
         val field = FieldDef(key = "status", type = FieldType.ENUM, values = listOf("open", "closed"))
-        val json = OpenAiGenerator.fieldToJsonSchema(field, schemaOf(field))
+        val json = fieldToJsonSchema(field, schemaOf(field))
         assertEquals("string", json["type"]?.jsonPrimitive?.content)
         assertEquals(listOf("open", "closed"), json["enum"]?.jsonArray?.map { it.jsonPrimitive.content })
     }
@@ -54,7 +54,7 @@ class OpenAiGeneratorTest {
                 FieldDef(key = "count", type = FieldType.INT),
             ),
         )
-        val json = OpenAiGenerator.fieldToJsonSchema(field, schemaOf(field))
+        val json = fieldToJsonSchema(field, schemaOf(field))
         assertEquals("object", json["type"]?.jsonPrimitive?.content)
         assertEquals(setOf("id", "count"), json["properties"]?.jsonObject?.keys)
         assertEquals(listOf("id", "count"), json["required"]?.jsonArray?.map { it.jsonPrimitive.content })
@@ -69,7 +69,7 @@ class OpenAiGeneratorTest {
             type = FieldType.ARRAY,
             item = FieldDef(type = FieldType.ENUM, values = listOf("a", "b")),
         )
-        val json = OpenAiGenerator.fieldToJsonSchema(field, schemaOf(field))
+        val json = fieldToJsonSchema(field, schemaOf(field))
         assertEquals("array", json["type"]?.jsonPrimitive?.content)
         assertEquals(listOf("a", "b"), json["items"]?.jsonObject?.get("enum")?.jsonArray?.map { it.jsonPrimitive.content })
     }
@@ -77,7 +77,7 @@ class OpenAiGeneratorTest {
     @Test
     fun `map field uses value schema as additionalProperties`() {
         val field = FieldDef(key = "attrs", type = FieldType.MAP, value = FieldDef(type = FieldType.NUMBER))
-        val json = OpenAiGenerator.fieldToJsonSchema(field, schemaOf(field))
+        val json = fieldToJsonSchema(field, schemaOf(field))
         assertEquals("object", json["type"]?.jsonPrimitive?.content)
         assertEquals("number", json["additionalProperties"]?.jsonObject?.get("type")?.jsonPrimitive?.content)
     }
@@ -86,7 +86,7 @@ class OpenAiGeneratorTest {
     fun `named definition is resolved through ref`() {
         val defs = mapOf("person" to FieldDef(type = FieldType.OBJECT, fields = listOf(FieldDef(key = "name"))))
         val field = FieldDef(key = "owner", ref = "person")
-        val json = OpenAiGenerator.fieldToJsonSchema(field, schemaOf(field, defs))
+        val json = fieldToJsonSchema(field, schemaOf(field, defs))
         assertEquals("object", json["type"]?.jsonPrimitive?.content)
         assertEquals(setOf("name"), json["properties"]?.jsonObject?.keys)
     }
@@ -100,7 +100,7 @@ class OpenAiGeneratorTest {
             ),
         )
         val field = FieldDef(key = "tree", ref = "node")
-        val json = OpenAiGenerator.fieldToJsonSchema(field, schemaOf(field, defs))
+        val json = fieldToJsonSchema(field, schemaOf(field, defs))
         assertEquals("object", json["type"]?.jsonPrimitive?.content)
         // 深さ制限で空オブジェクトに畳まれていれば無限再帰していない
         var current = json

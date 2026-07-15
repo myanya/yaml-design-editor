@@ -1,17 +1,23 @@
 package ui
 
 import ai.AiGenerationInput
-import ai.OpenAiGenerator
+import ai.AiGenerator
+import ai.AiProvider
+import ai.RefCandidate
+import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,13 +40,34 @@ import java.util.prefs.Preferences
 
 private object AiSessionSettings {
     private val preferences = Preferences.userRoot().node("yaml-design-editor/ai")
-    var apiKey by mutableStateOf(System.getenv("OPENAI_API_KEY").orEmpty())
-    private val modelState = mutableStateOf(preferences.get("model", "gpt-5.1"))
-    var model: String
-        get() = modelState.value
+
+    private val providerState = mutableStateOf(
+        runCatching { AiProvider.valueOf(preferences.get("provider", AiProvider.OPENAI.name)) }
+            .getOrDefault(AiProvider.OPENAI)
+    )
+    var provider: AiProvider
+        get() = providerState.value
         set(value) {
-            modelState.value = value
-            preferences.put("model", value)
+            providerState.value = value
+            preferences.put("provider", value.name)
+        }
+
+    // APIキーはセッション中のみメモリに保持する（初期値は環境変数）。
+    private val apiKeys = mutableStateMapOf<AiProvider, String>().apply {
+        AiProvider.entries.forEach { put(it, System.getenv(it.envVar).orEmpty()) }
+    }
+    var apiKey: String
+        get() = apiKeys[provider].orEmpty()
+        set(value) { apiKeys[provider] = value }
+
+    private val models = mutableStateMapOf<AiProvider, String>().apply {
+        AiProvider.entries.forEach { put(it, preferences.get("model.${it.name}", it.defaultModel)) }
+    }
+    var model: String
+        get() = models[provider].orEmpty()
+        set(value) {
+            models[provider] = value
+            preferences.put("model.${provider.name}", value)
         }
 }
 
@@ -72,7 +99,8 @@ fun AiGenerationHost(state: AppState) {
         generationJob = scope.launch {
             try {
                 val generated = withContext(Dispatchers.IO) {
-                    OpenAiGenerator.generate(
+                    AiGenerator.generate(
+                        AiSessionSettings.provider,
                         AiGenerationInput(
                             apiKey = AiSessionSettings.apiKey,
                             model = AiSessionSettings.model.trim(),
@@ -82,7 +110,8 @@ fun AiGenerationHost(state: AppState) {
                             targetPath = request.path.pretty(),
                             currentValueYaml = baseTarget?.let(YamlIO::dump) ?: "（未設定）",
                             currentDocumentYaml = YamlIO.dump(baseRoot),
-                            availableIds = state.index.entries.keys.sorted(),
+                            idCandidates = state.index.entries.values.flatten()
+                                .map { RefCandidate(it.id, it.schemaId, it.documentId) },
                         )
                     )
                 }
@@ -130,6 +159,8 @@ fun AiGenerationHost(state: AppState) {
                 AiDialogStage.INPUT, AiDialogStage.ERROR -> AiInputContent(
                     instruction = instruction,
                     onInstructionChange = { instruction = it },
+                    provider = AiSessionSettings.provider,
+                    onProviderChange = { AiSessionSettings.provider = it },
                     apiKey = AiSessionSettings.apiKey,
                     onApiKeyChange = { AiSessionSettings.apiKey = it },
                     model = AiSessionSettings.model,
@@ -190,6 +221,8 @@ fun AiGenerationHost(state: AppState) {
 private fun AiInputContent(
     instruction: String,
     onInstructionChange: (String) -> Unit,
+    provider: AiProvider,
+    onProviderChange: (AiProvider) -> Unit,
     apiKey: String,
     onApiKeyChange: (String) -> Unit,
     model: String,
@@ -220,7 +253,14 @@ private fun AiInputContent(
             }
         }
         Spacer(Modifier.height(14.dp))
-        Text("OpenAI接続", fontSize = 12.sp, color = Palette.SubText)
+        Text("AI接続", fontSize = 12.sp, color = Palette.SubText)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            AiProvider.entries.forEach { p ->
+                RadioButton(selected = provider == p, onClick = { onProviderChange(p) })
+                Text(p.label, fontSize = 13.sp)
+                Spacer(Modifier.width(12.dp))
+            }
+        }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
                 value = apiKey,
@@ -240,7 +280,7 @@ private fun AiInputContent(
             )
         }
         Text(
-            "OPENAI_API_KEY 環境変数も利用できます。モデル名だけは端末の設定に保存されます。",
+            "${provider.envVar} 環境変数も利用できます。プロバイダとモデル名だけは端末の設定に保存されます。",
             fontSize = 10.sp,
             color = Palette.SubText,
         )
@@ -263,26 +303,17 @@ private fun AiPreviewContent(before: String, after: String, errors: Int, warning
         val color = if (errors > 0) Palette.ErrorRed else if (warnings > 0) Palette.WarnOrange else Palette.OkGreen
         Text("適用後の検証: エラー $errors 件・警告 $warnings 件", fontSize = 12.sp, color = color)
         Spacer(Modifier.height(8.dp))
-        Row(Modifier.fillMaxWidth().heightIn(min = 260.dp, max = 500.dp)) {
-            PreviewPane("現在", before, Modifier.weight(1f))
-            Spacer(Modifier.width(8.dp))
-            PreviewPane("AI提案", after, Modifier.weight(1f))
+        val lines = remember(before, after) { calculateDiff(before, after) }
+        Row(Modifier.fillMaxWidth().background(Palette.PanelBg).padding(vertical = 5.dp)) {
+            Text("現在", fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f).padding(start = 42.dp))
+            Text("AI提案", fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f).padding(start = 42.dp))
         }
-    }
-}
-
-@Composable
-private fun PreviewPane(title: String, yaml: String, modifier: Modifier) {
-    Column(modifier.background(Palette.EditorBg, PanelShape).padding(10.dp)) {
-        Text(title, fontSize = 11.sp, color = Palette.SubText)
-        Spacer(Modifier.height(6.dp))
-        SelectionContainer {
-            Text(
-                yaml,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 11.sp,
-                modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
-            )
+        Box(Modifier.fillMaxWidth().heightIn(min = 260.dp, max = 500.dp).background(Palette.EditorBg, PanelShape).padding(10.dp)) {
+            val listState = rememberLazyListState()
+            LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(end = 8.dp)) {
+                items(lines) { line -> DiffLineRow(line) }
+            }
+            VerticalScrollbar(rememberScrollbarAdapter(listState), Modifier.align(Alignment.CenterEnd).fillMaxHeight())
         }
     }
 }

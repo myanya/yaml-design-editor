@@ -111,20 +111,24 @@ fun DiffPane(doc: OpenDocument) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             val state = rememberLazyListState()
             LazyColumn(state = state, modifier = Modifier.fillMaxSize().padding(end = 8.dp)) {
-                items(lines) { line ->
-                    val background = when {
-                        line.blankOnlyChange -> Palette.PanelBg.copy(alpha = .55f)
-                        line.changed -> Palette.Highlight
-                        else -> Color.Transparent
-                    }
-                    Row(Modifier.fillMaxWidth().background(background)) {
-                        DiffCell(line.diskNumber, line.disk, line.blankOnlyChange, Modifier.weight(1f))
-                        DiffCell(line.editedNumber, line.edited, line.blankOnlyChange, Modifier.weight(1f))
-                    }
-                }
+                items(lines) { line -> DiffLineRow(line) }
             }
             VerticalScrollbar(rememberScrollbarAdapter(state), Modifier.align(androidx.compose.ui.Alignment.CenterEnd).fillMaxHeight())
         }
+    }
+}
+
+/** 左右整列済みの差分1行。DiffPane と AI プレビューで共用する。 */
+@Composable
+internal fun DiffLineRow(line: DiffLine) {
+    val background = when {
+        line.blankOnlyChange -> Palette.PanelBg.copy(alpha = .55f)
+        line.changed -> Palette.Highlight
+        else -> Color.Transparent
+    }
+    Row(Modifier.fillMaxWidth().background(background)) {
+        DiffCell(line.diskNumber, line.disk, line.blankOnlyChange, Modifier.weight(1f))
+        DiffCell(line.editedNumber, line.edited, line.blankOnlyChange, Modifier.weight(1f))
     }
 }
 

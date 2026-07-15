@@ -360,7 +360,10 @@ src/main/kotlin/
 ├── schema/Schema.kt     # スキーマモデル、メタ検証、再帰参照、サンプル生成、glob
 ├── index/IdIndex.kt     # ID 索引・参照スキャナ（DocScanner）
 ├── validate/Validator.kt# スキーマ検証・参照解決・重複検出
-├── ai/OpenAiGenerator.kt# OpenAI Responses API クライアント（スキーマ→JSON Schema変換、構造化出力の解析）
+├── ai/                  # AI生成（スキーマ→JSON Schema変換、REF候補のenum制約、プロバイダ共通処理）
+│   ├── AiGenerator.kt        # プロバイダ選択と共通ロジック
+│   ├── OpenAiGenerator.kt    # OpenAI Responses API クライアント
+│   └── AnthropicGenerator.kt # Anthropic Messages API クライアント
 └── ui/
     ├── Common.kt        # Material 3テーマ、コンパクト入力、Slot抽象、ハイライト
     ├── FileTreePane.kt  # ファイルツリー
@@ -381,7 +384,7 @@ src/main/kotlin/
 
 ## 11. AIによる作成支援
 
-スキーマが適用された文書では、OpenAI API を使って内容のたたき台を生成できます。入口は3か所です。
+スキーマが適用された文書では、OpenAI または Anthropic（Claude）の API を使って内容のたたき台を生成できます。入口は3か所です。
 
 - **フィールド単位**: フォームの各フィールドラベル横の ✨ アイコン
 - **配列への候補追加**: 配列エディタの「AIで候補追加」（既存項目を残して追加／配列全体を置き換えを選択可能）
@@ -389,15 +392,17 @@ src/main/kotlin/
 
 流れは「指示を入力 → 生成 → プレビューで現在値と比較 → 適用」です。
 
-- 生成結果は、対象フィールドのスキーマから変換した JSON Schema による構造化出力（Structured Outputs）で受け取るため、型・enum・必須キーがスキーマに準拠します（`map` 型を含む場合のみ strict モードを無効化）。
-- プレビューには、提案を適用した場合のスキーマ検証結果（エラー・警告数）を表示します。適用は Undo 可能で、自動保存はされません。
+- 生成結果は、対象フィールドのスキーマから変換した JSON Schema による構造化出力（Structured Outputs）で受け取るため、型・enum・必須キーがスキーマに準拠します（`map` 型を含む場合のみ構造化出力を無効化し、プロンプト指示によるJSON生成にフォールバック）。
+- `ref` 型フィールドは、`idPatterns`・`scope` で絞り込んだワークスペース内の既存IDを enum 制約として渡すため、存在しないIDへの参照が生成されにくくなります（候補が200件を超える場合は制約を省略し、プロンプト内の一覧のみ）。
+- プレビューは現在値とAI提案の行単位差分表示で、提案を適用した場合のスキーマ検証結果（エラー・警告数）も表示します。適用は Undo 可能で、自動保存はされません。
 - 生成中は「生成を中止」でキャンセルできます。
 - モデルに送信されるのは、指示、現在の文書、対象フィールドのスキーマ、ワークスペース内の既存ID（最大500件）です。
 
 接続設定:
 
-- **APIキー**: ダイアログで入力するか、環境変数 `OPENAI_API_KEY` を設定します。キーはメモリ上にのみ保持され、ディスクには保存されません。
-- **モデル**: 既定は `gpt-5.1`。変更すると端末の設定（Preferences）に保存されます。Structured Outputs 対応モデルが必要です。
+- **プロバイダ**: OpenAI / Anthropic をダイアログで切り替えます。選択は端末の設定（Preferences）に保存されます。
+- **APIキー**: ダイアログで入力するか、環境変数（`OPENAI_API_KEY` / `ANTHROPIC_API_KEY`）を設定します。キーはメモリ上にのみ保持され、ディスクには保存されません。
+- **モデル**: 既定は OpenAI が `gpt-5.1`、Anthropic が `claude-opus-4-8`。変更はプロバイダごとに端末の設定へ保存されます。Structured Outputs 対応モデルが必要です。
 
 ## 12. 既知の制約
 
