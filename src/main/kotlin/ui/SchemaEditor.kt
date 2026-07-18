@@ -263,6 +263,7 @@ private fun FieldDefinitionEditor(map: YNode.Map, doc: OpenDocument, definitions
         "enum" -> EnumValuesEditor(map, doc)
         "ref" -> {
             StringListEditor(map, "idPatterns", "IDパターン", "ACTOR-*, ROLE-*", doc)
+            CompactScalar(map, "relation", "関係種別", doc)
             val scope = ensureMap(map, "scope", doc, mark = false)
             StringListEditor(scope, "schemaIds", "対象スキーマID", "system-concepts, actor-detail", doc)
             StringListEditor(scope, "documentIds", "対象文書ID", "system-overview, actor-design", doc)

@@ -18,7 +18,7 @@ description: コード変更後にプロジェクトドキュメント（README.
    | 利用者から見える仕様・操作・UI・スキーマ定義構文 | README.md の該当節（画面構成図・ショートカット表・スキーマリファレンス・既知の制約を含む） |
    | クラス／パッケージの追加・移動・責務変更、データフロー・設計方針の変更 | docs/ARCHITECTURE.md §2（依存図）・§3（クラス表）・§4（方針）・§6（拡張ポイント） |
    | テストの追加 | docs/FEATURES.md のテスト列（`手動` → `単体`） |
-   | 未実装項目（L-xx）の解消・着手 | docs/FEATURES.md §8 と README.md「既知の制約」の両方 |
+   | 未実装項目（L-xx）の解消・着手 | docs/FEATURES.md §9 と README.md「既知の制約」の両方 |
    | ロードマップ項目（Rx-xx）の着手・完了、方向性の変更 | docs/ROADMAP.md §6 の状態表・該当項目（完了時は docs/FEATURES.md へ機能として登録） |
    | 規約・ビルド手順の変更 | docs/CONVENTIONS.md、CLAUDE.md のコマンド節 |
 

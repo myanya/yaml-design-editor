@@ -8,10 +8,11 @@ Kotlin + Compose for Desktop 製のスキーマ駆動YAMLエディタ。ワー�
 ./gradlew test                              # 単体テスト（コミット前に必ず実行）
 ./gradlew run                               # sample-workspace で起動
 ./gradlew run --args="/path/to/workspace"   # ワークスペース指定で起動
+./gradlew runCli -q --args="help"           # ヘッドレスCLI（GUIなしで探索・検索・パッチ・検証。README §13）
 ./gradlew packageDistributionForCurrentOS   # 配布物作成
 ```
 
-要件: JDK 17+。GUIアプリのため `run` は対話的に閉じる必要がある（検証はテストとビルドで行う）。
+要件: JDK 17+。GUIアプリのため `run` は対話的に閉じる必要がある（検証はテスト・ビルド・`runCli` で行う）。
 
 ## ドキュメント体系（必ず参照・更新する）
 

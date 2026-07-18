@@ -156,7 +156,10 @@ fun ReferenceGraphView(state: AppState) {
             items(edges.take(500)) { edge ->
                 Row(Modifier.fillMaxWidth().clickable { state.navigateToId(edge.targetId) }.padding(horizontal = 12.dp, vertical = 4.dp)) {
                     Text(edge.targetId, fontSize = 11.sp, color = Palette.Primary, modifier = Modifier.width(150.dp))
-                    Text("← ${state.relPath(edge.file)} · ${edge.viaKey}", fontSize = 11.sp, color = Palette.SubText)
+                    Text(
+                        "← ${state.relPath(edge.file)} · ${edge.viaKey}" + (edge.relation?.let { "（関係: $it）" } ?: ""),
+                        fontSize = 11.sp, color = Palette.SubText,
+                    )
                 }
             }
         }

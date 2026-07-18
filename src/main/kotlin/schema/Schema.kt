@@ -53,6 +53,7 @@ data class FieldDef(
     val fields: List<FieldDef> = emptyList(),// OBJECT の子フィールド定義
     val idPatterns: List<String> = emptyList(), // REF の参照先 ID glob（空 = 制限なし）
     val scope: RefScope = RefScope(),        // REF の探索範囲（空 = ワークスペース全体）
+    val relation: String? = null,            // REF の関係種別（例: implements / depends）。表示・カバレッジ判定に使う
     val default: Any? = null,                // 新規作成時の初期値
     val description: String? = null,         // フィールドの説明（フォームに表示）
     val ref: String? = null,                 // definitions 内の名前付き定義への参照
@@ -66,6 +67,26 @@ data class RefScope(
     val documentIds: List<String> = emptyList(),
 )
 
+/** カバレッジルールの重大度。 */
+enum class CoverageLevel(val id: String) {
+    WARNING("warning"),
+    ERROR("error");
+}
+
+/**
+ * このスキーマが定義する ID への被参照要件（トレーサビリティのカバレッジルール）。
+ * 「idPattern に一致する ID は、条件を満たす参照を minCount 件以上受けること」を表す。
+ */
+data class CoverageRule(
+    val id: String? = null,                       // ルールの識別子（表示用）
+    val description: String? = null,              // 人間向けの説明
+    val idPattern: String? = null,                // 対象 ID の glob（null = このスキーマの全 ID）
+    val fromSchemaIds: List<String> = emptyList(),// 参照元文書のスキーマIDを限定（空 = 制限なし）
+    val relation: String? = null,                 // 参照の関係種別を限定（null = 制限なし）
+    val minCount: Int = 1,                        // 必要な参照数
+    val level: CoverageLevel = CoverageLevel.WARNING,
+)
+
 /**
  * スキーマ 1 件。`match` の glob にマッチするファイルへ適用される。
  */
@@ -75,6 +96,7 @@ data class SchemaDef(
     val match: String,
     val root: FieldDef,
     val definitions: Map<String, FieldDef> = emptyMap(),
+    val coverage: List<CoverageRule> = emptyList(),
     val source: Path,
 ) {
     private val regex: Regex by lazy { globToRegex(match) }
@@ -95,6 +117,7 @@ data class SchemaDef(
                 description = current.description ?: target.description,
                 idPatterns = current.idPatterns.ifEmpty { target.idPatterns },
                 scope = if (current.scope == RefScope()) target.scope else current.scope,
+                relation = current.relation ?: target.relation,
                 unknownFields = current.unknownFields ?: target.unknownFields,
             )
         }
@@ -145,6 +168,10 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
     }
     check(root, "root", emptySet())
     definitions.forEach { (name, field) -> check(field, "definitions.$name", setOf(name)) }
+    coverage.forEachIndexed { i, rule ->
+        if (rule.minCount < 1) issues += SchemaIssue("minCountは1以上が必要です", "coverage[$i]")
+        if (rule.idPattern != null && rule.idPattern.isBlank()) issues += SchemaIssue("idPatternが空です", "coverage[$i]")
+    }
     return issues.distinct()
 }
 
@@ -264,7 +291,34 @@ object SchemaLoader {
         } ?: emptyMap()
         val rootMap = raw["root"] as? Map<*, *> ?: error("root定義が必要です")
         val root = parseField(rootMap, key = null)
-        return SchemaDef(id = id, name = name, match = match, root = root, definitions = definitions, source = source)
+        val coverage = parseCoverage(raw["coverage"])
+        return SchemaDef(id = id, name = name, match = match, root = root, definitions = definitions, coverage = coverage, source = source)
+    }
+
+    private fun parseCoverage(raw: Any?): List<CoverageRule> {
+        if (raw == null) return emptyList()
+        val list = raw as? List<*> ?: error("coverageはリストである必要があります")
+        return list.mapIndexed { i, entry ->
+            val m = entry as? Map<*, *> ?: error("coverage[$i]はobjectである必要があります")
+            val requiredBy = m["requiredBy"] as? Map<*, *>
+            val fromSchemaIds = when (val v = requiredBy?.get("schemaIds")) {
+                is List<*> -> v.map { it.toString() }
+                null -> emptyList()
+                else -> listOf(v.toString())
+            }
+            CoverageRule(
+                id = m["id"]?.toString(),
+                description = m["description"]?.toString(),
+                idPattern = m["idPattern"]?.toString(),
+                fromSchemaIds = fromSchemaIds,
+                relation = requiredBy?.get("relation")?.toString(),
+                minCount = (requiredBy?.get("minCount") as? Number)?.toInt() ?: 1,
+                level = m["level"]?.toString()?.let { value ->
+                    CoverageLevel.entries.firstOrNull { it.id == value }
+                        ?: error("coverage[$i].level は warning / error のいずれかである必要があります: $value")
+                } ?: CoverageLevel.WARNING,
+            )
+        }
     }
 
     private fun parseSchemaFile(file: Path): SchemaDef = parseSchemaText(Files.readString(file), file)
@@ -306,6 +360,7 @@ object SchemaLoader {
                 schemaIds = stringList("schemaIds"),
                 documentIds = stringList("documentIds"),
             ),
+            relation = m["relation"]?.toString(),
             default = m["default"],
             description = m["description"]?.toString(),
             ref = (m["\$ref"] ?: m["ref"])?.toString(),

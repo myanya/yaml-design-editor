@@ -36,6 +36,43 @@ fun YPath.pretty(): String {
     return sb.toString()
 }
 
+/**
+ * pretty() 形式のパス文字列（例: items[2].title）を YPath に変換する。
+ * キー名に `.` `[` `]` を含むパスは表現できない（本形式の制約）。
+ */
+fun parseYPath(text: String): YPath {
+    val trimmed = text.trim()
+    if (trimmed.isEmpty() || trimmed == "(root)") return emptyList()
+    val path = mutableListOf<Any>()
+    val key = StringBuilder()
+    fun flushKey() {
+        if (key.isNotEmpty()) {
+            path.add(key.toString())
+            key.clear()
+        }
+    }
+    var i = 0
+    while (i < trimmed.length) {
+        when (trimmed[i]) {
+            '.' -> flushKey()
+            '[' -> {
+                flushKey()
+                val end = trimmed.indexOf(']', i)
+                require(end > i) { "パスの [ が閉じられていません: $text" }
+                val idx = trimmed.substring(i + 1, end).toIntOrNull()
+                    ?: throw IllegalArgumentException("配列インデックスが整数ではありません: $text")
+                path.add(idx)
+                i = end
+            }
+            ']' -> throw IllegalArgumentException("対応しない ] があります: $text")
+            else -> key.append(trimmed[i])
+        }
+        i++
+    }
+    flushKey()
+    return path
+}
+
 /** ルートからパスをたどってノードを取得する。存在しなければ null。 */
 fun getAt(root: YNode, path: YPath): YNode? {
     var cur: YNode = root

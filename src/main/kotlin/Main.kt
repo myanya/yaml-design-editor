@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.TableRows
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.runtime.*
@@ -122,6 +123,7 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
                 when (state.workspaceView) {
                     1 -> WorkspaceTableView(state)
                     2 -> ReferenceGraphView(state)
+                    3 -> IdCrossView(state)
                     else -> EditorArea(state)
                 }
             }
@@ -162,7 +164,12 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
                     }
                 }
             },
-            confirmButton = {},
+            confirmButton = {
+                TextButton(onClick = {
+                    state.openCrossView(candidates.first().id)
+                    state.dismissNavigationCandidates()
+                }) { Text("横ぐしビューで表示") }
+            },
             dismissButton = { TextButton(onClick = state::dismissNavigationCandidates) { Text("閉じる") } },
         )
     }
@@ -215,6 +222,8 @@ fun Toolbar(state: AppState, leftOpen: Boolean, rightOpen: Boolean, darkMode: Bo
             tint = if (state.workspaceView == 1) Palette.Primary else Palette.SubText) }
         IconButton(onClick = { state.workspaceView = 2 }) { Icon(Icons.Default.AccountTree, "参照グラフ", Modifier.size(18.dp),
             tint = if (state.workspaceView == 2) Palette.Primary else Palette.SubText) }
+        IconButton(onClick = { state.openCrossView() }) { Icon(Icons.Default.Hub, "ID横ぐしビュー", Modifier.size(18.dp),
+            tint = if (state.workspaceView == 3) Palette.Primary else Palette.SubText) }
         Box {
             IconButton(onClick = { recentOpen = true }) { Icon(Icons.Default.History, "最近開いたファイル", Modifier.size(18.dp)) }
             DropdownMenu(recentOpen, { recentOpen = false }) {
@@ -267,6 +276,7 @@ private fun CommandPalette(state: AppState, onDismiss: () -> Unit) {
                 Spacer(Modifier.height(8.dp))
                 CommandItem("ワークスペース一覧を表示") { state.workspaceView = 1; onDismiss() }
                 CommandItem("参照グラフを表示") { state.workspaceView = 2; onDismiss() }
+                CommandItem("ID横ぐしビューを表示") { state.openCrossView(); onDismiss() }
                 CommandItem("すべて保存") { state.saveAll(); onDismiss() }
                 ids.forEach { id -> CommandItem("IDへ移動: $id") { state.navigateToId(id); onDismiss() } }
                 files.forEach { file -> CommandItem("開く: ${state.relPath(file)}") { state.openFile(file); onDismiss() } }

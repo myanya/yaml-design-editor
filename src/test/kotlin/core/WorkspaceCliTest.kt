@@ -1,0 +1,345 @@
+package core
+
+import model.parseYPath
+import validate.Severity
+import validate.Validator
+import java.nio.file.Files
+import java.nio.file.Path
+import kotlin.io.path.createTempDirectory
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+
+/**
+ * ヘッドレス層（Workspace / Disclosure / Search / CLI / カバレッジ検証）の結合テスト。
+ * P1 の完了条件「UIを起動せずに 検索 → 部分パッチ → 検証 → 保存」をここで通す。
+ */
+class WorkspaceCliTest {
+
+    private lateinit var ws: Path
+
+    @BeforeTest
+    fun setup() {
+        ws = createTempDirectory("yde-test")
+        write(
+            "_schemas/requirement.yaml",
+            """
+            id: requirement
+            name: 要求
+            match: "requirements/**/*.yaml"
+            coverage:
+              - idPattern: "REQ-???"
+                requiredBy:
+                  schemaIds: [design]
+                  relation: implements
+                  minCount: 1
+                level: error
+                description: 全要求は設計から参照されること
+            root:
+              type: object
+              fields:
+                - { key: id, type: id, required: true }
+                - { key: title, type: string, required: true }
+                - key: items
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: id, type: id }
+                      - { key: note, type: text }
+            """,
+        )
+        write(
+            "_schemas/design.yaml",
+            """
+            id: design
+            name: 設計
+            match: "designs/**/*.yaml"
+            root:
+              type: object
+              fields:
+                - { key: id, type: id, required: true }
+                - { key: title, type: string }
+                - key: implements
+                  type: array
+                  item:
+                    type: ref
+                    relation: implements
+                    scope:
+                      schemaIds: [requirement]
+            """,
+        )
+        write(
+            "requirements/req-a.yaml",
+            """
+            _document:
+              id: doc-req-a
+              name: 要求A
+              description: ログイン要求を定義するテスト用文書
+            id: REQ-001
+            title: ログイン機能
+            items:
+              - id: REQ-001-S1
+                note: サブ項目
+            """,
+        )
+        write(
+            "requirements/req-b.yaml",
+            """
+            id: REQ-002
+            title: 検索機能
+            """,
+        )
+        write(
+            "designs/dsn-a.yaml",
+            """
+            id: DSN-001
+            title: 認証設計
+            implements:
+              - REQ-001
+            """,
+        )
+        write(
+            "designs/dsn-b.yaml",
+            """
+            id: DSN-002
+            title: 未解決参照を含む設計
+            implements:
+              - REQ-404
+            """,
+        )
+    }
+
+    @AfterTest
+    fun cleanup() {
+        Files.walk(ws).use { it.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
+    }
+
+    private fun write(rel: String, content: String) {
+        val file = ws.resolve(rel)
+        Files.createDirectories(file.parent)
+        Files.writeString(file, content.trimIndent() + "\n")
+    }
+
+    // ---------------------------------------------------------------- 段階的開示
+
+    @Test
+    fun `catalog lists document metadata and schema`() {
+        val workspace = Workspace.open(ws)
+        val catalog = Disclosure.catalog(workspace)
+        val reqA = catalog.single { it.file == "requirements/req-a.yaml" }
+        assertEquals("doc-req-a", reqA.documentId)
+        assertEquals("要求A", reqA.name)
+        assertEquals("requirement", reqA.schemaId)
+        assertEquals(2, reqA.idCount) // REQ-001 と REQ-001-S1
+    }
+
+    @Test
+    fun `outline shows structure without long bodies`() {
+        val workspace = Workspace.open(ws)
+        val doc = workspace.load("requirements/req-a.yaml")
+        val outline = Disclosure.outline(doc.root!!)
+        assertTrue("items: (array, 1件)" in outline, outline)
+        assertTrue("id: REQ-001" in outline, outline)
+    }
+
+    @Test
+    fun `nodeYaml returns subtree and enforces budget`() {
+        val workspace = Workspace.open(ws)
+        val doc = workspace.load("requirements/req-a.yaml")
+        val yaml = Disclosure.nodeYaml(doc.root!!, parseYPath("items[0]"))
+        assertTrue("id: REQ-001-S1" in yaml)
+        val truncated = Disclosure.nodeYaml(doc.root!!, emptyList(), maxChars = 30)
+        assertTrue("省略" in truncated)
+    }
+
+    @Test
+    fun `bundle contains target refs and backlinks`() {
+        val workspace = Workspace.open(ws)
+        val bundle = Disclosure.bundle(workspace, "requirements/req-a.yaml", emptyList())
+        assertTrue("documentId: doc-req-a" in bundle)
+        assertTrue("backlinks:" in bundle, bundle)
+        assertTrue("designs/dsn-a.yaml" in bundle, bundle)
+    }
+
+    // ---------------------------------------------------------------- 検索
+
+    @Test
+    fun `text search finds values with schema filter`() {
+        val workspace = Workspace.open(ws)
+        val hits = Search.run(workspace, SearchQuery(text = "ログイン"))
+        assertTrue(hits.any { it.file == "requirements/req-a.yaml" && it.path == "title" })
+        val designOnly = Search.run(workspace, SearchQuery(text = "ログイン", schemaIds = listOf("design")))
+        assertTrue(designOnly.isEmpty())
+    }
+
+    @Test
+    fun `ref search finds referencing locations with relation`() {
+        val workspace = Workspace.open(ws)
+        val hits = Search.run(workspace, SearchQuery(refsTo = "REQ-001"))
+        val hit = hits.single()
+        assertEquals("designs/dsn-a.yaml", hit.file)
+        assertEquals("ref", hit.kind)
+        assertTrue("implements" in hit.excerpt)
+    }
+
+    @Test
+    fun `unresolved ref search finds broken references`() {
+        val workspace = Workspace.open(ws)
+        val hits = Search.run(workspace, SearchQuery(unresolvedRefs = true))
+        assertEquals(listOf("designs/dsn-b.yaml"), hits.map { it.file })
+        assertEquals("unresolved-ref", hits.single().kind)
+    }
+
+    // ---------------------------------------------------------------- カバレッジ検証（R1-06）
+
+    @Test
+    fun `coverage rule flags unreferenced requirement`() {
+        val workspace = Workspace.open(ws)
+        // REQ-001 は design から implements 関係で参照済み → 充足
+        val issuesA = workspace.validate("requirements/req-a.yaml")
+        assertTrue(issuesA.none { "参照が不足" in it.message }, issuesA.toString())
+        // REQ-002 は未参照 → カバレッジエラー
+        val issuesB = workspace.validate("requirements/req-b.yaml")
+        val coverage = issuesB.single { "参照が不足" in it.message }
+        assertEquals(Severity.ERROR, coverage.severity)
+        assertTrue("REQ-002" in coverage.message)
+        assertTrue("implements" in coverage.message)
+    }
+
+    @Test
+    fun `coverage status is queryable per id`() {
+        val workspace = Workspace.open(ws)
+        val schema = workspace.schemas.single { it.id == "requirement" }
+        val ok = Validator.coverageStatuses("REQ-001", schema, workspace.index).single()
+        assertTrue(ok.satisfied)
+        val ng = Validator.coverageStatuses("REQ-002", schema, workspace.index).single()
+        assertFalse(ng.satisfied)
+        // パターン外のID（サブ項目）にはルールが適用されない
+        assertTrue(Validator.coverageStatuses("REQ-001-S1", schema, workspace.index).isEmpty())
+    }
+
+    // ---------------------------------------------------------------- 変更セット適用（R1-02）
+
+    @Test
+    fun `dry run reports without writing`() {
+        val workspace = Workspace.open(ws)
+        val before = Files.readString(ws.resolve("requirements/req-b.yaml"))
+        val result = workspace.apply(
+            ChangeSets.parse("changes:\n  - file: requirements/req-b.yaml\n    ops:\n      - { op: set, path: title, value: 高度な検索 }"),
+            dryRun = true,
+        )
+        assertTrue(result.ok)
+        assertFalse(result.results.single().applied)
+        assertEquals(before, Files.readString(ws.resolve("requirements/req-b.yaml")))
+    }
+
+    @Test
+    fun `apply writes multiple files atomically and refreshes index`() {
+        val workspace = Workspace.open(ws)
+        val result = workspace.apply(
+            ChangeSets.parse(
+                """
+                changes:
+                  - file: requirements/req-b.yaml
+                    ops:
+                      - { op: set, path: title, value: 高度な検索 }
+                  - file: designs/dsn-a.yaml
+                    ops:
+                      - { op: insert, path: "implements[1]", value: REQ-002 }
+                """.trimIndent()
+            ),
+        )
+        assertTrue(result.ok)
+        assertTrue(result.results.all { it.applied })
+        assertTrue("高度な検索" in Files.readString(ws.resolve("requirements/req-b.yaml")))
+        // 索引が更新され、REQ-002 のカバレッジが充足に変わる
+        val issuesB = workspace.validate("requirements/req-b.yaml")
+        assertTrue(issuesB.none { "参照が不足" in it.message }, issuesB.toString())
+    }
+
+    @Test
+    fun `base hash conflict aborts the whole changeset`() {
+        val workspace = Workspace.open(ws)
+        val base = ChangeSets.contentHash(Files.readString(ws.resolve("requirements/req-b.yaml")))
+        // 変更セット作成後にディスク側が変わる
+        write("requirements/req-b.yaml", "id: REQ-002\ntitle: 別の編集")
+        val result = workspace.apply(
+            ChangeSets.parse(
+                """
+                changes:
+                  - file: requirements/req-b.yaml
+                    base: $base
+                    ops:
+                      - { op: set, path: title, value: 上書き }
+                  - file: requirements/req-a.yaml
+                    ops:
+                      - { op: set, path: title, value: 影響を受ける変更 }
+                """.trimIndent()
+            ),
+        )
+        assertFalse(result.ok)
+        assertTrue(result.results.first { it.file == "requirements/req-b.yaml" }.message!!.contains("競合"))
+        // 競合したため他ファイルも書き込まれない
+        assertTrue("ログイン機能" in Files.readString(ws.resolve("requirements/req-a.yaml")))
+    }
+
+    @Test
+    fun `requireValid blocks writes when validation errors remain`() {
+        val workspace = Workspace.open(ws)
+        val result = workspace.apply(
+            ChangeSets.parse("changes:\n  - file: requirements/req-a.yaml\n    ops:\n      - { op: delete, path: title }"),
+            requireValid = true,
+        )
+        assertFalse(result.ok)
+        assertTrue("ログイン機能" in Files.readString(ws.resolve("requirements/req-a.yaml")))
+        assertTrue(result.results.single().issues.any { it.severity == Severity.ERROR })
+    }
+
+    // ---------------------------------------------------------------- CLI（P1完了条件の一気通貫）
+
+    @Test
+    fun `cli runs search patch validate save end to end`() {
+        val dir = ws.toString()
+        // 1) 検索: カバレッジ不足の対象を探す
+        val searchOut = runCli(arrayOf("search", dir, "--text", "検索機能"))
+        assertTrue("requirements/req-b.yaml" in searchOut)
+        // 2) 部分パッチ: base ハッシュ付き変更セットを適用（＝保存）
+        val hashOut = runCli(arrayOf("hash", dir, "requirements/req-b.yaml"))
+        val base = Regex("base: (\\w+)").find(hashOut)!!.groupValues[1]
+        val changeSet = ws.resolve("changeset.yaml")
+        Files.writeString(
+            changeSet,
+            """
+            changes:
+              - file: designs/dsn-a.yaml
+                ops:
+                  - { op: insert, path: "implements[1]", value: REQ-002 }
+              - file: requirements/req-b.yaml
+                base: $base
+                ops:
+                  - { op: set, path: title, value: 高度な検索機能 }
+            """.trimIndent(),
+        )
+        val applyOut = runCli(arrayOf("apply", dir, changeSet.toString()))
+        assertTrue("ok: true" in applyOut, applyOut)
+        // 3) 検証: カバレッジ不足が解消されている
+        val validateOut = runCli(arrayOf("validate", dir))
+        assertTrue("参照が不足" !in validateOut, validateOut)
+        // 4) 保存結果の確認
+        assertTrue("高度な検索機能" in Files.readString(ws.resolve("requirements/req-b.yaml")))
+        Files.deleteIfExists(changeSet)
+    }
+
+    @Test
+    fun `cli catalog outline read work headlessly`() {
+        val dir = ws.toString()
+        assertTrue("doc-req-a" in runCli(arrayOf("catalog", dir)))
+        assertTrue("items: (array, 1件)" in runCli(arrayOf("outline", dir, "requirements/req-a.yaml")))
+        assertTrue("REQ-001-S1" in runCli(arrayOf("read", dir, "requirements/req-a.yaml", "items[0]")))
+        assertTrue("unresolved-ref" in runCli(arrayOf("search", dir, "--unresolved")))
+    }
+}

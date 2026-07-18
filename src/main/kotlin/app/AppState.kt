@@ -16,7 +16,6 @@ import schema.SchemaLoader
 import yaml.YamlIO
 import java.nio.file.Files
 import java.nio.file.Path
-import kotlin.io.path.extension
 import java.util.prefs.Preferences
 
 /**
@@ -130,8 +129,17 @@ class AppState {
 
     /** 0 = フォーム, 1 = ソース */
     var editorTab by mutableStateOf(0)
-    /** 0 = 文書, 1 = 一覧, 2 = 参照グラフ */
+    /** 0 = 文書, 1 = 一覧, 2 = 参照グラフ, 3 = ID横ぐし */
     var workspaceView by mutableStateOf(0)
+
+    /** ID横ぐしビューで選択中の論理ID。 */
+    var crossViewId by mutableStateOf<String?>(null)
+
+    /** ID横ぐしビューを開く（id 指定時はそのIDを選択）。 */
+    fun openCrossView(id: String? = null) {
+        if (id != null) crossViewId = id
+        workspaceView = 3
+    }
 
     var status by mutableStateOf("「開く」からワークスペース（ディレクトリ）を選択してください")
     var aiRequest by mutableStateOf<AiRequest?>(null)
@@ -190,34 +198,12 @@ class AppState {
         indexVersion++
     }
 
-    private fun scanYamlFiles(ws: Path): List<Path> {
-        val result = mutableListOf<Path>()
-        Files.walk(ws).use { stream ->
-            stream.forEach { p ->
-                if (!Files.isRegularFile(p)) return@forEach
-                val name = p.fileName.toString()
-                if (name.startsWith(".")) return@forEach
-                if (p.extension == "yaml" || p.extension == "yml") result.add(p)
-            }
-        }
-        return result.sortedBy { it.toString() }
-    }
+    // ファイル走査は core.WorkspaceScan（ヘッドレス層）と共通の実装を使う。
+    private fun scanYamlFiles(ws: Path): List<Path> = core.WorkspaceScan.yamlFiles(ws)
 
-    private fun scanDirectories(ws: Path): List<Path> {
-        val result = mutableListOf<Path>()
-        Files.walk(ws).use { stream ->
-            stream.filter { it != ws && Files.isDirectory(it) }.forEach { p ->
-                if (!p.fileName.toString().startsWith(".")) result.add(p)
-            }
-        }
-        return result.sortedBy { it.toString() }
-    }
+    private fun scanDirectories(ws: Path): List<Path> = core.WorkspaceScan.directories(ws)
 
-    private fun snapshotFiles(ws: Path): Map<Path, Long> = buildMap {
-        scanYamlFiles(ws).forEach { p ->
-            put(p, runCatching { Files.getLastModifiedTime(p).toMillis() }.getOrDefault(0L))
-        }
-    }
+    private fun snapshotFiles(ws: Path): Map<Path, Long> = core.WorkspaceScan.stamps(ws)
 
     /** UI の周期処理から呼び、外部での作成・変更・削除を検出する。 */
     fun pollExternalChanges() {

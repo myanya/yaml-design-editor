@@ -28,6 +28,15 @@ kotlin {
     jvmToolchain(17)
 }
 
+// ヘッドレスCLI（UIなしでカタログ・検索・パッチ・検証を実行する）
+// 例: ./gradlew runCli --args="catalog sample-workspace" -q
+tasks.register<JavaExec>("runCli") {
+    group = "application"
+    description = "ヘッドレスCLIを実行する（core.CliKt）"
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("core.CliKt")
+}
+
 compose.desktop {
     application {
         mainClass = "MainKt"

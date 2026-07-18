@@ -9,25 +9,29 @@
 - AI連携: Java 11 HttpClient + kotlinx-serialization-json（外部SDK不使用）
 - 永続化: `java.util.prefs.Preferences`（UIレイアウト・テーマ・履歴・AIモデル設定）
 - ビルド: Gradle（Wrapper 同梱）、テスト: kotlin.test
+- ヘッドレスCLI: `./gradlew runCli --args="…"`（GUIなしで探索・検索・パッチ・検証。README §13） 
 
 ## 2. パッケージ構成と依存方向
 
 ```
 src/main/kotlin/
-├── model/     YNode: YAMLの可変ツリー表現、YPath          （依存なし）
+├── model/     YNode: YAMLの可変ツリー表現、YPath（パース含む） （依存なし）
 ├── yaml/      YamlIO: SnakeYAML との相互変換               （→ model）
-├── schema/    スキーマモデル・ローダ・メタ検証・glob       （→ model, yaml）
-├── index/     ID索引・参照スキャナ                          （→ model, schema, yaml）
-├── validate/  スキーマ検証・参照解決・重複検出              （→ model, schema, index, app）
+├── schema/    スキーマモデル・ローダ・メタ検証・カバレッジルール・glob（→ model, yaml）
+├── index/     ID索引・参照スキャナ（関係種別つき）          （→ model, schema, yaml）
+├── validate/  スキーマ検証・参照解決・重複・カバレッジ検証  （→ model, schema, index）
+├── core/      ヘッドレス層: ワークスペース操作・パッチ・段階的開示・構造検索・CLI
+│              （→ model, yaml, schema, index, validate。UI/Compose 非依存）
 ├── ai/        AI生成: JSON Schema変換・プロバイダクライアント（→ model, schema, index）
-├── app/       AppState / OpenDocument: アプリ状態・ファイル操作（→ model, yaml, schema, index）
+├── app/       AppState / OpenDocument: アプリ状態・ファイル操作（→ core とロジック層）
 ├── ui/        Composeビュー一式                             （→ 上記すべて）
 └── Main.kt    エントリポイント・ウィンドウ・ツールバー・パレット（→ app, ui, index）
 ```
 
-**依存ルール**: `model` → `yaml` → `schema` → `index` → `app` → `ui` の一方向。逆流させない。
+**依存ルール**: `model` → `yaml` → `schema` → `index` → `validate` → `core` → `app` → `ui` の一方向。逆流させない。
 
-- `model` / `yaml` / `schema` / `index` / `validate` / `ai` は **Compose 非依存**（純粋ロジック）。単体テストはこの層に書く。
+- `model` / `yaml` / `schema` / `index` / `validate` / `core` / `ai` は **Compose・UI 非依存**（純粋ロジック）。単体テストはこの層に書く。
+- `core` はエージェント・CLI・UI が共通で使うヘッドレス操作の層（ROADMAP P1）。UI（AppState）はファイル走査などの基盤処理を `core` に委譲する。
 - `app` は Compose の `mutableStateOf` のみに依存（UI部品には依存しない）。
 - `ai` はネットワークを伴うが、リクエスト構築・レスポンス解析は純粋関数として分離しテスト可能にしている。
 
@@ -37,18 +41,25 @@ src/main/kotlin/
 |---|---|---|
 | `YNode` (Scalar/Seq/Map) | model/YNode.kt | YAMLの可変ツリー。`YPath`（String=キー, Int=索引）で位置を表現 |
 | `YamlIO` | yaml/YamlIO.kt | テキスト⇔`YNode` 変換。表層情報を保持しない正規化ダンプ（ブロック・インデント2） |
-| `FieldType` / `FieldDef` / `SchemaDef` | schema/Schema.kt | スキーマモデル。`resolve()` が `$ref` を属性合成しつつ解決 |
+| `FieldType` / `FieldDef` / `SchemaDef` | schema/Schema.kt | スキーマモデル。`resolve()` が `$ref` を属性合成しつつ解決。`FieldDef.relation` が参照の関係種別 |
+| `CoverageRule` / `CoverageLevel` | schema/Schema.kt | スキーマの `coverage`（被参照必須などのトレーサビリティ要件）の定義 |
 | `SchemaLoader` | schema/Schema.kt | `_schemas/` の読込・パース・スキーマID重複検出 |
 | `validateDefinition` / `generateSample` | schema/Schema.kt | メタスキーマ検証・サンプルデータ生成（拡張関数） |
 | `globToRegex` / `idMatchesPattern` | schema / index | glob→正規表現変換（パス用と ID 用で対応構文が異なる点に注意） |
-| `DocScanner` | index/IdIndex.kt | 1文書からのID・参照抽出。スキーマ有無で検出規則を切替、未知キー境界で走査停止 |
+| `DocScanner` | index/IdIndex.kt | 1文書からのID・参照抽出。スキーマ有無で検出規則を切替、未知キー境界で走査停止。参照には `relation` / `sourceSchemaId` を付与 |
 | `IdIndex` | index/IdIndex.kt | ワークスペース全体の `id -> 出現一覧` 索引と全参照。**ディスク基準**（未保存編集は反映されない） |
-| `Validator` | validate/Validator.kt | 開いている文書の検証。スキーマ適合＋参照解決＋文書内ID重複 |
+| `Validator` | validate/Validator.kt | 文書の検証（UI非依存）。スキーマ適合＋参照解決＋文書内ID重複＋カバレッジ（`coverageStatuses` はUIとも共用） |
+| `Workspace` / `WorkspaceScan` | core/Workspace.kt | ヘッドレスなワークスペース操作（開く・読む・保存・検証・変更セット適用）。相対パス解決はワークスペース外への脱出を拒否 |
+| `PatchOp` / `Patcher` / `ChangeSets` | core/Patch.kt | YPathパッチ（set/insert/delete/move）と変更セット（baseハッシュ競合検出、YAML解析） |
+| `Disclosure` | core/Disclosure.kt | 段階的開示: カタログ→骨子→ノード全文、文字数予算付き文脈バンドル |
+| `Search` | core/Search.kt | 構造検索: 本文・キー部分一致＋スキーマ／glob条件、参照・未解決参照の検索 |
+| `runCli` | core/Cli.kt | CLIコマンド（catalog/outline/read/bundle/search/validate/apply/hash）。出力はUTF-8のYAML |
 | `OpenDocument` | app/AppState.kt | 開いている1文書。ツリー・履歴（Undo/Redo）・dirty・外部競合の管理 |
 | `AppState` | app/AppState.kt | ワークスペース・文書キャッシュ・索引・ナビゲーション・ファイル操作・一括更新・外部変更検出 |
 | `AiGenerator` ほか | ai/ | スキーマ→JSON Schema 変換、REF候補の enum 制約、プロバイダ振り分け |
 | `OpenAiGenerator` / `AnthropicGenerator` | ai/ | 各API（Responses / Messages）のリクエスト構築とレスポンス解析 |
 | `FormView` / `FormCtx` | ui/FormView.kt | スキーマ駆動フォームと汎用エディタ（中核UI）。`FormCtx` が編集操作と参照解決を仲介 |
+| `IdCrossView` | ui/IdCrossView.kt | ID横ぐしビュー: 同一論理IDの全出現・参照・被参照・カバレッジ充足の集約表示 |
 | `Slot` (Map/Seq/Root) | ui/Common.kt | 「値の置き場所」の抽象。後述 |
 | `AiGenerationHost` | ui/AiGenerationDialog.kt | AI生成ダイアログの状態機械（入力→生成→プレビュー→適用）と提案合成 |
 | `SchemaEditor` | ui/SchemaEditor.kt | `_schemas` 用の構造化エディタ（設計・プレビュー・適用対象） |
@@ -82,6 +93,8 @@ Undo/Redo は `YamlIO.dump` したスナップショット文字列の履歴（�
 
 - 同一IDの複数文書出現は「同一論理要素の段階的詳細化」として正当。エラーは同一文書内の重複のみ。
 - 参照の解決可否は `idPatterns` × `scope.schemaIds` × `scope.documentIds` のAND（各配列内はOR）。候補表示と検証で同じ判定（`IdEntry.isAllowedBy`）を使う。判定ロジックを追加する場合も候補・検証・AI制約（`refCandidateIds`）の三箇所で一貫させる。
+- 参照には任意の**関係種別**（`relation`）を付けられる。関係種別は解決可否には影響せず、表示（SidePanel・横ぐしビュー・グラフ）と**カバレッジ判定**にのみ使う。
+- カバレッジルール（スキーマの `coverage`）は「対象IDが、条件（参照元スキーマ・関係）を満たす参照を minCount 件以上受けること」。判定は `Validator.coverageStatuses` に一元化し、検証（Issue化）とUI表示の両方から使う。索引基準のため未保存編集は保存まで反映されない。
 
 ### 4.7 スキーマの `$ref` 解決
 
@@ -106,8 +119,9 @@ Undo/Redo は `YamlIO.dump` したスナップショット文字列の履歴（�
 
 - **編集**: フォーム操作 → `Slot.set` / ツリー直接変更 → `markEdited()` → `version`++ → 再コンポーズ＋履歴追加
 - **保存**: `canonicalText()` をファイルへ書き出し → スキーマファイルなら再読込 → `rebuildIndex()` → `indexVersion`++
-- **ジャンプ**: `navigateToId` → 索引の出現検索（複数なら選択ダイアログ）→ `openFile(file, focus)` → `highlightPath` 設定 → `Highlightable` がスクロール
+- **ジャンプ**: `navigateToId` → 索引の出現検索（複数なら選択ダイアログ／横ぐしビュー）→ `openFile(file, focus)` → `highlightPath` 設定 → `Highlightable` がスクロール
 - **AI生成**: ✨/ボタン → `AppState.requestAi(field, path)` → `AiGenerationHost` が現ツリーを複製して入力構築 → プロバイダ呼び出し → `combineProposal`/`replaceInClone` で適用後ツリーを合成 → 差分プレビュー＋`Validator` で事前検証 → 適用（`doc.root` 差し替え）
+- **ヘッドレス変更セット適用**（CLI／将来のエージェント）: `ChangeSets.parse` → 全ファイルの base ハッシュ照合＋パッチ適用（メモリ上）→ `Validator` で適用後検証 → **全件成功時のみ**書き込み（`--require-valid` 指定時は検証エラーでも中止）→ `refresh()` で索引更新。1件でも失敗すれば何も書かないオール・オア・ナッシング
 
 ## 6. 拡張ポイント
 

@@ -136,8 +136,7 @@ fun AiGenerationHost(state: AppState) {
 
     val validationIssues = remember(proposedRoot) {
         proposedRoot?.let { root ->
-            val preview = OpenDocument(doc.file, cloneNode(root), doc.schema, YamlIO.dump(root), null)
-            Validator.validate(preview, state.index)
+            Validator.validate(root, null, doc.file, doc.schema, state.index)
         }.orEmpty()
     }
 

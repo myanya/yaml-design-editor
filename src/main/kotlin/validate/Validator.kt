@@ -1,16 +1,20 @@
 package validate
 
-import app.OpenDocument
 import index.DocScanner
 import index.IdIndex
+import index.idMatchesPattern
 import index.isAllowedBy
 import model.YNode
 import model.YPath
 import model.pretty
 import model.scalarText
+import schema.CoverageLevel
+import schema.CoverageRule
 import schema.FieldDef
 import schema.FieldType
+import schema.SchemaDef
 import schema.UnknownFieldsPolicy
+import java.nio.file.Path
 
 enum class Severity { ERROR, WARNING }
 
@@ -20,28 +24,45 @@ data class Issue(
     val path: YPath,
 )
 
+/** カバレッジルール1件の判定結果（検証と横ぐしビューで共用）。 */
+data class CoverageStatus(
+    val rule: CoverageRule,
+    val id: String,
+    val count: Int,
+) {
+    val satisfied: Boolean get() = count >= rule.minCount
+}
+
 /**
- * 開いているドキュメントの検証。
+ * ドキュメントの検証。UI・アプリ状態に依存しない（core / CLI からも使う）。
  * - スキーマ適合（必須／型／enum／日付形式）
  * - 参照解決（索引 + 同一ドキュメント内の未保存 ID を考慮）
  * - ID 重複（同一ドキュメント内）
+ * - カバレッジ（スキーマの coverage ルールによる被参照数の充足。索引＝保存済み状態に基づく）
  */
 object Validator {
 
     private val DATE_RE = Regex("""\d{4}-\d{2}-\d{2}""")
 
-    fun validate(doc: OpenDocument, indexObj: IdIndex): List<Issue> {
-        val root = doc.root
-            ?: return listOf(Issue(Severity.ERROR, "YAML パースエラー: ${doc.parseError ?: "不明"}", emptyList()))
+    fun validate(
+        root: YNode?,
+        parseError: String?,
+        file: Path,
+        schema: SchemaDef?,
+        indexObj: IdIndex,
+    ): List<Issue> {
+        if (root == null) {
+            return listOf(Issue(Severity.ERROR, "YAML パースエラー: ${parseError ?: "不明"}", emptyList()))
+        }
 
         val issues = mutableListOf<Issue>()
 
         // 1) スキーマ検証
-        doc.schema?.let { checkField(it.root, root, emptyList(), issues, it) }
+        schema?.let { checkField(it.root, root, emptyList(), issues, it) }
 
         // 2) ID / 参照の検証
-        val documentId = indexObj.documentIdFor(doc.file, root)
-        val (localIds, localRefs) = DocScanner.scan(root, doc.file, doc.schema, documentId)
+        val documentId = indexObj.documentIdFor(file, root)
+        val (localIds, localRefs) = DocScanner.scan(root, file, schema, documentId)
         val localIdSet = localIds.map { it.id }.toSet()
 
         // ドキュメント内の ID 重複
@@ -64,7 +85,37 @@ object Validator {
                 )
             }
         }
+        // 3) カバレッジ（このスキーマが要求する被参照数）
+        if (schema != null && schema.coverage.isNotEmpty()) {
+            for (entry in localIds) {
+                for (status in coverageStatuses(entry.id, schema, indexObj)) {
+                    if (status.satisfied) continue
+                    val severity = if (status.rule.level == CoverageLevel.ERROR) Severity.ERROR else Severity.WARNING
+                    issues += Issue(severity, coverageMessage(status), entry.path)
+                }
+            }
+        }
         return issues
+    }
+
+    /** ID 1件に適用されるカバレッジルールの判定。索引（保存済み状態）の参照を数える。 */
+    fun coverageStatuses(id: String, schema: SchemaDef, indexObj: IdIndex): List<CoverageStatus> =
+        schema.coverage.mapNotNull { rule ->
+            if (rule.idPattern != null && !idMatchesPattern(id, rule.idPattern)) return@mapNotNull null
+            val count = indexObj.refs.count { ref ->
+                ref.targetId == id &&
+                    (rule.fromSchemaIds.isEmpty() || ref.sourceSchemaId in rule.fromSchemaIds) &&
+                    (rule.relation == null || ref.relation == rule.relation)
+            }
+            CoverageStatus(rule, id, count)
+        }
+
+    fun coverageMessage(status: CoverageStatus): String = buildString {
+        append("ID「${status.id}」への参照が不足しています（現在 ${status.count} 件／必要 ${status.rule.minCount} 件")
+        if (status.rule.fromSchemaIds.isNotEmpty()) append("、参照元スキーマ: ${status.rule.fromSchemaIds.joinToString(", ")}")
+        status.rule.relation?.let { append("、関係: $it") }
+        append("）")
+        status.rule.description?.let { append(" — $it") }
     }
 
     private fun checkField(field: FieldDef, node: YNode?, path: YPath, issues: MutableList<Issue>, schema: schema.SchemaDef) {

@@ -54,7 +54,7 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
         state.indexVersion
 
         val issues = remember(doc, doc.version, state.indexVersion) {
-            Validator.validate(doc, state.index)
+            Validator.validate(doc.root, doc.parseError, doc.file, doc.schema, state.index)
         }
         val scanned = remember(doc, doc.version) {
             val root = doc.root
@@ -158,7 +158,7 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                                 color = if (resolvable) Palette.Primary else Palette.ErrorRed,
                             )
                             Text(
-                                "${ref.viaKey} ／ ${ref.path.pretty()}",
+                                "${ref.viaKey}${ref.relation?.let { "（関係: $it）" } ?: ""} ／ ${ref.path.pretty()}",
                                 fontSize = 10.sp, color = Palette.SubText,
                             )
                         }
@@ -195,7 +195,7 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                                 fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                             )
                             Text(
-                                "${bl.viaKey} ／ ${bl.path.pretty()}",
+                                "${bl.viaKey}${bl.relation?.let { "（関係: $it）" } ?: ""} ／ ${bl.path.pretty()}",
                                 fontSize = 10.sp, color = Palette.SubText,
                             )
                         }

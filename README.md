@@ -11,8 +11,10 @@ YAML で設計項目（要求・設計・課題など）を管理するための
 - `_schemas` 専用のスキーマ設計画面と、`definitions` / `$ref` による再帰定義
 - Undo/Redo、保存ショートカット、未保存終了確認、復元されるペインレイアウト
 - ライト／ダークを切り替えられるMaterial 3テーマ（選択状態は次回起動時に復元）
-- ワークスペース一覧・絞り込み・一括編集、参照グラフ、差分表示、コマンドパレット、最近開いたファイル
+- ワークスペース一覧・絞り込み・一括編集、参照グラフ、**ID横ぐしビュー**、差分表示、コマンドパレット、最近開いたファイル
+- 参照への**関係種別**（`relation`）付与と、「全要求は設計から参照される」等の**カバレッジルール**によるトレーサビリティ検証
 - **AIによる作成支援**（OpenAI / Anthropic 連携）: フィールド単位・配列への候補追加・文書全体のたたき台生成。スキーマ準拠の構造化出力＋適用前プレビューと検証
+- **ヘッドレスCLI**: GUIなしでカタログ・骨子・検索・部分パッチ（変更セット）・検証を実行（エージェント連携の基盤）
 
 本書は**利用者向けマニュアル**です。開発者向けの情報は次を参照してください（内容は分担しており重複させません）。
 
@@ -149,6 +151,7 @@ root:                                 # ルートのフィールド定義（通�
 | `idPattern` / `idPatterns` | `ref` の参照先IDをglob（`*`, `?`）で限定。複数指定はOR |
 | `scope.schemaIds` | 参照先を特定スキーマIDに限定。配列内はOR |
 | `scope.documentIds` | 参照先を特定ドキュメントIDに限定。配列内はOR |
+| `relation` | `ref` の関係種別（例 `implements` / `depends`）。解決可否には影響せず、表示とカバレッジ判定に使う |
 | `default` | 「追加」「作成」時の初期値 |
 | `description` | フォームに表示される説明文 |
 
@@ -263,6 +266,27 @@ root:
 
 スキーマファイルを保存すると、メタスキーマ検証結果は通常の右側「検証」パネルにも表示されます。
 
+### カバレッジルール（被参照の必須化）
+
+スキーマのルート直下に `coverage` を書くと、「このスキーマが定義するIDは、条件を満たす参照を一定数以上受けること」を検証できます（トレーサビリティの充足チェック）。
+
+```yaml
+id: requirement
+match: "requirements/**/*.yaml"
+coverage:
+  - idPattern: "REQ-???"        # 対象ID（省略時はこのスキーマの全ID）
+    requiredBy:
+      schemaIds: [design-item]  # 参照元文書のスキーマを限定（省略可）
+      relation: implements      # 参照の関係種別を限定（省略可）
+      minCount: 1               # 必要な参照数（既定 1）
+    level: error                # warning（既定）/ error
+    description: 全要求は設計項目から参照されること
+root:
+  ...
+```
+
+不足があると、IDを定義している文書の「検証」パネルに指摘が表示されます。判定は保存済みの索引に基づくため、参照を追加した文書を保存すると反映されます。充足状況はID横ぐしビューでも確認できます。
+
 ## 5. ワークスペース横断機能
 
 ツールバーのビュー切替から、次の横断ビューを利用できます。
@@ -270,6 +294,7 @@ root:
 - **一覧ビュー**: ID、タイトル、状態、担当、種別、ファイルを表形式で表示し、文字列・種別・状態で絞り込み
 - **一括編集**: 選択した複数ファイルのルート `status` または `owner` を確認後に一括更新
 - **参照グラフ**: ワークスペース内の参照関係をノード／エッジと一覧で表示し、参照先IDへ移動
+- **ID横ぐしビュー**: 同一論理IDの全出現（各文書での記述プレビュー）、その要素からの参照、被参照、カバレッジ充足を1画面に集約。ツールバーのハブアイコン、コマンドパレット、ID出現候補ダイアログの「横ぐしビューで表示」から開けます
 - **差分**: 文書の「差分」タブで、ディスク上の保存済み内容と編集中内容を左右比較
 - **最近開いたファイル**: ツールバーの履歴アイコンから直近12ファイルを再度開く。履歴はワークスペース単位で保存
 - **コマンドパレット**: `Ctrl+K` で開き、ビュー切替、保存、ファイル検索、ID移動をキーボード中心で実行
@@ -344,6 +369,7 @@ scope:
 - `date` の形式逸脱（警告）
 - 未解決の参照
 - ID の重複（同一ファイル内。異なるファイルの同一IDは許容）
+- カバレッジルールの不足（被参照数が `coverage` の要件に満たないID）
 - スキーマファイルの構造、未知の型、フィールドキー重複、array/mapの子定義不足、未解決の `$ref`
 
 ## 8. 外部変更・競合・安全性
@@ -397,3 +423,35 @@ Material 3ベースのライト／ダークテーマを搭載しています。�
 - 一覧ビューの一括編集対象はルートの `status` と `owner` です。
 
 改善予定を含む実装状況の全体は [docs/FEATURES.md](docs/FEATURES.md) で管理しています。拡張方法（型の追加・コメント保持・横断ビュー・AIプロバイダの追加）は [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) の「拡張ポイント」を参照してください。
+
+## 13. ヘッドレスCLI（エージェント向け基盤）
+
+GUIを起動せずに、ワークスペースの探索・検索・部分変更・検証を実行できます。出力は機械可読なYAML（UTF-8）で、AIエージェントや自動化スクリプトからの利用を想定しています。
+
+```bash
+./gradlew runCli -q --args="catalog sample-workspace"                     # 文書カタログ（_document要約・スキーマ・ID数）
+./gradlew runCli -q --args="outline sample-workspace path/to/doc.yaml"    # 骨子（キー構造・配列件数。長文は文字数表示）
+./gradlew runCli -q --args="read sample-workspace path/to/doc.yaml items[0]"  # 指定パス配下の全文
+./gradlew runCli -q --args="bundle sample-workspace path/to/doc.yaml --budget 4000"  # 対象＋参照・被参照の文脈バンドル
+./gradlew runCli -q --args="search sample-workspace --text ログイン --schema requirement"  # 本文検索
+./gradlew runCli -q --args="search sample-workspace --ref-to REQ-001"     # 参照検索（--unresolved で未解決のみ）
+./gradlew runCli -q --args="validate sample-workspace"                    # 全文書の検証（カバレッジ含む）
+./gradlew runCli -q --args="hash sample-workspace path/to/doc.yaml"       # 変更セットの base に使う内容ハッシュ
+./gradlew runCli -q --args="apply sample-workspace changeset.yaml --dry-run"  # 変更セットの適用（ドライラン）
+```
+
+変更セット（changeset.yaml）は複数ファイルへの部分パッチの束です。`base` を指定すると、作成時点からディスクが変わっていた場合に適用を中止します（競合検出）。1件でも失敗すると全ファイル書き込みを行いません。`--require-valid` を付けると、適用後に検証エラーが残る場合も中止します。
+
+```yaml
+changes:
+  - file: requirements/req-001.yaml
+    base: 3f2a…                      # hash コマンドの値（省略可）
+    ops:
+      - { op: set,    path: title,        value: 新しいタイトル }
+      - { op: insert, path: "tags[0]",    value: 重要 }        # 配列は挿入、マップは新規キー
+      - { op: delete, path: obsolete }
+      - { op: move,   from: "items[2]",   to: "items[0]" }
+```
+
+パスは `items[2].title` 形式です。フロースタイル（`{ }`）内で `[` を含むパスは引用符で囲んでください。ルート（空パス）への操作はできません。
+

@@ -29,6 +29,8 @@ data class RefEntry(
     val viaKey: String,   // 参照が書かれていたキー名（表示用）
     val idPatterns: List<String> = emptyList(),
     val scope: RefScope = RefScope(),
+    val relation: String? = null,       // スキーマで宣言された関係種別（type: ref の relation）
+    val sourceSchemaId: String? = null, // 参照元文書のスキーマID（カバレッジ判定に使う）
 )
 
 fun idMatchesPattern(id: String, pattern: String): Boolean {
@@ -78,7 +80,10 @@ object DocScanner {
             // スキーマ上 ref と定義された位置のスカラー値は参照として記録
             if (effective?.type == FieldType.REF && node is YNode.Scalar) {
                 scalarText(node)?.let {
-                    refs += RefEntry(it, file, path, keyLabel ?: "ref", effective.idPatterns, effective.scope)
+                    refs += RefEntry(
+                        it, file, path, keyLabel ?: "ref", effective.idPatterns, effective.scope,
+                        relation = effective.relation, sourceSchemaId = schemaDef?.id,
+                    )
                 }
                 return
             }
