@@ -12,7 +12,17 @@ YAML で設計項目（要求・設計・課題など）を管理するための
 - Undo/Redo、保存ショートカット、未保存終了確認、復元されるペインレイアウト
 - ライト／ダークを切り替えられるMaterial 3テーマ（選択状態は次回起動時に復元）
 - ワークスペース一覧・絞り込み・一括編集、参照グラフ、差分表示、コマンドパレット、最近開いたファイル
-- **AIによる作成支援**（OpenAI連携）: フィールド単位・配列への候補追加・文書全体のたたき台生成。スキーマ準拠の構造化出力＋適用前プレビューと検証
+- **AIによる作成支援**（OpenAI / Anthropic 連携）: フィールド単位・配列への候補追加・文書全体のたたき台生成。スキーマ準拠の構造化出力＋適用前プレビューと検証
+
+本書は**利用者向けマニュアル**です。開発者向けの情報は次を参照してください（内容は分担しており重複させません）。
+
+| ドキュメント | 内容 |
+|---|---|
+| [docs/FEATURES.md](docs/FEATURES.md) | 機能一覧と実装状況・テスト状況・未実装項目 |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | クラス設計・設計方針・データフロー・拡張ポイント |
+| [docs/CONVENTIONS.md](docs/CONVENTIONS.md) | 開発規約（コードスタイル・テスト・ドキュメント更新ルール） |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | 将来構想（AI実行環境化）とロードマップ |
+| [CLAUDE.md](CLAUDE.md) | AIコーディングエージェント向けの作業ガイド |
 
 ---
 
@@ -351,36 +361,7 @@ Material 3ベースのライト／ダークテーマを搭載しています。�
 
 ## 10. アーキテクチャ
 
-```
-src/main/kotlin/
-├── Main.kt              # エントリポイント、テーマ、レイアウト、ツールバー、コマンドパレット
-├── app/AppState.kt      # 文書キャッシュ、履歴、外部同期、ファイル操作、一括更新、ナビゲーション
-├── model/YNode.kt       # YAML の可変ツリー表現（Scalar / Seq / Map）と YPath
-├── yaml/YamlIO.kt       # SnakeYAML との相互変換（パース／正規化ダンプ）
-├── schema/Schema.kt     # スキーマモデル、メタ検証、再帰参照、サンプル生成、glob
-├── index/IdIndex.kt     # ID 索引・参照スキャナ（DocScanner）
-├── validate/Validator.kt# スキーマ検証・参照解決・重複検出
-├── ai/                  # AI生成（スキーマ→JSON Schema変換、REF候補のenum制約、プロバイダ共通処理）
-│   ├── AiGenerator.kt        # プロバイダ選択と共通ロジック
-│   ├── OpenAiGenerator.kt    # OpenAI Responses API クライアント
-│   └── AnthropicGenerator.kt # Anthropic Messages API クライアント
-└── ui/
-    ├── Common.kt        # Material 3テーマ、コンパクト入力、Slot抽象、ハイライト
-    ├── FileTreePane.kt  # ファイルツリー
-    ├── FormView.kt      # スキーマ駆動フォーム＋汎用エディタ（中核）
-    ├── SourcePane.kt    # テキスト編集
-    ├── DiffPane.kt      # 保存済み内容と編集中内容の差分
-    ├── AiGenerationDialog.kt # AI生成ダイアログ（指示入力→生成→プレビュー→適用）
-    ├── WorkspaceViews.kt# 一覧・一括編集・参照グラフ
-    ├── SchemaEditor.kt  # スキーマ設計・プレビュー・適用対象
-    └── SidePanel.kt     # 検証・参照・被参照
-```
-
-設計上のポイント:
-
-- **ツリーが単一の正**: `OpenDocument.root: YNode` が source of truth。フォームはツリーを直接書き換え、`version` カウンタのインクリメントで再コンポーズを駆動する。ソース編集は「反映」時にパースしてツリーへ取り込む。
-- **Slot 抽象**: マップのキー／配列の要素／ドキュメントルートを同一インターフェースで編集できるようにし、スキーマフォームと汎用エディタでエディタ部品を共有。
-- **パス（YPath）ベースのナビゲーション**: `List<Any>`（String = キー、Int = インデックス）で要素位置を表現し、ハイライト・ジャンプ・検証結果の紐付けに共通利用。
+パッケージ構成・クラス設計・設計方針は [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) を参照してください。
 
 ## 11. AIによる作成支援
 
@@ -415,8 +396,4 @@ src/main/kotlin/
 - 参照グラフは表示量を抑えるため、描画対象ノードを先頭40件、一覧を先頭500参照に制限します。
 - 一覧ビューの一括編集対象はルートの `status` と `owner` です。
 
-## 13. 拡張のヒント
-
-- 型の追加: `FieldType` に enum を足し、`Validator.checkField` と `FormView.ValueEditor` に分岐を追加するだけで完結します。
-- コメント保持が必要な場合は、`YamlIO` を SnakeYAML の Node API（`LoaderOptions.setProcessComments(true)`）ベースに差し替えるのが正攻法です（ツリー変換層が `YamlIO` に隔離されているため影響範囲は限定的です）。
-- 横断ビューを追加する場合は、`AppState.workspaceRecords()` と `IdIndex` をデータソースとして利用できます。
+改善予定を含む実装状況の全体は [docs/FEATURES.md](docs/FEATURES.md) で管理しています。拡張方法（型の追加・コメント保持・横断ビュー・AIプロバイダの追加）は [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) の「拡張ポイント」を参照してください。
