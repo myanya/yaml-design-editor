@@ -28,7 +28,7 @@
 | E-03 | ソース編集（行番号、文書内検索、「変更を反映」、パースエラーの行・列表示） | ✅ | `ui/SourcePane.kt` | 手動 |
 | E-04 | 差分表示（保存済み vs 編集中、LCSによる行整列、空行差の弱調表示） | ✅ | `ui/DiffPane.kt` | 単体（`DiffPaneTest`） |
 | E-05 | Undo/Redo（正規化テキストのスナップショット履歴、最大100件） | ✅ | `app/OpenDocument` | 手動 |
-| E-06 | 保存／すべて保存（Ctrl+S / Ctrl+Shift+S、ソース編集中は反映→保存） | ✅ | `AppState.save*`, `ui/SourcePane.kt` | 手動 |
+| E-06 | 保存／すべて保存（Ctrl+S / Ctrl+Shift+S、ソース編集中は反映→保存。リストは親プロパティから一段下げて整形） | ✅ | `AppState.save*`, `yaml/YamlIO.kt`, `ui/SourcePane.kt` | 単体（`YamlIOTest`）＋手動 |
 | E-07 | 文書メタデータ `_document`（id / name / description）の編集・ヘッダー表示 | ✅ | `ui/FormView.kt`（`DocumentMetadataEditor`）, `index/IdIndex.kt` | 手動 |
 | E-08 | 文書キャッシュ（ファイル切替時も未保存編集をメモリ保持） | ✅ | `AppState.docCache` | 手動 |
 

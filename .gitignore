@@ -11,3 +11,4 @@ local.properties
 .kotlin/
 sample-workspace/
 gradle/
+samples/

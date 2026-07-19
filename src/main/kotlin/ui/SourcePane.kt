@@ -29,7 +29,7 @@ import androidx.compose.ui.input.key.*
 /**
  * YAML ソースを直接編集するペイン。
  * 「反映」でパースしてツリー（source of truth）へ取り込む。
- * 反映後のテキストは正規化（ブロックスタイル・インデント2）される点に注意。
+ * 反映後のテキストは正規化（ブロックスタイル・インデント2、リスト記号も親から一段下げる）される点に注意。
  */
 @Composable
 fun SourcePane(state: AppState, doc: OpenDocument) {

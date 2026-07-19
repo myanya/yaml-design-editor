@@ -150,6 +150,6 @@ class PatchTest {
             """.trimIndent()
         )
         val value = (cs.changes.single().ops.single() as PatchOp.Set).value
-        assertEquals("id: X-1\ntags:\n- a\n- b\n", YamlIO.dump(value))
+        assertEquals("id: X-1\ntags:\n  - a\n  - b\n", YamlIO.dump(value))
     }
 }

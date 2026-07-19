@@ -10,7 +10,7 @@ import org.yaml.snakeyaml.Yaml
  *
  * 制約:
  * - コメント・アンカー・フロー/ブロックスタイルなどの表層情報は保持しない
- *   （保存時はブロックスタイル・インデント2で正規化して出力する）。
+ *   （保存時はブロックスタイル・インデント2で、リスト記号も親から一段下げて正規化する）。
  */
 object YamlIO {
 
@@ -23,6 +23,8 @@ object YamlIO {
         val dumper = DumperOptions().apply {
             defaultFlowStyle = DumperOptions.FlowStyle.BLOCK
             indent = 2
+            indicatorIndent = 2
+            indentWithIndicator = true
             width = 120
             isAllowUnicode = true
         }

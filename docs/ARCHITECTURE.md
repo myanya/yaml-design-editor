@@ -46,7 +46,7 @@ src/main/kotlin/
 | クラス | ファイル | 責務 |
 |---|---|---|
 | `YNode` (Scalar/Seq/Map) | model/YNode.kt | YAMLの可変ツリー。`YPath`（String=キー, Int=索引）で位置を表現 |
-| `YamlIO` | yaml/YamlIO.kt | テキスト⇔`YNode` 変換。表層情報を保持しない正規化ダンプ（ブロック・インデント2） |
+| `YamlIO` | yaml/YamlIO.kt | テキスト⇔`YNode` 変換。表層情報を保持しない正規化ダンプ（ブロック・インデント2、リスト記号も親から一段下げる） |
 | `FieldType` / `FieldDef` / `SchemaDef` | schema/Schema.kt | スキーマモデル。`resolve()` が `$ref` を属性合成しつつ解決。`FieldDef.relation` が参照の関係種別 |
 | `CoverageRule` / `CoverageLevel` | schema/Schema.kt | スキーマの `coverage`（被参照必須などのトレーサビリティ要件）の定義 |
 | `SchemaLoader` | schema/Schema.kt | `_schemas/` の読込・パース・スキーマID重複検出 |
