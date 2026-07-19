@@ -24,10 +24,11 @@ object Disclosure {
         val idCount: Int,
     )
 
-    /** ワークスペースカタログ: 全文書の `_document` メタデータとスキーマ・ID数の一覧。 */
+    /** ワークスペースカタログ: 全文書の `_document` メタデータとスキーマ・ID数の一覧（`_schemas` / `_runs` を除く）。 */
     fun catalog(ws: Workspace): List<CatalogEntry> =
         ws.files.asSequence()
             .filter { !ws.relPath(it).startsWith(schema.SchemaLoader.SCHEMA_DIR + "/") }
+            .filter { !ws.relPath(it).startsWith(schema.SchemaLoader.RUNS_DIR + "/") }
             .map { file ->
                 val rel = ws.relPath(file)
                 val root = runCatching { YamlIO.parse(java.nio.file.Files.readString(file)) }.getOrNull()

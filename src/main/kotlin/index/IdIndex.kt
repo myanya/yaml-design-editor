@@ -158,13 +158,23 @@ class IdIndex {
     var refs: List<RefEntry> = emptyList()
         private set
 
-    fun rebuild(workspace: Path, files: List<Path>, schemas: List<SchemaDef>) {
+    /**
+     * 索引を再構築する。loader を差し替えると、ディスク以外（例: エージェントのステージング）の
+     * 内容で索引を組める。`_schemas/` と機械が書く実行記録 `_runs/` は索引対象外。
+     */
+    fun rebuild(
+        workspace: Path,
+        files: List<Path>,
+        schemas: List<SchemaDef>,
+        loader: (Path) -> YNode? = { f -> runCatching { YamlIO.parse(Files.readString(f)) }.getOrNull() },
+    ) {
         val ids = mutableMapOf<String, MutableList<IdEntry>>()
         val allRefs = mutableListOf<RefEntry>()
         for (f in files) {
             val rel = relPathOf(workspace, f)
             if (rel.startsWith(schema.SchemaLoader.SCHEMA_DIR + "/")) continue
-            val root = runCatching { YamlIO.parse(Files.readString(f)) }.getOrNull() ?: continue
+            if (rel.startsWith(schema.SchemaLoader.RUNS_DIR + "/")) continue
+            val root = loader(f) ?: continue
             val schemaDef = schemas.firstOrNull { it.matches(rel) }
             val documentId = documentIdOf(root, rel)
             val (docIds, docRefs) = DocScanner.scan(root, f, schemaDef, documentId)

@@ -35,6 +35,19 @@ internal const val CLI_USAGE = """コマンド:
   validate <workspace> [file]                   検証（スキーマ・参照・重複・カバレッジ）
   apply    <workspace> <changeset.yaml> [--dry-run] [--require-valid]   変更セットの適用
   hash     <workspace> <file>                   変更セットの base に使う内容ハッシュ
+  activities <workspace>                        アクティビティ／エージェント定義の一覧と検証
+  agent    <workspace> <activity-id> [--instruction 追加指示] [--provider openai|anthropic]
+           [--model id] [--out changeset.yaml] [--apply]
+           アクティビティを実行（APIキーは環境変数 OPENAI_API_KEY / ANTHROPIC_API_KEY）。
+           提出された変更セットを出力し、--apply 指定時のみワークスペースへ適用する
+  watch    <workspace> [--provider openai|anthropic] [--once]
+           自動実行エンジンを起動（トリガ監視・キュー・自動適用/承認待ち）。
+           --once はトリガ判定とキュー消化を1回だけ行って終了する
+  revert   <workspace> <runlog.yaml> [--force]  自動適用された変更を実行記録のバックアップから巻き戻す
+  metrics  <workspace> [--activity id]          実行記録（_runs）の集計（提出率・採用率・コスト等）
+  eval     <workspace> [eval-id] [--provider openai|anthropic]
+           評価セット（_evals）を実行する。eval-id 省略時は定義の一覧を表示する。
+           サンドボックスコピー上で実行し、レポートを _runs/ に保存する
   help                                          このヘルプ
 """
 
@@ -160,8 +173,222 @@ internal fun runCli(args: Array<String>): String {
             val text = Files.readString(ws.resolve(rel))
             dumpYaml(linkedMapOf("file" to rel, "base" to ChangeSets.contentHash(text)))
         }
+        "activities" -> {
+            val ws = workspace()
+            val defs = agent.Definitions.load(ws.root)
+            dumpYaml(
+                linkedMapOf(
+                    "agents" to defs.agents.map { linkedMapOf("id" to it.id, "name" to it.name, "tools" to it.tools.map { t -> t.id }) },
+                    "activities" to defs.activities.map {
+                        linkedMapOf(
+                            "id" to it.id, "name" to it.name, "agent" to it.agentId,
+                            "target" to it.targetMatch, "gate" to it.gate.name,
+                        )
+                    },
+                    "errors" to defs.errors,
+                )
+            )
+        }
+        "agent" -> runAgentCommand(rest)
+        "watch" -> runWatchCommand(rest)
+        "metrics" -> {
+            val root = Path.of(rest.firstOrNull() ?: error("ワークスペースのパスを指定してください"))
+            val records = agent.RunMetrics.collect(root)
+            val filter = stringFlag(rest, "--activity")
+            val summaries = agent.RunMetrics.summarize(records)
+                .filter { filter == null || it.activityId == filter }
+            dumpYaml(agent.RunMetrics.toYamlMap(summaries))
+        }
+        "eval" -> runEvalCommand(rest)
+        "revert" -> {
+            val ws = workspace()
+            val runFile = rest.getOrNull(1)?.takeIf { !it.startsWith("--") }
+                ?: error("実行記録（_runs/*.yaml）を指定してください")
+            val result = agent.AutoApply.revert(ws, ws.resolve(runFile), force = "--force" in rest)
+            dumpYaml(linkedMapOf("ok" to result.ok, "messages" to result.messages))
+        }
         else -> error("不明なコマンドです: $command\n$CLI_USAGE")
     }
+}
+
+/** 環境変数に設定されているAPIキーをプロバイダごとに集める（delegate や watch で使う）。 */
+private fun envApiKeys(): Map<ai.AiProvider, String> =
+    ai.AiProvider.entries.associateWith { System.getenv(it.envVar).orEmpty() }.filterValues { it.isNotBlank() }
+
+/** 自動実行エンジンをヘッドレスで起動する（R3-01〜05）。 */
+private fun runWatchCommand(rest: List<String>): String {
+    val dir = Path.of(rest.firstOrNull() ?: error("ワークスペースのパスを指定してください"))
+    val provider = stringFlag(rest, "--provider")?.let { flag ->
+        ai.AiProvider.entries.firstOrNull { it.name.equals(flag, ignoreCase = true) } ?: error("未知のプロバイダです: $flag")
+    } ?: ai.AiProvider.OPENAI
+    val keys = envApiKeys()
+    val engine = agent.AutomationEngine(
+        dir,
+        credentials = { agent.AutomationEngine.Credentials(provider = provider, apiKeys = keys) },
+    )
+    engine.logSink = { System.err.println(it) }
+    engine.setEnabled(true)
+    return if ("--once" in rest) {
+        engine.tick(System.currentTimeMillis())
+        kotlinx.coroutines.runBlocking { while (engine.processOnce()) { /* キューを消化 */ } }
+        dumpYaml(
+            linkedMapOf(
+                "history" to engine.historySnapshot().map {
+                    linkedMapOf("activity" to it.activityId, "status" to it.status, "detail" to it.detail)
+                },
+                "pendingReviews" to engine.pendingSnapshot().map {
+                    linkedMapOf(
+                        "activity" to it.activityId,
+                        "reason" to it.reason,
+                        "runLog" to it.runFile?.let { f -> it.ws.relPath(f) },
+                        "changes" to it.result.changeSet.changes.map { c -> c.file },
+                    )
+                },
+            )
+        )
+    } else {
+        System.err.println("自動実行を開始しました（Ctrl+C で停止）。承認待ちは _runs/ の changeset を apply で適用できます。")
+        kotlinx.coroutines.runBlocking { engine.start(this).join() }
+        ""
+    }
+}
+
+/** 評価セットをヘッドレス実行する（R4-02 / R4-04）。 */
+private fun runEvalCommand(rest: List<String>): String {
+    val root = Path.of(rest.firstOrNull() ?: error("ワークスペースのパスを指定してください"))
+    val loaded = agent.Evals.load(root)
+    if (loaded.errors.isNotEmpty()) System.err.println("定義の警告:\n" + loaded.errors.joinToString("\n") { "- $it" })
+    val evalId = rest.getOrNull(1)?.takeIf { !it.startsWith("--") }
+        ?: return dumpYaml(
+            linkedMapOf(
+                "evals" to loaded.evals.map {
+                    linkedMapOf(
+                        "id" to it.id, "name" to it.name, "activity" to it.activityId,
+                        "cases" to it.cases.size, "variants" to it.variants.map { v -> v.name },
+                    )
+                },
+                "errors" to loaded.errors,
+            )
+        )
+    val eval = loaded.eval(evalId) ?: error("評価セット「$evalId」が見つかりません（eval コマンドで一覧を確認できます）")
+    val provider = stringFlag(rest, "--provider")?.let { flag ->
+        ai.AiProvider.entries.firstOrNull { it.name.equals(flag, ignoreCase = true) } ?: error("未知のプロバイダです: $flag")
+    } ?: ai.AiProvider.OPENAI
+    val runner = agent.EvalRunner(
+        credentials = { agent.AutomationEngine.Credentials(provider = provider, apiKeys = envApiKeys()) },
+    )
+    val report = kotlinx.coroutines.runBlocking {
+        runner.run(root, eval, onLog = { System.err.println(it) })
+    }
+    return dumpYaml(
+        linkedMapOf(
+            "eval" to report.evalId,
+            "activity" to report.activityId,
+            "report" to report.reportFile?.let { Workspace.open(root).relPath(it) },
+            "variants" to report.summaries().map { s ->
+                linkedMapOf(
+                    "name" to s.variant, "cases" to s.cases, "passed" to s.passed, "passRate" to s.passRate,
+                    "inputTokens" to s.inputTokens, "outputTokens" to s.outputTokens,
+                )
+            },
+            "results" to report.results.map { r ->
+                linkedMapOf<String, Any?>(
+                    "variant" to r.variant, "case" to r.caseId, "pass" to r.pass,
+                    "status" to r.status.name,
+                    "failures" to r.failures,
+                ).filterValues { it != null && (it !is List<*> || it.isNotEmpty()) }
+            },
+        )
+    )
+}
+
+/** アクティビティをヘッドレス実行する。非対話のため ask_human には「回答なし」を返す。 */
+private fun runAgentCommand(rest: List<String>): String {
+    val ws = Workspace.open(Path.of(rest.firstOrNull() ?: error("ワークスペースのパスを指定してください")))
+    val activityId = rest.getOrNull(1)?.takeIf { !it.startsWith("--") } ?: error("アクティビティIDを指定してください")
+    val defs = agent.Definitions.load(ws.root)
+    if (defs.errors.isNotEmpty()) System.err.println("定義の警告:\n" + defs.errors.joinToString("\n") { "- $it" })
+    val activity = defs.activity(activityId) ?: error("アクティビティ「$activityId」が見つかりません（activities コマンドで確認できます）")
+    val agentDef = defs.agent(activity.agentId) ?: error("エージェント「${activity.agentId}」が見つかりません")
+
+    val provider = stringFlag(rest, "--provider")?.let { flag ->
+        ai.AiProvider.entries.firstOrNull { it.name.equals(flag, ignoreCase = true) } ?: error("未知のプロバイダです: $flag")
+    } ?: agentDef.provider ?: ai.AiProvider.OPENAI
+    // エージェント定義のモデルIDは、その定義のプロバイダと一致する場合のみ引き継ぐ
+    // （--provider で上書きしたときに他社のモデルIDを送らない）
+    val pinnedModel = agentDef.model?.takeIf { agentDef.provider == null || agentDef.provider == provider }
+    val model = stringFlag(rest, "--model") ?: pinnedModel ?: provider.defaultModel
+    val apiKey = System.getenv(provider.envVar).orEmpty()
+    require(apiKey.isNotBlank()) { "環境変数 ${provider.envVar} にAPIキーを設定してください" }
+
+    val host = object : agent.AgentHost {
+        override suspend fun askHuman(question: String): String? {
+            System.err.println("[質問] $question（非対話実行のため回答できません）")
+            return null
+        }
+        override suspend fun onEvent(event: agent.AgentEvent) {
+            val line = when (event) {
+                is agent.AgentEvent.TurnStarted -> "--- ターン ${event.turn}/${event.maxTurns}"
+                is agent.AgentEvent.AssistantText -> event.text.lineSequence().joinToString("\n") { "  $it" }
+                is agent.AgentEvent.ToolInvoked -> "  [tool] ${event.name} ${event.summary}"
+                is agent.AgentEvent.ToolFailed -> "  [tool失敗] ${event.name}: ${event.message}"
+                is agent.AgentEvent.QuestionAsked -> "  [質問] ${event.question}"
+                is agent.AgentEvent.PlanUpdated -> "  [計画] ${event.steps.joinToString(" / ")}"
+                is agent.AgentEvent.Finished -> "=== 終了: ${event.status}${event.message?.let { " — $it" } ?: ""}"
+            }
+            System.err.println(line)
+        }
+    }
+    val request = agent.AgentRunRequest(
+        activity = activity, agent = agentDef,
+        provider = provider, model = model, apiKey = apiKey,
+        extraInstruction = stringFlag(rest, "--instruction"),
+        apiKeys = envApiKeys(),
+        subAgents = defs.agents,
+    )
+    val result = kotlinx.coroutines.runBlocking { agent.AgentKernel.run(ws, request, host) }
+    val runFile = agent.RunLog.write(ws, request, result)
+
+    val changeSetYaml = changeSetToYaml(result.changeSet)
+    stringFlag(rest, "--out")?.let { Files.writeString(Path.of(it), changeSetYaml) }
+    var appliedOk: Boolean? = null
+    if ("--apply" in rest && result.status == agent.RunStatus.SUBMITTED && result.changeSet.changes.isNotEmpty()) {
+        appliedOk = ws.apply(result.changeSet).ok
+    }
+    return dumpYaml(
+        linkedMapOf(
+            "status" to result.status.name,
+            "message" to result.message,
+            "turns" to result.turnsUsed,
+            "usage" to linkedMapOf("inputTokens" to result.usage.inputTokens, "outputTokens" to result.usage.outputTokens),
+            "runLog" to ws.relPath(runFile),
+            "applied" to appliedOk,
+            "changes" to result.changeSet.changes.map { linkedMapOf("file" to it.file, "create" to it.create, "ops" to it.ops.size) },
+        )
+    ) + (if (result.changeSet.changes.isEmpty()) "" else "---\n$changeSetYaml")
+}
+
+/** 変更セットを apply コマンドで再適用できるYAMLへ変換する。 */
+internal fun changeSetToYaml(cs: ChangeSet): String {
+    val changes = cs.changes.map { change ->
+        if (change.create) linkedMapOf(
+            "file" to change.file,
+            "create" to true,
+            "content" to change.content?.let { YamlIO.toAny(it) },
+        ) else linkedMapOf<String, Any?>(
+            "file" to change.file,
+            "base" to change.baseHash,
+            "ops" to change.ops.map { op ->
+                when (op) {
+                    is PatchOp.Set -> linkedMapOf("op" to "set", "path" to op.path.pretty(), "value" to YamlIO.toAny(op.value))
+                    is PatchOp.Insert -> linkedMapOf("op" to "insert", "path" to op.path.pretty(), "value" to YamlIO.toAny(op.value))
+                    is PatchOp.Delete -> linkedMapOf("op" to "delete", "path" to op.path.pretty())
+                    is PatchOp.Move -> linkedMapOf("op" to "move", "from" to op.from.pretty(), "to" to op.to.pretty())
+                }
+            },
+        ).filterValues { it != null }
+    }
+    return YamlIO.dump(YamlIO.fromAny(linkedMapOf("changes" to changes)))
 }
 
 private fun issueMap(issue: validate.Issue) = linkedMapOf(

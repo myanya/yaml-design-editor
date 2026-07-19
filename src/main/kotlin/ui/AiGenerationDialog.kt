@@ -36,40 +36,8 @@ import schema.FieldType
 import validate.Severity
 import validate.Validator
 import yaml.YamlIO
-import java.util.prefs.Preferences
 
-private object AiSessionSettings {
-    private val preferences = Preferences.userRoot().node("yaml-design-editor/ai")
-
-    private val providerState = mutableStateOf(
-        runCatching { AiProvider.valueOf(preferences.get("provider", AiProvider.OPENAI.name)) }
-            .getOrDefault(AiProvider.OPENAI)
-    )
-    var provider: AiProvider
-        get() = providerState.value
-        set(value) {
-            providerState.value = value
-            preferences.put("provider", value.name)
-        }
-
-    // APIキーはセッション中のみメモリに保持する（初期値は環境変数）。
-    private val apiKeys = mutableStateMapOf<AiProvider, String>().apply {
-        AiProvider.entries.forEach { put(it, System.getenv(it.envVar).orEmpty()) }
-    }
-    var apiKey: String
-        get() = apiKeys[provider].orEmpty()
-        set(value) { apiKeys[provider] = value }
-
-    private val models = mutableStateMapOf<AiProvider, String>().apply {
-        AiProvider.entries.forEach { put(it, preferences.get("model.${it.name}", it.defaultModel)) }
-    }
-    var model: String
-        get() = models[provider].orEmpty()
-        set(value) {
-            models[provider] = value
-            preferences.put("model.${provider.name}", value)
-        }
-}
+// AI接続設定（プロバイダ・APIキー・モデル）は ui.AiSettings をエージェント実行と共有する。
 
 private enum class AiDialogStage { INPUT, LOADING, PREVIEW, ERROR }
 
@@ -100,10 +68,10 @@ fun AiGenerationHost(state: AppState) {
             try {
                 val generated = withContext(Dispatchers.IO) {
                     AiGenerator.generate(
-                        AiSessionSettings.provider,
+                        AiSettings.provider,
                         AiGenerationInput(
-                            apiKey = AiSessionSettings.apiKey,
-                            model = AiSessionSettings.model.trim(),
+                            apiKey = AiSettings.apiKey,
+                            model = AiSettings.model.trim(),
                             instruction = instruction,
                             field = request.field,
                             schema = schema,
@@ -158,12 +126,12 @@ fun AiGenerationHost(state: AppState) {
                 AiDialogStage.INPUT, AiDialogStage.ERROR -> AiInputContent(
                     instruction = instruction,
                     onInstructionChange = { instruction = it },
-                    provider = AiSessionSettings.provider,
-                    onProviderChange = { AiSessionSettings.provider = it },
-                    apiKey = AiSessionSettings.apiKey,
-                    onApiKeyChange = { AiSessionSettings.apiKey = it },
-                    model = AiSessionSettings.model,
-                    onModelChange = { AiSessionSettings.model = it },
+                    provider = AiSettings.provider,
+                    onProviderChange = { AiSettings.provider = it },
+                    apiKey = AiSettings.apiKey,
+                    onApiKeyChange = { AiSettings.apiKey = it },
+                    model = AiSettings.model,
+                    onModelChange = { AiSettings.model = it },
                     isArray = request.field.type == FieldType.ARRAY && !request.wholeDocument,
                     appendToArray = appendToArray,
                     onAppendChange = { appendToArray = it },
@@ -189,7 +157,7 @@ fun AiGenerationHost(state: AppState) {
         confirmButton = {
             when (stage) {
                 AiDialogStage.INPUT, AiDialogStage.ERROR -> Button(
-                    enabled = instruction.isNotBlank() && AiSessionSettings.apiKey.isNotBlank() && AiSessionSettings.model.isNotBlank(),
+                    enabled = instruction.isNotBlank() && AiSettings.apiKey.isNotBlank() && AiSettings.model.isNotBlank(),
                     onClick = ::generate,
                 ) { Text("生成") }
                 AiDialogStage.PREVIEW -> Button(onClick = {

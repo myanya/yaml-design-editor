@@ -3,7 +3,7 @@
 本書はプロジェクトの全機能を管理する台帳です。機能の追加・変更・削除を行ったら**必ず本書を更新**してください。
 
 - 利用方法・仕様の詳細は [README.md](../README.md)、実装構造は [ARCHITECTURE.md](ARCHITECTURE.md) を参照（本書には重複記載しない）。
-- 中長期の将来構想・新機能計画は [ROADMAP.md](ROADMAP.md) で管理する。本書の §9 は**現行実装の制約**のみを扱う。
+- 中長期の将来構想・新機能計画は [ROADMAP.md](ROADMAP.md) で管理する。本書の §10 は**現行実装の制約**のみを扱う。
 - **状態**: ✅ 実装済み ／ 🚧 一部実装 ／ 📋 未実装（計画のみ）
 - **テスト**: `単体` = src/test 配下に単体テストあり ／ `手動` = 手動確認のみ
 
@@ -90,20 +90,50 @@
 | A-07 | プロバイダ切替（OpenAI Responses API / Anthropic Messages API）、モデル設定の永続化、APIキーはメモリのみ | ✅ | `ai/OpenAiGenerator.kt`, `ai/AnthropicGenerator.kt`, `AiSessionSettings` | 単体（レスポンス解析） |
 | A-08 | 生成のキャンセル、拒否・トークン上限のエラーハンドリング | ✅ | `ui/AiGenerationDialog.kt`, `ai/*Generator.kt` | 単体（一部） |
 
-## 8. コアAPI・CLI（エージェント基盤）
+## 8. エージェント実行（アクティビティ）
 
-UIに依存しないヘッドレス操作の層（[ROADMAP.md](ROADMAP.md) P1 の成果）。CLI の使い方は README §13 を参照。
+マルチターンのツール使用ループによるエージェント実行（[ROADMAP.md](ROADMAP.md) P2〜P4 の成果）。利用方法は README §12〜13 を参照。
+
+| ID | 機能 | 状態 | 主な実装 | テスト |
+|---|---|---|---|---|
+| AG-01 | エージェント定義 `_agents`（persona・観点・モデル設定・ツール許可。組込みスキーマでフォーム編集・検証可能） | ✅ | `agent/Definitions.kt`, `schema/BuiltinSchemas.kt` | 単体（`DefinitionsTest`） |
+| AG-02 | アクティビティ定義 `_activities`（対象・指示・文脈レシピ・書込許可ファイル/パス・ツール許可・上限・提出ゲート） | ✅ | `agent/Definitions.kt`, `schema/BuiltinSchemas.kt` | 単体（`DefinitionsTest`） |
+| AG-03 | ツール使用対応LLMクライアント（OpenAI Responses / Anthropic Messages の function calling。会話セッション抽象で差し替え可能） | ✅ | `ai/ToolChat.kt` | 単体（`ToolChatParseTest`） |
+| AG-04 | エージェント実行カーネル（マルチターンループ、ターン・トークン・時間上限、終了手続きの強制、キャンセル、疑似セッション注入） | ✅ | `agent/Kernel.kt` | 単体（`KernelTest`） |
+| AG-05 | エージェントツールセット（探索5・編集2・検証1・対話2・管理3の計13ツール。書込権限はツール側で強制） | ✅ | `agent/Tools.kt` | 単体（`KernelTest`） |
+| AG-06 | ステージング（複数文書の作業オーバーレイ。影響ファイルを含む横断検証、ID改名の整合確認、未提出ドラフト保全） | ✅ | `agent/Staging.kt` | 単体（`StagingTest`） |
+| AG-07 | 変更セットレビューUI（ファイル単位の部分採用、採用サブセットの再検証、左右差分、未保存文書の保護、適用） | ✅ | `ui/AgentPanel.kt` | 手動 |
+| AG-08 | 実行中の人間との対話（`ask_human` によるブロッキング質問と回答、計画・メモの進捗表示、実行キャンセル） | ✅ | `agent/Kernel.kt`, `ui/AgentPanel.kt` | 単体（`KernelTest` 一部）＋手動 |
+| AG-09 | 実行記録 `_runs`（ターン・ツール呼び出し・質問と回答・採否・トークン使用量をYAML保存。索引対象外） | ✅ | `agent/RunLog.kt` | 手動 |
+| AG-10 | CLIからのアクティビティ実行（`agent` / `activities` コマンド。非対話実行では質問に「回答なし」を返す） | ✅ | `core/Cli.kt` | 手動（スモーク） |
+| AG-11 | トリガ（`trigger`: manual / on-change（デバウンス付き） / schedule / on-invalid。予約ディレクトリと自己変更では発火しない） | ✅ | `agent/Automation.kt`（`tick`） | 単体（`AutomationTest`） |
+| AG-12 | アクティビティ連鎖（`chain.onSuccess` / `onFailure`。深さ上限・循環検出。人間承認は採否決定後に発火） | ✅ | `agent/Automation.kt`（`chainNext`） | 単体（`AutomationTest`） |
+| AG-13 | 無人リトライ（`retry.maxAttempts`。失敗理由と検証エラーをフィードバックし、同一失敗の繰り返しは収束打ち切り） | ✅ | `agent/Automation.kt`（`handleFailure`） | 単体（`AutomationTest`） |
+| AG-14 | 自動承認 `approval: auto`（ゲート通過・スコープ内・非編集中のみ。条件を欠くと承認待ちへ降格。適用前バックアップ） | ✅ | `agent/Automation.kt`, `agent/AutoApply.kt` | 単体（`AutomationTest`） |
+| AG-15 | 実行キューと停止（直列実行、常時停止＝キュー消去＋実行中キャンセル、承認待ち変更セットのファイル保存による耐久性） | ✅ | `agent/Automation.kt` | 単体（`AutomationTest`） |
+| AG-16 | 自動適用の巻き戻し（実行記録のバックアップから復元。適用後の変更は競合として拒否、`--force` で上書き） | ✅ | `agent/AutoApply.kt`（`revert`）, CLI `revert` | 単体（`AutomationTest`） |
+| AG-17 | サブエージェント委譲（`delegate` ツール。親のステージングを読める読み取り専用の相談、所見テキストを返す。深さ1） | ✅ | `agent/Kernel.kt`（`consult`）, `agent/Tools.kt` | 単体（`KernelTest`） |
+| AG-18 | 自動実行パネルUI（監視ON/OFF・キュー・承認待ちレビュー・履歴・ログ）と CLI `watch`（`--once` 対応） | ✅ | `ui/AutomationPanel.kt`, `core/Cli.kt` | 手動＋単体（エンジン経路） |
+| AG-19 | 実行メトリクス（`_runs` の集計: 提出率・採用率・却下ファイル率＝修正量の代理指標・自動適用/巻き戻し・トークン。CLI `metrics`） | ✅ | `agent/Metrics.kt`, `core/Cli.kt` | 単体（`MetricsTest`） |
+| AG-20 | 評価セット `_evals`（ゴールデン入力＋宣言的な期待結果による回帰評価。サンドボックスコピー上で実行し原本を変更しない。CLI `eval`） | ✅ | `agent/Evals.kt`, `schema/BuiltinSchemas.kt` | 単体（`EvalTest`） |
+| AG-21 | 比較実験（評価セットの `variants`: モデル・エージェント・追加指示を差し替えたA/B実行と合格率・コストの比較） | ✅ | `agent/Evals.kt`（`EvalRunner`） | 単体（`EvalTest`） |
+| AG-22 | メタアクティビティ（`meta: true` で `_agents` / `_activities` / `_evals` への提案を許可。承認は human 固定、`_schemas`/`_runs` は常に不可、定義のパース可否を提出ゲートに追加） | ✅ | `agent/Definitions.kt`, `agent/Tools.kt`, `agent/Staging.kt` | 単体（`MetaActivityTest`, `DefinitionsTest`） |
+| AG-23 | 自己改善パネルUI（メトリクス表示・評価セットの実行と変異別結果の比較） | ✅ | `ui/ImprovementPanel.kt` | 手動＋単体（実行系経路） |
+
+## 9. コアAPI・CLI（エージェント基盤）
+
+UIに依存しないヘッドレス操作の層（[ROADMAP.md](ROADMAP.md) P1 の成果）。CLI の使い方は README §15 を参照。
 
 | ID | 機能 | 状態 | 主な実装 | テスト |
 |---|---|---|---|---|
 | C-01 | ヘッドレスワークスペースAPI（開く・読む・保存・検証・相対パス解決の脱出防止） | ✅ | `core/Workspace.kt` | 単体（`WorkspaceCliTest`） |
 | C-02 | YPathパッチ（set / insert / delete / move）と YPath 文字列パース | ✅ | `core/Patch.kt`（`Patcher`）, `model/YNode.kt`（`parseYPath`） | 単体（`PatchTest`, `YPathTest`） |
-| C-03 | 変更セット（複数ファイルのパッチ束。baseハッシュ競合検出、全件成功時のみ書込、`--require-valid` ゲート、ドライラン） | ✅ | `core/Patch.kt`（`ChangeSets`）, `core/Workspace.kt`（`apply`） | 単体（`WorkspaceCliTest`） |
+| C-03 | 変更セット（複数ファイルのパッチ束＋新規ファイル作成。baseハッシュ競合検出、全件成功時のみ書込、適用後状態のオーバーレイ索引で検証、`--require-valid` ゲート、ドライラン） | ✅ | `core/Patch.kt`（`ChangeSets`）, `core/Workspace.kt`（`apply`） | 単体（`WorkspaceCliTest`） |
 | C-04 | 段階的開示API（カタログ→骨子→ノード全文の3段階、文字数予算付き文脈バンドル） | ✅ | `core/Disclosure.kt` | 単体（`WorkspaceCliTest`） |
 | C-05 | 構造検索API（本文・キーの部分一致＋スキーマ／ファイルglob／パスglob条件、参照検索・未解決参照検索） | ✅ | `core/Search.kt` | 単体（`WorkspaceCliTest`） |
-| C-06 | CLI（catalog / outline / read / bundle / search / validate / apply / hash。出力はUTF-8のYAML） | ✅ | `core/Cli.kt`, `build.gradle.kts`（`runCli`） | 単体（`WorkspaceCliTest` 一気通貫） |
+| C-06 | CLI（catalog / outline / read / bundle / search / validate / apply / hash / activities / agent / watch / revert / metrics / eval。出力はUTF-8のYAML） | ✅ | `core/Cli.kt`, `build.gradle.kts`（`runCli`） | 単体（`WorkspaceCliTest` 一気通貫） |
 
-## 9. 未実装・既知の制約
+## 10. 未実装・既知の制約
 
 利用者向けの注意事項でもあるため、変更時は README の「既知の制約」節との整合を保つこと。
 
@@ -117,5 +147,6 @@ UIに依存しないヘッドレス操作の層（[ROADMAP.md](ROADMAP.md) P1 �
 | L-06 | 参照グラフの本格的なレイアウト・全件表示 | 🚧 | 描画40ノード・一覧500参照に制限した簡易実装 |
 | L-07 | 一括編集の対象キー拡張 | 🚧 | ルートの `status` / `owner` のみ |
 | L-08 | ファイル監視のOSネイティブ化（WatchService等） | 📋 | 現状は1秒間隔のタイムスタンプポーリング |
-| L-09 | フォーム系UI・AppState の自動テスト | 🚧 | 単体テストは ai／diff／AI提案合成／core（パッチ・開示・検索・CLI）／カバレッジ検証。Compose UI と AppState は手動確認 |
-| L-10 | AppState の core.Workspace への全面委譲 | 🚧 | 走査・検証・パッチは共通実装を共有済み。文書キャッシュ・外部同期の統合は P2（ステージング導入）で扱う |
+| L-09 | フォーム系UI・AppState の自動テスト | 🚧 | 単体テストは ai／diff／AI提案合成／core（パッチ・開示・検索・CLI）／カバレッジ検証／agent（ステージング・カーネル・定義・自動化・メトリクス・評価・メタ）。Compose UI と AppState は手動確認 |
+| L-10 | AppState の core.Workspace への全面委譲 | 🚧 | 走査・検証・パッチ・レビュー適用（apply＋reload）は共通実装を共有済み。人間編集との排他は AG-14/15（編集中は自動適用を承認待ちへ降格）で実現。文書キャッシュ層の統合は継続課題 |
+| L-11 | AI生成ダイアログ（A-01〜03）とエージェントカーネルの完全統合 | 🚧 | 接続設定（`ui/AiSettings`）は共有済み。実行系の統合は、フィールド生成が Structured Outputs の型保証を持つ利点を崩さない形で検討（ROADMAP R2-09） |

@@ -94,11 +94,16 @@ object Patcher {
         parent as? YNode.Seq ?: error("配列ではありません: ${path.dropLast(1).pretty()}")
 }
 
-/** 1 ファイルへの変更。base は変更の前提とするディスク内容のハッシュ（省略時は競合チェックなし）。 */
+/**
+ * 1 ファイルへの変更。base は変更の前提とするディスク内容のハッシュ（省略時は競合チェックなし）。
+ * create = true は新規ファイル作成（content が初期内容。既存ファイルがあれば競合エラー）。
+ */
 data class FileChange(
     val file: String,          // ワークスペース相対パス
     val baseHash: String?,     // contentHash() の値
     val ops: List<PatchOp>,
+    val create: Boolean = false,
+    val content: YNode? = null,
 )
 
 /** 複数ファイルにまたがる変更の束。 */
@@ -129,6 +134,14 @@ object ChangeSets {
         val changes = (raw["changes"] as? List<*> ?: error("changes リストが必要です")).mapIndexed { i, entry ->
             val m = entry as? Map<*, *> ?: error("changes[$i]はobjectである必要があります")
             val file = m["file"]?.toString() ?: error("changes[$i].file が必要です")
+            val create = (m["create"] as? Boolean) ?: false
+            if (create) {
+                val content = m["content"] ?: error("changes[$i]: create には content が必要です")
+                return@mapIndexed FileChange(
+                    file = file, baseHash = null, ops = emptyList(),
+                    create = true, content = YamlIO.fromAny(content),
+                )
+            }
             val ops = (m["ops"] as? List<*> ?: error("changes[$i].ops リストが必要です")).mapIndexed { j, opEntry ->
                 parseOp(opEntry, "changes[$i].ops[$j]")
             }

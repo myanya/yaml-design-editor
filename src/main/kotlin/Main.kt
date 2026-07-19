@@ -18,6 +18,11 @@ import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Hub
+import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material.icons.filled.Autorenew
+import androidx.compose.material.icons.filled.Insights
+import agent.AutomationEngine
+import ai.AiProvider
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.runtime.*
@@ -89,6 +94,36 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
     var leftOpen by remember { mutableStateOf(uiPreferences.getBoolean("leftOpen", true)) }
     var rightOpen by remember { mutableStateOf(uiPreferences.getBoolean("rightOpen", true)) }
     var commandOpen by remember { mutableStateOf(false) }
+    var agentOpen by remember { mutableStateOf(false) }
+    var automationOpen by remember { mutableStateOf(false) }
+    var improvementOpen by remember { mutableStateOf(false) }
+    var automationVersion by remember { mutableStateOf(0) }
+    // 自動化エンジン（ワークスペースごとに生成。既定は停止状態で、パネルから有効化する）
+    val automation = remember(state.workspace) {
+        state.workspace?.let { wsDir ->
+            AutomationEngine(
+                wsDir,
+                credentials = {
+                    AutomationEngine.Credentials(
+                        provider = AiSettings.provider,
+                        models = AiProvider.entries.associateWith { AiSettings.modelFor(it) },
+                        apiKeys = AiProvider.entries.associateWith { AiSettings.apiKeyFor(it) }
+                            .filterValues { it.isNotBlank() },
+                    )
+                },
+                dirtyChecker = { p -> state.docFor(p)?.dirty == true },
+            )
+        }
+    }
+    LaunchedEffect(automation) {
+        automation?.let { engine ->
+            engine.onUpdate = { automationVersion++ }
+            engine.start(this)
+        }
+    }
+    DisposableEffect(automation) {
+        onDispose { automation?.stopAll() }
+    }
     LaunchedEffect(state.workspace) {
         while (true) {
             delay(1000)
@@ -107,9 +142,14 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
             else -> false
         }
     }) {
-        Toolbar(state, leftOpen, rightOpen, darkMode, toggleDarkMode, { commandOpen = true },
-            { leftOpen = !leftOpen; uiPreferences.putBoolean("leftOpen", leftOpen) },
-            { rightOpen = !rightOpen; uiPreferences.putBoolean("rightOpen", rightOpen) })
+        automationVersion  // エンジン状態の変化でツールバー（監視インジケータ）を再描画する
+        Toolbar(state, leftOpen, rightOpen, darkMode, toggleDarkMode, { commandOpen = true }, { agentOpen = true },
+            openAutomation = { automationOpen = true },
+            openImprovement = { improvementOpen = true },
+            automationActive = automation?.enabled == true,
+            automationPending = automation?.pendingSnapshot()?.size ?: 0,
+            toggleLeft = { leftOpen = !leftOpen; uiPreferences.putBoolean("leftOpen", leftOpen) },
+            toggleRight = { rightOpen = !rightOpen; uiPreferences.putBoolean("rightOpen", rightOpen) })
         Divider(color = Palette.Border)
         Row(Modifier.weight(1f).fillMaxWidth()) {
             if (leftOpen) {
@@ -139,6 +179,9 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
         StatusBar(state)
     }
     if (commandOpen) CommandPalette(state) { commandOpen = false }
+    if (agentOpen) AgentRunHost(state, automation) { agentOpen = false }
+    if (automationOpen && automation != null) AutomationPanel(state, automation, automationVersion) { automationOpen = false }
+    if (improvementOpen) ImprovementPanel(state) { improvementOpen = false }
     if (state.navigationCandidates.isNotEmpty()) {
         val candidates = state.navigationCandidates
         AlertDialog(
@@ -191,7 +234,9 @@ private fun ResizeHandle(onDrag: (androidx.compose.ui.unit.Dp) -> Unit) {
 
 @Composable
 fun Toolbar(state: AppState, leftOpen: Boolean, rightOpen: Boolean, darkMode: Boolean, toggleDarkMode: () -> Unit,
-            openCommands: () -> Unit,
+            openCommands: () -> Unit, openAgent: () -> Unit,
+            openAutomation: () -> Unit, openImprovement: () -> Unit,
+            automationActive: Boolean, automationPending: Int,
             toggleLeft: () -> Unit, toggleRight: () -> Unit) {
     var pendingWorkspace by remember { mutableStateOf<Path?>(null) }
     var recentOpen by remember { mutableStateOf(false) }
@@ -236,6 +281,24 @@ fun Toolbar(state: AppState, leftOpen: Boolean, rightOpen: Boolean, darkMode: Bo
         Spacer(Modifier.width(8.dp))
         Spacer(Modifier.weight(1f))
         IdSearchBox(state)
+        IconButton(enabled = state.workspace != null, onClick = openAgent) {
+            Icon(Icons.Default.SmartToy, "アクティビティを実行", Modifier.size(18.dp))
+        }
+        Box {
+            IconButton(enabled = state.workspace != null, onClick = openAutomation) {
+                Icon(Icons.Default.Autorenew, "自動実行（トリガ・承認待ち）", Modifier.size(18.dp),
+                    tint = if (automationActive) Palette.OkGreen else Palette.SubText)
+            }
+            if (automationPending > 0) {
+                Text(
+                    "$automationPending", fontSize = 9.sp, color = Palette.WarnOrange, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.align(Alignment.TopEnd).padding(top = 2.dp, end = 2.dp),
+                )
+            }
+        }
+        IconButton(enabled = state.workspace != null, onClick = openImprovement) {
+            Icon(Icons.Default.Insights, "自己改善（メトリクス・評価セット）", Modifier.size(18.dp))
+        }
         IconButton(onClick = openCommands) { Icon(Icons.Default.Terminal, "コマンドパレット (Ctrl+K)", Modifier.size(18.dp)) }
         IconButton(onClick = toggleDarkMode) {
             Icon(if (darkMode) Icons.Default.LightMode else Icons.Default.DarkMode,

@@ -8,7 +8,7 @@ Kotlin + Compose for Desktop 製のスキーマ駆動YAMLエディタ。ワー�
 ./gradlew test                              # 単体テスト（コミット前に必ず実行）
 ./gradlew run                               # sample-workspace で起動
 ./gradlew run --args="/path/to/workspace"   # ワークスペース指定で起動
-./gradlew runCli -q --args="help"           # ヘッドレスCLI（GUIなしで探索・検索・パッチ・検証。README §13）
+./gradlew runCli -q --args="help"           # ヘッドレスCLI（探索・検索・パッチ・検証・エージェント実行・評価。README §15）
 ./gradlew packageDistributionForCurrentOS   # 配布物作成
 ```
 
@@ -36,3 +36,9 @@ Kotlin + Compose for Desktop 製のスキーマ駆動YAMLエディタ。ワー�
 - `IdIndex` はディスク基準。未保存編集の参照解決は `DocScanner.scan` によるローカルIDを重ねて判定する二層構造（docs/ARCHITECTURE.md §4.5）。
 - スキーマの `FieldDef` を使う際は必ず `schema.resolve(field)` を通す（`$ref` 解決）。
 - フィールド型を追加する場合の変更箇所は docs/ARCHITECTURE.md §6 に列挙されている（4箇所以上に分岐が必要）。
+- エージェントの編集は必ず `agent/Staging`（オーバーレイ）経由。原本への書込は人間の承認（`Workspace.apply`）のみ。書込権限・予約ディレクトリ禁止は `AgentToolbox` が強制する（docs/ARCHITECTURE.md §4.10）。
+- `_runs/` は索引対象外の予約ディレクトリ。予約ディレクトリの定数は `SchemaLoader` にある（`_evals` を含む）。
+- 定義文書（`_agents`/`_activities`/`_evals`）への書込は `meta: true` のアクティビティのみ。`meta` かつ `approval: auto` はロード時に定義エラー。`_schemas`/`_runs` は meta でも書込不可。
+- 評価（`EvalRunner`）はワークスペースの一時コピー上で実行する。原本に書くのはレポート（`_runs/eval-*.yaml`）だけ。実行記録の形式を変えたら `RunLog` と `RunMetrics` の両方を直す。
+- カーネル（`AgentKernel`）のテストは疑似セッション注入で書く（`KernelTest` 参照）。実APIを叩くテストは書かない。
+- 自動化エンジン（`AutomationEngine`）のテストは `tick(now)` / `processOnce()` を直接呼ぶ（タイマー・sleep を使わない。`AutomationTest` 参照）。自動適用後はスタンプ基準を更新し、自己変更で on-change を再発火させないこと。

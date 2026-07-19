@@ -288,6 +288,55 @@ class WorkspaceCliTest {
     }
 
     @Test
+    fun `apply creates new files from changeset`() {
+        val workspace = Workspace.open(ws)
+        val result = workspace.apply(
+            ChangeSets.parse(
+                """
+                changes:
+                  - file: requirements/req-c.yaml
+                    create: true
+                    content:
+                      id: REQ-003
+                      title: 通知機能
+                """.trimIndent()
+            ),
+        )
+        assertTrue(result.ok, result.results.toString())
+        assertTrue(Files.exists(ws.resolve("requirements/req-c.yaml")))
+        // 既存ファイルへの create は競合として全体を中止する
+        val conflict = workspace.apply(
+            ChangeSets.parse("changes:\n  - file: requirements/req-c.yaml\n    create: true\n    content: { id: X }")
+        )
+        assertFalse(conflict.ok)
+        assertTrue(conflict.results.single().message!!.contains("競合"))
+    }
+
+    @Test
+    fun `overlay validation accepts coordinated multi-file rename`() {
+        val workspace = Workspace.open(ws)
+        // REQ-001 を REQ-010 に改名し、設計側の参照も同じ変更セットで更新する。
+        // 各ファイルを「変更前の索引」で検証すると偽の未解決参照になるが、
+        // オーバーレイ索引での検証なら requireValid を通過できる。
+        val result = workspace.apply(
+            ChangeSets.parse(
+                """
+                changes:
+                  - file: requirements/req-a.yaml
+                    ops:
+                      - { op: set, path: id, value: REQ-010 }
+                  - file: designs/dsn-a.yaml
+                    ops:
+                      - { op: set, path: "implements[0]", value: REQ-010 }
+                """.trimIndent()
+            ),
+            requireValid = true,
+        )
+        assertTrue(result.ok, result.results.toString())
+        assertTrue("REQ-010" in Files.readString(ws.resolve("designs/dsn-a.yaml")))
+    }
+
+    @Test
     fun `requireValid blocks writes when validation errors remain`() {
         val workspace = Workspace.open(ws)
         val result = workspace.apply(

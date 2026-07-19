@@ -9,7 +9,7 @@
 - AI連携: Java 11 HttpClient + kotlinx-serialization-json（外部SDK不使用）
 - 永続化: `java.util.prefs.Preferences`（UIレイアウト・テーマ・履歴・AIモデル設定）
 - ビルド: Gradle（Wrapper 同梱）、テスト: kotlin.test
-- ヘッドレスCLI: `./gradlew runCli --args="…"`（GUIなしで探索・検索・パッチ・検証。README §13） 
+- ヘッドレスCLI: `./gradlew runCli --args="…"`（GUIなしで探索・検索・パッチ・検証・エージェント実行・評価。README §15） 
 
 ## 2. パッケージ構成と依存方向
 
@@ -22,16 +22,19 @@ src/main/kotlin/
 ├── validate/  スキーマ検証・参照解決・重複・カバレッジ検証  （→ model, schema, index）
 ├── core/      ヘッドレス層: ワークスペース操作・パッチ・段階的開示・構造検索・CLI
 │              （→ model, yaml, schema, index, validate。UI/Compose 非依存）
-├── ai/        AI生成: JSON Schema変換・プロバイダクライアント（→ model, schema, index）
+├── ai/        AI生成・LLMクライアント: JSON Schema変換・構造化出力・ツール使用チャット（→ model, schema, index）
+├── agent/     エージェント実行: 定義・ステージング・ツールセット・カーネル・実行記録・
+│              自動化・メトリクス・評価 （→ core, ai, validate ほか。UI/Compose 非依存）
 ├── app/       AppState / OpenDocument: アプリ状態・ファイル操作（→ core とロジック層）
 ├── ui/        Composeビュー一式                             （→ 上記すべて）
 └── Main.kt    エントリポイント・ウィンドウ・ツールバー・パレット（→ app, ui, index）
 ```
 
-**依存ルール**: `model` → `yaml` → `schema` → `index` → `validate` → `core` → `app` → `ui` の一方向。逆流させない。
+**依存ルール**: `model` → `yaml` → `schema` → `index` → `validate` → `core` → `agent` → `app` → `ui` の一方向。逆流させない（例外: エントリポイントである `core/Cli.kt` は Main.kt と同様に `agent` を呼んでよい）。
 
-- `model` / `yaml` / `schema` / `index` / `validate` / `core` / `ai` は **Compose・UI 非依存**（純粋ロジック）。単体テストはこの層に書く。
+- `model` / `yaml` / `schema` / `index` / `validate` / `core` / `agent` / `ai` は **Compose・UI 非依存**（純粋ロジック）。単体テストはこの層に書く。
 - `core` はエージェント・CLI・UI が共通で使うヘッドレス操作の層（ROADMAP P1）。UI（AppState）はファイル走査などの基盤処理を `core` に委譲する。
+- `agent` はP1のAPIをツールとして束ね、マルチターンのエージェント実行を提供する層（ROADMAP P2）。LLMセッションは注入可能で、テストは台本を返す疑似セッションで行う。
 - `app` は Compose の `mutableStateOf` のみに依存（UI部品には依存しない）。
 - `ai` はネットワークを伴うが、リクエスト構築・レスポンス解析は純粋関数として分離しテスト可能にしている。
 
@@ -53,7 +56,20 @@ src/main/kotlin/
 | `PatchOp` / `Patcher` / `ChangeSets` | core/Patch.kt | YPathパッチ（set/insert/delete/move）と変更セット（baseハッシュ競合検出、YAML解析） |
 | `Disclosure` | core/Disclosure.kt | 段階的開示: カタログ→骨子→ノード全文、文字数予算付き文脈バンドル |
 | `Search` | core/Search.kt | 構造検索: 本文・キー部分一致＋スキーマ／glob条件、参照・未解決参照の検索 |
-| `runCli` | core/Cli.kt | CLIコマンド（catalog/outline/read/bundle/search/validate/apply/hash）。出力はUTF-8のYAML |
+| `runCli` | core/Cli.kt | CLIコマンド（catalog/outline/read/bundle/search/validate/apply/hash/activities/agent/watch/revert/metrics/eval）。出力はUTF-8のYAML |
+| `ToolChatSession` / `ToolChat` | ai/ToolChat.kt | ツール使用（function calling）対応のチャット抽象と OpenAI Responses / Anthropic Messages 実装。会話状態はセッションが保持 |
+| `AgentDef` / `ActivityDef` / `Definitions` | agent/Definitions.kt | `_agents` / `_activities` 定義の実行時ロード（エラー収集つき）。フォーム編集・検証は `schema/BuiltinSchemas.kt` の組込みスキーマが担う |
+| `Staging` | agent/Staging.kt | エージェントの作業オーバーレイ。パッチ記録・新規文書・オーバーレイ索引・影響ファイルを含む横断検証・変更セット化 |
+| `AgentToolbox` | agent/Tools.kt | エージェントに公開する13ツール（探索・編集・検証・対話・管理）。書込権限（許可glob・予約ディレクトリ禁止）をツール側で強制 |
+| `AgentKernel` / `AgentHost` | agent/Kernel.kt | マルチターンのツール使用ループ。上限（ターン・トークン・時間）、終了手続きの強制、質問の中継、イベント通知 |
+| `RunLog` | agent/RunLog.kt | 実行記録を `_runs/` にYAML保存し、採否・自動適用バックアップ・巻き戻しを追記 |
+| `AutomationEngine` | agent/Automation.kt | 自動化エンジン: トリガ監視（`tick(now)`）・直列実行キュー（`processOnce`）・承認ポリシー・連鎖・リトライ・常時停止。時刻注入でテスト可能 |
+| `AutoApply` | agent/AutoApply.kt | 巻き戻し可能な適用: 適用前原文を実行記録へバックアップし、`revert` で復元（適用後の変更は競合として拒否） |
+| `RunMetrics` | agent/Metrics.kt | 実行メトリクス（R4-01）: `_runs` の実行記録だけから提出率・採用率・却下ファイル率・自動適用/巻き戻し・コストを集計（実行時に追加記録しない） |
+| `EvalDef` / `Evals` / `EvalRunner` | agent/Evals.kt | 評価セット（R4-02）と比較実験（R4-04）: `_evals` 定義のロード、サンドボックスコピー上でのケース×変異の実行、宣言的期待結果の判定、レポート保存 |
+| `AgentRunHost` / `ReviewContent` | ui/AgentPanel.kt | 実行ダイアログ: 選択→進捗ストリーミング・質問応答→変更セットレビュー（部分採用・再検証）→適用。レビューは承認待ちからも共用 |
+| `AutomationPanel` | ui/AutomationPanel.kt | 自動実行パネル: 監視ON/OFF・キュー・承認待ちレビュー・履歴・ログ・停止 |
+| `ImprovementPanel` | ui/ImprovementPanel.kt | 自己改善パネル: 実行メトリクスの表示・評価セットの実行と変異別結果の比較 |
 | `OpenDocument` | app/AppState.kt | 開いている1文書。ツリー・履歴（Undo/Redo）・dirty・外部競合の管理 |
 | `AppState` | app/AppState.kt | ワークスペース・文書キャッシュ・索引・ナビゲーション・ファイル操作・一括更新・外部変更検出 |
 | `AiGenerator` ほか | ai/ | スキーマ→JSON Schema 変換、REF候補の enum 制約、プロバイダ振り分け |
@@ -110,7 +126,39 @@ Undo/Redo は `YamlIO.dump` したスナップショット文字列の履歴（�
 
 生成値の型保証は「対象フィールドのスキーマ→JSON Schema 変換＋Structured Outputs」で行い、プロンプトに依存しない。ただし `map` 型（additionalProperties がスキーマ）を含む場合のみ構造化出力を無効化してプロンプト指示にフォールバックする。生成結果は `value` プロパティに包んだレスポンススキーマで受け、`parseGeneratedValue` で `YNode` 化する。
 
-### 4.10 エラー処理
+### 4.10 エージェント実行（P2）
+
+エージェントの実行は「LLMが自ら次の行動を選ぶマルチターンのツール使用ループ」（`AgentKernel`）。設計の要点:
+
+- **編集は必ずステージング経由**。`Staging` がベース内容のスナップショットに対するオーバーレイとしてパッチを記録し、提出物はそのままP1の変更セットになる（適用・競合検出・レビューの再利用）。原本はレビュー承認まで変わらない。
+- **検証は「ステージ済み＋影響ファイル」**。影響ファイル＝ステージ対象が変更前後に定義するIDの参照元。ID改名で壊れる未修正の参照元をステージング外でも検出しつつ、無関係な既存エラーで提出を塞がない（ゲートの意味は「自分の変更が新たな破れを生まないこと」）。
+- **権限はツール側で強制**。許可ファイルglob・許可パスglob・予約ディレクトリ（`_schemas` / `_agents` / `_activities` / `_runs`）書込禁止は、プロンプトではなく `AgentToolbox` が拒否する。
+- **終了手続きの強制**。`submit_changeset`（ゲート通過必須）か `abort` でのみ正常終了。上限（ターン・トークン・時間）到達時はステージングを未提出ドラフトとして保全する。
+- **テスト容易性**。LLMセッションは `sessionFactory` 注入で疑似化でき、ツール実行・ステージング・検証は本物を通した結合テストが書ける（`KernelTest`）。
+
+### 4.11 自動実行（P3）
+
+`AutomationEngine` がトリガ・キュー・承認・連鎖・リトライを司る。守るべき不変条件:
+
+- **直列実行**: エージェント実行は常に1件ずつ。並行変更と索引競合を構造的に排除する。
+- **自動適用の3条件**: ゲート通過・書込スコープ内・対象がエディタで非編集中。ひとつでも欠けたら承認待ちへ**降格**する（黙って失敗させない）。
+- **自己トリガの防止**: 適用（自動・採用とも）の直後にファイルスタンプ基準を取り直す。`_schemas` / `_agents` / `_activities` / `_evals` / `_runs` は監視対象外。
+- **Undo保証**: 自動適用は適用前の原文を実行記録へバックアップしてから書き込む（`AutoApply`）。巻き戻しは適用後の追加変更を競合として検出する。
+- **連鎖のガード**: 深さ上限（既定5）と visited 集合による循環検出。人間承認の実行では、連鎖は採否決定後に発火する。
+- **リトライの収束判定**: 同一の失敗メッセージを繰り返したら `maxAttempts` 未満でも打ち切る。
+- **時刻とLLMは注入可能**: `tick(now)` / `processOnce()` / `sessionFactory` により、タイマー・実APIなしで全経路をテストできる（`AutomationTest`）。
+
+### 4.12 自己改善（P4）
+
+メトリクス・評価・メタアクティビティの3部品で「測る→比べる→定義を直す」を回す。守るべき不変条件:
+
+- **メトリクスは読むだけ**: `RunMetrics` は既存の実行記録（採否・自動適用・巻き戻しの追記を含む）だけから集計し、実行時に追加の記録を要求しない。記録の形式を変えるときは `RunLog` と `RunMetrics` の両方を更新する。
+- **評価はサンドボックス**: `EvalRunner` はケース×変異ごとにワークスペースの一時コピー（`_runs` 除外）を作って実行し、原本には一切書かない。レポート（`_runs/eval-*.yaml`）は実行記録の必須キーを持たないため、メトリクス集計から自動的に除外される。
+- **期待結果は宣言的**: 終了状態・検証エラー・変更ファイル（glob）・パス内容（exists/contains/equals）の構造条件のみ。出力文字列の完全一致は提供しない（モデルの揺らぎで壊れる評価を書かせない）。
+- **メタは人間承認固定**: `meta: true` は `_agents` / `_activities` / `_evals` への書込だけを解禁する。`_schemas` / `_runs` は常に不可（`AgentToolbox`）。`meta` かつ `approval: auto` はロード時に定義エラー。ステージされた定義は実際のローダでパースできることが提出ゲートに加わる（`Staging.validateAll`）。
+- **LLMは注入可能**: `EvalRunner` もカーネルと同じ `SessionFactory` を受け取り、テストは台本セッションで決定的に行う（`EvalTest` / `MetaActivityTest`）。
+
+### 4.13 エラー処理
 
 - ファイルI/O・パースは `runCatching` で受け、ユーザー操作の結果は `Result` を返して呼び出し側（UI）が `state.status` に反映する。
 - 入力検証の失敗は `require(...) { "日本語メッセージ" }`、内部異常は `error("日本語メッセージ")`。メッセージはそのままUIに表示される前提で書く。
@@ -121,7 +169,10 @@ Undo/Redo は `YamlIO.dump` したスナップショット文字列の履歴（�
 - **保存**: `canonicalText()` をファイルへ書き出し → スキーマファイルなら再読込 → `rebuildIndex()` → `indexVersion`++
 - **ジャンプ**: `navigateToId` → 索引の出現検索（複数なら選択ダイアログ／横ぐしビュー）→ `openFile(file, focus)` → `highlightPath` 設定 → `Highlightable` がスクロール
 - **AI生成**: ✨/ボタン → `AppState.requestAi(field, path)` → `AiGenerationHost` が現ツリーを複製して入力構築 → プロバイダ呼び出し → `combineProposal`/`replaceInClone` で適用後ツリーを合成 → 差分プレビュー＋`Validator` で事前検証 → 適用（`doc.root` 差し替え）
-- **ヘッドレス変更セット適用**（CLI／将来のエージェント）: `ChangeSets.parse` → 全ファイルの base ハッシュ照合＋パッチ適用（メモリ上）→ `Validator` で適用後検証 → **全件成功時のみ**書き込み（`--require-valid` 指定時は検証エラーでも中止）→ `refresh()` で索引更新。1件でも失敗すれば何も書かないオール・オア・ナッシング
+- **ヘッドレス変更セット適用**（CLI／エージェント）: `ChangeSets.parse` → 全ファイルの base ハッシュ照合＋パッチ適用（メモリ上）→ 適用後状態を重ねた**オーバーレイ索引**で検証（複数ファイル連動の変更も正しく判定）→ **全件成功時のみ**書き込み（`--require-valid` 指定時は検証エラーでも中止）→ `refresh()` で索引更新。1件でも失敗すれば何も書かないオール・オア・ナッシング
+- **エージェント実行**: アクティビティ起動 → `AgentKernel` がシステムプロンプト（persona＋規範）と初期文脈（指示・カタログ・権限・ゲート）を構築 → ツール使用ループ（探索→パッチ→検証→…、必要なら `delegate` で相談）→ `submit_changeset`（ゲート通過）→ `RunLog` 書き出し → レビューUIで部分採用（採用サブセットを `Staging` で再検証）→ `Workspace.apply` で反映 → `AppState.reload()`
+- **自動実行**: `AutomationEngine.tick(now)` がトリガ判定（on-change はデバウンス、on-invalid は変更ファイルの検証）→ キュー投入 → `processOnce` がカーネル実行 → 提出後は承認方式で分岐（auto: `AutoApply.applyWithBackup` → スタンプ更新 → 連鎖／human: 承認待ち＋変更セットのファイル保存 → 採否後に連鎖）→ 失敗はフィードバック付きリトライ（収束打ち切りあり）
+- **評価**: `Evals.load` → `EvalRunner.run` がケース×変異ごとに（サンドボックスコピー作成 → `setup` のゴールデン入力を上書き → カーネル実行 → 宣言的期待結果の判定 → コピー破棄）→ レポートを原本の `_runs/eval-*.yaml` に保存 → 自己改善パネル／CLI `eval` で変異別の合格率・コストを比較
 
 ## 6. 拡張ポイント
 

@@ -146,8 +146,11 @@ class Workspace private constructor(val root: Path) {
     }
 
     /**
-     * 変更セットを適用する（R1-02）。
+     * 変更セットを適用する（R1-02 / R2-05）。
      * - 全ファイルの競合チェックと操作適用を先に行い、1件でも失敗すれば何も書き込まない。
+     * - create = true の変更は新規ファイル作成（既存ファイルがあれば競合）。
+     * - 検証は「適用後の全ファイルを重ねたオーバーレイ索引」に対して行うため、
+     *   ID改名と参照元修正のような複数ファイル連動の変更も正しく判定される。
      * - dryRun = true では書き込みを行わず、適用後の検証結果のみ返す。
      * - requireValid = true では、適用後に検証エラーが残る場合も書き込まない。
      */
@@ -161,14 +164,19 @@ class Workspace private constructor(val root: Path) {
         for (change in changeSet.changes) {
             val outcome = runCatching {
                 val file = resolve(change.file)
-                require(Files.isRegularFile(file)) { "ファイルが存在しません: ${change.file}" }
-                val diskText = Files.readString(file)
-                if (change.baseHash != null && ChangeSets.contentHash(diskText) != change.baseHash) {
-                    error("競合: ディスク内容が変更の前提（base）から変わっています")
+                if (change.create) {
+                    require(!Files.exists(file)) { "競合: 既に同名のファイルが存在します: ${change.file}" }
+                    Staged(change, file, change.content ?: error("createにはcontentが必要です"))
+                } else {
+                    require(Files.isRegularFile(file)) { "ファイルが存在しません: ${change.file}" }
+                    val diskText = Files.readString(file)
+                    if (change.baseHash != null && ChangeSets.contentHash(diskText) != change.baseHash) {
+                        error("競合: ディスク内容が変更の前提（base）から変わっています")
+                    }
+                    val tree = YamlIO.parse(diskText)
+                    change.ops.forEach { Patcher.apply(tree, it) }
+                    Staged(change, file, tree)
                 }
-                val tree = YamlIO.parse(diskText)
-                change.ops.forEach { Patcher.apply(tree, it) }
-                Staged(change, file, tree)
             }
             outcome.onSuccess { staged += it }.onFailure {
                 failed = true
@@ -176,10 +184,15 @@ class Workspace private constructor(val root: Path) {
             }
         }
 
-        // 適用後の状態で検証（書き込み前）。索引は保存済み状態のままである点に注意。
+        // 適用後の状態を重ねたオーバーレイ索引で検証する（書き込み前）
+        val overlayRoots = staged.associate { it.file to it.newRoot }
+        val overlayIndex = IdIndex().apply {
+            rebuild(root, (files + overlayRoots.keys).distinct(), schemas) { f ->
+                overlayRoots[f] ?: runCatching { YamlIO.parse(Files.readString(f)) }.getOrNull()
+            }
+        }
         val validated = staged.map { s ->
-            val schema = schemaFor(s.file)
-            s to Validator.validate(s.newRoot, null, s.file, schema, index)
+            s to Validator.validate(s.newRoot, null, s.file, schemaFor(s.file), overlayIndex)
         }
         if (requireValid && validated.any { (_, issues) -> issues.any { it.severity == Severity.ERROR } }) {
             failed = true
@@ -187,7 +200,10 @@ class Workspace private constructor(val root: Path) {
 
         val write = !dryRun && !failed
         validated.forEach { (s, issues) ->
-            if (write) Files.writeString(s.file, YamlIO.dump(s.newRoot))
+            if (write) {
+                Files.createDirectories(s.file.parent)
+                Files.writeString(s.file, YamlIO.dump(s.newRoot))
+            }
             results += FileChangeResult(s.change.file, applied = write, message = null, issues = issues)
         }
         if (write) refresh()

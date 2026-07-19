@@ -250,6 +250,12 @@ object SchemaLoader {
 
     const val SCHEMA_DIR = "_schemas"
 
+    /** エージェント実行の予約ディレクトリ（セルフホスティング。ROADMAP §4.2）。 */
+    const val AGENTS_DIR = "_agents"
+    const val ACTIVITIES_DIR = "_activities"
+    const val RUNS_DIR = "_runs"
+    const val EVALS_DIR = "_evals"
+
     data class LoadResult(val schemas: List<SchemaDef>, val errors: List<String>)
 
     fun loadAll(workspace: Path): List<SchemaDef> = loadAllWithErrors(workspace).schemas
@@ -276,6 +282,8 @@ object SchemaLoader {
         schemas.groupBy { it.id }.filterValues { it.size > 1 }.forEach { (id, duplicates) ->
             errors += "スキーマID「$id」が重複しています（${duplicates.joinToString(", ") { it.source.fileName.toString() }}）"
         }
+        // 組込みスキーマ（_agents / _activities）は利用者スキーマの後ろに置く（先勝ちのため利用者定義が優先）
+        schemas += BuiltinSchemas.all.filter { builtin -> schemas.none { it.id == builtin.id } }
         return LoadResult(schemas, errors)
     }
 

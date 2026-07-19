@@ -34,13 +34,24 @@ data class SearchHit(
 
 object Search {
 
-    fun run(ws: Workspace, query: SearchQuery): List<SearchHit> {
+    /**
+     * 検索を実行する。files / index / loader を差し替えると、エージェントのステージング
+     * （メモリ上の編集を含む状態）に対しても同じ検索が使える。
+     */
+    fun run(
+        ws: Workspace,
+        query: SearchQuery,
+        files: List<Path> = ws.files,
+        index: index.IdIndex = ws.index,
+        loader: (Path) -> YNode? = { f -> runCatching { YamlIO.parse(Files.readString(f)) }.getOrNull() },
+    ): List<SearchHit> {
         val fileRegex = query.fileGlob?.let { globToRegex(it) }
         val pathRegex = query.pathGlob?.let { pathGlobToRegex(it) }
 
         fun fileMatches(file: Path): Boolean {
             val rel = ws.relPath(file)
             if (rel.startsWith(SchemaLoader.SCHEMA_DIR + "/")) return false
+            if (rel.startsWith(SchemaLoader.RUNS_DIR + "/")) return false
             if (fileRegex != null && !fileRegex.matches(rel)) return false
             if (query.schemaIds.isNotEmpty() && ws.schemaFor(file)?.id !in query.schemaIds) return false
             return true
@@ -48,13 +59,13 @@ object Search {
 
         // 参照の検索（索引ベース）
         if (query.refsTo != null || query.unresolvedRefs) {
-            return ws.index.refs.asSequence()
+            return index.refs.asSequence()
                 .filter { fileMatches(it.file) }
                 .filter { query.refsTo == null || it.targetId == query.refsTo }
                 .filter { query.text == null || it.targetId.contains(query.text, ignoreCase = true) }
                 .filter { pathRegex == null || pathRegex.matches(it.path.pretty()) }
                 .mapNotNull { ref ->
-                    val unresolved = ws.index.resolve(ref).isEmpty()
+                    val unresolved = index.resolve(ref).isEmpty()
                     if (query.unresolvedRefs && !unresolved) return@mapNotNull null
                     SearchHit(
                         file = ws.relPath(ref.file),
@@ -73,10 +84,10 @@ object Search {
         // 本文の検索（キー・スカラー値）
         val needle = query.text ?: return emptyList()
         val hits = mutableListOf<SearchHit>()
-        for (file in ws.files) {
+        for (file in files) {
             if (hits.size >= query.limit) break
             if (!fileMatches(file)) continue
-            val root = runCatching { YamlIO.parse(Files.readString(file)) }.getOrNull() ?: continue
+            val root = loader(file) ?: continue
             walk(root, emptyList()) { path, key, scalar ->
                 if (hits.size >= query.limit) return@walk
                 if (pathRegex != null && !pathRegex.matches(path.pretty())) return@walk
