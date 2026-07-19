@@ -40,7 +40,7 @@
 | S-02 | 型システム12種（string/text/int/number/boolean/enum/date/id/ref/array/map/object） | ✅ | `schema/Schema.kt`（`FieldType`） | 手動 |
 | S-03 | 名前付き定義と再帰参照（`definitions` / `$ref`、属性のオーバーライド合成） | ✅ | `SchemaDef.resolve` | 手動 |
 | S-04 | メタスキーマ検証（必須情報、キー重複、子定義不足、enum選択肢、未解決 `$ref`） | ✅ | `SchemaDef.validateDefinition` | 手動 |
-| S-05 | スキーマ設計UI（設計／プレビュー／適用対象タブ、競合スキーマ表示） | ✅ | `ui/SchemaEditor.kt` | 手動 |
+| S-05 | スキーマ設計UI（スキーマ全体の説明、設計／プレビュー／適用対象タブ、競合スキーマ表示） | ✅ | `ui/SchemaEditor.kt` | 手動 |
 | S-06 | サンプルYAML生成（プレビュー・クリップボードコピー・新規ファイル初期値） | ✅ | `SchemaDef.generateSample` | 手動 |
 | S-07 | スキーマ外キーの検証ポリシー（`unknownFields: allow / warning / error`、未知サブツリーは走査境界） | ✅ | `validate/Validator.kt`, `index/IdIndex.kt` | 手動 |
 | S-08 | 参照の関係種別（`type: ref` の `relation`。表示・カバレッジ判定・`$ref`合成に対応） | ✅ | `schema/Schema.kt`, `index/IdIndex.kt`, `ui/SchemaEditor.kt` | 単体（`WorkspaceCliTest`） |

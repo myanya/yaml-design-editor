@@ -58,6 +58,7 @@ fun SchemaEditor(state: AppState, doc: OpenDocument) {
             Spacer(Modifier.height(10.dp))
             CompactScalar(root, "id", "スキーマID", doc)
             CompactScalar(root, "name", "スキーマ名", doc)
+            CompactMultilineScalar(root, "description", "スキーマの説明", doc)
             CompactScalar(root, "match", "適用パターン", doc)
             if (schemaResult.isFailure) {
                 SchemaProblem("スキーマを解析できません: ${schemaResult.exceptionOrNull()?.message}")
@@ -160,6 +161,24 @@ private fun CompactScalar(map: YNode.Map, key: String, label: String, doc: OpenD
         CompactTextField(value, { map.entries[key] = YNode.Scalar(it); doc.markEdited() },
             singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
             modifier = Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun CompactMultilineScalar(map: YNode.Map, key: String, label: String, doc: OpenDocument) {
+    val value = (map.entries[key] as? YNode.Scalar)?.value?.toString().orEmpty()
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 1.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Text(label, fontSize = 12.sp, modifier = Modifier.width(140.dp).padding(top = 8.dp))
+        CompactTextField(
+            value = value,
+            onValueChange = { map.entries[key] = YNode.Scalar(it); doc.markEdited() },
+            singleLine = false,
+            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
+            modifier = Modifier.weight(1f).heightIn(min = 72.dp),
+        )
     }
 }
 

@@ -93,6 +93,7 @@ data class CoverageRule(
 data class SchemaDef(
     val id: String,
     val name: String,
+    val description: String? = null,
     val match: String,
     val root: FieldDef,
     val definitions: Map<String, FieldDef> = emptyMap(),
@@ -293,6 +294,7 @@ object SchemaLoader {
         val fallbackId = source.fileName.toString().substringBeforeLast('.')
         val id = raw["id"]?.toString() ?: fallbackId
         val name = raw["name"]?.toString() ?: id
+        val description = raw["description"]?.toString()
         val match = raw["match"]?.toString() ?: "**/*.{yaml,yml}"
         val definitions = (raw["definitions"] as? Map<*, *>)?.entries?.associate { (name, value) ->
             val definition = value as? Map<*, *> ?: error("definitions.${name}: objectである必要があります")
@@ -301,7 +303,16 @@ object SchemaLoader {
         val rootMap = raw["root"] as? Map<*, *> ?: error("root定義が必要です")
         val root = parseField(rootMap, key = null)
         val coverage = parseCoverage(raw["coverage"])
-        return SchemaDef(id = id, name = name, match = match, root = root, definitions = definitions, coverage = coverage, source = source)
+        return SchemaDef(
+            id = id,
+            name = name,
+            description = description,
+            match = match,
+            root = root,
+            definitions = definitions,
+            coverage = coverage,
+            source = source,
+        )
     }
 
     private fun parseCoverage(raw: Any?): List<CoverageRule> {

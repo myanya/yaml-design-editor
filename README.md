@@ -117,6 +117,9 @@ my-workspace/
 ```yaml
 id: requirement                       # 安定したスキーマID（省略時はスキーマファイル名）
 name: 要求                             # 表示用のスキーマ名
+description: |                         # スキーマ全体の説明（任意・複数行）
+  要求事項を管理するスキーマです。
+  要求の状態と関連を一貫した形式で記録します。
 match: "requirements/**/*.{yaml,yml}" # 適用対象の glob（**, *, ?, {a,b} に対応）
 root:                                 # ルートのフィールド定義（通常 type: object）
   type: object
@@ -138,6 +141,8 @@ root:                                 # ルートのフィールド定義（通�
         scope:
           schemaIds: [requirement]    # 安定したスキーマIDで探索範囲を限定
 ```
+
+トップレベルの `description` には、スキーマの目的や対象を説明する複数行の文を任意で指定できます。スキーマ設計画面では複数行テキスト欄として編集できます。
 
 ### フィールド定義のプロパティ
 
