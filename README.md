@@ -17,7 +17,8 @@ YAML で設計項目（要求・設計・課題など）を管理するための
 - **エージェントによるアクティビティ実行**: `_agents`／`_activities` に定義した仕事（レビュー・改名・起票など）を、エージェントが探索→複数文書編集→自己検証のループで実行。提案は変更セットとして人間が部分採用
 - **自動実行**: トリガ（ファイル更新・スケジュール・検証エラー）による自動起動、連鎖・リトライ、条件付き自動承認（適用前バックアップと巻き戻し付き）
 - **自己改善**: 実行記録のメトリクス集計、評価セット（`_evals`）によるアクティビティの回帰評価とA/B比較、メタアクティビティによる定義改善の提案
-- **ヘッドレスCLI**: GUIなしでカタログ・骨子・検索・部分パッチ（変更セット）・検証・エージェント実行・評価（エージェント連携の基盤）
+- **skill（フォーマット適合）**: Excel / CSV / JSON / Markdown の宣言型インポート・エクスポート（YAMLが常に原本）、ユースケース別テンプレートパック（`init`）
+- **ヘッドレスCLI**: GUIなしでカタログ・骨子・検索・部分パッチ（変更セット）・検証・エージェント実行・評価・入出力変換（エージェント連携の基盤）
 
 本書は**利用者向けマニュアル**です。開発者向けの情報は次を参照してください（内容は分担しており重複させません）。
 
@@ -425,6 +426,7 @@ Material 3ベースのライト／ダークテーマを搭載しています。�
 | `_agents/*.yaml` | エージェント定義: `id`・`persona`（性格・行動指針）・`rubric`（観点）・`model`（プロバイダ／モデルID）・`tools`（許可ツール分類） |
 | `_activities/*.yaml` | アクティビティ定義: `id`・`agent`・`target.match`（対象glob）・`instruction`・`allowedFiles`／`allowedPaths`（書込許可）・`limits`（maxTurns等）・`gates.validation`・`trigger`／`chain`／`retry`／`approval`（自動実行）・`meta`（§13） |
 | `_evals/*.yaml` | 評価セット定義: ゴールデン入力と期待結果によるアクティビティの回帰評価（§13） |
+| `_skills/*.yaml` | skill定義: 宣言型のインポート・エクスポート（§14） |
 | `_runs/` | 実行記録（自動生成。ターン・ツール呼び出し・質問・採否・トークン使用量・評価レポート） |
 
 どちらも組込みスキーマ付きのYAML文書なので、本ツールのフォーム編集・検証がそのまま使えます（独自スキーマを `_schemas` に置けば上書き可能）。定義例:
@@ -456,7 +458,7 @@ gates: { validation: error-free }        # 検証エラーが残る提出は拒�
 
 ### 安全性
 
-- エージェントの読み書きはツール経由のみで、書込は `allowedFiles`／`allowedPaths` の範囲かつ予約ディレクトリ（`_schemas` `_agents` `_activities` `_evals` `_runs`）以外に制限されます（定義3ディレクトリはメタアクティビティ §13 でのみ提案可能）
+- エージェントの読み書きはツール経由のみで、書込は `allowedFiles`／`allowedPaths` の範囲かつ予約ディレクトリ（`_schemas` `_agents` `_activities` `_evals` `_skills` `_runs`）以外に制限されます（定義ディレクトリはメタアクティビティ §13 でのみ提案可能）
 - 提出には検証ゲート（既定: エラー0）があり、変更が壊す参照（改名の未修正参照元など）はステージング外のファイルでも検出されます
 - ターン数・トークン・時間の上限があり、上限到達時も作業は未提出ドラフトとして保全され、レビュー画面から引き継げます
 - 文書の内容はエージェントへの指示として扱われません（データとして扱う規範をシステムプロンプトで明示）
@@ -525,7 +527,7 @@ cases:
 
 ### メタアクティビティ（定義の改善提案）
 
-アクティビティ定義に `meta: true` を付けると、そのエージェントは `_agents` / `_activities` / `_evals` の**定義文書そのものへの変更を提案**できます（例: 実行記録の傾向を踏まえた指示の改善、評価ケースの追加）。安全のための制約:
+アクティビティ定義に `meta: true` を付けると、そのエージェントは `_agents` / `_activities` / `_evals` / `_skills` の**定義文書そのものへの変更を提案**できます（例: 実行記録の傾向を踏まえた指示の改善、評価ケースの追加、エクスポート列の追加）。安全のための制約:
 
 - **承認は human 固定**。`meta: true` かつ `approval: auto` は定義エラーになります（エージェントが自分の権限・挙動を変える変更は必ず人間が承認）
 - `_schemas` と `_runs` への書込は meta でも**常に不可**
@@ -533,7 +535,64 @@ cases:
 
 「メタアクティビティで改善案を提案 → 評価セットで変異比較 → レビューで採用」という改善サイクルがツール内で完結します。
 
-## 14. 既知の制約
+## 14. skill（インポート・エクスポート・テンプレート）
+
+Excel・CSV等の現実の業務フォーマットと、YAML原本を接続する機能群です。ツールバーの上下矢印アイコンから **skillパネル**を開きます。変換は `_skills/*.yaml` に**宣言的に**定義します（コード実行はありません）。
+
+### インポート（表形式 → YAML原本）
+
+xlsx / csv / json / markdown の表を、列マッピングでYAML文書群へ取り込みます。**取り込んだ時点からYAMLが原本**です。
+
+```yaml
+# _skills/import-issues.yaml
+id: import-issues
+kind: import
+input: { format: xlsx, headerRow: 1 }        # xlsx / csv / json / markdown
+target: { file: "issues/{ID}.yaml" }         # {列名} が行の値で置換される（1行1文書）
+mapping:
+- { column: ID, path: id, required: true }
+- { column: 件名, path: title, required: true }
+- column: 状態
+  path: status
+  map: { 未着手: open, 対応中: in-progress, 完了: done }   # 値の変換辞書
+- { column: 優先度, path: priority, type: int }            # 型変換（string/int/number/boolean/auto）
+- { column: タグ, path: tags, split: "," }                 # 区切りで配列化
+```
+
+重要な性質:
+
+- **既存文書はマップした項目だけ更新**されます（値が変わる場合のみ）。YAML側に追記した項目（レビューコメント等）は再インポートで消えません
+- 適用前に**プレビュー**（作成／更新／変更なし／エラー）が出ます。適用は変更セット経由で、競合検出・検証ゲート・オール・オア・ナッシングが効きます
+- エクスポートした帳票をそのまま再インポートすると**変更セットは空**になります（往復の無損失）
+
+### エクスポート（YAML原本 → 派生成果物）
+
+対象文書（glob）を行×列に展開し、xlsx / csv / markdown を再生成します。出力は**いつでも原本から作り直せる派生物**で、YAMLへの出力は定義段階で拒否されます。
+
+```yaml
+# _skills/export-issues.yaml
+id: export-issues
+kind: export
+source: { match: "issues/**/*.{yaml,yml}" }  # rows: 配列パス を指定すると配列要素ごとに1行
+output: { file: exports/issues.xlsx, sheet: 課題一覧 }
+columns:
+- { header: ID, path: id }
+- { header: 件名, path: title }
+- { header: タグ, path: tags, join: "," }
+```
+
+### テンプレートパック
+
+`init` コマンドで、ユースケース別のスキーマ＋エージェント＋アクティビティ＋評価＋skill一式を新規ワークスペースへ展開できます（既存ファイルは上書きしません）。
+
+```bash
+./gradlew runCli -q --args="init my-workspace --template ledger"   # 課題台帳パック
+./gradlew runCli -q --args="init my-workspace"                     # テンプレート一覧
+```
+
+`ledger` は「Excel台帳をインポート→YAML原本で運用（棚卸しアクティビティ・評価つき）→Excel帳票を再出力」の往復をそのまま体験できる雛形です。
+
+## 15. 既知の制約
 
 - **コメント・アンカー・スタイルは保持されません。** 保存時に SnakeYAML でブロックスタイル・インデント 2 に正規化されます。Git 管理下ではエディタ導入直後に一度全ファイルを保存して正規化コミットを作ると差分が安定します。
 - 外部変更は約1秒間隔で検出します。未編集ファイルは自動反映され、未保存の編集がある場合は競合バナーからディスク版または編集中の内容を選択できます。
@@ -546,7 +605,7 @@ cases:
 
 改善予定を含む実装状況の全体は [docs/FEATURES.md](docs/FEATURES.md) で管理しています。拡張方法（型の追加・コメント保持・横断ビュー・AIプロバイダの追加）は [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) の「拡張ポイント」を参照してください。
 
-## 15. ヘッドレスCLI（エージェント向け基盤）
+## 16. ヘッドレスCLI（エージェント向け基盤）
 
 GUIを起動せずに、ワークスペースの探索・検索・部分変更・検証を実行できます。出力は機械可読なYAML（UTF-8）で、AIエージェントや自動化スクリプトからの利用を想定しています。
 
@@ -566,6 +625,10 @@ GUIを起動せずに、ワークスペースの探索・検索・部分変更�
 ./gradlew runCli -q --args="revert sample-workspace _runs/xxx.yaml"       # 自動適用の巻き戻し
 ./gradlew runCli -q --args="metrics sample-workspace"                     # 実行記録の集計（提出率・採用率・コスト）
 ./gradlew runCli -q --args="eval sample-workspace review-eval"            # 評価セットの実行（引数なしで一覧）
+./gradlew runCli -q --args="skills sample-workspace"                      # skill定義の一覧と検証
+./gradlew runCli -q --args="import my-ws import-issues ledger.xlsx --apply"  # 表形式の取り込み（既定はプレビュー）
+./gradlew runCli -q --args="export sample-workspace export-actors"        # 派生成果物の再生成
+./gradlew runCli -q --args="init new-ws --template ledger"                # テンプレートで初期化
 ```
 
 変更セット（changeset.yaml）は複数ファイルへの部分パッチの束です。`base` を指定すると、作成時点からディスクが変わっていた場合に適用を中止します（競合検出）。1件でも失敗すると全ファイル書き込みを行いません。`--require-valid` を付けると、適用後に検証エラーが残る場合も中止します。

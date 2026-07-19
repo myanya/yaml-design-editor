@@ -137,13 +137,14 @@ class Staging(val ws: Workspace) {
         return results
     }
 
-    /** ステージされた定義文書（_agents / _activities / _evals）のパースエラー。対象外は null。 */
+    /** ステージされた定義文書（_agents / _activities / _evals / _skills）のパースエラー。対象外は null。 */
     private fun definitionParseError(e: Entry): String? {
         val rel = e.rel.replace('\\', '/')
         val parse: (Map<*, *>) -> Unit = when {
             rel.startsWith(SchemaLoader.AGENTS_DIR + "/") -> { raw -> Definitions.parseAgent(raw, e.file) }
             rel.startsWith(SchemaLoader.ACTIVITIES_DIR + "/") -> { raw -> Definitions.parseActivity(raw, e.file) }
             rel.startsWith(SchemaLoader.EVALS_DIR + "/") -> { raw -> Evals.parseEval(raw, e.file) }
+            rel.startsWith(SchemaLoader.SKILLS_DIR + "/") -> { raw -> skill.Skills.parseSkill(raw, e.file) }
             else -> return null
         }
         val raw = YamlIO.toAny(e.root) as? Map<*, *> ?: return "定義のルートはobjectである必要があります"

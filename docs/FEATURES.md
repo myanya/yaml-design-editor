@@ -117,12 +117,12 @@
 | AG-19 | 実行メトリクス（`_runs` の集計: 提出率・採用率・却下ファイル率＝修正量の代理指標・自動適用/巻き戻し・トークン。CLI `metrics`） | ✅ | `agent/Metrics.kt`, `core/Cli.kt` | 単体（`MetricsTest`） |
 | AG-20 | 評価セット `_evals`（ゴールデン入力＋宣言的な期待結果による回帰評価。サンドボックスコピー上で実行し原本を変更しない。CLI `eval`） | ✅ | `agent/Evals.kt`, `schema/BuiltinSchemas.kt` | 単体（`EvalTest`） |
 | AG-21 | 比較実験（評価セットの `variants`: モデル・エージェント・追加指示を差し替えたA/B実行と合格率・コストの比較） | ✅ | `agent/Evals.kt`（`EvalRunner`） | 単体（`EvalTest`） |
-| AG-22 | メタアクティビティ（`meta: true` で `_agents` / `_activities` / `_evals` への提案を許可。承認は human 固定、`_schemas`/`_runs` は常に不可、定義のパース可否を提出ゲートに追加） | ✅ | `agent/Definitions.kt`, `agent/Tools.kt`, `agent/Staging.kt` | 単体（`MetaActivityTest`, `DefinitionsTest`） |
+| AG-22 | メタアクティビティ（`meta: true` で `_agents` / `_activities` / `_evals` / `_skills` への提案を許可。承認は human 固定、`_schemas`/`_runs` は常に不可、定義のパース可否を提出ゲートに追加） | ✅ | `agent/Definitions.kt`, `agent/Tools.kt`, `agent/Staging.kt` | 単体（`MetaActivityTest`, `DefinitionsTest`） |
 | AG-23 | 自己改善パネルUI（メトリクス表示・評価セットの実行と変異別結果の比較） | ✅ | `ui/ImprovementPanel.kt` | 手動＋単体（実行系経路） |
 
 ## 9. コアAPI・CLI（エージェント基盤）
 
-UIに依存しないヘッドレス操作の層（[ROADMAP.md](ROADMAP.md) P1 の成果）。CLI の使い方は README §15 を参照。
+UIに依存しないヘッドレス操作の層（[ROADMAP.md](ROADMAP.md) P1 の成果）。CLI の使い方は README §16 を参照。
 
 | ID | 機能 | 状態 | 主な実装 | テスト |
 |---|---|---|---|---|
@@ -133,7 +133,20 @@ UIに依存しないヘッドレス操作の層（[ROADMAP.md](ROADMAP.md) P1 �
 | C-05 | 構造検索API（本文・キーの部分一致＋スキーマ／ファイルglob／パスglob条件、参照検索・未解決参照検索） | ✅ | `core/Search.kt` | 単体（`WorkspaceCliTest`） |
 | C-06 | CLI（catalog / outline / read / bundle / search / validate / apply / hash / activities / agent / watch / revert / metrics / eval。出力はUTF-8のYAML） | ✅ | `core/Cli.kt`, `build.gradle.kts`（`runCli`） | 単体（`WorkspaceCliTest` 一気通貫） |
 
-## 10. 未実装・既知の制約
+## 10. skill・テンプレート（フォーマット適合）
+
+宣言型の入出力変換とテンプレートパック（[ROADMAP.md](ROADMAP.md) P5 の成果）。利用方法は README §14 を参照。
+
+| ID | 機能 | 状態 | 主な実装 | テスト |
+|---|---|---|---|---|
+| SK-01 | skill定義 `_skills`（kind: import / export の宣言型変換。組込みスキーマでフォーム編集・検証、メタアクティビティの提案対象。コード実行なし） | ✅ | `skill/Skills.kt`, `schema/BuiltinSchemas.kt` | 単体（`ImportExportTest`） |
+| SK-02 | インポート（xlsx / csv / json / markdown → 変更セット。新規行は文書作成、既存文書はマップ項目のみ更新＝追記保持。列マッピング: 型変換・値辞書・区切りによる配列化・必須・{列名}によるファイル解決） | ✅ | `skill/Importer.kt`, `skill/Tables.kt` | 単体（`ImportExportTest`, `TablesTest`） |
+| SK-03 | エクスポート（対象glob×行（文書 or 配列要素）×列（YPath）→ xlsx / csv / markdown。YAMLへの出力は拒否＝派生成果物の原則） | ✅ | `skill/Exporter.kt`, `skill/Tables.kt` | 単体（`ImportExportTest`） |
+| SK-04 | CLI（`skills` / `import`（プレビュー既定・`--apply`・`--require-valid`）/ `export` / `init`） | ✅ | `core/Cli.kt` | 手動（スモーク） |
+| SK-05 | テンプレートパック（`init --template ledger`: 課題台帳のスキーマ＋エージェント＋アクティビティ＋評価＋skill一式。既存ファイルは上書きしない） | ✅ | `skill/TemplatePacks.kt` | 単体（`ImportExportTest`） |
+| SK-06 | skillパネルUI（一覧・エクスポート実行・インポートのファイル選択→プレビュー→検証つき適用） | ✅ | `ui/SkillsPanel.kt` | 手動＋単体（実行系経路） |
+
+## 11. 未実装・既知の制約
 
 利用者向けの注意事項でもあるため、変更時は README の「既知の制約」節との整合を保つこと。
 
@@ -150,3 +163,5 @@ UIに依存しないヘッドレス操作の層（[ROADMAP.md](ROADMAP.md) P1 �
 | L-09 | フォーム系UI・AppState の自動テスト | 🚧 | 単体テストは ai／diff／AI提案合成／core（パッチ・開示・検索・CLI）／カバレッジ検証／agent（ステージング・カーネル・定義・自動化・メトリクス・評価・メタ）。Compose UI と AppState は手動確認 |
 | L-10 | AppState の core.Workspace への全面委譲 | 🚧 | 走査・検証・パッチ・レビュー適用（apply＋reload）は共通実装を共有済み。人間編集との排他は AG-14/15（編集中は自動適用を承認待ちへ降格）で実現。文書キャッシュ層の統合は継続課題 |
 | L-11 | AI生成ダイアログ（A-01〜03）とエージェントカーネルの完全統合 | 🚧 | 接続設定（`ui/AiSettings`）は共有済み。実行系の統合は、フィールド生成が Structured Outputs の型保証を持つ利点を崩さない形で検討（ROADMAP R2-09） |
+| L-12 | コード実行skill（宣言型で書けない変換・定型手順） | 📋 | サンドボックス外作用のため明示許可制の設計が前提（ROADMAP R5-01）。現状の skill は宣言型の import / export のみ |
+| L-13 | エクスポートのHTML・JSON形式、インポートのWord等 | 📋 | 現状は xlsx / csv / markdown（入力は + json）。`skill/Tables.kt` に形式を追加する |

@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.ImportExport
 import agent.AutomationEngine
 import ai.AiProvider
 import androidx.compose.material.icons.filled.Terminal
@@ -97,6 +98,7 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
     var agentOpen by remember { mutableStateOf(false) }
     var automationOpen by remember { mutableStateOf(false) }
     var improvementOpen by remember { mutableStateOf(false) }
+    var skillsOpen by remember { mutableStateOf(false) }
     var automationVersion by remember { mutableStateOf(0) }
     // 自動化エンジン（ワークスペースごとに生成。既定は停止状態で、パネルから有効化する）
     val automation = remember(state.workspace) {
@@ -146,6 +148,7 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
         Toolbar(state, leftOpen, rightOpen, darkMode, toggleDarkMode, { commandOpen = true }, { agentOpen = true },
             openAutomation = { automationOpen = true },
             openImprovement = { improvementOpen = true },
+            openSkills = { skillsOpen = true },
             automationActive = automation?.enabled == true,
             automationPending = automation?.pendingSnapshot()?.size ?: 0,
             toggleLeft = { leftOpen = !leftOpen; uiPreferences.putBoolean("leftOpen", leftOpen) },
@@ -182,6 +185,7 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
     if (agentOpen) AgentRunHost(state, automation) { agentOpen = false }
     if (automationOpen && automation != null) AutomationPanel(state, automation, automationVersion) { automationOpen = false }
     if (improvementOpen) ImprovementPanel(state) { improvementOpen = false }
+    if (skillsOpen) SkillsPanel(state) { skillsOpen = false }
     if (state.navigationCandidates.isNotEmpty()) {
         val candidates = state.navigationCandidates
         AlertDialog(
@@ -235,7 +239,7 @@ private fun ResizeHandle(onDrag: (androidx.compose.ui.unit.Dp) -> Unit) {
 @Composable
 fun Toolbar(state: AppState, leftOpen: Boolean, rightOpen: Boolean, darkMode: Boolean, toggleDarkMode: () -> Unit,
             openCommands: () -> Unit, openAgent: () -> Unit,
-            openAutomation: () -> Unit, openImprovement: () -> Unit,
+            openAutomation: () -> Unit, openImprovement: () -> Unit, openSkills: () -> Unit,
             automationActive: Boolean, automationPending: Int,
             toggleLeft: () -> Unit, toggleRight: () -> Unit) {
     var pendingWorkspace by remember { mutableStateOf<Path?>(null) }
@@ -298,6 +302,9 @@ fun Toolbar(state: AppState, leftOpen: Boolean, rightOpen: Boolean, darkMode: Bo
         }
         IconButton(enabled = state.workspace != null, onClick = openImprovement) {
             Icon(Icons.Default.Insights, "自己改善（メトリクス・評価セット）", Modifier.size(18.dp))
+        }
+        IconButton(enabled = state.workspace != null, onClick = openSkills) {
+            Icon(Icons.Default.ImportExport, "skill（インポート・エクスポート）", Modifier.size(18.dp))
         }
         IconButton(onClick = openCommands) { Icon(Icons.Default.Terminal, "コマンドパレット (Ctrl+K)", Modifier.size(18.dp)) }
         IconButton(onClick = toggleDarkMode) {

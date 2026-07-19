@@ -302,7 +302,7 @@ object AgentKernel {
         activity.targetMatch?.let { appendLine("対象ファイル（glob）: $it") }
         if (activity.allowedFiles.isNotEmpty()) appendLine("書込許可ファイル: ${activity.allowedFiles.joinToString(", ")}")
         if (activity.allowedPaths.isNotEmpty()) appendLine("書込許可パス: ${activity.allowedPaths.joinToString(", ")}")
-        if (activity.meta) appendLine("メタアクティビティ: 定義文書（_agents / _activities / _evals）への書込が許可されています（_schemas / _runs は不可）。提案は人間の承認を経て適用されます。")
+        if (activity.meta) appendLine("メタアクティビティ: 定義文書（_agents / _activities / _evals / _skills）への書込が許可されています（_schemas / _runs は不可）。提案は人間の承認を経て適用されます。")
         appendLine(
             when (activity.gate) {
                 ValidationGate.ERROR_FREE -> "提出ゲート: 検証エラー0（エラーが残る提出は拒否されます）"

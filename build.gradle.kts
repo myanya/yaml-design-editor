@@ -21,6 +21,7 @@ dependencies {
     implementation(compose.materialIconsExtended)
     implementation("org.yaml:snakeyaml:2.3")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+    implementation("org.apache.poi:poi-ooxml:5.3.0")   // Excel(xlsx)のインポート・エクスポート（skill機構）
     testImplementation(kotlin("test"))
 }
 

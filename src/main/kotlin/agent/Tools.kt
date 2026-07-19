@@ -38,7 +38,7 @@ class AgentToolbox(
     private val consultAllowed = setOf("list_documents", "read_outline", "read_node", "search", "related", "validate")
     /**
      * 予約ディレクトリ（書込禁止・カタログから除外。read_outline 等での読み取りは可）。
-     * _schemas / _runs は常に対象。定義類（_agents / _activities / _evals）は
+     * _schemas / _runs は常に対象。定義類（_agents / _activities / _evals / _skills）は
      * メタアクティビティ（meta: true。R4-03）では作業対象なので除外しない。
      */
     private val reservedPrefixes = buildList {
@@ -48,6 +48,7 @@ class AgentToolbox(
             add(SchemaLoader.AGENTS_DIR)
             add(SchemaLoader.ACTIVITIES_DIR)
             add(SchemaLoader.EVALS_DIR)
+            add(SchemaLoader.SKILLS_DIR)
         }
     }.map { "$it/" }
 

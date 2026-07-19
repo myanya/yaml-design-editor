@@ -7,9 +7,10 @@
 - Kotlin (JVM 17) + Compose for Desktop + Material 3
 - YAML入出力: SnakeYAML
 - AI連携: Java 11 HttpClient + kotlinx-serialization-json（外部SDK不使用）
+- Excel入出力: Apache POI（poi-ooxml。skill機構のインポート・エクスポートのみで使用）
 - 永続化: `java.util.prefs.Preferences`（UIレイアウト・テーマ・履歴・AIモデル設定）
 - ビルド: Gradle（Wrapper 同梱）、テスト: kotlin.test
-- ヘッドレスCLI: `./gradlew runCli --args="…"`（GUIなしで探索・検索・パッチ・検証・エージェント実行・評価。README §15） 
+- ヘッドレスCLI: `./gradlew runCli --args="…"`（GUIなしで探索・検索・パッチ・検証・エージェント実行・評価・入出力変換。README §16） 
 
 ## 2. パッケージ構成と依存方向
 
@@ -23,14 +24,16 @@ src/main/kotlin/
 ├── core/      ヘッドレス層: ワークスペース操作・パッチ・段階的開示・構造検索・CLI
 │              （→ model, yaml, schema, index, validate。UI/Compose 非依存）
 ├── ai/        AI生成・LLMクライアント: JSON Schema変換・構造化出力・ツール使用チャット（→ model, schema, index）
+├── skill/     入出力変換: skill定義・表形式の読み書き・インポート・エクスポート・
+│              テンプレートパック （→ core ほか。UI/Compose 非依存）
 ├── agent/     エージェント実行: 定義・ステージング・ツールセット・カーネル・実行記録・
-│              自動化・メトリクス・評価 （→ core, ai, validate ほか。UI/Compose 非依存）
+│              自動化・メトリクス・評価 （→ core, skill, ai, validate ほか。UI/Compose 非依存）
 ├── app/       AppState / OpenDocument: アプリ状態・ファイル操作（→ core とロジック層）
 ├── ui/        Composeビュー一式                             （→ 上記すべて）
 └── Main.kt    エントリポイント・ウィンドウ・ツールバー・パレット（→ app, ui, index）
 ```
 
-**依存ルール**: `model` → `yaml` → `schema` → `index` → `validate` → `core` → `agent` → `app` → `ui` の一方向。逆流させない（例外: エントリポイントである `core/Cli.kt` は Main.kt と同様に `agent` を呼んでよい）。
+**依存ルール**: `model` → `yaml` → `schema` → `index` → `validate` → `core` → `skill` → `agent` → `app` → `ui` の一方向。逆流させない（例外: エントリポイントである `core/Cli.kt` は Main.kt と同様に `skill` / `agent` を呼んでよい）。
 
 - `model` / `yaml` / `schema` / `index` / `validate` / `core` / `agent` / `ai` は **Compose・UI 非依存**（純粋ロジック）。単体テストはこの層に書く。
 - `core` はエージェント・CLI・UI が共通で使うヘッドレス操作の層（ROADMAP P1）。UI（AppState）はファイル走査などの基盤処理を `core` に委譲する。
@@ -65,11 +68,17 @@ src/main/kotlin/
 | `RunLog` | agent/RunLog.kt | 実行記録を `_runs/` にYAML保存し、採否・自動適用バックアップ・巻き戻しを追記 |
 | `AutomationEngine` | agent/Automation.kt | 自動化エンジン: トリガ監視（`tick(now)`）・直列実行キュー（`processOnce`）・承認ポリシー・連鎖・リトライ・常時停止。時刻注入でテスト可能 |
 | `AutoApply` | agent/AutoApply.kt | 巻き戻し可能な適用: 適用前原文を実行記録へバックアップし、`revert` で復元（適用後の変更は競合として拒否） |
+| `SkillDef` / `Skills` | skill/Skills.kt | `_skills` の宣言型変換定義（import / export）のロードとパース。コード実行は提供しない |
+| `Table` / `Tables` | skill/Tables.kt | 表形式の共通抽象と xlsx / csv / json / markdown の読み書き（セル値は型を保持） |
+| `Importer` | skill/Importer.kt | 表 → 変更セット。新規行は文書作成、既存文書はマップ項目のみ更新（値が変わる場合だけ）。エラーは行・列つきで宣言的に報告 |
+| `Exporter` | skill/Exporter.kt | 対象glob×行×列 → 派生成果物（xlsx / csv / markdown）。YAML出力は拒否 |
+| `TemplatePacks` | skill/TemplatePacks.kt | テンプレートパック（コード埋め込み）。`init` で展開、既存ファイルは上書きしない |
 | `RunMetrics` | agent/Metrics.kt | 実行メトリクス（R4-01）: `_runs` の実行記録だけから提出率・採用率・却下ファイル率・自動適用/巻き戻し・コストを集計（実行時に追加記録しない） |
 | `EvalDef` / `Evals` / `EvalRunner` | agent/Evals.kt | 評価セット（R4-02）と比較実験（R4-04）: `_evals` 定義のロード、サンドボックスコピー上でのケース×変異の実行、宣言的期待結果の判定、レポート保存 |
 | `AgentRunHost` / `ReviewContent` | ui/AgentPanel.kt | 実行ダイアログ: 選択→進捗ストリーミング・質問応答→変更セットレビュー（部分採用・再検証）→適用。レビューは承認待ちからも共用 |
 | `AutomationPanel` | ui/AutomationPanel.kt | 自動実行パネル: 監視ON/OFF・キュー・承認待ちレビュー・履歴・ログ・停止 |
 | `ImprovementPanel` | ui/ImprovementPanel.kt | 自己改善パネル: 実行メトリクスの表示・評価セットの実行と変異別結果の比較 |
+| `SkillsPanel` | ui/SkillsPanel.kt | skillパネル: 一覧・エクスポート実行・インポートのプレビュー→検証つき適用 |
 | `OpenDocument` | app/AppState.kt | 開いている1文書。ツリー・履歴（Undo/Redo）・dirty・外部競合の管理 |
 | `AppState` | app/AppState.kt | ワークスペース・文書キャッシュ・索引・ナビゲーション・ファイル操作・一括更新・外部変更検出 |
 | `AiGenerator` ほか | ai/ | スキーマ→JSON Schema 変換、REF候補の enum 制約、プロバイダ振り分け |
@@ -142,7 +151,7 @@ Undo/Redo は `YamlIO.dump` したスナップショット文字列の履歴（�
 
 - **直列実行**: エージェント実行は常に1件ずつ。並行変更と索引競合を構造的に排除する。
 - **自動適用の3条件**: ゲート通過・書込スコープ内・対象がエディタで非編集中。ひとつでも欠けたら承認待ちへ**降格**する（黙って失敗させない）。
-- **自己トリガの防止**: 適用（自動・採用とも）の直後にファイルスタンプ基準を取り直す。`_schemas` / `_agents` / `_activities` / `_evals` / `_runs` は監視対象外。
+- **自己トリガの防止**: 適用（自動・採用とも）の直後にファイルスタンプ基準を取り直す。予約ディレクトリ（`_schemas` / `_agents` / `_activities` / `_evals` / `_skills` / `_runs`）は監視対象外。
 - **Undo保証**: 自動適用は適用前の原文を実行記録へバックアップしてから書き込む（`AutoApply`）。巻き戻しは適用後の追加変更を競合として検出する。
 - **連鎖のガード**: 深さ上限（既定5）と visited 集合による循環検出。人間承認の実行では、連鎖は採否決定後に発火する。
 - **リトライの収束判定**: 同一の失敗メッセージを繰り返したら `maxAttempts` 未満でも打ち切る。
@@ -158,7 +167,17 @@ Undo/Redo は `YamlIO.dump` したスナップショット文字列の履歴（�
 - **メタは人間承認固定**: `meta: true` は `_agents` / `_activities` / `_evals` への書込だけを解禁する。`_schemas` / `_runs` は常に不可（`AgentToolbox`）。`meta` かつ `approval: auto` はロード時に定義エラー。ステージされた定義は実際のローダでパースできることが提出ゲートに加わる（`Staging.validateAll`）。
 - **LLMは注入可能**: `EvalRunner` もカーネルと同じ `SessionFactory` を受け取り、テストは台本セッションで決定的に行う（`EvalTest` / `MetaActivityTest`）。
 
-### 4.13 エラー処理
+### 4.13 skill機構（P5）
+
+宣言型の入出力変換で外部フォーマットと接続する。守るべき不変条件:
+
+- **YAMLが唯一の原本**: インポートは取り込んだ時点でYAML側を正とする。エクスポートは原本からいつでも再生成できる派生成果物であり、**YAMLへの出力は定義段階で拒否**する（派生物を原本と取り違えさせない）。
+- **インポートは変更セット経由**: 直接ファイルへ書かず、P1の `Workspace.apply` を通す（baseハッシュ競合検出・オール・オア・ナッシング・`requireValid` ゲートを再利用）。既存文書は**マップした項目だけ**を、**値が変わる場合だけ** set する。これにより (1) YAML側の追記が保持され、(2) エクスポート→再インポートが空の変更セットになる（往復の無損失を機械確認できる）。
+- **宣言型のみ**: skill にコード実行はない（設計原則3・§4.3）。書けない変換が必要になったら、コード実行を安易に足すのではなく、明示許可制のサンドボックス設計とセットで検討する（FEATURES L-12）。
+- **形式は Table 抽象に集約**: xlsx / csv / json / markdown の差は `skill/Tables.kt` に閉じる。形式追加はここだけを触る。
+- **`_skills` も予約ディレクトリ**: 通常のエージェントは書込不可、メタアクティビティのみ提案可（パースゲートつき）。自動実行の監視対象外。
+
+### 4.14 エラー処理
 
 - ファイルI/O・パースは `runCatching` で受け、ユーザー操作の結果は `Result` を返して呼び出し側（UI）が `state.status` に反映する。
 - 入力検証の失敗は `require(...) { "日本語メッセージ" }`、内部異常は `error("日本語メッセージ")`。メッセージはそのままUIに表示される前提で書く。
@@ -173,6 +192,8 @@ Undo/Redo は `YamlIO.dump` したスナップショット文字列の履歴（�
 - **エージェント実行**: アクティビティ起動 → `AgentKernel` がシステムプロンプト（persona＋規範）と初期文脈（指示・カタログ・権限・ゲート）を構築 → ツール使用ループ（探索→パッチ→検証→…、必要なら `delegate` で相談）→ `submit_changeset`（ゲート通過）→ `RunLog` 書き出し → レビューUIで部分採用（採用サブセットを `Staging` で再検証）→ `Workspace.apply` で反映 → `AppState.reload()`
 - **自動実行**: `AutomationEngine.tick(now)` がトリガ判定（on-change はデバウンス、on-invalid は変更ファイルの検証）→ キュー投入 → `processOnce` がカーネル実行 → 提出後は承認方式で分岐（auto: `AutoApply.applyWithBackup` → スタンプ更新 → 連鎖／human: 承認待ち＋変更セットのファイル保存 → 採否後に連鎖）→ 失敗はフィードバック付きリトライ（収束打ち切りあり）
 - **評価**: `Evals.load` → `EvalRunner.run` がケース×変異ごとに（サンドボックスコピー作成 → `setup` のゴールデン入力を上書き → カーネル実行 → 宣言的期待結果の判定 → コピー破棄）→ レポートを原本の `_runs/eval-*.yaml` に保存 → 自己改善パネル／CLI `eval` で変異別の合格率・コストを比較
+- **インポート**: `Tables.read`（形式→Table正規化）→ `Importer.build`（行→取り込み先ファイル解決・列マッピング・既存値との差分判定）→ プレビュー（作成/更新/変更なし/エラー）→ 人間の確認 → `Workspace.apply`（検証つき）→ `AppState.reload()`
+- **エクスポート**: `Exporter.run`（glob→文書→行×列に展開）→ `Tables.write`（拡張子で形式決定）→ 派生成果物（再実行でいつでも再生成）
 
 ## 6. 拡張ポイント
 
@@ -180,3 +201,5 @@ Undo/Redo は `YamlIO.dump` したスナップショット文字列の履歴（�
 - **コメント保持**: `YamlIO` を SnakeYAML の Node API（`LoaderOptions.setProcessComments(true)`）ベースに差し替える。ツリー変換層が `YamlIO` に隔離されているため影響範囲は限定的。
 - **横断ビューの追加**: データソースとして `AppState.workspaceRecords()` と `IdIndex` を利用し、`Main.kt` の `workspaceView` 分岐に追加する。
 - **AIプロバイダの追加**: `AiProvider` に enum を追加し、`AiGenerator.generate` の分岐と専用クライアント（`generate` + `parseResponse` を持つ object）を実装する。
+- **入出力形式の追加**: `TableFormat` に enum を追加し、`skill/Tables.kt` の read / write に分岐を実装する（Importer / Exporter は形式非依存のため変更不要）。
+- **テンプレートパックの追加**: `skill/TemplatePacks.kt` の `all` に `Pack`（ファイルパス→内容の埋め込み）を登録する。`ImportExportTest` に倣い、展開後の検証エラー0をテストで保証する。

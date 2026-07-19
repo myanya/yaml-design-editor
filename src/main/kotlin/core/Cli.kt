@@ -48,6 +48,13 @@ internal const val CLI_USAGE = """コマンド:
   eval     <workspace> [eval-id] [--provider openai|anthropic]
            評価セット（_evals）を実行する。eval-id 省略時は定義の一覧を表示する。
            サンドボックスコピー上で実行し、レポートを _runs/ に保存する
+  skills   <workspace>                          skill定義（_skills。入出力変換）の一覧と検証
+  import   <workspace> <skill-id> <file> [--apply] [--require-valid]
+           表形式ファイル（xlsx/csv/json/markdown）を変更セットへ変換する。
+           既定はプレビューのみ。--apply で適用（既存文書はマップした項目だけ更新）
+  export   <workspace> <skill-id>               YAML原本から派生成果物（xlsx/csv/md）を再生成する
+  init     <dir> [--template name]              テンプレートパックでワークスペースを初期化
+           （--template 省略時は利用可能なテンプレートを一覧表示）
   help                                          このヘルプ
 """
 
@@ -200,6 +207,52 @@ internal fun runCli(args: Array<String>): String {
             dumpYaml(agent.RunMetrics.toYamlMap(summaries))
         }
         "eval" -> runEvalCommand(rest)
+        "skills" -> {
+            val ws = workspace()
+            val loaded = skill.Skills.load(ws.root)
+            dumpYaml(
+                linkedMapOf(
+                    "skills" to loaded.skills.map { s ->
+                        linkedMapOf<String, Any?>(
+                            "id" to s.id, "name" to s.name, "kind" to s.kind.id,
+                            "target" to s.import?.targetFile,
+                            "output" to s.export?.outputFile,
+                        ).filterValues { it != null }
+                    },
+                    "errors" to loaded.errors,
+                )
+            )
+        }
+        "import" -> runImportCommand(rest)
+        "export" -> {
+            val ws = workspace()
+            val skillId = rest.getOrNull(1)?.takeIf { !it.startsWith("--") } ?: error("skill IDを指定してください")
+            val loaded = skill.Skills.load(ws.root)
+            val def = loaded.skill(skillId) ?: error("skill「$skillId」が見つかりません（skills コマンドで確認できます）")
+            val result = skill.Exporter.run(ws, def)
+            dumpYaml(linkedMapOf("file" to result.rel, "rows" to result.rows))
+        }
+        "init" -> {
+            val dir = Path.of(rest.firstOrNull() ?: error("ディレクトリを指定してください"))
+            val name = stringFlag(rest, "--template")
+                ?: return dumpYaml(
+                    linkedMapOf(
+                        "templates" to skill.TemplatePacks.all.map {
+                            linkedMapOf("name" to it.name, "description" to it.description, "files" to it.files.size)
+                        }
+                    )
+                )
+            val pack = skill.TemplatePacks.pack(name)
+                ?: error("テンプレート「$name」が見つかりません（利用可能: ${skill.TemplatePacks.all.joinToString(", ") { it.name }}）")
+            val result = skill.TemplatePacks.apply(dir, pack)
+            dumpYaml(
+                linkedMapOf(
+                    "template" to pack.name,
+                    "written" to result.written,
+                    "skipped" to result.skipped.ifEmpty { null },
+                ).filterValues { it != null }
+            )
+        }
         "revert" -> {
             val ws = workspace()
             val runFile = rest.getOrNull(1)?.takeIf { !it.startsWith("--") }
@@ -251,6 +304,47 @@ private fun runWatchCommand(rest: List<String>): String {
         kotlinx.coroutines.runBlocking { engine.start(this).join() }
         ""
     }
+}
+
+/** 表形式ファイルを変更セットへ変換し、プレビューまたは適用する（R5-02）。 */
+private fun runImportCommand(rest: List<String>): String {
+    val ws = Workspace.open(Path.of(rest.firstOrNull() ?: error("ワークスペースのパスを指定してください")))
+    val skillId = rest.getOrNull(1)?.takeIf { !it.startsWith("--") } ?: error("skill IDを指定してください")
+    val sourceFile = rest.getOrNull(2)?.takeIf { !it.startsWith("--") }
+        ?.let { Path.of(it) } ?: error("取り込むファイルを指定してください")
+    require(Files.isRegularFile(sourceFile)) { "ファイルが見つかりません: $sourceFile" }
+    val loaded = skill.Skills.load(ws.root)
+    if (loaded.errors.isNotEmpty()) System.err.println("定義の警告:\n" + loaded.errors.joinToString("\n") { "- $it" })
+    val def = loaded.skill(skillId) ?: error("skill「$skillId」が見つかりません（skills コマンドで確認できます）")
+
+    val preview = skill.Importer.build(ws, def, sourceFile)
+    if (!preview.ok) {
+        return dumpYaml(linkedMapOf("ok" to false, "errors" to preview.errors))
+    }
+    val summary = linkedMapOf<String, Any?>(
+        "ok" to true,
+        "created" to preview.created,
+        "updated" to preview.updated,
+        "unchanged" to preview.unchanged,
+    )
+    if ("--apply" !in rest) {
+        return dumpYaml(summary) +
+            (if (preview.changeSet.changes.isEmpty()) "" else "---\n" + changeSetToYaml(preview.changeSet))
+    }
+    if (preview.changeSet.changes.isEmpty()) {
+        summary["applied"] = "変更なし"
+        return dumpYaml(summary)
+    }
+    val result = ws.apply(preview.changeSet, requireValid = "--require-valid" in rest)
+    summary["applied"] = result.ok
+    if (!result.ok) {
+        summary["applyErrors"] = result.results.mapNotNull { r ->
+            val issues = r.issues.map { "${it.severity} ${it.path.pretty()}: ${it.message}" }
+            val parts = listOfNotNull(r.message?.takeIf { it.isNotBlank() }) + issues
+            if (parts.isEmpty()) null else "${r.file}: ${parts.joinToString("; ")}"
+        }
+    }
+    return dumpYaml(summary)
 }
 
 /** 評価セットをヘッドレス実行する（R4-02 / R4-04）。 */

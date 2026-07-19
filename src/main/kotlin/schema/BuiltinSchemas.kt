@@ -191,7 +191,120 @@ object BuiltinSchemas {
             - key: meta
               label: メタアクティビティ
               type: boolean
-              description: 定義文書（_agents / _activities / _evals）への書込を許可する（承認は human 固定。_schemas / _runs は不可）
+              description: 定義文書（_agents / _activities / _evals / _skills）への書込を許可する（承認は human 固定。_schemas / _runs は不可）
+    """.trimIndent()
+
+    private val skillSchemaYaml = """
+        id: builtin-skill
+        name: skill定義（入出力変換）
+        match: "${SchemaLoader.SKILLS_DIR}/**/*.{yaml,yml}"
+        root:
+          type: object
+          fields:
+            - key: id
+              label: skillID
+              type: id
+              required: true
+            - key: name
+              label: 表示名
+              type: string
+            - key: description
+              label: 説明
+              type: text
+            - key: kind
+              label: 種別
+              type: enum
+              values: [import, export]
+              required: true
+            - key: input
+              label: 入力（import）
+              type: object
+              fields:
+                - key: format
+                  label: 形式
+                  type: enum
+                  values: [xlsx, csv, json, markdown]
+                - key: sheet
+                  label: シート名（xlsx）
+                  type: string
+                - key: headerRow
+                  label: ヘッダ行（xlsx・1始まり）
+                  type: int
+                - key: path
+                  label: 行配列へのパス（json）
+                  type: string
+            - key: target
+              label: 取り込み先（import）
+              type: object
+              fields:
+                - key: file
+                  label: ファイルパターン
+                  type: string
+                  description: 例 issues/{ID}.yaml（{列名} が行の値で置換される）
+            - key: mapping
+              label: 列の対応（import）
+              type: array
+              item:
+                type: object
+                fields:
+                  - key: column
+                    label: 列名
+                    type: string
+                    required: true
+                  - key: path
+                    label: 取り込み先パス
+                    type: string
+                    required: true
+                  - key: type
+                    label: 型
+                    type: enum
+                    values: [string, int, number, boolean, auto]
+                    default: string
+                  - key: required
+                    label: 必須
+                    type: boolean
+                  - key: split
+                    label: 配列化の区切り
+                    type: string
+            - key: source
+              label: 対象文書（export）
+              type: object
+              fields:
+                - key: match
+                  label: 対象glob
+                  type: string
+                - key: rows
+                  label: 行にする配列パス
+                  type: string
+                  description: 省略時は1文書1行
+            - key: columns
+              label: 列の定義（export）
+              type: array
+              item:
+                type: object
+                fields:
+                  - key: header
+                    label: 見出し
+                    type: string
+                    required: true
+                  - key: path
+                    label: 参照パス
+                    type: string
+                    required: true
+                  - key: join
+                    label: 配列の結合区切り
+                    type: string
+            - key: output
+              label: 出力（export）
+              type: object
+              fields:
+                - key: file
+                  label: 出力ファイル
+                  type: string
+                  description: 拡張子で形式が決まる（.xlsx / .csv / .md）。YAMLへの出力は不可
+                - key: sheet
+                  label: シート名（xlsx）
+                  type: string
     """.trimIndent()
 
     private val evalSchemaYaml = """
@@ -331,6 +444,7 @@ object BuiltinSchemas {
             SchemaLoader.parseSchemaText(agentSchemaYaml, Path.of("(builtin)/agent.yaml")),
             SchemaLoader.parseSchemaText(activitySchemaYaml, Path.of("(builtin)/activity.yaml")),
             SchemaLoader.parseSchemaText(evalSchemaYaml, Path.of("(builtin)/eval.yaml")),
+            SchemaLoader.parseSchemaText(skillSchemaYaml, Path.of("(builtin)/skill.yaml")),
         )
     }
 }

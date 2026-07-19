@@ -96,7 +96,7 @@ data class ActivityDef(
     val chain: ChainDef = ChainDef(),
     val retry: RetryDef = RetryDef(),
     /**
-     * メタアクティビティ（R4-03）: _agents / _activities / _evals の定義文書への書込を許可する。
+     * メタアクティビティ（R4-03）: _agents / _activities / _evals / _skills の定義文書への書込を許可する。
      * _schemas / _runs は常に不可。承認は human 固定（エージェントが自分の権限・挙動を変える
      * 変更を無人適用させないため、meta かつ approval: auto は定義エラーとする）。
      */
