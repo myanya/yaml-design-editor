@@ -13,6 +13,7 @@ import schema.SchemaDef
 import schema.FieldDef
 import schema.FieldType
 import schema.SchemaLoader
+import schema.effectiveFields
 import yaml.YamlIO
 import java.nio.file.Files
 import java.nio.file.Path
@@ -391,9 +392,18 @@ class AppState {
         val f = schema.resolve(field) ?: field
         if (f.default != null) return YamlIO.fromAny(f.default)
         return when (f.type) {
-            FieldType.OBJECT -> YNode.Map(LinkedHashMap<String, YNode>().apply {
-                f.fields.filter { it.required && it.key != null }.forEach { put(it.key!!, defaultFor(it, schema, depth + 1)) }
-            })
+            FieldType.OBJECT -> {
+                val entries = LinkedHashMap<String, YNode>().apply {
+                    f.fields.filter { it.required && it.key != null }.forEach { put(it.key!!, defaultFor(it, schema, depth + 1)) }
+                }
+                val map = YNode.Map(entries)
+                // 判別 enum の初期値に応じた case フィールドのうち必須のものを補う
+                schema.effectiveFields(f.fields, map).fields.forEach { ch ->
+                    val key = ch.key ?: return@forEach
+                    if (ch.required && key !in entries) entries[key] = defaultFor(ch, schema, depth + 1)
+                }
+                map
+            }
             FieldType.ARRAY -> YNode.Seq()
             FieldType.MAP -> YNode.Map()
             FieldType.BOOLEAN -> YNode.Scalar(false)

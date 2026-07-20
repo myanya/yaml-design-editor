@@ -245,6 +245,7 @@ private fun FieldDefinitionEditor(map: YNode.Map, doc: OpenDocument, definitions
                 if (it != "object") map.entries.remove("unknownFields")
                 if (it != "array") map.entries.remove("item")
                 if (it != "map") map.entries.remove("value")
+                if (it != "enum") map.entries.remove("cases")
                 doc.markEdited()
             }
         }
@@ -279,7 +280,7 @@ private fun FieldDefinitionEditor(map: YNode.Map, doc: OpenDocument, definitions
             Text("値定義", fontSize = 11.sp, color = Palette.SubText)
             FieldDefinitionEditor(ensureMap(map, "value", doc, mark = false), doc, definitions, allowKey = false, depth = depth + 1)
         }
-        "enum" -> EnumValuesEditor(map, doc)
+        "enum" -> EnumValuesEditor(map, doc, definitions, depth)
         "ref" -> {
             StringListEditor(map, "idPatterns", "IDパターン", "ACTOR-*, ROLE-*", doc)
             CompactScalar(map, "relation", "関係種別", doc)
@@ -306,8 +307,55 @@ private fun ChoiceButton(value: String, choices: List<String>, onSelect: (String
 }
 
 @Composable
-private fun EnumValuesEditor(map: YNode.Map, doc: OpenDocument) {
+private fun EnumValuesEditor(map: YNode.Map, doc: OpenDocument, definitions: List<String>, depth: Int) {
     StringListEditor(map, "values", "選択肢", "draft, review, approved", doc)
+    val values = (map.entries["values"] as? YNode.Seq)?.items?.mapNotNull { (it as? YNode.Scalar)?.value?.toString() }.orEmpty()
+    // 選択肢から消えた値の cases は残骸なので警告つきで削除できるようにする
+    (map.entries["cases"] as? YNode.Map)?.entries?.keys?.filter { it !in values }?.toList()?.forEach { stale ->
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("cases「$stale」は選択肢にありません", fontSize = 11.sp, color = Palette.WarnOrange)
+            TextButton(onClick = {
+                val cases = map.entries["cases"] as? YNode.Map ?: return@TextButton
+                cases.entries.remove(stale)
+                if (cases.entries.isEmpty()) map.entries.remove("cases")
+                doc.markEdited()
+            }) { Text("削除", fontSize = 10.sp, color = Palette.ErrorRed) }
+        }
+    }
+    values.distinct().forEach { value ->
+        val caseSeq = (map.entries["cases"] as? YNode.Map)?.entries?.get(value) as? YNode.Seq
+        if (caseSeq == null) {
+            TextButton(onClick = {
+                ensureMap(map, "cases", doc, mark = false).entries[value] = YNode.Seq()
+                doc.markEdited()
+            }) { Text("＋ 「$value」専用のフィールドを定義", fontSize = 11.sp) }
+        } else {
+            Column(Modifier.fillMaxWidth().padding(start = 12.dp, top = 5.dp).border(1.dp, Palette.Border, PanelShape).padding(6.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("「$value」のときのフィールド", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onClick = {
+                        val cases = map.entries["cases"] as? YNode.Map ?: return@TextButton
+                        cases.entries.remove(value)
+                        if (cases.entries.isEmpty()) map.entries.remove("cases")
+                        doc.markEdited()
+                    }) { Text("削除", fontSize = 10.sp, color = Palette.ErrorRed) }
+                }
+                caseSeq.items.forEachIndexed { index, node ->
+                    val child = node as? YNode.Map ?: return@forEachIndexed
+                    Column(Modifier.padding(start = 12.dp, top = 5.dp).border(1.dp, Palette.Border, PanelShape).padding(6.dp)) {
+                        Row {
+                            Text("フィールド ${index + 1}", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.weight(1f))
+                            TextButton(onClick = { caseSeq.items.removeAt(index); doc.markEdited() }) { Text("削除", color = Palette.ErrorRed, fontSize = 10.sp) }
+                        }
+                        FieldDefinitionEditor(child, doc, definitions, allowKey = true, depth = depth + 1)
+                    }
+                }
+                TextButton(onClick = { caseSeq.items.add(newFieldMap("string")); doc.markEdited() }) { Text("＋ フィールドを追加", fontSize = 11.sp) }
+            }
+        }
+    }
 }
 
 @Composable

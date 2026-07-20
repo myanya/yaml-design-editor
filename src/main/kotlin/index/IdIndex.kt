@@ -7,6 +7,7 @@ import schema.FieldDef
 import schema.FieldType
 import schema.SchemaDef
 import schema.RefScope
+import schema.effectiveFields
 import yaml.YamlIO
 import java.nio.file.Files
 import java.nio.file.Path
@@ -96,11 +97,13 @@ object DocScanner {
                     }
                 }
                 is YNode.Map -> {
+                    // object の実効フィールド（enum 値に応じた case フィールドを含む）
+                    val objectFields = if (schemaDef != null && effective?.type == FieldType.OBJECT) {
+                        schemaDef.effectiveFields(effective.fields, node).fields
+                    } else null
                     // --- ID の検出 ---
                     val idKeys = LinkedHashSet<String>()
-                    if (effective?.type == FieldType.OBJECT) {
-                        effective.fields.filter { (schemaDef?.resolve(it) ?: it).type == FieldType.ID }.forEach { it.key?.let(idKeys::add) }
-                    }
+                    objectFields?.filter { (schemaDef?.resolve(it) ?: it).type == FieldType.ID }?.forEach { it.key?.let(idKeys::add) }
                     // スキーマ適用中は、明示的に type: id とされた項目だけを索引化する。
                     if (schemaDef == null) idKeys.add("id")
                     for (k in idKeys) {
@@ -113,9 +116,9 @@ object DocScanner {
                     for ((k, child) in node.entries) {
                         // ルートの予約メタデータは業務要素の ID／参照として索引化しない。
                         if (path.isEmpty() && k == "_document") continue
-                        val childDef = when (effective?.type) {
-                            FieldType.OBJECT -> effective.fields.firstOrNull { it.key == k }
-                            FieldType.MAP -> effective.value
+                        val childDef = when {
+                            objectFields != null -> objectFields.firstOrNull { it.key == k }
+                            effective?.type == FieldType.MAP -> effective.value
                             else -> null
                         }
                         val childPath = path + k

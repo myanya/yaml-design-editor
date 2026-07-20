@@ -88,6 +88,69 @@ class AiGeneratorTest {
         assertEquals(listOf("DES-001"), json["items"]?.jsonObject?.get("enum")?.jsonArray?.map { it.jsonPrimitive.content })
     }
 
+    // ---------------------------------------------------------------- enum cases
+
+    private fun inputObject() = FieldDef(
+        key = "input",
+        type = FieldType.OBJECT,
+        fields = listOf(
+            FieldDef(key = "name", type = FieldType.STRING),
+            FieldDef(
+                key = "type", type = FieldType.ENUM, values = listOf("text", "radio"),
+                cases = mapOf(
+                    "radio" to listOf(
+                        FieldDef(key = "options", type = FieldType.ARRAY, item = FieldDef(type = FieldType.STRING)),
+                    ),
+                ),
+            ),
+        ),
+    )
+
+    @Test
+    fun `object with single discriminator becomes anyOf branches`() {
+        val field = inputObject()
+        val json = fieldToJsonSchema(field, schemaOf(field))
+        val branches = json["anyOf"]!!.jsonArray.map { it.jsonObject }
+        assertEquals(2, branches.size)
+        fun branchOf(value: String) = branches.single {
+            it["properties"]!!.jsonObject["type"]!!.jsonObject["enum"]!!.jsonArray.map { e -> e.jsonPrimitive.content } == listOf(value)
+        }
+        assertTrue("options" in branchOf("radio")["properties"]!!.jsonObject)
+        assertTrue("options" !in branchOf("text")["properties"]!!.jsonObject)
+        assertTrue("options" in branchOf("radio")["required"]!!.jsonArray.map { it.jsonPrimitive.content })
+    }
+
+    @Test
+    fun `object with multiple discriminators falls back to union of case fields`() {
+        val field = FieldDef(
+            key = "o", type = FieldType.OBJECT,
+            fields = listOf(
+                FieldDef(key = "kind", type = FieldType.ENUM, values = listOf("a"),
+                    cases = mapOf("a" to listOf(FieldDef(key = "x", type = FieldType.STRING)))),
+                FieldDef(key = "type", type = FieldType.ENUM, values = listOf("b"),
+                    cases = mapOf("b" to listOf(FieldDef(key = "y", type = FieldType.STRING)))),
+            ),
+        )
+        val json = fieldToJsonSchema(field, schemaOf(field))
+        assertNull(json["anyOf"])
+        val properties = json["properties"]!!.jsonObject
+        assertTrue("x" in properties && "y" in properties)
+    }
+
+    @Test
+    fun `containsMap looks into enum cases`() {
+        val field = FieldDef(
+            key = "o", type = FieldType.OBJECT,
+            fields = listOf(
+                FieldDef(key = "type", type = FieldType.ENUM, values = listOf("a"),
+                    cases = mapOf("a" to listOf(
+                        FieldDef(key = "extra", type = FieldType.MAP, value = FieldDef(type = FieldType.STRING)),
+                    ))),
+            ),
+        )
+        assertTrue(containsMap(field, schemaOf(field)))
+    }
+
     // ---------------------------------------------------------------- parseGeneratedValue
 
     @Test

@@ -14,6 +14,7 @@ import schema.FieldDef
 import schema.FieldType
 import schema.SchemaDef
 import schema.UnknownFieldsPolicy
+import schema.effectiveFields
 import java.nio.file.Path
 
 enum class Severity { ERROR, WARNING }
@@ -130,11 +131,12 @@ object Validator {
                 if (node !is YNode.Map) {
                     issues += Issue(Severity.ERROR, "「$label」はオブジェクトである必要があります", path)
                 } else {
-                    for (ch in f.fields) {
+                    val effective = schema.effectiveFields(f.fields, node)
+                    for (ch in effective.fields) {
                         val key = ch.key ?: continue
                         checkField(ch, node.entries[key], path + key, issues, schema)
                     }
-                    val definedKeys = f.fields.mapNotNull { it.key }.toSet()
+                    val definedKeys = effective.fields.mapNotNull { it.key }.toSet()
                     val unknownKeys = node.entries.keys.filter {
                         it !in definedKeys && !(path.isEmpty() && it == "_document")
                     }
@@ -145,7 +147,16 @@ object Validator {
                     }
                     if (severity != null) {
                         unknownKeys.forEach { key ->
-                            issues += Issue(severity, "スキーマに定義されていない項目です: $key", path + key)
+                            val inactive = effective.inactive[key]
+                            issues += if (inactive != null) {
+                                Issue(
+                                    severity,
+                                    "「$key」は「${inactive.discriminator.displayLabel}」が ${inactive.values.joinToString(" / ")} のときのみ使用できます",
+                                    path + key,
+                                )
+                            } else {
+                                Issue(severity, "スキーマに定義されていない項目です: $key", path + key)
+                            }
                         }
                     }
                 }

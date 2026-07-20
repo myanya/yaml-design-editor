@@ -4,6 +4,7 @@ import yaml.YamlIO
 import java.nio.file.Files
 import java.nio.file.Path
 import model.YNode
+import model.scalarText
 
 /**
  * フィールドの型。スキーマ YAML の `type:` に対応する。
@@ -48,6 +49,7 @@ data class FieldDef(
     val type: FieldType = FieldType.STRING,
     val required: Boolean = false,
     val values: List<String> = emptyList(),  // ENUM の選択肢
+    val cases: Map<String, List<FieldDef>> = emptyMap(), // ENUM の値ごとに親オブジェクトへ追加される兄弟フィールド
     val item: FieldDef? = null,              // ARRAY の要素定義
     val value: FieldDef? = null,             // MAP の値定義
     val fields: List<FieldDef> = emptyList(),// OBJECT の子フィールド定義
@@ -120,10 +122,49 @@ data class SchemaDef(
                 scope = if (current.scope == RefScope()) target.scope else current.scope,
                 relation = current.relation ?: target.relation,
                 unknownFields = current.unknownFields ?: target.unknownFields,
+                cases = current.cases.ifEmpty { target.cases },
             )
         }
         return current
     }
+}
+
+/** 非アクティブな case 由来キーの情報（判別フィールドと、そのキーが有効になる enum 値）。 */
+data class InactiveCase(val discriminator: FieldDef, val values: List<String>)
+
+/** object の実効フィールド合成の結果。 */
+data class EffectiveFields(
+    val fields: List<FieldDef>,
+    /** 実効フィールドに含まれないが、いずれかの case で定義されているキー → その案内情報 */
+    val inactive: Map<String, InactiveCase>,
+)
+
+/**
+ * object の子フィールド一覧に、データノードの enum 値に応じた case フィールドを合成して返す。
+ * object のフィールドを列挙する側（検証・フォーム・索引・AI変換・初期値生成）は必ずこの関数を通すこと。
+ * case フィールドは判別フィールドの直後に挿入される。
+ */
+fun SchemaDef.effectiveFields(fields: List<FieldDef>, node: YNode.Map?): EffectiveFields {
+    val result = mutableListOf<FieldDef>()
+    val inactive = LinkedHashMap<String, InactiveCase>()
+    for (child in fields) {
+        result += child
+        val eff = resolve(child) ?: child
+        if (eff.type != FieldType.ENUM || eff.cases.isEmpty()) continue
+        val current = child.key?.let { k -> scalarText(node?.entries?.get(k)) }
+        if (current != null) result += eff.cases[current].orEmpty()
+        for ((value, caseFields) in eff.cases) {
+            if (value == current) continue
+            for (caseField in caseFields) {
+                val key = caseField.key ?: continue
+                val enabling = eff.values.filter { v -> eff.cases[v].orEmpty().any { it.key == key } }
+                    .ifEmpty { eff.cases.filterValues { list -> list.any { it.key == key } }.keys.toList() }
+                inactive.putIfAbsent(key, InactiveCase(eff, enabling))
+            }
+        }
+    }
+    result.forEach { it.key?.let(inactive::remove) }
+    return EffectiveFields(result, inactive)
 }
 
 data class SchemaIssue(val message: String, val path: String)
@@ -140,8 +181,17 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
         field.ref?.let { ref ->
             val target = definitions[ref]
             if (target == null) issues += SchemaIssue("未定義の参照です: \$$ref", path)
-            else if (ref !in stack) check(target, "definitions.$ref", stack + ref)
+            else {
+                if (ref !in stack) check(target, "definitions.$ref", stack + ref)
+                val resolved = resolve(field) ?: field
+                if (resolved.cases.isNotEmpty() && resolved.type != FieldType.ENUM) {
+                    issues += SchemaIssue("casesはenum型でのみ使用できます", path)
+                }
+            }
             return
+        }
+        if (field.cases.isNotEmpty() && field.type != FieldType.ENUM) {
+            issues += SchemaIssue("casesはenum型でのみ使用できます", path)
         }
         when (field.type) {
             FieldType.OBJECT -> {
@@ -153,6 +203,24 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
                     if (child.key.isNullOrBlank()) issues += SchemaIssue("フィールドのキーが空です", "$path.fields[$index]")
                     check(child, "$path.${child.key ?: index}", stack)
                 }
+                // case 由来キーの衝突検査（共通フィールド・別の判別フィールドの cases と重複させない）
+                val commonKeys = keys.toSet()
+                val caseKeyOwner = mutableMapOf<String, String>()
+                field.fields.forEach { child ->
+                    val eff = resolve(child) ?: child
+                    if (eff.type != FieldType.ENUM || eff.cases.isEmpty()) return@forEach
+                    val discriminator = child.key ?: return@forEach
+                    eff.cases.values.flatten().mapNotNull { it.key }.distinct().forEach { caseKey ->
+                        if (caseKey in commonKeys) {
+                            issues += SchemaIssue("caseのキー「$caseKey」が既存のフィールドと重複しています", "$path.$discriminator.cases")
+                        } else {
+                            val owner = caseKeyOwner.putIfAbsent(caseKey, discriminator)
+                            if (owner != null && owner != discriminator) {
+                                issues += SchemaIssue("caseのキー「$caseKey」が「$owner」と「$discriminator」の両方のcasesに現れています", path)
+                            }
+                        }
+                    }
+                }
             }
             FieldType.ARRAY -> {
                 if (field.item == null) issues += SchemaIssue("arrayには要素定義が必要です", "$path.item")
@@ -162,7 +230,21 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
                 if (field.value == null) issues += SchemaIssue("mapには値定義が必要です", "$path.value")
                 else check(field.value, "$path.value", stack)
             }
-            FieldType.ENUM -> if (field.values.isEmpty()) issues += SchemaIssue("enumには選択肢が必要です", "$path.values")
+            FieldType.ENUM -> {
+                if (field.values.isEmpty()) issues += SchemaIssue("enumには選択肢が必要です", "$path.values")
+                field.cases.forEach { (value, caseFields) ->
+                    if (value !in field.values) {
+                        issues += SchemaIssue("casesの値「$value」は選択肢に含まれていません", "$path.cases")
+                    }
+                    caseFields.mapNotNull { it.key }.groupBy { it }.filterValues { it.size > 1 }.keys.forEach {
+                        issues += SchemaIssue("キー「$it」が重複しています", "$path.cases.$value")
+                    }
+                    caseFields.forEachIndexed { index, caseField ->
+                        if (caseField.key.isNullOrBlank()) issues += SchemaIssue("フィールドのキーが空です", "$path.cases.$value[$index]")
+                        check(caseField, "$path.cases.$value.${caseField.key ?: index}", stack)
+                    }
+                }
+            }
             FieldType.REF -> Unit
             else -> Unit
         }
@@ -187,9 +269,19 @@ fun SchemaDef.generateSample(): YNode {
         val field = original
         if (field.default != null) return YamlIO.fromAny(field.default)
         return when (field.type) {
-            FieldType.OBJECT -> YNode.Map(LinkedHashMap<String, YNode>().apply {
-                field.fields.forEach { child -> child.key?.let { put(it, create(child, depth + 1, stack)) } }
-            })
+            FieldType.OBJECT -> {
+                val entries = LinkedHashMap<String, YNode>().apply {
+                    field.fields.forEach { child -> child.key?.let { put(it, create(child, depth + 1, stack)) } }
+                }
+                // enum の生成値（default または先頭の選択肢）に応じた case フィールドを実効順で合成する
+                val ordered = effectiveFields(field.fields, YNode.Map(entries)).fields
+                YNode.Map(LinkedHashMap<String, YNode>().apply {
+                    ordered.forEach { child ->
+                        val key = child.key ?: return@forEach
+                        put(key, entries[key] ?: create(child, depth + 1, stack))
+                    }
+                })
+            }
             FieldType.ARRAY -> YNode.Seq(
                 if (field.item?.ref?.let { it in stack } == true) mutableListOf()
                 else field.item?.let { mutableListOf(create(it, depth + 1, stack)) } ?: mutableListOf()
@@ -355,6 +447,17 @@ object SchemaLoader {
         val item = m["item"]?.let { parseField(it as? Map<*, *> ?: error("itemはobjectである必要があります"), null) }
         val value = m["value"]?.let { parseField(it as? Map<*, *> ?: error("valueはobjectである必要があります"), null) }
         val values = (m["values"] as? List<*>)?.map { it.toString() } ?: emptyList()
+        val cases = when (val rawCases = m["cases"]) {
+            null -> emptyMap()
+            is Map<*, *> -> rawCases.entries.associate { (caseValue, defs) ->
+                val list = defs as? List<*> ?: error("cases.${caseValue}はフィールド定義のリストである必要があります")
+                caseValue.toString() to list.mapIndexed { index, f ->
+                    val child = f as? Map<*, *> ?: error("cases.${caseValue}[$index]はobjectである必要があります")
+                    parseField(child, child["key"]?.toString())
+                }
+            }
+            else -> error("casesはobject（enum値 → フィールド定義リスト）である必要があります")
+        }
         val idPatterns = when (val rawPatterns = m["idPatterns"] ?: m["idPattern"]) {
             is List<*> -> rawPatterns.map { it.toString() }
             null -> emptyList()
@@ -372,6 +475,7 @@ object SchemaLoader {
             type = type,
             required = (m["required"] as? Boolean) ?: false,
             values = values,
+            cases = cases,
             item = item,
             value = value,
             fields = fields,

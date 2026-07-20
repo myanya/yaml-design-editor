@@ -37,6 +37,7 @@ import model.YNode
 import model.YPath
 import schema.FieldDef
 import schema.FieldType
+import schema.effectiveFields
 import yaml.YamlIO
 
 private val fieldTextStyle = TextStyle(fontSize = 13.sp)
@@ -99,11 +100,20 @@ fun defaultNode(field: FieldDef?, schema: schema.SchemaDef? = null, depth: Int =
         FieldType.INT, FieldType.NUMBER -> YNode.Scalar(0)
         FieldType.ARRAY -> YNode.Seq()
         FieldType.MAP -> YNode.Map()
-        FieldType.OBJECT -> YNode.Map(LinkedHashMap<String, YNode>().apply {
-            resolved.fields.forEach { ch ->
-                if (ch.required && ch.key != null) put(ch.key, defaultNode(ch, schema, depth + 1))
+        FieldType.OBJECT -> {
+            val entries = LinkedHashMap<String, YNode>().apply {
+                resolved.fields.forEach { ch ->
+                    if (ch.required && ch.key != null) put(ch.key, defaultNode(ch, schema, depth + 1))
+                }
             }
-        })
+            val map = YNode.Map(entries)
+            // 判別 enum の初期値に応じた case フィールドのうち必須のものを補う
+            schema?.effectiveFields(resolved.fields, map)?.fields?.forEach { ch ->
+                val key = ch.key ?: return@forEach
+                if (ch.required && key !in entries) entries[key] = defaultNode(ch, schema, depth + 1)
+            }
+            map
+        }
         else -> YNode.Scalar("")
     }
 }
@@ -221,16 +231,33 @@ private fun DocumentMetadataEditor(ctx: FormCtx, root: YNode.Map) {
 /** スキーマの fields をフォーム行として描画し、スキーマ外のキーも汎用行で表示する。 */
 @Composable
 fun ObjectFields(ctx: FormCtx, fields: List<FieldDef>, map: YNode.Map, path: YPath) {
-    val definedKeys = fields.mapNotNull { it.key }.toSet()
-    for (field in fields) {
+    // enum 値に応じた case フィールドを合成した実効フィールドで描画する
+    val effective = ctx.doc.schema?.effectiveFields(fields, map)
+    val effectiveList = effective?.fields ?: fields
+    val definedKeys = effectiveList.mapNotNull { it.key }.toSet()
+    for (field in effectiveList) {
         val key = field.key ?: continue
         FieldRow(ctx, field, MapSlot(map, key), path + key)
     }
     val extraKeys = map.entries.keys.filter { it !in definedKeys && !(path.isEmpty() && it == "_document") }
-    if (extraKeys.isNotEmpty()) {
+    val inactiveKeys = extraKeys.filter { effective?.inactive?.containsKey(it) == true }
+    if (inactiveKeys.isNotEmpty()) {
+        Spacer(Modifier.height(8.dp))
+        Text("現在の選択では使用しないキー", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Palette.WarnOrange)
+        for (k in inactiveKeys.toList()) {
+            val info = effective?.inactive?.get(k) ?: continue
+            Text(
+                "「$k」は「${info.discriminator.displayLabel}」が ${info.values.joinToString(" / ")} のとき使用できます",
+                fontSize = 10.sp, color = Palette.SubText,
+            )
+            GenericMapEntryRow(ctx, map, k, path)
+        }
+    }
+    val unknownKeys = extraKeys.filter { it !in inactiveKeys }
+    if (unknownKeys.isNotEmpty()) {
         Spacer(Modifier.height(8.dp))
         Text("スキーマ外のキー", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Palette.WarnOrange)
-        for (k in extraKeys.toList()) {
+        for (k in unknownKeys.toList()) {
             GenericMapEntryRow(ctx, map, k, path)
         }
     }

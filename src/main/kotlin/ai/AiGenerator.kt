@@ -78,14 +78,54 @@ internal fun fieldToJsonSchema(original: FieldDef, schema: SchemaDef, depth: Int
                     ?: buildJsonObject { put("type", "string") })
             }
             FieldType.OBJECT -> {
-                put("type", "object")
-                putJsonObject("properties") {
-                    field.fields.forEach { child ->
-                        child.key?.let { key -> put(key, fieldToJsonSchema(child, schema, depth + 1, candidates)) }
-                    }
+                val discriminators = field.fields.mapNotNull { child ->
+                    val eff = schema.resolve(child) ?: child
+                    if (child.key != null && eff.type == FieldType.ENUM && eff.cases.isNotEmpty()) child.key to eff else null
                 }
-                putJsonArray("required") { field.fields.mapNotNull { it.key }.forEach(::add) }
-                put("additionalProperties", false)
+                val single = discriminators.singleOrNull()?.takeIf { it.second.values.isNotEmpty() }
+                if (single != null) {
+                    // 判別 enum が1つの object は、値ごとの分岐（判別子を固定し case フィールドを加えた object）の anyOf にする
+                    val (discKey, disc) = single
+                    putJsonArray("anyOf") {
+                        disc.values.forEach { discValue ->
+                            add(buildJsonObject {
+                                put("type", "object")
+                                putJsonObject("properties") {
+                                    field.fields.forEach { child ->
+                                        child.key?.let { key ->
+                                            if (key == discKey) put(key, buildJsonObject {
+                                                put("type", "string")
+                                                putJsonArray("enum") { add(discValue) }
+                                            })
+                                            else put(key, fieldToJsonSchema(child, schema, depth + 1, candidates))
+                                        }
+                                    }
+                                    disc.cases[discValue].orEmpty().forEach { caseField ->
+                                        caseField.key?.let { key -> put(key, fieldToJsonSchema(caseField, schema, depth + 1, candidates)) }
+                                    }
+                                }
+                                putJsonArray("required") {
+                                    (field.fields.mapNotNull { it.key } + disc.cases[discValue].orEmpty().mapNotNull { it.key })
+                                        .distinct().forEach(::add)
+                                }
+                                put("additionalProperties", false)
+                            })
+                        }
+                    }
+                } else {
+                    // 判別 enum が複数の object は厳密な分岐を諦め、全 case フィールドの和集合で受ける
+                    put("type", "object")
+                    val union = LinkedHashMap<String, FieldDef>()
+                    field.fields.forEach { child -> child.key?.let { union[it] = child } }
+                    discriminators.forEach { (_, disc) ->
+                        disc.cases.values.flatten().forEach { caseField -> caseField.key?.let { union.putIfAbsent(it, caseField) } }
+                    }
+                    putJsonObject("properties") {
+                        union.forEach { (key, child) -> put(key, fieldToJsonSchema(child, schema, depth + 1, candidates)) }
+                    }
+                    putJsonArray("required") { union.keys.forEach(::add) }
+                    put("additionalProperties", false)
+                }
             }
             FieldType.MAP -> {
                 put("type", "object")
@@ -111,6 +151,7 @@ internal fun containsMap(original: FieldDef, schema: SchemaDef, depth: Int = 0):
         FieldType.MAP -> true
         FieldType.ARRAY -> field.item?.let { containsMap(it, schema, depth + 1) } == true
         FieldType.OBJECT -> field.fields.any { containsMap(it, schema, depth + 1) }
+        FieldType.ENUM -> field.cases.values.flatten().any { containsMap(it, schema, depth + 1) }
         else -> false
     }
 }
