@@ -94,4 +94,42 @@ class ValidatorTest {
         )
         assertTrue(issues.none { it.message.contains("options") })
     }
+
+    @Test
+    fun `ネストしたcaseの必須フィールドも検証される`() {
+        val nestedSchema = SchemaLoader.parseSchemaText(
+            """
+            id: nested-cases
+            name: ネストしたcases
+            match: "screens/**/*.yaml"
+            root:
+              type: object
+              fields:
+                - key: value-type
+                  type: enum
+                  values: [direct, reference]
+                  cases:
+                    direct:
+                      - key: type
+                        type: enum
+                        values: [string, number]
+                        cases:
+                          string:
+                            - key: min
+                              type: int
+                              required: true
+            """.trimIndent(),
+            Path.of("_schemas/nested-cases.yaml"),
+        )
+
+        val issues = Validator.validate(
+            YamlIO.parse("value-type: direct\ntype: string\n"),
+            null,
+            Path.of("screens/a.yaml"),
+            nestedSchema,
+            IdIndex(),
+        )
+
+        assertTrue(issues.any { it.severity == Severity.ERROR && it.path == listOf("min") })
+    }
 }

@@ -90,6 +90,47 @@ class SchemaLoaderTest {
     }
 
     @Test
+    fun `effectiveFieldsはcaseから追加されたenumのcasesも同じobjectへ展開する`() {
+        val schema = SchemaLoader.parseSchemaText(
+            """
+            id: nested-cases
+            name: ネストしたcases
+            match: "*.yaml"
+            root:
+              type: object
+              fields:
+                - key: value-type
+                  type: enum
+                  values: [direct, reference]
+                  cases:
+                    direct:
+                      - key: type
+                        type: enum
+                        values: [string, number]
+                        cases:
+                          string:
+                            - key: min
+                              type: int
+                            - key: max
+                              type: int
+                          number:
+                            - key: scale
+                              type: int
+                - key: description
+                  type: text
+            """.trimIndent(),
+            Path.of("_schemas/nested-cases.yaml"),
+        )
+        val node = YamlIO.parse("value-type: direct\ntype: string\n") as YNode.Map
+
+        val effective = schema.effectiveFields(schema.root.fields, node)
+
+        assertEquals(listOf("value-type", "type", "min", "max", "description"), effective.fields.map { it.key })
+        assertEquals(listOf("number"), effective.inactive["scale"]?.values)
+        assertTrue("type" !in effective.inactive)
+    }
+
+    @Test
     fun `refで参照したenumのcasesが引き継がれる`() {
         val schema = SchemaLoader.parseSchemaText(
             """

@@ -175,17 +175,20 @@ data class EffectiveFields(
 /**
  * object の子フィールド一覧に、データノードの enum 値に応じた case フィールドを合成して返す。
  * object のフィールドを列挙する側（検証・フォーム・索引・AI変換・初期値生成）は必ずこの関数を通すこと。
- * case フィールドは判別フィールドの直後に挿入される。
+ * case フィールドは判別フィールドの直後に挿入される。追加されたフィールド自身が cases つき enum の場合も、
+ * 同じ親 object 上で続けて展開する。
  */
 fun SchemaDef.effectiveFields(fields: List<FieldDef>, node: YNode.Map?): EffectiveFields {
     val result = mutableListOf<FieldDef>()
     val inactive = LinkedHashMap<String, InactiveCase>()
-    for (child in fields) {
+    fun append(child: FieldDef, depth: Int) {
         result += child
+        // $ref を介した自己参照で不正な無限展開にならないよう、スキーマ走査と同程度の上限を設ける。
+        if (depth > 32) return
         val eff = resolve(child) ?: child
-        if (eff.type != FieldType.ENUM || eff.cases.isEmpty()) continue
+        if (eff.type != FieldType.ENUM || eff.cases.isEmpty()) return
         val current = child.key?.let { k -> scalarText(node?.entries?.get(k)) }
-        if (current != null) result += eff.cases[current].orEmpty()
+        if (current != null) eff.cases[current].orEmpty().forEach { append(it, depth + 1) }
         for ((value, caseFields) in eff.cases) {
             if (value == current) continue
             for (caseField in caseFields) {
@@ -196,6 +199,7 @@ fun SchemaDef.effectiveFields(fields: List<FieldDef>, node: YNode.Map?): Effecti
             }
         }
     }
+    fields.forEach { append(it, 0) }
     result.forEach { it.key?.let(inactive::remove) }
     return EffectiveFields(result, inactive)
 }

@@ -64,4 +64,52 @@ class DocScannerTest {
         assertTrue(ids.isEmpty())
         assertTrue(refs.isEmpty())
     }
+
+    @Test
+    fun `ネストしたcase配下のIDと参照も索引化される`() {
+        val nestedSchema = SchemaLoader.parseSchemaText(
+            """
+            id: nested-cases
+            name: ネストしたcases
+            match: "screens/**/*.yaml"
+            root:
+              type: object
+              fields:
+                - key: value-type
+                  type: enum
+                  values: [direct, reference]
+                  cases:
+                    direct:
+                      - key: type
+                        type: enum
+                        values: [select, text]
+                        cases:
+                          select:
+                            - key: options
+                              type: array
+                              item:
+                                type: object
+                                fields:
+                                  - key: id
+                                    type: id
+                                  - key: rel
+                                    type: ref
+            """.trimIndent(),
+            Path.of("_schemas/nested-cases.yaml"),
+        )
+        val root = YamlIO.parse(
+            """
+            value-type: direct
+            type: select
+            options:
+              - id: OPT-1
+                rel: TARGET-1
+            """.trimIndent(),
+        )
+
+        val (ids, refs) = DocScanner.scan(root, Path.of("screens/a.yaml"), nestedSchema)
+
+        assertEquals(listOf("OPT-1"), ids.map { it.id })
+        assertEquals(listOf("TARGET-1"), refs.map { it.targetId })
+    }
 }
