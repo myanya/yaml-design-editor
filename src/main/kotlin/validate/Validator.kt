@@ -179,6 +179,18 @@ object Validator {
         return phases.order.mapIndexed { i, p -> PhaseProgress(p, filled[i], total[i]) }
     }
 
+    /**
+     * 現在フェーズと記入進捗の1行サマリ（UI・CLI・エージェントの表示で共用）。
+     * `phases` 未宣言のスキーマでは null（呼び出し側は表示自体を省略する）。
+     */
+    fun phaseSummaryText(root: YNode?, schema: SchemaDef): String? {
+        val phases = schema.phases ?: return null
+        val current = schema.currentPhaseValue(root)?.takeIf { it in phases.order } ?: phases.order.firstOrNull()
+        val parts = phaseProgress(root, schema).filter { it.total > 0 }
+            .joinToString(", ") { "${it.phase} ${it.filled}/${it.total}" }
+        return "phase=$current" + (if (parts.isNotBlank()) "（$parts）" else "")
+    }
+
     fun coverageMessage(status: CoverageStatus): String = buildString {
         append("ID「${status.id}」への参照が不足しています（現在 ${status.count} 件／必要 ${status.rule.minCount} 件")
         if (status.rule.fromSchemaIds.isNotEmpty()) append("、参照元スキーマ: ${status.rule.fromSchemaIds.joinToString(", ")}")

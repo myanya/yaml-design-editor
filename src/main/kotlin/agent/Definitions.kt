@@ -85,7 +85,7 @@ data class ActivityDef(
     val agentId: String,
     val targetMatch: String? = null,            // 対象ファイルの glob（初期文脈の提示に使う）
     val instruction: String,
-    val contextInclude: List<String> = listOf("catalog"),
+    val contextInclude: List<String> = listOf("catalog"), // "catalog" / "phase"（対象文書のフェーズ状態。R7-04）
     val contextViews: List<String> = emptyList(),  // 初期文脈として開示するビュー（_views）のID
     val allowedFiles: List<String> = emptyList(),  // 書込許可ファイル glob（空 = 制限なし）
     val allowedPaths: List<String> = emptyList(),  // 書込許可 YPath glob（空 = 制限なし）

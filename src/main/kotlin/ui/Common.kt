@@ -36,6 +36,7 @@ import app.OpenDocument
 import kotlinx.coroutines.delay
 import model.YNode
 import model.YPath
+import model.getAt
 
 // ---------------------------------------------------------------- カラーパレット
 
@@ -186,6 +187,17 @@ class RootSlot(private val doc: OpenDocument) : Slot {
     override fun get(): YNode? = doc.root
     override fun set(n: YNode) { doc.root = n }
     override fun remove() { /* ルートは削除不可 */ }
+}
+
+/** ツリー上の絶対パスに対応する Slot。親コンテナが無ければ null。 */
+fun slotAt(root: YNode, path: YPath): Slot? {
+    if (path.isEmpty()) return null
+    val parent = getAt(root, path.dropLast(1)) ?: return null
+    return when (val last = path.last()) {
+        is String -> (parent as? YNode.Map)?.let { MapSlot(it, last) }
+        is Int -> (parent as? YNode.Seq)?.let { SeqSlot(it, last) }
+        else -> null
+    }
 }
 
 // ---------------------------------------------------------------- ハイライト

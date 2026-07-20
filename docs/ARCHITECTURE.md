@@ -55,7 +55,7 @@ src/main/kotlin/
 | `globToRegex` / `idMatchesPattern` | schema / index | glob→正規表現変換（パス用と ID 用で対応構文が異なる点に注意） |
 | `DocScanner` | index/IdIndex.kt | 1文書からのID・参照抽出。スキーマ有無で検出規則を切替、未知キー境界で走査停止。参照には `relation` / `sourceSchemaId` を付与 |
 | `IdIndex` | index/IdIndex.kt | ワークスペース全体の `id -> 出現一覧` 索引と全参照。**ディスク基準**（未保存編集は反映されない） |
-| `Validator` | validate/Validator.kt | 文書の検証（UI非依存）。スキーマ適合＋参照解決＋文書内ID重複＋カバレッジ（`coverageStatuses` はUIとも共用）。フェーズ考慮の必須判定と記入進捗 `phaseProgress`（§4.15） |
+| `Validator` | validate/Validator.kt | 文書の検証（UI非依存）。スキーマ適合＋参照解決＋文書内ID重複＋カバレッジ（`coverageStatuses` はUIとも共用）。フェーズ考慮の必須判定と記入進捗 `phaseProgress`、1行サマリ `phaseSummaryText`（UI・CLI・エージェントツールで共用。§4.15） |
 | `Workspace` / `WorkspaceScan` | core/Workspace.kt | ヘッドレスなワークスペース操作（開く・読む・保存・検証・変更セット適用）。相対パス解決はワークスペース外への脱出を拒否 |
 | `PatchOp` / `Patcher` / `ChangeSets` | core/Patch.kt | YPathパッチ（set/insert/delete/move）と変更セット（baseハッシュ競合検出、YAML解析） |
 | `Disclosure` | core/Disclosure.kt | 段階的開示: カタログ→骨子→ノード全文、文字数予算付き文脈バンドル |
@@ -86,7 +86,7 @@ src/main/kotlin/
 | `AiGenerator` ほか | ai/ | スキーマ→JSON Schema 変換、REF候補の enum 制約、プロバイダ振り分け |
 | `OpenAiGenerator` / `AnthropicGenerator` | ai/ | 各API（Responses / Messages）のリクエスト構築とレスポンス解析 |
 | `FormView` / `FormCtx` | ui/FormView.kt | スキーマ駆動フォームと汎用エディタ（中核UI）。`FormCtx` が編集操作と参照解決を仲介 |
-| `IdCrossView` | ui/IdCrossView.kt | ID横ぐしビュー: 同一論理IDの全出現・参照・被参照・カバレッジ充足の集約表示 |
+| `IdCrossView` | ui/IdCrossView.kt | ID横ぐしビュー: 同一論理IDの全出現・参照・被参照・カバレッジ充足の集約表示。各出現はその場で編集できる埋め込みフォーム（`_views` 定義不要。§4.16） |
 | `ViewGridView` | ui/ViewGridPane.kt | ビューグリッド: `_views` 定義の編集可能な一覧表示。セル編集は文書キャッシュ上のツリー直接編集（Slot＋markEdited）、行アクションで詳細文書作成・新規行追加 |
 | `Slot` (Map/Seq/Root) | ui/Common.kt | 「値の置き場所」の抽象。後述 |
 | `AiGenerationHost` | ui/AiGenerationDialog.kt | AI生成ダイアログの状態機械（入力→生成→プレビュー→適用）と提案合成 |
@@ -107,7 +107,7 @@ Undo/Redo は `YamlIO.dump` したスナップショット文字列の履歴（�
 
 ### 4.3 Slot 抽象
 
-マップのキー（`MapSlot`）・配列要素（`SeqSlot`）・文書ルート（`RootSlot`）を `Slot`（get/set/remove）で統一し、スキーマフォームと汎用エディタがエディタ部品を共有する。新しい「値の置き場所」（例: `_document` メタデータ）が必要なら `Slot` 実装を追加する。
+マップのキー（`MapSlot`）・配列要素（`SeqSlot`）・文書ルート（`RootSlot`）を `Slot`（get/set/remove）で統一し、スキーマフォームと汎用エディタがエディタ部品を共有する。新しい「値の置き場所」（例: `_document` メタデータ）が必要なら `Slot` 実装を追加する。ツリー上の絶対 `YPath` から `Slot` を得る `slotAt`（`ui/Common.kt`）は、ビューグリッドとID横ぐしビューの両方が共有する。
 
 ### 4.4 YPath ベースのナビゲーション
 
@@ -202,8 +202,18 @@ enum の `cases`（値ごとの追加フィールド。判別共用体）を持�
 - **未到達は進捗として見せる**: 未来フェーズの未記入はエラーではなく記入進捗（`Validator.phaseProgress`: フェーズ×記入済み/総数）として可視化する。進捗の集計対象は `requiredFrom` を持つフィールドのみ（無条件 `required` は従来どおり検証エラーで扱う）。存在しない配列要素・Map項目は数えない（構造が確定してから数える）。
 - **判定は Validator に一元化**: フェーズの解決（`currentPhaseIndex`）と実効必須（`requiredAt`）は `schema/Schema.kt` の拡張関数に置き、検証・進捗計算が共有する。フォーム表示は `requiredFrom` を「（フェーズ名〜必須）」の注記として表示し、無条件 required の * マークとは区別する。
 - **エージェントのゲートに自然に乗る**: 提出ゲート（`requireValid` / `Staging.validateAll`）は ERROR 件数で判定するため、フェーズ未到達の未記入はゲートを塞がない。「フェーズを進める」作業自体をアクティビティ化すると、進行の合格条件が `phase` 検証エラー0として機械化できる。
+- **フェーズ状態はエージェントにも能動的に見える**: `Validator.phaseSummaryText`（現在フェーズ＋進捗の1行サマリ）を `agent/Tools.kt` の `related`（出現ごと）・`catalogText`（文書ごと）・`core/Disclosure.kt` の `catalog` / `bundle` が共用する。エージェントは検証エラーを待たずに「次に何を埋めれば前進するか」を探索段階で把握できる。アクティビティ定義の `context.include: [phase]`（`agent/Kernel.kt`）は対象文書のフェーズ状態を初期文脈に載せ、フェーズ前進アクティビティの起点にする（FEATURES AG-25）。
 
-### 4.16 エラー処理
+### 4.16 編集可能なID横ぐしビュー（P7: R7-04）
+
+`_views` 定義を書かずに、同一論理IDの全出現を1画面で編集する。守るべき不変条件:
+
+- **ビュー機構の書込原則をそのまま適用**: §4.14 の「ビュー専用の書込経路を作らない」をID横ぐしビューにも適用する。出現の編集は `AppState.ensureDoc` で文書キャッシュへ取り込んだツリーを `Slot` 経由で直接変更し `markEdited()` する（`_views` のビューグリッドと同一経路。dirty・Undo・保存・外部変更検出がそのまま効く）。
+- **フィールド解決はビュー機構と共有**: 出現の要素（`IdEntry.path`）にあるスキーマの object フィールド一覧は `Views.fieldAt(schema, root, entry.path)` で解決する（ビューグリッドのセル型解決と同じ関数。専用の解決ロジックを新設しない）。取得した `FieldDef.fields` は `ui/FormView.kt` の `ObjectFields` にそのまま渡し、フォームの行UI・型別エディタ・参照解決・enum `cases` 合成（§4.7）を複製しない。
+- **スキーマなし・解決失敗はフォールバック**: `Views.fieldAt` が object を返さない場合（スキーマなし文書、または想定外の構造）は `GenericEditor` へフォールバックする。ルート直下の出現（`entry.path` が空）は `RootSlot`、それ以外は `slotAt`（`ui/Common.kt`。ビューグリッドと共有）で Slot を得る。
+- **`_views` を置き換えない**: 列の選別・順序・一覧としての一覧性が要る場面は `_views`、スキーマ定義だけで即座に使える編集面が欲しい場面はID横ぐしビュー、と役割を分ける。
+
+### 4.17 エラー処理
 
 - ファイルI/O・パースは `runCatching` で受け、ユーザー操作の結果は `Result` を返して呼び出し側（UI）が `state.status` に反映する。
 - 入力検証の失敗は `require(...) { "日本語メッセージ" }`、内部異常は `error("日本語メッセージ")`。メッセージはそのままUIに表示される前提で書く。

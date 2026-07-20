@@ -104,6 +104,25 @@ class KernelTest {
         write("glossary/main.yaml", "terms:\n- id: TERM-001\n  title: 旧用語")
         write("docs/a.yaml", "id: DOC-A\ntitle: 文書A\nuses:\n- TERM-001")
         write("docs/b.yaml", "id: DOC-B\ntitle: 文書B\nuses:\n- TERM-001")
+        write(
+            "_schemas/table.yaml",
+            """
+            id: table
+            match: "tables/**/*.yaml"
+            phases:
+              order: [requirements, logical-design]
+            root:
+              type: object
+              fields:
+                - { key: id, type: id, required: true }
+                - key: phase
+                  type: enum
+                  values: [requirements, logical-design]
+                  default: requirements
+                - { key: name, type: string, required: true }
+            """,
+        )
+        write("tables/t.yaml", "id: TBL-001\nphase: requirements\nname: たすく\n")
     }
 
     @AfterTest
@@ -121,10 +140,12 @@ class KernelTest {
         maxTurns: Int = 24,
         allowedFiles: List<String> = emptyList(),
         gate: ValidationGate = ValidationGate.ERROR_FREE,
+        contextInclude: List<String> = listOf("catalog"),
     ) = ActivityDef(
         id = "rename-term", name = "用語改名", agentId = "editor",
         targetMatch = "**/*.yaml",
         instruction = "TERM-001 を TERM-100 に改名し、参照元をすべて更新する。",
+        contextInclude = contextInclude,
         allowedFiles = allowedFiles,
         limits = ActivityLimits(maxTurns = maxTurns, maxTokens = 1_000_000, maxSeconds = 300),
         gate = gate,
@@ -307,5 +328,15 @@ class KernelTest {
         assertTrue("TERM-001 を TERM-100 に改名" in initial)
         assertTrue("glossary/main.yaml" in initial)   // カタログ
         assertTrue("検証エラー0" in initial)           // ゲートの明示
+    }
+
+    @Test
+    fun `context include phase surfaces target phase state in initial context`() {
+        val ws = Workspace.open(dir)
+        val session = FakeSession(listOf(turn(call("abort", """{"reason":"確認のみ"}"""))))
+        run(ws, session, RecordingHost(), activity(contextInclude = listOf("catalog", "phase")))
+        val initial = session.userTexts.first()
+        assertTrue("フェーズ状態" in initial)
+        assertTrue("tables/t.yaml: phase=requirements" in initial)
     }
 }

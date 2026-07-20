@@ -22,17 +22,20 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.AppState
+import app.OpenDocument
+import core.Views
+import index.DocScanner
 import index.IdEntry
+import index.IdIndex
+import model.YNode
 import model.getAt
 import model.pretty
+import schema.FieldType
 import validate.Validator
-import yaml.YamlIO
-import java.nio.file.Files
 
 /**
  * ID横ぐしビュー（R1-05）。
@@ -195,16 +198,18 @@ private fun IdCrossDetail(state: AppState, id: String) {
     }
 }
 
-/** 1 出現のカード。要素の内容プレビューと、その要素サブツリーからの参照を表示する。 */
+/**
+ * 1 出現のカード。要素をその場で編集できるフォーム（R7-04）と、その要素サブツリーからの参照を表示する。
+ * 文書は `state.ensureDoc` でdocCacheへ取り込み、編集は他のフォームと同じ Slot＋markEdited() の経路を通す
+ * （`_views` のようなビュー定義は不要。ビュー専用の書込経路は作らない。ARCHITECTURE §4.14 の原則をここにも適用）。
+ */
 @Composable
 private fun OccurrenceCard(state: AppState, entry: IdEntry) {
-    val preview = remember(entry, state.indexVersion) {
-        val root = state.docFor(entry.file)?.root
-            ?: runCatching { YamlIO.parse(Files.readString(entry.file)) }.getOrNull()
-        root?.let { getAt(it, entry.path) }?.let { YamlIO.dump(it) }?.let {
-            if (it.length > 600) it.take(600) + "…" else it
-        }
-    }
+    val doc = state.ensureDoc(entry.file)
+    doc.version
+    state.indexVersion
+    val root = doc.root
+
     val refsOut = remember(entry, state.indexVersion) {
         state.index.refs.filter {
             it.file == entry.file && it.path.size >= entry.path.size &&
@@ -236,10 +241,14 @@ private fun OccurrenceCard(state: AppState, entry: IdEntry) {
                 Icon(Icons.Default.ArrowForward, contentDescription = "開く", Modifier.size(16.dp), tint = Palette.Primary)
             }
         }
-        preview?.let {
-            Spacer(Modifier.height(6.dp))
-            Text(it, fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = Palette.Text,
-                modifier = Modifier.fillMaxWidth().background(Palette.EditorBg, PanelShape).padding(8.dp))
+        Spacer(Modifier.height(6.dp))
+        if (root == null) {
+            Text(
+                "YAML を解析できないため編集できません: ${doc.parseError ?: "不明なエラー"}",
+                fontSize = 11.sp, color = Palette.ErrorRed,
+            )
+        } else {
+            OccurrenceForm(state, doc, root, entry)
         }
         if (refsOut.isNotEmpty()) {
             Spacer(Modifier.height(6.dp))
@@ -257,6 +266,40 @@ private fun OccurrenceCard(state: AppState, entry: IdEntry) {
                     )
                 }
             }
+        }
+    }
+}
+
+/**
+ * 出現1件をその場で編集するフォーム本体。
+ * スキーマがあれば `Views.fieldAt` で entry.path のフィールド定義（object を期待）を解決し、
+ * `ObjectFields` にそのまま委譲する（ビュー機構のパス解決・フォームの行UIを複製しない）。
+ * スキーマなし、またはフィールド解決が object にならない場合は汎用エディタへフォールバックする。
+ */
+@Composable
+private fun OccurrenceForm(state: AppState, doc: OpenDocument, root: YNode, entry: IdEntry) {
+    val localIds = remember(doc, doc.version) {
+        val documentId = IdIndex.documentIdOf(root, state.relPath(doc.file))
+        DocScanner.scan(root, doc.file, doc.schema, documentId).first
+    }
+    val ctx = remember(doc, doc.version, state.indexVersion) { FormCtx(state, doc, localIds) }
+    val schemaDef = doc.schema
+    val map = getAt(root, entry.path) as? YNode.Map
+    val objectField = remember(schemaDef, doc.version) {
+        schemaDef?.let { Views.fieldAt(it, root, entry.path) }
+    }
+
+    when {
+        map == null -> Text(
+            "この要素が見つかりません（構造が変わった可能性があります）",
+            fontSize = 11.sp, color = Palette.WarnOrange,
+        )
+        schemaDef != null && objectField?.type == FieldType.OBJECT ->
+            ObjectFields(ctx, objectField.fields, map, entry.path)
+        else -> {
+            val slot = if (entry.path.isEmpty()) RootSlot(doc) else slotAt(root, entry.path)
+            if (slot != null) GenericEditor(ctx, slot, entry.path, refHint = true)
+            else Text("この要素を編集できません", fontSize = 11.sp, color = Palette.WarnOrange)
         }
     }
 }

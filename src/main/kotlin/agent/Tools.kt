@@ -11,10 +11,13 @@ import core.Workspace
 import index.IdIndex
 import index.idMatchesPattern
 import kotlinx.serialization.json.*
+import model.YNode
+import model.getAt
 import model.parseYPath
 import model.pretty
 import schema.SchemaLoader
 import schema.globToRegex
+import validate.Validator
 import validate.Severity
 import yaml.YamlIO
 import java.nio.file.Files
@@ -80,9 +83,14 @@ class AgentToolbox(
                 optional("ref_to", "このIDへの参照を検索")
                 optionalBool("unresolved", "未解決参照のみ")
             })
-            specs += ToolSpec("related", "IDの関連情報（全出現・その要素からの参照・被参照）を返す。影響分析に使う。", obj {
-                required("id", "論理ID")
-            })
+            specs += ToolSpec(
+                "related",
+                "IDの関連情報（全出現・各出現の主要項目の要約とフェーズ状態・その要素からの参照・被参照）を返す。" +
+                    "同一IDが複数文書に段階的詳細化されている場合、出現ごとに read_node を呼ばずに横断確認できる。影響分析やID串刺しレビューに使う。",
+                obj {
+                    required("id", "論理ID")
+                },
+            )
             specs += ToolSpec(
                 "read_view",
                 "ビュー定義（_views）を行×列に解決して返す。複数文書に散らばる同一IDの情報を一覧で横断確認でき、" +
@@ -313,14 +321,31 @@ class AgentToolbox(
             val root = staging.tree(rel)
             val name = root?.let(IdIndex::documentNameOf)
             val description = root?.let(IdIndex::documentDescriptionOf)?.replace("\n", " ")?.take(120)
-            val schemaId = ws.schemaFor(f)?.id
+            val schemaDef = ws.schemaFor(f)
             buildString {
                 append("- ").append(rel)
-                schemaId?.let { append(" [schema: ").append(it).append(']') }
+                schemaDef?.let { append(" [schema: ").append(it.id).append(']') }
                 name?.let { append(" — ").append(it) }
                 description?.let { append(": ").append(it) }
+                // phases を宣言したスキーマの文書は、段階的詳細化の現在地をカタログの時点から見せる
+                schemaDef?.let { sc -> Validator.phaseSummaryText(root, sc) }?.let { append(" [").append(it).append(']') }
             }
         }
+    }
+
+    /** 文書ごとのフェーズ状態（phases 宣言のあるスキーマの文書のみ）。context.include の "phase" から使う。 */
+    fun phaseText(targetMatch: String?): String {
+        val reserved = reservedPrefixes
+        val files = (ws.files + staging.touchedFiles().map { it.file }).distinct()
+            .filter { f -> reserved.none { ws.relPath(f).startsWith(it) } }
+            .filter { f -> targetMatch == null || globToRegex(targetMatch).matches(ws.relPath(f)) }
+        val lines = files.mapNotNull { f ->
+            val schemaDef = ws.schemaFor(f) ?: return@mapNotNull null
+            val root = staging.tree(ws.relPath(f)) ?: return@mapNotNull null
+            val summary = Validator.phaseSummaryText(root, schemaDef) ?: return@mapNotNull null
+            "- ${ws.relPath(f)}: $summary"
+        }
+        return if (lines.isEmpty()) "（phases を宣言したスキーマの対象文書がありません）" else lines.joinToString("\n")
     }
 
     /**
@@ -353,6 +378,18 @@ class AgentToolbox(
                 e.title?.let { append(" — ").append(it) }
                 e.schemaId?.let { append(" [schema: ").append(it).append(']') }
                 appendLine()
+                // 出現の中身を要約表示する（R7-04の横ぐしビューと同等の情報をツール1回で得られるようにする）
+                val docRoot = staging.tree(ws.relPath(e.file))
+                ws.schemaFor(e.file)?.let { sc -> Validator.phaseSummaryText(docRoot, sc) }
+                    ?.let { appendLine("    $it") }
+                val element = docRoot?.let { getAt(it, e.path) } as? YNode.Map
+                element?.entries?.asSequence()
+                    ?.filter { (_, v) -> v is YNode.Scalar }
+                    ?.take(6)
+                    ?.forEach { (k, v) ->
+                        val text = (v as YNode.Scalar).value?.toString().orEmpty().replace("\n", " ")
+                        appendLine("    $k: ${if (text.length > 60) text.take(60) + "…" else text}")
+                    }
             }
             val refsOut = occurrences.flatMap { e ->
                 idx.refs.filter {

@@ -70,7 +70,7 @@
 | I-04 | 参照候補の補完（`idPatterns` / `scope.schemaIds` / `scope.documentIds` で絞り込み） | ✅ | `ui/FormView.kt`（`RefEditor`）, `index/IdIndex.kt` | 手動 |
 | I-05 | バックリンク（被参照一覧、クリックで参照元へジャンプ） | ✅ | `IdIndex.backlinksTo`, `ui/SidePanel.kt` | 手動 |
 | I-06 | ID検索（ツールバー。ID・タイトル部分一致） | ✅ | `Main.kt`（`IdSearchBox`） | 手動 |
-| I-07 | ID横ぐしビュー（同一論理IDの全出現・要素からの参照・被参照・カバレッジ充足を1画面に集約。フェーズ未到達のカバレッジルールは区別表示） | ✅ | `ui/IdCrossView.kt`, `AppState.openCrossView` | 手動 |
+| I-07 | ID横ぐしビュー（同一論理IDの全出現・要素からの参照・被参照・カバレッジ充足を1画面に集約。フェーズ未到達のカバレッジルールは区別表示。各出現は`_views`定義なしでその場編集できる埋め込みフォーム＝スキーマがあれば`ObjectFields`、なければ`GenericEditor`。ROADMAP R7-04） | ✅ | `ui/IdCrossView.kt`, `AppState.openCrossView` / `ensureDoc` | 手動 |
 
 ## 6. ワークスペース横断ビュー
 
@@ -126,6 +126,7 @@
 | AG-22 | メタアクティビティ（`meta: true` で `_agents` / `_activities` / `_evals` / `_skills` / `_views` への提案を許可。承認は human 固定、`_schemas`/`_runs` は常に不可、定義のパース可否を提出ゲートに追加） | ✅ | `agent/Definitions.kt`, `agent/Tools.kt`, `agent/Staging.kt` | 単体（`MetaActivityTest`, `DefinitionsTest`） |
 | AG-23 | 自己改善パネルUI（メトリクス表示・評価セットの実行と変異別結果の比較） | ✅ | `ui/ImprovementPanel.kt` | 手動＋単体（実行系経路） |
 | AG-24 | エージェントへのビュー開示（`read_view` ツール: ステージング反映済みの行×列を原本座標つきで返し、そのまま `apply_patch` の対象にできる。`context.views` による初期文脈への開示） | ✅ | `agent/Tools.kt`（`viewText`）, `agent/Kernel.kt` | 単体（`ViewsTest`） |
+| AG-25 | 段階的詳細化のAI導線（ROADMAP P7）: `related` ツールが各出現の主要フィールド要約と現在フェーズ・記入進捗を1回で返す（出現ごとの `read_node` が不要）。`list_documents` のカタログにもフェーズ状態を付与。`context.include: [phase]` で対象文書のフェーズ状態を初期文脈に開示 | ✅ | `agent/Tools.kt`（`relatedText`, `catalogText`, `phaseText`）, `agent/Kernel.kt`, `core/Disclosure.kt`, `validate/Validator.kt`（`phaseSummaryText`） | 単体（`ToolsTest`, `KernelTest`） |
 
 ## 9. コアAPI・CLI（エージェント基盤）
 

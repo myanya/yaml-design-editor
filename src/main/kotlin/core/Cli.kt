@@ -79,6 +79,7 @@ internal fun runCli(args: Array<String>): String {
                     "description" to entry.description,
                     "schema" to entry.schemaId,
                     "ids" to entry.idCount,
+                    "phase" to entry.phase,
                 ).filterValues { it != null }
             })
         }
@@ -188,7 +189,8 @@ internal fun runCli(args: Array<String>): String {
                 warnings += issues.count { it.severity == Severity.WARNING }
                 // phases 宣言のあるスキーマは記入進捗（未来フェーズの未記入はエラーではなくここに出る）も付与する
                 val doc = ws.load(rel)
-                val progress = doc.schema?.phases?.let { validate.Validator.phaseProgress(doc.root, doc.schema) }
+                val docSchema = doc.schema
+                val progress = docSchema?.phases?.let { validate.Validator.phaseProgress(doc.root, docSchema) }
                     ?.filter { it.total > 0 }
                 if (issues.isEmpty() && progress.isNullOrEmpty()) return@mapNotNull null
                 linkedMapOf(

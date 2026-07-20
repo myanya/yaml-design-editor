@@ -314,6 +314,11 @@ object AgentKernel {
             appendLine("## ワークスペースカタログ")
             appendLine(toolbox.catalogText())
         }
+        if ("phase" in activity.contextInclude) {
+            appendLine()
+            appendLine("## 対象文書のフェーズ状態（段階的詳細化）")
+            appendLine(toolbox.phaseText(activity.targetMatch))
+        }
         activity.contextViews.forEach { viewId ->
             appendLine()
             appendLine("## ビュー: $viewId")

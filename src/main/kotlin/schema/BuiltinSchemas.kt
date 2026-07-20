@@ -99,7 +99,7 @@ object BuiltinSchemas {
                   type: array
                   item:
                     type: enum
-                    values: [catalog, target-outlines]
+                    values: [catalog, target-outlines, phase]
                 - key: views
                   label: ビュー開示
                   type: array

@@ -6,6 +6,7 @@ import model.YPath
 import model.getAt
 import model.pretty
 import model.scalarText
+import validate.Validator
 import yaml.YamlIO
 
 /**
@@ -22,6 +23,8 @@ object Disclosure {
         val description: String?,
         val schemaId: String?,
         val idCount: Int,
+        /** 現在フェーズと記入進捗の1行サマリ（`phases` 未宣言のスキーマ・スキーマなし文書では null。§4.15） */
+        val phase: String? = null,
     )
 
     /** ワークスペースカタログ: 全文書の `_document` メタデータとスキーマ・ID数の一覧（`_schemas` / `_runs` を除く）。 */
@@ -33,13 +36,15 @@ object Disclosure {
                 val rel = ws.relPath(file)
                 val root = runCatching { YamlIO.parse(java.nio.file.Files.readString(file)) }.getOrNull()
                 val ids = ws.index.entries.values.asSequence().flatten().count { it.file == file }
+                val schemaDef = ws.schemaFor(file)
                 CatalogEntry(
                     file = rel,
                     documentId = root?.let { IdIndex.documentIdOf(it, rel) } ?: rel,
                     name = root?.let { IdIndex.documentNameOf(it) },
                     description = root?.let { IdIndex.documentDescriptionOf(it) },
-                    schemaId = ws.schemaFor(file)?.id,
+                    schemaId = schemaDef?.id,
                     idCount = ids,
+                    phase = schemaDef?.let { Validator.phaseSummaryText(root, it) },
                 )
             }
             .toList()
@@ -119,6 +124,7 @@ object Disclosure {
         IdIndex.documentNameOf(root)?.let { sb.append("documentName: ").append(it).append('\n') }
         IdIndex.documentDescriptionOf(root)?.let { sb.append("documentDescription: ").append(it.replace("\n", " ").take(300)).append('\n') }
         doc.schema?.let { sb.append("schema: ").append(it.id).append('\n') }
+        doc.schema?.let { sc -> Validator.phaseSummaryText(root, sc) }?.let { sb.append("phase: ").append(it).append('\n') }
         sb.append("path: ").append(path.pretty()).append('\n')
 
         val bodyBudget = (budgetChars * 6) / 10

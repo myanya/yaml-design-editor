@@ -366,13 +366,3 @@ private fun StatusCell(state: AppState, row: ViewRow) {
     }
 }
 
-/** ツリー上の絶対パスに対応する Slot。親コンテナが無ければ null。 */
-private fun slotAt(root: YNode, path: YPath): Slot? {
-    if (path.isEmpty()) return null
-    val parent = getAt(root, path.dropLast(1)) ?: return null
-    return when (val last = path.last()) {
-        is String -> (parent as? YNode.Map)?.let { MapSlot(it, last) }
-        is Int -> (parent as? YNode.Seq)?.let { SeqSlot(it, last) }
-        else -> null
-    }
-}

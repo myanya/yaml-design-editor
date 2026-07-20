@@ -130,6 +130,20 @@ class PhaseTest {
     }
 
     @Test
+    fun `phaseSummaryTextは現在フェーズと進捗を1行で表す`() {
+        val summary = Validator.phaseSummaryText(
+            YamlIO.parse("id: ENT-001\nphase: logical-design\nname: 顧客\ncolumns:\n  - name: id\n"),
+            entitySchema,
+        )
+        assertEquals("phase=logical-design（logical-design 1/1, physical-design 0/1）", summary)
+    }
+
+    @Test
+    fun `phasesを宣言していないスキーマではphaseSummaryTextはnull`() {
+        assertEquals(null, Validator.phaseSummaryText(YamlIO.parse("entity: ENT-001\n"), tableSchema))
+    }
+
+    @Test
     fun `requiredFromを満たせばエラーは出ない`() {
         // phase: physical-design の coverage（activeFrom: physical-design）も満たすため参照つきの索引を使う
         val entityYaml = """
