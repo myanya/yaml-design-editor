@@ -27,6 +27,7 @@ import app.AppState
 import index.DocScanner
 import index.isAllowedBy
 import model.pretty
+import schema.currentPhaseValue
 import validate.Severity
 import validate.Validator
 
@@ -66,6 +67,14 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
             state.index.backlinksTo(localIds.map { it.id }.toSet())
                 .filter { it.file != doc.file }
         }
+        // フェーズ進捗（phases 宣言のあるスキーマのみ。未来フェーズの未記入はエラーではなく進捗で見せる）
+        val phases = doc.schema?.phases
+        val phaseProgress = remember(doc, doc.version) {
+            phases?.let { doc.schema?.let { schema -> Validator.phaseProgress(doc.root, schema) } }
+        }
+        val currentPhase = remember(doc, doc.version) {
+            phases?.let { p -> doc.schema?.currentPhaseValue(doc.root)?.takeIf { it in p.order } ?: p.order.firstOrNull() }
+        }
         var selectedTab by remember { mutableStateOf(0) }
         TabRow(selectedTabIndex = selectedTab, containerColor = Palette.PanelBg, contentColor = Palette.Primary) {
             Tab(selectedTab == 0, { selectedTab = 0 }, text = { Text("検証 ${issues.size + state.schemaErrors.size}", fontSize = 11.sp) })
@@ -80,6 +89,25 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                 // ---------------- 検証 ----------------
                 if (selectedTab == 0) {
                 item { SectionHeader("検証（${issues.size + state.schemaErrors.size}）") }
+                // フェーズ進捗（phases 宣言のあるスキーマのみ。未来フェーズの未記入はエラーではなく進捗で見せる）
+                if (phases != null && phaseProgress != null) {
+                    item {
+                        Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
+                            Text(
+                                "フェーズ: ${currentPhase ?: "-"}（${phases.order.joinToString(" → ")}）",
+                                fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                            )
+                            phaseProgress.filter { it.total > 0 }.forEach { p ->
+                                val reached = phases.order.indexOf(p.phase) <= phases.order.indexOf(currentPhase)
+                                Text(
+                                    "・${p.phase}: ${p.filled}/${p.total} 記入" + if (!reached) "（未到達）" else "",
+                                    fontSize = 11.sp,
+                                    color = if (p.filled >= p.total) Palette.OkGreen else Palette.SubText,
+                                )
+                            }
+                        }
+                    }
+                }
                 items(state.schemaErrors.size) { i ->
                     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.Top) {
                         Icon(Icons.Default.Warning, null, Modifier.size(14.dp), tint = Palette.ErrorRed)

@@ -48,6 +48,7 @@ data class FieldDef(
     val label: String? = null,        // 表示ラベル（未指定なら key）
     val type: FieldType = FieldType.STRING,
     val required: Boolean = false,
+    val requiredFrom: String? = null, // このフェーズ以降で必須（累積的。phases 宣言が前提。required との併用不可）
     val values: List<String> = emptyList(),  // ENUM の選択肢
     val cases: Map<String, List<FieldDef>> = emptyMap(), // ENUM の値ごとに親オブジェクトへ追加される兄弟フィールド
     val item: FieldDef? = null,              // ARRAY の要素定義
@@ -69,6 +70,15 @@ data class RefScope(
     val documentIds: List<String> = emptyList(),
 )
 
+/**
+ * フェーズ機構（P7）: 段階的詳細化の工程進行の宣言。
+ * 文書はルート直下の `key` で現在フェーズを申告し、`requiredFrom` / `activeFrom` の判定基準になる。
+ */
+data class PhasesDef(
+    val key: String = "phase",        // 現在フェーズを申告するルート直下のフィールドキー
+    val order: List<String>,          // フェーズの順序（先頭が最初の工程）
+)
+
 /** カバレッジルールの重大度。 */
 enum class CoverageLevel(val id: String) {
     WARNING("warning"),
@@ -87,6 +97,7 @@ data class CoverageRule(
     val relation: String? = null,                 // 参照の関係種別を限定（null = 制限なし）
     val minCount: Int = 1,                        // 必要な参照数
     val level: CoverageLevel = CoverageLevel.WARNING,
+    val activeFrom: String? = null,               // IDを定義する文書がこのフェーズに達してから判定（null = 常時）
 )
 
 /**
@@ -100,6 +111,7 @@ data class SchemaDef(
     val root: FieldDef,
     val definitions: Map<String, FieldDef> = emptyMap(),
     val coverage: List<CoverageRule> = emptyList(),
+    val phases: PhasesDef? = null,
     val source: Path,
 ) {
     private val regex: Regex by lazy { globToRegex(match) }
@@ -117,6 +129,7 @@ data class SchemaDef(
                 key = current.key ?: target.key,
                 label = current.label ?: target.label,
                 required = current.required || target.required,
+                requiredFrom = current.requiredFrom ?: target.requiredFrom,
                 description = current.description ?: target.description,
                 idPatterns = current.idPatterns.ifEmpty { target.idPatterns },
                 scope = if (current.scope == RefScope()) target.scope else current.scope,
@@ -127,6 +140,26 @@ data class SchemaDef(
         }
         return current
     }
+}
+
+/** 文書ルートから現在フェーズの申告値を読む（phases 未宣言なら null）。 */
+fun SchemaDef.currentPhaseValue(root: YNode?): String? =
+    phases?.let { p -> scalarText((root as? YNode.Map)?.entries?.get(p.key)) }
+
+/** 現在フェーズの順序位置。未申告・未知の値は先頭フェーズ（最も緩い判定）。phases 未宣言なら null。 */
+fun SchemaDef.currentPhaseIndex(root: YNode?): Int? =
+    phases?.let { p -> p.order.indexOf(currentPhaseValue(root)).coerceAtLeast(0) }
+
+/**
+ * フェーズを考慮した実効 required。requiredFrom は「そのフェーズ以降で必須」（累積的）。
+ * 検証・進捗計算・フォーム表示はこの判定を共有する（ARCHITECTURE §4.15）。
+ */
+fun SchemaDef.requiredAt(field: FieldDef, phaseIndex: Int?): Boolean {
+    val from = field.requiredFrom ?: return field.required
+    val p = phases ?: return field.required
+    if (phaseIndex == null) return field.required
+    val idx = p.order.indexOf(from)
+    return idx in 0..phaseIndex
 }
 
 /** 非アクティブな case 由来キーの情報（判別フィールドと、そのキーが有効になる enum 値）。 */
@@ -178,6 +211,11 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
     runCatching { globToRegex(match) }.onFailure { issues += SchemaIssue("適用パターンが不正です: ${it.message}", "match") }
 
     fun check(field: FieldDef, path: String, stack: Set<String>) {
+        field.requiredFrom?.let { from ->
+            if (phases == null) issues += SchemaIssue("requiredFrom を使うには phases の宣言が必要です", path)
+            else if (from !in phases.order) issues += SchemaIssue("requiredFrom「$from」は phases に含まれていません", path)
+            if (field.required) issues += SchemaIssue("required と requiredFrom は併用できません", path)
+        }
         field.ref?.let { ref ->
             val target = definitions[ref]
             if (target == null) issues += SchemaIssue("未定義の参照です: \$$ref", path)
@@ -254,6 +292,17 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
     coverage.forEachIndexed { i, rule ->
         if (rule.minCount < 1) issues += SchemaIssue("minCountは1以上が必要です", "coverage[$i]")
         if (rule.idPattern != null && rule.idPattern.isBlank()) issues += SchemaIssue("idPatternが空です", "coverage[$i]")
+        rule.activeFrom?.let { from ->
+            if (phases == null) issues += SchemaIssue("activeFrom を使うには phases の宣言が必要です", "coverage[$i]")
+            else if (from !in phases.order) issues += SchemaIssue("activeFrom「$from」は phases に含まれていません", "coverage[$i]")
+        }
+    }
+    phases?.let { p ->
+        if (p.order.isEmpty()) issues += SchemaIssue("phases には1つ以上のフェーズが必要です", "phases")
+        if (p.key.isBlank()) issues += SchemaIssue("phases のフェーズ申告キーが空です", "phases.key")
+        p.order.groupBy { it }.filterValues { it.size > 1 }.keys.forEach {
+            issues += SchemaIssue("フェーズ「$it」が重複しています", "phases.order")
+        }
     }
     return issues.distinct()
 }
@@ -396,6 +445,7 @@ object SchemaLoader {
         val rootMap = raw["root"] as? Map<*, *> ?: error("root定義が必要です")
         val root = parseField(rootMap, key = null)
         val coverage = parseCoverage(raw["coverage"])
+        val phases = parsePhases(raw["phases"])
         return SchemaDef(
             id = id,
             name = name,
@@ -404,8 +454,19 @@ object SchemaLoader {
             root = root,
             definitions = definitions,
             coverage = coverage,
+            phases = phases,
             source = source,
         )
+    }
+
+    private fun parsePhases(raw: Any?): PhasesDef? = when (raw) {
+        null -> null
+        is List<*> -> PhasesDef(order = raw.map { it.toString() })
+        is Map<*, *> -> PhasesDef(
+            key = raw["key"]?.toString() ?: "phase",
+            order = (raw["order"] as? List<*>)?.map { it.toString() } ?: error("phases.order（フェーズの順序リスト）が必要です"),
+        )
+        else -> error("phases はフェーズのリスト、または key / order を持つ object である必要があります")
     }
 
     private fun parseCoverage(raw: Any?): List<CoverageRule> {
@@ -430,6 +491,7 @@ object SchemaLoader {
                     CoverageLevel.entries.firstOrNull { it.id == value }
                         ?: error("coverage[$i].level は warning / error のいずれかである必要があります: $value")
                 } ?: CoverageLevel.WARNING,
+                activeFrom = m["activeFrom"]?.toString(),
             )
         }
     }
@@ -475,6 +537,7 @@ object SchemaLoader {
             label = m["label"]?.toString(),
             type = type,
             required = (m["required"] as? Boolean) ?: false,
+            requiredFrom = m["requiredFrom"]?.toString(),
             values = values,
             cases = cases,
             item = item,

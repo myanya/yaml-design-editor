@@ -152,6 +152,7 @@ root:                                 # ルートのフィールド定義（通�
 | `label` | フォームでの表示名（省略時は `key`） |
 | `type` | 下表の型（省略時 `string`） |
 | `required` | `true` で必須。未設定は検証エラー |
+| `requiredFrom` | フェーズ機構（後述）: このフェーズ以降で必須。`required` と併用不可 |
 | `values` | `enum` の選択肢 |
 | `cases` | `enum` の値ごとに、親オブジェクトへ追加される兄弟フィールドを定義（後述） |
 | `item` | `array` の要素定義（フィールド定義を再帰的に記述） |
@@ -325,12 +326,56 @@ coverage:
       relation: implements      # 参照の関係種別を限定（省略可）
       minCount: 1               # 必要な参照数（既定 1）
     level: error                # warning（既定）/ error
+    activeFrom: physical-design  # フェーズ機構（後述）: このフェーズに達するまで判定を保留（省略可）
     description: 全要求は設計項目から参照されること
 root:
   ...
 ```
 
 不足があると、IDを定義している文書の「検証」パネルに指摘が表示されます。判定は保存済みの索引に基づくため、参照を追加した文書を保存すると反映されます。充足状況はID横ぐしビューでも確認できます。
+
+### フェーズ機構（工程に応じた検証の強弱）
+
+要件定義→論理設計→物理設計のように、1つの論理要素（例: データモデルの1エンティティ）を複数の工程にまたがって記述していく運用では、後工程の項目を要件定義の時点で必須にすると検証エラーが大量発生してしまいます。`phases` を宣言すると、「この項目はこのフェーズ以降で必須」という**累積的な**必須化ができます。
+
+```yaml
+id: entity
+match: "models/**/*.yaml"
+phases:
+  key: phase              # 現在フェーズを申告するルート直下のキー（省略時 phase）
+  order: [requirements, logical-design, physical-design]
+root:
+  type: object
+  fields:
+    - key: phase
+      type: enum
+      values: [requirements, logical-design, physical-design]
+      default: requirements
+    - key: name
+      type: string
+      required: true       # 無条件必須（全フェーズで必須）
+    - key: columns
+      type: array
+      requiredFrom: logical-design   # logical-design 以降で必須。requirements 段階の未記入はエラーにしない
+      item: { type: object, fields: [ { key: name, type: string, required: true } ] }
+    - key: physicalName
+      type: string
+      requiredFrom: physical-design  # 物理設計以降で必須
+coverage:
+  - requiredBy: { schemaIds: [table-design] }
+    activeFrom: physical-design      # 物理設計に達するまではカバレッジ判定を保留する
+    level: error
+```
+
+挙動の要点:
+
+- 文書はルート直下の申告キー（既定 `phase`）で現在フェーズを記載します。未申告・未知の値は**先頭フェーズ**（最も緩い判定）として扱われ、未知の値には警告が出ます。
+- `requiredFrom` は「そのフェーズ**以降**で必須」（累積的）。現在フェーズより先の工程に属する項目の未記入はエラーにならず、代わりに「検証」パネルにフェーズ別の記入進捗（例: `logical-design: 1/2 記入`）として表示されます。フェーズが進むと、過去に必須化した項目は引き続き必須のままです。
+- `required: true` と `requiredFrom` は併用できません（メタスキーマ検証でエラー）。
+- カバレッジルールの `activeFrom` は「IDを**定義している文書**の現在フェーズがそのフェーズに達してから判定する」という保留を表します。未到達の間は「フェーズ未到達」として区別表示され、検証エラー・警告にはなりません（ID横ぐしビュー・ビューグリッドの状態列も同様に区別表示します）。
+- 文書の物理的な分割単位（1文書で全工程を書くか、工程ごとにファイルを分けて段階的詳細化するか）はどちらでも成立します。工程ごとに分けた運用では、後工程のスキーマだけ `requiredFrom` を使わず素の `required` で書いても構いません。
+
+CLI `validate` の出力にも、`phases` を宣言したスキーマの文書には `phaseProgress`（フェーズごとの記入済み／総数）が付与されます。
 
 ## 5. ワークスペース横断機能
 

@@ -182,14 +182,22 @@ internal fun runCli(args: Array<String>): String {
             var errors = 0
             var warnings = 0
             val fileResults = files.mapNotNull { file ->
-                val issues = ws.validate(ws.relPath(file))
-                if (issues.isEmpty()) return@mapNotNull null
+                val rel = ws.relPath(file)
+                val issues = ws.validate(rel)
                 errors += issues.count { it.severity == Severity.ERROR }
                 warnings += issues.count { it.severity == Severity.WARNING }
+                // phases 宣言のあるスキーマは記入進捗（未来フェーズの未記入はエラーではなくここに出る）も付与する
+                val doc = ws.load(rel)
+                val progress = doc.schema?.phases?.let { validate.Validator.phaseProgress(doc.root, doc.schema) }
+                    ?.filter { it.total > 0 }
+                if (issues.isEmpty() && progress.isNullOrEmpty()) return@mapNotNull null
                 linkedMapOf(
-                    "file" to ws.relPath(file),
+                    "file" to rel,
                     "issues" to issues.map { issueMap(it) },
-                )
+                    "phaseProgress" to progress?.map {
+                        linkedMapOf("phase" to it.phase, "filled" to it.filled, "total" to it.total)
+                    },
+                ).filterValues { it != null && it != emptyList<Any>() }
             }
             dumpYaml(
                 linkedMapOf(

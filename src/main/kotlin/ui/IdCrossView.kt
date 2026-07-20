@@ -121,29 +121,47 @@ private fun IdCrossDetail(state: AppState, id: String) {
             occurrences.forEach { entry -> OccurrenceCard(state, entry) }
 
             // ---------------- カバレッジ ----------------
+            // activeFrom のフェーズ判定には「IDを定義している文書」のルートを渡す（未到達ルールは灰色で区別表示）
             val statuses = remember(id, state.indexVersion) {
-                occurrences.mapNotNull { e -> state.schemas.firstOrNull { it.id == e.schemaId } }
-                    .distinctBy { it.id }
-                    .flatMap { Validator.coverageStatuses(id, it, state.index) }
+                occurrences.mapNotNull { e -> state.schemas.firstOrNull { it.id == e.schemaId }?.let { it to e } }
+                    .distinctBy { it.first.id }
+                    .flatMap { (sc, e) -> Validator.coverageStatuses(id, sc, state.index, state.ensureDoc(e.file).root) }
             }
             if (statuses.isNotEmpty()) {
                 Spacer(Modifier.height(12.dp))
-                CrossSection("カバレッジ（${statuses.count { it.satisfied }}/${statuses.size} 充足）")
+                val pending = statuses.count { !it.active }
+                CrossSection(
+                    "カバレッジ（${statuses.count { it.active && it.satisfied }}/${statuses.count { it.active }} 充足" +
+                        (if (pending > 0) "、$pending 件はフェーズ未到達" else "") + "）"
+                )
                 statuses.forEach { status ->
                     Row(Modifier.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            if (status.satisfied) Icons.Default.CheckCircle else Icons.Default.Warning,
+                            if (status.active && status.satisfied) Icons.Default.CheckCircle else Icons.Default.Warning,
                             contentDescription = null, Modifier.size(14.dp),
-                            tint = if (status.satisfied) Palette.OkGreen else Palette.WarnOrange,
+                            tint = when {
+                                !status.active -> Palette.SubText
+                                status.satisfied -> Palette.OkGreen
+                                else -> Palette.WarnOrange
+                            },
                         )
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            if (status.satisfied)
-                                "参照 ${status.count} 件（必要 ${status.rule.minCount} 件）" +
-                                    (status.rule.description?.let { " — $it" } ?: "")
-                            else Validator.coverageMessage(status),
+                            when {
+                                !status.active ->
+                                    "フェーズ未到達（${status.rule.activeFrom} から判定。現在 参照 ${status.count} 件／必要 ${status.rule.minCount} 件）" +
+                                        (status.rule.description?.let { " — $it" } ?: "")
+                                status.satisfied ->
+                                    "参照 ${status.count} 件（必要 ${status.rule.minCount} 件）" +
+                                        (status.rule.description?.let { " — $it" } ?: "")
+                                else -> Validator.coverageMessage(status)
+                            },
                             fontSize = 12.sp,
-                            color = if (status.satisfied) Palette.Text else Palette.WarnOrange,
+                            color = when {
+                                !status.active -> Palette.SubText
+                                status.satisfied -> Palette.Text
+                                else -> Palette.WarnOrange
+                            },
                         )
                     }
                 }

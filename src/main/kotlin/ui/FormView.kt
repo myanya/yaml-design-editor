@@ -339,6 +339,10 @@ private fun FieldRow(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
                 Row {
                     Text(effective.displayLabel, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     if (effective.required) Text(" *", color = Palette.ErrorRed, fontSize = 12.sp)
+                    // requiredFrom はフェーズ到達で必須になる項目（無条件必須の * とは区別して注記する）
+                    effective.requiredFrom?.let {
+                        Text(" *$it〜", color = Palette.WarnOrange, fontSize = 10.sp)
+                    }
                     if (effective.type != FieldType.ARRAY) {
                         IconButton(
                             onClick = { ctx.state.requestAi(effective, path) },

@@ -1,0 +1,324 @@
+package validate
+
+import index.IdIndex
+import model.YNode
+import schema.SchemaLoader
+import schema.validateDefinition
+import yaml.YamlIO
+import java.nio.file.Path
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+
+/**
+ * フェーズ機構（P7）: requiredFrom の累積必須判定、activeFrom のカバレッジ保留、
+ * フェーズ別記入進捗（phaseProgress）を検証する。
+ */
+class PhaseTest {
+
+    private val entitySchema = SchemaLoader.parseSchemaText(
+        """
+        id: entity
+        name: エンティティ
+        match: "models/**/*.yaml"
+        phases:
+          key: phase
+          order: [requirements, logical-design, physical-design]
+        root:
+          type: object
+          fields:
+            - key: id
+              type: id
+              required: true
+            - key: phase
+              type: enum
+              values: [requirements, logical-design, physical-design]
+              default: requirements
+            - key: name
+              type: string
+              required: true
+            - key: columns
+              type: array
+              requiredFrom: logical-design
+              item:
+                type: object
+                fields:
+                  - key: name
+                    type: string
+                    required: true
+            - key: physicalName
+              type: string
+              requiredFrom: physical-design
+        coverage:
+          - requiredBy: { schemaIds: [table-design] }
+            activeFrom: physical-design
+            level: error
+        """.trimIndent(),
+        Path.of("_schemas/entity.yaml"),
+    )
+
+    private val tableSchema = SchemaLoader.parseSchemaText(
+        """
+        id: table-design
+        name: テーブル設計
+        match: "tables/**/*.yaml"
+        root:
+          type: object
+          fields:
+            - key: entity
+              type: ref
+              idPattern: "ENT-*"
+        """.trimIndent(),
+        Path.of("_schemas/table-design.yaml"),
+    )
+
+    private fun validate(yaml: String, index: IdIndex = IdIndex()) =
+        Validator.validate(YamlIO.parse(yaml), null, Path.of("models/a.yaml"), entitySchema, index)
+
+    /** models/a.yaml に entityYaml、tables/t.yaml に tableYaml（null なら文書なし）を置いた索引を組む。 */
+    private fun indexWith(entityYaml: String, tableYaml: String? = null): IdIndex {
+        val files = mutableListOf(Path.of("models/a.yaml"))
+        val content = mutableMapOf(Path.of("models/a.yaml") to entityYaml)
+        if (tableYaml != null) {
+            files.add(Path.of("tables/t.yaml"))
+            content[Path.of("tables/t.yaml")] = tableYaml
+        }
+        val idx = IdIndex()
+        idx.rebuild(Path.of("."), files, listOf(entitySchema, tableSchema)) { f -> YamlIO.parse(content.getValue(f)) }
+        return idx
+    }
+
+    @Test
+    fun `未来フェーズのrequiredFromはエラーにならない`() {
+        val issues = validate(
+            """
+            id: ENT-001
+            phase: requirements
+            name: 顧客
+            """.trimIndent()
+        )
+        assertTrue(issues.none { it.message.contains("columns") }, "$issues")
+        assertTrue(issues.none { it.message.contains("physicalName") }, "$issues")
+    }
+
+    @Test
+    fun `現在フェーズ以降に到達したrequiredFromは未記入だとエラーになる`() {
+        val issues = validate(
+            """
+            id: ENT-001
+            phase: logical-design
+            name: 顧客
+            """.trimIndent()
+        )
+        assertTrue(issues.any { it.severity == Severity.ERROR && it.message.contains("columns") }, "$issues")
+        // physical-design はまだ未到達なのでエラーにならない
+        assertTrue(issues.none { it.message.contains("physicalName") }, "$issues")
+    }
+
+    @Test
+    fun `フェーズが進むと過去に必須化した項目も引き続き必須`() {
+        val issues = validate(
+            """
+            id: ENT-001
+            phase: physical-design
+            name: 顧客
+            """.trimIndent()
+        )
+        assertTrue(issues.any { it.message.contains("columns") }, "$issues")
+        assertTrue(issues.any { it.message.contains("physicalName") }, "$issues")
+    }
+
+    @Test
+    fun `requiredFromを満たせばエラーは出ない`() {
+        // phase: physical-design の coverage（activeFrom: physical-design）も満たすため参照つきの索引を使う
+        val entityYaml = """
+            id: ENT-001
+            phase: physical-design
+            name: 顧客
+            columns:
+              - name: id
+            physicalName: t_customer
+            """.trimIndent()
+        val issues = validate(entityYaml, indexWith(entityYaml, tableYaml = "entity: ENT-001\n"))
+        assertTrue(issues.none { it.severity == Severity.ERROR }, "$issues")
+    }
+
+    @Test
+    fun `フェーズ未申告は先頭フェーズとして扱われる`() {
+        val issues = validate(
+            """
+            id: ENT-001
+            name: 顧客
+            """.trimIndent()
+        )
+        assertTrue(issues.none { it.message.contains("columns") }, "$issues")
+    }
+
+    @Test
+    fun `未知のフェーズ値は警告になり先頭フェーズとして扱われる`() {
+        val issues = validate(
+            """
+            id: ENT-001
+            phase: unknown-phase
+            name: 顧客
+            """.trimIndent()
+        )
+        assertTrue(issues.any { it.severity == Severity.WARNING && it.message.contains("phases") }, "$issues")
+        assertTrue(issues.none { it.message.contains("columns") }, "$issues")
+    }
+
+    @Test
+    fun `カバレッジのactiveFromに達するまでは被参照不足が判定されない`() {
+        val issues = validate(
+            """
+            id: ENT-001
+            phase: logical-design
+            name: 顧客
+            columns:
+              - name: id
+            """.trimIndent()
+        )
+        assertTrue(issues.none { it.message.contains("参照が不足") }, "$issues")
+    }
+
+    @Test
+    fun `カバレッジのactiveFromに達すると被参照不足が判定される`() {
+        val issues = validate(
+            """
+            id: ENT-001
+            phase: physical-design
+            name: 顧客
+            columns:
+              - name: id
+            physicalName: t_customer
+            """.trimIndent()
+        )
+        assertTrue(issues.any { it.severity == Severity.ERROR && it.message.contains("参照が不足") }, "$issues")
+    }
+
+    @Test
+    fun `activeFromに達し十分な参照があれば充足する`() {
+        val entityYaml = """
+            id: ENT-001
+            phase: physical-design
+            name: 顧客
+            columns:
+              - name: id
+            physicalName: t_customer
+            """.trimIndent()
+        val index = indexWith(entityYaml, tableYaml = "entity: ENT-001\n")
+        val issues = validate(entityYaml, index)
+        assertTrue(issues.none { it.message.contains("参照が不足") }, "$issues")
+    }
+
+    @Test
+    fun `phaseProgressはrequiredFromを持つフィールドの記入状況をフェーズごとに集計する`() {
+        val root = YamlIO.parse(
+            """
+            id: ENT-001
+            phase: logical-design
+            name: 顧客
+            columns:
+              - name: id
+            """.trimIndent()
+        )
+        val progress = Validator.phaseProgress(root, entitySchema)
+        val logical = progress.single { it.phase == "logical-design" }
+        assertEquals(1, logical.filled)
+        assertEquals(1, logical.total)
+        val physical = progress.single { it.phase == "physical-design" }
+        assertEquals(0, physical.filled)
+        assertEquals(1, physical.total)
+        val requirements = progress.single { it.phase == "requirements" }
+        assertEquals(0, requirements.total)
+    }
+
+    @Test
+    fun `requiredFromにはphases宣言が必要というメタ検証`() {
+        val schema = SchemaLoader.parseSchemaText(
+            """
+            id: s
+            name: s
+            match: "*.yaml"
+            root:
+              type: object
+              fields:
+                - key: x
+                  type: string
+                  requiredFrom: later
+            """.trimIndent(),
+            Path.of("_schemas/s.yaml"),
+        )
+        assertTrue(schema.validateDefinition().any { it.message.contains("phases の宣言が必要") })
+    }
+
+    @Test
+    fun `requiredとrequiredFromの併用は定義エラー`() {
+        val schema = SchemaLoader.parseSchemaText(
+            """
+            id: s
+            name: s
+            match: "*.yaml"
+            phases:
+              order: [a, b]
+            root:
+              type: object
+              fields:
+                - key: x
+                  type: string
+                  required: true
+                  requiredFrom: b
+            """.trimIndent(),
+            Path.of("_schemas/s.yaml"),
+        )
+        assertTrue(schema.validateDefinition().any { it.message.contains("併用できません") })
+    }
+
+    @Test
+    fun `requiredFromが未知のフェーズ名だと定義エラー`() {
+        val schema = SchemaLoader.parseSchemaText(
+            """
+            id: s
+            name: s
+            match: "*.yaml"
+            phases:
+              order: [a, b]
+            root:
+              type: object
+              fields:
+                - key: x
+                  type: string
+                  requiredFrom: c
+            """.trimIndent(),
+            Path.of("_schemas/s.yaml"),
+        )
+        assertTrue(schema.validateDefinition().any { it.message.contains("含まれていません") })
+    }
+
+    @Test
+    fun `phasesの簡易記法（リスト直書き）も既定キーphaseで解釈される`() {
+        val schema = SchemaLoader.parseSchemaText(
+            """
+            id: s
+            name: s
+            match: "*.yaml"
+            phases: [a, b]
+            root:
+              type: object
+              fields:
+                - key: y
+                  type: string
+                  requiredFrom: b
+            """.trimIndent(),
+            Path.of("_schemas/s.yaml"),
+        )
+        assertEquals("phase", schema.phases?.key)
+        assertEquals(listOf("a", "b"), schema.phases?.order)
+        val issues = Validator.validate(
+            YamlIO.parse("phase: a\n") as YNode,
+            null, Path.of("x.yaml"), schema, IdIndex(),
+        )
+        assertFalse(issues.any { it.message.contains("必須項目「y」") })
+    }
+}

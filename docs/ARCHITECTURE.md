@@ -48,13 +48,14 @@ src/main/kotlin/
 | `YNode` (Scalar/Seq/Map) | model/YNode.kt | YAMLの可変ツリー。`YPath`（String=キー, Int=索引）で位置を表現 |
 | `YamlIO` | yaml/YamlIO.kt | テキスト⇔`YNode` 変換。表層情報を保持しない正規化ダンプ（ブロック・インデント2、リスト記号も親から一段下げる） |
 | `FieldType` / `FieldDef` / `SchemaDef` | schema/Schema.kt | スキーマモデル。`resolve()` が `$ref` を属性合成しつつ解決。`FieldDef.relation` が参照の関係種別。`effectiveFields()` が enum の `cases` を合成した object の実効フィールドを返す |
-| `CoverageRule` / `CoverageLevel` | schema/Schema.kt | スキーマの `coverage`（被参照必須などのトレーサビリティ要件）の定義 |
+| `PhasesDef` / `currentPhaseIndex` / `requiredAt` | schema/Schema.kt | フェーズ機構（§4.15）: スキーマの `phases` 宣言と、文書の現在フェーズ解決・フェーズ考慮の実効必須判定（検証・進捗計算が共有） |
+| `CoverageRule` / `CoverageLevel` | schema/Schema.kt | スキーマの `coverage`（被参照必須などのトレーサビリティ要件）の定義。`activeFrom` でフェーズ到達までの判定保留を宣言できる |
 | `SchemaLoader` | schema/Schema.kt | `_schemas/` の読込・パース・スキーマID重複検出 |
 | `validateDefinition` / `generateSample` | schema/Schema.kt | メタスキーマ検証・サンプルデータ生成（拡張関数） |
 | `globToRegex` / `idMatchesPattern` | schema / index | glob→正規表現変換（パス用と ID 用で対応構文が異なる点に注意） |
 | `DocScanner` | index/IdIndex.kt | 1文書からのID・参照抽出。スキーマ有無で検出規則を切替、未知キー境界で走査停止。参照には `relation` / `sourceSchemaId` を付与 |
 | `IdIndex` | index/IdIndex.kt | ワークスペース全体の `id -> 出現一覧` 索引と全参照。**ディスク基準**（未保存編集は反映されない） |
-| `Validator` | validate/Validator.kt | 文書の検証（UI非依存）。スキーマ適合＋参照解決＋文書内ID重複＋カバレッジ（`coverageStatuses` はUIとも共用） |
+| `Validator` | validate/Validator.kt | 文書の検証（UI非依存）。スキーマ適合＋参照解決＋文書内ID重複＋カバレッジ（`coverageStatuses` はUIとも共用）。フェーズ考慮の必須判定と記入進捗 `phaseProgress`（§4.15） |
 | `Workspace` / `WorkspaceScan` | core/Workspace.kt | ヘッドレスなワークスペース操作（開く・読む・保存・検証・変更セット適用）。相対パス解決はワークスペース外への脱出を拒否 |
 | `PatchOp` / `Patcher` / `ChangeSets` | core/Patch.kt | YPathパッチ（set/insert/delete/move）と変更セット（baseハッシュ競合検出、YAML解析） |
 | `Disclosure` | core/Disclosure.kt | 段階的開示: カタログ→骨子→ノード全文、文字数予算付き文脈バンドル |
@@ -191,7 +192,18 @@ enum の `cases`（値ごとの追加フィールド。判別共用体）を持�
 - **`_views` は予約ディレクトリ**: 書込はメタアクティビティのみ（`AgentToolbox`）、自動実行の監視対象外（`AutomationEngine`）、ステージされた定義は `Views.parseView` のパース可否が提出ゲートに加わる（`Staging.validateAll`）。
 - **セルエディタの型解決**: 列の相対パスから `Views.fieldAt` でフィールド定義を辿る（`resolve` / `effectiveFields` を通す。§4.7）。直接編集はスカラー系フィールドに限定し、複合値はジャンプで個別フォームへ誘導する。
 
-### 4.15 エラー処理
+### 4.15 フェーズ機構（P7: 状態依存の検証プロファイル）
+
+段階的詳細化の工程進行（要件定義→論理設計→物理設計など）を検証が理解するための機構。守るべき不変条件:
+
+- **フェーズは文書が申告する**: スキーマは `phases`（順序付きのフェーズ一覧と申告キー。既定キー `phase`）を宣言し、文書はルート直下のそのキーで現在フェーズを申告する。申告がない・未知の値の場合は**先頭フェーズ**（最も緩い判定）として扱い、未知の値には警告を出す。ワークスペース全体のフェーズという概念は持たない（文書単位）。
+- **`requiredFrom` は累積的**: 「そのフェーズ**以降**は必須」。現在フェーズより先のフェーズに属する未記入は**エラーにしない**（エラーの洪水を防ぐ）。`required: true` は従来どおり無条件必須で、`requiredFrom` との併記は定義エラー。`$ref` 解決では呼び出し側の `requiredFrom` が優先合成される。
+- **カバレッジも同じフェーズで判定**: `CoverageRule.activeFrom` は「IDを**定義している文書**の現在フェーズがそのフェーズに達してから判定する」。判定主体は常に定義側文書（カバレッジ指摘が表示される文書）のフェーズであり、参照元のフェーズではない。
+- **未到達は進捗として見せる**: 未来フェーズの未記入はエラーではなく記入進捗（`Validator.phaseProgress`: フェーズ×記入済み/総数）として可視化する。進捗の集計対象は `requiredFrom` を持つフィールドのみ（無条件 `required` は従来どおり検証エラーで扱う）。存在しない配列要素・Map項目は数えない（構造が確定してから数える）。
+- **判定は Validator に一元化**: フェーズの解決（`currentPhaseIndex`）と実効必須（`requiredAt`）は `schema/Schema.kt` の拡張関数に置き、検証・進捗計算が共有する。フォーム表示は `requiredFrom` を「（フェーズ名〜必須）」の注記として表示し、無条件 required の * マークとは区別する。
+- **エージェントのゲートに自然に乗る**: 提出ゲート（`requireValid` / `Staging.validateAll`）は ERROR 件数で判定するため、フェーズ未到達の未記入はゲートを塞がない。「フェーズを進める」作業自体をアクティビティ化すると、進行の合格条件が `phase` 検証エラー0として機械化できる。
+
+### 4.16 エラー処理
 
 - ファイルI/O・パースは `runCatching` で受け、ユーザー操作の結果は `Result` を返して呼び出し側（UI）が `state.status` に反映する。
 - 入力検証の失敗は `require(...) { "日本語メッセージ" }`、内部異常は `error("日本語メッセージ")`。メッセージはそのままUIに表示される前提で書く。

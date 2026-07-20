@@ -236,6 +236,8 @@ private fun FieldDefinitionEditor(map: YNode.Map, doc: OpenDocument, definitions
             Text("必須", fontSize = 11.sp)
         }
     }
+    // requiredFrom: フェーズ機構（P7）。「必須」チェックとの併用は不可（メタ検証でエラーになる）
+    if (allowKey) CompactScalar(map, "requiredFrom", "必須になるフェーズ（requiredFrom）", doc)
     if (ref == null) {
         Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("型", fontSize = 12.sp, modifier = Modifier.width(140.dp))

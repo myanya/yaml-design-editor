@@ -23,7 +23,7 @@
 
 | ID | 機能 | 状態 | 主な実装 | テスト |
 |---|---|---|---|---|
-| E-01 | スキーマ駆動フォーム（全12型のエディタ、必須マーク、説明表示、折りたたみ） | ✅ | `ui/FormView.kt` | 手動 |
+| E-01 | スキーマ駆動フォーム（全12型のエディタ、必須マーク（`requiredFrom` はフェーズ名つきで区別表示）、説明表示、折りたたみ） | ✅ | `ui/FormView.kt` | 手動 |
 | E-02 | 汎用ツリーエディタ（スキーマなし文書、スキーマ外キーの汎用行表示） | ✅ | `ui/FormView.kt`（`GenericEditor`） | 手動 |
 | E-03 | ソース編集（行番号、文書内検索、「変更を反映」、パースエラーの行・列表示） | ✅ | `ui/SourcePane.kt` | 手動 |
 | E-04 | 差分表示（保存済み vs 編集中、LCSによる行整列、空行差の弱調表示） | ✅ | `ui/DiffPane.kt` | 単体（`DiffPaneTest`） |
@@ -41,12 +41,13 @@
 | S-02 | 型システム12種（string/text/int/number/boolean/enum/date/id/ref/array/map/object） | ✅ | `schema/Schema.kt`（`FieldType`） | 手動 |
 | S-03 | 名前付き定義と再帰参照（`definitions` / `$ref`、属性のオーバーライド合成） | ✅ | `SchemaDef.resolve` | 手動 |
 | S-04 | メタスキーマ検証（必須情報、キー重複、子定義不足、enum選択肢、`cases` の整合、未解決 `$ref`） | ✅ | `SchemaDef.validateDefinition` | 単体（`SchemaLoaderTest`） |
-| S-05 | スキーマ設計UI（スキーマ全体の説明、設計／プレビュー／適用対象タブ、競合スキーマ表示） | ✅ | `ui/SchemaEditor.kt` | 手動 |
+| S-05 | スキーマ設計UI（スキーマ全体の説明、設計／プレビュー／適用対象タブ、競合スキーマ表示、フィールドの `requiredFrom` 入力）。`phases` / `coverage` はスキーマ全体設定のためソース編集のみ（構造化UI未対応） | ✅ | `ui/SchemaEditor.kt` | 手動 |
 | S-06 | サンプルYAML生成（プレビュー・クリップボードコピー・新規ファイル初期値） | ✅ | `SchemaDef.generateSample` | 手動 |
 | S-07 | スキーマ外キーの検証ポリシー（`unknownFields: allow / warning / error`、未知サブツリーは走査境界） | ✅ | `validate/Validator.kt`, `index/IdIndex.kt` | 手動 |
 | S-08 | 参照の関係種別（`type: ref` の `relation`。表示・カバレッジ判定・`$ref`合成に対応） | ✅ | `schema/Schema.kt`, `index/IdIndex.kt`, `ui/SchemaEditor.kt` | 単体（`WorkspaceCliTest`） |
 | S-09 | カバレッジルール定義（スキーマの `coverage`: 対象IDパターン・参照元スキーマ・関係・必要数・重大度） | ✅ | `schema/Schema.kt`（`CoverageRule`） | 単体（`WorkspaceCliTest`） |
 | S-10 | enum 値ごとの追加フィールド（`cases`: 判別共用体。フォーム追随・検証・索引・AI生成 `anyOf`・スキーマ設計UI対応） | ✅ | `schema/Schema.kt`（`effectiveFields`）, `validate/Validator.kt`, `index/IdIndex.kt`, `ui/FormView.kt`, `ui/SchemaEditor.kt`, `ai/AiGenerator.kt` | 単体（`SchemaLoaderTest` / `ValidatorTest` / `DocScannerTest` / `AiGeneratorTest`） |
+| S-11 | フェーズ機構（ROADMAP P7）: `phases`（順序付きフェーズと申告キー）の宣言、フィールドの `requiredFrom`（累積必須）、カバレッジの `activeFrom`（判定保留） | ✅ | `schema/Schema.kt`（`PhasesDef`, `currentPhaseIndex`, `requiredAt`） | 単体（`PhaseTest`） |
 
 ## 4. 検証
 
@@ -55,8 +56,9 @@
 | V-01 | スキーマ適合検証（必須／型不一致／enum選択肢外／date形式警告／非アクティブなcaseキーの案内） | ✅ | `validate/Validator.kt` | 単体（`ValidatorTest`） |
 | V-02 | 参照解決検証（未解決エラー、パターン・スコープ対象外の区別、未保存IDの考慮） | ✅ | `validate/Validator.kt` | 手動 |
 | V-03 | ID重複検出（同一文書内のみエラー。文書間の同一IDは段階的詳細化として許容） | ✅ | `validate/Validator.kt` | 手動 |
-| V-04 | 検証パネル（クリックで該当箇所へジャンプ、スキーマ定義エラーも合流表示） | ✅ | `ui/SidePanel.kt` | 手動 |
+| V-04 | 検証パネル（クリックで該当箇所へジャンプ、スキーマ定義エラーも合流表示、`phases` 宣言スキーマはフェーズ別記入進捗を表示） | ✅ | `ui/SidePanel.kt` | 手動 |
 | V-05 | カバレッジ検証（「被参照必須」等のトレーサビリティ充足を機械判定。索引＝保存済み状態基準） | ✅ | `validate/Validator.kt`（`coverageStatuses`） | 単体（`WorkspaceCliTest`） |
+| V-06 | フェーズ考慮の検証（ROADMAP P7）: `requiredFrom` は現在フェーズ以降のみ必須エラー化、`coverage.activeFrom` は定義文書のフェーズ到達まで判定保留（「フェーズ未到達」として区別表示）、`phaseProgress` でフェーズ別記入進捗を取得 | ✅ | `validate/Validator.kt`（`checkField`, `coverageStatuses`, `phaseProgress`） | 単体（`PhaseTest`） |
 
 ## 5. ID・参照（リンク）
 
@@ -68,7 +70,7 @@
 | I-04 | 参照候補の補完（`idPatterns` / `scope.schemaIds` / `scope.documentIds` で絞り込み） | ✅ | `ui/FormView.kt`（`RefEditor`）, `index/IdIndex.kt` | 手動 |
 | I-05 | バックリンク（被参照一覧、クリックで参照元へジャンプ） | ✅ | `IdIndex.backlinksTo`, `ui/SidePanel.kt` | 手動 |
 | I-06 | ID検索（ツールバー。ID・タイトル部分一致） | ✅ | `Main.kt`（`IdSearchBox`） | 手動 |
-| I-07 | ID横ぐしビュー（同一論理IDの全出現・要素からの参照・被参照・カバレッジ充足を1画面に集約） | ✅ | `ui/IdCrossView.kt`, `AppState.openCrossView` | 手動 |
+| I-07 | ID横ぐしビュー（同一論理IDの全出現・要素からの参照・被参照・カバレッジ充足を1画面に集約。フェーズ未到達のカバレッジルールは区別表示） | ✅ | `ui/IdCrossView.kt`, `AppState.openCrossView` | 手動 |
 
 ## 6. ワークスペース横断ビュー
 
@@ -79,7 +81,7 @@
 | X-03 | 参照グラフ（円形配置の簡易描画＋参照一覧。40ノード／500参照に制限） | ✅ | `ui/WorkspaceViews.kt` | 手動 |
 | X-04 | コマンドパレット（Ctrl+K。ビュー切替・保存・ファイル検索・ID移動） | ✅ | `Main.kt`（`CommandPalette`） | 手動 |
 | X-05 | ビュー定義 `_views`（宣言的な射影: 行=論理IDパターン × 列=出現からの相対YPath。並び順・詳細文書・新規行の宣言、組込みスキーマでフォーム編集・検証、メタアクティビティの提案対象） | ✅ | `core/Views.kt`, `schema/BuiltinSchemas.kt` | 単体（`ViewsTest`） |
-| X-06 | ビューグリッド（ビューを編集可能な一覧として表示。スカラーセルの直接編集・複合値はジャンプ・詳細文書の作成・新規行の追加・カバレッジ表示・絞り込み） | ✅ | `ui/ViewGridPane.kt`, `AppState.ensureDoc` / `createViewDetail` / `addViewRow` | 単体（core経路は `ViewsTest`）＋手動 |
+| X-06 | ビューグリッド（ビューを編集可能な一覧として表示。スカラーセルの直接編集・複合値はジャンプ・詳細文書の作成・新規行の追加・カバレッジ表示（フェーズ未到達のルールは対象外）・絞り込み） | ✅ | `ui/ViewGridPane.kt`, `AppState.ensureDoc` / `createViewDetail` / `addViewRow` | 単体（core経路は `ViewsTest`）＋手動 |
 
 ## 7. AIによる作成支援
 
@@ -136,7 +138,7 @@ UIに依存しないヘッドレス操作の層（[ROADMAP.md](ROADMAP.md) P1 �
 | C-03 | 変更セット（複数ファイルのパッチ束＋新規ファイル作成。baseハッシュ競合検出、全件成功時のみ書込、適用後状態のオーバーレイ索引で検証、`--require-valid` ゲート、ドライラン） | ✅ | `core/Patch.kt`（`ChangeSets`）, `core/Workspace.kt`（`apply`） | 単体（`WorkspaceCliTest`） |
 | C-04 | 段階的開示API（カタログ→骨子→ノード全文の3段階、文字数予算付き文脈バンドル） | ✅ | `core/Disclosure.kt` | 単体（`WorkspaceCliTest`） |
 | C-05 | 構造検索API（本文・キーの部分一致＋スキーマ／ファイルglob／パスglob条件、参照検索・未解決参照検索） | ✅ | `core/Search.kt` | 単体（`WorkspaceCliTest`） |
-| C-06 | CLI（catalog / outline / read / bundle / search / view / validate / apply / hash / activities / agent / watch / revert / metrics / eval。出力はUTF-8のYAML） | ✅ | `core/Cli.kt`, `build.gradle.kts`（`runCli`） | 単体（`WorkspaceCliTest` 一気通貫） |
+| C-06 | CLI（catalog / outline / read / bundle / search / view / validate / apply / hash / activities / agent / watch / revert / metrics / eval。出力はUTF-8のYAML。`validate` は `phases` 宣言スキーマの文書に `phaseProgress` を付与） | ✅ | `core/Cli.kt`, `build.gradle.kts`（`runCli`） | 単体（`WorkspaceCliTest` 一気通貫） |
 | C-07 | ビュー解決API（`_views` 定義のロード・行×セルへの解決＝原本座標化・データパスからのスキーマフィールド解決・詳細文書スキャフォールド。CLI `view`） | ✅ | `core/Views.kt`, `core/Cli.kt` | 単体（`ViewsTest`） |
 
 ## 10. skill・テンプレート（フォーマット適合）
@@ -172,4 +174,5 @@ UIに依存しないヘッドレス操作の層（[ROADMAP.md](ROADMAP.md) P1 �
 | L-12 | コード実行skill（宣言型で書けない変換・定型手順） | 📋 | サンドボックス外作用のため明示許可制の設計が前提（ROADMAP R5-01）。現状の skill は宣言型の import / export のみ |
 | L-13 | エクスポートのHTML・JSON形式、インポートのWord等 | 📋 | 現状は xlsx / csv / markdown（入力は + json）。`skill/Tables.kt` に形式を追加する |
 | L-14 | ビューグリッドの行集合はディスク索引基準 | 🚧 | セル値・編集は未保存編集を即時反映するが、行の増減（新しいID）は保存まで反映されない（索引の設計方針 ARCHITECTURE §4.5 に準拠）。セル直接編集はスカラー型のみで、配列・オブジェクトはジャンプして個別フォームで編集する |
-| L-15 | 出現ベースのカバレッジルール | 📋 | 現状の `coverage` は被参照数のみ。「一覧の全IDに詳細文書（特定スキーマの出現）があること」の機械検証は未対応（ビューの詳細列で目視確認は可能） |
+| L-15 | 出現ベースのカバレッジルール | 📋 | 現状の `coverage` は被参照数のみ。「一覧の全IDに詳細文書（特定スキーマの出現）があること」の機械検証は未対応（ビューの詳細列で目視確認は可能）。ROADMAP P7（R7-02）で対応予定 |
+| L-16 | `phases` / `coverage` のスキーマ設計UI未対応 | 🚧 | スキーマ全体設定のため `_schemas` のソース編集（YAML）で記述する。フィールド単位の `requiredFrom` はスキーマ設計UIに入力欄がある（S-05） |

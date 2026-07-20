@@ -36,6 +36,7 @@ Kotlin + Compose for Desktop 製のスキーマ駆動YAMLエディタ。ワー�
 - `IdIndex` はディスク基準。未保存編集の参照解決は `DocScanner.scan` によるローカルIDを重ねて判定する二層構造（docs/ARCHITECTURE.md §4.5）。
 - スキーマの `FieldDef` を使う際は必ず `schema.resolve(field)` を通す（`$ref` 解決）。object の子フィールドの列挙は必ず `schema.effectiveFields(fields, node)` を通す（enum の `cases` 合成。docs/ARCHITECTURE.md §4.7）。
 - フィールド型を追加する場合の変更箇所は docs/ARCHITECTURE.md §6 に列挙されている（4箇所以上に分岐が必要）。
+- フィールドの実効必須判定は素の `field.required` を見ず、必ず `schema.requiredAt(field, phaseIndex)` を通す（`requiredFrom` によるフェーズ累積必須を見落とす。`phaseIndex` は `schema.currentPhaseIndex(root)`。docs/ARCHITECTURE.md §4.15）。カバレッジの `activeFrom` も同様に `coverageStatuses` の `definingRoot` 引数を省略しない。
 - エージェントの編集は必ず `agent/Staging`（オーバーレイ）経由。原本への書込は人間の承認（`Workspace.apply`）のみ。書込権限・予約ディレクトリ禁止は `AgentToolbox` が強制する（docs/ARCHITECTURE.md §4.10）。
 - `_runs/` は索引対象外の予約ディレクトリ。予約ディレクトリの定数は `SchemaLoader` にある（`_evals` を含む）。
 - 定義文書（`_agents`/`_activities`/`_evals`/`_skills`/`_views`）への書込は `meta: true` のアクティビティのみ。`meta` かつ `approval: auto` はロード時に定義エラー。`_schemas`/`_runs` は meta でも書込不可。

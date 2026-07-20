@@ -341,24 +341,26 @@ private fun DetailCell(state: AppState, view: ViewDef, row: ViewRow) {
 @Composable
 private fun StatusCell(state: AppState, row: ViewRow) {
     Box(Modifier.width(STATUS_WIDTH).padding(top = 6.dp)) {
+        // activeFrom のフェーズ判定には「IDを定義している文書」のルートを渡す（未到達ルールは対象外にする）
         val statuses = remember(row.id, state.indexVersion) {
-            row.occurrences.mapNotNull { e -> state.schemas.firstOrNull { it.id == e.schemaId } }
-                .distinctBy { it.id }
-                .flatMap { Validator.coverageStatuses(row.id, it, state.index) }
+            row.occurrences.mapNotNull { e -> state.schemas.firstOrNull { it.id == e.schemaId }?.let { it to e } }
+                .distinctBy { it.first.id }
+                .flatMap { (sc, e) -> Validator.coverageStatuses(row.id, sc, state.index, state.ensureDoc(e.file).root) }
         }
-        if (statuses.isEmpty()) {
+        val active = statuses.filter { it.active }
+        if (active.isEmpty()) {
             Text("—", fontSize = 11.sp, color = Palette.SubText)
         } else {
-            val satisfied = statuses.count { it.satisfied }
+            val satisfied = active.count { it.satisfied }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    if (satisfied == statuses.size) Icons.Default.CheckCircle else Icons.Default.Warning,
+                    if (satisfied == active.size) Icons.Default.CheckCircle else Icons.Default.Warning,
                     contentDescription = null, Modifier.size(13.dp),
-                    tint = if (satisfied == statuses.size) Palette.OkGreen else Palette.WarnOrange,
+                    tint = if (satisfied == active.size) Palette.OkGreen else Palette.WarnOrange,
                 )
                 Spacer(Modifier.width(4.dp))
-                Text("$satisfied/${statuses.size}", fontSize = 11.sp,
-                    color = if (satisfied == statuses.size) Palette.Text else Palette.WarnOrange)
+                Text("$satisfied/${active.size}", fontSize = 11.sp,
+                    color = if (satisfied == active.size) Palette.Text else Palette.WarnOrange)
             }
         }
     }
