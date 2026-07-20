@@ -3,6 +3,7 @@ package ui
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.rememberScrollbarAdapter
@@ -151,7 +152,9 @@ fun FormView(state: AppState, doc: OpenDocument) {
         ) {
             if (!state.relPath(doc.file).startsWith("_schemas/") && root is YNode.Map) {
                 DocumentMetadataEditor(ctx, root)
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(8.dp))
+                SameIdOccurrencesStrip(ctx, localIds)
+                Spacer(Modifier.height(8.dp))
             }
             val schemaDef = doc.schema
             val rootDef = schemaDef?.resolve(schemaDef.root)
@@ -222,6 +225,70 @@ private fun DocumentMetadataEditor(ctx: FormCtx, root: YNode.Map) {
                 placeholder = { Text("この文書が何を示し、何を含むかを簡潔に記述", fontSize = 13.sp, color = Palette.SubText) },
                 modifier = Modifier.weight(1f).heightIn(min = 84.dp),
             )
+        }
+    }
+}
+
+/**
+ * 同一IDの他文書出現ストリップ（P6）。
+ * この文書のルート要素が持つIDが他の文書にも出現する場合（＝段階的詳細化の一部である場合）、
+ * 相手側のスカラー情報を読み取り専用で見せる。詳細文書に一覧側の情報（名前・種別など）を
+ * 重複記載しなくても、編集中に文脈を参照できるようにする。
+ */
+@Composable
+private fun SameIdOccurrencesStrip(ctx: FormCtx, localIds: List<IdEntry>) {
+    val state = ctx.state
+    state.indexVersion
+    val rootId = localIds.firstOrNull { it.path.isEmpty() }?.id ?: return
+    val others = remember(rootId, state.indexVersion) {
+        state.index.occurrences(rootId).filter { it.file != ctx.doc.file }
+    }
+    if (others.isEmpty()) return
+    Column(
+        Modifier.fillMaxWidth().background(Palette.PanelBg, PanelShape)
+            .border(1.dp, Palette.Border, PanelShape).padding(12.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "他文書での定義（同一ID: $rootId）", fontSize = 12.sp,
+                fontWeight = FontWeight.Bold, color = Palette.Primary, modifier = Modifier.weight(1f),
+            )
+            TextButton(
+                onClick = { state.openCrossView(rootId) },
+                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+            ) { Text("横ぐしビュー", fontSize = 11.sp) }
+        }
+        others.forEach { entry ->
+            val summary = remember(entry, state.indexVersion) {
+                val root = state.docFor(entry.file)?.root
+                    ?: runCatching { YamlIO.parse(java.nio.file.Files.readString(entry.file)) }.getOrNull()
+                val element = root?.let { model.getAt(it, entry.path) } as? YNode.Map
+                element?.entries?.asSequence()
+                    ?.filter { (_, v) -> v is YNode.Scalar }
+                    ?.take(6)
+                    ?.joinToString("　") { (k, v) ->
+                        val text = (v as YNode.Scalar).value?.toString().orEmpty().replace("\n", " ")
+                        "$k: ${if (text.length > 40) text.take(40) + "…" else text}"
+                    }.orEmpty()
+            }
+            Row(
+                Modifier.fillMaxWidth()
+                    .clickable { state.navigateToOccurrence(entry) }
+                    .padding(vertical = 3.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Default.ArrowForward, contentDescription = null, Modifier.size(13.dp), tint = Palette.Primary)
+                Spacer(Modifier.width(6.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        listOfNotNull(entry.title, state.relPath(entry.file)).joinToString(" — "),
+                        fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                    )
+                    if (summary.isNotBlank()) {
+                        Text(summary, fontSize = 10.sp, color = Palette.SubText, maxLines = 2)
+                    }
+                }
+            }
         }
     }
 }

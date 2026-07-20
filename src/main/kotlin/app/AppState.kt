@@ -130,7 +130,7 @@ class AppState {
 
     /** 0 = フォーム, 1 = ソース */
     var editorTab by mutableStateOf(0)
-    /** 0 = 文書, 1 = 一覧, 2 = 参照グラフ, 3 = ID横ぐし */
+    /** 0 = 文書, 1 = 一覧, 2 = 参照グラフ, 3 = ID横ぐし, 4 = ビューグリッド */
     var workspaceView by mutableStateOf(0)
 
     /** ID横ぐしビューで選択中の論理ID。 */
@@ -140,6 +140,15 @@ class AppState {
     fun openCrossView(id: String? = null) {
         if (id != null) crossViewId = id
         workspaceView = 3
+    }
+
+    /** ビューグリッドで選択中のビューID。 */
+    var viewGridId by mutableStateOf<String?>(null)
+
+    /** ビューグリッドを開く（id 指定時はそのビューを選択）。 */
+    fun openViewGrid(id: String? = null) {
+        if (id != null) viewGridId = id
+        workspaceView = 4
     }
 
     var status by mutableStateOf("「開く」からワークスペース（ディレクトリ）を選択してください")
@@ -236,6 +245,12 @@ class AppState {
     // ---------------------------------------------------------------- documents
 
     fun docFor(file: Path): OpenDocument? = docCache[file]
+
+    /**
+     * 文書をエディタで開かずにキャッシュへ取り込む（ビューグリッドのセル編集用）。
+     * 取り込んだ文書は通常の編集と同じく dirty 管理・保存・外部変更検出の対象になる。
+     */
+    fun ensureDoc(file: Path): OpenDocument = docCache.getOrPut(file) { loadDocument(file) }
 
     fun openFile(file: Path, focus: YPath? = null) {
         val doc = docCache.getOrPut(file) { loadDocument(file) }
@@ -410,6 +425,56 @@ class AppState {
             FieldType.INT, FieldType.NUMBER -> YNode.Scalar(0)
             else -> YNode.Scalar("")
         }
+    }
+
+    /**
+     * ビューグリッドの行から詳細文書を新規作成する（P6）。
+     * 作成先とスキーマ初期値は core.Views.detailScaffold が決め、作成後はその文書を開く。
+     */
+    fun createViewDetail(view: core.ViewDef, id: String): Result<Path> = runCatching {
+        val ws = workspace ?: error("ワークスペースが開かれていません")
+        val scaffold = core.Views.detailScaffold(view, id, schemas)
+        val file = ws.resolve(scaffold.rel).normalize()
+        require(file.startsWith(ws)) { "ワークスペース外には作成できません: ${scaffold.rel}" }
+        require(!Files.exists(file)) { "既に同名のファイルが存在します: ${scaffold.rel}" }
+        Files.createDirectories(file.parent)
+        Files.writeString(file, YamlIO.dump(scaffold.root))
+        reload()
+        openFile(file)
+        file
+    }
+
+    /**
+     * ビューの newRow 定義に従い、一覧文書の配列へ新しい行（要素）を追加する（P6）。
+     * 追加は未保存編集としてキャッシュ上の文書に積まれる（保存は通常の操作で行う）。
+     */
+    fun addViewRow(view: core.ViewDef): Result<YPath> = runCatching {
+        val def = view.newRow ?: error("このビューには newRow が定義されていません")
+        val ws = workspace ?: error("ワークスペースが開かれていません")
+        val file = ws.resolve(def.file).normalize()
+        require(Files.isRegularFile(file)) { "一覧文書が存在しません: ${def.file}" }
+        val doc = ensureDoc(file)
+        val root = doc.root ?: error("一覧文書をパースできません: ${doc.parseError}")
+        // 追加先の配列を解決する（末端の配列だけは無ければ作成する）
+        var container: YNode = root
+        def.path.forEachIndexed { i, seg ->
+            val current = container
+            container = when {
+                current is YNode.Map && seg is String ->
+                    current.entries.getOrPut(seg) { if (i == def.path.lastIndex) YNode.Seq() else YNode.Map() }
+                current is YNode.Seq && seg is Int ->
+                    current.items.getOrNull(seg) ?: error("追加先パスが存在しません: ${def.path}")
+                else -> error("追加先パスを解決できません: ${def.path}")
+            }
+        }
+        val seq = container as? YNode.Seq ?: error("追加先が配列ではありません: ${def.path}")
+        val schema = schemaFor(file)
+        val itemDef = schema?.let { core.Views.fieldAt(it, root, def.path)?.item }
+        seq.items.add(
+            if (schema != null && itemDef != null) core.Views.defaultTree(itemDef, schema) else YNode.Map()
+        )
+        doc.markEdited()
+        def.path + (seq.items.size - 1)
     }
 
     fun renamePath(path: Path, newName: String): Result<Path> = runCatching {

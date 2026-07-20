@@ -32,6 +32,8 @@ internal const val CLI_USAGE = """コマンド:
   bundle   <workspace> <file> [path] [--budget N]      対象と関連情報（参照・被参照）の文脈バンドル
   search   <workspace> [--text q] [--schema id]... [--file glob] [--path glob]
                        [--ref-to id] [--unresolved] [--limit n]
+  view     <workspace> [view-id]                ビュー（_views）を行×列に解決する。
+           view-id 省略時は定義の一覧を表示する。各セルに原本上の座標（file / path）が付く
   validate <workspace> [file]                   検証（スキーマ・参照・重複・カバレッジ）
   apply    <workspace> <changeset.yaml> [--dry-run] [--require-valid]   変更セットの適用
   hash     <workspace> <file>                   変更セットの base に使う内容ハッシュ
@@ -122,6 +124,55 @@ internal fun runCli(args: Array<String>): String {
                     "excerpt" to hit.excerpt,
                 )
             })
+        }
+        "view" -> {
+            val ws = workspace()
+            val loaded = Views.load(ws.root)
+            val viewId = rest.getOrNull(1)?.takeIf { !it.startsWith("--") }
+                ?: return dumpYaml(
+                    linkedMapOf(
+                        "views" to loaded.views.map { v ->
+                            linkedMapOf(
+                                "id" to v.id, "name" to v.name, "idPattern" to v.rows.idPattern,
+                                "columns" to v.columns.map { it.label },
+                            )
+                        },
+                        "errors" to loaded.errors,
+                    )
+                )
+            val view = loaded.view(viewId)
+                ?: error("ビュー「$viewId」が見つかりません（view コマンドで一覧を確認できます）")
+            val rows = Views.resolve(view, ws.root, ws.index)
+            dumpYaml(
+                linkedMapOf(
+                    "view" to view.id,
+                    "name" to view.name,
+                    "rows" to rows.map { row ->
+                        linkedMapOf<String, Any?>(
+                            "id" to row.id,
+                            "title" to row.title,
+                            "cells" to row.cells.map { cell ->
+                                // 複合値は要約に留める（全文は read コマンドで座標を指定して取得する）
+                                val value = when (cell.value) {
+                                    is model.YNode.Scalar -> yaml.YamlIO.toAny(cell.value!!)
+                                    null -> null
+                                    else -> Views.cellText(cell.value)
+                                }
+                                linkedMapOf<String, Any?>(
+                                    "column" to cell.column.label,
+                                    "value" to value,
+                                    "file" to cell.rel,
+                                    "path" to cell.path?.pretty(),
+                                    "editable" to cell.column.editable.takeIf { it },
+                                ).filterValues { it != null }
+                            },
+                            "detail" to row.detailRel,
+                            "detailCreatePath" to if (row.detailRel == null)
+                                view.detail?.filePattern?.replace("{id}", row.id) else null,
+                        ).filterValues { it != null }
+                    },
+                )
+            )
         }
         "validate" -> {
             val ws = workspace()

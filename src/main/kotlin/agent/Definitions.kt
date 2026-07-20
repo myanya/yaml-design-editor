@@ -86,6 +86,7 @@ data class ActivityDef(
     val targetMatch: String? = null,            // 対象ファイルの glob（初期文脈の提示に使う）
     val instruction: String,
     val contextInclude: List<String> = listOf("catalog"),
+    val contextViews: List<String> = emptyList(),  // 初期文脈として開示するビュー（_views）のID
     val allowedFiles: List<String> = emptyList(),  // 書込許可ファイル glob（空 = 制限なし）
     val allowedPaths: List<String> = emptyList(),  // 書込許可 YPath glob（空 = 制限なし）
     val tools: Set<ToolGroup> = ToolGroup.entries.toSet(),
@@ -96,7 +97,7 @@ data class ActivityDef(
     val chain: ChainDef = ChainDef(),
     val retry: RetryDef = RetryDef(),
     /**
-     * メタアクティビティ（R4-03）: _agents / _activities / _evals / _skills の定義文書への書込を許可する。
+     * メタアクティビティ（R4-03）: _agents / _activities / _evals / _skills / _views の定義文書への書込を許可する。
      * _schemas / _runs は常に不可。承認は human 固定（エージェントが自分の権限・挙動を変える
      * 変更を無人適用させないため、meta かつ approval: auto は定義エラーとする）。
      */
@@ -199,6 +200,7 @@ object Definitions {
             targetMatch = (raw["target"] as? Map<*, *>)?.get("match")?.toString(),
             instruction = raw["instruction"]?.toString()?.takeIf { it.isNotBlank() } ?: error("instruction が必要です"),
             contextInclude = (raw["context"] as? Map<*, *>)?.get("include")?.let(::stringList) ?: listOf("catalog"),
+            contextViews = (raw["context"] as? Map<*, *>)?.get("views")?.let(::stringList) ?: emptyList(),
             allowedFiles = stringList(raw["allowedFiles"]),
             allowedPaths = stringList(raw["allowedPaths"]),
             tools = toolGroups(raw["tools"]),

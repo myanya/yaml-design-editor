@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.TableRows
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.SmartToy
@@ -167,6 +168,7 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
                     1 -> WorkspaceTableView(state)
                     2 -> ReferenceGraphView(state)
                     3 -> IdCrossView(state)
+                    4 -> ViewGridView(state)
                     else -> EditorArea(state)
                 }
             }
@@ -273,6 +275,8 @@ fun Toolbar(state: AppState, leftOpen: Boolean, rightOpen: Boolean, darkMode: Bo
             tint = if (state.workspaceView == 2) Palette.Primary else Palette.SubText) }
         IconButton(onClick = { state.openCrossView() }) { Icon(Icons.Default.Hub, "ID横ぐしビュー", Modifier.size(18.dp),
             tint = if (state.workspaceView == 3) Palette.Primary else Palette.SubText) }
+        IconButton(onClick = { state.openViewGrid() }) { Icon(Icons.Default.GridOn, "ビューグリッド", Modifier.size(18.dp),
+            tint = if (state.workspaceView == 4) Palette.Primary else Palette.SubText) }
         Box {
             IconButton(onClick = { recentOpen = true }) { Icon(Icons.Default.History, "最近開いたファイル", Modifier.size(18.dp)) }
             DropdownMenu(recentOpen, { recentOpen = false }) {
@@ -347,6 +351,7 @@ private fun CommandPalette(state: AppState, onDismiss: () -> Unit) {
                 CommandItem("ワークスペース一覧を表示") { state.workspaceView = 1; onDismiss() }
                 CommandItem("参照グラフを表示") { state.workspaceView = 2; onDismiss() }
                 CommandItem("ID横ぐしビューを表示") { state.openCrossView(); onDismiss() }
+                CommandItem("ビューグリッドを表示") { state.openViewGrid(); onDismiss() }
                 CommandItem("すべて保存") { state.saveAll(); onDismiss() }
                 ids.forEach { id -> CommandItem("IDへ移動: $id") { state.navigateToId(id); onDismiss() } }
                 files.forEach { file -> CommandItem("開く: ${state.relPath(file)}") { state.openFile(file); onDismiss() } }

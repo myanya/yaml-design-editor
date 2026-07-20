@@ -21,7 +21,7 @@ src/main/kotlin/
 ├── schema/    スキーマモデル・ローダ・メタ検証・カバレッジルール・glob（→ model, yaml）
 ├── index/     ID索引・参照スキャナ（関係種別つき）          （→ model, schema, yaml）
 ├── validate/  スキーマ検証・参照解決・重複・カバレッジ検証  （→ model, schema, index）
-├── core/      ヘッドレス層: ワークスペース操作・パッチ・段階的開示・構造検索・CLI
+├── core/      ヘッドレス層: ワークスペース操作・パッチ・段階的開示・構造検索・ビュー射影・CLI
 │              （→ model, yaml, schema, index, validate。UI/Compose 非依存）
 ├── ai/        AI生成・LLMクライアント: JSON Schema変換・構造化出力・ツール使用チャット（→ model, schema, index）
 ├── skill/     入出力変換: skill定義・表形式の読み書き・インポート・エクスポート・
@@ -59,6 +59,7 @@ src/main/kotlin/
 | `PatchOp` / `Patcher` / `ChangeSets` | core/Patch.kt | YPathパッチ（set/insert/delete/move）と変更セット（baseハッシュ競合検出、YAML解析） |
 | `Disclosure` | core/Disclosure.kt | 段階的開示: カタログ→骨子→ノード全文、文字数予算付き文脈バンドル |
 | `Search` | core/Search.kt | 構造検索: 本文・キー部分一致＋スキーマ／glob条件、参照・未解決参照の検索 |
+| `ViewDef` / `Views` | core/Views.kt | ビュー機構（P6）: `_views` 定義のロード、行（論理ID）×列（相対YPath）の解決＝原本座標化、データパスからのスキーマフィールド解決（`fieldAt`）、詳細文書スキャフォールド、テキスト表現（`renderText`） |
 | `runCli` | core/Cli.kt | CLIコマンド（catalog/outline/read/bundle/search/validate/apply/hash/activities/agent/watch/revert/metrics/eval）。出力はUTF-8のYAML |
 | `ToolChatSession` / `ToolChat` | ai/ToolChat.kt | ツール使用（function calling）対応のチャット抽象と OpenAI Responses / Anthropic Messages 実装。会話状態はセッションが保持 |
 | `AgentDef` / `ActivityDef` / `Definitions` | agent/Definitions.kt | `_agents` / `_activities` 定義の実行時ロード（エラー収集つき）。フォーム編集・検証は `schema/BuiltinSchemas.kt` の組込みスキーマが担う |
@@ -85,6 +86,7 @@ src/main/kotlin/
 | `OpenAiGenerator` / `AnthropicGenerator` | ai/ | 各API（Responses / Messages）のリクエスト構築とレスポンス解析 |
 | `FormView` / `FormCtx` | ui/FormView.kt | スキーマ駆動フォームと汎用エディタ（中核UI）。`FormCtx` が編集操作と参照解決を仲介 |
 | `IdCrossView` | ui/IdCrossView.kt | ID横ぐしビュー: 同一論理IDの全出現・参照・被参照・カバレッジ充足の集約表示 |
+| `ViewGridView` | ui/ViewGridPane.kt | ビューグリッド: `_views` 定義の編集可能な一覧表示。セル編集は文書キャッシュ上のツリー直接編集（Slot＋markEdited）、行アクションで詳細文書作成・新規行追加 |
 | `Slot` (Map/Seq/Root) | ui/Common.kt | 「値の置き場所」の抽象。後述 |
 | `AiGenerationHost` | ui/AiGenerationDialog.kt | AI生成ダイアログの状態機械（入力→生成→プレビュー→適用）と提案合成 |
 | `SchemaEditor` | ui/SchemaEditor.kt | `_schemas` 用の構造化エディタ（設計・プレビュー・適用対象） |
@@ -179,7 +181,17 @@ enum の `cases`（値ごとの追加フィールド。判別共用体）を持�
 - **形式は Table 抽象に集約**: xlsx / csv / json / markdown の差は `skill/Tables.kt` に閉じる。形式追加はここだけを触る。
 - **`_skills` も予約ディレクトリ**: 通常のエージェントは書込不可、メタアクティビティのみ提案可（パースゲートつき）。自動実行の監視対象外。
 
-### 4.14 エラー処理
+### 4.14 ビュー機構（P6）
+
+`_views` の宣言的ビュー定義を「行（＝論理ID）×列（＝出現要素からの相対YPath）」の編集面に射影する。守るべき不変条件:
+
+- **ビューはデータを持たない**: ビューは原本の射影であり、独自の永続化を一切持たない。セルは必ず原本上の座標 `(file, YPath)` に解決され、編集はその座標の原本ツリーへルーティングされる（原本主義）。
+- **編集経路は既存と同一**: UIのセル編集は文書キャッシュ（`AppState.ensureDoc`）上のツリーを `Slot` 経由で直接変更し `markEdited()` する（＝dirty・Undo・保存・外部変更検出がそのまま効く）。エージェントは `read_view` で座標を得て既存の `apply_patch` で編集する。**ビュー専用の書込経路を作らない**（権限強制・ゲートを一元に保つ）。
+- **行はディスク索引基準・値は編集中優先**: 行の集合（ID）と座標は `IdIndex`（§4.5）から解決し、セル値の表示は loader 注入で「編集中ツリー（UI: docCache / エージェント: ステージング）→ ディスク」の順に読む。未保存の新規IDが行に現れないのは索引の設計方針どおり（FEATURES L-14）。
+- **`_views` は予約ディレクトリ**: 書込はメタアクティビティのみ（`AgentToolbox`）、自動実行の監視対象外（`AutomationEngine`）、ステージされた定義は `Views.parseView` のパース可否が提出ゲートに加わる（`Staging.validateAll`）。
+- **セルエディタの型解決**: 列の相対パスから `Views.fieldAt` でフィールド定義を辿る（`resolve` / `effectiveFields` を通す。§4.7）。直接編集はスカラー系フィールドに限定し、複合値はジャンプで個別フォームへ誘導する。
+
+### 4.15 エラー処理
 
 - ファイルI/O・パースは `runCatching` で受け、ユーザー操作の結果は `Result` を返して呼び出し側（UI）が `state.status` に反映する。
 - 入力検証の失敗は `require(...) { "日本語メッセージ" }`、内部異常は `error("日本語メッセージ")`。メッセージはそのままUIに表示される前提で書く。
@@ -189,6 +201,7 @@ enum の `cases`（値ごとの追加フィールド。判別共用体）を持�
 - **編集**: フォーム操作 → `Slot.set` / ツリー直接変更 → `markEdited()` → `version`++ → 再コンポーズ＋履歴追加
 - **保存**: `canonicalText()` をファイルへ書き出し → スキーマファイルなら再読込 → `rebuildIndex()` → `indexVersion`++
 - **ジャンプ**: `navigateToId` → 索引の出現検索（複数なら選択ダイアログ／横ぐしビュー）→ `openFile(file, focus)` → `highlightPath` 設定 → `Highlightable` がスクロール
+- **ビューグリッド**: `_views` 定義 → `Views.resolve`（行=ディスク索引、セル値=編集中ツリー優先の loader）→ セル編集は該当文書の `Slot` 直接変更＋`markEdited()` → 保存 → `rebuildIndex()` で行集合にも反映。行アクションは `AppState.createViewDetail`（スキャフォールド→書込→開く）／`addViewRow`（一覧文書の配列へ未保存編集として追加）
 - **AI生成**: ✨/ボタン → `AppState.requestAi(field, path)` → `AiGenerationHost` が現ツリーを複製して入力構築 → プロバイダ呼び出し → `combineProposal`/`replaceInClone` で適用後ツリーを合成 → 差分プレビュー＋`Validator` で事前検証 → 適用（`doc.root` 差し替え）
 - **ヘッドレス変更セット適用**（CLI／エージェント）: `ChangeSets.parse` → 全ファイルの base ハッシュ照合＋パッチ適用（メモリ上）→ 適用後状態を重ねた**オーバーレイ索引**で検証（複数ファイル連動の変更も正しく判定）→ **全件成功時のみ**書き込み（`--require-valid` 指定時は検証エラーでも中止）→ `refresh()` で索引更新。1件でも失敗すれば何も書かないオール・オア・ナッシング
 - **エージェント実行**: アクティビティ起動 → `AgentKernel` がシステムプロンプト（persona＋規範）と初期文脈（指示・カタログ・権限・ゲート）を構築 → ツール使用ループ（探索→パッチ→検証→…、必要なら `delegate` で相談）→ `submit_changeset`（ゲート通過）→ `RunLog` 書き出し → レビューUIで部分採用（採用サブセットを `Staging` で再検証）→ `Workspace.apply` で反映 → `AppState.reload()`
@@ -202,6 +215,7 @@ enum の `cases`（値ごとの追加フィールド。判別共用体）を持�
 - **フィールド型の追加**: `FieldType` に enum を追加し、`Validator.checkField`・`FormView.ValueEditor`・`ai.fieldToJsonSchema`・`SchemaDef.generateSample`/`defaultNode` に分岐を追加する。
 - **コメント保持**: `YamlIO` を SnakeYAML の Node API（`LoaderOptions.setProcessComments(true)`）ベースに差し替える。ツリー変換層が `YamlIO` に隔離されているため影響範囲は限定的。
 - **横断ビューの追加**: データソースとして `AppState.workspaceRecords()` と `IdIndex` を利用し、`Main.kt` の `workspaceView` 分岐に追加する。
+- **ビュー定義の項目追加**: `core/Views.kt` の `parseView` と `schema/BuiltinSchemas.kt` の `builtin-view` スキーマを**対で**更新する（フォーム編集・検証と実行時パースの二重定義のため）。
 - **AIプロバイダの追加**: `AiProvider` に enum を追加し、`AiGenerator.generate` の分岐と専用クライアント（`generate` + `parseResponse` を持つ object）を実装する。
 - **入出力形式の追加**: `TableFormat` に enum を追加し、`skill/Tables.kt` の read / write に分岐を実装する（Importer / Exporter は形式非依存のため変更不要）。
 - **テンプレートパックの追加**: `skill/TemplatePacks.kt` の `all` に `Pack`（ファイルパス→内容の埋め込み）を登録する。`ImportExportTest` に倣い、展開後の検証エラー0をテストで保証する。

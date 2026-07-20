@@ -349,6 +349,7 @@ object SchemaLoader {
     const val RUNS_DIR = "_runs"
     const val EVALS_DIR = "_evals"
     const val SKILLS_DIR = "_skills"
+    const val VIEWS_DIR = "_views"
 
     data class LoadResult(val schemas: List<SchemaDef>, val errors: List<String>)
 

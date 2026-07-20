@@ -35,7 +35,7 @@ class AgentToolbox(
     private val consultMode: Boolean = false,   // 相談モード: 読み取り専用（explore / validate のみ）
 ) {
     /** 相談モードで許可するツール名。 */
-    private val consultAllowed = setOf("list_documents", "read_outline", "read_node", "search", "related", "validate")
+    private val consultAllowed = setOf("list_documents", "read_outline", "read_node", "search", "related", "read_view", "validate")
     /**
      * 予約ディレクトリ（書込禁止・カタログから除外。read_outline 等での読み取りは可）。
      * _schemas / _runs は常に対象。定義類（_agents / _activities / _evals / _skills）は
@@ -49,6 +49,7 @@ class AgentToolbox(
             add(SchemaLoader.ACTIVITIES_DIR)
             add(SchemaLoader.EVALS_DIR)
             add(SchemaLoader.SKILLS_DIR)
+            add(SchemaLoader.VIEWS_DIR)
         }
     }.map { "$it/" }
 
@@ -82,6 +83,15 @@ class AgentToolbox(
             specs += ToolSpec("related", "IDの関連情報（全出現・その要素からの参照・被参照）を返す。影響分析に使う。", obj {
                 required("id", "論理ID")
             })
+            specs += ToolSpec(
+                "read_view",
+                "ビュー定義（_views）を行×列に解決して返す。複数文書に散らばる同一IDの情報を一覧で横断確認でき、" +
+                    "各セルには原本上の座標（file :: path）が付くため、そのまま apply_patch の対象にできる。" +
+                    "ステージング済みの編集も反映される。view省略時は利用可能なビューの一覧を返す。",
+                obj {
+                    optional("view", "ビューID（省略時は一覧）")
+                },
+            )
         }
         if (ToolGroup.EDIT in groups && !consultMode) {
             val applyPatchSchema = buildJsonObject {
@@ -195,6 +205,7 @@ class AgentToolbox(
                 )
             }
             "related" -> Outcome(relatedText(requireArg("id")))
+            "read_view" -> Outcome(viewText(arg("view")))
             "apply_patch" -> {
                 val rel = requireArg("file")
                 checkWritableFile(rel)
@@ -310,6 +321,24 @@ class AgentToolbox(
                 description?.let { append(": ").append(it) }
             }
         }
+    }
+
+    /**
+     * ビューの解決テキスト（read_view と初期文脈の開示で共用）。
+     * 行・出現はステージングのオーバーレイ索引、セル値はステージング済みツリーから読む。
+     */
+    fun viewText(viewId: String?): String {
+        val loaded = core.Views.load(ws.root)
+        if (viewId.isNullOrBlank()) {
+            if (loaded.views.isEmpty()) return "（ビュー定義がありません）"
+            return loaded.views.joinToString("\n") { v ->
+                "- ${v.id}（${v.name}）: idPattern=${v.rows.idPattern}, 列=${v.columns.joinToString("/") { it.label }}"
+            } + (if (loaded.errors.isEmpty()) "" else "\n定義エラー:\n" + loaded.errors.joinToString("\n") { "- $it" })
+        }
+        val view = loaded.view(viewId)
+            ?: error("ビュー「$viewId」が見つかりません（利用可能: ${loaded.views.joinToString(", ") { it.id }.ifEmpty { "なし" }}）")
+        val rows = core.Views.resolve(view, ws.root, staging.index()) { f -> staging.tree(ws.relPath(f)) }
+        return core.Views.renderText(view, rows)
     }
 
     private fun relatedText(id: String): String {

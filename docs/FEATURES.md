@@ -31,6 +31,7 @@
 | E-06 | 保存／すべて保存（Ctrl+S / Ctrl+Shift+S、ソース編集中は反映→保存。リストは親プロパティから一段下げて整形） | ✅ | `AppState.save*`, `yaml/YamlIO.kt`, `ui/SourcePane.kt` | 単体（`YamlIOTest`）＋手動 |
 | E-07 | 文書メタデータ `_document`（id / name / description）の編集・ヘッダー表示 | ✅ | `ui/FormView.kt`（`DocumentMetadataEditor`）, `index/IdIndex.kt` | 手動 |
 | E-08 | 文書キャッシュ（ファイル切替時も未保存編集をメモリ保持） | ✅ | `AppState.docCache` | 手動 |
+| E-09 | 同一IDの他文書出現ストリップ（フォーム上部。文書ルートのIDが他文書にも出現する場合に相手側のスカラー情報を表示・ジャンプ。詳細文書に一覧側情報を重複記載しない運用を支える） | ✅ | `ui/FormView.kt`（`SameIdOccurrencesStrip`） | 手動 |
 
 ## 3. スキーマ
 
@@ -77,6 +78,8 @@
 | X-02 | 一括編集（ルートの `status` / `owner`。確認ダイアログ、未保存文書があれば拒否） | ✅ | `AppState.bulkUpdate` | 手動 |
 | X-03 | 参照グラフ（円形配置の簡易描画＋参照一覧。40ノード／500参照に制限） | ✅ | `ui/WorkspaceViews.kt` | 手動 |
 | X-04 | コマンドパレット（Ctrl+K。ビュー切替・保存・ファイル検索・ID移動） | ✅ | `Main.kt`（`CommandPalette`） | 手動 |
+| X-05 | ビュー定義 `_views`（宣言的な射影: 行=論理IDパターン × 列=出現からの相対YPath。並び順・詳細文書・新規行の宣言、組込みスキーマでフォーム編集・検証、メタアクティビティの提案対象） | ✅ | `core/Views.kt`, `schema/BuiltinSchemas.kt` | 単体（`ViewsTest`） |
+| X-06 | ビューグリッド（ビューを編集可能な一覧として表示。スカラーセルの直接編集・複合値はジャンプ・詳細文書の作成・新規行の追加・カバレッジ表示・絞り込み） | ✅ | `ui/ViewGridPane.kt`, `AppState.ensureDoc` / `createViewDetail` / `addViewRow` | 単体（core経路は `ViewsTest`）＋手動 |
 
 ## 7. AIによる作成支援
 
@@ -118,8 +121,9 @@
 | AG-19 | 実行メトリクス（`_runs` の集計: 提出率・採用率・却下ファイル率＝修正量の代理指標・自動適用/巻き戻し・トークン。CLI `metrics`） | ✅ | `agent/Metrics.kt`, `core/Cli.kt` | 単体（`MetricsTest`） |
 | AG-20 | 評価セット `_evals`（ゴールデン入力＋宣言的な期待結果による回帰評価。サンドボックスコピー上で実行し原本を変更しない。CLI `eval`） | ✅ | `agent/Evals.kt`, `schema/BuiltinSchemas.kt` | 単体（`EvalTest`） |
 | AG-21 | 比較実験（評価セットの `variants`: モデル・エージェント・追加指示を差し替えたA/B実行と合格率・コストの比較） | ✅ | `agent/Evals.kt`（`EvalRunner`） | 単体（`EvalTest`） |
-| AG-22 | メタアクティビティ（`meta: true` で `_agents` / `_activities` / `_evals` / `_skills` への提案を許可。承認は human 固定、`_schemas`/`_runs` は常に不可、定義のパース可否を提出ゲートに追加） | ✅ | `agent/Definitions.kt`, `agent/Tools.kt`, `agent/Staging.kt` | 単体（`MetaActivityTest`, `DefinitionsTest`） |
+| AG-22 | メタアクティビティ（`meta: true` で `_agents` / `_activities` / `_evals` / `_skills` / `_views` への提案を許可。承認は human 固定、`_schemas`/`_runs` は常に不可、定義のパース可否を提出ゲートに追加） | ✅ | `agent/Definitions.kt`, `agent/Tools.kt`, `agent/Staging.kt` | 単体（`MetaActivityTest`, `DefinitionsTest`） |
 | AG-23 | 自己改善パネルUI（メトリクス表示・評価セットの実行と変異別結果の比較） | ✅ | `ui/ImprovementPanel.kt` | 手動＋単体（実行系経路） |
+| AG-24 | エージェントへのビュー開示（`read_view` ツール: ステージング反映済みの行×列を原本座標つきで返し、そのまま `apply_patch` の対象にできる。`context.views` による初期文脈への開示） | ✅ | `agent/Tools.kt`（`viewText`）, `agent/Kernel.kt` | 単体（`ViewsTest`） |
 
 ## 9. コアAPI・CLI（エージェント基盤）
 
@@ -132,7 +136,8 @@ UIに依存しないヘッドレス操作の層（[ROADMAP.md](ROADMAP.md) P1 �
 | C-03 | 変更セット（複数ファイルのパッチ束＋新規ファイル作成。baseハッシュ競合検出、全件成功時のみ書込、適用後状態のオーバーレイ索引で検証、`--require-valid` ゲート、ドライラン） | ✅ | `core/Patch.kt`（`ChangeSets`）, `core/Workspace.kt`（`apply`） | 単体（`WorkspaceCliTest`） |
 | C-04 | 段階的開示API（カタログ→骨子→ノード全文の3段階、文字数予算付き文脈バンドル） | ✅ | `core/Disclosure.kt` | 単体（`WorkspaceCliTest`） |
 | C-05 | 構造検索API（本文・キーの部分一致＋スキーマ／ファイルglob／パスglob条件、参照検索・未解決参照検索） | ✅ | `core/Search.kt` | 単体（`WorkspaceCliTest`） |
-| C-06 | CLI（catalog / outline / read / bundle / search / validate / apply / hash / activities / agent / watch / revert / metrics / eval。出力はUTF-8のYAML） | ✅ | `core/Cli.kt`, `build.gradle.kts`（`runCli`） | 単体（`WorkspaceCliTest` 一気通貫） |
+| C-06 | CLI（catalog / outline / read / bundle / search / view / validate / apply / hash / activities / agent / watch / revert / metrics / eval。出力はUTF-8のYAML） | ✅ | `core/Cli.kt`, `build.gradle.kts`（`runCli`） | 単体（`WorkspaceCliTest` 一気通貫） |
+| C-07 | ビュー解決API（`_views` 定義のロード・行×セルへの解決＝原本座標化・データパスからのスキーマフィールド解決・詳細文書スキャフォールド。CLI `view`） | ✅ | `core/Views.kt`, `core/Cli.kt` | 単体（`ViewsTest`） |
 
 ## 10. skill・テンプレート（フォーマット適合）
 
@@ -166,3 +171,5 @@ UIに依存しないヘッドレス操作の層（[ROADMAP.md](ROADMAP.md) P1 �
 | L-11 | AI生成ダイアログ（A-01〜03）とエージェントカーネルの完全統合 | 🚧 | 接続設定（`ui/AiSettings`）は共有済み。実行系の統合は、フィールド生成が Structured Outputs の型保証を持つ利点を崩さない形で検討（ROADMAP R2-09） |
 | L-12 | コード実行skill（宣言型で書けない変換・定型手順） | 📋 | サンドボックス外作用のため明示許可制の設計が前提（ROADMAP R5-01）。現状の skill は宣言型の import / export のみ |
 | L-13 | エクスポートのHTML・JSON形式、インポートのWord等 | 📋 | 現状は xlsx / csv / markdown（入力は + json）。`skill/Tables.kt` に形式を追加する |
+| L-14 | ビューグリッドの行集合はディスク索引基準 | 🚧 | セル値・編集は未保存編集を即時反映するが、行の増減（新しいID）は保存まで反映されない（索引の設計方針 ARCHITECTURE §4.5 に準拠）。セル直接編集はスカラー型のみで、配列・オブジェクトはジャンプして個別フォームで編集する |
+| L-15 | 出現ベースのカバレッジルール | 📋 | 現状の `coverage` は被参照数のみ。「一覧の全IDに詳細文書（特定スキーマの出現）があること」の機械検証は未対応（ビューの詳細列で目視確認は可能） |

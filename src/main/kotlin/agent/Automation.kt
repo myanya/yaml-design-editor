@@ -164,6 +164,7 @@ class AutomationEngine(
     private fun isReserved(rel: String): Boolean = listOf(
         SchemaLoader.SCHEMA_DIR, SchemaLoader.AGENTS_DIR, SchemaLoader.ACTIVITIES_DIR,
         SchemaLoader.RUNS_DIR, SchemaLoader.EVALS_DIR, SchemaLoader.SKILLS_DIR,
+        SchemaLoader.VIEWS_DIR,
     ).any { rel.startsWith("$it/") }
 
     private fun scanStamps(): Map<Path, Long> =

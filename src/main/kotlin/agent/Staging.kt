@@ -145,6 +145,7 @@ class Staging(val ws: Workspace) {
             rel.startsWith(SchemaLoader.ACTIVITIES_DIR + "/") -> { raw -> Definitions.parseActivity(raw, e.file) }
             rel.startsWith(SchemaLoader.EVALS_DIR + "/") -> { raw -> Evals.parseEval(raw, e.file) }
             rel.startsWith(SchemaLoader.SKILLS_DIR + "/") -> { raw -> skill.Skills.parseSkill(raw, e.file) }
+            rel.startsWith(SchemaLoader.VIEWS_DIR + "/") -> { raw -> core.Views.parseView(raw, e.file) }
             else -> return null
         }
         val raw = YamlIO.toAny(e.root) as? Map<*, *> ?: return "定義のルートはobjectである必要があります"

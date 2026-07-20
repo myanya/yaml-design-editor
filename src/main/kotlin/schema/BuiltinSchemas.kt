@@ -100,6 +100,14 @@ object BuiltinSchemas {
                   item:
                     type: enum
                     values: [catalog, target-outlines]
+                - key: views
+                  label: ビュー開示
+                  type: array
+                  item:
+                    type: ref
+                    scope:
+                      schemaIds: [builtin-view]
+                  description: 初期文脈として開示するビュー（_views）のID
             - key: allowedFiles
               label: 書込許可ファイル（glob）
               type: array
@@ -191,7 +199,7 @@ object BuiltinSchemas {
             - key: meta
               label: メタアクティビティ
               type: boolean
-              description: 定義文書（_agents / _activities / _evals / _skills）への書込を許可する（承認は human 固定。_schemas / _runs は不可）
+              description: 定義文書（_agents / _activities / _evals / _skills / _views）への書込を許可する（承認は human 固定。_schemas / _runs は不可）
     """.trimIndent()
 
     private val skillSchemaYaml = """
@@ -438,6 +446,104 @@ object BuiltinSchemas {
                               type: string
     """.trimIndent()
 
+    private val viewSchemaYaml = """
+        id: builtin-view
+        name: ビュー定義（横断一覧）
+        match: "${SchemaLoader.VIEWS_DIR}/**/*.{yaml,yml}"
+        root:
+          type: object
+          fields:
+            - key: id
+              label: ビューID
+              type: id
+              required: true
+            - key: name
+              label: 表示名
+              type: string
+            - key: description
+              label: 説明
+              type: text
+            - key: rows
+              label: 行の定義
+              type: object
+              required: true
+              fields:
+                - key: idPattern
+                  label: 対象IDパターン
+                  type: string
+                  required: true
+                  description: このglobに一致する論理IDが行になる（例 SCR-*）
+                - key: schemaIds
+                  label: 出現スキーマの限定
+                  type: array
+                  item:
+                    type: string
+                  description: 指定時、いずれかのスキーマに出現するIDだけを行にする
+            - key: order
+              label: 行の並び
+              type: object
+              fields:
+                - key: schemaId
+                  label: 並び基準の出現スキーマ
+                  type: string
+                - key: fileGlob
+                  label: 並び基準の出現ファイル（glob）
+                  type: string
+              description: 条件に一致する出現の文書内順で並べる（省略時はID順）
+            - key: columns
+              label: 列の定義
+              type: array
+              required: true
+              item:
+                type: object
+                fields:
+                  - key: label
+                    label: 見出し
+                    type: string
+                    required: true
+                  - key: schemaId
+                    label: 値を取る出現のスキーマ
+                    type: string
+                  - key: fileGlob
+                    label: 値を取る出現のファイル（glob）
+                    type: string
+                  - key: path
+                    label: 相対パス
+                    type: string
+                    required: true
+                    description: 出現要素からの相対YPath（例 name / areas / inputs[0].type）
+                  - key: editable
+                    label: 一覧上で編集可
+                    type: boolean
+                    default: false
+            - key: detail
+              label: 詳細文書
+              type: object
+              fields:
+                - key: schemaId
+                  label: 詳細と見なす出現のスキーマ
+                  type: string
+                - key: fileGlob
+                  label: 詳細と見なす出現のファイル（glob）
+                  type: string
+                - key: filePattern
+                  label: 新規作成先パターン
+                  type: string
+                  description: 例 designs/{id}.yaml（{id} が行のIDで置換される）
+            - key: newRow
+              label: 新規行の追加先
+              type: object
+              fields:
+                - key: file
+                  label: 一覧文書のファイル
+                  type: string
+                  required: true
+                - key: path
+                  label: 追加先の配列YPath
+                  type: string
+                  required: true
+    """.trimIndent()
+
     /** 組込みスキーマ一覧（読み込み失敗はあり得ない前提。失敗時は例外で気付かせる）。 */
     val all: List<SchemaDef> by lazy {
         listOf(
@@ -445,6 +551,7 @@ object BuiltinSchemas {
             SchemaLoader.parseSchemaText(activitySchemaYaml, Path.of("(builtin)/activity.yaml")),
             SchemaLoader.parseSchemaText(evalSchemaYaml, Path.of("(builtin)/eval.yaml")),
             SchemaLoader.parseSchemaText(skillSchemaYaml, Path.of("(builtin)/skill.yaml")),
+            SchemaLoader.parseSchemaText(viewSchemaYaml, Path.of("(builtin)/view.yaml")),
         )
     }
 }
