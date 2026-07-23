@@ -3,7 +3,7 @@
 本書はプロジェクトの全機能を管理する台帳です。機能の追加・変更・削除を行ったら**必ず本書を更新**してください。
 
 - 利用方法・仕様の詳細は [README.md](../README.md)、実装構造は [ARCHITECTURE.md](ARCHITECTURE.md) を参照（本書には重複記載しない）。
-- 中長期の将来構想・新機能計画は [ROADMAP.md](ROADMAP.md) で管理する。本書の §10 は**現行実装の制約**のみを扱う。
+- 中長期の将来構想・新機能計画は [ROADMAP.md](ROADMAP.md) で管理する。本書の §11 は**現行実装の制約**のみを扱う。
 - **状態**: ✅ 実装済み ／ 🚧 一部実装 ／ 📋 未実装（計画のみ）
 - **テスト**: `単体` = src/test 配下に単体テストあり ／ `手動` = 手動確認のみ
 
@@ -41,13 +41,14 @@
 | S-02 | 型システム12種（string/text/int/number/boolean/enum/date/id/ref/array/map/object） | ✅ | `schema/Schema.kt`（`FieldType`） | 手動 |
 | S-03 | 名前付き定義と再帰参照（`definitions` / `$ref`、属性のオーバーライド合成） | ✅ | `SchemaDef.resolve` | 手動 |
 | S-04 | メタスキーマ検証（必須情報、キー重複、子定義不足、enum選択肢、`cases` の整合、未解決 `$ref`） | ✅ | `SchemaDef.validateDefinition` | 単体（`SchemaLoaderTest`） |
-| S-05 | スキーマ設計UI（スキーマ全体の説明、設計／プレビュー／適用対象タブ、競合スキーマ表示、フィールドの `requiredFrom` 入力）。`phases` / `coverage` はスキーマ全体設定のためソース編集のみ（構造化UI未対応） | ✅ | `ui/SchemaEditor.kt` | 手動 |
+| S-05 | スキーマ設計UI（スキーマ全体の説明、document / library切替、ローカル／横断`$ref`、設計／プレビュー／適用対象タブ、競合スキーマ表示、フィールドの `requiredFrom` 入力）。`phases` / `coverage` はスキーマ全体設定のためソース編集のみ（構造化UI未対応） | ✅ | `ui/SchemaEditor.kt` | 手動 |
 | S-06 | サンプルYAML生成（プレビュー・クリップボードコピー・新規ファイル初期値） | ✅ | `SchemaDef.generateSample` | 手動 |
 | S-07 | スキーマ外キーの検証ポリシー（`unknownFields: allow / warning / error`、未知サブツリーは走査境界） | ✅ | `validate/Validator.kt`, `index/IdIndex.kt` | 手動 |
 | S-08 | 参照の関係種別（`type: ref` の `relation`。表示・カバレッジ判定・`$ref`合成に対応） | ✅ | `schema/Schema.kt`, `index/IdIndex.kt`, `ui/SchemaEditor.kt` | 単体（`WorkspaceCliTest`） |
 | S-09 | カバレッジルール定義（スキーマの `coverage`: 対象IDパターン・参照元スキーマ・関係・必要数・重大度） | ✅ | `schema/Schema.kt`（`CoverageRule`） | 単体（`WorkspaceCliTest`） |
 | S-10 | enum 値ごとの追加フィールド（`cases`: 判別共用体。case 由来enumの多段展開・フォーム追随・検証・索引・AI生成 `anyOf`・スキーマ設計UI対応） | ✅ | `schema/Schema.kt`（`effectiveFields`）, `validate/Validator.kt`, `index/IdIndex.kt`, `ui/FormView.kt`, `ui/SchemaEditor.kt`, `ai/AiGenerator.kt` | 単体（`SchemaLoaderTest` / `ValidatorTest` / `DocScannerTest` / `AiGeneratorTest`） |
 | S-11 | フェーズ機構（ROADMAP P7）: `phases`（順序付きフェーズと申告キー）の宣言、フィールドの `requiredFrom`（累積必須）、カバレッジの `activeFrom`（判定保留） | ✅ | `schema/Schema.kt`（`PhasesDef`, `currentPhaseIndex`, `requiredAt`） | 単体（`PhaseTest`） |
+| S-12 | スキーマ共通部品（ROADMAP R7-03）: `kind: library` がdefinitionsだけを公開し、`moduleId#definition` の修飾`$ref`で工程別スキーマから共有。二段階ロードの`SchemaCatalog`、宣言元基準の入れ子参照、未解決・重複検出 | ✅ | `schema/Schema.kt`（`SchemaCatalog`, `SchemaLoader`） | 単体＋統合（`SchemaLoaderTest`） |
 
 ## 4. 検証
 
@@ -161,19 +162,19 @@ UIに依存しないヘッドレス操作の層（[ROADMAP.md](ROADMAP.md) P1 �
 
 | ID | 内容 | 状態 | 備考 |
 |---|---|---|---|
-| L-01 | YAMLコメント・アンカー・スタイルの保持 | 📋 | SnakeYAML でブロックスタイル・インデント2に正規化される。対応するなら `YamlIO` を Node API ベースへ差し替え（[ARCHITECTURE.md](ARCHITECTURE.md) 拡張ポイント参照） |
-| L-02 | 複数ドキュメント（`---` 区切り）YAML | 📋 | 先頭ドキュメントのみ対象 |
-| L-03 | ソースエディタの構文ハイライト・置換 | 📋 | 行番号・検索・エラー位置表示までは実装済み |
-| L-04 | 文字単位の差分表示 | 📋 | 行単位のLCS整列まで実装済み |
-| L-05 | 汎用ビューでのキー名変更 | 📋 | 現状は「削除→追加」で代替 |
-| L-06 | 参照グラフの本格的なレイアウト・全件表示 | 🚧 | 描画40ノード・一覧500参照に制限した簡易実装 |
-| L-07 | 一括編集の対象キー拡張 | 🚧 | ルートの `status` / `owner` のみ |
-| L-08 | ファイル監視のOSネイティブ化（WatchService等） | 📋 | 現状は1秒間隔のタイムスタンプポーリング |
-| L-09 | フォーム系UI・AppState の自動テスト | 🚧 | 単体テストは ai／diff／AI提案合成／core（パッチ・開示・検索・CLI）／カバレッジ検証／agent（ステージング・カーネル・定義・自動化・メトリクス・評価・メタ）。Compose UI と AppState は手動確認 |
-| L-10 | AppState の core.Workspace への全面委譲 | 🚧 | 走査・検証・パッチ・レビュー適用（apply＋reload）は共通実装を共有済み。人間編集との排他は AG-14/15（編集中は自動適用を承認待ちへ降格）で実現。文書キャッシュ層の統合は継続課題 |
-| L-11 | AI生成ダイアログ（A-01〜03）とエージェントカーネルの完全統合 | 🚧 | 接続設定（`ui/AiSettings`）は共有済み。実行系の統合は、フィールド生成が Structured Outputs の型保証を持つ利点を崩さない形で検討（ROADMAP R2-09） |
-| L-12 | コード実行skill（宣言型で書けない変換・定型手順） | 📋 | サンドボックス外作用のため明示許可制の設計が前提（ROADMAP R5-01）。現状の skill は宣言型の import / export のみ |
-| L-13 | エクスポートのHTML・JSON形式、インポートのWord等 | 📋 | 現状は xlsx / csv / markdown（入力は + json）。`skill/Tables.kt` に形式を追加する |
-| L-14 | ビューグリッドの行集合はディスク索引基準 | 🚧 | セル値・編集は未保存編集を即時反映するが、行の増減（新しいID）は保存まで反映されない（索引の設計方針 ARCHITECTURE §4.5 に準拠）。セル直接編集はスカラー型のみで、配列・オブジェクトはジャンプして個別フォームで編集する |
+| L-01 | YAMLコメント・アンカー・スタイルの保持 | 📋 | SnakeYAML でブロックスタイル・インデント2に正規化される。対応するなら `YamlIO` を Node API ベースへ差し替え（[ARCHITECTURE.md](ARCHITECTURE.md) 拡張ポイント参照）。ROADMAP R8-01 で対応予定 |
+| L-02 | 複数ドキュメント（`---` 区切り）YAML | 📋 | 先頭ドキュメントのみ対象（ROADMAP R8-05） |
+| L-03 | ソースエディタの構文ハイライト・置換 | 📋 | 行番号・検索・エラー位置表示までは実装済み（ROADMAP R8-04） |
+| L-04 | 文字単位の差分表示 | 📋 | 行単位のLCS整列まで実装済み（ROADMAP R8-04） |
+| L-05 | 汎用ビューでのキー名変更 | 📋 | 現状は「削除→追加」で代替（ROADMAP R8-05） |
+| L-06 | 参照グラフの本格的なレイアウト・全件表示 | 🚧 | 描画40ノード・一覧500参照に制限した簡易実装（ROADMAP R8-05） |
+| L-07 | 一括編集の対象キー拡張 | 🚧 | ルートの `status` / `owner` のみ（ROADMAP R8-05） |
+| L-08 | ファイル監視のOSネイティブ化（WatchService等） | 📋 | 現状は1秒間隔のタイムスタンプポーリング（ROADMAP R8-03） |
+| L-09 | フォーム系UI・AppState の自動テスト | 🚧 | 単体テストは ai／diff／AI提案合成／core（パッチ・開示・検索・CLI）／カバレッジ検証／agent（ステージング・カーネル・定義・自動化・メトリクス・評価・メタ）。Compose UI と AppState は手動確認（ROADMAP R9-02 の委譲でテスト可能範囲を広げる） |
+| L-10 | AppState の core.Workspace への全面委譲 | 🚧 | 走査・検証・パッチ・レビュー適用（apply＋reload）は共通実装を共有済み。人間編集との排他は AG-14/15（編集中は自動適用を承認待ちへ降格）で実現。文書キャッシュ層の統合は継続課題（ROADMAP R9-02） |
+| L-11 | AI生成ダイアログ（A-01〜03）とエージェントカーネルの完全統合 | 🚧 | 接続設定（`ui/AiSettings`）は共有済み。実行系の統合は、フィールド生成が Structured Outputs の型保証を持つ利点を崩さない形で検討（ROADMAP R2-09・R9-01） |
+| L-12 | コード実行skill（宣言型で書けない変換・定型手順） | 📋 | サンドボックス外作用のため明示許可制の設計が前提（ROADMAP R5-01・R9-06）。現状の skill は宣言型の import / export のみ |
+| L-13 | エクスポートのHTML・JSON形式、インポートのWord等 | 📋 | 現状は xlsx / csv / markdown（入力は + json）。`skill/Tables.kt` に形式を追加する（ROADMAP R9-05） |
+| L-14 | ビューグリッドの行集合はディスク索引基準 | 🚧 | セル値・編集は未保存編集を即時反映するが、行の増減（新しいID）は保存まで反映されない（索引の設計方針 ARCHITECTURE §4.5 に準拠）。セル直接編集はスカラー型のみで、配列・オブジェクトはジャンプして個別フォームで編集する（ROADMAP R9-02 で再評価） |
 | L-15 | 出現ベースのカバレッジルール | 📋 | 現状の `coverage` は被参照数のみ。「一覧の全IDに詳細文書（特定スキーマの出現）があること」の機械検証は未対応（ビューの詳細列で目視確認は可能）。ROADMAP P7（R7-02）で対応予定 |
-| L-16 | `phases` / `coverage` のスキーマ設計UI未対応 | 🚧 | スキーマ全体設定のため `_schemas` のソース編集（YAML）で記述する。フィールド単位の `requiredFrom` はスキーマ設計UIに入力欄がある（S-05） |
+| L-16 | `phases` / `coverage` のスキーマ設計UI未対応 | 🚧 | スキーマ全体設定のため `_schemas` のソース編集（YAML）で記述する。フィールド単位の `requiredFrom` はスキーマ設計UIに入力欄がある（S-05）。ROADMAP R9-03 で対応予定 |

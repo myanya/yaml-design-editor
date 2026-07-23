@@ -1,13 +1,33 @@
 package schema
 
+import core.Workspace
 import model.YNode
 import yaml.YamlIO
+import java.nio.file.Files
 import java.nio.file.Path
+import kotlin.io.path.createTempDirectory
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class SchemaLoaderTest {
+    private fun write(workspace: Path, rel: String, content: String) {
+        val file = workspace.resolve(rel)
+        Files.createDirectories(file.parent)
+        Files.writeString(file, content.trimIndent() + "\n")
+    }
+
+    private fun <T> withWorkspace(block: (Path) -> T): T {
+        val workspace = createTempDirectory("yde-schema-catalog-test")
+        return try {
+            block(workspace)
+        } finally {
+            Files.walk(workspace).use { paths -> paths.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
+        }
+    }
+
     @Test
     fun `スキーマ全体の説明を読み込める`() {
         val schema = SchemaLoader.parseSchemaText(
@@ -287,5 +307,133 @@ class SchemaLoaderTest {
         val sample = schema.generateSample() as YNode.Map
         assertEquals("radio", (sample.entries["type"] as YNode.Scalar).value)
         assertTrue(sample.entries.containsKey("options"))
+    }
+
+    // ---------------------------------------------------------------- 横断 $ref（R7-03）
+
+    @Test
+    fun `libraryの定義を修飾refで参照できる`() = withWorkspace { workspace ->
+        write(
+            workspace,
+            "_schemas/_common.yaml",
+            """
+            id: common
+            name: 共通定義
+            kind: library
+            definitions:
+              identifier:
+                type: id
+              text-value:
+                type: string
+                description: 共通の文字列
+              name-pair:
+                type: object
+                fields:
+                  - key: name
+                    ${'$'}ref: text-value
+                  - key: alias
+                    ${'$'}ref: text-value
+            """,
+        )
+        write(
+            workspace,
+            "_schemas/item.yaml",
+            """
+            id: item
+            name: 項目
+            match: "items/**/*.yaml"
+            root:
+              type: object
+              fields:
+                - key: id
+                  ${'$'}ref: common#identifier
+                - key: names
+                  ${'$'}ref: common#name-pair
+            """,
+        )
+        write(
+            workspace,
+            "items/a.yaml",
+            """
+            id: ITEM-001
+            names:
+              name: 正式名
+              alias: 別名
+            """,
+        )
+
+        val loaded = SchemaLoader.loadAllWithErrors(workspace)
+        assertTrue(loaded.errors.isEmpty(), loaded.errors.toString())
+        val common = loaded.schemas.first { it.id == "common" }
+        val item = loaded.schemas.first { it.id == "item" }
+        assertEquals(SchemaKind.LIBRARY, common.kind)
+        assertFalse(common.matches("items/a.yaml"), "libraryはデータ文書へ適用しない")
+
+        val names = item.resolve(item.root.fields.first { it.key == "names" })
+        assertEquals(FieldType.OBJECT, names?.type)
+        val name = item.resolve(names?.fields?.first { it.key == "name" })
+        assertNotNull(name)
+        assertEquals(FieldType.STRING, name.type)
+        assertEquals("共通の文字列", name.description, "共有定義内の非修飾refは共有モジュール内で解決する")
+
+        val sample = item.generateSample() as YNode.Map
+        val nameValues = sample.entries["names"] as YNode.Map
+        assertTrue(nameValues.entries.keys.containsAll(listOf("name", "alias")))
+
+        val opened = Workspace.open(workspace)
+        assertTrue("ITEM-001" in opened.index.entries, "索引スキャナも横断refで解決したID型を認識する")
+        assertTrue(opened.validate("items/a.yaml").isEmpty())
+    }
+
+    @Test
+    fun `未定義の横断refはロードエラーになる`() = withWorkspace { workspace ->
+        write(
+            workspace,
+            "_schemas/item.yaml",
+            """
+            id: item
+            name: 項目
+            match: "items/**/*.yaml"
+            root:
+              type: object
+              fields:
+                - key: value
+                  ${'$'}ref: missing#value
+            """,
+        )
+
+        val loaded = SchemaLoader.loadAllWithErrors(workspace)
+        assertTrue(loaded.errors.any { "missing#value" in it && "未定義の参照" in it }, loaded.errors.toString())
+    }
+
+    @Test
+    fun `libraryにはdefinitionsが必要でmatchとrootを持てない`() = withWorkspace { workspace ->
+        write(
+            workspace,
+            "_schemas/broken.yaml",
+            """
+            id: broken
+            name: 壊れたライブラリ
+            kind: library
+            match: "**/*.yaml"
+            """,
+        )
+        write(
+            workspace,
+            "_schemas/with-root.yaml",
+            """
+            id: with-root
+            name: rootつきライブラリ
+            kind: library
+            definitions:
+              value: { type: string }
+            root: { type: object, fields: [] }
+            """,
+        )
+
+        val loaded = SchemaLoader.loadAllWithErrors(workspace)
+        assertTrue(loaded.errors.any { "definitions が必要" in it }, loaded.errors.toString())
+        assertTrue(loaded.errors.any { "library スキーマに match" in it }, loaded.errors.toString())
+        assertTrue(loaded.errors.any { "library スキーマに root" in it }, loaded.errors.toString())
     }
 }

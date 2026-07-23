@@ -47,7 +47,8 @@ src/main/kotlin/
 |---|---|---|
 | `YNode` (Scalar/Seq/Map) | model/YNode.kt | YAMLの可変ツリー。`YPath`（String=キー, Int=索引）で位置を表現 |
 | `YamlIO` | yaml/YamlIO.kt | テキスト⇔`YNode` 変換。表層情報を保持しない正規化ダンプ（ブロック・インデント2、リスト記号も親から一段下げる） |
-| `FieldType` / `FieldDef` / `SchemaDef` | schema/Schema.kt | スキーマモデル。`resolve()` が `$ref` を属性合成しつつ解決。`FieldDef.relation` が参照の関係種別。`effectiveFields()` が enum の `cases` を合成した object の実効フィールドを返す |
+| `FieldType` / `FieldDef` / `SchemaDef` | schema/Schema.kt | スキーマモデル。`resolve()` がローカル／横断 `$ref` を属性合成しつつ解決。`FieldDef.relation` が参照の関係種別。`effectiveFields()` が enum の `cases` を合成した object の実効フィールドを返す |
+| `SchemaCatalog` / `SchemaKind` | schema/Schema.kt | 全スキーマ・libraryの定義を `(moduleId, definitionName)` でリンクする中央カタログ。`kind: library` はdefinitionsだけを公開し文書には適用されない |
 | `PhasesDef` / `currentPhaseIndex` / `requiredAt` | schema/Schema.kt | フェーズ機構（§4.15）: スキーマの `phases` 宣言と、文書の現在フェーズ解決・フェーズ考慮の実効必須判定（検証・進捗計算が共有） |
 | `CoverageRule` / `CoverageLevel` | schema/Schema.kt | スキーマの `coverage`（被参照必須などのトレーサビリティ要件）の定義。`activeFrom` でフェーズ到達までの判定保留を宣言できる |
 | `SchemaLoader` | schema/Schema.kt | `_schemas/` の読込・パース・スキーマID重複検出 |
@@ -126,7 +127,9 @@ Undo/Redo は `YamlIO.dump` したスナップショット文字列の履歴（�
 
 ### 4.7 スキーマの `$ref` 解決と実効フィールド
 
-`SchemaDef.resolve()` は参照先定義に呼び出し側の `key`/`label`/`required` 等を合成して返す。フィールドを使う側は**必ず** `schema.resolve(field)` を通す（`FormView`・`Validator`・`DocScanner`・`ai` すべて同じ流儀）。
+`SchemaDef.resolve()` は参照先定義に呼び出し側の `key`/`label`/`required` 等を合成して返す。フィールドを使う側は**必ず** `schema.resolve(field)` を通す（`FormView`・`Validator`・`DocScanner`・`ai` すべて同じ流儀）。ローカル参照は `$ref: definition`、横断参照は `$ref: moduleId#definition`。`SchemaLoader` は全ファイルをパースしてから `SchemaCatalog` を構築する二段階ロードを行うため、ファイル順に関係なく横断参照を解決できる。
+
+`kind: library` のスキーマ文書は `definitions` だけを公開し、`matches()` は常に false になる。library は `match` / `root` / `phases` / `coverage` を持たない。各 `FieldDef` は内部的に宣言元モジュールを保持するため、libraryから解決した定義の子に非修飾 `$ref` があっても、そのlibrary内を基準に解決する。definitionsを利用側へマージしてはならない（名前衝突と参照元の喪失を防ぐため）。
 
 enum の `cases`（値ごとの追加フィールド。判別共用体）を持ちうる object の子フィールドを列挙する側は、**必ず** `schema.effectiveFields(fields, node)` を通す（`Validator`・`FormView.ObjectFields`・`DocScanner`・初期値生成 `defaultNode`/`defaultFor`/`generateSample` すべて同じ流儀）。データノードの enum 値に応じて case フィールドが判別フィールドの直後に合成され、追加されたフィールド自身が `cases` つき enum なら同じ親 object 上で再帰的に展開される。非アクティブな case のキー（→ 有効になる値）の逆引きも同時に得られる。素の `field.fields` を直接列挙すると case フィールドが漏れる。なお `ai.fieldToJsonSchema` のみ、データノードが存在しない（これから生成する）ため `effectiveFields` を使わず、判別 enum が1つなら値ごとの `anyOf` 分岐、複数なら全 case の和集合に変換する。
 
@@ -238,6 +241,7 @@ enum の `cases`（値ごとの追加フィールド。判別共用体）を持�
 - **コメント保持**: `YamlIO` を SnakeYAML の Node API（`LoaderOptions.setProcessComments(true)`）ベースに差し替える。ツリー変換層が `YamlIO` に隔離されているため影響範囲は限定的。
 - **横断ビューの追加**: データソースとして `AppState.workspaceRecords()` と `IdIndex` を利用し、`Main.kt` の `workspaceView` 分岐に追加する。
 - **ビュー定義の項目追加**: `core/Views.kt` の `parseView` と `schema/BuiltinSchemas.kt` の `builtin-view` スキーマを**対で**更新する（フォーム編集・検証と実行時パースの二重定義のため）。
+- **共通スキーマ定義の追加**: `_schemas` に `kind: library` を置き、利用側は `moduleId#definition` で参照する。解決規則を増やす場合は `SchemaCatalog` に閉じ、各利用側で参照文字列を個別解析しない。
 - **AIプロバイダの追加**: `AiProvider` に enum を追加し、`AiGenerator.generate` の分岐と専用クライアント（`generate` + `parseResponse` を持つ object）を実装する。
 - **入出力形式の追加**: `TableFormat` に enum を追加し、`skill/Tables.kt` の read / write に分岐を実装する（Importer / Exporter は形式非依存のため変更不要）。
 - **テンプレートパックの追加**: `skill/TemplatePacks.kt` の `all` に `Pack`（ファイルパス→内容の埋め込み）を登録する。`ImportExportTest` に倣い、展開後の検証エラー0をテストで保証する。

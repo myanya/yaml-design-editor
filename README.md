@@ -112,11 +112,12 @@ my-workspace/
 
 ## 4. スキーマ定義リファレンス
 
-`_schemas/*.yaml` に 1 ファイル 1 スキーマで配置します。
+`_schemas/*.yaml` に 1 ファイル 1 スキーマまたは共通定義ライブラリで配置します。
 
 ```yaml
 id: requirement                       # 安定したスキーマID（省略時はスキーマファイル名）
 name: 要求                             # 表示用のスキーマ名
+kind: document                        # document（既定）/ library（共通定義のみ）
 description: |                         # スキーマ全体の説明（任意・複数行）
   要求事項を管理するスキーマです。
   要求の状態と関連を一貫した形式で記録します。
@@ -282,7 +283,7 @@ environments:
 
 ### 名前付き定義と再帰スキーマ
 
-共通または再帰的な構造は `definitions` に置き、`$ref` で参照できます。
+共通または再帰的な構造は `definitions` に置き、`$ref` で参照できます。同じスキーマ内は定義名だけ、別のスキーマ・ライブラリは `スキーマID#定義名` で参照します。
 
 ```yaml
 name: outline
@@ -302,7 +303,38 @@ root:
   $ref: node
 ```
 
-`_schemas` 配下のファイルを開くと「スキーマ設計」タブが表示され、名前付き定義や参照を構造化UIで編集できます。
+複数の工程別スキーマで共通する構造は、業務文書へ直接適用されない `kind: library` に切り出せます。library は `definitions` だけを持ち、`match` / `root` / `phases` / `coverage` は持ちません。
+
+```yaml
+# _schemas/_common.yaml
+id: common
+name: 共通フィールド
+kind: library
+definitions:
+  column:
+    type: object
+    fields:
+      - { key: name, type: string, required: true }
+      - { key: dataType, type: enum, values: [string, number, boolean] }
+```
+
+```yaml
+# _schemas/logical-table.yaml
+id: logical-table
+name: 論理テーブル
+match: "tables/logical/**/*.yaml"
+root:
+  type: object
+  fields:
+    - key: columns
+      type: array
+      item:
+        $ref: common#column
+```
+
+修飾参照した共通定義の内部で非修飾 `$ref` を使った場合、その参照は利用側ではなく共通定義を宣言したライブラリ内で解決されます。ライブラリIDの重複と未解決参照はロード時のスキーマ定義エラーになります。
+
+`_schemas` 配下のファイルを開くと「スキーマ設計」タブが表示され、document / library の切替、名前付き定義、ローカル／横断参照を構造化UIで編集できます。document から library への変更では適用定義が削除されるため確認ダイアログが表示されます。
 
 スキーマ設計画面には次の確認機能があります。
 

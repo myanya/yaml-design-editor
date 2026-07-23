@@ -23,6 +23,7 @@ import model.YNode
 import schema.FieldType
 import schema.SchemaDef
 import schema.SchemaIssue
+import schema.SchemaKind
 import schema.SchemaLoader
 import schema.generateSample
 import schema.validateDefinition
@@ -38,9 +39,12 @@ fun SchemaEditor(state: AppState, doc: OpenDocument) {
             modifier = Modifier.padding(16.dp))
         return
     }
-    val schemaResult = remember(doc.version) { runCatching { SchemaLoader.parseSchemaText(doc.canonicalText(), doc.file) } }
+    val schemaResult = remember(doc.version, state.schemas) {
+        runCatching { SchemaLoader.parseSchemaText(doc.canonicalText(), doc.file, state.schemas) }
+    }
     val schema = schemaResult.getOrNull()
     val issues = remember(schema, doc.version) { schema?.validateDefinition().orEmpty() }
+    val library = scalar(root, "kind") == SchemaKind.LIBRARY.id
     var mode by remember { mutableStateOf(0) }
     Column(Modifier.fillMaxSize()) {
         TabRow(selectedTabIndex = mode, containerColor = Palette.Surface, contentColor = Palette.Primary) {
@@ -58,8 +62,9 @@ fun SchemaEditor(state: AppState, doc: OpenDocument) {
             Spacer(Modifier.height(10.dp))
             CompactScalar(root, "id", "スキーマID", doc)
             CompactScalar(root, "name", "スキーマ名", doc)
+            SchemaKindEditor(root, doc, library)
             CompactMultilineScalar(root, "description", "スキーマの説明", doc)
-            CompactScalar(root, "match", "適用パターン", doc)
+            if (!library) CompactScalar(root, "match", "適用パターン", doc)
             if (schemaResult.isFailure) {
                 SchemaProblem("スキーマを解析できません: ${schemaResult.exceptionOrNull()?.message}")
             }
@@ -67,17 +72,31 @@ fun SchemaEditor(state: AppState, doc: OpenDocument) {
             Spacer(Modifier.height(12.dp))
 
             val definitions = ensureMap(root, "definitions", doc, mark = false)
+            val externalDefinitions = state.schemas.asSequence()
+                .filter { it.id != schema?.id }
+                .flatMap { module -> module.definitions.keys.asSequence().map { "${module.id}#$it" } }
+                .toList()
+            val definitionChoices = (definitions.entries.keys + externalDefinitions).distinct().sorted()
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("名前付き定義", fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                 AddDefinitionButton(definitions, doc)
             }
             definitions.entries.keys.toList().forEach { name ->
-                DefinitionCard(name, definitions, doc, definitions.entries.keys.toList())
+                DefinitionCard(name, definitions, doc, definitionChoices)
             }
-            Spacer(Modifier.height(12.dp))
-            Text("ルート定義", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-            val rootDef = ensureMap(root, "root", doc, mark = false)
-            FieldDefinitionEditor(rootDef, doc, definitions.entries.keys.toList(), allowKey = false, depth = 0)
+            if (!library) {
+                Spacer(Modifier.height(12.dp))
+                Text("ルート定義", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                val rootDef = ensureMap(root, "root", doc, mark = false)
+                FieldDefinitionEditor(rootDef, doc, definitionChoices, allowKey = false, depth = 0)
+            } else {
+                Text(
+                    "library は業務文書へ適用されず、definitions だけを他スキーマへ公開します。",
+                    fontSize = 11.sp,
+                    color = Palette.SubText,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
             Spacer(Modifier.height(48.dp))
                 }
                 VerticalScrollbar(rememberScrollbarAdapter(scroll), Modifier.align(Alignment.CenterEnd).fillMaxHeight())
@@ -95,7 +114,53 @@ private fun SchemaProblem(message: String) {
 }
 
 @Composable
+private fun SchemaKindEditor(map: YNode.Map, doc: OpenDocument, library: Boolean) {
+    var confirmLibrary by remember { mutableStateOf(false) }
+    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("スキーマ種別", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+        ChoiceButton(if (library) "library" else "document", listOf("document", "library")) { selected ->
+            when {
+                selected == "library" && !library -> confirmLibrary = true
+                selected == "document" && library -> {
+                    map.entries["kind"] = YNode.Scalar("document")
+                    map.entries.putIfAbsent("match", YNode.Scalar("**/*.{yaml,yml}"))
+                    map.entries.putIfAbsent(
+                        "root",
+                        YNode.Map(linkedMapOf(
+                            "type" to YNode.Scalar("object"),
+                            "fields" to YNode.Seq(),
+                        )),
+                    )
+                    doc.markEdited()
+                }
+            }
+        }
+    }
+    if (confirmLibrary) AlertDialog(
+        onDismissRequest = { confirmLibrary = false },
+        title = { Text("共通定義ライブラリへ変更") },
+        text = { Text("適用パターン・ルート定義・フェーズ・カバレッジを削除し、definitions だけを公開します。") },
+        confirmButton = {
+            TextButton(onClick = {
+                map.entries["kind"] = YNode.Scalar("library")
+                listOf("match", "root", "phases", "coverage").forEach(map.entries::remove)
+                doc.markEdited()
+                confirmLibrary = false
+            }) { Text("libraryへ変更", color = Palette.ErrorRed) }
+        },
+        dismissButton = { TextButton(onClick = { confirmLibrary = false }) { Text("キャンセル") } },
+    )
+}
+
+@Composable
 private fun SchemaPreview(state: AppState, sourceDoc: OpenDocument, schema: SchemaDef?, issues: List<SchemaIssue>) {
+    if (schema?.kind == SchemaKind.LIBRARY) {
+        Column(Modifier.padding(16.dp)) {
+            Text("共通定義ライブラリ", fontWeight = FontWeight.Bold)
+            Text("library はデータ文書へ適用されないため、サンプルプレビューはありません。", fontSize = 12.sp, color = Palette.SubText)
+        }
+        return
+    }
     if (schema == null || issues.isNotEmpty()) {
         Column(Modifier.padding(16.dp)) {
             Text("プレビューを生成できません", fontWeight = FontWeight.Bold, color = Palette.ErrorRed)
@@ -128,6 +193,13 @@ private fun SchemaPreview(state: AppState, sourceDoc: OpenDocument, schema: Sche
 private fun SchemaTargets(state: AppState, schema: SchemaDef?) {
     if (schema == null) {
         Text("スキーマを解析できないため適用対象を確認できません", color = Palette.ErrorRed, modifier = Modifier.padding(16.dp))
+        return
+    }
+    if (schema.kind == SchemaKind.LIBRARY) {
+        Column(Modifier.padding(16.dp)) {
+            Text("共通定義ライブラリ", fontWeight = FontWeight.Bold)
+            Text("業務文書には直接適用されません。公開定義: ${schema.definitions.size} 件", fontSize = 12.sp, color = Palette.SubText)
+        }
         return
     }
     val targets = remember(schema, state.yamlFiles) {

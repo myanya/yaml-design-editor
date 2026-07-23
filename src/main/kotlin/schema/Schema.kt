@@ -40,6 +40,50 @@ enum class UnknownFieldsPolicy(val id: String) {
     }
 }
 
+/** `_schemas` 配下の文書種別。library は共通定義だけを公開し、業務文書には適用されない。 */
+enum class SchemaKind(val id: String) {
+    DOCUMENT("document"),
+    LIBRARY("library");
+
+    companion object {
+        fun parse(value: String?): SchemaKind = when (value) {
+            null, "document" -> DOCUMENT
+            "library" -> LIBRARY
+            else -> error("kind は document / library のいずれかである必要があります: $value")
+        }
+    }
+}
+
+/** 定義を一意に指す修飾名。`module#name` の文字列表現に対応する。 */
+internal data class DefinitionKey(val moduleId: String, val name: String) {
+    override fun toString(): String = "$moduleId#$name"
+}
+
+/** ワークスペース内の定義モジュールを修飾名で引く中央カタログ。生成・検索はスキーマ層に閉じる。 */
+class SchemaCatalog private constructor(
+    private val definitionsByModule: Map<String, Map<String, FieldDef>>,
+) {
+    internal fun find(ref: String, fallbackModuleId: String): Pair<DefinitionKey, FieldDef>? {
+        val hash = ref.indexOf('#')
+        val moduleId = if (hash >= 0) ref.substring(0, hash) else fallbackModuleId
+        val name = if (hash >= 0) ref.substring(hash + 1) else ref
+        if (moduleId.isBlank() || name.isBlank()) return null
+        val key = DefinitionKey(moduleId, name)
+        return definitionsByModule[moduleId]?.get(name)?.let { key to it }
+    }
+
+    companion object {
+        internal fun local(moduleId: String, definitions: Map<String, FieldDef>): SchemaCatalog =
+            SchemaCatalog(mapOf(moduleId to definitions))
+
+        internal fun linked(modules: Iterable<Pair<String, Map<String, FieldDef>>>): SchemaCatalog {
+            val definitions = linkedMapOf<String, Map<String, FieldDef>>()
+            modules.forEach { (id, values) -> definitions.putIfAbsent(id, values) }
+            return SchemaCatalog(definitions)
+        }
+    }
+}
+
 /**
  * スキーマ内の 1 フィールド定義。
  */
@@ -61,6 +105,8 @@ data class FieldDef(
     val description: String? = null,         // フィールドの説明（フォームに表示）
     val ref: String? = null,                 // definitions 内の名前付き定義への参照
     val unknownFields: UnknownFieldsPolicy? = null, // object の未定義キー。null は warning
+    /** 非修飾 `$ref` の解決元。パーサーが設定し、横断参照した定義の子でも元モジュールを保つ。 */
+    internal val definitionScope: String? = null,
 ) {
     val displayLabel: String get() = label ?: key ?: "(root)"
 }
@@ -113,18 +159,30 @@ data class SchemaDef(
     val coverage: List<CoverageRule> = emptyList(),
     val phases: PhasesDef? = null,
     val source: Path,
+    val kind: SchemaKind = SchemaKind.DOCUMENT,
+    /** SchemaLoader が全モジュールを読み込んだ後にリンクする。単体生成時はローカル定義だけで動作する。 */
+    internal val definitionCatalog: SchemaCatalog = SchemaCatalog.local(id, definitions),
 ) {
     private val regex: Regex by lazy { globToRegex(match) }
 
     /** ワークスペース相対パス（区切りは '/'）がこのスキーマの対象か。 */
-    fun matches(relPath: String): Boolean = regex.matches(relPath)
+    fun matches(relPath: String): Boolean = kind == SchemaKind.DOCUMENT && regex.matches(relPath)
+
+    /** `$ref` の参照先。非修飾名はフィールドの定義元、修飾名は `module#name` から引く。 */
+    internal fun definitionTarget(field: FieldDef): Pair<DefinitionKey, FieldDef>? {
+        val ref = field.ref ?: return null
+        return definitionCatalog.find(ref, field.definitionScope ?: id)
+    }
+
+    internal fun withDefinitionCatalog(catalog: SchemaCatalog): SchemaDef = copy(definitionCatalog = catalog)
 
     /** $ref を1段ずつ解決する。循環はデータ走査側が有限なので許容する。 */
     fun resolve(field: FieldDef?): FieldDef? {
         var current = field ?: return null
-        val seen = mutableSetOf<String>()
-        while (current.ref != null && seen.add(current.ref)) {
-            val target = definitions[current.ref] ?: return current
+        val seen = mutableSetOf<DefinitionKey>()
+        while (current.ref != null) {
+            val (key, target) = definitionTarget(current) ?: return current
+            if (!seen.add(key)) return current
             current = target.copy(
                 key = current.key ?: target.key,
                 label = current.label ?: target.label,
@@ -211,20 +269,29 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
     val issues = mutableListOf<SchemaIssue>()
     if (name.isBlank()) issues += SchemaIssue("スキーマ名が空です", "name")
     if (id.isBlank()) issues += SchemaIssue("スキーマIDが空です", "id")
-    if (match.isBlank()) issues += SchemaIssue("適用パターンが空です", "match")
-    runCatching { globToRegex(match) }.onFailure { issues += SchemaIssue("適用パターンが不正です: ${it.message}", "match") }
+    if (kind == SchemaKind.DOCUMENT) {
+        if (match.isBlank()) issues += SchemaIssue("適用パターンが空です", "match")
+        runCatching { globToRegex(match) }
+            .onFailure { issues += SchemaIssue("適用パターンが不正です: ${it.message}", "match") }
+    } else {
+        if (match.isNotBlank()) issues += SchemaIssue("library スキーマに match は定義できません", "match")
+        if (definitions.isEmpty()) issues += SchemaIssue("library スキーマには1つ以上の definitions が必要です", "definitions")
+        if (coverage.isNotEmpty()) issues += SchemaIssue("library スキーマに coverage は定義できません", "coverage")
+        if (phases != null) issues += SchemaIssue("library スキーマに phases は定義できません", "phases")
+    }
 
-    fun check(field: FieldDef, path: String, stack: Set<String>) {
+    fun check(field: FieldDef, path: String, stack: Set<DefinitionKey>) {
         field.requiredFrom?.let { from ->
             if (phases == null) issues += SchemaIssue("requiredFrom を使うには phases の宣言が必要です", path)
             else if (from !in phases.order) issues += SchemaIssue("requiredFrom「$from」は phases に含まれていません", path)
             if (field.required) issues += SchemaIssue("required と requiredFrom は併用できません", path)
         }
         field.ref?.let { ref ->
-            val target = definitions[ref]
-            if (target == null) issues += SchemaIssue("未定義の参照です: \$$ref", path)
+            val located = definitionTarget(field)
+            if (located == null) issues += SchemaIssue("未定義の参照です: \$$ref", path)
             else {
-                if (ref !in stack) check(target, "definitions.$ref", stack + ref)
+                val (key, target) = located
+                if (key !in stack) check(target, "definitions.$key", stack + key)
                 val resolved = resolve(field) ?: field
                 if (resolved.cases.isNotEmpty() && resolved.type != FieldType.ENUM) {
                     issues += SchemaIssue("casesはenum型でのみ使用できます", path)
@@ -291,8 +358,10 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
             else -> Unit
         }
     }
-    check(root, "root", emptySet())
-    definitions.forEach { (name, field) -> check(field, "definitions.$name", setOf(name)) }
+    if (kind == SchemaKind.DOCUMENT) check(root, "root", emptySet())
+    definitions.forEach { (name, field) ->
+        check(field, "definitions.$name", setOf(DefinitionKey(id, name)))
+    }
     coverage.forEachIndexed { i, rule ->
         if (rule.minCount < 1) issues += SchemaIssue("minCountは1以上が必要です", "coverage[$i]")
         if (rule.idPattern != null && rule.idPattern.isBlank()) issues += SchemaIssue("idPatternが空です", "coverage[$i]")
@@ -313,31 +382,30 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
 
 /** プレビューや新規作成に使うサンプルYAMLツリーを生成する。 */
 fun SchemaDef.generateSample(): YNode {
-    fun create(original: FieldDef, depth: Int, stack: Set<String>): YNode {
+    fun create(original: FieldDef, depth: Int, stack: Set<DefinitionKey>): YNode {
         if (depth > 16) return YNode.Map()
-        original.ref?.let { ref ->
-            if (ref in stack) return YNode.Map()
-            return definitions[ref]?.let { create(it, depth + 1, stack + ref) } ?: YNode.Scalar("")
-        }
-        val field = original
+        val reference = definitionTarget(original)?.first
+        if (reference != null && reference in stack) return YNode.Map()
+        val nextStack = if (reference == null) stack else stack + reference
+        val field = resolve(original) ?: original
         if (field.default != null) return YamlIO.fromAny(field.default)
         return when (field.type) {
             FieldType.OBJECT -> {
                 val entries = LinkedHashMap<String, YNode>().apply {
-                    field.fields.forEach { child -> child.key?.let { put(it, create(child, depth + 1, stack)) } }
+                    field.fields.forEach { child -> child.key?.let { put(it, create(child, depth + 1, nextStack)) } }
                 }
                 // enum の生成値（default または先頭の選択肢）に応じた case フィールドを実効順で合成する
                 val ordered = effectiveFields(field.fields, YNode.Map(entries)).fields
                 YNode.Map(LinkedHashMap<String, YNode>().apply {
                     ordered.forEach { child ->
                         val key = child.key ?: return@forEach
-                        put(key, entries[key] ?: create(child, depth + 1, stack))
+                        put(key, entries[key] ?: create(child, depth + 1, nextStack))
                     }
                 })
             }
             FieldType.ARRAY -> YNode.Seq(
-                if (field.item?.ref?.let { it in stack } == true) mutableListOf()
-                else field.item?.let { mutableListOf(create(it, depth + 1, stack)) } ?: mutableListOf()
+                if (field.item?.let { item -> definitionTarget(item)?.first?.let { it in nextStack } } == true) mutableListOf()
+                else field.item?.let { mutableListOf(create(it, depth + 1, nextStack)) } ?: mutableListOf()
             )
             FieldType.MAP -> YNode.Map()
             FieldType.BOOLEAN -> YNode.Scalar(false)
@@ -420,37 +488,46 @@ object SchemaLoader {
         val schemas = mutableListOf<SchemaDef>()
         val errors = mutableListOf<String>()
         files.forEach { f ->
-            runCatching { parseSchemaFile(f) }.onSuccess { schema ->
-                schemas += schema
-                schema.validateDefinition().forEach { issue ->
-                    errors += "${f.fileName} [${issue.path}]: ${issue.message}"
-                }
-            }.onFailure { errors += "${f.fileName}: ${it.message ?: it::class.simpleName}" }
+            runCatching { parseSchemaFile(f) }.onSuccess { schemas += it }
+                .onFailure { errors += "${f.fileName}: ${it.message ?: it::class.simpleName}" }
         }
         schemas.groupBy { it.id }.filterValues { it.size > 1 }.forEach { (id, duplicates) ->
             errors += "スキーマID「$id」が重複しています（${duplicates.joinToString(", ") { it.source.fileName.toString() }}）"
         }
         // 組込みスキーマ（_agents / _activities）は利用者スキーマの後ろに置く（先勝ちのため利用者定義が優先）
-        schemas += BuiltinSchemas.all.filter { builtin -> schemas.none { it.id == builtin.id } }
-        return LoadResult(schemas, errors)
+        val all = schemas + BuiltinSchemas.all.filter { builtin -> schemas.none { it.id == builtin.id } }
+        val catalog = SchemaCatalog.linked(all.map { it.id to it.definitions })
+        val linked = all.map { it.withDefinitionCatalog(catalog) }
+        linked.take(schemas.size).forEach { schema ->
+            schema.validateDefinition().forEach { issue ->
+                errors += "${schema.source.fileName} [${issue.path}]: ${issue.message}"
+            }
+        }
+        return LoadResult(linked, errors)
     }
 
-    fun parseSchemaText(text: String, source: Path): SchemaDef {
+    fun parseSchemaText(text: String, source: Path, availableSchemas: List<SchemaDef> = emptyList()): SchemaDef {
         val raw = YamlIO.parseToRaw(text) as? Map<*, *> ?: error("スキーマのルートはobjectである必要があります")
         val fallbackId = source.fileName.toString().substringBeforeLast('.')
         val id = raw["id"]?.toString() ?: fallbackId
         val name = raw["name"]?.toString() ?: id
         val description = raw["description"]?.toString()
-        val match = raw["match"]?.toString() ?: "**/*.{yaml,yml}"
+        val kind = SchemaKind.parse(raw["kind"]?.toString())
+        val match = raw["match"]?.toString() ?: if (kind == SchemaKind.DOCUMENT) "**/*.{yaml,yml}" else ""
         val definitions = (raw["definitions"] as? Map<*, *>)?.entries?.associate { (name, value) ->
             val definition = value as? Map<*, *> ?: error("definitions.${name}: objectである必要があります")
-            name.toString() to parseField(definition, key = null)
+            name.toString() to parseField(definition, key = null, definitionScope = id)
         } ?: emptyMap()
-        val rootMap = raw["root"] as? Map<*, *> ?: error("root定義が必要です")
-        val root = parseField(rootMap, key = null)
+        val root = if (kind == SchemaKind.LIBRARY) {
+            require(raw["root"] == null) { "library スキーマに root は定義できません" }
+            FieldDef(type = FieldType.OBJECT, definitionScope = id)
+        } else {
+            val rootMap = raw["root"] as? Map<*, *> ?: error("root定義が必要です")
+            parseField(rootMap, key = null, definitionScope = id)
+        }
         val coverage = parseCoverage(raw["coverage"])
         val phases = parsePhases(raw["phases"])
-        return SchemaDef(
+        val parsed = SchemaDef(
             id = id,
             name = name,
             description = description,
@@ -460,7 +537,13 @@ object SchemaLoader {
             coverage = coverage,
             phases = phases,
             source = source,
+            kind = kind,
         )
+        if (availableSchemas.isEmpty()) return parsed
+        val modules = availableSchemas.filter { it.id != parsed.id }.map { it.id to it.definitions } +
+            (parsed.id to parsed.definitions)
+        val catalog = SchemaCatalog.linked(modules)
+        return parsed.withDefinitionCatalog(catalog)
     }
 
     private fun parsePhases(raw: Any?): PhasesDef? = when (raw) {
@@ -502,17 +585,21 @@ object SchemaLoader {
 
     private fun parseSchemaFile(file: Path): SchemaDef = parseSchemaText(Files.readString(file), file)
 
-    private fun parseField(m: Map<*, *>?, key: String?): FieldDef {
-        if (m == null) return FieldDef(key = key)
+    private fun parseField(m: Map<*, *>?, key: String?, definitionScope: String): FieldDef {
+        if (m == null) return FieldDef(key = key, definitionScope = definitionScope)
         val typeName = m["type"]?.toString()
         val type = if (typeName == null) FieldType.STRING
             else FieldType.entries.firstOrNull { it.id == typeName } ?: error("未知の型です: $typeName")
         val fields = (m["fields"] as? List<*>)?.mapIndexed { index, f ->
             val child = f as? Map<*, *> ?: error("fields[$index]はobjectである必要があります")
-            parseField(child, child["key"]?.toString())
+            parseField(child, child["key"]?.toString(), definitionScope)
         } ?: emptyList()
-        val item = m["item"]?.let { parseField(it as? Map<*, *> ?: error("itemはobjectである必要があります"), null) }
-        val value = m["value"]?.let { parseField(it as? Map<*, *> ?: error("valueはobjectである必要があります"), null) }
+        val item = m["item"]?.let {
+            parseField(it as? Map<*, *> ?: error("itemはobjectである必要があります"), null, definitionScope)
+        }
+        val value = m["value"]?.let {
+            parseField(it as? Map<*, *> ?: error("valueはobjectである必要があります"), null, definitionScope)
+        }
         val values = (m["values"] as? List<*>)?.map { it.toString() } ?: emptyList()
         val cases = when (val rawCases = m["cases"]) {
             null -> emptyMap()
@@ -520,7 +607,7 @@ object SchemaLoader {
                 val list = defs as? List<*> ?: error("cases.${caseValue}はフィールド定義のリストである必要があります")
                 caseValue.toString() to list.mapIndexed { index, f ->
                     val child = f as? Map<*, *> ?: error("cases.${caseValue}[$index]はobjectである必要があります")
-                    parseField(child, child["key"]?.toString())
+                    parseField(child, child["key"]?.toString(), definitionScope)
                 }
             }
             else -> error("casesはobject（enum値 → フィールド定義リスト）である必要があります")
@@ -559,6 +646,7 @@ object SchemaLoader {
             unknownFields = m["unknownFields"]?.toString()?.let { raw ->
                 UnknownFieldsPolicy.parse(raw) ?: error("unknownFields は allow / warning / error のいずれかである必要があります: $raw")
             },
+            definitionScope = definitionScope,
         )
     }
 }
