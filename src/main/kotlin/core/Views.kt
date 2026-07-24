@@ -2,6 +2,7 @@ package core
 
 import index.IdEntry
 import index.IdIndex
+import index.RefEntry
 import index.idMatchesPattern
 import model.YNode
 import model.YPath
@@ -42,12 +43,26 @@ data class ViewSource(
     val isEmpty: Boolean get() = schemaId == null && fileGlob == null
 }
 
-/** ビューの1列。出現要素からの相対YPathで値を指す。 */
+/**
+ * バックリンク列の条件。行IDへの参照（被参照）を関係種別・参照元スキーマで絞る。
+ * 1:N詳細化（新ID＋親への ref。R7-02）の「親から見た分裂先の一覧」を表示する。
+ */
+data class ViewBacklinksDef(
+    val relation: String? = null,
+    val schemaIds: List<String> = emptyList(),
+) {
+    fun matches(ref: RefEntry): Boolean =
+        (relation == null || ref.relation == relation) &&
+            (schemaIds.isEmpty() || ref.sourceSchemaId in schemaIds)
+}
+
+/** ビューの1列。出現要素からの相対YPathで値を指すか、backlinks で被参照の一覧を表示する。 */
 data class ViewColumn(
     val label: String,
     val from: ViewSource = ViewSource(),
     val path: YPath,
     val editable: Boolean = false,
+    val backlinks: ViewBacklinksDef? = null,  // 非null のとき被参照一覧の列（path / editable とは排他）
 )
 
 /** 行の集合の定義。idPattern に一致する論理IDが行になる。 */
@@ -80,13 +95,23 @@ data class ViewDef(
     val source: Path,
 )
 
-/** 解決済みのセル。file が null のときは対応する出現がない（値なし）。 */
+/** バックリンク列の1件。参照元要素を含む最も近いID（その位置にIDがなければ null）と、参照値の座標。 */
+data class ViewBacklink(
+    val sourceId: String?,
+    val rel: String,
+    val file: Path,
+    val path: YPath,        // 参照値（スカラー）の位置
+    val relation: String?,
+)
+
+/** 解決済みのセル。file が null のときは対応する出現がない（値なし）。backlinks はバックリンク列のみ非null。 */
 data class ViewCell(
     val column: ViewColumn,
     val rel: String?,
     val file: Path?,
     val path: YPath?,       // 絶対YPath（出現要素のパス + 列の相対パス）
     val value: YNode?,
+    val backlinks: List<ViewBacklink>? = null,
 )
 
 /** 解決済みの1行（＝1論理ID）。 */
@@ -140,8 +165,25 @@ object Views {
         require(columnsRaw.isNotEmpty()) { "columns には1列以上が必要です" }
         val columns = columnsRaw.mapIndexed { i, entry ->
             val m = entry as? Map<*, *> ?: error("columns[$i] はobjectである必要があります")
-            ViewColumn(
-                label = m["label"]?.toString()?.takeIf { it.isNotBlank() } ?: error("columns[$i].label が必要です"),
+            val label = m["label"]?.toString()?.takeIf { it.isNotBlank() } ?: error("columns[$i].label が必要です")
+            if (m.containsKey("backlinks")) {
+                // バックリンク列: 被参照の派生表示のため、出現の選択（path / schemaId / fileGlob）や編集とは排他
+                val b = m["backlinks"] as? Map<*, *> ?: error("columns[$i].backlinks はobjectである必要があります")
+                if (m["path"] != null) error("columns[$i]: path と backlinks は併用できません")
+                if (m["editable"] == true) error("columns[$i]: backlinks 列は editable にできません")
+                if (m["schemaId"] != null || m["fileGlob"] != null) {
+                    error("columns[$i]: backlinks 列に schemaId / fileGlob は指定できません（絞り込みは backlinks 配下に書きます）")
+                }
+                ViewColumn(
+                    label = label,
+                    path = emptyList(),
+                    backlinks = ViewBacklinksDef(
+                        relation = b["relation"]?.toString(),
+                        schemaIds = stringList(b["schemaIds"]),
+                    ),
+                )
+            } else ViewColumn(
+                label = label,
                 from = parseSource(m),
                 path = parseYPath(m["path"]?.toString() ?: error("columns[$i].path が必要です")),
                 editable = m["editable"] as? Boolean ?: false,
@@ -206,6 +248,18 @@ object Views {
         fun tree(file: Path): YNode? = trees.getOrPut(file) { loader(file) }
         fun rel(file: Path): String = IdIndex.relPathOf(workspace, file)
 
+        // バックリンク列の「参照元要素のID」解決に使う。参照位置を含む最も長いパスの出現を最内のIDとみなす
+        val entriesByFile: Map<Path, List<IdEntry>> by lazy { index.entries.values.flatten().groupBy { it.file } }
+        fun backlinksFor(id: String, def: ViewBacklinksDef): List<ViewBacklink> =
+            index.refs.filter { it.targetId == id && def.matches(it) }
+                .map { ref ->
+                    val source = entriesByFile[ref.file].orEmpty()
+                        .filter { it.path.size <= ref.path.size && ref.path.subList(0, it.path.size) == it.path }
+                        .maxByOrNull { it.path.size }
+                    ViewBacklink(source?.id, rel(ref.file), ref.file, ref.path, ref.relation)
+                }
+                .sortedWith(compareBy({ it.rel }, { pathSortKey(it.path) }))
+
         val rows = index.entries.asSequence()
             .filter { (id, _) -> idMatchesPattern(id, view.rows.idPattern) }
             .filter { (_, occurrences) ->
@@ -213,8 +267,12 @@ object Views {
             }
             .map { (id, occurrences) ->
                 val cells = view.columns.map { column ->
-                    val occurrence = occurrences.firstOrNull { column.from.matches(it, rel(it.file)) }
-                    if (occurrence == null) ViewCell(column, null, null, null, null)
+                    val backlinksDef = column.backlinks
+                    val occurrence =
+                        if (backlinksDef != null) null
+                        else occurrences.firstOrNull { column.from.matches(it, rel(it.file)) }
+                    if (backlinksDef != null) ViewCell(column, null, null, null, null, backlinks = backlinksFor(id, backlinksDef))
+                    else if (occurrence == null) ViewCell(column, null, null, null, null)
                     else {
                         val absolute = occurrence.path + column.path
                         ViewCell(
@@ -352,7 +410,16 @@ object Views {
             appendLine()
             for (cell in row.cells) {
                 append("    ").append(cell.column.label).append(": ")
-                if (cell.file == null) {
+                val backlinks = cell.backlinks
+                if (backlinks != null) {
+                    // バックリンク列: 参照元のIDと座標を列挙する（エージェントはこの座標から参照元へ辿れる）
+                    if (backlinks.isEmpty()) appendLine("（被参照なし）")
+                    else appendLine(
+                        backlinks.joinToString(", ") { b ->
+                            (b.sourceId ?: b.rel) + "  [" + b.rel + " :: " + b.path.pretty() + "]"
+                        }
+                    )
+                } else if (cell.file == null) {
                     appendLine("（出現なし）")
                 } else {
                     append(cellText(cell.value))

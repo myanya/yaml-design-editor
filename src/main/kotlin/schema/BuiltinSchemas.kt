@@ -510,12 +510,26 @@ object BuiltinSchemas {
                   - key: path
                     label: 相対パス
                     type: string
-                    required: true
-                    description: 出現要素からの相対YPath（例 name / areas / inputs[0].type）
+                    description: 出現要素からの相対YPath（例 name / areas / inputs[0].type）。path か backlinks のどちらか一方が必要
                   - key: editable
                     label: 一覧上で編集可
                     type: boolean
                     default: false
+                  - key: backlinks
+                    label: バックリンク列
+                    type: object
+                    description: 行IDへの被参照（参照元）を一覧表示する列にする（path / editable とは併用不可）
+                    fields:
+                      - key: relation
+                        label: 関係種別の限定
+                        type: string
+                        description: 参照の relation がこの値の被参照だけを表示する（省略時は全被参照）
+                      - key: schemaIds
+                        label: 参照元スキーマの限定
+                        type: array
+                        item:
+                          type: string
+                        description: 参照元文書のスキーマIDを限定する（省略時は制限なし）
             - key: detail
               label: 詳細文書
               type: object

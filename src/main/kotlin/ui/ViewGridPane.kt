@@ -168,7 +168,8 @@ private fun GridBody(state: AppState, view: ViewDef) {
         if (query.isBlank()) rows
         else rows.filter { row ->
             row.id.contains(query, true) || row.title?.contains(query, true) == true ||
-                row.cells.any { Views.cellText(it.value).contains(query, true) }
+                row.cells.any { Views.cellText(it.value).contains(query, true) } ||
+                row.cells.any { c -> c.backlinks.orEmpty().any { it.sourceId?.contains(query, true) == true } }
         }
     }
     Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -185,7 +186,12 @@ private fun GridBody(state: AppState, view: ViewDef) {
     Row(Modifier.fillMaxWidth().background(Palette.PanelBg).horizontalScroll(hScroll).padding(horizontal = 8.dp, vertical = 5.dp)) {
         GridHeaderCell("ID", ID_WIDTH)
         view.columns.forEach { column ->
-            GridHeaderCell(column.label + if (column.editable) "" else "（参照）", CELL_WIDTH)
+            val suffix = when {
+                column.backlinks != null -> "（被参照）"
+                column.editable -> ""
+                else -> "（参照）"
+            }
+            GridHeaderCell(column.label + suffix, CELL_WIDTH)
         }
         if (view.detail != null) GridHeaderCell("詳細", DETAIL_WIDTH)
         GridHeaderCell("状態", STATUS_WIDTH)
@@ -238,6 +244,11 @@ private fun IdCell(state: AppState, row: ViewRow) {
 @Composable
 private fun GridCell(state: AppState, cell: ViewCell) {
     Box(Modifier.width(CELL_WIDTH).padding(end = 8.dp)) {
+        val backlinks = cell.backlinks
+        if (backlinks != null) {
+            BacklinkCell(state, backlinks)
+            return@Box
+        }
         val file = cell.file
         val path = cell.path
         if (file == null || path == null) {
@@ -287,6 +298,31 @@ private fun GridCell(state: AppState, cell: ViewCell) {
                 textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
                 modifier = Modifier.fillMaxWidth(),
             )
+        }
+    }
+}
+
+/**
+ * バックリンク列のセル。行IDへの参照元（1:N詳細化の分裂先など）をIDで列挙し、クリックで参照位置へジャンプする。
+ * ビューはデータを持たない派生表示のため、この列に編集経路はない。
+ */
+@Composable
+private fun BacklinkCell(state: AppState, backlinks: List<core.ViewBacklink>) {
+    if (backlinks.isEmpty()) {
+        Text("—", fontSize = 12.sp, color = Palette.SubText, modifier = Modifier.padding(top = 8.dp))
+        return
+    }
+    val shown = backlinks.take(5)
+    Column(Modifier.padding(top = 8.dp)) {
+        shown.forEach { b ->
+            Text(
+                b.sourceId ?: b.rel.substringAfterLast('/'),
+                fontSize = 12.sp, color = Palette.Primary, maxLines = 1,
+                modifier = Modifier.clickable { state.openFile(b.file, b.path) },
+            )
+        }
+        if (backlinks.size > shown.size) {
+            Text("…他 ${backlinks.size - shown.size} 件", fontSize = 10.sp, color = Palette.SubText)
         }
     }
 }

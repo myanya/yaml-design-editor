@@ -61,7 +61,7 @@ src/main/kotlin/
 | `PatchOp` / `Patcher` / `ChangeSets` | core/Patch.kt | YPathパッチ（set/insert/delete/move）と変更セット（baseハッシュ競合検出、YAML解析） |
 | `Disclosure` | core/Disclosure.kt | 段階的開示: カタログ→骨子→ノード全文、文字数予算付き文脈バンドル |
 | `Search` | core/Search.kt | 構造検索: 本文・キー部分一致＋スキーマ／glob条件、参照・未解決参照の検索 |
-| `ViewDef` / `Views` | core/Views.kt | ビュー機構（P6）: `_views` 定義のロード、行（論理ID）×列（相対YPath）の解決＝原本座標化、データパスからのスキーマフィールド解決（`fieldAt`）、詳細文書スキャフォールド、テキスト表現（`renderText`） |
+| `ViewDef` / `Views` | core/Views.kt | ビュー機構（P6）: `_views` 定義のロード、行（論理ID）×列（相対YPath）の解決＝原本座標化、バックリンク列（被参照の逆引き。R7-02）、データパスからのスキーマフィールド解決（`fieldAt`）、詳細文書スキャフォールド、テキスト表現（`renderText`） |
 | `runCli` | core/Cli.kt | CLIコマンド（catalog/outline/read/bundle/search/validate/apply/hash/activities/agent/watch/revert/metrics/eval）。出力はUTF-8のYAML |
 | `ToolChatSession` / `ToolChat` | ai/ToolChat.kt | ツール使用（function calling）対応のチャット抽象と OpenAI Responses / Anthropic Messages 実装。会話状態はセッションが保持 |
 | `AgentDef` / `ActivityDef` / `Definitions` | agent/Definitions.kt | `_agents` / `_activities` 定義の実行時ロード（エラー収集つき）。フォーム編集・検証は `schema/BuiltinSchemas.kt` の組込みスキーマが担う |
@@ -122,8 +122,9 @@ Undo/Redo は `YamlIO.dump` したスナップショット文字列の履歴（�
 
 - 同一IDの複数文書出現は「同一論理要素の段階的詳細化」として正当。エラーは同一文書内の重複のみ。
 - 参照の解決可否は `idPatterns` × `scope.schemaIds` × `scope.documentIds` のAND（各配列内はOR）。候補表示と検証で同じ判定（`IdEntry.isAllowedBy`）を使う。判定ロジックを追加する場合も候補・検証・AI制約（`refCandidateIds`）の三箇所で一貫させる。
-- 参照には任意の**関係種別**（`relation`）を付けられる。関係種別は解決可否には影響せず、表示（SidePanel・横ぐしビュー・グラフ）と**カバレッジ判定**にのみ使う。
-- カバレッジルール（スキーマの `coverage`）は「対象IDが、条件（参照元スキーマ・関係）を満たす参照を minCount 件以上受けること」。判定は `Validator.coverageStatuses` に一元化し、検証（Issue化）とUI表示の両方から使う。索引基準のため未保存編集は保存まで反映されない。
+- 参照には任意の**関係種別**（`relation`）を付けられる。関係種別は解決可否には影響せず、表示（SidePanel・横ぐしビュー・グラフ・ビューのバックリンク列）と**カバレッジ判定**にのみ使う。
+- カバレッジルール（スキーマの `coverage`）は2種類: **参照ベース**（`requiredBy`）＝「対象IDが、条件（参照元スキーマ・関係）を満たす参照を minCount 件以上受けること」、**出現ベース**（`detailIn`。R7-02）＝「対象IDが、指定スキーマの文書に minCount 件以上出現すること」（詳細文書の存在検証）。1ルールに両方は書けない（パース時エラー）。判定は `Validator.coverageStatuses` に一元化し、検証（Issue化）とUI表示の両方から使う。索引基準のため未保存編集は保存まで反映されない。
+- **段階的詳細化の規約**（R7-02）: 1:1 の詳細化は**同一ID**の複数文書出現（詳細文書の存在は出現ベースのカバレッジで検証）、1:N の分裂（例: 1エンティティ→単票・明細の2テーブル）は**新ID＋親への `ref`**（`relation` で種別を宣言）で逆リンクする（親側は relation 限定の参照ベースカバレッジで検証、親→分裂先の一覧はビューのバックリンク列で表示）。
 
 ### 4.7 スキーマの `$ref` 解決と実効フィールド
 
@@ -194,6 +195,7 @@ enum の `cases`（値ごとの追加フィールド。判別共用体）を持�
 - **行はディスク索引基準・値は編集中優先**: 行の集合（ID）と座標は `IdIndex`（§4.5）から解決し、セル値の表示は loader 注入で「編集中ツリー（UI: docCache / エージェント: ステージング）→ ディスク」の順に読む。未保存の新規IDが行に現れないのは索引の設計方針どおり（FEATURES L-14）。
 - **`_views` は予約ディレクトリ**: 書込はメタアクティビティのみ（`AgentToolbox`）、自動実行の監視対象外（`AutomationEngine`）、ステージされた定義は `Views.parseView` のパース可否が提出ゲートに加わる（`Staging.validateAll`）。
 - **セルエディタの型解決**: 列の相対パスから `Views.fieldAt` でフィールド定義を辿る（`resolve` / `effectiveFields` を通す。§4.7）。直接編集はスカラー系フィールドに限定し、複合値はジャンプで個別フォームへ誘導する。
+- **バックリンク列は編集不可の派生表示**（R7-02）: `backlinks` 列は索引の被参照を relation・参照元スキーマで絞って解決し、出現の選択（`path` / `schemaId` / `fileGlob`）や `editable` とは排他（パース時に拒否）。参照元要素のIDは「参照位置をパスの接頭辞に含む、最も長いパスの出現」として解決する。セルが指す座標は参照値の位置＝ジャンプ先であり、書込はしない（被参照を変えるには参照元文書を編集する）。
 
 ### 4.15 フェーズ機構（P7: 状態依存の検証プロファイル）
 

@@ -222,6 +222,95 @@ class ViewsTest {
         assertEquals("編集済みの画面名", (rows[0].cells[0].value as YNode.Scalar).value)
     }
 
+    // ---------------------------------------------------------------- バックリンク列（R7-02）
+
+    /** 画面を実装するテーブル（1:N詳細化の分裂先）と、バックリンク列を持つビューを追加する。 */
+    private fun writeBacklinkFixtures() {
+        write(
+            "_schemas/table-design.yaml",
+            """
+            id: table-design
+            name: テーブル設計
+            match: "tables/*.yaml"
+            root:
+              type: object
+              fields:
+                - { key: id, type: id, required: true }
+                - key: screen
+                  type: ref
+                  idPattern: "SCR-*"
+                  relation: derives
+                - key: see_also
+                  type: ref
+                  idPattern: "SCR-*"
+            """,
+        )
+        write("tables/TBL-LIST-S.yaml", "id: TBL-LIST-S\nscreen: SCR-LIST\nsee_also: SCR-EDIT\n")
+        write("tables/TBL-LIST-M.yaml", "id: TBL-LIST-M\nscreen: SCR-LIST\n")
+        write(
+            "_views/screen-tables.yaml",
+            """
+            id: screen-tables
+            name: 画面と実装テーブル
+            rows:
+              idPattern: "SCR-*"
+            columns:
+              - label: 画面名
+                schemaId: screen-list
+                path: name
+              - label: 実装テーブル
+                backlinks:
+                  relation: derives
+                  schemaIds: [table-design]
+            """,
+        )
+    }
+
+    @Test
+    fun `backlinks column lists referencing ids with coordinates`() {
+        writeBacklinkFixtures()
+        val workspace = Workspace.open(ws)
+        val view = Views.load(ws).view("screen-tables")!!
+        assertEquals("derives", view.columns[1].backlinks?.relation)
+        val rows = Views.resolve(view, ws, workspace.index)
+
+        val list = rows.first { it.id == "SCR-LIST" }
+        val backlinks = list.cells[1].backlinks!!
+        assertEquals(listOf("TBL-LIST-M", "TBL-LIST-S"), backlinks.map { it.sourceId }, "参照元ファイル順で並ぶ")
+        assertEquals("tables/TBL-LIST-M.yaml", backlinks[0].rel)
+        assertEquals(parseYPath("screen"), backlinks[0].path, "参照値の座標を持つ（ジャンプ・apply_patch に使える）")
+
+        // relation の絞り込み: see_also（relation なし）による参照は derives 列に現れない
+        val edit = rows.first { it.id == "SCR-EDIT" }
+        assertTrue(edit.cells[1].backlinks!!.isEmpty(), "relation が一致しない参照は数えない")
+
+        // テキスト表現（エージェント・CLI 共用）にも被参照が出る
+        val text = Views.renderText(view, rows)
+        assertTrue("TBL-LIST-S" in text, text)
+        assertTrue("tables/TBL-LIST-M.yaml :: screen" in text, text)
+        assertTrue("（被参照なし）" in text, text)
+    }
+
+    @Test
+    fun `backlinks column cannot combine with path editable or source`() {
+        write(
+            "_views/bad-bl1.yaml",
+            "id: b1\nrows: { idPattern: \"*\" }\ncolumns:\n  - label: A\n    path: name\n    backlinks: { relation: r }",
+        )
+        write(
+            "_views/bad-bl2.yaml",
+            "id: b2\nrows: { idPattern: \"*\" }\ncolumns:\n  - label: A\n    editable: true\n    backlinks: { relation: r }",
+        )
+        write(
+            "_views/bad-bl3.yaml",
+            "id: b3\nrows: { idPattern: \"*\" }\ncolumns:\n  - label: A\n    schemaId: s\n    backlinks: { relation: r }",
+        )
+        val loaded = Views.load(ws)
+        assertTrue(loaded.errors.any { "bad-bl1.yaml" in it && "併用できません" in it }, loaded.errors.toString())
+        assertTrue(loaded.errors.any { "bad-bl2.yaml" in it && "editable" in it }, loaded.errors.toString())
+        assertTrue(loaded.errors.any { "bad-bl3.yaml" in it && "schemaId" in it }, loaded.errors.toString())
+    }
+
     // ---------------------------------------------------------------- フィールド解決
 
     @Test

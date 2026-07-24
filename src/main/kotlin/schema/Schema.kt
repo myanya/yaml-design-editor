@@ -132,19 +132,25 @@ enum class CoverageLevel(val id: String) {
 }
 
 /**
- * このスキーマが定義する ID への被参照要件（トレーサビリティのカバレッジルール）。
- * 「idPattern に一致する ID は、条件を満たす参照を minCount 件以上受けること」を表す。
+ * このスキーマが定義する ID への充足要件（トレーサビリティのカバレッジルール）。
+ * - 参照ベース（`requiredBy`）: 「idPattern に一致する ID は、条件を満たす参照を minCount 件以上受けること」
+ * - 出現ベース（`detailIn`）: 「idPattern に一致する ID は、指定スキーマの文書に minCount 件以上出現すること」
+ *   （段階的詳細化の詳細文書の存在検証。R7-02）
  */
 data class CoverageRule(
     val id: String? = null,                       // ルールの識別子（表示用）
     val description: String? = null,              // 人間向けの説明
     val idPattern: String? = null,                // 対象 ID の glob（null = このスキーマの全 ID）
-    val fromSchemaIds: List<String> = emptyList(),// 参照元文書のスキーマIDを限定（空 = 制限なし）
-    val relation: String? = null,                 // 参照の関係種別を限定（null = 制限なし）
-    val minCount: Int = 1,                        // 必要な参照数
+    val fromSchemaIds: List<String> = emptyList(),// 参照元文書のスキーマIDを限定（空 = 制限なし。参照ベースのみ）
+    val relation: String? = null,                 // 参照の関係種別を限定（null = 制限なし。参照ベースのみ）
+    val detailSchemaIds: List<String> = emptyList(),// 空でなければ出現ベース: このスキーマの文書への出現を数える
+    val minCount: Int = 1,                        // 必要な参照数（出現ベースでは出現数）
     val level: CoverageLevel = CoverageLevel.WARNING,
     val activeFrom: String? = null,               // IDを定義する文書がこのフェーズに達してから判定（null = 常時）
-)
+) {
+    /** true = 出現ベース（詳細文書の存在検証）、false = 参照ベース（被参照数）。 */
+    val isOccurrence: Boolean get() = detailSchemaIds.isNotEmpty()
+}
 
 /**
  * スキーマ 1 件。`match` の glob にマッチするファイルへ適用される。
@@ -559,21 +565,30 @@ object SchemaLoader {
     private fun parseCoverage(raw: Any?): List<CoverageRule> {
         if (raw == null) return emptyList()
         val list = raw as? List<*> ?: error("coverageはリストである必要があります")
+        fun schemaIds(raw: Any?): List<String> = when (raw) {
+            is List<*> -> raw.map { it.toString() }
+            null -> emptyList()
+            else -> listOf(raw.toString())
+        }
         return list.mapIndexed { i, entry ->
             val m = entry as? Map<*, *> ?: error("coverage[$i]はobjectである必要があります")
             val requiredBy = m["requiredBy"] as? Map<*, *>
-            val fromSchemaIds = when (val v = requiredBy?.get("schemaIds")) {
-                is List<*> -> v.map { it.toString() }
-                null -> emptyList()
-                else -> listOf(v.toString())
+            val detailIn = m["detailIn"] as? Map<*, *>
+            if (requiredBy != null && detailIn != null) {
+                error("coverage[$i]: requiredBy（参照ベース）と detailIn（出現ベース）は併用できません")
+            }
+            val detailSchemaIds = schemaIds(detailIn?.get("schemaIds"))
+            if (detailIn != null && detailSchemaIds.isEmpty()) {
+                error("coverage[$i].detailIn には schemaIds（出現先スキーマ）が必要です")
             }
             CoverageRule(
                 id = m["id"]?.toString(),
                 description = m["description"]?.toString(),
                 idPattern = m["idPattern"]?.toString(),
-                fromSchemaIds = fromSchemaIds,
+                fromSchemaIds = schemaIds(requiredBy?.get("schemaIds")),
                 relation = requiredBy?.get("relation")?.toString(),
-                minCount = (requiredBy?.get("minCount") as? Number)?.toInt() ?: 1,
+                detailSchemaIds = detailSchemaIds,
+                minCount = ((detailIn ?: requiredBy)?.get("minCount") as? Number)?.toInt() ?: 1,
                 level = m["level"]?.toString()?.let { value ->
                     CoverageLevel.entries.firstOrNull { it.id == value }
                         ?: error("coverage[$i].level は warning / error のいずれかである必要があります: $value")

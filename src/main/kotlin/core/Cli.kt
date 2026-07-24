@@ -165,6 +165,14 @@ internal fun runCli(args: Array<String>): String {
                                     "file" to cell.rel,
                                     "path" to cell.path?.pretty(),
                                     "editable" to cell.column.editable.takeIf { it },
+                                    // バックリンク列: 参照元のIDと座標（参照元の要素へは read コマンドで辿る）
+                                    "backlinks" to cell.backlinks?.map { b ->
+                                        linkedMapOf(
+                                            "id" to b.sourceId,
+                                            "file" to b.rel,
+                                            "path" to b.path.pretty(),
+                                        ).filterValues { it != null }
+                                    },
                                 ).filterValues { it != null }
                             },
                             "detail" to row.detailRel,

@@ -119,13 +119,17 @@ object Validator {
     }
 
     /**
-     * ID 1件に適用されるカバレッジルールの判定。索引（保存済み状態）の参照を数える。
+     * ID 1件に適用されるカバレッジルールの判定。索引（保存済み状態）の参照または出現を数える。
+     * - 参照ベース（requiredBy）: このIDへの参照を数える
+     * - 出現ベース（detailIn）: このIDの、指定スキーマの文書への出現＝詳細文書の存在を数える（R7-02）
      * definingRoot は ID を定義している文書のルート（activeFrom のフェーズ判定に使う。null なら常時判定）。
      */
     fun coverageStatuses(id: String, schema: SchemaDef, indexObj: IdIndex, definingRoot: YNode? = null): List<CoverageStatus> =
         schema.coverage.mapNotNull { rule ->
             if (rule.idPattern != null && !idMatchesPattern(id, rule.idPattern)) return@mapNotNull null
-            val count = indexObj.refs.count { ref ->
+            val count = if (rule.isOccurrence) {
+                indexObj.occurrences(id).count { it.schemaId in rule.detailSchemaIds }
+            } else indexObj.refs.count { ref ->
                 ref.targetId == id &&
                     (rule.fromSchemaIds.isEmpty() || ref.sourceSchemaId in rule.fromSchemaIds) &&
                     (rule.relation == null || ref.relation == rule.relation)
@@ -192,12 +196,20 @@ object Validator {
     }
 
     fun coverageMessage(status: CoverageStatus): String = buildString {
-        append("ID「${status.id}」への参照が不足しています（現在 ${status.count} 件／必要 ${status.rule.minCount} 件")
-        if (status.rule.fromSchemaIds.isNotEmpty()) append("、参照元スキーマ: ${status.rule.fromSchemaIds.joinToString(", ")}")
-        status.rule.relation?.let { append("、関係: $it") }
+        if (status.rule.isOccurrence) {
+            append("ID「${status.id}」の詳細文書が不足しています（現在 ${status.count} 件／必要 ${status.rule.minCount} 件")
+            append("、詳細スキーマ: ${status.rule.detailSchemaIds.joinToString(", ")}")
+        } else {
+            append("ID「${status.id}」への参照が不足しています（現在 ${status.count} 件／必要 ${status.rule.minCount} 件")
+            if (status.rule.fromSchemaIds.isNotEmpty()) append("、参照元スキーマ: ${status.rule.fromSchemaIds.joinToString(", ")}")
+            status.rule.relation?.let { append("、関係: $it") }
+        }
         append("）")
         status.rule.description?.let { append(" — $it") }
     }
+
+    /** カバレッジの数え上げ対象の表示名（参照ベース=「参照」、出現ベース=「出現」）。UI表示で共用する。 */
+    fun coverageCountLabel(rule: CoverageRule): String = if (rule.isOccurrence) "出現" else "参照"
 
     private fun checkField(field: FieldDef, node: YNode?, path: YPath, issues: MutableList<Issue>, schema: schema.SchemaDef, phaseIndex: Int?) {
         val f = schema.resolve(field) ?: field
