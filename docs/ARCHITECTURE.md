@@ -18,7 +18,8 @@
 src/main/kotlin/
 ├── model/     YNode: YAMLの可変ツリー表現、YPath（パース含む） （依存なし）
 ├── yaml/      YamlIO: SnakeYAML との相互変換               （→ model）
-├── schema/    スキーマモデル・ローダ・メタ検証・カバレッジルール・glob（→ model, yaml）
+├── schema/    スキーマモデル・ローダ・メタ検証・カバレッジルール・glob・
+│              スキーマ推測・派生スキーマ（→ model, yaml）
 ├── index/     ID索引・参照スキャナ（関係種別つき）          （→ model, schema, yaml）
 ├── validate/  スキーマ検証・参照解決・重複・カバレッジ検証  （→ model, schema, index）
 ├── core/      ヘッドレス層: ワークスペース操作・パッチ・段階的開示・構造検索・ビュー射影・
@@ -52,8 +53,11 @@ src/main/kotlin/
 | `SchemaCatalog` / `SchemaKind` | schema/Schema.kt | 全スキーマ・libraryの定義を `(moduleId, definitionName)` でリンクする中央カタログ。`kind: library` はdefinitionsだけを公開し文書には適用されない |
 | `PhasesDef` / `currentPhaseIndex` / `requiredAt` | schema/Schema.kt | フェーズ機構（§4.15）: スキーマの `phases` 宣言と、文書の現在フェーズ解決・フェーズ考慮の実効必須判定（検証・進捗計算が共有） |
 | `CoverageRule` / `CoverageLevel` | schema/Schema.kt | スキーマの `coverage`（被参照必須などのトレーサビリティ要件）の定義。`activeFrom` でフェーズ到達までの判定保留を宣言できる |
-| `SchemaLoader` | schema/Schema.kt | `_schemas/` の読込・パース・スキーマID重複検出 |
+| `SchemaLoader` | schema/Schema.kt | `_schemas/` の読込・パース・スキーマID重複検出。ロードは「パース→リンク→導出」の三段階（§4.23） |
 | `validateDefinition` / `generateSample` | schema/Schema.kt | メタスキーマ検証・サンプルデータ生成（拡張関数） |
+| `BuiltinSchemas` | schema/BuiltinSchemas.kt | 予約ディレクトリ用の組込みスキーマ。`builtin-schema`（R11-02）は `_schemas` 文書に適用されるメタスキーマ（再帰 `$ref` と `cases` のドッグフーディング） |
+| `RefNaming` / `SchemaInference` | schema/SchemaInference.kt | スキーマ推測（R11-01）: 既存文書群からのドラフト推測（純ロジック）。`RefNaming` は参照命名規約の共有実体（`DocScanner` が委譲。§4.23） |
+| `DeriveDef` / `DerivedSchemas` | schema/Schema.kt, schema/DerivedSchemas.kt | 派生スキーマ（R11-03）: `derive:` 宣言のモデルと、導出元文書からのロード時コンパイル（§4.23） |
 | `globToRegex` / `idMatchesPattern` | schema / index | glob→正規表現変換（パス用と ID 用で対応構文が異なる点に注意） |
 | `DocScanner` | index/IdIndex.kt | 1文書からのID・参照抽出。スキーマ有無で検出規則を切替、未知キー境界で走査停止。参照には `relation` / `sourceSchemaId` を付与 |
 | `IdIndex` | index/IdIndex.kt | ワークスペース全体の `id -> 出現一覧` 索引と全参照。**ディスク基準**（未保存編集は反映されない）。ファイル単位の走査結果を保持し、`update` で変更ファイルだけを差し替える増分更新ができる（R8-02。§4.5） |
@@ -125,7 +129,7 @@ Undo/Redo は `YamlIO.dump` したスナップショット文字列の履歴（�
 
 `IdIndex` は保存済みファイルから構築される。未保存編集中の参照解決は、`DocScanner.scan` を編集中ツリーへ都度実行した「ローカルID」を索引に**重ねて**判定する（`FormCtx.resolvable`, `Validator`）。この二層構造を崩さないこと。
 
-更新方式（R8-02）: 索引はファイル単位の走査結果（`byFile`）を保持し、集約ビュー（`entries` / `refs`）はそこから導出する。保存・外部変更・変更セット適用では `update`（変更・削除ファイルだけの再走査）を使い、コストを変更ファイル数に比例させる。**スキーマが変わったときは全ファイルの走査規則が変わるため必ず `rebuild`（全再構築）を使う**（`AppState` / `core.Workspace` は `_schemas/` 配下の変更を見て自動で振り分ける）。計測は CLI `bench`（`core/Bench.kt`）で行う。
+更新方式（R8-02）: 索引はファイル単位の走査結果（`byFile`）を保持し、集約ビュー（`entries` / `refs`）はそこから導出する。保存・外部変更・変更セット適用では `update`（変更・削除ファイルだけの再走査）を使い、コストを変更ファイル数に比例させる。**スキーマが変わったときは全ファイルの走査規則が変わるため必ず `rebuild`（全再構築）を使う**（`AppState` / `core.Workspace` は `_schemas/` 配下の変更、および派生スキーマの導出元文書（R11-03。§4.23）の変更を見て自動で振り分ける）。計測は CLI `bench`（`core/Bench.kt`）で行う。
 
 ### 4.6 ID・参照のセマンティクス
 
@@ -285,7 +289,19 @@ UI層（app）を「Compose購読のシェル」に純化し、ロジックを c
 - **enum のリッチ選択肢は表示専用**（R10-03）: `values` の `{value, label, description}` は `EnumOption` として保持し、検証・`cases` のキー・AI生成の制約・保存されるデータは常に `value`。label / description をロジックに関与させない。
 - **閲覧専用モードは FormCtx で強制**（R10-04）: `FormCtx.readOnly`（既定値は `AppState.readOnlyMode`）が編集UIの表示分岐と `markEdited` / スカラー書込のガード（ツリー変異前に `check` で拒否）を担う。FormCtx を共有する全ビュー（フォーム・ID横ぐし埋め込みフォーム・ビューグリッドのセル）へ自動波及させ、ビューごとの読み取り専用分岐を別実装しない。ジャンプ・バックリンクは閲覧行為として残す。
 
-### 4.23 エラー処理
+### 4.23 スキーマ工学（P11: 推測・メタスキーマ・派生スキーマ）
+
+「スキーマを書くのがつらい」を解消する3機構（R11-01〜03）。守るべき不変条件:
+
+- **`any` 型は「検証しない」の明示**: メタスキーマ・推測結果のように値の形を単一の型で表せない箇所のためのフィールド型。検証は必須チェックのみ（型・構造は検査しない）、フォームは汎用エディタ、AI生成は `map` と同様に構造化出力を無効化（プロンプト指示へフォールバック）、索引は未知キーと同じ走査境界になる。**業務スキーマで安易に `any` へ逃げない**（検証できる型で書けるものは書く）。
+- **スキーマ推測は純ロジック**（R11-01）: `schema/SchemaInference.kt` は「相対パス×ルートツリー」のリストから `_schemas` 文書のYAMLツリー（`YNode`）を構築する（I/Oなし・Compose非依存）。型推測（boolean/int/number/date/長文text）、参照認識は `DocScanner` の命名規約（`ref`/`*_ref`/`refs`/`depends_on` 等）を**流用**し、独自の規約を増やさない。enum 候補・required 候補は複数文書の合議（全文書出現＝required 候補、小さく反復する値集合＝enum 候補）。生成物は必ず `SchemaLoader.parseSchemaText` → `validateDefinition` を通る形で出力する（推測→仕上げ→適用の入口を保証）。入口は CLI `infer-schema` と ファイルツリーの推測ダイアログ（`AppState.inferSchema`）。
+- **メタスキーマも組込みスキーマの流儀**（R11-02）: `builtin-schema` は `BuiltinSchemas` に置き、`FieldDef` の再帰は再帰 `$ref`（`definitions.field`）、「`type` の値ごとに持てる属性」は `cases` で表現する（S-10 のドッグフーディング）。`_schemas/` 配下の文書には**メタスキーマ（id = `builtin-schema`）だけ**を適用する（`Workspace.schemaFor`。一般スキーマの `match` は `_schemas` に及ばない——catch-all スキーマの誤適用を防ぐ）。利用者は同IDのスキーマを `_schemas` に置けば上書きできる。エージェントの `_schemas` 書込禁止は従来どおり（メタスキーマはフォーム・検証・AI生成のためであり、書込経路は増やさない）。
+- **派生スキーマは「ロード時にコンパイルされる読み取り専用の成果物」**（R11-03）: スキーマ文書の `derive:` 宣言が「導出元文書（glob）→ 検証スキーマ」の写像を定義し、`SchemaLoader.loadAllWithErrors` の第3段階（パース→リンク→**導出**）で `SchemaDef` にコンパイルされる。導出されたスキーマはファイルとして存在せず（`source` は導出元文書）、`_schemas` へ書き出さない。写像の語彙（`path` / `type` / `map` / `required`）は skill の列マッピング（SK-02）と揃える。
+  - **宣言側スキーマは文書にマッチしない**: `derive` を持つスキーマは自身の `match` を持てず（テンプレートに徹する）、`root` は導出スキーマの共通フィールド（先頭に合成）になる。導出スキーマの適用先は `derive.match`（`{...}` プレースホルダ＝導出元要素の値）で決まる。
+  - **再検証の契機は `noteDiskChanges` に一元化**: 導出元文書（`derive.from` に一致）の保存・外部変更・変更セット適用では索引の増分更新ではなく**全再構築**（スキーマ変更と同じ扱い）を行う。判定は `Workspace.noteDiskChanges` が持ち、UI・CLI・エージェント経路が共有する（§4.20 と同じ流儀）。
+  - **間接的な検証ルール変更の抑え**: 導出元文書は通常文書のため、エージェントの変更セットが（承認を経て）検証ルールを変えうる。既定の human 承認ゲートで足りると判断するが、**自動適用（approval: auto）だけは導出元文書への書込で承認待ちへ降格**する（`AutomationEngine`。検証ルールが無人で変わる経路を塞ぐ）。
+
+### 4.24 エラー処理
 
 - ファイルI/O・パースは `runCatching` で受け、ユーザー操作の結果は `Result` を返して呼び出し側（UI）が `state.status` に反映する。
 - 入力検証の失敗は `require(...) { "日本語メッセージ" }`、内部異常は `error("日本語メッセージ")`。メッセージはそのままUIに表示される前提で書く。
@@ -293,7 +309,7 @@ UI層（app）を「Compose購読のシェル」に純化し、ロジックを c
 ## 5. 主要データフロー
 
 - **編集**: フォーム操作 → `Slot.set` / ツリー直接変更 → `markEdited()`（履歴・dirty は core.EditBuffer が記録） → `version`++ → 再コンポーズ
-- **保存**: `canonicalText()`（コメント・スタイル込み）をファイルへ書き出し → `Workspace.noteDiskChanges`（通常文書は増分索引更新、スキーマファイルは全再構築。§4.5／§4.20） → `indexVersion`++
+- **保存**: `canonicalText()`（コメント・スタイル込み）をファイルへ書き出し → `Workspace.noteDiskChanges`（通常文書は増分索引更新、スキーマファイル・派生スキーマの導出元文書は全再構築。§4.5／§4.20／§4.23） → `indexVersion`++
 - **外部変更検出**: `FileWatcher` の変更フラグ（またはフォールバックの1秒周期）→ `pollExternalChanges` がスタンプ比較 → 変更ファイルの再読込＋増分索引更新（`_schemas` 変更時のみ全再構築）
 - **ジャンプ**: `navigateToId` → 索引の出現検索（複数なら選択ダイアログ／横ぐしビュー）→ `openFile(file, focus)` → `highlightPath` 設定 → `Highlightable` がスクロール
 - **ビューグリッド**: `_views` 定義 → `Views.resolve`（行=ディスク索引、セル値=編集中ツリー優先の loader）→ セル編集は該当文書の `Slot` 直接変更＋`markEdited()` → 保存 → `rebuildIndex()` で行集合にも反映。行アクションは `AppState.createViewDetail`（スキャフォールド→書込→開く）／`addViewRow`（一覧文書の配列へ未保存編集として追加）
@@ -312,6 +328,7 @@ UI層（app）を「Compose購読のシェル」に純化し、ロジックを c
 - **横断ビューの追加**: データソースとして `AppState.workspaceRecords()` と `IdIndex` を利用し、`Main.kt` の `workspaceView` 分岐に追加する。要素の1行要約（タイトル・サブタイトル）は `schema/Display`（§4.22）を使い、独自のタイトル抽出を書かない。
 - **ビュー定義の項目追加**: `core/Views.kt` の `parseView` と `schema/BuiltinSchemas.kt` の `builtin-view` スキーマを**対で**更新する（フォーム編集・検証と実行時パースの二重定義のため）。
 - **共通スキーマ定義の追加**: `_schemas` に `kind: library` を置き、利用側は `moduleId#definition` で参照する。解決規則を増やす場合は `SchemaCatalog` に閉じ、各利用側で参照文字列を個別解析しない。
+- **派生スキーマの写像項目の追加**: `SchemaLoader.parseDerive`（宣言のパース）と `DerivedSchemas.compileOne`（コンパイル）、組込みメタスキーマ（`builtin-schema` の `derive` 定義）を**そろえて**更新する。語彙は skill の列マッピング（SK-02）と揃える（§4.23）。
 - **AIプロバイダの追加**: OpenAI互換のエンドポイントなら `AiConnection`（ベースURL上書き・プリセット）で足りる。独自APIのプロバイダは `AiProvider` に enum を追加し、`AiGenerator.generate` の分岐と専用クライアント（`generate` + `parseResponse` を持つ object）・`ToolChat.newSession` の分岐を実装する。HTTP送信は `AiHttp.post` を使う（§4.18）。
 - **入出力形式の追加**: `TableFormat` に enum を追加し、`skill/Tables.kt` の read / write に分岐を実装する（Importer / Exporter は形式非依存のため変更不要）。
 - **テンプレートパックの追加**: `skill/TemplatePacks.kt` の `all` に `Pack`（ファイルパス→内容の埋め込み）を登録する。`ImportExportTest` に倣い、展開後の検証エラー0をテストで保証する。

@@ -621,7 +621,7 @@ fun EditorArea(state: AppState) {
                 )
                 Spacer(Modifier.width(6.dp))
             }
-            if (!isSchemaFile && doc.schema != null && doc.root != null && !state.readOnlyMode) {
+            if (doc.schema != null && doc.root != null && !state.readOnlyMode) {
                 OutlinedButton(
                     onClick = { state.requestAi(doc.schema!!.root, emptyList(), wholeDocument = true) },
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
@@ -651,31 +651,43 @@ fun EditorArea(state: AppState) {
                 Text("すべて保存", fontSize = 11.sp)
             }
         }
+        // スキーマ文書ではタブ3にメタスキーマ（R11-02）のフォーム編集を追加する（設計UIが主要UXのまま）
+        val tab = if (!isSchemaFile && state.editorTab == 3) 0 else state.editorTab
         TabRow(
-            selectedTabIndex = state.editorTab,
+            selectedTabIndex = tab,
             containerColor = Palette.Surface,
             contentColor = Palette.Primary,
         ) {
             Tab(
-                selected = state.editorTab == 0,
+                selected = tab == 0,
                 onClick = { state.editorTab = 0 },
                 text = { Text(if (isSchemaFile) "スキーマ設計" else "フォーム", fontSize = 13.sp) },
             )
             Tab(
-                selected = state.editorTab == 1,
+                selected = tab == 1,
                 onClick = { state.editorTab = 1 },
                 text = { Text("ソース", fontSize = 13.sp) },
             )
             Tab(
-                selected = state.editorTab == 2,
+                selected = tab == 2,
                 onClick = { state.editorTab = 2 },
                 text = { Text("差分", fontSize = 13.sp) },
             )
+            if (isSchemaFile) {
+                Tab(
+                    selected = tab == 3,
+                    onClick = { state.editorTab = 3 },
+                    text = { Text("フォーム", fontSize = 13.sp) },
+                )
+            }
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
-            if (state.editorTab == 0) {
-                if (isSchemaFile) SchemaEditor(state, doc) else FormView(state, doc)
-            } else if (state.editorTab == 1) SourcePane(state, doc) else DiffPane(doc)
+            when (tab) {
+                0 -> if (isSchemaFile) SchemaEditor(state, doc) else FormView(state, doc)
+                1 -> SourcePane(state, doc)
+                2 -> DiffPane(doc)
+                else -> FormView(state, doc)
+            }
         }
     }
     AiGenerationHost(state)

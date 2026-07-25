@@ -59,6 +59,9 @@ internal const val CLI_USAGE = """コマンド:
            コマンド内容の表示のみ。人間が内容を確認し --yes を付けたときだけ実行する（明示許可制）
   init     <dir> [--template name]              テンプレートパックでワークスペースを初期化
            （--template 省略時は利用可能なテンプレートを一覧表示）
+  infer-schema <workspace> <glob> [--id schema-id] [--apply]
+           既存YAML文書（glob。複数文書はマージ）からスキーマのドラフトを推測する（R11-01）。
+           既定は標準出力へドラフトを表示。--apply で _schemas/<id>.yaml へ保存する（既存は上書きしない）
   bench    <dir> [--docs N] [--items N]         索引性能の計測（R8-02）。空ディレクトリならベンチマーク用
            ワークスペース（既定 1000 文書）を生成し、フル再構築と増分更新の時間を比較する
   help                                          このヘルプ
@@ -190,8 +193,8 @@ internal fun runCli(args: Array<String>): String {
         "validate" -> {
             val ws = workspace()
             val target = rest.getOrNull(1)?.takeIf { !it.startsWith("--") }
-            val files = if (target != null) listOf(ws.resolve(target))
-            else ws.files.filter { !ws.relPath(it).startsWith(schema.SchemaLoader.SCHEMA_DIR + "/") }
+            // `_schemas` 配下もメタスキーマ（R11-02）で検証対象になる（定義のパースエラーは schemaErrors 側）
+            val files = if (target != null) listOf(ws.resolve(target)) else ws.files
             var errors = 0
             var warnings = 0
             val fileResults = files.mapNotNull { file ->
@@ -377,6 +380,39 @@ internal fun runCli(args: Array<String>): String {
                 ).filterValues { it != null }
             )
         }
+        "infer-schema" -> {
+            // スキーマ推測（R11-01）: 既存文書からドラフトを推測し、表示または _schemas へ保存する
+            val ws = workspace()
+            val glob = rest.getOrNull(1)?.takeIf { !it.startsWith("--") }
+                ?: error("対象文書の glob を指定してください（例 tables/**/*.yaml）")
+            val regex = schema.globToRegex(glob)
+            val targets = ws.files
+                .map { ws.relPath(it) to it }
+                .filter { (rel, _) -> !rel.startsWith("_") && regex.matches(rel) }
+            val samples = targets.map { (rel, file) ->
+                schema.SchemaInference.Sample(rel, runCatching { YamlIO.parseFirst(Files.readString(file)) }.getOrNull())
+            }
+            val id = stringFlag(rest, "--id") ?: defaultInferredSchemaId(glob)
+            val draft = schema.SchemaInference.infer(samples, schemaId = id, match = glob)
+            val yamlText = YamlIO.dump(draft)
+            if ("--apply" !in rest) {
+                yamlText
+            } else {
+                val rel = "${schema.SchemaLoader.SCHEMA_DIR}/$id.yaml"
+                val file = ws.resolve(rel)
+                require(!Files.exists(file)) { "既にスキーマファイルが存在します: $rel" }
+                Files.createDirectories(file.parent)
+                Files.writeString(file, yamlText)
+                ws.refresh()
+                dumpYaml(
+                    linkedMapOf(
+                        "file" to rel,
+                        "documents" to targets.size,
+                        "schemaErrors" to ws.schemaErrors.filter { it.startsWith("$id.yaml") },
+                    )
+                )
+            }
+        }
         "revert" -> {
             val ws = workspace()
             val runFile = rest.getOrNull(1)?.takeIf { !it.startsWith("--") }
@@ -386,6 +422,13 @@ internal fun runCli(args: Array<String>): String {
         }
         else -> error("不明なコマンドです: $command\n$CLI_USAGE")
     }
+}
+
+/** glob からスキーマIDの既定値を作る（最初のワイルドカードより前の最後のパス要素。R11-01）。 */
+internal fun defaultInferredSchemaId(glob: String): String {
+    val prefix = glob.takeWhile { it !in "*?{[" }
+    val segment = prefix.trimEnd('/').substringAfterLast('/').substringBeforeLast('.')
+    return segment.ifBlank { "inferred-schema" }
 }
 
 /** 環境変数に設定されているAPIキーをプロバイダごとに集める（delegate や watch で使う）。 */

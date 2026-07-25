@@ -317,6 +317,8 @@ object Validator {
                     issues += Issue(Severity.ERROR, "必須項目「$label」が未設定です", path)
                 }
             }
+            // any は「検証しない」の明示（R11-02）。必須チェック（node == null）だけが手前で効く
+            FieldType.ANY -> Unit
         }
     }
 }

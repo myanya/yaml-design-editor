@@ -168,7 +168,7 @@ class AppState {
     var navigationCandidates by mutableStateOf<List<IdEntry>>(emptyList())
         private set
 
-    /** 0 = フォーム, 1 = ソース */
+    /** 0 = フォーム（スキーマ文書ではスキーマ設計）, 1 = ソース, 2 = 差分, 3 = スキーマ文書のメタスキーマフォーム（R11-02） */
     var editorTab by mutableStateOf(0)
     /** 0 = 文書, 1 = 一覧, 2 = 参照グラフ, 3 = ID横ぐし, 4 = ビューグリッド */
     var workspaceView by mutableStateOf(0)
@@ -423,15 +423,37 @@ class AppState {
             coreWs?.let { cw ->
                 cw.noteDiskChanges(listOf(doc.file))
                 mirrorCore(cw)
-                if (relPath(doc.file).startsWith(SchemaLoader.SCHEMA_DIR + "/")) {
-                    docCache.values.forEach { it.schema = schemaFor(it.file) }
-                }
+                // スキーマ本体だけでなく派生スキーマの導出元文書（R11-03）の保存でもスキーマ集合が変わるため、常に割り当て直す
+                docCache.values.forEach { it.schema = schemaFor(it.file) }
                 indexVersion++
             }
             status = "保存しました: ${relPath(doc.file)}"
         }.onFailure {
             status = "保存に失敗しました: ${it.message}"
         }
+    }
+
+    /**
+     * スキーマ推測（R11-01）: glob に一致する文書（未保存編集を優先）からドラフトを推測し、
+     * `_schemas/<id>.yaml` として保存して開く。仕上げはスキーマ設計画面（S-05）で行う。
+     */
+    fun inferSchema(glob: String, id: String): Result<Path> = runCatching {
+        val ws = workspace ?: error("ワークスペースが開かれていません")
+        require(id.isNotBlank() && '/' !in id && '\\' !in id) { "使用できないスキーマIDです: $id" }
+        val regex = schema.globToRegex(glob)
+        val loader = unsavedFirstLoader()
+        val samples = yamlFiles
+            .map { relPath(it) to it }
+            .filter { (rel, _) -> !rel.startsWith("_") && regex.matches(rel) }
+            .map { (rel, file) -> schema.SchemaInference.Sample(rel, loader(file)) }
+        val draft = schema.SchemaInference.infer(samples, schemaId = id, match = glob)
+        val file = ws.resolve(SchemaLoader.SCHEMA_DIR).resolve("$id.yaml")
+        require(!Files.exists(file)) { "既にスキーマファイルが存在します: ${relPath(file)}" }
+        Files.createDirectories(file.parent)
+        Files.writeString(file, YamlIO.dump(draft))
+        reload()
+        openFile(file)
+        file
     }
 
     fun createDirectory(parent: Path, name: String): Result<Path> = runCatching {

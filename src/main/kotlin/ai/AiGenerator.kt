@@ -133,6 +133,8 @@ internal fun fieldToJsonSchema(original: FieldDef, schema: SchemaDef, depth: Int
                 put("additionalProperties", field.value?.let { fieldToJsonSchema(it, schema, depth + 1, candidates) }
                     ?: buildJsonObject { put("type", "string") })
             }
+            // any を含むスキーマは containsMap で構造化出力が無効化されるため、ここは保険の文字列扱い
+            FieldType.ANY -> put("type", "string")
         }
     }
 }
@@ -145,11 +147,12 @@ internal fun responseSchemaOf(targetSchema: JsonObject): JsonObject = buildJsonO
     put("additionalProperties", false)
 }
 
+/** 構造化出力（Structured Outputs）で表現できない型（map / any）を含むか。含む場合はプロンプト指示へフォールバックする。 */
 internal fun containsMap(original: FieldDef, schema: SchemaDef, depth: Int = 0): Boolean {
     if (depth > 16) return false
     val field = schema.resolve(original) ?: original
     return when (field.type) {
-        FieldType.MAP -> true
+        FieldType.MAP, FieldType.ANY -> true
         FieldType.ARRAY -> field.item?.let { containsMap(it, schema, depth + 1) } == true
         FieldType.OBJECT -> field.fields.any { containsMap(it, schema, depth + 1) }
         FieldType.ENUM -> field.cases.values.flatten().any { containsMap(it, schema, depth + 1) }

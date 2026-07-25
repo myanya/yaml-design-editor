@@ -114,7 +114,11 @@ class Workspace private constructor(val root: Path) {
 
     fun schemaFor(file: Path): SchemaDef? {
         val rel = relPath(file)
-        if (rel.startsWith(SchemaLoader.SCHEMA_DIR + "/")) return null
+        if (rel.startsWith(SchemaLoader.SCHEMA_DIR + "/")) {
+            // `_schemas/` にはメタスキーマ（R11-02）だけを適用する。一般スキーマの match は及ばない
+            // （catch-all スキーマの誤適用を防ぐ。利用者は同IDのスキーマで上書きできる）
+            return schemas.firstOrNull { it.id == schema.BuiltinSchemas.META_SCHEMA_ID && it.matches(rel) }
+        }
         return schemas.firstOrNull { it.matches(rel) }
     }
 
@@ -153,7 +157,13 @@ class Workspace private constructor(val root: Path) {
      * UI（AppState）の保存・外部変更検出もこの経路を通る。
      */
     fun noteDiskChanges(changed: Collection<Path>, removed: Collection<Path> = emptyList()) {
-        if ((changed + removed).any { relPath(it).startsWith(SchemaLoader.SCHEMA_DIR + "/") }) {
+        val rels = (changed + removed).map { relPath(it) }
+        // スキーマ本体の変更に加え、派生スキーマの導出元文書（R11-03）の変更も検証ルールを変えるため全再構築する
+        if (rels.any { rel ->
+                rel.startsWith(SchemaLoader.SCHEMA_DIR + "/") ||
+                    schemas.any { s -> s.derive?.matchesSource(rel) == true }
+            }
+        ) {
             refresh()
             return
         }

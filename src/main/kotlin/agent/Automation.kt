@@ -303,7 +303,16 @@ class AutomationEngine(
                 val dirty = result.changeSet.changes.filter { change ->
                     runCatching { dirtyChecker(ws.resolve(change.file)) }.getOrDefault(false)
                 }
-                if (dirty.isNotEmpty()) {
+                // 派生スキーマの導出元文書（R11-03）への書込は検証ルールを無人で変えるため、自動適用しない
+                val deriveSources = result.changeSet.changes.filter { change ->
+                    ws.schemas.any { s -> s.derive?.matchesSource(change.file) == true }
+                }
+                if (deriveSources.isNotEmpty()) {
+                    addPendingReview(
+                        activity, item, result, runFile, ws,
+                        reason = "検証スキーマの導出元文書を変更するため承認待ちへ降格: ${deriveSources.joinToString(", ") { it.file }}",
+                    )
+                } else if (dirty.isNotEmpty()) {
                     addPendingReview(
                         activity, item, result, runFile, ws,
                         reason = "エディタで編集中のファイルがあるため承認待ちへ降格: ${dirty.joinToString(", ") { it.file }}",

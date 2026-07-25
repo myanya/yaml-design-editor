@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.NoteAdd
 import androidx.compose.material.icons.filled.Edit
@@ -41,6 +42,7 @@ private data class TreeRow(val path: Path, val depth: Int, val isDir: Boolean)
 fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp) {
     var selectedPath by remember(state.workspace) { mutableStateOf<Path?>(null) }
     var dialog by remember { mutableStateOf<TreeDialog?>(null) }
+    var inferTarget by remember(state.workspace) { mutableStateOf<Path?>(null) }
     Column(
         Modifier.width(width).fillMaxHeight().background(Palette.PanelBg)
     ) {
@@ -55,6 +57,13 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp) {
             }
             IconButton(onClick = { dialog = TreeDialog.NewDirectory }) {
                 Icon(Icons.Default.CreateNewFolder, "新規フォルダー", Modifier.size(17.dp))
+            }
+            // スキーマ推測（R11-01）: 選択した業務文書を起点に、同種の文書群からスキーマドラフトを作る
+            val canInfer = selectedPath?.let { p ->
+                !Files.isDirectory(p) && !state.relPath(p).startsWith("_")
+            } == true
+            IconButton(enabled = canInfer, onClick = { inferTarget = selectedPath }) {
+                Icon(Icons.Default.AutoFixHigh, "スキーマ推測（既存文書からドラフト作成）", Modifier.size(16.dp))
             }
             IconButton(enabled = selectedPath != null, onClick = { dialog = TreeDialog.Rename }) {
                 Icon(Icons.Default.Edit, "名前を変更", Modifier.size(16.dp))
@@ -94,6 +103,9 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp) {
                 adapter = rememberScrollbarAdapter(listState),
                 modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
             )
+        }
+        inferTarget?.let { target ->
+            InferSchemaDialog(state, target, onDismiss = { inferTarget = null })
         }
         dialog?.let { kind ->
             TreeOperationDialog(
@@ -202,6 +214,50 @@ private fun buildRows(
     }
     rec(ws, 0)
     return out
+}
+
+/**
+ * スキーマ推測ダイアログ（R11-01）: glob とスキーマIDを確認して `_schemas/<ID>.yaml` のドラフトを作成する。
+ * 初期値は選択ファイルのディレクトリ配下（同種文書の集まり）を対象にする。
+ */
+@Composable
+private fun InferSchemaDialog(state: AppState, target: Path, onDismiss: () -> Unit) {
+    val rel = state.relPath(target)
+    val dir = rel.substringBeforeLast('/', "")
+    var glob by remember(target) {
+        mutableStateOf(if (dir.isEmpty()) "*.{yaml,yml}" else "$dir/**/*.{yaml,yml}")
+    }
+    var id by remember(target) {
+        mutableStateOf(if (dir.isEmpty()) rel.substringBeforeLast('.') else dir.substringAfterLast('/'))
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("スキーマ推測", fontSize = 16.sp) },
+        text = {
+            Column {
+                Text(
+                    "glob に一致する既存文書から _schemas/<スキーマID>.yaml のドラフトを推測します。\n" +
+                        "型・必須・enum は実例からの候補のため、作成後にスキーマ設計画面で仕上げてください。",
+                    fontSize = 12.sp, color = Palette.SubText,
+                )
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(glob, { glob = it }, singleLine = true, label = { Text("対象文書（glob）") })
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(id, { id = it }, singleLine = true, label = { Text("スキーマID") })
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = glob.isNotBlank() && id.isNotBlank(), onClick = {
+                state.inferSchema(glob.trim(), id.trim())
+                    .onSuccess {
+                        state.status = "スキーマドラフトを作成しました: ${state.relPath(it)}"
+                        onDismiss()
+                    }
+                    .onFailure { state.status = it.message ?: "スキーマ推測に失敗しました" }
+            }) { Text("推測して作成") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("キャンセル") } },
+    )
 }
 
 private enum class TreeDialog { NewFile, NewDirectory, Rename, Delete }

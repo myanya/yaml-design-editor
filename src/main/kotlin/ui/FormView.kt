@@ -408,6 +408,8 @@ fun ValueEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
         FieldType.ARRAY -> ArrayEditor(ctx, effective, slot, path)
         FieldType.MAP -> MapEditor(ctx, effective, slot, path)
         FieldType.OBJECT -> NestedObjectEditor(ctx, effective, slot, path)
+        // any は型を定めないため汎用エディタで編集する（R11-02）
+        FieldType.ANY -> GenericEditor(ctx, slot, path, refHint = false)
     }
 }
 

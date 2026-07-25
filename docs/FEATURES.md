@@ -24,7 +24,7 @@
 
 | ID | 機能 | 状態 | 主な実装 | テスト |
 |---|---|---|---|---|
-| E-01 | スキーマ駆動フォーム（全12型のエディタ、必須マーク（`requiredFrom` はフェーズ名つきで区別表示）、説明表示、折りたたみ） | ✅ | `ui/FormView.kt` | 手動 |
+| E-01 | スキーマ駆動フォーム（全13型のエディタ、必須マーク（`requiredFrom` はフェーズ名つきで区別表示）、説明表示、折りたたみ） | ✅ | `ui/FormView.kt` | 手動 |
 | E-02 | 汎用ツリーエディタ（スキーマなし文書、スキーマ外キーの汎用行表示、キー名変更＝順序・値・コメントを保った改名。ROADMAP R8-05） | ✅ | `ui/FormView.kt`（`GenericEditor`, `renameMapKey`） | 単体（`RenameKeyTest`）＋手動 |
 | E-03 | ソース編集（行番号、文書内検索・置換（1件／すべて）、YAML構文ハイライト、「変更を反映」、パースエラーの行・列表示。ROADMAP R8-04） | ✅ | `ui/SourcePane.kt`, `ui/SourceHighlight.kt` | 単体（`SourceHighlightTest`）＋手動 |
 | E-04 | 差分表示（保存済み vs 編集中、LCSによる行整列、変更行内の文字単位強調、空行差の弱調表示。ROADMAP R8-04） | ✅ | `ui/DiffPane.kt` | 単体（`DiffPaneTest`, `SourceHighlightTest`） |
@@ -42,7 +42,7 @@
 | ID | 機能 | 状態 | 主な実装 | テスト |
 |---|---|---|---|---|
 | S-01 | スキーマ読込（`_schemas/*.yaml`、`match` glob 先勝ち、id 重複検出） | ✅ | `schema/Schema.kt`（`SchemaLoader`） | 手動 |
-| S-02 | 型システム12種（string/text/int/number/boolean/enum/date/id/ref/array/map/object） | ✅ | `schema/Schema.kt`（`FieldType`） | 手動 |
+| S-02 | 型システム13種（string/text/int/number/boolean/enum/date/id/ref/array/map/object/any。`any` は「検証しない」の明示＝必須チェックのみ・汎用エディタ・構造化出力の無効化。ROADMAP R11-02） | ✅ | `schema/Schema.kt`（`FieldType`） | 単体（`MetaSchemaTest`）＋手動 |
 | S-03 | 名前付き定義と再帰参照（`definitions` / `$ref`、属性のオーバーライド合成） | ✅ | `SchemaDef.resolve` | 手動 |
 | S-04 | メタスキーマ検証（必須情報、キー重複、子定義不足、enum選択肢、`cases` の整合、未解決 `$ref`） | ✅ | `SchemaDef.validateDefinition` | 単体（`SchemaLoaderTest`） |
 | S-05 | スキーマ設計UI（スキーマ全体の説明、document / library切替、ローカル／横断`$ref`、設計／プレビュー／適用対象タブ、競合スキーマ表示、フィールドの `requiredFrom`・表示役割 `role` 入力、enum リッチ選択肢（値・ラベル・説明）の編集、`phases`（申告キー・順序）と `coverage`（参照／出現ベース切替・重大度・activeFrom）の構造化編集。ROADMAP R9-03・R10-01・R10-03） | ✅ | `ui/SchemaEditor.kt` | 手動 |
@@ -55,6 +55,9 @@
 | S-12 | スキーマ共通部品（ROADMAP R7-03）: `kind: library` がdefinitionsだけを公開し、`moduleId#definition` の修飾`$ref`で工程別スキーマから共有。二段階ロードの`SchemaCatalog`、宣言元基準の入れ子参照、未解決・重複検出 | ✅ | `schema/Schema.kt`（`SchemaCatalog`, `SchemaLoader`） | 単体＋統合（`SchemaLoaderTest`） |
 | S-13 | 表示解決機構（ROADMAP R10-01）: 要素の1行要約（タイトル・サブタイトル・ID）を単一機構で解決。優先順位はスキーマの `FieldDef.role: title / subtitle`（`$ref` 合成・library 共有対応、object 内の重複はメタ検証）＞予約語（title/name/label、description/summary）＞ id ＞ キー数。消費側: 畳み込みヘッダ（E-11）・参照候補（I-04）・バックリンク（I-05）・ID横ぐし（I-07）・ビューグリッド（X-06）・ID検索（I-06）・エージェント `related`（AG-25）＝索引タイトル（`IdEntry.title`）への一元化 | ✅ | `schema/Display.kt`, `schema/Schema.kt`（`FieldRole`）, `index/IdIndex.kt`（`DocScanner`, `sourceEntryOf`） | 単体（`DisplayTest`） |
 | S-14 | enum のリッチ選択肢（ROADMAP R10-03）: `values` 要素を文字列または `{value, label, description}` に拡張（後方互換・混在可）。検証・`cases` のキー・AI生成制約は `value` のまま、フォームは label 表示＋現在値の ✓ ＋説明表示、スキーマ設計UIに値・ラベル・説明の入力欄。値重複はメタ検証エラー | ✅ | `schema/Schema.kt`（`EnumOption`）, `ui/FormView.kt`（`EnumEditor`）, `ui/SchemaEditor.kt` | 単体（`DisplayTest`） |
+| S-15 | 組込みメタスキーマ（ROADMAP R11-02）: `_schemas` 文書に適用される `builtin-schema`。`FieldDef` の再帰は再帰 `$ref`、「type の値ごとに持てる属性」は `cases`（S-10）で表現（ドッグフーディング）。`_schemas` には一般スキーマの match は及ばず（catch-all の誤適用防止）、同IDのスキーマで上書き可。スキーマ文書に「フォーム」タブ・AI文書生成・メタスキーマ検証（検証パネル・CLI `validate`）が使える。組込みスキーマ全件と実用形スキーマの検証エラー0を自動検証 | ✅ | `schema/BuiltinSchemas.kt`, `core/Workspace.kt`（`schemaFor`）, `Main.kt` | 単体（`MetaSchemaTest`） |
+| S-16 | スキーマ推測（ROADMAP R11-01）: 既存YAML（glob指定・複数文書のマージ）から型推測（int/number/boolean/date/長文text）・参照認識（I-02 の命名規約 `RefNaming` を共有）・小さい値集合の enum 候補化・全出現キーの required 候補化を行い、`_schemas` ドラフト（コメント付き・メタスキーマ検証を通る形）を生成。入口はファイルツリーの推測ダイアログと CLI `infer-schema`（`--apply` で保存・既存は上書きしない） | ✅ | `schema/SchemaInference.kt`, `app/AppState.inferSchema`, `ui/FileTreePane.kt`, `core/Cli.kt` | 単体（`SchemaInferenceTest`） |
+| S-17 | 派生スキーマ（ROADMAP R11-03）: スキーマの `derive:` 宣言（from / each / id / match / fields の写像。語彙は SK-02 の列マッピングと共通）で、テーブル定義書のような導出元文書から検証スキーマをロード時にコンパイル（パース→リンク→導出の第3段階）。導出元文書の保存・外部変更・変更セット適用は全再構築で再検証へ反映（`Workspace.noteDiskChanges`）。導出の失敗（プレースホルダ欠落・キー欠落・ID重複・未知の型）は理由付きでスキーマ読込エラーに報告。自動適用は導出元文書への書込で承認待ちへ降格（AG-14） | ✅ | `schema/DerivedSchemas.kt`, `schema/Schema.kt`（`DeriveDef`）, `core/Workspace.kt`, `agent/Automation.kt` | 単体（`DerivedSchemasTest`, `AutomationTest`） |
 
 ## 4. 検証
 
@@ -97,7 +100,7 @@
 | A-01 | フィールド単位の生成（ラベル横 ✨ アイコン） | ✅ | `ui/AiGenerationDialog.kt`, `ui/FormView.kt` | 手動 |
 | A-02 | 配列への候補追加／全体置き換えの選択 | ✅ | `ui/AiGenerationDialog.kt`（`combineProposal`） | 単体（`AiProposalTest`） |
 | A-03 | 文書全体の生成（`_document` メタデータは保持） | ✅ | `ui/AiGenerationDialog.kt`（`replaceInClone`） | 単体（`AiProposalTest`） |
-| A-04 | スキーマ→JSON Schema 変換による Structured Outputs（`map` 型を含む場合はプロンプト指示にフォールバック） | ✅ | `ai/AiGenerator.kt`（`fieldToJsonSchema`, `containsMap`） | 単体（`OpenAiGeneratorTest`） |
+| A-04 | スキーマ→JSON Schema 変換による Structured Outputs（`map` / `any` 型を含む場合はプロンプト指示にフォールバック） | ✅ | `ai/AiGenerator.kt`（`fieldToJsonSchema`, `containsMap`） | 単体（`OpenAiGeneratorTest`, `MetaSchemaTest`） |
 | A-05 | REF候補の enum 制約（`idPatterns`/`scope` で絞り込み、200件超は省略） | ✅ | `ai/AiGenerator.kt`（`refCandidateIds`） | 単体（`AiGeneratorTest`） |
 | A-06 | 適用前の差分プレビューと適用後検証（エラー・警告数）、Undo可能な適用 | ✅ | `ui/AiGenerationDialog.kt` | 手動 |
 | A-07 | プロバイダ切替（OpenAI Responses API / Anthropic Messages API / Azure OpenAI＝OpenAI互換プリセット）、モデル・エンドポイント設定の永続化、APIキーはメモリのみ | ✅ | `ai/OpenAiGenerator.kt`, `ai/AnthropicGenerator.kt`, `ui/AiSettings.kt` | 単体（レスポンス解析） |
@@ -124,7 +127,7 @@
 | AG-11 | トリガ（`trigger`: manual / on-change（デバウンス付き） / schedule / on-invalid。予約ディレクトリと自己変更では発火しない） | ✅ | `agent/Automation.kt`（`tick`） | 単体（`AutomationTest`） |
 | AG-12 | アクティビティ連鎖（`chain.onSuccess` / `onFailure`、`chain.rules`＝出力値による分岐: 終わり方・採用変更ファイルglob・変更数・メモの部分一致のAND条件で分岐先を選ぶ（ROADMAP R9-04）。深さ上限・循環検出。人間承認は採否決定後に発火） | ✅ | `agent/Automation.kt`（`chainNext`）, `agent/Definitions.kt`（`ChainDef.selectNext`） | 単体（`AutomationTest`, `DefinitionsTest`） |
 | AG-13 | 無人リトライ（`retry.maxAttempts`。失敗理由と検証エラーをフィードバックし、同一失敗の繰り返しは収束打ち切り） | ✅ | `agent/Automation.kt`（`handleFailure`） | 単体（`AutomationTest`） |
-| AG-14 | 自動承認 `approval: auto`（ゲート通過・スコープ内・非編集中のみ。条件を欠くと承認待ちへ降格。適用前バックアップ） | ✅ | `agent/Automation.kt`, `agent/AutoApply.kt` | 単体（`AutomationTest`） |
+| AG-14 | 自動承認 `approval: auto`（ゲート通過・スコープ内・非編集中のみ。条件を欠くと承認待ちへ降格。派生スキーマ（S-17）の導出元文書への書込も検証ルールの無人変更を防ぐため降格。適用前バックアップ） | ✅ | `agent/Automation.kt`, `agent/AutoApply.kt` | 単体（`AutomationTest`） |
 | AG-15 | 実行キューと停止（直列実行、常時停止＝キュー消去＋実行中キャンセル、承認待ち変更セットのファイル保存による耐久性） | ✅ | `agent/Automation.kt` | 単体（`AutomationTest`） |
 | AG-16 | 自動適用の巻き戻し（実行記録のバックアップから復元。適用後の変更は競合として拒否、`--force` で上書き） | ✅ | `agent/AutoApply.kt`（`revert`）, CLI `revert` | 単体（`AutomationTest`） |
 | AG-17 | サブエージェント委譲（`delegate` ツール。親のステージングを読める読み取り専用の相談、所見テキストを返す。深さ1） | ✅ | `agent/Kernel.kt`（`consult`）, `agent/Tools.kt` | 単体（`KernelTest`） |
@@ -148,7 +151,7 @@ UIに依存しないヘッドレス操作の層（[ROADMAP.md](ROADMAP.md) P1 �
 | C-03 | 変更セット（複数ファイルのパッチ束＋新規ファイル作成。baseハッシュ競合検出、全件成功時のみ書込、適用後状態のオーバーレイ索引で検証、`--require-valid` ゲート、ドライラン） | ✅ | `core/Patch.kt`（`ChangeSets`）, `core/Workspace.kt`（`apply`） | 単体（`WorkspaceCliTest`） |
 | C-04 | 段階的開示API（カタログ→骨子→ノード全文の3段階、文字数予算付き文脈バンドル） | ✅ | `core/Disclosure.kt` | 単体（`WorkspaceCliTest`） |
 | C-05 | 構造検索API（本文・キーの部分一致＋スキーマ／ファイルglob／パスglob条件、参照検索・未解決参照検索） | ✅ | `core/Search.kt` | 単体（`WorkspaceCliTest`） |
-| C-06 | CLI（catalog / outline / read / bundle / search / view / validate / apply / hash / activities / agent / watch / revert / metrics / eval / bench / skills / import / export / run-skill / init。出力はUTF-8のYAML。`validate` は `phases` 宣言スキーマの文書に `phaseProgress` を付与） | ✅ | `core/Cli.kt`, `build.gradle.kts`（`runCli`） | 単体（`WorkspaceCliTest` 一気通貫） |
+| C-06 | CLI（catalog / outline / read / bundle / search / view / validate / apply / hash / activities / agent / watch / revert / metrics / eval / bench / skills / import / export / run-skill / init / infer-schema。出力はUTF-8のYAML。`validate` は `phases` 宣言スキーマの文書に `phaseProgress` を付与し、`_schemas` 文書もメタスキーマ（S-15）で検証する） | ✅ | `core/Cli.kt`, `build.gradle.kts`（`runCli`） | 単体（`WorkspaceCliTest` 一気通貫） |
 | C-07 | ビュー解決API（`_views` 定義のロード・行×セルへの解決＝原本座標化・バックリンク列の解決＝参照元の最内IDと参照座標・データパスからのスキーマフィールド解決・詳細文書スキャフォールド。CLI `view`） | ✅ | `core/Views.kt`, `core/Cli.kt` | 単体（`ViewsTest`） |
 | C-08 | 索引性能ベンチマーク（ベンチマーク用ワークスペースの生成と、索引のフル再構築 vs 増分更新の比較計測。CLI `bench`。ROADMAP R8-02） | ✅ | `core/Bench.kt`, `core/Cli.kt` | 単体（`IdIndexIncrementalTest`） |
 | C-09 | 文書キャッシュの中核（`EditBuffer`＝履歴・dirty・複数ドキュメント再出力、`WorkspaceRecords`＝一覧・一括編集、`Workspace.noteDiskChanges`＝保存・外部変更の増分／全再構築の振り分け一元化。UIの `AppState` / `OpenDocument` はこの層への委譲＋Compose購読ミラーになる。ROADMAP R9-02） | ✅ | `core/Documents.kt`, `core/Workspace.kt` | 単体（`DocumentsTest`） |

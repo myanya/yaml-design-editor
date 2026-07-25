@@ -21,7 +21,8 @@ enum class FieldType(val id: String) {
     REF("ref"),         // 他要素の ID への参照（リンク化される）
     ARRAY("array"),     // 配列（item 必須）
     MAP("map"),         // 任意キーの連想配列（value 必須）
-    OBJECT("object");   // オブジェクト（fields 必須）
+    OBJECT("object"),   // オブジェクト（fields 必須）
+    ANY("any");         // 任意の値（検証しない。メタスキーマ等、単一の型で表せない箇所の明示。R11-02）
 
     companion object {
         fun of(s: String?): FieldType = entries.firstOrNull { it.id == s } ?: STRING
@@ -189,6 +190,39 @@ data class CoverageRule(
 }
 
 /**
+ * 型を決める写像（R11-03）: 導出元要素の `path` の値を `map`（値辞書）で FieldType の id に変換する。
+ * 語彙（path / map / default）は skill の列マッピング（SK-02）と揃える。
+ */
+data class DeriveTypeRule(
+    val path: String,                        // 型を決める値のパス（導出元要素からのドット区切り）
+    val map: Map<String, String> = emptyMap(), // 値辞書（例 varchar → string）
+    val default: String = FieldType.STRING.id, // 辞書に無い・未記入のときの型
+)
+
+/**
+ * 派生スキーマの宣言（R11-03）: 「テーブル定義書のような実質スキーマの文書」から検証スキーマを
+ * ロード時にコンパイルする写像。宣言したスキーマ自身は文書にマッチせず、テンプレートに徹する。
+ */
+data class DeriveDef(
+    val from: String,                 // 導出元文書の glob（予約ディレクトリは不可）
+    val each: String? = null,         // 1文書内の複数要素から導出する場合の配列パス（null = 文書ルート）
+    val idPattern: String,            // 導出スキーマのID（{パス} が導出元要素の値で置換される）
+    val namePattern: String? = null,  // 導出スキーマの表示名（同上）
+    val matchPattern: String,         // 導出スキーマの適用先 glob（同上）
+    val fieldsPath: String,           // フィールド一覧にする配列のパス（導出元要素から相対）
+    val keyPath: String,              // 各要素のこの値 → field.key
+    val labelPath: String? = null,    // 任意 → field.label
+    val descriptionPath: String? = null, // 任意 → field.description
+    val requiredPath: String? = null, // 任意 → field.required（真偽値）
+    val typeRule: DeriveTypeRule? = null, // 任意 → field.type（省略時は string）
+) {
+    private val fromRegex: Regex by lazy { globToRegex(from) }
+
+    /** ワークスペース相対パスが導出元文書か（この文書の変更はスキーマ再構築の契機になる）。 */
+    fun matchesSource(relPath: String): Boolean = fromRegex.matches(relPath)
+}
+
+/**
  * スキーマ 1 件。`match` の glob にマッチするファイルへ適用される。
  */
 data class SchemaDef(
@@ -202,13 +236,16 @@ data class SchemaDef(
     val phases: PhasesDef? = null,
     val source: Path,
     val kind: SchemaKind = SchemaKind.DOCUMENT,
+    /** 派生スキーマの宣言（R11-03）。非 null のスキーマはテンプレートであり、自身は文書にマッチしない。 */
+    val derive: DeriveDef? = null,
     /** SchemaLoader が全モジュールを読み込んだ後にリンクする。単体生成時はローカル定義だけで動作する。 */
     internal val definitionCatalog: SchemaCatalog = SchemaCatalog.local(id, definitions),
 ) {
     private val regex: Regex by lazy { globToRegex(match) }
 
-    /** ワークスペース相対パス（区切りは '/'）がこのスキーマの対象か。 */
-    fun matches(relPath: String): Boolean = kind == SchemaKind.DOCUMENT && regex.matches(relPath)
+    /** ワークスペース相対パス（区切りは '/'）がこのスキーマの対象か。derive 宣言スキーマはマッチしない。 */
+    fun matches(relPath: String): Boolean =
+        kind == SchemaKind.DOCUMENT && derive == null && match.isNotBlank() && regex.matches(relPath)
 
     /** `$ref` の参照先。非修飾名はフィールドの定義元、修飾名は `module#name` から引く。 */
     internal fun definitionTarget(field: FieldDef): Pair<DefinitionKey, FieldDef>? {
@@ -312,7 +349,15 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
     val issues = mutableListOf<SchemaIssue>()
     if (name.isBlank()) issues += SchemaIssue("スキーマ名が空です", "name")
     if (id.isBlank()) issues += SchemaIssue("スキーマIDが空です", "id")
-    if (kind == SchemaKind.DOCUMENT) {
+    val deriveDef = derive
+    if (kind == SchemaKind.DOCUMENT && deriveDef != null) {
+        // 派生スキーマの宣言（R11-03）: 自身は文書にマッチしないため match は持たず、root は共通フィールドの object
+        runCatching { globToRegex(deriveDef.from) }
+            .onFailure { issues += SchemaIssue("derive.from が不正です: ${it.message}", "derive.from") }
+        if (resolve(root)?.type != FieldType.OBJECT) {
+            issues += SchemaIssue("derive 宣言スキーマの root は object である必要があります（共通フィールドとして合成されます）", "root")
+        }
+    } else if (kind == SchemaKind.DOCUMENT) {
         if (match.isBlank()) issues += SchemaIssue("適用パターンが空です", "match")
         runCatching { globToRegex(match) }
             .onFailure { issues += SchemaIssue("適用パターンが不正です: ${it.message}", "match") }
@@ -467,7 +512,7 @@ fun SchemaDef.generateSample(): YNode {
             FieldType.DATE -> YNode.Scalar("2026-01-01")
             FieldType.ID -> YNode.Scalar("SAMPLE-001")
             FieldType.REF -> YNode.Scalar("")
-            FieldType.TEXT, FieldType.STRING -> YNode.Scalar("")
+            FieldType.TEXT, FieldType.STRING, FieldType.ANY -> YNode.Scalar("")
         }
     }
     return create(root, 0, emptySet())
@@ -556,7 +601,13 @@ object SchemaLoader {
                 errors += "${schema.source.fileName} [${issue.path}]: ${issue.message}"
             }
         }
-        return LoadResult(linked, errors)
+        // 第3段階「導出」（R11-03）: derive 宣言を導出元文書から検証スキーマへコンパイルし、
+        // 宣言スキーマの直後に挿入する（match の先勝ち規則を宣言位置で制御できるようにする）
+        val derived = DerivedSchemas.compile(linked, workspace)
+        errors += derived.errors
+        val result = if (derived.byDeclaring.isEmpty()) linked
+        else linked.flatMap { s -> listOf(s) + derived.byDeclaring[s.id].orEmpty() }
+        return LoadResult(result, errors)
     }
 
     fun parseSchemaText(text: String, source: Path, availableSchemas: List<SchemaDef> = emptyList()): SchemaDef {
@@ -566,13 +617,22 @@ object SchemaLoader {
         val name = raw["name"]?.toString() ?: id
         val description = raw["description"]?.toString()
         val kind = SchemaKind.parse(raw["kind"]?.toString())
-        val match = raw["match"]?.toString() ?: if (kind == SchemaKind.DOCUMENT) "**/*.{yaml,yml}" else ""
+        val derive = parseDerive(raw["derive"])
+        if (derive != null) {
+            require(kind == SchemaKind.DOCUMENT) { "derive は library スキーマには定義できません" }
+            require(raw["match"] == null) { "derive 宣言スキーマに match は定義できません（適用先は derive.match で決まります）" }
+        }
+        val match = raw["match"]?.toString()
+            ?: if (kind == SchemaKind.DOCUMENT && derive == null) "**/*.{yaml,yml}" else ""
         val definitions = (raw["definitions"] as? Map<*, *>)?.entries?.associate { (name, value) ->
             val definition = value as? Map<*, *> ?: error("definitions.${name}: objectである必要があります")
             name.toString() to parseField(definition, key = null, definitionScope = id)
         } ?: emptyMap()
         val root = if (kind == SchemaKind.LIBRARY) {
             require(raw["root"] == null) { "library スキーマに root は定義できません" }
+            FieldDef(type = FieldType.OBJECT, definitionScope = id)
+        } else if (derive != null && raw["root"] == null) {
+            // derive 宣言スキーマの root は任意（共通フィールドがなければ空の object）
             FieldDef(type = FieldType.OBJECT, definitionScope = id)
         } else {
             val rootMap = raw["root"] as? Map<*, *> ?: error("root定義が必要です")
@@ -591,12 +651,50 @@ object SchemaLoader {
             phases = phases,
             source = source,
             kind = kind,
+            derive = derive,
         )
         if (availableSchemas.isEmpty()) return parsed
         val modules = availableSchemas.filter { it.id != parsed.id }.map { it.id to it.definitions } +
             (parsed.id to parsed.definitions)
         val catalog = SchemaCatalog.linked(modules)
         return parsed.withDefinitionCatalog(catalog)
+    }
+
+    /** 派生スキーマ宣言（R11-03）のパース。写像の語彙（path / map / default）は SK-02 と揃える。 */
+    private fun parseDerive(raw: Any?): DeriveDef? {
+        if (raw == null) return null
+        val m = raw as? Map<*, *> ?: error("derive は object である必要があります")
+        val from = m["from"]?.toString()?.takeIf { it.isNotBlank() } ?: error("derive.from（導出元文書の glob）が必要です")
+        require(!from.replace('\\', '/').trimStart('/').startsWith("_")) { "derive.from に予約ディレクトリは指定できません: $from" }
+        val fieldsMap = m["fields"] as? Map<*, *> ?: error("derive.fields（フィールドの写像）が必要です")
+        val typeRule = when (val rawType = fieldsMap["type"]) {
+            null -> null
+            is Map<*, *> -> {
+                val path = rawType["path"]?.toString()?.takeIf { it.isNotBlank() }
+                    ?: error("derive.fields.type には path（型を決める値のパス）が必要です")
+                val dict = (rawType["map"] as? Map<*, *>)?.entries?.associate { (k, v) -> k.toString() to v.toString() } ?: emptyMap()
+                val default = rawType["default"]?.toString() ?: FieldType.STRING.id
+                (dict.values + default).forEach { typeId ->
+                    require(FieldType.entries.any { it.id == typeId }) { "derive.fields.type の型「$typeId」は未知の型です" }
+                }
+                DeriveTypeRule(path = path, map = dict, default = default)
+            }
+            else -> error("derive.fields.type は object（path / map / default）である必要があります")
+        }
+        return DeriveDef(
+            from = from,
+            each = m["each"]?.toString()?.takeIf { it.isNotBlank() },
+            idPattern = m["id"]?.toString()?.takeIf { it.isNotBlank() } ?: error("derive.id（導出スキーマのIDパターン）が必要です"),
+            namePattern = m["name"]?.toString(),
+            matchPattern = m["match"]?.toString()?.takeIf { it.isNotBlank() } ?: error("derive.match（導出スキーマの適用先 glob）が必要です"),
+            fieldsPath = fieldsMap["source"]?.toString()?.takeIf { it.isNotBlank() }
+                ?: error("derive.fields.source（フィールドにする配列のパス）が必要です"),
+            keyPath = fieldsMap["key"]?.toString()?.takeIf { it.isNotBlank() } ?: error("derive.fields.key（キーの値パス）が必要です"),
+            labelPath = fieldsMap["label"]?.toString(),
+            descriptionPath = fieldsMap["description"]?.toString(),
+            requiredPath = fieldsMap["required"]?.toString(),
+            typeRule = typeRule,
+        )
     }
 
     private fun parsePhases(raw: Any?): PhasesDef? = when (raw) {

@@ -10,6 +10,262 @@ import java.nio.file.Path
  */
 object BuiltinSchemas {
 
+    /** `_schemas/` に適用されるメタスキーマのID（R11-02）。core.Workspace.schemaFor が参照する。 */
+    const val META_SCHEMA_ID = "builtin-schema"
+
+    /**
+     * 組込みメタスキーマ（R11-02）: スキーマ定義そのものをフォーム編集・検証・AI生成の対象にする。
+     * FieldDef の再帰構造は再帰 `${"$"}ref`（definitions.field）、「type の値ごとに持てる属性」は
+     * `cases`（S-10）で表現する（自機能のドッグフーディング）。default・values 要素・phases のように
+     * 単一の型で表せない箇所は `any`（検証しない明示。ARCHITECTURE §4.23）。
+     */
+    private val metaSchemaYaml = """
+        id: $META_SCHEMA_ID
+        name: スキーマ定義
+        description: _schemas 配下のスキーマ文書を検証・フォーム編集するためのメタスキーマ
+        match: "${SchemaLoader.SCHEMA_DIR}/**/*.{yaml,yml}"
+        definitions:
+          field:
+            type: object
+            fields:
+              - key: key
+                label: キー
+                type: string
+                description: 親オブジェクト内のキー名（ルート・配列要素では不要）
+              - key: label
+                label: 表示ラベル
+                type: string
+              - key: type
+                label: 型
+                type: enum
+                values: [string, text, int, number, boolean, enum, date, id, ref, array, map, object, any]
+                cases:
+                  enum:
+                    - key: values
+                      label: 選択肢
+                      type: array
+                      item:
+                        type: any
+                      description: 文字列、または {value, label, description} のリッチ選択肢
+                    - key: cases
+                      label: 値ごとの追加フィールド
+                      type: map
+                      value:
+                        type: array
+                        item:
+                          ${"$"}ref: field
+                      description: enum の値ごとに親オブジェクトへ追加される兄弟フィールド
+                  array:
+                    - key: item
+                      label: 要素定義
+                      ${"$"}ref: field
+                  map:
+                    - key: value
+                      label: 値定義
+                      ${"$"}ref: field
+                  object:
+                    - key: fields
+                      label: 子フィールド
+                      type: array
+                      item:
+                        ${"$"}ref: field
+                    - key: unknownFields
+                      label: スキーマ外キーの扱い
+                      type: enum
+                      values: [allow, warning, error]
+                  ref:
+                    - key: idPattern
+                      label: 参照先IDパターン
+                      type: any
+                      description: glob 文字列または配列
+                    - key: idPatterns
+                      label: 参照先IDパターン（複数）
+                      type: any
+                    - key: scope
+                      label: 探索範囲
+                      type: object
+                      fields:
+                        - key: schemaIds
+                          label: スキーマIDの限定
+                          type: any
+                          description: 文字列または配列
+                        - key: documentIds
+                          label: ドキュメントIDの限定
+                          type: any
+                          description: 文字列または配列
+                    - key: relation
+                      label: 関係種別
+                      type: string
+                      description: 例 implements / depends。表示とカバレッジ判定に使う
+              - key: required
+                label: 必須
+                type: boolean
+              - key: requiredFrom
+                label: このフェーズ以降で必須
+                type: string
+              - key: role
+                label: 表示役割
+                type: enum
+                values: [title, subtitle]
+              - key: default
+                label: 初期値
+                type: any
+              - key: description
+                label: 説明
+                type: text
+              - key: ${"$"}ref
+                label: 名前付き定義への参照
+                type: string
+                description: definitions 内の名前（横断参照は moduleId#definition）
+              - key: ref
+                label: 名前付き定義への参照（別記法）
+                type: string
+        root:
+          type: object
+          fields:
+            - key: id
+              label: スキーマID
+              type: id
+              role: title
+              description: 安定したスキーマID（省略時はファイル名）
+            - key: name
+              label: スキーマ名
+              type: string
+            - key: description
+              label: 説明
+              type: text
+              role: subtitle
+            - key: kind
+              label: 種別
+              type: enum
+              values: [document, library]
+              description: document（既定）は文書に適用、library は共通定義のみ公開
+            - key: match
+              label: 適用パターン（glob）
+              type: string
+            - key: root
+              label: ルート定義
+              ${"$"}ref: field
+            - key: definitions
+              label: 名前付き定義
+              type: map
+              value:
+                ${"$"}ref: field
+            - key: phases
+              label: フェーズ宣言
+              type: any
+              description: フェーズ名の配列、または {key, order} の object
+            - key: coverage
+              label: カバレッジルール
+              type: array
+              item:
+                type: object
+                fields:
+                  - key: id
+                    label: ルールID
+                    type: string
+                  - key: description
+                    label: 説明
+                    type: string
+                  - key: idPattern
+                    label: 対象IDパターン
+                    type: string
+                  - key: requiredBy
+                    label: 参照ベースの条件
+                    type: object
+                    fields:
+                      - key: schemaIds
+                        label: 参照元スキーマの限定
+                        type: any
+                      - key: relation
+                        label: 関係種別の限定
+                        type: string
+                      - key: minCount
+                        label: 必要な参照数
+                        type: int
+                  - key: detailIn
+                    label: 出現ベースの条件
+                    type: object
+                    fields:
+                      - key: schemaIds
+                        label: 出現先スキーマ
+                        type: any
+                      - key: minCount
+                        label: 必要な出現数
+                        type: int
+                  - key: level
+                    label: 重大度
+                    type: enum
+                    values: [warning, error]
+                  - key: activeFrom
+                    label: 判定を始めるフェーズ
+                    type: string
+            - key: derive
+              label: 派生スキーマの宣言
+              type: object
+              description: 導出元文書（例 テーブル定義書）から検証スキーマをロード時にコンパイルする（R11-03）
+              fields:
+                - key: from
+                  label: 導出元文書（glob）
+                  type: string
+                  required: true
+                - key: each
+                  label: 導出単位の配列パス
+                  type: string
+                  description: 1文書内の複数要素から導出する場合の配列パス（省略時は文書ルート）
+                - key: id
+                  label: 導出スキーマID
+                  type: string
+                  required: true
+                  description: "{パス} が導出元要素の値で置換される（例 record-{id}）"
+                - key: name
+                  label: 導出スキーマ名
+                  type: string
+                - key: match
+                  label: 導出スキーマの適用先（glob）
+                  type: string
+                  required: true
+                - key: fields
+                  label: フィールドの写像
+                  type: object
+                  required: true
+                  fields:
+                    - key: source
+                      label: フィールドにする配列のパス
+                      type: string
+                      required: true
+                    - key: key
+                      label: キーの値パス
+                      type: string
+                      required: true
+                    - key: label
+                      label: ラベルの値パス
+                      type: string
+                    - key: description
+                      label: 説明の値パス
+                      type: string
+                    - key: required
+                      label: 必須の値パス
+                      type: string
+                    - key: type
+                      label: 型の写像
+                      type: object
+                      fields:
+                        - key: path
+                          label: 型を決める値のパス
+                          type: string
+                          required: true
+                        - key: map
+                          label: 値辞書
+                          type: map
+                          value:
+                            type: string
+                          description: 導出元の値 → フィールド型（例 varchar → string）
+                        - key: default
+                          label: 既定の型
+                          type: string
+    """.trimIndent()
+
     private val agentSchemaYaml = """
         id: builtin-agent
         name: エージェント定義
@@ -626,6 +882,11 @@ object BuiltinSchemas {
             SchemaLoader.parseSchemaText(evalSchemaYaml, Path.of("(builtin)/eval.yaml")),
             SchemaLoader.parseSchemaText(skillSchemaYaml, Path.of("(builtin)/skill.yaml")),
             SchemaLoader.parseSchemaText(viewSchemaYaml, Path.of("(builtin)/view.yaml")),
+            SchemaLoader.parseSchemaText(metaSchemaYaml, Path.of("(builtin)/schema.yaml")),
         )
     }
+
+    /** 組込みスキーマの原文（テスト用: すべてがメタスキーマ検証を通ることのドッグフーディングに使う）。 */
+    internal val allYamlTexts: List<String>
+        get() = listOf(metaSchemaYaml, agentSchemaYaml, activitySchemaYaml, evalSchemaYaml, skillSchemaYaml, viewSchemaYaml)
 }

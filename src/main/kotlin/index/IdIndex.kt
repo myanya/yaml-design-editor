@@ -65,11 +65,10 @@ fun IdEntry.isAllowedBy(ref: RefEntry): Boolean =
  */
 object DocScanner {
 
-    fun isGenericRefKey(k: String): Boolean =
-        k == "ref" || k.endsWith("_ref")
+    // 命名規約の実体は schema.RefNaming（スキーマ推測 R11-01 と共有。ARCHITECTURE §4.23）
+    fun isGenericRefKey(k: String): Boolean = schema.RefNaming.isRefKey(k)
 
-    fun isGenericRefListKey(k: String): Boolean =
-        k == "refs" || k.endsWith("_refs") || k == "depends_on" || k == "relates_to"
+    fun isGenericRefListKey(k: String): Boolean = schema.RefNaming.isRefListKey(k)
 
     fun scan(root: YNode?, file: Path, schemaDef: SchemaDef?, documentId: String = file.toString()): Pair<List<IdEntry>, List<RefEntry>> {
         val ids = mutableListOf<IdEntry>()

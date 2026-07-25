@@ -289,6 +289,50 @@ class AutomationTest {
         assertTrue("編集中" in review.reason)
     }
 
+    // ---------------------------------------------------------------- 導出元文書への自動適用の降格（R11-03）
+
+    @Test
+    fun `auto approval demotes when changeset touches derive source documents`() {
+        // 派生スキーマ（R11-03）の導出元文書への自動適用は、検証ルールが無人で変わるため承認待ちへ降格する
+        write(
+            "_schemas/record-template.yaml",
+            """
+            id: record-template
+            derive:
+              from: "tables/**/*.yaml"
+              id: "record-{id}"
+              match: "records/{id}/**/*.yaml"
+              fields: { source: columns, key: name }
+            root:
+              type: object
+              fields:
+                - { key: id, type: id }
+            """,
+        )
+        write("tables/tbl-a.yaml", "id: TBL-A\ncolumns:\n  - { name: col1 }")
+        write(
+            "_activities/edit-table.yaml",
+            """
+            id: edit-table
+            agent: editor
+            instruction: テーブル定義を整える
+            approval: auto
+            """,
+        )
+        val scripts = ArrayDeque(listOf(listOf(
+            turn(call("apply_patch", """{"file":"tables/tbl-a.yaml","ops":[{"op":"set","path":"columns[0].name","value":"renamed"}]}""")),
+            turn(call("submit_changeset", """{"summary":"列名を整えた"}""")),
+        )))
+        val e = engine(scripts)
+        e.setEnabled(true)
+        e.enqueue("edit-table", "テスト起動")
+        drain(e)
+
+        assertTrue("renamed" !in Files.readString(dir.resolve("tables/tbl-a.yaml")))  // 自動適用されていない
+        val review = e.pendingSnapshot().single()
+        assertTrue("導出元" in review.reason, review.reason)
+    }
+
     // ---------------------------------------------------------------- 連鎖の循環ガード（R3-02）
 
     @Test
