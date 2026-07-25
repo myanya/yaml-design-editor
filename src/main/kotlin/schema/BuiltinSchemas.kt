@@ -563,6 +563,12 @@ object BuiltinSchemas {
                   - key: required
                     label: 必須
                     type: boolean
+                  - key: map
+                    label: 値の変換辞書
+                    type: map
+                    value:
+                      type: string
+                    description: 列の値を変換する辞書（例 未着手 → open）
                   - key: split
                     label: 配列化の区切り
                     type: string
