@@ -57,6 +57,8 @@ internal const val CLI_USAGE = """コマンド:
   export   <workspace> <skill-id>               YAML原本から派生成果物（xlsx/csv/md）を再生成する
   init     <dir> [--template name]              テンプレートパックでワークスペースを初期化
            （--template 省略時は利用可能なテンプレートを一覧表示）
+  bench    <dir> [--docs N] [--items N]         索引性能の計測（R8-02）。空ディレクトリならベンチマーク用
+           ワークスペース（既定 1000 文書）を生成し、フル再構築と増分更新の時間を比較する
   help                                          このヘルプ
 """
 
@@ -319,6 +321,24 @@ internal fun runCli(args: Array<String>): String {
                     "template" to pack.name,
                     "written" to result.written,
                     "skipped" to result.skipped.ifEmpty { null },
+                ).filterValues { it != null }
+            )
+        }
+        "bench" -> {
+            val dir = Path.of(rest.firstOrNull() ?: error("ディレクトリを指定してください"))
+            val generated = if (!Files.isDirectory(dir) || Files.list(dir).use { it.findFirst().isEmpty }) {
+                Bench.generate(dir, documents = intFlag(rest, "--docs") ?: 1000, itemsPerDocument = intFlag(rest, "--items") ?: 8)
+            } else null
+            val result = Bench.measure(dir)
+            dumpYaml(
+                linkedMapOf(
+                    "generatedDocuments" to generated,
+                    "documents" to result.documents,
+                    "ids" to result.ids,
+                    "refs" to result.refs,
+                    "fullRebuildMillis" to result.fullRebuildMillis,
+                    "incrementalUpdateMillis" to result.incrementalUpdateMillis,
+                    "speedup" to result.speedup,
                 ).filterValues { it != null }
             )
         }

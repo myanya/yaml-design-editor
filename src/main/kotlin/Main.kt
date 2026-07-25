@@ -128,9 +128,21 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
         onDispose { automation?.stopAll() }
     }
     LaunchedEffect(state.workspace) {
-        while (true) {
-            delay(1000)
-            state.pollExternalChanges()
+        // 外部変更検出: WatchService によるOSネイティブ監視を優先し、
+        // 使えない環境（ネットワークドライブ等）では従来の1秒ポーリングへフォールバックする（R8-03）
+        val watcher = state.workspace?.let { core.FileWatcher.open(it) }
+        try {
+            while (true) {
+                if (watcher != null) {
+                    delay(250)
+                    if (watcher.consumeChanged()) state.pollExternalChanges()
+                } else {
+                    delay(1000)
+                    state.pollExternalChanges()
+                }
+            }
+        } finally {
+            watcher?.close()
         }
     }
     Column(Modifier.fillMaxSize().onKeyEvent { event ->

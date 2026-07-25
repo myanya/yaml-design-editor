@@ -34,10 +34,15 @@ object Patcher {
             is PatchOp.Set -> {
                 val (parent, seg) = locateParent(root, op.path)
                 when (seg) {
-                    is String -> asMap(parent, op.path).entries[seg] = op.value
+                    is String -> {
+                        val map = asMap(parent, op.path)
+                        op.value.inheritMetaFrom(map.entries[seg])  // 置換してもコメント・表記スタイルを保持する（R8-01）
+                        map.entries[seg] = op.value
+                    }
                     is Int -> {
                         val seq = asSeq(parent, op.path)
                         if (seg !in seq.items.indices) error("インデックスが範囲外です: ${op.path.pretty()}（要素数 ${seq.items.size}）")
+                        op.value.inheritMetaFrom(seq.items[seg])
                         seq.items[seg] = op.value
                     }
                 }

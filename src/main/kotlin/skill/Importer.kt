@@ -103,7 +103,8 @@ object Importer {
                 }
                 val ops = plan.values.mapNotNull { (m, node) ->
                     val current = getAt(existing, m.path.split('.'))
-                    if (current != null && YamlIO.dump(current) == YamlIO.dump(node)) null  // 変化なし
+                    // 変化なし判定はコメント・表記スタイルを無視して構造で比較する（R8-01）
+                    if (current != null && YamlIO.dumpPlain(current) == YamlIO.dumpPlain(node)) null
                     else PatchOp.Set(m.path.split('.'), node)
                 }
                 if (ops.isEmpty()) unchanged += plan.rel

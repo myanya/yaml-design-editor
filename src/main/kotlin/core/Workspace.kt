@@ -136,7 +136,20 @@ class Workspace private constructor(val root: Path) {
     fun save(rel: String, node: YNode) {
         val file = resolve(rel)
         Files.writeString(file, YamlIO.dump(node))
-        refresh()
+        refreshAfterWrite(listOf(file))
+    }
+
+    /**
+     * 書き込んだファイルの分だけ索引を更新する（R8-02: 増分更新）。
+     * スキーマ（`_schemas/`）を書いた場合は走査規則が変わるため全再構築する。
+     */
+    private fun refreshAfterWrite(written: List<Path>) {
+        if (written.any { relPath(it).startsWith(SchemaLoader.SCHEMA_DIR + "/") }) {
+            refresh()
+            return
+        }
+        if (written.any { it !in files }) files = WorkspaceScan.yamlFiles(root)
+        index.update(root, written, emptyList(), schemas)
     }
 
     /** 1 ファイルを検証する（スキーマ適合・参照解決・重複・カバレッジ）。 */
@@ -206,7 +219,7 @@ class Workspace private constructor(val root: Path) {
             }
             results += FileChangeResult(s.change.file, applied = write, message = null, issues = issues)
         }
-        if (write) refresh()
+        if (write) refreshAfterWrite(validated.map { it.first.file })
         return ChangeSetResult(ok = !failed, dryRun = dryRun, results = results)
     }
 }

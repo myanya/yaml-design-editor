@@ -34,7 +34,7 @@ object Disclosure {
             .filter { !ws.relPath(it).startsWith(schema.SchemaLoader.RUNS_DIR + "/") }
             .map { file ->
                 val rel = ws.relPath(file)
-                val root = runCatching { YamlIO.parse(java.nio.file.Files.readString(file)) }.getOrNull()
+                val root = runCatching { YamlIO.parseFirst(java.nio.file.Files.readString(file)) }.getOrNull()
                 val ids = ws.index.entries.values.asSequence().flatten().count { it.file == file }
                 val schemaDef = ws.schemaFor(file)
                 CatalogEntry(

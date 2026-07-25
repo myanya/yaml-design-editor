@@ -43,7 +43,7 @@ object Search {
         query: SearchQuery,
         files: List<Path> = ws.files,
         index: index.IdIndex = ws.index,
-        loader: (Path) -> YNode? = { f -> runCatching { YamlIO.parse(Files.readString(f)) }.getOrNull() },
+        loader: (Path) -> YNode? = { f -> runCatching { YamlIO.parseFirst(Files.readString(f)) }.getOrNull() },
     ): List<SearchHit> {
         val fileRegex = query.fileGlob?.let { globToRegex(it) }
         val pathRegex = query.pathGlob?.let { pathGlobToRegex(it) }

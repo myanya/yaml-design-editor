@@ -33,7 +33,8 @@ Kotlin + Compose for Desktop 製のスキーマ駆動YAMLエディタ。ワー�
 ## 落とし穴（要注意）
 
 - `YNode` は Compose の State ではない。ビューは `doc.version` / `state.indexVersion` を読んで再コンポーズを購読する。読み忘れると画面が更新されない。
-- `IdIndex` はディスク基準。未保存編集の参照解決は `DocScanner.scan` によるローカルIDを重ねて判定する二層構造（docs/ARCHITECTURE.md §4.5）。
+- `IdIndex` はディスク基準。未保存編集の参照解決は `DocScanner.scan` によるローカルIDを重ねて判定する二層構造（docs/ARCHITECTURE.md §4.5）。更新は変更ファイル単位の増分（`update`）だが、**スキーマが変わったら必ず `rebuild`**（走査規則が変わるため）。
+- YAML はコメント・表記スタイルを保持する（R8-01）。ノードを**置換**する経路では `inheritMetaFrom` で引き継ぐ（`Slot.set` / `Patcher` は対応済み）。構造の比較・派生成果物の出力は `dump` ではなく `YamlIO.dumpPlain`（コメント・スタイルで揺れるため。docs/ARCHITECTURE.md §4.17）。複数ドキュメントYAMLの書込は `OpenDocument`（`parseAll`/`dumpAll`）に閉じ、読み取り専用経路だけ `parseFirst` を使う。
 - スキーマの `FieldDef` を使う際は必ず `schema.resolve(field)` を通す（`$ref` 解決）。object の子フィールドの列挙は必ず `schema.effectiveFields(fields, node)` を通す（enum の `cases` 合成。docs/ARCHITECTURE.md §4.7）。
 - フィールド型を追加する場合の変更箇所は docs/ARCHITECTURE.md §6 に列挙されている（4箇所以上に分岐が必要）。
 - フィールドの実効必須判定は素の `field.required` を見ず、必ず `schema.requiredAt(field, phaseIndex)` を通す（`requiredFrom` によるフェーズ累積必須を見落とす。`phaseIndex` は `schema.currentPhaseIndex(root)`。docs/ARCHITECTURE.md §4.15）。カバレッジの `activeFrom` も同様に `coverageStatuses` の `definingRoot` 引数を省略しない。

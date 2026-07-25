@@ -151,11 +151,15 @@ class AutomationEngine(
 
     // ---------------------------------------------------------------- トリガ（R3-01）
 
-    /** トリガ判定を1回行う。時刻を引数に取るためテストから決定的に呼べる。 */
-    fun tick(now: Long = System.currentTimeMillis()) {
+    /**
+     * トリガ判定を1回行う。時刻を引数に取るためテストから決定的に呼べる。
+     * scanChanges = false ではファイルスタンプの全走査を省略する（デバウンス済み変更の発火と
+     * スケジュール判定だけ行う）。ネイティブ監視（R8-03）が「変更なし」と分かっているときの節約用。
+     */
+    fun tick(now: Long = System.currentTimeMillis(), scanChanges: Boolean = true) {
         if (!enabled) return
         val defs = Definitions.load(dir)
-        detectChanges(now, defs)
+        detectChanges(now, defs, scanChanges)
         checkSchedules(now, defs)
     }
 
@@ -170,10 +174,13 @@ class AutomationEngine(
     private fun scanStamps(): Map<Path, Long> =
         WorkspaceScan.stamps(dir).filterKeys { !isReserved(relOf(it)) }
 
-    private fun detectChanges(now: Long, defs: Definitions.LoadResult) {
-        val next = scanStamps()
-        val changed = (next.keys + stamps.keys).filter { next[it] != stamps[it] }.map { relOf(it) }
-        stamps = next
+    private fun detectChanges(now: Long, defs: Definitions.LoadResult, scan: Boolean = true) {
+        val changed = if (scan) {
+            val next = scanStamps()
+            val diff = (next.keys + stamps.keys).filter { next[it] != stamps[it] }.map { relOf(it) }
+            stamps = next
+            diff
+        } else emptyList()
         if (changed.isNotEmpty()) {
             for (activity in defs.activities) {
                 if (activity.trigger.type != TriggerType.ON_CHANGE && activity.trigger.type != TriggerType.ON_INVALID) continue
@@ -425,18 +432,29 @@ class AutomationEngine(
     /** 監視と実行の常駐ループを開始する。停止はスコープのキャンセルか stopAll()。 */
     fun start(scope: CoroutineScope): Job {
         loopScope = scope
+        // ネイティブ監視が使えるときは、変更イベントがあったときと定期フォールバック時だけ
+        // ファイルスタンプを全走査する（R8-03。取りこぼしに備え10秒毎の走査は残す）
+        val watcher = core.FileWatcher.open(dir)
+        var lastFullScan = 0L
         return scope.launch {
-            while (isActive) {
-                if (!enabled) {
-                    delay(500)
-                    continue
+            try {
+                while (isActive) {
+                    if (!enabled) {
+                        delay(500)
+                        continue
+                    }
+                    val now = System.currentTimeMillis()
+                    val scanDue = watcher == null || watcher.consumeChanged() || now - lastFullScan >= 10_000
+                    if (scanDue) lastFullScan = now
+                    runCatching { tick(now, scanChanges = scanDue) }
+                        .onFailure { log("トリガ判定でエラー: ${it.message}") }
+                    val worked = runCatching { processCancellable() }
+                        .onFailure { log("実行でエラー: ${it.message}") }
+                        .getOrDefault(false)
+                    if (!worked) delay(1_000)
                 }
-                runCatching { tick(System.currentTimeMillis()) }
-                    .onFailure { log("トリガ判定でエラー: ${it.message}") }
-                val worked = runCatching { processCancellable() }
-                    .onFailure { log("実行でエラー: ${it.message}") }
-                    .getOrDefault(false)
-                if (!worked) delay(1_000)
+            } finally {
+                watcher?.close()
             }
         }
     }

@@ -1,20 +1,60 @@
 package model
 
 /**
+ * ノードに付随する YAML コメント（R8-01: 開く→編集→保存の往復で保持する）。
+ * マップ値の場合はそのキー行の前後を表す。before / after の null 要素は空行を表す。
+ */
+class YComments(
+    /** ノード（マップ値ならキー行）の直前に書かれた行コメント。 */
+    val before: MutableList<String?> = mutableListOf(),
+    /** 値と同じ行の末尾コメント。 */
+    var inline: String? = null,
+    /** 文書末尾のコメント（ルートノードのみ使用する）。 */
+    val after: MutableList<String?> = mutableListOf(),
+) {
+    fun isEmpty(): Boolean = before.isEmpty() && inline == null && after.isEmpty()
+}
+
+/**
  * YAML ドキュメントの内部表現。
  * SnakeYAML のロード結果（Map / List / スカラー）を編集可能なツリーに変換して保持する。
  * Compose の再コンポーズは OpenDocument.version のインクリメントで駆動するため、
  * ノード自体は単純な可変オブジェクトとする。
+ * コメント・表記スタイルは編集の意味に影響しないメタ情報として保持し、保存時に再現する（R8-01）。
  */
 sealed class YNode {
+    /** 元テキストのコメント。無い場合は null。 */
+    var comments: YComments? = null
+
+    /** comments を確実に取得する（無ければ作る）。 */
+    fun ensureComments(): YComments = comments ?: YComments().also { comments = it }
+
+    /** ノード置換時にコメント・スタイルを引き継ぐ（置換後のノードが独自に持っていれば優先）。 */
+    fun inheritMetaFrom(old: YNode?) {
+        if (old == null) return
+        if (comments == null) comments = old.comments
+        if (this is Scalar && old is Scalar && styleHint == null) styleHint = old.styleHint
+        if (this is Seq && old is Seq && flowHint == null) flowHint = old.flowHint
+        if (this is Map && old is Map && flowHint == null) flowHint = old.flowHint
+    }
+
     /** スカラー値。value は String / Boolean / Int / Long / Double / java.util.Date / null など。 */
-    class Scalar(var value: Any?) : YNode()
+    class Scalar(var value: Any?) : YNode() {
+        /** 元のスカラー表記（'"'=二重引用符, '\''=単引用符, '|'=リテラル, '>'=折返し）。null は自動選択。 */
+        var styleHint: Char? = null
+    }
 
     /** シーケンス（YAML の配列）。 */
-    class Seq(val items: MutableList<YNode> = mutableListOf()) : YNode()
+    class Seq(val items: MutableList<YNode> = mutableListOf()) : YNode() {
+        /** 元がフロー表記（[a, b]）なら true。null は自動（ブロック）。 */
+        var flowHint: Boolean? = null
+    }
 
     /** マッピング（YAML のオブジェクト）。キー順を保持する。 */
-    class Map(val entries: LinkedHashMap<String, YNode> = LinkedHashMap()) : YNode()
+    class Map(val entries: LinkedHashMap<String, YNode> = LinkedHashMap()) : YNode() {
+        /** 元がフロー表記（{a: 1}）なら true。null は自動（ブロック）。 */
+        var flowHint: Boolean? = null
+    }
 }
 
 /** ドキュメント内の位置。String はマップのキー、Int はシーケンスのインデックス。 */

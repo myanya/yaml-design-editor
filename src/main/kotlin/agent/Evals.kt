@@ -346,7 +346,8 @@ class EvalRunner(
                 failures += "期待するパスが存在しません: ${check.file} :: ${check.path}"
                 return@forEach
             }
-            val text = YamlIO.dump(node).trim()
+            // 期待結果は構造条件のみ（コメントの有無で揺れないよう、比較はコメント抜きで行う）
+            val text = YamlIO.dumpPlain(node).trim()
             check.contains?.let {
                 if (it !in text) failures += "${check.file} :: ${check.path} に「$it」が含まれていません"
             }

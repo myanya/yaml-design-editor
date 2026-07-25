@@ -45,8 +45,9 @@ object Exporter {
             null -> null
             is YNode.Scalar -> (node.value as? String)?.trimEnd() ?: node.value
             is YNode.Seq -> node.items.joinToString(column.join) { item ->
-                (item as? YNode.Scalar)?.value?.toString() ?: YamlIO.dump(item).trim()
+                // 派生成果物にはコメントを出力しない（R8-01）
+                (item as? YNode.Scalar)?.value?.toString() ?: YamlIO.dumpPlain(item).trim()
             }
-            is YNode.Map -> YamlIO.dump(node).trim().lineSequence().joinToString(" ")
+            is YNode.Map -> YamlIO.dumpPlain(node).trim().lineSequence().joinToString(" ")
         }
 }

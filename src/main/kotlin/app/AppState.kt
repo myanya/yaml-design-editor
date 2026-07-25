@@ -30,21 +30,28 @@ class OpenDocument(
     schema: SchemaDef?,
     initialText: String,
     parseError: String?,
+    extraDocs: List<YNode> = emptyList(),
 ) {
     var schema by mutableStateOf(schema)
     var root: YNode? = root
+
+    /**
+     * `---` 区切りの後続ドキュメント（R8-05: 複数ドキュメントYAML）。
+     * フォーム・索引の編集対象は先頭ドキュメントのみで、後続は保持して保存時に再出力する
+     * （ソースタブでは全ドキュメントを編集できる）。
+     */
+    var extraDocs: List<YNode> = extraDocs
+
     var rawText: String = initialText          // パース不能なときの元テキスト
     var parseError by mutableStateOf(parseError)
     var version by mutableStateOf(0)           // 編集のたびにインクリメント
     var dirty by mutableStateOf(false)
     var externalConflict by mutableStateOf(false)
     var diskModifiedMillis: Long = runCatching { Files.getLastModifiedTime(file).toMillis() }.getOrDefault(0L)
-    private val history = mutableListOf(initialTextForHistory(root, initialText))
+    private val history = mutableListOf(if (root != null) canonicalText() else initialText)
     private var savedSnapshot = history.first()
     var historyIndex by mutableStateOf(0)
         private set
-
-    private fun initialTextForHistory(node: YNode?, fallback: String) = node?.let(YamlIO::dump) ?: fallback
 
     fun markEdited() {
         version++
@@ -63,9 +70,20 @@ class OpenDocument(
     fun undo() { if (canUndo()) restoreHistory(historyIndex - 1) }
     fun redo() { if (canRedo()) restoreHistory(historyIndex + 1) }
 
+    /** ソース編集のテキストをツリーへ取り込む。複数ドキュメントは先頭を編集対象にし、後続を保持する。 */
+    fun applySourceText(text: String) {
+        val docs = YamlIO.parseAll(text)
+        root = docs.firstOrNull() ?: YNode.Map()
+        extraDocs = docs.drop(1)
+        parseError = null
+        markEdited()
+    }
+
     private fun restoreHistory(index: Int) {
         val text = history[index]
-        root = runCatching { YamlIO.parse(text) }.getOrNull()
+        val docs = runCatching { YamlIO.parseAll(text) }.getOrNull()
+        root = if (docs != null) (docs.firstOrNull() ?: YNode.Map()) else null
+        extraDocs = docs?.drop(1).orEmpty()
         rawText = text
         parseError = if (root == null) "履歴の復元に失敗しました" else null
         historyIndex = index
@@ -84,7 +102,7 @@ class OpenDocument(
     fun markSaved() { savedSnapshot = canonicalText(); dirty = false }
 
     /** 保存・ソース表示に使う正規化テキスト。パース不能なら元テキストを返す。 */
-    fun canonicalText(): String = root?.let { YamlIO.dump(it) } ?: rawText
+    fun canonicalText(): String = root?.let { YamlIO.dumpAll(listOf(it) + extraDocs) } ?: rawText
 }
 
 /**
@@ -208,6 +226,16 @@ class AppState {
         indexVersion++
     }
 
+    /**
+     * 変更・削除のあったファイルだけ索引を差し替える（R8-02: 増分更新）。
+     * スキーマが変わった場合は走査規則自体が変わるため rebuildIndex() を使うこと。
+     */
+    private fun updateIndexFor(changed: Collection<Path>, removed: Collection<Path> = emptyList()) {
+        val ws = workspace ?: return
+        index.update(ws, changed, removed, schemas)
+        indexVersion++
+    }
+
     // ファイル走査は core.WorkspaceScan（ヘッドレス層）と共通の実装を使う。
     private fun scanYamlFiles(ws: Path): List<Path> = core.WorkspaceScan.yamlFiles(ws)
 
@@ -215,7 +243,7 @@ class AppState {
 
     private fun snapshotFiles(ws: Path): Map<Path, Long> = core.WorkspaceScan.stamps(ws)
 
-    /** UI の周期処理から呼び、外部での作成・変更・削除を検出する。 */
+    /** UI の周期処理・ファイル監視から呼び、外部での作成・変更・削除を検出する。 */
     fun pollExternalChanges() {
         val ws = workspace ?: return
         val next = snapshotFiles(ws)
@@ -224,9 +252,14 @@ class AppState {
         yamlFiles = next.keys.sortedBy { it.toString() }
         directories = scanDirectories(ws)
         changed.forEach { file -> docCache[file]?.let { reloadDocumentFromDisk(it, force = false) } }
-        loadSchemas(ws)
-        docCache.values.forEach { it.schema = schemaFor(it.file) }
-        rebuildIndex()
+        // スキーマが変わったときだけ全再構築（走査規則が変わるため）。通常は変更ファイルのみ差し替える（R8-02）
+        if (changed.any { relPath(it).startsWith(SchemaLoader.SCHEMA_DIR + "/") }) {
+            loadSchemas(ws)
+            docCache.values.forEach { it.schema = schemaFor(it.file) }
+            rebuildIndex()
+        } else {
+            updateIndexFor(changed = changed.filter { it in next.keys }, removed = changed.filter { it !in next.keys })
+        }
         workspaceStamp = next
         status = "外部での変更を検出しました（${changed.size} 件）"
     }
@@ -268,7 +301,7 @@ class AppState {
     fun workspaceRecords(): List<WorkspaceRecord> = yamlFiles.asSequence()
         .filter { !relPath(it).startsWith(SchemaLoader.SCHEMA_DIR + "/") }
         .mapNotNull { file ->
-            val root = docCache[file]?.root ?: runCatching { YamlIO.parse(Files.readString(file)) }.getOrNull()
+            val root = docCache[file]?.root ?: runCatching { YamlIO.parseFirst(Files.readString(file)) }.getOrNull()
             val map = root as? YNode.Map ?: return@mapNotNull null
             WorkspaceRecord(
                 file = file,
@@ -280,16 +313,25 @@ class AppState {
             )
         }.sortedBy { relPath(it.file) }.toList()
 
-    /** 一覧ビューで選択したファイルのルートスカラーを一括変更する。 */
+    /**
+     * 一覧ビューで選択したファイルのルート直下スカラーを一括変更する。
+     * 対象キーは任意のルートスカラーキー（R8-05: L-07）。ID・予約キー・複合値（配列/オブジェクト）は
+     * 壊さないよう対象外とする。
+     */
     fun bulkUpdate(files: Set<Path>, key: String, value: String): Result<Int> = runCatching {
-        require(key in setOf("status", "owner")) { "一括変更できない項目です" }
+        require(key.isNotBlank() && !key.startsWith("_") && key != "id") { "一括変更できない項目です: $key" }
         require(files.none { docCache[it]?.dirty == true }) { "未保存のファイルが含まれています" }
         var count = 0
         val reopen = openDoc?.file?.takeIf { it in files }
         files.forEach { file ->
-            val root = YamlIO.parse(Files.readString(file)) as? YNode.Map ?: return@forEach
-            root.entries[key] = YNode.Scalar(value)
-            Files.writeString(file, YamlIO.dump(root))
+            val docs = runCatching { YamlIO.parseAll(Files.readString(file)) }.getOrNull() ?: return@forEach
+            val root = docs.firstOrNull() as? YNode.Map ?: return@forEach
+            val existing = root.entries[key]
+            if (existing != null && existing !is YNode.Scalar) return@forEach  // 複合値は上書きしない
+            val node = YNode.Scalar(value)
+            node.inheritMetaFrom(existing)
+            root.entries[key] = node
+            Files.writeString(file, YamlIO.dumpAll(docs))
             docCache.remove(file)
             count++
         }
@@ -302,16 +344,36 @@ class AppState {
         count
     }
 
+    /**
+     * 一括編集の対象にできるキーの候補（R8-05: L-07）。
+     * ワークスペース文書のルート直下に現れるスカラーキーを集める（id・予約キーは除く）。
+     */
+    fun bulkKeyCandidates(): List<String> {
+        val keys = linkedSetOf("status", "owner")
+        yamlFiles.asSequence()
+            .filter { !relPath(it).startsWith("_") }
+            .forEach { file ->
+                val root = docCache[file]?.root ?: runCatching { YamlIO.parseFirst(Files.readString(file)) }.getOrNull()
+                (root as? YNode.Map)?.entries?.forEach { (k, v) ->
+                    if (v is YNode.Scalar && k != "id" && !k.startsWith("_")) keys.add(k)
+                }
+            }
+        return keys.toList()
+    }
+
     private fun loadDocument(file: Path): OpenDocument {
         val text = runCatching { Files.readString(file) }.getOrDefault("")
         var error: String? = null
+        var extra: List<YNode> = emptyList()
         val root = try {
-            YamlIO.parse(text)
+            val docs = YamlIO.parseAll(text)  // `---` 区切りの複数ドキュメントに対応（R8-05）
+            extra = docs.drop(1)
+            docs.firstOrNull() ?: YNode.Map()
         } catch (e: Exception) {
             error = e.message ?: e.toString()
             null
         }
-        return OpenDocument(file, root, schemaFor(file), text, error)
+        return OpenDocument(file, root, schemaFor(file), text, error, extra)
     }
 
     private fun reloadDocumentFromDisk(doc: OpenDocument, force: Boolean) {
@@ -326,12 +388,14 @@ class AppState {
             return
         }
         val text = runCatching { Files.readString(doc.file) }.getOrDefault("")
-        runCatching { YamlIO.parse(text) }.onSuccess {
-            doc.root = it
+        runCatching { YamlIO.parseAll(text) }.onSuccess { docs ->
+            doc.root = docs.firstOrNull() ?: YNode.Map()
+            doc.extraDocs = docs.drop(1)
             doc.rawText = text
             doc.parseError = null
         }.onFailure {
             doc.root = null
+            doc.extraDocs = emptyList()
             doc.rawText = text
             doc.parseError = it.message
         }
@@ -376,8 +440,10 @@ class AppState {
             if (relPath(doc.file).startsWith(SchemaLoader.SCHEMA_DIR + "/")) {
                 workspace?.let(::loadSchemas)
                 docCache.values.forEach { it.schema = schemaFor(it.file) }
+                rebuildIndex()
+            } else {
+                updateIndexFor(listOf(doc.file))  // 保存したファイルだけ索引を差し替える（R8-02）
             }
-            rebuildIndex()
             status = "保存しました: ${relPath(doc.file)}"
         }.onFailure {
             status = "保存に失敗しました: ${it.message}"

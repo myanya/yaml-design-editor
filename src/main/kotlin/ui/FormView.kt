@@ -14,7 +14,9 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -261,7 +263,7 @@ private fun SameIdOccurrencesStrip(ctx: FormCtx, localIds: List<IdEntry>) {
         others.forEach { entry ->
             val summary = remember(entry, state.indexVersion) {
                 val root = state.docFor(entry.file)?.root
-                    ?: runCatching { YamlIO.parse(java.nio.file.Files.readString(entry.file)) }.getOrNull()
+                    ?: runCatching { YamlIO.parseFirst(java.nio.file.Files.readString(entry.file)) }.getOrNull()
                 val element = root?.let { model.getAt(it, entry.path) } as? YNode.Map
                 element?.entries?.asSequence()
                     ?.filter { (_, v) -> v is YNode.Scalar }
@@ -844,18 +846,60 @@ fun GenericEditor(ctx: FormCtx, slot: Slot, path: YPath, refHint: Boolean) {
     }
 }
 
+/** 汎用ビューのキー名変更（R8-05: L-05）。順序と値を保って改名する。改名できないときは false。 */
+internal fun renameMapKey(map: YNode.Map, oldKey: String, newKey: String): Boolean {
+    val trimmed = newKey.trim()
+    if (trimmed.isEmpty() || trimmed == oldKey) return false
+    if (oldKey !in map.entries || trimmed in map.entries) return false
+    val entries = map.entries.toList()
+    map.entries.clear()
+    for ((k, v) in entries) map.entries[if (k == oldKey) trimmed else k] = v
+    return true
+}
+
 @Composable
 fun GenericMapEntryRow(ctx: FormCtx, map: YNode.Map, key: String, mapPath: YPath) {
     val childPath = mapPath + key
     val childRefHint = DocScanner.isGenericRefKey(key) || DocScanner.isGenericRefListKey(key)
+    var renaming by remember(key) { mutableStateOf(false) }
+    var renameText by remember(key) { mutableStateOf(key) }
     Highlightable(ctx.state, childPath) {
         Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.Top) {
-            Text(
-                key,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.width(150.dp).padding(top = 10.dp),
-            )
+            if (renaming) {
+                // キー名の変更（R8-05）。順序・値・コメントは保たれる
+                val valid = renameText.trim().let { it.isNotEmpty() && (it == key || it !in map.entries) }
+                CompactTextField(
+                    value = renameText,
+                    onValueChange = { renameText = it },
+                    singleLine = true,
+                    isError = !valid,
+                    textStyle = fieldTextStyle,
+                    modifier = Modifier.width(150.dp),
+                )
+                IconButton(
+                    enabled = valid,
+                    onClick = {
+                        if (renameMapKey(map, key, renameText)) ctx.markEdited()
+                        renaming = false
+                    },
+                    modifier = Modifier.size(32.dp).padding(top = 8.dp),
+                ) { Icon(Icons.Default.Check, contentDescription = "キー名を確定", Modifier.size(16.dp), tint = Palette.Primary) }
+                IconButton(
+                    onClick = { renaming = false; renameText = key },
+                    modifier = Modifier.size(32.dp).padding(top = 8.dp),
+                ) { Icon(Icons.Default.Close, contentDescription = "キー名変更を取消", Modifier.size(16.dp), tint = Palette.SubText) }
+            } else {
+                Text(
+                    key,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.width(126.dp).padding(top = 10.dp),
+                )
+                IconButton(
+                    onClick = { renameText = key; renaming = true },
+                    modifier = Modifier.size(24.dp).padding(top = 8.dp),
+                ) { Icon(Icons.Default.Edit, contentDescription = "キー名を変更", Modifier.size(13.dp), tint = Palette.SubText) }
+            }
             Box(Modifier.weight(1f)) {
                 GenericEditor(ctx, MapSlot(map, key), childPath, refHint = childRefHint)
             }

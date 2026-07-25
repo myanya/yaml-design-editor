@@ -21,8 +21,8 @@ src/main/kotlin/
 ├── schema/    スキーマモデル・ローダ・メタ検証・カバレッジルール・glob（→ model, yaml）
 ├── index/     ID索引・参照スキャナ（関係種別つき）          （→ model, schema, yaml）
 ├── validate/  スキーマ検証・参照解決・重複・カバレッジ検証  （→ model, schema, index）
-├── core/      ヘッドレス層: ワークスペース操作・パッチ・段階的開示・構造検索・ビュー射影・CLI
-│              （→ model, yaml, schema, index, validate。UI/Compose 非依存）
+├── core/      ヘッドレス層: ワークスペース操作・パッチ・段階的開示・構造検索・ビュー射影・
+│              ファイル監視・性能計測・CLI（→ model, yaml, schema, index, validate。UI/Compose 非依存）
 ├── ai/        AI生成・LLMクライアント: JSON Schema変換・構造化出力・ツール使用チャット（→ model, schema, index）
 ├── skill/     入出力変換: skill定義・表形式の読み書き・インポート・エクスポート・
 │              テンプレートパック （→ core ほか。UI/Compose 非依存）
@@ -45,8 +45,8 @@ src/main/kotlin/
 
 | クラス | ファイル | 責務 |
 |---|---|---|
-| `YNode` (Scalar/Seq/Map) | model/YNode.kt | YAMLの可変ツリー。`YPath`（String=キー, Int=索引）で位置を表現 |
-| `YamlIO` | yaml/YamlIO.kt | テキスト⇔`YNode` 変換。表層情報を保持しない正規化ダンプ（ブロック・インデント2、リスト記号も親から一段下げる） |
+| `YNode` (Scalar/Seq/Map) | model/YNode.kt | YAMLの可変ツリー。`YPath`（String=キー, Int=索引）で位置を表現。コメント（`YComments`）・表記スタイルヒントを編集に影響しないメタ情報として保持（R8-01） |
+| `YamlIO` | yaml/YamlIO.kt | テキスト⇔`YNode` 変換。SnakeYAML の Node API（processComments）ベースで、コメント・キー順・スカラー/フロー表記を往復保持する（§4.17）。`parseAll` / `dumpAll`（複数ドキュメント）、`parseFirst`（読み取り専用の寛容パース）、`dumpPlain`（コメント・スタイル抜きの正規化ダンプ＝構造比較・派生成果物用）を提供 |
 | `FieldType` / `FieldDef` / `SchemaDef` | schema/Schema.kt | スキーマモデル。`resolve()` がローカル／横断 `$ref` を属性合成しつつ解決。`FieldDef.relation` が参照の関係種別。`effectiveFields()` が enum の `cases` を合成した object の実効フィールドを返す |
 | `SchemaCatalog` / `SchemaKind` | schema/Schema.kt | 全スキーマ・libraryの定義を `(moduleId, definitionName)` でリンクする中央カタログ。`kind: library` はdefinitionsだけを公開し文書には適用されない |
 | `PhasesDef` / `currentPhaseIndex` / `requiredAt` | schema/Schema.kt | フェーズ機構（§4.15）: スキーマの `phases` 宣言と、文書の現在フェーズ解決・フェーズ考慮の実効必須判定（検証・進捗計算が共有） |
@@ -55,10 +55,12 @@ src/main/kotlin/
 | `validateDefinition` / `generateSample` | schema/Schema.kt | メタスキーマ検証・サンプルデータ生成（拡張関数） |
 | `globToRegex` / `idMatchesPattern` | schema / index | glob→正規表現変換（パス用と ID 用で対応構文が異なる点に注意） |
 | `DocScanner` | index/IdIndex.kt | 1文書からのID・参照抽出。スキーマ有無で検出規則を切替、未知キー境界で走査停止。参照には `relation` / `sourceSchemaId` を付与 |
-| `IdIndex` | index/IdIndex.kt | ワークスペース全体の `id -> 出現一覧` 索引と全参照。**ディスク基準**（未保存編集は反映されない） |
+| `IdIndex` | index/IdIndex.kt | ワークスペース全体の `id -> 出現一覧` 索引と全参照。**ディスク基準**（未保存編集は反映されない）。ファイル単位の走査結果を保持し、`update` で変更ファイルだけを差し替える増分更新ができる（R8-02。§4.5） |
 | `Validator` | validate/Validator.kt | 文書の検証（UI非依存）。スキーマ適合＋参照解決＋文書内ID重複＋カバレッジ（`coverageStatuses` はUIとも共用）。フェーズ考慮の必須判定と記入進捗 `phaseProgress`、1行サマリ `phaseSummaryText`（UI・CLI・エージェントツールで共用。§4.15） |
 | `Workspace` / `WorkspaceScan` | core/Workspace.kt | ヘッドレスなワークスペース操作（開く・読む・保存・検証・変更セット適用）。相対パス解決はワークスペース外への脱出を拒否 |
 | `PatchOp` / `Patcher` / `ChangeSets` | core/Patch.kt | YPathパッチ（set/insert/delete/move）と変更セット（baseハッシュ競合検出、YAML解析） |
+| `FileWatcher` | core/FileWatcher.kt | WatchService による再帰的なファイル監視（R8-03）。「変更があったか」のフラグだけを通知し、差分判定は呼び出し側のスタンプ比較に委ねる。使えない環境では open() が null（ポーリングへフォールバック） |
+| `Bench` | core/Bench.kt | 索引性能の計測（R8-02）: ベンチマーク用ワークスペースの生成と、フル再構築 vs 増分更新の比較計測。CLI `bench` |
 | `Disclosure` | core/Disclosure.kt | 段階的開示: カタログ→骨子→ノード全文、文字数予算付き文脈バンドル |
 | `Search` | core/Search.kt | 構造検索: 本文・キー部分一致＋スキーマ／glob条件、参照・未解決参照の検索 |
 | `ViewDef` / `Views` | core/Views.kt | ビュー機構（P6）: `_views` 定義のロード、行（論理ID）×列（相対YPath）の解決＝原本座標化、バックリンク列（被参照の逆引き。R7-02）、データパスからのスキーマフィールド解決（`fieldAt`）、詳細文書スキャフォールド、テキスト表現（`renderText`） |
@@ -82,7 +84,7 @@ src/main/kotlin/
 | `AutomationPanel` | ui/AutomationPanel.kt | 自動実行パネル: 監視ON/OFF・キュー・承認待ちレビュー・履歴・ログ・停止 |
 | `ImprovementPanel` | ui/ImprovementPanel.kt | 自己改善パネル: 実行メトリクスの表示・評価セットの実行と変異別結果の比較 |
 | `SkillsPanel` | ui/SkillsPanel.kt | skillパネル: 一覧・エクスポート実行・インポートのプレビュー→検証つき適用 |
-| `OpenDocument` | app/AppState.kt | 開いている1文書。ツリー・履歴（Undo/Redo）・dirty・外部競合の管理 |
+| `OpenDocument` | app/AppState.kt | 開いている1文書。ツリー・履歴（Undo/Redo）・dirty・外部競合の管理。複数ドキュメントYAMLは先頭を編集対象にし、後続を `extraDocs` として保持・再出力する（R8-05） |
 | `AppState` | app/AppState.kt | ワークスペース・文書キャッシュ・索引・ナビゲーション・ファイル操作・一括更新・外部変更検出 |
 | `AiGenerator` ほか | ai/ | スキーマ→JSON Schema 変換、REF候補の enum 制約、プロバイダ振り分け |
 | `OpenAiGenerator` / `AnthropicGenerator` | ai/ | 各API（Responses / Messages）のリクエスト構築とレスポンス解析 |
@@ -92,7 +94,7 @@ src/main/kotlin/
 | `Slot` (Map/Seq/Root) | ui/Common.kt | 「値の置き場所」の抽象。後述 |
 | `AiGenerationHost` | ui/AiGenerationDialog.kt | AI生成ダイアログの状態機械（入力→生成→プレビュー→適用）と提案合成 |
 | `SchemaEditor` | ui/SchemaEditor.kt | `_schemas` 用の構造化エディタ（設計・プレビュー・適用対象） |
-| その他 ui | FileTreePane / SourcePane / DiffPane / SidePanel / WorkspaceViews / Common | 各ペイン。[FEATURES.md](FEATURES.md) の対応表を参照 |
+| その他 ui | FileTreePane / SourcePane / DiffPane / SidePanel / WorkspaceViews / Common | 各ペイン。[FEATURES.md](FEATURES.md) の対応表を参照。テスト可能な純ロジックは `ui/SourceHighlight.kt`（YAMLトークナイザ・置換）、`ui/GraphLayout.kt`（力学レイアウト）、`DiffPane.calculateDiff` / `charDiffRanges` に切り出す |
 
 ## 4. 設計方針（変更時に守ること）
 
@@ -114,9 +116,11 @@ Undo/Redo は `YamlIO.dump` したスナップショット文字列の履歴（�
 
 要素位置は `YPath = List<Any>` で統一。検証結果・ハイライト・ジャンプ・AI生成対象はすべて YPath で紐付く。`state.highlightPath` に設定すると `Highlightable` がスクロール＋一時ハイライトする。
 
-### 4.5 索引はディスク基準
+### 4.5 索引はディスク基準（更新は増分）
 
-`IdIndex` は保存済みファイルから再構築される（開く・再読込・保存・外部変更・一括編集のタイミング）。未保存編集中の参照解決は、`DocScanner.scan` を編集中ツリーへ都度実行した「ローカルID」を索引に**重ねて**判定する（`FormCtx.resolvable`, `Validator`）。この二層構造を崩さないこと。
+`IdIndex` は保存済みファイルから構築される。未保存編集中の参照解決は、`DocScanner.scan` を編集中ツリーへ都度実行した「ローカルID」を索引に**重ねて**判定する（`FormCtx.resolvable`, `Validator`）。この二層構造を崩さないこと。
+
+更新方式（R8-02）: 索引はファイル単位の走査結果（`byFile`）を保持し、集約ビュー（`entries` / `refs`）はそこから導出する。保存・外部変更・変更セット適用では `update`（変更・削除ファイルだけの再走査）を使い、コストを変更ファイル数に比例させる。**スキーマが変わったときは全ファイルの走査規則が変わるため必ず `rebuild`（全再構築）を使う**（`AppState` / `core.Workspace` は `_schemas/` 配下の変更を見て自動で振り分ける）。計測は CLI `bench`（`core/Bench.kt`）で行う。
 
 ### 4.6 ID・参照のセマンティクス
 
@@ -165,6 +169,7 @@ enum の `cases`（値ごとの追加フィールド。判別共用体）を持�
 - **連鎖のガード**: 深さ上限（既定5）と visited 集合による循環検出。人間承認の実行では、連鎖は採否決定後に発火する。
 - **リトライの収束判定**: 同一の失敗メッセージを繰り返したら `maxAttempts` 未満でも打ち切る。
 - **時刻とLLMは注入可能**: `tick(now)` / `processOnce()` / `sessionFactory` により、タイマー・実APIなしで全経路をテストできる（`AutomationTest`）。
+- **監視はイベント駆動＋フォールバック**（R8-03）: `start` のループは、ネイティブ監視（`core.FileWatcher`）が使えるときは変更イベント時と10秒毎のフォールバック時だけスタンプ全走査を行う（`tick(now, scanChanges = false)` で走査を省略。デバウンス発火とスケジュール判定は毎回行う）。
 
 ### 4.12 自己改善（P4）
 
@@ -218,7 +223,16 @@ enum の `cases`（値ごとの追加フィールド。判別共用体）を持�
 - **スキーマなし・解決失敗はフォールバック**: `Views.fieldAt` が object を返さない場合（スキーマなし文書、または想定外の構造）は `GenericEditor` へフォールバックする。ルート直下の出現（`entry.path` が空）は `RootSlot`、それ以外は `slotAt`（`ui/Common.kt`。ビューグリッドと共有）で Slot を得る。
 - **`_views` を置き換えない**: 列の選別・順序・一覧としての一覧性が要る場面は `_views`、スキーマ定義だけで即座に使える編集面が欲しい場面はID横ぐしビュー、と役割を分ける。
 
-### 4.17 エラー処理
+### 4.17 コメント・表記スタイルの保持（P8: R8-01）
+
+`YamlIO` は SnakeYAML の Node API（processComments）で読み書きし、コメント・キー順・表記スタイルを「開く→編集→保存」の往復で保持する。守るべき不変条件:
+
+- **メタ情報は編集の意味に影響しない**: コメント（`YComments`）とスタイルヒント（引用符・リテラル・フロー表記）は `YNode` に付随するだけで、値の比較・検証・検索・AI生成の入力構造には関与させない。構造の比較・派生成果物の出力には `YamlIO.dumpPlain`（コメント・スタイル抜きの正規化ダンプ）を使う（`Importer` の変化なし判定・`Exporter` のセル値・`Evals` の期待結果比較）。
+- **ノード置換時はメタ情報を引き継ぐ**: 値の置換（`Slot.set` / `Patcher` の set）では `YNode.inheritMetaFrom` で旧ノードのコメント・スタイルを引き継ぐ。スカラーの値をその場で書き換えるフォーム編集は自然に保持される。
+- **残る正規化は仕様**: アンカー／エイリアスは展開、インデントは2固定、ブロック配列要素の前行コメントは SnakeYAML エミッタの制約で `- # コメント` の形に後置される（内容は失われず冪等）。この3点を「直したい」場合はエミッタのフォークが必要になるため、安易に手を出さない。
+- **書込経路は単一文書を前提**: `parse` は複数ドキュメントを拒否する。読み取り専用の経路（索引・検索・開示・ビュー）だけが `parseFirst` で先頭ドキュメントを読む。複数ドキュメントの編集・保存は `OpenDocument`（`parseAll` / `dumpAll`）に閉じる（後続ドキュメントの黙殺による消失を防ぐ）。
+
+### 4.18 エラー処理
 
 - ファイルI/O・パースは `runCatching` で受け、ユーザー操作の結果は `Result` を返して呼び出し側（UI）が `state.status` に反映する。
 - 入力検証の失敗は `require(...) { "日本語メッセージ" }`、内部異常は `error("日本語メッセージ")`。メッセージはそのままUIに表示される前提で書く。
@@ -226,7 +240,8 @@ enum の `cases`（値ごとの追加フィールド。判別共用体）を持�
 ## 5. 主要データフロー
 
 - **編集**: フォーム操作 → `Slot.set` / ツリー直接変更 → `markEdited()` → `version`++ → 再コンポーズ＋履歴追加
-- **保存**: `canonicalText()` をファイルへ書き出し → スキーマファイルなら再読込 → `rebuildIndex()` → `indexVersion`++
+- **保存**: `canonicalText()`（コメント・スタイル込み）をファイルへ書き出し → 通常文書は保存ファイルだけの増分索引更新、スキーマファイルはスキーマ再読込＋全再構築（§4.5） → `indexVersion`++
+- **外部変更検出**: `FileWatcher` の変更フラグ（またはフォールバックの1秒周期）→ `pollExternalChanges` がスタンプ比較 → 変更ファイルの再読込＋増分索引更新（`_schemas` 変更時のみ全再構築）
 - **ジャンプ**: `navigateToId` → 索引の出現検索（複数なら選択ダイアログ／横ぐしビュー）→ `openFile(file, focus)` → `highlightPath` 設定 → `Highlightable` がスクロール
 - **ビューグリッド**: `_views` 定義 → `Views.resolve`（行=ディスク索引、セル値=編集中ツリー優先の loader）→ セル編集は該当文書の `Slot` 直接変更＋`markEdited()` → 保存 → `rebuildIndex()` で行集合にも反映。行アクションは `AppState.createViewDetail`（スキャフォールド→書込→開く）／`addViewRow`（一覧文書の配列へ未保存編集として追加）
 - **AI生成**: ✨/ボタン → `AppState.requestAi(field, path)` → `AiGenerationHost` が現ツリーを複製して入力構築 → プロバイダ呼び出し → `combineProposal`/`replaceInClone` で適用後ツリーを合成 → 差分プレビュー＋`Validator` で事前検証 → 適用（`doc.root` 差し替え）
@@ -240,7 +255,7 @@ enum の `cases`（値ごとの追加フィールド。判別共用体）を持�
 ## 6. 拡張ポイント
 
 - **フィールド型の追加**: `FieldType` に enum を追加し、`Validator.checkField`・`FormView.ValueEditor`・`ai.fieldToJsonSchema`・`SchemaDef.generateSample`/`defaultNode` に分岐を追加する。
-- **コメント保持**: `YamlIO` を SnakeYAML の Node API（`LoaderOptions.setProcessComments(true)`）ベースに差し替える。ツリー変換層が `YamlIO` に隔離されているため影響範囲は限定的。
+- **YAML表層仕様の変更**: コメント・スタイル保持は実装済み（§4.17）。挙動を変える場合も `YamlIO` に閉じる（ツリー変換層が隔離されているため影響範囲は限定的）。構造比較や派生成果物には `dumpPlain` を使い、通常ダンプの表層情報に依存させない。
 - **横断ビューの追加**: データソースとして `AppState.workspaceRecords()` と `IdIndex` を利用し、`Main.kt` の `workspaceView` 分岐に追加する。
 - **ビュー定義の項目追加**: `core/Views.kt` の `parseView` と `schema/BuiltinSchemas.kt` の `builtin-view` スキーマを**対で**更新する（フォーム編集・検証と実行時パースの二重定義のため）。
 - **共通スキーマ定義の追加**: `_schemas` に `kind: library` を置き、利用側は `moduleId#definition` で参照する。解決規則を増やす場合は `SchemaCatalog` に閉じ、各利用側で参照文字列を個別解析しない。

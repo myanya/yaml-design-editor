@@ -14,7 +14,7 @@
 | W-01 | ワークスペース選択（起動引数／ダイアログ／`sample-workspace` 自動オープン） | ✅ | `Main.kt`, `AppState.openWorkspace` | 手動 |
 | W-02 | ファイルツリー表示（展開／折りたたみ、未保存●表示） | ✅ | `ui/FileTreePane.kt` | 手動 |
 | W-03 | ファイル／ディレクトリの作成・改名・削除（未保存保護、削除確認、新規YAMLはスキーマ初期値で生成） | ✅ | `AppState.createYaml` ほか, `ui/FileTreePane.kt` | 手動 |
-| W-04 | 外部変更検出（約1秒ポーリング、未編集は自動再読込、未保存は競合バナーで選択） | ✅ | `AppState.pollExternalChanges`, `Main.kt` | 手動 |
+| W-04 | 外部変更検出（WatchServiceによるOSネイティブ監視＋使えない環境では1秒ポーリングへフォールバック。未編集は自動再読込、未保存は競合バナーで選択。ROADMAP R8-03） | ✅ | `core/FileWatcher.kt`, `AppState.pollExternalChanges`, `Main.kt` | 単体（`FileWatcherTest`）＋手動 |
 | W-05 | 最近開いたファイル履歴（12件、ワークスペース単位で Preferences に永続化） | ✅ | `AppState.recentFiles` | 手動 |
 | W-06 | UIレイアウト永続化（左右ペイン幅・開閉、テーマ選択） | ✅ | `Main.kt`（`uiPreferences`） | 手動 |
 | W-07 | 未保存確認（アプリ終了時・ワークスペース切替時） | ✅ | `Main.kt` | 手動 |
@@ -24,14 +24,15 @@
 | ID | 機能 | 状態 | 主な実装 | テスト |
 |---|---|---|---|---|
 | E-01 | スキーマ駆動フォーム（全12型のエディタ、必須マーク（`requiredFrom` はフェーズ名つきで区別表示）、説明表示、折りたたみ） | ✅ | `ui/FormView.kt` | 手動 |
-| E-02 | 汎用ツリーエディタ（スキーマなし文書、スキーマ外キーの汎用行表示） | ✅ | `ui/FormView.kt`（`GenericEditor`） | 手動 |
-| E-03 | ソース編集（行番号、文書内検索、「変更を反映」、パースエラーの行・列表示） | ✅ | `ui/SourcePane.kt` | 手動 |
-| E-04 | 差分表示（保存済み vs 編集中、LCSによる行整列、空行差の弱調表示） | ✅ | `ui/DiffPane.kt` | 単体（`DiffPaneTest`） |
+| E-02 | 汎用ツリーエディタ（スキーマなし文書、スキーマ外キーの汎用行表示、キー名変更＝順序・値・コメントを保った改名。ROADMAP R8-05） | ✅ | `ui/FormView.kt`（`GenericEditor`, `renameMapKey`） | 単体（`RenameKeyTest`）＋手動 |
+| E-03 | ソース編集（行番号、文書内検索・置換（1件／すべて）、YAML構文ハイライト、「変更を反映」、パースエラーの行・列表示。ROADMAP R8-04） | ✅ | `ui/SourcePane.kt`, `ui/SourceHighlight.kt` | 単体（`SourceHighlightTest`）＋手動 |
+| E-04 | 差分表示（保存済み vs 編集中、LCSによる行整列、変更行内の文字単位強調、空行差の弱調表示。ROADMAP R8-04） | ✅ | `ui/DiffPane.kt` | 単体（`DiffPaneTest`, `SourceHighlightTest`） |
 | E-05 | Undo/Redo（正規化テキストのスナップショット履歴、最大100件） | ✅ | `app/OpenDocument` | 手動 |
-| E-06 | 保存／すべて保存（Ctrl+S / Ctrl+Shift+S、ソース編集中は反映→保存。リストは親プロパティから一段下げて整形） | ✅ | `AppState.save*`, `yaml/YamlIO.kt`, `ui/SourcePane.kt` | 単体（`YamlIOTest`）＋手動 |
+| E-06 | 保存／すべて保存（Ctrl+S / Ctrl+Shift+S、ソース編集中は反映→保存。コメント・キー順・表記スタイルを保持して書き出す。リストは親プロパティから一段下げて整形。ROADMAP R8-01） | ✅ | `AppState.save*`, `yaml/YamlIO.kt`, `ui/SourcePane.kt` | 単体（`YamlIOTest`）＋手動 |
 | E-07 | 文書メタデータ `_document`（id / name / description）の編集・ヘッダー表示 | ✅ | `ui/FormView.kt`（`DocumentMetadataEditor`）, `index/IdIndex.kt` | 手動 |
 | E-08 | 文書キャッシュ（ファイル切替時も未保存編集をメモリ保持） | ✅ | `AppState.docCache` | 手動 |
 | E-09 | 同一IDの他文書出現ストリップ（フォーム上部。文書ルートのIDが他文書にも出現する場合に相手側のスカラー情報を表示・ジャンプ。詳細文書に一覧側情報を重複記載しない運用を支える） | ✅ | `ui/FormView.kt`（`SameIdOccurrencesStrip`） | 手動 |
+| E-10 | 複数ドキュメント（`---` 区切り）YAML（フォームは先頭ドキュメントを編集、後続は保持して保存時に再出力。ソースタブでは全ドキュメント編集可。索引・検索・一覧は先頭ドキュメント対象。ROADMAP R8-05） | ✅ | `yaml/YamlIO.kt`（`parseAll` / `dumpAll` / `parseFirst`）, `app/OpenDocument` | 単体（`OpenDocumentTest`, `YamlIOTest`） |
 
 ## 3. スキーマ
 
@@ -65,7 +66,7 @@
 
 | ID | 機能 | 状態 | 主な実装 | テスト |
 |---|---|---|---|---|
-| I-01 | ID索引（ディスク基準。`type: id` ＋ スキーマなし文書のキー名 `id` を索引化、documentId 管理） | ✅ | `index/IdIndex.kt`（`DocScanner`） | 手動 |
+| I-01 | ID索引（ディスク基準。`type: id` ＋ スキーマなし文書のキー名 `id` を索引化、documentId 管理。保存・外部変更・変更セット適用では変更ファイルだけを差し替える増分更新＝コストが変更ファイル数に比例。ROADMAP R8-02） | ✅ | `index/IdIndex.kt`（`DocScanner`, `update`） | 単体（`IdIndexIncrementalTest`）＋手動 |
 | I-02 | 参照認識（`type: ref` ＋ 命名規約ヒューリスティクス `ref`/`*_ref`/`refs`/`depends_on` 等） | ✅ | `index/IdIndex.kt`（`DocScanner`） | 手動 |
 | I-03 | リンクジャンプ（→ボタン、ハイライト＋自動スクロール、複数出現時は選択ダイアログ） | ✅ | `AppState.navigateToId`, `ui/Common.kt`（`Highlightable`） | 手動 |
 | I-04 | 参照候補の補完（`idPatterns` / `scope.schemaIds` / `scope.documentIds` で絞り込み） | ✅ | `ui/FormView.kt`（`RefEditor`）, `index/IdIndex.kt` | 手動 |
@@ -78,8 +79,8 @@
 | ID | 機能 | 状態 | 主な実装 | テスト |
 |---|---|---|---|---|
 | X-01 | 一覧ビュー（ID・タイトル・状態・担当・種別、文字列／種別／状態で絞り込み） | ✅ | `ui/WorkspaceViews.kt`, `AppState.workspaceRecords` | 手動 |
-| X-02 | 一括編集（ルートの `status` / `owner`。確認ダイアログ、未保存文書があれば拒否） | ✅ | `AppState.bulkUpdate` | 手動 |
-| X-03 | 参照グラフ（円形配置の簡易描画＋参照一覧。40ノード／500参照に制限） | ✅ | `ui/WorkspaceViews.kt` | 手動 |
+| X-02 | 一括編集（ルート直下の任意スカラーキー。候補はワークスペースから収集、`id`・予約キー・複合値は対象外。確認ダイアログ、未保存文書があれば拒否。ROADMAP R8-05） | ✅ | `AppState.bulkUpdate` / `bulkKeyCandidates` | 手動 |
+| X-03 | 参照グラフ（力学配置による全件描画、パン・ズーム、IDノード／一覧クリックで定義へジャンプ、参照元ファイルと参照先IDの色分け。ROADMAP R8-05） | ✅ | `ui/WorkspaceViews.kt`, `ui/GraphLayout.kt` | 単体（`GraphLayoutTest`）＋手動 |
 | X-04 | コマンドパレット（Ctrl+K。ビュー切替・保存・ファイル検索・ID移動） | ✅ | `Main.kt`（`CommandPalette`） | 手動 |
 | X-05 | ビュー定義 `_views`（宣言的な射影: 行=論理IDパターン × 列=出現からの相対YPath。並び順・詳細文書・新規行・バックリンク列（`backlinks`: 行IDへの被参照を relation／参照元スキーマで絞って一覧表示。1:N詳細化の分裂先の逆引き。ROADMAP R7-02）の宣言、組込みスキーマでフォーム編集・検証、メタアクティビティの提案対象） | ✅ | `core/Views.kt`, `schema/BuiltinSchemas.kt` | 単体（`ViewsTest`） |
 | X-06 | ビューグリッド（ビューを編集可能な一覧として表示。スカラーセルの直接編集・複合値はジャンプ・詳細文書の作成・新規行の追加・バックリンク列＝参照元IDの列挙とジャンプ（編集不可の派生表示）・カバレッジ表示（フェーズ未到達のルールは対象外）・絞り込み） | ✅ | `ui/ViewGridPane.kt`, `AppState.ensureDoc` / `createViewDetail` / `addViewRow` | 単体（core経路は `ViewsTest`）＋手動 |
@@ -140,8 +141,9 @@ UIに依存しないヘッドレス操作の層（[ROADMAP.md](ROADMAP.md) P1 �
 | C-03 | 変更セット（複数ファイルのパッチ束＋新規ファイル作成。baseハッシュ競合検出、全件成功時のみ書込、適用後状態のオーバーレイ索引で検証、`--require-valid` ゲート、ドライラン） | ✅ | `core/Patch.kt`（`ChangeSets`）, `core/Workspace.kt`（`apply`） | 単体（`WorkspaceCliTest`） |
 | C-04 | 段階的開示API（カタログ→骨子→ノード全文の3段階、文字数予算付き文脈バンドル） | ✅ | `core/Disclosure.kt` | 単体（`WorkspaceCliTest`） |
 | C-05 | 構造検索API（本文・キーの部分一致＋スキーマ／ファイルglob／パスglob条件、参照検索・未解決参照検索） | ✅ | `core/Search.kt` | 単体（`WorkspaceCliTest`） |
-| C-06 | CLI（catalog / outline / read / bundle / search / view / validate / apply / hash / activities / agent / watch / revert / metrics / eval。出力はUTF-8のYAML。`validate` は `phases` 宣言スキーマの文書に `phaseProgress` を付与） | ✅ | `core/Cli.kt`, `build.gradle.kts`（`runCli`） | 単体（`WorkspaceCliTest` 一気通貫） |
+| C-06 | CLI（catalog / outline / read / bundle / search / view / validate / apply / hash / activities / agent / watch / revert / metrics / eval / bench。出力はUTF-8のYAML。`validate` は `phases` 宣言スキーマの文書に `phaseProgress` を付与） | ✅ | `core/Cli.kt`, `build.gradle.kts`（`runCli`） | 単体（`WorkspaceCliTest` 一気通貫） |
 | C-07 | ビュー解決API（`_views` 定義のロード・行×セルへの解決＝原本座標化・バックリンク列の解決＝参照元の最内IDと参照座標・データパスからのスキーマフィールド解決・詳細文書スキャフォールド。CLI `view`） | ✅ | `core/Views.kt`, `core/Cli.kt` | 単体（`ViewsTest`） |
+| C-08 | 索引性能ベンチマーク（ベンチマーク用ワークスペースの生成と、索引のフル再構築 vs 増分更新の比較計測。CLI `bench`。ROADMAP R8-02） | ✅ | `core/Bench.kt`, `core/Cli.kt` | 単体（`IdIndexIncrementalTest`） |
 
 ## 10. skill・テンプレート（フォーマット適合）
 
@@ -162,15 +164,15 @@ UIに依存しないヘッドレス操作の層（[ROADMAP.md](ROADMAP.md) P1 �
 
 | ID | 内容 | 状態 | 備考 |
 |---|---|---|---|
-| L-01 | YAMLコメント・アンカー・スタイルの保持 | 📋 | SnakeYAML でブロックスタイル・インデント2に正規化される。対応するなら `YamlIO` を Node API ベースへ差し替え（[ARCHITECTURE.md](ARCHITECTURE.md) 拡張ポイント参照）。ROADMAP R8-01 で対応予定 |
-| L-02 | 複数ドキュメント（`---` 区切り）YAML | 📋 | 先頭ドキュメントのみ対象（ROADMAP R8-05） |
-| L-03 | ソースエディタの構文ハイライト・置換 | 📋 | 行番号・検索・エラー位置表示までは実装済み（ROADMAP R8-04） |
-| L-04 | 文字単位の差分表示 | 📋 | 行単位のLCS整列まで実装済み（ROADMAP R8-04） |
-| L-05 | 汎用ビューでのキー名変更 | 📋 | 現状は「削除→追加」で代替（ROADMAP R8-05） |
-| L-06 | 参照グラフの本格的なレイアウト・全件表示 | 🚧 | 描画40ノード・一覧500参照に制限した簡易実装（ROADMAP R8-05） |
-| L-07 | 一括編集の対象キー拡張 | 🚧 | ルートの `status` / `owner` のみ（ROADMAP R8-05） |
-| L-08 | ファイル監視のOSネイティブ化（WatchService等） | 📋 | 現状は1秒間隔のタイムスタンプポーリング（ROADMAP R8-03） |
-| L-09 | フォーム系UI・AppState の自動テスト | 🚧 | 単体テストは ai／diff／AI提案合成／core（パッチ・開示・検索・CLI）／カバレッジ検証／agent（ステージング・カーネル・定義・自動化・メトリクス・評価・メタ）。Compose UI と AppState は手動確認（ROADMAP R9-02 の委譲でテスト可能範囲を広げる） |
+| L-01 | YAMLコメント・アンカー・スタイルの保持 | ✅ ほぼ解消 | R8-01 で `YamlIO` を Node API ベースへ差し替え、コメント・キー順・スカラー/フロー表記を「開く→編集→保存」の往復で保持（E-06）。残る正規化: アンカーは展開・インデント2固定・リスト要素の前行コメントは初回保存で `- # コメント` の形へ移動（内容は保持・以降は安定。SnakeYAMLエミッタの制約） |
+| L-02 | 複数ドキュメント（`---` 区切り）YAML | ✅ 解消 | R8-05 で対応（E-10）。フォームは先頭ドキュメント、後続は保持・ソースで編集可。索引・検索は先頭ドキュメント対象 |
+| L-03 | ソースエディタの構文ハイライト・置換 | ✅ 解消 | R8-04 で対応（E-03） |
+| L-04 | 文字単位の差分表示 | ✅ 解消 | R8-04 で対応（E-04。変更行内の変わった箇所を強調） |
+| L-05 | 汎用ビューでのキー名変更 | ✅ 解消 | R8-05 で対応（E-02。順序・値・コメントを保った改名） |
+| L-06 | 参照グラフの本格的なレイアウト・全件表示 | ✅ 解消 | R8-05 で対応（X-03。力学配置・全件描画・パン/ズーム） |
+| L-07 | 一括編集の対象キー拡張 | ✅ 解消 | R8-05 で対応（X-02。ルート直下の任意スカラーキー） |
+| L-08 | ファイル監視のOSネイティブ化（WatchService等） | ✅ 解消 | R8-03 で対応（W-04。ポーリングは自動フォールバックとして残置） |
+| L-09 | フォーム系UI・AppState の自動テスト | 🚧 | 単体テストは ai／diff／AI提案合成／core（パッチ・開示・検索・CLI・監視・索引増分）／カバレッジ検証／agent（ステージング・カーネル・定義・自動化・メトリクス・評価・メタ）／ui純ロジック（構文ハイライト・置換・グラフレイアウト・キー名変更）／OpenDocument（複数ドキュメント）。Compose UI と AppState は手動確認（ROADMAP R9-02 の委譲でテスト可能範囲を広げる） |
 | L-10 | AppState の core.Workspace への全面委譲 | 🚧 | 走査・検証・パッチ・レビュー適用（apply＋reload）は共通実装を共有済み。人間編集との排他は AG-14/15（編集中は自動適用を承認待ちへ降格）で実現。文書キャッシュ層の統合は継続課題（ROADMAP R9-02） |
 | L-11 | AI生成ダイアログ（A-01〜03）とエージェントカーネルの完全統合 | 🚧 | 接続設定（`ui/AiSettings`）は共有済み。実行系の統合は、フィールド生成が Structured Outputs の型保証を持つ利点を崩さない形で検討（ROADMAP R2-09・R9-01） |
 | L-12 | コード実行skill（宣言型で書けない変換・定型手順） | 📋 | サンドボックス外作用のため明示許可制の設計が前提（ROADMAP R5-01・R9-06）。現状の skill は宣言型の import / export のみ |

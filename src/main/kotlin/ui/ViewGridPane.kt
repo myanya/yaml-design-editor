@@ -161,7 +161,7 @@ private fun GridBody(state: AppState, view: ViewDef) {
     // 行の構造（座標）は索引基準で解決し、セル値の表示・編集は編集中ツリーを優先する
     val rows = remember(view, state.indexVersion) {
         Views.resolve(view, ws, state.index) { f ->
-            state.docFor(f)?.root ?: runCatching { YamlIO.parse(Files.readString(f)) }.getOrNull()
+            state.docFor(f)?.root ?: runCatching { YamlIO.parseFirst(Files.readString(f)) }.getOrNull()
         }
     }
     val filtered = remember(rows, query) {

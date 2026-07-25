@@ -173,19 +173,30 @@ interface Slot {
 
 class MapSlot(private val map: YNode.Map, val key: String) : Slot {
     override fun get(): YNode? = map.entries[key]
-    override fun set(n: YNode) { map.entries[key] = n }
+    override fun set(n: YNode) {
+        n.inheritMetaFrom(map.entries[key])  // 置換してもコメント・表記スタイルを保持する（R8-01）
+        map.entries[key] = n
+    }
     override fun remove() { map.entries.remove(key) }
 }
 
 class SeqSlot(private val seq: YNode.Seq, val idx: Int) : Slot {
     override fun get(): YNode? = seq.items.getOrNull(idx)
-    override fun set(n: YNode) { if (idx in seq.items.indices) seq.items[idx] = n }
+    override fun set(n: YNode) {
+        if (idx in seq.items.indices) {
+            n.inheritMetaFrom(seq.items[idx])  // 置換してもコメント・表記スタイルを保持する（R8-01）
+            seq.items[idx] = n
+        }
+    }
     override fun remove() { if (idx in seq.items.indices) seq.items.removeAt(idx) }
 }
 
 class RootSlot(private val doc: OpenDocument) : Slot {
     override fun get(): YNode? = doc.root
-    override fun set(n: YNode) { doc.root = n }
+    override fun set(n: YNode) {
+        n.inheritMetaFrom(doc.root)  // 置換してもコメント・表記スタイルを保持する（R8-01）
+        doc.root = n
+    }
     override fun remove() { /* ルートは削除不可 */ }
 }
 

@@ -150,8 +150,14 @@ object DocScanner {
 /**
  * ワークスペース全体の ID 索引。
  * ディスク上のファイルを対象とするため、未保存の編集は「保存」または「再読込」まで反映されない。
+ * ファイル単位の走査結果を保持し、変更ファイルだけの差し替え（増分更新。R8-02）ができる。
  */
 class IdIndex {
+
+    private class FileScan(val ids: List<IdEntry>, val refs: List<RefEntry>)
+
+    /** ファイル -> 走査結果。集約（entries / refs）はここから導出する。 */
+    private val byFile = HashMap<Path, FileScan>()
 
     /** 論理 id -> 文書ごとの出現一覧 */
     var entries: Map<String, List<IdEntry>> = emptyMap()
@@ -161,28 +167,65 @@ class IdIndex {
     var refs: List<RefEntry> = emptyList()
         private set
 
+    /** ディスクから読む既定のローダ（複数ドキュメントYAMLは先頭を索引化する。R8-05）。 */
+    private val diskLoader: (Path) -> YNode? = { f -> runCatching { YamlIO.parseFirst(Files.readString(f)) }.getOrNull() }
+
     /**
-     * 索引を再構築する。loader を差し替えると、ディスク以外（例: エージェントのステージング）の
+     * 索引を全ファイルから再構築する。loader を差し替えると、ディスク以外（例: エージェントのステージング）の
      * 内容で索引を組める。`_schemas/` と機械が書く実行記録 `_runs/` は索引対象外。
      */
     fun rebuild(
         workspace: Path,
         files: List<Path>,
         schemas: List<SchemaDef>,
-        loader: (Path) -> YNode? = { f -> runCatching { YamlIO.parse(Files.readString(f)) }.getOrNull() },
+        loader: (Path) -> YNode? = diskLoader,
     ) {
+        byFile.clear()
+        for (f in files) {
+            scanFile(workspace, f, schemas, loader)?.let { byFile[f] = it }
+        }
+        derive()
+    }
+
+    /**
+     * 変更・削除されたファイルの分だけ走査し直して索引を差し替える（R8-02: 増分更新）。
+     * スキーマ自体が変わった場合は全ファイルの走査規則が変わるため、rebuild を使うこと。
+     */
+    fun update(
+        workspace: Path,
+        changed: Collection<Path>,
+        removed: Collection<Path> = emptyList(),
+        schemas: List<SchemaDef>,
+        loader: (Path) -> YNode? = diskLoader,
+    ) {
+        removed.forEach { byFile.remove(it) }
+        changed.forEach { f ->
+            val scan = scanFile(workspace, f, schemas, loader)
+            if (scan != null) byFile[f] = scan else byFile.remove(f)
+        }
+        derive()
+    }
+
+    /** 1 ファイルを走査する。索引対象外・読取不能なら null。 */
+    private fun scanFile(workspace: Path, f: Path, schemas: List<SchemaDef>, loader: (Path) -> YNode?): FileScan? {
+        val rel = relPathOf(workspace, f)
+        if (rel.startsWith(schema.SchemaLoader.SCHEMA_DIR + "/")) return null
+        if (rel.startsWith(schema.SchemaLoader.RUNS_DIR + "/")) return null
+        val root = loader(f) ?: return null
+        val schemaDef = schemas.firstOrNull { it.matches(rel) }
+        val documentId = documentIdOf(root, rel)
+        val (docIds, docRefs) = DocScanner.scan(root, f, schemaDef, documentId)
+        return FileScan(docIds, docRefs)
+    }
+
+    /** byFile から集約ビュー（entries / refs）を導出する。順序はパス順で安定させる。 */
+    private fun derive() {
         val ids = mutableMapOf<String, MutableList<IdEntry>>()
         val allRefs = mutableListOf<RefEntry>()
-        for (f in files) {
-            val rel = relPathOf(workspace, f)
-            if (rel.startsWith(schema.SchemaLoader.SCHEMA_DIR + "/")) continue
-            if (rel.startsWith(schema.SchemaLoader.RUNS_DIR + "/")) continue
-            val root = loader(f) ?: continue
-            val schemaDef = schemas.firstOrNull { it.matches(rel) }
-            val documentId = documentIdOf(root, rel)
-            val (docIds, docRefs) = DocScanner.scan(root, f, schemaDef, documentId)
-            for (e in docIds) ids.getOrPut(e.id) { mutableListOf() }.add(e)
-            allRefs += docRefs
+        for (f in byFile.keys.sortedBy { it.toString() }) {
+            val scan = byFile.getValue(f)
+            for (e in scan.ids) ids.getOrPut(e.id) { mutableListOf() }.add(e)
+            allRefs += scan.refs
         }
         entries = ids
         refs = allRefs

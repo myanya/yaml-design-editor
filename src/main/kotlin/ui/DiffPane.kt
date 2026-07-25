@@ -11,6 +11,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -118,6 +121,20 @@ fun DiffPane(doc: OpenDocument) {
     }
 }
 
+/**
+ * 変更行ペアの文字単位の差分範囲（R8-04）。
+ * 共通の接頭辞・接尾辞を除いた中央部を「変わった箇所」として返す（左が disk 側、右が edited 側）。
+ */
+internal fun charDiffRanges(disk: String, edited: String): Pair<IntRange, IntRange> {
+    var prefix = 0
+    while (prefix < disk.length && prefix < edited.length && disk[prefix] == edited[prefix]) prefix++
+    var suffix = 0
+    while (suffix < disk.length - prefix && suffix < edited.length - prefix &&
+        disk[disk.length - 1 - suffix] == edited[edited.length - 1 - suffix]
+    ) suffix++
+    return (prefix until disk.length - suffix) to (prefix until edited.length - suffix)
+}
+
 /** 左右整列済みの差分1行。DiffPane と AI プレビューで共用する。 */
 @Composable
 internal fun DiffLineRow(line: DiffLine) {
@@ -126,19 +143,33 @@ internal fun DiffLineRow(line: DiffLine) {
         line.changed -> Palette.Highlight
         else -> Color.Transparent
     }
+    // 両側にテキストがある変更行だけ、文字単位で変わった箇所を強調する（R8-04）
+    val emphasis = if (line.changed && !line.blankOnlyChange && line.disk != null && line.edited != null) {
+        charDiffRanges(line.disk, line.edited)
+    } else null
     Row(Modifier.fillMaxWidth().background(background)) {
-        DiffCell(line.diskNumber, line.disk, line.blankOnlyChange, Modifier.weight(1f))
-        DiffCell(line.editedNumber, line.edited, line.blankOnlyChange, Modifier.weight(1f))
+        DiffCell(line.diskNumber, line.disk, line.blankOnlyChange, emphasis?.first, Modifier.weight(1f))
+        DiffCell(line.editedNumber, line.edited, line.blankOnlyChange, emphasis?.second, Modifier.weight(1f))
     }
 }
 
 @Composable
-private fun DiffCell(number: Int?, text: String?, blankOnlyChange: Boolean, modifier: Modifier) {
+private fun DiffCell(number: Int?, text: String?, blankOnlyChange: Boolean, emphasis: IntRange?, modifier: Modifier) {
     Row(modifier.padding(vertical = 1.dp)) {
         Text(number?.toString().orEmpty(), fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = Palette.SubText,
             modifier = Modifier.width(36.dp).padding(end = 6.dp))
         val displayedText = if (blankOnlyChange && text != null && text.isBlank()) "· 空行" else text.orEmpty()
-        Text(displayedText, fontFamily = FontFamily.Monospace, fontSize = 11.sp,
+        val annotated = if (emphasis != null && !emphasis.isEmpty() && displayedText == text) {
+            buildAnnotatedString {
+                append(displayedText)
+                addStyle(
+                    SpanStyle(background = Palette.Primary.copy(alpha = .28f)),
+                    emphasis.first.coerceIn(0, displayedText.length),
+                    (emphasis.last + 1).coerceIn(0, displayedText.length),
+                )
+            }
+        } else AnnotatedString(displayedText)
+        Text(annotated, fontFamily = FontFamily.Monospace, fontSize = 11.sp,
             color = if (blankOnlyChange) Palette.SubText.copy(alpha = .75f) else Palette.Text,
             modifier = Modifier.weight(1f))
     }

@@ -242,7 +242,7 @@ object Views {
         view: ViewDef,
         workspace: Path,
         index: IdIndex,
-        loader: (Path) -> YNode? = { f -> runCatching { YamlIO.parse(Files.readString(f)) }.getOrNull() },
+        loader: (Path) -> YNode? = { f -> runCatching { YamlIO.parseFirst(Files.readString(f)) }.getOrNull() },
     ): List<ViewRow> {
         val trees = mutableMapOf<Path, YNode?>()
         fun tree(file: Path): YNode? = trees.getOrPut(file) { loader(file) }
