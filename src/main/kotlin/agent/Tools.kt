@@ -409,6 +409,10 @@ class AgentToolbox(
                 append("- ").append(ws.relPath(b.file)).append(" :: ").append(b.path.pretty())
                     .append("（").append(b.viaKey)
                 b.relation?.let { append("・関係: ").append(it) }
+                // 参照を書いた要素の ID・タイトル（索引の表示解決結果）を添え、read_node なしで参照元を特定できるようにする
+                idx.sourceEntryOf(b)?.let { src ->
+                    append("・元要素: ").append(listOfNotNull(src.id, src.title).joinToString(" "))
+                }
                 appendLine("）")
             }
         }.trimEnd()

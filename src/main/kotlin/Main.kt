@@ -27,6 +27,8 @@ import agent.AutomationEngine
 import ai.AiProvider
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.EditOff
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,9 +63,9 @@ fun main(args: Array<String>) = application {
     var darkMode by remember { mutableStateOf(uiPreferences.getBoolean("darkMode", false)) }
 
     LaunchedEffect(Unit) {
-        // 起動引数でワークスペース指定可。未指定ならカレントの sample-workspace を試す。
-        val initial = args.firstOrNull()?.let { Path.of(it) } ?: Path.of("sample-workspace")
-        if (Files.isDirectory(initial)) state.openWorkspace(initial)
+        state.readOnlyMode = uiPreferences.getBoolean("readOnly", false)
+        // 起動引数でワークスペース指定可。未指定ならスタート画面（履歴からの選択。R10-05）を表示する。
+        args.firstOrNull()?.let { Path.of(it) }?.takeIf(Files::isDirectory)?.let { state.openWorkspace(it) }
     }
 
     Window(
@@ -73,7 +75,9 @@ fun main(args: Array<String>) = application {
     ) {
         AppTheme(darkMode) {
             Surface(Modifier.fillMaxSize(), color = Palette.EditorBg) {
-                AppRoot(state, darkMode) {
+                if (state.workspace == null) {
+                    StartScreen(state)
+                } else AppRoot(state, darkMode) {
                     darkMode = !darkMode
                     uiPreferences.putBoolean("darkMode", darkMode)
                 }
@@ -89,6 +93,66 @@ fun main(args: Array<String>) = application {
     }
 }
 
+/** ワークスペース未選択時のスタート画面（R10-05）。履歴からの選択で起動引数なしの切替を完結させる。 */
+@Composable
+fun StartScreen(state: AppState) {
+    Column(
+        Modifier.fillMaxSize().padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text("YAML Design Editor", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "スキーマ駆動のYAML編集・検証・エージェント実行環境",
+            fontSize = 12.sp, color = Palette.SubText,
+        )
+        Spacer(Modifier.height(20.dp))
+        Button(onClick = { chooseDirectory()?.let { state.openWorkspace(it) } }) {
+            Icon(Icons.Default.FolderOpen, contentDescription = null, Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("ワークスペースを開く…", fontSize = 13.sp)
+        }
+        val sample = Path.of("sample-workspace")
+        if (Files.isDirectory(sample) && state.recentWorkspaces.none { it.fileName?.toString() == "sample-workspace" }) {
+            Spacer(Modifier.height(6.dp))
+            TextButton(onClick = { state.openWorkspace(sample) }) {
+                Text("sample-workspace を開く", fontSize = 12.sp)
+            }
+        }
+        if (state.recentWorkspaces.isNotEmpty()) {
+            Spacer(Modifier.height(24.dp))
+            Text("最近開いたワークスペース", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Palette.SubText)
+            Spacer(Modifier.height(4.dp))
+            Column(
+                Modifier.width(560.dp).background(Palette.PanelBg, PanelShape)
+                    .border(1.dp, Palette.Border, PanelShape).padding(vertical = 4.dp),
+            ) {
+                state.recentWorkspaces.forEach { ws ->
+                    Row(
+                        Modifier.fillMaxWidth().clickable { state.openWorkspace(ws) }
+                            .padding(horizontal = 14.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Default.FolderOpen, contentDescription = null, Modifier.size(15.dp), tint = Palette.Folder)
+                        Spacer(Modifier.width(8.dp))
+                        Column {
+                            Text(ws.fileName?.toString() ?: ws.toString(), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            Text(ws.toString(), fontSize = 10.sp, color = Palette.SubText, maxLines = 1)
+                        }
+                    }
+                }
+            }
+        } else {
+            Spacer(Modifier.height(16.dp))
+            Text(
+                "開いたワークスペースはここに履歴として表示されます",
+                fontSize = 11.sp, color = Palette.SubText,
+            )
+        }
+    }
+}
+
 @Composable
 fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
     var leftWidth by remember { mutableStateOf(uiPreferences.getFloat("leftWidth", 240f).dp) }
@@ -96,6 +160,11 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
     var leftOpen by remember { mutableStateOf(uiPreferences.getBoolean("leftOpen", true)) }
     var rightOpen by remember { mutableStateOf(uiPreferences.getBoolean("rightOpen", true)) }
     var commandOpen by remember { mutableStateOf(false) }
+    // ワークスペース切替（R10-05）: ツールバー・コマンドパレット共通。未保存確認（W-07）を一元化する
+    var pendingWorkspace by remember { mutableStateOf<Path?>(null) }
+    val switchWorkspace: (Path) -> Unit = { dir ->
+        if (state.hasDirtyDocs()) pendingWorkspace = dir else state.openWorkspace(dir)
+    }
     var agentOpen by remember { mutableStateOf(false) }
     var automationOpen by remember { mutableStateOf(false) }
     var improvementOpen by remember { mutableStateOf(false) }
@@ -164,6 +233,11 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
             openSkills = { skillsOpen = true },
             automationActive = automation?.enabled == true,
             automationPending = automation?.pendingSnapshot()?.size ?: 0,
+            switchWorkspace = switchWorkspace,
+            toggleReadOnly = {
+                state.readOnlyMode = !state.readOnlyMode
+                uiPreferences.putBoolean("readOnly", state.readOnlyMode)
+            },
             toggleLeft = { leftOpen = !leftOpen; uiPreferences.putBoolean("leftOpen", leftOpen) },
             toggleRight = { rightOpen = !rightOpen; uiPreferences.putBoolean("rightOpen", rightOpen) })
         Divider(color = Palette.Border)
@@ -195,8 +269,19 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
         Divider(color = Palette.Border)
         StatusBar(state)
     }
-    if (commandOpen) CommandPalette(state) { commandOpen = false }
+    if (commandOpen) CommandPalette(state, switchWorkspace) { commandOpen = false }
     if (agentOpen) AgentRunHost(state, automation) { agentOpen = false }
+    pendingWorkspace?.let { next ->
+        AlertDialog(
+            onDismissRequest = { pendingWorkspace = null },
+            title = { Text("未保存の変更があります") },
+            text = { Text("変更を破棄してワークスペースを切り替えますか？") },
+            confirmButton = { TextButton(onClick = { pendingWorkspace = null; state.openWorkspace(next) }) {
+                Text("破棄して切り替え", color = Palette.ErrorRed)
+            } },
+            dismissButton = { TextButton(onClick = { pendingWorkspace = null }) { Text("キャンセル") } },
+        )
+    }
     if (automationOpen && automation != null) AutomationPanel(state, automation, automationVersion) { automationOpen = false }
     if (improvementOpen) ImprovementPanel(state) { improvementOpen = false }
     if (skillsOpen) SkillsPanel(state) { skillsOpen = false }
@@ -255,15 +340,15 @@ fun Toolbar(state: AppState, leftOpen: Boolean, rightOpen: Boolean, darkMode: Bo
             openCommands: () -> Unit, openAgent: () -> Unit,
             openAutomation: () -> Unit, openImprovement: () -> Unit, openSkills: () -> Unit,
             automationActive: Boolean, automationPending: Int,
+            switchWorkspace: (Path) -> Unit, toggleReadOnly: () -> Unit,
             toggleLeft: () -> Unit, toggleRight: () -> Unit) {
-    var pendingWorkspace by remember { mutableStateOf<Path?>(null) }
     var recentOpen by remember { mutableStateOf(false) }
     Row(
         Modifier.fillMaxWidth().height(44.dp).background(Palette.PanelBg).padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Button(onClick = {
-            chooseDirectory()?.let { if (state.hasDirtyDocs()) pendingWorkspace = it else state.openWorkspace(it) }
+            chooseDirectory()?.let(switchWorkspace)
         }) {
             Icon(Icons.Default.FolderOpen, contentDescription = null, Modifier.size(16.dp))
             Spacer(Modifier.width(6.dp))
@@ -301,6 +386,15 @@ fun Toolbar(state: AppState, leftOpen: Boolean, rightOpen: Boolean, darkMode: Bo
         Spacer(Modifier.width(8.dp))
         Spacer(Modifier.weight(1f))
         IdSearchBox(state)
+        // 閲覧専用モード（R10-04）: フォーム・グリッドの編集UIを表示専用に切り替える
+        IconButton(onClick = toggleReadOnly) {
+            Icon(
+                if (state.readOnlyMode) Icons.Default.EditOff else Icons.Default.Visibility,
+                if (state.readOnlyMode) "閲覧専用モードを解除" else "閲覧専用モード",
+                Modifier.size(18.dp),
+                tint = if (state.readOnlyMode) Palette.WarnOrange else Palette.SubText,
+            )
+        }
         IconButton(enabled = state.workspace != null, onClick = openAgent) {
             Icon(Icons.Default.SmartToy, "アクティビティを実行", Modifier.size(18.dp))
         }
@@ -330,27 +424,22 @@ fun Toolbar(state: AppState, leftOpen: Boolean, rightOpen: Boolean, darkMode: Bo
         IconButton(onClick = toggleLeft) { Text(if (leftOpen) "◀" else "▶", fontSize = 11.sp) }
         IconButton(onClick = toggleRight) { Text(if (rightOpen) "▶" else "◀", fontSize = 11.sp) }
     }
-    pendingWorkspace?.let { next ->
-        AlertDialog(
-            onDismissRequest = { pendingWorkspace = null },
-            title = { Text("未保存の変更があります") },
-            text = { Text("変更を破棄してワークスペースを切り替えますか？") },
-            confirmButton = { TextButton(onClick = { pendingWorkspace = null; state.openWorkspace(next) }) {
-                Text("破棄して切り替え", color = Palette.ErrorRed)
-            } },
-            dismissButton = { TextButton(onClick = { pendingWorkspace = null }) { Text("キャンセル") } },
-        )
-    }
 }
 
 @Composable
-private fun CommandPalette(state: AppState, onDismiss: () -> Unit) {
+private fun CommandPalette(state: AppState, switchWorkspace: (Path) -> Unit, onDismiss: () -> Unit) {
     var query by remember { mutableStateOf("") }
     val files = remember(query, state.yamlFiles) {
         state.yamlFiles.filter { state.relPath(it).contains(query, true) }.take(10)
     }
     val ids = remember(query, state.indexVersion) {
         if (query.isBlank()) emptyList() else state.index.entries.keys.filter { it.contains(query, true) }.sorted().take(8)
+    }
+    // ワークスペース切替候補（R10-05）: 現在以外の履歴。文字入力があれば絞り込む
+    val workspaces = remember(query, state.recentWorkspaces, state.workspace) {
+        state.recentWorkspaces.filter { it != state.workspace }
+            .filter { query.isBlank() || it.toString().contains(query, true) }
+            .take(5)
     }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -365,6 +454,10 @@ private fun CommandPalette(state: AppState, onDismiss: () -> Unit) {
                 CommandItem("ID横ぐしビューを表示") { state.openCrossView(); onDismiss() }
                 CommandItem("ビューグリッドを表示") { state.openViewGrid(); onDismiss() }
                 CommandItem("すべて保存") { state.saveAll(); onDismiss() }
+                CommandItem("ワークスペースを開く…") { onDismiss(); chooseDirectory()?.let(switchWorkspace) }
+                workspaces.forEach { ws ->
+                    CommandItem("ワークスペースを切替: $ws") { onDismiss(); switchWorkspace(ws) }
+                }
                 ids.forEach { id -> CommandItem("IDへ移動: $id") { state.navigateToId(id); onDismiss() } }
                 files.forEach { file -> CommandItem("開く: ${state.relPath(file)}") { state.openFile(file); onDismiss() } }
             }
@@ -520,7 +613,15 @@ fun EditorArea(state: AppState) {
                 )
             } ?: Text("スキーマなし（汎用ビュー）", fontSize = 11.sp, color = Palette.SubText)
             Spacer(Modifier.weight(1f))
-            if (!isSchemaFile && doc.schema != null && doc.root != null) {
+            if (state.readOnlyMode) {
+                Text(
+                    "閲覧専用",
+                    fontSize = 11.sp, color = Palette.WarnOrange,
+                    modifier = Modifier.background(Palette.ConflictBg, PanelShape).padding(horizontal = 8.dp, vertical = 2.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+            }
+            if (!isSchemaFile && doc.schema != null && doc.root != null && !state.readOnlyMode) {
                 OutlinedButton(
                     onClick = { state.requestAi(doc.schema!!.root, emptyList(), wholeDocument = true) },
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),

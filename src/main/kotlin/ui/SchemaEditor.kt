@@ -315,6 +315,18 @@ private fun FieldDefinitionEditor(map: YNode.Map, doc: OpenDocument, definitions
     }
     // requiredFrom: フェーズ機構（P7）。「必須」チェックとの併用は不可（メタ検証でエラーになる）
     if (allowKey) CompactScalar(map, "requiredFrom", "必須になるフェーズ（requiredFrom）", doc)
+    // role: 表示役割（R10-01）。畳み込みヘッダ・参照候補・一覧などの表示解決でこのフィールドの値が使われる
+    if (allowKey) {
+        Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("表示役割（role）", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+            ChoiceButton(scalar(map, "role") ?: "（なし）", listOf("（なし）", "title", "subtitle")) {
+                if (it == "（なし）") map.entries.remove("role") else map.entries["role"] = YNode.Scalar(it)
+                doc.markEdited()
+            }
+            Spacer(Modifier.width(8.dp))
+            Text("要約表示のタイトル／サブタイトルに使う", fontSize = 10.sp, color = Palette.SubText)
+        }
+    }
     if (ref == null) {
         Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("型", fontSize = 12.sp, modifier = Modifier.width(140.dp))
@@ -548,10 +560,74 @@ private fun ChoiceButton(value: String, choices: List<String>, onSelect: (String
     }
 }
 
+/** values 配下の選択肢の値一覧（文字列形とリッチ形 {value, label, description} の両対応。R10-03）。 */
+private fun enumValueStrings(map: YNode.Map): List<String> =
+    (map.entries["values"] as? YNode.Seq)?.items?.mapNotNull { item ->
+        when (item) {
+            is YNode.Scalar -> item.value?.toString()
+            is YNode.Map -> (item.entries["value"] as? YNode.Scalar)?.value?.toString()
+            else -> null
+        }
+    }.orEmpty()
+
+/**
+ * enum 選択肢の編集（R10-03）。値だけの選択肢は文字列のまま、label / description を付けると
+ * {value, label, description} のリッチ形へ切り替える（両方消すと文字列形へ戻す＝YAMLを簡潔に保つ）。
+ */
+@Composable
+private fun EnumOptionListEditor(map: YNode.Map, doc: OpenDocument) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("選択肢", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+        TextButton(onClick = {
+            ensureSeq(map, "values", doc, mark = false).items.add(YNode.Scalar(""))
+            doc.markEdited()
+        }) { Text("＋ 選択肢を追加", fontSize = 11.sp) }
+        Text("値が保存されるデータ。ラベル・説明はフォーム表示専用", fontSize = 10.sp, color = Palette.SubText)
+    }
+    val seq = map.entries["values"] as? YNode.Seq ?: return
+    seq.items.forEachIndexed { index, node ->
+        val value = when (node) {
+            is YNode.Scalar -> node.value?.toString().orEmpty()
+            is YNode.Map -> (node.entries["value"] as? YNode.Scalar)?.value?.toString().orEmpty()
+            else -> ""
+        }
+        val label = ((node as? YNode.Map)?.entries?.get("label") as? YNode.Scalar)?.value?.toString().orEmpty()
+        val description = ((node as? YNode.Map)?.entries?.get("description") as? YNode.Scalar)?.value?.toString().orEmpty()
+        fun update(newValue: String = value, newLabel: String = label, newDescription: String = description) {
+            seq.items[index] = if (newLabel.isBlank() && newDescription.isBlank()) YNode.Scalar(newValue)
+            else YNode.Map(linkedMapOf<String, YNode>().apply {
+                put("value", YNode.Scalar(newValue))
+                if (newLabel.isNotBlank()) put("label", YNode.Scalar(newLabel))
+                if (newDescription.isNotBlank()) put("description", YNode.Scalar(newDescription))
+            })
+            doc.markEdited()
+        }
+        Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+            CompactTextField(value, { update(newValue = it) }, singleLine = true,
+                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
+                placeholder = { Text("値", fontSize = 11.sp, color = Palette.SubText) },
+                modifier = Modifier.width(130.dp))
+            Spacer(Modifier.width(4.dp))
+            CompactTextField(label, { update(newLabel = it) }, singleLine = true,
+                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
+                placeholder = { Text("表示ラベル（任意）", fontSize = 11.sp, color = Palette.SubText) },
+                modifier = Modifier.width(160.dp))
+            Spacer(Modifier.width(4.dp))
+            CompactTextField(description, { update(newDescription = it) }, singleLine = true,
+                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
+                placeholder = { Text("説明（任意）", fontSize = 11.sp, color = Palette.SubText) },
+                modifier = Modifier.weight(1f))
+            TextButton(onClick = { seq.items.removeAt(index); doc.markEdited() }) {
+                Text("削除", fontSize = 10.sp, color = Palette.ErrorRed)
+            }
+        }
+    }
+}
+
 @Composable
 private fun EnumValuesEditor(map: YNode.Map, doc: OpenDocument, definitions: List<String>, depth: Int) {
-    StringListEditor(map, "values", "選択肢", "draft, review, approved", doc)
-    val values = (map.entries["values"] as? YNode.Seq)?.items?.mapNotNull { (it as? YNode.Scalar)?.value?.toString() }.orEmpty()
+    EnumOptionListEditor(map, doc)
+    val values = enumValueStrings(map)
     // 選択肢から消えた値の cases は残骸なので警告つきで削除できるようにする
     (map.entries["cases"] as? YNode.Map)?.entries?.keys?.filter { it !in values }?.toList()?.forEach { stale ->
         Row(verticalAlignment = Alignment.CenterVertically) {

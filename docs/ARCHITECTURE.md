@@ -30,7 +30,7 @@ src/main/kotlin/
 │              自動化・メトリクス・評価 （→ core, skill, ai, validate ほか。UI/Compose 非依存）
 ├── app/       AppState / OpenDocument: アプリ状態・ファイル操作（→ core とロジック層）
 ├── ui/        Composeビュー一式                             （→ 上記すべて）
-└── Main.kt    エントリポイント・ウィンドウ・ツールバー・パレット（→ app, ui, index）
+└── Main.kt    エントリポイント・ウィンドウ・スタート画面・ツールバー・パレット（→ app, ui, index）
 ```
 
 **依存ルール**: `model` → `yaml` → `schema` → `index` → `validate` → `core` → `skill` → `agent` → `app` → `ui` の一方向。逆流させない（例外: エントリポイントである `core/Cli.kt` は Main.kt と同様に `skill` / `agent` を呼んでよい）。
@@ -47,7 +47,8 @@ src/main/kotlin/
 |---|---|---|
 | `YNode` (Scalar/Seq/Map) | model/YNode.kt | YAMLの可変ツリー。`YPath`（String=キー, Int=索引）で位置を表現。コメント（`YComments`）・表記スタイルヒントを編集に影響しないメタ情報として保持（R8-01） |
 | `YamlIO` | yaml/YamlIO.kt | テキスト⇔`YNode` 変換。SnakeYAML の Node API（processComments）ベースで、コメント・キー順・スカラー/フロー表記を往復保持する（§4.17）。`parseAll` / `dumpAll`（複数ドキュメント）、`parseFirst`（読み取り専用の寛容パース）、`dumpPlain`（コメント・スタイル抜きの正規化ダンプ＝構造比較・派生成果物用）を提供 |
-| `FieldType` / `FieldDef` / `SchemaDef` | schema/Schema.kt | スキーマモデル。`resolve()` がローカル／横断 `$ref` を属性合成しつつ解決。`FieldDef.relation` が参照の関係種別。`effectiveFields()` が enum の `cases` を合成した object の実効フィールドを返す |
+| `FieldType` / `FieldDef` / `SchemaDef` | schema/Schema.kt | スキーマモデル。`resolve()` がローカル／横断 `$ref` を属性合成しつつ解決。`FieldDef.relation` が参照の関係種別、`role` が表示役割（R10-01）、`options` が enum のリッチ選択肢（`EnumOption`。R10-03）。`effectiveFields()` が enum の `cases` を合成した object の実効フィールドを返す |
+| `Display` | schema/Display.kt | 表示解決（R10-01）: 要素の1行要約（タイトル・サブタイトル・ID・畳み込みヘッダ）を role ＞ 予約語 ＞ id ＞ キー数の優先順位で解決する。索引のタイトル抽出（`DocScanner`）・UI・エージェント要約が共有する（§4.22） |
 | `SchemaCatalog` / `SchemaKind` | schema/Schema.kt | 全スキーマ・libraryの定義を `(moduleId, definitionName)` でリンクする中央カタログ。`kind: library` はdefinitionsだけを公開し文書には適用されない |
 | `PhasesDef` / `currentPhaseIndex` / `requiredAt` | schema/Schema.kt | フェーズ機構（§4.15）: スキーマの `phases` 宣言と、文書の現在フェーズ解決・フェーズ考慮の実効必須判定（検証・進捗計算が共有） |
 | `CoverageRule` / `CoverageLevel` | schema/Schema.kt | スキーマの `coverage`（被参照必須などのトレーサビリティ要件）の定義。`activeFrom` でフェーズ到達までの判定保留を宣言できる |
@@ -89,7 +90,7 @@ src/main/kotlin/
 | `ImprovementPanel` | ui/ImprovementPanel.kt | 自己改善パネル: 実行メトリクスの表示・評価セットの実行と変異別結果の比較 |
 | `SkillsPanel` | ui/SkillsPanel.kt | skillパネル: 一覧・エクスポート実行・インポートのプレビュー→検証つき適用 |
 | `OpenDocument` | app/AppState.kt | 開いている1文書。中核（履歴・dirty・複数ドキュメント再出力）は core.EditBuffer へ委譲し、Compose購読（version / dirty / parseError）のシェルに徹する（R9-02）。外部競合の管理を担う |
-| `AppState` | app/AppState.kt | アプリ状態。走査・スキーマ・索引・更新方針は保持する core.Workspace へ委譲し、Compose購読用のミラー（schemas / yamlFiles / indexVersion）・文書キャッシュ（docCache）・ナビゲーション・ファイル操作を担う（R9-02） |
+| `AppState` | app/AppState.kt | アプリ状態。走査・スキーマ・索引・更新方針は保持する core.Workspace へ委譲し、Compose購読用のミラー（schemas / yamlFiles / indexVersion）・文書キャッシュ（docCache）・ナビゲーション・ファイル操作を担う（R9-02）。閲覧専用モード（`readOnlyMode`。R10-04）とワークスペース履歴（`recentWorkspaces`。R10-05）もここが持つ |
 | `AiGenerator` ほか | ai/ | スキーマ→JSON Schema 変換、REF候補の enum 制約、プロバイダ振り分け |
 | `OpenAiGenerator` / `AnthropicGenerator` | ai/ | 各API（Responses / Messages）のリクエスト構築とレスポンス解析 |
 | `FormView` / `FormCtx` | ui/FormView.kt | スキーマ駆動フォームと汎用エディタ（中核UI）。`FormCtx` が編集操作と参照解決を仲介 |
@@ -274,7 +275,17 @@ UI層（app）を「Compose購読のシェル」に純化し、ロジックを c
 - **事後検査つき**: 実行前後のワークスペーススナップショットを比較し、`writes` 宣言に一致しない変更を警告、予約ディレクトリの変更を重大な逸脱として報告する（書込を防げるわけではない——だからこそ事前の人間承認が前提）。ワークスペースが変更された場合は索引を取り直す。
 - **プロセス起動は注入可能**: テストは疑似ランチャで承認・失効・変更検出の全経路を検証する（`RunSkillTest`。実プロセスは `java -version` のスモークのみ）。
 
-### 4.22 エラー処理
+### 4.22 表示解決と読み手体験（P10）
+
+「IDや生値がそのまま見えて分かりにくい」を単一機構で解消する（R10-01〜R10-04）。守るべき不変条件:
+
+- **要素の1行要約は `schema/Display` に一元化**: タイトル・サブタイトル・ID・畳み込みヘッダ（object=「ID タイトル（n項目）」／array=「n件: 先頭要素の要約, …」）の解決は `Display`（`summarize` / `titleOf` / `headerText` / `seqHeaderText` / `inline`）だけが行う。優先順位はスキーマの `FieldDef.role: title / subtitle`（`$ref` 合成・library 共有に乗る）＞予約語（title / name / label、description / summary）＞ id ＞ キー数。消費側（畳み込み・参照候補・バックリンク・ID横ぐし・ビューグリッド・ID検索・エージェント `related`）に独自のタイトル抽出ヒューリスティクスを書かない。
+- **配置は schema パッケージ**: 索引のタイトル抽出（`DocScanner` → `IdEntry.title`）が使うため、依存方向（§2）上 `core` ではなく `schema` に置く。`IdEntry.title` は表示解決の結果であり、参照候補・ID検索・ビュー行タイトルはこれ経由で自動的に追随する。人間UIとエージェント要約（AG-25）の**共有契約**（人間とAIが同じ要約を見る）。
+- **バックリンクの表示は「参照を書いた要素」**: 参照値の位置を含む最内の ID 出現を `IdIndex.sourceEntryOf` で解決し、そのID・タイトルを主表示にする（SidePanel・ID横ぐし・ビューのバックリンク列・`related` で共通）。
+- **enum のリッチ選択肢は表示専用**（R10-03）: `values` の `{value, label, description}` は `EnumOption` として保持し、検証・`cases` のキー・AI生成の制約・保存されるデータは常に `value`。label / description をロジックに関与させない。
+- **閲覧専用モードは FormCtx で強制**（R10-04）: `FormCtx.readOnly`（既定値は `AppState.readOnlyMode`）が編集UIの表示分岐と `markEdited` / スカラー書込のガード（ツリー変異前に `check` で拒否）を担う。FormCtx を共有する全ビュー（フォーム・ID横ぐし埋め込みフォーム・ビューグリッドのセル）へ自動波及させ、ビューごとの読み取り専用分岐を別実装しない。ジャンプ・バックリンクは閲覧行為として残す。
+
+### 4.23 エラー処理
 
 - ファイルI/O・パースは `runCatching` で受け、ユーザー操作の結果は `Result` を返して呼び出し側（UI）が `state.status` に反映する。
 - 入力検証の失敗は `require(...) { "日本語メッセージ" }`、内部異常は `error("日本語メッセージ")`。メッセージはそのままUIに表示される前提で書く。
@@ -298,7 +309,7 @@ UI層（app）を「Compose購読のシェル」に純化し、ロジックを c
 
 - **フィールド型の追加**: `FieldType` に enum を追加し、`Validator.checkField`・`FormView.ValueEditor`・`ai.fieldToJsonSchema`・`SchemaDef.generateSample`/`defaultNode` に分岐を追加する。
 - **YAML表層仕様の変更**: コメント・スタイル保持は実装済み（§4.17）。挙動を変える場合も `YamlIO` に閉じる（ツリー変換層が隔離されているため影響範囲は限定的）。構造比較や派生成果物には `dumpPlain` を使い、通常ダンプの表層情報に依存させない。
-- **横断ビューの追加**: データソースとして `AppState.workspaceRecords()` と `IdIndex` を利用し、`Main.kt` の `workspaceView` 分岐に追加する。
+- **横断ビューの追加**: データソースとして `AppState.workspaceRecords()` と `IdIndex` を利用し、`Main.kt` の `workspaceView` 分岐に追加する。要素の1行要約（タイトル・サブタイトル）は `schema/Display`（§4.22）を使い、独自のタイトル抽出を書かない。
 - **ビュー定義の項目追加**: `core/Views.kt` の `parseView` と `schema/BuiltinSchemas.kt` の `builtin-view` スキーマを**対で**更新する（フォーム編集・検証と実行時パースの二重定義のため）。
 - **共通スキーマ定義の追加**: `_schemas` に `kind: library` を置き、利用側は `moduleId#definition` で参照する。解決規則を増やす場合は `SchemaCatalog` に閉じ、各利用側で参照文字列を個別解析しない。
 - **AIプロバイダの追加**: OpenAI互換のエンドポイントなら `AiConnection`（ベースURL上書き・プリセット）で足りる。独自APIのプロバイダは `AiProvider` に enum を追加し、`AiGenerator.generate` の分岐と専用クライアント（`generate` + `parseResponse` を持つ object）・`ToolChat.newSession` の分岐を実装する。HTTP送信は `AiHttp.post` を使う（§4.18）。

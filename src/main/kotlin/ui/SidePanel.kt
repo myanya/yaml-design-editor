@@ -202,6 +202,8 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                 }
                 items(backlinks.size) { i ->
                     val bl = backlinks[i]
+                    // 参照を書いた要素の ID・タイトル（表示解決の結果。R10-01）を主表示にする
+                    val source = remember(bl, state.indexVersion) { state.index.sourceEntryOf(bl) }
                     Row(
                         Modifier.fillMaxWidth()
                             .clickable {
@@ -219,11 +221,12 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                         Spacer(Modifier.width(6.dp))
                         Column {
                             Text(
-                                "${bl.targetId} ← ${state.relPath(bl.file)}",
+                                "${bl.targetId} ← " + (source?.let { listOfNotNull(it.id, it.title).joinToString(" — ") }
+                                    ?: state.relPath(bl.file)),
                                 fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                             )
                             Text(
-                                "${bl.viaKey}${bl.relation?.let { "（関係: $it）" } ?: ""} ／ ${bl.path.pretty()}",
+                                "${state.relPath(bl.file)} ／ ${bl.viaKey}${bl.relation?.let { "（関係: $it）" } ?: ""} ／ ${bl.path.pretty()}",
                                 fontSize = 10.sp, color = Palette.SubText,
                             )
                         }

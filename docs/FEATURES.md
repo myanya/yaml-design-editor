@@ -11,13 +11,14 @@
 
 | ID | 機能 | 状態 | 主な実装 | テスト |
 |---|---|---|---|---|
-| W-01 | ワークスペース選択（起動引数／ダイアログ／`sample-workspace` 自動オープン） | ✅ | `Main.kt`, `AppState.openWorkspace` | 手動 |
+| W-01 | ワークスペース選択（起動引数／ダイアログ／起動時スタート画面。W-08） | ✅ | `Main.kt`, `AppState.openWorkspace` | 手動 |
 | W-02 | ファイルツリー表示（展開／折りたたみ、未保存●表示） | ✅ | `ui/FileTreePane.kt` | 手動 |
 | W-03 | ファイル／ディレクトリの作成・改名・削除（未保存保護、削除確認、新規YAMLはスキーマ初期値で生成） | ✅ | `AppState.createYaml` ほか, `ui/FileTreePane.kt` | 手動 |
 | W-04 | 外部変更検出（WatchServiceによるOSネイティブ監視＋使えない環境では1秒ポーリングへフォールバック。未編集は自動再読込、未保存は競合バナーで選択。ROADMAP R8-03） | ✅ | `core/FileWatcher.kt`, `AppState.pollExternalChanges`, `Main.kt` | 単体（`FileWatcherTest`）＋手動 |
 | W-05 | 最近開いたファイル履歴（12件、ワークスペース単位で Preferences に永続化） | ✅ | `AppState.recentFiles` | 手動 |
 | W-06 | UIレイアウト永続化（左右ペイン幅・開閉、テーマ選択） | ✅ | `Main.kt`（`uiPreferences`） | 手動 |
 | W-07 | 未保存確認（アプリ終了時・ワークスペース切替時） | ✅ | `Main.kt` | 手動 |
+| W-08 | ワークスペース管理（最近開いたワークスペース履歴＝アプリグローバルの Preferences・起動時スタート画面＝履歴選択・コマンドパレットからの切替。未保存確認は W-07 を共用。ROADMAP R10-05） | ✅ | `Main.kt`（`StartScreen`, `CommandPalette`）, `AppState.recentWorkspaces` | 手動 |
 
 ## 2. 文書編集
 
@@ -33,6 +34,8 @@
 | E-08 | 文書キャッシュ（ファイル切替時も未保存編集をメモリ保持） | ✅ | `AppState.docCache` | 手動 |
 | E-09 | 同一IDの他文書出現ストリップ（フォーム上部。文書ルートのIDが他文書にも出現する場合に相手側のスカラー情報を表示・ジャンプ。詳細文書に一覧側情報を重複記載しない運用を支える） | ✅ | `ui/FormView.kt`（`SameIdOccurrencesStrip`） | 手動 |
 | E-10 | 複数ドキュメント（`---` 区切り）YAML（フォームは先頭ドキュメントを編集、後続は保持して保存時に再出力。ソースタブでは全ドキュメント編集可。索引・検索・一覧は先頭ドキュメント対象。ROADMAP R8-05） | ✅ | `yaml/YamlIO.kt`（`parseAll` / `dumpAll` / `parseFirst`）, `app/OpenDocument` | 単体（`OpenDocumentTest`, `YamlIOTest`） |
+| E-11 | 畳み込みサマリ（畳んだ object は「ID タイトル（n項目）」、array は「n件: 先頭要素の要約, …」。表示解決 S-13 の最初の消費者。ROADMAP R10-02） | ✅ | `ui/FormView.kt`, `schema/Display.kt`（`headerText` / `seqHeaderText`） | 単体（`DisplayTest`）＋手動 |
+| E-12 | 閲覧専用モード（`FormCtx.readOnly`: 入力欄→テキスト表示、追加/削除/AIボタン非表示、パディング圧縮、既定で畳む。ジャンプ・バックリンクは残す。ID横ぐしの埋め込みフォーム・ビューグリッドへ FormCtx 共有で自動波及。トグルはツールバー＋uiPreferences 永続化。ROADMAP R10-04） | ✅ | `ui/FormView.kt`（`FormCtx`）, `app/AppState.readOnlyMode`, `Main.kt` | 単体（`ReadOnlyTest`）＋手動 |
 
 ## 3. スキーマ
 
@@ -42,7 +45,7 @@
 | S-02 | 型システム12種（string/text/int/number/boolean/enum/date/id/ref/array/map/object） | ✅ | `schema/Schema.kt`（`FieldType`） | 手動 |
 | S-03 | 名前付き定義と再帰参照（`definitions` / `$ref`、属性のオーバーライド合成） | ✅ | `SchemaDef.resolve` | 手動 |
 | S-04 | メタスキーマ検証（必須情報、キー重複、子定義不足、enum選択肢、`cases` の整合、未解決 `$ref`） | ✅ | `SchemaDef.validateDefinition` | 単体（`SchemaLoaderTest`） |
-| S-05 | スキーマ設計UI（スキーマ全体の説明、document / library切替、ローカル／横断`$ref`、設計／プレビュー／適用対象タブ、競合スキーマ表示、フィールドの `requiredFrom` 入力、`phases`（申告キー・順序）と `coverage`（参照／出現ベース切替・重大度・activeFrom）の構造化編集。ROADMAP R9-03） | ✅ | `ui/SchemaEditor.kt` | 手動 |
+| S-05 | スキーマ設計UI（スキーマ全体の説明、document / library切替、ローカル／横断`$ref`、設計／プレビュー／適用対象タブ、競合スキーマ表示、フィールドの `requiredFrom`・表示役割 `role` 入力、enum リッチ選択肢（値・ラベル・説明）の編集、`phases`（申告キー・順序）と `coverage`（参照／出現ベース切替・重大度・activeFrom）の構造化編集。ROADMAP R9-03・R10-01・R10-03） | ✅ | `ui/SchemaEditor.kt` | 手動 |
 | S-06 | サンプルYAML生成（プレビュー・クリップボードコピー・新規ファイル初期値） | ✅ | `SchemaDef.generateSample` | 手動 |
 | S-07 | スキーマ外キーの検証ポリシー（`unknownFields: allow / warning / error`、未知サブツリーは走査境界） | ✅ | `validate/Validator.kt`, `index/IdIndex.kt` | 手動 |
 | S-08 | 参照の関係種別（`type: ref` の `relation`。表示・カバレッジ判定・`$ref`合成に対応） | ✅ | `schema/Schema.kt`, `index/IdIndex.kt`, `ui/SchemaEditor.kt` | 単体（`WorkspaceCliTest`） |
@@ -50,6 +53,8 @@
 | S-10 | enum 値ごとの追加フィールド（`cases`: 判別共用体。case 由来enumの多段展開・フォーム追随・検証・索引・AI生成 `anyOf`・スキーマ設計UI対応） | ✅ | `schema/Schema.kt`（`effectiveFields`）, `validate/Validator.kt`, `index/IdIndex.kt`, `ui/FormView.kt`, `ui/SchemaEditor.kt`, `ai/AiGenerator.kt` | 単体（`SchemaLoaderTest` / `ValidatorTest` / `DocScannerTest` / `AiGeneratorTest`） |
 | S-11 | フェーズ機構（ROADMAP P7）: `phases`（順序付きフェーズと申告キー）の宣言、フィールドの `requiredFrom`（累積必須）、カバレッジの `activeFrom`（判定保留） | ✅ | `schema/Schema.kt`（`PhasesDef`, `currentPhaseIndex`, `requiredAt`） | 単体（`PhaseTest`） |
 | S-12 | スキーマ共通部品（ROADMAP R7-03）: `kind: library` がdefinitionsだけを公開し、`moduleId#definition` の修飾`$ref`で工程別スキーマから共有。二段階ロードの`SchemaCatalog`、宣言元基準の入れ子参照、未解決・重複検出 | ✅ | `schema/Schema.kt`（`SchemaCatalog`, `SchemaLoader`） | 単体＋統合（`SchemaLoaderTest`） |
+| S-13 | 表示解決機構（ROADMAP R10-01）: 要素の1行要約（タイトル・サブタイトル・ID）を単一機構で解決。優先順位はスキーマの `FieldDef.role: title / subtitle`（`$ref` 合成・library 共有対応、object 内の重複はメタ検証）＞予約語（title/name/label、description/summary）＞ id ＞ キー数。消費側: 畳み込みヘッダ（E-11）・参照候補（I-04）・バックリンク（I-05）・ID横ぐし（I-07）・ビューグリッド（X-06）・ID検索（I-06）・エージェント `related`（AG-25）＝索引タイトル（`IdEntry.title`）への一元化 | ✅ | `schema/Display.kt`, `schema/Schema.kt`（`FieldRole`）, `index/IdIndex.kt`（`DocScanner`, `sourceEntryOf`） | 単体（`DisplayTest`） |
+| S-14 | enum のリッチ選択肢（ROADMAP R10-03）: `values` 要素を文字列または `{value, label, description}` に拡張（後方互換・混在可）。検証・`cases` のキー・AI生成制約は `value` のまま、フォームは label 表示＋現在値の ✓ ＋説明表示、スキーマ設計UIに値・ラベル・説明の入力欄。値重複はメタ検証エラー | ✅ | `schema/Schema.kt`（`EnumOption`）, `ui/FormView.kt`（`EnumEditor`）, `ui/SchemaEditor.kt` | 単体（`DisplayTest`） |
 
 ## 4. 検証
 
@@ -70,8 +75,8 @@
 | I-02 | 参照認識（`type: ref` ＋ 命名規約ヒューリスティクス `ref`/`*_ref`/`refs`/`depends_on` 等） | ✅ | `index/IdIndex.kt`（`DocScanner`） | 手動 |
 | I-03 | リンクジャンプ（→ボタン、ハイライト＋自動スクロール、複数出現時は選択ダイアログ） | ✅ | `AppState.navigateToId`, `ui/Common.kt`（`Highlightable`） | 手動 |
 | I-04 | 参照候補の補完（`idPatterns` / `scope.schemaIds` / `scope.documentIds` で絞り込み） | ✅ | `ui/FormView.kt`（`RefEditor`）, `index/IdIndex.kt` | 手動 |
-| I-05 | バックリンク（被参照一覧、クリックで参照元へジャンプ） | ✅ | `IdIndex.backlinksTo`, `ui/SidePanel.kt` | 手動 |
-| I-06 | ID検索（ツールバー。ID・タイトル部分一致） | ✅ | `Main.kt`（`IdSearchBox`） | 手動 |
+| I-05 | バックリンク（被参照一覧。参照を書いた要素のID・タイトル＝表示解決 S-13 の結果を主表示、クリックで参照元へジャンプ） | ✅ | `IdIndex.backlinksTo` / `sourceEntryOf`, `ui/SidePanel.kt` | 手動 |
+| I-06 | ID検索（ツールバー。ID・タイトル部分一致。タイトルは表示解決 S-13 で索引化されたもの） | ✅ | `Main.kt`（`IdSearchBox`） | 手動 |
 | I-07 | ID横ぐしビュー（同一論理IDの全出現・要素からの参照・被参照・カバレッジ充足を1画面に集約。フェーズ未到達のカバレッジルールは区別表示。各出現は`_views`定義なしでその場編集できる埋め込みフォーム＝スキーマがあれば`ObjectFields`、なければ`GenericEditor`。ROADMAP R7-04） | ✅ | `ui/IdCrossView.kt`, `AppState.openCrossView` / `ensureDoc` | 手動 |
 
 ## 6. ワークスペース横断ビュー
@@ -83,7 +88,7 @@
 | X-03 | 参照グラフ（力学配置による全件描画、パン・ズーム、IDノード／一覧クリックで定義へジャンプ、参照元ファイルと参照先IDの色分け。ROADMAP R8-05） | ✅ | `ui/WorkspaceViews.kt`, `ui/GraphLayout.kt` | 単体（`GraphLayoutTest`）＋手動 |
 | X-04 | コマンドパレット（Ctrl+K。ビュー切替・保存・ファイル検索・ID移動） | ✅ | `Main.kt`（`CommandPalette`） | 手動 |
 | X-05 | ビュー定義 `_views`（宣言的な射影: 行=論理IDパターン × 列=出現からの相対YPath。並び順・詳細文書・新規行・バックリンク列（`backlinks`: 行IDへの被参照を relation／参照元スキーマで絞って一覧表示。1:N詳細化の分裂先の逆引き。ROADMAP R7-02）の宣言、組込みスキーマでフォーム編集・検証、メタアクティビティの提案対象） | ✅ | `core/Views.kt`, `schema/BuiltinSchemas.kt` | 単体（`ViewsTest`） |
-| X-06 | ビューグリッド（ビューを編集可能な一覧として表示。スカラーセルの直接編集・複合値はジャンプ・詳細文書の作成・新規行の追加・バックリンク列＝参照元IDの列挙とジャンプ（編集不可の派生表示）・カバレッジ表示（フェーズ未到達のルールは対象外）・絞り込み） | ✅ | `ui/ViewGridPane.kt`, `AppState.ensureDoc` / `createViewDetail` / `addViewRow` | 単体（core経路は `ViewsTest`）＋手動 |
+| X-06 | ビューグリッド（ビューを編集可能な一覧として表示。スカラーセルの直接編集・複合値は表示解決 S-13 による要約表示＋ジャンプ・詳細文書の作成・新規行の追加・バックリンク列＝参照元のID・タイトルの列挙とジャンプ（編集不可の派生表示）・カバレッジ表示（フェーズ未到達のルールは対象外）・絞り込み。閲覧専用モード（E-12）では全セルが表示専用） | ✅ | `ui/ViewGridPane.kt`, `AppState.ensureDoc` / `createViewDetail` / `addViewRow` | 単体（core経路は `ViewsTest`）＋手動 |
 
 ## 7. AIによる作成支援
 
@@ -130,7 +135,7 @@
 | AG-22 | メタアクティビティ（`meta: true` で `_agents` / `_activities` / `_evals` / `_skills` / `_views` への提案を許可。承認は human 固定、`_schemas`/`_runs` は常に不可、定義のパース可否を提出ゲートに追加） | ✅ | `agent/Definitions.kt`, `agent/Tools.kt`, `agent/Staging.kt` | 単体（`MetaActivityTest`, `DefinitionsTest`） |
 | AG-23 | 自己改善パネルUI（メトリクス表示・評価セットの実行と変異別結果の比較） | ✅ | `ui/ImprovementPanel.kt` | 手動＋単体（実行系経路） |
 | AG-24 | エージェントへのビュー開示（`read_view` ツール: ステージング反映済みの行×列を原本座標つきで返し、そのまま `apply_patch` の対象にできる。`context.views` による初期文脈への開示） | ✅ | `agent/Tools.kt`（`viewText`）, `agent/Kernel.kt` | 単体（`ViewsTest`） |
-| AG-25 | 段階的詳細化のAI導線（ROADMAP P7）: `related` ツールが各出現の主要フィールド要約と現在フェーズ・記入進捗を1回で返す（出現ごとの `read_node` が不要）。`list_documents` のカタログにもフェーズ状態を付与。`context.include: [phase]` で対象文書のフェーズ状態を初期文脈に開示 | ✅ | `agent/Tools.kt`（`relatedText`, `catalogText`, `phaseText`）, `agent/Kernel.kt`, `core/Disclosure.kt`, `validate/Validator.kt`（`phaseSummaryText`） | 単体（`ToolsTest`, `KernelTest`） |
+| AG-25 | 段階的詳細化のAI導線（ROADMAP P7）: `related` ツールが各出現の主要フィールド要約と現在フェーズ・記入進捗を1回で返す（出現ごとの `read_node` が不要）。被参照には参照元要素のID・タイトル（表示解決 S-13。人間UIと同じ要約）を付与。`list_documents` のカタログにもフェーズ状態を付与。`context.include: [phase]` で対象文書のフェーズ状態を初期文脈に開示 | ✅ | `agent/Tools.kt`（`relatedText`, `catalogText`, `phaseText`）, `agent/Kernel.kt`, `core/Disclosure.kt`, `validate/Validator.kt`（`phaseSummaryText`） | 単体（`ToolsTest`, `KernelTest`） |
 
 ## 9. コアAPI・CLI（エージェント基盤）
 
@@ -176,7 +181,7 @@ UIに依存しないヘッドレス操作の層（[ROADMAP.md](ROADMAP.md) P1 �
 | L-06 | 参照グラフの本格的なレイアウト・全件表示 | ✅ 解消 | R8-05 で対応（X-03。力学配置・全件描画・パン/ズーム） |
 | L-07 | 一括編集の対象キー拡張 | ✅ 解消 | R8-05 で対応（X-02。ルート直下の任意スカラーキー） |
 | L-08 | ファイル監視のOSネイティブ化（WatchService等） | ✅ 解消 | R8-03 で対応（W-04。ポーリングは自動フォールバックとして残置） |
-| L-09 | フォーム系UI・AppState の自動テスト | 🚧 | 単体テストは ai／diff／AI提案合成／core（パッチ・開示・検索・CLI・監視・索引増分・文書キャッシュ中核）／カバレッジ検証／agent（ステージング・カーネル・定義・自動化・メトリクス・評価・メタ・生成統合）／skill（入出力・コード実行）／ui純ロジック（構文ハイライト・置換・グラフレイアウト・キー名変更）／OpenDocument（複数ドキュメント）。R9-02 の抽出（C-09）で履歴・dirty・一覧・一括編集・索引更新方針が core で単体テスト可能になった。Compose UI 自体は引き続き手動確認（プロジェクト方針） |
+| L-09 | フォーム系UI・AppState の自動テスト | 🚧 | 単体テストは ai／diff／AI提案合成／core（パッチ・開示・検索・CLI・監視・索引増分・文書キャッシュ中核）／schema（表示解決・enumリッチ選択肢）／カバレッジ検証／agent（ステージング・カーネル・定義・自動化・メトリクス・評価・メタ・生成統合）／skill（入出力・コード実行）／ui純ロジック（構文ハイライト・置換・グラフレイアウト・キー名変更・閲覧専用の編集ガード）／OpenDocument（複数ドキュメント）。R9-02 の抽出（C-09）で履歴・dirty・一覧・一括編集・索引更新方針が core で単体テスト可能になった。Compose UI 自体は引き続き手動確認（プロジェクト方針） |
 | L-10 | AppState の core.Workspace への全面委譲 | ✅ 解消 | R9-02 で対応（C-09）。AppState は core.Workspace（走査・スキーマ・索引）への委譲＋Compose購読ミラーになり、保存・外部変更の索引更新方針（増分／全再構築）は `Workspace.noteDiskChanges` に一元化。`OpenDocument` は core.EditBuffer（履歴・dirty・複数ドキュメント）を包む Compose シェル |
 | L-11 | AI生成ダイアログ（A-01〜03）とエージェントカーネルの完全統合 | ✅ 解消 | R9-01 で対応（A-10）。単発生成を「1ターンで提出する特殊アクティビティ」としてカーネル実行し、Structured Outputs の型保証・ダイアログのUX（プレビュー→未保存適用）は維持。実行記録が単一系統になった |
 | L-12 | コード実行skill（宣言型で書けない変換・定型手順） | ✅ 解消 | R9-06 で対応（SK-07）。実行前の人間承認（定義指紋に紐づく失効つき）を機械強制する明示許可制で実装 |

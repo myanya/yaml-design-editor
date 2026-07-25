@@ -98,6 +98,7 @@ data class ViewDef(
 /** バックリンク列の1件。参照元要素を含む最も近いID（その位置にIDがなければ null）と、参照値の座標。 */
 data class ViewBacklink(
     val sourceId: String?,
+    val sourceTitle: String?,  // 参照元要素のタイトル（索引の表示解決結果。R10-01）
     val rel: String,
     val file: Path,
     val path: YPath,        // 参照値（スカラー）の位置
@@ -256,7 +257,7 @@ object Views {
                     val source = entriesByFile[ref.file].orEmpty()
                         .filter { it.path.size <= ref.path.size && ref.path.subList(0, it.path.size) == it.path }
                         .maxByOrNull { it.path.size }
-                    ViewBacklink(source?.id, rel(ref.file), ref.file, ref.path, ref.relation)
+                    ViewBacklink(source?.id, source?.title, rel(ref.file), ref.file, ref.path, ref.relation)
                 }
                 .sortedWith(compareBy({ it.rel }, { pathSortKey(it.path) }))
 
@@ -416,7 +417,8 @@ object Views {
                     if (backlinks.isEmpty()) appendLine("（被参照なし）")
                     else appendLine(
                         backlinks.joinToString(", ") { b ->
-                            (b.sourceId ?: b.rel) + "  [" + b.rel + " :: " + b.path.pretty() + "]"
+                            listOfNotNull(b.sourceId ?: b.rel, b.sourceTitle).joinToString(" ") +
+                                "  [" + b.rel + " :: " + b.path.pretty() + "]"
                         }
                     )
                 } else if (cell.file == null) {

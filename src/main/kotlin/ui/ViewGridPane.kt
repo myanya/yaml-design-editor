@@ -130,6 +130,7 @@ private fun HeaderBar(state: AppState, loaded: Views.LoadResult, view: ViewDef?)
         Spacer(Modifier.weight(1f))
         if (view?.newRow != null) {
             OutlinedButton(
+                enabled = !state.readOnlyMode,
                 onClick = {
                     state.addViewRow(view)
                         .onSuccess { path ->
@@ -269,8 +270,19 @@ private fun GridCell(state: AppState, cell: ViewCell) {
         }
         val editableType = fieldDef == null || fieldDef.type in EDITABLE_TYPES
         val complexValue = value is YNode.Seq || value is YNode.Map
-        if (!cell.column.editable || !editableType || complexValue) {
-            CellLink(state, cell, Views.cellText(value))
+        // 閲覧専用モード（R10-04）は全セルをジャンプ可能な表示専用にする
+        if (state.readOnlyMode || !cell.column.editable || !editableType || complexValue) {
+            // 複合値は表示解決（R10-01）で「ID タイトル」「n件: 要約」に要約する
+            val text = if (complexValue && doc.schema != null && fieldDef != null) {
+                when {
+                    value is YNode.Map && fieldDef.type == schema.FieldType.OBJECT ->
+                        schema.Display.inline(value, doc.schema, fieldDef)
+                    value is YNode.Seq && fieldDef.type == schema.FieldType.ARRAY ->
+                        schema.Display.seqHeaderText(value, doc.schema, fieldDef.item, maxItems = 2)
+                    else -> Views.cellText(value)
+                }
+            } else Views.cellText(value)
+            CellLink(state, cell, text)
             return@Box
         }
         val slot = slotAt(root, path)
@@ -315,11 +327,14 @@ private fun BacklinkCell(state: AppState, backlinks: List<core.ViewBacklink>) {
     val shown = backlinks.take(5)
     Column(Modifier.padding(top = 8.dp)) {
         shown.forEach { b ->
-            Text(
-                b.sourceId ?: b.rel.substringAfterLast('/'),
-                fontSize = 12.sp, color = Palette.Primary, maxLines = 1,
-                modifier = Modifier.clickable { state.openFile(b.file, b.path) },
-            )
+            Column(Modifier.clickable { state.openFile(b.file, b.path) }) {
+                Text(
+                    b.sourceId ?: b.rel.substringAfterLast('/'),
+                    fontSize = 12.sp, color = Palette.Primary, maxLines = 1,
+                )
+                // 参照元要素のタイトル（表示解決の結果。R10-01）
+                b.sourceTitle?.let { Text(it, fontSize = 10.sp, color = Palette.SubText, maxLines = 1) }
+            }
         }
         if (backlinks.size > shown.size) {
             Text("…他 ${backlinks.size - shown.size} 件", fontSize = 10.sp, color = Palette.SubText)
@@ -355,6 +370,7 @@ private fun DetailCell(state: AppState, view: ViewDef, row: ViewRow) {
             }
         } else if (view.detail?.filePattern != null) {
             OutlinedButton(
+                enabled = !state.readOnlyMode,
                 onClick = {
                     state.createViewDetail(view, row.id)
                         .onSuccess { state.status = "詳細文書を作成しました: ${state.relPath(it)}" }

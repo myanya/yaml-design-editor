@@ -175,6 +175,8 @@ private fun IdCrossDetail(state: AppState, id: String) {
             CrossSection("被参照（${backlinks.size}）")
             if (backlinks.isEmpty()) Text("このIDへの参照はありません", fontSize = 11.sp, color = Palette.SubText)
             backlinks.forEach { bl ->
+                // 参照を書いた要素の ID・タイトル（表示解決の結果。R10-01）を主表示にする
+                val source = remember(bl, state.indexVersion) { state.index.sourceEntryOf(bl) }
                 Row(
                     Modifier.fillMaxWidth()
                         .clickable { state.openFile(bl.file, bl.path) }
@@ -185,10 +187,14 @@ private fun IdCrossDetail(state: AppState, id: String) {
                     Spacer(Modifier.width(6.dp))
                     Column {
                         Text(
-                            state.relPath(bl.file) + (bl.relation?.let { "（関係: $it）" } ?: ""),
+                            (source?.let { listOfNotNull(it.id, it.title).joinToString(" — ") }
+                                ?: state.relPath(bl.file)) + (bl.relation?.let { "（関係: $it）" } ?: ""),
                             fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                         )
-                        Text("${bl.viaKey} ／ ${bl.path.pretty()}", fontSize = 10.sp, color = Palette.SubText)
+                        Text(
+                            "${state.relPath(bl.file)} ／ ${bl.viaKey} ／ ${bl.path.pretty()}",
+                            fontSize = 10.sp, color = Palette.SubText,
+                        )
                     }
                 }
             }
@@ -282,7 +288,7 @@ private fun OccurrenceForm(state: AppState, doc: OpenDocument, root: YNode, entr
         val documentId = IdIndex.documentIdOf(root, state.relPath(doc.file))
         DocScanner.scan(root, doc.file, doc.schema, documentId).first
     }
-    val ctx = remember(doc, doc.version, state.indexVersion) { FormCtx(state, doc, localIds) }
+    val ctx = remember(doc, doc.version, state.indexVersion, state.readOnlyMode) { FormCtx(state, doc, localIds) }
     val schemaDef = doc.schema
     val map = getAt(root, entry.path) as? YNode.Map
     val objectField = remember(schemaDef, doc.version) {

@@ -108,7 +108,8 @@ object DocScanner {
                     if (schemaDef == null) idKeys.add("id")
                     for (k in idKeys) {
                         val idText = scalarText(node.entries[k]) ?: continue
-                        val title = scalarText(node.entries["title"]) ?: scalarText(node.entries["name"])
+                        // タイトルは表示解決（R10-01）に一元化する: スキーマの role 指定 ＞ 予約語（title/name/label）
+                        val title = schema.Display.titleOf(node, schemaDef, effective)
                         ids += IdEntry(idText, file, path, title, schemaDef?.id, documentId)
                         break
                     }
@@ -244,6 +245,15 @@ class IdIndex {
     /** 指定 ID 群を参照しているエントリ（被参照＝バックリンク）。 */
     fun backlinksTo(idSet: Set<String>): List<RefEntry> =
         refs.filter { it.targetId in idSet }
+
+    /**
+     * 参照値の位置を含む、最も内側（パスが最長）の ID 出現＝参照を書いた要素。
+     * バックリンクの表示解決（「どの要素からの参照か」を ID・タイトルで見せる。R10-01）に使う。
+     */
+    fun sourceEntryOf(ref: RefEntry): IdEntry? =
+        entries.values.asSequence().flatten()
+            .filter { it.file == ref.file && it.path.size <= ref.path.size && ref.path.subList(0, it.path.size) == it.path }
+            .maxByOrNull { it.path.size }
 
     companion object {
         fun relPathOf(workspace: Path, file: Path): String =

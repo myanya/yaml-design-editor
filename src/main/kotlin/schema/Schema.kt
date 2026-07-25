@@ -40,6 +40,34 @@ enum class UnknownFieldsPolicy(val id: String) {
     }
 }
 
+/**
+ * フィールドの表示役割（R10-01）。表示解決（`Display`）が要素の要約を作るとき、
+ * 予約語規約（name / label / title、description / summary）より優先して使う。
+ * 検証・索引の意味論には影響しない（表示専用のヒント）。
+ */
+enum class FieldRole(val id: String) {
+    TITLE("title"),
+    SUBTITLE("subtitle");
+
+    companion object {
+        fun parse(value: String?): FieldRole? = value?.let { raw ->
+            entries.firstOrNull { it.id == raw } ?: error("role は title / subtitle のいずれかである必要があります: $raw")
+        }
+    }
+}
+
+/**
+ * enum の選択肢1件（R10-03）。データ・検証・cases のキー・AI生成の制約は常に `value` を使い、
+ * label / description はフォーム表示専用。文字列だけの選択肢は label / description なしと等価。
+ */
+data class EnumOption(
+    val value: String,
+    val label: String? = null,
+    val description: String? = null,
+) {
+    val displayLabel: String get() = label ?: value
+}
+
 /** `_schemas` 配下の文書種別。library は共通定義だけを公開し、業務文書には適用されない。 */
 enum class SchemaKind(val id: String) {
     DOCUMENT("document"),
@@ -93,7 +121,9 @@ data class FieldDef(
     val type: FieldType = FieldType.STRING,
     val required: Boolean = false,
     val requiredFrom: String? = null, // このフェーズ以降で必須（累積的。phases 宣言が前提。required との併用不可）
-    val values: List<String> = emptyList(),  // ENUM の選択肢
+    val values: List<String> = emptyList(),  // ENUM の選択肢（値のリスト。検証・cases・AI制約はこちらを使う）
+    val options: List<EnumOption> = emptyList(), // ENUM のリッチ選択肢（label / description。表示専用。R10-03）
+    val role: FieldRole? = null,             // 表示役割（title / subtitle。表示解決の上書き。R10-01）
     val cases: Map<String, List<FieldDef>> = emptyMap(), // ENUM の値ごとに親オブジェクトへ追加される兄弟フィールド
     val item: FieldDef? = null,              // ARRAY の要素定義
     val value: FieldDef? = null,             // MAP の値定義
@@ -109,6 +139,12 @@ data class FieldDef(
     internal val definitionScope: String? = null,
 ) {
     val displayLabel: String get() = label ?: key ?: "(root)"
+
+    /** enum の選択肢（表示用）。リッチ選択肢（options）がなければ値そのままの選択肢を返す。 */
+    fun enumOptions(): List<EnumOption> = options.ifEmpty { values.map { EnumOption(it) } }
+
+    /** 現在値に対応する enum 選択肢（表示用）。 */
+    fun optionFor(value: String?): EnumOption? = value?.let { v -> enumOptions().firstOrNull { it.value == v } }
 }
 
 data class RefScope(
@@ -200,6 +236,7 @@ data class SchemaDef(
                 relation = current.relation ?: target.relation,
                 unknownFields = current.unknownFields ?: target.unknownFields,
                 cases = current.cases.ifEmpty { target.cases },
+                role = current.role ?: target.role,
             )
         }
         return current
@@ -314,6 +351,13 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
                 keys.groupBy { it }.filterValues { it.size > 1 }.keys.forEach {
                     issues += SchemaIssue("キー「$it」が重複しています", path)
                 }
+                // 表示役割（R10-01）は object 内で各1つまで（複数あると表示解決が先頭のみを使い、意図が曖昧になる）
+                FieldRole.entries.forEach { role ->
+                    val holders = field.fields.mapNotNull { ch -> ch.key?.takeIf { (resolve(ch) ?: ch).role == role } }
+                    if (holders.size > 1) {
+                        issues += SchemaIssue("role「${role.id}」が複数のフィールド（${holders.joinToString(", ")}）に指定されています", path)
+                    }
+                }
                 field.fields.forEachIndexed { index, child ->
                     if (child.key.isNullOrBlank()) issues += SchemaIssue("フィールドのキーが空です", "$path.fields[$index]")
                     check(child, "$path.${child.key ?: index}", stack)
@@ -347,6 +391,9 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
             }
             FieldType.ENUM -> {
                 if (field.values.isEmpty()) issues += SchemaIssue("enumには選択肢が必要です", "$path.values")
+                field.values.groupBy { it }.filterValues { it.size > 1 }.keys.forEach {
+                    issues += SchemaIssue("選択肢の値「$it」が重複しています", "$path.values")
+                }
                 field.cases.forEach { (value, caseFields) ->
                     if (value !in field.values) {
                         issues += SchemaIssue("casesの値「$value」は選択肢に含まれていません", "$path.cases")
@@ -615,7 +662,17 @@ object SchemaLoader {
         val value = m["value"]?.let {
             parseField(it as? Map<*, *> ?: error("valueはobjectである必要があります"), null, definitionScope)
         }
-        val values = (m["values"] as? List<*>)?.map { it.toString() } ?: emptyList()
+        // enum の選択肢: 文字列、または {value, label, description} の object（リッチ選択肢。R10-03）
+        val options = (m["values"] as? List<*>)?.mapIndexed { index, entry ->
+            when (entry) {
+                is Map<*, *> -> EnumOption(
+                    value = entry["value"]?.toString() ?: error("values[$index] には value が必要です"),
+                    label = entry["label"]?.toString(),
+                    description = entry["description"]?.toString(),
+                )
+                else -> EnumOption(entry.toString())
+            }
+        } ?: emptyList()
         val cases = when (val rawCases = m["cases"]) {
             null -> emptyMap()
             is Map<*, *> -> rawCases.entries.associate { (caseValue, defs) ->
@@ -644,7 +701,9 @@ object SchemaLoader {
             type = type,
             required = (m["required"] as? Boolean) ?: false,
             requiredFrom = m["requiredFrom"]?.toString(),
-            values = values,
+            values = options.map { it.value },
+            options = options,
+            role = FieldRole.parse(m["role"]?.toString()),
             cases = cases,
             item = item,
             value = value,

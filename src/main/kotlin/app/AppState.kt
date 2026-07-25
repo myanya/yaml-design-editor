@@ -109,9 +109,29 @@ class OpenDocument(
  */
 class AppState {
     private val recentPrefs = Preferences.userRoot().node("yaml-design-editor/recent")
+    private val appPrefs = Preferences.userRoot().node("yaml-design-editor/app")
 
     var workspace by mutableStateOf<Path?>(null)
         private set
+
+    /**
+     * 最近開いたワークスペース履歴（R10-05）。ワークスペース単位の recentFiles（W-05）と同じ
+     * Preferences 機構のアプリグローバル版。スタート画面・コマンドパレットの切替候補に使う。
+     */
+    var recentWorkspaces by mutableStateOf<List<Path>>(emptyList())
+        private set
+
+    init {
+        recentWorkspaces = appPrefs.get("recentWorkspaces", "")
+            .lineSequence().filter { it.isNotBlank() }
+            .map { Path.of(it) }.filter(Files::isDirectory).take(10).toList()
+    }
+
+    /**
+     * 閲覧専用モード（R10-04）。フォーム・グリッドの編集UIを表示専用に切り替える
+     * （FormCtx がこのフラグを既定値として拾う。永続化は Main の uiPreferences＝W-06 の流儀）。
+     */
+    var readOnlyMode by mutableStateOf(false)
 
     /**
      * ヘッドレスコア（R9-02）。ファイル走査・スキーマ・索引の実体と更新方針（増分／全再構築の
@@ -192,6 +212,9 @@ class AppState {
         docCache.clear()
         openDoc = null
         highlightPath = null
+        // ワークスペース履歴（R10-05）: アプリグローバルに永続化し、スタート画面・パレットの切替候補にする
+        recentWorkspaces = (listOf(workspace!!) + recentWorkspaces.filter { it != workspace }).take(10)
+        appPrefs.put("recentWorkspaces", recentWorkspaces.joinToString("\n"))
         recentFiles = recentPrefs.get(workspaceKey(), "").lineSequence().filter { it.isNotBlank() }
             .map { workspace!!.resolve(it).normalize() }.filter(Files::exists).take(12).toList()
         reload()

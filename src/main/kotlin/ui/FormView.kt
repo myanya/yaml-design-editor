@@ -38,6 +38,7 @@ import index.RefEntry
 import index.isAllowedBy
 import model.YNode
 import model.YPath
+import schema.Display
 import schema.FieldDef
 import schema.FieldType
 import schema.effectiveFields
@@ -48,13 +49,19 @@ private val fieldTextStyle = TextStyle(fontSize = 13.sp)
 /**
  * フォーム編集のコンテキスト。
  * localIds は未保存編集を含む「現在のドキュメント内の ID 集合」で、参照解決の即時判定に使う。
+ * readOnly は閲覧専用モード（R10-04）: 編集UIを表示専用に切り替え、markEdited への到達を拒否する。
+ * 既定値を state.readOnlyMode から取るため、FormCtx を作る全ビュー（フォーム・グリッド・横ぐし）へ自動波及する。
  */
 class FormCtx(
     val state: AppState,
     val doc: OpenDocument,
     val localIds: List<IdEntry>,
+    val readOnly: Boolean = state.readOnlyMode,
 ) {
-    fun markEdited() = doc.markEdited()
+    fun markEdited() {
+        check(!readOnly) { "閲覧専用モードでは編集できません" }
+        doc.markEdited()
+    }
 
     fun resolvable(ref: RefEntry): Boolean =
         ref.targetId.isNotBlank() &&
@@ -87,6 +94,8 @@ class FormCtx(
     }
 
     private fun writeScalar(slot: Slot, v: Any?) {
+        // 閲覧専用モードではツリーを変異させる前に拒否する（markEdited の防御より手前で止める）
+        check(!readOnly) { "閲覧専用モードでは編集できません" }
         val node = slot.get()
         if (node is YNode.Scalar) node.value = v else slot.set(YNode.Scalar(v))
         markEdited()
@@ -145,7 +154,7 @@ fun FormView(state: AppState, doc: OpenDocument) {
         val documentId = IdIndex.documentIdOf(root, state.relPath(doc.file))
         DocScanner.scan(root, doc.file, doc.schema, documentId).first
     }
-    val ctx = remember(doc, doc.version, state.indexVersion) { FormCtx(state, doc, localIds) }
+    val ctx = remember(doc, doc.version, state.indexVersion, state.readOnlyMode) { FormCtx(state, doc, localIds) }
 
     Box(Modifier.fillMaxSize()) {
         val scroll = rememberScrollState()
@@ -198,6 +207,20 @@ private class DocumentMetadataSlot(private val root: YNode.Map, private val key:
 private fun DocumentMetadataEditor(ctx: FormCtx, root: YNode.Map) {
     val nameSlot = DocumentMetadataSlot(root, "name")
     val descriptionSlot = DocumentMetadataSlot(root, "description")
+    if (ctx.readOnly) {
+        // 閲覧専用モード（R10-04）: 入力欄を出さず、記載済みのメタデータだけを高密度で表示する
+        val name = (nameSlot.get() as? YNode.Scalar)?.value?.toString().orEmpty()
+        val description = (descriptionSlot.get() as? YNode.Scalar)?.value?.toString().orEmpty()
+        if (name.isBlank() && description.isBlank()) return
+        Column(
+            Modifier.fillMaxWidth().background(Palette.PanelBg, PanelShape)
+                .border(1.dp, Palette.Border, PanelShape).padding(horizontal = 12.dp, vertical = 8.dp),
+        ) {
+            if (name.isNotBlank()) Text(name, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            if (description.isNotBlank()) Text(description, fontSize = 11.sp, color = Palette.SubText)
+        }
+        return
+    }
     Column(
         Modifier.fillMaxWidth().background(Palette.PanelBg, PanelShape)
             .border(1.dp, Palette.Border, PanelShape).padding(12.dp),
@@ -335,9 +358,11 @@ fun ObjectFields(ctx: FormCtx, fields: List<FieldDef>, map: YNode.Map, path: YPa
 @Composable
 private fun FieldRow(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
     val effective = ctx.doc.schema?.resolve(field) ?: field
+    // 閲覧専用モード（R10-04）はパディングを圧縮して表示密度を上げる
+    val labelTop = if (ctx.readOnly) 2.dp else 8.dp
     Highlightable(ctx.state, path) {
-        Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.Top) {
-            Column(Modifier.width(148.dp).padding(top = 8.dp, end = 8.dp)) {
+        Row(Modifier.fillMaxWidth().padding(vertical = if (ctx.readOnly) 0.dp else 1.dp), verticalAlignment = Alignment.Top) {
+            Column(Modifier.width(148.dp).padding(top = labelTop, end = 8.dp)) {
                 Row {
                     Text(effective.displayLabel, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     if (effective.required) Text(" *", color = Palette.ErrorRed, fontSize = 12.sp)
@@ -345,7 +370,7 @@ private fun FieldRow(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
                     effective.requiredFrom?.let {
                         Text(" *$it〜", color = Palette.WarnOrange, fontSize = 10.sp)
                     }
-                    if (effective.type != FieldType.ARRAY) {
+                    if (effective.type != FieldType.ARRAY && !ctx.readOnly) {
                         IconButton(
                             onClick = { ctx.state.requestAi(effective, path) },
                             modifier = Modifier.size(22.dp),
@@ -359,7 +384,9 @@ private fun FieldRow(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
                         }
                     }
                 }
-                effective.description?.let { Text(it, fontSize = 10.sp, color = Palette.SubText, maxLines = 2) }
+                if (!ctx.readOnly) {
+                    effective.description?.let { Text(it, fontSize = 10.sp, color = Palette.SubText, maxLines = 2) }
+                }
             }
             Box(Modifier.weight(1f)) { ValueEditor(ctx, effective, slot, path) }
         }
@@ -384,10 +411,26 @@ fun ValueEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
     }
 }
 
+/** 閲覧専用モードの値表示（R10-04）。未設定は淡色で示す。 */
+@Composable
+private fun ReadOnlyValueText(text: String?, modifier: Modifier = Modifier) {
+    val blank = text.isNullOrBlank()
+    Text(
+        if (blank) "（未設定）" else text!!,
+        fontSize = 13.sp,
+        color = if (blank) Palette.SubText else Palette.Text,
+        modifier = modifier.padding(top = 2.dp, bottom = 2.dp),
+    )
+}
+
 @Composable
 private fun ScalarTextEditor(ctx: FormCtx, field: FieldDef, slot: Slot, singleLine: Boolean) {
     val node = slot.get()
     val text = (node as? YNode.Scalar)?.value?.toString() ?: ""
+    if (ctx.readOnly) {
+        ReadOnlyValueText(text)
+        return
+    }
     val typeError = when (field.type) {
         FieldType.INT -> text.isNotBlank() && text.toLongOrNull() == null
         FieldType.NUMBER -> text.isNotBlank() && text.toDoubleOrNull() == null
@@ -417,6 +460,10 @@ private fun ScalarTextEditor(ctx: FormCtx, field: FieldDef, slot: Slot, singleLi
 private fun BooleanEditor(ctx: FormCtx, slot: Slot) {
     val node = slot.get()
     val value = (node as? YNode.Scalar)?.value as? Boolean
+    if (ctx.readOnly) {
+        ReadOnlyValueText(value?.let { if (it) "はい" else "いいえ" })
+        return
+    }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Checkbox(
             checked = value == true,
@@ -430,30 +477,65 @@ private fun BooleanEditor(ctx: FormCtx, slot: Slot) {
     }
 }
 
+/**
+ * enum の選択エディタ。リッチ選択肢（R10-03: {value, label, description}）に対応し、
+ * フォームは label を表示、データ・検証は常に value を使う。
+ */
 @Composable
 private fun EnumEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
     val current = (slot.get() as? YNode.Scalar)?.value?.toString()
-    var open by remember { mutableStateOf(false) }
-    Box {
-        OutlinedButton(onClick = { open = true },
-            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)) {
-            Text(current ?: "（未設定）", fontSize = 13.sp)
-            Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+    val currentOption = field.optionFor(current)
+    if (ctx.readOnly) {
+        Column {
+            ReadOnlyValueText(currentOption?.displayLabel ?: current)
+            currentOption?.description?.let { Text(it, fontSize = 10.sp, color = Palette.SubText) }
         }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            field.values.forEach { v ->
-                DropdownMenuItem(text = { Text(v, fontSize = 13.sp) }, onClick = {
-                    slot.set(YNode.Scalar(v))
+        return
+    }
+    var open by remember { mutableStateOf(false) }
+    Column {
+        Box {
+            OutlinedButton(onClick = { open = true },
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)) {
+                Text(currentOption?.displayLabel ?: current ?: "（未設定）", fontSize = 13.sp)
+                Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+            }
+            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                field.enumOptions().forEach { option ->
+                    val selected = option.value == current
+                    DropdownMenuItem(text = {
+                        Column {
+                            Text(
+                                option.displayLabel, fontSize = 13.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (selected) Palette.Primary else Palette.Text,
+                            )
+                            // 表示ラベルと保存される値が異なる場合は値も添える（データの正体を隠さない）
+                            if (option.label != null && option.label != option.value) {
+                                Text(option.value, fontSize = 10.sp, color = Palette.SubText)
+                            }
+                            option.description?.let { Text(it, fontSize = 11.sp, color = Palette.SubText) }
+                        }
+                    }, trailingIcon = {
+                        if (selected) {
+                            Icon(Icons.Default.Check, contentDescription = "選択中",
+                                tint = Palette.Primary, modifier = Modifier.size(18.dp))
+                        }
+                    }, onClick = {
+                        slot.set(YNode.Scalar(option.value))
+                        ctx.markEdited()
+                        open = false
+                    }, modifier = Modifier.background(if (selected) Palette.Selected else Color.Transparent))
+                }
+                DropdownMenuItem(text = { Text("（未設定にする）", fontSize = 13.sp, color = Palette.SubText) }, onClick = {
+                    slot.remove()
                     ctx.markEdited()
                     open = false
                 })
             }
-            DropdownMenuItem(text = { Text("（未設定にする）", fontSize = 13.sp, color = Palette.SubText) }, onClick = {
-                slot.remove()
-                ctx.markEdited()
-                open = false
-            })
         }
+        // 現在選択値の説明（選択肢を開かなくても意味が分かるようにする）
+        currentOption?.description?.let { Text(it, fontSize = 10.sp, color = Palette.SubText) }
     }
 }
 
@@ -463,7 +545,9 @@ private fun IdEditor(ctx: FormCtx, slot: Slot) {
     val otherOccurrences = if (text.isBlank()) 0 else
         ctx.state.index.entries[text].orEmpty().count { it.file != ctx.doc.file }
     Column {
-        CompactTextField(
+        if (ctx.readOnly) {
+            ReadOnlyValueText(text)
+        } else CompactTextField(
             value = text,
             onValueChange = { ctx.setScalar(slot, it, FieldType.ID) },
             singleLine = true,
@@ -487,6 +571,26 @@ fun RefEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
     var menuOpen by remember { mutableStateOf(false) }
     val refConstraint = RefEntry(current, ctx.doc.file, emptyList(), field.key ?: "ref", field.idPatterns, field.scope)
     val resolved = ctx.resolvable(refConstraint)
+    if (ctx.readOnly) {
+        // 閲覧専用モードでもジャンプは閲覧行為として残す（R10-04）
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            val target = ctx.state.index.occurrences(current).firstOrNull()
+            ReadOnlyValueText(
+                listOfNotNull(current.takeIf { it.isNotBlank() }, target?.title).joinToString(" — ").takeIf { it.isNotBlank() },
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            if (resolved) {
+                IconButton(onClick = { ctx.state.navigateToId(current) }, modifier = Modifier.size(28.dp)) {
+                    Icon(Icons.Default.ArrowForward, contentDescription = "定義へ移動",
+                        tint = Palette.Primary, modifier = Modifier.size(16.dp))
+                }
+            }
+        }
+        if (current.isNotBlank() && !resolved) {
+            Text("未解決の参照です", fontSize = 11.sp, color = Palette.ErrorRed)
+        }
+        return
+    }
 
     // 候補: ID パターンとスコープで絞り込み、同一論理 ID は1候補にまとめる。
     val candidates: List<IdEntry> = remember(ctx.state.indexVersion, field.idPatterns, field.scope) {
@@ -574,6 +678,10 @@ fun RefEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
 private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
     val node = slot.get()
     if (node == null) {
+        if (ctx.readOnly) {
+            ReadOnlyValueText(null)
+            return
+        }
         TextButton(onClick = {
             slot.set(YNode.Seq(mutableListOf(defaultNode(field.item, ctx.doc.schema))))
             ctx.markEdited()
@@ -588,14 +696,17 @@ private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) 
         GenericEditor(ctx, slot, path, refHint = false)
         return
     }
-    var expanded by remember(path) { mutableStateOf(true) }
+    // 閲覧専用モード（R10-04）は既定で畳み、要約だけで拾い読みできるようにする
+    var expanded by remember(path, ctx.readOnly) { mutableStateOf(!ctx.readOnly) }
+    // 畳み込みサマリ（R10-02）: 表示解決による「n件: 先頭要素の要約, …」
+    val header = Display.seqHeaderText(node, ctx.doc.schema, field.item)
     Column(
         Modifier.fillMaxWidth()
             .border(1.dp, Palette.Border, PanelShape)
             .padding(6.dp)
     ) {
         TextButton(onClick = { expanded = !expanded }, contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp)) {
-            Text(if (expanded) "▼ ${node.items.size} 件" else "▶ ${node.items.size} 件", fontSize = 11.sp, color = Palette.SubText)
+            Text((if (expanded) "▼ " else "▶ ") + header, fontSize = 11.sp, color = Palette.SubText, maxLines = 1)
         }
         if (expanded) {
         node.items.forEachIndexed { i, _ ->
@@ -604,11 +715,12 @@ private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) 
                     Text(
                         "${i + 1}.",
                         fontSize = 12.sp, color = Palette.SubText,
-                        modifier = Modifier.padding(top = 12.dp, end = 6.dp),
+                        modifier = Modifier.padding(top = if (ctx.readOnly) 2.dp else 12.dp, end = 6.dp),
                     )
                     Box(Modifier.weight(1f)) {
                         ValueEditor(ctx, field.item ?: FieldDef(), SeqSlot(node, i), path + i)
                     }
+                    if (!ctx.readOnly) {
                     Column {
                         IconButton(
                             onClick = {
@@ -635,9 +747,11 @@ private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) 
                         onClick = { node.items.removeAt(i); ctx.markEdited() },
                         modifier = Modifier.size(32.dp).padding(top = 8.dp),
                     ) { Icon(Icons.Default.Delete, contentDescription = "削除", Modifier.size(16.dp), tint = Palette.SubText) }
+                    }
                 }
             }
         }
+        if (!ctx.readOnly) {
         TextButton(onClick = {
             node.items.add(defaultNode(field.item, ctx.doc.schema))
             ctx.markEdited()
@@ -651,6 +765,7 @@ private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) 
             Text("AIで候補追加", fontSize = 12.sp)
         }
         }
+        }
     }
 }
 
@@ -658,6 +773,10 @@ private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) 
 private fun NestedObjectEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
     val node = slot.get()
     if (node == null) {
+        if (ctx.readOnly) {
+            ReadOnlyValueText(null)
+            return
+        }
         TextButton(onClick = {
             slot.set(defaultNode(field, ctx.doc.schema))
             ctx.markEdited()
@@ -672,14 +791,17 @@ private fun NestedObjectEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: 
         GenericEditor(ctx, slot, path, refHint = false)
         return
     }
-    var expanded by remember(path) { mutableStateOf(true) }
+    // 閲覧専用モード（R10-04）は既定で畳み、要約だけで拾い読みできるようにする
+    var expanded by remember(path, ctx.readOnly) { mutableStateOf(!ctx.readOnly) }
+    // 畳み込みサマリ（R10-02）: 表示解決による「ID タイトル（n項目）」
+    val header = Display.headerText(node, ctx.doc.schema, field)
     Column(
         Modifier.fillMaxWidth()
             .border(1.dp, Palette.Border, PanelShape)
             .padding(horizontal = 10.dp, vertical = 4.dp)
     ) {
         TextButton(onClick = { expanded = !expanded }, contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp)) {
-            Text(if (expanded) "▼ 詳細" else "▶ 詳細", fontSize = 11.sp, color = Palette.SubText)
+            Text((if (expanded) "▼ " else "▶ ") + header, fontSize = 11.sp, color = Palette.SubText, maxLines = 1)
         }
         if (expanded) ObjectFields(ctx, field.fields, node, path)
     }
@@ -689,6 +811,10 @@ private fun NestedObjectEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: 
 private fun MapEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
     val node = slot.get()
     if (node == null) {
+        if (ctx.readOnly) {
+            ReadOnlyValueText(null)
+            return
+        }
         TextButton(onClick = { slot.set(YNode.Map()); ctx.markEdited() }) {
             Icon(Icons.Default.Add, contentDescription = null, Modifier.size(16.dp))
             Text("Mapを作成", fontSize = 13.sp)
@@ -700,7 +826,7 @@ private fun MapEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
         GenericEditor(ctx, slot, path, refHint = false)
         return
     }
-    var expanded by remember(path) { mutableStateOf(true) }
+    var expanded by remember(path, ctx.readOnly) { mutableStateOf(!ctx.readOnly) }
     Column(Modifier.fillMaxWidth().border(1.dp, Palette.Border, PanelShape).padding(6.dp)) {
         TextButton(onClick = { expanded = !expanded }, contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp)) {
             Text(if (expanded) "▼ ${node.entries.size} 件" else "▶ ${node.entries.size} 件", fontSize = 11.sp, color = Palette.SubText)
@@ -711,18 +837,20 @@ private fun MapEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
                 Highlightable(ctx.state, childPath) {
                     Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.Top) {
                         Text(key, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.width(150.dp).padding(top = 10.dp))
+                            modifier = Modifier.width(150.dp).padding(top = if (ctx.readOnly) 2.dp else 10.dp))
                         Box(Modifier.weight(1f)) {
                             ValueEditor(ctx, field.value ?: FieldDef(), MapSlot(node, key), childPath)
                         }
-                        IconButton(onClick = { node.entries.remove(key); ctx.markEdited() },
-                            modifier = Modifier.size(32.dp).padding(top = 8.dp)) {
-                            Icon(Icons.Default.Delete, contentDescription = "キーを削除", Modifier.size(16.dp), tint = Palette.SubText)
+                        if (!ctx.readOnly) {
+                            IconButton(onClick = { node.entries.remove(key); ctx.markEdited() },
+                                modifier = Modifier.size(32.dp).padding(top = 8.dp)) {
+                                Icon(Icons.Default.Delete, contentDescription = "キーを削除", Modifier.size(16.dp), tint = Palette.SubText)
+                            }
                         }
                     }
                 }
             }
-            AddTypedMapKeyRow(ctx, node, field.value)
+            if (!ctx.readOnly) AddTypedMapKeyRow(ctx, node, field.value)
         }
     }
 }
@@ -756,6 +884,10 @@ private fun AddTypedMapKeyRow(ctx: FormCtx, map: YNode.Map, valueDef: FieldDef?)
 fun GenericEditor(ctx: FormCtx, slot: Slot, path: YPath, refHint: Boolean) {
     when (val node = slot.get()) {
         null -> {
+            if (ctx.readOnly) {
+                ReadOnlyValueText(null)
+                return
+            }
             CompactTextField(
                 value = "",
                 onValueChange = { ctx.setGenericScalar(slot, it) },
@@ -767,6 +899,23 @@ fun GenericEditor(ctx: FormCtx, slot: Slot, path: YPath, refHint: Boolean) {
         }
         is YNode.Scalar -> {
             val v = node.value
+            if (ctx.readOnly) {
+                val text = v?.toString() ?: ""
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    ReadOnlyValueText(
+                        if (v is Boolean) (if (v) "はい" else "いいえ") else text,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    // ジャンプは閲覧行為として残す（R10-04）
+                    if (refHint && ctx.resolvable(text)) {
+                        IconButton(onClick = { ctx.state.navigateToId(text) }, modifier = Modifier.size(28.dp)) {
+                            Icon(Icons.Default.ArrowForward, contentDescription = "定義へ移動",
+                                tint = Palette.Primary, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+                return
+            }
             if (v is Boolean) {
                 Checkbox(
                     checked = v,
@@ -808,24 +957,28 @@ fun GenericEditor(ctx: FormCtx, slot: Slot, path: YPath, refHint: Boolean) {
                             Text(
                                 "${i + 1}.",
                                 fontSize = 12.sp, color = Palette.SubText,
-                                modifier = Modifier.padding(top = 12.dp, end = 6.dp),
+                                modifier = Modifier.padding(top = if (ctx.readOnly) 2.dp else 12.dp, end = 6.dp),
                             )
                             Box(Modifier.weight(1f)) {
                                 GenericEditor(ctx, SeqSlot(node, i), path + i, refHint)
                             }
-                            IconButton(
-                                onClick = { node.items.removeAt(i); ctx.markEdited() },
-                                modifier = Modifier.size(32.dp).padding(top = 8.dp),
-                            ) { Icon(Icons.Default.Delete, contentDescription = "削除", Modifier.size(16.dp), tint = Palette.SubText) }
+                            if (!ctx.readOnly) {
+                                IconButton(
+                                    onClick = { node.items.removeAt(i); ctx.markEdited() },
+                                    modifier = Modifier.size(32.dp).padding(top = 8.dp),
+                                ) { Icon(Icons.Default.Delete, contentDescription = "削除", Modifier.size(16.dp), tint = Palette.SubText) }
+                            }
                         }
                     }
                 }
-                TextButton(onClick = {
-                    node.items.add(YNode.Scalar(""))
-                    ctx.markEdited()
-                }) {
-                    Icon(Icons.Default.Add, contentDescription = null, Modifier.size(16.dp))
-                    Text("追加", fontSize = 13.sp)
+                if (!ctx.readOnly) {
+                    TextButton(onClick = {
+                        node.items.add(YNode.Scalar(""))
+                        ctx.markEdited()
+                    }) {
+                        Icon(Icons.Default.Add, contentDescription = null, Modifier.size(16.dp))
+                        Text("追加", fontSize = 13.sp)
+                    }
                 }
             }
         }
@@ -839,7 +992,7 @@ fun GenericEditor(ctx: FormCtx, slot: Slot, path: YPath, refHint: Boolean) {
                     for (k in node.entries.keys.toList()) {
                         GenericMapEntryRow(ctx, node, k, path)
                     }
-                    AddKeyRow(ctx, node)
+                    if (!ctx.readOnly) AddKeyRow(ctx, node)
                 }
             }
         }
@@ -863,6 +1016,19 @@ fun GenericMapEntryRow(ctx: FormCtx, map: YNode.Map, key: String, mapPath: YPath
     val childRefHint = DocScanner.isGenericRefKey(key) || DocScanner.isGenericRefListKey(key)
     var renaming by remember(key) { mutableStateOf(false) }
     var renameText by remember(key) { mutableStateOf(key) }
+    if (ctx.readOnly) {
+        // 閲覧専用モード（R10-04）: キー名変更・削除を出さない高密度の表示行
+        Highlightable(ctx.state, childPath) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                Text(key, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.width(150.dp).padding(top = 2.dp))
+                Box(Modifier.weight(1f)) {
+                    GenericEditor(ctx, MapSlot(map, key), childPath, refHint = childRefHint)
+                }
+            }
+        }
+        return
+    }
     Highlightable(ctx.state, childPath) {
         Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.Top) {
             if (renaming) {
