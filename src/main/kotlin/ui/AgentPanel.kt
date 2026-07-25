@@ -172,8 +172,10 @@ fun AgentRunHost(state: AppState, engine: agent.AutomationEngine? = null, onClos
                 AgentStage.RUNNING -> RunningContent(events, plan)
                 AgentStage.REVIEW -> runResult?.let { result ->
                     ReviewContent(state, coreWs!!, result, runFile) { adopted, applied, message ->
-                        // 手動実行の連鎖はエンジン有効時のみ発火する
-                        runActivityId?.let { engine?.notifyManualCompletion(it, applied && adopted.isNotEmpty()) }
+                        // 手動実行の連鎖はエンジン有効時のみ発火する（結果を渡すと出力値による分岐も効く。R9-04）
+                        runActivityId?.let {
+                            engine?.notifyManualCompletion(it, applied && adopted.isNotEmpty(), result, adopted)
+                        }
                         doneMessage = message
                         stage = AgentStage.DONE
                     }
@@ -345,12 +347,13 @@ private fun SelectContent(
                 OutlinedTextField(
                     value = AiSettings.modelFor(effectiveProvider),
                     onValueChange = { AiSettings.setModelFor(effectiveProvider, it) },
-                    label = { Text("モデル") },
+                    label = { Text(modelFieldLabel(effectiveProvider)) },
                     singleLine = true,
                     modifier = Modifier.width(240.dp),
                 )
             }
         }
+        AiConnectionSettingsSection(effectiveProvider)
         if (errorMessage.isNotBlank()) {
             Spacer(Modifier.height(8.dp))
             Text(errorMessage, color = Palette.ErrorRed, fontSize = 12.sp)

@@ -89,6 +89,11 @@ fun SchemaEditor(state: AppState, doc: OpenDocument) {
                 Text("ルート定義", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 val rootDef = ensureMap(root, "root", doc, mark = false)
                 FieldDefinitionEditor(rootDef, doc, definitionChoices, allowKey = false, depth = 0)
+                // スキーマ全体設定（R9-03）: フェーズ宣言とカバレッジルールの構造化編集
+                Spacer(Modifier.height(12.dp))
+                PhasesEditor(root, doc)
+                Spacer(Modifier.height(12.dp))
+                CoverageEditor(root, doc)
             } else {
                 Text(
                     "library は業務文書へ適用されず、definitions だけを他スキーマへ公開します。",
@@ -365,6 +370,169 @@ private fun FieldDefinitionEditor(map: YNode.Map, doc: OpenDocument, definitions
     }
     val currentType = scalar(map, "type") ?: "string"
     if (currentType !in setOf("object", "array", "map")) DefaultValueEditor(map, currentType, doc)
+}
+
+// ================================================================ フェーズ・カバレッジ（R9-03）
+
+/** 文書ルートの `phases` 宣言（リスト省略形も読み、編集時は key / order の object 形へ正規化する）。 */
+@Composable
+private fun PhasesEditor(root: YNode.Map, doc: OpenDocument) {
+    val node = root.entries["phases"]
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("フェーズ（工程）", fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+        if (node == null) {
+            TextButton(onClick = {
+                root.entries["phases"] = YNode.Map(linkedMapOf(
+                    "key" to YNode.Scalar("phase"),
+                    "order" to YNode.Seq(),
+                ))
+                doc.markEdited()
+            }) { Text("＋ フェーズを宣言", fontSize = 12.sp) }
+        } else {
+            TextButton(onClick = { root.entries.remove("phases"); doc.markEdited() }) {
+                Text("削除", fontSize = 11.sp, color = Palette.ErrorRed)
+            }
+        }
+    }
+    if (node == null) {
+        Text(
+            "宣言すると、文書がルート項目で現在フェーズを申告し、requiredFrom（フェーズ累積必須）と activeFrom（カバレッジ判定の保留）が使えます。",
+            fontSize = 11.sp, color = Palette.SubText,
+        )
+        return
+    }
+    // リスト省略形（phases: [a, b]）は表示だけ対応し、編集した時点で object 形へ正規化する
+    val currentKey = (node as? YNode.Map)?.let { scalar(it, "key") } ?: "phase"
+    val currentOrder = when (node) {
+        is YNode.Seq -> node.items.mapNotNull { (it as? YNode.Scalar)?.value?.toString() }
+        is YNode.Map -> (node.entries["order"] as? YNode.Seq)?.items?.mapNotNull { (it as? YNode.Scalar)?.value?.toString() }.orEmpty()
+        else -> emptyList()
+    }
+    fun normalized(): YNode.Map = (root.entries["phases"] as? YNode.Map)
+        ?: YNode.Map(linkedMapOf(
+            "key" to YNode.Scalar(currentKey),
+            "order" to YNode.Seq(currentOrder.map { YNode.Scalar(it) }.toMutableList()),
+        )).also { root.entries["phases"] = it }
+    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("申告キー", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+        CompactTextField(currentKey, { raw ->
+            normalized().entries["key"] = YNode.Scalar(raw)
+            doc.markEdited()
+        }, singleLine = true, modifier = Modifier.weight(1f))
+    }
+    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("フェーズ順序", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+        CompactTextField(currentOrder.joinToString(", "), { raw ->
+            normalized().entries["order"] = YNode.Seq(
+                raw.split(',').map { YNode.Scalar(it.trim()) }.filter { it.value.toString().isNotBlank() }.toMutableList()
+            )
+            doc.markEdited()
+        }, singleLine = true, placeholder = { Text("requirements, logical-design, physical-design") }, modifier = Modifier.weight(1f))
+    }
+    Text("先頭が最初の工程。文書はルート直下の「$currentKey」で現在フェーズを申告します。", fontSize = 11.sp, color = Palette.SubText)
+}
+
+/** スキーマの `coverage`（カバレッジルール）の構造化編集。 */
+@Composable
+private fun CoverageEditor(root: YNode.Map, doc: OpenDocument) {
+    val coverage = root.entries["coverage"] as? YNode.Seq
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("カバレッジルール", fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+        TextButton(onClick = {
+            val seq = ensureSeq(root, "coverage", doc, mark = false)
+            seq.items.add(YNode.Map(linkedMapOf(
+                "idPattern" to YNode.Scalar("*"),
+                "requiredBy" to YNode.Map(),
+            )))
+            doc.markEdited()
+        }) { Text("＋ ルールを追加", fontSize = 12.sp) }
+    }
+    if (coverage == null || coverage.items.isEmpty()) {
+        Text(
+            "「このスキーマが定義するIDは、条件を満たす参照（または詳細文書への出現）を受けること」を機械判定します。",
+            fontSize = 11.sp, color = Palette.SubText,
+        )
+    }
+    val phaseNames = ((root.entries["phases"] as? YNode.Map)?.entries?.get("order") as? YNode.Seq)
+        ?.items?.mapNotNull { (it as? YNode.Scalar)?.value?.toString() }
+        ?: (root.entries["phases"] as? YNode.Seq)?.items?.mapNotNull { (it as? YNode.Scalar)?.value?.toString() }
+        ?: emptyList()
+    coverage?.items?.forEachIndexed { index, node ->
+        val rule = node as? YNode.Map ?: return@forEachIndexed
+        Column(Modifier.fillMaxWidth().padding(top = 6.dp).border(1.dp, Palette.Border, PanelShape).padding(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("ルール ${index + 1}", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = {
+                    coverage.items.removeAt(index)
+                    if (coverage.items.isEmpty()) root.entries.remove("coverage")
+                    doc.markEdited()
+                }) { Text("削除", fontSize = 10.sp, color = Palette.ErrorRed) }
+            }
+            CompactScalar(rule, "id", "ルールID（任意）", doc)
+            CompactScalar(rule, "description", "説明", doc)
+            CompactScalar(rule, "idPattern", "対象IDパターン", doc)
+            val occurrence = rule.entries.containsKey("detailIn")
+            Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("判定方式", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+                ChoiceButton(
+                    if (occurrence) "出現ベース（詳細文書の存在）" else "参照ベース（被参照数）",
+                    listOf("参照ベース（被参照数）", "出現ベース（詳細文書の存在）"),
+                ) { choice ->
+                    if (choice.startsWith("出現") && !occurrence) {
+                        rule.entries.remove("requiredBy")
+                        rule.entries["detailIn"] = YNode.Map()
+                        doc.markEdited()
+                    } else if (choice.startsWith("参照") && occurrence) {
+                        rule.entries.remove("detailIn")
+                        rule.entries["requiredBy"] = YNode.Map()
+                        doc.markEdited()
+                    }
+                }
+            }
+            if (occurrence) {
+                val detail = ensureMap(rule, "detailIn", doc, mark = false)
+                StringListEditor(detail, "schemaIds", "出現先スキーマID", "screen-detail", doc)
+                CoverageMinCount(detail, doc)
+            } else {
+                val requiredBy = ensureMap(rule, "requiredBy", doc, mark = false)
+                StringListEditor(requiredBy, "schemaIds", "参照元スキーマID", "table-design", doc)
+                CompactScalar(requiredBy, "relation", "関係種別（任意）", doc)
+                CoverageMinCount(requiredBy, doc)
+            }
+            Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("重大度", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+                ChoiceButton(scalar(rule, "level") ?: "warning", listOf("warning", "error")) {
+                    if (it == "warning") rule.entries.remove("level") else rule.entries["level"] = YNode.Scalar(it)
+                    doc.markEdited()
+                }
+                if (phaseNames.isNotEmpty()) {
+                    Spacer(Modifier.width(12.dp))
+                    Text("判定開始フェーズ", fontSize = 12.sp)
+                    Spacer(Modifier.width(6.dp))
+                    ChoiceButton(scalar(rule, "activeFrom") ?: "（常時）", listOf("（常時）") + phaseNames) {
+                        if (it == "（常時）") rule.entries.remove("activeFrom") else rule.entries["activeFrom"] = YNode.Scalar(it)
+                        doc.markEdited()
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** minCount は数値型で書き込む（文字列だとパース時に既定値へ落ちるため）。 */
+@Composable
+private fun CoverageMinCount(map: YNode.Map, doc: OpenDocument) {
+    val value = (map.entries["minCount"] as? YNode.Scalar)?.value?.toString().orEmpty()
+    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("必要数（minCount）", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+        CompactTextField(value, { raw ->
+            val n = raw.trim().toLongOrNull()
+            if (raw.isBlank()) map.entries.remove("minCount")
+            else if (n != null) map.entries["minCount"] = YNode.Scalar(n)
+            doc.markEdited()
+        }, singleLine = true, placeholder = { Text("1", color = Palette.SubText) }, modifier = Modifier.width(120.dp))
+    }
 }
 
 @Composable

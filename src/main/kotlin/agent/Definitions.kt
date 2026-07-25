@@ -67,11 +67,49 @@ data class TriggerDef(
     val everyMinutes: Long? = null,     // schedule: 周期（分）
 )
 
-/** 実行の終わり方に応じて次に起動するアクティビティ（宣言的な連鎖）。 */
+/**
+ * 出力値による連鎖分岐の1ルール（R9-04）。条件はすべてANDで、上から順に評価し最初に一致した then へ連鎖する。
+ * どのルールにも一致しないときは onSuccess / onFailure へフォールバックする。
+ */
+data class ChainRule(
+    val then: String,                    // 分岐先アクティビティID
+    val outcome: String = "any",         // success / failure / any: 実行の終わり方の条件
+    val changedFiles: String? = null,    // 提出（採用）変更セットにこの glob に一致するファイルがあること
+    val minChangedFiles: Int? = null,    // 提出（採用）変更ファイル数の下限
+    val noteContains: String? = null,    // エージェントのメモ・提出メッセージにこの部分文字列があること
+)
+
+/** 実行の終わり方（と出力値。R9-04）に応じて次に起動するアクティビティ（宣言的な連鎖）。 */
 data class ChainDef(
     val onSuccess: String? = null,
     val onFailure: String? = null,
-)
+    val rules: List<ChainRule> = emptyList(),
+) {
+    /**
+     * 連鎖先の選択（R9-04）。changedFiles は採用（または提出）された変更ファイルの相対パス、
+     * notesText はメモ・提出メッセージの連結。暴走防止（深さ上限・循環検出）は呼び出し側が行う。
+     */
+    fun selectNext(success: Boolean, changedFiles: List<String>, notesText: String): String? {
+        for (rule in rules) {
+            val outcomeOk = when (rule.outcome) {
+                "success" -> success
+                "failure" -> !success
+                else -> true
+            }
+            val filesOk = rule.changedFiles?.let { glob ->
+                runCatching { schema.globToRegex(glob) }.getOrNull()
+                    ?.let { regex -> changedFiles.any(regex::matches) } ?: false
+            } ?: true
+            val minOk = rule.minChangedFiles?.let { changedFiles.size >= it } ?: true
+            val noteOk = rule.noteContains?.let { it in notesText } ?: true
+            if (outcomeOk && filesOk && minOk && noteOk) return rule.then
+        }
+        return if (success) onSuccess else onFailure
+    }
+
+    val allTargets: List<String>
+        get() = listOfNotNull(onSuccess, onFailure) + rules.map { it.then }
+}
 
 /** 無人実行時の再試行方針。失敗理由（と検証エラー）をフィードバックして最大 maxAttempts 回まで再実行する。 */
 data class RetryDef(
@@ -124,7 +162,7 @@ object Definitions {
             if (agents.none { it.id == activity.agentId }) {
                 errors += "${activity.source.fileName}: エージェント「${activity.agentId}」が _agents に見つかりません"
             }
-            listOfNotNull(activity.chain.onSuccess, activity.chain.onFailure).forEach { next ->
+            activity.chain.allTargets.distinct().forEach { next ->
                 if (activities.none { it.id == next }) {
                     errors += "${activity.source.fileName}: 連鎖先のアクティビティ「$next」が見つかりません"
                 }
@@ -215,11 +253,36 @@ object Definitions {
             chain = ChainDef(
                 onSuccess = chainMap?.get("onSuccess")?.toString(),
                 onFailure = chainMap?.get("onFailure")?.toString(),
+                rules = parseChainRules(chainMap?.get("rules")),
             ),
             retry = RetryDef(maxAttempts = maxAttempts),
             meta = meta,
             source = source,
         )
+    }
+
+    /** 出力値による連鎖分岐（R9-04）のパース。 */
+    private fun parseChainRules(raw: Any?): List<ChainRule> {
+        if (raw == null) return emptyList()
+        val list = raw as? List<*> ?: error("chain.rules は配列である必要があります")
+        return list.mapIndexed { i, entry ->
+            val m = entry as? Map<*, *> ?: error("chain.rules[$i] はobjectである必要があります")
+            val then = m["then"]?.toString()?.takeIf { it.isNotBlank() } ?: error("chain.rules[$i] に then が必要です")
+            val whenMap = m["when"] as? Map<*, *> ?: emptyMap<Any?, Any?>()
+            val outcome = whenMap["outcome"]?.toString() ?: "any"
+            require(outcome in setOf("success", "failure", "any")) {
+                "chain.rules[$i].when.outcome は success / failure / any のいずれかです: $outcome"
+            }
+            val minChanged = (whenMap["minChangedFiles"] as? Number)?.toInt()
+            if (minChanged != null) require(minChanged >= 1) { "chain.rules[$i].when.minChangedFiles は1以上である必要があります" }
+            ChainRule(
+                then = then,
+                outcome = outcome,
+                changedFiles = whenMap["changedFiles"]?.toString(),
+                minChangedFiles = minChanged,
+                noteContains = whenMap["noteContains"]?.toString(),
+            )
+        }
     }
 
     private fun parseTrigger(raw: Any?): TriggerDef = when (raw) {

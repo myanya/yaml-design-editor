@@ -144,12 +144,21 @@ class Workspace private constructor(val root: Path) {
      * スキーマ（`_schemas/`）を書いた場合は走査規則が変わるため全再構築する。
      */
     private fun refreshAfterWrite(written: List<Path>) {
-        if (written.any { relPath(it).startsWith(SchemaLoader.SCHEMA_DIR + "/") }) {
+        noteDiskChanges(written)
+    }
+
+    /**
+     * ディスク上のファイル変更（保存・外部変更・削除）をコアへ通知し、索引を更新する（R9-02）。
+     * 増分か全再構築かの振り分け（スキーマ変更時のみ全再構築。§4.5）はここに一元化されており、
+     * UI（AppState）の保存・外部変更検出もこの経路を通る。
+     */
+    fun noteDiskChanges(changed: Collection<Path>, removed: Collection<Path> = emptyList()) {
+        if ((changed + removed).any { relPath(it).startsWith(SchemaLoader.SCHEMA_DIR + "/") }) {
             refresh()
             return
         }
-        if (written.any { it !in files }) files = WorkspaceScan.yamlFiles(root)
-        index.update(root, written, emptyList(), schemas)
+        if (changed.any { it !in files } || removed.isNotEmpty()) files = WorkspaceScan.yamlFiles(root)
+        index.update(root, changed.toList(), removed.toList(), schemas)
     }
 
     /** 1 ファイルを検証する（スキーマ適合・参照解決・重複・カバレッジ）。 */

@@ -1,12 +1,6 @@
 package ai
 
-import kotlinx.coroutines.future.await
 import kotlinx.serialization.json.*
-import java.net.URI
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
-import java.time.Duration
 
 /**
  * ツール使用（function calling）対応のチャットクライアント（R2-03）。
@@ -63,24 +57,17 @@ object ToolChat {
         require(apiKey.isNotBlank()) { "${provider.label} APIキーを設定してください" }
         require(model.isNotBlank()) { "モデルを指定してください" }
         return when (provider) {
-            AiProvider.OPENAI -> OpenAiToolSession(apiKey, model, system, tools)
+            // AZURE は OpenAI 互換機構（R9-07）のプリセット。接続先の差は AiConnection が吸収する。
+            AiProvider.OPENAI, AiProvider.AZURE -> OpenAiToolSession(apiKey, model, system, tools, provider)
             AiProvider.ANTHROPIC -> AnthropicToolSession(apiKey, model, system, tools)
         }
     }
 }
 
-private val httpClient: HttpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(20)).build()
 private val json = Json { ignoreUnknownKeys = true }
 
-private suspend fun post(uri: String, headers: Map<String, String>, body: JsonObject): Pair<Int, String> {
-    val builder = HttpRequest.newBuilder(URI.create(uri))
-        .timeout(Duration.ofSeconds(300))
-        .header("Content-Type", "application/json")
-        .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
-    headers.forEach { (k, v) -> builder.header(k, v) }
-    val response = httpClient.sendAsync(builder.build(), HttpResponse.BodyHandlers.ofString()).await()
-    return response.statusCode() to response.body()
-}
+private suspend fun post(uri: String, headers: Map<String, String>, body: JsonObject): Pair<Int, String> =
+    AiHttp.post(uri, headers, body.toString())
 
 private fun errorMessageOf(providerLabel: String, statusCode: Int, body: String): String {
     val parsed = runCatching { json.parseToJsonElement(body).jsonObject }.getOrNull()
@@ -185,6 +172,7 @@ internal class OpenAiToolSession(
     private val model: String,
     private val system: String,
     private val tools: List<ToolSpec>,
+    private val provider: AiProvider = AiProvider.OPENAI,
 ) : ToolChatSession {
 
     /** input 配列（メッセージ・function_call・function_call_output の生JSON）。store: false のため全履歴を毎回送る。 */
@@ -221,11 +209,8 @@ internal class OpenAiToolSession(
             }
             putJsonArray("input") { input.forEach(::add) }
         }
-        val (status, responseBody) = post(
-            "https://api.openai.com/v1/responses",
-            mapOf("Authorization" to "Bearer ${apiKey.trim()}"),
-            body,
-        )
+        val target = AiConnection.responsesTarget(provider, apiKey)
+        val (status, responseBody) = post(target.uri, target.headers, body)
         return parseOpenAiToolResponse(status, responseBody)
     }
 

@@ -154,4 +154,120 @@ class ImportExportTest {
         assertTrue(text.lineSequence().first().startsWith("| ID |"))
         assertTrue("ISSUE-001" in text && "ISSUE-002" in text)
     }
+
+    // ---------------------------------------------------------------- 入出力形式の拡張（R9-05）
+
+    @Test
+    fun `json export preserves cell types and round trips through readJson`() {
+        Files.writeString(dir.resolve("_skills/export-json.yaml"), """
+            id: export-json
+            name: JSON出力
+            kind: export
+            source: { match: "issues/**/*.{yaml,yml}" }
+            columns:
+              - { header: ID, path: id }
+              - { header: 件名, path: title }
+              - { header: 優先度, path: priority }
+            output: { file: out/issues.json }
+        """.trimIndent())
+        val result = Exporter.run(ws(), Skills.load(dir).skill("export-json")!!)
+        val table = Tables.readJson(Files.readString(result.file), null)
+        assertEquals(listOf("ID", "件名", "優先度"), table.headers)
+        // 型が保持される（優先度は数値のまま）
+        assertTrue(table.rows.any { it[0] == "ISSUE-001" && it[2] is Long }, table.rows.toString())
+    }
+
+    @Test
+    fun `html export renders an escaped standalone table`() {
+        Files.writeString(dir.resolve("issues/ISSUE-009.yaml"), """
+            id: ISSUE-009
+            title: <b>タグを含む</b> & 記号
+        """.trimIndent() + "\n")
+        Files.writeString(dir.resolve("_skills/export-html.yaml"), """
+            id: export-html
+            name: HTML出力
+            kind: export
+            source: { match: "issues/**/*.{yaml,yml}" }
+            columns:
+              - { header: ID, path: id }
+              - { header: 件名, path: title }
+            output: { file: out/issues.html }
+        """.trimIndent())
+        val result = Exporter.run(ws(), Skills.load(dir).skill("export-html")!!)
+        val text = Files.readString(result.file)
+        assertTrue("<table>" in text)
+        assertTrue("ISSUE-009" in text)
+        // セルはエスケープされる（HTMLとして解釈されない）
+        assertTrue("&lt;b&gt;タグを含む&lt;/b&gt; &amp; 記号" in text, text)
+    }
+
+    @Test
+    fun `docx import reads a word table and feeds the import pipeline`() {
+        // Word 文書（表1つ）をPOIで作成する
+        val docxFile = dir.resolve("input.docx")
+        org.apache.poi.xwpf.usermodel.XWPFDocument().use { doc ->
+            val table = doc.createTable(3, 6)
+            val headers = listOf("ID", "件名", "状態", "優先度", "担当", "タグ")
+            headers.forEachIndexed { i, h -> table.getRow(0).getCell(i).setText(h) }
+            listOf(
+                listOf("ISSUE-201", "Wordからの課題", "未着手", "2", "suzuki", "word,import"),
+                listOf("ISSUE-202", "2件目", "対応中", "1", "", ""),
+            ).forEachIndexed { r, row ->
+                row.forEachIndexed { c, v -> table.getRow(r + 1).getCell(c).setText(v) }
+            }
+            Files.newOutputStream(docxFile).use { doc.write(it) }
+        }
+        val table = Tables.readDocx(docxFile)
+        assertEquals(listOf("ID", "件名", "状態", "優先度", "担当", "タグ"), table.headers)
+        assertEquals(2, table.rows.size)
+        // 既存のインポート定義（列マッピング・値辞書・split）にそのまま流せる
+        val def = Skills.load(dir).skill("import-issues")!!.import!!
+        val preview = Importer.build(ws(), def, table)
+        assertTrue(preview.ok, preview.errors.toString())
+        assertEquals(listOf("issues/ISSUE-201.yaml", "issues/ISSUE-202.yaml"), preview.created.sorted())
+        val applied = ws().apply(preview.changeSet, requireValid = true)
+        assertTrue(applied.ok)
+        val text = Files.readString(dir.resolve("issues/ISSUE-201.yaml"))
+        assertTrue("status: open" in text, text)     // 値辞書（未着手→open）
+        assertTrue("- word" in text, text)           // split による配列化
+    }
+
+    @Test
+    fun `view referenced export writes the view rows and columns as a table`() {
+        Files.createDirectories(dir.resolve("_views"))
+        Files.writeString(dir.resolve("_views/issues-board.yaml"), """
+            id: issues-board
+            name: 課題ボード
+            rows: { idPattern: "ISSUE-*" }
+            columns:
+              - { label: 件名, path: title }
+              - { label: 状態, path: status }
+        """.trimIndent())
+        Files.writeString(dir.resolve("_skills/export-board.yaml"), """
+            id: export-board
+            name: ビューをそのまま帳票へ
+            kind: export
+            source: { view: issues-board }
+            output: { file: out/board.csv }
+        """.trimIndent())
+        val result = Exporter.run(ws(), Skills.load(dir).skill("export-board")!!)
+        assertEquals(2, result.rows)
+        val table = Tables.readCsv(Files.readString(result.file))
+        assertEquals(listOf("id", "件名", "状態"), table.headers)
+        assertTrue(table.rows.any { it[0] == "ISSUE-001" && it[1] == "ログイン画面のエラーメッセージが不親切" })
+    }
+
+    @Test
+    fun `view referenced export rejects columns in the definition`() {
+        Files.writeString(dir.resolve("_skills/export-bad.yaml"), """
+            id: export-bad
+            kind: export
+            source: { view: issues-board }
+            columns:
+              - { header: ID, path: id }
+            output: { file: out/bad.csv }
+        """.trimIndent())
+        val loaded = Skills.load(dir)
+        assertTrue(loaded.errors.any { "columns を書けません" in it }, loaded.errors.toString())
+    }
 }

@@ -18,6 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import skill.Importer
+import skill.Runner
 import skill.SkillDef
 import skill.SkillKind
 import skill.Skills
@@ -38,6 +39,7 @@ fun SkillsPanel(state: AppState, onClose: () -> Unit) {
     var importTarget by remember { mutableStateOf<SkillDef?>(null) }
     var importSource by remember { mutableStateOf("") }
     var preview by remember { mutableStateOf<Importer.Preview?>(null) }
+    var runTarget by remember { mutableStateOf<SkillDef?>(null) }  // コード実行skillの承認待ち（R9-06）
     val scope = rememberCoroutineScope()
 
     fun reload() {
@@ -69,6 +71,40 @@ fun SkillsPanel(state: AppState, onClose: () -> Unit) {
                 }
             } catch (e: Exception) {
                 message = "プレビュー失敗: ${e.message}"
+            } finally {
+                busy = false
+            }
+        }
+    }
+
+    /** コード実行skill（R9-06）。人間が承認ダイアログで内容を確認した後にのみ呼ばれる。 */
+    fun runApproved(def: SkillDef) {
+        val runDef = def.run ?: return
+        busy = true
+        scope.launch {
+            try {
+                val outcome = withContext(Dispatchers.IO) {
+                    Runner.run(Workspace.open(wsDir), def, Runner.Approval.approve(runDef))
+                }
+                if (outcome.changedFiles.isNotEmpty()) state.reload()
+                message = buildString {
+                    append(if (outcome.ok) "実行しました" else "実行に失敗しました")
+                    append("（終了コード ${outcome.exitCode}")
+                    if (outcome.timedOut) append("・タイムアウト")
+                    append("）")
+                    if (outcome.changedFiles.isNotEmpty()) append(" 変更 ${outcome.changedFiles.size} ファイル")
+                    if (outcome.outOfScope.isNotEmpty()) {
+                        append(" ⚠ 宣言外の変更: ${outcome.outOfScope.take(5).joinToString(", ")}")
+                    }
+                    if (outcome.reservedTouched.isNotEmpty()) {
+                        append(" ⚠ 予約ディレクトリの変更: ${outcome.reservedTouched.take(5).joinToString(", ")}")
+                    }
+                    if (!outcome.ok && outcome.stderr.isNotBlank()) {
+                        append(" — ${outcome.stderr.lineSequence().firstOrNull().orEmpty().take(160)}")
+                    }
+                }
+            } catch (e: Exception) {
+                message = "実行失敗: ${e.message}"
             } finally {
                 busy = false
             }
@@ -131,7 +167,10 @@ fun SkillsPanel(state: AppState, onClose: () -> Unit) {
                                 Text(
                                     when (def.kind) {
                                         SkillKind.IMPORT -> "取り込み → ${def.import?.targetFile}"
-                                        SkillKind.EXPORT -> "出力 → ${def.export?.outputFile}"
+                                        SkillKind.EXPORT ->
+                                            if (def.export?.viewId != null) "出力（ビュー ${def.export?.viewId}） → ${def.export?.outputFile}"
+                                            else "出力 → ${def.export?.outputFile}"
+                                        SkillKind.RUN -> "コード実行 → ${def.run?.command?.joinToString(" ")?.take(80)}"
                                     },
                                     fontSize = 11.sp, color = Palette.SubText,
                                 )
@@ -151,6 +190,11 @@ fun SkillsPanel(state: AppState, onClose: () -> Unit) {
                                     },
                                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
                                 ) { Text("取り込み…", fontSize = 12.sp) }
+                                SkillKind.RUN -> Button(
+                                    enabled = !busy,
+                                    onClick = { runTarget = def },  // 実行は承認ダイアログを必ず経由する（R9-06）
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
+                                ) { Text("実行…", fontSize = 12.sp) }
                             }
                         }
 
@@ -160,7 +204,7 @@ fun SkillsPanel(state: AppState, onClose: () -> Unit) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 CompactTextField(
                                     importSource, { importSource = it }, singleLine = true,
-                                    placeholder = { Text("取り込むファイル（xlsx / csv / json / md）", color = Palette.SubText) },
+                                    placeholder = { Text("取り込むファイル（xlsx / csv / json / md / docx）", color = Palette.SubText) },
                                     modifier = Modifier.weight(1f),
                                 )
                                 Spacer(Modifier.width(6.dp))
@@ -213,6 +257,40 @@ fun SkillsPanel(state: AppState, onClose: () -> Unit) {
         confirmButton = {},
         dismissButton = { TextButton(enabled = !busy, onClick = onClose) { Text("閉じる") } },
     )
+
+    // R9-06: コード実行skillの承認ダイアログ。コマンド内容と権限を確認したうえで人間が明示的に承認する
+    runTarget?.let { def ->
+        val runDef = def.run
+        AlertDialog(
+            onDismissRequest = { runTarget = null },
+            title = { Text("コード実行の承認: ${def.name}") },
+            text = {
+                Column(Modifier.width(640.dp)) {
+                    Text(
+                        "このskillはワークスペースの外にも作用しうる任意のコマンドを実行します。内容を確認してください。",
+                        fontSize = 12.sp, color = Palette.ErrorRed,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    def.description?.let { Text(it, fontSize = 12.sp); Spacer(Modifier.height(6.dp)) }
+                    Text("コマンド: ${runDef?.command?.joinToString(" ")}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text("作業ディレクトリ: ${runDef?.workdir}", fontSize = 11.sp, color = Palette.SubText)
+                    Text("タイムアウト: ${runDef?.timeoutSeconds} 秒", fontSize = 11.sp, color = Palette.SubText)
+                    Text(
+                        "書込宣言: " + (runDef?.writes?.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: "（なし。ワークスペース内の変更はすべて警告されます）"),
+                        fontSize = 11.sp, color = Palette.SubText,
+                    )
+                }
+            },
+            confirmButton = {
+                Button(enabled = !busy, onClick = {
+                    val target = runTarget
+                    runTarget = null
+                    target?.let(::runApproved)
+                }) { Text("承認して実行", color = Palette.ErrorRed) }
+            },
+            dismissButton = { TextButton(onClick = { runTarget = null }) { Text("キャンセル") } },
+        )
+    }
 }
 
 /** Swing のファイル選択ダイアログ。 */

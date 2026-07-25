@@ -33,7 +33,7 @@ Kotlin + Compose for Desktop 製のスキーマ駆動YAMLエディタ。ワー�
 ## 落とし穴（要注意）
 
 - `YNode` は Compose の State ではない。ビューは `doc.version` / `state.indexVersion` を読んで再コンポーズを購読する。読み忘れると画面が更新されない。
-- `IdIndex` はディスク基準。未保存編集の参照解決は `DocScanner.scan` によるローカルIDを重ねて判定する二層構造（docs/ARCHITECTURE.md §4.5）。更新は変更ファイル単位の増分（`update`）だが、**スキーマが変わったら必ず `rebuild`**（走査規則が変わるため）。
+- `IdIndex` はディスク基準。未保存編集の参照解決は `DocScanner.scan` によるローカルIDを重ねて判定する二層構造（docs/ARCHITECTURE.md §4.5）。更新は変更ファイル単位の増分（`update`）だが、**スキーマが変わったら必ず `rebuild`**（走査規則が変わるため）。保存・外部変更でのこの振り分けは `Workspace.noteDiskChanges` に一元化されている（R9-02）——AppState 側に振り分けを書かない。
 - YAML はコメント・表記スタイルを保持する（R8-01）。ノードを**置換**する経路では `inheritMetaFrom` で引き継ぐ（`Slot.set` / `Patcher` は対応済み）。構造の比較・派生成果物の出力は `dump` ではなく `YamlIO.dumpPlain`（コメント・スタイルで揺れるため。docs/ARCHITECTURE.md §4.17）。複数ドキュメントYAMLの書込は `OpenDocument`（`parseAll`/`dumpAll`）に閉じ、読み取り専用経路だけ `parseFirst` を使う。
 - スキーマの `FieldDef` を使う際は必ず `schema.resolve(field)` を通す（`$ref` 解決）。object の子フィールドの列挙は必ず `schema.effectiveFields(fields, node)` を通す（enum の `cases` 合成。docs/ARCHITECTURE.md §4.7）。
 - フィールド型を追加する場合の変更箇所は docs/ARCHITECTURE.md §6 に列挙されている（4箇所以上に分岐が必要）。
@@ -42,7 +42,8 @@ Kotlin + Compose for Desktop 製のスキーマ駆動YAMLエディタ。ワー�
 - `_runs/` は索引対象外の予約ディレクトリ。予約ディレクトリの定数は `SchemaLoader` にある（`_evals` を含む）。
 - 定義文書（`_agents`/`_activities`/`_evals`/`_skills`/`_views`）への書込は `meta: true` のアクティビティのみ。`meta` かつ `approval: auto` はロード時に定義エラー。`_schemas`/`_runs` は meta でも書込不可。
 - ビュー（`_views`）はデータを持たない射影。セルは原本座標 `(file, YPath)` に解決され、UIは docCache ツリー直接編集、エージェントは `read_view`→既存 `apply_patch`。ビュー専用の書込経路を作らない（docs/ARCHITECTURE.md §4.14）。定義項目の追加は `core/Views.kt` の `parseView` と `BuiltinSchemas` の `builtin-view` を対で更新する。
-- skill は宣言型のみ（コード実行なし）。インポートは直接書かず変更セット（`Workspace.apply`）経由、エクスポートのYAML出力は禁止（原本主義）。入出力形式の追加は `skill/Tables.kt` に閉じる。
+- skill は宣言型（import / export）が既定。コード実行skill（kind: run）は `skill/Runner.kt` の `Approval`（人間の事前承認。定義変更で失効）経由でしか実行できず、エージェント・自動実行からは起動不可（docs/ARCHITECTURE.md §4.21）。インポートは直接書かず変更セット（`Workspace.apply`）経由、エクスポートのYAML出力は禁止（原本主義）。入出力形式の追加は `skill/Tables.kt` に閉じる。
+- AI呼び出しのHTTP送信は `ai/Http.kt`（`AiHttp.post`）に一元化されている（プロキシ・Basic認証）。OpenAI互換の接続先（Azure・ベースURL上書き）は `ai/Connection.kt` が解決する。独自に `HttpClient` を作らない（docs/ARCHITECTURE.md §4.18）。
 - 評価（`EvalRunner`）はワークスペースの一時コピー上で実行する。原本に書くのはレポート（`_runs/eval-*.yaml`）だけ。実行記録の形式を変えたら `RunLog` と `RunMetrics` の両方を直す。
 - カーネル（`AgentKernel`）のテストは疑似セッション注入で書く（`KernelTest` 参照）。実APIを叩くテストは書かない。
 - 自動化エンジン（`AutomationEngine`）のテストは `tick(now)` / `processOnce()` を直接呼ぶ（タイマー・sleep を使わない。`AutomationTest` 参照）。自動適用後はスタンプ基準を更新し、自己変更で on-change を再発火させないこと。

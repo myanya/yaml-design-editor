@@ -8,12 +8,9 @@ import index.IdIndex
 import index.IdEntry
 import model.YNode
 import model.YPath
-import model.scalarText
 import schema.SchemaDef
 import schema.FieldDef
-import schema.FieldType
 import schema.SchemaLoader
-import schema.effectiveFields
 import yaml.YamlIO
 import java.nio.file.Files
 import java.nio.file.Path
@@ -23,6 +20,8 @@ import java.util.prefs.Preferences
  * 開いている 1 ドキュメント。
  * root ツリーが正（source of truth）。フォーム編集はツリーを直接書き換え、
  * markEdited() で version をインクリメントして再コンポーズを駆動する。
+ * 履歴・dirty判定・複数ドキュメント再出力の中核は core.EditBuffer（UI非依存。R9-02）へ委譲し、
+ * このクラスは Compose 購読（version / dirty / parseError）のシェルに徹する。
  */
 class OpenDocument(
     val file: Path,
@@ -32,77 +31,77 @@ class OpenDocument(
     parseError: String?,
     extraDocs: List<YNode> = emptyList(),
 ) {
+    private val buffer = core.EditBuffer(file, root, extraDocs, initialText, parseError)
+
     var schema by mutableStateOf(schema)
-    var root: YNode? = root
+
+    var root: YNode?
+        get() = buffer.root
+        set(value) { buffer.root = value }
 
     /**
      * `---` 区切りの後続ドキュメント（R8-05: 複数ドキュメントYAML）。
-     * フォーム・索引の編集対象は先頭ドキュメントのみで、後続は保持して保存時に再出力する
-     * （ソースタブでは全ドキュメントを編集できる）。
+     * フォーム・索引の編集対象は先頭ドキュメントのみで、後続は保持して保存時に再出力する。
      */
-    var extraDocs: List<YNode> = extraDocs
+    var extraDocs: List<YNode>
+        get() = buffer.extraDocs
+        set(value) { buffer.extraDocs = value }
 
-    var rawText: String = initialText          // パース不能なときの元テキスト
-    var parseError by mutableStateOf(parseError)
+    var rawText: String
+        get() = buffer.rawText
+        set(value) { buffer.rawText = value }
+
+    // parseError / dirty は buffer が正で、Compose ミラーを同期する（購読の必要があるため）
+    private val parseErrorState = mutableStateOf(parseError)
+    var parseError: String?
+        get() = parseErrorState.value
+        set(value) {
+            parseErrorState.value = value
+            buffer.parseError = value
+        }
+
     var version by mutableStateOf(0)           // 編集のたびにインクリメント
-    var dirty by mutableStateOf(false)
+    private val dirtyState = mutableStateOf(false)
+    val dirty: Boolean get() = dirtyState.value
     var externalConflict by mutableStateOf(false)
     var diskModifiedMillis: Long = runCatching { Files.getLastModifiedTime(file).toMillis() }.getOrDefault(0L)
-    private val history = mutableListOf(if (root != null) canonicalText() else initialText)
-    private var savedSnapshot = history.first()
-    var historyIndex by mutableStateOf(0)
-        private set
+    val historyIndex: Int get() = buffer.historyIndex
+
+    private fun sync() {
+        dirtyState.value = buffer.dirty
+        parseErrorState.value = buffer.parseError
+    }
 
     fun markEdited() {
         version++
-        dirty = canonicalText() != savedSnapshot
-        val snapshot = canonicalText()
-        if (history.getOrNull(historyIndex) != snapshot) {
-            while (history.lastIndex > historyIndex) history.removeAt(history.lastIndex)
-            history.add(snapshot)
-            if (history.size > 100) history.removeAt(0) else historyIndex++
-        }
+        buffer.recordEdit()
+        sync()
     }
 
-    fun canUndo(): Boolean = historyIndex > 0
-    fun canRedo(): Boolean = historyIndex < history.lastIndex
+    fun canUndo(): Boolean = buffer.canUndo()
+    fun canRedo(): Boolean = buffer.canRedo()
 
-    fun undo() { if (canUndo()) restoreHistory(historyIndex - 1) }
-    fun redo() { if (canRedo()) restoreHistory(historyIndex + 1) }
+    fun undo() { if (buffer.undo()) { version++; sync() } }
+    fun redo() { if (buffer.redo()) { version++; sync() } }
 
     /** ソース編集のテキストをツリーへ取り込む。複数ドキュメントは先頭を編集対象にし、後続を保持する。 */
     fun applySourceText(text: String) {
-        val docs = YamlIO.parseAll(text)
-        root = docs.firstOrNull() ?: YNode.Map()
-        extraDocs = docs.drop(1)
-        parseError = null
+        buffer.applySourceText(text)
         markEdited()
     }
 
-    private fun restoreHistory(index: Int) {
-        val text = history[index]
-        val docs = runCatching { YamlIO.parseAll(text) }.getOrNull()
-        root = if (docs != null) (docs.firstOrNull() ?: YNode.Map()) else null
-        extraDocs = docs?.drop(1).orEmpty()
-        rawText = text
-        parseError = if (root == null) "履歴の復元に失敗しました" else null
-        historyIndex = index
-        dirty = text != savedSnapshot
-        version++
-    }
-
     fun resetHistory() {
-        history.clear()
-        history.add(canonicalText())
-        historyIndex = 0
-        savedSnapshot = canonicalText()
-        dirty = false
+        buffer.resetHistory()
+        sync()
     }
 
-    fun markSaved() { savedSnapshot = canonicalText(); dirty = false }
+    fun markSaved() {
+        buffer.markSaved()
+        sync()
+    }
 
     /** 保存・ソース表示に使う正規化テキスト。パース不能なら元テキストを返す。 */
-    fun canonicalText(): String = root?.let { YamlIO.dumpAll(listOf(it) + extraDocs) } ?: rawText
+    fun canonicalText(): String = buffer.canonicalText()
 }
 
 /**
@@ -111,13 +110,15 @@ class OpenDocument(
 class AppState {
     private val recentPrefs = Preferences.userRoot().node("yaml-design-editor/recent")
 
-    data class WorkspaceRecord(
-        val file: Path, val id: String?, val title: String?, val status: String?,
-        val owner: String?, val kind: String?,
-    )
-
     var workspace by mutableStateOf<Path?>(null)
         private set
+
+    /**
+     * ヘッドレスコア（R9-02）。ファイル走査・スキーマ・索引の実体と更新方針（増分／全再構築の
+     * 振り分け）は core.Workspace が持ち、AppState は Compose 購読用のミラーと文書キャッシュを担う。
+     */
+    private var coreWs: core.Workspace? = null
+
     var schemas by mutableStateOf<List<SchemaDef>>(emptyList())
         private set
     var schemaErrors by mutableStateOf<List<String>>(emptyList())
@@ -127,7 +128,8 @@ class AppState {
     var directories by mutableStateOf<List<Path>>(emptyList())
         private set
 
-    val index = IdIndex()
+    private val emptyIndex = IdIndex()
+    val index: IdIndex get() = coreWs?.index ?: emptyIndex
     var indexVersion by mutableStateOf(0)
         private set
 
@@ -186,6 +188,7 @@ class AppState {
 
     fun openWorkspace(dir: Path) {
         workspace = dir.toAbsolutePath().normalize()
+        coreWs = null
         docCache.clear()
         openDoc = null
         highlightPath = null
@@ -197,8 +200,8 @@ class AppState {
     /** ファイル一覧・スキーマ・索引をディスクから再読込する（未保存編集は保持）。 */
     fun reload() {
         val ws = workspace ?: return
-        loadSchemas(ws)
-        yamlFiles = scanYamlFiles(ws)
+        val cw = coreWs?.also { it.refresh() } ?: core.Workspace.open(ws).also { coreWs = it }
+        mirrorCore(cw)
         directories = scanDirectories(ws)
         val existing = yamlFiles.toSet()
         docCache.keys.filter { it !in existing }.toList().forEach { removed ->
@@ -209,36 +212,25 @@ class AppState {
             reloadDocumentFromDisk(doc, force = false)
         }
         openDoc?.let { if (it.file !in existing && !it.dirty) openDoc = null }
-        rebuildIndex()
+        indexVersion++
         workspaceStamp = snapshotFiles(ws)
         status = "ワークスペース: $ws ／ YAML ${yamlFiles.size} 件・スキーマ ${schemas.size} 件・ID ${index.entries.size} 件"
     }
 
-    private fun loadSchemas(ws: Path) {
-        val result = SchemaLoader.loadAllWithErrors(ws)
-        schemas = result.schemas
-        schemaErrors = result.errors
+    /** core.Workspace の状態を Compose 購読用ミラーへ反映する。 */
+    private fun mirrorCore(cw: core.Workspace) {
+        schemas = cw.schemas
+        schemaErrors = cw.schemaErrors
+        yamlFiles = cw.files
     }
 
     fun rebuildIndex() {
-        val ws = workspace ?: return
-        index.rebuild(ws, yamlFiles, schemas)
-        indexVersion++
-    }
-
-    /**
-     * 変更・削除のあったファイルだけ索引を差し替える（R8-02: 増分更新）。
-     * スキーマが変わった場合は走査規則自体が変わるため rebuildIndex() を使うこと。
-     */
-    private fun updateIndexFor(changed: Collection<Path>, removed: Collection<Path> = emptyList()) {
-        val ws = workspace ?: return
-        index.update(ws, changed, removed, schemas)
+        val cw = coreWs ?: return
+        cw.index.rebuild(cw.root, cw.files, cw.schemas)
         indexVersion++
     }
 
     // ファイル走査は core.WorkspaceScan（ヘッドレス層）と共通の実装を使う。
-    private fun scanYamlFiles(ws: Path): List<Path> = core.WorkspaceScan.yamlFiles(ws)
-
     private fun scanDirectories(ws: Path): List<Path> = core.WorkspaceScan.directories(ws)
 
     private fun snapshotFiles(ws: Path): Map<Path, Long> = core.WorkspaceScan.stamps(ws)
@@ -246,20 +238,20 @@ class AppState {
     /** UI の周期処理・ファイル監視から呼び、外部での作成・変更・削除を検出する。 */
     fun pollExternalChanges() {
         val ws = workspace ?: return
+        val cw = coreWs ?: return
         val next = snapshotFiles(ws)
         if (next == workspaceStamp) return
         val changed = (next.keys + workspaceStamp.keys).filter { next[it] != workspaceStamp[it] }
-        yamlFiles = next.keys.sortedBy { it.toString() }
-        directories = scanDirectories(ws)
         changed.forEach { file -> docCache[file]?.let { reloadDocumentFromDisk(it, force = false) } }
-        // スキーマが変わったときだけ全再構築（走査規則が変わるため）。通常は変更ファイルのみ差し替える（R8-02）
-        if (changed.any { relPath(it).startsWith(SchemaLoader.SCHEMA_DIR + "/") }) {
-            loadSchemas(ws)
-            docCache.values.forEach { it.schema = schemaFor(it.file) }
-            rebuildIndex()
-        } else {
-            updateIndexFor(changed = changed.filter { it in next.keys }, removed = changed.filter { it !in next.keys })
-        }
+        // 増分か全再構築か（スキーマ変更時のみ全再構築）の振り分けは core に一元化されている（R9-02）
+        cw.noteDiskChanges(
+            changed = changed.filter { it in next.keys },
+            removed = changed.filter { it !in next.keys },
+        )
+        mirrorCore(cw)
+        directories = scanDirectories(ws)
+        docCache.values.forEach { it.schema = schemaFor(it.file) }
+        indexVersion++
         workspaceStamp = next
         status = "外部での変更を検出しました（${changed.size} 件）"
     }
@@ -269,11 +261,7 @@ class AppState {
         return IdIndex.relPathOf(ws, file)
     }
 
-    fun schemaFor(file: Path): SchemaDef? {
-        val rel = relPath(file)
-        if (rel.startsWith(SchemaLoader.SCHEMA_DIR + "/")) return null
-        return schemas.firstOrNull { it.matches(rel) }
-    }
+    fun schemaFor(file: Path): SchemaDef? = coreWs?.schemaFor(file)
 
     // ---------------------------------------------------------------- documents
 
@@ -298,43 +286,25 @@ class AppState {
 
     private fun workspaceKey(): String = "ws-${workspace?.toString()?.hashCode() ?: 0}"
 
-    fun workspaceRecords(): List<WorkspaceRecord> = yamlFiles.asSequence()
-        .filter { !relPath(it).startsWith(SchemaLoader.SCHEMA_DIR + "/") }
-        .mapNotNull { file ->
-            val root = docCache[file]?.root ?: runCatching { YamlIO.parseFirst(Files.readString(file)) }.getOrNull()
-            val map = root as? YNode.Map ?: return@mapNotNull null
-            WorkspaceRecord(
-                file = file,
-                id = scalarText(map.entries["id"]),
-                title = scalarText(map.entries["title"]) ?: scalarText(map.entries["name"]),
-                status = scalarText(map.entries["status"]),
-                owner = scalarText(map.entries["owner"]),
-                kind = schemaFor(file)?.name,
-            )
-        }.sortedBy { relPath(it.file) }.toList()
+    /** 未保存編集を優先するツリー取得（docCache → ディスク。§4.5 の二層構造）。core への loader 注入に使う。 */
+    private fun unsavedFirstLoader(): (Path) -> YNode? = { file ->
+        docCache[file]?.root ?: runCatching { YamlIO.parseFirst(Files.readString(file)) }.getOrNull()
+    }
+
+    fun workspaceRecords(): List<core.WorkspaceRecord> =
+        coreWs?.let { core.WorkspaceRecords.collect(it, unsavedFirstLoader()) }.orEmpty()
 
     /**
      * 一覧ビューで選択したファイルのルート直下スカラーを一括変更する。
      * 対象キーは任意のルートスカラーキー（R8-05: L-07）。ID・予約キー・複合値（配列/オブジェクト）は
-     * 壊さないよう対象外とする。
+     * 壊さないよう対象外とする。書換ロジックは core.WorkspaceRecords（R9-02）。
      */
     fun bulkUpdate(files: Set<Path>, key: String, value: String): Result<Int> = runCatching {
         require(key.isNotBlank() && !key.startsWith("_") && key != "id") { "一括変更できない項目です: $key" }
         require(files.none { docCache[it]?.dirty == true }) { "未保存のファイルが含まれています" }
-        var count = 0
         val reopen = openDoc?.file?.takeIf { it in files }
-        files.forEach { file ->
-            val docs = runCatching { YamlIO.parseAll(Files.readString(file)) }.getOrNull() ?: return@forEach
-            val root = docs.firstOrNull() as? YNode.Map ?: return@forEach
-            val existing = root.entries[key]
-            if (existing != null && existing !is YNode.Scalar) return@forEach  // 複合値は上書きしない
-            val node = YNode.Scalar(value)
-            node.inheritMetaFrom(existing)
-            root.entries[key] = node
-            Files.writeString(file, YamlIO.dumpAll(docs))
-            docCache.remove(file)
-            count++
-        }
+        val count = core.WorkspaceRecords.updateRootScalar(files, key, value)
+        files.forEach(docCache::remove)
         reload()
         reopen?.let { file ->
             val refreshed = loadDocument(file)
@@ -348,18 +318,8 @@ class AppState {
      * 一括編集の対象にできるキーの候補（R8-05: L-07）。
      * ワークスペース文書のルート直下に現れるスカラーキーを集める（id・予約キーは除く）。
      */
-    fun bulkKeyCandidates(): List<String> {
-        val keys = linkedSetOf("status", "owner")
-        yamlFiles.asSequence()
-            .filter { !relPath(it).startsWith("_") }
-            .forEach { file ->
-                val root = docCache[file]?.root ?: runCatching { YamlIO.parseFirst(Files.readString(file)) }.getOrNull()
-                (root as? YNode.Map)?.entries?.forEach { (k, v) ->
-                    if (v is YNode.Scalar && k != "id" && !k.startsWith("_")) keys.add(k)
-                }
-            }
-        return keys.toList()
-    }
+    fun bulkKeyCandidates(): List<String> =
+        coreWs?.let { core.WorkspaceRecords.bulkKeyCandidates(it, unsavedFirstLoader()) }.orEmpty()
 
     private fun loadDocument(file: Path): OpenDocument {
         val text = runCatching { Files.readString(file) }.getOrDefault("")
@@ -401,9 +361,8 @@ class AppState {
         }
         doc.diskModifiedMillis = modified
         doc.externalConflict = false
-        doc.dirty = false
         doc.version++
-        doc.resetHistory()
+        doc.resetHistory()  // 履歴・保存基準・dirty を取り直す
     }
 
     fun acceptDiskVersion() { openDoc?.let { reloadDocumentFromDisk(it, force = true) } }
@@ -437,12 +396,14 @@ class AppState {
             doc.diskModifiedMillis = Files.getLastModifiedTime(doc.file).toMillis()
             doc.externalConflict = false
             workspace?.let { workspaceStamp = snapshotFiles(it) }
-            if (relPath(doc.file).startsWith(SchemaLoader.SCHEMA_DIR + "/")) {
-                workspace?.let(::loadSchemas)
-                docCache.values.forEach { it.schema = schemaFor(it.file) }
-                rebuildIndex()
-            } else {
-                updateIndexFor(listOf(doc.file))  // 保存したファイルだけ索引を差し替える（R8-02）
+            // 保存したファイルだけ索引を差し替える。スキーマ保存時の全再構築への振り分けは core が行う（R8-02 / R9-02）
+            coreWs?.let { cw ->
+                cw.noteDiskChanges(listOf(doc.file))
+                mirrorCore(cw)
+                if (relPath(doc.file).startsWith(SchemaLoader.SCHEMA_DIR + "/")) {
+                    docCache.values.forEach { it.schema = schemaFor(it.file) }
+                }
+                indexVersion++
             }
             status = "保存しました: ${relPath(doc.file)}"
         }.onFailure {
@@ -461,36 +422,12 @@ class AppState {
         val file = parent.resolve(fileName)
         require(!Files.exists(file)) { "同名のファイルが存在します" }
         val schema = schemaFor(file)
-        val initial = schema?.let { YamlIO.dump(defaultFor(it.root, it)) } ?: "{}\n"
+        // スキーマ初期値の生成は core.Views.defaultTree に一本化する（R9-02 で重複実装を解消）
+        val initial = schema?.let { YamlIO.dump(core.Views.defaultTree(it.root, it)) } ?: "{}\n"
         Files.writeString(file, initial)
         reload()
         openFile(file)
         file
-    }
-
-    private fun defaultFor(field: FieldDef, schema: SchemaDef, depth: Int = 0): YNode {
-        if (depth > 24) return YNode.Map()
-        val f = schema.resolve(field) ?: field
-        if (f.default != null) return YamlIO.fromAny(f.default)
-        return when (f.type) {
-            FieldType.OBJECT -> {
-                val entries = LinkedHashMap<String, YNode>().apply {
-                    f.fields.filter { it.required && it.key != null }.forEach { put(it.key!!, defaultFor(it, schema, depth + 1)) }
-                }
-                val map = YNode.Map(entries)
-                // 判別 enum の初期値に応じた case フィールドのうち必須のものを補う
-                schema.effectiveFields(f.fields, map).fields.forEach { ch ->
-                    val key = ch.key ?: return@forEach
-                    if (ch.required && key !in entries) entries[key] = defaultFor(ch, schema, depth + 1)
-                }
-                map
-            }
-            FieldType.ARRAY -> YNode.Seq()
-            FieldType.MAP -> YNode.Map()
-            FieldType.BOOLEAN -> YNode.Scalar(false)
-            FieldType.INT, FieldType.NUMBER -> YNode.Scalar(0)
-            else -> YNode.Scalar("")
-        }
     }
 
     /**

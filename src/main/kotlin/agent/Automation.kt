@@ -297,7 +297,7 @@ class AutomationEngine(
         when {
             result.status == RunStatus.SUBMITTED && result.changeSet.changes.isEmpty() -> {
                 recordHistory(activity.id, "完了", "変更なし — ${result.message ?: ""}")
-                chainNext(activity, item, success = true)
+                chainNext(activity, item, success = true, result = result)
             }
             result.status == RunStatus.SUBMITTED && activity.approval == ApprovalMode.AUTO -> {
                 val dirty = result.changeSet.changes.filter { change ->
@@ -316,15 +316,15 @@ class AutomationEngine(
                     if (applied.ok) {
                         stamps = scanStamps()  // 自己変更で on-change を再発火させない
                         recordHistory(activity.id, "自動適用", "${result.changeSet.changes.size} ファイル — ${result.message ?: ""}")
-                        chainNext(activity, item, success = true)
+                        chainNext(activity, item, success = true, result = result)
                     } else {
                         val why = applied.results.mapNotNull { it.message }.joinToString("; ").ifBlank { "適用に失敗しました" }
-                        handleFailure(activity, item, "適用失敗: $why")
+                        handleFailure(activity, item, "適用失敗: $why", result)
                     }
                 }
             }
             result.status == RunStatus.SUBMITTED -> addPendingReview(activity, item, result, runFile, ws, item.reason)
-            else -> handleFailure(activity, item, "${result.status}: ${result.message ?: ""}${validationSummary(result)}")
+            else -> handleFailure(activity, item, "${result.status}: ${result.message ?: ""}${validationSummary(result)}", result)
         }
     }
 
@@ -370,22 +370,47 @@ class AutomationEngine(
         if (applied) stamps = scanStamps()
         val defs = Definitions.load(dir)
         defs.activity(review.activityId)?.let { activity ->
-            chainNext(activity, QueueItem(review.activityId, "承認待ちの採否", chainDepth = review.chainDepth, visited = review.visited), success)
+            chainNext(
+                activity,
+                QueueItem(review.activityId, "承認待ちの採否", chainDepth = review.chainDepth, visited = review.visited),
+                success,
+                result = review.result,
+                adoptedFiles = adoptedFiles,
+            )
         }
         notifyUpdate()
     }
 
     /** 手動実行（実行ダイアログ）の採否通知。エンジン有効時のみ連鎖を発火させる。 */
-    fun notifyManualCompletion(activityId: String, success: Boolean) {
+    fun notifyManualCompletion(
+        activityId: String,
+        success: Boolean,
+        result: AgentRunResult? = null,
+        adoptedFiles: List<String>? = null,
+    ) {
         if (!enabled) return
         val defs = Definitions.load(dir)
-        defs.activity(activityId)?.let { chainNext(it, QueueItem(activityId, "手動実行"), success) }
+        defs.activity(activityId)?.let {
+            chainNext(it, QueueItem(activityId, "手動実行"), success, result = result, adoptedFiles = adoptedFiles)
+        }
     }
 
     // ---------------------------------------------------------------- 連鎖（R3-02）とリトライ（R3-03）
 
-    private fun chainNext(activity: ActivityDef, item: QueueItem, success: Boolean) {
-        val next = (if (success) activity.chain.onSuccess else activity.chain.onFailure) ?: return
+    /**
+     * 連鎖先の決定と発火。R9-04: chain.rules（出力値による分岐）を先に評価し、
+     * 不一致なら onSuccess / onFailure へフォールバックする。深さ上限・循環検出は分岐先にも同様に効く。
+     */
+    private fun chainNext(
+        activity: ActivityDef,
+        item: QueueItem,
+        success: Boolean,
+        result: AgentRunResult? = null,
+        adoptedFiles: List<String>? = null,
+    ) {
+        val changedFiles = adoptedFiles ?: result?.changeSet?.changes?.map { it.file } ?: emptyList()
+        val notesText = result?.let { (it.notes + listOfNotNull(it.message)).joinToString("\n") } ?: ""
+        val next = activity.chain.selectNext(success, changedFiles, notesText) ?: return
         if (item.chainDepth + 1 > maxChainDepth) {
             recordHistory(next, "スキップ", "連鎖の深さ上限（$maxChainDepth）に達しました")
             return
@@ -402,11 +427,11 @@ class AutomationEngine(
         )
     }
 
-    private fun handleFailure(activity: ActivityDef, item: QueueItem, message: String) {
+    private fun handleFailure(activity: ActivityDef, item: QueueItem, message: String, result: AgentRunResult? = null) {
         // 収束判定: 同じ失敗を繰り返した場合は試行を打ち切る
         if (item.lastFailure != null && item.lastFailure == message) {
             recordHistory(activity.id, "失敗", "同一の失敗を繰り返したため中断: ${message.take(200)}")
-            chainNext(activity, item, success = false)
+            chainNext(activity, item, success = false, result = result)
             return
         }
         if (item.attempt < activity.retry.maxAttempts) {
@@ -423,7 +448,7 @@ class AutomationEngine(
             notifyUpdate()
         } else {
             recordHistory(activity.id, "失敗", message.take(300))
-            chainNext(activity, item, success = false)
+            chainNext(activity, item, success = false, result = result)
         }
     }
 

@@ -1,17 +1,10 @@
 package ai
 
-import kotlinx.coroutines.future.await
 import kotlinx.serialization.json.*
 import model.YNode
-import java.net.URI
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
-import java.time.Duration
 
 object AnthropicGenerator {
     private val json = Json { ignoreUnknownKeys = true }
-    private val client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(20)).build()
 
     suspend fun generate(input: AiGenerationInput): YNode {
         require(input.apiKey.isNotBlank()) { "Anthropic APIキーを入力してください" }
@@ -50,15 +43,12 @@ object AnthropicGenerator {
                 }
             }
         }
-        val request = HttpRequest.newBuilder(URI.create("https://api.anthropic.com/v1/messages"))
-            .timeout(Duration.ofSeconds(300))
-            .header("x-api-key", input.apiKey.trim())
-            .header("anthropic-version", "2023-06-01")
-            .header("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
-            .build()
-        val response = client.sendAsync(request, HttpResponse.BodyHandlers.ofString()).await()
-        return parseResponse(response.statusCode(), response.body())
+        val (status, responseBody) = AiHttp.post(
+            "https://api.anthropic.com/v1/messages",
+            mapOf("x-api-key" to input.apiKey.trim(), "anthropic-version" to "2023-06-01"),
+            body.toString(),
+        )
+        return parseResponse(status, responseBody)
     }
 
     internal fun parseResponse(statusCode: Int, body: String): YNode {

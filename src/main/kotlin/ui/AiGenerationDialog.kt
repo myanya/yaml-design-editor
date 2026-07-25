@@ -1,9 +1,10 @@
 package ui
 
+import agent.GenerationRun
 import ai.AiGenerationInput
-import ai.AiGenerator
 import ai.AiProvider
 import ai.RefCandidate
+import core.Workspace
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -38,6 +39,8 @@ import validate.Validator
 import yaml.YamlIO
 
 // AI接続設定（プロバイダ・APIキー・モデル）は ui.AiSettings をエージェント実行と共有する。
+// 実行系も agent.GenerationRun（1ターンで提出する特殊アクティビティ）でカーネルへ統合されており、
+// 生成のたびに実行記録（_runs）が通常のアクティビティ実行と同じ形式で残る（R9-01）。
 
 private enum class AiDialogStage { INPUT, LOADING, PREVIEW, ERROR }
 
@@ -67,21 +70,29 @@ fun AiGenerationHost(state: AppState) {
         generationJob = scope.launch {
             try {
                 val generated = withContext(Dispatchers.IO) {
-                    AiGenerator.generate(
-                        AiSettings.provider,
-                        AiGenerationInput(
-                            apiKey = AiSettings.apiKey,
-                            model = AiSettings.model.trim(),
-                            instruction = instruction,
-                            field = request.field,
-                            schema = schema,
-                            targetPath = request.path.pretty(),
-                            currentValueYaml = baseTarget?.let(YamlIO::dump) ?: "（未設定）",
-                            currentDocumentYaml = YamlIO.dump(baseRoot),
-                            idCandidates = state.index.entries.values.flatten()
-                                .map { RefCandidate(it.id, it.schemaId, it.documentId) },
-                        )
-                    )
+                    val ws = Workspace.open(state.workspace ?: error("ワークスペースが開かれていません"))
+                    GenerationRun.run(
+                        ws,
+                        GenerationRun.Request(
+                            provider = AiSettings.provider,
+                            input = AiGenerationInput(
+                                apiKey = AiSettings.apiKey,
+                                model = AiSettings.model.trim(),
+                                instruction = instruction,
+                                field = request.field,
+                                schema = schema,
+                                targetPath = request.path.pretty(),
+                                currentValueYaml = baseTarget?.let(YamlIO::dump) ?: "（未設定）",
+                                currentDocumentYaml = YamlIO.dump(baseRoot),
+                                idCandidates = state.index.entries.values.flatten()
+                                    .map { RefCandidate(it.id, it.schemaId, it.documentId) },
+                            ),
+                            fileRel = state.relPath(doc.file),
+                            targetPath = request.path,
+                            wholeDocument = request.wholeDocument,
+                            appendToArray = appendToArray,
+                        ),
+                    ).generated
                 }
                 val target = combineProposal(baseTarget, generated, appendToArray, request.wholeDocument)
                 proposedTarget = target
@@ -241,7 +252,7 @@ private fun AiInputContent(
             OutlinedTextField(
                 value = model,
                 onValueChange = onModelChange,
-                label = { Text("モデル") },
+                label = { Text(modelFieldLabel(provider)) },
                 singleLine = true,
                 modifier = Modifier.width(210.dp),
             )
@@ -251,6 +262,7 @@ private fun AiInputContent(
             fontSize = 10.sp,
             color = Palette.SubText,
         )
+        AiConnectionSettingsSection(provider)
         Spacer(Modifier.height(14.dp))
         Text("送信するコンテキスト", fontSize = 12.sp, color = Palette.SubText)
         Text(

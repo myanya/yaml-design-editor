@@ -6,8 +6,8 @@
 
 - Kotlin (JVM 17) + Compose for Desktop + Material 3
 - YAML入出力: SnakeYAML
-- AI連携: Java 11 HttpClient + kotlinx-serialization-json（外部SDK不使用）
-- Excel入出力: Apache POI（poi-ooxml。skill機構のインポート・エクスポートのみで使用）
+- AI連携: Java 11 HttpClient + kotlinx-serialization-json（外部SDK不使用）。HttpClient の生成は `ai/Http.kt` の単一ファクトリに集約し、プロキシ（システム設定尊重／手動＋Basic認証）と OpenAI 互換エンドポイント（Azure 等）を一元管理する（R9-07・R9-08。§4.18）
+- Excel・Word入出力: Apache POI（poi-ooxml。skill機構のインポート・エクスポートのみで使用。docx は XWPF で表を読む）
 - 永続化: `java.util.prefs.Preferences`（UIレイアウト・テーマ・履歴・AIモデル設定）
 - ビルド: Gradle（Wrapper 同梱）、テスト: kotlin.test
 - ヘッドレスCLI: `./gradlew runCli --args="…"`（GUIなしで探索・検索・パッチ・検証・エージェント実行・評価・入出力変換。README §16） 
@@ -57,7 +57,8 @@ src/main/kotlin/
 | `DocScanner` | index/IdIndex.kt | 1文書からのID・参照抽出。スキーマ有無で検出規則を切替、未知キー境界で走査停止。参照には `relation` / `sourceSchemaId` を付与 |
 | `IdIndex` | index/IdIndex.kt | ワークスペース全体の `id -> 出現一覧` 索引と全参照。**ディスク基準**（未保存編集は反映されない）。ファイル単位の走査結果を保持し、`update` で変更ファイルだけを差し替える増分更新ができる（R8-02。§4.5） |
 | `Validator` | validate/Validator.kt | 文書の検証（UI非依存）。スキーマ適合＋参照解決＋文書内ID重複＋カバレッジ（`coverageStatuses` はUIとも共用）。フェーズ考慮の必須判定と記入進捗 `phaseProgress`、1行サマリ `phaseSummaryText`（UI・CLI・エージェントツールで共用。§4.15） |
-| `Workspace` / `WorkspaceScan` | core/Workspace.kt | ヘッドレスなワークスペース操作（開く・読む・保存・検証・変更セット適用）。相対パス解決はワークスペース外への脱出を拒否 |
+| `Workspace` / `WorkspaceScan` | core/Workspace.kt | ヘッドレスなワークスペース操作（開く・読む・保存・検証・変更セット適用）。相対パス解決はワークスペース外への脱出を拒否。`noteDiskChanges` が保存・外部変更の索引更新方針（増分／スキーマ変更時の全再構築）を一元化し、UI（AppState）もこの経路を通る（R9-02） |
+| `EditBuffer` / `WorkspaceRecords` | core/Documents.kt | 文書キャッシュ層の中核（R9-02）: 履歴（Undo/Redo）・dirty判定・複数ドキュメント再出力（`EditBuffer`）と、一覧レコード収集・一括編集（`WorkspaceRecords`。未保存優先の loader 注入）。`app.OpenDocument` / `AppState` はこの層への委譲＋Compose購読ミラー |
 | `PatchOp` / `Patcher` / `ChangeSets` | core/Patch.kt | YPathパッチ（set/insert/delete/move）と変更セット（baseハッシュ競合検出、YAML解析） |
 | `FileWatcher` | core/FileWatcher.kt | WatchService による再帰的なファイル監視（R8-03）。「変更があったか」のフラグだけを通知し、差分判定は呼び出し側のスタンプ比較に委ねる。使えない環境では open() が null（ポーリングへフォールバック） |
 | `Bench` | core/Bench.kt | 索引性能の計測（R8-02）: ベンチマーク用ワークスペースの生成と、フル再構築 vs 増分更新の比較計測。CLI `bench` |
@@ -65,7 +66,9 @@ src/main/kotlin/
 | `Search` | core/Search.kt | 構造検索: 本文・キー部分一致＋スキーマ／glob条件、参照・未解決参照の検索 |
 | `ViewDef` / `Views` | core/Views.kt | ビュー機構（P6）: `_views` 定義のロード、行（論理ID）×列（相対YPath）の解決＝原本座標化、バックリンク列（被参照の逆引き。R7-02）、データパスからのスキーマフィールド解決（`fieldAt`）、詳細文書スキャフォールド、テキスト表現（`renderText`） |
 | `runCli` | core/Cli.kt | CLIコマンド（catalog/outline/read/bundle/search/validate/apply/hash/activities/agent/watch/revert/metrics/eval）。出力はUTF-8のYAML |
-| `ToolChatSession` / `ToolChat` | ai/ToolChat.kt | ツール使用（function calling）対応のチャット抽象と OpenAI Responses / Anthropic Messages 実装。会話状態はセッションが保持 |
+| `ToolChatSession` / `ToolChat` | ai/ToolChat.kt | ツール使用（function calling）対応のチャット抽象と OpenAI Responses / Anthropic Messages 実装。会話状態はセッションが保持。Azure は OpenAI 互換プリセットとして `OpenAiToolSession` を共用する |
+| `AiConnection` / `AiHttp` | ai/Connection.kt, ai/Http.kt | OpenAI互換エンドポイントの接続先解決（ベースURL・認証ヘッダ形式・APIバージョン。Azure プリセット・ollama / vLLM 等）と、AI呼び出し用 HttpClient の単一ファクトリ（プロキシ・Basic認証。R9-07・R9-08。§4.18） |
+| `GenerationRun` | agent/Generation.kt | AI生成のカーネル統合（R9-01）: 単発生成を「1ターンで提出する特殊アクティビティ」として実行する。Structured Outputs の生成値を疑似セッションが apply_patch / submit_changeset に変換し、ステージング・権限強制・実行記録を通常実行と共有する（§4.19） |
 | `AgentDef` / `ActivityDef` / `Definitions` | agent/Definitions.kt | `_agents` / `_activities` 定義の実行時ロード（エラー収集つき）。フォーム編集・検証は `schema/BuiltinSchemas.kt` の組込みスキーマが担う |
 | `Staging` | agent/Staging.kt | エージェントの作業オーバーレイ。パッチ記録・新規文書・オーバーレイ索引・影響ファイルを含む横断検証・変更セット化 |
 | `AgentToolbox` | agent/Tools.kt | エージェントに公開する13ツール（探索・編集・検証・対話・管理）。書込権限（許可glob・予約ディレクトリ禁止）をツール側で強制 |
@@ -73,10 +76,11 @@ src/main/kotlin/
 | `RunLog` | agent/RunLog.kt | 実行記録を `_runs/` にYAML保存し、採否・自動適用バックアップ・巻き戻しを追記 |
 | `AutomationEngine` | agent/Automation.kt | 自動化エンジン: トリガ監視（`tick(now)`）・直列実行キュー（`processOnce`）・承認ポリシー・連鎖・リトライ・常時停止。時刻注入でテスト可能 |
 | `AutoApply` | agent/AutoApply.kt | 巻き戻し可能な適用: 適用前原文を実行記録へバックアップし、`revert` で復元（適用後の変更は競合として拒否） |
-| `SkillDef` / `Skills` | skill/Skills.kt | `_skills` の宣言型変換定義（import / export）のロードとパース。コード実行は提供しない |
-| `Table` / `Tables` | skill/Tables.kt | 表形式の共通抽象と xlsx / csv / json / markdown の読み書き（セル値は型を保持） |
+| `SkillDef` / `Skills` | skill/Skills.kt | `_skills` の定義（import / export の宣言型変換と run のコード実行）のロードとパース |
+| `Runner` | skill/Runner.kt | コード実行skill（R9-06）: 人間の明示承認（`Approval`。定義内容の指紋に紐づき定義変更で失効）を必須とする外部コマンド実行。実行後に `writes` 宣言外・予約ディレクトリの変更を検出して報告。プロセス起動は注入可能（§4.21） |
+| `Table` / `Tables` | skill/Tables.kt | 表形式の共通抽象と xlsx / csv / json / markdown / docx（読み）/ html（書き）の読み書き（セル値は型を保持） |
 | `Importer` | skill/Importer.kt | 表 → 変更セット。新規行は文書作成、既存文書はマップ項目のみ更新（値が変わる場合だけ）。エラーは行・列つきで宣言的に報告 |
-| `Exporter` | skill/Exporter.kt | 対象glob×行×列 → 派生成果物（xlsx / csv / markdown）。YAML出力は拒否 |
+| `Exporter` | skill/Exporter.kt | 対象glob×行×列 → 派生成果物（xlsx / csv / markdown / json / html）。`source.view` で `_views` のビュー定義を行×列の源にできる（R9-05）。YAML出力は拒否 |
 | `TemplatePacks` | skill/TemplatePacks.kt | テンプレートパック（コード埋め込み）。`init` で展開、既存ファイルは上書きしない |
 | `RunMetrics` | agent/Metrics.kt | 実行メトリクス（R4-01）: `_runs` の実行記録だけから提出率・採用率・却下ファイル率・自動適用/巻き戻し・コストを集計（実行時に追加記録しない） |
 | `EvalDef` / `Evals` / `EvalRunner` | agent/Evals.kt | 評価セット（R4-02）と比較実験（R4-04）: `_evals` 定義のロード、サンドボックスコピー上でのケース×変異の実行、宣言的期待結果の判定、レポート保存 |
@@ -84,8 +88,8 @@ src/main/kotlin/
 | `AutomationPanel` | ui/AutomationPanel.kt | 自動実行パネル: 監視ON/OFF・キュー・承認待ちレビュー・履歴・ログ・停止 |
 | `ImprovementPanel` | ui/ImprovementPanel.kt | 自己改善パネル: 実行メトリクスの表示・評価セットの実行と変異別結果の比較 |
 | `SkillsPanel` | ui/SkillsPanel.kt | skillパネル: 一覧・エクスポート実行・インポートのプレビュー→検証つき適用 |
-| `OpenDocument` | app/AppState.kt | 開いている1文書。ツリー・履歴（Undo/Redo）・dirty・外部競合の管理。複数ドキュメントYAMLは先頭を編集対象にし、後続を `extraDocs` として保持・再出力する（R8-05） |
-| `AppState` | app/AppState.kt | ワークスペース・文書キャッシュ・索引・ナビゲーション・ファイル操作・一括更新・外部変更検出 |
+| `OpenDocument` | app/AppState.kt | 開いている1文書。中核（履歴・dirty・複数ドキュメント再出力）は core.EditBuffer へ委譲し、Compose購読（version / dirty / parseError）のシェルに徹する（R9-02）。外部競合の管理を担う |
+| `AppState` | app/AppState.kt | アプリ状態。走査・スキーマ・索引・更新方針は保持する core.Workspace へ委譲し、Compose購読用のミラー（schemas / yamlFiles / indexVersion）・文書キャッシュ（docCache）・ナビゲーション・ファイル操作を担う（R9-02） |
 | `AiGenerator` ほか | ai/ | スキーマ→JSON Schema 変換、REF候補の enum 制約、プロバイダ振り分け |
 | `OpenAiGenerator` / `AnthropicGenerator` | ai/ | 各API（Responses / Messages）のリクエスト構築とレスポンス解析 |
 | `FormView` / `FormCtx` | ui/FormView.kt | スキーマ駆動フォームと汎用エディタ（中核UI）。`FormCtx` が編集操作と参照解決を仲介 |
@@ -187,8 +191,9 @@ enum の `cases`（値ごとの追加フィールド。判別共用体）を持�
 
 - **YAMLが唯一の原本**: インポートは取り込んだ時点でYAML側を正とする。エクスポートは原本からいつでも再生成できる派生成果物であり、**YAMLへの出力は定義段階で拒否**する（派生物を原本と取り違えさせない）。
 - **インポートは変更セット経由**: 直接ファイルへ書かず、P1の `Workspace.apply` を通す（baseハッシュ競合検出・オール・オア・ナッシング・`requireValid` ゲートを再利用）。既存文書は**マップした項目だけ**を、**値が変わる場合だけ** set する。これにより (1) YAML側の追記が保持され、(2) エクスポート→再インポートが空の変更セットになる（往復の無損失を機械確認できる）。
-- **宣言型のみ**: skill にコード実行はない（設計原則3・§4.3）。書けない変換が必要になったら、コード実行を安易に足すのではなく、明示許可制のサンドボックス設計とセットで検討する（FEATURES L-12）。
-- **形式は Table 抽象に集約**: xlsx / csv / json / markdown の差は `skill/Tables.kt` に閉じる。形式追加はここだけを触る。
+- **宣言型が既定**: import / export にコード実行はない（設計原則3・§4.3）。宣言型で書けない変換・定型手順だけが、明示許可制のコード実行skill（kind: run。§4.21）の対象になる。宣言型で書ける変換を run へ逃さない。
+- **形式は Table 抽象に集約**: xlsx / csv / json / markdown / docx / html の差は `skill/Tables.kt` に閉じる。形式追加はここだけを触る。
+- **ビュー参照エクスポートは既存機構の合成**: `source.view`（R9-05）は `Views.load` / `Views.resolve` の結果をそのまま表にする。ビュー専用の解決ロジックを Exporter 側に持たない（列・行・バックリンクの解決は §4.14 と同一）。
 - **`_skills` も予約ディレクトリ**: 通常のエージェントは書込不可、メタアクティビティのみ提案可（パースゲートつき）。自動実行の監視対象外。
 
 ### 4.14 ビュー機構（P6）
@@ -232,19 +237,56 @@ enum の `cases`（値ごとの追加フィールド。判別共用体）を持�
 - **残る正規化は仕様**: アンカー／エイリアスは展開、インデントは2固定、ブロック配列要素の前行コメントは SnakeYAML エミッタの制約で `- # コメント` の形に後置される（内容は失われず冪等）。この3点を「直したい」場合はエミッタのフォークが必要になるため、安易に手を出さない。
 - **書込経路は単一文書を前提**: `parse` は複数ドキュメントを拒否する。読み取り専用の経路（索引・検索・開示・ビュー）だけが `parseFirst` で先頭ドキュメントを読む。複数ドキュメントの編集・保存は `OpenDocument`（`parseAll` / `dumpAll`）に閉じる（後続ドキュメントの黙殺による消失を防ぐ）。
 
-### 4.18 エラー処理
+### 4.18 AI接続機構（P9: R9-07 / R9-08）
+
+外部通信はAIプロバイダ呼び出しに限定されており、その接続は `ai` パッケージの2点に集約する。守るべき不変条件:
+
+- **HttpClient は `AiHttp` だけが生成する**: プロキシ（SYSTEM=システム設定尊重が既定 / DIRECT / MANUAL）と Basic 認証はここで一元管理する。プロキシパスワードはAPIキーと同様メモリのみ（永続化しない）。JDKが既定で無効化しているHTTPSトンネル（CONNECT）のBasic認証は `AiHttp` の初期化で許可する（`jdk.http.auth.tunneling.disabledSchemes`）。新しいAI呼び出しを書くときは独自に HttpClient を作らず `AiHttp.post` を使う。
+- **OpenAI互換の接続先は `AiConnection` が解決する**: 「ベースURL・認証ヘッダ形式・APIバージョン」のパラメタ化で、公式 OpenAI（Bearer）・Azure OpenAI / AI Foundry（`api-key` ヘッダ＋エンドポイント＋デプロイメント名=モデル欄）・ollama / vLLM 等の互換エンドポイント（ベースURL上書き）を同一クライアント実装（`OpenAiGenerator` / `OpenAiToolSession`）で扱う。接続先の分岐をクライアント側に書かない。
+- **設定の永続化はUI層**: エンドポイント・APIバージョン・プロキシ設定は `ui/AiSettings` が Preferences へ保存し、実効値を `AiConnection` / `AiHttp` へ書き通す。CLI・ヘッドレス経路は環境変数（`AZURE_OPENAI_ENDPOINT` / `AZURE_OPENAI_API_VERSION` / `OPENAI_BASE_URL`）が初期値になる。
+
+### 4.19 AI生成のカーネル統合（P9: R9-01）
+
+フィールド／文書の単発生成（AI生成ダイアログ）は、`agent/Generation.kt` の `GenerationRun` が「1ターンで提出する特殊アクティビティ」としてエージェントカーネル上で実行する。守るべき不変条件:
+
+- **型保証は Structured Outputs のまま**: 生成そのものは従来どおり `AiGenerator`（レスポンススキーマによる構造化出力）で行う。ツール使用ループに生成品質を委ねない。
+- **カーネルへの橋渡しは疑似セッション**: 生成値を `apply_patch`（ディスク基準の set / 配列追記は insert）→ `submit_changeset` のツール呼び出しへ変換する `ToolChatSession` 実装を `sessionFactory` として注入する。ステージング・書込権限（対象ファイル・対象パスに限定）・実行記録（`_runs`。アクティビティID `ai-generate`）は通常実行と完全に同じ経路を通る。
+- **ダイアログのUXは変えない**: 適用先は編集中ツリー（プレビュー→未保存適用・Undo可・自動保存なし）のまま。未保存編集や新規文書などディスク基準のパッチが成立しない場合は「変更なしの提出」として記録し、生成値だけをダイアログへ返す。
+- **テストは生成器注入**: `GenerationRun.run` の `Generator` を疑似実装に差し替え、カーネル・ステージング・記録は本物を通す（`GenerationRunTest`）。
+
+### 4.20 文書キャッシュ層の委譲（P9: R9-02）
+
+UI層（app）を「Compose購読のシェル」に純化し、ロジックを core へ寄せる。守るべき不変条件:
+
+- **索引更新方針は `Workspace.noteDiskChanges` に一元化**: 保存・外部変更・変更セット適用のいずれも、「スキーマ（`_schemas/`）が変わったら全再構築、それ以外は変更ファイルだけの増分更新」（§4.5）の振り分けをこの1点で行う。AppState 側に振り分けを書かない。
+- **`OpenDocument` は `core.EditBuffer` のシェル**: 履歴（Undo/Redo）・dirty判定・複数ドキュメント再出力の中核は `EditBuffer`（UI非依存・単体テスト対象）にあり、`OpenDocument` は Compose 購読（`version` / `dirty` / `parseError` のミラー）と外部競合フラグだけを持つ。編集APIの意味を変えるときは `EditBuffer` を直す。
+- **一覧・一括編集は loader 注入**: `WorkspaceRecords`（一覧レコード・一括編集キー候補）は「未保存編集を優先するツリー取得」を注入で受ける（§4.5 の二層構造と同じ流儀）。UIは docCache を、ヘッドレス経路はディスクを渡す。
+- **AppState のミラーは読み取り専用の写し**: `schemas` / `yamlFiles` 等の Compose 状態は core.Workspace の状態の写しであり、AppState 側で加工しない。core 側を更新したら `mirrorCore` で写し直し、`indexVersion` を進めて再コンポーズを駆動する。
+- **ビューグリッドの行集合はディスク索引基準を維持**（L-14 の再評価結果）: 行の増減（新しいID）の未保存反映は索引の二層構造を崩すため行わない。セル値・編集は従来どおり未保存編集を即時反映する。
+
+### 4.21 コード実行skill（P9: R9-06）
+
+宣言型（import / export）で書けない変換・定型手順のための実行型skill（kind: run）。サンドボックス外への作用（任意コマンド実行）を伴うため、次の明示許可制を**機械的に**強制する:
+
+- **承認なしに実行される経路がない**: `Runner.run` は `Runner.Approval` を必須引数に取り、`Approval` は private constructor＋`approve(def)` でしか作れない。UI（skillパネルの承認ダイアログ）・CLI（`run-skill --yes`）は、コマンド内容と権限を人間に表示した後にのみ `approve` を呼ぶ。
+- **承認は定義内容に紐づく**: `Approval` はコマンド・作業ディレクトリ・書込宣言・タイムアウトの指紋を持ち、実行時点の定義と一致しなければ拒否する（承認後の定義すり替え防止）。
+- **エージェント・自動実行からは起動不可**: run skill はエージェントツールとして公開せず、`AutomationEngine` からも呼ばない。メタアクティビティは定義の**提案**まで（実行は常に人間の承認つき手動）。
+- **事後検査つき**: 実行前後のワークスペーススナップショットを比較し、`writes` 宣言に一致しない変更を警告、予約ディレクトリの変更を重大な逸脱として報告する（書込を防げるわけではない——だからこそ事前の人間承認が前提）。ワークスペースが変更された場合は索引を取り直す。
+- **プロセス起動は注入可能**: テストは疑似ランチャで承認・失効・変更検出の全経路を検証する（`RunSkillTest`。実プロセスは `java -version` のスモークのみ）。
+
+### 4.22 エラー処理
 
 - ファイルI/O・パースは `runCatching` で受け、ユーザー操作の結果は `Result` を返して呼び出し側（UI）が `state.status` に反映する。
 - 入力検証の失敗は `require(...) { "日本語メッセージ" }`、内部異常は `error("日本語メッセージ")`。メッセージはそのままUIに表示される前提で書く。
 
 ## 5. 主要データフロー
 
-- **編集**: フォーム操作 → `Slot.set` / ツリー直接変更 → `markEdited()` → `version`++ → 再コンポーズ＋履歴追加
-- **保存**: `canonicalText()`（コメント・スタイル込み）をファイルへ書き出し → 通常文書は保存ファイルだけの増分索引更新、スキーマファイルはスキーマ再読込＋全再構築（§4.5） → `indexVersion`++
+- **編集**: フォーム操作 → `Slot.set` / ツリー直接変更 → `markEdited()`（履歴・dirty は core.EditBuffer が記録） → `version`++ → 再コンポーズ
+- **保存**: `canonicalText()`（コメント・スタイル込み）をファイルへ書き出し → `Workspace.noteDiskChanges`（通常文書は増分索引更新、スキーマファイルは全再構築。§4.5／§4.20） → `indexVersion`++
 - **外部変更検出**: `FileWatcher` の変更フラグ（またはフォールバックの1秒周期）→ `pollExternalChanges` がスタンプ比較 → 変更ファイルの再読込＋増分索引更新（`_schemas` 変更時のみ全再構築）
 - **ジャンプ**: `navigateToId` → 索引の出現検索（複数なら選択ダイアログ／横ぐしビュー）→ `openFile(file, focus)` → `highlightPath` 設定 → `Highlightable` がスクロール
 - **ビューグリッド**: `_views` 定義 → `Views.resolve`（行=ディスク索引、セル値=編集中ツリー優先の loader）→ セル編集は該当文書の `Slot` 直接変更＋`markEdited()` → 保存 → `rebuildIndex()` で行集合にも反映。行アクションは `AppState.createViewDetail`（スキャフォールド→書込→開く）／`addViewRow`（一覧文書の配列へ未保存編集として追加）
-- **AI生成**: ✨/ボタン → `AppState.requestAi(field, path)` → `AiGenerationHost` が現ツリーを複製して入力構築 → プロバイダ呼び出し → `combineProposal`/`replaceInClone` で適用後ツリーを合成 → 差分プレビュー＋`Validator` で事前検証 → 適用（`doc.root` 差し替え）
+- **AI生成**: ✨/ボタン → `AppState.requestAi(field, path)` → `AiGenerationHost` が現ツリーを複製して入力構築 → `GenerationRun.run`（カーネル上の1ターン提出。Structured Outputs で生成 → ステージング → 実行記録 `_runs`。§4.19） → `combineProposal`/`replaceInClone` で適用後ツリーを合成 → 差分プレビュー＋`Validator` で事前検証 → 適用（`doc.root` 差し替え）
 - **ヘッドレス変更セット適用**（CLI／エージェント）: `ChangeSets.parse` → 全ファイルの base ハッシュ照合＋パッチ適用（メモリ上）→ 適用後状態を重ねた**オーバーレイ索引**で検証（複数ファイル連動の変更も正しく判定）→ **全件成功時のみ**書き込み（`--require-valid` 指定時は検証エラーでも中止）→ `refresh()` で索引更新。1件でも失敗すれば何も書かないオール・オア・ナッシング
 - **エージェント実行**: アクティビティ起動 → `AgentKernel` がシステムプロンプト（persona＋規範）と初期文脈（指示・カタログ・権限・ゲート）を構築 → ツール使用ループ（探索→パッチ→検証→…、必要なら `delegate` で相談）→ `submit_changeset`（ゲート通過）→ `RunLog` 書き出し → レビューUIで部分採用（採用サブセットを `Staging` で再検証）→ `Workspace.apply` で反映 → `AppState.reload()`
 - **自動実行**: `AutomationEngine.tick(now)` がトリガ判定（on-change はデバウンス、on-invalid は変更ファイルの検証）→ キュー投入 → `processOnce` がカーネル実行 → 提出後は承認方式で分岐（auto: `AutoApply.applyWithBackup` → スタンプ更新 → 連鎖／human: 承認待ち＋変更セットのファイル保存 → 採否後に連鎖）→ 失敗はフィードバック付きリトライ（収束打ち切りあり）
@@ -259,6 +301,6 @@ enum の `cases`（値ごとの追加フィールド。判別共用体）を持�
 - **横断ビューの追加**: データソースとして `AppState.workspaceRecords()` と `IdIndex` を利用し、`Main.kt` の `workspaceView` 分岐に追加する。
 - **ビュー定義の項目追加**: `core/Views.kt` の `parseView` と `schema/BuiltinSchemas.kt` の `builtin-view` スキーマを**対で**更新する（フォーム編集・検証と実行時パースの二重定義のため）。
 - **共通スキーマ定義の追加**: `_schemas` に `kind: library` を置き、利用側は `moduleId#definition` で参照する。解決規則を増やす場合は `SchemaCatalog` に閉じ、各利用側で参照文字列を個別解析しない。
-- **AIプロバイダの追加**: `AiProvider` に enum を追加し、`AiGenerator.generate` の分岐と専用クライアント（`generate` + `parseResponse` を持つ object）を実装する。
+- **AIプロバイダの追加**: OpenAI互換のエンドポイントなら `AiConnection`（ベースURL上書き・プリセット）で足りる。独自APIのプロバイダは `AiProvider` に enum を追加し、`AiGenerator.generate` の分岐と専用クライアント（`generate` + `parseResponse` を持つ object）・`ToolChat.newSession` の分岐を実装する。HTTP送信は `AiHttp.post` を使う（§4.18）。
 - **入出力形式の追加**: `TableFormat` に enum を追加し、`skill/Tables.kt` の read / write に分岐を実装する（Importer / Exporter は形式非依存のため変更不要）。
 - **テンプレートパックの追加**: `skill/TemplatePacks.kt` の `all` に `Pack`（ファイルパス→内容の埋め込み）を登録する。`ImportExportTest` に倣い、展開後の検証エラー0をテストで保証する。

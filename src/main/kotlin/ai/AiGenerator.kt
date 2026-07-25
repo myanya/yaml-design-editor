@@ -7,10 +7,11 @@ import schema.FieldDef
 import schema.FieldType
 import schema.SchemaDef
 
-/** 対応するAIプロバイダ。 */
+/** 対応するAIプロバイダ。AZURE は OpenAI 互換機構（R9-07）のプリセットで、モデル欄にはデプロイメント名を指定する。 */
 enum class AiProvider(val label: String, val defaultModel: String, val envVar: String) {
     OPENAI("OpenAI", "gpt-5.1", "OPENAI_API_KEY"),
     ANTHROPIC("Anthropic", "claude-opus-4-8", "ANTHROPIC_API_KEY"),
+    AZURE("Azure", "", "AZURE_OPENAI_API_KEY"),
 }
 
 /** 参照候補1件。ID索引の1出現に対応し、REFフィールドのスコープ絞り込みに使う。 */
@@ -30,7 +31,7 @@ data class AiGenerationInput(
 
 object AiGenerator {
     suspend fun generate(provider: AiProvider, input: AiGenerationInput): YNode = when (provider) {
-        AiProvider.OPENAI -> OpenAiGenerator.generate(input)
+        AiProvider.OPENAI, AiProvider.AZURE -> OpenAiGenerator.generate(input, provider)
         AiProvider.ANTHROPIC -> AnthropicGenerator.generate(input)
     }
 }

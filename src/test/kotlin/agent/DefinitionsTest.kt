@@ -78,6 +78,56 @@ class DefinitionsTest {
         assertTrue(defs.errors.any { "ghost" in it }, defs.errors.toString())
     }
 
+    // ---------------------------------------------------------------- 出力値による連鎖分岐（R9-04）
+
+    @Test
+    fun `chain rules are parsed and unknown targets are reported`() {
+        write("_agents/editor.yaml", "id: editor\npersona: 正確に。")
+        write(
+            "_activities/branching.yaml",
+            """
+            id: branching
+            agent: editor
+            instruction: 点検する
+            chain:
+              rules:
+                - when: { outcome: success, changedFiles: "issues/**", minChangedFiles: 2 }
+                  then: ghost-next
+              onFailure: also-ghost
+            """,
+        )
+        val defs = Definitions.load(ws)
+        val rule = defs.activity("branching")!!.chain.rules.single()
+        assertEquals("ghost-next", rule.then)
+        assertEquals("success", rule.outcome)
+        assertEquals("issues/**", rule.changedFiles)
+        assertEquals(2, rule.minChangedFiles)
+        // ルールの then も onFailure と同様に存在チェックされる
+        assertTrue(defs.errors.any { "ghost-next" in it }, defs.errors.toString())
+        assertTrue(defs.errors.any { "also-ghost" in it }, defs.errors.toString())
+    }
+
+    @Test
+    fun `selectNext evaluates rules in order with AND conditions and falls back`() {
+        val chain = ChainDef(
+            onSuccess = "ok",
+            onFailure = "ng",
+            rules = listOf(
+                ChainRule(then = "big-change", outcome = "success", changedFiles = "issues/**", minChangedFiles = 2),
+                ChainRule(then = "flagged", noteContains = "要確認"),
+            ),
+        )
+        // 条件AND: ファイル1件では minChangedFiles=2 を満たさず、次のルールへ
+        assertEquals("flagged", chain.selectNext(true, listOf("issues/a.yaml"), "要確認: 重複"))
+        // 両条件成立なら先頭のルールが勝つ
+        assertEquals("big-change", chain.selectNext(true, listOf("issues/a.yaml", "issues/b.yaml"), ""))
+        // どのルールにも一致しない → 終わり方でフォールバック
+        assertEquals("ok", chain.selectNext(true, listOf("docs/a.yaml"), ""))
+        assertEquals("ng", chain.selectNext(false, emptyList(), ""))
+        // outcome: success のルールは失敗時に評価されない
+        assertEquals("flagged", chain.selectNext(false, listOf("issues/a.yaml", "issues/b.yaml"), "要確認"))
+    }
+
     @Test
     fun `invalid definitions collect errors without crashing`() {
         write("_agents/bad.yaml", "id: bad")                       // persona なし

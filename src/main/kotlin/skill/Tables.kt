@@ -13,6 +13,7 @@ import org.apache.poi.ss.usermodel.Cell
 import org.apache.poi.ss.usermodel.CellType
 import org.apache.poi.ss.usermodel.DateUtil
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
+import org.apache.poi.xwpf.usermodel.XWPFDocument
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -39,6 +40,8 @@ object Tables {
         TableFormat.CSV -> readCsv(Files.readString(file))
         TableFormat.JSON -> readJson(Files.readString(file), def.jsonPath)
         TableFormat.MARKDOWN -> readMarkdown(Files.readString(file))
+        TableFormat.DOCX -> readDocx(file, def.tableIndex)
+        TableFormat.HTML -> error("HTML はエクスポート専用の形式です")
     }
 
     /** CSV（RFC 4180 準拠: ダブルクォート・埋め込み改行・引用符の二重化）。 */
@@ -164,6 +167,27 @@ object Tables {
         }
     }
 
+    /** Word（.docx）文書内の表（R9-05）。tableIndex 番目（1始まり）の表を読み、1行目をヘッダにする。値は文字列。 */
+    fun readDocx(file: Path, tableIndex: Int = 1): Table {
+        Files.newInputStream(file).use { input ->
+            XWPFDocument(input).use { doc ->
+                val tables = doc.tables
+                if (tables.isEmpty()) error("Word文書に表がありません")
+                val table = tables.getOrNull(tableIndex - 1)
+                    ?: error("Word文書の ${tableIndex} 番目の表がありません（表は ${tables.size} 個）")
+                val allRows = table.rows.map { row -> row.tableCells.map { it.text.trim() } }
+                if (allRows.isEmpty()) error("Word文書の表が空です")
+                val headers = allRows.first().toMutableList()
+                while (headers.isNotEmpty() && headers.last().isEmpty()) headers.removeAt(headers.lastIndex)
+                if (headers.isEmpty()) error("Word文書の表のヘッダ行が空です")
+                val rows = allRows.drop(1)
+                    .filter { row -> row.any { it.isNotBlank() } }
+                    .map { row -> headers.indices.map { i -> row.getOrNull(i)?.takeIf { it.isNotEmpty() } } }
+                return Table(headers, rows)
+            }
+        }
+    }
+
     // ---------------------------------------------------------------- 書き出し
 
     fun write(table: Table, file: Path, format: TableFormat, sheet: String) {
@@ -172,7 +196,9 @@ object Tables {
             TableFormat.CSV -> Files.writeString(file, writeCsv(table))
             TableFormat.MARKDOWN -> Files.writeString(file, writeMarkdown(table))
             TableFormat.XLSX -> writeXlsx(table, file, sheet)
-            TableFormat.JSON -> error("JSONへのエクスポートは未対応です")
+            TableFormat.JSON -> Files.writeString(file, writeJson(table))
+            TableFormat.HTML -> Files.writeString(file, writeHtml(table, sheet))
+            TableFormat.DOCX -> error("Wordへのエクスポートは未対応です")
         }
     }
 
@@ -185,6 +211,59 @@ object Tables {
         }
         appendLine(table.headers.joinToString(",") { cell(it) })
         table.rows.forEach { row -> appendLine(row.joinToString(",") { cell(it) }) }
+    }
+
+    /** JSON（オブジェクトの配列。R9-05）。セルの型を保持し、空セルのキーは出力しない。readJson と往復可能。 */
+    fun writeJson(table: Table): String {
+        val array = JsonArray(table.rows.map { row ->
+            JsonObject(buildMap {
+                table.headers.forEachIndexed { i, header ->
+                    when (val v = row.getOrNull(i)) {
+                        null -> Unit
+                        is Boolean -> put(header, JsonPrimitive(v))
+                        is Long -> put(header, JsonPrimitive(v))
+                        is Double -> put(header, JsonPrimitive(v))
+                        is Number -> put(header, JsonPrimitive(v))
+                        else -> put(header, JsonPrimitive(v.toString()))
+                    }
+                }
+            })
+        })
+        return prettyJson.encodeToString(JsonArray.serializer(), array) + "\n"
+    }
+
+    private val prettyJson = Json { prettyPrint = true; prettyPrintIndent = "  " }
+
+    /** HTML（R9-05）。単体で開ける派生成果物。セルはエスケープし、改行は <br> にする。 */
+    fun writeHtml(table: Table, title: String): String {
+        fun esc(v: Any?): String = (v?.toString() ?: "")
+            .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
+            .replace("\n", "<br>")
+        return buildString {
+            appendLine("<!DOCTYPE html>")
+            appendLine("<html lang=\"ja\">")
+            appendLine("<head>")
+            appendLine("<meta charset=\"UTF-8\">")
+            appendLine("<title>${esc(title)}</title>")
+            appendLine("<style>")
+            appendLine("body { font-family: sans-serif; margin: 24px; }")
+            appendLine("table { border-collapse: collapse; }")
+            appendLine("th, td { border: 1px solid #bbb; padding: 4px 10px; font-size: 14px; text-align: left; vertical-align: top; }")
+            appendLine("th { background: #f0f0f0; }")
+            appendLine("</style>")
+            appendLine("</head>")
+            appendLine("<body>")
+            appendLine("<table>")
+            appendLine("<thead><tr>" + table.headers.joinToString("") { "<th>${esc(it)}</th>" } + "</tr></thead>")
+            appendLine("<tbody>")
+            table.rows.forEach { row ->
+                appendLine("<tr>" + table.headers.indices.joinToString("") { i -> "<td>${esc(row.getOrNull(i))}</td>" } + "</tr>")
+            }
+            appendLine("</tbody>")
+            appendLine("</table>")
+            appendLine("</body>")
+            appendLine("</html>")
+        }
     }
 
     fun writeMarkdown(table: Table): String = buildString {

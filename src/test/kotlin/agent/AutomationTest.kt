@@ -163,6 +163,71 @@ class AutomationTest {
         assertEquals(listOf("follow-up"), e.queueSnapshot().map { it.activityId })
     }
 
+    // ---------------------------------------------------------------- 出力値による連鎖分岐（R9-04）
+
+    @Test
+    fun `chain rules branch on notes before falling back to onSuccess`() {
+        write(
+            "_activities/triage.yaml",
+            """
+            id: triage
+            agent: editor
+            instruction: 点検する
+            approval: auto
+            chain:
+              rules:
+                - when: { outcome: success, noteContains: 重複 }
+                  then: dedupe
+              onSuccess: fallback
+            """,
+        )
+        write("_activities/dedupe.yaml", "id: dedupe\nagent: editor\ninstruction: 重複を統合する")
+        write("_activities/fallback.yaml", "id: fallback\nagent: editor\ninstruction: 通常の後続")
+        val scripts = ArrayDeque(listOf(listOf(
+            turn(call("note", """{"text":"DOC-A に重複の疑いあり"}""")),
+            turn(call("apply_patch", """{"file":"docs/a.yaml","ops":[{"op":"set","path":"title","value":"点検済み"}]}""")),
+            turn(call("submit_changeset", """{"summary":"点検完了"}""")),
+        )))
+        val e = engine(scripts)
+        e.setEnabled(true)
+        e.enqueue("triage", "テスト起動")
+        runBlocking { e.processOnce() }
+
+        // メモに「重複」が含まれるため、onSuccess ではなくルールの then へ分岐する
+        assertEquals(listOf("dedupe"), e.queueSnapshot().map { it.activityId })
+    }
+
+    @Test
+    fun `chain rules fall back to onSuccess when no rule matches`() {
+        write(
+            "_activities/triage2.yaml",
+            """
+            id: triage2
+            agent: editor
+            instruction: 点検する
+            approval: auto
+            chain:
+              rules:
+                - when: { changedFiles: "issues/**" }
+                  then: dedupe2
+              onSuccess: fallback2
+            """,
+        )
+        write("_activities/dedupe2.yaml", "id: dedupe2\nagent: editor\ninstruction: 重複を統合する")
+        write("_activities/fallback2.yaml", "id: fallback2\nagent: editor\ninstruction: 通常の後続")
+        val scripts = ArrayDeque(listOf(listOf(
+            turn(call("apply_patch", """{"file":"docs/a.yaml","ops":[{"op":"set","path":"title","value":"点検済み2"}]}""")),
+            turn(call("submit_changeset", """{"summary":"点検完了"}""")),
+        )))
+        val e = engine(scripts)
+        e.setEnabled(true)
+        e.enqueue("triage2", "テスト起動")
+        runBlocking { e.processOnce() }
+
+        // 変更は docs/** のみで issues/** に一致しない → フォールバック
+        assertEquals(listOf("fallback2"), e.queueSnapshot().map { it.activityId })
+    }
+
     // ---------------------------------------------------------------- リトライと収束打ち切り（R3-03）
 
     @Test

@@ -346,6 +346,7 @@ root:
 - **プレビュー**: スキーマからサンプルYAMLを生成し、実際のフォームまたはYAMLとして確認
 - **サンプル生成**: 生成したYAMLをクリップボードへコピー
 - **適用対象**: `match` に一致するワークスペース内のファイルを一覧表示し、他スキーマとの競合も表示
+- **フェーズ・カバレッジ**: スキーマ全体設定の `phases`（申告キー・フェーズ順序）と `coverage`（参照ベース／出現ベースの切替・重大度・判定開始フェーズ）も構造化UIで編集できます（後述のリファレンス参照）
 
 スキーマファイルを保存すると、メタスキーマ検証結果は通常の右側「検証」パネルにも表示されます。
 
@@ -588,7 +589,7 @@ Material 3ベースのライト／ダークテーマを搭載しています。�
 
 ## 11. AIによる作成支援
 
-スキーマが適用された文書では、OpenAI または Anthropic（Claude）の API を使って内容のたたき台を生成できます。入口は3か所です。
+スキーマが適用された文書では、OpenAI / Anthropic（Claude）/ Azure OpenAI（AI Foundry）の API を使って内容のたたき台を生成できます。入口は3か所です。
 
 - **フィールド単位**: フォームの各フィールドラベル横の ✨ アイコン
 - **配列への候補追加**: 配列エディタの「AIで候補追加」（既存項目を残して追加／配列全体を置き換えを選択可能）
@@ -602,12 +603,16 @@ Material 3ベースのライト／ダークテーマを搭載しています。�
 - プレビューは現在値とAI提案の行単位差分表示で、提案を適用した場合のスキーマ検証結果（エラー・警告数）も表示します。適用は Undo 可能で、自動保存はされません。
 - 生成中は「生成を中止」でキャンセルできます。
 - モデルに送信されるのは、指示、現在の文書、対象フィールドのスキーマ、ワークスペース内の既存ID（最大500件）です。
+- 生成はエージェント実行と同じカーネル上で「1ターンで提出する特殊アクティビティ」として実行され、実行記録が `_runs/` に他のアクティビティと同じ形式で残ります（アクティビティID: `ai-generate`。適用自体は従来どおりダイアログのプレビュー→編集中文書への反映で、自動保存されません）。
 
 接続設定:
 
-- **プロバイダ**: OpenAI / Anthropic をダイアログで切り替えます。選択は端末の設定（Preferences）に保存されます。
-- **APIキー**: ダイアログで入力するか、環境変数（`OPENAI_API_KEY` / `ANTHROPIC_API_KEY`）を設定します。キーはメモリ上にのみ保持され、ディスクには保存されません。
-- **モデル**: 既定は OpenAI が `gpt-5.1`、Anthropic が `claude-opus-4-8`。変更はプロバイダごとに端末の設定へ保存されます。Structured Outputs 対応モデルが必要です。
+- **プロバイダ**: OpenAI / Anthropic / Azure をダイアログで切り替えます。選択は端末の設定（Preferences）に保存されます。
+- **APIキー**: ダイアログで入力するか、環境変数（`OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `AZURE_OPENAI_API_KEY`）を設定します。キーはメモリ上にのみ保持され、ディスクには保存されません。
+- **モデル**: 既定は OpenAI が `gpt-5.1`、Anthropic が `claude-opus-4-8`。Azure は**デプロイメント名**を指定します。変更はプロバイダごとに端末の設定へ保存されます。Structured Outputs 対応モデルが必要です。
+- **Azure OpenAI / AI Foundry**: 「接続の詳細設定」でエンドポイント（例 `https://<リソース名>.openai.azure.com`）と APIバージョン（空なら v1 サーフェス）を設定します（環境変数 `AZURE_OPENAI_ENDPOINT` / `AZURE_OPENAI_API_VERSION` でも可）。認証は `api-key` ヘッダで行われます。
+- **OpenAI互換エンドポイント**: OpenAI 選択時にベースURLを上書きすると、ollama / vLLM 等の互換エンドポイントも利用できます（環境変数 `OPENAI_BASE_URL` でも可）。
+- **プロキシ**: 既定はシステム設定に従います。「接続の詳細設定」でプロキシなし／手動（ホスト・ポート）へ切り替えられ、Basic 認証（ID・パスワード）も指定できます。パスワードはAPIキー同様メモリのみ保持です。エンドポイント・プロキシ設定はフィールド生成とエージェント実行の両方に共通で効きます。
 
 ## 12. エージェントによるアクティビティ実行
 
@@ -670,7 +675,12 @@ trigger: { type: on-change, match: "requirements/**", debounceSeconds: 30 }
 #       on-change      … 対象ファイルの更新後、debounceSeconds 静止してから起動
 #       on-invalid     … 更新されたファイルに検証エラーがあるときだけ起動
 #       schedule       … everyMinutes ごとに起動
-chain: { onSuccess: file-issues, onFailure: notify }   # 実行後に連鎖起動（循環・深さ5は自動停止）
+chain:                       # 実行後に連鎖起動（循環・深さ5は自動停止）
+  rules:                     # 出力値による分岐（上から評価し、最初に一致した then へ。省略可）
+  - when: { outcome: success, noteContains: 重複 }   # 条件はAND: outcome（success/failure/any）/
+    then: dedupe-issues                              # changedFiles（採用変更のglob）/ minChangedFiles / noteContains
+  onSuccess: file-issues     # どのルールにも一致しないときのフォールバック
+  onFailure: notify
 retry: { maxAttempts: 2 }    # 失敗時、理由をフィードバックして再実行（同一失敗の繰り返しは打ち切り）
 approval: auto               # 自動適用（下記の条件つき）。既定は human（承認待ち）
 ```
@@ -734,17 +744,18 @@ cases:
 
 ## 14. skill（インポート・エクスポート・テンプレート）
 
-Excel・CSV等の現実の業務フォーマットと、YAML原本を接続する機能群です。ツールバーの上下矢印アイコンから **skillパネル**を開きます。変換は `_skills/*.yaml` に**宣言的に**定義します（コード実行はありません）。
+Excel・CSV等の現実の業務フォーマットと、YAML原本を接続する機能群です。ツールバーの上下矢印アイコンから **skillパネル**を開きます。変換は `_skills/*.yaml` に**宣言的に**定義します（例外は明示許可制のコード実行skill。後述）。
 
 ### インポート（表形式 → YAML原本）
 
-xlsx / csv / json / markdown の表を、列マッピングでYAML文書群へ取り込みます。**取り込んだ時点からYAMLが原本**です。
+xlsx / csv / json / markdown / docx（Word文書内の表）を、列マッピングでYAML文書群へ取り込みます。**取り込んだ時点からYAMLが原本**です。
 
 ```yaml
 # _skills/import-issues.yaml
 id: import-issues
 kind: import
-input: { format: xlsx, headerRow: 1 }        # xlsx / csv / json / markdown
+input: { format: xlsx, headerRow: 1 }        # xlsx / csv / json / markdown / docx
+# docx は Word 文書内の表を読みます: input: { format: docx, table: 1 }（table = 何番目の表か。1始まり）
 target: { file: "issues/{ID}.yaml" }         # {列名} が行の値で置換される（1行1文書）
 mapping:
 - { column: ID, path: id, required: true }
@@ -764,7 +775,7 @@ mapping:
 
 ### エクスポート（YAML原本 → 派生成果物）
 
-対象文書（glob）を行×列に展開し、xlsx / csv / markdown を再生成します。出力は**いつでも原本から作り直せる派生物**で、YAMLへの出力は定義段階で拒否されます。
+対象文書（glob）を行×列に展開し、xlsx / csv / markdown / json / html を再生成します（形式は出力ファイルの拡張子で決まります）。出力は**いつでも原本から作り直せる派生物**で、YAMLへの出力は定義段階で拒否されます。
 
 ```yaml
 # _skills/export-issues.yaml
@@ -777,6 +788,37 @@ columns:
 - { header: 件名, path: title }
 - { header: タグ, path: tags, join: "," }
 ```
+
+`source: { view: ビューID }` と書くと、`_views` のビュー定義（§5）を行×列の源にして「ビューで見えている表をそのまま帳票へ」出力できます（このとき `match` / `rows` / `columns` は書けません。1列目は行のID、バックリンク列は参照元IDの列挙になります）。
+
+```yaml
+# _skills/export-board.yaml
+id: export-board
+kind: export
+source: { view: screen-catalog }
+output: { file: exports/screens.html }
+```
+
+### コード実行skill（kind: run・明示許可制）
+
+宣言型では書けない変換・定型手順のために、任意のコマンドを実行する skill を定義できます。**サンドボックス外への作用**のため、次の明示許可制が機械的に強制されます。
+
+```yaml
+# _skills/normalize.yaml
+id: normalize
+name: 正規化スクリプト
+kind: run
+run:
+  command: [python, scripts/normalize.py]   # コマンドと引数
+  workdir: .                                # ワークスペース相対（既定 "."）
+  timeoutSeconds: 120
+  writes: ["work/**"]                       # ワークスペース内への書込を宣言するglob
+```
+
+- **実行前に人間がコマンド内容と権限を承認**します（skillパネルは承認ダイアログ、CLIは `--yes` フラグ）。承認なしに実行される経路はありません
+- 承認は「承認した時点の定義内容」に紐づき、**定義が変わると失効**します（承認後の定義すり替え防止）
+- エージェント・自動実行（トリガ）からは起動できません。メタアクティビティによる定義の**提案**は可能ですが、実行は常に人間の承認が必要です
+- 実行後にワークスペース内の変更を検出し、`writes` 宣言外の変更を**警告**、予約ディレクトリ（`_schemas` 等）の変更を**重大な逸脱**として報告します（事後検査であり書込は防げないため、事前承認が前提です）
 
 ### テンプレートパック
 
@@ -828,6 +870,7 @@ GUIを起動せずに、ワークスペースの探索・検索・部分変更�
 ./gradlew runCli -q --args="skills sample-workspace"                      # skill定義の一覧と検証
 ./gradlew runCli -q --args="import my-ws import-issues ledger.xlsx --apply"  # 表形式の取り込み（既定はプレビュー）
 ./gradlew runCli -q --args="export sample-workspace export-actors"        # 派生成果物の再生成
+./gradlew runCli -q --args="run-skill my-ws normalize --yes"              # コード実行skill（--yes なしは内容表示のみ）
 ./gradlew runCli -q --args="init new-ws --template ledger"                # テンプレートで初期化
 ./gradlew runCli -q --args="bench bench-ws --docs 1000"                   # 索引性能の計測（空ディレクトリなら生成もする）
 ```

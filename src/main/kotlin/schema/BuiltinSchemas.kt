@@ -188,6 +188,39 @@ object BuiltinSchemas {
                   type: ref
                   scope:
                     schemaIds: [builtin-activity]
+                - key: rules
+                  label: 出力値による分岐
+                  type: array
+                  description: 上から順に評価し、最初に一致したルールの then へ連鎖する（不一致なら onSuccess / onFailure）
+                  item:
+                    type: object
+                    fields:
+                      - key: when
+                        label: 条件（AND）
+                        type: object
+                        fields:
+                          - key: outcome
+                            label: 終わり方
+                            type: enum
+                            values: [any, success, failure]
+                            default: any
+                          - key: changedFiles
+                            label: 変更ファイルglob
+                            type: string
+                            description: 提出（採用）変更セットに一致するファイルがあること
+                          - key: minChangedFiles
+                            label: 変更ファイル数の下限
+                            type: int
+                          - key: noteContains
+                            label: メモの部分一致
+                            type: string
+                            description: エージェントのメモ・提出メッセージに含まれる文字列
+                      - key: then
+                        label: 分岐先
+                        type: ref
+                        required: true
+                        scope:
+                          schemaIds: [builtin-activity]
             - key: retry
               label: 再試行（無人実行）
               type: object
@@ -222,7 +255,7 @@ object BuiltinSchemas {
             - key: kind
               label: 種別
               type: enum
-              values: [import, export]
+              values: [import, export, run]
               required: true
             - key: input
               label: 入力（import）
@@ -231,7 +264,7 @@ object BuiltinSchemas {
                 - key: format
                   label: 形式
                   type: enum
-                  values: [xlsx, csv, json, markdown]
+                  values: [xlsx, csv, json, markdown, docx]
                 - key: sheet
                   label: シート名（xlsx）
                   type: string
@@ -241,6 +274,9 @@ object BuiltinSchemas {
                 - key: path
                   label: 行配列へのパス（json）
                   type: string
+                - key: table
+                  label: 表の番号（docx・1始まり）
+                  type: int
             - key: target
               label: 取り込み先（import）
               type: object
@@ -285,6 +321,10 @@ object BuiltinSchemas {
                   label: 行にする配列パス
                   type: string
                   description: 省略時は1文書1行
+                - key: view
+                  label: ビューID
+                  type: string
+                  description: _views のビュー定義を行×列の源にする（match / rows / columns と排他）
             - key: columns
               label: 列の定義（export）
               type: array
@@ -309,10 +349,30 @@ object BuiltinSchemas {
                 - key: file
                   label: 出力ファイル
                   type: string
-                  description: 拡張子で形式が決まる（.xlsx / .csv / .md）。YAMLへの出力は不可
+                  description: 拡張子で形式が決まる（.xlsx / .csv / .md / .json / .html）。YAMLへの出力は不可
                 - key: sheet
                   label: シート名（xlsx）
                   type: string
+            - key: run
+              label: コード実行（run）
+              type: object
+              description: 実行前に人間がコマンド内容と権限を承認する明示許可制（自動実行・エージェントからは起動できない）
+              fields:
+                - key: command
+                  label: コマンドと引数
+                  type: array
+                  item: { type: string }
+                - key: workdir
+                  label: 作業ディレクトリ（ワークスペース相対）
+                  type: string
+                - key: timeoutSeconds
+                  label: タイムアウト（秒）
+                  type: int
+                - key: writes
+                  label: 書込を宣言するglob
+                  type: array
+                  description: 実行後に宣言外の変更を検出して警告する（予約ディレクトリは宣言不可）
+                  item: { type: string }
     """.trimIndent()
 
     private val evalSchemaYaml = """

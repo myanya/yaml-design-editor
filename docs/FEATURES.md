@@ -42,7 +42,7 @@
 | S-02 | 型システム12種（string/text/int/number/boolean/enum/date/id/ref/array/map/object） | ✅ | `schema/Schema.kt`（`FieldType`） | 手動 |
 | S-03 | 名前付き定義と再帰参照（`definitions` / `$ref`、属性のオーバーライド合成） | ✅ | `SchemaDef.resolve` | 手動 |
 | S-04 | メタスキーマ検証（必須情報、キー重複、子定義不足、enum選択肢、`cases` の整合、未解決 `$ref`） | ✅ | `SchemaDef.validateDefinition` | 単体（`SchemaLoaderTest`） |
-| S-05 | スキーマ設計UI（スキーマ全体の説明、document / library切替、ローカル／横断`$ref`、設計／プレビュー／適用対象タブ、競合スキーマ表示、フィールドの `requiredFrom` 入力）。`phases` / `coverage` はスキーマ全体設定のためソース編集のみ（構造化UI未対応） | ✅ | `ui/SchemaEditor.kt` | 手動 |
+| S-05 | スキーマ設計UI（スキーマ全体の説明、document / library切替、ローカル／横断`$ref`、設計／プレビュー／適用対象タブ、競合スキーマ表示、フィールドの `requiredFrom` 入力、`phases`（申告キー・順序）と `coverage`（参照／出現ベース切替・重大度・activeFrom）の構造化編集。ROADMAP R9-03） | ✅ | `ui/SchemaEditor.kt` | 手動 |
 | S-06 | サンプルYAML生成（プレビュー・クリップボードコピー・新規ファイル初期値） | ✅ | `SchemaDef.generateSample` | 手動 |
 | S-07 | スキーマ外キーの検証ポリシー（`unknownFields: allow / warning / error`、未知サブツリーは走査境界） | ✅ | `validate/Validator.kt`, `index/IdIndex.kt` | 手動 |
 | S-08 | 参照の関係種別（`type: ref` の `relation`。表示・カバレッジ判定・`$ref`合成に対応） | ✅ | `schema/Schema.kt`, `index/IdIndex.kt`, `ui/SchemaEditor.kt` | 単体（`WorkspaceCliTest`） |
@@ -95,8 +95,10 @@
 | A-04 | スキーマ→JSON Schema 変換による Structured Outputs（`map` 型を含む場合はプロンプト指示にフォールバック） | ✅ | `ai/AiGenerator.kt`（`fieldToJsonSchema`, `containsMap`） | 単体（`OpenAiGeneratorTest`） |
 | A-05 | REF候補の enum 制約（`idPatterns`/`scope` で絞り込み、200件超は省略） | ✅ | `ai/AiGenerator.kt`（`refCandidateIds`） | 単体（`AiGeneratorTest`） |
 | A-06 | 適用前の差分プレビューと適用後検証（エラー・警告数）、Undo可能な適用 | ✅ | `ui/AiGenerationDialog.kt` | 手動 |
-| A-07 | プロバイダ切替（OpenAI Responses API / Anthropic Messages API）、モデル設定の永続化、APIキーはメモリのみ | ✅ | `ai/OpenAiGenerator.kt`, `ai/AnthropicGenerator.kt`, `AiSessionSettings` | 単体（レスポンス解析） |
+| A-07 | プロバイダ切替（OpenAI Responses API / Anthropic Messages API / Azure OpenAI＝OpenAI互換プリセット）、モデル・エンドポイント設定の永続化、APIキーはメモリのみ | ✅ | `ai/OpenAiGenerator.kt`, `ai/AnthropicGenerator.kt`, `ui/AiSettings.kt` | 単体（レスポンス解析） |
 | A-08 | 生成のキャンセル、拒否・トークン上限のエラーハンドリング | ✅ | `ui/AiGenerationDialog.kt`, `ai/*Generator.kt` | 単体（一部） |
+| A-09 | OpenAI互換エンドポイント機構（Azure＝`api-key`ヘッダ＋エンドポイント＋デプロイメント名／ベースURL上書き＝ollama・vLLM等）とプロキシ対応（システム設定尊重を既定に手動上書き・Basic認証はメモリのみ・HTTPSトンネルのBasic許可）。生成系とエージェント系の両方に共通で効く（ROADMAP R9-07・R9-08） | ✅ | `ai/Connection.kt`, `ai/Http.kt`, `ui/AiSettings.kt` | 単体（`ConnectionTest`） |
+| A-10 | 生成実行のカーネル統合（単発生成を「1ターンで提出する特殊アクティビティ」としてエージェントカーネル上で実行。Structured Outputs の型保証を維持したまま、ステージング・権限強制・実行記録 `_runs` をアクティビティ実行と単一系統化。ROADMAP R9-01） | ✅ | `agent/Generation.kt`, `ui/AiGenerationDialog.kt` | 単体（`GenerationRunTest`） |
 
 ## 8. エージェント実行（アクティビティ）
 
@@ -115,7 +117,7 @@
 | AG-09 | 実行記録 `_runs`（ターン・ツール呼び出し・質問と回答・採否・トークン使用量をYAML保存。索引対象外） | ✅ | `agent/RunLog.kt` | 手動 |
 | AG-10 | CLIからのアクティビティ実行（`agent` / `activities` コマンド。非対話実行では質問に「回答なし」を返す） | ✅ | `core/Cli.kt` | 手動（スモーク） |
 | AG-11 | トリガ（`trigger`: manual / on-change（デバウンス付き） / schedule / on-invalid。予約ディレクトリと自己変更では発火しない） | ✅ | `agent/Automation.kt`（`tick`） | 単体（`AutomationTest`） |
-| AG-12 | アクティビティ連鎖（`chain.onSuccess` / `onFailure`。深さ上限・循環検出。人間承認は採否決定後に発火） | ✅ | `agent/Automation.kt`（`chainNext`） | 単体（`AutomationTest`） |
+| AG-12 | アクティビティ連鎖（`chain.onSuccess` / `onFailure`、`chain.rules`＝出力値による分岐: 終わり方・採用変更ファイルglob・変更数・メモの部分一致のAND条件で分岐先を選ぶ（ROADMAP R9-04）。深さ上限・循環検出。人間承認は採否決定後に発火） | ✅ | `agent/Automation.kt`（`chainNext`）, `agent/Definitions.kt`（`ChainDef.selectNext`） | 単体（`AutomationTest`, `DefinitionsTest`） |
 | AG-13 | 無人リトライ（`retry.maxAttempts`。失敗理由と検証エラーをフィードバックし、同一失敗の繰り返しは収束打ち切り） | ✅ | `agent/Automation.kt`（`handleFailure`） | 単体（`AutomationTest`） |
 | AG-14 | 自動承認 `approval: auto`（ゲート通過・スコープ内・非編集中のみ。条件を欠くと承認待ちへ降格。適用前バックアップ） | ✅ | `agent/Automation.kt`, `agent/AutoApply.kt` | 単体（`AutomationTest`） |
 | AG-15 | 実行キューと停止（直列実行、常時停止＝キュー消去＋実行中キャンセル、承認待ち変更セットのファイル保存による耐久性） | ✅ | `agent/Automation.kt` | 単体（`AutomationTest`） |
@@ -141,22 +143,24 @@ UIに依存しないヘッドレス操作の層（[ROADMAP.md](ROADMAP.md) P1 �
 | C-03 | 変更セット（複数ファイルのパッチ束＋新規ファイル作成。baseハッシュ競合検出、全件成功時のみ書込、適用後状態のオーバーレイ索引で検証、`--require-valid` ゲート、ドライラン） | ✅ | `core/Patch.kt`（`ChangeSets`）, `core/Workspace.kt`（`apply`） | 単体（`WorkspaceCliTest`） |
 | C-04 | 段階的開示API（カタログ→骨子→ノード全文の3段階、文字数予算付き文脈バンドル） | ✅ | `core/Disclosure.kt` | 単体（`WorkspaceCliTest`） |
 | C-05 | 構造検索API（本文・キーの部分一致＋スキーマ／ファイルglob／パスglob条件、参照検索・未解決参照検索） | ✅ | `core/Search.kt` | 単体（`WorkspaceCliTest`） |
-| C-06 | CLI（catalog / outline / read / bundle / search / view / validate / apply / hash / activities / agent / watch / revert / metrics / eval / bench。出力はUTF-8のYAML。`validate` は `phases` 宣言スキーマの文書に `phaseProgress` を付与） | ✅ | `core/Cli.kt`, `build.gradle.kts`（`runCli`） | 単体（`WorkspaceCliTest` 一気通貫） |
+| C-06 | CLI（catalog / outline / read / bundle / search / view / validate / apply / hash / activities / agent / watch / revert / metrics / eval / bench / skills / import / export / run-skill / init。出力はUTF-8のYAML。`validate` は `phases` 宣言スキーマの文書に `phaseProgress` を付与） | ✅ | `core/Cli.kt`, `build.gradle.kts`（`runCli`） | 単体（`WorkspaceCliTest` 一気通貫） |
 | C-07 | ビュー解決API（`_views` 定義のロード・行×セルへの解決＝原本座標化・バックリンク列の解決＝参照元の最内IDと参照座標・データパスからのスキーマフィールド解決・詳細文書スキャフォールド。CLI `view`） | ✅ | `core/Views.kt`, `core/Cli.kt` | 単体（`ViewsTest`） |
 | C-08 | 索引性能ベンチマーク（ベンチマーク用ワークスペースの生成と、索引のフル再構築 vs 増分更新の比較計測。CLI `bench`。ROADMAP R8-02） | ✅ | `core/Bench.kt`, `core/Cli.kt` | 単体（`IdIndexIncrementalTest`） |
+| C-09 | 文書キャッシュの中核（`EditBuffer`＝履歴・dirty・複数ドキュメント再出力、`WorkspaceRecords`＝一覧・一括編集、`Workspace.noteDiskChanges`＝保存・外部変更の増分／全再構築の振り分け一元化。UIの `AppState` / `OpenDocument` はこの層への委譲＋Compose購読ミラーになる。ROADMAP R9-02） | ✅ | `core/Documents.kt`, `core/Workspace.kt` | 単体（`DocumentsTest`） |
 
 ## 10. skill・テンプレート（フォーマット適合）
 
-宣言型の入出力変換とテンプレートパック（[ROADMAP.md](ROADMAP.md) P5 の成果）。利用方法は README §14 を参照。
+宣言型の入出力変換・テンプレートパック（[ROADMAP.md](ROADMAP.md) P5 の成果）と、形式拡張・コード実行skill（P9 の R9-05・R9-06）。利用方法は README §14 を参照。
 
 | ID | 機能 | 状態 | 主な実装 | テスト |
 |---|---|---|---|---|
-| SK-01 | skill定義 `_skills`（kind: import / export の宣言型変換。組込みスキーマでフォーム編集・検証、メタアクティビティの提案対象。コード実行なし） | ✅ | `skill/Skills.kt`, `schema/BuiltinSchemas.kt` | 単体（`ImportExportTest`） |
-| SK-02 | インポート（xlsx / csv / json / markdown → 変更セット。新規行は文書作成、既存文書はマップ項目のみ更新＝追記保持。列マッピング: 型変換・値辞書・区切りによる配列化・必須・{列名}によるファイル解決） | ✅ | `skill/Importer.kt`, `skill/Tables.kt` | 単体（`ImportExportTest`, `TablesTest`） |
-| SK-03 | エクスポート（対象glob×行（文書 or 配列要素）×列（YPath）→ xlsx / csv / markdown。YAMLへの出力は拒否＝派生成果物の原則） | ✅ | `skill/Exporter.kt`, `skill/Tables.kt` | 単体（`ImportExportTest`） |
-| SK-04 | CLI（`skills` / `import`（プレビュー既定・`--apply`・`--require-valid`）/ `export` / `init`） | ✅ | `core/Cli.kt` | 手動（スモーク） |
+| SK-01 | skill定義 `_skills`（kind: import / export の宣言型変換と、kind: run のコード実行（SK-07）。組込みスキーマでフォーム編集・検証、メタアクティビティの提案対象） | ✅ | `skill/Skills.kt`, `schema/BuiltinSchemas.kt` | 単体（`ImportExportTest`, `RunSkillTest`） |
+| SK-02 | インポート（xlsx / csv / json / markdown / docx＝Word文書内の表（`input.table` で何番目か指定。ROADMAP R9-05）→ 変更セット。新規行は文書作成、既存文書はマップ項目のみ更新＝追記保持。列マッピング: 型変換・値辞書・区切りによる配列化・必須・{列名}によるファイル解決） | ✅ | `skill/Importer.kt`, `skill/Tables.kt` | 単体（`ImportExportTest`, `TablesTest`） |
+| SK-03 | エクスポート（対象glob×行（文書 or 配列要素）×列（YPath）→ xlsx / csv / markdown / json / html。`source.view` で `_views` のビュー定義を行×列の源にできる＝「ビューで見えている表をそのまま帳票へ」（ROADMAP R9-05）。YAMLへの出力は拒否＝派生成果物の原則） | ✅ | `skill/Exporter.kt`, `skill/Tables.kt` | 単体（`ImportExportTest`） |
+| SK-04 | CLI（`skills` / `import`（プレビュー既定・`--apply`・`--require-valid`）/ `export` / `run-skill`（`--yes` なしは内容表示のみ）/ `init`） | ✅ | `core/Cli.kt` | 手動（スモーク）＋単体（`RunSkillTest` の `--yes` ガード） |
 | SK-05 | テンプレートパック（`init --template ledger`: 課題台帳のスキーマ＋エージェント＋アクティビティ＋評価＋skill一式。既存ファイルは上書きしない） | ✅ | `skill/TemplatePacks.kt` | 単体（`ImportExportTest`） |
-| SK-06 | skillパネルUI（一覧・エクスポート実行・インポートのファイル選択→プレビュー→検証つき適用） | ✅ | `ui/SkillsPanel.kt` | 手動＋単体（実行系経路） |
+| SK-06 | skillパネルUI（一覧・エクスポート実行・インポートのファイル選択→プレビュー→検証つき適用・コード実行skillの承認ダイアログ→実行） | ✅ | `ui/SkillsPanel.kt` | 手動＋単体（実行系経路） |
+| SK-07 | コード実行skill（kind: run。ROADMAP R9-06）: 宣言型で書けない変換・定型手順のための任意コマンド実行。実行前に人間がコマンドと権限を承認する明示許可制（承認は定義内容の指紋に紐づき、定義が変わると失効）。エージェント・自動実行からは起動不可。実行後に `writes` 宣言外の変更を警告・予約ディレクトリの変更を逸脱として報告 | ✅ | `skill/Runner.kt`, `skill/Skills.kt`, `ui/SkillsPanel.kt`, `core/Cli.kt` | 単体（`RunSkillTest`） |
 
 ## 11. 未実装・既知の制約
 
@@ -172,11 +176,11 @@ UIに依存しないヘッドレス操作の層（[ROADMAP.md](ROADMAP.md) P1 �
 | L-06 | 参照グラフの本格的なレイアウト・全件表示 | ✅ 解消 | R8-05 で対応（X-03。力学配置・全件描画・パン/ズーム） |
 | L-07 | 一括編集の対象キー拡張 | ✅ 解消 | R8-05 で対応（X-02。ルート直下の任意スカラーキー） |
 | L-08 | ファイル監視のOSネイティブ化（WatchService等） | ✅ 解消 | R8-03 で対応（W-04。ポーリングは自動フォールバックとして残置） |
-| L-09 | フォーム系UI・AppState の自動テスト | 🚧 | 単体テストは ai／diff／AI提案合成／core（パッチ・開示・検索・CLI・監視・索引増分）／カバレッジ検証／agent（ステージング・カーネル・定義・自動化・メトリクス・評価・メタ）／ui純ロジック（構文ハイライト・置換・グラフレイアウト・キー名変更）／OpenDocument（複数ドキュメント）。Compose UI と AppState は手動確認（ROADMAP R9-02 の委譲でテスト可能範囲を広げる） |
-| L-10 | AppState の core.Workspace への全面委譲 | 🚧 | 走査・検証・パッチ・レビュー適用（apply＋reload）は共通実装を共有済み。人間編集との排他は AG-14/15（編集中は自動適用を承認待ちへ降格）で実現。文書キャッシュ層の統合は継続課題（ROADMAP R9-02） |
-| L-11 | AI生成ダイアログ（A-01〜03）とエージェントカーネルの完全統合 | 🚧 | 接続設定（`ui/AiSettings`）は共有済み。実行系の統合は、フィールド生成が Structured Outputs の型保証を持つ利点を崩さない形で検討（ROADMAP R2-09・R9-01） |
-| L-12 | コード実行skill（宣言型で書けない変換・定型手順） | 📋 | サンドボックス外作用のため明示許可制の設計が前提（ROADMAP R5-01・R9-06）。現状の skill は宣言型の import / export のみ |
-| L-13 | エクスポートのHTML・JSON形式、インポートのWord等 | 📋 | 現状は xlsx / csv / markdown（入力は + json）。`skill/Tables.kt` に形式を追加する（ROADMAP R9-05） |
-| L-14 | ビューグリッドの行集合はディスク索引基準 | 🚧 | セル値・編集は未保存編集を即時反映するが、行の増減（新しいID）は保存まで反映されない（索引の設計方針 ARCHITECTURE §4.5 に準拠）。セル直接編集はスカラー型のみで、配列・オブジェクトはジャンプして個別フォームで編集する（ROADMAP R9-02 で再評価） |
+| L-09 | フォーム系UI・AppState の自動テスト | 🚧 | 単体テストは ai／diff／AI提案合成／core（パッチ・開示・検索・CLI・監視・索引増分・文書キャッシュ中核）／カバレッジ検証／agent（ステージング・カーネル・定義・自動化・メトリクス・評価・メタ・生成統合）／skill（入出力・コード実行）／ui純ロジック（構文ハイライト・置換・グラフレイアウト・キー名変更）／OpenDocument（複数ドキュメント）。R9-02 の抽出（C-09）で履歴・dirty・一覧・一括編集・索引更新方針が core で単体テスト可能になった。Compose UI 自体は引き続き手動確認（プロジェクト方針） |
+| L-10 | AppState の core.Workspace への全面委譲 | ✅ 解消 | R9-02 で対応（C-09）。AppState は core.Workspace（走査・スキーマ・索引）への委譲＋Compose購読ミラーになり、保存・外部変更の索引更新方針（増分／全再構築）は `Workspace.noteDiskChanges` に一元化。`OpenDocument` は core.EditBuffer（履歴・dirty・複数ドキュメント）を包む Compose シェル |
+| L-11 | AI生成ダイアログ（A-01〜03）とエージェントカーネルの完全統合 | ✅ 解消 | R9-01 で対応（A-10）。単発生成を「1ターンで提出する特殊アクティビティ」としてカーネル実行し、Structured Outputs の型保証・ダイアログのUX（プレビュー→未保存適用）は維持。実行記録が単一系統になった |
+| L-12 | コード実行skill（宣言型で書けない変換・定型手順） | ✅ 解消 | R9-06 で対応（SK-07）。実行前の人間承認（定義指紋に紐づく失効つき）を機械強制する明示許可制で実装 |
+| L-13 | エクスポートのHTML・JSON形式、インポートのWord等 | ✅ 解消 | R9-05 で対応（SK-02・SK-03）。エクスポート xlsx / csv / markdown / json / html、インポート + docx（Word文書内の表） |
+| L-14 | ビューグリッドの行集合はディスク索引基準 | ✅ 仕様として確定 | R9-02 で再評価し、行集合はディスク索引基準を維持する（索引の二層構造 ARCHITECTURE §4.5 を崩さない）。セル値・編集は未保存編集を即時反映し、行の増減（新しいID）は保存で反映される。セル直接編集はスカラー型のみで、配列・オブジェクトはジャンプして個別フォームで編集する |
 | L-15 | 出現ベースのカバレッジルール | ✅ 解消 | R7-02 で対応（S-09 の `detailIn`・V-05）。「一覧の全IDに詳細文書（特定スキーマの出現）があること」を機械検証できる |
-| L-16 | `phases` / `coverage` のスキーマ設計UI未対応 | 🚧 | スキーマ全体設定のため `_schemas` のソース編集（YAML）で記述する。フィールド単位の `requiredFrom` はスキーマ設計UIに入力欄がある（S-05）。ROADMAP R9-03 で対応予定 |
+| L-16 | `phases` / `coverage` のスキーマ設計UI未対応 | ✅ 解消 | R9-03 で対応（S-05）。フェーズ宣言（申告キー・順序）とカバレッジルール（参照／出現ベース・重大度・activeFrom）を構造化UIで編集できる |

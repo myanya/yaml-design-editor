@@ -54,7 +54,9 @@ internal const val CLI_USAGE = """コマンド:
   import   <workspace> <skill-id> <file> [--apply] [--require-valid]
            表形式ファイル（xlsx/csv/json/markdown）を変更セットへ変換する。
            既定はプレビューのみ。--apply で適用（既存文書はマップした項目だけ更新）
-  export   <workspace> <skill-id>               YAML原本から派生成果物（xlsx/csv/md）を再生成する
+  export   <workspace> <skill-id>               YAML原本から派生成果物（xlsx/csv/md/json/html）を再生成する
+  run-skill <workspace> <skill-id> [--yes]      コード実行skill（kind: run）。--yes なしでは
+           コマンド内容の表示のみ。人間が内容を確認し --yes を付けたときだけ実行する（明示許可制）
   init     <dir> [--template name]              テンプレートパックでワークスペースを初期化
            （--template 省略時は利用可能なテンプレートを一覧表示）
   bench    <dir> [--docs N] [--items N]         索引性能の計測（R8-02）。空ディレクトリならベンチマーク用
@@ -302,6 +304,39 @@ internal fun runCli(args: Array<String>): String {
             val def = loaded.skill(skillId) ?: error("skill「$skillId」が見つかりません（skills コマンドで確認できます）")
             val result = skill.Exporter.run(ws, def)
             dumpYaml(linkedMapOf("file" to result.rel, "rows" to result.rows))
+        }
+        "run-skill" -> {
+            // コード実行skill（R9-06）。明示許可制: --yes なしでは内容の表示だけを行い、実行しない
+            val ws = workspace()
+            val skillId = rest.getOrNull(1)?.takeIf { !it.startsWith("--") } ?: error("skill IDを指定してください")
+            val loaded = skill.Skills.load(ws.root)
+            val def = loaded.skill(skillId) ?: error("skill「$skillId」が見つかりません（skills コマンドで確認できます）")
+            val runDef = def.run ?: error("skill「$skillId」は run（コード実行）ではありません")
+            val summary = linkedMapOf<String, Any?>(
+                "skill" to def.id,
+                "command" to runDef.command,
+                "workdir" to runDef.workdir,
+                "timeoutSeconds" to runDef.timeoutSeconds,
+                "writes" to runDef.writes,
+            )
+            if ("--yes" !in rest) {
+                dumpYaml(summary) +
+                    "# 上記のコマンドがワークスペースの外にも作用しうることを確認し、実行するには --yes を付けてください\n"
+            } else {
+                val outcome = skill.Runner.run(ws, def, skill.Runner.Approval.approve(runDef))
+                dumpYaml(
+                    linkedMapOf<String, Any?>(
+                        "ok" to outcome.ok,
+                        "exitCode" to outcome.exitCode,
+                        "timedOut" to outcome.timedOut.takeIf { it },
+                        "changedFiles" to outcome.changedFiles.ifEmpty { null },
+                        "outOfScope" to outcome.outOfScope.ifEmpty { null },
+                        "reservedTouched" to outcome.reservedTouched.ifEmpty { null },
+                        "stdout" to outcome.stdout.takeIf { it.isNotBlank() },
+                        "stderr" to outcome.stderr.takeIf { it.isNotBlank() },
+                    ).filterValues { it != null }
+                )
+            }
         }
         "init" -> {
             val dir = Path.of(rest.firstOrNull() ?: error("ディレクトリを指定してください"))

@@ -1,21 +1,17 @@
 package ai
 
-import kotlinx.coroutines.future.await
 import kotlinx.serialization.json.*
 import model.YNode
-import java.net.URI
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
-import java.time.Duration
 
 object OpenAiGenerator {
     private val json = Json { ignoreUnknownKeys = true }
-    private val client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(20)).build()
 
-    suspend fun generate(input: AiGenerationInput): YNode {
-        require(input.apiKey.isNotBlank()) { "OpenAI APIキーを入力してください" }
-        require(input.model.isNotBlank()) { "モデルを入力してください" }
+    /** OpenAI 公式および OpenAI 互換プリセット（Azure 等）での生成。接続先は AiConnection が解決する（R9-07）。 */
+    suspend fun generate(input: AiGenerationInput, provider: AiProvider = AiProvider.OPENAI): YNode {
+        require(input.apiKey.isNotBlank()) { "${provider.label} APIキーを入力してください" }
+        require(input.model.isNotBlank()) {
+            if (provider == AiProvider.AZURE) "デプロイメント名を入力してください" else "モデルを入力してください"
+        }
 
         val targetSchema = fieldToJsonSchema(input.field, input.schema, candidates = input.idCandidates)
         // strict モードは additionalProperties にスキーマを取る map 型を許容しないため、その場合のみ無効化する。
@@ -34,14 +30,9 @@ object OpenAiGenerator {
                 }
             }
         }
-        val request = HttpRequest.newBuilder(URI.create("https://api.openai.com/v1/responses"))
-            .timeout(Duration.ofSeconds(120))
-            .header("Authorization", "Bearer ${input.apiKey.trim()}")
-            .header("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
-            .build()
-        val response = client.sendAsync(request, HttpResponse.BodyHandlers.ofString()).await()
-        return parseResponse(response.statusCode(), response.body())
+        val target = AiConnection.responsesTarget(provider, input.apiKey)
+        val (status, responseBody) = AiHttp.post(target.uri, target.headers, body.toString(), timeoutSeconds = 120)
+        return parseResponse(status, responseBody)
     }
 
     internal fun parseResponse(statusCode: Int, body: String): YNode {
