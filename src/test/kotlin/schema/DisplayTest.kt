@@ -274,6 +274,243 @@ class DisplayTest {
         assertTrue(schema.validateDefinition().any { it.message.contains("選択肢の値「open」が重複") })
     }
 
+    // ---------------------------------------------------------------- 配列のテーブル表示（R12-06）
+
+    /** root 直下の最初のフィールド（配列想定）を返す。 */
+    private fun firstField(schema: SchemaDef): FieldDef =
+        schema.resolve(schema.root)!!.fields[0]
+
+    @Test
+    fun `スカラー中心のobject配列は自動でテーブル列になる`() {
+        val schema = schemaOf(
+            """
+            id: t
+            name: t
+            match: "docs/**/*.yaml"
+            root:
+              type: object
+              fields:
+                - key: columns
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: name, type: string }
+                      - { key: dataType, type: string }
+                      - { key: pk, type: boolean }
+            """
+        )
+        val cols = Display.tableColumns(schema, firstField(schema))
+        assertEquals(listOf("name", "dataType", "pk"), cols!!.map { it.key })
+    }
+
+    @Test
+    fun `非セル型が過半・列数不足・スカラー要素の配列はテーブルにしない`() {
+        // ネスト（object）が過半 → null
+        val nested = schemaOf(
+            """
+            id: t
+            name: t
+            match: "docs/**/*.yaml"
+            root:
+              type: object
+              fields:
+                - key: items
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: name, type: string }
+                      - { key: meta, type: object, fields: [ { key: a, type: string } ] }
+                      - { key: extra, type: object, fields: [ { key: b, type: string } ] }
+            """
+        )
+        assertNull(Display.tableColumns(nested, firstField(nested)))
+        // 要素がスカラー → null
+        val scalars = schemaOf(
+            """
+            id: t
+            name: t
+            match: "docs/**/*.yaml"
+            root:
+              type: object
+              fields:
+                - key: tags
+                  type: array
+                  item:
+                    type: string
+            """
+        )
+        assertNull(Display.tableColumns(scalars, firstField(scalars)))
+    }
+
+    /** 9列のスカラーフィールドを持つ配列スキーマ（インデントは列挙生成のため手組み）。 */
+    private fun manyColumnsSchema(display: String?): SchemaDef {
+        val fields = (1..9).joinToString("\n") { "        - { key: c$it, type: string }" }
+        val displayLine = if (display != null) "      display: $display\n" else ""
+        val text = "id: t\n" +
+            "name: t\n" +
+            "match: \"docs/**/*.yaml\"\n" +
+            "root:\n" +
+            "  type: object\n" +
+            "  fields:\n" +
+            "    - key: items\n" +
+            "      type: array\n" +
+            displayLine +
+            "      item:\n" +
+            "        type: object\n" +
+            "        fields:\n" +
+            fields
+        return SchemaLoader.parseSchemaText(text, Path.of("_schemas/test.yaml"))
+    }
+
+    @Test
+    fun `自動判定の列数上限を超えるとテーブルにしないが display table なら固定できる`() {
+        assertNull(Display.tableColumns(manyColumnsSchema(null), firstField(manyColumnsSchema(null))))
+        val forced = manyColumnsSchema("table")
+        assertEquals(9, Display.tableColumns(forced, firstField(forced))!!.size)
+    }
+
+    @Test
+    fun `display list は適格な配列でも縦リストに固定する`() {
+        val schema = schemaOf(
+            """
+            id: t
+            name: t
+            match: "docs/**/*.yaml"
+            root:
+              type: object
+              fields:
+                - key: items
+                  type: array
+                  display: list
+                  item:
+                    type: object
+                    fields:
+                      - { key: name, type: string }
+                      - { key: status, type: string }
+            """
+        )
+        assertNull(Display.tableColumns(schema, firstField(schema)))
+    }
+
+    @Test
+    fun `ref 先の display が合成される`() {
+        val schema = schemaOf(
+            """
+            id: t
+            name: t
+            match: "docs/**/*.yaml"
+            definitions:
+              cols:
+                type: array
+                display: table
+                item:
+                  type: object
+                  fields:
+                    - { key: name, type: string }
+            root:
+              type: object
+              fields:
+                - { key: columns, ${'$'}ref: cols }
+            """
+        )
+        // 自動判定では列1つは不適格だが、$ref 先の display table が引き継がれて表になる
+        assertEquals(listOf("name"), Display.tableColumns(schema, firstField(schema))!!.map { it.key })
+    }
+
+    @Test
+    fun `display の不正値はパースエラー・非配列型への指定はメタ検証エラー`() {
+        assertFails {
+            schemaOf(
+                """
+                id: t
+                name: t
+                match: "docs/**/*.yaml"
+                root:
+                  type: object
+                  fields:
+                    - { key: items, type: array, display: grid, item: { type: string } }
+                """
+            )
+        }
+        val misplaced = schemaOf(
+            """
+            id: t
+            name: t
+            match: "docs/**/*.yaml"
+            root:
+              type: object
+              fields:
+                - { key: name, type: string, display: table }
+            """
+        )
+        assertTrue(misplaced.validateDefinition().any { it.message.contains("displayはarray / map型") })
+    }
+
+    @Test
+    fun `map（キー→object）もスカラー中心なら自動でテーブル列になる`() {
+        val schema = schemaOf(
+            """
+            id: t
+            name: t
+            match: "docs/**/*.yaml"
+            root:
+              type: object
+              fields:
+                - key: environments
+                  type: map
+                  value:
+                    type: object
+                    fields:
+                      - { key: purpose, type: string }
+                      - { key: url, type: string }
+            """
+        )
+        val cols = Display.tableColumns(schema, firstField(schema))
+        assertEquals(listOf("purpose", "url"), cols!!.map { it.key })
+    }
+
+    @Test
+    fun `map でも display list による固定とスカラー値の不適格が機能する`() {
+        // display: list → 適格でも縦リスト固定
+        val listed = schemaOf(
+            """
+            id: t
+            name: t
+            match: "docs/**/*.yaml"
+            root:
+              type: object
+              fields:
+                - key: environments
+                  type: map
+                  display: list
+                  value:
+                    type: object
+                    fields:
+                      - { key: purpose, type: string }
+                      - { key: url, type: string }
+            """
+        )
+        assertNull(Display.tableColumns(listed, firstField(listed)))
+        // 値がスカラーの map → 不適格
+        val scalars = schemaOf(
+            """
+            id: t
+            name: t
+            match: "docs/**/*.yaml"
+            root:
+              type: object
+              fields:
+                - key: labels
+                  type: map
+                  value:
+                    type: string
+            """
+        )
+        assertNull(Display.tableColumns(scalars, firstField(scalars)))
+    }
+
     @Test
     fun `リッチ選択肢でも values ベースの検証と cases が機能する`() {
         val schema = schemaOf(

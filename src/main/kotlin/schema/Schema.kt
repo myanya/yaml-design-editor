@@ -58,6 +58,21 @@ enum class FieldRole(val id: String) {
 }
 
 /**
+ * 配列・map フィールドの一覧表示形式のヒント（R12-06）。未指定時は `Display.tableColumns` の自動判定に従う。
+ * 検証・索引の意味論には影響しない（表示専用のヒント）。
+ */
+enum class CollectionDisplay(val id: String) {
+    TABLE("table"),
+    LIST("list");
+
+    companion object {
+        fun parse(value: String?): CollectionDisplay? = value?.let { raw ->
+            entries.firstOrNull { it.id == raw } ?: error("display は table / list のいずれかである必要があります: $raw")
+        }
+    }
+}
+
+/**
  * enum の選択肢1件（R10-03）。データ・検証・cases のキー・AI生成の制約は常に `value` を使い、
  * label / description はフォーム表示専用。文字列だけの選択肢は label / description なしと等価。
  */
@@ -125,6 +140,7 @@ data class FieldDef(
     val values: List<String> = emptyList(),  // ENUM の選択肢（値のリスト。検証・cases・AI制約はこちらを使う）
     val options: List<EnumOption> = emptyList(), // ENUM のリッチ選択肢（label / description。表示専用。R10-03）
     val role: FieldRole? = null,             // 表示役割（title / subtitle。表示解決の上書き。R10-01）
+    val display: CollectionDisplay? = null,  // ARRAY / MAP の一覧表示形式（table / list。未指定は自動判定。R12-06）
     val cases: Map<String, List<FieldDef>> = emptyMap(), // ENUM の値ごとに親オブジェクトへ追加される兄弟フィールド
     val item: FieldDef? = null,              // ARRAY の要素定義
     val value: FieldDef? = null,             // MAP の値定義
@@ -274,6 +290,7 @@ data class SchemaDef(
                 unknownFields = current.unknownFields ?: target.unknownFields,
                 cases = current.cases.ifEmpty { target.cases },
                 role = current.role ?: target.role,
+                display = current.display ?: target.display,
             )
         }
         return current
@@ -384,11 +401,17 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
                 if (resolved.cases.isNotEmpty() && resolved.type != FieldType.ENUM) {
                     issues += SchemaIssue("casesはenum型でのみ使用できます", path)
                 }
+                if (resolved.display != null && resolved.type != FieldType.ARRAY && resolved.type != FieldType.MAP) {
+                    issues += SchemaIssue("displayはarray / map型でのみ使用できます", path)
+                }
             }
             return
         }
         if (field.cases.isNotEmpty() && field.type != FieldType.ENUM) {
             issues += SchemaIssue("casesはenum型でのみ使用できます", path)
+        }
+        if (field.display != null && field.type != FieldType.ARRAY && field.type != FieldType.MAP) {
+            issues += SchemaIssue("displayはarray / map型でのみ使用できます", path)
         }
         when (field.type) {
             FieldType.OBJECT -> {
@@ -802,6 +825,7 @@ object SchemaLoader {
             values = options.map { it.value },
             options = options,
             role = FieldRole.parse(m["role"]?.toString()),
+            display = CollectionDisplay.parse(m["display"]?.toString()),
             cases = cases,
             item = item,
             value = value,

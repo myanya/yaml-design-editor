@@ -5,6 +5,7 @@ import agent.AgentHost
 import agent.AgentKernel
 import agent.AgentRunRequest
 import agent.AgentRunResult
+import agent.AutomationEngine
 import agent.Definitions
 import agent.RunLog
 import agent.RunStatus
@@ -21,6 +22,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,6 +37,7 @@ import app.AppState
 import core.ChangeSet
 import core.Workspace
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -42,73 +46,73 @@ import validate.Severity
 import java.nio.file.Path
 
 /**
- * アクティビティ実行ダイアログ（R2-03/06/07 のUI）。
- * 選択 → 実行（進捗ストリーミング・質問応答・キャンセル）→ 変更セットレビュー（部分採用）→ 適用。
- * 上限到達・中断でもステージングがあれば未提出ドラフトとして同じレビューを表示する。
+ * 実行スペース（R12-01/02）。
+ * エージェント実行・自動化・計測評価を1スペースに集約し、先頭タブの「受信箱」に
+ * 人間の判断待ち（承認待ち変更セット・エージェントの質問・外部変更競合）を集める。
+ * 受信箱はデータを持たない射影で、各機構（AutomationEngine / RunController / OpenDocument）が正。
  */
 
-private enum class AgentStage { SELECT, RUNNING, REVIEW, DONE }
+// ================================================================ 実行状態（RunController）
 
-private class PendingQuestion(val question: String, val answer: CompletableDeferred<String?>)
+/**
+ * エージェント実行の状態機械（選択→実行→レビュー→完了）。
+ * 旧 AgentRunHost がコンポーザブルの remember に持っていた状態を AppRoot 生存期間のクラスへ退避し、
+ * スペースを切り替えて実行画面がコンポジションから外れても実行・レビューが失われないようにする
+ * （ARCHITECTURE §4.24。実行状態をコンポーザブルローカルへ戻さない）。
+ */
+class RunController(private val state: AppState, val wsPath: Path, private val scope: CoroutineScope) {
 
-@Composable
-fun AgentRunHost(state: AppState, engine: agent.AutomationEngine? = null, onClose: () -> Unit) {
-    val wsPath = state.workspace ?: return
-    var runActivityId by remember { mutableStateOf<String?>(null) }
-    var stage by remember { mutableStateOf(AgentStage.SELECT) }
-    var defsRefresh by remember { mutableStateOf(0) }
-    val defs = remember(wsPath, defsRefresh) { Definitions.load(wsPath) }
-    var selectedActivity by remember(defs) { mutableStateOf(defs.activities.firstOrNull()) }
-    var extraInstruction by remember { mutableStateOf("") }
-    var errorMessage by remember { mutableStateOf("") }
+    enum class Stage { SELECT, RUNNING, REVIEW, DONE }
 
-    // 実行状態
-    val events = remember { mutableStateListOf<String>() }
-    var plan by remember { mutableStateOf<List<String>>(emptyList()) }
-    var pendingQuestion by remember { mutableStateOf<PendingQuestion?>(null) }
-    var runJob by remember { mutableStateOf<Job?>(null) }
-    var runResult by remember { mutableStateOf<AgentRunResult?>(null) }
-    var runFile by remember { mutableStateOf<Path?>(null) }
-    var coreWs by remember { mutableStateOf<Workspace?>(null) }
-    var doneMessage by remember { mutableStateOf("") }
-    val scope = rememberCoroutineScope()
+    /** エージェントからのブロッキングな質問（R2-07）。回答は respond で完了させる。 */
+    class PendingQuestion(val question: String, private val answer: CompletableDeferred<String?>) {
+        fun respond(text: String?) { answer.complete(text) }
+        internal suspend fun await(): String? = answer.await()
+    }
 
-    // 実効プロバイダ／モデル: エージェント定義のピン留めが最優先、なければダイアログの選択値。
-    // APIキーは必ず「実効プロバイダ」のものを使う（選択中プロバイダの鍵を流用しない）。
-    val selectedAgentDef = selectedActivity?.let { defs.agent(it.agentId) }
-    val effectiveProvider = selectedAgentDef?.provider ?: AiSettings.provider
-    val effectiveModel = selectedAgentDef?.model ?: AiSettings.modelFor(effectiveProvider).trim()
+    var stage by mutableStateOf(Stage.SELECT)
+        private set
+    var selectedActivity by mutableStateOf<agent.ActivityDef?>(null)
+    var extraInstruction by mutableStateOf("")
+    var errorMessage by mutableStateOf("")
+    /** 定義再読込のトリガ（インクリメントで Definitions.load をやり直す）。 */
+    var defsVersion by mutableStateOf(0)
+        private set
+    val events = mutableStateListOf<String>()
+    var plan by mutableStateOf<List<String>>(emptyList())
+        private set
+    var pendingQuestion by mutableStateOf<PendingQuestion?>(null)
+        private set
+    var runResult by mutableStateOf<AgentRunResult?>(null)
+        private set
+    var runFile by mutableStateOf<Path?>(null)
+        private set
+    var coreWs by mutableStateOf<Workspace?>(null)
+        private set
+    var doneMessage by mutableStateOf("")
+        private set
+    var runActivityId by mutableStateOf<String?>(null)
+        private set
+    private var runJob: Job? = null
 
-    fun startRun() {
-        val activity = selectedActivity ?: return
-        val agentDef = defs.agent(activity.agentId) ?: run {
-            errorMessage = "エージェント「${activity.agentId}」が見つかりません"; return
-        }
-        if (effectiveModel.isBlank()) {
-            errorMessage = "${effectiveProvider.label} のモデルを入力してください"; return
-        }
+    val running: Boolean get() = stage == Stage.RUNNING
+
+    fun refreshDefs() { defsVersion++ }
+
+    fun startRun(activityId: String, request: AgentRunRequest) {
         errorMessage = ""
         events.clear(); plan = emptyList(); runResult = null; runFile = null
-        runActivityId = activity.id
-        stage = AgentStage.RUNNING
-        val request = AgentRunRequest(
-            activity = activity,
-            agent = agentDef,
-            provider = effectiveProvider,
-            model = effectiveModel,
-            apiKey = AiSettings.apiKeyFor(effectiveProvider),
-            extraInstruction = extraInstruction.takeIf { it.isNotBlank() },
-            apiKeys = AiProvider.entries.associateWith { AiSettings.apiKeyFor(it) }.filterValues { it.isNotBlank() },
-            subAgents = defs.agents,
-        )
+        runActivityId = activityId
+        stage = Stage.RUNNING
         // Compose のスナップショット状態はスレッド安全のため、カーネルのIOスレッドから直接更新する。
         // Dispatchers.Main は Compose for Desktop の classpath に提供モジュールがなく、使うと実行時例外になる。
         val host = object : AgentHost {
             override suspend fun askHuman(question: String): String? {
                 val deferred = CompletableDeferred<String?>()
-                pendingQuestion = PendingQuestion(question, deferred)
+                val pending = PendingQuestion(question, deferred)
+                pendingQuestion = pending
                 try {
-                    return deferred.await()
+                    return pending.await()
                 } finally {
                     pendingQuestion = null
                 }
@@ -133,98 +137,308 @@ fun AgentRunHost(state: AppState, engine: agent.AutomationEngine? = null, onClos
             runFile = withContext(Dispatchers.IO) { runCatching { RunLog.write(ws, request, result) }.getOrNull() }
             stage = if (result.changeSet.changes.isEmpty() && result.status != RunStatus.SUBMITTED) {
                 doneMessage = "${statusLabel(result.status)}: ${result.message ?: ""}（変更はありません）"
-                AgentStage.DONE
-            } else AgentStage.REVIEW
+                Stage.DONE
+            } else Stage.REVIEW
         }
     }
 
-    AlertDialog(
-        onDismissRequest = { if (stage != AgentStage.RUNNING) onClose() },
-        modifier = Modifier.widthIn(min = 760.dp, max = 1120.dp),
-        title = {
-            Column {
-                Text(
-                    when (stage) {
-                        AgentStage.SELECT -> "アクティビティを実行"
-                        AgentStage.RUNNING -> "実行中: ${selectedActivity?.name ?: ""}"
-                        AgentStage.REVIEW -> "変更セットのレビュー"
-                        AgentStage.DONE -> "実行結果"
-                    }
-                )
-                Text("エージェントの編集はステージング上で行われ、承認するまで原本は変わりません",
-                    fontSize = 11.sp, color = Palette.SubText)
+    fun cancel() {
+        val job = runJob ?: return
+        runJob = null
+        job.cancel()
+        job.invokeOnCompletion {
+            if (stage == Stage.RUNNING) {
+                doneMessage = "キャンセルしました（原本は変更されていません）"
+                stage = Stage.DONE
             }
-        },
-        text = {
-            when (stage) {
-                AgentStage.SELECT -> SelectContent(
+        }
+    }
+
+    /** レビューの採否が確定したときに呼ぶ（メッセージを表示して完了状態へ）。 */
+    fun finish(message: String) {
+        doneMessage = message
+        stage = Stage.DONE
+    }
+
+    fun resetToSelect() {
+        doneMessage = ""
+        errorMessage = ""
+        stage = Stage.SELECT
+    }
+}
+
+// ================================================================ スペース本体
+
+@Composable
+fun RunsSpace(state: AppState, engine: AutomationEngine?, controller: RunController?, version: Int) {
+    version  // エンジン更新の購読
+    if (engine == null || controller == null) return
+    var tab by remember { mutableStateOf(0) }
+    var reviewTarget by remember { mutableStateOf<AutomationEngine.PendingReview?>(null) }
+    val pending = engine.pendingSnapshot()
+    val conflicts = state.conflictedDocs()
+    val inboxCount = pending.size + conflicts.size + (if (controller.pendingQuestion != null) 1 else 0)
+
+    Column(Modifier.fillMaxSize().background(Palette.EditorBg)) {
+        TabRow(selectedTabIndex = tab, containerColor = Palette.Surface, contentColor = Palette.Primary) {
+            Tab(tab == 0, { tab = 0 }, text = { Text(if (inboxCount > 0) "受信箱（$inboxCount）" else "受信箱", fontSize = 13.sp) })
+            Tab(tab == 1, { tab = 1 }, text = { Text("手動実行", fontSize = 13.sp) })
+            Tab(tab == 2, { tab = 2 }, text = { Text("自動化", fontSize = 13.sp) })
+            Tab(tab == 3, { tab = 3 }, text = { Text("計測・評価", fontSize = 13.sp) })
+        }
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            when (tab) {
+                0 -> {
+                    val review = reviewTarget
+                    if (review != null && pending.contains(review)) {
+                        PendingReviewPane(state, engine, review) { reviewTarget = null }
+                    } else {
+                        InboxTab(state, engine, controller, onReview = { reviewTarget = it })
+                    }
+                }
+                1 -> ManualRunTab(state, engine, controller)
+                2 -> AutomationSection(state, engine, version) { tab = 0 }
+                3 -> ImprovementSection(state)
+            }
+        }
+    }
+}
+
+// ================================================================ 受信箱（R12-02）
+
+@Composable
+private fun InboxTab(
+    state: AppState,
+    engine: AutomationEngine,
+    controller: RunController,
+    onReview: (AutomationEngine.PendingReview) -> Unit,
+) {
+    val pending = engine.pendingSnapshot()
+    val conflicts = state.conflictedDocs()
+    val question = controller.pendingQuestion
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+        Text("人間の判断を待っているものが、ここに集まります", fontSize = 11.sp, color = Palette.SubText)
+        Spacer(Modifier.height(10.dp))
+
+        if (question == null && pending.isEmpty() && conflicts.isEmpty()) {
+            Text("判断待ちはありません", fontSize = 13.sp, color = Palette.OkGreen)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "エージェントの承認待ち変更セット・実行中の質問・外部変更の競合が発生すると、ここに表示されます。",
+                fontSize = 12.sp, color = Palette.SubText,
+            )
+            return@Column
+        }
+
+        // ---------------- エージェントの質問（実行をブロック中） ----------------
+        question?.let { QuestionCard(it) }
+
+        // ---------------- 承認待ち変更セット ----------------
+        if (pending.isNotEmpty()) {
+            InboxSection("承認待ち変更セット（${pending.size}）")
+            pending.forEach { review ->
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 3.dp)
+                        .background(Palette.PanelBg, PanelShape)
+                        .border(1.dp, Palette.Border, PanelShape)
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("${review.activityName}（${review.activityId}）", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "${review.result.changeSet.changes.size} ファイル ／ ${review.reason}",
+                            fontSize = 11.sp, color = Palette.SubText, maxLines = 2,
+                        )
+                    }
+                    Button(onClick = { onReview(review) },
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp)) {
+                        Text("レビュー", fontSize = 12.sp)
+                    }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+
+        // ---------------- 外部変更の競合 ----------------
+        if (conflicts.isNotEmpty()) {
+            InboxSection("外部変更との競合（${conflicts.size}）")
+            conflicts.forEach { doc ->
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 3.dp)
+                        .background(Palette.ConflictBg, PanelShape)
+                        .border(1.dp, Palette.Border, PanelShape)
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(state.relPath(doc.file), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text("外部で変更されました。未保存の編集内容を保持しています。", fontSize = 11.sp, color = Palette.SubText)
+                    }
+                    TextButton(onClick = { state.openFile(doc.file) }) { Text("開いて確認", fontSize = 12.sp) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InboxSection(title: String) {
+    Text(title, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Palette.SubText,
+        modifier = Modifier.padding(vertical = 3.dp))
+}
+
+/**
+ * エージェントの質問カード（R2-07）。モーダルにせず、文書を確認しながら回答できるようにする
+ * （カーネルは回答まで suspend しており、放置しても原本には作用しない）。
+ */
+@Composable
+internal fun QuestionCard(question: RunController.PendingQuestion) {
+    var answer by remember(question) { mutableStateOf("") }
+    Column(
+        Modifier.fillMaxWidth().padding(vertical = 3.dp)
+            .background(Palette.PanelBg, PanelShape)
+            .border(1.dp, Palette.WarnOrange, PanelShape)
+            .padding(10.dp),
+    ) {
+        Text("❓ エージェントからの質問（回答するまで実行が待機します）", fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold, color = Palette.WarnOrange)
+        Spacer(Modifier.height(6.dp))
+        Text(question.question, fontSize = 13.sp)
+        Spacer(Modifier.height(8.dp))
+        CompactTextField(answer, { answer = it },
+            placeholder = { Text("回答（追加の指示もここで伝えられます）", fontSize = 12.sp, color = Palette.SubText) },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp))
+        Spacer(Modifier.height(6.dp))
+        Row {
+            Button(enabled = answer.isNotBlank(), onClick = { question.respond(answer) },
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp)) {
+                Text("回答する", fontSize = 12.sp)
+            }
+            Spacer(Modifier.width(8.dp))
+            TextButton(onClick = { question.respond(null) }) { Text("回答しない", fontSize = 12.sp) }
+        }
+    }
+    Spacer(Modifier.height(8.dp))
+}
+
+/** 承認待ち変更セットのレビュー（受信箱内の全画面。モーダルにしない。R12-02）。 */
+@Composable
+private fun PendingReviewPane(
+    state: AppState,
+    engine: AutomationEngine,
+    review: AutomationEngine.PendingReview,
+    onBack: () -> Unit,
+) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, "受信箱へ戻る（保留のまま）", Modifier.size(18.dp))
+            }
+            Column {
+                Text("承認待ち: ${review.activityName}", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Text(review.reason, fontSize = 11.sp, color = Palette.SubText)
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        ReviewContent(state, review.ws, review.result, review.runFile) { adopted, applied, _ ->
+            engine.completeReview(review, adopted, applied)
+            onBack()
+        }
+    }
+}
+
+// ================================================================ 手動実行（旧 AgentRunHost。R2-03/06/07）
+
+@Composable
+private fun ManualRunTab(state: AppState, engine: AutomationEngine, controller: RunController) {
+    val defs = remember(controller.wsPath, controller.defsVersion) { Definitions.load(controller.wsPath) }
+    LaunchedEffect(defs) {
+        val cur = controller.selectedActivity
+        if (cur == null || defs.activities.none { it.id == cur.id }) {
+            controller.selectedActivity = defs.activities.firstOrNull()
+        }
+    }
+    val selected = controller.selectedActivity
+
+    // 実効プロバイダ／モデル: エージェント定義のピン留めが最優先、なければ設定の選択値。
+    // APIキーは必ず「実効プロバイダ」のものを使う（選択中プロバイダの鍵を流用しない）。
+    val selectedAgentDef = selected?.let { defs.agent(it.agentId) }
+    val effectiveProvider = selectedAgentDef?.provider ?: AiSettings.provider
+    val effectiveModel = selectedAgentDef?.model ?: AiSettings.modelFor(effectiveProvider).trim()
+
+    fun startRun() {
+        val activity = selected ?: return
+        val agentDef = defs.agent(activity.agentId) ?: run {
+            controller.errorMessage = "エージェント「${activity.agentId}」が見つかりません"; return
+        }
+        if (effectiveModel.isBlank()) {
+            controller.errorMessage = "${effectiveProvider.label} のモデルを入力してください"; return
+        }
+        controller.startRun(activity.id, AgentRunRequest(
+            activity = activity,
+            agent = agentDef,
+            provider = effectiveProvider,
+            model = effectiveModel,
+            apiKey = AiSettings.apiKeyFor(effectiveProvider),
+            extraInstruction = controller.extraInstruction.takeIf { it.isNotBlank() },
+            apiKeys = AiProvider.entries.associateWith { AiSettings.apiKeyFor(it) }.filterValues { it.isNotBlank() },
+            subAgents = defs.agents,
+        ))
+    }
+
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+        Text("エージェントの編集はステージング上で行われ、承認するまで原本は変わりません",
+            fontSize = 11.sp, color = Palette.SubText)
+        Spacer(Modifier.height(8.dp))
+        when (controller.stage) {
+            RunController.Stage.SELECT -> {
+                SelectContent(
                     defs = defs,
-                    selected = selectedActivity,
-                    onSelect = { selectedActivity = it },
-                    extraInstruction = extraInstruction,
-                    onExtraChange = { extraInstruction = it },
-                    onRefresh = { defsRefresh++ },
-                    errorMessage = errorMessage,
+                    selected = selected,
+                    onSelect = { controller.selectedActivity = it },
+                    extraInstruction = controller.extraInstruction,
+                    onExtraChange = { controller.extraInstruction = it },
+                    onRefresh = { controller.refreshDefs() },
+                    errorMessage = controller.errorMessage,
                     pinnedProvider = selectedAgentDef?.provider,
                     pinnedModel = selectedAgentDef?.model,
                     effectiveProvider = effectiveProvider,
                 )
-                AgentStage.RUNNING -> RunningContent(events, plan)
-                AgentStage.REVIEW -> runResult?.let { result ->
-                    ReviewContent(state, coreWs!!, result, runFile) { adopted, applied, message ->
-                        // 手動実行の連鎖はエンジン有効時のみ発火する（結果を渡すと出力値による分岐も効く。R9-04）
-                        runActivityId?.let {
-                            engine?.notifyManualCompletion(it, applied && adopted.isNotEmpty(), result, adopted)
-                        }
-                        doneMessage = message
-                        stage = AgentStage.DONE
-                    }
-                } ?: Text("結果がありません")
-                AgentStage.DONE -> Text(doneMessage, fontSize = 13.sp)
-            }
-        },
-        confirmButton = {
-            when (stage) {
-                AgentStage.SELECT -> Button(
-                    enabled = selectedActivity != null && AiSettings.apiKeyFor(effectiveProvider).isNotBlank(),
+                Spacer(Modifier.height(10.dp))
+                Button(
+                    enabled = selected != null && AiSettings.apiKeyFor(effectiveProvider).isNotBlank(),
                     onClick = ::startRun,
                 ) { Text("実行") }
-                else -> Unit
             }
-        },
-        dismissButton = {
-            when (stage) {
-                AgentStage.RUNNING -> TextButton(onClick = {
-                    runJob?.cancel(); runJob = null
-                }) { Text("キャンセル", color = Palette.ErrorRed) }
-                AgentStage.DONE -> TextButton(onClick = onClose) { Text("閉じる") }
-                else -> TextButton(onClick = onClose) { Text("閉じる") }
+            RunController.Stage.RUNNING -> {
+                Text("実行中: ${selected?.name ?: ""}", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(6.dp))
+                controller.pendingQuestion?.let { QuestionCard(it) }
+                RunningContent(controller.events, controller.plan)
+                Spacer(Modifier.height(8.dp))
+                TextButton(onClick = { controller.cancel() }) { Text("キャンセル", color = Palette.ErrorRed) }
             }
-        },
-    )
-
-    // R2-07: エージェントからのブロッキングな質問
-    pendingQuestion?.let { q ->
-        var answer by remember(q) { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { },
-            title = { Text("エージェントからの質問") },
-            text = {
-                Column(Modifier.width(560.dp)) {
-                    Text(q.question, fontSize = 13.sp)
-                    Spacer(Modifier.height(10.dp))
-                    CompactTextField(answer, { answer = it },
-                        placeholder = { Text("回答（追加の指示もここで伝えられます）", fontSize = 12.sp, color = Palette.SubText) },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp))
+            RunController.Stage.REVIEW -> {
+                Text("変更セットのレビュー", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(6.dp))
+                val result = controller.runResult
+                val ws = controller.coreWs
+                if (result == null || ws == null) Text("結果がありません", fontSize = 12.sp, color = Palette.SubText)
+                else ReviewContent(state, ws, result, controller.runFile) { adopted, applied, message ->
+                    // 手動実行の連鎖はエンジン有効時のみ発火する（結果を渡すと出力値による分岐も効く。R9-04）
+                    controller.runActivityId?.let {
+                        engine.notifyManualCompletion(it, applied && adopted.isNotEmpty(), result, adopted)
+                    }
+                    controller.finish(message)
                 }
-            },
-            confirmButton = {
-                Button(enabled = answer.isNotBlank(), onClick = { q.answer.complete(answer) }) { Text("回答する") }
-            },
-            dismissButton = {
-                TextButton(onClick = { q.answer.complete(null) }) { Text("回答しない") }
-            },
-        )
+            }
+            RunController.Stage.DONE -> {
+                Text(controller.doneMessage, fontSize = 13.sp)
+                Spacer(Modifier.height(10.dp))
+                Button(onClick = { controller.resetToSelect() }) { Text("新しい実行") }
+            }
+        }
     }
 }
 
@@ -243,13 +457,13 @@ private fun SelectContent(
     pinnedModel: String?,
     effectiveProvider: AiProvider,
 ) {
-    Column(Modifier.fillMaxWidth().heightIn(max = 600.dp).verticalScroll(rememberScrollState())) {
+    Column(Modifier.fillMaxWidth()) {
         if (defs.activities.isEmpty()) {
             Text("アクティビティが定義されていません。", fontSize = 13.sp)
             Spacer(Modifier.height(6.dp))
             Text(
                 "_activities/ にアクティビティ定義、_agents/ にエージェント定義（いずれもYAML）を置いてください。\n" +
-                    "どちらも組込みスキーマ付きで、この編集画面のフォーム・検証がそのまま使えます。",
+                    "どちらも組込みスキーマ付きで、設計スペース・編集画面のフォーム・検証がそのまま使えます。",
                 fontSize = 12.sp, color = Palette.SubText,
             )
         } else {
@@ -394,7 +608,7 @@ private fun RunningContent(events: List<String>, plan: List<String>) {
 }
 
 // ================================================================ レビュー（R2-06）
-// 実行ダイアログと自動化パネル（承認待ち）の双方から使う。
+// 手動実行と受信箱（承認待ち）の双方から使う。
 // onDecision(採用ファイル, 適用したか, メッセージ) で採否を通知する。
 
 @Composable

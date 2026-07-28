@@ -11,6 +11,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.CheckCircle
@@ -32,11 +33,11 @@ import validate.Severity
 import validate.Validator
 
 /**
- * 右サイドパネル。
- * - 検証: スキーマ違反・未解決参照・ID 重複（クリックで該当箇所へジャンプ）
- * - 参照: このドキュメントからの参照一覧（クリックで定義へジャンプ）
- * - 被参照: このドキュメントの ID を参照している箇所（クリックで参照元へジャンプ）
- *   ※ 被参照は保存済みの索引に基づくため、未保存の編集は反映されない
+ * 右サイドパネル＝IDインスペクタ（R12-03）。「この文書・このIDについて知る」を1箇所に集める。
+ * - 検証: スキーマ違反・未解決参照・ID 重複（クリックで該当箇所へジャンプ）・フェーズ進捗
+ * - 関係: この文書からの参照と、この文書の ID への被参照（クリックでジャンプ）
+ * - 出現: 文書ルートIDの同一論理IDの全出現とカバレッジ充足。全出現のその場編集は ID横ぐしビューへ展開する
+ *   ※ 関係・出現は保存済みの索引に基づくため、未保存の編集は反映されない
  */
 @Composable
 fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
@@ -44,7 +45,7 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
         val doc = state.openDoc
         if (doc == null) {
             Text(
-                "ファイルを開くと検証結果と参照情報が表示されます",
+                "ファイルを開くと検証結果・参照・同一IDの出現が表示されます",
                 Modifier.padding(16.dp),
                 fontSize = 12.sp, color = Palette.SubText,
             )
@@ -67,6 +68,22 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
             state.index.backlinksTo(localIds.map { it.id }.toSet())
                 .filter { it.file != doc.file }
         }
+        // 出現タブの対象ID: 文書ルートのID（段階的詳細化の単位。E-09 と同じ基準）
+        val rootId = remember(doc, doc.version) {
+            localIds.firstOrNull { it.path.isEmpty() }?.id ?: localIds.firstOrNull()?.id
+        }
+        val occurrences = remember(rootId, state.indexVersion) {
+            rootId?.let { state.index.occurrences(it) }.orEmpty()
+        }
+        // カバレッジ（V-05）: activeFrom のフェーズ判定には「IDを定義している文書」のルートを渡す
+        val coverage = remember(rootId, state.indexVersion) {
+            val id = rootId
+            if (id == null) emptyList()
+            else occurrences
+                .mapNotNull { e -> state.schemas.firstOrNull { it.id == e.schemaId }?.let { it to e } }
+                .distinctBy { it.first.id }
+                .flatMap { (sc, e) -> Validator.coverageStatuses(id, sc, state.index, state.ensureDoc(e.file).root) }
+        }
         // フェーズ進捗（phases 宣言のあるスキーマのみ。未来フェーズの未記入はエラーではなく進捗で見せる）
         val phases = doc.schema?.phases
         val phaseProgress = remember(doc, doc.version) {
@@ -78,8 +95,8 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
         var selectedTab by remember { mutableStateOf(0) }
         TabRow(selectedTabIndex = selectedTab, containerColor = Palette.PanelBg, contentColor = Palette.Primary) {
             Tab(selectedTab == 0, { selectedTab = 0 }, text = { Text("検証 ${issues.size + state.schemaErrors.size}", fontSize = 11.sp) })
-            Tab(selectedTab == 1, { selectedTab = 1 }, text = { Text("参照 ${localRefs.size}", fontSize = 11.sp) })
-            Tab(selectedTab == 2, { selectedTab = 2 }, text = { Text("被参照 ${backlinks.size}", fontSize = 11.sp) })
+            Tab(selectedTab == 1, { selectedTab = 1 }, text = { Text("関係 ${localRefs.size + backlinks.size}", fontSize = 11.sp) })
+            Tab(selectedTab == 2, { selectedTab = 2 }, text = { Text("出現 ${occurrences.size}", fontSize = 11.sp) })
         }
 
         Box(Modifier.fillMaxSize()) {
@@ -153,7 +170,7 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                 }
                 }
 
-                // ---------------- 参照 ----------------
+                // ---------------- 関係（参照・被参照） ----------------
                 if (selectedTab == 1) {
                 item { SectionHeader("参照（${localRefs.size}）") }
                 if (localRefs.isEmpty()) {
@@ -189,10 +206,6 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                         }
                     }
                 }
-                }
-
-                // ---------------- 被参照 ----------------
-                if (selectedTab == 2) {
                 item { SectionHeader("被参照（${backlinks.size}）") }
                 if (backlinks.isEmpty()) {
                     item { EmptyNote("他ファイルからの参照はありません（保存時に更新）") }
@@ -226,6 +239,101 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                                 "${state.relPath(bl.file)} ／ ${bl.viaKey}${bl.relation?.let { "（関係: $it）" } ?: ""} ／ ${bl.path.pretty()}",
                                 fontSize = 10.sp, color = Palette.SubText,
                             )
+                        }
+                    }
+                }
+                }
+
+                // ---------------- 出現（同一論理ID。R12-03） ----------------
+                if (selectedTab == 2) {
+                if (rootId == null) {
+                    item { EmptyNote("この文書にはルートIDがありません（id を持つ文書で使えます）") }
+                } else {
+                    item {
+                        Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
+                            Text(rootId, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            occurrences.firstOrNull()?.title?.let {
+                                Text(it, fontSize = 11.sp, color = Palette.SubText)
+                            }
+                            TextButton(onClick = { state.openCrossView(rootId) }) {
+                                Text("ID横ぐしビューで全出現を編集", fontSize = 11.sp)
+                            }
+                        }
+                    }
+                    item { SectionHeader("出現（${occurrences.size}）") }
+                    if (occurrences.isEmpty()) {
+                        item { EmptyNote("索引に出現がありません（保存で索引が更新されます）") }
+                    }
+                    items(occurrences.size) { i ->
+                        val entry = occurrences[i]
+                        val isHere = entry.file == doc.file
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .clickable(enabled = !isHere) { state.navigateToOccurrence(entry) }
+                                .padding(horizontal = 12.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                Icons.Default.ArrowForward, contentDescription = null,
+                                Modifier.size(13.dp),
+                                tint = if (isHere) Palette.SubText else Palette.Primary,
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Column {
+                                Text(
+                                    (entry.title ?: entry.id) + if (isHere) "（この文書）" else "",
+                                    fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                                )
+                                Text(
+                                    listOfNotNull(state.relPath(entry.file), entry.schemaId).joinToString(" ／ "),
+                                    fontSize = 10.sp, color = Palette.SubText,
+                                )
+                            }
+                        }
+                    }
+                    val statuses = coverage
+                    if (statuses.isNotEmpty()) {
+                        val pendingCount = statuses.count { !it.active }
+                        item {
+                            SectionHeader(
+                                "カバレッジ（${statuses.count { it.active && it.satisfied }}/${statuses.count { it.active }} 充足" +
+                                    (if (pendingCount > 0) "、$pendingCount 件はフェーズ未到達" else "") + "）"
+                            )
+                        }
+                        items(statuses.size) { i ->
+                            val status = statuses[i]
+                            Row(
+                                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(
+                                    if (status.active && status.satisfied) Icons.Default.CheckCircle else Icons.Default.Warning,
+                                    contentDescription = null, Modifier.size(13.dp),
+                                    tint = when {
+                                        !status.active -> Palette.SubText
+                                        status.satisfied -> Palette.OkGreen
+                                        else -> Palette.WarnOrange
+                                    },
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    when {
+                                        !status.active ->
+                                            "フェーズ未到達（${status.rule.activeFrom} から判定）" +
+                                                (status.rule.description?.let { " — $it" } ?: "")
+                                        status.satisfied ->
+                                            "${Validator.coverageCountLabel(status.rule)} ${status.count} 件（必要 ${status.rule.minCount} 件）" +
+                                                (status.rule.description?.let { " — $it" } ?: "")
+                                        else -> Validator.coverageMessage(status)
+                                    },
+                                    fontSize = 11.sp,
+                                    color = when {
+                                        !status.active -> Palette.SubText
+                                        status.satisfied -> Palette.Text
+                                        else -> Palette.WarnOrange
+                                    },
+                                )
+                            }
                         }
                     }
                 }

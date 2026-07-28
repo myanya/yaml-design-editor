@@ -160,6 +160,94 @@ class NavigationHistoryTest {
     }
 
     @Test
+    fun `スペースはナビゲーションで文書世界へ同期される`() {
+        // R12-01: 実行・設計スペースからのジャンプは編集／台帳スペースへ着地し、
+        // レールで台帳へ戻ると最後の下位ビューが復元される（ARCHITECTURE §4.24）
+        val state = AppState()
+        val a = newFile("a.yaml")
+        assertEquals(UiSpace.EDIT, state.uiSpace)
+
+        state.showSpace(UiSpace.DESIGN)
+        assertEquals(UiSpace.DESIGN, state.uiSpace)
+        state.openFile(a)
+        assertEquals(UiSpace.EDIT, state.uiSpace)
+
+        state.openCrossView("x")
+        assertEquals(UiSpace.LEDGER, state.uiSpace)
+        assertEquals(3, state.workspaceView)
+
+        // 実行スペースは文書位置を保ったまま重なる（workspaceView は変わらない）
+        state.showSpace(UiSpace.RUNS)
+        assertEquals(UiSpace.RUNS, state.uiSpace)
+        assertEquals(3, state.workspaceView)
+
+        // レール切替: 編集 → 台帳 で最後の下位ビュー（横ぐし）を復元する
+        state.showSpace(UiSpace.EDIT)
+        assertEquals(0, state.workspaceView)
+        state.showSpace(UiSpace.LEDGER)
+        assertEquals(3, state.workspaceView)
+
+        // 履歴の復元でもスペースが同期される
+        state.openFile(a)
+        assertEquals(UiSpace.EDIT, state.uiSpace)
+        state.goBack()
+        assertEquals(UiSpace.LEDGER, state.uiSpace)
+    }
+
+    @Test
+    fun `スペース切替と台帳タブ切替も戻る・進むの対象になる`() {
+        // R12-01: レールでのスペース移動・台帳タブの切替は、ユーザーにとって「画面の遷移」なので履歴に積む
+        val state = AppState()
+        val a = newFile("a.yaml")
+        state.openFile(a)
+        assertFalse(state.canGoBack)
+
+        // 編集 → 実行 → 戻ると編集（開いていた文書）へ、進むと実行へ
+        state.showSpace(UiSpace.RUNS)
+        assertTrue(state.canGoBack)
+        state.goBack()
+        assertEquals(UiSpace.EDIT, state.uiSpace)
+        assertEquals(a, state.openDoc?.file)
+        state.goForward()
+        assertEquals(UiSpace.RUNS, state.uiSpace)
+
+        // 実行 → 台帳（一覧）→ グラフ。戻るたびに 一覧 → 実行 と1段ずつ戻る
+        state.showSpace(UiSpace.LEDGER)
+        assertEquals(1, state.workspaceView)
+        state.showWorkspaceView(2)
+        assertEquals(2, state.workspaceView)
+        state.goBack()
+        assertEquals(UiSpace.LEDGER, state.uiSpace)
+        assertEquals(1, state.workspaceView)
+        state.goBack()
+        assertEquals(UiSpace.RUNS, state.uiSpace)
+
+        // 同じスペースの再選択・同じタブの再選択は履歴に積まない
+        state.showSpace(UiSpace.RUNS)
+        state.goForward()
+        assertEquals(1, state.workspaceView)
+        state.showWorkspaceView(1)
+        assertTrue(state.canGoForward)  // 進む履歴が破棄されていない＝何も積まれていない
+    }
+
+    @Test
+    fun `設計スペースからのジャンプは編集へ着地し戻ると設計へ帰る`() {
+        val state = AppState()
+        val a = newFile("a.yaml")
+        state.showSpace(UiSpace.DESIGN)
+        assertFalse(state.canGoBack)  // 空の編集スペースからの遷移は積まない
+
+        state.openFile(a)
+        assertEquals(UiSpace.EDIT, state.uiSpace)
+        assertTrue(state.canGoBack)
+        state.goBack()
+        assertEquals(UiSpace.DESIGN, state.uiSpace)
+        state.goForward()
+        assertEquals(UiSpace.EDIT, state.uiSpace)
+        assertEquals(a, state.openDoc?.file)
+    }
+
+    @Test
     fun `削除済みファイルは戻る対象から読み飛ばす`() {
         val state = AppState()
         val a = newFile("a.yaml")

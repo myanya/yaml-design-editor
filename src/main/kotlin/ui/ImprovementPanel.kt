@@ -26,12 +26,12 @@ import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
 /**
- * 自己改善パネル（R4のUI）。
+ * 計測・評価セクション（R4のUI）。実行スペースのタブとして常設表示する（R12-01。モーダルにしない）。
  * 実行メトリクス（_runs の集計）と評価セット（_evals）の実行・比較結果を1画面で扱う。
  * 評価はサンドボックスコピー上で走るため、開いているワークスペースは変更されない。
  */
 @Composable
-fun ImprovementPanel(state: AppState, onClose: () -> Unit) {
+fun ImprovementSection(state: AppState) {
     val wsDir = state.workspace ?: return
     var metrics by remember { mutableStateOf<List<RunMetrics.ActivitySummary>>(emptyList()) }
     var evals by remember { mutableStateOf<Evals.LoadResult?>(null) }
@@ -74,118 +74,105 @@ fun ImprovementPanel(state: AppState, onClose: () -> Unit) {
         }
     }
 
-    AlertDialog(
-        onDismissRequest = { if (runningEval == null) onClose() },
-        modifier = Modifier.widthIn(min = 780.dp, max = 1040.dp),
-        title = {
-            Column {
-                Text("自己改善")
-                Text("実行記録の集計と、評価セットによるアクティビティの回帰評価・比較実験を行います",
-                    fontSize = 11.sp, color = Palette.SubText)
-            }
-        },
-        text = {
-            Column(Modifier.fillMaxWidth().heightIn(max = 640.dp).verticalScroll(rememberScrollState())) {
-                // ---------------- 実行メトリクス（R4-01） ----------------
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+        Text("実行記録の集計と、評価セットによるアクティビティの回帰評価・比較実験を行います",
+            fontSize = 11.sp, color = Palette.SubText)
+        Spacer(Modifier.height(8.dp))
+
+        // ---------------- 実行メトリクス（R4-01） ----------------
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SectionTitle("実行メトリクス（_runs の集計）")
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = { reload() }) { Text("再集計", fontSize = 11.sp) }
+        }
+        if (metrics.isEmpty()) {
+            Text("実行記録がありません（アクティビティを実行すると _runs に記録されます）",
+                fontSize = 11.sp, color = Palette.SubText)
+        } else {
+            MetricsHeader()
+            metrics.forEach { s -> MetricsRow(s) }
+            Text(
+                "採用率 = 採否が決まった実行のうち採用された割合 ／ 却下率 = 部分採用で却下されたファイルの割合（修正量の代理指標）",
+                fontSize = 10.sp, color = Palette.SubText,
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+
+        // ---------------- 評価セット（R4-02 / R4-04） ----------------
+        SectionTitle("評価セット（_evals）")
+        val loaded = evals
+        loaded?.errors?.forEach { Text("⚠ $it", fontSize = 11.sp, color = Palette.ErrorRed) }
+        if (loaded == null || loaded.evals.isEmpty()) {
+            Text("評価セットがありません。_evals/*.yaml にゴールデン入力と期待結果を定義します（README §13）。",
+                fontSize = 11.sp, color = Palette.SubText)
+        }
+        loaded?.evals?.forEach { def ->
+            Column(
+                Modifier.fillMaxWidth().padding(vertical = 3.dp)
+                    .background(Palette.PanelBg, PanelShape)
+                    .border(1.dp, Palette.Border, PanelShape)
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    SectionTitle("実行メトリクス（_runs の集計）")
-                    Spacer(Modifier.weight(1f))
-                    TextButton(onClick = { reload() }) { Text("再集計", fontSize = 11.sp) }
-                }
-                if (metrics.isEmpty()) {
-                    Text("実行記録がありません（アクティビティを実行すると _runs に記録されます）",
-                        fontSize = 11.sp, color = Palette.SubText)
-                } else {
-                    MetricsHeader()
-                    metrics.forEach { s -> MetricsRow(s) }
-                    Text(
-                        "採用率 = 採否が決まった実行のうち採用された割合 ／ 却下率 = 部分採用で却下されたファイルの割合（修正量の代理指標）",
-                        fontSize = 10.sp, color = Palette.SubText,
-                    )
-                }
-                Spacer(Modifier.height(12.dp))
-
-                // ---------------- 評価セット（R4-02 / R4-04） ----------------
-                SectionTitle("評価セット（_evals）")
-                val loaded = evals
-                loaded?.errors?.forEach { Text("⚠ $it", fontSize = 11.sp, color = Palette.ErrorRed) }
-                if (loaded == null || loaded.evals.isEmpty()) {
-                    Text("評価セットがありません。_evals/*.yaml にゴールデン入力と期待結果を定義します（README §13）。",
-                        fontSize = 11.sp, color = Palette.SubText)
-                }
-                loaded?.evals?.forEach { def ->
-                    Column(
-                        Modifier.fillMaxWidth().padding(vertical = 3.dp)
-                            .background(Palette.PanelBg, PanelShape)
-                            .border(1.dp, Palette.Border, PanelShape)
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                    Column(Modifier.weight(1f)) {
+                        Text("${def.name}（${def.id}）", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "対象: ${def.activityId} ／ ${def.cases.size} ケース" +
+                                (if (def.variants.isNotEmpty()) " ／ 変異: ${def.variants.joinToString(", ") { it.name }}" else ""),
+                            fontSize = 11.sp, color = Palette.SubText,
+                        )
+                    }
+                    Button(
+                        enabled = runningEval == null,
+                        onClick = { runEval(def) },
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text("${def.name}（${def.id}）", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                                Text(
-                                    "対象: ${def.activityId} ／ ${def.cases.size} ケース" +
-                                        (if (def.variants.isNotEmpty()) " ／ 変異: ${def.variants.joinToString(", ") { it.name }}" else ""),
-                                    fontSize = 11.sp, color = Palette.SubText,
-                                )
-                            }
-                            Button(
-                                enabled = runningEval == null,
-                                onClick = { runEval(def) },
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
-                            ) {
-                                Text(if (runningEval == def.id) "実行中…" else "実行", fontSize = 12.sp)
-                            }
-                        }
-                        reports[def.id]?.let { report ->
-                            Spacer(Modifier.height(4.dp))
-                            report.summaries().forEach { s ->
-                                Text(
-                                    "▸ ${s.variant}: ${s.passed}/${s.cases} 合格（${(s.passRate * 100).roundToInt()}%）" +
-                                        " ／ ${s.totalTurns} ターン ／ ${s.inputTokens}+${s.outputTokens} tokens",
-                                    fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
-                                    color = if (s.passed == s.cases) Palette.OkGreen else Palette.WarnOrange,
-                                )
-                            }
-                            report.results.filter { !it.pass }.forEach { r ->
-                                Text(
-                                    "  ✗ ${r.variant} / ${r.caseId}: ${r.failures.firstOrNull() ?: ""}",
-                                    fontSize = 10.sp, color = Palette.ErrorRed, maxLines = 2,
-                                )
-                            }
-                            report.reportFile?.let {
-                                Text("  レポート: ${wsDir.relativize(it)}", fontSize = 10.sp, color = Palette.SubText)
-                            }
-                        }
+                        Text(if (runningEval == def.id) "実行中…" else "実行", fontSize = 12.sp)
                     }
                 }
-
-                // ---------------- 実行ログ ----------------
-                if (evalLog.isNotEmpty()) {
-                    Spacer(Modifier.height(8.dp))
-                    SectionTitle("評価ログ")
-                    Column(
-                        Modifier.fillMaxWidth().heightIn(min = 60.dp, max = 160.dp)
-                            .background(Palette.EditorBg, PanelShape).padding(8.dp)
-                            .verticalScroll(rememberScrollState()),
-                    ) {
-                        evalLog.forEach { line ->
-                            Text(line, fontFamily = FontFamily.Monospace, fontSize = 10.sp, color = Palette.SubText)
-                        }
+                reports[def.id]?.let { report ->
+                    Spacer(Modifier.height(4.dp))
+                    report.summaries().forEach { s ->
+                        Text(
+                            "▸ ${s.variant}: ${s.passed}/${s.cases} 合格（${(s.passRate * 100).roundToInt()}%）" +
+                                " ／ ${s.totalTurns} ターン ／ ${s.inputTokens}+${s.outputTokens} tokens",
+                            fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                            color = if (s.passed == s.cases) Palette.OkGreen else Palette.WarnOrange,
+                        )
+                    }
+                    report.results.filter { !it.pass }.forEach { r ->
+                        Text(
+                            "  ✗ ${r.variant} / ${r.caseId}: ${r.failures.firstOrNull() ?: ""}",
+                            fontSize = 10.sp, color = Palette.ErrorRed, maxLines = 2,
+                        )
+                    }
+                    report.reportFile?.let {
+                        Text("  レポート: ${wsDir.relativize(it)}", fontSize = 10.sp, color = Palette.SubText)
                     }
                 }
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "評価はワークスペースの一時コピー上で実行され、原本は変更されません。定義の改善提案は meta: true のアクティビティで行えます（承認は必ず人間）。",
-                    fontSize = 10.sp, color = Palette.SubText,
-                )
             }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(enabled = runningEval == null, onClick = onClose) { Text("閉じる") }
-        },
-    )
+        }
+
+        // ---------------- 実行ログ ----------------
+        if (evalLog.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            SectionTitle("評価ログ")
+            Column(
+                Modifier.fillMaxWidth().heightIn(min = 60.dp, max = 160.dp)
+                    .background(Palette.EditorBg, PanelShape).padding(8.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                evalLog.forEach { line ->
+                    Text(line, fontFamily = FontFamily.Monospace, fontSize = 10.sp, color = Palette.SubText)
+                }
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "評価はワークスペースの一時コピー上で実行され、原本は変更されません。定義の改善提案は meta: true のアクティビティで行えます（承認は必ず人間）。",
+            fontSize = 10.sp, color = Palette.SubText,
+        )
+    }
 }
 
 @Composable

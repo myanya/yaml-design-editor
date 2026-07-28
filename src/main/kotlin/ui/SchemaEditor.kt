@@ -335,6 +335,7 @@ private fun FieldDefinitionEditor(map: YNode.Map, doc: OpenDocument, definitions
                 if (it != "object") map.entries.remove("fields")
                 if (it != "object") map.entries.remove("unknownFields")
                 if (it != "array") map.entries.remove("item")
+                if (it != "array" && it != "map") map.entries.remove("display")
                 if (it != "map") map.entries.remove("value")
                 if (it != "enum") map.entries.remove("cases")
                 doc.markEdited()
@@ -364,10 +365,12 @@ private fun FieldDefinitionEditor(map: YNode.Map, doc: OpenDocument, definitions
             TextButton(onClick = { fields.items.add(newFieldMap("string")); doc.markEdited() }) { Text("＋ フィールドを追加", fontSize = 11.sp) }
         }
         "array" -> {
+            DisplayHintRow(map, doc)
             Text("要素定義", fontSize = 11.sp, color = Palette.SubText)
             FieldDefinitionEditor(ensureMap(map, "item", doc, mark = false), doc, definitions, allowKey = false, depth = depth + 1)
         }
         "map" -> {
+            DisplayHintRow(map, doc)
             Text("値定義", fontSize = 11.sp, color = Palette.SubText)
             FieldDefinitionEditor(ensureMap(map, "value", doc, mark = false), doc, definitions, allowKey = false, depth = depth + 1)
         }
@@ -382,6 +385,20 @@ private fun FieldDefinitionEditor(map: YNode.Map, doc: OpenDocument, definitions
     }
     val currentType = scalar(map, "type") ?: "string"
     if (currentType !in setOf("object", "array", "map")) DefaultValueEditor(map, currentType, doc)
+}
+
+/** 一覧表示形式のヒント（R12-06）。array / map で共有。省略時はフォーム側が列構成から自動判定する。 */
+@Composable
+private fun DisplayHintRow(map: YNode.Map, doc: OpenDocument) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("一覧の表示形式", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+        ChoiceButton(scalar(map, "display") ?: "（自動）", listOf("（自動）", "table", "list")) {
+            if (it == "（自動）") map.entries.remove("display") else map.entries["display"] = YNode.Scalar(it)
+            doc.markEdited()
+        }
+        Spacer(Modifier.width(8.dp))
+        Text("フォームの表形式（table）／縦並び（list）を固定する", fontSize = 10.sp, color = Palette.SubText)
+    }
 }
 
 // ================================================================ フェーズ・カバレッジ（R9-03）

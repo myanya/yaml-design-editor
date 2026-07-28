@@ -19,6 +19,8 @@
 | W-06 | UIレイアウト永続化（左右ペイン幅・開閉、テーマ選択） | ✅ | `Main.kt`（`uiPreferences`） | 手動 |
 | W-07 | 未保存確認（アプリ終了時・ワークスペース切替時） | ✅ | `Main.kt` | 手動 |
 | W-08 | ワークスペース管理（最近開いたワークスペース履歴＝アプリグローバルの Preferences・起動時スタート画面＝履歴選択・コマンドパレットからの切替。未保存確認は W-07 を共用。ROADMAP R10-05） | ✅ | `Main.kt`（`StartScreen`, `CommandPalette`）, `AppState.recentWorkspaces` | 手動 |
+| W-09 | UIシェル（アクティビティレールで編集／台帳／実行／設計の4スペースを切替。文書ビュー切替は台帳スペースのタブへ移動、モーダル4種（エージェント・自動化・自己改善・skill）は実行／設計スペースへ常設化。実行スペースは `_agents`/`_activities` や判断待ちがあるときだけ表示＝プロファイルによる段階的開示。ROADMAP R12-01/04/05） | ✅ | `app/AppState.kt`（`UiSpace`, `showSpace`）, `ui/Shell.kt`（`ActivityRail`, `LedgerSpace`）, `Main.kt` | 単体（`NavigationHistoryTest` のスペース同期）＋手動 |
+| W-10 | 受信箱（承認待ち変更セット・エージェントの質問（非モーダルカード）・外部変更競合を実行スペース先頭タブに集約。レール・ステータスバーにバッジ、ステータスバーに検証・実行サマリ。ROADMAP R12-02） | ✅ | `ui/RunsSpace.kt`（`InboxTab`, `QuestionCard`）, `Main.kt`（`StatusBar`） | 手動 |
 
 ## 2. 文書編集
 
@@ -36,6 +38,7 @@
 | E-10 | 複数ドキュメント（`---` 区切り）YAML（フォームは先頭ドキュメントを編集、後続は保持して保存時に再出力。ソースタブでは全ドキュメント編集可。索引・検索・一覧は先頭ドキュメント対象。ROADMAP R8-05） | ✅ | `yaml/YamlIO.kt`（`parseAll` / `dumpAll` / `parseFirst`）, `app/OpenDocument` | 単体（`OpenDocumentTest`, `YamlIOTest`） |
 | E-11 | 畳み込みサマリ（畳んだ object は「ID タイトル（n項目）」、array は「n件: 先頭要素の要約, …」。表示解決 S-13 の最初の消費者。ROADMAP R10-02） | ✅ | `ui/FormView.kt`, `schema/Display.kt`（`headerText` / `seqHeaderText`） | 単体（`DisplayTest`）＋手動 |
 | E-12 | 閲覧専用モード（`FormCtx.readOnly`: 入力欄→テキスト表示、追加/削除/AIボタン非表示、パディング圧縮、既定で畳む。ジャンプ・バックリンクは残す。ID横ぐしの埋め込みフォーム・ビューグリッドへ FormCtx 共有で自動波及。トグルはツールバー＋uiPreferences 永続化。ROADMAP R10-04） | ✅ | `ui/FormView.kt`（`FormCtx`）, `app/AppState.readOnlyMode`, `Main.kt` | 単体（`ReadOnlyTest`）＋手動 |
+| E-13 | 配列・map のテーブル表示（スカラー中心の object 配列と「キー→object」の map をフォーム内で表形式に: 適否は自動判定＝「列2〜8 かつ 宣言フィールドの過半がセル型」、スキーマの `display: table / list` で固定可。map は先頭にキー列＝表示のみ（キー追加は表の下の共通行、削除は行操作）。セル編集は通常の編集経路（Slot）を再利用、長文（text）・ネスト・enum case 追加分・スキーマ外キーは行頭 ▶ の展開フォームで編集。列ヘッダ＝表示ラベル＋必須マーカー、配列は行の並べ替え/削除。列幅は型別の最小幅を保証しつつ余白を文字系の列へ等分して右端まで使い、収まらなければ横スクロール。閲覧専用モードはテキストセル。不適格な配列・map は従来の縦リスト＋要素単位の畳み込みサマリ（E-11）のまま。ROADMAP R12-06） | ✅ | `ui/FormView.kt`（`ObjectTable` / `ArrayTable` / `MapTable` / `tableColumnWidths`）, `schema/Display.kt`（`tableColumns`）, `schema/Schema.kt`（`CollectionDisplay`） | 単体（`DisplayTest` の適否判定・ヒント合成・メタ検証、`ArrayTableTest` の列幅割付)＋手動 |
 
 ## 3. スキーマ
 
@@ -56,7 +59,7 @@
 | S-13 | 表示解決機構（ROADMAP R10-01）: 要素の1行要約（タイトル・サブタイトル・ID）を単一機構で解決。優先順位はスキーマの `FieldDef.role: title / subtitle`（`$ref` 合成・library 共有対応、object 内の重複はメタ検証）＞予約語（title/name/label、description/summary）＞ id ＞ キー数。消費側: 畳み込みヘッダ（E-11）・参照候補（I-04）・バックリンク（I-05）・ID横ぐし（I-07）・ビューグリッド（X-06）・ID検索（I-06）・エージェント `related`（AG-25）＝索引タイトル（`IdEntry.title`）への一元化 | ✅ | `schema/Display.kt`, `schema/Schema.kt`（`FieldRole`）, `index/IdIndex.kt`（`DocScanner`, `sourceEntryOf`） | 単体（`DisplayTest`） |
 | S-14 | enum のリッチ選択肢（ROADMAP R10-03）: `values` 要素を文字列または `{value, label, description}` に拡張（後方互換・混在可）。検証・`cases` のキー・AI生成制約は `value` のまま、フォームは label 表示＋現在値の ✓ ＋説明表示、スキーマ設計UIに値・ラベル・説明の入力欄。値重複はメタ検証エラー | ✅ | `schema/Schema.kt`（`EnumOption`）, `ui/FormView.kt`（`EnumEditor`）, `ui/SchemaEditor.kt` | 単体（`DisplayTest`） |
 | S-15 | 組込みメタスキーマ（ROADMAP R11-02）: `_schemas` 文書に適用される `builtin-schema`。`FieldDef` の再帰は再帰 `$ref`、「type の値ごとに持てる属性」は `cases`（S-10）で表現（ドッグフーディング）。`_schemas` には一般スキーマの match は及ばず（catch-all の誤適用防止）、同IDのスキーマで上書き可。スキーマ文書に「フォーム」タブ・AI文書生成・メタスキーマ検証（検証パネル・CLI `validate`）が使える。組込みスキーマ全件と実用形スキーマの検証エラー0を自動検証 | ✅ | `schema/BuiltinSchemas.kt`, `core/Workspace.kt`（`schemaFor`）, `Main.kt` | 単体（`MetaSchemaTest`） |
-| S-16 | スキーマ推測（ROADMAP R11-01）: 既存YAML（glob指定・複数文書のマージ）から型推測（int/number/boolean/date/長文text）・参照認識（I-02 の命名規約 `RefNaming` を共有）・小さい値集合の enum 候補化・全出現キーの required 候補化を行い、`_schemas` ドラフト（コメント付き・メタスキーマ検証を通る形）を生成。入口はファイルツリーの推測ダイアログと CLI `infer-schema`（`--apply` で保存・既存は上書きしない） | ✅ | `schema/SchemaInference.kt`, `app/AppState.inferSchema`, `ui/FileTreePane.kt`, `core/Cli.kt` | 単体（`SchemaInferenceTest`） |
+| S-16 | スキーマ推測（ROADMAP R11-01）: 既存YAML（glob指定・複数文書のマージ）から型推測（int/number/boolean/date/長文text）・参照認識（I-02 の命名規約 `RefNaming` を共有）・小さい値集合の enum 候補化・全出現キーの required 候補化を行い、`_schemas` ドラフト（コメント付き・メタスキーマ検証を通る形）を生成。入口はファイルツリーの推測ダイアログ・設計スペースの「既存文書から推測」・CLI `infer-schema`（`--apply` で保存・既存は上書きしない） | ✅ | `schema/SchemaInference.kt`, `app/AppState.inferSchema`, `ui/FileTreePane.kt`, `ui/DesignSpace.kt`, `core/Cli.kt` | 単体（`SchemaInferenceTest`） |
 | S-17 | 派生スキーマ（ROADMAP R11-03）: スキーマの `derive:` 宣言（from / each / id / match / fields の写像。語彙は SK-02 の列マッピングと共通）で、テーブル定義書のような導出元文書から検証スキーマをロード時にコンパイル（パース→リンク→導出の第3段階）。導出元文書の保存・外部変更・変更セット適用は全再構築で再検証へ反映（`Workspace.noteDiskChanges`）。導出の失敗（プレースホルダ欠落・キー欠落・ID重複・未知の型）は理由付きでスキーマ読込エラーに報告。自動適用は導出元文書への書込で承認待ちへ降格（AG-14） | ✅ | `schema/DerivedSchemas.kt`, `schema/Schema.kt`（`DeriveDef`）, `core/Workspace.kt`, `agent/Automation.kt` | 単体（`DerivedSchemasTest`, `AutomationTest`） |
 
 ## 4. 検証
@@ -79,9 +82,10 @@
 | I-03 | リンクジャンプ（→ボタン、ハイライト＋自動スクロール、複数出現時は選択ダイアログ） | ✅ | `AppState.navigateToId`, `ui/Common.kt`（`Highlightable`） | 手動 |
 | I-04 | 参照候補の補完（`idPatterns` / `scope.schemaIds` / `scope.documentIds` で絞り込み） | ✅ | `ui/FormView.kt`（`RefEditor`）, `index/IdIndex.kt` | 手動 |
 | I-05 | バックリンク（被参照一覧。参照を書いた要素のID・タイトル＝表示解決 S-13 の結果を主表示、クリックで参照元へジャンプ） | ✅ | `IdIndex.backlinksTo` / `sourceEntryOf`, `ui/SidePanel.kt` | 手動 |
-| I-06 | ID検索（ツールバー。ID・タイトル部分一致。タイトルは表示解決 S-13 で索引化されたもの） | ✅ | `Main.kt`（`IdSearchBox`） | 手動 |
-| I-07 | ID横ぐしビュー（同一論理IDの全出現・要素からの参照・被参照・カバレッジ充足を1画面に集約。フェーズ未到達のカバレッジルールは区別表示。各出現は`_views`定義なしでその場編集できる埋め込みフォーム＝スキーマがあれば`ObjectFields`、なければ`GenericEditor`。ROADMAP R7-04） | ✅ | `ui/IdCrossView.kt`, `AppState.openCrossView` / `ensureDoc` | 手動 |
-| I-08 | ナビゲーション履歴（参照ジャンプ・ファイル切替・ビュー間ジャンプ・横ぐしビューのID切替・ビューグリッドのビュー切替・検証パネルの文書内ジャンプを「戻る」「進む」で往復。ツールバーの←→ボタン＋`Alt+←`/`Alt+→`。文書はファイルとハイライト位置、横ぐし／ビューグリッドはビューと選択IDを復元。削除済みファイルは読み飛ばし、ワークスペース切替でクリア） | ✅ | `AppState.goBack` / `goForward` / `navigateToPath`, `Main.kt`（ツールバー・ショートカット） | 単体（`NavigationHistoryTest`） |
+| I-06 | ID検索（コマンドパレット（Ctrl+K）に統合。ID・タイトル部分一致。タイトルは表示解決 S-13 で索引化されたもの。ROADMAP R12-04） | ✅ | `Main.kt`（`CommandPalette`） | 手動 |
+| I-07 | ID横ぐしビュー（同一論理IDの全出現・要素からの参照・被参照・カバレッジ充足を1画面に集約。フェーズ未到達のカバレッジルールは区別表示。各出現は`_views`定義なしでその場編集できる埋め込みフォーム＝スキーマがあれば`ObjectFields`、なければ`GenericEditor`。台帳スペースのタブとインスペクタ（I-09）から開く。ROADMAP R7-04） | ✅ | `ui/IdCrossView.kt`, `AppState.openCrossView` / `ensureDoc` | 手動 |
+| I-08 | ナビゲーション履歴（参照ジャンプ・ファイル切替・**スペース切替（レール）・台帳タブ切替**・横ぐしビューのID切替・ビューグリッドのビュー切替・検証パネルの文書内ジャンプを「戻る」「進む」で往復。ツールバーの←→ボタン＋`Alt+←`/`Alt+→`。編集スペースはファイルとハイライト位置、台帳は下位ビューと選択ID、実行・設計はスペース自体を復元。同じ場所の再選択は積まない。削除済みファイルは読み飛ばし、ワークスペース切替でクリア。R12-01） | ✅ | `AppState.goBack` / `goForward` / `navigateToPath` / `showSpace`, `Main.kt`（ツールバー・ショートカット） | 単体（`NavigationHistoryTest`） |
+| I-09 | IDインスペクタ（右パネルを「検証／関係＝参照・被参照／出現」の3タブへ再編。出現タブは文書ルートIDの同一論理IDの全出現・カバレッジ充足を表示し、ID横ぐしビュー（I-07）へ展開できる。ROADMAP R12-03） | ✅ | `ui/SidePanel.kt` | 手動 |
 
 ## 6. ワークスペース横断ビュー
 
@@ -90,7 +94,7 @@
 | X-01 | 一覧ビュー（ID・タイトル・状態・担当・種別、文字列／種別／状態で絞り込み） | ✅ | `ui/WorkspaceViews.kt`, `AppState.workspaceRecords` | 手動 |
 | X-02 | 一括編集（ルート直下の任意スカラーキー。候補はワークスペースから収集、`id`・予約キー・複合値は対象外。確認ダイアログ、未保存文書があれば拒否。ROADMAP R8-05） | ✅ | `AppState.bulkUpdate` / `bulkKeyCandidates` | 手動 |
 | X-03 | 参照グラフ（力学配置による全件描画、パン・ズーム、IDノード／一覧クリックで定義へジャンプ、参照元ファイルと参照先IDの色分け。ROADMAP R8-05） | ✅ | `ui/WorkspaceViews.kt`, `ui/GraphLayout.kt` | 単体（`GraphLayoutTest`）＋手動 |
-| X-04 | コマンドパレット（Ctrl+K。ビュー切替・保存・ファイル検索・ID移動） | ✅ | `Main.kt`（`CommandPalette`） | 手動 |
+| X-04 | コマンドパレット（Ctrl+K。統合検索: ID・タイトル移動（I-06）・ファイル検索・台帳ビュー切替・実行／設計スペース切替・保存・ワークスペース切替。ROADMAP R12-04） | ✅ | `Main.kt`（`CommandPalette`） | 手動 |
 | X-05 | ビュー定義 `_views`（宣言的な射影: 行=論理IDパターン × 列=出現からの相対YPath。並び順・詳細文書・新規行・バックリンク列（`backlinks`: 行IDへの被参照を relation／参照元スキーマで絞って一覧表示。1:N詳細化の分裂先の逆引き。ROADMAP R7-02）の宣言、組込みスキーマでフォーム編集・検証、メタアクティビティの提案対象） | ✅ | `core/Views.kt`, `schema/BuiltinSchemas.kt` | 単体（`ViewsTest`） |
 | X-06 | ビューグリッド（ビューを編集可能な一覧として表示。スカラーセルの直接編集・複合値は表示解決 S-13 による要約表示＋ジャンプ・詳細文書の作成・新規行の追加・バックリンク列＝参照元のID・タイトルの列挙とジャンプ（編集不可の派生表示）・カバレッジ表示（フェーズ未到達のルールは対象外）・絞り込み。閲覧専用モード（E-12）では全セルが表示専用） | ✅ | `ui/ViewGridPane.kt`, `AppState.ensureDoc` / `createViewDetail` / `addViewRow` | 単体（core経路は `ViewsTest`）＋手動 |
 
@@ -121,8 +125,8 @@
 | AG-04 | エージェント実行カーネル（マルチターンループ、ターン・トークン・時間上限、終了手続きの強制、キャンセル、疑似セッション注入） | ✅ | `agent/Kernel.kt` | 単体（`KernelTest`） |
 | AG-05 | エージェントツールセット（探索5・編集2・検証1・対話2・管理3の計13ツール。書込権限はツール側で強制） | ✅ | `agent/Tools.kt` | 単体（`KernelTest`） |
 | AG-06 | ステージング（複数文書の作業オーバーレイ。影響ファイルを含む横断検証、ID改名の整合確認、未提出ドラフト保全） | ✅ | `agent/Staging.kt` | 単体（`StagingTest`） |
-| AG-07 | 変更セットレビューUI（ファイル単位の部分採用、採用サブセットの再検証、左右差分、未保存文書の保護、適用） | ✅ | `ui/AgentPanel.kt` | 手動 |
-| AG-08 | 実行中の人間との対話（`ask_human` によるブロッキング質問と回答、計画・メモの進捗表示、実行キャンセル） | ✅ | `agent/Kernel.kt`, `ui/AgentPanel.kt` | 単体（`KernelTest` 一部）＋手動 |
+| AG-07 | 変更セットレビューUI（ファイル単位の部分採用、採用サブセットの再検証、左右差分、未保存文書の保護、適用。実行スペース内の常設画面＝モーダルではない。実行状態は `RunController` が保持しスペース切替で中断しない。R12-01） | ✅ | `ui/RunsSpace.kt`（`ReviewContent`, `RunController`） | 手動 |
+| AG-08 | 実行中の人間との対話（`ask_human` による質問と回答＝受信箱・実行タブの非モーダルカードで文書を確認しながら回答できる、計画・メモの進捗表示、実行キャンセル。R12-02） | ✅ | `agent/Kernel.kt`, `ui/RunsSpace.kt`（`QuestionCard`） | 単体（`KernelTest` 一部）＋手動 |
 | AG-09 | 実行記録 `_runs`（ターン・ツール呼び出し・質問と回答・採否・トークン使用量をYAML保存。索引対象外） | ✅ | `agent/RunLog.kt` | 手動 |
 | AG-10 | CLIからのアクティビティ実行（`agent` / `activities` コマンド。非対話実行では質問に「回答なし」を返す） | ✅ | `core/Cli.kt` | 手動（スモーク） |
 | AG-11 | トリガ（`trigger`: manual / on-change（デバウンス付き） / schedule / on-invalid。予約ディレクトリと自己変更では発火しない） | ✅ | `agent/Automation.kt`（`tick`） | 単体（`AutomationTest`） |
@@ -132,12 +136,12 @@
 | AG-15 | 実行キューと停止（直列実行、常時停止＝キュー消去＋実行中キャンセル、承認待ち変更セットのファイル保存による耐久性） | ✅ | `agent/Automation.kt` | 単体（`AutomationTest`） |
 | AG-16 | 自動適用の巻き戻し（実行記録のバックアップから復元。適用後の変更は競合として拒否、`--force` で上書き） | ✅ | `agent/AutoApply.kt`（`revert`）, CLI `revert` | 単体（`AutomationTest`） |
 | AG-17 | サブエージェント委譲（`delegate` ツール。親のステージングを読める読み取り専用の相談、所見テキストを返す。深さ1） | ✅ | `agent/Kernel.kt`（`consult`）, `agent/Tools.kt` | 単体（`KernelTest`） |
-| AG-18 | 自動実行パネルUI（監視ON/OFF・キュー・承認待ちレビュー・履歴・ログ）と CLI `watch`（`--once` 対応） | ✅ | `ui/AutomationPanel.kt`, `core/Cli.kt` | 手動＋単体（エンジン経路） |
+| AG-18 | 自動実行UI（実行スペースの「自動化」タブ: 監視ON/OFF・キュー・履歴・ログ。承認待ちレビューは受信箱（W-10）が担う）と CLI `watch`（`--once` 対応） | ✅ | `ui/AutomationPanel.kt`（`AutomationSection`）, `ui/RunsSpace.kt`, `core/Cli.kt` | 手動＋単体（エンジン経路） |
 | AG-19 | 実行メトリクス（`_runs` の集計: 提出率・採用率・却下ファイル率＝修正量の代理指標・自動適用/巻き戻し・トークン。CLI `metrics`） | ✅ | `agent/Metrics.kt`, `core/Cli.kt` | 単体（`MetricsTest`） |
 | AG-20 | 評価セット `_evals`（ゴールデン入力＋宣言的な期待結果による回帰評価。サンドボックスコピー上で実行し原本を変更しない。CLI `eval`） | ✅ | `agent/Evals.kt`, `schema/BuiltinSchemas.kt` | 単体（`EvalTest`） |
 | AG-21 | 比較実験（評価セットの `variants`: モデル・エージェント・追加指示を差し替えたA/B実行と合格率・コストの比較） | ✅ | `agent/Evals.kt`（`EvalRunner`） | 単体（`EvalTest`） |
 | AG-22 | メタアクティビティ（`meta: true` で `_agents` / `_activities` / `_evals` / `_skills` / `_views` への提案を許可。承認は human 固定、`_schemas`/`_runs` は常に不可、定義のパース可否を提出ゲートに追加） | ✅ | `agent/Definitions.kt`, `agent/Tools.kt`, `agent/Staging.kt` | 単体（`MetaActivityTest`, `DefinitionsTest`） |
-| AG-23 | 自己改善パネルUI（メトリクス表示・評価セットの実行と変異別結果の比較） | ✅ | `ui/ImprovementPanel.kt` | 手動＋単体（実行系経路） |
+| AG-23 | 自己改善UI（実行スペースの「計測・評価」タブ: メトリクス表示・評価セットの実行と変異別結果の比較） | ✅ | `ui/ImprovementPanel.kt`（`ImprovementSection`） | 手動＋単体（実行系経路） |
 | AG-24 | エージェントへのビュー開示（`read_view` ツール: ステージング反映済みの行×列を原本座標つきで返し、そのまま `apply_patch` の対象にできる。`context.views` による初期文脈への開示） | ✅ | `agent/Tools.kt`（`viewText`）, `agent/Kernel.kt` | 単体（`ViewsTest`） |
 | AG-25 | 段階的詳細化のAI導線（ROADMAP P7）: `related` ツールが各出現の主要フィールド要約と現在フェーズ・記入進捗を1回で返す（出現ごとの `read_node` が不要）。被参照には参照元要素のID・タイトル（表示解決 S-13。人間UIと同じ要約）を付与。`list_documents` のカタログにもフェーズ状態を付与。`context.include: [phase]` で対象文書のフェーズ状態を初期文脈に開示 | ✅ | `agent/Tools.kt`（`relatedText`, `catalogText`, `phaseText`）, `agent/Kernel.kt`, `core/Disclosure.kt`, `validate/Validator.kt`（`phaseSummaryText`） | 単体（`ToolsTest`, `KernelTest`） |
 
@@ -168,7 +172,7 @@ UIに依存しないヘッドレス操作の層（[ROADMAP.md](ROADMAP.md) P1 �
 | SK-03 | エクスポート（対象glob×行（文書 or 配列要素）×列（YPath）→ xlsx / csv / markdown / json / html。`source.view` で `_views` のビュー定義を行×列の源にできる＝「ビューで見えている表をそのまま帳票へ」（ROADMAP R9-05）。YAMLへの出力は拒否＝派生成果物の原則） | ✅ | `skill/Exporter.kt`, `skill/Tables.kt` | 単体（`ImportExportTest`） |
 | SK-04 | CLI（`skills` / `import`（プレビュー既定・`--apply`・`--require-valid`）/ `export` / `run-skill`（`--yes` なしは内容表示のみ）/ `init`） | ✅ | `core/Cli.kt` | 手動（スモーク）＋単体（`RunSkillTest` の `--yes` ガード） |
 | SK-05 | テンプレートパック（`init --template ledger`: 課題台帳のスキーマ＋エージェント＋アクティビティ＋評価＋skill一式。既存ファイルは上書きしない） | ✅ | `skill/TemplatePacks.kt` | 単体（`ImportExportTest`） |
-| SK-06 | skillパネルUI（一覧・エクスポート実行・インポートのファイル選択→プレビュー→検証つき適用・コード実行skillの承認ダイアログ→実行） | ✅ | `ui/SkillsPanel.kt` | 手動＋単体（実行系経路） |
+| SK-06 | skill（連携）UI（設計スペースの「連携」に常設: 一覧・エクスポート実行・インポートのファイル選択→プレビュー→検証つき適用・コード実行skillの承認ダイアログ→実行） | ✅ | `ui/SkillsPanel.kt`（`SkillsSection`）, `ui/DesignSpace.kt` | 手動＋単体（実行系経路） |
 | SK-07 | コード実行skill（kind: run。ROADMAP R9-06）: 宣言型で書けない変換・定型手順のための任意コマンド実行。実行前に人間がコマンドと権限を承認する明示許可制（承認は定義内容の指紋に紐づき、定義が変わると失効）。エージェント・自動実行からは起動不可。実行後に `writes` 宣言外の変更を警告・予約ディレクトリの変更を逸脱として報告 | ✅ | `skill/Runner.kt`, `skill/Skills.kt`, `ui/SkillsPanel.kt`, `core/Cli.kt` | 単体（`RunSkillTest`） |
 
 ## 11. 未実装・既知の制約

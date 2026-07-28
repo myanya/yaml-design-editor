@@ -59,10 +59,20 @@ object BuiltinSchemas {
                     - key: item
                       label: 要素定義
                       ${"$"}ref: field
+                    - key: display
+                      label: 一覧の表示形式
+                      type: enum
+                      values: [table, list]
+                      description: table は表形式に固定、list は縦並びに固定（省略時は列構成から自動判定）
                   map:
                     - key: value
                       label: 値定義
                       ${"$"}ref: field
+                    - key: display
+                      label: 一覧の表示形式
+                      type: enum
+                      values: [table, list]
+                      description: table は表形式（キー列つき）に固定、list は縦並びに固定（省略時は列構成から自動判定）
                   object:
                     - key: fields
                       label: 子フィールド

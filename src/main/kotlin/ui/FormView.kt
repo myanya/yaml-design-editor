@@ -1,9 +1,11 @@
 package ui
 
+import androidx.compose.foundation.HorizontalScrollbar
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.rememberScrollbarAdapter
@@ -26,6 +28,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.PopupProperties
@@ -702,6 +706,10 @@ private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) 
     var expanded by remember(path, ctx.readOnly) { mutableStateOf(!ctx.readOnly) }
     // 畳み込みサマリ（R10-02）: 表示解決による「n件: 先頭要素の要約, …」
     val header = Display.seqHeaderText(node, ctx.doc.schema, field.item)
+    // テーブル表示（R12-06）: 列はスキーマの適否判定（自動＋display ヒント）で決まり、
+    // 実データが全て map のときだけ表にする（型がずれた要素は縦リストの汎用表示で扱う）
+    val columns = Display.tableColumns(ctx.doc.schema, field)
+    val tabular = columns != null && node.items.isNotEmpty() && node.items.all { it is YNode.Map }
     Column(
         Modifier.fillMaxWidth()
             .border(1.dp, Palette.Border, PanelShape)
@@ -711,6 +719,9 @@ private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) 
             Text((if (expanded) "▼ " else "▶ ") + header, fontSize = 11.sp, color = Palette.SubText, maxLines = 1)
         }
         if (expanded) {
+        if (tabular) {
+            ArrayTable(ctx, field, columns.orEmpty(), node, path)
+        } else {
         node.items.forEachIndexed { i, _ ->
             Highlightable(ctx.state, path + i) {
                 Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.Top) {
@@ -753,6 +764,7 @@ private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) 
                 }
             }
         }
+        }
         if (!ctx.readOnly) {
         TextButton(onClick = {
             node.items.add(defaultNode(field.item, ctx.doc.schema))
@@ -769,6 +781,229 @@ private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) 
         }
         }
     }
+}
+
+// ================================================================ テーブル表示（R12-06: 配列・map）
+
+/** 列の型に応じたセルの最小幅（余白があれば tableColumnWidths が広げ、収まらなければ横スクロール）。 */
+private fun tableCellWidth(type: FieldType): Dp = when (type) {
+    FieldType.BOOLEAN -> 90.dp
+    FieldType.INT, FieldType.NUMBER -> 90.dp
+    FieldType.DATE -> 110.dp
+    FieldType.ENUM -> 140.dp
+    FieldType.ID -> 150.dp
+    FieldType.REF -> 200.dp
+    FieldType.TEXT -> 240.dp
+    else -> 170.dp
+}
+
+private val TABLE_EXPAND_WIDTH = 28.dp
+private val TABLE_OPS_WIDTH = 76.dp        // 配列の行操作（上へ・下へ・削除）
+private val TABLE_KEY_OPS_WIDTH = 28.dp    // map の行操作（キー削除のみ）
+private val TABLE_KEY_WIDTH = 150.dp       // map のキー列
+
+/** 余白の配分先になる列（文字系）。数値・真偽・日付は固定幅のままにする。 */
+private val FLEX_CELL_TYPES = setOf(
+    FieldType.STRING, FieldType.TEXT, FieldType.ENUM, FieldType.ID, FieldType.REF,
+)
+
+/**
+ * 列幅の割付（R12-06）: 型別の最小幅を保証しつつ、利用可能幅に余りがあれば文字系の列で
+ * 等分して表を右端まで使う。文字系の列がなければ伸ばさない（数値だけの表を間延びさせない）。
+ * 利用可能幅に収まらない場合は最小幅のまま＝横スクロールに委ねる。
+ */
+internal fun tableColumnWidths(types: List<FieldType>, available: Dp, fixed: Dp): List<Dp> {
+    val base = types.map { tableCellWidth(it) }
+    val natural = fixed + base.fold(0.dp) { acc, w -> acc + w }
+    val flexCount = types.count { it in FLEX_CELL_TYPES }
+    if (available <= natural || flexCount == 0) return base
+    val extra = (available - natural) / flexCount
+    return types.mapIndexed { i, t -> base[i] + if (t in FLEX_CELL_TYPES) extra else 0.dp }
+}
+
+/**
+ * 適格な配列・map（Display.tableColumns が列を返したもの）の表形式表示の本体。
+ * 行は「YPath セグメント（配列=添字、map=キー）× object 要素」。セルはスカラー列のみ
+ * （編集は通常の編集経路＝Slot を再利用）。列にならないフィールド（ネスト・enum case の追加分・
+ * スキーマ外キー）と長文の編集は、行頭の ▶ で開く展開フォームで扱う。
+ */
+@Composable
+private fun ObjectTable(
+    ctx: FormCtx,
+    elementDef: FieldDef?,
+    columns: List<FieldDef>,
+    rows: List<Pair<Any, YNode.Map>>,
+    path: YPath,
+    keyHeader: String? = null,           // 非 null なら先頭にキー列を出す（map）
+    opsWidth: Dp = 0.dp,                 // 編集モードの行操作列の幅（ops とセットで指定）
+    ops: (@Composable (Int) -> Unit)? = null,
+) {
+    val hScroll = rememberScrollState()
+    // 利用可能幅を測り、余白は文字系の列へ配って表を右端まで使う
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+    val keyWidth = if (keyHeader != null) TABLE_KEY_WIDTH else 0.dp
+    val trailing = if (ctx.readOnly || ops == null) 0.dp else opsWidth
+    val fixed = TABLE_EXPAND_WIDTH + keyWidth + trailing
+    val widths = tableColumnWidths(columns.map { it.type }, maxWidth, fixed)
+    val rowWidth = fixed + widths.fold(0.dp) { acc, w -> acc + w }
+    Column(Modifier.fillMaxWidth()) {
+        Column(Modifier.fillMaxWidth().horizontalScroll(hScroll)) {
+            // ヘッダ行（ラベルはスキーマの表示ラベル。必須マーカーはフォームと同じ流儀）
+            Row(Modifier.width(rowWidth).padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                Spacer(Modifier.width(TABLE_EXPAND_WIDTH))
+                if (keyHeader != null) {
+                    Text(
+                        keyHeader, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                        color = Palette.SubText, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.width(keyWidth).padding(horizontal = 4.dp),
+                    )
+                }
+                columns.forEachIndexed { c, col ->
+                    Row(Modifier.width(widths[c]).padding(horizontal = 4.dp)) {
+                        Text(
+                            col.displayLabel, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                            color = Palette.SubText, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        )
+                        if (col.required) Text(" *", color = Palette.ErrorRed, fontSize = 11.sp)
+                    }
+                }
+            }
+            Divider(color = Palette.Border, modifier = Modifier.width(rowWidth))
+            rows.forEachIndexed { i, (segment, element) ->
+                var rowExpanded by remember(path, segment) { mutableStateOf(false) }
+                val rowPath = path + segment
+                Highlightable(ctx.state, rowPath) {
+                    Column(Modifier.width(rowWidth)) {
+                        Row(verticalAlignment = Alignment.Top) {
+                            Box(Modifier.width(TABLE_EXPAND_WIDTH).padding(top = if (ctx.readOnly) 0.dp else 7.dp)) {
+                                IconButton(onClick = { rowExpanded = !rowExpanded }, modifier = Modifier.size(24.dp)) {
+                                    Text(if (rowExpanded) "▼" else "▶", fontSize = 10.sp, color = Palette.SubText)
+                                }
+                            }
+                            if (keyHeader != null) {
+                                // map のキー列は表示のみ（キーの改名・追加は従来の縦リスト表示や汎用ビューの経路で行う）
+                                Box(Modifier.width(keyWidth).padding(horizontal = 4.dp, vertical = if (ctx.readOnly) 2.dp else 8.dp)) {
+                                    Text(
+                                        segment.toString(), fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
+                            columns.forEachIndexed { c, col ->
+                                Box(
+                                    Modifier.width(widths[c])
+                                        .padding(horizontal = 4.dp, vertical = if (ctx.readOnly) 2.dp else 1.dp),
+                                ) { ObjectTableCell(ctx, col, element, rowPath) }
+                            }
+                            if (!ctx.readOnly && ops != null) {
+                                Row(Modifier.width(opsWidth).padding(top = 7.dp)) { ops(i) }
+                            }
+                        }
+                        if (rowExpanded) {
+                            Column(Modifier.padding(start = TABLE_EXPAND_WIDTH, top = 2.dp, bottom = 6.dp)) {
+                                ObjectFields(ctx, elementDef?.fields.orEmpty(), element, rowPath)
+                            }
+                        }
+                    }
+                }
+                Divider(color = Palette.Border.copy(alpha = .4f), modifier = Modifier.width(rowWidth))
+            }
+        }
+        HorizontalScrollbar(
+            adapter = rememberScrollbarAdapter(hScroll),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+    }
+}
+
+/** 配列のテーブル表示。行操作は並べ替え＋削除。 */
+@Composable
+private fun ArrayTable(ctx: FormCtx, field: FieldDef, columns: List<FieldDef>, node: YNode.Seq, path: YPath) {
+    val itemDef = ctx.doc.schema?.resolve(field.item) ?: field.item
+    val rows = node.items.mapIndexedNotNull { i, item -> (item as? YNode.Map)?.let { i to it } }
+    ObjectTable(ctx, itemDef, columns, rows, path, opsWidth = TABLE_OPS_WIDTH, ops = { i ->
+        IconButton(
+            onClick = {
+                if (i > 0) {
+                    val tmp = node.items[i - 1]; node.items[i - 1] = node.items[i]; node.items[i] = tmp
+                    ctx.markEdited()
+                }
+            },
+            enabled = i > 0,
+            modifier = Modifier.size(24.dp),
+        ) { Icon(Icons.Default.KeyboardArrowUp, contentDescription = "上へ", Modifier.size(16.dp)) }
+        IconButton(
+            onClick = {
+                if (i < node.items.size - 1) {
+                    val tmp = node.items[i + 1]; node.items[i + 1] = node.items[i]; node.items[i] = tmp
+                    ctx.markEdited()
+                }
+            },
+            enabled = i < node.items.size - 1,
+            modifier = Modifier.size(24.dp),
+        ) { Icon(Icons.Default.KeyboardArrowDown, contentDescription = "下へ", Modifier.size(16.dp)) }
+        IconButton(
+            onClick = { node.items.removeAt(i); ctx.markEdited() },
+            modifier = Modifier.size(24.dp),
+        ) { Icon(Icons.Default.Delete, contentDescription = "削除", Modifier.size(14.dp), tint = Palette.SubText) }
+    })
+}
+
+/** map（キー→object）のテーブル表示。先頭にキー列を出し、行操作はキー削除のみ（キー追加は表の下の共通行）。 */
+@Composable
+private fun MapTable(ctx: FormCtx, field: FieldDef, columns: List<FieldDef>, node: YNode.Map, path: YPath) {
+    val valueDef = ctx.doc.schema?.resolve(field.value) ?: field.value
+    val rows = node.entries.entries.mapNotNull { (k, v) -> (v as? YNode.Map)?.let { k as Any to it } }
+    ObjectTable(ctx, valueDef, columns, rows, path, keyHeader = "キー", opsWidth = TABLE_KEY_OPS_WIDTH, ops = { i ->
+        IconButton(
+            onClick = { node.entries.remove(rows[i].first.toString()); ctx.markEdited() },
+            modifier = Modifier.size(24.dp),
+        ) { Icon(Icons.Default.Delete, contentDescription = "キーを削除", Modifier.size(14.dp), tint = Palette.SubText) }
+    })
+}
+
+/**
+ * テーブルの1セル。スカラー編集は通常の ValueEditor（Slot 経由＝Undo・差分・readOnly 拒否が同じに効く）。
+ * 長文（text）はセル内編集で行高が崩れるため表示のみとし、編集は行の展開フォームで行う。
+ */
+@Composable
+private fun ObjectTableCell(ctx: FormCtx, col: FieldDef, map: YNode.Map, itemPath: YPath) {
+    val key = col.key ?: return
+    val slot = MapSlot(map, key)
+    val value = slot.get()
+    // スキーマとずれた複合値はセルで編集せず要約表示に留める（編集は行の展開フォーム）
+    if (value != null && value !is YNode.Scalar) {
+        TableCellText(Display.inline(value, ctx.doc.schema, col))
+        return
+    }
+    if (ctx.readOnly || col.type == FieldType.TEXT) {
+        TableCellText(readOnlyCellText(col, value as? YNode.Scalar))
+        return
+    }
+    ValueEditor(ctx, col, slot, itemPath + key)
+}
+
+/** 閲覧セルの表示文字列（null = 未設定）。enum は表示ラベル、boolean は はい／いいえ。 */
+private fun readOnlyCellText(col: FieldDef, node: YNode.Scalar?): String? {
+    val raw = node?.value ?: return null
+    return when (col.type) {
+        FieldType.BOOLEAN -> if (raw == true) "はい" else if (raw == false) "いいえ" else raw.toString()
+        FieldType.ENUM -> col.optionFor(raw.toString())?.displayLabel ?: raw.toString()
+        else -> raw.toString()
+    }.replace("\n", " ").ifBlank { null }
+}
+
+@Composable
+private fun TableCellText(text: String?) {
+    Text(
+        text ?: "（未設定）",
+        fontSize = 13.sp,
+        color = if (text == null) Palette.SubText else Palette.Text,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.padding(vertical = 2.dp),
+    )
 }
 
 @Composable
@@ -829,11 +1064,17 @@ private fun MapEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
         return
     }
     var expanded by remember(path, ctx.readOnly) { mutableStateOf(!ctx.readOnly) }
+    // テーブル表示（R12-06）: 適否判定は配列と共有し、値が全て map のときだけキー列つきの表にする
+    val columns = Display.tableColumns(ctx.doc.schema, field)
+    val tabular = columns != null && node.entries.isNotEmpty() && node.entries.values.all { it is YNode.Map }
     Column(Modifier.fillMaxWidth().border(1.dp, Palette.Border, PanelShape).padding(6.dp)) {
         TextButton(onClick = { expanded = !expanded }, contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp)) {
             Text(if (expanded) "▼ ${node.entries.size} 件" else "▶ ${node.entries.size} 件", fontSize = 11.sp, color = Palette.SubText)
         }
         if (expanded) {
+            if (tabular) {
+                MapTable(ctx, field, columns.orEmpty(), node, path)
+            } else {
             node.entries.keys.toList().forEach { key ->
                 val childPath = path + key
                 Highlightable(ctx.state, childPath) {
@@ -851,6 +1092,7 @@ private fun MapEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
                         }
                     }
                 }
+            }
             }
             if (!ctx.readOnly) AddTypedMapKeyRow(ctx, node, field.value)
         }

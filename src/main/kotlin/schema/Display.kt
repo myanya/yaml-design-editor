@@ -99,4 +99,44 @@ object Display {
         val single = text.replace("\n", " ")
         return if (single.length > maxLength) single.take(maxLength) + "…" else single
     }
+
+    // ---------------------------------------------------------------- 配列のテーブル表示（R12-06）
+
+    /** テーブルのセルとして1行で表示・編集できる型（ビューグリッドの直接編集対象と同種のスカラー系）。 */
+    val CELL_TYPES = setOf(
+        FieldType.STRING, FieldType.TEXT, FieldType.INT, FieldType.NUMBER,
+        FieldType.BOOLEAN, FieldType.ENUM, FieldType.DATE, FieldType.ID, FieldType.REF,
+    )
+
+    /** 自動判定でテーブル表示にする列数の上限（超えると走査性が落ちるため縦リストへ倒す）。 */
+    const val MAX_AUTO_TABLE_COLUMNS = 8
+
+    /**
+     * 配列（object 要素）または map（object 値）をテーブル表示すべきときの列定義（`$ref` 解決済み）を返す。
+     * 向かなければ null。列は要素 object の宣言フィールドのうちセル型のもの。enum `cases` による行ごとの
+     * 追加フィールドは列にしない（列集合を全行で安定させる）——列にならないフィールドは行の展開フォームで扱う。
+     * map の場合はキー列を UI 側が先頭に足す（キーは列定義に含まれない）。
+     * - `display: list` → 常に null（縦リスト固定）
+     * - `display: table` → セル型の列が1つでもあればテーブル（作者の明示指定のため列数上限は課さない）
+     * - 未指定 → 「列数が 2〜MAX_AUTO_TABLE_COLUMNS かつ 宣言フィールドの過半がセル型」で自動テーブル
+     */
+    fun tableColumns(schema: SchemaDef?, field: FieldDef?): List<FieldDef>? {
+        val container = schema?.resolve(field) ?: field ?: return null
+        if (container.display == CollectionDisplay.LIST) return null
+        val elementDef = when (container.type) {
+            FieldType.ARRAY -> container.item
+            FieldType.MAP -> container.value
+            else -> return null
+        }
+        val item = schema?.resolve(elementDef) ?: elementDef ?: return null
+        if (item.type != FieldType.OBJECT) return null
+        val fields = item.fields.filter { it.key != null }.map { schema?.resolve(it) ?: it }
+        val columns = fields.filter { it.type in CELL_TYPES }
+        return when {
+            columns.isEmpty() -> null
+            container.display == CollectionDisplay.TABLE -> columns
+            columns.size in 2..MAX_AUTO_TABLE_COLUMNS && columns.size * 2 >= fields.size -> columns
+            else -> null
+        }
+    }
 }

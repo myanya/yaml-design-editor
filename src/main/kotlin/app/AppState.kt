@@ -105,6 +105,13 @@ class OpenDocument(
 }
 
 /**
+ * UIシェルのスペース（ROADMAP P12 / ARCHITECTURE §4.24）。
+ * EDIT / LEDGER は文書世界（workspaceView 0 / 1〜4）と同期し、RUNS / DESIGN は文書状態を保ったまま重なる。
+ * 同期はナビゲーション系メソッドとレール（showSpace / showWorkspaceView）だけが行い、直接書き換えない。
+ */
+enum class UiSpace { EDIT, LEDGER, RUNS, DESIGN }
+
+/**
  * アプリケーション状態。
  */
 class AppState {
@@ -178,14 +185,54 @@ class AppState {
     /** 0 = 文書, 1 = 一覧, 2 = 参照グラフ, 3 = ID横ぐし, 4 = ビューグリッド */
     var workspaceView by mutableStateOf(0)
 
+    /** 表示中のスペース（R12-01）。書き換えは showSpace / showWorkspaceView / ナビゲーション系メソッド経由に限る。 */
+    var uiSpace by mutableStateOf(UiSpace.EDIT)
+        private set
+
+    /** 台帳スペースで最後に見ていた下位ビュー（1〜4）。レールで台帳へ戻ったときに復元する。 */
+    private var lastLedgerView = 1
+
+    /** workspaceView の変更後に呼び、スペースを文書世界（編集／台帳）へ同期する。 */
+    private fun syncSpaceFromView() {
+        uiSpace = if (workspaceView == 0) UiSpace.EDIT else UiSpace.LEDGER
+        if (workspaceView in 1..4) lastLedgerView = workspaceView
+    }
+
+    /**
+     * レールからのスペース切替。文書世界の位置（workspaceView）は保存・復元する。
+     * スペースの移動もユーザーにとっては「画面の遷移」のため、履歴に積んで戻る・進むの対象にする（R12-01）。
+     */
+    fun showSpace(space: UiSpace) {
+        if (space == uiSpace) return
+        pushBack(currentLocation())
+        when (space) {
+            UiSpace.EDIT -> { workspaceView = 0; uiSpace = UiSpace.EDIT }
+            UiSpace.LEDGER -> { workspaceView = lastLedgerView; uiSpace = UiSpace.LEDGER }
+            UiSpace.RUNS, UiSpace.DESIGN -> uiSpace = space
+        }
+    }
+
+    /** 文書世界の下位ビュー（0〜4）を表示する（台帳スペースのタブ・パレットから）。表示が変わるときは履歴に積む。 */
+    fun showWorkspaceView(view: Int) {
+        val targetSpace = if (view == 0) UiSpace.EDIT else UiSpace.LEDGER
+        if (view == workspaceView && uiSpace == targetSpace) return
+        pushBack(currentLocation())
+        workspaceView = view
+        syncSpaceFromView()
+    }
+
     /** ID横ぐしビューで選択中の論理ID。 */
     var crossViewId by mutableStateOf<String?>(null)
 
     /** ID横ぐしビューを開く（id 指定時はそのIDを選択し、ジャンプとして履歴に積む）。 */
     fun openCrossView(id: String? = null) {
-        if (id != null && !(workspaceView == 3 && crossViewId == id)) pushBack(currentLocation())
+        // 横ぐしビューへの到着（他ビュー・他スペースから）と、ビュー内でのID切替の両方を移動として履歴に積む
+        val arriving = workspaceView != 3 || uiSpace != UiSpace.LEDGER
+        val idChanges = id != null && crossViewId != id
+        if (arriving || idChanges) pushBack(currentLocation())
         if (id != null) crossViewId = id
         workspaceView = 3
+        syncSpaceFromView()
     }
 
     /** ビューグリッドで選択中のビューID。 */
@@ -193,9 +240,13 @@ class AppState {
 
     /** ビューグリッドを開く（id 指定時はそのビューを選択し、ジャンプとして履歴に積む）。 */
     fun openViewGrid(id: String? = null) {
-        if (id != null && !(workspaceView == 4 && viewGridId == id)) pushBack(currentLocation())
+        // ビューグリッドへの到着とビュー切替の両方を移動として履歴に積む（openCrossView と同じ規約）
+        val arriving = workspaceView != 4 || uiSpace != UiSpace.LEDGER
+        val idChanges = id != null && viewGridId != id
+        if (arriving || idChanges) pushBack(currentLocation())
         if (id != null) viewGridId = id
         workspaceView = 4
+        syncSpaceFromView()
     }
 
     var status by mutableStateOf("「開く」からワークスペース（ディレクトリ）を選択してください")
@@ -221,6 +272,9 @@ class AppState {
         highlightPath = null
         backStack = emptyList()
         forwardStack = emptyList()
+        workspaceView = 0
+        uiSpace = UiSpace.EDIT
+        lastLedgerView = 1
         // ワークスペース履歴（R10-05）: アプリグローバルに永続化し、スタート画面・パレットの切替候補にする
         recentWorkspaces = (listOf(workspace!!) + recentWorkspaces.filter { it != workspace }).take(10)
         appPrefs.put("recentWorkspaces", recentWorkspaces.joinToString("\n"))
@@ -307,7 +361,8 @@ class AppState {
 
     fun openFile(file: Path, focus: YPath? = null) {
         val cur = currentLocation()
-        val samePlace = cur.view == 0 && cur.file == file && (focus == null || focus == cur.path)
+        // 実行・設計スペースから同じファイルを開き直す場合も「スペースからの移動」として履歴に積む
+        val samePlace = cur.space == UiSpace.EDIT && cur.file == file && (focus == null || focus == cur.path)
         if (!samePlace) pushBack(cur)
         showFile(file, focus)
     }
@@ -317,6 +372,7 @@ class AppState {
         val doc = docCache.getOrPut(file) { loadDocument(file) }
         openDoc = doc
         workspaceView = 0
+        syncSpaceFromView()
         recentFiles = (listOf(file) + recentFiles.filter { it != file }).take(12)
         recentPrefs.put(workspaceKey(), recentFiles.joinToString("\n") { relPath(it) })
         editorTab = if (doc.root == null) 1 else 0
@@ -426,6 +482,16 @@ class AppState {
     fun redo() { openDoc?.redo() }
 
     fun hasDirtyDocs(): Boolean = docCache.values.any { it.dirty }
+
+    /** 外部変更と競合中の文書（受信箱の表示用。R12-02。データの正は各 OpenDocument）。 */
+    fun conflictedDocs(): List<OpenDocument> = docCache.values.filter { it.externalConflict }
+
+    /**
+     * エージェント運用の定義があるか（R12-05）。実行スペースの段階的開示に使う。
+     * 予約ディレクトリのYAMLは走査対象（yamlFiles）に含まれるため、走査ミラーから導出できる。
+     */
+    fun hasAgentSetup(): Boolean =
+        yamlFiles.any { relPath(it).let { rel -> rel.startsWith("_agents/") || rel.startsWith("_activities/") } }
 
     private fun save(doc: OpenDocument) {
         runCatching {
@@ -577,10 +643,12 @@ class AppState {
     // ---------------------------------------------------------------- navigation
 
     /**
-     * ナビゲーション履歴の1地点。文書ビュー（view=0）はファイルとハイライト位置、
-     * それ以外のワークスペースビューはビュー番号と選択中ID（横ぐし／ビューグリッド）で位置を表す。
+     * ナビゲーション履歴の1地点。スペース（R12-01）＋文書世界の位置で表す。
+     * 編集スペースはファイルとハイライト位置、台帳スペースはビュー番号と選択中ID（横ぐし／ビューグリッド）、
+     * 実行・設計スペースはスペース自体が位置（下の文書世界には触れずに復元する）。
      */
     data class NavLocation(
+        val space: UiSpace,
         val view: Int,
         val file: Path?,
         val path: YPath?,
@@ -596,10 +664,10 @@ class AppState {
 
     /** 現在の表示位置。 */
     private fun currentLocation(): NavLocation =
-        NavLocation(workspaceView, openDoc?.file, highlightPath, crossViewId, viewGridId)
+        NavLocation(uiSpace, workspaceView, openDoc?.file, highlightPath, crossViewId, viewGridId)
 
-    /** 何も開いていない文書ビューは履歴に積む価値がない。 */
-    private fun isEmptyLocation(loc: NavLocation): Boolean = loc.view == 0 && loc.file == null
+    /** 何も開いていない編集スペースは履歴に積む価値がない（台帳・実行・設計はそれ自体が場所）。 */
+    private fun isEmptyLocation(loc: NavLocation): Boolean = loc.space == UiSpace.EDIT && loc.file == null
 
     /**
      * 現在位置を「戻る」履歴へ積む。新しい移動が起きた時点で「進む」履歴は破棄する
@@ -613,18 +681,22 @@ class AppState {
 
     /** 履歴地点を画面へ復元する（履歴には積まない）。 */
     private fun restore(loc: NavLocation) {
-        if (loc.view == 0) {
-            loc.file?.let { showFile(it, loc.path) }
-        } else {
-            loc.crossId?.let { crossViewId = it }
-            loc.gridId?.let { viewGridId = it }
-            workspaceView = loc.view
+        when (loc.space) {
+            UiSpace.EDIT -> loc.file?.let { showFile(it, loc.path) }
+            UiSpace.LEDGER -> {
+                loc.crossId?.let { crossViewId = it }
+                loc.gridId?.let { viewGridId = it }
+                workspaceView = loc.view
+                syncSpaceFromView()
+            }
+            // 実行・設計はスペース自体が場所。下の文書世界（開いている文書・台帳ビュー）はそのまま重なる
+            UiSpace.RUNS, UiSpace.DESIGN -> uiSpace = loc.space
         }
     }
 
-    /** 文書ビューの地点で対象ファイルが削除済みなら復元できない。 */
+    /** 編集スペースの地点で対象ファイルが削除済みなら復元できない。 */
     private fun isStale(loc: NavLocation): Boolean =
-        loc.view == 0 && (loc.file == null || !Files.exists(loc.file))
+        loc.space == UiSpace.EDIT && (loc.file == null || !Files.exists(loc.file))
 
     /** 参照ジャンプ・ファイル切替・ビュー間ジャンプの履歴を1つ戻る（削除済みファイルは読み飛ばす）。 */
     fun goBack() {
@@ -657,8 +729,9 @@ class AppState {
     /** 開いている文書内の位置へジャンプする（検証パネル・文書内リンク）。移動として履歴に積む。 */
     fun navigateToPath(path: YPath) {
         val cur = currentLocation()
-        if (cur.view != 0 || cur.path != path) pushBack(cur)
+        if (cur.space != UiSpace.EDIT || cur.path != path) pushBack(cur)
         workspaceView = 0
+        syncSpaceFromView()
         editorTab = 0
         highlightPath = path
     }

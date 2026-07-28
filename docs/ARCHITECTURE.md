@@ -31,7 +31,7 @@ src/main/kotlin/
 │              自動化・メトリクス・評価 （→ core, skill, ai, validate ほか。UI/Compose 非依存）
 ├── app/       AppState / OpenDocument: アプリ状態・ファイル操作（→ core とロジック層）
 ├── ui/        Composeビュー一式                             （→ 上記すべて）
-└── Main.kt    エントリポイント・ウィンドウ・スタート画面・ツールバー・パレット（→ app, ui, index）
+└── Main.kt    エントリポイント・ウィンドウ・スタート画面・ツールバー・ステータスバー・パレット（→ app, ui, index。シェルの骨格＝レール・スペースは ui/Shell.kt）
 ```
 
 **依存ルール**: `model` → `yaml` → `schema` → `index` → `validate` → `core` → `skill` → `agent` → `app` → `ui` の一方向。逆流させない（例外: エントリポイントである `core/Cli.kt` は Main.kt と同様に `skill` / `agent` を呼んでよい）。
@@ -89,12 +89,14 @@ src/main/kotlin/
 | `TemplatePacks` | skill/TemplatePacks.kt | テンプレートパック（コード埋め込み）。`init` で展開、既存ファイルは上書きしない |
 | `RunMetrics` | agent/Metrics.kt | 実行メトリクス（R4-01）: `_runs` の実行記録だけから提出率・採用率・却下ファイル率・自動適用/巻き戻し・コストを集計（実行時に追加記録しない） |
 | `EvalDef` / `Evals` / `EvalRunner` | agent/Evals.kt | 評価セット（R4-02）と比較実験（R4-04）: `_evals` 定義のロード、サンドボックスコピー上でのケース×変異の実行、宣言的期待結果の判定、レポート保存 |
-| `AgentRunHost` / `ReviewContent` | ui/AgentPanel.kt | 実行ダイアログ: 選択→進捗ストリーミング・質問応答→変更セットレビュー（部分採用・再検証）→適用。レビューは承認待ちからも共用 |
-| `AutomationPanel` | ui/AutomationPanel.kt | 自動実行パネル: 監視ON/OFF・キュー・承認待ちレビュー・履歴・ログ・停止 |
-| `ImprovementPanel` | ui/ImprovementPanel.kt | 自己改善パネル: 実行メトリクスの表示・評価セットの実行と変異別結果の比較 |
-| `SkillsPanel` | ui/SkillsPanel.kt | skillパネル: 一覧・エクスポート実行・インポートのプレビュー→検証つき適用 |
+| `ActivityRail` / `LedgerSpace` | ui/Shell.kt | UIシェル（§4.24）: 4スペースを切り替えるレールと、一覧・ビューグリッド・グラフ・ID横ぐしをタブで束ねる台帳スペース |
+| `RunController` / `RunsSpace` | ui/RunsSpace.kt | 実行スペース: 受信箱（承認待ち・質問・競合の射影）・手動実行（選択→進捗→レビュー→適用）・自動化・計測評価のタブ。実行状態機械は `RunController`（AppRoot 生存期間）が保持し、`ReviewContent` は手動実行と承認待ちレビューで共用 |
+| `DesignSpace` | ui/DesignSpace.kt | 設計スペース: 予約ディレクトリの定義文書の種類別カタログ・新規作成・スキーマ推測CTA。編集は編集スペースの既存エディタへジャンプする |
+| `AutomationSection` | ui/AutomationPanel.kt | 自動化タブ: 監視ON/OFF・キュー・履歴・ログ・停止（承認待ちレビューは受信箱） |
+| `ImprovementSection` | ui/ImprovementPanel.kt | 計測・評価タブ: 実行メトリクスの表示・評価セットの実行と変異別結果の比較 |
+| `SkillsSection` | ui/SkillsPanel.kt | 連携（skill）: 一覧・エクスポート実行・インポートのプレビュー→検証つき適用（設計スペースに常設） |
 | `OpenDocument` | app/AppState.kt | 開いている1文書。中核（履歴・dirty・複数ドキュメント再出力）は core.EditBuffer へ委譲し、Compose購読（version / dirty / parseError）のシェルに徹する（R9-02）。外部競合の管理を担う |
-| `AppState` | app/AppState.kt | アプリ状態。走査・スキーマ・索引・更新方針は保持する core.Workspace へ委譲し、Compose購読用のミラー（schemas / yamlFiles / indexVersion）・文書キャッシュ（docCache）・ナビゲーション・ファイル操作を担う（R9-02）。閲覧専用モード（`readOnlyMode`。R10-04）とワークスペース履歴（`recentWorkspaces`。R10-05）もここが持つ |
+| `AppState` | app/AppState.kt | アプリ状態。走査・スキーマ・索引・更新方針は保持する core.Workspace へ委譲し、Compose購読用のミラー（schemas / yamlFiles / indexVersion）・文書キャッシュ（docCache）・ナビゲーション・ファイル操作を担う（R9-02）。閲覧専用モード（`readOnlyMode`。R10-04）・ワークスペース履歴（`recentWorkspaces`。R10-05）・スペース（`uiSpace` / `showSpace`。R12-01・§4.24）もここが持つ |
 | `AiGenerator` ほか | ai/ | スキーマ→JSON Schema 変換、REF候補の enum 制約、プロバイダ振り分け |
 | `OpenAiGenerator` / `AnthropicGenerator` | ai/ | 各API（Responses / Messages）のリクエスト構築とレスポンス解析 |
 | `FormView` / `FormCtx` | ui/FormView.kt | スキーマ駆動フォームと汎用エディタ（中核UI）。`FormCtx` が編集操作と参照解決を仲介 |
@@ -103,7 +105,7 @@ src/main/kotlin/
 | `Slot` (Map/Seq/Root) | ui/Common.kt | 「値の置き場所」の抽象。後述 |
 | `AiGenerationHost` | ui/AiGenerationDialog.kt | AI生成ダイアログの状態機械（入力→生成→プレビュー→適用）と提案合成 |
 | `SchemaEditor` | ui/SchemaEditor.kt | `_schemas` 用の構造化エディタ（設計・プレビュー・適用対象） |
-| その他 ui | FileTreePane / SourcePane / DiffPane / SidePanel / WorkspaceViews / Common | 各ペイン。[FEATURES.md](FEATURES.md) の対応表を参照。テスト可能な純ロジックは `ui/SourceHighlight.kt`（YAMLトークナイザ・置換）、`ui/GraphLayout.kt`（力学レイアウト）、`DiffPane.calculateDiff` / `charDiffRanges` に切り出す |
+| その他 ui | FileTreePane / SourcePane / DiffPane / SidePanel（IDインスペクタ: 検証・関係・出現の3タブ。R12-03） / WorkspaceViews / Common | 各ペイン。[FEATURES.md](FEATURES.md) の対応表を参照。テスト可能な純ロジックは `ui/SourceHighlight.kt`（YAMLトークナイザ・置換）、`ui/GraphLayout.kt`（力学レイアウト）、`DiffPane.calculateDiff` / `charDiffRanges` に切り出す |
 
 ## 4. 設計方針（変更時に守ること）
 
@@ -288,6 +290,7 @@ UI層（app）を「Compose購読のシェル」に純化し、ロジックを c
 - **バックリンクの表示は「参照を書いた要素」**: 参照値の位置を含む最内の ID 出現を `IdIndex.sourceEntryOf` で解決し、そのID・タイトルを主表示にする（SidePanel・ID横ぐし・ビューのバックリンク列・`related` で共通）。
 - **enum のリッチ選択肢は表示専用**（R10-03）: `values` の `{value, label, description}` は `EnumOption` として保持し、検証・`cases` のキー・AI生成の制約・保存されるデータは常に `value`。label / description をロジックに関与させない。
 - **閲覧専用モードは FormCtx で強制**（R10-04）: `FormCtx.readOnly`（既定値は `AppState.readOnlyMode`）が編集UIの表示分岐と `markEdited` / スカラー書込のガード（ツリー変異前に `check` で拒否）を担う。FormCtx を共有する全ビュー（フォーム・ID横ぐし埋め込みフォーム・ビューグリッドのセル）へ自動波及させ、ビューごとの読み取り専用分岐を別実装しない。ジャンプ・バックリンクは閲覧行為として残す。
+- **配列・map の表示形式も `Display` が解決**（R12-06）: フォーム内の配列（object 要素）・map（object 値）をテーブルにするかの適否と列集合は `Display.tableColumns`（自動判定＋スキーマの `FieldDef.display: table / list` ヒント）だけが決める。列は要素 object の**宣言フィールド**のうちセル型（`Display.CELL_TYPES`）のもので、enum `cases` による行ごとの追加フィールドは列にしない（列集合を全行で安定させる）——列にならないフィールドの編集は行の展開フォーム（`ObjectFields` ＝ `effectiveFields` 経由）で行う。map のキー列は UI（`MapTable`）が先頭に足す表示専用の列で、列定義には含まれない（キーの改名はテーブルの対象外）。セル編集は通常の `Slot` 経路を再利用し、テーブル専用の書込経路を作らない（ビューグリッドの流儀 §4.14 と同じ）。
 
 ### 4.23 スキーマ工学（P11: 推測・メタスキーマ・派生スキーマ）
 
@@ -301,7 +304,19 @@ UI層（app）を「Compose購読のシェル」に純化し、ロジックを c
   - **再検証の契機は `noteDiskChanges` に一元化**: 導出元文書（`derive.from` に一致）の保存・外部変更・変更セット適用では索引の増分更新ではなく**全再構築**（スキーマ変更と同じ扱い）を行う。判定は `Workspace.noteDiskChanges` が持ち、UI・CLI・エージェント経路が共有する（§4.20 と同じ流儀）。
   - **間接的な検証ルール変更の抑え**: 導出元文書は通常文書のため、エージェントの変更セットが（承認を経て）検証ルールを変えうる。既定の human 承認ゲートで足りると判断するが、**自動適用（approval: auto）だけは導出元文書への書込で承認待ちへ降格**する（`AutomationEngine`。検証ルールが無人で変わる経路を塞ぐ）。
 
-### 4.24 エラー処理
+### 4.24 UIシェル（P12: スペース・受信箱・インスペクタ）
+
+提示層の再基盤化（ROADMAP P12）。機能は削らず、UIの骨格を「編集・台帳・実行・設計」の4スペース＋左端のアクティビティレールに再編する。守るべき不変条件:
+
+- **スペースは `app.UiSpace`（EDIT / LEDGER / RUNS / DESIGN）**: シェルの大分類。`workspaceView`（0=文書, 1=一覧, 2=グラフ, 3=ID横ぐし, 4=ビューグリッド）は**文書世界の下位ビューとして維持**する。両者の同期は AppState のナビゲーション系メソッド（`showFile` / `navigateToPath` / `openCrossView` / `openViewGrid` / 履歴復元）が担い、ジャンプは常に uiSpace を EDIT（view 0）／LEDGER（view 1〜4）へ引き戻す——実行・設計スペースからの参照ジャンプが正しく着地するための規約。レール以外の場所から `uiSpace` を直接書き換えない。
+- **スペースの移動も「戻る・進む」の対象**: ユーザーにとってレール切替・台帳タブ切替・スペースからのジャンプはすべて画面の遷移のため、`NavLocation` はスペースを含み、`showSpace` / `showWorkspaceView` / `openCrossView` / `openViewGrid`（到着時）も履歴に積む。復元は EDIT=ファイル＋ハイライト、LEDGER=下位ビュー＋選択ID、RUNS / DESIGN=スペースのみ（下の文書世界には触れない）。同じ場所の再選択は積まない。検証は `NavigationHistoryTest`。
+- **モーダルの新設禁止（確認ダイアログを除く）**: エージェント実行・自動化・計測評価・skill 操作は実行／設計スペースの常設画面で行う。AlertDialog を使ってよいのは破壊的操作・承認の確認（CONVENTIONS §2）だけ。エージェント質問（ask_human）もモーダルにせず、受信箱・実行タブの非モーダルカードで「文書を確認しながら回答できる」状態を保つ（気づきはレール・ステータスバーのバッジが担う）。
+- **エージェント実行の状態は `RunController` へ退避**: 旧 AgentRunHost がコンポーザブルの `remember` に持っていた実行状態機械（選択→実行→レビュー→完了、イベントログ、質問、Job）は `ui/RunsSpace.kt` の `RunController`（AppRoot 生存期間・ワークスペース単位に生成）が持つ。スペースを切り替えて実行画面がコンポジションから外れても実行・レビュー状態が失われないための構造で、**実行状態を再びコンポーザブルローカルへ戻さない**。
+- **受信箱はデータを持たない射影**: 承認待ち（`AutomationEngine.pendingSnapshot`）・質問（`RunController.pendingQuestion`）・外部変更競合（`AppState.conflictedDocs`）を集約表示するだけで、各機構が正。バッジ数もこの集約から導出する。
+- **実行スペースの表示はプロファイルで段階的開示**: `_agents` / `_activities` の定義（または承認待ち・実行中状態）があるときだけレールに出す（R12-05）。判定は `AppState` の走査ミラーから導出し、別途の設定ファイルを増やさない。
+- **設計スペースは「定義もYAML文書」（§4.2）の入口**: 種類別カタログはファイル一覧（`_schemas/` 等のプレフィックス）から導出し、編集は既存のエディタ（編集スペース）へジャンプする。定義専用の編集経路・書込経路を新設しない。
+
+### 4.25 エラー処理
 
 - ファイルI/O・パースは `runCatching` で受け、ユーザー操作の結果は `Result` を返して呼び出し側（UI）が `state.status` に反映する。
 - 入力検証の失敗は `require(...) { "日本語メッセージ" }`、内部異常は `error("日本語メッセージ")`。メッセージはそのままUIに表示される前提で書く。
@@ -325,7 +340,7 @@ UI層（app）を「Compose購読のシェル」に純化し、ロジックを c
 
 - **フィールド型の追加**: `FieldType` に enum を追加し、`Validator.checkField`・`FormView.ValueEditor`・`ai.fieldToJsonSchema`・`SchemaDef.generateSample`/`defaultNode` に分岐を追加する。
 - **YAML表層仕様の変更**: コメント・スタイル保持は実装済み（§4.17）。挙動を変える場合も `YamlIO` に閉じる（ツリー変換層が隔離されているため影響範囲は限定的）。構造比較や派生成果物には `dumpPlain` を使い、通常ダンプの表層情報に依存させない。
-- **横断ビューの追加**: データソースとして `AppState.workspaceRecords()` と `IdIndex` を利用し、`Main.kt` の `workspaceView` 分岐に追加する。要素の1行要約（タイトル・サブタイトル）は `schema/Display`（§4.22）を使い、独自のタイトル抽出を書かない。
+- **横断ビューの追加**: データソースとして `AppState.workspaceRecords()` と `IdIndex` を利用し、`ui/Shell.kt` の `LedgerSpace`（台帳スペースのタブと `workspaceView` 分岐）に追加する。要素の1行要約（タイトル・サブタイトル）は `schema/Display`（§4.22）を使い、独自のタイトル抽出を書かない。
 - **ビュー定義の項目追加**: `core/Views.kt` の `parseView` と `schema/BuiltinSchemas.kt` の `builtin-view` スキーマを**対で**更新する（フォーム編集・検証と実行時パースの二重定義のため）。
 - **共通スキーマ定義の追加**: `_schemas` に `kind: library` を置き、利用側は `moduleId#definition` で参照する。解決規則を増やす場合は `SchemaCatalog` に閉じ、各利用側で参照文字列を個別解析しない。
 - **派生スキーマの写像項目の追加**: `SchemaLoader.parseDerive`（宣言のパース）と `DerivedSchemas.compileOne`（コンパイル）、組込みメタスキーマ（`builtin-schema` の `derive` 定義）を**そろえて**更新する。語彙は skill の列マッピング（SK-02）と揃える（§4.23）。

@@ -2,7 +2,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -15,28 +14,16 @@ import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material.icons.filled.Redo
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
-import androidx.compose.material.icons.filled.TableRows
-import androidx.compose.material.icons.filled.AccountTree
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Hub
-import androidx.compose.material.icons.filled.SmartToy
-import androidx.compose.material.icons.filled.Autorenew
-import androidx.compose.material.icons.filled.Insights
-import androidx.compose.material.icons.filled.ImportExport
 import agent.AutomationEngine
 import ai.AiProvider
-import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.EditOff
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.input.pointer.pointerInput
@@ -44,14 +31,16 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.input.key.*
 import kotlinx.coroutines.delay
-import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import app.AppState
+import app.UiSpace
 import index.IdEntry
 import index.IdIndex
 import ui.*
+import validate.Severity
+import validate.Validator
 import java.nio.file.Files
 import java.nio.file.Path
 import javax.swing.JFileChooser
@@ -167,11 +156,9 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
     val switchWorkspace: (Path) -> Unit = { dir ->
         if (state.hasDirtyDocs()) pendingWorkspace = dir else state.openWorkspace(dir)
     }
-    var agentOpen by remember { mutableStateOf(false) }
-    var automationOpen by remember { mutableStateOf(false) }
-    var improvementOpen by remember { mutableStateOf(false) }
-    var skillsOpen by remember { mutableStateOf(false) }
     var automationVersion by remember { mutableStateOf(0) }
+    // 実行スペースの手動表示（R12-05）: エージェント定義がなくてもパレットから表示できる
+    var runsForced by remember { mutableStateOf(uiPreferences.getBoolean("showRunsSpace", false)) }
     // 自動化エンジン（ワークスペースごとに生成。既定は停止状態で、パネルから有効化する）
     val automation = remember(state.workspace) {
         state.workspace?.let { wsDir ->
@@ -188,6 +175,12 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
                 dirtyChecker = { p -> state.docFor(p)?.dirty == true },
             )
         }
+    }
+    // エージェント実行の状態機械（R12-01）: スペース切替で実行が中断しないよう AppRoot 生存期間で保持する
+    val runScope = rememberCoroutineScope()
+    val runController = remember(state.workspace) { state.workspace?.let { RunController(state, it, runScope) } }
+    DisposableEffect(runController) {
+        onDispose { runController?.cancel() }
     }
     LaunchedEffect(automation) {
         automation?.let { engine ->
@@ -236,13 +229,15 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
             else -> false
         }
     }) {
-        automationVersion  // エンジン状態の変化でツールバー（監視インジケータ）を再描画する
-        Toolbar(state, leftOpen, rightOpen, darkMode, toggleDarkMode, { commandOpen = true }, { agentOpen = true },
-            openAutomation = { automationOpen = true },
-            openImprovement = { improvementOpen = true },
-            openSkills = { skillsOpen = true },
-            automationActive = automation?.enabled == true,
-            automationPending = automation?.pendingSnapshot()?.size ?: 0,
+        automationVersion  // エンジン状態の変化でレール・受信箱バッジ・ステータスバーを再描画する
+        // 受信箱の件数（R12-02）: 承認待ち変更セット＋エージェントの質問＋外部変更の競合
+        val inboxCount = (automation?.pendingSnapshot()?.size ?: 0) +
+            state.conflictedDocs().size +
+            (if (runController?.pendingQuestion != null) 1 else 0)
+        // プロファイル（R12-05）: エージェント運用の定義・判断待ち・有効な自動化があるときだけ実行スペースを出す
+        val showRuns = runsForced || inboxCount > 0 || state.hasAgentSetup() ||
+            automation?.enabled == true || state.uiSpace == UiSpace.RUNS
+        Toolbar(state, leftOpen, rightOpen, darkMode, toggleDarkMode, { commandOpen = true },
             switchWorkspace = switchWorkspace,
             toggleReadOnly = {
                 state.readOnlyMode = !state.readOnlyMode
@@ -252,35 +247,47 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
             toggleRight = { rightOpen = !rightOpen; uiPreferences.putBoolean("rightOpen", rightOpen) })
         Divider(color = Palette.Border)
         Row(Modifier.weight(1f).fillMaxWidth()) {
-            if (leftOpen) {
-                FileTreePane(state, leftWidth)
-                ResizeHandle { delta ->
-                    leftWidth = (leftWidth + delta).coerceIn(170.dp, 480.dp)
-                    uiPreferences.putFloat("leftWidth", leftWidth.value)
+            ActivityRail(state, showRuns, inboxCount, automation?.enabled == true)
+            Box(Modifier.width(1.dp).fillMaxHeight().background(Palette.Border))
+            when (state.uiSpace) {
+                UiSpace.RUNS -> Box(Modifier.weight(1f).fillMaxHeight()) {
+                    RunsSpace(state, automation, runController, automationVersion)
                 }
-            }
-            Box(Modifier.weight(1f).fillMaxHeight()) {
-                when (state.workspaceView) {
-                    1 -> WorkspaceTableView(state)
-                    2 -> ReferenceGraphView(state)
-                    3 -> IdCrossView(state)
-                    4 -> ViewGridView(state)
-                    else -> EditorArea(state)
+                UiSpace.DESIGN -> Box(Modifier.weight(1f).fillMaxHeight()) {
+                    DesignSpace(state)
                 }
-            }
-            if (rightOpen) {
-                ResizeHandle { delta ->
-                    rightWidth = (rightWidth - delta).coerceIn(210.dp, 520.dp)
-                    uiPreferences.putFloat("rightWidth", rightWidth.value)
+                else -> {
+                    if (leftOpen && state.uiSpace == UiSpace.EDIT) {
+                        FileTreePane(state, leftWidth)
+                        ResizeHandle { delta ->
+                            leftWidth = (leftWidth + delta).coerceIn(170.dp, 480.dp)
+                            uiPreferences.putFloat("leftWidth", leftWidth.value)
+                        }
+                    }
+                    Box(Modifier.weight(1f).fillMaxHeight()) {
+                        if (state.uiSpace == UiSpace.EDIT) EditorArea(state) else LedgerSpace(state)
+                    }
+                    if (rightOpen) {
+                        ResizeHandle { delta ->
+                            rightWidth = (rightWidth - delta).coerceIn(210.dp, 520.dp)
+                            uiPreferences.putFloat("rightWidth", rightWidth.value)
+                        }
+                        SidePanel(state, rightWidth)
+                    }
                 }
-                SidePanel(state, rightWidth)
             }
         }
         Divider(color = Palette.Border)
-        StatusBar(state)
+        StatusBar(state, automation, inboxCount) { state.showSpace(UiSpace.RUNS) }
     }
-    if (commandOpen) CommandPalette(state, switchWorkspace) { commandOpen = false }
-    if (agentOpen) AgentRunHost(state, automation) { agentOpen = false }
+    if (commandOpen) CommandPalette(
+        state, switchWorkspace,
+        onShowRuns = {
+            runsForced = true
+            uiPreferences.putBoolean("showRunsSpace", true)
+            state.showSpace(UiSpace.RUNS)
+        },
+    ) { commandOpen = false }
     pendingWorkspace?.let { next ->
         AlertDialog(
             onDismissRequest = { pendingWorkspace = null },
@@ -292,9 +299,6 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
             dismissButton = { TextButton(onClick = { pendingWorkspace = null }) { Text("キャンセル") } },
         )
     }
-    if (automationOpen && automation != null) AutomationPanel(state, automation, automationVersion) { automationOpen = false }
-    if (improvementOpen) ImprovementPanel(state) { improvementOpen = false }
-    if (skillsOpen) SkillsPanel(state) { skillsOpen = false }
     if (state.navigationCandidates.isNotEmpty()) {
         val candidates = state.navigationCandidates
         AlertDialog(
@@ -347,9 +351,7 @@ private fun ResizeHandle(onDrag: (androidx.compose.ui.unit.Dp) -> Unit) {
 
 @Composable
 fun Toolbar(state: AppState, leftOpen: Boolean, rightOpen: Boolean, darkMode: Boolean, toggleDarkMode: () -> Unit,
-            openCommands: () -> Unit, openAgent: () -> Unit,
-            openAutomation: () -> Unit, openImprovement: () -> Unit, openSkills: () -> Unit,
-            automationActive: Boolean, automationPending: Int,
+            openCommands: () -> Unit,
             switchWorkspace: (Path) -> Unit, toggleReadOnly: () -> Unit,
             toggleLeft: () -> Unit, toggleRight: () -> Unit) {
     var recentOpen by remember { mutableStateOf(false) }
@@ -383,17 +385,6 @@ fun Toolbar(state: AppState, leftOpen: Boolean, rightOpen: Boolean, darkMode: Bo
             Icon(Icons.AutoMirrored.Filled.ArrowForward, "進む (Alt+→)", Modifier.size(18.dp),
                 tint = if (state.canGoForward) Palette.SubText else Palette.SubText.copy(alpha = .35f))
         }
-        Spacer(Modifier.width(4.dp))
-        IconButton(onClick = { state.workspaceView = 0 }) { Icon(Icons.Default.Description, "文書ビュー", Modifier.size(18.dp),
-            tint = if (state.workspaceView == 0) Palette.Primary else Palette.SubText) }
-        IconButton(onClick = { state.workspaceView = 1 }) { Icon(Icons.Default.TableRows, "一覧ビュー", Modifier.size(18.dp),
-            tint = if (state.workspaceView == 1) Palette.Primary else Palette.SubText) }
-        IconButton(onClick = { state.workspaceView = 2 }) { Icon(Icons.Default.AccountTree, "参照グラフ", Modifier.size(18.dp),
-            tint = if (state.workspaceView == 2) Palette.Primary else Palette.SubText) }
-        IconButton(onClick = { state.openCrossView() }) { Icon(Icons.Default.Hub, "ID横ぐしビュー", Modifier.size(18.dp),
-            tint = if (state.workspaceView == 3) Palette.Primary else Palette.SubText) }
-        IconButton(onClick = { state.openViewGrid() }) { Icon(Icons.Default.GridOn, "ビューグリッド", Modifier.size(18.dp),
-            tint = if (state.workspaceView == 4) Palette.Primary else Palette.SubText) }
         Box {
             IconButton(onClick = { recentOpen = true }) { Icon(Icons.Default.History, "最近開いたファイル", Modifier.size(18.dp)) }
             DropdownMenu(recentOpen, { recentOpen = false }) {
@@ -403,9 +394,18 @@ fun Toolbar(state: AppState, leftOpen: Boolean, rightOpen: Boolean, darkMode: Bo
                 }) }
             }
         }
-        Spacer(Modifier.width(8.dp))
         Spacer(Modifier.weight(1f))
-        IdSearchBox(state)
+        // 統合検索（R12-04）: ID・ファイル・コマンド・ワークスペース切替を1つのパレットに集約
+        OutlinedButton(
+            enabled = state.workspace != null,
+            onClick = openCommands,
+            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+        ) {
+            Icon(Icons.Default.Search, contentDescription = null, Modifier.size(15.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("検索・コマンド (Ctrl+K)", fontSize = 12.sp)
+        }
+        Spacer(Modifier.width(4.dp))
         // 閲覧専用モード（R10-04）: フォーム・グリッドの編集UIを表示専用に切り替える
         IconButton(onClick = toggleReadOnly) {
             Icon(
@@ -415,28 +415,6 @@ fun Toolbar(state: AppState, leftOpen: Boolean, rightOpen: Boolean, darkMode: Bo
                 tint = if (state.readOnlyMode) Palette.WarnOrange else Palette.SubText,
             )
         }
-        IconButton(enabled = state.workspace != null, onClick = openAgent) {
-            Icon(Icons.Default.SmartToy, "アクティビティを実行", Modifier.size(18.dp))
-        }
-        Box {
-            IconButton(enabled = state.workspace != null, onClick = openAutomation) {
-                Icon(Icons.Default.Autorenew, "自動実行（トリガ・承認待ち）", Modifier.size(18.dp),
-                    tint = if (automationActive) Palette.OkGreen else Palette.SubText)
-            }
-            if (automationPending > 0) {
-                Text(
-                    "$automationPending", fontSize = 9.sp, color = Palette.WarnOrange, fontWeight = FontWeight.Bold,
-                    modifier = Modifier.align(Alignment.TopEnd).padding(top = 2.dp, end = 2.dp),
-                )
-            }
-        }
-        IconButton(enabled = state.workspace != null, onClick = openImprovement) {
-            Icon(Icons.Default.Insights, "自己改善（メトリクス・評価セット）", Modifier.size(18.dp))
-        }
-        IconButton(enabled = state.workspace != null, onClick = openSkills) {
-            Icon(Icons.Default.ImportExport, "skill（インポート・エクスポート）", Modifier.size(18.dp))
-        }
-        IconButton(onClick = openCommands) { Icon(Icons.Default.Terminal, "コマンドパレット (Ctrl+K)", Modifier.size(18.dp)) }
         IconButton(onClick = toggleDarkMode) {
             Icon(if (darkMode) Icons.Default.LightMode else Icons.Default.DarkMode,
                 if (darkMode) "ライトモード" else "ダークモード", Modifier.size(18.dp))
@@ -447,13 +425,20 @@ fun Toolbar(state: AppState, leftOpen: Boolean, rightOpen: Boolean, darkMode: Bo
 }
 
 @Composable
-private fun CommandPalette(state: AppState, switchWorkspace: (Path) -> Unit, onDismiss: () -> Unit) {
+private fun CommandPalette(state: AppState, switchWorkspace: (Path) -> Unit, onShowRuns: () -> Unit, onDismiss: () -> Unit) {
     var query by remember { mutableStateOf("") }
     val files = remember(query, state.yamlFiles) {
         state.yamlFiles.filter { state.relPath(it).contains(query, true) }.take(10)
     }
-    val ids = remember(query, state.indexVersion) {
-        if (query.isBlank()) emptyList() else state.index.entries.keys.filter { it.contains(query, true) }.sorted().take(8)
+    // ID検索（R12-04）: 旧ツールバーのID検索ボックスを統合。ID・タイトル（表示解決 S-13）の部分一致
+    val idMatches: List<IdEntry> = remember(query, state.indexVersion) {
+        if (query.isBlank()) emptyList()
+        else state.index.entries.values.asSequence()
+            .mapNotNull { it.firstOrNull() }
+            .filter { it.id.contains(query, true) || (it.title?.contains(query, true) == true) }
+            .sortedBy { it.id }
+            .take(10)
+            .toList()
     }
     // ワークスペース切替候補（R10-05）: 現在以外の履歴。文字入力があれば絞り込む
     val workspaces = remember(query, state.recentWorkspaces, state.workspace) {
@@ -463,23 +448,27 @@ private fun CommandPalette(state: AppState, switchWorkspace: (Path) -> Unit, onD
     }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("コマンドパレット") },
+        title = { Text("検索・コマンド") },
         text = {
             Column(Modifier.width(520.dp).heightIn(max = 460.dp)) {
                 CompactTextField(query, { query = it }, singleLine = true,
-                    placeholder = { Text("コマンドまたはファイルを検索…", color = Palette.SubText) }, modifier = Modifier.fillMaxWidth())
+                    placeholder = { Text("ID・タイトル・ファイル・コマンドを検索…", color = Palette.SubText) }, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(8.dp))
-                CommandItem("ワークスペース一覧を表示") { state.workspaceView = 1; onDismiss() }
-                CommandItem("参照グラフを表示") { state.workspaceView = 2; onDismiss() }
-                CommandItem("ID横ぐしビューを表示") { state.openCrossView(); onDismiss() }
-                CommandItem("ビューグリッドを表示") { state.openViewGrid(); onDismiss() }
+                idMatches.forEach { e ->
+                    CommandItem("IDへ移動: ${e.id}" + (e.title?.let { " — $it" } ?: "")) { state.navigateToId(e.id); onDismiss() }
+                }
+                files.forEach { file -> CommandItem("開く: ${state.relPath(file)}") { state.openFile(file); onDismiss() } }
+                CommandItem("台帳: 一覧を表示") { state.showWorkspaceView(1); onDismiss() }
+                CommandItem("台帳: ビューグリッドを表示") { state.openViewGrid(); onDismiss() }
+                CommandItem("台帳: 参照グラフを表示") { state.showWorkspaceView(2); onDismiss() }
+                CommandItem("台帳: ID横ぐしビューを表示") { state.openCrossView(); onDismiss() }
+                CommandItem("実行スペースを表示（受信箱）") { onShowRuns(); onDismiss() }
+                CommandItem("設計スペースを表示") { state.showSpace(UiSpace.DESIGN); onDismiss() }
                 CommandItem("すべて保存") { state.saveAll(); onDismiss() }
                 CommandItem("ワークスペースを開く…") { onDismiss(); chooseDirectory()?.let(switchWorkspace) }
                 workspaces.forEach { ws ->
                     CommandItem("ワークスペースを切替: $ws") { onDismiss(); switchWorkspace(ws) }
                 }
-                ids.forEach { id -> CommandItem("IDへ移動: $id") { state.navigateToId(id); onDismiss() } }
-                files.forEach { file -> CommandItem("開く: ${state.relPath(file)}") { state.openFile(file); onDismiss() } }
             }
         },
         confirmButton = {},
@@ -501,70 +490,6 @@ private fun chooseDirectory(): Path? {
     return if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
         chooser.selectedFile.toPath()
     } else null
-}
-
-// ================================================================ ID 検索
-
-@Composable
-fun IdSearchBox(state: AppState) {
-    var query by remember { mutableStateOf("") }
-    var open by remember { mutableStateOf(false) }
-    state.indexVersion
-
-    val matches: List<IdEntry> = remember(query, state.indexVersion) {
-        if (query.isBlank()) emptyList()
-        else state.index.entries.values.asSequence()
-            .mapNotNull { it.firstOrNull() }
-            .filter {
-                it.id.contains(query, ignoreCase = true) ||
-                        (it.title?.contains(query, ignoreCase = true) == true)
-            }
-            .sortedBy { it.id }
-            .take(12)
-            .toList()
-    }
-
-    Box {
-        Row(
-            Modifier.width(300.dp).height(34.dp).background(Palette.Surface, PanelShape)
-                .border(1.dp, Palette.Border, PanelShape).padding(horizontal = 9.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(Icons.Default.Search, contentDescription = null, Modifier.size(16.dp), tint = Palette.SubText)
-            Spacer(Modifier.width(7.dp))
-            Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                if (query.isEmpty()) Text("ID・タイトルで検索…", fontSize = 12.sp, color = Palette.SubText)
-                BasicTextField(
-                    value = query,
-                    onValueChange = { query = it; open = it.isNotBlank() },
-                    singleLine = true,
-                    textStyle = TextStyle(fontSize = 12.sp, color = Palette.Text),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        }
-        DropdownMenu(
-            expanded = open && matches.isNotEmpty(),
-            onDismissRequest = { open = false },
-            properties = PopupProperties(focusable = false),
-        ) {
-            matches.forEach { e ->
-                DropdownMenuItem(text = {
-                    Column {
-                        Text(e.id, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                        Text(
-                            listOfNotNull(e.title, state.relPath(e.file)).joinToString(" — "),
-                            fontSize = 11.sp, color = Palette.SubText,
-                        )
-                    }
-                }, onClick = {
-                    state.navigateToId(e.id)
-                    open = false
-                    query = ""
-                })
-            }
-        }
-    }
 }
 
 // ================================================================ エディタ領域
@@ -716,11 +641,44 @@ fun EditorArea(state: AppState) {
 // ================================================================ ステータスバー
 
 @Composable
-fun StatusBar(state: AppState) {
+fun StatusBar(state: AppState, engine: AutomationEngine?, inboxCount: Int, onOpenInbox: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().height(26.dp).background(Palette.PanelBg).padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(state.status, fontSize = 11.sp, color = Palette.SubText, maxLines = 1)
+        Text(state.status, fontSize = 11.sp, color = Palette.SubText, maxLines = 1, modifier = Modifier.weight(1f))
+        // 検証サマリ（開いている文書。詳細は右パネルの検証タブ）
+        val doc = state.openDoc
+        if (doc != null) {
+            doc.version
+            state.indexVersion
+            val issues = remember(doc, doc.version, state.indexVersion) {
+                Validator.validate(doc.root, doc.parseError, doc.file, doc.schema, state.index)
+            }
+            val errors = issues.count { it.severity == Severity.ERROR } + state.schemaErrors.size
+            val warnings = issues.count { it.severity == Severity.WARNING }
+            Text(
+                "検証: エラー $errors・警告 $warnings",
+                fontSize = 11.sp, maxLines = 1,
+                color = if (errors > 0) Palette.ErrorRed else if (warnings > 0) Palette.WarnOrange else Palette.OkGreen,
+            )
+            Spacer(Modifier.width(12.dp))
+        }
+        // 実行の状態（R12-02）: 自動化の稼働・実行中アクティビティ・判断待ちを常設表示する
+        engine?.runningActivity?.let {
+            Text("実行中: $it", fontSize = 11.sp, color = Palette.Primary, maxLines = 1)
+            Spacer(Modifier.width(12.dp))
+        }
+        if (engine?.enabled == true) {
+            Text("自動化 有効", fontSize = 11.sp, color = Palette.OkGreen, maxLines = 1)
+            Spacer(Modifier.width(12.dp))
+        }
+        if (inboxCount > 0) {
+            Text(
+                "判断待ち $inboxCount 件",
+                fontSize = 11.sp, color = Palette.WarnOrange, fontWeight = FontWeight.Bold, maxLines = 1,
+                modifier = Modifier.clickable(onClick = onOpenInbox),
+            )
+        }
     }
 }
