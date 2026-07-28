@@ -108,6 +108,11 @@ class OpenDocument(
  * アプリケーション状態。
  */
 class AppState {
+    private companion object {
+        /** ナビゲーション履歴（戻る／進む）の保持上限。 */
+        const val HISTORY_LIMIT = 50
+    }
+
     private val recentPrefs = Preferences.userRoot().node("yaml-design-editor/recent")
     private val appPrefs = Preferences.userRoot().node("yaml-design-editor/app")
 
@@ -212,6 +217,8 @@ class AppState {
         docCache.clear()
         openDoc = null
         highlightPath = null
+        backStack = emptyList()
+        forwardStack = emptyList()
         // ワークスペース履歴（R10-05）: アプリグローバルに永続化し、スタート画面・パレットの切替候補にする
         recentWorkspaces = (listOf(workspace!!) + recentWorkspaces.filter { it != workspace }).take(10)
         appPrefs.put("recentWorkspaces", recentWorkspaces.joinToString("\n"))
@@ -297,6 +304,12 @@ class AppState {
     fun ensureDoc(file: Path): OpenDocument = docCache.getOrPut(file) { loadDocument(file) }
 
     fun openFile(file: Path, focus: YPath? = null) {
+        recordNavigation(file, focus)
+        showFile(file, focus)
+    }
+
+    /** 履歴に積まずに文書を表示する（openFile の本体。「戻る」「進む」の復元にも使う）。 */
+    private fun showFile(file: Path, focus: YPath?) {
         val doc = docCache.getOrPut(file) { loadDocument(file) }
         openDoc = doc
         workspaceView = 0
@@ -559,6 +572,53 @@ class AppState {
 
     // ---------------------------------------------------------------- navigation
 
+    /** ナビゲーション履歴の1地点（ファイルとハイライト位置）。 */
+    data class NavLocation(val file: Path, val path: YPath?)
+
+    private var backStack by mutableStateOf<List<NavLocation>>(emptyList())
+    private var forwardStack by mutableStateOf<List<NavLocation>>(emptyList())
+
+    val canGoBack: Boolean get() = backStack.isNotEmpty()
+    val canGoForward: Boolean get() = forwardStack.isNotEmpty()
+
+    /** 現在の表示位置（文書を開いていなければ null）。 */
+    private fun currentLocation(): NavLocation? = openDoc?.let { NavLocation(it.file, highlightPath) }
+
+    /**
+     * 移動先が現在位置と異なる場合に、現在位置を「戻る」履歴へ積む。
+     * 新しい移動が起きた時点で「進む」履歴は破棄する（ブラウザと同じ振る舞い）。
+     */
+    private fun recordNavigation(file: Path, focus: YPath?) {
+        val cur = currentLocation() ?: return
+        if (cur.file == file && (focus == null || focus == cur.path)) return
+        backStack = (backStack + cur).takeLast(HISTORY_LIMIT)
+        forwardStack = emptyList()
+    }
+
+    /** 参照ジャンプ・ファイル切替の履歴を1つ戻る（削除済みファイルは読み飛ばす）。 */
+    fun goBack() {
+        while (true) {
+            val target = backStack.lastOrNull() ?: return
+            backStack = backStack.dropLast(1)
+            if (!Files.exists(target.file)) continue
+            currentLocation()?.let { forwardStack = (forwardStack + it).takeLast(HISTORY_LIMIT) }
+            showFile(target.file, target.path)
+            return
+        }
+    }
+
+    /** 「戻る」で戻った移動を1つやり直す。 */
+    fun goForward() {
+        while (true) {
+            val target = forwardStack.lastOrNull() ?: return
+            forwardStack = forwardStack.dropLast(1)
+            if (!Files.exists(target.file)) continue
+            currentLocation()?.let { backStack = (backStack + it).takeLast(HISTORY_LIMIT) }
+            showFile(target.file, target.path)
+            return
+        }
+    }
+
     /**
      * ID の定義位置へジャンプする。
      * 索引（保存済みの状態）を優先し、見つからなければ現在のドキュメント内の未保存 ID を探す。
@@ -577,6 +637,7 @@ class AppState {
             val (ids, _) = DocScanner.scan(doc.root, doc.file, doc.schema, documentId)
             val local = ids.firstOrNull { it.id == id }
             if (local != null) {
+                recordNavigation(doc.file, local.path)
                 highlightPath = local.path
                 editorTab = 0
                 return

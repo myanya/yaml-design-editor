@@ -1,5 +1,6 @@
 package ui
 
+import androidx.compose.foundation.HorizontalScrollbar
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -200,7 +201,11 @@ private fun GridBody(state: AppState, view: ViewDef) {
     Divider(color = Palette.Border)
     Box(Modifier.fillMaxSize()) {
         val listState = rememberLazyListState()
-        LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(end = 8.dp)) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize().padding(end = 8.dp),
+            contentPadding = PaddingValues(bottom = 14.dp),  // 最終行が横スクロールバーに隠れないように
+        ) {
             items(filtered, key = { it.id }) { row ->
                 Row(
                     Modifier.fillMaxWidth().horizontalScroll(hScroll)
@@ -216,6 +221,13 @@ private fun GridBody(state: AppState, view: ViewDef) {
             }
         }
         VerticalScrollbar(rememberScrollbarAdapter(listState), Modifier.align(Alignment.CenterEnd).fillMaxHeight())
+        // 列の合計幅が画面に収まっているときは表示しない（maxValue の初期値 Int.MAX_VALUE は測定前なので除外）
+        if (hScroll.maxValue in 1 until Int.MAX_VALUE) {
+            HorizontalScrollbar(
+                rememberScrollbarAdapter(hScroll),
+                Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(start = 8.dp, end = 14.dp),
+            )
+        }
     }
 }
 

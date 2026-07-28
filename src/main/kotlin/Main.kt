@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
@@ -215,7 +217,15 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
         }
     }
     Column(Modifier.fillMaxSize().onKeyEvent { event ->
-        if (event.type != KeyEventType.KeyDown || !event.isCtrlPressed) return@onKeyEvent false
+        if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+        if (event.isAltPressed) {
+            return@onKeyEvent when (event.key) {
+                Key.DirectionLeft -> { state.goBack(); true }
+                Key.DirectionRight -> { state.goForward(); true }
+                else -> false
+            }
+        }
+        if (!event.isCtrlPressed) return@onKeyEvent false
         when {
             event.key == Key.S && event.isShiftPressed -> { state.saveAll(); true }
             event.key == Key.S -> { state.saveCurrent(); true }
@@ -362,6 +372,16 @@ fun Toolbar(state: AppState, leftOpen: Boolean, rightOpen: Boolean, darkMode: Bo
             Icon(Icons.Default.Refresh, contentDescription = null, Modifier.size(16.dp))
             Spacer(Modifier.width(6.dp))
             Text("再読込", fontSize = 13.sp)
+        }
+        Spacer(Modifier.width(4.dp))
+        // ナビゲーション履歴: 参照ジャンプ・ファイル切替の移動を戻る／進む
+        IconButton(enabled = state.canGoBack, onClick = state::goBack) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, "戻る (Alt+←)", Modifier.size(18.dp),
+                tint = if (state.canGoBack) Palette.SubText else Palette.SubText.copy(alpha = .35f))
+        }
+        IconButton(enabled = state.canGoForward, onClick = state::goForward) {
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, "進む (Alt+→)", Modifier.size(18.dp),
+                tint = if (state.canGoForward) Palette.SubText else Palette.SubText.copy(alpha = .35f))
         }
         Spacer(Modifier.width(4.dp))
         IconButton(onClick = { state.workspaceView = 0 }) { Icon(Icons.Default.Description, "文書ビュー", Modifier.size(18.dp),
