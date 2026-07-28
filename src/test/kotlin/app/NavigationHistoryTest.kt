@@ -76,6 +76,90 @@ class NavigationHistoryTest {
     }
 
     @Test
+    fun `ビューグリッドから文書へ飛んでも戻れる`() {
+        val state = AppState()
+        val a = newFile("a.yaml")
+        state.openViewGrid("v1")
+        assertFalse(state.canGoBack)  // ビューを開いただけでは履歴なし
+
+        state.openFile(a)
+        assertTrue(state.canGoBack)
+
+        state.goBack()
+        assertEquals(4, state.workspaceView)
+        assertEquals("v1", state.viewGridId)
+
+        state.goForward()
+        assertEquals(0, state.workspaceView)
+        assertEquals(a, state.openDoc?.file)
+    }
+
+    @Test
+    fun `文書から横ぐしビューへのジャンプも履歴に積まれる`() {
+        val state = AppState()
+        val a = newFile("a.yaml")
+        state.openFile(a)
+        state.openCrossView("some-id")
+        assertEquals(3, state.workspaceView)
+        assertTrue(state.canGoBack)
+
+        state.goBack()
+        assertEquals(0, state.workspaceView)
+        assertEquals(a, state.openDoc?.file)
+
+        state.goForward()
+        assertEquals(3, state.workspaceView)
+        assertEquals("some-id", state.crossViewId)
+    }
+
+    @Test
+    fun `横ぐしビューから出現・参照先へ飛ぶと戻るが有効になる`() {
+        val state = AppState()
+        val a = newFile("a.yaml")
+        state.openCrossView("x")
+        assertFalse(state.canGoBack)
+
+        // 出現カードの→ボタン・参照クリックはいずれも navigateToOccurrence → openFile に到達する
+        state.navigateToOccurrence(index.IdEntry("x", a, emptyList(), null, null, "a"))
+        assertEquals(0, state.workspaceView)
+        assertTrue(state.canGoBack)
+
+        state.goBack()
+        assertEquals(3, state.workspaceView)
+        assertEquals("x", state.crossViewId)
+    }
+
+    @Test
+    fun `横ぐしビュー内のID切替も履歴に積まれる`() {
+        val state = AppState()
+        state.openCrossView("x")
+        assertFalse(state.canGoBack)  // 空の文書ビューからの遷移は積まない
+        state.openCrossView("y")
+        assertTrue(state.canGoBack)
+
+        state.goBack()
+        assertEquals(3, state.workspaceView)
+        assertEquals("x", state.crossViewId)
+
+        state.goForward()
+        assertEquals("y", state.crossViewId)
+    }
+
+    @Test
+    fun `文書内ジャンプ（検証パネル相当）も履歴に積まれる`() {
+        val state = AppState()
+        val a = newFile("a.yaml")
+        state.openFile(a)
+        state.navigateToPath(listOf("k"))
+        assertEquals(listOf<Any>("k"), state.highlightPath)
+        assertTrue(state.canGoBack)
+
+        state.goBack()
+        assertEquals(a, state.openDoc?.file)
+        assertEquals(null, state.highlightPath)
+    }
+
+    @Test
     fun `削除済みファイルは戻る対象から読み飛ばす`() {
         val state = AppState()
         val a = newFile("a.yaml")

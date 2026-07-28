@@ -119,7 +119,7 @@ private fun HeaderBar(state: AppState, loaded: Views.LoadResult, view: ViewDef?)
                                 Text("${v.id} — idPattern: ${v.rows.idPattern}", fontSize = 10.sp, color = Palette.SubText)
                             }
                         },
-                        onClick = { state.viewGridId = v.id; selectorOpen = false },
+                        onClick = { state.openViewGrid(v.id); selectorOpen = false },
                     )
                 }
             }

@@ -181,8 +181,9 @@ class AppState {
     /** ID横ぐしビューで選択中の論理ID。 */
     var crossViewId by mutableStateOf<String?>(null)
 
-    /** ID横ぐしビューを開く（id 指定時はそのIDを選択）。 */
+    /** ID横ぐしビューを開く（id 指定時はそのIDを選択し、ジャンプとして履歴に積む）。 */
     fun openCrossView(id: String? = null) {
+        if (id != null && !(workspaceView == 3 && crossViewId == id)) pushBack(currentLocation())
         if (id != null) crossViewId = id
         workspaceView = 3
     }
@@ -190,8 +191,9 @@ class AppState {
     /** ビューグリッドで選択中のビューID。 */
     var viewGridId by mutableStateOf<String?>(null)
 
-    /** ビューグリッドを開く（id 指定時はそのビューを選択）。 */
+    /** ビューグリッドを開く（id 指定時はそのビューを選択し、ジャンプとして履歴に積む）。 */
     fun openViewGrid(id: String? = null) {
+        if (id != null && !(workspaceView == 4 && viewGridId == id)) pushBack(currentLocation())
         if (id != null) viewGridId = id
         workspaceView = 4
     }
@@ -304,7 +306,9 @@ class AppState {
     fun ensureDoc(file: Path): OpenDocument = docCache.getOrPut(file) { loadDocument(file) }
 
     fun openFile(file: Path, focus: YPath? = null) {
-        recordNavigation(file, focus)
+        val cur = currentLocation()
+        val samePlace = cur.view == 0 && cur.file == file && (focus == null || focus == cur.path)
+        if (!samePlace) pushBack(cur)
         showFile(file, focus)
     }
 
@@ -572,8 +576,17 @@ class AppState {
 
     // ---------------------------------------------------------------- navigation
 
-    /** ナビゲーション履歴の1地点（ファイルとハイライト位置）。 */
-    data class NavLocation(val file: Path, val path: YPath?)
+    /**
+     * ナビゲーション履歴の1地点。文書ビュー（view=0）はファイルとハイライト位置、
+     * それ以外のワークスペースビューはビュー番号と選択中ID（横ぐし／ビューグリッド）で位置を表す。
+     */
+    data class NavLocation(
+        val view: Int,
+        val file: Path?,
+        val path: YPath?,
+        val crossId: String?,
+        val gridId: String?,
+    )
 
     private var backStack by mutableStateOf<List<NavLocation>>(emptyList())
     private var forwardStack by mutableStateOf<List<NavLocation>>(emptyList())
@@ -581,28 +594,48 @@ class AppState {
     val canGoBack: Boolean get() = backStack.isNotEmpty()
     val canGoForward: Boolean get() = forwardStack.isNotEmpty()
 
-    /** 現在の表示位置（文書を開いていなければ null）。 */
-    private fun currentLocation(): NavLocation? = openDoc?.let { NavLocation(it.file, highlightPath) }
+    /** 現在の表示位置。 */
+    private fun currentLocation(): NavLocation =
+        NavLocation(workspaceView, openDoc?.file, highlightPath, crossViewId, viewGridId)
+
+    /** 何も開いていない文書ビューは履歴に積む価値がない。 */
+    private fun isEmptyLocation(loc: NavLocation): Boolean = loc.view == 0 && loc.file == null
 
     /**
-     * 移動先が現在位置と異なる場合に、現在位置を「戻る」履歴へ積む。
-     * 新しい移動が起きた時点で「進む」履歴は破棄する（ブラウザと同じ振る舞い）。
+     * 現在位置を「戻る」履歴へ積む。新しい移動が起きた時点で「進む」履歴は破棄する
+     * （ブラウザと同じ振る舞い）。
      */
-    private fun recordNavigation(file: Path, focus: YPath?) {
-        val cur = currentLocation() ?: return
-        if (cur.file == file && (focus == null || focus == cur.path)) return
-        backStack = (backStack + cur).takeLast(HISTORY_LIMIT)
+    private fun pushBack(loc: NavLocation) {
+        if (isEmptyLocation(loc)) return
+        backStack = (backStack + loc).takeLast(HISTORY_LIMIT)
         forwardStack = emptyList()
     }
 
-    /** 参照ジャンプ・ファイル切替の履歴を1つ戻る（削除済みファイルは読み飛ばす）。 */
+    /** 履歴地点を画面へ復元する（履歴には積まない）。 */
+    private fun restore(loc: NavLocation) {
+        if (loc.view == 0) {
+            loc.file?.let { showFile(it, loc.path) }
+        } else {
+            loc.crossId?.let { crossViewId = it }
+            loc.gridId?.let { viewGridId = it }
+            workspaceView = loc.view
+        }
+    }
+
+    /** 文書ビューの地点で対象ファイルが削除済みなら復元できない。 */
+    private fun isStale(loc: NavLocation): Boolean =
+        loc.view == 0 && (loc.file == null || !Files.exists(loc.file))
+
+    /** 参照ジャンプ・ファイル切替・ビュー間ジャンプの履歴を1つ戻る（削除済みファイルは読み飛ばす）。 */
     fun goBack() {
         while (true) {
             val target = backStack.lastOrNull() ?: return
             backStack = backStack.dropLast(1)
-            if (!Files.exists(target.file)) continue
-            currentLocation()?.let { forwardStack = (forwardStack + it).takeLast(HISTORY_LIMIT) }
-            showFile(target.file, target.path)
+            if (isStale(target)) continue
+            currentLocation().takeUnless(::isEmptyLocation)?.let {
+                forwardStack = (forwardStack + it).takeLast(HISTORY_LIMIT)
+            }
+            restore(target)
             return
         }
     }
@@ -612,11 +645,22 @@ class AppState {
         while (true) {
             val target = forwardStack.lastOrNull() ?: return
             forwardStack = forwardStack.dropLast(1)
-            if (!Files.exists(target.file)) continue
-            currentLocation()?.let { backStack = (backStack + it).takeLast(HISTORY_LIMIT) }
-            showFile(target.file, target.path)
+            if (isStale(target)) continue
+            currentLocation().takeUnless(::isEmptyLocation)?.let {
+                backStack = (backStack + it).takeLast(HISTORY_LIMIT)
+            }
+            restore(target)
             return
         }
+    }
+
+    /** 開いている文書内の位置へジャンプする（検証パネル・文書内リンク）。移動として履歴に積む。 */
+    fun navigateToPath(path: YPath) {
+        val cur = currentLocation()
+        if (cur.view != 0 || cur.path != path) pushBack(cur)
+        workspaceView = 0
+        editorTab = 0
+        highlightPath = path
     }
 
     /**
@@ -637,9 +681,7 @@ class AppState {
             val (ids, _) = DocScanner.scan(doc.root, doc.file, doc.schema, documentId)
             val local = ids.firstOrNull { it.id == id }
             if (local != null) {
-                recordNavigation(doc.file, local.path)
-                highlightPath = local.path
-                editorTab = 0
+                navigateToPath(local.path)
                 return
             }
         }

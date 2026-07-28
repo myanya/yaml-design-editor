@@ -81,7 +81,7 @@
 | I-05 | バックリンク（被参照一覧。参照を書いた要素のID・タイトル＝表示解決 S-13 の結果を主表示、クリックで参照元へジャンプ） | ✅ | `IdIndex.backlinksTo` / `sourceEntryOf`, `ui/SidePanel.kt` | 手動 |
 | I-06 | ID検索（ツールバー。ID・タイトル部分一致。タイトルは表示解決 S-13 で索引化されたもの） | ✅ | `Main.kt`（`IdSearchBox`） | 手動 |
 | I-07 | ID横ぐしビュー（同一論理IDの全出現・要素からの参照・被参照・カバレッジ充足を1画面に集約。フェーズ未到達のカバレッジルールは区別表示。各出現は`_views`定義なしでその場編集できる埋め込みフォーム＝スキーマがあれば`ObjectFields`、なければ`GenericEditor`。ROADMAP R7-04） | ✅ | `ui/IdCrossView.kt`, `AppState.openCrossView` / `ensureDoc` | 手動 |
-| I-08 | ナビゲーション履歴（参照ジャンプ・ファイル切替の移動を「戻る」「進む」で往復。ツールバーの←→ボタン＋`Alt+←`/`Alt+→`。ファイルとハイライト位置を復元、削除済みファイルは読み飛ばし、ワークスペース切替でクリア） | ✅ | `AppState.goBack` / `goForward`, `Main.kt`（ツールバー・ショートカット） | 単体（`NavigationHistoryTest`） |
+| I-08 | ナビゲーション履歴（参照ジャンプ・ファイル切替・ビュー間ジャンプ・横ぐしビューのID切替・ビューグリッドのビュー切替・検証パネルの文書内ジャンプを「戻る」「進む」で往復。ツールバーの←→ボタン＋`Alt+←`/`Alt+→`。文書はファイルとハイライト位置、横ぐし／ビューグリッドはビューと選択IDを復元。削除済みファイルは読み飛ばし、ワークスペース切替でクリア） | ✅ | `AppState.goBack` / `goForward` / `navigateToPath`, `Main.kt`（ツールバー・ショートカット） | 単体（`NavigationHistoryTest`） |
 
 ## 6. ワークスペース横断ビュー
 

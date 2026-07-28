@@ -74,7 +74,7 @@ fun IdCrossView(state: AppState) {
                         Column(
                             Modifier.fillMaxWidth()
                                 .background(if (selected) Palette.Selected else Color.Transparent)
-                                .clickable { state.crossViewId = id }
+                                .clickable { state.openCrossView(id) }
                                 .padding(horizontal = 12.dp, vertical = 5.dp),
                         ) {
                             Text(id, fontSize = 12.sp,

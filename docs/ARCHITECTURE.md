@@ -123,7 +123,7 @@ Undo/Redo は `YamlIO.dump` したスナップショット文字列の履歴（�
 
 ### 4.4 YPath ベースのナビゲーション
 
-要素位置は `YPath = List<Any>` で統一。検証結果・ハイライト・ジャンプ・AI生成対象はすべて YPath で紐付く。`state.highlightPath` に設定すると `Highlightable` がスクロール＋一時ハイライトする。ジャンプ・ファイル切替（`openFile`）は直前位置 `(file, highlightPath)` を「戻る」履歴へ積み、`AppState.goBack` / `goForward` で往復できる（ブラウザ同様、新しい移動で「進む」履歴は破棄）。
+要素位置は `YPath = List<Any>` で統一。検証結果・ハイライト・ジャンプ・AI生成対象はすべて YPath で紐付く。`state.highlightPath` に設定すると `Highlightable` がスクロール＋一時ハイライトする。ジャンプ・ファイル切替（`openFile`）、文書内ジャンプ（`navigateToPath`。検証パネル等）、ID指定でのビュー遷移（`openCrossView` / `openViewGrid`。横ぐしのID切替・グリッドのビュー切替を含む）は直前位置（`NavLocation`＝文書ならファイルとハイライト位置、ビューならビュー番号と選択ID）を「戻る」履歴へ積み、`AppState.goBack` / `goForward` で往復できる（ブラウザ同様、新しい移動で「進む」履歴は破棄）。UI側で `highlightPath` / `crossViewId` / `viewGridId` を直接代入すると履歴に残らないため、移動は必ずこれらの経由メソッドを通す。
 
 ### 4.5 索引はディスク基準（更新は増分）
 

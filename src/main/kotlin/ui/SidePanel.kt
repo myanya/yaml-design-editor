@@ -134,10 +134,7 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                     val issue = issues[i]
                     Row(
                         Modifier.fillMaxWidth()
-                            .clickable {
-                                state.editorTab = 0
-                                state.highlightPath = issue.path
-                            }
+                            .clickable { state.navigateToPath(issue.path) }
                             .padding(horizontal = 12.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.Top,
                     ) {
