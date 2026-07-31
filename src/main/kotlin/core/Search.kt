@@ -50,8 +50,7 @@ object Search {
 
         fun fileMatches(file: Path): Boolean {
             val rel = ws.relPath(file)
-            if (rel.startsWith(SchemaLoader.SCHEMA_DIR + "/")) return false
-            if (rel.startsWith(SchemaLoader.RUNS_DIR + "/")) return false
+            if (ws.layout.indexExcluded(rel)) return false
             if (fileRegex != null && !fileRegex.matches(rel)) return false
             if (query.schemaIds.isNotEmpty() && ws.schemaFor(file)?.id !in query.schemaIds) return false
             return true

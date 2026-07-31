@@ -83,7 +83,7 @@ class Staging(val ws: Workspace) {
         val overlay = entries.values.associate { it.file to it.root }
         val files = (ws.files + overlay.keys).distinct()
         val built = IdIndex().apply {
-            rebuild(ws.root, files, ws.schemas) { f ->
+            rebuild(ws.root, files, ws.schemas, ws.layout) { f ->
                 overlay[f] ?: runCatching { YamlIO.parse(Files.readString(f)) }.getOrNull()
             }
         }
@@ -137,15 +137,15 @@ class Staging(val ws: Workspace) {
         return results
     }
 
-    /** ステージされた定義文書（_agents / _activities / _evals / _skills）のパースエラー。対象外は null。 */
+    /** ステージされた定義文書（agents / activities / evals / skills / views ゾーン）のパースエラー。対象外は null。 */
     private fun definitionParseError(e: Entry): String? {
         val rel = e.rel.replace('\\', '/')
-        val parse: (Map<*, *>) -> Unit = when {
-            rel.startsWith(SchemaLoader.AGENTS_DIR + "/") -> { raw -> Definitions.parseAgent(raw, e.file) }
-            rel.startsWith(SchemaLoader.ACTIVITIES_DIR + "/") -> { raw -> Definitions.parseActivity(raw, e.file) }
-            rel.startsWith(SchemaLoader.EVALS_DIR + "/") -> { raw -> Evals.parseEval(raw, e.file) }
-            rel.startsWith(SchemaLoader.SKILLS_DIR + "/") -> { raw -> skill.Skills.parseSkill(raw, e.file) }
-            rel.startsWith(SchemaLoader.VIEWS_DIR + "/") -> { raw -> core.Views.parseView(raw, e.file) }
+        val parse: (Map<*, *>) -> Unit = when (ws.layout.zoneOf(rel)) {
+            schema.WorkspaceLayout.Zone.AGENTS -> { raw -> Definitions.parseAgent(raw, e.file) }
+            schema.WorkspaceLayout.Zone.ACTIVITIES -> { raw -> Definitions.parseActivity(raw, e.file) }
+            schema.WorkspaceLayout.Zone.EVALS -> { raw -> Evals.parseEval(raw, e.file) }
+            schema.WorkspaceLayout.Zone.SKILLS -> { raw -> skill.Skills.parseSkill(raw, e.file) }
+            schema.WorkspaceLayout.Zone.VIEWS -> { raw -> core.Views.parseView(raw, e.file) }
             else -> return null
         }
         val raw = YamlIO.toAny(e.root) as? Map<*, *> ?: return "定義のルートはobjectである必要があります"

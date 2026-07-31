@@ -125,7 +125,12 @@ data class WorkspaceRecord(
 object WorkspaceRecords {
 
     fun collect(ws: Workspace, loader: (Path) -> YNode?): List<WorkspaceRecord> = ws.files.asSequence()
-        .filter { !ws.relPath(it).startsWith(SchemaLoader.SCHEMA_DIR + "/") }
+        .filter { file ->
+            val rel = ws.relPath(file)
+            val zone = ws.layout.zoneOf(rel)
+            // schemas ゾーンとゾーン外の構成ファイル（.yde/workspace.yaml）は一覧に出さない
+            zone != schema.WorkspaceLayout.Zone.SCHEMAS && !(ws.layout.isReserved(rel) && zone == null)
+        }
         .mapNotNull { file ->
             val map = loader(file) as? YNode.Map ?: return@mapNotNull null
             WorkspaceRecord(
@@ -142,7 +147,7 @@ object WorkspaceRecords {
     fun bulkKeyCandidates(ws: Workspace, loader: (Path) -> YNode?): List<String> {
         val keys = linkedSetOf("status", "owner")
         ws.files.asSequence()
-            .filter { !ws.relPath(it).startsWith("_") }
+            .filter { ws.layout.inLedger(ws.relPath(it)) }
             .forEach { file ->
                 (loader(file) as? YNode.Map)?.entries?.forEach { (k, v) ->
                     if (v is YNode.Scalar && k != "id" && !k.startsWith("_")) keys.add(k)

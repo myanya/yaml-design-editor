@@ -159,6 +159,18 @@ class AppState {
         private set
     var directories by mutableStateOf<List<Path>>(emptyList())
         private set
+    /**
+     * 台帳外のYAML（走査対象外＝索引・検証集計・エージェントに載らない、エディタ層のファイル。R13-04）。
+     * `ledger` 宣言のあるワークスペースでのみ非空になる。ツリーでは視覚的に区別して表示する。
+     */
+    var editorOnlyFiles by mutableStateOf<List<Path>>(emptyList())
+        private set
+
+    /** ワークスペースの配置ポリシー（R13-02）。コア未オープン時はレガシー相当。 */
+    val layout: schema.WorkspaceLayout get() = coreWs?.layout ?: schema.WorkspaceLayout.LEGACY
+
+    /** 走査対象（台帳＋予約領域）に載っているファイルか。台帳外は索引前提の検証を降格する（R13-03）。 */
+    fun isIndexed(file: Path): Boolean = coreWs?.let { file in it.files } ?: true
 
     private val emptyIndex = IdIndex()
     val index: IdIndex get() = coreWs?.index ?: emptyIndex
@@ -289,7 +301,7 @@ class AppState {
         val cw = coreWs?.also { it.refresh() } ?: core.Workspace.open(ws).also { coreWs = it }
         mirrorCore(cw)
         directories = scanDirectories(ws)
-        val existing = yamlFiles.toSet()
+        val existing = yamlFiles.toSet() + editorOnlyFiles
         docCache.keys.filter { it !in existing }.toList().forEach { removed ->
             if (docCache[removed]?.dirty != true) docCache.remove(removed)
         }
@@ -308,6 +320,9 @@ class AppState {
         schemas = cw.schemas
         schemaErrors = cw.schemaErrors
         yamlFiles = cw.files
+        // 台帳外のエディタ層ファイル（R13-04）。ledger 宣言が無ければ走査対象と一致するため空になる
+        editorOnlyFiles = if (cw.layout.ledger.isEmpty()) emptyList()
+        else core.WorkspaceScan.editorYamlFiles(cw.root).filter { it !in cw.files.toSet() }
     }
 
     fun rebuildIndex() {
@@ -491,7 +506,10 @@ class AppState {
      * 予約ディレクトリのYAMLは走査対象（yamlFiles）に含まれるため、走査ミラーから導出できる。
      */
     fun hasAgentSetup(): Boolean =
-        yamlFiles.any { relPath(it).let { rel -> rel.startsWith("_agents/") || rel.startsWith("_activities/") } }
+        yamlFiles.any {
+            val zone = layout.zoneOf(relPath(it))
+            zone == schema.WorkspaceLayout.Zone.AGENTS || zone == schema.WorkspaceLayout.Zone.ACTIVITIES
+        }
 
     private fun save(doc: OpenDocument) {
         runCatching {
@@ -527,10 +545,10 @@ class AppState {
         val loader = unsavedFirstLoader()
         val samples = yamlFiles
             .map { relPath(it) to it }
-            .filter { (rel, _) -> !rel.startsWith("_") && regex.matches(rel) }
+            .filter { (rel, _) -> layout.inLedger(rel) && regex.matches(rel) }
             .map { (rel, file) -> schema.SchemaInference.Sample(rel, loader(file)) }
         val draft = schema.SchemaInference.infer(samples, schemaId = id, match = glob)
-        val file = ws.resolve(SchemaLoader.SCHEMA_DIR).resolve("$id.yaml")
+        val file = ws.resolve(layout.schemasDir).resolve("$id.yaml")
         require(!Files.exists(file)) { "既にスキーマファイルが存在します: ${relPath(file)}" }
         Files.createDirectories(file.parent)
         Files.writeString(file, YamlIO.dump(draft))

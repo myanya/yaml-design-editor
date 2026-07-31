@@ -890,7 +890,7 @@ object BuiltinSchemas {
                   required: true
     """.trimIndent()
 
-    /** 組込みスキーマ一覧（読み込み失敗はあり得ない前提。失敗時は例外で気付かせる）。 */
+    /** 組込みスキーマ一覧（読み込み失敗はあり得ない前提。失敗時は例外で気付かせる）。match はレガシー配置。 */
     val all: List<SchemaDef> by lazy {
         listOf(
             SchemaLoader.parseSchemaText(agentSchemaYaml, Path.of("(builtin)/agent.yaml")),
@@ -900,6 +900,29 @@ object BuiltinSchemas {
             SchemaLoader.parseSchemaText(viewSchemaYaml, Path.of("(builtin)/view.yaml")),
             SchemaLoader.parseSchemaText(metaSchemaYaml, Path.of("(builtin)/schema.yaml")),
         )
+    }
+
+    /** 組込みスキーマID → 適用先ゾーン（match の書き換えに使う。R13-02）。 */
+    private val zoneById = mapOf(
+        "builtin-agent" to WorkspaceLayout.Zone.AGENTS,
+        "builtin-activity" to WorkspaceLayout.Zone.ACTIVITIES,
+        "builtin-eval" to WorkspaceLayout.Zone.EVALS,
+        "builtin-skill" to WorkspaceLayout.Zone.SKILLS,
+        "builtin-view" to WorkspaceLayout.Zone.VIEWS,
+        META_SCHEMA_ID to WorkspaceLayout.Zone.SCHEMAS,
+    )
+
+    /**
+     * レイアウトに合わせて match を各ゾーンの実ディレクトリへ書き換えた組込みスキーマ一覧（R13-02）。
+     * レガシー構成では `all` と同一。SchemaDef は data class のため copy で match だけ差し替える
+     * （glob の正規表現は lazy で再コンパイルされる）。
+     */
+    fun forLayout(layout: WorkspaceLayout): List<SchemaDef> {
+        if (layout.configDir == null) return all
+        return all.map { builtin ->
+            val zone = zoneById[builtin.id] ?: return@map builtin
+            builtin.copy(match = "${layout.dir(zone)}/**/*.{yaml,yml}")
+        }
     }
 
     /** 組込みスキーマの原文（テスト用: すべてがメタスキーマ検証を通ることのドッグフーディングに使う）。 */

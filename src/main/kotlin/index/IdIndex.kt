@@ -7,6 +7,7 @@ import schema.FieldDef
 import schema.FieldType
 import schema.SchemaDef
 import schema.RefScope
+import schema.WorkspaceLayout
 import schema.effectiveFields
 import yaml.YamlIO
 import java.nio.file.Files
@@ -172,17 +173,18 @@ class IdIndex {
 
     /**
      * 索引を全ファイルから再構築する。loader を差し替えると、ディスク以外（例: エージェントのステージング）の
-     * 内容で索引を組める。`_schemas/` と機械が書く実行記録 `_runs/` は索引対象外。
+     * 内容で索引を組める。schemas ゾーンと機械が書く実行記録 runs ゾーンは索引対象外（`layout.indexExcluded`）。
      */
     fun rebuild(
         workspace: Path,
         files: List<Path>,
         schemas: List<SchemaDef>,
+        layout: WorkspaceLayout = WorkspaceLayout.LEGACY,
         loader: (Path) -> YNode? = diskLoader,
     ) {
         byFile.clear()
         for (f in files) {
-            scanFile(workspace, f, schemas, loader)?.let { byFile[f] = it }
+            scanFile(workspace, f, schemas, layout, loader)?.let { byFile[f] = it }
         }
         derive()
     }
@@ -196,21 +198,23 @@ class IdIndex {
         changed: Collection<Path>,
         removed: Collection<Path> = emptyList(),
         schemas: List<SchemaDef>,
+        layout: WorkspaceLayout = WorkspaceLayout.LEGACY,
         loader: (Path) -> YNode? = diskLoader,
     ) {
         removed.forEach { byFile.remove(it) }
         changed.forEach { f ->
-            val scan = scanFile(workspace, f, schemas, loader)
+            val scan = scanFile(workspace, f, schemas, layout, loader)
             if (scan != null) byFile[f] = scan else byFile.remove(f)
         }
         derive()
     }
 
     /** 1 ファイルを走査する。索引対象外・読取不能なら null。 */
-    private fun scanFile(workspace: Path, f: Path, schemas: List<SchemaDef>, loader: (Path) -> YNode?): FileScan? {
+    private fun scanFile(workspace: Path, f: Path, schemas: List<SchemaDef>, layout: WorkspaceLayout, loader: (Path) -> YNode?): FileScan? {
         val rel = relPathOf(workspace, f)
-        if (rel.startsWith(schema.SchemaLoader.SCHEMA_DIR + "/")) return null
-        if (rel.startsWith(schema.SchemaLoader.RUNS_DIR + "/")) return null
+        if (layout.indexExcluded(rel)) return null
+        // 台帳外（ledger 宣言の対象外・隠しパス）は、増分更新（update）で個別に渡されても索引に載せない（R13-02）
+        if (!layout.inLedger(rel) && layout.zoneOf(rel) == null) return null
         val root = loader(f) ?: return null
         val schemaDef = schemas.firstOrNull { it.matches(rel) }
         val documentId = documentIdOf(root, rel)

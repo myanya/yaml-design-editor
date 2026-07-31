@@ -20,7 +20,7 @@ object RunLog {
     private val fileStamp = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")
 
     fun write(ws: Workspace, request: AgentRunRequest, result: AgentRunResult): Path {
-        val dir = ws.root.resolve(SchemaLoader.RUNS_DIR)
+        val dir = ws.root.resolve(ws.layout.runsDir)
         Files.createDirectories(dir)
         var file = dir.resolve("${LocalDateTime.now().format(fileStamp)}-${request.activity.id}.yaml")
         var seq = 1

@@ -44,11 +44,13 @@ class FileWatcher private constructor(private val root: Path, private val servic
         }
     }
 
-    /** 隠しディレクトリ（.git 等）を除いて配下のディレクトリを登録する。 */
+    /** 隠しディレクトリ（.git 等）を除いて配下のディレクトリを登録する（構成ディレクトリ `.yde` は監視する。R13-01）。 */
     private fun registerTree(start: Path) {
         Files.walkFileTree(start, object : SimpleFileVisitor<Path>() {
             override fun preVisitDirectory(dir: Path, attrs: BasicFileAttributes): FileVisitResult {
-                if (dir != root && dir.fileName.toString().startsWith(".")) return FileVisitResult.SKIP_SUBTREE
+                if (dir != root && dir.fileName.toString().startsWith(".") &&
+                    dir.fileName.toString() != schema.WorkspaceLayout.CONFIG_DIR
+                ) return FileVisitResult.SKIP_SUBTREE
                 runCatching {
                     dir.register(
                         service,
@@ -73,7 +75,8 @@ class FileWatcher private constructor(private val root: Path, private val servic
                     if (event.kind() == StandardWatchEventKinds.ENTRY_CREATE && dir != null) {
                         val created = (event.context() as? Path)?.let(dir::resolve)
                         if (created != null && Files.isDirectory(created) &&
-                            !created.fileName.toString().startsWith(".")
+                            (!created.fileName.toString().startsWith(".") ||
+                                created.fileName.toString() == schema.WorkspaceLayout.CONFIG_DIR)
                         ) {
                             runCatching { registerTree(created) }
                         }

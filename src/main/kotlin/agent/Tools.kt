@@ -40,21 +40,14 @@ class AgentToolbox(
     /** 相談モードで許可するツール名。 */
     private val consultAllowed = setOf("list_documents", "read_outline", "read_node", "search", "related", "read_view", "validate")
     /**
-     * 予約ディレクトリ（書込禁止・カタログから除外。read_outline 等での読み取りは可）。
-     * _schemas / _runs は常に対象。定義類（_agents / _activities / _evals / _skills）は
+     * カタログから除外するか（read_outline 等での読み取りは可）。
+     * schemas / runs ゾーン・構成ファイルは常に除外。定義ゾーン（agents / activities / evals / skills / views）は
      * メタアクティビティ（meta: true。R4-03）では作業対象なので除外しない。
      */
-    private val reservedPrefixes = buildList {
-        add(SchemaLoader.SCHEMA_DIR)
-        add(SchemaLoader.RUNS_DIR)
-        if (!activity.meta) {
-            add(SchemaLoader.AGENTS_DIR)
-            add(SchemaLoader.ACTIVITIES_DIR)
-            add(SchemaLoader.EVALS_DIR)
-            add(SchemaLoader.SKILLS_DIR)
-            add(SchemaLoader.VIEWS_DIR)
-        }
-    }.map { "$it/" }
+    private fun catalogExcluded(rel: String): Boolean {
+        val layout = ws.layout
+        return layout.indexExcluded(rel) || (!activity.meta && layout.isReserved(rel))
+    }
 
     /** ツール実行の結果。terminal が非null のときはループを終了する。 */
     data class Outcome(val content: String, val terminal: Terminal? = null)
@@ -271,8 +264,14 @@ class AgentToolbox(
 
     private fun checkWritableFile(rel: String) {
         val normalized = rel.replace('\\', '/')
-        reservedPrefixes.forEach { prefix ->
-            if (normalized.startsWith(prefix)) error("予約ディレクトリへの書き込みはできません: $rel")
+        val layout = ws.layout
+        // 書込可否の統一規則（ARCHITECTURE §4.25）: 台帳内、またはメタアクティビティの定義ゾーンのみ
+        if (layout.isReserved(normalized)) {
+            if (!(activity.meta && layout.writableByMeta(normalized))) {
+                error("予約ディレクトリへの書き込みはできません: $rel")
+            }
+        } else if (!layout.inLedger(normalized)) {
+            error("台帳（ledger）外への書き込みはできません: $rel")
         }
         if (activity.allowedFiles.isNotEmpty() && activity.allowedFiles.none { globToRegex(it).matches(normalized) }) {
             error("このアクティビティの書込許可（allowedFiles）の対象外です: $rel")
@@ -310,11 +309,10 @@ class AgentToolbox(
 
     // ---------------------------------------------------------------- 表示テキスト
 
-    /** カタログ（オーバーレイ反映・予約ディレクトリ除外）。 */
+    /** カタログ（オーバーレイ反映・予約領域除外）。 */
     fun catalogText(): String {
-        val reserved = reservedPrefixes
         val files = (ws.files + staging.touchedFiles().map { it.file }).distinct()
-            .filter { f -> reserved.none { ws.relPath(f).startsWith(it) } }
+            .filter { f -> !catalogExcluded(ws.relPath(f)) }
         if (files.isEmpty()) return "（文書がありません）"
         return files.joinToString("\n") { f ->
             val rel = ws.relPath(f)
@@ -335,9 +333,8 @@ class AgentToolbox(
 
     /** 文書ごとのフェーズ状態（phases 宣言のあるスキーマの文書のみ）。context.include の "phase" から使う。 */
     fun phaseText(targetMatch: String?): String {
-        val reserved = reservedPrefixes
         val files = (ws.files + staging.touchedFiles().map { it.file }).distinct()
-            .filter { f -> reserved.none { ws.relPath(f).startsWith(it) } }
+            .filter { f -> !catalogExcluded(ws.relPath(f)) }
             .filter { f -> targetMatch == null || globToRegex(targetMatch).matches(ws.relPath(f)) }
         val lines = files.mapNotNull { f ->
             val schemaDef = ws.schemaFor(f) ?: return@mapNotNull null

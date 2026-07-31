@@ -131,9 +131,9 @@ object Views {
         fun view(id: String): ViewDef? = views.firstOrNull { it.id == id }
     }
 
-    /** `_views/` からビュー定義を読み込む（エラー収集つき）。 */
+    /** views ゾーン（`_views/` または `.yde/views/`）からビュー定義を読み込む（エラー収集つき）。 */
     fun load(workspace: Path): LoadResult {
-        val dir = workspace.resolve(SchemaLoader.VIEWS_DIR)
+        val dir = workspace.resolve(schema.WorkspaceLayout.of(workspace).viewsDir)
         if (!Files.isDirectory(dir)) return LoadResult(emptyList(), emptyList())
         val files = Files.list(dir).use { stream ->
             stream.filter { p ->

@@ -42,7 +42,7 @@ Kotlin + Compose for Desktop 製のスキーマ駆動YAMLエディタ。ワー�
 - フォーム系の新しい編集UIは `FormCtx` を通し、閲覧専用モード（`ctx.readOnly`）の表示分岐を入れる。`readOnly` 中の `markEdited` / スカラー書込は check で拒否される。
 - UIシェルはスペース制（`app.UiSpace`: 編集・台帳・実行・設計。R12-01）。`uiSpace` の書き換えは `showSpace` / `showWorkspaceView` / ナビゲーション系メソッド経由に限る（ジャンプは編集／台帳へ着地する規約）。新しい画面をモーダル（AlertDialog）で作らない——確認ダイアログを除き、スペース内の常設画面にする。エージェント実行の状態は `RunController` に置き、コンポーザブルの `remember` へ戻さない（docs/ARCHITECTURE.md §4.24）。
 - エージェントの編集は必ず `agent/Staging`（オーバーレイ）経由。原本への書込は人間の承認（`Workspace.apply`）のみ。書込権限・予約ディレクトリ禁止は `AgentToolbox` が強制する（docs/ARCHITECTURE.md §4.10）。
-- `_runs/` は索引対象外の予約ディレクトリ。予約ディレクトリの定数は `SchemaLoader` にある（`_evals` を含む）。
+- ワークスペースの配置判定（予約ディレクトリ・台帳範囲・索引除外）は `schema/WorkspaceLayout` に一元化されている（R13-02）。機能側で `startsWith("_")` やディレクトリ名の直書き判定を書かない。`.yde/` 構成（定義は `.yde/schemas` 等・`ledger:` で台帳宣言）とレガシー構成（ルートの `_schemas` 等）の2モードがあり、`ledger` 宣言時は台帳外のYAMLが走査・索引・エージェントの対象外になる（エディタ層のスキーマ適用・単文書検証だけが効く。ARCHITECTURE §4.25）。`_runs/`（runs ゾーン）は索引対象外。
 - `_schemas/` 配下の文書にはメタスキーマ（`builtin-schema`）**だけ**が適用される（`Workspace.schemaFor`。一般スキーマの match は及ばない）。派生スキーマ（`derive:`）の**導出元文書**の変更はスキーマ変更と同じ扱い（`noteDiskChanges` が全再構築へ振り分け、自動適用は承認待ちへ降格）。derive の写像項目を増やすときは `SchemaLoader.parseDerive`・`DerivedSchemas`・メタスキーマの3箇所を対で更新する（docs/ARCHITECTURE.md §4.23）。
 - 定義文書（`_agents`/`_activities`/`_evals`/`_skills`/`_views`）への書込は `meta: true` のアクティビティのみ。`meta` かつ `approval: auto` はロード時に定義エラー。`_schemas`/`_runs` は meta でも書込不可。
 - ビュー（`_views`）はデータを持たない射影。セルは原本座標 `(file, YPath)` に解決され、UIは docCache ツリー直接編集、エージェントは `read_view`→既存 `apply_patch`。ビュー専用の書込経路を作らない（docs/ARCHITECTURE.md §4.14）。定義項目の追加は `core/Views.kt` の `parseView` と `BuiltinSchemas` の `builtin-view` を対で更新する。

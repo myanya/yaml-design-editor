@@ -112,7 +112,7 @@ object Skills {
     }
 
     fun load(workspace: Path): LoadResult {
-        val dir = workspace.resolve(SchemaLoader.SKILLS_DIR)
+        val dir = workspace.resolve(schema.WorkspaceLayout.of(workspace).skillsDir)
         if (!Files.isDirectory(dir)) return LoadResult(emptyList(), emptyList())
         val errors = mutableListOf<String>()
         val files = Files.list(dir).use { stream ->
@@ -159,8 +159,9 @@ object Skills {
         require(timeout >= 1) { "run.timeoutSeconds は1以上である必要があります" }
         val writes = (runMap["writes"] as? List<*>)?.map { it.toString() } ?: emptyList()
         writes.forEach { glob ->
-            require(!glob.replace('\\', '/').trimStart('/').startsWith("_")) {
-                "予約ディレクトリへの書込は宣言できません: $glob"
+            val n = glob.replace('\\', '/').trimStart('/')
+            require(!n.startsWith("_") && !n.startsWith(".")) {
+                "予約ディレクトリ・隠しディレクトリへの書込は宣言できません: $glob"
             }
         }
         return RunDef(command = command, workdir = workdir, timeoutSeconds = timeout, writes = writes)
@@ -171,7 +172,8 @@ object Skills {
         val target = raw["target"] as? Map<*, *> ?: error("import には target.file が必要です")
         val targetFile = target["file"]?.toString()?.takeIf { it.isNotBlank() } ?: error("target.file が必要です")
         require(targetFile.endsWith(".yaml") || targetFile.endsWith(".yml")) { "target.file はYAML（.yaml / .yml）である必要があります: $targetFile" }
-        require(!targetFile.replace('\\', '/').startsWith("_")) { "予約ディレクトリへの取り込みはできません: $targetFile" }
+        val targetNorm = targetFile.replace('\\', '/')
+        require(!targetNorm.startsWith("_") && !targetNorm.startsWith(".")) { "予約ディレクトリ・隠しディレクトリへの取り込みはできません: $targetFile" }
         val mapping = (raw["mapping"] as? List<*>)?.map { parseMapping(it) } ?: error("mapping が必要です")
         if (mapping.isEmpty()) error("mapping は1件以上必要です")
         mapping.groupBy { it.path }.filterValues { it.size > 1 }.keys.forEach { error("mapping の path「$it」が重複しています") }
@@ -217,7 +219,8 @@ object Skills {
         require(!outputFile.endsWith(".yaml") && !outputFile.endsWith(".yml")) {
             "エクスポートは派生成果物の生成です。YAMLへの出力はできません（原本主義）: $outputFile"
         }
-        require(!outputFile.replace('\\', '/').startsWith("_")) { "予約ディレクトリへの出力はできません: $outputFile" }
+        val outputNorm = outputFile.replace('\\', '/')
+        require(!outputNorm.startsWith("_") && !outputNorm.startsWith(".")) { "予約ディレクトリ・隠しディレクトリへの出力はできません: $outputFile" }
         TableFormat.fromExtension(outputFile)  // 拡張子の妥当性を先に検査
         val viewId = sourceMap["view"]?.toString()?.takeIf { it.isNotBlank() }
         val match = sourceMap["match"]?.toString()?.takeIf { it.isNotBlank() }

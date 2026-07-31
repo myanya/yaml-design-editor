@@ -21,6 +21,8 @@
 | W-08 | ワークスペース管理（最近開いたワークスペース履歴＝アプリグローバルの Preferences・起動時スタート画面＝履歴選択・コマンドパレットからの切替。未保存確認は W-07 を共用。ROADMAP R10-05） | ✅ | `Main.kt`（`StartScreen`, `CommandPalette`）, `AppState.recentWorkspaces` | 手動 |
 | W-09 | UIシェル（アクティビティレールで編集／台帳／実行／設計の4スペースを切替。文書ビュー切替は台帳スペースのタブへ移動、モーダル4種（エージェント・自動化・自己改善・skill）は実行／設計スペースへ常設化。実行スペースは `_agents`/`_activities` や判断待ちがあるときだけ表示＝プロファイルによる段階的開示。ROADMAP R12-01/04/05） | ✅ | `app/AppState.kt`（`UiSpace`, `showSpace`）, `ui/Shell.kt`（`ActivityRail`, `LedgerSpace`）, `Main.kt` | 単体（`NavigationHistoryTest` のスペース同期）＋手動 |
 | W-10 | 受信箱（承認待ち変更セット・エージェントの質問（非モーダルカード）・外部変更競合を実行スペース先頭タブに集約。レール・ステータスバーにバッジ、ステータスバーに検証・実行サマリ。ROADMAP R12-02） | ✅ | `ui/RunsSpace.kt`（`InboxTab`, `QuestionCard`）, `Main.kt`（`StatusBar`） | 手動 |
+| W-11 | ワークスペース構造の再編（`.yde/` 構成ディレクトリ＝定義・記録を `.yde/schemas` 等へ集約・`.yde/workspace.yaml` の `ledger:` で台帳範囲を宣言。配置判定は `WorkspaceLayout` に一元化、レガシー構成（ルートの `_schemas` 等）はゼロコンフィグ互換で従来どおり。走査は隠しディレクトリを枝刈り（`.yde` のみ例外）。CLI `migrate` でレガシー→`.yde` 移行。ROADMAP R13-01/02/04） | ✅ | `schema/WorkspaceLayout.kt`, `core/Workspace.kt`（`WorkspaceScan`）, `core/Cli.kt`（`migrate`） | 単体（`WorkspaceLayoutTest`） |
+| W-12 | エディタ層／台帳層の分離（`ledger` 宣言時、台帳外のYAMLも match によるスキーマフォーム・単文書検証の対象＝エディタ層。未解決参照は情報レベルへ降格・カバレッジ判定なし。索引・カタログ・検証集計・エージェント・自動化は台帳のみ。ツリーは台帳外を薄色・既定折りたたみで表示。ROADMAP R13-03/04） | ✅ | `validate/Validator.kt`（`indexed`）, `app/AppState.kt`（`editorOnlyFiles`）, `ui/FileTreePane.kt` | 単体（`WorkspaceLayoutTest`） |
 
 ## 2. 文書編集
 
@@ -156,7 +158,7 @@ UIに依存しないヘッドレス操作の層（[ROADMAP.md](ROADMAP.md) P1 �
 | C-03 | 変更セット（複数ファイルのパッチ束＋新規ファイル作成。baseハッシュ競合検出、全件成功時のみ書込、適用後状態のオーバーレイ索引で検証、`--require-valid` ゲート、ドライラン） | ✅ | `core/Patch.kt`（`ChangeSets`）, `core/Workspace.kt`（`apply`） | 単体（`WorkspaceCliTest`） |
 | C-04 | 段階的開示API（カタログ→骨子→ノード全文の3段階、文字数予算付き文脈バンドル） | ✅ | `core/Disclosure.kt` | 単体（`WorkspaceCliTest`） |
 | C-05 | 構造検索API（本文・キーの部分一致＋スキーマ／ファイルglob／パスglob条件、参照検索・未解決参照検索） | ✅ | `core/Search.kt` | 単体（`WorkspaceCliTest`） |
-| C-06 | CLI（catalog / outline / read / bundle / search / view / validate / apply / hash / activities / agent / watch / revert / metrics / eval / bench / skills / import / export / run-skill / init / infer-schema。出力はUTF-8のYAML。`validate` は `phases` 宣言スキーマの文書に `phaseProgress` を付与し、`_schemas` 文書もメタスキーマ（S-15）で検証する） | ✅ | `core/Cli.kt`, `build.gradle.kts`（`runCli`） | 単体（`WorkspaceCliTest` 一気通貫） |
+| C-06 | CLI（catalog / outline / read / bundle / search / view / validate / apply / hash / activities / agent / watch / revert / metrics / eval / bench / skills / import / export / run-skill / init / infer-schema / migrate。出力はUTF-8のYAML。`validate` は `phases` 宣言スキーマの文書に `phaseProgress` を付与し、`_schemas` 文書もメタスキーマ（S-15）で検証する） | ✅ | `core/Cli.kt`, `build.gradle.kts`（`runCli`） | 単体（`WorkspaceCliTest` 一気通貫） |
 | C-07 | ビュー解決API（`_views` 定義のロード・行×セルへの解決＝原本座標化・バックリンク列の解決＝参照元の最内IDと参照座標・データパスからのスキーマフィールド解決・詳細文書スキャフォールド。CLI `view`） | ✅ | `core/Views.kt`, `core/Cli.kt` | 単体（`ViewsTest`） |
 | C-08 | 索引性能ベンチマーク（ベンチマーク用ワークスペースの生成と、索引のフル再構築 vs 増分更新の比較計測。CLI `bench`。ROADMAP R8-02） | ✅ | `core/Bench.kt`, `core/Cli.kt` | 単体（`IdIndexIncrementalTest`） |
 | C-09 | 文書キャッシュの中核（`EditBuffer`＝履歴・dirty・複数ドキュメント再出力、`WorkspaceRecords`＝一覧・一括編集、`Workspace.noteDiskChanges`＝保存・外部変更の増分／全再構築の振り分け一元化。UIの `AppState` / `OpenDocument` はこの層への委譲＋Compose購読ミラーになる。ROADMAP R9-02） | ✅ | `core/Documents.kt`, `core/Workspace.kt` | 単体（`DocumentsTest`） |

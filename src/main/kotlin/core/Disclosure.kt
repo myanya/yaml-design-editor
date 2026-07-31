@@ -27,11 +27,10 @@ object Disclosure {
         val phase: String? = null,
     )
 
-    /** ワークスペースカタログ: 全文書の `_document` メタデータとスキーマ・ID数の一覧（`_schemas` / `_runs` を除く）。 */
+    /** ワークスペースカタログ: 全文書の `_document` メタデータとスキーマ・ID数の一覧（schemas / runs ゾーン・構成ファイルを除く）。 */
     fun catalog(ws: Workspace): List<CatalogEntry> =
         ws.files.asSequence()
-            .filter { !ws.relPath(it).startsWith(schema.SchemaLoader.SCHEMA_DIR + "/") }
-            .filter { !ws.relPath(it).startsWith(schema.SchemaLoader.RUNS_DIR + "/") }
+            .filter { !ws.layout.indexExcluded(ws.relPath(it)) }
             .map { file ->
                 val rel = ws.relPath(file)
                 val root = runCatching { YamlIO.parseFirst(java.nio.file.Files.readString(file)) }.getOrNull()

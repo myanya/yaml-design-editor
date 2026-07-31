@@ -64,6 +64,9 @@ internal const val CLI_USAGE = """コマンド:
            既定は標準出力へドラフトを表示。--apply で _schemas/<id>.yaml へ保存する（既存は上書きしない）
   bench    <dir> [--docs N] [--items N]         索引性能の計測（R8-02）。空ディレクトリならベンチマーク用
            ワークスペース（既定 1000 文書）を生成し、フル再構築と増分更新の時間を比較する
+  migrate  <workspace> [--ledger dir]           レガシー構成（ルートの _schemas 等）を .yde 構成へ移行する（R13-01）。
+           予約ディレクトリを .yde/ 配下へ移動し .yde/workspace.yaml を作成する。
+           --ledger で台帳ディレクトリを宣言（未指定なら全体が台帳＝従来と同じ検証範囲）
   help                                          このヘルプ
 """
 
@@ -380,6 +383,42 @@ internal fun runCli(args: Array<String>): String {
                 ).filterValues { it != null }
             )
         }
+        "migrate" -> {
+            // レガシー構成 → .yde 構成への移行（R13-01）。ディレクトリ移動と構成ファイル作成のみで、
+            // 文書・定義の中身は書き換えない（match 等の glob はワークスペース相対のため影響しない）
+            val root = Path.of(rest.firstOrNull() ?: error("ワークスペースのパスを指定してください")).toAbsolutePath().normalize()
+            require(Files.isDirectory(root)) { "ワークスペースが存在しません: $root" }
+            val configDir = root.resolve(schema.WorkspaceLayout.CONFIG_DIR)
+            require(!Files.exists(configDir)) { "既に ${schema.WorkspaceLayout.CONFIG_DIR}/ が存在します（移行済み）" }
+            val ledger = stringFlag(rest, "--ledger")?.replace('\\', '/')?.trim('/')
+            if (ledger != null) {
+                require(!ledger.contains("..") && ledger.isNotBlank()) { "--ledger に使えないパスです: $ledger" }
+                require(Files.isDirectory(root.resolve(ledger))) { "--ledger のディレクトリが存在しません: $ledger" }
+            }
+            Files.createDirectories(configDir)
+            val moved = mutableListOf<String>()
+            schema.WorkspaceLayout.Zone.entries.forEach { zone ->
+                val from = root.resolve(zone.legacyDir)
+                if (Files.isDirectory(from)) {
+                    val to = configDir.resolve(zone.ydeName)
+                    Files.move(from, to)
+                    moved += "${zone.legacyDir} -> ${schema.WorkspaceLayout.CONFIG_DIR}/${zone.ydeName}"
+                }
+            }
+            val configText = buildString {
+                appendLine("# ワークスペース構成（R13-02。ARCHITECTURE §4.25）")
+                appendLine("# ledger: 台帳ディレクトリの宣言（文字列またはリスト）。未宣言ならワークスペース全体が台帳。")
+                if (ledger != null) appendLine("ledger: $ledger") else appendLine("# ledger: doc")
+            }
+            Files.writeString(configDir.resolve(schema.WorkspaceLayout.CONFIG_FILE), configText)
+            dumpYaml(
+                linkedMapOf(
+                    "configDir" to schema.WorkspaceLayout.CONFIG_DIR,
+                    "moved" to moved,
+                    "ledger" to (ledger ?: "(未宣言: 全体が台帳)"),
+                )
+            )
+        }
         "infer-schema" -> {
             // スキーマ推測（R11-01）: 既存文書からドラフトを推測し、表示または _schemas へ保存する
             val ws = workspace()
@@ -388,7 +427,7 @@ internal fun runCli(args: Array<String>): String {
             val regex = schema.globToRegex(glob)
             val targets = ws.files
                 .map { ws.relPath(it) to it }
-                .filter { (rel, _) -> !rel.startsWith("_") && regex.matches(rel) }
+                .filter { (rel, _) -> ws.layout.inLedger(rel) && regex.matches(rel) }
             val samples = targets.map { (rel, file) ->
                 schema.SchemaInference.Sample(rel, runCatching { YamlIO.parseFirst(Files.readString(file)) }.getOrNull())
             }
@@ -398,7 +437,7 @@ internal fun runCli(args: Array<String>): String {
             if ("--apply" !in rest) {
                 yamlText
             } else {
-                val rel = "${schema.SchemaLoader.SCHEMA_DIR}/$id.yaml"
+                val rel = "${ws.layout.schemasDir}/$id.yaml"
                 val file = ws.resolve(rel)
                 require(!Files.exists(file)) { "既にスキーマファイルが存在します: $rel" }
                 Files.createDirectories(file.parent)

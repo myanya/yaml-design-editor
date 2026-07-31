@@ -56,7 +56,7 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
         state.indexVersion
 
         val issues = remember(doc, doc.version, state.indexVersion) {
-            Validator.validate(doc.root, doc.parseError, doc.file, doc.schema, state.index)
+            Validator.validate(doc.root, doc.parseError, doc.file, doc.schema, state.index, indexed = state.isIndexed(doc.file))
         }
         val scanned = remember(doc, doc.version) {
             val root = doc.root
@@ -159,7 +159,11 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                             Icons.Default.Warning,
                             contentDescription = null,
                             Modifier.size(14.dp).padding(top = 1.dp),
-                            tint = if (issue.severity == Severity.ERROR) Palette.ErrorRed else Palette.WarnOrange,
+                            tint = when (issue.severity) {
+                                Severity.ERROR -> Palette.ErrorRed
+                                Severity.WARNING -> Palette.WarnOrange
+                                Severity.INFO -> Palette.SubText
+                            },
                         )
                         Spacer(Modifier.width(6.dp))
                         Column {

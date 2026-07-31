@@ -29,7 +29,7 @@ import java.nio.file.Path
  */
 
 private data class DefKind(
-    val dir: String,
+    val zone: schema.WorkspaceLayout.Zone,
     val label: String,
     val description: String,
     /** 空状態で表示する始め方の説明。 */
@@ -38,32 +38,32 @@ private data class DefKind(
 
 private val defKinds = listOf(
     DefKind(
-        "_schemas", "スキーマ",
+        schema.WorkspaceLayout.Zone.SCHEMAS, "スキーマ",
         "文書の形と検証ルール。match（glob）で適用先の文書を決めます。",
         "スキーマを置くと、一致する文書がフォーム編集・検証・AI生成の対象になります。既存のYAMLがあるなら「既存文書から推測」が近道です。",
     ),
     DefKind(
-        "_views", "ビュー",
+        schema.WorkspaceLayout.Zone.VIEWS, "ビュー",
         "複数文書を1つの編集可能な表に射影する宣言（行=論理ID × 列=相対パス）。台帳スペースの「ビューグリッド」に表示されます。",
         "ビュー定義を置くと、一覧と詳細文書の往復なしに横断編集できます（README §5）。",
     ),
     DefKind(
-        "_agents", "エージェント",
+        schema.WorkspaceLayout.Zone.AGENTS, "エージェント",
         "実行者の定義（persona・観点・モデル・権限）。同じアクティビティでも担当エージェントで観点が変わります。",
         "エージェント定義を置くと、実行スペースからアクティビティを委託できるようになります（README §12）。",
     ),
     DefKind(
-        "_activities", "アクティビティ",
+        schema.WorkspaceLayout.Zone.ACTIVITIES, "アクティビティ",
         "仕事の単位（対象・指示・書込許可・上限・提出ゲート・トリガ）。エージェントに委託する業務の定義です。",
         "アクティビティ定義を置くと、実行スペースの「手動実行」や自動化トリガから起動できます（README §12）。",
     ),
     DefKind(
-        "_evals", "評価セット",
+        schema.WorkspaceLayout.Zone.EVALS, "評価セット",
         "アクティビティの回帰評価（ゴールデン入力＋宣言的な期待結果）。実行スペースの「計測・評価」から実行します。",
         "評価セットを置くと、定義の変更やモデルの差し替えをA/B比較できます（README §13）。",
     ),
     DefKind(
-        "_skills", "連携（skill）",
+        schema.WorkspaceLayout.Zone.SKILLS, "連携（skill）",
         "Excel・CSV・Word 等との入出力変換と、承認制のコード実行。YAMLが原本、他形式は派生成果物です。",
         "skill定義を置くと、外部フォーマットとの取り込み・帳票再生成をこの画面から実行できます（README §14）。",
     ),
@@ -73,13 +73,13 @@ private val defKinds = listOf(
 fun DesignSpace(state: AppState) {
     val ws = state.workspace ?: return
     state.indexVersion  // 再読込・保存での再コンポーズ購読
-    var selectedDir by remember { mutableStateOf(defKinds.first().dir) }
+    var selectedZone by remember { mutableStateOf(defKinds.first().zone) }
     var createFor by remember { mutableStateOf<DefKind?>(null) }
     var inferOpen by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
 
     fun filesOf(kind: DefKind): List<Path> =
-        state.yamlFiles.filter { state.relPath(it).startsWith("${kind.dir}/") }
+        state.yamlFiles.filter { state.layout.zoneOf(state.relPath(it)) == kind.zone }
 
     Row(Modifier.fillMaxSize().background(Palette.EditorBg)) {
         // ---------------- 左: 定義の種類 ----------------
@@ -87,12 +87,12 @@ fun DesignSpace(state: AppState) {
             Text("ワークスペースの設計", fontWeight = FontWeight.Bold, fontSize = 13.sp,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp))
             defKinds.forEach { kind ->
-                val selected = kind.dir == selectedDir
+                val selected = kind.zone == selectedZone
                 val count = filesOf(kind).size
                 Row(
                     Modifier.fillMaxWidth()
                         .background(if (selected) Palette.Selected else Color.Transparent)
-                        .clickable { selectedDir = kind.dir; message = "" }
+                        .clickable { selectedZone = kind.zone; message = "" }
                         .padding(horizontal = 12.dp, vertical = 7.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -112,7 +112,7 @@ fun DesignSpace(state: AppState) {
         Box(Modifier.width(1.dp).fillMaxHeight().background(Palette.Border))
 
         // ---------------- 右: 選択した種類の一覧と操作 ----------------
-        val kind = defKinds.first { it.dir == selectedDir }
+        val kind = defKinds.first { it.zone == selectedZone }
         val files = filesOf(kind)
         Box(Modifier.weight(1f).fillMaxHeight()) {
             val scroll = rememberScrollState()
@@ -122,7 +122,7 @@ fun DesignSpace(state: AppState) {
                         Text(kind.label, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         Text(kind.description, fontSize = 12.sp, color = Palette.SubText)
                     }
-                    if (kind.dir == "_schemas") {
+                    if (kind.zone == schema.WorkspaceLayout.Zone.SCHEMAS) {
                         OutlinedButton(onClick = { inferOpen = true },
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp)) {
                             Text("既存文書から推測…", fontSize = 12.sp)
@@ -140,7 +140,7 @@ fun DesignSpace(state: AppState) {
                 }
                 Spacer(Modifier.height(10.dp))
 
-                if (kind.dir == "_schemas" && state.schemaErrors.isNotEmpty()) {
+                if (kind.zone == schema.WorkspaceLayout.Zone.SCHEMAS && state.schemaErrors.isNotEmpty()) {
                     state.schemaErrors.forEach { Text("⚠ $it", fontSize = 11.sp, color = Palette.ErrorRed) }
                     Spacer(Modifier.height(6.dp))
                 }
@@ -163,7 +163,7 @@ fun DesignSpace(state: AppState) {
                 }
 
                 // 連携（skill）は定義の一覧に加えて、取り込み・出力の実行もここで行う
-                if (kind.dir == "_skills") {
+                if (kind.zone == schema.WorkspaceLayout.Zone.SKILLS) {
                     Spacer(Modifier.height(14.dp))
                     Text("実行", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Palette.SubText)
                     Spacer(Modifier.height(4.dp))
@@ -188,7 +188,7 @@ fun DesignSpace(state: AppState) {
             title = { Text("${kind.label} を新規作成") },
             text = {
                 Column(Modifier.width(420.dp)) {
-                    Text("${kind.dir}/ に作成します。作成後はフォーム（組込みスキーマ）で編集できます。",
+                    Text("${state.layout.dir(kind.zone)}/ に作成します。作成後はフォーム（組込みスキーマ）で編集できます。",
                         fontSize = 12.sp, color = Palette.SubText)
                     Spacer(Modifier.height(8.dp))
                     CompactTextField(name, { name = it }, singleLine = true,
@@ -198,7 +198,7 @@ fun DesignSpace(state: AppState) {
             },
             confirmButton = {
                 Button(enabled = name.isNotBlank(), onClick = {
-                    val dir = ws.resolve(kind.dir)
+                    val dir = ws.resolve(state.layout.dir(kind.zone))
                     runCatching { Files.createDirectories(dir) }
                         .mapCatching { state.createYaml(dir, name).getOrThrow() }
                         .onSuccess { createFor = null; message = "" }

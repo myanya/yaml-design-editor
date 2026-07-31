@@ -4,6 +4,7 @@ import index.IdIndex
 import model.YNode
 import schema.SchemaDef
 import schema.SchemaLoader
+import schema.WorkspaceLayout
 import validate.Issue
 import validate.Severity
 import validate.Validator
@@ -15,17 +16,55 @@ import kotlin.io.path.extension
 /** ワークスペースのファイル走査（UI・アプリ状態に依存しない共通処理）。 */
 object WorkspaceScan {
 
-    /** 隠しファイルを除く *.yaml / *.yml を列挙する。 */
-    fun yamlFiles(ws: Path): List<Path> {
+    /**
+     * 走査対象の *.yaml / *.yml を列挙する（隠しファイル・隠しディレクトリを除く。構成ディレクトリ `.yde` だけ例外）。
+     * `ledger` 宣言があるレイアウトでは台帳＋構成ディレクトリのみを対象にする（ARCHITECTURE §4.25）。
+     */
+    fun yamlFiles(ws: Path, layout: WorkspaceLayout = WorkspaceLayout.of(ws)): List<Path> {
         val result = mutableListOf<Path>()
-        Files.walk(ws).use { stream ->
-            stream.forEach { p ->
-                if (!Files.isRegularFile(p)) return@forEach
-                if (p.fileName.toString().startsWith(".")) return@forEach
-                if (p.extension == "yaml" || p.extension == "yml") result.add(p)
-            }
+        walk(ws, layout) { p ->
+            if (!Files.isRegularFile(p)) return@walk
+            if (p.fileName.toString().startsWith(".")) return@walk
+            if (p.extension != "yaml" && p.extension != "yml") return@walk
+            val rel = IdIndex.relPathOf(ws, p)
+            if (layout.inLedger(rel) || layout.isReserved(rel)) result.add(p)
         }
         return result.sortedBy { it.toString() }
+    }
+
+    /**
+     * 台帳外を含む全YAMLを列挙する（エディタ層の表示用。R13-04）。
+     * 隠しディレクトリは除く（`.yde` を含む——構成・定義は yamlFiles / 設計スペースが受け持つ）。
+     */
+    fun editorYamlFiles(ws: Path): List<Path> {
+        val result = mutableListOf<Path>()
+        walk(ws, WorkspaceLayout.LEGACY) { p ->
+            if (!Files.isRegularFile(p)) return@walk
+            if (p.fileName.toString().startsWith(".")) return@walk
+            if (p.extension == "yaml" || p.extension == "yml") result.add(p)
+        }
+        return result.sortedBy { it.toString() }
+    }
+
+    /** 隠しディレクトリの配下を枝刈りしながら歩く（構成ディレクトリ `.yde` だけ降りる）。 */
+    private fun walk(ws: Path, layout: WorkspaceLayout, visit: (Path) -> Unit) {
+        Files.walkFileTree(ws, object : java.nio.file.SimpleFileVisitor<Path>() {
+            override fun preVisitDirectory(dir: Path, attrs: java.nio.file.attribute.BasicFileAttributes): java.nio.file.FileVisitResult {
+                if (dir != ws && dir.fileName.toString().startsWith(".")) {
+                    val rel = IdIndex.relPathOf(ws, dir)
+                    if (rel != layout.configDir) return java.nio.file.FileVisitResult.SKIP_SUBTREE
+                }
+                return java.nio.file.FileVisitResult.CONTINUE
+            }
+
+            override fun visitFile(file: Path, attrs: java.nio.file.attribute.BasicFileAttributes): java.nio.file.FileVisitResult {
+                visit(file)
+                return java.nio.file.FileVisitResult.CONTINUE
+            }
+
+            override fun visitFileFailed(file: Path, exc: java.io.IOException): java.nio.file.FileVisitResult =
+                java.nio.file.FileVisitResult.CONTINUE
+        })
     }
 
     /** 隠しディレクトリを除くサブディレクトリを列挙する。 */
@@ -33,15 +72,16 @@ object WorkspaceScan {
         val result = mutableListOf<Path>()
         Files.walk(ws).use { stream ->
             stream.filter { it != ws && Files.isDirectory(it) }.forEach { p ->
-                if (!p.fileName.toString().startsWith(".")) result.add(p)
+                val rel = IdIndex.relPathOf(ws, p)
+                if (rel.split('/').none { it.startsWith(".") }) result.add(p)
             }
         }
         return result.sortedBy { it.toString() }
     }
 
     /** 外部変更検出に使う「ファイル -> 最終更新時刻」のスナップショット。 */
-    fun stamps(ws: Path): Map<Path, Long> = buildMap {
-        yamlFiles(ws).forEach { p ->
+    fun stamps(ws: Path, layout: WorkspaceLayout = WorkspaceLayout.of(ws)): Map<Path, Long> = buildMap {
+        yamlFiles(ws, layout).forEach { p ->
             put(p, runCatching { Files.getLastModifiedTime(p).toMillis() }.getOrDefault(0L))
         }
     }
@@ -85,6 +125,9 @@ class Workspace private constructor(val root: Path) {
         private set
     var files: List<Path> = emptyList()
         private set
+    /** ワークスペースの配置ポリシー（R13-02）。refresh のたびに再評価する。 */
+    var layout: WorkspaceLayout = WorkspaceLayout.LEGACY
+        private set
     val index = IdIndex()
 
     companion object {
@@ -96,11 +139,12 @@ class Workspace private constructor(val root: Path) {
 
     /** スキーマ・ファイル一覧・索引をディスクから再構築する。 */
     fun refresh() {
-        val loaded = SchemaLoader.loadAllWithErrors(root)
+        layout = WorkspaceLayout.of(root)
+        val loaded = SchemaLoader.loadAllWithErrors(root, layout)
         schemas = loaded.schemas
         schemaErrors = loaded.errors
-        files = WorkspaceScan.yamlFiles(root)
-        index.rebuild(root, files, schemas)
+        files = WorkspaceScan.yamlFiles(root, layout)
+        index.rebuild(root, files, schemas, layout)
     }
 
     fun relPath(file: Path): String = IdIndex.relPathOf(root, file)
@@ -114,11 +158,13 @@ class Workspace private constructor(val root: Path) {
 
     fun schemaFor(file: Path): SchemaDef? {
         val rel = relPath(file)
-        if (rel.startsWith(SchemaLoader.SCHEMA_DIR + "/")) {
-            // `_schemas/` にはメタスキーマ（R11-02）だけを適用する。一般スキーマの match は及ばない
+        if (layout.zoneOf(rel) == WorkspaceLayout.Zone.SCHEMAS) {
+            // schemas ゾーンにはメタスキーマ（R11-02）だけを適用する。一般スキーマの match は及ばない
             // （catch-all スキーマの誤適用を防ぐ。利用者は同IDのスキーマで上書きできる）
             return schemas.firstOrNull { it.id == schema.BuiltinSchemas.META_SCHEMA_ID && it.matches(rel) }
         }
+        // ゾーン外の構成ファイル（.yde/workspace.yaml 等）にはスキーマを当てない（§4.25）
+        if (layout.isReserved(rel) && layout.zoneOf(rel) == null) return null
         return schemas.firstOrNull { it.matches(rel) }
     }
 
@@ -158,23 +204,27 @@ class Workspace private constructor(val root: Path) {
      */
     fun noteDiskChanges(changed: Collection<Path>, removed: Collection<Path> = emptyList()) {
         val rels = (changed + removed).map { relPath(it) }
-        // スキーマ本体の変更に加え、派生スキーマの導出元文書（R11-03）の変更も検証ルールを変えるため全再構築する
+        // スキーマ本体・派生スキーマの導出元文書（R11-03）に加え、構成ファイル（.yde/workspace.yaml。R13-02）の
+        // 変更も走査規則・検証ルールを変えるため全再構築する
         if (rels.any { rel ->
-                rel.startsWith(SchemaLoader.SCHEMA_DIR + "/") ||
+                layout.zoneOf(rel) == WorkspaceLayout.Zone.SCHEMAS ||
+                    (layout.isReserved(rel) && layout.zoneOf(rel) == null) ||
                     schemas.any { s -> s.derive?.matchesSource(rel) == true }
             }
         ) {
             refresh()
             return
         }
-        if (changed.any { it !in files } || removed.isNotEmpty()) files = WorkspaceScan.yamlFiles(root)
-        index.update(root, changed.toList(), removed.toList(), schemas)
+        if (changed.any { it !in files } || removed.isNotEmpty()) files = WorkspaceScan.yamlFiles(root, layout)
+        index.update(root, changed.toList(), removed.toList(), schemas, layout)
     }
 
-    /** 1 ファイルを検証する（スキーマ適合・参照解決・重複・カバレッジ）。 */
+    /** 1 ファイルを検証する（スキーマ適合・参照解決・重複・カバレッジ。台帳外は索引前提の判定を降格。R13-03）。 */
     fun validate(rel: String): List<Issue> {
         val doc = load(rel)
-        return Validator.validate(doc.root, doc.parseError, doc.file, doc.schema, index)
+        // 走査対象（台帳＋予約領域）に載っていない文書＝台帳外のエディタ層。索引前提の判定は成立しない
+        val indexed = doc.file in files
+        return Validator.validate(doc.root, doc.parseError, doc.file, doc.schema, index, indexed = indexed)
     }
 
     /**
@@ -219,7 +269,7 @@ class Workspace private constructor(val root: Path) {
         // 適用後の状態を重ねたオーバーレイ索引で検証する（書き込み前）
         val overlayRoots = staged.associate { it.file to it.newRoot }
         val overlayIndex = IdIndex().apply {
-            rebuild(root, (files + overlayRoots.keys).distinct(), schemas) { f ->
+            rebuild(root, (files + overlayRoots.keys).distinct(), schemas, layout) { f ->
                 overlayRoots[f] ?: runCatching { YamlIO.parse(Files.readString(f)) }.getOrNull()
             }
         }

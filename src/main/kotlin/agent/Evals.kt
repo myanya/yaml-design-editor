@@ -79,7 +79,7 @@ object Evals {
     }
 
     fun load(workspace: Path): LoadResult {
-        val dir = workspace.resolve(SchemaLoader.EVALS_DIR)
+        val dir = workspace.resolve(schema.WorkspaceLayout.of(workspace).evalsDir)
         if (!Files.isDirectory(dir)) return LoadResult(emptyList(), emptyList())
         val errors = mutableListOf<String>()
         val files = Files.list(dir).use { stream ->
@@ -127,7 +127,8 @@ object Evals {
             )
         } ?: emptyList()
         setup.forEach {
-            require(!it.file.replace('\\', '/').startsWith("_")) { "case「$id」: setup で予約ディレクトリは上書きできません: ${it.file}" }
+            val setupNorm = it.file.replace('\\', '/')
+            require(!setupNorm.startsWith("_") && !setupNorm.startsWith(".")) { "case「$id」: setup で予約ディレクトリ・隠しディレクトリは上書きできません: ${it.file}" }
         }
         return EvalCase(
             id = id,
@@ -360,15 +361,16 @@ class EvalRunner(
 
     // ---------------------------------------------------------------- サンドボックスとレポート
 
-    /** `_runs` と隠しディレクトリを除いてワークスペースを一時ディレクトリへコピーする。 */
+    /** runs ゾーンと隠しディレクトリ（構成ディレクトリ `.yde` を除く）を除いてワークスペースを一時ディレクトリへコピーする。 */
     private fun createSandbox(wsRoot: Path): Path {
+        val layout = schema.WorkspaceLayout.of(wsRoot)
         val sandbox = createTempDirectory("yde-eval")
         Files.walk(wsRoot).use { stream ->
             stream.forEach { p ->
                 val rel = wsRoot.relativize(p).toString().replace('\\', '/')
                 if (rel.isEmpty()) return@forEach
-                if (rel == SchemaLoader.RUNS_DIR || rel.startsWith(SchemaLoader.RUNS_DIR + "/")) return@forEach
-                if (rel.startsWith(".")) return@forEach
+                if (layout.zoneOf(rel) == schema.WorkspaceLayout.Zone.RUNS) return@forEach
+                if (rel.startsWith(".") && !(layout.configDir != null && (rel == layout.configDir || rel.startsWith(layout.configDir + "/")))) return@forEach
                 val target = sandbox.resolve(rel)
                 if (Files.isDirectory(p)) Files.createDirectories(target)
                 else {
@@ -389,7 +391,7 @@ class EvalRunner(
     private val fileStamp = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")
 
     private fun writeReport(wsRoot: Path, eval: EvalDef, results: List<CaseResult>): Path {
-        val dir = wsRoot.resolve(SchemaLoader.RUNS_DIR)
+        val dir = wsRoot.resolve(schema.WorkspaceLayout.of(wsRoot).runsDir)
         Files.createDirectories(dir)
         var file = dir.resolve("eval-${LocalDateTime.now().format(fileStamp)}-${eval.id}.yaml")
         var seq = 1

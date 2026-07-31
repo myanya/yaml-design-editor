@@ -165,14 +165,10 @@ class AutomationEngine(
 
     private fun relOf(p: Path): String = IdIndex.relPathOf(dir, p)
 
-    private fun isReserved(rel: String): Boolean = listOf(
-        SchemaLoader.SCHEMA_DIR, SchemaLoader.AGENTS_DIR, SchemaLoader.ACTIVITIES_DIR,
-        SchemaLoader.RUNS_DIR, SchemaLoader.EVALS_DIR, SchemaLoader.SKILLS_DIR,
-        SchemaLoader.VIEWS_DIR,
-    ).any { rel.startsWith("$it/") }
-
-    private fun scanStamps(): Map<Path, Long> =
-        WorkspaceScan.stamps(dir).filterKeys { !isReserved(relOf(it)) }
+    private fun scanStamps(): Map<Path, Long> {
+        val layout = schema.WorkspaceLayout.of(dir)
+        return WorkspaceScan.stamps(dir, layout).filterKeys { !layout.isReserved(relOf(it)) }
+    }
 
     private fun detectChanges(now: Long, defs: Definitions.LoadResult, scan: Boolean = true) {
         val changed = if (scan) {

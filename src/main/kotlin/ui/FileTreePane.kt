@@ -32,7 +32,7 @@ import app.AppState
 import java.nio.file.Files
 import java.nio.file.Path
 
-private data class TreeRow(val path: Path, val depth: Int, val isDir: Boolean)
+private data class TreeRow(val path: Path, val depth: Int, val isDir: Boolean, val editorOnly: Boolean = false)
 
 /**
  * ワークスペース内の YAML ファイルをツリー表示する左ペイン。
@@ -60,7 +60,7 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp) {
             }
             // スキーマ推測（R11-01）: 選択した業務文書を起点に、同種の文書群からスキーマドラフトを作る
             val canInfer = selectedPath?.let { p ->
-                !Files.isDirectory(p) && !state.relPath(p).startsWith("_")
+                !Files.isDirectory(p) && state.layout.inLedger(state.relPath(p))
             } == true
             IconButton(enabled = canInfer, onClick = { inferTarget = selectedPath }) {
                 Icon(Icons.Default.AutoFixHigh, "スキーマ推測（既存文書からドラフト作成）", Modifier.size(16.dp))
@@ -83,16 +83,18 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp) {
             return@Column
         }
         val expanded = remember(ws) { mutableStateMapOf<Path, Boolean>() }
-        val rows = buildRows(ws, state.yamlFiles, state.directories, expanded)
+        val rows = buildRows(ws, state.yamlFiles, state.editorOnlyFiles, state.directories, expanded)
 
         Box(Modifier.fillMaxSize()) {
             val listState = rememberLazyListState()
             LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                 items(rows, key = { it.path.toString() }) { row ->
-                    TreeRowItem(state, row, expanded[row.path] != false, selectedPath == row.path) {
+                    // 台帳外（editorOnly）のディレクトリは既定で畳む（buildRows と同じ既定）
+                    val isOpen = expanded[row.path] ?: !row.editorOnly
+                    TreeRowItem(state, row, isOpen, selectedPath == row.path) {
                         selectedPath = row.path
                         if (row.isDir) {
-                            expanded[row.path] = !(expanded[row.path] != false)
+                            expanded[row.path] = !isOpen
                         } else {
                             state.openFile(row.path)
                         }
@@ -153,7 +155,7 @@ private fun TreeRowItem(state: AppState, row: TreeRow, isExpanded: Boolean, tree
                 if (isExpanded) Icons.Default.FolderOpen else Icons.Default.Folder,
                 contentDescription = null,
                 Modifier.size(16.dp),
-                tint = Palette.Folder,
+                tint = if (row.editorOnly) Palette.SubText else Palette.Folder,
             )
         } else {
             Spacer(Modifier.width(16.dp))
@@ -161,7 +163,7 @@ private fun TreeRowItem(state: AppState, row: TreeRow, isExpanded: Boolean, tree
                 Icons.Default.Description,
                 contentDescription = null,
                 Modifier.size(16.dp),
-                tint = Palette.Primary,
+                tint = if (row.editorOnly) Palette.SubText else Palette.Primary,
             )
         }
         Spacer(Modifier.width(6.dp))
@@ -170,6 +172,8 @@ private fun TreeRowItem(state: AppState, row: TreeRow, isExpanded: Boolean, tree
             fontSize = 13.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
+            // 台帳外（索引・検証・エージェントの対象外）は薄色で区別する（R13-04）
+            color = if (row.editorOnly) Palette.SubText else Color.Unspecified,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
             modifier = Modifier.weight(1f, fill = false),
         )
@@ -181,20 +185,28 @@ private fun TreeRowItem(state: AppState, row: TreeRow, isExpanded: Boolean, tree
 }
 
 /**
- * yamlFiles のみから表示行を組み立てる（コンポーズ中にディスク I/O を行わない）。
+ * yamlFiles（走査対象）と editorFiles（台帳外。R13-04）から表示行を組み立てる
+ * （コンポーズ中にディスク I/O を行わない）。台帳外のファイル・配下に走査対象を持たないディレクトリは
+ * editorOnly として薄色表示し、既定で畳む。
  */
 private fun buildRows(
     ws: Path,
     files: List<Path>,
+    editorFiles: List<Path>,
     workspaceDirs: List<Path>,
     expanded: Map<Path, Boolean>,
 ): List<TreeRow> {
-    val filesByParent = files.groupBy { it.parent }
+    val allFiles = (files + editorFiles).distinct()
+    val editorOnlySet = editorFiles.toSet()
+    val filesByParent = allFiles.groupBy { it.parent }
     val dirs = workspaceDirs.toMutableSet()
-    for (f in files) {
+    // 走査対象ファイルの祖先ディレクトリ＝台帳側のディレクトリ（それ以外は editorOnly 表示）
+    val ledgerDirs = mutableSetOf<Path>()
+    for (f in allFiles) {
         var p: Path? = f.parent
         while (p != null && p != ws && p.startsWith(ws)) {
             dirs.add(p)
+            if (f !in editorOnlySet) ledgerDirs.add(p)
             p = p.parent
         }
     }
@@ -205,12 +217,14 @@ private fun buildRows(
         dirsByParent[dir].orEmpty()
             .sortedBy { it.fileName.toString().lowercase() }
             .forEach { d ->
-                out.add(TreeRow(d, depth, isDir = true))
-                if (expanded[d] != false) rec(d, depth + 1)
+                val editorOnly = editorFiles.isNotEmpty() && d !in ledgerDirs
+                out.add(TreeRow(d, depth, isDir = true, editorOnly = editorOnly))
+                // 台帳外のディレクトリは既定で畳む（明示的に開けば展開される）
+                if (expanded[d] ?: !editorOnly) rec(d, depth + 1)
             }
         filesByParent[dir].orEmpty()
             .sortedBy { it.fileName.toString().lowercase() }
-            .forEach { f -> out.add(TreeRow(f, depth, isDir = false)) }
+            .forEach { f -> out.add(TreeRow(f, depth, isDir = false, editorOnly = f in editorOnlySet)) }
     }
     rec(ws, 0)
     return out

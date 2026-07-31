@@ -155,12 +155,13 @@ object Definitions {
     }
 
     fun load(workspace: Path): LoadResult {
+        val layout = schema.WorkspaceLayout.of(workspace)
         val errors = mutableListOf<String>()
-        val agents = loadDir(workspace.resolve(SchemaLoader.AGENTS_DIR), errors, ::parseAgent)
-        val activities = loadDir(workspace.resolve(SchemaLoader.ACTIVITIES_DIR), errors, ::parseActivity)
+        val agents = loadDir(workspace.resolve(layout.agentsDir), errors, ::parseAgent)
+        val activities = loadDir(workspace.resolve(layout.activitiesDir), errors, ::parseActivity)
         activities.forEach { activity ->
             if (agents.none { it.id == activity.agentId }) {
-                errors += "${activity.source.fileName}: エージェント「${activity.agentId}」が _agents に見つかりません"
+                errors += "${activity.source.fileName}: エージェント「${activity.agentId}」が ${layout.agentsDir} に見つかりません"
             }
             activity.chain.allTargets.distinct().forEach { next ->
                 if (activities.none { it.id == next }) {

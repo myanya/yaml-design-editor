@@ -597,8 +597,8 @@ object SchemaLoader {
 
     fun loadAll(workspace: Path): List<SchemaDef> = loadAllWithErrors(workspace).schemas
 
-    fun loadAllWithErrors(workspace: Path): LoadResult {
-        val dir = workspace.resolve(SCHEMA_DIR)
+    fun loadAllWithErrors(workspace: Path, layout: WorkspaceLayout = WorkspaceLayout.of(workspace)): LoadResult {
+        val dir = workspace.resolve(layout.schemasDir)
         if (!Files.isDirectory(dir)) return LoadResult(emptyList(), emptyList())
         val files = Files.list(dir).use { stream ->
             stream.filter { p ->
@@ -615,8 +615,8 @@ object SchemaLoader {
         schemas.groupBy { it.id }.filterValues { it.size > 1 }.forEach { (id, duplicates) ->
             errors += "スキーマID「$id」が重複しています（${duplicates.joinToString(", ") { it.source.fileName.toString() }}）"
         }
-        // 組込みスキーマ（_agents / _activities）は利用者スキーマの後ろに置く（先勝ちのため利用者定義が優先）
-        val all = schemas + BuiltinSchemas.all.filter { builtin -> schemas.none { it.id == builtin.id } }
+        // 組込みスキーマ（agents / activities 等の定義ゾーン用）は利用者スキーマの後ろに置く（先勝ちのため利用者定義が優先）
+        val all = schemas + BuiltinSchemas.forLayout(layout).filter { builtin -> schemas.none { it.id == builtin.id } }
         val catalog = SchemaCatalog.linked(all.map { it.id to it.definitions })
         val linked = all.map { it.withDefinitionCatalog(catalog) }
         linked.take(schemas.size).forEach { schema ->
@@ -626,7 +626,7 @@ object SchemaLoader {
         }
         // 第3段階「導出」（R11-03）: derive 宣言を導出元文書から検証スキーマへコンパイルし、
         // 宣言スキーマの直後に挿入する（match の先勝ち規則を宣言位置で制御できるようにする）
-        val derived = DerivedSchemas.compile(linked, workspace)
+        val derived = DerivedSchemas.compile(linked, workspace, layout)
         errors += derived.errors
         val result = if (derived.byDeclaring.isEmpty()) linked
         else linked.flatMap { s -> listOf(s) + derived.byDeclaring[s.id].orEmpty() }
@@ -688,7 +688,8 @@ object SchemaLoader {
         if (raw == null) return null
         val m = raw as? Map<*, *> ?: error("derive は object である必要があります")
         val from = m["from"]?.toString()?.takeIf { it.isNotBlank() } ?: error("derive.from（導出元文書の glob）が必要です")
-        require(!from.replace('\\', '/').trimStart('/').startsWith("_")) { "derive.from に予約ディレクトリは指定できません: $from" }
+        val fromNorm = from.replace('\\', '/').trimStart('/')
+        require(!fromNorm.startsWith("_") && !fromNorm.startsWith(".")) { "derive.from に予約ディレクトリ・隠しディレクトリは指定できません: $from" }
         val fieldsMap = m["fields"] as? Map<*, *> ?: error("derive.fields（フィールドの写像）が必要です")
         val typeRule = when (val rawType = fieldsMap["type"]) {
             null -> null

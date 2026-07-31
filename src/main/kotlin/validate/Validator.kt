@@ -20,7 +20,7 @@ import schema.effectiveFields
 import schema.requiredAt
 import java.nio.file.Path
 
-enum class Severity { ERROR, WARNING }
+enum class Severity { ERROR, WARNING, INFO }
 
 data class Issue(
     val severity: Severity,
@@ -59,6 +59,13 @@ object Validator {
         file: Path,
         schema: SchemaDef?,
         indexObj: IdIndex,
+        /**
+         * この文書が索引（台帳）に載っているか（R13-03）。台帳外の文書（ledger 宣言の対象外）では
+         * 索引前提の判定（未解決参照・カバレッジ）が成立しないため、未解決参照を情報レベルへ降格し、
+         * カバレッジ判定を行わない。単一ファイルで完結する検証（型・必須・enum・フェーズ・ファイル内重複）は
+         * そのまま行う（ARCHITECTURE §4.25 のエディタ層）。
+         */
+        indexed: Boolean = true,
     ): List<Issue> {
         if (root == null) {
             return listOf(Issue(Severity.ERROR, "YAML パースエラー: ${parseError ?: "不明"}", emptyList()))
@@ -91,11 +98,15 @@ object Validator {
                 issues += Issue(Severity.ERROR, "ID「$id」がこのファイル内で重複しています", e.path)
             }
         }
-        // 未解決参照
+        // 未解決参照（台帳外の文書では索引に載らないため、情報レベルへ降格する。R13-03）
         for (r in localRefs) {
             val localMatches = localIds.any { it.id == r.targetId && it.isAllowedBy(r) }
             val resolved = localMatches || indexObj.resolve(r).isNotEmpty()
             if (!resolved) {
+                if (!indexed) {
+                    issues += Issue(Severity.INFO, "参照「${r.targetId}」は台帳外の文書のため解決されません", r.path)
+                    continue
+                }
                 val existsOutsideScope = r.targetId in localIdSet || indexObj.entries.containsKey(r.targetId)
                 issues += Issue(
                     Severity.ERROR,
@@ -106,7 +117,7 @@ object Validator {
             }
         }
         // 3) カバレッジ（このスキーマが要求する被参照数。activeFrom はこの文書のフェーズ到達まで判定を保留する）
-        if (schema != null && schema.coverage.isNotEmpty()) {
+        if (indexed && schema != null && schema.coverage.isNotEmpty()) {
             for (entry in localIds) {
                 for (status in coverageStatuses(entry.id, schema, indexObj, root)) {
                     if (!status.active || status.satisfied) continue

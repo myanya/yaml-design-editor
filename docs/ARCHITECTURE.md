@@ -19,7 +19,7 @@ src/main/kotlin/
 ├── model/     YNode: YAMLの可変ツリー表現、YPath（パース含む） （依存なし）
 ├── yaml/      YamlIO: SnakeYAML との相互変換               （→ model）
 ├── schema/    スキーマモデル・ローダ・メタ検証・カバレッジルール・glob・
-│              スキーマ推測・派生スキーマ（→ model, yaml）
+│              スキーマ推測・派生スキーマ・配置ポリシー（WorkspaceLayout）（→ model, yaml）
 ├── index/     ID索引・参照スキャナ（関係種別つき）          （→ model, schema, yaml）
 ├── validate/  スキーマ検証・参照解決・重複・カバレッジ検証  （→ model, schema, index）
 ├── core/      ヘッドレス層: ワークスペース操作・パッチ・段階的開示・構造検索・ビュー射影・
@@ -53,7 +53,8 @@ src/main/kotlin/
 | `SchemaCatalog` / `SchemaKind` | schema/Schema.kt | 全スキーマ・libraryの定義を `(moduleId, definitionName)` でリンクする中央カタログ。`kind: library` はdefinitionsだけを公開し文書には適用されない |
 | `PhasesDef` / `currentPhaseIndex` / `requiredAt` | schema/Schema.kt | フェーズ機構（§4.15）: スキーマの `phases` 宣言と、文書の現在フェーズ解決・フェーズ考慮の実効必須判定（検証・進捗計算が共有） |
 | `CoverageRule` / `CoverageLevel` | schema/Schema.kt | スキーマの `coverage`（被参照必須などのトレーサビリティ要件）の定義。`activeFrom` でフェーズ到達までの判定保留を宣言できる |
-| `SchemaLoader` | schema/Schema.kt | `_schemas/` の読込・パース・スキーマID重複検出。ロードは「パース→リンク→導出」の三段階（§4.23） |
+| `SchemaLoader` | schema/Schema.kt | schemas ゾーンの読込・パース・スキーマID重複検出。ロードは「パース→リンク→導出」の三段階（§4.23） |
+| `WorkspaceLayout` | schema/WorkspaceLayout.kt | ワークスペースの配置ポリシー（R13-02）: レガシー／`.yde` 構成の判定・ゾーン解決（`zoneOf`）・台帳判定（`inLedger`）・索引除外（`indexExcluded`）を一元化（§4.25） |
 | `validateDefinition` / `generateSample` | schema/Schema.kt | メタスキーマ検証・サンプルデータ生成（拡張関数） |
 | `BuiltinSchemas` | schema/BuiltinSchemas.kt | 予約ディレクトリ用の組込みスキーマ。`builtin-schema`（R11-02）は `_schemas` 文書に適用されるメタスキーマ（再帰 `$ref` と `cases` のドッグフーディング） |
 | `RefNaming` / `SchemaInference` | schema/SchemaInference.kt | スキーマ推測（R11-01）: 既存文書群からのドラフト推測（純ロジック）。`RefNaming` は参照命名規約の共有実体（`DocScanner` が委譲。§4.23） |
@@ -316,7 +317,18 @@ UI層（app）を「Compose購読のシェル」に純化し、ロジックを c
 - **実行スペースの表示はプロファイルで段階的開示**: `_agents` / `_activities` の定義（または承認待ち・実行中状態）があるときだけレールに出す（R12-05）。判定は `AppState` の走査ミラーから導出し、別途の設定ファイルを増やさない。
 - **設計スペースは「定義もYAML文書」（§4.2）の入口**: 種類別カタログはファイル一覧（`_schemas/` 等のプレフィックス）から導出し、編集は既存のエディタ（編集スペース）へジャンプする。定義専用の編集経路・書込経路を新設しない。
 
-### 4.25 エラー処理
+### 4.25 ワークスペース構造（P13: `.yde` 構成・`ledger` 宣言・エディタ層／台帳層）
+
+ワークスペースの物理配置と機能の適用範囲を分離する機構（R13-01〜03）。守るべき不変条件:
+
+- **配置の判定は `schema/WorkspaceLayout` に一元化**: 「どこが定義・記録ディレクトリか（`zoneOf` / `isReserved`）」「どこが台帳か（`inLedger`）」「索引から除外するか（`indexExcluded`）」の判定を単一のポリシーオブジェクトが持つ。従来 `startsWith("_")` の直書きが兼ねていた3つの意味（索引除外・書込可否・スキーマ適用の特例）はこの述語群に分解されている。**機能側でプレフィックスやディレクトリ名の直書き判定を書かない**。配置が core でなく schema パッケージなのは `SchemaLoader` / `BuiltinSchemas` が使うため（§4.22 の Display と同じ理由）。
+- **2つの構成モード**: `.yde/` ディレクトリが無ければ**レガシー構成**（ルート直下の `_schemas` 等7予約ディレクトリ・台帳=ワークスペース全体＝従来動作そのまま。既存テスト・既存ワークスペースの互換はこのモードが保証する）。あれば **`.yde` 構成**（定義・記録は `.yde/schemas` 等アンダースコア無しのサブディレクトリ・`.yde/workspace.yaml` の `ledger:`（文字列またはリスト）で台帳ディレクトリを宣言。未宣言なら全体）。判定は `WorkspaceLayout.of(root)`。`Workspace` が保持し `refresh()` で再評価する。`.yde/workspace.yaml` の変更は走査規則が変わるためスキーマ変更と同じ扱い（`noteDiskChanges` が全再構築へ振り分け）。レガシー→`.yde` の移行は CLI `migrate`（ディレクトリ移動＋構成ファイル作成のみ。文書・定義の中身は書き換えない）。
+- **エディタ層／台帳層の分割基準は「単一ファイルで完結するか」**: スキーマ適用（match→フォーム・単文書検証・表示解決）は1文書とスキーマ定義で完結するため**エディタ層**＝台帳外のYAMLにも効く。`match` は常に**ワークスペース相対**の単一座標系（root相対にしない。スキーマが台帳外にも当たるため）。**台帳層**（ID索引・参照解決・バックリンク・カバレッジ・ビュー・エージェント・自動化・入出力skill・検証の集計）は `inLedger` のファイルだけを対象にする。`ref` の解決・未解決検出は索引前提のため、台帳外の文書では未解決参照を情報レベルへ降格する（`Validator.validate` の `indexed` フラグ。呼び出し側が `layout.inLedger` を渡す）。
+- **走査は台帳＋構成ディレクトリのみ**: `WorkspaceScan` は隠しディレクトリを枝刈りし（構成ディレクトリ `.yde` だけ例外）、`ledger` 宣言時は台帳外を含めない。索引・外部変更スタンプ・自動化トリガ・カタログはこの走査に載るものだけが対象。台帳外YAMLの表示・編集はUI側の別走査（`AppState.editorFiles`）で行い、ファイルツリーで視覚的に区別する（開いたときに match 解決＝遅延。大量のYAMLを持つリポジトリでも一括走査コストに乗せない）。
+- **書込権限**: エージェントの書込可否は「`inLedger`（メタアクティビティは定義ゾーンも可）」に一本化（`AgentToolbox`）。`.yde/workspace.yaml` 自体と `schemas` / `runs` ゾーンはメタでも書込不可。skill・evals のパース時の静的検査は layout を参照できないため、保守的に「`_` または `.` 始まりのパス禁止」とする（レガシー予約と `.yde` の双方を覆う）。
+- **構成ファイルにはスキーマを当てない**: ゾーン外の構成ディレクトリ直下ファイル（`workspace.yaml`）は `schemaFor` が null を返す（catch-all スキーマの誤適用防止。`schemas` ゾーンへのメタスキーマ限定適用と同じ理由）。
+
+### 4.26 エラー処理
 
 - ファイルI/O・パースは `runCatching` で受け、ユーザー操作の結果は `Result` を返して呼び出し側（UI）が `state.status` に反映する。
 - 入力検証の失敗は `require(...) { "日本語メッセージ" }`、内部異常は `error("日本語メッセージ")`。メッセージはそのままUIに表示される前提で書く。

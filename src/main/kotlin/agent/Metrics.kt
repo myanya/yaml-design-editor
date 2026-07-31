@@ -58,9 +58,9 @@ object RunMetrics {
         val avgTurns: Double get() = ratio(totalTurns, runs)
     }
 
-    /** `_runs` 配下の実行記録を読み込む。変更セット・評価レポート等の付随ファイルは除外する。 */
+    /** runs ゾーン配下の実行記録を読み込む。変更セット・評価レポート等の付随ファイルは除外する。 */
     fun collect(workspaceRoot: Path): List<RunRecord> {
-        val dir = workspaceRoot.resolve(SchemaLoader.RUNS_DIR)
+        val dir = workspaceRoot.resolve(schema.WorkspaceLayout.of(workspaceRoot).runsDir)
         if (!Files.isDirectory(dir)) return emptyList()
         val files = Files.list(dir).use { stream ->
             stream.filter { p ->
