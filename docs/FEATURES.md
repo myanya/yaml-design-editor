@@ -117,6 +117,7 @@
 | A-09 | OpenAI互換エンドポイント機構（Azure＝`api-key`ヘッダ＋エンドポイント＋デプロイメント名／ベースURL上書き＝ollama・vLLM等）とプロキシ対応（システム設定尊重を既定に手動上書き・Basic認証はメモリのみ・HTTPSトンネルのBasic許可）。生成系とエージェント系の両方に共通で効く（ROADMAP R9-07・R9-08） | ✅ | `ai/Connection.kt`, `ai/Http.kt`, `ui/AiSettings.kt` | 単体（`ConnectionTest`） |
 | A-10 | 生成実行のカーネル統合（単発生成を「1ターンで提出する特殊アクティビティ」としてエージェントカーネル上で実行。Structured Outputs の型保証を維持したまま、ステージング・権限強制・実行記録 `_runs` をアクティビティ実行と単一系統化。ROADMAP R9-01） | ✅ | `agent/Generation.kt`, `ui/AiGenerationDialog.kt` | 単体（`GenerationRunTest`） |
 | A-11 | 同一スキーマの参考文書をプロンプトに添付（更新日時の新しい順に最大3件を自動選択、ダイアログのチェックボックスで選び直し可能。候補表示は最新20件、1件2万文字・合計12万文字で打切り。未保存編集を優先） | ✅ | `ai/AiGenerator.kt`（`ReferenceDoc`, `buildUserInput`）, `app/AppState.kt`（`sameSchemaFiles`）, `ui/AiGenerationDialog.kt` | 単体（`AiGeneratorTest`） |
+| A-12 | 生成実行の入出力記録（送信したシステム指示・プロンプト全文・応答スキーマ・モデル生出力を実行記録の `exchange` 節へ上限つき全文記録。usage は実測トークン数。失敗時も実行記録を書き、ダイアログのエラー表示に記録パスを添える） | ✅ | `ai/AiGenerator.kt`（`AiExchange`）, `ai/OpenAiGenerator.kt`, `ai/AnthropicGenerator.kt`, `agent/Generation.kt`, `agent/RunLog.kt` | 単体（`GenerationRunTest`） |
 
 ## 8. エージェント実行（アクティビティ）
 
@@ -132,7 +133,7 @@
 | AG-06 | ステージング（複数文書の作業オーバーレイ。影響ファイルを含む横断検証、ID改名の整合確認、未提出ドラフト保全） | ✅ | `agent/Staging.kt` | 単体（`StagingTest`） |
 | AG-07 | 変更セットレビューUI（ファイル単位の部分採用、採用サブセットの再検証、左右差分、未保存文書の保護、適用。実行スペース内の常設画面＝モーダルではない。実行状態は `RunController` が保持しスペース切替で中断しない。R12-01） | ✅ | `ui/RunsSpace.kt`（`ReviewContent`, `RunController`） | 手動 |
 | AG-08 | 実行中の人間との対話（`ask_human` による質問と回答＝受信箱・実行タブの非モーダルカードで文書を確認しながら回答できる、計画・メモの進捗表示、実行キャンセル。R12-02） | ✅ | `agent/Kernel.kt`, `ui/RunsSpace.kt`（`QuestionCard`） | 単体（`KernelTest` 一部）＋手動 |
-| AG-09 | 実行記録 `_runs`（ターン・ツール呼び出し・質問と回答・採否・トークン使用量をYAML保存。索引対象外） | ✅ | `agent/RunLog.kt` | 手動 |
+| AG-09 | 実行記録 `_runs`（ターン・ツール呼び出し・質問と回答・採否・トークン使用量をYAML保存。索引対象外。会話記録 `transcript`＝システム指示・初期コンテキスト・本文テキスト・ツール呼び出し引数と結果の全文（1件2万字上限）も保存＝デバッグの主材料。委譲先の内部会話は対象外） | ✅ | `agent/RunLog.kt`, `agent/Kernel.kt`（`TranscriptEntry`） | 単体（`KernelTest`） |
 | AG-10 | CLIからのアクティビティ実行（`agent` / `activities` コマンド。非対話実行では質問に「回答なし」を返す） | ✅ | `core/Cli.kt` | 手動（スモーク） |
 | AG-11 | トリガ（`trigger`: manual / on-change（デバウンス付き） / schedule / on-invalid。予約ディレクトリと自己変更では発火しない） | ✅ | `agent/Automation.kt`（`tick`） | 単体（`AutomationTest`） |
 | AG-12 | アクティビティ連鎖（`chain.onSuccess` / `onFailure`、`chain.rules`＝出力値による分岐: 終わり方・採用変更ファイルglob・変更数・メモの部分一致のAND条件で分岐先を選ぶ（ROADMAP R9-04）。深さ上限・循環検出。人間承認は採否決定後に発火） | ✅ | `agent/Automation.kt`（`chainNext`）, `agent/Definitions.kt`（`ChainDef.selectNext`） | 単体（`AutomationTest`, `DefinitionsTest`） |

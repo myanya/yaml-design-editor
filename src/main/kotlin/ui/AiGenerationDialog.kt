@@ -131,7 +131,13 @@ fun AiGenerationHost(state: AppState) {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                errorMessage = e.message ?: e.toString()
+                errorMessage = buildString {
+                    append(e.message ?: e.toString())
+                    // 失敗時も実行記録（入出力メッセージ入り）が残るため、デバッグの参照先を示す
+                    (e as? GenerationRun.GenerationFailedException)?.runFile?.let {
+                        append("\n実行記録: ${state.relPath(it)}")
+                    }
+                }
                 stage = AiDialogStage.ERROR
             }
         }

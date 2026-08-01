@@ -1,5 +1,8 @@
 package agent
 
+import ai.AiCallException
+import ai.AiExchange
+import ai.AiGenerated
 import ai.AiProvider
 import core.PatchOp
 import core.Workspace
@@ -79,7 +82,7 @@ class GenerationRunTest {
                 fileRel = "docs/a.yaml", targetPath = listOf("title"),
                 wholeDocument = false, appendToArray = false,
             ),
-        ) { _, _ -> YNode.Scalar("生成されたタイトル") }
+        ) { _, _ -> AiGenerated(YNode.Scalar("生成されたタイトル")) }
 
         assertEquals("生成されたタイトル", (outcome.generated as YNode.Scalar).value)
         assertEquals(RunStatus.SUBMITTED, outcome.result.status)
@@ -105,7 +108,7 @@ class GenerationRunTest {
                 fileRel = "docs/a.yaml", targetPath = listOf("tags"),
                 wholeDocument = false, appendToArray = true,
             ),
-        ) { _, _ -> YNode.Seq(mutableListOf(YNode.Scalar("追加1"), YNode.Scalar("追加2"))) }
+        ) { _, _ -> AiGenerated(YNode.Seq(mutableListOf(YNode.Scalar("追加1"), YNode.Scalar("追加2")))) }
 
         val change = outcome.result.changeSet.changes.single()
         // 既存要素（1件）の後ろへの insert になる（既存項目に触れない）
@@ -124,7 +127,7 @@ class GenerationRunTest {
                 fileRel = "docs/a.yaml", targetPath = listOf("sections", 0, "body"),
                 wholeDocument = false, appendToArray = false,
             ),
-        ) { _, _ -> YNode.Scalar("本文") }
+        ) { _, _ -> AiGenerated(YNode.Scalar("本文")) }
 
         assertEquals(RunStatus.SUBMITTED, outcome.result.status)
         assertTrue(outcome.result.changeSet.changes.isEmpty())
@@ -147,5 +150,62 @@ class GenerationRunTest {
             }
         }
         assertTrue("APIキーが不正です" in e.message.orEmpty())
+    }
+
+    // ---------------------------------------------------------------- exchange の実行記録
+
+    private fun exchange(output: String?) = AiExchange(
+        system = "システム指示",
+        input = "プロンプト全文（参考文書を含む）",
+        responseSchema = """{"type":"object"}""",
+        output = output,
+        inputTokens = 1200,
+        outputTokens = 34,
+    )
+
+    @Test
+    fun `run log records the exchange messages and real token usage`() = runBlocking {
+        val ws = Workspace.open(dir)
+        val outcome = GenerationRun.run(
+            ws,
+            GenerationRun.Request(
+                provider = AiProvider.OPENAI, input = input(),
+                fileRel = "docs/a.yaml", targetPath = listOf("title"),
+                wholeDocument = false, appendToArray = false,
+            ),
+        ) { _, _ -> AiGenerated(YNode.Scalar("生成されたタイトル"), exchange("""{"value":"生成されたタイトル"}""")) }
+
+        val text = Files.readString(outcome.runFile!!)
+        assertTrue("exchange:" in text)
+        assertTrue("プロンプト全文（参考文書を含む）" in text)
+        assertTrue("生成されたタイトル" in text)          // 出力メッセージ
+        assertTrue("inputTokens: 1200" in text)           // usage が実測値になる
+        assertTrue("outputTokens: 34" in text)
+        assertTrue("transcript:" in text)                 // カーネル側の会話記録も残る
+    }
+
+    @Test
+    fun `failed generation still writes a run log with the exchange`() {
+        val ws = Workspace.open(dir)
+        val e = assertFailsWith<GenerationRun.GenerationFailedException> {
+            runBlocking {
+                GenerationRun.run(
+                    ws,
+                    GenerationRun.Request(
+                        provider = AiProvider.OPENAI, input = input(),
+                        fileRel = "docs/a.yaml", targetPath = listOf("title"),
+                        wholeDocument = false, appendToArray = false,
+                    ),
+                ) { _, _ -> throw AiCallException("応答を解析できませんでした", exchange("""{"error":"bad json"""")) }
+            }
+        }
+        assertTrue("応答を解析できませんでした" in e.message.orEmpty())
+        // 失敗時も実行記録が残り、入出力メッセージ（exchange）を含む
+        val runFile = e.runFile
+        assertTrue(runFile != null && Files.isRegularFile(runFile))
+        val text = Files.readString(runFile!!)
+        assertTrue("ERROR" in text)
+        assertTrue("プロンプト全文（参考文書を含む）" in text)
+        assertTrue("bad json" in text)
     }
 }

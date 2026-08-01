@@ -79,7 +79,7 @@ src/main/kotlin/
 | `Staging` | agent/Staging.kt | エージェントの作業オーバーレイ。パッチ記録・新規文書・オーバーレイ索引・影響ファイルを含む横断検証・変更セット化 |
 | `AgentToolbox` | agent/Tools.kt | エージェントに公開する13ツール（探索・編集・検証・対話・管理）。書込権限（許可glob・予約ディレクトリ禁止）をツール側で強制 |
 | `AgentKernel` / `AgentHost` | agent/Kernel.kt | マルチターンのツール使用ループ。上限（ターン・トークン・時間）、終了手続きの強制、質問の中継、イベント通知 |
-| `RunLog` | agent/RunLog.kt | 実行記録を `_runs/` にYAML保存し、採否・自動適用バックアップ・巻き戻しを追記 |
+| `RunLog` | agent/RunLog.kt | 実行記録を `_runs/` にYAML保存し、採否・自動適用バックアップ・巻き戻しを追記。会話記録（`AgentRunResult.transcript`＝モデルが見た・出したメッセージの全文。保存時は1件2万字で打切り）と生成実行の `exchange` 節（extras）もここで直列化する |
 | `AutomationEngine` | agent/Automation.kt | 自動化エンジン: トリガ監視（`tick(now)`）・直列実行キュー（`processOnce`）・承認ポリシー・連鎖・リトライ・常時停止。時刻注入でテスト可能 |
 | `AutoApply` | agent/AutoApply.kt | 巻き戻し可能な適用: 適用前原文を実行記録へバックアップし、`revert` で復元（適用後の変更は競合として拒否） |
 | `SkillDef` / `Skills` | skill/Skills.kt | `_skills` の定義（import / export の宣言型変換と run のコード実行）のロードとパース |
@@ -275,6 +275,7 @@ definition 参照とリント（R14-02）に固有の不変条件:
 - **型保証は Structured Outputs のまま**: 生成そのものは従来どおり `AiGenerator`（レスポンススキーマによる構造化出力）で行う。ツール使用ループに生成品質を委ねない。
 - **カーネルへの橋渡しは疑似セッション**: 生成値を `apply_patch`（ディスク基準の set / 配列追記は insert）→ `submit_changeset` のツール呼び出しへ変換する `ToolChatSession` 実装を `sessionFactory` として注入する。ステージング・書込権限（対象ファイル・対象パスに限定）・実行記録（`_runs`。アクティビティID `ai-generate`）は通常実行と完全に同じ経路を通る。
 - **ダイアログのUXは変えない**: 適用先は編集中ツリー（プレビュー→未保存適用・Undo可・自動保存なし）のまま。未保存編集や新規文書などディスク基準のパッチが成立しない場合は「変更なしの提出」として記録し、生成値だけをダイアログへ返す。
+- **入出力メッセージは実行記録に残す**: 実際に送信したシステム指示・プロンプト全文・応答スキーマとモデルの生出力・実測トークン数は、各クライアントが `AiExchange` として返し（失敗時は `AiCallException` に載せて伝える）、`RunLog.write` の extras（`exchange` 節）へ上限つき全文で記録する。生成失敗時も実行記録を書き、`GenerationFailedException` が記録パスを保持してダイアログのエラー表示に示す。デバッグ材料を落とさないため、クライアント側でプロンプトを再構成せず送信物そのものを引き渡す。
 - **テストは生成器注入**: `GenerationRun.run` の `Generator` を疑似実装に差し替え、カーネル・ステージング・記録は本物を通す（`GenerationRunTest`）。
 
 ### 4.20 文書キャッシュ層の委譲（P9: R9-02）

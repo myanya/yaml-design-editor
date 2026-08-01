@@ -20,6 +20,26 @@ data class RefCandidate(val id: String, val schemaId: String?, val documentId: S
 /** 参考文書1件。同じスキーマが適用される他文書の全文で、書き方・粒度の手本としてプロンプトに添える。 */
 data class ReferenceDoc(val fileRel: String, val yaml: String)
 
+/**
+ * AI呼び出し1回分の入出力メッセージ。実行記録（`_runs`）へのデバッグ記録用に、
+ * 実際に送信・受信した内容をクライアントから引き渡す。
+ */
+data class AiExchange(
+    val system: String,           // 送信したシステム指示
+    val input: String,            // 送信した利用者メッセージ全文（プロンプト）
+    val responseSchema: String?,  // 構造化出力に渡した JSON Schema（プロンプト埋込フォールバック時は null）
+    val output: String? = null,   // モデルの生出力テキスト（失敗時はAPI応答の本文）
+    val inputTokens: Long? = null,
+    val outputTokens: Long? = null,
+)
+
+/** 生成結果と入出力記録の組。テストの疑似生成器では exchange を省略できる。 */
+class AiGenerated(val value: YNode, val exchange: AiExchange? = null)
+
+/** AI呼び出しの失敗。入出力（exchange）を保持し、失敗時も実行記録に残せるようにする。 */
+class AiCallException(message: String, val exchange: AiExchange, cause: Throwable? = null) :
+    IllegalStateException(message, cause)
+
 data class AiGenerationInput(
     val apiKey: String,
     val model: String,
@@ -34,11 +54,17 @@ data class AiGenerationInput(
 )
 
 object AiGenerator {
-    suspend fun generate(provider: AiProvider, input: AiGenerationInput): YNode = when (provider) {
+    suspend fun generate(provider: AiProvider, input: AiGenerationInput): AiGenerated = when (provider) {
         AiProvider.OPENAI, AiProvider.AZURE -> OpenAiGenerator.generate(input, provider)
         AiProvider.ANTHROPIC -> AnthropicGenerator.generate(input)
     }
 }
+
+/** API応答（OpenAI Responses / Anthropic Messages 共通形式）から実トークン数を取り出す。 */
+internal fun parseUsageTokens(body: String, json: Json): Pair<Long?, Long?> = runCatching {
+    val usage = json.parseToJsonElement(body).jsonObject["usage"]?.jsonObject
+    usage?.get("input_tokens")?.jsonPrimitive?.longOrNull to usage?.get("output_tokens")?.jsonPrimitive?.longOrNull
+}.getOrDefault(null to null)
 
 /** REFフィールドの idPatterns / scope 条件を満たす候補IDを返す。 */
 internal fun refCandidateIds(field: FieldDef, candidates: List<RefCandidate>): List<String> =

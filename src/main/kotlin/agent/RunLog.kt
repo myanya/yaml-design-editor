@@ -19,7 +19,11 @@ object RunLog {
 
     private val fileStamp = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")
 
-    fun write(ws: Workspace, request: AgentRunRequest, result: AgentRunResult): Path {
+    /** 会話記録（transcript）1件あたりの保存上限。巨大なツール結果（全文読取り等）による記録の肥大を防ぐ。 */
+    private const val TRANSCRIPT_ENTRY_LIMIT = 20_000
+
+    /** extras は末尾に追記する追加セクション（例: 生成実行の入出力メッセージ `exchange`）。 */
+    fun write(ws: Workspace, request: AgentRunRequest, result: AgentRunResult, extras: Map<String, Any?> = emptyMap()): Path {
         val dir = ws.root.resolve(ws.layout.runsDir)
         Files.createDirectories(dir)
         var file = dir.resolve("${LocalDateTime.now().format(fileStamp)}-${request.activity.id}.yaml")
@@ -54,6 +58,15 @@ object RunLog {
                     "failed" to entry.failed,
                 )
             },
+            // 会話記録: モデルが見た・出したメッセージの全文（toolCalls は要約、こちらがデバッグの主材料）
+            "transcript" to result.transcript.map { entry ->
+                LinkedHashMap<String, Any>().apply {
+                    put("turn", entry.turn)
+                    put("role", entry.role)
+                    entry.tool?.let { put("tool", it) }
+                    put("content", entry.content.take(TRANSCRIPT_ENTRY_LIMIT))
+                }
+            },
             "changes" to result.changeSet.changes.map { change ->
                 linkedMapOf(
                     "file" to change.file,
@@ -66,6 +79,7 @@ object RunLog {
                 "warnings" to issues.count { it.second.severity == Severity.WARNING },
             ),
         )
+        body.putAll(extras)
         Files.writeString(file, YamlIO.dump(YamlIO.fromAny(cleanNulls(body))))
         return file
     }

@@ -208,6 +208,30 @@ class KernelTest {
     }
 
     @Test
+    fun `transcript records system instruction assistant text and full tool exchanges`() {
+        val ws = Workspace.open(dir)
+        val session = FakeSession(
+            listOf(
+                turn(call("read_outline", """{"file":"docs/a.yaml"}"""), text = "まず対象を確認します"),
+                turn(call("abort", """{"reason":"確認のみ"}""")),
+            )
+        )
+        val result = run(ws, session, RecordingHost())
+
+        // セッション初期化: システム指示 → 初期コンテキスト（turn 0）
+        assertEquals(listOf("system", "user"), result.transcript.take(2).map { it.role })
+        assertEquals(0, result.transcript[1].turn)
+        assertEquals(session.userTexts.first(), result.transcript[1].content)
+        // 1ターン目: 本文テキストと、ツール呼び出し引数・結果の全文
+        assertTrue(result.transcript.any { it.role == "assistant" && it.content == "まず対象を確認します" })
+        val toolCall = result.transcript.first { it.role == "tool_call" }
+        assertEquals("read_outline", toolCall.tool)
+        assertTrue("docs/a.yaml" in toolCall.content)
+        val toolResult = result.transcript.first { it.role == "tool_result" && it.tool == "read_outline" }
+        assertEquals(session.toolResults[0].single().content, toolResult.content)
+    }
+
+    @Test
     fun `ask_human answer flows back and is recorded`() {
         val ws = Workspace.open(dir)
         val session = FakeSession(

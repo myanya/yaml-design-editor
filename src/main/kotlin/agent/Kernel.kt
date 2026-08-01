@@ -60,6 +60,17 @@ class ToolLogEntry(
     val failed: Boolean,
 )
 
+/**
+ * 会話記録1件。モデルが見た・出したメッセージを実行の時系列で保持する（実行記録のデバッグ用）。
+ * toolLog が要約（引数・結果とも打切りあり）なのに対し、こちらは全文を保持する（保存時の上限は RunLog）。
+ */
+class TranscriptEntry(
+    val turn: Int,          // 0 はセッション初期化（システム指示・初期コンテキスト）
+    val role: String,       // system / user / assistant / tool_call / tool_result
+    val tool: String?,      // tool_call / tool_result のときのツール名
+    val content: String,
+)
+
 class AgentRunResult(
     val status: RunStatus,
     val message: String?,                    // 提出要約／中断理由／エラー内容
@@ -72,6 +83,7 @@ class AgentRunResult(
     val notes: List<String>,
     val questions: List<Pair<String, String?>>,
     val toolLog: List<ToolLogEntry>,
+    val transcript: List<TranscriptEntry> = emptyList(),
 )
 
 object AgentKernel {
@@ -93,6 +105,7 @@ object AgentKernel {
         val staging = Staging(ws)
         val questions = mutableListOf<Pair<String, String?>>()
         val toolLog = mutableListOf<ToolLogEntry>()
+        val transcript = mutableListOf<TranscriptEntry>()
 
         var turns = 0
         var usage = ChatUsage()
@@ -123,8 +136,12 @@ object AgentKernel {
         val toolbox = AgentToolbox(ws, staging, activity, groups, subAgents = subAgents, delegate = delegateFn)
 
         try {
-            val session = sessionFactory(request.provider, request.apiKey, request.model, systemPrompt(agent), toolbox.specs())
-            session.addUserText(initialContext(request, toolbox))
+            val system = systemPrompt(agent)
+            val session = sessionFactory(request.provider, request.apiKey, request.model, system, toolbox.specs())
+            transcript += TranscriptEntry(0, "system", null, system)
+            val initial = initialContext(request, toolbox)
+            session.addUserText(initial)
+            transcript += TranscriptEntry(0, "user", null, initial)
 
             loop@ while (true) {
                 if (turns >= activity.limits.maxTurns) {
@@ -143,6 +160,7 @@ object AgentKernel {
                 val turn = session.send()
                 usage += turn.usage
                 turn.assistantText?.let { host.onEvent(AgentEvent.AssistantText(it)) }
+                turn.assistantText?.takeIf { it.isNotBlank() }?.let { transcript += TranscriptEntry(turns, "assistant", null, it) }
 
                 if (turn.toolCalls.isEmpty()) {
                     // ツールを呼ばずに終わろうとした場合は明示的な終了を促す（2回続いたら中断）
@@ -152,7 +170,9 @@ object AgentKernel {
                         endMessage = "エージェントが終了手続き（submit_changeset / abort）を行いませんでした"
                         break@loop
                     }
-                    session.addUserText("作業を終えるときは submit_changeset（提出）または abort（中断）を呼んでください。続ける場合はツールを使ってください。")
+                    val nudge = "作業を終えるときは submit_changeset（提出）または abort（中断）を呼んでください。続ける場合はツールを使ってください。"
+                    session.addUserText(nudge)
+                    transcript += TranscriptEntry(turns, "user", null, nudge)
                     continue@loop
                 }
                 idleTurns = 0
@@ -161,6 +181,7 @@ object AgentKernel {
                 val results = mutableListOf<ToolResult>()
                 for (call in turn.toolCalls) {
                     val argsText = call.arguments.toString()
+                    transcript += TranscriptEntry(turns, "tool_call", call.name, argsText)
                     val outcome = runCatching { toolbox.execute(call, host, questions) }
                         .getOrElse { e ->
                             if (e is CancellationException) throw e
@@ -168,6 +189,7 @@ object AgentKernel {
                         }
                     val failed = outcome.terminal == null && outcome.content.startsWith("エラー:")
                     toolLog += ToolLogEntry(turns, call.name, argsText.take(2_000), outcome.content.take(2_000), failed)
+                    transcript += TranscriptEntry(turns, "tool_result", call.name, outcome.content)
                     when {
                         failed -> host.onEvent(AgentEvent.ToolFailed(call.name, outcome.content))
                         call.name == "ask_human" -> host.onEvent(AgentEvent.QuestionAsked(questions.lastOrNull()?.first ?: ""))
@@ -205,6 +227,7 @@ object AgentKernel {
             notes = toolbox.notes.toList(),
             questions = questions.toList(),
             toolLog = toolLog.toList(),
+            transcript = transcript.toList(),
         )
         host.onEvent(AgentEvent.Finished(status, endMessage))
         return result

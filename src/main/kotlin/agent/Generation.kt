@@ -1,5 +1,8 @@
 package agent
 
+import ai.AiCallException
+import ai.AiExchange
+import ai.AiGenerated
 import ai.AiGenerationInput
 import ai.AiGenerator
 import ai.AiProvider
@@ -40,8 +43,11 @@ object GenerationRun {
 
     /** 生成に使うクライアント（テストでは疑似実装に差し替える）。 */
     fun interface Generator {
-        suspend fun generate(provider: AiProvider, input: AiGenerationInput): YNode
+        suspend fun generate(provider: AiProvider, input: AiGenerationInput): AiGenerated
     }
+
+    /** 生成の失敗。実行記録は失敗時も書かれるため、参照先としてパスを保持する。 */
+    class GenerationFailedException(message: String, val runFile: Path?) : IllegalStateException(message)
 
     class Request(
         val provider: AiProvider,
@@ -102,10 +108,27 @@ object GenerationRun {
             },
             sessionFactory = { _, _, _, _, _ -> session },
         )
+        // 失敗時もデバッグのため実行記録を書く（入出力メッセージは exchange 節に全文を残す）
+        val runFile = runCatching { RunLog.write(ws, runRequest, result, extras = exchangeExtras(session.exchange)) }.getOrNull()
         val generated = session.generated
-            ?: throw IllegalStateException(result.message ?: "生成に失敗しました")
-        val runFile = runCatching { RunLog.write(ws, runRequest, result) }.getOrNull()
+            ?: throw GenerationFailedException(result.message ?: "生成に失敗しました", runFile)
         return Outcome(generated, result, runFile)
+    }
+
+    /** 実行記録に残す入出力メッセージ1文字列あたりの上限（プロンプト20万・出力10万・スキーマ5万字）。 */
+    private const val EXCHANGE_INPUT_LIMIT = 200_000
+    private const val EXCHANGE_OUTPUT_LIMIT = 100_000
+    private const val EXCHANGE_SCHEMA_LIMIT = 50_000
+
+    /** 入出力メッセージを実行記録の exchange 節へ変換する。デバッグ用途のため上限内は全文を残す。 */
+    private fun exchangeExtras(exchange: AiExchange?): Map<String, Any?> {
+        if (exchange == null) return emptyMap()
+        val section = LinkedHashMap<String, Any>()
+        section["system"] = exchange.system.trim()
+        section["input"] = exchange.input.take(EXCHANGE_INPUT_LIMIT)
+        exchange.responseSchema?.let { section["responseSchema"] = it.take(EXCHANGE_SCHEMA_LIMIT) }
+        exchange.output?.let { section["output"] = it.take(EXCHANGE_OUTPUT_LIMIT) }
+        return mapOf("exchange" to section)
     }
 
     /**
@@ -121,6 +144,7 @@ object GenerationRun {
     ) : ToolChatSession {
 
         var generated: YNode? = null
+        var exchange: AiExchange? = null   // 実行記録用の入出力メッセージ（失敗時も AiCallException から回収する）
         private var step = 0
         private var seq = 0
 
@@ -131,10 +155,18 @@ object GenerationRun {
 
         override suspend fun send(): ChatTurn {
             if (step++ == 0) {
-                val value = generator.generate(request.provider, request.input)
-                generated = value
-                val patch = buildPatchCall(value)
-                if (patch != null) return ChatTurn(null, listOf(patch), ChatUsage(), null)
+                val outcome = try {
+                    generator.generate(request.provider, request.input)
+                } catch (e: AiCallException) {
+                    exchange = e.exchange
+                    throw e
+                }
+                generated = outcome.value
+                exchange = outcome.exchange
+                // 実トークン数を1ターン目の usage として計上する（実行記録の usage が実測になる）
+                val usage = ChatUsage(outcome.exchange?.inputTokens ?: 0, outcome.exchange?.outputTokens ?: 0)
+                val patch = buildPatchCall(outcome.value)
+                return ChatTurn(null, listOf(patch ?: submitCall()), usage, null)
             }
             return ChatTurn(null, listOf(submitCall()), ChatUsage(), null)
         }
