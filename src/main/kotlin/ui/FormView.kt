@@ -820,8 +820,14 @@ fun RefEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
             .toList()
     }
 
+    // 解決先タイトル（表示解決は IdEntry.title に一元化済み・R10-01）。未保存編集を含むローカルIDを優先する（§4.5）。
+    val targetTitle = if (!resolved) null else
+        (ctx.localIds.firstOrNull { it.id == current && it.isAllowedBy(refConstraint) }
+            ?: ctx.state.index.occurrences(current).firstOrNull { it.isAllowedBy(refConstraint) })
+            ?.title?.takeIf { it.isNotBlank() && it != current }
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.weight(1f)) {
+        // タイトルを添えるときはフィールドを詰め、同じ行の右側に参照先の意味を見せる（縦幅を増やさない）
+        Box(Modifier.weight(if (targetTitle != null) 0.45f else 1f)) {
             CompactTextField(
                 value = current,
                 onValueChange = { ctx.setScalar(slot, it, FieldType.REF) },
@@ -875,6 +881,16 @@ fun RefEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
                     }, modifier = Modifier.background(if (selected) Palette.Selected else Color.Transparent))
                 }
             }
+        }
+        if (targetTitle != null) {
+            Text(
+                targetTitle,
+                fontSize = 12.sp,
+                color = Palette.SubText,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(0.55f).padding(start = 8.dp),
+            )
         }
         IconButton(
             enabled = resolved,

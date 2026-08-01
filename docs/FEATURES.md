@@ -82,7 +82,7 @@
 | I-01 | ID索引（ディスク基準。`type: id` ＋ スキーマなし文書のキー名 `id` を索引化、documentId 管理。保存・外部変更・変更セット適用では変更ファイルだけを差し替える増分更新＝コストが変更ファイル数に比例。ROADMAP R8-02） | ✅ | `index/IdIndex.kt`（`DocScanner`, `update`） | 単体（`IdIndexIncrementalTest`）＋手動 |
 | I-02 | 参照認識（`type: ref` ＋ 命名規約ヒューリスティクス `ref`/`*_ref`/`refs`/`depends_on` 等） | ✅ | `index/IdIndex.kt`（`DocScanner`） | 手動 |
 | I-03 | リンクジャンプ（→ボタン、ハイライト＋自動スクロール、複数出現時は選択ダイアログ） | ✅ | `AppState.navigateToId`, `ui/Common.kt`（`Highlightable`） | 手動 |
-| I-04 | 参照候補の補完（`idPatterns` / `scope.schemaIds` / `scope.documentIds` で絞り込み） | ✅ | `ui/FormView.kt`（`RefEditor`）, `index/IdIndex.kt` | 手動 |
+| I-04 | 参照候補の補完（`idPatterns` / `scope.schemaIds` / `scope.documentIds` で絞り込み。選択後は解決先タイトルをフィールド右側に併記） | ✅ | `ui/FormView.kt`（`RefEditor`）, `index/IdIndex.kt` | 手動 |
 | I-05 | バックリンク（被参照一覧。参照を書いた要素のID・タイトル＝表示解決 S-13 の結果を主表示、クリックで参照元へジャンプ） | ✅ | `IdIndex.backlinksTo` / `sourceEntryOf`, `ui/SidePanel.kt` | 手動 |
 | I-06 | ID検索（コマンドパレット（Ctrl+K）に統合。ID・タイトル部分一致。タイトルは表示解決 S-13 で索引化されたもの。ROADMAP R12-04） | ✅ | `Main.kt`（`CommandPalette`） | 手動 |
 | I-07 | ID横ぐしビュー（同一論理IDの全出現・要素からの参照・被参照・カバレッジ充足を1画面に集約。フェーズ未到達のカバレッジルールは区別表示。各出現は`_views`定義なしでその場編集できる埋め込みフォーム＝スキーマがあれば`ObjectFields`、なければ`GenericEditor`。台帳スペースのタブとインスペクタ（I-09）から開く。ROADMAP R7-04） | ✅ | `ui/IdCrossView.kt`, `AppState.openCrossView` / `ensureDoc` | 手動 |
