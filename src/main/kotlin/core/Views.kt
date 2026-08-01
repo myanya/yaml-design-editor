@@ -88,10 +88,16 @@ data class ViewDetailDef(
     val filePattern: String? = null,   // 例 "designs/{id}.yaml"（{id} が行のIDで置換される）
 )
 
-/** 新規行の追加先（一覧文書内の配列）。 */
+/**
+ * 新規行の入口。2モードのどちらか一方を持つ（パースで排他を強制）。
+ * - 配列モード（file + path）: 一覧文書内の配列へ新しい要素を追加する
+ * - ファイルモード（filePattern）: `{id}` を入力IDで置換したパスへ詳細文書そのものを新規作成する
+ *   （一覧文書を持たず詳細文書だけでIDを運用するレイアウト向け。作成されるのは通常の原本文書）
+ */
 data class ViewNewRowDef(
-    val file: String,
-    val path: YPath,
+    val file: String? = null,
+    val path: YPath = emptyList(),
+    val filePattern: String? = null,
 )
 
 data class ViewDef(
@@ -338,15 +344,19 @@ object Views {
         }
         val detail = (raw["detail"] as? Map<*, *>)?.let { m ->
             val pattern = m["filePattern"]?.toString()
-            if (pattern != null) {
-                require(pattern.contains("{id}")) { "detail.filePattern には {id} を含めてください: $pattern" }
-                require(pattern.endsWith(".yaml") || pattern.endsWith(".yml")) { "detail.filePattern はYAMLファイルである必要があります: $pattern" }
-            }
+            pattern?.let { validateFilePattern("detail", it) }
             ViewDetailDef(source = parseSource(m), filePattern = pattern)
         }
         val newRow = (raw["newRow"] as? Map<*, *>)?.let { m ->
-            ViewNewRowDef(
-                file = m["file"]?.toString()?.takeIf { it.isNotBlank() } ?: error("newRow.file が必要です"),
+            val pattern = m["filePattern"]?.toString()?.takeIf { it.isNotBlank() }
+            if (pattern != null) {
+                // ファイルモード: 配列モードのキーとは排他（どちらの意図か曖昧な定義を弾く）
+                listOf("file", "path").firstOrNull { m.containsKey(it) }
+                    ?.let { error("newRow: filePattern と $it は併用できません（配列モードとファイルモードは排他）") }
+                validateFilePattern("newRow", pattern)
+                ViewNewRowDef(filePattern = pattern)
+            } else ViewNewRowDef(
+                file = m["file"]?.toString()?.takeIf { it.isNotBlank() } ?: error("newRow.file か newRow.filePattern が必要です"),
                 path = parseYPath(m["path"]?.toString() ?: error("newRow.path が必要です")),
             )
         }
@@ -364,6 +374,12 @@ object Views {
             newRow = newRow,
             source = source,
         )
+    }
+
+    /** filePattern（detail / newRow 共通）の形式検査。`{id}` 置換でYAMLファイル名になること。 */
+    private fun validateFilePattern(where: String, pattern: String) {
+        require(pattern.contains("{id}")) { "$where.filePattern には {id} を含めてください: $pattern" }
+        require(pattern.endsWith(".yaml") || pattern.endsWith(".yml")) { "$where.filePattern はYAMLファイルである必要があります: $pattern" }
     }
 
     /**
@@ -556,6 +572,23 @@ object Views {
                 val s = byId[sid] ?: run { report("列「${col.label}」のスキーマ「$sid」が見つかりません"); return@forEach }
                 if (unresolvableFromIdElements(s, col.path)) {
                     report("列「${col.label}」のパス「${col.path.pretty()}」はスキーマ「$sid」のID要素から解決できません")
+                }
+            }
+            v.newRow?.filePattern?.let { pattern ->
+                // 代表ID（idPattern の * を仮埋め）で作成先を解決し、スキーマなし・detail 認定外の事故を検出する
+                val rel = pattern.replace("{id}", v.rows.idPattern.replace("*", "X"))
+                val matched = schemas.firstOrNull { it.matches(rel) }
+                if (matched == null) {
+                    report("newRow.filePattern「$pattern」の作成先にマッチするスキーマがありません（作成される文書が空になります）")
+                }
+                v.detail?.source?.let { src ->
+                    val globOk = src.fileGlob?.let { g ->
+                        runCatching { globToRegex(g).matches(rel) }.getOrDefault(true)
+                    } ?: true
+                    val schemaOk = src.schemaId == null || matched == null || matched.id == src.schemaId
+                    if (!globOk || !schemaOk) {
+                        report("newRow.filePattern「$pattern」の作成先が detail の認定条件に一致しません（作成直後の行が「未作成」になります）")
+                    }
                 }
             }
         }
@@ -911,12 +944,19 @@ object Views {
     /**
      * 行のIDから詳細文書の新規作成内容を組み立てる（作成自体は呼び出し側が行う:
      * UIはファイル書き込み、エージェントは create_document）。
-     * スキーマは filePattern の解決先パスにマッチするものを使い、必須フィールドの初期値と
-     * ルート直下の ID フィールドへ行のIDを設定する。
      */
     fun detailScaffold(view: ViewDef, id: String, schemas: List<SchemaDef>): Scaffold {
         val pattern = view.detail?.filePattern
             ?: error("このビューには detail.filePattern が定義されていません")
+        return scaffold(pattern, id, schemas)
+    }
+
+    /**
+     * filePattern（detail / newRow ファイルモード共用）とIDから新規文書の内容を組み立てる。
+     * スキーマは `{id}` 置換後のパスにマッチするものを使い、必須フィールドの初期値と
+     * ルート直下の ID フィールドへIDを設定する。
+     */
+    fun scaffold(pattern: String, id: String, schemas: List<SchemaDef>): Scaffold {
         require(id.isNotBlank() && !id.contains('/') && !id.contains('\\') && !id.contains("..")) {
             "ファイル名に使用できないIDです: $id"
         }
@@ -968,6 +1008,14 @@ object Views {
         appendLine("ビュー: ${view.name}（${view.id}）")
         view.description?.let { appendLine(it.trim()) }
         appendLine("行: ${rows.size} 件（idPattern: ${view.rows.idPattern}）")
+        view.newRow?.let { nr ->
+            // エージェントが「新しい行の作り方」を出力から判断できるようにする（配列＝apply_patch／ファイル＝create_document）
+            if (nr.filePattern != null) {
+                appendLine("新規行: ${nr.filePattern} の {id} を新しいIDに置換したパスへ create_document で文書を作成すると行になる")
+            } else {
+                appendLine("新規行: ${nr.file} :: ${nr.path.pretty()} へ要素を追加し、IDを設定すると行になる")
+            }
+        }
         for (row in rows) {
             append("- id: ").append(row.id)
             row.title?.let { append("  title: ").append(it) }

@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import index.DocScanner
 import index.IdIndex
 import index.IdEntry
+import index.idMatchesPattern
 import model.YNode
 import model.YPath
 import schema.SchemaDef
@@ -591,8 +592,28 @@ class AppState {
      * 作成先とスキーマ初期値は core.Views.detailScaffold が決め、作成後はその文書を開く。
      */
     fun createViewDetail(view: core.ViewDef, id: String): Result<Path> = runCatching {
+        createScaffoldFile(core.Views.detailScaffold(view, id, schemas))
+    }
+
+    /**
+     * ビューの newRow（ファイルモード）: 入力されたIDで詳細文書そのものを新規作成して行を作る（R15-01）。
+     * 行の集合はディスク基準の索引から解決されるため、書き込んだ時点でグリッドに行が現れる。
+     */
+    fun addViewRowFile(view: core.ViewDef, id: String): Result<Path> = runCatching {
+        val pattern = view.newRow?.filePattern ?: error("このビューの newRow はファイルモードではありません")
+        val trimmed = id.trim()
+        require(idMatchesPattern(trimmed, view.rows.idPattern)) {
+            "ID「$trimmed」はこのビューの行になりません（idPattern: ${view.rows.idPattern}）"
+        }
+        index.entries[trimmed]?.firstOrNull()?.let {
+            error("ID「$trimmed」は既に存在します: ${relPath(it.file)}")
+        }
+        createScaffoldFile(core.Views.scaffold(pattern, trimmed, schemas))
+    }
+
+    /** スキャフォールドをディスクへ書き出し、再読込してその文書を開く（詳細作成・新規行ファイルモード共用）。 */
+    private fun createScaffoldFile(scaffold: core.Views.Scaffold): Path {
         val ws = workspace ?: error("ワークスペースが開かれていません")
-        val scaffold = core.Views.detailScaffold(view, id, schemas)
         val file = ws.resolve(scaffold.rel).normalize()
         require(file.startsWith(ws)) { "ワークスペース外には作成できません: ${scaffold.rel}" }
         require(!Files.exists(file)) { "既に同名のファイルが存在します: ${scaffold.rel}" }
@@ -600,7 +621,7 @@ class AppState {
         Files.writeString(file, YamlIO.dump(scaffold.root))
         reload()
         openFile(file)
-        file
+        return file
     }
 
     /**
@@ -609,9 +630,10 @@ class AppState {
      */
     fun addViewRow(view: core.ViewDef): Result<YPath> = runCatching {
         val def = view.newRow ?: error("このビューには newRow が定義されていません")
+        val fileRel = def.file ?: error("このビューの newRow はファイルモードです（addViewRowFile を使う）")
         val ws = workspace ?: error("ワークスペースが開かれていません")
-        val file = ws.resolve(def.file).normalize()
-        require(Files.isRegularFile(file)) { "一覧文書が存在しません: ${def.file}" }
+        val file = ws.resolve(fileRel).normalize()
+        require(Files.isRegularFile(file)) { "一覧文書が存在しません: $fileRel" }
         val doc = ensureDoc(file)
         val root = doc.root ?: error("一覧文書をパースできません: ${doc.parseError}")
         // 追加先の配列を解決する（末端の配列だけは無ければ作成する）

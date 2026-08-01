@@ -993,17 +993,20 @@ object BuiltinSchemas {
                   type: string
                   description: 例 designs/{id}.yaml（{id} が行のIDで置換される）
             - key: newRow
-              label: 新規行の追加先
+              label: 新規行の入口
               type: object
               fields:
                 - key: file
                   label: 一覧文書のファイル
                   type: string
-                  required: true
+                  description: 配列モード。path と対で指定し、一覧文書内の配列へ新しい要素を追加する
                 - key: path
                   label: 追加先の配列YPath
                   type: string
-                  required: true
+                - key: filePattern
+                  label: 新規作成先パターン
+                  type: string
+                  description: ファイルモード。例 designs/{id}.yaml（入力したIDで {id} を置換した詳細文書を新規作成する。file / path とは併用不可）
     """.trimIndent()
 
     /** 組込みスキーマ一覧（読み込み失敗はあり得ない前提。失敗時は例外で気付かせる）。match はレガシー配置。 */

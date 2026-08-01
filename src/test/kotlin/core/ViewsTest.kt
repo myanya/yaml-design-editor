@@ -184,6 +184,83 @@ class ViewsTest {
         assertTrue(loaded.errors.any { "重複" in it }, loaded.errors.toString())
     }
 
+    // ---------------------------------------------------------------- newRow ファイルモード（R15-01）
+
+    @Test
+    fun `newRow file mode is parsed and rendered`() {
+        write(
+            "_views/detail-only.yaml",
+            """
+            id: detail-only
+            name: 詳細のみ
+            rows:
+              idPattern: "SCR-*"
+            columns:
+              - label: レイアウト
+                schemaId: screen-detail
+                path: layout
+            newRow:
+              filePattern: "screens/detail/{id}.yaml"
+            """,
+        )
+        val loaded = Views.load(ws, Workspace.open(ws).schemas)
+        assertTrue(loaded.errors.isEmpty(), loaded.errors.toString())
+        val view = loaded.view("detail-only")!!
+        assertEquals("screens/detail/{id}.yaml", view.newRow?.filePattern)
+        assertNull(view.newRow?.file)
+        // テキスト表現に新規行の作り方が出る（エージェントは create_document で行を作れる）
+        assertTrue("create_document" in Views.renderText(view, emptyList()))
+    }
+
+    @Test
+    fun `newRow file mode rejects mixed and invalid patterns`() {
+        write("_views/bad-nr1.yaml", "id: n1\nrows: { idPattern: \"*\" }\ncolumns:\n  - { label: A, path: name }\nnewRow: { filePattern: \"x/{id}.yaml\", file: a.yaml }")
+        write("_views/bad-nr2.yaml", "id: n2\nrows: { idPattern: \"*\" }\ncolumns:\n  - { label: A, path: name }\nnewRow: { filePattern: \"x/all.yaml\" }")
+        write("_views/bad-nr3.yaml", "id: n3\nrows: { idPattern: \"*\" }\ncolumns:\n  - { label: A, path: name }\nnewRow: { filePattern: \"x/{id}.md\" }")
+        val loaded = Views.load(ws)
+        assertTrue(loaded.errors.any { "bad-nr1.yaml" in it && "併用できません" in it }, loaded.errors.toString())
+        assertTrue(loaded.errors.any { "bad-nr2.yaml" in it && "{id}" in it }, loaded.errors.toString())
+        assertTrue(loaded.errors.any { "bad-nr3.yaml" in it && "YAML" in it }, loaded.errors.toString())
+    }
+
+    @Test
+    fun `lint reports newRow file mode inconsistencies`() {
+        // 作成先にマッチするスキーマがない
+        write(
+            "_views/nr-lint1.yaml",
+            "id: l1\nrows: { idPattern: \"SCR-*\" }\ncolumns:\n  - { label: A, schemaId: screen-detail, path: layout }\nnewRow: { filePattern: \"elsewhere/{id}.yaml\" }",
+        )
+        // 作成先が detail の認定条件（fileGlob）から外れる → 作成直後の行が「未作成」になる事故
+        write(
+            "_views/nr-lint2.yaml",
+            """
+            id: l2
+            rows: { idPattern: "SCR-*" }
+            columns:
+              - { label: A, schemaId: screen-detail, path: layout }
+            detail: { fileGlob: "screens/detail/*.yaml" }
+            newRow: { filePattern: "screens/detail/{id}.yaml" }
+            """,
+        )
+        // 作成先が detail の認定条件（fileGlob）から外れる → 作成直後の行が「未作成」になる事故
+        write(
+            "_views/nr-lint3.yaml",
+            """
+            id: l3
+            rows: { idPattern: "SCR-*" }
+            columns:
+              - { label: A, schemaId: screen-detail, path: layout }
+            detail: { fileGlob: "screens/detail/*.yaml" }
+            newRow: { filePattern: "screens/other/{id}.yaml" }
+            """,
+        )
+        val loaded = Views.load(ws, Workspace.open(ws).schemas)
+        assertTrue(loaded.errors.any { "nr-lint1.yaml" in it && "マッチするスキーマ" in it }, loaded.errors.toString())
+        // nr-lint2 は作成先が認定条件に一致するため指摘なし
+        assertTrue(loaded.errors.none { "nr-lint2.yaml" in it }, loaded.errors.toString())
+        assertTrue(loaded.errors.any { "nr-lint3.yaml" in it && "認定条件" in it }, loaded.errors.toString())
+    }
+
     // ---------------------------------------------------------------- 解決
 
     @Test
@@ -737,6 +814,16 @@ class ViewsTest {
         assertFailsWith<IllegalArgumentException> { Views.detailScaffold(view, "../escape", workspace.schemas) }
     }
 
+    @Test
+    fun `scaffold builds document from newRow filePattern`() {
+        val workspace = Workspace.open(ws)
+        val scaffold = Views.scaffold("screens/detail/{id}.yaml", "SCR-NEW", workspace.schemas)
+        assertEquals("screens/detail/SCR-NEW.yaml", scaffold.rel)
+        val map = scaffold.root as YNode.Map
+        assertEquals("SCR-NEW", (map.entries["id"] as YNode.Scalar).value)
+        assertEquals("single-column", (map.entries["layout"] as YNode.Scalar).value, "作成先にマッチするスキーマの初期値が入る")
+    }
+
     // ---------------------------------------------------------------- CLI
 
     @Test
@@ -748,6 +835,9 @@ class ViewsTest {
         assertTrue("SCR-LIST" in out, out)
         assertTrue("screens[0].name" in out, out)
         assertTrue("detailCreatePath: screens/detail/SCR-EDIT.yaml" in out, out)
+        // 新規行の入口（配列モード）が機械可読に出る
+        assertTrue("newRow" in out, out)
+        assertTrue("file: screens/index.yaml" in out, out)
     }
 
     // ---------------------------------------------------------------- エージェントツール（read_view）

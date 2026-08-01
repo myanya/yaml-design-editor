@@ -223,9 +223,14 @@ internal fun runCli(args: Array<String>): String {
                 ?: error("ビュー「$viewId」が見つかりません（view コマンドで一覧を確認できます）")
             val rows = Views.resolve(view, ws.root, ws.index)
             dumpYaml(
-                linkedMapOf(
+                linkedMapOf<String, Any?>(
                     "view" to view.id,
                     "name" to view.name,
+                    // 新規行の入口（配列モード: file+path へ要素追加／ファイルモード: filePattern の {id} 置換先へ文書作成）
+                    "newRow" to view.newRow?.let { nr ->
+                        if (nr.filePattern != null) linkedMapOf("filePattern" to nr.filePattern)
+                        else linkedMapOf("file" to nr.file, "path" to nr.path.pretty())
+                    },
                     "rows" to rows.map { row ->
                         linkedMapOf<String, Any?>(
                             "id" to row.id,
@@ -258,7 +263,7 @@ internal fun runCli(args: Array<String>): String {
                                 view.detail?.filePattern?.replace("{id}", row.id) else null,
                         ).filterValues { it != null }
                     },
-                )
+                ).filterValues { it != null }
             )
         }
         "validate" -> {

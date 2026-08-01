@@ -95,6 +95,7 @@ fun ViewGridView(state: AppState) {
 @Composable
 private fun HeaderBar(state: AppState, loaded: Views.LoadResult, view: ViewDef?) {
     var selectorOpen by remember { mutableStateOf(false) }
+    var newRowDialog by remember { mutableStateOf(false) }
     Row(
         Modifier.fillMaxWidth().background(Palette.Surface).padding(8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -129,14 +130,17 @@ private fun HeaderBar(state: AppState, loaded: Views.LoadResult, view: ViewDef?)
             Text(it.replace("\n", " ").take(80), fontSize = 11.sp, color = Palette.SubText, maxLines = 1)
         }
         Spacer(Modifier.weight(1f))
-        if (view?.newRow != null) {
+        val newRow = view?.newRow
+        if (newRow != null) {
             OutlinedButton(
                 enabled = !state.readOnlyMode,
                 onClick = {
-                    state.addViewRow(view)
+                    // ファイルモードはファイル名にIDが要るため、先にID入力ダイアログを挟む
+                    if (newRow.filePattern != null) newRowDialog = true
+                    else state.addViewRow(view!!)
                         .onSuccess { path ->
                             state.status = "一覧文書に新しい行を追加しました。内容を入力して保存するとグリッドに現れます"
-                            state.workspace?.let { state.openFile(it.resolve(view.newRow!!.file), path) }
+                            newRow.file?.let { f -> state.workspace?.let { state.openFile(it.resolve(f), path) } }
                         }
                         .onFailure { state.status = it.message ?: "行を追加できませんでした" }
                 },
@@ -154,6 +158,49 @@ private fun HeaderBar(state: AppState, loaded: Views.LoadResult, view: ViewDef?)
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
         ) { Text("すべて保存", fontSize = 11.sp) }
     }
+    if (newRowDialog && view != null) {
+        NewRowIdDialog(
+            view = view,
+            onDismiss = { newRowDialog = false },
+            onConfirm = { id ->
+                newRowDialog = false
+                state.addViewRowFile(view, id)
+                    .onSuccess { state.status = "詳細文書を作成して行を追加しました: ${state.relPath(it)}" }
+                    .onFailure { state.status = it.message ?: "行を追加できませんでした" }
+            },
+        )
+    }
+}
+
+/**
+ * newRow ファイルモードのID入力ダイアログ。入力IDが filePattern の {id} と新規文書のIDになる。
+ * 作成はディスク書込のため、索引の更新でグリッドに行が即座に現れる。
+ */
+@Composable
+private fun NewRowIdDialog(view: ViewDef, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+    var value by remember { mutableStateOf("") }
+    val pattern = view.newRow?.filePattern ?: return
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("新規行（詳細文書の作成）", fontSize = 16.sp) },
+        text = {
+            Column {
+                Text(
+                    "入力したIDで ${pattern.replace("{id}", value.trim().ifBlank { "{id}" })} を作成します",
+                    fontSize = 12.sp, color = Palette.SubText,
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value, { value = it }, singleLine = true,
+                    label = { Text("ID（idPattern: ${view.rows.idPattern}）") },
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = value.isNotBlank(), onClick = { onConfirm(value.trim()) }) { Text("作成") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("キャンセル") } },
+    )
 }
 
 @Composable
