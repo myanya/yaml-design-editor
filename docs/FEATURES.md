@@ -97,8 +97,10 @@
 | X-02 | 一括編集（ルート直下の任意スカラーキー。候補はワークスペースから収集、`id`・予約キー・複合値は対象外。確認ダイアログ、未保存文書があれば拒否。ROADMAP R8-05） | ✅ | `AppState.bulkUpdate` / `bulkKeyCandidates` | 手動 |
 | X-03 | 参照グラフ（力学配置による全件描画、パン・ズーム、IDノード／一覧クリックで定義へジャンプ、参照元ファイルと参照先IDの色分け。ROADMAP R8-05） | ✅ | `ui/WorkspaceViews.kt`, `ui/GraphLayout.kt` | 単体（`GraphLayoutTest`）＋手動 |
 | X-04 | コマンドパレット（Ctrl+K。統合検索: ID・タイトル移動（I-06）・ファイル検索・台帳ビュー切替・実行／設計スペース切替・保存・ワークスペース切替。ROADMAP R12-04） | ✅ | `Main.kt`（`CommandPalette`） | 手動 |
-| X-05 | ビュー定義 `_views`（宣言的な射影: 行=論理IDパターン × 列=出現からの相対YPath。並び順・詳細文書・新規行・バックリンク列（`backlinks`: 行IDへの被参照を relation／参照元スキーマで絞って一覧表示。1:N詳細化の分裂先の逆引き。ROADMAP R7-02）の宣言、組込みスキーマでフォーム編集・検証、メタアクティビティの提案対象） | ✅ | `core/Views.kt`, `schema/BuiltinSchemas.kt` | 単体（`ViewsTest`） |
+| X-05 | ビュー定義 `_views`（宣言的な射影。`kind: grid`（省略時既定）: 行=論理IDパターン × 列=出現からの相対YPath、並び順・詳細文書・新規行・バックリンク列（`backlinks`: 行IDへの被参照を relation／参照元スキーマで絞って一覧表示。1:N詳細化の分裂先の逆引き。ROADMAP R7-02）の宣言。`kind: document`: 文書ビュー（X-07）。組込みスキーマでフォーム編集・検証、メタアクティビティの提案対象） | ✅ | `core/Views.kt`, `schema/BuiltinSchemas.kt` | 単体（`ViewsTest`） |
 | X-06 | ビューグリッド（ビューを編集可能な一覧として表示。スカラーセルの直接編集・複合値は表示解決 S-13 による要約表示＋ジャンプ・詳細文書の作成・新規行の追加・バックリンク列＝参照元のID・タイトルの列挙とジャンプ（編集不可の派生表示）・カバレッジ表示（フェーズ未到達のルールは対象外）・絞り込み。閲覧専用モード（E-12）では全セルが表示専用） | ✅ | `ui/ViewGridPane.kt`, `AppState.ensureDoc` / `createViewDetail` / `addViewRow` | 単体（core経路は `ViewsTest`）＋手動 |
+| X-07 | 文書ビュー（`kind: document`。ROADMAP R14-01: `match`／`schemaId` で適用先文書を決め、フォーム表示を `sections`＝fields（スキーマ駆動フォームの射影。`path` で部分表示、`include`＝列挙順の選別／`exclude`＝除外で表示キーを合成。R14-03）＋backlinks（文書内IDへの被参照表: `idPattern`・`relation`・`schemaIds` で絞り、`columns` で参照元要素の値を列表示）の並びとして合成する。`attachments`＝要素単位アタッチ（R14-03: `at` パターン＝YPath＋`[*]` に一致する要素の展開フォーム内に、その要素のIDへの被参照表を差し込む。ルート・ネスト・配列要素・テーブル行展開の全描画経路に効く）。マッチしない文書は従来のスキーマ駆動フォーム＝暗黙の既定ビュー。被参照表は読み取り専用＋参照元へのジャンプ。台帳の文書のみ対象。`read_view`（`file` 引数）・CLI `view <id> [file]` でも解決可） | ✅ | `core/Views.kt`（`DocViewDef` / `resolveDocument` / `resolveAttachments` / `renderDocText`）, `ui/FormView.kt`（`DocViewSections` / `AttachedBacklinks`）, `schema/BuiltinSchemas.kt` | 単体（`ViewsTest`）＋手動（フォーム描画） |
+| X-08 | ビュー定義の一級スキーマ参照とリント（ROADMAP R14-02: グリッド列の `definition:`＝named definition（`module#name`。非修飾名は `schemaId` から補完）のセル型フィールドを列集合へ展開し、ラベル・パスをスキーマから導出（ID型は行キーと重複するため除外）。文書ビューの `fields.definition`＝参照宣言（存在はパース＝ステージング提出ゲート込み、実使用はリント）。リントはスキーマを渡した `Views.load` で有効になり、ビュー→スキーマの参照（schemaId・パス＝ID要素からの静的解決・definition）の整合を検査。指摘はビューを無効化せず、定義エラーとしてグリッドのバナー・`read_view`・CLI `view` に表示） | ✅ | `core/Views.kt`（`expandDefinitionColumns` / `lint`）, `schema/Schema.kt`（`definitionRefOf`） | 単体（`ViewsTest`） |
 
 ## 7. AIによる作成支援
 
@@ -144,7 +146,7 @@
 | AG-21 | 比較実験（評価セットの `variants`: モデル・エージェント・追加指示を差し替えたA/B実行と合格率・コストの比較） | ✅ | `agent/Evals.kt`（`EvalRunner`） | 単体（`EvalTest`） |
 | AG-22 | メタアクティビティ（`meta: true` で `_agents` / `_activities` / `_evals` / `_skills` / `_views` への提案を許可。承認は human 固定、`_schemas`/`_runs` は常に不可、定義のパース可否を提出ゲートに追加） | ✅ | `agent/Definitions.kt`, `agent/Tools.kt`, `agent/Staging.kt` | 単体（`MetaActivityTest`, `DefinitionsTest`） |
 | AG-23 | 自己改善UI（実行スペースの「計測・評価」タブ: メトリクス表示・評価セットの実行と変異別結果の比較） | ✅ | `ui/ImprovementPanel.kt`（`ImprovementSection`） | 手動＋単体（実行系経路） |
-| AG-24 | エージェントへのビュー開示（`read_view` ツール: ステージング反映済みの行×列を原本座標つきで返し、そのまま `apply_patch` の対象にできる。`context.views` による初期文脈への開示） | ✅ | `agent/Tools.kt`（`viewText`）, `agent/Kernel.kt` | 単体（`ViewsTest`） |
+| AG-24 | エージェントへのビュー開示（`read_view` ツール: ステージング反映済みの行×列を原本座標つきで返し、そのまま `apply_patch` の対象にできる。文書ビュー（X-07）は `file` 引数で対象文書を指定（適用対象1件なら省略可）し被参照表を座標つきで返す。`context.views` による初期文脈への開示） | ✅ | `agent/Tools.kt`（`viewText`）, `agent/Kernel.kt` | 単体（`ViewsTest`） |
 | AG-25 | 段階的詳細化のAI導線（ROADMAP P7）: `related` ツールが各出現の主要フィールド要約と現在フェーズ・記入進捗を1回で返す（出現ごとの `read_node` が不要）。被参照には参照元要素のID・タイトル（表示解決 S-13。人間UIと同じ要約）を付与。`list_documents` のカタログにもフェーズ状態を付与。`context.include: [phase]` で対象文書のフェーズ状態を初期文脈に開示 | ✅ | `agent/Tools.kt`（`relatedText`, `catalogText`, `phaseText`）, `agent/Kernel.kt`, `core/Disclosure.kt`, `validate/Validator.kt`（`phaseSummaryText`） | 単体（`ToolsTest`, `KernelTest`） |
 
 ## 9. コアAPI・CLI（エージェント基盤）
@@ -159,7 +161,7 @@ UIに依存しないヘッドレス操作の層（[ROADMAP.md](ROADMAP.md) P1 �
 | C-04 | 段階的開示API（カタログ→骨子→ノード全文の3段階、文字数予算付き文脈バンドル） | ✅ | `core/Disclosure.kt` | 単体（`WorkspaceCliTest`） |
 | C-05 | 構造検索API（本文・キーの部分一致＋スキーマ／ファイルglob／パスglob条件、参照検索・未解決参照検索） | ✅ | `core/Search.kt` | 単体（`WorkspaceCliTest`） |
 | C-06 | CLI（catalog / outline / read / bundle / search / view / validate / apply / hash / activities / agent / watch / revert / metrics / eval / bench / skills / import / export / run-skill / init / infer-schema / migrate。出力はUTF-8のYAML。`validate` は `phases` 宣言スキーマの文書に `phaseProgress` を付与し、`_schemas` 文書もメタスキーマ（S-15）で検証する） | ✅ | `core/Cli.kt`, `build.gradle.kts`（`runCli`） | 単体（`WorkspaceCliTest` 一気通貫） |
-| C-07 | ビュー解決API（`_views` 定義のロード・行×セルへの解決＝原本座標化・バックリンク列の解決＝参照元の最内IDと参照座標・データパスからのスキーマフィールド解決・詳細文書スキャフォールド。CLI `view`） | ✅ | `core/Views.kt`, `core/Cli.kt` | 単体（`ViewsTest`） |
+| C-07 | ビュー解決API（`_views` 定義のロード・行×セルへの解決＝原本座標化・バックリンク列の解決＝参照元の最内IDと参照座標・データパスからのスキーマフィールド解決・詳細文書スキャフォールド・文書ビューの解決（X-07: `resolveDocument`＝被参照表の座標つき解決と `renderDocText`）。CLI `view <id> [file]`） | ✅ | `core/Views.kt`, `core/Cli.kt` | 単体（`ViewsTest`） |
 | C-08 | 索引性能ベンチマーク（ベンチマーク用ワークスペースの生成と、索引のフル再構築 vs 増分更新の比較計測。CLI `bench`。ROADMAP R8-02） | ✅ | `core/Bench.kt`, `core/Cli.kt` | 単体（`IdIndexIncrementalTest`） |
 | C-09 | 文書キャッシュの中核（`EditBuffer`＝履歴・dirty・複数ドキュメント再出力、`WorkspaceRecords`＝一覧・一括編集、`Workspace.noteDiskChanges`＝保存・外部変更の増分／全再構築の振り分け一元化。UIの `AppState` / `OpenDocument` はこの層への委譲＋Compose購読ミラーになる。ROADMAP R9-02） | ✅ | `core/Documents.kt`, `core/Workspace.kt` | 単体（`DocumentsTest`） |
 

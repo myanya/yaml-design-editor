@@ -86,11 +86,13 @@ class AgentToolbox(
             )
             specs += ToolSpec(
                 "read_view",
-                "ビュー定義（_views）を行×列に解決して返す。複数文書に散らばる同一IDの情報を一覧で横断確認でき、" +
-                    "各セルには原本上の座標（file :: path）が付くため、そのまま apply_patch の対象にできる。" +
+                "ビュー定義（_views）を解決して返す。横断グリッドは行×列に解決し、複数文書に散らばる同一IDの情報を" +
+                    "一覧で横断確認できる。各セルには原本上の座標（file :: path）が付くため、そのまま apply_patch の対象にできる。" +
+                    "文書ビュー（kind: document）は file で対象文書を指定し、被参照表（参照元と座標）つきで返す。" +
                     "ステージング済みの編集も反映される。view省略時は利用可能なビューの一覧を返す。",
                 obj {
                     optional("view", "ビューID（省略時は一覧）")
+                    optional("file", "対象文書のワークスペース相対パス（文書ビューのみ。適用対象が1件ならば省略可）")
                 },
             )
         }
@@ -206,7 +208,7 @@ class AgentToolbox(
                 )
             }
             "related" -> Outcome(relatedText(requireArg("id")))
-            "read_view" -> Outcome(viewText(arg("view")))
+            "read_view" -> Outcome(viewText(arg("view"), arg("file")))
             "apply_patch" -> {
                 val rel = requireArg("file")
                 checkWritableFile(rel)
@@ -349,18 +351,54 @@ class AgentToolbox(
      * ビューの解決テキスト（read_view と初期文脈の開示で共用）。
      * 行・出現はステージングのオーバーレイ索引、セル値はステージング済みツリーから読む。
      */
-    fun viewText(viewId: String?): String {
-        val loaded = core.Views.load(ws.root)
+    fun viewText(viewId: String?, fileRel: String? = null): String {
+        val loaded = core.Views.load(ws.root, ws.schemas)
         if (viewId.isNullOrBlank()) {
-            if (loaded.views.isEmpty()) return "（ビュー定義がありません）"
-            return loaded.views.joinToString("\n") { v ->
+            if (loaded.views.isEmpty() && loaded.docViews.isEmpty()) return "（ビュー定義がありません）"
+            val lines = loaded.views.map { v ->
                 "- ${v.id}（${v.name}）: idPattern=${v.rows.idPattern}, 列=${v.columns.joinToString("/") { it.label }}"
-            } + (if (loaded.errors.isEmpty()) "" else "\n定義エラー:\n" + loaded.errors.joinToString("\n") { "- $it" })
+            } + loaded.docViews.map { v ->
+                "- ${v.id}（${v.name}）: 文書ビュー 適用先=" +
+                    listOfNotNull(v.match, v.schemaId?.let { "schema:$it" }).joinToString(" & ")
+            }
+            return lines.joinToString("\n") +
+                (if (loaded.errors.isEmpty()) "" else "\n定義エラー:\n" + loaded.errors.joinToString("\n") { "- $it" })
         }
+        loaded.docView(viewId)?.let { return docViewText(it, fileRel) }
         val view = loaded.view(viewId)
-            ?: error("ビュー「$viewId」が見つかりません（利用可能: ${loaded.views.joinToString(", ") { it.id }.ifEmpty { "なし" }}）")
+            ?: error(
+                "ビュー「$viewId」が見つかりません" +
+                    "（利用可能: ${(loaded.views + loaded.docViews).joinToString(", ") { it.id }.ifEmpty { "なし" }}）"
+            )
         val rows = core.Views.resolve(view, ws.root, staging.index()) { f -> staging.tree(ws.relPath(f)) }
         return core.Views.renderText(view, rows)
+    }
+
+    /** 文書ビュー（R14-01）の解決テキスト。対象文書は file 指定＞適用対象が1件なら自動選択。 */
+    private fun docViewText(view: core.DocViewDef, fileRel: String?): String {
+        val candidates = ws.files.map { ws.relPath(it) }
+            .filter { rel -> view.appliesTo(rel, ws.schemaFor(ws.resolve(rel))?.id) }
+            .sorted()
+        val rel = when {
+            fileRel != null -> {
+                val n = fileRel.replace('\\', '/')
+                require(view.appliesTo(n, ws.schemaFor(ws.resolve(n))?.id)) {
+                    "文書「$n」はビュー「${view.id}」の適用対象ではありません" +
+                        "（適用対象: ${candidates.joinToString(", ").ifEmpty { "なし" }}）"
+                }
+                n
+            }
+            candidates.size == 1 -> candidates.first()
+            candidates.isEmpty() -> return "ビュー「${view.id}」の適用対象の文書がありません"
+            else -> return "ビュー「${view.id}」は文書ビューです。file で対象文書を指定してください:\n" +
+                candidates.joinToString("\n") { "- $it" }
+        }
+        val file = ws.resolve(rel)
+        val index = staging.index()
+        val loader = { f: java.nio.file.Path -> staging.tree(ws.relPath(f)) }
+        val sections = core.Views.resolveDocument(view, ws.root, file, index, loader = loader)
+        val attachments = core.Views.resolveAttachments(view, ws.root, file, index, loader = loader)
+        return core.Views.renderDocText(view, rel, sections, attachments)
     }
 
     private fun relatedText(id: String): String {

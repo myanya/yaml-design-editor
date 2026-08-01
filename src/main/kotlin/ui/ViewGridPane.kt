@@ -63,7 +63,7 @@ private val EDITABLE_TYPES = setOf(
 fun ViewGridView(state: AppState) {
     state.indexVersion
     val ws = state.workspace ?: return
-    val loaded = remember(state.indexVersion, ws) { Views.load(ws) }
+    val loaded = remember(state.indexVersion, ws) { Views.load(ws, state.schemas) }
     val view = loaded.view(state.viewGridId ?: "") ?: loaded.views.firstOrNull()
 
     Column(Modifier.fillMaxSize().background(Palette.EditorBg)) {

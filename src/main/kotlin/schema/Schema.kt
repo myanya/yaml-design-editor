@@ -271,6 +271,12 @@ data class SchemaDef(
 
     internal fun withDefinitionCatalog(catalog: SchemaCatalog): SchemaDef = copy(definitionCatalog = catalog)
 
+    /**
+     * フィールドが参照する named definition の修飾名（`module#name`）。`$ref` でなければ null。
+     * ビュー定義の一級参照・リント（R14-02）が「このフィールドはどの定義か」を外部から判定するのに使う。
+     */
+    fun definitionRefOf(field: FieldDef?): String? = field?.let { f -> definitionTarget(f)?.first?.toString() }
+
     /** $ref を1段ずつ解決する。循環はデータ走査側が有限なので許容する。 */
     fun resolve(field: FieldDef?): FieldDef? {
         var current = field ?: return null

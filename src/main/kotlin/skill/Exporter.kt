@@ -59,7 +59,10 @@ object Exporter {
 
     /** ビュー定義（`_views`）を解決し、そのままの行×列を表として書き出す。 */
     private fun runFromView(ws: Workspace, def: ExportDef, viewId: String): Result {
-        val loaded = Views.load(ws.root)
+        val loaded = Views.load(ws.root, ws.schemas)
+        if (loaded.docView(viewId) != null) {
+            error("ビュー「$viewId」は文書ビュー（kind: document）のためエクスポートできません（kind: grid のビューを指定してください）")
+        }
         val view = loaded.view(viewId)
             ?: error("ビュー「$viewId」が見つかりません" +
                 (loaded.errors.takeIf { it.isNotEmpty() }?.let { "（定義エラー: ${it.joinToString(" / ")}）" } ?: ""))

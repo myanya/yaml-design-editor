@@ -780,8 +780,42 @@ object BuiltinSchemas {
 
     private val viewSchemaYaml = """
         id: builtin-view
-        name: ビュー定義（横断一覧）
+        name: ビュー定義（横断一覧・文書ビュー）
         match: "${SchemaLoader.VIEWS_DIR}/**/*.{yaml,yml}"
+        definitions:
+          docBacklinks:
+            type: object
+            fields:
+              - key: idPattern
+                label: 対象IDパターン
+                type: string
+                description: 文書内のこのglobに一致するIDだけを対象にする（省略時は全ID）
+              - key: relation
+                label: 関係種別の限定
+                type: string
+                description: 参照の relation がこの値の被参照だけを表示する（省略時は全被参照）
+              - key: schemaIds
+                label: 参照元スキーマの限定
+                type: array
+                item:
+                  type: string
+                description: 参照元文書のスキーマIDを限定する（省略時は制限なし）
+              - key: columns
+                label: 表示列
+                type: array
+                description: 参照元要素から表示する値の列（省略時はID・タイトルの要約のみ）
+                item:
+                  type: object
+                  fields:
+                    - key: label
+                      label: 見出し
+                      type: string
+                      required: true
+                    - key: path
+                      label: 相対パス
+                      type: string
+                      required: true
+                      description: 参照元要素からの相対YPath（例 name）
         root:
           type: object
           fields:
@@ -795,10 +829,88 @@ object BuiltinSchemas {
             - key: description
               label: 説明
               type: text
+            - key: kind
+              label: ビュー種別
+              type: enum
+              values:
+                - value: grid
+                  label: 横断グリッド
+                  description: 行（論理ID）×列（出現からの相対パス）の横断一覧（省略時の既定）
+                - value: document
+                  label: 文書ビュー
+                  description: match / schemaId に一致する文書のフォーム表示を sections で合成する
+              default: grid
+            - key: match
+              label: 適用先ファイル（glob）
+              type: string
+              description: "文書ビューのみ: このglobに一致する文書へ適用する（schemaId と併記時は AND）"
+            - key: schemaId
+              label: 適用先スキーマ
+              type: string
+              description: "文書ビューのみ: このスキーマが適用される文書へ適用する"
+            - key: sections
+              label: セクションの定義
+              type: array
+              description: "文書ビューのみ: 上から順に描画するセクション（fields か backlinks のどちらか一方を持つ）"
+              item:
+                type: object
+                fields:
+                  - key: label
+                    label: 見出し
+                    type: string
+                  - key: fields
+                    label: フォームセクション
+                    type: object
+                    description: スキーマ駆動フォームの射影（path 省略時はルート全体。backlinks とは併用不可）
+                    fields:
+                      - key: path
+                        label: 表示するデータのYPath
+                        type: string
+                        description: 文書ルートからの相対YPath（例 actors）。省略時はルート全体
+                      - key: definition
+                        label: 定義参照
+                        type: string
+                        description: このセクションが参照する named definition（module#name。schemaId 指定時は名前だけでも可）。パス先のフィールドが実際にこの定義を参照しているかをリントで検査する
+                      - key: include
+                        label: 表示キーの選別
+                        type: array
+                        item:
+                          type: string
+                        description: 列挙したキーだけをこの順で表示する（exclude とは併用不可）
+                      - key: exclude
+                        label: 表示キーの除外
+                        type: array
+                        item:
+                          type: string
+                        description: 列挙したキーを表示から除く
+                  - key: backlinks
+                    label: 被参照表セクション
+                    description: 文書内のIDへの被参照（参照元）を一覧表示する（fields とは併用不可）
+                    ${'$'}ref: docBacklinks
+            - key: attachments
+              label: 要素単位アタッチ
+              type: array
+              description: "文書ビューのみ: at パターンに一致する要素の展開フォーム内に、その要素のIDへの被参照表を差し込む"
+              item:
+                type: object
+                fields:
+                  - key: label
+                    label: 見出し
+                    type: string
+                  - key: at
+                    label: 差し込み先の要素パス
+                    type: string
+                    required: true
+                    description: YPath 構文＋ [*]（任意のインデックス。例 actors[*]）
+                  - key: backlinks
+                    label: 被参照表
+                    required: true
+                    description: 差し込む被参照の条件（セクションの backlinks と同じ語彙）
+                    ${'$'}ref: docBacklinks
             - key: rows
               label: 行の定義
               type: object
-              required: true
+              description: "横断グリッドのみ（必須）: 行になる論理IDの条件"
               fields:
                 - key: idPattern
                   label: 対象IDパターン
@@ -825,7 +937,7 @@ object BuiltinSchemas {
             - key: columns
               label: 列の定義
               type: array
-              required: true
+              description: "横断グリッドのみ（必須）: 一覧の列"
               item:
                 type: object
                 fields:
@@ -842,7 +954,11 @@ object BuiltinSchemas {
                   - key: path
                     label: 相対パス
                     type: string
-                    description: 出現要素からの相対YPath（例 name / areas / inputs[0].type）。path か backlinks のどちらか一方が必要
+                    description: 出現要素からの相対YPath（例 name / areas / inputs[0].type）。path / backlinks / definition のいずれか一つが必要
+                  - key: definition
+                    label: 定義参照
+                    type: string
+                    description: named definition（module#name。schemaId 指定時は名前だけでも可）のセル型フィールドを列集合に展開する（ラベル・パスは定義から導出。label / path / backlinks とは併用不可）
                   - key: editable
                     label: 一覧上で編集可
                     type: boolean

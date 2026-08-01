@@ -145,7 +145,7 @@ class Staging(val ws: Workspace) {
             schema.WorkspaceLayout.Zone.ACTIVITIES -> { raw -> Definitions.parseActivity(raw, e.file) }
             schema.WorkspaceLayout.Zone.EVALS -> { raw -> Evals.parseEval(raw, e.file) }
             schema.WorkspaceLayout.Zone.SKILLS -> { raw -> skill.Skills.parseSkill(raw, e.file) }
-            schema.WorkspaceLayout.Zone.VIEWS -> { raw -> core.Views.parseView(raw, e.file) }
+            schema.WorkspaceLayout.Zone.VIEWS -> { raw -> core.Views.parseView(raw, e.file, ws.schemas) }
             else -> return null
         }
         val raw = YamlIO.toAny(e.root) as? Map<*, *> ?: return "定義のルートはobjectである必要があります"

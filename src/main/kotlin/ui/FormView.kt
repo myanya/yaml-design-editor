@@ -35,6 +35,12 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.PopupProperties
 import app.AppState
 import app.OpenDocument
+import core.DocBacklinkRow
+import core.DocBacklinksDef
+import core.DocSectionResolved
+import core.DocViewAttachment
+import core.DocViewDef
+import core.Views
 import index.DocScanner
 import index.IdEntry
 import index.IdIndex
@@ -42,6 +48,7 @@ import index.RefEntry
 import index.isAllowedBy
 import model.YNode
 import model.YPath
+import model.pretty
 import schema.Display
 import schema.FieldDef
 import schema.FieldType
@@ -67,6 +74,8 @@ class FormCtx(
     val localIds: List<IdEntry>,
     val readOnly: Boolean = state.readOnlyMode,
     val baseDepth: Int = 0,
+    /** 文書ビューの要素単位アタッチ（R14-03）: 要素パス → その位置に差し込む被参照。ObjectFields が描画する。 */
+    val attachments: Map<YPath, List<Pair<DocViewAttachment, DocBacklinkRow>>> = emptyMap(),
 ) {
     /**
      * ネスト構造の既定展開判定。フォームのルートから DEFAULT_EXPAND_DEPTH 階層までは開き、
@@ -170,7 +179,26 @@ fun FormView(state: AppState, doc: OpenDocument) {
         val documentId = IdIndex.documentIdOf(root, state.relPath(doc.file))
         DocScanner.scan(root, doc.file, doc.schema, documentId).first
     }
-    val ctx = remember(doc, doc.version, state.indexVersion, state.readOnlyMode) { FormCtx(state, doc, localIds) }
+    // 文書ビュー（R14-01）: マッチする定義があれば表示合成をビューに委ねる。ビューは台帳層の機構のため台帳の文書に限る
+    val docView = remember(state.indexVersion, doc.file, doc.schema) {
+        val ws = state.workspace
+        val rel = state.relPath(doc.file)
+        if (ws == null || !state.layout.inLedger(rel)) null
+        else Views.load(ws, state.schemas).docViewFor(rel, doc.schema?.id)
+    }
+    // 要素単位アタッチ（R14-03）: 要素パス → 被参照 に解決して FormCtx へ載せる（描画は ObjectFields）
+    val attachments = remember(doc, doc.version, state.indexVersion, docView) {
+        val ws = state.workspace
+        if (docView == null || docView.attachments.isEmpty() || ws == null) emptyMap()
+        else Views.resolveAttachments(docView, ws, doc.file, state.index, localIds) { f ->
+            state.docFor(f)?.root
+                ?: runCatching { YamlIO.parseFirst(java.nio.file.Files.readString(f)) }.getOrNull()
+        }.flatMap { resolved -> resolved.rows.map { row -> row.path to (resolved.attachment to row) } }
+            .groupBy({ it.first }, { it.second })
+    }
+    val ctx = remember(doc, doc.version, state.indexVersion, state.readOnlyMode, attachments) {
+        FormCtx(state, doc, localIds, attachments = attachments)
+    }
 
     Box(Modifier.fillMaxSize()) {
         val scroll = rememberScrollState()
@@ -183,21 +211,10 @@ fun FormView(state: AppState, doc: OpenDocument) {
                 SameIdOccurrencesStrip(ctx, localIds)
                 Spacer(Modifier.height(8.dp))
             }
-            val schemaDef = doc.schema
-            val rootDef = schemaDef?.resolve(schemaDef.root)
-            if (rootDef?.type == FieldType.OBJECT && root is YNode.Map) {
-                ObjectFields(ctx, schemaDef.resolve(schemaDef.root)?.fields.orEmpty(), root, emptyList())
-            } else if (rootDef?.type == FieldType.MAP) {
-                ValueEditor(ctx, rootDef, RootSlot(doc), emptyList())
+            if (docView != null && root is YNode.Map) {
+                DocViewSections(ctx, docView, root, localIds)
             } else {
-                if (schemaDef != null) {
-                    Text(
-                        "スキーマ「${schemaDef.name}」のルート定義とドキュメント構造が一致しないため、汎用ビューで表示しています。",
-                        fontSize = 12.sp, color = Palette.WarnOrange,
-                        modifier = Modifier.padding(bottom = 8.dp),
-                    )
-                }
-                GenericEditor(ctx, RootSlot(doc), emptyList(), refHint = false)
+                SchemaRootForm(ctx, root)
             }
             Spacer(Modifier.height(80.dp))
         }
@@ -334,20 +351,202 @@ private fun SameIdOccurrencesStrip(ctx: FormCtx, localIds: List<IdEntry>) {
     }
 }
 
+// ================================================================ 文書ビュー（R14-01）
+
+/** スキーマ駆動フォームのルート描画。文書ビューがない文書の既定表示＝暗黙の既定ビュー。 */
+@Composable
+private fun SchemaRootForm(
+    ctx: FormCtx,
+    root: YNode,
+    include: List<String>? = null,
+    exclude: Set<String> = emptySet(),
+) {
+    val doc = ctx.doc
+    val schemaDef = doc.schema
+    val rootDef = schemaDef?.resolve(schemaDef.root)
+    if (rootDef?.type == FieldType.OBJECT && root is YNode.Map) {
+        ObjectFields(ctx, schemaDef.resolve(schemaDef.root)?.fields.orEmpty(), root, emptyList(), include, exclude)
+    } else if (rootDef?.type == FieldType.MAP) {
+        ValueEditor(ctx, rootDef, RootSlot(doc), emptyList())
+    } else {
+        if (schemaDef != null) {
+            Text(
+                "スキーマ「${schemaDef.name}」のルート定義とドキュメント構造が一致しないため、汎用ビューで表示しています。",
+                fontSize = 12.sp, color = Palette.WarnOrange,
+                modifier = Modifier.padding(bottom = 8.dp),
+            )
+        }
+        GenericEditor(ctx, RootSlot(doc), emptyList(), refHint = false)
+    }
+}
+
+/**
+ * 文書ビューのセクション描画。fields セクションは既存のフォーム経路（FormCtx / Slot）へ委譲し、
+ * backlinks セクションは読み取り専用の被参照表を出す——ビュー専用の書込経路は作らない（ARCHITECTURE §4.14）。
+ */
+@Composable
+private fun DocViewSections(ctx: FormCtx, view: DocViewDef, root: YNode.Map, localIds: List<IdEntry>) {
+    val state = ctx.state
+    val doc = ctx.doc
+    // 行（文書内ID）は未保存編集を反映（localIds）、被参照は索引＝保存済み状態基準（SidePanel と同じ）
+    val resolved = remember(doc, doc.version, state.indexVersion, view) {
+        state.workspace?.let { ws ->
+            Views.resolveDocument(view, ws, doc.file, state.index, localIds) { f ->
+                state.docFor(f)?.root
+                    ?: runCatching { YamlIO.parseFirst(java.nio.file.Files.readString(f)) }.getOrNull()
+            }
+        }.orEmpty()
+    }
+    resolved.forEachIndexed { i, sectionResolved ->
+        val section = sectionResolved.section
+        if (i > 0) Spacer(Modifier.height(12.dp))
+        section.label?.let {
+            Text(it, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Palette.Primary)
+            Spacer(Modifier.height(4.dp))
+        }
+        val fieldsPath = section.fieldsPath
+        if (fieldsPath != null) {
+            val include = section.fieldsInclude.ifEmpty { null }
+            val exclude = section.fieldsExclude.toSet()
+            if (fieldsPath.isEmpty()) {
+                SchemaRootForm(ctx, root, include, exclude)
+            } else {
+                val field = doc.schema?.let { Views.fieldAt(it, root, fieldsPath) }
+                val slot = slotAt(root, fieldsPath)
+                val node = model.getAt(root, fieldsPath)
+                when {
+                    slot == null -> Text(
+                        "パス「${fieldsPath.pretty()}」は文書内に存在しません",
+                        fontSize = 11.sp, color = Palette.WarnOrange,
+                    )
+                    // 選別指定つきの object パスは、そのオブジェクトの子フィールドを直接（選別して）描画する
+                    (include != null || exclude.isNotEmpty()) &&
+                        field?.type == FieldType.OBJECT && node is YNode.Map ->
+                        ObjectFields(ctx, field.fields, node, fieldsPath, include, exclude)
+                    field != null -> FieldRow(ctx, field, slot, fieldsPath)
+                    else -> GenericEditor(ctx, slot, fieldsPath, refHint = false)
+                }
+            }
+        } else {
+            BacklinkSectionTable(state, sectionResolved)
+        }
+    }
+}
+
+/** 被参照表セクション。派生表示のため常に読み取り専用（クリックで参照元の位置へジャンプ）。 */
+@Composable
+private fun BacklinkSectionTable(state: AppState, resolved: DocSectionResolved) {
+    val def = resolved.section.backlinks ?: return
+    val rows = resolved.rows.orEmpty()
+    Column(
+        Modifier.fillMaxWidth().background(Palette.PanelBg, PanelShape)
+            .border(1.dp, Palette.Border, PanelShape).padding(10.dp),
+    ) {
+        if (rows.isEmpty()) {
+            Text("対象のIDがこの文書にありません", fontSize = 11.sp, color = Palette.SubText)
+        }
+        rows.forEachIndexed { i, row ->
+            if (i > 0) Spacer(Modifier.height(6.dp))
+            Text(
+                listOfNotNull(row.id, row.title).joinToString(" "),
+                fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+            )
+            BacklinkItems(state, def, row)
+        }
+    }
+}
+
+/** 被参照1行分の項目一覧（セクション表・要素単位アタッチで共用。読み取り専用＋ジャンプ）。 */
+@Composable
+private fun BacklinkItems(state: AppState, def: DocBacklinksDef, row: DocBacklinkRow) {
+    if (row.backlinks.isEmpty()) {
+        Text("（被参照なし）", fontSize = 10.sp, color = Palette.SubText)
+    }
+    row.backlinks.forEach { b ->
+        Row(
+            Modifier.fillMaxWidth()
+                .clickable {
+                    // 参照元の位置へジャンプ（参照値そのものの位置。SidePanel の被参照と同じ経路）
+                    state.openFile(b.file, b.refPath)
+                    state.editorTab = 0
+                }
+                .padding(vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Default.ArrowForward, contentDescription = null, Modifier.size(12.dp), tint = Palette.Primary)
+            Spacer(Modifier.width(6.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    listOfNotNull(b.sourceId ?: b.rel, b.sourceTitle).joinToString(" "),
+                    fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                )
+                val details = def.columns.mapIndexed { ci, col ->
+                    "${col.label}: ${Views.cellText(b.values.getOrNull(ci), 40)}"
+                } + listOfNotNull(b.relation?.let { "関係: $it" }, b.rel)
+                Text(details.joinToString("　"), fontSize = 10.sp, color = Palette.SubText, maxLines = 2)
+            }
+        }
+    }
+}
+
+/** 要素単位アタッチ（R14-03）の描画。ObjectFields の末尾から、その要素のパスに差し込まれた被参照表を出す。 */
+@Composable
+private fun AttachedBacklinks(ctx: FormCtx, path: YPath) {
+    val attached = ctx.attachments[path] ?: return
+    attached.forEach { (attachment, row) ->
+        Spacer(Modifier.height(6.dp))
+        Column(
+            Modifier.fillMaxWidth().background(Palette.PanelBg, PanelShape)
+                .border(1.dp, Palette.Border, PanelShape).padding(8.dp),
+        ) {
+            attachment.label?.let {
+                Text(it, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Palette.Primary)
+                Spacer(Modifier.height(2.dp))
+            }
+            BacklinkItems(ctx.state, attachment.backlinks, row)
+        }
+    }
+}
+
 // ================================================================ スキーマ駆動フォーム
 
-/** スキーマの fields をフォーム行として描画し、スキーマ外のキーも汎用行で表示する。 */
+/**
+ * スキーマの fields をフォーム行として描画し、スキーマ外のキーも汎用行で表示する。
+ * include / exclude は文書ビューの fields セクションによる表示キーの選別（R14-03）:
+ * include はその順で列挙したキーだけを描画し（スキーマ外キーの表示なし）、exclude は該当キーを除いて通常描画する。
+ */
 @Composable
-fun ObjectFields(ctx: FormCtx, fields: List<FieldDef>, map: YNode.Map, path: YPath) {
+fun ObjectFields(
+    ctx: FormCtx,
+    fields: List<FieldDef>,
+    map: YNode.Map,
+    path: YPath,
+    include: List<String>? = null,
+    exclude: Set<String> = emptySet(),
+) {
     // enum 値に応じた case フィールドを合成した実効フィールドで描画する
     val effective = ctx.doc.schema?.effectiveFields(fields, map)
     val effectiveList = effective?.fields ?: fields
+    if (include != null) {
+        // 選別モード: 列挙順に描画。スキーマに無いキーもデータにあれば汎用行で出す（無ければリントが指摘）
+        val byKey = effectiveList.associateBy { it.key }
+        for (key in include) {
+            val field = byKey[key]
+            if (field != null) FieldRow(ctx, field, MapSlot(map, key), path + key)
+            else if (map.entries.containsKey(key)) GenericMapEntryRow(ctx, map, key, path)
+        }
+        AttachedBacklinks(ctx, path)
+        return
+    }
     val definedKeys = effectiveList.mapNotNull { it.key }.toSet()
     for (field in effectiveList) {
         val key = field.key ?: continue
+        if (key in exclude) continue
         FieldRow(ctx, field, MapSlot(map, key), path + key)
     }
-    val extraKeys = map.entries.keys.filter { it !in definedKeys && !(path.isEmpty() && it == "_document") }
+    val extraKeys = map.entries.keys.filter {
+        it !in definedKeys && it !in exclude && !(path.isEmpty() && it == "_document")
+    }
     val inactiveKeys = extraKeys.filter { effective?.inactive?.containsKey(it) == true }
     if (inactiveKeys.isNotEmpty()) {
         Spacer(Modifier.height(8.dp))
@@ -369,6 +568,8 @@ fun ObjectFields(ctx: FormCtx, fields: List<FieldDef>, map: YNode.Map, path: YPa
             GenericMapEntryRow(ctx, map, k, path)
         }
     }
+    // 文書ビューの要素単位アタッチ（R14-03）: この要素のパスに差し込まれた被参照表
+    AttachedBacklinks(ctx, path)
 }
 
 @Composable

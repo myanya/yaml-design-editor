@@ -32,7 +32,8 @@ internal const val CLI_USAGE = """コマンド:
   bundle   <workspace> <file> [path] [--budget N]      対象と関連情報（参照・被参照）の文脈バンドル
   search   <workspace> [--text q] [--schema id]... [--file glob] [--path glob]
                        [--ref-to id] [--unresolved] [--limit n]
-  view     <workspace> [view-id]                ビュー（_views）を行×列に解決する。
+  view     <workspace> [view-id] [file]         ビュー（_views）を解決する。横断グリッドは行×列、
+           文書ビュー（kind: document）は file で対象文書を指定（適用対象1件なら省略可）。
            view-id 省略時は定義の一覧を表示する。各セルに原本上の座標（file / path）が付く
   validate <workspace> [file]                   検証（スキーマ・参照・重複・カバレッジ）
   apply    <workspace> <changeset.yaml> [--dry-run] [--require-valid]   変更セットの適用
@@ -138,19 +139,86 @@ internal fun runCli(args: Array<String>): String {
         }
         "view" -> {
             val ws = workspace()
-            val loaded = Views.load(ws.root)
+            val loaded = Views.load(ws.root, ws.schemas)
             val viewId = rest.getOrNull(1)?.takeIf { !it.startsWith("--") }
                 ?: return dumpYaml(
                     linkedMapOf(
-                        "views" to loaded.views.map { v ->
+                        "views" to (loaded.views.map { v ->
                             linkedMapOf(
                                 "id" to v.id, "name" to v.name, "idPattern" to v.rows.idPattern,
                                 "columns" to v.columns.map { it.label },
                             )
-                        },
+                        } + loaded.docViews.map { v ->
+                            linkedMapOf(
+                                "id" to v.id, "name" to v.name, "kind" to "document",
+                                "match" to v.match, "schemaId" to v.schemaId,
+                            ).filterValues { it != null }
+                        }),
                         "errors" to loaded.errors,
                     )
                 )
+            // 文書ビュー（R14-01）: view <workspace> <view-id> [file] で対象文書を解決する
+            loaded.docView(viewId)?.let { dv ->
+                val fileArg = rest.getOrNull(2)?.takeIf { !it.startsWith("--") }?.replace('\\', '/')
+                val candidates = ws.files.map { ws.relPath(it) }
+                    .filter { dv.appliesTo(it, ws.schemaFor(ws.resolve(it))?.id) }
+                    .sorted()
+                val rel = fileArg ?: candidates.singleOrNull() ?: return dumpYaml(
+                    linkedMapOf(
+                        "view" to dv.id,
+                        "kind" to "document",
+                        "files" to candidates,
+                        "hint" to "view <workspace> ${dv.id} <file> で対象文書を指定してください",
+                    )
+                )
+                val sections = Views.resolveDocument(dv, ws.root, ws.resolve(rel), ws.index)
+                val attachments = Views.resolveAttachments(dv, ws.root, ws.resolve(rel), ws.index)
+                // 被参照行 → YAML 構造（セクション・アタッチ共用）
+                fun rowMaps(rows: List<DocBacklinkRow>?, def: DocBacklinksDef?): List<Map<String, Any?>>? =
+                    rows?.map { row ->
+                        linkedMapOf<String, Any?>(
+                            "id" to row.id,
+                            "title" to row.title,
+                            "path" to row.path.pretty(),
+                            "backlinks" to row.backlinks.map { b ->
+                                linkedMapOf<String, Any?>(
+                                    "id" to b.sourceId,
+                                    "title" to b.sourceTitle,
+                                    "file" to b.rel,
+                                    "path" to b.refPath.pretty(),
+                                    "values" to def?.columns
+                                        ?.mapIndexed { ci, col -> col.label to Views.cellText(b.values.getOrNull(ci)) }
+                                        ?.toMap()?.takeIf { it.isNotEmpty() },
+                                ).filterValues { it != null }
+                            },
+                        ).filterValues { it != null }
+                    }
+                return dumpYaml(
+                    linkedMapOf(
+                        "view" to dv.id,
+                        "kind" to "document",
+                        "name" to dv.name,
+                        "file" to rel,
+                        "sections" to sections.map { resolved ->
+                            val section = resolved.section
+                            linkedMapOf<String, Any?>(
+                                "label" to section.label,
+                                "fields" to section.fieldsPath?.let { p -> if (p.isEmpty()) "(root)" else p.pretty() },
+                                "include" to section.fieldsInclude.takeIf { it.isNotEmpty() },
+                                "exclude" to section.fieldsExclude.takeIf { it.isNotEmpty() },
+                                "rows" to rowMaps(resolved.rows, section.backlinks),
+                            ).filterValues { it != null }
+                        },
+                        "attachments" to attachments.map { resolved ->
+                            linkedMapOf<String, Any?>(
+                                "label" to resolved.attachment.label,
+                                "at" to resolved.attachment.atText,
+                                "rows" to rowMaps(resolved.rows, resolved.attachment.backlinks),
+                            ).filterValues { it != null }
+                        }.takeIf { it.isNotEmpty() },
+                    ).filterValues { it != null }
+                )
+            }
             val view = loaded.view(viewId)
                 ?: error("ビュー「$viewId」が見つかりません（view コマンドで一覧を確認できます）")
             val rows = Views.resolve(view, ws.root, ws.index)

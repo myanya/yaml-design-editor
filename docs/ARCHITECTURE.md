@@ -70,7 +70,7 @@ src/main/kotlin/
 | `Bench` | core/Bench.kt | 索引性能の計測（R8-02）: ベンチマーク用ワークスペースの生成と、フル再構築 vs 増分更新の比較計測。CLI `bench` |
 | `Disclosure` | core/Disclosure.kt | 段階的開示: カタログ→骨子→ノード全文、文字数予算付き文脈バンドル |
 | `Search` | core/Search.kt | 構造検索: 本文・キー部分一致＋スキーマ／glob条件、参照・未解決参照の検索 |
-| `ViewDef` / `Views` | core/Views.kt | ビュー機構（P6）: `_views` 定義のロード、行（論理ID）×列（相対YPath）の解決＝原本座標化、バックリンク列（被参照の逆引き。R7-02）、データパスからのスキーマフィールド解決（`fieldAt`）、詳細文書スキャフォールド、テキスト表現（`renderText`） |
+| `ViewDef` / `DocViewDef` / `Views` | core/Views.kt | ビュー機構（P6 / P14）: `_views` 定義のロード（`kind: grid / document`）、グリッド＝行（論理ID）×列（相対YPath）の解決＝原本座標化、バックリンク列（被参照の逆引き。R7-02）、文書ビュー＝文書単位の表示合成（sections の解決 `resolveDocument`。R14-01）、データパスからのスキーマフィールド解決（`fieldAt`）、詳細文書スキャフォールド、テキスト表現（`renderText` / `renderDocText`） |
 | `runCli` | core/Cli.kt | CLIコマンド（catalog/outline/read/bundle/search/validate/apply/hash/activities/agent/watch/revert/metrics/eval）。出力はUTF-8のYAML |
 | `ToolChatSession` / `ToolChat` | ai/ToolChat.kt | ツール使用（function calling）対応のチャット抽象と OpenAI Responses / Anthropic Messages 実装。会話状態はセッションが保持。Azure は OpenAI 互換プリセットとして `OpenAiToolSession` を共用する |
 | `AiConnection` / `AiHttp` | ai/Connection.kt, ai/Http.kt | OpenAI互換エンドポイントの接続先解決（ベースURL・認証ヘッダ形式・APIバージョン。Azure プリセット・ollama / vLLM 等）と、AI呼び出し用 HttpClient の単一ファクトリ（プロキシ・Basic認証。R9-07・R9-08。§4.18） |
@@ -204,9 +204,9 @@ enum の `cases`（値ごとの追加フィールド。判別共用体）を持�
 - **ビュー参照エクスポートは既存機構の合成**: `source.view`（R9-05）は `Views.load` / `Views.resolve` の結果をそのまま表にする。ビュー専用の解決ロジックを Exporter 側に持たない（列・行・バックリンクの解決は §4.14 と同一）。
 - **`_skills` も予約ディレクトリ**: 通常のエージェントは書込不可、メタアクティビティのみ提案可（パースゲートつき）。自動実行の監視対象外。
 
-### 4.14 ビュー機構（P6）
+### 4.14 ビュー機構（P6 / P14）
 
-`_views` の宣言的ビュー定義を「行（＝論理ID）×列（＝出現要素からの相対YPath）」の編集面に射影する。守るべき不変条件:
+`_views` の宣言的ビュー定義には2種類がある: `kind: grid`（省略時既定）は「行（＝論理ID）×列（＝出現要素からの相対YPath）」の横断的な編集面、`kind: document`（R14-01）は文書単位の表示合成（フォーム表示をセクションの並びとして組み立てる）。守るべき不変条件:
 
 - **ビューはデータを持たない**: ビューは原本の射影であり、独自の永続化を一切持たない。セルは必ず原本上の座標 `(file, YPath)` に解決され、編集はその座標の原本ツリーへルーティングされる（原本主義）。
 - **編集経路は既存と同一**: UIのセル編集は文書キャッシュ（`AppState.ensureDoc`）上のツリーを `Slot` 経由で直接変更し `markEdited()` する（＝dirty・Undo・保存・外部変更検出がそのまま効く）。エージェントは `read_view` で座標を得て既存の `apply_patch` で編集する。**ビュー専用の書込経路を作らない**（権限強制・ゲートを一元に保つ）。
@@ -214,6 +214,21 @@ enum の `cases`（値ごとの追加フィールド。判別共用体）を持�
 - **`_views` は予約ディレクトリ**: 書込はメタアクティビティのみ（`AgentToolbox`）、自動実行の監視対象外（`AutomationEngine`）、ステージされた定義は `Views.parseView` のパース可否が提出ゲートに加わる（`Staging.validateAll`）。
 - **セルエディタの型解決**: 列の相対パスから `Views.fieldAt` でフィールド定義を辿る（`resolve` / `effectiveFields` を通す。§4.7）。直接編集はスカラー系フィールドに限定し、複合値はジャンプで個別フォームへ誘導する。
 - **バックリンク列は編集不可の派生表示**（R7-02）: `backlinks` 列は索引の被参照を relation・参照元スキーマで絞って解決し、出現の選択（`path` / `schemaId` / `fileGlob`）や `editable` とは排他（パース時に拒否）。参照元要素のIDは「参照位置をパスの接頭辞に含む、最も長いパスの出現」として解決する。セルが指す座標は参照値の位置＝ジャンプ先であり、書込はしない（被参照を変えるには参照元文書を編集する）。
+
+文書ビュー（`kind: document`。R14-01）に固有の不変条件:
+
+- **スキーマ＝データ契約、ビュー＝画面の合成**という責務分離の実現形。表示決定の優先順位は「①文書ビュー（合成）＞②スキーマの固有表示ヒント（`role` / `display` / `label`。`Display` §4.22 の共有契約として存置）＞③予約語規約」。**今後、画面合成のためのオプションをスキーマ（`FieldDef`）へ足さない**——合成の要望はビュー側の語彙で受ける。
+- **マッチしない文書は従来のスキーマ駆動フォーム**＝「現行表示は暗黙の既定ビュー」。文書ビューは opt-in の上書きであり、適用は `match`（glob）／`schemaId` の AND、複数定義は定義ファイル名順の先勝ち（スキーマの `match` と同じ規則。`LoadResult.docViewFor`）。ビューは台帳層の機構のため台帳の文書（`WorkspaceLayout.inLedger`）に限る。
+- **fields セクションは既存フォームへの委譲**: ルート全体（`path` 省略）は従来のルート描画（`SchemaRootForm`）を、部分表示（`path` 指定）は `Views.fieldAt`＋`slotAt`＋`FieldRow` をそのまま使う。編集経路・`readOnly`・`markEdited` は通常のフォームと同一で、文書ビュー専用の編集UIを作らない。
+- **backlinks セクションは編集不可の派生表示**: グリッドのバックリンク列と同じ解決規則（索引の被参照を relation・参照元スキーマで絞る。参照元要素は `IdIndex.sourceEntryOf`）で、行＝文書内のID（`idPattern` で絞り込み・文書内の出現順）。`columns` は参照元要素からの相対YPathの値を表示専用で添える。座標は参照値の位置＝ジャンプ先であり、被参照を変えるには参照元文書を編集する。
+- **人間とAIが同じ面を見る**: `read_view`（`file` 引数。適用対象が1件なら省略可）・CLI `view <id> [file]` が同じ解決（`resolveDocument` / `resolveAttachments` / `renderDocText`）を返す。エクスポート（`source.view`）はグリッドのみ対象（文書ビューは定義段階で拒否）。
+- **選別・アタッチも既存経路の合成**（R14-03）: fields の `include` / `exclude` は `ObjectFields` の描画対象の選別であり、編集経路・実効フィールド合成（`effectiveFields`）は変えない。要素単位アタッチ（`attachments`）は解決結果を `FormCtx.attachments`（要素パス → 被参照行）で運び、`ObjectFields` の**末尾**で描画する——ルート・ネスト object・配列要素・テーブル行展開のすべての描画経路に自然に効き、専用の描画分岐を作らない。差し込まれる被参照表は backlinks セクションと同じ解決（`DocResolver` 共有）・同じ読み取り専用原則で、対象要素にIDがなければ何も差し込まれない（`at` の解決可否とID有無はリント対象）。
+
+definition 参照とリント（R14-02）に固有の不変条件:
+
+- **named definition がビューの一級語彙**: ビューからスキーマ構造を指す単位は named definition（`module#name`。`SchemaCatalog` の修飾名。非修飾名は `schemaId` から補完）に統一する。無名のネスト位置を指す第二のアドレス体系を作らない——ビューから参照したい構造は `definitions` へ括り出すのが運用規約。グリッド列の `definition:` は定義のセル型フィールド（`Display.tableColumns` と同じ規則。ID型は行キーと重複するため除外）を列へ展開し、ラベル・パスをスキーマから導出する。展開は**パース時**（schemas が必要）に行われ、展開後は通常の列と完全に同一（resolve・グリッド・エクスポート・`read_view` に分岐なし）。
+- **リントは load 時の助言**: `Views.load(workspace, schemas)` はビュー→スキーマの参照（schemaId・パス・definition）の整合を検査し、指摘を errors として返す（**ビューは無効化しない**——解決・表示は従来どおり）。パスの検査は「スキーマのID要素（ID型フィールドを持つ object）のいずれかから静的に解決できるか」（`staticFieldAt`。出現要素は必ずID要素のため）。enum `cases` のフィールドは全ケースの和で「存在しうる子」として扱い、ID要素が見つからないスキーマは判定しない——**誤検知で作者を煩わせない**ことを正しさより優先する（見逃しは許容）。
+- **definition の存在はパースで拒否**: 未知の definition への参照は（助言でなく）パースエラーであり、ステージングの提出ゲート（`Staging.validateAll` → `parseView(raw, source, ws.schemas)`）でも自動的に拒否される。schemas を渡さない素の `parseView` では definition を使う定義がエラーになる（本番経路はすべて schemas を渡す）。
 
 ### 4.15 フェーズ機構（P7: 状態依存の検証プロファイル）
 

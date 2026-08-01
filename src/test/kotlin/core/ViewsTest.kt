@@ -40,20 +40,24 @@ class ViewsTest {
             id: screen-list
             name: 画面一覧
             match: "screens/index.yaml"
+            definitions:
+              screen:
+                type: object
+                fields:
+                  - { key: id, type: id, required: true }
+                  - { key: name, label: 画面名, type: string, required: true }
+                  - key: type
+                    label: 種別
+                    type: enum
+                    values: [list, detail, form]
+                  - { key: summary, label: 概要, type: text }
             root:
               type: object
               fields:
                 - key: screens
                   type: array
                   item:
-                    type: object
-                    fields:
-                      - { key: id, type: id, required: true }
-                      - { key: name, type: string, required: true }
-                      - key: type
-                        type: enum
-                        values: [list, detail, form]
-                      - { key: summary, type: text }
+                    ${'$'}ref: screen
             """,
         )
         write(
@@ -309,6 +313,400 @@ class ViewsTest {
         assertTrue(loaded.errors.any { "bad-bl1.yaml" in it && "併用できません" in it }, loaded.errors.toString())
         assertTrue(loaded.errors.any { "bad-bl2.yaml" in it && "editable" in it }, loaded.errors.toString())
         assertTrue(loaded.errors.any { "bad-bl3.yaml" in it && "schemaId" in it }, loaded.errors.toString())
+    }
+
+    // ---------------------------------------------------------------- 文書ビュー（R14-01）
+
+    /** 文書ビュー: 画面一覧文書のフォームに、実装テーブル（被参照）の表セクションを合成する。 */
+    private fun writeDocViewFixtures() {
+        writeBacklinkFixtures()
+        write(
+            "_views/screen-index-doc.yaml",
+            """
+            id: screen-index-doc
+            name: 画面一覧（文書ビュー）
+            kind: document
+            match: "screens/index.yaml"
+            sections:
+              - fields: {}
+              - label: 実装テーブル
+                backlinks:
+                  idPattern: "SCR-*"
+                  relation: derives
+                  schemaIds: [table-design]
+                  columns:
+                    - label: テーブルID
+                      path: id
+            """,
+        )
+    }
+
+    @Test
+    fun `document view parses and applies to matching documents`() {
+        writeDocViewFixtures()
+        val loaded = Views.load(ws)
+        assertTrue(loaded.errors.isEmpty(), loaded.errors.toString())
+        val view = loaded.docView("screen-index-doc")!!
+        assertEquals("screens/index.yaml", view.match)
+        assertEquals(2, view.sections.size)
+        assertEquals(emptyList<Any>(), view.sections[0].fieldsPath, "fields の path 省略はルート全体")
+        val bl = view.sections[1].backlinks!!
+        assertEquals("SCR-*", bl.idPattern)
+        assertEquals("derives", bl.filter.relation)
+        assertEquals(listOf("table-design"), bl.filter.schemaIds)
+        assertEquals("テーブルID", bl.columns[0].label)
+        // グリッドの一覧には現れず、適用判定（docViewFor）は match / schemaId で決まる
+        assertNull(loaded.view("screen-index-doc"))
+        assertEquals(view, loaded.docViewFor("screens/index.yaml", "screen-list"))
+        assertNull(loaded.docViewFor("screens/detail/SCR-LIST.yaml", "screen-detail"))
+    }
+
+    @Test
+    fun `document view definition errors are collected`() {
+        // match / schemaId なし
+        write("_views/doc-bad1.yaml", "id: d1\nkind: document\nsections:\n  - fields: {}")
+        // fields も backlinks もないセクション
+        write("_views/doc-bad2.yaml", "id: d2\nkind: document\nmatch: \"a.yaml\"\nsections:\n  - label: A")
+        // グリッド専用キーの混入
+        write("_views/doc-bad3.yaml", "id: d3\nkind: document\nmatch: \"a.yaml\"\nrows: { idPattern: \"*\" }\nsections:\n  - fields: {}")
+        // 未知の kind
+        write("_views/doc-bad4.yaml", "id: d4\nkind: unknown")
+        // グリッドへの sections の混入
+        write("_views/doc-bad5.yaml", "id: d5\nrows: { idPattern: \"*\" }\ncolumns:\n  - { label: A, path: name }\nsections: []")
+        val loaded = Views.load(ws)
+        assertTrue(loaded.errors.any { "doc-bad1.yaml" in it && "match" in it }, loaded.errors.toString())
+        assertTrue(loaded.errors.any { "doc-bad2.yaml" in it && "fields か backlinks" in it }, loaded.errors.toString())
+        assertTrue(loaded.errors.any { "doc-bad3.yaml" in it && "rows" in it }, loaded.errors.toString())
+        assertTrue(loaded.errors.any { "doc-bad4.yaml" in it && "kind" in it }, loaded.errors.toString())
+        assertTrue(loaded.errors.any { "doc-bad5.yaml" in it && "sections" in it }, loaded.errors.toString())
+        // 壊れた定義があっても正常な定義は読める
+        assertTrue(loaded.view("screen-catalog") != null)
+    }
+
+    @Test
+    fun `resolveDocument resolves backlink sections with coordinates`() {
+        writeDocViewFixtures()
+        val workspace = Workspace.open(ws)
+        val view = Views.load(ws).docView("screen-index-doc")!!
+        val sections = Views.resolveDocument(view, ws, ws.resolve("screens/index.yaml"), workspace.index)
+        assertEquals(2, sections.size)
+        assertNull(sections[0].rows, "fields セクションは行を持たない（描画側が文書ツリーから直接描く）")
+
+        val rows = sections[1].rows!!
+        assertEquals(listOf("SCR-LIST", "SCR-EDIT"), rows.map { it.id }, "文書内の出現順で並ぶ")
+        assertEquals(parseYPath("screens[0]"), rows[0].path)
+        val backlinks = rows[0].backlinks
+        assertEquals(listOf("TBL-LIST-M", "TBL-LIST-S"), backlinks.map { it.sourceId }, "参照元ファイル順で並ぶ")
+        assertEquals("tables/TBL-LIST-M.yaml", backlinks[0].rel)
+        assertEquals(parseYPath("screen"), backlinks[0].refPath, "参照値の座標を持つ（ジャンプ・apply_patch に使える）")
+        assertEquals("TBL-LIST-M", (backlinks[0].values[0] as YNode.Scalar).value, "columns は参照元要素からの相対値")
+        assertTrue(rows[1].backlinks.isEmpty(), "relation が一致しない参照（see_also）は現れない")
+
+        // テキスト表現（エージェント・CLI 共用）
+        val text = Views.renderDocText(view, "screens/index.yaml", sections)
+        assertTrue("screens/index.yaml :: (root)" in text, text)
+        assertTrue("tables/TBL-LIST-M.yaml :: screen" in text, text)
+        assertTrue("テーブルID: TBL-LIST-M" in text, text)
+        assertTrue("（被参照なし）" in text, text)
+    }
+
+    @Test
+    fun `cli view resolves document view`() {
+        writeDocViewFixtures()
+        val dir = ws.toString()
+        val listOut = runCli(arrayOf("view", dir))
+        assertTrue("screen-index-doc" in listOut, listOut)
+        val out = runCli(arrayOf("view", dir, "screen-index-doc", "screens/index.yaml"))
+        assertTrue("kind: document" in out, out)
+        assertTrue("SCR-LIST" in out, out)
+        assertTrue("path: screen" in out, out)
+        assertTrue("TBL-LIST-S" in out, out)
+    }
+
+    @Test
+    fun `read_view resolves document view with backlinks`() = kotlinx.coroutines.runBlocking {
+        writeDocViewFixtures()
+        val workspace = Workspace.open(ws)
+        val staging = Staging(workspace)
+        val activity = ActivityDef(
+            id = "test", name = "テスト", agentId = "a", instruction = "テスト",
+            source = ws.resolve("_activities/test.yaml"),
+        )
+        val toolbox = AgentToolbox(workspace, staging, activity, ToolGroup.entries.toSet())
+        val host = object : agent.AgentHost {
+            override suspend fun askHuman(question: String): String? = null
+        }
+        // 適用対象が1件なので file 省略で解決される
+        val out = toolbox.execute(
+            ToolCall("1", "read_view", buildJsonObject { put("view", JsonPrimitive("screen-index-doc")) }),
+            host, mutableListOf(),
+        ).content
+        assertTrue("文書ビュー" in out, out)
+        assertTrue("tables/TBL-LIST-M.yaml :: screen" in out, out)
+        // 一覧に文書ビューも載る
+        val listOut = toolbox.execute(
+            ToolCall("2", "read_view", buildJsonObject {}),
+            host, mutableListOf(),
+        ).content
+        assertTrue("screen-index-doc" in listOut, listOut)
+        assertTrue("文書ビュー" in listOut, listOut)
+    }
+
+    @Test
+    fun `staged broken document view fails validation gate`() {
+        val workspace = Workspace.open(ws)
+        val staging = Staging(workspace)
+        staging.createDocument("_views/bad-doc.yaml", YamlIO.parse("id: bad\nkind: document\nsections: []"))
+        val issues = staging.validateAll()
+        assertTrue(
+            issues["_views/bad-doc.yaml"].orEmpty().any { "定義として解釈できません" in it.message },
+            issues.toString(),
+        )
+    }
+
+    // ---------------------------------------------------------------- 合成の成熟（R14-03: 選別・要素単位アタッチ）
+
+    /** 文書ビューの合成（R14-03）: 選別つき fields セクション＋要素単位アタッチ。 */
+    private fun writeComposedDocViewFixtures() {
+        writeBacklinkFixtures()
+        write(
+            "_views/screen-index-composed.yaml",
+            """
+            id: screen-index-composed
+            name: 画面一覧（合成）
+            kind: document
+            match: "screens/index.yaml"
+            schemaId: screen-list
+            sections:
+              - label: 画面一覧
+                fields:
+                  include: [screens]
+            attachments:
+              - at: "screens[*]"
+                label: 実装テーブル
+                backlinks:
+                  relation: derives
+                  schemaIds: [table-design]
+                  columns:
+                    - label: テーブルID
+                      path: id
+            """,
+        )
+    }
+
+    @Test
+    fun `composed document view parses selection and attachments`() {
+        writeComposedDocViewFixtures()
+        val workspace = Workspace.open(ws)
+        val loaded = Views.load(ws, workspace.schemas)
+        assertTrue(loaded.errors.isEmpty(), loaded.errors.toString())
+        val view = loaded.docView("screen-index-composed")!!
+        assertEquals(listOf("screens"), view.sections[0].fieldsInclude)
+        val attachment = view.attachments.single()
+        assertEquals("screens[*]", attachment.atText)
+        assertTrue(attachment.matches(parseYPath("screens[3]")), "[*] は任意のインデックスに一致する")
+        assertTrue(!attachment.matches(parseYPath("screens")), "配列そのものには一致しない")
+        assertTrue(!attachment.matches(parseYPath("screens[0].name")), "より深いパスには一致しない")
+    }
+
+    @Test
+    fun `resolveAttachments resolves element backlinks with coordinates`() {
+        writeComposedDocViewFixtures()
+        val workspace = Workspace.open(ws)
+        val view = Views.load(ws, workspace.schemas).docView("screen-index-composed")!!
+        val file = ws.resolve("screens/index.yaml")
+        val attachments = Views.resolveAttachments(view, ws, file, workspace.index)
+        val rows = attachments.single().rows
+        assertEquals(listOf("SCR-LIST", "SCR-EDIT"), rows.map { it.id }, "要素の文書内順で並ぶ")
+        assertEquals(parseYPath("screens[0]"), rows[0].path, "差し込み先の要素座標を持つ")
+        assertEquals(listOf("TBL-LIST-M", "TBL-LIST-S"), rows[0].backlinks.map { it.sourceId })
+        assertEquals("TBL-LIST-M", (rows[0].backlinks[0].values[0] as YNode.Scalar).value, "columns は参照元要素からの相対値")
+        assertTrue(rows[1].backlinks.isEmpty(), "relation が一致しない参照は現れない")
+
+        // テキスト表現（エージェント・CLI 共用）に選別・アタッチが載る
+        val sections = Views.resolveDocument(view, ws, file, workspace.index)
+        val text = Views.renderDocText(view, "screens/index.yaml", sections, attachments)
+        assertTrue("（選別: screens）" in text, text)
+        assertTrue("アタッチ: 実装テーブル（at: screens[*]）" in text, text)
+        assertTrue("tables/TBL-LIST-M.yaml :: screen" in text, text)
+    }
+
+    @Test
+    fun `composition definition errors and lint`() {
+        writeBacklinkFixtures()
+        // include と exclude の併用は不可
+        write("_views/bad-comp1.yaml", "id: bc1\nkind: document\nmatch: \"a.yaml\"\nsections:\n  - fields: { include: [a], exclude: [b] }")
+        // attachments には backlinks が必要
+        write("_views/bad-comp2.yaml", "id: bc2\nkind: document\nmatch: \"a.yaml\"\nsections:\n  - fields: {}\nattachments:\n  - at: \"x[*]\"")
+        // リント: 未知の選別キー・解決できない at・IDのない at
+        write(
+            "_views/stale-comp.yaml",
+            """
+            id: stale-comp
+            kind: document
+            schemaId: screen-list
+            sections:
+              - fields: { include: [nosuch] }
+            attachments:
+              - at: "nosuch[*]"
+                backlinks: { relation: derives }
+              - at: screens
+                backlinks: { relation: derives }
+            """,
+        )
+        val errors = Views.load(ws, Workspace.open(ws).schemas).errors
+        assertTrue(errors.any { "bad-comp1.yaml" in it && "併用できません" in it }, errors.toString())
+        assertTrue(errors.any { "bad-comp2.yaml" in it && "backlinks" in it }, errors.toString())
+        assertTrue(errors.any { "stale-comp.yaml" in it && "選別キー「nosuch」" in it }, errors.toString())
+        assertTrue(errors.any { "stale-comp.yaml" in it && "nosuch[*]" in it && "解決できません" in it }, errors.toString())
+        assertTrue(errors.any { "stale-comp.yaml" in it && "ID型フィールドがありません" in it }, errors.toString())
+    }
+
+    @Test
+    fun `cli view outputs attachments`() {
+        writeComposedDocViewFixtures()
+        val out = runCli(arrayOf("view", ws.toString(), "screen-index-composed", "screens/index.yaml"))
+        assertTrue("screens[*]" in out, out)
+        assertTrue("TBL-LIST-M" in out, out)
+        assertTrue("include:" in out, out)
+    }
+
+    // ---------------------------------------------------------------- definition 参照とリント（R14-02）
+
+    @Test
+    fun `definition columns expand from named definition`() {
+        write(
+            "_views/screen-columns.yaml",
+            """
+            id: screen-columns
+            name: 画面一覧（定義参照）
+            rows:
+              idPattern: "SCR-*"
+            columns:
+              - definition: screen
+                schemaId: screen-list
+                editable: true
+            """,
+        )
+        val workspace = Workspace.open(ws)
+        val loaded = Views.load(ws, workspace.schemas)
+        assertTrue(loaded.errors.isEmpty(), loaded.errors.toString())
+        val view = loaded.view("screen-columns")!!
+        // ID型は行キーと重複するため除かれ、ラベル・パスはスキーマの定義から導出される
+        assertEquals(listOf("画面名", "種別", "概要"), view.columns.map { it.label })
+        assertEquals(listOf(parseYPath("name"), parseYPath("type"), parseYPath("summary")), view.columns.map { it.path })
+        assertTrue(view.columns.all { it.editable })
+        assertTrue(view.columns.all { it.from.schemaId == "screen-list" })
+
+        val rows = Views.resolve(view, ws, workspace.index)
+        val list = rows.first { it.id == "SCR-LIST" }
+        assertEquals("一覧画面", (list.cells[0].value as YNode.Scalar).value)
+    }
+
+    @Test
+    fun `definition column errors are collected`() {
+        // 未知の定義
+        write("_views/bad-def1.yaml", "id: bd1\nrows: { idPattern: \"*\" }\ncolumns:\n  - definition: \"screen-list#nosuch\"")
+        // label / path / backlinks との併用不可
+        write("_views/bad-def2.yaml", "id: bd2\nrows: { idPattern: \"*\" }\ncolumns:\n  - definition: screen\n    schemaId: screen-list\n    label: A")
+        // 非修飾名は schemaId が必要
+        write("_views/bad-def3.yaml", "id: bd3\nrows: { idPattern: \"*\" }\ncolumns:\n  - definition: screen")
+        val loaded = Views.load(ws, Workspace.open(ws).schemas)
+        assertTrue(loaded.errors.any { "bad-def1.yaml" in it && "見つかりません" in it }, loaded.errors.toString())
+        assertTrue(loaded.errors.any { "bad-def2.yaml" in it && "併用できません" in it }, loaded.errors.toString())
+        assertTrue(loaded.errors.any { "bad-def3.yaml" in it && "schemaId" in it }, loaded.errors.toString())
+    }
+
+    @Test
+    fun `lint reports stale schema references`() {
+        writeDocViewFixtures()
+        val workspace = Workspace.open(ws)
+        // 既存の正しい定義には指摘が出ない（誤検知ガード）
+        assertTrue(Views.load(ws, workspace.schemas).errors.isEmpty(), Views.load(ws, workspace.schemas).errors.toString())
+
+        write(
+            "_views/stale.yaml",
+            """
+            id: stale
+            name: 陳腐化したグリッド
+            rows:
+              idPattern: "SCR-*"
+              schemaIds: [nosuch-schema]
+            columns:
+              - label: 画面名
+                schemaId: screen-list
+                path: renamed
+              - label: 被参照
+                backlinks:
+                  schemaIds: [nosuch-source]
+            """,
+        )
+        write(
+            "_views/stale-doc.yaml",
+            """
+            id: stale-doc
+            kind: document
+            schemaId: screen-list
+            sections:
+              - fields: { path: nosuch }
+              - label: 表
+                backlinks:
+                  schemaIds: [table-design]
+                  columns:
+                    - label: 消えた列
+                      path: nosuch
+            """,
+        )
+        val errors = Views.load(ws, workspace.schemas).errors
+        assertTrue(errors.any { "stale.yaml" in it && "nosuch-schema" in it }, errors.toString())
+        assertTrue(errors.any { "stale.yaml" in it && "renamed" in it && "ID要素から解決できません" in it }, errors.toString())
+        assertTrue(errors.any { "stale.yaml" in it && "nosuch-source" in it }, errors.toString())
+        assertTrue(errors.any { "stale-doc.yaml" in it && "nosuch" in it && "解決できません" in it }, errors.toString())
+        assertTrue(errors.any { "stale-doc.yaml" in it && "消えた列" in it }, errors.toString())
+        // リントの指摘はビューを無効化しない（解決・表示は従来どおり）
+        assertTrue(Views.load(ws, workspace.schemas).view("stale") != null)
+    }
+
+    @Test
+    fun `fields definition declaration is verified by lint`() {
+        val workspace = Workspace.open(ws)
+        // スキーマのフィールドが宣言どおり definition を参照している → 指摘なし
+        write(
+            "_views/doc-def.yaml",
+            "id: doc-def\nkind: document\nschemaId: screen-list\nsections:\n  - fields: { path: screens, definition: screen }",
+        )
+        assertTrue(Views.load(ws, workspace.schemas).errors.isEmpty(), Views.load(ws, workspace.schemas).errors.toString())
+
+        // パス先が宣言した definition を参照していない（スキーマが構造を差し替えた想定）
+        write(
+            "_views/doc-def2.yaml",
+            "id: doc-def2\nkind: document\nschemaId: screen-detail\nsections:\n  - fields: { path: areas, definition: \"screen-list#screen\" }",
+        )
+        val errors = Views.load(ws, workspace.schemas).errors
+        assertTrue(errors.any { "doc-def2.yaml" in it && "参照していません" in it }, errors.toString())
+
+        // 存在しない definition はパース段階で拒否される
+        write(
+            "_views/doc-def3.yaml",
+            "id: doc-def3\nkind: document\nschemaId: screen-list\nsections:\n  - fields: { path: screens, definition: nosuch }",
+        )
+        val errors2 = Views.load(ws, workspace.schemas).errors
+        assertTrue(errors2.any { "doc-def3.yaml" in it && "見つかりません" in it }, errors2.toString())
+    }
+
+    @Test
+    fun `staged view with unknown definition fails gate`() {
+        val workspace = Workspace.open(ws)
+        val staging = Staging(workspace)
+        staging.createDocument(
+            "_views/bad-def.yaml",
+            YamlIO.parse("id: bad\nrows: { idPattern: \"*\" }\ncolumns:\n  - definition: \"screen-list#nosuch\""),
+        )
+        val issues = staging.validateAll()
+        assertTrue(
+            issues["_views/bad-def.yaml"].orEmpty().any { "定義として解釈できません" in it.message },
+            issues.toString(),
+        )
     }
 
     // ---------------------------------------------------------------- フィールド解決
