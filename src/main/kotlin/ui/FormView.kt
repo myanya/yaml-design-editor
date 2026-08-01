@@ -50,18 +50,30 @@ import yaml.YamlIO
 
 private val fieldTextStyle = TextStyle(fontSize = 13.sp)
 
+/** ネスト構造（object・array・map）を既定で展開する深さ（フォームのルートからのパス段数）。 */
+private const val DEFAULT_EXPAND_DEPTH = 2
+
 /**
  * フォーム編集のコンテキスト。
  * localIds は未保存編集を含む「現在のドキュメント内の ID 集合」で、参照解決の即時判定に使う。
  * readOnly は閲覧専用モード（R10-04）: 編集UIを表示専用に切り替え、markEdited への到達を拒否する。
  * 既定値を state.readOnlyMode から取るため、FormCtx を作る全ビュー（フォーム・グリッド・横ぐし）へ自動波及する。
+ * baseDepth は埋め込みフォーム（ID横ぐし）の基準パス段数。既定展開の深さ判定を
+ * 「文書ルートから」ではなく「表示しているフォームのルートから」の相対深さで行うために使う。
  */
 class FormCtx(
     val state: AppState,
     val doc: OpenDocument,
     val localIds: List<IdEntry>,
     val readOnly: Boolean = state.readOnlyMode,
+    val baseDepth: Int = 0,
 ) {
+    /**
+     * ネスト構造の既定展開判定。フォームのルートから DEFAULT_EXPAND_DEPTH 階層までは開き、
+     * より深い階層は畳んで畳み込みサマリ（E-11）に任せる。編集・閲覧専用モード共通。
+     */
+    fun defaultExpanded(path: YPath): Boolean = path.size - baseDepth <= DEFAULT_EXPAND_DEPTH
+
     fun markEdited() {
         check(!readOnly) { "閲覧専用モードでは編集できません" }
         doc.markEdited()
@@ -683,6 +695,9 @@ fun RefEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
 @Composable
 private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
     val node = slot.get()
+    // 既定は浅い階層のみ展開し、深い階層は畳んで要約を見せる（編集・閲覧共通）。
+    // キーに readOnly を含めないことで、モード切替時も展開状態＝表示の深さを保つ。
+    var expanded by remember(path) { mutableStateOf(ctx.defaultExpanded(path)) }
     if (node == null) {
         if (ctx.readOnly) {
             ReadOnlyValueText(null)
@@ -690,6 +705,7 @@ private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) 
         }
         TextButton(onClick = {
             slot.set(YNode.Seq(mutableListOf(defaultNode(field.item, ctx.doc.schema))))
+            expanded = true
             ctx.markEdited()
         }) {
             Icon(Icons.Default.Add, contentDescription = null, Modifier.size(16.dp))
@@ -702,8 +718,6 @@ private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) 
         GenericEditor(ctx, slot, path, refHint = false)
         return
     }
-    // 閲覧専用モード（R10-04）は既定で畳み、要約だけで拾い読みできるようにする
-    var expanded by remember(path, ctx.readOnly) { mutableStateOf(!ctx.readOnly) }
     // 畳み込みサマリ（R10-02）: 表示解決による「n件: 先頭要素の要約, …」
     val header = Display.seqHeaderText(node, ctx.doc.schema, field.item)
     // テーブル表示（R12-06）: 列はスキーマの適否判定（自動＋display ヒント）で決まり、
@@ -1009,6 +1023,9 @@ private fun TableCellText(text: String?) {
 @Composable
 private fun NestedObjectEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
     val node = slot.get()
+    // 既定は浅い階層のみ展開し、深い階層は畳んで要約を見せる（編集・閲覧共通）。
+    // キーに readOnly を含めないことで、モード切替時も展開状態＝表示の深さを保つ。
+    var expanded by remember(path) { mutableStateOf(ctx.defaultExpanded(path)) }
     if (node == null) {
         if (ctx.readOnly) {
             ReadOnlyValueText(null)
@@ -1016,6 +1033,7 @@ private fun NestedObjectEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: 
         }
         TextButton(onClick = {
             slot.set(defaultNode(field, ctx.doc.schema))
+            expanded = true
             ctx.markEdited()
         }) {
             Icon(Icons.Default.Add, contentDescription = null, Modifier.size(16.dp))
@@ -1028,8 +1046,6 @@ private fun NestedObjectEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: 
         GenericEditor(ctx, slot, path, refHint = false)
         return
     }
-    // 閲覧専用モード（R10-04）は既定で畳み、要約だけで拾い読みできるようにする
-    var expanded by remember(path, ctx.readOnly) { mutableStateOf(!ctx.readOnly) }
     // 畳み込みサマリ（R10-02）: 表示解決による「ID タイトル（n項目）」
     val header = Display.headerText(node, ctx.doc.schema, field)
     Column(
@@ -1047,12 +1063,14 @@ private fun NestedObjectEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: 
 @Composable
 private fun MapEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
     val node = slot.get()
+    // 既定は浅い階層のみ展開（編集・閲覧共通）。モード切替時も展開状態＝表示の深さを保つ
+    var expanded by remember(path) { mutableStateOf(ctx.defaultExpanded(path)) }
     if (node == null) {
         if (ctx.readOnly) {
             ReadOnlyValueText(null)
             return
         }
-        TextButton(onClick = { slot.set(YNode.Map()); ctx.markEdited() }) {
+        TextButton(onClick = { slot.set(YNode.Map()); expanded = true; ctx.markEdited() }) {
             Icon(Icons.Default.Add, contentDescription = null, Modifier.size(16.dp))
             Text("Mapを作成", fontSize = 13.sp)
         }
@@ -1063,7 +1081,6 @@ private fun MapEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
         GenericEditor(ctx, slot, path, refHint = false)
         return
     }
-    var expanded by remember(path, ctx.readOnly) { mutableStateOf(!ctx.readOnly) }
     // テーブル表示（R12-06）: 適否判定は配列と共有し、値が全て map のときだけキー列つきの表にする
     val columns = Display.tableColumns(ctx.doc.schema, field)
     val tabular = columns != null && node.entries.isNotEmpty() && node.entries.values.all { it is YNode.Map }

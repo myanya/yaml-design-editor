@@ -288,7 +288,10 @@ private fun OccurrenceForm(state: AppState, doc: OpenDocument, root: YNode, entr
         val documentId = IdIndex.documentIdOf(root, state.relPath(doc.file))
         DocScanner.scan(root, doc.file, doc.schema, documentId).first
     }
-    val ctx = remember(doc, doc.version, state.indexVersion, state.readOnlyMode) { FormCtx(state, doc, localIds) }
+    // 既定展開の深さは文書ルートではなく表示対象要素（entry.path）を基準に判定する
+    val ctx = remember(doc, doc.version, state.indexVersion, state.readOnlyMode) {
+        FormCtx(state, doc, localIds, baseDepth = entry.path.size)
+    }
     val schemaDef = doc.schema
     val map = getAt(root, entry.path) as? YNode.Map
     val objectField = remember(schemaDef, doc.version) {
