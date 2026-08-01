@@ -364,6 +364,16 @@ class AppState {
 
     fun schemaFor(file: Path): SchemaDef? = coreWs?.schemaFor(file)
 
+    /**
+     * AI生成の参考文書候補: 同じスキーマが適用される他のYAML文書（更新日時の新しい順）。
+     * ダイアログ側はこの並び順の先頭から既定選択する（新しい文書ほど現在の書き方を反映しているとみなす）。
+     */
+    fun sameSchemaFiles(exclude: Path, schemaId: String): List<Path> =
+        coreWs?.files
+            ?.filter { it != exclude && schemaFor(it)?.id == schemaId }
+            ?.sortedByDescending { file -> runCatching { Files.getLastModifiedTime(file).toMillis() }.getOrDefault(0L) }
+            .orEmpty()
+
     // ---------------------------------------------------------------- documents
 
     fun docFor(file: Path): OpenDocument? = docCache[file]

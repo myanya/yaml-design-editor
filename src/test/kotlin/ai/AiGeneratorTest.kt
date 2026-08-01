@@ -151,6 +151,44 @@ class AiGeneratorTest {
         assertTrue(containsMap(field, schemaOf(field)))
     }
 
+    // ---------------------------------------------------------------- reference docs in prompt
+
+    private fun inputWith(refs: List<ReferenceDoc>): AiGenerationInput {
+        val field = FieldDef(key = "summary", type = FieldType.STRING)
+        return AiGenerationInput(
+            apiKey = "k", model = "m", instruction = "作成して", field = field, schema = schemaOf(field),
+            targetPath = "summary", currentValueYaml = "（未設定）", currentDocumentYaml = "id: DOC-1",
+            idCandidates = emptyList(), referenceDocs = refs,
+        )
+    }
+
+    @Test
+    fun `reference docs are embedded with their file names`() {
+        val prompt = buildUserInput(inputWith(listOf(
+            ReferenceDoc("a/doc1.yaml", "id: A-1"),
+            ReferenceDoc("b/doc2.yaml", "id: B-1"),
+        )))
+        assertTrue("<reference-document file=\"a/doc1.yaml\">" in prompt)
+        assertTrue("id: A-1" in prompt)
+        assertTrue("<reference-document file=\"b/doc2.yaml\">" in prompt)
+        assertTrue("id: B-1" in prompt)
+    }
+
+    @Test
+    fun `no reference section without reference docs`() {
+        assertTrue("reference-document" !in buildUserInput(inputWith(emptyList())))
+    }
+
+    @Test
+    fun `reference docs beyond the total limit are dropped with a note`() {
+        val big = "x".repeat(REF_DOC_CHAR_LIMIT)
+        val prompt = buildUserInput(inputWith((1..8).map { ReferenceDoc("doc$it.yaml", big) }))
+        // 1件 20_000 文字 × 6件で合計上限 120_000 に達し、7件目以降は省略される
+        assertTrue("<reference-document file=\"doc6.yaml\">" in prompt)
+        assertTrue("doc7.yaml" !in prompt)
+        assertTrue("省略" in prompt)
+    }
+
     // ---------------------------------------------------------------- parseGeneratedValue
 
     @Test

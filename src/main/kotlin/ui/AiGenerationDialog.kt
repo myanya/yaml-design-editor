@@ -4,6 +4,7 @@ import agent.GenerationRun
 import ai.AiGenerationInput
 import ai.AiProvider
 import ai.RefCandidate
+import ai.ReferenceDoc
 import core.Workspace
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
@@ -37,12 +38,21 @@ import schema.FieldType
 import validate.Severity
 import validate.Validator
 import yaml.YamlIO
+import java.nio.file.Files
+import java.nio.file.Path
 
 // AI接続設定（プロバイダ・APIキー・モデル）は ui.AiSettings をエージェント実行と共有する。
 // 実行系も agent.GenerationRun（1ターンで提出する特殊アクティビティ）でカーネルへ統合されており、
 // 生成のたびに実行記録（_runs）が通常のアクティビティ実行と同じ形式で残る（R9-01）。
 
 private enum class AiDialogStage { INPUT, LOADING, PREVIEW, ERROR }
+
+/** 参考文書の候補1件（同一スキーマの他文書）。title はID索引のルート要素タイトル（あれば）。 */
+private class RefDocChoice(val file: Path, val rel: String, val title: String?)
+
+/** ダイアログに並べる参考文書候補の上限と、既定で自動選択する件数（更新日時の新しい順）。 */
+private const val REF_DOC_CHOICE_LIMIT = 20
+private const val REF_DOC_AUTO_SELECT = 3
 
 @Composable
 fun AiGenerationHost(state: AppState) {
@@ -61,16 +71,35 @@ fun AiGenerationHost(state: AppState) {
     val scope = rememberCoroutineScope()
     val currentTarget = getAt(doc.root ?: return, request.path)
     val currentTargetYaml = currentTarget?.let(YamlIO::dump) ?: "（未設定）"
+    // 同一スキーマの他文書を参考文書候補にする。並びは更新日時の新しい順（AppState.sameSchemaFiles）で、
+    // 先頭 REF_DOC_AUTO_SELECT 件を自動選択しつつ、チェックボックスで利用者が選び直せる
+    val refChoices = remember(request) {
+        val rootTitles = state.index.entries.values.flatten()
+            .filter { it.path.isEmpty() }.associateBy({ it.file }, { it.title })
+        state.sameSchemaFiles(doc.file, schema.id)
+            .take(REF_DOC_CHOICE_LIMIT)
+            .map { file -> RefDocChoice(file, state.relPath(file), rootTitles[file]) }
+    }
+    var selectedRefs by remember(request) {
+        mutableStateOf(refChoices.take(REF_DOC_AUTO_SELECT).map { it.rel }.toSet())
+    }
 
     fun generate() {
         stage = AiDialogStage.LOADING
         errorMessage = ""
         val baseRoot = cloneNode(doc.root ?: return)
         val baseTarget = getAt(baseRoot, request.path)
+        // 未保存編集はUIスレッドで確定させ、ディスク読込だけをIOへ持ち込む（docCache は Compose の状態のため）
+        val chosenRefs = refChoices.filter { it.rel in selectedRefs }
+            .map { choice -> Triple(choice.file, choice.rel, state.docFor(choice.file)?.root?.let(YamlIO::dump)) }
         generationJob = scope.launch {
             try {
                 val generated = withContext(Dispatchers.IO) {
                     val ws = Workspace.open(state.workspace ?: error("ワークスペースが開かれていません"))
+                    val referenceDocs = chosenRefs.mapNotNull { (file, rel, unsavedYaml) ->
+                        val yaml = unsavedYaml ?: runCatching { Files.readString(file) }.getOrNull()
+                        yaml?.let { ReferenceDoc(rel, it) }
+                    }
                     GenerationRun.run(
                         ws,
                         GenerationRun.Request(
@@ -86,6 +115,7 @@ fun AiGenerationHost(state: AppState) {
                                 currentDocumentYaml = YamlIO.dump(baseRoot),
                                 idCandidates = state.index.entries.values.flatten()
                                     .map { RefCandidate(it.id, it.schemaId, it.documentId) },
+                                referenceDocs = referenceDocs,
                             ),
                             fileRel = state.relPath(doc.file),
                             targetPath = request.path,
@@ -146,6 +176,11 @@ fun AiGenerationHost(state: AppState) {
                     isArray = request.field.type == FieldType.ARRAY && !request.wholeDocument,
                     appendToArray = appendToArray,
                     onAppendChange = { appendToArray = it },
+                    refChoices = refChoices,
+                    selectedRefs = selectedRefs,
+                    onToggleRef = { rel ->
+                        selectedRefs = if (rel in selectedRefs) selectedRefs - rel else selectedRefs + rel
+                    },
                     errorMessage = errorMessage,
                 )
                 AiDialogStage.LOADING -> Row(
@@ -208,6 +243,9 @@ private fun AiInputContent(
     isArray: Boolean,
     appendToArray: Boolean,
     onAppendChange: (Boolean) -> Unit,
+    refChoices: List<RefDocChoice>,
+    selectedRefs: Set<String>,
+    onToggleRef: (String) -> Unit,
     errorMessage: String,
 ) {
     Column(Modifier.fillMaxWidth().heightIn(max = 580.dp).verticalScroll(rememberScrollState())) {
@@ -228,6 +266,33 @@ private fun AiInputContent(
                 Spacer(Modifier.width(16.dp))
                 RadioButton(selected = !appendToArray, onClick = { onAppendChange(false) })
                 Text("配列全体を置き換え", fontSize = 13.sp)
+            }
+        }
+        if (refChoices.isNotEmpty()) {
+            Spacer(Modifier.height(14.dp))
+            Text("参考文書（同じスキーマの他文書）", fontSize = 12.sp, color = Palette.SubText)
+            Text(
+                "チェックした文書の全文を書き方の手本としてAIに渡します。既定では更新が新しい順に最大 $REF_DOC_AUTO_SELECT 件を自動選択しています。",
+                fontSize = 10.sp,
+                color = Palette.SubText,
+            )
+            refChoices.forEach { choice ->
+                Row(
+                    Modifier.fillMaxWidth().heightIn(min = 30.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(
+                        checked = choice.rel in selectedRefs,
+                        onCheckedChange = { onToggleRef(choice.rel) },
+                        modifier = Modifier.size(28.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(choice.rel, fontSize = 13.sp)
+                    choice.title?.let {
+                        Spacer(Modifier.width(8.dp))
+                        Text(it, fontSize = 11.sp, color = Palette.SubText)
+                    }
+                }
             }
         }
         Spacer(Modifier.height(14.dp))
@@ -266,7 +331,7 @@ private fun AiInputContent(
         Spacer(Modifier.height(14.dp))
         Text("送信するコンテキスト", fontSize = 12.sp, color = Palette.SubText)
         Text(
-            "現在の文書、対象フィールドのスキーマ、ワークスペース内の既存ID（最大500件）",
+            "現在の文書、対象フィールドのスキーマ、選択した参考文書、ワークスペース内の既存ID（最大500件）",
             fontSize = 12.sp,
         )
         if (errorMessage.isNotBlank()) {

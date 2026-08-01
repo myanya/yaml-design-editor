@@ -116,6 +116,7 @@
 | A-08 | 生成のキャンセル、拒否・トークン上限のエラーハンドリング | ✅ | `ui/AiGenerationDialog.kt`, `ai/*Generator.kt` | 単体（一部） |
 | A-09 | OpenAI互換エンドポイント機構（Azure＝`api-key`ヘッダ＋エンドポイント＋デプロイメント名／ベースURL上書き＝ollama・vLLM等）とプロキシ対応（システム設定尊重を既定に手動上書き・Basic認証はメモリのみ・HTTPSトンネルのBasic許可）。生成系とエージェント系の両方に共通で効く（ROADMAP R9-07・R9-08） | ✅ | `ai/Connection.kt`, `ai/Http.kt`, `ui/AiSettings.kt` | 単体（`ConnectionTest`） |
 | A-10 | 生成実行のカーネル統合（単発生成を「1ターンで提出する特殊アクティビティ」としてエージェントカーネル上で実行。Structured Outputs の型保証を維持したまま、ステージング・権限強制・実行記録 `_runs` をアクティビティ実行と単一系統化。ROADMAP R9-01） | ✅ | `agent/Generation.kt`, `ui/AiGenerationDialog.kt` | 単体（`GenerationRunTest`） |
+| A-11 | 同一スキーマの参考文書をプロンプトに添付（更新日時の新しい順に最大3件を自動選択、ダイアログのチェックボックスで選び直し可能。候補表示は最新20件、1件2万文字・合計12万文字で打切り。未保存編集を優先） | ✅ | `ai/AiGenerator.kt`（`ReferenceDoc`, `buildUserInput`）, `app/AppState.kt`（`sameSchemaFiles`）, `ui/AiGenerationDialog.kt` | 単体（`AiGeneratorTest`） |
 
 ## 8. エージェント実行（アクティビティ）
 
