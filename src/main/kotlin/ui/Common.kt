@@ -22,7 +22,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.sp
@@ -226,9 +230,16 @@ fun Highlightable(
 ) {
     val highlighted = state.highlightPath == path
     val requester = remember { BringIntoViewRequester() }
+    var size by remember { mutableStateOf(IntSize.Zero) }
+    // 対象を画面端でなく中央寄りに出すための余白（UX-10）。bringIntoView は「矩形が見える最小のスクロール」の
+    // ため、素の呼び出しだと対象が画面の上下端に張り付く。要素の上下に余白を含めた矩形を可視化要求することで、
+    // どちら向きのスクロールでも対象が端から余白ぶん内側（≒中央寄り）に収まる
+    val centerMargin = with(LocalDensity.current) { 280.dp.toPx() }
     LaunchedEffect(highlighted) {
         if (highlighted) {
-            requester.bringIntoView()
+            requester.bringIntoView(
+                Rect(0f, -centerMargin, size.width.toFloat().coerceAtLeast(1f), size.height + centerMargin)
+            )
             delay(2500)
             if (state.highlightPath == path) state.highlightPath = null
         }
@@ -237,6 +248,7 @@ fun Highlightable(
         Modifier
             .fillMaxWidth()
             .bringIntoViewRequester(requester)
+            .onSizeChanged { size = it }
             .background(if (highlighted) Palette.Highlight else Color.Transparent, PanelShape)
     ) {
         content()

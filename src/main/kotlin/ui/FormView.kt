@@ -83,6 +83,14 @@ class FormCtx(
      */
     fun defaultExpanded(path: YPath): Boolean = path.size - baseDepth <= DEFAULT_EXPAND_DEPTH
 
+    /**
+     * ハイライト対象（ジャンプ先）がこのパスの配下にあるか（UX-10）。
+     * 畳まれたままだと対象の Highlightable がコンポーズされず、スクロールもハイライトも届かないため、
+     * 畳みを持つエディタはこの判定で自動展開する（展開はジャンプ後も維持する）。
+     */
+    fun highlightInside(path: YPath): Boolean =
+        state.highlightPath?.let { it.size > path.size && it.subList(0, path.size) == path } == true
+
     fun markEdited() {
         check(!readOnly) { "閲覧専用モードでは編集できません" }
         doc.markEdited()
@@ -915,6 +923,7 @@ private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) 
     // 既定は浅い階層のみ展開し、深い階層は畳んで要約を見せる（編集・閲覧共通）。
     // キーに readOnly を含めないことで、モード切替時も展開状態＝表示の深さを保つ。
     var expanded by remember(path) { mutableStateOf(ctx.defaultExpanded(path)) }
+    if (ctx.highlightInside(path)) expanded = true  // ジャンプ先が畳みの中なら自動展開（UX-10）
     if (node == null) {
         if (ctx.readOnly) {
             ReadOnlyValueText(null)
@@ -1103,6 +1112,8 @@ private fun ObjectTable(
             rows.forEachIndexed { i, (segment, element) ->
                 var rowExpanded by remember(path, segment) { mutableStateOf(false) }
                 val rowPath = path + segment
+                // ジャンプ先が行の中（列にならない項目＝展開フォーム側）なら行を自動展開する（UX-10）
+                if (ctx.highlightInside(rowPath)) rowExpanded = true
                 Highlightable(ctx.state, rowPath) {
                     Column(Modifier.width(rowWidth)) {
                         Row(verticalAlignment = Alignment.Top) {
@@ -1243,6 +1254,7 @@ private fun NestedObjectEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: 
     // 既定は浅い階層のみ展開し、深い階層は畳んで要約を見せる（編集・閲覧共通）。
     // キーに readOnly を含めないことで、モード切替時も展開状態＝表示の深さを保つ。
     var expanded by remember(path) { mutableStateOf(ctx.defaultExpanded(path)) }
+    if (ctx.highlightInside(path)) expanded = true  // ジャンプ先が畳みの中なら自動展開（UX-10）
     if (node == null) {
         if (ctx.readOnly) {
             ReadOnlyValueText(null)
@@ -1282,6 +1294,7 @@ private fun MapEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
     val node = slot.get()
     // 既定は浅い階層のみ展開（編集・閲覧共通）。モード切替時も展開状態＝表示の深さを保つ
     var expanded by remember(path) { mutableStateOf(ctx.defaultExpanded(path)) }
+    if (ctx.highlightInside(path)) expanded = true  // ジャンプ先が畳みの中なら自動展開（UX-10）
     if (node == null) {
         if (ctx.readOnly) {
             ReadOnlyValueText(null)

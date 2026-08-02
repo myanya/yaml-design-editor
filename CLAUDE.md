@@ -21,14 +21,16 @@ Kotlin + Compose for Desktop 製のスキーマ駆動YAMLエディタ。ワー�
 | [README.md](README.md) | 利用者マニュアル（操作・スキーマ定義リファレンス・制約） |
 | [docs/FEATURES.md](docs/FEATURES.md) | 機能台帳: 全機能の一覧・実装状況・テスト有無・未実装項目 |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | クラス設計・設計方針・データフロー・拡張ポイント |
-| [docs/CONVENTIONS.md](docs/CONVENTIONS.md) | 開発規約（スタイル・Compose作法・テスト・ドキュメント更新規約） |
+| [docs/CONVENTIONS.md](docs/CONVENTIONS.md) | 開発規約（スタイル・Compose作法・テスト・ドキュメント更新規約・UXフィードバック運用） |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | 将来構想（サンドボックス型AI実行環境化）とフェーズ別ロードマップ |
+| [docs/BACKLOG.md](docs/BACKLOG.md) | 指摘台帳: UX試験等で見つかった気になりポイントの即時記録（対応判断は後で個別に） |
 
 **作業のワークフロー:**
 
 1. **着手前**: docs/FEATURES.md で対象機能の位置（実装ファイル・テスト有無）を確認し、docs/ARCHITECTURE.md の該当する設計方針（特に §4）を読む。
 2. **実装中**: docs/CONVENTIONS.md に従う。重要: UI文言・コメント・エラーメッセージは日本語／純粋ロジック層に Compose を持ち込まない／ツリー変更には `markEdited()`。
 3. **完了前**: `./gradlew test` を通し、変更内容に応じてドキュメントを更新する（対応表は docs/CONVENTIONS.md §6）。機能を追加・変更したのにドキュメントが差分に含まれない場合は、更新漏れを疑うこと。`/sync-docs` スキルでチェックできる。
+4. **完了報告**: 機能を追加・変更したら、報告に**試し方**（具体的な操作手順＋見てほしい観点）を必ず含める（docs/CONVENTIONS.md §7）。利用者が触った感想からチューニングの要否を決める。作業中に見つけた本題と異なる気になりポイントは、直しに行かず docs/BACKLOG.md へ即時登録する。
 
 ## 落とし穴（要注意）
 

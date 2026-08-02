@@ -36,6 +36,7 @@ import index.IdIndex
 import model.YNode
 import model.YPath
 import model.getAt
+import model.pretty
 import schema.FieldType
 import validate.Validator
 import yaml.YamlIO
@@ -207,8 +208,9 @@ private fun NewRowIdDialog(view: ViewDef, onDismiss: () -> Unit, onConfirm: (Str
 private fun GridBody(state: AppState, view: ViewDef) {
     val ws = state.workspace ?: return
     var query by remember { mutableStateOf("") }
-    // 行の構造（座標）は索引基準で解決し、セル値の表示・編集は編集中ツリーを優先する
-    val rows = remember(view, state.indexVersion) {
+    // 行の構造（座標）は索引基準で解決し、セル値の表示・編集は編集中ツリーを優先する。
+    // editVersion の購読（R16-04 / UX-02）: 計算列が他文書の未保存編集にも追随するための再解決契機
+    val rows = remember(view, state.indexVersion, state.editVersion) {
         Views.resolve(view, ws, state.index) { f ->
             state.docFor(f)?.root ?: runCatching { YamlIO.parseFirst(Files.readString(f)) }.getOrNull()
         }
@@ -315,6 +317,13 @@ private fun GridCell(state: AppState, cell: ViewCell) {
             Text("—", fontSize = 12.sp, color = Palette.SubText, modifier = Modifier.padding(top = 8.dp))
             return@Box
         }
+        if (cell.computed) {
+            // 計算セル（R16-02 / R16-04）: 評価済みの導出値を表示する読み取り専用セル。
+            // 文書キャッシュから再読すると元値（テンプレート）が見えてしまうため、評価結果をそのまま出す。
+            // クリックは直接ジャンプではなく、導出の説明と行き先の選択（規則・入力値）を提示する
+            ComputedCellLink(state, cell)
+            return@Box
+        }
         // セル編集は通常の編集と同じ経路（キャッシュ上の文書ツリー＋markEdited）を通す
         val doc = remember(file) { state.ensureDoc(file) }
         doc.version
@@ -397,6 +406,65 @@ private fun BacklinkCell(state: AppState, backlinks: List<core.ViewBacklink>) {
         }
         if (backlinks.size > shown.size) {
             Text("…他 ${backlinks.size - shown.size} 件", fontSize = 10.sp, color = Palette.SubText)
+        }
+    }
+}
+
+/**
+ * 計算セル（R16-04 / UX-01）。クリックは直接ジャンプではなく、導出の説明（元値→結果）と
+ * 行き先の選択（導出規則・各入力値）をポップアップメニューで提示する。規則を確認したい場合と
+ * 入力値を確認したい場合の両方に応える（ARCHITECTURE §4.26。モーダルではなくポップアップ）。
+ */
+@Composable
+private fun ComputedCellLink(state: AppState, cell: ViewCell) {
+    var menuOpen by remember { mutableStateOf(false) }
+    val text = Views.cellText(cell.value)
+    Box {
+        Text(
+            text, fontSize = 12.sp, maxLines = 2,
+            color = if (text == "（未設定）") Palette.SubText else Palette.Text,
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp).clickable { menuOpen = true },
+        )
+        DropdownMenu(menuOpen, { menuOpen = false }) {
+            val trace = cell.trace
+            // 導出の説明: 元値（テンプレート）→ 評価結果
+            Column(Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+                Text("計算値（読み取り専用）", fontSize = 10.sp, color = Palette.SubText)
+                if (trace != null && trace.raw != text) {
+                    Text("${trace.raw} → $text", fontSize = 11.sp, color = Palette.SubText)
+                }
+            }
+            val file = cell.file
+            if (file != null) {
+                DropdownMenuItem(
+                    text = {
+                        Column {
+                            Text("導出規則へ", fontSize = 12.sp)
+                            Text("${cell.rel} :: ${cell.path?.pretty()}", fontSize = 10.sp, color = Palette.SubText)
+                        }
+                    },
+                    onClick = { menuOpen = false; state.openFile(file, cell.path) },
+                )
+            }
+            trace?.inputs.orEmpty().forEach { input ->
+                val inputFile = input.file
+                val inputPath = input.path
+                if (inputFile != null && inputPath != null) {
+                    DropdownMenuItem(
+                        text = {
+                            Column {
+                                Text("入力値へ: {${input.placeholder}} = ${input.value}", fontSize = 12.sp)
+                                Text("${input.rel} :: ${inputPath.pretty()}", fontSize = 10.sp, color = Palette.SubText)
+                            }
+                        },
+                        onClick = { menuOpen = false; state.openFile(inputFile, inputPath) },
+                    )
+                } else {
+                    Column(Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+                        Text("{${input.placeholder}} は未解決（値が見つかりません）", fontSize = 11.sp, color = Palette.WarnOrange)
+                    }
+                }
+            }
         }
     }
 }

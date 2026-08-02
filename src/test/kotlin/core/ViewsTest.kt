@@ -10,6 +10,7 @@ import kotlinx.serialization.json.buildJsonObject
 import model.YNode
 import model.parseYPath
 import schema.FieldType
+import schema.SchemaLoader
 import yaml.YamlIO
 import java.nio.file.Files
 import java.nio.file.Path
@@ -390,6 +391,234 @@ class ViewsTest {
         assertTrue(loaded.errors.any { "bad-bl1.yaml" in it && "併用できません" in it }, loaded.errors.toString())
         assertTrue(loaded.errors.any { "bad-bl2.yaml" in it && "editable" in it }, loaded.errors.toString())
         assertTrue(loaded.errors.any { "bad-bl3.yaml" in it && "schemaId" in it }, loaded.errors.toString())
+    }
+
+    // ---------------------------------------------------------------- 計算列（R16-02）
+
+    /** 値型台帳・型写像（同一ID出現）・属性（値型への ref）と、計算列を持つビューを追加する。 */
+    private fun writeComputedFixtures() {
+        write(
+            "_schemas/vt.yaml",
+            """
+            id: vt
+            name: 値型台帳
+            match: "types.yaml"
+            root:
+              type: object
+              fields:
+                - key: types
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: id, type: id, required: true }
+                      - { key: name, type: string }
+                      - { key: maxLength, type: int }
+            """,
+        )
+        write(
+            "_schemas/vt-ddl.yaml",
+            """
+            id: vt-ddl
+            name: DDL写像
+            match: "ddl-mapping.yaml"
+            root:
+              type: object
+              fields:
+                - key: mappings
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: id, type: id, required: true }
+                      - { key: to, type: string }
+            """,
+        )
+        write(
+            "_schemas/attr.yaml",
+            """
+            id: attr
+            name: 属性一覧
+            match: "attrs.yaml"
+            root:
+              type: object
+              fields:
+                - key: attrs
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: id, type: id, required: true }
+                      - key: vtype
+                        type: ref
+                        idPattern: "VT-*"
+            """,
+        )
+        write(
+            "types.yaml",
+            """
+            types:
+              - id: VT-TITLE
+                name: タイトル
+                maxLength: 100
+              - id: VT-NOTE
+                name: メモ
+            """,
+        )
+        write(
+            "ddl-mapping.yaml",
+            """
+            mappings:
+              - id: VT-TITLE
+                to: varchar({maxLength})
+              - id: VT-NOTE
+                to: "{missing} text"
+            """,
+        )
+        write(
+            "attrs.yaml",
+            """
+            attrs:
+              - id: FLD-TITLE
+                vtype: VT-TITLE
+              - id: FLD-FREE
+            """,
+        )
+        write(
+            "_views/vt-computed.yaml",
+            """
+            id: vt-computed
+            name: 値型と写像
+            rows:
+              idPattern: "VT-*"
+            order:
+              schemaId: vt
+            columns:
+              - label: 名前
+                schemaId: vt
+                path: name
+              - label: DDL型
+                computed:
+                  source: { schemaId: vt-ddl }
+                  path: to
+                  values:
+                    - schemaId: vt
+              - label: 方言変換
+                computed:
+                  source: { schemaId: vt-ddl }
+                  path: to
+                  values:
+                    - schemaId: vt
+                  map:
+                    "varchar(100)": "VARCHAR2(100 CHAR)"
+            """,
+        )
+        write(
+            "_views/fld-computed.yaml",
+            """
+            id: fld-computed
+            name: 属性の導出型
+            rows:
+              idPattern: "FLD-*"
+            order:
+              schemaId: attr
+            columns:
+              - label: DDL型
+                computed:
+                  lookup: { schemaId: attr, via: vtype }
+                  source: { schemaId: vt-ddl }
+                  path: to
+                  values:
+                    - schemaId: vt
+                  default: text
+            """,
+        )
+    }
+
+    @Test
+    fun `computed column evaluates template with placeholder scopes`() {
+        writeComputedFixtures()
+        val workspace = Workspace.open(ws)
+        val loaded = Views.load(ws, workspace.schemas)
+        assertTrue(loaded.errors.isEmpty(), loaded.errors.toString())
+        val rows = Views.resolve(loaded.view("vt-computed")!!, ws, workspace.index)
+
+        // 同一ID出現の写像行のテンプレートを、値型定義（values で選んだ出現）の値で評価する
+        val title = rows.first { it.id == "VT-TITLE" }
+        val ddl = title.cells[1]
+        assertEquals("varchar(100)", (ddl.value as YNode.Scalar).value)
+        assertTrue(ddl.computed)
+        assertEquals("ddl-mapping.yaml", ddl.rel, "座標は元値（導出規則）の位置")
+        assertEquals(parseYPath("mappings[0].to"), ddl.path)
+
+        // 来歴（R16-04）: 元値と、プレースホルダごとの解決値・入力値の座標を持つ（ジャンプ先の選択肢）
+        val trace = ddl.trace!!
+        assertEquals("varchar({maxLength})", trace.raw)
+        val input = trace.inputs.single()
+        assertEquals("maxLength", input.placeholder)
+        assertEquals("100", input.value)
+        assertEquals("types.yaml", input.rel, "入力値の座標は値型定義の位置")
+        assertEquals(parseYPath("types[0].maxLength"), input.path)
+
+        // 解決できないプレースホルダは {...} のまま残す（作業を止めない。ARCHITECTURE §4.26）
+        val note = rows.first { it.id == "VT-NOTE" }
+        assertEquals("{missing} text", (note.cells[1].value as YNode.Scalar).value)
+        // 未解決の入力は来歴に「座標なし」として残る（UIは未解決の説明を出す）
+        val missing = note.cells[1].trace!!.inputs.single()
+        assertEquals("missing", missing.placeholder)
+        assertNull(missing.value)
+        assertNull(missing.file)
+
+        // 値辞書は評価後の値に適用される
+        assertEquals("VARCHAR2(100 CHAR)", (title.cells[2].value as YNode.Scalar).value)
+
+        // テキスト表現（エージェント・CLI 共用）にも評価値・計算列の印・来歴（導出行）が出る
+        val text = Views.renderText(loaded.view("vt-computed")!!, rows)
+        assertTrue("varchar(100)" in text, text)
+        assertTrue("計算値" in text, text)
+        assertTrue("導出: varchar({maxLength})" in text, text)
+        assertTrue("{maxLength}=100 [types.yaml :: types[0].maxLength]" in text, text)
+    }
+
+    @Test
+    fun `computed column follows one hop lookup and falls back to default`() {
+        writeComputedFixtures()
+        val workspace = Workspace.open(ws)
+        val rows = Views.resolve(Views.load(ws).view("fld-computed")!!, ws, workspace.index)
+
+        // lookup: 属性の ref（vtype）を1ホップ辿り、参照先IDの写像行から導出する
+        val titled = rows.first { it.id == "FLD-TITLE" }
+        assertEquals("varchar(100)", (titled.cells[0].value as YNode.Scalar).value)
+
+        // ref が未記入の行は default にフォールバックする（導出元の座標はない）
+        val free = rows.first { it.id == "FLD-FREE" }
+        assertEquals("text", (free.cells[0].value as YNode.Scalar).value)
+        assertNull(free.cells[0].file)
+    }
+
+    @Test
+    fun `computed column rejects invalid combinations and lints unknown schemas`() {
+        write(
+            "_views/bad-c1.yaml",
+            "id: c1\nrows: { idPattern: \"*\" }\ncolumns:\n  - label: A\n    path: name\n    computed: { source: { schemaId: s }, path: to }",
+        )
+        write(
+            "_views/bad-c2.yaml",
+            "id: c2\nrows: { idPattern: \"*\" }\ncolumns:\n  - label: A\n    editable: true\n    computed: { source: { schemaId: s }, path: to }",
+        )
+        write(
+            "_views/bad-c3.yaml",
+            "id: c3\nrows: { idPattern: \"*\" }\ncolumns:\n  - label: A\n    computed: { source: {}, path: to }",
+        )
+        write(
+            "_views/bad-c4.yaml",
+            "id: c4\nrows: { idPattern: \"*\" }\ncolumns:\n  - label: A\n    computed: { source: { schemaId: no-such-schema }, path: to }",
+        )
+        val loaded = Views.load(ws, SchemaLoader.loadAll(ws))
+        assertTrue(loaded.errors.any { "bad-c1.yaml" in it && "併用できません" in it }, loaded.errors.toString())
+        assertTrue(loaded.errors.any { "bad-c2.yaml" in it && "editable" in it }, loaded.errors.toString())
+        assertTrue(loaded.errors.any { "bad-c3.yaml" in it && "schemaId か fileGlob" in it }, loaded.errors.toString())
+        assertTrue(loaded.errors.any { "bad-c4.yaml" in it && "no-such-schema" in it }, loaded.errors.toString())
     }
 
     // ---------------------------------------------------------------- 文書ビュー（R14-01）

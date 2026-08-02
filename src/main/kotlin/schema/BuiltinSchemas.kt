@@ -978,6 +978,67 @@ object BuiltinSchemas {
                         item:
                           type: string
                         description: 参照元文書のスキーマIDを限定する（省略時は制限なし）
+                  - key: computed
+                    label: 計算列
+                    type: object
+                    description: 決定論的射影の計算列（R16-02）。対象IDの出現から読んだ元値（テンプレート）を評価して表示する読み取り専用の派生列（path / backlinks / editable とは併用不可）
+                    fields:
+                      - key: lookup
+                        label: 参照の1ホップ
+                        type: object
+                        description: 行の出現の ref フィールドを辿り、対象を参照先IDへ切り替える（省略時は行のID自身が対象）
+                        fields:
+                          - key: schemaId
+                            label: 参照値を読む出現のスキーマ
+                            type: string
+                          - key: fileGlob
+                            label: 参照値を読む出現のファイル（glob）
+                            type: string
+                          - key: via
+                            label: ref フィールドの相対パス
+                            type: string
+                            required: true
+                            description: 出現要素からの相対YPath（例 type）。この値（ID）の先が対象になる
+                      - key: source
+                        label: 元値を読む出現
+                        type: object
+                        required: true
+                        description: 元値（テンプレート）を読む対象IDの出現の選択（schemaId / fileGlob のいずれかが必要）
+                        fields:
+                          - key: schemaId
+                            label: スキーマ
+                            type: string
+                          - key: fileGlob
+                            label: ファイル（glob）
+                            type: string
+                      - key: path
+                        label: 元値の相対パス
+                        type: string
+                        required: true
+                        description: source 出現要素からの相対YPath。値の {パス} プレースホルダは評価スコープの値で置換される（例 varchar({maxLength})）
+                      - key: values
+                        label: プレースホルダ解決に使う出現
+                        type: array
+                        description: 対象IDのこの出現の値でプレースホルダを解決する（解決順は source 要素 → values（宣言順）→ lookup の起点要素）
+                        item:
+                          type: object
+                          fields:
+                            - key: schemaId
+                              label: スキーマ
+                              type: string
+                            - key: fileGlob
+                              label: ファイル（glob）
+                              type: string
+                      - key: map
+                        label: 値辞書
+                        type: map
+                        value:
+                          type: string
+                        description: 評価後の値を辞書で置換する（辞書に無い値はそのまま）
+                      - key: default
+                        label: 既定値
+                        type: string
+                        description: 元値が無いときに使う値
             - key: detail
               label: 詳細文書
               type: object

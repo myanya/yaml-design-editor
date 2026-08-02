@@ -68,6 +68,9 @@ class OpenDocument(
     var diskModifiedMillis: Long = runCatching { Files.getLastModifiedTime(file).toMillis() }.getOrDefault(0L)
     val historyIndex: Int get() = buffer.historyIndex
 
+    /** 編集通知（R16-04 / UX-02）: AppState が全文書横断の編集カウンタ（editVersion）を進めるのに使う。 */
+    internal var onEdited: (() -> Unit)? = null
+
     private fun sync() {
         dirtyState.value = buffer.dirty
         parseErrorState.value = buffer.parseError
@@ -77,13 +80,14 @@ class OpenDocument(
         version++
         buffer.recordEdit()
         sync()
+        onEdited?.invoke()
     }
 
     fun canUndo(): Boolean = buffer.canUndo()
     fun canRedo(): Boolean = buffer.canRedo()
 
-    fun undo() { if (buffer.undo()) { version++; sync() } }
-    fun redo() { if (buffer.redo()) { version++; sync() } }
+    fun undo() { if (buffer.undo()) { version++; sync(); onEdited?.invoke() } }
+    fun redo() { if (buffer.redo()) { version++; sync(); onEdited?.invoke() } }
 
     /** ソース編集のテキストをツリーへ取り込む。複数ドキュメントは先頭を編集対象にし、後続を保持する。 */
     fun applySourceText(text: String) {
@@ -176,6 +180,13 @@ class AppState {
     private val emptyIndex = IdIndex()
     val index: IdIndex get() = coreWs?.index ?: emptyIndex
     var indexVersion by mutableStateOf(0)
+        private set
+
+    /**
+     * 全文書横断の編集カウンタ（R16-04 / UX-02）: docCache のどの文書かの未保存編集・Undo/Redo で進む。
+     * 計算列など「他文書の未保存編集に追随したい」派生表示が再解決の購読に使う（ARCHITECTURE §4.26）。
+     */
+    var editVersion by mutableStateOf(0)
         private set
 
     /** 開いたことのあるドキュメントのキャッシュ（未保存編集をファイル切替時にも保持する）。 */
@@ -456,6 +467,7 @@ class AppState {
             null
         }
         return OpenDocument(file, root, schemaFor(file), text, error, extra)
+            .also { doc -> doc.onEdited = { editVersion++ } }
     }
 
     private fun reloadDocumentFromDisk(doc: OpenDocument, force: Boolean) {

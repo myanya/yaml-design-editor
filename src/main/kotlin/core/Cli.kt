@@ -248,6 +248,21 @@ internal fun runCli(args: Array<String>): String {
                                     "file" to cell.rel,
                                     "path" to cell.path?.pretty(),
                                     "editable" to cell.column.editable.takeIf { it },
+                                    // 計算列（R16-02/04）: 値は評価済み・座標は導出規則の位置。derivation が来歴（元値と入力値の座標）
+                                    "computed" to cell.computed.takeIf { it },
+                                    "derivation" to cell.trace?.takeIf { it.inputs.isNotEmpty() }?.let { t ->
+                                        linkedMapOf<String, Any?>(
+                                            "raw" to t.raw,
+                                            "inputs" to t.inputs.map { input ->
+                                                linkedMapOf<String, Any?>(
+                                                    "placeholder" to input.placeholder,
+                                                    "value" to input.value,
+                                                    "file" to input.rel,
+                                                    "path" to input.path?.pretty(),
+                                                ).filterValues { it != null }
+                                            },
+                                        )
+                                    },
                                     // バックリンク列: 参照元のIDと座標（参照元の要素へは read コマンドで辿る）
                                     "backlinks" to cell.backlinks?.map { b ->
                                         linkedMapOf(

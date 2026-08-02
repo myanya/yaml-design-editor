@@ -12,6 +12,7 @@ import model.pretty
 import model.scalarText
 import schema.Display
 import schema.FieldDef
+import schema.Projection
 import schema.FieldType
 import schema.SchemaDef
 import schema.SchemaLoader
@@ -67,13 +68,34 @@ data class ViewBacklinksDef(
             (schemaIds.isEmpty() || ref.sourceSchemaId in schemaIds)
 }
 
-/** ビューの1列。出現要素からの相対YPathで値を指すか、backlinks で被参照の一覧を表示する。 */
+/** 計算列の lookup（1ホップ。R16-02）: 行の出現の ref フィールドを辿り、対象IDを参照先へ切り替える。 */
+data class ViewLookupDef(
+    val from: ViewSource = ViewSource(),  // 参照値を読む出現の選択
+    val via: YPath,                       // その出現要素からの相対YPath（ref 型フィールド）
+)
+
+/**
+ * 計算列（R16-02）: 対象ID（lookup 指定時は参照を1ホップ辿った先、省略時は行のID自身）の出現から
+ * 元値（テンプレート）を読み、`schema/Projection` で評価して表示する読み取り専用の派生列。
+ * プレースホルダの解決スコープは「source 要素 → values で選んだ出現要素 → lookup の起点要素」の近い順。
+ */
+data class ViewComputedDef(
+    val lookup: ViewLookupDef? = null,
+    val source: ViewSource,                      // 元値（テンプレート）を読む出現の選択
+    val path: YPath,                             // source 出現要素からの相対YPath
+    val values: List<ViewSource> = emptyList(),  // プレースホルダ解決に使う対象IDの出現（宣言順）
+    val map: Map<String, String> = emptyMap(),   // 評価後の値辞書（DeriveTypeRule / skill と同じ語彙）
+    val default: String? = null,                 // 元値が無いときの既定値
+)
+
+/** ビューの1列。出現要素からの相対YPathで値を指すか、backlinks / computed で派生表示の列にする。 */
 data class ViewColumn(
     val label: String,
     val from: ViewSource = ViewSource(),
     val path: YPath,
     val editable: Boolean = false,
     val backlinks: ViewBacklinksDef? = null,  // 非null のとき被参照一覧の列（path / editable とは排他）
+    val computed: ViewComputedDef? = null,    // 非null のとき計算列（path / backlinks / editable とは排他。R16-02）
 )
 
 /** 行の集合の定義。idPattern に一致する論理IDが行になる。 */
@@ -194,7 +216,26 @@ data class ViewBacklink(
     val relation: String?,
 )
 
-/** 解決済みのセル。file が null のときは対応する出現がない（値なし）。backlinks はバックリンク列のみ非null。 */
+/** 計算セルの入力1件（R16-04）: プレースホルダの解決値と、入力値の原本座標（未解決なら座標なし）。 */
+data class ComputedInput(
+    val placeholder: String,   // 例 maxLength（{} なし。スコープ要素からの相対YPath）
+    val value: String?,        // 解決値（null = 未解決）
+    val rel: String?,
+    val file: Path?,
+    val path: YPath?,          // 入力値の絶対座標（ジャンプ先）
+)
+
+/** 計算セルの来歴（R16-04）: 元値（テンプレート）とプレースホルダごとの解決。UIの導出説明・read_view が共有する。 */
+data class ComputedTrace(
+    val raw: String,                   // 元値（テンプレート。default 使用時はその値）
+    val inputs: List<ComputedInput>,   // プレースホルダの解決（初出順・重複除去）
+)
+
+/**
+ * 解決済みのセル。file が null のときは対応する出現がない（値なし）。backlinks はバックリンク列のみ非null。
+ * computed=true のセルは評価済みの導出値（読み取り専用）で、座標は元値（テンプレート）の位置。
+ * trace は導出の来歴（元値と入力値の座標）＝ジャンプ先の選択肢（ARCHITECTURE §4.26）。
+ */
 data class ViewCell(
     val column: ViewColumn,
     val rel: String?,
@@ -202,6 +243,8 @@ data class ViewCell(
     val path: YPath?,       // 絶対YPath（出現要素のパス + 列の相対パス）
     val value: YNode?,
     val backlinks: List<ViewBacklink>? = null,
+    val computed: Boolean = false,
+    val trace: ComputedTrace? = null,
 )
 
 /** 解決済みの1行（＝1論理ID）。 */
@@ -315,6 +358,38 @@ object Views {
                 return@flatMapIndexed expandDefinitionColumns(m, i, schemas)
             }
             val label = m["label"]?.toString()?.takeIf { it.isNotBlank() } ?: error("columns[$i].label が必要です")
+            if (m.containsKey("computed")) {
+                // 計算列（R16-02）: 読み取り専用の派生表示のため、出現の選択・編集・他の派生列とは排他
+                val c = m["computed"] as? Map<*, *> ?: error("columns[$i].computed はobjectである必要があります")
+                listOf("path", "backlinks", "schemaId", "fileGlob").firstOrNull { m.containsKey(it) }
+                    ?.let { error("columns[$i]: computed と $it は併用できません") }
+                if (m["editable"] == true) error("columns[$i]: computed 列は editable にできません（読み取り専用の派生表示）")
+                val source = parseSource(c["source"] as? Map<*, *> ?: error("columns[$i].computed.source が必要です"))
+                require(!source.isEmpty) { "columns[$i].computed.source には schemaId か fileGlob が必要です" }
+                val lookup = (c["lookup"] as? Map<*, *>)?.let { lm ->
+                    ViewLookupDef(
+                        from = parseSource(lm),
+                        via = parseYPath(lm["via"]?.toString() ?: error("columns[$i].computed.lookup.via が必要です")),
+                    )
+                }
+                return@flatMapIndexed listOf(
+                    ViewColumn(
+                        label = label,
+                        path = emptyList(),
+                        computed = ViewComputedDef(
+                            lookup = lookup,
+                            source = source,
+                            path = parseYPath(c["path"]?.toString() ?: error("columns[$i].computed.path が必要です")),
+                            values = (c["values"] as? List<*>)?.mapIndexed { vi, v ->
+                                parseSource(v as? Map<*, *> ?: error("columns[$i].computed.values[$vi] はobjectである必要があります"))
+                            } ?: emptyList(),
+                            map = (c["map"] as? Map<*, *>)?.entries
+                                ?.associate { it.key.toString() to (it.value?.toString() ?: "") } ?: emptyMap(),
+                            default = c["default"]?.toString(),
+                        ),
+                    )
+                )
+            }
             if (m.containsKey("backlinks")) {
                 // バックリンク列: 被参照の派生表示のため、出現の選択（path / schemaId / fileGlob）や編集とは排他
                 val b = m["backlinks"] as? Map<*, *> ?: error("columns[$i].backlinks はobjectである必要があります")
@@ -568,6 +643,29 @@ object Views {
                     report("列「${col.label}」の参照元スキーマ「$it」が見つかりません")
                 }
                 if (col.backlinks != null) return@forEach
+                col.computed?.let { comp ->
+                    // 計算列（R16-02）: 参照スキーマの存在と、via / path がID要素から静的に解決できるかを検査する
+                    (listOfNotNull(comp.lookup?.from?.schemaId, comp.source.schemaId) + comp.values.mapNotNull { it.schemaId })
+                        .filterNot { it in ids }.distinct()
+                        .forEach { report("列「${col.label}」の計算列のスキーマ「$it」が見つかりません") }
+                    comp.lookup?.let { lk ->
+                        lk.from.schemaId?.let { sid ->
+                            byId[sid]?.let { s ->
+                                if (unresolvableFromIdElements(s, lk.via)) {
+                                    report("列「${col.label}」の lookup.via「${lk.via.pretty()}」はスキーマ「$sid」のID要素から解決できません")
+                                }
+                            }
+                        }
+                    }
+                    comp.source.schemaId?.let { sid ->
+                        byId[sid]?.let { s ->
+                            if (unresolvableFromIdElements(s, comp.path)) {
+                                report("列「${col.label}」の computed.path「${comp.path.pretty()}」はスキーマ「$sid」のID要素から解決できません")
+                            }
+                        }
+                    }
+                    return@forEach
+                }
                 val sid = col.from.schemaId ?: return@forEach
                 val s = byId[sid] ?: run { report("列「${col.label}」のスキーマ「$sid」が見つかりません"); return@forEach }
                 if (unresolvableFromIdElements(s, col.path)) {
@@ -772,10 +870,12 @@ object Views {
             .map { (id, occurrences) ->
                 val cells = view.columns.map { column ->
                     val backlinksDef = column.backlinks
+                    val computedDef = column.computed
                     val occurrence =
-                        if (backlinksDef != null) null
+                        if (backlinksDef != null || computedDef != null) null
                         else occurrences.firstOrNull { column.from.matches(it, rel(it.file)) }
                     if (backlinksDef != null) ViewCell(column, null, null, null, null, backlinks = backlinksFor(id, backlinksDef))
+                    else if (computedDef != null) computedCell(column, computedDef, id, occurrences, index, ::tree, ::rel)
                     else if (occurrence == null) ViewCell(column, null, null, null, null)
                     else {
                         val absolute = occurrence.path + column.path
@@ -802,6 +902,64 @@ object Views {
             }
             .toList()
         return sortRows(view, rows) { rel(it) }
+    }
+
+    /**
+     * 計算セル（R16-02）の解決。対象ID（lookup があれば ref を1ホップ辿った先、なければ行のID）の
+     * source 出現から元値（テンプレート）を読み、`schema/Projection` でプレースホルダを評価する。
+     * - スコープ連鎖は「source 要素 → values で選んだ対象IDの出現要素 → lookup の起点要素」の近い順（1段評価）
+     * - セルの座標は元値の位置＝ジャンプ先。評価できないプレースホルダは `{...}` のまま残す（ARCHITECTURE §4.26）
+     */
+    private fun computedCell(
+        column: ViewColumn,
+        def: ViewComputedDef,
+        rowId: String,
+        occurrences: List<IdEntry>,
+        index: IdIndex,
+        tree: (Path) -> YNode?,
+        rel: (Path) -> String,
+    ): ViewCell {
+        fun element(entry: IdEntry): YNode? = tree(entry.file)?.let { getAt(it, entry.path) }
+        var originOcc: IdEntry? = null
+        var origin: YNode? = null
+        val subjectId: String? = if (def.lookup == null) rowId else {
+            val occ = occurrences.firstOrNull { def.lookup.from.matches(it, rel(it.file)) }
+            originOcc = occ
+            origin = occ?.let(::element)
+            origin?.let { scalarText(getAt(it, def.lookup.via)) }
+        }
+        val subjectOccs = subjectId?.let { index.entries[it].orEmpty() } ?: emptyList()
+        val sourceOcc = subjectOccs.firstOrNull { def.source.matches(it, rel(it.file)) }
+        val sourceEl = sourceOcc?.let(::element)
+        val absolute = sourceOcc?.let { it.path + def.path }
+        val rawText = sourceEl?.let { scalarText(getAt(it, def.path)) } ?: def.default
+            ?: return ViewCell(column, sourceOcc?.let { rel(it.file) }, sourceOcc?.file, absolute, null, computed = true)
+        // スコープ連鎖（評価用のノード）と、その要素の出現（来歴の入力座標用）を並走させる
+        val scopes = buildList {
+            sourceEl?.let { add(it to sourceOcc) }
+            def.values.forEach { sel ->
+                subjectOccs.firstOrNull { sel.matches(it, rel(it.file)) }
+                    ?.let { occ -> element(occ)?.let { add(it to occ) } }
+            }
+            origin?.let { add(it to originOcc) }
+        }
+        val evaluated = Projection.evaluate(rawText, scopes.map { it.first })
+        // 来歴（R16-04）: プレースホルダごとに「どの出現のどの座標の値か」を残す（ジャンプ先の選択肢になる）
+        val inputs = evaluated.resolutions.map { r ->
+            val occ = r.scopeIndex?.let { scopes.getOrNull(it)?.second }
+            val inputPath = occ?.let { o -> runCatching { o.path + parseYPath(r.placeholder) }.getOrNull() }
+            ComputedInput(r.placeholder, r.value, occ?.let { rel(it.file) }, occ?.file, inputPath)
+        }
+        val value = Projection.applyMap(evaluated.text, def.map)
+        return ViewCell(
+            column = column,
+            rel = sourceOcc?.let { rel(it.file) },
+            file = sourceOcc?.file,
+            path = absolute,
+            value = YNode.Scalar(value),
+            computed = true,
+            trace = ComputedTrace(rawText, inputs),
+        )
     }
 
     /** 行の並び: orderBy 出現の（ファイル→文書内パス）順 → それ以外はID順で後ろに。 */
@@ -1033,12 +1191,30 @@ object Views {
                         }
                     )
                 } else if (cell.file == null) {
-                    appendLine("（出現なし）")
+                    appendLine(if (cell.computed) "（導出元なし）" else "（出現なし）")
                 } else {
                     append(cellText(cell.value))
                     append("  [").append(cell.rel).append(" :: ").append(cell.path!!.pretty())
                     if (cell.column.editable) append("  編集可")
+                    // 計算列: 値は評価済みの導出値で、座標は元値（規則）の位置。書込はこの座標か入力値への通常編集で行う
+                    if (cell.computed) append("  計算値（座標は導出規則）")
                     appendLine("]")
+                    // 来歴（R16-04）: 元値（テンプレート）と入力値の座標。エージェントはここから入力値側も辿れる
+                    val trace = cell.trace
+                    if (trace != null && trace.inputs.isNotEmpty()) {
+                        append("      導出: ").append(trace.raw)
+                        trace.inputs.forEach { input ->
+                            append("  {").append(input.placeholder).append("}=")
+                            if (input.value == null) append("未解決")
+                            else {
+                                append(input.value)
+                                if (input.rel != null && input.path != null) {
+                                    append(" [").append(input.rel).append(" :: ").append(input.path.pretty()).append("]")
+                                }
+                            }
+                        }
+                        appendLine()
+                    }
                 }
             }
             if (view.detail != null) {
