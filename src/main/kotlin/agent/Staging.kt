@@ -125,7 +125,12 @@ class Staging(val ws: Workspace) {
                 if (rel !in targets) tree(rel)?.let { targets[rel] = f to it }
             }
         val results = targets.mapValues { (_, target) ->
-            Validator.validate(target.second, null, target.first, ws.schemaFor(target.first), idx)
+            // 整合検証の材料もステージング（オーバーレイ）優先で読む（R16-03a）
+            Validator.validate(
+                target.second, null, target.first, ws.schemaFor(target.first), idx,
+                workspace = ws.root, allSchemas = ws.schemas,
+                loader = { f -> tree(ws.relPath(f)) },
+            )
         }.toMutableMap()
         // メタアクティビティ（R4-03）: ステージされた定義文書は実際のローダでパースできることもゲート条件にする
         // （スキーマ検証だけでは「schedule に everyMinutes がない」等の意味的エラーを見逃すため）

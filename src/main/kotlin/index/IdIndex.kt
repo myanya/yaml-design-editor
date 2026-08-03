@@ -190,6 +190,24 @@ class IdIndex {
     }
 
     /**
+     * 未保存編集を重ねたオーバーレイ索引（UX-03）: この索引の走査結果を複製し、指定ファイルだけを
+     * loader の内容（編集中ツリー）で走査し直した**新しい索引**を返す（この索引自体は変更しない）。
+     * コストは走査結果の複製＋対象ファイル数に比例する。UIの「見たまま判定」（ARCHITECTURE §4.5）に使う。
+     */
+    fun overlay(
+        workspace: Path,
+        files: Collection<Path>,
+        schemas: List<SchemaDef>,
+        layout: WorkspaceLayout = WorkspaceLayout.LEGACY,
+        loader: (Path) -> YNode?,
+    ): IdIndex {
+        val out = IdIndex()
+        out.byFile.putAll(byFile)
+        out.update(workspace, files, emptyList(), schemas, layout, loader)
+        return out
+    }
+
+    /**
      * 変更・削除されたファイルの分だけ走査し直して索引を差し替える（R8-02: 増分更新）。
      * スキーマ自体が変わった場合は全ファイルの走査規則が変わるため、rebuild を使うこと。
      */

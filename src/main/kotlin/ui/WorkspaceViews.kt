@@ -124,7 +124,7 @@ fun ReferenceGraphView(state: AppState) {
     state.indexVersion
     var query by remember { mutableStateOf("") }
     val edges = remember(state.indexVersion, query) {
-        state.index.refs.filter { query.isBlank() || it.targetId.contains(query, true) || state.relPath(it.file).contains(query, true) }
+        state.overlayIndex().refs.filter { query.isBlank() || it.targetId.contains(query, true) || state.relPath(it.file).contains(query, true) }
     }
     // 全ノードを対象にする（R8-05: L-06。従来の40ノード制限を撤廃）。前半=参照元ファイル、後半=参照先ID
     val fileNodes = remember(edges) { edges.map { state.relPath(it.file) }.distinct().sorted() }

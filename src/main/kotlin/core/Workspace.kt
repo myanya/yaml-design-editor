@@ -219,12 +219,26 @@ class Workspace private constructor(val root: Path) {
         index.update(root, changed.toList(), removed.toList(), schemas, layout)
     }
 
+    /**
+     * 未保存編集を重ねたオーバーレイ索引（UX-03）。overlays（ファイル → 編集中ツリー）の文書だけを
+     * 走査し直した新しい索引を返す。ディスク索引（index）は変更しない。
+     * UIが「見たままの状態」で検証・カバレッジ・ビュー行集合を判定するために使う（ARCHITECTURE §4.5）。
+     */
+    fun overlayIndex(overlays: Map<Path, YNode?>): IdIndex {
+        if (overlays.isEmpty()) return index
+        return index.overlay(root, overlays.keys, schemas, layout) { f -> overlays[f] }
+    }
+
     /** 1 ファイルを検証する（スキーマ適合・参照解決・重複・カバレッジ。台帳外は索引前提の判定を降格。R13-03）。 */
     fun validate(rel: String): List<Issue> {
         val doc = load(rel)
         // 走査対象（台帳＋予約領域）に載っていない文書＝台帳外のエディタ層。索引前提の判定は成立しない
         val indexed = doc.file in files
-        return Validator.validate(doc.root, doc.parseError, doc.file, doc.schema, index, indexed = indexed)
+        return Validator.validate(
+            doc.root, doc.parseError, doc.file, doc.schema, index,
+            // （このヘッドレス経路はディスク索引・ディスク loader のまま。UIは overlayIndex を渡す。§4.5）
+            indexed = indexed, workspace = root, allSchemas = schemas,
+        )
     }
 
     /**
@@ -274,7 +288,12 @@ class Workspace private constructor(val root: Path) {
             }
         }
         val validated = staged.map { s ->
-            s to Validator.validate(s.newRoot, null, s.file, schemaFor(s.file), overlayIndex)
+            // 整合検証の材料もオーバーレイ（適用後の姿）で読む（索引と同じ基準を保つ。R16-03a）
+            s to Validator.validate(
+                s.newRoot, null, s.file, schemaFor(s.file), overlayIndex,
+                workspace = root, allSchemas = schemas,
+                loader = { f -> overlayRoots[f] ?: runCatching { YamlIO.parse(Files.readString(f)) }.getOrNull() },
+            )
         }
         if (requireValid && validated.any { (_, issues) -> issues.any { it.severity == Severity.ERROR } }) {
             failed = true

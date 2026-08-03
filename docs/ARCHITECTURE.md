@@ -50,7 +50,9 @@ src/main/kotlin/
 | `YamlIO` | yaml/YamlIO.kt | テキスト⇔`YNode` 変換。SnakeYAML の Node API（processComments）ベースで、コメント・キー順・スカラー/フロー表記を往復保持する（§4.17）。`parseAll` / `dumpAll`（複数ドキュメント）、`parseFirst`（読み取り専用の寛容パース）、`dumpPlain`（コメント・スタイル抜きの正規化ダンプ＝構造比較・派生成果物用）を提供 |
 | `FieldType` / `FieldDef` / `SchemaDef` | schema/Schema.kt | スキーマモデル。`resolve()` がローカル／横断 `$ref` を属性合成しつつ解決。`FieldDef.relation` が参照の関係種別、`role` が表示役割（R10-01）、`options` が enum のリッチ選択肢（`EnumOption`。R10-03）。`effectiveFields()` が enum の `cases` を合成した object の実効フィールドを返す |
 | `Display` | schema/Display.kt | 表示解決（R10-01）: 要素の1行要約（タイトル・サブタイトル・ID・畳み込みヘッダ）を role ＞ 予約語 ＞ id ＞ キー数の優先順位で解決する。索引のタイトル抽出（`DocScanner`）・UI・エージェント要約が共有する（§4.22） |
-| `Projection` | schema/Projection.kt | 決定論的射影の評価器（R16-02）: `{パス}` プレースホルダのテンプレート置換（スコープ連鎖・1段評価）と値辞書。計算列（`core/Views`）・将来の整合検証が共有する単一実装（§4.26） |
+| `Projection` | schema/Projection.kt | 決定論的射影の評価器（R16-02）: `{パス}` プレースホルダのテンプレート置換（スコープ連鎖・1段評価・解決トレース）と値辞書。単一実装（§4.26） |
+| `DerivationDef` / `ConsistencyRule` | schema/Derivation.kt | 導出の宣言モデル（`lookup`/`source`/`path`/`values`/`map`/`default`）と整合ルール（R16-03a/b。`assert`: equals / lte / gte）。ビューの計算列とスキーマの `consistency:` が同じ語彙を共有する |
+| `Derivation` | index/Derivation.kt | 導出の解決器（R16-03a）: 対象ID（lookup 1ホップ）→ source 出現 → スコープ連鎖 → `Projection` 評価＋来歴。計算列（core/Views）と整合検証（Validator）の共有実装（§4.26） |
 | `SchemaCatalog` / `SchemaKind` | schema/Schema.kt | 全スキーマ・libraryの定義を `(moduleId, definitionName)` でリンクする中央カタログ。`kind: library` はdefinitionsだけを公開し文書には適用されない |
 | `PhasesDef` / `currentPhaseIndex` / `requiredAt` | schema/Schema.kt | フェーズ機構（§4.15）: スキーマの `phases` 宣言と、文書の現在フェーズ解決・フェーズ考慮の実効必須判定（検証・進捗計算が共有） |
 | `CoverageRule` / `CoverageLevel` | schema/Schema.kt | スキーマの `coverage`（被参照必須などのトレーサビリティ要件）の定義。`activeFrom` でフェーズ到達までの判定保留を宣言できる |
@@ -129,9 +131,11 @@ Undo/Redo は `YamlIO.dump` したスナップショット文字列の履歴（�
 
 要素位置は `YPath = List<Any>` で統一。検証結果・ハイライト・ジャンプ・AI生成対象はすべて YPath で紐付く。`state.highlightPath` に設定すると `Highlightable` がスクロール＋一時ハイライトする（スクロールは要素の上下に余白を含めた矩形を可視化要求し、対象を画面端でなく**中央寄り**に出す。UX-10）。**ハイライト対象が畳みの中にある場合は自動展開する**（UX-10）: 畳まれた区画の中は `Highlightable` がコンポーズされずスクロールもハイライトも届かないため、畳みを持つエディタ（配列・ネストobject・map・テーブル行展開）は `FormCtx.highlightInside(path)`（対象が自パス配下か）で展開する。新しく畳みを持つUIを作るときも同じ判定を入れること（展開はジャンプ後も維持し、勝手に畳み直さない）。ジャンプ・ファイル切替（`openFile`）、文書内ジャンプ（`navigateToPath`。検証パネル等）、ID指定でのビュー遷移（`openCrossView` / `openViewGrid`。横ぐしのID切替・グリッドのビュー切替を含む）は直前位置（`NavLocation`＝文書ならファイルとハイライト位置、ビューならビュー番号と選択ID）を「戻る」履歴へ積み、`AppState.goBack` / `goForward` で往復できる（ブラウザ同様、新しい移動で「進む」履歴は破棄）。UI側で `highlightPath` / `crossViewId` / `viewGridId` を直接代入すると履歴に残らないため、移動は必ずこれらの経由メソッドを通す。
 
-### 4.5 索引はディスク基準（更新は増分）
+### 4.5 索引はディスク基準（更新は増分）・UIはオーバーレイ
 
-`IdIndex` は保存済みファイルから構築される。未保存編集中の参照解決は、`DocScanner.scan` を編集中ツリーへ都度実行した「ローカルID」を索引に**重ねて**判定する（`FormCtx.resolvable`, `Validator`）。この二層構造を崩さないこと。
+`IdIndex` は保存済みファイルから構築される（ディスク索引＝正）。未保存編集中の参照解決は、`DocScanner.scan` を編集中ツリーへ都度実行した「ローカルID」を索引に**重ねて**判定する（`FormCtx.resolvable`, `Validator`）。この二層構造を崩さないこと。
+
+**UIのオーバーレイ索引（UX-03）**: 人間のUIは「見たままの状態で判定する」（未保存で確認→OKなら保存）ため、`AppState.overlayIndex()` が **dirty な文書キャッシュの編集中ツリーだけを重ねた索引**を返す（`IdIndex.overlay`＝走査結果の複製＋dirty分だけの増分走査。`(indexVersion, editVersion)` でキャッシュ）。UI層（検証・カバレッジ・ビュー行集合・ID横ぐし・参照解決・被参照）は `state.index` ではなく **`state.overlayIndex()` を読む**のが規約。ディスク索引が正であることは不変（保存・CLI・エージェントは従来どおりで、エージェントはステージングのオーバーレイ索引を別に持つ）。オーバーレイ由来の値を `remember` する場合はキーに `state.editVersion` を含めること（含めないと他文書の未保存編集に追随しない）。
 
 更新方式（R8-02）: 索引はファイル単位の走査結果（`byFile`）を保持し、集約ビュー（`entries` / `refs`）はそこから導出する。保存・外部変更・変更セット適用では `update`（変更・削除ファイルだけの再走査）を使い、コストを変更ファイル数に比例させる。**スキーマが変わったときは全ファイルの走査規則が変わるため必ず `rebuild`（全再構築）を使う**（`AppState` / `core.Workspace` は `_schemas/` 配下の変更、および派生スキーマの導出元文書（R11-03。§4.23）の変更を見て自動で振り分ける）。計測は CLI `bench`（`core/Bench.kt`）で行う。
 
@@ -211,7 +215,7 @@ enum の `cases`（値ごとの追加フィールド。判別共用体）を持�
 
 - **ビューはデータを持たない**: ビューは原本の射影であり、独自の永続化を一切持たない。セルは必ず原本上の座標 `(file, YPath)` に解決され、編集はその座標の原本ツリーへルーティングされる（原本主義）。
 - **編集経路は既存と同一**: UIのセル編集は文書キャッシュ（`AppState.ensureDoc`）上のツリーを `Slot` 経由で直接変更し `markEdited()` する（＝dirty・Undo・保存・外部変更検出がそのまま効く）。エージェントは `read_view` で座標を得て既存の `apply_patch` で編集する。**ビュー専用の書込経路を作らない**（権限強制・ゲートを一元に保つ）。
-- **行はディスク索引基準・値は編集中優先**: 行の集合（ID）と座標は `IdIndex`（§4.5）から解決し、セル値の表示は loader 注入で「編集中ツリー（UI: docCache / エージェント: ステージング）→ ディスク」の順に読む。未保存の新規IDが行に現れないのは索引の設計方針どおり（FEATURES L-14）。
+- **行は索引基準・値は編集中優先**: 行の集合（ID）と座標は注入された `IdIndex`（§4.5）から解決し、セル値の表示は loader 注入で「編集中ツリー（UI: docCache / エージェント: ステージング）→ ディスク」の順に読む。UIはオーバーレイ索引（`AppState.overlayIndex()`。UX-03）を渡すため、**未保存の新規IDも行に現れる**（旧 L-14「行集合はディスク索引基準」はオーバーレイ索引の導入で改訂された）。ヘッドレス経路（CLI・エクスポート）はディスク索引のまま。
 - **`_views` は予約ディレクトリ**: 書込はメタアクティビティのみ（`AgentToolbox`）、自動実行の監視対象外（`AutomationEngine`）、ステージされた定義は `Views.parseView` のパース可否が提出ゲートに加わる（`Staging.validateAll`）。
 - **セルエディタの型解決**: 列の相対パスから `Views.fieldAt` でフィールド定義を辿る（`resolve` / `effectiveFields` を通す。§4.7）。直接編集はスカラー系フィールドに限定し、複合値はジャンプで個別フォームへ誘導する。
 - **バックリンク列は編集不可の派生表示**（R7-02）: `backlinks` 列は索引の被参照を relation・参照元スキーマで絞って解決し、出現の選択（`path` / `schemaId` / `fileGlob`）や `editable` とは排他（パース時に拒否）。参照元要素のIDは「参照位置をパスの接頭辞に含む、最も長いパスの出現」として解決する。セルが指す座標は参照値の位置＝ジャンプ先であり、書込はしない（被参照を変えるには参照元文書を編集する）。
@@ -288,7 +292,7 @@ UI層（app）を「Compose購読のシェル」に純化し、ロジックを c
 - **`OpenDocument` は `core.EditBuffer` のシェル**: 履歴（Undo/Redo）・dirty判定・複数ドキュメント再出力の中核は `EditBuffer`（UI非依存・単体テスト対象）にあり、`OpenDocument` は Compose 購読（`version` / `dirty` / `parseError` のミラー）と外部競合フラグだけを持つ。編集APIの意味を変えるときは `EditBuffer` を直す。
 - **一覧・一括編集は loader 注入**: `WorkspaceRecords`（一覧レコード・一括編集キー候補）は「未保存編集を優先するツリー取得」を注入で受ける（§4.5 の二層構造と同じ流儀）。UIは docCache を、ヘッドレス経路はディスクを渡す。
 - **AppState のミラーは読み取り専用の写し**: `schemas` / `yamlFiles` 等の Compose 状態は core.Workspace の状態の写しであり、AppState 側で加工しない。core 側を更新したら `mirrorCore` で写し直し、`indexVersion` を進めて再コンポーズを駆動する。
-- **ビューグリッドの行集合はディスク索引基準を維持**（L-14 の再評価結果）: 行の増減（新しいID）の未保存反映は索引の二層構造を崩すため行わない。セル値・編集は従来どおり未保存編集を即時反映する。
+- **ビューグリッドの行集合はUIではオーバーレイ索引基準**（UX-03 で旧 L-14 を改訂）: 行の増減（新しいID）も dirty 文書のオーバーレイ（`AppState.overlayIndex()`）で未保存反映される。ディスク索引（`Workspace.index`）が正であること・ヘッドレス経路がディスク基準であることは不変。
 
 ### 4.21 コード実行skill（P9: R9-06）
 
@@ -358,6 +362,15 @@ UI層（app）を「Compose購読のシェル」に純化し、ロジックを c
 - **未保存編集に追随する（R16-04 / UX-02）**: 計算セルの値はビュー解決（`Views.resolve`）時に評価され、値の読み取りは loader（docCache 優先）が担うため、UIのグリッドは `AppState.editVersion`（どの文書かの未保存編集・Undo/Redo で進む軽量カウンタ。`OpenDocument.onEdited` で通知）を購読して再解決する。「未保存で確認→OKなら保存」の流れを成立させ、保存を強いない。行の集合（新規ID）はディスク索引基準のまま（§4.5 / L-14 は不変）。エージェント経路はステージング loader で従来どおり。
 - **来歴（provenance）はセルの一級情報（R16-04 / UX-01）**: 計算セルは評価結果に加えて「元値（テンプレート）とプレースホルダごとの解決値・座標」（`ViewCell.trace`）を持つ。UIのクリックは直接ジャンプではなく、**導出の説明（元値→入力値→結果）と行き先の選択**（導出規則・各入力値）をポップアップメニューで提示する（規則を確認したい場合と入力値を確認したい場合の両方があるため。モーダル新設禁止 §4.24 と整合）。`read_view` / CLI にも同じ来歴を出力し、人間とAIが同じ導出説明を見る。
 
+整合検証（R16-03a）に固有の不変条件:
+
+- **導出の語彙と解決は1実装**: 導出の宣言モデル（`DerivationDef`: `lookup` / `source` / `path` / `values` / `map` / `default`）は `schema/Derivation.kt`、対象ID→出現→スコープ→評価の解決は `index/Derivation.kt` に置き、ビューの計算列（`core/Views`）と整合検証（`validate/Validator`）が**同じモデル・同じ解決**を共有する（依存方向 §2 上、core の Views に置いたままでは Validator から使えないための配置）。ビューで見えている導出値と検証される期待値は常に一致する（人間・AI・検証器が同じ導出を見る）。
+- **整合ルールは検査される文書のスキーマが宣言する**: スキーマの `consistency:`（`idPattern`＝対象ID要素の絞り込み・`path`＝検査する値の要素からの相対パス・`expected`＝導出宣言・`level`・`activeFrom`）。判定は `Validator.validate` に一元化し、検証パネル・CLI・エージェントゲートへ自然に乗せる。`activeFrom` はカバレッジと同じく自文書のフェーズで判定する。
+- **判定は `assert` で選ぶ**: `equals`（宣言値 = 導出値。既定）に加え、`lte` / `gte`（**適合判定** R16-03b: 両辺を数値として以下／以上で比較。数値でなければ判定保留）。適合判定は「画面入力の maxLength ≦ 値型の maxLength」のような**制約の流れ**（設定できない値を許す入力欄の検出）に使う。文字列・enum 集合の包含は実需が出たら拡張する。
+- **判定保留は沈黙**: 検査する値が未記入・期待値の元（写像行）が無い・プレースホルダ未解決で期待値を評価できない場合は指摘しない（未記入は required／写像行の欠落は detailIn カバレッジの領分。エラーの二重計上を避ける）。
+- **テンプレート健全性はソース文書側の指摘（UX-12）**: いずれかのスキーマの整合ルールが `expected.source` にこの文書を選んでいるとき、この文書のID要素のテンプレート（`expected.path` の値）のプレースホルダが「自要素＋`values` で選んだ同一IDの出現＋同一IDの他出現」から解決できなければ、**テンプレートの座標に WARNING** を出す（書いたその場で気づける。編集中ツリーで判定されるため未保存でも出る）。lookup 起点（対象要素）由来のプレースホルダは静的に判定できないため、この検査で誤検知しうる場合はルール側の設計を見直す。
+- **整合判定は注入された索引・loader 基準**: 期待値の材料（他文書のツリー）は loader（既定はディスク）で読む。UIはオーバーレイ索引＋未保存優先 loader（UX-03。§4.5）、変更セット適用・ステージングは適用後オーバーレイを渡すため、それぞれ「見たままの状態」「適用後の状態」で判定される。
+
 ### 4.27 エラー処理
 
 - ファイルI/O・パースは `runCatching` で受け、ユーザー操作の結果は `Result` を返して呼び出し側（UI）が `state.status` に反映する。
@@ -386,6 +399,7 @@ UI層（app）を「Compose購読のシェル」に純化し、ロジックを c
 - **ビュー定義の項目追加**: `core/Views.kt` の `parseView` と `schema/BuiltinSchemas.kt` の `builtin-view` スキーマを**対で**更新する（フォーム編集・検証と実行時パースの二重定義のため）。
 - **共通スキーマ定義の追加**: `_schemas` に `kind: library` を置き、利用側は `moduleId#definition` で参照する。解決規則を増やす場合は `SchemaCatalog` に閉じ、各利用側で参照文字列を個別解析しない。
 - **派生スキーマの写像項目の追加**: `SchemaLoader.parseDerive`（宣言のパース）と `DerivedSchemas.compileOne`（コンパイル）、組込みメタスキーマ（`builtin-schema` の `derive` 定義）を**そろえて**更新する。語彙は skill の列マッピング（SK-02）と揃える（§4.23）。
+- **導出・整合ルールの語彙追加**: 宣言モデル（`schema/Derivation.kt`）・パース（`SchemaLoader.parseConsistency` / `Views.parseView` の computed）・組込みメタスキーマ（`builtin-schema` の `consistency`）・`builtin-view`（computed）・解決器（`index/Derivation.kt`）を**そろえて**更新する（§4.26）。
 - **AIプロバイダの追加**: OpenAI互換のエンドポイントなら `AiConnection`（ベースURL上書き・プリセット）で足りる。独自APIのプロバイダは `AiProvider` に enum を追加し、`AiGenerator.generate` の分岐と専用クライアント（`generate` + `parseResponse` を持つ object）・`ToolChat.newSession` の分岐を実装する。HTTP送信は `AiHttp.post` を使う（§4.18）。
 - **入出力形式の追加**: `TableFormat` に enum を追加し、`skill/Tables.kt` の read / write に分岐を実装する（Importer / Exporter は形式非依存のため変更不要）。
 - **テンプレートパックの追加**: `skill/TemplatePacks.kt` の `all` に `Pack`（ファイルパス→内容の埋め込み）を登録する。`ImportExportTest` に倣い、展開後の検証エラー0をテストで保証する。

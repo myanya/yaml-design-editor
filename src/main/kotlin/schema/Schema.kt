@@ -4,6 +4,7 @@ import yaml.YamlIO
 import java.nio.file.Files
 import java.nio.file.Path
 import model.YNode
+import model.parseYPath
 import model.scalarText
 
 /**
@@ -148,6 +149,11 @@ data class FieldDef(
     val idPatterns: List<String> = emptyList(), // REF の参照先 ID glob（空 = 制限なし）
     val scope: RefScope = RefScope(),        // REF の探索範囲（空 = ワークスペース全体）
     val relation: String? = null,            // REF の関係種別（例: implements / depends）。表示・カバレッジ判定に使う
+    val minLength: Int? = null,              // STRING / TEXT: 最小文字数（R16-01）
+    val maxLength: Int? = null,              // STRING / TEXT: 最大文字数（R16-01）
+    val pattern: String? = null,             // STRING / TEXT: 正規表現（完全一致。R16-01）
+    val min: Double? = null,                 // INT / NUMBER: 最小値（R16-01）
+    val max: Double? = null,                 // INT / NUMBER: 最大値（R16-01）
     val default: Any? = null,                // 新規作成時の初期値
     val description: String? = null,         // フィールドの説明（フォームに表示）
     val ref: String? = null,                 // definitions 内の名前付き定義への参照
@@ -249,6 +255,8 @@ data class SchemaDef(
     val root: FieldDef,
     val definitions: Map<String, FieldDef> = emptyMap(),
     val coverage: List<CoverageRule> = emptyList(),
+    /** 整合ルール（R16-03a）: このスキーマの文書のID要素の値と、導出値との一致要件。 */
+    val consistency: List<ConsistencyRule> = emptyList(),
     val phases: PhasesDef? = null,
     val source: Path,
     val kind: SchemaKind = SchemaKind.DOCUMENT,
@@ -297,6 +305,11 @@ data class SchemaDef(
                 cases = current.cases.ifEmpty { target.cases },
                 role = current.role ?: target.role,
                 display = current.display ?: target.display,
+                minLength = current.minLength ?: target.minLength,
+                maxLength = current.maxLength ?: target.maxLength,
+                pattern = current.pattern ?: target.pattern,
+                min = current.min ?: target.min,
+                max = current.max ?: target.max,
             )
         }
         return current
@@ -388,7 +401,27 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
         if (match.isNotBlank()) issues += SchemaIssue("library スキーマに match は定義できません", "match")
         if (definitions.isEmpty()) issues += SchemaIssue("library スキーマには1つ以上の definitions が必要です", "definitions")
         if (coverage.isNotEmpty()) issues += SchemaIssue("library スキーマに coverage は定義できません", "coverage")
+        if (consistency.isNotEmpty()) issues += SchemaIssue("library スキーマに consistency は定義できません", "consistency")
         if (phases != null) issues += SchemaIssue("library スキーマに phases は定義できません", "phases")
+    }
+
+    // 制約語彙（R16-01）の妥当性: 型との適合・範囲の整合・正規表現の可否
+    fun checkConstraints(f: FieldDef, path: String) {
+        val stringy = f.type == FieldType.STRING || f.type == FieldType.TEXT
+        if ((f.minLength != null || f.maxLength != null || f.pattern != null) && !stringy) {
+            issues += SchemaIssue("minLength / maxLength / pattern は string / text 型でのみ使用できます", path)
+        }
+        if ((f.min != null || f.max != null) && f.type != FieldType.INT && f.type != FieldType.NUMBER) {
+            issues += SchemaIssue("min / max は int / number 型でのみ使用できます", path)
+        }
+        if (f.minLength != null && f.minLength < 0) issues += SchemaIssue("minLength は 0 以上が必要です", path)
+        if (f.minLength != null && f.maxLength != null && f.minLength > f.maxLength) {
+            issues += SchemaIssue("minLength が maxLength を超えています", path)
+        }
+        if (f.min != null && f.max != null && f.min > f.max) issues += SchemaIssue("min が max を超えています", path)
+        f.pattern?.let { p ->
+            runCatching { Regex(p) }.onFailure { issues += SchemaIssue("pattern が正規表現として不正です: $p", path) }
+        }
     }
 
     fun check(field: FieldDef, path: String, stack: Set<DefinitionKey>) {
@@ -410,9 +443,11 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
                 if (resolved.display != null && resolved.type != FieldType.ARRAY && resolved.type != FieldType.MAP) {
                     issues += SchemaIssue("displayはarray / map型でのみ使用できます", path)
                 }
+                checkConstraints(resolved, path)
             }
             return
         }
+        checkConstraints(field, path)
         if (field.cases.isNotEmpty() && field.type != FieldType.ENUM) {
             issues += SchemaIssue("casesはenum型でのみ使用できます", path)
         }
@@ -495,6 +530,14 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
         rule.activeFrom?.let { from ->
             if (phases == null) issues += SchemaIssue("activeFrom を使うには phases の宣言が必要です", "coverage[$i]")
             else if (from !in phases.order) issues += SchemaIssue("activeFrom「$from」は phases に含まれていません", "coverage[$i]")
+        }
+    }
+    consistency.forEachIndexed { i, rule ->
+        if (rule.path.isEmpty()) issues += SchemaIssue("consistency[$i].path が空です", "consistency[$i]")
+        if (rule.idPattern != null && rule.idPattern.isBlank()) issues += SchemaIssue("idPatternが空です", "consistency[$i]")
+        rule.activeFrom?.let { from ->
+            if (phases == null) issues += SchemaIssue("activeFrom を使うには phases の宣言が必要です", "consistency[$i]")
+            else if (from !in phases.order) issues += SchemaIssue("activeFrom「$from」は phases に含まれていません", "consistency[$i]")
         }
     }
     phases?.let { p ->
@@ -668,6 +711,7 @@ object SchemaLoader {
             parseField(rootMap, key = null, definitionScope = id)
         }
         val coverage = parseCoverage(raw["coverage"])
+        val consistency = parseConsistency(raw["consistency"])
         val phases = parsePhases(raw["phases"])
         val parsed = SchemaDef(
             id = id,
@@ -677,6 +721,7 @@ object SchemaLoader {
             root = root,
             definitions = definitions,
             coverage = coverage,
+            consistency = consistency,
             phases = phases,
             source = source,
             kind = kind,
@@ -773,6 +818,63 @@ object SchemaLoader {
         }
     }
 
+    /** 導出宣言（R16-02/03a 共通語彙）のパース。ビューの computed（Views.parseView）と共有する。 */
+    internal fun parseDerivationSelector(raw: Any?, where: String): DerivationSelector {
+        val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります")
+        return DerivationSelector(
+            schemaId = m["schemaId"]?.toString(),
+            fileGlob = m["fileGlob"]?.toString(),
+        )
+    }
+
+    internal fun parseDerivation(raw: Any?, where: String): DerivationDef {
+        val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります")
+        val source = parseDerivationSelector(m["source"] ?: error("$where.source が必要です"), "$where.source")
+        require(!source.isEmpty) { "$where.source には schemaId か fileGlob が必要です" }
+        val lookup = (m["lookup"] as? Map<*, *>)?.let { lm ->
+            DerivationLookup(
+                from = DerivationSelector(lm["schemaId"]?.toString(), lm["fileGlob"]?.toString()),
+                via = parseYPath(lm["via"]?.toString() ?: error("$where.lookup.via が必要です")),
+            )
+        }
+        return DerivationDef(
+            lookup = lookup,
+            source = source,
+            path = parseYPath(m["path"]?.toString() ?: error("$where.path が必要です")),
+            values = (m["values"] as? List<*>)?.mapIndexed { i, v ->
+                parseDerivationSelector(v, "$where.values[$i]")
+            } ?: emptyList(),
+            map = (m["map"] as? Map<*, *>)?.entries
+                ?.associate { it.key.toString() to (it.value?.toString() ?: "") } ?: emptyMap(),
+            default = m["default"]?.toString(),
+        )
+    }
+
+    /** 整合ルール（R16-03a）のパース。level / activeFrom の語彙は coverage と揃える。 */
+    private fun parseConsistency(raw: Any?): List<ConsistencyRule> {
+        if (raw == null) return emptyList()
+        val list = raw as? List<*> ?: error("consistencyはリストである必要があります")
+        return list.mapIndexed { i, entry ->
+            val m = entry as? Map<*, *> ?: error("consistency[$i]はobjectである必要があります")
+            ConsistencyRule(
+                id = m["id"]?.toString(),
+                description = m["description"]?.toString(),
+                idPattern = m["idPattern"]?.toString(),
+                path = parseYPath(m["path"]?.toString() ?: error("consistency[$i].path が必要です")),
+                expected = parseDerivation(m["expected"] ?: error("consistency[$i].expected が必要です"), "consistency[$i].expected"),
+                assert = m["assert"]?.toString()?.let { value ->
+                    ConsistencyAssert.entries.firstOrNull { it.id == value }
+                        ?: error("consistency[$i].assert は equals / lte / gte のいずれかである必要があります: $value")
+                } ?: ConsistencyAssert.EQUALS,
+                level = m["level"]?.toString()?.let { value ->
+                    CoverageLevel.entries.firstOrNull { it.id == value }
+                        ?: error("consistency[$i].level は warning / error のいずれかである必要があります: $value")
+                } ?: CoverageLevel.WARNING,
+                activeFrom = m["activeFrom"]?.toString(),
+            )
+        }
+    }
+
     private fun parseSchemaFile(file: Path): SchemaDef = parseSchemaText(Files.readString(file), file)
 
     private fun parseField(m: Map<*, *>?, key: String?, definitionScope: String): FieldDef {
@@ -843,6 +945,11 @@ object SchemaLoader {
                 documentIds = stringList("documentIds"),
             ),
             relation = m["relation"]?.toString(),
+            minLength = (m["minLength"] as? Number)?.toInt(),
+            maxLength = (m["maxLength"] as? Number)?.toInt(),
+            pattern = m["pattern"]?.toString(),
+            min = (m["min"] as? Number)?.toDouble(),
+            max = (m["max"] as? Number)?.toDouble(),
             default = m["default"],
             description = m["description"]?.toString(),
             ref = (m["\$ref"] ?: m["ref"])?.toString(),

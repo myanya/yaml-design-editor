@@ -147,6 +147,7 @@ object DerivedSchemas {
             root = baseRoot.copy(fields = baseRoot.fields + derivedFields),
             definitions = template.definitions,
             coverage = template.coverage,
+            consistency = template.consistency,
             phases = template.phases,
             source = file,
             kind = SchemaKind.DOCUMENT,

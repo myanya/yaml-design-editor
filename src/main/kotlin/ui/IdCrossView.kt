@@ -46,8 +46,8 @@ import validate.Validator
 fun IdCrossView(state: AppState) {
     state.indexVersion
     var query by remember { mutableStateOf("") }
-    val ids = remember(state.indexVersion, query) {
-        state.index.entries.keys
+    val ids = remember(state.indexVersion, state.editVersion, query) {
+        state.overlayIndex().entries.keys
             .filter { query.isBlank() || it.contains(query, ignoreCase = true) }
             .sorted()
             .take(300)
@@ -70,7 +70,7 @@ fun IdCrossView(state: AppState) {
                 LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                     items(ids, key = { it }) { id ->
                         val selected = state.crossViewId == id
-                        val occurrences = state.index.occurrences(id)
+                        val occurrences = state.overlayIndex().occurrences(id)
                         Column(
                             Modifier.fillMaxWidth()
                                 .background(if (selected) Palette.Selected else Color.Transparent)
@@ -93,7 +93,7 @@ fun IdCrossView(state: AppState) {
         Box(Modifier.width(1.dp).fillMaxHeight().background(Palette.Border))
         // ---------------- 右: 詳細 ----------------
         val selectedId = state.crossViewId
-        if (selectedId == null || state.index.occurrences(selectedId).isEmpty()) {
+        if (selectedId == null || state.overlayIndex().occurrences(selectedId).isEmpty()) {
             Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center) {
                 Text("左の一覧からIDを選択してください", fontSize = 13.sp, color = Palette.SubText)
@@ -108,8 +108,8 @@ fun IdCrossView(state: AppState) {
 
 @Composable
 private fun IdCrossDetail(state: AppState, id: String) {
-    val occurrences = state.index.occurrences(id)
-    val backlinks = remember(id, state.indexVersion) { state.index.backlinksTo(setOf(id)) }
+    val occurrences = state.overlayIndex().occurrences(id)
+    val backlinks = remember(id, state.indexVersion, state.editVersion) { state.overlayIndex().backlinksTo(setOf(id)) }
     val scroll = rememberScrollState()
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(16.dp)) {
@@ -125,10 +125,10 @@ private fun IdCrossDetail(state: AppState, id: String) {
 
             // ---------------- カバレッジ ----------------
             // activeFrom のフェーズ判定には「IDを定義している文書」のルートを渡す（未到達ルールは灰色で区別表示）
-            val statuses = remember(id, state.indexVersion) {
+            val statuses = remember(id, state.indexVersion, state.editVersion) {
                 occurrences.mapNotNull { e -> state.schemas.firstOrNull { it.id == e.schemaId }?.let { it to e } }
                     .distinctBy { it.first.id }
-                    .flatMap { (sc, e) -> Validator.coverageStatuses(id, sc, state.index, state.ensureDoc(e.file).root) }
+                    .flatMap { (sc, e) -> Validator.coverageStatuses(id, sc, state.overlayIndex(), state.ensureDoc(e.file).root) }
             }
             if (statuses.isNotEmpty()) {
                 Spacer(Modifier.height(12.dp))
@@ -176,7 +176,7 @@ private fun IdCrossDetail(state: AppState, id: String) {
             if (backlinks.isEmpty()) Text("このIDへの参照はありません", fontSize = 11.sp, color = Palette.SubText)
             backlinks.forEach { bl ->
                 // 参照を書いた要素の ID・タイトル（表示解決の結果。R10-01）を主表示にする
-                val source = remember(bl, state.indexVersion) { state.index.sourceEntryOf(bl) }
+                val source = remember(bl, state.indexVersion, state.editVersion) { state.overlayIndex().sourceEntryOf(bl) }
                 Row(
                     Modifier.fillMaxWidth()
                         .clickable { state.openFile(bl.file, bl.path) }
@@ -216,8 +216,8 @@ private fun OccurrenceCard(state: AppState, entry: IdEntry) {
     state.indexVersion
     val root = doc.root
 
-    val refsOut = remember(entry, state.indexVersion) {
-        state.index.refs.filter {
+    val refsOut = remember(entry, state.indexVersion, state.editVersion) {
+        state.overlayIndex().refs.filter {
             it.file == entry.file && it.path.size >= entry.path.size &&
                 it.path.subList(0, entry.path.size) == entry.path
         }

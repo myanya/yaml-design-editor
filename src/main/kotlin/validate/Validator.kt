@@ -1,31 +1,54 @@
 package validate
 
+import index.Derivation
 import index.DocScanner
+import index.IdEntry
 import index.IdIndex
 import index.idMatchesPattern
 import index.isAllowedBy
 import model.YNode
 import model.YPath
+import model.getAt
 import model.pretty
 import model.scalarText
+import schema.ConsistencyAssert
 import schema.CoverageLevel
 import schema.CoverageRule
 import schema.FieldDef
 import schema.FieldType
+import schema.Projection
 import schema.SchemaDef
 import schema.UnknownFieldsPolicy
 import schema.currentPhaseIndex
 import schema.currentPhaseValue
 import schema.effectiveFields
 import schema.requiredAt
+import yaml.YamlIO
+import java.nio.file.Files
 import java.nio.file.Path
 
 enum class Severity { ERROR, WARNING, INFO }
+
+/**
+ * 整合検証の指摘に添付する導出の来歴（R16-03c / UX-13）。
+ * UIは指摘クリックで「エラー箇所へ／導出規則へ／入力値へ／導出値を適用」の選択を提示する。
+ */
+data class IssueDerivation(
+    val expected: String,        // 導出値（「導出値を適用」で書き込む値）
+    val raw: String?,            // 元値（テンプレート）
+    val sourceFile: Path?,       // 導出規則の座標
+    val sourcePath: YPath?,
+    val inputs: List<Derivation.Input>,  // 入力値の座標（プレースホルダごと）
+)
 
 data class Issue(
     val severity: Severity,
     val message: String,
     val path: YPath,
+    /** 整合検証の指摘のみ非null（R16-03c）。導出の来歴と適用可能な修正。 */
+    val derivation: IssueDerivation? = null,
+    /** 指摘に関連するID（UX-15 の不足案内など）。UIはクリックで各IDの定義へジャンプできる。 */
+    val relatedIds: List<String> = emptyList(),
 )
 
 /** カバレッジルール1件の判定結果（検証と横ぐしビューで共用）。 */
@@ -66,6 +89,12 @@ object Validator {
          * そのまま行う（ARCHITECTURE §4.25 のエディタ層）。
          */
         indexed: Boolean = true,
+        /** ワークスペースのルート（整合検証 R16-03a で selector の fileGlob 判定に使う相対パス化。null ならパス文字列をそのまま使う）。 */
+        workspace: Path? = null,
+        /** 整合検証で他文書のツリーを読む loader。既定はディスク（索引と同じ基準）。変更セット適用・ステージングはオーバーレイを渡す。 */
+        loader: (Path) -> YNode? = { f -> runCatching { YamlIO.parseFirst(Files.readString(f)) }.getOrNull() },
+        /** 全スキーマ（テンプレート健全性検査 UX-12 が他スキーマの整合ルールを参照するため。空なら自スキーマのみ）。 */
+        allSchemas: List<SchemaDef> = emptyList(),
     ): List<Issue> {
         if (root == null) {
             return listOf(Issue(Severity.ERROR, "YAML パースエラー: ${parseError ?: "不明"}", emptyList()))
@@ -126,7 +155,131 @@ object Validator {
                 }
             }
         }
-        return issues
+        // 4) 整合検証（R16-03a）: ID要素の宣言値が導出値と一致すること（等値判定。ARCHITECTURE §4.26）
+        if (indexed) {
+            val trees = mutableMapOf<Path, YNode?>()
+            fun tree(f: Path): YNode? = if (f == file) root else trees.getOrPut(f) { loader(f) }
+            fun relOf(f: Path): String =
+                workspace?.let { IdIndex.relPathOf(it, f) } ?: f.toString().replace('\\', '/')
+
+            schema?.consistency?.forEach { rule ->
+                // activeFrom: カバレッジと同じく自文書のフェーズ到達まで判定を保留する
+                val active = rule.activeFrom?.let { from ->
+                    val fromIdx = schema.phases?.order?.indexOf(from) ?: -1
+                    fromIdx < 0 || phaseIndex == null || phaseIndex >= fromIdx
+                } ?: true
+                if (!active) return@forEach
+                for (entry in localIds) {
+                    if (rule.idPattern != null && !idMatchesPattern(entry.id, rule.idPattern)) continue
+                    val element = getAt(root, entry.path) ?: continue
+                    // 検査する値が未記入なら判定しない（未記入は required の領分。二重計上を避ける）
+                    val actual = scalarText(getAt(element, rule.path)) ?: continue
+                    val result = Derivation.resolve(rule.expected, entry.id, indexObj, ::relOf, ::tree)
+                    val expected = result.value
+                    // 期待値が評価できない（写像行なし・プレースホルダ未解決）ときは判定保留（§4.26）
+                    if (expected == null || !result.complete) continue
+                    // 判定（R16-03b）: equals は等値、lte / gte は数値としての包含（数値でなければ判定保留）
+                    val satisfied: Boolean? = when (rule.assert) {
+                        ConsistencyAssert.EQUALS -> actual == expected
+                        ConsistencyAssert.LTE, ConsistencyAssert.GTE -> {
+                            val a = actual.toDoubleOrNull()
+                            val e = expected.toDoubleOrNull()
+                            if (a == null || e == null) null
+                            else if (rule.assert == ConsistencyAssert.LTE) a <= e else a >= e
+                        }
+                    }
+                    if (satisfied == false) {
+                        val severity = if (rule.level == CoverageLevel.ERROR) Severity.ERROR else Severity.WARNING
+                        val relationText = when (rule.assert) {
+                            ConsistencyAssert.EQUALS -> "導出値「$expected」と一致しません"
+                            ConsistencyAssert.LTE -> "導出値「$expected」以下である必要があります"
+                            ConsistencyAssert.GTE -> "導出値「$expected」以上である必要があります"
+                        }
+                        issues += Issue(
+                            severity,
+                            "「${rule.path.pretty()}」の値「$actual」は$relationText" +
+                                (rule.description?.let { " — $it" } ?: ""),
+                            entry.path + rule.path,
+                            // 来歴（R16-03c）: UIの「導出規則へ／入力値へ／導出値を適用」に使う
+                            derivation = IssueDerivation(
+                                expected = expected,
+                                raw = result.raw,
+                                sourceFile = result.sourceFile,
+                                sourcePath = result.sourcePath,
+                                inputs = result.inputs,
+                            ),
+                        )
+                    }
+                }
+            }
+
+            // 5) テンプレート健全性（R16-03a / UX-12）: いずれかのスキーマの整合ルールがこの文書を
+            //    導出元（expected.source）に選んでいるとき、テンプレートのプレースホルダが導出の入力
+            //    （自要素・values で選んだ同一IDの出現・同一IDの他出現）から解決できるかを書いたその場で検査する。
+            //    lookup 起点（対象要素）由来のプレースホルダは静的に判定できない（§4.26）
+            val relSelf = relOf(file)
+            val sourceRules = (allSchemas.ifEmpty { listOfNotNull(schema) })
+                .flatMap { it.consistency }
+                .filter { it.expected.source.matches(schema?.id, relSelf) }
+            if (sourceRules.isNotEmpty()) {
+                fun elementOf(e: IdEntry): YNode? = tree(e.file)?.let { getAt(it, e.path) }
+                for (rule in sourceRules) {
+                    for (entry in localIds) {
+                        val element = getAt(root, entry.path) ?: continue
+                        val raw = scalarText(getAt(element, rule.expected.path)) ?: continue
+                        if ('{' !in raw) continue
+                        val occs = indexObj.entries[entry.id].orEmpty()
+                        val valueScopes = rule.expected.values.mapNotNull { sel ->
+                            occs.firstOrNull { sel.matches(it.schemaId, relOf(it.file)) }?.let(::elementOf)
+                        }
+                        val otherScopes = occs
+                            .filter { !(it.file == file && it.path == entry.path) }
+                            .mapNotNull(::elementOf)
+                        val eval = Projection.evaluate(raw, listOf(element) + valueScopes + otherScopes)
+                        eval.resolutions.filter { it.value == null }.forEach { r ->
+                            issues += Issue(
+                                Severity.WARNING,
+                                "プレースホルダ {${r.placeholder}} を導出の入力（値型定義等）から解決できません" +
+                                    (rule.description?.let { " — $it" } ?: ""),
+                                entry.path + rule.expected.path,
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 6) 出現先への不足案内（UX-15）: 他スキーマのカバレッジ（出現ベース detailIn）がこの文書の
+            //    スキーマを出現先に指定しているとき、不足している対象IDをこの文書側にも案内する
+            //    （指摘の本体は定義側文書に出る。ここは「この文書に行を追加できる」という向きの反転の案内＝INFO）。
+            //    この文書への未保存追加（localIds）は充足とみなすため、行を書いたその場で案内が消える
+            val selfSchemaId = schema?.id
+            if (selfSchemaId != null) {
+                for (owner in allSchemas) {
+                    for (rule in owner.coverage) {
+                        if (selfSchemaId !in rule.detailSchemaIds) continue
+                        val missing = indexObj.entries.asSequence()
+                            .filter { (id, occs) ->
+                                occs.any { it.schemaId == owner.id } &&
+                                    (rule.idPattern == null || idMatchesPattern(id, rule.idPattern)) &&
+                                    occs.count { it.schemaId in rule.detailSchemaIds } < rule.minCount &&
+                                    id !in localIdSet
+                            }
+                            .map { it.key }.sorted().toList()
+                        if (missing.isEmpty()) continue
+                        val shown = missing.take(5).joinToString(", ") +
+                            (if (missing.size > 5) " 他${missing.size - 5}件" else "")
+                        issues += Issue(
+                            Severity.INFO,
+                            "この文書のスキーマを出現先とするカバレッジで不足しているIDが ${missing.size} 件あります: $shown" +
+                                (rule.description?.let { "（$it）" } ?: ""),
+                            emptyList(),
+                            relatedIds = missing,
+                        )
+                    }
+                }
+            }
+        }
+        return issues.distinct()
     }
 
     /**
@@ -222,6 +375,22 @@ object Validator {
     /** カバレッジの数え上げ対象の表示名（参照ベース=「参照」、出現ベース=「出現」）。UI表示で共用する。 */
     fun coverageCountLabel(rule: CoverageRule): String = if (rule.isOccurrence) "出現" else "参照"
 
+    /** 数値の表示（整数なら小数点を出さない）。制約メッセージで使う。 */
+    private fun numText(d: Double): String =
+        if (d == Math.floor(d) && !d.isInfinite()) d.toLong().toString() else d.toString()
+
+    /** 数値の範囲制約（R16-01: min / max）。値が数値として読めるときだけ検査する。 */
+    private fun checkRange(f: FieldDef, label: String, v: Any?, path: YPath, issues: MutableList<Issue>) {
+        if (f.min == null && f.max == null) return
+        val n = (v as? Number)?.toDouble() ?: (v as? String)?.toDoubleOrNull() ?: return
+        f.min?.let { limit ->
+            if (n < limit) issues += Issue(Severity.ERROR, "「$label」は ${numText(limit)} 以上で入力してください（現在値: $v）", path)
+        }
+        f.max?.let { limit ->
+            if (n > limit) issues += Issue(Severity.ERROR, "「$label」は ${numText(limit)} 以下で入力してください（現在値: $v）", path)
+        }
+    }
+
     private fun checkField(field: FieldDef, node: YNode?, path: YPath, issues: MutableList<Issue>, schema: schema.SchemaDef, phaseIndex: Int?) {
         val f = schema.resolve(field) ?: field
         val label = f.displayLabel
@@ -297,11 +466,13 @@ object Validator {
                 val v = (node as? YNode.Scalar)?.value
                 val ok = v == null || v is Int || v is Long || (v is String && v.toLongOrNull() != null)
                 if (!ok) issues += Issue(Severity.ERROR, "「$label」は整数である必要があります（現在値: $v）", path)
+                else checkRange(f, label, v, path, issues)
             }
             FieldType.NUMBER -> {
                 val v = (node as? YNode.Scalar)?.value
                 val ok = v == null || v is Number || (v is String && v.toDoubleOrNull() != null)
                 if (!ok) issues += Issue(Severity.ERROR, "「$label」は数値である必要があります（現在値: $v）", path)
+                else checkRange(f, label, v, path, issues)
             }
             FieldType.BOOLEAN -> {
                 val v = (node as? YNode.Scalar)?.value
@@ -326,6 +497,29 @@ object Validator {
                     issues += Issue(Severity.WARNING, "「$label」はスカラー値を想定しています", path)
                 } else if (required && scalarText(node) == null) {
                     issues += Issue(Severity.ERROR, "必須項目「$label」が未設定です", path)
+                } else if (f.type != FieldType.REF) {
+                    // 制約語彙（R16-01）: 文字数・正規表現（値が入っているときだけ検査する）
+                    val text = scalarText(node)
+                    if (text != null) {
+                        f.minLength?.let { limit ->
+                            if (text.length < limit) {
+                                issues += Issue(Severity.ERROR, "「$label」は $limit 文字以上で入力してください（現在 ${text.length} 文字）", path)
+                            }
+                        }
+                        f.maxLength?.let { limit ->
+                            if (text.length > limit) {
+                                issues += Issue(Severity.ERROR, "「$label」は $limit 文字以内で入力してください（現在 ${text.length} 文字）", path)
+                            }
+                        }
+                        f.pattern?.let { p ->
+                            // 不正な正規表現はメタスキーマ検証（validateDefinition）が指摘するため、ここでは黙って飛ばす
+                            runCatching { Regex(p) }.getOrNull()?.let { re ->
+                                if (!re.matches(text)) {
+                                    issues += Issue(Severity.ERROR, "「$label」は形式（$p）に一致していません（現在値: $text）", path)
+                                }
+                            }
+                        }
+                    }
                 }
             }
             // any は「検証しない」の明示（R11-02）。必須チェック（node == null）だけが手前で効く

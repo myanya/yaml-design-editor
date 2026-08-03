@@ -652,8 +652,12 @@ fun StatusBar(state: AppState, engine: AutomationEngine?, inboxCount: Int, onOpe
         if (doc != null) {
             doc.version
             state.indexVersion
-            val issues = remember(doc, doc.version, state.indexVersion) {
-                Validator.validate(doc.root, doc.parseError, doc.file, doc.schema, state.index, indexed = state.isIndexed(doc.file))
+            val issues = remember(doc, doc.version, state.indexVersion, state.editVersion) {
+                Validator.validate(
+                    doc.root, doc.parseError, doc.file, doc.schema, state.overlayIndex(),
+                    indexed = state.isIndexed(doc.file), workspace = state.workspace, allSchemas = state.schemas,
+                    loader = state.unsavedFirstLoader(),
+                )
             }
             val errors = issues.count { it.severity == Severity.ERROR } + state.schemaErrors.size
             val warnings = issues.count { it.severity == Severity.WARNING }

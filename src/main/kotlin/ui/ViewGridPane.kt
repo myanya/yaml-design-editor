@@ -211,7 +211,7 @@ private fun GridBody(state: AppState, view: ViewDef) {
     // 行の構造（座標）は索引基準で解決し、セル値の表示・編集は編集中ツリーを優先する。
     // editVersion の購読（R16-04 / UX-02）: 計算列が他文書の未保存編集にも追随するための再解決契機
     val rows = remember(view, state.indexVersion, state.editVersion) {
-        Views.resolve(view, ws, state.index) { f ->
+        Views.resolve(view, ws, state.overlayIndex()) { f ->
             state.docFor(f)?.root ?: runCatching { YamlIO.parseFirst(Files.readString(f)) }.getOrNull()
         }
     }
@@ -521,10 +521,10 @@ private fun DetailCell(state: AppState, view: ViewDef, row: ViewRow) {
 private fun StatusCell(state: AppState, row: ViewRow) {
     Box(Modifier.width(STATUS_WIDTH).padding(top = 6.dp)) {
         // activeFrom のフェーズ判定には「IDを定義している文書」のルートを渡す（未到達ルールは対象外にする）
-        val statuses = remember(row.id, state.indexVersion) {
+        val statuses = remember(row.id, state.indexVersion, state.editVersion) {
             row.occurrences.mapNotNull { e -> state.schemas.firstOrNull { it.id == e.schemaId }?.let { it to e } }
                 .distinctBy { it.first.id }
-                .flatMap { (sc, e) -> Validator.coverageStatuses(row.id, sc, state.index, state.ensureDoc(e.file).root) }
+                .flatMap { (sc, e) -> Validator.coverageStatuses(row.id, sc, state.overlayIndex(), state.ensureDoc(e.file).root) }
         }
         val active = statuses.filter { it.active }
         if (active.isEmpty()) {

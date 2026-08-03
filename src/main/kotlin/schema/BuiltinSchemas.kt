@@ -40,6 +40,41 @@ object BuiltinSchemas {
                 type: enum
                 values: [string, text, int, number, boolean, enum, date, id, ref, array, map, object, any]
                 cases:
+                  string:
+                    - key: minLength
+                      label: 最小文字数
+                      type: int
+                    - key: maxLength
+                      label: 最大文字数
+                      type: int
+                    - key: pattern
+                      label: 形式（正規表現）
+                      type: string
+                      description: 値の全体がこの正規表現に一致すること（R16-01）
+                  text:
+                    - key: minLength
+                      label: 最小文字数
+                      type: int
+                    - key: maxLength
+                      label: 最大文字数
+                      type: int
+                    - key: pattern
+                      label: 形式（正規表現）
+                      type: string
+                  int:
+                    - key: min
+                      label: 最小値
+                      type: int
+                    - key: max
+                      label: 最大値
+                      type: int
+                  number:
+                    - key: min
+                      label: 最小値
+                      type: number
+                    - key: max
+                      label: 最大値
+                      type: number
                   enum:
                     - key: values
                       label: 選択肢
@@ -203,6 +238,102 @@ object BuiltinSchemas {
                       - key: minCount
                         label: 必要な出現数
                         type: int
+                  - key: level
+                    label: 重大度
+                    type: enum
+                    values: [warning, error]
+                  - key: activeFrom
+                    label: 判定を始めるフェーズ
+                    type: string
+            - key: consistency
+              label: 整合ルール
+              type: array
+              description: このスキーマの文書のID要素の値が、導出（計算列と同じ語彙）の期待値と一致することを検証する（R16-03a）
+              item:
+                type: object
+                fields:
+                  - key: id
+                    label: ルールID
+                    type: string
+                  - key: description
+                    label: 説明
+                    type: string
+                  - key: idPattern
+                    label: 対象IDパターン
+                    type: string
+                  - key: path
+                    label: 検査する値の相対パス
+                    type: string
+                    required: true
+                    description: ID要素からの相対YPath（例 type）
+                  - key: expected
+                    label: 期待値の導出
+                    type: object
+                    required: true
+                    description: ビューの計算列（computed）と同じ語彙（lookup / source / path / values / map / default）
+                    fields:
+                      - key: lookup
+                        label: 参照の1ホップ
+                        type: object
+                        fields:
+                          - key: schemaId
+                            label: 参照値を読む出現のスキーマ
+                            type: string
+                          - key: fileGlob
+                            label: 参照値を読む出現のファイル（glob）
+                            type: string
+                          - key: via
+                            label: ref フィールドの相対パス
+                            type: string
+                            required: true
+                      - key: source
+                        label: 元値を読む出現
+                        type: object
+                        required: true
+                        fields:
+                          - key: schemaId
+                            label: スキーマ
+                            type: string
+                          - key: fileGlob
+                            label: ファイル（glob）
+                            type: string
+                      - key: path
+                        label: 元値の相対パス
+                        type: string
+                        required: true
+                      - key: values
+                        label: プレースホルダ解決に使う出現
+                        type: array
+                        item:
+                          type: object
+                          fields:
+                            - key: schemaId
+                              label: スキーマ
+                              type: string
+                            - key: fileGlob
+                              label: ファイル（glob）
+                              type: string
+                      - key: map
+                        label: 値辞書
+                        type: map
+                        value:
+                          type: string
+                      - key: default
+                        label: 既定値
+                        type: string
+                  - key: assert
+                    label: 判定方法
+                    type: enum
+                    values:
+                      - value: equals
+                        label: 一致
+                        description: 宣言値が導出値と一致すること（既定）
+                      - value: lte
+                        label: 以下
+                        description: 宣言値が導出値以下であること（数値として比較。適合判定）
+                      - value: gte
+                        label: 以上
+                        description: 宣言値が導出値以上であること（数値として比較）
                   - key: level
                     label: 重大度
                     type: enum

@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollbarAdapter
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
@@ -25,10 +27,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.AppState
+import app.OpenDocument
 import index.DocScanner
 import index.isAllowedBy
+import model.YNode
 import model.pretty
 import schema.currentPhaseValue
+import validate.Issue
 import validate.Severity
 import validate.Validator
 
@@ -55,34 +60,38 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
         doc.version
         state.indexVersion
 
-        val issues = remember(doc, doc.version, state.indexVersion) {
-            Validator.validate(doc.root, doc.parseError, doc.file, doc.schema, state.index, indexed = state.isIndexed(doc.file))
+        val issues = remember(doc, doc.version, state.indexVersion, state.editVersion) {
+            Validator.validate(
+                doc.root, doc.parseError, doc.file, doc.schema, state.overlayIndex(),
+                indexed = state.isIndexed(doc.file), workspace = state.workspace, allSchemas = state.schemas,
+                loader = state.unsavedFirstLoader(),
+            )
         }
         val scanned = remember(doc, doc.version) {
             val root = doc.root
             if (root == null) emptyList<index.IdEntry>() to emptyList<index.RefEntry>()
-            else DocScanner.scan(root, doc.file, doc.schema, state.index.documentIdFor(doc.file, root))
+            else DocScanner.scan(root, doc.file, doc.schema, state.overlayIndex().documentIdFor(doc.file, root))
         }
         val (localIds, localRefs) = scanned
-        val backlinks = remember(doc, doc.version, state.indexVersion) {
-            state.index.backlinksTo(localIds.map { it.id }.toSet())
+        val backlinks = remember(doc, doc.version, state.indexVersion, state.editVersion) {
+            state.overlayIndex().backlinksTo(localIds.map { it.id }.toSet())
                 .filter { it.file != doc.file }
         }
         // 出現タブの対象ID: 文書ルートのID（段階的詳細化の単位。E-09 と同じ基準）
         val rootId = remember(doc, doc.version) {
             localIds.firstOrNull { it.path.isEmpty() }?.id ?: localIds.firstOrNull()?.id
         }
-        val occurrences = remember(rootId, state.indexVersion) {
-            rootId?.let { state.index.occurrences(it) }.orEmpty()
+        val occurrences = remember(rootId, state.indexVersion, state.editVersion) {
+            rootId?.let { state.overlayIndex().occurrences(it) }.orEmpty()
         }
         // カバレッジ（V-05）: activeFrom のフェーズ判定には「IDを定義している文書」のルートを渡す
-        val coverage = remember(rootId, state.indexVersion) {
+        val coverage = remember(rootId, state.indexVersion, state.editVersion) {
             val id = rootId
             if (id == null) emptyList()
             else occurrences
                 .mapNotNull { e -> state.schemas.firstOrNull { it.id == e.schemaId }?.let { it to e } }
                 .distinctBy { it.first.id }
-                .flatMap { (sc, e) -> Validator.coverageStatuses(id, sc, state.index, state.ensureDoc(e.file).root) }
+                .flatMap { (sc, e) -> Validator.coverageStatuses(id, sc, state.overlayIndex(), state.ensureDoc(e.file).root) }
         }
         // フェーズ進捗（phases 宣言のあるスキーマのみ。未来フェーズの未記入はエラーではなく進捗で見せる）
         val phases = doc.schema?.phases
@@ -148,29 +157,7 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                     }
                 }
                 items(issues.size) { i ->
-                    val issue = issues[i]
-                    Row(
-                        Modifier.fillMaxWidth()
-                            .clickable { state.navigateToPath(issue.path) }
-                            .padding(horizontal = 12.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.Top,
-                    ) {
-                        Icon(
-                            Icons.Default.Warning,
-                            contentDescription = null,
-                            Modifier.size(14.dp).padding(top = 1.dp),
-                            tint = when (issue.severity) {
-                                Severity.ERROR -> Palette.ErrorRed
-                                Severity.WARNING -> Palette.WarnOrange
-                                Severity.INFO -> Palette.SubText
-                            },
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Column {
-                            Text(issue.message, fontSize = 12.sp)
-                            Text(issue.path.pretty(), fontSize = 10.sp, color = Palette.SubText)
-                        }
-                    }
+                    IssueRow(state, doc, issues[i])
                 }
                 }
 
@@ -182,7 +169,7 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                 }
                 items(localRefs.size) { i ->
                     val ref = localRefs[i]
-                    val resolvable = state.index.resolve(ref).isNotEmpty() ||
+                    val resolvable = state.overlayIndex().resolve(ref).isNotEmpty() ||
                             localIds.any { it.id == ref.targetId && it.isAllowedBy(ref) }
                     Row(
                         Modifier.fillMaxWidth()
@@ -217,7 +204,7 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                 items(backlinks.size) { i ->
                     val bl = backlinks[i]
                     // 参照を書いた要素の ID・タイトル（表示解決の結果。R10-01）を主表示にする
-                    val source = remember(bl, state.indexVersion) { state.index.sourceEntryOf(bl) }
+                    val source = remember(bl, state.indexVersion, state.editVersion) { state.overlayIndex().sourceEntryOf(bl) }
                     Row(
                         Modifier.fillMaxWidth()
                             .clickable {
@@ -350,6 +337,130 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
             )
         }
     }
+}
+
+/**
+ * 検証タブの指摘1件（R16-03c / UX-13）。整合検証の指摘（来歴つき）はクリックで
+ * 「エラー箇所へ／導出規則へ／入力値へ／導出値を適用」の選択メニューを出す（計算セルの来歴と同じ流儀）。
+ * 来歴のない指摘は従来どおり該当箇所へ直接ジャンプする。
+ */
+@Composable
+private fun IssueRow(state: AppState, doc: OpenDocument, issue: Issue) {
+    var menuOpen by remember { mutableStateOf(false) }
+    Box {
+        val hasMenu = issue.derivation != null || issue.relatedIds.isNotEmpty()
+        Row(
+            Modifier.fillMaxWidth()
+                .clickable { if (hasMenu) menuOpen = true else state.navigateToPath(issue.path) }
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Icon(
+                Icons.Default.Warning,
+                contentDescription = null,
+                Modifier.size(14.dp).padding(top = 1.dp),
+                tint = when (issue.severity) {
+                    Severity.ERROR -> Palette.ErrorRed
+                    Severity.WARNING -> Palette.WarnOrange
+                    Severity.INFO -> Palette.SubText
+                },
+            )
+            Spacer(Modifier.width(6.dp))
+            Column {
+                Text(issue.message, fontSize = 12.sp)
+                Text(issue.path.pretty(), fontSize = 10.sp, color = Palette.SubText)
+            }
+        }
+        if (hasMenu) {
+            DropdownMenu(menuOpen, { menuOpen = false }) {
+                val d = issue.derivation
+                if (d != null) {
+                DropdownMenuItem(
+                    text = {
+                        Column {
+                            Text("エラー箇所へ", fontSize = 12.sp)
+                            Text(issue.path.pretty(), fontSize = 10.sp, color = Palette.SubText)
+                        }
+                    },
+                    onClick = { menuOpen = false; state.navigateToPath(issue.path) },
+                )
+                val sourceFile = d.sourceFile
+                if (sourceFile != null) {
+                    DropdownMenuItem(
+                        text = {
+                            Column {
+                                Text("導出規則へ" + (d.raw?.let { ": $it" } ?: ""), fontSize = 12.sp)
+                                Text(
+                                    "${state.relPath(sourceFile)} :: ${d.sourcePath?.pretty()}",
+                                    fontSize = 10.sp, color = Palette.SubText,
+                                )
+                            }
+                        },
+                        onClick = { menuOpen = false; state.openFile(sourceFile, d.sourcePath) },
+                    )
+                }
+                d.inputs.forEach { input ->
+                    val inputFile = input.file
+                    val inputPath = input.path
+                    if (inputFile != null && inputPath != null) {
+                        DropdownMenuItem(
+                            text = {
+                                Column {
+                                    Text("入力値へ: {${input.placeholder}} = ${input.value}", fontSize = 12.sp)
+                                    Text(
+                                        "${state.relPath(inputFile)} :: ${inputPath.pretty()}",
+                                        fontSize = 10.sp, color = Palette.SubText,
+                                    )
+                                }
+                            },
+                            onClick = { menuOpen = false; state.openFile(inputFile, inputPath) },
+                        )
+                    }
+                }
+                if (!state.readOnlyMode) {
+                    DropdownMenuItem(
+                        text = {
+                            Column {
+                                Text("導出値を適用: ${d.expected}", fontSize = 12.sp, color = Palette.Primary)
+                                Text("未保存の編集として書き込みます（Undo可）", fontSize = 10.sp, color = Palette.SubText)
+                            }
+                        },
+                        onClick = { menuOpen = false; applyDerivedValue(state, doc, issue, d.expected) },
+                    )
+                }
+                }
+                // 関連ID（UX-15 の不足案内など）: 各IDの定義へジャンプできる
+                issue.relatedIds.take(10).forEach { id ->
+                    DropdownMenuItem(
+                        text = { Text("定義へ: $id", fontSize = 12.sp) },
+                        onClick = { menuOpen = false; state.navigateToId(id) },
+                    )
+                }
+                if (issue.relatedIds.size > 10) {
+                    Text(
+                        "…他 ${issue.relatedIds.size - 10} 件",
+                        Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        fontSize = 10.sp, color = Palette.SubText,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 「導出値を適用」（R16-03c）: 指摘の座標へ導出値を通常の編集経路（Slot＋markEdited）で書き込む。
+ * 未保存編集として積まれるため Undo・差分・保存の既存機構がそのまま効く（ビュー専用の書込経路は作らない）。
+ */
+private fun applyDerivedValue(state: AppState, doc: OpenDocument, issue: Issue, expected: String) {
+    val root = doc.root ?: return
+    val slot = slotAt(root, issue.path) ?: run {
+        state.status = "導出値を適用できませんでした（座標に書き込めません: ${issue.path.pretty()}）"
+        return
+    }
+    slot.set(YNode.Scalar(expected))
+    doc.markEdited()
+    state.status = "導出値を適用しました: $expected（未保存）"
 }
 
 @Composable

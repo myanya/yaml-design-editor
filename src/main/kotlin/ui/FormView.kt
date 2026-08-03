@@ -50,6 +50,8 @@ import model.YNode
 import model.YPath
 import model.pretty
 import schema.Display
+import validate.Severity
+import validate.Validator
 import schema.FieldDef
 import schema.FieldType
 import schema.effectiveFields
@@ -76,7 +78,12 @@ class FormCtx(
     val baseDepth: Int = 0,
     /** 文書ビューの要素単位アタッチ（R14-03）: 要素パス → その位置に差し込む被参照。ObjectFields が描画する。 */
     val attachments: Map<YPath, List<Pair<DocViewAttachment, DocBacklinkRow>>> = emptyMap(),
+    /** パス → 検証指摘の最悪重大度（UX-14）。FieldRow が入力枠の色づけに使う（空 = 色づけしない）。 */
+    val issues: Map<YPath, Severity> = emptyMap(),
 ) {
+    /** このパスの検証指摘の重大度（UX-14）。エラー=赤・警告=オレンジの枠色に使う。 */
+    fun issueAt(path: YPath): Severity? = issues[path]
+
     /**
      * ネスト構造の既定展開判定。フォームのルートから DEFAULT_EXPAND_DEPTH 階層までは開き、
      * より深い階層は畳んで畳み込みサマリ（E-11）に任せる。編集・閲覧専用モード共通。
@@ -98,7 +105,7 @@ class FormCtx(
 
     fun resolvable(ref: RefEntry): Boolean =
         ref.targetId.isNotBlank() &&
-            (localIds.any { it.id == ref.targetId && it.isAllowedBy(ref) } || state.index.resolve(ref).isNotEmpty())
+            (localIds.any { it.id == ref.targetId && it.isAllowedBy(ref) } || state.overlayIndex().resolve(ref).isNotEmpty())
 
     /** スキーマ外の汎用参照は、パターン／スコープ制約なしで解決する。 */
     fun resolvable(id: String): Boolean =
@@ -198,14 +205,25 @@ fun FormView(state: AppState, doc: OpenDocument) {
     val attachments = remember(doc, doc.version, state.indexVersion, docView) {
         val ws = state.workspace
         if (docView == null || docView.attachments.isEmpty() || ws == null) emptyMap()
-        else Views.resolveAttachments(docView, ws, doc.file, state.index, localIds) { f ->
+        else Views.resolveAttachments(docView, ws, doc.file, state.overlayIndex(), localIds) { f ->
             state.docFor(f)?.root
                 ?: runCatching { YamlIO.parseFirst(java.nio.file.Files.readString(f)) }.getOrNull()
         }.flatMap { resolved -> resolved.rows.map { row -> row.path to (resolved.attachment to row) } }
             .groupBy({ it.first }, { it.second })
     }
-    val ctx = remember(doc, doc.version, state.indexVersion, state.readOnlyMode, attachments) {
-        FormCtx(state, doc, localIds, attachments = attachments)
+    // 検証指摘のパス索引（UX-14）: 指摘のあるフィールドの入力枠を色づけする（全指摘種別に効く）
+    val fieldIssues = remember(doc, doc.version, state.indexVersion, state.editVersion) {
+        Validator.validate(
+            doc.root, doc.parseError, doc.file, doc.schema, state.overlayIndex(),
+            indexed = state.isIndexed(doc.file), workspace = state.workspace, allSchemas = state.schemas,
+            loader = state.unsavedFirstLoader(),
+        )
+            .filter { it.path.isNotEmpty() && it.severity != Severity.INFO }
+            .groupBy({ it.path }) { it.severity }
+            .mapValues { (_, sevs) -> if (Severity.ERROR in sevs) Severity.ERROR else Severity.WARNING }
+    }
+    val ctx = remember(doc, doc.version, state.indexVersion, state.readOnlyMode, attachments, fieldIssues) {
+        FormCtx(state, doc, localIds, attachments = attachments, issues = fieldIssues)
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -306,8 +324,8 @@ private fun SameIdOccurrencesStrip(ctx: FormCtx, localIds: List<IdEntry>) {
     val state = ctx.state
     state.indexVersion
     val rootId = localIds.firstOrNull { it.path.isEmpty() }?.id ?: return
-    val others = remember(rootId, state.indexVersion) {
-        state.index.occurrences(rootId).filter { it.file != ctx.doc.file }
+    val others = remember(rootId, state.indexVersion, state.editVersion) {
+        state.overlayIndex().occurrences(rootId).filter { it.file != ctx.doc.file }
     }
     if (others.isEmpty()) return
     Column(
@@ -325,7 +343,7 @@ private fun SameIdOccurrencesStrip(ctx: FormCtx, localIds: List<IdEntry>) {
             ) { Text("横ぐしビュー", fontSize = 11.sp) }
         }
         others.forEach { entry ->
-            val summary = remember(entry, state.indexVersion) {
+            val summary = remember(entry, state.indexVersion, state.editVersion) {
                 val root = state.docFor(entry.file)?.root
                     ?: runCatching { YamlIO.parseFirst(java.nio.file.Files.readString(entry.file)) }.getOrNull()
                 val element = root?.let { model.getAt(it, entry.path) } as? YNode.Map
@@ -399,7 +417,7 @@ private fun DocViewSections(ctx: FormCtx, view: DocViewDef, root: YNode.Map, loc
     // 行（文書内ID）は未保存編集を反映（localIds）、被参照は索引＝保存済み状態基準（SidePanel と同じ）
     val resolved = remember(doc, doc.version, state.indexVersion, view) {
         state.workspace?.let { ws ->
-            Views.resolveDocument(view, ws, doc.file, state.index, localIds) { f ->
+            Views.resolveDocument(view, ws, doc.file, state.overlayIndex(), localIds) { f ->
                 state.docFor(f)?.root
                     ?: runCatching { YamlIO.parseFirst(java.nio.file.Files.readString(f)) }.getOrNull()
             }
@@ -613,7 +631,17 @@ private fun FieldRow(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
                     effective.description?.let { Text(it, fontSize = 10.sp, color = Palette.SubText, maxLines = 2) }
                 }
             }
-            Box(Modifier.weight(1f)) { ValueEditor(ctx, effective, slot, path) }
+            // 検証指摘のあるフィールドは入力枠を色づけする（UX-14: エラー=赤・警告=オレンジ）
+            val issueColor = when (ctx.issueAt(path)) {
+                Severity.ERROR -> Palette.ErrorRed
+                Severity.WARNING -> Palette.WarnOrange
+                else -> null
+            }
+            Box(
+                Modifier.weight(1f).then(
+                    if (issueColor != null) Modifier.border(1.dp, issueColor, PanelShape) else Modifier
+                )
+            ) { ValueEditor(ctx, effective, slot, path) }
         }
     }
 }
@@ -770,7 +798,7 @@ private fun EnumEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
 private fun IdEditor(ctx: FormCtx, slot: Slot) {
     val text = (slot.get() as? YNode.Scalar)?.value?.toString() ?: ""
     val otherOccurrences = if (text.isBlank()) 0 else
-        ctx.state.index.entries[text].orEmpty().count { it.file != ctx.doc.file }
+        ctx.state.overlayIndex().entries[text].orEmpty().count { it.file != ctx.doc.file }
     Column {
         if (ctx.readOnly) {
             ReadOnlyValueText(text)
@@ -784,7 +812,7 @@ private fun IdEditor(ctx: FormCtx, slot: Slot) {
         if (otherOccurrences > 0) {
             Text("同一論理IDの別文書での出現: $otherOccurrences 件", fontSize = 11.sp, color = Palette.SubText)
         } else if (text.isNotBlank()) {
-            val backlinks = ctx.state.index.backlinksTo(setOf(text)).size
+            val backlinks = ctx.state.overlayIndex().backlinksTo(setOf(text)).size
             if (backlinks > 0) {
                 Text("被参照: $backlinks 箇所", fontSize = 11.sp, color = Palette.SubText)
             }
@@ -801,7 +829,7 @@ fun RefEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
     if (ctx.readOnly) {
         // 閲覧専用モードでもジャンプは閲覧行為として残す（R10-04）
         Row(verticalAlignment = Alignment.CenterVertically) {
-            val target = ctx.state.index.occurrences(current).firstOrNull()
+            val target = ctx.state.overlayIndex().occurrences(current).firstOrNull()
             ReadOnlyValueText(
                 listOfNotNull(current.takeIf { it.isNotBlank() }, target?.title).joinToString(" — ").takeIf { it.isNotBlank() },
                 modifier = Modifier.weight(1f, fill = false),
@@ -821,7 +849,7 @@ fun RefEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
 
     // 候補: ID パターンとスコープで絞り込み、同一論理 ID は1候補にまとめる。
     val candidates: List<IdEntry> = remember(ctx.state.indexVersion, field.idPatterns, field.scope) {
-        ctx.state.index.entries.values.asSequence()
+        ctx.state.overlayIndex().entries.values.asSequence()
             .filter { occurrences -> occurrences.any { it.isAllowedBy(refConstraint) } }
             .mapNotNull { occurrences -> occurrences.firstOrNull { it.isAllowedBy(refConstraint) } }
             .sortedBy { it.id }
@@ -831,7 +859,7 @@ fun RefEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
     // 解決先タイトル（表示解決は IdEntry.title に一元化済み・R10-01）。未保存編集を含むローカルIDを優先する（§4.5）。
     val targetTitle = if (!resolved) null else
         (ctx.localIds.firstOrNull { it.id == current && it.isAllowedBy(refConstraint) }
-            ?: ctx.state.index.occurrences(current).firstOrNull { it.isAllowedBy(refConstraint) })
+            ?: ctx.state.overlayIndex().occurrences(current).firstOrNull { it.isAllowedBy(refConstraint) })
             ?.title?.takeIf { it.isNotBlank() && it != current }
     Row(verticalAlignment = Alignment.CenterVertically) {
         // タイトルを添えるときはフィールドを詰め、同じ行の右側に参照先の意味を見せる（縦幅を増やさない）
@@ -1214,16 +1242,24 @@ private fun ObjectTableCell(ctx: FormCtx, col: FieldDef, map: YNode.Map, itemPat
     val key = col.key ?: return
     val slot = MapSlot(map, key)
     val value = slot.get()
-    // スキーマとずれた複合値はセルで編集せず要約表示に留める（編集は行の展開フォーム）
-    if (value != null && value !is YNode.Scalar) {
-        TableCellText(Display.inline(value, ctx.doc.schema, col))
-        return
+    // 検証指摘のあるセルはテーブル表示でも枠を色づけする（UX-14。展開フォーム側の FieldRow と同じ規則）
+    val issueColor = when (ctx.issueAt(itemPath + key)) {
+        Severity.ERROR -> Palette.ErrorRed
+        Severity.WARNING -> Palette.WarnOrange
+        else -> null
     }
-    if (ctx.readOnly || col.type == FieldType.TEXT) {
-        TableCellText(readOnlyCellText(col, value as? YNode.Scalar))
-        return
+    Box(
+        Modifier.fillMaxWidth().then(
+            if (issueColor != null) Modifier.border(1.dp, issueColor, PanelShape) else Modifier
+        )
+    ) {
+        when {
+            // スキーマとずれた複合値はセルで編集せず要約表示に留める（編集は行の展開フォーム）
+            value != null && value !is YNode.Scalar -> TableCellText(Display.inline(value, ctx.doc.schema, col))
+            ctx.readOnly || col.type == FieldType.TEXT -> TableCellText(readOnlyCellText(col, value as? YNode.Scalar))
+            else -> ValueEditor(ctx, col, slot, itemPath + key)
+        }
     }
-    ValueEditor(ctx, col, slot, itemPath + key)
 }
 
 /** 閲覧セルの表示文字列（null = 未設定）。enum は表示ラベル、boolean は はい／いいえ。 */

@@ -189,6 +189,28 @@ class AppState {
     var editVersion by mutableStateOf(0)
         private set
 
+    /** overlayIndex() のキャッシュ（(indexVersion, editVersion) が変わるまで再計算しない）。 */
+    private var overlayCache: Pair<Pair<Int, Int>, IdIndex>? = null
+
+    /**
+     * 未保存編集を重ねたオーバーレイ索引（UX-03）。dirty な文書キャッシュの編集中ツリーだけを
+     * ディスク索引に重ねた索引を返す（ARCHITECTURE §4.5）。UI層の検証・カバレッジ・ビュー行集合・
+     * 参照解決はディスク索引（index）ではなく**こちら**を読む＝「見たままの状態で判定する」。
+     * indexVersion / editVersion（Compose状態）を読むため、コンポジション中の呼び出しは自動で購読される。
+     * `remember` の計算内で使う場合はキーに editVersion を含めること。
+     */
+    fun overlayIndex(): IdIndex {
+        val cw = coreWs ?: return index
+        val key = indexVersion to editVersion
+        overlayCache?.let { (k, cached) -> if (k == key) return cached }
+        val overlays = docCache.values
+            .filter { it.dirty && isIndexed(it.file) }
+            .associate { it.file to it.root }
+        val result = if (overlays.isEmpty()) cw.index else cw.overlayIndex(overlays)
+        overlayCache = key to result
+        return result
+    }
+
     /** 開いたことのあるドキュメントのキャッシュ（未保存編集をファイル切替時にも保持する）。 */
     private val docCache = LinkedHashMap<Path, OpenDocument>()
 
@@ -419,8 +441,11 @@ class AppState {
 
     private fun workspaceKey(): String = "ws-${workspace?.toString()?.hashCode() ?: 0}"
 
-    /** 未保存編集を優先するツリー取得（docCache → ディスク。§4.5 の二層構造）。core への loader 注入に使う。 */
-    private fun unsavedFirstLoader(): (Path) -> YNode? = { file ->
+    /**
+     * 未保存編集を優先するツリー取得（docCache → ディスク。§4.5 の二層構造）。
+     * core への loader 注入と、UIの検証（整合検証の材料読み）に使う（UX-03）。
+     */
+    fun unsavedFirstLoader(): (Path) -> YNode? = { file ->
         docCache[file]?.root ?: runCatching { YamlIO.parseFirst(Files.readString(file)) }.getOrNull()
     }
 
@@ -803,7 +828,8 @@ class AppState {
      * 索引（保存済みの状態）を優先し、見つからなければ現在のドキュメント内の未保存 ID を探す。
      */
     fun navigateToId(id: String) {
-        val entries = index.occurrences(id)
+        // 未保存の出現へもジャンプできるようオーバーレイ索引で解決する（UX-03。座標は docCache ツリーに対して有効）
+        val entries = overlayIndex().occurrences(id)
         if (entries.size > 1) {
             navigationCandidates = entries
             return

@@ -88,7 +88,14 @@ internal fun fieldToJsonSchema(original: FieldDef, schema: SchemaDef, depth: Int
     return buildJsonObject {
         field.description?.takeIf { it.isNotBlank() }?.let { put("description", it) }
         when (field.type) {
-            FieldType.STRING, FieldType.TEXT, FieldType.DATE, FieldType.ID -> put("type", "string")
+            FieldType.STRING, FieldType.TEXT -> {
+                put("type", "string")
+                // 制約語彙（R16-01）を Structured Outputs へ伝搬する（生成値が検証を通りやすくなる）
+                field.minLength?.let { put("minLength", it) }
+                field.maxLength?.let { put("maxLength", it) }
+                field.pattern?.let { put("pattern", it) }
+            }
+            FieldType.DATE, FieldType.ID -> put("type", "string")
             FieldType.REF -> {
                 put("type", "string")
                 val ids = refCandidateIds(field, candidates)
@@ -96,8 +103,16 @@ internal fun fieldToJsonSchema(original: FieldDef, schema: SchemaDef, depth: Int
                     putJsonArray("enum") { ids.forEach(::add) }
                 }
             }
-            FieldType.INT -> put("type", "integer")
-            FieldType.NUMBER -> put("type", "number")
+            FieldType.INT -> {
+                put("type", "integer")
+                field.min?.let { put("minimum", it.toLong()) }
+                field.max?.let { put("maximum", it.toLong()) }
+            }
+            FieldType.NUMBER -> {
+                put("type", "number")
+                field.min?.let { put("minimum", it) }
+                field.max?.let { put("maximum", it) }
+            }
             FieldType.BOOLEAN -> put("type", "boolean")
             FieldType.ENUM -> {
                 put("type", "string")

@@ -74,7 +74,7 @@ fun AiGenerationHost(state: AppState) {
     // 同一スキーマの他文書を参考文書候補にする。並びは更新日時の新しい順（AppState.sameSchemaFiles）で、
     // 先頭 REF_DOC_AUTO_SELECT 件を自動選択しつつ、チェックボックスで利用者が選び直せる
     val refChoices = remember(request) {
-        val rootTitles = state.index.entries.values.flatten()
+        val rootTitles = state.overlayIndex().entries.values.flatten()
             .filter { it.path.isEmpty() }.associateBy({ it.file }, { it.title })
         state.sameSchemaFiles(doc.file, schema.id)
             .take(REF_DOC_CHOICE_LIMIT)
@@ -113,7 +113,7 @@ fun AiGenerationHost(state: AppState) {
                                 targetPath = request.path.pretty(),
                                 currentValueYaml = baseTarget?.let(YamlIO::dump) ?: "（未設定）",
                                 currentDocumentYaml = YamlIO.dump(baseRoot),
-                                idCandidates = state.index.entries.values.flatten()
+                                idCandidates = state.overlayIndex().entries.values.flatten()
                                     .map { RefCandidate(it.id, it.schemaId, it.documentId) },
                                 referenceDocs = referenceDocs,
                             ),
@@ -151,7 +151,10 @@ fun AiGenerationHost(state: AppState) {
 
     val validationIssues = remember(proposedRoot) {
         proposedRoot?.let { root ->
-            Validator.validate(root, null, doc.file, doc.schema, state.index)
+            Validator.validate(
+                root, null, doc.file, doc.schema, state.overlayIndex(),
+                workspace = state.workspace, allSchemas = state.schemas, loader = state.unsavedFirstLoader(),
+            )
         }.orEmpty()
     }
 
