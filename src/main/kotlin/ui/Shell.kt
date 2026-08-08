@@ -26,7 +26,8 @@ import app.UiSpace
 /**
  * UIシェル（R12-01）: アクティビティレールと台帳スペース。
  * レールが「編集・台帳・実行・設計」の4スペースを切り替える（ARCHITECTURE §4.24）。
- * 実行スペースはプロファイル（R12-05）により、エージェント運用の定義や判断待ちがあるときだけ表示される。
+ * 実行スペースは定義が空でも常時表示する（何が行える場所かを最初から見せる。UX-20 で R12-05 の
+ * プロファイル判定を撤廃）。
  */
 
 // ================================================================ アクティビティレール
@@ -34,7 +35,6 @@ import app.UiSpace
 @Composable
 fun ActivityRail(
     state: AppState,
-    showRuns: Boolean,
     inboxCount: Int,
     automationActive: Boolean,
 ) {
@@ -45,12 +45,10 @@ fun ActivityRail(
         Spacer(Modifier.height(6.dp))
         RailItem(Icons.Default.Description, "編集", state.uiSpace == UiSpace.EDIT) { state.showSpace(UiSpace.EDIT) }
         RailItem(Icons.Default.TableRows, "台帳", state.uiSpace == UiSpace.LEDGER) { state.showSpace(UiSpace.LEDGER) }
-        if (showRuns) {
-            RailItem(
-                Icons.Default.SmartToy, "実行", state.uiSpace == UiSpace.RUNS,
-                badge = inboxCount, activeDot = automationActive,
-            ) { state.showSpace(UiSpace.RUNS) }
-        }
+        RailItem(
+            Icons.Default.SmartToy, "実行", state.uiSpace == UiSpace.RUNS,
+            badge = inboxCount, activeDot = automationActive,
+        ) { state.showSpace(UiSpace.RUNS) }
         RailItem(Icons.Default.Build, "設計", state.uiSpace == UiSpace.DESIGN) { state.showSpace(UiSpace.DESIGN) }
     }
 }

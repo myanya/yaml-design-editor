@@ -183,6 +183,13 @@ fun DesignSpace(state: AppState) {
     // ---------------- 新規作成ダイアログ ----------------
     createFor?.let { kind ->
         var name by remember(kind) { mutableStateOf("") }
+        val create: () -> Unit = {
+            val dir = ws.resolve(state.layout.dir(kind.zone))
+            runCatching { Files.createDirectories(dir) }
+                .mapCatching { state.createYaml(dir, name).getOrThrow() }
+                .onSuccess { createFor = null; message = "" }
+                .onFailure { message = "作成できません: ${it.message}" ; createFor = null }
+        }
         AlertDialog(
             onDismissRequest = { createFor = null },
             title = { Text("${kind.label} を新規作成") },
@@ -192,18 +199,12 @@ fun DesignSpace(state: AppState) {
                         fontSize = 12.sp, color = Palette.SubText)
                     Spacer(Modifier.height(8.dp))
                     CompactTextField(name, { name = it }, singleLine = true,
-                        placeholder = { Text("ファイル名（例: review.yaml）", fontSize = 12.sp, color = Palette.SubText) },
-                        modifier = Modifier.fillMaxWidth())
+                        placeholder = { Text("ファイル名（例: review.yaml）") },
+                        modifier = Modifier.fillMaxWidth().confirmOnEnter(enabled = { name.isNotBlank() }, onConfirm = create))
                 }
             },
             confirmButton = {
-                Button(enabled = name.isNotBlank(), onClick = {
-                    val dir = ws.resolve(state.layout.dir(kind.zone))
-                    runCatching { Files.createDirectories(dir) }
-                        .mapCatching { state.createYaml(dir, name).getOrThrow() }
-                        .onSuccess { createFor = null; message = "" }
-                        .onFailure { message = "作成できません: ${it.message}" ; createFor = null }
-                }) { Text("作成") }
+                Button(enabled = name.isNotBlank(), onClick = create) { Text("作成") }
             },
             dismissButton = { TextButton(onClick = { createFor = null }) { Text("キャンセル") } },
         )
@@ -225,11 +226,11 @@ fun DesignSpace(state: AppState) {
                     )
                     Spacer(Modifier.height(8.dp))
                     CompactTextField(glob, { glob = it }, singleLine = true,
-                        placeholder = { Text("対象の glob（例: requirements/**/*.yaml）", fontSize = 12.sp, color = Palette.SubText) },
+                        placeholder = { Text("対象の glob（例: requirements/**/*.yaml）") },
                         modifier = Modifier.fillMaxWidth())
                     Spacer(Modifier.height(6.dp))
                     CompactTextField(schemaId, { schemaId = it }, singleLine = true,
-                        placeholder = { Text("スキーマID（例: requirement）", fontSize = 12.sp, color = Palette.SubText) },
+                        placeholder = { Text("スキーマID（例: requirement）") },
                         modifier = Modifier.fillMaxWidth())
                     if (inferError.isNotBlank()) {
                         Spacer(Modifier.height(6.dp))

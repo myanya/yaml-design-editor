@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,13 +56,24 @@ fun IdCrossView(state: AppState) {
     Row(Modifier.fillMaxSize().background(Palette.EditorBg)) {
         // ---------------- 左: ID一覧 ----------------
         Column(Modifier.width(260.dp).fillMaxHeight().background(Palette.PanelBg)) {
-            Text("ID横ぐしビュー", fontWeight = FontWeight.Bold, fontSize = 13.sp,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
+            Row(
+                Modifier.fillMaxWidth().padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("ID横ぐしビュー", fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                // 横ぐし編集は複数文書に及ぶため、このビューから直接保存できるようにする（UX-34）
+                val dirty = state.dirtyDocCount()
+                TextButton(
+                    enabled = dirty > 0,
+                    onClick = { state.saveAll() },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                ) { Text(if (dirty > 0) "すべて保存（$dirty）" else "すべて保存", fontSize = 11.sp) }
+            }
             CompactTextField(
                 value = query,
                 onValueChange = { query = it },
                 singleLine = true,
-                placeholder = { Text("IDを検索…", fontSize = 12.sp, color = Palette.SubText) },
+                placeholder = { Text("IDを検索…") },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp),
             )
             Spacer(Modifier.height(6.dp))

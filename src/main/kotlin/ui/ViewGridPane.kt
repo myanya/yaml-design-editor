@@ -157,7 +157,10 @@ private fun HeaderBar(state: AppState, loaded: Views.LoadResult, view: ViewDef?)
             enabled = state.hasDirtyDocs(),
             onClick = { state.saveAll() },
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-        ) { Text("すべて保存", fontSize = 11.sp) }
+        ) {
+            val dirty = state.dirtyDocCount()
+            Text(if (dirty > 0) "すべて保存（$dirty）" else "すべて保存", fontSize = 11.sp)
+        }
     }
     if (newRowDialog && view != null) {
         NewRowIdDialog(
@@ -194,6 +197,7 @@ private fun NewRowIdDialog(view: ViewDef, onDismiss: () -> Unit, onConfirm: (Str
                 OutlinedTextField(
                     value, { value = it }, singleLine = true,
                     label = { Text("ID（idPattern: ${view.rows.idPattern}）") },
+                    modifier = Modifier.confirmOnEnter(enabled = { value.isNotBlank() }) { onConfirm(value.trim()) },
                 )
             }
         },
@@ -226,7 +230,7 @@ private fun GridBody(state: AppState, view: ViewDef) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
         CompactTextField(
             query, { query = it }, singleLine = true,
-            placeholder = { Text("ID・タイトル・値で絞り込み", fontSize = 11.sp, color = Palette.SubText) },
+            placeholder = { Text("ID・タイトル・値で絞り込み") },
             modifier = Modifier.width(260.dp),
         )
         Spacer(Modifier.weight(1f))

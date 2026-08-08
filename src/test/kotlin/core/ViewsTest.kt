@@ -974,6 +974,65 @@ class ViewsTest {
     }
 
     @Test
+    fun `lintDocument checks a single unsaved view definition`() {
+        // 検証パネル用: 編集中（未保存）のビュー定義ツリーをその場でリントできる（UX-43）
+        val schemas = Workspace.open(ws).schemas
+        val editing = yaml.YamlIO.parse(
+            """
+            id: editing
+            rows:
+              idPattern: "SCR-*"
+            columns:
+              - label: 壊れた列
+                schemaId: screen-list
+                path: nosuch
+            """.trimIndent(),
+        )
+        val errors = Views.lintDocument(editing, ws.resolve("_views/editing.yaml"), schemas)
+        assertTrue(errors.any { "壊れた列" in it && "ID要素から解決できません" in it }, errors.toString())
+        // パース不能な定義はその内容を1件返す（kind 不正）
+        val broken = yaml.YamlIO.parse("id: x\nkind: nope")
+        assertTrue(Views.lintDocument(broken, ws.resolve("_views/x.yaml"), schemas).isNotEmpty())
+        // 正しい定義には指摘を出さない
+        val ok = yaml.YamlIO.parse(
+            "id: ok\nrows: { idPattern: \"SCR-*\" }\ncolumns:\n  - { label: 画面名, schemaId: screen-list, path: name }",
+        )
+        assertTrue(Views.lintDocument(ok, ws.resolve("_views/ok.yaml"), schemas).isEmpty())
+    }
+
+    @Test
+    fun `lint checks fileGlob columns via representative path`() {
+        // fileGlob だけで出現を選ぶ列も、glob の代表パスにマッチするスキーマで検査される（UX-36）
+        write(
+            "_views/glob-cols.yaml",
+            """
+            id: glob-cols
+            name: fileGlob列の検査
+            rows:
+              idPattern: "SCR-*"
+            columns:
+              - label: 正しい列
+                fileGlob: "screens/detail/*.yaml"
+                path: layout
+              - label: 壊れた列
+                fileGlob: "screens/detail/*.{yaml,yml}"
+                path: layoutt
+              - label: スキーマ外
+                fileGlob: "notes/*.yaml"
+                path: whatever
+            """,
+        )
+        val errors = Views.load(ws, Workspace.open(ws).schemas).errors
+        // 解決できる列と、マッチするスキーマの無い glob には指摘を出さない（誤検知ガード）
+        assertTrue(errors.none { "正しい列" in it }, errors.toString())
+        assertTrue(errors.none { "スキーマ外" in it }, errors.toString())
+        assertTrue(
+            errors.any { "glob-cols.yaml" in it && "壊れた列" in it && "screen-detail" in it && "ID要素から解決できません" in it },
+            errors.toString(),
+        )
+    }
+
+    @Test
     fun `fields definition declaration is verified by lint`() {
         val workspace = Workspace.open(ws)
         // スキーマのフィールドが宣言どおり definition を参照している → 指摘なし

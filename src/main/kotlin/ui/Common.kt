@@ -14,6 +14,7 @@ import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
@@ -24,6 +25,11 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
@@ -31,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.Alignment
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -113,7 +120,11 @@ fun AppTheme(dark: Boolean, content: @Composable () -> Unit) {
 
 val PanelShape = RoundedCornerShape(6.dp)
 
-/** Material 標準より内部余白を抑えた、フォーム向け入力欄。 */
+/**
+ * Material 標準より内部余白を抑えた、フォーム向け入力欄。suffix は枠内の右端（trailingIcon の左）に表示される。
+ * プレースホルダーは呼び出し側で装飾しない: 入力テキストと同じサイズ＋SubText 色をここで一律に与える
+ * （画面ごとの濃さ・大きさのばらつきを防ぐ。UX-42）。
+ */
 @Composable
 fun CompactTextField(
     value: String,
@@ -124,6 +135,7 @@ fun CompactTextField(
     textStyle: TextStyle = TextStyle(fontSize = 13.sp),
     placeholder: (@Composable () -> Unit)? = null,
     trailingIcon: (@Composable () -> Unit)? = null,
+    suffix: (@Composable () -> Unit)? = null,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
@@ -154,9 +166,14 @@ fun CompactTextField(
                 verticalAlignment = if (singleLine) Alignment.CenterVertically else Alignment.Top,
             ) {
                 Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                    if (localValue.isEmpty()) placeholder?.invoke()
+                    if (localValue.isEmpty()) placeholder?.let { ph ->
+                        CompositionLocalProvider(
+                            LocalTextStyle provides textStyle.merge(TextStyle(color = Palette.SubText)),
+                        ) { ph() }
+                    }
                     inner()
                 }
+                suffix?.invoke()
                 trailingIcon?.invoke()
             }
         },
@@ -203,6 +220,16 @@ class RootSlot(private val doc: OpenDocument) : Slot {
     }
     override fun remove() { /* ルートは削除不可 */ }
 }
+
+/**
+ * Enter（テンキー含む）で確定する入力欄用の修飾。ダイアログの確定ボタンまでマウスを運ばせず、
+ * キーボードだけで操作を完結させる（UX-21）。enabled が false の間は何もしない。
+ */
+fun Modifier.confirmOnEnter(enabled: () -> Boolean = { true }, onConfirm: () -> Unit): Modifier =
+    onPreviewKeyEvent { ev ->
+        val enter = ev.key == Key.Enter || ev.key == Key.NumPadEnter
+        if (ev.type == KeyEventType.KeyDown && enter && enabled()) { onConfirm(); true } else false
+    }
 
 /** ツリー上の絶対パスに対応する Slot。親コンテナが無ければ null。 */
 fun slotAt(root: YNode, path: YPath): Slot? {

@@ -51,6 +51,33 @@ object YamlIO {
         isProcessComments = true
     }
 
+    /**
+     * TIMESTAMP を暗黙解決しない Resolver。引用符なしの日付（例 `2026-08-21`）を Date へ型付けせず、
+     * 素の文字列として保持する（型付けすると検証の現在値が `Date.toString()` になり、保存時に
+     * ISO 形式へ書き換わってしまうため。UX-29）。読み込み（compose）と書き出し（Serializer）の
+     * 両側で同じ解決規則を使うことで、引用符なしの日付が引用符もタグも付かずにそのまま往復する。
+     */
+    private class PlainDateResolver : Resolver() {
+        override fun addImplicitResolvers() {
+            addImplicitResolver(Tag.BOOL, Resolver.BOOL, "yYnNtTfFoO", 10)
+            addImplicitResolver(Tag.INT, Resolver.INT, "-+0123456789")
+            addImplicitResolver(Tag.FLOAT, Resolver.FLOAT, "-+0123456789.")
+            addImplicitResolver(Tag.MERGE, Resolver.MERGE, "<", 10)
+            // 既定の Resolver は NUL 文字も first に含めるが、実データに現れないため省く
+            addImplicitResolver(Tag.NULL, Resolver.NULL, "~nN", 10)
+            addImplicitResolver(Tag.NULL, Resolver.EMPTY, null, 10)
+            // Tag.TIMESTAMP は登録しない: 日付・日時は文字列のまま扱う
+            addImplicitResolver(Tag.YAML, Resolver.YAML, "!&*", 10)
+        }
+    }
+
+    /** compose 用の Yaml（constructor は未使用だが、生成には一式が必要）。 */
+    private fun newComposer(): Yaml {
+        val loader = newLoaderOptions()
+        val dumper = newDumperOptions()
+        return Yaml(SafeConstructor(loader), Representer(dumper), dumper, loader, PlainDateResolver())
+    }
+
     /** compose したスカラーノードを load() と同じ規則で型付きの値へ変換する。 */
     private class ScalarValues(options: LoaderOptions) : SafeConstructor(options) {
         fun value(node: ScalarNode): Any? {
@@ -61,19 +88,21 @@ object YamlIO {
 
     /** テキストを SnakeYAML の生オブジェクト（Map / List / スカラー）にパースする（コメントなし）。 */
     fun parseToRaw(text: String): Any? {
-        val v: Any? = Yaml(LoaderOptions().apply { isAllowDuplicateKeys = false }).load(text)
+        val loader = LoaderOptions().apply { isAllowDuplicateKeys = false }
+        val dumper = newDumperOptions()
+        val v: Any? = Yaml(SafeConstructor(loader), Representer(dumper), dumper, loader, PlainDateResolver()).load(text)
         return v
     }
 
     /** テキストを YNode ツリーにパースする。空ドキュメントは空マップとして扱う。 */
     fun parse(text: String): YNode {
-        val node = Yaml(newLoaderOptions()).compose(StringReader(text)) ?: return YNode.Map()
+        val node = newComposer().compose(StringReader(text)) ?: return YNode.Map()
         return convertDocument(node)
     }
 
     /** `---` 区切りの複数ドキュメントをすべて YNode にパースする（R8-05）。空テキストは空リスト。 */
     fun parseAll(text: String): List<YNode> =
-        Yaml(newLoaderOptions()).composeAll(StringReader(text)).mapNotNull { it }.map { convertDocument(it) }
+        newComposer().composeAll(StringReader(text)).mapNotNull { it }.map { convertDocument(it) }
 
     /**
      * 先頭ドキュメントだけを読む寛容なパース（索引・検索など読み取り専用の用途向け）。
@@ -114,7 +143,7 @@ object YamlIO {
             }
         }
         val writer = StringWriter()
-        val serializer = Serializer(Emitter(writer, opts), Resolver(), opts, null)
+        val serializer = Serializer(Emitter(writer, opts), PlainDateResolver(), opts, null)
         serializer.open()
         serializer.serialize(root)
         serializer.close()

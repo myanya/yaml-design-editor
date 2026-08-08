@@ -307,7 +307,7 @@ internal fun QuestionCard(question: RunController.PendingQuestion) {
         Text(question.question, fontSize = 13.sp)
         Spacer(Modifier.height(8.dp))
         CompactTextField(answer, { answer = it },
-            placeholder = { Text("回答（追加の指示もここで伝えられます）", fontSize = 12.sp, color = Palette.SubText) },
+            placeholder = { Text("回答（追加の指示もここで伝えられます）") },
             modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp))
         Spacer(Modifier.height(6.dp))
         Row {
@@ -511,7 +511,7 @@ private fun SelectContent(
             Spacer(Modifier.height(10.dp))
             Text("追加指示（任意）", fontSize = 12.sp, color = Palette.SubText)
             CompactTextField(extraInstruction, onExtraChange,
-                placeholder = { Text("今回の実行で特に重視する点など", fontSize = 12.sp, color = Palette.SubText) },
+                placeholder = { Text("今回の実行で特に重視する点など") },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp))
         }
         if (defs.errors.isNotEmpty()) {

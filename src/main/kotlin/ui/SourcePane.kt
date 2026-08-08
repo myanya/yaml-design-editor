@@ -18,7 +18,9 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
@@ -39,7 +41,9 @@ import androidx.compose.ui.input.key.*
 @Composable
 fun SourcePane(state: AppState, doc: OpenDocument) {
     val canonical = remember(doc, doc.version) { doc.canonicalText() }
-    var text by remember(doc, doc.version) { mutableStateOf(canonical) }
+    // カーソル位置を扱う（Tab のスペース挿入 UX-25）ため TextFieldValue で保持する
+    var fieldValue by remember(doc, doc.version) { mutableStateOf(TextFieldValue(canonical)) }
+    val text = fieldValue.text
     var error by remember(doc) { mutableStateOf<String?>(null) }
     var search by remember(doc) { mutableStateOf("") }
     var replace by remember(doc) { mutableStateOf("") }
@@ -74,7 +78,7 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
                 onClick = { applySource() },
             ) { Text("変更を反映", fontSize = 12.sp) }
             Spacer(Modifier.width(8.dp))
-            TextButton(enabled = edited, onClick = { text = canonical; error = null }) {
+            TextButton(enabled = edited, onClick = { fieldValue = TextFieldValue(canonical); error = null }) {
                 Text("破棄", fontSize = 13.sp)
             }
             Spacer(Modifier.width(12.dp))
@@ -101,7 +105,7 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
                 value = search,
                 onValueChange = { search = it },
                 singleLine = true,
-                placeholder = { Text("検索", fontSize = 11.sp, color = Palette.SubText) },
+                placeholder = { Text("検索") },
                 modifier = Modifier.width(180.dp),
             )
             if (search.isNotEmpty()) {
@@ -113,16 +117,16 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
                 value = replace,
                 onValueChange = { replace = it },
                 singleLine = true,
-                placeholder = { Text("置換後の文字列", fontSize = 11.sp, color = Palette.SubText) },
+                placeholder = { Text("置換後の文字列") },
                 modifier = Modifier.width(180.dp),
             )
             TextButton(enabled = search.isNotEmpty(), onClick = {
-                replaceFirstIgnoreCase(text, search, replace)?.let { text = it }
+                replaceFirstIgnoreCase(text, search, replace)?.let { fieldValue = fieldValue.copy(text = it) }
                     ?: run { state.status = "「$search」は見つかりません" }
             }) { Text("置換", fontSize = 11.sp) }
             TextButton(enabled = search.isNotEmpty(), onClick = {
                 val (replaced, count) = replaceAllIgnoreCase(text, search, replace)
-                text = replaced
+                fieldValue = fieldValue.copy(text = replaced)
                 state.status = if (count > 0) "$count 件置換しました（「変更を反映」で取り込まれます）" else "「$search」は見つかりません"
             }) { Text("すべて置換", fontSize = 11.sp) }
         }
@@ -157,8 +161,8 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
                         .padding(start = 6.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
                 )
                 BasicTextField(
-                    value = text,
-                    onValueChange = { text = it },
+                    value = fieldValue,
+                    onValueChange = { fieldValue = it },
                     visualTransformation = YamlSyntaxTransformation,
                     textStyle = TextStyle(
                         fontFamily = FontFamily.Monospace,
@@ -166,7 +170,16 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
                         lineHeight = 19.sp,
                         color = Palette.Text,
                     ),
-                    modifier = Modifier.weight(1f).padding(12.dp),
+                    modifier = Modifier.weight(1f).padding(12.dp)
+                        // Tab はフォーカス移動でなくスペース2個の挿入にする（YAMLはタブ文字を許さない。UX-25）
+                        .onPreviewKeyEvent { ev ->
+                            if (ev.type == KeyEventType.KeyDown && ev.key == Key.Tab && !ev.isShiftPressed) {
+                                val sel = fieldValue.selection
+                                val inserted = fieldValue.text.replaceRange(sel.min, sel.max, "  ")
+                                fieldValue = TextFieldValue(inserted, selection = TextRange(sel.min + 2))
+                                true
+                            } else false
+                        },
                 )
             }
             VerticalScrollbar(

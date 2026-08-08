@@ -67,6 +67,13 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                 loader = state.unsavedFirstLoader(),
             )
         }
+        // ビュー定義文書はリント（ビュー→スキーマの整合検査）もここに出す。編集中ツリーで判定するため
+        // 保存前でもその場で指摘される（グリッドのバナーと同じ内容。UX-43）
+        val viewDefErrors = remember(doc, doc.version, state.schemas) {
+            if (state.layout.zoneOf(state.relPath(doc.file)) == schema.WorkspaceLayout.Zone.VIEWS) {
+                core.Views.lintDocument(doc.root, doc.file, state.schemas)
+            } else emptyList()
+        }
         val scanned = remember(doc, doc.version) {
             val root = doc.root
             if (root == null) emptyList<index.IdEntry>() to emptyList<index.RefEntry>()
@@ -103,7 +110,7 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
         }
         var selectedTab by remember { mutableStateOf(0) }
         TabRow(selectedTabIndex = selectedTab, containerColor = Palette.PanelBg, contentColor = Palette.Primary) {
-            Tab(selectedTab == 0, { selectedTab = 0 }, text = { Text("検証 ${issues.size + state.schemaErrors.size}", fontSize = 11.sp) })
+            Tab(selectedTab == 0, { selectedTab = 0 }, text = { Text("検証 ${issues.size + state.schemaErrors.size + viewDefErrors.size}", fontSize = 11.sp) })
             Tab(selectedTab == 1, { selectedTab = 1 }, text = { Text("関係 ${localRefs.size + backlinks.size}", fontSize = 11.sp) })
             Tab(selectedTab == 2, { selectedTab = 2 }, text = { Text("出現 ${occurrences.size}", fontSize = 11.sp) })
         }
@@ -114,7 +121,7 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
 
                 // ---------------- 検証 ----------------
                 if (selectedTab == 0) {
-                item { SectionHeader("検証（${issues.size + state.schemaErrors.size}）") }
+                item { SectionHeader("検証（${issues.size + state.schemaErrors.size + viewDefErrors.size}）") }
                 // フェーズ進捗（phases 宣言のあるスキーマのみ。未来フェーズの未記入はエラーではなく進捗で見せる）
                 if (phases != null && phaseProgress != null) {
                     item {
@@ -141,7 +148,15 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                         Text(state.schemaErrors[i], fontSize = 12.sp, color = Palette.ErrorRed)
                     }
                 }
-                if (issues.isEmpty() && state.schemaErrors.isEmpty()) {
+                // ビュー定義のリント指摘（UX-43。未保存の編集にもその場で追随する）
+                items(viewDefErrors.size) { i ->
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.Top) {
+                        Icon(Icons.Default.Warning, null, Modifier.size(14.dp), tint = Palette.ErrorRed)
+                        Spacer(Modifier.width(6.dp))
+                        Text("ビュー定義: ${viewDefErrors[i]}", fontSize = 12.sp, color = Palette.ErrorRed)
+                    }
+                }
+                if (issues.isEmpty() && state.schemaErrors.isEmpty() && viewDefErrors.isEmpty()) {
                     item {
                         Row(
                             Modifier.padding(horizontal = 12.dp, vertical = 4.dp),

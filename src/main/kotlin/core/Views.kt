@@ -319,6 +319,24 @@ object Views {
     }
 
     /**
+     * ビュー定義1件（編集中の未保存ツリーでもよい）の検査（UX-43）。
+     * パース不能はその内容を1件、パースできればリント（ビュー→スキーマの整合検査）の指摘を返す。
+     * 検証パネルが `_views` の文書を開いている間、保存を待たずにその場で指摘を出すために使う。
+     */
+    fun lintDocument(root: YNode?, source: Path, schemas: List<SchemaDef>): List<String> {
+        if (root == null) return emptyList()  // パースエラーは検証本体（Validator）が報告する
+        val raw = runCatching { YamlIO.parseToRaw(YamlIO.dumpPlain(root)) }.getOrNull() as? Map<*, *>
+            ?: return listOf("ビュー定義のルートはobjectである必要があります")
+        val def = runCatching { parseView(raw, source, schemas) }
+            .getOrElse { return listOf(it.message ?: (it::class.simpleName ?: "定義を解析できません")) }
+        return when (def) {
+            is ViewDef -> lint(listOf(def), emptyList(), schemas)
+            is DocViewDef -> lint(emptyList(), listOf(def), schemas)
+            else -> emptyList()
+        }
+    }
+
+    /**
      * ビュー定義1件のパース（kind で分岐）。ステージングの定義ゲート（Staging）からも使う。
      * schemas は definition 参照の解決に使う（未指定時は definition を使う定義がパースエラーになる）。
      */
@@ -600,6 +618,18 @@ object Views {
             val candidates = idElementsOf(s)
             return candidates.isNotEmpty() && candidates.none { staticFieldAt(s, it, path) != null }
         }
+        // fileGlob だけの出現選択は、代表パス（glob のワイルドカードを仮埋め）にマッチするスキーマで検査する
+        // （newRow.filePattern の検査と同じ流儀。マッチするスキーマが無ければ判定しない＝誤検知を避ける。UX-36）
+        fun representative(glob: String): String = glob
+            .replace(Regex("\\{([^}]*)\\}")) { it.groupValues[1].substringBefore(',') }
+            .replace("**", "X").replace("*", "X").replace("?", "X")
+        fun schemasBy(schemaId: String?, fileGlob: String?): List<SchemaDef> = when {
+            schemaId != null -> listOfNotNull(byId[schemaId])
+            fileGlob != null -> representative(fileGlob).let { rel -> schemas.filter { it.matches(rel) } }
+            else -> emptyList()
+        }
+        fun schemasFor(sel: ViewSource): List<SchemaDef> = schemasBy(sel.schemaId, sel.fileGlob)
+        fun names(sels: List<SchemaDef>): String = sels.joinToString("、") { it.id }
 
         views.forEach { v ->
             fun report(msg: String) { errors += "${v.source.fileName}: $msg" }
@@ -617,27 +647,23 @@ object Views {
                         .filterNot { it in ids }.distinct()
                         .forEach { report("列「${col.label}」の計算列のスキーマ「$it」が見つかりません") }
                     comp.lookup?.let { lk ->
-                        lk.from.schemaId?.let { sid ->
-                            byId[sid]?.let { s ->
-                                if (unresolvableFromIdElements(s, lk.via)) {
-                                    report("列「${col.label}」の lookup.via「${lk.via.pretty()}」はスキーマ「$sid」のID要素から解決できません")
-                                }
-                            }
+                        val lkSchemas = schemasBy(lk.from.schemaId, lk.from.fileGlob)
+                        if (lkSchemas.isNotEmpty() && lkSchemas.all { unresolvableFromIdElements(it, lk.via) }) {
+                            report("列「${col.label}」の lookup.via「${lk.via.pretty()}」はスキーマ「${names(lkSchemas)}」のID要素から解決できません")
                         }
                     }
-                    comp.source.schemaId?.let { sid ->
-                        byId[sid]?.let { s ->
-                            if (unresolvableFromIdElements(s, comp.path)) {
-                                report("列「${col.label}」の computed.path「${comp.path.pretty()}」はスキーマ「$sid」のID要素から解決できません")
-                            }
-                        }
+                    val srcSchemas = schemasBy(comp.source.schemaId, comp.source.fileGlob)
+                    if (srcSchemas.isNotEmpty() && srcSchemas.all { unresolvableFromIdElements(it, comp.path) }) {
+                        report("列「${col.label}」の computed.path「${comp.path.pretty()}」はスキーマ「${names(srcSchemas)}」のID要素から解決できません")
                     }
                     return@forEach
                 }
-                val sid = col.from.schemaId ?: return@forEach
-                val s = byId[sid] ?: run { report("列「${col.label}」のスキーマ「$sid」が見つかりません"); return@forEach }
-                if (unresolvableFromIdElements(s, col.path)) {
-                    report("列「${col.label}」のパス「${col.path.pretty()}」はスキーマ「$sid」のID要素から解決できません")
+                col.from.schemaId?.let { sid ->
+                    if (sid !in ids) { report("列「${col.label}」のスキーマ「$sid」が見つかりません"); return@forEach }
+                }
+                val fromSchemas = schemasFor(col.from)
+                if (fromSchemas.isNotEmpty() && fromSchemas.all { unresolvableFromIdElements(it, col.path) }) {
+                    report("列「${col.label}」のパス「${col.path.pretty()}」はスキーマ「${names(fromSchemas)}」のID要素から解決できません")
                 }
             }
             v.newRow?.filePattern?.let { pattern ->

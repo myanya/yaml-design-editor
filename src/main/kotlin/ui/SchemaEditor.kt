@@ -277,6 +277,7 @@ private fun AddDefinitionButton(definitions: YNode.Map, doc: OpenDocument) {
 
 @Composable
 private fun DefinitionCard(name: String, definitions: YNode.Map, doc: OpenDocument, names: List<String>) {
+    doc.version  // 引数が同一インスタンスでもスキップさせない（構造変更の即時反映。CONVENTIONS §2 / UX-24）
     val map = definitions.entries[name] as? YNode.Map ?: return
     var expanded by remember(name) { mutableStateOf(true) }
     Column(Modifier.fillMaxWidth().padding(top = 6.dp).border(1.dp, Palette.Border, PanelShape).padding(8.dp)) {
@@ -293,6 +294,7 @@ private fun DefinitionCard(name: String, definitions: YNode.Map, doc: OpenDocume
 
 @Composable
 private fun FieldDefinitionEditor(map: YNode.Map, doc: OpenDocument, definitions: List<String>, allowKey: Boolean, depth: Int) {
+    doc.version  // CONVENTIONS §2 / UX-24
     if (depth > 12) { Text("表示可能な深さを超えました", color = Palette.WarnOrange); return }
     val ref = scalar(map, "\$ref")
     if (allowKey) CompactScalar(map, "key", "キー", doc)
@@ -406,6 +408,7 @@ private fun DisplayHintRow(map: YNode.Map, doc: OpenDocument) {
 /** 文書ルートの `phases` 宣言（リスト省略形も読み、編集時は key / order の object 形へ正規化する）。 */
 @Composable
 private fun PhasesEditor(root: YNode.Map, doc: OpenDocument) {
+    doc.version  // CONVENTIONS §2 / UX-24
     val node = root.entries["phases"]
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text("フェーズ（工程）", fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
@@ -464,6 +467,7 @@ private fun PhasesEditor(root: YNode.Map, doc: OpenDocument) {
 /** スキーマの `coverage`（カバレッジルール）の構造化編集。 */
 @Composable
 private fun CoverageEditor(root: YNode.Map, doc: OpenDocument) {
+    doc.version  // CONVENTIONS §2 / UX-24
     val coverage = root.entries["coverage"] as? YNode.Seq
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text("カバレッジルール", fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
@@ -560,7 +564,7 @@ private fun CoverageMinCount(map: YNode.Map, doc: OpenDocument) {
             if (raw.isBlank()) map.entries.remove("minCount")
             else if (n != null) map.entries["minCount"] = YNode.Scalar(n)
             doc.markEdited()
-        }, singleLine = true, placeholder = { Text("1", color = Palette.SubText) }, modifier = Modifier.width(120.dp))
+        }, singleLine = true, placeholder = { Text("1") }, modifier = Modifier.width(120.dp))
     }
 }
 
@@ -593,6 +597,7 @@ private fun enumValueStrings(map: YNode.Map): List<String> =
  */
 @Composable
 private fun EnumOptionListEditor(map: YNode.Map, doc: OpenDocument) {
+    doc.version  // 選択肢の追加・削除の即時反映（CONVENTIONS §2 / UX-24）
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text("選択肢", fontSize = 12.sp, modifier = Modifier.width(140.dp))
         TextButton(onClick = {
@@ -622,17 +627,17 @@ private fun EnumOptionListEditor(map: YNode.Map, doc: OpenDocument) {
         Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 3.dp), verticalAlignment = Alignment.CenterVertically) {
             CompactTextField(value, { update(newValue = it) }, singleLine = true,
                 textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
-                placeholder = { Text("値", fontSize = 11.sp, color = Palette.SubText) },
+                placeholder = { Text("値") },
                 modifier = Modifier.width(130.dp))
             Spacer(Modifier.width(4.dp))
             CompactTextField(label, { update(newLabel = it) }, singleLine = true,
                 textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
-                placeholder = { Text("表示ラベル（任意）", fontSize = 11.sp, color = Palette.SubText) },
+                placeholder = { Text("表示ラベル（任意）") },
                 modifier = Modifier.width(160.dp))
             Spacer(Modifier.width(4.dp))
             CompactTextField(description, { update(newDescription = it) }, singleLine = true,
                 textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
-                placeholder = { Text("説明（任意）", fontSize = 11.sp, color = Palette.SubText) },
+                placeholder = { Text("説明（任意）") },
                 modifier = Modifier.weight(1f))
             TextButton(onClick = { seq.items.removeAt(index); doc.markEdited() }) {
                 Text("削除", fontSize = 10.sp, color = Palette.ErrorRed)
@@ -643,6 +648,7 @@ private fun EnumOptionListEditor(map: YNode.Map, doc: OpenDocument) {
 
 @Composable
 private fun EnumValuesEditor(map: YNode.Map, doc: OpenDocument, definitions: List<String>, depth: Int) {
+    doc.version  // CONVENTIONS §2 / UX-24
     EnumOptionListEditor(map, doc)
     val values = enumValueStrings(map)
     // 選択肢から消えた値の cases は残骸なので警告つきで削除できるようにする
@@ -722,7 +728,7 @@ private fun DefaultValueEditor(map: YNode.Map, type: String, doc: OpenDocument) 
                 map.entries["default"] = YNode.Scalar(typed)
             }
             doc.markEdited()
-        }, singleLine = true, placeholder = { Text("未設定", color = Palette.SubText) }, modifier = Modifier.weight(1f))
+        }, singleLine = true, placeholder = { Text("未設定") }, modifier = Modifier.weight(1f))
     }
 }
 

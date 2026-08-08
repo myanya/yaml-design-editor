@@ -157,8 +157,6 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
         if (state.hasDirtyDocs()) pendingWorkspace = dir else state.openWorkspace(dir)
     }
     var automationVersion by remember { mutableStateOf(0) }
-    // 実行スペースの手動表示（R12-05）: エージェント定義がなくてもパレットから表示できる
-    var runsForced by remember { mutableStateOf(uiPreferences.getBoolean("showRunsSpace", false)) }
     // 自動化エンジン（ワークスペースごとに生成。既定は停止状態で、パネルから有効化する）
     val automation = remember(state.workspace) {
         state.workspace?.let { wsDir ->
@@ -234,9 +232,6 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
         val inboxCount = (automation?.pendingSnapshot()?.size ?: 0) +
             state.conflictedDocs().size +
             (if (runController?.pendingQuestion != null) 1 else 0)
-        // プロファイル（R12-05）: エージェント運用の定義・判断待ち・有効な自動化があるときだけ実行スペースを出す
-        val showRuns = runsForced || inboxCount > 0 || state.hasAgentSetup() ||
-            automation?.enabled == true || state.uiSpace == UiSpace.RUNS
         Toolbar(state, leftOpen, rightOpen, darkMode, toggleDarkMode, { commandOpen = true },
             switchWorkspace = switchWorkspace,
             toggleReadOnly = {
@@ -247,7 +242,8 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
             toggleRight = { rightOpen = !rightOpen; uiPreferences.putBoolean("rightOpen", rightOpen) })
         Divider(color = Palette.Border)
         Row(Modifier.weight(1f).fillMaxWidth()) {
-            ActivityRail(state, showRuns, inboxCount, automation?.enabled == true)
+            // 実行スペースは定義が空でも常時表示する（UX-20。定義ゼロのときは RunsSpace の空状態が導線を案内する）
+            ActivityRail(state, inboxCount, automation?.enabled == true)
             Box(Modifier.width(1.dp).fillMaxHeight().background(Palette.Border))
             when (state.uiSpace) {
                 UiSpace.RUNS -> Box(Modifier.weight(1f).fillMaxHeight()) {
@@ -282,11 +278,7 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
     }
     if (commandOpen) CommandPalette(
         state, switchWorkspace,
-        onShowRuns = {
-            runsForced = true
-            uiPreferences.putBoolean("showRunsSpace", true)
-            state.showSpace(UiSpace.RUNS)
-        },
+        onShowRuns = { state.showSpace(UiSpace.RUNS) },
     ) { commandOpen = false }
     pendingWorkspace?.let { next ->
         AlertDialog(
@@ -452,7 +444,7 @@ private fun CommandPalette(state: AppState, switchWorkspace: (Path) -> Unit, onS
         text = {
             Column(Modifier.width(520.dp).heightIn(max = 460.dp)) {
                 CompactTextField(query, { query = it }, singleLine = true,
-                    placeholder = { Text("ID・タイトル・ファイル・コマンドを検索…", color = Palette.SubText) }, modifier = Modifier.fillMaxWidth())
+                    placeholder = { Text("ID・タイトル・ファイル・コマンドを検索…") }, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(8.dp))
                 idMatches.forEach { e ->
                     CommandItem("IDへ移動: ${e.id}" + (e.title?.let { " — $it" } ?: "")) { state.navigateToId(e.id); onDismiss() }

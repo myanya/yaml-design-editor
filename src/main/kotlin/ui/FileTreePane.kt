@@ -3,6 +3,7 @@ package ui
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -85,7 +86,13 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp) {
         val expanded = remember(ws) { mutableStateMapOf<Path, Boolean>() }
         val rows = buildRows(ws, state.yamlFiles, state.editorOnlyFiles, state.directories, expanded)
 
-        Box(Modifier.fillMaxSize()) {
+        // 行以外の空白クリックで選択を解除できるようにする（未選択＝ルート直下が作成先になる。UX-40）
+        Box(
+            Modifier.fillMaxSize().clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+            ) { selectedPath = null },
+        ) {
             val listState = rememberLazyListState()
             LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                 items(rows, key = { it.path.toString() }) { row ->
@@ -110,12 +117,19 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp) {
             InferSchemaDialog(state, target, onDismiss = { inferTarget = null })
         }
         dialog?.let { kind ->
+            // 作成先は「選択中の場所の配下」。どこに作られるかをダイアログに明示し、直下への切替も出す（UX-22 / UX-40）
+            val selectedParent = selectedPath?.let { if (Files.isDirectory(it)) it else it.parent } ?: ws
+            val creating = kind == TreeDialog.NewFile || kind == TreeDialog.NewDirectory
             TreeOperationDialog(
                 kind = kind,
                 initial = if (kind == TreeDialog.Rename) selectedPath?.fileName?.toString().orEmpty() else "",
+                destination = if (creating) {
+                    state.relPath(selectedParent).takeIf { it.isNotEmpty() } ?: "（ワークスペース直下）"
+                } else null,
+                allowRootSwitch = creating && selectedParent != ws,
                 onDismiss = { dialog = null },
-                onConfirm = { value ->
-                    val parent = selectedPath?.let { if (Files.isDirectory(it)) it else it.parent } ?: ws
+                onConfirm = { value, atRoot ->
+                    val parent = if (atRoot) ws else selectedParent
                     val result = when (kind) {
                         TreeDialog.NewFile -> state.createYaml(parent, value).map { Unit }
                         TreeDialog.NewDirectory -> state.createDirectory(parent, value).map { Unit }
@@ -124,8 +138,9 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp) {
                         TreeDialog.Delete -> selectedPath?.let { state.deletePath(it) }
                             ?: Result.failure(IllegalStateException("対象がありません"))
                     }
-                    result.onFailure { state.status = it.message ?: "操作に失敗しました" }
                     if (result.isSuccess) { dialog = null; if (kind != TreeDialog.NewFile) selectedPath = null }
+                    // 失敗はダイアログ内に表示する（ステータスバーだけでは気づけない。UX-41）
+                    result.exceptionOrNull()?.let { it.message ?: "操作に失敗しました" }
                 },
             )
         }
@@ -280,10 +295,15 @@ private enum class TreeDialog { NewFile, NewDirectory, Rename, Delete }
 private fun TreeOperationDialog(
     kind: TreeDialog,
     initial: String,
+    destination: String?,
+    allowRootSwitch: Boolean,
     onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit,
+    onConfirm: (String, Boolean) -> String?,  // 戻り値はエラーメッセージ（null=成功。ダイアログ内に表示する。UX-41）
 ) {
     var value by remember(kind, initial) { mutableStateOf(initial) }
+    var atRoot by remember(kind) { mutableStateOf(false) }
+    var error by remember(kind) { mutableStateOf<String?>(null) }
+    fun confirm() { error = onConfirm(value, atRoot) }
     val title = when (kind) {
         TreeDialog.NewFile -> "YAML ファイルを作成"
         TreeDialog.NewDirectory -> "フォルダーを作成"
@@ -294,11 +314,35 @@ private fun TreeOperationDialog(
         onDismissRequest = onDismiss,
         title = { Text(title, fontSize = 16.sp) },
         text = {
-            if (kind == TreeDialog.Delete) Text("選択した項目を削除します。この操作は取り消せません。")
-            else OutlinedTextField(value, { value = it }, singleLine = true, label = { Text("名前") })
+            Column {
+                if (kind == TreeDialog.Delete) Text("選択した項目を削除します。この操作は取り消せません。")
+                else {
+                    OutlinedTextField(
+                        value, { value = it; error = null }, singleLine = true, label = { Text("名前") },
+                        modifier = Modifier.confirmOnEnter(enabled = { value.isNotBlank() }) { confirm() },
+                    )
+                    destination?.let {
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "作成先: ${if (atRoot) "（ワークスペース直下）" else it}",
+                            fontSize = 11.sp, color = Palette.SubText,
+                        )
+                    }
+                    if (allowRootSwitch) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(atRoot, { atRoot = it })
+                            Text("ワークスペース直下に作成する", fontSize = 12.sp)
+                        }
+                    }
+                }
+                error?.let {
+                    Spacer(Modifier.height(6.dp))
+                    Text(it, fontSize = 12.sp, color = Palette.ErrorRed)
+                }
+            }
         },
         confirmButton = {
-            TextButton(enabled = kind == TreeDialog.Delete || value.isNotBlank(), onClick = { onConfirm(value) }) {
+            TextButton(enabled = kind == TreeDialog.Delete || value.isNotBlank(), onClick = { confirm() }) {
                 Text(if (kind == TreeDialog.Delete) "削除" else "実行",
                     color = if (kind == TreeDialog.Delete) Palette.ErrorRed else Palette.Primary)
             }

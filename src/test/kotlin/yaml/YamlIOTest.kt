@@ -33,6 +33,24 @@ class YamlIOTest {
         assertEquals(expected, YamlIO.dump(node))
     }
 
+    @Test
+    fun `unquoted dates stay plain strings across the round trip`() {
+        // 引用符なしの日付・日時を Date へ型付けしない（UX-29）:
+        // 型付けすると検証の現在値が Date.toString() になり、保存で ISO 形式へ書き換わってしまう
+        val text = "due: 2026-08-21\n" +
+            "stamp: 2026-08-08T10:00:00Z\n" +
+            "quoted: '2026-08-21'\n"
+        val node = YamlIO.parse(text) as YNode.Map
+        assertEquals("2026-08-21", (node.entries["due"] as YNode.Scalar).value)
+        assertEquals("2026-08-08T10:00:00Z", (node.entries["stamp"] as YNode.Scalar).value)
+        // 保存しても引用符・タグが付かず、そのままの表記で往復する
+        assertEquals(text, YamlIO.dump(node))
+        // 数値・真偽値の型付けは従来どおり
+        val typed = YamlIO.parse("n: 42\nb: true\n") as YNode.Map
+        assertEquals(42, (typed.entries["n"] as YNode.Scalar).value)
+        assertEquals(true, (typed.entries["b"] as YNode.Scalar).value)
+    }
+
     // ---------------------------------------------------------------- R8-01: コメント・スタイル保持
 
     @Test

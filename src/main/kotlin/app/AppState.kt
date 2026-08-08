@@ -546,18 +546,11 @@ class AppState {
 
     fun hasDirtyDocs(): Boolean = docCache.values.any { it.dirty }
 
+    /** 未保存文書の数（台帳スペースの保存ボタンの件数表示用。UX-34。dirty の読み取りが再コンポーズを購読する）。 */
+    fun dirtyDocCount(): Int = docCache.values.count { it.dirty }
+
     /** 外部変更と競合中の文書（受信箱の表示用。R12-02。データの正は各 OpenDocument）。 */
     fun conflictedDocs(): List<OpenDocument> = docCache.values.filter { it.externalConflict }
-
-    /**
-     * エージェント運用の定義があるか（R12-05）。実行スペースの段階的開示に使う。
-     * 予約ディレクトリのYAMLは走査対象（yamlFiles）に含まれるため、走査ミラーから導出できる。
-     */
-    fun hasAgentSetup(): Boolean =
-        yamlFiles.any {
-            val zone = layout.zoneOf(relPath(it))
-            zone == schema.WorkspaceLayout.Zone.AGENTS || zone == schema.WorkspaceLayout.Zone.ACTIVITIES
-        }
 
     private fun save(doc: OpenDocument) {
         runCatching {

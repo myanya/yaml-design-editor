@@ -195,7 +195,7 @@ fun SkillsSection(state: AppState) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CompactTextField(
                             importSource, { importSource = it }, singleLine = true,
-                            placeholder = { Text("取り込むファイル（xlsx / csv / json / md / docx）", color = Palette.SubText) },
+                            placeholder = { Text("取り込むファイル（xlsx / csv / json / md / docx）") },
                             modifier = Modifier.weight(1f),
                         )
                         Spacer(Modifier.width(6.dp))

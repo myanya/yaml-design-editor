@@ -47,7 +47,7 @@ fun WorkspaceTableView(state: AppState) {
             Text("ワークスペース一覧", fontWeight = FontWeight.Bold, fontSize = 14.sp)
             Spacer(Modifier.width(12.dp))
             CompactTextField(query, { query = it }, singleLine = true,
-                placeholder = { Text("ID・タイトル・パス", fontSize = 11.sp, color = Palette.SubText) }, modifier = Modifier.width(220.dp))
+                placeholder = { Text("ID・タイトル・パス") }, modifier = Modifier.width(220.dp))
             Spacer(Modifier.width(6.dp))
             FilterMenu("種別", kind, listOf("") + records.mapNotNull { it.kind }.distinct().sorted()) { kind = it }
             FilterMenu("状態", status, listOf("") + records.mapNotNull { it.status }.distinct().sorted()) { status = it }
@@ -61,7 +61,7 @@ fun WorkspaceTableView(state: AppState) {
             val bulkKeys = remember(records) { state.bulkKeyCandidates() }
             FilterMenu("変更項目", bulkKey, bulkKeys) { bulkKey = it }
             CompactTextField(bulkValue, { bulkValue = it }, singleLine = true,
-                placeholder = { Text("一括設定する値", fontSize = 11.sp, color = Palette.SubText) }, modifier = Modifier.width(180.dp))
+                placeholder = { Text("一括設定する値") }, modifier = Modifier.width(180.dp))
             Spacer(Modifier.width(6.dp))
             Button(enabled = selected.any { it.value } && bulkValue.isNotBlank(), onClick = { confirmBulk = true },
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)) { Text("一括変更", fontSize = 11.sp) }
@@ -146,7 +146,7 @@ fun ReferenceGraphView(state: AppState) {
             Text("参照グラフ", fontWeight = FontWeight.Bold, fontSize = 14.sp)
             Spacer(Modifier.width(12.dp))
             CompactTextField(query, { query = it }, singleLine = true,
-                placeholder = { Text("ID・参照元を検索", fontSize = 11.sp, color = Palette.SubText) }, modifier = Modifier.width(220.dp))
+                placeholder = { Text("ID・参照元を検索") }, modifier = Modifier.width(220.dp))
             Spacer(Modifier.width(12.dp))
             TextButton(onClick = { zoom = (zoom * 1.25f).coerceAtMost(4f) }) { Text("＋", fontSize = 13.sp) }
             TextButton(onClick = { zoom = (zoom / 1.25f).coerceAtLeast(0.25f) }) { Text("－", fontSize = 13.sp) }

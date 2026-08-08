@@ -293,7 +293,7 @@ private fun DocumentMetadataEditor(ctx: FormCtx, root: YNode.Map) {
                 value = (nameSlot.get() as? YNode.Scalar)?.value?.toString().orEmpty(),
                 onValueChange = { ctx.setScalar(nameSlot, it, FieldType.STRING) },
                 singleLine = true,
-                placeholder = { Text("この文書を表す名前", fontSize = 13.sp, color = Palette.SubText) },
+                placeholder = { Text("この文書を表す名前") },
                 modifier = Modifier.weight(1f),
             )
         }
@@ -306,7 +306,7 @@ private fun DocumentMetadataEditor(ctx: FormCtx, root: YNode.Map) {
             CompactTextField(
                 value = (descriptionSlot.get() as? YNode.Scalar)?.value?.toString().orEmpty(),
                 onValueChange = { ctx.setScalar(descriptionSlot, it, FieldType.TEXT) },
-                placeholder = { Text("この文書が何を示し、何を含むかを簡潔に記述", fontSize = 13.sp, color = Palette.SubText) },
+                placeholder = { Text("この文書が何を示し、何を含むかを簡潔に記述") },
                 modifier = Modifier.weight(1f).heightIn(min = 84.dp),
             )
         }
@@ -704,7 +704,7 @@ private fun ScalarTextEditor(ctx: FormCtx, field: FieldDef, slot: Slot, singleLi
                 FieldType.NUMBER -> "数値"
                 else -> ""
             }
-            if (hint.isNotEmpty()) Text(hint, fontSize = 13.sp, color = Palette.SubText)
+            if (hint.isNotEmpty()) Text(hint)
         },
         modifier = if (singleLine) Modifier.fillMaxWidth()
         else Modifier.fillMaxWidth().heightIn(min = 72.dp),
@@ -862,15 +862,27 @@ fun RefEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
             ?: ctx.state.overlayIndex().occurrences(current).firstOrNull { it.isAllowedBy(refConstraint) })
             ?.title?.takeIf { it.isNotBlank() && it != current }
     Row(verticalAlignment = Alignment.CenterVertically) {
-        // タイトルを添えるときはフィールドを詰め、同じ行の右側に参照先の意味を見せる（縦幅を増やさない）
-        Box(Modifier.weight(if (targetTitle != null) 0.45f else 1f)) {
+        // 解決済みの参照先タイトルは入力欄の枠内（右端）に併記する（ID＋表示名を1つの領域で見せる。UX-31）
+        Box(Modifier.weight(1f)) {
             CompactTextField(
                 value = current,
                 onValueChange = { ctx.setScalar(slot, it, FieldType.REF) },
                 singleLine = true,
                 isError = current.isNotBlank() && !resolved,
                 textStyle = fieldTextStyle,
-                placeholder = { Text("参照先 ID", fontSize = 13.sp, color = Palette.SubText) },
+                placeholder = { Text("参照先 ID") },
+                suffix = targetTitle?.let {
+                    {
+                        Text(
+                            it,
+                            fontSize = 12.sp,
+                            color = Palette.SubText,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.widthIn(max = 260.dp).padding(start = 8.dp),
+                        )
+                    }
+                },
                 trailingIcon = {
                     IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(28.dp)) {
                         Icon(Icons.Default.ArrowDropDown, contentDescription = "候補を表示", modifier = Modifier.size(18.dp))
@@ -917,16 +929,6 @@ fun RefEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
                     }, modifier = Modifier.background(if (selected) Palette.Selected else Color.Transparent))
                 }
             }
-        }
-        if (targetTitle != null) {
-            Text(
-                targetTitle,
-                fontSize = 12.sp,
-                color = Palette.SubText,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(0.55f).padding(start = 8.dp),
-            )
         }
         IconButton(
             enabled = resolved,
@@ -1388,7 +1390,7 @@ private fun AddTypedMapKeyRow(ctx: FormCtx, map: YNode.Map, valueDef: FieldDef?)
     val trimmed = newKey.trim()
     Row(verticalAlignment = Alignment.CenterVertically) {
         CompactTextField(value = newKey, onValueChange = { newKey = it }, singleLine = true,
-            textStyle = fieldTextStyle, placeholder = { Text("新しいキー", fontSize = 13.sp, color = Palette.SubText) },
+            textStyle = fieldTextStyle, placeholder = { Text("新しいキー") },
             modifier = Modifier.width(200.dp))
         TextButton(enabled = trimmed.isNotEmpty() && trimmed !in map.entries, onClick = {
             map.entries[trimmed] = defaultNode(valueDef, ctx.doc.schema)
@@ -1420,7 +1422,7 @@ fun GenericEditor(ctx: FormCtx, slot: Slot, path: YPath, refHint: Boolean) {
                 onValueChange = { ctx.setGenericScalar(slot, it) },
                 singleLine = true,
                 textStyle = fieldTextStyle,
-                placeholder = { Text("（null）", fontSize = 13.sp, color = Palette.SubText) },
+                placeholder = { Text("（null）") },
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -1613,7 +1615,7 @@ private fun AddKeyRow(ctx: FormCtx, map: YNode.Map) {
             onValueChange = { newKey = it },
             singleLine = true,
             textStyle = fieldTextStyle,
-            placeholder = { Text("新しいキー", fontSize = 13.sp, color = Palette.SubText) },
+            placeholder = { Text("新しいキー") },
             modifier = Modifier.width(200.dp),
         )
         TextButton(
