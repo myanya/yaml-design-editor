@@ -160,7 +160,7 @@ class ViewsTest {
         assertTrue(loaded.errors.isEmpty(), loaded.errors.toString())
         val view = loaded.view("screen-catalog")!!
         assertEquals("画面カタログ", view.name)
-        assertEquals("SCR-*", view.rows.idPattern)
+        assertEquals("SCR-*", view.rows?.idPattern)
         assertEquals(listOf("画面名", "種別", "エリア"), view.columns.map { it.label })
         assertEquals("screen-list", view.orderBy?.schemaId)
         assertEquals("screens/detail/{id}.yaml", view.detail?.filePattern)
@@ -1178,5 +1178,161 @@ class ViewsTest {
             issues["_views/bad.yaml"].orEmpty().any { "定義として解釈できません" in it.message },
             issues.toString(),
         )
+    }
+
+    // ---------------------------------------------------------------- クエリ行（rows: match。R22-02）
+
+    /** クエリ行のフィクスチャ: エンティティ型つきの2スキーマ＋uses 関係＋結合ビュー。 */
+    private fun setupQueryRows() {
+        write(
+            "_schemas/qscreen.yaml",
+            """
+            id: qscreen
+            match: "qscreens/*.yaml"
+            entity: { type: qscreen, idPattern: "QS-*", defines: true }
+            root:
+              type: object
+              fields:
+                - { key: id, type: id, required: true }
+                - { key: name, type: string, role: title }
+                - key: uses
+                  type: array
+                  item: { type: ref, relation: uses, scope: { schemaIds: [qusecase] } }
+            """,
+        )
+        write(
+            "_schemas/qusecase.yaml",
+            """
+            id: qusecase
+            match: "qucs/*.yaml"
+            entity: { type: qusecase, idPattern: "QU-*", defines: true }
+            root:
+              type: object
+              fields:
+                - { key: id, type: id, required: true }
+                - { key: name, type: string, role: title }
+                - { key: owner, type: string }
+            """,
+        )
+        write("qscreens/QS-1.yaml", "id: QS-1\nname: 画面A\nuses:\n- QU-1\n- QU-2")
+        write("qscreens/QS-2.yaml", "id: QS-2\nname: 画面B\nuses:\n- QU-2")
+        write("qucs/QU-1.yaml", "id: QU-1\nname: ユースX\nowner: 佐藤")
+        write("qucs/QU-2.yaml", "id: QU-2\nname: ユースY\nowner: 鈴木")
+        write(
+            "_views/join.yaml",
+            """
+            id: join-view
+            name: 画面×ユースケース
+            rows:
+              match:
+                - node: { entity: qscreen, bind: scr }
+                - edge: { relation: uses }
+                - node: { entity: qusecase, bind: uc }
+            columns:
+              - { label: 画面名, path: name, editable: true }
+              - { label: UC名, of: uc, path: name }
+              - { label: UC担当, of: uc, path: owner, editable: true }
+            """,
+        )
+    }
+
+    @Test
+    fun `query rows resolve join cells to each binding's origin coordinates`() {
+        setupQueryRows()
+        val workspace = Workspace.open(ws)
+        val loaded = Views.load(ws, workspace.schemas)
+        assertTrue(loaded.errors.isEmpty(), loaded.errors.toString())
+        val view = loaded.view("join-view")!!
+        assertNull(view.rows)
+        assertEquals("scr", view.rowKey)
+        val rows = Views.resolve(view, ws, workspace.index)
+        // 行 = 束縛行（結合）。行IDは行キー束縛で、結合により重複しうる。key は束縛値の組で一意
+        assertEquals(listOf("QS-1", "QS-1", "QS-2"), rows.map { it.id })
+        assertEquals(
+            listOf("scr=QS-1|uc=QU-1", "scr=QS-1|uc=QU-2", "scr=QS-2|uc=QU-2"),
+            rows.map { it.key },
+        )
+        val first = rows[0]
+        // of 省略の列は行キー束縛（qscreen）の座標へ、of: uc の列は結合先（qusecase）の座標へ解決される
+        assertEquals("qscreens/QS-1.yaml", first.cells[0].rel)
+        assertEquals(parseYPath("name"), first.cells[0].path)
+        assertEquals("画面A", (first.cells[0].value as? YNode.Scalar)?.value)
+        assertEquals("qucs/QU-1.yaml", first.cells[1].rel)
+        assertEquals("ユースX", (first.cells[1].value as? YNode.Scalar)?.value)
+        assertEquals("qucs/QU-1.yaml", first.cells[2].rel)
+        assertEquals(parseYPath("owner"), first.cells[2].path)
+        assertTrue(first.cells[2].column.editable)
+        // テキスト表現には束縛が明示される
+        val text = Views.renderText(view, rows)
+        assertTrue("matchクエリ・行キー: scr" in text, text)
+        assertTrue("束縛: scr=QS-1, uc=QU-1" in text, text)
+    }
+
+    @Test
+    fun `query rows definition errors`() {
+        setupQueryRows()
+        // match と idPattern の併用は排他
+        assertFailsWith<RuntimeException> {
+            Views.parseView(
+                YamlIO.parseToRaw(
+                    """
+                    id: x
+                    rows:
+                      idPattern: "QS-*"
+                      match:
+                        - node: { entity: qscreen, bind: scr }
+                    columns:
+                      - { label: A, path: name }
+                    """.trimIndent()
+                ) as Map<*, *>,
+                ws.resolve("_views/x.yaml"),
+            )
+        }
+        // of は match のビュー専用・束縛は宣言済みであること
+        assertFailsWith<RuntimeException> {
+            Views.parseView(
+                YamlIO.parseToRaw(
+                    """
+                    id: x
+                    rows: { idPattern: "QS-*" }
+                    columns:
+                      - { label: A, of: scr, path: name }
+                    """.trimIndent()
+                ) as Map<*, *>,
+                ws.resolve("_views/x.yaml"),
+            )
+        }
+        assertFailsWith<RuntimeException> {
+            Views.parseView(
+                YamlIO.parseToRaw(
+                    """
+                    id: x
+                    rows:
+                      match:
+                        - node: { entity: qscreen, bind: scr }
+                    columns:
+                      - { label: A, of: zzz, path: name }
+                    """.trimIndent()
+                ) as Map<*, *>,
+                ws.resolve("_views/x.yaml"),
+            )
+        }
+        // order はクエリ行と併用不可
+        assertFailsWith<RuntimeException> {
+            Views.parseView(
+                YamlIO.parseToRaw(
+                    """
+                    id: x
+                    rows:
+                      match:
+                        - node: { entity: qscreen, bind: scr }
+                    order: { schemaId: qscreen }
+                    columns:
+                      - { label: A, path: name }
+                    """.trimIndent()
+                ) as Map<*, *>,
+                ws.resolve("_views/x.yaml"),
+            )
+        }
     }
 }

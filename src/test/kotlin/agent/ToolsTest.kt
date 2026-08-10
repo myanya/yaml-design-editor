@@ -74,10 +74,26 @@ class ToolsTest {
                 - key: actorIds
                   type: array
                   item: { type: ref, scope: { schemaIds: [actor] } }
+            entity: { type: usecase, idPattern: "UC-*", defines: true, owns: [name] }
             """,
         )
         write("actors/ACT-001.yaml", "id: ACT-001\nname: テナント管理者")
         write("ucs/UC-001.yaml", "id: UC-001\nname: 削除する\nactorIds:\n- ACT-001\n- ACT-999")
+        // read_entity（R23-04）用: エンティティ宣言とレジストリの entities 節（型ラベル・アスペクト表示名）
+        write(
+            "_schemas/registry.yaml",
+            """
+            id: registry
+            kind: relations
+            relations:
+              - { name: uses, label: 利用する, inverseLabel: 利用される }
+            entities:
+              - type: usecase
+                label: ユースケース
+                aspects:
+                  - { name: uc, label: 基本情報 }
+            """,
+        )
         write(
             "_views/uc-view.yaml",
             """
@@ -190,6 +206,35 @@ class ToolsTest {
         )
         val stepText = toolbox().execute(steps, NoAskHost, mutableListOf()).content
         assertTrue("- UC-001 — 削除する" in stepText, stepText)
+    }
+
+    // ---------------------------------------------------------------- read_entity（R23-04）
+
+    @Test
+    fun `read_entity returns aspect composition with coordinates and relations`() = runBlocking {
+        val call = ToolCall("c1", "read_entity", Json.parseToJsonElement("""{"id":"UC-001"}""").jsonObject)
+        val text = toolbox().execute(call, NoAskHost, mutableListOf()).content
+        // 型ラベル（レジストリ entities 節）とタイトル
+        assertTrue(text.startsWith("UC-001（ユースケース） — 削除する"), text)
+        // アスペクト見出し（表示名＋定義マーク＋原本座標）と所有フィールド（owns 明示）
+        assertTrue("## 基本情報（定義） [ucs/UC-001.yaml :: (root)]" in text, text)
+        assertTrue("- name: 削除する" in text, text)
+        // owns の対象外（actorIds）は所有フィールドに出ない
+        assertTrue("- actorIds" !in text, text)
+        // 関係（この要素からの参照）に参照先タイトルが付く
+        assertTrue("- → ACT-001 = テナント管理者（actorIds）" in text, text)
+        // ID が無ければその旨を返す
+        val missing = ToolCall("c2", "read_entity", Json.parseToJsonElement("""{"id":"UC-999"}""").jsonObject)
+        assertTrue("見つかりません" in toolbox().execute(missing, NoAskHost, mutableListOf()).content)
+    }
+
+    @Test
+    fun `entity context item resolves placeholder and discloses composition`() {
+        val item = ContextItemDef(kind = "entity", id = "{target}")
+        val section = toolbox().contextItemSection(item, mapOf("target" to "UC-001"))
+        assertTrue(section != null && "## 基本情報" in section.body, section?.body)
+        // プレースホルダが解決できない実行では開示しない（既存レシピと同じ規約）
+        assertTrue(toolbox().contextItemSection(item, emptyMap()) == null)
     }
 
     @Test

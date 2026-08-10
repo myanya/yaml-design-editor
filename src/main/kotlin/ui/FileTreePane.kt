@@ -127,6 +127,10 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp) {
                     state.relPath(selectedParent).takeIf { it.isNotEmpty() } ?: "（ワークスペース直下）"
                 } else null,
                 allowRootSwitch = creating && selectedParent != ws,
+                // 改名の影響プレビュー（R21-03）: 文書参照の書き換え・スキーマ／ビューの当たりの変化
+                impact = if (kind == TreeDialog.Rename) {
+                    { name -> selectedPath?.let { state.renameImpact(it, name) }.orEmpty() }
+                } else null,
                 onDismiss = { dialog = null },
                 onConfirm = { value, atRoot ->
                     val parent = if (atRoot) ws else selectedParent
@@ -297,6 +301,7 @@ private fun TreeOperationDialog(
     initial: String,
     destination: String?,
     allowRootSwitch: Boolean,
+    impact: ((String) -> List<String>)? = null,  // 改名の影響プレビュー（R21-03。入力値から都度計算）
     onDismiss: () -> Unit,
     onConfirm: (String, Boolean) -> String?,  // 戻り値はエラーメッセージ（null=成功。ダイアログ内に表示する。UX-41）
 ) {
@@ -333,6 +338,14 @@ private fun TreeOperationDialog(
                             Checkbox(atRoot, { atRoot = it })
                             Text("ワークスペース直下に作成する", fontSize = 12.sp)
                         }
+                    }
+                    // 改名の影響（R21-03）: 書き換え対象の文書参照・スキーマ／ビューの当たりの変化
+                    impact?.invoke(value).orEmpty().takeIf { value != initial }?.forEach { line ->
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            line, fontSize = 11.sp,
+                            color = if (line.startsWith("注意:")) Palette.WarnOrange else Palette.SubText,
+                        )
                     }
                 }
                 error?.let {

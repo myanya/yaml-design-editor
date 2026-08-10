@@ -92,12 +92,12 @@ private fun RailItem(
 
 // ================================================================ 台帳スペース（R12-04: 一覧系の空間統合）
 
-/** workspaceView（1〜4）とタブ位置の対応。一覧 → ビュー → グラフ → ID横ぐし の順に並べる。 */
+/** workspaceView（1〜4）とタブ位置の対応。一覧 → ビュー → レンズ → エンティティ の順に並べる。 */
 private val ledgerTabs = listOf(
     1 to "一覧",
     4 to "ビュー",
-    2 to "グラフ",
-    3 to "ID横ぐし",
+    2 to "レンズ",
+    3 to "エンティティ",
 )
 
 @Composable
@@ -117,7 +117,7 @@ fun LedgerSpace(state: AppState) {
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when (state.workspaceView) {
-                2 -> ReferenceGraphView(state)
+                2 -> GraphLensView(state)
                 3 -> IdCrossView(state)
                 4 -> ViewGridView(state)
                 else -> WorkspaceTableView(state)

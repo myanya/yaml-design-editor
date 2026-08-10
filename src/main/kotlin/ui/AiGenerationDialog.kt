@@ -5,6 +5,7 @@ import ai.AiGenerationInput
 import ai.AiProvider
 import ai.RefCandidate
 import ai.ReferenceDoc
+import schema.RefTarget
 import core.Workspace
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
@@ -114,7 +115,11 @@ fun AiGenerationHost(state: AppState) {
                                 currentValueYaml = baseTarget?.let(YamlIO::dump) ?: "（未設定）",
                                 currentDocumentYaml = YamlIO.dump(baseRoot),
                                 idCandidates = state.overlayIndex().entries.values.flatten()
-                                    .map { RefCandidate(it.id, it.schemaId, it.documentId) },
+                                    .map { RefCandidate(it.id, it.schemaId, it.documentId) } +
+                                    // 文書参照（target: document。R21-03）の候補は文書ノード表から
+                                    state.overlayIndex().graph.documents.keys.map {
+                                        RefCandidate(it, null, it, kind = RefTarget.DOCUMENT)
+                                    },
                                 referenceDocs = referenceDocs,
                             ),
                             fileRel = state.relPath(doc.file),
@@ -154,6 +159,7 @@ fun AiGenerationHost(state: AppState) {
             Validator.validate(
                 root, null, doc.file, doc.schema, state.overlayIndex(),
                 workspace = state.workspace, allSchemas = state.schemas, loader = state.unsavedFirstLoader(),
+                relations = state.relations, enforcement = state.enforcement,
             )
         }.orEmpty()
     }

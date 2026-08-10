@@ -147,4 +147,31 @@ class ForeachTest {
         assertEquals(1, result.items.size)
         assertTrue("details/IT-002.yaml" in result.items[0].key, result.items.toString())
     }
+
+    @Test
+    fun `query source enumerates binding rows and supplies bind placeholders`() {
+        val ws = Workspace.open(dir)
+        // schema フィルタはエンティティ宣言なしでも使える（出現スキーマID）
+        val spec = schema.QuerySpec.parse(
+            yaml.YamlIO.parseToRaw(
+                """
+                match:
+                  - node: { schema: list, id: "IT-*", bind: item }
+                """.trimIndent()
+            ) as Map<*, *>,
+            "foreach.query",
+        )
+        val result = Foreach.enumerate(
+            ws,
+            ForeachDef(source = ForeachSource.QUERY, query = spec, asTemplate = "対象 {item}", limit = 2),
+        )
+        assertEquals(listOf("item=IT-001", "item=IT-002"), result.items.map { it.key })
+        assertEquals(3, result.total)
+        assertEquals("対象 IT-001", result.items[0].instruction)
+        // プレースホルダ: 先頭束縛の既定（id / file / target）＋束縛名（{item} / {item_file}）
+        assertEquals("IT-001", result.items[0].values["id"])
+        assertEquals("IT-001", result.items[0].values["item"])
+        assertEquals("list.yaml", result.items[0].values["item_file"])
+        assertEquals("IT-001", result.items[0].values["target"])
+    }
 }

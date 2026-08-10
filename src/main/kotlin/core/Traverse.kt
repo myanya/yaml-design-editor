@@ -1,6 +1,7 @@
 package core
 
 import index.IdIndex
+import index.Query
 import model.YNode
 import model.getAt
 import model.pretty
@@ -134,7 +135,8 @@ object Traverse {
 
     /**
      * フロンティアからエッジを1段辿る。戻り値は（安定ソート・limit適用後の到達ID列, 打切り前の総数）。
-     * out = フロンティア要素の配下に書かれた参照の targetId、in = フロンティアIDへの被参照の書き手（元要素のID）。
+     * 隣接の展開はパターン照合エンジンと共有する（`index.Query.neighborIds`。R22-02③ / ARCHITECTURE §4.32）——
+     * Traverse は visited・limitPerHop・emit 描画だけを担う「Query の上の emit レンダラ」。
      */
     private fun neighbors(
         index: IdIndex,
@@ -142,28 +144,8 @@ object Traverse {
         step: TraverseStep,
         visited: Set<String>,
     ): Pair<List<String>, Int> {
-        val ids = when (step.follow) {
-            // 出次は導出グラフの隣接リスト（R20-04。従来の occurrences×refs 突合と同一の出力）
-            "out" -> frontier.flatMap { id -> index.outgoingRefs(id) }
-                .asSequence()
-                .filter { step.relation == null || it.relation == step.relation }
-                .filter { step.via == null || it.viaKey == step.via }
-                .map { it.targetId }
-                .distinct()
-                .filter { step.schema == null || index.occurrences(it).any { e -> e.schemaId == step.schema } }
-                .sorted()
-                .toList()
-            "in" -> index.backlinksTo(frontier.toSet())
-                .asSequence()
-                .filter { step.relation == null || it.relation == step.relation }
-                .filter { step.via == null || it.viaKey == step.via }
-                .mapNotNull { index.sourceEntryOf(it)?.id }
-                .distinct()
-                .filter { step.schema == null || index.occurrences(it).any { e -> e.schemaId == step.schema } }
-                .sorted()
-                .toList()
-            else -> error("follow は out / in のいずれかです: ${step.follow}")
-        }
+        val follow = step.follow ?: error("follow は out / in のいずれかです: ${step.follow}")
+        val ids = Query.neighborIds(index, frontier, follow, step.relation, step.via, step.schema)
         val fresh = ids.filter { it !in visited }
         return fresh.take(step.limitPerHop) to fresh.size
     }

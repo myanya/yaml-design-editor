@@ -3,6 +3,7 @@ package core
 import index.Derivation
 import index.IdEntry
 import index.IdIndex
+import index.Query
 import index.RefEntry
 import index.idMatchesPattern
 import model.YNode
@@ -15,9 +16,12 @@ import schema.DerivationDef
 import schema.Display
 import schema.FieldDef
 import schema.FieldType
+import schema.QueryNodeKind
+import schema.QuerySpec
 import schema.SchemaDef
 import schema.SchemaLoader
 import schema.effectiveFields
+import schema.fieldAt
 import schema.globToRegex
 import yaml.YamlIO
 import java.nio.file.Files
@@ -82,6 +86,11 @@ data class ViewColumn(
      * （schema/Derivation.kt・index/Derivation.kt。ARCHITECTURE §4.26）。
      */
     val computed: DerivationDef? = null,
+    /**
+     * クエリ行（rows: match）の値元の束縛名（R22-02。省略時は行キーの束縛。ARCHITECTURE §4.32）。
+     * 結合先ノードの値をセル化する——セルの座標は束縛ノードの原本座標で、編集経路は従来のまま。
+     */
+    val of: String? = null,
 )
 
 /** 行の集合の定義。idPattern に一致する論理IDが行になる。 */
@@ -112,9 +121,14 @@ data class ViewDef(
     override val id: String,
     override val name: String,
     override val description: String? = null,
-    val rows: ViewRowsDef,
+    /** 従来の行定義（idPattern×schemaIds）。クエリ行（rowsQuery）とは排他で、どちらか一方が非null。 */
+    val rows: ViewRowsDef? = null,
+    /** クエリ行（rows: match。R22-02 / ARCHITECTURE §4.32）: 行 = パターン照合の束縛行。 */
+    val rowsQuery: QuerySpec? = null,
+    /** クエリ行の行キーの束縛名（rowsQuery 非null のとき非null。kind: entity 限定）。 */
+    val rowKey: String? = null,
     val columns: List<ViewColumn>,
-    val orderBy: ViewSource? = null,   // この条件に一致する出現の文書内順で行を並べる（省略時はID順）
+    val orderBy: ViewSource? = null,   // この条件に一致する出現の文書内順で行を並べる（省略時はID順。クエリ行では併用不可）
     val detail: ViewDetailDef? = null,
     val newRow: ViewNewRowDef? = null,
     override val source: Path,
@@ -234,7 +248,7 @@ data class ViewCell(
     val trace: ComputedTrace? = null,
 )
 
-/** 解決済みの1行（＝1論理ID）。 */
+/** 解決済みの1行（＝1論理ID。クエリ行では行キー束縛のID）。 */
 data class ViewRow(
     val id: String,
     val title: String?,
@@ -242,6 +256,13 @@ data class ViewRow(
     val cells: List<ViewCell>,
     val detailRel: String?,          // 詳細出現のファイル（なければ null）
     val detailPath: YPath?,          // 詳細出現の要素パス
+    /**
+     * 行の同一性キー（R22-02）。クエリ行（結合）ではIDが行間で重複しうるため、束縛値の組で一意化する。
+     * 従来の行では id と同じ。UIの行キー（Compose items の key）もこれを使う。
+     */
+    val key: String = id,
+    /** クエリ行の束縛（束縛名 → ノードID。従来の行では null）。 */
+    val bindings: Map<String, String>? = null,
 )
 
 /** 文書ビューの被参照1件。参照元要素のID・タイトル（表示解決の結果）と、参照値の座標＝ジャンプ先。 */
@@ -354,12 +375,41 @@ object Views {
         val id = raw["id"]?.toString()?.takeIf { it.isNotBlank() } ?: error("id が必要です")
         if (raw.containsKey("sections")) error("sections は kind: document のビューでのみ使えます")
         val rowsMap = raw["rows"] as? Map<*, *> ?: error("rows が必要です")
-        val idPattern = rowsMap["idPattern"]?.toString()?.takeIf { it.isNotBlank() } ?: error("rows.idPattern が必要です")
+        // 行の定義: 従来（idPattern×schemaIds）とクエリ行（match。R22-02 / ARCHITECTURE §4.32）の排他
+        var rowsDef: ViewRowsDef? = null
+        var rowsQuery: QuerySpec? = null
+        var rowKey: String? = null
+        if (rowsMap.containsKey("match")) {
+            listOf("idPattern", "schemaIds").firstOrNull { rowsMap.containsKey(it) }
+                ?.let { error("rows: match と $it は併用できません（従来の行定義とクエリ行は排他）") }
+            if (raw.containsKey("order")) error("rows: match のビューに order は使えません（並びはクエリの決定的順序）")
+            val spec = QuerySpec.parse(rowsMap, "rows", ignoreKeys = setOf("rowKey"))
+            require(spec.binds.isNotEmpty()) { "rows.match には bind（束縛名）が1つ以上必要です" }
+            val keyName = rowsMap["rowKey"]?.toString()?.takeIf { it.isNotBlank() } ?: spec.binds.first()
+            require(keyName in spec.binds) { "rows.rowKey の束縛「$keyName」が match に見つかりません" }
+            require(spec.bindStep(keyName)?.kind == QueryNodeKind.ENTITY) {
+                "rows.rowKey の束縛「$keyName」は kind: entity である必要があります（行キーは論理ID）"
+            }
+            rowsQuery = spec
+            rowKey = keyName
+        } else {
+            val idPattern = rowsMap["idPattern"]?.toString()?.takeIf { it.isNotBlank() }
+                ?: error("rows.idPattern か rows.match が必要です")
+            rowsDef = ViewRowsDef(idPattern = idPattern, schemaIds = stringList(rowsMap["schemaIds"]))
+        }
+        val binds = rowsQuery?.binds
         val columnsRaw = raw["columns"] as? List<*> ?: error("columns が必要です")
         require(columnsRaw.isNotEmpty()) { "columns には1列以上が必要です" }
         val columns = columnsRaw.flatMapIndexed { i: Int, entry: Any? ->
             val m = entry as? Map<*, *> ?: error("columns[$i] はobjectである必要があります")
+            // of（R22-02）: クエリ行の値元の束縛。従来の行定義では使えない
+            val of = m["of"]?.toString()?.takeIf { it.isNotBlank() }
+            if (of != null) {
+                if (binds == null) error("columns[$i]: of は rows: match のビューでのみ使えます")
+                require(of in binds) { "columns[$i]: of の束縛「$of」が rows.match に見つかりません" }
+            }
             if (m.containsKey("definition")) {
+                if (of != null) error("columns[$i]: definition と of は併用できません")
                 // definition 参照列（R14-02）: named definition のセル型フィールドを列集合に展開する
                 return@flatMapIndexed expandDefinitionColumns(m, i, schemas)
             }
@@ -375,6 +425,7 @@ object Views {
                         label = label,
                         path = emptyList(),
                         computed = SchemaLoader.parseDerivation(m["computed"], "columns[$i].computed"),
+                        of = of,
                     )
                 )
             }
@@ -394,6 +445,7 @@ object Views {
                             relation = b["relation"]?.toString(),
                             schemaIds = stringList(b["schemaIds"]),
                         ),
+                        of = of,
                     )
                 )
             } else listOf(
@@ -402,6 +454,7 @@ object Views {
                     from = parseSource(m),
                     path = parseYPath(m["path"]?.toString() ?: error("columns[$i].path が必要です")),
                     editable = m["editable"] as? Boolean ?: false,
+                    of = of,
                 )
             )
         }
@@ -427,10 +480,9 @@ object Views {
             id = id,
             name = raw["name"]?.toString() ?: id,
             description = raw["description"]?.toString(),
-            rows = ViewRowsDef(
-                idPattern = idPattern,
-                schemaIds = stringList(rowsMap["schemaIds"]),
-            ),
+            rows = rowsDef,
+            rowsQuery = rowsQuery,
+            rowKey = rowKey,
             columns = columns,
             orderBy = (raw["order"] as? Map<*, *>)?.let { parseSource(it) }?.takeIf { !it.isEmpty },
             detail = detail,
@@ -635,7 +687,7 @@ object Views {
 
         views.forEach { v ->
             fun report(msg: String) { errors += "${v.source.fileName}: $msg" }
-            v.rows.schemaIds.filterNot { it in ids }.forEach { report("rows.schemaIds のスキーマ「$it」が見つかりません") }
+            v.rows?.schemaIds?.filterNot { it in ids }?.forEach { report("rows.schemaIds のスキーマ「$it」が見つかりません") }
             v.orderBy?.schemaId?.let { if (it !in ids) report("order のスキーマ「$it」が見つかりません") }
             v.detail?.source?.schemaId?.let { if (it !in ids) report("detail のスキーマ「$it」が見つかりません") }
             v.columns.forEach { col ->
@@ -669,8 +721,11 @@ object Views {
                 }
             }
             v.newRow?.filePattern?.let { pattern ->
-                // 代表ID（idPattern の * を仮埋め）で作成先を解決し、スキーマなし・detail 認定外の事故を検出する
-                val rel = pattern.replace("{id}", v.rows.idPattern.replace("*", "X"))
+                // 代表ID（idPattern の * を仮埋め。クエリ行では行キー束縛の id パターン・なければ "X"）で
+                // 作成先を解決し、スキーマなし・detail 認定外の事故を検出する
+                val representativeId = (v.rows?.idPattern ?: v.rowKey?.let { v.rowsQuery?.bindStep(it)?.idPattern })
+                    ?.replace("*", "X") ?: "X"
+                val rel = pattern.replace("{id}", representativeId)
                 val matched = schemas.firstOrNull { it.matches(rel) }
                 if (matched == null) {
                     report("newRow.filePattern「$pattern」の作成先にマッチするスキーマがありません（作成される文書が空になります）")
@@ -858,10 +913,67 @@ object Views {
                 }
                 .sortedWith(compareBy({ it.rel }, { pathSortKey(it.path) }))
 
+        // クエリ行（rows: match。R22-02 / ARCHITECTURE §4.32）: 行 = パターン照合の束縛行。
+        // 並びはクエリの決定的順序（sortRows は通さない）、セルは束縛ノード（of。省略時は行キー）の原本座標へ解決する
+        val query = view.rowsQuery
+        if (query != null) {
+            val rowKeyName = view.rowKey ?: query.binds.first()
+            return Query.run(index, query, ::tree).rows.map { qr ->
+                val keyNode = qr.bindings.getValue(rowKeyName)
+                val occurrences = index.occurrences(keyNode.id)
+                val cells = view.columns.map { column ->
+                    val node = qr.bindings[column.of ?: rowKeyName]
+                    val backlinksDef = column.backlinks
+                    val computedDef = column.computed
+                    when {
+                        node == null -> ViewCell(column, null, null, null, null)
+                        backlinksDef != null ->
+                            ViewCell(column, null, null, null, null, backlinks = backlinksFor(node.id, backlinksDef))
+                        computedDef != null ->
+                            computedCell(column, computedDef, node.id, index.occurrences(node.id), index, ::tree, ::rel)
+                        node.kind == QueryNodeKind.DOCUMENT -> {
+                            // 文書ノードのセル: 文書ルートからの相対パス（座標はその文書＝通常の原本編集経路）
+                            val file = node.file
+                            if (file == null) ViewCell(column, null, null, null, null)
+                            else ViewCell(column, rel(file), file, column.path, tree(file)?.let { getAt(it, column.path) })
+                        }
+                        else -> {
+                            val occurrence = index.occurrences(node.id).firstOrNull { column.from.matches(it, rel(it.file)) }
+                            if (occurrence == null) ViewCell(column, null, null, null, null)
+                            else {
+                                val absolute = occurrence.path + column.path
+                                ViewCell(
+                                    column = column,
+                                    rel = rel(occurrence.file),
+                                    file = occurrence.file,
+                                    path = absolute,
+                                    value = tree(occurrence.file)?.let { getAt(it, absolute) },
+                                )
+                            }
+                        }
+                    }
+                }
+                val detailOccurrence = view.detail?.let { d ->
+                    occurrences.firstOrNull { o -> d.source.matches(o, rel(o.file)) }
+                }
+                ViewRow(
+                    id = keyNode.id,
+                    title = keyNode.title ?: occurrences.firstNotNullOfOrNull { it.title },
+                    occurrences = occurrences,
+                    cells = cells,
+                    detailRel = detailOccurrence?.let { rel(it.file) },
+                    detailPath = detailOccurrence?.path,
+                    key = qr.bindings.entries.joinToString("|") { (k, v) -> "$k=${v.id}" },
+                    bindings = qr.bindings.mapValues { it.value.id },
+                )
+            }
+        }
+
+        val rowsDef = view.rows ?: error("ビュー「${view.id}」に行の定義（rows）がありません")
         val rows = index.entries.asSequence()
-            .filter { (id, _) -> idMatchesPattern(id, view.rows.idPattern) }
+            .filter { (id, _) -> idMatchesPattern(id, rowsDef.idPattern) }
             .filter { (_, occurrences) ->
-                view.rows.schemaIds.isEmpty() || occurrences.any { it.schemaId in view.rows.schemaIds }
+                rowsDef.schemaIds.isEmpty() || occurrences.any { it.schemaId in rowsDef.schemaIds }
             }
             .map { (id, occurrences) ->
                 val cells = view.columns.map { column ->
@@ -1049,24 +1161,10 @@ object Views {
 
     /**
      * データパスに対応するフィールド定義を、スキーマを辿って解決する（セルエディタの型決定に使う）。
-     * object の子は effectiveFields（enum の cases 合成）、$ref は resolve を通す。
+     * 実装は schema 層の `SchemaDef.fieldAt` へ移設した（R23-01。重複所有の検証＝validate 層からも
+     * 使うため。ARCHITECTURE §4.33）。この委譲は既存呼び出しの互換維持。
      */
-    fun fieldAt(schema: SchemaDef, root: YNode, path: YPath): FieldDef? {
-        var def: FieldDef = schema.resolve(schema.root) ?: return null
-        var node: YNode? = root
-        for (seg in path) {
-            val next: FieldDef? = when {
-                def.type == FieldType.OBJECT && seg is String ->
-                    schema.effectiveFields(def.fields, node as? YNode.Map).fields.firstOrNull { it.key == seg }
-                def.type == FieldType.MAP && seg is String -> def.value
-                def.type == FieldType.ARRAY && seg is Int -> def.item
-                else -> null
-            }
-            def = schema.resolve(next) ?: return null
-            node = node?.let { getAt(it, listOf(seg)) }
-        }
-        return def
-    }
+    fun fieldAt(schema: SchemaDef, root: YNode, path: YPath): FieldDef? = schema.fieldAt(root, path)
 
     // ---------------------------------------------------------------- 詳細文書のスキャフォールド
 
@@ -1142,7 +1240,9 @@ object Views {
     fun renderText(view: ViewDef, rows: List<ViewRow>, columns: List<String>? = null, index: IdIndex? = null): String = buildString {
         appendLine("ビュー: ${view.name}（${view.id}）")
         view.description?.let { appendLine(it.trim()) }
-        appendLine("行: ${rows.size} 件（idPattern: ${view.rows.idPattern}）")
+        val rowsLabel = view.rows?.let { "idPattern: ${it.idPattern}" }
+            ?: "matchクエリ・行キー: ${view.rowKey}"
+        appendLine("行: ${rows.size} 件（$rowsLabel）")
         view.newRow?.let { nr ->
             // エージェントが「新しい行の作り方」を出力から判断できるようにする（配列＝apply_patch／ファイル＝create_document）
             if (nr.filePattern != null) {
@@ -1155,6 +1255,10 @@ object Views {
             append("- id: ").append(row.id)
             row.title?.let { append("  title: ").append(it) }
             appendLine()
+            // クエリ行（R22-02）: 結合先の束縛も明示する（エージェント・CLI が行の構成ノードを判別できる）
+            row.bindings?.takeIf { it.size > 1 }?.let { b ->
+                appendLine("    束縛: " + b.entries.joinToString(", ") { (k, v) -> "$k=$v" })
+            }
             for (cell in row.cells.filter { columns == null || it.column.label in columns }) {
                 append("    ").append(cell.column.label).append(": ")
                 val backlinks = cell.backlinks

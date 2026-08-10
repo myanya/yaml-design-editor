@@ -41,6 +41,8 @@ data class RefEntry(
     val sourceSchemaId: String? = null, // 参照元文書のスキーマID（カバレッジ判定に使う）
     /** 属性付き参照（R20-03）のスカラー属性の写し（表示注記用。値そのものはIDのまま）。 */
     val attributes: Map<String, String> = emptyMap(),
+    /** 参照の対象種別（R21-03。ARCHITECTURE §4.31）: エンティティ（既定）／文書。文書参照は別名前空間で解決する。 */
+    val targetKind: schema.RefTarget = schema.RefTarget.ENTITY,
 ) {
     /** 属性の1行注記（例「role: 承認者」）。表示側は括弧に閉じて添える（R20-03。§4.30）。 */
     fun attributeSummary(): String? =
@@ -83,6 +85,7 @@ object DocScanner {
                     refs += RefEntry(
                         it, file, path, keyLabel ?: "ref", effective.idPatterns, effective.scope,
                         relation = effective.relation, sourceSchemaId = schemaDef?.id,
+                        targetKind = effective.refTarget,  // 文書参照（R21-03）は別名前空間として解決される
                     )
                 }
                 return
@@ -98,6 +101,7 @@ object DocScanner {
                     refs += RefEntry(
                         target, file, path + "to", keyLabel ?: "ref", effective.idPatterns, effective.scope,
                         relation = effective.relation, sourceSchemaId = schemaDef?.id, attributes = attributes,
+                        targetKind = effective.refTarget,
                     )
                 }
                 return

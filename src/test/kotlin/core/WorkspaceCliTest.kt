@@ -391,4 +391,18 @@ class WorkspaceCliTest {
         assertTrue("REQ-001-S1" in runCli(arrayOf("read", dir, "requirements/req-a.yaml", "items[0]")))
         assertTrue("unresolved-ref" in runCli(arrayOf("search", dir, "--unresolved")))
     }
+
+    @Test
+    fun `cli entity show returns composition with coordinates and backlinks`() {
+        val dir = ws.toString()
+        // エンティティページ・read_entity と同じ合成（R23-04。ARCHITECTURE §4.33）をYAMLで返す
+        val out = runCli(arrayOf("entity", dir, "show", "REQ-001"))
+        assertTrue("id: REQ-001" in out, out)
+        assertTrue("title: ログイン機能" in out, out)
+        assertTrue("file: requirements/req-a.yaml" in out, out)
+        assertTrue("key: title" in out, out)
+        // 被参照（designs/dsn-a.yaml の implements）が relation つきで載る
+        assertTrue("relation: implements" in out, out)
+        assertTrue("from: DSN-001" in out, out)
+    }
 }

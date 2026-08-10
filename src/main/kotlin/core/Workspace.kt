@@ -123,8 +123,14 @@ class Workspace private constructor(val root: Path) {
         private set
     var schemaErrors: List<String> = emptyList()
         private set
-    /** 関係レジストリ（R20-02）: `kind: relations` 文書から集約した name → RelationDef。表示と lint のみに使う。 */
+    /** 関係レジストリ（R20-02 / R21-01）: `kind: relations` 文書から集約した name → RelationDef。表示とグラフ整合検証に使う。 */
     var relations: Map<String, schema.RelationDef> = emptyMap()
+        private set
+    /** 強制スイッチ（R21-01。ARCHITECTURE §4.31）: レジストリ文書の enforcement 節の集約。 */
+    var enforcement: schema.EnforcementDef = schema.EnforcementDef()
+        private set
+    /** エンティティ型レジストリ（R23-01。§4.33）: `entities:` 節の集約。表示名・アスペクト順序の解決に使う。 */
+    var entityTypes: Map<String, schema.EntityTypeDef> = emptyMap()
         private set
     var files: List<Path> = emptyList()
         private set
@@ -147,6 +153,8 @@ class Workspace private constructor(val root: Path) {
         schemas = loaded.schemas
         schemaErrors = loaded.errors
         relations = loaded.relations
+        enforcement = loaded.enforcement
+        entityTypes = loaded.entityTypes
         files = WorkspaceScan.yamlFiles(root, layout)
         index.rebuild(root, files, schemas, layout)
     }
@@ -251,6 +259,7 @@ class Workspace private constructor(val root: Path) {
             doc.root, doc.parseError, doc.file, doc.schema, index,
             // （このヘッドレス経路はディスク索引・ディスク loader のまま。UIは overlayIndex を渡す。§4.5）
             indexed = indexed, workspace = root, allSchemas = schemas,
+            relations = relations, enforcement = enforcement,
         )
     }
 
@@ -306,6 +315,7 @@ class Workspace private constructor(val root: Path) {
                 s.newRoot, null, s.file, schemaFor(s.file), overlayIndex,
                 workspace = root, allSchemas = schemas,
                 loader = { f -> overlayRoots[f] ?: runCatching { YamlIO.parse(Files.readString(f)) }.getOrNull() },
+                relations = relations, enforcement = enforcement,
             )
         }
         if (requireValid && validated.any { (_, issues) -> issues.any { it.severity == Severity.ERROR } }) {

@@ -38,7 +38,7 @@ class AgentToolbox(
     private val consultMode: Boolean = false,   // 相談モード: 読み取り専用（explore / validate のみ）
 ) {
     /** 相談モードで許可するツール名。 */
-    private val consultAllowed = setOf("list_documents", "read_outline", "read_node", "search", "related", "traverse", "read_view", "validate")
+    private val consultAllowed = setOf("list_documents", "read_outline", "read_node", "search", "related", "read_entity", "traverse", "read_view", "validate")
     /**
      * カタログから除外するか（read_outline 等での読み取りは可）。
      * schemas / runs ゾーン・構成ファイルは常に除外。定義ゾーン（agents / activities / evals / skills / views）は
@@ -80,12 +80,22 @@ class AgentToolbox(
             })
             specs += ToolSpec(
                 "related",
-                "IDの関連情報（全出現・各出現の主要項目の要約とフェーズ状態・その要素からの参照・被参照）を返す。" +
-                    "同一IDが複数文書に段階的詳細化されている場合、出現ごとに read_node を呼ばずに横断確認できる。影響分析やID串刺しレビューに使う。" +
+                "IDの隣接情報（全出現・各出現の主要項目の要約とフェーズ状態・その要素からの参照・被参照）を軽量に返す。" +
+                    "隣接IDや参照元の素早い確認に使う。対象を深く理解して編集する場合は read_entity（全体像）を使い、両方を重ねて呼ばない。" +
                     "被参照は既定で先頭20件に打切られる（全量が要るときだけ limit を増やす）。",
                 obj {
                     required("id", "論理ID")
                     optionalInt("limit", "被参照の表示上限（既定20）")
+                },
+            )
+            specs += ToolSpec(
+                "read_entity",
+                "エンティティの全体像を1回で返す（related の上位互換）: アスペクト合成（出現ごとの所有フィールドと原本座標＝" +
+                    "そのまま apply_patch の対象にできる）・両方向の関係（関係ラベル・属性つき）・フェーズ／カバレッジ充足。" +
+                    "対象エンティティを深く理解して編集・レビューするときに使う（隣接の軽い確認だけなら related で足りる）。",
+                obj {
+                    required("id", "論理ID")
+                    optionalInt("limit", "関係（参照・被参照）の表示上限（既定20）")
                 },
             )
             val traverseSchema = buildJsonObject {
@@ -254,6 +264,10 @@ class AgentToolbox(
                 val limit = (call.arguments["limit"] as? JsonPrimitive)?.intOrNull ?: 20
                 Outcome(relatedText(requireArg("id"), backlinkLimit = limit.coerceAtLeast(1)))
             }
+            "read_entity" -> {
+                val limit = (call.arguments["limit"] as? JsonPrimitive)?.intOrNull ?: 20
+                Outcome(entityText(requireArg("id"), relationLimit = limit.coerceAtLeast(1)))
+            }
             "traverse" -> {
                 val steps = (call.arguments["steps"] as? JsonArray)
                     ?.mapIndexed { i, e -> core.TraverseStep.parse(jsonToShallowMap(e), "steps[$i]") }
@@ -418,7 +432,8 @@ class AgentToolbox(
         if (viewId.isNullOrBlank()) {
             if (loaded.views.isEmpty() && loaded.docViews.isEmpty()) return "（ビュー定義がありません）"
             val lines = loaded.views.map { v ->
-                "- ${v.id}（${v.name}）: idPattern=${v.rows.idPattern}, 列=${v.columns.joinToString("/") { it.label }}"
+                val rowsLabel = v.rows?.let { "idPattern=${it.idPattern}" } ?: "matchクエリ（行キー: ${v.rowKey}）"
+                "- ${v.id}（${v.name}）: $rowsLabel, 列=${v.columns.joinToString("/") { it.label }}"
             } + loaded.docViews.map { v ->
                 "- ${v.id}（${v.name}）: 文書ビュー 適用先=" +
                     listOfNotNull(v.match, v.schemaId?.let { "schema:$it" }).joinToString(" & ")
@@ -477,6 +492,7 @@ class AgentToolbox(
         "view" -> "ビュー: ${item.view}"
         "doc" -> "文書: ${item.file}" + (item.path?.let { " :: $it" } ?: "")
         "related" -> "関連情報: ${item.id}"
+        "entity" -> "エンティティ: ${item.id}"
         "sample" -> "記述例（schema: ${item.schema}）"
         "graph" -> "グラフ: ${item.start}"
         else -> item.kind
@@ -527,6 +543,10 @@ class AgentToolbox(
             "related" -> {
                 val id = tpl(item.id!!) ?: return null
                 ContextSection("関連情報: $id", capped(relatedText(id), item.budgetChars ?: 8_000))
+            }
+            "entity" -> {
+                val id = tpl(item.id!!) ?: return null
+                ContextSection("エンティティ: $id", capped(entityText(id), item.budgetChars ?: 8_000))
             }
             "sample" -> ContextSection(
                 contextItemLabel(item),
@@ -630,6 +650,96 @@ class AgentToolbox(
             // 被参照の全列挙は膨張の主因（例: 全ユースケースが参照するアクター）のため既定20件で打切る（R19-05）
             if (backlinks.size > backlinkLimit) {
                 appendLine("…他 ${backlinks.size - backlinkLimit} 件（related の limit 引数で拡張できます）")
+            }
+        }.trimEnd()
+    }
+
+    /**
+     * エンティティ全体像の開示テキスト（R23-04。ARCHITECTURE §4.33）。read_entity・レシピの entity 項目が共用する。
+     * 合成（core.Aspects）はエンティティページ・CLI `entity show` と同一実装＝人間とAIが同じ1枚を見る。
+     */
+    fun entityText(id: String, relationLimit: Int = 20): String {
+        val idx = staging.index()
+        val loader: (java.nio.file.Path) -> YNode? = { f -> staging.tree(ws.relPath(f)) }
+        val composite = core.Aspects.compose(id, idx, ws.schemas, ws.entityTypes, loader)
+            ?: return "ID「$id」は見つかりません"
+        return buildString {
+            append(composite.id)
+            composite.typeLabel?.let { append("（").append(it).append("）") }
+            composite.title?.let { append(" — ").append(it) }
+            appendLine()
+            // ---- アスペクト合成（所有フィールドと原本座標。座標はそのまま apply_patch の対象にできる）
+            composite.sections.forEach { s ->
+                append("## ").append(s.label)
+                if (s.entry.role == schema.EntityRole.DEFINING) append("（定義）")
+                appendLine(" [${ws.relPath(s.entry.file)} :: ${s.entry.path.pretty()}]")
+                val unset = mutableListOf<String>()
+                s.fields.forEach { f ->
+                    val value = f.value
+                    if (value == null) {
+                        unset += f.key
+                        return@forEach
+                    }
+                    val text = when (value) {
+                        is YNode.Scalar -> (value.value?.toString() ?: "").replace("\n", " ").let {
+                            if (it.length > 120) it.take(120) + "…" else it
+                        }
+                        else -> schema.Display.inline(value)
+                    }
+                    append("- ").append(f.key).append(": ").append(text)
+                    f.duplicateOf?.let { append("（重複所有: ${ws.relPath(it.first)} と重複）") }
+                    appendLine()
+                }
+                if (unset.isNotEmpty()) appendLine("- 未記入: ${unset.joinToString(", ")}")
+                ws.schemaFor(s.entry.file)?.let { sc -> Validator.phaseSummaryText(loader(s.entry.file), sc) }
+                    ?.let { appendLine("  $it") }
+            }
+            if (composite.unassigned.isNotEmpty()) {
+                appendLine("## その他の出現（スキーマなし）")
+                composite.unassigned.forEach { e -> appendLine("- ${ws.relPath(e.file)} :: ${e.path.pretty()}") }
+            }
+            // ---- 関係（両方向。関係レジストリの label / inverseLabel と属性注記）
+            val refsOut = idx.outgoingRefs(id)
+            if (refsOut.isNotEmpty()) {
+                appendLine("## 関係（この要素からの参照 ${refsOut.size} 件）")
+                refsOut.take(relationLimit).forEach { r ->
+                    append("- → ").append(r.targetId)
+                    idx.occurrences(r.targetId).firstNotNullOfOrNull { it.title }?.let { append(" = ").append(it) }
+                    append("（").append(r.viaKey)
+                    schema.Relations.labelOf(ws.relations, r.relation)?.let { append("・関係: ").append(it) }
+                    r.attributeSummary()?.let { append("・").append(it) }
+                    appendLine("）")
+                }
+                if (refsOut.size > relationLimit) appendLine("…他 ${refsOut.size - relationLimit} 件")
+            }
+            val backlinks = idx.backlinksTo(setOf(id))
+            appendLine("## 関係（この要素への参照 ${backlinks.size} 件）")
+            backlinks.take(relationLimit).forEach { b ->
+                append("- ← ")
+                idx.sourceEntryOf(b)?.let { src -> append(listOfNotNull(src.id, src.title).joinToString(" ")) }
+                    ?: append(ws.relPath(b.file))
+                append("（").append(b.viaKey)
+                schema.Relations.inverseLabelOf(ws.relations, b.relation)?.let { append("・関係: ").append(it) }
+                b.attributeSummary()?.let { append("・").append(it) }
+                appendLine("）[${ws.relPath(b.file)} :: ${b.path.pretty()}]")
+            }
+            if (backlinks.size > relationLimit) appendLine("…他 ${backlinks.size - relationLimit} 件（limit 引数で拡張できます）")
+            // ---- カバレッジ充足（判定は Validator と共有）
+            val statuses = idx.occurrences(id)
+                .mapNotNull { e -> ws.schemas.firstOrNull { it.id == e.schemaId }?.let { it to e } }
+                .distinctBy { it.first.id }
+                .flatMap { (sc, e) -> Validator.coverageStatuses(id, sc, idx, loader(e.file)) }
+            if (statuses.isNotEmpty()) {
+                appendLine("## カバレッジ（${statuses.count { it.active && it.satisfied }}/${statuses.count { it.active }} 充足）")
+                statuses.forEach { st ->
+                    val state = when {
+                        !st.active -> "フェーズ未到達"
+                        st.satisfied -> "充足"
+                        else -> "不足"
+                    }
+                    appendLine("- [$state] ${Validator.coverageCountLabel(st.rule)} ${st.count} 件／必要 ${st.rule.minCount} 件" +
+                        (st.rule.description?.let { " — $it" } ?: ""))
+                }
             }
         }.trimEnd()
     }

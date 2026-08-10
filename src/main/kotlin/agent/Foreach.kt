@@ -25,11 +25,12 @@ enum class ForeachSource(val id: String) {
     ISSUES("issues"),   // 検証の指摘（ファイルglob・重大度で絞る）
     SEARCH("search"),   // 検索ヒット（テキスト・パス・参照・未解決）
     FILES("files"),     // glob に一致する文書
-    IDS("ids");         // idPattern × schemaIds に一致する論理ID
+    IDS("ids"),         // idPattern × schemaIds に一致する論理ID
+    QUERY("query");     // パターン照合の束縛行（R22-02。ARCHITECTURE §4.32）
 
     companion object {
         fun parse(raw: String): ForeachSource = entries.firstOrNull { it.id == raw }
-            ?: error("未知の列挙元です: $raw（view / issues / search / files / ids）")
+            ?: error("未知の列挙元です: $raw（view / issues / search / files / ids / query）")
     }
 }
 
@@ -45,6 +46,7 @@ data class ForeachDef(
     val pathGlob: String? = null,      // search: パス glob
     val refTo: String? = null,         // search: このIDへの参照
     val unresolved: Boolean = false,   // search: 未解決参照のみ
+    val query: schema.QuerySpec? = null,  // query: パターン照合のスペック（R22-02）
     val asTemplate: String? = null,    // 1件の追加指示テンプレート（省略時は列挙元ごとの既定文）
     val limit: Int = 20,               // 1回の投入で展開する最大件数
 )
@@ -75,6 +77,7 @@ object Foreach {
             ForeachSource.SEARCH -> fromSearch(ws, def)
             ForeachSource.FILES -> fromFiles(ws, def)
             ForeachSource.IDS -> fromIds(ws, def)
+            ForeachSource.QUERY -> fromQuery(ws, def)
         }
         val template = def.asTemplate ?: defaultTemplate(def.source)
         val items = candidates.take(def.limit).map { c ->
@@ -88,7 +91,7 @@ object Foreach {
 
     /** 列挙元ごとの既定の追加指示。テンプレートの語彙（プレースホルダ）はここが規範。 */
     internal fun defaultTemplate(source: ForeachSource): String = when (source) {
-        ForeachSource.VIEW, ForeachSource.IDS -> "対象: {id}"
+        ForeachSource.VIEW, ForeachSource.IDS, ForeachSource.QUERY -> "対象: {id}"
         ForeachSource.FILES -> "対象ファイル: {file}"
         ForeachSource.ISSUES -> "対象の指摘を解消してください: {file} の {path} — {message}"
         ForeachSource.SEARCH -> "対象: {file} の {path}"
@@ -173,6 +176,32 @@ object Foreach {
             .filter { !ws.layout.isReserved(it) && regex.matches(it) }
             .sorted()
             .map { rel -> Candidate(key = rel, label = rel, values = mapOf("file" to rel)) }
+    }
+
+    /**
+     * パターン照合の束縛行（R22-02。ARCHITECTURE §4.32）。1行=1実行で、プレースホルダは
+     * 先頭束縛の既定（{id} {title} {file}）に加えて束縛名でも参照できる（{scr}＝そのID・{scr_file}＝定義出現のファイル）。
+     * 列挙はディスク索引基準（他の列挙元と同じ）で、値の述語（where）もディスクの内容で判定される。
+     */
+    private fun fromQuery(ws: Workspace, def: ForeachDef): List<Candidate> {
+        val spec = def.query ?: error("foreach.query が必要です")
+        return index.Query.run(ws.index, spec).rows.map { row ->
+            val first = row.bindings.entries.firstOrNull()
+            val bindValues = row.bindings.entries.flatMap { (name, node) ->
+                listOf(name to node.id, "${name}_file" to node.file?.let { ws.relPath(it) })
+            }
+            Candidate(
+                key = row.bindings.entries.joinToString(" ") { (k, v) -> "$k=${v.id}" },
+                label = row.bindings.entries.joinToString(" ") { (k, v) ->
+                    "$k=${v.id}" + (v.title?.let { "（$it）" } ?: "")
+                },
+                values = mapOf(
+                    "id" to first?.value?.id,
+                    "title" to first?.value?.title,
+                    "file" to first?.value?.file?.let { ws.relPath(it) },
+                ) + bindValues,
+            )
+        }
     }
 
     /** 索引の論理ID。schemaIds が非空なら、いずれかのスキーマに出現するIDのみ（ビューの行と同じ規則）。 */

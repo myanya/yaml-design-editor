@@ -38,11 +38,26 @@ internal const val CLI_USAGE = """コマンド:
            steps は連鎖（各ステップは前ステップの到達ノードから辿る）。
            --steps 例: "[{emit: full}, {follow: out, via: actor, emit: full}]"
            省略時は「起点の要約 → 参照先の要約」
+  query    <workspace> [spec.yaml] [--spec <YAML>]
+           グラフパターン照合（R22-01）: match（node / edge の連鎖）＋ where ＋ also を評価し、
+           束縛の表を返す（ビュー rows: match / foreach source: query / constraints の試作台）。
+           --spec 例: "{match: [{node: {entity: screen, bind: scr}}, {edge: {relation: uses}}, {node: {entity: usecase, bind: uc}}]}"
   view     <workspace> [view-id] [file]         ビュー（_views）を解決する。横断グリッドは行×列、
            文書ビュー（kind: document）は file で対象文書を指定（適用対象1件なら省略可）。
            view-id 省略時は定義の一覧を表示する。各セルに原本上の座標（file / path）が付く
-  validate <workspace> [file]                   検証（スキーマ・参照・重複・カバレッジ）
+  validate <workspace> [file]                   検証（スキーマ・参照・重複・カバレッジ・グラフ整合）
   apply    <workspace> <changeset.yaml> [--dry-run] [--require-valid]   変更セットの適用
+  entity   <workspace> show <id>                エンティティ全体像（R23-04）: アスペクト合成（所有フィールド
+           と原本座標）・関係・被参照をYAMLで返す（エンティティページ・read_entity と同じ合成）
+  entity   <workspace> rename <old> <new> [--apply]
+  entity   <workspace> merge <from> <into> [--delete-occurrences] [--apply]
+  entity   <workspace> delete <id> [--apply]
+           エンティティ操作（R21-02）: 全出現・全参照を1つの変更セットへ束ねる。
+           既定は変更セットYAMLのプレビュー出力のみ。--apply で適用（オール・オア・ナッシング）。
+           merge は既定で from の出現を into の詳細化として残す（--delete-occurrences で要素削除）
+  move     <workspace> <old> <new> [--apply]     ファイル移動・改名（R21-03）。パスIDの文書参照の
+           書き換え・スキーマ match の変化・ビュー定義の対象外れをプレビューし、--apply で
+           物理移動＋参照書き換えを実行する（_document.id 宣言済みの文書は書き換え不要）
   hash     <workspace> <file>                   変更セットの base に使う内容ハッシュ
   activities <workspace>                        アクティビティ／エージェント定義の一覧と検証
   agent    <workspace> <activity-id> [--instruction 追加指示] [--provider openai|anthropic]
@@ -144,6 +159,34 @@ internal fun runCli(args: Array<String>): String {
                 spec = TraverseSpec(start = start, steps = steps, budgetChars = budget),
             ) + "\n"
         }
+        "query" -> {
+            val ws = workspace()
+            // スペックはファイル（第2引数）かインライン（--spec）のどちらかで与える
+            val specText = stringFlag(rest, "--spec")
+                ?: rest.getOrNull(1)?.takeIf { !it.startsWith("--") }?.let { Files.readString(Path.of(it)) }
+                ?: error("クエリのスペックを指定してください（query <workspace> <spec.yaml> または --spec \"<YAML>\"）")
+            val raw = yaml.YamlIO.parseToRaw(specText) as? Map<*, *> ?: error("スペックのルートはobjectである必要があります")
+            val spec = schema.QuerySpec.parse(raw, "query")
+            val result = index.Query.run(ws.index, spec)
+            dumpYaml(
+                linkedMapOf<String, Any?>(
+                    "columns" to result.columns,
+                    "total" to result.total,
+                    "rows" to result.rows.map { row ->
+                        row.bindings.entries.associate { (bind, node) ->
+                            bind to linkedMapOf<String, Any?>(
+                                "id" to node.id,
+                                "kind" to node.kind.id.takeIf { node.kind != schema.QueryNodeKind.ENTITY },
+                                "title" to node.title,
+                                "entityType" to node.entityType,
+                                "file" to node.file?.let { ws.relPath(it) },
+                                "path" to node.path.takeIf { it.isNotEmpty() }?.pretty(),
+                            ).filterValues { it != null }
+                        }
+                    },
+                )
+            )
+        }
         "search" -> {
             val ws = workspace()
             val query = SearchQuery(
@@ -172,9 +215,11 @@ internal fun runCli(args: Array<String>): String {
                     linkedMapOf(
                         "views" to (loaded.views.map { v ->
                             linkedMapOf(
-                                "id" to v.id, "name" to v.name, "idPattern" to v.rows.idPattern,
+                                "id" to v.id, "name" to v.name,
+                                "idPattern" to v.rows?.idPattern,
+                                "rowKey" to v.rowKey,
                                 "columns" to v.columns.map { it.label },
-                            )
+                            ).filterValues { it != null }
                         } + loaded.docViews.map { v ->
                             linkedMapOf(
                                 "id" to v.id, "name" to v.name, "kind" to "document",
@@ -373,6 +418,109 @@ internal fun runCli(args: Array<String>): String {
             val rel = rest.getOrNull(1) ?: error("ファイルを指定してください")
             val text = Files.readString(ws.resolve(rel))
             dumpYaml(linkedMapOf("file" to rel, "base" to ChangeSets.contentHash(text)))
+        }
+        "entity" -> {
+            val ws = workspace()
+            val op = rest.getOrNull(1) ?: error("操作（show / rename / merge / delete）を指定してください")
+            // 全体像の表示（R23-04。ARCHITECTURE §4.33）: エンティティページ・read_entity と同じ合成を返す
+            if (op == "show") {
+                val id = rest.getOrNull(2)?.takeIf { !it.startsWith("--") } ?: error("表示するIDを指定してください")
+                val composite = Aspects.compose(id, ws.index, ws.schemas, ws.entityTypes) { f ->
+                    runCatching { YamlIO.parseFirst(Files.readString(f)) }.getOrNull()
+                } ?: error("ID「$id」の出現が見つかりません")
+                val idx = ws.index
+                return dumpYaml(
+                    linkedMapOf(
+                        "id" to composite.id,
+                        "type" to composite.entityType,
+                        "typeLabel" to composite.typeLabel?.takeIf { it != composite.entityType },
+                        "title" to composite.title,
+                        "aspects" to composite.sections.map { s ->
+                            linkedMapOf(
+                                "aspect" to s.aspect,
+                                "label" to s.label.takeIf { it != s.aspect },
+                                "defining" to (s.entry.role == schema.EntityRole.DEFINING).takeIf { it },
+                                "file" to ws.relPath(s.entry.file),
+                                "path" to s.entry.path.pretty(),
+                                "fields" to s.fields.map { f ->
+                                    linkedMapOf(
+                                        "key" to f.key,
+                                        "value" to (f.value as? model.YNode.Scalar)?.value,
+                                        "path" to f.path.pretty(),
+                                        "duplicateOf" to f.duplicateOf?.let { "${ws.relPath(it.first)} :: ${it.second.pretty()}" },
+                                    ).filterValues { it != null }
+                                },
+                            ).filterValues { it != null }
+                        },
+                        "unassigned" to composite.unassigned.map { "${ws.relPath(it.file)} :: ${it.path.pretty()}" }.ifEmpty { null },
+                        "refs" to idx.outgoingRefs(id).map { r ->
+                            linkedMapOf(
+                                "to" to r.targetId,
+                                "via" to r.viaKey,
+                                "relation" to r.relation,
+                                "attributes" to r.attributeSummary(),
+                            ).filterValues { it != null }
+                        }.ifEmpty { null },
+                        "backlinks" to idx.backlinksTo(setOf(id)).map { b ->
+                            linkedMapOf(
+                                "from" to (idx.sourceEntryOf(b)?.id ?: ws.relPath(b.file)),
+                                "file" to ws.relPath(b.file),
+                                "path" to b.path.pretty(),
+                                "relation" to b.relation,
+                                "attributes" to b.attributeSummary(),
+                            ).filterValues { it != null }
+                        }.ifEmpty { null },
+                    ).filterValues { it != null }
+                )
+            }
+            val plan = when (op) {
+                "rename" -> EntityOps.rename(
+                    ws,
+                    rest.getOrNull(2)?.takeIf { !it.startsWith("--") } ?: error("現在のIDを指定してください"),
+                    rest.getOrNull(3)?.takeIf { !it.startsWith("--") } ?: error("改名先のIDを指定してください"),
+                )
+                "merge" -> EntityOps.merge(
+                    ws,
+                    rest.getOrNull(2)?.takeIf { !it.startsWith("--") } ?: error("統合元のIDを指定してください"),
+                    rest.getOrNull(3)?.takeIf { !it.startsWith("--") } ?: error("統合先のIDを指定してください"),
+                    if ("--delete-occurrences" in rest) EntityOps.MergeMode.DELETE else EntityOps.MergeMode.RETAIN,
+                )
+                "delete" -> EntityOps.delete(
+                    ws,
+                    rest.getOrNull(2)?.takeIf { !it.startsWith("--") } ?: error("削除するIDを指定してください"),
+                )
+                else -> error("entity の操作は show / rename / merge / delete のいずれかである必要があります: $op")
+            }
+            val apply = "--apply" in rest
+            val result = if (apply) ws.apply(plan.changeSet) else null
+            dumpYaml(
+                linkedMapOf(
+                    "summary" to plan.summary,
+                    "warnings" to plan.warnings.ifEmpty { null },
+                    "applied" to result?.ok,
+                    "issues" to result?.results?.flatMap { r -> r.issues.map { issueMap(it) } }?.ifEmpty { null },
+                ).filterValues { it != null }
+            ) + (if (apply) "" else "---\n" + changeSetToYaml(plan.changeSet))
+        }
+        "move" -> {
+            val ws = workspace()
+            val oldRel = rest.getOrNull(1)?.takeIf { !it.startsWith("--") } ?: error("移動元のパスを指定してください")
+            val newRel = rest.getOrNull(2)?.takeIf { !it.startsWith("--") } ?: error("移動先のパスを指定してください")
+            val plan = DocMove.plan(ws, oldRel, newRel)
+            val applied = if ("--apply" in rest) {
+                DocMove.execute(ws, plan)
+                true
+            } else false
+            dumpYaml(
+                linkedMapOf(
+                    "from" to plan.oldRel,
+                    "to" to plan.newRel,
+                    "rewrites" to plan.changeSet.changes.sumOf { it.ops.size },
+                    "notes" to plan.notes.ifEmpty { null },
+                    "warnings" to plan.warnings.ifEmpty { null },
+                    "applied" to applied,
+                ).filterValues { it != null }
+            ) + (if (applied || plan.changeSet.changes.isEmpty()) "" else "---\n" + changeSetToYaml(plan.changeSet))
         }
         "activities" -> {
             val ws = workspace()

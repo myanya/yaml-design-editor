@@ -32,11 +32,15 @@ enum class EntityRole {
 /**
  * エンティティ型の宣言（R20-01）。スキーマ文書ルートの `entity:`（単一 object または複数型のリスト）。
  * 複数型を持つスキーマは idPattern で型を判別する。defines=true の文書群の出現が「定義（誕生）」。
+ * aspect / owns はアスペクト宣言（R23-01。ARCHITECTURE §4.33）: この出現がエンティティの
+ * どの側面を所有するか。owns=null（未宣言）は「この出現要素の宣言フィールド全部」。
  */
 data class EntityDecl(
     val type: String,
     val idPattern: String? = null,   // この型のID命名規約（省略可。省略時は全IDに一致）
     val defines: Boolean = false,
+    val aspect: String? = null,      // この出現が所有する側面名（省略時はスキーマID。R23-01）
+    val owns: List<String>? = null,  // 所有フィールドキーの限定（null=宣言なし＝宣言フィールド全部）
 ) {
     private val regex: Regex? by lazy { idPattern?.let { runCatching { idGlobToRegex(it) }.getOrNull() } }
 
@@ -49,7 +53,7 @@ fun SchemaDef.entityFor(id: String): EntityDecl? =
     entities.firstOrNull { it.idPattern != null && it.matchesId(id) }
         ?: entities.firstOrNull { it.idPattern == null }
 
-/** 関係の多重度宣言。P20 では宣言のみ（検証への接続は P21 R21-01）。 */
+/** 関係の多重度宣言。検証への接続は R21-01（GraphIntegrity）。 */
 data class CardinalityDef(
     val inMin: Int? = null,
     val inMax: Int? = null,
@@ -59,21 +63,79 @@ data class CardinalityDef(
 
 /**
  * 関係レジストリの1関係（R20-02）。`_schemas` の `kind: relations` 文書の `relations:` に列挙する。
- * P20 での消費は表示（label / inverseLabel）と lint のみで、検証・解決の意味論には関与しない。
+ * 表示（label / inverseLabel）に加え、source / target / cardinality / acyclic は
+ * グラフ整合検証（R21-01。ARCHITECTURE §4.31）の制約宣言になる。
  */
 data class RelationDef(
     val name: String,
     val label: String? = null,          // 参照方向の表示ラベル（例: 利用する）
     val inverseLabel: String? = null,   // 被参照方向の表示ラベル（例: 利用される）
-    val source: List<String> = emptyList(),  // 参照を書く側のエンティティ型（省略可。強制は P21）
-    val target: List<String> = emptyList(),  // 参照先のエンティティ型（省略可。強制は P21）
-    val cardinality: CardinalityDef? = null, // in / out の下限上限（P20 では宣言のみ）
-    val acyclic: Boolean = false,            // 非循環（P20 では宣言のみ）
+    val source: List<String> = emptyList(),  // 参照を書く側のエンティティ型（対象型検証の宣言。R21-01）
+    val target: List<String> = emptyList(),  // 参照先のエンティティ型（同上）
+    val cardinality: CardinalityDef? = null, // in / out の下限上限（R21-01 で検証）
+    val acyclic: Boolean = false,            // 非循環（R21-01 で検証。違反は常に ERROR）
+    val level: CoverageLevel = CoverageLevel.WARNING, // 対象型・多重度の指摘の重大度（R21-01）
     val description: String? = null,
 ) {
     val displayLabel: String get() = label ?: name
     val displayInverseLabel: String get() = inverseLabel ?: label ?: name
 }
+
+/** アスペクト1件の宣言（R23-01）。name はスキーマの `entity.aspect`（省略時スキーマID）と一致させる。 */
+data class AspectDecl(
+    val name: String,
+    val label: String? = null,
+) {
+    val displayLabel: String get() = label ?: name
+}
+
+/**
+ * エンティティ型のレジストリ宣言（R23-01。ARCHITECTURE §4.33）。関係レジストリ文書（kind: relations）の
+ * `entities:` 節に列挙する。型の表示名と、エンティティページ・read_entity の合成で使うアスペクト順序を宣言する。
+ */
+data class EntityTypeDef(
+    val type: String,
+    val label: String? = null,
+    val description: String? = null,
+    val aspects: List<AspectDecl> = emptyList(),
+) {
+    val displayLabel: String get() = label ?: type
+
+    /** 合成の並び順に使うアスペクト位置（未宣言のアスペクトは末尾＝Int.MAX_VALUE）。 */
+    fun aspectOrder(name: String): Int =
+        aspects.indexOfFirst { it.name == name }.let { if (it < 0) Int.MAX_VALUE else it }
+
+    /** アスペクトの表示名（未宣言は名前のまま）。 */
+    fun aspectLabel(name: String): String = aspects.firstOrNull { it.name == name }?.displayLabel ?: name
+}
+
+/**
+ * 出現1件の所有フィールドキー（R23-01。ARCHITECTURE §4.33）。エンティティ合成（core/Aspects）と
+ * 重複所有の検証（Validator）の共有実装。明示 `owns` があればそのまま、なければ出現要素の
+ * 宣言フィールド全部（enum cases 合成込み）から `type: id` のフィールド（合流キー）を除いたもの。
+ * 要素が object に解決できない場合は空（判定保留 §4.26）。
+ */
+fun ownedFieldKeys(schemaDef: SchemaDef, root: model.YNode, path: model.YPath, decl: EntityDecl?): List<String> {
+    decl?.owns?.let { return it }
+    val field = schemaDef.fieldAt(root, path) ?: return emptyList()
+    if (field.type != FieldType.OBJECT) return emptyList()
+    val element = model.getAt(root, path) as? model.YNode.Map
+    return schemaDef.effectiveFields(field.fields, element).fields.mapNotNull { child ->
+        val key = child.key ?: return@mapNotNull null
+        if ((schemaDef.resolve(child) ?: child).type == FieldType.ID) null else key
+    }
+}
+
+/**
+ * ワークスペース単位の強制スイッチ（R21-01。ARCHITECTURE §4.31）。レジストリ文書の `enforcement:` 節。
+ * 各キーは3値: null（未宣言＝P20 の挙動のまま）／ WARNING ／ ERROR。
+ * - undeclaredRelation: レジストリにない relation を使う参照を文書側でも指摘する
+ * - definingUniqueness: 定義出現の一意性（浮遊詳細化・定義競合）の重大度＝「最初の出現＝定義」廃止スイッチ
+ */
+data class EnforcementDef(
+    val undeclaredRelation: CoverageLevel? = null,
+    val definingUniqueness: CoverageLevel? = null,
+)
 
 /**
  * relation 名 → 表示ラベルの解決（R20-02）。バックリンクを表示する全面（SidePanel・ID横ぐし・

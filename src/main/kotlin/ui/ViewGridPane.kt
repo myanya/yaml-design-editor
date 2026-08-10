@@ -118,7 +118,10 @@ private fun HeaderBar(state: AppState, loaded: Views.LoadResult, view: ViewDef?)
                         text = {
                             Column {
                                 Text(v.name, fontSize = 13.sp)
-                                Text("${v.id} — idPattern: ${v.rows.idPattern}", fontSize = 10.sp, color = Palette.SubText)
+                                Text(
+                                    "${v.id} — " + (v.rows?.let { "idPattern: ${it.idPattern}" } ?: "matchクエリ（行キー: ${v.rowKey}）"),
+                                    fontSize = 10.sp, color = Palette.SubText,
+                                )
                             }
                         },
                         onClick = { state.openViewGrid(v.id); selectorOpen = false },
@@ -196,7 +199,7 @@ private fun NewRowIdDialog(view: ViewDef, onDismiss: () -> Unit, onConfirm: (Str
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value, { value = it }, singleLine = true,
-                    label = { Text("ID（idPattern: ${view.rows.idPattern}）") },
+                    label = { Text(view.rows?.let { "ID（idPattern: ${it.idPattern}）" } ?: "ID") },
                     modifier = Modifier.confirmOnEnter(enabled = { value.isNotBlank() }) { onConfirm(value.trim()) },
                 )
             }
@@ -259,7 +262,8 @@ private fun GridBody(state: AppState, view: ViewDef) {
             modifier = Modifier.fillMaxSize().padding(end = 8.dp),
             contentPadding = PaddingValues(bottom = 14.dp),  // 最終行が横スクロールバーに隠れないように
         ) {
-            items(filtered, key = { it.id }) { row ->
+            // 行キーは ViewRow.key（クエリ行の結合ではIDが行間で重複しうるため。R22-02）
+            items(filtered, key = { it.key }) { row ->
                 Row(
                     Modifier.fillMaxWidth().horizontalScroll(hScroll)
                         .padding(horizontal = 8.dp, vertical = 3.dp),

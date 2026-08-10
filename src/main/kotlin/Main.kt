@@ -151,6 +151,7 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
     var leftOpen by remember { mutableStateOf(uiPreferences.getBoolean("leftOpen", true)) }
     var rightOpen by remember { mutableStateOf(uiPreferences.getBoolean("rightOpen", true)) }
     var commandOpen by remember { mutableStateOf(false) }
+    var entityRenameOpen by remember { mutableStateOf(false) }
     // ワークスペース切替（R10-05）: ツールバー・コマンドパレット共通。未保存確認（W-07）を一元化する
     var pendingWorkspace by remember { mutableStateOf<Path?>(null) }
     val switchWorkspace: (Path) -> Unit = { dir ->
@@ -279,7 +280,9 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
     if (commandOpen) CommandPalette(
         state, switchWorkspace,
         onShowRuns = { state.showSpace(UiSpace.RUNS) },
+        onRenameEntity = { entityRenameOpen = true },
     ) { commandOpen = false }
+    if (entityRenameOpen) EntityRenameDialog(state) { entityRenameOpen = false }
     pendingWorkspace?.let { next ->
         AlertDialog(
             onDismissRequest = { pendingWorkspace = null },
@@ -417,7 +420,13 @@ fun Toolbar(state: AppState, leftOpen: Boolean, rightOpen: Boolean, darkMode: Bo
 }
 
 @Composable
-private fun CommandPalette(state: AppState, switchWorkspace: (Path) -> Unit, onShowRuns: () -> Unit, onDismiss: () -> Unit) {
+private fun CommandPalette(
+    state: AppState,
+    switchWorkspace: (Path) -> Unit,
+    onShowRuns: () -> Unit,
+    onRenameEntity: () -> Unit,
+    onDismiss: () -> Unit,
+) {
     var query by remember { mutableStateOf("") }
     val files = remember(query, state.yamlFiles) {
         state.yamlFiles.filter { state.relPath(it).contains(query, true) }.take(10)
@@ -452,10 +461,11 @@ private fun CommandPalette(state: AppState, switchWorkspace: (Path) -> Unit, onS
                 files.forEach { file -> CommandItem("開く: ${state.relPath(file)}") { state.openFile(file); onDismiss() } }
                 CommandItem("台帳: 一覧を表示") { state.showWorkspaceView(1); onDismiss() }
                 CommandItem("台帳: ビューグリッドを表示") { state.openViewGrid(); onDismiss() }
-                CommandItem("台帳: 参照グラフを表示") { state.showWorkspaceView(2); onDismiss() }
-                CommandItem("台帳: ID横ぐしビューを表示") { state.openCrossView(); onDismiss() }
+                CommandItem("台帳: グラフレンズを表示") { state.openGraphLens(); onDismiss() }
+                CommandItem("台帳: エンティティページを表示") { state.openCrossView(); onDismiss() }
                 CommandItem("実行スペースを表示（受信箱）") { onShowRuns(); onDismiss() }
                 CommandItem("設計スペースを表示") { state.showSpace(UiSpace.DESIGN); onDismiss() }
+                CommandItem("エンティティを改名…") { onDismiss(); onRenameEntity() }
                 CommandItem("すべて保存") { state.saveAll(); onDismiss() }
                 CommandItem("ワークスペースを開く…") { onDismiss(); chooseDirectory()?.let(switchWorkspace) }
                 workspaces.forEach { ws ->
@@ -471,6 +481,72 @@ private fun CommandPalette(state: AppState, switchWorkspace: (Path) -> Unit, onS
 @Composable
 private fun CommandItem(text: String, onClick: () -> Unit) {
     Text(text, fontSize = 12.sp, modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 7.dp))
+}
+
+/**
+ * エンティティ改名の確認ダイアログ（R21-02。ARCHITECTURE §4.31）。
+ * 変更セット（全出現・全参照の書き換え）をプレビューし、適用は Workspace.apply（オール・オア・ナッシング）。
+ * 本格的な操作UIは P23 のエンティティページで扱う。
+ */
+@Composable
+private fun EntityRenameDialog(state: AppState, onDismiss: () -> Unit) {
+    var oldId by remember { mutableStateOf("") }
+    var newId by remember { mutableStateOf("") }
+    var applyError by remember { mutableStateOf<String?>(null) }
+    state.indexVersion
+    val plan = remember(oldId, newId, state.indexVersion) {
+        if (oldId.isBlank() || newId.isBlank()) null
+        else state.planEntityRename(oldId.trim(), newId.trim())
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("エンティティを改名") },
+        text = {
+            Column(Modifier.width(560.dp).heightIn(max = 480.dp)) {
+                CompactTextField(
+                    oldId, { oldId = it }, singleLine = true,
+                    placeholder = { Text("現在のID（例 SCR-001）") }, modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(6.dp))
+                CompactTextField(
+                    newId, { newId = it }, singleLine = true,
+                    placeholder = { Text("改名先のID") }, modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                when {
+                    plan == null -> Text("現在のIDと改名先を入力するとプレビューを表示します", fontSize = 12.sp, color = Palette.SubText)
+                    plan.isFailure -> Text(plan.exceptionOrNull()?.message ?: "プレビューを生成できません", fontSize = 12.sp, color = Palette.ErrorRed)
+                    else -> {
+                        val p = plan.getOrThrow()
+                        p.summary.forEach { Text(it, fontSize = 12.sp) }
+                        p.warnings.forEach { Text("注意: $it", fontSize = 12.sp, color = Palette.WarnOrange) }
+                        Spacer(Modifier.height(6.dp))
+                        Text("変更されるファイル:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        p.changeSet.changes.forEach { c ->
+                            Text("・${c.file}（${c.ops.size} 操作）", fontSize = 12.sp, color = Palette.SubText)
+                        }
+                    }
+                }
+                applyError?.let {
+                    Spacer(Modifier.height(6.dp))
+                    Text(it, fontSize = 12.sp, color = Palette.ErrorRed)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = plan?.isSuccess == true,
+                onClick = {
+                    plan?.getOrNull()?.let { p ->
+                        state.applyEntityPlan(p)
+                            .onSuccess { onDismiss() }
+                            .onFailure { applyError = it.message ?: "適用に失敗しました" }
+                    }
+                },
+            ) { Text("適用") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("キャンセル") } },
+    )
 }
 
 /** Swing のディレクトリ選択ダイアログ。 */
@@ -651,6 +727,7 @@ fun StatusBar(state: AppState, engine: AutomationEngine?, inboxCount: Int, onOpe
                     doc.root, doc.parseError, doc.file, doc.schema, state.overlayIndex(),
                     indexed = state.isIndexed(doc.file), workspace = state.workspace, allSchemas = state.schemas,
                     loader = state.unsavedFirstLoader(),
+                    relations = state.relations, enforcement = state.enforcement,
                 )
             }
             val errors = issues.count { it.severity == Severity.ERROR } + state.schemaErrors.size

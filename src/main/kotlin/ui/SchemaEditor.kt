@@ -383,6 +383,8 @@ private fun FieldDefinitionEditor(map: YNode.Map, doc: OpenDocument, definitions
         "ref" -> {
             StringListEditor(map, "idPatterns", "IDパターン", "ACTOR-*, ROLE-*", doc)
             CompactScalar(map, "relation", "関係種別", doc)
+            // 参照対象種別（R21-03）: document = 文書ノード（_document.id ＞ 相対パス）への参照
+            CompactScalar(map, "target", "参照対象（entity / document）", doc)
             val scope = ensureMap(map, "scope", doc, mark = false)
             StringListEditor(scope, "schemaIds", "対象スキーマID", "system-concepts, actor-detail", doc)
             StringListEditor(scope, "documentIds", "対象文書ID", "system-overview, actor-design", doc)
@@ -519,9 +521,16 @@ private fun EntityEditor(root: YNode.Map, doc: OpenDocument) {
                 Checkbox(defines, { decl.entries["defines"] = YNode.Scalar(it); doc.markEdited() })
                 Text("この文書群の出現が定義（誕生）", fontSize = 11.sp)
             }
+            // アスペクト宣言（R23-01。§4.33）: この出現が所有する側面名と所有フィールドの限定
+            CompactScalar(decl, "aspect", "アスペクト名（省略時はスキーマID）", doc)
+            StringListEditor(decl, "owns", "所有フィールド（省略時は宣言フィールド全部）", "status, summary", doc)
         }
     }
-    Text("複数型は idPattern で判別します。defines を付けた文書群の出現が「定義」になります。", fontSize = 11.sp, color = Palette.SubText)
+    Text(
+        "複数型は idPattern で判別します。defines を付けた文書群の出現が「定義」になります。" +
+            "aspect / owns はエンティティページ・read_entity の合成（R23-01）で「この出現がどの側面を所有するか」に使われます。",
+        fontSize = 11.sp, color = Palette.SubText,
+    )
 }
 
 /** スキーマの `coverage`（カバレッジルール）の構造化編集。 */

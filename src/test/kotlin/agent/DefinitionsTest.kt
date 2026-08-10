@@ -120,6 +120,33 @@ class DefinitionsTest {
     }
 
     @Test
+    fun `entity context item requires id and rejects unknown keys`() {
+        write("_agents/editor.yaml", "id: editor\npersona: 正確に。")
+        write(
+            "_activities/entity.yaml",
+            """
+            id: entity-act
+            agent: editor
+            instruction: x
+            context:
+              items:
+                - kind: entity
+                  id: "{target}"
+                  budgetChars: 4000
+            """,
+        )
+        write("_activities/entity-bad.yaml", "id: entity-bad\nagent: editor\ninstruction: x\ncontext:\n  items:\n    - kind: entity")
+        write("_activities/entity-bad2.yaml", "id: entity-bad2\nagent: editor\ninstruction: x\ncontext:\n  items:\n    - kind: entity\n      id: X\n      rows: \"Y-*\"")
+        val defs = Definitions.load(ws)
+        val item = defs.activity("entity-act")!!.contextItems.single()
+        assertEquals("entity", item.kind)
+        assertEquals("{target}", item.id)
+        assertEquals(4000, item.budgetChars)
+        assertTrue(defs.errors.any { "entity-bad" in it && "id（論理ID）" in it }, defs.errors.toString())
+        assertTrue(defs.errors.any { "entity-bad2" in it && "rows" in it }, defs.errors.toString())
+    }
+
+    @Test
     fun `legacy context vocabulary is a definition error with migration hint`() {
         write("_agents/editor.yaml", "id: editor\npersona: 正確に。")
         write("_activities/legacy.yaml", "id: legacy\nagent: editor\ninstruction: x\ncontext:\n  views: [usecase-list]")

@@ -217,6 +217,7 @@ fun FormView(state: AppState, doc: OpenDocument) {
             doc.root, doc.parseError, doc.file, doc.schema, state.overlayIndex(),
             indexed = state.isIndexed(doc.file), workspace = state.workspace, allSchemas = state.schemas,
             loader = state.unsavedFirstLoader(),
+            relations = state.relations, enforcement = state.enforcement,
         )
             .filter { it.path.isNotEmpty() && it.severity != Severity.INFO }
             .groupBy({ it.path }) { it.severity }
@@ -855,6 +856,10 @@ fun RefEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath = emptyList
 /** 参照値（スカラー）1つ分のエディタ本体。属性付き参照では to 値の Slot を受け取る（R20-03）。 */
 @Composable
 private fun RefScalarEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
+    if (field.refTarget == schema.RefTarget.DOCUMENT) {
+        DocRefScalarEditor(ctx, slot)
+        return
+    }
     val current = (slot.get() as? YNode.Scalar)?.value?.toString() ?: ""
     var menuOpen by remember { mutableStateOf(false) }
     val refConstraint = RefEntry(current, ctx.doc.file, emptyList(), field.key ?: "ref", field.idPatterns, field.scope)
@@ -977,6 +982,120 @@ private fun RefScalarEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
     }
     if (current.isNotBlank() && !resolved) {
         Text("未解決の参照です", fontSize = 11.sp, color = Palette.ErrorRed)
+    }
+}
+
+/**
+ * 文書参照（target: document。R21-03。ARCHITECTURE §4.31）のエディタ。
+ * 候補・解決は文書ノード表（documentId ＝ `_document.id` ＞ 相対パス）に対して行い、
+ * エンティティの名前空間には混ぜない。ジャンプは参照先文書を開く。
+ */
+@Composable
+private fun DocRefScalarEditor(ctx: FormCtx, slot: Slot) {
+    val current = (slot.get() as? YNode.Scalar)?.value?.toString() ?: ""
+    var menuOpen by remember { mutableStateOf(false) }
+    val documents = remember(ctx.state.indexVersion, ctx.state.editVersion) {
+        ctx.state.overlayIndex().graph.documents
+    }
+    val selfDocId = remember(ctx.doc, ctx.state.indexVersion) {
+        ctx.doc.root?.let { ctx.state.overlayIndex().documentIdFor(ctx.doc.file, it) }
+    }
+    val resolved = current.isNotBlank() && (documents.containsKey(current) || current == selfDocId)
+    // 文書名（_document.name）は表示専用の注記
+    val loader = ctx.state.unsavedFirstLoader()
+    val targetName = documents[current]?.let { node -> loader(node.file)?.let { IdIndex.documentNameOf(it) } }
+    fun open(documentId: String) {
+        documents[documentId]?.let { ctx.state.openFile(it.file) }
+    }
+    if (ctx.readOnly) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            ReadOnlyValueText(
+                listOfNotNull(current.takeIf { it.isNotBlank() }, targetName).joinToString(" — ").takeIf { it.isNotBlank() },
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            if (resolved && documents.containsKey(current)) {
+                IconButton(onClick = { open(current) }, modifier = Modifier.size(28.dp)) {
+                    Icon(Icons.Default.ArrowForward, contentDescription = "文書を開く",
+                        tint = Palette.Primary, modifier = Modifier.size(16.dp))
+                }
+            }
+        }
+        if (current.isNotBlank() && !resolved) {
+            Text("未解決の文書参照です", fontSize = 11.sp, color = Palette.ErrorRed)
+        }
+        return
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.weight(1f)) {
+            CompactTextField(
+                value = current,
+                onValueChange = { ctx.setScalar(slot, it, FieldType.REF) },
+                singleLine = true,
+                isError = current.isNotBlank() && !resolved,
+                textStyle = fieldTextStyle,
+                placeholder = { Text("参照先の文書（_document.id または相対パス）") },
+                suffix = targetName?.let {
+                    {
+                        Text(
+                            it, fontSize = 12.sp, color = Palette.SubText, maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.widthIn(max = 260.dp).padding(start = 8.dp),
+                        )
+                    }
+                },
+                trailingIcon = {
+                    IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = "候補を表示", modifier = Modifier.size(18.dp))
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            DropdownMenu(
+                expanded = menuOpen,
+                onDismissRequest = { menuOpen = false },
+                properties = PopupProperties(focusable = false),
+            ) {
+                if (documents.isEmpty()) {
+                    DropdownMenuItem(text = { Text("候補なし", fontSize = 12.sp, color = Palette.SubText) },
+                        onClick = { menuOpen = false }, enabled = false)
+                }
+                documents.values.sortedBy { it.documentId }.forEach { node ->
+                    val selected = node.documentId == current
+                    DropdownMenuItem(text = {
+                        Column {
+                            Text(
+                                node.documentId,
+                                fontSize = 13.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+                                color = if (selected) Palette.Primary else Palette.Text,
+                            )
+                            val name = loader(node.file)?.let { IdIndex.documentNameOf(it) }
+                            Text(
+                                listOfNotNull(name, ctx.state.relPath(node.file)).joinToString(" — "),
+                                fontSize = 11.sp, color = Palette.SubText,
+                            )
+                        }
+                    }, onClick = {
+                        ctx.setScalar(slot, node.documentId, FieldType.REF)
+                        menuOpen = false
+                    }, modifier = Modifier.background(if (selected) Palette.Selected else Color.Transparent))
+                }
+            }
+        }
+        IconButton(
+            enabled = resolved && documents.containsKey(current),
+            onClick = { open(current) },
+            modifier = Modifier.size(38.dp),
+        ) {
+            Icon(
+                Icons.Default.ArrowForward,
+                contentDescription = "文書を開く",
+                tint = if (resolved) Palette.Primary else Palette.Border,
+            )
+        }
+    }
+    if (current.isNotBlank() && !resolved) {
+        Text("未解決の文書参照です", fontSize = 11.sp, color = Palette.ErrorRed)
     }
 }
 

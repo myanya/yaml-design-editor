@@ -194,9 +194,9 @@ model: { provider: anthropic, id: claude-opus-4-8 }
 | P18 | 一括実行と作業編成（同一アクティビティの連続実行） | 🚧 第1弾完了（2026-08。R18-01 foreach・R18-04 レート制限耐性は実装済み、R18-02／R18-03 は BACKLOG UX-59／テーマ T-02 で管理） |
 | P19 | コンテキストエンジニアリングの一級化（初期文脈のレシピ化・参照の名前解決・グラフトラバース・コンテキスト会計) | ✅ 完了（2026-08-10。方針承認 2026-08-09＝破壊的刷新・空既定・テンプレート同時移行。会計→レシピ語彙→参照の名前解決とツール減量→グラフトラバース→eval統合→prompt caching の順で実装し、実測は elaborate-usecase 1件 36〜159K → 20〜30K 入力トークン・ターン数減で安定） |
 | P20 | 二層モデル①: 関係モデルの宣言化（エンティティ型・関係レジストリ・属性付き参照・導出グラフ基盤・lint） | ✅ 完了（2026-08-10。ARCHITECTURE §4.30・FEATURES S-19〜S-21 / I-10） |
-| P21 | 二層モデル②: グラフ整合とエンティティ操作（多重度・非循環・coverage 吸収・改名/統合/削除・文書参照・ファイル移動） | 📋 計画 |
-| P22 | 二層モデル③: クエリコア（パターン照合エンジンへの照会5系統の統合） | 📋 計画 |
-| P23 | 二層モデル④: エンティティページとグラフレンズ（アスペクト宣言・ID横ぐし改築・参照グラフ刷新・read_entity） | 📋 計画 |
+| P21 | 二層モデル②: グラフ整合とエンティティ操作（多重度・非循環・coverage 吸収・改名/統合/削除・文書参照・ファイル移動） | ✅ 完了（2026-08-10。ARCHITECTURE §4.31・FEATURES V-08 / C-10 / C-11 / I-11） |
+| P22 | 二層モデル③: クエリコア（パターン照合エンジンへの照会5系統の統合） | ✅ 完了（2026-08-10。ARCHITECTURE §4.32・FEATURES C-12 / X-10 / V-09） |
+| P23 | 二層モデル④: エンティティページとグラフレンズ（アスペクト宣言・ID横ぐし改築・参照グラフ刷新・read_entity） | ✅ 完了（2026-08-10。ARCHITECTURE §4.33・FEATURES S-22 / C-13 / V-10 / AG-32・I-07 / X-03 改築） |
 
 P1〜P6 の各フェーズに「将来拡張」として残っていた継続課題（コード実行skill・HTML出力・出力値による連鎖分岐・R2-09のダイアログ統合など）と [FEATURES.md](FEATURES.md) §11 の制約は、P8・P9 の項目として本書に集約し、P9 の完了で解消した（FEATURES §11 の該当行に対応IDを付記済み）。P11 の完了で機能面の計画済みフェーズが完了し、P12 からは提示層（UI/UX）の再編を扱う。P20〜P23 は情報管理基盤の再定義（二層モデル。§4.9）を扱う。**新しい方向性はフェーズを追加して本書で管理する**。
 
@@ -577,7 +577,7 @@ actors:
 
 **完了条件**: ①宣言を持たない既存ワークスペースが無変更で動く（全既存テスト green・sample-workspace の検証結果が不変）②sample-workspace にエンティティ型（例: screen / usecase / actor / entity-model / table-design）とレジストリ（derives / uses 等の実在 relation）の宣言例を追加し、定義競合・浮遊詳細化・未宣言 relation・idPattern 逸脱が lint で座標つきに指摘される ③属性付き参照が索引・検証・フォーム・AI生成・バックリンクでスカラー参照と同格に扱われ、コメント・スタイル込みの往復保存で形式が保持される ④`infer-relations` の生成物がメタスキーマ検証を通り、保存後にレジストリとして効く ⑤EntityGraph の導出がディスク・オーバーレイ・ステージングの3経路で一致し、載せ替え後の `sourceEntryOf` / `backlinksTo` / `traverse` の出力が回帰しない ⑥バックリンク系の表示面に inverseLabel が出る（Compose は L-09 の方針どおり手動確認）。
 
-### P21: 二層モデル②: グラフ整合とエンティティ操作 📋 計画
+### P21: 二層モデル②: グラフ整合とエンティティ操作 ✅ 完了（2026-08-10）
 
 狙い: P20 の宣言を**制約**と**操作**に変える。本シリーズの破壊的変更はこのフェーズに集約する。
 
@@ -592,15 +592,15 @@ actors:
 
 | ID | 項目 | 状態 | 内容 |
 |---|---|---|---|
-| R21-01 | グラフ整合検証 | 📋 | レジストリ制約の検証を `Validator` に一元化（検証パネル・CLI `validate`・エージェントゲートへ自然に乗る＝フェーズ・カバレッジと同じ流儀）。**対象型**: エッジの source / target のエンティティ型が宣言と不一致なら指摘（座標は参照値）。**多重度**: out はエンティティ単位の合算（同一関係の参照を複数出現に分けて書けるため。座標は参照元の定義出現）・in は対象エンティティへの入次数（`requiredBy` の一般形。座標は対象の定義出現）。**非循環**: acyclic 宣言された relation の輪を EntityGraph の隣接で DFS 検出し、「循環経路（A → B → A）」を添えて循環を構成する参照値の座標へエラー。**未宣言 relation**: `enforcement` スイッチで WARNING → ERROR。判定保留の哲学（§4.26）を踏襲: 型未宣言のエンティティ・未解決参照には黙る（未解決は既存 V-02 の領分＝二重計上しない）。coverage 吸収はこの判定器への載せ替えとして実装。テスト: 新設 `GraphIntegrityTest` ＋ `CoverageTest`（載せ替え回帰） |
-| R21-02 | エンティティ操作 | 📋 | `core/EntityOps.kt` 新設。**rename(old, new)**: 全出現のIDフィールド・全参照（スカラー値／属性付きの `to`）を書き換える1つの変更セットを生成（適用は既存 C-02/C-03 の機構そのまま＝baseハッシュ・オール・オア・ナッシング・オーバーレイ検証）。new の既存衝突は生成段階で拒否・idPattern 逸脱は警告。**merge(from, into)**: from への全参照を into へ張り替え＋ from の出現の扱い（into のIDに書き換えて詳細化として残す／削除）を呼び出し側が選択。**delete(id)**: 入次数が 0 でなければ参照元一覧つきで拒否（参照の後始末は rename か手編集へ誘導＝黙って壊さない）。CLI `entity rename|merge|delete`（`--apply` なしは変更セットYAMLのプレビュー出力）。GUI はコマンドパレットに「エンティティを改名…」（変更セットを確認ダイアログでプレビュー→適用。本格UIは P23 のエンティティページ）。テスト: 新設 `EntityOpsTest`（出現・スカラー参照・属性付き to・複数文書・ゲート通過の網羅、merge の2モード、delete の拒否系） |
-| R21-03 | 文書参照とファイル移動 | 📋 | ref フィールドに対象種別宣言 `target: document`（既定 entity。値から推測しない）を追加。解決は EntityGraph の文書ノード表に対して行い、未解決は台帳内 ERROR（台帳外は INFO 降格＝既存 §4.25 と同じ）。参照候補（RefEditor・AI制約）は documentId ＋文書名（`documentNameOf`）で提示。文書側の被参照は SidePanel 関係タブに「この文書への参照」を追加（文書の本格的なページ化は対象外＝現状維持）。**ファイル移動・改名の一級化**: 既存 W-03（ツリーの改名）に「パスIDの文書参照を書き換える変更セット」を接続し、確認ダイアログに影響を表示——書き換え対象の参照一覧・スキーマ `match` の当たりが変わる警告・ビュー定義の file / fileGlob が外れる警告・`_document.id` 宣言済み文書は参照が安定で書き換え不要の旨。CLI `move <old> <new>`。テスト: 新設 `DocRefTest`（宣言・解決・降格・移動の書き換えと警告） |
+| R21-01 | グラフ整合検証 | ✅ | 2026-08-10 実装（[FEATURES.md](FEATURES.md) V-08）。判定器 `validate/GraphIntegrity.kt` を新設し `Validator` に一元化（検証パネル・CLI `validate`・変更セット適用・エージェント提出ゲートに同一判定）。**対象型**（source / target 不一致。座標は参照値）・**多重度**（out はエンティティ単位の合算・in は入次数。母集団は source / target の型宣言に一致する型つきエンティティ＝母集団を推測しない。座標は定義出現）・**非循環**（強連結成分で検出し「循環経路（A → B → A）」を添えて常に ERROR）・**未宣言 relation**（`enforcement.undeclaredRelation` 宣言時のみ文書側で指摘）。対象型・多重度の重大度は relation の `level`（既定 warning）。`enforcement:` はレジストリ文書の3値スイッチ（未宣言＝P20 のまま）で `definingUniqueness: error` が浮遊詳細化・定義競合の ERROR 化＝ヒューリスティクス廃止スイッチ。coverage の数え上げは共有カウンタ（`inboundRefs` / `occurrenceCount`）へ載せ替え（記法・公開API・判定は不変）。sample-workspace は enforcement ON（検証ベースライン エラー5・警告12 は不変）。テスト: `GraphIntegrityTest`＋`CoverageTest`（載せ替え回帰）＋`KernelTest`（循環を作る変更セットのゲート拒否） |
+| R21-02 | エンティティ操作 | ✅ | 2026-08-10 実装（[FEATURES.md](FEATURES.md) C-10）。`core/EntityOps.kt` 新設。rename（全出現のIDフィールド＝スキーマの `type: id` 判定＋全参照（スカラー／属性付き `to`）を1変更セットに束ねる。新IDの既存衝突は拒否・idPattern 逸脱は警告）／merge（参照の張り替え＋出現は「into へ書き換えて詳細化として残す」または「要素削除」（同一配列はインデックス降順・文書ルート出現の削除は拒否））／delete（入次数 0 でなければ参照元一覧つき拒否）。適用は既存 `Workspace.apply` のまま・エージェントツール公開はしない（P23 で再判断）。CLI `entity rename|merge|delete`（`--apply` なしはプレビュー）とコマンドパレット「エンティティを改名…」（プレビュー→適用。未保存編集があれば拒否）。テスト: `EntityOpsTest` |
+| R21-03 | 文書参照とファイル移動 | ✅ | 2026-08-10 実装（[FEATURES.md](FEATURES.md) I-11 / C-11）。ref フィールドの `target: document`（既定 entity。`RefEntry.targetKind` を走査時に付与し、エンティティの解決・バックリンク・カバレッジ・グラフ整合には混ぜない）。解決は EntityGraph の文書ノード表（documentId ＝ `_document.id` ＞ 相対パス）・未解決は台帳内 ERROR／台帳外 INFO。RefEditor（`DocRefScalarEditor`）は documentId＋文書名で候補提示・AI制約は文書候補の enum（`RefCandidate.kind`）・SidePanel 関係タブに「この文書への参照」。**ファイル移動の一級化**は `core/DocMove.kt`（パスID文書参照の書き換え変更セット＋物理移動の合成。スキーマ match 変化・ビュー file / fileGlob 外れの警告・`_document.id` 宣言済みは書き換え不要の案内）。入口は CLI `move` と W-03 の改名ダイアログ（影響を入力中にプレビュー）。テスト: `DocRefTest` |
 
 **実装順の推奨**: R21-01（整合検証と coverage 吸収）→ R21-02（操作）→ R21-03（文書参照と移動）。R21-03 は他と独立性が高く並行可。
 
-**完了条件**: ①循環（経路つき）・多重度・型違反・未宣言 relation が座標つきで指摘され、`enforcement` 未宣言の既存ワークスペースは無変更（全既存テスト green）②`entity rename` が全出現・全参照（属性付き to 含む）を1つの変更セットに束ね、ゲート（オーバーレイ検証）を通って CLI・GUI から適用できる ③既存 coverage 記法の判定結果が載せ替え前後で一致する（`CoverageTest` green のまま）④文書参照が解決・被参照表示され、ファイル移動が参照を壊さない（書き換え・警告が効く）⑤エージェントの提出ゲートに整合検証が乗り、循環を作る変更セットが拒否される（`KernelTest` 拡張）。
+**完了条件の充足（2026-08-10）**: ①循環（経路つき）・多重度・型違反・未宣言 relation が座標つきで指摘され、`enforcement` 未宣言の既存ワークスペースは無変更（全既存テスト green・sample-workspace のベースライン エラー5・警告12 不変）②`entity rename` が全出現・全参照（属性付き to 含む）を1つの変更セットに束ね、`Workspace.apply` を通って CLI・GUI から適用できる（`EntityOpsTest`）③既存 coverage 記法の判定結果が載せ替え前後で一致（`CoverageTest` green のまま）④文書参照が解決・被参照表示され、ファイル移動が参照を壊さない（`DocRefTest`）⑤エージェントの提出ゲートに整合検証が乗り、循環を作る変更セットが「循環経路」を添えて拒否される（`KernelTest` の新テスト）。
 
-### P22: 二層モデル③: クエリコア 📋 計画
+### P22: 二層モデル③: クエリコア ✅ 完了（2026-08-10）
 
 狙い: 照会5系統——構造検索（C-05）・トラバース（AG-30）・ビューの行決定（idPattern×schema）・foreach の列挙（AG-26）・導出 lookup（1ホップ。ARCHITECTURE §4.26）——は、いずれも「グラフパターン照合」の断片的な再実装である。単一のパターン照合エンジンに統合し、「1実装・多面開示」（Display / Projection / Traverse の流儀）を照会にも適用する。とくにビューの行が多段結合（例:「画面→uses→ユースケース」の組を1行に）を表現できるようになることが、人間側の最大の機能向上。
 
@@ -628,15 +628,15 @@ limit: 100
 
 | ID | 項目 | 状態 | 内容 |
 |---|---|---|---|
-| R22-01 | パターン照合エンジン | 📋 | `core/Query.kt` 新設: パース（`TraverseStep.parse` の流儀＝raw Map からの共用パース・日本語エラー。レシピ・ビュー・foreach・CLI で共用）・評価（EntityGraph の隣接上。安定ソート・visited・limit）・結果モデル（束縛行＋出現座標・タイトルの解決）。`where` のプロパティ値取得は loader 注入（UI: docCache 優先／エージェント: ステージング／CLI: ディスク＝§4.5 の流儀）。テスト: 新設 `QueryTest`（決定性・1段分岐・kind: document・limit・述語・EntityGraph 経路差） |
-| R22-02 | 消費面の載せ替え | 📋 | ①ビューの `rows: match:`（従来の rows 記法と排他・互換維持。行キーは先頭 bind または `rowKey:` 指定。列に `of:`（束縛名。省略時は行キー）を追加し**結合先の値をセル化**——セル編集は各セルの原本座標ルーティングで §4.14 の不変条件のまま。バックリンク列・計算列と併用可）②foreach の `source: query`（既存5種は存置。`targetValues` へ束縛ごとの id / file を供給＝レシピのプレースホルダから `{scr}` のように束縛名で参照可能）③トラバース／レシピ `graph:` を Query 上の emit レンダラへ載せ替え（`TraverseSpec` の構文・出力は不変＝`TraverseTest` が回帰保証）④CLI `query`（YAML入力→表出力。ビュー・レシピの試作台）。`builtin-view` / `builtin-activity` を対更新。テスト: `ViewsTest` / `ForeachTest` 拡張＋`TraverseTest` green のまま |
-| R22-03 | パターン制約 | 📋 | スキーマの `constraints:` 宣言（`match` ＋ `expect: exists / absent`・`level`・`activeFrom` はカバレッジと同じ語彙）。「このパターンが存在すること／しないこと」（例:「どの画面からも到達できない孤立ユースケースがないこと」＝absent 制約）をカバレッジの一般形として検証へ接続。判定は `Validator`（座標は起点束縛の定義出現）。判定保留・誤検知回避の哲学は §4.26 と同じ（型未宣言・未解決参照には黙る）。既存 coverage は置き換えない（P21 で吸収済みの判定器の上位語彙として追加）。`builtin-schema` を対更新。テスト: 新設 `QueryConstraintTest`（提出ゲート経由含む） |
+| R22-01 | パターン照合エンジン | ✅ | 2026-08-10 実装（[FEATURES.md](FEATURES.md) C-12）。パース（raw Map からの共用パース・日本語エラー。ビュー・foreach・制約・CLI で共用）・評価（EntityGraph の隣接上。安定ソート・経路内再訪禁止・limit）・結果モデル（束縛行＋定義出現座標・タイトルの解決）。`where` のプロパティ値取得は loader 注入。**配置はスケッチの core/Query.kt から変更**: 宣言モデル＋パースは `schema/Query.kt`（`constraints:` が SchemaDef に載るため）・評価器は `index/Query.kt`（R22-03 の判定を `Validator` に置くには validate→core の依存逆転が必要になるため。§4.26 の Derivation と同じ2分割。ARCHITECTURE §4.32 に記録）。テスト: `QueryTest`（決定性・1段分岐・kind: document・limit・述語・オーバーレイ索引の経路差・CLI） |
+| R22-02 | 消費面の載せ替え | ✅ | 2026-08-10 実装（[FEATURES.md](FEATURES.md) X-10 / AG-26 / C-06）。①ビューの `rows: match:`（従来の rows 記法と排他・互換維持。行キーは先頭 bind または `rowKey:`。列の `of:` で結合先の値をセル化——セル編集は各束縛ノードの原本座標ルーティングで §4.14 の不変条件のまま。バックリンク列・計算列と併用可。結合行のID重複は `ViewRow.key`＝束縛値の組で一意化）②foreach の `source: query`（既存5種は存置。束縛ごとの `{scr}` / `{scr_file}` プレースホルダを `targetValues` へ供給）③トラバースの隣接1段を `Query.neighborIds` へ一元化（Traverse は emit レンダラ。`TraverseSpec` の構文・出力は不変＝`TraverseTest` green）④CLI `query`（YAML入力→束縛の表）。`builtin-view` / `builtin-activity` を対更新。sample-workspace に結合ビュー例 `entity-table-matrix` を追加（検証ベースライン エラー5・警告12 は不変）。テスト: `ViewsTest` / `ForeachTest` 拡張 |
+| R22-03 | パターン制約 | ✅ | 2026-08-10 実装（[FEATURES.md](FEATURES.md) V-09）。スキーマの `constraints:`（`match`＋`expect: exists / absent`・`level`・`activeFrom` はカバレッジと同じ語彙。起点は kind: entity 限定）を「起点束縛ごとのパターンの存在／不在」としてカバレッジの一般形で検証。判定は `Validator`（座標は起点束縛の定義出現・その出現を持つファイルでのみ報告）。判定保留の哲学（型未宣言・未解決参照・母集団外には黙る）。既存 coverage は置き換えない。`builtin-schema` を対更新。テスト: `QueryConstraintTest`（exists / absent・activeFrom・提出ゲート経由） |
 
 **実装順の推奨**: R22-01（エンジン）→ R22-02 の③（トラバース載せ替え＝回帰の早期確認）→ ①②④（ビュー・foreach・CLI）→ R22-03（制約）。
 
-**完了条件**: ①2ホップ結合の行がビューグリッドに表示され、結合先セルの編集が原本座標へルーティングされる（未保存編集の追随 UX-03 含む）②foreach がクエリ列挙で一括実行でき、束縛値がレシピのプレースホルダへ届く ③既存トラバース・related・ビュー行・foreach 既存5種の出力が回帰しない（`TraverseTest` / `ViewsTest` / `ForeachTest` green のまま）④パターン制約が検証パネル・CLI・提出ゲートに乗る ⑤「やらないこと」の不変条件が ARCHITECTURE に明文化されている。
+**完了条件の充足（2026-08-10）**: ①2ホップ結合の行がビューグリッド（`ViewRow.key` で行キー化）に表示され、結合先セル（`of:` 列）の編集が各束縛ノードの原本座標へルーティングされる（行はオーバーレイ索引・値は docCache 優先 loader＝UX-03 の経路のまま。sample-workspace `entity-table-matrix` が実例）②foreach がクエリ列挙で一括実行でき、束縛値（`{scr}` / `{scr_file}`）がレシピのプレースホルダへ届く（`ForeachTest`）③既存トラバース・related・ビュー行・foreach 既存5種の出力が回帰しない（`TraverseTest` / `ViewsTest` / `ForeachTest` green のまま）④パターン制約が検証パネル・CLI・変更セット適用・提出ゲートに乗る（`QueryConstraintTest`）⑤「やらないこと」（集約は件数のみ・任意深さの再帰なし・任意式なし・optional 結合なし・分岐は1段）の不変条件が ARCHITECTURE §4.32 に明文化されている。
 
-### P23: 二層モデル④: エンティティページとグラフレンズ 📋 計画
+### P23: 二層モデル④: エンティティページとグラフレンズ ✅ 完了（2026-08-10）
 
 狙い: 論理層の読み書き面を人間とAIの共有契約として確立する。ノード中心の「エンティティページ」を主役に据え、参照グラフ（X-03）を作り直す。文書ビュー（X-07）は「文書中心の読み面」、エンティティページは「ノード中心の読み書き面」という役割分担を完成させる。
 
@@ -651,14 +651,14 @@ limit: 100
 
 | ID | 項目 | 状態 | 内容 |
 |---|---|---|---|
-| R23-01 | アスペクト宣言とエンティティ合成 | 📋 | エンティティ宣言（R20-01）の拡張: `entity.aspect`（この出現が所有する側面名。省略時はスキーマID）と `owns:`（所有フィールドの限定。省略時はこのスキーマの宣言フィールド全部）。型ごとのアスペクト順序・表示名はレジストリ文書に `entities:` 節を追加して宣言（`builtin-relations` を対更新）。**検証**: 同一エンティティの複数出現が同じフィールドを所有していたら WARNING（「重複記載しない」運用規約の機械化。owns 宣言のない出現同士は判定しない）。**合成**: 出現を「定義出現→アスペクト宣言順」に並べ、所有フィールドを座標つきでマージした「エンティティ全体像」を決定的に構築する core 実装（UI・`read_entity`・CLI・スキャフォールドの書き先解決（新しい情報をどの文書に書くべきか）が共有）。テスト: 新設 `AspectTest`（所有検証・合成の決定性・座標・宣言なしスキーマとの混在） |
-| R23-02 | エンティティページ | 📋 | ID横ぐしビュー（I-07）の改築: ヘッダ（ID・エンティティ型・タイトル・操作メニュー＝R21-02 の rename / merge / delete を変更セットプレビュー経由で）＋**合成全体像**（アスペクト見出しつき。値の編集は座標先の文書キャッシュへ `Slot` ルーティング＝既存経路。従来の出現別フォームはトグルで残す）＋**関係パネル**（レジストリの label / inverseLabel で relation 別に両方向表示・属性付き参照は属性注記つき・クリックでジャンプ）＋フェーズ／カバレッジ表示（既存）。§4.16 の不変条件（`fieldAt` / `slotAt` 共有・専用書込経路を作らない）を維持。閲覧専用モード（E-12）は FormCtx 共有で自動波及。手動確認（Compose）＋core 側は R23-01 のテストが担保 |
-| R23-03 | グラフレンズ | 📋 | 参照グラフ（X-03）の刷新: 全件力学配置の一枚絵をやめ、①エンティティ起点の近傍グラフ（深さ1〜2。エンティティページの「グラフで見る」から遷移）②クエリ結果の部分グラフ（台帳スペースのレンズタブ。エンティティ型・relation のチェックボックスで絞る）を `GraphLayout`（既存の力学配置）再利用で描画。ノードは型で色分け・クリックでエンティティページへ・エッジは relation の label 表示。宣言的レンズ定義は需要待ち（方針参照） |
-| R23-04 | AIへの開示 | 📋 | `read_entity` ツール: R23-01 の合成（アスペクト・座標つき）＋関係（inverseLabel・属性）＋フェーズ／カバレッジを機械可読で返す（`related` の上位互換）。`related` は互換維持で残し、同梱テンプレートの推奨を `read_entity` へ更新（ツール増はコンテキスト税 R19-05 に留意——説明文で related との使い分けを明示し、重複開示を避ける）。コンテキストレシピに `kind: entity` 項目（`{target}` 連動・when / budgetChars 対応）。CLI `entity show <id>`。テスト: `ToolsTest` / `KernelTest` / `DefinitionsTest` 拡張 |
+| R23-01 | アスペクト宣言とエンティティ合成 | ✅ | 2026-08-10 実装（[FEATURES.md](FEATURES.md) S-22 / C-13 / V-10）。`entity.aspect`（省略時スキーマID）と `owns:`（省略時は宣言フィールド全部＝`type: id` 除く）・レジストリ `entities:` 節（`{type, label, description, aspects: [{name, label}]}`＝型の表示名とアスペクト順序。`builtin-relations`・スキーマ設計UIを対更新）。**検証**: 重複所有 WARNING（双方に entity 宣言・少なくとも一方が明示 owns の組だけ判定＝誤検知回避）。**合成**: `core/Aspects.kt` が「定義出現→アスペクト宣言順→アスペクト名→ファイル順」で所有フィールドを座標つきにマージ（重複所有は隠さず注記・スキーマなし出現は unassigned・書き先解決 `ownerSection`）。`fieldAt` は schema 層へ移設（validate から使うため。`Views.fieldAt` は委譲で互換）。テスト: `AspectTest` 新設 |
+| R23-02 | エンティティページ | ✅ | 2026-08-10 実装（[FEATURES.md](FEATURES.md) I-07 改築）。ヘッダ（ID・型ラベル・タイトル・操作メニュー＝改名／統合／削除の変更セットプレビュー→適用・「グラフで見る」）＋合成全体像（アスペクト見出し・原本座標つき。編集は `ObjectFields` の include 選別描画＝docCache への Slot ルーティング。従来の出現別フォームはトグルで残置）＋関係パネル（label / inverseLabel の両方向・属性注記・行クリックで相手のページへ）＋カバレッジ（既存）。台帳タブ名は「エンティティ」へ。閲覧専用モードは FormCtx 共有で自動波及 |
+| R23-03 | グラフレンズ | ✅ | 2026-08-10 実装（[FEATURES.md](FEATURES.md) X-03 刷新）。①起点近傍（深さ1〜2。エンティティページから遷移・起点解除／深さ切替）②エンティティ型・relation のチェックボックスで絞る部分グラフ。ノードは EntityGraph のエンティティ（型で色分け・凡例・起点強調）・エッジは relation の label・クリックはエンティティページへ着地（履歴 I-08）。`GraphLayout` 再利用。宣言的レンズ定義（`kind: lens`）は需要待ちで見送り |
+| R23-04 | AIへの開示 | ✅ | 2026-08-10 実装（[FEATURES.md](FEATURES.md) AG-32）。`read_entity` ツール（合成＋両方向の関係＋フェーズ／カバレッジ。related は軽量な隣接確認用に互換維持し説明文で使い分けを明示）・コンテキストレシピ `kind: entity`（`{target}` 連動・when / budgetChars）・CLI `entity show <id>`（同じ合成をYAMLで返す）。テスト: `ToolsTest` / `KernelTest` / `DefinitionsTest` / `WorkspaceCliTest` 拡張 |
 
 **実装順の推奨**: R23-01（core の合成）→ R23-04（機械面＝合成の最初の消費者でロジックを固める）→ R23-02（エンティティページUI）→ R23-03（レンズ）。
 
-**完了条件**: ①アスペクトの重複所有が検証で指摘され、宣言のないワークスペースは無変更 ②エンティティページで「合成全体像の閲覧→値の編集（座標先へルーティング・未保存追随）→関係の両方向確認→改名」が1画面で完結する（手動確認・UX-SCENARIOS へシナリオ追加）③`read_entity` / CLI がページと同じ合成・関係を返す（`ToolsTest`）④レンズが起点近傍とクエリ結果を描き、クリックでエンティティページへ着地する（ナビゲーション履歴 I-08 に乗る）⑤既存のID横ぐし利用（スキーマなし文書・宣言なしエンティティ）が退行しない。
+**完了条件の充足（2026-08-10）**: ①アスペクトの重複所有が検証で指摘され、宣言のないワークスペースは無変更（`AspectTest`。sample-workspace ベースライン エラー5・警告12 不変）②エンティティページで「合成全体像の閲覧→値の編集（座標先へルーティング・未保存追随）→関係の両方向確認→改名」が1画面で完結する（手動確認・UX-SCENARIOS S1 を改訂）③`read_entity` / CLI `entity show` がページと同じ合成・関係を返す（`ToolsTest` / `WorkspaceCliTest`）④レンズが起点近傍と型・relation で絞った部分グラフを描き、クリックでエンティティページへ着地する（`openCrossView` 経由＝履歴 I-08 に乗る）⑤既存のID横ぐし利用（スキーマなし文書・宣言なしエンティティ）は unassigned／出現カード表示のまま退行しない（`AspectTest` の混在ケース）。
 
 **将来拡張**（需要が出たら個別に起こす): グラフスナップショットのエクスポート（JSON / GraphML の派生成果物。skill の形式追加）・メタレベルの導出エッジ（スキーマ→match 文書・derive 元→導出スキーマ・ビュー→対象文書の影響分析）・宣言的レンズ定義（`_views` の `kind: lens`）・エンティティ操作のエージェントツール公開。
 

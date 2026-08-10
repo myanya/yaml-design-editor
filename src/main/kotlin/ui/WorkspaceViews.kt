@@ -6,6 +6,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -119,58 +121,149 @@ private fun FilterMenu(label: String, value: String, values: List<String>, onCha
     }
 }
 
+// ================================================================ グラフレンズ（R23-03。ARCHITECTURE §4.33）
+
+/** レンズの1エッジ（エンティティ → エンティティの型付き参照）。 */
+private data class LensEdge(val from: String, val to: String, val relation: String?)
+
+/**
+ * グラフレンズ: 参照グラフ（旧X-03）の刷新。全件力学配置の一枚絵をやめ、
+ * ①エンティティ起点の近傍（深さ1〜2。エンティティページの「グラフで見る」から遷移）
+ * ②エンティティ型・relation のチェックボックスで絞った部分グラフ、を力学配置で描く。
+ * ノードは EntityGraph のエンティティ（型で色分け）・エッジは relation の label・
+ * クリックはエンティティページへ着地する（ナビゲーション履歴 I-08 に乗る）。
+ */
 @Composable
-fun ReferenceGraphView(state: AppState) {
+fun GraphLensView(state: AppState) {
     state.indexVersion
-    var query by remember { mutableStateOf("") }
-    val edges = remember(state.indexVersion, query) {
-        state.overlayIndex().refs.filter { query.isBlank() || it.targetId.contains(query, true) || state.relPath(it.file).contains(query, true) }
+    val overlay = state.overlayIndex()
+    val graph = overlay.graph
+    // 全エッジ: 解決済みのエンティティ参照（参照を書いた最内のID要素 → 参照先）。自己参照は除く
+    val allEdges = remember(state.indexVersion, state.editVersion) {
+        overlay.refs.asSequence()
+            .filter { it.targetKind == schema.RefTarget.ENTITY }
+            .mapNotNull { r ->
+                val src = graph.sourceEntryOf(r)?.id ?: return@mapNotNull null
+                if (src == r.targetId || !graph.entities.containsKey(r.targetId)) return@mapNotNull null
+                LensEdge(src, r.targetId, r.relation)
+            }
+            .distinct()
+            .toList()
     }
-    // 全ノードを対象にする（R8-05: L-06。従来の40ノード制限を撤廃）。前半=参照元ファイル、後半=参照先ID
-    val fileNodes = remember(edges) { edges.map { state.relPath(it.file) }.distinct().sorted() }
-    val idNodes = remember(edges) { edges.map { it.targetId }.distinct().sorted() }
-    val nodes = remember(fileNodes, idNodes) { fileNodes + idNodes }
-    val edgeIndices = remember(nodes, edges) {
+    fun typeOf(id: String): String = graph.entities[id]?.entityType ?: "（型なし）"
+    val types = remember(allEdges) {
+        allEdges.flatMap { listOf(typeOf(it.from), typeOf(it.to)) }.distinct().sorted()
+    }
+    val relations = remember(allEdges) { allEdges.map { it.relation ?: "（未宣言）" }.distinct().sorted() }
+    val typeChecked = remember(types) { mutableStateMapOf<String, Boolean>().apply { types.forEach { put(it, true) } } }
+    val relationChecked = remember(relations) { mutableStateMapOf<String, Boolean>().apply { relations.forEach { put(it, true) } } }
+    var depth by remember { mutableStateOf(2) }
+    val origin = state.lensOriginId?.takeIf { graph.entities.containsKey(it) }
+
+    // 絞り込み: relation → 型 → （起点があれば）近傍のBFS
+    val visibleEdges = remember(allEdges, typeChecked.toMap(), relationChecked.toMap(), origin, depth) {
+        val byRelation = allEdges.filter { relationChecked[it.relation ?: "（未宣言）"] != false }
+        val byType = byRelation.filter { e ->
+            // 起点は型フィルタの対象外（起点近傍を見たいのに起点自身が消えると意味を失う）
+            (e.from == origin || typeChecked[typeOf(e.from)] != false) &&
+                (e.to == origin || typeChecked[typeOf(e.to)] != false)
+        }
+        if (origin == null) byType
+        else {
+            val adjacency = mutableMapOf<String, MutableList<String>>()
+            byType.forEach { e ->
+                adjacency.getOrPut(e.from) { mutableListOf() }.add(e.to)
+                adjacency.getOrPut(e.to) { mutableListOf() }.add(e.from)
+            }
+            val reached = mutableSetOf(origin)
+            var frontier = listOf(origin)
+            repeat(depth) {
+                frontier = frontier.flatMap { adjacency[it].orEmpty() }.filter(reached::add).sorted()
+            }
+            byType.filter { it.from in reached && it.to in reached }
+        }
+    }
+    val nodes = remember(visibleEdges, origin) {
+        (listOfNotNull(origin) + visibleEdges.flatMap { listOf(it.from, it.to) }).distinct().sorted()
+    }
+    val edgeIndices = remember(nodes, visibleEdges) {
         val indexOf = nodes.withIndex().associate { (i, n) -> n to i }
-        edges.mapNotNull { e ->
-            val s = indexOf[state.relPath(e.file)] ?: return@mapNotNull null
-            val t = indexOf[e.targetId] ?: return@mapNotNull null
-            s to t
-        }.distinct()
+        visibleEdges.mapNotNull { e ->
+            val s = indexOf[e.from] ?: return@mapNotNull null
+            val t = indexOf[e.to] ?: return@mapNotNull null
+            Triple(s, t, e.relation)
+        }
     }
+    // 型 → 色（凡例つき）。起点は強調色
+    val lensColors = listOf(
+        Palette.Primary, Palette.OkGreen, Palette.WarnOrange, Palette.Secondary,
+        Color(0xFF9C27B0), Color(0xFF00838F), Color(0xFF6D4C41), Color(0xFF546E7A),
+    )
+    val typeColors = remember(types) { types.mapIndexed { i, t -> t to lensColors[i % lensColors.size] }.toMap() }
+
     // パン・ズーム（ドラッグで移動、＋/−ボタンで拡縮）
     var pan by remember(nodes) { mutableStateOf(Offset.Zero) }
     var zoom by remember(nodes) { mutableStateOf(1f) }
     Column(Modifier.fillMaxSize().background(Palette.EditorBg)) {
         Row(Modifier.fillMaxWidth().background(Palette.Surface).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("参照グラフ", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text("グラフレンズ", fontWeight = FontWeight.Bold, fontSize = 14.sp)
             Spacer(Modifier.width(12.dp))
-            CompactTextField(query, { query = it }, singleLine = true,
-                placeholder = { Text("ID・参照元を検索") }, modifier = Modifier.width(220.dp))
+            if (origin != null) {
+                Text("起点: $origin", fontSize = 11.sp, color = Palette.Primary, fontWeight = FontWeight.SemiBold)
+                TextButton(onClick = { depth = if (depth == 1) 2 else 1 },
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
+                    Text("深さ $depth", fontSize = 11.sp)
+                }
+                TextButton(onClick = { state.lensOriginId = null },
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
+                    Text("起点を解除", fontSize = 11.sp)
+                }
+            } else {
+                Text("起点なし（全体をフィルタ表示。エンティティページの「グラフで見る」で近傍に絞れます）",
+                    fontSize = 11.sp, color = Palette.SubText)
+            }
             Spacer(Modifier.width(12.dp))
             TextButton(onClick = { zoom = (zoom * 1.25f).coerceAtMost(4f) }) { Text("＋", fontSize = 13.sp) }
             TextButton(onClick = { zoom = (zoom / 1.25f).coerceAtLeast(0.25f) }) { Text("－", fontSize = 13.sp) }
             TextButton(onClick = { zoom = 1f; pan = Offset.Zero }) { Text("全体", fontSize = 11.sp) }
             Spacer(Modifier.weight(1f))
-            Text("${nodes.size} ノード / ${edges.size} 参照", fontSize = 11.sp, color = Palette.SubText)
+            Text("${nodes.size} ノード / ${visibleEdges.size} エッジ", fontSize = 11.sp, color = Palette.SubText)
         }
-        Row(Modifier.padding(horizontal = 12.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(9.dp).background(Palette.Secondary, PanelShape))
-            Text(" 参照元ファイル", fontSize = 10.sp, color = Palette.SubText)
+        // 型・relation のチェックボックス（アドホックなレンズ。宣言的レンズ定義は需要待ち。§4.33）
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+                .padding(horizontal = 12.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("型:", fontSize = 10.sp, color = Palette.SubText)
+            types.forEach { t ->
+                Checkbox(typeChecked[t] != false, { typeChecked[t] = it }, modifier = Modifier.size(26.dp))
+                Box(Modifier.size(8.dp).background(typeColors[t] ?: Palette.Primary, PanelShape))
+                Text(" " + (state.entityTypes[t]?.displayLabel ?: t), fontSize = 10.sp, color = Palette.SubText)
+                Spacer(Modifier.width(6.dp))
+            }
             Spacer(Modifier.width(10.dp))
-            Box(Modifier.size(9.dp).background(Palette.Primary, PanelShape))
-            Text(" 参照先ID（クリックで定義へ）", fontSize = 10.sp, color = Palette.SubText)
+            Text("関係:", fontSize = 10.sp, color = Palette.SubText)
+            relations.forEach { rel ->
+                Checkbox(relationChecked[rel] != false, { relationChecked[rel] = it }, modifier = Modifier.size(26.dp))
+                Text(
+                    schema.Relations.labelOf(state.relations, rel.takeIf { it != "（未宣言）" }) ?: rel,
+                    fontSize = 10.sp, color = Palette.SubText,
+                )
+                Spacer(Modifier.width(6.dp))
+            }
         }
         BoxWithConstraints(Modifier.fillMaxWidth().weight(0.58f).padding(horizontal = 12.dp)) {
             val widthPx = constraints.maxWidth.toFloat().coerceAtLeast(1f)
             val heightPx = constraints.maxHeight.toFloat().coerceAtLeast(1f)
             // 力学配置（純ロジック・seed固定で決定的）。ノード集合が変わったときだけ再計算する
             val layout = remember(nodes, edgeIndices, widthPx, heightPx) {
-                forceLayout(nodes.size, edgeIndices, widthPx, heightPx)
+                forceLayout(nodes.size, edgeIndices.map { it.first to it.second }, widthPx, heightPx)
             }
             fun toScreen(p: Pair<Float, Float>) = Offset(p.first * zoom + pan.x, p.second * zoom + pan.y)
             val textMeasurer = androidx.compose.ui.text.rememberTextMeasurer()
             val labelStyle = androidx.compose.ui.text.TextStyle(fontSize = 9.sp, color = Palette.SubText)
+            val edgeLabelStyle = androidx.compose.ui.text.TextStyle(fontSize = 8.sp, color = Palette.SubText)
             Canvas(
                 Modifier.fillMaxSize()
                     .pointerInput(nodes) {
@@ -181,48 +274,56 @@ fun ReferenceGraphView(state: AppState) {
                     }
                     .pointerInput(nodes, layout) {
                         detectTapGestures { tap ->
-                            // ズーム・パンを逆変換して最寄りノードを拾い、IDノードなら定義へジャンプする
+                            // ズーム・パンを逆変換して最寄りノードを拾い、エンティティページへ着地する
                             val hit = layout.withIndex().minByOrNull { (_, p) ->
                                 (toScreen(p) - tap).getDistanceSquared()
                             } ?: return@detectTapGestures
-                            if ((toScreen(hit.value) - tap).getDistance() <= 14.dp.toPx() && hit.index >= fileNodes.size) {
-                                state.navigateToId(nodes[hit.index])
+                            if ((toScreen(hit.value) - tap).getDistance() <= 14.dp.toPx()) {
+                                state.openCrossView(nodes[hit.index])
                             }
                         }
                     }
             ) {
                 if (nodes.isEmpty()) return@Canvas
-                edgeIndices.forEach { (s, t) ->
-                    drawLine(Palette.Border, toScreen(layout[s]), toScreen(layout[t]), 1.0f)
+                edgeIndices.forEach { (s, t, relation) ->
+                    val a = toScreen(layout[s])
+                    val b = toScreen(layout[t])
+                    drawLine(Palette.Border, a, b, 1.0f)
+                    // エッジのラベル（関係レジストリの label。破綻しない規模のときだけ）
+                    if (edgeIndices.size <= 60) {
+                        schema.Relations.labelOf(state.relations, relation)?.let { label ->
+                            drawText(textMeasurer, label, topLeft = (a + b) * 0.5f, style = edgeLabelStyle)
+                        }
+                    }
                 }
                 val r = 5.dp.toPx() * zoom.coerceIn(0.6f, 1.6f)
                 layout.forEachIndexed { i, p ->
-                    drawCircle(if (i < fileNodes.size) Palette.Secondary else Palette.Primary, r, toScreen(p))
+                    val id = nodes[i]
+                    val color = typeColors[typeOf(id)] ?: Palette.Primary
+                    drawCircle(color, if (id == origin) r * 1.6f else r, toScreen(p))
                 }
                 // ラベルは描画が破綻しない規模のときだけ表示する
                 if (nodes.size <= 120) {
                     layout.forEachIndexed { i, p ->
-                        val label = nodes[i].substringAfterLast('/').take(24)
                         val pos = toScreen(p)
                         drawText(
-                            textMeasurer, label, topLeft = pos + Offset(r + 2.dp.toPx(), -6.dp.toPx()),
+                            textMeasurer, nodes[i].take(24), topLeft = pos + Offset(r + 2.dp.toPx(), -6.dp.toPx()),
                             style = labelStyle,
                         )
                     }
                 }
             }
         }
-        Text("参照一覧（クリックで定義へ）", fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 12.dp))
+        Text("エッジ一覧（クリックでエンティティページへ）", fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 12.dp))
         Box(Modifier.weight(0.42f).fillMaxWidth()) {
             val scroll = rememberLazyListState()
             LazyColumn(state = scroll, modifier = Modifier.fillMaxSize().padding(end = 8.dp)) {
-                items(edges) { edge ->
-                    Row(Modifier.fillMaxWidth().clickable { state.navigateToId(edge.targetId) }.padding(horizontal = 12.dp, vertical = 4.dp)) {
-                        Text(edge.targetId, fontSize = 11.sp, color = Palette.Primary, modifier = Modifier.width(150.dp))
+                items(visibleEdges) { edge ->
+                    Row(Modifier.fillMaxWidth().clickable { state.openCrossView(edge.to) }.padding(horizontal = 12.dp, vertical = 4.dp)) {
+                        Text(edge.from, fontSize = 11.sp, color = Palette.Primary, modifier = Modifier.width(150.dp))
                         Text(
-                            // 被参照方向は inverseLabel（R20-02。未宣言 relation は名前のまま）
-                            "← ${state.relPath(edge.file)} · ${edge.viaKey}" +
-                                (schema.Relations.inverseLabelOf(state.relations, edge.relation)?.let { "（関係: $it）" } ?: ""),
+                            "→ ${edge.to}" +
+                                (schema.Relations.labelOf(state.relations, edge.relation)?.let { "（関係: $it）" } ?: ""),
                             fontSize = 11.sp, color = Palette.SubText,
                         )
                     }

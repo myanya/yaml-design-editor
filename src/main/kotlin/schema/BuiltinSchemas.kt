@@ -145,6 +145,11 @@ object BuiltinSchemas {
                       label: 関係種別
                       type: string
                       description: 例 implements / depends。表示とカバレッジ判定に使う
+                    - key: target
+                      label: 参照対象種別
+                      type: enum
+                      values: [entity, document]
+                      description: "document は文書ノード（_document.id ＞ 相対パス）への参照（既定 entity。R21-03）"
                     - key: fields
                       label: エッジ属性の宣言
                       type: array
@@ -212,7 +217,7 @@ object BuiltinSchemas {
             - key: entity
               label: エンティティ型の宣言
               type: any
-              description: "この文書群の出現のエンティティ型（R20-01）。{type, idPattern, defines} の object、または複数型のリスト（idPattern で判別）"
+              description: "この文書群の出現のエンティティ型（R20-01）。{type, idPattern, defines, aspect, owns} の object、または複数型のリスト（idPattern で判別）。aspect / owns はこの出現が所有する側面の宣言（R23-01。省略時はスキーマID／宣言フィールド全部）"
             - key: coverage
               label: カバレッジルール
               type: array
@@ -354,6 +359,51 @@ object BuiltinSchemas {
                   - key: activeFrom
                     label: 判定を始めるフェーズ
                     type: string
+            - key: constraints
+              label: パターン制約
+              type: array
+              description: "起点束縛に一致する各エンティティについて、グラフパターンの存在（exists）／不在（absent）を検証する（R22-03。カバレッジの一般形）"
+              item:
+                type: object
+                fields:
+                  - key: id
+                    label: ルールID
+                    type: string
+                  - key: description
+                    label: 説明
+                    type: string
+                  - key: match
+                    label: パターン（node / edge の連鎖）
+                    type: any
+                    required: true
+                    description: "先頭 node が起点束縛（kind: entity 限定）。例 [{node: {entity: usecase, bind: uc}}, {edge: {relation: uses, dir: in}}, {node: {entity: screen}}]"
+                  - key: also
+                    label: 分岐（1段）
+                    type: any
+                  - key: where
+                    label: プロパティ述語
+                    type: any
+                  - key: limit
+                    label: 照合上限
+                    type: int
+                  - key: expect
+                    label: 期待
+                    type: enum
+                    required: true
+                    values:
+                      - value: exists
+                        label: 存在すること
+                        description: 起点ごとにパターンの解が1つ以上あること
+                      - value: absent
+                        label: 存在しないこと
+                        description: 起点ごとにパターンの解がないこと
+                  - key: level
+                    label: 重大度
+                    type: enum
+                    values: [warning, error]
+                  - key: activeFrom
+                    label: 判定を始めるフェーズ
+                    type: string
             - key: derive
               label: 派生スキーマの宣言
               type: object
@@ -427,7 +477,7 @@ object BuiltinSchemas {
     private val relationsSchemaYaml = """
         id: $RELATIONS_SCHEMA_ID
         name: 関係レジストリ
-        description: "ワークスペースの関係語彙（表示ラベル・対象型・多重度・非循環）を宣言する文書（kind: relations。R20-02）"
+        description: "ワークスペースの関係語彙（表示ラベル・対象型・多重度・非循環）と強制スイッチ（enforcement）を宣言する文書（kind: relations。R20-02 / R21-01）"
         match: "${SchemaLoader.SCHEMA_DIR}/**/*.{yaml,yml}"
         root:
           type: object
@@ -474,16 +524,16 @@ object BuiltinSchemas {
                     label: 参照元のエンティティ型
                     type: array
                     item: { type: string }
-                    description: 参照を書く側のエンティティ型（省略可。強制は P21）
+                    description: 参照を書く側のエンティティ型（省略可。宣言すると対象型・出次多重度の検証が効く。R21-01）
                   - key: target
                     label: 参照先のエンティティ型
                     type: array
                     item: { type: string }
-                    description: 参照先のエンティティ型（省略可。強制は P21）
+                    description: 参照先のエンティティ型（省略可。宣言すると対象型・入次多重度の検証が効く。R21-01）
                   - key: cardinality
                     label: 多重度
                     type: object
-                    description: in（被参照数）/ out（参照数）の下限上限（P20 では宣言のみ・強制は P21）
+                    description: in（被参照数）/ out（参照数）の下限上限。source / target の型宣言がある側にだけ効く（R21-01）
                     fields:
                       - { key: inMin, label: 入次数の下限, type: int }
                       - { key: inMax, label: 入次数の上限, type: int }
@@ -492,10 +542,59 @@ object BuiltinSchemas {
                   - key: acyclic
                     label: 非循環
                     type: boolean
-                    description: この関係で循環を作らない宣言（P20 では宣言のみ・強制は P21）
+                    description: この関係で循環を作らない宣言（違反は常にエラー。R21-01）
+                  - key: level
+                    label: 指摘の重大度
+                    type: enum
+                    values: [warning, error]
+                    description: 対象型・多重度の違反の重大度（既定 warning。非循環は常にエラー）
                   - key: description
                     label: 説明
                     type: text
+            - key: entities
+              label: エンティティ型の一覧
+              type: array
+              description: "型の表示名と、エンティティページ・read_entity の合成で使うアスペクト順序の宣言（R23-01）"
+              item:
+                type: object
+                fields:
+                  - key: type
+                    label: エンティティ型名
+                    type: string
+                    required: true
+                    role: title
+                    description: スキーマの entity.type と一致させる
+                  - key: label
+                    label: 表示名
+                    type: string
+                    role: subtitle
+                  - key: description
+                    label: 説明
+                    type: text
+                  - key: aspects
+                    label: アスペクト順序
+                    type: array
+                    description: "合成（エンティティ全体像）の並び順。name はスキーマの entity.aspect（省略時はスキーマID）と一致させる"
+                    item:
+                      type: object
+                      fields:
+                        - { key: name, label: アスペクト名, type: string, required: true }
+                        - { key: label, label: 表示名, type: string }
+            - key: enforcement
+              label: 強制スイッチ
+              type: object
+              description: "ワークスペース単位の opt-in スイッチ（R21-01）。未宣言のキーは従来（P20 の lint）のまま"
+              fields:
+                - key: undeclaredRelation
+                  label: 未宣言 relation の使用
+                  type: enum
+                  values: [warning, error]
+                  description: レジストリにない relation を使う参照を文書側でも指摘する
+                - key: definingUniqueness
+                  label: 定義出現の一意性
+                  type: enum
+                  values: [warning, error]
+                  description: "error で浮遊詳細化・定義競合をエラー化（「最初の出現＝定義」ヒューリスティクスの廃止）"
     """.trimIndent()
 
     private val agentSchemaYaml = """
@@ -598,7 +697,8 @@ object BuiltinSchemas {
                           - { value: phase, label: フェーズ状態, description: 対象文書のフェーズ状態（省略時は target.match の範囲） }
                           - { value: view, label: ビュー, description: 横断グリッドの解決結果（rows / columns で絞れる） }
                           - { value: doc, label: 文書, description: 指定文書（file / path）の全文 }
-                          - { value: related, label: 関連情報, description: 論理IDの出現・参照・被参照のまとめ }
+                          - { value: related, label: 関連情報, description: 論理IDの出現・参照・被参照の軽量なまとめ }
+                          - { value: entity, label: エンティティ全体像, description: アスペクト合成・両方向の関係・カバレッジ（related の上位互換。R23-04） }
                           - { value: sample, label: 記述例, description: 同スキーマの既存文書N件（記述粒度の手本） }
                           - { value: graph, label: グラフ, description: ID関係グラフの経路トラバース（起点から参照・被参照を多段に辿る） }
                         cases:
@@ -634,6 +734,11 @@ object BuiltinSchemas {
                               label: YPath（省略時は文書全体）
                               type: string
                           related:
+                            - key: id
+                              label: 論理ID（{target} 等のプレースホルダ可）
+                              type: string
+                              required: true
+                          entity:
                             - key: id
                               label: 論理ID（{target} 等のプレースホルダ可）
                               type: string
@@ -822,7 +927,7 @@ object BuiltinSchemas {
                   label: 列挙元
                   type: enum
                   required: true
-                  values: [view, issues, search, files, ids]
+                  values: [view, issues, search, files, ids, query]
                 - key: view
                   label: ビューID（view）
                   type: ref
@@ -863,6 +968,10 @@ object BuiltinSchemas {
                 - key: unresolved
                   label: 未解決参照のみ（search）
                   type: boolean
+                - key: query
+                  label: パターン照合（query）
+                  type: any
+                  description: "グラフパターン照合のスペック（{match: [...], where: [...], limit: n}。束縛行が1件=1実行になり、束縛名がプレースホルダ（{scr} 等）で参照できる。R22-02）"
                 - key: as
                   label: 1件の追加指示テンプレート
                   type: string
@@ -1290,19 +1399,38 @@ object BuiltinSchemas {
             - key: rows
               label: 行の定義
               type: object
-              description: "横断グリッドのみ（必須）: 行になる論理IDの条件"
+              description: "横断グリッドのみ（必須）: 行になる論理IDの条件（idPattern）か、パターン照合のクエリ行（match。R22-02）のどちらか一方"
               fields:
                 - key: idPattern
                   label: 対象IDパターン
                   type: string
-                  required: true
-                  description: このglobに一致する論理IDが行になる（例 SCR-*）
+                  description: このglobに一致する論理IDが行になる（例 SCR-*。match とは併用不可）
                 - key: schemaIds
                   label: 出現スキーマの限定
                   type: array
                   item:
                     type: string
                   description: 指定時、いずれかのスキーマに出現するIDだけを行にする
+                - key: match
+                  label: クエリ行（パターン照合）
+                  type: any
+                  description: "node / edge の交互連鎖（例 [{node: {entity: screen, bind: scr}}, {edge: {relation: uses}}, {node: {entity: usecase, bind: uc}}]）。行 = 束縛行（R22-02。ARCHITECTURE §4.32）"
+                - key: also
+                  label: 分岐（1段）
+                  type: any
+                  description: "束縛済みノードからのもう1本の連鎖（{from: 束縛名, steps: [...]}。内部結合）"
+                - key: where
+                  label: プロパティ述語
+                  type: any
+                  description: "束縛ノードの値の絞り込み（例 [{of: scr, path: status, equals: approved}]。equals / exists のみ）"
+                - key: rowKey
+                  label: 行キーの束縛名
+                  type: string
+                  description: "クエリ行の行キー（省略時は先頭の bind。kind: entity 限定）"
+                - key: limit
+                  label: 行数上限
+                  type: int
+                  description: クエリ行の上限（既定 100。超過は決定的打切り）
             - key: order
               label: 行の並び
               type: object
@@ -1339,6 +1467,10 @@ object BuiltinSchemas {
                     label: 定義参照
                     type: string
                     description: named definition（module#name。schemaId 指定時は名前だけでも可）のセル型フィールドを列集合に展開する（ラベル・パスは定義から導出。label / path / backlinks とは併用不可）
+                  - key: of
+                    label: 値元の束縛名
+                    type: string
+                    description: "クエリ行（rows: match）のみ: この列の値を取る束縛（省略時は行キー。結合先の値をセル化する。R22-02）"
                   - key: editable
                     label: 一覧上で編集可
                     type: boolean

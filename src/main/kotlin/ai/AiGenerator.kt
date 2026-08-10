@@ -15,7 +15,13 @@ enum class AiProvider(val label: String, val defaultModel: String, val envVar: S
 }
 
 /** 参照候補1件。ID索引の1出現に対応し、REFフィールドのスコープ絞り込みに使う。 */
-data class RefCandidate(val id: String, val schemaId: String?, val documentId: String?)
+data class RefCandidate(
+    val id: String,
+    val schemaId: String?,
+    val documentId: String?,
+    /** 参照候補の名前空間（R21-03）: エンティティ（既定）／文書ノード（documentId）。 */
+    val kind: schema.RefTarget = schema.RefTarget.ENTITY,
+)
 
 /** 参考文書1件。同じスキーマが適用される他文書の全文で、書き方・粒度の手本としてプロンプトに添える。 */
 data class ReferenceDoc(val fileRel: String, val yaml: String)
@@ -66,13 +72,15 @@ internal fun parseUsageTokens(body: String, json: Json): Pair<Long?, Long?> = ru
     usage?.get("input_tokens")?.jsonPrimitive?.longOrNull to usage?.get("output_tokens")?.jsonPrimitive?.longOrNull
 }.getOrDefault(null to null)
 
-/** REFフィールドの idPatterns / scope 条件を満たす候補IDを返す。 */
+/** REFフィールドの idPatterns / scope 条件を満たす候補IDを返す（文書参照は文書候補の名前空間から。R21-03）。 */
 internal fun refCandidateIds(field: FieldDef, candidates: List<RefCandidate>): List<String> =
     candidates.asSequence()
+        .filter { it.kind == field.refTarget }
         .filter { c ->
-            (field.idPatterns.isEmpty() || field.idPatterns.any { idMatchesPattern(c.id, it) }) &&
-                (field.scope.schemaIds.isEmpty() || c.schemaId in field.scope.schemaIds) &&
-                (field.scope.documentIds.isEmpty() || c.documentId in field.scope.documentIds)
+            field.refTarget == schema.RefTarget.DOCUMENT ||
+                ((field.idPatterns.isEmpty() || field.idPatterns.any { idMatchesPattern(c.id, it) }) &&
+                    (field.scope.schemaIds.isEmpty() || c.schemaId in field.scope.schemaIds) &&
+                    (field.scope.documentIds.isEmpty() || c.documentId in field.scope.documentIds))
         }
         .map { it.id }
         .distinct()
@@ -260,7 +268,10 @@ internal fun buildUserInput(input: AiGenerationInput): String = buildString {
             appendLine("</reference-document>")
         }
     }
-    val ids = input.idCandidates.asSequence().map { it.id }.distinct().sorted().toList()
+    // プロンプトの一覧はエンティティIDのみ（文書候補は該当フィールドの enum 制約側で効かせる。R21-03）
+    val ids = input.idCandidates.asSequence()
+        .filter { it.kind == schema.RefTarget.ENTITY }
+        .map { it.id }.distinct().sorted().toList()
     if (ids.isNotEmpty()) {
         appendLine("参照に利用できる既存ID:")
         appendLine(ids.take(500).joinToString(", "))

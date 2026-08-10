@@ -130,6 +130,8 @@ class Staging(val ws: Workspace) {
                 target.second, null, target.first, ws.schemaFor(target.first), idx,
                 workspace = ws.root, allSchemas = ws.schemas,
                 loader = { f -> tree(ws.relPath(f)) },
+                // グラフ整合検証（R21-01）も提出ゲートに乗せる（循環を作る変更セットの拒否。§4.31）
+                relations = ws.relations, enforcement = ws.enforcement,
             )
         }.toMutableMap()
         // メタアクティビティ（R4-03）: ステージされた定義文書は実際のローダでパースできることもゲート条件にする

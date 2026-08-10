@@ -208,6 +208,53 @@ class KernelTest {
     }
 
     @Test
+    fun `graph integrity gate rejects a changeset that creates a cycle`() {
+        // グラフ整合検証（R21-01。ARCHITECTURE §4.31）が提出ゲートに乗ることの確認:
+        // acyclic 宣言された relation の循環を作る変更セットは拒否され、拒否理由に循環経路が載る
+        write(
+            "_schemas/flow.yaml",
+            """
+            id: flow
+            match: "flows/**/*.yaml"
+            root:
+              type: object
+              fields:
+                - { key: id, type: id, required: true }
+                - { key: next, type: ref, relation: follows }
+            """,
+        )
+        write(
+            "_schemas/relations.yaml",
+            """
+            id: rels
+            kind: relations
+            relations:
+              - name: follows
+                acyclic: true
+            """,
+        )
+        write("flows/f1.yaml", "id: FLOW-1\nnext: FLOW-2")
+        write("flows/f2.yaml", "id: FLOW-2")
+        val ws = Workspace.open(dir)
+        val session = FakeSession(
+            listOf(
+                // FLOW-2 → FLOW-1 の参照を書くと FLOW-1 → FLOW-2 → FLOW-1 の循環になる
+                turn(call("apply_patch", """{"file":"flows/f2.yaml","ops":[{"op":"insert","path":"next","value":"FLOW-1"}]}""")),
+                turn(call("submit_changeset", """{"summary":"循環を作る変更"}""")),
+                turn(call("abort", """{"reason":"拒否されたため中断"}""")),
+            )
+        )
+        val result = run(ws, session, RecordingHost())
+
+        assertEquals(RunStatus.ABORTED, result.status)
+        val rejection = session.toolResults[1].single().content
+        assertTrue("提出は拒否されました" in rejection, rejection)
+        assertTrue("循環" in rejection && "FLOW-1 → FLOW-2 → FLOW-1" in rejection, rejection)
+        // 原本は未変更
+        assertTrue("next" !in Files.readString(dir.resolve("flows/f2.yaml")))
+    }
+
+    @Test
     fun `transcript records system instruction assistant text and full tool exchanges`() {
         val ws = Workspace.open(dir)
         val session = FakeSession(
@@ -503,6 +550,19 @@ class KernelTest {
         assertTrue("## グラフ: DOC-A" in initial, initial)
         assertTrue("- TERM-001" in initial, initial)   // DOC-A の uses 参照を1段辿った先
         assertTrue(result.contextStats.any { it.section == "グラフ: DOC-A" })
+    }
+
+    @Test
+    fun `entity context item discloses composition for placeholder target`() {
+        val ws = Workspace.open(dir)
+        val session = FakeSession(listOf(turn(call("abort", """{"reason":"x"}"""))))
+        val act = activity(contextItems = listOf(ContextItemDef(kind = "entity", id = "{target}")))
+        runWithValues(ws, session, act, targetValues = mapOf("target" to "TERM-001"))
+        val initial = session.userTexts.first()
+        // read_entity と同じ合成（アスペクト見出し＋所有フィールド＋両方向の関係）が初期文脈に載る（R23-04）
+        assertTrue("## エンティティ: TERM-001" in initial, initial)
+        assertTrue("- title: 旧用語" in initial, initial)
+        assertTrue("この要素への参照 2 件" in initial, initial)
     }
 
     @Test

@@ -65,6 +65,7 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                 doc.root, doc.parseError, doc.file, doc.schema, state.overlayIndex(),
                 indexed = state.isIndexed(doc.file), workspace = state.workspace, allSchemas = state.schemas,
                 loader = state.unsavedFirstLoader(),
+                relations = state.relations, enforcement = state.enforcement,
             )
         }
         // ビュー定義文書はリント（ビュー→スキーマの整合検査）もここに出す。編集中ツリーで判定するため
@@ -82,7 +83,15 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
         val (localIds, localRefs) = scanned
         val backlinks = remember(doc, doc.version, state.indexVersion, state.editVersion) {
             state.overlayIndex().backlinksTo(localIds.map { it.id }.toSet())
-                .filter { it.file != doc.file }
+                .filter { it.file != doc.file && it.targetKind == schema.RefTarget.ENTITY }
+        }
+        // この文書への参照（target: document。R21-03）: 文書ノード（documentId）宛の被参照
+        val docBacklinks = remember(doc, doc.version, state.indexVersion, state.editVersion) {
+            val docId = doc.root?.let { state.overlayIndex().documentIdFor(doc.file, it) }
+            if (docId == null) emptyList()
+            else state.overlayIndex().refs.filter {
+                it.targetKind == schema.RefTarget.DOCUMENT && it.targetId == docId && it.file != doc.file
+            }
         }
         // 出現タブの対象ID: 文書ルートのID（段階的詳細化の単位。E-09 と同じ基準）
         val rootId = remember(doc, doc.version) {
@@ -253,6 +262,40 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                                     " ／ ${bl.path.pretty()}",
                                 fontSize = 10.sp, color = Palette.SubText,
                             )
+                        }
+                    }
+                }
+                // この文書への参照（target: document。R21-03。ARCHITECTURE §4.31）
+                if (docBacklinks.isNotEmpty()) {
+                    item { SectionHeader("この文書への参照（${docBacklinks.size}）") }
+                    items(docBacklinks.size) { i ->
+                        val bl = docBacklinks[i]
+                        val source = remember(bl, state.indexVersion, state.editVersion) { state.overlayIndex().sourceEntryOf(bl) }
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .clickable {
+                                    state.openFile(bl.file, bl.path)
+                                    state.editorTab = 0
+                                }
+                                .padding(horizontal = 12.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                Icons.Default.ArrowForward, contentDescription = null,
+                                Modifier.size(13.dp), tint = Palette.SubText,
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Column {
+                                Text(
+                                    "この文書 ← " + (source?.let { listOfNotNull(it.id, it.title).joinToString(" — ") }
+                                        ?: state.relPath(bl.file)),
+                                    fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                                )
+                                Text(
+                                    "${state.relPath(bl.file)} ／ ${bl.viaKey} ／ ${bl.path.pretty()}",
+                                    fontSize = 10.sp, color = Palette.SubText,
+                                )
+                            }
                         }
                     }
                 }

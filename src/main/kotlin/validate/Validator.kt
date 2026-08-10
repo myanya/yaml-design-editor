@@ -12,12 +12,17 @@ import model.getAt
 import model.pretty
 import model.scalarText
 import schema.ConsistencyAssert
+import schema.ConstraintExpect
 import schema.CoverageLevel
 import schema.CoverageRule
+import schema.EnforcementDef
 import schema.EntityRole
+import schema.RefTarget
+import schema.RelationDef
 import schema.FieldDef
 import schema.FieldType
 import schema.entityFor
+import schema.ownedFieldKeys
 import schema.Projection
 import schema.SchemaDef
 import schema.UnknownFieldsPolicy
@@ -97,6 +102,10 @@ object Validator {
         loader: (Path) -> YNode? = { f -> runCatching { YamlIO.parseFirst(Files.readString(f)) }.getOrNull() },
         /** 全スキーマ（テンプレート健全性検査 UX-12 が他スキーマの整合ルールを参照するため。空なら自スキーマのみ）。 */
         allSchemas: List<SchemaDef> = emptyList(),
+        /** 関係レジストリ（R21-01）: グラフ整合検証（対象型・多重度・非循環）の制約宣言。空なら判定しない。 */
+        relations: Map<String, RelationDef> = emptyMap(),
+        /** 強制スイッチ（R21-01。ARCHITECTURE §4.31）: 未宣言キーは P20 の挙動のまま。 */
+        enforcement: EnforcementDef = EnforcementDef(),
     ): List<Issue> {
         if (root == null) {
             return listOf(Issue(Severity.ERROR, "YAML パースエラー: ${parseError ?: "不明"}", emptyList()))
@@ -131,6 +140,19 @@ object Validator {
         }
         // 未解決参照（台帳外の文書では索引に載らないため、情報レベルへ降格する。R13-03）
         for (r in localRefs) {
+            // 文書参照（R21-03。§4.31）: 文書ノード表（documentId ＝ _document.id ＞ 相対パス）に対して解決する。
+            // エンティティの名前空間には混ぜない
+            if (r.targetKind == RefTarget.DOCUMENT) {
+                val resolvedDoc = r.targetId == documentId || indexObj.graph.documents.containsKey(r.targetId)
+                if (!resolvedDoc) {
+                    issues += if (!indexed) {
+                        Issue(Severity.INFO, "文書参照「${r.targetId}」は台帳外の文書のため解決されません", r.path)
+                    } else {
+                        Issue(Severity.ERROR, "文書参照「${r.targetId}」を解決できません（_document.id または相対パス）", r.path)
+                    }
+                }
+                continue
+            }
             val localMatches = localIds.any { it.id == r.targetId && it.isAllowedBy(r) }
             val resolved = localMatches || indexObj.resolve(r).isNotEmpty()
             if (!resolved) {
@@ -158,8 +180,13 @@ object Validator {
             }
         }
         // 3.5) エンティティ整合 lint（R20-01。ARCHITECTURE §4.30）: entity 宣言のあるスキーマのIDだけを
-        //      ワークスペース横断で判定する（宣言のないスキーマは挙動不変＝非破壊。すべて WARNING）
+        //      ワークスペース横断で判定する（宣言のないスキーマは挙動不変＝非破壊）。
+        //      定義出現の一意性は enforcement.definingUniqueness=error で ERROR へ昇格する
+        //      （「最初の出現＝定義」ヒューリスティクスの廃止スイッチ。R21-01。§4.31）
         if (indexed && schema != null && schema.entities.isNotEmpty()) {
+            val definingSeverity =
+                if (enforcement.definingUniqueness == CoverageLevel.ERROR) Severity.ERROR else Severity.WARNING
+            val ownershipTrees = mutableMapOf<Path, YNode?>()
             for (entry in localIds) {
                 val decl = schema.entityFor(entry.id)
                 if (decl == null) {
@@ -176,13 +203,13 @@ object Validator {
                 val definingCount = occs.count { it.role == EntityRole.DEFINING }
                 if (definingCount == 0) {
                     issues += Issue(
-                        Severity.WARNING,
+                        definingSeverity,
                         "エンティティ型「${decl.type}」のID「${entry.id}」に定義出現がありません（浮遊詳細化。defines: true の文書群への出現が必要です）",
                         entry.path,
                     )
                 } else if (definingCount >= 2 && decl.defines) {
                     issues += Issue(
-                        Severity.WARNING,
+                        definingSeverity,
                         "ID「${entry.id}」の定義出現が $definingCount 件あります（定義競合）",
                         entry.path,
                     )
@@ -194,6 +221,69 @@ object Validator {
                         "ID「${entry.id}」が複数のエンティティ型（${types.joinToString(", ")}）で出現しています（型競合）",
                         entry.path,
                     )
+                }
+                // 重複所有（R23-01。ARCHITECTURE §4.33）: 同一エンティティの2出現が同じフィールドを
+                // 所有していたら WARNING（「重複記載しない」運用規約の機械化）。誤検知回避のため、
+                // 双方の出現に entity 宣言があり、少なくとも一方が明示的な owns を持つ組だけを判定する
+                val myKeys = ownedFieldKeys(schema, root, entry.path, decl)
+                if (myKeys.isNotEmpty()) {
+                    val others = indexObj.occurrences(entry.id).filter { it.file != file } +
+                        localIds.filter { it.id == entry.id && it.path != entry.path }
+                    for (other in others) {
+                        val otherSchema = (allSchemas.ifEmpty { listOf(schema) }).firstOrNull { it.id == other.schemaId }
+                            ?: continue
+                        val otherDecl = otherSchema.entityFor(entry.id) ?: continue
+                        if (decl.owns == null && otherDecl.owns == null) continue
+                        val otherRoot = (if (other.file == file) root
+                        else ownershipTrees.getOrPut(other.file) { loader(other.file) }) ?: continue
+                        val overlap = myKeys.filter { it in ownedFieldKeys(otherSchema, otherRoot, other.path, otherDecl) }
+                        if (overlap.isNotEmpty()) {
+                            val where = workspace?.let { IdIndex.relPathOf(it, other.file) } ?: other.file.toString()
+                            issues += Issue(
+                                Severity.WARNING,
+                                "エンティティ「${entry.id}」のフィールド（${overlap.joinToString(", ")}）が" +
+                                    " $where の出現でも所有されています（重複所有。片側の owns を絞ってください）",
+                                entry.path,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        // 3.6) グラフ整合検証（R21-01。ARCHITECTURE §4.31）: 関係レジストリの制約（対象型・多重度・非循環）と
+        //      未宣言 relation の enforcement をこのファイルに座標を持つ指摘として判定する
+        if (indexed) {
+            issues += GraphIntegrity.issues(file, indexObj, relations, enforcement)
+        }
+        // 3.7) パターン制約（R22-03。ARCHITECTURE §4.32）: 起点束縛に一致する各エンティティについて
+        //      パターンの存在（exists）／不在（absent）を判定する。座標は起点の定義出現（なければ先頭出現）で、
+        //      その出現を持つファイルの検証でのみ報告する（多重報告しない）。母集団に入らないID・型未宣言・
+        //      未解決参照には黙る（判定保留 §4.26）
+        if (indexed && schema != null && schema.constraints.isNotEmpty()) {
+            fun constraintTree(f: Path): YNode? = if (f == file) root else loader(f)
+            for (rule in schema.constraints) {
+                val active = rule.activeFrom?.let { from ->
+                    val fromIdx = schema.phases?.order?.indexOf(from) ?: -1
+                    fromIdx < 0 || phaseIndex == null || phaseIndex >= fromIdx
+                } ?: true
+                if (!active) continue
+                for (entry in localIds) {
+                    val node = indexObj.graph.entities[entry.id] ?: continue
+                    val anchor = node.defining ?: node.occurrences.firstOrNull() ?: continue
+                    if (anchor.file != file || anchor.path != entry.path) continue
+                    if (!index.Query.startMatches(indexObj, rule.spec, entry.id, ::constraintTree)) continue
+                    val hasSolution = index.Query.anyMatchFrom(indexObj, rule.spec, entry.id, ::constraintTree)
+                    val violated = when (rule.expect) {
+                        ConstraintExpect.EXISTS -> !hasSolution
+                        ConstraintExpect.ABSENT -> hasSolution
+                    }
+                    if (!violated) continue
+                    val severity = if (rule.level == CoverageLevel.ERROR) Severity.ERROR else Severity.WARNING
+                    val message = when (rule.expect) {
+                        ConstraintExpect.EXISTS -> "ID「${entry.id}」を起点とするパターンが成立していません（expect: exists）"
+                        ConstraintExpect.ABSENT -> "ID「${entry.id}」を起点とするパターンが成立しています（expect: absent）"
+                    } + ((rule.description ?: rule.id)?.let { " — $it" } ?: "")
+                    issues += Issue(severity, message, entry.path)
                 }
             }
         }
@@ -333,13 +423,10 @@ object Validator {
     fun coverageStatuses(id: String, schema: SchemaDef, indexObj: IdIndex, definingRoot: YNode? = null): List<CoverageStatus> =
         schema.coverage.mapNotNull { rule ->
             if (rule.idPattern != null && !idMatchesPattern(id, rule.idPattern)) return@mapNotNull null
+            // 数え上げはグラフ整合（R21-01）と共有する: requiredBy = 入次数・detailIn = 詳細化出現（§4.31）
             val count = if (rule.isOccurrence) {
-                indexObj.occurrences(id).count { it.schemaId in rule.detailSchemaIds }
-            } else indexObj.refs.count { ref ->
-                ref.targetId == id &&
-                    (rule.fromSchemaIds.isEmpty() || ref.sourceSchemaId in rule.fromSchemaIds) &&
-                    (rule.relation == null || ref.relation == rule.relation)
-            }
+                GraphIntegrity.occurrenceCount(indexObj, id, rule.detailSchemaIds)
+            } else GraphIntegrity.inboundRefs(indexObj, id, rule.relation, rule.fromSchemaIds).size
             val active = rule.activeFrom?.let { from ->
                 val fromIdx = schema.phases?.order?.indexOf(from) ?: -1
                 val current = definingRoot?.let { schema.currentPhaseIndex(it) }

@@ -154,6 +154,7 @@ data class FieldDef(
     val idPatterns: List<String> = emptyList(), // REF の参照先 ID glob（空 = 制限なし）
     val scope: RefScope = RefScope(),        // REF の探索範囲（空 = ワークスペース全体）
     val relation: String? = null,            // REF の関係種別（例: implements / depends）。表示・カバレッジ判定に使う
+    val refTarget: RefTarget = RefTarget.ENTITY, // REF の参照対象種別（R21-03。document = 文書ノード参照）
     val minLength: Int? = null,              // STRING / TEXT: 最小文字数（R16-01）
     val maxLength: Int? = null,              // STRING / TEXT: 最大文字数（R16-01）
     val pattern: String? = null,             // STRING / TEXT: 正規表現（完全一致。R16-01）
@@ -173,6 +174,23 @@ data class FieldDef(
 
     /** 現在値に対応する enum 選択肢（表示用）。 */
     fun optionFor(value: String?): EnumOption? = value?.let { v -> enumOptions().firstOrNull { it.value == v } }
+}
+
+/**
+ * ref フィールドの参照対象種別（R21-03。ARCHITECTURE §4.31）。既定は entity（論理ID）。
+ * document は文書ノード（documentId ＝ `_document.id` ＞ 相対パス）への参照で、別名前空間として解決する。
+ */
+enum class RefTarget(val id: String) {
+    ENTITY("entity"),
+    DOCUMENT("document");
+
+    companion object {
+        fun parse(value: String?): RefTarget = when (value) {
+            null, "entity" -> ENTITY
+            "document" -> DOCUMENT
+            else -> error("target は entity / document のいずれかである必要があります: $value")
+        }
+    }
 }
 
 data class RefScope(
@@ -262,11 +280,17 @@ data class SchemaDef(
     val coverage: List<CoverageRule> = emptyList(),
     /** 整合ルール（R16-03a）: このスキーマの文書のID要素の値と、導出値との一致要件。 */
     val consistency: List<ConsistencyRule> = emptyList(),
+    /** パターン制約（R22-03。ARCHITECTURE §4.32）: 起点エンティティごとのパターンの存在／不在要件。 */
+    val constraints: List<ConstraintRule> = emptyList(),
     val phases: PhasesDef? = null,
     /** エンティティ型の宣言（R20-01。ARCHITECTURE §4.30）。空 = 宣言なし（従来どおり）。 */
     val entities: List<EntityDecl> = emptyList(),
     /** 関係レジストリの内容（kind: relations のみ。R20-02）。 */
     val relations: List<RelationDef> = emptyList(),
+    /** エンティティ型のレジストリ宣言（kind: relations のみ。表示名・アスペクト順序。R23-01。§4.33）。 */
+    val entityTypes: List<EntityTypeDef> = emptyList(),
+    /** 強制スイッチ（kind: relations のみ。R21-01。ARCHITECTURE §4.31）。 */
+    val enforcement: EnforcementDef? = null,
     val source: Path,
     val kind: SchemaKind = SchemaKind.DOCUMENT,
     /** 派生スキーマの宣言（R11-03）。非 null のスキーマはテンプレートであり、自身は文書にマッチしない。 */
@@ -310,6 +334,7 @@ data class SchemaDef(
                 idPatterns = current.idPatterns.ifEmpty { target.idPatterns },
                 scope = if (current.scope == RefScope()) target.scope else current.scope,
                 relation = current.relation ?: target.relation,
+                refTarget = if (current.refTarget == RefTarget.ENTITY) target.refTarget else current.refTarget,
                 unknownFields = current.unknownFields ?: target.unknownFields,
                 cases = current.cases.ifEmpty { target.cases },
                 role = current.role ?: target.role,
@@ -387,6 +412,29 @@ fun SchemaDef.effectiveFields(fields: List<FieldDef>, node: YNode.Map?): Effecti
     return EffectiveFields(result, inactive)
 }
 
+/**
+ * データパスに対応するフィールド定義をスキーマを辿って解決する（object の子は effectiveFields＝
+ * enum の cases 合成、$ref は resolve を通す）。旧 core/Views.fieldAt の移設先（R23-01。ARCHITECTURE §4.33）:
+ * ビューのセル型解決・ID横ぐし・エンティティ合成・重複所有の検証（validate 層）が共有する1実装。
+ * `Views.fieldAt` は互換のためこの関数へ委譲する。
+ */
+fun SchemaDef.fieldAt(root: YNode, path: model.YPath): FieldDef? {
+    var def: FieldDef = resolve(this.root) ?: return null
+    var node: YNode? = root
+    for (seg in path) {
+        val next: FieldDef? = when {
+            def.type == FieldType.OBJECT && seg is String ->
+                effectiveFields(def.fields, node as? YNode.Map).fields.firstOrNull { it.key == seg }
+            def.type == FieldType.MAP && seg is String -> def.value
+            def.type == FieldType.ARRAY && seg is Int -> def.item
+            else -> null
+        }
+        def = resolve(next) ?: return null
+        node = node?.let { model.getAt(it, listOf(seg)) }
+    }
+    return def
+}
+
 data class SchemaIssue(val message: String, val path: String)
 
 /** スキーマ定義自体を検証するメタスキーマ検証。 */
@@ -416,6 +464,15 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
         if (phases != null) issues += SchemaIssue("relations 文書に phases は定義できません", "phases")
         relations.groupBy { it.name }.filterValues { it.size > 1 }.keys.forEach {
             issues += SchemaIssue("関係「$it」が重複しています", "relations")
+        }
+        // エンティティ型のレジストリ宣言（R23-01）: 型・アスペクト名の文書内重複を検出する
+        entityTypes.groupBy { it.type }.filterValues { it.size > 1 }.keys.forEach {
+            issues += SchemaIssue("エンティティ型「$it」の宣言が重複しています", "entities")
+        }
+        entityTypes.forEachIndexed { i, t ->
+            t.aspects.groupBy { it.name }.filterValues { it.size > 1 }.keys.forEach {
+                issues += SchemaIssue("アスペクト「$it」が重複しています", "entities[$i].aspects")
+            }
         }
         relations.forEachIndexed { i, r ->
             r.cardinality?.let { c ->
@@ -715,6 +772,10 @@ object SchemaLoader {
         val errors: List<String>,
         /** 関係レジストリ（R20-02）: `kind: relations` 文書から集約した name → RelationDef。 */
         val relations: Map<String, RelationDef> = emptyMap(),
+        /** 強制スイッチ（R21-01）: レジストリ文書の enforcement 節から集約（未宣言キーは null）。 */
+        val enforcement: EnforcementDef = EnforcementDef(),
+        /** エンティティ型レジストリ（R23-01。§4.33）: `entities:` 節から集約した type → EntityTypeDef。 */
+        val entityTypes: Map<String, EntityTypeDef> = emptyMap(),
     )
 
     fun loadAll(workspace: Path): List<SchemaDef> = loadAllWithErrors(workspace).schemas
@@ -770,7 +831,33 @@ object SchemaLoader {
                 }
             }
         }
-        return LoadResult(result, errors, registry)
+        // エンティティ型レジストリ（R23-01。§4.33）: entities 節を集約する。文書内の重複は
+        // validateDefinition が報告するため、ここではレジストリ間の type 重複だけをエラーにする
+        val typeRegistry = LinkedHashMap<String, EntityTypeDef>()
+        linked.filter { it.kind == SchemaKind.RELATIONS }.forEach { doc ->
+            doc.entityTypes.distinctBy { it.type }.forEach { t ->
+                if (typeRegistry.putIfAbsent(t.type, t) != null) {
+                    errors += "${doc.source.fileName}: エンティティ型「${t.type}」が複数のレジストリで宣言されています"
+                }
+            }
+        }
+        // 強制スイッチ（R21-01。§4.31）: レジストリ文書の enforcement 節を集約する。
+        // 同一キーの重複宣言は relation name 重複と同じ流儀でロードエラー
+        var enforcement = EnforcementDef()
+        linked.filter { it.kind == SchemaKind.RELATIONS }.forEach { doc ->
+            val e = doc.enforcement ?: return@forEach
+            e.undeclaredRelation?.let { v ->
+                if (enforcement.undeclaredRelation != null) {
+                    errors += "${doc.source.fileName}: enforcement.undeclaredRelation が複数のレジストリで宣言されています"
+                } else enforcement = enforcement.copy(undeclaredRelation = v)
+            }
+            e.definingUniqueness?.let { v ->
+                if (enforcement.definingUniqueness != null) {
+                    errors += "${doc.source.fileName}: enforcement.definingUniqueness が複数のレジストリで宣言されています"
+                } else enforcement = enforcement.copy(definingUniqueness = v)
+            }
+        }
+        return LoadResult(result, errors, registry, enforcement, typeRegistry)
     }
 
     /** スキーマの ref フィールドが宣言する関係種別（relation）を収集する（未宣言 relation の lint 用）。 */
@@ -808,6 +895,10 @@ object SchemaLoader {
         require(entities.isEmpty() || kind == SchemaKind.DOCUMENT) { "entity は kind: ${kind.id} には定義できません" }
         require(kind == SchemaKind.RELATIONS || raw["relations"] == null) { "relations は kind: relations の文書でのみ定義できます" }
         val relations = if (kind == SchemaKind.RELATIONS) parseRelations(raw["relations"]) else emptyList()
+        require(kind == SchemaKind.RELATIONS || raw["entities"] == null) { "entities は kind: relations の文書でのみ定義できます" }
+        val entityTypes = if (kind == SchemaKind.RELATIONS) parseEntityTypes(raw["entities"]) else emptyList()
+        require(kind == SchemaKind.RELATIONS || raw["enforcement"] == null) { "enforcement は kind: relations の文書でのみ定義できます" }
+        val enforcement = if (kind == SchemaKind.RELATIONS) parseEnforcement(raw["enforcement"]) else null
         val match = raw["match"]?.toString()
             ?: if (kind == SchemaKind.DOCUMENT && derive == null) "**/*.{yaml,yml}" else ""
         val definitions = (raw["definitions"] as? Map<*, *>)?.entries?.associate { (name, value) ->
@@ -826,6 +917,11 @@ object SchemaLoader {
         }
         val coverage = parseCoverage(raw["coverage"])
         val consistency = parseConsistency(raw["consistency"])
+        // パターン制約（R22-03。ARCHITECTURE §4.32）: パースはクエリコア（schema/Query.kt）と共用
+        val constraints = (raw["constraints"])?.let { rawList ->
+            val list = rawList as? List<*> ?: error("constraintsはリストである必要があります")
+            list.mapIndexed { i, entry -> ConstraintRule.parse(entry, "constraints[$i]") }
+        } ?: emptyList()
         val phases = parsePhases(raw["phases"])
         val parsed = SchemaDef(
             id = id,
@@ -836,9 +932,12 @@ object SchemaLoader {
             definitions = definitions,
             coverage = coverage,
             consistency = consistency,
+            constraints = constraints,
             phases = phases,
             entities = entities,
             relations = relations,
+            entityTypes = entityTypes,
+            enforcement = enforcement,
             source = source,
             kind = kind,
             derive = derive,
@@ -888,20 +987,54 @@ object SchemaLoader {
         )
     }
 
-    /** エンティティ型宣言（R20-01）のパース。単一 object または複数型のリスト（idPattern で判別）。 */
+    /** エンティティ型宣言（R20-01 / R23-01）のパース。単一 object または複数型のリスト（idPattern で判別）。 */
     private fun parseEntities(raw: Any?): List<EntityDecl> {
         if (raw == null) return emptyList()
         fun one(m: Any?, where: String): EntityDecl {
-            val map = m as? Map<*, *> ?: error("$where は object（type / idPattern / defines）である必要があります")
+            val map = m as? Map<*, *> ?: error("$where は object（type / idPattern / defines / aspect / owns）である必要があります")
+            val owns = when (val o = map["owns"]) {
+                null -> null
+                is List<*> -> o.map { it.toString() }
+                else -> error("$where.owns は所有フィールドキーのリストである必要があります")
+            }
             return EntityDecl(
                 type = map["type"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.type（エンティティ型名）が必要です"),
                 idPattern = map["idPattern"]?.toString()?.takeIf { it.isNotBlank() },
                 defines = (map["defines"] as? Boolean) ?: false,
+                aspect = map["aspect"]?.toString()?.takeIf { it.isNotBlank() },
+                owns = owns,
             )
         }
         return when (raw) {
             is List<*> -> raw.mapIndexed { i, e -> one(e, "entity[$i]") }
             else -> listOf(one(raw, "entity"))
+        }
+    }
+
+    /** エンティティ型のレジストリ宣言（R23-01。ARCHITECTURE §4.33）のパース。`entities:` 節。 */
+    private fun parseEntityTypes(raw: Any?): List<EntityTypeDef> {
+        if (raw == null) return emptyList()
+        val list = raw as? List<*> ?: error("entities はリストである必要があります")
+        return list.mapIndexed { i, e ->
+            val m = e as? Map<*, *> ?: error("entities[$i] は object（type / label / description / aspects）である必要があります")
+            val aspects = when (val a = m["aspects"]) {
+                null -> emptyList()
+                is List<*> -> a.mapIndexed { j, entry ->
+                    val am = entry as? Map<*, *> ?: error("entities[$i].aspects[$j] は object（name / label）である必要があります")
+                    AspectDecl(
+                        name = am["name"]?.toString()?.takeIf { it.isNotBlank() }
+                            ?: error("entities[$i].aspects[$j].name（アスペクト名）が必要です"),
+                        label = am["label"]?.toString(),
+                    )
+                }
+                else -> error("entities[$i].aspects はリストである必要があります")
+            }
+            EntityTypeDef(
+                type = m["type"]?.toString()?.takeIf { it.isNotBlank() } ?: error("entities[$i].type（エンティティ型名）が必要です"),
+                label = m["label"]?.toString(),
+                description = m["description"]?.toString(),
+                aspects = aspects,
+            )
         }
     }
 
@@ -931,9 +1064,31 @@ object SchemaLoader {
                     )
                 },
                 acyclic = (m["acyclic"] as? Boolean) ?: false,
+                level = m["level"]?.toString()?.let { v ->
+                    CoverageLevel.entries.firstOrNull { it.id == v }
+                        ?: error("relations[$i].level は warning / error のいずれかである必要があります: $v")
+                } ?: CoverageLevel.WARNING,
                 description = m["description"]?.toString(),
             )
         }
+    }
+
+    /** 強制スイッチ（R21-01。ARCHITECTURE §4.31）のパース。各キーは3値（未宣言＝null / warning / error）。 */
+    private fun parseEnforcement(raw: Any?): EnforcementDef? {
+        if (raw == null) return null
+        val m = raw as? Map<*, *> ?: error("enforcement は object である必要があります")
+        val known = setOf("undeclaredRelation", "definingUniqueness")
+        m.keys.map { it.toString() }.firstOrNull { it !in known }?.let {
+            error("enforcement の未知のキーです: $it（使用可能: ${known.joinToString(" / ")}）")
+        }
+        fun level(key: String): CoverageLevel? = m[key]?.toString()?.let { v ->
+            CoverageLevel.entries.firstOrNull { it.id == v }
+                ?: error("enforcement.$key は warning / error のいずれかである必要があります: $v")
+        }
+        return EnforcementDef(
+            undeclaredRelation = level("undeclaredRelation"),
+            definingUniqueness = level("definingUniqueness"),
+        )
     }
 
     private fun parsePhases(raw: Any?): PhasesDef? = when (raw) {
@@ -1109,6 +1264,10 @@ object SchemaLoader {
                 documentIds = stringList("documentIds"),
             ),
             relation = m["relation"]?.toString(),
+            refTarget = m["target"]?.let {
+                require(type == FieldType.REF) { "target（参照対象種別）は type: ref のフィールドでのみ定義できます" }
+                RefTarget.parse(it.toString())
+            } ?: RefTarget.ENTITY,
             minLength = (m["minLength"] as? Number)?.toInt(),
             maxLength = (m["maxLength"] as? Number)?.toInt(),
             pattern = m["pattern"]?.toString(),

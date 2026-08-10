@@ -163,6 +163,12 @@ class AppState {
     /** 関係レジストリ（R20-02）: relation 名 → 宣言。バックリンク表示面が label / inverseLabel の解決に使う。 */
     var relations by mutableStateOf<Map<String, schema.RelationDef>>(emptyMap())
         private set
+    /** 強制スイッチ（R21-01）: グラフ整合検証の enforcement。検証呼び出しが relations と対で渡す。 */
+    var enforcement by mutableStateOf(schema.EnforcementDef())
+        private set
+    /** エンティティ型レジストリ（R23-01。§4.33）: 型の表示名・アスペクト順序。エンティティページ・レンズが使う。 */
+    var entityTypes by mutableStateOf<Map<String, schema.EntityTypeDef>>(emptyMap())
+        private set
     var yamlFiles by mutableStateOf<List<Path>>(emptyList())
         private set
     var directories by mutableStateOf<List<Path>>(emptyList())
@@ -284,6 +290,22 @@ class AppState {
         syncSpaceFromView()
     }
 
+    /**
+     * グラフレンズ（R23-03。ARCHITECTURE §4.33）の起点ID。null = 起点なし（型・relation で絞る全体表示）。
+     * レンズ画面側で解除・変更できる（NavLocation には含めない＝復元はビュー位置まで）。
+     */
+    var lensOriginId by mutableStateOf<String?>(null)
+
+    /** グラフレンズを開く（id 指定時はそのIDの近傍モード。移動として履歴に積む）。 */
+    fun openGraphLens(id: String? = null) {
+        val arriving = workspaceView != 2 || uiSpace != UiSpace.LEDGER
+        val idChanges = id != null && lensOriginId != id
+        if (arriving || idChanges) pushBack(currentLocation())
+        if (id != null) lensOriginId = id
+        workspaceView = 2
+        syncSpaceFromView()
+    }
+
     /** ビューグリッドで選択中のビューID。 */
     var viewGridId by mutableStateOf<String?>(null)
 
@@ -357,6 +379,8 @@ class AppState {
         schemas = cw.schemas
         schemaErrors = cw.schemaErrors
         relations = cw.relations
+        enforcement = cw.enforcement
+        entityTypes = cw.entityTypes
         yamlFiles = cw.files
         // 台帳外のエディタ層ファイル（R13-04）。ledger 宣言が無ければ走査対象と一致するため空になる
         editorOnlyFiles = if (cw.layout.ledger.isEmpty()) emptyList()
@@ -602,6 +626,41 @@ class AppState {
         file
     }
 
+    /**
+     * エンティティ改名のプレビュー（R21-02。ARCHITECTURE §4.31）: 全出現・全参照を書き換える
+     * 変更セットを生成する（適用しない）。索引＝保存済み状態が基準のため、未保存編集は適用前に保存する。
+     */
+    fun planEntityRename(oldId: String, newId: String): Result<core.EntityOps.Plan> = runCatching {
+        core.EntityOps.rename(coreWs ?: error("ワークスペースが開かれていません"), oldId, newId)
+    }
+
+    /** エンティティ統合のプレビュー（R21-02。入口はエンティティページの操作メニュー。R23-02）。 */
+    fun planEntityMerge(fromId: String, intoId: String, deleteOccurrences: Boolean): Result<core.EntityOps.Plan> =
+        runCatching {
+            core.EntityOps.merge(
+                coreWs ?: error("ワークスペースが開かれていません"), fromId, intoId,
+                if (deleteOccurrences) core.EntityOps.MergeMode.DELETE else core.EntityOps.MergeMode.RETAIN,
+            )
+        }
+
+    /** エンティティ削除のプレビュー（R21-02。入次数が残っていれば生成段階で拒否される）。 */
+    fun planEntityDelete(id: String): Result<core.EntityOps.Plan> = runCatching {
+        core.EntityOps.delete(coreWs ?: error("ワークスペースが開かれていません"), id)
+    }
+
+    /** エンティティ操作の変更セットを適用する（対象に未保存編集があれば拒否。適用後に再読込）。 */
+    fun applyEntityPlan(plan: core.EntityOps.Plan): Result<Unit> = runCatching {
+        val cw = coreWs ?: error("ワークスペースが開かれていません")
+        val files = plan.changeSet.changes.map { cw.resolve(it.file) }
+        require(files.none { docCache[it]?.dirty == true }) { "対象に未保存の変更があります。先に保存してください" }
+        val result = cw.apply(plan.changeSet)
+        require(result.ok) {
+            result.results.firstOrNull { it.message != null }?.let { "${it.file}: ${it.message}" } ?: "適用に失敗しました"
+        }
+        reload()
+        status = "エンティティ操作を適用しました（${plan.changeSet.changes.size} ファイル）"
+    }
+
     fun createDirectory(parent: Path, name: String): Result<Path> = runCatching {
         require(name.isNotBlank() && '/' !in name && '\\' !in name) { "使用できない名前です" }
         Files.createDirectory(parent.resolve(name.trim())).also { reload() }
@@ -636,8 +695,11 @@ class AppState {
     fun addViewRowFile(view: core.ViewDef, id: String): Result<Path> = runCatching {
         val pattern = view.newRow?.filePattern ?: error("このビューの newRow はファイルモードではありません")
         val trimmed = id.trim()
-        require(idMatchesPattern(trimmed, view.rows.idPattern)) {
-            "ID「$trimmed」はこのビューの行になりません（idPattern: ${view.rows.idPattern}）"
+        // クエリ行（rows: match。R22-02）では行の成立がパターン照合に依存するため、ID形式の事前検査は行わない
+        view.rows?.let { rowsDef ->
+            require(idMatchesPattern(trimmed, rowsDef.idPattern)) {
+                "ID「$trimmed」はこのビューの行になりません（idPattern: ${rowsDef.idPattern}）"
+            }
         }
         index.entries[trimmed]?.firstOrNull()?.let {
             error("ID「$trimmed」は既に存在します: ${relPath(it.file)}")
@@ -692,6 +754,28 @@ class AppState {
         def.path + (seq.items.size - 1)
     }
 
+    /** YAMLファイルとして DocMove（R21-03）の対象か（台帳内・ディレクトリ以外）。 */
+    private fun isMovableYaml(path: Path): Boolean {
+        val name = path.fileName.toString()
+        return !Files.isDirectory(path) && (name.endsWith(".yaml") || name.endsWith(".yml")) && isIndexed(path)
+    }
+
+    /**
+     * 改名の影響プレビュー（R21-03。ARCHITECTURE §4.31）: パスID文書参照の書き換え・スキーマ match の
+     * 変化・ビュー定義の対象外れを、実行前にダイアログへ表示するための1行リスト。
+     */
+    fun renameImpact(path: Path, newName: String): List<String> {
+        val cw = coreWs ?: return emptyList()
+        val trimmed = newName.trim()
+        if (trimmed.isBlank() || '/' in trimmed || '\\' in trimmed || !isMovableYaml(path)) return emptyList()
+        val target = path.resolveSibling(trimmed)
+        if (Files.exists(target)) return emptyList()
+        return runCatching {
+            val plan = core.DocMove.plan(cw, relPath(path), relPath(target))
+            plan.notes + plan.warnings.map { "注意: $it" }
+        }.getOrDefault(emptyList())
+    }
+
     fun renamePath(path: Path, newName: String): Result<Path> = runCatching {
         require(newName.isNotBlank() && '/' !in newName && '\\' !in newName) { "使用できない名前です" }
         require(docCache.filterKeys { it == path || it.startsWith(path) }.values.none { it.dirty }) {
@@ -699,7 +783,13 @@ class AppState {
         }
         val target = path.resolveSibling(newName.trim())
         require(!Files.exists(target)) { "同名の項目が存在します" }
-        Files.move(path, target)
+        val cw = coreWs
+        if (cw != null && isMovableYaml(path)) {
+            // ファイル移動の一級化（R21-03）: パスID文書参照の書き換えと物理移動を合成する
+            core.DocMove.execute(cw, core.DocMove.plan(cw, relPath(path), relPath(target)))
+        } else {
+            Files.move(path, target)
+        }
         recentFiles = recentFiles.map { recent ->
             if (recent == path) target else if (recent.startsWith(path)) target.resolve(path.relativize(recent)) else recent
         }

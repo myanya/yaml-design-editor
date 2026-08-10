@@ -144,14 +144,14 @@ enum class ContextWhen(val id: String) {
  * 対象値に連動）を書ける。実行時に解決できないプレースホルダが残る項目は開示から除外される（Kernel 側）。
  */
 data class ContextItemDef(
-    val kind: String,                        // catalog / phase / view / doc / related / sample / graph
+    val kind: String,                        // catalog / phase / view / doc / related / entity / sample / graph
     val match: String? = null,               // catalog / phase: 対象ファイル glob（phase 省略時は target.match）
     val view: String? = null,                // view: ビューID
     val rows: String? = null,                // view: 行IDの絞り込みパターン（プレースホルダ可）
     val columns: List<String> = emptyList(), // view: 列ラベルの絞り込み（空 = 全列）
     val file: String? = null,                // doc: ワークスペース相対パス（プレースホルダ可）
     val path: String? = null,                // doc: YPath（省略時は文書全体）
-    val id: String? = null,                  // related: 論理ID（プレースホルダ可）
+    val id: String? = null,                  // related / entity: 論理ID（プレースホルダ可）
     val schema: String? = null,              // sample: スキーマID
     val count: Int = 1,                      // sample: 件数
     val start: String? = null,               // graph: トラバース起点ID（プレースホルダ可）
@@ -342,16 +342,16 @@ object Definitions {
     private fun parseContextItem(element: Any?, index: Int): ContextItemDef {
         val m = element as? Map<*, *> ?: error("context.items[$index] はobjectである必要があります")
         val kind = m["kind"]?.toString()?.takeIf { it.isNotBlank() }
-            ?: error("context.items[$index] に kind が必要です（catalog / phase / view / doc / related / sample / graph）")
+            ?: error("context.items[$index] に kind が必要です（catalog / phase / view / doc / related / entity / sample / graph）")
         val common = setOf("kind", "when", "budgetChars")
         val allowed = when (kind) {
             "catalog", "phase" -> common + "match"
             "view" -> common + setOf("view", "rows", "columns")
             "doc" -> common + setOf("file", "path")
-            "related" -> common + "id"
+            "related", "entity" -> common + "id"
             "sample" -> common + setOf("schema", "count")
             "graph" -> common + setOf("start", "steps")
-            else -> error("context.items[$index]: 未知の kind です: $kind（catalog / phase / view / doc / related / sample / graph）")
+            else -> error("context.items[$index]: 未知の kind です: $kind（catalog / phase / view / doc / related / entity / sample / graph）")
         }
         m.keys.map { it.toString() }.firstOrNull { it !in allowed }?.let {
             error("context.items[$index]: kind: $kind では「$it」は使えません（使えるキー: ${allowed.joinToString(", ")}）")
@@ -382,6 +382,7 @@ object Definitions {
             "view" -> require(def.view != null) { "context.items[$index]: kind: view には view（ビューID）が必要です" }
             "doc" -> require(def.file != null) { "context.items[$index]: kind: doc には file が必要です" }
             "related" -> require(def.id != null) { "context.items[$index]: kind: related には id が必要です" }
+            "entity" -> require(def.id != null) { "context.items[$index]: kind: entity には id（論理ID）が必要です" }
             "sample" -> require(def.schema != null) { "context.items[$index]: kind: sample には schema が必要です" }
             "graph" -> {
                 require(def.start != null) { "context.items[$index]: kind: graph には start（起点ID）が必要です" }
@@ -407,6 +408,7 @@ object Definitions {
             ForeachSource.SEARCH -> setOf("source", "text", "pathGlob", "refTo", "unresolved", "match", "schemaIds", "as", "limit")
             ForeachSource.FILES -> setOf("source", "match", "as", "limit")
             ForeachSource.IDS -> setOf("source", "idPattern", "schemaIds", "as", "limit")
+            ForeachSource.QUERY -> setOf("source", "query", "as", "limit")
         }
         raw.keys.map { it.toString() }.firstOrNull { it !in allowedKeys }?.let {
             error("foreach: source: ${source.id} では「$it」は使えません（使えるキー: ${allowedKeys.joinToString(", ")}）")
@@ -429,6 +431,8 @@ object Definitions {
             pathGlob = raw["pathGlob"]?.toString()?.takeIf { it.isNotBlank() },
             refTo = raw["refTo"]?.toString()?.takeIf { it.isNotBlank() },
             unresolved = raw["unresolved"] as? Boolean ?: false,
+            // パターン照合の列挙（R22-02）: スペックのパースはクエリコアと共用（schema/Query.kt）
+            query = (raw["query"] as? Map<*, *>)?.let { schema.QuerySpec.parse(it, "foreach.query") },
             asTemplate = raw["as"]?.toString()?.takeIf { it.isNotBlank() },
             limit = limit,
         )
@@ -440,6 +444,10 @@ object Definitions {
                 def.text != null || def.refTo != null || def.unresolved || def.pathGlob != null ||
                     def.match != null || def.schemaIds.isNotEmpty()
             ) { "foreach: source: search には検索条件（text / pathGlob / refTo / unresolved / match / schemaIds）が1つ以上必要です" }
+            ForeachSource.QUERY -> {
+                require(def.query != null) { "foreach: source: query には query（match の連鎖）が必要です" }
+                require(def.query.binds.isNotEmpty()) { "foreach.query の match には bind（束縛名）が1つ以上必要です" }
+            }
             ForeachSource.ISSUES -> Unit
         }
         return def
