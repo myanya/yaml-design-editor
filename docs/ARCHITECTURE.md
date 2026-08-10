@@ -274,6 +274,7 @@ definition 参照とリント（R14-02）に固有の不変条件:
 - **HttpClient は `AiHttp` だけが生成する**: プロキシ（SYSTEM=システム設定尊重が既定 / DIRECT / MANUAL）と Basic 認証はここで一元管理する。プロキシパスワードはAPIキーと同様メモリのみ（永続化しない）。JDKが既定で無効化しているHTTPSトンネル（CONNECT）のBasic認証は `AiHttp` の初期化で許可する（`jdk.http.auth.tunneling.disabledSchemes`）。新しいAI呼び出しを書くときは独自に HttpClient を作らず `AiHttp.post` を使う。
 - **OpenAI互換の接続先は `AiConnection` が解決する**: 「ベースURL・認証ヘッダ形式・APIバージョン」のパラメタ化で、公式 OpenAI（Bearer）・Azure OpenAI / AI Foundry（`api-key` ヘッダ＋エンドポイント＋デプロイメント名=モデル欄）・ollama / vLLM 等の互換エンドポイント（ベースURL上書き）を同一クライアント実装（`OpenAiGenerator` / `OpenAiToolSession`）で扱う。接続先の分岐をクライアント側に書かない。
 - **設定の永続化はUI層**: エンドポイント・APIバージョン・プロキシ設定は `ui/AiSettings` が Preferences へ保存し、実効値を `AiConnection` / `AiHttp` へ書き通す。CLI・ヘッドレス経路は環境変数（`AZURE_OPENAI_ENDPOINT` / `AZURE_OPENAI_API_VERSION` / `OPENAI_BASE_URL`）が初期値になる。
+- **一時エラーの自動リトライは送信経路に一元化する（R18-04）**: `AiHttp.post` は 408 / 429 / 5xx を `retry-after` ヘッダ（なければ指数バックオフ 2s→4s→8s＋ジッタ、上限60秒/回・3回）で待機して再送する。マルチターンのツールループが途中ターンの 429 で丸ごと失敗する（＝それまでの消費トークンが無駄になり、キュー再試行がレート制限をさらに悪化させる）ことを防ぐのが狙い。待機は `delay` ベースのため実行キャンセル（stopAll）で即中断される。判定・待機計算は純粋関数（`isRetryable` / `retryDelayMillis` / `retryLoop`）で、テストは送信台本と待機記録の注入で実時間なしに検証する（`HttpTest`）。呼び出し側（`ToolChat` / 各 Generator）でリトライを書かない。
 
 ### 4.19 AI生成のカーネル統合（P9: R9-01）
 
@@ -372,7 +373,48 @@ UI層（app）を「Compose購読のシェル」に純化し、ロジックを c
 - **テンプレート健全性はソース文書側の指摘（UX-12）**: いずれかのスキーマの整合ルールが `expected.source` にこの文書を選んでいるとき、この文書のID要素のテンプレート（`expected.path` の値）のプレースホルダが「自要素＋`values` で選んだ同一IDの出現＋同一IDの他出現」から解決できなければ、**テンプレートの座標に WARNING** を出す（書いたその場で気づける。編集中ツリーで判定されるため未保存でも出る）。lookup 起点（対象要素）由来のプレースホルダは静的に判定できないため、この検査で誤検知しうる場合はルール側の設計を見直す。
 - **整合判定は注入された索引・loader 基準**: 期待値の材料（他文書のツリー）は loader（既定はディスク）で読む。UIはオーバーレイ索引＋未保存優先 loader（UX-03。§4.5）、変更セット適用・ステージングは適用後オーバーレイを渡すため、それぞれ「見たままの状態」「適用後の状態」で判定される。
 
-### 4.27 エラー処理
+### 4.27 一括実行（foreach: 対象列挙とキュー展開。R18-01）
+
+「1実行=1文書」のアクティビティを保ったまま、同一アクティビティを対象違いで連続実行する機構。3つの関心事を分離する:
+
+- **列挙は機械が行う**: 何が「残作業」かはアクティビティ定義の `foreach` 宣言（`agent/Foreach.kt`）が、ワークスペースの照会機構から決定的に列挙する。列挙元は `view`（横断グリッドの行。`where: detail-missing` = 詳細未作成の行）/ `issues`（検証の指摘）/ `search`（検索述語 = `core/Search` と同語彙）/ `files`（glob）/ `ids`（idPattern×schemaIds）の5種。**「次の対象選び」をLLMに委ねない**（決定性とコストのため）。files / issues の列挙は予約ディレクトリを対象にしない。
+- **実行は既存のアクティビティのまま**: 展開された各項目は「対象を明示した追加指示」（`as` テンプレート。プレースホルダ `{id}` `{title}` `{file}` `{path}` `{message}` 等）を注入した通常の実行になる。ステージング・権限・ゲート・承認の仕組みは一切変えない。
+- **編成はキューが行う**: `AutomationEngine.enqueueForeach` が起動時に**1回だけ**列挙し、`QueueItem.targetKey`（アクティビティ×対象キー）付きで直列キューへ積む。重複ガードは targetKey 単位（同一対象の二重投入だけを防ぎ、対象違いは並べられる）。項目の失敗は既存のリトライ・収束打ち切りで隔離され、後続の項目を塞がない。履歴には `[対象キー]` を前置して項目単位で追える。
+
+収束と暴走防止の規約:
+
+- **展開は起動時1回・`limit`（既定20）で上限**。実行中に対象が増えても追いかけない（再投入は人間の再操作）。繰り返し投入して収束するのは「完了した項目が次回の列挙に現れない」列挙条件のとき（view の詳細未作成・issues の指摘解消はこの性質を自然に持つ。files / ids は毎回同じ集合を返すため反復投入には向かない）。
+- **`trigger: manual` 専用**（パースで強制）: 自動起動（トリガ・連鎖）からの展開は、契機・承認・再発火の設計（BACKLOG T-01）と絡むため導入していない。連鎖で foreach アクティビティへ遷移した場合は従来どおり単発実行になる。
+- CLI は `agent --foreach` が同じ列挙を直列に回す（`--apply` 併用時は1件ごとに適用し、後続の項目から先行の成果が見える）。GUI は手動実行タブの「一括実行（対象を選択）」が列挙結果（`previewForeach`）をチェックボックス一覧で提示し、選択分だけを投入する（`enqueueForeachItems`）。一覧はモーダルではなく SELECT ステージ内のインライン区画で、選択状態は `RunController` が保持する（§4.24）。
+- 将来の一般化（検証指摘へのアクティビティ紐付け＝ゴール駆動、プラン/ワークフロー層）は BACKLOG（UX-59・T-02）で管理する。列挙源に `issues` を最初から含めてあるのは、この合流先（UX-04 の指摘→アクション紐付け）と土台を共有するため。
+
+### 4.28 コンテキスト会計（R19-01）
+
+P19（コンテキストエンジニアリングの一級化）の計測基盤。「どの宣言がいくらトークンを払わせたか」を実行記録から機械取得できるようにし、コンテキストレシピのチューニングを勘でなくデータで行う。
+
+- **区分の単位**: 初期コンテキストは `AgentKernel.initialContextSections`（`ContextSection(label, body)` のリスト）で組み立て、送信文字列はその合成（書式は従来と同一）。会計は「システム指示」「ツール定義」「指示」＋ `context` 宣言由来の各セクション（カタログ・フェーズ状態・ビュー）を `ContextSectionStat(section, chars, tokensEst)` として記録する。
+- **概算と実測の両建て**: `estimateTokens`（ASCII 4文字≒1・非ASCII 1文字≒1の目安）はセクション別に出せるが実測ではない。実測はAPI報告の送信別入力トークン（`turnInputTokens`。時系列）で持つ——全履歴再送のため単調増加が正常で、急増はツール結果の肥大を示す。両者は相互補完（見積り=内訳、実測=総額）。delegate（相談）の消費は従来どおり合算のみでターン別には含めない。
+- **キャッシュの正規化**: `ChatUsage.cachedInputTokens` は「入力トークンの内数」。OpenAI は `input_tokens_details.cached_tokens`（input_tokens の内数）をそのまま使い、Anthropic は `input_tokens` がキャッシュ分を**含まない**ため `input_tokens + cache_read + cache_creation` を総入力へ正規化したうえで `cache_read` を内数として持つ。**予算判定（`limits.maxTokens`）は総入力基準を維持**する（キャッシュ割引は課金の問題であり、暴走防止の予算とは別物——R19-07 実装時に確定した判断）。
+- **prompt caching（R19-07）**: Anthropic 経路は `AnthropicToolSession.buildRequestBody` が `cache_control`（ephemeral）の切れ目を①system ②ツール定義の末尾 ③最新メッセージの末尾ブロックに自動配置する。③は毎ターン前進する切れ目で、2ターン目以降は再送プレフィクス全体（system・ツール・初期コンテキスト・過去の会話）がキャッシュ読取になる。保持中の履歴は変更せず送信時の複製にだけ印を付ける。トラバース・レシピの決定的出力の規約は、このプレフィクス安定性を壊さないための前提でもある。
+- **実行記録の形式**: `_runs` に `usage.cachedInputTokens`（>0 のときのみ）・`context.sections`（section / chars / tokensEst）・`context.turnInputTokens`・`toolCalls[].resultChars`（打切り前の全長）を追加。集計（`RunMetrics`）は cachedInputTokens を合算する（実行記録の形式を変えたら RunLog / RunMetrics を対で直す規約どおり）。
+
+**コンテキストレシピ（R19-02）**: 初期コンテキストの「指示」以降は、アクティビティ定義の `context.items`（`ContextItemDef`）が宣言順に決める。旧語彙（`context.include` / `context.views`）は**破壊的に廃止**（移行ヒント付き定義エラー）、無指定の既定は**空**（カタログも明示宣言制）。
+
+- **項目の種類**: `catalog`（match 絞り）／`phase`（match。省略時 target.match）／`view`（rows=行IDパターン・columns=列ラベル選別。横断グリッドのみ）／`doc`（file / path）／`related`（id）／`sample`（schema / count＝同スキーマの既存文書を記述例として開示）。解決は `AgentToolbox.contextItemSection` に一元化（探索ツールと同じオーバーレイ経路）。
+- **プレースホルダ**: 文字列パラメータ（rows / file / path / id）の `{name}` は `AgentRunRequest.targetValues` で解決する。値の供給源は foreach の候補値（`ForeachItem.values`。`{target}` は id ＞ file ＞ key の優先で常に含まれる）で、キュー（`QueueItem.targetValues`）・CLI 経由で伝搬する。**解決できないプレースホルダが残る項目は開示しない**（部分置換の文字列を送らない。決定性優先）。
+- **開示条件 `when`**: `has-target`＝対象指定あり（targetValues 非空**または**追加指示あり）／`no-target`＝その否定／`always`（既定）。「対象が指定された実行では全量ビューを載せない」を宣言で表現する器。
+- **予算 `budgetChars`**: 超過は決定的打切り（「…（予算 n 文字で打切り）」）。全文系（doc / related / sample）は無指定でも既定8,000字を掛ける。切り方が決定的なのは prompt caching・再現性のため（トラバース（R19-03）と同じ規約）。
+- **解決失敗の扱い**: 例外（ビュー不在等）は「（コンテキスト項目を解決できません: …）」を本文として開示する——エージェントと会計の両方から見える。未解決プレースホルダだけが黙ってスキップされる（対象なし実行での {target} 項目は「失敗」ではないため)。
+
+**グラフトラバース（R19-03/04）**: ID索引を型付きグラフ（ノード＝論理ID・出現＝多段定義、エッジ＝`RefEntry`）と見て、宣言的な**経路パターン**で多段に辿る評価器 `core/Traverse`。消費者はレシピ `graph:` 項目（実行前の決定的プリフェッチ・`{target}` 連動）／エージェントツール `traverse`（実行中のオンデマンド多段取得）／CLI `traverse`（レシピの試作台）の3面で、評価器は1実装に閉じる。
+
+- **語彙**: `start`（起点ID）＋ `steps` の連鎖。各ステップは `follow: out / in`（先頭のみ省略可＝起点自身の開示）で移動し、`relation`・`via`（参照キー名）・`schema`（到達ノードの出現スキーマ）でエッジ・到達先を絞り、到達ノードを `emit: title / summary / outline / full`（段階的開示の4階層を出力粒度に流用）で開示する。**steps は連鎖**（各ステップは前ステップの到達ノードから辿る）——「起点の out と in の両方」は2項目に分けて書く。任意クエリ言語は導入しない（P16 の規律）。
+- **決定性**: フロンティアはID昇順の安定ソート・`limitPerHop`（既定10）超過は「他n件」・訪問済みIDへは戻らない（循環停止）・`budgetChars`（既定8,000）超過は決定的打切り。出力が決定的なのは prompt caching・再現性・テスト容易性のため。
+- **1ホップとの役割分担**: `related` は「1つのIDの周辺全部（出現・参照・被参照）」の定型ビュー、`traverse` は「経路を指定した多段の取得」（例: 対象機能 → actor 参照 → アクター定義の全文／このIDを derives で参照するテーブル定義の一覧＝影響分析）。
+
+**参照の名前解決とツール減量（R19-05）**: 会計の実測で「支配的コストは初期コンテキストからターン数×履歴膨張へ移った」ことを受けた対処。ID解決のためだけの read_node ターンを消すため、表示解決（S-13 `IdEntry.title`）を機械出力へ拡張する——read_node／doc 項目の「参照の解決」フッタ（`AgentToolbox.refsFooterText`: ノード配下の参照を `ID = タイトル [定義元]` で列挙・未解決も明示・上位30件）、related の参照先タイトル付与、ビュー renderText の ref 値注記（`Views.refAnnotatedCellText`: 索引でタイトル解決できるIDだけ注記し、ただの文字列配列には触れない）。履歴膨張の抑制は、related の被参照既定20件打切り（`limit` 引数）・read_view の `rows`／`columns` 引数・list_documents の `match` 引数で行う。いずれも**注記は括弧・フッタに閉じ、値そのものはIDのまま**（パッチにはIDだけを書く前提を崩さない）。
+
+### 4.29 エラー処理
 
 - ファイルI/O・パースは `runCatching` で受け、ユーザー操作の結果は `Result` を返して呼び出し側（UI）が `state.status` に反映する。
 - 入力検証の失敗は `require(...) { "日本語メッセージ" }`、内部異常は `error("日本語メッセージ")`。メッセージはそのままUIに表示される前提で書く。

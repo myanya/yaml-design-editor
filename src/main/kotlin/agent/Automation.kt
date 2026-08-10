@@ -50,7 +50,20 @@ class AutomationEngine(
         val chainDepth: Int = 0,
         val visited: Set<String> = emptySet(),
         val lastFailure: String? = null,
+        /**
+         * 一括実行（foreach。R18-01）の対象キー。非null のとき重複ガードは
+         * （アクティビティ×対象）単位になり、同一アクティビティを対象違いで複数積める。
+         */
+        val targetKey: String? = null,
+        /** foreach 対象のプレースホルダ値（コンテキストレシピの解決に渡す。R19-02）。 */
+        val targetValues: Map<String, String> = emptyMap(),
     )
+
+    /** 一括投入（enqueueForeach）の結果。total は投入対象の件数、enqueued は実際に積めた数。 */
+    data class ForeachExpansion(val total: Int, val enqueued: Int, val skipped: Int, val error: String? = null)
+
+    /** 一括実行の対象プレビュー（選択UI用）。items は limit で切った展開分、total は条件に一致した全件数。 */
+    data class ForeachPreviewResult(val items: List<ForeachItem>, val total: Int, val error: String? = null)
 
     /** 人間の承認待ちの実行結果。変更セットは実行記録の隣にもファイル保存される（耐久性）。 */
     class PendingReview(
@@ -74,6 +87,10 @@ class AutomationEngine(
     @Volatile
     var runningActivity: String? = null
         private set
+
+    /** 実行中項目の対象キー（一括実行の重複ガード用）。 */
+    @Volatile
+    private var runningTarget: String? = null
 
     /** UIへの更新通知（Composeのスナップショット状態を進めるために使う）。 */
     @Volatile
@@ -129,24 +146,81 @@ class AutomationEngine(
         notifyUpdate()
     }
 
-    /** 実行キューへ追加する。同一アクティビティが待機・実行中の場合は追加しない。 */
+    /**
+     * 実行キューへ追加する。重複ガード: targetKey なしは同一アクティビティが待機・実行中なら追加しない。
+     * targetKey あり（一括実行の項目）は同一（アクティビティ×対象）のときだけ追加しない。
+     */
     fun enqueue(
         activityId: String,
         reason: String,
         extraInstruction: String? = null,
         chainDepth: Int = 0,
         visited: Set<String> = emptySet(),
+        targetKey: String? = null,
+        targetValues: Map<String, String> = emptyMap(),
     ): Boolean {
         synchronized(lock) {
-            if (queue.any { it.activityId == activityId } || runningActivity == activityId) {
-                log("スキップ: $activityId は既に待機中または実行中です")
+            val duplicate =
+                if (targetKey == null) queue.any { it.activityId == activityId } || runningActivity == activityId
+                else queue.any { it.activityId == activityId && it.targetKey == targetKey } ||
+                    (runningActivity == activityId && runningTarget == targetKey)
+            if (duplicate) {
+                log("スキップ: $activityId${targetKey?.let { "（対象 $it）" } ?: ""} は既に待機中または実行中です")
                 return false
             }
-            queue.addLast(QueueItem(activityId, reason, extraInstruction, chainDepth = chainDepth, visited = visited))
+            queue.addLast(
+                QueueItem(
+                    activityId, reason, extraInstruction,
+                    chainDepth = chainDepth, visited = visited, targetKey = targetKey, targetValues = targetValues,
+                )
+            )
         }
         log("キュー追加: $activityId（$reason）")
         notifyUpdate()
         return true
+    }
+
+    /**
+     * 一括実行（foreach。R18-01）の対象列挙だけを行う（選択UI用）。
+     * 列挙はこの呼び出し時点のスナップショット——投入までに原本が変わっても追いかけない。
+     */
+    fun previewForeach(activityId: String): ForeachPreviewResult {
+        val defs = Definitions.load(dir)
+        val activity = defs.activity(activityId)
+            ?: return ForeachPreviewResult(emptyList(), 0, "アクティビティ「$activityId」が見つかりません")
+        val foreachDef = activity.foreach
+            ?: return ForeachPreviewResult(emptyList(), 0, "アクティビティ「$activityId」に foreach 定義がありません")
+        val enumeration = runCatching { Foreach.enumerate(Workspace.open(dir), foreachDef) }
+            .getOrElse { return ForeachPreviewResult(emptyList(), 0, "対象の列挙に失敗しました: ${it.message}") }
+        return ForeachPreviewResult(enumeration.items, enumeration.total)
+    }
+
+    /** 列挙済みの項目（選択後のサブセットでよい）を1件=1実行としてキューへ投入する。 */
+    fun enqueueForeachItems(activityId: String, items: List<ForeachItem>): ForeachExpansion {
+        var enqueued = 0
+        items.forEachIndexed { i, item ->
+            val added = enqueue(
+                activityId,
+                "一括 ${i + 1}/${items.size}: ${item.label}",
+                extraInstruction = item.instruction,
+                targetKey = item.key,
+                targetValues = item.values,
+            )
+            if (added) enqueued++
+        }
+        log("一括投入: $activityId — ${items.size} 件中 $enqueued 件をキューへ追加しました")
+        return ForeachExpansion(items.size, enqueued, items.size - enqueued)
+    }
+
+    /**
+     * 一括実行（foreach。R18-01): 対象を列挙し、全件をキューへ展開する（CLI・無選択の投入用）。
+     * 展開はこの呼び出し時の1回だけ（実行中の変更で対象が増えても追いかけない。再投入は再度この操作を行う）。
+     */
+    fun enqueueForeach(activityId: String): ForeachExpansion {
+        val preview = previewForeach(activityId)
+        preview.error?.let { return ForeachExpansion(0, 0, 0, it) }
+        val result = enqueueForeachItems(activityId, preview.items)
+        return ForeachExpansion(preview.total, result.enqueued, result.skipped)
     }
 
     // ---------------------------------------------------------------- トリガ（R3-01）
@@ -239,12 +313,16 @@ class AutomationEngine(
     suspend fun processOnce(): Boolean {
         val item = synchronized(lock) {
             if (runningActivity != null) return false
-            queue.removeFirstOrNull()?.also { runningActivity = it.activityId }
+            queue.removeFirstOrNull()?.also {
+                runningActivity = it.activityId
+                runningTarget = it.targetKey
+            }
         } ?: return false
         try {
             executeItem(item)
         } finally {
             runningActivity = null
+            runningTarget = null
             notifyUpdate()
         }
         return true
@@ -270,6 +348,7 @@ class AutomationEngine(
             provider = provider, model = model, apiKey = apiKey,
             extraInstruction = item.extraInstruction,
             apiKeys = creds.apiKeys, subAgents = defs.agents,
+            targetValues = item.targetValues,
         )
         log("実行開始: ${activity.id}（試行 ${item.attempt}/${activity.retry.maxAttempts}、契機: ${item.reason}）")
         val host = object : AgentHost {
@@ -292,7 +371,7 @@ class AutomationEngine(
 
         when {
             result.status == RunStatus.SUBMITTED && result.changeSet.changes.isEmpty() -> {
-                recordHistory(activity.id, "完了", "変更なし — ${result.message ?: ""}")
+                recordHistory(activity.id, "完了", "${targetPrefix(item)}変更なし — ${result.message ?: ""}")
                 chainNext(activity, item, success = true, result = result)
             }
             result.status == RunStatus.SUBMITTED && activity.approval == ApprovalMode.AUTO -> {
@@ -320,7 +399,7 @@ class AutomationEngine(
                     )
                     if (applied.ok) {
                         stamps = scanStamps()  // 自己変更で on-change を再発火させない
-                        recordHistory(activity.id, "自動適用", "${result.changeSet.changes.size} ファイル — ${result.message ?: ""}")
+                        recordHistory(activity.id, "自動適用", "${targetPrefix(item)}${result.changeSet.changes.size} ファイル — ${result.message ?: ""}")
                         chainNext(activity, item, success = true, result = result)
                     } else {
                         val why = applied.results.mapNotNull { it.message }.joinToString("; ").ifBlank { "適用に失敗しました" }
@@ -432,15 +511,18 @@ class AutomationEngine(
         )
     }
 
+    /** 一括実行の項目は履歴に対象キーを前置する（どの対象の結果かを追えるように）。 */
+    private fun targetPrefix(item: QueueItem): String = item.targetKey?.let { "[$it] " } ?: ""
+
     private fun handleFailure(activity: ActivityDef, item: QueueItem, message: String, result: AgentRunResult? = null) {
         // 収束判定: 同じ失敗を繰り返した場合は試行を打ち切る
         if (item.lastFailure != null && item.lastFailure == message) {
-            recordHistory(activity.id, "失敗", "同一の失敗を繰り返したため中断: ${message.take(200)}")
+            recordHistory(activity.id, "失敗", "${targetPrefix(item)}同一の失敗を繰り返したため中断: ${message.take(200)}")
             chainNext(activity, item, success = false, result = result)
             return
         }
         if (item.attempt < activity.retry.maxAttempts) {
-            recordHistory(activity.id, "再試行", "試行 ${item.attempt} が失敗: ${message.take(200)}")
+            recordHistory(activity.id, "再試行", "${targetPrefix(item)}試行 ${item.attempt} が失敗: ${message.take(200)}")
             val feedback = buildString {
                 item.extraInstruction?.let { appendLine(it) }
                 appendLine("前回（試行 ${item.attempt}）は失敗しました: $message")
@@ -452,7 +534,7 @@ class AutomationEngine(
             }
             notifyUpdate()
         } else {
-            recordHistory(activity.id, "失敗", message.take(300))
+            recordHistory(activity.id, "失敗", "${targetPrefix(item)}${message.take(300)}")
             chainNext(activity, item, success = false, result = result)
         }
     }

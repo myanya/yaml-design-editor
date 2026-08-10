@@ -38,7 +38,7 @@ class AgentToolbox(
     private val consultMode: Boolean = false,   // 相談モード: 読み取り専用（explore / validate のみ）
 ) {
     /** 相談モードで許可するツール名。 */
-    private val consultAllowed = setOf("list_documents", "read_outline", "read_node", "search", "related", "read_view", "validate")
+    private val consultAllowed = setOf("list_documents", "read_outline", "read_node", "search", "related", "traverse", "read_view", "validate")
     /**
      * カタログから除外するか（read_outline 等での読み取りは可）。
      * schemas / runs ゾーン・構成ファイルは常に除外。定義ゾーン（agents / activities / evals / skills / views）は
@@ -61,11 +61,13 @@ class AgentToolbox(
     fun specs(): List<ToolSpec> {
         val specs = mutableListOf<ToolSpec>()
         if (ToolGroup.EXPLORE in groups) {
-            specs += ToolSpec("list_documents", "ワークスペースの文書カタログ（ファイル・文書ID・名前・概要・スキーマ・ID数）を返す。まず全体像を掴むのに使う。", obj {})
+            specs += ToolSpec("list_documents", "ワークスペースの文書カタログ（ファイル・文書ID・名前・概要・スキーマ・ID数）を返す。まず全体像を掴むのに使う。", obj {
+                optional("match", "ファイルパスのglobで絞り込み（省略時は全文書）")
+            })
             specs += ToolSpec("read_outline", "文書の骨子（キー構造・配列件数・短い値。長文は文字数のみ）を返す。全文を読む前の構造把握に使う。", obj {
                 required("file", "ワークスペース相対パス")
             })
-            specs += ToolSpec("read_node", "指定パス配下の全文をYAMLで返す。path 省略時は文書全体。", obj {
+            specs += ToolSpec("read_node", "指定パス配下の全文をYAMLで返す。path 省略時は文書全体。末尾に配下の参照IDの解決（ID = 名前・定義元）が付くため、参照先を別途読む前にまず確認する。", obj {
                 required("file", "ワークスペース相対パス")
                 optional("path", "YPath（例 items[2].title）。省略時はルート")
             })
@@ -79,20 +81,60 @@ class AgentToolbox(
             specs += ToolSpec(
                 "related",
                 "IDの関連情報（全出現・各出現の主要項目の要約とフェーズ状態・その要素からの参照・被参照）を返す。" +
-                    "同一IDが複数文書に段階的詳細化されている場合、出現ごとに read_node を呼ばずに横断確認できる。影響分析やID串刺しレビューに使う。",
+                    "同一IDが複数文書に段階的詳細化されている場合、出現ごとに read_node を呼ばずに横断確認できる。影響分析やID串刺しレビューに使う。" +
+                    "被参照は既定で先頭20件に打切られる（全量が要るときだけ limit を増やす）。",
                 obj {
                     required("id", "論理ID")
+                    optionalInt("limit", "被参照の表示上限（既定20）")
                 },
+            )
+            val traverseSchema = buildJsonObject {
+                put("type", "object")
+                putJsonObject("properties") {
+                    putJsonObject("start") { put("type", "string"); put("description", "起点の論理ID") }
+                    putJsonObject("steps") {
+                        put("type", "array")
+                        put(
+                            "description",
+                            "経路ステップの配列（連鎖: 各ステップは前ステップの到達ノードから辿る）。follow（out=参照を辿る / in=被参照を辿る。" +
+                                "先頭のみ省略可=起点自身の開示）で移動し、到達ノードを emit（title / summary / outline / full）の粒度で開示する。" +
+                                "relation / via（参照キー名）/ schema で辿るエッジ・到達先を絞る。省略時は「起点の要約→参照先の要約」",
+                        )
+                        putJsonObject("items") {
+                            put("type", "object")
+                            putJsonObject("properties") {
+                                putJsonObject("follow") { put("type", "string"); putJsonArray("enum") { add("out"); add("in") } }
+                                putJsonObject("relation") { put("type", "string") }
+                                putJsonObject("via") { put("type", "string") }
+                                putJsonObject("schema") { put("type", "string") }
+                                putJsonObject("emit") { put("type", "string"); putJsonArray("enum") { add("title"); add("summary"); add("outline"); add("full") } }
+                                putJsonObject("limitPerHop") { put("type", "integer") }
+                            }
+                        }
+                    }
+                    putJsonObject("budgetChars") { put("type", "integer"); put("description", "出力の文字数予算（既定8000。超過は打切り）") }
+                }
+                putJsonArray("required") { add("start") }
+            }
+            specs += ToolSpec(
+                "traverse",
+                "ID関係グラフを経路パターンで多段に辿り、到達ノードをまとめて開示する（related の多段版）。" +
+                    "例:「対象の actor 参照を辿って定義の全文まで」「このIDを derives で参照するテーブル定義の一覧」。" +
+                    "related / read_node を数回連鎖させる代わりに1回で取得でき、影響分析（in 方向の多段）にも使う。",
+                traverseSchema,
             )
             specs += ToolSpec(
                 "read_view",
                 "ビュー定義（_views）を解決して返す。横断グリッドは行×列に解決し、複数文書に散らばる同一IDの情報を" +
                     "一覧で横断確認できる。各セルには原本上の座標（file :: path）が付くため、そのまま apply_patch の対象にできる。" +
+                    "全行は大きいため、目的の行が分かっているときは必ず rows / columns で絞る。" +
                     "文書ビュー（kind: document）は file で対象文書を指定し、被参照表（参照元と座標）つきで返す。" +
                     "ステージング済みの編集も反映される。view省略時は利用可能なビューの一覧を返す。",
                 obj {
                     optional("view", "ビューID（省略時は一覧）")
                     optional("file", "対象文書のワークスペース相対パス（文書ビューのみ。適用対象が1件ならば省略可）")
+                    optional("rows", "行IDの絞り込みパターン（例 USC-011-*。横断グリッドのみ）")
+                    optionalStringArray("columns", "表示する列ラベルの列挙（省略時は全列。横断グリッドのみ）")
                 },
             )
         }
@@ -178,7 +220,7 @@ class AgentToolbox(
                 val fn = delegate ?: error("このアクティビティでは委譲できません")
                 Outcome(fn(requireArg("agent"), requireArg("instruction")))
             }
-            "list_documents" -> Outcome(catalogText())
+            "list_documents" -> Outcome(catalogText(arg("match")))
             "read_outline" -> {
                 val rel = requireArg("file")
                 val root = staging.tree(rel) ?: error("ファイルが読めません: $rel")
@@ -187,7 +229,8 @@ class AgentToolbox(
             "read_node" -> {
                 val rel = requireArg("file")
                 val root = staging.tree(rel) ?: error("ファイルが読めません: $rel")
-                Outcome(Disclosure.nodeYaml(root, parseYPath(arg("path") ?: ""), maxChars = 20_000))
+                val path = parseYPath(arg("path") ?: "")
+                Outcome(Disclosure.nodeYaml(root, path, maxChars = 20_000) + refsFooterText(rel, path))
             }
             "search" -> {
                 val query = SearchQuery(
@@ -207,8 +250,24 @@ class AgentToolbox(
                     else hits.joinToString("\n") { "- ${it.file} :: ${it.path} [${it.kind}] ${it.excerpt}" }
                 )
             }
-            "related" -> Outcome(relatedText(requireArg("id")))
-            "read_view" -> Outcome(viewText(arg("view"), arg("file")))
+            "related" -> {
+                val limit = (call.arguments["limit"] as? JsonPrimitive)?.intOrNull ?: 20
+                Outcome(relatedText(requireArg("id"), backlinkLimit = limit.coerceAtLeast(1)))
+            }
+            "traverse" -> {
+                val steps = (call.arguments["steps"] as? JsonArray)
+                    ?.mapIndexed { i, e -> core.TraverseStep.parse(jsonToShallowMap(e), "steps[$i]") }
+                    ?.takeIf { it.isNotEmpty() }
+                    ?: core.TraverseSpec.DEFAULT_STEPS
+                val budget = (call.arguments["budgetChars"] as? JsonPrimitive)?.intOrNull ?: 8_000
+                Outcome(traverseText(requireArg("start"), steps, budget.coerceAtLeast(100)))
+            }
+            "read_view" -> {
+                val columns = (call.arguments["columns"] as? JsonArray)
+                    ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
+                    ?.takeIf { it.isNotEmpty() }
+                Outcome(viewText(arg("view"), arg("file"), rowsPattern = arg("rows"), columns = columns))
+            }
             "apply_patch" -> {
                 val rel = requireArg("file")
                 checkWritableFile(rel)
@@ -311,10 +370,12 @@ class AgentToolbox(
 
     // ---------------------------------------------------------------- 表示テキスト
 
-    /** カタログ（オーバーレイ反映・予約領域除外）。 */
-    fun catalogText(): String {
+    /** カタログ（オーバーレイ反映・予約領域除外）。match（glob）で対象を絞れる（R19-02）。 */
+    fun catalogText(match: String? = null): String {
+        val regex = match?.let { globToRegex(it) }
         val files = (ws.files + staging.touchedFiles().map { it.file }).distinct()
             .filter { f -> !catalogExcluded(ws.relPath(f)) }
+            .filter { f -> regex == null || regex.matches(ws.relPath(f)) }
         if (files.isEmpty()) return "（文書がありません）"
         return files.joinToString("\n") { f ->
             val rel = ws.relPath(f)
@@ -350,8 +411,9 @@ class AgentToolbox(
     /**
      * ビューの解決テキスト（read_view と初期文脈の開示で共用）。
      * 行・出現はステージングのオーバーレイ索引、セル値はステージング済みツリーから読む。
+     * rowsPattern（行IDの絞り込み）・columns（列ラベルの選別）は横断グリッドのみ（R19-02）。
      */
-    fun viewText(viewId: String?, fileRel: String? = null): String {
+    fun viewText(viewId: String?, fileRel: String? = null, rowsPattern: String? = null, columns: List<String>? = null): String {
         val loaded = core.Views.load(ws.root, ws.schemas)
         if (viewId.isNullOrBlank()) {
             if (loaded.views.isEmpty() && loaded.docViews.isEmpty()) return "（ビュー定義がありません）"
@@ -364,14 +426,19 @@ class AgentToolbox(
             return lines.joinToString("\n") +
                 (if (loaded.errors.isEmpty()) "" else "\n定義エラー:\n" + loaded.errors.joinToString("\n") { "- $it" })
         }
-        loaded.docView(viewId)?.let { return docViewText(it, fileRel) }
+        loaded.docView(viewId)?.let {
+            require(rowsPattern == null && columns == null) { "rows / columns の絞り込みは横断グリッドのビューでのみ使えます" }
+            return docViewText(it, fileRel)
+        }
         val view = loaded.view(viewId)
             ?: error(
                 "ビュー「$viewId」が見つかりません" +
                     "（利用可能: ${(loaded.views + loaded.docViews).joinToString(", ") { it.id }.ifEmpty { "なし" }}）"
             )
-        val rows = core.Views.resolve(view, ws.root, staging.index()) { f -> staging.tree(ws.relPath(f)) }
-        return core.Views.renderText(view, rows)
+        val index = staging.index()
+        val rows = core.Views.resolve(view, ws.root, index) { f -> staging.tree(ws.relPath(f)) }
+            .filter { rowsPattern == null || idMatchesPattern(it.id, rowsPattern) }
+        return core.Views.renderText(view, rows, columns, index)
     }
 
     /** 文書ビュー（R14-01）の解決テキスト。対象文書は file 指定＞適用対象が1件なら自動選択。 */
@@ -401,7 +468,114 @@ class AgentToolbox(
         return core.Views.renderDocText(view, rel, sections, attachments)
     }
 
-    private fun relatedText(id: String): String {
+    // ---------------------------------------------------------------- コンテキストレシピ（R19-02）
+
+    /** レシピ項目の会計区分名（解決失敗時のフォールバック表示にも使う）。 */
+    fun contextItemLabel(item: ContextItemDef): String = when (item.kind) {
+        "catalog" -> "ワークスペースカタログ"
+        "phase" -> "対象文書のフェーズ状態（段階的詳細化）"
+        "view" -> "ビュー: ${item.view}"
+        "doc" -> "文書: ${item.file}" + (item.path?.let { " :: $it" } ?: "")
+        "related" -> "関連情報: ${item.id}"
+        "sample" -> "記述例（schema: ${item.schema}）"
+        "graph" -> "グラフ: ${item.start}"
+        else -> item.kind
+    }
+
+    /** グラフトラバース（R19-04）。ツール・レシピ項目の双方から呼ぶ（評価器は core.Traverse の1実装）。 */
+    fun traverseText(start: String, steps: List<core.TraverseStep>, budgetChars: Int): String =
+        core.Traverse.run(
+            staging.index(),
+            relPath = { f -> ws.relPath(f) },
+            loader = { f -> staging.tree(ws.relPath(f)) },
+            spec = core.TraverseSpec(start = start, steps = steps, budgetChars = budgetChars),
+        )
+
+    /**
+     * コンテキストレシピ項目を初期コンテキストの1区分へ解決する（R19-02 / ARCHITECTURE §4.28）。
+     * プレースホルダ（{target} 等）を解決できない項目は null（開示しない）。予算（budgetChars）超過は打切り。
+     * doc / related / sample は既定でも予算8,000字を掛ける（全文系は上限なしにしない）。
+     */
+    fun contextItemSection(item: ContextItemDef, values: Map<String, String>): ContextSection? {
+        fun tpl(text: String): String? = resolveContextTemplate(text, values)
+        return when (item.kind) {
+            "catalog" -> ContextSection(contextItemLabel(item), capped(catalogText(item.match), item.budgetChars))
+            "phase" -> ContextSection(
+                contextItemLabel(item),
+                capped(phaseText(item.match ?: activity.targetMatch), item.budgetChars),
+            )
+            "view" -> {
+                val rowsPattern = item.rows?.let { tpl(it) ?: return null }
+                ContextSection(
+                    contextItemLabel(item),
+                    capped(
+                        viewText(item.view, rowsPattern = rowsPattern, columns = item.columns.takeIf { it.isNotEmpty() }),
+                        item.budgetChars,
+                    ),
+                )
+            }
+            "doc" -> {
+                val rel = tpl(item.file!!) ?: return null
+                val path = item.path?.let { tpl(it) ?: return null }
+                val root = staging.tree(rel) ?: error("ファイルが読めません: $rel")
+                val parsed = parseYPath(path ?: "")
+                ContextSection(
+                    "文書: $rel" + (path?.let { " :: $it" } ?: ""),
+                    Disclosure.nodeYaml(root, parsed, maxChars = item.budgetChars ?: 8_000) + refsFooterText(rel, parsed),
+                )
+            }
+            "related" -> {
+                val id = tpl(item.id!!) ?: return null
+                ContextSection("関連情報: $id", capped(relatedText(id), item.budgetChars ?: 8_000))
+            }
+            "sample" -> ContextSection(
+                contextItemLabel(item),
+                capped(sampleText(item.schema!!, item.count), item.budgetChars ?: 8_000),
+            )
+            "graph" -> {
+                val start = tpl(item.start!!) ?: return null
+                ContextSection(
+                    "グラフ: $start",
+                    traverseText(start, item.steps.ifEmpty { core.TraverseSpec.DEFAULT_STEPS }, item.budgetChars ?: 8_000),
+                )
+            }
+            else -> error("未知のコンテキスト項目です: ${item.kind}")
+        }
+    }
+
+    /** 同スキーマの既存文書N件を記述例として返す（記述粒度・文体の手本。R19-02）。 */
+    private fun sampleText(schemaId: String, count: Int): String {
+        val rels = ws.files.asSequence()
+            .map { ws.relPath(it) }
+            .filter { !catalogExcluded(it) }
+            .filter { rel -> ws.schemaFor(ws.resolve(rel))?.id == schemaId }
+            .sorted()
+            .take(count)
+            .toList()
+        if (rels.isEmpty()) return "（schema: $schemaId の文書がまだありません）"
+        return rels.joinToString("\n") { rel ->
+            val root = staging.tree(rel)
+            "### $rel\n" + (root?.let { Disclosure.nodeYaml(it, parseYPath(""), maxChars = 4_000) } ?: "（読めません）")
+        }
+    }
+
+    /** 予算（文字数）超過の決定的な打切り。 */
+    private fun capped(text: String, budget: Int?): String =
+        if (budget == null || text.length <= budget) text
+        else text.take(budget) + "\n…（予算 ${budget} 文字で打切り）"
+
+    /** ツール引数のフラットな object を raw Map へ変換する（TraverseStep.parse と共用するため）。 */
+    private fun jsonToShallowMap(element: JsonElement): Map<String, Any?> {
+        val obj = element as? JsonObject ?: error("ステップはobjectである必要があります")
+        return obj.mapValues { (_, v) ->
+            when (v) {
+                is JsonPrimitive -> v.intOrNull ?: v.booleanOrNull ?: v.contentOrNull
+                else -> v.toString()
+            }
+        }
+    }
+
+    private fun relatedText(id: String, backlinkLimit: Int = 20): String {
         val idx = staging.index()
         val occurrences = idx.occurrences(id)
         if (occurrences.isEmpty()) return "ID「$id」は見つかりません"
@@ -434,13 +608,16 @@ class AgentToolbox(
             if (refsOut.isNotEmpty()) {
                 appendLine("この要素からの参照:")
                 refsOut.forEach { r ->
-                    append("- ").append(r.targetId).append("（").append(r.viaKey)
+                    append("- ").append(r.targetId)
+                    // 参照先のタイトル（表示解決）を添え、IDの意味を別のツール呼び出しなしで閉じる（R19-05）
+                    idx.occurrences(r.targetId).firstNotNullOfOrNull { it.title }?.let { append(" = ").append(it) }
+                    append("（").append(r.viaKey)
                     r.relation?.let { append("・関係: ").append(it) }
                     appendLine("）")
                 }
             }
             appendLine("被参照（${backlinks.size}件）:")
-            backlinks.forEach { b ->
+            backlinks.take(backlinkLimit).forEach { b ->
                 append("- ").append(ws.relPath(b.file)).append(" :: ").append(b.path.pretty())
                     .append("（").append(b.viaKey)
                 b.relation?.let { append("・関係: ").append(it) }
@@ -450,6 +627,38 @@ class AgentToolbox(
                 }
                 appendLine("）")
             }
+            // 被参照の全列挙は膨張の主因（例: 全ユースケースが参照するアクター）のため既定20件で打切る（R19-05）
+            if (backlinks.size > backlinkLimit) {
+                appendLine("…他 ${backlinks.size - backlinkLimit} 件（related の limit 引数で拡張できます）")
+            }
+        }.trimEnd()
+    }
+
+    /**
+     * ノード配下の参照IDを「ID = タイトル [定義元]」へ解決するフッタ（R19-05）。
+     * read_node / doc 項目の出力末尾に付け、「このIDは何か」を追加のツール呼び出しなしで閉じる。
+     */
+    private fun refsFooterText(rel: String, path: model.YPath): String {
+        val idx = staging.index()
+        val targetIds = idx.refs
+            .filter { ws.relPath(it.file) == rel && it.path.size >= path.size && it.path.subList(0, path.size) == path }
+            .map { it.targetId }
+            .distinct()
+        if (targetIds.isEmpty()) return ""
+        val lines = targetIds.take(30).map { id ->
+            val occurrences = idx.occurrences(id)
+            if (occurrences.isEmpty()) "- $id（未解決）"
+            else {
+                val title = occurrences.firstNotNullOfOrNull { it.title }
+                "- $id" + (title?.let { " = $it" } ?: "") + " [${ws.relPath(occurrences.first().file)}]"
+            }
+        }
+        return buildString {
+            appendLine()
+            appendLine()
+            appendLine("参照の解決:")
+            lines.forEach { appendLine(it) }
+            if (targetIds.size > 30) appendLine("…他 ${targetIds.size - 30} 件")
         }.trimEnd()
     }
 
@@ -480,6 +689,12 @@ private class ObjBuilder {
     fun optionalBool(name: String, description: String) {
         properties += Triple(name, "boolean", description)
     }
+    fun optionalInt(name: String, description: String) {
+        properties += Triple(name, "integer", description)
+    }
+    fun optionalStringArray(name: String, description: String) {
+        properties += Triple(name, "array", description)
+    }
 }
 
 private fun obj(build: ObjBuilder.() -> Unit): JsonObject {
@@ -488,7 +703,11 @@ private fun obj(build: ObjBuilder.() -> Unit): JsonObject {
         put("type", "object")
         putJsonObject("properties") {
             builder.properties.forEach { (name, type, description) ->
-                putJsonObject(name) { put("type", type); put("description", description) }
+                putJsonObject(name) {
+                    put("type", type)
+                    put("description", description)
+                    if (type == "array") putJsonObject("items") { put("type", "string") }
+                }
             }
         }
         putJsonArray("required") { builder.requiredNames.forEach(::add) }

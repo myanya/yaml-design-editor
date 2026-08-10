@@ -58,6 +58,12 @@ data class EvalVariant(
     val model: String? = null,
     val agentId: String? = null,
     val instruction: String? = null,
+    /**
+     * コンテキストレシピの差し替え（R19-06）。null = アクティビティ定義のまま。
+     * 非null はアクティビティの context.items を丸ごと置き換える（空 = 開示なしのA/Bも書ける）。
+     * 「レシピA/B × 合格率 × トークン」の比較でレシピをデータでチューニングする器。
+     */
+    val contextItems: List<ContextItemDef>? = null,
 )
 
 data class EvalDef(
@@ -182,6 +188,7 @@ object Evals {
             model = modelMap?.get("id")?.toString(),
             agentId = map["agent"]?.toString(),
             instruction = map["instruction"]?.toString(),
+            contextItems = if (map.containsKey("context")) Definitions.parseContextItems(map["context"]) else null,
         )
     }
 }
@@ -214,6 +221,7 @@ class EvalRunner(
         val totalTurns: Int,
         val inputTokens: Long,
         val outputTokens: Long,
+        val cachedInputTokens: Long,
     ) {
         val passRate: Double get() = if (cases == 0) 0.0 else passed.toDouble() / cases
     }
@@ -233,6 +241,7 @@ class EvalRunner(
                     totalTurns = list.sumOf { it.turns },
                     inputTokens = list.sumOf { it.usage.inputTokens },
                     outputTokens = list.sumOf { it.usage.outputTokens },
+                    cachedInputTokens = list.sumOf { it.usage.cachedInputTokens },
                 )
             }
     }
@@ -267,8 +276,10 @@ class EvalRunner(
                 Files.writeString(target, setup.content)
             }
             val defs = Definitions.load(sandbox)
-            val activity = defs.activity(eval.activityId)
+            val baseActivity = defs.activity(eval.activityId)
                 ?: return failedCase(variant, case, "アクティビティ「${eval.activityId}」が見つかりません")
+            // コンテキストレシピの差し替え（R19-06）: レシピだけを変えた同一ケースのA/B比較を可能にする
+            val activity = variant.contextItems?.let { baseActivity.copy(contextItems = it) } ?: baseActivity
             val agentDef = defs.agent(variant.agentId ?: activity.agentId)
                 ?: return failedCase(variant, case, "エージェント「${variant.agentId ?: activity.agentId}」が見つかりません")
 
@@ -404,15 +415,16 @@ class EvalRunner(
             "activity" to eval.activityId,
             "finishedAt" to ZonedDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
             "variants" to report.summaries().map { s ->
-                linkedMapOf(
-                    "name" to s.variant,
-                    "cases" to s.cases,
-                    "passed" to s.passed,
-                    "passRate" to s.passRate,
-                    "turns" to s.totalTurns,
-                    "inputTokens" to s.inputTokens,
-                    "outputTokens" to s.outputTokens,
-                )
+                LinkedHashMap<String, Any>().apply {
+                    put("name", s.variant)
+                    put("cases", s.cases)
+                    put("passed", s.passed)
+                    put("passRate", s.passRate)
+                    put("turns", s.totalTurns)
+                    put("inputTokens", s.inputTokens)
+                    put("outputTokens", s.outputTokens)
+                    if (s.cachedInputTokens > 0) put("cachedInputTokens", s.cachedInputTokens)
+                }
             },
             "results" to results.map { r ->
                 linkedMapOf<String, Any?>(
@@ -422,6 +434,9 @@ class EvalRunner(
                     "pass" to r.pass,
                     "status" to r.status.name,
                     "turns" to r.turns,
+                    // レシピA/B（R19-06）: ケース単位のコスト比較ができるようトークンも記録する
+                    "inputTokens" to r.usage.inputTokens,
+                    "outputTokens" to r.usage.outputTokens,
                     "failures" to r.failures,
                 ).filterValues { it != null && (it !is List<*> || it.isNotEmpty()) }
             },

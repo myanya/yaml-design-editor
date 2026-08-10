@@ -116,6 +116,50 @@ data class RetryDef(
     val maxAttempts: Int = 1,
 )
 
+/**
+ * プレースホルダ（{name}）を対象値で置換する（R19-02）。未解決のプレースホルダが残る場合は null を返し、
+ * 呼び出し側（コンテキスト項目の解決）は「その項目を開示しない」判断に使う。
+ */
+internal fun resolveContextTemplate(text: String, values: Map<String, String>): String? {
+    var unresolved = false
+    val out = Regex("""\{([a-zA-Z][a-zA-Z0-9_-]*)\}""").replace(text) { m ->
+        values[m.groupValues[1]] ?: run { unresolved = true; m.value }
+    }
+    return if (unresolved) null else out
+}
+
+/** コンテキスト項目の開示条件（R19-02）。has-target = 対象の指定（foreach 対象値または追加指示）がある実行のみ。 */
+enum class ContextWhen(val id: String) {
+    ALWAYS("always"), HAS_TARGET("has-target"), NO_TARGET("no-target");
+
+    companion object {
+        fun parse(raw: String): ContextWhen = entries.firstOrNull { it.id == raw }
+            ?: error("未知の開示条件です: $raw（always / has-target / no-target）")
+    }
+}
+
+/**
+ * コンテキストレシピの1項目（R19-02 / ARCHITECTURE §4.28）。kind ごとに使えるキーをパースで制限する。
+ * 文字列パラメータ（rows / file / path / id）にはプレースホルダ（{target} / {id} / {file} 等。foreach の
+ * 対象値に連動）を書ける。実行時に解決できないプレースホルダが残る項目は開示から除外される（Kernel 側）。
+ */
+data class ContextItemDef(
+    val kind: String,                        // catalog / phase / view / doc / related / sample / graph
+    val match: String? = null,               // catalog / phase: 対象ファイル glob（phase 省略時は target.match）
+    val view: String? = null,                // view: ビューID
+    val rows: String? = null,                // view: 行IDの絞り込みパターン（プレースホルダ可）
+    val columns: List<String> = emptyList(), // view: 列ラベルの絞り込み（空 = 全列）
+    val file: String? = null,                // doc: ワークスペース相対パス（プレースホルダ可）
+    val path: String? = null,                // doc: YPath（省略時は文書全体）
+    val id: String? = null,                  // related: 論理ID（プレースホルダ可）
+    val schema: String? = null,              // sample: スキーマID
+    val count: Int = 1,                      // sample: 件数
+    val start: String? = null,               // graph: トラバース起点ID（プレースホルダ可）
+    val steps: List<core.TraverseStep> = emptyList(),  // graph: 経路ステップ（空 = 既定経路）
+    val condition: ContextWhen = ContextWhen.ALWAYS,
+    val budgetChars: Int? = null,            // 項目の文字数予算（超過は打切り）
+)
+
 data class ActivityDef(
     val id: String,
     val name: String,
@@ -123,8 +167,11 @@ data class ActivityDef(
     val agentId: String,
     val targetMatch: String? = null,            // 対象ファイルの glob（初期文脈の提示に使う）
     val instruction: String,
-    val contextInclude: List<String> = listOf("catalog"), // "catalog" / "phase"（対象文書のフェーズ状態。R7-04）
-    val contextViews: List<String> = emptyList(),  // 初期文脈として開示するビュー（_views）のID
+    /**
+     * コンテキストレシピ（R19-02）。宣言順に初期コンテキストへ開示される。
+     * **無指定の既定は空**（指示＋権限＋ゲートのみ）——カタログも明示宣言制（P19 の空既定）。
+     */
+    val contextItems: List<ContextItemDef> = emptyList(),
     val allowedFiles: List<String> = emptyList(),  // 書込許可ファイル glob（空 = 制限なし）
     val allowedPaths: List<String> = emptyList(),  // 書込許可 YPath glob（空 = 制限なし）
     val tools: Set<ToolGroup> = ToolGroup.entries.toSet(),
@@ -140,6 +187,11 @@ data class ActivityDef(
      * 変更を無人適用させないため、meta かつ approval: auto は定義エラーとする）。
      */
     val meta: Boolean = false,
+    /**
+     * 一括実行の対象列挙（R18-01）。手動起動時に対象を列挙し、1件=1実行としてキューへ展開する。
+     * 自動起動時の展開は未対応のため trigger: manual 専用（パースで強制）。
+     */
+    val foreach: ForeachDef? = null,
     val source: Path,
 )
 
@@ -231,6 +283,10 @@ object Definitions {
         if (meta && approval == ApprovalMode.AUTO) {
             error("メタアクティビティ（meta: true）は approval: human のみ許可されます（定義変更の無人適用は不可）")
         }
+        val foreach = (raw["foreach"] as? Map<*, *>)?.let { parseForeach(it) }
+        if (foreach != null && trigger.type != TriggerType.MANUAL) {
+            error("foreach は trigger: manual のアクティビティでのみ使えます（自動起動時の展開は未対応）")
+        }
         return ActivityDef(
             id = id,
             name = raw["name"]?.toString() ?: id,
@@ -238,8 +294,7 @@ object Definitions {
             agentId = raw["agent"]?.toString()?.takeIf { it.isNotBlank() } ?: error("agent が必要です"),
             targetMatch = (raw["target"] as? Map<*, *>)?.get("match")?.toString(),
             instruction = raw["instruction"]?.toString()?.takeIf { it.isNotBlank() } ?: error("instruction が必要です"),
-            contextInclude = (raw["context"] as? Map<*, *>)?.get("include")?.let(::stringList) ?: listOf("catalog"),
-            contextViews = (raw["context"] as? Map<*, *>)?.get("views")?.let(::stringList) ?: emptyList(),
+            contextItems = parseContextItems(raw["context"]),
             allowedFiles = stringList(raw["allowedFiles"]),
             allowedPaths = stringList(raw["allowedPaths"]),
             tools = toolGroups(raw["tools"]),
@@ -258,8 +313,136 @@ object Definitions {
             ),
             retry = RetryDef(maxAttempts = maxAttempts),
             meta = meta,
+            foreach = foreach,
             source = source,
         )
+    }
+
+    /**
+     * コンテキストレシピ（R19-02）のパース。旧語彙（include / views）は破壊的に廃止し、
+     * 移行ヒント付きの定義エラーにする（P19: 全量ダンプ形式を残さない）。
+     * 評価セットの変異（EvalVariant.contextItems。R19-06）からも同じパースを使う。
+     */
+    internal fun parseContextItems(raw: Any?): List<ContextItemDef> {
+        val contextMap = raw as? Map<*, *> ?: return emptyList()
+        if (contextMap.containsKey("include") || contextMap.containsKey("views")) {
+            error(
+                "context.include / context.views は廃止されました（P19 R19-02）。context.items へ移行してください。" +
+                    "例: include: [catalog] → items: [{kind: catalog}] ／ views: [x] → items: [{kind: view, view: x}]（README §12）"
+            )
+        }
+        contextMap.keys.map { it.toString() }.firstOrNull { it != "items" }?.let {
+            error("context に未知のキーがあります: $it（使えるキー: items）")
+        }
+        val itemsRaw = contextMap["items"] ?: return emptyList()
+        val list = itemsRaw as? List<*> ?: error("context.items は配列である必要があります")
+        return list.mapIndexed { i, e -> parseContextItem(e, i) }
+    }
+
+    private fun parseContextItem(element: Any?, index: Int): ContextItemDef {
+        val m = element as? Map<*, *> ?: error("context.items[$index] はobjectである必要があります")
+        val kind = m["kind"]?.toString()?.takeIf { it.isNotBlank() }
+            ?: error("context.items[$index] に kind が必要です（catalog / phase / view / doc / related / sample / graph）")
+        val common = setOf("kind", "when", "budgetChars")
+        val allowed = when (kind) {
+            "catalog", "phase" -> common + "match"
+            "view" -> common + setOf("view", "rows", "columns")
+            "doc" -> common + setOf("file", "path")
+            "related" -> common + "id"
+            "sample" -> common + setOf("schema", "count")
+            "graph" -> common + setOf("start", "steps")
+            else -> error("context.items[$index]: 未知の kind です: $kind（catalog / phase / view / doc / related / sample / graph）")
+        }
+        m.keys.map { it.toString() }.firstOrNull { it !in allowed }?.let {
+            error("context.items[$index]: kind: $kind では「$it」は使えません（使えるキー: ${allowed.joinToString(", ")}）")
+        }
+        val count = (m["count"] as? Number)?.toInt() ?: 1
+        require(count >= 1) { "context.items[$index].count は1以上である必要があります" }
+        val budget = (m["budgetChars"] as? Number)?.toInt()
+        if (budget != null) require(budget >= 100) { "context.items[$index].budgetChars は100以上である必要があります" }
+        val def = ContextItemDef(
+            kind = kind,
+            match = m["match"]?.toString()?.takeIf { it.isNotBlank() },
+            view = m["view"]?.toString()?.takeIf { it.isNotBlank() },
+            rows = m["rows"]?.toString()?.takeIf { it.isNotBlank() },
+            columns = stringList(m["columns"]),
+            file = m["file"]?.toString()?.takeIf { it.isNotBlank() },
+            path = m["path"]?.toString()?.takeIf { it.isNotBlank() },
+            id = m["id"]?.toString()?.takeIf { it.isNotBlank() },
+            schema = m["schema"]?.toString()?.takeIf { it.isNotBlank() },
+            count = count,
+            start = m["start"]?.toString()?.takeIf { it.isNotBlank() },
+            steps = (m["steps"] as? List<*>)?.mapIndexed { i, e ->
+                core.TraverseStep.parse(e, "context.items[$index].steps[$i]")
+            } ?: emptyList(),
+            condition = m["when"]?.toString()?.let { ContextWhen.parse(it) } ?: ContextWhen.ALWAYS,
+            budgetChars = budget,
+        )
+        when (kind) {
+            "view" -> require(def.view != null) { "context.items[$index]: kind: view には view（ビューID）が必要です" }
+            "doc" -> require(def.file != null) { "context.items[$index]: kind: doc には file が必要です" }
+            "related" -> require(def.id != null) { "context.items[$index]: kind: related には id が必要です" }
+            "sample" -> require(def.schema != null) { "context.items[$index]: kind: sample には schema が必要です" }
+            "graph" -> {
+                require(def.start != null) { "context.items[$index]: kind: graph には start（起点ID）が必要です" }
+                def.steps.forEachIndexed { i, step ->
+                    if (i > 0 && step.follow == null) {
+                        error("context.items[$index].steps[$i]: 2ステップ目以降には follow（out / in）が必要です")
+                    }
+                }
+            }
+        }
+        return def
+    }
+
+    /**
+     * 一括実行の対象列挙（foreach。R18-01）のパース。列挙元ごとに使えるキーを制限し、
+     * 取り違え（例 source: files に idPattern）を定義エラーで検出する。
+     */
+    private fun parseForeach(raw: Map<*, *>): ForeachDef {
+        val source = ForeachSource.parse(raw["source"]?.toString() ?: error("foreach.source が必要です"))
+        val allowedKeys = when (source) {
+            ForeachSource.VIEW -> setOf("source", "view", "where", "as", "limit")
+            ForeachSource.ISSUES -> setOf("source", "severity", "match", "as", "limit")
+            ForeachSource.SEARCH -> setOf("source", "text", "pathGlob", "refTo", "unresolved", "match", "schemaIds", "as", "limit")
+            ForeachSource.FILES -> setOf("source", "match", "as", "limit")
+            ForeachSource.IDS -> setOf("source", "idPattern", "schemaIds", "as", "limit")
+        }
+        raw.keys.map { it.toString() }.firstOrNull { it !in allowedKeys }?.let {
+            error("foreach: source: ${source.id} では「$it」は使えません（使えるキー: ${allowedKeys.joinToString(", ")}）")
+        }
+        val where = raw["where"]?.toString() ?: "detail-missing"
+        require(where in setOf("detail-missing", "all")) { "foreach.where は detail-missing / all のいずれかです: $where" }
+        val severity = raw["severity"]?.toString() ?: "error"
+        require(severity in setOf("error", "warning")) { "foreach.severity は error / warning のいずれかです: $severity" }
+        val limit = (raw["limit"] as? Number)?.toInt() ?: 20
+        require(limit >= 1) { "foreach.limit は1以上である必要があります" }
+        val def = ForeachDef(
+            source = source,
+            view = raw["view"]?.toString()?.takeIf { it.isNotBlank() },
+            where = where,
+            severity = severity,
+            match = raw["match"]?.toString()?.takeIf { it.isNotBlank() },
+            idPattern = raw["idPattern"]?.toString()?.takeIf { it.isNotBlank() },
+            schemaIds = stringList(raw["schemaIds"]),
+            text = raw["text"]?.toString()?.takeIf { it.isNotBlank() },
+            pathGlob = raw["pathGlob"]?.toString()?.takeIf { it.isNotBlank() },
+            refTo = raw["refTo"]?.toString()?.takeIf { it.isNotBlank() },
+            unresolved = raw["unresolved"] as? Boolean ?: false,
+            asTemplate = raw["as"]?.toString()?.takeIf { it.isNotBlank() },
+            limit = limit,
+        )
+        when (source) {
+            ForeachSource.VIEW -> require(def.view != null) { "foreach: source: view には view（ビューID）が必要です" }
+            ForeachSource.FILES -> require(def.match != null) { "foreach: source: files には match（glob）が必要です" }
+            ForeachSource.IDS -> require(def.idPattern != null) { "foreach: source: ids には idPattern が必要です" }
+            ForeachSource.SEARCH -> require(
+                def.text != null || def.refTo != null || def.unresolved || def.pathGlob != null ||
+                    def.match != null || def.schemaIds.isNotEmpty()
+            ) { "foreach: source: search には検索条件（text / pathGlob / refTo / unresolved / match / schemaIds）が1つ以上必要です" }
+            ForeachSource.ISSUES -> Unit
+        }
+        return def
     }
 
     /** 出力値による連鎖分岐（R9-04）のパース。 */

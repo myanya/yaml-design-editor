@@ -491,20 +491,116 @@ object BuiltinSchemas {
               label: 文脈レシピ
               type: object
               fields:
-                - key: include
-                  label: 追加開示
+                - key: items
+                  label: 開示項目
                   type: array
+                  description: 初期コンテキストへ宣言順に開示する項目（R19-02。省略時は開示なし＝空既定）
                   item:
-                    type: enum
-                    values: [catalog, target-outlines, phase]
-                - key: views
-                  label: ビュー開示
-                  type: array
-                  item:
-                    type: ref
-                    scope:
-                      schemaIds: [builtin-view]
-                  description: 初期文脈として開示するビュー（_views）のID
+                    type: object
+                    fields:
+                      - key: kind
+                        label: 種別
+                        type: enum
+                        required: true
+                        values:
+                          - { value: catalog, label: カタログ, description: 文書カタログ（match で対象を絞れる） }
+                          - { value: phase, label: フェーズ状態, description: 対象文書のフェーズ状態（省略時は target.match の範囲） }
+                          - { value: view, label: ビュー, description: 横断グリッドの解決結果（rows / columns で絞れる） }
+                          - { value: doc, label: 文書, description: 指定文書（file / path）の全文 }
+                          - { value: related, label: 関連情報, description: 論理IDの出現・参照・被参照のまとめ }
+                          - { value: sample, label: 記述例, description: 同スキーマの既存文書N件（記述粒度の手本） }
+                          - { value: graph, label: グラフ, description: ID関係グラフの経路トラバース（起点から参照・被参照を多段に辿る） }
+                        cases:
+                          catalog:
+                            - key: match
+                              label: 対象ファイル（glob）
+                              type: string
+                          phase:
+                            - key: match
+                              label: 対象ファイル（glob）
+                              type: string
+                          view:
+                            - key: view
+                              label: ビューID
+                              type: ref
+                              required: true
+                              scope:
+                                schemaIds: [builtin-view]
+                            - key: rows
+                              label: 行絞り（IDパターン。{target} 等のプレースホルダ可）
+                              type: string
+                            - key: columns
+                              label: 列絞り（列ラベルの列挙。空は全列）
+                              type: array
+                              item:
+                                type: string
+                          doc:
+                            - key: file
+                              label: 対象文書（相対パス。{target} 等のプレースホルダ可）
+                              type: string
+                              required: true
+                            - key: path
+                              label: YPath（省略時は文書全体）
+                              type: string
+                          related:
+                            - key: id
+                              label: 論理ID（{target} 等のプレースホルダ可）
+                              type: string
+                              required: true
+                          sample:
+                            - key: schema
+                              label: スキーマID
+                              type: string
+                              required: true
+                            - key: count
+                              label: 件数
+                              type: int
+                          graph:
+                            - key: start
+                              label: 起点ID（{target} 等のプレースホルダ可）
+                              type: string
+                              required: true
+                            - key: steps
+                              label: 経路ステップ（省略時は既定経路）
+                              type: array
+                              item:
+                                type: object
+                                fields:
+                                  - key: follow
+                                    label: 方向
+                                    type: enum
+                                    values:
+                                      - { value: out, label: 参照を辿る }
+                                      - { value: in, label: 被参照を辿る }
+                                  - key: relation
+                                    label: 関係種別で絞る
+                                    type: string
+                                  - key: via
+                                    label: 参照キー名で絞る
+                                    type: string
+                                  - key: schema
+                                    label: 到達スキーマで絞る
+                                    type: string
+                                  - key: emit
+                                    label: 開示粒度
+                                    type: enum
+                                    values: [title, summary, outline, full]
+                                    default: summary
+                                  - key: limitPerHop
+                                    label: ホップ毎の上限
+                                    type: int
+                      - key: when
+                        label: 開示条件
+                        type: enum
+                        values:
+                          - { value: always, label: 常に }
+                          - { value: has-target, label: 対象指定あり, description: foreach の対象値または追加指示がある実行のみ }
+                          - { value: no-target, label: 対象指定なし }
+                        default: always
+                      - key: budgetChars
+                        label: 文字数予算
+                        type: int
+                        description: 超過分は決定的に打切り（doc / related / sample の既定は8000字）
             - key: allowedFiles
               label: 書込許可ファイル（glob）
               type: array
@@ -626,6 +722,64 @@ object BuiltinSchemas {
                   label: 最大試行回数
                   type: int
                   description: 失敗理由をフィードバックして再実行する回数（既定 1 = 再試行なし）
+            - key: foreach
+              label: 一括実行（対象列挙）
+              type: object
+              description: "手動起動時に対象を列挙し、1件=1実行としてキューへ展開する（trigger: manual 専用。R18-01）"
+              fields:
+                - key: source
+                  label: 列挙元
+                  type: enum
+                  required: true
+                  values: [view, issues, search, files, ids]
+                - key: view
+                  label: ビューID（view）
+                  type: ref
+                  scope:
+                    schemaIds: [builtin-view]
+                - key: where
+                  label: 行条件（view）
+                  type: enum
+                  values: [detail-missing, all]
+                  default: detail-missing
+                  description: detail-missing は詳細文書が未作成の行のみ
+                - key: severity
+                  label: 重大度（issues）
+                  type: enum
+                  values: [error, warning]
+                  default: error
+                  description: warning はエラーを含む警告以上
+                - key: match
+                  label: ファイル絞り込みglob（issues / files / search）
+                  type: string
+                - key: idPattern
+                  label: IDパターン（ids）
+                  type: string
+                - key: schemaIds
+                  label: スキーマ絞り込み（ids / search）
+                  type: array
+                  item:
+                    type: string
+                - key: text
+                  label: 検索テキスト（search）
+                  type: string
+                - key: pathGlob
+                  label: パスglob（search）
+                  type: string
+                - key: refTo
+                  label: 参照先ID（search）
+                  type: string
+                - key: unresolved
+                  label: 未解決参照のみ（search）
+                  type: boolean
+                - key: as
+                  label: 1件の追加指示テンプレート
+                  type: string
+                  description: 「{id} {title} {file} {path} {message}」等が対象の値に置換される（省略時は列挙元ごとの既定文）
+                - key: limit
+                  label: 展開上限
+                  type: int
+                  description: 1回の投入で展開する最大件数（既定 20）
             - key: meta
               label: メタアクティビティ
               type: boolean
@@ -831,6 +985,10 @@ object BuiltinSchemas {
                   - key: instruction
                     label: 追加指示
                     type: text
+                  - key: context
+                    label: 文脈レシピ差し替え
+                    type: any
+                    description: アクティビティの context を丸ごと差し替える（書式はアクティビティ定義の context と同じ items 配列。レシピA/B比較用。R19-06）
             - key: cases
               label: 評価ケース
               type: array

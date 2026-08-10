@@ -1132,7 +1132,11 @@ object Views {
      * 解決済みビューの機械可読テキスト。各セルに原本上の座標（file / path）を添えるため、
      * エージェントはこの出力から直接 apply_patch の対象を決められる。
      */
-    fun renderText(view: ViewDef, rows: List<ViewRow>): String = buildString {
+    /**
+     * columns 非null のときは、ラベルが一致する列だけを描画する（コンテキストレシピの列絞り。R19-02）。
+     * index 非null のときは、ref 値のセルに参照先のタイトルを「ID（タイトル）」で注記する（R19-05）。
+     */
+    fun renderText(view: ViewDef, rows: List<ViewRow>, columns: List<String>? = null, index: IdIndex? = null): String = buildString {
         appendLine("ビュー: ${view.name}（${view.id}）")
         view.description?.let { appendLine(it.trim()) }
         appendLine("行: ${rows.size} 件（idPattern: ${view.rows.idPattern}）")
@@ -1148,7 +1152,7 @@ object Views {
             append("- id: ").append(row.id)
             row.title?.let { append("  title: ").append(it) }
             appendLine()
-            for (cell in row.cells) {
+            for (cell in row.cells.filter { columns == null || it.column.label in columns }) {
                 append("    ").append(cell.column.label).append(": ")
                 val backlinks = cell.backlinks
                 if (backlinks != null) {
@@ -1163,7 +1167,7 @@ object Views {
                 } else if (cell.file == null) {
                     appendLine(if (cell.computed) "（導出元なし）" else "（出現なし）")
                 } else {
-                    append(cellText(cell.value))
+                    append(refAnnotatedCellText(cell.value, index))
                     append("  [").append(cell.rel).append(" :: ").append(cell.path!!.pretty())
                     if (cell.column.editable) append("  編集可")
                     // 計算列: 値は評価済みの導出値で、座標は元値（規則）の位置。書込はこの座標か入力値への通常編集で行う
@@ -1250,6 +1254,34 @@ object Views {
     }
 
     /** セル値の1行要約。 */
+    /**
+     * ref 値の注記つきセル表示（R19-05）: 索引でタイトルへ解決できるIDは「ID（タイトル）」を添える。
+     * 従来「（配列 n 件）」だった参照配列も、全要素がスカラーで1件以上IDに解決できるなら中身を展開する。
+     * 値そのものはID（括弧はエージェント向けの注記）——パッチにはIDだけを書く前提は変えない。
+     */
+    private fun refAnnotatedCellText(value: YNode?, index: IdIndex?): String {
+        if (index == null) return cellText(value)
+        fun annotate(scalar: YNode.Scalar): String? {
+            val id = scalar.value?.toString() ?: return null
+            val title = index.occurrences(id).firstNotNullOfOrNull { it.title } ?: return null
+            return "$id（$title）"
+        }
+        when (value) {
+            is YNode.Scalar -> annotate(value)?.let { return it }
+            is YNode.Seq -> {
+                val scalars = value.items.filterIsInstance<YNode.Scalar>()
+                val resolvable = scalars.size == value.items.size &&
+                    scalars.any { index.occurrences(it.value?.toString() ?: "").isNotEmpty() }
+                if (resolvable) {
+                    val joined = scalars.joinToString(", ") { annotate(it) ?: cellText(it) }
+                    return if (joined.length > 200) joined.take(200) + "…" else joined
+                }
+            }
+            else -> {}
+        }
+        return cellText(value)
+    }
+
     fun cellText(value: YNode?, maxLength: Int = 80): String = when (value) {
         null -> "（未設定）"
         is YNode.Scalar -> {

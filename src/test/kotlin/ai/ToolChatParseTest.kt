@@ -1,5 +1,8 @@
 package ai
 
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -45,6 +48,58 @@ class ToolChatParseTest {
         val body = """{"type":"error","error":{"type":"invalid_request_error","message":"bad model"}}"""
         val e = assertFailsWith<IllegalStateException> { anthropicSession().parseAnthropicToolResponse(400, body) }
         assertEquals("Anthropic API: bad model", e.message)
+    }
+
+    @Test
+    fun `anthropic request marks cache breakpoints on system, last tool and latest message`() {
+        val session = AnthropicToolSession(
+            "key", "model", "SYS",
+            listOf(
+                ToolSpec("first", "d1", kotlinx.serialization.json.buildJsonObject {}),
+                ToolSpec("second", "d2", kotlinx.serialization.json.buildJsonObject {}),
+            ),
+        )
+        session.addUserText("hello")
+        val body = session.buildRequestBody()
+        // system は cache_control 付きのブロック配列
+        val sys = body["system"]!!.jsonArray.single().jsonObject
+        assertEquals("SYS", sys["text"]!!.jsonPrimitive.content)
+        assertEquals("ephemeral", sys["cache_control"]!!.jsonObject["type"]!!.jsonPrimitive.content)
+        // ツール定義は末尾だけに切れ目
+        val tools = body["tools"]!!.jsonArray
+        assertNull(tools[0].jsonObject["cache_control"])
+        assertEquals("ephemeral", tools[1].jsonObject["cache_control"]!!.jsonObject["type"]!!.jsonPrimitive.content)
+        // 最新（唯一）のユーザーメッセージはブロック化され末尾に切れ目
+        val lastContent = body["messages"]!!.jsonArray.last().jsonObject["content"]!!.jsonArray
+        assertEquals("ephemeral", lastContent.last().jsonObject["cache_control"]!!.jsonObject["type"]!!.jsonPrimitive.content)
+
+        // ターンが進むと切れ目は最新メッセージへ移動し、過去のメッセージは素のまま
+        session.parseAnthropicToolResponse(
+            200,
+            """{"content":[{"type":"tool_use","id":"toolu_1","name":"first","input":{}}],"stop_reason":"tool_use","usage":{"input_tokens":1,"output_tokens":1}}""",
+        )
+        session.addToolResults(listOf(ToolResult("toolu_1", "ok")))
+        val body2 = session.buildRequestBody()
+        val messages = body2["messages"]!!.jsonArray
+        assertEquals(3, messages.size)
+        assertTrue(messages[0].jsonObject["content"] is kotlinx.serialization.json.JsonPrimitive)   // 過去分は変更しない
+        val toolResult = messages[2].jsonObject["content"]!!.jsonArray.last().jsonObject
+        assertEquals("tool_result", toolResult["type"]!!.jsonPrimitive.content)
+        assertEquals("ephemeral", toolResult["cache_control"]!!.jsonObject["type"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `anthropic cache tokens are normalized into total input`() {
+        // Anthropic の input_tokens はキャッシュ分を含まないため、総入力へ正規化される（ARCHITECTURE §4.28）
+        val body = """
+            {"content":[{"type":"text","text":"ok"}],"stop_reason":"end_turn",
+             "usage":{"input_tokens":100,"output_tokens":10,
+                      "cache_read_input_tokens":400,"cache_creation_input_tokens":50}}
+        """.trimIndent()
+        val turn = anthropicSession().parseAnthropicToolResponse(200, body)
+        assertEquals(550, turn.usage.inputTokens)
+        assertEquals(400, turn.usage.cachedInputTokens)
+        assertEquals(10, turn.usage.outputTokens)
     }
 
     // ---------------------------------------------------------------- OpenAI
@@ -96,6 +151,16 @@ class ToolChatParseTest {
     fun `usage defaults to zero when missing`() {
         val turn = openAiSession().parseOpenAiToolResponse(200, """{"output":[]}""")
         assertEquals(0, turn.usage.inputTokens)
+        assertEquals(0, turn.usage.cachedInputTokens)
         assertNull(turn.assistantText)
+    }
+
+    @Test
+    fun `openai cached tokens come from input_tokens_details`() {
+        // cached_tokens は input_tokens の内数（自動キャッシュの報告）
+        val body = """{"output":[],"usage":{"input_tokens":300,"output_tokens":5,"input_tokens_details":{"cached_tokens":250}}}"""
+        val turn = openAiSession().parseOpenAiToolResponse(200, body)
+        assertEquals(300, turn.usage.inputTokens)
+        assertEquals(250, turn.usage.cachedInputTokens)
     }
 }

@@ -140,12 +140,12 @@ class KernelTest {
         maxTurns: Int = 24,
         allowedFiles: List<String> = emptyList(),
         gate: ValidationGate = ValidationGate.ERROR_FREE,
-        contextInclude: List<String> = listOf("catalog"),
+        contextItems: List<ContextItemDef> = listOf(ContextItemDef(kind = "catalog")),
     ) = ActivityDef(
         id = "rename-term", name = "用語改名", agentId = "editor",
         targetMatch = "**/*.yaml",
         instruction = "TERM-001 を TERM-100 に改名し、参照元をすべて更新する。",
-        contextInclude = contextInclude,
+        contextItems = contextItems,
         allowedFiles = allowedFiles,
         limits = ActivityLimits(maxTurns = maxTurns, maxTokens = 1_000_000, maxSeconds = 300),
         gate = gate,
@@ -229,6 +229,36 @@ class KernelTest {
         assertTrue("docs/a.yaml" in toolCall.content)
         val toolResult = result.transcript.first { it.role == "tool_result" && it.tool == "read_outline" }
         assertEquals(session.toolResults[0].single().content, toolResult.content)
+    }
+
+    @Test
+    fun `context accounting records section stats, per-turn input and tool result sizes`() {
+        val ws = Workspace.open(dir)
+        val session = FakeSession(
+            listOf(
+                turn(call("read_outline", """{"file":"docs/a.yaml"}""")),
+                turn(call("abort", """{"reason":"確認のみ"}""")),
+            )
+        )
+        val result = run(ws, session, RecordingHost())
+
+        // 内訳: システム指示・ツール定義・指示＋context 宣言由来の区分（既定 catalog）が順に記録される
+        assertEquals(
+            listOf("システム指示", "ツール定義", "指示", "ワークスペースカタログ"),
+            result.contextStats.map { it.section },
+        )
+        result.contextStats.forEach { stat ->
+            assertTrue(stat.chars > 0 && stat.tokensEst > 0, "空の区分: ${stat.section}")
+        }
+        // 区分の合成が実際の送信文字列（従来書式）になっている
+        val initial = session.userTexts.first()
+        assertTrue("# アクティビティ: 用語改名" in initial)
+        assertTrue("## ワークスペースカタログ" in initial)
+        // 送信別入力トークン: 台本セッションは各送信 100 を報告する
+        assertEquals(listOf(100L, 100L), result.turnInputTokens)
+        // ツール結果は打切り前の全長が記録される
+        val entry = result.toolLog.first { it.name == "read_outline" }
+        assertEquals(session.toolResults[0].single().content.length, entry.resultChars)
     }
 
     @Test
@@ -358,9 +388,130 @@ class KernelTest {
     fun `context include phase surfaces target phase state in initial context`() {
         val ws = Workspace.open(dir)
         val session = FakeSession(listOf(turn(call("abort", """{"reason":"確認のみ"}"""))))
-        run(ws, session, RecordingHost(), activity(contextInclude = listOf("catalog", "phase")))
+        run(
+            ws, session, RecordingHost(),
+            activity(contextItems = listOf(ContextItemDef(kind = "catalog"), ContextItemDef(kind = "phase"))),
+        )
         val initial = session.userTexts.first()
         assertTrue("フェーズ状態" in initial)
         assertTrue("tables/t.yaml: phase=requirements" in initial)
+    }
+
+    // ---------------------------------------------------------------- コンテキストレシピ（R19-02）
+
+    private fun runWithValues(
+        ws: Workspace,
+        session: FakeSession,
+        act: ActivityDef,
+        targetValues: Map<String, String> = emptyMap(),
+        extraInstruction: String? = null,
+    ): AgentRunResult = runBlocking {
+        AgentKernel.run(
+            ws,
+            AgentRunRequest(
+                act, agentDef, AiProvider.OPENAI, "test-model", "test-key",
+                extraInstruction = extraInstruction, targetValues = targetValues,
+            ),
+            RecordingHost(),
+            sessionFactory = { _, _, _, _, _ -> session },
+        )
+    }
+
+    @Test
+    fun `context recipe resolves catalog match, doc placeholder, related and sample`() {
+        val ws = Workspace.open(dir)
+        val session = FakeSession(listOf(turn(call("abort", """{"reason":"確認のみ"}"""))))
+        val act = activity(
+            contextItems = listOf(
+                ContextItemDef(kind = "catalog", match = "docs/*"),
+                ContextItemDef(kind = "doc", file = "{file}", path = "title"),
+                ContextItemDef(kind = "related", id = "{target}"),
+                ContextItemDef(kind = "sample", schema = "doc", count = 1),
+            ),
+        )
+        val result = runWithValues(
+            ws, session, act,
+            targetValues = mapOf("target" to "TERM-001", "file" to "docs/a.yaml"),
+        )
+        val initial = session.userTexts.first()
+        // catalog は match で絞られる（glossary は docs/* に一致しない）
+        assertTrue("docs/a.yaml" in initial)
+        assertTrue("glossary/main.yaml" !in initial.substringBefore("## 文書"))
+        // doc: {file} が解決され title ノードが開示される
+        assertTrue("## 文書: docs/a.yaml :: title" in initial)
+        assertTrue("文書A" in initial)
+        // related: {target} が解決され出現・被参照が載る
+        assertTrue("## 関連情報: TERM-001" in initial)
+        assertTrue("被参照" in initial)
+        // sample: doc スキーマの先頭1件（docs/a.yaml）が記述例になる
+        assertTrue("## 記述例（schema: doc）" in initial)
+        // 会計にも各区分が載る
+        assertEquals(
+            listOf("システム指示", "ツール定義", "指示", "ワークスペースカタログ", "文書: docs/a.yaml :: title", "関連情報: TERM-001", "記述例（schema: doc）"),
+            result.contextStats.map { it.section },
+        )
+    }
+
+    @Test
+    fun `context recipe when-conditions and unresolved placeholders gate disclosure`() {
+        val ws = Workspace.open(dir)
+        val act = activity(
+            contextItems = listOf(
+                ContextItemDef(kind = "catalog", condition = ContextWhen.NO_TARGET),
+                ContextItemDef(kind = "related", id = "{target}", condition = ContextWhen.HAS_TARGET),
+                ContextItemDef(kind = "doc", file = "{missing}"),   // 未解決 → 開示しない
+            ),
+        )
+        // 対象指定なし: catalog のみ（related は when で、doc は未解決で落ちる）
+        val s1 = FakeSession(listOf(turn(call("abort", """{"reason":"x"}"""))))
+        runWithValues(ws, s1, act)
+        val noTarget = s1.userTexts.first()
+        assertTrue("## ワークスペースカタログ" in noTarget)
+        assertTrue("## 関連情報" !in noTarget)
+        assertTrue("## 文書" !in noTarget)
+        // 対象指定あり（targetValues）: catalog が落ち related が載る
+        val s2 = FakeSession(listOf(turn(call("abort", """{"reason":"x"}"""))))
+        runWithValues(ws, s2, act, targetValues = mapOf("target" to "TERM-001"))
+        val hasTarget = s2.userTexts.first()
+        assertTrue("## ワークスペースカタログ" !in hasTarget)
+        assertTrue("## 関連情報: TERM-001" in hasTarget)
+        // 追加指示だけでも「対象指定あり」扱い（プレースホルダ項目は解決できないため落ちる）
+        val s3 = FakeSession(listOf(turn(call("abort", """{"reason":"x"}"""))))
+        runWithValues(ws, s3, act, extraInstruction = "対象: TERM-001")
+        val prose = s3.userTexts.first()
+        assertTrue("## ワークスペースカタログ" !in prose)
+        assertTrue("## 関連情報" !in prose)
+    }
+
+    @Test
+    fun `graph context item traverses from placeholder start`() {
+        val ws = Workspace.open(dir)
+        val session = FakeSession(listOf(turn(call("abort", """{"reason":"x"}"""))))
+        val act = activity(
+            contextItems = listOf(
+                ContextItemDef(
+                    kind = "graph", start = "{target}",
+                    steps = listOf(
+                        core.TraverseStep(emit = "summary"),
+                        core.TraverseStep(follow = "out", emit = "title"),
+                    ),
+                ),
+            ),
+        )
+        val result = runWithValues(ws, session, act, targetValues = mapOf("target" to "DOC-A"))
+        val initial = session.userTexts.first()
+        assertTrue("## グラフ: DOC-A" in initial, initial)
+        assertTrue("- TERM-001" in initial, initial)   // DOC-A の uses 参照を1段辿った先
+        assertTrue(result.contextStats.any { it.section == "グラフ: DOC-A" })
+    }
+
+    @Test
+    fun `context recipe budget caps section deterministically`() {
+        val ws = Workspace.open(dir)
+        val session = FakeSession(listOf(turn(call("abort", """{"reason":"x"}"""))))
+        val act = activity(contextItems = listOf(ContextItemDef(kind = "catalog", budgetChars = 100)))
+        runWithValues(ws, session, act)
+        val initial = session.userTexts.first()
+        assertTrue("…（予算 100 文字で打切り）" in initial)
     }
 }

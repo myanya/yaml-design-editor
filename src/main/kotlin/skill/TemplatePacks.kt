@@ -86,6 +86,10 @@ object TemplatePacks {
                 agent: curator
                 target:
                   match: "issues/**/*.{yaml,yml}"
+                context:
+                  items:
+                    - kind: catalog
+                      match: "issues/**"
                 instruction: |
                   各課題を点検し、次に当てはまるものへ triage_notes 配列に指摘（comment / suggestion）を追記してください。
                   - owner または priority が未設定

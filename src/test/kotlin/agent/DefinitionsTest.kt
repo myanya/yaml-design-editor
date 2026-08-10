@@ -69,6 +69,108 @@ class DefinitionsTest {
         assertEquals(400_000, activity.limits.maxTokens)      // 既定値
         assertEquals(ValidationGate.ERROR_FREE, activity.gate) // 既定値
         assertEquals(listOf("review_comments*"), activity.allowedPaths)
+        assertTrue(activity.contextItems.isEmpty())            // 空既定（P19: カタログも明示宣言制）
+    }
+
+    // ---------------------------------------------------------------- コンテキストレシピ（R19-02）
+
+    @Test
+    fun `context items are parsed with kind-specific keys`() {
+        write("_agents/editor.yaml", "id: editor\npersona: 正確に。")
+        write(
+            "_activities/recipe.yaml",
+            """
+            id: recipe
+            agent: editor
+            instruction: x
+            context:
+              items:
+                - kind: catalog
+                  match: "docs/*"
+                - kind: view
+                  view: usecase-list
+                  rows: "{target}"
+                  columns: [機能名, 機能説明]
+                  when: no-target
+                  budgetChars: 4000
+                - kind: doc
+                  file: "docs/{id}.yaml"
+                  path: title
+                - kind: related
+                  id: "{target}"
+                  when: has-target
+                - kind: sample
+                  schema: usecase
+                  count: 2
+                - kind: phase
+            """,
+        )
+        val defs = Definitions.load(ws)
+        assertTrue(defs.errors.isEmpty(), defs.errors.toString())
+        val items = defs.activity("recipe")!!.contextItems
+        assertEquals(listOf("catalog", "view", "doc", "related", "sample", "phase"), items.map { it.kind })
+        assertEquals("docs/*", items[0].match)
+        assertEquals(ContextWhen.ALWAYS, items[0].condition)
+        assertEquals(ContextWhen.NO_TARGET, items[1].condition)
+        assertEquals(4000, items[1].budgetChars)
+        assertEquals(listOf("機能名", "機能説明"), items[1].columns)
+        assertEquals("docs/{id}.yaml", items[2].file)
+        assertEquals(ContextWhen.HAS_TARGET, items[3].condition)
+        assertEquals(2, items[4].count)
+    }
+
+    @Test
+    fun `legacy context vocabulary is a definition error with migration hint`() {
+        write("_agents/editor.yaml", "id: editor\npersona: 正確に。")
+        write("_activities/legacy.yaml", "id: legacy\nagent: editor\ninstruction: x\ncontext:\n  views: [usecase-list]")
+        write("_activities/legacy2.yaml", "id: legacy2\nagent: editor\ninstruction: x\ncontext:\n  include: [catalog]")
+        val defs = Definitions.load(ws)
+        assertEquals(2, defs.errors.count { "廃止" in it && "context.items" in it }, defs.errors.toString())
+    }
+
+    @Test
+    fun `context item errors are reported per kind`() {
+        write("_agents/editor.yaml", "id: editor\npersona: 正確に。")
+        write("_activities/bad1.yaml", "id: bad1\nagent: editor\ninstruction: x\ncontext:\n  items:\n    - kind: catalog\n      rows: \"X-*\"")
+        write("_activities/bad2.yaml", "id: bad2\nagent: editor\ninstruction: x\ncontext:\n  items:\n    - kind: view")
+        write("_activities/bad3.yaml", "id: bad3\nagent: editor\ninstruction: x\ncontext:\n  items:\n    - kind: nope")
+        val defs = Definitions.load(ws)
+        assertTrue(defs.errors.any { "bad1" in it && "rows" in it }, defs.errors.toString())
+        assertTrue(defs.errors.any { "bad2" in it && "view（ビューID）" in it }, defs.errors.toString())
+        assertTrue(defs.errors.any { "bad3" in it && "未知の kind" in it }, defs.errors.toString())
+    }
+
+    @Test
+    fun `graph context item parses steps and validates follow requirement`() {
+        write("_agents/editor.yaml", "id: editor\npersona: 正確に。")
+        write(
+            "_activities/graph.yaml",
+            """
+            id: graph-act
+            agent: editor
+            instruction: x
+            context:
+              items:
+                - kind: graph
+                  start: "{target}"
+                  steps:
+                    - emit: full
+                    - { follow: out, via: actor, emit: full, limitPerHop: 5 }
+                  when: has-target
+            """,
+        )
+        write("_activities/graph-bad.yaml", "id: graph-bad\nagent: editor\ninstruction: x\ncontext:\n  items:\n    - kind: graph\n      start: X\n      steps:\n        - emit: full\n        - emit: title")
+        write("_activities/graph-nostart.yaml", "id: graph-nostart\nagent: editor\ninstruction: x\ncontext:\n  items:\n    - kind: graph")
+        val defs = Definitions.load(ws)
+        val item = defs.activity("graph-act")!!.contextItems.single()
+        assertEquals("graph", item.kind)
+        assertEquals("{target}", item.start)
+        assertEquals(2, item.steps.size)
+        assertEquals("actor", item.steps[1].via)
+        assertEquals(5, item.steps[1].limitPerHop)
+        assertEquals(ContextWhen.HAS_TARGET, item.condition)
+        assertTrue(defs.errors.any { "graph-bad" in it && "follow" in it }, defs.errors.toString())
+        assertTrue(defs.errors.any { "graph-nostart" in it && "start" in it }, defs.errors.toString())
     }
 
     @Test
@@ -201,5 +303,49 @@ class DefinitionsTest {
         write("_agents/writer.yaml", "id: writer\npersona: 執筆する\ntools: [explore, edit]")
         val defs = Definitions.load(ws)
         assertEquals(setOf(ToolGroup.EXPLORE, ToolGroup.EDIT), defs.agent("writer")!!.tools)
+    }
+
+    @Test
+    fun `foreach is parsed with defaults and template`() {
+        write("_agents/worker.yaml", "id: worker\npersona: 作業する。")
+        write(
+            "_activities/batch.yaml",
+            """
+            id: batch
+            agent: worker
+            instruction: 対象を1件処理する。
+            foreach: { source: ids, idPattern: "DOC-*", schemaIds: [doc], as: "対象: {id}", limit: 5 }
+            """,
+        )
+        val defs = Definitions.load(ws)
+        assertTrue(defs.errors.isEmpty(), defs.errors.toString())
+        val foreach = defs.activity("batch")!!.foreach!!
+        assertEquals(ForeachSource.IDS, foreach.source)
+        assertEquals("DOC-*", foreach.idPattern)
+        assertEquals(listOf("doc"), foreach.schemaIds)
+        assertEquals("対象: {id}", foreach.asTemplate)
+        assertEquals(5, foreach.limit)
+    }
+
+    @Test
+    fun `foreach definition errors are reported`() {
+        write("_agents/worker.yaml", "id: worker\npersona: 作業する。")
+        // 列挙元に使えないキー（source: files に idPattern）
+        write("_activities/b1.yaml", """id: b1
+agent: worker
+instruction: x
+foreach: { source: files, match: "docs/**", idPattern: "X-*" }""")
+        // source: view なのに view 未指定
+        write("_activities/b2.yaml", "id: b2\nagent: worker\ninstruction: x\nforeach: { source: view }")
+        // trigger: manual 以外との併用は不可
+        write("_activities/b3.yaml", """id: b3
+agent: worker
+instruction: x
+foreach: { source: issues }
+trigger: { type: schedule, everyMinutes: 5 }""")
+        val defs = Definitions.load(ws)
+        assertTrue(defs.errors.any { "b1" in it && "idPattern" in it }, defs.errors.toString())
+        assertTrue(defs.errors.any { "b2" in it && "view" in it }, defs.errors.toString())
+        assertTrue(defs.errors.any { "b3" in it && "manual" in it }, defs.errors.toString())
     }
 }

@@ -83,7 +83,7 @@ object GenerationRun {
             agentId = agentDef.id,
             targetMatch = request.fileRel,
             instruction = request.input.instruction,
-            contextInclude = emptyList(),
+            contextItems = emptyList(),
             allowedFiles = listOf(request.fileRel),
             // 配列追記は「path[インデックス]」への insert になるため、末尾一致のパターンも許可する
             allowedPaths = if (request.wholeDocument || targetPretty.isBlank()) emptyList()

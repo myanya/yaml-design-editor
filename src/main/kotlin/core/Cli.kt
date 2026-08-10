@@ -32,6 +32,11 @@ internal const val CLI_USAGE = """コマンド:
   bundle   <workspace> <file> [path] [--budget N]      対象と関連情報（参照・被参照）の文脈バンドル
   search   <workspace> [--text q] [--schema id]... [--file glob] [--path glob]
                        [--ref-to id] [--unresolved] [--limit n]
+  traverse <workspace> <id> [--steps <YAML配列>] [--budget N]
+           ID関係グラフを経路パターンで多段に辿る（R19-03。コンテキストレシピ graph 項目の試作台）。
+           steps は連鎖（各ステップは前ステップの到達ノードから辿る）。
+           --steps 例: "[{emit: full}, {follow: out, via: actor, emit: full}]"
+           省略時は「起点の要約 → 参照先の要約」
   view     <workspace> [view-id] [file]         ビュー（_views）を解決する。横断グリッドは行×列、
            文書ビュー（kind: document）は file で対象文書を指定（適用対象1件なら省略可）。
            view-id 省略時は定義の一覧を表示する。各セルに原本上の座標（file / path）が付く
@@ -40,9 +45,11 @@ internal const val CLI_USAGE = """コマンド:
   hash     <workspace> <file>                   変更セットの base に使う内容ハッシュ
   activities <workspace>                        アクティビティ／エージェント定義の一覧と検証
   agent    <workspace> <activity-id> [--instruction 追加指示] [--provider openai|anthropic]
-           [--model id] [--out changeset.yaml] [--apply]
+           [--model id] [--out changeset.yaml] [--apply] [--foreach]
            アクティビティを実行（APIキーは環境変数 OPENAI_API_KEY / ANTHROPIC_API_KEY）。
-           提出された変更セットを出力し、--apply 指定時のみワークスペースへ適用する
+           提出された変更セットを出力し、--apply 指定時のみワークスペースへ適用する。
+           --foreach は定義の foreach で対象を列挙し、1件=1実行で直列に一括実行する
+           （--apply 併用時は1件ごとに適用するため、後続の項目から先行の成果が見える）
   watch    <workspace> [--provider openai|anthropic] [--once]
            自動実行エンジンを起動（トリガ監視・キュー・自動適用/承認待ち）。
            --once はトリガ判定とキュー消化を1回だけ行って終了する
@@ -116,6 +123,21 @@ internal fun runCli(args: Array<String>): String {
             val pathArg = rest.getOrNull(2)?.takeIf { !it.startsWith("--") } ?: ""
             val budget = intFlag(rest, "--budget") ?: 8_000
             Disclosure.bundle(ws, rel, parseYPath(pathArg), budget)
+        }
+        "traverse" -> {
+            val ws = workspace()
+            val start = rest.getOrNull(1)?.takeIf { !it.startsWith("--") } ?: error("起点の論理IDを指定してください")
+            val steps = stringFlag(rest, "--steps")?.let { raw ->
+                val list = yaml.YamlIO.parseToRaw(raw) as? List<*> ?: error("--steps はYAMLの配列である必要があります")
+                list.mapIndexed { i, e -> TraverseStep.parse(e, "steps[$i]") }
+            } ?: TraverseSpec.DEFAULT_STEPS
+            val budget = intFlag(rest, "--budget") ?: 8_000
+            Traverse.run(
+                ws.index,
+                relPath = { f -> ws.relPath(f) },
+                loader = { f -> runCatching { ws.load(ws.relPath(f)).root }.getOrNull() },
+                spec = TraverseSpec(start = start, steps = steps, budgetChars = budget),
+            ) + "\n"
         }
         "search" -> {
             val ws = workspace()
@@ -727,6 +749,53 @@ private fun runAgentCommand(rest: List<String>): String {
             System.err.println(line)
         }
     }
+    // 一括実行（R18-01）: foreach で対象を列挙し、1件=1実行で直列に回す。
+    // --apply 併用時は1件ごとに適用し、後続の項目のワークスペースから先行の成果が見えるようにする
+    if ("--foreach" in rest) {
+        val foreachDef = activity.foreach
+            ?: error("アクティビティ「${activity.id}」に foreach 定義がありません")
+        val userInstruction = stringFlag(rest, "--instruction")
+        val apply = "--apply" in rest
+        val enumeration = agent.Foreach.enumerate(ws, foreachDef)
+        if (enumeration.items.isEmpty()) {
+            return dumpYaml(linkedMapOf("total" to enumeration.total, "executed" to 0, "message" to "対象がありません"))
+        }
+        val itemResults = mutableListOf<Map<String, Any?>>()
+        enumeration.items.forEachIndexed { i, item ->
+            System.err.println("=== 一括 ${i + 1}/${enumeration.items.size}: ${item.label}")
+            val itemWs = Workspace.open(ws.root)
+            val request = agent.AgentRunRequest(
+                activity = activity, agent = agentDef,
+                provider = provider, model = model, apiKey = apiKey,
+                extraInstruction = (listOfNotNull(userInstruction) + item.instruction).joinToString("\n"),
+                apiKeys = envApiKeys(),
+                subAgents = defs.agents,
+                targetValues = item.values,
+            )
+            val result = kotlinx.coroutines.runBlocking { agent.AgentKernel.run(itemWs, request, host) }
+            val itemRunFile = agent.RunLog.write(itemWs, request, result)
+            var appliedOk: Boolean? = null
+            if (apply && result.status == agent.RunStatus.SUBMITTED && result.changeSet.changes.isNotEmpty()) {
+                appliedOk = itemWs.apply(result.changeSet).ok
+            }
+            itemResults += linkedMapOf(
+                "target" to item.key,
+                "status" to result.status.name,
+                "message" to result.message,
+                "applied" to appliedOk,
+                "changes" to result.changeSet.changes.map { it.file },
+                "runLog" to itemWs.relPath(itemRunFile),
+            )
+        }
+        return dumpYaml(
+            linkedMapOf(
+                "total" to enumeration.total,
+                "executed" to enumeration.items.size,
+                "items" to itemResults,
+            )
+        )
+    }
+
     val request = agent.AgentRunRequest(
         activity = activity, agent = agentDef,
         provider = provider, model = model, apiKey = apiKey,

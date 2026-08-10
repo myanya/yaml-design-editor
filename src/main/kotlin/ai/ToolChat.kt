@@ -28,9 +28,17 @@ data class ToolResult(
     val content: String,
 )
 
-data class ChatUsage(val inputTokens: Long = 0, val outputTokens: Long = 0) {
+/**
+ * トークン消費。inputTokens は総入力（キャッシュ分を含む）、cachedInputTokens はその内数（キャッシュから読まれた分）。
+ * プロバイダ間の報告差はパース側で正規化する（Anthropic の input_tokens はキャッシュ分を含まないため合算する。ARCHITECTURE §4.28）。
+ */
+data class ChatUsage(val inputTokens: Long = 0, val outputTokens: Long = 0, val cachedInputTokens: Long = 0) {
     operator fun plus(other: ChatUsage) =
-        ChatUsage(inputTokens + other.inputTokens, outputTokens + other.outputTokens)
+        ChatUsage(
+            inputTokens + other.inputTokens,
+            outputTokens + other.outputTokens,
+            cachedInputTokens + other.cachedInputTokens,
+        )
 }
 
 /** 1回の応答。toolCalls が空なら会話上の最終応答。 */
@@ -108,28 +116,70 @@ internal class AnthropicToolSession(
     }
 
     override suspend fun send(): ChatTurn {
-        val body = buildJsonObject {
-            put("model", model)
-            put("max_tokens", 16_000)
-            put("system", system)
-            putJsonArray("tools") {
-                tools.forEach { t ->
-                    addJsonObject {
-                        put("name", t.name)
-                        put("description", t.description)
-                        put("input_schema", t.parameters)
-                    }
-                }
-            }
-            putJsonArray("messages") { messages.forEach(::add) }
-        }
         val (status, responseBody) = post(
             "https://api.anthropic.com/v1/messages",
             mapOf("x-api-key" to apiKey.trim(), "anthropic-version" to "2023-06-01"),
-            body,
+            buildRequestBody(),
         )
         val turn = parseAnthropicToolResponse(status, responseBody)
         return turn
+    }
+
+    /**
+     * リクエスト本文の組み立て（prompt caching 対応。R19-07 / ARCHITECTURE §4.28）。
+     * ツールループでは system・ツール定義・会話履歴の前方が毎ターン不変のため、キャッシュ切れ目を
+     * ①system ②ツール定義の末尾 ③最新メッセージの末尾ブロック（毎ターン前進する切れ目）に置き、
+     * 2ターン目以降の再送プレフィクス全体をキャッシュ読取にする。会計は usage の
+     * cache_read / cache_creation 正規化（R19-01）で追跡する。
+     */
+    internal fun buildRequestBody(): JsonObject = buildJsonObject {
+        put("model", model)
+        put("max_tokens", 16_000)
+        putJsonArray("system") {
+            addJsonObject {
+                put("type", "text")
+                put("text", system)
+                putJsonObject("cache_control") { put("type", "ephemeral") }
+            }
+        }
+        putJsonArray("tools") {
+            tools.forEachIndexed { i, t ->
+                addJsonObject {
+                    put("name", t.name)
+                    put("description", t.description)
+                    put("input_schema", t.parameters)
+                    if (i == tools.lastIndex) putJsonObject("cache_control") { put("type", "ephemeral") }
+                }
+            }
+        }
+        putJsonArray("messages") {
+            messages.forEachIndexed { i, msg ->
+                add(if (i == messages.lastIndex) cacheMarked(msg) else msg)
+            }
+        }
+    }
+
+    /** メッセージの末尾コンテンツブロックへ cache_control を付けた複製を返す（保持中の履歴は変更しない）。 */
+    private fun cacheMarked(message: JsonObject): JsonObject {
+        val mark = buildJsonObject { put("type", "ephemeral") }
+        val content = message["content"]
+        val marked: JsonElement = when (content) {
+            is JsonPrimitive -> buildJsonArray {
+                addJsonObject {
+                    put("type", "text")
+                    put("text", content.content)
+                    put("cache_control", mark)
+                }
+            }
+            is JsonArray -> buildJsonArray {
+                content.forEachIndexed { i, block ->
+                    if (i == content.size - 1 && block is JsonObject) add(JsonObject(block + ("cache_control" to mark)))
+                    else add(block)
+                }
+            }
+            else -> return message
+        }
+        return JsonObject(message + ("content" to marked))
     }
 
     internal fun parseAnthropicToolResponse(statusCode: Int, body: String): ChatTurn {
@@ -153,12 +203,17 @@ internal class AnthropicToolSession(
             )
         }
         val usage = root["usage"]?.jsonObject
+        // Anthropic の input_tokens はキャッシュ読取・作成分を含まないため、総入力へ正規化する（§4.28）
+        val base = usage?.get("input_tokens")?.jsonPrimitive?.longOrNull ?: 0
+        val cacheRead = usage?.get("cache_read_input_tokens")?.jsonPrimitive?.longOrNull ?: 0
+        val cacheCreation = usage?.get("cache_creation_input_tokens")?.jsonPrimitive?.longOrNull ?: 0
         return ChatTurn(
             assistantText = text,
             toolCalls = calls,
             usage = ChatUsage(
-                inputTokens = usage?.get("input_tokens")?.jsonPrimitive?.longOrNull ?: 0,
+                inputTokens = base + cacheRead + cacheCreation,
                 outputTokens = usage?.get("output_tokens")?.jsonPrimitive?.longOrNull ?: 0,
+                cachedInputTokens = cacheRead,
             ),
             stopReason = root["stop_reason"]?.jsonPrimitive?.contentOrNull,
         )
@@ -246,6 +301,9 @@ internal class OpenAiToolSession(
             usage = ChatUsage(
                 inputTokens = usage?.get("input_tokens")?.jsonPrimitive?.longOrNull ?: 0,
                 outputTokens = usage?.get("output_tokens")?.jsonPrimitive?.longOrNull ?: 0,
+                // cached_tokens は input_tokens の内数（OpenAI の自動キャッシュ報告）
+                cachedInputTokens = usage?.get("input_tokens_details")?.jsonObject
+                    ?.get("cached_tokens")?.jsonPrimitive?.longOrNull ?: 0,
             ),
             stopReason = root["status"]?.jsonPrimitive?.contentOrNull,
         )

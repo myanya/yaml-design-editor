@@ -48,6 +48,49 @@ class ToolsTest {
             """,
         )
         write("tables/t.yaml", "id: TBL-001\nphase: requirements\nname: たすく\n")
+        // 参照の名前解決（R19-05）用: アクター定義とそれを参照するユースケース・ビュー
+        write(
+            "_schemas/actor.yaml",
+            """
+            id: actor
+            match: "actors/*.yaml"
+            root:
+              type: object
+              fields:
+                - { key: id, type: id, required: true }
+                - { key: name, type: string, role: title }
+            """,
+        )
+        write(
+            "_schemas/uc.yaml",
+            """
+            id: uc
+            match: "ucs/*.yaml"
+            root:
+              type: object
+              fields:
+                - { key: id, type: id, required: true }
+                - { key: name, type: string, role: title }
+                - key: actorIds
+                  type: array
+                  item: { type: ref, scope: { schemaIds: [actor] } }
+            """,
+        )
+        write("actors/ACT-001.yaml", "id: ACT-001\nname: テナント管理者")
+        write("ucs/UC-001.yaml", "id: UC-001\nname: 削除する\nactorIds:\n- ACT-001\n- ACT-999")
+        write(
+            "_views/uc-view.yaml",
+            """
+            id: uc-view
+            name: ユースケース一覧
+            rows:
+              idPattern: "UC-*"
+            columns:
+              - label: 主な利用者
+                schemaId: uc
+                path: actorIds
+            """,
+        )
     }
 
     @AfterTest
@@ -95,5 +138,67 @@ class ToolsTest {
         assertTrue("tables/t.yaml" in text && "phase=requirements" in text, text)
         val filtered = toolbox().phaseText("nomatch/**")
         assertTrue("phases を宣言したスキーマの対象文書がありません" in filtered, filtered)
+    }
+
+    // ---------------------------------------------------------------- 参照の名前解決とツール減量（R19-05）
+
+    @Test
+    fun `read_node appends reference resolution footer with titles`() = runBlocking {
+        val call = ToolCall("c1", "read_node", Json.parseToJsonElement("""{"file":"ucs/UC-001.yaml"}""").jsonObject)
+        val text = toolbox().execute(call, NoAskHost, mutableListOf()).content
+        assertTrue("参照の解決:" in text, text)
+        assertTrue("- ACT-001 = テナント管理者 [actors/ACT-001.yaml]" in text, text)
+        assertTrue("- ACT-999（未解決）" in text, text)
+        // 参照を含まないノードにはフッタが付かない
+        val scoped = ToolCall("c2", "read_node", Json.parseToJsonElement("""{"file":"ucs/UC-001.yaml","path":"name"}""").jsonObject)
+        val scopedText = toolbox().execute(scoped, NoAskHost, mutableListOf()).content
+        assertTrue("参照の解決" !in scopedText, scopedText)
+    }
+
+    @Test
+    fun `related annotates outgoing refs and caps backlinks at limit`() = runBlocking {
+        // ACT-001 への被参照を25件に増やす（膨張の再現）
+        (2..26).forEach { i ->
+            write("ucs/UC-%03d.yaml".format(i), "id: UC-%03d\nname: UC%d\nactorIds:\n- ACT-001".format(i, i))
+        }
+        val call = ToolCall("c1", "related", Json.parseToJsonElement("""{"id":"UC-001"}""").jsonObject)
+        val text = toolbox().execute(call, NoAskHost, mutableListOf()).content
+        // この要素からの参照に参照先タイトルが付く
+        assertTrue("- ACT-001 = テナント管理者（actorIds）" in text, text)
+        // 被参照は既定20件で打切り
+        val capped = ToolCall("c2", "related", Json.parseToJsonElement("""{"id":"ACT-001"}""").jsonObject)
+        val cappedText = toolbox().execute(capped, NoAskHost, mutableListOf()).content
+        assertTrue("被参照（26件）" in cappedText, cappedText)
+        assertTrue("…他 6 件（related の limit 引数で拡張できます）" in cappedText, cappedText)
+        // limit 引数で拡張できる
+        val full = ToolCall("c3", "related", Json.parseToJsonElement("""{"id":"ACT-001","limit":30}""").jsonObject)
+        val fullText = toolbox().execute(full, NoAskHost, mutableListOf()).content
+        assertTrue("…他" !in fullText, fullText)
+    }
+
+    @Test
+    fun `traverse tool walks the graph with default and explicit steps`() = runBlocking {
+        // 既定経路: 起点の要約 → 参照先の要約
+        val call = ToolCall("c1", "traverse", Json.parseToJsonElement("""{"start":"UC-001"}""").jsonObject)
+        val text = toolbox().execute(call, NoAskHost, mutableListOf()).content
+        assertTrue("トラバース: UC-001" in text, text)
+        assertTrue("- ACT-001 — テナント管理者" in text, text)
+        // steps 指定（連鎖）: アクターの被参照（＝アクターを使うユースケース）をタイトルで一覧
+        val steps = ToolCall(
+            "c2", "traverse",
+            Json.parseToJsonElement("""{"start":"ACT-001","steps":[{"emit":"title"},{"follow":"in","emit":"title"}]}""").jsonObject,
+        )
+        val stepText = toolbox().execute(steps, NoAskHost, mutableListOf()).content
+        assertTrue("- UC-001 — 削除する" in stepText, stepText)
+    }
+
+    @Test
+    fun `view cells annotate ref values with titles and read_view filters rows`() {
+        val text = toolbox().viewText("uc-view")
+        // 「（配列 1 件）」ではなく中身がタイトル注記つきで展開される（未解決IDは素のまま）
+        assertTrue("ACT-001（テナント管理者）, ACT-999" in text, text)
+        // rows / columns の絞り込み（read_view ツール引数と同じ経路）
+        val filtered = toolbox().viewText("uc-view", rowsPattern = "UC-9*")
+        assertTrue("行: 0 件" in filtered, filtered)
     }
 }

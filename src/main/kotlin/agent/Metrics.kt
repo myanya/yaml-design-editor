@@ -22,6 +22,7 @@ object RunMetrics {
         val turns: Int,
         val inputTokens: Long,
         val outputTokens: Long,
+        val cachedInputTokens: Long,
         val validationErrors: Int,
         val decided: Boolean,      // 採否（adoption）が記録済み
         val applied: Boolean,      // 採用して適用された
@@ -46,6 +47,7 @@ object RunMetrics {
         val totalTurns: Int,
         val inputTokens: Long,
         val outputTokens: Long,
+        val cachedInputTokens: Long,
     ) {
         /** 提出率: ゲートを通って変更セットを提出できた実行の割合。 */
         val submitRate: Double get() = ratio(submitted, runs)
@@ -90,6 +92,7 @@ object RunMetrics {
                 totalTurns = runs.sumOf { it.turns },
                 inputTokens = runs.sumOf { it.inputTokens },
                 outputTokens = runs.sumOf { it.outputTokens },
+                cachedInputTokens = runs.sumOf { it.cachedInputTokens },
             )
         }.sortedBy { it.activityId }
 
@@ -111,6 +114,7 @@ object RunMetrics {
                 "avgTurns" to s.avgTurns,
                 "inputTokens" to s.inputTokens,
                 "outputTokens" to s.outputTokens,
+                "cachedInputTokens" to s.cachedInputTokens,
             )
         },
         "total" to linkedMapOf(
@@ -119,6 +123,7 @@ object RunMetrics {
             "adopted" to summaries.sumOf { it.adopted },
             "inputTokens" to summaries.sumOf { it.inputTokens },
             "outputTokens" to summaries.sumOf { it.outputTokens },
+            "cachedInputTokens" to summaries.sumOf { it.cachedInputTokens },
         ),
     )
 
@@ -138,6 +143,7 @@ object RunMetrics {
             turns = (root["turns"] as? Number)?.toInt() ?: 0,
             inputTokens = (usage?.get("inputTokens") as? Number)?.toLong() ?: 0,
             outputTokens = (usage?.get("outputTokens") as? Number)?.toLong() ?: 0,
+            cachedInputTokens = (usage?.get("cachedInputTokens") as? Number)?.toLong() ?: 0,
             validationErrors = (validation?.get("errors") as? Number)?.toInt() ?: 0,
             decided = adoption != null,
             applied = adoption?.get("applied") == true,

@@ -889,6 +889,7 @@ Material 3ベースのライト／ダークテーマを搭載しています。�
 - **Azure OpenAI / AI Foundry**: 「接続の詳細設定」でエンドポイント（例 `https://<リソース名>.openai.azure.com`）と APIバージョン（空なら v1 サーフェス）を設定します（環境変数 `AZURE_OPENAI_ENDPOINT` / `AZURE_OPENAI_API_VERSION` でも可）。認証は `api-key` ヘッダで行われます。
 - **OpenAI互換エンドポイント**: OpenAI 選択時にベースURLを上書きすると、ollama / vLLM 等の互換エンドポイントも利用できます（環境変数 `OPENAI_BASE_URL` でも可）。
 - **プロキシ**: 既定はシステム設定に従います。「接続の詳細設定」でプロキシなし／手動（ホスト・ポート）へ切り替えられ、Basic 認証（ID・パスワード）も指定できます。パスワードはAPIキー同様メモリのみ保持です。エンドポイント・プロキシ設定はフィールド生成とエージェント実行の両方に共通で効きます。
+- **レート制限時の自動リトライ**: API がレート制限（429）や一時的なサーバーエラーを返した場合、待機して自動で再送します（プロバイダ指定の待機時間を尊重、最大3回・1回あたり最大60秒）。一括実行などで制限に達しても、実行が途中で失敗しにくくなります。リトライ中は進捗表示が一時的に止まって見えることがあります。それでも失敗する場合は、時間を置くか一括実行の `limit` を下げてください。
 
 ## 12. エージェントによるアクティビティ実行
 
@@ -899,11 +900,11 @@ Material 3ベースのライト／ダークテーマを搭載しています。�
 | ディレクトリ | 内容 |
 |---|---|
 | `_agents/*.yaml` | エージェント定義: `id`・`persona`（性格・行動指針）・`rubric`（観点）・`model`（プロバイダ／モデルID）・`tools`（許可ツール分類） |
-| `_activities/*.yaml` | アクティビティ定義: `id`・`agent`・`target.match`（対象glob）・`instruction`・`allowedFiles`／`allowedPaths`（書込許可）・`limits`（maxTurns等）・`gates.validation`・`trigger`／`chain`／`retry`／`approval`（自動実行）・`meta`（§13） |
+| `_activities/*.yaml` | アクティビティ定義: `id`・`agent`・`target.match`（対象glob）・`instruction`・`context.items`（コンテキストレシピ。§12）・`allowedFiles`／`allowedPaths`（書込許可）・`limits`（maxTurns等）・`gates.validation`・`trigger`／`chain`／`retry`／`approval`（自動実行）・`foreach`（一括実行。§12）・`meta`（§13） |
 | `_evals/*.yaml` | 評価セット定義: ゴールデン入力と期待結果によるアクティビティの回帰評価（§13） |
 | `_skills/*.yaml` | skill定義: 宣言型のインポート・エクスポート（§14） |
-| `_views/*.yaml` | ビュー定義: 行×列の横断一覧（§5）。`context.views` でアクティビティの初期文脈にも開示できる |
-| `_runs/` | 実行記録（自動生成。ターン・ツール呼び出し・質問・採否・トークン使用量・評価レポート）。デバッグ用の会話記録 `transcript` 節に、モデルへ送ったシステム指示・初期コンテキスト、モデルの本文テキスト、ツール呼び出しの引数と結果が全文で残る（1件2万字で打切り。委譲先エージェントの内部会話は対象外） |
+| `_views/*.yaml` | ビュー定義: 行×列の横断一覧（§5）。コンテキストレシピ（`context.items` の `kind: view`）でアクティビティの初期文脈にも開示できる |
+| `_runs/` | 実行記録（自動生成。ターン・ツール呼び出し・質問・採否・トークン使用量・評価レポート）。デバッグ用の会話記録 `transcript` 節に、モデルへ送ったシステム指示・初期コンテキスト、モデルの本文テキスト、ツール呼び出しの引数と結果が全文で残る（1件2万字で打切り。委譲先エージェントの内部会話は対象外）。コンテキスト会計の `context` 節には、毎ターン再送される固定部（システム指示・ツール定義・指示・カタログ・ビュー等）の区分別の文字数・概算トークンと、送信ごとの入力トークン実測が残り、「どの宣言がいくらトークンを払わせたか」を確認できる（`usage.cachedInputTokens` はキャッシュ読取の内数） |
 
 どちらも組込みスキーマ付きのYAML文書なので、本ツールのフォーム編集・検証がそのまま使えます（独自スキーマを `_schemas` に置けば上書き可能）。定義例:
 
@@ -921,6 +922,43 @@ limits: { maxTurns: 16 }
 gates: { validation: error-free }        # 検証エラーが残る提出は拒否
 ```
 
+### コンテキストレシピ（初期文脈の設計）
+
+エージェントの入力トークンの大半は「毎ターン再送される初期コンテキスト」です。何をどれだけ最初に開示するかは、アクティビティ定義の `context.items` で**利用者が設計**します（**無指定の既定は開示なし**。カタログも明示宣言制）。項目は宣言順に開示され、実行記録のコンテキスト会計（`_runs` の `context` 節・レビュー画面の内訳）で「どの宣言がいくら払わせたか」を確認しながらチューニングできます。
+
+```yaml
+context:
+  items:
+    - kind: catalog                # 文書カタログ（match で対象を絞る）
+      match: "00-requirements/*"
+    - kind: related                # 対象IDの出現・参照・被参照のまとめ（related ツールと同形式）
+      id: "{target}"
+      when: has-target             # 対象の指定がある実行だけ開示
+    - kind: sample                 # 同スキーマの既存文書N件（記述粒度の手本）
+      schema: usecase
+      count: 1
+    - kind: view                   # 横断グリッドの解決結果
+      view: usecase-list
+      rows: "{target}"             # 行IDのパターンで絞る（プレースホルダ可）
+      columns: [機能名, 機能説明]    # 列ラベルで絞る（省略時は全列）
+      budgetChars: 4000            # 超過は決定的に打切り
+    - kind: doc                    # 指定文書の全文（path で一部だけも可）
+      file: todos/10-screens-list.yaml
+    - kind: phase                  # 対象文書のフェーズ状態（段階的詳細化）
+    - kind: graph                  # ID関係グラフの経路トラバース（多段）
+      start: "{target}"
+      steps:
+        - emit: summary                            # 起点自身（責務定義書内の機能ノード等）
+        - { follow: out, via: actor, emit: full }  # actor 参照を辿ってアクター定義の全文まで
+```
+
+- **graph（経路トラバース）**: `steps` は連鎖で、各ステップは前ステップの到達ノードから辿ります（`follow: out`＝参照を辿る／`in`＝被参照を辿る。`relation`・`via`・`schema` で絞り込み、`emit` で開示粒度を選択、`limitPerHop` 既定10）。エージェントも同じ語彙の `traverse` ツールを実行中に使えます。レシピに固定する前に CLI `traverse` で試せます（§16）
+- **プレースホルダ**: `rows` / `file` / `path` / `id` / `start` には `{target}`（一括実行の対象ID等）・`{id}`・`{file}` などの対象値を書けます。値は `foreach`（§12）の各項目から供給され、解決できないプレースホルダが残る項目は開示されません（対象なしの実行で `{target}` 項目が黙って外れる、が意図した動きです）。
+- **開示条件 `when`**: `always`（既定）／`has-target`（foreach の対象値または追加指示がある実行のみ）／`no-target`。「対象が指定された実行では全量ビューを載せない」を宣言で表現できます。
+- **予算 `budgetChars`**: 項目ごとの文字数上限。超過は「…（予算 n 文字で打切り）」で決定的に切られます。全文系（doc / related / sample）は無指定でも既定8,000字が掛かります。
+- **旧語彙からの移行**: `context.include` / `context.views` は廃止されました（定義エラーになります）。`include: [catalog]` → `items: [{kind: catalog}]`、`views: [x]` → `items: [{kind: view, view: x}]` が等価な書き換えです。旧既定（カタログ自動開示）は引き継がれないため、カタログが必要なら明示してください。
+- **prompt caching**: Anthropic 使用時は、システム指示・ツール定義・会話履歴の前方が自動でキャッシュされ（2ターン目以降はキャッシュ読取＝課金が大幅に下がる）、効果は実行記録の `usage.cachedInputTokens` で確認できます。
+
 ### プロバイダ・モデルの決まり方
 
 実際に使われる接続先は **エージェント定義の `model:` が最優先**で、未指定の項目だけ「手動実行」タブの選択値で補われます。「AI接続」欄には常に**この実行で実際に使われる**プロバイダ・モデルが表示され、APIキーもそのプロバイダのものを入力します（例: エージェント定義が `provider: anthropic` を指定していれば、OpenAI を選んでいても Anthropic のキーが必要です）。
@@ -935,8 +973,9 @@ gates: { validation: error-free }        # 検証エラーが残る提出は拒�
 ### 安全性
 
 - エージェントの読み書きはツール経由のみで、書込は `allowedFiles`／`allowedPaths` の範囲かつ予約ディレクトリ（`_schemas` `_agents` `_activities` `_evals` `_skills` `_views` `_runs`）以外に制限されます（定義ディレクトリはメタアクティビティ §13 でのみ提案可能）
-- 探索ツールにはビュー参照（`read_view`）が含まれ、複数文書に散らばる同一IDの情報を、原本上の座標（file / path）つきの一覧として取得できます。文書ビュー（`kind: document`。§5）は `file` で対象文書を指定して被参照表を取得できます（適用対象が1文書なら省略可）。アクティビティ定義の `context: { views: [ビューID] }` で初期文脈として開示することもできます
-- ID横断（`related`）は出現ごとに `read_node` を呼ばずに済むよう、主要フィールドの要約と、`phases` 宣言スキーマなら現在フェーズ・記入進捗も1回の呼び出しで返します（ID横ぐしビューのAI版）。`list_documents` のカタログにも同様にフェーズ状態が付きます。アクティビティ定義の `context: { include: [catalog, phase] }` で、対象文書のフェーズ状態を最初から初期文脈に含めることもできます（段階的詳細化を前進させるアクティビティに使う）
+- 探索ツールにはビュー参照（`read_view`）が含まれ、複数文書に散らばる同一IDの情報を、原本上の座標（file / path）つきの一覧として取得できます。`rows`（行IDパターン）・`columns`（列ラベル）で必要な行・列だけに絞れます。文書ビュー（`kind: document`。§5）は `file` で対象文書を指定して被参照表を取得できます（適用対象が1文書なら省略可）。コンテキストレシピ（`kind: view`。行・列の絞り込み可）で初期文脈として開示することもできます
+- ID横断（`related`）は出現ごとに `read_node` を呼ばずに済むよう、主要フィールドの要約と、`phases` 宣言スキーマなら現在フェーズ・記入進捗も1回の呼び出しで返します（ID横ぐしビューのAI版）。被参照は既定20件で打切られます（`limit` 引数で拡張）。`list_documents` のカタログにも同様にフェーズ状態が付きます（`match` 引数で絞り込み可）。コンテキストレシピ（`kind: phase`）で、対象文書のフェーズ状態を最初から初期文脈に含めることもできます（段階的詳細化を前進させるアクティビティに使う）
+- **参照の名前解決**: `read_node`（およびレシピの `doc` 項目）の出力末尾には「参照の解決」——そのノード配下の参照IDを `ID = 名前 [定義元ファイル]` で列挙したフッタ——が付き、ビューのセルでも参照値は `ID（名前）` と注記されます。「ACT-001 が誰か」を確かめるためだけの追加読取りが不要になります（未解決IDは（未解決）と明示）
 - 提出には検証ゲート（既定: エラー0）があり、変更が壊す参照（改名の未修正参照元など）はステージング外のファイルでも検出されます
 - ターン数・トークン・時間の上限があり、上限到達時も作業は未提出ドラフトとして保全され、レビュー画面から引き継げます
 - 文書の内容はエージェントへの指示として扱われません（データとして扱う規範をシステムプロンプトで明示）
@@ -969,6 +1008,28 @@ approval: auto               # 自動適用（下記の条件つき）。既定�
 
 CLIからも実行できます: 単発は `agent`、常駐監視は `watch`（`--once` で1回だけ判定・消化）。`./gradlew runCli -q --args="watch <workspace>"`（定義一覧は `activities`。APIキーは環境変数から）。
 
+### 一括実行（foreach: 同一アクティビティの連続実行）
+
+「1実行=1文書」のアクティビティを対象違いで連続実行し、複数の文書を一気に整備できます。アクティビティ定義に `foreach`（対象の列挙）を宣言すると、手動実行タブに「一括実行（対象を選択）」ボタンが現れます。押すと対象の一覧が**チェックボックス付き**で表示され（既定は全選択。全選択／全解除も可能）、選択した対象だけが1件=1実行として自動化キューへ投入されます（自動化タブで「自動実行」を有効にすると直列に消化。項目の失敗は後続の項目を塞ぎません）。
+
+```yaml
+foreach:
+  source: view             # 列挙元: view / issues / search / files / ids
+  view: usecase-list       # source: view … ビューの行を対象にする
+  where: detail-missing    # detail-missing（詳細文書が未作成の行のみ。既定）/ all（全行）
+  as: "対象: {id}"          # 1件ごとの追加指示テンプレート（{id} {title} {file} {path} {message} 等）
+  limit: 10                # 1回の投入で展開する上限（既定 20）
+# source: issues … 検証の指摘ごと（severity: error / warning、match で対象ファイルを絞る）
+# source: search … 検索ヒットごと（text / pathGlob / refTo / unresolved / schemaIds / match）
+# source: files  … match（glob）に一致する文書ごと
+# source: ids    … idPattern（× schemaIds）に一致する論理IDごと
+```
+
+- 対象の列挙は起動時に1回だけ・`limit` 件まで。**「次の対象選び」はLLMではなく機械が行い**、各実行には対象を明示した追加指示が注入されます（アクティビティ本体の指示・権限・ゲートはそのまま）。
+- `trigger: manual` のアクティビティ専用です（トリガ・連鎖など自動起動からの展開は不可）。
+- 承認は通常どおり働きます: `approval: human`（既定）では項目ごとに承認待ちが受信箱へ届きます。
+- CLI では `agent <workspace> <activity> --foreach` が同じ列挙を直列に一括実行します。`--apply` 併用時は1件ごとに適用するため、後続の実行から先行の成果が見えます（省略時は変更セットの表示のみ）。
+
 ## 13. 自己改善（メトリクス・評価セット・メタアクティビティ）
 
 エージェント運用の品質を測定し、定義の改善をツール内で回すための機能群です。実行スペースの「計測・評価」タブで行います。
@@ -985,11 +1046,15 @@ CLIからも実行できます: 単発は `agent`、常駐監視は `watch`（`-
 # _evals/review-eval.yaml
 id: review-eval
 activity: review-concepts        # 評価対象のアクティビティ
-variants:                        # 省略可: A/B比較（モデル・エージェント・追加指示の差し替え）
+variants:                        # 省略可: A/B比較（モデル・エージェント・追加指示・文脈レシピの差し替え）
 - name: base
 - name: strict
   instruction: 指摘は最大3件に絞ってください。
   # model: { provider: anthropic, id: claude-opus-4-8 } / agent: 別エージェントID も指定可
+- name: lean-context             # 文脈レシピの差し替え（§12 と同じ items 書式。空 = 開示なし）
+  context:
+    items:
+      - kind: catalog
 cases:
 - id: vague-actor-is-flagged
   setup:                         # ゴールデン入力: サンドボックスへ上書き・作成するファイル
@@ -1007,6 +1072,8 @@ cases:
 ```
 
 期待結果を「出力文字列の完全一致」ではなく構造条件で書くのは意図的な設計です。モデルの揺らぎに対して壊れにくく、**良い合格条件を書くこと自体が業務設計（ハーネスエンジニアリング）** になります。CLI: `eval <workspace> <eval-id>`（引数なしで一覧）。
+
+レポート（`_runs/eval-*.yaml`）には変異別の合格率・ターン・トークン（キャッシュ読取の内数込み）とケース別のトークンが記録されます。variants の `context` 差し替えと組み合わせると、**コンテキストレシピの絞り方を「合格率×トークン」のデータで選べます**（絞りすぎると探索ターンが増えて逆にコストが増える、といったトレードオフの検出。§12）。
 
 ### メタアクティビティ（定義の改善提案）
 
@@ -1133,13 +1200,14 @@ GUIを起動せずに、ワークスペースの探索・検索・部分変更�
 ./gradlew runCli -q --args="bundle sample-workspace path/to/doc.yaml --budget 4000"  # 対象＋参照・被参照の文脈バンドル
 ./gradlew runCli -q --args="search sample-workspace --text ログイン --schema requirement"  # 本文検索
 ./gradlew runCli -q --args="search sample-workspace --ref-to REQ-001"     # 参照検索（--unresolved で未解決のみ）
+./gradlew runCli -q --args="traverse my-ws USC-011-108 --steps '[{emit: summary}, {follow: out, via: actor, emit: full}]'"  # グラフの経路トラバース（レシピ graph 項目の試作台）
 ./gradlew runCli -q --args="view sample-workspace screen-catalog"         # ビューの解決（引数なしで一覧。セルに原本座標つき）
 ./gradlew runCli -q --args="view my-ws actor-document 00-requirements/01-actors.yaml"  # 文書ビューの解決（適用対象1件なら file 省略可）
 ./gradlew runCli -q --args="validate sample-workspace"                    # 全文書の検証（カバレッジ含む）
 ./gradlew runCli -q --args="hash sample-workspace path/to/doc.yaml"       # 変更セットの base に使う内容ハッシュ
 ./gradlew runCli -q --args="apply sample-workspace changeset.yaml --dry-run"  # 変更セットの適用（ドライラン）
 ./gradlew runCli -q --args="activities sample-workspace"                  # アクティビティ／エージェント定義の一覧
-./gradlew runCli -q --args="agent sample-workspace review-concepts"       # アクティビティ実行（--apply で即適用）
+./gradlew runCli -q --args="agent sample-workspace review-concepts"       # アクティビティ実行（--apply で即適用、--foreach で対象列挙の一括実行）
 ./gradlew runCli -q --args="watch sample-workspace --once"                # 自動実行（トリガ判定→キュー消化を1回）
 ./gradlew runCli -q --args="revert sample-workspace _runs/xxx.yaml"       # 自動適用の巻き戻し
 ./gradlew runCli -q --args="metrics sample-workspace"                     # 実行記録の集計（提出率・採用率・コスト）

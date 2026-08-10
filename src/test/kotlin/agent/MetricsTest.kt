@@ -63,14 +63,14 @@ class MetricsTest {
               rejectedFiles: [docs/b.yaml]
             """,
         )
-        // 失敗（上限到達）
+        // 失敗（上限到達）。キャッシュ読取（R19-01）の報告あり
         writeRun(
             "20260719-120000-review.yaml",
             """
             activity: review
             status: LIMIT
             turns: 24
-            usage: { inputTokens: 9000, outputTokens: 900 }
+            usage: { inputTokens: 9000, outputTokens: 900, cachedInputTokens: 800 }
             """,
         )
         // 別アクティビティ: 自動適用→巻き戻し
@@ -105,6 +105,7 @@ class MetricsTest {
         assertEquals(0.25, review.rejectedFileRate)  // 却下1 / (採用3+却下1)
         assertEquals(12_000L, review.inputTokens)
         assertEquals(1_500L, review.outputTokens)
+        assertEquals(800L, review.cachedInputTokens)   // 報告のない実行は0として合算
         assertEquals(12.0, review.avgTurns)
 
         val fixer = summaries.first { it.activityId == "fixer" }

@@ -40,10 +40,19 @@ object RunLog {
             "status" to result.status.name,
             "message" to result.message,
             "turns" to result.turnsUsed,
-            "usage" to linkedMapOf(
-                "inputTokens" to result.usage.inputTokens,
-                "outputTokens" to result.usage.outputTokens,
-            ),
+            "usage" to LinkedHashMap<String, Any>().apply {
+                put("inputTokens", result.usage.inputTokens)
+                put("outputTokens", result.usage.outputTokens)
+                // キャッシュ読取（入力の内数。ARCHITECTURE §4.28）。報告のないプロバイダでは出力しない
+                if (result.usage.cachedInputTokens > 0) put("cachedInputTokens", result.usage.cachedInputTokens)
+            },
+            // コンテキスト会計（R19-01）: 毎ターン再送される固定部の内訳と、送信ごとの入力トークン実測
+            "context" to (if (result.contextStats.isEmpty()) null else linkedMapOf(
+                "sections" to result.contextStats.map { stat ->
+                    linkedMapOf("section" to stat.section, "chars" to stat.chars, "tokensEst" to stat.tokensEst)
+                },
+                "turnInputTokens" to result.turnInputTokens,
+            )),
             "plan" to result.plan,
             "notes" to result.notes,
             "questions" to result.questions.map { (q, a) ->
@@ -55,6 +64,7 @@ object RunLog {
                     "tool" to entry.name,
                     "arguments" to entry.arguments,
                     "result" to entry.result.take(500),
+                    "resultChars" to entry.resultChars,   // 打切り前の全長（会計。以降の全ターンに乗る履歴コスト）
                     "failed" to entry.failed,
                 )
             },

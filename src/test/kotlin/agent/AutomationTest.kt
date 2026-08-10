@@ -408,6 +408,59 @@ class AutomationTest {
     // ---------------------------------------------------------------- 停止（R3-04/05）
 
     @Test
+    fun `foreach expands queue per target and continues after item failure`() {
+        write("docs/b.yaml", "id: DOC-B\ntitle: 文書B")
+        write(
+            "_activities/batch.yaml",
+            """
+            id: batch
+            agent: editor
+            instruction: 対象を1件処理する
+            foreach: { source: ids, idPattern: "DOC-*" }
+            """,
+        )
+        // 1件目は中断・2件目は変更なし提出 → 項目の失敗が後続の項目を塞がないこと
+        val scripts = ArrayDeque(listOf(
+            listOf(turn(call("abort", """{"reason":"テストのための失敗"}"""))),
+            listOf(turn(call("submit_changeset", """{"summary":"変更なし"}"""))),
+        ))
+        val e = engine(scripts)
+        val expansion = e.enqueueForeach("batch")
+        assertEquals(2, expansion.enqueued, expansion.toString())
+        assertEquals(listOf("DOC-A", "DOC-B"), e.queueSnapshot().map { it.targetKey })
+        // 同一対象の重複投入はスキップされる（アクティビティ×対象の重複ガード）
+        assertEquals(0, e.enqueueForeach("batch").enqueued)
+
+        drain(e)
+        val history = e.historySnapshot()
+        assertTrue(history.any { it.status == "失敗" && it.detail?.contains("DOC-A") == true }, history.toString())
+        assertTrue(history.any { it.status == "完了" && it.detail?.contains("DOC-B") == true }, history.toString())
+    }
+
+    @Test
+    fun `foreach preview enqueues only the selected subset`() {
+        write("docs/b.yaml", "id: DOC-B\ntitle: 文書B")
+        write(
+            "_activities/batch.yaml",
+            """
+            id: batch
+            agent: editor
+            instruction: 対象を1件処理する
+            foreach: { source: ids, idPattern: "DOC-*" }
+            """,
+        )
+        val e = engine(ArrayDeque())
+        val preview = e.previewForeach("batch")
+        assertEquals(2, preview.items.size, preview.toString())
+        assertEquals(2, preview.total)
+
+        // 選択したサブセット（DOC-B のみ）だけが投入される
+        val result = e.enqueueForeachItems("batch", preview.items.filter { it.key == "DOC-B" })
+        assertEquals(1, result.enqueued)
+        assertEquals(listOf("DOC-B"), e.queueSnapshot().map { it.targetKey })
+    }
+
+    @Test
     fun `stopAll clears queue and disables triggers`() {
         write("_activities/x.yaml", "id: x\nagent: editor\ninstruction: x")
         write("_activities/y.yaml", "id: y\nagent: editor\ninstruction: y")

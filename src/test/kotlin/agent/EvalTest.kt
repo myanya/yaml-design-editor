@@ -182,6 +182,59 @@ class EvalTest {
     // ---------------------------------------------------------------- 定義エラー
 
     @Test
+    fun `variant context override swaps the recipe per variant`() {
+        write("_activities/fix-title2.yaml", "id: fix-title2\nagent: editor\ninstruction: タイトルを整える\ncontext:\n  items:\n    - kind: doc\n      file: docs/b.yaml")
+        write(
+            "_evals/ctx-eval.yaml",
+            """
+            id: ctx-eval
+            activity: fix-title2
+            variants:
+              - name: base
+              - name: catalog-only
+                context:
+                  items:
+                    - kind: catalog
+              - name: no-context
+                context:
+                  items: []
+            cases:
+              - id: quick
+                name: 中断で終わる
+                expect: { status: aborted }
+            """,
+        )
+        val eval = Evals.load(dir).eval("ctx-eval")!!
+        // 各実行の初期コンテキストを捕捉する台本セッション
+        class CapturingSession(turns: List<ai.ChatTurn>) : ai.ToolChatSession {
+            private val queue = turns.toMutableList()
+            val userTexts = mutableListOf<String>()
+            override fun addUserText(text: String) { userTexts += text }
+            override fun addToolResults(results: List<ToolResult>) {}
+            override suspend fun send(): ai.ChatTurn =
+                if (queue.isEmpty()) ai.ChatTurn(null, emptyList(), ChatUsage(1, 1), null) else queue.removeAt(0)
+        }
+        val sessions = mutableListOf<CapturingSession>()
+        val runner = EvalRunner(
+            credentials = { AutomationEngine.Credentials(AiProvider.OPENAI, apiKeys = mapOf(AiProvider.OPENAI to "test-key")) },
+            sessionFactory = { _, _, _, _, _ ->
+                CapturingSession(listOf(turn(call("abort", """{"reason":"確認のみ"}""")))).also { sessions += it }
+            },
+        )
+        val report = kotlinx.coroutines.runBlocking { runner.run(dir, eval, writeReport = false) }
+        assertTrue(report.results.all { it.pass }, report.results.toString())
+        assertEquals(3, sessions.size)
+        val initials = sessions.map { it.userTexts.first() }
+        assertTrue("## 文書: docs/b.yaml" in initials[0], initials[0])         // base = アクティビティ定義のまま
+        assertTrue("## ワークスペースカタログ" in initials[1], initials[1])      // catalog-only = 差し替え
+        assertTrue("## 文書" !in initials[1], initials[1])
+        assertTrue("## ワークスペースカタログ" !in initials[2] && "## 文書" !in initials[2], initials[2])  // no-context = 指示のみ
+        // レシピ差し替えのサマリはトークンと合格率で比較できる
+        val summaries = report.summaries()
+        assertEquals(setOf("base", "catalog-only", "no-context"), summaries.map { it.variant }.toSet())
+    }
+
+    @Test
     fun `eval definition errors are reported`() {
         write("_evals/no-cases.yaml", "id: no-cases\nactivity: fix-title\ncases: []")
         write("_evals/bad-status.yaml", """

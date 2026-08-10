@@ -70,11 +70,40 @@ class RunController(private val state: AppState, val wsPath: Path, private val s
         internal suspend fun await(): String? = answer.await()
     }
 
+    /** 一括実行（foreach。R18-01）の対象プレビュー。SELECT ステージのインライン区画で選択して投入する。 */
+    class ForeachPreview(
+        val activityId: String,
+        val items: List<agent.ForeachItem>,
+        val total: Int,
+    )
+
     var stage by mutableStateOf(Stage.SELECT)
         private set
     var selectedActivity by mutableStateOf<agent.ActivityDef?>(null)
     var extraInstruction by mutableStateOf("")
     var errorMessage by mutableStateOf("")
+    var foreachPreview by mutableStateOf<ForeachPreview?>(null)
+        private set
+    var foreachSelected by mutableStateOf<Set<String>>(emptySet())
+        private set
+
+    fun showForeachPreview(preview: ForeachPreview) {
+        foreachPreview = preview
+        foreachSelected = preview.items.map { it.key }.toSet()  // 既定は全選択
+    }
+
+    fun clearForeachPreview() {
+        foreachPreview = null
+        foreachSelected = emptySet()
+    }
+
+    fun toggleForeachTarget(key: String) {
+        foreachSelected = if (key in foreachSelected) foreachSelected - key else foreachSelected + key
+    }
+
+    fun setForeachSelection(keys: Set<String>) {
+        foreachSelected = keys
+    }
     /** 定義再読込のトリガ（インクリメントで Definitions.load をやり直す）。 */
     var defsVersion by mutableStateOf(0)
         private set
@@ -196,7 +225,7 @@ fun RunsSpace(state: AppState, engine: AutomationEngine?, controller: RunControl
                         InboxTab(state, engine, controller, onReview = { reviewTarget = it })
                     }
                 }
-                1 -> ManualRunTab(state, engine, controller)
+                1 -> ManualRunTab(state, engine, controller, onGoAutomation = { tab = 2 })
                 2 -> AutomationSection(state, engine, version) { tab = 0 }
                 3 -> ImprovementSection(state)
             }
@@ -351,8 +380,14 @@ private fun PendingReviewPane(
 // ================================================================ 手動実行（旧 AgentRunHost。R2-03/06/07）
 
 @Composable
-private fun ManualRunTab(state: AppState, engine: AutomationEngine, controller: RunController) {
+private fun ManualRunTab(
+    state: AppState,
+    engine: AutomationEngine,
+    controller: RunController,
+    onGoAutomation: () -> Unit = {},
+) {
     val defs = remember(controller.wsPath, controller.defsVersion) { Definitions.load(controller.wsPath) }
+    val scope = rememberCoroutineScope()
     LaunchedEffect(defs) {
         val cur = controller.selectedActivity
         if (cur == null || defs.activities.none { it.id == cur.id }) {
@@ -406,10 +441,47 @@ private fun ManualRunTab(state: AppState, engine: AutomationEngine, controller: 
                     effectiveProvider = effectiveProvider,
                 )
                 Spacer(Modifier.height(10.dp))
-                Button(
-                    enabled = selected != null && AiSettings.apiKeyFor(effectiveProvider).isNotBlank(),
-                    onClick = ::startRun,
-                ) { Text("実行") }
+                val batchTarget = selected?.takeIf { it.foreach != null }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Button(
+                        enabled = selected != null && AiSettings.apiKeyFor(effectiveProvider).isNotBlank(),
+                        onClick = ::startRun,
+                    ) { Text("実行") }
+                    if (batchTarget != null) {
+                        Spacer(Modifier.width(8.dp))
+                        OutlinedButton(onClick = {
+                            scope.launch {
+                                val preview = withContext(Dispatchers.IO) { engine.previewForeach(batchTarget.id) }
+                                when {
+                                    preview.error != null -> controller.errorMessage = preview.error
+                                    preview.items.isEmpty() -> {
+                                        controller.clearForeachPreview()
+                                        controller.errorMessage = "一括実行の対象がありません"
+                                    }
+                                    else -> {
+                                        controller.errorMessage = ""
+                                        controller.showForeachPreview(
+                                            RunController.ForeachPreview(batchTarget.id, preview.items, preview.total)
+                                        )
+                                    }
+                                }
+                            }
+                        }) { Text("一括実行（対象を選択）") }
+                    }
+                }
+                if (batchTarget != null) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "一括実行は foreach（${batchTarget.foreach?.source?.id}）で対象を列挙し、選択した対象を1件=1実行として自動化キューへ積みます。" +
+                            "自動化タブで「自動実行」を有効にすると順次実行されます",
+                        fontSize = 11.sp, color = Palette.SubText,
+                    )
+                    val preview = controller.foreachPreview
+                    if (preview != null && preview.activityId == batchTarget.id) {
+                        Spacer(Modifier.height(8.dp))
+                        ForeachPreviewPane(engine, controller, preview, onGoAutomation)
+                    }
+                }
             }
             RunController.Stage.RUNNING -> {
                 Text("実行中: ${selected?.name ?: ""}", fontSize = 14.sp, fontWeight = FontWeight.Bold)
@@ -438,6 +510,75 @@ private fun ManualRunTab(state: AppState, engine: AutomationEngine, controller: 
                 Spacer(Modifier.height(10.dp))
                 Button(onClick = { controller.resetToSelect() }) { Text("新しい実行") }
             }
+        }
+    }
+}
+
+// ================================================================ 一括実行の対象選択（R18-01）
+
+/**
+ * foreach の列挙結果をチェックボックス付き一覧で表示し、選択した対象だけを自動化キューへ投入する。
+ * モーダルではなく SELECT ステージ内のインライン区画（§4.24: 新しい画面をモーダルで作らない）。
+ * 選択状態は RunController が保持し、スペースを切り替えても失われない。
+ */
+@Composable
+private fun ForeachPreviewPane(
+    engine: AutomationEngine,
+    controller: RunController,
+    preview: RunController.ForeachPreview,
+    onGoAutomation: () -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+    val selectedCount = preview.items.count { it.key in controller.foreachSelected }
+    Column(
+        Modifier.fillMaxWidth().background(Palette.PanelBg, PanelShape)
+            .border(1.dp, Palette.Border, PanelShape).padding(10.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "一括実行の対象（${preview.items.size} 件を列挙" +
+                    (if (preview.total > preview.items.size) "、条件一致は全 ${preview.total} 件＝展開上限で切られています" else "") + "）",
+                fontSize = 13.sp, fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = { controller.setForeachSelection(preview.items.map { it.key }.toSet()) }) {
+                Text("全選択", fontSize = 11.sp)
+            }
+            TextButton(onClick = { controller.setForeachSelection(emptySet()) }) {
+                Text("全解除", fontSize = 11.sp)
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        preview.items.forEach { item ->
+            Row(
+                Modifier.fillMaxWidth().clickable { controller.toggleForeachTarget(item.key) },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Checkbox(
+                    checked = item.key in controller.foreachSelected,
+                    onCheckedChange = { controller.toggleForeachTarget(item.key) },
+                )
+                Column {
+                    Text(item.label, fontSize = 13.sp)
+                    Text(item.instruction.lineSequence().first(), fontSize = 11.sp, color = Palette.SubText, maxLines = 1)
+                }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Button(
+                enabled = selectedCount > 0,
+                onClick = {
+                    val items = preview.items.filter { it.key in controller.foreachSelected }
+                    scope.launch {
+                        val result = withContext(Dispatchers.IO) { engine.enqueueForeachItems(preview.activityId, items) }
+                        controller.clearForeachPreview()
+                        if (result.error != null) controller.errorMessage = result.error else onGoAutomation()
+                    }
+                },
+            ) { Text("選択した $selectedCount 件をキューへ投入") }
+            Spacer(Modifier.width(8.dp))
+            TextButton(onClick = { controller.clearForeachPreview() }) { Text("やめる") }
         }
     }
 }
@@ -503,6 +644,7 @@ private fun SelectContent(
                             activity.targetMatch?.let { "対象: $it" },
                             "上限: ${activity.limits.maxTurns}ターン",
                             "ゲート: " + if (activity.gate == agent.ValidationGate.ERROR_FREE) "検証エラー0" else "なし",
+                            activity.foreach?.let { "一括: ${it.source.id}（展開上限 ${it.limit} 件）" },
                         ).joinToString(" ／ "),
                         fontSize = 11.sp, color = Palette.SubText,
                     )
@@ -646,11 +788,27 @@ internal fun ReviewContent(
         Text(
             listOfNotNull(
                 "ターン ${result.turnsUsed}",
-                "トークン 入力${result.usage.inputTokens}／出力${result.usage.outputTokens}",
+                "トークン 入力${result.usage.inputTokens}" +
+                    (if (result.usage.cachedInputTokens > 0) "（うちキャッシュ${result.usage.cachedInputTokens}）" else "") +
+                    "／出力${result.usage.outputTokens}",
                 runFile?.let { "記録 ${ws.relPath(it)}" },
             ).joinToString(" ／ "),
             fontSize = 11.sp, color = Palette.SubText,
         )
+        // コンテキスト会計（R19-01）: 毎ターン再送される固定部の内訳（概算）。どの宣言が高いかを見てレシピを調整する
+        if (result.contextStats.isNotEmpty()) {
+            Text(
+                "コンテキスト内訳（毎ターン再送・概算トークン）: " +
+                    result.contextStats.joinToString(" ／ ") { "${it.section} ≈${it.tokensEst}" },
+                fontSize = 11.sp, color = Palette.SubText,
+            )
+        }
+        if (result.turnInputTokens.isNotEmpty()) {
+            Text(
+                "送信別入力トークン（実測）: " + result.turnInputTokens.joinToString(", "),
+                fontSize = 11.sp, color = Palette.SubText,
+            )
+        }
         if (result.status != RunStatus.SUBMITTED) {
             Text("未提出のドラフトです。内容を確認のうえ、必要な分だけ採用できます。", fontSize = 11.sp, color = Palette.WarnOrange)
         }

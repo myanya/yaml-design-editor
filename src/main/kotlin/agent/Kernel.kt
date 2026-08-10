@@ -47,6 +47,8 @@ data class AgentRunRequest(
     val extraInstruction: String? = null,   // 実行時に人間が加える追加指示
     val apiKeys: Map<AiProvider, String> = emptyMap(),  // delegate 用（サブエージェントが別プロバイダをピン留めする場合）
     val subAgents: List<AgentDef> = emptyList(),        // delegate で相談できるエージェント
+    /** foreach 対象のプレースホルダ値（{target} / {id} / {file} 等）。コンテキストレシピの解決に使う（R19-02）。 */
+    val targetValues: Map<String, String> = emptyMap(),
 )
 
 /** LLMセッションの生成（テストでは疑似セッションに差し替える）。委譲先が別プロバイダの場合もここを通る。 */
@@ -58,7 +60,22 @@ class ToolLogEntry(
     val arguments: String,
     val result: String,
     val failed: Boolean,
+    val resultChars: Int = 0,   // 打切り前のツール結果の全長（コンテキスト会計。R19-01）
 )
+
+/** 初期コンテキストの1区分。label はコンテキスト会計（内訳表示）の区分名になる（R19-01）。 */
+class ContextSection(val label: String, val body: String)
+
+/** コンテキスト会計の1行。tokensEst は estimateTokens による目安（実測はターン別入力で確認する）。 */
+class ContextSectionStat(val section: String, val chars: Int, val tokensEst: Int)
+
+/** 概算トークン数。ASCII 4文字≒1・非ASCII 1文字≒1の目安（会計表示用。ARCHITECTURE §4.28）。 */
+internal fun estimateTokens(text: String): Int {
+    var ascii = 0
+    var other = 0
+    text.forEach { if (it.code < 128) ascii++ else other++ }
+    return ascii / 4 + other
+}
 
 /**
  * 会話記録1件。モデルが見た・出したメッセージを実行の時系列で保持する（実行記録のデバッグ用）。
@@ -84,6 +101,8 @@ class AgentRunResult(
     val questions: List<Pair<String, String?>>,
     val toolLog: List<ToolLogEntry>,
     val transcript: List<TranscriptEntry> = emptyList(),
+    val contextStats: List<ContextSectionStat> = emptyList(),   // コンテキスト会計: 初期コンテキストの内訳（R19-01）
+    val turnInputTokens: List<Long> = emptyList(),              // コンテキスト会計: 送信ごとの入力トークン（API報告値）
 )
 
 object AgentKernel {
@@ -114,6 +133,8 @@ object AgentKernel {
         var endMessage: String? = null
         val startedAt = System.nanoTime()
         var idleTurns = 0   // ツールを呼ばないターンの連続数（暴走・沈黙の停止用）
+        var contextStats: List<ContextSectionStat> = emptyList()   // コンテキスト会計（R19-01）
+        val turnInputTokens = mutableListOf<Long>()                // 送信ごとの入力トークン（API報告値）
 
         // R3-06: 別エージェントへの読み取り専用の相談（ステージング共有・編集不可・深さ1）
         val subAgents = request.subAgents.filter { it.id != agent.id }
@@ -137,11 +158,20 @@ object AgentKernel {
 
         try {
             val system = systemPrompt(agent)
-            val session = sessionFactory(request.provider, request.apiKey, request.model, system, toolbox.specs())
+            val specs = toolbox.specs()
+            val session = sessionFactory(request.provider, request.apiKey, request.model, system, specs)
             transcript += TranscriptEntry(0, "system", null, system)
-            val initial = initialContext(request, toolbox)
+            val sections = initialContextSections(request, toolbox)
+            val initial = composeInitialContext(sections)
             session.addUserText(initial)
             transcript += TranscriptEntry(0, "user", null, initial)
+            // コンテキスト会計: 毎ターン再送される固定部（システム指示・ツール定義・初期コンテキスト各区分）の内訳
+            val specsText = specs.joinToString("\n") { "${it.name} ${it.description} ${it.parameters}" }
+            contextStats = buildList {
+                add(ContextSectionStat("システム指示", system.length, estimateTokens(system)))
+                add(ContextSectionStat("ツール定義", specsText.length, estimateTokens(specsText)))
+                sections.forEach { add(ContextSectionStat(it.label, it.body.length, estimateTokens(it.body))) }
+            }
 
             loop@ while (true) {
                 if (turns >= activity.limits.maxTurns) {
@@ -159,6 +189,7 @@ object AgentKernel {
 
                 val turn = session.send()
                 usage += turn.usage
+                turnInputTokens += turn.usage.inputTokens
                 turn.assistantText?.let { host.onEvent(AgentEvent.AssistantText(it)) }
                 turn.assistantText?.takeIf { it.isNotBlank() }?.let { transcript += TranscriptEntry(turns, "assistant", null, it) }
 
@@ -188,7 +219,7 @@ object AgentKernel {
                             AgentToolbox.Outcome("エラー: ${e.message ?: e.toString()}")
                         }
                     val failed = outcome.terminal == null && outcome.content.startsWith("エラー:")
-                    toolLog += ToolLogEntry(turns, call.name, argsText.take(2_000), outcome.content.take(2_000), failed)
+                    toolLog += ToolLogEntry(turns, call.name, argsText.take(2_000), outcome.content.take(2_000), failed, outcome.content.length)
                     transcript += TranscriptEntry(turns, "tool_result", call.name, outcome.content)
                     when {
                         failed -> host.onEvent(AgentEvent.ToolFailed(call.name, outcome.content))
@@ -228,6 +259,8 @@ object AgentKernel {
             questions = questions.toList(),
             toolLog = toolLog.toList(),
             transcript = transcript.toList(),
+            contextStats = contextStats,
+            turnInputTokens = turnInputTokens.toList(),
         )
         host.onEvent(AgentEvent.Finished(status, endMessage))
         return result
@@ -309,46 +342,66 @@ object AgentKernel {
     }
 
     /** 最初のユーザーメッセージ: アクティビティの指示＋対象＋権限＋初期文脈。 */
-    internal fun initialContext(request: AgentRunRequest, toolbox: AgentToolbox): String = buildString {
+    internal fun initialContext(request: AgentRunRequest, toolbox: AgentToolbox): String =
+        composeInitialContext(initialContextSections(request, toolbox))
+
+    /**
+     * 初期コンテキストを会計区分（R19-01）ごとに組み立てる。先頭は常に「指示」（アクティビティの
+     * 指示・対象・権限・ゲート）で、以降はコンテキストレシピ（context.items。R19-02）の各項目が
+     * 宣言順に並ぶ。when 条件に合わない項目と、プレースホルダを解決できない項目は開示しない。
+     */
+    internal fun initialContextSections(request: AgentRunRequest, toolbox: AgentToolbox): List<ContextSection> {
         val activity = request.activity
-        appendLine("# アクティビティ: ${activity.name}")
-        activity.description?.let { appendLine(it.trim()) }
-        appendLine()
-        appendLine("## 指示")
-        appendLine(activity.instruction.trim())
-        request.extraInstruction?.takeIf { it.isNotBlank() }?.let {
+        val sections = mutableListOf<ContextSection>()
+        sections += ContextSection("指示", buildString {
+            appendLine("# アクティビティ: ${activity.name}")
+            activity.description?.let { appendLine(it.trim()) }
             appendLine()
-            appendLine("## 追加指示（実行者から）")
-            appendLine(it.trim())
-        }
-        appendLine()
-        activity.targetMatch?.let { appendLine("対象ファイル（glob）: $it") }
-        if (activity.allowedFiles.isNotEmpty()) appendLine("書込許可ファイル: ${activity.allowedFiles.joinToString(", ")}")
-        if (activity.allowedPaths.isNotEmpty()) appendLine("書込許可パス: ${activity.allowedPaths.joinToString(", ")}")
-        if (activity.meta) appendLine("メタアクティビティ: 定義文書（_agents / _activities / _evals / _skills / _views）への書込が許可されています（_schemas / _runs は不可）。提案は人間の承認を経て適用されます。")
-        appendLine(
-            when (activity.gate) {
-                ValidationGate.ERROR_FREE -> "提出ゲート: 検証エラー0（エラーが残る提出は拒否されます）"
-                ValidationGate.NONE -> "提出ゲート: なし"
+            appendLine("## 指示")
+            appendLine(activity.instruction.trim())
+            request.extraInstruction?.takeIf { it.isNotBlank() }?.let {
+                appendLine()
+                appendLine("## 追加指示（実行者から）")
+                appendLine(it.trim())
             }
-        )
-        if ("catalog" in activity.contextInclude) {
             appendLine()
-            appendLine("## ワークスペースカタログ")
-            appendLine(toolbox.catalogText())
-        }
-        if ("phase" in activity.contextInclude) {
-            appendLine()
-            appendLine("## 対象文書のフェーズ状態（段階的詳細化）")
-            appendLine(toolbox.phaseText(activity.targetMatch))
-        }
-        activity.contextViews.forEach { viewId ->
-            appendLine()
-            appendLine("## ビュー: $viewId")
-            appendLine(
-                runCatching { toolbox.viewText(viewId) }
-                    .getOrElse { "（ビューを解決できません: ${it.message}）" }
+            activity.targetMatch?.let { appendLine("対象ファイル（glob）: $it") }
+            if (activity.allowedFiles.isNotEmpty()) appendLine("書込許可ファイル: ${activity.allowedFiles.joinToString(", ")}")
+            if (activity.allowedPaths.isNotEmpty()) appendLine("書込許可パス: ${activity.allowedPaths.joinToString(", ")}")
+            if (activity.meta) appendLine("メタアクティビティ: 定義文書（_agents / _activities / _evals / _skills / _views）への書込が許可されています（_schemas / _runs は不可）。提案は人間の承認を経て適用されます。")
+            append(
+                when (activity.gate) {
+                    ValidationGate.ERROR_FREE -> "提出ゲート: 検証エラー0（エラーが残る提出は拒否されます）"
+                    ValidationGate.NONE -> "提出ゲート: なし"
+                }
             )
+        })
+        val hasTarget = request.targetValues.isNotEmpty() || !request.extraInstruction.isNullOrBlank()
+        activity.contextItems.forEach { item ->
+            val applies = when (item.condition) {
+                ContextWhen.ALWAYS -> true
+                ContextWhen.HAS_TARGET -> hasTarget
+                ContextWhen.NO_TARGET -> !hasTarget
+            }
+            if (!applies) return@forEach
+            // 解決の失敗は本文で開示（エージェントと会計の両方から見える）。未解決プレースホルダは無言でスキップ
+            val section = runCatching { toolbox.contextItemSection(item, request.targetValues) }
+                .getOrElse { e ->
+                    ContextSection(toolbox.contextItemLabel(item), "（コンテキスト項目を解決できません: ${e.message}）")
+                }
+            if (section != null) sections += section
+        }
+        return sections
+    }
+
+    /** 会計区分を送信文字列へ合成する。先頭区分は見出しなし、以降は「## 区分名」を前置（従来書式と同一）。 */
+    internal fun composeInitialContext(sections: List<ContextSection>): String = buildString {
+        sections.forEachIndexed { i, section ->
+            if (i > 0) {
+                appendLine()
+                appendLine("## ${section.label}")
+            }
+            appendLine(section.body)
         }
     }
 }
