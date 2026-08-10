@@ -97,10 +97,31 @@ internal fun fieldToJsonSchema(original: FieldDef, schema: SchemaDef, depth: Int
             }
             FieldType.DATE, FieldType.ID -> put("type", "string")
             FieldType.REF -> {
-                put("type", "string")
-                val ids = refCandidateIds(field, candidates)
-                if (ids.isNotEmpty() && ids.size <= REF_ENUM_LIMIT) {
-                    putJsonArray("enum") { ids.forEach(::add) }
+                if (field.fields.isNotEmpty()) {
+                    // 属性付き参照（R20-03。ARCHITECTURE §4.30）: {to: enum制約, 属性...} の object へ変換する
+                    put("type", "object")
+                    putJsonObject("properties") {
+                        put("to", buildJsonObject {
+                            put("type", "string")
+                            val ids = refCandidateIds(field, candidates)
+                            if (ids.isNotEmpty() && ids.size <= REF_ENUM_LIMIT) {
+                                putJsonArray("enum") { ids.forEach(::add) }
+                            }
+                        })
+                        field.fields.forEach { child ->
+                            child.key?.let { key -> put(key, fieldToJsonSchema(child, schema, depth + 1, candidates)) }
+                        }
+                    }
+                    putJsonArray("required") {
+                        (listOf("to") + field.fields.mapNotNull { it.key }).distinct().forEach(::add)
+                    }
+                    put("additionalProperties", false)
+                } else {
+                    put("type", "string")
+                    val ids = refCandidateIds(field, candidates)
+                    if (ids.isNotEmpty() && ids.size <= REF_ENUM_LIMIT) {
+                        putJsonArray("enum") { ids.forEach(::add) }
+                    }
                 }
             }
             FieldType.INT -> {
@@ -201,6 +222,8 @@ internal fun containsMap(original: FieldDef, schema: SchemaDef, depth: Int = 0):
         FieldType.ARRAY -> field.item?.let { containsMap(it, schema, depth + 1) } == true
         FieldType.OBJECT -> field.fields.any { containsMap(it, schema, depth + 1) }
         FieldType.ENUM -> field.cases.values.flatten().any { containsMap(it, schema, depth + 1) }
+        // 属性付き参照（R20-03）: 属性に map / any を含む場合も構造化出力を無効化する
+        FieldType.REF -> field.fields.any { containsMap(it, schema, depth + 1) }
         else -> false
     }
 }

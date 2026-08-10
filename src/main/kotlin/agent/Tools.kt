@@ -600,11 +600,8 @@ class AgentToolbox(
                         appendLine("    $k: ${if (text.length > 60) text.take(60) + "…" else text}")
                     }
             }
-            val refsOut = occurrences.flatMap { e ->
-                idx.refs.filter {
-                    it.file == e.file && it.path.size >= e.path.size && it.path.subList(0, e.path.size) == e.path
-                }
-            }
+            // 出次エッジは導出グラフの隣接リスト（R20-04。従来の occurrences×refs 突合と同一の出力）
+            val refsOut = idx.outgoingRefs(id)
             if (refsOut.isNotEmpty()) {
                 appendLine("この要素からの参照:")
                 refsOut.forEach { r ->
@@ -612,7 +609,9 @@ class AgentToolbox(
                     // 参照先のタイトル（表示解決）を添え、IDの意味を別のツール呼び出しなしで閉じる（R19-05）
                     idx.occurrences(r.targetId).firstNotNullOfOrNull { it.title }?.let { append(" = ").append(it) }
                     append("（").append(r.viaKey)
-                    r.relation?.let { append("・関係: ").append(it) }
+                    // 関係レジストリの表示ラベル（R20-02。未宣言 relation は名前のまま）・属性付き参照の属性注記（R20-03）
+                    schema.Relations.labelOf(ws.relations, r.relation)?.let { append("・関係: ").append(it) }
+                    r.attributeSummary()?.let { append("・").append(it) }
                     appendLine("）")
                 }
             }
@@ -620,7 +619,8 @@ class AgentToolbox(
             backlinks.take(backlinkLimit).forEach { b ->
                 append("- ").append(ws.relPath(b.file)).append(" :: ").append(b.path.pretty())
                     .append("（").append(b.viaKey)
-                b.relation?.let { append("・関係: ").append(it) }
+                schema.Relations.inverseLabelOf(ws.relations, b.relation)?.let { append("・関係: ").append(it) }
+                b.attributeSummary()?.let { append("・").append(it) }
                 // 参照を書いた要素の ID・タイトル（索引の表示解決結果）を添え、read_node なしで参照元を特定できるようにする
                 idx.sourceEntryOf(b)?.let { src ->
                     append("・元要素: ").append(listOfNotNull(src.id, src.title).joinToString(" "))

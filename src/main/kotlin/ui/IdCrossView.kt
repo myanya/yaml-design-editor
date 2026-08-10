@@ -199,8 +199,11 @@ private fun IdCrossDetail(state: AppState, id: String) {
                     Spacer(Modifier.width(6.dp))
                     Column {
                         Text(
+                            // 被参照方向は inverseLabel（R20-02）＋属性付き参照の属性注記（R20-03）
                             (source?.let { listOfNotNull(it.id, it.title).joinToString(" — ") }
-                                ?: state.relPath(bl.file)) + (bl.relation?.let { "（関係: $it）" } ?: ""),
+                                ?: state.relPath(bl.file)) +
+                                (schema.Relations.inverseLabelOf(state.relations, bl.relation)?.let { "（関係: $it）" } ?: "") +
+                                (bl.attributeSummary()?.let { "（$it）" } ?: ""),
                             fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                         )
                         Text(
@@ -279,7 +282,11 @@ private fun OccurrenceCard(state: AppState, entry: IdEntry) {
                     Icon(Icons.Default.ArrowForward, contentDescription = null, Modifier.size(12.dp), tint = Palette.Primary)
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        ref.targetId + (ref.relation?.let { "（関係: $it）" } ?: "") + " ／ ${ref.viaKey}",
+                        // 参照方向は label（R20-02）＋属性注記（R20-03）
+                        ref.targetId +
+                            (schema.Relations.labelOf(state.relations, ref.relation)?.let { "（関係: $it）" } ?: "") +
+                            (ref.attributeSummary()?.let { "（$it）" } ?: "") +
+                            " ／ ${ref.viaKey}",
                         fontSize = 11.sp, color = Palette.Primary,
                     )
                 }

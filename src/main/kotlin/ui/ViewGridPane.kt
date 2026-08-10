@@ -404,8 +404,9 @@ private fun BacklinkCell(state: AppState, backlinks: List<core.ViewBacklink>) {
                     b.sourceId ?: b.rel.substringAfterLast('/'),
                     fontSize = 12.sp, color = Palette.Primary, maxLines = 1,
                 )
-                // 参照元要素のタイトル（表示解決の結果。R10-01）
-                b.sourceTitle?.let { Text(it, fontSize = 10.sp, color = Palette.SubText, maxLines = 1) }
+                // 参照元要素のタイトル（表示解決の結果。R10-01）＋属性付き参照の属性注記（R20-03）
+                listOfNotNull(b.sourceTitle, b.attributes?.let { "（$it）" }).takeIf { it.isNotEmpty() }
+                    ?.let { Text(it.joinToString(" "), fontSize = 10.sp, color = Palette.SubText, maxLines = 1) }
             }
         }
         if (backlinks.size > shown.size) {

@@ -84,6 +84,8 @@ object Bench {
         val refs: Int,
         val fullRebuildMillis: Double,
         val incrementalUpdateMillis: Double,
+        /** 導出グラフ（EntityGraph。R20-04）の構築コスト。 */
+        val graphDeriveMillis: Double = 0.0,
     ) {
         val speedup: Double get() = if (incrementalUpdateMillis > 0) fullRebuildMillis / incrementalUpdateMillis else 0.0
     }
@@ -107,12 +109,18 @@ object Bench {
         }
         val full = best { ws.index.rebuild(ws.root, ws.files, ws.schemas) }
         val incremental = best { ws.index.update(ws.root, listOf(target), emptyList(), ws.schemas) }
+        // 導出グラフ（R20-04）: キャッシュを捨てて再導出するコストを計る
+        val graphDerive = best {
+            ws.index.dropGraphCache()
+            ws.index.graph
+        }
         return Result(
             documents = ws.files.size,
             ids = ws.index.entries.size,
             refs = ws.index.refs.size,
             fullRebuildMillis = full,
             incrementalUpdateMillis = incremental,
+            graphDeriveMillis = graphDerive,
         )
     }
 }

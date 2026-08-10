@@ -143,13 +143,8 @@ object Traverse {
         visited: Set<String>,
     ): Pair<List<String>, Int> {
         val ids = when (step.follow) {
-            "out" -> frontier.flatMap { id ->
-                index.occurrences(id).flatMap { e ->
-                    index.refs.filter { r ->
-                        r.file == e.file && r.path.size >= e.path.size && r.path.subList(0, e.path.size) == e.path
-                    }
-                }
-            }
+            // 出次は導出グラフの隣接リスト（R20-04。従来の occurrences×refs 突合と同一の出力）
+            "out" -> frontier.flatMap { id -> index.outgoingRefs(id) }
                 .asSequence()
                 .filter { step.relation == null || it.relation == step.relation }
                 .filter { step.via == null || it.viaKey == step.via }

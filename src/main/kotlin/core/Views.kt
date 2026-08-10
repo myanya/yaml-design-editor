@@ -200,6 +200,7 @@ data class ViewBacklink(
     val file: Path,
     val path: YPath,        // 参照値（スカラー）の位置
     val relation: String?,
+    val attributes: String? = null,  // 属性付き参照（R20-03）の属性注記（例「role: 承認者」）
 )
 
 /** 計算セルの入力1件（R16-04）: プレースホルダの解決値と、入力値の原本座標（未解決なら座標なし）。 */
@@ -251,6 +252,7 @@ data class DocBacklinkItem(
     val file: Path,
     val refPath: YPath,              // 参照値（スカラー）の位置
     val relation: String?,
+    val attributes: String? = null,  // 属性付き参照（R20-03）の属性注記（例「role: 承認者」）
     val values: List<YNode?> = emptyList(),  // columns に対応する参照元要素からの値（列がなければ空）
 )
 
@@ -852,7 +854,7 @@ object Views {
                     val source = entriesByFile[ref.file].orEmpty()
                         .filter { it.path.size <= ref.path.size && ref.path.subList(0, it.path.size) == it.path }
                         .maxByOrNull { it.path.size }
-                    ViewBacklink(source?.id, source?.title, rel(ref.file), ref.file, ref.path, ref.relation)
+                    ViewBacklink(source?.id, source?.title, rel(ref.file), ref.file, ref.path, ref.relation, ref.attributeSummary())
                 }
                 .sortedWith(compareBy({ it.rel }, { pathSortKey(it.path) }))
 
@@ -1034,6 +1036,7 @@ object Views {
                         file = ref.file,
                         refPath = ref.path,
                         relation = ref.relation,
+                        attributes = ref.attributeSummary(),
                         values = values,
                     )
                 }
@@ -1161,6 +1164,7 @@ object Views {
                     else appendLine(
                         backlinks.joinToString(", ") { b ->
                             listOfNotNull(b.sourceId ?: b.rel, b.sourceTitle).joinToString(" ") +
+                                (b.attributes?.let { "（$it）" } ?: "") +
                                 "  [" + b.rel + " :: " + b.path.pretty() + "]"
                         }
                     )
@@ -1244,6 +1248,7 @@ object Views {
             for (b in row.backlinks) {
                 append("    ← ")
                 append(listOfNotNull(b.sourceId ?: b.rel, b.sourceTitle).joinToString(" "))
+                b.attributes?.let { append("（").append(it).append("）") }
                 append("  [").append(b.rel).append(" :: ").append(b.refPath.pretty()).append("]")
                 def?.columns?.forEachIndexed { ci, col ->
                     append("  ").append(col.label).append(": ").append(cellText(b.values.getOrNull(ci)))

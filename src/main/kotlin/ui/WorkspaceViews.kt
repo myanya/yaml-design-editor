@@ -220,7 +220,9 @@ fun ReferenceGraphView(state: AppState) {
                     Row(Modifier.fillMaxWidth().clickable { state.navigateToId(edge.targetId) }.padding(horizontal = 12.dp, vertical = 4.dp)) {
                         Text(edge.targetId, fontSize = 11.sp, color = Palette.Primary, modifier = Modifier.width(150.dp))
                         Text(
-                            "← ${state.relPath(edge.file)} · ${edge.viaKey}" + (edge.relation?.let { "（関係: $it）" } ?: ""),
+                            // 被参照方向は inverseLabel（R20-02。未宣言 relation は名前のまま）
+                            "← ${state.relPath(edge.file)} · ${edge.viaKey}" +
+                                (schema.Relations.inverseLabelOf(state.relations, edge.relation)?.let { "（関係: $it）" } ?: ""),
                             fontSize = 11.sp, color = Palette.SubText,
                         )
                     }

@@ -88,6 +88,53 @@ class AiGeneratorTest {
         assertEquals(listOf("DES-001"), json["items"]?.jsonObject?.get("enum")?.jsonArray?.map { it.jsonPrimitive.content })
     }
 
+    // ---------------------------------------------------------------- 属性付き参照（R20-03）
+
+    @Test
+    fun `attributed ref becomes object with to enum and attribute fields`() {
+        val field = FieldDef(
+            key = "owner", type = FieldType.REF, idPatterns = listOf("REQ-*"),
+            fields = listOf(FieldDef(key = "role", type = FieldType.STRING)),
+        )
+        val json = fieldToJsonSchema(field, schemaOf(field), candidates = candidates)
+        assertEquals("object", json["type"]?.jsonPrimitive?.content)
+        val properties = json["properties"]!!.jsonObject
+        assertEquals(
+            listOf("REQ-001", "REQ-002"),
+            properties["to"]?.jsonObject?.get("enum")?.jsonArray?.map { it.jsonPrimitive.content },
+        )
+        assertEquals("string", properties["role"]?.jsonObject?.get("type")?.jsonPrimitive?.content)
+        assertEquals(listOf("to", "role"), json["required"]?.jsonArray?.map { it.jsonPrimitive.content })
+        assertEquals(false, json["additionalProperties"]?.jsonPrimitive?.boolean)
+    }
+
+    @Test
+    fun `attributed ref inside array items also becomes object`() {
+        val field = FieldDef(
+            key = "actors", type = FieldType.ARRAY,
+            item = FieldDef(
+                type = FieldType.REF, idPatterns = listOf("DES-*"),
+                fields = listOf(FieldDef(key = "role", type = FieldType.STRING)),
+            ),
+        )
+        val json = fieldToJsonSchema(field, schemaOf(field), candidates = candidates)
+        val items = json["items"]!!.jsonObject
+        assertEquals("object", items["type"]?.jsonPrimitive?.content)
+        assertEquals(
+            listOf("DES-001"),
+            items["properties"]?.jsonObject?.get("to")?.jsonObject?.get("enum")?.jsonArray?.map { it.jsonPrimitive.content },
+        )
+    }
+
+    @Test
+    fun `attributed ref with map attribute disables structured output`() {
+        val field = FieldDef(
+            key = "owner", type = FieldType.REF,
+            fields = listOf(FieldDef(key = "extra", type = FieldType.MAP, value = FieldDef(type = FieldType.STRING))),
+        )
+        assertTrue(containsMap(field, schemaOf(field)))
+    }
+
     // ---------------------------------------------------------------- enum cases
 
     private fun inputObject() = FieldDef(

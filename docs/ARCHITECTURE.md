@@ -50,6 +50,7 @@ src/main/kotlin/
 | `YamlIO` | yaml/YamlIO.kt | テキスト⇔`YNode` 変換。SnakeYAML の Node API（processComments）ベースで、コメント・キー順・スカラー/フロー表記を往復保持する（§4.17）。`parseAll` / `dumpAll`（複数ドキュメント）、`parseFirst`（読み取り専用の寛容パース）、`dumpPlain`（コメント・スタイル抜きの正規化ダンプ＝構造比較・派生成果物用）を提供 |
 | `FieldType` / `FieldDef` / `SchemaDef` | schema/Schema.kt | スキーマモデル。`resolve()` がローカル／横断 `$ref` を属性合成しつつ解決。`FieldDef.relation` が参照の関係種別、`role` が表示役割（R10-01）、`options` が enum のリッチ選択肢（`EnumOption`。R10-03）。`effectiveFields()` が enum の `cases` を合成した object の実効フィールドを返す |
 | `Display` | schema/Display.kt | 表示解決（R10-01）: 要素の1行要約（タイトル・サブタイトル・ID・畳み込みヘッダ）を role ＞ 予約語 ＞ id ＞ キー数の優先順位で解決する。索引のタイトル抽出（`DocScanner`）・UI・エージェント要約が共有する（§4.22） |
+| `EntityDecl` / `RelationDef` / `Relations` | schema/Relations.kt | 二層モデルの宣言語彙（P20。§4.30）: スキーマの `entity:` 宣言（型・idPattern・定義出現）と関係レジストリ（`kind: relations` の `relations:`）。`Relations.labelOf` / `inverseLabelOf` が relation 名→表示ラベルの解決を一元化（表示専用） |
 | `Projection` | schema/Projection.kt | 決定論的射影の評価器（R16-02）: `{パス}` プレースホルダのテンプレート置換（スコープ連鎖・1段評価・解決トレース）と値辞書。単一実装（§4.26） |
 | `DerivationDef` / `ConsistencyRule` | schema/Derivation.kt | 導出の宣言モデル（`lookup`/`source`/`path`/`values`/`map`/`default`）と整合ルール（R16-03a/b。`assert`: equals / lte / gte）。ビューの計算列とスキーマの `consistency:` が同じ語彙を共有する |
 | `Derivation` | index/Derivation.kt | 導出の解決器（R16-03a）: 対象ID（lookup 1ホップ）→ source 出現 → スコープ連鎖 → `Projection` 評価＋来歴。計算列（core/Views）と整合検証（Validator）の共有実装（§4.26） |
@@ -64,7 +65,8 @@ src/main/kotlin/
 | `DeriveDef` / `DerivedSchemas` | schema/Schema.kt, schema/DerivedSchemas.kt | 派生スキーマ（R11-03）: `derive:` 宣言のモデルと、導出元文書からのロード時コンパイル（§4.23） |
 | `globToRegex` / `idMatchesPattern` | schema / index | glob→正規表現変換（パス用と ID 用で対応構文が異なる点に注意） |
 | `DocScanner` | index/IdIndex.kt | 1文書からのID・参照抽出。スキーマ有無で検出規則を切替、未知キー境界で走査停止。参照には `relation` / `sourceSchemaId` を付与 |
-| `IdIndex` | index/IdIndex.kt | ワークスペース全体の `id -> 出現一覧` 索引と全参照。**ディスク基準**（未保存編集は反映されない）。ファイル単位の走査結果を保持し、`update` で変更ファイルだけを差し替える増分更新ができる（R8-02。§4.5） |
+| `IdIndex` | index/IdIndex.kt | ワークスペース全体の `id -> 出現一覧` 索引と全参照。**ディスク基準**（未保存編集は反映されない）。ファイル単位の走査結果を保持し、`update` で変更ファイルだけを差し替える増分更新ができる（R8-02。§4.5）。`IdEntry` はエンティティ型・役割（定義／詳細化）を、`RefEntry` は属性付き参照の属性を運ぶ（P20。§4.30） |
+| `EntityGraph` | index/EntityGraph.kt | 走査結果から導出する読み取り専用のエンティティグラフ（R20-04。§4.30）: エンティティ表・出次／入次の隣接・文書ノード表。`IdIndex` に lazy 保持され `derive()` で無効化。`sourceEntryOf` / `backlinksTo` / トラバース出次の線形走査の載せ替え先 |
 | `Validator` | validate/Validator.kt | 文書の検証（UI非依存）。スキーマ適合＋参照解決＋文書内ID重複＋カバレッジ（`coverageStatuses` はUIとも共用）。フェーズ考慮の必須判定と記入進捗 `phaseProgress`、1行サマリ `phaseSummaryText`（UI・CLI・エージェントツールで共用。§4.15） |
 | `Workspace` / `WorkspaceScan` | core/Workspace.kt | ヘッドレスなワークスペース操作（開く・読む・保存・検証・変更セット適用）。相対パス解決はワークスペース外への脱出を拒否。`noteDiskChanges` が保存・外部変更の索引更新方針（増分／スキーマ変更時の全再構築）を一元化し、UI（AppState）もこの経路を通る（R9-02） |
 | `EditBuffer` / `WorkspaceRecords` | core/Documents.kt | 文書キャッシュ層の中核（R9-02）: 履歴（Undo/Redo）・dirty判定・複数ドキュメント再出力（`EditBuffer`）と、一覧レコード収集・一括編集（`WorkspaceRecords`。未保存優先の loader 注入）。`app.OpenDocument` / `AppState` はこの層への委譲＋Compose購読ミラー |
@@ -419,6 +421,20 @@ P19（コンテキストエンジニアリングの一級化）の計測基盤�
 - ファイルI/O・パースは `runCatching` で受け、ユーザー操作の結果は `Result` を返して呼び出し側（UI）が `state.status` に反映する。
 - 入力検証の失敗は `require(...) { "日本語メッセージ" }`、内部異常は `error("日本語メッセージ")`。メッセージはそのままUIに表示される前提で書く。
 
+### 4.30 二層モデル①: 関係モデルの宣言化（P20: R20-01〜04）
+
+情報管理を「物理層＝文書／論理層＝エンティティグラフ」の2層で捉え直す再定義（ROADMAP §4.9）の第1弾。グラフを走査の副産物から**宣言されたモデル**へ昇格させる宣言語彙と lint を**非破壊**で導入する。守るべき不変条件:
+
+- **非破壊が本フェーズの契約**: 宣言（`entity:` / 関係レジストリ）のないワークスペース・スキーマは挙動不変。lint は WARNING（検証）またはスキーマ読込エラー一覧の1行（ロード時）にとどめ、エラー化・ヒューリスティクス廃止のスイッチは P21 の `enforcement:` に閉じ込める。スキーマなし文書のヒューリスティクス検出（I-02）は拡張しない（属性付き参照・エンティティ型は宣言があるときだけの機能）。
+- **宣言の置き場所**: エンティティ型はスキーマ文書ルートの `entity:`（単一 object または複数型のリスト。`{type, idPattern, defines}`。`match` / `phases` / `coverage` と同列）。関係レジストリは `_schemas` の専用文書 `kind: relations`（`kind: library` と同様 `matches()` は常に false）で、`relations:` に `{name, label, inverseLabel, source, target, cardinality, acyclic, description}` を列挙する。cardinality / acyclic は **P20 では宣言のみ**（強制は P21 の R21-01）。モデル（`EntityDecl` / `RelationDef`）は `schema/Relations.kt` に置く（表示解決が index / UI 双方から使うため。`Display` §4.22 と同じ配置理由）。`builtin-schema`（entity 追加）・新設 `builtin-relations` メタスキーマ・スキーマ設計UI（S-05）を**対で**更新する（§4.23 の対更新規約）。
+- **schemas ゾーンのメタスキーマは kind でディスパッチ**: `Workspace.schemaFor` は schemas ゾーンの文書のうち `kind: relations` の文書にだけ `builtin-relations` を適用する（それ以外は従来どおり `builtin-schema`）。レジストリ文書は設計スペースのカタログ・フォーム編集・検証に自動で乗る（セルフホスティング §4.2）。
+- **索引への反映は走査時**: エンティティ型と役割（定義／詳細化）は `DocScanner` がID検出時にスキーマの `entity:` 宣言と `idPattern` で解決し、`IdEntry.entityType` / `IdEntry.role`（null = 宣言なし）へ付与する。「スキーマが変わったら全再構築」（§4.5）の既存規約が整合性を保証し、増分更新の仕組みは変えない。`IdIndex.resolve(id)` は**定義出現（role=DEFINING）があればそれを優先**する（表示解決・ジャンプ先が「定義」に安定する。「最初の出現＝定義」ヒューリスティクスの**廃止**は P21）。
+- **lint は既存の報告経路に乗せる**: ①エンティティ整合（定義出現0＝浮遊詳細化／2以上＝定義競合・`idPattern` 逸脱・同一IDの複数型競合）は `Validator.validate` のワークスペース横断判定（カバレッジと同じ流儀。座標は各出現のID要素・すべて WARNING。台帳外では判定しない）。②未宣言 relation（レジストリが1つでもあるとき、スキーマの ref フィールドの `relation` がレジストリにない）は `SchemaLoader.loadAllWithErrors` のエラー一覧（スキーマ読込エラーの流儀）。判定保留の哲学（§4.26）を踏襲し、宣言のないスキーマのIDには黙る。
+- **関係レジストリの消費は表示と lint のみ（P20）**: バックリンクを表示する全面（SidePanel 関係タブ・ID横ぐし・ビュー backlinks 列・文書ビュー・エージェント `related`・グラフ・bundle）は relation 名の代わりに `label`（参照方向）／`inverseLabel`（被参照方向）を表示する。解決は `schema/Relations` の `labelOf` / `inverseLabelOf` に一元化し、未宣言 relation は従来どおり名前のまま。**検証・解決の意味論には関与させない**（enum のリッチ選択肢 §4.22 と同じ「表示専用」の規律）。レジストリは `SchemaLoader.LoadResult.relations`（name → `RelationDef`。重複 name はロードエラー）→ `Workspace.relations` → AppState ミラーで配られる。
+- **属性付き参照は「IDを持たない注記」**: `type: ref` のフィールドに `fields:`（エッジ属性の型宣言）がある場合のみ、オブジェクト形式 `{to: <ID>, <属性>...}` を許可する（宣言なしにオブジェクトが来たら従来どおり型不一致）。予約キー `to` が参照値で、`RefEntry.path` は **to 値の座標**（ジャンプ・パッチ・バックリンクの既存セマンティクスを保つ）。属性は走査境界（属性内の入れ子 ref / id はメタスキーマ検証で不許可）で、`RefEntry.attributes`（スカラー属性の写し）として索引に載り、表示は「（role: 承認者）」の括弧注記に閉じる（値はIDのまま。R19-05 の規約踏襲）。検証は to の解決（従来の ref と同一）＋属性の object 検証。フォームは参照行（to）＋属性行（`ObjectFields` 再利用）、AI生成は `{to: enum制約, 属性...}` の object へ変換。`YamlIO` は変更不要（通常の Map として往復＝コメント・スタイル保持は自動）。関係自体を参照・詳細化したくなったら従来どおり 1:N 具体化（新ID＋逆リンク。§4.6）を使う——使い分けは README に明文化。
+- **EntityGraph は導出専用（グラフストアを持たない）**: `index/EntityGraph.kt` は `IdIndex` の走査結果から導出する読み取り専用ビュー——エンティティ表（id → 型・定義出現・出現一覧・タイトル）・隣接（出次＝出現サブツリー配下の参照、入次＝被参照、参照→最内の参照元要素）・文書ノード表（documentId → file・contains エンティティ。識別は既存 `documentIdOf`）・包含エッジは**書かずに導出**。`IdIndex` インスタンスに lazy 保持し `derive()`（rebuild / update / overlay）で無効化するため、ディスク・オーバーレイ（UX-03）・ステージングの各 `IdIndex` が自然に自分のグラフを持ち、§4.5 の二層構造を崩さない。`sourceEntryOf` / `backlinksTo` / `Traverse.neighbors`（out）／`related` の出次列挙は EntityGraph の事前計算へ委譲した（**公開APIと出力は不変**の載せ替え。`backlinksTo` は元の全参照順を order 索引で保存する）。導出コストは CLI `bench` の `graphDeriveMillis` で計測する。
+- **レジストリの自動推測は入口保証つき**: CLI `infer-relations` は索引の全 `RefEntry` から relation ごとに viaKey・参照元／先の entityType 実績を集計してレジストリ文書のドラフトを生成する（inverseLabel は TODO コメント）。生成物は必ず `SchemaLoader.parseSchemaText` → `validateDefinition` を通る形で出力する（スキーマ推測 R11-01 と同じ入口保証）。
+
 ## 5. 主要データフロー
 
 - **編集**: フォーム操作 → `Slot.set` / ツリー直接変更 → `markEdited()`（履歴・dirty は core.EditBuffer が記録） → `version`++ → 再コンポーズ
@@ -443,6 +459,7 @@ P19（コンテキストエンジニアリングの一級化）の計測基盤�
 - **共通スキーマ定義の追加**: `_schemas` に `kind: library` を置き、利用側は `moduleId#definition` で参照する。解決規則を増やす場合は `SchemaCatalog` に閉じ、各利用側で参照文字列を個別解析しない。
 - **派生スキーマの写像項目の追加**: `SchemaLoader.parseDerive`（宣言のパース）と `DerivedSchemas.compileOne`（コンパイル）、組込みメタスキーマ（`builtin-schema` の `derive` 定義）を**そろえて**更新する。語彙は skill の列マッピング（SK-02）と揃える（§4.23）。
 - **導出・整合ルールの語彙追加**: 宣言モデル（`schema/Derivation.kt`）・パース（`SchemaLoader.parseConsistency` / `Views.parseView` の computed）・組込みメタスキーマ（`builtin-schema` の `consistency`）・`builtin-view`（computed）・解決器（`index/Derivation.kt`）を**そろえて**更新する（§4.26）。
+- **エンティティ・関係語彙の追加**: 宣言モデル（`schema/Relations.kt`）・パース（`SchemaLoader` の `entity:` / `kind: relations`）・組込みメタスキーマ（`builtin-schema` の entity・`builtin-relations`）・スキーマ設計UI（`SchemaEditor` のエンティティ節）を**そろえて**更新する（§4.30）。グラフの導出項目を増やすときは `EntityGraph` に閉じ、消費側で走査を書かない。
 - **AIプロバイダの追加**: OpenAI互換のエンドポイントなら `AiConnection`（ベースURL上書き・プリセット）で足りる。独自APIのプロバイダは `AiProvider` に enum を追加し、`AiGenerator.generate` の分岐と専用クライアント（`generate` + `parseResponse` を持つ object）・`ToolChat.newSession` の分岐を実装する。HTTP送信は `AiHttp.post` を使う（§4.18）。
 - **入出力形式の追加**: `TableFormat` に enum を追加し、`skill/Tables.kt` の read / write に分岐を実装する（Importer / Exporter は形式非依存のため変更不要）。
 - **テンプレートパックの追加**: `skill/TemplatePacks.kt` の `all` に `Pack`（ファイルパス→内容の埋め込み）を登録する。`ImportExportTest` に倣い、展開後の検証エラー0をテストで保証する。

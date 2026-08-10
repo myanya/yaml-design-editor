@@ -14,8 +14,10 @@ import model.scalarText
 import schema.ConsistencyAssert
 import schema.CoverageLevel
 import schema.CoverageRule
+import schema.EntityRole
 import schema.FieldDef
 import schema.FieldType
+import schema.entityFor
 import schema.Projection
 import schema.SchemaDef
 import schema.UnknownFieldsPolicy
@@ -152,6 +154,46 @@ object Validator {
                     if (!status.active || status.satisfied) continue
                     val severity = if (status.rule.level == CoverageLevel.ERROR) Severity.ERROR else Severity.WARNING
                     issues += Issue(severity, coverageMessage(status), entry.path)
+                }
+            }
+        }
+        // 3.5) エンティティ整合 lint（R20-01。ARCHITECTURE §4.30）: entity 宣言のあるスキーマのIDだけを
+        //      ワークスペース横断で判定する（宣言のないスキーマは挙動不変＝非破壊。すべて WARNING）
+        if (indexed && schema != null && schema.entities.isNotEmpty()) {
+            for (entry in localIds) {
+                val decl = schema.entityFor(entry.id)
+                if (decl == null) {
+                    val patterns = schema.entities.mapNotNull { it.idPattern }
+                    issues += Issue(
+                        Severity.WARNING,
+                        "ID「${entry.id}」はエンティティ型の idPattern（${patterns.joinToString(", ")}）のいずれにも一致しません",
+                        entry.path,
+                    )
+                    continue
+                }
+                // 出現集合 = 索引の他ファイル分 ＋ この文書の現在の状態（未保存を含む二層判定。§4.5）
+                val occs = indexObj.occurrences(entry.id).filter { it.file != file } + localIds.filter { it.id == entry.id }
+                val definingCount = occs.count { it.role == EntityRole.DEFINING }
+                if (definingCount == 0) {
+                    issues += Issue(
+                        Severity.WARNING,
+                        "エンティティ型「${decl.type}」のID「${entry.id}」に定義出現がありません（浮遊詳細化。defines: true の文書群への出現が必要です）",
+                        entry.path,
+                    )
+                } else if (definingCount >= 2 && decl.defines) {
+                    issues += Issue(
+                        Severity.WARNING,
+                        "ID「${entry.id}」の定義出現が $definingCount 件あります（定義競合）",
+                        entry.path,
+                    )
+                }
+                val types = occs.mapNotNull { it.entityType }.distinct()
+                if (types.size > 1) {
+                    issues += Issue(
+                        Severity.WARNING,
+                        "ID「${entry.id}」が複数のエンティティ型（${types.joinToString(", ")}）で出現しています（型競合）",
+                        entry.path,
+                    )
                 }
             }
         }
@@ -492,12 +534,46 @@ object Validator {
                     issues += Issue(Severity.ERROR, "必須項目「$label」（ID）が未設定です", path)
                 }
             }
-            FieldType.REF, FieldType.STRING, FieldType.TEXT -> {
+            FieldType.REF -> {
+                if (f.fields.isNotEmpty() && node is YNode.Map) {
+                    // 属性付き参照（R20-03。ARCHITECTURE §4.30）: {to, 属性...} を object の流儀で検証する。
+                    // to の解決検証は参照走査（DocScanner の RefEntry）が従来の ref と同一に担う
+                    if (scalarText(node.entries["to"]) == null) {
+                        issues += Issue(Severity.ERROR, "「$label」の to（参照値）が未設定です", path + "to")
+                    }
+                    val effective = schema.effectiveFields(f.fields, node)
+                    for (ch in effective.fields) {
+                        val key = ch.key ?: continue
+                        checkField(ch, node.entries[key], path + key, issues, schema, phaseIndex)
+                    }
+                    val definedKeys = effective.fields.mapNotNull { it.key }.toSet() + "to"
+                    val severity = when (f.unknownFields ?: UnknownFieldsPolicy.WARNING) {
+                        UnknownFieldsPolicy.ALLOW -> null
+                        UnknownFieldsPolicy.WARNING -> Severity.WARNING
+                        UnknownFieldsPolicy.ERROR -> Severity.ERROR
+                    }
+                    if (severity != null) {
+                        node.entries.keys.filter { it !in definedKeys }.forEach { key ->
+                            issues += Issue(severity, "スキーマに定義されていない項目です: $key", path + key)
+                        }
+                    }
+                } else if (node !is YNode.Scalar) {
+                    issues += Issue(
+                        Severity.WARNING,
+                        if (f.fields.isNotEmpty()) "「$label」は参照ID（スカラー）または {to, 属性} のオブジェクトを想定しています"
+                        else "「$label」はスカラー値を想定しています",
+                        path,
+                    )
+                } else if (required && scalarText(node) == null) {
+                    issues += Issue(Severity.ERROR, "必須項目「$label」が未設定です", path)
+                }
+            }
+            FieldType.STRING, FieldType.TEXT -> {
                 if (node !is YNode.Scalar) {
                     issues += Issue(Severity.WARNING, "「$label」はスカラー値を想定しています", path)
                 } else if (required && scalarText(node) == null) {
                     issues += Issue(Severity.ERROR, "必須項目「$label」が未設定です", path)
-                } else if (f.type != FieldType.REF) {
+                } else {
                     // 制約語彙（R16-01）: 文字数・正規表現（値が入っているときだけ検査する）
                     val text = scalarText(node)
                     if (text != null) {

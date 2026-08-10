@@ -13,6 +13,9 @@ object BuiltinSchemas {
     /** `_schemas/` に適用されるメタスキーマのID（R11-02）。core.Workspace.schemaFor が参照する。 */
     const val META_SCHEMA_ID = "builtin-schema"
 
+    /** 関係レジストリ文書（kind: relations。R20-02）に適用されるメタスキーマのID。 */
+    const val RELATIONS_SCHEMA_ID = "builtin-relations"
+
     /**
      * 組込みメタスキーマ（R11-02）: スキーマ定義そのものをフォーム編集・検証・AI生成の対象にする。
      * FieldDef の再帰構造は再帰 `${"$"}ref`（definitions.field）、「type の値ごとに持てる属性」は
@@ -142,6 +145,12 @@ object BuiltinSchemas {
                       label: 関係種別
                       type: string
                       description: 例 implements / depends。表示とカバレッジ判定に使う
+                    - key: fields
+                      label: エッジ属性の宣言
+                      type: array
+                      item:
+                        ${"$"}ref: field
+                      description: 宣言時のみ {to, 属性...} のオブジェクト形式を許可する（属性付き参照。R20-03）
               - key: required
                 label: 必須
                 type: boolean
@@ -183,8 +192,8 @@ object BuiltinSchemas {
             - key: kind
               label: 種別
               type: enum
-              values: [document, library]
-              description: document（既定）は文書に適用、library は共通定義のみ公開
+              values: [document, library, relations]
+              description: document（既定）は文書に適用、library は共通定義のみ公開、relations は関係レジストリ（保存すると専用フォームが適用される）
             - key: match
               label: 適用パターン（glob）
               type: string
@@ -200,6 +209,10 @@ object BuiltinSchemas {
               label: フェーズ宣言
               type: any
               description: フェーズ名の配列、または {key, order} の object
+            - key: entity
+              label: エンティティ型の宣言
+              type: any
+              description: "この文書群の出現のエンティティ型（R20-01）。{type, idPattern, defines} の object、または複数型のリスト（idPattern で判別）"
             - key: coverage
               label: カバレッジルール
               type: array
@@ -405,6 +418,84 @@ object BuiltinSchemas {
                         - key: default
                           label: 既定の型
                           type: string
+    """.trimIndent()
+
+    /**
+     * 関係レジストリのメタスキーマ（R20-02。ARCHITECTURE §4.30）。
+     * `_schemas` の `kind: relations` 文書にだけ適用される（振り分けは core.Workspace.schemaFor）。
+     */
+    private val relationsSchemaYaml = """
+        id: $RELATIONS_SCHEMA_ID
+        name: 関係レジストリ
+        description: "ワークスペースの関係語彙（表示ラベル・対象型・多重度・非循環）を宣言する文書（kind: relations。R20-02）"
+        match: "${SchemaLoader.SCHEMA_DIR}/**/*.{yaml,yml}"
+        root:
+          type: object
+          fields:
+            - key: id
+              label: レジストリID
+              type: id
+              role: title
+            - key: kind
+              label: 種別
+              type: enum
+              values: [relations]
+              required: true
+            - key: name
+              label: 表示名
+              type: string
+            - key: description
+              label: 説明
+              type: text
+              role: subtitle
+            - key: relations
+              label: 関係の一覧
+              type: array
+              required: true
+              item:
+                type: object
+                fields:
+                  - key: name
+                    label: 関係名
+                    type: string
+                    required: true
+                    role: title
+                    description: スキーマの ref フィールドの relation と一致させる
+                  - key: label
+                    label: 表示ラベル（参照方向）
+                    type: string
+                    description: 例「利用する」。この要素からの参照の表示に使う
+                  - key: inverseLabel
+                    label: 表示ラベル（被参照方向）
+                    type: string
+                    role: subtitle
+                    description: 例「利用される」。この要素への被参照の表示に使う
+                  - key: source
+                    label: 参照元のエンティティ型
+                    type: array
+                    item: { type: string }
+                    description: 参照を書く側のエンティティ型（省略可。強制は P21）
+                  - key: target
+                    label: 参照先のエンティティ型
+                    type: array
+                    item: { type: string }
+                    description: 参照先のエンティティ型（省略可。強制は P21）
+                  - key: cardinality
+                    label: 多重度
+                    type: object
+                    description: in（被参照数）/ out（参照数）の下限上限（P20 では宣言のみ・強制は P21）
+                    fields:
+                      - { key: inMin, label: 入次数の下限, type: int }
+                      - { key: inMax, label: 入次数の上限, type: int }
+                      - { key: outMin, label: 出次数の下限, type: int }
+                      - { key: outMax, label: 出次数の上限, type: int }
+                  - key: acyclic
+                    label: 非循環
+                    type: boolean
+                    description: この関係で循環を作らない宣言（P20 では宣言のみ・強制は P21）
+                  - key: description
+                    label: 説明
+                    type: text
     """.trimIndent()
 
     private val agentSchemaYaml = """
@@ -1368,6 +1459,7 @@ object BuiltinSchemas {
             SchemaLoader.parseSchemaText(skillSchemaYaml, Path.of("(builtin)/skill.yaml")),
             SchemaLoader.parseSchemaText(viewSchemaYaml, Path.of("(builtin)/view.yaml")),
             SchemaLoader.parseSchemaText(metaSchemaYaml, Path.of("(builtin)/schema.yaml")),
+            SchemaLoader.parseSchemaText(relationsSchemaYaml, Path.of("(builtin)/relations.yaml")),
         )
     }
 
@@ -1379,6 +1471,7 @@ object BuiltinSchemas {
         "builtin-skill" to WorkspaceLayout.Zone.SKILLS,
         "builtin-view" to WorkspaceLayout.Zone.VIEWS,
         META_SCHEMA_ID to WorkspaceLayout.Zone.SCHEMAS,
+        RELATIONS_SCHEMA_ID to WorkspaceLayout.Zone.SCHEMAS,
     )
 
     /**
@@ -1396,5 +1489,5 @@ object BuiltinSchemas {
 
     /** 組込みスキーマの原文（テスト用: すべてがメタスキーマ検証を通ることのドッグフーディングに使う）。 */
     internal val allYamlTexts: List<String>
-        get() = listOf(metaSchemaYaml, agentSchemaYaml, activitySchemaYaml, evalSchemaYaml, skillSchemaYaml, viewSchemaYaml)
+        get() = listOf(metaSchemaYaml, relationsSchemaYaml, agentSchemaYaml, activitySchemaYaml, evalSchemaYaml, skillSchemaYaml, viewSchemaYaml)
 }

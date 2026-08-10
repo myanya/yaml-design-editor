@@ -144,7 +144,8 @@ object Disclosure {
                 if (sb.length > budgetChars) break
                 val target = ws.index.resolve(r).firstOrNull()
                 sb.append("  - id: ").append(r.targetId)
-                r.relation?.let { sb.append("  relation: ").append(it) }
+                // 関係レジストリの表示ラベル（R20-02。未宣言は名前のまま）
+                schema.Relations.labelOf(ws.relations, r.relation)?.let { sb.append("  relation: ").append(it) }
                 target?.let { sb.append("  file: ").append(ws.relPath(it.file)); it.title?.let { t -> sb.append("  title: ").append(t) } }
                 sb.append('\n')
             }
@@ -155,7 +156,7 @@ object Disclosure {
                 if (sb.length > budgetChars) break
                 sb.append("  - id: ").append(b.targetId).append("  from: ").append(ws.relPath(b.file))
                     .append("  via: ").append(b.viaKey)
-                b.relation?.let { sb.append("  relation: ").append(it) }
+                schema.Relations.inverseLabelOf(ws.relations, b.relation)?.let { sb.append("  relation: ").append(it) }
                 sb.append('\n')
             }
         }

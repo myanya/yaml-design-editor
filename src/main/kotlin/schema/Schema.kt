@@ -85,16 +85,21 @@ data class EnumOption(
     val displayLabel: String get() = label ?: value
 }
 
-/** `_schemas` 配下の文書種別。library は共通定義だけを公開し、業務文書には適用されない。 */
+/**
+ * `_schemas` 配下の文書種別。library は共通定義だけを公開し、業務文書には適用されない。
+ * relations は関係レジストリ（R20-02。ARCHITECTURE §4.30）で、同様に文書には適用されない。
+ */
 enum class SchemaKind(val id: String) {
     DOCUMENT("document"),
-    LIBRARY("library");
+    LIBRARY("library"),
+    RELATIONS("relations");
 
     companion object {
         fun parse(value: String?): SchemaKind = when (value) {
             null, "document" -> DOCUMENT
             "library" -> LIBRARY
-            else -> error("kind は document / library のいずれかである必要があります: $value")
+            "relations" -> RELATIONS
+            else -> error("kind は document / library / relations のいずれかである必要があります: $value")
         }
     }
 }
@@ -258,6 +263,10 @@ data class SchemaDef(
     /** 整合ルール（R16-03a）: このスキーマの文書のID要素の値と、導出値との一致要件。 */
     val consistency: List<ConsistencyRule> = emptyList(),
     val phases: PhasesDef? = null,
+    /** エンティティ型の宣言（R20-01。ARCHITECTURE §4.30）。空 = 宣言なし（従来どおり）。 */
+    val entities: List<EntityDecl> = emptyList(),
+    /** 関係レジストリの内容（kind: relations のみ。R20-02）。 */
+    val relations: List<RelationDef> = emptyList(),
     val source: Path,
     val kind: SchemaKind = SchemaKind.DOCUMENT,
     /** 派生スキーマの宣言（R11-03）。非 null のスキーマはテンプレートであり、自身は文書にマッチしない。 */
@@ -397,12 +406,44 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
         if (match.isBlank()) issues += SchemaIssue("適用パターンが空です", "match")
         runCatching { globToRegex(match) }
             .onFailure { issues += SchemaIssue("適用パターンが不正です: ${it.message}", "match") }
+    } else if (kind == SchemaKind.RELATIONS) {
+        // 関係レジストリ（R20-02）: 文書には適用されない宣言専用の文書。ARCHITECTURE §4.30
+        if (match.isNotBlank()) issues += SchemaIssue("relations 文書に match は定義できません", "match")
+        if (relations.isEmpty()) issues += SchemaIssue("kind: relations には1つ以上の relations が必要です", "relations")
+        if (definitions.isNotEmpty()) issues += SchemaIssue("relations 文書に definitions は定義できません", "definitions")
+        if (coverage.isNotEmpty()) issues += SchemaIssue("relations 文書に coverage は定義できません", "coverage")
+        if (consistency.isNotEmpty()) issues += SchemaIssue("relations 文書に consistency は定義できません", "consistency")
+        if (phases != null) issues += SchemaIssue("relations 文書に phases は定義できません", "phases")
+        relations.groupBy { it.name }.filterValues { it.size > 1 }.keys.forEach {
+            issues += SchemaIssue("関係「$it」が重複しています", "relations")
+        }
+        relations.forEachIndexed { i, r ->
+            r.cardinality?.let { c ->
+                listOfNotNull(c.inMin, c.inMax, c.outMin, c.outMax).forEach { v ->
+                    if (v < 0) issues += SchemaIssue("cardinality は 0 以上が必要です", "relations[$i].cardinality")
+                }
+                if (c.inMin != null && c.inMax != null && c.inMin > c.inMax) {
+                    issues += SchemaIssue("inMin が inMax を超えています", "relations[$i].cardinality")
+                }
+                if (c.outMin != null && c.outMax != null && c.outMin > c.outMax) {
+                    issues += SchemaIssue("outMin が outMax を超えています", "relations[$i].cardinality")
+                }
+            }
+        }
     } else {
         if (match.isNotBlank()) issues += SchemaIssue("library スキーマに match は定義できません", "match")
         if (definitions.isEmpty()) issues += SchemaIssue("library スキーマには1つ以上の definitions が必要です", "definitions")
         if (coverage.isNotEmpty()) issues += SchemaIssue("library スキーマに coverage は定義できません", "coverage")
         if (consistency.isNotEmpty()) issues += SchemaIssue("library スキーマに consistency は定義できません", "consistency")
         if (phases != null) issues += SchemaIssue("library スキーマに phases は定義できません", "phases")
+    }
+
+    // エンティティ型宣言（R20-01）の妥当性: 型の重複・catch-all（idPattern なし）の多重宣言
+    entities.groupBy { it.type }.filterValues { it.size > 1 }.keys.forEach {
+        issues += SchemaIssue("エンティティ型「$it」が重複しています", "entity")
+    }
+    if (entities.count { it.idPattern == null } > 1) {
+        issues += SchemaIssue("idPattern のないエンティティ型宣言は1つまでです（複数型は idPattern で判別します）", "entity")
     }
 
     // 制約語彙（R16-01）の妥当性: 型との適合・範囲の整合・正規表現の可否
@@ -516,7 +557,34 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
                     }
                 }
             }
-            FieldType.REF -> Unit
+            FieldType.REF -> {
+                // 属性付き参照（R20-03）: 属性は「IDを持たない注記」。入れ子の ref / id は不許可（走査境界。§4.30）
+                if (field.fields.isNotEmpty()) {
+                    field.fields.mapNotNull { it.key }.groupBy { it }.filterValues { it.size > 1 }.keys.forEach {
+                        issues += SchemaIssue("キー「$it」が重複しています", path)
+                    }
+                    fun checkNoRefIn(f0: FieldDef, p: String, seen: Set<DefinitionKey>) {
+                        val located = definitionTarget(f0)
+                        if (located != null && located.first in seen) return
+                        val nextSeen = if (located != null) seen + located.first else seen
+                        val f = resolve(f0) ?: f0
+                        if (f.type == FieldType.REF || f.type == FieldType.ID) {
+                            issues += SchemaIssue("属性付き参照の属性に ref / id 型は使えません（関係の詳細化は 1:N 具体化を使う）", p)
+                            return
+                        }
+                        f.fields.forEach { checkNoRefIn(it, "$p.${it.key}", nextSeen) }
+                        f.item?.let { checkNoRefIn(it, "$p.item", nextSeen) }
+                        f.value?.let { checkNoRefIn(it, "$p.value", nextSeen) }
+                        f.cases.values.flatten().forEach { checkNoRefIn(it, "$p.cases", nextSeen) }
+                    }
+                    field.fields.forEachIndexed { index, attr ->
+                        if (attr.key.isNullOrBlank()) issues += SchemaIssue("属性フィールドのキーが空です", "$path.fields[$index]")
+                        if (attr.key == "to") issues += SchemaIssue("「to」は参照値の予約キーのため属性名に使えません", "$path.fields[$index]")
+                        checkNoRefIn(attr, "$path.${attr.key ?: index}", stack)
+                        check(attr, "$path.${attr.key ?: index}", stack)
+                    }
+                }
+            }
             else -> Unit
         }
     }
@@ -642,7 +710,12 @@ object SchemaLoader {
     const val SKILLS_DIR = "_skills"
     const val VIEWS_DIR = "_views"
 
-    data class LoadResult(val schemas: List<SchemaDef>, val errors: List<String>)
+    data class LoadResult(
+        val schemas: List<SchemaDef>,
+        val errors: List<String>,
+        /** 関係レジストリ（R20-02）: `kind: relations` 文書から集約した name → RelationDef。 */
+        val relations: Map<String, RelationDef> = emptyMap(),
+    )
 
     fun loadAll(workspace: Path): List<SchemaDef> = loadAllWithErrors(workspace).schemas
 
@@ -679,7 +752,43 @@ object SchemaLoader {
         errors += derived.errors
         val result = if (derived.byDeclaring.isEmpty()) linked
         else linked.flatMap { s -> listOf(s) + derived.byDeclaring[s.id].orEmpty() }
-        return LoadResult(result, errors)
+        // 関係レジストリ（R20-02）: kind: relations の文書から集約する。文書内の重複は
+        // validateDefinition が報告するため、ここではレジストリ間の name 重複だけをエラーにする
+        val registry = LinkedHashMap<String, RelationDef>()
+        linked.filter { it.kind == SchemaKind.RELATIONS }.forEach { doc ->
+            doc.relations.distinctBy { it.name }.forEach { r ->
+                if (registry.putIfAbsent(r.name, r) != null) {
+                    errors += "${doc.source.fileName}: 関係「${r.name}」が複数のレジストリで宣言されています"
+                }
+            }
+        }
+        // 未宣言 relation の lint（R20-02）: レジストリが1つでもあるときだけ判定する（非破壊。§4.30）
+        if (registry.isNotEmpty()) {
+            linked.take(schemas.size).filter { it.kind == SchemaKind.DOCUMENT }.forEach { s ->
+                collectRelationNames(s).filter { it !in registry }.sorted().forEach { name ->
+                    errors += "${s.source.fileName}: 関係「$name」は関係レジストリに宣言されていません"
+                }
+            }
+        }
+        return LoadResult(result, errors, registry)
+    }
+
+    /** スキーマの ref フィールドが宣言する関係種別（relation）を収集する（未宣言 relation の lint 用）。 */
+    private fun collectRelationNames(schema: SchemaDef): Set<String> {
+        val names = mutableSetOf<String>()
+        val seen = mutableSetOf<DefinitionKey>()
+        fun walk(f0: FieldDef) {
+            schema.definitionTarget(f0)?.let { (key, _) -> if (!seen.add(key)) return }
+            val f = schema.resolve(f0) ?: f0
+            if (f.type == FieldType.REF) f.relation?.let(names::add)
+            f.fields.forEach(::walk)
+            f.item?.let(::walk)
+            f.value?.let(::walk)
+            f.cases.values.flatten().forEach(::walk)
+        }
+        walk(schema.root)
+        schema.definitions.values.forEach(::walk)
+        return names
     }
 
     fun parseSchemaText(text: String, source: Path, availableSchemas: List<SchemaDef> = emptyList()): SchemaDef {
@@ -691,17 +800,22 @@ object SchemaLoader {
         val kind = SchemaKind.parse(raw["kind"]?.toString())
         val derive = parseDerive(raw["derive"])
         if (derive != null) {
-            require(kind == SchemaKind.DOCUMENT) { "derive は library スキーマには定義できません" }
+            require(kind == SchemaKind.DOCUMENT) { "derive は ${kind.id} スキーマには定義できません" }
             require(raw["match"] == null) { "derive 宣言スキーマに match は定義できません（適用先は derive.match で決まります）" }
         }
+        // エンティティ型宣言（R20-01）と関係レジストリ（R20-02）。ARCHITECTURE §4.30
+        val entities = parseEntities(raw["entity"])
+        require(entities.isEmpty() || kind == SchemaKind.DOCUMENT) { "entity は kind: ${kind.id} には定義できません" }
+        require(kind == SchemaKind.RELATIONS || raw["relations"] == null) { "relations は kind: relations の文書でのみ定義できます" }
+        val relations = if (kind == SchemaKind.RELATIONS) parseRelations(raw["relations"]) else emptyList()
         val match = raw["match"]?.toString()
             ?: if (kind == SchemaKind.DOCUMENT && derive == null) "**/*.{yaml,yml}" else ""
         val definitions = (raw["definitions"] as? Map<*, *>)?.entries?.associate { (name, value) ->
             val definition = value as? Map<*, *> ?: error("definitions.${name}: objectである必要があります")
             name.toString() to parseField(definition, key = null, definitionScope = id)
         } ?: emptyMap()
-        val root = if (kind == SchemaKind.LIBRARY) {
-            require(raw["root"] == null) { "library スキーマに root は定義できません" }
+        val root = if (kind != SchemaKind.DOCUMENT) {
+            require(raw["root"] == null) { "${kind.id} スキーマに root は定義できません" }
             FieldDef(type = FieldType.OBJECT, definitionScope = id)
         } else if (derive != null && raw["root"] == null) {
             // derive 宣言スキーマの root は任意（共通フィールドがなければ空の object）
@@ -723,6 +837,8 @@ object SchemaLoader {
             coverage = coverage,
             consistency = consistency,
             phases = phases,
+            entities = entities,
+            relations = relations,
             source = source,
             kind = kind,
             derive = derive,
@@ -770,6 +886,54 @@ object SchemaLoader {
             requiredPath = fieldsMap["required"]?.toString(),
             typeRule = typeRule,
         )
+    }
+
+    /** エンティティ型宣言（R20-01）のパース。単一 object または複数型のリスト（idPattern で判別）。 */
+    private fun parseEntities(raw: Any?): List<EntityDecl> {
+        if (raw == null) return emptyList()
+        fun one(m: Any?, where: String): EntityDecl {
+            val map = m as? Map<*, *> ?: error("$where は object（type / idPattern / defines）である必要があります")
+            return EntityDecl(
+                type = map["type"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.type（エンティティ型名）が必要です"),
+                idPattern = map["idPattern"]?.toString()?.takeIf { it.isNotBlank() },
+                defines = (map["defines"] as? Boolean) ?: false,
+            )
+        }
+        return when (raw) {
+            is List<*> -> raw.mapIndexed { i, e -> one(e, "entity[$i]") }
+            else -> listOf(one(raw, "entity"))
+        }
+    }
+
+    /** 関係レジストリ（R20-02）のパース。cardinality / acyclic は P20 では宣言のみ（強制は P21）。 */
+    private fun parseRelations(raw: Any?): List<RelationDef> {
+        if (raw == null) return emptyList()
+        val list = raw as? List<*> ?: error("relations はリストである必要があります")
+        fun strings(v: Any?): List<String> = when (v) {
+            is List<*> -> v.map { it.toString() }
+            null -> emptyList()
+            else -> listOf(v.toString())
+        }
+        return list.mapIndexed { i, e ->
+            val m = e as? Map<*, *> ?: error("relations[$i] は object である必要があります")
+            RelationDef(
+                name = m["name"]?.toString()?.takeIf { it.isNotBlank() } ?: error("relations[$i].name（関係名）が必要です"),
+                label = m["label"]?.toString(),
+                inverseLabel = m["inverseLabel"]?.toString(),
+                source = strings(m["source"]),
+                target = strings(m["target"]),
+                cardinality = (m["cardinality"] as? Map<*, *>)?.let { c ->
+                    CardinalityDef(
+                        inMin = (c["inMin"] as? Number)?.toInt(),
+                        inMax = (c["inMax"] as? Number)?.toInt(),
+                        outMin = (c["outMin"] as? Number)?.toInt(),
+                        outMax = (c["outMax"] as? Number)?.toInt(),
+                    )
+                },
+                acyclic = (m["acyclic"] as? Boolean) ?: false,
+                description = m["description"]?.toString(),
+            )
+        }
     }
 
     private fun parsePhases(raw: Any?): PhasesDef? = when (raw) {

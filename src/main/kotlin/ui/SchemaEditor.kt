@@ -94,6 +94,9 @@ fun SchemaEditor(state: AppState, doc: OpenDocument) {
                 PhasesEditor(root, doc)
                 Spacer(Modifier.height(12.dp))
                 CoverageEditor(root, doc)
+                // エンティティ型の宣言（R20-01。builtin-schema の entity と対更新 §4.30）
+                Spacer(Modifier.height(12.dp))
+                EntityEditor(root, doc)
             } else {
                 Text(
                     "library は業務文書へ適用されず、definitions だけを他スキーマへ公開します。",
@@ -462,6 +465,63 @@ private fun PhasesEditor(root: YNode.Map, doc: OpenDocument) {
         }, singleLine = true, placeholder = { Text("requirements, logical-design, physical-design") }, modifier = Modifier.weight(1f))
     }
     Text("先頭が最初の工程。文書はルート直下の「$currentKey」で現在フェーズを申告します。", fontSize = 11.sp, color = Palette.SubText)
+}
+
+/** スキーマの `entity`（エンティティ型宣言。R20-01）の構造化編集。builtin-schema の entity と対更新（§4.30）。 */
+@Composable
+private fun EntityEditor(root: YNode.Map, doc: OpenDocument) {
+    doc.version  // CONVENTIONS §2 / UX-24
+    fun newDecl() = YNode.Map(linkedMapOf<String, YNode>("type" to YNode.Scalar(""), "defines" to YNode.Scalar(true)))
+    val node = root.entries["entity"]
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("エンティティ型", fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+        TextButton(onClick = {
+            when (val current = root.entries["entity"]) {
+                null -> root.entries["entity"] = newDecl()
+                is YNode.Seq -> current.items.add(newDecl())
+                else -> root.entries["entity"] = YNode.Seq(mutableListOf(current, newDecl()))
+            }
+            doc.markEdited()
+        }) { Text("＋ 型を追加", fontSize = 12.sp) }
+    }
+    if (node == null) {
+        Text(
+            "宣言すると出現にエンティティ型と役割（定義／詳細化）が付き、定義出現の欠落・競合・IDパターン逸脱が検証で指摘されます。",
+            fontSize = 11.sp, color = Palette.SubText,
+        )
+        return
+    }
+    val decls: List<YNode.Map> = when (node) {
+        is YNode.Seq -> node.items.filterIsInstance<YNode.Map>()
+        is YNode.Map -> listOf(node)
+        else -> emptyList()
+    }
+    decls.forEachIndexed { index, decl ->
+        Column(Modifier.fillMaxWidth().padding(top = 6.dp).border(1.dp, Palette.Border, PanelShape).padding(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("型 ${index + 1}", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = {
+                    when (val current = root.entries["entity"]) {
+                        is YNode.Seq -> {
+                            current.items.remove(decl)
+                            if (current.items.isEmpty()) root.entries.remove("entity")
+                        }
+                        else -> root.entries.remove("entity")
+                    }
+                    doc.markEdited()
+                }) { Text("削除", fontSize = 10.sp, color = Palette.ErrorRed) }
+            }
+            CompactScalar(decl, "type", "型名", doc)
+            CompactScalar(decl, "idPattern", "IDパターン（例 SCR-*）", doc)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val defines = (decl.entries["defines"] as? YNode.Scalar)?.value == true
+                Checkbox(defines, { decl.entries["defines"] = YNode.Scalar(it); doc.markEdited() })
+                Text("この文書群の出現が定義（誕生）", fontSize = 11.sp)
+            }
+        }
+    }
+    Text("複数型は idPattern で判別します。defines を付けた文書群の出現が「定義」になります。", fontSize = 11.sp, color = Palette.SubText)
 }
 
 /** スキーマの `coverage`（カバレッジルール）の構造化編集。 */

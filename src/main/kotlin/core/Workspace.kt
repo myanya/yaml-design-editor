@@ -123,6 +123,9 @@ class Workspace private constructor(val root: Path) {
         private set
     var schemaErrors: List<String> = emptyList()
         private set
+    /** 関係レジストリ（R20-02）: `kind: relations` 文書から集約した name → RelationDef。表示と lint のみに使う。 */
+    var relations: Map<String, schema.RelationDef> = emptyMap()
+        private set
     var files: List<Path> = emptyList()
         private set
     /** ワークスペースの配置ポリシー（R13-02）。refresh のたびに再評価する。 */
@@ -143,6 +146,7 @@ class Workspace private constructor(val root: Path) {
         val loaded = SchemaLoader.loadAllWithErrors(root, layout)
         schemas = loaded.schemas
         schemaErrors = loaded.errors
+        relations = loaded.relations
         files = WorkspaceScan.yamlFiles(root, layout)
         index.rebuild(root, files, schemas, layout)
     }
@@ -160,13 +164,22 @@ class Workspace private constructor(val root: Path) {
         val rel = relPath(file)
         if (layout.zoneOf(rel) == WorkspaceLayout.Zone.SCHEMAS) {
             // schemas ゾーンにはメタスキーマ（R11-02）だけを適用する。一般スキーマの match は及ばない
-            // （catch-all スキーマの誤適用を防ぐ。利用者は同IDのスキーマで上書きできる）
-            return schemas.firstOrNull { it.id == schema.BuiltinSchemas.META_SCHEMA_ID && it.matches(rel) }
+            // （catch-all スキーマの誤適用を防ぐ。利用者は同IDのスキーマで上書きできる）。
+            // kind: relations の文書には関係レジストリのメタスキーマ（R20-02。§4.30）を振り分ける
+            val metaId = if (isRelationsDoc(file)) schema.BuiltinSchemas.RELATIONS_SCHEMA_ID
+            else schema.BuiltinSchemas.META_SCHEMA_ID
+            return schemas.firstOrNull { it.id == metaId && it.matches(rel) }
         }
         // ゾーン外の構成ファイル（.yde/workspace.yaml 等）にはスキーマを当てない（§4.25）
         if (layout.isReserved(rel) && layout.zoneOf(rel) == null) return null
         return schemas.firstOrNull { it.matches(rel) }
     }
+
+    /** schemas ゾーンの文書が関係レジストリ（kind: relations）か（ディスク基準の軽量判定）。 */
+    private fun isRelationsDoc(file: Path): Boolean = runCatching {
+        val root = YamlIO.parseFirst(Files.readString(file)) as? YNode.Map
+        model.scalarText(root?.entries?.get("kind")) == schema.SchemaKind.RELATIONS.id
+    }.getOrDefault(false)
 
     fun load(rel: String): LoadedDocument {
         val file = resolve(rel)

@@ -505,7 +505,9 @@ fun EditorArea(state: AppState) {
         return
     }
 
-    val isSchemaFile = state.relPath(doc.file).startsWith("_schemas/")
+    val isSchemaZone = state.layout.zoneOf(state.relPath(doc.file)) == schema.WorkspaceLayout.Zone.SCHEMAS
+    // 関係レジストリ（kind: relations。R20-02）はスキーマ設計UIでなく builtin-relations のフォームで編集する
+    val isSchemaFile = isSchemaZone && doc.schema?.id != schema.BuiltinSchemas.RELATIONS_SCHEMA_ID
     // root は通常の State ではないため、メタデータ編集時にもヘッダーを再描画させる。
     doc.version
     val documentName = doc.root?.let { IdIndex.documentNameOf(it) }

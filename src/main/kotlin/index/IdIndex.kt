@@ -3,12 +3,14 @@ package index
 import model.YNode
 import model.YPath
 import model.scalarText
+import schema.EntityRole
 import schema.FieldDef
 import schema.FieldType
 import schema.SchemaDef
 import schema.RefScope
 import schema.WorkspaceLayout
 import schema.effectiveFields
+import schema.entityFor
 import yaml.YamlIO
 import java.nio.file.Files
 import java.nio.file.Path
@@ -21,9 +23,13 @@ data class IdEntry(
     val title: String?,   // 同じ要素の title / name（表示用）
     val schemaId: String?,
     val documentId: String,
+    /** スキーマの entity 宣言から解決したエンティティ型（R20-01。null = 宣言なし）。 */
+    val entityType: String? = null,
+    /** この出現の役割（定義／詳細化。R20-01。null = 宣言なし）。 */
+    val role: schema.EntityRole? = null,
 )
 
-/** ID への参照 1 件。path は参照値（スカラー）の位置。 */
+/** ID への参照 1 件。path は参照値（スカラー）の位置（属性付き参照では to 値の座標。R20-03）。 */
 data class RefEntry(
     val targetId: String,
     val file: Path,
@@ -33,23 +39,16 @@ data class RefEntry(
     val scope: RefScope = RefScope(),
     val relation: String? = null,       // スキーマで宣言された関係種別（type: ref の relation）
     val sourceSchemaId: String? = null, // 参照元文書のスキーマID（カバレッジ判定に使う）
-)
-
-fun idMatchesPattern(id: String, pattern: String): Boolean {
-    val regex = buildString {
-        append('^')
-        pattern.forEach { ch ->
-            when (ch) {
-                '*' -> append(".*")
-                '?' -> append('.')
-                '.', '(', ')', '+', '|', '^', '$', '@', '%', '[', ']', '{', '}', '\\' -> append('\\').append(ch)
-                else -> append(ch)
-            }
-        }
-        append('$')
-    }
-    return runCatching { Regex(regex).matches(id) }.getOrDefault(false)
+    /** 属性付き参照（R20-03）のスカラー属性の写し（表示注記用。値そのものはIDのまま）。 */
+    val attributes: Map<String, String> = emptyMap(),
+) {
+    /** 属性の1行注記（例「role: 承認者」）。表示側は括弧に閉じて添える（R20-03。§4.30）。 */
+    fun attributeSummary(): String? =
+        attributes.entries.takeIf { it.isNotEmpty() }?.joinToString(", ") { (k, v) -> "$k: $v" }
 }
+
+fun idMatchesPattern(id: String, pattern: String): Boolean =
+    runCatching { schema.idGlobToRegex(pattern).matches(id) }.getOrDefault(false)
 
 fun IdEntry.isAllowedBy(ref: RefEntry): Boolean =
     (ref.idPatterns.isEmpty() || ref.idPatterns.any { idMatchesPattern(id, it) }) &&
@@ -88,6 +87,21 @@ object DocScanner {
                 }
                 return
             }
+            // 属性付き参照（R20-03）: fields 宣言のある ref のオブジェクト形式 {to, 属性...}。
+            // path は to 値の座標（ジャンプ・パッチ・バックリンクの既存セマンティクスを保つ）。属性は走査境界。
+            if (effective?.type == FieldType.REF && effective.fields.isNotEmpty() && node is YNode.Map) {
+                scalarText(node.entries["to"])?.let { target ->
+                    val attributes = LinkedHashMap<String, String>()
+                    node.entries.forEach { (k, v) ->
+                        if (k != "to") scalarText(v)?.let { attributes[k] = it }
+                    }
+                    refs += RefEntry(
+                        target, file, path + "to", keyLabel ?: "ref", effective.idPatterns, effective.scope,
+                        relation = effective.relation, sourceSchemaId = schemaDef?.id, attributes = attributes,
+                    )
+                }
+                return
+            }
             when (node) {
                 is YNode.Scalar -> Unit
                 is YNode.Seq -> {
@@ -110,7 +124,13 @@ object DocScanner {
                         val idText = scalarText(node.entries[k]) ?: continue
                         // タイトルは表示解決（R10-01）に一元化する: スキーマの role 指定 ＞ 予約語（title/name/label）
                         val title = schema.Display.titleOf(node, schemaDef, effective)
-                        ids += IdEntry(idText, file, path, title, schemaDef?.id, documentId)
+                        // エンティティ型と役割（R20-01）: スキーマの entity 宣言と idPattern で走査時に解決する（§4.30）
+                        val decl = schemaDef?.entityFor(idText)
+                        ids += IdEntry(
+                            idText, file, path, title, schemaDef?.id, documentId,
+                            entityType = decl?.type,
+                            role = decl?.let { if (it.defines) schema.EntityRole.DEFINING else schema.EntityRole.DETAIL },
+                        )
                         break
                     }
                     // --- 子要素の走査と参照検出 ---
@@ -155,10 +175,13 @@ object DocScanner {
  */
 class IdIndex {
 
-    private class FileScan(val ids: List<IdEntry>, val refs: List<RefEntry>)
+    private class FileScan(val ids: List<IdEntry>, val refs: List<RefEntry>, val documentId: String)
 
     /** ファイル -> 走査結果。集約（entries / refs）はここから導出する。 */
     private val byFile = HashMap<Path, FileScan>()
+
+    /** 導出グラフ（R20-04）。走査結果が変わる（derive）たびに無効化し、次のアクセスで再導出する。 */
+    private var graphCache: EntityGraph? = null
 
     /** 論理 id -> 文書ごとの出現一覧 */
     var entries: Map<String, List<IdEntry>> = emptyMap()
@@ -237,7 +260,7 @@ class IdIndex {
         val schemaDef = schemas.firstOrNull { it.matches(rel) }
         val documentId = documentIdOf(root, rel)
         val (docIds, docRefs) = DocScanner.scan(root, f, schemaDef, documentId)
-        return FileScan(docIds, docRefs)
+        return FileScan(docIds, docRefs, documentId)
     }
 
     /** byFile から集約ビュー（entries / refs）を導出する。順序はパス順で安定させる。 */
@@ -251,30 +274,48 @@ class IdIndex {
         }
         entries = ids
         refs = allRefs
+        graphCache = null
     }
+
+    /**
+     * 走査結果から導出したエンティティグラフ（R20-04。ARCHITECTURE §4.30）。lazy に導出し、
+     * 走査結果の更新（rebuild / update / overlay）で無効化される。ディスク・オーバーレイ・ステージングの
+     * 各 IdIndex インスタンスが自分のグラフを持つため、§4.5 の二層構造は崩れない。
+     */
+    val graph: EntityGraph
+        get() = graphCache ?: EntityGraph.build(
+            byFile.entries.sortedBy { it.key.toString() }
+                .map { (f, scan) -> FileScanView(f, scan.documentId, scan.ids, scan.refs) },
+            entries, refs,
+        ).also { graphCache = it }
 
     fun occurrences(id: String): List<IdEntry> = entries[id].orEmpty()
 
-    fun resolve(id: String): IdEntry? = occurrences(id).firstOrNull()
+    /** ID の代表出現。定義出現（role=DEFINING。R20-01）があればそれを優先し、なければ先頭（パス順）。 */
+    fun resolve(id: String): IdEntry? =
+        occurrences(id).let { occs -> occs.firstOrNull { it.role == EntityRole.DEFINING } ?: occs.firstOrNull() }
 
     fun resolve(ref: RefEntry): List<IdEntry> = occurrences(ref.targetId).filter { it.isAllowedBy(ref) }
 
     fun documentIdFor(file: Path, root: YNode): String =
-        entries.values.asSequence().flatten().firstOrNull { it.file == file }?.documentId
-            ?: documentIdOf(root, file.toString())
+        byFile[file]?.documentId ?: documentIdOf(root, file.toString())
 
-    /** 指定 ID 群を参照しているエントリ（被参照＝バックリンク）。 */
-    fun backlinksTo(idSet: Set<String>): List<RefEntry> =
-        refs.filter { it.targetId in idSet }
+    /** 指定 ID 群を参照しているエントリ（被参照＝バックリンク）。全参照の並び順（パス順）を保つ。 */
+    fun backlinksTo(idSet: Set<String>): List<RefEntry> = graph.backlinksTo(idSet)
 
     /**
      * 参照値の位置を含む、最も内側（パスが最長）の ID 出現＝参照を書いた要素。
      * バックリンクの表示解決（「どの要素からの参照か」を ID・タイトルで見せる。R10-01）に使う。
      */
-    fun sourceEntryOf(ref: RefEntry): IdEntry? =
-        entries.values.asSequence().flatten()
-            .filter { it.file == ref.file && it.path.size <= ref.path.size && ref.path.subList(0, it.path.size) == it.path }
-            .maxByOrNull { it.path.size }
+    fun sourceEntryOf(ref: RefEntry): IdEntry? = graph.sourceEntryOf(ref)
+
+    /** ID の全出現のサブツリー配下に書かれた参照（出次エッジ）。トラバース・related が共用する（R20-04）。 */
+    fun outgoingRefs(id: String): List<RefEntry> = graph.outgoingRefs(id)
+
+    /** ベンチ計測用: 導出グラフのキャッシュを捨てる（次の graph アクセスで再導出させる）。 */
+    internal fun dropGraphCache() {
+        graphCache = null
+    }
 
     companion object {
         fun relPathOf(workspace: Path, file: Path): String =

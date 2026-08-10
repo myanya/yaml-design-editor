@@ -508,7 +508,12 @@ private fun BacklinkItems(state: AppState, def: DocBacklinksDef, row: DocBacklin
                 )
                 val details = def.columns.mapIndexed { ci, col ->
                     "${col.label}: ${Views.cellText(b.values.getOrNull(ci), 40)}"
-                } + listOfNotNull(b.relation?.let { "関係: $it" }, b.rel)
+                } + listOfNotNull(
+                    // 被参照方向は inverseLabel（R20-02）＋属性付き参照の属性注記（R20-03）
+                    schema.Relations.inverseLabelOf(state.relations, b.relation)?.let { "関係: $it" },
+                    b.attributes,
+                    b.rel,
+                )
                 Text(details.joinToString("　"), fontSize = 10.sp, color = Palette.SubText, maxLines = 2)
             }
         }
@@ -657,7 +662,7 @@ fun ValueEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
         FieldType.BOOLEAN -> BooleanEditor(ctx, slot)
         FieldType.ENUM -> EnumEditor(ctx, effective, slot)
         FieldType.ID -> IdEditor(ctx, slot)
-        FieldType.REF -> RefEditor(ctx, effective, slot)
+        FieldType.REF -> RefEditor(ctx, effective, slot, path)
         FieldType.ARRAY -> ArrayEditor(ctx, effective, slot, path)
         FieldType.MAP -> MapEditor(ctx, effective, slot, path)
         FieldType.OBJECT -> NestedObjectEditor(ctx, effective, slot, path)
@@ -821,7 +826,35 @@ private fun IdEditor(ctx: FormCtx, slot: Slot) {
 }
 
 @Composable
-fun RefEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
+fun RefEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath = emptyList()) {
+    // 属性付き参照（R20-03。ARCHITECTURE §4.30）: fields 宣言のある ref は
+    // 参照行（to）＋属性行（ObjectFields 再利用）で編集する。スカラー形式のままでも編集できる。
+    if (field.fields.isNotEmpty()) {
+        val node = slot.get()
+        val mapNode = node as? YNode.Map
+        Column(Modifier.fillMaxWidth()) {
+            RefScalarEditor(ctx, field, if (mapNode != null) MapSlot(mapNode, "to") else slot)
+            if (mapNode != null) {
+                ObjectFields(ctx, field.fields, mapNode, path)
+            } else if (!ctx.readOnly) {
+                TextButton(onClick = {
+                    val current = (node as? YNode.Scalar)?.value?.toString().orEmpty()
+                    slot.set(YNode.Map(linkedMapOf<String, YNode>("to" to YNode.Scalar(current))))
+                    ctx.markEdited()
+                }) {
+                    Icon(Icons.Default.Add, contentDescription = null, Modifier.size(14.dp))
+                    Text("属性を追加（{to, 属性} 形式へ）", fontSize = 11.sp)
+                }
+            }
+        }
+        return
+    }
+    RefScalarEditor(ctx, field, slot)
+}
+
+/** 参照値（スカラー）1つ分のエディタ本体。属性付き参照では to 値の Slot を受け取る（R20-03）。 */
+@Composable
+private fun RefScalarEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
     val current = (slot.get() as? YNode.Scalar)?.value?.toString() ?: ""
     var menuOpen by remember { mutableStateOf(false) }
     val refConstraint = RefEntry(current, ctx.doc.file, emptyList(), field.key ?: "ref", field.idPatterns, field.scope)

@@ -2,6 +2,7 @@ package core
 
 import model.parseYPath
 import model.pretty
+import schema.validateDefinition
 import validate.Severity
 import java.nio.file.Files
 import java.nio.file.Path
@@ -70,6 +71,10 @@ internal const val CLI_USAGE = """コマンド:
   infer-schema <workspace> <glob> [--id schema-id] [--apply]
            既存YAML文書（glob。複数文書はマージ）からスキーマのドラフトを推測する（R11-01）。
            既定は標準出力へドラフトを表示。--apply で _schemas/<id>.yaml へ保存する（既存は上書きしない）
+  infer-relations <workspace> [--id registry-id] [--apply]
+           索引の全参照から relation・viaKey・参照元／先のエンティティ型の実績を集計し、
+           関係レジストリ（kind: relations）文書のドラフトを生成する（R20-02）。
+           既定は標準出力へ表示。--apply で _schemas/<id>.yaml へ保存する（既存は上書きしない）
   bench    <dir> [--docs N] [--items N]         索引性能の計測（R8-02）。空ディレクトリならベンチマーク用
            ワークスペース（既定 1000 文書）を生成し、フル再構築と増分更新の時間を比較する
   migrate  <workspace> [--ledger dir]           レガシー構成（ルートの _schemas 等）を .yde 構成へ移行する（R13-01）。
@@ -489,6 +494,7 @@ internal fun runCli(args: Array<String>): String {
                     "refs" to result.refs,
                     "fullRebuildMillis" to result.fullRebuildMillis,
                     "incrementalUpdateMillis" to result.incrementalUpdateMillis,
+                    "graphDeriveMillis" to result.graphDeriveMillis,
                     "speedup" to result.speedup,
                 ).filterValues { it != null }
             )
@@ -562,6 +568,29 @@ internal fun runCli(args: Array<String>): String {
                 )
             }
         }
+        "infer-relations" -> {
+            // 関係レジストリの自動推測（R20-02）: 参照実績からドラフトを生成し、表示または _schemas へ保存する
+            val ws = workspace()
+            val id = stringFlag(rest, "--id") ?: "workspace-relations"
+            val yamlText = inferRelationsDraft(ws, id)
+            if ("--apply" !in rest) {
+                yamlText
+            } else {
+                val rel = "${ws.layout.schemasDir}/$id.yaml"
+                val file = ws.resolve(rel)
+                require(!Files.exists(file)) { "既にレジストリファイルが存在します: $rel" }
+                Files.createDirectories(file.parent)
+                Files.writeString(file, yamlText)
+                ws.refresh()
+                dumpYaml(
+                    linkedMapOf(
+                        "file" to rel,
+                        "relations" to ws.relations.keys.toList(),
+                        "schemaErrors" to ws.schemaErrors.filter { it.startsWith("$id.yaml") },
+                    )
+                )
+            }
+        }
         "revert" -> {
             val ws = workspace()
             val runFile = rest.getOrNull(1)?.takeIf { !it.startsWith("--") }
@@ -571,6 +600,47 @@ internal fun runCli(args: Array<String>): String {
         }
         else -> error("不明なコマンドです: $command\n$CLI_USAGE")
     }
+}
+
+/**
+ * 関係レジストリのドラフト生成（R20-02。ARCHITECTURE §4.30）。
+ * 索引の全参照から relation ごとに viaKey・参照元／先のエンティティ型の実績を集計する。
+ * 生成物は必ず `SchemaLoader.parseSchemaText` → `validateDefinition` を通ること（R11-01 と同じ入口保証）。
+ */
+internal fun inferRelationsDraft(ws: Workspace, registryId: String = "workspace-relations"): String {
+    val byRelation = ws.index.refs.filter { it.relation != null }.groupBy { it.relation!! }
+    require(byRelation.isNotEmpty()) {
+        "relation を宣言した参照が索引にありません（スキーマの ref フィールドに relation を宣言してから実行してください）"
+    }
+    fun quote(s: String): String = "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+    val text = buildString {
+        appendLine("# 関係レジストリのドラフト（infer-relations が参照実績から生成。R20-02）")
+        appendLine("# inverseLabel（被参照方向の表示ラベル）は TODO を実際の語彙に書き換えてください。")
+        appendLine("id: $registryId")
+        appendLine("kind: relations")
+        appendLine("relations:")
+        byRelation.keys.sorted().forEach { name ->
+            val refs = byRelation.getValue(name)
+            val viaKeys = refs.map { it.viaKey }.distinct().sorted()
+            val sources = refs.mapNotNull { ws.index.sourceEntryOf(it)?.entityType }.distinct().sorted()
+            val targets = refs.flatMap { r -> ws.index.occurrences(r.targetId).mapNotNull { it.entityType } }
+                .distinct().sorted()
+            appendLine("  - name: ${quote(name)}")
+            appendLine("    label: ${quote(name)}")
+            appendLine("    # TODO: inverseLabel を被参照方向の語彙に書き換える（例: 〜される）")
+            appendLine("    inverseLabel: ${quote("$name（被参照）")}")
+            if (sources.isNotEmpty()) appendLine("    source: [${sources.joinToString(", ") { quote(it) }}]")
+            if (targets.isNotEmpty()) appendLine("    target: [${targets.joinToString(", ") { quote(it) }}]")
+            appendLine("    description: ${quote("実績: 参照 ${refs.size} 件・キー: ${viaKeys.joinToString(", ")}")}")
+        }
+    }
+    // 入口保証: 生成物がメタスキーマ検証（レジストリの定義検証）を通ることを生成段階で確認する
+    val parsed = schema.SchemaLoader.parseSchemaText(text, Path.of("_schemas/$registryId.yaml"))
+    val issues = parsed.validateDefinition()
+    require(parsed.kind == schema.SchemaKind.RELATIONS && issues.isEmpty()) {
+        "生成したドラフトが定義検証を通りません: ${issues.joinToString("; ") { it.message }}"
+    }
+    return text
 }
 
 /** glob からスキーマIDの既定値を作る（最初のワイルドカードより前の最後のパス要素。R11-01）。 */

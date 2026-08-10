@@ -206,7 +206,11 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                                 color = if (resolvable) Palette.Primary else Palette.ErrorRed,
                             )
                             Text(
-                                "${ref.viaKey}${ref.relation?.let { "（関係: $it）" } ?: ""} ／ ${ref.path.pretty()}",
+                                // 関係レジストリの表示ラベル（R20-02）・属性付き参照の属性注記（R20-03）
+                                ref.viaKey +
+                                    (schema.Relations.labelOf(state.relations, ref.relation)?.let { "（関係: $it）" } ?: "") +
+                                    (ref.attributeSummary()?.let { "（$it）" } ?: "") +
+                                    " ／ ${ref.path.pretty()}",
                                 fontSize = 10.sp, color = Palette.SubText,
                             )
                         }
@@ -242,7 +246,11 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                                 fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                             )
                             Text(
-                                "${state.relPath(bl.file)} ／ ${bl.viaKey}${bl.relation?.let { "（関係: $it）" } ?: ""} ／ ${bl.path.pretty()}",
+                                // 被参照方向は inverseLabel（R20-02）＋属性注記（R20-03）
+                                "${state.relPath(bl.file)} ／ " + bl.viaKey +
+                                    (schema.Relations.inverseLabelOf(state.relations, bl.relation)?.let { "（関係: $it）" } ?: "") +
+                                    (bl.attributeSummary()?.let { "（$it）" } ?: "") +
+                                    " ／ ${bl.path.pretty()}",
                                 fontSize = 10.sp, color = Palette.SubText,
                             )
                         }

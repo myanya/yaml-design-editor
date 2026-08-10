@@ -160,6 +160,9 @@ class AppState {
         private set
     var schemaErrors by mutableStateOf<List<String>>(emptyList())
         private set
+    /** 関係レジストリ（R20-02）: relation 名 → 宣言。バックリンク表示面が label / inverseLabel の解決に使う。 */
+    var relations by mutableStateOf<Map<String, schema.RelationDef>>(emptyMap())
+        private set
     var yamlFiles by mutableStateOf<List<Path>>(emptyList())
         private set
     var directories by mutableStateOf<List<Path>>(emptyList())
@@ -353,6 +356,7 @@ class AppState {
     private fun mirrorCore(cw: core.Workspace) {
         schemas = cw.schemas
         schemaErrors = cw.schemaErrors
+        relations = cw.relations
         yamlFiles = cw.files
         // 台帳外のエディタ層ファイル（R13-04）。ledger 宣言が無ければ走査対象と一致するため空になる
         editorOnlyFiles = if (cw.layout.ledger.isEmpty()) emptyList()
