@@ -132,10 +132,15 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp) {
                     { name -> selectedPath?.let { state.renameImpact(it, name) }.orEmpty() }
                 } else null,
                 onDismiss = { dialog = null },
-                onConfirm = { value, atRoot ->
+                onConfirm = { value, atRoot, withAi ->
                     val parent = if (atRoot) ws else selectedParent
                     val result = when (kind) {
-                        TreeDialog.NewFile -> state.createYaml(parent, value).map { Unit }
+                        TreeDialog.NewFile -> state.createYaml(parent, value).onSuccess { file ->
+                            // 作成→たたき台生成の連結（R24-03）。スキーマが当たらない場合はその旨だけ案内する
+                            if (withAi && !requestDocumentDraft(state, file)) {
+                                state.status = "作成しました（スキーマが適用されないためAIたたき台は使えません）: ${state.relPath(file)}"
+                            }
+                        }.map { Unit }
                         TreeDialog.NewDirectory -> state.createDirectory(parent, value).map { Unit }
                         TreeDialog.Rename -> selectedPath?.let { state.renamePath(it, value).map { Unit } }
                             ?: Result.failure(IllegalStateException("対象がありません"))
@@ -304,12 +309,13 @@ private fun TreeOperationDialog(
     allowRootSwitch: Boolean,
     impact: ((String) -> List<String>)? = null,  // 改名の影響プレビュー（R21-03。入力値から都度計算）
     onDismiss: () -> Unit,
-    onConfirm: (String, Boolean) -> String?,  // 戻り値はエラーメッセージ（null=成功。ダイアログ内に表示する。UX-41）
+    onConfirm: (String, Boolean, Boolean) -> String?,  // (名前, 直下作成, AIたたき台) → エラーメッセージ（null=成功。UX-41）
 ) {
     var value by remember(kind, initial) { mutableStateOf(initial) }
     var atRoot by remember(kind) { mutableStateOf(false) }
+    var withAi by remember(kind) { mutableStateOf(false) }
     var error by remember(kind) { mutableStateOf<String?>(null) }
-    fun confirm() { error = onConfirm(value, atRoot) }
+    fun confirm() { error = onConfirm(value, atRoot, withAi) }
     val title = when (kind) {
         TreeDialog.NewFile -> "YAML ファイルを作成"
         TreeDialog.NewDirectory -> "フォルダーを作成"
@@ -338,6 +344,13 @@ private fun TreeOperationDialog(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Checkbox(atRoot, { atRoot = it })
                             Text("ワークスペース直下に作成する", fontSize = 12.sp)
+                        }
+                    }
+                    // 作成→たたき台生成の連結（R24-03）。スキーマが当たるファイル名のときだけ意味を持つ
+                    if (kind == TreeDialog.NewFile) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(withAi, { withAi = it })
+                            Text("作成後にAIでたたき台を生成する（スキーマが適用される場合）", fontSize = 12.sp)
                         }
                     }
                     // 改名の影響（R21-03）: 書き換え対象の文書参照・スキーマ／ビューの当たりの変化

@@ -44,6 +44,31 @@ class AiProposalTest {
         assertEquals(dump(generated), dump(combined))
     }
 
+    // ---------------------------------------------------------------- combineProposal（キー単位マージ。R24-02）
+
+    @Test
+    fun `merge keeps non-generated keys and key order`() {
+        val current = yaml("id: REQ-1\ntitle: 旧\nowner: 山田")
+        val generated = yaml("title: 新\nsummary: 追加")
+        val combined = combineProposal(current, generated, append = false, wholeDocument = false, mergeObjectKeys = true)
+        // 非生成キー（id・owner）とキー順を保持し、生成キーだけ上書き・新キー（summary）は末尾
+        assertEquals(dump(yaml("id: REQ-1\ntitle: 新\nowner: 山田\nsummary: 追加")), dump(combined))
+    }
+
+    @Test
+    fun `merge replaces when current is not a map`() {
+        val generated = yaml("title: 新")
+        val combined = combineProposal(YNode.Scalar("文字列"), generated, append = false, wholeDocument = false, mergeObjectKeys = true)
+        assertEquals(dump(generated), dump(combined))
+    }
+
+    @Test
+    fun `merge with missing current returns generated`() {
+        val generated = yaml("title: 新")
+        val combined = combineProposal(null, generated, append = false, wholeDocument = false, mergeObjectKeys = true)
+        assertEquals(dump(generated), dump(combined))
+    }
+
     // ---------------------------------------------------------------- replaceInClone
 
     @Test

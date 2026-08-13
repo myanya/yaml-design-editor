@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Warning
@@ -46,6 +47,7 @@ import model.pretty
 import schema.FieldType
 import schema.RefTarget
 import validate.Validator
+import java.nio.file.Path
 
 /**
  * エンティティページ（R23-02。ARCHITECTURE §4.33）。ID横ぐしビュー（R1-05 / R7-04）の改築:
@@ -305,6 +307,19 @@ private fun AspectCard(state: AppState, section: AspectSection) {
     doc.version
     state.indexVersion
     val root = doc.root
+    val map = root?.let { getAt(it, section.entry.path) as? YNode.Map }
+    val objectField = remember(doc, doc.version) {
+        root?.let { r -> doc.schema?.let { Views.fieldAt(it, r, section.entry.path) } }
+    }
+    // AI生成へ渡す関連文書（R24-02）: このエンティティの出現・参照先・参照元のファイル
+    val relatedFiles = remember(doc, state.indexVersion, state.editVersion) {
+        state.entityRelatedFiles(section.entry.id, doc.file)
+    }
+    // 出現単位の生成対象（R24-02）: 所有キーに限定した object（id 型は除外。残らなければボタンなし）。
+    // 呼び名はタイトル・既定指示にそのまま出るため「REQ-001 の要件定義」の形にする（UX試用フィードバック）
+    val genField = remember(doc, doc.version, state.indexVersion) {
+        doc.schema?.let { sc -> objectField?.let { mergeGenField(sc, it, section.ownedKeys, "${section.entry.id} の${section.label}") } }
+    }
     Column(
         Modifier.fillMaxWidth().padding(vertical = 4.dp)
             .border(1.dp, Palette.Border, PanelShape)
@@ -328,6 +343,16 @@ private fun AspectCard(state: AppState, section: AspectSection) {
                     fontSize = 10.sp, color = Palette.SubText,
                 )
             }
+            if (!state.readOnlyMode && genField != null && map != null) {
+                IconButton(
+                    onClick = {
+                        state.requestAi(doc, genField, section.entry.path, relatedFiles = relatedFiles, mergeObjectKeys = true)
+                    },
+                    modifier = Modifier.size(30.dp),
+                ) {
+                    Icon(Icons.Default.AutoAwesome, contentDescription = "この出現をAIで作成", Modifier.size(15.dp), tint = Palette.Primary)
+                }
+            }
             IconButton(onClick = { state.navigateToOccurrence(section.entry) }, modifier = Modifier.size(30.dp)) {
                 Icon(Icons.Default.ArrowForward, contentDescription = "開く", Modifier.size(16.dp), tint = Palette.Primary)
             }
@@ -340,16 +365,12 @@ private fun AspectCard(state: AppState, section: AspectSection) {
             )
             return@Column
         }
-        val map = getAt(root, section.entry.path) as? YNode.Map
-        val objectField = remember(doc, doc.version) {
-            doc.schema?.let { Views.fieldAt(it, root, section.entry.path) }
-        }
         val localIds = remember(doc, doc.version) {
             val documentId = IdIndex.documentIdOf(root, state.relPath(doc.file))
             DocScanner.scan(root, doc.file, doc.schema, documentId).first
         }
         val ctx = remember(doc, doc.version, state.indexVersion, state.readOnlyMode) {
-            FormCtx(state, doc, localIds, baseDepth = section.entry.path.size)
+            FormCtx(state, doc, localIds, baseDepth = section.entry.path.size, aiRelatedFiles = relatedFiles)
         }
         when {
             map == null -> Text(
@@ -567,6 +588,20 @@ private fun OccurrenceCard(state: AppState, entry: IdEntry) {
     doc.version
     state.indexVersion
     val root = doc.root
+    // AI生成へ渡す関連文書と、出現単位の生成対象（R24-02。全宣言フィールド対象・id 型は除外）
+    val relatedFiles = remember(doc, state.indexVersion, state.editVersion) {
+        state.entityRelatedFiles(entry.id, doc.file)
+    }
+    val occurrenceMap = root?.let { getAt(it, entry.path) as? YNode.Map }
+    val genField = remember(doc, doc.version, state.indexVersion) {
+        root?.let { r ->
+            doc.schema?.let { sc ->
+                Views.fieldAt(sc, r, entry.path)?.let {
+                    mergeGenField(sc, it, ownedKeys = null, label = "${entry.id} の内容")
+                }
+            }
+        }
+    }
 
     val refsOut = remember(entry, state.indexVersion, state.editVersion) {
         state.overlayIndex().refs.filter {
@@ -597,6 +632,14 @@ private fun OccurrenceCard(state: AppState, entry: IdEntry) {
                     fontSize = 10.sp, color = Palette.SubText,
                 )
             }
+            if (!state.readOnlyMode && genField != null && occurrenceMap != null) {
+                IconButton(
+                    onClick = { state.requestAi(doc, genField, entry.path, relatedFiles = relatedFiles, mergeObjectKeys = true) },
+                    modifier = Modifier.size(30.dp),
+                ) {
+                    Icon(Icons.Default.AutoAwesome, contentDescription = "この出現をAIで作成", Modifier.size(15.dp), tint = Palette.Primary)
+                }
+            }
             IconButton(onClick = { state.navigateToOccurrence(entry) }, modifier = Modifier.size(30.dp)) {
                 Icon(Icons.Default.ArrowForward, contentDescription = "開く", Modifier.size(16.dp), tint = Palette.Primary)
             }
@@ -608,7 +651,7 @@ private fun OccurrenceCard(state: AppState, entry: IdEntry) {
                 fontSize = 11.sp, color = Palette.ErrorRed,
             )
         } else {
-            OccurrenceForm(state, doc, root, entry)
+            OccurrenceForm(state, doc, root, entry, relatedFiles)
         }
         if (refsOut.isNotEmpty()) {
             Spacer(Modifier.height(6.dp))
@@ -641,14 +684,20 @@ private fun OccurrenceCard(state: AppState, entry: IdEntry) {
  * スキーマなし、またはフィールド解決が object にならない場合は汎用エディタへフォールバックする。
  */
 @Composable
-private fun OccurrenceForm(state: AppState, doc: OpenDocument, root: YNode, entry: IdEntry) {
+private fun OccurrenceForm(
+    state: AppState,
+    doc: OpenDocument,
+    root: YNode,
+    entry: IdEntry,
+    relatedFiles: List<Path> = emptyList(),
+) {
     val localIds = remember(doc, doc.version) {
         val documentId = IdIndex.documentIdOf(root, state.relPath(doc.file))
         DocScanner.scan(root, doc.file, doc.schema, documentId).first
     }
     // 既定展開の深さは文書ルートではなく表示対象要素（entry.path）を基準に判定する
     val ctx = remember(doc, doc.version, state.indexVersion, state.readOnlyMode) {
-        FormCtx(state, doc, localIds, baseDepth = entry.path.size)
+        FormCtx(state, doc, localIds, baseDepth = entry.path.size, aiRelatedFiles = relatedFiles)
     }
     val schemaDef = doc.schema
     val map = getAt(root, entry.path) as? YNode.Map

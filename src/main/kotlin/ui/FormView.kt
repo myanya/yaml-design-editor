@@ -56,6 +56,7 @@ import schema.FieldDef
 import schema.FieldType
 import schema.effectiveFields
 import yaml.YamlIO
+import java.nio.file.Path
 
 private val fieldTextStyle = TextStyle(fontSize = 13.sp)
 
@@ -80,6 +81,8 @@ class FormCtx(
     val attachments: Map<YPath, List<Pair<DocViewAttachment, DocBacklinkRow>>> = emptyMap(),
     /** パス → 検証指摘の最悪重大度（UX-14）。FieldRow が入力枠の色づけに使う（空 = 色づけしない）。 */
     val issues: Map<YPath, Severity> = emptyMap(),
+    /** AI生成へ渡す関連文書の候補（R24-02）。エンティティページが出現・参照先/元のファイルを注入する。 */
+    val aiRelatedFiles: List<Path> = emptyList(),
 ) {
     /** このパスの検証指摘の重大度（UX-14）。エラー=赤・警告=オレンジの枠色に使う。 */
     fun issueAt(path: YPath): Severity? = issues[path]
@@ -637,7 +640,7 @@ private fun FieldRow(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
                     }
                     if (effective.type != FieldType.ARRAY && !ctx.readOnly) {
                         IconButton(
-                            onClick = { ctx.state.requestAi(effective, path) },
+                            onClick = { ctx.state.requestAi(ctx.doc, effective, path, relatedFiles = ctx.aiRelatedFiles) },
                             modifier = Modifier.size(22.dp),
                         ) {
                             Icon(
@@ -1374,7 +1377,7 @@ private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) 
             Icon(Icons.Default.Add, contentDescription = null, Modifier.size(16.dp))
             Text("追加", fontSize = 13.sp)
         }
-        TextButton(onClick = { ctx.state.requestAi(field, path) }) {
+        TextButton(onClick = { ctx.state.requestAi(ctx.doc, field, path, relatedFiles = ctx.aiRelatedFiles) }) {
             Icon(Icons.Default.AutoAwesome, contentDescription = null, Modifier.size(15.dp))
             Spacer(Modifier.width(4.dp))
             Text("AIで候補追加", fontSize = 12.sp)

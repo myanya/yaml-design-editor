@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.Warning
@@ -170,10 +171,16 @@ private fun HeaderBar(state: AppState, loaded: Views.LoadResult, view: ViewDef?)
             state = state,
             view = view,
             onDismiss = { newRowDialog = false },
-            onConfirm = { id ->
+            onConfirm = { id, withAi ->
                 newRowDialog = false
                 state.addViewRowFile(view, id)
-                    .onSuccess { state.status = "詳細文書を作成して行を追加しました: ${state.relPath(it)}" }
+                    .onSuccess { file ->
+                        state.status = "詳細文書を作成して行を追加しました: ${state.relPath(file)}"
+                        // 作成→たたき台生成の連結（R24-03）。スキーマが当たらない場合はその旨だけ案内する
+                        if (withAi && !requestDocumentDraft(state, file, entityId = id)) {
+                            state.status = "詳細文書を作成しました（スキーマが適用されないためAIたたき台は使えません）: ${state.relPath(file)}"
+                        }
+                    }
                     .onFailure { state.status = it.message ?: "行を追加できませんでした" }
             },
         )
@@ -186,7 +193,7 @@ private fun HeaderBar(state: AppState, loaded: Views.LoadResult, view: ViewDef?)
  * 初期値は idPattern と既存IDからの次の連番（UX-64。上書き自由）。
  */
 @Composable
-private fun NewRowIdDialog(state: AppState, view: ViewDef, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+private fun NewRowIdDialog(state: AppState, view: ViewDef, onDismiss: () -> Unit, onConfirm: (String, Boolean) -> Unit) {
     var value by remember {
         mutableStateOf(
             // idPattern 宣言があるビューだけ提案する（宣言なしで全IDから推測すると無関係な系列が出る）
@@ -196,6 +203,7 @@ private fun NewRowIdDialog(state: AppState, view: ViewDef, onDismiss: () -> Unit
             }.orEmpty()
         )
     }
+    var withAi by remember { mutableStateOf(false) }
     val pattern = view.newRow?.filePattern ?: return
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -210,12 +218,17 @@ private fun NewRowIdDialog(state: AppState, view: ViewDef, onDismiss: () -> Unit
                 OutlinedTextField(
                     value, { value = it }, singleLine = true,
                     label = { Text(view.rows?.let { "ID（idPattern: ${it.idPattern}）" } ?: "ID") },
-                    modifier = Modifier.confirmOnEnter(enabled = { value.isNotBlank() }) { onConfirm(value.trim()) },
+                    modifier = Modifier.confirmOnEnter(enabled = { value.isNotBlank() }) { onConfirm(value.trim(), withAi) },
                 )
+                // 作成→たたき台生成の連結（R24-03）。IDは生成対象外（スキャフォールドの値を保持）
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(withAi, { withAi = it })
+                    Text("作成後にAIでたたき台を生成する（IDは変更されません）", fontSize = 12.sp)
+                }
             }
         },
         confirmButton = {
-            TextButton(enabled = value.isNotBlank(), onClick = { onConfirm(value.trim()) }) { Text("作成") }
+            TextButton(enabled = value.isNotBlank(), onClick = { onConfirm(value.trim(), withAi) }) { Text("作成") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("キャンセル") } },
     )
@@ -518,19 +531,44 @@ private fun DetailCell(state: AppState, view: ViewDef, row: ViewRow) {
                 Text(detailRel.substringAfterLast('/'), fontSize = 11.sp, color = Palette.Primary, maxLines = 1)
             }
         } else if (view.detail?.filePattern != null) {
-            OutlinedButton(
-                enabled = !state.readOnlyMode,
-                onClick = {
-                    state.createViewDetail(view, row.id)
-                        .onSuccess { state.status = "詳細文書を作成しました: ${state.relPath(it)}" }
-                        .onFailure { state.status = it.message ?: "詳細文書を作成できませんでした" }
-                },
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                modifier = Modifier.height(26.dp),
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null, Modifier.size(12.dp))
-                Spacer(Modifier.width(2.dp))
-                Text("作成", fontSize = 11.sp)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedButton(
+                    enabled = !state.readOnlyMode,
+                    onClick = {
+                        state.createViewDetail(view, row.id)
+                            .onSuccess { state.status = "詳細文書を作成しました: ${state.relPath(it)}" }
+                            .onFailure { state.status = it.message ?: "詳細文書を作成できませんでした" }
+                    },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                    modifier = Modifier.height(26.dp),
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, Modifier.size(12.dp))
+                    Spacer(Modifier.width(2.dp))
+                    Text("作成", fontSize = 11.sp)
+                }
+                // 作成→たたき台生成の連結（R24-03）: スキャフォールド作成後にそのままAI生成ダイアログを開く
+                if (!state.readOnlyMode) {
+                    IconButton(
+                        onClick = {
+                            state.createViewDetail(view, row.id)
+                                .onSuccess { file ->
+                                    state.status = "詳細文書を作成しました: ${state.relPath(file)}"
+                                    if (!requestDocumentDraft(state, file, entityId = row.id)) {
+                                        state.status = "詳細文書を作成しました（スキーマが適用されないためAIたたき台は使えません）: ${state.relPath(file)}"
+                                    }
+                                }
+                                .onFailure { state.status = it.message ?: "詳細文書を作成できませんでした" }
+                        },
+                        modifier = Modifier.size(26.dp),
+                    ) {
+                        Icon(
+                            Icons.Default.AutoAwesome,
+                            contentDescription = "作成してAIでたたき台を生成",
+                            Modifier.size(14.dp),
+                            tint = Palette.Primary,
+                        )
+                    }
+                }
             }
         } else {
             Text("未作成", fontSize = 11.sp, color = Palette.SubText, modifier = Modifier.padding(top = 4.dp))

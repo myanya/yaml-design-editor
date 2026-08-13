@@ -284,6 +284,9 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
         onRenameEntity = { entityRenameOpen = true },
     ) { commandOpen = false }
     if (entityRenameOpen) EntityRenameDialog(state) { entityRenameOpen = false }
+    // AI生成ダイアログはスペース非依存（R24-01）: 対象文書は要求（AiRequest）が持つため、
+    // 編集スペースだけでなくエンティティページ等の台帳スペースからの✨でもその場で開く
+    AiGenerationHost(state)
     pendingWorkspace?.let { next ->
         AlertDialog(
             onDismissRequest = { pendingWorkspace = null },
@@ -654,7 +657,7 @@ fun EditorArea(state: AppState) {
             }
             if (doc.schema != null && doc.root != null && !state.readOnlyMode) {
                 OutlinedButton(
-                    onClick = { state.requestAi(doc.schema!!.root, emptyList(), wholeDocument = true) },
+                    onClick = { state.requestAi(doc, doc.schema!!.root, emptyList(), wholeDocument = true) },
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
                 ) {
                     Icon(Icons.Default.AutoAwesome, contentDescription = null, Modifier.size(15.dp))
@@ -721,7 +724,6 @@ fun EditorArea(state: AppState) {
             }
         }
     }
-    AiGenerationHost(state)
 }
 
 // ================================================================ ステータスバー

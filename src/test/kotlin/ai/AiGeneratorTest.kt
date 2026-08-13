@@ -200,12 +200,12 @@ class AiGeneratorTest {
 
     // ---------------------------------------------------------------- reference docs in prompt
 
-    private fun inputWith(refs: List<ReferenceDoc>): AiGenerationInput {
+    private fun inputWith(refs: List<ReferenceDoc>, context: List<ReferenceDoc> = emptyList()): AiGenerationInput {
         val field = FieldDef(key = "summary", type = FieldType.STRING)
         return AiGenerationInput(
             apiKey = "k", model = "m", instruction = "作成して", field = field, schema = schemaOf(field),
             targetPath = "summary", currentValueYaml = "（未設定）", currentDocumentYaml = "id: DOC-1",
-            idCandidates = emptyList(), referenceDocs = refs,
+            idCandidates = emptyList(), referenceDocs = refs, contextDocs = context,
         )
     }
 
@@ -233,6 +233,39 @@ class AiGeneratorTest {
         // 1件 20_000 文字 × 6件で合計上限 120_000 に達し、7件目以降は省略される
         assertTrue("<reference-document file=\"doc6.yaml\">" in prompt)
         assertTrue("doc7.yaml" !in prompt)
+        assertTrue("省略" in prompt)
+    }
+
+    // ---------------------------------------------------------------- context docs in prompt（R24-02）
+
+    @Test
+    fun `context docs are embedded as related documents before reference docs`() {
+        val prompt = buildUserInput(inputWith(
+            refs = listOf(ReferenceDoc("ref.yaml", "id: R-1")),
+            context = listOf(ReferenceDoc("rel.yaml", "id: C-1")),
+        ))
+        assertTrue("<related-document file=\"rel.yaml\">" in prompt)
+        assertTrue("id: C-1" in prompt)
+        assertTrue("<reference-document file=\"ref.yaml\">" in prompt)
+        // 関連文書（内容の文脈）は参考文書（書き方の手本）より先に置く
+        assertTrue(prompt.indexOf("<related-document") < prompt.indexOf("<reference-document"))
+    }
+
+    @Test
+    fun `no related section without context docs`() {
+        assertTrue("related-document" !in buildUserInput(inputWith(listOf(ReferenceDoc("ref.yaml", "id: R-1")))))
+    }
+
+    @Test
+    fun `context and reference docs share the total character budget`() {
+        val big = "x".repeat(REF_DOC_CHAR_LIMIT)
+        val prompt = buildUserInput(inputWith(
+            refs = listOf(ReferenceDoc("ref.yaml", big)),
+            context = (1..6).map { ReferenceDoc("rel$it.yaml", big) },
+        ))
+        // 関連文書6件（合計 120_000 文字）で共有予算を使い切り、参考文書は省略される
+        assertTrue("<related-document file=\"rel6.yaml\">" in prompt)
+        assertTrue("<reference-document" !in prompt)
         assertTrue("省略" in prompt)
     }
 

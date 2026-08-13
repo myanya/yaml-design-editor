@@ -331,10 +331,45 @@ class AppState {
         private set
     private var workspaceStamp: Map<Path, Long> = emptyMap()
 
-    data class AiRequest(val field: FieldDef, val path: YPath, val wholeDocument: Boolean = false)
+    /**
+     * AI生成の要求（R24-01）: 対象文書を明示的に持つ。ホストはシェル直下でスペース非依存のため、
+     * エンティティページ等どの画面のフォームからでも、その FormCtx の文書を対象に生成できる。
+     * relatedFiles は呼び出し元が注入する関連文書の候補（内容の文脈。R24-02）、
+     * mergeObjectKeys は出現単位生成のキー単位マージ適用（非生成キーを保持。R24-02）。
+     */
+    data class AiRequest(
+        val doc: OpenDocument,
+        val field: FieldDef,
+        val path: YPath,
+        val wholeDocument: Boolean = false,
+        val relatedFiles: List<Path> = emptyList(),
+        val mergeObjectKeys: Boolean = false,
+    )
 
-    fun requestAi(field: FieldDef, path: YPath, wholeDocument: Boolean = false) {
-        aiRequest = AiRequest(field, path, wholeDocument)
+    fun requestAi(
+        doc: OpenDocument,
+        field: FieldDef,
+        path: YPath,
+        wholeDocument: Boolean = false,
+        relatedFiles: List<Path> = emptyList(),
+        mergeObjectKeys: Boolean = false,
+    ) {
+        aiRequest = AiRequest(doc, field, path, wholeDocument, relatedFiles, mergeObjectKeys)
+    }
+
+    /**
+     * エンティティの関連文書（R24-02）: 出現ファイル→参照先→参照元の順で重複排除して返す。
+     * AI生成の「関連文書」候補（内容の文脈）に使う。exclude は生成対象の文書自身。
+     */
+    fun entityRelatedFiles(id: String, exclude: Path): List<Path> {
+        val overlay = overlayIndex()
+        val occurrenceFiles = overlay.occurrences(id).map { it.file }
+        val refTargets = overlay.outgoingRefs(id).mapNotNull { r ->
+            if (r.targetKind == schema.RefTarget.DOCUMENT) overlay.graph.documents[r.targetId]?.file
+            else overlay.occurrences(r.targetId).firstOrNull()?.file
+        }
+        val backlinkSources = overlay.backlinksTo(setOf(id)).map { it.file }
+        return (occurrenceFiles + refTargets + backlinkSources).distinct().filter { it != exclude }
     }
 
     fun dismissAi() { aiRequest = null }

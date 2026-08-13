@@ -117,7 +117,7 @@ src/main/kotlin/
 | `GraphLensView` | ui/WorkspaceViews.kt | グラフレンズ（R23-03。§4.33。参照グラフの刷新）: エンティティ起点の近傍（深さ1〜2）と型・relation で絞る部分グラフを力学配置で描画。クリックはエンティティページへ |
 | `ViewGridView` | ui/ViewGridPane.kt | ビューグリッド: `_views` 定義の編集可能な一覧表示。セル編集は文書キャッシュ上のツリー直接編集（Slot＋markEdited）、行アクションで詳細文書作成・新規行追加 |
 | `Slot` (Map/Seq/Root) | ui/Common.kt | 「値の置き場所」の抽象。後述 |
-| `AiGenerationHost` | ui/AiGenerationDialog.kt | AI生成ダイアログの状態機械（入力→生成→プレビュー→適用）と提案合成 |
+| `AiGenerationHost` | ui/AiGenerationDialog.kt | AI生成ダイアログの状態機械（入力→生成→プレビュー→適用）と提案合成。アプリシェル直下にマウント（スペース非依存）・対象文書は `AiRequest` が持つ（R24-01） |
 | `SchemaEditor` | ui/SchemaEditor.kt | `_schemas` 用の構造化エディタ（設計・プレビュー・適用対象） |
 | その他 ui | FileTreePane / SourcePane / DiffPane / SidePanel（IDインスペクタ: 検証・関係・出現の3タブ。R12-03） / WorkspaceViews / Common | 各ペイン。[FEATURES.md](FEATURES.md) の対応表を参照。テスト可能な純ロジックは `ui/SourceHighlight.kt`（YAMLトークナイザ・置換）、`ui/GraphLayout.kt`（力学レイアウト）、`DiffPane.calculateDiff` / `charDiffRanges` に切り出す |
 
@@ -295,6 +295,9 @@ definition 参照とリント（R14-02）に固有の不変条件:
 - **ダイアログのUXは変えない**: 適用先は編集中ツリー（プレビュー→未保存適用・Undo可・自動保存なし）のまま。未保存編集や新規文書などディスク基準のパッチが成立しない場合は「変更なしの提出」として記録し、生成値だけをダイアログへ返す。
 - **入出力メッセージは実行記録に残す**: 実際に送信したシステム指示・プロンプト全文・応答スキーマとモデルの生出力・実測トークン数は、各クライアントが `AiExchange` として返し（失敗時は `AiCallException` に載せて伝える）、`RunLog.write` の extras（`exchange` 節）へ上限つき全文で記録する。生成失敗時も実行記録を書き、`GenerationFailedException` が記録パスを保持してダイアログのエラー表示に示す。デバッグ材料を落とさないため、クライアント側でプロンプトを再構成せず送信物そのものを引き渡す。
 - **テストは生成器注入**: `GenerationRun.run` の `Generator` を疑似実装に差し替え、カーネル・ステージング・記録は本物を通す（`GenerationRunTest`）。
+- **入口はスペース非依存（P24: R24-01）**: `AppState.AiRequest` が対象文書（`OpenDocument`）を持ち、`AiGenerationHost` はアプリシェル直下にマウントする。生成・プレビュー検証・参考文書候補・実行記録の対象は常に要求が持つ文書で、`state.openDoc`（編集スペースで開いている文書）には依存しない。フォーム部品（`FieldRow`・配列エディタ）からの✨は `FormCtx.doc` を渡すため、フォームを再利用する画面（エンティティページ等）に自動で波及する。新しい入口を作るときは対象文書を明示して `requestAi(doc, field, path)` を呼ぶこと——`openDoc` 前提の入口を作らない。
+- **関連文書は「文脈」・参考文書は「手本」の2系統（P24: R24-02）**: プロンプトに添える文書は、同一スキーマの参考文書（書き方・粒度の手本＝`referenceDocs`・`<reference-document>`）と、対象に関連する文書（内容の事実関係＝`contextDocs`・`<related-document>`）を区別して送る。関連文書の候補は呼び出し元が `AiRequest.relatedFiles` で注入する（エンティティページは `AppState.entityRelatedFiles`＝出現ファイル・参照先・参照元。`FormCtx.aiRelatedFiles` 経由でフィールド✨にも波及）。自動選択は関連文書があれば関連文書から最大3件（なければ従来どおり同一スキーマの新しい順3件）、文字数予算（合計12万字）は関連→参考の順に共有で消費する。
+- **出現単位の生成はマージ適用・IDは対象外（P24: R24-02）**: エンティティページの「この出現をAIで作成」は、出現の object フィールドを生成対象にするが、①生成フィールドは所有キー（アスペクトカードは `ownedKeys`・出現カードは全宣言フィールド）に限定し **`type: id` は常に除外**（IDの改変は R21-02 のエンティティ操作の領分——参照の書き換えを伴うため生成で触らない）、②適用は既存 Map への**キー単位マージ**（`AiRequest.mergeObjectKeys`。非生成キーとキー順は保持・生成キーだけ上書き・新キーは末尾）。ディスク基準のパッチ（`GenerationRun`）も同じマージ結果の set 1操作にする。丸ごと置換（set）にしないのは、所有外フィールド・スキーマ外キー・IDを生成が黙って消す事故を構造的に防ぐため。**新規作成の連結（R24-03）**も同じ機構: ファイルツリー・グリッドの「作成→たたき台」は `requestDocumentDraft` がルート object を id 抜きでマージ生成する（スキャフォールドのID・`_document` を保持）。ルート対象（パス空）のマージはディスク基準のパッチを出さず、適用はダイアログに閉じる（文書全体生成と同じ扱い）。
 
 ### 4.20 文書キャッシュ層の委譲（P9: R9-02）
 
@@ -539,7 +542,7 @@ limit: 100                               # 既定 100（total は打切り前の
 - **外部変更検出**: `FileWatcher` の変更フラグ（またはフォールバックの1秒周期）→ `pollExternalChanges` がスタンプ比較 → 変更ファイルの再読込＋増分索引更新（`_schemas` 変更時のみ全再構築）
 - **ジャンプ**: `navigateToId` → 索引の出現検索（複数なら選択ダイアログ／横ぐしビュー）→ `openFile(file, focus)` → `highlightPath` 設定 → `Highlightable` がスクロール
 - **ビューグリッド**: `_views` 定義 → `Views.resolve`（行=ディスク索引、セル値=編集中ツリー優先の loader）→ セル編集は該当文書の `Slot` 直接変更＋`markEdited()` → 保存 → `rebuildIndex()` で行集合にも反映。行アクションは `AppState.createViewDetail`（スキャフォールド→書込→開く）／`addViewRow`（一覧文書の配列へ未保存編集として追加）
-- **AI生成**: ✨/ボタン → `AppState.requestAi(field, path)` → `AiGenerationHost` が現ツリーを複製して入力構築 → `GenerationRun.run`（カーネル上の1ターン提出。Structured Outputs で生成 → ステージング → 実行記録 `_runs`。§4.19） → `combineProposal`/`replaceInClone` で適用後ツリーを合成 → 差分プレビュー＋`Validator` で事前検証 → 適用（`doc.root` 差し替え）
+- **AI生成**: ✨/ボタン → `AppState.requestAi(doc, field, path)`（対象文書は押したフォームの `FormCtx.doc`。R24-01） → シェル直下の `AiGenerationHost` が対象文書のツリーを複製して入力構築 → `GenerationRun.run`（カーネル上の1ターン提出。Structured Outputs で生成 → ステージング → 実行記録 `_runs`。§4.19） → `combineProposal`/`replaceInClone` で適用後ツリーを合成 → 差分プレビュー＋`Validator` で事前検証 → 適用（対象文書の `root` 差し替え。編集スペース以外＝エンティティページ等からでも同経路）
 - **ヘッドレス変更セット適用**（CLI／エージェント）: `ChangeSets.parse` → 全ファイルの base ハッシュ照合＋パッチ適用（メモリ上）→ 適用後状態を重ねた**オーバーレイ索引**で検証（複数ファイル連動の変更も正しく判定）→ **全件成功時のみ**書き込み（`--require-valid` 指定時は検証エラーでも中止）→ `refresh()` で索引更新。1件でも失敗すれば何も書かないオール・オア・ナッシング
 - **エージェント実行**: アクティビティ起動 → `AgentKernel` がシステムプロンプト（persona＋規範）と初期文脈（指示・カタログ・権限・ゲート）を構築 → ツール使用ループ（探索→パッチ→検証→…、必要なら `delegate` で相談）→ `submit_changeset`（ゲート通過）→ `RunLog` 書き出し → レビューUIで部分採用（採用サブセットを `Staging` で再検証）→ `Workspace.apply` で反映 → `AppState.reload()`
 - **自動実行**: `AutomationEngine.tick(now)` がトリガ判定（on-change はデバウンス、on-invalid は変更ファイルの検証）→ キュー投入 → `processOnce` がカーネル実行 → 提出後は承認方式で分岐（auto: `AutoApply.applyWithBackup` → スタンプ更新 → 連鎖／human: 承認待ち＋変更セットのファイル保存 → 採否後に連鎖）→ 失敗はフィードバック付きリトライ（収束打ち切りあり）

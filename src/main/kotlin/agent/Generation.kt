@@ -56,6 +56,7 @@ object GenerationRun {
         val targetPath: YPath,        // 生成対象のパス（wholeDocument のときは無視）
         val wholeDocument: Boolean,
         val appendToArray: Boolean,   // 配列フィールドで「既存項目を残して追加」を選んだ場合
+        val mergeObjectKeys: Boolean = false, // 出現単位の生成（R24-02）: 既存 Map へのキー単位マージで適用する
     )
 
     class Outcome(
@@ -85,8 +86,9 @@ object GenerationRun {
             instruction = request.input.instruction,
             contextItems = emptyList(),
             allowedFiles = listOf(request.fileRel),
-            // 配列追記は「path[インデックス]」への insert になるため、末尾一致のパターンも許可する
-            allowedPaths = if (request.wholeDocument || targetPretty.isBlank()) emptyList()
+            // 配列追記は「path[インデックス]」への insert になるため、末尾一致のパターンも許可する。
+            // ルート対象（文書全体・ルートマージ）はパッチを出さないため許可パスも不要
+            allowedPaths = if (request.wholeDocument || request.targetPath.isEmpty() || targetPretty.isBlank()) emptyList()
             else listOf(targetPretty, "$targetPretty*"),
             tools = setOf(ToolGroup.EDIT),
             limits = ActivityLimits(maxTurns = 4),
@@ -182,6 +184,7 @@ object GenerationRun {
         /** 生成値をディスク基準の apply_patch 呼び出しへ変換する（成立しない場合は null）。 */
         private fun buildPatchCall(value: YNode): ToolCall? {
             if (request.wholeDocument) return null  // ルート置換はパッチの対象外（文書全体はダイアログで適用）
+            if (request.targetPath.isEmpty()) return null  // ルートマージ（文書たたき台。R24-03）も同様にダイアログで適用
             val file = ws.resolve(request.fileRel)
             if (!Files.isRegularFile(file)) return null
             val diskRoot = runCatching { YamlIO.parse(Files.readString(file)) }.getOrNull() ?: return null
@@ -193,6 +196,13 @@ object GenerationRun {
                     value.items.mapIndexed { i, item ->
                         opJson("insert", (path + listOf(current.items.size + i)).pretty(), item)
                     }
+                // 出現単位のマージ（R24-02）: ディスク現在値のキー順・非生成キーを保持し、生成キーだけ上書き
+                request.mergeObjectKeys && value is YNode.Map && current is YNode.Map -> {
+                    val merged = LinkedHashMap<String, YNode>()
+                    current.entries.forEach { (key, v) -> merged[key] = value.entries[key] ?: v }
+                    value.entries.forEach { (key, v) -> merged.putIfAbsent(key, v) }
+                    listOf(opJson("set", path.pretty(), YNode.Map(merged)))
+                }
                 // 置換・新設: 親がディスク上に存在するときだけ set が成立する
                 getAt(diskRoot, path.dropLast(1)) != null -> {
                     val last = path.lastOrNull()

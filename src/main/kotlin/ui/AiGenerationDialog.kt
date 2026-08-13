@@ -35,6 +35,7 @@ import model.YNode
 import model.YPath
 import model.getAt
 import model.pretty
+import schema.FieldDef
 import schema.FieldType
 import validate.Severity
 import validate.Validator
@@ -48,17 +49,65 @@ import java.nio.file.Path
 
 private enum class AiDialogStage { INPUT, LOADING, PREVIEW, ERROR }
 
-/** 参考文書の候補1件（同一スキーマの他文書）。title はID索引のルート要素タイトル（あれば）。 */
-private class RefDocChoice(val file: Path, val rel: String, val title: String?)
+/**
+ * 参考・関連文書の候補1件。related=true は関連文書（呼び出し元が注入した内容の文脈。R24-02）、
+ * false は参考文書（同一スキーマの他文書＝書き方の手本）。title はID索引のルート要素タイトル（あれば）。
+ */
+private class RefDocChoice(val file: Path, val rel: String, val title: String?, val related: Boolean)
 
-/** ダイアログに並べる参考文書候補の上限と、既定で自動選択する件数（更新日時の新しい順）。 */
+/** ダイアログに並べる参考・関連文書候補の合計上限と、既定で自動選択する件数。 */
 private const val REF_DOC_CHOICE_LIMIT = 20
 private const val REF_DOC_AUTO_SELECT = 3
+
+/** 生成時に選択済みだった候補1件（unsavedYaml は未保存編集中のツリーを確定した全文）。 */
+private class ChosenDoc(val related: Boolean, val file: Path, val rel: String, val unsavedYaml: String?)
+
+/**
+ * マージ生成（出現単位・文書たたき台）の生成対象フィールド（R24-02 / R24-03）:
+ * object 定義を、生成してよいキーへ選別した複製として返す。ownedKeys 指定時（アスペクトカード）は
+ * 所有キーに限定し、`type: id` のフィールドは常に除外する（IDの改変は参照書き換えを伴うため、
+ * エンティティ操作 R21-02 の領分——生成では触らない）。label はダイアログのタイトル・既定指示・
+ * プロンプトの「生成対象」にそのまま出る利用者向けの呼び名（例「REQ-001 の要件定義」）。
+ * 生成できるフィールドが残らなければ null（ボタンを出さない）。
+ */
+internal fun mergeGenField(
+    schema: schema.SchemaDef,
+    objectField: FieldDef,
+    ownedKeys: List<String>?,
+    label: String,
+): FieldDef? {
+    val resolved = schema.resolve(objectField) ?: objectField
+    if (resolved.type != FieldType.OBJECT) return null
+    val fields = resolved.fields.filter { f ->
+        val key = f.key ?: return@filter false
+        (ownedKeys == null || key in ownedKeys) && (schema.resolve(f) ?: f).type != FieldType.ID
+    }
+    if (fields.isEmpty()) return null
+    return resolved.copy(fields = fields, label = label)
+}
+
+/**
+ * 新規作成した文書のたたき台生成を要求する（R24-03）: ルート object を id 型フィールド抜きの
+ * キー単位マージで生成する（スキャフォールドが設定したID・`_document` メタデータを生成が壊さない）。
+ * entityId があれば関連文書（そのIDの出現・参照先・参照元）も内容の文脈として付く。
+ * スキーマが適用されない等で生成できない場合は false を返す（呼び出し側がステータスで案内する）。
+ */
+internal fun requestDocumentDraft(state: AppState, file: Path, entityId: String? = null): Boolean {
+    val doc = state.ensureDoc(file)
+    val docSchema = doc.schema ?: return false
+    val label = entityId?.let { "$it の詳細文書" } ?: "この文書"
+    val genField = mergeGenField(docSchema, docSchema.root, ownedKeys = null, label = label) ?: return false
+    val related = entityId?.let { state.entityRelatedFiles(it, file) }.orEmpty()
+    state.requestAi(doc, genField, emptyList(), relatedFiles = related, mergeObjectKeys = true)
+    return true
+}
 
 @Composable
 fun AiGenerationHost(state: AppState) {
     val request = state.aiRequest ?: return
-    val doc = state.openDoc ?: return
+    // 対象文書は要求が持つ（R24-01）: openDoc に依存しないため、エンティティページ等の
+    // 編集スペース以外からの生成でも、ボタンを押したフォームの文書が対象になる
+    val doc = request.doc
     val schema = doc.schema ?: return
     var instruction by remember(request) { mutableStateOf(defaultInstruction(request)) }
     var appendToArray by remember(request) {
@@ -72,17 +121,25 @@ fun AiGenerationHost(state: AppState) {
     val scope = rememberCoroutineScope()
     val currentTarget = getAt(doc.root ?: return, request.path)
     val currentTargetYaml = currentTarget?.let(YamlIO::dump) ?: "（未設定）"
-    // 同一スキーマの他文書を参考文書候補にする。並びは更新日時の新しい順（AppState.sameSchemaFiles）で、
-    // 先頭 REF_DOC_AUTO_SELECT 件を自動選択しつつ、チェックボックスで利用者が選び直せる
+    // 候補は2グループ（R24-02）: 関連文書（呼び出し元の注入。エンティティの出現・参照先/元）を先頭に、
+    // 同一スキーマの他文書（更新日時の新しい順）を続ける。自動選択は関連文書があれば関連文書から
+    // 最大 REF_DOC_AUTO_SELECT 件（なければ従来どおり同一スキーマの先頭 REF_DOC_AUTO_SELECT 件）
     val refChoices = remember(request) {
         val rootTitles = state.overlayIndex().entries.values.flatten()
             .filter { it.path.isEmpty() }.associateBy({ it.file }, { it.title })
-        state.sameSchemaFiles(doc.file, schema.id)
+        val related = request.relatedFiles.filter { it != doc.file }.distinct()
+        val relatedSet = related.toSet()
+        val sameSchema = state.sameSchemaFiles(doc.file, schema.id).filter { it !in relatedSet }
+        (related.map { it to true } + sameSchema.map { it to false })
             .take(REF_DOC_CHOICE_LIMIT)
-            .map { file -> RefDocChoice(file, state.relPath(file), rootTitles[file]) }
+            .map { (file, rel) -> RefDocChoice(file, state.relPath(file), rootTitles[file], related = rel) }
     }
     var selectedRefs by remember(request) {
-        mutableStateOf(refChoices.take(REF_DOC_AUTO_SELECT).map { it.rel }.toSet())
+        mutableStateOf(
+            refChoices.filter { it.related }.take(REF_DOC_AUTO_SELECT)
+                .ifEmpty { refChoices.take(REF_DOC_AUTO_SELECT) }
+                .map { it.rel }.toSet()
+        )
     }
 
     fun generate() {
@@ -92,14 +149,14 @@ fun AiGenerationHost(state: AppState) {
         val baseTarget = getAt(baseRoot, request.path)
         // 未保存編集はUIスレッドで確定させ、ディスク読込だけをIOへ持ち込む（docCache は Compose の状態のため）
         val chosenRefs = refChoices.filter { it.rel in selectedRefs }
-            .map { choice -> Triple(choice.file, choice.rel, state.docFor(choice.file)?.root?.let(YamlIO::dump)) }
+            .map { choice -> ChosenDoc(choice.related, choice.file, choice.rel, state.docFor(choice.file)?.root?.let(YamlIO::dump)) }
         generationJob = scope.launch {
             try {
                 val generated = withContext(Dispatchers.IO) {
                     val ws = Workspace.open(state.workspace ?: error("ワークスペースが開かれていません"))
-                    val referenceDocs = chosenRefs.mapNotNull { (file, rel, unsavedYaml) ->
-                        val yaml = unsavedYaml ?: runCatching { Files.readString(file) }.getOrNull()
-                        yaml?.let { ReferenceDoc(rel, it) }
+                    fun load(c: ChosenDoc): ReferenceDoc? {
+                        val yaml = c.unsavedYaml ?: runCatching { Files.readString(c.file) }.getOrNull()
+                        return yaml?.let { ReferenceDoc(c.rel, it) }
                     }
                     GenerationRun.run(
                         ws,
@@ -120,16 +177,19 @@ fun AiGenerationHost(state: AppState) {
                                     state.overlayIndex().graph.documents.keys.map {
                                         RefCandidate(it, null, it, kind = RefTarget.DOCUMENT)
                                     },
-                                referenceDocs = referenceDocs,
+                                referenceDocs = chosenRefs.filter { !it.related }.mapNotNull(::load),
+                                // 関連文書（R24-02）: 内容の文脈として参考文書とは別系統で渡す
+                                contextDocs = chosenRefs.filter { it.related }.mapNotNull(::load),
                             ),
                             fileRel = state.relPath(doc.file),
                             targetPath = request.path,
                             wholeDocument = request.wholeDocument,
                             appendToArray = appendToArray,
+                            mergeObjectKeys = request.mergeObjectKeys,
                         ),
                     ).generated
                 }
-                val target = combineProposal(baseTarget, generated, appendToArray, request.wholeDocument)
+                val target = combineProposal(baseTarget, generated, appendToArray, request.wholeDocument, request.mergeObjectKeys)
                 proposedTarget = target
                 proposedRoot = replaceInClone(baseRoot, request.path, target, request.wholeDocument)
                 stage = AiDialogStage.PREVIEW
@@ -283,32 +343,29 @@ private fun AiInputContent(
                 Text("配列全体を置き換え", fontSize = 13.sp)
             }
         }
-        if (refChoices.isNotEmpty()) {
+        // 候補は2グループ（R24-02）: 関連文書＝内容の文脈、参考文書＝書き方の手本
+        val relatedChoices = refChoices.filter { it.related }
+        val schemaChoices = refChoices.filter { !it.related }
+        if (relatedChoices.isNotEmpty()) {
             Spacer(Modifier.height(14.dp))
-            Text("参考文書（同じスキーマの他文書）", fontSize = 12.sp, color = Palette.SubText)
+            Text("関連文書（この要素の出現・参照先・参照元）", fontSize = 12.sp, color = Palette.SubText)
             Text(
-                "チェックした文書の全文を書き方の手本としてAIに渡します。既定では更新が新しい順に最大 $REF_DOC_AUTO_SELECT 件を自動選択しています。",
+                "チェックした文書の全文を内容の文脈としてAIに渡します。既定では先頭から最大 $REF_DOC_AUTO_SELECT 件を自動選択しています。",
                 fontSize = 10.sp,
                 color = Palette.SubText,
             )
-            refChoices.forEach { choice ->
-                Row(
-                    Modifier.fillMaxWidth().heightIn(min = 30.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Checkbox(
-                        checked = choice.rel in selectedRefs,
-                        onCheckedChange = { onToggleRef(choice.rel) },
-                        modifier = Modifier.size(28.dp),
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(choice.rel, fontSize = 13.sp)
-                    choice.title?.let {
-                        Spacer(Modifier.width(8.dp))
-                        Text(it, fontSize = 11.sp, color = Palette.SubText)
-                    }
-                }
-            }
+            relatedChoices.forEach { choice -> RefChoiceRow(choice, choice.rel in selectedRefs, onToggleRef) }
+        }
+        if (schemaChoices.isNotEmpty()) {
+            Spacer(Modifier.height(14.dp))
+            Text("参考文書（同じスキーマの他文書）", fontSize = 12.sp, color = Palette.SubText)
+            Text(
+                "チェックした文書の全文を書き方の手本としてAIに渡します。" +
+                    if (relatedChoices.isEmpty()) "既定では更新が新しい順に最大 $REF_DOC_AUTO_SELECT 件を自動選択しています。" else "",
+                fontSize = 10.sp,
+                color = Palette.SubText,
+            )
+            schemaChoices.forEach { choice -> RefChoiceRow(choice, choice.rel in selectedRefs, onToggleRef) }
         }
         Spacer(Modifier.height(14.dp))
         Text("AI接続", fontSize = 12.sp, color = Palette.SubText)
@@ -346,12 +403,32 @@ private fun AiInputContent(
         Spacer(Modifier.height(14.dp))
         Text("送信するコンテキスト", fontSize = 12.sp, color = Palette.SubText)
         Text(
-            "現在の文書、対象フィールドのスキーマ、選択した参考文書、ワークスペース内の既存ID（最大500件）",
+            "現在の文書、対象フィールドのスキーマ、選択した関連文書・参考文書、ワークスペース内の既存ID（最大500件）",
             fontSize = 12.sp,
         )
         if (errorMessage.isNotBlank()) {
             Spacer(Modifier.height(12.dp))
             Text(errorMessage, color = Palette.ErrorRed, fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
+private fun RefChoiceRow(choice: RefDocChoice, checked: Boolean, onToggle: (String) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 30.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(
+            checked = checked,
+            onCheckedChange = { onToggle(choice.rel) },
+            modifier = Modifier.size(28.dp),
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(choice.rel, fontSize = 13.sp)
+        choice.title?.let {
+            Spacer(Modifier.width(8.dp))
+            Text(it, fontSize = 11.sp, color = Palette.SubText)
         }
     }
 }
@@ -379,16 +456,34 @@ private fun AiPreviewContent(before: String, after: String, errors: Int, warning
 
 private fun defaultInstruction(request: AppState.AiRequest): String = when {
     request.wholeDocument -> "現在の文書とスキーマを踏まえ、文書全体のたたき台を作成してください。"
+    // マージ生成（出現単位・文書たたき台）: displayLabel は「REQ-001 の要件定義」形式の呼び名
+    request.mergeObjectKeys ->
+        (if (request.relatedFiles.isEmpty()) "現在の文書を踏まえ、" else "現在の文書と関連文書を踏まえ、") +
+            "${request.field.displayLabel}の各フィールドを記入してください。"
     request.field.type == FieldType.ARRAY -> "既存の内容を踏まえ、不足している${request.field.displayLabel}の候補を作成してください。"
     else -> "現在の文書を踏まえ、${request.field.displayLabel}を分かりやすく具体的に作成してください。"
 }
 
 private fun cloneNode(node: YNode): YNode = YamlIO.parse(YamlIO.dump(node))
 
-internal fun combineProposal(current: YNode?, generated: YNode, append: Boolean, wholeDocument: Boolean): YNode {
+internal fun combineProposal(
+    current: YNode?,
+    generated: YNode,
+    append: Boolean,
+    wholeDocument: Boolean,
+    mergeObjectKeys: Boolean = false,
+): YNode {
     if (wholeDocument) return generated
     if (append && current is YNode.Seq && generated is YNode.Seq) {
         return YNode.Seq((current.items.map(::cloneNode) + generated.items.map(::cloneNode)).toMutableList())
+    }
+    // 出現単位の生成（R24-02）: キー単位マージ＝非生成キーとキー順を保持し、生成キーだけ上書き・新キーは末尾。
+    // 丸ごと置換にしないのは、所有外フィールド・スキーマ外キー・IDを生成が黙って消す事故を防ぐため
+    if (mergeObjectKeys && current is YNode.Map && generated is YNode.Map) {
+        val merged = LinkedHashMap<String, YNode>()
+        current.entries.forEach { (key, value) -> merged[key] = cloneNode(generated.entries[key] ?: value) }
+        generated.entries.forEach { (key, value) -> if (key !in merged) merged[key] = cloneNode(value) }
+        return YNode.Map(merged)
     }
     return generated
 }

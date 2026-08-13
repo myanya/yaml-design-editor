@@ -117,6 +117,51 @@ class GenerationRunTest {
     }
 
     @Test
+    fun `merge object keys patches a single set that preserves non-generated keys`() = runBlocking {
+        write("docs/b.yaml", "items:\n- id: IT-1\n  title: 旧\n  note: 手書き")
+        val ws = Workspace.open(dir)
+        val outcome = GenerationRun.run(
+            ws,
+            GenerationRun.Request(
+                provider = AiProvider.OPENAI, input = input("出現を埋める"),
+                fileRel = "docs/b.yaml", targetPath = listOf("items", 0),
+                wholeDocument = false, appendToArray = false, mergeObjectKeys = true,
+            ),
+        ) { _, _ ->
+            AiGenerated(YNode.Map(linkedMapOf<String, YNode>(
+                "title" to YNode.Scalar("新"),
+                "summary" to YNode.Scalar("追加"),
+            )))
+        }
+
+        // キー単位マージ（R24-02）: 非生成キー（id・note）とキー順を保持した set 1 操作になる
+        val op = outcome.result.changeSet.changes.single().ops.single() as PatchOp.Set
+        assertEquals(listOf<Any>("items", 0), op.path)
+        val merged = op.value as YNode.Map
+        assertEquals(listOf("id", "title", "note", "summary"), merged.entries.keys.toList())
+        assertEquals("新", (merged.entries["title"] as YNode.Scalar).value)
+        assertEquals("手書き", (merged.entries["note"] as YNode.Scalar).value)
+    }
+
+    @Test
+    fun `root merge produces no patch and still returns the generated value`() = runBlocking {
+        val ws = Workspace.open(dir)
+        // 文書たたき台（R24-03）: ルート対象のマージはパッチを出さず、適用はダイアログ側で行う
+        val outcome = GenerationRun.run(
+            ws,
+            GenerationRun.Request(
+                provider = AiProvider.OPENAI, input = input("たたき台を作る"),
+                fileRel = "docs/a.yaml", targetPath = emptyList(),
+                wholeDocument = false, appendToArray = false, mergeObjectKeys = true,
+            ),
+        ) { _, _ -> AiGenerated(YNode.Map(linkedMapOf<String, YNode>("title" to YNode.Scalar("新")))) }
+
+        assertEquals(RunStatus.SUBMITTED, outcome.result.status)
+        assertTrue(outcome.result.changeSet.changes.isEmpty())
+        assertEquals("新", ((outcome.generated as YNode.Map).entries["title"] as YNode.Scalar).value)
+    }
+
+    @Test
     fun `missing target on disk still returns the generated value with an empty changeset`() = runBlocking {
         val ws = Workspace.open(dir)
         // ディスクに存在しないパス（未保存編集でだけ存在する想定）
