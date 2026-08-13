@@ -726,6 +726,25 @@ class AppState {
         core.EntityOps.delete(coreWs ?: error("ワークスペースが開かれていません"), id)
     }
 
+    /**
+     * スキーマのフィールド一括改名のプレビュー（R25-01。ARCHITECTURE §4.35）: スキーマ定義・全該当文書の
+     * データキー・ビュー通常列を1つの変更セットへまとめる。索引と同じくディスクの保存済み状態が基準。
+     */
+    fun planSchemaFieldRename(schemaId: String, fieldPath: String, newName: String): Result<core.EntityOps.Plan> =
+        runCatching {
+            core.SchemaRefactor.renameField(coreWs ?: error("ワークスペースが開かれていません"), schemaId, fieldPath, newName)
+        }
+
+    /** スキーマのフィールド一括削除のプレビュー（R25-03。値あり件数はサマリで明示される）。 */
+    fun planSchemaFieldDelete(schemaId: String, fieldPath: String): Result<core.EntityOps.Plan> = runCatching {
+        core.SchemaRefactor.deleteField(coreWs ?: error("ワークスペースが開かれていません"), schemaId, fieldPath)
+    }
+
+    /** 文書キー順のスキーマ順整列のプレビュー（R25-02。スキーマは変更しない正規化）。 */
+    fun planSchemaAlignOrder(schemaId: String): Result<core.EntityOps.Plan> = runCatching {
+        core.SchemaRefactor.alignOrder(coreWs ?: error("ワークスペースが開かれていません"), schemaId)
+    }
+
     /** エンティティ操作の変更セットを適用する（対象に未保存編集があれば拒否。適用後に再読込）。 */
     fun applyEntityPlan(plan: core.EntityOps.Plan): Result<Unit> = runCatching {
         val cw = coreWs ?: error("ワークスペースが開かれていません")

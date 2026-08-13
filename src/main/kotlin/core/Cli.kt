@@ -58,6 +58,24 @@ internal const val CLI_USAGE = """コマンド:
   move     <workspace> <old> <new> [--apply]     ファイル移動・改名（R21-03）。パスIDの文書参照の
            書き換え・スキーマ match の変化・ビュー定義の対象外れをプレビューし、--apply で
            物理移動＋参照書き換えを実行する（_document.id 宣言済みの文書は書き換え不要）
+  refactor <workspace> <op> ... [--apply]        スキーマ・リファクタリング（P25）: スキーマ変更に
+           スキーマ定義・全該当文書・ビューを1つの変更セットで追随させる。field-path はドット区切り
+           （例 details.priority。参照（ref）先の定義は使用側のパスで指定＝全使用スキーマの文書が対象）。
+           既定は変更セットYAMLのプレビュー出力のみ。--apply で適用（オール・オア・ナッシング）。
+             rename-field <schema-id> <field-path> <new-name>      フィールド改名（キーは順序・コメント保持）
+             move-field <schema-id> <field-path> <dest-path> [--keep-empty]
+                        親子の移動（dest-path は object のパス・ルートは「.」。配列・mapの境界は不可。
+                        中間 object は生成し、空になった親は削除する＝--keep-empty で残す）
+             align-order <schema-id>                               文書のキー順をスキーマ順へ整列（正規化）
+             rename-enum-value <schema-id> <field-path> <old> <new>  enum 値の改名（cases・phases・文書値も追随）
+             delete-field <schema-id> <field-path>                 フィールド削除（値あり件数をプレビューで明示）
+             require-field <schema-id> <field-path> --default <v> [--from <phase>]  必須化＋既定値の一括充填
+             convert-type <schema-id> <field-path> <type> [--values a,b,c]  型変換（スカラー↔array・enum化等）
+             rename-definition <module-id> <name> <new>            named definition の改名（参照（ref）の横断書換）
+             extract-definition <schema-id> <field-path> <name>    インライン構造を定義へ抽出（参照化）
+             inline-definition <schema-id> <field-path>            定義参照を定義内容へインライン化
+             rename-relation <old> <new>                           関係の改名（レジストリ・スキーマ・ビュー）
+             rename-schema-id <old> <new>                          スキーマIDの改名（参照の横断書換）
   hash     <workspace> <file>                   変更セットの base に使う内容ハッシュ
   activities <workspace>                        アクティビティ／エージェント定義の一覧と検証
   agent    <workspace> <activity-id> [--instruction 追加指示] [--provider openai|anthropic]
@@ -490,6 +508,56 @@ internal fun runCli(args: Array<String>): String {
                     rest.getOrNull(2)?.takeIf { !it.startsWith("--") } ?: error("削除するIDを指定してください"),
                 )
                 else -> error("entity の操作は show / rename / merge / delete のいずれかである必要があります: $op")
+            }
+            val apply = "--apply" in rest
+            val result = if (apply) ws.apply(plan.changeSet) else null
+            dumpYaml(
+                linkedMapOf(
+                    "summary" to plan.summary,
+                    "warnings" to plan.warnings.ifEmpty { null },
+                    "applied" to result?.ok,
+                    "issues" to result?.results?.flatMap { r -> r.issues.map { issueMap(it) } }?.ifEmpty { null },
+                ).filterValues { it != null }
+            ) + (if (apply) "" else "---\n" + changeSetToYaml(plan.changeSet))
+        }
+        "refactor" -> {
+            val ws = workspace()
+            val op = rest.getOrNull(1) ?: error("操作（rename-field / move-field / align-order / rename-enum-value / delete-field / require-field / convert-type / rename-definition / extract-definition / inline-definition / rename-relation / rename-schema-id）を指定してください")
+            fun arg(i: Int, label: String): String =
+                rest.getOrNull(i)?.takeIf { !it.startsWith("--") } ?: error("${label}を指定してください")
+            val plan = when (op) {
+                "rename-field" -> SchemaRefactor.renameField(
+                    ws, arg(2, "スキーマID"), arg(3, "フィールドパス（ドット区切り）"), arg(4, "改名先のフィールド名"),
+                )
+                "move-field" -> SchemaRefactor.moveField(
+                    ws, arg(2, "スキーマID"), arg(3, "フィールドパス（ドット区切り）"),
+                    arg(4, "移動先の object パス（ルートは .）"),
+                    deleteEmptyParents = "--keep-empty" !in rest,
+                )
+                "align-order" -> SchemaRefactor.alignOrder(ws, arg(2, "スキーマID"))
+                "rename-enum-value" -> SchemaRefactor.renameEnumValue(
+                    ws, arg(2, "スキーマID"), arg(3, "フィールドパス"), arg(4, "現在の値"), arg(5, "改名先の値"),
+                )
+                "delete-field" -> SchemaRefactor.deleteField(ws, arg(2, "スキーマID"), arg(3, "フィールドパス"))
+                "require-field" -> SchemaRefactor.requireField(
+                    ws, arg(2, "スキーマID"), arg(3, "フィールドパス"),
+                    defaultRaw = stringFlag(rest, "--default") ?: error("--default（充填する既定値）を指定してください"),
+                    fromPhase = stringFlag(rest, "--from"),
+                )
+                "convert-type" -> SchemaRefactor.convertFieldType(
+                    ws, arg(2, "スキーマID"), arg(3, "フィールドパス"), arg(4, "変換先の型"),
+                    enumValues = stringFlag(rest, "--values")?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList(),
+                )
+                "rename-definition" -> SchemaRefactor.renameDefinition(
+                    ws, arg(2, "モジュール（スキーマ）ID"), arg(3, "定義名"), arg(4, "改名先の定義名"),
+                )
+                "extract-definition" -> SchemaRefactor.extractDefinition(
+                    ws, arg(2, "スキーマID"), arg(3, "フィールドパス"), arg(4, "定義名"),
+                )
+                "inline-definition" -> SchemaRefactor.inlineDefinition(ws, arg(2, "スキーマID"), arg(3, "フィールドパス"))
+                "rename-relation" -> SchemaRefactor.renameRelation(ws, arg(2, "現在の関係名"), arg(3, "改名先の関係名"))
+                "rename-schema-id" -> SchemaRefactor.renameSchemaId(ws, arg(2, "現在のスキーマID"), arg(3, "改名先のスキーマID"))
+                else -> error("refactor の操作は rename-field / move-field / align-order / rename-enum-value / delete-field / require-field / convert-type / rename-definition / extract-definition / inline-definition / rename-relation / rename-schema-id のいずれかです: $op")
             }
             val apply = "--apply" in rest
             val result = if (apply) ws.apply(plan.changeSet) else null
@@ -1059,6 +1127,8 @@ internal fun changeSetToYaml(cs: ChangeSet): String {
                     is PatchOp.Insert -> linkedMapOf("op" to "insert", "path" to op.path.pretty(), "value" to YamlIO.toAny(op.value))
                     is PatchOp.Delete -> linkedMapOf("op" to "delete", "path" to op.path.pretty())
                     is PatchOp.Move -> linkedMapOf("op" to "move", "from" to op.from.pretty(), "to" to op.to.pretty())
+                    is PatchOp.RenameKey -> linkedMapOf("op" to "rename", "path" to op.path.pretty(), "to" to op.newName)
+                    is PatchOp.ReorderKeys -> linkedMapOf("op" to "reorder", "path" to op.path.pretty(), "order" to op.order)
                 }
             },
         ).filterValues { it != null }

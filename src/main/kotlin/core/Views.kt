@@ -884,6 +884,240 @@ object Views {
         return current
     }
 
+    // ---------------------------------------------------------------- フィールド改名の追随（R25-01）
+
+    /** フィールド改名のビュー追随の結果。ops はビュー定義ファイルごとの書換、warnings は自動書換できない参照箇所。 */
+    data class FieldRenameImpact(val ops: Map<Path, List<PatchOp>>, val warnings: List<String>)
+
+    /**
+     * スキーマのフィールド改名（R25-01 / R25-02。ARCHITECTURE §4.35）にビュー定義を追随させる。
+     * 自動書換は「パスの静的解決が**全て改名対象を指す**場合」に限る——通常列 `path`・計算列の
+     * `computed.path` / `computed.lookup.via`・`newRow.path`・文書ビューの `sections[].fields.path` と
+     * include / exclude・被参照表の列 `path` が対象。多義（同名の別フィールドにも解決しうる）は
+     * 書き換えず警告する（黙って壊さない）。アタッチ（`at`）等その他の参照箇所は旧名の言及として警告に列挙する。
+     */
+    internal fun fieldRenameImpact(
+        workspace: Path,
+        schemas: List<SchemaDef>,
+        reachableIds: Set<String>,
+        target: FieldDef,
+        oldName: String,
+        newName: String,
+    ): FieldRenameImpact {
+        val ops = LinkedHashMap<Path, MutableList<PatchOp>>()
+        val warnings = mutableListOf<String>()
+        val docSchemas = schemas.filter { it.kind == schema.SchemaKind.DOCUMENT }
+        val byId = docSchemas.associateBy { it.id }
+        fun representative(glob: String): String = glob
+            .replace(Regex("\\{([^}]*)\\}")) { it.groupValues[1].substringBefore(',') }
+            .replace("**", "X").replace("*", "X").replace("?", "X")
+        fun contexts(schemaId: Any?, fileGlob: Any?): List<SchemaDef> = when {
+            schemaId != null -> listOfNotNull(byId[schemaId.toString()])
+            fileGlob != null -> representative(fileGlob.toString()).let { rel -> docSchemas.filter { it.matches(rel) } }
+            else -> docSchemas.filter { it.id in reachableIds }
+        }
+        for (file in viewFiles(workspace)) {
+            val raw = runCatching { YamlIO.parseToRaw(Files.readString(file)) }.getOrNull() as? Map<*, *> ?: continue
+            val handled = mutableSetOf<String>()  // 書換済み・多義警告済みの座標（collectMentions と同じ crumb 形式）
+
+            /** パスを contexts×starts の静的解決で書き換える。全解決が対象を指すときだけ書換、多義は警告。 */
+            fun tryRewrite(pathValue: Any?, crumb: String, yamlPath: YPath, ctx: List<SchemaDef>, starts: (SchemaDef) -> List<FieldDef>) {
+                val text = pathValue?.toString() ?: return
+                val path = runCatching { parseYPath(text) }.getOrNull() ?: return
+                if (path.none { it == oldName }) return
+                val results = ctx.flatMap { s -> starts(s).mapNotNull { start -> staticRewrite(s, start, path, target, newName) } }
+                val rewritten = results.filter { it.second }.map { it.first }.distinct()
+                when {
+                    rewritten.size == 1 && results.all { it.second } -> {
+                        ops.getOrPut(file) { mutableListOf() } += PatchOp.Set(yamlPath, YNode.Scalar(rewritten.single().pretty()))
+                        handled += crumb
+                    }
+                    rewritten.isNotEmpty() -> {
+                        warnings += "${file.fileName}: $crumb の path「$text」は同名の別フィールドにも解決しうるため書き換えません（要確認）"
+                        handled += crumb
+                    }
+                    else -> Unit
+                }
+            }
+
+            /** include / exclude の選別キーを、セクションパス先の子フィールド解決で書き換える。 */
+            fun tryRewriteSelection(fm: Map<*, *>, listKey: String, crumb: String, yamlBase: YPath, ctx: List<SchemaDef>) {
+                val list = fm[listKey] as? List<*> ?: return
+                val sectionPath = runCatching { parseYPath(fm["path"]?.toString() ?: "") }.getOrNull() ?: return
+                list.forEachIndexed { j, v ->
+                    if (v?.toString() != oldName) return@forEachIndexed
+                    val hits = ctx.mapNotNull { s ->
+                        val sectionDef = staticFieldAt(s, s.root, sectionPath) ?: return@mapNotNull null
+                        val resolved = s.resolve(sectionDef) ?: sectionDef
+                        val child = staticChildren(s, resolved).firstOrNull { it.key == oldName } ?: return@mapNotNull null
+                        child === target
+                    }
+                    when {
+                        hits.isNotEmpty() && hits.all { it } -> {
+                            ops.getOrPut(file) { mutableListOf() } += PatchOp.Set(yamlBase + listKey + j, YNode.Scalar(newName))
+                            handled += crumb
+                        }
+                        hits.any { it } -> {
+                            warnings += "${file.fileName}: $crumb の「$oldName」は同名の別フィールドにも解決しうるため書き換えません（要確認）"
+                            handled += crumb
+                        }
+                        else -> Unit
+                    }
+                }
+            }
+
+            if (raw["kind"]?.toString() != "document") {
+                (raw["columns"] as? List<*>)?.forEachIndexed { i, entry ->
+                    val m = entry as? Map<*, *> ?: return@forEachIndexed
+                    when {
+                        m.containsKey("definition") || m.containsKey("backlinks") -> Unit
+                        m.containsKey("computed") -> {
+                            val comp = m["computed"] as? Map<*, *> ?: return@forEachIndexed
+                            val src = comp["source"] as? Map<*, *>
+                            tryRewrite(
+                                comp["path"], "columns[${i + 1}].computed.path", listOf("columns", i, "computed", "path"),
+                                contexts(src?.get("schemaId"), src?.get("fileGlob")), ::idElements,
+                            )
+                            (comp["lookup"] as? Map<*, *>)?.let { lk ->
+                                tryRewrite(
+                                    lk["via"], "columns[${i + 1}].computed.lookup.via", listOf("columns", i, "computed", "lookup", "via"),
+                                    contexts(lk["schemaId"], lk["fileGlob"]), ::idElements,
+                                )
+                            }
+                        }
+                        else -> tryRewrite(
+                            m["path"], "columns[${i + 1}].path", listOf("columns", i, "path"),
+                            contexts(m["schemaId"], m["fileGlob"]), ::idElements,
+                        )
+                    }
+                }
+                (raw["newRow"] as? Map<*, *>)?.let { nr ->
+                    val nrFile = nr["file"]?.toString()
+                    if (nr["path"] != null && nrFile != null) {
+                        // 配列モードの追加先パスは一覧文書のルートから解決する
+                        val ctx = docSchemas.filter { it.matches(nrFile.replace('\\', '/')) }
+                        tryRewrite(nr["path"], "newRow.path", listOf("newRow", "path"), ctx) { s -> listOf(s.root) }
+                    }
+                }
+            } else {
+                val docCtx = when {
+                    raw["schemaId"] != null -> listOfNotNull(byId[raw["schemaId"].toString()])
+                    raw["match"] != null -> representative(raw["match"].toString()).let { rel -> docSchemas.filter { it.matches(rel) } }
+                    else -> emptyList()
+                }
+                (raw["sections"] as? List<*>)?.forEachIndexed { i, entry ->
+                    val m = entry as? Map<*, *> ?: return@forEachIndexed
+                    (m["fields"] as? Map<*, *>)?.let { fm ->
+                        tryRewrite(
+                            fm["path"], "sections[${i + 1}].fields.path", listOf("sections", i, "fields", "path"),
+                            docCtx,
+                        ) { s -> listOf(s.root) }
+                        tryRewriteSelection(fm, "include", "sections[${i + 1}].fields.include", listOf("sections", i, "fields"), docCtx)
+                        tryRewriteSelection(fm, "exclude", "sections[${i + 1}].fields.exclude", listOf("sections", i, "fields"), docCtx)
+                    }
+                    (m["backlinks"] as? Map<*, *>)?.let { bm ->
+                        val ctx = stringListOf(bm["schemaIds"]).mapNotNull { byId[it] }
+                        (bm["columns"] as? List<*>)?.forEachIndexed { j, c ->
+                            val cm = c as? Map<*, *> ?: return@forEachIndexed
+                            tryRewrite(
+                                cm["path"], "sections[${i + 1}].backlinks.columns[${j + 1}].path",
+                                listOf("sections", i, "backlinks", "columns", j, "path"), ctx, ::idElements,
+                            )
+                        }
+                    }
+                }
+            }
+            collectMentions(raw, oldName).filterNot { it in handled }.forEach {
+                warnings += "${file.fileName}: $it に「$oldName」の言及があります（自動書換の対象外・要確認）"
+            }
+        }
+        return FieldRenameImpact(ops, warnings)
+    }
+
+    /** views ゾーンの定義ファイル一覧（ファイル名順）。スキーマ・リファクタリングの横断書換からも使う。 */
+    internal fun viewFiles(workspace: Path): List<Path> {
+        val dir = workspace.resolve(schema.WorkspaceLayout.of(workspace).viewsDir)
+        if (!Files.isDirectory(dir)) return emptyList()
+        return Files.list(dir).use { stream ->
+            stream.filter { p ->
+                val n = p.fileName.toString()
+                Files.isRegularFile(p) && (n.endsWith(".yaml") || n.endsWith(".yml"))
+            }.toList()
+        }.sortedBy { it.fileName.toString() }
+    }
+
+    private fun stringListOf(raw: Any?): List<String> = when (raw) {
+        is List<*> -> raw.map { it.toString() }
+        null -> emptyList()
+        else -> listOf(raw.toString())
+    }
+
+    /**
+     * フィールド名の言及があるビュー定義の警告を列挙する（移動・削除など、パス書換を伴わない
+     * リファクタリング操作の影響提示用。R25-02）。
+     */
+    internal fun fieldMentionWarnings(workspace: Path, fieldName: String, note: String): List<String> =
+        viewFiles(workspace).flatMap { file ->
+            val raw = runCatching { YamlIO.parseToRaw(Files.readString(file)) }.getOrNull() as? Map<*, *>
+                ?: return@flatMap emptyList()
+            collectMentions(raw, fieldName).map { "${file.fileName}: $it に「$fieldName」の言及があります（$note）" }
+        }
+
+    /** 列パスをID要素起点で静的に辿り、target を指すセグメントを newName へ置換したパスと到達有無を返す。 */
+    private fun staticRewrite(
+        schema: SchemaDef,
+        start: FieldDef,
+        path: List<Any>,
+        target: FieldDef,
+        newName: String,
+    ): Pair<YPath, Boolean>? {
+        var current = start
+        val out = mutableListOf<Any>()
+        var hit = false
+        for (seg in path) {
+            val def = schema.resolve(current) ?: return null
+            val next: FieldDef? = when {
+                def.type == FieldType.OBJECT && seg is String -> staticChildren(schema, def).firstOrNull { it.key == seg }
+                def.type == FieldType.MAP && seg is String -> def.value
+                def.type == FieldType.ARRAY && (seg is Int || seg === AnyIndex) -> def.item
+                else -> null
+            }
+            if (next == null) return null
+            if (next === target && seg is String) { out += newName; hit = true } else out += seg
+            current = next
+        }
+        return out to hit
+    }
+
+    /**
+     * ビュー定義の生YAMLから、パス系のキー（path / via / at / include / exclude）に含まれる旧名の言及を集める。
+     * 戻り値は座標（例 `columns[2].path`）。fieldRenameImpact の書換済み座標フィルタと同じ形式。
+     */
+    private fun collectMentions(raw: Any?, oldName: String): List<String> {
+        val out = mutableListOf<String>()
+        fun containsOld(text: String): Boolean =
+            runCatching { parseYPath(text.replace("[*]", "[-1]")) }.getOrNull()?.any { it == oldName } ?: false
+        fun walk(node: Any?, crumb: String) {
+            when (node) {
+                is Map<*, *> -> node.forEach { (k, v) ->
+                    val key = k.toString()
+                    val here = if (crumb.isEmpty()) key else "$crumb.$key"
+                    when {
+                        key in setOf("path", "via", "at") && v != null && v !is Map<*, *> && v !is List<*> ->
+                            if (containsOld(v.toString())) out += here
+                        key in setOf("include", "exclude") && v is List<*> ->
+                            if (v.any { it?.toString() == oldName }) out += here
+                        else -> walk(v, here)
+                    }
+                }
+                is List<*> -> node.forEachIndexed { i, v -> walk(v, "$crumb[${i + 1}]") }
+                else -> Unit
+            }
+        }
+        walk(raw, "")
+        return out
+    }
+
     // ---------------------------------------------------------------- 解決
 
     /**

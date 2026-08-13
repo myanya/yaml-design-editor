@@ -75,9 +75,10 @@ src/main/kotlin/
 | `Query` | index/Query.kt | パターン照合エンジン（R22-01。§4.32）: `QuerySpec` を EntityGraph の隣接上で評価し束縛の表（`QueryResult`）を返す。決定性（起点ID昇順・束縛名辞書順の行比較・決定的打切り）・経路内の再訪禁止・判定保留（未解決参照・型未宣言は黙る）。`neighborIds` はトラバースと共有する隣接1段、`anyMatchFrom` / `startMatches` は `Validator` の制約判定が使う |
 | `Workspace` / `WorkspaceScan` | core/Workspace.kt | ヘッドレスなワークスペース操作（開く・読む・保存・検証・変更セット適用）。相対パス解決はワークスペース外への脱出を拒否。`noteDiskChanges` が保存・外部変更の索引更新方針（増分／スキーマ変更時の全再構築）を一元化し、UI（AppState）もこの経路を通る（R9-02） |
 | `EditBuffer` / `WorkspaceRecords` | core/Documents.kt | 文書キャッシュ層の中核（R9-02）: 履歴（Undo/Redo）・dirty判定・複数ドキュメント再出力（`EditBuffer`）と、一覧レコード収集・一括編集（`WorkspaceRecords`。未保存優先の loader 注入）。`app.OpenDocument` / `AppState` はこの層への委譲＋Compose購読ミラー |
-| `PatchOp` / `Patcher` / `ChangeSets` | core/Patch.kt | YPathパッチ（set/insert/delete/move）と変更セット（baseハッシュ競合検出、YAML解析） |
+| `PatchOp` / `Patcher` / `ChangeSets` | core/Patch.kt | YPathパッチ（set/insert/delete/move/rename＝順序・コメント保持のキー改名/reorder＝キー並べ替え。R25-01/02）と変更セット（baseハッシュ競合検出、YAML解析） |
 | `EntityOps` | core/EntityOps.kt | エンティティ操作（R21-02。§4.31）: rename / merge / delete を1つの変更セットへ束ねる生成器。適用は `Workspace.apply` に委ねる（新しい書込経路を作らない） |
 | `DocMove` | core/DocMove.kt | ファイル移動・改名の一級化（R21-03。§4.31）: パスID文書参照の書き換え変更セット＋物理移動の合成。スキーマ match・ビュー定義の影響警告つきプレビュー |
+| `SchemaRefactor` | core/SchemaRefactor.kt | スキーマ・リファクタリング（P25。§4.35）: 改名・移動・整列・enum値改名・削除・必須化バックフィル・型変換・定義／関係／スキーマIDの改名（12操作）を、スキーマ定義・全該当文書・ビューへ1つの変更セットで追随させる生成器。適用は `Workspace.apply` に委ねる（新しい書込経路を作らない） |
 | `FileWatcher` | core/FileWatcher.kt | WatchService による再帰的なファイル監視（R8-03）。「変更があったか」のフラグだけを通知し、差分判定は呼び出し側のスタンプ比較に委ねる。使えない環境では open() が null（ポーリングへフォールバック） |
 | `Bench` | core/Bench.kt | 索引性能の計測（R8-02）: ベンチマーク用ワークスペースの生成と、フル再構築 vs 増分更新の比較計測。CLI `bench` |
 | `Disclosure` | core/Disclosure.kt | 段階的開示: カタログ→骨子→ノード全文、文字数予算付き文脈バンドル |
@@ -534,6 +535,22 @@ limit: 100                               # 既定 100（total は打切り前の
 - **パース不能時**: ツリーは**最後に解析できた状態のまま**が正であり、保存もそれを書く。バッファの未解析テキストは画面上にだけ存在し、エラーバナー（行・列つき）でその旨を明示する。「破棄」でツリーの正規化テキストへ戻せる。ソースタブの Ctrl+S はパース不能の間は保存せずステータスで案内する（黙って最後の解析状態を書かない）。
 - **外部変更の追随**: 自分の反映で進んだ `doc.version` は同期済みとして無視し、**他所からの変更**（フォーム・グリッド・Undo/Redo・外部変更の再読込）で進んだ場合だけテキストを正規化テキストから取り直す（`syncedVersion` の突合）。
 - **Undoの粒度**: ソース連続入力は上記の合体キーで1エントリにまとまる。フォーム↔ソースの行き来はキーが変わるため自然に境界になる。
+
+### 4.35 スキーマ・リファクタリング（P25: R25-01〜04）
+
+スキーマ定義の変更（改名・移動・順序・型変換・定義／関係の改名）に既存文書・ビューを**1つの変更セット**で追随させる機構。方式は「操作ベース」——スキーマ差分からの推測（改名と削除＋追加が判別不能）は採らず、明示的な操作が生成器（`core/SchemaRefactor`。`EntityOps.Plan` = 変更セット＋警告＋サマリを共用）を通って既存の `Workspace.apply` で適用される。EntityOps（§4.31）・DocMove と同型で**新しい書込経路を作らない**。`_schemas` はエージェント書込不可（§4.10）のため入口は人間専用（スキーマエディタの「一括改名…」「一括削除…」「文書をスキーマ順へ整列…」・CLI `refactor` の12操作）。
+
+**フィールドの同定はインスタンス同一性**: 対象フィールドはドット区切りパス（データと同じ形。配列・map は暗黙降下、cases 由来キーは兄弟として指定）からスキーマ定義上の実体（保持モジュール・YAML座標・`FieldDef` インスタンス）へ解決し、以降は **`FieldDef` の同一インスタンス（`===`）** で同定する。パーサが定義を1回だけ生成し `$ref` 解決（`resolve` は浅いコピー）が子リストのインスタンスを保つため、再帰スキーマ・横断参照・derive 派生（テンプレート root の共有）を通じても走査で正しく同定できる。この前提（**resolve が fields / item / value / cases のインスタンスを再生成しない**）はこの機構の生命線——スキーマ層の変更で FieldDef を deep copy する場合はここを見直すこと。enum 値の改名だけは「`$ref` の最終実体（値の保持サイト）」で同定する（複数スキーマが同じ定義を参照する場合に全使用側の文書へ波及させるため）。
+
+**書換の3層と安全規則**:
+
+1. **文書**: 該当スキーマ（`$ref` 共有・derive 派生を含む「対象インスタンスへ到達可能なスキーマ」）の全文書をスキーマ誘導で走査し、キー改名は `PatchOp.RenameKey`・整列は `PatchOp.ReorderKeys`（いずれも順序・コメント保持。C-02 に一級追加＝CLI・エージェントの patch 語彙でも `{op: rename|reorder}`）を**深いパスから**発行する。cases は `effectiveFields`（現在の enum 値の実効フィールドだけ）を通すため、**別 case の同名キーをデータとして誤って触らない**。改名・移動先の既存キー／値・変換できない値は生成段階で拒否（一覧つき＝黙って上書きしない）。
+2. **スキーマ**: 定義キーは `fields[i].key` への Set（`$ref` 先は定義側モジュールの `definitions.<name>.fields[i].key`）。ルート直下フィールドなら `phases.key`、enum 値なら `cases` キー・`phases.order`・`requiredFrom` / `activeFrom`、削除なら `entity.owns` も追随。生成前に**ディスクYAMLの実体を照合**し、解決結果とずれていれば中止（未保存編集・派生の安全確認）。派生スキーマ（derive。source が schemas ゾーン外）・組込みスキーマ（source がワークスペース外）の直接指定は拒否し導出元へ誘導。
+3. **ビュー**: 静的解決が**全て対象を指す**箇所だけ自動書換——通常列 `path`・計算列の `computed.path` / `lookup.via`・`newRow.path`・文書ビューの `sections[].fields.path` と `include` / `exclude`・被参照表の列（コンテキストは schemaId / fileGlob。未指定は到達可能スキーマ×ID要素起点）。同名の別フィールドにも解決しうる多義は書き換えず警告（`Views.fieldRenameImpact`）。
+
+**移動の決定性（R25-02）**: 移動元と移動先は**要素コンテキスト署名**（ルートからの配列・map 横断の列＝横断キー列×コンテナ実体の同一性）が一致するときだけ許可する。境界をまたぐ移動は1↔Nの対応になり決定的に解決できないため拒否。共有定義（definitions）をまたぐ移動も拒否（他の使用箇所の文書が壊れる）。文書側は要素ごとに「中間 object の生成 → Move → 空になった親の削除（移動先の経路上は除外）」を発行する。
+
+**警告に留める消費者（自動書換しない）**: スキーマ内の宣言節（consistency / constraints / coverage / derive）・定義文書（`_activities` / `_agents` / `_skills` / `_evals`）の言及・多義な列パス・アタッチ（`at`）・skill の写像。語境界つきの近似スキャンで**言及箇所を列挙**し、対応判断は人間に委ねる。フィールドパス・関係名・スキーマIDを参照する機能を増やすときは、この「書換 or 警告」のどちらに載せるかを必ず決めること（§6 の変更箇所リストと同じ役割）。なお relation / schemaId の改名は YAML キー基準の横断書換（`relation:`・`schemaId(s)`・修飾 `$ref` 等）で、レジストリ・スキーマ・ビューを対で書き換える。
 
 ## 5. 主要データフロー
 

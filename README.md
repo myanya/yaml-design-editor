@@ -427,6 +427,27 @@ root:
 
 スキーマファイルを保存すると、メタスキーマ検証結果は通常の右側「検証」パネルにも表示されます。
 
+### スキーマ・リファクタリング（既存文書を追随させるスキーマ変更）
+
+スキーマの `key` や構造を直接書き換えると、既存文書のキーが「スキーマ外項目」として残留します。スキーマ・リファクタリングは、スキーマ変更と既存文書・ビューの追随を**1つの変更セット**（プレビュー→適用。オール・オア・ナッシング）にまとめます。
+
+スキーマ設計画面からは次の操作が使えます（フィールド行のボタン。未保存の変更があるときは保存を促します）。
+
+- **一括改名…**: スキーマ定義のキー（`$ref` で共有された定義のフィールドなら定義側＝全使用スキーマの文書が対象。ルート直下のフィールドが `phases` の申告キーなら `phases.key` も追随）＋全該当文書のデータキー（値・キー順・コメントを保った改名。`cases` 由来のキーは、その case が有効な文書だけが対象）＋ビューのパス（通常列・計算列・文書ビューなど、解決が一意に定まる場合のみ。多義な列は書き換えず警告）
+- **一括削除…**: スキーマ定義と全該当文書のデータキーを削除。**値が入っている件数**をプレビューで明示します（ID型・フェーズ申告キーは拒否）
+- **文書をスキーマ順へ整列…**（ルート定義の右上）: 全該当文書のキー順をスキーマのフィールド順へ正規化します（値・コメント保持。`_document` は先頭・スキーマ外キーは末尾に相対順で残る。スキーマは変更しません）
+
+CLI `refactor`（§16）にはさらに次があります。フィールドパスはドット区切り（例 `details.priority`。配列・map は暗黙に降ります）。
+
+- `move-field <schema-id> <field-path> <dest-path>`: フィールドの親子移動（`dest-path` は object のパス・ルートは `.`）。移動元と移動先が**同じ要素コンテキスト**にある場合のみ（配列・map の境界をまたぐ移動は1対Nの対応になるため拒否）。文書側は中間 object を生成し、空になった親 object は削除します（`--keep-empty` で残す）
+- `rename-enum-value <schema-id> <field-path> <old> <new>`: enum 値の改名。`values`・`cases` のキー・`default`・（フェーズ申告フィールドなら）`phases.order` と `requiredFrom` / `activeFrom`・全該当文書の現在値が追随します
+- `require-field <schema-id> <field-path> --default <値> [--from <フェーズ>]`: 必須化と同時に、値が無い（キー欠落・空）文書へ既定値を一括充填します（`--from` 指定時はそのフェーズに達している文書だけ）
+- `convert-type <schema-id> <field-path> <型> [--values a,b,c]`: 決定的な型変換の一括版。スカラー→`array`（1要素に包む）・array→要素の型（1要素は引き継ぎ・空は削除・複数要素は拒否）・string→`enum`（逸脱値があれば一覧つき拒否）／`int`／`number`（解析検証つき）・enum／数値等→`string`
+- `rename-definition <module-id> <name> <new>` / `extract-definition <schema-id> <field-path> <name>` / `inline-definition <schema-id> <field-path>`: 名前付き定義の改名（`$ref` を横断書換）・インライン構造の定義化・定義参照のインライン化（参照が残らない定義は削除）。文書は変わりません
+- `rename-relation <old> <new>` / `rename-schema-id <old> <new>`: 関係名（レジストリ・スキーマの `relation:`・ビュー）とスキーマID（修飾 `$ref`・`schemaId` 系の参照）の横断改名
+
+共通の安全規則: 改名・移動先のキーが既存文書に存在する等の衝突は**適用せずに中止**します（対象を提示）。アクティビティの指示文など自動書換できない参照は、言及箇所を**警告として列挙**するので適用後に確認してください。派生スキーマ（`derive`）のフィールドは対象外です（導出元文書を修正してください）。生成はディスクの保存済み状態が基準のため、未保存の編集は先に保存してください。
+
 ### カバレッジルール（被参照・詳細文書の必須化）
 
 スキーマのルート直下に `coverage` を書くと、このスキーマが定義するIDへのトレーサビリティ要件を検証できます。ルールは2種類あります。
@@ -1413,6 +1434,9 @@ GUIを起動せずに、ワークスペースの探索・検索・部分変更�
 ./gradlew runCli -q --args="entity my-ws merge SCR-002 SCR-001 --apply"   # エンティティ統合（--delete-occurrences で出現を削除）
 ./gradlew runCli -q --args="entity my-ws delete SCR-009"                  # エンティティ削除（被参照があれば参照元一覧つきで拒否）
 ./gradlew runCli -q --args="move my-ws specs/a.yaml archive/a.yaml"       # ファイル移動（パスID文書参照の書き換え＋警告のプレビュー。--apply で実行）
+./gradlew runCli -q --args="refactor my-ws rename-field task-schema details.priority urgency"  # スキーマ・リファクタリング（P25。§4）: フィールド改名。他に move-field / align-order /
+                                                                          # rename-enum-value / delete-field / require-field / convert-type / rename-definition /
+                                                                          # extract-definition / inline-definition / rename-relation / rename-schema-id（--apply なしはプレビュー）
 ./gradlew runCli -q --args="activities sample-workspace"                  # アクティビティ／エージェント定義の一覧
 ./gradlew runCli -q --args="agent sample-workspace review-concepts"       # アクティビティ実行（--apply で即適用、--foreach で対象列挙の一括実行）
 ./gradlew runCli -q --args="watch sample-workspace --once"                # 自動実行（トリガ判定→キュー消化を1回）
@@ -1441,6 +1465,8 @@ changes:
       - { op: insert, path: "tags[0]",    value: 重要 }        # 配列は挿入、マップは新規キー
       - { op: delete, path: obsolete }
       - { op: move,   from: "items[2]",   to: "items[0]" }
+      - { op: rename, path: title,        to: name }           # キー改名（値・キー順・コメントを保持）
+      - { op: reorder, path: details,     order: [id, name] }  # キー並べ替え（order を先頭に・残りは相対順。path 省略・空はルート）
 ```
 
 パスは `items[2].title` 形式です。フロースタイル（`{ }`）内で `[` を含むパスは引用符で囲んでください。ルート（空パス）への操作はできません。

@@ -46,6 +46,29 @@ fun SchemaEditor(state: AppState, doc: OpenDocument) {
     val issues = remember(schema, doc.version) { schema?.validateDefinition().orEmpty() }
     val library = scalar(root, "kind") == SchemaKind.LIBRARY.id
     var mode by remember { mutableStateOf(0) }
+    // 一括改名・一括削除の対象（スキーマID × ドット区切りフィールドパス。R25-01 / R25-03）と整列（R25-02）
+    var renameFieldTarget by remember { mutableStateOf<Pair<String, List<String>>?>(null) }
+    renameFieldTarget?.let { (schemaId, path) ->
+        SchemaFieldRenameDialog(state, doc, schemaId, path) { renameFieldTarget = null }
+    }
+    var deleteFieldTarget by remember { mutableStateOf<Pair<String, List<String>>?>(null) }
+    deleteFieldTarget?.let { (schemaId, path) ->
+        SchemaRefactorConfirmDialog(
+            state, doc,
+            title = "フィールドを一括削除",
+            header = "スキーマ「$schemaId」のフィールド「${path.joinToString(".")}」を、全該当文書のデータごと削除します",
+            planner = { state.planSchemaFieldDelete(schemaId, path.joinToString(".")) },
+        ) { deleteFieldTarget = null }
+    }
+    var alignOrderTarget by remember { mutableStateOf<String?>(null) }
+    alignOrderTarget?.let { schemaId ->
+        SchemaRefactorConfirmDialog(
+            state, doc,
+            title = "文書をスキーマ順へ整列",
+            header = "スキーマ「$schemaId」の全該当文書のキー順を、スキーマのフィールド順に並べ替えます（値・コメントは保持）",
+            planner = { state.planSchemaAlignOrder(schemaId) },
+        ) { alignOrderTarget = null }
+    }
     Column(Modifier.fillMaxSize()) {
         TabRow(selectedTabIndex = mode, containerColor = Palette.Surface, contentColor = Palette.Primary) {
             Tab(mode == 0, { mode = 0 }, text = { Text("設計", fontSize = 11.sp) })
@@ -86,9 +109,21 @@ fun SchemaEditor(state: AppState, doc: OpenDocument) {
             }
             if (!library) {
                 Spacer(Modifier.height(12.dp))
-                Text("ルート定義", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("ルート定義", fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                    // 整列（R25-02）: 該当文書のキー順をスキーマ順へ正規化する（スキーマは変更しない）
+                    schema?.takeIf { it.kind == SchemaKind.DOCUMENT && it.derive == null }?.let { s ->
+                        TextButton(onClick = { alignOrderTarget = s.id }) { Text("文書をスキーマ順へ整列…", fontSize = 10.sp) }
+                    }
+                }
                 val rootDef = ensureMap(root, "root", doc, mark = false)
-                FieldDefinitionEditor(rootDef, doc, definitionChoices, allowKey = false, depth = 0)
+                // 一括改名・一括削除（R25-01 / R25-03）: 解析できるスキーマの、保存済み状態を基準に文書・ビューを追随させる
+                FieldDefinitionEditor(
+                    rootDef, doc, definitionChoices, allowKey = false, depth = 0,
+                    fieldPath = emptyList(),
+                    onRenameField = schema?.let { s -> { path -> renameFieldTarget = s.id to path } },
+                    onDeleteField = schema?.let { s -> { path -> deleteFieldTarget = s.id to path } },
+                )
                 // スキーマ全体設定（R9-03）: フェーズ宣言とカバレッジルールの構造化編集
                 Spacer(Modifier.height(12.dp))
                 PhasesEditor(root, doc)
@@ -333,7 +368,18 @@ private fun DefinitionCard(name: String, definitions: YNode.Map, doc: OpenDocume
 }
 
 @Composable
-private fun FieldDefinitionEditor(map: YNode.Map, doc: OpenDocument, definitions: List<String>, allowKey: Boolean, depth: Int) {
+private fun FieldDefinitionEditor(
+    map: YNode.Map,
+    doc: OpenDocument,
+    definitions: List<String>,
+    allowKey: Boolean,
+    depth: Int,
+    // 一括改名・一括削除（R25-01 / R25-03）: このフィールド自身のデータパス（ドット区切りの元）。null = 導線なし
+    // （definitions 内・cases 内は使用側パスの多義があるため CLI `refactor` で行う）
+    fieldPath: List<String>? = null,
+    onRenameField: ((List<String>) -> Unit)? = null,
+    onDeleteField: ((List<String>) -> Unit)? = null,
+) {
     doc.version  // CONVENTIONS §2 / UX-24
     if (depth > 12) { Text("表示可能な深さを超えました", color = Palette.WarnOrange); return }
     val ref = scalar(map, "\$ref")
@@ -398,11 +444,21 @@ private fun FieldDefinitionEditor(map: YNode.Map, doc: OpenDocument, definitions
             val fields = ensureSeq(map, "fields", doc, mark = false)
             fields.items.forEachIndexed { index, node ->
                 val child = node as? YNode.Map ?: return@forEachIndexed
+                val childKey = scalar(child, "key")?.takeIf { it.isNotBlank() }
+                val childPath = if (fieldPath != null && childKey != null) fieldPath + childKey else null
                 Column(Modifier.padding(start = 12.dp, top = 5.dp).border(1.dp, Palette.Border, PanelShape).padding(6.dp)) {
                     Row { Text("フィールド ${index + 1}", fontSize = 11.sp, fontWeight = FontWeight.Bold); Spacer(Modifier.weight(1f))
+                        // 一括改名・一括削除（R25-01 / R25-03）: スキーマ定義・全該当文書・ビューを1変更セットで追随
+                        if (onRenameField != null && childPath != null) {
+                            TextButton(onClick = { onRenameField(childPath) }) { Text("一括改名…", fontSize = 10.sp) }
+                        }
+                        if (onDeleteField != null && childPath != null) {
+                            TextButton(onClick = { onDeleteField(childPath) }) { Text("一括削除…", color = Palette.ErrorRed, fontSize = 10.sp) }
+                        }
                         FieldMoveButtons(fields.items, index, doc)
                         TextButton(onClick = { fields.items.removeAt(index); doc.markEdited() }) { Text("削除", color = Palette.ErrorRed, fontSize = 10.sp) } }
-                    FieldDefinitionEditor(child, doc, definitions, allowKey = true, depth = depth + 1)
+                    FieldDefinitionEditor(child, doc, definitions, allowKey = true, depth = depth + 1,
+                        fieldPath = childPath, onRenameField = onRenameField, onDeleteField = onDeleteField)
                 }
             }
             TextButton(onClick = { fields.items.add(newFieldMap("string")); doc.markEdited() }) { Text("＋ フィールドを追加", fontSize = 11.sp) }
@@ -410,12 +466,15 @@ private fun FieldDefinitionEditor(map: YNode.Map, doc: OpenDocument, definitions
         "array" -> {
             DisplayHintRow(map, doc)
             Text("要素定義", fontSize = 11.sp, color = Palette.SubText)
-            FieldDefinitionEditor(ensureMap(map, "item", doc, mark = false), doc, definitions, allowKey = false, depth = depth + 1)
+            // 配列・map はデータパス上は暗黙に降りる（ドット区切りにセグメントを足さない）
+            FieldDefinitionEditor(ensureMap(map, "item", doc, mark = false), doc, definitions, allowKey = false, depth = depth + 1,
+                fieldPath = fieldPath, onRenameField = onRenameField, onDeleteField = onDeleteField)
         }
         "map" -> {
             DisplayHintRow(map, doc)
             Text("値定義", fontSize = 11.sp, color = Palette.SubText)
-            FieldDefinitionEditor(ensureMap(map, "value", doc, mark = false), doc, definitions, allowKey = false, depth = depth + 1)
+            FieldDefinitionEditor(ensureMap(map, "value", doc, mark = false), doc, definitions, allowKey = false, depth = depth + 1,
+                fieldPath = fieldPath, onRenameField = onRenameField, onDeleteField = onDeleteField)
         }
         "enum" -> EnumValuesEditor(map, doc, definitions, depth)
         "ref" -> {
@@ -876,6 +935,154 @@ private fun DefaultValueEditor(map: YNode.Map, type: String, doc: OpenDocument) 
             doc.markEdited(coalesceWith = map to "default")
         }, singleLine = true, placeholder = { Text("未設定") }, modifier = Modifier.weight(1f))
     }
+}
+
+/**
+ * フィールド一括改名の確認ダイアログ（R25-01。ARCHITECTURE §4.35）。
+ * スキーマ定義・全該当文書のデータキー（順序・コメント保持）・ビュー通常列の変更セットをプレビューし、
+ * 適用は Workspace.apply（オール・オア・ナッシング）。生成はディスクの保存済み状態が基準のため、
+ * 未保存の変更があるときは先に保存を求める（EntityRenameDialog と同じ流儀）。
+ */
+@Composable
+private fun SchemaFieldRenameDialog(
+    state: AppState,
+    doc: OpenDocument,
+    schemaId: String,
+    fieldPath: List<String>,
+    onDismiss: () -> Unit,
+) {
+    val pathText = fieldPath.joinToString(".")
+    var newName by remember { mutableStateOf("") }
+    var applyError by remember { mutableStateOf<String?>(null) }
+    state.indexVersion
+    doc.version
+    val plan = remember(newName, state.indexVersion, doc.dirty) {
+        if (doc.dirty || newName.isBlank()) null
+        else state.planSchemaFieldRename(schemaId, pathText, newName.trim())
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("フィールドを一括改名") },
+        text = {
+            Column(Modifier.width(560.dp).heightIn(max = 480.dp)) {
+                Text("スキーマ「$schemaId」のフィールド「$pathText」", fontSize = 12.sp)
+                Spacer(Modifier.height(6.dp))
+                CompactTextField(
+                    newName, { newName = it }, singleLine = true,
+                    placeholder = { Text("改名先のフィールド名") }, modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                when {
+                    doc.dirty -> Text("スキーマに未保存の変更があります。保存してから一括改名してください（生成は保存済み状態が基準です）",
+                        fontSize = 12.sp, color = Palette.WarnOrange)
+                    plan == null -> Text("改名先を入力すると、スキーマ・文書・ビューの変更プレビューを表示します",
+                        fontSize = 12.sp, color = Palette.SubText)
+                    plan.isFailure -> Text(plan.exceptionOrNull()?.message ?: "プレビューを生成できません",
+                        fontSize = 12.sp, color = Palette.ErrorRed)
+                    else -> {
+                        val p = plan.getOrThrow()
+                        p.summary.forEach { Text(it, fontSize = 12.sp) }
+                        p.warnings.forEach { Text("注意: $it", fontSize = 12.sp, color = Palette.WarnOrange) }
+                        Spacer(Modifier.height(6.dp))
+                        Text("変更されるファイル:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        val scroll = rememberScrollState()
+                        Column(Modifier.weight(1f, fill = false).verticalScroll(scroll)) {
+                            p.changeSet.changes.forEach { c ->
+                                Text("・${c.file}（${c.ops.size} 操作）", fontSize = 12.sp, color = Palette.SubText)
+                            }
+                        }
+                    }
+                }
+                applyError?.let {
+                    Spacer(Modifier.height(6.dp))
+                    Text(it, fontSize = 12.sp, color = Palette.ErrorRed)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = plan?.isSuccess == true,
+                onClick = {
+                    plan?.getOrNull()?.let { p ->
+                        state.applyEntityPlan(p)
+                            .onSuccess { onDismiss() }
+                            .onFailure { applyError = it.message ?: "適用に失敗しました" }
+                    }
+                },
+            ) { Text("適用") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("キャンセル") } },
+    )
+}
+
+/**
+ * スキーマ・リファクタリング操作の共通確認ダイアログ（R25-02 / R25-03。入力欄なしのプレビュー→適用）。
+ * 生成はディスクの保存済み状態が基準のため、未保存の変更があるときは先に保存を求める。
+ */
+@Composable
+private fun SchemaRefactorConfirmDialog(
+    state: AppState,
+    doc: OpenDocument,
+    title: String,
+    header: String,
+    planner: () -> Result<core.EntityOps.Plan>,
+    onDismiss: () -> Unit,
+) {
+    var applyError by remember { mutableStateOf<String?>(null) }
+    state.indexVersion
+    doc.version
+    val plan = remember(state.indexVersion, doc.dirty) { if (doc.dirty) null else planner() }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(Modifier.width(560.dp).heightIn(max = 480.dp)) {
+                Text(header, fontSize = 12.sp)
+                Spacer(Modifier.height(8.dp))
+                when {
+                    doc.dirty -> Text("スキーマに未保存の変更があります。保存してから実行してください（生成は保存済み状態が基準です）",
+                        fontSize = 12.sp, color = Palette.WarnOrange)
+                    plan == null -> Text("プレビューを生成しています…", fontSize = 12.sp, color = Palette.SubText)
+                    plan.isFailure -> Text(plan.exceptionOrNull()?.message ?: "プレビューを生成できません",
+                        fontSize = 12.sp, color = Palette.ErrorRed)
+                    else -> {
+                        val p = plan.getOrThrow()
+                        p.summary.forEach { Text(it, fontSize = 12.sp) }
+                        p.warnings.forEach { Text("注意: $it", fontSize = 12.sp, color = Palette.WarnOrange) }
+                        Spacer(Modifier.height(6.dp))
+                        if (p.changeSet.changes.isEmpty()) {
+                            Text("変更されるファイルはありません", fontSize = 12.sp, color = Palette.SubText)
+                        } else {
+                            Text("変更されるファイル:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            val scroll = rememberScrollState()
+                            Column(Modifier.weight(1f, fill = false).verticalScroll(scroll)) {
+                                p.changeSet.changes.forEach { c ->
+                                    Text("・${c.file}（${c.ops.size} 操作）", fontSize = 12.sp, color = Palette.SubText)
+                                }
+                            }
+                        }
+                    }
+                }
+                applyError?.let {
+                    Spacer(Modifier.height(6.dp))
+                    Text(it, fontSize = 12.sp, color = Palette.ErrorRed)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = plan?.isSuccess == true && plan.getOrNull()?.changeSet?.changes?.isNotEmpty() == true,
+                onClick = {
+                    plan?.getOrNull()?.let { p ->
+                        state.applyEntityPlan(p)
+                            .onSuccess { onDismiss() }
+                            .onFailure { applyError = it.message ?: "適用に失敗しました" }
+                    }
+                },
+            ) { Text("適用") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("キャンセル") } },
+    )
 }
 
 private fun scalar(map: YNode.Map, key: String): String? = (map.entries[key] as? YNode.Scalar)?.value?.toString()?.takeIf { it.isNotBlank() }

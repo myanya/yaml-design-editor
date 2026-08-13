@@ -159,11 +159,12 @@ class AgentToolbox(
                         putJsonObject("items") {
                             put("type", "object")
                             putJsonObject("properties") {
-                                putJsonObject("op") { put("type", "string"); putJsonArray("enum") { add("set"); add("insert"); add("delete"); add("move") } }
-                                putJsonObject("path") { put("type", "string"); put("description", "YPath（set/insert/delete。例 items[2].title）") }
+                                putJsonObject("op") { put("type", "string"); putJsonArray("enum") { add("set"); add("insert"); add("delete"); add("move"); add("rename"); add("reorder") } }
+                                putJsonObject("path") { put("type", "string"); put("description", "YPath（set/insert/delete/rename/reorder。例 items[2].title。reorder は空でルート）") }
                                 putJsonObject("value") { put("description", "設定する値（set/insert。任意のJSON値）") }
                                 putJsonObject("from") { put("type", "string"); put("description", "移動元YPath（move）") }
-                                putJsonObject("to") { put("type", "string"); put("description", "移動先YPath（move）") }
+                                putJsonObject("to") { put("type", "string"); put("description", "移動先YPath（move）／改名先のキー名（rename）") }
+                                putJsonObject("order") { put("type", "array"); putJsonObject("items") { put("type", "string") }; put("description", "キーの並び（reorder。ここにあるキーをこの順で先頭へ・残りは相対順を保持）") }
                             }
                             putJsonArray("required") { add("op") }
                         }
@@ -171,7 +172,7 @@ class AgentToolbox(
                 }
                 putJsonArray("required") { add("file"); add("ops") }
             }
-            specs += ToolSpec("apply_patch", "ステージング（作業コピー）にパッチを適用する。原本は提出と人間の承認まで変更されない。opは set（置換・作成）/ insert（配列挿入・新キー）/ delete / move。", applyPatchSchema)
+            specs += ToolSpec("apply_patch", "ステージング（作業コピー）にパッチを適用する。原本は提出と人間の承認まで変更されない。opは set（置換・作成）/ insert（配列挿入・新キー）/ delete / move / rename（キー改名。順序・コメント保持）/ reorder（キー並べ替え）。", applyPatchSchema)
             specs += ToolSpec("create_document", "新規YAML文書をステージングに作成する。", obj {
                 required("file", "ワークスペース相対パス（.yaml）")
                 required("content_yaml", "文書全体のYAMLテキスト")
@@ -360,6 +361,9 @@ class AgentToolbox(
             is PatchOp.Insert -> listOf(op.path)
             is PatchOp.Delete -> listOf(op.path)
             is PatchOp.Move -> listOf(op.from, op.to)
+            // 改名は元キーと改名後キーの両方が許可範囲にあること
+            is PatchOp.RenameKey -> listOf(op.path, op.path.dropLast(1) + op.newName)
+            is PatchOp.ReorderKeys -> listOf(op.path)
         }
         paths.forEach { p ->
             val pretty = p.pretty()
@@ -378,7 +382,16 @@ class AgentToolbox(
             "insert" -> PatchOp.Insert(path("path"), value())
             "delete" -> PatchOp.Delete(path("path"))
             "move" -> PatchOp.Move(path("from"), path("to"))
-            else -> error("ops[$index].op は set / insert / delete / move のいずれかです: $op")
+            "rename" -> PatchOp.RenameKey(
+                path("path"),
+                obj["to"]?.jsonPrimitive?.contentOrNull ?: error("ops[$index].to（改名先のキー）が必要です"),
+            )
+            "reorder" -> PatchOp.ReorderKeys(
+                parseYPath(obj["path"]?.jsonPrimitive?.contentOrNull ?: ""),
+                (obj["order"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
+                    ?: error("ops[$index].order（キーの並び）が必要です"),
+            )
+            else -> error("ops[$index].op は set / insert / delete / move / rename / reorder のいずれかです: $op")
         }
     }
 

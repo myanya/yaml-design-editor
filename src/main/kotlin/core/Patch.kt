@@ -24,6 +24,19 @@ sealed class PatchOp {
 
     /** 移動。from を削除してから to へ挿入する（to は削除後の状態で評価される）。 */
     data class Move(val from: YPath, val to: YPath) : PatchOp()
+
+    /**
+     * マップキーの改名（R25-01）。値・キー順・コメントを保ったままキー名だけを変える
+     * （Delete＋Insert では末尾へ移動してしまうため一級の操作にする。R8-05 の改名と同じ意味論）。
+     */
+    data class RenameKey(val path: YPath, val newName: String) : PatchOp()
+
+    /**
+     * マップキーの並べ替え（R25-02）。order にあるキーをその順で先頭に置き、残りは元の相対順を保つ
+     * （値・コメントは保持）。文書の「スキーマ順へ整列」に使う。path が空のときはルートのマップを並べ替える
+     * （ルート置換ではなく順序の入替だけなので、ルート操作禁止の対象外）。
+     */
+    data class ReorderKeys(val path: YPath, val order: List<String>) : PatchOp()
 }
 
 object Patcher {
@@ -82,6 +95,27 @@ object Patcher {
                 apply(root, PatchOp.Delete(op.from))
                 apply(root, PatchOp.Insert(op.to, node))
             }
+            is PatchOp.RenameKey -> {
+                val (parent, seg) = locateParent(root, op.path)
+                val map = asMap(parent, op.path)
+                val key = seg as? String ?: error("キー改名はマップのキーにのみ使えます: ${op.path.pretty()}")
+                if (op.newName.isBlank()) error("改名先のキーが空です: ${op.path.pretty()}")
+                if (key !in map.entries) error("パスが存在しません: ${op.path.pretty()}")
+                if (op.newName == key) error("改名先が現在のキーと同じです: ${op.path.pretty()}")
+                if (op.newName in map.entries) error("既に存在するキーです: ${op.path.dropLast(1).pretty()} の ${op.newName}")
+                val entries = map.entries.toList()
+                map.entries.clear()
+                for ((k, v) in entries) map.entries[if (k == key) op.newName else k] = v
+            }
+            is PatchOp.ReorderKeys -> {
+                val map = (if (op.path.isEmpty()) root else getAt(root, op.path)) as? YNode.Map
+                    ?: error("マップではありません: ${op.path.pretty()}")
+                val entries = map.entries.toList()
+                val head = op.order.filter { it in map.entries }
+                map.entries.clear()
+                head.forEach { k -> map.entries[k] = entries.first { it.first == k }.second }
+                for ((k, v) in entries) if (k !in map.entries) map.entries[k] = v
+            }
         }
     }
 
@@ -132,6 +166,7 @@ object ChangeSets {
      *       - { op: insert, path: tags[0],   value: 重要 }
      *       - { op: delete, path: obsolete }
      *       - { op: move,   from: items[2],  to: items[0] }
+     *       - { op: rename, path: title,     to: name }
      * ```
      */
     fun parse(text: String): ChangeSet {
@@ -170,7 +205,12 @@ object ChangeSets {
             "insert" -> PatchOp.Insert(path("path"), value())
             "delete" -> PatchOp.Delete(path("path"))
             "move" -> PatchOp.Move(path("from"), path("to"))
-            else -> error("$where.op は set / insert / delete / move のいずれかである必要があります: $op")
+            "rename" -> PatchOp.RenameKey(path("path"), m["to"]?.toString() ?: error("$where.to（改名先のキー）が必要です"))
+            "reorder" -> PatchOp.ReorderKeys(
+                parseYPath(m["path"]?.toString() ?: ""),
+                (m["order"] as? List<*>)?.map { it.toString() } ?: error("$where.order（キーの並び）が必要です"),
+            )
+            else -> error("$where.op は set / insert / delete / move / rename / reorder のいずれかである必要があります: $op")
         }
     }
 }
