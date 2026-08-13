@@ -98,14 +98,22 @@ class FormCtx(
     fun highlightInside(path: YPath): Boolean =
         state.highlightPath?.let { it.size > path.size && it.subList(0, path.size) == path } == true
 
-    fun markEdited() {
+    fun markEdited(coalesceWith: Any? = null) {
         check(!readOnly) { "閲覧専用モードでは編集できません" }
-        doc.markEdited()
+        doc.markEdited(coalesceWith)
     }
 
     fun resolvable(ref: RefEntry): Boolean =
         ref.targetId.isNotBlank() &&
             (localIds.any { it.id == ref.targetId && it.isAllowedBy(ref) } || state.overlayIndex().resolve(ref).isNotEmpty())
+
+    /**
+     * タイトルの索引借用（UX-71）: 要素自身にタイトルがないとき、同一論理IDの他出現（定義出現など）から
+     * タイトルを借りる。id しか持たない写像行・詳細行の畳みヘッダが「何のIDか」を語れるようにする。
+     */
+    fun indexTitleLookup(): (String) -> String? = { id ->
+        state.overlayIndex().occurrences(id).firstNotNullOfOrNull { it.title }
+    }
 
     /** スキーマ外の汎用参照は、パターン／スコープ制約なしで解決する。 */
     fun resolvable(id: String): Boolean =
@@ -137,8 +145,16 @@ class FormCtx(
         // 閲覧専用モードではツリーを変異させる前に拒否する（markEdited の防御より手前で止める）
         check(!readOnly) { "閲覧専用モードでは編集できません" }
         val node = slot.get()
-        if (node is YNode.Scalar) node.value = v else slot.set(YNode.Scalar(v))
-        markEdited()
+        if (node is YNode.Scalar) {
+            node.value = v
+            // 同一スカラーへの連続入力は履歴1エントリへ合体（UX-11。キー=変異対象ノードの同一性。
+            // フィールド移動・Undo後はインスタンスが変わるため自然に境界になる）
+            markEdited(coalesceWith = node)
+        } else {
+            val created = YNode.Scalar(v)
+            slot.set(created)
+            markEdited(coalesceWith = created)
+        }
     }
 }
 
@@ -656,19 +672,77 @@ private fun FieldRow(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
 @Composable
 fun ValueEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
     val effective = ctx.doc.schema?.resolve(field) ?: field
+    // 型変更後の残留値（UX-70）: スキーマの型と現在値の構造が合わないと各エディタが編集不能になる
+    // （例 string→array 変更後の文字列値）。ここで検知して「消す／変換」つきの修復表示へ切り替える
+    val node = slot.get()
+    if (node != null && structureMismatch(effective, node)) {
+        TypeMismatchRepair(ctx, effective, slot, path, node)
+        return
+    }
     when (effective.type) {
         FieldType.STRING, FieldType.DATE -> ScalarTextEditor(ctx, effective, slot, singleLine = true)
         FieldType.TEXT -> ScalarTextEditor(ctx, effective, slot, singleLine = false)
         FieldType.INT, FieldType.NUMBER -> ScalarTextEditor(ctx, effective, slot, singleLine = true)
         FieldType.BOOLEAN -> BooleanEditor(ctx, slot)
         FieldType.ENUM -> EnumEditor(ctx, effective, slot)
-        FieldType.ID -> IdEditor(ctx, slot)
+        FieldType.ID -> IdEditor(ctx, effective, slot)
         FieldType.REF -> RefEditor(ctx, effective, slot, path)
         FieldType.ARRAY -> ArrayEditor(ctx, effective, slot, path)
         FieldType.MAP -> MapEditor(ctx, effective, slot, path)
         FieldType.OBJECT -> NestedObjectEditor(ctx, effective, slot, path)
         // any は型を定めないため汎用エディタで編集する（R11-02）
         FieldType.ANY -> GenericEditor(ctx, slot, path, refHint = false)
+    }
+}
+
+/** スキーマ型と現在値の構造の不一致判定（UX-70）。スカラー型はスカラー以外、array は Seq 以外、object / map は Map 以外。 */
+private fun structureMismatch(field: FieldDef, node: YNode): Boolean = when (field.type) {
+    FieldType.ANY -> false
+    FieldType.ARRAY -> node !is YNode.Seq
+    FieldType.OBJECT, FieldType.MAP -> node !is YNode.Map
+    // 属性付き参照（fields 宣言あり）は {to, 属性} の Map も正しい形（R20-03）
+    FieldType.REF -> !(node is YNode.Scalar || (field.fields.isNotEmpty() && node is YNode.Map))
+    else -> node !is YNode.Scalar
+}
+
+/**
+ * 型変更後の残留値の修復UI（UX-70）: 現在値を汎用エディタで見せたまま、
+ * 「値を消す」と、可能な組だけ「変換して引き継ぐ」を提示する。
+ */
+@Composable
+private fun TypeMismatchRepair(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath, node: YNode) {
+    Column(Modifier.fillMaxWidth()) {
+        Text(
+            "スキーマの型（${field.type.id}）と現在の値の形が一致しません（型変更後の残留値）。値を消すか、変換して引き継いでください。",
+            fontSize = 11.sp, color = Palette.WarnOrange,
+        )
+        if (!ctx.readOnly) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = { slot.remove(); ctx.markEdited() }) {
+                    Text("値を消す", fontSize = 11.sp, color = Palette.ErrorRed)
+                }
+                if (field.type == FieldType.ARRAY && node is YNode.Scalar && node.value?.toString()?.isNotBlank() == true) {
+                    TextButton(onClick = {
+                        slot.set(YNode.Seq(mutableListOf<YNode>(node)))
+                        ctx.markEdited()
+                    }) { Text("配列に変換（現在値を1要素に）", fontSize = 11.sp) }
+                }
+                if (field.type !in setOf(FieldType.ARRAY, FieldType.OBJECT, FieldType.MAP) && node is YNode.Seq) {
+                    val scalars = node.items.mapNotNull { (it as? YNode.Scalar)?.value?.toString() }
+                    if (scalars.isNotEmpty() && scalars.size == node.items.size) {
+                        TextButton(onClick = { ctx.setScalar(slot, scalars.first(), field.type) }) {
+                            Text(
+                                if (scalars.size == 1) "スカラーに変換（要素の値を引き継ぐ）"
+                                else "スカラーに変換（先頭の値だけ引き継ぐ）",
+                                fontSize = 11.sp,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        // 残留値の中身は汎用エディタで確認・部分編集できる（閲覧専用モードは表示のみ）
+        GenericEditor(ctx, slot, path, refHint = false)
     }
 }
 
@@ -746,15 +820,19 @@ private fun BooleanEditor(ctx: FormCtx, slot: Slot) {
 private fun EnumEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
     val current = (slot.get() as? YNode.Scalar)?.value?.toString()
     val currentOption = field.optionFor(current)
+    // 説明はボタンの右に1行（省略）で出し、縦に表示領域を広げない（UX-76。全文は選択肢メニューで読める）
     if (ctx.readOnly) {
-        Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             ReadOnlyValueText(currentOption?.displayLabel ?: current)
-            currentOption?.description?.let { Text(it, fontSize = 10.sp, color = Palette.SubText) }
+            currentOption?.description?.let {
+                Text(it, fontSize = 10.sp, color = Palette.SubText, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 8.dp))
+            }
         }
         return
     }
     var open by remember { mutableStateOf(false) }
-    Column {
+    Row(verticalAlignment = Alignment.CenterVertically) {
         Box {
             OutlinedButton(onClick = { open = true },
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)) {
@@ -796,25 +874,104 @@ private fun EnumEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
             }
         }
         // 現在選択値の説明（選択肢を開かなくても意味が分かるようにする）
-        currentOption?.description?.let { Text(it, fontSize = 10.sp, color = Palette.SubText) }
+        currentOption?.description?.let {
+            Text(it, fontSize = 10.sp, color = Palette.SubText, maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = 8.dp).weight(1f, fill = false))
+        }
     }
 }
 
+/**
+ * ID入力エディタ。既存IDの補完ピッカー（UX-06。写像行・別文書での詳細化の入力向け）と
+ * 次の連番の提案（UX-64）を持つ。候補・採番の形式の源は field の pattern（UX-79）＞
+ * entity 宣言の idPattern（R20-01）＝検証と同じ宣言を読む。
+ */
 @Composable
-private fun IdEditor(ctx: FormCtx, slot: Slot) {
+private fun IdEditor(ctx: FormCtx, field: FieldDef?, slot: Slot) {
     val text = (slot.get() as? YNode.Scalar)?.value?.toString() ?: ""
     val otherOccurrences = if (text.isBlank()) 0 else
         ctx.state.overlayIndex().entries[text].orEmpty().count { it.file != ctx.doc.file }
     Column {
         if (ctx.readOnly) {
             ReadOnlyValueText(text)
-        } else CompactTextField(
-            value = text,
-            onValueChange = { ctx.setScalar(slot, it, FieldType.ID) },
-            singleLine = true,
-            textStyle = fieldTextStyle,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        } else {
+            var menuOpen by remember { mutableStateOf(false) }
+            val schemaDef = ctx.doc.schema
+            val entityGlobs = schemaDef?.entities?.mapNotNull { it.idPattern }.orEmpty()
+            val patternRegex = field?.pattern?.let { p -> runCatching { Regex(p) }.getOrNull() }
+            val candidates: List<IdEntry> = remember(ctx.state.indexVersion, ctx.state.editVersion, text, field?.pattern) {
+                ctx.state.overlayIndex().entries.values.asSequence()
+                    .mapNotNull { it.firstOrNull() }
+                    .filter { e ->
+                        when {
+                            patternRegex != null -> patternRegex.matches(e.id)
+                            entityGlobs.isNotEmpty() -> entityGlobs.any { index.idMatchesPattern(e.id, it) }
+                            else -> true
+                        }
+                    }
+                    .filter { text.isBlank() || it.id.contains(text, true) || (it.title?.contains(text, true) == true) }
+                    .sortedBy { it.id }
+                    .take(50)
+                    .toList()
+            }
+            // 次の連番（UX-64）: 系列は現在文書のIDを優先し、提案が既存IDと衝突する場合は出さない
+            val suggestion = remember(ctx.state.indexVersion, ctx.state.editVersion, field?.pattern) {
+                schema.IdSuggest.next(
+                    existing = ctx.state.overlayIndex().entries.keys,
+                    pattern = field?.pattern,
+                    idPatternGlobs = entityGlobs,
+                    preferred = ctx.localIds.map { it.id },
+                )?.takeIf { it !in ctx.state.overlayIndex().entries }
+            }
+            Box {
+                CompactTextField(
+                    value = text,
+                    onValueChange = { ctx.setScalar(slot, it, FieldType.ID) },
+                    singleLine = true,
+                    textStyle = fieldTextStyle,
+                    trailingIcon = {
+                        IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(28.dp)) {
+                            Icon(Icons.Default.ArrowDropDown, contentDescription = "候補を表示", modifier = Modifier.size(18.dp))
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                DropdownMenu(
+                    expanded = menuOpen,
+                    onDismissRequest = { menuOpen = false },
+                    properties = PopupProperties(focusable = false),
+                ) {
+                    suggestion?.let { s ->
+                        DropdownMenuItem(
+                            text = { Text("採番: $s（次の連番）", fontSize = 12.sp, fontWeight = FontWeight.SemiBold) },
+                            onClick = { ctx.setScalar(slot, s, FieldType.ID); menuOpen = false },
+                        )
+                    }
+                    if (candidates.isNotEmpty()) {
+                        DropdownMenuItem(
+                            text = { Text("既存ID（選ぶと同一IDの出現＝詳細化・写像行になる）", fontSize = 10.sp, color = Palette.SubText) },
+                            onClick = {}, enabled = false,
+                        )
+                        candidates.forEach { e ->
+                            DropdownMenuItem(text = {
+                                Column {
+                                    Text(e.id, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                    Text(
+                                        listOfNotNull(e.title, ctx.state.relPath(e.file)).joinToString(" — "),
+                                        fontSize = 11.sp, color = Palette.SubText,
+                                    )
+                                }
+                            }, onClick = { ctx.setScalar(slot, e.id, FieldType.ID); menuOpen = false })
+                        }
+                    }
+                    if (suggestion == null && candidates.isEmpty()) {
+                        DropdownMenuItem(text = { Text("候補なし", fontSize = 12.sp, color = Palette.SubText) },
+                            onClick = { menuOpen = false }, enabled = false)
+                    }
+                }
+            }
+        }
         if (otherOccurrences > 0) {
             Text("同一論理IDの別文書での出現: $otherOccurrences 件", fontSize = 11.sp, color = Palette.SubText)
         } else if (text.isNotBlank()) {
@@ -873,10 +1030,7 @@ private fun RefScalarEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
                 modifier = Modifier.weight(1f, fill = false),
             )
             if (resolved) {
-                IconButton(onClick = { ctx.state.navigateToId(current) }, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.Default.ArrowForward, contentDescription = "定義へ移動",
-                        tint = Palette.Primary, modifier = Modifier.size(16.dp))
-                }
+                RefJumpButton(ctx, current, iconButtonSize = 28.dp, iconSize = 16.dp)
             }
         }
         if (current.isNotBlank() && !resolved) {
@@ -968,20 +1122,45 @@ private fun RefScalarEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
                 }
             }
         }
-        IconButton(
-            enabled = resolved,
-            onClick = { ctx.state.navigateToId(current) },
-            modifier = Modifier.size(38.dp),
-        ) {
-            Icon(
-                Icons.Default.ArrowForward,
-                contentDescription = "定義へ移動",
-                tint = if (resolved) Palette.Primary else Palette.Border,
-            )
-        }
+        RefJumpButton(ctx, current, enabled = resolved, iconButtonSize = 38.dp)
     }
     if (current.isNotBlank() && !resolved) {
         Text("未解決の参照です", fontSize = 11.sp, color = Palette.ErrorRed)
+    }
+}
+
+/**
+ * 参照ジャンプボタン（UX-75）: クリックで行き先（定義ファイル／エンティティページ）を選ぶメニューを出す。
+ * 検証指摘・計算セルの来歴と同じ「行き先の選択」流儀（DropdownMenu。§4.24 整合）。
+ */
+@Composable
+private fun RefJumpButton(
+    ctx: FormCtx,
+    id: String,
+    enabled: Boolean = true,
+    iconButtonSize: Dp = 38.dp,
+    iconSize: Dp = 24.dp,
+) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(enabled = enabled, onClick = { open = true }, modifier = Modifier.size(iconButtonSize)) {
+            Icon(
+                Icons.Default.ArrowForward,
+                contentDescription = "参照先へ移動",
+                tint = if (enabled) Palette.Primary else Palette.Border,
+                modifier = Modifier.size(iconSize),
+            )
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(
+                text = { Text("定義へ移動（ファイル）", fontSize = 12.sp) },
+                onClick = { open = false; ctx.state.navigateToId(id) },
+            )
+            DropdownMenuItem(
+                text = { Text("エンティティページで開く（全出現・関係）", fontSize = 12.sp) },
+                onClick = { open = false; ctx.state.openCrossView(id) },
+            )
+        }
     }
 }
 
@@ -1126,8 +1305,8 @@ private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) 
         GenericEditor(ctx, slot, path, refHint = false)
         return
     }
-    // 畳み込みサマリ（R10-02）: 表示解決による「n件: 先頭要素の要約, …」
-    val header = Display.seqHeaderText(node, ctx.doc.schema, field.item)
+    // 畳み込みサマリ（R10-02）: 表示解決による「n件: 先頭要素の要約, …」。タイトルは索引から借用（UX-71）
+    val header = Display.seqHeaderText(node, ctx.doc.schema, field.item, titleLookup = ctx.indexTitleLookup())
     // テーブル表示（R12-06）: 列はスキーマの適否判定（自動＋display ヒント）で決まり、
     // 実データが全て map のときだけ表にする（型がずれた要素は縦リストの汎用表示で扱う）
     val columns = Display.tableColumns(ctx.doc.schema, field)
@@ -1465,8 +1644,8 @@ private fun NestedObjectEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: 
         GenericEditor(ctx, slot, path, refHint = false)
         return
     }
-    // 畳み込みサマリ（R10-02）: 表示解決による「ID タイトル（n項目）」
-    val header = Display.headerText(node, ctx.doc.schema, field)
+    // 畳み込みサマリ（R10-02 / UX-71）: 「ID タイトル — サブタイトル（n項目）」。タイトルは索引から借用
+    val header = Display.headerText(node, ctx.doc.schema, field, titleLookup = ctx.indexTitleLookup())
     Column(
         Modifier.fillMaxWidth()
             .border(1.dp, Palette.Border, PanelShape)

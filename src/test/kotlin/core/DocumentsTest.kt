@@ -81,6 +81,69 @@ class DocumentsTest {
     }
 
     @Test
+    fun `consecutive edits with same coalesce key merge into one history entry`() {
+        // 履歴の合体（UX-11。ARCHITECTURE §4.34）: 同一キー・時間窓内の連続入力は Undo 1回で戻る
+        val file = dir.resolve("docs/a.yaml")
+        val buffer = EditBuffer.load(file)
+        val title = (buffer.root as YNode.Map).entries["title"] as YNode.Scalar
+
+        title.value = "1"
+        buffer.recordEdit(coalesceKey = title, nowMillis = 1000)
+        title.value = "12"
+        buffer.recordEdit(coalesceKey = title, nowMillis = 1300)
+        title.value = "120"
+        buffer.recordEdit(coalesceKey = title, nowMillis = 1600)
+
+        assertTrue(buffer.undo())
+        assertEquals("文書A", ((buffer.root as YNode.Map).entries["title"] as YNode.Scalar).value, "タイプ3回が1エントリに合体")
+        assertFalse(buffer.undo())
+        // Redo でまとめて先端へ戻る
+        assertTrue(buffer.redo())
+        assertEquals("120", ((buffer.root as YNode.Map).entries["title"] as YNode.Scalar).value)
+    }
+
+    @Test
+    fun `coalesce breaks on different key window timeout and after undo`() {
+        val file = dir.resolve("docs/a.yaml")
+        val buffer = EditBuffer.load(file)
+        fun root() = buffer.root as YNode.Map
+        fun value(key: String) = (root().entries[key] as YNode.Scalar).value
+
+        // 別フィールド（別キー）へ移ると境界になる
+        val title = root().entries["title"] as YNode.Scalar
+        val status = root().entries["status"] as YNode.Scalar
+        title.value = "T1"
+        buffer.recordEdit(coalesceKey = title, nowMillis = 1000)
+        status.value = "done"
+        buffer.recordEdit(coalesceKey = status, nowMillis = 1200)
+        assertTrue(buffer.undo())
+        assertEquals("open", value("status"), "キーが変わればフィールド単位で戻る")
+        assertEquals("T1", value("title"))
+
+        // 時間窓（COALESCE_WINDOW_MS）を超えると同一キーでも境界になる
+        val buffer2 = EditBuffer.load(file)
+        val t2 = (buffer2.root as YNode.Map).entries["title"] as YNode.Scalar
+        t2.value = "A"
+        buffer2.recordEdit(coalesceKey = t2, nowMillis = 1000)
+        t2.value = "AB"
+        buffer2.recordEdit(coalesceKey = t2, nowMillis = 1000 + EditBuffer.COALESCE_WINDOW_MS + 1)
+        assertTrue(buffer2.undo())
+        assertEquals("A", ((buffer2.root as YNode.Map).entries["title"] as YNode.Scalar).value)
+
+        // Undo 直後の編集は復元状態に合体しない（キーはリセットされる）
+        val buffer3 = EditBuffer.load(file)
+        val t3 = (buffer3.root as YNode.Map).entries["title"] as YNode.Scalar
+        t3.value = "X"
+        buffer3.recordEdit(coalesceKey = t3, nowMillis = 1000)
+        assertTrue(buffer3.undo())
+        val restored = (buffer3.root as YNode.Map).entries["title"] as YNode.Scalar
+        restored.value = "Y"
+        buffer3.recordEdit(coalesceKey = restored, nowMillis = 1100)
+        assertTrue(buffer3.undo())
+        assertEquals("文書A", ((buffer3.root as YNode.Map).entries["title"] as YNode.Scalar).value)
+    }
+
+    @Test
     fun `multi document text keeps trailing documents through source edit`() {
         val file = dir.resolve("docs/multi.yaml")
         Files.writeString(file, "id: DOC-M\ntitle: 先頭\n---\nsecond: true\n")

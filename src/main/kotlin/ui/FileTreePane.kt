@@ -270,7 +270,8 @@ private fun InferSchemaDialog(state: AppState, target: Path, onDismiss: () -> Un
             Column {
                 Text(
                     "glob に一致する既存文書から _schemas/<スキーマID>.yaml のドラフトを推測します。\n" +
-                        "型・必須・enum は実例からの候補のため、作成後にスキーマ設計画面で仕上げてください。",
+                        "型・必須・enum は実例からの候補のため、作成後にスキーマ設計画面で仕上げてください。\n" +
+                        "enum は「短い文字列値が3件以上あり、同じ値が反復している」ときに候補になります（IDらしい値は enum にせず参照（ref）または string になります）。",
                     fontSize = 12.sp, color = Palette.SubText,
                 )
                 Spacer(Modifier.height(10.dp))

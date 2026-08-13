@@ -30,7 +30,8 @@ import java.nio.file.Path
 @Composable
 fun WorkspaceTableView(state: AppState) {
     state.indexVersion
-    val records = remember(state.indexVersion, state.yamlFiles) { state.workspaceRecords() }
+    // 未保存編集（タイトル・状態変更）も一覧に反映する（UX-18。workspaceRecords は unsavedFirstLoader 済み）
+    val records = remember(state.indexVersion, state.editVersion, state.yamlFiles) { state.workspaceRecords() }
     var query by remember { mutableStateOf("") }
     var kind by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("") }

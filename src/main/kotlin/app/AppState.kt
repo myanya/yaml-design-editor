@@ -76,9 +76,14 @@ class OpenDocument(
         parseErrorState.value = buffer.parseError
     }
 
-    fun markEdited() {
+    /**
+     * 編集をツリーへ記録する。coalesceWith（UX-11。ARCHITECTURE §4.34）: 連続入力になり得る編集面が
+     * 渡す合体キー（同一スカラーノード・`Pair(map, key)`・ソースの固定キー等）。同じキーの連続編集は
+     * 履歴1エントリに合体する。構造操作は渡さない＝常に境界。
+     */
+    fun markEdited(coalesceWith: Any? = null) {
         version++
-        buffer.recordEdit()
+        buffer.recordEdit(coalesceWith)
         sync()
         onEdited?.invoke()
     }
@@ -92,7 +97,8 @@ class OpenDocument(
     /** ソース編集のテキストをツリーへ取り込む。複数ドキュメントは先頭を編集対象にし、後続を保持する。 */
     fun applySourceText(text: String) {
         buffer.applySourceText(text)
-        markEdited()
+        // ソースの連続入力は履歴1エントリへ合体する（UX-11 / UX-23。文書単位の固定キー）
+        markEdited(coalesceWith = "source")
     }
 
     fun resetHistory() {
@@ -479,6 +485,43 @@ class AppState {
 
     fun workspaceRecords(): List<core.WorkspaceRecord> =
         coreWs?.let { core.WorkspaceRecords.collect(it, unsavedFirstLoader()) }.orEmpty()
+
+    /**
+     * ワークスペース全体の検証（UX-44）: 索引対象の全文書を「見たまま」（未保存編集込みの
+     * オーバーレイ索引＋unsavedFirstLoader）で検証し、指摘のあるファイルだけ返す。
+     * 検証タブの「全体」スコープが読む。ヘッドレス経路（CLI `validate`）はディスク基準のまま（§4.5）。
+     */
+    fun validateWorkspace(): List<Pair<Path, List<validate.Issue>>> {
+        val cw = coreWs ?: return emptyList()
+        val loader = unsavedFirstLoader()
+        val overlay = overlayIndex()
+        return cw.files.mapNotNull { file ->
+            val cached = docCache[file]
+            val issues = validate.Validator.validate(
+                cached?.root ?: loader(file), cached?.parseError, file,
+                cached?.schema ?: cw.schemaFor(file), overlay,
+                indexed = true, workspace = workspace, allSchemas = schemas,
+                loader = loader, relations = relations, enforcement = enforcement,
+            )
+            if (issues.isEmpty()) null else file to issues
+        }
+    }
+
+    /**
+     * コマンドパレットの本文検索（R17-04）: 構造検索API（C-05）を未保存編集込みの
+     * 「見たまま」で実行する（loader = unsavedFirstLoader、索引 = オーバーレイ）。
+     * ヒットの座標ジャンプは openFile(file, parseYPath(hit.path)) で受ける。
+     */
+    fun searchContent(text: String, limit: Int = 10): List<core.SearchHit> {
+        val cw = coreWs ?: return emptyList()
+        if (text.isBlank()) return emptyList()
+        return core.Search.run(
+            cw,
+            core.SearchQuery(text = text, limit = limit),
+            index = overlayIndex(),
+            loader = unsavedFirstLoader(),
+        )
+    }
 
     /**
      * 一覧ビューで選択したファイルのルート直下スカラーを一括変更する。

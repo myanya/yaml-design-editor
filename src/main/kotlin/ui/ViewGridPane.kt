@@ -167,6 +167,7 @@ private fun HeaderBar(state: AppState, loaded: Views.LoadResult, view: ViewDef?)
     }
     if (newRowDialog && view != null) {
         NewRowIdDialog(
+            state = state,
             view = view,
             onDismiss = { newRowDialog = false },
             onConfirm = { id ->
@@ -182,10 +183,19 @@ private fun HeaderBar(state: AppState, loaded: Views.LoadResult, view: ViewDef?)
 /**
  * newRow ファイルモードのID入力ダイアログ。入力IDが filePattern の {id} と新規文書のIDになる。
  * 作成はディスク書込のため、索引の更新でグリッドに行が即座に現れる。
+ * 初期値は idPattern と既存IDからの次の連番（UX-64。上書き自由）。
  */
 @Composable
-private fun NewRowIdDialog(view: ViewDef, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
-    var value by remember { mutableStateOf("") }
+private fun NewRowIdDialog(state: AppState, view: ViewDef, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+    var value by remember {
+        mutableStateOf(
+            // idPattern 宣言があるビューだけ提案する（宣言なしで全IDから推測すると無関係な系列が出る）
+            view.rows?.idPattern?.let { glob ->
+                schema.IdSuggest.next(state.overlayIndex().entries.keys, idPatternGlobs = listOf(glob))
+                    ?.takeIf { it !in state.overlayIndex().entries }
+            }.orEmpty()
+        )
+    }
     val pattern = view.newRow?.filePattern ?: return
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -348,13 +358,16 @@ private fun GridCell(state: AppState, cell: ViewCell) {
         val complexValue = value is YNode.Seq || value is YNode.Map
         // 閲覧専用モード（R10-04）は全セルをジャンプ可能な表示専用にする
         if (state.readOnlyMode || !cell.column.editable || !editableType || complexValue) {
-            // 複合値は表示解決（R10-01）で「ID タイトル」「n件: 要約」に要約する
+            // 複合値は表示解決（R10-01）で「ID タイトル」「n件: 要約」に要約する（タイトルは索引から借用。UX-71）
+            val titleLookup: (String) -> String? = { id ->
+                state.overlayIndex().occurrences(id).firstNotNullOfOrNull { it.title }
+            }
             val text = if (complexValue && doc.schema != null && fieldDef != null) {
                 when {
                     value is YNode.Map && fieldDef.type == schema.FieldType.OBJECT ->
-                        schema.Display.inline(value, doc.schema, fieldDef)
+                        schema.Display.inline(value, doc.schema, fieldDef, titleLookup = titleLookup)
                     value is YNode.Seq && fieldDef.type == schema.FieldType.ARRAY ->
-                        schema.Display.seqHeaderText(value, doc.schema, fieldDef.item, maxItems = 2)
+                        schema.Display.seqHeaderText(value, doc.schema, fieldDef.item, maxItems = 2, titleLookup = titleLookup)
                     else -> Views.cellText(value)
                 }
             } else Views.cellText(value)

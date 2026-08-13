@@ -38,6 +38,7 @@ import app.AppState
 import app.UiSpace
 import index.IdEntry
 import index.IdIndex
+import model.parseYPath
 import ui.*
 import validate.Severity
 import validate.Validator
@@ -431,15 +432,20 @@ private fun CommandPalette(
     val files = remember(query, state.yamlFiles) {
         state.yamlFiles.filter { state.relPath(it).contains(query, true) }.take(10)
     }
-    // ID検索（R12-04）: 旧ツールバーのID検索ボックスを統合。ID・タイトル（表示解決 S-13）の部分一致
-    val idMatches: List<IdEntry> = remember(query, state.indexVersion) {
+    // ID検索（R12-04）: 旧ツールバーのID検索ボックスを統合。ID・タイトル（表示解決 S-13）の部分一致。
+    // 未保存で追加したIDも候補に出すためオーバーレイ索引で引く（UX-18。「見たまま判定」）
+    val idMatches: List<IdEntry> = remember(query, state.indexVersion, state.editVersion) {
         if (query.isBlank()) emptyList()
-        else state.index.entries.values.asSequence()
+        else state.overlayIndex().entries.values.asSequence()
             .mapNotNull { it.firstOrNull() }
             .filter { it.id.contains(query, true) || (it.title?.contains(query, true) == true) }
             .sortedBy { it.id }
             .take(10)
             .toList()
+    }
+    // 本文検索（R17-04）: 構造検索API（C-05）を未保存編集込みの「見たまま」で。2文字以上で発動
+    val contentHits = remember(query, state.indexVersion, state.editVersion) {
+        if (query.trim().length < 2) emptyList() else state.searchContent(query.trim(), limit = 10)
     }
     // ワークスペース切替候補（R10-05）: 現在以外の履歴。文字入力があれば絞り込む
     val workspaces = remember(query, state.recentWorkspaces, state.workspace) {
@@ -459,6 +465,16 @@ private fun CommandPalette(
                     CommandItem("IDへ移動: ${e.id}" + (e.title?.let { " — $it" } ?: "")) { state.navigateToId(e.id); onDismiss() }
                 }
                 files.forEach { file -> CommandItem("開く: ${state.relPath(file)}") { state.openFile(file); onDismiss() } }
+                contentHits.forEach { hit ->
+                    CommandItem("本文: ${hit.file} · ${hit.path} — ${hit.excerpt}") {
+                        state.workspace?.resolve(hit.file)?.let { abs ->
+                            // キー名に . [ ] を含むパスは pretty 形式から復元できないため、ファイル先頭へのジャンプに落とす
+                            val focus = runCatching { parseYPath(hit.path) }.getOrNull()?.takeIf { it.isNotEmpty() }
+                            state.openFile(abs, focus)
+                        }
+                        onDismiss()
+                    }
+                }
                 CommandItem("台帳: 一覧を表示") { state.showWorkspaceView(1); onDismiss() }
                 CommandItem("台帳: ビューグリッドを表示") { state.openViewGrid(); onDismiss() }
                 CommandItem("台帳: グラフレンズを表示") { state.openGraphLens(); onDismiss() }

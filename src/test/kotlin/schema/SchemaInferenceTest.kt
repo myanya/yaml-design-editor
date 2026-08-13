@@ -119,6 +119,50 @@ class SchemaInferenceTest {
         assertEquals(FieldType.STRING, fieldOf(schema, "memo")?.type)
     }
 
+    @Test
+    fun `three samples with repetition become enum`() {
+        // 3文書程度の小規模サンプルでも、反復があれば enum 候補になる（UX-27）
+        val docs = listOf(
+            sample("t1.yaml", "id: T-1\nstatus: open\nassignee: 佐藤"),
+            sample("t2.yaml", "id: T-2\nstatus: done\nassignee: 鈴木"),
+            sample("t3.yaml", "id: T-3\nstatus: open\nassignee: 田中"),
+        )
+        val schema = parseDraft(SchemaInference.infer(docs, "task", "*.yaml"))
+        assertEquals(FieldType.ENUM, fieldOf(schema, "status")?.type)
+        assertEquals(setOf("open", "done"), fieldOf(schema, "status")?.values?.toSet())
+        // 3件がすべて異なる値（反復なし）は enum にしない
+        assertEquals(FieldType.STRING, fieldOf(schema, "assignee")?.type)
+    }
+
+    @Test
+    fun `ID値のフィールドはenumにせず参照として推測する`() {
+        // 既存IDが反復すると enum の条件を満たしてしまうが、参照の値集合は開いているため
+        // enum にしない。全値がサンプル中の論理IDと一致するなら ref とする（UX-27 追補）
+        val docs = listOf(
+            sample("t1.yaml", "id: T-1\nparent: E-1\nstatus: open"),
+            sample("t2.yaml", "id: T-2\nparent: E-1\nstatus: done"),
+            sample("t3.yaml", "id: T-3\nparent: E-2\nstatus: open"),
+            sample("epics.yaml", "items:\n  - id: E-1\n  - id: E-2"),
+        )
+        val schema = parseDraft(SchemaInference.infer(docs, "task", "*.yaml"))
+        assertEquals(FieldType.REF, fieldOf(schema, "parent")?.type)
+        // ID でない値集合は従来どおり enum
+        assertEquals(FieldType.ENUM, fieldOf(schema, "status")?.type)
+    }
+
+    @Test
+    fun `ID形式の値はサンプル外のIDでもenumにしない`() {
+        // 参照先がサンプル集合の外（別スキーマの文書等）にある場合は ID の実体と突合できないため、
+        // ID形式（例 USR-001）の値は enum 化だけを抑止して string に留める（UX-27 追補）
+        val docs = listOf(
+            sample("t1.yaml", "id: T-1\nassignee: USR-001"),
+            sample("t2.yaml", "id: T-2\nassignee: USR-001"),
+            sample("t3.yaml", "id: T-3\nassignee: USR-002"),
+        )
+        val schema = parseDraft(SchemaInference.infer(docs, "task", "*.yaml"))
+        assertEquals(FieldType.STRING, fieldOf(schema, "assignee")?.type)
+    }
+
     // ---------------------------------------------------------------- 構造の推測
 
     @Test

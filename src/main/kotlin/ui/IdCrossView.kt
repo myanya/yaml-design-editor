@@ -40,6 +40,7 @@ import index.DocScanner
 import index.IdEntry
 import index.IdIndex
 import model.YNode
+import model.YPath
 import model.getAt
 import model.pretty
 import schema.FieldType
@@ -276,6 +277,28 @@ private fun EntityPage(state: AppState, id: String) {
  * 文書は `state.ensureDoc` で docCache へ取り込み、編集は他のフォームと同じ Slot＋markEdited() の経路
  * （ビュー専用の書込経路は作らない。ARCHITECTURE §4.16）。
  */
+/**
+ * 出現要素の親ノード情報（UX-68）: パスを上へ辿り、最初にID・タイトルを持つ祖先要素の1行要約を返す。
+ * 出現がどの親（テーブル定義・画面一覧など）の配下にあるかをカードで示す。ルート出現は null。
+ */
+private fun parentSummary(doc: OpenDocument, path: YPath): String? {
+    val root = doc.root ?: return null
+    if (path.isEmpty()) return null
+    var p: YPath = path.dropLast(1)
+    while (true) {
+        val node = if (p.isEmpty()) root else getAt(root, p)
+        if (node is YNode.Map) {
+            val fieldDef = doc.schema?.let { Views.fieldAt(it, root, p) }
+            val s = schema.Display.summarize(node, doc.schema, fieldDef)
+            if (s.id != null || s.title != null) {
+                return listOfNotNull(s.id, s.title).joinToString(" ")
+            }
+        }
+        if (p.isEmpty()) return null
+        p = p.dropLast(1)
+    }
+}
+
 @Composable
 private fun AspectCard(state: AppState, section: AspectSection) {
     val doc = state.ensureDoc(section.entry.file)
@@ -299,6 +322,8 @@ private fun AspectCard(state: AppState, section: AspectSection) {
                         state.relPath(section.entry.file),
                         section.schemaId?.let { "スキーマ: $it" },
                         section.entry.path.pretty().takeIf { it != "(root)" },
+                        // 親ノード情報（UX-68）: この出現がどの親要素の配下かを示す
+                        parentSummary(doc, section.entry.path)?.let { "親: $it" },
                     ).joinToString(" ／ "),
                     fontSize = 10.sp, color = Palette.SubText,
                 )
@@ -566,6 +591,8 @@ private fun OccurrenceCard(state: AppState, entry: IdEntry) {
                         "文書: ${entry.documentId}",
                         entry.schemaId?.let { "スキーマ: $it" },
                         entry.path.pretty().takeIf { it != "(root)" },
+                        // 親ノード情報（UX-68）: この出現がどの親要素の配下かを示す
+                        parentSummary(doc, entry.path)?.let { "親: $it" },
                     ).joinToString(" ／ "),
                     fontSize = 10.sp, color = Palette.SubText,
                 )

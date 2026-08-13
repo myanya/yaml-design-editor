@@ -2,6 +2,7 @@ package ui
 
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -36,13 +37,15 @@ import schema.currentPhaseValue
 import validate.Issue
 import validate.Severity
 import validate.Validator
+import java.nio.file.Path
 
 /**
  * 右サイドパネル＝IDインスペクタ（R12-03）。「この文書・このIDについて知る」を1箇所に集める。
- * - 検証: スキーマ違反・未解決参照・ID 重複（クリックで該当箇所へジャンプ）・フェーズ進捗
+ * - 検証: スキーマ違反・未解決参照・ID 重複・フェーズ進捗。スコープは「この文書／全体」（UX-44）。
+ *   指摘のクリックは「何ができるか」の選択メニュー（エラー箇所へ・来歴・関連ID。UX-05 / UX-13）
  * - 関係: この文書からの参照と、この文書の ID への被参照（クリックでジャンプ）
  * - 出現: 文書ルートIDの同一論理IDの全出現とカバレッジ充足。全出現のその場編集は ID横ぐしビューへ展開する
- *   ※ 関係・出現は保存済みの索引に基づくため、未保存の編集は反映されない
+ * いずれもオーバーレイ索引（UX-03「見たまま判定」）基準で、未保存の編集に追随する。
  */
 @Composable
 fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
@@ -118,6 +121,11 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
             phases?.let { p -> doc.schema?.currentPhaseValue(doc.root)?.takeIf { it in p.order } ?: p.order.firstOrNull() }
         }
         var selectedTab by remember { mutableStateOf(0) }
+        // 検証スコープ（UX-44）: 0 = この文書 / 1 = 全体（索引対象の全文書を「見たまま」で検証）
+        var validationScope by remember { mutableStateOf(0) }
+        val workspaceIssues = remember(state.indexVersion, state.editVersion, validationScope) {
+            if (validationScope == 1) state.validateWorkspace() else emptyList()
+        }
         TabRow(selectedTabIndex = selectedTab, containerColor = Palette.PanelBg, contentColor = Palette.Primary) {
             Tab(selectedTab == 0, { selectedTab = 0 }, text = { Text("検証 ${issues.size + state.schemaErrors.size + viewDefErrors.size}", fontSize = 11.sp) })
             Tab(selectedTab == 1, { selectedTab = 1 }, text = { Text("関係 ${localRefs.size + backlinks.size}", fontSize = 11.sp) })
@@ -130,6 +138,50 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
 
                 // ---------------- 検証 ----------------
                 if (selectedTab == 0) {
+                item {
+                    // スコープ切替（UX-44）: 台本の「全体エラー0を確認」等をGUIで行えるようにする
+                    Row(
+                        Modifier.padding(start = 12.dp, top = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        ScopeChip("この文書", validationScope == 0) { validationScope = 0 }
+                        Spacer(Modifier.width(6.dp))
+                        ScopeChip("全体", validationScope == 1) { validationScope = 1 }
+                    }
+                }
+                if (validationScope == 1) {
+                    val totalIssues = workspaceIssues.sumOf { it.second.size }
+                    item { SectionHeader("全体の検証（$totalIssues 件・${workspaceIssues.size} ファイル）") }
+                    item { EmptyNote("未保存の編集を含む「見たまま」の判定です（索引対象の全文書）") }
+                    items(state.schemaErrors.size) { i ->
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.Top) {
+                            Icon(Icons.Default.Warning, null, Modifier.size(14.dp), tint = Palette.ErrorRed)
+                            Spacer(Modifier.width(6.dp))
+                            Text(state.schemaErrors[i], fontSize = 12.sp, color = Palette.ErrorRed)
+                        }
+                    }
+                    if (workspaceIssues.isEmpty() && state.schemaErrors.isEmpty()) {
+                        item {
+                            Row(Modifier.padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.CheckCircle, contentDescription = null, Modifier.size(14.dp), tint = Palette.OkGreen)
+                                Spacer(Modifier.width(6.dp))
+                                Text("問題は見つかりませんでした", fontSize = 12.sp, color = Palette.OkGreen)
+                            }
+                        }
+                    }
+                    workspaceIssues.forEach { (file, fileIssues) ->
+                        item {
+                            Text(
+                                "${state.relPath(file)}（${fileIssues.size}）",
+                                Modifier.fillMaxWidth()
+                                    .clickable { state.openFile(file); state.editorTab = 0 }
+                                    .padding(start = 12.dp, top = 8.dp, bottom = 2.dp),
+                                fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                        items(fileIssues.size) { i -> IssueRow(state, file, fileIssues[i]) }
+                    }
+                } else {
                 item { SectionHeader("検証（${issues.size + state.schemaErrors.size + viewDefErrors.size}）") }
                 // フェーズ進捗（phases 宣言のあるスキーマのみ。未来フェーズの未記入はエラーではなく進捗で見せる）
                 if (phases != null && phaseProgress != null) {
@@ -181,7 +233,8 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                     }
                 }
                 items(issues.size) { i ->
-                    IssueRow(state, doc, issues[i])
+                    IssueRow(state, doc.file, issues[i])
+                }
                 }
                 }
 
@@ -406,18 +459,18 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
 }
 
 /**
- * 検証タブの指摘1件（R16-03c / UX-13）。整合検証の指摘（来歴つき）はクリックで
- * 「エラー箇所へ／導出規則へ／入力値へ／導出値を適用」の選択メニューを出す（計算セルの来歴と同じ流儀）。
- * 来歴のない指摘は従来どおり該当箇所へ直接ジャンプする。
+ * 検証タブの指摘1件（R16-03c / UX-13 / UX-05）。クリックで「何ができるか」の選択メニューを
+ * **常に**提示する（挙動の不透明さの解消。UX-05）: エラー箇所への移動を先頭に、来歴つきの指摘は
+ * 「導出規則へ／入力値へ／導出値を適用」、関連IDつきは各定義へのジャンプを並べる。
+ * file は指摘の対象文書（全体スコープ UX-44 では開いていない文書のこともある）。
  */
 @Composable
-private fun IssueRow(state: AppState, doc: OpenDocument, issue: Issue) {
+private fun IssueRow(state: AppState, file: Path, issue: Issue) {
     var menuOpen by remember { mutableStateOf(false) }
     Box {
-        val hasMenu = issue.derivation != null || issue.relatedIds.isNotEmpty()
         Row(
             Modifier.fillMaxWidth()
-                .clickable { if (hasMenu) menuOpen = true else state.navigateToPath(issue.path) }
+                .clickable { menuOpen = true }
                 .padding(horizontal = 12.dp, vertical = 4.dp),
             verticalAlignment = Alignment.Top,
         ) {
@@ -437,19 +490,26 @@ private fun IssueRow(state: AppState, doc: OpenDocument, issue: Issue) {
                 Text(issue.path.pretty(), fontSize = 10.sp, color = Palette.SubText)
             }
         }
-        if (hasMenu) {
-            DropdownMenu(menuOpen, { menuOpen = false }) {
-                val d = issue.derivation
-                if (d != null) {
+        DropdownMenu(menuOpen, { menuOpen = false }) {
+                // エラー箇所への移動は全指摘に共通の先頭アクション（UX-05）
                 DropdownMenuItem(
                     text = {
                         Column {
-                            Text("エラー箇所へ", fontSize = 12.sp)
-                            Text(issue.path.pretty(), fontSize = 10.sp, color = Palette.SubText)
+                            Text("エラー箇所へ移動", fontSize = 12.sp)
+                            Text(
+                                "${state.relPath(file)} :: ${issue.path.pretty()}",
+                                fontSize = 10.sp, color = Palette.SubText,
+                            )
                         }
                     },
-                    onClick = { menuOpen = false; state.navigateToPath(issue.path) },
+                    onClick = {
+                        menuOpen = false
+                        if (file == state.openDoc?.file) state.navigateToPath(issue.path)
+                        else { state.openFile(file, issue.path.takeIf { it.isNotEmpty() }); state.editorTab = 0 }
+                    },
                 )
+                val d = issue.derivation
+                if (d != null) {
                 val sourceFile = d.sourceFile
                 if (sourceFile != null) {
                     DropdownMenuItem(
@@ -491,7 +551,8 @@ private fun IssueRow(state: AppState, doc: OpenDocument, issue: Issue) {
                                 Text("未保存の編集として書き込みます（Undo可）", fontSize = 10.sp, color = Palette.SubText)
                             }
                         },
-                        onClick = { menuOpen = false; applyDerivedValue(state, doc, issue, d.expected) },
+                        // 対象文書が開かれていなくても ensureDoc で通常の編集経路に載せる（未保存・Undo可）
+                        onClick = { menuOpen = false; applyDerivedValue(state, state.ensureDoc(file), issue, d.expected) },
                     )
                 }
                 }
@@ -509,9 +570,23 @@ private fun IssueRow(state: AppState, doc: OpenDocument, issue: Issue) {
                         fontSize = 10.sp, color = Palette.SubText,
                     )
                 }
-            }
         }
     }
+}
+
+/** 検証スコープの切替チップ（UX-44）。 */
+@Composable
+private fun ScopeChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    Text(
+        label,
+        Modifier
+            .background(if (selected) Palette.Selected else Palette.PanelBg, PanelShape)
+            .border(1.dp, if (selected) Palette.Primary else Palette.Border, PanelShape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 3.dp),
+        fontSize = 11.sp,
+        color = if (selected) Palette.Primary else Palette.SubText,
+    )
 }
 
 /**

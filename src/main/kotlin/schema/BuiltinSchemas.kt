@@ -121,6 +121,11 @@ object BuiltinSchemas {
                       label: スキーマ外キーの扱い
                       type: enum
                       values: [allow, warning, error]
+                  id:
+                    - key: pattern
+                      label: 形式（正規表現）
+                      type: string
+                      description: IDの全体がこの正規表現に一致すること（例 TASK-\d{3}。UX-79）
                   ref:
                     - key: idPattern
                       label: 参照先IDパターン

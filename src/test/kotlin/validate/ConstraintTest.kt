@@ -110,6 +110,29 @@ class ConstraintTest {
     }
 
     @Test
+    fun `id 型の pattern がIDフォーマットを強制する`() {
+        // UX-79: type: id の pattern で「フォーマット: TASK-nnn」を description でなく検証として強制できる
+        val idSchema = SchemaLoader.parseSchemaText(
+            """
+            id: tasks
+            name: tasks
+            match: "docs/*.yaml"
+            root:
+              type: object
+              fields:
+                - key: id
+                  type: id
+                  pattern: TASK-\d{3}
+            """.trimIndent(),
+            Path.of("_schemas/tasks.yaml"),
+        )
+        assertEquals(emptyList(), idSchema.validateDefinition(), "id 型の pattern はメタ検証エラーにならない")
+        fun run(yaml: String) = Validator.validate(YamlIO.parse(yaml), null, Path.of("docs/a.yaml"), idSchema, IdIndex())
+        assertEquals(emptyList(), run("id: TASK-001\n").filter { it.severity == Severity.ERROR })
+        assertTrue(run("id: T1\n").any { "「id」は形式" in it.message }, "${run("id: T1\n")}")
+    }
+
+    @Test
     fun `JSON Schema へ制約が伝搬する`() {
         val json = ai.fieldToJsonSchema(schema.root, schema).toString()
         assertTrue("\"minLength\":4" in json, json)

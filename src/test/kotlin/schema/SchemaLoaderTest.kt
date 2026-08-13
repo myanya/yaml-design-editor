@@ -309,6 +309,37 @@ class SchemaLoaderTest {
         assertTrue(sample.entries.containsKey("options"))
     }
 
+    @Test
+    fun `generateSampleは必須スカラーへ空でない例値を入れる`() {
+        // 必須の string / ref が空文字だと必須エラーでプレビューが赤枠になる（UX-28）
+        val schema = SchemaLoader.parseSchemaText(
+            """
+            id: s
+            name: s
+            match: "*.yaml"
+            root:
+              type: object
+              fields:
+                - key: id
+                  type: id
+                - key: title
+                  type: string
+                  required: true
+                - key: parent
+                  type: ref
+                  required: true
+                - key: memo
+                  type: string
+            """.trimIndent(),
+            Path.of("_schemas/s.yaml"),
+        )
+        val sample = schema.generateSample() as YNode.Map
+        assertTrue(((sample.entries["title"] as YNode.Scalar).value as String).isNotBlank())
+        assertTrue(((sample.entries["parent"] as YNode.Scalar).value as String).isNotBlank())
+        // 任意項目は従来どおり空のまま
+        assertEquals("", (sample.entries["memo"] as YNode.Scalar).value)
+    }
+
     // ---------------------------------------------------------------- 横断 $ref（R7-03）
 
     @Test

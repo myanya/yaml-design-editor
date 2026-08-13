@@ -620,6 +620,16 @@ object Validator {
                 if (v == null && required) {
                     issues += Issue(Severity.ERROR, "必須項目「$label」（ID）が未設定です", path)
                 }
+                // IDフォーマットの強制（UX-79）: pattern 制約（R16-01）を ID 型にも適用する
+                if (v != null) {
+                    f.pattern?.let { p ->
+                        runCatching { Regex(p) }.getOrNull()?.let { re ->
+                            if (!re.matches(v)) {
+                                issues += Issue(Severity.ERROR, "「$label」は形式（$p）に一致していません（現在値: $v）", path)
+                            }
+                        }
+                    }
+                }
             }
             FieldType.REF -> {
                 if (f.fields.isNotEmpty() && node is YNode.Map) {

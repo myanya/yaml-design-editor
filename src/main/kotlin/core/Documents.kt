@@ -23,6 +23,9 @@ class EditBuffer(
     data class Parsed(val root: YNode?, val extraDocs: List<YNode>, val error: String?)
 
     companion object {
+        /** 連続入力を1エントリへ合体する時間窓（ms。UX-11）。超えるとタイプの区切りとみなし境界になる。 */
+        const val COALESCE_WINDOW_MS = 1000L
+
         /** テキストを複数ドキュメントとしてパースする（失敗はエラーメッセージとして返す）。 */
         fun parse(text: String): Parsed = try {
             val docs = YamlIO.parseAll(text)
@@ -45,18 +48,36 @@ class EditBuffer(
     var dirty: Boolean = false
         private set
 
+    // 履歴の合体（UX-11。ARCHITECTURE §4.34）: 直前の記録と同じキー・時間窓内なら先端を置換する
+    private var lastCoalesceKey: Any? = null
+    private var lastEditAtMillis: Long = 0L
+
     /** 保存・ソース表示に使う正規化テキスト。パース不能なら元テキストを返す。 */
     fun canonicalText(): String = root?.let { YamlIO.dumpAll(listOf(it) + extraDocs) } ?: rawText
 
-    /** 編集をスナップショット履歴に記録し、dirty を更新する（最大100件）。 */
-    fun recordEdit() {
+    /**
+     * 編集をスナップショット履歴に記録し、dirty を更新する（最大100件）。
+     * coalesceKey（UX-11）: 連続入力になり得る編集面が渡す合体キー。直前の記録と同じキー（`==`）かつ
+     * COALESCE_WINDOW_MS 以内かつ履歴の先端なら、新規エントリを積まず先端スナップショットを置換する
+     * （タイプ1文字ごとに Undo 1回が要る粒度の粗さを解消する）。null（既定）は常に境界＝新規エントリ。
+     * nowMillis はテストからの時刻注入用（タイマー・sleep を使わない規約）。
+     */
+    fun recordEdit(coalesceKey: Any? = null, nowMillis: Long = System.currentTimeMillis()) {
         dirty = canonicalText() != savedSnapshot
         val snapshot = canonicalText()
-        if (history.getOrNull(historyIndex) != snapshot) {
-            while (history.lastIndex > historyIndex) history.removeAt(history.lastIndex)
+        if (history.getOrNull(historyIndex) == snapshot) return
+        val coalesce = coalesceKey != null && coalesceKey == lastCoalesceKey &&
+            nowMillis - lastEditAtMillis <= COALESCE_WINDOW_MS &&
+            historyIndex == history.lastIndex && historyIndex > 0
+        while (history.lastIndex > historyIndex) history.removeAt(history.lastIndex)
+        if (coalesce) {
+            history[historyIndex] = snapshot
+        } else {
             history.add(snapshot)
             if (history.size > 100) history.removeAt(0) else historyIndex++
         }
+        lastCoalesceKey = coalesceKey
+        lastEditAtMillis = nowMillis
     }
 
     fun canUndo(): Boolean = historyIndex > 0
@@ -91,6 +112,8 @@ class EditBuffer(
         parseError = if (root == null) "履歴の復元に失敗しました" else null
         historyIndex = index
         dirty = text != savedSnapshot
+        // 復元した状態へ後続の入力が合体しないよう、合体キーをリセットする（UX-11）
+        lastCoalesceKey = null
     }
 
     /** ディスク再読込などで内容が差し替わったとき、履歴と保存基準を取り直す。 */
@@ -100,6 +123,7 @@ class EditBuffer(
         historyIndex = 0
         savedSnapshot = canonicalText()
         dirty = false
+        lastCoalesceKey = null
     }
 
     fun markSaved() {

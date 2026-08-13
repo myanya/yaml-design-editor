@@ -221,7 +221,8 @@ fun DesignSpace(state: AppState) {
             text = {
                 Column(Modifier.width(480.dp)) {
                     Text(
-                        "glob に一致する既存YAMLから型・参照・enum候補を推測し、_schemas/<ID>.yaml のドラフトを作成します。仕上げはスキーマ設計画面で行います。",
+                        "glob に一致する既存YAMLから型・参照・enum候補を推測し、_schemas/<ID>.yaml のドラフトを作成します。仕上げはスキーマ設計画面で行います。\n" +
+                            "enum は「短い文字列値が3件以上あり、同じ値が反復している」ときに候補になります（サンプルが少ないと string に、IDらしい値は enum にせず参照（ref）または string になります）。",
                         fontSize = 12.sp, color = Palette.SubText,
                     )
                     Spacer(Modifier.height(8.dp))

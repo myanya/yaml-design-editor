@@ -157,7 +157,7 @@ data class FieldDef(
     val refTarget: RefTarget = RefTarget.ENTITY, // REF の参照対象種別（R21-03。document = 文書ノード参照）
     val minLength: Int? = null,              // STRING / TEXT: 最小文字数（R16-01）
     val maxLength: Int? = null,              // STRING / TEXT: 最大文字数（R16-01）
-    val pattern: String? = null,             // STRING / TEXT: 正規表現（完全一致。R16-01）
+    val pattern: String? = null,             // STRING / TEXT / ID: 正規表現（完全一致。R16-01 / UX-79）
     val min: Double? = null,                 // INT / NUMBER: 最小値（R16-01）
     val max: Double? = null,                 // INT / NUMBER: 最大値（R16-01）
     val default: Any? = null,                // 新規作成時の初期値
@@ -506,8 +506,12 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
     // 制約語彙（R16-01）の妥当性: 型との適合・範囲の整合・正規表現の可否
     fun checkConstraints(f: FieldDef, path: String) {
         val stringy = f.type == FieldType.STRING || f.type == FieldType.TEXT
-        if ((f.minLength != null || f.maxLength != null || f.pattern != null) && !stringy) {
-            issues += SchemaIssue("minLength / maxLength / pattern は string / text 型でのみ使用できます", path)
+        if ((f.minLength != null || f.maxLength != null) && !stringy) {
+            issues += SchemaIssue("minLength / maxLength は string / text 型でのみ使用できます", path)
+        }
+        // pattern は ID のフォーマット強制（UX-79）にも使う
+        if (f.pattern != null && !stringy && f.type != FieldType.ID) {
+            issues += SchemaIssue("pattern は string / text / id 型でのみ使用できます", path)
         }
         if ((f.min != null || f.max != null) && f.type != FieldType.INT && f.type != FieldType.NUMBER) {
             issues += SchemaIssue("min / max は int / number 型でのみ使用できます", path)
@@ -708,8 +712,11 @@ fun SchemaDef.generateSample(): YNode {
             FieldType.ENUM -> YNode.Scalar(field.values.firstOrNull() ?: "")
             FieldType.DATE -> YNode.Scalar("2026-01-01")
             FieldType.ID -> YNode.Scalar("SAMPLE-001")
-            FieldType.REF -> YNode.Scalar("")
-            FieldType.TEXT, FieldType.STRING, FieldType.ANY -> YNode.Scalar("")
+            // 必須スカラーは空文字にせず型別の例値を入れる（UX-28。空文字は必須エラーになりプレビューが赤くなる）
+            FieldType.REF -> YNode.Scalar(if (field.required || field.requiredFrom != null) "SAMPLE-001" else "")
+            FieldType.TEXT, FieldType.STRING ->
+                YNode.Scalar(if (field.required || field.requiredFrom != null) "サンプル" else "")
+            FieldType.ANY -> YNode.Scalar("")
         }
     }
     return create(root, 0, emptySet())

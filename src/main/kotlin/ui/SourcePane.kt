@@ -7,7 +7,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
@@ -33,38 +32,49 @@ import org.yaml.snakeyaml.error.MarkedYAMLException
 import androidx.compose.ui.input.key.*
 
 /**
- * YAML ソースを直接編集するペイン。
- * 「反映」でパースしてツリー（source of truth）へ取り込む。
- * 反映後のテキストは正規化される（コメント・表記スタイルは保持。R8-01）点に注意。
+ * YAML ソースを直接編集するペイン（ライブ同期。UX-23。ARCHITECTURE §4.34）。
+ * 入力のたびにパースし、成功時だけツリー（source of truth）へ自動反映する（フォーム編集と同じ
+ * markEdited 経路＝履歴・dirty・検証・オーバーレイ索引がその場で追随）。パース不能の間はツリー＝
+ * 最後に解析できた状態が正で、保存もそれを書く（未解析テキストは画面上にだけ存在する）。
  * 構文ハイライト・置換は R8-04。
  */
 @Composable
 fun SourcePane(state: AppState, doc: OpenDocument) {
-    val canonical = remember(doc, doc.version) { doc.canonicalText() }
     // カーソル位置を扱う（Tab のスペース挿入 UX-25）ため TextFieldValue で保持する
-    var fieldValue by remember(doc, doc.version) { mutableStateOf(TextFieldValue(canonical)) }
-    val text = fieldValue.text
+    var fieldValue by remember(doc) { mutableStateOf(TextFieldValue(doc.canonicalText())) }
+    var syncedVersion by remember(doc) { mutableStateOf(doc.version) }
     var error by remember(doc) { mutableStateOf<String?>(null) }
+    // 他所からの変更（フォーム・グリッド・Undo/Redo・外部変更の再読込）でツリーが進んだら
+    // 正規化テキストを取り直す。自分の反映（updateText）は syncedVersion を同時に進めるため対象外
+    if (doc.version != syncedVersion) {
+        fieldValue = TextFieldValue(doc.canonicalText())
+        syncedVersion = doc.version
+        error = null
+    }
+    val text = fieldValue.text
     var search by remember(doc) { mutableStateOf("") }
     var replace by remember(doc) { mutableStateOf("") }
-    val edited = text != canonical
 
-    fun applySource(): Boolean {
-        return try {
-            doc.applySourceText(text)
+    // テキスト変更の唯一の入口: パース成功ならツリーへ自動反映、失敗ならエラー表示だけしてツリーは触らない
+    fun updateText(newValue: TextFieldValue) {
+        val changed = newValue.text != fieldValue.text
+        fieldValue = newValue
+        if (!changed) return
+        try {
+            doc.applySourceText(newValue.text)
+            syncedVersion = doc.version
             error = null
-            true
         } catch (e: Exception) {
             val mark = (e as? MarkedYAMLException)?.problemMark
             error = "パースエラー" + (mark?.let { "（${it.line + 1} 行 ${it.column + 1} 列）" } ?: "") + ": ${e.message}"
-            false
         }
     }
 
     Column(Modifier.fillMaxSize().onPreviewKeyEvent { event ->
         if (event.type == KeyEventType.KeyDown && event.isCtrlPressed && event.key == Key.S) {
-            if (edited) {
-                if (applySource()) { if (event.isShiftPressed) state.saveAll() else state.saveCurrent() }
+            if (error != null) {
+                // 黙って「最後に解析できた状態」を書かない（ARCHITECTURE §4.34）
+                state.status = "パースエラーのため保存できません（エラーを直すか「編集を破棄」してください)"
             } else if (event.isShiftPressed) state.saveAll() else state.saveCurrent()
             true
         } else false
@@ -73,22 +83,23 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
             Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            OutlinedButton(
-                enabled = edited,
-                onClick = { applySource() },
-            ) { Text("変更を反映", fontSize = 12.sp) }
-            Spacer(Modifier.width(8.dp))
-            TextButton(enabled = edited, onClick = { fieldValue = TextFieldValue(canonical); error = null }) {
-                Text("破棄", fontSize = 13.sp)
-            }
+            TextButton(
+                enabled = text != doc.canonicalText(),
+                onClick = {
+                    fieldValue = TextFieldValue(doc.canonicalText())
+                    syncedVersion = doc.version
+                    error = null
+                },
+            ) { Text(if (error != null) "編集を破棄（解析できた状態に戻す）" else "整形（正規化テキストに揃える）", fontSize = 12.sp) }
             Spacer(Modifier.width(12.dp))
-            if (doc.root == null) {
+            if (error != null) {
                 Text(
-                    "パースエラーのためフォーム表示不可。ここで修正して「反映」してください。",
+                    if (doc.root == null) "パースエラーのためフォーム表示不可。ここで修正すると自動で反映されます"
+                    else "パース不能: ツリーと保存は最後に解析できた状態のままです",
                     fontSize = 12.sp, color = Palette.ErrorRed,
                 )
-            } else if (edited) {
-                Text("未反映：反映後、文書ヘッダーの「保存」で書き出します", fontSize = 12.sp, color = Palette.WarnOrange)
+            } else if (doc.root == null) {
+                Text("パースエラーのためフォーム表示不可。ここで修正すると自動で反映されます", fontSize = 12.sp, color = Palette.ErrorRed)
             } else if (doc.dirty) {
                 Text("反映済み・未保存：Ctrl+Sでファイルへ保存できます", fontSize = 12.sp, color = Palette.WarnOrange)
             } else {
@@ -121,13 +132,13 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
                 modifier = Modifier.width(180.dp),
             )
             TextButton(enabled = search.isNotEmpty(), onClick = {
-                replaceFirstIgnoreCase(text, search, replace)?.let { fieldValue = fieldValue.copy(text = it) }
+                replaceFirstIgnoreCase(text, search, replace)?.let { updateText(fieldValue.copy(text = it)) }
                     ?: run { state.status = "「$search」は見つかりません" }
             }) { Text("置換", fontSize = 11.sp) }
             TextButton(enabled = search.isNotEmpty(), onClick = {
                 val (replaced, count) = replaceAllIgnoreCase(text, search, replace)
-                fieldValue = fieldValue.copy(text = replaced)
-                state.status = if (count > 0) "$count 件置換しました（「変更を反映」で取り込まれます）" else "「$search」は見つかりません"
+                updateText(fieldValue.copy(text = replaced))
+                state.status = if (count > 0) "$count 件置換しました（自動で反映されます）" else "「$search」は見つかりません"
             }) { Text("すべて置換", fontSize = 11.sp) }
         }
         error?.let {
@@ -162,7 +173,7 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
                 )
                 BasicTextField(
                     value = fieldValue,
-                    onValueChange = { fieldValue = it },
+                    onValueChange = { updateText(it) },
                     visualTransformation = YamlSyntaxTransformation,
                     textStyle = TextStyle(
                         fontFamily = FontFamily.Monospace,
@@ -176,7 +187,7 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
                             if (ev.type == KeyEventType.KeyDown && ev.key == Key.Tab && !ev.isShiftPressed) {
                                 val sel = fieldValue.selection
                                 val inserted = fieldValue.text.replaceRange(sel.min, sel.max, "  ")
-                                fieldValue = TextFieldValue(inserted, selection = TextRange(sel.min + 2))
+                                updateText(TextFieldValue(inserted, selection = TextRange(sel.min + 2)))
                                 true
                             } else false
                         },

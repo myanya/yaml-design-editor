@@ -105,14 +105,16 @@ object Aspects {
             prepared += Prepared(entry, sc, root, decl, decl?.aspect ?: sc.id, objectField)
         }
 
-        // 並び: 定義出現 → レジストリのアスペクト宣言順 → アスペクト名 → ファイル → 要素パス（決定的。§4.33）
+        // 並び: 定義出現 → レジストリのアスペクト宣言順 → ファイル → 要素パス → アスペクト名（決定的。§4.33）。
+        // 宣言のないスキーマ群はスキーマIDのアルファベット順でなくファイルパス順に落とす
+        // （番号付きディレクトリの流れ＝概念→詳細の順に乗せ、detail が先頭に来るのを防ぐ。UX-80）
         val ordered = prepared.sortedWith(
             compareBy(
                 { if (it.entry == node.defining) 0 else 1 },
                 { typeDef?.aspectOrder(it.aspect) ?: Int.MAX_VALUE },
-                { it.aspect },
                 { it.entry.file.toString() },
                 { it.entry.path.joinToString("/") },
+                { it.aspect },
             )
         )
 

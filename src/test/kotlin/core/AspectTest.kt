@@ -155,6 +155,35 @@ class AspectTest {
     }
 
     @Test
+    fun アスペクト宣言のないスキーマ群はファイルパス順で並ぶ() {
+        // entity 宣言がないとアスペクト名＝スキーマIDになり、アルファベット順では detail が概念より
+        // 先に来てしまう。フォールバックはファイルパス順（番号付きディレクトリの流れ）とする（UX-80）
+        write("_schemas/detail.yaml", """
+            id: detail
+            match: "10-detail/**/*.yaml"
+            root:
+              type: object
+              fields:
+                - { key: id, type: id }
+                - { key: impl, type: string }
+        """)
+        write("_schemas/overview.yaml", """
+            id: overview
+            match: "00-overview/**/*.yaml"
+            root:
+              type: object
+              fields:
+                - { key: id, type: id }
+                - { key: name, type: string }
+        """)
+        write("00-overview/x-1.yaml", "id: X-1\nname: 概要")
+        write("10-detail/x-1.yaml", "id: X-1\nimpl: 実装")
+        val ws = Workspace.open(dir)
+        val composite = assertNotNull(compose(ws, "X-1"))
+        assertEquals(listOf("overview", "detail"), composite.sections.map { it.aspect })
+    }
+
+    @Test
     fun 重複所有は合成では注記され検証では明示owns側の組だけ警告になる() {
         writeBase(designOwns = "[layout, memo]")
         val ws = Workspace.open(dir)

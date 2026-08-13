@@ -31,8 +31,15 @@ object Display {
     /**
      * 要素の表示要約を解決する。field はその要素に対応するスキーマ定義（`resolve` 済みでなくてよい）。
      * スキーマがない・object でない場合は予約語規約だけで解決する。
+     * titleLookup（任意）は「要素自身にタイトルがないとき、論理IDから他出現のタイトルを借りる」注入点
+     * （UX-71: id しか持たない写像行・詳細行に、定義出現のタイトルを見せる。UIはオーバーレイ索引を渡す）。
      */
-    fun summarize(node: YNode?, schema: SchemaDef?, field: FieldDef? = null): Summary {
+    fun summarize(
+        node: YNode?,
+        schema: SchemaDef?,
+        field: FieldDef? = null,
+        titleLookup: ((String) -> String?)? = null,
+    ): Summary {
         val map = node as? YNode.Map ?: return Summary(null, null, null, 0)
         val effective = schema?.resolve(field)
         val objectFields =
@@ -54,7 +61,7 @@ object Display {
 
         return Summary(
             id = id,
-            title = roleValue(FieldRole.TITLE) ?: reserved(TITLE_KEYS),
+            title = roleValue(FieldRole.TITLE) ?: reserved(TITLE_KEYS) ?: id?.let { titleLookup?.invoke(it) },
             subtitle = roleValue(FieldRole.SUBTITLE) ?: reserved(SUBTITLE_KEYS),
             keyCount = map.entries.size,
         )
@@ -65,32 +72,53 @@ object Display {
         summarize(node, schema, field).title
 
     /**
-     * object の畳み込みヘッダ（R10-02）:「ID タイトル（n項目）」。
-     * タイトルも ID もなければ fallback（例:「詳細」）にキー数を添える。
+     * object の畳み込みヘッダ（R10-02 / UX-71）:「ID タイトル — サブタイトル（n項目）」。
+     * タイトルも ID もなければ fallback（例:「詳細」）にキー数を添える。subtitle は role: subtitle ＞
+     * 予約語（description / summary）で解決される（UX-77）。
      */
-    fun headerText(node: YNode?, schema: SchemaDef?, field: FieldDef? = null, fallback: String = "詳細"): String {
-        val summary = summarize(node, schema, field)
+    fun headerText(
+        node: YNode?,
+        schema: SchemaDef?,
+        field: FieldDef? = null,
+        fallback: String = "詳細",
+        titleLookup: ((String) -> String?)? = null,
+    ): String {
+        val summary = summarize(node, schema, field, titleLookup)
         val head = listOfNotNull(summary.id, summary.title?.let { clip(it, 40) }).joinToString(" ").ifBlank { fallback }
-        return "$head（${summary.keyCount}項目）"
+        val sub = summary.subtitle?.let { " — " + clip(it, 40) } ?: ""
+        return "$head$sub（${summary.keyCount}項目）"
     }
 
     /** 配列の畳み込みヘッダ（R10-02）:「n件: 先頭要素の要約, …」。 */
-    fun seqHeaderText(seq: YNode.Seq, schema: SchemaDef?, itemField: FieldDef? = null, maxItems: Int = 3): String {
+    fun seqHeaderText(
+        seq: YNode.Seq,
+        schema: SchemaDef?,
+        itemField: FieldDef? = null,
+        maxItems: Int = 3,
+        titleLookup: ((String) -> String?)? = null,
+    ): String {
         if (seq.items.isEmpty()) return "0 件"
-        val head = seq.items.take(maxItems).joinToString(", ") { inline(it, schema, itemField) }
+        val head = seq.items.take(maxItems).joinToString(", ") { inline(it, schema, itemField, titleLookup = titleLookup) }
         val more = if (seq.items.size > maxItems) ", …" else ""
         return "${seq.items.size} 件: $head$more"
     }
 
-    /** 任意ノードの1行要約（スカラー=値、オブジェクト=タイトル解決、配列=件数）。 */
-    fun inline(node: YNode?, schema: SchemaDef? = null, field: FieldDef? = null, maxLength: Int = 40): String =
+    /** 任意ノードの1行要約（スカラー=値、オブジェクト=タイトル解決、配列=件数）。タイトルがなければ subtitle で補う（UX-77）。 */
+    fun inline(
+        node: YNode?,
+        schema: SchemaDef? = null,
+        field: FieldDef? = null,
+        maxLength: Int = 40,
+        titleLookup: ((String) -> String?)? = null,
+    ): String =
         when (node) {
             null -> "（未設定）"
             is YNode.Scalar -> clip(node.value?.toString() ?: "null", maxLength)
             is YNode.Seq -> "（配列 ${node.items.size} 件）"
             is YNode.Map -> {
-                val summary = summarize(node, schema, field)
-                listOfNotNull(summary.id, summary.title?.let { clip(it, maxLength) }).joinToString(" ")
+                val summary = summarize(node, schema, field, titleLookup)
+                listOfNotNull(summary.id, (summary.title ?: summary.subtitle)?.let { clip(it, maxLength) })
+                    .joinToString(" ")
                     .ifBlank { "（${summary.keyCount}項目）" }
             }
         }

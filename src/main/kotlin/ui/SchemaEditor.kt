@@ -238,8 +238,45 @@ private fun CompactScalar(map: YNode.Map, key: String, label: String, doc: OpenD
     val value = (map.entries[key] as? YNode.Scalar)?.value?.toString().orEmpty()
     Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, fontSize = 12.sp, modifier = Modifier.width(140.dp))
-        CompactTextField(value, { map.entries[key] = YNode.Scalar(it); doc.markEdited() },
+        // 連続入力は履歴1エントリへ合体（UX-11。キー=対象Map×キー名）
+        CompactTextField(value, { map.entries[key] = YNode.Scalar(it); doc.markEdited(coalesceWith = map to key) },
             singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
+            modifier = Modifier.weight(1f))
+    }
+}
+
+/**
+ * 数値制約の入力（R16-01 / UX-73）: 空欄で項目削除、数値として書き込む
+ * （数値でない入力は文字列のまま書き、メタスキーマ検証が型不適合として指摘する）。
+ */
+@Composable
+private fun CompactNumberScalar(map: YNode.Map, key: String, label: String, doc: OpenDocument, integer: Boolean) {
+    val value = (map.entries[key] as? YNode.Scalar)?.value?.toString().orEmpty()
+    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, fontSize = 12.sp, modifier = Modifier.width(140.dp))
+        CompactTextField(value, { raw ->
+            if (raw.isBlank()) map.entries.remove(key) else {
+                val typed: Any = if (integer) raw.toLongOrNull() ?: raw else raw.toDoubleOrNull() ?: raw
+                map.entries[key] = YNode.Scalar(typed)
+            }
+            doc.markEdited(coalesceWith = map to key)
+        }, singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
+            placeholder = { Text("未設定") },
+            modifier = Modifier.weight(1f))
+    }
+}
+
+/** 空欄で項目自体を削除する任意スカラー入力（pattern 等、空文字を残すと意味が変わるキー用）。 */
+@Composable
+private fun CompactOptionalScalar(map: YNode.Map, key: String, label: String, hint: String, doc: OpenDocument) {
+    val value = (map.entries[key] as? YNode.Scalar)?.value?.toString().orEmpty()
+    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, fontSize = 12.sp, modifier = Modifier.width(140.dp))
+        CompactTextField(value, {
+            if (it.isBlank()) map.entries.remove(key) else map.entries[key] = YNode.Scalar(it)
+            doc.markEdited(coalesceWith = map to key)
+        }, singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
+            placeholder = { Text(hint) },
             modifier = Modifier.weight(1f))
     }
 }
@@ -254,7 +291,7 @@ private fun CompactMultilineScalar(map: YNode.Map, key: String, label: String, d
         Text(label, fontSize = 12.sp, modifier = Modifier.width(140.dp).padding(top = 8.dp))
         CompactTextField(
             value = value,
-            onValueChange = { map.entries[key] = YNode.Scalar(it); doc.markEdited() },
+            onValueChange = { map.entries[key] = YNode.Scalar(it); doc.markEdited(coalesceWith = map to key) },
             singleLine = false,
             textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
             modifier = Modifier.weight(1f).heightIn(min = 72.dp),
@@ -363,6 +400,7 @@ private fun FieldDefinitionEditor(map: YNode.Map, doc: OpenDocument, definitions
                 val child = node as? YNode.Map ?: return@forEachIndexed
                 Column(Modifier.padding(start = 12.dp, top = 5.dp).border(1.dp, Palette.Border, PanelShape).padding(6.dp)) {
                     Row { Text("フィールド ${index + 1}", fontSize = 11.sp, fontWeight = FontWeight.Bold); Spacer(Modifier.weight(1f))
+                        FieldMoveButtons(fields.items, index, doc)
                         TextButton(onClick = { fields.items.removeAt(index); doc.markEdited() }) { Text("削除", color = Palette.ErrorRed, fontSize = 10.sp) } }
                     FieldDefinitionEditor(child, doc, definitions, allowKey = true, depth = depth + 1)
                 }
@@ -389,9 +427,26 @@ private fun FieldDefinitionEditor(map: YNode.Map, doc: OpenDocument, definitions
             StringListEditor(scope, "schemaIds", "対象スキーマID", "system-concepts, actor-detail", doc)
             StringListEditor(scope, "documentIds", "対象文書ID", "system-overview, actor-design", doc)
         }
+        // IDフォーマットの強制（UX-79）: pattern 制約（R16-01）を id 型でも宣言できる（検証・採番の共通パターン源）
+        "id" -> CompactOptionalScalar(map, "pattern", "形式（正規表現）", "例 TASK-\\d{3}（IDの形式を強制）", doc)
+        // 制約語彙（R16-01）の入力（UX-73: 設計UIに未露出だった分）
+        "string", "text" -> {
+            CompactOptionalScalar(map, "pattern", "形式（正規表現）", "値の全体が一致する正規表現（R16-01）", doc)
+            CompactNumberScalar(map, "minLength", "最小文字数", doc, integer = true)
+            CompactNumberScalar(map, "maxLength", "最大文字数", doc, integer = true)
+        }
+        "int" -> {
+            CompactNumberScalar(map, "min", "最小値", doc, integer = true)
+            CompactNumberScalar(map, "max", "最大値", doc, integer = true)
+        }
+        "number" -> {
+            CompactNumberScalar(map, "min", "最小値", doc, integer = false)
+            CompactNumberScalar(map, "max", "最大値", doc, integer = false)
+        }
     }
     val currentType = scalar(map, "type") ?: "string"
-    if (currentType !in setOf("object", "array", "map")) DefaultValueEditor(map, currentType, doc)
+    // enum の初期値は選択肢の直下（EnumValuesEditor 内）で選択式にしている（UX-84）
+    if (currentType !in setOf("object", "array", "map", "enum")) DefaultValueEditor(map, currentType, doc)
 }
 
 /** 一覧表示形式のヒント（R12-06）。array / map で共有。省略時はフォーム側が列構成から自動判定する。 */
@@ -691,7 +746,7 @@ private fun EnumOptionListEditor(map: YNode.Map, doc: OpenDocument) {
                 if (newLabel.isNotBlank()) put("label", YNode.Scalar(newLabel))
                 if (newDescription.isNotBlank()) put("description", YNode.Scalar(newDescription))
             })
-            doc.markEdited()
+            doc.markEdited(coalesceWith = seq to index)
         }
         Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 3.dp), verticalAlignment = Alignment.CenterVertically) {
             CompactTextField(value, { update(newValue = it) }, singleLine = true,
@@ -720,6 +775,14 @@ private fun EnumValuesEditor(map: YNode.Map, doc: OpenDocument, definitions: Lis
     doc.version  // CONVENTIONS §2 / UX-24
     EnumOptionListEditor(map, doc)
     val values = enumValueStrings(map)
+    // 初期値は選択肢のすぐ下に置き、宣言済みの値から選ぶ（UX-84。cases の下だと遠く、自由入力だと選択肢とずれる）
+    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("初期値", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+        ChoiceButton(scalar(map, "default") ?: "（未設定）", listOf("（未設定）") + values) {
+            if (it == "（未設定）") map.entries.remove("default") else map.entries["default"] = YNode.Scalar(it)
+            doc.markEdited()
+        }
+    }
     // 選択肢から消えた値の cases は残骸なので警告つきで削除できるようにする
     (map.entries["cases"] as? YNode.Map)?.entries?.keys?.filter { it !in values }?.toList()?.forEach { stale ->
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -757,6 +820,7 @@ private fun EnumValuesEditor(map: YNode.Map, doc: OpenDocument, definitions: Lis
                         Row {
                             Text("フィールド ${index + 1}", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.weight(1f))
+                            FieldMoveButtons(caseSeq.items, index, doc)
                             TextButton(onClick = { caseSeq.items.removeAt(index); doc.markEdited() }) { Text("削除", color = Palette.ErrorRed, fontSize = 10.sp) }
                         }
                         FieldDefinitionEditor(child, doc, definitions, allowKey = true, depth = depth + 1)
@@ -768,6 +832,19 @@ private fun EnumValuesEditor(map: YNode.Map, doc: OpenDocument, definitions: Lis
     }
 }
 
+/** フィールド定義の並び替え（UX-78）: fields / cases 配列内の要素を上下へ移動する。並びはフォームの表示順そのもの。 */
+@Composable
+private fun FieldMoveButtons(items: MutableList<YNode>, index: Int, doc: OpenDocument) {
+    TextButton(enabled = index > 0, onClick = {
+        items.add(index - 1, items.removeAt(index))
+        doc.markEdited()
+    }) { Text("↑", fontSize = 10.sp) }
+    TextButton(enabled = index < items.size - 1, onClick = {
+        items.add(index + 1, items.removeAt(index))
+        doc.markEdited()
+    }) { Text("↓", fontSize = 10.sp) }
+}
+
 @Composable
 private fun StringListEditor(map: YNode.Map, key: String, label: String, hint: String, doc: OpenDocument) {
     val seq = map.entries[key] as? YNode.Seq
@@ -776,7 +853,7 @@ private fun StringListEditor(map: YNode.Map, key: String, label: String, hint: S
         Text(label, fontSize = 12.sp, modifier = Modifier.width(140.dp))
         CompactTextField(value, { raw ->
             map.entries[key] = YNode.Seq(raw.split(',').map { YNode.Scalar(it.trim()) }.filter { it.value.toString().isNotBlank() }.toMutableList())
-            doc.markEdited()
+            doc.markEdited(coalesceWith = map to key)
         }, singleLine = true, placeholder = { Text(hint) }, modifier = Modifier.weight(1f))
     }
 }
@@ -796,7 +873,7 @@ private fun DefaultValueEditor(map: YNode.Map, type: String, doc: OpenDocument) 
                 }
                 map.entries["default"] = YNode.Scalar(typed)
             }
-            doc.markEdited()
+            doc.markEdited(coalesceWith = map to "default")
         }, singleLine = true, placeholder = { Text("未設定") }, modifier = Modifier.weight(1f))
     }
 }

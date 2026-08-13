@@ -63,6 +63,7 @@ src/main/kotlin/
 | `validateDefinition` / `generateSample` | schema/Schema.kt | メタスキーマ検証・サンプルデータ生成（拡張関数） |
 | `BuiltinSchemas` | schema/BuiltinSchemas.kt | 予約ディレクトリ用の組込みスキーマ。`builtin-schema`（R11-02）は `_schemas` 文書に適用されるメタスキーマ（再帰 `$ref` と `cases` のドッグフーディング） |
 | `RefNaming` / `SchemaInference` | schema/SchemaInference.kt | スキーマ推測（R11-01）: 既存文書群からのドラフト推測（純ロジック）。`RefNaming` は参照命名規約の共有実体（`DocScanner` が委譲。§4.23） |
+| `IdSuggest` | schema/IdSuggest.kt | ID自動採番（UX-64）: 既存ID集合からの次連番の決定的提案（純ロジック）。形式の源は field の `pattern`（UX-79）と entity 宣言・ビュー行の idPattern＝検証と同じ宣言を読む。フォームのID入力メニュー・ビュー新規行の初期値が消費 |
 | `DeriveDef` / `DerivedSchemas` | schema/Schema.kt, schema/DerivedSchemas.kt | 派生スキーマ（R11-03）: `derive:` 宣言のモデルと、導出元文書からのロード時コンパイル（§4.23） |
 | `globToRegex` / `idMatchesPattern` | schema / index | glob→正規表現変換（パス用と ID 用で対応構文が異なる点に注意） |
 | `DocScanner` | index/IdIndex.kt | 1文書からのID・参照抽出。スキーマ有無で検出規則を切替、未知キー境界で走査停止。参照には `relation` / `sourceSchemaId` を付与 |
@@ -505,7 +506,7 @@ limit: 100                               # 既定 100（total は打切り前の
 論理層の読み書き面を人間とAIの共有契約として確立する第4弾（ROADMAP §4.9）。ノード中心の「エンティティページ」（ID横ぐし I-07 の改築）と、参照グラフ（X-03）を置き換えるグラフレンズ、機械面の `read_entity` を、単一の**エンティティ合成**の上に載せる。守るべき不変条件:
 
 - **アスペクト宣言は既存宣言の拡張**（R23-01）: スキーマの `entity:` 宣言に `aspect`（この出現が所有する側面名。省略時はスキーマID）と `owns`（所有フィールドキーの限定。省略時はこの出現要素の宣言フィールド全部——ただし `type: id` のフィールドは合流キーであり所有に数えない）を追加する。型ごとの表示名とアスペクト順序は関係レジストリ文書（`kind: relations`）の `entities:` 節（`{type, label, description, aspects: [{name, label}]}`）で宣言する。モデル（`EntityTypeDef` / `AspectDecl`）は `schema/Relations.kt`、集約は `SchemaLoader.LoadResult.entityTypes` → `Workspace.entityTypes` → AppState ミラー（relations と同じ経路。type の重複宣言はロードエラー）。`builtin-relations` メタスキーマを対で更新する（§4.30 の対更新規約）。
-- **合成は core・UIは購読**: エンティティ全体像の合成は `core/Aspects.kt` の純ロジック（`Aspects.compose`）に一元化し、エンティティページ（UI）・`read_entity`（エージェント）・CLI `entity show` が同じ `EntityComposite` を消費する（S-13 と同じ共有契約——人間とAIが同じ「エンティティの1枚」を見る）。出現の並びは「定義出現 → レジストリのアスペクト宣言順 → アスペクト名 → ファイルパス順」で決定的。値の読み取りは loader 注入（UI: docCache 優先／エージェント: ステージング／CLI: ディスク＝§4.5 の流儀）。スキーマなし・object 解決不可の出現は合成に混ぜず `unassigned`（従来の出現カード表示）へ落とす——既存のID横ぐし利用を退行させない。
+- **合成は core・UIは購読**: エンティティ全体像の合成は `core/Aspects.kt` の純ロジック（`Aspects.compose`）に一元化し、エンティティページ（UI）・`read_entity`（エージェント）・CLI `entity show` が同じ `EntityComposite` を消費する（S-13 と同じ共有契約——人間とAIが同じ「エンティティの1枚」を見る）。出現の並びは「定義出現 → レジストリのアスペクト宣言順 → ファイルパス順 → 要素パス → アスペクト名」で決定的（宣言のないスキーマ群がスキーマIDのアルファベット順に落ちて detail が先頭に来ないよう、フォールバックはファイルパス順＝番号付きディレクトリの流れ。UX-80）。値の読み取りは loader 注入（UI: docCache 優先／エージェント: ステージング／CLI: ディスク＝§4.5 の流儀）。スキーマなし・object 解決不可の出現は合成に混ぜず `unassigned`（従来の出現カード表示）へ落とす——既存のID横ぐし利用を退行させない。
 - **重複所有は隠さず注記する**: 複数出現が同じフィールドを所有していても、合成はどちらの値も落とさない（`AspectField.duplicateOf` で先行所有の座標を注記）。読み面で黙って情報を落とさないためで、是正は検証の指摘が促す。
 - **重複所有の検証は誤検知回避優先**: `Validator` のエンティティ整合 lint（§4.30）に追加。同一エンティティの2出現が同じフィールドを所有し、**双方の出現に entity 宣言があり、少なくとも一方が明示的な `owns` を持つ**ときだけ WARNING（`owns` 宣言のない出現同士は判定しない＝ビューリント §4.14 と同じ「見逃しは許容」）。所有キーの解決は `schema.ownedFieldKeys`（合成と検証の共有実装）。
 - **`fieldAt` は schema 層へ移設**: データパス→フィールド定義の解決（旧 `core/Views.fieldAt`）は validate 層（重複所有の判定）からも使うため `schema/Schema.kt` の `SchemaDef.fieldAt` へ移し、`Views.fieldAt` は委譲で互換維持する（§4.26 の Derivation・§4.32 の Query と同じ「依存方向の帰結」の配置変更。解決ロジックは1実装のまま）。
@@ -513,9 +514,27 @@ limit: 100                               # 既定 100（total は打切り前の
 - **`read_entity` は related の上位互換・related は互換維持**（R23-04): 合成（アスペクト・座標つき）＋関係（label / inverseLabel の両方向・属性注記）＋フェーズ／カバレッジを1ツールで返す。`related` は軽量な隣接確認用に残し、説明文で使い分け（related=隣接1段の要約／read_entity=エンティティの全体像）を明示して重複開示を避ける（コンテキスト税 R19-05）。コンテキストレシピに `kind: entity` 項目（`{target}` 連動・when / budgetChars 対応）を追加する。
 - **グラフレンズはEntityGraphの導出表示**（R23-03）: 全件力学配置の一枚絵（旧 X-03）をやめ、①エンティティ起点の近傍（深さ1〜2。エンティティページの「グラフで見る」から遷移）②エンティティ型・relation のチェックボックスで絞った部分グラフ、を `GraphLayout`（力学配置）の再利用で描く。ノードは `EntityGraph.entities`（エンティティのみ＝解決済みエッジの両端）、エッジのラベルは関係レジストリの label、ノードクリックはエンティティページへ（`openCrossView`＝ナビゲーション履歴 I-08 に乗る）。宣言的レンズ定義（`_views` の `kind: lens`）は需要待ちで導入しない。
 
+### 4.34 編集履歴の合体とソースライブ同期（R17-03 第4波: UX-11 / UX-23）
+
+編集の根幹2点の設計。いずれも「ツリー（EditBuffer）が単一の正・履歴はスナップショット」という既存モデル（§4.2 / §4.20）を変えずに、その上の記録規則・同期規則だけを足す。
+
+**履歴の合体（UX-11）**: `EditBuffer.recordEdit(coalesceKey: Any?, nowMillis)` に合体キーを導入する。
+
+- **規則**: 直前の記録と「同じキー（`==` 比較）かつ 1000ms 以内かつ 履歴の先端（Undo後でない）」なら、新しいエントリを積まずに先端スナップショットを**置換**する。キーが null（既定）・キー不一致・時間超過・Undo/Redo 直後は従来どおり新規エントリ＝**境界**になる。
+- **キーの正体**: 連続入力になり得る編集面だけがキーを渡す。①フォーム・グリッドのスカラー入力＝`FormCtx.writeScalar` が**変異対象の `YNode.Scalar` インスタンス**をキーにする（同一フィールドへの連続タイプだけが合体し、フィールド移動・Undo後はインスタンスが変わり自然に境界になる）②スキーマ設計UIのテキスト入力＝`Pair(対象Map, キー名)` ③ソース編集＝文書単位の固定キー。構造操作（追加・削除・移動・enum選択・変換）はキーなし＝常に境界。
+- **決定性とテスト**: 時刻は `nowMillis` 引数で注入する（`DocumentsTest`。タイマー・sleep を使わない規約は AutomationTest と同じ）。
+- **効かない場所**: undo/redo/restore/resetHistory は合体キーをリセットする（復元状態への合体を構造的に防ぐ）。
+
+**ソースライブ同期（UX-23）**: ソースタブの明示「変更を反映」を廃止し、パース成功時だけツリーへ自動反映する。
+
+- **正の所在**: ツリーが常に正。ソースのテキストバッファは「ツリーの表現の1つ」で、**パース成功のたびに `applySourceText` でツリーを更新**する（markEdited＝履歴・dirty・editVersion・オーバーレイ索引・検証がフォーム編集と同じ経路で追随する）。反映後もバッファのテキストは書き換えない（カーソル・書式を保つ。コメント／スタイル保持 R8-01 により正規化テキストとの乖離は軽微）。
+- **パース不能時**: ツリーは**最後に解析できた状態のまま**が正であり、保存もそれを書く。バッファの未解析テキストは画面上にだけ存在し、エラーバナー（行・列つき）でその旨を明示する。「破棄」でツリーの正規化テキストへ戻せる。ソースタブの Ctrl+S はパース不能の間は保存せずステータスで案内する（黙って最後の解析状態を書かない）。
+- **外部変更の追随**: 自分の反映で進んだ `doc.version` は同期済みとして無視し、**他所からの変更**（フォーム・グリッド・Undo/Redo・外部変更の再読込）で進んだ場合だけテキストを正規化テキストから取り直す（`syncedVersion` の突合）。
+- **Undoの粒度**: ソース連続入力は上記の合体キーで1エントリにまとまる。フォーム↔ソースの行き来はキーが変わるため自然に境界になる。
+
 ## 5. 主要データフロー
 
-- **編集**: フォーム操作 → `Slot.set` / ツリー直接変更 → `markEdited()`（履歴・dirty は core.EditBuffer が記録） → `version`++ → 再コンポーズ
+- **編集**: フォーム操作 → `Slot.set` / ツリー直接変更 → `markEdited()`（履歴・dirty は core.EditBuffer が記録。連続入力は合体キーで1エントリへ＝§4.34） → `version`++ → 再コンポーズ。ソースタブはライブ同期（パース成功時だけ `applySourceText` で同じ経路へ。§4.34）
 - **保存**: `canonicalText()`（コメント・スタイル込み）をファイルへ書き出し → `Workspace.noteDiskChanges`（通常文書は増分索引更新、スキーマファイル・派生スキーマの導出元文書は全再構築。§4.5／§4.20／§4.23） → `indexVersion`++
 - **外部変更検出**: `FileWatcher` の変更フラグ（またはフォールバックの1秒周期）→ `pollExternalChanges` がスタンプ比較 → 変更ファイルの再読込＋増分索引更新（`_schemas` 変更時のみ全再構築）
 - **ジャンプ**: `navigateToId` → 索引の出現検索（複数なら選択ダイアログ／横ぐしビュー）→ `openFile(file, focus)` → `highlightPath` 設定 → `Highlightable` がスクロール

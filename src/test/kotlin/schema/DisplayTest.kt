@@ -53,6 +53,29 @@ class DisplayTest {
         assertEquals("ラベル", Display.titleOf(parse("label: ラベル"), null))
     }
 
+    // ---------------------------------------------------------------- 要約の強化（UX-71 / UX-77）
+
+    @Test
+    fun `タイトルがなければ titleLookup で他出現から借りる`() {
+        // id しか持たない写像行・詳細行に、定義出現のタイトルを見せる（UX-71）
+        val node = parse("id: FLD-001\ntype: VARCHAR")
+        val lookup: (String) -> String? = { id -> if (id == "FLD-001") "ユーザー名" else null }
+        assertEquals("ユーザー名", Display.summarize(node, null, null, lookup).title)
+        assertTrue(Display.headerText(node, null, titleLookup = lookup).startsWith("FLD-001 ユーザー名"))
+        // 要素自身にタイトルがあれば借用しない
+        val withTitle = parse("id: FLD-001\nname: 自前の名前")
+        assertEquals("自前の名前", Display.summarize(withTitle, null, null, lookup).title)
+    }
+
+    @Test
+    fun `headerText はサブタイトルを併記し inline はタイトルの代わりに使う`() {
+        val node = parse("id: T-1\nname: タスク名\ndescription: 説明文")
+        assertEquals("T-1 タスク名 — 説明文（3項目）", Display.headerText(node, null))
+        // タイトルがなく subtitle だけの要素は inline が subtitle で補う（UX-77）
+        val subOnly = parse("id: T-2\ndescription: 概要だけ")
+        assertEquals("T-2 概要だけ", Display.inline(subOnly))
+    }
+
     // ---------------------------------------------------------------- スキーマの role 上書き
 
     private fun roleSchema(): SchemaDef = schemaOf(
