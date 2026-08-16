@@ -22,7 +22,8 @@
 | YM-001 | model/YNode.kt（YNode・YPath）と YPathTest の移動 | yaml-core | done | なし | 既存契約維持（portのみ。2026-08-16） |
 | YM-002 | yaml/YamlIO.kt と YamlIOTest の移動 | yaml-core | done | なし | 既存契約維持＋fixture round-tripテスト追加（2026-08-16） |
 | YM-003 | YDocument / DocumentId / YamlCodec 新設 | yaml-core | done | なし（新API） | Phase 2完了。完了条件3点を確認（2026-08-16） |
-| YM-004 | Schema.kt の構造部分分離（FieldType・FieldDef・$ref） | yaml-core | todo | - | Phase 3 |
+| YM-004 | Schema.kt: FieldDefクラスタ（純構造型12種）の分離 | yaml-core | done | 可視性3箇所・smart cast修正7箇所 | Phase 3前半（2026-08-16） |
+| YM-004b | SchemaDef の構造分割（$ref resolve・parse純粋部・source:Path除去） | yaml-core | todo | - | Phase 3後半。意味宣言（EntityDecl等）の分離が前提 |
 | YM-005 | Validator.kt の型・required・range検証分離 | yaml-core | todo | - | Phase 3 |
 | YM-006 | ConstraintTest 単文書ケース・ValidatorTest の移動 | yaml-core | todo | - | Phase 3 |
 | YM-007 | Patch.kt → YamlOperation 再構成・PatchTest | yaml-core | todo | - | Phase 4 |
@@ -73,6 +74,27 @@
 意図的に変える挙動: なし
 未解決事項: パッケージは移行方針どおり既存名（model / yaml）へ同居。最終改名時に dev.toros.yde.yaml.* へ
 完了確認コマンド: ./gradlew :yaml-core:test / ./gradlew test
+```
+
+### YM-004 Schema.kt: FieldDefクラスタの分離（done 2026-08-16）
+
+```text
+旧実装: src/main/kotlin/schema/Schema.kt 冒頭部（FieldType〜PhasesDef）
+旧テスト: なし（型定義のみ。挙動は SchemaLoaderTest 等が間接カバー）
+新しい責務: yaml-core/src/main/kotlin/schema/Fields.kt へ純構造型12種を移動
+  （FieldType / UnknownFieldsPolicy / FieldRole / CollectionDisplay / EnumOption /
+   SchemaKind / DefinitionKey / SchemaCatalog / FieldDef / RefTarget / RefScope / PhasesDef。
+   パッケージ名 schema のまま＝ルートとの分割パッケージ）
+新しい公開API: 従来と同名・同形（moveのみ）
+維持する挙動: すべて
+意図的に変える挙動: なし。付随変更（refactor扱い）:
+  - 可視性 internal→public 3箇所（DefinitionKey / SchemaCatalog の find・local・linked /
+    FieldDef.definitionScope）。SchemaLoader がyaml-coreへ移った後に internal へ戻す
+  - モジュール跨ぎで smart cast 不可となった7箇所をローカル変数化
+    （Schema.kt の validateDefinition 2箇所・ui/FormView.kt 1箇所）
+未解決事項: SchemaDef 本体は意味宣言（EntityDecl / RelationDef / CoverageRule 等）と
+  source: Path を抱えるため未移動 → YM-004b。$ref の resolve は SchemaDef 側に残存
+完了確認コマンド: ./gradlew test
 ```
 
 **Phase 2 完了判定（2026-08-16）**: ①yaml-core単独で全yaml fixtureをround-trip（FixtureRoundTripTest・YamlCodecTest）②`YamlCodec` 公開APIにSnakeYAMLの型なし ③文字列だけでテスト可能（ファイルI/Oはfixture読込のみ）——3条件とも充足。判断ポイントのうち可変YNodeは決定済み（ADR-0003）、anchor/aliasの完全サポートと複数ドキュメント編集対象の限定は§11どおり保留。

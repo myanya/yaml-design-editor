@@ -174,7 +174,8 @@ fun defaultNode(field: FieldDef?, schema: schema.SchemaDef? = null, depth: Int =
         FieldType.OBJECT -> {
             val entries = LinkedHashMap<String, YNode>().apply {
                 resolved.fields.forEach { ch ->
-                    if (ch.required && ch.key != null) put(ch.key, defaultNode(ch, schema, depth + 1))
+                    val key = ch.key
+                    if (ch.required && key != null) put(key, defaultNode(ch, schema, depth + 1))
                 }
             }
             val map = YNode.Map(entries)
