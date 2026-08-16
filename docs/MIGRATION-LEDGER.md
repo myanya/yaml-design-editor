@@ -23,9 +23,11 @@
 | YM-002 | yaml/YamlIO.kt と YamlIOTest の移動 | yaml-core | done | なし | 既存契約維持＋fixture round-tripテスト追加（2026-08-16） |
 | YM-003 | YDocument / DocumentId / YamlCodec 新設 | yaml-core | done | なし（新API） | Phase 2完了。完了条件3点を確認（2026-08-16） |
 | YM-004 | Schema.kt: FieldDefクラスタ（純構造型12種）の分離 | yaml-core | done | 可視性3箇所・smart cast修正7箇所 | Phase 3前半（2026-08-16） |
-| YM-004b | SchemaDef の構造分割（$ref resolve・parse純粋部・source:Path除去） | yaml-core | todo | - | Phase 3後半。意味宣言（EntityDecl等）の分離が前提 |
-| YM-005 | Validator.kt の型・required・range検証分離 | yaml-core | todo | - | Phase 3 |
-| YM-006 | ConstraintTest 単文書ケース・ValidatorTest の移動 | yaml-core | todo | - | Phase 3 |
+| YM-004b | SchemaDef の構造分割（StructuralSchema 新設・resolve／effectiveFields 等の移動） | yaml-core | done | なし（委譲化） | Phase 3（2026-08-17） |
+| YM-004c | スキーマ構文パースの構造部分を yaml-core へ（StructuralSchemaParser） | yaml-core | done | なし（委譲化） | Phase 3（2026-08-17） |
+| YM-005 | Validator の構造検証分離（StructuralValidator・StructuralIssue・Severity 移動） | yaml-core | done | 構造指摘の別型化 | Phase 3（2026-08-17） |
+| YM-006 | ConstraintTest 単文書ケース・ValidatorTest 構造ケースの移動 | yaml-core | done | 属性付き参照の ok 判定から INFO フィルタ除去（構造検証は参照解決をしないため） | Phase 3（2026-08-17） |
+| YM-006b | 残テストの移動（SchemaLoaderTest 構文・$ref／MetaSchemaTest 構造部分／PhaseTest required 部分）と BuiltinSchemas 資源化の検討 | yaml-core | todo | - | Phase 3 の残整理。急がない |
 | YM-007 | Patch.kt → YamlOperation 再構成・PatchTest | yaml-core | todo | - | Phase 4 |
 | SM-001 | IdIndex / DocScanner / Display(titleOf) の移動 | semantic-core | todo | - | Phase 5。IdEntry.title が Display.titleOf に依存 |
 | WS-001 | WorkspaceLayout / DocumentStore | workspace-core | todo | - | Phase 7 |
@@ -96,6 +98,81 @@
   source: Path を抱えるため未移動 → YM-004b。$ref の resolve は SchemaDef 側に残存
 完了確認コマンド: ./gradlew test
 ```
+
+### YM-004b SchemaDef の構造分割（done 2026-08-17）
+
+```text
+旧実装: schema/Schema.kt の SchemaDef.resolve / definitionTarget / definitionRefOf、
+  拡張関数 currentPhaseValue / currentPhaseIndex / requiredAt / effectiveFields / fieldAt、
+  InactiveCase / EffectiveFields
+旧テスト: SchemaLoaderTest・ValidatorTest・PhaseTest 等が間接カバー（既存位置のまま緑）
+新しい責務: yaml-core/schema/StructuralSchema.kt（計画書§4.1 の CompiledDocumentSchema に相当）。
+  $ref 解決・cases 合成・フェーズ必須・パス→定義解決を単一文書×構造の純粋APIとして提供
+新しい公開API: schema.StructuralSchema（InactiveCase / EffectiveFields も移動）
+維持する挙動: すべて。SchemaDef は `structural`（lazy）を持ち、既存メソッド・拡張関数は委譲のみ
+  （呼び出し側の変更ゼロ）
+意図的に変える挙動: なし
+未解決事項: SchemaDef 本体（match・意味宣言・source: Path）はルートに残存。
+  スキーマ構文パースの構造部分は未移動（YM-004c）
+完了確認コマンド: ./gradlew test
+```
+
+### YM-005 Validator の構造検証分離（done 2026-08-17）
+
+```text
+旧実装: validate/Validator.kt の Severity / DATE_RE / numText / checkRange / checkField と
+  セクション1（フェーズ申告警告＋スキーマ適合の呼び出し）
+旧テスト: ValidatorTest / ConstraintTest / PhaseTest（既存位置のまま緑。移動は YM-006）
+新しい責務: yaml-core/validate/StructuralValidator.kt（単一文書×StructuralSchema の検証。
+  IdIndex・ワークスペース・ファイルI/O 非依存）と StructuralIssue / Severity
+新しい公開API: validate.StructuralValidator.validate(root, schema): List<StructuralIssue>
+維持する挙動: 検証項目・メッセージ・重大度のすべて（ルート Validator は StructuralIssue → Issue へ
+  写すだけで、Validator.validate の外部挙動は不変）
+意図的に変える挙動: 構造指摘を StructuralIssue として意味指摘（Issue）と別型化
+  （計画書 Phase 3 作業順9）
+未解決事項: ファイル内ID重複は DocScanner（索引走査）依存のためルート側に残存
+  （semantic-core 移行時に整理）。IssueDerivation は Path / Derivation.Input を含むためルート側
+完了確認コマンド: ./gradlew test
+```
+
+### YM-004c スキーマ構文パースの構造部分の分離（done 2026-08-17）
+
+```text
+旧実装: schema/Schema.kt SchemaLoader の parseField / parsePhases と、
+  parseSchemaText 内の definitions / root ブロック
+旧テスト: SchemaLoaderTest（既存位置のまま緑）
+新しい責務: yaml-core/schema/StructuralSchemaParser.kt。テキスト／raw Map から
+  構造コア（フィールド木・definitions・root・phases）をパースする。
+  parse(text, fallbackId): StructuralSchema が yaml-core 単体・テスト用の入口
+新しい公開API: StructuralSchemaParser.parse / parseDefinitions / parseRoot / parsePhases / parseField
+維持する挙動: パース結果・エラーメッセージすべて。ルート SchemaLoader は委譲呼び出しに変更
+意図的に変える挙動: なし。derive スキーマの root 省略判定は「raw に derive キーがあるか」の
+  フラグ渡し（derive の内容は yaml-core で解釈しない）
+未解決事項: SchemaLoader 本体（match・意味宣言・ワークスペース探索・カタログのリンク）はルート残存
+完了確認コマンド: ./gradlew test
+```
+
+### YM-006 構造検証テストの移動（done 2026-08-17）
+
+```text
+旧テスト: validate/ValidatorTest.kt（cases 合成4件・ネスト case・属性付き参照2件）、
+  validate/ConstraintTest.kt（実行時制約4件）
+新テスト: yaml-core validate/StructuralValidatorTest.kt・StructuralConstraintTest.kt。
+  セットアップを SchemaLoader.parseSchemaText(Path付き) → StructuralSchemaParser.parse(text, fallbackId)、
+  検証を Validator.validate(IdIndex付き) → StructuralValidator.validate へ変更（分類2: 境界に合わせて
+  セットアップだけ変更）
+ルート残存: ValidatorTest=メタスキーマ検証1件、ConstraintTest=メタスキーマ検証・id型patternのメタ判定・
+  JSON Schema 伝搬（分類3: 旧構造固有＝validateDefinition / ai 依存）
+意図的に変える挙動: 属性付き参照の「正しい形式」判定から INFO フィルタを除去
+  （構造検証は参照解決を行わないため未解決参照 INFO が発生しない。挙動差ではなく境界差）
+完了確認コマンド: ./gradlew :yaml-core:test / ./gradlew test
+```
+
+**Phase 3 完了判定（2026-08-17）**: ①単一文書の検証に IdIndex・workspace が不要（StructuralValidator）
+②schema の parse・resolve・validate がメモリ上の文字列だけで実行できる（StructuralSchemaParser.parse →
+StructuralSchema → StructuralValidator）③代表的な既存 constraint テストが新境界で通る
+（StructuralConstraintTest 4件・StructuralValidatorTest 7件）——3条件とも充足。
+残整理は YM-006b（急がない）。
 
 **Phase 2 完了判定（2026-08-16）**: ①yaml-core単独で全yaml fixtureをround-trip（FixtureRoundTripTest・YamlCodecTest）②`YamlCodec` 公開APIにSnakeYAMLの型なし ③文字列だけでテスト可能（ファイルI/Oはfixture読込のみ）——3条件とも充足。判断ポイントのうち可変YNodeは決定済み（ADR-0003）、anchor/aliasの完全サポートと複数ドキュメント編集対象の限定は§11どおり保留。
 

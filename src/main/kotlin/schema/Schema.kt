@@ -100,15 +100,15 @@ data class SchemaDef(
 ) {
     private val regex: Regex by lazy { globToRegex(match) }
 
+    /** 構造コア（yaml-core）。$ref解決・cases合成・フェーズ必須・パス解決はここへ委譲する（YM-004b）。 */
+    val structural: StructuralSchema by lazy { StructuralSchema(id, root, definitions, phases, definitionCatalog) }
+
     /** ワークスペース相対パス（区切りは '/'）がこのスキーマの対象か。derive 宣言スキーマはマッチしない。 */
     fun matches(relPath: String): Boolean =
         kind == SchemaKind.DOCUMENT && derive == null && match.isNotBlank() && regex.matches(relPath)
 
     /** `$ref` の参照先。非修飾名はフィールドの定義元、修飾名は `module#name` から引く。 */
-    internal fun definitionTarget(field: FieldDef): Pair<DefinitionKey, FieldDef>? {
-        val ref = field.ref ?: return null
-        return definitionCatalog.find(ref, field.definitionScope ?: id)
-    }
+    internal fun definitionTarget(field: FieldDef): Pair<DefinitionKey, FieldDef>? = structural.definitionTarget(field)
 
     internal fun withDefinitionCatalog(catalog: SchemaCatalog): SchemaDef = copy(definitionCatalog = catalog)
 
@@ -118,122 +118,36 @@ data class SchemaDef(
      */
     fun definitionRefOf(field: FieldDef?): String? = field?.let { f -> definitionTarget(f)?.first?.toString() }
 
-    /** $ref を1段ずつ解決する。循環はデータ走査側が有限なので許容する。 */
-    fun resolve(field: FieldDef?): FieldDef? {
-        var current = field ?: return null
-        val seen = mutableSetOf<DefinitionKey>()
-        while (current.ref != null) {
-            val (key, target) = definitionTarget(current) ?: return current
-            if (!seen.add(key)) return current
-            current = target.copy(
-                key = current.key ?: target.key,
-                label = current.label ?: target.label,
-                required = current.required || target.required,
-                requiredFrom = current.requiredFrom ?: target.requiredFrom,
-                description = current.description ?: target.description,
-                idPatterns = current.idPatterns.ifEmpty { target.idPatterns },
-                scope = if (current.scope == RefScope()) target.scope else current.scope,
-                relation = current.relation ?: target.relation,
-                refTarget = if (current.refTarget == RefTarget.ENTITY) target.refTarget else current.refTarget,
-                unknownFields = current.unknownFields ?: target.unknownFields,
-                cases = current.cases.ifEmpty { target.cases },
-                role = current.role ?: target.role,
-                display = current.display ?: target.display,
-                minLength = current.minLength ?: target.minLength,
-                maxLength = current.maxLength ?: target.maxLength,
-                pattern = current.pattern ?: target.pattern,
-                min = current.min ?: target.min,
-                max = current.max ?: target.max,
-            )
-        }
-        return current
-    }
+    /** $ref を1段ずつ解決する。循環はデータ走査側が有限なので許容する。実装は yaml-core（YM-004b）。 */
+    fun resolve(field: FieldDef?): FieldDef? = structural.resolve(field)
 }
 
 /** 文書ルートから現在フェーズの申告値を読む（phases 未宣言なら null）。 */
-fun SchemaDef.currentPhaseValue(root: YNode?): String? =
-    phases?.let { p -> scalarText((root as? YNode.Map)?.entries?.get(p.key)) }
+fun SchemaDef.currentPhaseValue(root: YNode?): String? = structural.currentPhaseValue(root)
 
 /** 現在フェーズの順序位置。未申告・未知の値は先頭フェーズ（最も緩い判定）。phases 未宣言なら null。 */
-fun SchemaDef.currentPhaseIndex(root: YNode?): Int? =
-    phases?.let { p -> p.order.indexOf(currentPhaseValue(root)).coerceAtLeast(0) }
+fun SchemaDef.currentPhaseIndex(root: YNode?): Int? = structural.currentPhaseIndex(root)
 
 /**
  * フェーズを考慮した実効 required。requiredFrom は「そのフェーズ以降で必須」（累積的）。
  * 検証・進捗計算・フォーム表示はこの判定を共有する（ARCHITECTURE §4.15）。
  */
-fun SchemaDef.requiredAt(field: FieldDef, phaseIndex: Int?): Boolean {
-    val from = field.requiredFrom ?: return field.required
-    val p = phases ?: return field.required
-    if (phaseIndex == null) return field.required
-    val idx = p.order.indexOf(from)
-    return idx in 0..phaseIndex
-}
-
-/** 非アクティブな case 由来キーの情報（判別フィールドと、そのキーが有効になる enum 値）。 */
-data class InactiveCase(val discriminator: FieldDef, val values: List<String>)
-
-/** object の実効フィールド合成の結果。 */
-data class EffectiveFields(
-    val fields: List<FieldDef>,
-    /** 実効フィールドに含まれないが、いずれかの case で定義されているキー → その案内情報 */
-    val inactive: Map<String, InactiveCase>,
-)
+fun SchemaDef.requiredAt(field: FieldDef, phaseIndex: Int?): Boolean = structural.requiredAt(field, phaseIndex)
 
 /**
  * object の子フィールド一覧に、データノードの enum 値に応じた case フィールドを合成して返す。
  * object のフィールドを列挙する側（検証・フォーム・索引・AI変換・初期値生成）は必ずこの関数を通すこと。
- * case フィールドは判別フィールドの直後に挿入される。追加されたフィールド自身が cases つき enum の場合も、
- * 同じ親 object 上で続けて展開する。
+ * 実装は yaml-core の StructuralSchema（YM-004b）。
  */
-fun SchemaDef.effectiveFields(fields: List<FieldDef>, node: YNode.Map?): EffectiveFields {
-    val result = mutableListOf<FieldDef>()
-    val inactive = LinkedHashMap<String, InactiveCase>()
-    fun append(child: FieldDef, depth: Int) {
-        result += child
-        // $ref を介した自己参照で不正な無限展開にならないよう、スキーマ走査と同程度の上限を設ける。
-        if (depth > 32) return
-        val eff = resolve(child) ?: child
-        if (eff.type != FieldType.ENUM || eff.cases.isEmpty()) return
-        val current = child.key?.let { k -> scalarText(node?.entries?.get(k)) }
-        if (current != null) eff.cases[current].orEmpty().forEach { append(it, depth + 1) }
-        for ((value, caseFields) in eff.cases) {
-            if (value == current) continue
-            for (caseField in caseFields) {
-                val key = caseField.key ?: continue
-                val enabling = eff.values.filter { v -> eff.cases[v].orEmpty().any { it.key == key } }
-                    .ifEmpty { eff.cases.filterValues { list -> list.any { it.key == key } }.keys.toList() }
-                inactive.putIfAbsent(key, InactiveCase(eff, enabling))
-            }
-        }
-    }
-    fields.forEach { append(it, 0) }
-    result.forEach { it.key?.let(inactive::remove) }
-    return EffectiveFields(result, inactive)
-}
+fun SchemaDef.effectiveFields(fields: List<FieldDef>, node: YNode.Map?): EffectiveFields =
+    structural.effectiveFields(fields, node)
 
 /**
  * データパスに対応するフィールド定義をスキーマを辿って解決する（object の子は effectiveFields＝
- * enum の cases 合成、$ref は resolve を通す）。旧 core/Views.fieldAt の移設先（R23-01。ARCHITECTURE §4.33）:
- * ビューのセル型解決・ID横ぐし・エンティティ合成・重複所有の検証（validate 層）が共有する1実装。
- * `Views.fieldAt` は互換のためこの関数へ委譲する。
+ * enum の cases 合成、$ref は resolve を通す）。旧 core/Views.fieldAt の移設先（R23-01。ARCHITECTURE §4.33）。
+ * 実装は yaml-core の StructuralSchema（YM-004b）。`Views.fieldAt` は互換のためこの関数へ委譲する。
  */
-fun SchemaDef.fieldAt(root: YNode, path: model.YPath): FieldDef? {
-    var def: FieldDef = resolve(this.root) ?: return null
-    var node: YNode? = root
-    for (seg in path) {
-        val next: FieldDef? = when {
-            def.type == FieldType.OBJECT && seg is String ->
-                effectiveFields(def.fields, node as? YNode.Map).fields.firstOrNull { it.key == seg }
-            def.type == FieldType.MAP && seg is String -> def.value
-            def.type == FieldType.ARRAY && seg is Int -> def.item
-            else -> null
-        }
-        def = resolve(next) ?: return null
-        node = node?.let { model.getAt(it, listOf(seg)) }
-    }
-    return def
-}
+fun SchemaDef.fieldAt(root: YNode, path: model.YPath): FieldDef? = structural.fieldAt(root, path)
 
 data class SchemaIssue(val message: String, val path: String)
 
@@ -714,20 +628,9 @@ object SchemaLoader {
         val enforcement = if (kind == SchemaKind.RELATIONS) parseEnforcement(raw["enforcement"]) else null
         val match = raw["match"]?.toString()
             ?: if (kind == SchemaKind.DOCUMENT && derive == null) "**/*.{yaml,yml}" else ""
-        val definitions = (raw["definitions"] as? Map<*, *>)?.entries?.associate { (name, value) ->
-            val definition = value as? Map<*, *> ?: error("definitions.${name}: objectである必要があります")
-            name.toString() to parseField(definition, key = null, definitionScope = id)
-        } ?: emptyMap()
-        val root = if (kind != SchemaKind.DOCUMENT) {
-            require(raw["root"] == null) { "${kind.id} スキーマに root は定義できません" }
-            FieldDef(type = FieldType.OBJECT, definitionScope = id)
-        } else if (derive != null && raw["root"] == null) {
-            // derive 宣言スキーマの root は任意（共通フィールドがなければ空の object）
-            FieldDef(type = FieldType.OBJECT, definitionScope = id)
-        } else {
-            val rootMap = raw["root"] as? Map<*, *> ?: error("root定義が必要です")
-            parseField(rootMap, key = null, definitionScope = id)
-        }
+        // 構造部分（definitions・root・フィールド木）のパースは yaml-core の StructuralSchemaParser（YM-004c）
+        val definitions = StructuralSchemaParser.parseDefinitions(raw["definitions"], id)
+        val root = StructuralSchemaParser.parseRoot(raw["root"], kind, id, allowMissingRoot = derive != null)
         val coverage = parseCoverage(raw["coverage"])
         val consistency = parseConsistency(raw["consistency"])
         // パターン制約（R22-03。ARCHITECTURE §4.32）: パースはクエリコア（schema/Query.kt）と共用
@@ -735,7 +638,7 @@ object SchemaLoader {
             val list = rawList as? List<*> ?: error("constraintsはリストである必要があります")
             list.mapIndexed { i, entry -> ConstraintRule.parse(entry, "constraints[$i]") }
         } ?: emptyList()
-        val phases = parsePhases(raw["phases"])
+        val phases = StructuralSchemaParser.parsePhases(raw["phases"])
         val parsed = SchemaDef(
             id = id,
             name = name,
@@ -904,16 +807,6 @@ object SchemaLoader {
         )
     }
 
-    private fun parsePhases(raw: Any?): PhasesDef? = when (raw) {
-        null -> null
-        is List<*> -> PhasesDef(order = raw.map { it.toString() })
-        is Map<*, *> -> PhasesDef(
-            key = raw["key"]?.toString() ?: "phase",
-            order = (raw["order"] as? List<*>)?.map { it.toString() } ?: error("phases.order（フェーズの順序リスト）が必要です"),
-        )
-        else -> error("phases はフェーズのリスト、または key / order を持つ object である必要があります")
-    }
-
     private fun parseCoverage(raw: Any?): List<CoverageRule> {
         if (raw == null) return emptyList()
         val list = raw as? List<*> ?: error("coverageはリストである必要があります")
@@ -1008,91 +901,4 @@ object SchemaLoader {
     }
 
     private fun parseSchemaFile(file: Path): SchemaDef = parseSchemaText(Files.readString(file), file)
-
-    private fun parseField(m: Map<*, *>?, key: String?, definitionScope: String): FieldDef {
-        if (m == null) return FieldDef(key = key, definitionScope = definitionScope)
-        val typeName = m["type"]?.toString()
-        val type = if (typeName == null) FieldType.STRING
-            else FieldType.entries.firstOrNull { it.id == typeName } ?: error("未知の型です: $typeName")
-        val fields = (m["fields"] as? List<*>)?.mapIndexed { index, f ->
-            val child = f as? Map<*, *> ?: error("fields[$index]はobjectである必要があります")
-            parseField(child, child["key"]?.toString(), definitionScope)
-        } ?: emptyList()
-        val item = m["item"]?.let {
-            parseField(it as? Map<*, *> ?: error("itemはobjectである必要があります"), null, definitionScope)
-        }
-        val value = m["value"]?.let {
-            parseField(it as? Map<*, *> ?: error("valueはobjectである必要があります"), null, definitionScope)
-        }
-        // enum の選択肢: 文字列、または {value, label, description} の object（リッチ選択肢。R10-03）
-        val options = (m["values"] as? List<*>)?.mapIndexed { index, entry ->
-            when (entry) {
-                is Map<*, *> -> EnumOption(
-                    value = entry["value"]?.toString() ?: error("values[$index] には value が必要です"),
-                    label = entry["label"]?.toString(),
-                    description = entry["description"]?.toString(),
-                )
-                else -> EnumOption(entry.toString())
-            }
-        } ?: emptyList()
-        val cases = when (val rawCases = m["cases"]) {
-            null -> emptyMap()
-            is Map<*, *> -> rawCases.entries.associate { (caseValue, defs) ->
-                val list = defs as? List<*> ?: error("cases.${caseValue}はフィールド定義のリストである必要があります")
-                caseValue.toString() to list.mapIndexed { index, f ->
-                    val child = f as? Map<*, *> ?: error("cases.${caseValue}[$index]はobjectである必要があります")
-                    parseField(child, child["key"]?.toString(), definitionScope)
-                }
-            }
-            else -> error("casesはobject（enum値 → フィールド定義リスト）である必要があります")
-        }
-        val idPatterns = when (val rawPatterns = m["idPatterns"] ?: m["idPattern"]) {
-            is List<*> -> rawPatterns.map { it.toString() }
-            null -> emptyList()
-            else -> listOf(rawPatterns.toString())
-        }
-        val scopeMap = m["scope"] as? Map<*, *>
-        fun stringList(key: String): List<String> = when (val value = scopeMap?.get(key)) {
-            is List<*> -> value.map { it.toString() }
-            null -> emptyList()
-            else -> listOf(value.toString())
-        }
-        return FieldDef(
-            key = key,
-            label = m["label"]?.toString(),
-            type = type,
-            required = (m["required"] as? Boolean) ?: false,
-            requiredFrom = m["requiredFrom"]?.toString(),
-            values = options.map { it.value },
-            options = options,
-            role = FieldRole.parse(m["role"]?.toString()),
-            display = CollectionDisplay.parse(m["display"]?.toString()),
-            cases = cases,
-            item = item,
-            value = value,
-            fields = fields,
-            idPatterns = idPatterns,
-            scope = RefScope(
-                schemaIds = stringList("schemaIds"),
-                documentIds = stringList("documentIds"),
-            ),
-            relation = m["relation"]?.toString(),
-            refTarget = m["target"]?.let {
-                require(type == FieldType.REF) { "target（参照対象種別）は type: ref のフィールドでのみ定義できます" }
-                RefTarget.parse(it.toString())
-            } ?: RefTarget.ENTITY,
-            minLength = (m["minLength"] as? Number)?.toInt(),
-            maxLength = (m["maxLength"] as? Number)?.toInt(),
-            pattern = m["pattern"]?.toString(),
-            min = (m["min"] as? Number)?.toDouble(),
-            max = (m["max"] as? Number)?.toDouble(),
-            default = m["default"],
-            description = m["description"]?.toString(),
-            ref = (m["\$ref"] ?: m["ref"])?.toString(),
-            unknownFields = m["unknownFields"]?.toString()?.let { raw ->
-                UnknownFieldsPolicy.parse(raw) ?: error("unknownFields は allow / warning / error のいずれかである必要があります: $raw")
-            },
-            definitionScope = definitionScope,
-        )
-    }
 }

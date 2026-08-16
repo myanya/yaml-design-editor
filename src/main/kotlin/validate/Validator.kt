@@ -34,8 +34,6 @@ import yaml.YamlIO
 import java.nio.file.Files
 import java.nio.file.Path
 
-enum class Severity { ERROR, WARNING, INFO }
-
 /**
  * 整合検証の指摘に添付する導出の来歴（R16-03c / UX-13）。
  * UIは指摘クリックで「エラー箇所へ／導出規則へ／入力値へ／導出値を適用」の選択を提示する。
@@ -81,8 +79,6 @@ data class PhaseProgress(val phase: String, val filled: Int, val total: Int)
  */
 object Validator {
 
-    private val DATE_RE = Regex("""\d{4}-\d{2}-\d{2}""")
-
     fun validate(
         root: YNode?,
         parseError: String?,
@@ -113,19 +109,13 @@ object Validator {
 
         val issues = mutableListOf<Issue>()
 
-        // 1) スキーマ検証（フェーズ申告があれば requiredFrom の判定に反映する）
+        // 1) スキーマ検証（構造検証。yaml-core の StructuralValidator へ委譲＝YM-005。
+        //    型・必須・enum・制約語彙・cases・未定義キー・フェーズ申告を StructuralIssue として受け取り、
+        //    従来どおり Issue へ写して返す。phaseIndex は後段（整合・パターン制約の activeFrom）でも使う）
         val phaseIndex = schema?.currentPhaseIndex(root)
-        schema?.phases?.let { phases ->
-            val declared = schema.currentPhaseValue(root)
-            if (declared != null && declared !in phases.order) {
-                issues += Issue(
-                    Severity.WARNING,
-                    "フェーズ「$declared」は phases（${phases.order.joinToString(" → ")}）に定義されていません（先頭フェーズとして扱います）",
-                    listOf(phases.key),
-                )
-            }
+        schema?.let { s ->
+            issues += StructuralValidator.validate(root, s.structural).map { Issue(it.severity, it.message, it.path) }
         }
-        schema?.let { checkField(it.root, root, emptyList(), issues, it, phaseIndex) }
 
         // 2) ID / 参照の検証
         val documentId = indexObj.documentIdFor(file, root)
@@ -503,200 +493,4 @@ object Validator {
 
     /** カバレッジの数え上げ対象の表示名（参照ベース=「参照」、出現ベース=「出現」）。UI表示で共用する。 */
     fun coverageCountLabel(rule: CoverageRule): String = if (rule.isOccurrence) "出現" else "参照"
-
-    /** 数値の表示（整数なら小数点を出さない）。制約メッセージで使う。 */
-    private fun numText(d: Double): String =
-        if (d == Math.floor(d) && !d.isInfinite()) d.toLong().toString() else d.toString()
-
-    /** 数値の範囲制約（R16-01: min / max）。値が数値として読めるときだけ検査する。 */
-    private fun checkRange(f: FieldDef, label: String, v: Any?, path: YPath, issues: MutableList<Issue>) {
-        if (f.min == null && f.max == null) return
-        val n = (v as? Number)?.toDouble() ?: (v as? String)?.toDoubleOrNull() ?: return
-        f.min?.let { limit ->
-            if (n < limit) issues += Issue(Severity.ERROR, "「$label」は ${numText(limit)} 以上で入力してください（現在値: $v）", path)
-        }
-        f.max?.let { limit ->
-            if (n > limit) issues += Issue(Severity.ERROR, "「$label」は ${numText(limit)} 以下で入力してください（現在値: $v）", path)
-        }
-    }
-
-    private fun checkField(field: FieldDef, node: YNode?, path: YPath, issues: MutableList<Issue>, schema: schema.SchemaDef, phaseIndex: Int?) {
-        val f = schema.resolve(field) ?: field
-        val label = f.displayLabel
-        val required = schema.requiredAt(f, phaseIndex)
-        if (node == null) {
-            if (required) issues += Issue(Severity.ERROR, "必須項目「$label」が未設定です", path)
-            return
-        }
-        when (f.type) {
-            FieldType.OBJECT -> {
-                if (node !is YNode.Map) {
-                    issues += Issue(Severity.ERROR, "「$label」はオブジェクトである必要があります", path)
-                } else {
-                    val effective = schema.effectiveFields(f.fields, node)
-                    for (ch in effective.fields) {
-                        val key = ch.key ?: continue
-                        checkField(ch, node.entries[key], path + key, issues, schema, phaseIndex)
-                    }
-                    val definedKeys = effective.fields.mapNotNull { it.key }.toSet()
-                    val unknownKeys = node.entries.keys.filter {
-                        it !in definedKeys && !(path.isEmpty() && it == "_document")
-                    }
-                    val severity = when (f.unknownFields ?: UnknownFieldsPolicy.WARNING) {
-                        UnknownFieldsPolicy.ALLOW -> null
-                        UnknownFieldsPolicy.WARNING -> Severity.WARNING
-                        UnknownFieldsPolicy.ERROR -> Severity.ERROR
-                    }
-                    if (severity != null) {
-                        unknownKeys.forEach { key ->
-                            val inactive = effective.inactive[key]
-                            issues += if (inactive != null) {
-                                Issue(
-                                    severity,
-                                    "「$key」は「${inactive.discriminator.displayLabel}」が ${inactive.values.joinToString(" / ")} のときのみ使用できます",
-                                    path + key,
-                                )
-                            } else {
-                                Issue(severity, "スキーマに定義されていない項目です: $key", path + key)
-                            }
-                        }
-                    }
-                }
-            }
-            FieldType.ARRAY -> {
-                if (node !is YNode.Seq) {
-                    issues += Issue(Severity.ERROR, "「$label」は配列である必要があります", path)
-                } else {
-                    val itemDef = f.item ?: return
-                    node.items.forEachIndexed { i, child ->
-                        checkField(itemDef.copy(label = "$label[$i]"), child, path + i, issues, schema, phaseIndex)
-                    }
-                }
-            }
-            FieldType.MAP -> {
-                if (node !is YNode.Map) {
-                    issues += Issue(Severity.ERROR, "「$label」はMapである必要があります", path)
-                } else {
-                    val valueDef = f.value ?: return
-                    node.entries.forEach { (key, value) ->
-                        checkField(valueDef.copy(label = "$label.$key"), value, path + key, issues, schema, phaseIndex)
-                    }
-                }
-            }
-            FieldType.ENUM -> {
-                val v = scalarText(node)
-                if (v == null) {
-                    if (required) issues += Issue(Severity.ERROR, "必須項目「$label」が未設定です", path)
-                } else if (v !in f.values) {
-                    issues += Issue(Severity.ERROR, "「$label」の値「$v」は選択肢 ${f.values} に含まれていません", path)
-                }
-            }
-            FieldType.INT -> {
-                val v = (node as? YNode.Scalar)?.value
-                val ok = v == null || v is Int || v is Long || (v is String && v.toLongOrNull() != null)
-                if (!ok) issues += Issue(Severity.ERROR, "「$label」は整数である必要があります（現在値: $v）", path)
-                else checkRange(f, label, v, path, issues)
-            }
-            FieldType.NUMBER -> {
-                val v = (node as? YNode.Scalar)?.value
-                val ok = v == null || v is Number || (v is String && v.toDoubleOrNull() != null)
-                if (!ok) issues += Issue(Severity.ERROR, "「$label」は数値である必要があります（現在値: $v）", path)
-                else checkRange(f, label, v, path, issues)
-            }
-            FieldType.BOOLEAN -> {
-                val v = (node as? YNode.Scalar)?.value
-                if (v != null && v !is Boolean) {
-                    issues += Issue(Severity.ERROR, "「$label」は真偽値である必要があります（現在値: $v）", path)
-                }
-            }
-            FieldType.DATE -> {
-                val v = scalarText(node)
-                if (v != null && !DATE_RE.matches(v)) {
-                    issues += Issue(Severity.WARNING, "「$label」は YYYY-MM-DD 形式を推奨します（現在値: $v）", path)
-                }
-            }
-            FieldType.ID -> {
-                val v = scalarText(node)
-                if (v == null && required) {
-                    issues += Issue(Severity.ERROR, "必須項目「$label」（ID）が未設定です", path)
-                }
-                // IDフォーマットの強制（UX-79）: pattern 制約（R16-01）を ID 型にも適用する
-                if (v != null) {
-                    f.pattern?.let { p ->
-                        runCatching { Regex(p) }.getOrNull()?.let { re ->
-                            if (!re.matches(v)) {
-                                issues += Issue(Severity.ERROR, "「$label」は形式（$p）に一致していません（現在値: $v）", path)
-                            }
-                        }
-                    }
-                }
-            }
-            FieldType.REF -> {
-                if (f.fields.isNotEmpty() && node is YNode.Map) {
-                    // 属性付き参照（R20-03。ARCHITECTURE §4.30）: {to, 属性...} を object の流儀で検証する。
-                    // to の解決検証は参照走査（DocScanner の RefEntry）が従来の ref と同一に担う
-                    if (scalarText(node.entries["to"]) == null) {
-                        issues += Issue(Severity.ERROR, "「$label」の to（参照値）が未設定です", path + "to")
-                    }
-                    val effective = schema.effectiveFields(f.fields, node)
-                    for (ch in effective.fields) {
-                        val key = ch.key ?: continue
-                        checkField(ch, node.entries[key], path + key, issues, schema, phaseIndex)
-                    }
-                    val definedKeys = effective.fields.mapNotNull { it.key }.toSet() + "to"
-                    val severity = when (f.unknownFields ?: UnknownFieldsPolicy.WARNING) {
-                        UnknownFieldsPolicy.ALLOW -> null
-                        UnknownFieldsPolicy.WARNING -> Severity.WARNING
-                        UnknownFieldsPolicy.ERROR -> Severity.ERROR
-                    }
-                    if (severity != null) {
-                        node.entries.keys.filter { it !in definedKeys }.forEach { key ->
-                            issues += Issue(severity, "スキーマに定義されていない項目です: $key", path + key)
-                        }
-                    }
-                } else if (node !is YNode.Scalar) {
-                    issues += Issue(
-                        Severity.WARNING,
-                        if (f.fields.isNotEmpty()) "「$label」は参照ID（スカラー）または {to, 属性} のオブジェクトを想定しています"
-                        else "「$label」はスカラー値を想定しています",
-                        path,
-                    )
-                } else if (required && scalarText(node) == null) {
-                    issues += Issue(Severity.ERROR, "必須項目「$label」が未設定です", path)
-                }
-            }
-            FieldType.STRING, FieldType.TEXT -> {
-                if (node !is YNode.Scalar) {
-                    issues += Issue(Severity.WARNING, "「$label」はスカラー値を想定しています", path)
-                } else if (required && scalarText(node) == null) {
-                    issues += Issue(Severity.ERROR, "必須項目「$label」が未設定です", path)
-                } else {
-                    // 制約語彙（R16-01）: 文字数・正規表現（値が入っているときだけ検査する）
-                    val text = scalarText(node)
-                    if (text != null) {
-                        f.minLength?.let { limit ->
-                            if (text.length < limit) {
-                                issues += Issue(Severity.ERROR, "「$label」は $limit 文字以上で入力してください（現在 ${text.length} 文字）", path)
-                            }
-                        }
-                        f.maxLength?.let { limit ->
-                            if (text.length > limit) {
-                                issues += Issue(Severity.ERROR, "「$label」は $limit 文字以内で入力してください（現在 ${text.length} 文字）", path)
-                            }
-                        }
-                        f.pattern?.let { p ->
-                            // 不正な正規表現はメタスキーマ検証（validateDefinition）が指摘するため、ここでは黙って飛ばす
-                            runCatching { Regex(p) }.getOrNull()?.let { re ->
-                                if (!re.matches(text)) {
-                                    issues += Issue(Severity.ERROR, "「$label」は形式（$p）に一致していません（現在値: $text）", path)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            // any は「検証しない」の明示（R11-02）。必須チェック（node == null）だけが手前で効く
-            FieldType.ANY -> Unit
-        }
-    }
 }
