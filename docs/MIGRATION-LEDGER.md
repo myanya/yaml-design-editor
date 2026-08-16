@@ -21,7 +21,7 @@
 | P1-01 | 4モジュール骨格（settings・build・smoke test） | 全モジュール | done | - | ルートは3coreへ依存追加 |
 | YM-001 | model/YNode.kt（YNode・YPath）と YPathTest の移動 | yaml-core | done | なし | 既存契約維持（portのみ。2026-08-16） |
 | YM-002 | yaml/YamlIO.kt と YamlIOTest の移動 | yaml-core | done | なし | 既存契約維持＋fixture round-tripテスト追加（2026-08-16） |
-| YM-003 | YDocument / DocumentId / YamlCodec 新設 | yaml-core | todo | - | Phase 2 |
+| YM-003 | YDocument / DocumentId / YamlCodec 新設 | yaml-core | done | なし（新API） | Phase 2完了。完了条件3点を確認（2026-08-16） |
 | YM-004 | Schema.kt の構造部分分離（FieldType・FieldDef・$ref） | yaml-core | todo | - | Phase 3 |
 | YM-005 | Validator.kt の型・required・range検証分離 | yaml-core | todo | - | Phase 3 |
 | YM-006 | ConstraintTest 単文書ケース・ValidatorTest の移動 | yaml-core | todo | - | Phase 3 |
@@ -59,6 +59,23 @@
   UI移行まで残る（ベースライン欄参照）
 完了確認コマンド: ./gradlew test / ./gradlew :yaml-core:test
 ```
+
+### YM-003 YDocument / DocumentId / YamlCodec の新設（done 2026-08-16）
+
+```text
+旧実装: なし（新API。計画書§4.1のスケッチどおり）
+旧テスト: なし（YamlCodecTest を新設。テストメソッド名は日本語＝CONVENTIONS §4）
+新しい責務: テキスト ⇔ YDocument（`---` 区切りの全ドキュメント）の相互変換。
+  DocumentId は上位層が与える不透明な論理識別子（空白のみは拒否）
+新しい公開API: model.DocumentId / model.YDocument / yaml.YamlCodec / yaml.DefaultYamlCodec
+維持する挙動: コメント・スタイル保持は YamlIO へ委譲（挙動変更なし）。
+  正規化出力は YamlIO.dumpPlain のまま別API（計画書 Phase 2 作業順8）
+意図的に変える挙動: なし
+未解決事項: パッケージは移行方針どおり既存名（model / yaml）へ同居。最終改名時に dev.toros.yde.yaml.* へ
+完了確認コマンド: ./gradlew :yaml-core:test / ./gradlew test
+```
+
+**Phase 2 完了判定（2026-08-16）**: ①yaml-core単独で全yaml fixtureをround-trip（FixtureRoundTripTest・YamlCodecTest）②`YamlCodec` 公開APIにSnakeYAMLの型なし ③文字列だけでテスト可能（ファイルI/Oはfixture読込のみ）——3条件とも充足。判断ポイントのうち可変YNodeは決定済み（ADR-0003）、anchor/aliasの完全サポートと複数ドキュメント編集対象の限定は§11どおり保留。
 
 ## 作業項目の記録様式
 
