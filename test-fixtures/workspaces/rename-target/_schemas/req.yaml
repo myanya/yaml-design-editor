@@ -1,0 +1,22 @@
+# entity rename で複数文書が更新されることを確認するスキーマ
+id: fx-req
+name: fx-req
+match: "reqs/**/*.yaml"
+root:
+  type: object
+  fields:
+    - key: id
+      label: 要求ID
+      type: id
+      required: true
+    - key: title
+      label: タイトル
+      type: string
+      required: true
+    - key: relates_to
+      label: 関連要求
+      type: array
+      item:
+        type: ref
+        scope:
+          schemaIds: [fx-req]

@@ -1,0 +1,4 @@
+id: REQ-003
+title: 派生要求（その3）
+relates_to:
+  - REQ-001

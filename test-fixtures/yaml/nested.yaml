@@ -1,0 +1,19 @@
+# map・sequence・入れ子objectの複合
+config:
+  name: nested-sample
+  flags: [fast, safe]
+  servers:
+    - host: alpha
+      port: 8080
+      tags:
+        - web
+        - main
+    - host: beta
+      port: 9090
+      tags: []
+  limits:
+    cpu: 2
+    memory: 512
+    nested:
+      deep:
+        value: ok

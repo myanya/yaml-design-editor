@@ -16,6 +16,11 @@ repositories {
 }
 
 dependencies {
+    // 3層コア（移行中はアプリから3coreすべてへ直接依存してよい。ADR-0001/0002）
+    implementation(project(":workspace-core"))
+    implementation(project(":semantic-core"))
+    implementation(project(":yaml-core"))
+
     implementation(compose.desktop.currentOs)
     implementation(compose.material3)
     implementation(compose.materialIconsExtended)

@@ -1,0 +1,32 @@
+# 最小のID・参照スキーマ（fixture: ファイル内ID重複・未解決refの検出を確認する）
+id: fx-item
+name: fx-item
+match: "items/**/*.yaml"
+root:
+  type: object
+  fields:
+    - key: id
+      label: アイテムID
+      type: id
+      required: true
+    - key: title
+      label: タイトル
+      type: string
+      required: true
+    - key: link
+      label: 関連アイテム
+      type: ref
+      scope:
+        schemaIds: [fx-item]
+    - key: parts
+      label: 部品
+      type: array
+      item:
+        type: object
+        fields:
+          - key: id
+            label: 部品ID
+            type: id
+          - key: name
+            label: 部品名
+            type: string

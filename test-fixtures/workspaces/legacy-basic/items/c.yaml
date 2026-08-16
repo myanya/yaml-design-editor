@@ -1,0 +1,12 @@
+# 意図的な問題データ:
+# - id IT-001 は a.yaml と同一（ファイル間の同一IDは「同一エンティティの複数出現」でありエラーではない）
+# - link IT-404 は未解決参照（ERROR）
+# - parts の PT-001 はファイル内重複（ERROR）
+id: IT-001
+title: アイテムC（IT-001の第2出現）
+link: IT-404
+parts:
+  - id: PT-001
+    name: 部品1
+  - id: PT-001
+    name: 部品1の重複

@@ -1,0 +1,9 @@
+id: TK-001
+title: 最初のタスク
+kind: manual
+assignee: 佐藤
+steps:
+  - name: 準備
+    done: true
+  - name: 実施
+    done: false

@@ -1,0 +1,21 @@
+# 意図的差分一覧
+
+3層コア移行で**最初から意図して変える**既存挙動の台帳（計画書§2.3）。
+新旧比較テストでこの表に該当する差分が出た場合、移植ミスとして扱わず、新旧それぞれの期待値を明記する。
+ここに載っていない差分はすべて移植ミスの疑いとして調査する。
+
+| ID | 現行挙動 | 新APIの挙動 | 関連ADR |
+|---|---|---|---|
+| D-01 | `Workspace.apply` が変更セットを検証してそのままファイルへ書く | `apply` はworking snapshotだけを更新し、`save` が別途ファイルへ書く | ADR-0005 |
+| D-02 | UIの文書キャッシュ・ディスク索引・agent stagingが別々のoverlayを持つ | すべて `WorkspaceSnapshot` を入力とする共通semantic engineを使う | ADR-0004 |
+| D-03 | `EditBuffer` が正規化text snapshotを履歴に持つ | 型付き `YamlOperation` とinverseを基本履歴にする | ADR-0005 / 0006 |
+| D-04 | `AppState` や複数のcore機能が直接ファイルを書く | coreの書込を `DocumentStore` と `WorkspaceSession.save` へ集約する | ADR-0005 |
+| D-05 | `Schema.kt` と `Validator.kt` が構造規則と意味規則を同時に扱う | structuralとsemanticのcompile/validationを分ける | ADR-0002 / 0004 |
+| D-06 | `Path` がschema・index・coreへ広く渡る | `Path` はworkspace-coreのI/O境界に閉じ、下位層には `DocumentId` を渡す | ADR-0002 |
+| D-07 | 単文書ごとのUndoスタック（EditBuffer単位） | Undoスタックはworkspace履歴のみ。単文書編集も文書1件の `ChangeRecord` | ADR-0006 |
+| D-08 | ソース編集はパース不能テキスト状態（`rawText` / `parseError`）を保持しUndoできる | coreの履歴は型付き操作のみ。生テキスト編集のUndoは将来UI層の責務（core外） | ADR-0006 |
+
+## 記入規則
+
+- 新しい意図的差分が生じたら、実装より先にこの表へ行を足す（1行=1差分。関連ADRがなければ先にADRを書く）。
+- 差分を廃止（旧挙動へ戻す）した場合は行を消さず、取り消し線と理由を残す。

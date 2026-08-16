@@ -52,6 +52,9 @@
 | [docs/ROADMAP.md](ROADMAP.md) | 将来構想・フェーズ別ロードマップ | 方向性・優先度の変更、ロードマップ項目（Rx-xx）の着手・完了（完了時は FEATURES.md へ移す） |
 | [docs/BACKLOG.md](BACKLOG.md) | 指摘台帳（UX試験・レビューで見つかった、今のタスクと本質が異なる気になりポイント） | 気になりポイントに気づいたとき**即時**に登録（§7）。対応判断・解決時に状態を更新 |
 | [docs/UX-SCENARIOS.md](UX-SCENARIOS.md) | UX試験のシナリオ台帳（台本・実施トリガ・実施履歴） | シナリオの執筆・改訂、試験の実施後（履歴追記）、操作手順が変わる機能変更時（台本への反映） |
+| [docs/THREE-LAYER-CORE-MIGRATION-PLAN.md](THREE-LAYER-CORE-MIGRATION-PLAN.md) | 3層コア移行の計画（フェーズ・完了条件・移行先対応表） | 移行方針・フェーズ構成を変えるとき |
+| [docs/MIGRATION-LEDGER.md](MIGRATION-LEDGER.md) | 移行台帳（作業単位の状態と記録） | 移行作業の着手・完了のたび（§8） |
+| [docs/decisions/](decisions/README.md) | ADRと意図的差分一覧 | 設計決定の追加・変更（既存ADRは書き換えず新しいADRで上書き宣言）、既存挙動を変える前（INTENTIONAL-DIFFS.md へ登録） |
 | [docs/CONVENTIONS.md](CONVENTIONS.md)（本書） | 書き方の規約 | 規約自体を変えるとき |
 
 作業のたびに次を確認する:
@@ -67,3 +70,16 @@
 - **完了報告には「試し方」を必ず含める**: 機能を追加・変更したら、完了報告に（1）具体的な操作手順（起動方法・画面のたどり方・入力する値の例）と（2）**見てほしい観点**（どこに注目し、何を感じたら教えてほしいか）を添える。利用者が触って感想を返し、それを踏まえて**チューニングするかどうかを決める**（作りっぱなしにしない）。試し方の台本は UX試験（ROADMAP P17）のシナリオとして [UX-SCENARIOS.md](UX-SCENARIOS.md) へ蓄積し、操作手順が変わったら該当シナリオへ反映する。
 - **気になりポイントは [BACKLOG.md](BACKLOG.md) へ即時記録する**: 作業中・試験中に見つかった「今のタスクと本質が異なる指摘」は、その場で直しに行かず（脱線防止）、まず台帳へ1行登録する。登録の敷居は最低にする（完璧な分析は不要）。対応するか・いつやるかは後で個別に判断し、大きいものは ROADMAP の項目へ起こす。
 - **良かった点も残す**: 方向性の確認になった所感（「この体験は正しい」）も台帳の所感メモへ残し、チューニングの判断材料にする。
+
+## 8. 3層コア移行中の規約（期間限定・移行完了まで）
+
+3層コア移行（[THREE-LAYER-CORE-MIGRATION-PLAN.md](THREE-LAYER-CORE-MIGRATION-PLAN.md)）の期間中は、以下を通常規約に加えて適用する。[decisions/](decisions/README.md) のADRは本規約と同格であり、矛盾がある場合はADRを正として規約側を直す。
+
+1. **着手前に台帳を見る**: コア（model / yaml / schema / index / validate / core）へ触る前に [MIGRATION-LEDGER.md](MIGRATION-LEDGER.md) で対象の移行状態を確認する。done（移動済み）のコードは移行先モジュールで変更する。
+2. **移動であって複製ではない**: ファイルはモジュールへ `git mv` し、旧位置に残さない。各ステップでアプリ含む `./gradlew test` を緑に保つ。
+3. **パッケージ改名禁止**: 移行中は既存パッケージ名（model・yaml・schema・index・core・validate）のまま移動する。`dev.toros.yde.*` への改名は移行完了後の独立変更（ファイル分割で新設するコードは最初から新パッケージでよい）。
+4. **依存方向の厳守（ADR-0002）**: `yaml-core ← semantic-core ← workspace-core ← cli／アプリ`。3coreからアプリ・Compose・AI・agent・skillへの依存禁止。yaml-core / semantic-core のmainソースへ `java.nio.file.Path` を持ち込まない（テストがfixture読込に使うのは可）。
+5. **挙動差分は登録が先**: 既存挙動を変える場合、実装より先に [decisions/INTENTIONAL-DIFFS.md](decisions/INTENTIONAL-DIFFS.md) へ行を足す。登録なき挙動差分は移植ミスとして扱う。
+6. **コミットの分類**: 変更は port（移動）／refactor／behavior-change のいずれかに分類し、1コミットに混ぜない（計画書§10.7）。
+7. **fixtureは読み取り専用**: `test-fixtures/` の期待結果は現行実装で確認済み（[test-fixtures/README.md](../test-fixtures/README.md)）。変更を伴うテストは一時ディレクトリへコピーして使う。`sample-workspace/` は従来どおり変更しない。
+8. **台帳の記録**: 作業単位の完了時に MIGRATION-LEDGER.md の状態と記録様式（旧実装・新しい公開API・維持する挙動・意図的差分）を更新する。

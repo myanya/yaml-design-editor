@@ -1,0 +1,20 @@
+# .yde構成のスキーマ（match はワークスペース相対）
+id: fx-item
+name: fx-item
+match: "doc/**/*.yaml"
+root:
+  type: object
+  fields:
+    - key: id
+      label: アイテムID
+      type: id
+      required: true
+    - key: title
+      label: タイトル
+      type: string
+      required: true
+    - key: link
+      label: 関連アイテム
+      type: ref
+      scope:
+        schemaIds: [fx-item]

@@ -1,0 +1,20 @@
+# ファイル先頭のコメント（ヘッダ）
+id: FX-001            # 行内コメント
+title: "二重引用符付き 文字列"
+single: 'シングルクォート'
+plain: 素の文字列
+date_like: 2026-08-16
+quoted_date: "2026-08-16"
+truthy_string: "true"
+numeric_string: "007"
+empty: ""
+nothing: null
+tilde: ~
+# キーの間のコメント
+note: |
+  ブロックスカラー。
+  複数行を保持する。
+folded: >
+  折り返し
+  スカラー。
+# ファイル末尾のコメント

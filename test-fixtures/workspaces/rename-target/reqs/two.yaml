@@ -1,0 +1,4 @@
+id: REQ-002
+title: 派生要求（その2）
+relates_to:
+  - REQ-001

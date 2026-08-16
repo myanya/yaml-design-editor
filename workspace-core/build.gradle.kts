@@ -1,0 +1,27 @@
+// workspace-core: 文書集合の版・更新・永続化・履歴・トランザクション・派生状態の鮮度管理
+// ファイルI/O（Path）はこの層のI/O境界に閉じる（ADR-0002）
+plugins {
+    kotlin("jvm")
+}
+
+group = "dev.toros"
+version = "0.1.0"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    api(project(":yaml-core"))
+    api(project(":semantic-core"))
+    testImplementation(kotlin("test"))
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.2")
+}
+
+kotlin {
+    jvmToolchain(17)
+}
+
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
+}

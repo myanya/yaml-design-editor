@@ -1,0 +1,12 @@
+# 1つ目のドキュメント
+kind: first
+value: 1
+---
+kind: second
+value: 2
+---
+# 3つ目のドキュメント（コメント付き）
+kind: third
+list:
+  - a
+  - b

@@ -1,0 +1,55 @@
+# $ref（definitions）と cases（enum判別による追加フィールド）を含むスキーマfixture
+# workspaces/legacy-basic/_schemas/task.yaml と同一内容（単体パース試験用の複製）
+id: fx-task
+name: fx-task
+match: "tasks/**/*.yaml"
+root:
+  type: object
+  fields:
+    - key: id
+      label: タスクID
+      type: id
+      required: true
+    - key: title
+      label: タイトル
+      type: string
+      required: true
+    - key: kind
+      label: 種別
+      type: enum
+      required: true
+      values: [manual, scheduled]
+      cases:
+        manual:
+          - key: assignee
+            label: 担当者
+            type: string
+            required: true
+        scheduled:
+          - key: cron
+            label: スケジュール
+            type: string
+            required: true
+    - key: steps
+      label: 手順
+      type: array
+      item:
+        $ref: step
+    - key: blocked_by
+      label: 依存タスク
+      type: array
+      item:
+        type: ref
+        scope:
+          schemaIds: [fx-task]
+definitions:
+  step:
+    type: object
+    fields:
+      - key: name
+        label: 手順名
+        type: string
+        required: true
+      - key: done
+        label: 完了
+        type: boolean
