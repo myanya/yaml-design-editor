@@ -140,71 +140,9 @@ class PatchTest {
     }
 
     @Test
-    fun `reorder works on nested maps and parses from changeset`() {
+    fun `reorder works on nested maps`() {
         val root = tree("details:\n  b: 2\n  a: 1")
         Patcher.apply(root, PatchOp.ReorderKeys(parseYPath("details"), listOf("a", "b")))
         assertEquals(dump(tree("details:\n  a: 1\n  b: 2")), dump(root))
-        val cs = ChangeSets.parse("changes:\n  - file: a.yaml\n    ops:\n      - { op: reorder, path: details, order: [a, b] }")
-        val op = cs.changes.single().ops.single() as PatchOp.ReorderKeys
-        assertEquals(listOf("a", "b"), op.order)
-    }
-
-    // ---------------------------------------------------------------- 変更セットの解析
-
-    @Test
-    fun `parses changeset yaml`() {
-        val cs = ChangeSets.parse(
-            """
-            changes:
-              - file: a.yaml
-                base: abc123
-                ops:
-                  - { op: set, path: title, value: 新タイトル }
-                  - { op: insert, path: "tags[0]", value: 重要 }
-                  - { op: delete, path: obsolete }
-                  - { op: move, from: "items[2]", to: "items[0]" }
-                  - { op: rename, path: title, to: name }
-            """.trimIndent()
-        )
-        assertEquals(1, cs.changes.size)
-        val change = cs.changes.single()
-        assertEquals("a.yaml", change.file)
-        assertEquals("abc123", change.baseHash)
-        assertEquals(5, change.ops.size)
-        assertTrue(change.ops[0] is PatchOp.Set)
-        assertTrue(change.ops[1] is PatchOp.Insert)
-        assertTrue(change.ops[2] is PatchOp.Delete)
-        assertTrue(change.ops[3] is PatchOp.Move)
-        assertEquals(listOf<Any>("items", 2), (change.ops[3] as PatchOp.Move).from)
-        assertEquals("name", (change.ops[4] as PatchOp.RenameKey).newName)
-    }
-
-    @Test
-    fun `changeset with unknown op fails`() {
-        assertFailsWith<IllegalStateException> {
-            ChangeSets.parse("changes:\n  - file: a.yaml\n    ops:\n      - { op: upsert, path: a }")
-        }
-        // rename は to（改名先）が必須
-        assertFailsWith<IllegalStateException> {
-            ChangeSets.parse("changes:\n  - file: a.yaml\n    ops:\n      - { op: rename, path: a }")
-        }
-    }
-
-    @Test
-    fun `structured values are converted to nodes`() {
-        val cs = ChangeSets.parse(
-            """
-            changes:
-              - file: a.yaml
-                ops:
-                  - op: set
-                    path: item
-                    value:
-                      id: X-1
-                      tags: [a, b]
-            """.trimIndent()
-        )
-        val value = (cs.changes.single().ops.single() as PatchOp.Set).value
-        assertEquals("id: X-1\ntags:\n  - a\n  - b\n", YamlIO.dump(value))
     }
 }

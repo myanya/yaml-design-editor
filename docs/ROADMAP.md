@@ -730,7 +730,7 @@ limit: 100
 |---|---|
 | Phase 0: 移行基準の固定（ADR・test-fixtures・ベースライン561テスト） | ✅ 2026-08-16 |
 | Phase 1: モジュール骨格（4モジュール・依存方向の固定） | ✅ 2026-08-16 |
-| Phase 2〜4: yaml-core = M1: YAMLライブラリ | 🚧 |
+| Phase 2〜4: yaml-core = M1: YAMLライブラリ | ✅ 2026-08-17（テスト67件。残整理 YM-006b のみ） |
 | Phase 5〜6: semantic-core = M2: 意味解析ライブラリ | 📋 |
 | Phase 7〜8: workspace-core = M3: ヘッドレスworkspace | 📋 |
 | Phase 9〜11: リファクタリング基盤・CLI完成・増分性能 = M4〜M5 | 📋 |

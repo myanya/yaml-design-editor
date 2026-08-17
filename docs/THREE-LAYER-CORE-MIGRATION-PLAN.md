@@ -256,24 +256,31 @@ interface StructuralValidator {
 #### 編集API案
 
 ```kotlin
+確定形（YM-007b 実装済み。yaml-core `edit/YamlEdit.kt`）。座標は既存パッチ語彙（`PatchOp` / ChangeSets）と同じ「対象そのものを指す `YPath`」とし、実装は `Patcher` 機構の上の薄い層とした。
+
+```kotlin
 sealed interface YamlOperation {
     /** valueの値域はスカラーの閉集合（String/Boolean/Int/Long/Double/null）。Kotlinの型が正（「スカラー値と表記の契約」参照） */
     data class SetScalar(val path: YPath, val value: Any?) : YamlOperation
-    data class Insert(val parent: YPath, val position: Int, val value: YNode) : YamlOperation
-    data class Remove(val path: YPath) : YamlOperation
-    data class Move(val from: YPath, val toParent: YPath, val position: Int) : YamlOperation
-    data class RenameKey(val parent: YPath, val from: String, val to: String) : YamlOperation
     data class Replace(val path: YPath, val value: YNode) : YamlOperation
+    data class Insert(val path: YPath, val value: YNode) : YamlOperation
+    data class Remove(val path: YPath) : YamlOperation
+    data class Move(val from: YPath, val to: YPath) : YamlOperation
+    data class RenameKey(val path: YPath, val newName: String) : YamlOperation
+    data class ReorderKeys(val path: YPath, val order: List<String>) : YamlOperation
 }
 
-data class OperationResult(
-    val document: YDocument,
-    val inverse: YamlOperation
-)
+data class EditBatch(val operations: List<YamlOperation>)
 
-interface YamlOperationExecutor {
-    fun apply(document: YDocument, operation: YamlOperation): OperationResult
+object YamlEdit {
+    /** 1操作を適用し、逆操作列を返す。失敗時は文書を変更せず例外 */
+    fun apply(root: YNode, op: YamlOperation): List<YamlOperation>
+    /** 一括適用。途中失敗は適用済み分を巻き戻す。返り値は順に適用すると元へ戻る列 */
+    fun applyBatch(root: YNode, batch: EditBatch): List<YamlOperation>
 }
+```
+
+逆操作は**列**とする: マップ中間からの Remove / Move を戻すとき、`Insert` はマップ末尾へ入るため、キー順復元の `ReorderKeys` が随伴する。逆操作が保持する旧ノードは `deepCopy` 済みの所有コピー（`inheritMetaFrom` が YComments を共有するため。ADR-0003）。
 ```
 
 Undo/Redoスタック・dirty判定・保存状態はyaml-coreに置かない（§5）。yaml-coreが提供するのは「操作を適用すると逆操作が得られる」という機構までとし、履歴の所有はworkspace-coreへ一元化する。単文書だけを扱いたい利用者は、文書1件のworkspaceを`InMemoryDocumentStore`上に作ればよい。
@@ -1518,3 +1525,13 @@ interface WorkspaceFacade {
 UIは`YNode`を直接変更せず、`YamlOperation`または`WorkspaceTransaction`を作る。AIも将来同じ入口を使い、違いは提案・承認ポリシーだけにする。
 
 この入口をCLIで十分に検証できれば、UI接続時にcore設計を再び変更する必要が小さくなる。
+
+## 17. 移行後リファクタリングに向けたメモ（機能配置の見直し。オーナー指示 2026-08-17）
+
+3層移行の完了後、機能配置の見直しを含むリファクタリングを行う。移行中は実施せず、検討材料として残す。
+
+1. **yaml-coreで利用できるスキーマ定義の限定**: 現行 `FieldDef` には表示専用のヒント（`role: title/subtitle`・`display: table/list`・`EnumOption` の label/description 等）が同居している。これらは構造検証に影響しない表示層の関心事のため、yaml-core の構造スキーマから外す方向で見直す。
+2. **構造スキーマの最小機能セット仮説**: 数種類の scalar ＋ sequence（array）＋ map（object を含む）＋ 再帰定義で、構造スキーマ定義には十分ではないかという仮説を検証する。現行の id / ref / date 等は「意味」または「制約付き文字列」への再整理候補。**enum の扱いは要議論**（構造か意味か。cases 連動があるため影響が大きい）。
+3. **構造スキーマの自己記述**: 構造スキーマ定義を、構造スキーマ定義だけで定義できるようにする（スキーマ定義YAMLのみで構造検証を行うための布石。現行メタスキーマ＝`BuiltinSchemas` の Kotlin 実装からの脱却方向）。
+4. **ユーザ定義スキーマと構造スキーマの導出関係**: ユーザが書くスキーマと yaml-core へ渡す構造スキーマは別物であり、前者から後者（＋意味スキーマ）を導出する仕組みを用意する（§4.4 の2層導出と同じ流れ）。現行の `SchemaDef.structural` は暫定の直接写像であり、最終形は導出コンパイルとする。
+5. **JSON Schema への用語接近**: 最終的には JSON Schema を意識して語彙（`fields` → `properties` 等）と key-value の定義方法を変える。既存ワークスペースのスキーマ一括移行（`migrate` 相当のコマンド）が必要になる点に注意。

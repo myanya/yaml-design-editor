@@ -28,7 +28,8 @@
 | YM-005 | Validator の構造検証分離（StructuralValidator・StructuralIssue・Severity 移動） | yaml-core | done | 構造指摘の別型化 | Phase 3（2026-08-17） |
 | YM-006 | ConstraintTest 単文書ケース・ValidatorTest 構造ケースの移動 | yaml-core | done | 属性付き参照の ok 判定から INFO フィルタ除去（構造検証は参照解決をしないため） | Phase 3（2026-08-17） |
 | YM-006b | 残テストの移動（SchemaLoaderTest 構文・$ref／MetaSchemaTest 構造部分／PhaseTest required 部分）と BuiltinSchemas 資源化の検討 | yaml-core | todo | - | Phase 3 の残整理。急がない |
-| YM-007 | Patch.kt → YamlOperation 再構成・PatchTest | yaml-core | todo | - | Phase 4 |
+| YM-007a | Patch.kt の分割移動（PatchOp・Patcher → yaml-core、ChangeSet はルート ChangeSets.kt へ） | yaml-core | done | なし | Phase 4前半（2026-08-17） |
+| YM-007b | YamlOperation・逆操作・EditBatch の新設（§4.1契約） | yaml-core | done | 逆操作は列（キー順復元の ReorderKeys 随伴） | Phase 4完了＝M1到達（2026-08-17） |
 | SM-001 | IdIndex / DocScanner / Display(titleOf) の移動 | semantic-core | todo | - | Phase 5。IdEntry.title が Display.titleOf に依存 |
 | WS-001 | WorkspaceLayout / DocumentStore | workspace-core | todo | - | Phase 7 |
 
@@ -167,6 +168,46 @@
   （構造検証は参照解決を行わないため未解決参照 INFO が発生しない。挙動差ではなく境界差）
 完了確認コマンド: ./gradlew :yaml-core:test / ./gradlew test
 ```
+
+### YM-007a Patch.kt の分割移動（done 2026-08-17）
+
+```text
+旧実装: core/Patch.kt（PatchOp / Patcher / FileChange / ChangeSet / ChangeSets が同居）
+旧テスト: core/PatchTest.kt（Patcher ケースと変更セット解析ケースが同居）
+新しい責務: PatchOp / Patcher（単一文書への破壊的操作。inheritMetaFrom のスタイル継承込み）を
+  yaml-core/core/Patch.kt へ git mv。FileChange / ChangeSet / ChangeSets（ファイル・baseHash・
+  変更セットYAML解析＝ワークスペース関心）はルート core/ChangeSets.kt へ分離
+  （Phase 8 で WorkspaceTransaction へ再構成予定）
+新しい公開API: 変更なし（型・関数は同名。所属ファイルのみ変更）
+維持する挙動: すべて（port のみ）
+意図的に変える挙動: なし。テストは Patcher ケース → yaml-core PatchTest、変更セットケース →
+  ルート ChangeSetsTest（新設・日本語名）へ分割。混在していた1ケースは2つに分けた
+未解決事項: YamlOperation・逆操作・EditBatch は未着手（YM-007b）
+完了確認コマンド: ./gradlew test
+```
+
+### YM-007b YamlOperation・逆操作・EditBatch の新設（done 2026-08-17）
+
+```text
+旧実装: なし（新API。計画書§4.1。実装は yaml-core 内の Patcher 機構の上の薄い層）
+旧テスト: なし（YamlEditTest を新設・日本語名・14ケース）
+新しい責務: 型付き編集操作（SetScalar / Replace / Insert / Remove / Move / RenameKey / ReorderKeys）、
+  適用と同時の逆操作列生成、EditBatch の一括適用と途中失敗の巻き戻し。
+  model/Copy.kt に YNode.deepCopy / YComments.deepCopy を新設
+  （inheritMetaFrom が YComments を共有するため、逆操作が保持する旧ノードは所有コピー必須）
+新しい公開API: edit.YamlOperation / edit.EditBatch / edit.YamlEdit.apply / applyBatch、model.deepCopy
+維持する挙動: 操作の意味論は Patcher と同一（座標も同じ「対象を指す YPath」）
+意図的に変える挙動: なし。計画書§4.1のスケッチとの差分（親+position → 対象YPath、
+  逆操作の単数 → 列、ReorderKeys 追加）は実装に合わせて計画書側を確定形へ更新済み
+未解決事項: Move の巻き戻しは逆操作適用で実現（構造保証は候補木のCoWが担う。ADR-0003）
+完了確認コマンド: ./gradlew :yaml-core:test / ./gradlew test
+```
+
+**Phase 4 完了判定（2026-08-17）＝ M1: YAMLライブラリ到達**: ①すべての編集操作に逆操作がある
+（dump完全一致の往復テスト＝コメント・スタイル・キー順込み）②操作失敗・EditBatch途中失敗で文書が
+部分変更されない ③`SetScalar` がスカラー値域の閉集合と往復型安全（§4.1）を満たす ④Undo/Redo
+スタックは作っていない（機構のみ。ADR-0006）——4条件とも充足。yaml-core 単独で
+parse/dump・構造schema検証・編集操作と逆操作が動く（テスト67件）。
 
 **Phase 3 完了判定（2026-08-17）**: ①単一文書の検証に IdIndex・workspace が不要（StructuralValidator）
 ②schema の parse・resolve・validate がメモリ上の文字列だけで実行できる（StructuralSchemaParser.parse →
