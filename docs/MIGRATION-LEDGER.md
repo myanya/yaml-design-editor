@@ -30,7 +30,8 @@
 | YM-006b | 残テストの移動（SchemaLoaderTest 構文・$ref／MetaSchemaTest 構造部分／PhaseTest required 部分）と BuiltinSchemas 資源化の検討 | yaml-core | todo | - | Phase 3 の残整理。急がない |
 | YM-007a | Patch.kt の分割移動（PatchOp・Patcher → yaml-core、ChangeSet はルート ChangeSets.kt へ） | yaml-core | done | なし | Phase 4前半（2026-08-17） |
 | YM-007b | YamlOperation・逆操作・EditBatch の新設（§4.1契約） | yaml-core | done | 逆操作は列（キー順復元の ReorderKeys 随伴） | Phase 4完了＝M1到達（2026-08-17） |
-| SM-001 | IdIndex / DocScanner / Display(titleOf) の移動 | semantic-core | todo | - | Phase 5。IdEntry.title が Display.titleOf に依存 |
+| SM-000 | 二層モデル宣言語彙（Relations.kt）と CoverageLevel の移動 | semantic-core | done | entityFor / ownedFieldKeys の再パラメータ化 | Phase 5準備（2026-08-18） |
+| SM-001 | IdIndex / DocScanner / Display(titleOf) の移動 | semantic-core | todo | - | Phase 5。IdEntry.title が Display.titleOf に依存。DocScanner の Path は座標刻印のみ（芯は Path 非依存） |
 | WS-001 | WorkspaceLayout / DocumentStore | workspace-core | todo | - | Phase 7 |
 
 ## 作業項目の記録
@@ -201,6 +202,23 @@
   逆操作の単数 → 列、ReorderKeys 追加）は実装に合わせて計画書側を確定形へ更新済み
 未解決事項: Move の巻き戻しは逆操作適用で実現（構造保証は候補木のCoWが担う。ADR-0003）
 完了確認コマンド: ./gradlew :yaml-core:test / ./gradlew test
+```
+
+### SM-000 Relations.kt（二層モデル宣言語彙）の移動（done 2026-08-18）
+
+```text
+旧実装: schema/Relations.kt（EntityDecl / EntityRole / RelationDef / CardinalityDef / AspectDecl /
+  EntityTypeDef / EnforcementDef / Relations / idGlobToRegex / entityFor / ownedFieldKeys）と
+  Schema.kt の CoverageLevel
+旧テスト: schema/RelationRegistryTest.kt・EntityDeclTest.kt 等が間接カバー（既存位置のまま緑）
+新しい責務: semantic-core/schema/Relations.kt（semantic-core 最初の内容）。宣言モデルと純粋関数
+新しい公開API: 同名。ただし entityFor(entities, id) と ownedFieldKeys(StructuralSchema, ...) に
+  再パラメータ化（SchemaDef 非依存＝依存方向の遵守）
+維持する挙動: すべて。SchemaDef 向けの旧シグネチャはルート schema/RelationsSchemaExt.kt の
+  委譲アダプタで維持（呼び出し側変更ゼロ）
+意図的に変える挙動: なし。付随: CardinalityDef のモジュール跨ぎ smart cast 修正1箇所（Schema.kt）
+未解決事項: RelationRegistryTest 等の移動は後続（テストが SchemaLoader 依存のため）
+完了確認コマンド: ./gradlew test
 ```
 
 **Phase 4 完了判定（2026-08-17）＝ M1: YAMLライブラリ到達**: ①すべての編集操作に逆操作がある

@@ -6,6 +6,12 @@ package schema
  * モデルをここに置く。表示解決が index / UI 双方から使うため schema パッケージに配置する（Display §4.22 と同じ理由）。
  */
 
+/** カバレッジ・整合・関係制約の指摘重大度（3層コア移行 SM-000 で Schema.kt から移動）。 */
+enum class CoverageLevel(val id: String) {
+    WARNING("warning"),
+    ERROR("error");
+}
+
 /** ID用 glob（`*` `?`）を正規表現へ変換する。パス用の globToRegex と異なり `/` を特別扱いしない。 */
 fun idGlobToRegex(pattern: String): Regex {
     val regex = buildString {
@@ -49,7 +55,7 @@ data class EntityDecl(
 }
 
 /** ID に対応するエンティティ宣言を解決する（idPattern 一致が優先、なければパターンなしの宣言）。 */
-fun SchemaDef.entityFor(id: String): EntityDecl? =
+fun entityFor(entities: List<EntityDecl>, id: String): EntityDecl? =
     entities.firstOrNull { it.idPattern != null && it.matchesId(id) }
         ?: entities.firstOrNull { it.idPattern == null }
 
@@ -115,14 +121,14 @@ data class EntityTypeDef(
  * 宣言フィールド全部（enum cases 合成込み）から `type: id` のフィールド（合流キー）を除いたもの。
  * 要素が object に解決できない場合は空（判定保留 §4.26）。
  */
-fun ownedFieldKeys(schemaDef: SchemaDef, root: model.YNode, path: model.YPath, decl: EntityDecl?): List<String> {
+fun ownedFieldKeys(schema: StructuralSchema, root: model.YNode, path: model.YPath, decl: EntityDecl?): List<String> {
     decl?.owns?.let { return it }
-    val field = schemaDef.fieldAt(root, path) ?: return emptyList()
+    val field = schema.fieldAt(root, path) ?: return emptyList()
     if (field.type != FieldType.OBJECT) return emptyList()
     val element = model.getAt(root, path) as? model.YNode.Map
-    return schemaDef.effectiveFields(field.fields, element).fields.mapNotNull { child ->
+    return schema.effectiveFields(field.fields, element).fields.mapNotNull { child ->
         val key = child.key ?: return@mapNotNull null
-        if ((schemaDef.resolve(child) ?: child).type == FieldType.ID) null else key
+        if ((schema.resolve(child) ?: child).type == FieldType.ID) null else key
     }
 }
 

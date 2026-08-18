@@ -7,12 +7,6 @@ import model.YNode
 import model.parseYPath
 import model.scalarText
 
-/** カバレッジルールの重大度。 */
-enum class CoverageLevel(val id: String) {
-    WARNING("warning"),
-    ERROR("error");
-}
-
 /**
  * このスキーマが定義する ID への充足要件（トレーサビリティのカバレッジルール）。
  * - 参照ベース（`requiredBy`）: 「idPattern に一致する ID は、条件を満たす参照を minCount 件以上受けること」
@@ -193,10 +187,14 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
                 listOfNotNull(c.inMin, c.inMax, c.outMin, c.outMax).forEach { v ->
                     if (v < 0) issues += SchemaIssue("cardinality は 0 以上が必要です", "relations[$i].cardinality")
                 }
-                if (c.inMin != null && c.inMax != null && c.inMin > c.inMax) {
+                val inMin = c.inMin
+                val inMax = c.inMax
+                if (inMin != null && inMax != null && inMin > inMax) {
                     issues += SchemaIssue("inMin が inMax を超えています", "relations[$i].cardinality")
                 }
-                if (c.outMin != null && c.outMax != null && c.outMin > c.outMax) {
+                val outMin = c.outMin
+                val outMax = c.outMax
+                if (outMin != null && outMax != null && outMin > outMax) {
                     issues += SchemaIssue("outMin が outMax を超えています", "relations[$i].cardinality")
                 }
             }
