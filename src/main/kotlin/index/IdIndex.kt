@@ -1,8 +1,11 @@
 package index
 
+import model.DocumentId
 import model.YNode
 import model.YPath
 import model.scalarText
+import semantic.SemanticDocument
+import semantic.SemanticScanner
 import schema.EntityRole
 import schema.FieldDef
 import schema.FieldType
@@ -59,11 +62,11 @@ fun IdEntry.isAllowedBy(ref: RefEntry): Boolean =
 
 /**
  * 1 ドキュメントから ID 定義と参照を抽出するスキャナ。
+ * 走査の実装本体は semantic-core の SemanticScanner（3層コア移行 SM-001）で、
+ * ここは Path ↔ DocumentId の座標変換だけを行う委譲シェル。走査規則は従来どおり:
  * - スキーマがある場合: type: id / type: ref のフィールドを正として扱う
- * - スキーマがない場合: 命名規約ヒューリスティクスで検出する
+ * - スキーマがない場合: 命名規約ヒューリスティクス（schema.RefNaming）で検出する
  * - スキーマ外のサブツリー: 未知項目の境界で走査を止める
- *   - ID:  キー名 "id"
- *   - 参照: キー名 "ref" / "*_ref"、および "refs" / "*_refs" / "depends_on" / "relates_to" 配下のスカラー配列
  */
 object DocScanner {
 
@@ -73,102 +76,24 @@ object DocScanner {
     fun isGenericRefListKey(k: String): Boolean = schema.RefNaming.isRefListKey(k)
 
     fun scan(root: YNode?, file: Path, schemaDef: SchemaDef?, documentId: String = file.toString()): Pair<List<IdEntry>, List<RefEntry>> {
-        val ids = mutableListOf<IdEntry>()
-        val refs = mutableListOf<RefEntry>()
-        if (root == null) return ids to refs
-
-        fun walk(node: YNode, path: YPath, def: FieldDef?, keyLabel: String?) {
-            val effective = schemaDef?.resolve(def) ?: def
-            // スキーマ上 ref と定義された位置のスカラー値は参照として記録
-            if (effective?.type == FieldType.REF && node is YNode.Scalar) {
-                scalarText(node)?.let {
-                    refs += RefEntry(
-                        it, file, path, keyLabel ?: "ref", effective.idPatterns, effective.scope,
-                        relation = effective.relation, sourceSchemaId = schemaDef?.id,
-                        targetKind = effective.refTarget,  // 文書参照（R21-03）は別名前空間として解決される
-                    )
-                }
-                return
+        if (root == null) return emptyList<IdEntry>() to emptyList()
+        val (ids, refs) = SemanticScanner.scan(
+            SemanticDocument(
+                id = DocumentId(file.toString()),
+                root = root,
+                schema = schemaDef?.structural,
+                schemaId = schemaDef?.id,
+                entities = schemaDef?.entities ?: emptyList(),
+                documentId = documentId,
+            )
+        )
+        return ids.map { IdEntry(it.id, file, it.path, it.title, it.schemaId, it.documentId, it.entityType, it.role) } to
+            refs.map {
+                RefEntry(
+                    it.targetId, file, it.path, it.viaKey, it.idPatterns, it.scope,
+                    it.relation, it.sourceSchemaId, it.attributes, it.targetKind,
+                )
             }
-            // 属性付き参照（R20-03）: fields 宣言のある ref のオブジェクト形式 {to, 属性...}。
-            // path は to 値の座標（ジャンプ・パッチ・バックリンクの既存セマンティクスを保つ）。属性は走査境界。
-            if (effective?.type == FieldType.REF && effective.fields.isNotEmpty() && node is YNode.Map) {
-                scalarText(node.entries["to"])?.let { target ->
-                    val attributes = LinkedHashMap<String, String>()
-                    node.entries.forEach { (k, v) ->
-                        if (k != "to") scalarText(v)?.let { attributes[k] = it }
-                    }
-                    refs += RefEntry(
-                        target, file, path + "to", keyLabel ?: "ref", effective.idPatterns, effective.scope,
-                        relation = effective.relation, sourceSchemaId = schemaDef?.id, attributes = attributes,
-                        targetKind = effective.refTarget,
-                    )
-                }
-                return
-            }
-            when (node) {
-                is YNode.Scalar -> Unit
-                is YNode.Seq -> {
-                    val itemDef = if (effective?.type == FieldType.ARRAY) effective.item else null
-                    node.items.forEachIndexed { i, child ->
-                        walk(child, path + i, itemDef, keyLabel)
-                    }
-                }
-                is YNode.Map -> {
-                    // object の実効フィールド（enum 値に応じた case フィールドを含む）
-                    val objectFields = if (schemaDef != null && effective?.type == FieldType.OBJECT) {
-                        schemaDef.effectiveFields(effective.fields, node).fields
-                    } else null
-                    // --- ID の検出 ---
-                    val idKeys = LinkedHashSet<String>()
-                    objectFields?.filter { (schemaDef?.resolve(it) ?: it).type == FieldType.ID }?.forEach { it.key?.let(idKeys::add) }
-                    // スキーマ適用中は、明示的に type: id とされた項目だけを索引化する。
-                    if (schemaDef == null) idKeys.add("id")
-                    for (k in idKeys) {
-                        val idText = scalarText(node.entries[k]) ?: continue
-                        // タイトルは表示解決（R10-01）に一元化する: スキーマの role 指定 ＞ 予約語（title/name/label）
-                        val title = schema.Display.titleOf(node, schemaDef, effective)
-                        // エンティティ型と役割（R20-01）: スキーマの entity 宣言と idPattern で走査時に解決する（§4.30）
-                        val decl = schemaDef?.entityFor(idText)
-                        ids += IdEntry(
-                            idText, file, path, title, schemaDef?.id, documentId,
-                            entityType = decl?.type,
-                            role = decl?.let { if (it.defines) schema.EntityRole.DEFINING else schema.EntityRole.DETAIL },
-                        )
-                        break
-                    }
-                    // --- 子要素の走査と参照検出 ---
-                    for ((k, child) in node.entries) {
-                        // ルートの予約メタデータは業務要素の ID／参照として索引化しない。
-                        if (path.isEmpty() && k == "_document") continue
-                        val childDef = when {
-                            objectFields != null -> objectFields.firstOrNull { it.key == k }
-                            effective?.type == FieldType.MAP -> effective.value
-                            else -> null
-                        }
-                        val childPath = path + k
-                        // スキーマ外サブツリーは未知項目の境界で止め、ID・参照を索引化しない。
-                        if (schemaDef != null && childDef == null) continue
-                        if (childDef == null) {
-                            // スキーマなし文書ではヒューリスティクスで参照を検出する。
-                            if (isGenericRefKey(k) && child is YNode.Scalar) {
-                                scalarText(child)?.let { refs += RefEntry(it, file, childPath, k) }
-                            } else if (isGenericRefListKey(k) && child is YNode.Seq) {
-                                child.items.forEachIndexed { i, c ->
-                                    if (c is YNode.Scalar) {
-                                        scalarText(c)?.let { refs += RefEntry(it, file, childPath + i, k) }
-                                    }
-                                }
-                            }
-                        }
-                        walk(child, childPath, childDef, k)
-                    }
-                }
-            }
-        }
-
-        walk(root, emptyList(), schemaDef?.root, null)
-        return ids to refs
     }
 }
 

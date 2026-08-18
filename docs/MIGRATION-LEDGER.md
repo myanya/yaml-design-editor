@@ -31,7 +31,8 @@
 | YM-007a | Patch.kt の分割移動（PatchOp・Patcher → yaml-core、ChangeSet はルート ChangeSets.kt へ） | yaml-core | done | なし | Phase 4前半（2026-08-17） |
 | YM-007b | YamlOperation・逆操作・EditBatch の新設（§4.1契約） | yaml-core | done | 逆操作は列（キー順復元の ReorderKeys 随伴） | Phase 4完了＝M1到達（2026-08-17） |
 | SM-000 | 二層モデル宣言語彙（Relations.kt）と CoverageLevel の移動 | semantic-core | done | entityFor / ownedFieldKeys の再パラメータ化 | Phase 5準備（2026-08-18） |
-| SM-001 | IdIndex / DocScanner / Display(titleOf) の移動 | semantic-core | todo | - | Phase 5。IdEntry.title が Display.titleOf に依存。DocScanner の Path は座標刻印のみ（芯は Path 非依存） |
+| SM-001 | 走査カーネル（SemanticScanner）・表示解決（DisplayCore）・RefNaming の移動 | semantic-core | done | なし（委譲シェル化） | Phase 5（2026-08-18） |
+| SM-002 | SemanticInput / SemanticSnapshot / SemanticEngine（全再構築・重複/未解決ref検出）と EntityGraph | semantic-core | todo | - | Phase 5後半 |
 | WS-001 | WorkspaceLayout / DocumentStore | workspace-core | todo | - | Phase 7 |
 
 ## 作業項目の記録
@@ -202,6 +203,28 @@
   逆操作の単数 → 列、ReorderKeys 追加）は実装に合わせて計画書側を確定形へ更新済み
 未解決事項: Move の巻き戻しは逆操作適用で実現（構造保証は候補木のCoWが担う。ADR-0003）
 完了確認コマンド: ./gradlew :yaml-core:test / ./gradlew test
+```
+
+### SM-001 走査カーネル・表示解決の移動（done 2026-08-18）
+
+```text
+旧実装: index/IdIndex.kt の DocScanner、schema/Display.kt、schema/SchemaInference.kt の RefNaming
+旧テスト: index/DocScannerTest.kt・schema/DisplayTest.kt（既存位置のまま緑＝委譲シェルの回帰確認）。
+  加えて semantic-core に SemanticScannerTest を新設（日本語名6ケース: スキーマあり走査・entity宣言・
+  スキーマ外境界・命名規約ヒューリスティクス・属性付き参照・_document 除外）
+新しい責務:
+  - semantic/Scan.kt: SemanticDocument（計画書§4.2）・ScannedId / ScannedRef（DocumentId 座標）・
+    SemanticScanner（走査カーネル。Path・ファイルI/O 非依存）
+  - schema/DisplayCore.kt: 表示解決の実装本体（StructuralSchema 版。summarize / titleOf / headerText /
+    seqHeaderText / inline / tableColumns）
+  - schema/RefNaming.kt: 参照認識の命名規約
+新しい公開API: semantic.SemanticScanner.scan(SemanticDocument) → (List<ScannedId>, List<ScannedRef>)
+維持する挙動: 走査規則・表示解決のすべて。ルート側 DocScanner / Display は委譲シェル
+  （Path ↔ DocumentId 変換・SchemaDef → structural）で呼び出し側変更ゼロ
+意図的に変える挙動: なし
+未解決事項: IdIndex 本体（rebuild / update / overlay のディスク基準シェル）と EntityGraph はルート残留。
+  SemanticInput / SemanticSnapshot / SemanticEngine は SM-002
+完了確認コマンド: ./gradlew test / ./gradlew :semantic-core:test
 ```
 
 ### SM-000 Relations.kt（二層モデル宣言語彙）の移動（done 2026-08-18）

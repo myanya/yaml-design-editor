@@ -3,18 +3,6 @@ package schema
 import model.YNode
 
 /**
- * 参照認識の命名規約（I-02）。スキーマなし文書の参照検出（index.DocScanner）と
- * スキーマ推測（R11-01）が同じ規約を共有する（独自の規約を増やさない。ARCHITECTURE §4.23）。
- * index は schema に依存するため、共有の述語は下層のこのファイルに置き、DocScanner が委譲する。
- */
-object RefNaming {
-    fun isRefKey(k: String): Boolean = k == "ref" || k.endsWith("_ref")
-
-    fun isRefListKey(k: String): Boolean =
-        k == "refs" || k.endsWith("_refs") || k == "depends_on" || k == "relates_to"
-}
-
-/**
  * スキーマ推測（R11-01）: 既存YAML文書群から `_schemas` 文書のドラフトを推測する純ロジック。
  * - 型推測: boolean / int / number / date / 長文 text（値の実例から合議）
  * - 参照認識: RefNaming の命名規約を流用（`ref` / `*_ref` はスカラー参照、`refs` / `depends_on` 等は参照配列）。
