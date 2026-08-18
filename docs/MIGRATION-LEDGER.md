@@ -32,7 +32,8 @@
 | YM-007b | YamlOperation・逆操作・EditBatch の新設（§4.1契約） | yaml-core | done | 逆操作は列（キー順復元の ReorderKeys 随伴） | Phase 4完了＝M1到達（2026-08-17） |
 | SM-000 | 二層モデル宣言語彙（Relations.kt）と CoverageLevel の移動 | semantic-core | done | entityFor / ownedFieldKeys の再パラメータ化 | Phase 5準備（2026-08-18） |
 | SM-001 | 走査カーネル（SemanticScanner）・表示解決（DisplayCore）・RefNaming の移動 | semantic-core | done | なし（委譲シェル化） | Phase 5（2026-08-18） |
-| SM-002 | SemanticInput / SemanticSnapshot / SemanticEngine（全再構築・重複/未解決ref検出）と EntityGraph | semantic-core | todo | - | Phase 5後半 |
+| SM-002 | SemanticInput / SemanticSnapshot / SemanticEngine（全再構築・重複/未解決ref検出・逆参照） | semantic-core | done | 新API（重複メッセージは「文書内」表現） | Phase 5後半（2026-08-18） |
+| SM-003 | 最小 EntityGraph の DocumentId 座標版カーネル化 | semantic-core | todo | - | Phase 5 完了判定の残り1点 |
 | WS-001 | WorkspaceLayout / DocumentStore | workspace-core | todo | - | Phase 7 |
 
 ## 作業項目の記録
@@ -203,6 +204,28 @@
   逆操作の単数 → 列、ReorderKeys 追加）は実装に合わせて計画書側を確定形へ更新済み
 未解決事項: Move の巻き戻しは逆操作適用で実現（構造保証は候補木のCoWが担う。ADR-0003）
 完了確認コマンド: ./gradlew :yaml-core:test / ./gradlew test
+```
+
+### SM-002 SemanticEngine（意味解析の全再構築）の新設（done 2026-08-18）
+
+```text
+旧実装: なし（新API。計画書§4.2。集約規則はルート IdIndex.derive / Validator の ID・ref 検証と同じ）
+旧テスト: なし（SemanticEngineTest を新設・日本語名6ケース）
+新しい責務: semantic/Engine.kt——
+  - SemanticDeclarations（relations / entityTypes / enforcement。現時点でエンジン未使用＝
+    グラフ整合検証の接続は GraphIntegrity 移行時）
+  - SemanticInput（workspaceVersion: Long ＋文書集合＋宣言）
+  - SemanticIssue（意味検証の指摘。構造の StructuralIssue と別型）
+  - SemanticSnapshot（sourceVersion 転記・ids / refs / documentIds / issues。YNode 参照なし＝ADR-0003）
+    ＋ occurrences / resolve（DEFINING優先）/ resolve(ref) / backlinksTo
+  - SemanticEngine.build: 全再構築（文書ID順で安定化）・文書内ID重複 ERROR・未解決参照 ERROR・
+    スコープ外参照 ERROR・文書参照の別名前空間解決
+  - idMatchesPattern / ScannedId.isAllowedBy（ルート index と同じ規則のカーネル版）
+維持する挙動: 集約・解決の規則はルート実装と同一（文書間の同一ID合法・DEFINING優先など）
+意図的に変える挙動: なし（旧経路は無変更）。新APIの文言は「ファイル内」でなく「文書内」。
+  台帳（ledger）の絞り込み・indexed 降格は上位層の責務とし、エンジンは常に ERROR で報告
+未解決事項: EntityGraph のカーネル化（SM-003）。増分更新は Phase 11（全再構築が oracle）
+完了確認コマンド: ./gradlew :semantic-core:test / ./gradlew test
 ```
 
 ### SM-001 走査カーネル・表示解決の移動（done 2026-08-18）
