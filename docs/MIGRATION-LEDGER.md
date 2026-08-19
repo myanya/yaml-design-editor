@@ -38,7 +38,8 @@
 | SM-005 | エンティティ合成（Aspects）のカーネル化（SemanticAspects・SchemaSemantics） | semantic-core | done | 変換ブリッジを index/SemanticBridge.kt へ一元化 | Phase 6B完了（2026-08-19） |
 | SM-006 | query宣言の移動と照合エンジンのカーネル化（SemanticQuery・DocumentMeta） | semantic-core | done | ルート Query はシェル。Traverse の emit レンダラはルート残置 | Phase 6C完了（2026-08-19） |
 | SM-007 | derivation/projection の移動（宣言・評価器・解決器カーネル・globToRegex） | semantic-core | done | ルート index/Derivation はシェル | Phase 6D完了（2026-08-19） |
-| WS-001 | WorkspaceLayout / DocumentStore | workspace-core | todo | - | Phase 7 |
+| SM-008 | Phase 6E（view非UI部）の保留判定 | - | blocked | - | 再開条件: §17-⑥（仮想文書）・⑦（表示系の置き場）の方向決定。計画書§11も「view機能の全移植」を保留可と明記。6F（inference）も計画書どおり初期コア完成後 |
+| WS-001 | WorkspaceLayout の移動と DocumentStore（InMemory / FileSystem）新設 | workspace-core | done | 予約ディレクトリ名の正を Zone のリテラルへ | Phase 7前半（2026-08-19） |
 
 ## 作業項目の記録
 
@@ -208,6 +209,35 @@
   逆操作の単数 → 列、ReorderKeys 追加）は実装に合わせて計画書側を確定形へ更新済み
 未解決事項: Move の巻き戻しは逆操作適用で実現（構造保証は候補木のCoWが担う。ADR-0003）
 完了確認コマンド: ./gradlew :yaml-core:test / ./gradlew test
+```
+
+**Phase 6 主要部完了判定（2026-08-19）＝ M2: 意味解析ライブラリ到達**: 6A（relation / entity type・
+グラフ整合）・6B（aspect 合成）・6C（query / traverse）・6D（derivation / projection）が semantic-core で
+完結。6E（view 非UI部）は §17-⑥⑦（仮想文書・表示系の置き場）のオーナー検討と重なるため方向決定まで
+保留（SM-008。計画書§11 の保留可項目）。6F（schema inference）は計画書どおり初期コア完成後。
+semantic-core: ID/ref/entity graph・意味検証（重複・参照・グラフ整合）・query・合成・導出が
+文字列入力だけで動く（テスト33件）。
+
+### WS-001 WorkspaceLayout の移動と DocumentStore の新設（done 2026-08-19）
+
+```text
+旧実装: schema/WorkspaceLayout.kt（配置ポリシー R13-02。git mv で workspace-core へ）。
+  DocumentStore は新API（計画書§4.3）
+旧テスト: core/WorkspaceLayoutTest.kt はルート残留（Workspace / Disclosure を使う統合テストのため。
+  Workspace 本体の移行時＝Phase 7 後半に移動）。workspace-core に DocumentStoreTest を新設
+  （日本語名7ケース: 両実装の契約・ワークスペース外拒否・YAML以外の除外・書込カウンタ）
+新しい責務:
+  - workspace-core/schema/WorkspaceLayout.kt——配置判定（ゾーン・台帳・索引除外）。予約ディレクトリ名の
+    正を Zone のリテラルへ移し、ルート SchemaLoader の const は互換の同値リテラルとして残置
+  - workspace-core/workspace/DocumentStore.kt——永続化ポート（list / read / write / delete / move。
+    DocumentId=ワークスペース相対パス）。InMemoryDocumentStore（writeCount つき＝Phase 8 の
+    「apply は書かない」検証用）と FileSystemDocumentStore（正規化・ルート外拒否）
+維持する挙動: レイアウト判定のすべて（レガシー／.yde・ledger）。ルートの利用側は変更ゼロ
+意図的に変える挙動: なし。ストアの契約は IllegalArgumentException に統一。
+  atomic 書込（一時ファイル→move）は Phase 8 の保存の安全性で追加
+未解決事項: Workspace.scan/load の移行（Phase 7 後半＝WS-002）。read の null 返し（計画書スケッチは
+  非null）は Phase 7 の実装都合として計画書§4.3を後で合わせる
+完了確認コマンド: ./gradlew :workspace-core:test / ./gradlew test
 ```
 
 ### SM-007 derivation / projection の移動（done 2026-08-19）＝ Phase 6D 完了

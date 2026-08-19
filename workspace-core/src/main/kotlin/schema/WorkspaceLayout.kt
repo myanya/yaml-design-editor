@@ -19,15 +19,18 @@ data class WorkspaceLayout(
     val ledger: List<String>,
 ) {
 
-    /** 定義・記録のゾーン（旧・予約ディレクトリ）。 */
+    /**
+     * 定義・記録のゾーン（旧・予約ディレクトリ）。レガシー名はここが正
+     * （ルート SchemaLoader の互換定数は同じリテラルを保持する。3層コア移行 WS-001）。
+     */
     enum class Zone(val legacyDir: String, val ydeName: String) {
-        SCHEMAS(SchemaLoader.SCHEMA_DIR, "schemas"),
-        AGENTS(SchemaLoader.AGENTS_DIR, "agents"),
-        ACTIVITIES(SchemaLoader.ACTIVITIES_DIR, "activities"),
-        RUNS(SchemaLoader.RUNS_DIR, "runs"),
-        EVALS(SchemaLoader.EVALS_DIR, "evals"),
-        SKILLS(SchemaLoader.SKILLS_DIR, "skills"),
-        VIEWS(SchemaLoader.VIEWS_DIR, "views"),
+        SCHEMAS("_schemas", "schemas"),
+        AGENTS("_agents", "agents"),
+        ACTIVITIES("_activities", "activities"),
+        RUNS("_runs", "runs"),
+        EVALS("_evals", "evals"),
+        SKILLS("_skills", "skills"),
+        VIEWS("_views", "views"),
     }
 
     /** ゾーンの相対ディレクトリ（例: `_schemas` または `.yde/schemas`）。 */

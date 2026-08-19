@@ -445,6 +445,7 @@ fun SchemaDef.generateSample(): YNode {
  */
 object SchemaLoader {
 
+    // 予約ディレクトリ名の正は WorkspaceLayout.Zone（workspace-core。WS-001）。ここは互換の同値リテラル
     const val SCHEMA_DIR = "_schemas"
 
     /** エージェント実行の予約ディレクトリ（セルフホスティング。ROADMAP §4.2）。 */
