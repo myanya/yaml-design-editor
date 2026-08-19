@@ -37,6 +37,7 @@
 | SM-004 | グラフ整合検証（GraphIntegrity）のカーネル化とエンジン接続 | semantic-core | done | ルートはIdIndex→カーネル座標の変換シェル | Phase 6A完了（2026-08-19） |
 | SM-005 | エンティティ合成（Aspects）のカーネル化（SemanticAspects・SchemaSemantics） | semantic-core | done | 変換ブリッジを index/SemanticBridge.kt へ一元化 | Phase 6B完了（2026-08-19） |
 | SM-006 | query宣言の移動と照合エンジンのカーネル化（SemanticQuery・DocumentMeta） | semantic-core | done | ルート Query はシェル。Traverse の emit レンダラはルート残置 | Phase 6C完了（2026-08-19） |
+| SM-007 | derivation/projection の移動（宣言・評価器・解決器カーネル・globToRegex） | semantic-core | done | ルート index/Derivation はシェル | Phase 6D完了（2026-08-19） |
 | WS-001 | WorkspaceLayout / DocumentStore | workspace-core | todo | - | Phase 7 |
 
 ## 作業項目の記録
@@ -208,6 +209,32 @@
 未解決事項: Move の巻き戻しは逆操作適用で実現（構造保証は候補木のCoWが担う。ADR-0003）
 完了確認コマンド: ./gradlew :yaml-core:test / ./gradlew test
 ```
+
+### SM-007 derivation / projection の移動（done 2026-08-19）＝ Phase 6D 完了
+
+```text
+旧実装: schema/Derivation.kt（宣言: DerivationSelector / DerivationLookup / DerivationDef /
+  ConsistencyAssert / ConsistencyRule）、schema/Projection.kt（{パス} テンプレート評価器）、
+  index/Derivation.kt（解決器）、Schema.kt の globToRegex
+旧テスト: validate/ConsistencyTest.kt・core/ViewsTest.kt（計算列）——既存位置のまま緑＝シェル経由の
+  一致を保証。カーネル側は SemanticDerivationTest を新設（日本語名3ケース）
+新しい責務:
+  - schema/Derivation.kt・schema/Projection.kt → semantic-core へ丸ごと移動（純宣言・純評価器）
+  - schema/Globs.kt——globToRegex を Schema.kt から移動（DerivationSelector の前提。
+    SchemaDef.matches / DeriveDef / WorkspaceLayout はルートから同名参照のまま）
+  - semantic/Derivation.kt——SemanticDerivation.resolve（lookup 1ホップ・スコープ連鎖・値辞書。
+    occurrences / rel / tree はすべて注入・DocumentId 座標）
+維持する挙動: 解決順序（source → values → lookup 起点）・未解決プレースホルダの残置・来歴の
+  すべて。ルート index/Derivation は変換シェル（Input / Result の Path 座標型を保つ）
+意図的に変える挙動: なし。付随: モジュール跨ぎ smart cast 修正2箇所（Schema.kt / Validator.kt）
+未解決事項: IssueDerivation（validate）はルート型（index.Derivation.Input / Path）のまま——
+  Validator 本体が Phase 7〜8 でエンジンへ再構成されるときに SemanticDerivation.Input へ寄せる
+完了確認コマンド: ./gradlew test
+```
+
+**Phase 6D 完了判定（2026-08-19）**: 導出値が入力座標（inputs: placeholder / value / document / path）と
+規則座標（sourceDocument / sourcePath）の来歴を持ち、未解決理由がプレースホルダ単位で構造化される
+（complete フラグ＋座標なし Input）。SemanticDerivationTest で固定。
 
 ### SM-006 query宣言の移動と照合エンジンのカーネル化（done 2026-08-19）＝ Phase 6C 完了
 

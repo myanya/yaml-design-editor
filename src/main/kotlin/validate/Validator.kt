@@ -292,7 +292,8 @@ object Validator {
                 } ?: true
                 if (!active) return@forEach
                 for (entry in localIds) {
-                    if (rule.idPattern != null && !idMatchesPattern(entry.id, rule.idPattern)) continue
+                    val rulePattern = rule.idPattern
+                    if (rulePattern != null && !idMatchesPattern(entry.id, rulePattern)) continue
                     val element = getAt(root, entry.path) ?: continue
                     // 検査する値が未記入なら判定しない（未記入は required の領分。二重計上を避ける）
                     val actual = scalarText(getAt(element, rule.path)) ?: continue

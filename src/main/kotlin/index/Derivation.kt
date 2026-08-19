@@ -2,17 +2,15 @@ package index
 
 import model.YNode
 import model.YPath
-import model.getAt
-import model.parseYPath
-import model.scalarText
 import schema.DerivationDef
-import schema.Projection
+import semantic.SemanticDerivation
 import java.nio.file.Path
 
 /**
- * 決定論的導出の解決器（R16-02 / R16-03a）。導出宣言（`schema/Derivation.kt`）を索引の出現に対して解決し、
- * `Projection` でテンプレートを評価する。ビューの計算列（core/Views）と整合検証（validate/Validator）の
- * 共有実装（ARCHITECTURE §4.26。ビューで見えている導出値と検証される期待値を常に一致させる）。
+ * 決定論的導出の解決器（R16-02 / R16-03a）のディスク索引向けシェル。
+ * 解決アルゴリズムの本体は semantic-core の SemanticDerivation（3層コア移行 Phase 6D）で、
+ * ここは IdIndex / Path 座標をカーネル入力（DocumentId 座標）へ写して委譲し、結果を写し戻す。
+ * ビューの計算列（core/Views）と整合検証（validate/Validator）の共有実装であることは従来どおり。
  */
 object Derivation {
 
@@ -36,7 +34,6 @@ object Derivation {
 
     /**
      * 導出を解決する。対象IDは lookup 指定時は「起点の出現の ref を1ホップ辿った先」、省略時は startId 自身。
-     * スコープ連鎖は「source 要素 → values で選んだ出現要素 → lookup の起点要素」の近い順（1段評価）。
      * - rel: ワークスペース相対パス（selector の fileGlob 判定に使う）
      * - tree: 文書ツリーの読み取り（呼び出し側がキャッシュ・オーバーレイを注入する）
      * - startOccurrences: 起点IDの出現（既定は索引。ローカル出現を重ねたい場合に上書きする）
@@ -49,43 +46,21 @@ object Derivation {
         tree: (Path) -> YNode?,
         startOccurrences: List<IdEntry> = index.entries[startId].orEmpty(),
     ): Result {
-        fun element(entry: IdEntry): YNode? = tree(entry.file)?.let { getAt(it, entry.path) }
-        var originOcc: IdEntry? = null
-        var origin: YNode? = null
-        val subjectId: String? = if (def.lookup == null) startId else {
-            val occ = startOccurrences.firstOrNull { def.lookup.from.matches(it.schemaId, rel(it.file)) }
-            originOcc = occ
-            origin = occ?.let(::element)
-            origin?.let { scalarText(getAt(it, def.lookup.via)) }
-        }
-        val subjectOccs = subjectId?.let { index.entries[it].orEmpty() } ?: emptyList()
-        val sourceOcc = subjectOccs.firstOrNull { def.source.matches(it.schemaId, rel(it.file)) }
-        val sourceEl = sourceOcc?.let(::element)
-        val sourcePath = sourceOcc?.let { it.path + def.path }
-        val rawText = sourceEl?.let { scalarText(getAt(it, def.path)) } ?: def.default
-            ?: return Result(null, null, true, sourceOcc?.file, sourcePath, emptyList())
-        // スコープ連鎖（評価用のノード）と、その要素の出現（来歴の入力座標用）を並走させる
-        val scopes = buildList {
-            sourceEl?.let { add(it to sourceOcc) }
-            def.values.forEach { sel ->
-                subjectOccs.firstOrNull { sel.matches(it.schemaId, rel(it.file)) }
-                    ?.let { occ -> element(occ)?.let { add(it to occ) } }
-            }
-            origin?.let { add(it to originOcc) }
-        }
-        val evaluated = Projection.evaluate(rawText, scopes.map { it.first })
-        val inputs = evaluated.resolutions.map { r ->
-            val occ = r.scopeIndex?.let { scopes.getOrNull(it)?.second }
-            val inputPath = occ?.let { o -> runCatching { o.path + parseYPath(r.placeholder) }.getOrNull() }
-            Input(r.placeholder, r.value, occ?.file, inputPath)
-        }
+        val result = SemanticDerivation.resolve(
+            def = def,
+            startId = startId,
+            occurrences = { id -> index.entries[id].orEmpty().map { it.toScanned() } },
+            rel = { d -> rel(Path.of(d.value)) },
+            tree = { d -> tree(Path.of(d.value)) },
+            startOccurrences = startOccurrences.map { it.toScanned() },
+        )
         return Result(
-            value = Projection.applyMap(evaluated.text, def.map),
-            raw = rawText,
-            complete = evaluated.complete,
-            sourceFile = sourceOcc?.file,
-            sourcePath = sourcePath,
-            inputs = inputs,
+            value = result.value,
+            raw = result.raw,
+            complete = result.complete,
+            sourceFile = result.sourceDocument?.let { Path.of(it.value) },
+            sourcePath = result.sourcePath,
+            inputs = result.inputs.map { Input(it.placeholder, it.value, it.document?.let { d -> Path.of(d.value) }, it.path) },
         )
     }
 }
