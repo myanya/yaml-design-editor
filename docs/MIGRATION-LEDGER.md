@@ -40,7 +40,8 @@
 | SM-007 | derivation/projection の移動（宣言・評価器・解決器カーネル・globToRegex） | semantic-core | done | ルート index/Derivation はシェル | Phase 6D完了（2026-08-19） |
 | SM-008 | Phase 6E（view非UI部）→ 仮想文書設計で再実装（§17-6 方向決定 2026-08-19） | semantic-core | blocked | - | 再開条件: M3（Phase 8）完了。仮想文書（写像＋来歴＋書込翻訳）として6Eを再開し、現行UIへは ViewRow/ViewCell 互換シムで接続 |
 | WS-001 | WorkspaceLayout の移動と DocumentStore（InMemory / FileSystem）新設 | workspace-core | done | 予約ディレクトリ名の正を Zone のリテラルへ | Phase 7前半（2026-08-19） |
-| WS-002 | 読取専用ワークスペース（WorkspaceReader）と意味宣言パーサの移動 | workspace-core / semantic-core | done | v1未対応: derive・メタスキーマ適用 | Phase 7後半（2026-08-19）。CLI配線（validate）は WS-003 |
+| WS-002 | 読取専用ワークスペース（WorkspaceReader）と意味宣言パーサの移動 | workspace-core / semantic-core | done | v1未対応: derive・メタスキーマ適用 | Phase 7後半（2026-08-19） |
+| WS-003 | 簡易CLIの最小配線（yaml parse / roundtrip・workspace validate・exit code契約） | cli | done | - | Phase 7完了（2026-08-19） |
 
 ## 作業項目の記録
 
@@ -243,10 +244,28 @@ semantic-core: ID/ref/entity graph・意味検証（重複・参照・グラフ�
 完了確認コマンド: ./gradlew :workspace-core:test / ./gradlew test
 ```
 
-**Phase 7 判定（2026-08-19 時点）**: ②core モジュール内で workspace-core 以外に Path / Files が漏れない
-③読取時点の全結果が同じバージョンに紐付く（snapshot / derived / semantic へ転記）④legacy と .yde の
-対象文書が既存挙動と一致（fixture 実測との一致で証明）——充足。①「workspace validate <root>」の
-CLI 配線だけ WS-003 に残る。
+### WS-003 簡易CLIの最小配線（done 2026-08-19）＝ Phase 7 完了
+
+```text
+旧実装: なし（新規。core/Cli.kt からは移さず、計画書§6.4どおり dispatcher を新設して3コアAPIを呼ぶ）
+旧テスト: なし（CliTest を新設・日本語名4ケース）
+新しい責務: cli/Main.kt——`yaml parse <file>`・`yaml roundtrip <file>`・`workspace validate <root>`。
+  dispatcher（引数解釈・表示）と処理本体（run 関数）を分離し、run は直接 JUnit テストできる。
+  exit code 契約: 0=成功／1=コマンド・入力エラー／2=structural（スキーマ・文書パース失敗含む）／
+  3=semantic。警告は exit code に影響しない。cli/build.gradle.kts に application プラグイン＋
+  run の workingDir=rootDir（計画書§14の実行例どおり相対パスが通る）
+維持する挙動: workspace validate の判定結果は WorkspaceReader（＝fixture 実測と一致）
+意図的に変える挙動: なし（新規CLI。既存 runCli とは独立）
+未解決事項: `./gradlew :cli:run` 経由では非ゼロ exit が Gradle のビルド失敗として包まれる
+  （exit code 契約の検証は CliTest の run() 直接呼び出しで固定。配布物のスクリプト経由では生の code）
+完了確認コマンド: ./gradlew :cli:test /
+  ./gradlew :cli:run -q --args="workspace validate test-fixtures/workspaces/legacy-basic"
+```
+
+**Phase 7 完了判定（2026-08-19）**: ①`workspace validate <root>` で fixture を検証できる（CLI 配線済み・
+legacy-basic で意味エラー3件と exit 3）②core モジュール内で workspace-core 以外に Path / Files が
+漏れない ③読取時点の全結果が同じバージョンに紐付く ④legacy と .yde の対象文書が既存挙動と一致
+（fixture 実測との一致で証明）——4条件すべて充足。
 
 ### WS-001 WorkspaceLayout の移動と DocumentStore の新設（done 2026-08-19）
 
