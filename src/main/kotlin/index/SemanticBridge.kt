@@ -36,12 +36,30 @@ fun IdIndex.toDocumentScans(): List<DocumentScan> {
     }
 }
 
-/** DocumentScan 列からカーネルのエンティティグラフを導出する。 */
-fun kernelGraphOf(scans: List<DocumentScan>): SemanticEntityGraph {
+/** カーネル入力一式（走査列・ID集約・全参照・グラフ）。シェルが1回の変換で共有する。 */
+class KernelIndexView(
+    val scans: List<DocumentScan>,
+    val entries: Map<String, List<ScannedId>>,
+    val refs: List<ScannedRef>,
+    val graph: SemanticEntityGraph,
+)
+
+private fun aggregateEntries(scans: List<DocumentScan>): Map<String, List<ScannedId>> {
     val entries = linkedMapOf<String, MutableList<ScannedId>>()
     scans.forEach { scan -> scan.ids.forEach { entries.getOrPut(it.id) { mutableListOf() }.add(it) } }
-    return SemanticEntityGraph.build(scans, entries)
+    return entries
 }
+
+/** DocumentScan 列からカーネルのエンティティグラフを導出する。 */
+fun kernelGraphOf(scans: List<DocumentScan>): SemanticEntityGraph =
+    SemanticEntityGraph.build(scans, aggregateEntries(scans))
 
 /** この索引の走査結果からカーネルのエンティティグラフを導出する（呼び出しごとに構築）。 */
 fun IdIndex.toKernelGraph(): SemanticEntityGraph = kernelGraphOf(toDocumentScans())
+
+/** この索引の走査結果からカーネル入力一式を作る（呼び出しごとに構築。Phase 7〜8 で解消）。 */
+fun IdIndex.toKernelView(): KernelIndexView {
+    val scans = toDocumentScans()
+    val entries = aggregateEntries(scans)
+    return KernelIndexView(scans, entries, scans.flatMap { it.refs }, SemanticEntityGraph.build(scans, entries))
+}

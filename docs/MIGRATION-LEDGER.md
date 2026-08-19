@@ -36,6 +36,7 @@
 | SM-003 | 最小 EntityGraph の DocumentId 座標版カーネル化（SemanticEntityGraph） | semantic-core | done | ルート EntityGraph と一時併存 | Phase 5完了（2026-08-18） |
 | SM-004 | グラフ整合検証（GraphIntegrity）のカーネル化とエンジン接続 | semantic-core | done | ルートはIdIndex→カーネル座標の変換シェル | Phase 6A完了（2026-08-19） |
 | SM-005 | エンティティ合成（Aspects）のカーネル化（SemanticAspects・SchemaSemantics） | semantic-core | done | 変換ブリッジを index/SemanticBridge.kt へ一元化 | Phase 6B完了（2026-08-19） |
+| SM-006 | query宣言の移動と照合エンジンのカーネル化（SemanticQuery・DocumentMeta） | semantic-core | done | ルート Query はシェル。Traverse の emit レンダラはルート残置 | Phase 6C完了（2026-08-19） |
 | WS-001 | WorkspaceLayout / DocumentStore | workspace-core | todo | - | Phase 7 |
 
 ## 作業項目の記録
@@ -207,6 +208,31 @@
 未解決事項: Move の巻き戻しは逆操作適用で実現（構造保証は候補木のCoWが担う。ADR-0003）
 完了確認コマンド: ./gradlew :yaml-core:test / ./gradlew test
 ```
+
+### SM-006 query宣言の移動と照合エンジンのカーネル化（done 2026-08-19）＝ Phase 6C 完了
+
+```text
+旧実装: schema/Query.kt（宣言モデル: QuerySpec / QueryNodeStep / QueryEdgeStep / QueryWhere /
+  ConstraintRule 等）、index/Query.kt（照合エンジン＝Evaluator・anyMatchFrom / startMatches・
+  neighborIds）、index/IdIndex.kt companion の _document メタ読み取り
+旧テスト: index/QueryTest.kt・validate/QueryConstraintTest.kt・core/TraverseTest.kt・core/ViewsTest.kt
+  （すべて既存位置のまま緑＝シェル経由の一致を保証）。カーネル側は SemanticQueryTest を新設（2ケース）
+新しい責務:
+  - schema/Query.kt → semantic-core へ丸ごと移動（純宣言。model 依存のみ）
+  - semantic/Query.kt——SemanticQuery.run / anyMatchFrom / startMatches / neighborIds と Evaluator
+    （決定性・判定保留・循環停止・loader 注入の契約ごと移動。DocumentId 座標）
+  - semantic/DocumentMeta.kt——_document メタ読み取り（IdIndex companion は委譲へ）
+  - index/SemanticBridge.kt に KernelIndexView（scans / entries / refs / graph の一式）を追加
+維持する挙動: 照合の決定性（起点ID昇順・展開 distinct＋昇順・行の辞書式比較・limit 打切り）・
+  R22-03 の制約判定原子・Traverse 互換の隣接1段のすべて。ルート Query は変換シェル
+意図的に変える挙動: なし
+未解決事項: core/Traverse.kt（emit レンダラ部分）はルート残置——隣接展開の芯（neighborIds）は
+  カーネル化済みで、残りはエージェント向け出力整形（読み出しモデル）。Disclosure と同時に扱う
+完了確認コマンド: ./gradlew test（QueryTest / QueryConstraintTest / TraverseTest がシェル経由で通る）
+```
+
+**Phase 6C 完了判定（2026-08-19）**: query 宣言（schema/Query.kt）・評価（SemanticQuery）・
+制約検証の判定原子（anyMatchFrom / startMatches）が semantic-core 内で追跡できる。
 
 ### SM-005 エンティティ合成のカーネル化（done 2026-08-19）＝ Phase 6B 完了
 

@@ -250,21 +250,13 @@ class IdIndex {
         fun relPathOf(workspace: Path, file: Path): String =
             workspace.relativize(file).toString().replace('\\', '/')
 
-        fun documentIdOf(root: YNode, fallback: String): String {
-            val metadata = (root as? YNode.Map)?.entries?.get("_document") as? YNode.Map
-            return scalarText(metadata?.entries?.get("id")) ?: fallback
-        }
+        /** 文書の論理ID（`_document.id` ＞ fallback）。実装は semantic-core の DocumentMeta（Phase 6C）。 */
+        fun documentIdOf(root: YNode, fallback: String): String = semantic.DocumentMeta.idOf(root, fallback)
 
         /** ルートの予約メタデータに宣言された表示用の文書名。 */
-        fun documentNameOf(root: YNode): String? {
-            val metadata = (root as? YNode.Map)?.entries?.get("_document") as? YNode.Map
-            return scalarText(metadata?.entries?.get("name"))?.takeIf { it.isNotBlank() }
-        }
+        fun documentNameOf(root: YNode): String? = semantic.DocumentMeta.nameOf(root)
 
         /** ルートの予約メタデータに宣言された、文書全体の概要。 */
-        fun documentDescriptionOf(root: YNode): String? {
-            val metadata = (root as? YNode.Map)?.entries?.get("_document") as? YNode.Map
-            return scalarText(metadata?.entries?.get("description"))?.takeIf { it.isNotBlank() }
-        }
+        fun documentDescriptionOf(root: YNode): String? = semantic.DocumentMeta.descriptionOf(root)
     }
 }
