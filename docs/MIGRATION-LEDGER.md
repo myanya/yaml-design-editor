@@ -45,7 +45,8 @@
 | WS-004 | WorkspaceSession（apply / undo / redo / save・ChangeRecord履歴・CoW適用） | workspace-core | done | - | Phase 8主要部（2026-08-19） |
 | WS-005 | Phase 8残の実装（MoveDocument・外部変更検出・atomic書込） | workspace-core | done | - | Phase 8完了＝M3到達（2026-08-20） |
 | RF-001 | エンティティ操作の plan/apply 分離（rename / merge / delete）と CLI 配線 | semantic-core / workspace-core / cli | done | - | Phase 9第1弾（2026-08-20） |
-| RF-002 | スキーマ・リファクタリング（SchemaRefactor 12操作）の plan/apply 化 | semantic-core / workspace-core | todo | - | Phase 9続き（ビュー追随の扱い＝6E仮想文書と関係） |
+| RF-002a | スキーマ文書を編集可能な文書として含める＋dirty基準の正規化修正 | workspace-core | done | dirty基準＝正規化dump（現行EditBufferと同基準）・外部変更検出は生テキスト別追跡 | RF-002の前提（2026-08-20） |
+| RF-002b | スキーマ・リファクタリング（renameField から薄切りで plan/apply 化） | semantic-core / workspace-core | todo | - | Phase 9続き（ビュー追随は6E設計待ちでスコープ外＝警告降格） |
 | RF-003 | document move の参照更新（DocMove）の plan/apply 化 | semantic-core / workspace-core | done | 移動＋参照書き換えが1トランザクションに（旧経路の非原子的継ぎ目を解消） | Phase 9第2弾（2026-08-20） |
 
 ## 作業項目の記録
@@ -247,6 +248,25 @@ semantic-core: ID/ref/entity graph・意味検証（重複・参照・グラフ�
   `_schemas` 文書へのメタスキーマ適用（schemas ゾーンは文書集合から除外）。CLI 配線（workspace validate）
   は WS-003（Phase 7 完了条件①の残り）
 完了確認コマンド: ./gradlew :workspace-core:test / ./gradlew test
+```
+
+### RF-002a スキーマ文書の編集可能化と dirty 基準の修正（done 2026-08-20）
+
+```text
+旧実装: 参照元は現行の2挙動——①`_schemas` 文書はスキーマエディタの編集対象（文書である）
+  ②EditBuffer の保存基準は正規化テキスト（savedSnapshot = canonicalText。表記ゆれで偽 dirty にしない）
+旧テスト: WorkspaceReaderTest / WorkspaceSessionTest の期待値を更新＋スキーマ文書編集のケースを追加
+新しい責務:
+  - WorkspaceReader: schemas ゾーンを文書集合に含める（スキーマ・リファクタリングは `_schemas` 文書への
+    EditDocument で自身を書き換えるため。意味解析には従来どおり載せない＝indexExcluded）
+  - WorkspaceDocument.persistedText を「読取時に正規化（dump）した保存基準」に変更——外部で書かれた
+    ファイルの表記ゆれ（末尾改行等）で偽 dirty にならない（現行 EditBuffer と同じ基準）
+  - WorkspaceSession.storeTexts——ストア生テキストの別追跡（読取・保存・削除・reload で更新）。
+    外部変更検出（externalChanges）はこちらと比較する（dirty 基準と分離）
+維持する挙動: 現行の「_schemas は編集できる」「表記ゆれは dirty にしない」「外部変更は生テキストで検出」
+意図的に変える挙動: なし（挙動を現行へ寄せる修正）
+未解決事項: `_schemas` 文書へのメタスキーマ適用（builtin-schema）は未対応のまま（WS-002 v1 の残）
+完了確認コマンド: ./gradlew test（スキーマ文書の EditDocument → save がストアへ届くケースを含む）
 ```
 
 ### RF-003 document move の参照更新の plan/apply 化（done 2026-08-20）＝ Phase 9 第2弾

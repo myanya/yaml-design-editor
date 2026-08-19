@@ -50,7 +50,12 @@ class WorkspaceSchema(
 /** 文書1件のworking状態（計画書§4.3。読取専用フェーズでは persisted と同値）。 */
 data class WorkspaceDocument(
     val document: YDocument,
-    /** 保存済みテキスト（未保存の新規文書は null）。dirty 判定は現在の dump 結果との比較で行う（ADR-0007）。 */
+    /**
+     * 保存基準のテキスト（未保存の新規文書は null）。dirty 判定は現在の dump 結果との比較で行う（ADR-0007）。
+     * 読取時に正規化（dump）した値を入れる——外部で書かれたファイルの表記ゆれ（末尾改行等）で
+     * 偽 dirty にならないための、現行 EditBuffer（savedSnapshot = canonicalText）と同じ基準。
+     * ストア上の生テキストとの比較（外部変更検出）は WorkspaceSession が別に追跡する。
+     */
     val persistedText: String?,
     /** 割当てられたスキーマID（match するスキーマがなければ null）。 */
     val schemaId: String?,
@@ -132,13 +137,14 @@ object WorkspaceReader {
             WorkspaceSchema(it.id, it.kind, it.match, it.structural.copy(definitionCatalog = catalog), it.entities, it.isTemplate)
         }
 
-        // 3) 文書ロード（schemas ゾーンと構成ファイルを除く。runs / agents 等の記録・定義ゾーンは文書に含む）
+        // 3) 文書ロード（構成ファイルを除く全YAML。schemas / runs / agents 等の定義・記録ゾーンも
+        //    エディタ層の編集対象として文書に含む——スキーマ・リファクタリング（RF-002）は
+        //    `_schemas` 文書への EditDocument で自身を書き換える。意味解析への載せ方は derive 側で絞る
         val documents = linkedMapOf<DocumentId, WorkspaceDocument>()
         val parseErrors = linkedMapOf<DocumentId, String>()
         for (doc in listing) {
             val rel = doc.id.value
             val zone = layout.zoneOf(rel)
-            if (zone == WorkspaceLayout.Zone.SCHEMAS) continue
             if (zone == null && layout.configDir != null && (rel == layout.configDir || rel.startsWith("${layout.configDir}/"))) continue
             val text = store.read(doc.id)?.text ?: continue
             val parsed = try {
@@ -150,7 +156,7 @@ object WorkspaceReader {
             val schema = linked.firstOrNull { it.matches(rel) }
             documents[doc.id] = WorkspaceDocument(
                 document = parsed,
-                persistedText = text,
+                persistedText = DefaultYamlCodec.dump(parsed),
                 schemaId = schema?.id,
                 inLedger = layout.inLedger(rel),
             )

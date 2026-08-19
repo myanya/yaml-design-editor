@@ -260,6 +260,30 @@ class WorkspaceSessionTest {
     }
 
     @Test
+    fun `スキーマ文書もEditDocumentで編集できる`() {
+        // スキーマ・リファクタリング（RF-002）の前提: `_schemas` 文書は編集対象の文書（RF-002a）
+        val store = newStore()
+        val s = session(store)
+        val schemaDoc = DocumentId("_schemas/item.yaml")
+        assertTrue(schemaDoc in s.snapshot.documents.keys)
+        val result = s.apply(
+            WorkspaceTransaction(
+                0, ChangeIntent("スキーマ名の変更"),
+                listOf(
+                    WorkspaceOperation.EditDocument(
+                        schemaDoc, listOf(YamlOperation.SetScalar(parseYPath("name"), "アイテム"))
+                    )
+                ),
+            )
+        )
+        assertTrue(result.ok, result.message ?: "")
+        assertTrue(s.isDirty(schemaDoc))
+        assertEquals(0, store.writeCount)
+        assertTrue(s.save().ok)
+        assertTrue("アイテム" in (store.read(schemaDoc)?.text ?: ""))
+    }
+
+    @Test
     fun `requireValidは検証エラーになる適用を拒否する`() {
         val s = session(newStore())
         val removeTitle = WorkspaceTransaction(

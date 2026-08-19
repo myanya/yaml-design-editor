@@ -28,12 +28,16 @@ class WorkspaceReaderTest {
         assertEquals(listOf("fx-item", "fx-task"), ws.schemas.map { it.id }.sorted())
         assertTrue(ws.schemaErrors.isEmpty(), "${ws.schemaErrors}")
         assertTrue(ws.parseErrors.isEmpty(), "${ws.parseErrors}")
-        // 文書4件（_schemas ゾーンは除外）・すべて台帳内・スキーマ割当（match）が効く
+        // 文書6件（_schemas ゾーンもエディタ層の編集対象として含む。RF-002a）・台帳の文書はすべて台帳内
         assertEquals(
-            listOf("items/a.yaml", "items/b.yaml", "items/c.yaml", "tasks/t1.yaml"),
+            listOf(
+                "_schemas/item.yaml", "_schemas/task.yaml",
+                "items/a.yaml", "items/b.yaml", "items/c.yaml", "tasks/t1.yaml",
+            ),
             ws.snapshot.documents.keys.map { it.value },
         )
-        assertTrue(ws.snapshot.documents.values.all { it.inLedger })
+        assertTrue(ws.snapshot.documents.filterKeys { !it.value.startsWith("_schemas/") }.values.all { it.inLedger })
+        assertTrue(ws.snapshot.documents.filterKeys { it.value.startsWith("_schemas/") }.values.none { it.inLedger })
         assertEquals("fx-item", ws.snapshot.documents.getValue(DocumentId("items/a.yaml")).schemaId)
         assertEquals("fx-task", ws.snapshot.documents.getValue(DocumentId("tasks/t1.yaml")).schemaId)
         // 構造検証: ERROR なし（cases＋$ref スキーマの適用込み。fixture README の期待どおり）
@@ -56,9 +60,9 @@ class WorkspaceReaderTest {
         val ws = WorkspaceReader.load(store("yde-basic"))
         assertEquals(".yde", ws.layout.configDir)
         assertEquals(listOf("doc"), ws.layout.ledger)
-        // 文書: doc/a・b と outside/note（台帳外だが文書としては載る）。.yde 配下は文書に載せない
+        // 文書: doc/a・b と outside/note（台帳外だが文書としては載る）と .yde/schemas（編集対象。RF-002a）
         assertEquals(
-            setOf("doc/a.yaml", "doc/b.yaml", "outside/note.yaml"),
+            setOf("doc/a.yaml", "doc/b.yaml", "outside/note.yaml", ".yde/schemas/item.yaml"),
             ws.snapshot.documents.keys.map { it.value }.toSet(),
         )
         assertFalse(ws.snapshot.documents.getValue(DocumentId("outside/note.yaml")).inLedger)

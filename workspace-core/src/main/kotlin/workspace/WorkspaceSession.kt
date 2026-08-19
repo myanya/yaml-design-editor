@@ -98,6 +98,9 @@ class WorkspaceSession(
 
     private var workingDocuments: MutableMap<DocumentId, WorkspaceDocument>
 
+    /** 読取・保存時点のストア生テキスト（外部変更検出用。dirty 判定＝persistedText とは別の基準）。 */
+    private val storeTexts = mutableMapOf<DocumentId, String>()
+
     /** 削除予約（apply 済み・save でストアから消す）。 */
     private val pendingDeletes = mutableSetOf<DocumentId>()
 
@@ -118,6 +121,15 @@ class WorkspaceSession(
         declarations = loaded.declarations
         workingDocuments = LinkedHashMap(loaded.snapshot.documents)
         derived = loaded.derived
+        refreshStoreTexts()
+    }
+
+    /** ストア生テキストの追跡を読み直す（外部変更検出の基準を今のストア内容に合わせる）。 */
+    private fun refreshStoreTexts() {
+        storeTexts.clear()
+        for (id in workingDocuments.keys) {
+            store.read(id)?.let { storeTexts[id] = it.text }
+        }
     }
 
     /** working snapshot（読み取り専用ビュー）。 */
@@ -191,7 +203,11 @@ class WorkspaceSession(
         for (id in pendingDeletes.toList()) {
             if (selection != null && id !in selection) continue
             runCatching { store.delete(id) }
-                .onSuccess { pendingDeletes.remove(id); deleted += id }
+                .onSuccess {
+                    pendingDeletes.remove(id)
+                    storeTexts.remove(id)
+                    deleted += id
+                }
                 .onFailure { failures[id] = it.message ?: it.toString() }
         }
         for ((id, d) in workingDocuments) {
@@ -201,6 +217,7 @@ class WorkspaceSession(
             runCatching { store.write(id, text) }
                 .onSuccess {
                     workingDocuments[id] = d.copy(persistedText = text)
+                    storeTexts[id] = text
                     written += id
                 }
                 .onFailure { failures[id] = it.message ?: it.toString() }
@@ -260,9 +277,9 @@ class WorkspaceSession(
      * 変更・削除された既知の文書を返す（新規ファイルは reload で取り込まれる）。
      */
     fun externalChanges(): List<DocumentId> =
-        workingDocuments.mapNotNull { (id, d) ->
-            val persisted = d.persistedText ?: return@mapNotNull null
-            if (store.read(id)?.text != persisted) id else null
+        workingDocuments.keys.filter { id ->
+            val known = storeTexts[id]
+            known != null && store.read(id)?.text != known
         }
 
     /** ストアから読み直す（外部変更の取り込み。履歴は破棄される）。 */
@@ -274,6 +291,7 @@ class WorkspaceSession(
         redoStack.clear()
         version += 1
         derived = loaded.derived
+        refreshStoreTexts()
         return TransactionResult(true, null, version)
     }
 
