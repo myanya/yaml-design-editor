@@ -3,6 +3,17 @@ package semantic
 import model.DocumentId
 import schema.EntityRole
 
+/**
+ * グラフ導出用の文書単位走査結果（SemanticDocument 全体を要求しない軽量ビュー。6A）。
+ * ルート側のシェル（IdIndex の走査結果からの変換）もこの形で渡す。
+ */
+data class DocumentScan(
+    val document: DocumentId,
+    val documentId: String,
+    val ids: List<ScannedId>,
+    val refs: List<ScannedRef>,
+)
+
 /** エンティティ表の1ノード（論理ID。ルート index.EntityNode の DocumentId 座標版。SM-003）。 */
 data class SemanticEntityNode(
     val id: String,
@@ -49,14 +60,14 @@ class SemanticEntityGraph private constructor(
 
     companion object {
         /** 文書単位の走査結果からグラフを導出する（同一文書内の突合だけで足りるため、コストは文書単位に閉じる）。 */
-        internal fun build(
-            perDocument: List<Triple<SemanticDocument, List<ScannedId>, List<ScannedRef>>>,
+        fun build(
+            perDocument: List<DocumentScan>,
             entries: Map<String, List<ScannedId>>,
         ): SemanticEntityGraph {
             // 参照 → 参照元要素（最内のID出現）と、ID出現 → サブツリー配下の参照（出次）
             val sourceByRef = HashMap<ScannedRef, ScannedId>()
             val outByEntry = HashMap<ScannedId, MutableList<ScannedRef>>()
-            for ((_, ids, refs) in perDocument) {
+            for ((_, _, ids, refs) in perDocument) {
                 if (refs.isEmpty() || ids.isEmpty()) continue
                 for (ref in refs) {
                     var innermost: ScannedId? = null
@@ -85,10 +96,10 @@ class SemanticEntityGraph private constructor(
 
             // 文書ノード表: 識別は既存 documentId（_document.id ＞ 相対パス）。衝突は先勝ち（文書ID順）
             val documents = LinkedHashMap<String, SemanticDocumentNode>()
-            for ((doc, ids, _) in perDocument) {
+            for ((document, documentId, ids, _) in perDocument) {
                 documents.putIfAbsent(
-                    doc.documentId,
-                    SemanticDocumentNode(doc.documentId, doc.id, ids.map { it.id }.distinct()),
+                    documentId,
+                    SemanticDocumentNode(documentId, document, ids.map { it.id }.distinct()),
                 )
             }
 

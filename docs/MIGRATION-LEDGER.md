@@ -34,6 +34,8 @@
 | SM-001 | 走査カーネル（SemanticScanner）・表示解決（DisplayCore）・RefNaming の移動 | semantic-core | done | なし（委譲シェル化） | Phase 5（2026-08-18） |
 | SM-002 | SemanticInput / SemanticSnapshot / SemanticEngine（全再構築・重複/未解決ref検出・逆参照） | semantic-core | done | 新API（重複メッセージは「文書内」表現） | Phase 5後半（2026-08-18） |
 | SM-003 | 最小 EntityGraph の DocumentId 座標版カーネル化（SemanticEntityGraph） | semantic-core | done | ルート EntityGraph と一時併存 | Phase 5完了（2026-08-18） |
+| SM-004 | グラフ整合検証（GraphIntegrity）のカーネル化とエンジン接続 | semantic-core | done | ルートはIdIndex→カーネル座標の変換シェル | Phase 6A完了（2026-08-19） |
+| SM-005 | エンティティ合成（Aspects）のカーネル化（SemanticAspects・SchemaSemantics） | semantic-core | done | 変換ブリッジを index/SemanticBridge.kt へ一元化 | Phase 6B完了（2026-08-19） |
 | WS-001 | WorkspaceLayout / DocumentStore | workspace-core | todo | - | Phase 7 |
 
 ## 作業項目の記録
@@ -205,6 +207,51 @@
 未解決事項: Move の巻き戻しは逆操作適用で実現（構造保証は候補木のCoWが担う。ADR-0003）
 完了確認コマンド: ./gradlew :yaml-core:test / ./gradlew test
 ```
+
+### SM-005 エンティティ合成のカーネル化（done 2026-08-19）＝ Phase 6B 完了
+
+```text
+旧実装: core/Aspects.kt（エンティティ合成 R23-01: 定義出現→アスペクト宣言順の決定的マージ・重複所有注記）
+旧テスト: core/AspectTest.kt（既存位置のまま緑＝シェル経由の一致を保証）。カーネル側は
+  SemanticAspectsTest を新設（日本語名3ケース: 来歴座標・重複所有注記・ownerSection）
+新しい責務: semantic/Aspects.kt——SchemaSemantics（スキーマ1件の意味束＝StructuralSchema＋entity宣言）、
+  SemanticAspectField / SemanticAspectSection / SemanticEntityComposite（DocumentId 座標）、
+  SemanticAspects.compose / ownerSection。ツリーの読み取りは loader 注入（(DocumentId) -> YNode?）
+新しい公開API: 同上。加えて index/SemanticBridge.kt（ルート側）に IdEntry/RefEntry ↔ ScannedId/ScannedRef
+  変換・toDocumentScans・kernelGraphOf を一元化し、GraphIntegrity シェルも共有へ書き換え
+維持する挙動: 合成順序（定義出現→宣言順→パス順。UX-80）・重複所有の duplicateOf 注記・
+  書き先解決（ownerSection）のすべて。ルート Aspects は型（Path 座標）を保ち変換シェル化
+意図的に変える挙動: なし
+未解決事項: 合成結果（AspectField.value）は YNode 参照を持つ。スナップショット状態ではなく
+  「その場で消費する読み出しモデル」なので ADR-0003 規律4（出力に YNode 参照を保持しない）の
+  例外扱いだが、§17-⑦（表示系の置き場）の検討時に読み出しモデル層として整理するのが望ましい
+完了確認コマンド: ./gradlew test（AspectTest がシェル経由で通ることが一致証明）
+```
+
+**Phase 6B 完了判定（2026-08-19）**: 合成結果の各値が原本文書（DocumentId）と YPath の来歴を持つ
+（SemanticAspectsTest で固定）。aspect ownership・複数出現合成・重複所有検出が semantic-core で完結。
+
+### SM-004 グラフ整合検証のカーネル化（done 2026-08-19）＝ Phase 6A 完了
+
+```text
+旧実装: validate/GraphIntegrity.kt（対象型・多重度・非循環＝Tarjan SCC・enforcement）
+旧テスト: validate/GraphIntegrityTest.kt（既存位置のまま緑＝変換シェル経由の一致を保証）。
+  カーネル側は SemanticGraphIntegrityTest を新設（日本語名5ケース）
+新しい責務: semantic/GraphIntegrity.kt——SemanticGraphIntegrity.issues(refs, graph, declarations)。
+  判定アルゴリズム（対象型・未宣言relation・多重度・非循環）を全文書分の SemanticIssue として返す。
+  SemanticEngine.build へ接続（SemanticDeclarations の relations / enforcement が有効化）。
+  SemanticEntityGraph.build は軽量ビュー DocumentScan 入力へ変更（公開化）
+維持する挙動: メッセージ・座標・重大度・決定性（隣接ID昇順・SCC・代表閉路）すべて。
+  ルート GraphIntegrity は IdIndex 走査結果→カーネル座標の変換シェル＋ファイル絞り込みへ縮小
+  （inboundRefs / occurrenceCount のカバレッジ共有カウンタはルートに残置）
+意図的に変える挙動: なし。シェルは呼び出しごとに変換＋グラフ導出を行う（従来も per-file で
+  循環検出を再計算しており、コスト特性は同等。Phase 7〜8 の IdIndex 再構成で解消）
+未解決事項: relation 宣言の重複検証は SchemaLoader（ルートのパース側）に残置
+完了確認コマンド: ./gradlew test（GraphIntegrityTest の全ケースがシェル経由で通ることが一致証明）
+```
+
+**Phase 6A 完了判定（2026-08-19）**: 宣言語彙（SM-000）・エンティティグラフ（SM-003）・
+グラフ整合検証（SM-004）が semantic-core に揃い、同じ文書集合＋宣言から決定的に構築・判定される。
 
 ### SM-003 SemanticEntityGraph（エンティティグラフのカーネル版）の新設（done 2026-08-18）
 

@@ -14,8 +14,7 @@ import validate.Severity
 /**
  * ワークスペース単位の意味宣言（3層コア移行 Phase 5・SM-002。計画書§4.2）。
  * `kind: relations` 文書などから上位層（workspace-core）が集約して渡す。
- * 現時点の SemanticEngine は集約・重複・参照解決だけを担い、relations / enforcement を使う
- * グラフ整合検証は後続（GraphIntegrity の移行時）に接続する。
+ * relations / enforcement はグラフ整合検証（SemanticGraphIntegrity。6A）が使う。
  */
 data class SemanticDeclarations(
     val relations: Map<String, RelationDef> = emptyMap(),
@@ -95,11 +94,11 @@ object SemanticEngine {
         val issues = mutableListOf<SemanticIssue>()
         val documentIds = mutableSetOf<String>()
 
-        val perDocument = mutableListOf<Triple<SemanticDocument, List<ScannedId>, List<ScannedRef>>>()
+        val perDocument = mutableListOf<DocumentScan>()
         for (d in docs) {
             documentIds += d.documentId
             val (docIds, docRefs) = SemanticScanner.scan(d)
-            perDocument += Triple(d, docIds, docRefs)
+            perDocument += DocumentScan(d.id, d.documentId, docIds, docRefs)
             for (e in docIds) ids.getOrPut(e.id) { mutableListOf() }.add(e)
             refs += docRefs
             // 文書内の ID 重複（ERROR）。文書間の同一 ID は「同一エンティティの複数出現」で合法
@@ -132,13 +131,17 @@ object SemanticEngine {
             }
         }
 
+        val graph = SemanticEntityGraph.build(perDocument, ids)
+        // グラフ整合検証（R21-01。6A）: 関係レジストリの宣言があるときだけ判定する
+        issues += SemanticGraphIntegrity.issues(refs, graph, input.declarations)
+
         return SemanticSnapshot(
             sourceVersion = input.workspaceVersion,
             ids = ids,
             refs = refs,
             documentIds = documentIds,
             issues = issues,
-            graph = SemanticEntityGraph.build(perDocument, ids),
+            graph = graph,
         )
     }
 }
