@@ -50,8 +50,8 @@ class WorkspaceSchema(
 /** 文書1件のworking状態（計画書§4.3。読取専用フェーズでは persisted と同値）。 */
 data class WorkspaceDocument(
     val document: YDocument,
-    /** 保存済みテキスト。dirty 判定は現在の dump 結果との比較で行う（ADR-0007）。 */
-    val persistedText: String,
+    /** 保存済みテキスト（未保存の新規文書は null）。dirty 判定は現在の dump 結果との比較で行う（ADR-0007）。 */
+    val persistedText: String?,
     /** 割当てられたスキーマID（match するスキーマがなければ null）。 */
     val schemaId: String?,
     /** 台帳の文書か（R13-03。台帳外はエディタ層の検証だけが効く）。 */
@@ -156,16 +156,40 @@ object WorkspaceReader {
             )
         }
 
-        // 4) 構造検証（スキーマ割当のある文書すべて＝エディタ層は台帳外にも効く。R13-03）
-        val byId = linked.associateBy { it.id }
+        // 4) 構造検証＋意味解析（WorkspaceSession の apply / undo / redo と共有する導出）
+        val declarations = SemanticDeclarations(relationsDecl, entityTypes, enforcement)
+        val derived = derive(documents, linked, declarations, layout, version)
+
+        return LoadedWorkspace(
+            layout = layout,
+            schemas = linked,
+            declarations = declarations,
+            schemaErrors = schemaErrors,
+            parseErrors = parseErrors,
+            snapshot = WorkspaceSnapshot(version, documents),
+            derived = derived,
+        )
+    }
+
+    /**
+     * 文書集合から派生状態を導出する（構造検証＋意味解析の全再構築）。
+     * 構造検証はスキーマ割当のある文書すべて（エディタ層は台帳外にも効く。R13-03）。
+     * 意味解析は索引除外（schemas / runs）を外し、台帳外は定義ゾーンだけ載せる（IdIndex と同じ規則）。
+     */
+    fun derive(
+        documents: Map<DocumentId, WorkspaceDocument>,
+        schemas: List<WorkspaceSchema>,
+        declarations: SemanticDeclarations,
+        layout: WorkspaceLayout,
+        version: Long,
+    ): WorkspaceDerivedState {
+        val byId = schemas.associateBy { it.id }
         val structuralIssues = linkedMapOf<DocumentId, List<StructuralIssue>>()
         for ((id, d) in documents) {
             val sc = d.schemaId?.let { byId[it] } ?: continue
             val root = d.document.documents.firstOrNull() ?: continue
             structuralIssues[id] = StructuralValidator.validate(root, sc.structural)
         }
-
-        // 5) 意味解析（台帳層。索引除外＝schemas / runs を外し、台帳外は定義ゾーンだけ載せる＝IdIndex と同じ規則）
         val semanticDocs = documents.mapNotNull { (id, d) ->
             val rel = id.value
             if (layout.indexExcluded(rel)) return@mapNotNull null
@@ -181,18 +205,8 @@ object WorkspaceReader {
                 documentId = DocumentMeta.idOf(root, rel),
             )
         }
-        val declarations = SemanticDeclarations(relationsDecl, entityTypes, enforcement)
         val semantic = SemanticEngine.build(SemanticInput(version, semanticDocs, declarations))
-
-        return LoadedWorkspace(
-            layout = layout,
-            schemas = linked,
-            declarations = declarations,
-            schemaErrors = schemaErrors,
-            parseErrors = parseErrors,
-            snapshot = WorkspaceSnapshot(version, documents),
-            derived = WorkspaceDerivedState(version, structuralIssues, semantic),
-        )
+        return WorkspaceDerivedState(version, structuralIssues, semantic)
     }
 
     /** ストアの内容から構成（レガシー／.yde）を判定する（WorkspaceLayout.of の DocumentStore 版）。 */

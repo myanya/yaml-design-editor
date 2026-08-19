@@ -42,6 +42,8 @@
 | WS-001 | WorkspaceLayout の移動と DocumentStore（InMemory / FileSystem）新設 | workspace-core | done | 予約ディレクトリ名の正を Zone のリテラルへ | Phase 7前半（2026-08-19） |
 | WS-002 | 読取専用ワークスペース（WorkspaceReader）と意味宣言パーサの移動 | workspace-core / semantic-core | done | v1未対応: derive・メタスキーマ適用 | Phase 7後半（2026-08-19） |
 | WS-003 | 簡易CLIの最小配線（yaml parse / roundtrip・workspace validate・exit code契約） | cli | done | - | Phase 7完了（2026-08-19） |
+| WS-004 | WorkspaceSession（apply / undo / redo / save・ChangeRecord履歴・CoW適用） | workspace-core | done | - | Phase 8主要部（2026-08-19） |
+| WS-005 | Phase 8残: MoveDocument（参照更新と併せて）・外部変更検出（watch）・atomic書込 | workspace-core | todo | - | 完了で M3 判定 |
 
 ## 作業項目の記録
 
@@ -242,6 +244,34 @@ semantic-core: ID/ref/entity graph・意味検証（重複・参照・グラフ�
   `_schemas` 文書へのメタスキーマ適用（schemas ゾーンは文書集合から除外）。CLI 配線（workspace validate）
   は WS-003（Phase 7 完了条件①の残り）
 完了確認コマンド: ./gradlew :workspace-core:test / ./gradlew test
+```
+
+### WS-004 WorkspaceSession（done 2026-08-19）＝ Phase 8 主要部
+
+```text
+旧実装: なし（新API。計画書§4.3。参照元は Workspace.apply（コピー→検証→書込の流儀）と
+  EditBuffer（履歴の置き換え対象＝D-03/D-07））
+旧テスト: なし（WorkspaceSessionTest を新設・日本語名9ケース）
+新しい責務: workspace-core/workspace/WorkspaceSession.kt——
+  - WorkspaceOperation（EditDocument / CreateDocument / DeleteDocument）と WorkspaceTransaction
+    （baseVersion＋intent＋操作列）・ChangeRecord（forward / inverse・注入時刻）・TransactionResult / SaveResult
+  - apply: baseVersion確認 → 候補構築（対象文書だけ deepCopy → YamlEdit.applyBatch＝CoW）→
+    候補上で構造＋意味検証（WorkspaceReader.derive を共有）→ requireValid 判定 → 参照交換 →
+    version+1 → ChangeRecord 追加（redo破棄）。失敗・拒否は候補を捨てるだけ（部分変更を公開しない）
+  - undo / redo: 履歴の inverse / forward を同じ適用経路で実行（version は進む・派生状態は毎回再構築）
+  - save: dirty（dump とpersistedTextの比較）と削除予約だけをストアへ書く。履歴・version に触れない。
+    一部失敗は SaveResult.failures で成功済みと区別
+  - 削除は save までストアに残る削除予約。undo は persistedText（保存済みリンク）ごと復元する
+    （CreateDocument.persistedText は undo 復元専用の内部情報）
+維持する挙動: 適用順序・原子性は現行 Workspace.apply の流儀（コピー→検証→確定）を踏襲
+意図的に変える挙動: D-01（apply は書かない・save 分離）・D-03/D-07（テキストsnapshot履歴→
+  ChangeRecord＝逆操作列）——意図的差分一覧のとおり。旧経路（root）は無変更で併存
+未解決事項: MoveDocument（DocMove の参照更新と併せて WS-005）・外部変更検出（watch）・
+  一時ファイル→atomic move の書込（保存の安全性）。WorkspaceDocument.persistedText を nullable 化
+  （未保存の新規文書。計画書§4.3スケッチどおり）
+完了確認コマンド: ./gradlew :workspace-core:test（必須テスト: applyはストア不変 writeCount=0／
+  saveのみ書く／save後も履歴維持／途中失敗の非公開／古いbaseVersion拒否／undo・redoごとの
+  semantic対応version／保存とUndo/Redoの独立シナリオ／削除undoの保存済みリンク復元／requireValid）
 ```
 
 ### WS-003 簡易CLIの最小配線（done 2026-08-19）＝ Phase 7 完了
