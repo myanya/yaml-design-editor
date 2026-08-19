@@ -33,7 +33,7 @@
 | SM-000 | 二層モデル宣言語彙（Relations.kt）と CoverageLevel の移動 | semantic-core | done | entityFor / ownedFieldKeys の再パラメータ化 | Phase 5準備（2026-08-18） |
 | SM-001 | 走査カーネル（SemanticScanner）・表示解決（DisplayCore）・RefNaming の移動 | semantic-core | done | なし（委譲シェル化） | Phase 5（2026-08-18） |
 | SM-002 | SemanticInput / SemanticSnapshot / SemanticEngine（全再構築・重複/未解決ref検出・逆参照） | semantic-core | done | 新API（重複メッセージは「文書内」表現） | Phase 5後半（2026-08-18） |
-| SM-003 | 最小 EntityGraph の DocumentId 座標版カーネル化 | semantic-core | todo | - | Phase 5 完了判定の残り1点 |
+| SM-003 | 最小 EntityGraph の DocumentId 座標版カーネル化（SemanticEntityGraph） | semantic-core | done | ルート EntityGraph と一時併存 | Phase 5完了（2026-08-18） |
 | WS-001 | WorkspaceLayout / DocumentStore | workspace-core | todo | - | Phase 7 |
 
 ## 作業項目の記録
@@ -205,6 +205,30 @@
 未解決事項: Move の巻き戻しは逆操作適用で実現（構造保証は候補木のCoWが担う。ADR-0003）
 完了確認コマンド: ./gradlew :yaml-core:test / ./gradlew test
 ```
+
+### SM-003 SemanticEntityGraph（エンティティグラフのカーネル版）の新設（done 2026-08-18）
+
+```text
+旧実装: index/EntityGraph.kt（導出規則の参照元。ルート側は無変更で残る）
+旧テスト: index/EntityGraphTest.kt（ルート側の回帰を継続担保）。カーネル側は
+  SemanticEntityGraphTest を新設（日本語名4ケース: 定義出現優先・最内出現・出次エッジ・文書ノード）
+新しい責務: semantic/Graph.kt——SemanticEntityNode / SemanticDocumentNode / SemanticEntityGraph
+  （sourceEntryOf・outgoingRefs・エンティティ表・文書ノード表）。SemanticSnapshot.graph として
+  SemanticEngine.build が全再構築のたびに導出する
+維持する挙動: 導出規則はルート EntityGraph と同一（定義出現優先・最内のID出現・documentId 先勝ち）
+意図的に変える挙動: なし
+未解決事項: ルート index.EntityGraph（ディスク基準シェルのキャッシュ）と最内出現突合ロジック
+  （約15行）が一時的に重複する。Phase 7〜8 で IdIndex が SemanticEngine の上へ再構成された時点で
+  ルート側を削除して解消する
+完了確認コマンド: ./gradlew :semantic-core:test / ./gradlew test
+```
+
+**Phase 5 完了判定（2026-08-18）**: ①ファイルシステムなしで複数文書の意味解析ができる
+（SemanticEngine.build）②scalar の ID・配列内 ID・入れ子 ID を既存ルールどおり認識する
+（SemanticScannerTest）③重複 ID・未解決 ref・逆参照がテストできる（SemanticEngineTest）
+④最小の EntityGraph が構築される（SemanticEntityGraphTest）⑤semantic-core が workspace-core へ
+依存していない（ビルド構成）——5条件とも充足。semantic-core テスト17件。
+IdIndex のディスク基準シェル（rebuild / update / overlay）はルート残留のまま（Phase 7〜8 で再構成）。
 
 ### SM-002 SemanticEngine（意味解析の全再構築）の新設（done 2026-08-18）
 

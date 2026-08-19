@@ -63,6 +63,8 @@ class SemanticSnapshot(
     val documentIds: Set<String>,
     /** 集約・重複・参照解決の指摘（文書内ID重複・未解決参照・スコープ外参照）。 */
     val issues: List<SemanticIssue>,
+    /** 走査結果から導出したエンティティグラフ（R20-04 のカーネル版。SM-003）。 */
+    val graph: SemanticEntityGraph,
 ) {
     fun occurrences(id: String): List<ScannedId> = ids[id].orEmpty()
 
@@ -93,9 +95,11 @@ object SemanticEngine {
         val issues = mutableListOf<SemanticIssue>()
         val documentIds = mutableSetOf<String>()
 
+        val perDocument = mutableListOf<Triple<SemanticDocument, List<ScannedId>, List<ScannedRef>>>()
         for (d in docs) {
             documentIds += d.documentId
             val (docIds, docRefs) = SemanticScanner.scan(d)
+            perDocument += Triple(d, docIds, docRefs)
             for (e in docIds) ids.getOrPut(e.id) { mutableListOf() }.add(e)
             refs += docRefs
             // 文書内の ID 重複（ERROR）。文書間の同一 ID は「同一エンティティの複数出現」で合法
@@ -134,6 +138,7 @@ object SemanticEngine {
             refs = refs,
             documentIds = documentIds,
             issues = issues,
+            graph = SemanticEntityGraph.build(perDocument, ids),
         )
     }
 }
