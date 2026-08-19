@@ -14,6 +14,7 @@
 | D-06 | `Path` がschema・index・coreへ広く渡る | `Path` はworkspace-coreのI/O境界に閉じ、下位層には `DocumentId` を渡す | ADR-0002 |
 | D-07 | 単文書ごとのUndoスタック（EditBuffer単位） | Undoスタックはworkspace履歴のみ。単文書編集も文書1件の `ChangeRecord` | ADR-0006 |
 | D-08 | ソース編集はパース不能テキスト状態（`rawText` / `parseError`）を保持しUndoできる | coreの履歴は型付き操作のみ。生テキスト編集のUndoは将来UI層の責務（core外） | ADR-0006 |
+| D-09 | 文書移動（DocMove）は「物理移動成功→参照書き換え失敗」の継ぎ目がありうる（メッセージ案内） | 移動と参照書き換えを1トランザクションで適用し、失敗時は何も起きない。1回のUndoで移動ごと戻る | ADR-0005 |
 
 ## 記入規則
 

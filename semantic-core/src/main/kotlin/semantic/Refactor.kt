@@ -29,6 +29,13 @@ sealed interface RefactoringRequest {
         val targetId: String,
         val deleteOccurrences: Boolean = false,
     ) : RefactoringRequest
+
+    /**
+     * 文書の移動・改名（R21-03）。パスID（`_document.id` 未宣言）の文書参照を書き換える計画を生成し、
+     * 物理移動（moves）と参照書き換えを1つのトランザクションで適用する（旧 DocMove の
+     * 「移動成功→書き換え失敗」の継ぎ目を解消）。存在・衝突の前提検査は上位層（session）が行う。
+     */
+    data class MoveDocument(val from: DocumentId, val to: DocumentId) : RefactoringRequest
 }
 
 /** 1文書分の計画（原本座標つきの型付き操作列）。 */
@@ -46,6 +53,8 @@ data class RefactoringPlan(
     val warnings: List<String>,
     /** 人間向けサマリ。 */
     val summary: List<String>,
+    /** 文書の物理移動（from → to。MoveDocument のみ非空。適用は changes より先）。 */
+    val moves: List<Pair<DocumentId, DocumentId>> = emptyList(),
 )
 
 object SemanticRefactor {
@@ -60,6 +69,47 @@ object SemanticRefactor {
         is RefactoringRequest.RenameEntity -> rename(snapshot, schemas, request, tree)
         is RefactoringRequest.MergeEntity -> merge(snapshot, schemas, request, tree)
         is RefactoringRequest.DeleteEntity -> delete(snapshot, request)
+        is RefactoringRequest.MoveDocument -> moveDocument(snapshot, request)
+    }
+
+    /** 文書移動: パスIDの文書参照の書き換え＋物理移動を1計画にする（DocMove.plan と同じ規則）。 */
+    private fun moveDocument(
+        snapshot: SemanticSnapshot,
+        request: RefactoringRequest.MoveDocument,
+    ): RefactoringPlan {
+        val (from, to) = request
+        require(from != to) { "移動元と移動先が同じです: ${from.value}" }
+        val oldRel = from.value
+        val newRel = to.value
+        val notes = mutableListOf<String>()
+
+        // _document.id 宣言済みなら documentId は移動で変わらない＝文書参照の書き換えは不要
+        val documentId = snapshot.graph.documents.values.firstOrNull { it.document == from }?.documentId ?: oldRel
+        val idDeclared = documentId != oldRel
+        if (idDeclared) {
+            notes += "この文書は _document.id（$documentId）を宣言しているため、文書参照は移動後も安定です（書き換え不要）"
+        }
+
+        // パスIDへの文書参照を書き換える（移動対象ファイル内の参照は移動後のパスで扱う）
+        val refs = if (idDeclared) emptyList() else snapshot.refs.filter {
+            it.targetKind == schema.RefTarget.DOCUMENT && it.targetId == oldRel
+        }
+        val builder = DocOpsBuilder()
+        refs.forEach { r ->
+            val target = if (r.document == from) to else r.document
+            builder.at(target) += YamlOperation.SetScalar(r.path, newRel)
+        }
+        if (refs.isNotEmpty()) {
+            notes += "パスIDの文書参照 ${refs.size} 件を「$newRel」へ書き換えます"
+        }
+        return RefactoringPlan(
+            sourceVersion = snapshot.sourceVersion,
+            request = request,
+            changes = builder.toChanges(),
+            warnings = emptyList(),
+            summary = listOf("文書「$oldRel」→「$newRel」") + notes,
+            moves = listOf(from to to),
+        )
     }
 
     /**

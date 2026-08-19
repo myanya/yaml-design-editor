@@ -128,6 +128,90 @@ class RefactoringTest {
         assertTrue("items/b.yaml" in (e.message ?: ""), "${e.message}")
     }
 
+    private fun docRefStore() = InMemoryDocumentStore(
+        mapOf(
+            "_schemas/doc.yaml" to """
+                id: fx-doc
+                match: "docs/**/*.yaml"
+                root:
+                  type: object
+                  fields:
+                    - key: id
+                      type: id
+                    - key: spec
+                      type: ref
+                      target: document
+            """.trimIndent(),
+            "docs/spec.yaml" to "id: S-1\n",
+            "docs/a.yaml" to "id: A-1\nspec: docs/spec.yaml\n",
+        )
+    )
+
+    @Test
+    fun `文書移動は参照書き換えと1トランザクションで適用され1回のUndoで戻る`() {
+        val store = docRefStore()
+        val s = session(store)
+        assertTrue(s.derived.semantic.issues.isEmpty(), "${s.derived.semantic.issues}")
+        val before = dumpAll(s)
+        val from = DocumentId("docs/spec.yaml")
+        val to = DocumentId("docs/spec2.yaml")
+        val plan = s.planRefactoring(semantic.RefactoringRequest.MoveDocument(from, to))
+        assertEquals(listOf(from to to), plan.moves)
+        assertTrue(plan.summary.any { "文書参照 1 件" in it }, "${plan.summary}")
+        assertEquals(0, s.version, "plan は不変")
+        // 適用: 物理移動＋参照書き換えが1トランザクション
+        assertTrue(s.applyRefactoring(plan).ok)
+        assertEquals(0, store.writeCount)
+        assertTrue(to in s.snapshot.documents.keys && from !in s.snapshot.documents.keys)
+        assertTrue("docs/spec2.yaml" in DefaultYamlCodec.dump(s.snapshot.documents.getValue(a2).document))
+        assertTrue(s.derived.semantic.issues.isEmpty(), "移動後も文書参照が解決される: ${s.derived.semantic.issues}")
+        // 1回の Undo で移動も参照も戻る
+        assertTrue(s.undo().ok)
+        assertEquals(before, dumpAll(s))
+        assertTrue(s.dirtyDocuments().isEmpty())
+    }
+
+    private val a2 = DocumentId("docs/a.yaml")
+
+    @Test
+    fun `_documentのid宣言済みの移動は参照を書き換えない`() {
+        val store = InMemoryDocumentStore(
+            mapOf(
+                "_schemas/doc.yaml" to """
+                    id: fx-doc
+                    match: "docs/**/*.yaml"
+                    root:
+                      type: object
+                      fields:
+                        - key: id
+                          type: id
+                        - key: spec
+                          type: ref
+                          target: document
+                """.trimIndent(),
+                "docs/spec.yaml" to "_document:\n  id: spec-doc\nid: S-1\n",
+                "docs/a.yaml" to "id: A-1\nspec: spec-doc\n",
+            )
+        )
+        val s = session(store)
+        val plan = s.planRefactoring(
+            semantic.RefactoringRequest.MoveDocument(DocumentId("docs/spec.yaml"), DocumentId("docs/spec2.yaml"))
+        )
+        assertTrue(plan.changes.isEmpty(), "文書参照は安定なので書き換えなし")
+        assertTrue(plan.summary.any { "安定" in it }, "${plan.summary}")
+        assertTrue(s.applyRefactoring(plan).ok)
+        assertTrue(s.derived.semantic.issues.isEmpty(), "${s.derived.semantic.issues}")
+    }
+
+    @Test
+    fun `移動でスキーマ適用が変わるときは警告が付く`() {
+        val s = session(docRefStore())
+        val plan = s.planRefactoring(
+            semantic.RefactoringRequest.MoveDocument(DocumentId("docs/a.yaml"), DocumentId("notes/a.yaml"))
+        )
+        assertTrue(plan.warnings.any { "スキーマの適用が変わります" in it }, "${plan.warnings}")
+    }
+
     @Test
     fun `mergeは参照を張り替え出現を詳細化として残す`() {
         val s = session(newStore())

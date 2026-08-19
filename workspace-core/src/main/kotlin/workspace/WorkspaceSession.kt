@@ -219,18 +219,37 @@ class WorkspaceSession(
      * リファクタリング計画を生成する（workspace は変化しない）。
      * 計画の sourceVersion は現在の version で、適用（applyRefactoring）時に古い計画は拒否される。
      */
-    fun planRefactoring(request: semantic.RefactoringRequest): semantic.RefactoringPlan =
-        semantic.SemanticRefactor.plan(derived.semantic, schemaSemantics, request) { id ->
+    fun planRefactoring(request: semantic.RefactoringRequest): semantic.RefactoringPlan {
+        // 文書移動の前提検査と、スキーマ適用の変化警告（DocMove.plan と同じ内容）は working 状態を知るここで行う
+        if (request is semantic.RefactoringRequest.MoveDocument) {
+            require(request.from in workingDocuments) { "ファイルが存在しません: ${request.from.value}" }
+            require(request.to !in workingDocuments) { "移動先に同名のファイルが存在します: ${request.to.value}" }
+            val plan = semantic.SemanticRefactor.plan(derived.semantic, schemaSemantics, request) { id ->
+                workingDocuments[id]?.document?.documents?.firstOrNull()
+            }
+            val oldSchema = schemas.firstOrNull { it.matches(request.from.value) }
+            val newSchema = schemas.firstOrNull { it.matches(request.to.value) }
+            val warning = if (oldSchema?.id != newSchema?.id) {
+                listOf("スキーマの適用が変わります: ${oldSchema?.id ?: "（なし）"} → ${newSchema?.id ?: "（なし）"}")
+            } else emptyList()
+            return plan.copy(warnings = plan.warnings + warning)
+        }
+        return semantic.SemanticRefactor.plan(derived.semantic, schemaSemantics, request) { id ->
             workingDocuments[id]?.document?.documents?.firstOrNull()
         }
+    }
 
-    /** リファクタリング計画を1つのトランザクションとして適用する（1回の Undo で全変更が戻る）。 */
+    /**
+     * リファクタリング計画を1つのトランザクションとして適用する（1回の Undo で全変更が戻る）。
+     * 物理移動（moves）は参照書き換え（changes）より先に適用する。
+     */
     fun applyRefactoring(plan: semantic.RefactoringPlan, requireValid: Boolean = false): TransactionResult =
         apply(
             WorkspaceTransaction(
                 baseVersion = plan.sourceVersion,
                 intent = ChangeIntent(plan.summary.firstOrNull() ?: "リファクタリング"),
-                operations = plan.changes.map { WorkspaceOperation.EditDocument(it.document, it.operations) },
+                operations = plan.moves.map { (from, to) -> WorkspaceOperation.MoveDocument(from, to) } +
+                    plan.changes.map { WorkspaceOperation.EditDocument(it.document, it.operations) },
             ),
             requireValid = requireValid,
         )

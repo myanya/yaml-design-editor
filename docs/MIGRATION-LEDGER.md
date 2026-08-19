@@ -46,7 +46,7 @@
 | WS-005 | Phase 8残の実装（MoveDocument・外部変更検出・atomic書込） | workspace-core | done | - | Phase 8完了＝M3到達（2026-08-20） |
 | RF-001 | エンティティ操作の plan/apply 分離（rename / merge / delete）と CLI 配線 | semantic-core / workspace-core / cli | done | - | Phase 9第1弾（2026-08-20） |
 | RF-002 | スキーマ・リファクタリング（SchemaRefactor 12操作）の plan/apply 化 | semantic-core / workspace-core | todo | - | Phase 9続き（ビュー追随の扱い＝6E仮想文書と関係） |
-| RF-003 | document move の参照更新（DocMove）の plan/apply 化 | semantic-core / workspace-core | todo | - | Phase 9続き |
+| RF-003 | document move の参照更新（DocMove）の plan/apply 化 | semantic-core / workspace-core | done | 移動＋参照書き換えが1トランザクションに（旧経路の非原子的継ぎ目を解消） | Phase 9第2弾（2026-08-20） |
 
 ## 作業項目の記録
 
@@ -247,6 +247,27 @@ semantic-core: ID/ref/entity graph・意味検証（重複・参照・グラフ�
   `_schemas` 文書へのメタスキーマ適用（schemas ゾーンは文書集合から除外）。CLI 配線（workspace validate）
   は WS-003（Phase 7 完了条件①の残り）
 完了確認コマンド: ./gradlew :workspace-core:test / ./gradlew test
+```
+
+### RF-003 document move の参照更新の plan/apply 化（done 2026-08-20）＝ Phase 9 第2弾
+
+```text
+旧実装: core/DocMove.kt（plan＝パスID文書参照の書き換え＋警告、execute＝物理移動→変更セット適用。
+  ルートは無変更で併存）
+旧テスト: core/DocRefTest.kt（ルート・旧経路の回帰を継続担保）。新経路は RefactoringTest へ3ケース追加
+新しい責務:
+  - RefactoringRequest.MoveDocument＋RefactoringPlan.moves（from → to。適用は changes より先）
+  - SemanticRefactor.moveDocument——_document.id 宣言済みなら書き換え不要（安定の注記）、
+    パスID参照の書き換え計画（移動対象ファイル内の自己参照は移動後のパスで扱う）は DocMove.plan と同一
+  - WorkspaceSession.planRefactoring——移動の前提検査（存在・衝突）とスキーマ適用変化の警告を付与。
+    applyRefactoring は MoveDocument ＋ EditDocument を1トランザクションで適用
+維持する挙動: 計画の内容・注記・警告（スキーマ match の変化）
+意図的に変える挙動: **原子性の改善**——旧経路は「物理移動成功→参照書き換え失敗」の継ぎ目があった
+  （メッセージで案内）。新経路は移動と書き換えが1トランザクションで、失敗時は何も起きず、
+  1回の Undo で移動ごと戻る（意図的差分 D-09 として登録）
+未解決事項: ビュー定義の対象外れ警告（file / fileGlob）は旧経路のみ——6E 仮想文書の設計後に再訪
+完了確認コマンド: ./gradlew :workspace-core:test（移動＋参照の1トランザクション・_document.id 安定・
+  スキーマ変化警告）
 ```
 
 ### RF-001 エンティティ操作の plan/apply 分離（done 2026-08-20）＝ Phase 9 第1弾
