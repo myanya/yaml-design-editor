@@ -208,6 +208,33 @@ class WorkspaceSession(
         return SaveResult(written, deleted, failures)
     }
 
+    // ---------------------------------------------------------------- リファクタリング（Phase 9: plan は semantic-core・apply はここ）
+
+    /** スキーマの意味束（リファクタリング計画などカーネルAPIの入力）。 */
+    private val schemaSemantics: Map<String, semantic.SchemaSemantics> by lazy {
+        schemas.associate { it.id to semantic.SchemaSemantics(it.id, it.structural, it.entities) }
+    }
+
+    /**
+     * リファクタリング計画を生成する（workspace は変化しない）。
+     * 計画の sourceVersion は現在の version で、適用（applyRefactoring）時に古い計画は拒否される。
+     */
+    fun planRefactoring(request: semantic.RefactoringRequest): semantic.RefactoringPlan =
+        semantic.SemanticRefactor.plan(derived.semantic, schemaSemantics, request) { id ->
+            workingDocuments[id]?.document?.documents?.firstOrNull()
+        }
+
+    /** リファクタリング計画を1つのトランザクションとして適用する（1回の Undo で全変更が戻る）。 */
+    fun applyRefactoring(plan: semantic.RefactoringPlan, requireValid: Boolean = false): TransactionResult =
+        apply(
+            WorkspaceTransaction(
+                baseVersion = plan.sourceVersion,
+                intent = ChangeIntent(plan.summary.firstOrNull() ?: "リファクタリング"),
+                operations = plan.changes.map { WorkspaceOperation.EditDocument(it.document, it.operations) },
+            ),
+            requireValid = requireValid,
+        )
+
     /**
      * ストア側の外部変更を検出する（保存済みテキストとストア内容の比較。ADR-0007: 検出・通知・reload まで。
      * イベント駆動の watch＝FileWatcher の移行は計画書 Phase 7 のとおり最終段階）。

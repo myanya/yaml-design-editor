@@ -44,6 +44,9 @@
 | WS-003 | 簡易CLIの最小配線（yaml parse / roundtrip・workspace validate・exit code契約） | cli | done | - | Phase 7完了（2026-08-19） |
 | WS-004 | WorkspaceSession（apply / undo / redo / save・ChangeRecord履歴・CoW適用） | workspace-core | done | - | Phase 8主要部（2026-08-19） |
 | WS-005 | Phase 8残の実装（MoveDocument・外部変更検出・atomic書込） | workspace-core | done | - | Phase 8完了＝M3到達（2026-08-20） |
+| RF-001 | エンティティ操作の plan/apply 分離（rename / merge / delete）と CLI 配線 | semantic-core / workspace-core / cli | done | - | Phase 9第1弾（2026-08-20） |
+| RF-002 | スキーマ・リファクタリング（SchemaRefactor 12操作）の plan/apply 化 | semantic-core / workspace-core | todo | - | Phase 9続き（ビュー追随の扱い＝6E仮想文書と関係） |
+| RF-003 | document move の参照更新（DocMove）の plan/apply 化 | semantic-core / workspace-core | todo | - | Phase 9続き |
 
 ## 作業項目の記録
 
@@ -244,6 +247,29 @@ semantic-core: ID/ref/entity graph・意味検証（重複・参照・グラフ�
   `_schemas` 文書へのメタスキーマ適用（schemas ゾーンは文書集合から除外）。CLI 配線（workspace validate）
   は WS-003（Phase 7 完了条件①の残り）
 完了確認コマンド: ./gradlew :workspace-core:test / ./gradlew test
+```
+
+### RF-001 エンティティ操作の plan/apply 分離（done 2026-08-20）＝ Phase 9 第1弾
+
+```text
+旧実装: core/EntityOps.kt（rename / merge / delete の変更セット生成器。R21-02。ルートは無変更で併存）
+旧テスト: core/EntityOpsTest.kt（ルート・旧経路の回帰を継続担保）。新経路は
+  workspace-core/RefactoringTest（日本語名6ケース）と CliTest（plan→apply の一気通貫）
+新しい責務:
+  - semantic-core/semantic/Refactor.kt——RefactoringRequest（RenameEntity / DeleteEntity /
+    MergeEntity）・PlannedDocumentChange（DocumentId × YamlOperation 列＝原本座標）・
+    RefactoringPlan（sourceVersion / warnings / summary）・SemanticRefactor.plan。
+    生成規則・拒否条件（改名先衝突・被参照ありの削除・ルート出現の要素削除）・
+    idPattern 警告・Set先Remove後のパス降順整列は EntityOps と同一
+  - WorkspaceSession.planRefactoring / applyRefactoring——plan の sourceVersion を baseVersion に
+    したトランザクション適用（古い計画は自動拒否・1回の Undo で全変更が戻る）
+  - CLI `workspace rename-entity <root> <old> <new> [--apply]`——plan 表示→明示適用→保存（exit 5=保存失敗）
+維持する挙動: 変更対象の座標・サマリ・警告・オール・オア・ナッシング適用
+意図的に変える挙動: なし（旧経路の ChangeSet／baseHash 方式は併存。新経路は baseVersion＝ADR-0007）
+未解決事項: SchemaRefactor（RF-002。ビュー追随の書換は 6E 仮想文書の設計と関係）・
+  DocMove の参照更新（RF-003）
+完了確認コマンド: ./gradlew :workspace-core:test :cli:test（必須テスト: plan不変・全影響文書と原本座標・
+  stale plan 拒否・参照切れなし・1回Undo・delete拒否・merge）
 ```
 
 ### WS-005 Phase 8 残の実装（done 2026-08-20）＝ Phase 8 完了・M3 到達

@@ -50,6 +50,27 @@ class CliTest {
     }
 
     @Test
+    fun `rename-entityはプレビューを表示しapplyで保存まで行う`() {
+        // プレビューは fixture を変更しない（読み取り専用）
+        val (previewCode, preview) = capture("workspace", "rename-entity", fixture("workspaces", "rename-target"), "REQ-001", "REQ-100")
+        assertEquals(0, previewCode, preview)
+        assertTrue("参照 2 件" in preview, preview)
+        assertTrue("プレビューのみ" in preview, preview)
+        // 適用は一時コピーの上で行う（fixture は読み取り専用。CONVENTIONS §8）
+        val temp = kotlin.io.path.createTempDirectory("rename-apply")
+        try {
+            Path.of(fixture("workspaces", "rename-target")).toFile().copyRecursively(temp.toFile())
+            val (applyCode, applied) = capture("workspace", "rename-entity", temp.toString(), "REQ-001", "REQ-100", "--apply")
+            assertEquals(0, applyCode, applied)
+            assertTrue("保存しました" in applied, applied)
+            assertTrue("REQ-100" in temp.resolve("reqs/one.yaml").toFile().readText())
+            assertEquals(0, capture("workspace", "validate", temp.toString()).first, "適用後に参照切れがない")
+        } finally {
+            temp.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
     fun `未知のコマンド・存在しない入力はexit 1になる`() {
         val (unknown, usage) = capture("unknown")
         assertEquals(1, unknown)
