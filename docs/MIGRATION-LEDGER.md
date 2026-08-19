@@ -38,8 +38,9 @@
 | SM-005 | エンティティ合成（Aspects）のカーネル化（SemanticAspects・SchemaSemantics） | semantic-core | done | 変換ブリッジを index/SemanticBridge.kt へ一元化 | Phase 6B完了（2026-08-19） |
 | SM-006 | query宣言の移動と照合エンジンのカーネル化（SemanticQuery・DocumentMeta） | semantic-core | done | ルート Query はシェル。Traverse の emit レンダラはルート残置 | Phase 6C完了（2026-08-19） |
 | SM-007 | derivation/projection の移動（宣言・評価器・解決器カーネル・globToRegex） | semantic-core | done | ルート index/Derivation はシェル | Phase 6D完了（2026-08-19） |
-| SM-008 | Phase 6E（view非UI部）の保留判定 | - | blocked | - | 再開条件: §17-⑥（仮想文書）・⑦（表示系の置き場）の方向決定。計画書§11も「view機能の全移植」を保留可と明記。6F（inference）も計画書どおり初期コア完成後 |
+| SM-008 | Phase 6E（view非UI部）→ 仮想文書設計で再実装（§17-6 方向決定 2026-08-19） | semantic-core | blocked | - | 再開条件: M3（Phase 8）完了。仮想文書（写像＋来歴＋書込翻訳）として6Eを再開し、現行UIへは ViewRow/ViewCell 互換シムで接続 |
 | WS-001 | WorkspaceLayout の移動と DocumentStore（InMemory / FileSystem）新設 | workspace-core | done | 予約ディレクトリ名の正を Zone のリテラルへ | Phase 7前半（2026-08-19） |
+| WS-002 | 読取専用ワークスペース（WorkspaceReader）と意味宣言パーサの移動 | workspace-core / semantic-core | done | v1未対応: derive・メタスキーマ適用 | Phase 7後半（2026-08-19）。CLI配線（validate）は WS-003 |
 
 ## 作業項目の記録
 
@@ -217,6 +218,35 @@
 保留（SM-008。計画書§11 の保留可項目）。6F（schema inference）は計画書どおり初期コア完成後。
 semantic-core: ID/ref/entity graph・意味検証（重複・参照・グラフ整合）・query・合成・導出が
 文字列入力だけで動く（テスト33件）。
+
+### WS-002 読取専用ワークスペースの組み立て（done 2026-08-19）
+
+```text
+旧実装: 該当パイプラインの参照元は Workspace.scan/load・IdIndex.scanFile・SchemaLoader.loadAllWithErrors
+  （ルート側は無変更で併存）。意味宣言パース（parseEntities / parseEntityTypes / parseRelations /
+  parseEnforcement）は SchemaLoader から semantic-core へ移動（ルートは委譲）
+旧テスト: なし（新API）。WorkspaceReaderTest を新設（fixture 2ワークスペースの一気通貫）
+新しい責務:
+  - semantic-core/schema/SemanticDeclParser.kt——意味宣言の純粋パーサ（ルート SchemaLoader と共有）
+  - workspace-core/workspace/WorkspaceReader.kt——DocumentStore → スキーマ読込（StructuralSchemaParser
+    ＋SemanticDeclParser・$ref横断リンク）→ 文書ロード（DefaultYamlCodec）→ match 割当 → 構造検証 →
+    SemanticInput 構築 → SemanticEngine → WorkspaceDerivedState。
+    WorkspaceSchema / WorkspaceDocument / WorkspaceSnapshot / WorkspaceDerivedState / LoadedWorkspace
+  - WorkspaceLayout.parseLedgerText（構成ファイル本文からの ledger パース。store 版 detectLayout と共有）
+維持する挙動: fixture 期待値（Phase 0 に現行CLIで記録）と一致——legacy-basic: 意味エラー3件
+  （PT-001 文書内重複×2・IT-404 未解決）／yde-basic: 台帳外（outside/）が索引されず issues 0。
+  台帳・ゾーンの絞り込み規則は IdIndex.scanFile と同一（indexExcluded＋台帳外は定義ゾーンのみ索引）
+意図的に変える挙動: なし
+未解決事項: v1未対応＝派生スキーマ（derive はテンプレート扱いでマッチせず、導出スキーマの生成なし）・
+  `_schemas` 文書へのメタスキーマ適用（schemas ゾーンは文書集合から除外）。CLI 配線（workspace validate）
+  は WS-003（Phase 7 完了条件①の残り）
+完了確認コマンド: ./gradlew :workspace-core:test / ./gradlew test
+```
+
+**Phase 7 判定（2026-08-19 時点）**: ②core モジュール内で workspace-core 以外に Path / Files が漏れない
+③読取時点の全結果が同じバージョンに紐付く（snapshot / derived / semantic へ転記）④legacy と .yde の
+対象文書が既存挙動と一致（fixture 実測との一致で証明）——充足。①「workspace validate <root>」の
+CLI 配線だけ WS-003 に残る。
 
 ### WS-001 WorkspaceLayout の移動と DocumentStore の新設（done 2026-08-19）
 

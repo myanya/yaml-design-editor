@@ -111,7 +111,12 @@ data class WorkspaceLayout(
 
         private fun parseLedger(configFile: Path): List<String> {
             if (!Files.isRegularFile(configFile)) return emptyList()
-            val root = yaml.YamlIO.parseFirst(Files.readString(configFile)) as? model.YNode.Map ?: return emptyList()
+            return parseLedgerText(Files.readString(configFile))
+        }
+
+        /** 構成ファイル本文から `ledger:` 宣言を読む（DocumentStore 経由のロード＝WS-002 と共有）。 */
+        fun parseLedgerText(text: String): List<String> {
+            val root = yaml.YamlIO.parseFirst(text) as? model.YNode.Map ?: return emptyList()
             val value = root.entries["ledger"] ?: return emptyList()
             val raw = when (value) {
                 is model.YNode.Scalar -> listOfNotNull(value.value?.toString())
