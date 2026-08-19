@@ -1,8 +1,10 @@
 package workspace
 
 import model.DocumentId
+import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 import kotlin.io.path.isRegularFile
 import kotlin.streams.asSequence
 
@@ -109,7 +111,18 @@ class FileSystemDocumentStore(private val root: Path) : DocumentStore {
     override fun write(id: DocumentId, text: String) {
         val file = resolve(id)
         Files.createDirectories(file.parent)
-        Files.writeString(file, text)
+        // 一時ファイルへ書いてから move する（可能なら atomic。計画書 Phase 8 保存の安全性）
+        val tmp = Files.createTempFile(file.parent, ".${file.fileName}.", ".tmp")
+        try {
+            Files.writeString(tmp, text)
+            try {
+                Files.move(tmp, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+            } catch (_: AtomicMoveNotSupportedException) {
+                Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING)
+            }
+        } finally {
+            Files.deleteIfExists(tmp)
+        }
     }
 
     override fun delete(id: DocumentId) {

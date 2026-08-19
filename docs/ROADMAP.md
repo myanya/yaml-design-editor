@@ -732,7 +732,7 @@ limit: 100
 | Phase 1: モジュール骨格（4モジュール・依存方向の固定） | ✅ 2026-08-16 |
 | Phase 2〜4: yaml-core = M1: YAMLライブラリ | ✅ 2026-08-17（テスト67件。残整理 YM-006b のみ） |
 | Phase 5〜6: semantic-core = M2: 意味解析ライブラリ | ✅ 2026-08-19（6A〜6D完了。6Eは§17-⑥⑦の方向決定まで保留・6Fは後続） |
-| Phase 7〜8: workspace-core = M3: ヘッドレスworkspace | 🚧 |
+| Phase 7〜8: workspace-core = M3: ヘッドレスworkspace | ✅ 2026-08-20（apply/undo/redo/save・外部変更検出・CLI validate） |
 | Phase 9〜11: リファクタリング基盤・CLI完成・増分性能 = M4〜M5 | 📋 |
 
 ## 7. リスクと未解決課題

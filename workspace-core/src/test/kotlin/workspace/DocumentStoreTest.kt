@@ -71,6 +71,16 @@ class DocumentStoreTest {
     }
 
     @Test
+    fun `既存文書への上書き書込ができる`() {
+        for ((name, store) in stores()) {
+            store.write(DocumentId("a.yaml"), "v: 1\n")
+            store.write(DocumentId("a.yaml"), "v: 2\n")
+            assertEquals("v: 2\n", store.read(DocumentId("a.yaml"))?.text, name)
+            assertEquals(1, store.list().size, name)
+        }
+    }
+
+    @Test
     fun `YAML以外はlistに載らない`() {
         val store = FileSystemDocumentStore(dir)
         store.write(DocumentId("a.yaml"), "1")

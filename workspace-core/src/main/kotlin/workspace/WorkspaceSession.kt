@@ -37,6 +37,17 @@ sealed interface WorkspaceOperation {
 
     /** 文書の削除（ストアからの削除は save 時。それまでは削除予約）。 */
     data class DeleteDocument(val documentId: DocumentId) : WorkspaceOperation
+
+    /**
+     * 文書の移動。スキーマ割当・台帳判定は移動先で再評価する。
+     * ストア上は save 時に「新パスへ書き、旧パスを削除」する（参照の書き換えは Phase 9 の DocMove 系）。
+     * toPersistedText は undo（移動の巻き戻し）専用で、保存済みリンクの復元に使う内部情報。
+     */
+    data class MoveDocument(
+        val from: DocumentId,
+        val to: DocumentId,
+        val toPersistedText: String? = null,
+    ) : WorkspaceOperation
 }
 
 /** 変更の意図（履歴・表示用の1行）。 */
@@ -197,6 +208,17 @@ class WorkspaceSession(
         return SaveResult(written, deleted, failures)
     }
 
+    /**
+     * ストア側の外部変更を検出する（保存済みテキストとストア内容の比較。ADR-0007: 検出・通知・reload まで。
+     * イベント駆動の watch＝FileWatcher の移行は計画書 Phase 7 のとおり最終段階）。
+     * 変更・削除された既知の文書を返す（新規ファイルは reload で取り込まれる）。
+     */
+    fun externalChanges(): List<DocumentId> =
+        workingDocuments.mapNotNull { (id, d) ->
+            val persisted = d.persistedText ?: return@mapNotNull null
+            if (store.read(id)?.text != persisted) id else null
+        }
+
     /** ストアから読み直す（外部変更の取り込み。履歴は破棄される）。 */
     fun reload(): TransactionResult {
         val loaded = WorkspaceReader.load(store, version = version + 1)
@@ -258,6 +280,20 @@ class WorkspaceSession(
                                 persistedText = d.persistedText,
                             ),
                         )
+                    }
+                    is WorkspaceOperation.MoveDocument -> {
+                        val d = candidate.remove(op.from) ?: error("移動元が存在しません: ${op.from.value}")
+                        require(op.to !in candidate) { "移動先が既に存在します: ${op.to.value}" }
+                        val rel = op.to.value
+                        candidate[op.to] = d.copy(
+                            persistedText = op.toPersistedText,
+                            schemaId = schemas.firstOrNull { it.matches(rel) }?.id,
+                            inLedger = layout.inLedger(rel),
+                        )
+                        // 移動元が保存済みなら削除予約（save で旧パスを消す）。巻き戻し（toPersistedText 付き）は予約取消
+                        if (d.persistedText != null) deleteReservations += op.from
+                        if (op.toPersistedText != null) deleteCancellations += op.to
+                        inverseOps.add(0, WorkspaceOperation.MoveDocument(op.to, op.from, toPersistedText = d.persistedText))
                     }
                 }
             }

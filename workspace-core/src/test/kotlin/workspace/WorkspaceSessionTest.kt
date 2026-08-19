@@ -214,6 +214,52 @@ class WorkspaceSessionTest {
     }
 
     @Test
+    fun `MoveDocumentは割当再評価つきで移動しundoで完全に戻る`() {
+        val store = newStore()
+        val s = session(store)
+        val to = DocumentId("notes/a.yaml")
+        val move = s.apply(
+            WorkspaceTransaction(0, ChangeIntent("移動"), listOf(WorkspaceOperation.MoveDocument(a, to)))
+        )
+        assertTrue(move.ok, move.message ?: "")
+        assertNull(s.snapshot.documents[a])
+        val moved = s.snapshot.documents.getValue(to)
+        assertNull(moved.schemaId, "items/** の match から外れるので割当なし")
+        assertEquals(0, store.writeCount, "save まではストアに触れない")
+        assertTrue(a in s.dirtyDocuments() && to in s.dirtyDocuments())
+        // undo で位置・スキーマ割当・保存済みリンクごと戻る
+        assertTrue(s.undo().ok)
+        assertEquals("fx-item", s.snapshot.documents.getValue(a).schemaId)
+        assertTrue(s.dirtyDocuments().isEmpty(), "巻き戻しで削除予約も dirty も消える")
+        // redo → save で「新パスへ書き・旧パスを削除」
+        assertTrue(s.redo().ok)
+        val save = s.save()
+        assertTrue(save.ok)
+        assertEquals(listOf(a), save.deleted)
+        assertEquals(listOf(to), save.written)
+        assertNull(store.read(a))
+        assertTrue("IT-001" in (store.read(to)?.text ?: ""))
+    }
+
+    @Test
+    fun `外部変更が検出できreloadで取り込める`() {
+        val store = newStore()
+        val s = session(store)
+        assertTrue(s.externalChanges().isEmpty())
+        // ローカル編集だけでは外部変更にならない
+        setTitle(s, a, "ローカル編集", base = 0)
+        assertTrue(s.externalChanges().isEmpty(), "dirty は外部変更ではない")
+        // ストアを外部から書き換えると検出される
+        store.write(a, "id: IT-001\ntitle: 外部変更\n")
+        assertEquals(listOf(a), s.externalChanges())
+        // reload で取り込まれる（履歴は破棄）
+        assertTrue(s.reload().ok)
+        assertEquals("外部変更", titleOf(s, a))
+        assertTrue(s.externalChanges().isEmpty())
+        assertFalse(s.canUndo())
+    }
+
+    @Test
     fun `requireValidは検証エラーになる適用を拒否する`() {
         val s = session(newStore())
         val removeTitle = WorkspaceTransaction(

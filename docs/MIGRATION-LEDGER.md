@@ -43,7 +43,7 @@
 | WS-002 | 読取専用ワークスペース（WorkspaceReader）と意味宣言パーサの移動 | workspace-core / semantic-core | done | v1未対応: derive・メタスキーマ適用 | Phase 7後半（2026-08-19） |
 | WS-003 | 簡易CLIの最小配線（yaml parse / roundtrip・workspace validate・exit code契約） | cli | done | - | Phase 7完了（2026-08-19） |
 | WS-004 | WorkspaceSession（apply / undo / redo / save・ChangeRecord履歴・CoW適用） | workspace-core | done | - | Phase 8主要部（2026-08-19） |
-| WS-005 | Phase 8残: MoveDocument（参照更新と併せて）・外部変更検出（watch）・atomic書込 | workspace-core | todo | - | 完了で M3 判定 |
+| WS-005 | Phase 8残の実装（MoveDocument・外部変更検出・atomic書込） | workspace-core | done | - | Phase 8完了＝M3到達（2026-08-20） |
 
 ## 作業項目の記録
 
@@ -245,6 +245,30 @@ semantic-core: ID/ref/entity graph・意味検証（重複・参照・グラフ�
   は WS-003（Phase 7 完了条件①の残り）
 完了確認コマンド: ./gradlew :workspace-core:test / ./gradlew test
 ```
+
+### WS-005 Phase 8 残の実装（done 2026-08-20）＝ Phase 8 完了・M3 到達
+
+```text
+旧実装: MoveDocument は新規（DocMove の参照書き換えは Phase 9）。外部変更検出は現行 FileWatcher の
+  水準の代替（検出・通知・reload）。atomic 書込は Workspace 保存経路の安全性の移植
+旧テスト: なし（WorkspaceSessionTest へ2ケース・DocumentStoreTest へ1ケース追加）
+新しい責務:
+  - WorkspaceOperation.MoveDocument——移動先でスキーマ割当・台帳判定を再評価。ストア上は save 時に
+    「新パスへ書き・旧パスを削除」。undo は位置・割当・保存済みリンク（toPersistedText）ごと復元
+  - WorkspaceSession.externalChanges()——保存済みテキストとストア内容の比較による外部変更検出
+    （変更・削除。dirty＝ローカル編集は外部変更にしない。イベント駆動 watch は計画書どおり最終段階）
+  - FileSystemDocumentStore.write——一時ファイル→ATOMIC_MOVE（非対応FSは REPLACE へフォールバック）
+維持する挙動: 検出・通知・reload・最終書込み優先（ADR-0007。楽観ロックなし）
+意図的に変える挙動: なし
+未解決事項: 移動の save は「書き＋削除」でありストアの move を使わない（ファイル同一性が失われる。
+  Git 履歴の継続性が要る場面は Phase 9 の DocMove 移行時に再訪）。イベント駆動 watch は最終段階
+完了確認コマンド: ./gradlew :workspace-core:test / ./gradlew test
+```
+
+**Phase 8 完了判定（2026-08-20）＝ M3: ヘッドレスworkspace 到達**: load・working state・transaction
+（Edit / Create / Delete / Move）・Undo/Redo・save 分離・外部変更検出のすべてが InMemoryDocumentStore
+で検証でき、UIなしで「編集→検証→Undo→Redo→保存」が JUnit から確認できる。書込は
+DocumentStore / save へ集約（ADR-0005）。workspace-core テスト22件。
 
 ### WS-004 WorkspaceSession（done 2026-08-19）＝ Phase 8 主要部
 
