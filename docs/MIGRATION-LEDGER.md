@@ -47,7 +47,8 @@
 | RF-001 | エンティティ操作の plan/apply 分離（rename / merge / delete）と CLI 配線 | semantic-core / workspace-core / cli | done | - | Phase 9第1弾（2026-08-20） |
 | RF-002a | スキーマ文書を編集可能な文書として含める＋dirty基準の正規化修正 | workspace-core | done | dirty基準＝正規化dump（現行EditBufferと同基準）・外部変更検出は生テキスト別追跡 | RF-002の前提（2026-08-20） |
 | RF-002b | スキーマ・リファクタリング第1弾（renameField の plan/apply 化・Site機構の移植） | semantic-core / workspace-core | done | ビュー追随は警告降格（6E設計待ち） | Phase 9続き（2026-08-20） |
-| RF-002c | SchemaRefactor 残り操作の移植（moveField / renameEnumValue / deleteField / requireField / convertFieldType / definitions系 / renameRelation / renameSchemaId） | semantic-core / workspace-core | todo | - | Site機構は移植済み＝同型の薄切りで進む |
+| RF-002c | SchemaRefactor R25-03 の移植（renameEnumValue / deleteField / requireField） | semantic-core / workspace-core | done | ビュー等の言及追随は警告降格 | 2026-08-20 |
+| RF-002d | SchemaRefactor 残り操作の移植（moveField / alignOrder / convertFieldType / definitions系 / renameRelation / renameSchemaId） | semantic-core / workspace-core | todo | - | Site機構＋R25-03と同型の薄切りで進む |
 | WS-006 | スキーマ変更のセッション内 rebuild（スキーマ束再構築・全文書の割当再評価・undo対称） | workspace-core | done | schemasゾーン文書へ一般スキーマを割り当てない規則も是正 | 2026-08-20 |
 | RF-003 | document move の参照更新（DocMove）の plan/apply 化 | semantic-core / workspace-core | done | 移動＋参照書き換えが1トランザクションに（旧経路の非原子的継ぎ目を解消） | Phase 9第2弾（2026-08-20） |
 
@@ -250,6 +251,27 @@ semantic-core: ID/ref/entity graph・意味検証（重複・参照・グラフ�
   `_schemas` 文書へのメタスキーマ適用（schemas ゾーンは文書集合から除外）。CLI 配線（workspace validate）
   は WS-003（Phase 7 完了条件①の残り）
 完了確認コマンド: ./gradlew :workspace-core:test / ./gradlew test
+```
+
+### RF-002c SchemaRefactor R25-03 の移植（done 2026-08-20）
+
+```text
+旧実装: core/SchemaRefactor.kt の renameEnumValue / deleteField / requireField（R25-03）と
+  補助（finalDef / walkYamlEntries / ownsEntryPaths / collectParentObjects）
+旧テスト: core/SchemaRefactorTest.kt（ルート・旧経路の回帰を継続担保）。新経路は RefactoringTest へ
+  3ケース追加（values・casesキー・default・文書値の追随＋新スキーマ検証／owns 掃除とID型拒否・
+  データ損失の可視化／必須化と欠落充填＋必須検証の充足）
+新しい責務: SemanticSchemaRefactor へ3操作を移植——
+  - renameEnumValue: values 実体（文字列・リッチ選択肢）・cases キー（RenameKey）・default・
+    phases.order / requiredFrom / activeFrom（フェーズ名改名）・文書の現在値
+  - deleteField: ID型・フェーズ申告キーの拒否、文書キー削除（パス降順）、スキーマ定義削除、
+    entity.owns の掃除、値あり件数のサマリ明示
+  - requireField: required / requiredFrom の設定（併用不可の他方を削除）、型検査つき既定値、
+    欠落・空値の充填（requiredFrom はフェーズ到達文書のみ）
+維持する挙動: 解決規則・拒否条件・サマリ（該当3操作の範囲）
+意図的に変える挙動: ビュー等の言及追随は警告降格（renameField と同じ方針）
+未解決事項: 残り操作は RF-002d
+完了確認コマンド: ./gradlew :workspace-core:test
 ```
 
 ### WS-006 スキーマ変更のセッション内 rebuild（done 2026-08-20）

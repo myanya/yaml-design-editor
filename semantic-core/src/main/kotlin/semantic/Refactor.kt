@@ -43,6 +43,25 @@ sealed interface RefactoringRequest {
      * ビュー定義等の追随は行わない（6E 仮想文書の設計後に対応。警告で案内する）。
      */
     data class RenameField(val schemaId: String, val fieldPath: String, val newName: String) : RefactoringRequest
+
+    /** enum 選択肢の改名（R25-03）: values / cases キー / default / phases.order / requiredFrom / activeFrom / 文書値を追随。 */
+    data class RenameEnumValue(
+        val schemaId: String,
+        val fieldPath: String,
+        val oldValue: String,
+        val newValue: String,
+    ) : RefactoringRequest
+
+    /** フィールド削除（R25-03）: スキーマ定義・全該当文書のデータキー・entity.owns の項目を削除。ID型・フェーズキーは拒否。 */
+    data class DeleteField(val schemaId: String, val fieldPath: String) : RefactoringRequest
+
+    /** 必須化バックフィル（R25-03）: required / requiredFrom を設定し、欠落・空値の既存文書へ既定値を充填。 */
+    data class RequireField(
+        val schemaId: String,
+        val fieldPath: String,
+        val default: String,
+        val fromPhase: String? = null,
+    ) : RefactoringRequest
 }
 
 /** スキーマ・リファクタリング対象の文書1件（スキーマ割当済みの working 文書）。 */
@@ -90,6 +109,12 @@ object SemanticRefactor {
         is RefactoringRequest.MoveDocument -> moveDocument(snapshot, request)
         is RefactoringRequest.RenameField ->
             SemanticSchemaRefactor.renameField(snapshot.sourceVersion, schemas, documents, request, tree)
+        is RefactoringRequest.RenameEnumValue ->
+            SemanticSchemaRefactor.renameEnumValue(snapshot.sourceVersion, schemas, documents, request, tree)
+        is RefactoringRequest.DeleteField ->
+            SemanticSchemaRefactor.deleteField(snapshot.sourceVersion, schemas, documents, request, tree)
+        is RefactoringRequest.RequireField ->
+            SemanticSchemaRefactor.requireField(snapshot.sourceVersion, schemas, documents, request, tree)
     }
 
     /** 文書移動: パスIDの文書参照の書き換え＋物理移動を1計画にする（DocMove.plan と同じ規則）。 */

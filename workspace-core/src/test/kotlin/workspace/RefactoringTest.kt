@@ -303,6 +303,89 @@ class RefactoringTest {
         assertTrue("items/a.yaml" in (e.message ?: ""), "${e.message}")
     }
 
+    private fun enumStore() = InMemoryDocumentStore(
+        mapOf(
+            "_schemas/item.yaml" to """
+                id: fx-item
+                match: "items/**/*.yaml"
+                entity:
+                  type: item
+                  owns: [status, memo]
+                root:
+                  type: object
+                  fields:
+                    - key: id
+                      type: id
+                    - key: status
+                      type: enum
+                      values: [draft, review, approved]
+                      default: draft
+                      cases:
+                        review:
+                          - key: reviewer
+                            type: string
+                    - key: memo
+                      type: string
+            """.trimIndent(),
+            "items/a.yaml" to "id: IT-001\nstatus: review\nreviewer: 佐藤\n",
+            "items/b.yaml" to "id: IT-002\nstatus: draft\nmemo: x\n",
+        )
+    )
+
+    @Test
+    fun `renameEnumValueはvalues・casesキー・default・文書値を追随する`() {
+        val s = session(enumStore())
+        val plan = s.planRefactoring(
+            semantic.RefactoringRequest.RenameEnumValue("fx-item", "status", "review", "in-review")
+        )
+        assertTrue(s.applyRefactoring(plan).ok)
+        val schemaText = DefaultYamlCodec.dump(s.snapshot.documents.getValue(DocumentId("_schemas/item.yaml")).document)
+        assertTrue("in-review" in schemaText && "cases:" in schemaText, schemaText)
+        assertTrue("review:" !in schemaText.replace("in-review:", ""), "casesキーも改名: $schemaText")
+        val docText = DefaultYamlCodec.dump(s.snapshot.documents.getValue(a).document)
+        assertTrue("status: in-review" in docText, docText)
+        // 新スキーマで検証されるため enum 値エラーが出ない（WS-006 との結合）
+        assertTrue(
+            s.derived.structuralIssues.values.flatten().none { it.severity == validate.Severity.ERROR },
+            "${s.derived.structuralIssues}",
+        )
+        // default: draft は対象外（改名したのは review）
+        assertTrue("default: draft" in schemaText, schemaText)
+    }
+
+    @Test
+    fun `deleteFieldは文書キーとentityのownsを掃除しID型は拒否する`() {
+        val s = session(enumStore())
+        val plan = s.planRefactoring(semantic.RefactoringRequest.DeleteField("fx-item", "memo"))
+        assertTrue(plan.summary.any { "値あり 1 箇所" in it }, "データ損失の可視化: ${plan.summary}")
+        assertTrue(s.applyRefactoring(plan).ok)
+        val schemaText = DefaultYamlCodec.dump(s.snapshot.documents.getValue(DocumentId("_schemas/item.yaml")).document)
+        assertTrue("memo" !in schemaText, "定義と owns から消える: $schemaText")
+        assertTrue("memo" !in DefaultYamlCodec.dump(s.snapshot.documents.getValue(b).document))
+        // ID型は拒否
+        assertFailsWith<IllegalArgumentException> {
+            s.planRefactoring(semantic.RefactoringRequest.DeleteField("fx-item", "id"))
+        }
+    }
+
+    @Test
+    fun `requireFieldは必須化と欠落値の充填を1計画で行う`() {
+        val s = session(enumStore())
+        val plan = s.planRefactoring(
+            semantic.RefactoringRequest.RequireField("fx-item", "memo", default = "未記入")
+        )
+        assertTrue(plan.summary.any { "1 箇所へ既定値" in it }, "a.yaml の欠落だけ充填: ${plan.summary}")
+        assertTrue(s.applyRefactoring(plan).ok)
+        val schemaText = DefaultYamlCodec.dump(s.snapshot.documents.getValue(DocumentId("_schemas/item.yaml")).document)
+        assertTrue("required: true" in schemaText, schemaText)
+        assertTrue("memo: 未記入" in DefaultYamlCodec.dump(s.snapshot.documents.getValue(a).document))
+        // 充填済みなので新スキーマの必須検証を満たす
+        assertTrue(
+            s.derived.structuralIssues.values.flatten().none { it.severity == validate.Severity.ERROR },
+            "${s.derived.structuralIssues}",
+        )
+    }
+
     @Test
     fun `mergeは参照を張り替え出現を詳細化として残す`() {
         val s = session(newStore())
