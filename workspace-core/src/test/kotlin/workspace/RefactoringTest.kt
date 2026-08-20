@@ -553,6 +553,276 @@ class RefactoringTest {
         assertTrue(second.changes.isEmpty(), "${second.changes}")
     }
 
+    private fun convertStore() = InMemoryDocumentStore(
+        mapOf(
+            "_schemas/item.yaml" to """
+                id: fx-item
+                match: "items/**/*.yaml"
+                root:
+                  type: object
+                  fields:
+                    - key: id
+                      type: id
+                    - key: tag
+                      type: string
+                      maxLength: 10
+                      default: none
+                    - key: score
+                      type: string
+                    - key: labels
+                      type: array
+                      item:
+                        type: string
+            """.trimIndent(),
+            "items/a.yaml" to "id: IT-001\ntag: hello\nscore: \"42\"\nlabels: [x, y]\n",
+            "items/b.yaml" to "id: IT-002\nscore: \"7\"\nlabels: [z]\n",
+        )
+    )
+
+    @Test
+    fun `convertFieldTypeはスカラーをarrayへ包み制約をitemへ移す`() {
+        val s = session(convertStore())
+        val before = dumpAll(s)
+        val plan = s.planRefactoring(semantic.RefactoringRequest.ConvertFieldType("fx-item", "tag", "array"))
+        assertTrue(plan.warnings.any { "default はスカラー用" in it }, "${plan.warnings}")
+        assertTrue(plan.summary.any { "文書 1 ファイル・1 箇所" in it }, "tag があるのは a だけ: ${plan.summary}")
+        assertTrue(s.applyRefactoring(plan).ok)
+        val aText = DefaultYamlCodec.dump(s.snapshot.documents.getValue(a).document)
+        assertTrue("- hello" in aText, "1要素の配列へ包む: $aText")
+        val schemaText = DefaultYamlCodec.dump(s.snapshot.documents.getValue(DocumentId("_schemas/item.yaml")).document)
+        assertTrue("type: array" in schemaText && "item:" in schemaText, schemaText)
+        assertTrue("default" !in schemaText, "default は削除: $schemaText")
+        // maxLength は item 側へ移る（新スキーマの検証で ERROR が出ない）
+        assertTrue(
+            s.derived.structuralIssues.values.flatten().none { it.severity == validate.Severity.ERROR },
+            "${s.derived.structuralIssues}",
+        )
+        // 1回の Undo で文書もスキーマも戻る
+        assertTrue(s.undo().ok)
+        assertEquals(before, dumpAll(s))
+    }
+
+    @Test
+    fun `convertFieldTypeはstringをintへ型付けし解析できない値では中止する`() {
+        val s = session(convertStore())
+        val plan = s.planRefactoring(semantic.RefactoringRequest.ConvertFieldType("fx-item", "score", "int"))
+        assertTrue(s.applyRefactoring(plan).ok)
+        val aText = DefaultYamlCodec.dump(s.snapshot.documents.getValue(a).document)
+        assertTrue("score: 42" in aText, "引用符が外れ int 値になる: $aText")
+        assertTrue(
+            s.derived.structuralIssues.values.flatten().none { it.severity == validate.Severity.ERROR },
+            "${s.derived.structuralIssues}",
+        )
+        // 解析できない値がある場合は計画段階で中止
+        val bad = InMemoryDocumentStore(
+            mapOf(
+                "_schemas/item.yaml" to """
+                    id: fx-item
+                    match: "items/**/*.yaml"
+                    root:
+                      type: object
+                      fields:
+                        - key: id
+                          type: id
+                        - key: score
+                          type: string
+                """.trimIndent(),
+                "items/x.yaml" to "id: IT-009\nscore: abc\n",
+            )
+        )
+        val e = assertFailsWith<IllegalStateException> {
+            session(bad).planRefactoring(semantic.RefactoringRequest.ConvertFieldType("fx-item", "score", "int"))
+        }
+        assertTrue("中止します" in (e.message ?: "") && "items/x.yaml" in (e.message ?: ""), "${e.message}")
+        // 配列の解除は複数要素があると中止（a の labels は2要素）
+        val e2 = assertFailsWith<IllegalStateException> {
+            session(convertStore()).planRefactoring(semantic.RefactoringRequest.ConvertFieldType("fx-item", "labels", "string"))
+        }
+        assertTrue("要素 2 件" in (e2.message ?: ""), "${e2.message}")
+    }
+
+    private fun definitionStore() = InMemoryDocumentStore(
+        mapOf(
+            "_schemas/lib.yaml" to """
+                id: fx-lib
+                kind: library
+                definitions:
+                  price:
+                    type: int
+                    min: 0
+            """.trimIndent(),
+            "_schemas/item.yaml" to """
+                id: fx-item
+                match: "items/**/*.yaml"
+                root:
+                  type: object
+                  fields:
+                    - key: id
+                      type: id
+                    - key: cost
+                      ${'$'}ref: fx-lib#price
+            """.trimIndent(),
+            "items/a.yaml" to "id: IT-001\ncost: 5\n",
+        )
+    )
+
+    @Test
+    fun `renameDefinitionはdefinitionsキーと参照refを書き換える`() {
+        val s = session(definitionStore())
+        val plan = s.planRefactoring(semantic.RefactoringRequest.RenameDefinition("fx-lib", "price", "amount"))
+        assertEquals(listOf("_schemas/item.yaml", "_schemas/lib.yaml"), plan.changes.map { it.document.value })
+        assertTrue(plan.summary.any { "参照 1 箇所" in it }, "${plan.summary}")
+        assertTrue(s.applyRefactoring(plan).ok)
+        val libText = DefaultYamlCodec.dump(s.snapshot.documents.getValue(DocumentId("_schemas/lib.yaml")).document)
+        assertTrue("amount:" in libText && "price" !in libText, libText)
+        val itemText = DefaultYamlCodec.dump(s.snapshot.documents.getValue(DocumentId("_schemas/item.yaml")).document)
+        assertTrue("fx-lib#amount" in itemText, itemText)
+        // 新スキーマでも cost の \$ref が解決され検証が通る（WS-006 との結合）
+        assertTrue(
+            s.derived.structuralIssues.values.flatten().none { it.severity == validate.Severity.ERROR },
+            "${s.derived.structuralIssues}",
+        )
+        // 既存の定義名への改名は拒否
+        assertFailsWith<IllegalArgumentException> {
+            s.planRefactoring(semantic.RefactoringRequest.RenameDefinition("fx-lib", "amount", "amount"))
+        }
+    }
+
+    @Test
+    fun `extractDefinitionとinlineDefinitionは往復できる`() {
+        val store = InMemoryDocumentStore(
+            mapOf(
+                "_schemas/item.yaml" to """
+                    id: fx-item
+                    match: "items/**/*.yaml"
+                    root:
+                      type: object
+                      fields:
+                        - key: id
+                          type: id
+                        - key: amount
+                          type: int
+                          min: 0
+                """.trimIndent(),
+                "items/a.yaml" to "id: IT-001\namount: 3\n",
+            )
+        )
+        val s = session(store)
+        // 抽出: 構造キーを definitions へ移し \$ref に置き換える（definitions が無ければ生成）
+        val extract = s.planRefactoring(semantic.RefactoringRequest.ExtractDefinition("fx-item", "amount", "money"))
+        assertTrue(extract.summary.any { "2 キーを移動" in it }, "type と min: ${extract.summary}")
+        assertTrue(s.applyRefactoring(extract).ok)
+        val extracted = DefaultYamlCodec.dump(s.snapshot.documents.getValue(DocumentId("_schemas/item.yaml")).document)
+        assertTrue("definitions:" in extracted && "money:" in extracted && "\$ref: money" in extracted, extracted)
+        assertTrue(
+            s.derived.structuralIssues.values.flatten().none { it.severity == validate.Severity.ERROR },
+            "抽出後も amount は int として検証される: ${s.derived.structuralIssues}",
+        )
+        // インライン化: \$ref を内容の複製へ展開し、参照が残らないため定義自体も削除
+        val inline = s.planRefactoring(semantic.RefactoringRequest.InlineDefinition("fx-item", "amount"))
+        assertTrue(inline.summary.any { "自体も削除します" in it }, "${inline.summary}")
+        assertTrue(s.applyRefactoring(inline).ok)
+        val inlined = DefaultYamlCodec.dump(s.snapshot.documents.getValue(DocumentId("_schemas/item.yaml")).document)
+        assertTrue("\$ref" !in inlined && "money" !in inlined, inlined)
+        assertTrue("min: 0" in inlined, "構造キーがフィールドへ戻る: $inlined")
+        assertTrue(
+            s.derived.structuralIssues.values.flatten().none { it.severity == validate.Severity.ERROR },
+            "${s.derived.structuralIssues}",
+        )
+    }
+
+    @Test
+    fun `renameRelationはレジストリとスキーマのrelation参照を書き換える`() {
+        val store = InMemoryDocumentStore(
+            mapOf(
+                "_schemas/rel.yaml" to """
+                    id: fx-rel
+                    kind: relations
+                    relations:
+                      - name: belongs
+                        from: item
+                        to: group
+                      - name: blocks
+                        from: item
+                        to: item
+                """.trimIndent(),
+                "_schemas/item.yaml" to """
+                    id: fx-item
+                    match: "items/**/*.yaml"
+                    entity:
+                      type: item
+                    root:
+                      type: object
+                      fields:
+                        - key: id
+                          type: id
+                        - key: group
+                          type: ref
+                          relation: belongs
+                """.trimIndent(),
+                "items/a.yaml" to "id: IT-001\n",
+            )
+        )
+        val s = session(store)
+        val plan = s.planRefactoring(semantic.RefactoringRequest.RenameRelation("belongs", "linked"))
+        assertTrue(plan.summary.any { "2 箇所" in it }, "レジストリの name とスキーマの relation: ${plan.summary}")
+        assertTrue(s.applyRefactoring(plan).ok)
+        val relText = DefaultYamlCodec.dump(s.snapshot.documents.getValue(DocumentId("_schemas/rel.yaml")).document)
+        assertTrue("name: linked" in relText && "belongs" !in relText, relText)
+        val itemText = DefaultYamlCodec.dump(s.snapshot.documents.getValue(DocumentId("_schemas/item.yaml")).document)
+        assertTrue("relation: linked" in itemText, itemText)
+        // 宣言済みの関係名への改名は拒否
+        val e = assertFailsWith<IllegalArgumentException> {
+            s.planRefactoring(semantic.RefactoringRequest.RenameRelation("linked", "blocks"))
+        }
+        assertTrue("既にレジストリに宣言" in (e.message ?: ""), "${e.message}")
+    }
+
+    @Test
+    fun `renameSchemaIdはidと修飾refとschemaId系参照を書き換える`() {
+        val store = InMemoryDocumentStore(
+            mapOf(
+                "_schemas/lib.yaml" to """
+                    id: fx-lib
+                    kind: library
+                    definitions:
+                      price:
+                        type: int
+                """.trimIndent(),
+                "_schemas/item.yaml" to """
+                    id: fx-item
+                    match: "items/**/*.yaml"
+                    coverage:
+                      fromSchemaIds: [fx-lib]
+                    root:
+                      type: object
+                      fields:
+                        - key: id
+                          type: id
+                        - key: cost
+                          ${'$'}ref: fx-lib#price
+                """.trimIndent(),
+                "items/a.yaml" to "id: IT-001\ncost: 5\n",
+            )
+        )
+        val s = session(store)
+        val plan = s.planRefactoring(semantic.RefactoringRequest.RenameSchemaId("fx-lib", "fx-common"))
+        assertTrue(plan.summary.any { "参照 2 箇所" in it }, "\$ref と fromSchemaIds: ${plan.summary}")
+        assertTrue(s.applyRefactoring(plan).ok)
+        val libText = DefaultYamlCodec.dump(s.snapshot.documents.getValue(DocumentId("_schemas/lib.yaml")).document)
+        assertTrue("id: fx-common" in libText, libText)
+        val itemText = DefaultYamlCodec.dump(s.snapshot.documents.getValue(DocumentId("_schemas/item.yaml")).document)
+        assertTrue("fx-common#price" in itemText && "fx-lib" !in itemText, itemText)
+        assertTrue(
+            s.derived.structuralIssues.values.flatten().none { it.severity == validate.Severity.ERROR },
+            "改名後も \$ref が解決される: ${s.derived.structuralIssues}",
+        )
+        // 既存IDへの改名は拒否
+        assertFailsWith<IllegalArgumentException> {
+            s.planRefactoring(semantic.RefactoringRequest.RenameSchemaId("fx-item", "fx-common"))
+        }
+    }
+
     @Test
     fun `mergeは参照を張り替え出現を詳細化として残す`() {
         val s = session(newStore())

@@ -77,6 +77,32 @@ sealed interface RefactoringRequest {
         val default: String,
         val fromPhase: String? = null,
     ) : RefactoringRequest
+
+    /**
+     * 型変換（R25-03）: 決定的に解決できる変換だけを提供する（スカラー→array・array→要素型・
+     * string→enum/int/number・enum→string・int/number/boolean/date→string）。変換できない値は一覧つきで中止。
+     */
+    data class ConvertFieldType(
+        val schemaId: String,
+        val fieldPath: String,
+        val targetTypeId: String,
+        val enumValues: List<String> = emptyList(),
+    ) : RefactoringRequest
+
+    /** named definition の改名（R25-04）: definitions のキーと全スキーマの $ref を書き換える。文書は変わらない。 */
+    data class RenameDefinition(val moduleId: String, val defName: String, val newName: String) : RefactoringRequest
+
+    /** 定義の抽出（R25-04）: インラインの構造を named definition へ移し、フィールドは $ref 参照に置き換える。文書は変わらない。 */
+    data class ExtractDefinition(val schemaId: String, val fieldPath: String, val defName: String) : RefactoringRequest
+
+    /** 定義のインライン化（R25-04）: $ref を定義内容の複製へ展開し、参照が残らなければ定義も削除する。文書は変わらない。 */
+    data class InlineDefinition(val schemaId: String, val fieldPath: String) : RefactoringRequest
+
+    /** 関係の改名（R25-04）: レジストリの name と全スキーマの relation: を書き換える。文書は変わらない。 */
+    data class RenameRelation(val oldName: String, val newName: String) : RefactoringRequest
+
+    /** スキーマIDの改名（R25-04）: id: と全スキーマの修飾 $ref・definition・schemaId(s)系・schema: を書き換える。文書と match は変わらない。 */
+    data class RenameSchemaId(val oldId: String, val newId: String) : RefactoringRequest
 }
 
 /** スキーマ・リファクタリング対象の文書1件（スキーマ割当済みの working 文書）。 */
@@ -134,6 +160,18 @@ object SemanticRefactor {
             SemanticSchemaRefactor.deleteField(snapshot.sourceVersion, schemas, documents, request, tree)
         is RefactoringRequest.RequireField ->
             SemanticSchemaRefactor.requireField(snapshot.sourceVersion, schemas, documents, request, tree)
+        is RefactoringRequest.ConvertFieldType ->
+            SemanticSchemaRefactor.convertFieldType(snapshot.sourceVersion, schemas, documents, request, tree)
+        is RefactoringRequest.RenameDefinition ->
+            SemanticSchemaRefactor.renameDefinition(snapshot.sourceVersion, schemas, request, tree)
+        is RefactoringRequest.ExtractDefinition ->
+            SemanticSchemaRefactor.extractDefinition(snapshot.sourceVersion, schemas, request, tree)
+        is RefactoringRequest.InlineDefinition ->
+            SemanticSchemaRefactor.inlineDefinition(snapshot.sourceVersion, schemas, request, tree)
+        is RefactoringRequest.RenameRelation ->
+            SemanticSchemaRefactor.renameRelation(snapshot.sourceVersion, schemas, request, tree)
+        is RefactoringRequest.RenameSchemaId ->
+            SemanticSchemaRefactor.renameSchemaId(snapshot.sourceVersion, schemas, request, tree)
     }
 
     /** 文書移動: パスIDの文書参照の書き換え＋物理移動を1計画にする（DocMove.plan と同じ規則）。 */

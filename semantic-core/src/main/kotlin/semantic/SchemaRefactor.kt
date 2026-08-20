@@ -4,6 +4,7 @@ import edit.YamlOperation
 import model.DocumentId
 import model.YNode
 import model.YPath
+import model.deepCopy
 import model.getAt
 import model.pretty
 import model.scalarText
@@ -519,6 +520,433 @@ object SemanticSchemaRefactor {
         )
     }
 
+    // ================================================================ R25-03: 型変換
+
+    fun convertFieldType(
+        sourceVersion: Long,
+        schemas: Map<String, SchemaSemantics>,
+        documents: List<RefactorDocument>,
+        request: RefactoringRequest.ConvertFieldType,
+        tree: (DocumentId) -> YNode?,
+    ): RefactoringPlan {
+        val (schemaId, fieldPath, targetTypeId, enumValues) = request
+        val entry = targetSchema(schemas, schemaId)
+        val res = resolveField(schemas, entry, fieldPath)
+        requireEditable(res.site.module, "フィールドの定義元（${res.site.module.id}）")
+        val target = res.site.def
+        val key = target.key ?: error("フィールドのキーを特定できません: $fieldPath")
+        val node = verifyFieldNode(res.site, key, tree)
+        require(node.entries["\$ref"] == null && node.entries["ref"] == null) {
+            "参照（\$ref）フィールドは定義側を変換してください（使用側のパスで定義内フィールドを指定できます）"
+        }
+        require(node.entries["cases"] == null) { "cases を持つフィールドの型変換は未対応です" }
+        val curType = target.type
+        val scalarTypes = setOf(
+            FieldType.STRING, FieldType.TEXT, FieldType.INT, FieldType.NUMBER,
+            FieldType.BOOLEAN, FieldType.DATE, FieldType.ENUM,
+        )
+        val constraintKeys = listOf("values", "pattern", "minLength", "maxLength", "min", "max")
+        val builder = OpsBuilder()
+        val schemaFile = res.site.module.source
+            ?: error("フィールドの定義元スキーマに書き換え先の文書がありません: ${res.site.module.id}")
+        val reachable = schemas.values.filter { it.kind == SchemaKind.DOCUMENT && reaches(it, schemas) { f -> f === target } }
+        val reachableIds = reachable.map { it.id }.toSet()
+        val violations = mutableListOf<String>()
+        val warnings = mutableListOf<String>()
+        var converted = 0
+        var docFileCount = 0
+
+        // 文書側の変換を全ファイルへ適用する（transform が null を返した箇所は違反として集める）
+        fun convertDocs(transform: (YNode, YPath, DocumentId) -> YamlOperation?) {
+            for (doc in documents) {
+                val docSchema = doc.schemaId?.takeIf { it in reachableIds }?.let { schemas[it] } ?: continue
+                val hits = collectFieldHits(docSchema.structural, doc.root) { it === target }
+                val ops = mutableListOf<YamlOperation>()
+                for (hit in hits) {
+                    val value = getAt(doc.root, hit) ?: continue
+                    transform(value, hit, doc.id)?.let { ops += it }
+                }
+                if (ops.isEmpty()) continue
+                converted += ops.size
+                docFileCount++
+                builder.addAll(doc.id, ops)
+            }
+        }
+
+        when {
+            // スカラー → 配列（wrap）
+            targetTypeId == FieldType.ARRAY.id && curType in scalarTypes -> {
+                val item = YNode.Map()
+                item.entries["type"] = YNode.Scalar(curType.id)
+                constraintKeys.forEach { k -> node.entries[k]?.let { item.entries[k] = it.deepCopy() } }
+                builder.add(schemaFile, YamlOperation.SetScalar(res.site.path + "type", FieldType.ARRAY.id))
+                (constraintKeys + "default").forEach { k ->
+                    if (k in node.entries) builder.add(schemaFile, YamlOperation.Remove(res.site.path + k))
+                }
+                if ("default" in node.entries) warnings += "default はスカラー用のため削除します（必要なら配列用に再設定してください）"
+                builder.add(schemaFile, YamlOperation.Insert(res.site.path + "item", item))
+                convertDocs { value, hit, _ ->
+                    when {
+                        value is YNode.Scalar && !scalarText(value).isNullOrBlank() ->
+                            YamlOperation.Replace(hit, YNode.Seq(mutableListOf(YNode.Scalar(value.value))))
+                        else -> null
+                    }
+                }
+            }
+            // 配列 → 要素の型（unwrap）
+            curType == FieldType.ARRAY -> {
+                val itemDef = target.item ?: error("配列の item 定義がありません")
+                require(itemDef.ref == null) { "要素が定義参照（\$ref）の配列は解除できません" }
+                require(targetTypeId == itemDef.type.id) { "配列の解除は要素の型（${itemDef.type.id}）を変換先に指定してください" }
+                require(itemDef.type in scalarTypes) { "スカラー要素の配列のみ解除できます（要素: ${itemDef.type.id}）" }
+                convertDocs { value, hit, docId ->
+                    when {
+                        value !is YNode.Seq -> null
+                        value.items.isEmpty() -> YamlOperation.Remove(hit)
+                        value.items.size == 1 && value.items[0] is YNode.Scalar ->
+                            YamlOperation.Replace(hit, YNode.Scalar((value.items[0] as YNode.Scalar).value))
+                        else -> {
+                            violations += "${docId.value} の ${hit.pretty()}（要素 ${value.items.size} 件）"
+                            null
+                        }
+                    }
+                }
+                builder.add(schemaFile, YamlOperation.SetScalar(res.site.path + "type", targetTypeId))
+                val itemNode = node.entries["item"] as? YNode.Map
+                constraintKeys.forEach { k ->
+                    itemNode?.entries?.get(k)?.let { builder.add(schemaFile, YamlOperation.Replace(res.site.path + k, it.deepCopy())) }
+                }
+                builder.add(schemaFile, YamlOperation.Remove(res.site.path + "item"))
+            }
+            // string / text → enum（検証つき）
+            targetTypeId == FieldType.ENUM.id && curType in setOf(FieldType.STRING, FieldType.TEXT) -> {
+                require(enumValues.isNotEmpty()) { "--values で選択肢を指定してください（例 --values open,done）" }
+                convertDocs { value, hit, docId ->
+                    val text = scalarText(value)
+                    if (!text.isNullOrBlank() && text !in enumValues) {
+                        violations += "${docId.value} の ${hit.pretty()}（値「$text」）"
+                    }
+                    null
+                }
+                builder.add(schemaFile, YamlOperation.SetScalar(res.site.path + "type", FieldType.ENUM.id))
+                builder.add(
+                    schemaFile,
+                    YamlOperation.Replace(res.site.path + "values", YNode.Seq(enumValues.mapTo(mutableListOf()) { YNode.Scalar(it) })),
+                )
+            }
+            // enum → string / text
+            curType == FieldType.ENUM && targetTypeId in setOf(FieldType.STRING.id, FieldType.TEXT.id) -> {
+                builder.add(schemaFile, YamlOperation.SetScalar(res.site.path + "type", targetTypeId))
+                if ("values" in node.entries) builder.add(schemaFile, YamlOperation.Remove(res.site.path + "values"))
+            }
+            // string / text → int / number（検証つきの型付け）
+            targetTypeId in setOf(FieldType.INT.id, FieldType.NUMBER.id) && curType in setOf(FieldType.STRING, FieldType.TEXT) -> {
+                convertDocs { value, hit, docId ->
+                    val text = scalarText(value)?.trim()
+                    if (text.isNullOrBlank()) return@convertDocs null
+                    val typed: Any? = if (targetTypeId == FieldType.INT.id) text.toLongOrNull() else text.toDoubleOrNull()
+                    if (typed == null) {
+                        violations += "${docId.value} の ${hit.pretty()}（値「$text」）"
+                        null
+                    } else YamlOperation.SetScalar(hit, typed)
+                }
+                builder.add(schemaFile, YamlOperation.SetScalar(res.site.path + "type", targetTypeId))
+            }
+            // int / number / boolean / date → string / text（文字列化）
+            targetTypeId in setOf(FieldType.STRING.id, FieldType.TEXT.id) &&
+                curType in setOf(FieldType.INT, FieldType.NUMBER, FieldType.BOOLEAN, FieldType.DATE) -> {
+                convertDocs { value, hit, _ ->
+                    val text = scalarText(value) ?: return@convertDocs null
+                    YamlOperation.SetScalar(hit, text)
+                }
+                builder.add(schemaFile, YamlOperation.SetScalar(res.site.path + "type", targetTypeId))
+            }
+            else -> error(
+                "対応していない型変換です: ${curType.id} → $targetTypeId" +
+                    "（対応: スカラー→array・array→要素型・string→enum/int/number・enum→string・int/number/boolean/date→string）"
+            )
+        }
+        if (violations.isNotEmpty()) {
+            error(
+                "変換できない値があるため中止します: " +
+                    violations.take(5).joinToString("、") + (if (violations.size > 5) " 他${violations.size - 5}件" else "")
+            )
+        }
+        return RefactoringPlan(
+            sourceVersion = sourceVersion,
+            request = request,
+            changes = builder.toChanges(),
+            warnings = warnings,
+            summary = listOf(
+                "スキーマ「$schemaId」のフィールド「$fieldPath」を ${curType.id} → $targetTypeId へ変換",
+                "文書 $docFileCount ファイル・$converted 箇所の値を変換",
+            ),
+        )
+    }
+
+    // ================================================================ R25-04: 定義・関係の改名
+
+    /** named definition の改名: definitions のキーと全スキーマの `$ref`（非修飾・修飾）を書き換える。文書は変わらない。 */
+    fun renameDefinition(
+        sourceVersion: Long,
+        schemas: Map<String, SchemaSemantics>,
+        request: RefactoringRequest.RenameDefinition,
+        tree: (DocumentId) -> YNode?,
+    ): RefactoringPlan {
+        val (moduleId, defName, newName) = request
+        requireValidName(newName, "改名先の定義名")
+        require(newName != defName) { "改名先が現在の定義名と同じです: $defName" }
+        val module = schemas[moduleId] ?: error("スキーマ「$moduleId」が見つかりません")
+        requireEditable(module, "スキーマ「$moduleId」")
+        val definitions = module.structural.definitions
+        require(defName in definitions) {
+            "定義「$defName」が見つかりません（定義: ${definitions.keys.sorted().joinToString(", ")}）"
+        }
+        require(newName !in definitions) { "定義「$newName」は既にあります" }
+
+        val builder = OpsBuilder()
+        val moduleSource = module.source ?: error("スキーマ「$moduleId」に書き換え先の文書がありません")
+        builder.add(moduleSource, YamlOperation.RenameKey(listOf("definitions", defName), newName))
+        var refCount = 0
+        for (s in schemas.values) {
+            val source = s.source ?: continue
+            val sTree = tree(source) ?: continue
+            walkYamlEntries(sTree) { path, entryKey, value ->
+                if (entryKey != "\$ref" && entryKey != "ref") return@walkYamlEntries
+                val v = scalarText(value) ?: return@walkYamlEntries
+                val qualified = v.contains('#')
+                val mod = if (qualified) v.substringBefore('#') else s.id
+                val name = if (qualified) v.substringAfter('#') else v
+                if (mod == moduleId && name == defName) {
+                    builder.add(source, YamlOperation.SetScalar(path + entryKey, if (qualified) "$moduleId#$newName" else newName))
+                    refCount++
+                }
+            }
+        }
+        return RefactoringPlan(
+            sourceVersion = sourceVersion,
+            request = request,
+            changes = builder.toChanges(),
+            warnings = nonFollowupWarning(defName),
+            summary = listOf(
+                "定義「$moduleId#$defName」→「$moduleId#$newName」",
+                "スキーマの参照 $refCount 箇所を書き換え（文書は変わりません）",
+            ),
+        )
+    }
+
+    /**
+     * 定義の抽出: インラインのフィールド構造（type / fields / item / values など）を named definition へ
+     * 移し、フィールドは `$ref` 参照に置き換える（key / label / required / description / role は使用側に残す）。
+     * 文書は変わらない。
+     */
+    fun extractDefinition(
+        sourceVersion: Long,
+        schemas: Map<String, SchemaSemantics>,
+        request: RefactoringRequest.ExtractDefinition,
+        tree: (DocumentId) -> YNode?,
+    ): RefactoringPlan {
+        val (schemaId, fieldPath, defName) = request
+        requireValidName(defName, "定義名")
+        val entry = targetSchema(schemas, schemaId)
+        val res = resolveField(schemas, entry, fieldPath)
+        requireEditable(res.site.module, "フィールドの定義元（${res.site.module.id}）")
+        require(defName !in res.site.module.structural.definitions) { "定義「$defName」は既にあります" }
+        val key = res.site.def.key ?: error("フィールドのキーを特定できません: $fieldPath")
+        val node = verifyFieldNode(res.site, key, tree)
+        require(node.entries["\$ref"] == null && node.entries["ref"] == null) { "既に定義参照（\$ref）です: $fieldPath" }
+        val keep = setOf("key", "label", "required", "requiredFrom", "description", "role")
+        val moved = node.entries.keys.filter { it !in keep }
+        require(moved.isNotEmpty()) { "抽出する構造がありません（type などの構造キーが必要です）" }
+
+        val builder = OpsBuilder()
+        val file = res.site.module.source ?: error("スキーマ「${res.site.module.id}」に書き換え先の文書がありません")
+        val fileTree = tree(file) ?: error("スキーマ文書が読めません: ${file.value}")
+        val defMap = YNode.Map()
+        moved.forEach { k -> defMap.entries[k] = node.entries[k]!!.deepCopy() }
+        if ((fileTree as? YNode.Map)?.entries?.get("definitions") == null) {
+            builder.add(file, YamlOperation.Replace(listOf("definitions"), YNode.Map()))
+        }
+        builder.add(file, YamlOperation.Insert(listOf("definitions", defName), defMap))
+        moved.forEach { k -> builder.add(file, YamlOperation.Remove(res.site.path + k)) }
+        builder.add(file, YamlOperation.Insert(res.site.path + "\$ref", YNode.Scalar(defName)))
+        return RefactoringPlan(
+            sourceVersion = sourceVersion,
+            request = request,
+            changes = builder.toChanges(),
+            warnings = emptyList(),
+            summary = listOf(
+                "フィールド「$fieldPath」の構造を定義「${res.site.module.id}#$defName」へ抽出",
+                "使用側は \$ref 参照に置き換え（${moved.size} キーを移動。文書は変わりません）",
+            ),
+        )
+    }
+
+    /**
+     * 定義のインライン化: `$ref` 参照を定義の内容の複製へ展開する（使用側の上書きキーは維持）。
+     * 他に参照が残らない場合は定義自体も削除する。文書は変わらない。
+     */
+    fun inlineDefinition(
+        sourceVersion: Long,
+        schemas: Map<String, SchemaSemantics>,
+        request: RefactoringRequest.InlineDefinition,
+        tree: (DocumentId) -> YNode?,
+    ): RefactoringPlan {
+        val (schemaId, fieldPath) = request
+        val entry = targetSchema(schemas, schemaId)
+        val res = resolveField(schemas, entry, fieldPath)
+        requireEditable(res.site.module, "フィールドの定義元（${res.site.module.id}）")
+        val key = res.site.def.key ?: error("フィールドのキーを特定できません: $fieldPath")
+        val node = verifyFieldNode(res.site, key, tree)
+        val refKey = when {
+            "\$ref" in node.entries -> "\$ref"
+            "ref" in node.entries -> "ref"
+            else -> error("定義参照（\$ref）ではありません: $fieldPath")
+        }
+        val located = entry.structural.definitionTarget(res.site.def)
+            ?: error("参照先の定義が見つかりません: ${scalarText(node.entries[refKey])}")
+        val (defKey, _) = located
+        val defModule = schemas[defKey.moduleId] ?: error("定義モジュール「${defKey.moduleId}」が見つかりません")
+        requireEditable(defModule, "定義モジュール（${defModule.id}）")
+        val defSource = defModule.source ?: error("スキーマ「${defModule.id}」に書き換え先の文書がありません")
+        val defNode = tree(defSource)?.let { getAt(it, listOf("definitions", defKey.name)) } as? YNode.Map
+            ?: error("定義「$defKey」の実体が見つかりません")
+
+        val builder = OpsBuilder()
+        val useSource = res.site.module.source ?: error("スキーマ「${res.site.module.id}」に書き換え先の文書がありません")
+        builder.add(useSource, YamlOperation.Remove(res.site.path + refKey))
+        var copied = 0
+        defNode.entries.forEach { (k, v) ->
+            if (k !in node.entries) {
+                builder.add(useSource, YamlOperation.Insert(res.site.path + k, v.deepCopy()))
+                copied++
+            }
+        }
+        // 参照が残らなければ定義自体を削除する
+        val remaining = countDefinitionRefs(schemas, tree, defKey.moduleId, defKey.name) - 1
+        val notes = mutableListOf<String>()
+        if (remaining <= 0) {
+            builder.add(defSource, YamlOperation.Remove(listOf("definitions", defKey.name)))
+            notes += "他に参照が無いため定義「$defKey」自体も削除します"
+        } else {
+            notes += "定義「$defKey」は他に $remaining 箇所から参照されているため残します"
+        }
+        return RefactoringPlan(
+            sourceVersion = sourceVersion,
+            request = request,
+            changes = builder.toChanges(),
+            warnings = emptyList(),
+            summary = listOf(
+                "フィールド「$fieldPath」の \$ref を定義「$defKey」の内容へインライン化（$copied キーを複製。文書は変わりません）",
+            ) + notes,
+        )
+    }
+
+    /**
+     * 関係（relation）の改名: 関係レジストリの `name`・全スキーマの `relation:`（ref フィールド・coverage・
+     * constraints のクエリ）を書き換える。文書は変わらない（関係は文書に書かれない）。
+     */
+    fun renameRelation(
+        sourceVersion: Long,
+        schemas: Map<String, SchemaSemantics>,
+        request: RefactoringRequest.RenameRelation,
+        tree: (DocumentId) -> YNode?,
+    ): RefactoringPlan {
+        val (oldName, newName) = request
+        requireValidName(newName, "改名先の関係名")
+        require(newName != oldName) { "改名先が現在の関係名と同じです: $oldName" }
+        require(newName !in declaredRelationNames(schemas, tree)) { "関係「$newName」は既にレジストリに宣言されています" }
+        val builder = OpsBuilder()
+        var count = 0
+        for (s in schemas.values) {
+            val source = s.source ?: continue
+            val sTree = tree(source) ?: continue
+            walkYamlEntries(sTree) { path, entryKey, value ->
+                val hit = scalarText(value) == oldName && (
+                    entryKey == "relation" ||
+                        (entryKey == "name" && s.kind == SchemaKind.RELATIONS && path.firstOrNull() == "relations")
+                    )
+                if (hit) {
+                    builder.add(source, YamlOperation.SetScalar(path + entryKey, newName))
+                    count++
+                }
+            }
+        }
+        require(count > 0) { "関係「$oldName」の出現が見つかりません" }
+        return RefactoringPlan(
+            sourceVersion = sourceVersion,
+            request = request,
+            changes = builder.toChanges(),
+            warnings = nonFollowupWarning(oldName),
+            summary = listOf(
+                "関係「$oldName」→「$newName」",
+                "レジストリ・スキーマの $count 箇所を書き換え（文書は変わりません）",
+            ),
+        )
+    }
+
+    /**
+     * スキーマIDの改名: スキーマの `id:` と、全スキーマの修飾 `$ref`（`old#name`）・`definition`・
+     * `schemaId(s)` 系・クエリの `schema:`・coverage の `fromSchemaIds` / `detailSchemaIds` を書き換える。
+     * 文書・match（glob）は変わらない。
+     */
+    fun renameSchemaId(
+        sourceVersion: Long,
+        schemas: Map<String, SchemaSemantics>,
+        request: RefactoringRequest.RenameSchemaId,
+        tree: (DocumentId) -> YNode?,
+    ): RefactoringPlan {
+        val (oldId, newId) = request
+        requireValidName(newId, "改名先のスキーマID")
+        require(newId != oldId) { "改名先が現在のスキーマIDと同じです: $oldId" }
+        val schemaDef = schemas[oldId] ?: error("スキーマ「$oldId」が見つかりません")
+        requireEditable(schemaDef, "スキーマ「$oldId」")
+        require(newId !in schemas) { "スキーマID「$newId」は既にあります" }
+
+        val builder = OpsBuilder()
+        val defSource = schemaDef.source ?: error("スキーマ「$oldId」に書き換え先の文書がありません")
+        builder.add(defSource, YamlOperation.SetScalar(listOf("id"), newId))
+        var count = 0
+        fun rewriteIn(file: DocumentId, root: YNode) {
+            walkYamlEntries(root) { path, entryKey, value ->
+                when {
+                    (entryKey == "\$ref" || entryKey == "ref" || entryKey == "definition") &&
+                        scalarText(value)?.startsWith("$oldId#") == true -> {
+                        builder.add(file, YamlOperation.SetScalar(path + entryKey, "$newId#${scalarText(value)!!.substringAfter('#')}"))
+                        count++
+                    }
+                    (entryKey == "schemaId" || entryKey == "schema") && scalarText(value) == oldId -> {
+                        builder.add(file, YamlOperation.SetScalar(path + entryKey, newId))
+                        count++
+                    }
+                    entryKey in setOf("schemaIds", "fromSchemaIds", "detailSchemaIds") && value is YNode.Seq -> {
+                        value.items.forEachIndexed { i, v ->
+                            if (scalarText(v) == oldId) {
+                                builder.add(file, YamlOperation.SetScalar(path + entryKey + i, newId))
+                                count++
+                            }
+                        }
+                    }
+                    else -> Unit
+                }
+            }
+        }
+        for (s in schemas.values) {
+            val source = s.source ?: continue
+            tree(source)?.let { rewriteIn(source, it) }
+        }
+        return RefactoringPlan(
+            sourceVersion = sourceVersion,
+            request = request,
+            changes = builder.toChanges(),
+            warnings = nonFollowupWarning(oldId),
+            summary = listOf(
+                "スキーマID「$oldId」→「$newId」",
+                "スキーマの参照 $count 箇所を書き換え（文書と match は変わりません）",
+            ),
+        )
+    }
+
     // ================================================================ スキーマ側の解決（Site 機構）
 
     /** スキーマ定義上の実体1件: 保持モジュール・そのスキーマ文書内のYAML座標・FieldDef インスタンス。 */
@@ -610,6 +1038,44 @@ object SemanticSchemaRefactor {
             }
         }
         walk(root, emptyList())
+    }
+
+    /** 全編集可能スキーマの `$ref` / `ref` のうち、指定定義を参照するものの件数。 */
+    private fun countDefinitionRefs(
+        schemas: Map<String, SchemaSemantics>,
+        tree: (DocumentId) -> YNode?,
+        moduleId: String,
+        defName: String,
+    ): Int {
+        var count = 0
+        for (s in schemas.values) {
+            val sTree = s.source?.let(tree) ?: continue
+            walkYamlEntries(sTree) { _, entryKey, value ->
+                if (entryKey != "\$ref" && entryKey != "ref") return@walkYamlEntries
+                val v = scalarText(value) ?: return@walkYamlEntries
+                val qualified = v.contains('#')
+                val mod = if (qualified) v.substringBefore('#') else s.id
+                val name = if (qualified) v.substringAfter('#') else v
+                if (mod == moduleId && name == defName) count++
+            }
+        }
+        return count
+    }
+
+    /** 関係レジストリ（kind: relations のスキーマ）に宣言された関係名の集合。 */
+    private fun declaredRelationNames(
+        schemas: Map<String, SchemaSemantics>,
+        tree: (DocumentId) -> YNode?,
+    ): Set<String> {
+        val names = mutableSetOf<String>()
+        for (s in schemas.values) {
+            if (s.kind != SchemaKind.RELATIONS) continue
+            val sTree = s.source?.let(tree) ?: continue
+            walkYamlEntries(sTree) { path, entryKey, value ->
+                if (entryKey == "name" && path.firstOrNull() == "relations") scalarText(value)?.let(names::add)
+            }
+        }
+        return names
     }
 
     /** `entity.owns` のリスト項目のうち key に一致するもののYAML座標（削除の掃除用）。 */

@@ -49,7 +49,7 @@
 | RF-002b | スキーマ・リファクタリング第1弾（renameField の plan/apply 化・Site機構の移植） | semantic-core / workspace-core | done | ビュー追随は警告降格（6E設計待ち） | Phase 9続き（2026-08-20） |
 | RF-002c | SchemaRefactor R25-03 の移植（renameEnumValue / deleteField / requireField） | semantic-core / workspace-core | done | ビュー等の言及追随は警告降格 | 2026-08-20 |
 | RF-002d | SchemaRefactor R25-02 の移植（moveField / alignOrder・Crossing 機構の復元） | semantic-core / workspace-core | done | ビュー等の言及追随は警告降格 | 2026-08-20 |
-| RF-002e | SchemaRefactor 残り操作の移植（convertFieldType / definitions系 / renameRelation / renameSchemaId） | semantic-core / workspace-core | todo | - | Site機構＋R25-03と同型の薄切りで進む |
+| RF-002e | SchemaRefactor 残り操作の移植（convertFieldType / definitions系 / renameRelation / renameSchemaId） | semantic-core / workspace-core | done | ビュー内の definition / relation / schemaId 参照の追随は警告降格 | Phase 9主要部完了（2026-08-20） |
 | WS-006 | スキーマ変更のセッション内 rebuild（スキーマ束再構築・全文書の割当再評価・undo対称） | workspace-core | done | schemasゾーン文書へ一般スキーマを割り当てない規則も是正 | 2026-08-20 |
 | RF-003 | document move の参照更新（DocMove）の plan/apply 化 | semantic-core / workspace-core | done | 移動＋参照書き換えが1トランザクションに（旧経路の非原子的継ぎ目を解消） | Phase 9第2弾（2026-08-20） |
 
@@ -251,6 +251,42 @@ semantic-core: ID/ref/entity graph・意味検証（重複・参照・グラフ�
 未解決事項: v1未対応＝派生スキーマ（derive はテンプレート扱いでマッチせず、導出スキーマの生成なし）・
   `_schemas` 文書へのメタスキーマ適用（schemas ゾーンは文書集合から除外）。CLI 配線（workspace validate）
   は WS-003（Phase 7 完了条件①の残り）
+完了確認コマンド: ./gradlew :workspace-core:test / ./gradlew test
+```
+
+**Phase 9 主要部完了判定（2026-08-20）**: エンティティ操作（rename / merge / delete＝RF-001）・
+文書移動（RF-003）・スキーマ・リファクタリング P25 全12操作（RF-002b〜e）が
+plan（semantic-core・不変）／apply（workspace-core・1トランザクション）へ分離済み。
+完了条件①「CLIでplanを表示してから明示的に適用できる」は `workspace rename-entity [--apply]` で充足
+（全操作のCLI配線は Phase 10 の refactor コマンド群で行う）。②「リファクタリングコードがファイルを
+直接書かない」は全テストで writeCount=0 を確認。必須テスト6点（plan不変・全影響文書と原本座標・
+stale拒否・dry-run＝plan適用の一致・参照切れなし・1回Undo）は RefactoringTest 26ケースで固定。
+残: ビュー追随（6E 仮想文書設計後）・旧経路（core/SchemaRefactor.kt・EntityOps・DocMove）の
+シェル化はUI移行時（旧経路は現行UIが使用中のため併存）。
+
+### RF-002e SchemaRefactor 残り操作の移植（done 2026-08-20）＝ P25全12操作のカーネル化完了
+
+```text
+旧実装: core/SchemaRefactor.kt の convertFieldType（R25-03）・renameDefinition / extractDefinition /
+  inlineDefinition / renameRelation / renameSchemaId（R25-04）と補助（countDefinitionRefs）
+旧テスト: core/SchemaRefactorTest.kt（ルート・旧経路の回帰を継続担保）。新経路は RefactoringTest へ
+  6ケース追加（wrap＋制約のitem移動＋1回Undo／string→int型付けと解析不能・複数要素の中止／
+  definitions改名と$ref追随／extract⇄inlineの往復（定義の自動削除込み）／relation改名と宣言済み名の拒否／
+  schemaId改名と修飾$ref・fromSchemaIds追随・既存IDの拒否）
+新しい責務: SemanticSchemaRefactor へ6操作を移植——
+  - convertFieldType: 決定的変換のみ（スカラー→array・array→要素型・string→enum/int/number・
+    enum→string・int/number/boolean/date→string）。逸脱値は一覧つきで中止。制約キーの item への
+    移し替え・default 削除警告も同一
+  - renameDefinition: definitions キーの RenameKey＋全スキーマの $ref（非修飾はモジュール内・修飾は横断）
+  - extractDefinition: 構造キーを definitions へ移し $ref 参照へ置換（key/label/required 等は使用側に残す）
+  - inlineDefinition: $ref を定義内容の複製へ展開（使用側の上書きキー維持）。参照が残らなければ定義も削除
+  - renameRelation: レジストリの name＋全スキーマの relation:。宣言済み名の検査はレジストリ文書の走査で行う
+  - renameSchemaId: id:＋修飾 $ref・definition・schemaId(s)系・schema:・fromSchemaIds / detailSchemaIds
+維持する挙動: 解決規則・拒否条件・メッセージ・サマリ（該当6操作の範囲）
+意図的に変える挙動: ビュー内の definition / relation / schemaId 参照の追随は警告降格（6E 仮想文書の
+  設計後に対応。renameDefinition の同名あいまい警告などビュー走査由来の警告も同時に落ちる）。
+  derive テンプレートは kernel 経路では source=null＝書き換え対象外（v1で derive 未対応のため実害なし）
+未解決事項: なし（P25の12操作すべてカーネル化済み。CLI 配線は Phase 10）
 完了確認コマンド: ./gradlew :workspace-core:test / ./gradlew test
 ```
 
