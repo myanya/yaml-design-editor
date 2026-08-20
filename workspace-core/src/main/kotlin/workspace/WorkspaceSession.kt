@@ -93,8 +93,16 @@ class WorkspaceSession(
     private val clock: () -> Instant = { Instant.now() },
 ) {
     val layout: schema.WorkspaceLayout
-    val schemas: List<WorkspaceSchema>
-    private val declarations: semantic.SemanticDeclarations
+
+    /** スキーマ束（スキーマ文書の変更を含むトランザクションで再構築される。WS-006）。 */
+    var schemas: List<WorkspaceSchema>
+        private set
+
+    /** スキーマ文書のパース失敗（再構築のたびに更新）。 */
+    var schemaErrors: List<String>
+        private set
+
+    private var declarations: semantic.SemanticDeclarations
 
     private var workingDocuments: MutableMap<DocumentId, WorkspaceDocument>
 
@@ -118,6 +126,7 @@ class WorkspaceSession(
         val loaded = WorkspaceReader.load(store, version = 0)
         layout = loaded.layout
         schemas = loaded.schemas
+        schemaErrors = loaded.schemaErrors
         declarations = loaded.declarations
         workingDocuments = LinkedHashMap(loaded.snapshot.documents)
         derived = loaded.derived
@@ -227,8 +236,8 @@ class WorkspaceSession(
 
     // ---------------------------------------------------------------- リファクタリング（Phase 9: plan は semantic-core・apply はここ）
 
-    /** スキーマの意味束（リファクタリング計画などカーネルAPIの入力）。 */
-    private val schemaSemantics: Map<String, semantic.SchemaSemantics> by lazy {
+    /** スキーマの意味束（リファクタリング計画などカーネルAPIの入力。再構築に追随するため都度組む）。 */
+    private fun schemaSemantics(): Map<String, semantic.SchemaSemantics> =
         schemas.associate {
             it.id to semantic.SchemaSemantics(
                 id = it.id,
@@ -238,7 +247,6 @@ class WorkspaceSession(
                 kind = it.kind,
             )
         }
-    }
 
     /** リファクタリング対象の文書一覧（スキーマ割当済みの working 文書）。 */
     private fun refactorDocuments(): List<semantic.RefactorDocument> =
@@ -255,7 +263,7 @@ class WorkspaceSession(
         if (request is semantic.RefactoringRequest.MoveDocument) {
             require(request.from in workingDocuments) { "ファイルが存在しません: ${request.from.value}" }
             require(request.to !in workingDocuments) { "移動先に同名のファイルが存在します: ${request.to.value}" }
-            val plan = semantic.SemanticRefactor.plan(derived.semantic, schemaSemantics, request) { id ->
+            val plan = semantic.SemanticRefactor.plan(derived.semantic, schemaSemantics(), request) { id ->
                 workingDocuments[id]?.document?.documents?.firstOrNull()
             }
             val oldSchema = schemas.firstOrNull { it.matches(request.from.value) }
@@ -265,7 +273,7 @@ class WorkspaceSession(
             } else emptyList()
             return plan.copy(warnings = plan.warnings + warning)
         }
-        return semantic.SemanticRefactor.plan(derived.semantic, schemaSemantics, request, refactorDocuments()) { id ->
+        return semantic.SemanticRefactor.plan(derived.semantic, schemaSemantics(), request, refactorDocuments()) { id ->
             workingDocuments[id]?.document?.documents?.firstOrNull()
         }
     }
@@ -299,6 +307,9 @@ class WorkspaceSession(
     /** ストアから読み直す（外部変更の取り込み。履歴は破棄される）。 */
     fun reload(): TransactionResult {
         val loaded = WorkspaceReader.load(store, version = version + 1)
+        schemas = loaded.schemas
+        schemaErrors = loaded.schemaErrors
+        declarations = loaded.declarations
         workingDocuments = LinkedHashMap(loaded.snapshot.documents)
         pendingDeletes.clear()
         undoStack.clear()
@@ -380,8 +391,39 @@ class WorkspaceSession(
             return TransactionResult(false, e.message ?: e.toString(), version)
         }
 
+        // スキーマ文書に触れた場合は候補の working 内容からスキーマ束を再構築し、全文書の割当を再評価する
+        // （WS-006。「スキーマが変わったら必ず rebuild」のセッション版。undo / redo も同経路で対称に戻る）
+        val schemaTouched = operations.any { op ->
+            val ids = when (op) {
+                is WorkspaceOperation.EditDocument -> listOf(op.documentId)
+                is WorkspaceOperation.CreateDocument -> listOf(op.documentId)
+                is WorkspaceOperation.DeleteDocument -> listOf(op.documentId)
+                is WorkspaceOperation.MoveDocument -> listOf(op.from, op.to)
+            }
+            ids.any { layout.zoneOf(it.value) == schema.WorkspaceLayout.Zone.SCHEMAS }
+        }
+        var newSchemas = schemas
+        var newDeclarations = declarations
+        var newSchemaErrors = schemaErrors
+        if (schemaTouched) {
+            val sources = candidate.entries
+                .filter { layout.zoneOf(it.key.value) == schema.WorkspaceLayout.Zone.SCHEMAS }
+                .sortedBy { it.key.value }
+                .map { (id, d) -> id to DefaultYamlCodec.dump(d.document) }
+            val parsed = WorkspaceReader.parseSchemas(sources)
+            newSchemas = parsed.schemas
+            newDeclarations = parsed.declarations
+            newSchemaErrors = parsed.errors
+            for ((id, d) in candidate) {
+                val rel = id.value
+                val newId = if (layout.zoneOf(rel) == schema.WorkspaceLayout.Zone.SCHEMAS) null
+                else newSchemas.firstOrNull { it.matches(rel) }?.id
+                if (newId != d.schemaId) candidate[id] = d.copy(schemaId = newId)
+            }
+        }
+
         // 候補の上で検証してから交換する（計画書§4.3 適用順序）
-        val candidateDerived = WorkspaceReader.derive(candidate, schemas, declarations, layout, version + 1)
+        val candidateDerived = WorkspaceReader.derive(candidate, newSchemas, newDeclarations, layout, version + 1)
         if (requireValid) {
             val structuralError = candidateDerived.structuralIssues.values.flatten()
                 .firstOrNull { it.severity == validate.Severity.ERROR }
@@ -395,6 +437,9 @@ class WorkspaceSession(
         workingDocuments = candidate
         pendingDeletes += deleteReservations
         pendingDeletes -= deleteCancellations.toSet()
+        schemas = newSchemas
+        declarations = newDeclarations
+        schemaErrors = newSchemaErrors
         version += 1
         derived = candidateDerived
         onCommit(inverseOps)

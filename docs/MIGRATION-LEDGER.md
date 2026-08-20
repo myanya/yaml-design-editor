@@ -48,7 +48,7 @@
 | RF-002a | スキーマ文書を編集可能な文書として含める＋dirty基準の正規化修正 | workspace-core | done | dirty基準＝正規化dump（現行EditBufferと同基準）・外部変更検出は生テキスト別追跡 | RF-002の前提（2026-08-20） |
 | RF-002b | スキーマ・リファクタリング第1弾（renameField の plan/apply 化・Site機構の移植） | semantic-core / workspace-core | done | ビュー追随は警告降格（6E設計待ち） | Phase 9続き（2026-08-20） |
 | RF-002c | SchemaRefactor 残り操作の移植（moveField / renameEnumValue / deleteField / requireField / convertFieldType / definitions系 / renameRelation / renameSchemaId） | semantic-core / workspace-core | todo | - | Site機構は移植済み＝同型の薄切りで進む |
-| WS-006 | スキーマ文書の変更をセッション内でスキーマ再読込へ反映（スキーマ変更→全再構築） | workspace-core | todo | - | 既知ギャップ: session.schemas は初期ロード固定。適用後の派生状態が旧スキーマで検証される（reloadで解消） |
+| WS-006 | スキーマ変更のセッション内 rebuild（スキーマ束再構築・全文書の割当再評価・undo対称） | workspace-core | done | schemasゾーン文書へ一般スキーマを割り当てない規則も是正 | 2026-08-20 |
 | RF-003 | document move の参照更新（DocMove）の plan/apply 化 | semantic-core / workspace-core | done | 移動＋参照書き換えが1トランザクションに（旧経路の非原子的継ぎ目を解消） | Phase 9第2弾（2026-08-20） |
 
 ## 作業項目の記録
@@ -250,6 +250,26 @@ semantic-core: ID/ref/entity graph・意味検証（重複・参照・グラフ�
   `_schemas` 文書へのメタスキーマ適用（schemas ゾーンは文書集合から除外）。CLI 配線（workspace validate）
   は WS-003（Phase 7 完了条件①の残り）
 完了確認コマンド: ./gradlew :workspace-core:test / ./gradlew test
+```
+
+### WS-006 スキーマ変更のセッション内 rebuild（done 2026-08-20）
+
+```text
+旧実装: 参照元は Workspace.noteDiskChanges（スキーマ変更→必ず rebuild。CLAUDE.md 落とし穴）の
+  セッション版。ルートは無変更で併存
+旧テスト: なし（WorkspaceSessionTest へ1ケース追加・RefactoringTest の rename ケースへ検証追記）
+新しい責務:
+  - WorkspaceReader.parseSchemas——スキーマ文書テキスト集合→スキーマ束（load とセッションが共有）
+  - WorkspaceSession: schemas / declarations / schemaErrors を可変化し、schemas ゾーンの文書に触れる
+    トランザクションで「候補の working 内容からスキーマ束を再構築→全文書の match 割当を再評価→
+    新スキーマで候補検証」。undo / redo も同経路で対称（undo でスキーマも検証も戻る）。reload も反映
+  - 是正: `_schemas` 配下の文書に一般スキーマの match を適用しない（「メタスキーマだけが適用される」
+    規則の順守。default match "**/*" が schemas ゾーンを拾う穴を塞いだ）
+維持する挙動: 「スキーマが変わったら必ず rebuild」（増分にしない）
+意図的に変える挙動: なし
+未解決事項: derive 導出元文書の変更→再構築（derive 自体が WS-002 v1 未対応）。メタスキーマ適用
+完了確認コマンド: ./gradlew :workspace-core:test（required 除去→ERROR 消滅→undo で復活の対称性、
+  renameField 適用直後に未定義キー警告が出ないこと）
 ```
 
 ### RF-002b renameField の plan/apply 化（done 2026-08-20）＝ SchemaRefactor 移植の第1弾

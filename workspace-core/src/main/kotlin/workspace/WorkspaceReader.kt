@@ -91,23 +91,27 @@ class LoadedWorkspace(
     val derived: WorkspaceDerivedState,
 )
 
+/** スキーマ読込の結果（load と、セッション内のスキーマ再構築＝WS-006 が共有する）。 */
+class SchemaLoadResult(
+    val schemas: List<WorkspaceSchema>,
+    val declarations: SemanticDeclarations,
+    val errors: List<String>,
+)
+
 object WorkspaceReader {
 
-    /** ワークスペースを読み取り、working snapshot と派生状態を組み立てる。 */
-    fun load(store: DocumentStore, version: Long = 0): LoadedWorkspace {
-        val layout = detectLayout(store)
-        val listing = store.list()
-
-        // 1) スキーマ読込（schemas ゾーン。相対パス順＝store.list の順）
-        val schemaErrors = mutableListOf<String>()
+    /**
+     * スキーマ文書のテキスト集合からスキーマ束を組み立てる（構造＋意味宣言・`$ref` の横断リンク）。
+     * sources は（文書ID, 本文）の相対パス順。
+     */
+    fun parseSchemas(sources: List<Pair<DocumentId, String>>): SchemaLoadResult {
+        val errors = mutableListOf<String>()
         val schemas = mutableListOf<WorkspaceSchema>()
-        var relationsDecl = linkedMapOf<String, schema.RelationDef>()
+        val relationsDecl = linkedMapOf<String, schema.RelationDef>()
         val entityTypes = mutableListOf<schema.EntityTypeDef>()
         var enforcement = schema.EnforcementDef()
-        for (doc in listing) {
-            val rel = doc.id.value
-            if (layout.zoneOf(rel) != WorkspaceLayout.Zone.SCHEMAS) continue
-            val text = store.read(doc.id)?.text ?: continue
+        for ((id, text) in sources) {
+            val rel = id.value
             val fallbackId = rel.substringAfterLast('/').substringBeforeLast('.')
             try {
                 val raw = YamlIO.parseToRaw(text) as? Map<*, *> ?: error("スキーマのルートはobjectである必要があります")
@@ -123,7 +127,7 @@ object WorkspaceReader {
                     structural = structural,
                     entities = SemanticDeclParser.parseEntities(raw["entity"]),
                     isTemplate = isTemplate,
-                    source = doc.id,
+                    source = id,
                 )
                 if (kind == SchemaKind.RELATIONS) {
                     SemanticDeclParser.parseRelations(raw["relations"]).forEach { relationsDecl[it.name] = it }
@@ -131,14 +135,28 @@ object WorkspaceReader {
                     SemanticDeclParser.parseEnforcement(raw["enforcement"])?.let { enforcement = it }
                 }
             } catch (e: Exception) {
-                schemaErrors += "$rel: ${e.message}"
+                errors += "$rel: ${e.message}"
             }
         }
-        // 2) `$ref` の横断解決（module#name）: 全モジュールの定義をリンクする（SchemaLoader と同じ流儀）
+        // `$ref` の横断解決（module#name）: 全モジュールの定義をリンクする（SchemaLoader と同じ流儀）
         val catalog = SchemaCatalog.linked(schemas.map { it.id to it.structural.definitions })
         val linked = schemas.map {
             WorkspaceSchema(it.id, it.kind, it.match, it.structural.copy(definitionCatalog = catalog), it.entities, it.isTemplate, it.source)
         }
+        return SchemaLoadResult(linked, SemanticDeclarations(relationsDecl, entityTypes, enforcement), errors)
+    }
+
+    /** ワークスペースを読み取り、working snapshot と派生状態を組み立てる。 */
+    fun load(store: DocumentStore, version: Long = 0): LoadedWorkspace {
+        val layout = detectLayout(store)
+        val listing = store.list()
+
+        // 1) スキーマ読込（schemas ゾーン。相対パス順＝store.list の順）
+        val schemaSources = listing.filter { layout.zoneOf(it.id.value) == WorkspaceLayout.Zone.SCHEMAS }
+            .mapNotNull { doc -> store.read(doc.id)?.let { doc.id to it.text } }
+        val parsedSchemas = parseSchemas(schemaSources)
+        val schemaErrors = parsedSchemas.errors
+        val linked = parsedSchemas.schemas
 
         // 3) 文書ロード（構成ファイルを除く全YAML。schemas / runs / agents 等の定義・記録ゾーンも
         //    エディタ層の編集対象として文書に含む——スキーマ・リファクタリング（RF-002）は
@@ -156,7 +174,9 @@ object WorkspaceReader {
                 parseErrors[doc.id] = e.message ?: e.toString()
                 continue
             }
-            val schema = linked.firstOrNull { it.matches(rel) }
+            // `_schemas` 配下の文書には一般スキーマの match を適用しない（メタスキーマだけが適用される規則。
+            // メタスキーマ自体の適用は未対応＝WS-002 v1 の残）
+            val schema = if (zone == WorkspaceLayout.Zone.SCHEMAS) null else linked.firstOrNull { it.matches(rel) }
             documents[doc.id] = WorkspaceDocument(
                 document = parsed,
                 persistedText = DefaultYamlCodec.dump(parsed),
@@ -166,7 +186,7 @@ object WorkspaceReader {
         }
 
         // 4) 構造検証＋意味解析（WorkspaceSession の apply / undo / redo と共有する導出）
-        val declarations = SemanticDeclarations(relationsDecl, entityTypes, enforcement)
+        val declarations = parsedSchemas.declarations
         val derived = derive(documents, linked, declarations, layout, version)
 
         return LoadedWorkspace(

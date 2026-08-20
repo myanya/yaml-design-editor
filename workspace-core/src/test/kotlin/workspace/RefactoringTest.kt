@@ -253,6 +253,11 @@ class RefactoringTest {
         assertTrue("urgency: high" in docText && "大事" in docText, "キー改名でコメント保持: $docText")
         val schemaText = DefaultYamlCodec.dump(s.snapshot.documents.getValue(DocumentId("_schemas/item.yaml")).document)
         assertTrue("key: urgency" in schemaText && "key: priority" !in schemaText, schemaText)
+        // スキーマ再構築（WS-006）: 適用直後の検証が新スキーマで行われ、未定義キー警告が出ない
+        assertTrue(
+            s.derived.structuralIssues.values.flatten().isEmpty(),
+            "改名後のキーは新スキーマで定義済み: ${s.derived.structuralIssues}",
+        )
         // 1回の Undo で文書もスキーマも戻る
         assertTrue(s.undo().ok)
         assertTrue("priority: high" in DefaultYamlCodec.dump(s.snapshot.documents.getValue(a).document))

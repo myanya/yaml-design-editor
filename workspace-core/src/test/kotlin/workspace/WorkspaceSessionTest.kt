@@ -284,6 +284,55 @@ class WorkspaceSessionTest {
     }
 
     @Test
+    fun `スキーマ文書の変更でスキーマ束と検証が再構築される`() {
+        // WS-006: title の required を外すスキーマ編集 → 直後の検証が新スキーマで行われる
+        val store = InMemoryDocumentStore(
+            mapOf(
+                "_schemas/item.yaml" to """
+                    id: fx-item
+                    match: "items/**/*.yaml"
+                    root:
+                      type: object
+                      fields:
+                        - key: id
+                          type: id
+                        - key: title
+                          type: string
+                          required: true
+                """.trimIndent(),
+                "items/a.yaml" to "id: IT-001\n",
+            )
+        )
+        val s = session(store)
+        assertTrue(
+            s.derived.structuralIssues.getValue(a).any { it.severity == Severity.ERROR },
+            "必須 title 欠落の ERROR がある: ${s.derived.structuralIssues}",
+        )
+        val result = s.apply(
+            WorkspaceTransaction(
+                0, ChangeIntent("必須を外す"),
+                listOf(
+                    WorkspaceOperation.EditDocument(
+                        DocumentId("_schemas/item.yaml"),
+                        listOf(YamlOperation.SetScalar(parseYPath("root.fields[1].required"), false)),
+                    )
+                ),
+            )
+        )
+        assertTrue(result.ok, result.message ?: "")
+        assertTrue(
+            s.derived.structuralIssues.values.flatten().none { it.severity == Severity.ERROR },
+            "スキーマ再構築後は ERROR が消える: ${s.derived.structuralIssues}",
+        )
+        // undo で旧スキーマへ戻り、ERROR が復活する（対称性）
+        assertTrue(s.undo().ok)
+        assertTrue(
+            s.derived.structuralIssues.getValue(a).any { it.severity == Severity.ERROR },
+            "undo でスキーマも検証も戻る: ${s.derived.structuralIssues}",
+        )
+    }
+
+    @Test
     fun `requireValidは検証エラーになる適用を拒否する`() {
         val s = session(newStore())
         val removeTitle = WorkspaceTransaction(
