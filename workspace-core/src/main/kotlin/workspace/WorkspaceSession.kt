@@ -229,8 +229,22 @@ class WorkspaceSession(
 
     /** スキーマの意味束（リファクタリング計画などカーネルAPIの入力）。 */
     private val schemaSemantics: Map<String, semantic.SchemaSemantics> by lazy {
-        schemas.associate { it.id to semantic.SchemaSemantics(it.id, it.structural, it.entities) }
+        schemas.associate {
+            it.id to semantic.SchemaSemantics(
+                id = it.id,
+                structural = it.structural,
+                entities = it.entities,
+                source = if (it.isTemplate) null else it.source,
+                kind = it.kind,
+            )
+        }
     }
+
+    /** リファクタリング対象の文書一覧（スキーマ割当済みの working 文書）。 */
+    private fun refactorDocuments(): List<semantic.RefactorDocument> =
+        workingDocuments.mapNotNull { (id, d) ->
+            d.document.documents.firstOrNull()?.let { semantic.RefactorDocument(id, d.schemaId, it) }
+        }
 
     /**
      * リファクタリング計画を生成する（workspace は変化しない）。
@@ -251,7 +265,7 @@ class WorkspaceSession(
             } else emptyList()
             return plan.copy(warnings = plan.warnings + warning)
         }
-        return semantic.SemanticRefactor.plan(derived.semantic, schemaSemantics, request) { id ->
+        return semantic.SemanticRefactor.plan(derived.semantic, schemaSemantics, request, refactorDocuments()) { id ->
             workingDocuments[id]?.document?.documents?.firstOrNull()
         }
     }

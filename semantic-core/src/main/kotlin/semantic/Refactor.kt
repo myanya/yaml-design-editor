@@ -36,7 +36,21 @@ sealed interface RefactoringRequest {
      * 「移動成功→書き換え失敗」の継ぎ目を解消）。存在・衝突の前提検査は上位層（session）が行う。
      */
     data class MoveDocument(val from: DocumentId, val to: DocumentId) : RefactoringRequest
+
+    /**
+     * スキーマのフィールド改名（R25-01）。スキーマ定義のキーと全該当文書のデータキー
+     * （順序・コメント保持の RenameKey）を1計画にまとめる。fieldPath はデータと同じドット区切り。
+     * ビュー定義等の追随は行わない（6E 仮想文書の設計後に対応。警告で案内する）。
+     */
+    data class RenameField(val schemaId: String, val fieldPath: String, val newName: String) : RefactoringRequest
 }
+
+/** スキーマ・リファクタリング対象の文書1件（スキーマ割当済みの working 文書）。 */
+data class RefactorDocument(
+    val id: DocumentId,
+    val schemaId: String?,
+    val root: YNode,
+)
 
 /** 1文書分の計画（原本座標つきの型付き操作列）。 */
 data class PlannedDocumentChange(
@@ -59,17 +73,23 @@ data class RefactoringPlan(
 
 object SemanticRefactor {
 
-    /** 計画を生成する（snapshot・文書は読み取り専用。workspace は変化しない）。 */
+    /**
+     * 計画を生成する（snapshot・文書は読み取り専用。workspace は変化しない）。
+     * documents はスキーマ・リファクタリング（RenameField 等）が全該当文書を列挙するための一覧。
+     */
     fun plan(
         snapshot: SemanticSnapshot,
         schemas: Map<String, SchemaSemantics>,
         request: RefactoringRequest,
+        documents: List<RefactorDocument> = emptyList(),
         tree: (DocumentId) -> YNode?,
     ): RefactoringPlan = when (request) {
         is RefactoringRequest.RenameEntity -> rename(snapshot, schemas, request, tree)
         is RefactoringRequest.MergeEntity -> merge(snapshot, schemas, request, tree)
         is RefactoringRequest.DeleteEntity -> delete(snapshot, request)
         is RefactoringRequest.MoveDocument -> moveDocument(snapshot, request)
+        is RefactoringRequest.RenameField ->
+            SemanticSchemaRefactor.renameField(snapshot.sourceVersion, schemas, documents, request, tree)
     }
 
     /** 文書移動: パスIDの文書参照の書き換え＋物理移動を1計画にする（DocMove.plan と同じ規則）。 */

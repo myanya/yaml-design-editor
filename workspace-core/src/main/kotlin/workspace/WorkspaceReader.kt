@@ -38,6 +38,8 @@ class WorkspaceSchema(
     val entities: List<EntityDecl>,
     /** derive 宣言スキーマ（テンプレート）か。テンプレートは文書にマッチしない。 */
     val isTemplate: Boolean,
+    /** スキーマ定義文書の座標（スキーマ・リファクタリングの書き換え先。RF-002b）。 */
+    val source: DocumentId,
 ) {
     private val regex: Regex? =
         if (match.isBlank()) null else runCatching { globToRegex(match) }.getOrNull()
@@ -121,6 +123,7 @@ object WorkspaceReader {
                     structural = structural,
                     entities = SemanticDeclParser.parseEntities(raw["entity"]),
                     isTemplate = isTemplate,
+                    source = doc.id,
                 )
                 if (kind == SchemaKind.RELATIONS) {
                     SemanticDeclParser.parseRelations(raw["relations"]).forEach { relationsDecl[it.name] = it }
@@ -134,7 +137,7 @@ object WorkspaceReader {
         // 2) `$ref` の横断解決（module#name）: 全モジュールの定義をリンクする（SchemaLoader と同じ流儀）
         val catalog = SchemaCatalog.linked(schemas.map { it.id to it.structural.definitions })
         val linked = schemas.map {
-            WorkspaceSchema(it.id, it.kind, it.match, it.structural.copy(definitionCatalog = catalog), it.entities, it.isTemplate)
+            WorkspaceSchema(it.id, it.kind, it.match, it.structural.copy(definitionCatalog = catalog), it.entities, it.isTemplate, it.source)
         }
 
         // 3) 文書ロード（構成ファイルを除く全YAML。schemas / runs / agents 等の定義・記録ゾーンも

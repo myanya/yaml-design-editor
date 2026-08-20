@@ -20,11 +20,14 @@ import schema.ownedFieldKeys
  * （入力の木は読み取り専用。値ノードの参照は表示・編集座標のために持つ）。
  */
 
-/** スキーマ1件の意味束（合成が必要とする構造コア＋entity宣言）。上位層が SchemaDef から作る。 */
+/** スキーマ1件の意味束（合成・リファクタリングが必要とする構造コア＋宣言）。上位層が SchemaDef から作る。 */
 data class SchemaSemantics(
     val id: String,
     val structural: StructuralSchema,
     val entities: List<EntityDecl> = emptyList(),
+    /** スキーマ定義文書の座標（スキーマ自身の書き換え先。組込み・derive 派生は null＝編集不可。RF-002b）。 */
+    val source: model.DocumentId? = null,
+    val kind: schema.SchemaKind = schema.SchemaKind.DOCUMENT,
 )
 
 /** 合成された所有フィールド1件。座標（document, path）は原本上の値の位置（＝編集・パッチの対象）。 */

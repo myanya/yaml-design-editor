@@ -212,6 +212,92 @@ class RefactoringTest {
         assertTrue(plan.warnings.any { "スキーマの適用が変わります" in it }, "${plan.warnings}")
     }
 
+    private fun renameFieldStore() = InMemoryDocumentStore(
+        mapOf(
+            "_schemas/item.yaml" to """
+                id: fx-item
+                match: "items/**/*.yaml"
+                phases:
+                  key: stage
+                  order: [draft, done]
+                root:
+                  type: object
+                  fields:
+                    - key: id
+                      type: id
+                    - key: stage
+                      type: string
+                    - key: details
+                      type: object
+                      fields:
+                        - key: priority
+                          type: string
+            """.trimIndent(),
+            "items/a.yaml" to "id: IT-001\ndetails:\n  priority: high  # 大事\n",
+            "items/b.yaml" to "id: IT-002\n",
+        )
+    )
+
+    @Test
+    fun `rename-fieldは文書キーとスキーマ定義を1トランザクションで書き換える`() {
+        val store = renameFieldStore()
+        val s = session(store)
+        val plan = s.planRefactoring(semantic.RefactoringRequest.RenameField("fx-item", "details.priority", "urgency"))
+        assertEquals(0, s.version, "plan は不変")
+        // 文書側（RenameKey）とスキーマ側（fields[i].key の Set）が1計画にまとまる
+        assertEquals(listOf("_schemas/item.yaml", "items/a.yaml"), plan.changes.map { it.document.value })
+        assertTrue(plan.summary.any { "文書 1 ファイル・1 箇所" in it }, "${plan.summary}")
+        assertTrue(plan.warnings.any { "追随しません" in it }, "ビュー非追随の案内: ${plan.warnings}")
+        assertTrue(s.applyRefactoring(plan).ok)
+        val docText = DefaultYamlCodec.dump(s.snapshot.documents.getValue(a).document)
+        assertTrue("urgency: high" in docText && "大事" in docText, "キー改名でコメント保持: $docText")
+        val schemaText = DefaultYamlCodec.dump(s.snapshot.documents.getValue(DocumentId("_schemas/item.yaml")).document)
+        assertTrue("key: urgency" in schemaText && "key: priority" !in schemaText, schemaText)
+        // 1回の Undo で文書もスキーマも戻る
+        assertTrue(s.undo().ok)
+        assertTrue("priority: high" in DefaultYamlCodec.dump(s.snapshot.documents.getValue(a).document))
+    }
+
+    @Test
+    fun `rename-fieldはルート直下フィールドならphasesのkeyも追随する`() {
+        val s = session(renameFieldStore())
+        val plan = s.planRefactoring(semantic.RefactoringRequest.RenameField("fx-item", "stage", "phase"))
+        val schemaOps = plan.changes.single { it.document.value == "_schemas/item.yaml" }.operations
+        assertTrue(
+            schemaOps.any { it is edit.YamlOperation.SetScalar && it.path == listOf<Any>("phases", "key") },
+            "$schemaOps",
+        )
+        assertTrue(s.applyRefactoring(plan).ok)
+        val schemaText = DefaultYamlCodec.dump(s.snapshot.documents.getValue(DocumentId("_schemas/item.yaml")).document)
+        assertTrue("key: phase" in schemaText, schemaText)
+    }
+
+    @Test
+    fun `rename-fieldは改名先キーが既存文書にあると計画段階で拒否される`() {
+        val store = InMemoryDocumentStore(
+            mapOf(
+                "_schemas/item.yaml" to """
+                    id: fx-item
+                    match: "items/**/*.yaml"
+                    root:
+                      type: object
+                      fields:
+                        - key: id
+                          type: id
+                        - key: priority
+                          type: string
+                """.trimIndent(),
+                "items/a.yaml" to "id: IT-001\npriority: high\nurgency: 既存\n",
+            )
+        )
+        val s = session(store)
+        val e = assertFailsWith<IllegalStateException> {
+            s.planRefactoring(semantic.RefactoringRequest.RenameField("fx-item", "priority", "urgency"))
+        }
+        assertTrue("中止します" in (e.message ?: ""), "${e.message}")
+        assertTrue("items/a.yaml" in (e.message ?: ""), "${e.message}")
+    }
+
     @Test
     fun `mergeは参照を張り替え出現を詳細化として残す`() {
         val s = session(newStore())
