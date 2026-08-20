@@ -76,6 +76,8 @@ data class TransactionResult(
     val ok: Boolean,
     val message: String? = null,
     val version: Long,
+    /** baseVersion 不一致による拒否か（CLI の exit code 4 の型付き判定。計画書 Phase 10）。 */
+    val staleBase: Boolean = false,
 )
 
 /** save の結果。一部失敗時も成功済みを明示する（計画書 Phase 8 保存の安全性）。 */
@@ -166,7 +168,9 @@ class WorkspaceSession(
      */
     fun apply(tx: WorkspaceTransaction, requireValid: Boolean = false): TransactionResult {
         if (tx.baseVersion != version) {
-            return TransactionResult(false, "baseVersion が古いため適用できません（現在 $version・指定 ${tx.baseVersion}）", version)
+            return TransactionResult(
+                false, "baseVersion が古いため適用できません（現在 $version・指定 ${tx.baseVersion}）", version, staleBase = true,
+            )
         }
         return applyOperations(tx.operations, requireValid) { inverseOps ->
             val record = ChangeRecord(

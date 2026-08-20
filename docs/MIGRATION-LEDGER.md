@@ -52,6 +52,7 @@
 | RF-002e | SchemaRefactor 残り操作の移植（convertFieldType / definitions系 / renameRelation / renameSchemaId） | semantic-core / workspace-core | done | ビュー内の definition / relation / schemaId 参照の追随は警告降格 | Phase 9主要部完了（2026-08-20） |
 | WS-006 | スキーマ変更のセッション内 rebuild（スキーマ束再構築・全文書の割当再評価・undo対称） | workspace-core | done | schemasゾーン文書へ一般スキーマを割り当てない規則も是正 | 2026-08-20 |
 | RF-003 | document move の参照更新（DocMove）の plan/apply 化 | semantic-core / workspace-core | done | 移動＋参照書き換えが1トランザクションに（旧経路の非原子的継ぎ目を解消） | Phase 9第2弾（2026-08-20） |
+| CLI-001 | 簡易CLIの完成（catalog / entity / refactor 全16操作 / shell・--format yaml|json・exit code 0〜5） | cli / workspace-core | done | TransactionResult へ staleBase 追加（exit 4 の型付き判定） | Phase 10完了（2026-08-20） |
 
 ## 作業項目の記録
 
@@ -252,6 +253,39 @@ semantic-core: ID/ref/entity graph・意味検証（重複・参照・グラフ�
   `_schemas` 文書へのメタスキーマ適用（schemas ゾーンは文書集合から除外）。CLI 配線（workspace validate）
   は WS-003（Phase 7 完了条件①の残り）
 完了確認コマンド: ./gradlew :workspace-core:test / ./gradlew test
+```
+
+**Phase 10 完了判定（2026-08-20）＝ M4: リファクタリング基盤 到達**: 完了条件①「parse・validate・catalog・entity inspect・refactor plan が
+実行できる」——`yaml parse / roundtrip`・`workspace validate / catalog / entity / refactor`（全16操作。
+plan 既定・`--apply` で適用＋保存）。②「shell で apply・undo・redo・save・reload を確認できる」——
+`workspace shell` が1つの WorkspaceSession を保持し、set（編集トランザクション）／refactor --apply／
+undo／redo／save／reload／status／validate を台本テストで固定。③「CLIに業務ロジックが存在しない」——
+dispatcher（Main.kt）と本体（Commands.kt / Shell.kt）を分離し、本体は引数→core API 入力・結果→表示形式
+（text / --format yaml|json）の写しのみ。exit code は 0〜5 で固定（4 は TransactionResult.staleBase の
+型付き判定・5 は保存失敗。CliTest 9ケース）。旧 `workspace rename-entity` は refactor の別名として互換維持。
+
+### CLI-001 簡易CLIの完成（done 2026-08-20）＝ Phase 10
+
+```text
+旧実装: なし（新設。参照元は root の core/Cli.kt の refactor / entity コマンド群＝引数名・操作名を踏襲）
+旧テスト: なし（CliTest へ4ケース追加＝catalog・entity・--format yaml/json・refactor 適用・shell 台本。
+  RefactoringTest の stale ケースへ staleBase 断定を追記）
+新しい責務:
+  - cli/Format.kt——OutputFormat（text / yaml / json）・CliArgs（--flag 値・--format）・CliOutput
+    （yaml は YamlIO.fromAny＋dumpPlain・json は最小エンコーダ）
+  - cli/Commands.kt——workspaceValidate（--format 対応で移設）・workspaceCatalog（棚卸し）・
+    workspaceEntity（出現・被参照・出参照＝SemanticSnapshot / SemanticEntityGraph の読み出し）・
+    workspaceRefactor（refactorRequest: 位置引数→RefactoringRequest 全16操作。plan 表示→--apply で
+    適用＋保存。exit 0/1/4/5）
+  - cli/Shell.kt——workspaceShell（readLine 注入で台本テスト可能。status / validate / set / refactor /
+    undo / redo / save / reload。適用と保存は分離＝保存は save のみ）
+  - workspace-core: TransactionResult.staleBase（baseVersion 拒否の型付き理由。文字列照合を排除）
+  - cli/build.gradle.kts: run タスクへ UTF-8 固定と standardInput 配線（shell 用）
+維持する挙動: 旧 rename-entity コマンドの出力文言と exit code（refactor への委譲で互換）
+意図的に変える挙動: なし（新設面）
+未解決事項: catalog / entity は読取専用（WorkspaceReader）で shell とセッションを共有しない。
+  Bench 計測の CLI 移設は Phase 11（計画書の増分更新とセット）
+完了確認コマンド: ./gradlew :cli:test / ./gradlew test / 計画書§14の CLI確認例
 ```
 
 **Phase 9 主要部完了判定（2026-08-20）**: エンティティ操作（rename / merge / delete＝RF-001）・

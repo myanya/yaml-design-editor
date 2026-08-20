@@ -11,6 +11,9 @@ application {
 // 相対パス引数をリポジトリルート基準で解決する（計画書§14の実行例に合わせる）
 tasks.named<JavaExec>("run") {
     workingDir = rootDir
+    // CLI出力はUTF-8固定（JDK 17のWindows既定はMS932。機械可読出力を文字化けさせない）
+    jvmArgs("-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8")
+    standardInput = System.`in`  // shell（対話モード）用
 }
 
 group = "dev.toros"

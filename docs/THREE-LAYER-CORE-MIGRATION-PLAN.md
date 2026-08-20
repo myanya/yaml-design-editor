@@ -1468,15 +1468,20 @@ YNodeは可変のまま維持する（決定事項）。このままsnapshot間�
 ./gradlew test
 ```
 
-CLI確認例:
+CLI確認例（Phase 10 実装済みの形）:
 
 ```bash
 ./gradlew :cli:run --args="yaml roundtrip test-fixtures/yaml/comments.yaml"
-./gradlew :cli:run --args="workspace validate test-fixtures/workspaces/basic"
-./gradlew :cli:run --args="workspace inspect-entity test-fixtures/workspaces/basic REQ-001"
-./gradlew :cli:run --args="workspace plan-rename-entity test-fixtures/workspaces/basic REQ-001 REQ-101"
-./gradlew :cli:run --args="shell test-fixtures/workspaces/basic"
+./gradlew :cli:run --args="workspace validate test-fixtures/workspaces/legacy-basic"
+./gradlew :cli:run --args="workspace catalog test-fixtures/workspaces/rename-target --format yaml"
+./gradlew :cli:run --args="workspace entity test-fixtures/workspaces/rename-target REQ-001"
+./gradlew :cli:run --args="workspace refactor test-fixtures/workspaces/rename-target rename-entity REQ-001 REQ-101"
+./gradlew :cli:run --args="workspace shell <workspace>"
 ```
+
+`workspace refactor` は `--apply` を付けたときだけ適用・保存する（プレビューが既定）。
+機械可読出力は workspace 系コマンドの `--format yaml|json`（shell を除く）。fixture は読み取り専用のため、
+`--apply` の確認は一時ディレクトリへコピーして行う（docs/CONVENTIONS.md §8）。
 
 ## 15. 推奨コミット単位
 

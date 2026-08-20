@@ -71,6 +71,107 @@ class CliTest {
     }
 
     @Test
+    fun `catalogとentityでワークスペースを検分できる`() {
+        val (code, output) = capture("workspace", "catalog", fixture("workspaces", "rename-target"))
+        assertEquals(0, code, output)
+        assertTrue("fx-req" in output && "reqs/one.yaml" in output, output)
+        val (entityCode, entityOut) = capture("workspace", "entity", fixture("workspaces", "rename-target"), "REQ-001")
+        assertEquals(0, entityCode, entityOut)
+        assertTrue("出現 1 件" in entityOut && "被参照 2 件" in entityOut, entityOut)
+        // 見つからないIDは exit 1
+        assertEquals(1, capture("workspace", "entity", fixture("workspaces", "rename-target"), "NOPE").first)
+    }
+
+    @Test
+    fun `formatオプションでyamlとjsonの機械可読出力が選べる`() {
+        val (code, yaml) = capture("workspace", "validate", fixture("workspaces", "legacy-basic"), "--format", "yaml")
+        assertEquals(3, code, yaml)
+        assertTrue("semanticErrors: 3" in yaml, yaml)
+        val (jsonCode, json) = capture("workspace", "catalog", fixture("workspaces", "rename-target"), "--format", "json")
+        assertEquals(0, jsonCode, json)
+        assertTrue(json.trim().startsWith("{") && "\"schemas\":" in json, json)
+        // refactor のプレビューも機械可読（workspace は変化しない）
+        val (planCode, planJson) = capture(
+            "workspace", "refactor", fixture("workspaces", "rename-target"),
+            "rename-entity", "REQ-001", "REQ-100", "--format", "json",
+        )
+        assertEquals(0, planCode, planJson)
+        assertTrue("\"applied\":false" in planJson, planJson)
+    }
+
+    @Test
+    fun `refactorコマンドはスキーマ操作を適用できる`() {
+        val temp = kotlin.io.path.createTempDirectory("refactor-apply")
+        try {
+            Path.of(fixture("workspaces", "rename-target")).toFile().copyRecursively(temp.toFile())
+            val (code, output) = capture(
+                "workspace", "refactor", temp.toString(), "rename-field", "fx-req", "title", "name", "--apply",
+            )
+            assertEquals(0, code, output)
+            assertTrue("保存しました" in output, output)
+            assertTrue("name: 基本要求" in temp.resolve("reqs/one.yaml").toFile().readText())
+            assertTrue("key: name" in temp.resolve("_schemas/req.yaml").toFile().readText())
+            assertEquals(0, capture("workspace", "validate", temp.toString()).first, "適用後も検証が通る")
+        } finally {
+            temp.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `shellでset-undo-redo-save-reloadとrefactorが確認できる`() {
+        val temp = kotlin.io.path.createTempDirectory("shell-test")
+        try {
+            java.nio.file.Files.createDirectories(temp.resolve("_schemas"))
+            java.nio.file.Files.createDirectories(temp.resolve("tasks"))
+            java.nio.file.Files.writeString(
+                temp.resolve("_schemas").resolve("task.yaml"),
+                """
+                    id: task-schema
+                    match: "tasks/**/*.yaml"
+                    root:
+                      type: object
+                      fields:
+                        - key: id
+                          type: id
+                        - key: title
+                          type: string
+                """.trimIndent(),
+            )
+            java.nio.file.Files.writeString(temp.resolve("tasks").resolve("a.yaml"), "id: T-1\ntitle: 古い\n")
+            val script = ArrayDeque(
+                listOf(
+                    "set tasks/a.yaml title 新しい",
+                    "status",
+                    "undo",
+                    "redo",
+                    "save",
+                    "refactor rename-entity T-1 T-2 --apply",
+                    "undo",
+                    "save",
+                    "reload",
+                    "validate",
+                    "exit",
+                )
+            )
+            val sb = StringBuilder()
+            val code = workspaceShell(temp.toString(), { script.removeFirstOrNull() }, { sb.appendLine(it) })
+            val output = sb.toString()
+            assertEquals(0, code, output)
+            assertTrue("OK（version 1）" in output, "set が適用される: $output")
+            assertTrue("dirty: tasks/a.yaml" in output, output)
+            assertTrue("戻しました" in output && "やり直しました" in output, output)
+            assertTrue("保存しました（書込 1 件・削除 0 件）" in output, output)
+            assertTrue("ID「T-1」→「T-2」" in output && "適用しました" in output, output)
+            assertTrue("読み直しました" in output, output)
+            assertTrue("構造検証: エラー 0 件 / 意味検証: エラー 0 件" in output, output)
+            val saved = temp.resolve("tasks").resolve("a.yaml").toFile().readText()
+            assertTrue("title: 新しい" in saved && "id: T-1" in saved, "set は保存済み・refactor は undo 済み: $saved")
+        } finally {
+            temp.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
     fun `未知のコマンド・存在しない入力はexit 1になる`() {
         val (unknown, usage) = capture("unknown")
         assertEquals(1, unknown)

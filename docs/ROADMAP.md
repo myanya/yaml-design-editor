@@ -733,7 +733,8 @@ limit: 100
 | Phase 2〜4: yaml-core = M1: YAMLライブラリ | ✅ 2026-08-17（テスト67件。残整理 YM-006b のみ） |
 | Phase 5〜6: semantic-core = M2: 意味解析ライブラリ | ✅ 2026-08-19（6A〜6D完了。6Eは§17-⑥⑦の方向決定まで保留・6Fは後続） |
 | Phase 7〜8: workspace-core = M3: ヘッドレスworkspace | ✅ 2026-08-20（apply/undo/redo/save・外部変更検出・CLI validate） |
-| Phase 9〜11: リファクタリング基盤・CLI完成・増分性能 = M4〜M5 | 📋 |
+| Phase 9〜10: リファクタリング基盤（plan/apply 分離・CLI完成） = M4 | ✅ 2026-08-20（エンティティ・文書移動・スキーマ全12操作の plan/apply 化。CLI: catalog / entity / refactor / shell・--format yaml\|json・exit code 0〜5） |
+| Phase 11: 増分索引と性能計測 = M5 | 📋 |
 
 ## 7. リスクと未解決課題
 

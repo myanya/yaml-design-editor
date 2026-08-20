@@ -97,6 +97,7 @@ class RefactoringTest {
         val stale = s.applyRefactoring(plan)
         assertFalse(stale.ok)
         assertTrue("baseVersion" in (stale.message ?: ""), "${stale.message}")
+        assertTrue(stale.staleBase, "CLI の exit 4 判定に使う型付き理由")
     }
 
     @Test
