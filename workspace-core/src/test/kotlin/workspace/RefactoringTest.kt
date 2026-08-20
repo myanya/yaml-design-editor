@@ -386,6 +386,173 @@ class RefactoringTest {
         )
     }
 
+    private fun moveFieldStore() = InMemoryDocumentStore(
+        mapOf(
+            "_schemas/item.yaml" to """
+                id: fx-item
+                match: "items/**/*.yaml"
+                root:
+                  type: object
+                  fields:
+                    - key: id
+                      type: id
+                    - key: priority
+                      type: string
+                    - key: details
+                      type: object
+                      fields:
+                        - key: note
+                          type: string
+                    - key: tasks
+                      type: array
+                      item:
+                        type: object
+                        fields:
+                          - key: name
+                            type: string
+            """.trimIndent(),
+            "items/a.yaml" to "id: IT-001\npriority: high  # 大事\n",
+            "items/b.yaml" to "id: IT-002\npriority: low\ndetails:\n  note: x\n",
+        )
+    )
+
+    @Test
+    fun `moveFieldは中間objectを生成して値とスキーマ定義を移動し1回のUndoで戻る`() {
+        val store = moveFieldStore()
+        val s = session(store)
+        val before = dumpAll(s)
+        val plan = s.planRefactoring(semantic.RefactoringRequest.MoveField("fx-item", "priority", "details"))
+        assertEquals(0, s.version, "plan は不変")
+        assertEquals(listOf("_schemas/item.yaml", "items/a.yaml", "items/b.yaml"), plan.changes.map { it.document.value })
+        assertTrue(plan.summary.any { "文書 2 ファイル・2 箇所" in it }, "${plan.summary}")
+        assertTrue(s.applyRefactoring(plan).ok)
+        val aText = DefaultYamlCodec.dump(s.snapshot.documents.getValue(a).document)
+        assertTrue("details:" in aText && "  priority: high" in aText && "大事" in aText, "中間 object 生成＋コメント保持: $aText")
+        val bText = DefaultYamlCodec.dump(s.snapshot.documents.getValue(b).document)
+        assertTrue("  note: x" in bText && "  priority: low" in bText, bText)
+        // スキーマ側も details 配下へ移動し、再構築後の検証で未定義キーが出ない（WS-006 との結合）
+        assertTrue(s.derived.structuralIssues.values.flatten().isEmpty(), "${s.derived.structuralIssues}")
+        // 1回の Undo で文書もスキーマも戻る
+        assertTrue(s.undo().ok)
+        assertEquals(before, dumpAll(s))
+    }
+
+    @Test
+    fun `moveFieldは空になった親objectを削除する`() {
+        val s = session(moveFieldStore())
+        val plan = s.planRefactoring(semantic.RefactoringRequest.MoveField("fx-item", "details.note", "."))
+        assertTrue(s.applyRefactoring(plan).ok)
+        val bText = DefaultYamlCodec.dump(s.snapshot.documents.getValue(b).document)
+        assertTrue("note: x" in bText && "details" !in bText, "空になった details は削除: $bText")
+        assertTrue(s.derived.structuralIssues.values.flatten().isEmpty(), "${s.derived.structuralIssues}")
+    }
+
+    @Test
+    fun `moveFieldは移動先の既存値や境界またぎを拒否する`() {
+        val store = InMemoryDocumentStore(
+            mapOf(
+                "_schemas/item.yaml" to """
+                    id: fx-item
+                    match: "items/**/*.yaml"
+                    root:
+                      type: object
+                      fields:
+                        - key: id
+                          type: id
+                        - key: note
+                          type: string
+                        - key: details
+                          type: object
+                          fields:
+                            - key: note
+                              type: string
+                        - key: tasks
+                          type: array
+                          item:
+                            type: object
+                            fields:
+                              - key: name
+                                type: string
+                """.trimIndent(),
+                "items/a.yaml" to "id: IT-001\nnote: 既存\ndetails:\n  note: x\n",
+            )
+        )
+        val s = session(store)
+        // 移動先（ルート）に同名フィールドの定義がある → スキーマ側の衝突で拒否
+        assertFailsWith<IllegalArgumentException> {
+            s.planRefactoring(semantic.RefactoringRequest.MoveField("fx-item", "details.note", "."))
+        }
+        // 同じ親への移動は拒否
+        assertFailsWith<IllegalArgumentException> {
+            s.planRefactoring(semantic.RefactoringRequest.MoveField("fx-item", "note", "."))
+        }
+        // 配列の境界をまたぐ移動（要素コンテキスト不一致）は拒否
+        val e = assertFailsWith<IllegalArgumentException> {
+            s.planRefactoring(semantic.RefactoringRequest.MoveField("fx-item", "tasks.name", "details"))
+        }
+        assertTrue("またぐ移動はできません" in (e.message ?: ""), "${e.message}")
+    }
+
+    @Test
+    fun `moveFieldは移動先の既存文書値があると計画段階で中止する`() {
+        val store = InMemoryDocumentStore(
+            mapOf(
+                "_schemas/item.yaml" to """
+                    id: fx-item
+                    match: "items/**/*.yaml"
+                    root:
+                      type: object
+                      fields:
+                        - key: id
+                          type: id
+                        - key: details
+                          type: object
+                          fields:
+                            - key: note
+                              type: string
+                """.trimIndent(),
+                "items/a.yaml" to "id: IT-001\nnote: 既存\ndetails:\n  note: x\n",
+            )
+        )
+        val s = session(store)
+        val e = assertFailsWith<IllegalStateException> {
+            s.planRefactoring(semantic.RefactoringRequest.MoveField("fx-item", "details.note", "."))
+        }
+        assertTrue("中止します" in (e.message ?: ""), "${e.message}")
+        assertTrue("items/a.yaml" in (e.message ?: ""), "${e.message}")
+    }
+
+    @Test
+    fun `alignOrderは文書キーをスキーマ順へ並べ替え未知キーは末尾に残す`() {
+        val store = InMemoryDocumentStore(
+            mapOf(
+                "_schemas/item.yaml" to """
+                    id: fx-item
+                    match: "items/**/*.yaml"
+                    root:
+                      type: object
+                      fields:
+                        - key: id
+                          type: id
+                        - key: title
+                          type: string
+                        - key: status
+                          type: string
+                """.trimIndent(),
+                "items/a.yaml" to "status: draft\nextra: x\nid: IT-001\ntitle: A\n",
+            )
+        )
+        val s = session(store)
+        val plan = s.planRefactoring(semantic.RefactoringRequest.AlignOrder("fx-item"))
+        assertTrue(plan.summary.any { "1 ファイル・1 要素" in it }, "${plan.summary}")
+        assertTrue(s.applyRefactoring(plan).ok)
+        val aText = DefaultYamlCodec.dump(s.snapshot.documents.getValue(a).document)
+        assertEquals("id: IT-001\ntitle: A\nstatus: draft\nextra: x\n", aText)
+        // 冪等: 整列済みなら計画は空
+        val second = s.planRefactoring(semantic.RefactoringRequest.AlignOrder("fx-item"))
+        assertTrue(second.changes.isEmpty(), "${second.changes}")
+    }
+
     @Test
     fun `mergeは参照を張り替え出現を詳細化として残す`() {
         val s = session(newStore())

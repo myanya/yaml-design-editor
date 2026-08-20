@@ -48,7 +48,8 @@
 | RF-002a | スキーマ文書を編集可能な文書として含める＋dirty基準の正規化修正 | workspace-core | done | dirty基準＝正規化dump（現行EditBufferと同基準）・外部変更検出は生テキスト別追跡 | RF-002の前提（2026-08-20） |
 | RF-002b | スキーマ・リファクタリング第1弾（renameField の plan/apply 化・Site機構の移植） | semantic-core / workspace-core | done | ビュー追随は警告降格（6E設計待ち） | Phase 9続き（2026-08-20） |
 | RF-002c | SchemaRefactor R25-03 の移植（renameEnumValue / deleteField / requireField） | semantic-core / workspace-core | done | ビュー等の言及追随は警告降格 | 2026-08-20 |
-| RF-002d | SchemaRefactor 残り操作の移植（moveField / alignOrder / convertFieldType / definitions系 / renameRelation / renameSchemaId） | semantic-core / workspace-core | todo | - | Site機構＋R25-03と同型の薄切りで進む |
+| RF-002d | SchemaRefactor R25-02 の移植（moveField / alignOrder・Crossing 機構の復元） | semantic-core / workspace-core | done | ビュー等の言及追随は警告降格 | 2026-08-20 |
+| RF-002e | SchemaRefactor 残り操作の移植（convertFieldType / definitions系 / renameRelation / renameSchemaId） | semantic-core / workspace-core | todo | - | Site機構＋R25-03と同型の薄切りで進む |
 | WS-006 | スキーマ変更のセッション内 rebuild（スキーマ束再構築・全文書の割当再評価・undo対称） | workspace-core | done | schemasゾーン文書へ一般スキーマを割り当てない規則も是正 | 2026-08-20 |
 | RF-003 | document move の参照更新（DocMove）の plan/apply 化 | semantic-core / workspace-core | done | 移動＋参照書き換えが1トランザクションに（旧経路の非原子的継ぎ目を解消） | Phase 9第2弾（2026-08-20） |
 
@@ -250,6 +251,30 @@ semantic-core: ID/ref/entity graph・意味検証（重複・参照・グラフ�
 未解決事項: v1未対応＝派生スキーマ（derive はテンプレート扱いでマッチせず、導出スキーマの生成なし）・
   `_schemas` 文書へのメタスキーマ適用（schemas ゾーンは文書集合から除外）。CLI 配線（workspace validate）
   は WS-003（Phase 7 完了条件①の残り）
+完了確認コマンド: ./gradlew :workspace-core:test / ./gradlew test
+```
+
+### RF-002d SchemaRefactor R25-02 の移植（done 2026-08-20）
+
+```text
+旧実装: core/SchemaRefactor.kt の moveField / alignOrder（R25-02）と補助
+  （moveDataOps / adjustAfterDelete / resolveContainer / childKeysOf / Crossing）
+旧テスト: core/SchemaRefactorTest.kt（ルート・旧経路の回帰を継続担保）。新経路は RefactoringTest へ
+  5ケース追加（中間 object 生成＋コメント保持＋1回Undo／空親削除／スキーマ側衝突・同じ親・
+  境界またぎの拒否／文書側の移動先既存値の計画段階中止／alignOrder の整列＋冪等）
+新しい責務: SemanticSchemaRefactor へ2操作を移植——
+  - moveField: スキーマ定義の Move（fields 生成は Replace・同一 Seq 内削除の adjustAfterDelete）＋
+    文書側 moveDataOps（中間 object の Insert(YNode.Map()) → Move → 空親の Remove。衝突は中止）。
+    要素コンテキスト署名（Crossing: 配列・map 横断の prefixKeys × コンテナ ===）の一致を要求し、
+    境界またぎ・definitions またぎ・自己配下・同じ親・同名衝突・phases キーのルート離脱を拒否
+  - alignOrder: 文書キーをスキーマ順へ ReorderKeys（`_document` 先頭・未知キーは末尾に相対順維持。
+    スキーマは変更しない・冪等）
+  - RF-002b で省略していた Crossing 機構を Site 機構へ復元（resolveField が crossings / tailKeys を
+    返す Resolution へ拡張・resolveContainer / childKeysOf を新設）
+維持する挙動: 解決規則・拒否条件・メッセージ・サマリ（該当2操作の範囲）
+意図的に変える挙動: ビュー等の言及追随は警告降格（renameField と同じ方針）。
+  alignOrder の組込み除外は source == null 判定（旧: パスの startsWith）
+未解決事項: 残り操作は RF-002e
 完了確認コマンド: ./gradlew :workspace-core:test / ./gradlew test
 ```
 

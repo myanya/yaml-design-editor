@@ -99,6 +99,173 @@ object SemanticSchemaRefactor {
         )
     }
 
+    // ================================================================ R25-02: フィールドの親子移動
+
+    fun moveField(
+        sourceVersion: Long,
+        schemas: Map<String, SchemaSemantics>,
+        documents: List<RefactorDocument>,
+        request: RefactoringRequest.MoveField,
+        tree: (DocumentId) -> YNode?,
+    ): RefactoringPlan {
+        val (schemaId, fieldPath, destPath, deleteEmptyParents) = request
+        val entry = targetSchema(schemas, schemaId)
+        val src = resolveField(schemas, entry, fieldPath)
+        require("cases" !in src.site.path) { "cases 由来のフィールドの移動は未対応です（スキーマのソースで編集してください）" }
+        requireEditable(src.site.module, "フィールドの定義元（${src.site.module.id}）")
+        val target = src.site.def
+        val key = target.key ?: error("フィールドのキーを特定できません: $fieldPath")
+        verifyFieldNode(src.site, key, tree)
+        val dst = resolveContainer(schemas, entry, destPath)
+
+        // 共有定義の境界と要素コンテキストの検査
+        val srcInDef = src.site.path.firstOrNull() == "definitions"
+        val dstInDef = dst.objectSite.path.firstOrNull() == "definitions"
+        if (srcInDef || dstInDef) {
+            require(
+                srcInDef && dstInDef && src.site.module.id == dst.objectSite.module.id &&
+                    src.site.path.getOrNull(1) == dst.objectSite.path.getOrNull(1)
+            ) { "共有定義（definitions）をまたぐ移動はできません（他の使用箇所の文書が壊れるため）" }
+        } else {
+            require(src.site.module.id == dst.objectSite.module.id) { "別スキーマへの移動はできません" }
+        }
+        require(src.crossings == dst.crossings) {
+            "配列・map の境界をまたぐ移動はできません（移動元と移動先が同じ要素コンテキストにありません）"
+        }
+        require(
+            !(dst.objectSite.path.size >= src.site.path.size &&
+                dst.objectSite.path.subList(0, src.site.path.size) == src.site.path)
+        ) { "フィールド自身の配下へは移動できません" }
+        val srcSeqPath = src.site.path.dropLast(1)
+        require(srcSeqPath != dst.objectSite.path + "fields") {
+            "同じ親への移動です（並び順の変更はスキーマ設計UIの上下ボタンを使ってください）"
+        }
+        require(key !in childKeysOf(schemas, entry, dst.objectSite)) { "移動先に同名のフィールド「$key」が既にあります" }
+
+        val reachable = schemas.values.filter { it.kind == SchemaKind.DOCUMENT && reaches(it, schemas) { f -> f === target } }
+        for (s in reachable) {
+            require(!(s.structural.phases?.key == key && isRootField(s.structural, target) && dst.objectSite.path != listOf<Any>("root"))) {
+                "フェーズ申告キー「$key」はルート直下に必要なため移動できません（スキーマ「${s.id}」の phases）"
+            }
+        }
+
+        // 文書側: 値の移動（中間 object の生成・空親の削除・衝突検査）
+        val reachableIds = reachable.map { it.id }.toSet()
+        val builder = OpsBuilder()
+        val conflicts = mutableListOf<String>()
+        var moved = 0
+        var docFileCount = 0
+        for (doc in documents) {
+            val docSchema = doc.schemaId?.takeIf { it in reachableIds }?.let { schemas[it] } ?: continue
+            val (ops, fileConflicts) =
+                moveDataOps(docSchema.structural, doc.root, target, src.tailKeys.size, dst.tailKeys, key, deleteEmptyParents)
+            if (fileConflicts.isNotEmpty()) {
+                conflicts += "${doc.id.value}（${fileConflicts.first()} など ${fileConflicts.size} 件）"
+                continue
+            }
+            if (ops.isEmpty()) continue
+            moved += ops.count { it is YamlOperation.Move }
+            docFileCount++
+            builder.addAll(doc.id, ops)
+        }
+        if (conflicts.isNotEmpty()) {
+            error(
+                "移動先に既存の値があるため中止します（先に該当キーを整理してください）: " +
+                    conflicts.take(5).joinToString("、") + (if (conflicts.size > 5) " 他${conflicts.size - 5}件" else "")
+            )
+        }
+
+        // スキーマ側: 定義の移動（移動先の fields が無ければ生成。同一ファイル内の削除によるインデックスずれを調整）
+        val definitionSource = src.site.module.source
+            ?: error("フィールドの定義元スキーマに書き換え先の文書がありません: ${src.site.module.id}")
+        val moduleTree = tree(definitionSource) ?: error("スキーマ文書が読めません: ${definitionSource.value}")
+        val dstObjNode = getAt(moduleTree, dst.objectSite.path) as? YNode.Map
+            ?: error("移動先の実体が見つかりません: ${dst.objectSite.path.pretty()}")
+        val dstFields = dstObjNode.entries["fields"] as? YNode.Seq
+        if (dstFields == null) builder.add(definitionSource, YamlOperation.Replace(dst.objectSite.path + "fields", YNode.Seq()))
+        val srcIdx = src.site.path.last() as Int
+        val adjustedDst = adjustAfterDelete(dst.objectSite.path, srcSeqPath, srcIdx)
+        builder.add(definitionSource, YamlOperation.Move(src.site.path, adjustedDst + "fields" + (dstFields?.items?.size ?: 0)))
+
+        return RefactoringPlan(
+            sourceVersion = sourceVersion,
+            request = request,
+            changes = builder.toChanges(),
+            warnings = listOf("移動によるビュー等の「$key」参照の自動追随は対象外・要修正") + nonFollowupWarning(key),
+            summary = listOf(
+                "スキーマ「$schemaId」のフィールド「$fieldPath」→「${if (destPath.isBlank() || destPath == ".") "（ルート）" else destPath}」配下へ移動",
+                "文書 $docFileCount ファイル・$moved 箇所の値を移動" +
+                    (if (deleteEmptyParents) "（空になった親 object は削除）" else ""),
+            ) + (if (reachable.size > 1) listOf("影響スキーマ: ${reachable.joinToString("、") { it.id }}") else emptyList()),
+        )
+    }
+
+    // ================================================================ R25-02: スキーマ順への整列
+
+    fun alignOrder(
+        sourceVersion: Long,
+        schemas: Map<String, SchemaSemantics>,
+        documents: List<RefactorDocument>,
+        request: RefactoringRequest.AlignOrder,
+    ): RefactoringPlan {
+        val schemaId = request.schemaId
+        val entry = schemas[schemaId] ?: error("スキーマ「$schemaId」が見つかりません")
+        require(entry.kind == SchemaKind.DOCUMENT) { "文書スキーマを指定してください: $schemaId" }
+        require(entry.source != null) { "組込みスキーマは対象外です: $schemaId" }
+        val builder = OpsBuilder()
+        var elements = 0
+        var docFileCount = 0
+        for (doc in documents) {
+            if (doc.schemaId != schemaId) continue
+            val s = entry.structural
+            val ops = mutableListOf<YamlOperation>()
+            fun walk(def: FieldDef, node: YNode, path: YPath) {
+                val eff = s.resolve(def) ?: def
+                when (eff.type) {
+                    FieldType.OBJECT -> {
+                        val m = node as? YNode.Map ?: return
+                        val fs = s.effectiveFields(eff.fields, m).fields
+                        val current = m.entries.keys.toList()
+                        val head = if (path.isEmpty() && "_document" in m.entries) listOf("_document") else emptyList()
+                        val known = fs.mapNotNull { it.key }.filter { it in m.entries && it !in head }.distinct()
+                        val desired = head + known + current.filter { it !in head && it !in known }
+                        if (desired != current) {
+                            ops += YamlOperation.ReorderKeys(path, desired)
+                            elements++
+                        }
+                        fs.forEach { f -> f.key?.let { k -> m.entries[k]?.let { child -> walk(f, child, path + k) } } }
+                    }
+                    FieldType.ARRAY -> {
+                        val seq = node as? YNode.Seq ?: return
+                        val item = eff.item ?: return
+                        seq.items.forEachIndexed { i, child -> walk(item, child, path + i) }
+                    }
+                    FieldType.MAP -> {
+                        val m = node as? YNode.Map ?: return
+                        val value = eff.value ?: return
+                        m.entries.forEach { (k, child) -> walk(value, child, path + k) }
+                    }
+                    else -> Unit
+                }
+            }
+            walk(s.root, doc.root, emptyList())
+            if (ops.isNotEmpty()) {
+                docFileCount++
+                builder.addAll(doc.id, ops)
+            }
+        }
+        return RefactoringPlan(
+            sourceVersion = sourceVersion,
+            request = request,
+            changes = builder.toChanges(),
+            warnings = emptyList(),
+            summary = listOf(
+                "スキーマ「$schemaId」の文書をスキーマ順へ整列",
+                "文書 $docFileCount ファイル・$elements 要素のキー順を並べ替え（値・コメント保持。未知キーは末尾に相対順で残す）",
+            ),
+        )
+    }
+
     // ================================================================ R25-03: enum選択肢の改名
 
     fun renameEnumValue(
@@ -360,8 +527,28 @@ object SemanticSchemaRefactor {
     /** 解決したフィールドと、同じ階層の兄弟キー（改名先の衝突検査用）。 */
     private class Target(val site: Site, val siblings: Set<String>)
 
-    /** フィールド解決の結果: 実体・兄弟キー。 */
-    private class Resolution(val site: Site, val siblings: Set<String>)
+    /** 配列・map の横断1件（要素コンテキストの署名）。prefixKeys はそこまでのドット区切りキー列。 */
+    private class Crossing(val prefixKeys: List<String>, val container: FieldDef) {
+        override fun equals(other: Any?): Boolean =
+            other is Crossing && other.prefixKeys == prefixKeys && other.container === container
+
+        override fun hashCode(): Int = prefixKeys.hashCode()
+    }
+
+    /** フィールド解決の結果: 実体・兄弟キー・要素コンテキスト署名・要素ルートからのキー列。 */
+    private class Resolution(
+        val site: Site,
+        val siblings: Set<String>,
+        val crossings: List<Crossing>,
+        val tailKeys: List<String>,
+    )
+
+    /** 移動先コンテナ解決の結果: object 定義の実体・要素コンテキスト署名・要素ルートからのキー列。 */
+    private class ContainerResolution(
+        val objectSite: Site,
+        val crossings: List<Crossing>,
+        val tailKeys: List<String>,
+    )
 
     private fun targetSchema(schemas: Map<String, SchemaSemantics>, schemaId: String): SchemaSemantics {
         val entry = schemas[schemaId] ?: error("スキーマ「$schemaId」が見つかりません")
@@ -469,7 +656,7 @@ object SemanticSchemaRefactor {
         return out
     }
 
-    /** ドット区切りのフィールドパスを、スキーマ定義上の実体へ解決する。 */
+    /** ドット区切りのフィールドパスを、スキーマ定義上の実体へ解決する（要素コンテキストの署名つき）。 */
     private fun resolveField(
         schemas: Map<String, SchemaSemantics>,
         entry: SchemaSemantics,
@@ -478,14 +665,47 @@ object SemanticSchemaRefactor {
         val segments = fieldPath.split('.').map { it.trim() }.filter { it.isNotEmpty() }
         require(segments.isNotEmpty()) { "フィールドパスを指定してください（例 details.priority）" }
         var container = Site(entry, listOf("root"), entry.structural.root)
+        val crossings = mutableListOf<Crossing>()
+        val consumed = mutableListOf<String>()
+        val tail = mutableListOf<String>()
         var result: Resolution? = null
         segments.forEachIndexed { i, name ->
-            container = descendContainers(schemas, entry, container)
+            container = descendContainers(schemas, entry, container) { real ->
+                crossings += Crossing(consumed.toList(), real)
+                tail.clear()
+            }
             val found = lookupChild(schemas, entry, container, name, fieldPath)
-            if (i == segments.lastIndex) result = Resolution(found.site, found.siblings)
+            consumed += name
+            tail += name
+            if (i == segments.lastIndex) result = Resolution(found.site, found.siblings, crossings.toList(), tail.toList())
             else container = found.site
         }
         return result!!
+    }
+
+    /** 移動先コンテナ（object）の解決。空・`.` はルート。配列・map を指した場合は要素の object へ降りる。 */
+    private fun resolveContainer(
+        schemas: Map<String, SchemaSemantics>,
+        entry: SchemaSemantics,
+        containerPath: String,
+    ): ContainerResolution {
+        val trimmed = containerPath.trim()
+        if (trimmed.isEmpty() || trimmed == ".") {
+            val (real, _) = derefChain(schemas, entry, Site(entry, listOf("root"), entry.structural.root))
+            require(real.def.type == FieldType.OBJECT) { "スキーマの root が object ではありません" }
+            return ContainerResolution(real, emptyList(), emptyList())
+        }
+        val res = resolveField(schemas, entry, trimmed)
+        val crossings = res.crossings.toMutableList()
+        val tail = res.tailKeys.toMutableList()
+        val allKeys = trimmed.split('.').map { it.trim() }.filter { it.isNotEmpty() }
+        val landed = descendContainers(schemas, entry, res.site) { real ->
+            crossings += Crossing(allKeys, real)
+            tail.clear()
+        }
+        val (real, _) = derefChain(schemas, entry, landed)
+        require(real.def.type == FieldType.OBJECT) { "移動先「$containerPath」は object ではありません（${real.def.type.id}）" }
+        return ContainerResolution(real, crossings.toList(), tail.toList())
     }
 
     /**
@@ -515,16 +735,40 @@ object SemanticSchemaRefactor {
         schemas: Map<String, SchemaSemantics>,
         entry: SchemaSemantics,
         site: Site,
+        onCross: ((FieldDef) -> Unit)? = null,
     ): Site {
         var current = site
         while (true) {
             val (real, _) = derefChain(schemas, entry, current)
             current = when (real.def.type) {
-                FieldType.ARRAY -> Site(real.module, real.path + "item", real.def.item ?: return real)
-                FieldType.MAP -> Site(real.module, real.path + "value", real.def.value ?: return real)
+                FieldType.ARRAY -> {
+                    val item = real.def.item ?: return real
+                    onCross?.invoke(real.def)
+                    Site(real.module, real.path + "item", item)
+                }
+                FieldType.MAP -> {
+                    val value = real.def.value ?: return real
+                    onCross?.invoke(real.def)
+                    Site(real.module, real.path + "value", value)
+                }
                 else -> return current
             }
         }
+    }
+
+    /** object 実体サイトの子キー集合（fields＋cases 由来。移動先の衝突検査用）。 */
+    private fun childKeysOf(
+        schemas: Map<String, SchemaSemantics>,
+        entry: SchemaSemantics,
+        objectSite: Site,
+    ): Set<String> {
+        val keys = mutableSetOf<String>()
+        objectSite.def.fields.forEach { f ->
+            f.key?.let(keys::add)
+            val (_, casesSite) = derefChain(schemas, entry, Site(objectSite.module, objectSite.path, f))
+            casesSite?.def?.cases?.values?.flatten()?.forEach { cf -> cf.key?.let(keys::add) }
+        }
+        return keys
     }
 
     /** object コンテナから名前で子フィールドを引く（fields と cases 由来キーの両方。多義は拒否）。 */
@@ -631,6 +875,69 @@ object SemanticSchemaRefactor {
         }
         walk(s.root, root, emptyList())
         return hits
+    }
+
+    /** 移動の文書側ops: 中間 object の生成 → Move → 空になった親の削除。衝突（移動先の既存値）を集める。 */
+    private fun moveDataOps(
+        s: StructuralSchema,
+        root: YNode,
+        target: FieldDef,
+        tailSize: Int,
+        destTail: List<String>,
+        key: String,
+        deleteEmptyParents: Boolean,
+    ): Pair<List<YamlOperation>, List<String>> {
+        val ops = mutableListOf<YamlOperation>()
+        val conflicts = mutableListOf<String>()
+        val hits = collectFieldHits(s, root) { it === target }.sortedWith(pathDescending)
+        for (p in hits) {
+            val elementRoot = p.dropLast(tailSize)
+            val destParent = elementRoot + destTail
+            var invalid = false
+            val creates = mutableListOf<YPath>()
+            var cur = elementRoot
+            for (k in destTail) {
+                cur = cur + k
+                when (getAt(root, cur)) {
+                    null -> creates += cur
+                    is YNode.Map -> Unit
+                    else -> {
+                        conflicts += "${cur.pretty()} が object ではありません"
+                        invalid = true
+                    }
+                }
+            }
+            if (invalid) continue
+            val destKey = destParent + key
+            if (getAt(root, destKey) != null) {
+                conflicts += "${destKey.pretty()} に既に値があります"
+                continue
+            }
+            creates.forEach { ops += YamlOperation.Insert(it, YNode.Map()) }
+            ops += YamlOperation.Move(p, destKey)
+            if (deleteEmptyParents) {
+                var depth = p.size - 1
+                while (depth > elementRoot.size) {
+                    val parentPath = p.subList(0, depth)
+                    // 移動先の経路上にある親は空にならない（中間生成・移動で値が入る）
+                    if (destParent.size >= parentPath.size && destParent.subList(0, parentPath.size) == parentPath) break
+                    val node = getAt(root, parentPath) as? YNode.Map ?: break
+                    if (node.entries.size != 1) break
+                    ops += YamlOperation.Remove(parentPath)
+                    depth--
+                }
+            }
+        }
+        return ops to conflicts
+    }
+
+    /** 削除によるインデックスずれの調整: seqPath 直下の removedIdx より後ろを指すパスを 1 つ詰める。 */
+    private fun adjustAfterDelete(path: YPath, seqPath: YPath, removedIdx: Int): YPath {
+        if (path.size <= seqPath.size) return path
+        if (path.subList(0, seqPath.size) != seqPath) return path
+        val idx = path[seqPath.size] as? Int ?: return path
+        if (idx <= removedIdx) return path
+        return path.toMutableList().also { it[seqPath.size] = idx - 1 }
     }
 
     /** 同一文書内の削除・改名を深い方から行うためのパス降順（数値セグメントは数値比較）。 */

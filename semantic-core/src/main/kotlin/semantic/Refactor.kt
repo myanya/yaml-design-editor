@@ -52,6 +52,21 @@ sealed interface RefactoringRequest {
         val newValue: String,
     ) : RefactoringRequest
 
+    /**
+     * フィールドの親子移動（R25-02）: スキーマ定義の移動（コメント保持の Move）と全該当文書での値の移動
+     * （中間 object の生成・空親の削除）を1計画にまとめる。destPath は object のドット区切りパス（空・`.` = ルート）。
+     * 配列・map の境界をまたぐ移動、共有定義（definitions）をまたぐ移動は拒否。
+     */
+    data class MoveField(
+        val schemaId: String,
+        val fieldPath: String,
+        val destPath: String,
+        val deleteEmptyParents: Boolean = true,
+    ) : RefactoringRequest
+
+    /** スキーマ順への整列（R25-02）: 全該当文書のキー順をスキーマのフィールド順へ並べ替える（スキーマは変更しない）。 */
+    data class AlignOrder(val schemaId: String) : RefactoringRequest
+
     /** フィールド削除（R25-03）: スキーマ定義・全該当文書のデータキー・entity.owns の項目を削除。ID型・フェーズキーは拒否。 */
     data class DeleteField(val schemaId: String, val fieldPath: String) : RefactoringRequest
 
@@ -109,6 +124,10 @@ object SemanticRefactor {
         is RefactoringRequest.MoveDocument -> moveDocument(snapshot, request)
         is RefactoringRequest.RenameField ->
             SemanticSchemaRefactor.renameField(snapshot.sourceVersion, schemas, documents, request, tree)
+        is RefactoringRequest.MoveField ->
+            SemanticSchemaRefactor.moveField(snapshot.sourceVersion, schemas, documents, request, tree)
+        is RefactoringRequest.AlignOrder ->
+            SemanticSchemaRefactor.alignOrder(snapshot.sourceVersion, schemas, documents, request)
         is RefactoringRequest.RenameEnumValue ->
             SemanticSchemaRefactor.renameEnumValue(snapshot.sourceVersion, schemas, documents, request, tree)
         is RefactoringRequest.DeleteField ->
