@@ -6,6 +6,7 @@ import edit.YamlOperation
 import model.DocumentId
 import model.YDocument
 import model.deepCopy
+import validate.StructuralIssue
 import yaml.DefaultYamlCodec
 import java.time.Instant
 
@@ -91,7 +92,12 @@ data class SaveResult(
 
 class WorkspaceSession(
     private val store: DocumentStore,
-    /** 時刻は注入し、テストで固定する（計画書§5）。 */
+    /**
+     * 増分導出を使うか（Phase 11・PF-002）。false で全トランザクションが全再構築になる
+     * （性能最適化を無効化しても正しく動くことの保証。計画書 Phase 11 完了条件）。
+     */
+    private val incrementalDerive: Boolean = true,
+    /** 時刻は注入し、テストで固定する（計画書§5）。末尾引数を維持（既存の末尾ラムダ呼び出し互換）。 */
     private val clock: () -> Instant = { Instant.now() },
 ) {
     val layout: schema.WorkspaceLayout
@@ -426,8 +432,27 @@ class WorkspaceSession(
             }
         }
 
-        // 候補の上で検証してから交換する（計画書§4.3 適用順序）
-        val candidateDerived = WorkspaceReader.derive(candidate, newSchemas, newDeclarations, layout, version + 1)
+        // 候補の上で検証してから交換する（計画書§4.3 適用順序）。
+        // スキーマに触れた場合は影響範囲が不明なため必ず全再構築（Phase 11 作業5）。
+        // それ以外は触れた文書だけ再検証・再走査する増分導出（結果は全再構築と一致＝oracle テストで固定）
+        val touched = mutableSetOf<DocumentId>()
+        val removed = mutableSetOf<DocumentId>()
+        for (op in operations) {
+            when (op) {
+                is WorkspaceOperation.EditDocument -> touched += op.documentId
+                is WorkspaceOperation.CreateDocument -> touched += op.documentId
+                is WorkspaceOperation.DeleteDocument -> removed += op.documentId
+                is WorkspaceOperation.MoveDocument -> {
+                    removed += op.from
+                    touched += op.to
+                }
+            }
+        }
+        val candidateDerived = if (!incrementalDerive || schemaTouched) {
+            WorkspaceReader.derive(candidate, newSchemas, newDeclarations, layout, version + 1)
+        } else {
+            deriveIncremental(candidate, touched, removed, version + 1)
+        }
         if (requireValid) {
             val structuralError = candidateDerived.structuralIssues.values.flatten()
                 .firstOrNull { it.severity == validate.Severity.ERROR }
@@ -449,4 +474,43 @@ class WorkspaceSession(
         onCommit(inverseOps)
         return TransactionResult(true, null, version)
     }
+
+    /**
+     * 増分導出（Phase 11・PF-002）: 構造検証は触れた文書だけ再検証（他は前回結果を再利用・キー順は
+     * 文書順を維持）、意味解析は触れた文書だけ再走査して集約し直す（SemanticEngine.update）。
+     * スキーマ束・宣言・レイアウトが変わらないトランザクション専用（呼び分けは applyOperations）。
+     */
+    private fun deriveIncremental(
+        candidate: Map<DocumentId, WorkspaceDocument>,
+        touched: Set<DocumentId>,
+        removed: Set<DocumentId>,
+        newVersion: Long,
+    ): WorkspaceDerivedState {
+        val byId = schemas.associateBy { it.id }
+        val structural = linkedMapOf<DocumentId, List<StructuralIssue>>()
+        for ((id, d) in candidate) {
+            val issues = if (id in touched) WorkspaceReader.validateOne(d, byId) else derived.structuralIssues[id]
+            if (issues != null) structural[id] = issues
+        }
+        val changedSemanticDocs = touched.mapNotNull { id ->
+            candidate[id]?.let { WorkspaceReader.semanticDocument(id, it, byId, layout) }
+        }
+        val semanticSnapshot = semantic.SemanticEngine.update(
+            derived.semantic,
+            semantic.SemanticDelta(
+                workspaceVersion = newVersion,
+                changed = changedSemanticDocs,
+                removed = removed + touched,
+                declarations = declarations,
+            ),
+        )
+        return WorkspaceDerivedState(newVersion, structural, semanticSnapshot)
+    }
+
+    /**
+     * working 状態からの全再構築（oracle。Phase 11 完了条件「増分更新と全再構築が同一結果を返す」の
+     * 突合先。テスト・診断用で、セッションの状態は変えない）。
+     */
+    fun fullDerived(): WorkspaceDerivedState =
+        WorkspaceReader.derive(workingDocuments, schemas, declarations, layout, version)
 }

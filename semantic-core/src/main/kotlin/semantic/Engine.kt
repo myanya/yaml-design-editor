@@ -49,6 +49,19 @@ fun ScannedId.isAllowedBy(ref: ScannedRef): Boolean =
         (ref.scope.documentIds.isEmpty() || documentId in ref.scope.documentIds)
 
 /**
+ * 増分更新の差分入力（計画書 Phase 11 作業2: 文書1件変更時の semantic 差分入力）。
+ * changed は再走査する文書（新規・変更）、removed は取り除く文書。
+ * 同じ文書が changed と removed の両方にあってもよい（取り除いてから再走査する）。
+ */
+data class SemanticDelta(
+    /** 更新後の版（単一連番。ADR-0007）。semantic-core は転記するだけで採番しない。 */
+    val workspaceVersion: Long,
+    val changed: List<SemanticDocument>,
+    val removed: Set<DocumentId> = emptySet(),
+    val declarations: SemanticDeclarations = SemanticDeclarations(),
+)
+
+/**
  * 意味解析の結果snapshot（計画書§4.2）。YNode 参照を保持しない（ADR-0003 規律4）。
  * sourceVersion は入力の転記で、鮮度判定は上位層が単一連番の比較で行う（ADR-0007）。
  */
@@ -64,6 +77,11 @@ class SemanticSnapshot(
     val issues: List<SemanticIssue>,
     /** 走査結果から導出したエンティティグラフ（R20-04 のカーネル版。SM-003）。 */
     val graph: SemanticEntityGraph,
+    /**
+     * 文書単位の走査結果（増分更新のキャッシュ。Phase 11）。文書ID順。
+     * YNode 参照は含まない（ScannedId / ScannedRef の値オブジェクトのみ）。
+     */
+    val scans: List<DocumentScan> = emptyList(),
 ) {
     fun occurrences(id: String): List<ScannedId> = ids[id].orEmpty()
 
@@ -80,31 +98,61 @@ class SemanticSnapshot(
 }
 
 /**
- * 意味解析エンジン（計画書§4.2）。ファイルI/Oを行わず、与えられた文書集合から全再構築する
- * （増分更新は Phase 11。全再構築が正の基準＝oracle になる）。
+ * 意味解析エンジン（計画書§4.2）。ファイルI/Oを行わず、与えられた文書集合から構築する。
+ * - `build` = 全再構築。**正の基準（oracle）**であり、増分更新の結果はこれと常に一致する（Phase 11）
+ * - `update` = 増分更新。変更文書だけ再走査し、集約（参照解決・グラフ・整合検証）は build と
+ *   同じ経路（aggregate）で再導出する——走査コストだけが変更文書数に比例し、正しさは共有経路が保証する
  * 台帳（ledger）による対象文書の絞り込みは上位層の責務で、ここへは対象文書だけが渡される前提。
  */
 object SemanticEngine {
 
+    /** 全再構築（oracle）。 */
     fun build(input: SemanticInput): SemanticSnapshot {
         // 文書ID順で安定化（ルート IdIndex.derive のパス順ソートと同じ考え方）
-        val docs = input.documents.sortedBy { it.id.value }
+        val scans = input.documents.sortedBy { it.id.value }.map(::scanOne)
+        return aggregate(input.workspaceVersion, scans, input.declarations)
+    }
+
+    /**
+     * 増分更新: previous の文書別走査キャッシュ（snapshot.scans）から removed / changed 分を除き、
+     * changed だけ再走査して集約し直す。結果は同じ文書集合の build と一致する（PF-001 の oracle テストで固定）。
+     */
+    fun update(previous: SemanticSnapshot, delta: SemanticDelta): SemanticSnapshot {
+        val dropped = delta.removed + delta.changed.map { it.id }
+        val kept = previous.scans.filterNot { it.document in dropped }
+        val rescanned = delta.changed.map(::scanOne)
+        return aggregate(
+            delta.workspaceVersion,
+            (kept + rescanned).sortedBy { it.document.value },
+            delta.declarations,
+        )
+    }
+
+    /** 1文書の走査（build / update で共有）。 */
+    private fun scanOne(d: SemanticDocument): DocumentScan {
+        val (docIds, docRefs) = SemanticScanner.scan(d)
+        return DocumentScan(d.id, d.documentId, docIds, docRefs)
+    }
+
+    /** 走査結果集合からの集約（重複検出・参照解決・グラフ・整合検証）。build / update で共有する正の経路。 */
+    private fun aggregate(
+        version: Long,
+        scans: List<DocumentScan>,
+        declarations: SemanticDeclarations,
+    ): SemanticSnapshot {
         val ids = linkedMapOf<String, MutableList<ScannedId>>()
         val refs = mutableListOf<ScannedRef>()
         val issues = mutableListOf<SemanticIssue>()
         val documentIds = mutableSetOf<String>()
 
-        val perDocument = mutableListOf<DocumentScan>()
-        for (d in docs) {
-            documentIds += d.documentId
-            val (docIds, docRefs) = SemanticScanner.scan(d)
-            perDocument += DocumentScan(d.id, d.documentId, docIds, docRefs)
-            for (e in docIds) ids.getOrPut(e.id) { mutableListOf() }.add(e)
-            refs += docRefs
+        for (scan in scans) {
+            documentIds += scan.documentId
+            for (e in scan.ids) ids.getOrPut(e.id) { mutableListOf() }.add(e)
+            refs += scan.refs
             // 文書内の ID 重複（ERROR）。文書間の同一 ID は「同一エンティティの複数出現」で合法
-            docIds.groupBy { it.id }.filterValues { it.size > 1 }.forEach { (id, list) ->
+            scan.ids.groupBy { it.id }.filterValues { it.size > 1 }.forEach { (id, list) ->
                 list.forEach { e ->
-                    issues += SemanticIssue(Severity.ERROR, "ID「$id」がこの文書内で重複しています", d.id, e.path)
+                    issues += SemanticIssue(Severity.ERROR, "ID「$id」がこの文書内で重複しています", scan.document, e.path)
                 }
             }
         }
@@ -131,17 +179,18 @@ object SemanticEngine {
             }
         }
 
-        val graph = SemanticEntityGraph.build(perDocument, ids)
+        val graph = SemanticEntityGraph.build(scans, ids)
         // グラフ整合検証（R21-01。6A）: 関係レジストリの宣言があるときだけ判定する
-        issues += SemanticGraphIntegrity.issues(refs, graph, input.declarations)
+        issues += SemanticGraphIntegrity.issues(refs, graph, declarations)
 
         return SemanticSnapshot(
-            sourceVersion = input.workspaceVersion,
+            sourceVersion = version,
             ids = ids,
             refs = refs,
             documentIds = documentIds,
             issues = issues,
             graph = graph,
+            scans = scans,
         )
     }
 }

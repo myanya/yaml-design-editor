@@ -172,6 +172,18 @@ class CliTest {
     }
 
     @Test
+    fun `benchコマンドが全再構築と増分更新を計測する`() {
+        val (code, output) = capture("workspace", "bench", fixture("workspaces", "legacy-basic"), "--iterations", "1")
+        assertEquals(0, code, output)
+        assertTrue("全再構築" in output && "増分更新" in output && "speedup" in output, output)
+        val (jsonCode, json) = capture(
+            "workspace", "bench", fixture("workspaces", "legacy-basic"), "--iterations", "1", "--format", "json",
+        )
+        assertEquals(0, jsonCode, json)
+        assertTrue("\"fullBuildMillis\"" in json && "\"incrementalUpdateMillis\"" in json, json)
+    }
+
+    @Test
     fun `未知のコマンド・存在しない入力はexit 1になる`() {
         val (unknown, usage) = capture("unknown")
         assertEquals(1, unknown)

@@ -62,6 +62,44 @@ class WorkspaceSessionTest {
     }
 
     @Test
+    fun `シナリオC 未保存snapshotの意味解析が成立する`() {
+        val store = newStore()
+        val s = session(store)
+        // 1. 原本には存在しないID（IT-100）を working snapshot へ追加する
+        val newDoc = DocumentId("items/new.yaml")
+        assertTrue(
+            s.apply(
+                WorkspaceTransaction(
+                    s.version, ChangeIntent("新規ID"),
+                    listOf(
+                        WorkspaceOperation.CreateDocument(
+                            newDoc, DefaultYamlCodec.parse(newDoc, "id: IT-100\ntitle: 新規\n")
+                        )
+                    ),
+                )
+            ).ok
+        )
+        // 2. 別文書からそのIDへ ref を追加する
+        assertTrue(
+            s.apply(
+                WorkspaceTransaction(
+                    s.version, ChangeIntent("参照追加"),
+                    listOf(
+                        WorkspaceOperation.EditDocument(
+                            a, listOf(YamlOperation.SetScalar(parseYPath("link"), "IT-100"))
+                        )
+                    ),
+                )
+            ).ok
+        )
+        // 3-4. 保存前に semantic validation → ref が解決される
+        assertTrue(s.derived.semantic.issues.isEmpty(), "未保存のIDへ解決される: ${s.derived.semantic.issues}")
+        assertEquals(1, s.derived.semantic.backlinksTo(setOf("IT-100")).size)
+        // 5. DocumentStore は未変更
+        assertEquals(0, store.writeCount, "保存前はストアに書かない")
+    }
+
+    @Test
     fun `applyはworking snapshotだけを更新しストアに書かない`() {
         val store = newStore()
         val s = session(store)

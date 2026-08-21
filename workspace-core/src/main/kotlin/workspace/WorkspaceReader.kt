@@ -215,27 +215,52 @@ object WorkspaceReader {
         val byId = schemas.associateBy { it.id }
         val structuralIssues = linkedMapOf<DocumentId, List<StructuralIssue>>()
         for ((id, d) in documents) {
-            val sc = d.schemaId?.let { byId[it] } ?: continue
-            val root = d.document.documents.firstOrNull() ?: continue
-            structuralIssues[id] = StructuralValidator.validate(root, sc.structural)
+            structuralIssues[id] = validateOne(d, byId) ?: continue
         }
-        val semanticDocs = documents.mapNotNull { (id, d) ->
-            val rel = id.value
-            if (layout.indexExcluded(rel)) return@mapNotNull null
-            if (!d.inLedger && layout.zoneOf(rel) == null) return@mapNotNull null
-            val root = d.document.documents.firstOrNull() ?: return@mapNotNull null
-            val sc = d.schemaId?.let { byId[it] }
-            SemanticDocument(
-                id = id,
-                root = root,
-                schema = sc?.structural,
-                schemaId = sc?.id,
-                entities = sc?.entities ?: emptyList(),
-                documentId = DocumentMeta.idOf(root, rel),
-            )
-        }
-        val semantic = SemanticEngine.build(SemanticInput(version, semanticDocs, declarations))
+        val semantic = SemanticEngine.build(semanticInput(documents, schemas, declarations, layout, version))
         return WorkspaceDerivedState(version, structuralIssues, semantic)
+    }
+
+    /** 1文書の構造検証（スキーマ割当なし・空文書は null）。derive とセッションの増分導出で共有する。 */
+    fun validateOne(d: WorkspaceDocument, schemasById: Map<String, WorkspaceSchema>): List<StructuralIssue>? {
+        val sc = d.schemaId?.let { schemasById[it] } ?: return null
+        val root = d.document.documents.firstOrNull() ?: return null
+        return StructuralValidator.validate(root, sc.structural)
+    }
+
+    /** 意味解析の入力組立（索引除外・台帳規則の適用。derive・増分導出・計測で共有する）。 */
+    fun semanticInput(
+        documents: Map<DocumentId, WorkspaceDocument>,
+        schemas: List<WorkspaceSchema>,
+        declarations: SemanticDeclarations,
+        layout: WorkspaceLayout,
+        version: Long,
+    ): SemanticInput {
+        val byId = schemas.associateBy { it.id }
+        val docs = documents.mapNotNull { (id, d) -> semanticDocument(id, d, byId, layout) }
+        return SemanticInput(version, docs, declarations)
+    }
+
+    /** 意味解析へ載せる文書1件の組立（載せない文書＝索引除外・台帳外の一般文書・空文書は null）。 */
+    fun semanticDocument(
+        id: DocumentId,
+        d: WorkspaceDocument,
+        schemasById: Map<String, WorkspaceSchema>,
+        layout: WorkspaceLayout,
+    ): SemanticDocument? {
+        val rel = id.value
+        if (layout.indexExcluded(rel)) return null
+        if (!d.inLedger && layout.zoneOf(rel) == null) return null
+        val root = d.document.documents.firstOrNull() ?: return null
+        val sc = d.schemaId?.let { schemasById[it] }
+        return SemanticDocument(
+            id = id,
+            root = root,
+            schema = sc?.structural,
+            schemaId = sc?.id,
+            entities = sc?.entities ?: emptyList(),
+            documentId = DocumentMeta.idOf(root, rel),
+        )
     }
 
     /** ストアの内容から構成（レガシー／.yde）を判定する（WorkspaceLayout.of の DocumentStore 版）。 */

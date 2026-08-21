@@ -40,9 +40,9 @@ Kotlin + Compose for Desktop 製のスキーマ駆動YAMLエディタ。ワー�
 3. **完了前**: `./gradlew test` を通し、変更内容に応じてドキュメントを更新する（対応表は docs/CONVENTIONS.md §6）。機能を追加・変更したのにドキュメントが差分に含まれない場合は、更新漏れを疑うこと。`/sync-docs` スキルでチェックできる。
 4. **完了報告**: 機能を追加・変更したら、報告に**試し方**（具体的な操作手順＋見てほしい観点）を必ず含める（docs/CONVENTIONS.md §7）。利用者が触った感想からチューニングの要否を決める。作業中に見つけた本題と異なる気になりポイントは、直しに行かず docs/BACKLOG.md へ即時登録する。
 
-## 進行中: 3層コア移行（コアに触る前に必読）
+## 3層コア（コアに触る前に必読）
 
-in-repoマルチモジュール化による3層コア切り出しが進行中（計画: [docs/THREE-LAYER-CORE-MIGRATION-PLAN.md](docs/THREE-LAYER-CORE-MIGRATION-PLAN.md)・進捗: [docs/MIGRATION-LEDGER.md](docs/MIGRATION-LEDGER.md)）。移行中の作業規約は docs/CONVENTIONS.md §8。要点:
+in-repoマルチモジュール化による3層コア切り出しは**計画の全フェーズ（Phase 0〜12・M1〜M5）完了**（計画: [docs/THREE-LAYER-CORE-MIGRATION-PLAN.md](docs/THREE-LAYER-CORE-MIGRATION-PLAN.md)・記録: [docs/MIGRATION-LEDGER.md](docs/MIGRATION-LEDGER.md)）。現在は**併存期**——アプリ（UI）は旧経路のまま動き、新経路はコア3モジュール＋`cli` が提供する（委譲シェルで一致を担保）。残課題（6E仮想文書・derive/メタスキーマreader・イベントwatch・UIの新API接続）は移行後テーマとして個別判断。コアを触る際の規約は docs/CONVENTIONS.md §8 と以下＝**引き続き有効**:
 
 - [docs/decisions/](docs/decisions/README.md) のADRは本書・CONVENTIONS と同格の規約。特に: 依存方向 `yaml-core ← semantic-core ← workspace-core ← cli／アプリ`（coreからアプリ・Compose・`Path` への逆依存禁止。ADR-0002）／可変YNode＋copy-on-write規律（ADR-0003）／Undo・履歴はworkspace-core単一所有（ADR-0006）／表記→意味の禁止（ADR-0008）。
 - 移行は**移動であって複製ではない**。移動後もアプリ含む `./gradlew test` を緑に保つ。移行中のパッケージ改名は禁止（`model`・`yaml` 等のパッケージ名のままモジュールへ移す）。

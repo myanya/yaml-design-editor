@@ -40,6 +40,8 @@ fun run(args: Array<String>, out: (String) -> Unit): Int = try {
         // rename-entity は refactor rename-entity の別名（WS-003 からの互換）
         args.size >= 2 && args[0] == "workspace" && args[1] == "rename-entity" ->
             workspaceRefactor(args.getOrNull(2), listOf("rename-entity") + args.drop(3), out)
+        args.size >= 2 && args[0] == "workspace" && args[1] == "bench" ->
+            workspaceBench(args.getOrNull(2), args.drop(3), out)
         args.size >= 2 && args[0] == "workspace" && args[1] == "shell" ->
             workspaceShell(args.getOrNull(2), { readlnOrNull() }, out)
         else -> {
@@ -55,6 +57,8 @@ fun run(args: Array<String>, out: (String) -> Unit): Int = try {
             out("                                         rename-field / move-field / align-order / rename-enum-value /")
             out("                                         delete-field / require-field / convert-type / rename-definition /")
             out("                                         extract-definition / inline-definition / rename-relation / rename-schema-id）")
+            out("  workspace bench <root> [--iterations N]")
+            out("                                        意味解析の全再構築と増分更新（1文書）を計測する")
             out("  workspace shell <root>                対話 shell（set / refactor / undo / redo / save / reload）")
             out("  共通: workspace 系は --format text|yaml|json で機械可読出力を選べる（shell を除く）")
             1

@@ -182,6 +182,66 @@ fun workspaceEntity(root: String?, id: String?, args: List<String>, out: (String
     return 0
 }
 
+// ---------------------------------------------------------------- bench
+
+/**
+ * 意味解析の「全再構築 vs 1文書の増分更新」を計測する（Phase 11・PF-003。root core/Bench.kt の
+ * 計測部の移設）。増分更新のコストが総文書数でなく変更文書数に比例することの確認に使う。
+ */
+fun workspaceBench(root: String?, args: List<String>, out: (String) -> Unit): Int {
+    val format = CliArgs.format(args)
+    val iterations = CliArgs.stringFlag(args, "--iterations")?.toIntOrNull() ?: 3
+    require(iterations > 0) { "--iterations は 1 以上を指定してください" }
+    val ws = WorkspaceReader.load(FileSystemDocumentStore(requireDir(root)))
+    val input = workspace.WorkspaceReader.semanticInput(
+        ws.snapshot.documents, ws.schemas, ws.declarations, ws.layout, version = 0,
+    )
+    require(input.documents.isNotEmpty()) { "計測対象の文書がありません" }
+
+    fun best(block: () -> Unit): Double {
+        var min = Long.MAX_VALUE
+        repeat(iterations) {
+            val start = System.nanoTime()
+            block()
+            min = minOf(min, System.nanoTime() - start)
+        }
+        return min / 1_000_000.0
+    }
+
+    val snapshot = semantic.SemanticEngine.build(input)
+    val target = input.documents.first()
+    val delta = semantic.SemanticDelta(
+        workspaceVersion = 1,
+        changed = listOf(target),
+        removed = setOf(target.id),
+        declarations = input.declarations,
+    )
+    val full = best { semantic.SemanticEngine.build(input) }
+    val incremental = best { semantic.SemanticEngine.update(snapshot, delta) }
+    val speedup = if (incremental > 0) full / incremental else 0.0
+
+    if (format == OutputFormat.TEXT) {
+        out("文書: ${input.documents.size} 件・ID: ${snapshot.ids.size} 件・参照: ${snapshot.refs.size} 件")
+        out("全再構築: %.2f ms".format(full))
+        out("増分更新（1文書・${target.id.value}）: %.2f ms".format(incremental))
+        out("speedup: %.1f 倍（iterations=$iterations の最小値）".format(speedup))
+    } else {
+        CliOutput.emit(
+            linkedMapOf(
+                "documents" to input.documents.size,
+                "ids" to snapshot.ids.size,
+                "refs" to snapshot.refs.size,
+                "fullBuildMillis" to full,
+                "incrementalUpdateMillis" to incremental,
+                "speedup" to speedup,
+                "iterations" to iterations,
+            ),
+            format, out,
+        )
+    }
+    return 0
+}
+
 // ---------------------------------------------------------------- refactor
 
 private const val REFACTOR_OPS = "rename-entity / merge-entity / delete-entity / move-document / " +

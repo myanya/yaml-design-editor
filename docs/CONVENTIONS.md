@@ -71,9 +71,9 @@
 - **気になりポイントは [BACKLOG.md](BACKLOG.md) へ即時記録する**: 作業中・試験中に見つかった「今のタスクと本質が異なる指摘」は、その場で直しに行かず（脱線防止）、まず台帳へ1行登録する。登録の敷居は最低にする（完璧な分析は不要）。対応するか・いつやるかは後で個別に判断し、大きいものは ROADMAP の項目へ起こす。
 - **良かった点も残す**: 方向性の確認になった所感（「この体験は正しい」）も台帳の所感メモへ残し、チューニングの判断材料にする。
 
-## 8. 3層コア移行中の規約（期間限定・移行完了まで）
+## 8. 3層コアの規約（移行計画は完了・併存期も引き続き適用）
 
-3層コア移行（[THREE-LAYER-CORE-MIGRATION-PLAN.md](THREE-LAYER-CORE-MIGRATION-PLAN.md)）の期間中は、以下を通常規約に加えて適用する。[decisions/](decisions/README.md) のADRは本規約と同格であり、矛盾がある場合はADRを正として規約側を直す。
+3層コア移行（[THREE-LAYER-CORE-MIGRATION-PLAN.md](THREE-LAYER-CORE-MIGRATION-PLAN.md)）は計画の全フェーズが完了した（2026-08-21・台帳の Phase 12 完了判定）。現在はアプリ（旧経路）とコア＋cli（新経路）の併存期であり、コア・シェル・残課題（6E 等）に触る作業では以下を通常規約に加えて**引き続き適用する**。[decisions/](decisions/README.md) のADRは本規約と同格であり、矛盾がある場合はADRを正として規約側を直す。
 
 1. **着手前に台帳を見る**: コア（model / yaml / schema / index / validate / core）へ触る前に [MIGRATION-LEDGER.md](MIGRATION-LEDGER.md) で対象の移行状態を確認する。done（移動済み）のコードは移行先モジュールで変更する。
 2. **移動であって複製ではない**: ファイルはモジュールへ `git mv` し、旧位置に残さない。各ステップでアプリ含む `./gradlew test` を緑に保つ。

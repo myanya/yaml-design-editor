@@ -53,6 +53,10 @@
 | WS-006 | スキーマ変更のセッション内 rebuild（スキーマ束再構築・全文書の割当再評価・undo対称） | workspace-core | done | schemasゾーン文書へ一般スキーマを割り当てない規則も是正 | 2026-08-20 |
 | RF-003 | document move の参照更新（DocMove）の plan/apply 化 | semantic-core / workspace-core | done | 移動＋参照書き換えが1トランザクションに（旧経路の非原子的継ぎ目を解消） | Phase 9第2弾（2026-08-20） |
 | CLI-001 | 簡易CLIの完成（catalog / entity / refactor 全16操作 / shell・--format yaml|json・exit code 0〜5） | cli / workspace-core | done | TransactionResult へ staleBase 追加（exit 4 の型付き判定） | Phase 10完了（2026-08-20） |
+| PF-001 | SemanticEngine の増分更新（SemanticDelta・update・走査キャッシュ＝snapshot.scans） | semantic-core | done | build＝oracle・集約は共有経路（正しさを構成で保証） | Phase 11（2026-08-21） |
+| PF-002 | セッションの増分導出（触れた文書だけ再検証・再走査。スキーマ変更は全再構築へ） | workspace-core | done | incrementalDerive=false で無効化可・fullDerived()＝oracle | Phase 11（2026-08-21） |
+| PF-003 | bench コマンド（全再構築 vs 増分の計測。root Bench.kt の計測部の移設） | cli | done | 生成（Bench.generate）はルート残置 | Phase 11完了（2026-08-21） |
+| DoD-01 | Phase 12: 移行完了判定（各コアDoD照合・統合シナリオA/Cテスト新設・旧テスト台帳・D-10登録） | 全モジュール | done | - | Phase 12完了（2026-08-21） |
 
 ## 作業項目の記録
 
@@ -253,6 +257,89 @@ semantic-core: ID/ref/entity graph・意味検証（重複・参照・グラフ�
   `_schemas` 文書へのメタスキーマ適用（schemas ゾーンは文書集合から除外）。CLI 配線（workspace validate）
   は WS-003（Phase 7 完了条件①の残り）
 完了確認コマンド: ./gradlew :workspace-core:test / ./gradlew test
+```
+
+**Phase 12 完了判定（2026-08-21）＝ 計画の全フェーズ完了（DoD照合）**
+
+yaml-core DoD——①単独ビルド・テスト: `./gradlew :yaml-core:test`（依存は SnakeYAML のみ）
+②SnakeYAML 以外のアプリ依存なし: build.gradle.kts の依存宣言で確認 ③parse/dump・構造検証・
+編集操作と逆操作: YamlIOTest / StructuralValidatorTest / YamlEditTest＋**シナリオA統合テスト新設**
+（ScenarioTest: parse→スキーマ→編集→検証→逆操作復元→再適用→round-trip）④ファイルシステム・
+entity・workspace を知らない: `java.nio` 参照ゼロ（`java.io` は StringReader/Writer＝文字列入出力のみ）
+⑤公開APIに実装ライブラリ型の漏れなし: `org.yaml.snakeyaml` の import は yaml/YamlIO.kt だけ・
+公開シグネチャは YNode / String / Any? のみ。
+
+semantic-core DoD——①メモリ上の snapshot だけで動く: `java.io` / `java.nio` の import ゼロ
+②意味モデル構築: SemanticEngine / SemanticEntityGraph ③意味検証とリファクタリング計画:
+SemanticGraphIntegrity・SemanticRefactor（16 リクエスト） ④workspace・ファイルI/O非依存:
+モジュール依存は yaml-core のみ ⑤結果が入力 version と原本座標を持つ: SemanticSnapshot.sourceVersion・
+SemanticIssue(document, path)・RefactoringPlan.sourceVersion・PlannedDocumentChange(document, ops)・
+合成/導出/query も DocumentId×YPath 座標。
+
+workspace-core DoD——①working/persisted/derived の区別: WorkspaceDocument.persistedText・
+workingDocuments・WorkspaceDerivedState ②apply・Undo/Redo・save・reload・外部変更検出:
+WorkspaceSessionTest（**シナリオC＝未保存snapshotの意味解析を新設**・B/E/F含む）③source version 追跡:
+毎ステップ derived.sourceVersion == version（IncrementalDeriveTest）④書込は DocumentStore へ集約:
+`Files` の書込系は workspace/DocumentStore.kt のみ ⑤InMemoryDocumentStore で全主要動作をテスト
+（FileSystem 実装のテストは DocumentStoreTest に隔離）。
+
+全体 DoD——①`./gradlew test` 全モジュール成功 ②簡易CLIだけで主要シナリオ再現: A=yaml parse/
+roundtrip＋shell set、B=shell set→save→undo→status(dirty)→redo→save、C=shell set＋validate（保存前解決）、
+D=refactor rename-entity（preview→--apply→undo）、E=status の外部変更表示→reload、F=exit 4（staleBase）
+③3コアはルートのコードへ非依存: 依存方向は settings/build 宣言どおり yaml-core ← semantic-core ←
+workspace-core ← cli／ルート（逆依存なし） ④旧テストの移行・非移行理由: 下表 ⑤既存挙動との差分:
+意図的差分一覧 D-01〜D-10（D-10=カーネル経路のビュー等非追随を Phase 12 で追記）。
+
+**残課題（移行後の継続テーマ。計画のDoDには含まれない）**: SM-008（6E 仮想文書＝ビュー非UI部）・6F・
+YM-006b（残テスト整理）・derive／メタスキーマの reader 対応・イベント駆動 watch（FileWatcher）・
+既存UIの新API接続（strangler の解消＝旧経路シェル化）。§17 のリファクタリングメモとあわせて
+次テーマとして個別に判断する。
+
+### DoD-01 旧テストの移行・非移行台帳（Phase 12）
+
+| 旧テスト群（src/test/kotlin） | 状態 | 理由 |
+|---|---|---|
+| model/YPathTest・yaml/YamlIOTest・core/PatchTest | yaml-core へ移動済み | YM-001/002/007a（git mv・パッケージ維持） |
+| validate/ValidatorTest 構造部・ConstraintTest 単文書部 | yaml-core StructuralValidatorTest / StructuralConstraintTest へ移設 | YM-005/006。ルート残部は参照解決・索引依存（旧経路） |
+| core/AspectTest・TraverseTest・ViewsTest／index/DocScannerTest・QueryTest／schema/DisplayTest／validate/ConsistencyTest・GraphIntegrityTest・QueryConstraintTest | ルート残置（シェル経由） | 委譲シェル越しに旧テストが緑＝カーネル一致の回帰証明として機能 |
+| core/EntityOpsTest・SchemaRefactorTest・DocRefTest・DocumentsTest・ChangeSetsTest・OverlayIndexTest・WorkspaceCliTest・WorkspaceLayoutTest／index/EntityGraphTest・IdIndexIncrementalTest／schema/EntityDeclTest・RelationRegistryTest・IdSuggestTest・SchemaInferenceTest／validate/CoverageTest | ルート残置（旧経路） | 現行UIが使う旧経路の回帰担保。カーネル版は RefactoringTest / SemanticIncrementTest 等。UI の新API接続時にシェル化・整理 |
+| core/FileWatcherTest／schema/DerivedSchemasTest・MetaSchemaTest・SchemaLoaderTest 構文部／validate/PhaseTest required 部 | ルート残置（未移行機能） | イベント watch（最終段階）・derive・メタスキーマ（WS-002 v1 対象外）・YM-006b |
+| agent/ 10件・ai/ 5件・skill/ 3件・app/ 2件・ui/ 8件 | ルート残置（対象外） | アプリ・UI層の機能テスト（3層コアの移行対象外） |
+
+**Phase 11 完了判定（2026-08-21）＝ M5: 実用性能 到達**: 完了条件①「増分更新と全再構築が同一結果を返す」
+——増分の単位は**文書別走査キャッシュ**（snapshot.scans）で、集約（重複検出・参照解決・グラフ・整合検証）は
+build / update が同じ経路（aggregate）を通る＝正しさを構成で保証し、oracle 一致テスト
+（SemanticIncrementTest 2件・IncrementalDeriveTest 3件＝編集・追加・削除・移動・undo/redo・スキーマ変更の
+毎ステップで fullDerived() と突合）で固定。②「stale な snapshot を current として公開しない」——
+派生状態は候補上で構築して原子的に交換し、毎ステップ derived.sourceVersion == session.version を検査。
+③「性能最適化を無効化しても正しく動く」——`WorkspaceSession(incrementalDerive = false)` で全トランザク
+ションが全再構築になり、同一シナリオで増分と結果一致をテスト。スキーマ変更は常に全再構築（作業5）。
+計測（bench・300文書2700ID）: カーネル全再構築 11ms／増分 4.3ms——**走査コストは変更文書数に比例**し、
+残る集約コストは総量線形（YNode 走査なしの値オブジェクト集約のため小さい）。グラフ・query の
+より深い増分化（集約自体の差分化）は、計測が必要性を示すまで見送り（正しさ優先の Phase 11 哲学）。
+query キャッシュはカーネルに存在しない（不変 snapshot 上の都度評価）ため移設対象なし。
+
+### PF-001〜003 増分更新と性能計測（done 2026-08-21）＝ Phase 11
+
+```text
+旧実装: root IdIndex.update（変更ファイル単位の増分再走査）・core/Bench.kt（計測）。ルートは無変更で併存
+旧テスト: なし（新設: SemanticIncrementTest 2件・IncrementalDeriveTest 3件・CliTest bench 1件）
+新しい責務:
+  - SemanticEngine を scanOne（1文書走査）＋ aggregate（集約＝正の経路）に分割。build＝全走査＋集約
+    （oracle）・update＝キャッシュ（snapshot.scans）から removed/changed を除き changed だけ再走査＋集約。
+    SemanticDelta（workspaceVersion・changed・removed・declarations）＝計画書 Phase 11 作業2 の差分入力
+  - SemanticSnapshot.scans——文書別走査結果のキャッシュ（YNode 参照なし＝ADR-0003 規律4 を維持）
+  - WorkspaceSession.deriveIncremental——スキーマに触れないトランザクションで、構造検証は触れた文書だけ
+    再検証（他は前回結果を再利用・キー順は候補の文書順で全再構築と一致）、意味解析は SemanticEngine.update。
+    スキーマに触れたら従来どおり全再構築（WS-006 と同じ振り分け）。incrementalDerive=false で無効化可
+  - WorkspaceSession.fullDerived()——working 状態からの全再構築（oracle 突合・診断用）
+  - WorkspaceReader から validateOne / semanticInput / semanticDocument を共有関数化（derive・増分・CLI計測が同じ規則を通る）
+  - cli: workspace bench <root> [--iterations N]（全再構築 vs 1文書増分の最小値計測・--format 対応）
+維持する挙動: 全再構築の結果（build は分割後も同一経路・全既存テスト緑）
+意図的に変える挙動: なし（増分は結果不変の最適化。一致は oracle テストで固定）
+未解決事項: 集約（参照解決・グラフ・整合検証）は総量線形のまま（走査だけが変更分比例）。
+  集約自体の差分化は計測が必要性を示したら再訪。Bench.generate（ベンチ生成）はルート残置
+完了確認コマンド: ./gradlew test / ./gradlew :cli:run --args="workspace bench <root>"
 ```
 
 **Phase 10 完了判定（2026-08-20）＝ M4: リファクタリング基盤 到達**: 完了条件①「parse・validate・catalog・entity inspect・refactor plan が

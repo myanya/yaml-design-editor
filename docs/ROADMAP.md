@@ -734,7 +734,8 @@ limit: 100
 | Phase 5〜6: semantic-core = M2: 意味解析ライブラリ | ✅ 2026-08-19（6A〜6D完了。6Eは§17-⑥⑦の方向決定まで保留・6Fは後続） |
 | Phase 7〜8: workspace-core = M3: ヘッドレスworkspace | ✅ 2026-08-20（apply/undo/redo/save・外部変更検出・CLI validate） |
 | Phase 9〜10: リファクタリング基盤（plan/apply 分離・CLI完成） = M4 | ✅ 2026-08-20（エンティティ・文書移動・スキーマ全12操作の plan/apply 化。CLI: catalog / entity / refactor / shell・--format yaml\|json・exit code 0〜5） |
-| Phase 11: 増分索引と性能計測 = M5 | 📋 |
+| Phase 11: 増分索引と性能計測 = M5 | ✅ 2026-08-21（SemanticEngine.update＝文書別走査キャッシュ・セッション増分導出・oracle一致テスト・`workspace bench`。走査コストは変更文書数に比例） |
+| Phase 12: 移行完了判定（各コアDoD照合・統合シナリオ・旧テスト台帳） | ✅ 2026-08-21（**計画の全フェーズ完了**。残課題=6E仮想文書・derive/メタスキーマreader・イベントwatch・UIの新API接続は移行後テーマとして個別判断） |
 
 ## 7. リスクと未解決課題
 
