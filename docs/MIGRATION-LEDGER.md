@@ -38,7 +38,10 @@
 | SM-005 | エンティティ合成（Aspects）のカーネル化（SemanticAspects・SchemaSemantics） | semantic-core | done | 変換ブリッジを index/SemanticBridge.kt へ一元化 | Phase 6B完了（2026-08-19） |
 | SM-006 | query宣言の移動と照合エンジンのカーネル化（SemanticQuery・DocumentMeta） | semantic-core | done | ルート Query はシェル。Traverse の emit レンダラはルート残置 | Phase 6C完了（2026-08-19） |
 | SM-007 | derivation/projection の移動（宣言・評価器・解決器カーネル・globToRegex） | semantic-core | done | ルート index/Derivation はシェル | Phase 6D完了（2026-08-19） |
-| SM-008 | Phase 6E（view非UI部）→ 仮想文書設計で再実装（§17-6 方向決定 2026-08-19） | semantic-core | blocked | - | 再開条件: M3（Phase 8）完了。仮想文書（写像＋来歴＋書込翻訳）として6Eを再開し、現行UIへは ViewRow/ViewCell 互換シムで接続 |
+| SM-008 | Phase 6E（view非UI部）→ 仮想文書設計で再実装（§17-6 方向決定 2026-08-19） | semantic-core | done | 解決＋テキスト表現がカーネル化。パース/リント/スキャフォールドは SchemaDef 依存のため root 残（Phase D/C-2 で移す判断＝RC-03 記録） | RC-01〜03 done 2026-08-24 ＝ **6E（C-1）完了** |
+| RC-01 | 仮想ビュー第1弾: グリッド解決のカーネル化（VirtualViews・宣言/結果のカーネル型・root resolve のシェル化） | semantic-core | done | なし（シェル経由で ViewsTest 緑＝一致証明） | 移行後計画 C-1・2026-08-23 |
+| RC-02 | 仮想ビュー第2弾: 文書ビュー解決のカーネル化（resolveDocument / resolveAttachments・DocResolver） | semantic-core | done | なし（シェル経由で ViewsTest 緑＝一致証明） | 移行後計画 C-1・2026-08-23 |
+| RC-03 | 仮想ビュー第3弾: テキスト表現のカーネル化（renderText / renderDocText / cellText）＋残置判断の記録 | semantic-core | done | なし（シェル経由で ViewsTest 緑＝一致証明） | 移行後計画 C-1・2026-08-24 |
 | WS-001 | WorkspaceLayout の移動と DocumentStore（InMemory / FileSystem）新設 | workspace-core | done | 予約ディレクトリ名の正を Zone のリテラルへ | Phase 7前半（2026-08-19） |
 | WS-002 | 読取専用ワークスペース（WorkspaceReader）と意味宣言パーサの移動 | workspace-core / semantic-core | done | v1未対応: derive・メタスキーマ適用 | Phase 7後半（2026-08-19） |
 | WS-003 | 簡易CLIの最小配線（yaml parse / roundtrip・workspace validate・exit code契約） | cli | done | - | Phase 7完了（2026-08-19） |
@@ -257,6 +260,79 @@ semantic-core: ID/ref/entity graph・意味検証（重複・参照・グラフ�
   `_schemas` 文書へのメタスキーマ適用（schemas ゾーンは文書集合から除外）。CLI 配線（workspace validate）
   は WS-003（Phase 7 完了条件①の残り）
 完了確認コマンド: ./gradlew :workspace-core:test / ./gradlew test
+```
+
+### RC-03 仮想ビュー第3弾: テキスト表現のカーネル化と残置判断（done 2026-08-24）＝ 6E（SM-008 / C-1）完了
+
+```text
+旧実装: core/Views.kt の renderText / renderDocText / appendBacklinkRows / refAnnotatedCellText / cellText
+旧テスト: core/ViewsTest.kt の renderText / renderDocText 6箇所（シェル経由で緑＝一致証明）。
+  カーネル単体は VirtualViewsTest へ2ケース追加（renderText の座標・ref注記・新規行案内、
+  renderDocText の被参照表・参照元列値・アタッチ見出し）
+新しい責務: semantic/VirtualViews.kt へ追加——
+  - VirtualNewRowDef（新規行の入口宣言）を VirtualGridDef へ追加（renderText の「新しい行の作り方」案内に必要）
+  - renderText（座標 rel :: path・列絞り R19-02・ref値のタイトル注記 R19-05・計算列の来歴 R16-04・
+    新規行/詳細の案内）＝6E「仮想文書」のテキスト形。ID注記は ids: Map<String, List<ScannedId>> で注入
+  - renderDocText / appendBacklinkRows / cellText / refAnnotatedCellText
+  - root renderText / renderDocText は変換シェル（解決済み行を読み出しモデルへ写す。rel は行が既に持つ
+    相対パス文字列を relByDoc で再利用）。cellText はカーネル委譲（UI・CLI の既存呼び出しは互換維持）
+維持する挙動: 出力テキストのすべて
+意図的に変える挙動: なし
+残置判断（RC-03 の判断事項＝6E の範囲確定）:
+  - スキャフォールド（detailScaffold / scaffold / defaultTree）・宣言パース（parseView 一族）・リント
+    （lint / staticFieldAt / idElements）は SchemaDef（resolve / effectiveFields / matches / definitions）
+    に全面依存し、semantic-core に SchemaDef のカーネル表現がないため root 残置。
+    Phase D（SchemaDef 3分割）／C-2（reader 拡張）でスキーマ表現がコアへ入るときに一括で移す。
+    パースだけの先行移動も definition 展開（R14-02）が SchemaDef 依存のため分割せず見送り
+  - スキャフォールドは「仮想文書の読み出し」でなく「スキーマ駆動の新規文書生成」であり 6E の範囲外と整理
+  - 6E は「解決（RC-01/02）＋テキスト表現（RC-03）＝写像・来歴・読み出しモデル」で完了。
+    書込翻訳は不要（原本座標へ解決済み→既存経路で完結。§4.14）
+完了確認コマンド: ./gradlew :semantic-core:test / ./gradlew test（ViewsTest 含む）
+```
+
+### RC-02 仮想ビュー第2弾: 文書ビュー解決のカーネル化（done 2026-08-23）
+
+```text
+旧実装: core/Views.kt の resolveDocument / resolveAttachments / DocResolver（文書ビュー＝R14-01/03）
+旧テスト: core/ViewsTest.kt（シェル経由で全ケース緑＝一致証明）。カーネル単体は VirtualViewsTest へ
+  1ケース追加（被参照表の原本座標・参照元要素の列値・アタッチの at 一致・localIds の行追随）
+新しい責務: semantic/VirtualViews.kt へ追加——
+  - 宣言のカーネル型: VirtualDocViewDef / VirtualDocSection / VirtualDocAttachment（VirtualAnyIndex）/
+    VirtualDocBacklinksDef / VirtualDocBacklinkColumn
+  - 結果: VirtualDocBacklinkRow / VirtualDocBacklinkItem（原本座標・属性注記・参照元要素の列値つき）
+  - 解決: resolveDocument（backlinks セクションのみ解決。fields は描画側）・resolveAttachments
+    （at パターン一致要素だけ行に）・DocResolver（文書内ID＝localIds 優先・最内IDは graph.sourceEntryOf）
+  - root は変換シェル（sections / attachments はインデックス対応で写す）。pathSortKey の root 残置分は削除
+維持する挙動: 解決結果のすべて
+意図的に変える挙動: なし
+未解決事項: RC-03——スキャフォールド（detailScaffold/defaultTree）・renderText / renderDocText・
+  パース / リントのカーネル化判断（リントは SchemaDef 依存のため Phase D のスキーマ分割と関係）。
+  書込翻訳はビューが原本座標へ解決される設計のため既存 apply_patch 経路で完結（§4.14。専用経路は作らない）
+完了確認コマンド: ./gradlew :semantic-core:test / ./gradlew test（ViewsTest 含む）
+```
+
+### RC-01 仮想ビュー第1弾: グリッド解決のカーネル化（done 2026-08-23）＝ 6E 再開（SM-008）
+
+```text
+旧実装: core/Views.kt の resolve / computedCell / sortRows / pathSortKey（グリッドビューの解決）
+旧テスト: core/ViewsTest.kt（シェル経由で全ケース緑＝カーネル一致の回帰証明。クエリ行・計算列含む）。
+  カーネル単体は VirtualViewsTest 3ケース新設（原本座標つき解決・backlinks最内ID＋属性注記・
+  orderBy/schemaIds・値ノードが原本参照＝エフェメラル読み出しモデルであること）
+新しい責務: semantic-core/semantic/VirtualViews.kt——
+  - 宣言のカーネル型: VirtualGridDef / VirtualViewColumn / VirtualViewSource / VirtualBacklinksDef /
+    VirtualRowsDef / VirtualDetailDef（座標は DocumentId。rel は関数注入＝セッション経路では .value）
+  - 結果の読み出しモデル: VirtualRow / VirtualCell / VirtualBacklink / VirtualComputedInput / Trace
+    ——すべて原本座標（DocumentId × YPath）＝来歴つき。value は原本ツリーのノード参照
+    （SemanticAspects と同じ「読み出しモデル族」の例外。snapshot には保持しない）
+  - 解決: 行（idPattern×schemaIds／クエリ行=SemanticQuery.run）・セル（出現＋相対path）・
+    backlinks（最内ID・属性注記）・計算列（SemanticDerivation 共有＝ビューと検証の導出一致）・
+    orderBy 並び。attributeSummary / pathSortKey もカーネルへ
+  - root Views.resolve は Path↔DocumentId 変換シェル（toKernelView / toIdEntry を共有）
+維持する挙動: 解決結果のすべて（行の集合・並び・セル座標・来歴）
+意図的に変える挙動: なし
+未解決事項: 文書ビュー（resolveDocument / resolveAttachments）＝RC-02、書込翻訳・スキャフォールド・
+  renderText・パース/リントのカーネル化＝RC-03 以降。宣言のパースは当面ルート（core/Views.kt）に残る
+完了確認コマンド: ./gradlew :semantic-core:test / ./gradlew test（ViewsTest 含む）
 ```
 
 **Phase 12 完了判定（2026-08-21）＝ 計画の全フェーズ完了（DoD照合）**

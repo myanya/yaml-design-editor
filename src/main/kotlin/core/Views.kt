@@ -1,17 +1,22 @@
 package core
 
-import index.Derivation
 import index.IdEntry
 import index.IdIndex
-import index.Query
 import index.RefEntry
-import index.idMatchesPattern
+import index.toIdEntry
+import index.toKernelView
+import index.toScanned
+import semantic.VirtualBacklinksDef
+import semantic.VirtualDetailDef
+import semantic.VirtualGridDef
+import semantic.VirtualRowsDef
+import semantic.VirtualViewColumn
+import semantic.VirtualViewSource
+import semantic.VirtualViews
 import model.YNode
 import model.YPath
-import model.getAt
 import model.parseYPath
 import model.pretty
-import model.scalarText
 import schema.DerivationDef
 import schema.Display
 import schema.FieldDef
@@ -1124,6 +1129,9 @@ object Views {
      * ビューを行×セルに解決する。
      * - index: 行の集合と出現の解決に使う（UIはディスク索引、エージェントはオーバーレイ索引を渡す）
      * - loader: セル値の読み取り（UIは未保存編集を優先する loader、エージェントはステージングの tree）
+     *
+     * 6E 第1弾（RC-01）: 解決の本体はカーネル（semantic.VirtualViews）へ移し、ここは
+     * Path↔DocumentId を写す変換シェル。旧テスト（ViewsTest）がシェル経由で緑＝カーネル一致の回帰証明。
      */
     fun resolve(
         view: ViewDef,
@@ -1131,171 +1139,71 @@ object Views {
         index: IdIndex,
         loader: (Path) -> YNode? = { f -> runCatching { YamlIO.parseFirst(Files.readString(f)) }.getOrNull() },
     ): List<ViewRow> {
+        val kernel = index.toKernelView()
+        fun fileOf(document: model.DocumentId): Path = Path.of(document.value)
+        val rel = { document: model.DocumentId -> IdIndex.relPathOf(workspace, fileOf(document)) }
         val trees = mutableMapOf<Path, YNode?>()
-        fun tree(file: Path): YNode? = trees.getOrPut(file) { loader(file) }
-        fun rel(file: Path): String = IdIndex.relPathOf(workspace, file)
-
-        // バックリンク列の「参照元要素のID」解決に使う。参照位置を含む最も長いパスの出現を最内のIDとみなす
-        val entriesByFile: Map<Path, List<IdEntry>> by lazy { index.entries.values.flatten().groupBy { it.file } }
-        fun backlinksFor(id: String, def: ViewBacklinksDef): List<ViewBacklink> =
-            index.refs.filter { it.targetId == id && def.matches(it) }
-                .map { ref ->
-                    val source = entriesByFile[ref.file].orEmpty()
-                        .filter { it.path.size <= ref.path.size && ref.path.subList(0, it.path.size) == it.path }
-                        .maxByOrNull { it.path.size }
-                    ViewBacklink(source?.id, source?.title, rel(ref.file), ref.file, ref.path, ref.relation, ref.attributeSummary())
-                }
-                .sortedWith(compareBy({ it.rel }, { pathSortKey(it.path) }))
-
-        // クエリ行（rows: match。R22-02 / ARCHITECTURE §4.32）: 行 = パターン照合の束縛行。
-        // 並びはクエリの決定的順序（sortRows は通さない）、セルは束縛ノード（of。省略時は行キー）の原本座標へ解決する
-        val query = view.rowsQuery
-        if (query != null) {
-            val rowKeyName = view.rowKey ?: query.binds.first()
-            return Query.run(index, query, ::tree).rows.map { qr ->
-                val keyNode = qr.bindings.getValue(rowKeyName)
-                val occurrences = index.occurrences(keyNode.id)
-                val cells = view.columns.map { column ->
-                    val node = qr.bindings[column.of ?: rowKeyName]
-                    val backlinksDef = column.backlinks
-                    val computedDef = column.computed
-                    when {
-                        node == null -> ViewCell(column, null, null, null, null)
-                        backlinksDef != null ->
-                            ViewCell(column, null, null, null, null, backlinks = backlinksFor(node.id, backlinksDef))
-                        computedDef != null ->
-                            computedCell(column, computedDef, node.id, index.occurrences(node.id), index, ::tree, ::rel)
-                        node.kind == QueryNodeKind.DOCUMENT -> {
-                            // 文書ノードのセル: 文書ルートからの相対パス（座標はその文書＝通常の原本編集経路）
-                            val file = node.file
-                            if (file == null) ViewCell(column, null, null, null, null)
-                            else ViewCell(column, rel(file), file, column.path, tree(file)?.let { getAt(it, column.path) })
-                        }
-                        else -> {
-                            val occurrence = index.occurrences(node.id).firstOrNull { column.from.matches(it, rel(it.file)) }
-                            if (occurrence == null) ViewCell(column, null, null, null, null)
-                            else {
-                                val absolute = occurrence.path + column.path
-                                ViewCell(
-                                    column = column,
-                                    rel = rel(occurrence.file),
-                                    file = occurrence.file,
-                                    path = absolute,
-                                    value = tree(occurrence.file)?.let { getAt(it, absolute) },
-                                )
-                            }
-                        }
-                    }
-                }
-                val detailOccurrence = view.detail?.let { d ->
-                    occurrences.firstOrNull { o -> d.source.matches(o, rel(o.file)) }
-                }
+        val tree = { document: model.DocumentId -> trees.getOrPut(fileOf(document)) { loader(fileOf(document)) } }
+        return VirtualViews.resolve(toKernel(view), kernel.entries, kernel.refs, kernel.graph, rel, tree)
+            .map { row ->
                 ViewRow(
-                    id = keyNode.id,
-                    title = keyNode.title ?: occurrences.firstNotNullOfOrNull { it.title },
-                    occurrences = occurrences,
-                    cells = cells,
-                    detailRel = detailOccurrence?.let { rel(it.file) },
-                    detailPath = detailOccurrence?.path,
-                    key = qr.bindings.entries.joinToString("|") { (k, v) -> "$k=${v.id}" },
-                    bindings = qr.bindings.mapValues { it.value.id },
-                )
-            }
-        }
-
-        val rowsDef = view.rows ?: error("ビュー「${view.id}」に行の定義（rows）がありません")
-        val rows = index.entries.asSequence()
-            .filter { (id, _) -> idMatchesPattern(id, rowsDef.idPattern) }
-            .filter { (_, occurrences) ->
-                rowsDef.schemaIds.isEmpty() || occurrences.any { it.schemaId in rowsDef.schemaIds }
-            }
-            .map { (id, occurrences) ->
-                val cells = view.columns.map { column ->
-                    val backlinksDef = column.backlinks
-                    val computedDef = column.computed
-                    val occurrence =
-                        if (backlinksDef != null || computedDef != null) null
-                        else occurrences.firstOrNull { column.from.matches(it, rel(it.file)) }
-                    if (backlinksDef != null) ViewCell(column, null, null, null, null, backlinks = backlinksFor(id, backlinksDef))
-                    else if (computedDef != null) computedCell(column, computedDef, id, occurrences, index, ::tree, ::rel)
-                    else if (occurrence == null) ViewCell(column, null, null, null, null)
-                    else {
-                        val absolute = occurrence.path + column.path
+                    id = row.id,
+                    title = row.title,
+                    occurrences = row.occurrences.map { it.toIdEntry() },
+                    cells = row.cells.mapIndexed { i, cell ->
                         ViewCell(
-                            column = column,
-                            rel = rel(occurrence.file),
-                            file = occurrence.file,
-                            path = absolute,
-                            value = tree(occurrence.file)?.let { getAt(it, absolute) },
+                            column = view.columns[i],
+                            rel = cell.document?.let(rel),
+                            file = cell.document?.let(::fileOf),
+                            path = cell.path,
+                            value = cell.value,
+                            backlinks = cell.backlinks?.map { b ->
+                                ViewBacklink(b.sourceId, b.sourceTitle, rel(b.document), fileOf(b.document), b.path, b.relation, b.attributes)
+                            },
+                            computed = cell.computed,
+                            trace = cell.trace?.let { t ->
+                                ComputedTrace(
+                                    t.raw,
+                                    t.inputs.map { ComputedInput(it.placeholder, it.value, it.document?.let(rel), it.document?.let(::fileOf), it.path) },
+                                )
+                            },
                         )
-                    }
-                }
-                val detailOccurrence = view.detail?.let { d ->
-                    occurrences.firstOrNull { o -> d.source.matches(o, rel(o.file)) }
-                }
-                ViewRow(
-                    id = id,
-                    title = occurrences.firstNotNullOfOrNull { it.title },
-                    occurrences = occurrences,
-                    cells = cells,
-                    detailRel = detailOccurrence?.let { rel(it.file) },
-                    detailPath = detailOccurrence?.path,
+                    },
+                    detailRel = row.detailDocument?.let(rel),
+                    detailPath = row.detailPath,
+                    key = row.key,
+                    bindings = row.bindings,
                 )
             }
-            .toList()
-        return sortRows(view, rows) { rel(it) }
     }
 
-    /**
-     * 計算セル（R16-02）の解決。対象ID（lookup があれば ref を1ホップ辿った先、なければ行のID）の
-     * source 出現から元値（テンプレート）を読み、`schema/Projection` でプレースホルダを評価する。
-     * - スコープ連鎖は「source 要素 → values で選んだ対象IDの出現要素 → lookup の起点要素」の近い順（1段評価）
-     * - セルの座標は元値の位置＝ジャンプ先。評価できないプレースホルダは `{...}` のまま残す（ARCHITECTURE §4.26）
-     */
-    private fun computedCell(
-        column: ViewColumn,
-        def: DerivationDef,
-        rowId: String,
-        occurrences: List<IdEntry>,
-        index: IdIndex,
-        tree: (Path) -> YNode?,
-        rel: (Path) -> String,
-    ): ViewCell {
-        // 解決は整合検証と共有の Derivation（index/Derivation.kt）。ビューで見えている導出値と
-        // 検証される期待値を常に一致させる（ARCHITECTURE §4.26）
-        val result = Derivation.resolve(def, rowId, index, rel, tree, occurrences)
-        return ViewCell(
-            column = column,
-            rel = result.sourceFile?.let(rel),
-            file = result.sourceFile,
-            path = result.sourcePath,
-            value = result.value?.let { YNode.Scalar(it) },
-            computed = true,
-            trace = result.raw?.let { raw ->
-                ComputedTrace(
-                    raw,
-                    result.inputs.map { ComputedInput(it.placeholder, it.value, it.file?.let(rel), it.file, it.path) },
-                )
-            },
-        )
-    }
+    // ---------------------------------------------------------------- カーネル宣言への写し（RC-01）
 
-    /** 行の並び: orderBy 出現の（ファイル→文書内パス）順 → それ以外はID順で後ろに。 */
-    private fun sortRows(view: ViewDef, rows: List<ViewRow>, rel: (Path) -> String): List<ViewRow> {
-        val orderBy = view.orderBy ?: return rows.sortedBy { it.id }
-        fun anchor(row: ViewRow): IdEntry? = row.occurrences.firstOrNull { orderBy.matches(it, rel(it.file)) }
-        val comparator = compareBy<Pair<ViewRow, IdEntry?>>(
-            { (_, a) -> if (a == null) 1 else 0 },
-            { (_, a) -> a?.let { rel(it.file) } ?: "" },
-            { (_, a) -> a?.path?.let(::pathSortKey) ?: "" },
-            { (row, _) -> row.id },
-        )
-        return rows.map { it to anchor(it) }.sortedWith(comparator).map { it.first }
-    }
+    private fun toKernel(view: ViewDef): VirtualGridDef = VirtualGridDef(
+        id = view.id,
+        name = view.name,
+        description = view.description,
+        rows = view.rows?.let { VirtualRowsDef(it.idPattern, it.schemaIds) },
+        rowsQuery = view.rowsQuery,
+        rowKey = view.rowKey,
+        columns = view.columns.map { toKernel(it) },
+        orderBy = view.orderBy?.let(::toKernel),
+        detail = view.detail?.let { VirtualDetailDef(toKernel(it.source), it.filePattern) },
+        newRow = view.newRow?.let { semantic.VirtualNewRowDef(it.file, it.path, it.filePattern) },
+        source = model.DocumentId(view.source.toString()),
+    )
 
-    /** YPath の文書内順を保つソートキー（配列インデックスはゼロ詰めで桁を揃える）。 */
-    private fun pathSortKey(path: YPath): String =
-        path.joinToString("/") { seg -> if (seg is Int) "%08d".format(seg) else seg.toString() }
+    private fun toKernel(c: ViewColumn): VirtualViewColumn = VirtualViewColumn(
+        label = c.label,
+        from = toKernel(c.from),
+        path = c.path,
+        editable = c.editable,
+        backlinks = c.backlinks?.let { VirtualBacklinksDef(it.relation, it.schemaIds) },
+        computed = c.computed,
+        of = c.of,
+    )
+
+    private fun toKernel(source: ViewSource): VirtualViewSource = VirtualViewSource(source.schemaId, source.fileGlob)
 
     // ---------------------------------------------------------------- 文書ビューの解決（R14-01）
 
@@ -1313,10 +1221,20 @@ object Views {
         localIds: List<IdEntry>? = null,
         loader: (Path) -> YNode? = { f -> runCatching { YamlIO.parseFirst(Files.readString(f)) }.getOrNull() },
     ): List<DocSectionResolved> {
-        val resolver = DocResolver(workspace, file, index, localIds, loader)
-        return view.sections.map { section ->
-            val def = section.backlinks ?: return@map DocSectionResolved(section)
-            DocSectionResolved(section, resolver.rowsFor(def))
+        // RC-02: 解決の本体はカーネル（semantic.VirtualViews.resolveDocument）。ここは変換シェル
+        val kernel = index.toKernelView()
+        val rel = { document: model.DocumentId -> IdIndex.relPathOf(workspace, Path.of(document.value)) }
+        val trees = mutableMapOf<Path, YNode?>()
+        val tree = { document: model.DocumentId ->
+            val f = Path.of(document.value)
+            trees.getOrPut(f) { loader(f) }
+        }
+        return VirtualViews.resolveDocument(
+            toKernel(view), model.DocumentId(file.toString()),
+            kernel.entries, kernel.refs, kernel.graph,
+            localIds?.map { it.toScanned() }, rel, tree,
+        ).mapIndexed { i, resolved ->
+            DocSectionResolved(view.sections[i], resolved.rows?.map { toDocRow(it, rel) })
         }
     }
 
@@ -1333,63 +1251,75 @@ object Views {
         loader: (Path) -> YNode? = { f -> runCatching { YamlIO.parseFirst(Files.readString(f)) }.getOrNull() },
     ): List<DocAttachmentResolved> {
         if (view.attachments.isEmpty()) return emptyList()
-        val resolver = DocResolver(workspace, file, index, localIds, loader)
-        return view.attachments.map { attachment ->
-            DocAttachmentResolved(
-                attachment,
-                resolver.rowsFor(attachment.backlinks) { attachment.matches(it.path) },
-            )
+        val kernel = index.toKernelView()
+        val rel = { document: model.DocumentId -> IdIndex.relPathOf(workspace, Path.of(document.value)) }
+        val trees = mutableMapOf<Path, YNode?>()
+        val tree = { document: model.DocumentId ->
+            val f = Path.of(document.value)
+            trees.getOrPut(f) { loader(f) }
+        }
+        return VirtualViews.resolveAttachments(
+            toKernel(view), model.DocumentId(file.toString()),
+            kernel.entries, kernel.refs, kernel.graph,
+            localIds?.map { it.toScanned() }, rel, tree,
+        ).mapIndexed { i, resolved ->
+            DocAttachmentResolved(view.attachments[i], resolved.rows.map { toDocRow(it, rel) })
         }
     }
 
-    /** 文書ビュー解決の共有部（文書内ID・参照元ツリーのキャッシュ・被参照行の構築）。 */
-    private class DocResolver(
-        private val workspace: Path,
-        file: Path,
-        private val index: IdIndex,
-        localIds: List<IdEntry>?,
-        private val loader: (Path) -> YNode?,
-    ) {
-        private val trees = mutableMapOf<Path, YNode?>()
-        private val docIds: List<IdEntry> = localIds ?: index.entries.values.flatten().filter { it.file == file }
+    // ---------------------------------------------------------------- カーネル宣言への写し（文書ビュー。RC-02）
 
-        private fun tree(f: Path): YNode? = trees.getOrPut(f) { loader(f) }
+    private fun toKernel(view: DocViewDef): semantic.VirtualDocViewDef = semantic.VirtualDocViewDef(
+        id = view.id,
+        name = view.name,
+        description = view.description,
+        match = view.match,
+        schemaId = view.schemaId,
+        sections = view.sections.map(::toKernel),
+        attachments = view.attachments.map { toKernel(it) },
+        source = model.DocumentId(view.source.toString()),
+    )
 
-        fun rowsFor(def: DocBacklinksDef, elementFilter: (IdEntry) -> Boolean = { true }): List<DocBacklinkRow> =
-            docIds.asSequence()
-                .filter(elementFilter)
-                .filter { def.idPattern == null || idMatchesPattern(it.id, def.idPattern) }
-                .sortedBy { pathSortKey(it.path) }
-                .distinctBy { it.id }
-                .map { row(it, def) }
-                .toList()
+    private fun toKernel(a: DocViewAttachment): semantic.VirtualDocAttachment = semantic.VirtualDocAttachment(
+        label = a.label,
+        atText = a.atText,
+        at = a.at.map { seg -> if (seg === AnyIndex) semantic.VirtualAnyIndex else seg },
+        backlinks = toKernel(a.backlinks),
+    )
 
-        private fun row(entry: IdEntry, def: DocBacklinksDef): DocBacklinkRow {
-            val backlinks = index.refs
-                .filter { it.targetId == entry.id && def.filter.matches(it) }
-                .map { ref ->
-                    // 参照元要素＝参照位置を含む最内のID出現（グリッドのバックリンク列と同じ解決）
-                    val sourceEntry = index.sourceEntryOf(ref)
-                    val values =
-                        if (def.columns.isEmpty() || sourceEntry == null) def.columns.map { null }
-                        else def.columns.map { col ->
-                            tree(ref.file)?.let { getAt(it, sourceEntry.path + col.path) }
-                        }
-                    DocBacklinkItem(
-                        sourceId = sourceEntry?.id,
-                        sourceTitle = sourceEntry?.title,
-                        rel = IdIndex.relPathOf(workspace, ref.file),
-                        file = ref.file,
-                        refPath = ref.path,
-                        relation = ref.relation,
-                        attributes = ref.attributeSummary(),
-                        values = values,
-                    )
-                }
-                .sortedWith(compareBy({ it.rel }, { pathSortKey(it.refPath) }))
-            return DocBacklinkRow(id = entry.id, title = entry.title, path = entry.path, backlinks = backlinks)
-        }
-    }
+    private fun toKernel(section: DocViewSection): semantic.VirtualDocSection = semantic.VirtualDocSection(
+        label = section.label,
+        fieldsPath = section.fieldsPath,
+        fieldsDefinition = section.fieldsDefinition,
+        fieldsInclude = section.fieldsInclude,
+        fieldsExclude = section.fieldsExclude,
+        backlinks = section.backlinks?.let(::toKernel),
+    )
+
+    private fun toKernel(def: DocBacklinksDef): semantic.VirtualDocBacklinksDef = semantic.VirtualDocBacklinksDef(
+        idPattern = def.idPattern,
+        filter = VirtualBacklinksDef(def.filter.relation, def.filter.schemaIds),
+        columns = def.columns.map { semantic.VirtualDocBacklinkColumn(it.label, it.path) },
+    )
+
+    private fun toDocRow(row: semantic.VirtualDocBacklinkRow, rel: (model.DocumentId) -> String): DocBacklinkRow =
+        DocBacklinkRow(
+            id = row.id,
+            title = row.title,
+            path = row.path,
+            backlinks = row.backlinks.map { b ->
+                DocBacklinkItem(
+                    sourceId = b.sourceId,
+                    sourceTitle = b.sourceTitle,
+                    rel = rel(b.document),
+                    file = Path.of(b.document.value),
+                    refPath = b.refPath,
+                    relation = b.relation,
+                    attributes = b.attributes,
+                    values = b.values,
+                )
+            },
+        )
 
     // ---------------------------------------------------------------- スキーマフィールドの解決
 
@@ -1466,173 +1396,83 @@ object Views {
     /**
      * 解決済みビューの機械可読テキスト。各セルに原本上の座標（file / path）を添えるため、
      * エージェントはこの出力から直接 apply_patch の対象を決められる。
-     */
-    /**
      * columns 非null のときは、ラベルが一致する列だけを描画する（コンテキストレシピの列絞り。R19-02）。
      * index 非null のときは、ref 値のセルに参照先のタイトルを「ID（タイトル）」で注記する（R19-05）。
+     *
+     * RC-03: 描画の本体はカーネル（semantic.VirtualViews.renderText）。ここは解決済み行を
+     * 読み出しモデルへ写す変換シェル（rel は行が既に持つ相対パス文字列を再利用する）。
      */
-    fun renderText(view: ViewDef, rows: List<ViewRow>, columns: List<String>? = null, index: IdIndex? = null): String = buildString {
-        appendLine("ビュー: ${view.name}（${view.id}）")
-        view.description?.let { appendLine(it.trim()) }
-        val rowsLabel = view.rows?.let { "idPattern: ${it.idPattern}" }
-            ?: "matchクエリ・行キー: ${view.rowKey}"
-        appendLine("行: ${rows.size} 件（$rowsLabel）")
-        view.newRow?.let { nr ->
-            // エージェントが「新しい行の作り方」を出力から判断できるようにする（配列＝apply_patch／ファイル＝create_document）
-            if (nr.filePattern != null) {
-                appendLine("新規行: ${nr.filePattern} の {id} を新しいIDに置換したパスへ create_document で文書を作成すると行になる")
-            } else {
-                appendLine("新規行: ${nr.file} :: ${nr.path.pretty()} へ要素を追加し、IDを設定すると行になる")
-            }
-        }
-        for (row in rows) {
-            append("- id: ").append(row.id)
-            row.title?.let { append("  title: ").append(it) }
-            appendLine()
-            // クエリ行（R22-02）: 結合先の束縛も明示する（エージェント・CLI が行の構成ノードを判別できる）
-            row.bindings?.takeIf { it.size > 1 }?.let { b ->
-                appendLine("    束縛: " + b.entries.joinToString(", ") { (k, v) -> "$k=$v" })
-            }
-            for (cell in row.cells.filter { columns == null || it.column.label in columns }) {
-                append("    ").append(cell.column.label).append(": ")
-                val backlinks = cell.backlinks
-                if (backlinks != null) {
-                    // バックリンク列: 参照元のIDと座標を列挙する（エージェントはこの座標から参照元へ辿れる）
-                    if (backlinks.isEmpty()) appendLine("（被参照なし）")
-                    else appendLine(
-                        backlinks.joinToString(", ") { b ->
-                            listOfNotNull(b.sourceId ?: b.rel, b.sourceTitle).joinToString(" ") +
-                                (b.attributes?.let { "（$it）" } ?: "") +
-                                "  [" + b.rel + " :: " + b.path.pretty() + "]"
-                        }
+    fun renderText(view: ViewDef, rows: List<ViewRow>, columns: List<String>? = null, index: IdIndex? = null): String {
+        val relByDoc = mutableMapOf<model.DocumentId, String>()
+        fun doc(file: Path?, rel: String?): model.DocumentId? =
+            file?.let { f -> model.DocumentId(f.toString()).also { d -> rel?.let { relByDoc[d] = it } } }
+        val kernelRows = rows.map { row ->
+            semantic.VirtualRow(
+                id = row.id,
+                title = row.title,
+                occurrences = row.occurrences.map { it.toScanned() },
+                cells = row.cells.map { cell ->
+                    semantic.VirtualCell(
+                        column = toKernel(cell.column),
+                        document = doc(cell.file, cell.rel),
+                        path = cell.path,
+                        value = cell.value,
+                        backlinks = cell.backlinks?.map { b ->
+                            semantic.VirtualBacklink(b.sourceId, b.sourceTitle, doc(b.file, b.rel)!!, b.path, b.relation, b.attributes)
+                        },
+                        computed = cell.computed,
+                        trace = cell.trace?.let { t ->
+                            semantic.VirtualComputedTrace(
+                                t.raw,
+                                t.inputs.map { semantic.VirtualComputedInput(it.placeholder, it.value, doc(it.file, it.rel), it.path) },
+                            )
+                        },
                     )
-                } else if (cell.file == null) {
-                    appendLine(if (cell.computed) "（導出元なし）" else "（出現なし）")
-                } else {
-                    append(refAnnotatedCellText(cell.value, index))
-                    append("  [").append(cell.rel).append(" :: ").append(cell.path!!.pretty())
-                    if (cell.column.editable) append("  編集可")
-                    // 計算列: 値は評価済みの導出値で、座標は元値（規則）の位置。書込はこの座標か入力値への通常編集で行う
-                    if (cell.computed) append("  計算値（座標は導出規則）")
-                    appendLine("]")
-                    // 来歴（R16-04）: 元値（テンプレート）と入力値の座標。エージェントはここから入力値側も辿れる
-                    val trace = cell.trace
-                    if (trace != null && trace.inputs.isNotEmpty()) {
-                        append("      導出: ").append(trace.raw)
-                        trace.inputs.forEach { input ->
-                            append("  {").append(input.placeholder).append("}=")
-                            if (input.value == null) append("未解決")
-                            else {
-                                append(input.value)
-                                if (input.rel != null && input.path != null) {
-                                    append(" [").append(input.rel).append(" :: ").append(input.path.pretty()).append("]")
-                                }
-                            }
-                        }
-                        appendLine()
-                    }
-                }
-            }
-            if (view.detail != null) {
-                if (row.detailRel != null) appendLine("    詳細: ${row.detailRel}")
-                else appendLine(
-                    "    詳細: 未作成" +
-                        (view.detail.filePattern?.let { "（filePattern: $it → ${it.replace("{id}", row.id)}）" } ?: "")
-                )
-            }
+                },
+                detailDocument = row.detailRel?.let { r -> model.DocumentId(r).also { relByDoc[it] = r } },
+                detailPath = row.detailPath,
+                key = row.key,
+                bindings = row.bindings,
+            )
         }
-    }.trimEnd()
+        return VirtualViews.renderText(
+            toKernel(view), kernelRows, columns,
+            ids = index?.toKernelView()?.entries,
+            rel = { relByDoc[it] ?: it.value },
+        )
+    }
 
     /**
      * 解決済み文書ビューの機械可読テキスト（エージェント・CLI 共用）。
      * fields セクションは対象座標のみを示し（内容は read_node 等で座標を指定して読む）、
      * backlinks セクションは被参照の一覧を参照値の座標つきで列挙する。
+     *
+     * RC-03: 描画の本体はカーネル（semantic.VirtualViews.renderDocText）。ここは変換シェル。
      */
     fun renderDocText(
         view: DocViewDef,
         rel: String,
         sections: List<DocSectionResolved>,
         attachments: List<DocAttachmentResolved> = emptyList(),
-    ): String = buildString {
-        appendLine("文書ビュー: ${view.name}（${view.id}） 対象: $rel")
-        view.description?.let { appendLine(it.trim()) }
-        sections.forEachIndexed { i, resolved ->
-            val section = resolved.section
-            if (section.fieldsPath != null) {
-                val at = if (section.fieldsPath.isEmpty()) "(root)" else section.fieldsPath.pretty()
-                append("セクション${i + 1}: ${section.label ?: "フォーム"}（フォーム）  [$rel :: $at]")
-                if (section.fieldsInclude.isNotEmpty()) append("（選別: ${section.fieldsInclude.joinToString(", ")}）")
-                if (section.fieldsExclude.isNotEmpty()) append("（除外: ${section.fieldsExclude.joinToString(", ")}）")
-                appendLine()
-            } else {
-                appendLine("セクション${i + 1}: ${section.label ?: "被参照"}（被参照表）")
-                appendBacklinkRows(rel, section.backlinks, resolved.rows.orEmpty())
-            }
-        }
-        attachments.forEach { resolved ->
-            appendLine("アタッチ: ${resolved.attachment.label ?: "被参照"}（at: ${resolved.attachment.atText}）")
-            appendBacklinkRows(rel, resolved.attachment.backlinks, resolved.rows)
-        }
-    }.trimEnd()
-
-    /** 被参照表の行群のテキスト表現（セクション・アタッチ共用）。 */
-    private fun StringBuilder.appendBacklinkRows(rel: String, def: DocBacklinksDef?, rows: List<DocBacklinkRow>) {
-        if (rows.isEmpty()) appendLine("    （対象IDなし）")
-        for (row in rows) {
-            append("- ").append(row.id)
-            row.title?.let { append("  ").append(it) }
-            appendLine("  [$rel :: ${row.path.pretty()}]")
-            if (row.backlinks.isEmpty()) appendLine("    （被参照なし）")
-            for (b in row.backlinks) {
-                append("    ← ")
-                append(listOfNotNull(b.sourceId ?: b.rel, b.sourceTitle).joinToString(" "))
-                b.attributes?.let { append("（").append(it).append("）") }
-                append("  [").append(b.rel).append(" :: ").append(b.refPath.pretty()).append("]")
-                def?.columns?.forEachIndexed { ci, col ->
-                    append("  ").append(col.label).append(": ").append(cellText(b.values.getOrNull(ci)))
-                }
-                appendLine()
-            }
-        }
+    ): String {
+        val relByDoc = mutableMapOf<model.DocumentId, String>()
+        fun toKernelRow(row: DocBacklinkRow): semantic.VirtualDocBacklinkRow = semantic.VirtualDocBacklinkRow(
+            id = row.id,
+            title = row.title,
+            path = row.path,
+            backlinks = row.backlinks.map { b ->
+                val d = model.DocumentId(b.file.toString()).also { relByDoc[it] = b.rel }
+                semantic.VirtualDocBacklinkItem(b.sourceId, b.sourceTitle, d, b.refPath, b.relation, b.attributes, b.values)
+            },
+        )
+        return VirtualViews.renderDocText(
+            toKernel(view), rel,
+            sections.map { s -> semantic.VirtualDocSectionResolved(toKernel(s.section), s.rows?.map(::toKernelRow)) },
+            attachments.map { a -> semantic.VirtualDocAttachmentResolved(toKernel(a.attachment), a.rows.map(::toKernelRow)) },
+            relOf = { relByDoc[it] ?: it.value },
+        )
     }
 
-    /** セル値の1行要約。 */
-    /**
-     * ref 値の注記つきセル表示（R19-05）: 索引でタイトルへ解決できるIDは「ID（タイトル）」を添える。
-     * 従来「（配列 n 件）」だった参照配列も、全要素がスカラーで1件以上IDに解決できるなら中身を展開する。
-     * 値そのものはID（括弧はエージェント向けの注記）——パッチにはIDだけを書く前提は変えない。
-     */
-    private fun refAnnotatedCellText(value: YNode?, index: IdIndex?): String {
-        if (index == null) return cellText(value)
-        fun annotate(scalar: YNode.Scalar): String? {
-            val id = scalar.value?.toString() ?: return null
-            val title = index.occurrences(id).firstNotNullOfOrNull { it.title } ?: return null
-            return "$id（$title）"
-        }
-        when (value) {
-            is YNode.Scalar -> annotate(value)?.let { return it }
-            is YNode.Seq -> {
-                val scalars = value.items.filterIsInstance<YNode.Scalar>()
-                val resolvable = scalars.size == value.items.size &&
-                    scalars.any { index.occurrences(it.value?.toString() ?: "").isNotEmpty() }
-                if (resolvable) {
-                    val joined = scalars.joinToString(", ") { annotate(it) ?: cellText(it) }
-                    return if (joined.length > 200) joined.take(200) + "…" else joined
-                }
-            }
-            else -> {}
-        }
-        return cellText(value)
-    }
-
-    fun cellText(value: YNode?, maxLength: Int = 80): String = when (value) {
-        null -> "（未設定）"
-        is YNode.Scalar -> {
-            val text = value.value?.toString() ?: "null"
-            val single = text.replace("\n", " ")
-            if (single.length > maxLength) single.take(maxLength) + "…" else single
-        }
-        is YNode.Seq -> "（配列 ${value.items.size} 件）"
-        is YNode.Map -> "（オブジェクト: ${value.entries.keys.take(4).joinToString(", ")}${if (value.entries.size > 4) "…" else ""}）"
-    }
+    /** セル値の1行要約（本体はカーネル。UI・CLI の既存呼び出しの互換維持）。 */
+    fun cellText(value: YNode?, maxLength: Int = 80): String = VirtualViews.cellText(value, maxLength)
 }

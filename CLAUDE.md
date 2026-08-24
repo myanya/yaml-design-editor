@@ -42,7 +42,7 @@ Kotlin + Compose for Desktop 製のスキーマ駆動YAMLエディタ。ワー�
 
 ## 3層コア（コアに触る前に必読）
 
-in-repoマルチモジュール化による3層コア切り出しは**計画の全フェーズ（Phase 0〜12・M1〜M5）完了**（計画: [docs/THREE-LAYER-CORE-MIGRATION-PLAN.md](docs/THREE-LAYER-CORE-MIGRATION-PLAN.md)・記録: [docs/MIGRATION-LEDGER.md](docs/MIGRATION-LEDGER.md)）。現在は**併存期**——アプリ（UI）は旧経路のまま動き、新経路はコア3モジュール＋`cli` が提供する（委譲シェルで一致を担保）。残課題（6E仮想文書・derive/メタスキーマreader・イベントwatch・UIの新API接続）は移行後テーマとして個別判断。コアを触る際の規約は docs/CONVENTIONS.md §8 と以下＝**引き続き有効**:
+in-repoマルチモジュール化による3層コア切り出しは**計画の全フェーズ（Phase 0〜12・M1〜M5）完了**（計画: [docs/THREE-LAYER-CORE-MIGRATION-PLAN.md](docs/THREE-LAYER-CORE-MIGRATION-PLAN.md)・記録: [docs/MIGRATION-LEDGER.md](docs/MIGRATION-LEDGER.md)）。現在は**併存期**——アプリ（UI）は旧経路のまま動き、新経路はコア3モジュール＋`cli` が提供する（委譲シェルで一致を担保）。残課題（derive/メタスキーマreader・イベントwatch・UIの新API接続）は移行後テーマ（docs/POST-MIGRATION-REFACTORING-PLAN.md）として個別判断——6E仮想文書は完了（RC-01〜03。ビューの解決・テキスト表現はカーネル `semantic/VirtualViews.kt`、root `core/Views.kt` は変換シェル）。コアを触る際の規約は docs/CONVENTIONS.md §8 と以下＝**引き続き有効**:
 
 - [docs/decisions/](docs/decisions/README.md) のADRは本書・CONVENTIONS と同格の規約。特に: 依存方向 `yaml-core ← semantic-core ← workspace-core ← cli／アプリ`（coreからアプリ・Compose・`Path` への逆依存禁止。ADR-0002）／可変YNode＋copy-on-write規律（ADR-0003）／Undo・履歴はworkspace-core単一所有（ADR-0006）／表記→意味の禁止（ADR-0008）。
 - 移行は**移動であって複製ではない**。移動後もアプリ含む `./gradlew test` を緑に保つ。移行中のパッケージ改名は禁止（`model`・`yaml` 等のパッケージ名のままモジュールへ移す）。
