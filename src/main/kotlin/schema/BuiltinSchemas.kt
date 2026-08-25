@@ -10,11 +10,11 @@ import java.nio.file.Path
  */
 object BuiltinSchemas {
 
-    /** `_schemas/` に適用されるメタスキーマのID（R11-02）。core.Workspace.schemaFor が参照する。 */
-    const val META_SCHEMA_ID = "builtin-schema"
+    /** `_schemas/` に適用されるメタスキーマのID（R11-02）。core.Workspace.schemaFor が参照する（定数の正はコア。C-2）。 */
+    const val META_SCHEMA_ID = workspace.WorkspaceReader.META_SCHEMA_ID
 
     /** 関係レジストリ文書（kind: relations。R20-02）に適用されるメタスキーマのID。 */
-    const val RELATIONS_SCHEMA_ID = "builtin-relations"
+    const val RELATIONS_SCHEMA_ID = workspace.WorkspaceReader.RELATIONS_SCHEMA_ID
 
     /**
      * 組込みメタスキーマ（R11-02）: スキーマ定義そのものをフォーム編集・検証・AI生成の対象にする。
@@ -1627,4 +1627,21 @@ object BuiltinSchemas {
     /** 組込みスキーマの原文（テスト用: すべてがメタスキーマ検証を通ることのドッグフーディングに使う）。 */
     internal val allYamlTexts: List<String>
         get() = listOf(metaSchemaYaml, relationsSchemaYaml, agentSchemaYaml, activitySchemaYaml, evalSchemaYaml, skillSchemaYaml, viewSchemaYaml)
+
+    /**
+     * 組込みスキーマをコア reader / session の注入形式へ写す（C-2）。メタスキーマ適用・定義ゾーンの
+     * 構造検証を新経路でも成立させるための併存期ブリッジで、C-4（資源化）で core 自身の供給に置き換える。
+     */
+    fun kernelSchemas(layout: WorkspaceLayout): List<workspace.WorkspaceSchema> =
+        forLayout(layout).map { b ->
+            workspace.WorkspaceSchema(
+                id = b.id,
+                kind = b.kind,
+                match = b.match,
+                structural = b.structural,
+                entities = b.entities,
+                isTemplate = false,
+                source = model.DocumentId(b.source.toString().replace('\\', '/')),
+            )
+        }
 }

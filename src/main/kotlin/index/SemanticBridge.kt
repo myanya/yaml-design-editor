@@ -63,3 +63,30 @@ fun IdIndex.toKernelView(): KernelIndexView {
     val entries = aggregateEntries(scans)
     return KernelIndexView(scans, entries, scans.flatMap { it.refs }, SemanticEntityGraph.build(scans, entries))
 }
+
+/**
+ * セッション派生の走査結果から IdIndex ファサードを構築する（A-1 後半・RA-02）。
+ * セッション座標（DocumentId＝ワークスペース相対パス）を UI 座標（絶対 Path）へ写し、
+ * 集約（entries / refs / graph）は IdIndex 自身の derive に任せる＝並び・グラフ導出は従来と同一。
+ * `state.overlayIndex()` の供給元がこれに切り替わり、UI の「見たまま判定」はカーネル導出になる（UX-03）。
+ */
+fun derivedIdIndex(scans: List<DocumentScan>, workspace: Path): IdIndex {
+    val index = IdIndex()
+    index.populate(
+        scans.map { scan ->
+            val file = workspace.resolve(scan.document.value).normalize()
+            IdIndex.PopulatedScan(
+                file = file,
+                documentId = scan.documentId,
+                ids = scan.ids.map { IdEntry(it.id, file, it.path, it.title, it.schemaId, it.documentId, it.entityType, it.role) },
+                refs = scan.refs.map {
+                    RefEntry(
+                        it.targetId, file, it.path, it.viaKey, it.idPatterns, it.scope,
+                        it.relation, it.sourceSchemaId, it.attributes, it.targetKind,
+                    )
+                },
+            )
+        }
+    )
+    return index
+}

@@ -42,7 +42,7 @@ Kotlin + Compose for Desktop 製のスキーマ駆動YAMLエディタ。ワー�
 
 ## 3層コア（コアに触る前に必読）
 
-in-repoマルチモジュール化による3層コア切り出しは**計画の全フェーズ（Phase 0〜12・M1〜M5）完了**（計画: [docs/THREE-LAYER-CORE-MIGRATION-PLAN.md](docs/THREE-LAYER-CORE-MIGRATION-PLAN.md)・記録: [docs/MIGRATION-LEDGER.md](docs/MIGRATION-LEDGER.md)）。現在は**併存期**——アプリ（UI）は旧経路のまま動き、新経路はコア3モジュール＋`cli` が提供する（委譲シェルで一致を担保）。残課題（derive/メタスキーマreader・イベントwatch・UIの新API接続）は移行後テーマ（docs/POST-MIGRATION-REFACTORING-PLAN.md）として個別判断——6E仮想文書は完了（RC-01〜03。ビューの解決・テキスト表現はカーネル `semantic/VirtualViews.kt`、root `core/Views.kt` は変換シェル）。コアを触る際の規約は docs/CONVENTIONS.md §8 と以下＝**引き続き有効**:
+in-repoマルチモジュール化による3層コア切り出しは**計画の全フェーズ（Phase 0〜12・M1〜M5）完了**（計画: [docs/THREE-LAYER-CORE-MIGRATION-PLAN.md](docs/THREE-LAYER-CORE-MIGRATION-PLAN.md)・記録: [docs/MIGRATION-LEDGER.md](docs/MIGRATION-LEDGER.md)）。現在は**併存期**——アプリ（UI）は旧経路のまま動き、新経路はコア3モジュール＋`cli` が提供する（委譲シェルで一致を担保）。残課題（イベントwatch・UIの新API接続）は移行後テーマ（docs/POST-MIGRATION-REFACTORING-PLAN.md）として個別判断——6E仮想文書（RC-01〜03。解決・テキスト表現はカーネル `semantic/VirtualViews.kt`、root `core/Views.kt` は変換シェル）と derive/メタスキーマreader（RC-04。展開コアは `semantic-core/schema/SchemaDerivation.kt`・組込注入は `BuiltinSchemas.kernelSchemas`）は完了。コアを触る際の規約は docs/CONVENTIONS.md §8 と以下＝**引き続き有効**:
 
 - [docs/decisions/](docs/decisions/README.md) のADRは本書・CONVENTIONS と同格の規約。特に: 依存方向 `yaml-core ← semantic-core ← workspace-core ← cli／アプリ`（coreからアプリ・Compose・`Path` への逆依存禁止。ADR-0002）／可変YNode＋copy-on-write規律（ADR-0003）／Undo・履歴はworkspace-core単一所有（ADR-0006）／表記→意味の禁止（ADR-0008）。
 - 移行は**移動であって複製ではない**。移動後もアプリ含む `./gradlew test` を緑に保つ。移行中のパッケージ改名は禁止（`model`・`yaml` 等のパッケージ名のままモジュールへ移す）。
@@ -53,7 +53,7 @@ in-repoマルチモジュール化による3層コア切り出しは**計画の�
 ## 落とし穴（要注意）
 
 - `YNode` は Compose の State ではない。ビューは `doc.version` / `state.indexVersion` を読んで再コンポーズを購読する。読み忘れると画面が更新されない。
-- `IdIndex` はディスク基準（正）。未保存編集の参照解決は `DocScanner.scan` によるローカルIDを重ねて判定する二層構造（docs/ARCHITECTURE.md §4.5）。更新は変更ファイル単位の増分（`update`）だが、**スキーマが変わったら必ず `rebuild`**（走査規則が変わるため）。保存・外部変更でのこの振り分けは `Workspace.noteDiskChanges` に一元化されている（R9-02）——AppState 側に振り分けを書かない。**UI層は `state.index` でなく `state.overlayIndex()`**（dirty文書を重ねたオーバーレイ索引＝「見たまま判定」。UX-03）を読み、`remember` のキーに `state.editVersion` を含める。ヘッドレス経路（CLI・エージェント）はディスク索引のまま。
+- `IdIndex` はディスク基準（正）。未保存編集の参照解決は `DocScanner.scan` によるローカルIDを重ねて判定する二層構造（docs/ARCHITECTURE.md §4.5）。更新は変更ファイル単位の増分（`update`）だが、**スキーマが変わったら必ず `rebuild`**（走査規則が変わるため）。保存・外部変更でのこの振り分けは `Workspace.noteDiskChanges` に一元化されている（R9-02）——AppState 側に振り分けを書かない。**UI層は `state.index` でなく `state.overlayIndex()`**（dirty文書を重ねた「見たまま判定」。UX-03。供給元は RA-02 でセッション派生＝`index.derivedIdIndex` ファサードに切替済み・挙動は同一）を読み、`remember` のキーに `state.editVersion` を含める。ヘッドレス経路（CLI・エージェント）はディスク索引のまま。
 - YAML はコメント・表記スタイルを保持する（R8-01）。ノードを**置換**する経路では `inheritMetaFrom` で引き継ぐ（`Slot.set` / `Patcher` は対応済み）。構造の比較・派生成果物の出力は `dump` ではなく `YamlIO.dumpPlain`（コメント・スタイルで揺れるため。docs/ARCHITECTURE.md §4.17）。複数ドキュメントYAMLの書込は `OpenDocument`（`parseAll`/`dumpAll`）に閉じ、読み取り専用経路だけ `parseFirst` を使う。
 - スキーマの `FieldDef` を使う際は必ず `schema.resolve(field)` を通す（`$ref` 解決）。object の子フィールドの列挙は必ず `schema.effectiveFields(fields, node)` を通す（enum の `cases` 合成。docs/ARCHITECTURE.md §4.7）。
 - フィールド型を追加する場合の変更箇所は docs/ARCHITECTURE.md §6 に列挙されている（4箇所以上に分岐が必要）。
@@ -63,7 +63,7 @@ in-repoマルチモジュール化による3層コア切り出しは**計画の�
 - UIシェルはスペース制（`app.UiSpace`: 編集・台帳・実行・設計。R12-01）。`uiSpace` の書き換えは `showSpace` / `showWorkspaceView` / ナビゲーション系メソッド経由に限る（ジャンプは編集／台帳へ着地する規約）。新しい画面をモーダル（AlertDialog）で作らない——確認ダイアログを除き、スペース内の常設画面にする。エージェント実行の状態は `RunController` に置き、コンポーザブルの `remember` へ戻さない（docs/ARCHITECTURE.md §4.24）。
 - エージェントの編集は必ず `agent/Staging`（オーバーレイ）経由。原本への書込は人間の承認（`Workspace.apply`）のみ。書込権限・予約ディレクトリ禁止は `AgentToolbox` が強制する（docs/ARCHITECTURE.md §4.10）。
 - ワークスペースの配置判定（予約ディレクトリ・台帳範囲・索引除外）は `schema/WorkspaceLayout` に一元化されている（R13-02）。機能側で `startsWith("_")` やディレクトリ名の直書き判定を書かない。`.yde/` 構成（定義は `.yde/schemas` 等・`ledger:` で台帳宣言）とレガシー構成（ルートの `_schemas` 等）の2モードがあり、`ledger` 宣言時は台帳外のYAMLが走査・索引・エージェントの対象外になる（エディタ層のスキーマ適用・単文書検証だけが効く。ARCHITECTURE §4.25）。`_runs/`（runs ゾーン）は索引対象外。
-- `_schemas/` 配下の文書にはメタスキーマ（`builtin-schema`）**だけ**が適用される（`Workspace.schemaFor`。一般スキーマの match は及ばない）。派生スキーマ（`derive:`）の**導出元文書**の変更はスキーマ変更と同じ扱い（`noteDiskChanges` が全再構築へ振り分け、自動適用は承認待ちへ降格）。derive の写像項目を増やすときは `SchemaLoader.parseDerive`・`DerivedSchemas`・メタスキーマの3箇所を対で更新する（docs/ARCHITECTURE.md §4.23）。
+- `_schemas/` 配下の文書にはメタスキーマ（`builtin-schema`）**だけ**が適用される（`Workspace.schemaFor`。一般スキーマの match は及ばない）。派生スキーマ（`derive:`）の**導出元文書**の変更はスキーマ変更と同じ扱い（`noteDiskChanges` が全再構築へ振り分け、自動適用は承認待ちへ降格）。derive の写像項目を増やすときは `semantic-core/schema/SchemaDerivation.kt`（parse・compile＝展開コアの実体。root の `SchemaLoader.parseDerive`・`DerivedSchemas` はシェル）とメタスキーマ（BuiltinSchemas）を対で更新する（docs/ARCHITECTURE.md §4.23）。
 - 定義文書（`_agents`/`_activities`/`_evals`/`_skills`/`_views`）への書込は `meta: true` のアクティビティのみ。`meta` かつ `approval: auto` はロード時に定義エラー。`_schemas`/`_runs` は meta でも書込不可。
 - ビュー（`_views`）はデータを持たない射影。セルは原本座標 `(file, YPath)` に解決され、UIは docCache ツリー直接編集、エージェントは `read_view`→既存 `apply_patch`。ビュー専用の書込経路を作らない（docs/ARCHITECTURE.md §4.14）。定義項目の追加は `core/Views.kt` の `parseView` と `BuiltinSchemas` の `builtin-view` を対で更新する。
 - skill は宣言型（import / export）が既定。コード実行skill（kind: run）は `skill/Runner.kt` の `Approval`（人間の事前承認。定義変更で失効）経由でしか実行できず、エージェント・自動実行からは起動不可（docs/ARCHITECTURE.md §4.21）。インポートは直接書かず変更セット（`Workspace.apply`）経由、エクスポートのYAML出力は禁止（原本主義）。入出力形式の追加は `skill/Tables.kt` に閉じる。

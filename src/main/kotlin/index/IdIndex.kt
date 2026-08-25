@@ -159,6 +159,20 @@ class IdIndex {
         return out
     }
 
+    /** populate の入力1件（ファイル単位の走査結果）。 */
+    data class PopulatedScan(val file: Path, val documentId: String, val ids: List<IdEntry>, val refs: List<RefEntry>)
+
+    /**
+     * 外部で組み立てた走査結果の一括投入（RA-02）。セッション派生（derived）を供給元にする
+     * IdIndex ファサードの構築（index.derivedIdIndex）が使う。既存の内容は置き換えられ、
+     * 集約（entries / refs / graph）は通常の derive と同じ経路＝並び・導出は従来と同一。
+     */
+    fun populate(scans: List<PopulatedScan>) {
+        byFile.clear()
+        scans.forEach { byFile[it.file] = FileScan(it.ids, it.refs, it.documentId) }
+        derive()
+    }
+
     /**
      * 変更・削除されたファイルの分だけ走査し直して索引を差し替える（R8-02: 増分更新）。
      * スキーマ自体が変わった場合は全ファイルの走査規則が変わるため、rebuild を使うこと。

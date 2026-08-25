@@ -97,6 +97,8 @@ class WorkspaceSession(
      * （性能最適化を無効化しても正しく動くことの保証。計画書 Phase 11 完了条件）。
      */
     private val incrementalDerive: Boolean = true,
+    /** 組込スキーマの注入口（C-2。メタスキーマ等。reload・スキーマ再構築でも維持される）。 */
+    private val builtins: List<WorkspaceSchema> = emptyList(),
     /** 時刻は注入し、テストで固定する（計画書§5）。末尾引数を維持（既存の末尾ラムダ呼び出し互換）。 */
     private val clock: () -> Instant = { Instant.now() },
 ) {
@@ -131,7 +133,7 @@ class WorkspaceSession(
     private var recordCounter = 0L
 
     init {
-        val loaded = WorkspaceReader.load(store, version = 0)
+        val loaded = WorkspaceReader.load(store, version = 0, builtins = builtins)
         layout = loaded.layout
         schemas = loaded.schemas
         schemaErrors = loaded.schemaErrors
@@ -314,9 +316,93 @@ class WorkspaceSession(
             known != null && store.read(id)?.text != known
         }
 
+    /**
+     * ストア側のファイル変更（保存・外部変更・削除）を増分で取り込む（root `Workspace.noteDiskChanges` の
+     * セッション版＝Phase A-1・RA-01。イベント駆動 watch（A-4）もこの入口を使う予定）。
+     * R9-02 と同じ振り分けで、走査規則が変わる変更だけ全再読込へ降格する:
+     * - スキーマゾーン・構成ディレクトリに触れる変更 → reload()（スキーマ束・割当・レイアウトの作り直し）
+     * - 未保存のworking変更・履歴・削除予約が残っている場合 → reload()（取り込みで巻き戻せない状態を作らない）
+     * - それ以外 → 変更文書だけストアから読み直し、増分導出で派生状態を更新する（結果は全再構築と一致）
+     * パース不能になった文書・ストアから消えた文書は文書集合から外れる（load と同じ扱い）。
+     */
+    fun noteStoreChanges(changed: Collection<DocumentId>, removed: Collection<DocumentId> = emptyList()): TransactionResult {
+        // 隠しパスは文書集合の対象外（load と同じ規則）——変更として渡されても無視する
+        val changedDocs = changed.filterNot { WorkspaceReader.hiddenPath(it.value, layout) }
+        val removedDocs = removed.filterNot { WorkspaceReader.hiddenPath(it.value, layout) }
+        val needsFullReload = (changedDocs + removedDocs).any { id ->
+            layout.zoneOf(id.value) == schema.WorkspaceLayout.Zone.SCHEMAS ||
+                (layout.configDir != null && id.value.startsWith("${layout.configDir}/")) ||
+                // derive の導出元文書の変更はスキーマ変更と同じ扱い（R11-03 / C-2。root noteDiskChanges と同型）
+                schemas.any { s -> s.derive?.matchesSource(id.value) == true }
+        } || undoStack.isNotEmpty() || redoStack.isNotEmpty() || dirtyDocuments().isNotEmpty()
+        if (needsFullReload) return reload()
+
+        val touched = mutableSetOf<DocumentId>()
+        val gone = mutableSetOf<DocumentId>()
+        for (id in removedDocs) {
+            if (workingDocuments.remove(id) != null) gone += id
+            storeTexts.remove(id)
+        }
+        for (id in changedDocs) {
+            val text = store.read(id)?.text
+            if (text == null) {
+                if (workingDocuments.remove(id) != null) gone += id
+                storeTexts.remove(id)
+                continue
+            }
+            storeTexts[id] = text
+            val parsed = runCatching { DefaultYamlCodec.parse(id, text) }.getOrNull()
+            if (parsed == null) {
+                if (workingDocuments.remove(id) != null) gone += id
+                continue
+            }
+            val rel = id.value
+            workingDocuments[id] = WorkspaceDocument(
+                document = parsed,
+                persistedText = DefaultYamlCodec.dump(parsed),
+                schemaId = WorkspaceReader.assignSchemaId(rel, parsed, schemas, layout),
+                inLedger = layout.inLedger(rel),
+            )
+            touched += id
+        }
+        version += 1
+        derived = deriveIncremental(workingDocuments, touched, gone, version)
+        return TransactionResult(true, null, version)
+    }
+
+    /**
+     * 未保存編集（UI層のオーバーレイ）を重ねた派生状態を導出する読み出しモデル（Phase A-1・RA-01。
+     * UX-03「見たまま判定」のカーネル供給版）。セッションの状態（working・履歴・version）は変えない。
+     * - overlays: 文書ID → 編集中の内容（null = パース不能。文書集合から外して判定する）
+     * - 構造検証は overlay 文書だけ再検証し、意味解析は SemanticEngine.update（増分導出と同じ正しさ経路）
+     * - スキーマ文書の overlay はスキーマ束へ反映しない（索引と同じ「保存で反映」の二層規律。§4.5）
+     */
+    fun derivedWith(overlays: Map<DocumentId, YDocument?>): WorkspaceDerivedState {
+        if (overlays.isEmpty()) return derived
+        val candidate = LinkedHashMap(workingDocuments)
+        val touched = mutableSetOf<DocumentId>()
+        val removedIds = mutableSetOf<DocumentId>()
+        for ((id, doc) in overlays) {
+            if (doc == null) {
+                if (candidate.remove(id) != null) removedIds += id
+                continue
+            }
+            val rel = id.value
+            val existing = candidate[id]
+            candidate[id] = WorkspaceDocument(
+                document = doc,
+                persistedText = existing?.persistedText,
+                schemaId = existing?.schemaId ?: WorkspaceReader.assignSchemaId(rel, doc, schemas, layout),
+                inLedger = existing?.inLedger ?: layout.inLedger(rel),
+            )
+            touched += id
+        }
+        return deriveIncremental(candidate, touched, removedIds, version)
+    }
+
     /** ストアから読み直す（外部変更の取り込み。履歴は破棄される）。 */
     fun reload(): TransactionResult {
-        val loaded = WorkspaceReader.load(store, version = version + 1)
+        val loaded = WorkspaceReader.load(store, version = version + 1, builtins = builtins)
         schemas = loaded.schemas
         schemaErrors = loaded.schemaErrors
         declarations = loaded.declarations
@@ -360,7 +446,7 @@ class WorkspaceSession(
                         candidate[op.documentId] = WorkspaceDocument(
                             document = op.document.copy(documents = op.document.documents.map { it.deepCopy() }),
                             persistedText = op.persistedText,
-                            schemaId = schemas.firstOrNull { it.matches(rel) }?.id,
+                            schemaId = WorkspaceReader.assignSchemaId(rel, op.document, schemas, layout),
                             inLedger = layout.inLedger(rel),
                         )
                         // 削除の巻き戻し（persistedText 付き）なら削除予約も取り消す
@@ -386,7 +472,7 @@ class WorkspaceSession(
                         val rel = op.to.value
                         candidate[op.to] = d.copy(
                             persistedText = op.toPersistedText,
-                            schemaId = schemas.firstOrNull { it.matches(rel) }?.id,
+                            schemaId = WorkspaceReader.assignSchemaId(rel, d.document, schemas, layout),
                             inLedger = layout.inLedger(rel),
                         )
                         // 移動元が保存済みなら削除予約（save で旧パスを消す）。巻き戻し（toPersistedText 付き）は予約取消
@@ -401,8 +487,9 @@ class WorkspaceSession(
             return TransactionResult(false, e.message ?: e.toString(), version)
         }
 
-        // スキーマ文書に触れた場合は候補の working 内容からスキーマ束を再構築し、全文書の割当を再評価する
-        // （WS-006。「スキーマが変わったら必ず rebuild」のセッション版。undo / redo も同経路で対称に戻る）
+        // スキーマ文書（または derive の導出元文書＝C-2）に触れた場合は候補の working 内容から
+        // スキーマ束を再構築し、全文書の割当を再評価する（WS-006。「スキーマが変わったら必ず rebuild」の
+        // セッション版。undo / redo も同経路で対称に戻る）
         val schemaTouched = operations.any { op ->
             val ids = when (op) {
                 is WorkspaceOperation.EditDocument -> listOf(op.documentId)
@@ -410,7 +497,10 @@ class WorkspaceSession(
                 is WorkspaceOperation.DeleteDocument -> listOf(op.documentId)
                 is WorkspaceOperation.MoveDocument -> listOf(op.from, op.to)
             }
-            ids.any { layout.zoneOf(it.value) == schema.WorkspaceLayout.Zone.SCHEMAS }
+            ids.any { id ->
+                layout.zoneOf(id.value) == schema.WorkspaceLayout.Zone.SCHEMAS ||
+                    schemas.any { s -> s.derive?.matchesSource(id.value) == true }
+            }
         }
         var newSchemas = schemas
         var newDeclarations = declarations
@@ -420,14 +510,13 @@ class WorkspaceSession(
                 .filter { layout.zoneOf(it.key.value) == schema.WorkspaceLayout.Zone.SCHEMAS }
                 .sortedBy { it.key.value }
                 .map { (id, d) -> id to DefaultYamlCodec.dump(d.document) }
-            val parsed = WorkspaceReader.parseSchemas(sources)
-            newSchemas = parsed.schemas
-            newDeclarations = parsed.declarations
-            newSchemaErrors = parsed.errors
+            // 組込＋derive 展開込みの再構築（導出元はセッションの working 状態＝候補。C-2）
+            val built = WorkspaceReader.buildSchemas(sources, builtins, candidate.map { (id, d) -> id to d.document }, layout)
+            newSchemas = built.schemas
+            newDeclarations = built.declarations
+            newSchemaErrors = built.errors
             for ((id, d) in candidate) {
-                val rel = id.value
-                val newId = if (layout.zoneOf(rel) == schema.WorkspaceLayout.Zone.SCHEMAS) null
-                else newSchemas.firstOrNull { it.matches(rel) }?.id
+                val newId = WorkspaceReader.assignSchemaId(id.value, d.document, newSchemas, layout)
                 if (newId != d.schemaId) candidate[id] = d.copy(schemaId = newId)
             }
         }

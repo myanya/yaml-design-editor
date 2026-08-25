@@ -28,38 +28,8 @@ data class CoverageRule(
     val isOccurrence: Boolean get() = detailSchemaIds.isNotEmpty()
 }
 
-/**
- * 型を決める写像（R11-03）: 導出元要素の `path` の値を `map`（値辞書）で FieldType の id に変換する。
- * 語彙（path / map / default）は skill の列マッピング（SK-02）と揃える。
- */
-data class DeriveTypeRule(
-    val path: String,                        // 型を決める値のパス（導出元要素からのドット区切り）
-    val map: Map<String, String> = emptyMap(), // 値辞書（例 varchar → string）
-    val default: String = FieldType.STRING.id, // 辞書に無い・未記入のときの型
-)
-
-/**
- * 派生スキーマの宣言（R11-03）: 「テーブル定義書のような実質スキーマの文書」から検証スキーマを
- * ロード時にコンパイルする写像。宣言したスキーマ自身は文書にマッチせず、テンプレートに徹する。
- */
-data class DeriveDef(
-    val from: String,                 // 導出元文書の glob（予約ディレクトリは不可）
-    val each: String? = null,         // 1文書内の複数要素から導出する場合の配列パス（null = 文書ルート）
-    val idPattern: String,            // 導出スキーマのID（{パス} が導出元要素の値で置換される）
-    val namePattern: String? = null,  // 導出スキーマの表示名（同上）
-    val matchPattern: String,         // 導出スキーマの適用先 glob（同上）
-    val fieldsPath: String,           // フィールド一覧にする配列のパス（導出元要素から相対）
-    val keyPath: String,              // 各要素のこの値 → field.key
-    val labelPath: String? = null,    // 任意 → field.label
-    val descriptionPath: String? = null, // 任意 → field.description
-    val requiredPath: String? = null, // 任意 → field.required（真偽値）
-    val typeRule: DeriveTypeRule? = null, // 任意 → field.type（省略時は string）
-) {
-    private val fromRegex: Regex by lazy { globToRegex(from) }
-
-    /** ワークスペース相対パスが導出元文書か（この文書の変更はスキーマ再構築の契機になる）。 */
-    fun matchesSource(relPath: String): Boolean = fromRegex.matches(relPath)
-}
+// DeriveDef / DeriveTypeRule（R11-03）は semantic-core の schema/SchemaDerivation.kt へ移動（C-2。
+// 展開コアを reader / session と共有するため）。同一パッケージのためこのファイルの利用箇所は変更なし。
 
 /**
  * スキーマ 1 件。`match` の glob にマッチするファイルへ適用される。
@@ -627,43 +597,8 @@ object SchemaLoader {
         return parsed.withDefinitionCatalog(catalog)
     }
 
-    /** 派生スキーマ宣言（R11-03）のパース。写像の語彙（path / map / default）は SK-02 と揃える。 */
-    private fun parseDerive(raw: Any?): DeriveDef? {
-        if (raw == null) return null
-        val m = raw as? Map<*, *> ?: error("derive は object である必要があります")
-        val from = m["from"]?.toString()?.takeIf { it.isNotBlank() } ?: error("derive.from（導出元文書の glob）が必要です")
-        val fromNorm = from.replace('\\', '/').trimStart('/')
-        require(!fromNorm.startsWith("_") && !fromNorm.startsWith(".")) { "derive.from に予約ディレクトリ・隠しディレクトリは指定できません: $from" }
-        val fieldsMap = m["fields"] as? Map<*, *> ?: error("derive.fields（フィールドの写像）が必要です")
-        val typeRule = when (val rawType = fieldsMap["type"]) {
-            null -> null
-            is Map<*, *> -> {
-                val path = rawType["path"]?.toString()?.takeIf { it.isNotBlank() }
-                    ?: error("derive.fields.type には path（型を決める値のパス）が必要です")
-                val dict = (rawType["map"] as? Map<*, *>)?.entries?.associate { (k, v) -> k.toString() to v.toString() } ?: emptyMap()
-                val default = rawType["default"]?.toString() ?: FieldType.STRING.id
-                (dict.values + default).forEach { typeId ->
-                    require(FieldType.entries.any { it.id == typeId }) { "derive.fields.type の型「$typeId」は未知の型です" }
-                }
-                DeriveTypeRule(path = path, map = dict, default = default)
-            }
-            else -> error("derive.fields.type は object（path / map / default）である必要があります")
-        }
-        return DeriveDef(
-            from = from,
-            each = m["each"]?.toString()?.takeIf { it.isNotBlank() },
-            idPattern = m["id"]?.toString()?.takeIf { it.isNotBlank() } ?: error("derive.id（導出スキーマのIDパターン）が必要です"),
-            namePattern = m["name"]?.toString(),
-            matchPattern = m["match"]?.toString()?.takeIf { it.isNotBlank() } ?: error("derive.match（導出スキーマの適用先 glob）が必要です"),
-            fieldsPath = fieldsMap["source"]?.toString()?.takeIf { it.isNotBlank() }
-                ?: error("derive.fields.source（フィールドにする配列のパス）が必要です"),
-            keyPath = fieldsMap["key"]?.toString()?.takeIf { it.isNotBlank() } ?: error("derive.fields.key（キーの値パス）が必要です"),
-            labelPath = fieldsMap["label"]?.toString(),
-            descriptionPath = fieldsMap["description"]?.toString(),
-            requiredPath = fieldsMap["required"]?.toString(),
-            typeRule = typeRule,
-        )
-    }
+    /** 派生スキーマ宣言（R11-03）のパース。実装は semantic-core の SchemaDerivation（C-2 で移動）。 */
+    private fun parseDerive(raw: Any?): DeriveDef? = SchemaDerivation.parse(raw)
 
     // 意味宣言のパース本体は semantic-core の SemanticDeclParser（WS-002）。ここは委譲
     private fun parseEntities(raw: Any?): List<EntityDecl> = SemanticDeclParser.parseEntities(raw)

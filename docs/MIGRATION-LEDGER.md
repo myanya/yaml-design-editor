@@ -42,6 +42,9 @@
 | RC-01 | 仮想ビュー第1弾: グリッド解決のカーネル化（VirtualViews・宣言/結果のカーネル型・root resolve のシェル化） | semantic-core | done | なし（シェル経由で ViewsTest 緑＝一致証明） | 移行後計画 C-1・2026-08-23 |
 | RC-02 | 仮想ビュー第2弾: 文書ビュー解決のカーネル化（resolveDocument / resolveAttachments・DocResolver） | semantic-core | done | なし（シェル経由で ViewsTest 緑＝一致証明） | 移行後計画 C-1・2026-08-23 |
 | RC-03 | 仮想ビュー第3弾: テキスト表現のカーネル化（renderText / renderDocText / cellText）＋残置判断の記録 | semantic-core | done | なし（シェル経由で ViewsTest 緑＝一致証明） | 移行後計画 C-1・2026-08-24 |
+| RA-01 | Phase A-1 前半: AppState への WorkspaceSession 併設（ディスク同期・noteStoreChanges・derivedWith＝見たまま派生の供給口） | workspace-core / app | done | 消費側の切替は未実施（C-2 が正しさの前提＝記録参照） | 移行後計画 A-1・2026-08-24 |
+| RC-04 | C-2: derive＋メタスキーマの reader / session 対応（SchemaDerivation を semantic-core へ移動・組込スキーマ注入・WS-002 v1 の残の解消） | semantic-core / workspace-core / app | done | cli は組込未注入のまま（C-4 の資源化で接続） | 移行後計画 C-2 前倒し（オーナー承認 2026-08-25） |
+| RA-02 | Phase A-1 後半: `state.overlayIndex()` の供給元をセッション派生へ切替（derivedIdIndex ファサード・IdIndex.populate・隠しパス規則の一致） | app / index / workspace-core | done | UI挙動の同一性は走査一致で担保（todos 実測含む）。**UX S1 再実施のトリガ対象** | 移行後計画 A-1・2026-08-25 ＝ **A-1 完了**（残: 一覧=A-2a・Validator本体=B-3） |
 | WS-001 | WorkspaceLayout の移動と DocumentStore（InMemory / FileSystem）新設 | workspace-core | done | 予約ディレクトリ名の正を Zone のリテラルへ | Phase 7前半（2026-08-19） |
 | WS-002 | 読取専用ワークスペース（WorkspaceReader）と意味宣言パーサの移動 | workspace-core / semantic-core | done | v1未対応: derive・メタスキーマ適用 | Phase 7後半（2026-08-19） |
 | WS-003 | 簡易CLIの最小配線（yaml parse / roundtrip・workspace validate・exit code契約） | cli | done | - | Phase 7完了（2026-08-19） |
@@ -260,6 +263,96 @@ semantic-core: ID/ref/entity graph・意味検証（重複・参照・グラフ�
   `_schemas` 文書へのメタスキーマ適用（schemas ゾーンは文書集合から除外）。CLI 配線（workspace validate）
   は WS-003（Phase 7 完了条件①の残り）
 完了確認コマンド: ./gradlew :workspace-core:test / ./gradlew test
+```
+
+### RA-02 Phase A-1 後半: overlayIndex の derived 供給化（done 2026-08-25）＝ A-1 完了
+
+```text
+旧実装: AppState.overlayIndex——ディスク索引（cw.index）へ dirty 文書を再走査して重ねる二層構造（UX-03）
+旧テスト: SessionReadParityTest（RA-01/RC-04 で走査の集合一致まで確認済み）
+新しい責務:
+  - index/SemanticBridge.derivedIdIndex(scans, workspace)——セッション派生の走査結果（DocumentScan 列）
+    から IdIndex ファサードを構築（kernel→root 方向の変換。セッション座標＝相対パスを絶対 Path へ）。
+    集約（entries / refs / graph）は IdIndex 自身の derive に任せる＝並び・グラフ導出は従来と同一
+  - IdIndex.populate——外部で組み立てた走査結果の一括投入口
+  - AppState.overlayIndex——供給元を derivedState()（セッション＋dirty overlay のカーネル増分導出）へ切替。
+    セッションを開けていない場合だけ従来の二層 overlay へフォールバック（legacyOverlayIndex）
+  - WorkspaceReader.hiddenPath——隠しパス規則（root WorkspaceScan.walk と同一: 隠しファイル常時除外・
+    隠しディレクトリは .yde 自身のみ許可）を load / noteStoreChanges に適用（store.list は全YAMLを
+    返すため、ゾーン内の隠しサブディレクトリで差が出るのを防ぐ）
+維持する挙動: UI の全消費箇所（検証・カバレッジ・ビュー行集合・参照解決・ジャンプ・検索）の判定結果。
+  一致証明: SessionReadParityTest「derivedIdIndex ファサードが overlayIndex と完全一致する」
+  （entries / refs の並び含む完全一致・グラフ導出・代表出現の解決）＋実ワークスペース todos での
+  一時検証（entries / refs 完全一致を実測・使い捨てテストで確認後削除）
+意図的に変える挙動: なし
+未解決事項:
+  - 一覧（WorkspaceRecords / bulkKeyCandidates）は cw＋loader のまま＝A-2a（Records の再実装）で切替
+  - validateWorkspace は Validator 本体（coverage / consistency / phase）を残し入力の索引だけ derived 化
+    ＝完全置換は B-3。iterate する file 集合も cw.files のまま
+  - UX: AppState の供給切替のため UX-SCENARIOS S1（全体通し）の再実施がトリガ（R17 運用・オーナー実施）
+完了確認コマンド: ./gradlew test（全モジュール）
+```
+
+### RC-04 C-2: derive＋メタスキーマの reader / session 対応（done 2026-08-25）＝ WS-002 v1 の残の解消
+
+```text
+旧実装: derive の宣言（DeriveDef / DeriveTypeRule）とパース（SchemaLoader.parseDerive）・展開
+  （DerivedSchemas）は root の schema パッケージのみ。kernel reader はテンプレートを「マッチしない」
+  扱いにするだけで展開せず、`_schemas` 文書へのメタスキーマ適用も無し（WS-002 v1 の既知の残）
+旧テスト: root の derive 系テスト（シェル経由で緑＝一致証明）。新設 DeriveMetaTest（workspace-core）4件・
+  SessionReadParityTest へ2件追加（derive 走査一致・実組込メタスキーマの適用）
+新しい責務:
+  - semantic-core/schema/SchemaDerivation.kt——DeriveDef / DeriveTypeRule / parse（旧 parseDerive）と
+    展開コア compile（導出単位の列挙・プレースホルダ置換・フィールド写像）。root DerivedSchemas は
+    ファイル走査＋SchemaDef 包装のシェルへ（エラーメッセージは従来と同一）
+  - workspace/WorkspaceReader——buildSchemas（利用者→組込→derive 展開の組み立て。宣言スキーマの直後に
+    挿入＝先勝ち規則も root と同一）・assignSchemaId（schemas ゾーンにはメタスキーマだけ・kind: relations
+    には関係レジストリのメタスキーマ）・META_SCHEMA_ID / RELATIONS_SCHEMA_ID 定数の正はコア側へ
+  - WorkspaceReader.load / WorkspaceSession——組込スキーマの注入口（builtins）。セッションは
+    スキーマ再構築（WS-006）でも buildSchemas を使い、導出元文書の変更をスキーマ変更と同じ扱いにする
+    （applyOperations の schemaTouched・noteStoreChanges の全再読込降格＝root noteDiskChanges と同型）
+  - schema/BuiltinSchemas.kernelSchemas(layout)——組込スキーマをコアの注入形式へ写す併存期ブリッジ。
+    AppState.openSession が注入し、`_schemas`・定義ゾーン（_agents 等）の検証・割当が旧経路と揃う
+維持する挙動: root 経路のすべて（derive テスト・スキーマ一覧・エラーメッセージ）
+意図的に変える挙動: なし（新経路の機能追加＝旧経路との一致方向）
+未解決事項:
+  - cli（新経路単体）は組込スキーマ未注入のまま＝`_schemas`・定義ゾーンの検証なし（従来どおり）。
+    C-4（BuiltinSchemas 資源化）で core 自身の供給に置き換えて接続する
+  - これで A-1 後半（overlayIndex / validateWorkspace の消費切替）の正しさの前提が揃った。
+    validateWorkspace の「完全置換」（Validator 本体の移設）は B-3 のまま——ただし A-1 後半は
+    Validator を残して入力（索引）だけ derived 供給へ切り替える設計が可能になった
+完了確認コマンド: ./gradlew test（全モジュール）
+```
+
+### RA-01 Phase A-1 前半: セッション併設と「見たまま」派生の供給口（done 2026-08-24）
+
+```text
+旧実装: AppState の読み経路は core.Workspace＋IdIndex（overlayIndex＝UX-03 の二層構造）のまま
+旧テスト: 既存の AppState 経路テストは無し。新設 SessionReadParityTest（root）が新旧の走査一致を固定
+新しい責務:
+  - workspace/WorkspaceSession.noteStoreChanges(changed, removed)——ストア変更の増分取り込み
+    （root Workspace.noteDiskChanges のセッション版。スキーマゾーン・構成ディレクトリ・
+    未保存working/履歴ありは reload() へ降格＝R9-02 と同型の振り分け。A-4 の watch もこの入口を使う）
+  - workspace/WorkspaceSession.derivedWith(overlays)——未保存編集を重ねた派生状態の読み出しモデル
+    （UX-03「見たまま判定」のカーネル供給版。構造検証は overlay 文書のみ再検証・意味解析は
+    SemanticEngine.update＝増分導出と同じ正しさ経路。セッション状態は変えない。
+    スキーマ文書の overlay はスキーマ束へ反映しない＝索引と同じ「保存で反映」の二層規律）
+  - app/AppState——session 併設（openWorkspace/reload で開き直し・保存/外部変更検出で
+    syncSessionWithDisk＝増分同期・レイアウト変化で開き直し）と derivedState()
+    （dirty docCache を overlay 化して derivedWith。(indexVersion, editVersion) キャッシュ）
+維持する挙動: すべて（UI消費は旧経路のまま＝画面挙動は不変。セッションは併設の読み出し口のみ）
+意図的に変える挙動: なし
+テスト: IncrementalDeriveTest へ3件（noteStoreChanges 増分＝oracle 一致・スキーマ変更の降格・
+  derivedWith の oracle 一致とセッション不変）。SessionReadParityTest 2件（ディスク状態と
+  未保存オーバーレイの走査結果＝ID・参照が旧経路 IdIndex/overlayIndex と一致）
+未解決事項（A-1 後半の前提）:
+  - 消費側の切替（overlayIndex / validateWorkspace の置換）は **C-2（derive＋メタスキーマの
+    reader/session 対応）が正しさの前提**——kernel reader は derive スキーマを展開しないため、
+    derive を使うワークスペースでは走査規則（スキーマ割当）が旧経路と一致しない。
+    validateWorkspace の完全置換はさらに B-3（coverage/consistency/phase の検証族移設）が前提
+  - 性能: reload() ごとに WorkspaceReader.load（全文書パース）が追加で走る（保存・外部変更は増分）。
+    大規模WSでは bench 計測を検討（計画書§6 リスク表）
+完了確認コマンド: ./gradlew :workspace-core:test test
 ```
 
 ### RC-03 仮想ビュー第3弾: テキスト表現のカーネル化と残置判断（done 2026-08-24）＝ 6E（SM-008 / C-1）完了

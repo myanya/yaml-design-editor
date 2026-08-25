@@ -159,6 +159,79 @@ class IncrementalDeriveTest {
     }
 
     @Test
+    fun `noteStoreChangesはストア変更を増分で取り込み全再構築と一致する`() {
+        val store = newStore()
+        val s = WorkspaceSession(store) { Instant.EPOCH }
+
+        // 外部変更: 参照切れ＋新規文書＋削除（セッションを介さずストアだけが変わる）
+        store.write(DocumentId("items/b.yaml"), "id: IT-002\ntitle: B2\nlink: IT-404\n")
+        store.write(DocumentId("items/d.yaml"), "id: IT-004\ntitle: D\n")
+        store.delete(DocumentId("items/c.yaml"))
+        val result = s.noteStoreChanges(
+            changed = listOf(DocumentId("items/b.yaml"), DocumentId("items/d.yaml")),
+            removed = listOf(DocumentId("items/c.yaml")),
+        )
+        assertTrue(result.ok)
+        assertMatchesOracle(s, "外部変更の増分取り込み")
+        assertTrue(s.derived.semantic.issues.any { "IT-404" in it.message }, "${s.derived.semantic.issues}")
+        assertTrue("IT-004" in s.derived.semantic.ids, "新規文書のIDが載る")
+        assertTrue("IT-003" !in s.derived.semantic.ids, "削除文書のIDが消える")
+        assertTrue(s.dirtyDocuments().isEmpty(), "取り込みは dirty を作らない（保存済み状態の同期）")
+    }
+
+    @Test
+    fun `noteStoreChangesはスキーマ変更を全再読込へ降格する`() {
+        val store = newStore()
+        val s = WorkspaceSession(store) { Instant.EPOCH }
+        // スキーマの required を外す外部変更 → 走査規則が変わるため reload 経路
+        store.write(
+            DocumentId("_schemas/item.yaml"),
+            store.read(DocumentId("_schemas/item.yaml"))!!.text.replace("required: true", "required: false"),
+        )
+        store.write(DocumentId("items/a.yaml"), "id: IT-001\n")
+        assertTrue(s.noteStoreChanges(listOf(DocumentId("_schemas/item.yaml"), DocumentId("items/a.yaml"))).ok)
+        assertMatchesOracle(s, "スキーマ外部変更")
+        assertTrue(
+            s.derived.structuralIssues.values.flatten().none { it.severity == validate.Severity.ERROR },
+            "required が外れているため title 欠落もエラーなし: ${s.derived.structuralIssues}",
+        )
+    }
+
+    @Test
+    fun `derivedWithは未保存overlayを重ねた派生を返しセッション状態を変えない`() {
+        val s = session()
+        val versionBefore = s.version
+        val overlay = s.derivedWith(
+            mapOf(
+                // 編集中: b の参照を未解決へ／新規の未保存文書 e を重ねる／c はパース不能（文書集合から外す）
+                DocumentId("items/b.yaml") to DefaultYamlCodec.parse(DocumentId("items/b.yaml"), "id: IT-002\ntitle: B\nlink: IT-999\n"),
+                DocumentId("items/e.yaml") to DefaultYamlCodec.parse(DocumentId("items/e.yaml"), "id: IT-005\ntitle: E\n"),
+                DocumentId("items/c.yaml") to null,
+            )
+        )
+        assertTrue(overlay.semantic.issues.any { "IT-999" in it.message }, "overlay の参照切れが見える: ${overlay.semantic.issues}")
+        assertTrue("IT-005" in overlay.semantic.ids, "未保存の新規文書のIDが行になる")
+        assertTrue("IT-003" !in overlay.semantic.ids, "パース不能 overlay は文書集合から外れる")
+        // oracle: overlay を反映した全再構築と一致する（正しさ経路の共有）
+        val t = s.apply(
+            WorkspaceTransaction(
+                s.version, ChangeIntent("oracle再現"),
+                listOf(
+                    WorkspaceOperation.EditDocument(DocumentId("items/b.yaml"), listOf(YamlOperation.SetScalar(parseYPath("link"), "IT-999"))),
+                    WorkspaceOperation.CreateDocument(DocumentId("items/e.yaml"), DefaultYamlCodec.parse(DocumentId("items/e.yaml"), "id: IT-005\ntitle: E\n")),
+                    WorkspaceOperation.DeleteDocument(DocumentId("items/c.yaml")),
+                ),
+            )
+        )
+        assertTrue(t.ok, t.message ?: "")
+        assertEquals(s.derived.structuralIssues, overlay.structuralIssues, "構造検証が oracle と一致")
+        assertEquals(s.derived.semantic.ids, overlay.semantic.ids, "ID集約が oracle と一致")
+        assertEquals(s.derived.semantic.issues, overlay.semantic.issues, "意味指摘が oracle と一致")
+        // derivedWith 自体はセッション状態を変えない（上の apply までは version 不変だった）
+        assertEquals(versionBefore + 1, s.version, "derivedWith は version を進めない（進んだのは apply の1回だけ）")
+    }
+
+    @Test
     fun `増分導出を無効化しても同じ結果になる`() {
         val a = session(incremental = true)
         val b = session(incremental = false)

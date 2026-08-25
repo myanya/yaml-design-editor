@@ -87,7 +87,7 @@
 
 | 単位 | 内容 | 効果 |
 |---|---|---|
-| A-1 | AppState に WorkspaceSession を併設し、**読み取り経路**（validateWorkspace・一覧・overlayIndex 消費箇所）を derived へ切替。IdIndex は併存のまま | 「見たまま判定」が構造から保証され、overlayIndex（UX-03 の二層構造）が不要になる |
+| A-1 | ✅ **完了**（RA-01 2026-08-24・RA-02 2026-08-25）: AppState に WorkspaceSession を併設（noteStoreChanges＝増分取り込み・derivedWith＝見たまま派生）し、`state.overlayIndex()` の供給元をセッション派生へ切替（`index.derivedIdIndex` ファサード。UI の全消費箇所＝検証・カバレッジ・ビュー・参照解決が乗り換え）。一致証明: 並び含む完全一致テスト＋todos 実測。残: 一覧（WorkspaceRecords）は A-2a で・Validator 本体の移設は B-3 で。**UX S1 再実施のトリガ対象** | 「見たまま判定」が構造から保証され、overlayIndex（UX-03 の二層構造）が不要になる |
 | A-2a | **書込経路（人間）**: 保存・一括更新（WorkspaceRecords / bulkUpdate はトランザクション化＝undo 1回で戻る。INTENTIONAL-DIFFS 登録のうえ）を session apply / save へ | 書込集約（ADR-0005）の前半 |
 | A-2b | **書込経路（エージェント）**: Staging / AgentToolbox の適用（`Workspace.apply`）を session へ | 書込集約の後半。ADR-0004（共通エンジン＋overlay）と統合 |
 | A-3 | **EditBuffer → session 履歴**（D-03/D-07）。ソースペインの生テキスト編集Undoは UI 層の小さなバッファに残す（D-08） | Undo 単一所有。フォーム編集は型付き操作で記録 |
@@ -107,7 +107,7 @@
 | 単位 | 内容 |
 |---|---|
 | C-1 | ✅ **6E 仮想文書**（SM-008）**完了**（RC-01〜03・2026-08-24）: 解決（グリッド・文書ビュー）＋テキスト表現を semantic-core の仮想文書（写像＋来歴＋読み出しモデル）としてカーネル化し、root Views は変換シェル（ViewsTest がシェル経由で緑＝一致証明）。書込翻訳は不要と整理（原本座標へ解決済み→既存経路で完結。§4.14）。宣言パース・リント・スキャフォールドは SchemaDef 依存のため root 残置＝ Phase D / C-2 で移す（RC-03 記録）。UIの新API接続は Phase A で実施 |
-| C-2 | **derive＋メタスキーマ**の reader / session 対応（WS-002 v1 の残。`_schemas` 文書へのメタスキーマ適用含む） |
+| C-2 | ✅ **derive＋メタスキーマ**の reader / session 対応 **完了**（RC-04・2026-08-25。オーナー承認による前倒し）: SchemaDerivation（宣言・パース・展開コア）を semantic-core へ移動し root DerivedSchemas はシェル化。reader / session は buildSchemas（組込注入＋derive 展開）・assignSchemaId（メタスキーマ割当）を共有し、導出元文書の変更はスキーマ変更と同じ扱い。組込は BuiltinSchemas.kernelSchemas で AppState から注入（cli への接続は C-4 の資源化で） |
 | C-3 | 読み出しモデル層の置き場決定: Traverse emit・Disclosure・Search・SchemaInference・IdSuggest（semantic-core の読み出しモデル族 or アプリ側維持） |
 | C-4 | BuiltinSchemas の資源化（YM-006b と合流） |
 

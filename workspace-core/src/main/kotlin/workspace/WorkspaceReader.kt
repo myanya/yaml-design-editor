@@ -4,6 +4,7 @@ import model.DocumentId
 import model.YDocument
 import schema.EntityDecl
 import schema.SchemaCatalog
+import schema.SchemaDerivation
 import schema.SchemaKind
 import schema.SemanticDeclParser
 import schema.StructuralSchema
@@ -40,6 +41,8 @@ class WorkspaceSchema(
     val isTemplate: Boolean,
     /** スキーマ定義文書の座標（スキーマ・リファクタリングの書き換え先。RF-002b）。 */
     val source: DocumentId,
+    /** 派生スキーマの宣言（C-2）。非null のとき isTemplate＝true で、導出元文書の変更はスキーマ再構築の契機になる。 */
+    val derive: schema.DeriveDef? = null,
 ) {
     private val regex: Regex? =
         if (match.isBlank()) null else runCatching { globToRegex(match) }.getOrNull()
@@ -100,6 +103,12 @@ class SchemaLoadResult(
 
 object WorkspaceReader {
 
+    /** 組込メタスキーマのID（実体は当面ルート BuiltinSchemas＝C-4 で資源化予定。ルート側の定数はここを参照する）。 */
+    const val META_SCHEMA_ID = "builtin-schema"
+
+    /** 関係レジストリ用メタスキーマのID（kind: relations のスキーマ文書に適用）。 */
+    const val RELATIONS_SCHEMA_ID = "builtin-relations"
+
     /**
      * スキーマ文書のテキスト集合からスキーマ束を組み立てる（構造＋意味宣言・`$ref` の横断リンク）。
      * sources は（文書ID, 本文）の相対パス順。
@@ -117,7 +126,13 @@ object WorkspaceReader {
                 val raw = YamlIO.parseToRaw(text) as? Map<*, *> ?: error("スキーマのルートはobjectである必要があります")
                 val kind = SchemaKind.parse(raw["kind"]?.toString())
                 val structural = StructuralSchemaParser.parse(text, fallbackId)
-                val isTemplate = raw["derive"] != null
+                // 派生スキーマ宣言（R11-03 / C-2）。制約は SchemaLoader.parseSchemaText と同じ
+                val derive = SchemaDerivation.parse(raw["derive"])
+                if (derive != null) {
+                    require(kind == SchemaKind.DOCUMENT) { "derive は ${kind.id} スキーマには定義できません" }
+                    require(raw["match"] == null) { "derive 宣言スキーマに match は定義できません（適用先は derive.match で決まります）" }
+                }
+                val isTemplate = derive != null
                 val match = raw["match"]?.toString()
                     ?: if (kind == SchemaKind.DOCUMENT && !isTemplate) "**/*.{yaml,yml}" else ""
                 schemas += WorkspaceSchema(
@@ -128,6 +143,7 @@ object WorkspaceReader {
                     entities = SemanticDeclParser.parseEntities(raw["entity"]),
                     isTemplate = isTemplate,
                     source = id,
+                    derive = derive,
                 )
                 if (kind == SchemaKind.RELATIONS) {
                     SemanticDeclParser.parseRelations(raw["relations"]).forEach { relationsDecl[it.name] = it }
@@ -141,59 +157,142 @@ object WorkspaceReader {
         // `$ref` の横断解決（module#name）: 全モジュールの定義をリンクする（SchemaLoader と同じ流儀）
         val catalog = SchemaCatalog.linked(schemas.map { it.id to it.structural.definitions })
         val linked = schemas.map {
-            WorkspaceSchema(it.id, it.kind, it.match, it.structural.copy(definitionCatalog = catalog), it.entities, it.isTemplate, it.source)
+            WorkspaceSchema(it.id, it.kind, it.match, it.structural.copy(definitionCatalog = catalog), it.entities, it.isTemplate, it.source, it.derive)
         }
         return SchemaLoadResult(linked, SemanticDeclarations(relationsDecl, entityTypes, enforcement), errors)
     }
 
-    /** ワークスペースを読み取り、working snapshot と派生状態を組み立てる。 */
-    fun load(store: DocumentStore, version: Long = 0): LoadedWorkspace {
+    /**
+     * スキーマ束の組み立て（C-2）: 利用者スキーマのパース → 組込スキーマの追加（利用者定義が同IDなら
+     * 利用者優先＝SchemaLoader と同じ先勝ち規則）→ derive 展開（導出スキーマは宣言スキーマの直後に挿入）。
+     * load とセッションのスキーマ再構築（WS-006）が共有する。
+     */
+    fun buildSchemas(
+        schemaSources: List<Pair<DocumentId, String>>,
+        builtins: List<WorkspaceSchema>,
+        documents: List<Pair<DocumentId, YDocument>>,
+        layout: WorkspaceLayout,
+    ): SchemaLoadResult {
+        val parsed = parseSchemas(schemaSources)
+        val withBuiltins = parsed.schemas + builtins.filter { b -> parsed.schemas.none { it.id == b.id } }
+        val errors = parsed.errors.toMutableList()
+        val expanded = expandDerived(withBuiltins, documents, layout, errors)
+        return SchemaLoadResult(expanded, parsed.declarations, errors)
+    }
+
+    /** 導出元にできる文書＝台帳の一般文書のみ（root DerivedSchemas.listYamlFiles と同じ規則）。 */
+    private fun eligibleDeriveSource(rel: String, layout: WorkspaceLayout): Boolean =
+        !rel.substringAfterLast('/').startsWith(".") &&
+            !rel.startsWith("_") && !rel.startsWith(".") && layout.inLedger(rel)
+
+    /** derive 宣言スキーマを導出元文書から展開し、宣言スキーマの直後に挿入した一覧を返す（C-2）。 */
+    private fun expandDerived(
+        schemas: List<WorkspaceSchema>,
+        documents: List<Pair<DocumentId, YDocument>>,
+        layout: WorkspaceLayout,
+        errors: MutableList<String>,
+    ): List<WorkspaceSchema> {
+        val declaring = schemas.filter { it.derive != null }
+        if (declaring.isEmpty()) return schemas
+        val usedIds = schemas.map { it.id }.toMutableSet()
+        val byDeclaring = linkedMapOf<String, List<WorkspaceSchema>>()
+        for (template in declaring) {
+            val derive = template.derive ?: continue
+            val baseRoot = template.structural.resolve(template.structural.root) ?: template.structural.root
+            val sources = documents
+                .filter { (id, _) -> eligibleDeriveSource(id.value, layout) && derive.matchesSource(id.value) }
+                .map { (id, d) -> id.value to d.documents.firstOrNull() }
+            byDeclaring[template.id] = SchemaDerivation.compile(template.id, baseRoot, derive, sources, usedIds, errors)
+                .map { d ->
+                    WorkspaceSchema(
+                        id = d.id,
+                        kind = SchemaKind.DOCUMENT,
+                        match = d.match,
+                        // 導出スキーマはテンプレートの definitions / catalog を引き継ぐ（$ref は definitionScope で解決される）
+                        structural = template.structural.copy(id = d.id, root = d.root),
+                        entities = emptyList(),  // root DerivedSchemas と同じ（導出スキーマに entity 宣言は継がない）
+                        isTemplate = false,
+                        source = DocumentId(d.sourceRel),
+                    )
+                }
+        }
+        return schemas.flatMap { s -> listOf(s) + byDeclaring[s.id].orEmpty() }
+    }
+
+    /**
+     * 文書1件へのスキーマ割当（C-2 でメタスキーマ対応）。schemas ゾーンにはメタスキーマだけを適用し
+     * （kind: relations の文書には関係レジストリのメタスキーマ）、一般スキーマの match は及ばない
+     * （root Workspace.schemaFor と同じ規則）。load・セッション再構築・増分取り込みが共有する。
+     */
+    fun assignSchemaId(rel: String, document: YDocument, schemas: List<WorkspaceSchema>, layout: WorkspaceLayout): String? {
+        if (layout.zoneOf(rel) == WorkspaceLayout.Zone.SCHEMAS) {
+            val metaId = if (isRelationsDoc(document)) RELATIONS_SCHEMA_ID else META_SCHEMA_ID
+            return schemas.firstOrNull { it.id == metaId && it.matches(rel) }?.id
+        }
+        return schemas.firstOrNull { it.matches(rel) }?.id
+    }
+
+    /** schemas ゾーンの文書が関係レジストリ（kind: relations）か。 */
+    private fun isRelationsDoc(document: YDocument): Boolean {
+        val root = document.documents.firstOrNull() as? model.YNode.Map ?: return false
+        return model.scalarText(root.entries["kind"]) == SchemaKind.RELATIONS.id
+    }
+
+    /**
+     * ワークスペースを読み取り、working snapshot と派生状態を組み立てる。
+     * builtins は組込スキーマ（メタスキーマ等）の注入口（C-2。実体は当面ルート BuiltinSchemas＝
+     * C-4 の資源化で core 自身が持つ予定。未注入時はメタスキーマ適用が無いだけで他は同じ）。
+     */
+    fun load(store: DocumentStore, version: Long = 0, builtins: List<WorkspaceSchema> = emptyList()): LoadedWorkspace {
         val layout = detectLayout(store)
         val listing = store.list()
 
-        // 1) スキーマ読込（schemas ゾーン。相対パス順＝store.list の順）
-        val schemaSources = listing.filter { layout.zoneOf(it.id.value) == WorkspaceLayout.Zone.SCHEMAS }
-            .mapNotNull { doc -> store.read(doc.id)?.let { doc.id to it.text } }
-        val parsedSchemas = parseSchemas(schemaSources)
-        val schemaErrors = parsedSchemas.errors
-        val linked = parsedSchemas.schemas
-
-        // 3) 文書ロード（構成ファイルを除く全YAML。schemas / runs / agents 等の定義・記録ゾーンも
+        // 1) 文書ロード（構成ファイルを除く全YAML。schemas / runs / agents 等の定義・記録ゾーンも
         //    エディタ層の編集対象として文書に含む——スキーマ・リファクタリング（RF-002）は
         //    `_schemas` 文書への EditDocument で自身を書き換える。意味解析への載せ方は derive 側で絞る
-        val documents = linkedMapOf<DocumentId, WorkspaceDocument>()
+        val rawDocuments = linkedMapOf<DocumentId, YDocument>()
         val parseErrors = linkedMapOf<DocumentId, String>()
         for (doc in listing) {
             val rel = doc.id.value
-            val zone = layout.zoneOf(rel)
-            if (zone == null && layout.configDir != null && (rel == layout.configDir || rel.startsWith("${layout.configDir}/"))) continue
+            if (layout.zoneOf(rel) == null && layout.configDir != null &&
+                (rel == layout.configDir || rel.startsWith("${layout.configDir}/"))
+            ) continue
+            if (hiddenPath(rel, layout)) continue
             val text = store.read(doc.id)?.text ?: continue
-            val parsed = try {
-                DefaultYamlCodec.parse(doc.id, text)
+            try {
+                rawDocuments[doc.id] = DefaultYamlCodec.parse(doc.id, text)
             } catch (e: Exception) {
                 parseErrors[doc.id] = e.message ?: e.toString()
-                continue
             }
-            // `_schemas` 配下の文書には一般スキーマの match を適用しない（メタスキーマだけが適用される規則。
-            // メタスキーマ自体の適用は未対応＝WS-002 v1 の残）
-            val schema = if (zone == WorkspaceLayout.Zone.SCHEMAS) null else linked.firstOrNull { it.matches(rel) }
-            documents[doc.id] = WorkspaceDocument(
+        }
+
+        // 2) スキーマ束の組み立て（利用者スキーマ→組込→derive 展開。導出元は台帳の一般文書＝C-2）
+        val schemaSources = listing.filter { layout.zoneOf(it.id.value) == WorkspaceLayout.Zone.SCHEMAS }
+            .mapNotNull { doc -> store.read(doc.id)?.let { doc.id to it.text } }
+        val built = buildSchemas(schemaSources, builtins, rawDocuments.map { (id, d) -> id to d }, layout)
+        val linked = built.schemas
+
+        // 3) スキーマ割当（`_schemas` 配下はメタスキーマだけ・一般スキーマの match は及ばない）
+        val documents = linkedMapOf<DocumentId, WorkspaceDocument>()
+        for ((id, parsed) in rawDocuments) {
+            val rel = id.value
+            documents[id] = WorkspaceDocument(
                 document = parsed,
                 persistedText = DefaultYamlCodec.dump(parsed),
-                schemaId = schema?.id,
+                schemaId = assignSchemaId(rel, parsed, linked, layout),
                 inLedger = layout.inLedger(rel),
             )
         }
 
         // 4) 構造検証＋意味解析（WorkspaceSession の apply / undo / redo と共有する導出）
-        val declarations = parsedSchemas.declarations
+        val declarations = built.declarations
         val derived = derive(documents, linked, declarations, layout, version)
 
         return LoadedWorkspace(
             layout = layout,
             schemas = linked,
             declarations = declarations,
-            schemaErrors = schemaErrors,
+            schemaErrors = built.errors,
             parseErrors = parseErrors,
             snapshot = WorkspaceSnapshot(version, documents),
             derived = derived,
@@ -261,6 +360,22 @@ object WorkspaceReader {
             entities = sc?.entities ?: emptyList(),
             documentId = DocumentMeta.idOf(root, rel),
         )
+    }
+
+    /**
+     * 隠しパスの文書か（root WorkspaceScan.walk と同じ規則＝RA-02 で一致を明示）:
+     * 隠しファイルは常に対象外、隠しディレクトリは構成ディレクトリ（`.yde`）自身だけ許可
+     * （その配下の更なる隠しディレクトリには降りない）。store.list は全YAMLを返すため、ここで絞る。
+     */
+    fun hiddenPath(rel: String, layout: WorkspaceLayout): Boolean {
+        val parts = rel.split('/')
+        if (parts.last().startsWith(".")) return true
+        var prefix = ""
+        for (dir in parts.dropLast(1)) {
+            prefix = if (prefix.isEmpty()) dir else "$prefix/$dir"
+            if (dir.startsWith(".") && prefix != layout.configDir) return true
+        }
+        return false
     }
 
     /** ストアの内容から構成（レガシー／.yde）を判定する（WorkspaceLayout.of の DocumentStore 版）。 */

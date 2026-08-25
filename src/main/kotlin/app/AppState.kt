@@ -6,12 +6,18 @@ import androidx.compose.runtime.setValue
 import index.DocScanner
 import index.IdIndex
 import index.IdEntry
+import index.derivedIdIndex
 import index.idMatchesPattern
+import model.DocumentId
+import model.YDocument
 import model.YNode
 import model.YPath
 import schema.SchemaDef
 import schema.FieldDef
 import schema.SchemaLoader
+import workspace.FileSystemDocumentStore
+import workspace.WorkspaceDerivedState
+import workspace.WorkspaceSession
 import yaml.YamlIO
 import java.nio.file.Files
 import java.nio.file.Path
@@ -162,6 +168,13 @@ class AppState {
      */
     private var coreWs: core.Workspace? = null
 
+    /**
+     * 新経路のワークスペースセッション（移行後リファクタリング Phase A-1・RA-01 併設）。
+     * ディスク同期（reload・保存・外部変更）で旧経路と同じタイミングで追随する読み経路の供給元で、
+     * 書込には使わない（A-2 以降）。開けない場合も null のままアプリは旧経路で動き続ける。
+     */
+    private var session: WorkspaceSession? = null
+
     var schemas by mutableStateOf<List<SchemaDef>>(emptyList())
         private set
     var schemaErrors by mutableStateOf<List<String>>(emptyList())
@@ -208,22 +221,32 @@ class AppState {
     private var overlayCache: Pair<Pair<Int, Int>, IdIndex>? = null
 
     /**
-     * 未保存編集を重ねたオーバーレイ索引（UX-03）。dirty な文書キャッシュの編集中ツリーだけを
-     * ディスク索引に重ねた索引を返す（ARCHITECTURE §4.5）。UI層の検証・カバレッジ・ビュー行集合・
+     * 未保存編集を重ねたオーバーレイ索引（UX-03）。dirty な文書キャッシュの編集中ツリーを
+     * 重ねた「見たまま」の索引を返す（ARCHITECTURE §4.5）。UI層の検証・カバレッジ・ビュー行集合・
      * 参照解決はディスク索引（index）ではなく**こちら**を読む＝「見たままの状態で判定する」。
      * indexVersion / editVersion（Compose状態）を読むため、コンポジション中の呼び出しは自動で購読される。
      * `remember` の計算内で使う場合はキーに editVersion を含めること。
+     *
+     * A-1 後半（RA-02）: 供給元はセッション派生（derivedState＝カーネルの増分導出）で、IdIndex は
+     * 変換ファサード（index.derivedIdIndex）として残る。セッションを開けていない場合だけ
+     * 従来の二層 overlay（ディスク索引＋dirty 再走査）へフォールバックする。
      */
     fun overlayIndex(): IdIndex {
         val cw = coreWs ?: return index
         val key = indexVersion to editVersion
         overlayCache?.let { (k, cached) -> if (k == key) return cached }
+        val result = derivedState()?.let { derived -> derivedIdIndex(derived.semantic.scans, cw.root) }
+            ?: legacyOverlayIndex(cw)
+        overlayCache = key to result
+        return result
+    }
+
+    /** 従来の二層オーバーレイ（RA-02 のフォールバック。セッションを開けない場合のみ）。 */
+    private fun legacyOverlayIndex(cw: core.Workspace): IdIndex {
         val overlays = docCache.values
             .filter { it.dirty && isIndexed(it.file) }
             .associate { it.file to it.root }
-        val result = if (overlays.isEmpty()) cw.index else cw.overlayIndex(overlays)
-        overlayCache = key to result
-        return result
+        return if (overlays.isEmpty()) cw.index else cw.overlayIndex(overlays)
     }
 
     /** 開いたことのあるドキュメントのキャッシュ（未保存編集をファイル切替時にも保持する）。 */
@@ -379,6 +402,7 @@ class AppState {
     fun openWorkspace(dir: Path) {
         workspace = dir.toAbsolutePath().normalize()
         coreWs = null
+        session = null
         docCache.clear()
         openDoc = null
         highlightPath = null
@@ -400,6 +424,8 @@ class AppState {
         val ws = workspace ?: return
         val cw = coreWs?.also { it.refresh() } ?: core.Workspace.open(ws).also { coreWs = it }
         mirrorCore(cw)
+        // A-1: 新経路セッションもディスク再読込と同じタイミングで開き直す（レイアウト変化も追随する）
+        session = openSession(ws)
         directories = scanDirectories(ws)
         val existing = yamlFiles.toSet() + editorOnlyFiles
         docCache.keys.filter { it !in existing }.toList().forEach { removed ->
@@ -434,6 +460,62 @@ class AppState {
         indexVersion++
     }
 
+    // ---------------------------------------------------------------- 新経路セッション（A-1・RA-01）
+
+    /**
+     * 新経路セッションを開く（失敗してもアプリは旧経路で動き続ける）。
+     * 組込スキーマ（メタスキーマ等）を注入し、`_schemas`・定義ゾーンの検証を旧経路と揃える（C-2）。
+     */
+    private fun openSession(ws: Path): WorkspaceSession? = runCatching {
+        val wsLayout = coreWs?.layout ?: schema.WorkspaceLayout.of(ws)
+        WorkspaceSession(FileSystemDocumentStore(ws), builtins = schema.BuiltinSchemas.kernelSchemas(wsLayout))
+    }.getOrNull()
+
+    /**
+     * ディスク変更をセッションへ同期する（保存・外部変更検出から呼ぶ）。構成変更でレイアウトが
+     * 変わったときは開き直し、それ以外は増分取り込み（noteStoreChanges。スキーマ変更の
+     * 全再読込への降格はセッション側の責務＝R9-02 の振り分けと同型）。
+     */
+    private fun syncSessionWithDisk(changed: List<Path>, removed: List<Path> = emptyList()) {
+        val ws = workspace ?: return
+        val s = session ?: run { session = openSession(ws); return }
+        if (coreWs?.layout != s.layout) {
+            session = openSession(ws)
+            return
+        }
+        runCatching {
+            s.noteStoreChanges(
+                changed = changed.map { DocumentId(relPath(it)) },
+                removed = removed.map { DocumentId(relPath(it)) },
+            )
+        }.onFailure { session = openSession(ws) }
+    }
+
+    /** derivedState() のキャッシュ（(indexVersion, editVersion) が変わるまで再計算しない。overlayCache と同じ規律）。 */
+    private var derivedCache: Pair<Pair<Int, Int>, WorkspaceDerivedState>? = null
+
+    /**
+     * 新経路の派生状態（A-1・RA-01）: セッションのworking状態に未保存編集（dirty な docCache）を
+     * 重ねた「見たまま」の構造・意味派生（UX-03 のカーネル供給版）。indexVersion / editVersion を
+     * 読むため、コンポジション中の呼び出しは自動で購読される。
+     * 消費側（overlayIndex / validateWorkspace の置換）の切替は C-2（derive・メタスキーマの
+     * reader 対応）と B-3（検証族の移設）が正しさの前提のため、供給口だけ先行して併設する。
+     */
+    fun derivedState(): WorkspaceDerivedState? {
+        val s = session ?: return null
+        val key = indexVersion to editVersion
+        derivedCache?.let { (k, cached) -> if (k == key) return cached }
+        val overlays = docCache.values
+            .filter { it.dirty && isIndexed(it.file) }
+            .associate { doc ->
+                val id = DocumentId(relPath(doc.file))
+                id to doc.root?.let { YDocument(id, listOf(it) + doc.extraDocs) }
+            }
+        val result = s.derivedWith(overlays)
+        derivedCache = key to result
+        return result
+    }
+
     // ファイル走査は core.WorkspaceScan（ヘッドレス層）と共通の実装を使う。
     private fun scanDirectories(ws: Path): List<Path> = core.WorkspaceScan.directories(ws)
 
@@ -453,6 +535,10 @@ class AppState {
             removed = changed.filter { it !in next.keys },
         )
         mirrorCore(cw)
+        syncSessionWithDisk(
+            changed = changed.filter { it in next.keys },
+            removed = changed.filter { it !in next.keys },
+        )
         directories = scanDirectories(ws)
         docCache.values.forEach { it.schema = schemaFor(it.file) }
         indexVersion++
@@ -671,6 +757,7 @@ class AppState {
             coreWs?.let { cw ->
                 cw.noteDiskChanges(listOf(doc.file))
                 mirrorCore(cw)
+                syncSessionWithDisk(changed = listOf(doc.file))
                 // スキーマ本体だけでなく派生スキーマの導出元文書（R11-03）の保存でもスキーマ集合が変わるため、常に割り当て直す
                 docCache.values.forEach { it.schema = schemaFor(it.file) }
                 indexVersion++

@@ -66,7 +66,7 @@ src/main/kotlin/
 | `BuiltinSchemas` | schema/BuiltinSchemas.kt | 予約ディレクトリ用の組込みスキーマ。`builtin-schema`（R11-02）は `_schemas` 文書に適用されるメタスキーマ（再帰 `$ref` と `cases` のドッグフーディング） |
 | `RefNaming` / `SchemaInference` | schema/SchemaInference.kt | スキーマ推測（R11-01）: 既存文書群からのドラフト推測（純ロジック）。`RefNaming` は参照命名規約の共有実体（`DocScanner` が委譲。§4.23） |
 | `IdSuggest` | schema/IdSuggest.kt | ID自動採番（UX-64）: 既存ID集合からの次連番の決定的提案（純ロジック）。形式の源は field の `pattern`（UX-79）と entity 宣言・ビュー行の idPattern＝検証と同じ宣言を読む。フォームのID入力メニュー・ビュー新規行の初期値が消費 |
-| `DeriveDef` / `DerivedSchemas` | schema/Schema.kt, schema/DerivedSchemas.kt | 派生スキーマ（R11-03）: `derive:` 宣言のモデルと、導出元文書からのロード時コンパイル（§4.23） |
+| `DeriveDef` / `SchemaDerivation` / `DerivedSchemas` | semantic-core/schema/SchemaDerivation.kt（宣言・パース・展開コア）, schema/DerivedSchemas.kt（SchemaDef への包装シェル） | 派生スキーマ（R11-03 / C-2）: `derive:` 宣言のモデルと、導出元文書からのロード時コンパイル。コアは root と reader / session（`WorkspaceReader.buildSchemas`）が共有（§4.23） |
 | `globToRegex` / `idMatchesPattern` | schema / index | glob→正規表現変換（パス用と ID 用で対応構文が異なる点に注意） |
 | `DocScanner` | index/IdIndex.kt | 1文書からのID・参照抽出。スキーマ有無で検出規則を切替、未知キー境界で走査停止。参照には `relation` / `sourceSchemaId` を付与 |
 | `IdIndex` | index/IdIndex.kt | ワークスペース全体の `id -> 出現一覧` 索引と全参照。**ディスク基準**（未保存編集は反映されない）。ファイル単位の走査結果を保持し、`update` で変更ファイルだけを差し替える増分更新ができる（R8-02。§4.5）。`IdEntry` はエンティティ型・役割（定義／詳細化）を、`RefEntry` は属性付き参照の属性を運ぶ（P20。§4.30） |
@@ -576,7 +576,7 @@ limit: 100                               # 既定 100（total は打切り前の
 - **横断ビューの追加**: データソースとして `AppState.workspaceRecords()` と `IdIndex` を利用し、`ui/Shell.kt` の `LedgerSpace`（台帳スペースのタブと `workspaceView` 分岐）に追加する。要素の1行要約（タイトル・サブタイトル）は `schema/Display`（§4.22）を使い、独自のタイトル抽出を書かない。
 - **ビュー定義の項目追加**: `core/Views.kt` の `parseView` と `schema/BuiltinSchemas.kt` の `builtin-view` スキーマを**対で**更新する（フォーム編集・検証と実行時パースの二重定義のため）。
 - **共通スキーマ定義の追加**: `_schemas` に `kind: library` を置き、利用側は `moduleId#definition` で参照する。解決規則を増やす場合は `SchemaCatalog` に閉じ、各利用側で参照文字列を個別解析しない。
-- **派生スキーマの写像項目の追加**: `SchemaLoader.parseDerive`（宣言のパース）と `DerivedSchemas.compileOne`（コンパイル）、組込みメタスキーマ（`builtin-schema` の `derive` 定義）を**そろえて**更新する。語彙は skill の列マッピング（SK-02）と揃える（§4.23）。
+- **派生スキーマの写像項目の追加**: `semantic-core/schema/SchemaDerivation.kt` の `parse`（宣言のパース）と `compile`（コンパイル。root `SchemaLoader.parseDerive`・`DerivedSchemas` はこの委譲シェル）、組込みメタスキーマ（`builtin-schema` の `derive` 定義）を**そろえて**更新する。語彙は skill の列マッピング（SK-02）と揃える（§4.23 / C-2）。
 - **導出・整合ルールの語彙追加**: 宣言モデル（`schema/Derivation.kt`）・パース（`SchemaLoader.parseConsistency` / `Views.parseView` の computed）・組込みメタスキーマ（`builtin-schema` の `consistency`）・`builtin-view`（computed）・解決器（`index/Derivation.kt`）を**そろえて**更新する（§4.26）。
 - **エンティティ・関係語彙の追加**: 宣言モデル（`schema/Relations.kt`）・パース（`SchemaLoader` の `entity:` / `kind: relations` / `entities:` / `enforcement:`）・組込みメタスキーマ（`builtin-schema` の entity・`builtin-relations`）・スキーマ設計UI（`SchemaEditor` のエンティティ節）を**そろえて**更新する（§4.30 / §4.33）。グラフの導出項目を増やすときは `EntityGraph` に閉じ、消費側で走査を書かない。グラフ整合の制約を増やすときは `validate/GraphIntegrity.kt` に閉じる（判定保留の哲学＝型未宣言・未解決には黙る。§4.31）。エンティティ合成の項目を増やすときは `core/Aspects.kt` に閉じ、消費側（ページUI・read_entity・CLI）で合成を書かない（§4.33）。
 - **クエリ語彙の追加**: 宣言モデル・パース（`schema/Query.kt`）・評価器（`index/Query.kt`）・組込みメタスキーマ（`builtin-view` の rows（match / where / also / rowKey）・`builtin-activity` の foreach.query・`builtin-schema` の constraints）を**そろえて**更新する（§4.32）。消費側（Views / Foreach / Validator / CLI）に評価ロジックを書かない。「やらないこと」（集約は件数のみ・任意深さの再帰なし・任意式なし・optional 結合なし）の解禁は実例の需要で段階判断する。
