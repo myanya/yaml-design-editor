@@ -49,6 +49,12 @@
 | RA-04 | Phase A-2b: エージェント適用のセッション書込化（`Workspace.applyViaSession`・カーネル `ReplaceDocument` 操作・RunsSpace 承認の切替） | workspace-core / core / app / ui | done | 検証・競合判定は旧経路と同一（バイト列・メッセージ一致をテストで固定）。AutoApply（自動化）・skill インポートは残置（記録参照） | 移行後計画 A-2b・2026-08-26 |
 | RA-05 | Phase A-3 前半: 編集のセッション直結（markEdited→replaceDocument・noteStoreChanges の dirty 保持・オーバーレイはパース不能文書のみに縮退） | workspace-core / app | done | Undo/dirty は引き続き EditBuffer 所有（UX 不変）。履歴一元化＝A-3 後半（RA-06） | 移行後計画 A-3・2026-08-28 |
 | RA-06 | Phase A-3 後半: Undo/Redo・dirty のセッション所有（`recordEdit`＝合体つき履歴・ワークスペース横断 Undo・dirty のセッション供給） | workspace-core / app / ui | done | **D-07 の UX 変化が発効**（Undo が文書単位→ワークスペース横断）。EditBuffer はフォールバック併走（縮退は B 段）。reload 後は履歴が残らない（記録参照） | 移行後計画 A-3・2026-08-28 ＝ **A-3 完了** |
+| RB-06 | Phase B-3 第4弾: validate() 本体の意味部（文書内ID重複・参照解決）を `SemanticEngine.duplicateIdIssues / referenceIssues` へ単一所有化——aggregate から判定を抽出し、root は二層供給（索引＋ローカル）＋台帳外 INFO 降格・自己文書参照（ownDocumentId）を注入する変換シェル | semantic-core / validate | done | **D-13 登録**（重複文言をカーネル「この文書内」へ統一）。全テスト緑＋sample-workspace ベースライン実測不変（エラー5・警告12）。**B-3 はこれで完了**——validateWorkspace の参照元は RA-02 以降セッション派生（overlayIndex ファサード）で、判定は RB-03〜06 でカーネル所有＝供給・判定とも一本化済み。IdIndex 型の解消（overlayIndex の消滅）は B-2 続きへ統合 | 移行後計画 B-3・2026-08-28 ＝ **B-3 完了** |
+| RB-05 | Phase B-3 第3弾: 整合検証（consistency＝derive 一致）の判定コアを `semantic.SemanticConsistency` へ移設（activeFrom 保留・判定保留の哲学 §4.26・来歴 R16-03c ごと。宣言 ConsistencyRule / DerivationDef は semantic-core に既存） | semantic-core / validate | done | root は座標・ローダ変換シェル（来歴 IssueDerivation へ写し戻し）。ConsistencyTest シェル経由緑＝一致証明。挙動変化なし。残: validate() 本体の意味部（参照解決・重複の消費切替）・validateWorkspace の derived 置換・テンプレート健全性（section 5）は root 残置 | 移行後計画 B-3・2026-08-28 |
+| RB-04 | Phase B-3 第2弾: フェーズ進捗のカーネル移設——`phaseProgress` / `phaseSummaryText` の走査・表示を yaml-core `StructuralSchema` 拡張へ（schema/PhaseProgress.kt。構造層の関心のため semantic-core でなく yaml-core）。root `Validator` は `schema.structural` 経由のシェル・`validate.PhaseProgress` は typealias（FQN 互換） | yaml-core / validate | done | PhaseTest（root）シェル経由緑＝一致証明。挙動変化なし。CLAUDE.md の requiredAt / currentPhaseIndex 規約は不変 | 移行後計画 B-3・2026-08-28 |
+| RB-03 | Phase B-3 第1弾: カバレッジ判定族のカーネル移設——`CoverageRule`（宣言）→ semantic-core schema/Coverage.kt・判定コア → `semantic.SemanticCoverage`（statuses / inboundRefs / occurrenceCount＝グラフ整合と共有のカウンタ規則ごと）。root `Validator.coverageStatuses` は per-ID 変換シェル | semantic-core / validate | done | 同一パッケージ移動＝利用箇所変更なし（クロスモジュール smart cast 2箇所のみ修正）。CoverageTest（回帰基準）シェル経由緑＝一致証明・SemanticCoverageTest 4件新設。残: consistency・phase 進捗・validate() 本体の意味部＝B-3 続き | 移行後計画 B-3・2026-08-28 |
+| RB-02 | Phase B-2 第1弾: EntityGraph の導出をカーネル `SemanticEntityGraph` へ一本化（root はPath座標の変換シェル＋backlinksTo の全体順のみ） | index / semantic-core | done | 変換は SemanticBridge の1:1可逆（document＝絶対パス文字列）＝出力同一。EntityGraphTest（旧実装一致・増分・オーバーレイ）がシェル経由で緑＝一致証明。IdIndex 本体の縮退・overlay 消費の解消は B-2 続き（legacy Workspace の解消と連動） | 移行後計画 B-2・2026-08-28 |
+| RB-01 | Phase B-1: リファクタリングのセッション一本化（plan 系17箇所→`session.planRefactoring`・適用＝1トランザクション＋保存）→ **EntityOps / SchemaRefactor / DocMove / Bench 削除**（約2,300行）。ビュー追随・言及警告は `core/RefactorImpact` でアプリ層再接続（**D-10 解決**） | app / ui / core / 新設 RefactorImpact | done | **D-12 発効**（リファクタリング・一括更新が Undo 1回で戻る・計画は「見たまま」基準）・D-09/D-11 発効。root Cli の entity 変更系・refactor・move・bench コマンドは新CLIへ誘導（B-4 の一部前倒し）。ChangeSets.kt はエージェント経路が使用中のため残置（B-2/B-4 で再判断） | 移行後計画 B-1・2026-08-28 |
 | WS-001 | WorkspaceLayout の移動と DocumentStore（InMemory / FileSystem）新設 | workspace-core | done | 予約ディレクトリ名の正を Zone のリテラルへ | Phase 7前半（2026-08-19） |
 | WS-002 | 読取専用ワークスペース（WorkspaceReader）と意味宣言パーサの移動 | workspace-core / semantic-core | done | v1未対応: derive・メタスキーマ適用 | Phase 7後半（2026-08-19） |
 | WS-003 | 簡易CLIの最小配線（yaml parse / roundtrip・workspace validate・exit code契約） | cli | done | - | Phase 7完了（2026-08-19） |
@@ -267,6 +273,155 @@ semantic-core: ID/ref/entity graph・意味検証（重複・参照・グラフ�
   `_schemas` 文書へのメタスキーマ適用（schemas ゾーンは文書集合から除外）。CLI 配線（workspace validate）
   は WS-003（Phase 7 完了条件①の残り）
 完了確認コマンド: ./gradlew :workspace-core:test / ./gradlew test
+```
+
+### RB-06 Phase B-3 第4弾: validate() 本体の意味部の単一所有化（done 2026-08-28）
+
+```text
+旧実装: validate/Validator.validate() section 2（文書内ID重複・参照解決＝二層判定・台帳外 INFO 降格・
+  文書参照の解決）——カーネル SemanticEngine.aggregate 内の同等判定と二重実装（文言も1箇所差分）
+旧テスト: ValidatorTest / DocRefTest（INFO 降格含む）——シェル経由で緑。cli 側は aggregate の
+  issue 順序を保った抽出のため出力不変。sample-workspace ベースライン実測不変（エラー5・警告12）
+新しい責務:
+  - SemanticEngine.duplicateIdIssues(scan)・referenceIssues(refs, ownDocumentId, occurrences,
+    hasDocumentId, indexed)——判定の単一所有。aggregate（全体集約）と root validate()（1文書）が共用。
+    indexed=false の INFO 降格・未保存文書の自己文書参照（ownDocumentId）もカーネルが判定
+  - root は供給の注入だけ: 出現＝「この文書の現在の状態＋索引」の二層（§4.5）・文書ID＝graph.documents
+意図的に変える挙動: D-13（重複文言「このファイル内」→「この文書内」へ統一。表示のみ）
+残（B-3 最終）: AppState.validateWorkspace の derived 置換（DoD「検証の参照元一本化」）・
+  スキーマ適合（section 1）は StructuralValidator 委譲済み・3.5 エンティティ lint と section 5 は root 残置
+完了確認コマンド: ./gradlew test（全モジュール）＋ runCli validate sample-workspace（ベースライン照合）
+```
+
+### RB-05 Phase B-3 第3弾: 整合検証（consistency）のカーネル移設（done 2026-08-28）
+
+```text
+旧実装: validate/Validator.validate() の section 4（R16-03a/b: ID要素の宣言値 vs 導出値の等値・
+  数値包含判定。activeFrom のフェーズ保留・idPattern 絞り込み・判定保留（未記入・導出不能・非数値）・
+  来歴 IssueDerivation の構築）
+旧テスト: validate/ConsistencyTest——シェル経由で緑＝一致証明
+新しい責務:
+  - semantic/Consistency.kt: SemanticConsistency.check（判定コア。導出は SemanticDerivation＝6D 移設済みを
+    kernel-to-kernel で呼ぶ）・SemanticConsistencyFinding（来歴つき指摘）。
+    宣言（ConsistencyRule / ConsistencyAssert / DerivationDef）は semantic-core に既存＝移動なし
+  - root validate() section 4 は変換シェル: localIds を toScanned・loader / rel を DocumentId ラップし、
+    Finding → Issue + IssueDerivation（Path 座標）へ写し戻す。テンプレート健全性（section 5）は
+    SchemaDef 静的解決依存のため root 残置（Phase D で再判断）
+維持する挙動: すべて（メッセージ・座標・来歴・判定保留を含む）。意図的に変える挙動: なし
+残（B-3 続き）: validate() 本体の意味部（参照解決・重複＝カーネル SemanticEngine 既存判定への
+  消費切替）・AppState.validateWorkspace の derived 置換
+完了確認コマンド: ./gradlew test（全モジュール）
+```
+
+### RB-04 Phase B-3 第2弾: フェーズ進捗のカーネル移設（done 2026-08-28）
+
+```text
+旧実装: validate/Validator.phaseProgress（requiredFrom 走査＝resolve / effectiveFields / 型別降下）・
+  phaseSummaryText（1行サマリ）・validate.PhaseProgress 型
+旧テスト: validate/PhaseTest——シェル経由で緑＝一致証明（フェーズ挙動の回帰基準）
+新しい責務:
+  - yaml-core schema/PhaseProgress.kt: `StructuralSchema.phaseProgress(root)` /
+    `StructuralSchema.phaseSummaryText(root)`（構造層の走査のため semantic-core でなく yaml-core。
+    移設は本文そのまま＝「存在しないオブジェクト配下は数える・配列/Map は存在分のみ」規則を含む）・
+    `schema.PhaseProgress` 型
+  - root Validator は `schema.structural`（SchemaDef が lazy 保持）経由の委譲シェル。
+    `validate.PhaseProgress` は typealias で FQN 互換（UI・CLI の利用箇所変更なし）
+維持する挙動: すべて。意図的に変える挙動: なし
+残（B-3 続き）: consistency（derive 一致検証）→ validate() 本体の意味部（参照解決・重複の消費切替）→
+  AppState.validateWorkspace の derived 置換
+完了確認コマンド: ./gradlew test（全モジュール）
+```
+
+### RB-03 Phase B-3 第1弾: カバレッジ判定族のカーネル移設（done 2026-08-28）
+
+```text
+旧実装: validate/Validator.coverageStatuses（判定コア: idPattern 絞り込み・requiredBy 入次数／
+  detailIn 出現数の数え上げ・activeFrom のフェーズ到達判定）＋ schema/Schema.kt の CoverageRule 宣言
+旧テスト: validate/CoverageTest（ARCHITECTURE §4.31 の「載せ替え前後の判定一致の回帰基準」）——
+  シェル経由で緑＝一致証明。新設: SemanticCoverageTest（semantic-core）4件
+新しい責務:
+  - schema/Coverage.kt（semantic-core）: CoverageRule の宣言（同一パッケージ移動＝利用箇所変更なし。
+    CoverageLevel は既に semantic-core 側）
+  - semantic/Coverage.kt: SemanticCoverage.statuses（判定コア）・inboundRefs / occurrenceCount
+    （カバレッジとグラフ整合が共有する入次数・出現数カウンタの規則。§4.31）・SemanticCoverageStatus
+  - root Validator.coverageStatuses は per-ID 変換シェル: この ID の出現・被参照だけを toScanned で写し、
+    フェーズ現在位置（schema.currentPhaseIndex(definingRoot)）を解決してカーネルへ渡す
+    （インデックス全体の変換はしない＝UI の per-ID 呼び出しでも従来コスト）。
+    CoverageStatus（root 型）は UI 消費のため存続（カーネル結果の写し）
+維持する挙動: すべて（idPattern・relation / fromSchemaIds 絞り込み・文書参照の除外・activeFrom の
+  「phases 未宣言／フェーズ不明＝常時判定」を含む）。definingRoot 省略禁止の規約（CLAUDE.md）も不変
+意図的に変える挙動: なし
+残（B-3 続き）: consistency（derive 一致検証）・phase 進捗（phaseProgress の requiredFrom 走査）・
+  validate() 本体の意味部（参照解決・重複等はカーネル SemanticEngine に既存＝消費切替）・
+  AppState.validateWorkspace の derived 置換
+完了確認コマンド: ./gradlew test（全モジュール）
+```
+
+### RB-02 Phase B-2 第1弾: EntityGraph のカーネル一本化（done 2026-08-28）
+
+```text
+旧実装: index/EntityGraph.kt の build（最内出現の突合・出次エッジ・エンティティ表・文書ノード表の
+  導出 約50行）——semantic-core の SemanticEntityGraph（SM-003）と同一アルゴリズムの二重実装
+旧テスト: EntityGraphTest（旧実装との出力一致・増分更新・オーバーレイ経路）——シェル経由で緑＝一致証明
+新しい責務:
+  - index/EntityGraph は Path 座標の**変換シェル**: FileScanView → DocumentScan（SemanticBridge の
+    1:1可逆変換。ScannedId/ScannedRef の document＝絶対パス文字列のため衝突なし・逆変換
+    toIdEntry / toRefEntry（新設）で結果を写し戻す）。エンティティ表・文書ノード表は build 時に変換
+  - backlinksTo（refsByTarget＋refOrder＝被参照の全体順）だけは Path 側の集約として root に残す
+    （カーネルの被参照は SemanticSnapshot 所有＝B-3 の検証族移設で合流）
+  - 公開API（entities / documents / backlinksTo / sourceEntryOf / outgoingRefs ×2）と出力は不変
+維持する挙動: すべて（並び・先勝ち・定義出現優先の型/タイトル解決を含む）
+意図的に変える挙動: なし
+残: IdIndex 本体（rebuild / update / overlay のディスク走査経路）は legacy core.Workspace が
+  使用中のため縮退できない——Workspace のセッション置換（Phase A の残置分）と連動して B-2 続きで。
+  state.overlayIndex() の解消（DoD）は消費側の型切替（B-3 と連動）後
+完了確認コマンド: ./gradlew test（全モジュール）
+```
+
+### RB-01 Phase B-1: リファクタリングのセッション一本化と旧実装削除（done 2026-08-28）
+
+```text
+旧実装: core/EntityOps.kt（203行）・core/SchemaRefactor.kt（1,419行）・core/DocMove.kt（113行）・
+  core/Bench.kt（131行）——カーネル（semantic.SemanticRefactor / SemanticSchemaRefactor）と二重実装。
+  AppState / SchemaEditor / Main / IdCrossView の plan 系17箇所と root Cli（entity/refactor/move/bench）が呼ぶ。
+  適用は Workspace.apply（baseハッシュ）＋ reload()（Undo 不可）
+旧テスト: EntityOpsTest（10件）・SchemaRefactorTest（24件）→ 削除。データ・スキーマ側の挙動は
+  workspace-core RefactoringTest（26件）が既にカーネルで固定済み。ビュー系ケースは新設
+  RefactorImpactTest（4件）へ移植。DocRefTest の移動3件はカーネル経路＋moveWarnings へ書替。
+  IdIndexIncrementalTest の生成器依存は BenchFixture（テスト側）へ移設（B-2 で本体と共に削除）
+新しい責務:
+  - AppState.planEntityRename/Merge/Delete・planSchemaFieldRename/Delete・planSchemaAlignOrder——
+    session.planRefactoring（カーネル計画・working=「見たまま」基準）。RenameField / DeleteField は
+    core/RefactorImpact（新設・約230行）でビュー追随（スカラー Set のみ・PatchOp.Set→SetScalar の
+    1:1写像）と言及警告（宣言節・定義文書スキャン）を計画へ補強（D-10 のアプリ層再接続。
+    台帳外のビュー定義は警告へ降格）。カーネルの定型警告（「追随しません」）は実測の影響で置換
+  - AppState.applyEntityPlan——applyRefactoring（1トランザクション）→ save(対象のみ) →
+    refreshAfterSessionWrite（reload しない＝履歴保持・docCache へ deep copy 追随・旧経路索引は
+    noteDiskChanges で増分/全再構築）。**リファクタリング全体が Undo 1回で戻る**（D-12）。
+    dirty 対象の拒否は従来同文言
+  - AppState.renamePath / renameImpact——MoveDocument 計画＋1トランザクション適用（D-09 発効＝
+    「移動成功→書き換え失敗」の継ぎ目解消）。ビュー対象外れ警告は RefactorImpact.moveWarnings。
+    改名後は従来どおり reload()（ファイル集合変化のため。履歴は消える＝RA-06 記録の挙動）
+  - AppState.bulkUpdate——セッション経路は refreshAfterSessionWrite に切替（reload 廃止）＝
+    D-11 の「Undo 1回」が実際に発効
+  - root Cli——entity 変更系・refactor・move・bench を削除し新CLI（:cli:run workspace refactor /
+    workspace bench）へ誘導（B-4 の一部前倒し。entity show・探索系・apply/hash は残置）
+維持する挙動: 計画の生成規則・拒否条件・エラーメッセージ（カーネルは旧実装から文言同一で移植済み）・
+  ビュー自動書換の範囲（静的解決が一意な箇所のみ）・dirty 対象の適用拒否
+意図的に変える挙動（D-12 登録・D-09/D-10/D-11 発効）:
+  - 適用が Undo 1回で戻る（旧: reload で履歴消失・Undo 不可）
+  - 計画の基準がディスク索引 → セッション working（「見たまま」。RA-02 と同じ原則）
+  - 競合検出が baseハッシュ → sourceVersion（古い計画は適用拒否）
+  - 複数ファイル書込がステージング一括 → DocumentStore のファイル単位 atomic
+  - CLI の変更系リファクタリングは新CLI のみ（ビュー追随なし・警告案内＝D-10 の残余）
+残置・未解決:
+  - ChangeSets.kt（ChangeSet/FileChange 型・parse・contentHash）はエージェント経路
+    （Staging / AutoApply / Importer / Workspace.apply / root Cli apply）が使用中のため残置——
+    B-2/B-4（エージェント経路の整理）で再判断
+  - RefactorImpact / Views.fieldRenameImpact は SchemaDef 依存のため root 残置（Phase C-3 / D で再判断）
+  - PatchOp→YamlOperation の全面統一はしない（RA-04 の判断を維持。RefactorImpact の写像は
+    スカラー Set のみの安全な部分集合）
+完了確認コマンド: ./gradlew test（全モジュール）
 ```
 
 ### RA-06 Phase A-3 後半: Undo/Redo・dirty のセッション所有（done 2026-08-28）＝ A-3 完了

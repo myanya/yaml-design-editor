@@ -939,9 +939,9 @@ private fun DefaultValueEditor(map: YNode.Map, type: String, doc: OpenDocument) 
 
 /**
  * フィールド一括改名の確認ダイアログ（R25-01。ARCHITECTURE §4.35）。
- * スキーマ定義・全該当文書のデータキー（順序・コメント保持）・ビュー通常列の変更セットをプレビューし、
- * 適用は Workspace.apply（オール・オア・ナッシング）。生成はディスクの保存済み状態が基準のため、
- * 未保存の変更があるときは先に保存を求める（EntityRenameDialog と同じ流儀）。
+ * スキーマ定義・全該当文書のデータキー（順序・コメント保持）・ビュー通常列の計画をプレビューし、
+ * 適用はセッションの1トランザクション（AppState.applyEntityPlan。Undo 1回で戻る。B-1）。
+ * 未保存の変更があるときは先に保存を求める（適用→保存が未保存編集まで書かないように。EntityRenameDialog と同じ流儀）。
  */
 @Composable
 private fun SchemaFieldRenameDialog(
@@ -987,8 +987,8 @@ private fun SchemaFieldRenameDialog(
                         Text("変更されるファイル:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                         val scroll = rememberScrollState()
                         Column(Modifier.weight(1f, fill = false).verticalScroll(scroll)) {
-                            p.changeSet.changes.forEach { c ->
-                                Text("・${c.file}（${c.ops.size} 操作）", fontSize = 12.sp, color = Palette.SubText)
+                            p.changes.forEach { c ->
+                                Text("・${c.document.value}（${c.operations.size} 操作）", fontSize = 12.sp, color = Palette.SubText)
                             }
                         }
                     }
@@ -1017,7 +1017,7 @@ private fun SchemaFieldRenameDialog(
 
 /**
  * スキーマ・リファクタリング操作の共通確認ダイアログ（R25-02 / R25-03。入力欄なしのプレビュー→適用）。
- * 生成はディスクの保存済み状態が基準のため、未保存の変更があるときは先に保存を求める。
+ * 未保存の変更があるときは先に保存を求める（適用→保存が未保存編集まで書かないように）。
  */
 @Composable
 private fun SchemaRefactorConfirmDialog(
@@ -1025,7 +1025,7 @@ private fun SchemaRefactorConfirmDialog(
     doc: OpenDocument,
     title: String,
     header: String,
-    planner: () -> Result<core.EntityOps.Plan>,
+    planner: () -> Result<semantic.RefactoringPlan>,
     onDismiss: () -> Unit,
 ) {
     var applyError by remember { mutableStateOf<String?>(null) }
@@ -1050,14 +1050,14 @@ private fun SchemaRefactorConfirmDialog(
                         p.summary.forEach { Text(it, fontSize = 12.sp) }
                         p.warnings.forEach { Text("注意: $it", fontSize = 12.sp, color = Palette.WarnOrange) }
                         Spacer(Modifier.height(6.dp))
-                        if (p.changeSet.changes.isEmpty()) {
+                        if (p.changes.isEmpty()) {
                             Text("変更されるファイルはありません", fontSize = 12.sp, color = Palette.SubText)
                         } else {
                             Text("変更されるファイル:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                             val scroll = rememberScrollState()
                             Column(Modifier.weight(1f, fill = false).verticalScroll(scroll)) {
-                                p.changeSet.changes.forEach { c ->
-                                    Text("・${c.file}（${c.ops.size} 操作）", fontSize = 12.sp, color = Palette.SubText)
+                                p.changes.forEach { c ->
+                                    Text("・${c.document.value}（${c.operations.size} 操作）", fontSize = 12.sp, color = Palette.SubText)
                                 }
                             }
                         }
@@ -1071,7 +1071,7 @@ private fun SchemaRefactorConfirmDialog(
         },
         confirmButton = {
             TextButton(
-                enabled = plan?.isSuccess == true && plan.getOrNull()?.changeSet?.changes?.isNotEmpty() == true,
+                enabled = plan?.isSuccess == true && plan.getOrNull()?.changes?.isNotEmpty() == true,
                 onClick = {
                     plan?.getOrNull()?.let { p ->
                         state.applyEntityPlan(p)

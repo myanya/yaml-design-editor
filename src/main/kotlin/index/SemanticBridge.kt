@@ -22,6 +22,9 @@ fun RefEntry.toScanned(): ScannedRef =
 fun ScannedId.toIdEntry(): IdEntry =
     IdEntry(id, Path.of(document.value), path, title, schemaId, documentId, entityType, role)
 
+fun ScannedRef.toRefEntry(): RefEntry =
+    RefEntry(targetId, Path.of(document.value), path, viaKey, idPatterns, scope, relation, sourceSchemaId, attributes, targetKind)
+
 /** 走査結果を文書単位の DocumentScan へ写す（パス順で安定化＝索引の derive と同じ）。 */
 fun IdIndex.toDocumentScans(): List<DocumentScan> {
     val idsByFile = entries.values.flatten().groupBy { it.file }

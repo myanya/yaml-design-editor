@@ -6,6 +6,7 @@ import index.IdEntry
 import index.IdIndex
 import index.idMatchesPattern
 import index.isAllowedBy
+import index.toScanned
 import model.YNode
 import model.YPath
 import model.getAt
@@ -29,6 +30,8 @@ import schema.UnknownFieldsPolicy
 import schema.currentPhaseIndex
 import schema.currentPhaseValue
 import schema.effectiveFields
+import schema.phaseProgress
+import schema.phaseSummaryText
 import schema.requiredAt
 import yaml.YamlIO
 import java.nio.file.Files
@@ -67,8 +70,8 @@ data class CoverageStatus(
     val satisfied: Boolean get() = count >= rule.minCount
 }
 
-/** フェーズ1つ分の記入進捗（requiredFrom を持つフィールドの記入済み／総数）。 */
-data class PhaseProgress(val phase: String, val filled: Int, val total: Int)
+/** フェーズ1つ分の記入進捗。実体は yaml-core の schema.PhaseProgress（B-3・RB-04 で移設。FQN 互換の別名）。 */
+typealias PhaseProgress = schema.PhaseProgress
 
 /**
  * ドキュメントの検証。UI・アプリ状態に依存しない（core / CLI からも使う）。
@@ -117,48 +120,28 @@ object Validator {
             issues += StructuralValidator.validate(root, s.structural).map { Issue(it.severity, it.message, it.path) }
         }
 
-        // 2) ID / 参照の検証
+        // 2) ID / 参照の検証 —— 判定コアはカーネル（SemanticEngine.duplicateIdIssues / referenceIssues。
+        //    B-3・RB-06 で単一所有化）。出現の供給は「索引の他文書分＋この文書の現在の状態」の二層（§4.5）で、
+        //    台帳外（indexed=false）の INFO 降格・未保存文書の自己文書参照（ownDocumentId）もカーネルが判定する
         val documentId = indexObj.documentIdFor(file, root)
         val (localIds, localRefs) = DocScanner.scan(root, file, schema, documentId)
         val localIdSet = localIds.map { it.id }.toSet()
-
-        // ドキュメント内の ID 重複
-        localIds.groupBy { it.id }.filterValues { it.size > 1 }.forEach { (id, list) ->
-            list.forEach { e ->
-                issues += Issue(Severity.ERROR, "ID「$id」がこのファイル内で重複しています", e.path)
-            }
-        }
-        // 未解決参照（台帳外の文書では索引に載らないため、情報レベルへ降格する。R13-03）
-        for (r in localRefs) {
-            // 文書参照（R21-03。§4.31）: 文書ノード表（documentId ＝ _document.id ＞ 相対パス）に対して解決する。
-            // エンティティの名前空間には混ぜない
-            if (r.targetKind == RefTarget.DOCUMENT) {
-                val resolvedDoc = r.targetId == documentId || indexObj.graph.documents.containsKey(r.targetId)
-                if (!resolvedDoc) {
-                    issues += if (!indexed) {
-                        Issue(Severity.INFO, "文書参照「${r.targetId}」は台帳外の文書のため解決されません", r.path)
-                    } else {
-                        Issue(Severity.ERROR, "文書参照「${r.targetId}」を解決できません（_document.id または相対パス）", r.path)
-                    }
-                }
-                continue
-            }
-            val localMatches = localIds.any { it.id == r.targetId && it.isAllowedBy(r) }
-            val resolved = localMatches || indexObj.resolve(r).isNotEmpty()
-            if (!resolved) {
-                if (!indexed) {
-                    issues += Issue(Severity.INFO, "参照「${r.targetId}」は台帳外の文書のため解決されません", r.path)
-                    continue
-                }
-                val existsOutsideScope = r.targetId in localIdSet || indexObj.entries.containsKey(r.targetId)
-                issues += Issue(
-                    Severity.ERROR,
-                    if (existsOutsideScope) "参照「${r.targetId}」はパターンまたはスコープの対象外です"
-                    else "参照「${r.targetId}」（${r.path.pretty()}）を解決できません",
-                    r.path,
-                )
-            }
-        }
+        val docScan = semantic.DocumentScan(
+            document = model.DocumentId(file.toString()),
+            documentId = documentId,
+            ids = localIds.map { it.toScanned() },
+            refs = localRefs.map { it.toScanned() },
+        )
+        issues += semantic.SemanticEngine.duplicateIdIssues(docScan).map { Issue(it.severity, it.message, it.path) }
+        issues += semantic.SemanticEngine.referenceIssues(
+            refs = docScan.refs,
+            ownDocumentId = documentId,
+            occurrences = { tid ->
+                localIds.filter { it.id == tid }.map { it.toScanned() } + indexObj.occurrences(tid).map { it.toScanned() }
+            },
+            hasDocumentId = { indexObj.graph.documents.containsKey(it) },
+            indexed = indexed,
+        ).map { Issue(it.severity, it.message, it.path) }
         // 3) カバレッジ（このスキーマが要求する被参照数。activeFrom はこの文書のフェーズ到達まで判定を保留する）
         if (indexed && schema != null && schema.coverage.isNotEmpty()) {
             for (entry in localIds) {
@@ -284,55 +267,31 @@ object Validator {
             fun relOf(f: Path): String =
                 workspace?.let { IdIndex.relPathOf(it, f) } ?: f.toString().replace('\\', '/')
 
-            schema?.consistency?.forEach { rule ->
-                // activeFrom: カバレッジと同じく自文書のフェーズ到達まで判定を保留する
-                val active = rule.activeFrom?.let { from ->
-                    val fromIdx = schema.phases?.order?.indexOf(from) ?: -1
-                    fromIdx < 0 || phaseIndex == null || phaseIndex >= fromIdx
-                } ?: true
-                if (!active) return@forEach
-                for (entry in localIds) {
-                    val rulePattern = rule.idPattern
-                    if (rulePattern != null && !idMatchesPattern(entry.id, rulePattern)) continue
-                    val element = getAt(root, entry.path) ?: continue
-                    // 検査する値が未記入なら判定しない（未記入は required の領分。二重計上を避ける）
-                    val actual = scalarText(getAt(element, rule.path)) ?: continue
-                    val result = Derivation.resolve(rule.expected, entry.id, indexObj, ::relOf, ::tree)
-                    val expected = result.value
-                    // 期待値が評価できない（写像行なし・プレースホルダ未解決）ときは判定保留（§4.26）
-                    if (expected == null || !result.complete) continue
-                    // 判定（R16-03b）: equals は等値、lte / gte は数値としての包含（数値でなければ判定保留）
-                    val satisfied: Boolean? = when (rule.assert) {
-                        ConsistencyAssert.EQUALS -> actual == expected
-                        ConsistencyAssert.LTE, ConsistencyAssert.GTE -> {
-                            val a = actual.toDoubleOrNull()
-                            val e = expected.toDoubleOrNull()
-                            if (a == null || e == null) null
-                            else if (rule.assert == ConsistencyAssert.LTE) a <= e else a >= e
-                        }
-                    }
-                    if (satisfied == false) {
-                        val severity = if (rule.level == CoverageLevel.ERROR) Severity.ERROR else Severity.WARNING
-                        val relationText = when (rule.assert) {
-                            ConsistencyAssert.EQUALS -> "導出値「$expected」と一致しません"
-                            ConsistencyAssert.LTE -> "導出値「$expected」以下である必要があります"
-                            ConsistencyAssert.GTE -> "導出値「$expected」以上である必要があります"
-                        }
-                        issues += Issue(
-                            severity,
-                            "「${rule.path.pretty()}」の値「$actual」は$relationText" +
-                                (rule.description?.let { " — $it" } ?: ""),
-                            entry.path + rule.path,
-                            // 来歴（R16-03c）: UIの「導出規則へ／入力値へ／導出値を適用」に使う
-                            derivation = IssueDerivation(
-                                expected = expected,
-                                raw = result.raw,
-                                sourceFile = result.sourceFile,
-                                sourcePath = result.sourcePath,
-                                inputs = result.inputs,
-                            ),
-                        )
-                    }
+            // 判定コアはカーネル（semantic.SemanticConsistency。B-3・RB-05）——ここは座標・ローダの変換シェル。
+            // 来歴（R16-03c）は Path 座標へ写し戻し、UIの「導出規則へ／入力値へ／導出値を適用」に使う
+            schema?.takeIf { it.consistency.isNotEmpty() }?.let { sc ->
+                issues += semantic.SemanticConsistency.check(
+                    rules = sc.consistency,
+                    localIds = localIds.map { it.toScanned() },
+                    root = root,
+                    phaseOrder = sc.phases?.order.orEmpty(),
+                    currentPhaseIndex = phaseIndex,
+                    occurrences = { id -> indexObj.entries[id].orEmpty().map { it.toScanned() } },
+                    rel = { d -> relOf(Path.of(d.value)) },
+                    tree = { d -> tree(Path.of(d.value)) },
+                ).map { f ->
+                    Issue(
+                        f.severity, f.message, f.path,
+                        derivation = IssueDerivation(
+                            expected = f.expected,
+                            raw = f.raw,
+                            sourceFile = f.sourceDocument?.let { Path.of(it.value) },
+                            sourcePath = f.sourcePath,
+                            inputs = f.inputs.map { i ->
+                                Derivation.Input(i.placeholder, i.value, i.document?.let { d -> Path.of(d.value) }, i.path)
+                            },
+                        ),
+                    )
                 }
             }
 
@@ -380,10 +339,11 @@ object Validator {
                 for (owner in allSchemas) {
                     for (rule in owner.coverage) {
                         if (selfSchemaId !in rule.detailSchemaIds) continue
+                        val rulePattern = rule.idPattern
                         val missing = indexObj.entries.asSequence()
                             .filter { (id, occs) ->
                                 occs.any { it.schemaId == owner.id } &&
-                                    (rule.idPattern == null || idMatchesPattern(id, rule.idPattern)) &&
+                                    (rulePattern == null || idMatchesPattern(id, rulePattern)) &&
                                     occs.count { it.schemaId in rule.detailSchemaIds } < rule.minCount &&
                                     id !in localIdSet
                             }
@@ -410,74 +370,33 @@ object Validator {
      * - 参照ベース（requiredBy）: このIDへの参照を数える
      * - 出現ベース（detailIn）: このIDの、指定スキーマの文書への出現＝詳細文書の存在を数える（R7-02）
      * definingRoot は ID を定義している文書のルート（activeFrom のフェーズ判定に使う。null なら常時判定）。
+     * 判定コアはカーネル（semantic.SemanticCoverage。B-3・RB-03a）——ここはこの ID の出現・被参照を
+     * カーネル座標へ写し、フェーズの現在位置を解決して渡す変換シェル。数え上げの規則
+     * （requiredBy = 入次数・detailIn = 詳細化出現＝グラフ整合 R21-01 と共有。§4.31）はカーネル側にある。
      */
     fun coverageStatuses(id: String, schema: SchemaDef, indexObj: IdIndex, definingRoot: YNode? = null): List<CoverageStatus> =
-        schema.coverage.mapNotNull { rule ->
-            if (rule.idPattern != null && !idMatchesPattern(id, rule.idPattern)) return@mapNotNull null
-            // 数え上げはグラフ整合（R21-01）と共有する: requiredBy = 入次数・detailIn = 詳細化出現（§4.31）
-            val count = if (rule.isOccurrence) {
-                GraphIntegrity.occurrenceCount(indexObj, id, rule.detailSchemaIds)
-            } else GraphIntegrity.inboundRefs(indexObj, id, rule.relation, rule.fromSchemaIds).size
-            val active = rule.activeFrom?.let { from ->
-                val fromIdx = schema.phases?.order?.indexOf(from) ?: -1
-                val current = definingRoot?.let { schema.currentPhaseIndex(it) }
-                fromIdx < 0 || current == null || current >= fromIdx
-            } ?: true
-            CoverageStatus(rule, id, count, active)
-        }
+        semantic.SemanticCoverage.statuses(
+            id = id,
+            rules = schema.coverage,
+            occurrences = indexObj.occurrences(id).map { it.toScanned() },
+            inbound = indexObj.graph.backlinksTo(setOf(id)).map { it.toScanned() },
+            phaseOrder = schema.phases?.order.orEmpty(),
+            currentPhaseIndex = definingRoot?.let { schema.currentPhaseIndex(it) },
+        ).map { CoverageStatus(it.rule, it.id, it.count, it.active) }
 
     /**
      * フェーズ別の記入進捗（requiredFrom を持つフィールドの記入済み／総数）。phases 未宣言のスキーマでは空。
-     * 未来フェーズの未記入はエラーではなくこの進捗として可視化する（ARCHITECTURE §4.15）。
-     * 存在しないオブジェクト配下は総数に数えるが、存在しない配列要素・Map項目は数えない（構造が確定してから数える）。
+     * 走査の実体は yaml-core の `StructuralSchema.phaseProgress`（B-3・RB-04 で移設。§4.15）。
      */
-    fun phaseProgress(root: YNode?, schema: SchemaDef): List<PhaseProgress> {
-        val phases = schema.phases ?: return emptyList()
-        val filled = IntArray(phases.order.size)
-        val total = IntArray(phases.order.size)
-        fun present(node: YNode?): Boolean = when (node) {
-            null -> false
-            is YNode.Scalar -> scalarText(node) != null
-            else -> true
-        }
-        fun walk(field: FieldDef, node: YNode?) {
-            val f = schema.resolve(field) ?: field
-            f.requiredFrom?.let { from ->
-                val idx = phases.order.indexOf(from)
-                if (idx >= 0) {
-                    total[idx]++
-                    if (present(node)) filled[idx]++
-                }
-            }
-            when (f.type) {
-                FieldType.OBJECT -> {
-                    val map = node as? YNode.Map
-                    if (node != null && map == null) return
-                    for (ch in schema.effectiveFields(f.fields, map).fields) {
-                        val key = ch.key ?: continue
-                        walk(ch, map?.entries?.get(key))
-                    }
-                }
-                FieldType.ARRAY -> (node as? YNode.Seq)?.items?.forEach { child -> f.item?.let { walk(it, child) } }
-                FieldType.MAP -> (node as? YNode.Map)?.entries?.values?.forEach { v -> f.value?.let { walk(it, v) } }
-                else -> Unit
-            }
-        }
-        walk(schema.root, root)
-        return phases.order.mapIndexed { i, p -> PhaseProgress(p, filled[i], total[i]) }
-    }
+    fun phaseProgress(root: YNode?, schema: SchemaDef): List<PhaseProgress> =
+        schema.structural.phaseProgress(root)
 
     /**
      * 現在フェーズと記入進捗の1行サマリ（UI・CLI・エージェントの表示で共用）。
      * `phases` 未宣言のスキーマでは null（呼び出し側は表示自体を省略する）。
      */
-    fun phaseSummaryText(root: YNode?, schema: SchemaDef): String? {
-        val phases = schema.phases ?: return null
-        val current = schema.currentPhaseValue(root)?.takeIf { it in phases.order } ?: phases.order.firstOrNull()
-        val parts = phaseProgress(root, schema).filter { it.total > 0 }
-            .joinToString(", ") { "${it.phase} ${it.filled}/${it.total}" }
-        return "phase=$current" + (if (parts.isNotBlank()) "（$parts）" else "")
-    }
+    fun phaseSummaryText(root: YNode?, schema: SchemaDef): String? =
+        schema.structural.phaseSummaryText(root)
 
     fun coverageMessage(status: CoverageStatus): String = buildString {
         if (status.rule.isOccurrence) {

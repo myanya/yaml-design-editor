@@ -49,33 +49,8 @@ internal const val CLI_USAGE = """コマンド:
   apply    <workspace> <changeset.yaml> [--dry-run] [--require-valid]   変更セットの適用
   entity   <workspace> show <id>                エンティティ全体像（R23-04）: アスペクト合成（所有フィールド
            と原本座標）・関係・被参照をYAMLで返す（エンティティページ・read_entity と同じ合成）
-  entity   <workspace> rename <old> <new> [--apply]
-  entity   <workspace> merge <from> <into> [--delete-occurrences] [--apply]
-  entity   <workspace> delete <id> [--apply]
-           エンティティ操作（R21-02）: 全出現・全参照を1つの変更セットへ束ねる。
-           既定は変更セットYAMLのプレビュー出力のみ。--apply で適用（オール・オア・ナッシング）。
-           merge は既定で from の出現を into の詳細化として残す（--delete-occurrences で要素削除）
-  move     <workspace> <old> <new> [--apply]     ファイル移動・改名（R21-03）。パスIDの文書参照の
-           書き換え・スキーマ match の変化・ビュー定義の対象外れをプレビューし、--apply で
-           物理移動＋参照書き換えを実行する（_document.id 宣言済みの文書は書き換え不要）
-  refactor <workspace> <op> ... [--apply]        スキーマ・リファクタリング（P25）: スキーマ変更に
-           スキーマ定義・全該当文書・ビューを1つの変更セットで追随させる。field-path はドット区切り
-           （例 details.priority。参照（ref）先の定義は使用側のパスで指定＝全使用スキーマの文書が対象）。
-           既定は変更セットYAMLのプレビュー出力のみ。--apply で適用（オール・オア・ナッシング）。
-             rename-field <schema-id> <field-path> <new-name>      フィールド改名（キーは順序・コメント保持）
-             move-field <schema-id> <field-path> <dest-path> [--keep-empty]
-                        親子の移動（dest-path は object のパス・ルートは「.」。配列・mapの境界は不可。
-                        中間 object は生成し、空になった親は削除する＝--keep-empty で残す）
-             align-order <schema-id>                               文書のキー順をスキーマ順へ整列（正規化）
-             rename-enum-value <schema-id> <field-path> <old> <new>  enum 値の改名（cases・phases・文書値も追随）
-             delete-field <schema-id> <field-path>                 フィールド削除（値あり件数をプレビューで明示）
-             require-field <schema-id> <field-path> --default <v> [--from <phase>]  必須化＋既定値の一括充填
-             convert-type <schema-id> <field-path> <type> [--values a,b,c]  型変換（スカラー↔array・enum化等）
-             rename-definition <module-id> <name> <new>            named definition の改名（参照（ref）の横断書換）
-             extract-definition <schema-id> <field-path> <name>    インライン構造を定義へ抽出（参照化）
-             inline-definition <schema-id> <field-path>            定義参照を定義内容へインライン化
-             rename-relation <old> <new>                           関係の改名（レジストリ・スキーマ・ビュー）
-             rename-schema-id <old> <new>                          スキーマIDの改名（参照の横断書換）
+           ※ 変更系（rename / merge / delete）・move・refactor・bench は新CLIへ移動した（B-1）:
+             ./gradlew :cli:run --args="workspace refactor <workspace> <op> … --apply"
   hash     <workspace> <file>                   変更セットの base に使う内容ハッシュ
   activities <workspace>                        アクティビティ／エージェント定義の一覧と検証
   agent    <workspace> <activity-id> [--instruction 追加指示] [--provider openai|anthropic]
@@ -108,8 +83,6 @@ internal const val CLI_USAGE = """コマンド:
            索引の全参照から relation・viaKey・参照元／先のエンティティ型の実績を集計し、
            関係レジストリ（kind: relations）文書のドラフトを生成する（R20-02）。
            既定は標準出力へ表示。--apply で _schemas/<id>.yaml へ保存する（既存は上書きしない）
-  bench    <dir> [--docs N] [--items N]         索引性能の計測（R8-02）。空ディレクトリならベンチマーク用
-           ワークスペース（既定 1000 文書）を生成し、フル再構築と増分更新の時間を比較する
   migrate  <workspace> [--ledger dir]           レガシー構成（ルートの _schemas 等）を .yde 構成へ移行する（R13-01）。
            予約ディレクトリを .yde/ 配下へ移動し .yde/workspace.yaml を作成する。
            --ledger で台帳ディレクトリを宣言（未指定なら全体が台帳＝従来と同じ検証範囲）
@@ -491,105 +464,23 @@ internal fun runCli(args: Array<String>): String {
                     ).filterValues { it != null }
                 )
             }
-            val plan = when (op) {
-                "rename" -> EntityOps.rename(
-                    ws,
-                    rest.getOrNull(2)?.takeIf { !it.startsWith("--") } ?: error("現在のIDを指定してください"),
-                    rest.getOrNull(3)?.takeIf { !it.startsWith("--") } ?: error("改名先のIDを指定してください"),
-                )
-                "merge" -> EntityOps.merge(
-                    ws,
-                    rest.getOrNull(2)?.takeIf { !it.startsWith("--") } ?: error("統合元のIDを指定してください"),
-                    rest.getOrNull(3)?.takeIf { !it.startsWith("--") } ?: error("統合先のIDを指定してください"),
-                    if ("--delete-occurrences" in rest) EntityOps.MergeMode.DELETE else EntityOps.MergeMode.RETAIN,
-                )
-                "delete" -> EntityOps.delete(
-                    ws,
-                    rest.getOrNull(2)?.takeIf { !it.startsWith("--") } ?: error("削除するIDを指定してください"),
-                )
-                else -> error("entity の操作は show / rename / merge / delete のいずれかである必要があります: $op")
-            }
-            val apply = "--apply" in rest
-            val result = if (apply) ws.apply(plan.changeSet) else null
-            dumpYaml(
-                linkedMapOf(
-                    "summary" to plan.summary,
-                    "warnings" to plan.warnings.ifEmpty { null },
-                    "applied" to result?.ok,
-                    "issues" to result?.results?.flatMap { r -> r.issues.map { issueMap(it) } }?.ifEmpty { null },
-                ).filterValues { it != null }
-            ) + (if (apply) "" else "---\n" + changeSetToYaml(plan.changeSet))
+            // 変更系（rename / merge / delete）は新CLI（cli モジュール）へ移動した（B-1・RB-01: 旧生成器 EntityOps の削除）
+            error(
+                "entity の変更操作は新CLIへ移動しました: " +
+                    "./gradlew :cli:run --args=\"workspace refactor <workspace> rename-entity <old> <new> --apply\"" +
+                    "（merge-entity / delete-entity も同様。ここで使えるのは entity show のみ）"
+            )
         }
-        "refactor" -> {
-            val ws = workspace()
-            val op = rest.getOrNull(1) ?: error("操作（rename-field / move-field / align-order / rename-enum-value / delete-field / require-field / convert-type / rename-definition / extract-definition / inline-definition / rename-relation / rename-schema-id）を指定してください")
-            fun arg(i: Int, label: String): String =
-                rest.getOrNull(i)?.takeIf { !it.startsWith("--") } ?: error("${label}を指定してください")
-            val plan = when (op) {
-                "rename-field" -> SchemaRefactor.renameField(
-                    ws, arg(2, "スキーマID"), arg(3, "フィールドパス（ドット区切り）"), arg(4, "改名先のフィールド名"),
-                )
-                "move-field" -> SchemaRefactor.moveField(
-                    ws, arg(2, "スキーマID"), arg(3, "フィールドパス（ドット区切り）"),
-                    arg(4, "移動先の object パス（ルートは .）"),
-                    deleteEmptyParents = "--keep-empty" !in rest,
-                )
-                "align-order" -> SchemaRefactor.alignOrder(ws, arg(2, "スキーマID"))
-                "rename-enum-value" -> SchemaRefactor.renameEnumValue(
-                    ws, arg(2, "スキーマID"), arg(3, "フィールドパス"), arg(4, "現在の値"), arg(5, "改名先の値"),
-                )
-                "delete-field" -> SchemaRefactor.deleteField(ws, arg(2, "スキーマID"), arg(3, "フィールドパス"))
-                "require-field" -> SchemaRefactor.requireField(
-                    ws, arg(2, "スキーマID"), arg(3, "フィールドパス"),
-                    defaultRaw = stringFlag(rest, "--default") ?: error("--default（充填する既定値）を指定してください"),
-                    fromPhase = stringFlag(rest, "--from"),
-                )
-                "convert-type" -> SchemaRefactor.convertFieldType(
-                    ws, arg(2, "スキーマID"), arg(3, "フィールドパス"), arg(4, "変換先の型"),
-                    enumValues = stringFlag(rest, "--values")?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList(),
-                )
-                "rename-definition" -> SchemaRefactor.renameDefinition(
-                    ws, arg(2, "モジュール（スキーマ）ID"), arg(3, "定義名"), arg(4, "改名先の定義名"),
-                )
-                "extract-definition" -> SchemaRefactor.extractDefinition(
-                    ws, arg(2, "スキーマID"), arg(3, "フィールドパス"), arg(4, "定義名"),
-                )
-                "inline-definition" -> SchemaRefactor.inlineDefinition(ws, arg(2, "スキーマID"), arg(3, "フィールドパス"))
-                "rename-relation" -> SchemaRefactor.renameRelation(ws, arg(2, "現在の関係名"), arg(3, "改名先の関係名"))
-                "rename-schema-id" -> SchemaRefactor.renameSchemaId(ws, arg(2, "現在のスキーマID"), arg(3, "改名先のスキーマID"))
-                else -> error("refactor の操作は rename-field / move-field / align-order / rename-enum-value / delete-field / require-field / convert-type / rename-definition / extract-definition / inline-definition / rename-relation / rename-schema-id のいずれかです: $op")
-            }
-            val apply = "--apply" in rest
-            val result = if (apply) ws.apply(plan.changeSet) else null
-            dumpYaml(
-                linkedMapOf(
-                    "summary" to plan.summary,
-                    "warnings" to plan.warnings.ifEmpty { null },
-                    "applied" to result?.ok,
-                    "issues" to result?.results?.flatMap { r -> r.issues.map { issueMap(it) } }?.ifEmpty { null },
-                ).filterValues { it != null }
-            ) + (if (apply) "" else "---\n" + changeSetToYaml(plan.changeSet))
-        }
-        "move" -> {
-            val ws = workspace()
-            val oldRel = rest.getOrNull(1)?.takeIf { !it.startsWith("--") } ?: error("移動元のパスを指定してください")
-            val newRel = rest.getOrNull(2)?.takeIf { !it.startsWith("--") } ?: error("移動先のパスを指定してください")
-            val plan = DocMove.plan(ws, oldRel, newRel)
-            val applied = if ("--apply" in rest) {
-                DocMove.execute(ws, plan)
-                true
-            } else false
-            dumpYaml(
-                linkedMapOf(
-                    "from" to plan.oldRel,
-                    "to" to plan.newRel,
-                    "rewrites" to plan.changeSet.changes.sumOf { it.ops.size },
-                    "notes" to plan.notes.ifEmpty { null },
-                    "warnings" to plan.warnings.ifEmpty { null },
-                    "applied" to applied,
-                ).filterValues { it != null }
-            ) + (if (applied || plan.changeSet.changes.isEmpty()) "" else "---\n" + changeSetToYaml(plan.changeSet))
-        }
+        "refactor" -> error(
+            // スキーマ・リファクタリング（P25）は新CLI（cli モジュール）へ移動した（B-1・RB-01: 旧生成器 SchemaRefactor の削除）
+            "refactor は新CLIへ移動しました: ./gradlew :cli:run --args=\"workspace refactor <workspace> <op> … --apply\"" +
+                "（op: rename-field / move-field / align-order / rename-enum-value / delete-field / require-field / " +
+                "convert-type / rename-definition / extract-definition / inline-definition / rename-relation / rename-schema-id）"
+        )
+        "move" -> error(
+            // ファイル移動（R21-03）は新CLI（cli モジュール）へ移動した（B-1・RB-01: 旧 DocMove の削除）
+            "move は新CLIへ移動しました: ./gradlew :cli:run --args=\"workspace refactor <workspace> move-document <old> <new> --apply\""
+        )
         "activities" -> {
             val ws = workspace()
             val defs = agent.Definitions.load(ws.root)
@@ -696,25 +587,10 @@ internal fun runCli(args: Array<String>): String {
                 ).filterValues { it != null }
             )
         }
-        "bench" -> {
-            val dir = Path.of(rest.firstOrNull() ?: error("ディレクトリを指定してください"))
-            val generated = if (!Files.isDirectory(dir) || Files.list(dir).use { it.findFirst().isEmpty }) {
-                Bench.generate(dir, documents = intFlag(rest, "--docs") ?: 1000, itemsPerDocument = intFlag(rest, "--items") ?: 8)
-            } else null
-            val result = Bench.measure(dir)
-            dumpYaml(
-                linkedMapOf(
-                    "generatedDocuments" to generated,
-                    "documents" to result.documents,
-                    "ids" to result.ids,
-                    "refs" to result.refs,
-                    "fullRebuildMillis" to result.fullRebuildMillis,
-                    "incrementalUpdateMillis" to result.incrementalUpdateMillis,
-                    "graphDeriveMillis" to result.graphDeriveMillis,
-                    "speedup" to result.speedup,
-                ).filterValues { it != null }
-            )
-        }
+        "bench" -> error(
+            // 索引計測は新CLI（カーネルの意味解析計測）へ移動した（B-1・RB-01: 旧 Bench の削除）
+            "bench は新CLIへ移動しました: ./gradlew :cli:run --args=\"workspace bench <workspace> --iterations 3\""
+        )
         "migrate" -> {
             // レガシー構成 → .yde 構成への移行（R13-01）。ディレクトリ移動と構成ファイル作成のみで、
             // 文書・定義の中身は書き換えない（match 等の glob はワークスペース相対のため影響しない）

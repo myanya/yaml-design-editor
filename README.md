@@ -429,7 +429,7 @@ root:
 
 ### スキーマ・リファクタリング（既存文書を追随させるスキーマ変更）
 
-スキーマの `key` や構造を直接書き換えると、既存文書のキーが「スキーマ外項目」として残留します。スキーマ・リファクタリングは、スキーマ変更と既存文書・ビューの追随を**1つの変更セット**（プレビュー→適用。オール・オア・ナッシング）にまとめます。
+スキーマの `key` や構造を直接書き換えると、既存文書のキーが「スキーマ外項目」として残留します。スキーマ・リファクタリングは、スキーマ変更と既存文書・ビューの追随を**1つの計画**（プレビュー→適用。オール・オア・ナッシング）にまとめます。GUI からの適用は1つのトランザクションとして記録され、**Ctrl+Z（Undo）1回で全変更が戻ります**。
 
 スキーマ設計画面からは次の操作が使えます（フィールド行のボタン。未保存の変更があるときは保存を促します）。
 
@@ -437,7 +437,7 @@ root:
 - **一括削除…**: スキーマ定義と全該当文書のデータキーを削除。**値が入っている件数**をプレビューで明示します（ID型・フェーズ申告キーは拒否）
 - **文書をスキーマ順へ整列…**（ルート定義の右上）: 全該当文書のキー順をスキーマのフィールド順へ正規化します（値・コメント保持。`_document` は先頭・スキーマ外キーは末尾に相対順で残る。スキーマは変更しません）
 
-CLI `refactor`（§16）にはさらに次があります。フィールドパスはドット区切り（例 `details.priority`。配列・map は暗黙に降ります）。
+新CLI `workspace refactor`（§16）にはさらに次があります。フィールドパスはドット区切り（例 `details.priority`。配列・map は暗黙に降ります）。CLI 経路のビュー追随は行われず、言及箇所の警告のみです（自動追随は GUI 経路）。
 
 - `move-field <schema-id> <field-path> <dest-path>`: フィールドの親子移動（`dest-path` は object のパス・ルートは `.`）。移動元と移動先が**同じ要素コンテキスト**にある場合のみ（配列・map の境界をまたぐ移動は1対Nの対応になるため拒否）。文書側は中間 object を生成し、空になった親 object は削除します（`--keep-empty` で残す）
 - `rename-enum-value <schema-id> <field-path> <old> <new>`: enum 値の改名。`values`・`cases` のキー・`default`・（フェーズ申告フィールドなら）`phases.order` と `requiredFrom` / `activeFrom`・全該当文書の現在値が追随します
@@ -446,7 +446,7 @@ CLI `refactor`（§16）にはさらに次があります。フィールドパ�
 - `rename-definition <module-id> <name> <new>` / `extract-definition <schema-id> <field-path> <name>` / `inline-definition <schema-id> <field-path>`: 名前付き定義の改名（`$ref` を横断書換）・インライン構造の定義化・定義参照のインライン化（参照が残らない定義は削除）。文書は変わりません
 - `rename-relation <old> <new>` / `rename-schema-id <old> <new>`: 関係名（レジストリ・スキーマの `relation:`・ビュー）とスキーマID（修飾 `$ref`・`schemaId` 系の参照）の横断改名
 
-共通の安全規則: 改名・移動先のキーが既存文書に存在する等の衝突は**適用せずに中止**します（対象を提示）。アクティビティの指示文など自動書換できない参照は、言及箇所を**警告として列挙**するので適用後に確認してください。派生スキーマ（`derive`）のフィールドは対象外です（導出元文書を修正してください）。生成はディスクの保存済み状態が基準のため、未保存の編集は先に保存してください。
+共通の安全規則: 改名・移動先のキーが既存文書に存在する等の衝突は**適用せずに中止**します（対象を提示）。アクティビティの指示文など自動書換できない参照は、言及箇所を**警告として列挙**するので適用後に確認してください。派生スキーマ（`derive`）のフィールドは対象外です（導出元文書を修正してください）。適用は保存を伴うため、対象に未保存の編集があるときは先に保存してください（未保存のまま適用しようとすると拒否されます）。
 
 ### カバレッジルール（被参照・詳細文書の必須化）
 
@@ -769,11 +769,11 @@ constraints:
 - **改名（rename）**: 全出現のIDフィールドと全参照（スカラー参照・属性付き参照の `to`）を新IDへ書き換えます。新IDが既存IDと衝突する場合は生成段階で拒否（統合は merge を使用）、エンティティ型の `idPattern` から外れる場合は警告付きで生成します。
 - **統合（merge）**: 統合元への全参照を統合先へ張り替えます。統合元の出現は「統合先のIDへ書き換えて詳細化として残す」（既定）か「要素ごと削除」を選べます。
 - **削除（delete)**: 被参照が1件でもあれば参照元一覧つきで拒否します（黙って壊さない）。参照がなければ出現要素を削除します。
-- 入口は**エンティティページの操作メニュー**（§5。改名／別IDへ統合／削除を変更内容のプレビュー→適用で実行）、CLI `entity rename|merge|delete`（`--apply` なしは変更セットのプレビュー出力）、検索・コマンド（`Ctrl+K`）の「エンティティを改名…」です。
+- 入口は**エンティティページの操作メニュー**（§5。改名／別IDへ統合／削除を変更内容のプレビュー→適用で実行）、新CLI `workspace refactor rename-entity|merge-entity|delete-entity`（`--apply` なしは計画のプレビュー出力）、検索・コマンド（`Ctrl+K`）の「エンティティを改名…」です。GUI からの適用は1つのトランザクションとして記録され、**Ctrl+Z（Undo）1回で全変更が戻ります**。
 
 ファイルの移動・改名も影響を見てから実行できます:
 
-- ツリーの「名前を変更」ダイアログと CLI `move <old> <new>` は、**パスIDの文書参照の書き換え**（`_document.id` 未宣言の文書が対象）と、**スキーマ `match` の当たりが変わる警告**・**ビュー定義の file / fileGlob が外れる警告**を実行前に表示します。
+- ツリーの「名前を変更」ダイアログと新CLI `workspace refactor move-document <old> <new>` は、**パスIDの文書参照の書き換え**（`_document.id` 未宣言の文書が対象）と、**スキーマ `match` の当たりが変わる警告**・**ビュー定義の file / fileGlob が外れる警告**を実行前に表示します。参照の書き換えと移動は1つのトランザクションで適用されます。
 - `_document.id` を宣言した文書は documentId が移動で変わらないため、書き換え不要の旨が表示されます。
 
 ## 5. ワークスペース横断機能
@@ -1430,13 +1430,15 @@ GUIを起動せずに、ワークスペースの探索・検索・部分変更�
 ./gradlew runCli -q --args="hash sample-workspace path/to/doc.yaml"       # 変更セットの base に使う内容ハッシュ
 ./gradlew runCli -q --args="apply sample-workspace changeset.yaml --dry-run"  # 変更セットの適用（ドライラン）
 ./gradlew runCli -q --args="entity my-ws show SCR-001"                    # エンティティ全体像（アスペクト合成・関係・被参照。エンティティページ・read_entity と同じ合成）
-./gradlew runCli -q --args="entity my-ws rename SCR-001 SCR-100"          # エンティティ改名（--apply なしは変更セットのプレビュー）
-./gradlew runCli -q --args="entity my-ws merge SCR-002 SCR-001 --apply"   # エンティティ統合（--delete-occurrences で出現を削除）
-./gradlew runCli -q --args="entity my-ws delete SCR-009"                  # エンティティ削除（被参照があれば参照元一覧つきで拒否）
-./gradlew runCli -q --args="move my-ws specs/a.yaml archive/a.yaml"       # ファイル移動（パスID文書参照の書き換え＋警告のプレビュー。--apply で実行）
-./gradlew runCli -q --args="refactor my-ws rename-field task-schema details.priority urgency"  # スキーマ・リファクタリング（P25。§4）: フィールド改名。他に move-field / align-order /
-                                                                          # rename-enum-value / delete-field / require-field / convert-type / rename-definition /
-                                                                          # extract-definition / inline-definition / rename-relation / rename-schema-id（--apply なしはプレビュー）
+
+# 変更系リファクタリング（エンティティ改名・統合・削除／ファイル移動／スキーマ・リファクタリング P25）は
+# 新CLI（cli モジュール）へ移動しました（--apply なしは計画のプレビュー出力）:
+./gradlew :cli:run -q --args="workspace refactor my-ws rename-entity SCR-001 SCR-100 --apply"
+./gradlew :cli:run -q --args="workspace refactor my-ws move-document specs/a.yaml archive/a.yaml --apply"
+./gradlew :cli:run -q --args="workspace refactor my-ws rename-field task-schema details.priority urgency"
+                                                                          # 他に merge-entity / delete-entity / move-field / align-order / rename-enum-value /
+                                                                          # delete-field / require-field / convert-type / rename-definition / extract-definition /
+                                                                          # inline-definition / rename-relation / rename-schema-id
 ./gradlew runCli -q --args="activities sample-workspace"                  # アクティビティ／エージェント定義の一覧
 ./gradlew runCli -q --args="agent sample-workspace review-concepts"       # アクティビティ実行（--apply で即適用、--foreach で対象列挙の一括実行）
 ./gradlew runCli -q --args="watch sample-workspace --once"                # 自動実行（トリガ判定→キュー消化を1回）
@@ -1450,7 +1452,7 @@ GUIを起動せずに、ワークスペースの探索・検索・部分変更�
 ./gradlew runCli -q --args="init new-ws --template ledger"                # テンプレートで初期化
 ./gradlew runCli -q --args="infer-schema my-ws 'issues/**/*.yaml' --apply"  # 既存文書からスキーマ推測（--apply なしはプレビュー）
 ./gradlew runCli -q --args="infer-relations my-ws --apply"                # 参照実績から関係レジストリのドラフト生成（§4）
-./gradlew runCli -q --args="bench bench-ws --docs 1000"                   # 索引性能の計測（空ディレクトリなら生成もする）
+./gradlew :cli:run -q --args="workspace bench my-ws --iterations 3"       # 意味解析の性能計測（新CLI。全再構築 vs 増分更新）
 ./gradlew runCli -q --args="migrate my-ws --ledger doc"                   # レガシー構成 → .yde 構成へ移行（README §3）
 ```
 

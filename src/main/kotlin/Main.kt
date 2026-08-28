@@ -504,8 +504,8 @@ private fun CommandItem(text: String, onClick: () -> Unit) {
 
 /**
  * エンティティ改名の確認ダイアログ（R21-02。ARCHITECTURE §4.31）。
- * 変更セット（全出現・全参照の書き換え）をプレビューし、適用は Workspace.apply（オール・オア・ナッシング）。
- * 本格的な操作UIは P23 のエンティティページで扱う。
+ * 計画（全出現・全参照の書き換え）をプレビューし、適用はセッションの1トランザクション
+ * （AppState.applyEntityPlan。Undo 1回で戻る。B-1）。本格的な操作UIは P23 のエンティティページで扱う。
  */
 @Composable
 private fun EntityRenameDialog(state: AppState, onDismiss: () -> Unit) {
@@ -541,8 +541,8 @@ private fun EntityRenameDialog(state: AppState, onDismiss: () -> Unit) {
                         p.warnings.forEach { Text("注意: $it", fontSize = 12.sp, color = Palette.WarnOrange) }
                         Spacer(Modifier.height(6.dp))
                         Text("変更されるファイル:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        p.changeSet.changes.forEach { c ->
-                            Text("・${c.file}（${c.ops.size} 操作）", fontSize = 12.sp, color = Palette.SubText)
+                        p.changes.forEach { c ->
+                            Text("・${c.document.value}（${c.operations.size} 操作）", fontSize = 12.sp, color = Palette.SubText)
                         }
                     }
                 }

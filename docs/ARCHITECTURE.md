@@ -70,7 +70,7 @@ src/main/kotlin/
 | `globToRegex` / `idMatchesPattern` | schema / index | glob→正規表現変換（パス用と ID 用で対応構文が異なる点に注意） |
 | `DocScanner` | index/IdIndex.kt | 1文書からのID・参照抽出。スキーマ有無で検出規則を切替、未知キー境界で走査停止。参照には `relation` / `sourceSchemaId` を付与 |
 | `IdIndex` | index/IdIndex.kt | ワークスペース全体の `id -> 出現一覧` 索引と全参照。**ディスク基準**（未保存編集は反映されない）。ファイル単位の走査結果を保持し、`update` で変更ファイルだけを差し替える増分更新ができる（R8-02。§4.5）。`IdEntry` はエンティティ型・役割（定義／詳細化）を、`RefEntry` は属性付き参照の属性を運ぶ（P20。§4.30） |
-| `EntityGraph` | index/EntityGraph.kt | 走査結果から導出する読み取り専用のエンティティグラフ（R20-04。§4.30）: エンティティ表・出次／入次の隣接・文書ノード表。`IdIndex` に lazy 保持され `derive()` で無効化。`sourceEntryOf` / `backlinksTo` / トラバース出次の線形走査の載せ替え先 |
+| `EntityGraph` | index/EntityGraph.kt | 走査結果から導出する読み取り専用のエンティティグラフ（R20-04。§4.30）: エンティティ表・出次／入次の隣接・文書ノード表。`IdIndex` に lazy 保持され `derive()` で無効化。**B-2（RB-02）で導出の実体はカーネル `semantic.SemanticEntityGraph` へ一本化**——ここは Path 座標の変換シェル（SemanticBridge の1:1変換）＋被参照の全体順（backlinksTo）だけを持つ |
 | `Validator` | validate/Validator.kt | 文書の検証（UI非依存）。スキーマ適合＋参照解決（エンティティ／文書の名前空間分離。R21-03）＋文書内ID重複＋カバレッジ（`coverageStatuses` はUIとも共用）。フェーズ考慮の必須判定と記入進捗 `phaseProgress`、1行サマリ `phaseSummaryText`（UI・CLI・エージェントツールで共用。§4.15） |
 | `GraphIntegrity` | validate/GraphIntegrity.kt | グラフ整合検証（R21-01。§4.31）: 関係レジストリの対象型・多重度・非循環の判定と enforcement スイッチ。カバレッジと共有する入次数・出現数カウンタ（`inboundRefs` / `occurrenceCount`） |
 | `QuerySpec` / `ConstraintRule` | schema/Query.kt | クエリコアの宣言モデルとパース（R22-01 / R22-03。§4.32）: node / edge の交互連鎖・1段分岐（also）・プロパティ述語（where）・limit と、パターン制約（expect: exists / absent）。パースは1実装で、ビュー `rows: match`・foreach `source: query`・スキーマ `constraints:`・CLI `query` が共用する |
@@ -78,15 +78,12 @@ src/main/kotlin/
 | `Workspace` / `WorkspaceScan` | core/Workspace.kt | ヘッドレスなワークスペース操作（開く・読む・保存・検証・変更セット適用）。相対パス解決はワークスペース外への脱出を拒否。`noteDiskChanges` が保存・外部変更の索引更新方針（増分／スキーマ変更時の全再構築）を一元化し、UI（AppState）もこの経路を通る（R9-02） |
 | `EditBuffer` / `WorkspaceRecords` | core/Documents.kt | 文書キャッシュ層の中核（R9-02）: 履歴（Undo/Redo）・dirty判定・複数ドキュメント再出力（`EditBuffer`）と、一覧レコード収集・一括編集（`WorkspaceRecords`。未保存優先の loader 注入）。`app.OpenDocument` / `AppState` はこの層への委譲＋Compose購読ミラー |
 | `PatchOp` / `Patcher` / `ChangeSets` | core/Patch.kt | YPathパッチ（set/insert/delete/move/rename＝順序・コメント保持のキー改名/reorder＝キー並べ替え。R25-01/02）と変更セット（baseハッシュ競合検出、YAML解析） |
-| `EntityOps` | core/EntityOps.kt | エンティティ操作（R21-02。§4.31）: rename / merge / delete を1つの変更セットへ束ねる生成器。適用は `Workspace.apply` に委ねる（新しい書込経路を作らない） |
-| `DocMove` | core/DocMove.kt | ファイル移動・改名の一級化（R21-03。§4.31）: パスID文書参照の書き換え変更セット＋物理移動の合成。スキーマ match・ビュー定義の影響警告つきプレビュー |
-| `SchemaRefactor` | core/SchemaRefactor.kt | スキーマ・リファクタリング（P25。§4.35）: 改名・移動・整列・enum値改名・削除・必須化バックフィル・型変換・定義／関係／スキーマIDの改名（12操作）を、スキーマ定義・全該当文書・ビューへ1つの変更セットで追随させる生成器。適用は `Workspace.apply` に委ねる（新しい書込経路を作らない） |
+| `RefactorImpact` | core/RefactorImpact.kt | リファクタリングのアプリ層影響解決（B-1・RB-01。D-10 のアプリ層再接続）: 計画生成はカーネル（`semantic.SemanticRefactor`＝`session.planRefactoring`）へ一本化され、ここはビュー追随の追加変更（SchemaDef 静的解決・スカラー Set のみ）と宣言節・定義文書の言及警告で計画を**補強**する（旧 EntityOps / SchemaRefactor / DocMove は B-1 で削除） |
 | `FileWatcher` | core/FileWatcher.kt | WatchService による再帰的なファイル監視（R8-03）。「変更があったか」のフラグだけを通知し、差分判定は呼び出し側のスタンプ比較に委ねる。使えない環境では open() が null（ポーリングへフォールバック） |
-| `Bench` | core/Bench.kt | 索引性能の計測（R8-02）: ベンチマーク用ワークスペースの生成と、フル再構築 vs 増分更新の比較計測。CLI `bench` |
 | `Disclosure` | core/Disclosure.kt | 段階的開示: カタログ→骨子→ノード全文、文字数予算付き文脈バンドル |
 | `Search` | core/Search.kt | 構造検索: 本文・キー部分一致＋スキーマ／glob条件、参照・未解決参照の検索 |
 | `ViewDef` / `DocViewDef` / `Views` | core/Views.kt | ビュー機構（P6 / P14）: `_views` 定義のロード（`kind: grid / document`）、グリッド＝行（論理ID）×列（相対YPath）の解決＝原本座標化、クエリ行（`rows: match`＝パターン照合の束縛行。列の `of` で結合先の値をセル化。R22-02。§4.32）、バックリンク列（被参照の逆引き。R7-02）、文書ビュー＝文書単位の表示合成（sections の解決 `resolveDocument`。R14-01）、データパスからのスキーマフィールド解決（`fieldAt`＝schema 層 `SchemaDef.fieldAt` への委譲。R23-01 で移設 §4.33）、詳細文書スキャフォールド、テキスト表現（`renderText` / `renderDocText`） |
-| `runCli` | core/Cli.kt | CLIコマンド（catalog/outline/read/bundle/search/traverse/query/view/validate/apply/hash/entity/move/activities/agent/watch/revert/metrics/eval ほか）。出力はUTF-8のYAML |
+| `runCli` | core/Cli.kt | CLIコマンド（catalog/outline/read/bundle/search/traverse/query/view/validate/apply/hash/entity show/activities/agent/watch/revert/metrics/eval ほか）。出力はUTF-8のYAML。変更系リファクタリング（entity rename 等・move・refactor・bench）は B-1 で新CLI（cli モジュール `workspace refactor` / `workspace bench`）へ移動 |
 | `ToolChatSession` / `ToolChat` | ai/ToolChat.kt | ツール使用（function calling）対応のチャット抽象と OpenAI Responses / Anthropic Messages 実装。会話状態はセッションが保持。Azure は OpenAI 互換プリセットとして `OpenAiToolSession` を共用する |
 | `AiConnection` / `AiHttp` | ai/Connection.kt, ai/Http.kt | OpenAI互換エンドポイントの接続先解決（ベースURL・認証ヘッダ形式・APIバージョン。Azure プリセット・ollama / vLLM 等）と、AI呼び出し用 HttpClient の単一ファクトリ（プロキシ・Basic認証。R9-07・R9-08。§4.18） |
 | `GenerationRun` | agent/Generation.kt | AI生成のカーネル統合（R9-01）: 単発生成を「1ターンで提出する特殊アクティビティ」として実行する。Structured Outputs の生成値を疑似セッションが apply_patch / submit_changeset に変換し、ステージング・権限強制・実行記録を通常実行と共有する（§4.19） |
@@ -150,7 +147,7 @@ Undo/Redo は `YamlIO.dump` したスナップショット文字列の履歴（�
 
 **UIのオーバーレイ索引（UX-03）**: 人間のUIは「見たままの状態で判定する」（未保存で確認→OKなら保存）ため、`AppState.overlayIndex()` が **dirty な文書キャッシュの編集中ツリーだけを重ねた索引**を返す（`IdIndex.overlay`＝走査結果の複製＋dirty分だけの増分走査。`(indexVersion, editVersion)` でキャッシュ）。UI層（検証・カバレッジ・ビュー行集合・ID横ぐし・参照解決・被参照）は `state.index` ではなく **`state.overlayIndex()` を読む**のが規約。ディスク索引が正であることは不変（保存・CLI・エージェントは従来どおりで、エージェントはステージングのオーバーレイ索引を別に持つ）。オーバーレイ由来の値を `remember` する場合はキーに `state.editVersion` を含めること（含めないと他文書の未保存編集に追随しない）。
 
-更新方式（R8-02）: 索引はファイル単位の走査結果（`byFile`）を保持し、集約ビュー（`entries` / `refs`）はそこから導出する。保存・外部変更・変更セット適用では `update`（変更・削除ファイルだけの再走査）を使い、コストを変更ファイル数に比例させる。**スキーマが変わったときは全ファイルの走査規則が変わるため必ず `rebuild`（全再構築）を使う**（`AppState` / `core.Workspace` は `_schemas/` 配下の変更、および派生スキーマの導出元文書（R11-03。§4.23）の変更を見て自動で振り分ける）。計測は CLI `bench`（`core/Bench.kt`）で行う。
+更新方式（R8-02）: 索引はファイル単位の走査結果（`byFile`）を保持し、集約ビュー（`entries` / `refs`）はそこから導出する。保存・外部変更・変更セット適用では `update`（変更・削除ファイルだけの再走査）を使い、コストを変更ファイル数に比例させる。**スキーマが変わったときは全ファイルの走査規則が変わるため必ず `rebuild`（全再構築）を使う**（`AppState` / `core.Workspace` は `_schemas/` 配下の変更、および派生スキーマの導出元文書（R11-03。§4.23）の変更を見て自動で振り分ける）。計測は新CLI `workspace bench`（cli モジュール。カーネルの意味解析計測）で行う。
 
 ### 4.6 ID・参照のセマンティクス
 
@@ -461,13 +458,13 @@ P20 の宣言（`entity:`・関係レジストリ・EntityGraph）を**制約**�
   - **多重度**: `cardinality` の out はエンティティ単位の合算（`graph.outgoingRefs(id)` を relation で絞る。同一関係の参照を複数出現に分けて書けるため）で、**母集団は `source` 型宣言に一致する型つきエンティティ**。in は入次数（`graph.backlinksTo`）で、母集団は `target` 型宣言に一致する型つきエンティティ。型の母集団が決められない（source / target 未宣言の）relation では多重度を判定しない——「誰が満たすべきか」を推測しない。座標は該当エンティティの定義出現（なければ先頭出現）。
   - **非循環**: `acyclic: true` の relation のエッジ集合で DFS の循環検出を行い、「循環経路（A → B → A）」を添えて、このファイル内の循環構成参照値の座標へ **ERROR**（非循環は宣言した時点で構造の前提であり、warning に意味がない）。
   - **重大度**: 対象型・多重度の指摘は relation 宣言の `level`（warning / error。既定 warning）に従う。カバレッジの `level` と同じ語彙で、レジストリ側の宣言だけで提出ゲートに載せられる。
-- **coverage は共有判定器の糖衣として存続**: `requiredBy` は「関係の入次数制約」、`detailIn` は「詳細化出現の存在制約」であり、数え上げを `GraphIntegrity` の共有カウンタ（入次数＝`graph.backlinksTo` の絞り込み・出現数＝occurrences の絞り込み）へ載せ替える。**記法・`coverageStatuses` の公開API・`activeFrom` の挙動は不変**（`CoverageTest` が載せ替え前後の判定一致の回帰基準）。
-- **エンティティ操作は変更セットの生成**（R21-02）: `core/EntityOps.kt` は rename / merge / delete を**1つの `ChangeSet`**（base ハッシュ付き）へ束ねるだけで、適用は既存機構（`Workspace.apply`＝オール・オア・ナッシング・オーバーレイ検証）に委ねる。新しい書込経路を作らない。エージェントツールとしての公開は**しない**（既存 `apply_patch` で実現可能。ツール増はコンテキスト税 R19-05 に逆行——P23 で再判断）。
+- **coverage は共有判定器の糖衣として存続**: `requiredBy` は「関係の入次数制約」、`detailIn` は「詳細化出現の存在制約」であり、数え上げは入次数（`backlinksTo` の絞り込み）・出現数（occurrences の絞り込み）の共有カウンタ。**B-3（RB-03）で判定コアはカーネル `semantic.SemanticCoverage`（宣言 `CoverageRule` も semantic-core schema/）へ移設**——root `Validator.coverageStatuses` はこの ID の出現・被参照とフェーズ現在位置を写す per-ID 変換シェル。**記法・`coverageStatuses` の公開API・`activeFrom` の挙動は不変**（`CoverageTest` が判定一致の回帰基準）。
+- **エンティティ操作は計画の生成**（R21-02 → B-1 でカーネルへ一本化）: 計画生成は `semantic.SemanticRefactor`（`session.planRefactoring`＝rename / merge / delete を文書ごとの型付き操作列 `RefactoringPlan` へ束ねる）、適用は `session.applyRefactoring`（**1トランザクション＝Undo 1回**・保存は `session.save`。D-12）。新しい書込経路を作らない原則は「カーネルの操作適用に一本化」として引き継ぐ。エージェントツールとしての公開は**しない**（既存 `apply_patch` で実現可能。ツール増はコンテキスト税 R19-05 に逆行——P23 で再判断）。
   - rename(old, new): 全出現のIDフィールド値（スキーマの `type: id` フィールド。スキーマなし文書は `id` キー）＋全参照（スカラー値／属性付き参照の `to`）を set。new が既存IDと衝突したら生成段階で拒否・エンティティ型の idPattern 逸脱は警告として結果に添える。
   - merge(from, into): from への全参照を into へ張り替え、from の出現は呼び出し側の選択で「into のIDへ書き換え（詳細化として残す）」または「要素ごと削除」。delete(id): 入次数が 0 でなければ参照元一覧つきで拒否（黙って壊さない）。同一配列内の複数要素削除はインデックス降順に並べる（ops は順次適用のため）。
-  - 入口は CLI `entity rename|merge|delete`（`--apply` なしは変更セットYAMLのプレビュー出力）と、GUI のコマンドパレット「エンティティを改名…」（変更セットを確認ダイアログでプレビュー→適用。本格UIは P23 のエンティティページ）。
+  - 入口は新CLI `workspace refactor rename-entity|merge-entity|delete-entity`（cli モジュール。`--apply` なしは計画のプレビュー出力）と、GUI のコマンドパレット「エンティティを改名…」・エンティティページの操作メニュー（計画を確認ダイアログでプレビュー→適用）。計画はセッションの working 状態＝「見たまま」基準（D-12）。
 - **文書参照は対象種別の宣言制**（R21-03）: ref フィールドの `target: document`（既定 entity。**値から推測しない**）で参照先の名前空間を切り替える。`RefEntry.targetKind` を走査時に付与し、エンティティ参照の解決・バックリンク・カバレッジには**混ぜない**（別種ノードの原則。ROADMAP §4.9 原則3）。解決は `graph.documents`（documentId ＝ `_document.id` ＞ 相対パス）に対して行い、未解決は台帳内 ERROR／台帳外 INFO（§4.25 と同じ降格）。参照候補（RefEditor・AI制約）は documentId＋文書名で提示。文書側の被参照は SidePanel 関係タブの「この文書への参照」（文書のページ化はしない＝現状維持）。
-- **ファイル移動は「参照の書き換え＋物理移動」の合成**（R21-03）: 変更セットにファイル移動の語彙は増やさない。`core/DocMove` が①パスID（`_document.id` 未宣言）の文書参照を書き換える変更セット（`Workspace.apply` 経由）②物理移動（`Files.move`）③`noteDiskChanges` の順で実行し、プレビューには書き換え対象参照・スキーマ `match` の当たりが変わる警告・ビュー定義の file / fileGlob が外れる警告・`_document.id` 宣言済みなら「参照は安定・書き換え不要」を含める。入口は CLI `move <old> <new>` と既存 W-03（ツリーの改名）の確認ダイアログ。
+- **ファイル移動は「参照の書き換え＋移動」の1トランザクション**（R21-03 → B-1 でカーネルへ一本化）: `RefactoringRequest.MoveDocument` がパスID（`_document.id` 未宣言）の文書参照の書き換えと物理移動（`WorkspaceOperation.MoveDocument`）を1計画にし、`session.applyRefactoring` が一括適用する（旧 DocMove の「移動成功→書き換え失敗」の継ぎ目を解消）。プレビューには書き換え対象参照・スキーマ `match` の当たりが変わる警告（セッション付与）・ビュー定義の file / fileGlob が外れる警告（`core/RefactorImpact.moveWarnings`＝アプリ層補強）・`_document.id` 宣言済みなら「参照は安定・書き換え不要」を含める。入口は新CLI `workspace refactor move-document` と既存 W-03（ツリーの改名）の確認ダイアログ。
 
 ### 4.32 二層モデル③: クエリコア（P22: R22-01〜03）
 
@@ -540,7 +537,7 @@ limit: 100                               # 既定 100（total は打切り前の
 
 ### 4.35 スキーマ・リファクタリング（P25: R25-01〜04）
 
-スキーマ定義の変更（改名・移動・順序・型変換・定義／関係の改名）に既存文書・ビューを**1つの変更セット**で追随させる機構。方式は「操作ベース」——スキーマ差分からの推測（改名と削除＋追加が判別不能）は採らず、明示的な操作が生成器（`core/SchemaRefactor`。`EntityOps.Plan` = 変更セット＋警告＋サマリを共用）を通って既存の `Workspace.apply` で適用される。EntityOps（§4.31）・DocMove と同型で**新しい書込経路を作らない**。`_schemas` はエージェント書込不可（§4.10）のため入口は人間専用（スキーマエディタの「一括改名…」「一括削除…」「文書をスキーマ順へ整列…」・CLI `refactor` の12操作）。
+スキーマ定義の変更（改名・移動・順序・型変換・定義／関係の改名）に既存文書・ビューを**1つの計画**で追随させる機構。方式は「操作ベース」——スキーマ差分からの推測（改名と削除＋追加が判別不能）は採らず、明示的な操作が生成器（B-1 でカーネル `semantic.SemanticSchemaRefactor`＝`session.planRefactoring` へ一本化。`RefactoringPlan` = 文書ごとの型付き操作列＋警告＋サマリ）を通って `session.applyRefactoring`（1トランザクション＝Undo 1回。D-12）で適用される。ビュー追随・言及警告は root の `core/RefactorImpact` がアプリ層で計画に補強する（D-10 の再接続。CLI 経路は警告案内のまま）。`_schemas` はエージェント書込不可（§4.10）のため入口は人間専用（スキーマエディタの「一括改名…」「一括削除…」「文書をスキーマ順へ整列…」・新CLI `workspace refactor` の12操作）。
 
 **フィールドの同定はインスタンス同一性**: 対象フィールドはドット区切りパス（データと同じ形。配列・map は暗黙降下、cases 由来キーは兄弟として指定）からスキーマ定義上の実体（保持モジュール・YAML座標・`FieldDef` インスタンス）へ解決し、以降は **`FieldDef` の同一インスタンス（`===`）** で同定する。パーサが定義を1回だけ生成し `$ref` 解決（`resolve` は浅いコピー）が子リストのインスタンスを保つため、再帰スキーマ・横断参照・derive 派生（テンプレート root の共有）を通じても走査で正しく同定できる。この前提（**resolve が fields / item / value / cases のインスタンスを再生成しない**）はこの機構の生命線——スキーマ層の変更で FieldDef を deep copy する場合はここを見直すこと。enum 値の改名だけは「`$ref` の最終実体（値の保持サイト）」で同定する（複数スキーマが同じ定義を参照する場合に全使用側の文書へ波及させるため）。
 

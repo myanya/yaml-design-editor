@@ -485,7 +485,8 @@ private enum class EntityOp { RENAME, MERGE, DELETE }
 
 /**
  * エンティティ操作の確認ダイアログ（R23-02。破壊的操作の確認＝§4.24 の許容範囲）。
- * 変更セット（R21-02 の生成器）をプレビューし、適用は既存の Workspace.apply 経路（AppState.applyEntityPlan）。
+ * 計画（R21-02 → B-1 でカーネル生成）をプレビューし、適用はセッションの1トランザクション
+ * （AppState.applyEntityPlan。Undo 1回で戻る）。
  */
 @Composable
 private fun EntityOpDialog(state: AppState, id: String, op: EntityOp, onDismiss: () -> Unit) {
@@ -542,8 +543,8 @@ private fun EntityOpDialog(state: AppState, id: String, op: EntityOp, onDismiss:
                         p.warnings.forEach { Text("注意: $it", fontSize = 12.sp, color = Palette.WarnOrange) }
                         Spacer(Modifier.height(6.dp))
                         Text("変更されるファイル:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        p.changeSet.changes.forEach { c ->
-                            Text("・${c.file}（${c.ops.size} 操作）", fontSize = 12.sp, color = Palette.SubText)
+                        p.changes.forEach { c ->
+                            Text("・${c.document.value}（${c.operations.size} 操作）", fontSize = 12.sp, color = Palette.SubText)
                         }
                     }
                 }

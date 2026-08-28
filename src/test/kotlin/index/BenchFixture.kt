@@ -1,14 +1,14 @@
-package core
+package index
 
 import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * 大規模ワークスペースの性能計測（R8-02）。
- * ベンチマーク用ワークスペースの生成と、索引の「フル再構築 vs 増分更新」の比較計測を提供する。
- * 計測ベースで性能改善を進めるための道具であり、生成物は使い捨てにできる。
+ * 旧索引（IdIndex）増分テスト用のワークスペース生成・計測フィクスチャ。
+ * 旧 core/Bench.kt（R8-02）を B-1（RB-01）の本体削除に伴いテスト側へ移設した——
+ * 利用者向けの計測は新CLI（workspace bench）が担い、これは IdIndexIncrementalTest 専用（B-2 で本体と共に削除）。
  */
-object Bench {
+internal object Bench {
 
     /**
      * ベンチマーク用ワークスペースを生成する。
@@ -95,7 +95,7 @@ object Bench {
      * 増分更新のコストが変更ファイル数に比例する（総文書数に比例しない）ことの確認に使う。
      */
     fun measure(dir: Path, iterations: Int = 3): Result {
-        val ws = Workspace.open(dir)
+        val ws = core.Workspace.open(dir)
         val target = ws.files.firstOrNull { !ws.relPath(it).startsWith("_") }
             ?: error("計測対象の文書がありません: $dir")
         fun best(block: () -> Unit): Double {

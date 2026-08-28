@@ -1,6 +1,8 @@
 package index
 
-import schema.EntityRole
+import model.DocumentId
+import semantic.DocumentScan
+import semantic.SemanticEntityGraph
 import java.nio.file.Path
 
 /** グラフ導出用のファイル走査結果のビュー（IdIndex の内部表現から渡される）。 */
@@ -30,11 +32,11 @@ data class DocumentNode(
 )
 
 /**
- * 走査結果から導出する読み取り専用のエンティティグラフ（R20-04。ARCHITECTURE §4.30）。
- * ノード＝エンティティ（論理ID）と文書、エッジ＝型付き参照（RefEntry）。グラフの永続ストアは持たず、
- * 索引の再構築でいつでも復元できる（原本主義。ROADMAP §4.9 原則2）。
- * `sourceEntryOf` / `backlinksTo` / トラバースの出次列挙は、従来の全参照線形走査と**同一の出力**を
- * 返す事前計算の載せ替え（公開APIと出力は不変。EntityGraphTest が旧実装との一致を保証する）。
+ * エンティティグラフ（R20-04。ARCHITECTURE §4.30）の Path 座標シェル（B-2・RB-02 でカーネル一本化）。
+ * 導出の実体——最内出現の突合（sourceEntryOf）・出次エッジ（outgoingRefs）・エンティティ表・
+ * 文書ノード表——はカーネル semantic.SemanticEntityGraph（SM-003）で、ここは IdEntry / RefEntry ↔
+ * Scanned の座標変換（SemanticBridge。document＝絶対パス文字列＝1:1可逆）と、被参照の全体順
+ * （backlinksTo＝Path 側の集約）だけを持つ。公開APIと出力は従来と同一（EntityGraphTest が固定）。
  */
 class EntityGraph private constructor(
     /** 論理ID → エンティティノード。 */
@@ -42,9 +44,8 @@ class EntityGraph private constructor(
     /** documentId → 文書ノード（先勝ち。documentId 衝突時はパス順の先頭）。 */
     val documents: Map<String, DocumentNode>,
     private val refsByTarget: Map<String, List<RefEntry>>,
-    private val sourceByRef: Map<RefEntry, IdEntry>,
-    private val outByEntry: Map<IdEntry, List<RefEntry>>,
     private val refOrder: Map<RefEntry, Int>,
+    private val kernel: SemanticEntityGraph,
 ) {
 
     /** 指定 ID 群への被参照。全参照の並び順（パス順＝IdIndex.refs の順）を保つ。 */
@@ -54,14 +55,13 @@ class EntityGraph private constructor(
     }
 
     /** 参照値の位置を含む、最も内側（パスが最長）の ID 出現＝参照を書いた要素。 */
-    fun sourceEntryOf(ref: RefEntry): IdEntry? = sourceByRef[ref]
+    fun sourceEntryOf(ref: RefEntry): IdEntry? = kernel.sourceEntryOf(ref.toScanned())?.toIdEntry()
 
     /** ID の全出現のサブツリー配下に書かれた参照（出次エッジ。出現順→ファイル内の走査順）。 */
-    fun outgoingRefs(id: String): List<RefEntry> =
-        entities[id]?.occurrences.orEmpty().flatMap { outByEntry[it].orEmpty() }
+    fun outgoingRefs(id: String): List<RefEntry> = kernel.outgoingRefs(id).map { it.toRefEntry() }
 
     /** 1出現のサブツリー配下に書かれた参照。 */
-    fun outgoingRefs(entry: IdEntry): List<RefEntry> = outByEntry[entry].orEmpty()
+    fun outgoingRefs(entry: IdEntry): List<RefEntry> = kernel.outgoingRefs(entry.toScanned()).map { it.toRefEntry() }
 
     companion object {
         internal fun build(
@@ -69,52 +69,39 @@ class EntityGraph private constructor(
             entries: Map<String, List<IdEntry>>,
             refs: List<RefEntry>,
         ): EntityGraph {
-            // 参照の全体順（backlinksTo の複数ID版が従来の全走査順を保つための索引）
+            // 参照の全体順（backlinksTo の複数ID版が従来の全走査順を保つための索引）＝Path 側の集約として残す
             val refOrder = HashMap<RefEntry, Int>(refs.size * 2)
             refs.forEachIndexed { i, r -> refOrder.putIfAbsent(r, i) }
             val refsByTarget = refs.groupBy { it.targetId }
 
-            // 参照 → 参照元要素（最内のID出現）と、ID出現 → サブツリー配下の参照（出次）。
-            // 同一ファイル内だけの突合で足りるため、コストはファイル単位に閉じる
-            val sourceByRef = HashMap<RefEntry, IdEntry>()
-            val outByEntry = HashMap<IdEntry, MutableList<RefEntry>>()
-            for (scan in files) {
-                if (scan.refs.isEmpty() || scan.ids.isEmpty()) continue
-                for (ref in scan.refs) {
-                    var innermost: IdEntry? = null
-                    for (e in scan.ids) {
-                        if (e.path.size <= ref.path.size && ref.path.subList(0, e.path.size) == e.path) {
-                            outByEntry.getOrPut(e) { mutableListOf() }.add(ref)
-                            if (innermost == null || e.path.size > innermost.path.size) innermost = e
-                        }
-                    }
-                    innermost?.let { sourceByRef[ref] = it }
-                }
-            }
-
-            // エンティティ表: 型・タイトルは定義出現を優先する（R20-01 の resolve と同じ規則）
-            val entities0 = LinkedHashMap<String, EntityNode>(entries.size * 2)
-            entries.forEach { (id, occurrences) ->
-                val defining = occurrences.firstOrNull { it.role == EntityRole.DEFINING }
-                entities0[id] = EntityNode(
-                    id = id,
-                    entityType = defining?.entityType ?: occurrences.firstNotNullOfOrNull { it.entityType },
-                    defining = defining,
-                    occurrences = occurrences,
-                    title = defining?.title ?: occurrences.firstNotNullOfOrNull { it.title },
+            // 突合・表の導出はカーネルへ（走査結果をパス順のまま DocumentId 座標へ写す）
+            val scans = files.map { scan ->
+                DocumentScan(
+                    document = DocumentId(scan.file.toString()),
+                    documentId = scan.documentId,
+                    ids = scan.ids.map { it.toScanned() },
+                    refs = scan.refs.map { it.toScanned() },
                 )
             }
-
-            // 文書ノード表: 識別は既存 documentId（_document.id ＞ 相対パス）。衝突は先勝ち（パス順）
-            val documents = LinkedHashMap<String, DocumentNode>()
-            for (scan in files) {
-                documents.putIfAbsent(
-                    scan.documentId,
-                    DocumentNode(scan.documentId, scan.file, scan.ids.map { it.id }.distinct()),
+            val kernel = SemanticEntityGraph.build(
+                scans,
+                entries.mapValues { (_, occurrences) -> occurrences.map { it.toScanned() } },
+            )
+            val entityNodes = LinkedHashMap<String, EntityNode>(kernel.entities.size * 2)
+            kernel.entities.forEach { (id, n) ->
+                entityNodes[id] = EntityNode(
+                    id = n.id,
+                    entityType = n.entityType,
+                    defining = n.defining?.toIdEntry(),
+                    occurrences = n.occurrences.map { it.toIdEntry() },
+                    title = n.title,
                 )
             }
-
-            return EntityGraph(entities0, documents, refsByTarget, sourceByRef, outByEntry, refOrder)
+            val documentNodes = LinkedHashMap<String, DocumentNode>(kernel.documents.size * 2)
+            kernel.documents.forEach { (id, d) ->
+                documentNodes[id] = DocumentNode(d.documentId, Path.of(d.document.value), d.entityIds)
+            }
+            return EntityGraph(entityNodes, documentNodes, refsByTarget, refOrder, kernel)
         }
     }
 }

@@ -1,6 +1,5 @@
 package index
 
-import core.Bench
 import core.ChangeSets
 import core.Workspace
 import java.nio.file.Files

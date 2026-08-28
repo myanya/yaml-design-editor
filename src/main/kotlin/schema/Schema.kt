@@ -7,26 +7,8 @@ import model.YNode
 import model.parseYPath
 import model.scalarText
 
-/**
- * このスキーマが定義する ID への充足要件（トレーサビリティのカバレッジルール）。
- * - 参照ベース（`requiredBy`）: 「idPattern に一致する ID は、条件を満たす参照を minCount 件以上受けること」
- * - 出現ベース（`detailIn`）: 「idPattern に一致する ID は、指定スキーマの文書に minCount 件以上出現すること」
- *   （段階的詳細化の詳細文書の存在検証。R7-02）
- */
-data class CoverageRule(
-    val id: String? = null,                       // ルールの識別子（表示用）
-    val description: String? = null,              // 人間向けの説明
-    val idPattern: String? = null,                // 対象 ID の glob（null = このスキーマの全 ID）
-    val fromSchemaIds: List<String> = emptyList(),// 参照元文書のスキーマIDを限定（空 = 制限なし。参照ベースのみ）
-    val relation: String? = null,                 // 参照の関係種別を限定（null = 制限なし。参照ベースのみ）
-    val detailSchemaIds: List<String> = emptyList(),// 空でなければ出現ベース: このスキーマの文書への出現を数える
-    val minCount: Int = 1,                        // 必要な参照数（出現ベースでは出現数）
-    val level: CoverageLevel = CoverageLevel.WARNING,
-    val activeFrom: String? = null,               // IDを定義する文書がこのフェーズに達してから判定（null = 常時）
-) {
-    /** true = 出現ベース（詳細文書の存在検証）、false = 参照ベース（被参照数）。 */
-    val isOccurrence: Boolean get() = detailSchemaIds.isNotEmpty()
-}
+// CoverageRule は semantic-core の schema/Coverage.kt へ移動（B-3・RB-03a。判定コア
+// semantic.SemanticCoverage と宣言を揃えるため）。同一パッケージのためこのファイルの利用箇所は変更なし。
 
 // DeriveDef / DeriveTypeRule（R11-03）は semantic-core の schema/SchemaDerivation.kt へ移動（C-2。
 // 展開コアを reader / session と共有するため）。同一パッケージのためこのファイルの利用箇所は変更なし。
@@ -343,7 +325,7 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
     }
     coverage.forEachIndexed { i, rule ->
         if (rule.minCount < 1) issues += SchemaIssue("minCountは1以上が必要です", "coverage[$i]")
-        if (rule.idPattern != null && rule.idPattern.isBlank()) issues += SchemaIssue("idPatternが空です", "coverage[$i]")
+        if (rule.idPattern?.isBlank() == true) issues += SchemaIssue("idPatternが空です", "coverage[$i]")
         rule.activeFrom?.let { from ->
             if (phases == null) issues += SchemaIssue("activeFrom を使うには phases の宣言が必要です", "coverage[$i]")
             else if (from !in phases.order) issues += SchemaIssue("activeFrom「$from」は phases に含まれていません", "coverage[$i]")

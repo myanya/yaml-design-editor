@@ -97,9 +97,9 @@
 
 | 単位 | 内容 |
 |---|---|
-| B-1 | AppState / SchemaEditor の plan 系呼び出し（17箇所）を `session.planRefactoring` へ → **EntityOps / SchemaRefactor / DocMove / ChangeSets 削除**（ビュー追随は 6E 完了までは警告案内＝D-10 の適用を判断） |
-| B-2 | IdIndex / EntityGraph / overlay 消費を derived へ → **index/ 縮退**（SemanticBridge は残置） |
-| B-3 | Validator 意味部を derived.semantic へ・**coverage / consistency / phase を semantic-core の検証族として移設**（§17-⑧ の第一弾。宣言は SemanticDeclarations を拡張） |
+| B-1 | ✅ **完了**（RB-01・2026-08-28）: plan 系17箇所を `session.planRefactoring` へ切替・適用は `applyRefactoring`＝1トランザクション＋保存（reload しない＝**Undo 1回で戻る**。D-12）→ **EntityOps / SchemaRefactor / DocMove / Bench 削除**（約2,300行）。ビュー追随・言及警告は `core/RefactorImpact`（新設）でアプリ層再接続＝**D-10 解決**（CLI は警告案内のまま）。root Cli の entity 変更系・refactor・move・bench は新CLIへ誘導（B-4 の一部前倒し）。ChangeSets はエージェント経路が使用中のため残置（B-2/B-4 で再判断）。一括更新も reload 廃止＝D-11 の Undo 1回が発効 |
+| B-2 | 🚧 **進行中**（第1弾 RB-02・2026-08-28）: EntityGraph の導出をカーネル `SemanticEntityGraph` へ一本化（root は Path 座標の変換シェル＋backlinksTo の全体順のみ。EntityGraphTest シェル経由緑＝一致証明）。残: IdIndex 本体（rebuild / update / overlay のディスク走査）は legacy `core.Workspace` が使用中＝Workspace のセッション置換と連動して縮退・`state.overlayIndex()` の解消は消費側の型切替（B-3 連動）後 |
+| B-3 | ✅ **完了**（RB-03〜06・2026-08-28）: 検証の意味部がカーネル所有になった——①カバレッジ②フェーズ進捗③consistency④文書内重複・参照解決（詳細は各弾の記述↓）。`validateWorkspace` の参照元は RA-02 以降セッション派生（overlayIndex ファサード）＝供給・判定とも新経路。**残置の整理**: エンティティ整合 lint（3.5）・テンプレート健全性（5）は SchemaDef 静的解決依存で root 残置（Phase D 再判断）・`state.overlayIndex()` という **IdIndex 型の解消は B-2 続き**（全消費者の型切替＝legacy Workspace 解消と連動）へ統合。（第1弾 RB-03）**カバレッジ判定族を移設**——宣言 `CoverageRule` → semantic-core schema/・判定コア → `semantic.SemanticCoverage`（入次数・出現数カウンタ＝グラフ整合との共有規則ごと）。root `Validator.coverageStatuses` は per-ID 変換シェル（CoverageTest シェル経由緑＝一致証明）。第2弾（RB-04・2026-08-28）: **phase 進捗を移設**——`phaseProgress` / `phaseSummaryText` → yaml-core `StructuralSchema` 拡張（構造層の関心）。root はシェル・型は typealias（PhaseTest シェル経由緑）。第3弾（RB-05・2026-08-28）: **consistency（derive 一致）を移設**——判定コア → `semantic.SemanticConsistency`（来歴ごと。ConsistencyTest シェル経由緑）。第4弾（RB-06・2026-08-28）: **validate() 本体の意味部（重複・参照解決）を単一所有化**——`SemanticEngine.duplicateIdIssues / referenceIssues` を aggregate と root が共用（二層供給・INFO 降格はカーネル判定。**D-13**: 重複文言を「この文書内」へ統一）。残: `validateWorkspace` の derived 置換（B-3 最終）・エンティティ lint（3.5）とテンプレート健全性（5）は root 残置 |
 | B-4 | root Cli の重複コマンド（entity / refactor / move / bench / validate / apply）を削除し cli モジュールへ誘導。探索系（catalog / read / query / traverse / view 等）はエージェント運用が現役のため**当面残置** |
 
 ### Phase C: 未移行機能の着地

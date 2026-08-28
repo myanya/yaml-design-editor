@@ -134,6 +134,55 @@ object SemanticEngine {
         return DocumentScan(d.id, d.documentId, docIds, docRefs)
     }
 
+    /** 文書内の ID 重複（ERROR）。文書間の同一 ID は「同一エンティティの複数出現」で合法。 */
+    fun duplicateIdIssues(scan: DocumentScan): List<SemanticIssue> =
+        scan.ids.groupBy { it.id }.filterValues { it.size > 1 }.flatMap { (id, list) ->
+            list.map { e -> SemanticIssue(Severity.ERROR, "ID「$id」がこの文書内で重複しています", scan.document, e.path) }
+        }
+
+    /**
+     * 参照解決の判定（B-3・RB-06 で aggregate から抽出＝root Validator と単一所有）。
+     * 出現・文書IDの供給元（全体集約／索引＋ローカルの二層 §4.5）は上位層が注入する。
+     * - ownDocumentId: 検証対象文書自身の論理ID（未保存で索引に無い場合の自己文書参照の解決。null = 供給元に含まれる）
+     * - indexed = false（台帳外。R13-03）: 未解決を INFO へ降格する（エディタ層。全体集約では常に true）
+     */
+    fun referenceIssues(
+        refs: List<ScannedRef>,
+        ownDocumentId: String?,
+        occurrences: (String) -> List<ScannedId>,
+        hasDocumentId: (String) -> Boolean,
+        indexed: Boolean = true,
+    ): List<SemanticIssue> {
+        val issues = mutableListOf<SemanticIssue>()
+        for (r in refs) {
+            if (r.targetKind == RefTarget.DOCUMENT) {
+                if (r.targetId == ownDocumentId || hasDocumentId(r.targetId)) continue
+                issues += if (!indexed) {
+                    SemanticIssue(Severity.INFO, "文書参照「${r.targetId}」は台帳外の文書のため解決されません", r.document, r.path)
+                } else {
+                    SemanticIssue(
+                        Severity.ERROR,
+                        "文書参照「${r.targetId}」を解決できません（_document.id または相対パス）",
+                        r.document, r.path,
+                    )
+                }
+                continue
+            }
+            val occs = occurrences(r.targetId)
+            if (occs.none { it.isAllowedBy(r) }) {
+                issues += when {
+                    !indexed ->
+                        SemanticIssue(Severity.INFO, "参照「${r.targetId}」は台帳外の文書のため解決されません", r.document, r.path)
+                    occs.isNotEmpty() ->
+                        SemanticIssue(Severity.ERROR, "参照「${r.targetId}」はパターンまたはスコープの対象外です", r.document, r.path)
+                    else ->
+                        SemanticIssue(Severity.ERROR, "参照「${r.targetId}」（${r.path.pretty()}）を解決できません", r.document, r.path)
+                }
+            }
+        }
+        return issues
+    }
+
     /** 走査結果集合からの集約（重複検出・参照解決・グラフ・整合検証）。build / update で共有する正の経路。 */
     private fun aggregate(
         version: Long,
@@ -149,35 +198,16 @@ object SemanticEngine {
             documentIds += scan.documentId
             for (e in scan.ids) ids.getOrPut(e.id) { mutableListOf() }.add(e)
             refs += scan.refs
-            // 文書内の ID 重複（ERROR）。文書間の同一 ID は「同一エンティティの複数出現」で合法
-            scan.ids.groupBy { it.id }.filterValues { it.size > 1 }.forEach { (id, list) ->
-                list.forEach { e ->
-                    issues += SemanticIssue(Severity.ERROR, "ID「$id」がこの文書内で重複しています", scan.document, e.path)
-                }
-            }
+            issues += duplicateIdIssues(scan)
         }
 
         // 参照解決（未解決＝ERROR・存在するがパターン/スコープ対象外＝ERROR・文書参照は別名前空間）
-        for (r in refs) {
-            if (r.targetKind == RefTarget.DOCUMENT) {
-                if (r.targetId !in documentIds) {
-                    issues += SemanticIssue(
-                        Severity.ERROR,
-                        "文書参照「${r.targetId}」を解決できません（_document.id または相対パス）",
-                        r.document, r.path,
-                    )
-                }
-                continue
-            }
-            val occs = ids[r.targetId].orEmpty()
-            if (occs.none { it.isAllowedBy(r) }) {
-                issues += if (occs.isNotEmpty()) {
-                    SemanticIssue(Severity.ERROR, "参照「${r.targetId}」はパターンまたはスコープの対象外です", r.document, r.path)
-                } else {
-                    SemanticIssue(Severity.ERROR, "参照「${r.targetId}」（${r.path.pretty()}）を解決できません", r.document, r.path)
-                }
-            }
-        }
+        issues += referenceIssues(
+            refs = refs,
+            ownDocumentId = null,
+            occurrences = { ids[it].orEmpty() },
+            hasDocumentId = { it in documentIds },
+        )
 
         val graph = SemanticEntityGraph.build(scans, ids)
         // グラフ整合検証（R21-01。6A）: 関係レジストリの宣言があるときだけ判定する

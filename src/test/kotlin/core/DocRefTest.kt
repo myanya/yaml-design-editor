@@ -21,7 +21,8 @@ import kotlin.test.assertTrue
  * 文書参照とファイル移動（R21-03。ARCHITECTURE §4.31）のテスト。
  * - `target: document` の宣言・解決（documentId ＝ `_document.id` ＞ 相対パス）・台帳外の INFO 降格
  * - エンティティ名前空間との分離（文書参照はエンティティIDに解決されない）
- * - DocMove: パスID参照の書き換え・スキーマ match / ビュー定義の警告・`_document.id` の安定性
+ * - 移動（B-1 でカーネル MoveDocument へ移行）: パスID参照の書き換え・スキーマ match の警告・
+ *   `_document.id` の安定性・ビュー定義の警告（RefactorImpact.moveWarnings）
  */
 class DocRefTest {
 
@@ -160,34 +161,33 @@ class DocRefTest {
         )
     }
 
-    // ---------------------------------------------------------------- 移動（DocMove）
+    // ---------------------------------------------------------------- 移動（B-1 でカーネル MoveDocument へ移行。ビュー警告は RefactorImpact）
 
     @Test
-    fun `moveはパスID参照を書き換えてスキーマとビューの警告を出す`() {
+    fun `moveはパスID参照を書き換えてスキーマの警告を出す`() {
         writeSchemas()
-        write("_views/spec-list.yaml", """
-            id: spec-list
-            name: 仕様一覧
-            rows: { idPattern: "NOTE-*" }
-            columns:
-              - { label: 仕様, path: spec, fileGlob: "notes/**/*.yaml" }
-        """)
         write("specs/misc.yaml", "title: その他")
         write("notes/a.yaml", """
             id: NOTE-1
             spec: specs/misc.yaml
         """)
-        val ws = Workspace.open(dir)
-        val plan = DocMove.plan(ws, "specs/misc.yaml", "archive/misc.yaml")
+        val session = workspace.WorkspaceSession(workspace.FileSystemDocumentStore(dir))
+        val plan = session.planRefactoring(
+            semantic.RefactoringRequest.MoveDocument(
+                model.DocumentId("specs/misc.yaml"), model.DocumentId("archive/misc.yaml"),
+            )
+        )
         // パスID参照 1 件の書き換え＋スキーマ match が外れる警告
-        assertEquals(1, plan.changeSet.changes.sumOf { it.ops.size })
+        assertEquals(1, plan.changes.sumOf { it.operations.size })
         assertTrue(plan.warnings.any { "スキーマの適用が変わります" in it && "specs" in it }, plan.warnings.toString())
 
-        DocMove.execute(ws, plan)
+        assertTrue(session.applyRefactoring(plan).ok)
+        assertTrue(session.save().ok)
         assertTrue(Files.exists(dir.resolve("archive/misc.yaml")))
         assertTrue(!Files.exists(dir.resolve("specs/misc.yaml")))
         assertTrue("spec: archive/misc.yaml" in read("notes/a.yaml"), read("notes/a.yaml"))
         // 移動後は参照が解決される
+        val ws = Workspace.open(dir)
         assertTrue(ws.validate("notes/a.yaml").none { "文書参照" in it.message })
     }
 
@@ -203,10 +203,10 @@ class DocRefTest {
         """)
         write("notes/a.yaml", "id: NOTE-1")
         val ws = Workspace.open(dir)
-        val plan = DocMove.plan(ws, "notes/a.yaml", "memo/a.yaml")
+        val warnings = RefactorImpact.moveWarnings(ws, "notes/a.yaml", "memo/a.yaml")
         assertTrue(
-            plan.warnings.any { "ビュー「note-list」" in it && "fileGlob" in it },
-            plan.warnings.toString(),
+            warnings.any { "ビュー「note-list」" in it && "fileGlob" in it },
+            warnings.toString(),
         )
     }
 
@@ -221,12 +221,18 @@ class DocRefTest {
             id: NOTE-1
             spec: spec-login
         """)
-        val ws = Workspace.open(dir)
-        val plan = DocMove.plan(ws, "specs/login.yaml", "archive/login.yaml")
-        assertEquals(0, plan.changeSet.changes.size)
-        assertTrue(plan.notes.any { "_document.id" in it && "安定" in it }, plan.notes.toString())
-        DocMove.execute(ws, plan)
+        val session = workspace.WorkspaceSession(workspace.FileSystemDocumentStore(dir))
+        val plan = session.planRefactoring(
+            semantic.RefactoringRequest.MoveDocument(
+                model.DocumentId("specs/login.yaml"), model.DocumentId("archive/login.yaml"),
+            )
+        )
+        assertEquals(0, plan.changes.size)
+        assertTrue(plan.summary.any { "_document.id" in it && "安定" in it }, plan.summary.toString())
+        assertTrue(session.applyRefactoring(plan).ok)
+        assertTrue(session.save().ok)
         // 移動後も documentId で解決される
+        val ws = Workspace.open(dir)
         assertTrue(ws.validate("notes/a.yaml").none { "文書参照" in it.message })
     }
 }

@@ -16,6 +16,8 @@ import schema.SchemaDef
 import schema.FieldDef
 import model.deepCopy
 import schema.SchemaLoader
+import semantic.RefactoringPlan
+import semantic.RefactoringRequest
 import workspace.ChangeRecord
 import workspace.FileSystemDocumentStore
 import workspace.WorkspaceDerivedState
@@ -693,17 +695,24 @@ class AppState {
     fun bulkUpdate(files: Set<Path>, key: String, value: String): Result<Int> = runCatching {
         require(key.isNotBlank() && !key.startsWith("_") && key != "id") { "一括変更できない項目です: $key" }
         require(files.none { docCache[it]?.dirty == true }) { "未保存のファイルが含まれています" }
-        val reopen = openDoc?.file?.takeIf { it in files }
-        val count = sessionBulkUpdate(files, key, value)
-            ?: core.WorkspaceRecords.updateRootScalar(files, key, value)  // セッション不在時の従来経路
-        files.forEach(docCache::remove)
-        reload()
-        reopen?.let { file ->
-            val refreshed = loadDocument(file)
-            docCache[file] = refreshed
-            openDoc = refreshed
+        val viaSession = sessionBulkUpdate(files, key, value)
+        if (viaSession != null) {
+            // セッション経路（D-11）: reload しない＝履歴を保持し、一括変更全体が Undo 1回で戻る
+            refreshAfterSessionWrite(files.map { DocumentId(relPath(it)) })
+            viaSession
+        } else {
+            // セッション不在時の従来経路（ファイル単位の直接書換→全再読込）
+            val reopen = openDoc?.file?.takeIf { it in files }
+            val count = core.WorkspaceRecords.updateRootScalar(files, key, value)
+            files.forEach(docCache::remove)
+            reload()
+            reopen?.let { file ->
+                val refreshed = loadDocument(file)
+                docCache[file] = refreshed
+                openDoc = refreshed
+            }
+            count
         }
-        count
     }
 
     /**
@@ -893,6 +902,34 @@ class AppState {
         }
     }
 
+    /**
+     * セッション書込（リファクタリング適用・一括更新）後の追随（B-1・RB-01）: reload しない＝履歴を保持したまま、
+     * docCache のツリー・ディスクスタンプ・旧経路の索引を更新する。save() の複数ファイル版に相当する。
+     */
+    private fun refreshAfterSessionWrite(ids: Collection<DocumentId>) {
+        val ws = workspace ?: return
+        refreshDocsFromSession(ids)
+        val files = ids.map { ws.resolve(it.value).normalize() }
+        files.forEach { f ->
+            docCache[f]?.let { d ->
+                d.diskModifiedMillis = runCatching { Files.getLastModifiedTime(f).toMillis() }.getOrDefault(0L)
+                d.externalConflict = false
+            }
+        }
+        coreWs?.let { cw ->
+            // スキーマ変更時の全再構築への振り分けは core に一元化されている（R9-02）
+            cw.noteDiskChanges(
+                changed = files.filter { Files.exists(it) },
+                removed = files.filterNot { Files.exists(it) },
+            )
+            mirrorCore(cw)
+            docCache.values.forEach { it.schema = schemaFor(it.file) }
+        }
+        workspaceStamp = snapshotFiles(ws)
+        indexVersion++
+        editVersion++
+    }
+
     fun hasDirtyDocs(): Boolean = docCache.values.any { it.dirty }
 
     /** 未保存文書の数（台帳スペースの保存ボタンの件数表示用。UX-34。dirty の読み取りが再コンポーズを購読する）。 */
@@ -964,45 +1001,63 @@ class AppState {
         file
     }
 
+    /** リファクタリング計画を生成するセッション（B-1・RB-01: 計画・適用はカーネルへ一本化）。 */
+    private fun refactorSession(): WorkspaceSession =
+        session ?: error("ワークスペースが開かれていません")
+
     /**
-     * エンティティ改名のプレビュー（R21-02。ARCHITECTURE §4.31）: 全出現・全参照を書き換える
-     * 変更セットを生成する（適用しない）。索引＝保存済み状態が基準のため、未保存編集は適用前に保存する。
+     * エンティティ改名のプレビュー（R21-02。ARCHITECTURE §4.31）: 全出現・全参照を書き換える計画を
+     * 生成する（適用しない）。計画はセッションの working 状態＝「見たまま」が基準（B-1）。
      */
-    fun planEntityRename(oldId: String, newId: String): Result<core.EntityOps.Plan> = runCatching {
-        core.EntityOps.rename(coreWs ?: error("ワークスペースが開かれていません"), oldId, newId)
+    fun planEntityRename(oldId: String, newId: String): Result<RefactoringPlan> = runCatching {
+        refactorSession().planRefactoring(RefactoringRequest.RenameEntity(oldId, newId))
     }
 
     /** エンティティ統合のプレビュー（R21-02。入口はエンティティページの操作メニュー。R23-02）。 */
-    fun planEntityMerge(fromId: String, intoId: String, deleteOccurrences: Boolean): Result<core.EntityOps.Plan> =
+    fun planEntityMerge(fromId: String, intoId: String, deleteOccurrences: Boolean): Result<RefactoringPlan> =
         runCatching {
-            core.EntityOps.merge(
-                coreWs ?: error("ワークスペースが開かれていません"), fromId, intoId,
-                if (deleteOccurrences) core.EntityOps.MergeMode.DELETE else core.EntityOps.MergeMode.RETAIN,
-            )
+            refactorSession().planRefactoring(RefactoringRequest.MergeEntity(fromId, intoId, deleteOccurrences))
         }
 
     /** エンティティ削除のプレビュー（R21-02。入次数が残っていれば生成段階で拒否される）。 */
-    fun planEntityDelete(id: String): Result<core.EntityOps.Plan> = runCatching {
-        core.EntityOps.delete(coreWs ?: error("ワークスペースが開かれていません"), id)
+    fun planEntityDelete(id: String): Result<RefactoringPlan> = runCatching {
+        refactorSession().planRefactoring(RefactoringRequest.DeleteEntity(id))
     }
 
     /**
-     * スキーマのフィールド一括改名のプレビュー（R25-01。ARCHITECTURE §4.35）: スキーマ定義・全該当文書の
-     * データキー・ビュー通常列を1つの変更セットへまとめる。索引と同じくディスクの保存済み状態が基準。
+     * スキーマのフィールド一括改名のプレビュー（R25-01。ARCHITECTURE §4.35）: データ・スキーマ本体の
+     * 計画はカーネル、ビュー追随・言及警告はアプリ層（core.RefactorImpact）が補強する（D-10 の再接続）。
      */
-    fun planSchemaFieldRename(schemaId: String, fieldPath: String, newName: String): Result<core.EntityOps.Plan> =
+    fun planSchemaFieldRename(schemaId: String, fieldPath: String, newName: String): Result<RefactoringPlan> =
         runCatching {
-            core.SchemaRefactor.renameField(coreWs ?: error("ワークスペースが開かれていません"), schemaId, fieldPath, newName)
+            val s = refactorSession()
+            val plan = s.planRefactoring(RefactoringRequest.RenameField(schemaId, fieldPath, newName))
+            val cw = coreWs ?: return@runCatching plan
+            val impact = core.RefactorImpact.fieldRename(cw, schemaId, fieldPath, newName)
+            // セッションが扱わない文書（台帳外のビュー定義等）への追随は適用できないため、警告へ降格する
+            val (applicable, outside) = impact.changes.partition { s.hasDocument(it.document) }
+            val viewOps = applicable.sumOf { it.operations.size }
+            plan.copy(
+                changes = plan.changes + applicable,
+                // カーネルの定型警告（D-10: 追随しません）は、実測の影響（追随結果と要確認の列挙）で置き換える
+                warnings = impact.warnings +
+                    outside.map { "ビュー定義（${it.document.value}）は台帳外のため自動追随できません（手動で更新してください）" },
+                summary = plan.summary +
+                    (if (viewOps > 0) listOf("ビュー $viewOps 箇所を追随") else emptyList()),
+            )
         }
 
-    /** スキーマのフィールド一括削除のプレビュー（R25-03。値あり件数はサマリで明示される）。 */
-    fun planSchemaFieldDelete(schemaId: String, fieldPath: String): Result<core.EntityOps.Plan> = runCatching {
-        core.SchemaRefactor.deleteField(coreWs ?: error("ワークスペースが開かれていません"), schemaId, fieldPath)
+    /** スキーマのフィールド一括削除のプレビュー（R25-03。ビュー・宣言の言及警告はアプリ層が補強する）。 */
+    fun planSchemaFieldDelete(schemaId: String, fieldPath: String): Result<RefactoringPlan> = runCatching {
+        val plan = refactorSession().planRefactoring(RefactoringRequest.DeleteField(schemaId, fieldPath))
+        val cw = coreWs ?: return@runCatching plan
+        // カーネルの定型警告（D-10: 追随しません）は、実測の言及スキャン（該当ビュー・宣言の列挙）で置き換える
+        plan.copy(warnings = core.RefactorImpact.fieldDeleteWarnings(cw, fieldPath))
     }
 
     /** 文書キー順のスキーマ順整列のプレビュー（R25-02。スキーマは変更しない正規化）。 */
-    fun planSchemaAlignOrder(schemaId: String): Result<core.EntityOps.Plan> = runCatching {
-        core.SchemaRefactor.alignOrder(coreWs ?: error("ワークスペースが開かれていません"), schemaId)
+    fun planSchemaAlignOrder(schemaId: String): Result<RefactoringPlan> = runCatching {
+        refactorSession().planRefactoring(RefactoringRequest.AlignOrder(schemaId))
     }
 
     /**
@@ -1017,17 +1072,25 @@ class AppState {
         else cw.apply(changeSet, requireValid = requireValid)
     }
 
-    /** エンティティ操作の変更セットを適用する（対象に未保存編集があれば拒否。適用後に再読込）。 */
-    fun applyEntityPlan(plan: core.EntityOps.Plan): Result<Unit> = runCatching {
-        val cw = coreWs ?: error("ワークスペースが開かれていません")
-        val files = plan.changeSet.changes.map { cw.resolve(it.file) }
+    /**
+     * リファクタリング計画の適用（B-1・RB-01）: セッションの1トランザクションとして適用→保存する。
+     * reload しない（履歴を保持する）ため、**リファクタリング全体が Undo 1回で戻る**（D-12）。
+     * 対象に未保存編集があれば拒否する（適用→保存が未保存編集まで書いてしまうのを防ぐ。従来と同じ流儀）。
+     */
+    fun applyEntityPlan(plan: RefactoringPlan): Result<Unit> = runCatching {
+        val s = refactorSession()
+        val ids = (plan.changes.map { it.document } + plan.moves.flatMap { listOf(it.first, it.second) }).distinct()
+        val ws = workspace ?: error("ワークスペースが開かれていません")
+        val files = ids.map { ws.resolve(it.value).normalize() }
         require(files.none { docCache[it]?.dirty == true }) { "対象に未保存の変更があります。先に保存してください" }
-        val result = cw.apply(plan.changeSet)
-        require(result.ok) {
-            result.results.firstOrNull { it.message != null }?.let { "${it.file}: ${it.message}" } ?: "適用に失敗しました"
+        val applied = s.applyRefactoring(plan)
+        require(applied.ok) { applied.message ?: "適用に失敗しました" }
+        val saved = s.save(ids.toSet())
+        require(saved.ok) {
+            saved.failures.entries.firstOrNull()?.let { "${it.key.value}: ${it.value}" } ?: "保存に失敗しました"
         }
-        reload()
-        status = "エンティティ操作を適用しました（${plan.changeSet.changes.size} ファイル）"
+        refreshAfterSessionWrite(ids)
+        status = "リファクタリングを適用しました（${ids.size} ファイル。Undo で戻せます）"
     }
 
     fun createDirectory(parent: Path, name: String): Result<Path> = runCatching {
@@ -1123,7 +1186,7 @@ class AppState {
         def.path + (seq.items.size - 1)
     }
 
-    /** YAMLファイルとして DocMove（R21-03）の対象か（台帳内・ディレクトリ以外）。 */
+    /** YAMLファイルとして移動の一級化（R21-03。カーネル MoveDocument）の対象か（台帳内・ディレクトリ以外）。 */
     private fun isMovableYaml(path: Path): Boolean {
         val name = path.fileName.toString()
         return !Files.isDirectory(path) && (name.endsWith(".yaml") || name.endsWith(".yml")) && isIndexed(path)
@@ -1135,13 +1198,19 @@ class AppState {
      */
     fun renameImpact(path: Path, newName: String): List<String> {
         val cw = coreWs ?: return emptyList()
+        val s = session ?: return emptyList()
         val trimmed = newName.trim()
         if (trimmed.isBlank() || '/' in trimmed || '\\' in trimmed || !isMovableYaml(path)) return emptyList()
         val target = path.resolveSibling(trimmed)
         if (Files.exists(target)) return emptyList()
         return runCatching {
-            val plan = core.DocMove.plan(cw, relPath(path), relPath(target))
-            plan.notes + plan.warnings.map { "注意: $it" }
+            // 移動計画はカーネル（summary 先頭は見出し・以降が補足。スキーマ適用の変化は warnings に入る）、
+            // ビュー定義が対象外れになる警告はアプリ層（RefactorImpact）が補強する（B-1）
+            val plan = s.planRefactoring(
+                RefactoringRequest.MoveDocument(DocumentId(relPath(path)), DocumentId(relPath(target)))
+            )
+            val viewWarnings = core.RefactorImpact.moveWarnings(cw, relPath(path), relPath(target))
+            plan.summary.drop(1) + (plan.warnings + viewWarnings).map { "注意: $it" }
         }.getOrDefault(emptyList())
     }
 
@@ -1152,10 +1221,19 @@ class AppState {
         }
         val target = path.resolveSibling(newName.trim())
         require(!Files.exists(target)) { "同名の項目が存在します" }
-        val cw = coreWs
-        if (cw != null && isMovableYaml(path)) {
-            // ファイル移動の一級化（R21-03）: パスID文書参照の書き換えと物理移動を合成する
-            core.DocMove.execute(cw, core.DocMove.plan(cw, relPath(path), relPath(target)))
+        val s = session
+        val moveId = DocumentId(relPath(path))
+        if (s != null && isMovableYaml(path) && s.hasDocument(moveId)) {
+            // ファイル移動の一級化（R21-03 → B-1）: パスID文書参照の書き換えと移動を
+            // カーネルの1トランザクションで適用する（旧 DocMove の「移動成功→書き換え失敗」の継ぎ目を解消）
+            val plan = s.planRefactoring(RefactoringRequest.MoveDocument(moveId, DocumentId(relPath(target))))
+            val applied = s.applyRefactoring(plan)
+            require(applied.ok) { applied.message ?: "移動を適用できませんでした" }
+            val ids = (plan.changes.map { it.document } + listOf(moveId, DocumentId(relPath(target)))).toSet()
+            val saved = s.save(ids)
+            require(saved.ok) {
+                saved.failures.entries.firstOrNull()?.let { "${it.key.value}: ${it.value}" } ?: "移動の保存に失敗しました"
+            }
         } else {
             Files.move(path, target)
         }
