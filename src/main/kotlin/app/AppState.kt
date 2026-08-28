@@ -14,9 +14,12 @@ import model.YNode
 import model.YPath
 import schema.SchemaDef
 import schema.FieldDef
+import model.deepCopy
 import schema.SchemaLoader
+import workspace.ChangeRecord
 import workspace.FileSystemDocumentStore
 import workspace.WorkspaceDerivedState
+import workspace.WorkspaceOperation
 import workspace.WorkspaceSession
 import yaml.YamlIO
 import java.nio.file.Files
@@ -74,31 +77,45 @@ class OpenDocument(
     var diskModifiedMillis: Long = runCatching { Files.getLastModifiedTime(file).toMillis() }.getOrDefault(0L)
     val historyIndex: Int get() = buffer.historyIndex
 
-    /** 編集通知（R16-04 / UX-02）: AppState が全文書横断の編集カウンタ（editVersion）を進めるのに使う。 */
-    internal var onEdited: (() -> Unit)? = null
+    /**
+     * 編集通知（R16-04 / UX-02 / RA-06）: AppState が全文書横断の編集カウンタ（editVersion）を進め、
+     * セッション履歴へ記録するのに使う。引数は合体キー（UX-11。null = 常に境界）。
+     */
+    internal var onEdited: ((Any?) -> Unit)? = null
+
+    /**
+     * dirty の供給元（RA-06）: セッション（履歴・dirty の単一所有。ADR-0006）が判定を返す。
+     * null（セッション不在・対象外文書）のときだけ EditBuffer の判定へフォールバックする。
+     */
+    internal var dirtySource: (() -> Boolean?)? = null
 
     private fun sync() {
-        dirtyState.value = buffer.dirty
+        dirtyState.value = dirtySource?.invoke() ?: buffer.dirty
         parseErrorState.value = buffer.parseError
     }
+
+    /** 所有側（セッション）の状態変化後に dirty 表示を再評価する（RA-06。Undo・保存・履歴適用の後）。 */
+    internal fun refreshDirty() = sync()
 
     /**
      * 編集をツリーへ記録する。coalesceWith（UX-11。ARCHITECTURE §4.34）: 連続入力になり得る編集面が
      * 渡す合体キー（同一スカラーノード・`Pair(map, key)`・ソースの固定キー等）。同じキーの連続編集は
-     * 履歴1エントリに合体する。構造操作は渡さない＝常に境界。
+     * 履歴1記録に合体する。構造操作は渡さない＝常に境界。
+     * 履歴の記録先はセッション（onEdited 経由。RA-06）。EditBuffer の履歴はセッション不在時の
+     * フォールバック用に併走する（A-3 完了後の縮退は B 段）。
      */
     fun markEdited(coalesceWith: Any? = null) {
         version++
         buffer.recordEdit(coalesceWith)
+        onEdited?.invoke(coalesceWith)
         sync()
-        onEdited?.invoke()
     }
 
     fun canUndo(): Boolean = buffer.canUndo()
     fun canRedo(): Boolean = buffer.canRedo()
 
-    fun undo() { if (buffer.undo()) { version++; sync(); onEdited?.invoke() } }
-    fun redo() { if (buffer.redo()) { version++; sync(); onEdited?.invoke() } }
+    fun undo() { if (buffer.undo()) { version++; onEdited?.invoke(null); sync() } }
+    fun redo() { if (buffer.redo()) { version++; onEdited?.invoke(null); sync() } }
 
     /** ソース編集のテキストをツリーへ取り込む。複数ドキュメントは先頭を編集対象にし、後続を保持する。 */
     fun applySourceText(text: String) {
@@ -424,8 +441,9 @@ class AppState {
         val ws = workspace ?: return
         val cw = coreWs?.also { it.refresh() } ?: core.Workspace.open(ws).also { coreWs = it }
         mirrorCore(cw)
-        // A-1: 新経路セッションもディスク再読込と同じタイミングで開き直す（レイアウト変化も追随する）
-        session = openSession(ws)
+        // A-1: 新経路セッションもディスク再読込と同じタイミングで開き直す（レイアウト変化も追随する）。
+        // 開き直し後は編集中文書を再反映する（RA-05）
+        reopenSession(ws)
         directories = scanDirectories(ws)
         val existing = yamlFiles.toSet() + editorOnlyFiles
         docCache.keys.filter { it !in existing }.toList().forEach { removed ->
@@ -472,15 +490,38 @@ class AppState {
     }.getOrNull()
 
     /**
+     * セッションを開き直し、編集中（dirty）の文書を working 状態へ再反映する（RA-05）。
+     * 開き直しはディスク基準になるため、UIの「見たまま」を編集直結で回復する。
+     */
+    private fun reopenSession(ws: Path) {
+        session = openSession(ws)
+        docCache.values.filter { it.dirty }.forEach(::pushEditToSession)
+    }
+
+    /**
+     * 編集内容をセッションの working 状態へ直結する（A-3 前半・RA-05）。markEdited（Undo/Redo 含む）の
+     * たびに呼ばれ、セッションが常に「見たまま」を所有する（UX-03 の構造保証の最終形）。
+     * パース不能（root=null）の編集は反映せず、derivedState() が null オーバーレイで文書集合から外す。
+     * 履歴は積まない（replaceDocument）＝Undo/dirty は A-3 完了（履歴一元化）まで EditBuffer 所有のまま。
+     */
+    private fun pushEditToSession(doc: OpenDocument) {
+        val s = session ?: return
+        val root = doc.root ?: return
+        val id = DocumentId(relPath(doc.file))
+        if (!s.hasDocument(id)) return  // 構成ファイル等、セッションが文書として扱わないパス
+        runCatching { s.replaceDocument(id, YDocument(id, listOf(root) + doc.extraDocs)) }
+    }
+
+    /**
      * ディスク変更をセッションへ同期する（保存・外部変更検出から呼ぶ）。構成変更でレイアウトが
      * 変わったときは開き直し、それ以外は増分取り込み（noteStoreChanges。スキーマ変更の
      * 全再読込への降格はセッション側の責務＝R9-02 の振り分けと同型）。
      */
     private fun syncSessionWithDisk(changed: List<Path>, removed: List<Path> = emptyList()) {
         val ws = workspace ?: return
-        val s = session ?: run { session = openSession(ws); return }
+        val s = session ?: run { reopenSession(ws); return }
         if (coreWs?.layout != s.layout) {
-            session = openSession(ws)
+            reopenSession(ws)
             return
         }
         runCatching {
@@ -488,29 +529,29 @@ class AppState {
                 changed = changed.map { DocumentId(relPath(it)) },
                 removed = removed.map { DocumentId(relPath(it)) },
             )
-        }.onFailure { session = openSession(ws) }
+            // スキーマ変更などで全再読込へ降格した場合に備え、編集中文書を再反映する（RA-05。
+            // dirty 文書の変更はセッション側が取り込まないため、通常の増分では no-op に近い）
+            docCache.values.filter { it.dirty }.forEach(::pushEditToSession)
+        }.onFailure { reopenSession(ws) }
     }
 
     /** derivedState() のキャッシュ（(indexVersion, editVersion) が変わるまで再計算しない。overlayCache と同じ規律）。 */
     private var derivedCache: Pair<Pair<Int, Int>, WorkspaceDerivedState>? = null
 
     /**
-     * 新経路の派生状態（A-1・RA-01）: セッションのworking状態に未保存編集（dirty な docCache）を
-     * 重ねた「見たまま」の構造・意味派生（UX-03 のカーネル供給版）。indexVersion / editVersion を
-     * 読むため、コンポジション中の呼び出しは自動で購読される。
-     * 消費側（overlayIndex / validateWorkspace の置換）の切替は C-2（derive・メタスキーマの
-     * reader 対応）と B-3（検証族の移設）が正しさの前提のため、供給口だけ先行して併設する。
+     * 新経路の派生状態（A-1・RA-01）: セッションのworking状態＝「見たまま」の構造・意味派生
+     * （UX-03 のカーネル供給版）。編集はセッション直結（RA-05・pushEditToSession）のため、
+     * オーバーレイはパース不能の編集中文書（文書集合から外す）だけになった。
+     * indexVersion / editVersion を読むため、コンポジション中の呼び出しは自動で購読される。
      */
     fun derivedState(): WorkspaceDerivedState? {
         val s = session ?: return null
         val key = indexVersion to editVersion
         derivedCache?.let { (k, cached) -> if (k == key) return cached }
+        // パース不能（root=null）の編集中文書は判定から外す（旧オーバーレイと同じ扱い）
         val overlays = docCache.values
-            .filter { it.dirty && isIndexed(it.file) }
-            .associate { doc ->
-                val id = DocumentId(relPath(doc.file))
-                id to doc.root?.let { YDocument(id, listOf(it) + doc.extraDocs) }
-            }
+            .filter { it.dirty && isIndexed(it.file) && it.root == null }
+            .associate { DocumentId(relPath(it.file)) to null as YDocument? }
         val result = s.derivedWith(overlays)
         derivedCache = key to result
         return result
@@ -653,7 +694,8 @@ class AppState {
         require(key.isNotBlank() && !key.startsWith("_") && key != "id") { "一括変更できない項目です: $key" }
         require(files.none { docCache[it]?.dirty == true }) { "未保存のファイルが含まれています" }
         val reopen = openDoc?.file?.takeIf { it in files }
-        val count = core.WorkspaceRecords.updateRootScalar(files, key, value)
+        val count = sessionBulkUpdate(files, key, value)
+            ?: core.WorkspaceRecords.updateRootScalar(files, key, value)  // セッション不在時の従来経路
         files.forEach(docCache::remove)
         reload()
         reopen?.let { file ->
@@ -662,6 +704,16 @@ class AppState {
             openDoc = refreshed
         }
         count
+    }
+
+    /**
+     * 一括変更のセッション経路（A-2a・D-11）: 本体は core.WorkspaceRecords.bulkUpdateViaSession
+     * （1トランザクション適用→保存＝部分適用なし）。セッション不在時は null（呼び出し側で従来経路へ）。
+     */
+    private fun sessionBulkUpdate(files: Set<Path>, key: String, value: String): Int? {
+        val s = session ?: return null
+        val ids = files.sortedBy { it.toString() }.map { DocumentId(relPath(it)) }
+        return core.WorkspaceRecords.bulkUpdateViaSession(s, ids, key, value)
     }
 
     /**
@@ -684,7 +736,38 @@ class AppState {
             null
         }
         return OpenDocument(file, root, schemaFor(file), text, error, extra)
-            .also { doc -> doc.onEdited = { editVersion++ } }
+            .also { doc ->
+                // 編集通知: 全文書横断カウンタを進め、セッション履歴へ記録する（RA-05 → RA-06 で記録つきに）
+                doc.onEdited = { coalesceWith ->
+                    editVersion++
+                    recordEditToSession(doc, coalesceWith)
+                }
+                // dirty の判定はセッション（単一所有）を正とする（RA-06）
+                doc.dirtySource = {
+                    session?.let { s ->
+                        val id = DocumentId(relPath(doc.file))
+                        if (s.hasDocument(id)) s.isDirty(id) else null
+                    }
+                }
+            }
+    }
+
+    /**
+     * 編集1回をセッション履歴へ記録する（A-3・RA-06）。合体キーは文書スコープに閉じる（他文書の
+     * 連続編集と混ざらない）。パース不能（root=null）の編集は記録しない（D-08:
+     * 生テキストの不正状態は core の履歴に持たない。derivedState が null オーバーレイで判定から外す）。
+     */
+    private fun recordEditToSession(doc: OpenDocument, coalesceWith: Any?) {
+        val s = session ?: return
+        val root = doc.root ?: return
+        val id = DocumentId(relPath(doc.file))
+        if (!s.hasDocument(id)) return
+        runCatching {
+            s.recordEdit(
+                id, YDocument(id, listOf(root) + doc.extraDocs),
+                coalesceKey = coalesceWith?.let { listOf(id.value, it) },
+            )
+        }
     }
 
     private fun reloadDocumentFromDisk(doc: OpenDocument, force: Boolean) {
@@ -716,7 +799,14 @@ class AppState {
         doc.resetHistory()  // 履歴・保存基準・dirty を取り直す
     }
 
-    fun acceptDiskVersion() { openDoc?.let { reloadDocumentFromDisk(it, force = true) } }
+    fun acceptDiskVersion() {
+        openDoc?.let {
+            reloadDocumentFromDisk(it, force = true)
+            // 競合解決でツリーがディスク内容に戻ったので、セッションの working も揃える（RA-05）
+            pushEditToSession(it)
+            editVersion++
+        }
+    }
     fun keepLocalVersion() {
         openDoc?.let {
             it.externalConflict = false
@@ -733,8 +823,75 @@ class AppState {
         docCache.values.filter { it.dirty }.forEach { save(it) }
     }
 
-    fun undo() { openDoc?.undo() }
-    fun redo() { openDoc?.redo() }
+    /**
+     * Undo（A-3・RA-06 / D-07）: 履歴はセッション単一所有＝**ワークスペース横断**の1本の履歴。
+     * 直前の変更が他の文書のものなら、その文書が戻る（ツリーはセッションから追随更新される）。
+     * セッション不在時のみ従来の文書単位 Undo（EditBuffer）へフォールバックする。
+     */
+    fun undo() {
+        val s = session ?: run { openDoc?.undo(); return }
+        val record = s.peekUndo() ?: return
+        if (s.undo().ok) afterHistoryStep(record)
+    }
+
+    fun redo() {
+        val s = session ?: run { openDoc?.redo(); return }
+        val record = s.peekRedo() ?: return
+        if (s.redo().ok) afterHistoryStep(record)
+    }
+
+    /** Undo可能か（ツールバー活性用。editVersion を読むことで再コンポーズを購読する）。 */
+    fun canUndo(): Boolean {
+        editVersion
+        return session?.canUndo() ?: (openDoc?.canUndo() ?: false)
+    }
+
+    fun canRedo(): Boolean {
+        editVersion
+        return session?.canRedo() ?: (openDoc?.canRedo() ?: false)
+    }
+
+    /** Undo/Redo 適用後の追随: 影響文書のツリーをセッションの working から取り直し、派生を進める。 */
+    private fun afterHistoryStep(record: ChangeRecord) {
+        refreshDocsFromSession((record.forward.operations + record.inverse.operations).flatMap(::operationIds))
+        editVersion++
+    }
+
+    private fun operationIds(op: WorkspaceOperation): List<DocumentId> = when (op) {
+        is WorkspaceOperation.EditDocument -> listOf(op.documentId)
+        is WorkspaceOperation.CreateDocument -> listOf(op.documentId)
+        is WorkspaceOperation.ReplaceDocument -> listOf(op.documentId)
+        is WorkspaceOperation.DeleteDocument -> listOf(op.documentId)
+        is WorkspaceOperation.MoveDocument -> listOf(op.from, op.to)
+    }
+
+    /**
+     * セッションの working 状態から docCache のツリーを取り直す（RA-06。Undo/Redo の追随）。
+     * セッションのツリーは共有せず deep copy で写す（ADR-0003。UI側の編集はセッションを汚さない）。
+     */
+    private fun refreshDocsFromSession(ids: Collection<DocumentId>) {
+        val s = session ?: return
+        val ws = workspace ?: return
+        val documents = s.snapshot.documents
+        ids.distinct().forEach { id ->
+            val file = ws.resolve(id.value).normalize()
+            val doc = docCache[file] ?: return@forEach
+            val working = documents[id]
+            if (working == null) {
+                // undo で作成が巻き戻された等、文書が消えた場合はキャッシュも閉じる
+                docCache.remove(file)
+                if (openDoc?.file == file) openDoc = null
+                return@forEach
+            }
+            val roots = working.document.documents.map { it.deepCopy() }
+            doc.root = roots.firstOrNull() ?: YNode.Map()
+            doc.extraDocs = roots.drop(1)
+            doc.parseError = null
+            doc.rawText = doc.canonicalText()
+            doc.version++
+            doc.refreshDirty()
+        }
+    }
 
     fun hasDirtyDocs(): Boolean = docCache.values.any { it.dirty }
 
@@ -746,8 +903,23 @@ class AppState {
 
     private fun save(doc: OpenDocument) {
         runCatching {
-            Files.writeString(doc.file, doc.canonicalText())
-        }.onSuccess {
+            val s = session
+            val root = doc.root
+            val id = DocumentId(relPath(doc.file))
+            // A-2a: 書込はセッション（DocumentStore ポート）へ集約する（ADR-0005）。
+            // working を UI の編集内容で置き換えて保存（履歴は A-3 まで EditBuffer 所有＝replaceDocument は積まない）。
+            // セッションが文書として扱わないパス（構成ファイル等）・パース不能文書・セッション不在は従来の直接書込。
+            val viaSession = s != null && root != null && s.hasDocument(id)
+            if (viaSession) {
+                val replaced = s!!.replaceDocument(id, YDocument(id, listOf(root!!) + doc.extraDocs))
+                check(replaced.ok) { replaced.message ?: "セッションへの反映に失敗しました" }
+                val saved = s.save(setOf(id))
+                check(saved.ok) { saved.failures[id] ?: "書込に失敗しました" }
+            } else {
+                Files.writeString(doc.file, doc.canonicalText())
+            }
+            viaSession
+        }.onSuccess { viaSession ->
             doc.markSaved()
             doc.rawText = doc.canonicalText()
             doc.diskModifiedMillis = Files.getLastModifiedTime(doc.file).toMillis()
@@ -757,7 +929,8 @@ class AppState {
             coreWs?.let { cw ->
                 cw.noteDiskChanges(listOf(doc.file))
                 mirrorCore(cw)
-                syncSessionWithDisk(changed = listOf(doc.file))
+                // セッション経由の保存では replaceDocument / save が既に反映済み（二重同期しない）
+                if (!viaSession) syncSessionWithDisk(changed = listOf(doc.file))
                 // スキーマ本体だけでなく派生スキーマの導出元文書（R11-03）の保存でもスキーマ集合が変わるため、常に割り当て直す
                 docCache.values.forEach { it.schema = schemaFor(it.file) }
                 indexVersion++
@@ -830,6 +1003,18 @@ class AppState {
     /** 文書キー順のスキーマ順整列のプレビュー（R25-02。スキーマは変更しない正規化）。 */
     fun planSchemaAlignOrder(schemaId: String): Result<core.EntityOps.Plan> = runCatching {
         core.SchemaRefactor.alignOrder(coreWs ?: error("ワークスペースが開かれていません"), schemaId)
+    }
+
+    /**
+     * エージェント変更セットの適用（A-2b）: 検証・競合判定は従来（Workspace.apply）と同一のまま、
+     * 書込はセッション（DocumentStore ポート＝atomic 書込・1トランザクション）へ集約する（D-04）。
+     * セッション不在時は従来の直接書込へフォールバック。実行スペースの承認（RunsSpace）が使う。
+     */
+    fun applyAgentChanges(changeSet: core.ChangeSet, requireValid: Boolean = false): core.ChangeSetResult {
+        val cw = coreWs ?: error("ワークスペースが開かれていません")
+        val s = session
+        return if (s != null) cw.applyViaSession(s, changeSet, requireValid = requireValid)
+        else cw.apply(changeSet, requireValid = requireValid)
     }
 
     /** エンティティ操作の変更セットを適用する（対象に未保存編集があれば拒否。適用後に再読込）。 */

@@ -88,9 +88,9 @@
 | 単位 | 内容 | 効果 |
 |---|---|---|
 | A-1 | ✅ **完了**（RA-01 2026-08-24・RA-02 2026-08-25）: AppState に WorkspaceSession を併設（noteStoreChanges＝増分取り込み・derivedWith＝見たまま派生）し、`state.overlayIndex()` の供給元をセッション派生へ切替（`index.derivedIdIndex` ファサード。UI の全消費箇所＝検証・カバレッジ・ビュー・参照解決が乗り換え）。一致証明: 並び含む完全一致テスト＋todos 実測。残: 一覧（WorkspaceRecords）は A-2a で・Validator 本体の移設は B-3 で。**UX S1 再実施のトリガ対象** | 「見たまま判定」が構造から保証され、overlayIndex（UX-03 の二層構造）が不要になる |
-| A-2a | **書込経路（人間）**: 保存・一括更新（WorkspaceRecords / bulkUpdate はトランザクション化＝undo 1回で戻る。INTENTIONAL-DIFFS 登録のうえ）を session apply / save へ | 書込集約（ADR-0005）の前半 |
-| A-2b | **書込経路（エージェント）**: Staging / AgentToolbox の適用（`Workspace.apply`）を session へ | 書込集約の後半。ADR-0004（共通エンジン＋overlay）と統合 |
-| A-3 | **EditBuffer → session 履歴**（D-03/D-07）。ソースペインの生テキスト編集Undoは UI 層の小さなバッファに残す（D-08） | Undo 単一所有。フォーム編集は型付き操作で記録 |
+| A-2a | ✅ **完了**（RA-03・2026-08-25）: 保存＝`session.replaceDocument`＋`save`（履歴は A-3 まで EditBuffer 所有）・一括更新＝1トランザクション適用＋保存（**D-11**: 部分適用の廃止・atomic 書込・A-3 後は Undo 1回）。書込バイト列の同一性（コメント・表記込み）をテストで固定。残: createYaml / rename / delete 等は B-1 と併せて・エージェント適用は A-2b | 書込集約（ADR-0005）の前半 |
+| A-2b | ✅ **完了**（RA-04・2026-08-26）: 承認済みエージェント変更の適用を `Workspace.applyViaSession`（書込段のみセッション＝1トランザクション・atomic）へ。カーネルに `ReplaceDocument` 操作を追加。検証・競合判定・バイト列は旧経路と同一をテストで固定。残置: AutoApply（自動化の headless Workspace）・skill インポート（B 段で整理） | 書込集約の後半。ADR-0004（共通エンジン＋overlay）と統合 |
+| A-3 | ✅ **完了**（RA-05/06・2026-08-28）: 編集のセッション直結（RA-05）＋ Undo/Redo・dirty のセッション所有（RA-06: `recordEdit`＝合体つき文書単位の型付き記録・**ワークスペース横断 Undo＝D-07 発効**・dirty はセッション供給）。EditBuffer はセッション不在時のフォールバックとして併走（縮退は B 段）。細粒度の型付き操作化（D-03 の完成形）と D-08 の UI 層テキストバッファは将来の改善。**reload 後に Undo 履歴が残らない挙動変化あり**（台帳記録参照） | Undo 単一所有。フォーム編集は型付き操作で記録 |
 | A-4 | FileWatcher → session.externalChanges＋**イベント駆動 watch** の新設 | 旧計画で「最終段階」とした残の解消 |
 
 ### Phase B: 旧経路の削除（重複 約2,600行）

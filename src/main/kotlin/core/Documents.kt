@@ -181,8 +181,46 @@ object WorkspaceRecords {
     }
 
     /**
+     * ルート直下スカラーの一括変更のセッション経路（A-2a・D-11）: 対象文書への SetScalar を
+     * **1つのトランザクション**として適用してから保存する＝1件でも適用できなければ何も書かない
+     * （従来の逐次書込にあった部分適用を廃止）。スキップ規則は updateRootScalar と同じ——
+     * ルートが object でない・対象キーが複合値の文書は対象外。コメント・表記は SetScalar が継承する（R8-01）。
+     * 履歴一元化（A-3）後は Undo 1回で全ファイルが戻る。対象にできた件数を返す。
+     */
+    fun bulkUpdateViaSession(
+        session: workspace.WorkspaceSession,
+        ids: Collection<model.DocumentId>,
+        key: String,
+        value: String,
+    ): Int {
+        val documents = session.snapshot.documents
+        val targets = ids.filter { id ->
+            val root = documents[id]?.document?.documents?.firstOrNull() as? YNode.Map ?: return@filter false
+            val existing = root.entries[key]
+            existing == null || existing is YNode.Scalar
+        }
+        if (targets.isEmpty()) return 0
+        val applied = session.apply(
+            workspace.WorkspaceTransaction(
+                baseVersion = session.version,
+                intent = workspace.ChangeIntent("一括変更: $key"),
+                operations = targets.map {
+                    workspace.WorkspaceOperation.EditDocument(it, listOf(edit.YamlOperation.SetScalar(listOf(key), value)))
+                },
+            )
+        )
+        require(applied.ok) { applied.message ?: "一括変更を適用できません" }
+        val saved = session.save(targets.toSet())
+        require(saved.ok) {
+            saved.failures.entries.firstOrNull()?.let { (id, msg) -> "${id.value}: $msg" } ?: "書込に失敗しました"
+        }
+        return targets.size
+    }
+
+    /**
      * ルート直下スカラーの一括変更（R8-05）。複合値（配列・オブジェクト）のキーは壊さないよう飛ばす。
      * コメント・表記スタイルは維持する（inheritMetaFrom）。変更できた件数を返す。
+     * セッション不在時（A-2a のフォールバック）だけが使う従来の逐次書込。
      */
     fun updateRootScalar(files: Collection<Path>, key: String, value: String): Int {
         var count = 0

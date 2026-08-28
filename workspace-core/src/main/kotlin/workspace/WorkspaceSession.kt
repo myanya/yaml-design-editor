@@ -40,6 +40,12 @@ sealed interface WorkspaceOperation {
     data class DeleteDocument(val documentId: DocumentId) : WorkspaceOperation
 
     /**
+     * 文書全体の置換（全ドキュメント列。逆操作は旧内容の ReplaceDocument）。
+     * 承認済みエージェント変更の適用（A-2b）・インポートなど、文書単位で取り込むトランザクションが使う。
+     */
+    data class ReplaceDocument(val documentId: DocumentId, val document: YDocument) : WorkspaceOperation
+
+    /**
      * 文書の移動。スキーマ割当・台帳判定は移動先で再評価する。
      * ストア上は save 時に「新パスへ書き、旧パスを削除」する（参照の書き換えは Phase 9 の DocMove 系）。
      * toPersistedText は undo（移動の巻き戻し）専用で、保存済みリンクの復元に使う内部情報。
@@ -132,6 +138,24 @@ class WorkspaceSession(
     private val redoStack = ArrayDeque<ChangeRecord>()
     private var recordCounter = 0L
 
+    // 編集記録の合体（UX-11 のセッション版。RA-06）: 直前の記録と同じキー・時間窓内なら記録を置き換える
+    private var lastCoalesceKey: Any? = null
+    private var lastCoalesceDoc: DocumentId? = null
+    private var lastCoalesceAtMillis: Long = 0L
+    private var lastCoalesceRecordId: Long = -1L
+
+    private companion object {
+        /** 連続入力を1記録へ合体する時間窓（ms。EditBuffer.COALESCE_WINDOW_MS と同値）。 */
+        const val COALESCE_WINDOW_MS = 1000L
+    }
+
+    /** 合体の連鎖を断ち切る（Undo/Redo・取り込み・適用など、編集の連続性が切れる操作で呼ぶ）。 */
+    private fun resetCoalesce() {
+        lastCoalesceKey = null
+        lastCoalesceDoc = null
+        lastCoalesceRecordId = -1L
+    }
+
     init {
         val loaded = WorkspaceReader.load(store, version = 0, builtins = builtins)
         layout = loaded.layout
@@ -154,11 +178,20 @@ class WorkspaceSession(
     /** working snapshot（読み取り専用ビュー）。 */
     val snapshot: WorkspaceSnapshot get() = WorkspaceSnapshot(version, workingDocuments.toMap())
 
+    /** 文書としてセッションに載っているか（snapshot の全コピーを避ける軽量版。編集ごとの直結＝RA-05 が使う）。 */
+    fun hasDocument(id: DocumentId): Boolean = id in workingDocuments
+
     /** 変更履歴（古い順）。 */
     val history: List<ChangeRecord> get() = undoStack.toList()
 
     fun canUndo(): Boolean = undoStack.isNotEmpty()
     fun canRedo(): Boolean = redoStack.isNotEmpty()
+
+    /** 次に undo される記録（あれば）。UIが影響文書を先に把握してツリーを追随させるために使う（RA-06）。 */
+    fun peekUndo(): ChangeRecord? = undoStack.lastOrNull()
+
+    /** 次に redo される記録（あれば）。 */
+    fun peekRedo(): ChangeRecord? = redoStack.lastOrNull()
 
     /** dirty か（保存済みテキストと現在の dump 結果の比較。ADR-0007）。 */
     fun isDirty(id: DocumentId): Boolean {
@@ -175,6 +208,7 @@ class WorkspaceSession(
      * requireValid = true のときは、候補の検証で structural / semantic の ERROR があれば適用しない。
      */
     fun apply(tx: WorkspaceTransaction, requireValid: Boolean = false): TransactionResult {
+        resetCoalesce()
         if (tx.baseVersion != version) {
             return TransactionResult(
                 false, "baseVersion が古いため適用できません（現在 $version・指定 ${tx.baseVersion}）", version, staleBase = true,
@@ -197,6 +231,7 @@ class WorkspaceSession(
 
     /** 1手戻す（履歴の逆トランザクションを適用する）。 */
     fun undo(): TransactionResult {
+        resetCoalesce()
         val record = undoStack.removeLastOrNull()
             ?: return TransactionResult(false, "戻す変更がありません", version)
         val result = applyOperations(record.inverse.operations, requireValid = false) { }
@@ -206,6 +241,7 @@ class WorkspaceSession(
 
     /** 1手進める（forward トランザクションを再適用する）。 */
     fun redo(): TransactionResult {
+        resetCoalesce()
         val record = redoStack.removeLastOrNull()
             ?: return TransactionResult(false, "やり直す変更がありません", version)
         val result = applyOperations(record.forward.operations, requireValid = false) { }
@@ -317,15 +353,121 @@ class WorkspaceSession(
         }
 
     /**
+     * 文書1件を新しい内容で置き換える（Phase A-2a の併存期経路: UI（EditBuffer）の編集内容の反映）。
+     * - working だけを更新し、ストアには書かない（保存は `save`）。**履歴には積まない**——
+     *   Undo / dirty は A-3（履歴一元化）まで UI 層（EditBuffer）が所有し、以後 apply 経由に置き換える
+     * - 受け取ったツリーは deep copy して取り込む（UI 側の可変ツリーと共有しない。ADR-0003）
+     * - スキーマ文書・derive 導出元の置換はスキーマ束の再構築へ振り分ける（WS-006 / C-2 と同型）
+     */
+    fun replaceDocument(id: DocumentId, document: YDocument): TransactionResult {
+        resetCoalesce()
+        val rel = id.value
+        val copied = document.copy(documents = document.documents.map { it.deepCopy() })
+        val existing = workingDocuments[id]
+        val schemaTouched = layout.zoneOf(rel) == schema.WorkspaceLayout.Zone.SCHEMAS ||
+            schemas.any { s -> s.derive?.matchesSource(rel) == true }
+        val candidate = LinkedHashMap(workingDocuments)
+        candidate[id] = WorkspaceDocument(
+            document = copied,
+            persistedText = existing?.persistedText,
+            schemaId = existing?.schemaId ?: WorkspaceReader.assignSchemaId(rel, copied, schemas, layout),
+            inLedger = existing?.inLedger ?: layout.inLedger(rel),
+        )
+        if (!incrementalDerive || schemaTouched) {
+            if (schemaTouched) {
+                val sources = candidate.entries
+                    .filter { layout.zoneOf(it.key.value) == schema.WorkspaceLayout.Zone.SCHEMAS }
+                    .sortedBy { it.key.value }
+                    .map { (docId, d) -> docId to DefaultYamlCodec.dump(d.document) }
+                val built = WorkspaceReader.buildSchemas(sources, builtins, candidate.map { (docId, d) -> docId to d.document }, layout)
+                schemas = built.schemas
+                declarations = built.declarations
+                schemaErrors = built.errors
+                for ((docId, d) in candidate) {
+                    val newId = WorkspaceReader.assignSchemaId(docId.value, d.document, schemas, layout)
+                    if (newId != d.schemaId) candidate[docId] = d.copy(schemaId = newId)
+                }
+            }
+            workingDocuments = candidate
+            version += 1
+            derived = WorkspaceReader.derive(workingDocuments, schemas, declarations, layout, version)
+        } else {
+            derived = deriveIncremental(candidate, setOf(id), emptySet(), version + 1)
+            workingDocuments = candidate
+            version += 1
+        }
+        return TransactionResult(true, null, version)
+    }
+
+    /**
+     * UI編集1回の記録（Phase A-3・RA-06。ADR-0006: 履歴の単一所有）: 文書全体の置換を**履歴つき**で
+     * 適用する。フォーム・ソース編集の「1編集=1記録」の入口で、粒度は EditBuffer のスナップショット履歴と
+     * 同じ文書単位（細粒度の型付き操作化は将来の改善——ReplaceDocument も型付き・逆操作つきの操作である）。
+     * coalesceKey（UX-11）: 直前の記録と同じキー・同じ文書・時間窓内・redo なしのとき、新しい記録を
+     * 積まず直前の記録の forward を置き換える（inverse は据え置き＝グループ先頭の前状態へ戻る）。
+     * nowMillis はテストからの時刻注入用（タイマー・sleep を使わない規約）。
+     */
+    fun recordEdit(
+        id: DocumentId,
+        document: YDocument,
+        coalesceKey: Any? = null,
+        nowMillis: Long = System.currentTimeMillis(),
+    ): TransactionResult {
+        // 履歴に UI の可変ツリーを共有しない（ADR-0003）: 記録時点の deep copy で操作を作る
+        val op = WorkspaceOperation.ReplaceDocument(
+            id, document.copy(documents = document.documents.map { it.deepCopy() }),
+        )
+        val coalesce = coalesceKey != null && coalesceKey == lastCoalesceKey && id == lastCoalesceDoc &&
+            nowMillis - lastCoalesceAtMillis <= COALESCE_WINDOW_MS && redoStack.isEmpty() &&
+            undoStack.lastOrNull()?.id == lastCoalesceRecordId
+        val result = applyOperations(listOf(op), requireValid = false) { inverseOps ->
+            if (coalesce && undoStack.isNotEmpty()) {
+                val top = undoStack.removeLast()
+                undoStack.addLast(
+                    top.copy(
+                        forward = top.forward.copy(operations = listOf(op)),
+                        afterVersion = version,
+                    )
+                )
+                lastCoalesceRecordId = top.id
+            } else {
+                val intent = ChangeIntent("編集: ${id.value}")
+                val record = ChangeRecord(
+                    id = ++recordCounter,
+                    intent = intent,
+                    beforeVersion = version - 1,
+                    afterVersion = version,
+                    forward = WorkspaceTransaction(version - 1, intent, listOf(op)),
+                    inverse = WorkspaceTransaction(version, intent, inverseOps),
+                    occurredAt = clock(),
+                )
+                undoStack.addLast(record)
+                lastCoalesceRecordId = record.id
+            }
+            redoStack.clear()
+        }
+        if (result.ok) {
+            lastCoalesceKey = coalesceKey
+            lastCoalesceDoc = id
+            lastCoalesceAtMillis = nowMillis
+        }
+        return result
+    }
+
+    /**
      * ストア側のファイル変更（保存・外部変更・削除）を増分で取り込む（root `Workspace.noteDiskChanges` の
      * セッション版＝Phase A-1・RA-01。イベント駆動 watch（A-4）もこの入口を使う予定）。
      * R9-02 と同じ振り分けで、走査規則が変わる変更だけ全再読込へ降格する:
-     * - スキーマゾーン・構成ディレクトリに触れる変更 → reload()（スキーマ束・割当・レイアウトの作り直し）
-     * - 未保存のworking変更・履歴・削除予約が残っている場合 → reload()（取り込みで巻き戻せない状態を作らない）
+     * - スキーマゾーン・構成ディレクトリに触れる変更 → reload()（スキーマ束・割当・レイアウトの作り直し。
+     *   未保存のworking変更は失われるため、呼び出し側（UI）が編集中文書を再反映する＝RA-05）
+     * - 履歴・削除予約が残っている場合 → reload()（取り込みで巻き戻せない状態を作らない）
+     * - 未保存のworking変更がある文書（dirty）の変更・削除 → **取り込まない**（working を保持＝UIの
+     *   「見たまま」を守る。競合の検出・解決は UI 層（externalConflict）の責務。RA-05）
      * - それ以外 → 変更文書だけストアから読み直し、増分導出で派生状態を更新する（結果は全再構築と一致）
      * パース不能になった文書・ストアから消えた文書は文書集合から外れる（load と同じ扱い）。
      */
     fun noteStoreChanges(changed: Collection<DocumentId>, removed: Collection<DocumentId> = emptyList()): TransactionResult {
+        resetCoalesce()
         // 隠しパスは文書集合の対象外（load と同じ規則）——変更として渡されても無視する
         val changedDocs = changed.filterNot { WorkspaceReader.hiddenPath(it.value, layout) }
         val removedDocs = removed.filterNot { WorkspaceReader.hiddenPath(it.value, layout) }
@@ -334,16 +476,17 @@ class WorkspaceSession(
                 (layout.configDir != null && id.value.startsWith("${layout.configDir}/")) ||
                 // derive の導出元文書の変更はスキーマ変更と同じ扱い（R11-03 / C-2。root noteDiskChanges と同型）
                 schemas.any { s -> s.derive?.matchesSource(id.value) == true }
-        } || undoStack.isNotEmpty() || redoStack.isNotEmpty() || dirtyDocuments().isNotEmpty()
+        } || undoStack.isNotEmpty() || redoStack.isNotEmpty() || pendingDeletes.isNotEmpty()
         if (needsFullReload) return reload()
 
         val touched = mutableSetOf<DocumentId>()
         val gone = mutableSetOf<DocumentId>()
         for (id in removedDocs) {
+            if (isDirty(id)) continue  // 未保存編集を保持（削除の競合解決は UI 層）
             if (workingDocuments.remove(id) != null) gone += id
             storeTexts.remove(id)
         }
-        for (id in changedDocs) {
+        for (id in changedDocs.filterNot { isDirty(it) }) {
             val text = store.read(id)?.text
             if (text == null) {
                 if (workingDocuments.remove(id) != null) gone += id
@@ -402,6 +545,7 @@ class WorkspaceSession(
 
     /** ストアから読み直す（外部変更の取り込み。履歴は破棄される）。 */
     fun reload(): TransactionResult {
+        resetCoalesce()
         val loaded = WorkspaceReader.load(store, version = version + 1, builtins = builtins)
         schemas = loaded.schemas
         schemaErrors = loaded.schemaErrors
@@ -453,6 +597,20 @@ class WorkspaceSession(
                         if (op.persistedText != null) deleteCancellations += op.documentId
                         inverseOps.add(0, WorkspaceOperation.DeleteDocument(op.documentId))
                     }
+                    is WorkspaceOperation.ReplaceDocument -> {
+                        val d = candidate[op.documentId]
+                            ?: error("文書が存在しません: ${op.documentId.value}")
+                        inverseOps.add(
+                            0,
+                            WorkspaceOperation.ReplaceDocument(
+                                op.documentId,
+                                d.document.copy(documents = d.document.documents.map { it.deepCopy() }),
+                            ),
+                        )
+                        candidate[op.documentId] = d.copy(
+                            document = op.document.copy(documents = op.document.documents.map { it.deepCopy() }),
+                        )
+                    }
                     is WorkspaceOperation.DeleteDocument -> {
                         val d = candidate.remove(op.documentId)
                             ?: error("文書が存在しません: ${op.documentId.value}")
@@ -494,6 +652,7 @@ class WorkspaceSession(
             val ids = when (op) {
                 is WorkspaceOperation.EditDocument -> listOf(op.documentId)
                 is WorkspaceOperation.CreateDocument -> listOf(op.documentId)
+                is WorkspaceOperation.ReplaceDocument -> listOf(op.documentId)
                 is WorkspaceOperation.DeleteDocument -> listOf(op.documentId)
                 is WorkspaceOperation.MoveDocument -> listOf(op.from, op.to)
             }
@@ -530,6 +689,7 @@ class WorkspaceSession(
             when (op) {
                 is WorkspaceOperation.EditDocument -> touched += op.documentId
                 is WorkspaceOperation.CreateDocument -> touched += op.documentId
+                is WorkspaceOperation.ReplaceDocument -> touched += op.documentId
                 is WorkspaceOperation.DeleteDocument -> removed += op.documentId
                 is WorkspaceOperation.MoveDocument -> {
                     removed += op.from

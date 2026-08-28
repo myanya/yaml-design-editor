@@ -100,6 +100,106 @@ class WorkspaceSessionTest {
     }
 
     @Test
+    fun `recordEditは合体キーで1記録にまとまりundo1回で境界前へ戻る`() {
+        val store = newStore()
+        val s = session(store)
+        // 連続入力（同一キー・時間窓内）→ 1記録に合体（UX-11 のセッション版）
+        assertTrue(s.recordEdit(a, DefaultYamlCodec.parse(a, "id: IT-001\ntitle: A1\n"), coalesceKey = "title", nowMillis = 0).ok)
+        assertTrue(s.recordEdit(a, DefaultYamlCodec.parse(a, "id: IT-001\ntitle: A12\n"), coalesceKey = "title", nowMillis = 500).ok)
+        assertTrue(s.recordEdit(a, DefaultYamlCodec.parse(a, "id: IT-001\ntitle: A123\n"), coalesceKey = "title", nowMillis = 900).ok)
+        assertEquals(1, s.history.size, "時間窓内の同一キーは1記録に合体")
+        // 時間窓の超過は境界＝新しい記録
+        assertTrue(s.recordEdit(a, DefaultYamlCodec.parse(a, "id: IT-001\ntitle: B\n"), coalesceKey = "title", nowMillis = 5000).ok)
+        assertEquals(2, s.history.size)
+        assertTrue(s.isDirty(a))
+        assertEquals(s.fullDerived().semantic.ids, s.derived.semantic.ids, "記録経路も派生は oracle と一致")
+        // undo: 直近の記録 → 合体グループの先頭前 → 保存済み状態
+        assertTrue(s.undo().ok)
+        assertEquals("A123", titleOf(s, a))
+        assertTrue(s.undo().ok)
+        assertEquals("A", titleOf(s, a), "合体グループは1回の undo でグループ開始前へ戻る")
+        assertFalse(s.isDirty(a), "保存済み状態へ戻れば dirty も消える")
+        assertTrue(s.redo().ok)
+        assertEquals("A123", titleOf(s, a), "redo は合体後の最終状態へ進む")
+    }
+
+    @Test
+    fun `recordEditは記録にUI側ツリーを共有しない`() {
+        val store = newStore()
+        val s = session(store)
+        val edited = DefaultYamlCodec.parse(a, "id: IT-001\ntitle: X\n")
+        assertTrue(s.recordEdit(a, edited, coalesceKey = null, nowMillis = 0).ok)
+        // 記録後に UI 側ツリーを書き換えても履歴（redo）が汚れない（ADR-0003）
+        (edited.documents.first() as model.YNode.Map).entries["title"] = model.YNode.Scalar("汚染")
+        assertTrue(s.undo().ok)
+        assertTrue(s.redo().ok)
+        assertEquals("X", titleOf(s, a), "履歴は記録時点の deep copy を持つ")
+    }
+
+    @Test
+    fun `ReplaceDocument操作は文書全体を置換しundoとredoが対称に効く`() {
+        val store = newStore()
+        val s = session(store)
+        val r = s.apply(
+            WorkspaceTransaction(
+                s.version, ChangeIntent("承認済み変更の適用"),
+                listOf(
+                    WorkspaceOperation.ReplaceDocument(a, DefaultYamlCodec.parse(a, "id: IT-001\ntitle: 置換後\n")),
+                    WorkspaceOperation.CreateDocument(
+                        DocumentId("items/new.yaml"),
+                        DefaultYamlCodec.parse(DocumentId("items/new.yaml"), "id: IT-100\ntitle: 新規\n"),
+                    ),
+                ),
+            )
+        )
+        assertTrue(r.ok, r.message ?: "")
+        assertEquals("置換後", titleOf(s, a))
+        assertTrue("IT-100" in s.derived.semantic.ids, "1トランザクションで置換と作成が入る")
+        assertTrue(s.undo().ok)
+        assertEquals("A", titleOf(s, a), "Undo 1回で置換が旧内容へ戻る")
+        assertNull(s.snapshot.documents[DocumentId("items/new.yaml")], "作成も同時に戻る")
+        assertTrue(s.redo().ok)
+        assertEquals("置換後", titleOf(s, a))
+    }
+
+    @Test
+    fun `replaceDocumentはworkingだけを置き換え履歴を積まずsaveで書く`() {
+        val store = newStore()
+        val s = session(store)
+        val r = s.replaceDocument(a, DefaultYamlCodec.parse(a, "id: IT-001\ntitle: A2\nlink: IT-404\n"))
+        assertTrue(r.ok)
+        assertEquals("A2", titleOf(s, a))
+        assertFalse(s.canUndo(), "履歴は積まない（Undo は A-3 まで UI（EditBuffer）所有）")
+        assertEquals(0, store.writeCount, "置換だけではストアに書かない")
+        assertTrue(s.derived.semantic.issues.any { "IT-404" in it.message }, "派生が追随する: ${s.derived.semantic.issues}")
+        // oracle: 全再構築と一致
+        val full = s.fullDerived()
+        assertEquals(full.structuralIssues, s.derived.structuralIssues)
+        assertEquals(full.semantic.ids, s.derived.semantic.ids)
+        assertTrue(s.isDirty(a))
+        val saved = s.save(setOf(a))
+        assertTrue(saved.ok)
+        assertEquals("id: IT-001\ntitle: A2\nlink: IT-404\n", store.read(a)?.text)
+        assertFalse(s.isDirty(a))
+    }
+
+    @Test
+    fun `replaceDocumentはスキーマ文書の置換でスキーマ束を再構築する`() {
+        val store = newStore()
+        val s = session(store)
+        assertTrue(s.replaceDocument(a, DefaultYamlCodec.parse(a, "id: IT-001\n")).ok)
+        assertTrue(s.derived.structuralIssues.getValue(a).any { "title" in it.message }, "必須欠落が出る")
+        val schemaDoc = DocumentId("_schemas/item.yaml")
+        val relaxed = store.read(schemaDoc)!!.text.replace("required: true", "required: false")
+        assertTrue(s.replaceDocument(schemaDoc, DefaultYamlCodec.parse(schemaDoc, relaxed)).ok)
+        assertTrue(
+            s.derived.structuralIssues.getValue(a).none { "title" in it.message },
+            "スキーマ置換が全文書の検証に効く: ${s.derived.structuralIssues}",
+        )
+        assertEquals(s.fullDerived().structuralIssues, s.derived.structuralIssues)
+    }
+
+    @Test
     fun `applyはworking snapshotだけを更新しストアに書かない`() {
         val store = newStore()
         val s = session(store)

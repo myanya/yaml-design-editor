@@ -666,10 +666,11 @@ fun EditorArea(state: AppState) {
                 }
                 Spacer(Modifier.width(6.dp))
             }
-            IconButton(enabled = doc.canUndo(), onClick = state::undo, modifier = Modifier.size(34.dp)) {
+            // Undo/Redo はワークスペース横断の単一履歴（A-3・D-07）——活性判定もセッション基準
+            IconButton(enabled = state.canUndo(), onClick = state::undo, modifier = Modifier.size(34.dp)) {
                 Icon(Icons.Default.Undo, "元に戻す (Ctrl+Z)", Modifier.size(17.dp))
             }
-            IconButton(enabled = doc.canRedo(), onClick = state::redo, modifier = Modifier.size(34.dp)) {
+            IconButton(enabled = state.canRedo(), onClick = state::redo, modifier = Modifier.size(34.dp)) {
                 Icon(Icons.Default.Redo, "やり直す (Ctrl+Y)", Modifier.size(17.dp))
             }
             Spacer(Modifier.width(4.dp))

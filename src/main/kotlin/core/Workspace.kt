@@ -272,9 +272,57 @@ class Workspace private constructor(val root: Path) {
      * - dryRun = true では書き込みを行わず、適用後の検証結果のみ返す。
      * - requireValid = true では、適用後に検証エラーが残る場合も書き込まない。
      */
-    fun apply(changeSet: ChangeSet, dryRun: Boolean = false, requireValid: Boolean = false): ChangeSetResult {
-        data class Staged(val change: FileChange, val file: Path, val newRoot: YNode)
+    fun apply(changeSet: ChangeSet, dryRun: Boolean = false, requireValid: Boolean = false): ChangeSetResult =
+        applyInternal(changeSet, dryRun, requireValid) { staged ->
+            staged.forEach { s ->
+                Files.createDirectories(s.file.parent)
+                Files.writeString(s.file, YamlIO.dump(s.newRoot))
+            }
+            null
+        }
 
+    /**
+     * 変更セット適用のセッション書込版（A-2b・D-04）: 競合判定・オーバーレイ検証（coverage 等の
+     * 全Validator）は apply と完全に同一のまま、書込だけを WorkspaceSession（DocumentStore ポート＝
+     * atomic 書込）へ集約する。適用は1トランザクション（CreateDocument / ReplaceDocument）で、
+     * 履歴一元化（A-3）後は Undo 1回で全ファイルが戻る。
+     */
+    fun applyViaSession(
+        session: workspace.WorkspaceSession,
+        changeSet: ChangeSet,
+        dryRun: Boolean = false,
+        requireValid: Boolean = false,
+    ): ChangeSetResult = applyInternal(changeSet, dryRun, requireValid) { staged ->
+        val ops = staged.map { s ->
+            val id = model.DocumentId(relPath(s.file))
+            val doc = model.YDocument(id, listOf(s.newRoot))
+            if (s.change.create) workspace.WorkspaceOperation.CreateDocument(id, doc)
+            else workspace.WorkspaceOperation.ReplaceDocument(id, doc)
+        }
+        val applied = session.apply(
+            workspace.WorkspaceTransaction(
+                baseVersion = session.version,
+                intent = workspace.ChangeIntent("変更セットの適用（${staged.size} ファイル）"),
+                operations = ops,
+            )
+        )
+        if (!applied.ok) applied.message ?: "セッションへの適用に失敗しました"
+        else {
+            val saved = session.save(staged.map { model.DocumentId(relPath(it.file)) }.toSet())
+            if (saved.ok) null
+            else saved.failures.entries.firstOrNull()?.let { (id, m) -> "${id.value}: $m" } ?: "書込に失敗しました"
+        }
+    }
+
+    private data class Staged(val change: FileChange, val file: Path, val newRoot: YNode)
+
+    /** 適用の本体（競合判定→オーバーレイ検証→writer による書込）。writer は失敗理由を返す（null = 成功）。 */
+    private fun applyInternal(
+        changeSet: ChangeSet,
+        dryRun: Boolean,
+        requireValid: Boolean,
+        writer: (List<Staged>) -> String?,
+    ): ChangeSetResult {
         val results = mutableListOf<FileChangeResult>()
         val staged = mutableListOf<Staged>()
         var failed = false
@@ -323,14 +371,16 @@ class Workspace private constructor(val root: Path) {
         }
 
         val write = !dryRun && !failed
+        val writeError = if (write) writer(validated.map { it.first }) else null
         validated.forEach { (s, issues) ->
-            if (write) {
-                Files.createDirectories(s.file.parent)
-                Files.writeString(s.file, YamlIO.dump(s.newRoot))
-            }
-            results += FileChangeResult(s.change.file, applied = write, message = null, issues = issues)
+            results += FileChangeResult(
+                s.change.file,
+                applied = write && writeError == null,
+                message = writeError,
+                issues = issues,
+            )
         }
-        if (write) refreshAfterWrite(validated.map { it.first.file })
-        return ChangeSetResult(ok = !failed, dryRun = dryRun, results = results)
+        if (write && writeError == null) refreshAfterWrite(validated.map { it.first.file })
+        return ChangeSetResult(ok = !failed && writeError == null, dryRun = dryRun, results = results)
     }
 }

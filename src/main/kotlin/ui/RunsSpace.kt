@@ -890,7 +890,8 @@ internal fun ReviewContent(
                         return@Button
                     }
                     scope.launch {
-                        val applyResult = withContext(Dispatchers.IO) { ws.apply(ChangeSet(adopted)) }
+                        // A-2b: 書込はセッション集約の適用経路（検証・競合判定は従来と同一）
+                        val applyResult = withContext(Dispatchers.IO) { state.applyAgentChanges(ChangeSet(adopted)) }
                         runFile?.let {
                             withContext(Dispatchers.IO) {
                                 RunLog.appendAdoption(it, adopted.map { a -> a.file }, rejected, applyResult.ok)

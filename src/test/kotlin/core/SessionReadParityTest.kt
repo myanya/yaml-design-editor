@@ -163,6 +163,19 @@ class SessionReadParityTest {
     }
 
     @Test
+    fun `編集直結（replaceDocument）の派生がoverlayIndexと完全一致する`() {
+        // RA-05: UIの編集は overlays でなくセッション working へ直結される——結果は旧二層 overlay と同一
+        val cw = Workspace.open(ws)
+        val s = WorkspaceSession(FileSystemDocumentStore(ws))
+        val editedB = YamlIO.parse("id: IT-002\ntitle: B編集\nlink: IT-999\n")
+        val old = cw.overlayIndex(mapOf(ws.resolve("items/b.yaml") to editedB))
+        assertTrue(s.replaceDocument(DocumentId("items/b.yaml"), YDocument(DocumentId("items/b.yaml"), listOf(editedB))).ok)
+        val facade = index.derivedIdIndex(s.derived.semantic.scans, cw.root)
+        assertEquals(old.entries, facade.entries, "編集直結後の entries")
+        assertEquals(old.refs, facade.refs, "編集直結後の refs")
+    }
+
+    @Test
     fun `derivedIdIndexファサードがoverlayIndexと完全一致する`() {
         val cw = Workspace.open(ws)
         val s = WorkspaceSession(

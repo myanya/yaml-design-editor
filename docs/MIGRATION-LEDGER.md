@@ -45,6 +45,10 @@
 | RA-01 | Phase A-1 前半: AppState への WorkspaceSession 併設（ディスク同期・noteStoreChanges・derivedWith＝見たまま派生の供給口） | workspace-core / app | done | 消費側の切替は未実施（C-2 が正しさの前提＝記録参照） | 移行後計画 A-1・2026-08-24 |
 | RC-04 | C-2: derive＋メタスキーマの reader / session 対応（SchemaDerivation を semantic-core へ移動・組込スキーマ注入・WS-002 v1 の残の解消） | semantic-core / workspace-core / app | done | cli は組込未注入のまま（C-4 の資源化で接続） | 移行後計画 C-2 前倒し（オーナー承認 2026-08-25） |
 | RA-02 | Phase A-1 後半: `state.overlayIndex()` の供給元をセッション派生へ切替（derivedIdIndex ファサード・IdIndex.populate・隠しパス規則の一致） | app / index / workspace-core | done | UI挙動の同一性は走査一致で担保（todos 実測含む）。**UX S1 再実施のトリガ対象** | 移行後計画 A-1・2026-08-25 ＝ **A-1 完了**（残: 一覧=A-2a・Validator本体=B-3） |
+| RA-03 | Phase A-2a: 人間の書込経路のセッション集約（保存=replaceDocument+save・一括更新=1トランザクション適用+save。D-11） | workspace-core / core / app | done | D-11（一括更新の原子化・atomic書込）。履歴は A-3 まで EditBuffer 所有＝replaceDocument は履歴を積まない | 移行後計画 A-2a・2026-08-25 |
+| RA-04 | Phase A-2b: エージェント適用のセッション書込化（`Workspace.applyViaSession`・カーネル `ReplaceDocument` 操作・RunsSpace 承認の切替） | workspace-core / core / app / ui | done | 検証・競合判定は旧経路と同一（バイト列・メッセージ一致をテストで固定）。AutoApply（自動化）・skill インポートは残置（記録参照） | 移行後計画 A-2b・2026-08-26 |
+| RA-05 | Phase A-3 前半: 編集のセッション直結（markEdited→replaceDocument・noteStoreChanges の dirty 保持・オーバーレイはパース不能文書のみに縮退） | workspace-core / app | done | Undo/dirty は引き続き EditBuffer 所有（UX 不変）。履歴一元化＝A-3 後半（RA-06） | 移行後計画 A-3・2026-08-28 |
+| RA-06 | Phase A-3 後半: Undo/Redo・dirty のセッション所有（`recordEdit`＝合体つき履歴・ワークスペース横断 Undo・dirty のセッション供給） | workspace-core / app / ui | done | **D-07 の UX 変化が発効**（Undo が文書単位→ワークスペース横断）。EditBuffer はフォールバック併走（縮退は B 段）。reload 後は履歴が残らない（記録参照） | 移行後計画 A-3・2026-08-28 ＝ **A-3 完了** |
 | WS-001 | WorkspaceLayout の移動と DocumentStore（InMemory / FileSystem）新設 | workspace-core | done | 予約ディレクトリ名の正を Zone のリテラルへ | Phase 7前半（2026-08-19） |
 | WS-002 | 読取専用ワークスペース（WorkspaceReader）と意味宣言パーサの移動 | workspace-core / semantic-core | done | v1未対応: derive・メタスキーマ適用 | Phase 7後半（2026-08-19） |
 | WS-003 | 簡易CLIの最小配線（yaml parse / roundtrip・workspace validate・exit code契約） | cli | done | - | Phase 7完了（2026-08-19） |
@@ -263,6 +267,126 @@ semantic-core: ID/ref/entity graph・意味検証（重複・参照・グラフ�
   `_schemas` 文書へのメタスキーマ適用（schemas ゾーンは文書集合から除外）。CLI 配線（workspace validate）
   は WS-003（Phase 7 完了条件①の残り）
 完了確認コマンド: ./gradlew :workspace-core:test / ./gradlew test
+```
+
+### RA-06 Phase A-3 後半: Undo/Redo・dirty のセッション所有（done 2026-08-28）＝ A-3 完了
+
+```text
+旧実装: Undo/Redo・dirty は文書ごとの EditBuffer（正規化テキストのスナップショット履歴・UX-11 合体）。
+  AppState.undo() は openDoc の文書単位 Undo
+旧テスト: DocumentsTest（EditBuffer。フォールバック用に残置）。新設: WorkspaceSessionTest へ
+  recordEdit 2件（合体・deep copy 非共有）
+新しい責務:
+  - workspace/WorkspaceSession.recordEdit(id, document, coalesceKey, nowMillis)——UI編集1回の
+    履歴つき記録（ReplaceDocument＝型付き・逆操作つき。粒度は EditBuffer と同じ文書単位。
+    細粒度の型付き操作化＝D-03 の完成形は将来の改善）。合体（UX-11）は「同キー・同文書・時間窓内・
+    redoなし」で直前記録の forward を置換（inverse 据え置き＝グループ先頭前へ1回で戻る）。
+    合体連鎖は undo/redo/apply/取り込み/replaceDocument で切る（resetCoalesce）
+  - AppState.undo()/redo()——セッションの単一履歴（D-07: ワークスペース横断）。peekUndo/peekRedo で
+    影響文書を把握し、undo/redo 後にセッション working から docCache ツリーを deep copy で取り直す
+    （refreshDocsFromSession。文書が消えた場合はキャッシュも閉じる）
+  - OpenDocument.dirty——dirtySource（セッションの isDirty）を正とし、セッション不在・対象外文書のみ
+    EditBuffer 判定へフォールバック。canUndo/canRedo はツールバー含め state（セッション）基準
+  - EditBuffer は併走のフォールバック（セッション不在時の文書単位 Undo）として残置——縮退・削除は
+    B 段（Phase B の旧経路削除）で行う
+維持する挙動: 編集・保存・競合解決・「見たまま判定」のすべて。合体の時間窓（1000ms）も同値
+意図的に変える挙動（登録済み D-07 / D-08 / D-03）:
+  - Undo が文書単位 → ワークスペース横断の単一履歴（直前の変更が他文書ならその文書が戻る）
+  - reload（ファイル作成・改名・一括更新・リファクタリング適用後）で Undo 履歴が残らない
+    （従来は文書ごとの履歴が生き残っていた。履歴の単一所有と全再読込の帰結——run で体感確認を）
+  - パース不能な生テキスト状態は履歴に載らない（従来も記録は正規化テキストのみ＝実質同等。D-08 の
+    UI層テキストバッファは必要になったら導入）
+完了確認コマンド: ./gradlew test（全モジュール）
+```
+
+### RA-05 Phase A-3 前半: 編集のセッション直結（done 2026-08-28）
+
+```text
+旧実装: UI の編集は docCache（EditBuffer）のツリーに閉じ、セッションはディスクのミラー。
+  「見たまま判定」は derivedState() が編集ごとに dirty 文書を機能的オーバーレイ（derivedWith）で重ねて実現
+旧テスト: SessionReadParityTest（overlay 一致）。新設: 編集直結の一致1件・dirty 保持の増分取り込み1件
+新しい責務:
+  - AppState.pushEditToSession——markEdited（Undo/Redo 含む）のたびに編集内容を
+    session.replaceDocument で working 状態へ直結する（deep copy 取り込み・履歴は積まない）。
+    セッションが常に「見たまま」を**所有**する＝UX-03 の構造保証の最終形（A-1 の効果の完成）
+  - WorkspaceSession.noteStoreChanges——dirty 文書の外部変更・削除は**取り込まない**（working 保持。
+    競合の検出・解決は UI 層 externalConflict の責務）。dirty があっても増分取り込みが全再読込へ
+    降格しなくなった（従来の dirtyDocuments 全体ガードを撤廃。履歴・削除予約ガードは維持）
+  - derivedState() のオーバーレイは「パース不能の編集中文書（null=文書集合から外す）」だけに縮退。
+    セッション開き直し・スキーマ変更の全再読込後は dirty 文書を再反映（reopenSession / sync 後の re-push）
+  - acceptDiskVersion（競合解決）もセッションの working を揃える
+維持する挙動: UI のすべて（Undo/dirty は EditBuffer 所有のまま＝UX 不変）。判定結果の一致は
+  SessionReadParityTest「編集直結の派生が overlayIndex と完全一致」で固定
+意図的に変える挙動: なし
+性能: 編集1回あたり「編集文書1件の deep copy＋再走査」（従来は derivedState 呼び出しごとに
+  全 dirty 文書を再走査——編集中文書が多いときはむしろ軽くなる方向）
+未解決事項:
+  - A-3 後半（RA-06）: Undo/Redo・dirty の所有をセッションへ（型付き操作・合体 UX-11 のセッション版・
+    ワークスペース横断 Undo＝D-07 の UX 変化・EditBuffer 廃止・D-08 の UI 層テキストバッファ）。
+    **UX への影響が Phase A 最大のため、着手前に S1 再実施（RA-02〜05 分）を強く推奨**
+  - 競合解決（acceptDiskVersion）後のセッション dirty フラグに軽微な残留がありうる（内容は正しい。
+    次の保存で解消。履歴一元化で自然に消える見込み）
+完了確認コマンド: ./gradlew test（全モジュール）
+```
+
+### RA-04 Phase A-2b: エージェント適用のセッション書込化（done 2026-08-26）
+
+```text
+旧実装: 実行スペースの承認（RunsSpace）が `Workspace.apply` でファイルへ直接書込
+  （検証・競合判定と書込が一体。書込は Files.writeString の逐次）
+旧テスト: なし（適用結果のバイト列固定なし）。新設 SessionWriteParityTest へ1件・
+  WorkspaceSessionTest へ ReplaceDocument 操作1件
+新しい責務:
+  - workspace/WorkspaceOperation.ReplaceDocument——文書全体の置換操作（逆操作=旧内容の置換）。
+    承認済み変更・インポートなど文書単位で取り込むトランザクションの一級操作
+  - core/Workspace.applyInternal——適用の本体を「競合判定→オーバーレイ検証→writer」へ分割。
+    Patcher の適用意味論・root Validator（coverage 等）のゲート・エラーメッセージは**完全に従来のまま**
+    （PatchOp→YamlOperation の変換はしない＝Patcher と YamlEdit は別実装で意味論に微差があるため。
+    op 変換の統合は B-1 で planRefactoring 経路へ寄せるときに再判断）
+  - core/Workspace.applyViaSession——書込段だけセッションへ集約した変種（D-04）。適用は
+    CreateDocument / ReplaceDocument の1トランザクション＋save（atomic 書込）。
+    履歴一元化（A-3）後は承認済み変更が Undo 1回で戻る
+  - AppState.applyAgentChanges——RunsSpace の承認が使う入口（セッション不在時は従来経路）
+維持する挙動: 適用結果のバイト列（コメント・表記込み）・競合（baseHash）拒否のメッセージ・
+  requireValid ゲート（root Validator 基準のまま＝B-3 まで弱めない）
+意図的に変える挙動: なし（書込が一時ファイル→atomic move になるのは D-11 と同種の安全性向上）
+未解決事項:
+  - AutoApply（AutomationEngine の自動適用）は自前の headless Workspace を持つため旧経路のまま
+    （エンジンへのセッション導入は A-4 / B 段の整理と併せて判断）
+  - skill インポート（SkillsPanel）は都度 Workspace.open して適用する独立経路のまま（B 段で整理）
+  - セッションに載らない文書（隠しパス等）への ReplaceDocument は適用失敗として表面化する
+    （旧経路は書けた——エージェント経路は AgentToolbox が予約領域を弾くため実害なし）
+完了確認コマンド: ./gradlew test（全モジュール）
+```
+
+### RA-03 Phase A-2a: 人間の書込経路のセッション集約（done 2026-08-25）
+
+```text
+旧実装: AppState.save は `Files.writeString(doc.canonicalText())` の直接書込。bulkUpdate は
+  WorkspaceRecords.updateRootScalar のファイル逐次書込（部分適用が残りうる・Undo不可）
+旧テスト: なし（書込バイト列の固定なし）。新設 SessionWriteParityTest（root）2件・
+  WorkspaceSessionTest へ replaceDocument 2件
+新しい責務:
+  - workspace/WorkspaceSession.replaceDocument(id, document)——UI（EditBuffer）の編集内容で working を
+    置き換える併存期経路。deep copy で取り込み（ADR-0003）・**履歴は積まない**（Undo/dirty は A-3 の
+    履歴一元化まで EditBuffer 所有）・スキーマ文書／derive 導出元の置換はスキーマ束再構築へ振り分け
+  - AppState.save——セッションに文書がある場合は replaceDocument→session.save(id)＝書込は
+    DocumentStore ポートへ集約（ADR-0005 / D-04。一時ファイル→atomic move）。構成ファイル・
+    パース不能文書・セッション不在は従来の直接書込へフォールバック。
+    書込バイト列は canonicalText（YamlIO.dumpAll）と同一＝コメント・表記維持（テストで固定）
+  - core/WorkspaceRecords.bulkUpdateViaSession——一括更新を**1トランザクション**として適用してから
+    保存（D-11: 1件でも適用できなければ何も書かない＝部分適用の廃止）。スキップ規則（ルート非object・
+    複合値キー）は updateRootScalar と同一。コメント・表記は SetScalar が継承（R8-01）。
+    updateRootScalar はセッション不在時のフォールバックとして残置
+維持する挙動: 書込バイト列（コメント・表記込み）・スキップ規則・対象件数
+意図的に変える挙動: D-11（一括更新の原子化・保存の atomic 書込・A-3 後は一括更新が Undo 1回で戻る）
+未解決事項:
+  - bulkUpdate の apply が作るセッション履歴1件は直後の reload()（セッション開き直し）で消える＝
+    併存期の暫定。A-3 で履歴が一元化されると「Undo 1回で戻る」が実際に効く
+  - 残りの書込経路: createYaml / rename / delete / scaffold / inferSchema は従来のまま
+    （rename/delete/refactor 適用は B-1 の planRefactoring 切替と併せて session 化）。
+    エージェント適用（Workspace.apply）は A-2b
+完了確認コマンド: ./gradlew test（全モジュール）
 ```
 
 ### RA-02 Phase A-1 後半: overlayIndex の derived 供給化（done 2026-08-25）＝ A-1 完了

@@ -180,6 +180,30 @@ class IncrementalDeriveTest {
     }
 
     @Test
+    fun `noteStoreChangesは未保存working変更のある文書を上書きせず他は増分で取り込む`() {
+        val store = newStore()
+        val s = WorkspaceSession(store) { Instant.EPOCH }
+        val a = DocumentId("items/a.yaml")
+        val b = DocumentId("items/b.yaml")
+        // b を編集直結（RA-05: 履歴を積まない replaceDocument）で dirty にする
+        assertTrue(s.replaceDocument(b, DefaultYamlCodec.parse(b, "id: IT-002\ntitle: 編集中\nlink: IT-001\n")).ok)
+        // 外部変更: b（dirty）と a（clean）の両方が書き換わる
+        store.write(b, "id: IT-002\ntitle: 外部\nlink: IT-001\n")
+        store.write(a, "id: IT-001\ntitle: A9\n")
+        assertTrue(s.noteStoreChanges(listOf(a, b)).ok)
+        assertEquals(
+            "編集中", s.derived.semantic.ids.getValue("IT-002").single().title,
+            "dirty 文書の working（見たまま）は外部変更で上書きされない",
+        )
+        assertEquals(
+            "A9", s.derived.semantic.ids.getValue("IT-001").single().title,
+            "clean 文書は増分で取り込まれる",
+        )
+        assertMatchesOracle(s, "dirty保持＋clean取り込み")
+        assertTrue(s.isDirty(b) && !s.isDirty(a))
+    }
+
+    @Test
     fun `noteStoreChangesはスキーマ変更を全再読込へ降格する`() {
         val store = newStore()
         val s = WorkspaceSession(store) { Instant.EPOCH }
