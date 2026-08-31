@@ -476,7 +476,9 @@ class AppState {
 
     fun rebuildIndex() {
         val cw = coreWs ?: return
-        cw.index.rebuild(cw.root, cw.files, cw.schemas)
+        // 索引の供給はセッション派生に一本化された（RB-07）ため、全再構築は refresh 経由で行う
+        cw.refresh()
+        mirrorCore(cw)
         indexVersion++
     }
 
@@ -564,12 +566,20 @@ class AppState {
 
     private fun snapshotFiles(ws: Path): Map<Path, Long> = core.WorkspaceScan.stamps(ws)
 
-    /** UI の周期処理・ファイル監視から呼び、外部での作成・変更・削除を検出する。 */
-    fun pollExternalChanges() {
+    /**
+     * UI の周期処理・ファイル監視から呼び、外部での作成・変更・削除を検出する。
+     * eventHint = true（FileWatcher のイベント通知起点）では、スタンプ（mtime）が不変でも
+     * セッションの content diff（`externalChanges`。A-4・RA-07）で既知文書の変更を確認する——
+     * 同一 mtime での上書き等、スタンプ比較の盲点をカーネル検出で塞ぐ。
+     */
+    fun pollExternalChanges(eventHint: Boolean = false) {
         val ws = workspace ?: return
         val cw = coreWs ?: return
         val next = snapshotFiles(ws)
-        if (next == workspaceStamp) return
+        if (next == workspaceStamp) {
+            if (eventHint) applyContentDetectedChanges(ws, cw)
+            return
+        }
         val changed = (next.keys + workspaceStamp.keys).filter { next[it] != workspaceStamp[it] }
         changed.forEach { file -> docCache[file]?.let { reloadDocumentFromDisk(it, force = false) } }
         // 増分か全再構築か（スキーマ変更時のみ全再構築）の振り分けは core に一元化されている（R9-02）
@@ -587,6 +597,30 @@ class AppState {
         indexVersion++
         workspaceStamp = next
         status = "外部での変更を検出しました（${changed.size} 件）"
+    }
+
+    /**
+     * スタンプ不変時のカーネル検出（A-4・RA-07）: 既知文書の content diff（session.externalChanges）で
+     * 変更を取り込む。新規作成・削除はスタンプ比較の領分のままなのでここでは扱わない。
+     */
+    private fun applyContentDetectedChanges(ws: Path, cw: core.Workspace) {
+        val s = session ?: return
+        val changedDocs = runCatching { s.externalChanges() }.getOrNull().orEmpty()
+        if (changedDocs.isEmpty()) return
+        val files = changedDocs.map { ws.resolve(it.value).normalize() }
+        files.forEach { file ->
+            docCache[file]?.let { doc ->
+                // mtime 不変のため force で取り直す。未保存編集がある場合は上書きせず競合として提示する
+                if (doc.dirty) doc.externalConflict = true
+                else reloadDocumentFromDisk(doc, force = true)
+            }
+        }
+        cw.noteDiskChanges(changed = files)
+        mirrorCore(cw)
+        syncSessionWithDisk(changed = files)
+        docCache.values.forEach { it.schema = schemaFor(it.file) }
+        indexVersion++
+        status = "外部での変更を検出しました（${files.size} 件）"
     }
 
     fun relPath(file: Path): String {

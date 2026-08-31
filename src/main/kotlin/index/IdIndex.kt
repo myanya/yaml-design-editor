@@ -120,44 +120,9 @@ class IdIndex {
     var refs: List<RefEntry> = emptyList()
         private set
 
-    /** ディスクから読む既定のローダ（複数ドキュメントYAMLは先頭を索引化する。R8-05）。 */
-    private val diskLoader: (Path) -> YNode? = { f -> runCatching { YamlIO.parseFirst(Files.readString(f)) }.getOrNull() }
-
-    /**
-     * 索引を全ファイルから再構築する。loader を差し替えると、ディスク以外（例: エージェントのステージング）の
-     * 内容で索引を組める。schemas ゾーンと機械が書く実行記録 runs ゾーンは索引対象外（`layout.indexExcluded`）。
-     */
-    fun rebuild(
-        workspace: Path,
-        files: List<Path>,
-        schemas: List<SchemaDef>,
-        layout: WorkspaceLayout = WorkspaceLayout.LEGACY,
-        loader: (Path) -> YNode? = diskLoader,
-    ) {
-        byFile.clear()
-        for (f in files) {
-            scanFile(workspace, f, schemas, layout, loader)?.let { byFile[f] = it }
-        }
-        derive()
-    }
-
-    /**
-     * 未保存編集を重ねたオーバーレイ索引（UX-03）: この索引の走査結果を複製し、指定ファイルだけを
-     * loader の内容（編集中ツリー）で走査し直した**新しい索引**を返す（この索引自体は変更しない）。
-     * コストは走査結果の複製＋対象ファイル数に比例する。UIの「見たまま判定」（ARCHITECTURE §4.5）に使う。
-     */
-    fun overlay(
-        workspace: Path,
-        files: Collection<Path>,
-        schemas: List<SchemaDef>,
-        layout: WorkspaceLayout = WorkspaceLayout.LEGACY,
-        loader: (Path) -> YNode?,
-    ): IdIndex {
-        val out = IdIndex()
-        out.byFile.putAll(byFile)
-        out.update(workspace, files, emptyList(), schemas, layout, loader)
-        return out
-    }
+    // rebuild / overlay / update（ディスク走査＋オーバーレイ走査の経路）は RB-09 で削除——
+    // 供給はセッション派生（populateFromScans / derivedIdIndex。SemanticBridge）に一本化された。
+    // 走査の実体はカーネル（SemanticScanner）、オーバーレイは WorkspaceSession.derivedWith が担う。
 
     /** populate の入力1件（ファイル単位の走査結果）。 */
     data class PopulatedScan(val file: Path, val documentId: String, val ids: List<IdEntry>, val refs: List<RefEntry>)
@@ -171,39 +136,6 @@ class IdIndex {
         byFile.clear()
         scans.forEach { byFile[it.file] = FileScan(it.ids, it.refs, it.documentId) }
         derive()
-    }
-
-    /**
-     * 変更・削除されたファイルの分だけ走査し直して索引を差し替える（R8-02: 増分更新）。
-     * スキーマ自体が変わった場合は全ファイルの走査規則が変わるため、rebuild を使うこと。
-     */
-    fun update(
-        workspace: Path,
-        changed: Collection<Path>,
-        removed: Collection<Path> = emptyList(),
-        schemas: List<SchemaDef>,
-        layout: WorkspaceLayout = WorkspaceLayout.LEGACY,
-        loader: (Path) -> YNode? = diskLoader,
-    ) {
-        removed.forEach { byFile.remove(it) }
-        changed.forEach { f ->
-            val scan = scanFile(workspace, f, schemas, layout, loader)
-            if (scan != null) byFile[f] = scan else byFile.remove(f)
-        }
-        derive()
-    }
-
-    /** 1 ファイルを走査する。索引対象外・読取不能なら null。 */
-    private fun scanFile(workspace: Path, f: Path, schemas: List<SchemaDef>, layout: WorkspaceLayout, loader: (Path) -> YNode?): FileScan? {
-        val rel = relPathOf(workspace, f)
-        if (layout.indexExcluded(rel)) return null
-        // 台帳外（ledger 宣言の対象外・隠しパス）は、増分更新（update）で個別に渡されても索引に載せない（R13-02）
-        if (!layout.inLedger(rel) && layout.zoneOf(rel) == null) return null
-        val root = loader(f) ?: return null
-        val schemaDef = schemas.firstOrNull { it.matches(rel) }
-        val documentId = documentIdOf(root, rel)
-        val (docIds, docRefs) = DocScanner.scan(root, f, schemaDef, documentId)
-        return FileScan(docIds, docRefs, documentId)
     }
 
     /** byFile から集約ビュー（entries / refs）を導出する。順序はパス順で安定させる。 */

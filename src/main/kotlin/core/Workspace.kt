@@ -1,6 +1,8 @@
 package core
 
 import index.IdIndex
+import index.derivedIdIndex
+import index.populateFromScans
 import model.YNode
 import schema.SchemaDef
 import schema.SchemaLoader
@@ -139,6 +141,14 @@ class Workspace private constructor(val root: Path) {
         private set
     val index = IdIndex()
 
+    /**
+     * 索引の供給元セッション（B-2・RB-07）: ディスクミラーのカーネルセッションを内部に持ち、
+     * `index` はその派生（derived.semantic.scans）を写した IdIndex ファサードになる。
+     * 走査・集約の実体はカーネル（RA-02 の overlayIndex 切替と同じ供給路＝SessionReadParityTest で一致証明済み）。
+     * RB-09 でディスク走査のフォールバックを撤去＝セッションが唯一の供給（refresh で必ず開き直す）。
+     */
+    private var session: workspace.WorkspaceSession? = null
+
     companion object {
         fun open(dir: Path): Workspace {
             require(Files.isDirectory(dir)) { "ワークスペースが存在しません: $dir" }
@@ -156,7 +166,17 @@ class Workspace private constructor(val root: Path) {
         enforcement = loaded.enforcement
         entityTypes = loaded.entityTypes
         files = WorkspaceScan.yamlFiles(root, layout)
-        index.rebuild(root, files, schemas, layout)
+        session = workspace.WorkspaceSession(
+            workspace.FileSystemDocumentStore(root),
+            builtins = schema.BuiltinSchemas.kernelSchemas(layout),
+        )
+        repopulateIndex()
+    }
+
+    /** index ファサードをセッション派生から写す。 */
+    private fun repopulateIndex() {
+        val s = session ?: error("セッションが開かれていません")
+        index.populateFromScans(s.derivedWith(emptyMap()).semantic.scans, root)
     }
 
     fun relPath(file: Path): String = IdIndex.relPathOf(root, file)
@@ -237,7 +257,16 @@ class Workspace private constructor(val root: Path) {
             return
         }
         if (changed.any { it !in files } || removed.isNotEmpty()) files = WorkspaceScan.yamlFiles(root, layout)
-        index.update(root, changed.toList(), removed.toList(), schemas, layout)
+        // 増分取り込み（RA-01 の noteStoreChanges）→ 派生を写す。セッション側が全再読込へ降格しても結果は同じ。
+        // 取り込みに失敗した場合は refresh（セッション開き直し）で回復する
+        val s = session ?: run { refresh(); return }
+        runCatching {
+            s.noteStoreChanges(
+                changed = changed.map { model.DocumentId(relPath(it)) },
+                removed = removed.map { model.DocumentId(relPath(it)) },
+            )
+        }.onFailure { refresh(); return }
+        repopulateIndex()
     }
 
     /**
@@ -247,7 +276,13 @@ class Workspace private constructor(val root: Path) {
      */
     fun overlayIndex(overlays: Map<Path, YNode?>): IdIndex {
         if (overlays.isEmpty()) return index
-        return index.overlay(root, overlays.keys, schemas, layout) { f -> overlays[f] }
+        val s = session ?: error("セッションが開かれていません")
+        // オーバーレイはカーネル派生（RA-01 derivedWith）で組む（null = 文書集合から外す＝従来と同じ）
+        val kernelOverlays = overlays.entries.associate { (f, tree) ->
+            val id = model.DocumentId(relPath(f))
+            id to tree?.let { model.YDocument(id, listOf(it)) }
+        }
+        return derivedIdIndex(s.derivedWith(kernelOverlays).semantic.scans, root)
     }
 
     /** 1 ファイルを検証する（スキーマ適合・参照解決・重複・カバレッジ。台帳外は索引前提の判定を降格。R13-03）。 */
@@ -350,17 +385,13 @@ class Workspace private constructor(val root: Path) {
             }
         }
 
-        // 適用後の状態を重ねたオーバーレイ索引で検証する（書き込み前）
-        val overlayRoots = staged.associate { it.file to it.newRoot }
-        val overlayIndex = IdIndex().apply {
-            rebuild(root, (files + overlayRoots.keys).distinct(), schemas, layout) { f ->
-                overlayRoots[f] ?: runCatching { YamlIO.parse(Files.readString(f)) }.getOrNull()
-            }
-        }
+        // 適用後の状態を重ねたオーバーレイ索引で検証する（書き込み前。供給はセッション派生＝RB-07 で一本化）
+        val overlayRoots: Map<Path, YNode?> = staged.associate { it.file to it.newRoot }
+        val applyOverlay = overlayIndex(overlayRoots)
         val validated = staged.map { s ->
             // 整合検証の材料もオーバーレイ（適用後の姿）で読む（索引と同じ基準を保つ。R16-03a）
             s to Validator.validate(
-                s.newRoot, null, s.file, schemaFor(s.file), overlayIndex,
+                s.newRoot, null, s.file, schemaFor(s.file), applyOverlay,
                 workspace = root, allSchemas = schemas,
                 loader = { f -> overlayRoots[f] ?: runCatching { YamlIO.parse(Files.readString(f)) }.getOrNull() },
                 relations = relations, enforcement = enforcement,

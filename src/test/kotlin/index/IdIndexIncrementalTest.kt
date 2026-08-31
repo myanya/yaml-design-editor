@@ -20,10 +20,9 @@ class IdIndexIncrementalTest {
         Files.walk(dir).use { it.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
     }
 
-    /** フル再構築した索引と内容が一致するか（entries・refs の両方）。 */
+    /** 開き直したワークスペースの索引（フル供給）と内容が一致するか（entries・refs の両方）。 */
     private fun assertMatchesFullRebuild(ws: Workspace) {
-        val fresh = IdIndex()
-        fresh.rebuild(ws.root, core.WorkspaceScan.yamlFiles(ws.root), ws.schemas)
+        val fresh = Workspace.open(ws.root).index
         assertEquals(fresh.entries, ws.index.entries)
         assertEquals(fresh.refs, ws.index.refs)
     }
@@ -34,7 +33,7 @@ class IdIndexIncrementalTest {
         val ws = Workspace.open(dir)
         val target = dir.resolve("docs/doc-0002.yaml")
         Files.writeString(target, Files.readString(target).replace("ITEM-0002-01", "ITEM-0002-01-RENAMED"))
-        ws.index.update(ws.root, listOf(target), emptyList(), ws.schemas)
+        ws.noteDiskChanges(listOf(target))
         assertTrue("ITEM-0002-01-RENAMED" in ws.index.entries)
         assertTrue("ITEM-0002-01" !in ws.index.entries)
         assertMatchesFullRebuild(ws)
@@ -47,12 +46,12 @@ class IdIndexIncrementalTest {
         // 追加
         val added = dir.resolve("docs/doc-added.yaml")
         Files.writeString(added, "id: DOC-ADDED\ntitle: 追加文書\nitems:\n  - id: ITEM-ADDED-01\n    title: 追加要素\n")
-        ws.index.update(ws.root, listOf(added), emptyList(), ws.schemas)
+        ws.noteDiskChanges(listOf(added))
         assertTrue("ITEM-ADDED-01" in ws.index.entries)
         assertMatchesFullRebuild(ws)
         // 削除
         Files.delete(added)
-        ws.index.update(ws.root, emptyList(), listOf(added), ws.schemas)
+        ws.noteDiskChanges(emptyList(), removed = listOf(added))
         assertTrue("ITEM-ADDED-01" !in ws.index.entries)
         assertMatchesFullRebuild(ws)
     }
@@ -85,7 +84,7 @@ class IdIndexIncrementalTest {
         Files.createDirectories(runs)
         val runFile = runs.resolve("run-x.yaml")
         Files.writeString(runFile, "id: RUN-X\n")
-        ws.index.update(ws.root, listOf(runFile), emptyList(), ws.schemas)
+        ws.noteDiskChanges(listOf(runFile))
         assertTrue("RUN-X" !in ws.index.entries)
         assertMatchesFullRebuild(ws)
     }

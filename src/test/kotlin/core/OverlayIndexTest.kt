@@ -126,11 +126,9 @@ class OverlayIndexTest {
 
         // 等価性: オーバーレイは「同じ内容で全再構築した索引」と一致する
         // 注意: Path は Iterable<Path>（セグメント列）のため `files + path` はセグメント分解される。listOf で足す
-        val fresh = index.IdIndex().apply {
-            rebuild(root, workspace.files + listOf(newDetail), workspace.schemas) { f ->
-                if (f == newDetail) YamlIO.parse("id: SCR-B\n")
-                else runCatching { YamlIO.parseFirst(Files.readString(f)) }.getOrNull()
-            }
+        val fresh = index.testIndex(root, workspace.files + listOf(newDetail), workspace.schemas) { f ->
+            if (f == newDetail) YamlIO.parse("id: SCR-B\n")
+            else runCatching { YamlIO.parseFirst(Files.readString(f)) }.getOrNull()
         }
         assertEquals(fresh.entries.keys, overlay.entries.keys)
         assertEquals(fresh.refs.size, overlay.refs.size)

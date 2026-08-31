@@ -84,9 +84,7 @@ class PhaseTest {
             files.add(Path.of("tables/t.yaml"))
             content[Path.of("tables/t.yaml")] = tableYaml
         }
-        val idx = IdIndex()
-        idx.rebuild(Path.of("."), files, listOf(entitySchema, tableSchema)) { f -> YamlIO.parse(content.getValue(f)) }
-        return idx
+        return index.testIndex(Path.of("."), files, listOf(entitySchema, tableSchema)) { f -> YamlIO.parse(content.getValue(f)) }
     }
 
     @Test

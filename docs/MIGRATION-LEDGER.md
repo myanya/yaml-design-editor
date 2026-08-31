@@ -49,6 +49,13 @@
 | RA-04 | Phase A-2b: エージェント適用のセッション書込化（`Workspace.applyViaSession`・カーネル `ReplaceDocument` 操作・RunsSpace 承認の切替） | workspace-core / core / app / ui | done | 検証・競合判定は旧経路と同一（バイト列・メッセージ一致をテストで固定）。AutoApply（自動化）・skill インポートは残置（記録参照） | 移行後計画 A-2b・2026-08-26 |
 | RA-05 | Phase A-3 前半: 編集のセッション直結（markEdited→replaceDocument・noteStoreChanges の dirty 保持・オーバーレイはパース不能文書のみに縮退） | workspace-core / app | done | Undo/dirty は引き続き EditBuffer 所有（UX 不変）。履歴一元化＝A-3 後半（RA-06） | 移行後計画 A-3・2026-08-28 |
 | RA-06 | Phase A-3 後半: Undo/Redo・dirty のセッション所有（`recordEdit`＝合体つき履歴・ワークスペース横断 Undo・dirty のセッション供給） | workspace-core / app / ui | done | **D-07 の UX 変化が発効**（Undo が文書単位→ワークスペース横断）。EditBuffer はフォールバック併走（縮退は B 段）。reload 後は履歴が残らない（記録参照） | 移行後計画 A-3・2026-08-28 ＝ **A-3 完了** |
+| RC-07 | Phase C-4 第2弾: cli への組込スキーマ注入——`BuiltinSchemaResources.kernelSchemas(layout)`（workspace-core 自身のパース＝WorkspaceReader.parseSchemas＋ゾーン match 書き換え）を cli の全コマンド（validate / catalog / entity / refactor / shell）へ注入 | workspace-core / cli | done | **D-14 登録**（`_schemas`・定義ゾーンの検証面がアプリと揃う＝検出強化のみ）。CliBuiltinsTest 2件新設（メタスキーマ違反が exit 2・正常系は exit 0）。root（アプリ）は併存期は従来どおり root パース＝統一は P27 | 移行後計画 C-4・2026-08-31 |
+| RC-06 | Phase C-4 第1弾: BuiltinSchemas の資源化（YM-006b）——組込みYAML 7本（1,540行）を実行時実文字列のままダンプして workspace-core resources（builtin-schemas/）へ。root BuiltinSchemas は資源読みの薄いシェル（1,647行→約85行。API・順序・source 座標は不変） | schema / workspace-core | done | ダンプ＝補間解決済みの実文字列のため挙動同一が構造的に保証。全テスト緑＋ベースライン実測不変。ドッグフーディングテスト（allYamlTexts）も資源経由で継続 | 移行後計画 C-4・2026-08-31 |
+| RC-05 | Phase C-3: 読み出しモデル（Traverse emit・Disclosure・Search・SchemaInference・IdSuggest）の置き場を**アプリ側維持で正式決定**（コード変更なし）——カーネルに対応物なし＝二重実装でない・移設は変換シェル増のみ・SchemaDef 解体（P27）時に一括で移す | docs | done | Phase D の P27 切り出し（2026-08-31 オーナー決定）と同時に記録。DoD の「読み出しモデル残置」の枠 | 移行後計画 C-3・2026-08-31 |
+| RA-07 | Phase A-4: 外部変更検出のカーネル接続——FileWatcher（R8-03 で既にイベント駆動＝WatchService）のイベント起点で、スタンプ（mtime）不変でも `session.externalChanges()`（content diff）が既知文書の変更を検出する（`pollExternalChanges(eventHint)`）。dirty 文書は上書きせず競合提示 | app / Main | done | **Phase A（A-1〜A-4）全完了**。同一 mtime 上書きの盲点を解消（新規作成・削除はスタンプ比較の領分のまま）。ExternalChangeTest 2件新設（タイマーなし・直接呼び流儀）。計画書 §2.2 の「ポーリング監視」記載は R8-03 時点で古かった（実体は WatchService） | 移行後計画 A-4・2026-08-29 |
+| RB-09 | Phase B-2 第4弾: IdIndex のディスク走査経路（rebuild / update / overlay / scanFile / diskLoader）を削除——供給はセッション派生（populateFromScans / derivedIdIndex）のみに。Workspace のフォールバックも撤去（セッションが唯一の供給・noteStoreChanges 失敗時は refresh で回復） | index / core / テスト | done | 旧テストは本番経路（noteDiskChanges / overlayIndex / Workspace.open）へ切替・fixture 用に `testIndex`（DocScanner＋populate＝旧 scanFile と同一の対象判定）を新設。BenchFixture は本番経路（refresh / noteDiskChanges）の計測に変更。全テスト緑＋ベースライン実測不変 | 移行後計画 B-2・2026-08-29 |
+| RB-08 | Phase B-2 第3弾: agent ステージングのオーバーレイ索引を `Workspace.overlayIndex`（セッション派生）へ一本化——`Staging.index()` の直接 `IdIndex().rebuild`（ディスク走査＋オーバーレイ loader）を廃止 | agent | done | 本線の直接走査は Workspace 内のフォールバックのみに。StagingTest・agent 系スイート緑＋ベースライン実測不変。validateAll の DocScanner per-doc 走査はカーネル委譲シェルのため残置 | 移行後計画 B-2・2026-08-29 |
+| RB-07 | Phase B-2 第2弾: legacy `Workspace` の索引供給をセッション派生へ——内部に組込注入済みカーネルセッションを持ち、`index` は `populateFromScans` で写す IdIndex ファサード。noteDiskChanges → noteStoreChanges 増分・overlayIndex / apply のオーバーレイ検証も `derivedWith` 供給（セッション不在時は従来走査へフォールバック） | core / index | done | ヘッドレス経路（CLI・エージェント・自動化・ステージング）が新経路供給になった。全テスト緑（WorkspaceCliTest 一気通貫・StagingTest・OverlayIndexTest 等がそのまま一致証明）＋ベースライン実測不変（エラー5・警告12）。AppState.rebuildIndex も refresh 経由へ。残: RB-08 ステージング直接経路の確認・RB-09 IdIndex 走査経路の削除・RB-10 overlayIndex 型解消 | 移行後計画 B-2・2026-08-28 |
 | RB-06 | Phase B-3 第4弾: validate() 本体の意味部（文書内ID重複・参照解決）を `SemanticEngine.duplicateIdIssues / referenceIssues` へ単一所有化——aggregate から判定を抽出し、root は二層供給（索引＋ローカル）＋台帳外 INFO 降格・自己文書参照（ownDocumentId）を注入する変換シェル | semantic-core / validate | done | **D-13 登録**（重複文言をカーネル「この文書内」へ統一）。全テスト緑＋sample-workspace ベースライン実測不変（エラー5・警告12）。**B-3 はこれで完了**——validateWorkspace の参照元は RA-02 以降セッション派生（overlayIndex ファサード）で、判定は RB-03〜06 でカーネル所有＝供給・判定とも一本化済み。IdIndex 型の解消（overlayIndex の消滅）は B-2 続きへ統合 | 移行後計画 B-3・2026-08-28 ＝ **B-3 完了** |
 | RB-05 | Phase B-3 第3弾: 整合検証（consistency＝derive 一致）の判定コアを `semantic.SemanticConsistency` へ移設（activeFrom 保留・判定保留の哲学 §4.26・来歴 R16-03c ごと。宣言 ConsistencyRule / DerivationDef は semantic-core に既存） | semantic-core / validate | done | root は座標・ローダ変換シェル（来歴 IssueDerivation へ写し戻し）。ConsistencyTest シェル経由緑＝一致証明。挙動変化なし。残: validate() 本体の意味部（参照解決・重複の消費切替）・validateWorkspace の derived 置換・テンプレート健全性（section 5）は root 残置 | 移行後計画 B-3・2026-08-28 |
 | RB-04 | Phase B-3 第2弾: フェーズ進捗のカーネル移設——`phaseProgress` / `phaseSummaryText` の走査・表示を yaml-core `StructuralSchema` 拡張へ（schema/PhaseProgress.kt。構造層の関心のため semantic-core でなく yaml-core）。root `Validator` は `schema.structural` 経由のシェル・`validate.PhaseProgress` は typealias（FQN 互換） | yaml-core / validate | done | PhaseTest（root）シェル経由緑＝一致証明。挙動変化なし。CLAUDE.md の requiredAt / currentPhaseIndex 規約は不変 | 移行後計画 B-3・2026-08-28 |
@@ -273,6 +280,24 @@ semantic-core: ID/ref/entity graph・意味検証（重複・参照・グラフ�
   `_schemas` 文書へのメタスキーマ適用（schemas ゾーンは文書集合から除外）。CLI 配線（workspace validate）
   は WS-003（Phase 7 完了条件①の残り）
 完了確認コマンド: ./gradlew :workspace-core:test / ./gradlew test
+```
+
+### RA-07 / RB-07〜09（2026-08-28〜29）: 索引供給のセッション一本化と watch 接続
+
+```text
+RB-07: legacy Workspace が内部カーネルセッション（builtins 注入）を持ち、index は populateFromScans
+  ファサードに。noteDiskChanges → noteStoreChanges 増分・overlayIndex / apply 検証は derivedWith。
+RB-08: agent Staging.index() の直接 rebuild を廃止 → ws.overlayIndex（セッション派生）一本化。
+RB-09: IdIndex の rebuild / update / overlay / scanFile / diskLoader（ディスク走査経路）を削除・
+  Workspace フォールバック撤去＝セッションが唯一の供給。旧テストは本番経路（noteDiskChanges /
+  overlayIndex / Workspace.open）＋ testIndex fixture（DocScanner＋populate・旧 scanFile 同一判定）へ。
+  BenchFixture は本番経路（refresh / noteDiskChanges）の計測に変更。
+RA-07（A-4 完了＝Phase A 全完了）: FileWatcher は R8-03 で既にイベント駆動（WatchService）——
+  残実体の「検出のカーネル接続」を実施: pollExternalChanges(eventHint) でスタンプ（mtime）不変でも
+  session.externalChanges()（content diff）が既知文書の変更を検出（clean は force 取り直し・
+  dirty は externalConflict 提示・新規/削除はスタンプ領分のまま）。ExternalChangeTest 2件。
+いずれも挙動変化なし（RA-07 は検出漏れの解消のみ）。全テスト緑＋ベースライン実測不変。
+B-4 の validate / apply 削除は延期（cli に同等なし・S2 幕7 救済導線が依存→ C-4 で整備後）。
 ```
 
 ### RB-06 Phase B-3 第4弾: validate() 本体の意味部の単一所有化（done 2026-08-28）

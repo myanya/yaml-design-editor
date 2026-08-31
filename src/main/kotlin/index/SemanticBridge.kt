@@ -73,9 +73,12 @@ fun IdIndex.toKernelView(): KernelIndexView {
  * 集約（entries / refs / graph）は IdIndex 自身の derive に任せる＝並び・グラフ導出は従来と同一。
  * `state.overlayIndex()` の供給元がこれに切り替わり、UI の「見たまま判定」はカーネル導出になる（UX-03）。
  */
-fun derivedIdIndex(scans: List<DocumentScan>, workspace: Path): IdIndex {
-    val index = IdIndex()
-    index.populate(
+fun derivedIdIndex(scans: List<DocumentScan>, workspace: Path): IdIndex =
+    IdIndex().also { it.populateFromScans(scans, workspace) }
+
+/** 既存の IdIndex インスタンスへセッション派生の走査結果を投入する（B-2・RB-07: `Workspace.index` の供給切替用）。 */
+fun IdIndex.populateFromScans(scans: List<DocumentScan>, workspace: Path) {
+    populate(
         scans.map { scan ->
             val file = workspace.resolve(scan.document.value).normalize()
             IdIndex.PopulatedScan(
@@ -91,5 +94,4 @@ fun derivedIdIndex(scans: List<DocumentScan>, workspace: Path): IdIndex {
             )
         }
     )
-    return index
 }

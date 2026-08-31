@@ -138,11 +138,11 @@ class EntityGraphTest {
               - id: ITEM-B2
                 depends: [ITEM-A1]
         """)
-        ws.index.update(dir, listOf(dir.resolve("docs/b.yaml")), emptyList(), ws.schemas, ws.layout)
+        ws.noteDiskChanges(listOf(dir.resolve("docs/b.yaml")))
         assertGraphMatchesLegacy(ws.index)
         assertEquals("B改", ws.index.graph.entities.getValue("ITEM-B").title)
         // フル再構築と同じ結果になる
-        val fresh = IdIndex().apply { rebuild(dir, ws.files, ws.schemas, ws.layout) }
+        val fresh = Workspace.open(dir).index
         assertEquals(fresh.refs, ws.index.refs)
         assertEquals(fresh.backlinksTo(fresh.entries.keys), ws.index.backlinksTo(ws.index.entries.keys))
     }

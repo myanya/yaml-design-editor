@@ -270,9 +270,7 @@ class QueryTest {
         val ws = Workspace.open(dir)
         val target = dir.resolve("screens/SCR-2.yaml")
         val edited = YamlIO.parseFirst("id: SCR-2\nname: 画面2\nuses:\n- UC-2\n- UC-3\n")
-        val overlay = ws.index.overlay(dir, listOf(target), ws.schemas, ws.layout) { f ->
-            if (f == target) edited else runCatching { YamlIO.parseFirst(Files.readString(f)) }.getOrNull()
-        }
+        val overlay = ws.overlayIndex(mapOf(target to edited))
         val q = spec(
             """
             match:

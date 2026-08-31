@@ -69,9 +69,7 @@ class CoverageTest {
             files.add(Path.of("screens/detail/SCR-LIST.yaml"))
             content[Path.of("screens/detail/SCR-LIST.yaml")] = "id: SCR-LIST\n"
         }
-        val idx = IdIndex()
-        idx.rebuild(Path.of("."), files, listOf(listSchema, detailSchema)) { f -> YamlIO.parse(content.getValue(f)) }
-        return idx
+        return index.testIndex(Path.of("."), files, listOf(listSchema, detailSchema)) { f -> YamlIO.parse(content.getValue(f)) }
     }
 
     @Test

@@ -20,7 +20,7 @@ import yaml.YamlIO
  */
 fun workspaceShell(root: String?, readLine: () -> String?, out: (String) -> Unit): Int {
     val dir = requireDir(root)
-    val session = WorkspaceSession(FileSystemDocumentStore(dir))
+    val session = WorkspaceSession(FileSystemDocumentStore(dir), builtins = workspace.BuiltinSchemaResources.kernelSchemas(schema.WorkspaceLayout.of(dir)))
     out("ワークスペース: $dir（文書 ${session.snapshot.documents.size} 件・version ${session.version}）")
     out("コマンド: status / validate / set <file> <path> <値> / refactor <op> … [--apply] / undo / redo / save / reload / help / exit")
     while (true) {

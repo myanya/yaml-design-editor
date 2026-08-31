@@ -107,8 +107,9 @@ internal object Bench {
             }
             return min / 1_000_000.0
         }
-        val full = best { ws.index.rebuild(ws.root, ws.files, ws.schemas) }
-        val incremental = best { ws.index.update(ws.root, listOf(target), emptyList(), ws.schemas) }
+        // RB-09: 供給はセッション派生に一本化されたため、本番経路（refresh / noteDiskChanges）で計る
+        val full = best { ws.refresh() }
+        val incremental = best { ws.noteDiskChanges(listOf(target)) }
         // 導出グラフ（R20-04）: キャッシュを捨てて再導出するコストを計る
         val graphDerive = best {
             ws.index.dropGraphCache()

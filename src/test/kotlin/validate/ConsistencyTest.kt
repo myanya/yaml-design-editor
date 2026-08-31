@@ -124,8 +124,7 @@ class ConsistencyTest {
             Path.of("impl.yaml") to implYaml,
         )
         val schemas = listOf(conceptsSchema, mappingSchema, schema)
-        val idx = IdIndex()
-        idx.rebuild(Path.of("."), content.keys.toList(), schemas) { f -> YamlIO.parse(content.getValue(f)) }
+        val idx = index.testIndex(Path.of("."), content.keys.toList(), schemas) { f -> YamlIO.parse(content.getValue(f)) }
         val file = Path.of(rel)
         return Validator.validate(
             YamlIO.parse(editedText ?: content.getValue(file)), null, file,

@@ -1,0 +1,132 @@
+id: builtin-eval
+name: 評価セット定義
+match: "_evals/**/*.{yaml,yml}"
+root:
+  type: object
+  fields:
+    - key: id
+      label: 評価セットID
+      type: id
+      required: true
+    - key: name
+      label: 表示名
+      type: string
+    - key: description
+      label: 説明
+      type: text
+    - key: activity
+      label: 評価対象アクティビティ
+      type: ref
+      required: true
+      scope:
+        schemaIds: [builtin-activity]
+    - key: variants
+      label: 比較実験の変異（A/B）
+      type: array
+      description: 省略時は現行定義のまま1系統（baseline）で実行する
+      item:
+        type: object
+        fields:
+          - key: name
+            label: 変異名
+            type: string
+            required: true
+          - key: model
+            label: モデル差し替え
+            type: object
+            fields:
+              - key: provider
+                label: プロバイダ
+                type: enum
+                values: [openai, anthropic]
+              - key: id
+                label: モデルID
+                type: string
+          - key: agent
+            label: エージェント差し替え
+            type: ref
+            scope:
+              schemaIds: [builtin-agent]
+          - key: instruction
+            label: 追加指示
+            type: text
+          - key: context
+            label: 文脈レシピ差し替え
+            type: any
+            description: アクティビティの context を丸ごと差し替える（書式はアクティビティ定義の context と同じ items 配列。レシピA/B比較用。R19-06）
+    - key: cases
+      label: 評価ケース
+      type: array
+      required: true
+      item:
+        type: object
+        fields:
+          - key: id
+            label: ケースID
+            type: string
+            required: true
+          - key: name
+            label: ケース名
+            type: string
+          - key: setup
+            label: ゴールデン入力（サンドボックスへ上書き）
+            type: array
+            item:
+              type: object
+              fields:
+                - key: file
+                  label: ファイル
+                  type: string
+                  required: true
+                - key: content
+                  label: 内容（YAMLテキスト）
+                  type: text
+                  required: true
+          - key: instruction
+            label: 追加指示
+            type: text
+          - key: expect
+            label: 期待結果
+            type: object
+            fields:
+              - key: status
+                label: 終了状態
+                type: enum
+                values: [submitted, aborted, limit, error, cancelled, any]
+                default: submitted
+              - key: errorFree
+                label: 検証エラー0
+                type: boolean
+              - key: changedFiles
+                label: 変更されるべきファイル（glob）
+                type: array
+                item:
+                  type: string
+              - key: unchangedFiles
+                label: 変更されてはならないファイル（glob）
+                type: array
+                item:
+                  type: string
+              - key: content
+                label: 内容チェック
+                type: array
+                item:
+                  type: object
+                  fields:
+                    - key: file
+                      label: ファイル
+                      type: string
+                      required: true
+                    - key: path
+                      label: YPath
+                      type: string
+                    - key: exists
+                      label: 存在すること
+                      type: boolean
+                      default: true
+                    - key: contains
+                      label: 含まれるべき文字列
+                      type: string
+                    - key: equals
+                      label: 一致すべき値
+                      type: string

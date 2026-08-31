@@ -199,7 +199,7 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
             while (true) {
                 if (watcher != null) {
                     delay(250)
-                    if (watcher.consumeChanged()) state.pollExternalChanges()
+                    if (watcher.consumeChanged()) state.pollExternalChanges(eventHint = true)
                 } else {
                     delay(1000)
                     state.pollExternalChanges()

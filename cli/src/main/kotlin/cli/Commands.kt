@@ -21,11 +21,32 @@ internal fun requireDir(root: String?): Path {
     return dir
 }
 
+/**
+ * 組込みスキーマ（メタスキーマ・定義ゾーンの構造検証）を注入して読取ワークスペースを開く
+ * （C-4・RC-07。`_schemas` / 定義文書の検証面がアプリと揃う＝意図的差分 D-14）。
+ */
+internal fun loadWorkspace(root: String?): workspace.LoadedWorkspace {
+    val dir = requireDir(root)
+    return WorkspaceReader.load(
+        FileSystemDocumentStore(dir),
+        builtins = workspace.BuiltinSchemaResources.kernelSchemas(schema.WorkspaceLayout.of(dir)),
+    )
+}
+
+/** 組込みスキーマを注入してセッションを開く（refactor / shell 用。C-4・RC-07）。 */
+internal fun openSession(root: String?): WorkspaceSession {
+    val dir = requireDir(root)
+    return WorkspaceSession(
+        FileSystemDocumentStore(dir),
+        builtins = workspace.BuiltinSchemaResources.kernelSchemas(schema.WorkspaceLayout.of(dir)),
+    )
+}
+
 // ---------------------------------------------------------------- validate
 
 fun workspaceValidate(root: String?, args: List<String>, out: (String) -> Unit): Int {
     val format = CliArgs.format(args)
-    val ws = WorkspaceReader.load(FileSystemDocumentStore(requireDir(root)))
+    val ws = loadWorkspace(root)
 
     val structural = ws.derived.structuralIssues.entries.flatMap { (id, issues) -> issues.map { id to it } }
     val semantic = ws.derived.semantic.issues
@@ -95,7 +116,7 @@ fun workspaceValidate(root: String?, args: List<String>, out: (String) -> Unit):
 /** ワークスペースの棚卸し（スキーマと文書の一覧・割当）。検証は validate の仕事のため exit は 0 / 1 のみ。 */
 fun workspaceCatalog(root: String?, args: List<String>, out: (String) -> Unit): Int {
     val format = CliArgs.format(args)
-    val ws = WorkspaceReader.load(FileSystemDocumentStore(requireDir(root)))
+    val ws = loadWorkspace(root)
     if (format == OutputFormat.TEXT) {
         out("スキーマ ${ws.schemas.size} 件:")
         ws.schemas.forEach { s ->
@@ -136,7 +157,7 @@ fun workspaceCatalog(root: String?, args: List<String>, out: (String) -> Unit): 
 fun workspaceEntity(root: String?, id: String?, args: List<String>, out: (String) -> Unit): Int {
     require(!id.isNullOrBlank()) { "エンティティのIDを指定してください" }
     val format = CliArgs.format(args)
-    val snapshot = WorkspaceReader.load(FileSystemDocumentStore(requireDir(root))).derived.semantic
+    val snapshot = loadWorkspace(root).derived.semantic
     val node = snapshot.graph.entities[id]
     if (node == null) {
         out("ID「$id」の出現が見つかりません")
@@ -192,7 +213,7 @@ fun workspaceBench(root: String?, args: List<String>, out: (String) -> Unit): In
     val format = CliArgs.format(args)
     val iterations = CliArgs.stringFlag(args, "--iterations")?.toIntOrNull() ?: 3
     require(iterations > 0) { "--iterations は 1 以上を指定してください" }
-    val ws = WorkspaceReader.load(FileSystemDocumentStore(requireDir(root)))
+    val ws = loadWorkspace(root)
     val input = workspace.WorkspaceReader.semanticInput(
         ws.snapshot.documents, ws.schemas, ws.declarations, ws.layout, version = 0,
     )
@@ -304,7 +325,7 @@ internal fun refactorRequest(params: List<String>): RefactoringRequest {
  */
 fun workspaceRefactor(root: String?, params: List<String>, out: (String) -> Unit): Int {
     val format = CliArgs.format(params)
-    val session = WorkspaceSession(FileSystemDocumentStore(requireDir(root)))
+    val session = openSession(root)
     val plan = session.planRefactoring(refactorRequest(params))
     val apply = "--apply" in params
 

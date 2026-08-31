@@ -1,0 +1,43 @@
+id: builtin-agent
+name: エージェント定義
+match: "_agents/**/*.{yaml,yml}"
+root:
+  type: object
+  fields:
+    - key: id
+      label: エージェントID
+      type: id
+      required: true
+      description: アクティビティから参照する識別子
+    - key: name
+      label: 表示名
+      type: string
+    - key: persona
+      label: 性格・行動指針
+      type: text
+      required: true
+      description: システムプロンプトに組み込まれる人格・規範
+    - key: rubric
+      label: 観点
+      type: array
+      item:
+        type: string
+      description: レビューや作成で重視する観点のリスト
+    - key: model
+      label: モデル設定
+      type: object
+      fields:
+        - key: provider
+          label: プロバイダ
+          type: enum
+          values: [openai, anthropic]
+        - key: id
+          label: モデルID
+          type: string
+    - key: tools
+      label: 許可ツール分類
+      type: array
+      item:
+        type: enum
+        values: [explore, edit, validate, ask, delegate]
+      description: 省略時はすべて許可（manage 系は常に利用可能）

@@ -77,16 +77,13 @@ class Staging(val ws: Workspace) {
         stagedIndex = null
     }
 
-    /** オーバーレイを重ねた索引。ステージ済みの編集・新規文書を含めて解決する。 */
+    /**
+     * オーバーレイを重ねた索引。ステージ済みの編集・新規文書を含めて解決する。
+     * 供給は Workspace.overlayIndex（RB-07 でセッション派生＝カーネルの機能的オーバーレイ）に一本化（RB-08）。
+     */
     fun index(): IdIndex {
         stagedIndex?.let { return it }
-        val overlay = entries.values.associate { it.file to it.root }
-        val files = (ws.files + overlay.keys).distinct()
-        val built = IdIndex().apply {
-            rebuild(ws.root, files, ws.schemas, ws.layout) { f ->
-                overlay[f] ?: runCatching { YamlIO.parse(Files.readString(f)) }.getOrNull()
-            }
-        }
+        val built = ws.overlayIndex(entries.values.associate { it.file to it.root as YNode? })
         stagedIndex = built
         return built
     }

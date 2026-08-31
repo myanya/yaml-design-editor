@@ -1,0 +1,120 @@
+id: builtin-relations
+name: 関係レジストリ
+description: "ワークスペースの関係語彙（表示ラベル・対象型・多重度・非循環）と強制スイッチ（enforcement）を宣言する文書（kind: relations。R20-02 / R21-01）"
+match: "_schemas/**/*.{yaml,yml}"
+root:
+  type: object
+  fields:
+    - key: id
+      label: レジストリID
+      type: id
+      role: title
+    - key: kind
+      label: 種別
+      type: enum
+      values: [relations]
+      required: true
+    - key: name
+      label: 表示名
+      type: string
+    - key: description
+      label: 説明
+      type: text
+      role: subtitle
+    - key: relations
+      label: 関係の一覧
+      type: array
+      required: true
+      item:
+        type: object
+        fields:
+          - key: name
+            label: 関係名
+            type: string
+            required: true
+            role: title
+            description: スキーマの ref フィールドの relation と一致させる
+          - key: label
+            label: 表示ラベル（参照方向）
+            type: string
+            description: 例「利用する」。この要素からの参照の表示に使う
+          - key: inverseLabel
+            label: 表示ラベル（被参照方向）
+            type: string
+            role: subtitle
+            description: 例「利用される」。この要素への被参照の表示に使う
+          - key: source
+            label: 参照元のエンティティ型
+            type: array
+            item: { type: string }
+            description: 参照を書く側のエンティティ型（省略可。宣言すると対象型・出次多重度の検証が効く。R21-01）
+          - key: target
+            label: 参照先のエンティティ型
+            type: array
+            item: { type: string }
+            description: 参照先のエンティティ型（省略可。宣言すると対象型・入次多重度の検証が効く。R21-01）
+          - key: cardinality
+            label: 多重度
+            type: object
+            description: in（被参照数）/ out（参照数）の下限上限。source / target の型宣言がある側にだけ効く（R21-01）
+            fields:
+              - { key: inMin, label: 入次数の下限, type: int }
+              - { key: inMax, label: 入次数の上限, type: int }
+              - { key: outMin, label: 出次数の下限, type: int }
+              - { key: outMax, label: 出次数の上限, type: int }
+          - key: acyclic
+            label: 非循環
+            type: boolean
+            description: この関係で循環を作らない宣言（違反は常にエラー。R21-01）
+          - key: level
+            label: 指摘の重大度
+            type: enum
+            values: [warning, error]
+            description: 対象型・多重度の違反の重大度（既定 warning。非循環は常にエラー）
+          - key: description
+            label: 説明
+            type: text
+    - key: entities
+      label: エンティティ型の一覧
+      type: array
+      description: "型の表示名と、エンティティページ・read_entity の合成で使うアスペクト順序の宣言（R23-01）"
+      item:
+        type: object
+        fields:
+          - key: type
+            label: エンティティ型名
+            type: string
+            required: true
+            role: title
+            description: スキーマの entity.type と一致させる
+          - key: label
+            label: 表示名
+            type: string
+            role: subtitle
+          - key: description
+            label: 説明
+            type: text
+          - key: aspects
+            label: アスペクト順序
+            type: array
+            description: "合成（エンティティ全体像）の並び順。name はスキーマの entity.aspect（省略時はスキーマID）と一致させる"
+            item:
+              type: object
+              fields:
+                - { key: name, label: アスペクト名, type: string, required: true }
+                - { key: label, label: 表示名, type: string }
+    - key: enforcement
+      label: 強制スイッチ
+      type: object
+      description: "ワークスペース単位の opt-in スイッチ（R21-01）。未宣言のキーは従来（P20 の lint）のまま"
+      fields:
+        - key: undeclaredRelation
+          label: 未宣言 relation の使用
+          type: enum
+          values: [warning, error]
+          description: レジストリにない relation を使う参照を文書側でも指摘する
+        - key: definingUniqueness
+          label: 定義出現の一意性
+          type: enum
+          values: [warning, error]
+          description: "error で浮遊詳細化・定義競合をエラー化（「最初の出現＝定義」ヒューリスティクスの廃止）"

@@ -1,0 +1,450 @@
+id: builtin-schema
+name: スキーマ定義
+description: _schemas 配下のスキーマ文書を検証・フォーム編集するためのメタスキーマ
+match: "_schemas/**/*.{yaml,yml}"
+definitions:
+  field:
+    type: object
+    fields:
+      - key: key
+        label: キー
+        type: string
+        description: 親オブジェクト内のキー名（ルート・配列要素では不要）
+      - key: label
+        label: 表示ラベル
+        type: string
+      - key: type
+        label: 型
+        type: enum
+        values: [string, text, int, number, boolean, enum, date, id, ref, array, map, object, any]
+        cases:
+          string:
+            - key: minLength
+              label: 最小文字数
+              type: int
+            - key: maxLength
+              label: 最大文字数
+              type: int
+            - key: pattern
+              label: 形式（正規表現）
+              type: string
+              description: 値の全体がこの正規表現に一致すること（R16-01）
+          text:
+            - key: minLength
+              label: 最小文字数
+              type: int
+            - key: maxLength
+              label: 最大文字数
+              type: int
+            - key: pattern
+              label: 形式（正規表現）
+              type: string
+          int:
+            - key: min
+              label: 最小値
+              type: int
+            - key: max
+              label: 最大値
+              type: int
+          number:
+            - key: min
+              label: 最小値
+              type: number
+            - key: max
+              label: 最大値
+              type: number
+          enum:
+            - key: values
+              label: 選択肢
+              type: array
+              item:
+                type: any
+              description: 文字列、または {value, label, description} のリッチ選択肢
+            - key: cases
+              label: 値ごとの追加フィールド
+              type: map
+              value:
+                type: array
+                item:
+                  $ref: field
+              description: enum の値ごとに親オブジェクトへ追加される兄弟フィールド
+          array:
+            - key: item
+              label: 要素定義
+              $ref: field
+            - key: display
+              label: 一覧の表示形式
+              type: enum
+              values: [table, list]
+              description: table は表形式に固定、list は縦並びに固定（省略時は列構成から自動判定）
+          map:
+            - key: value
+              label: 値定義
+              $ref: field
+            - key: display
+              label: 一覧の表示形式
+              type: enum
+              values: [table, list]
+              description: table は表形式（キー列つき）に固定、list は縦並びに固定（省略時は列構成から自動判定）
+          object:
+            - key: fields
+              label: 子フィールド
+              type: array
+              item:
+                $ref: field
+            - key: unknownFields
+              label: スキーマ外キーの扱い
+              type: enum
+              values: [allow, warning, error]
+          id:
+            - key: pattern
+              label: 形式（正規表現）
+              type: string
+              description: IDの全体がこの正規表現に一致すること（例 TASK-\d{3}。UX-79）
+          ref:
+            - key: idPattern
+              label: 参照先IDパターン
+              type: any
+              description: glob 文字列または配列
+            - key: idPatterns
+              label: 参照先IDパターン（複数）
+              type: any
+            - key: scope
+              label: 探索範囲
+              type: object
+              fields:
+                - key: schemaIds
+                  label: スキーマIDの限定
+                  type: any
+                  description: 文字列または配列
+                - key: documentIds
+                  label: ドキュメントIDの限定
+                  type: any
+                  description: 文字列または配列
+            - key: relation
+              label: 関係種別
+              type: string
+              description: 例 implements / depends。表示とカバレッジ判定に使う
+            - key: target
+              label: 参照対象種別
+              type: enum
+              values: [entity, document]
+              description: "document は文書ノード（_document.id ＞ 相対パス）への参照（既定 entity。R21-03）"
+            - key: fields
+              label: エッジ属性の宣言
+              type: array
+              item:
+                $ref: field
+              description: 宣言時のみ {to, 属性...} のオブジェクト形式を許可する（属性付き参照。R20-03）
+      - key: required
+        label: 必須
+        type: boolean
+      - key: requiredFrom
+        label: このフェーズ以降で必須
+        type: string
+      - key: role
+        label: 表示役割
+        type: enum
+        values: [title, subtitle]
+      - key: default
+        label: 初期値
+        type: any
+      - key: description
+        label: 説明
+        type: text
+      - key: $ref
+        label: 名前付き定義への参照
+        type: string
+        description: definitions 内の名前（横断参照は moduleId#definition）
+      - key: ref
+        label: 名前付き定義への参照（別記法）
+        type: string
+root:
+  type: object
+  fields:
+    - key: id
+      label: スキーマID
+      type: id
+      role: title
+      description: 安定したスキーマID（省略時はファイル名）
+    - key: name
+      label: スキーマ名
+      type: string
+    - key: description
+      label: 説明
+      type: text
+      role: subtitle
+    - key: kind
+      label: 種別
+      type: enum
+      values: [document, library, relations]
+      description: document（既定）は文書に適用、library は共通定義のみ公開、relations は関係レジストリ（保存すると専用フォームが適用される）
+    - key: match
+      label: 適用パターン（glob）
+      type: string
+    - key: root
+      label: ルート定義
+      $ref: field
+    - key: definitions
+      label: 名前付き定義
+      type: map
+      value:
+        $ref: field
+    - key: phases
+      label: フェーズ宣言
+      type: any
+      description: フェーズ名の配列、または {key, order} の object
+    - key: entity
+      label: エンティティ型の宣言
+      type: any
+      description: "この文書群の出現のエンティティ型（R20-01）。{type, idPattern, defines, aspect, owns} の object、または複数型のリスト（idPattern で判別）。aspect / owns はこの出現が所有する側面の宣言（R23-01。省略時はスキーマID／宣言フィールド全部）"
+    - key: coverage
+      label: カバレッジルール
+      type: array
+      item:
+        type: object
+        fields:
+          - key: id
+            label: ルールID
+            type: string
+          - key: description
+            label: 説明
+            type: string
+          - key: idPattern
+            label: 対象IDパターン
+            type: string
+          - key: requiredBy
+            label: 参照ベースの条件
+            type: object
+            fields:
+              - key: schemaIds
+                label: 参照元スキーマの限定
+                type: any
+              - key: relation
+                label: 関係種別の限定
+                type: string
+              - key: minCount
+                label: 必要な参照数
+                type: int
+          - key: detailIn
+            label: 出現ベースの条件
+            type: object
+            fields:
+              - key: schemaIds
+                label: 出現先スキーマ
+                type: any
+              - key: minCount
+                label: 必要な出現数
+                type: int
+          - key: level
+            label: 重大度
+            type: enum
+            values: [warning, error]
+          - key: activeFrom
+            label: 判定を始めるフェーズ
+            type: string
+    - key: consistency
+      label: 整合ルール
+      type: array
+      description: このスキーマの文書のID要素の値が、導出（計算列と同じ語彙）の期待値と一致することを検証する（R16-03a）
+      item:
+        type: object
+        fields:
+          - key: id
+            label: ルールID
+            type: string
+          - key: description
+            label: 説明
+            type: string
+          - key: idPattern
+            label: 対象IDパターン
+            type: string
+          - key: path
+            label: 検査する値の相対パス
+            type: string
+            required: true
+            description: ID要素からの相対YPath（例 type）
+          - key: expected
+            label: 期待値の導出
+            type: object
+            required: true
+            description: ビューの計算列（computed）と同じ語彙（lookup / source / path / values / map / default）
+            fields:
+              - key: lookup
+                label: 参照の1ホップ
+                type: object
+                fields:
+                  - key: schemaId
+                    label: 参照値を読む出現のスキーマ
+                    type: string
+                  - key: fileGlob
+                    label: 参照値を読む出現のファイル（glob）
+                    type: string
+                  - key: via
+                    label: ref フィールドの相対パス
+                    type: string
+                    required: true
+              - key: source
+                label: 元値を読む出現
+                type: object
+                required: true
+                fields:
+                  - key: schemaId
+                    label: スキーマ
+                    type: string
+                  - key: fileGlob
+                    label: ファイル（glob）
+                    type: string
+              - key: path
+                label: 元値の相対パス
+                type: string
+                required: true
+              - key: values
+                label: プレースホルダ解決に使う出現
+                type: array
+                item:
+                  type: object
+                  fields:
+                    - key: schemaId
+                      label: スキーマ
+                      type: string
+                    - key: fileGlob
+                      label: ファイル（glob）
+                      type: string
+              - key: map
+                label: 値辞書
+                type: map
+                value:
+                  type: string
+              - key: default
+                label: 既定値
+                type: string
+          - key: assert
+            label: 判定方法
+            type: enum
+            values:
+              - value: equals
+                label: 一致
+                description: 宣言値が導出値と一致すること（既定）
+              - value: lte
+                label: 以下
+                description: 宣言値が導出値以下であること（数値として比較。適合判定）
+              - value: gte
+                label: 以上
+                description: 宣言値が導出値以上であること（数値として比較）
+          - key: level
+            label: 重大度
+            type: enum
+            values: [warning, error]
+          - key: activeFrom
+            label: 判定を始めるフェーズ
+            type: string
+    - key: constraints
+      label: パターン制約
+      type: array
+      description: "起点束縛に一致する各エンティティについて、グラフパターンの存在（exists）／不在（absent）を検証する（R22-03。カバレッジの一般形）"
+      item:
+        type: object
+        fields:
+          - key: id
+            label: ルールID
+            type: string
+          - key: description
+            label: 説明
+            type: string
+          - key: match
+            label: パターン（node / edge の連鎖）
+            type: any
+            required: true
+            description: "先頭 node が起点束縛（kind: entity 限定）。例 [{node: {entity: usecase, bind: uc}}, {edge: {relation: uses, dir: in}}, {node: {entity: screen}}]"
+          - key: also
+            label: 分岐（1段）
+            type: any
+          - key: where
+            label: プロパティ述語
+            type: any
+          - key: limit
+            label: 照合上限
+            type: int
+          - key: expect
+            label: 期待
+            type: enum
+            required: true
+            values:
+              - value: exists
+                label: 存在すること
+                description: 起点ごとにパターンの解が1つ以上あること
+              - value: absent
+                label: 存在しないこと
+                description: 起点ごとにパターンの解がないこと
+          - key: level
+            label: 重大度
+            type: enum
+            values: [warning, error]
+          - key: activeFrom
+            label: 判定を始めるフェーズ
+            type: string
+    - key: derive
+      label: 派生スキーマの宣言
+      type: object
+      description: 導出元文書（例 テーブル定義書）から検証スキーマをロード時にコンパイルする（R11-03）
+      fields:
+        - key: from
+          label: 導出元文書（glob）
+          type: string
+          required: true
+        - key: each
+          label: 導出単位の配列パス
+          type: string
+          description: 1文書内の複数要素から導出する場合の配列パス（省略時は文書ルート）
+        - key: id
+          label: 導出スキーマID
+          type: string
+          required: true
+          description: "{パス} が導出元要素の値で置換される（例 record-{id}）"
+        - key: name
+          label: 導出スキーマ名
+          type: string
+        - key: match
+          label: 導出スキーマの適用先（glob）
+          type: string
+          required: true
+        - key: fields
+          label: フィールドの写像
+          type: object
+          required: true
+          fields:
+            - key: source
+              label: フィールドにする配列のパス
+              type: string
+              required: true
+            - key: key
+              label: キーの値パス
+              type: string
+              required: true
+            - key: label
+              label: ラベルの値パス
+              type: string
+            - key: description
+              label: 説明の値パス
+              type: string
+            - key: required
+              label: 必須の値パス
+              type: string
+            - key: type
+              label: 型の写像
+              type: object
+              fields:
+                - key: path
+                  label: 型を決める値のパス
+                  type: string
+                  required: true
+                - key: map
+                  label: 値辞書
+                  type: map
+                  value:
+                    type: string
+                  description: 導出元の値 → フィールド型（例 varchar → string）
+                - key: default
+                  label: 既定の型
+                  type: string
