@@ -1,6 +1,9 @@
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.TooltipArea
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
@@ -666,12 +669,17 @@ fun EditorArea(state: AppState) {
                 }
                 Spacer(Modifier.width(6.dp))
             }
-            // Undo/Redo はワークスペース横断の単一履歴（A-3・D-07）——活性判定もセッション基準
-            IconButton(enabled = state.canUndo(), onClick = state::undo, modifier = Modifier.size(34.dp)) {
-                Icon(Icons.Default.Undo, "元に戻す (Ctrl+Z)", Modifier.size(17.dp))
+            // Undo/Redo はワークスペース横断の単一履歴（A-3・D-07）——活性判定もセッション基準。
+            // 開いていない文書も戻るため、ホバーで「次に何が戻るか」を操作前に予告する（UX-86）
+            HistoryTooltip("元に戻す (Ctrl+Z)", state.undoPreview()) {
+                IconButton(enabled = state.canUndo(), onClick = state::undo, modifier = Modifier.size(34.dp)) {
+                    Icon(Icons.Default.Undo, "元に戻す (Ctrl+Z)", Modifier.size(17.dp))
+                }
             }
-            IconButton(enabled = state.canRedo(), onClick = state::redo, modifier = Modifier.size(34.dp)) {
-                Icon(Icons.Default.Redo, "やり直す (Ctrl+Y)", Modifier.size(17.dp))
+            HistoryTooltip("やり直す (Ctrl+Y)", state.redoPreview()) {
+                IconButton(enabled = state.canRedo(), onClick = state::redo, modifier = Modifier.size(34.dp)) {
+                    Icon(Icons.Default.Redo, "やり直す (Ctrl+Y)", Modifier.size(17.dp))
+                }
             }
             Spacer(Modifier.width(4.dp))
             OutlinedButton(enabled = doc.dirty, onClick = state::saveCurrent,
@@ -727,6 +735,27 @@ fun EditorArea(state: AppState) {
     }
 }
 
+/**
+ * Undo/Redo ボタンの予告ツールチップ（UX-86）: 横断履歴は開いていない文書も戻すため、
+ * ホバーで「次に何が戻るか」（変更の意図＋対象ファイル）を操作前に見せる。予告がなければ操作名だけ出す。
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun HistoryTooltip(label: String, preview: String?, content: @Composable () -> Unit) {
+    TooltipArea(
+        tooltip = {
+            Surface(color = Palette.PanelBg, shadowElevation = 4.dp, shape = PanelShape) {
+                Text(
+                    if (preview != null) "$label — $preview" else label,
+                    Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    fontSize = 11.sp,
+                )
+            }
+        },
+        content = content,
+    )
+}
+
 // ================================================================ ステータスバー
 
 @Composable
@@ -735,6 +764,36 @@ fun StatusBar(state: AppState, engine: AutomationEngine?, inboxCount: Int, onOpe
         Modifier.fillMaxWidth().height(26.dp).background(Palette.PanelBg).padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // Undo/Redo の通知（UX-86）: 何が戻ったかの明示と戻った文書へのジャンプ導線。編集・保存・✕で消える
+        state.historyNotice?.let { notice ->
+            Row(
+                Modifier.weight(2f, fill = false).background(Palette.Selected, PanelShape).padding(horizontal = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    notice.message, fontSize = 11.sp, color = Palette.Primary, maxLines = 1,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                notice.files.take(3).forEach { f ->
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        f.fileName.toString(),
+                        fontSize = 11.sp, color = Palette.Primary, fontWeight = FontWeight.Bold, maxLines = 1,
+                        textDecoration = TextDecoration.Underline,
+                        modifier = Modifier.clickable { state.openFile(f) },
+                    )
+                }
+                if (notice.files.size > 3) {
+                    Text(" ほか${notice.files.size - 3}件", fontSize = 11.sp, color = Palette.SubText, maxLines = 1)
+                }
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    "✕", fontSize = 11.sp, color = Palette.SubText,
+                    modifier = Modifier.clickable(onClick = state::dismissHistoryNotice).padding(horizontal = 2.dp),
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+        }
         Text(state.status, fontSize = 11.sp, color = Palette.SubText, maxLines = 1, modifier = Modifier.weight(1f))
         // 検証サマリ（開いている文書。詳細は右パネルの検証タブ）
         val doc = state.openDoc

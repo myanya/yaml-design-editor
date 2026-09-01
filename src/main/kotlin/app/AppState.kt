@@ -369,6 +369,19 @@ class AppState {
     }
 
     var status by mutableStateOf("「開く」からワークスペース（ディレクトリ）を選択してください")
+
+    /**
+     * Undo/Redo 実行後の通知（UX-86）: 横断履歴（D-07）は開いていない文書も戻すため、
+     * 「何が戻ったか」とジャンプ導線をステータスバーに常設で出す。次の編集・保存・✕で消える。
+     * files はジャンプ可能な影響文書（ディスクに存在するもののみ）。
+     */
+    data class HistoryNotice(val message: String, val files: List<Path>)
+
+    var historyNotice by mutableStateOf<HistoryNotice?>(null)
+        private set
+
+    fun dismissHistoryNotice() { historyNotice = null }
+
     var aiRequest by mutableStateOf<AiRequest?>(null)
         private set
     private var workspaceStamp: Map<Path, Long> = emptyMap()
@@ -783,6 +796,7 @@ class AppState {
                 // 編集通知: 全文書横断カウンタを進め、セッション履歴へ記録する（RA-05 → RA-06 で記録つきに）
                 doc.onEdited = { coalesceWith ->
                     editVersion++
+                    historyNotice = null  // 編集を再開したら Undo/Redo 通知は役目を終える（UX-86）
                     recordEditToSession(doc, coalesceWith)
                 }
                 // dirty の判定はセッション（単一所有）を正とする（RA-06）
@@ -874,14 +888,37 @@ class AppState {
     fun undo() {
         val s = session ?: run { openDoc?.undo(); return }
         val record = s.peekUndo() ?: return
-        if (s.undo().ok) afterHistoryStep(record)
+        if (s.undo().ok) afterHistoryStep(record, undo = true)
     }
 
     fun redo() {
         val s = session ?: run { openDoc?.redo(); return }
         val record = s.peekRedo() ?: return
-        if (s.redo().ok) afterHistoryStep(record)
+        if (s.redo().ok) afterHistoryStep(record, undo = false)
     }
+
+    /** 次に Ctrl+Z で戻る変更の予告（ツールバーのツールチップ。UX-86）。セッション不在時は null。 */
+    fun undoPreview(): String? {
+        editVersion
+        return historySummary(session?.peekUndo())
+    }
+
+    fun redoPreview(): String? {
+        editVersion
+        return historySummary(session?.peekRedo())
+    }
+
+    /** 履歴1件の1行要約: 変更の意図＋対象ファイル（意図に含まれていれば列挙を省く）。 */
+    private fun historySummary(record: ChangeRecord?): String? {
+        record ?: return null
+        val names = historyTargets(record).map(DocumentId::value)
+        val desc = record.intent.description.ifBlank { "${names.size} ファイルの変更" }
+        val listed = names.take(3).joinToString("・") + (if (names.size > 3) " ほか${names.size - 3}件" else "")
+        return if (names.all { it in desc }) desc else "$desc（$listed）"
+    }
+
+    private fun historyTargets(record: ChangeRecord): List<DocumentId> =
+        (record.forward.operations + record.inverse.operations).flatMap(::operationIds).distinct()
 
     /** Undo可能か（ツールバー活性用。editVersion を読むことで再コンポーズを購読する）。 */
     fun canUndo(): Boolean {
@@ -895,9 +932,26 @@ class AppState {
     }
 
     /** Undo/Redo 適用後の追随: 影響文書のツリーをセッションの working から取り直し、派生を進める。 */
-    private fun afterHistoryStep(record: ChangeRecord) {
-        refreshDocsFromSession((record.forward.operations + record.inverse.operations).flatMap(::operationIds))
+    private fun afterHistoryStep(record: ChangeRecord, undo: Boolean) {
+        val ids = historyTargets(record)
+        refreshDocsFromSession(ids)
         editVersion++
+        noteHistoryStep(record, ids, undo)
+    }
+
+    /**
+     * 「何が戻ったか」の通知を組み立てる（UX-86）。未保存化（●）の明示は、
+     * 適用=保存済み・Undo=未保存という非対称（D-12）の説明（UX-93）を兼ねる。
+     */
+    private fun noteHistoryStep(record: ChangeRecord, ids: List<DocumentId>, undo: Boolean) {
+        val ws = workspace ?: return
+        val s = session ?: return
+        val summary = historySummary(record) ?: return
+        val verb = if (undo) "元に戻しました" else "やり直しました"
+        val dirtied = ids.any { s.hasDocument(it) && s.isDirty(it) }
+        val suffix = if (dirtied) "——未保存（●）の状態です。保存で確定します" else ""
+        val files = ids.map { ws.resolve(it.value).normalize() }.distinct().filter { Files.exists(it) }
+        historyNotice = HistoryNotice("$verb: $summary$suffix", files)
     }
 
     private fun operationIds(op: WorkspaceOperation): List<DocumentId> = when (op) {
@@ -1007,6 +1061,7 @@ class AppState {
                 indexVersion++
             }
             status = "保存しました: ${relPath(doc.file)}"
+            historyNotice = null  // 保存で確定＝Undo/Redo 通知は役目を終える（UX-86）
         }.onFailure {
             status = "保存に失敗しました: ${it.message}"
         }
@@ -1124,7 +1179,8 @@ class AppState {
             saved.failures.entries.firstOrNull()?.let { "${it.key.value}: ${it.value}" } ?: "保存に失敗しました"
         }
         refreshAfterSessionWrite(ids)
-        status = "リファクタリングを適用しました（${ids.size} ファイル。Undo で戻せます）"
+        // 適用は1トランザクションで**保存まで**完了する（●が付かない理由の明示。UX-93 / D-12）
+        status = "リファクタリングを適用して保存しました（${ids.size} ファイル。Ctrl+Z で1回で戻せます）"
     }
 
     fun createDirectory(parent: Path, name: String): Result<Path> = runCatching {

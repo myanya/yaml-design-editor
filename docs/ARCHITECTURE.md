@@ -133,6 +133,8 @@ src/main/kotlin/
 
 Undo/Redo は `YamlIO.dump` したスナップショット文字列の履歴（最大100件）。dirty は保存時スナップショットとの文字列比較。ツリーの構造比較は実装しない。
 
+移行後リファクタリング（A-3・RA-06 / D-07）以降、アプリの Undo/Redo・dirty の正は**セッション（workspace-core）のワークスペース横断の単一履歴**で、`EditBuffer` の履歴はセッション不在時のフォールバック。横断履歴は開いていない文書も戻すため、`AppState` は実行後に「何が戻ったか」の通知（`historyNotice`＝変更の意図＋対象ファイルへのジャンプ導線＋未保存化（●）の明示。次の編集・保存・✕で消える）と、Undo/Redo ボタンのホバー予告（`undoPreview` / `redoPreview`）を組み立てる（UX-86 / UX-93。FEATURES E-05）。
+
 ### 4.3 Slot 抽象
 
 マップのキー（`MapSlot`）・配列要素（`SeqSlot`）・文書ルート（`RootSlot`）を `Slot`（get/set/remove）で統一し、スキーマフォームと汎用エディタがエディタ部品を共有する。新しい「値の置き場所」（例: `_document` メタデータ）が必要なら `Slot` 実装を追加する。ツリー上の絶対 `YPath` から `Slot` を得る `slotAt`（`ui/Common.kt`）は、ビューグリッドとID横ぐしビューの両方が共有する。
