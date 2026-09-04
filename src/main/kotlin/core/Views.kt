@@ -1345,6 +1345,22 @@ object Views {
     }
 
     /**
+     * detailIn カバレッジの作成導線（R28-05a・UX-97）: 詳細スキーマの match（glob）から
+     * `{id}` 置換のファイルパターンを導く。対応するのはファイル名部分が「*.yaml」
+     * 「*.yml」「*.{yaml,yml}」で、ディレクトリ部分にワイルドカードを含まない単純な形のみ
+     * （それ以外は null ＝作成先を機械的に決められない）。
+     */
+    fun detailPatternFromMatch(match: String): String? {
+        val slash = match.lastIndexOf('/')
+        val dir = if (slash >= 0) match.substring(0, slash + 1) else ""
+        val name = match.substring(slash + 1)
+        if (dir.any { it == '*' || it == '?' || it == '{' }) return null
+        val m = Regex("""^\*\.(yaml|yml|\{yaml,yml\}|\{yml,yaml\})$""").matchEntire(name) ?: return null
+        val ext = m.groupValues[1].takeUnless { it.startsWith("{") } ?: "yaml"
+        return "$dir{id}.$ext"
+    }
+
+    /**
      * filePattern（detail / newRow ファイルモード共用）とIDから新規文書の内容を組み立てる。
      * スキーマは `{id}` 置換後のパスにマッチするものを使い、必須フィールドの初期値と
      * ルート直下の ID フィールドへIDを設定する。

@@ -1,0 +1,100 @@
+package validate
+
+import core.Workspace
+import java.nio.file.Files
+import java.nio.file.Path
+import kotlin.io.path.createTempDirectory
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertTrue
+
+/**
+ * カバレッジ指摘メッセージの作成場所案内（R28-05・UX-97）のテスト。
+ * detailIn の不足警告に、詳細スキーマの match パターン（どこに作ればよいか）が併記されること。
+ */
+class CoverageMessageTest {
+
+    private lateinit var dir: Path
+
+    @BeforeTest
+    fun setup() {
+        dir = createTempDirectory("yde-covmsg")
+        write(
+            "_schemas/list.yaml",
+            """
+            id: list
+            match: "list.yaml"
+            coverage:
+              - description: 全要素は詳細文書を持つこと
+                detailIn:
+                  schemaIds: [detail]
+                level: warning
+            root:
+              type: object
+              fields:
+                - key: items
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: id, type: id, required: true }
+            """,
+        )
+        write(
+            "_schemas/detail.yaml",
+            """
+            id: detail
+            match: "details/*.yaml"
+            root:
+              type: object
+              fields:
+                - { key: id, type: id, required: true }
+                - { key: body, type: text }
+            """,
+        )
+        write("list.yaml", "items:\n- { id: X-1 }")
+    }
+
+    @AfterTest
+    fun cleanup() {
+        Files.walk(dir).use { it.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
+    }
+
+    private fun write(rel: String, content: String) {
+        val file = dir.resolve(rel)
+        Files.createDirectories(file.parent)
+        Files.writeString(file, content.trimIndent() + "\n")
+    }
+
+    @Test
+    fun `detailIn不足の警告に詳細スキーマの作成場所が併記される`() {
+        val ws = Workspace.open(dir)
+        val issue = ws.validate("list.yaml").single { "詳細文書が不足" in it.message }
+        assertTrue("detail（details/*.yaml に作成）" in issue.message, issue.message)
+    }
+
+    @Test
+    fun `detailIn不足の指摘には作成導線が付き詳細文書を作成できる`() {
+        // R28-05a（UX-97）: 指摘の scaffold から「詳細文書を作成」→ 作成後は不足が解消される
+        val ws = Workspace.open(dir)
+        val issue = ws.validate("list.yaml").single { "詳細文書が不足" in it.message }
+        kotlin.test.assertEquals("X-1", issue.scaffold?.id)
+        kotlin.test.assertEquals(listOf("detail"), issue.scaffold?.schemaIds)
+
+        val state = app.AppState().also { it.openWorkspace(dir) }
+        val created = state.createDetailForCoverage("detail", "X-1").getOrThrow()
+        assertTrue(created.toString().replace('\\', '/').endsWith("details/X-1.yaml"), created.toString())
+        assertTrue("id: X-1" in Files.readString(created))
+        val ws2 = Workspace.open(dir)
+        assertTrue(ws2.validate("list.yaml").none { "詳細文書が不足" in it.message })
+    }
+
+    @Test
+    fun `matchからの作成先導出は単純なglobのみ対応する`() {
+        kotlin.test.assertEquals("details/{id}.yaml", core.Views.detailPatternFromMatch("details/*.yaml"))
+        kotlin.test.assertEquals("a/b/{id}.yaml", core.Views.detailPatternFromMatch("a/b/*.{yaml,yml}"))
+        kotlin.test.assertEquals(null, core.Views.detailPatternFromMatch("a/**/*.yaml"))
+        kotlin.test.assertEquals(null, core.Views.detailPatternFromMatch("a/x-*.yaml"))
+    }
+}

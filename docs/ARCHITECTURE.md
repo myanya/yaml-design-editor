@@ -504,7 +504,9 @@ limit: 100                               # 既定 100（total は打切り前の
 - **foreach の `source: query`**: クエリの束縛行を1件=1実行に展開する（既存5種は存置）。対象キーは束縛値の組、プレースホルダは行キー相当の既定（`{id}` `{title}` `{file}` = 先頭束縛）に加え、**束縛名で参照できる**（`{scr}` = そのID・`{scr_file}` = 定義出現のファイル）——コンテキストレシピ（R19-02）の `targetValues` にもそのまま載る。
 - **CLI `query`**: YAML のスペック（ファイルまたは `--spec`）→ 束縛の表（YAML）。ビュー・レシピ・制約の試作台。
 
-**パターン制約（R22-03）**: スキーマの `constraints:`（`match`（＋`where` / `also` / `limit`）＋ `expect: exists / absent`・`level`・`activeFrom`）。「起点束縛に一致する各エンティティについて、残りのパターンに解が存在すること（exists）／しないこと（absent）」をカバレッジの一般形として検証する。判定は `Validator.validate` に一元化（検証パネル・CLI・変更セット適用・提出ゲートに同一判定）。座標は起点束縛の定義出現（なければ先頭出現）で、その出現を持つファイルの検証でのみ報告する（多重報告しない）。起点は `kind: entity` のみ（パースで強制）。`activeFrom` はカバレッジと同じく自文書のフェーズで判定し、型未宣言・未解決参照には黙る（§4.26）。既存 coverage は置き換えない（P21 で吸収済みの判定器の上位語彙として追加）。
+**パターン制約（R22-03・R28-02 で拡張）**: スキーマの `constraints:`（`match`（＋`where` / `also` / `limit`）＋ `expect: exists / absent` **または** `count: {min, max}`（排他。R28-02）・`level`・`activeFrom`）。「起点束縛に一致する各エンティティについて、残りのパターンに解が存在すること（exists）／しないこと（absent）／解の件数が範囲内であること（count。件数はクエリ結果の行と同じ同一性＝bind 列の組の distinct。`SemanticQuery.countMatchesFrom` は limit 打切り前の total を返す）」をカバレッジの一般形として検証する。`where` の述語は `equals` / `notEquals` / `exists` のいずれか一つ（R28-02。notEquals =「値が1つ以上あり、どの出現の値も指定値でない」＝equals の OR 解釈の否定。値がなければ黙る）。判定は `Validator.validate` に一元化（検証パネル・CLI・変更セット適用・提出ゲートに同一判定）。座標は起点束縛の定義出現（なければ先頭出現）で、その出現を持つファイルの検証でのみ報告する（多重報告しない）。起点は `kind: entity` のみ（パースで強制）。`activeFrom` はカバレッジと同じく自文書のフェーズで判定し、型未宣言・未解決参照には黙る（§4.26）。既存 coverage は置き換えない（P21 で吸収済みの判定器の上位語彙として追加）。
+
+**網羅マトリクス（R28-03）**: スキーマの `matrix:`（`rows` / `columns` = エンティティ選択・`witness` = セルの証人（`node`＋`row: {relation}`・`column: {relation}`）・`level`・`activeFrom`）。「行×列の全組合せに、行と列の両方を参照する証人エンティティが存在すること」を検証する（宣言は `schema/Matrix.kt`・判定カーネルは `semantic/Matrix.kt` の `SemanticMatrix.missingColumns`・報告はパターン制約と同じく `Validator.validate` の行の定義出現）。証人への参照キーを `relation` にしてあるのは、rename-relation リファクタリングの書換 walker（`entryKey == "relation"`）がそのまま効くようにするため。明示的除外は証人側の `excluded: true` 行（存在＝充足。UX-16 の流儀＝理由がデータとして残る）。列の母集団が空・行の母集団外は判定保留。
 
 ### 4.33 二層モデル④: エンティティページとグラフレンズ（P23: R23-01〜04）
 

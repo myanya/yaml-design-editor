@@ -28,6 +28,8 @@ data class SchemaDef(
     val consistency: List<ConsistencyRule> = emptyList(),
     /** パターン制約（R22-03。ARCHITECTURE §4.32）: 起点エンティティごとのパターンの存在／不在要件。 */
     val constraints: List<ConstraintRule> = emptyList(),
+    /** 網羅マトリクス（R28-03。ARCHITECTURE §4.32）: 行×列の全組合せに証人が存在すること。 */
+    val matrix: List<MatrixRule> = emptyList(),
     val phases: PhasesDef? = null,
     /** エンティティ型の宣言（R20-01。ARCHITECTURE §4.30）。空 = 宣言なし（従来どおり）。 */
     val entities: List<EntityDecl> = emptyList(),
@@ -552,6 +554,11 @@ object SchemaLoader {
             val list = rawList as? List<*> ?: error("constraintsはリストである必要があります")
             list.mapIndexed { i, entry -> ConstraintRule.parse(entry, "constraints[$i]") }
         } ?: emptyList()
+        // 網羅マトリクス（R28-03。ARCHITECTURE §4.32）: パースはカーネル（schema/Matrix.kt）と共用
+        val matrix = (raw["matrix"])?.let { rawList ->
+            val list = rawList as? List<*> ?: error("matrixはリストである必要があります")
+            list.mapIndexed { i, entry -> MatrixRule.parse(entry, "matrix[$i]") }
+        } ?: emptyList()
         val phases = StructuralSchemaParser.parsePhases(raw["phases"])
         val parsed = SchemaDef(
             id = id,
@@ -563,6 +570,7 @@ object SchemaLoader {
             coverage = coverage,
             consistency = consistency,
             constraints = constraints,
+            matrix = matrix,
             phases = phases,
             entities = entities,
             relations = relations,

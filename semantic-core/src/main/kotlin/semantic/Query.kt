@@ -64,6 +64,33 @@ object SemanticQuery {
         loader: (DocumentId) -> YNode?,
     ): Boolean = Evaluator(ids, refs, graph, spec, loader).anyMatchFrom(startId)
 
+    /**
+     * 起点を固定した解の列挙（R28-05: 制約指摘の説明用）: 束縛の表（limit まで。total は打切り前）。
+     * absent / count 違反の「該当の組」をメッセージ・ジャンプ導線に使う。
+     */
+    fun matchesFrom(
+        ids: Map<String, List<ScannedId>>,
+        refs: List<ScannedRef>,
+        graph: SemanticEntityGraph,
+        spec: QuerySpec,
+        startId: String,
+        loader: (DocumentId) -> YNode?,
+    ): SemanticQueryResult = Evaluator(ids, refs, graph, spec, loader).evaluate(restrictStart = startId)
+
+    /**
+     * 起点を固定した解の件数（R28-02 count 制約用）: 束縛の組（bind 列）の distinct 件数
+     * （limit 打切り前の total）。数えたい対象のノードに bind を書くこと——束縛のない中間ノードは
+     * 行の同一性に関与しないため、bind がなければ件数は最大1になる。
+     */
+    fun countMatchesFrom(
+        ids: Map<String, List<ScannedId>>,
+        refs: List<ScannedRef>,
+        graph: SemanticEntityGraph,
+        spec: QuerySpec,
+        startId: String,
+        loader: (DocumentId) -> YNode?,
+    ): Int = Evaluator(ids, refs, graph, spec, loader).evaluate(restrictStart = startId).total
+
     /** startId が起点束縛の母集団（起点 node のフィルタ＋起点束縛の where 述語）に入るか（R22-03）。 */
     fun startMatches(
         ids: Map<String, List<ScannedId>>,
@@ -305,6 +332,10 @@ object SemanticQuery {
             val values = nodesAt()
             return when {
                 pred.equals != null -> values.any { scalarText(it) == pred.equals }
+                // notEquals（R28-02）: 値が1つ以上あり、どの出現の値も指定値でない
+                // （equals の OR 解釈の否定。値がなければ黙る＝判定保留）
+                pred.notEquals != null ->
+                    values.any { it != null } && values.none { scalarText(it) == pred.notEquals }
                 pred.exists == true -> values.any { it != null }
                 else -> values.none { it != null }
             }

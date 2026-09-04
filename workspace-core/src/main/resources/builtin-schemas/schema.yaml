@@ -342,7 +342,7 @@ root:
     - key: constraints
       label: パターン制約
       type: array
-      description: "起点束縛に一致する各エンティティについて、グラフパターンの存在（exists）／不在（absent）を検証する（R22-03。カバレッジの一般形）"
+      description: "起点束縛に一致する各エンティティについて、グラフパターンの存在（exists）／不在（absent）／解の件数（count。R28-02）を検証する（R22-03。カバレッジの一般形）"
       item:
         type: object
         fields:
@@ -363,13 +363,14 @@ root:
           - key: where
             label: プロパティ述語
             type: any
+            description: "equals / notEquals / exists のいずれか一つ（例 {of: br, path: status, notEquals: approved}）。notEquals は値があり指定値でないとき成立（値がなければ黙る）"
           - key: limit
             label: 照合上限
             type: int
           - key: expect
             label: 期待
             type: enum
-            required: true
+            description: count と排他（どちらか一方を宣言する）
             values:
               - value: exists
                 label: 存在すること
@@ -377,6 +378,70 @@ root:
               - value: absent
                 label: 存在しないこと
                 description: 起点ごとにパターンの解がないこと
+          - key: count
+            label: 解の件数
+            type: object
+            description: 起点ごとの解（束縛の組）の distinct 件数が範囲内であること（expect と排他。数えたい対象に bind を書く）
+            fields:
+              - key: min
+                label: 下限
+                type: int
+              - key: max
+                label: 上限
+                type: int
+          - key: level
+            label: 重大度
+            type: enum
+            values: [warning, error]
+          - key: activeFrom
+            label: 判定を始めるフェーズ
+            type: string
+    - key: matrix
+      label: 網羅マトリクス
+      type: array
+      description: "行×列の全組合せに証人（witness）が存在することを検証する（R28-03。例: 処理×試験観点→テスト項目）。あえて対象外のセルは証人側に excluded: true の行として残す（存在＝充足）"
+      item:
+        type: object
+        fields:
+          - key: id
+            label: ルールID
+            type: string
+          - key: description
+            label: 説明
+            type: string
+          - key: rows
+            label: 行の母集団
+            type: any
+            required: true
+            description: "エンティティ選択（entity / schema / id。例 {entity: process}）"
+          - key: columns
+            label: 列の母集団
+            type: any
+            required: true
+            description: "エンティティ選択（例 {entity: test-viewpoint}）"
+          - key: witness
+            label: 証人
+            type: object
+            required: true
+            description: 行と列の両方を参照していればセルを充足するエンティティ
+            fields:
+              - key: node
+                label: 証人の選択
+                type: any
+                required: true
+                description: "例 {entity: test-item, schema: unit-test-item}"
+              - key: row
+                label: 行への参照
+                type: object
+                required: true
+                fields:
+                  - { key: relation, label: relation, type: string, required: true }
+              - key: column
+                label: 列への参照
+                type: object
+                required: true
+                fields:
+                  - { key: relation, label: relation, type: string, required: true }
           - key: level
             label: 重大度
             type: enum

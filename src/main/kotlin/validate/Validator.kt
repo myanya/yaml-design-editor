@@ -49,6 +49,9 @@ data class IssueDerivation(
     val inputs: List<Derivation.Input>,  // 入力値の座標（プレースホルダごと）
 )
 
+/** detailIn カバレッジ不足の作成導線（R28-05a・UX-97）: このIDの詳細文書をどのスキーマで作れるか。 */
+data class IssueScaffold(val id: String, val schemaIds: List<String>)
+
 data class Issue(
     val severity: Severity,
     val message: String,
@@ -57,6 +60,8 @@ data class Issue(
     val derivation: IssueDerivation? = null,
     /** 指摘に関連するID（UX-15 の不足案内など）。UIはクリックで各IDの定義へジャンプできる。 */
     val relatedIds: List<String> = emptyList(),
+    /** detailIn 不足のみ非null（R28-05a）。UIは「詳細文書を作成」メニューを出す。 */
+    val scaffold: IssueScaffold? = null,
 )
 
 /** カバレッジルール1件の判定結果（検証と横ぐしビューで共用）。 */
@@ -148,7 +153,11 @@ object Validator {
                 for (status in coverageStatuses(entry.id, schema, indexObj, root)) {
                     if (!status.active || status.satisfied) continue
                     val severity = if (status.rule.level == CoverageLevel.ERROR) Severity.ERROR else Severity.WARNING
-                    issues += Issue(severity, coverageMessage(status), entry.path)
+                    // detailIn 不足は「詳細文書を作成」導線を付ける（R28-05a・UX-97）
+                    val scaffold = status.rule.detailSchemaIds
+                        .takeIf { status.rule.isOccurrence && it.isNotEmpty() }
+                        ?.let { IssueScaffold(entry.id, it) }
+                    issues += Issue(severity, coverageMessage(status, allSchemas), entry.path, scaffold = scaffold)
                 }
             }
         }
@@ -245,18 +254,159 @@ object Validator {
                     val anchor = node.defining ?: node.occurrences.firstOrNull() ?: continue
                     if (anchor.file != file || anchor.path != entry.path) continue
                     if (!index.Query.startMatches(indexObj, rule.spec, entry.id, ::constraintTree)) continue
-                    val hasSolution = index.Query.anyMatchFrom(indexObj, rule.spec, entry.id, ::constraintTree)
-                    val violated = when (rule.expect) {
-                        ConstraintExpect.EXISTS -> !hasSolution
-                        ConstraintExpect.ABSENT -> hasSolution
+                    // 判定は expect（存在/不在）か count（件数範囲。R28-02）のどちらか一方（パースで保証）。
+                    // 違反時は該当の組（束縛の表）を列挙し、関連IDのジャンプ導線を付ける（R28-05・UX-98）
+                    fun describeRows(result: index.QueryResult): String {
+                        val listed = result.rows.take(3).joinToString(" ／ ") { row ->
+                            row.bindings.entries.joinToString("・") { (b, ref) -> "$b=${ref.id}" }
+                        }
+                        return listed + (if (result.total > 3) " ほか${result.total - 3}組" else "")
+                    }
+                    fun relatedOf(result: index.QueryResult): List<String> =
+                        result.rows.take(3).flatMap { row -> row.bindings.values.map { it.id } }
+                            .distinct().filter { it != entry.id }.take(10)
+                    val violated: Boolean
+                    var messageCore: String
+                    var related: List<String> = emptyList()
+                    val ruleCount = rule.count
+                    if (ruleCount != null) {
+                        val result = index.Query.matchesFrom(indexObj, rule.spec, entry.id, ::constraintTree)
+                        violated = ruleCount.violated(result.total)
+                        messageCore = "ID「${entry.id}」を起点とするパターンの解が ${result.total} 件です（count: ${ruleCount.describe()}）"
+                        if (violated && result.rows.isNotEmpty()) {
+                            messageCore += "。解の組: ${describeRows(result)}"
+                            related = relatedOf(result)
+                        }
+                    } else {
+                        val hasSolution = index.Query.anyMatchFrom(indexObj, rule.spec, entry.id, ::constraintTree)
+                        violated = when (rule.expect) {
+                            ConstraintExpect.EXISTS -> !hasSolution
+                            ConstraintExpect.ABSENT -> hasSolution
+                            null -> false
+                        }
+                        messageCore = when (rule.expect) {
+                            ConstraintExpect.ABSENT -> "ID「${entry.id}」を起点とするパターンが成立しています（expect: absent）"
+                            else -> "ID「${entry.id}」を起点とするパターンが成立していません（expect: exists）"
+                        }
+                        if (violated && rule.expect == ConstraintExpect.ABSENT) {
+                            val result = index.Query.matchesFrom(indexObj, rule.spec, entry.id, ::constraintTree)
+                            if (result.rows.isNotEmpty()) {
+                                messageCore += "。該当の組: ${describeRows(result)}"
+                                related = relatedOf(result)
+                            }
+                        }
                     }
                     if (!violated) continue
                     val severity = if (rule.level == CoverageLevel.ERROR) Severity.ERROR else Severity.WARNING
-                    val message = when (rule.expect) {
-                        ConstraintExpect.EXISTS -> "ID「${entry.id}」を起点とするパターンが成立していません（expect: exists）"
-                        ConstraintExpect.ABSENT -> "ID「${entry.id}」を起点とするパターンが成立しています（expect: absent）"
-                    } + ((rule.description ?: rule.id)?.let { " — $it" } ?: "")
-                    issues += Issue(severity, message, entry.path)
+                    val message = messageCore + ((rule.description ?: rule.id)?.let { " — $it" } ?: "")
+                    issues += Issue(severity, message, entry.path, relatedIds = related)
+                }
+            }
+        }
+        // 3.8) 網羅マトリクス（R28-03。ARCHITECTURE §4.32）: 行の各エンティティについて、列の全エンティティ
+        //      との組合せに証人（witness）が存在すること。不足セルは行の定義出現に列挙で報告する。
+        //      あえて対象外のセルは witness 側に excluded: true の行として残す（存在＝充足。UX-16 の流儀）
+        if (indexed && schema != null && schema.matrix.isNotEmpty()) {
+            for (rule in schema.matrix) {
+                val active = rule.activeFrom?.let { from ->
+                    val fromIdx = schema.phases?.order?.indexOf(from) ?: -1
+                    fromIdx < 0 || phaseIndex == null || phaseIndex >= fromIdx
+                } ?: true
+                if (!active) continue
+                for (entry in localIds) {
+                    val node = indexObj.graph.entities[entry.id] ?: continue
+                    val anchor = node.defining ?: node.occurrences.firstOrNull() ?: continue
+                    if (anchor.file != file || anchor.path != entry.path) continue
+                    val missing = index.Query.matrixMissingColumns(indexObj, rule, entry.id)
+                    if (missing.isEmpty()) continue
+                    val listed = missing.take(5).joinToString("・") { m -> m.title?.let { "${m.id}（$it）" } ?: m.id } +
+                        (if (missing.size > 5) " ほか${missing.size - 5}件" else "")
+                    val severity = if (rule.level == CoverageLevel.ERROR) Severity.ERROR else Severity.WARNING
+                    val message = "ID「${entry.id}」の網羅マトリクスに不足セルがあります（${missing.size} 件）: $listed" +
+                        ((rule.description ?: rule.id)?.let { " — $it" } ?: "")
+                    // 不足した列のIDへジャンプできるようにする（R28-05・UX-98）
+                    issues += Issue(severity, message, entry.path, relatedIds = missing.map { it.id }.take(10))
+                }
+            }
+        }
+        // 3.9) 制約・マトリクス指摘の他出現への案内（R28-05・UX-96）: 指摘は起点の定義出現にのみ報告される
+        //      （多重報告しない）ため、詳細化出現の文書しか開いていないと気づけない。定義出現が他文書にある
+        //      IDの出現には、定義側で報告されている指摘を INFO で案内する（UX-15 の不足案内と同じ向きの反転）
+        if (indexed && allSchemas.isNotEmpty()) {
+            val noticeTrees = mutableMapOf<Path, YNode?>()
+            fun noticeTree(f: Path): YNode? = if (f == file) root else noticeTrees.getOrPut(f) { loader(f) }
+            fun noticeRel(f: Path): String =
+                workspace?.let { IdIndex.relPathOf(it, f) } ?: f.toString().replace('\\', '/')
+            val noticed = mutableSetOf<Pair<String, String>>()  // (規則キー, ID) の重複案内を防ぐ
+            for (entry in localIds) {
+                val node = indexObj.graph.entities[entry.id] ?: continue
+                val anchor = node.defining ?: node.occurrences.firstOrNull() ?: continue
+                if (anchor.file == file) continue  // 定義がこの文書なら 3.7 / 3.8 で報告済み
+                val anchorRel = noticeRel(anchor.file)
+                for (s in allSchemas) {
+                    if (s.constraints.isEmpty() && s.matrix.isEmpty()) continue
+                    if (!s.matches(anchorRel)) continue  // 定義出現の文書に適用される規則だけを見る
+                    val anchorPhase = s.currentPhaseIndex(noticeTree(anchor.file))
+                    fun activeAt(from: String?): Boolean = from?.let {
+                        val fromIdx = s.phases?.order?.indexOf(it) ?: -1
+                        fromIdx < 0 || anchorPhase == null || anchorPhase >= fromIdx
+                    } ?: true
+                    for ((i, rule) in s.constraints.withIndex()) {
+                        if (!activeAt(rule.activeFrom)) continue
+                        if (!index.Query.startMatches(indexObj, rule.spec, entry.id, ::noticeTree)) continue
+                        val ruleCount = rule.count
+                        val violated = if (ruleCount != null) {
+                            ruleCount.violated(index.Query.countMatchesFrom(indexObj, rule.spec, entry.id, ::noticeTree))
+                        } else {
+                            val hasSolution = index.Query.anyMatchFrom(indexObj, rule.spec, entry.id, ::noticeTree)
+                            when (rule.expect) {
+                                ConstraintExpect.EXISTS -> !hasSolution
+                                ConstraintExpect.ABSENT -> hasSolution
+                                null -> false
+                            }
+                        }
+                        if (!violated || !noticed.add("${s.id}/c$i" to entry.id)) continue
+                        // エラー級の違反は出現側の文書でも同じ重大度で出す（修正対象の文書を開いている
+                        // ときに INFO 止まりだと直せることに気づけない。オーナー指摘 2026-09-04）。
+                        // 警告級は従来どおり INFO の案内に留める（詳細化文書を開くたびのノイズを避ける）
+                        val noticeSeverity = if (rule.level == CoverageLevel.ERROR) Severity.ERROR else Severity.INFO
+                        var noticeMsg =
+                            if (noticeSeverity == Severity.ERROR) "ID「${entry.id}」への制約違反があります（報告先: 定義出現 $anchorRel）"
+                            else "ID「${entry.id}」には制約の指摘があります（報告先: 定義出現 $anchorRel）"
+                        var noticeRelated = listOf(entry.id)
+                        if (rule.expect == ConstraintExpect.ABSENT || ruleCount != null) {
+                            val result = index.Query.matchesFrom(indexObj, rule.spec, entry.id, ::noticeTree)
+                            if (result.rows.isNotEmpty()) {
+                                val listed = result.rows.take(3).joinToString(" ／ ") { row ->
+                                    row.bindings.entries.joinToString("・") { (b, ref) -> "$b=${ref.id}" }
+                                } + (if (result.total > 3) " ほか${result.total - 3}組" else "")
+                                noticeMsg += "。該当の組: $listed"
+                                noticeRelated = (listOf(entry.id) + result.rows.take(3).flatMap { row -> row.bindings.values.map { it.id } })
+                                    .distinct().take(10)
+                            }
+                        }
+                        issues += Issue(
+                            noticeSeverity,
+                            noticeMsg + ((rule.description ?: rule.id)?.let { " — $it" } ?: ""),
+                            entry.path,
+                            relatedIds = noticeRelated,
+                        )
+                    }
+                    for ((i, rule) in s.matrix.withIndex()) {
+                        if (!activeAt(rule.activeFrom)) continue
+                        val missing = index.Query.matrixMissingColumns(indexObj, rule, entry.id)
+                        if (missing.isEmpty() || !noticed.add("${s.id}/m$i" to entry.id)) continue
+                        val noticeSeverity = if (rule.level == CoverageLevel.ERROR) Severity.ERROR else Severity.INFO
+                        val listed = missing.take(5).joinToString("・") { m -> m.title?.let { "${m.id}（$it）" } ?: m.id } +
+                            (if (missing.size > 5) " ほか${missing.size - 5}件" else "")
+                        issues += Issue(
+                            noticeSeverity,
+                            "ID「${entry.id}」には網羅マトリクスの不足があります（${missing.size} 件。報告先: 定義出現 $anchorRel）: $listed" +
+                                ((rule.description ?: rule.id)?.let { " — $it" } ?: ""),
+                            entry.path,
+                            relatedIds = (listOf(entry.id) + missing.map { it.id }).distinct().take(10),
+                        )
+                    }
                 }
             }
         }
@@ -398,10 +548,17 @@ object Validator {
     fun phaseSummaryText(root: YNode?, schema: SchemaDef): String? =
         schema.structural.phaseSummaryText(root)
 
-    fun coverageMessage(status: CoverageStatus): String = buildString {
+    /**
+     * カバレッジ指摘の1行メッセージ。allSchemas を渡すと、詳細文書の**作成場所**（詳細スキーマの
+     * match パターン）を併記する（「どこに作ればよいか」の案内。R28-05・UX-97）。
+     */
+    fun coverageMessage(status: CoverageStatus, allSchemas: List<SchemaDef> = emptyList()): String = buildString {
         if (status.rule.isOccurrence) {
             append("ID「${status.id}」の詳細文書が不足しています（現在 ${status.count} 件／必要 ${status.rule.minCount} 件")
-            append("、詳細スキーマ: ${status.rule.detailSchemaIds.joinToString(", ")}")
+            val detail = status.rule.detailSchemaIds.joinToString(", ") { sid ->
+                allSchemas.firstOrNull { it.id == sid }?.match?.let { "$sid（$it に作成）" } ?: sid
+            }
+            append("、詳細スキーマ: $detail")
         } else {
             append("ID「${status.id}」への参照が不足しています（現在 ${status.count} 件／必要 ${status.rule.minCount} 件")
             if (status.rule.fromSchemaIds.isNotEmpty()) append("、参照元スキーマ: ${status.rule.fromSchemaIds.joinToString(", ")}")

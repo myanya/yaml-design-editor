@@ -59,6 +59,37 @@ object Query {
     }
 
     /**
+     * 起点を固定した解の件数（R28-02 count 制約用）: 束縛の組（bind 列）の distinct 件数
+     * （limit 打切り前の total）。数えたい対象のノードに bind を書くこと。
+     */
+    fun countMatchesFrom(index: IdIndex, spec: QuerySpec, startId: String, loader: (Path) -> YNode? = diskLoader): Int {
+        val view = index.toKernelView()
+        return SemanticQuery.countMatchesFrom(view.entries, view.refs, view.graph, spec, startId) { d -> loader(Path.of(d.value)) }
+    }
+
+    /**
+     * 起点を固定した解の列挙（R28-05: 制約指摘の説明用）: 束縛の表（limit まで。total は打切り前）。
+     */
+    fun matchesFrom(index: IdIndex, spec: QuerySpec, startId: String, loader: (Path) -> YNode? = diskLoader): QueryResult {
+        val view = index.toKernelView()
+        val result = SemanticQuery.matchesFrom(view.entries, view.refs, view.graph, spec, startId) { d -> loader(Path.of(d.value)) }
+        return QueryResult(
+            columns = result.columns,
+            rows = result.rows.map { row -> QueryRow(row.bindings.mapValues { (_, ref) -> ref.toNodeRef() }) },
+            total = result.total,
+        )
+    }
+
+    /**
+     * 網羅マトリクス（R28-03）: 行 rowId の不足セル（証人のない列。ID昇順）。
+     * 行の母集団外・列の母集団が空のときは空リスト（判定保留）。
+     */
+    fun matrixMissingColumns(index: IdIndex, rule: schema.MatrixRule, rowId: String): List<semantic.SemanticMatrixColumn> {
+        val view = index.toKernelView()
+        return semantic.SemanticMatrix.missingColumns(view.graph, rule, rowId)
+    }
+
+    /**
      * startId が起点束縛の母集団（起点 node のフィルタ＋起点束縛の where 述語）に入るか（R22-03）。
      * 制約の「対象外は黙る」（判定保留 §4.26）と「解なし」を区別するために使う。
      */

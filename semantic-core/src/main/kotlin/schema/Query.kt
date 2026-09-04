@@ -103,15 +103,21 @@ data class QueryHop(val edge: QueryEdgeStep, val node: QueryNodeStep)
 /** 束縛済みノードからの分岐（1段のみ・内部結合。§4.32）。 */
 data class QueryBranch(val from: String, val hops: List<QueryHop>)
 
-/** プロパティ述語。equals / exists のどちらか一方を持つ。値は「いずれかの出現の該当パスのスカラー」（多段定義の OR）。 */
+/**
+ * プロパティ述語。equals / notEquals / exists のいずれか一つを持つ。
+ * 値は「いずれかの出現の該当パスのスカラー」（多段定義の OR）。
+ * notEquals は「値が1つ以上あり、どの出現の値も指定値でない」（equals の OR 解釈の否定。
+ * 値がなければ黙る＝判定保留の哲学 §4.26。R28-02）。
+ */
 data class QueryWhere(
     val of: String,
     val path: YPath,
     val equals: String? = null,
     val exists: Boolean? = null,
+    val notEquals: String? = null,
 ) {
     companion object {
-        private val KEYS = setOf("of", "path", "equals", "exists")
+        private val KEYS = setOf("of", "path", "equals", "notEquals", "exists")
 
         fun parse(raw: Any?, where: String): QueryWhere {
             val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります")
@@ -120,9 +126,11 @@ data class QueryWhere(
             val of = m["of"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.of（束縛名）が必要です")
             val path = parseYPath(m["path"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.path が必要です"))
             val equals = m["equals"]?.toString()
+            val notEquals = m["notEquals"]?.toString()
             val exists = m["exists"] as? Boolean
-            if ((equals != null) == (exists != null)) error("$where: equals か exists のどちらか一方が必要です")
-            return QueryWhere(of = of, path = path, equals = equals, exists = exists)
+            val given = listOfNotNull(equals, notEquals, exists?.toString()).size
+            if (given != 1) error("$where: equals / notEquals / exists のいずれか一つが必要です")
+            return QueryWhere(of = of, path = path, equals = equals, exists = exists, notEquals = notEquals)
         }
     }
 }
@@ -244,26 +252,60 @@ enum class ConstraintExpect(val id: String) {
 }
 
 /**
+ * count 制約の範囲（min / max の少なくとも一方。R28-02）。
+ * 解の件数 = 束縛の組（bind 列）の distinct 件数（クエリ結果の行と同じ同一性）。
+ * 数えたい対象のノードに bind を書くこと（束縛のないパターンでは件数は最大1になる）。
+ */
+data class ConstraintCount(val min: Int? = null, val max: Int? = null) {
+    fun violated(n: Int): Boolean = (min != null && n < min) || (max != null && n > max)
+    fun describe(): String = listOfNotNull(min?.let { "min $it" }, max?.let { "max $it" }).joinToString("・")
+
+    companion object {
+        fun parse(raw: Any?, where: String): ConstraintCount {
+            val m = raw as? Map<*, *> ?: error("$where.count はobjectである必要があります（min / max）")
+            m.keys.map { it.toString() }.firstOrNull { it !in setOf("min", "max") }
+                ?.let { error("$where.count: 未知のキーです: $it（使えるキー: min, max）") }
+            val min = (m["min"] as? Number)?.toInt()
+            val max = (m["max"] as? Number)?.toInt()
+            if (min == null && max == null) error("$where.count には min / max の少なくとも一方が必要です")
+            if (min != null && min < 0) error("$where.count.min は0以上である必要があります")
+            if (max != null && max < 0) error("$where.count.max は0以上である必要があります")
+            if (min != null && max != null && min > max) error("$where.count: min が max を超えています")
+            return ConstraintCount(min = min, max = max)
+        }
+    }
+}
+
+/**
  * パターン制約（R22-03。ARCHITECTURE §4.32）。スキーマの `constraints:` に列挙する。
  * 「起点束縛（match の先頭 node。kind: entity 限定）に一致する各エンティティについて、
- * 残りのパターンに解が存在すること（exists）／しないこと（absent）」をカバレッジの一般形として検証する。
+ * 残りのパターンに解が存在すること（expect: exists）／しないこと（expect: absent）／
+ * 解の件数が範囲内であること（count: {min, max}。R28-02）」をカバレッジの一般形として検証する。
+ * expect と count はどちらか一方を宣言する。
  */
 data class ConstraintRule(
     val id: String? = null,
     val description: String? = null,
     val spec: QuerySpec,
-    val expect: ConstraintExpect,
+    val expect: ConstraintExpect? = null,
+    val count: ConstraintCount? = null,
     val level: CoverageLevel = CoverageLevel.WARNING,
     val activeFrom: String? = null,
 ) {
     companion object {
-        private val OWN_KEYS = setOf("id", "description", "expect", "level", "activeFrom")
+        private val OWN_KEYS = setOf("id", "description", "expect", "count", "level", "activeFrom")
 
         fun parse(raw: Any?, where: String): ConstraintRule {
             val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります")
             val spec = QuerySpec.parse(m, where, ignoreKeys = OWN_KEYS)
             require(spec.start.kind == QueryNodeKind.ENTITY) { "$where: 制約の起点（match の先頭 node）は kind: entity である必要があります" }
-            val expect = ConstraintExpect.parse(m["expect"]?.toString() ?: error("$where.expect（exists / absent）が必要です"))
+            val expectRaw = m["expect"]?.toString()
+            val countRaw = m["count"]
+            if ((expectRaw != null) == (countRaw != null)) {
+                error("$where: expect（exists / absent）か count（min / max）のどちらか一方が必要です")
+            }
+            val expect = expectRaw?.let { ConstraintExpect.parse(it) }
+            val count = countRaw?.let { ConstraintCount.parse(it, where) }
             val level = when (val v = m["level"]?.toString()) {
                 null -> CoverageLevel.WARNING
                 else -> CoverageLevel.entries.firstOrNull { it.id == v } ?: error("$where.level は warning / error のいずれかです: $v")
@@ -273,6 +315,7 @@ data class ConstraintRule(
                 description = m["description"]?.toString()?.takeIf { it.isNotBlank() },
                 spec = spec,
                 expect = expect,
+                count = count,
                 level = level,
                 activeFrom = m["activeFrom"]?.toString()?.takeIf { it.isNotBlank() },
             )

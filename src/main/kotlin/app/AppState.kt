@@ -1229,6 +1229,17 @@ class AppState {
         createScaffoldFile(core.Views.scaffold(pattern, trimmed, schemas))
     }
 
+    /**
+     * カバレッジ（detailIn）不足の指摘から詳細文書を新規作成する（R28-05a・UX-97 の導線）。
+     * 作成先は詳細スキーマの match から導く（単純な glob のみ。導けないスキーマはエラー）。
+     */
+    fun createDetailForCoverage(schemaId: String, id: String): Result<Path> = runCatching {
+        val schema = schemas.firstOrNull { it.id == schemaId } ?: error("スキーマが見つかりません: $schemaId")
+        val pattern = core.Views.detailPatternFromMatch(schema.match)
+            ?: error("スキーマ「$schemaId」の match（${schema.match}）から作成先を決められません")
+        createScaffoldFile(core.Views.scaffold(pattern, id, schemas))
+    }
+
     /** スキャフォールドをディスクへ書き出し、再読込してその文書を開く（詳細作成・新規行ファイルモード共用）。 */
     private fun createScaffoldFile(scaffold: core.Views.Scaffold): Path {
         val ws = workspace ?: error("ワークスペースが開かれていません")

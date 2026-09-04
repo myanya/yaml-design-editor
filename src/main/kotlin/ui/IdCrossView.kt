@@ -247,7 +247,7 @@ private fun EntityPage(state: AppState, id: String) {
                                 status.satisfied ->
                                     "${Validator.coverageCountLabel(status.rule)} ${status.count} 件（必要 ${status.rule.minCount} 件）" +
                                         (status.rule.description?.let { " — $it" } ?: "")
-                                else -> Validator.coverageMessage(status)
+                                else -> Validator.coverageMessage(status, state.schemas)
                             },
                             fontSize = 12.sp,
                             color = when {
