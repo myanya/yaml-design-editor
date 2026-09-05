@@ -486,15 +486,17 @@ also:                                    # 任意: 束縛済みノードから�
   steps:                                 # edge で始まり node で終わる交互連鎖
     - edge: { relation: belongs }
     - node: { entity: domain, bind: dom }
-where:                                   # 任意: プロパティ述語（equals / exists のみ）
+where:                                   # 任意: プロパティ述語（equals / notEquals / exists）
   - { of: scr, path: status, equals: approved }
 limit: 100                               # 既定 100（total は打切り前の全行数）
+# node: { same: 束縛名 } はノード一致（R28-07）: 先行して束縛済みのノードそのものへの到達を要求
 ```
 
 - **結果は束縛の表**: 各行 = 束縛名 → ノード（`QueryNodeRef`: kind・id・タイトル・エンティティ型・座標）。エンティティの座標は定義出現（なければ先頭出現）、文書ノードはファイル＋空パス。行は束縛値の組で重複除去する（束縛されない中間ノードは行の同一性に関与しない）。
 - **文書ノードは最初から語彙に含める**（`kind: document`）: ノードは `graph.documents`（documentId）、`entity` / `schema` フィルタは併用不可・`id` は documentId のパターン。エッジの端の解決は次の node ステップの kind が決める——out で到達する端は「entity なら `targetKind: entity` の解決済み参照先／document なら `targetKind: document` の解決済み文書」、in で到達する端は「entity なら参照を書いた最内のID要素（`sourceEntryOf`）／document なら参照が書かれた文書」。文書ノードの out エッジは「その文書に書かれた全参照」。
 - **プロパティ述語の値**: エンティティは「いずれかの出現の該当パスのスカラー」（多段定義の OR。`equals` はいずれかが一致すれば真、`exists: false` は全出現に無いとき真）。文書ノードのプロパティは `_document` 配下に限る（§4.9 原則3）。値の読み取りは loader 注入（UI: docCache 優先／エージェント: ステージング／CLI・検証既定: ディスク＝§4.5 の流儀）。
 - **決定性**: 起点候補はID昇順・エッジ展開は索引の安定順・行の並びは「束縛名の辞書順に並べた束縛値（ID昇順）の辞書式比較」・`limit` 超過は決定的打切り（列の表示順は宣言順のまま）。1本の照合経路の中で同じノードを二度通らない（循環照合の停止）。未解決参照・型未宣言のエンティティは黙って照合から外す（判定保留の哲学 §4.26——起点フィルタに一致しないだけで、エラーにしない）。
+- **ノード一致 `same`（R28-07）**: `node: { same: 束縛名 }` は「先行して束縛済みのノードそのもの」への到達を要求する（他のキーと同居不可・先頭 node には書けない・宣言順で先行する束縛のみ参照可＝パースで固定）。「2経路が同一ノードで合流すること」の照合（例: カラム→実装属性→業務型 と カラム→業務型 が同じ型ノード＝型不一致検出）で、評価器では**二度通らない規則の意図的な例外**（束縛済みノードへの再到達のみ許可・到達先の kind は束縛ノードから引き継ぐ）。束縛間の**値（表記）比較ではなくノードの同一性**で判定する（ADR-0008 の筋。値比較の語彙は需要が立つまで解禁しない）。
 - **やらないこと（P22 の不変条件）**: 集約は件数のみ（行数・制約の存在判定。sum / group を作らない）・任意深さの再帰パス（`*`）なし・任意式なし・optional 結合（外部結合）なし・分岐は `also` の1段まで。スプレッドシートエンジン／Cypher を作らない（P16・P19 の規律の継承）。語彙の解禁は実例の需要で段階的に判断する。
 
 **消費面（R22-02）**:
@@ -504,7 +506,7 @@ limit: 100                               # 既定 100（total は打切り前の
 - **foreach の `source: query`**: クエリの束縛行を1件=1実行に展開する（既存5種は存置）。対象キーは束縛値の組、プレースホルダは行キー相当の既定（`{id}` `{title}` `{file}` = 先頭束縛）に加え、**束縛名で参照できる**（`{scr}` = そのID・`{scr_file}` = 定義出現のファイル）——コンテキストレシピ（R19-02）の `targetValues` にもそのまま載る。
 - **CLI `query`**: YAML のスペック（ファイルまたは `--spec`）→ 束縛の表（YAML）。ビュー・レシピ・制約の試作台。
 
-**パターン制約（R22-03・R28-02 で拡張）**: スキーマの `constraints:`（`match`（＋`where` / `also` / `limit`）＋ `expect: exists / absent` **または** `count: {min, max}`（排他。R28-02）・`level`・`activeFrom`）。「起点束縛に一致する各エンティティについて、残りのパターンに解が存在すること（exists）／しないこと（absent）／解の件数が範囲内であること（count。件数はクエリ結果の行と同じ同一性＝bind 列の組の distinct。`SemanticQuery.countMatchesFrom` は limit 打切り前の total を返す）」をカバレッジの一般形として検証する。`where` の述語は `equals` / `notEquals` / `exists` のいずれか一つ（R28-02。notEquals =「値が1つ以上あり、どの出現の値も指定値でない」＝equals の OR 解釈の否定。値がなければ黙る）。判定は `Validator.validate` に一元化（検証パネル・CLI・変更セット適用・提出ゲートに同一判定）。座標は起点束縛の定義出現（なければ先頭出現）で、その出現を持つファイルの検証でのみ報告する（多重報告しない）。起点は `kind: entity` のみ（パースで強制）。`activeFrom` はカバレッジと同じく自文書のフェーズで判定し、型未宣言・未解決参照には黙る（§4.26）。既存 coverage は置き換えない（P21 で吸収済みの判定器の上位語彙として追加）。
+**パターン制約（R22-03・R28-02/07 で拡張）**: スキーマの `constraints:`（`match`（＋`where` / `also` / `limit`・ノード一致 `same` 含む）＋ `expect: exists / absent` **または** `count: {min, max}`（排他。R28-02）・`level`・`activeFrom`）。「起点束縛に一致する各エンティティについて、残りのパターンに解が存在すること（exists）／しないこと（absent）／解の件数が範囲内であること（count。件数はクエリ結果の行と同じ同一性＝bind 列の組の distinct。`SemanticQuery.countMatchesFrom` は limit 打切り前の total を返す）」をカバレッジの一般形として検証する。`where` の述語は `equals` / `notEquals` / `exists` のいずれか一つ（R28-02。notEquals =「値が1つ以上あり、どの出現の値も指定値でない」＝equals の OR 解釈の否定。値がなければ黙る）。判定は `Validator.validate` に一元化（検証パネル・CLI・変更セット適用・提出ゲートに同一判定）。座標は起点束縛の定義出現（なければ先頭出現）で、その出現を持つファイルの検証でのみ報告する（多重報告しない）。起点は `kind: entity` のみ（パースで強制）。`activeFrom` はカバレッジと同じく自文書のフェーズで判定し、型未宣言・未解決参照には黙る（§4.26）。既存 coverage は置き換えない（P21 で吸収済みの判定器の上位語彙として追加）。
 
 **網羅マトリクス（R28-03）**: スキーマの `matrix:`（`rows` / `columns` = エンティティ選択・`witness` = セルの証人（`node`＋`row: {relation}`・`column: {relation}`）・`level`・`activeFrom`）。「行×列の全組合せに、行と列の両方を参照する証人エンティティが存在すること」を検証する（宣言は `schema/Matrix.kt`・判定カーネルは `semantic/Matrix.kt` の `SemanticMatrix.missingColumns`・報告はパターン制約と同じく `Validator.validate` の行の定義出現）。証人への参照キーを `relation` にしてあるのは、rename-relation リファクタリングの書換 walker（`entryKey == "relation"`）がそのまま効くようにするため。明示的除外は証人側の `excluded: true` 行（存在＝充足。UX-16 の流儀＝理由がデータとして残る）。列の母集団が空・行の母集団外は判定保留。
 

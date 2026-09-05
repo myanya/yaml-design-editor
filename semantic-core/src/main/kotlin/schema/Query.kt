@@ -5,7 +5,7 @@ import model.parseYPath
 
 /**
  * クエリコアの宣言モデルとパース（R22-01。ARCHITECTURE §4.32）。
- * グラフパターン照合の語彙（node / edge の交互連鎖＋1段分岐＋プロパティ述語）をここに一元化し、
+ * グラフパターン照合の語彙（node / edge の交互連鎖＋1段分岐＋プロパティ述語＋ノード一致 same）をここに一元化し、
  * ビューの `rows: match:`・foreach の `source: query`・スキーマの `constraints:`・CLI `query` が共用する。
  * 評価器は `index/Query.kt`（依存方向 §2 上、`Validator` から使うため index 層。§4.26 の Derivation と同じ2分割）。
  *
@@ -38,6 +38,9 @@ enum class QueryDir(val id: String) {
 /**
  * node ステップ: フロンティアのノード集合を絞る（kind・エンティティ型・出現スキーマ・IDパターン）。
  * bind を書いたノードは結果の束縛列になる（束縛されない中間ノードは行の同一性に関与しない）。
+ * same を書いたノードは「先行して束縛済みのノードそのもの」に到達することを要求する
+ * （ノード一致。2経路が同一ノードへ到達する照合＝型不一致検査等の土台。R28-07）。
+ * same は他のキーと同居できない（到達先の同一性がフィルタのすべてのため）。
  */
 data class QueryNodeStep(
     val kind: QueryNodeKind = QueryNodeKind.ENTITY,
@@ -45,15 +48,23 @@ data class QueryNodeStep(
     val schema: String? = null,     // 出現スキーマID（kind: entity のみ）
     val idPattern: String? = null,  // ID（kind: document では documentId）の glob
     val bind: String? = null,       // 束縛名（結果の列になる）
+    val same: String? = null,       // 先行する束縛名（そのノード自身への到達を要求。R28-07）
 ) {
     companion object {
-        private val KEYS = setOf("kind", "entity", "schema", "id", "bind")
+        private val KEYS = setOf("kind", "entity", "schema", "id", "bind", "same")
         private val BIND_RE = Regex("""[a-zA-Z][a-zA-Z0-9_-]*""")
 
         fun parse(raw: Any?, where: String): QueryNodeStep {
             val m = raw as? Map<*, *> ?: error("$where.node はobjectである必要があります")
             m.keys.map { it.toString() }.firstOrNull { it !in KEYS }
                 ?.let { error("$where.node: 未知のキーです: $it（使えるキー: ${KEYS.joinToString(", ")}）") }
+            val same = m["same"]?.toString()?.takeIf { it.isNotBlank() }
+            if (same != null) {
+                if (m.keys.size > 1) {
+                    error("$where.node: same には他のキーを同居できません（到達先は束縛済みノードそのものになります）")
+                }
+                return QueryNodeStep(same = same)
+            }
             val kind = m["kind"]?.toString()?.let { QueryNodeKind.parse(it) } ?: QueryNodeKind.ENTITY
             val entity = m["entity"]?.toString()?.takeIf { it.isNotBlank() }
             val schema = m["schema"]?.toString()?.takeIf { it.isNotBlank() }
@@ -199,6 +210,19 @@ data class QuerySpec(
             }
             whereList.forEach { pred ->
                 require(pred.of in spec.binds) { "$where.where の束縛「${pred.of}」が見つかりません" }
+            }
+            // same の解決: 宣言順で「先行する」束縛のみ参照できる（起点には書けない。R28-07）
+            run {
+                require(start.same == null) { "$where.match: 先頭 node に same は書けません（先行する束縛がありません）" }
+                val seen = mutableSetOf<String>()
+                start.bind?.let { seen += it }
+                (hops.map { it.node to "$where.match" } + also?.hops?.map { it.node to "$where.also.steps" }.orEmpty())
+                    .forEach { (node, at) ->
+                        node.same?.let {
+                            require(it in seen) { "$at: same の束縛「$it」がこのステップより前に見つかりません" }
+                        }
+                        node.bind?.let { seen += it }
+                    }
             }
             return spec
         }

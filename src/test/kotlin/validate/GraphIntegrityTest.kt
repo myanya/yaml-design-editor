@@ -381,4 +381,119 @@ class GraphIntegrityTest {
         val issues = ws.validate("screens/a.yaml")
         assertTrue(issues.none { "関係「" in it.message }, issues.toString())
     }
+
+    // ---------------------------------------------------------------- 参照の追加先候補（UX-100）
+
+    @Test
+    fun `被参照不足の指摘に同一IDの詳細化文書が追加先候補として付く`() {
+        write("_schemas/basic.yaml", """
+            id: basic
+            match: "basic/*.yaml"
+            entity:
+              - { type: screen, idPattern: "SCR-*" }
+              - { type: si, idPattern: "SI-*", defines: true }
+            root:
+              type: object
+              fields:
+                - { key: id, type: id }
+                - key: items
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: id, type: id }
+        """)
+        write("_schemas/detail.yaml", """
+            id: detail
+            match: "detail/*.yaml"
+            entity:
+              - { type: screen, idPattern: "SCR-*" }
+              - { type: spi, idPattern: "SPI-*", defines: true }
+            root:
+              type: object
+              fields:
+                - { key: id, type: id }
+                - key: items
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: id, type: id }
+                      - { key: item, type: ref, relation: field-basic, scope: { schemaIds: [basic] } }
+        """)
+        write("_schemas/relations.yaml", """
+            id: rels
+            kind: relations
+            entities:
+              - { type: screen }
+              - { type: si }
+              - { type: spi }
+            relations:
+              - name: field-basic
+                source: [spi]
+                target: [si]
+                cardinality: { inMin: 1 }
+        """)
+        // SCR-1 は詳細文書があるが項目が空 → SI-A の不足指摘に detail/S1.yaml が候補として付く
+        write("basic/S1.yaml", "id: SCR-1\nitems:\n- { id: SI-A }")
+        write("detail/S1.yaml", "id: SCR-1\nitems: []")
+        // SCR-2 は詳細文書がない → SI-B の不足指摘に候補は付かない（機械が選べない場合は黙る）
+        write("basic/S2.yaml", "id: SCR-2\nitems:\n- { id: SI-B }")
+        val ws = Workspace.open(dir)
+        val issueA = ws.validate("basic/S1.yaml").single { "SI-A" in it.message && "被参照が不足" in it.message }
+        assertEquals(listOf(dir.resolve("detail/S1.yaml")), issueA.openFiles, issueA.toString())
+        val issueB = ws.validate("basic/S2.yaml").single { "SI-B" in it.message && "被参照が不足" in it.message }
+        assertTrue(issueB.openFiles.isEmpty(), issueB.toString())
+    }
+
+    @Test
+    fun `追加先スキーマの文書が1つだけなら台帳文書が候補として付く`() {
+        write("_schemas/types.yaml", """
+            id: types
+            match: "types.yaml"
+            entity: { type: dt, idPattern: "DT-*", defines: true }
+            root:
+              type: object
+              fields:
+                - key: types
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: id, type: id }
+        """)
+        write("_schemas/mapping.yaml", """
+            id: mapping
+            match: "mapping.yaml"
+            entity: { type: map, idPattern: "MAP-*", defines: true }
+            root:
+              type: object
+              fields:
+                - key: mappings
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: id, type: id }
+                      - { key: dtype, type: ref, relation: maps, scope: { schemaIds: [types] } }
+        """)
+        write("_schemas/relations.yaml", """
+            id: rels
+            kind: relations
+            entities:
+              - { type: dt }
+              - { type: map }
+            relations:
+              - name: maps
+                source: [map]
+                target: [dt]
+                cardinality: { inMin: 1 }
+        """)
+        // DT-1 のマッピング行がない → 不足指摘に唯一の mapping 文書が候補として付く
+        write("types.yaml", "types:\n- { id: DT-1 }\n- { id: DT-2 }")
+        write("mapping.yaml", "mappings:\n- { id: MAP-2, dtype: DT-2 }")
+        val ws = Workspace.open(dir)
+        val issue = ws.validate("types.yaml").single { "DT-1" in it.message && "被参照が不足" in it.message }
+        assertEquals(listOf(dir.resolve("mapping.yaml")), issue.openFiles, issue.toString())
+    }
 }

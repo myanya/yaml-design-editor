@@ -575,6 +575,19 @@ private fun IssueRow(state: AppState, file: Path, issue: Issue) {
                         )
                     }
                 }
+                // 参照の追加先候補（UX-100）: 被参照不足（inMin）は「他の文書からの参照の書き足し」が修正——
+                // 追加先になりそうな文書（同一IDの詳細化文書・唯一の台帳文書）を開ける
+                issue.openFiles.take(3).forEach { f ->
+                    DropdownMenuItem(
+                        text = {
+                            Column {
+                                Text("参照の追加先を開く: ${state.relPath(f)}", fontSize = 12.sp, color = Palette.Primary)
+                                Text("この文書に参照を書き足すと解消できます", fontSize = 10.sp, color = Palette.SubText)
+                            }
+                        },
+                        onClick = { menuOpen = false; state.openFile(f); state.editorTab = 0 },
+                    )
+                }
                 // 関連ID（UX-15 の不足案内など）: 各IDの定義へジャンプできる
                 issue.relatedIds.take(10).forEach { id ->
                     DropdownMenuItem(

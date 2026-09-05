@@ -356,10 +356,11 @@ root:
             label: パターン（node / edge の連鎖）
             type: any
             required: true
-            description: "先頭 node が起点束縛（kind: entity 限定）。例 [{node: {entity: usecase, bind: uc}}, {edge: {relation: uses, dir: in}}, {node: {entity: screen}}]"
+            description: "先頭 node が起点束縛（kind: entity 限定）。例 [{node: {entity: usecase, bind: uc}}, {edge: {relation: uses, dir: in}}, {node: {entity: screen}}]。node: {same: 束縛名} は先行して束縛済みのノードそのものへの到達を要求（ノード一致＝2経路の合流。他のキーと同居不可）"
           - key: also
             label: 分岐（1段）
             type: any
+            description: "束縛済みノードからのもう1本の連鎖（内部結合）。例 {from: col, steps: [{edge: {relation: dtype}}, {node: {same: t}}]}"
           - key: where
             label: プロパティ述語
             type: any

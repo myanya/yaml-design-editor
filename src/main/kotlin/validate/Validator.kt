@@ -62,6 +62,8 @@ data class Issue(
     val relatedIds: List<String> = emptyList(),
     /** detailIn 不足のみ非null（R28-05a）。UIは「詳細文書を作成」メニューを出す。 */
     val scaffold: IssueScaffold? = null,
+    /** 被参照不足（多重度 inMin）の「参照の追加先候補」の文書（UX-100）。UIは開くメニューを出す。 */
+    val openFiles: List<java.nio.file.Path> = emptyList(),
 )
 
 /** カバレッジルール1件の判定結果（検証と横ぐしビューで共用）。 */
@@ -235,7 +237,7 @@ object Validator {
         // 3.6) グラフ整合検証（R21-01。ARCHITECTURE §4.31）: 関係レジストリの制約（対象型・多重度・非循環）と
         //      未宣言 relation の enforcement をこのファイルに座標を持つ指摘として判定する
         if (indexed) {
-            issues += GraphIntegrity.issues(file, indexObj, relations, enforcement)
+            issues += GraphIntegrity.issues(file, indexObj, relations, enforcement, allSchemas)
         }
         // 3.7) パターン制約（R22-03。ARCHITECTURE §4.32）: 起点束縛に一致する各エンティティについて
         //      パターンの存在（exists）／不在（absent）を判定する。座標は起点の定義出現（なければ先頭出現）で、

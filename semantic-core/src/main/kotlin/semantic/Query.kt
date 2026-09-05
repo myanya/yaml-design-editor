@@ -19,7 +19,8 @@ import schema.RefTarget
  * - 決定性: 起点候補はID昇順・エッジ展開は distinct＋ID昇順・行の並びは
  *   「束縛名の辞書順に並べた束縛値（ID昇順）の辞書式比較」・limit 超過は決定的打切り
  * - 判定保留の哲学（§4.26）: 未解決参照・型未宣言のエンティティは黙って照合から外す
- * - 1本の照合経路の中で同じノードを二度通らない（循環照合の停止）
+ * - 1本の照合経路の中で同じノードを二度通らない（循環照合の停止）。例外は same ステップ
+ *   （束縛済みノードそのものへの到達を要求＝意図的にサイクルを閉じる。R28-07）
  * - プロパティ述語の値は loader 注入で読む（ルート側シェルがディスク・docCache・ステージングを渡す）
  * Traverse の隣接1段（`neighborIds`）もここに一元化する（R22-02③）。
  */
@@ -182,10 +183,18 @@ object SemanticQuery {
                 .map { listOf(it) }
             for (hop in spec.hops) {
                 paths = paths.flatMap { path ->
-                    expand(path.last(), hop.edge, hop.node)
-                        .filter { it !in path }
-                        .filter { predsOk(hop.node.bind, it) }
-                        .map { path + it }
+                    val sameKey = hop.node.same?.let { path[bindPositionInMatch(it)] }
+                    if (sameKey != null) {
+                        // same: 束縛済みノードそのものへの到達を要求（二度通らない規則の意図的な例外。R28-07）
+                        expand(path.last(), hop.edge, hop.node.copy(kind = sameKey.kind))
+                            .filter { it == sameKey }
+                            .map { path + it }
+                    } else {
+                        expand(path.last(), hop.edge, hop.node)
+                            .filter { it !in path }
+                            .filter { predsOk(hop.node.bind, it) }
+                            .map { path + it }
+                    }
                 }
             }
             // 分岐（also）: from の束縛ノードを起点に、もう1本の線形連鎖を内部結合する
@@ -194,13 +203,24 @@ object SemanticQuery {
                 val fromPos = bindPositionInMatch(branch.from)
                 paths = paths.flatMap { path ->
                     var branches = listOf(emptyList<NodeKey>())
-                    for (hop in branch.hops) {
+                    for ((hopIndex, hop) in branch.hops.withIndex()) {
                         branches = branches.flatMap { bPath ->
                             val fromKey = bPath.lastOrNull() ?: path[fromPos]
-                            expand(fromKey, hop.edge, hop.node)
-                                .filter { it !in path && it !in bPath }
-                                .filter { predsOk(hop.node.bind, it) }
-                                .map { bPath + it }
+                            val sameKey = hop.node.same?.let { s ->
+                                val mPos = bindPositionInMatch(s)
+                                if (mPos >= 0) path[mPos]
+                                else bPath[branch.hops.take(hopIndex).indexOfFirst { it.node.bind == s }]
+                            }
+                            if (sameKey != null) {
+                                expand(fromKey, hop.edge, hop.node.copy(kind = sameKey.kind))
+                                    .filter { it == sameKey }
+                                    .map { bPath + it }
+                            } else {
+                                expand(fromKey, hop.edge, hop.node)
+                                    .filter { it !in path && it !in bPath }
+                                    .filter { predsOk(hop.node.bind, it) }
+                                    .map { bPath + it }
+                            }
                         }
                     }
                     branches.map { path + it }

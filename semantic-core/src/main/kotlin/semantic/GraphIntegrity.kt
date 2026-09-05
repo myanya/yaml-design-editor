@@ -99,6 +99,8 @@ object SemanticGraphIntegrity {
                             severityOf(def.level),
                             "エンティティ「${node.id}」への関係「${def.name}」の被参照が不足しています（現在 $count 件／下限 $min 件）",
                             anchor.document, anchor.path,
+                            // 修正は「他の文書からこのIDへの参照を書き足すこと」——消費側が追加先候補を導出できるよう構造情報を添える（UX-100）
+                            shortage = SemanticShortage(relation = def.name, targetId = node.id),
                         )
                     }
                     c.inMax?.let { max ->
