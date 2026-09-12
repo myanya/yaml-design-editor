@@ -55,6 +55,7 @@
 | [docs/THREE-LAYER-CORE-MIGRATION-PLAN.md](THREE-LAYER-CORE-MIGRATION-PLAN.md) | 3層コア移行の計画（フェーズ・完了条件・移行先対応表） | 移行方針・フェーズ構成を変えるとき |
 | [docs/MIGRATION-LEDGER.md](MIGRATION-LEDGER.md) | 移行台帳（作業単位の状態と記録） | 移行作業の着手・完了のたび（§8） |
 | [docs/decisions/](decisions/README.md) | ADRと意図的差分一覧 | 設計決定の追加・変更（既存ADRは書き換えず新しいADRで上書き宣言）、既存挙動を変える前（INTENTIONAL-DIFFS.md へ登録） |
+| [docs/CORE-CALCULUS.md](CORE-CALCULUS.md) | YAMLに対する計算体系の設計方針（ADR-0009 で採択・§9 の設計レビューの原本） | 計算体系の原則・体系構成を変えるとき（新しいADRで上書き宣言とセット） |
 | [docs/CONVENTIONS.md](CONVENTIONS.md)（本書） | 書き方の規約 | 規約自体を変えるとき |
 
 作業のたびに次を確認する:
@@ -83,3 +84,13 @@
 6. **コミットの分類**: 変更は port（移動）／refactor／behavior-change のいずれかに分類し、1コミットに混ぜない（計画書§10.7）。
 7. **fixtureは読み取り専用**: `test-fixtures/` の期待結果は現行実装で確認済み（[test-fixtures/README.md](../test-fixtures/README.md)）。変更を伴うテストは一時ディレクトリへコピーして使う。`sample-workspace/` は従来どおり変更しない。
 8. **台帳の記録**: 作業単位の完了時に MIGRATION-LEDGER.md の状態と記録様式（旧実装・新しい公開API・維持する挙動・意図的差分）を更新する。
+
+## 9. Core Calculus（新しい決定論的機能の設計レビュー）
+
+新しい決定論的機能（検証・導出・ビュー・一括変更・リファクタリング等）を追加・拡張するときの規約。方針の原本は [CORE-CALCULUS.md](CORE-CALCULUS.md)（[ADR-0009](decisions/0009-core-calculus.md) で採択）。
+
+- **実装前に [CORE-CALCULUS.md §20](CORE-CALCULUS.md) のチェックリスト（10項目）を通す**: 対象選択は Query か・値導出は Expression か・判定は Predicate か・集合演算は既存 Aggregate で足りるか・変更は Rewrite → PatchOp に lower できるか・既存評価器と意味が重複しないか・provenance を付与できるか・評価は決定的か・Unknown / Conflict の意味が定義されているか・新しい書込経路を作っていないか。
+- **専用評価器・専用書込経路の追加条件は「既存 calculus で表現不能であること」**（同 §10・§20）。表現できるなら組合せとして実装し、できないなら不足している最小プリミティブの追加を先に検討する（機能でなくプリミティブを増やす。同 §3.1）。
+- **設計メモ・完了報告に、その機能が5体系（Term / Query / Expression / Predicate / Rewrite ＋ Aggregate）のどこへ落ちるかを書く**。新分類は同 §21 の分類表へ追記する。
+- **LLM 境界**: 確定済み定義の実行結果を LLM に依存させない（AI＝定義を作る／Calculus＝実行する。同 §18）。
+- 意味論の正式な仕様（Phase 1 以降のスペック）は `specs/` の外部仕様化ワークスペースで管理する（着手前に [specs/SPECIFICATION-GUIDE.md](../specs/SPECIFICATION-GUIDE.md) 全読が規約）。

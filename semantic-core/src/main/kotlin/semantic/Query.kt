@@ -4,7 +4,10 @@ import model.DocumentId
 import model.YNode
 import model.YPath
 import model.getAt
+import model.parseYPath
 import model.scalarText
+import schema.CheckOp
+import schema.ConstraintCheck
 import schema.QueryDir
 import schema.QueryEdgeStep
 import schema.QueryNodeKind
@@ -40,6 +43,22 @@ data class SemanticQueryRow(val bindings: Map<String, SemanticQueryNodeRef>)
 
 /** 照合結果。total は limit 打切り前の全行数。 */
 data class SemanticQueryResult(val columns: List<String>, val rows: List<SemanticQueryRow>, val total: Int)
+
+/** check 反例の片辺（R28-08）: どの束縛の・どの出現から・何を読んだか（provenance の最小形）。 */
+data class SemanticCheckSide(
+    val bind: String,
+    val id: String,
+    val document: DocumentId,
+    val occPath: YPath,
+    val text: String,
+)
+
+/** check 判定の反例1件: 違反した出現割当て σ（項目内で同一束縛は同一出現。CORE-CALCULUS §8）。 */
+data class SemanticCheckViolation(
+    val check: ConstraintCheck,
+    val left: SemanticCheckSide,
+    val right: SemanticCheckSide,
+)
 
 object SemanticQuery {
 
@@ -91,6 +110,22 @@ object SemanticQuery {
         startId: String,
         loader: (DocumentId) -> YNode?,
     ): Int = Evaluator(ids, refs, graph, spec, loader).evaluate(restrictStart = startId).total
+
+    /**
+     * 起点を固定した check 判定（R28-08。CORE-CALCULUS §8 の判定述語）: 解（束縛の表）ごとに
+     * 各 check 項目を出現割当て σ で反例量化する——項目内の σ は一貫（同一束縛は同一出現から読む）・
+     * 違反する組を発見したら反例として返す（行×項目につき決定的な最初の1件）・評価可能な組が
+     * なければその項目は判定保留（黙る）。母集団判定（startMatches）は呼び出し側が先に行う。
+     */
+    fun checkFrom(
+        ids: Map<String, List<ScannedId>>,
+        refs: List<ScannedRef>,
+        graph: SemanticEntityGraph,
+        spec: QuerySpec,
+        checks: List<ConstraintCheck>,
+        startId: String,
+        loader: (DocumentId) -> YNode?,
+    ): List<SemanticCheckViolation> = Evaluator(ids, refs, graph, spec, loader).checkFrom(startId, checks)
 
     /** startId が起点束縛の母集団（起点 node のフィルタ＋起点束縛の where 述語）に入るか（R22-03）。 */
     fun startMatches(
@@ -373,5 +408,78 @@ object SemanticQuery {
                 SemanticQueryNodeRef(QueryNodeKind.DOCUMENT, key.id, name, null, doc.document, emptyList())
             }
         }
+
+        // ---------------------------------------------------------------- check 判定（R28-08）
+
+        fun checkFrom(startId: String, checks: List<ConstraintCheck>): List<SemanticCheckViolation> {
+            val result = evaluate(restrictStart = startId)
+            val violations = mutableListOf<SemanticCheckViolation>()
+            for (row in result.rows) {
+                for (check in checks) {
+                    counterexampleOf(row, check)?.let { violations += it }
+                }
+            }
+            return violations
+        }
+
+        /**
+         * 1行×1項目の反例探索。σ（束縛への出現の割当て）を出現リスト順に走査し、要素述語が
+         * False になる最初の組を返す（決定的）。値が読めない・順序比較で数値でない組は評価不能
+         * として飛ばし、評価可能な組がなければ null（判定保留＝黙る）。
+         */
+        private fun counterexampleOf(row: SemanticQueryRow, check: ConstraintCheck): SemanticCheckViolation? {
+            val leftRef = row.bindings[check.left.of] ?: return null
+            val rightRef = row.bindings[check.right.of] ?: return null
+            val sameBind = check.left.of == check.right.of
+            for (leftOcc in checkOccurrences(leftRef)) {
+                val leftText = readAt(leftOcc, check.left.path) ?: continue
+                // 項目内の σ は一貫: 同一束縛の両辺は同一出現から読む（CORE-CALCULUS §7 の σ）
+                val rightOccs = if (sameBind) listOf(leftOcc) else checkOccurrences(rightRef)
+                for (rightOcc in rightOccs) {
+                    val rightText = readAt(rightOcc, check.right.path) ?: continue
+                    val satisfied = elementPredicate(check.op, leftText, rightText) ?: continue
+                    if (!satisfied) {
+                        return SemanticCheckViolation(
+                            check = check,
+                            left = SemanticCheckSide(check.left.of, leftRef.id, leftOcc.first, leftOcc.second, leftText),
+                            right = SemanticCheckSide(check.right.of, rightRef.id, rightOcc.first, rightOcc.second, rightText),
+                        )
+                    }
+                }
+            }
+            return null
+        }
+
+        /** σ の割当て先: エンティティは全出現（定義＋詳細化）・文書は _document 配下の自明な1点。 */
+        private fun checkOccurrences(ref: SemanticQueryNodeRef): List<Pair<DocumentId, YPath>> = when (ref.kind) {
+            QueryNodeKind.ENTITY -> graph.entities[ref.id]?.occurrences.orEmpty().map { it.document to it.path }
+            QueryNodeKind.DOCUMENT ->
+                graph.documents[ref.id]?.let { listOf(it.document to DOCUMENT_META_PATH) }.orEmpty()
+        }
+
+        /** σ が選んだ1出現からの読み出し（単一値。値集合は作らない）。 */
+        private fun readAt(occ: Pair<DocumentId, YPath>, path: YPath): String? =
+            tree(occ.first)?.let { scalarText(getAt(it, occ.second + path)) }
+
+        /** 要素述語の評価（σ 固定の単一値比較）。順序系で数値でない辺があれば null（評価不能）。 */
+        private fun elementPredicate(op: CheckOp, left: String, right: String): Boolean? = when (op) {
+            CheckOp.EQ -> left == right
+            CheckOp.NE -> left != right
+            else -> {
+                val l = left.toDoubleOrNull()
+                val r = right.toDoubleOrNull()
+                if (l == null || r == null) null
+                else when (op) {
+                    CheckOp.LTE -> l <= r
+                    CheckOp.GTE -> l >= r
+                    CheckOp.LT -> l < r
+                    CheckOp.GT -> l > r
+                    else -> null
+                }
+            }
+        }
     }
+
+    /** 文書ノードのプロパティの読み出し起点（predOk と同じ _document 配下限定の規約）。 */
+    private val DOCUMENT_META_PATH: YPath = parseYPath("_document")
 }

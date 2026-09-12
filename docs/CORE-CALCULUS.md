@@ -1,7 +1,7 @@
 # YDE Core Calculus  
 ## YAMLに対する計算体系の設計方針
 
-**Status:** Proposed Architecture Policy  
+**Status:** Accepted Architecture Policy（[ADR-0009](decisions/0009-core-calculus.md) として 2026-09-05 採択）  
 **Scope:** yaml-core / semantic-core / workspace-core およびその上に構築される検証・ビュー・リファクタリング・エージェント機能  
 **Purpose:** 今後の機能追加・リファクタリングに対する設計判断の基準を定める
 
@@ -293,18 +293,21 @@ Query の責務は、
 Query : Workspace → Set<Environment>
 ```
 
-Environment は束縛名と Location の対応である。
+Environment は束縛名と Subject の対応である。
 
 ```text
-Environment = Name → Location
+Environment = Name → Subject
+Subject     = Entity(kind, 論理ID, occurrences: Location*) | Document
 ```
 
 例:
 
 ```text
-scr → screen SCR-001 の Location
-uc  → usecase UC-001 の Location
+scr → screen SCR-001（出現集合を持つエンティティ）
+uc  → usecase UC-001（出現集合を持つエンティティ）
 ```
+
+Subject のエンティティは出現集合（定義出現＋詳細化出現）を持ち、Location は Subject の派生属性（代表出現＝定義出現優先）である。同一IDの段階的詳細化（detailIn）を一級で扱うため、束縛は単一の Location ではなく Subject とする（Phase 1 確定 2026-09-05。specs/20-semantics/calculus/evaluation-model.yaml の DP-01・CALC-11）。
 
 Query は値を計算しない。
 
@@ -319,8 +322,10 @@ Query 内の `where` は、対象集合を決定するために必要な限定�
 Expression は Query によって得られた Environment を入力とし、値を生成する純粋計算である。
 
 ```text
-Workspace, Environment ⊢ Expression ⇓ Value | Unknown
+Workspace, Environment, σ ⊢ Expression ⇓ Value | Unknown
 ```
+
+σ は**出現割当て**——Environment 中の各エンティティ束縛に、その出現集合から1出現を選ぶ関数である。Expression は常に σ を固定して評価する**単一値の計算**であり、値集合の演算を導入しない。出現集合の集合性は、述語を Environment へ適用するときの σ の量化（§8）にだけ現れる（Phase 1 確定 2026-09-05。CALC-12）。
 
 初期の基本演算は、小さく保つ。
 
@@ -364,9 +369,11 @@ Derivation = Query + Expression
 Predicate は値またはノード間の関係を判定する。
 
 ```text
-Workspace, Environment ⊢ Predicate
-    ⇓ True | False | Unknown
+要素述語:  Workspace, Environment, σ ⊢ Predicate ⇓ True | False | Unknown
+束縛述語:  Workspace, Environment ⊢ Predicate ⇓ True | False | Unknown
 ```
+
+要素述語は出現割当て σ を固定した単一値の判定であり、束縛述語は要素述語を σ で量化して得る。量化の向きは役割で分ける——**選択述語（Query の where）は存在量化**（∃σ で成立。多段定義OR）、**判定述語（Constraint の本体）は反例量化**（False になる σ があれば False・評価可能な σ がなければ Unknown・あってどれも False でなければ True。反例の σ は provenance に記録する）（Phase 1 確定 2026-09-05。CALC-13）。
 
 二値ではなく三値論理を基本とする。
 

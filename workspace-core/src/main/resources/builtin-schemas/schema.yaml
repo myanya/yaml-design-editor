@@ -342,7 +342,7 @@ root:
     - key: constraints
       label: パターン制約
       type: array
-      description: "起点束縛に一致する各エンティティについて、グラフパターンの存在（exists）／不在（absent）／解の件数（count。R28-02）を検証する（R22-03。カバレッジの一般形）"
+      description: "起点束縛に一致する各エンティティについて、グラフパターンの存在（exists）／不在（absent）／解の件数（count。R28-02）／束縛間の値比較（check。R28-08）を検証する（R22-03。カバレッジの一般形）"
       item:
         type: object
         fields:
@@ -371,7 +371,7 @@ root:
           - key: expect
             label: 期待
             type: enum
-            description: count と排他（どちらか一方を宣言する）
+            description: count / check と排他（いずれか一つを宣言する）
             values:
               - value: exists
                 label: 存在すること
@@ -382,7 +382,7 @@ root:
           - key: count
             label: 解の件数
             type: object
-            description: 起点ごとの解（束縛の組）の distinct 件数が範囲内であること（expect と排他。数えたい対象に bind を書く）
+            description: 起点ごとの解（束縛の組）の distinct 件数が範囲内であること（expect / check と排他。数えたい対象に bind を書く）
             fields:
               - key: min
                 label: 下限
@@ -390,6 +390,10 @@ root:
               - key: max
                 label: 上限
                 type: int
+          - key: check
+            label: 判定述語
+            type: any
+            description: "束縛間の値比較（R28-08）。{lte|gte|lt|gt|eq|ne: [{of: 束縛, path: 相対パス}, {of: 束縛, path: 相対パス}]} の配列（すべて成立が期待。expect / count と排他）。解ごとに出現の組を走査し、違反する組（反例）を発見したら指摘・評価可能な組がなければ黙る。順序系（lte 等）は両辺が数値のときだけ評価する"
           - key: level
             label: 重大度
             type: enum

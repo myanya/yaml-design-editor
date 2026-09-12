@@ -23,11 +23,12 @@ Kotlin + Compose for Desktop 製のスキーマ駆動YAMLエディタ。ワー�
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | クラス設計・設計方針・データフロー・拡張ポイント |
 | [docs/CONVENTIONS.md](docs/CONVENTIONS.md) | 開発規約（スタイル・Compose作法・テスト・ドキュメント更新規約・UXフィードバック運用） |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | 将来構想（サンドボックス型AI実行環境化）とフェーズ別ロードマップ |
+| [docs/CORE-CALCULUS.md](docs/CORE-CALCULUS.md) | YAMLに対する計算体系（Core Calculus）の設計方針。新しい決定論的機能は必ずこの体系を一段挟む（ADR-0009・CONVENTIONS §9） |
 | [docs/BACKLOG.md](docs/BACKLOG.md) | 指摘台帳: UX試験等で見つかった気になりポイントの即時記録（対応判断は後で個別に） |
 | [docs/UX-SCENARIOS.md](docs/UX-SCENARIOS.md) | UX試験のシナリオ台帳: 触り心地試験の台本（全体通し S1 ほか）・実施トリガ・実施履歴 |
 | [docs/THREE-LAYER-CORE-MIGRATION-PLAN.md](docs/THREE-LAYER-CORE-MIGRATION-PLAN.md) | 3層コア移行の計画: フェーズ・完了条件・現行ファイルの移行先対応表 |
 | [docs/MIGRATION-LEDGER.md](docs/MIGRATION-LEDGER.md) | 移行台帳: ベースライン記録・作業単位（YM/SM/WS-xx）の状態 |
-| [docs/decisions/](docs/decisions/README.md) | ADR（設計決定 0001〜0008）と意図的差分一覧（INTENTIONAL-DIFFS.md） |
+| [docs/decisions/](docs/decisions/README.md) | ADR（設計決定 0001〜0009）と意図的差分一覧（INTENTIONAL-DIFFS.md） |
 
 ### 外部仕様化ワークスペース（`specs/`）
 

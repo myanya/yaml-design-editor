@@ -300,12 +300,70 @@ data class ConstraintCount(val min: Int? = null, val max: Int? = null) {
     }
 }
 
+/** check 判定述語の比較演算子（R28-08）。順序系（lte/gte/lt/gt）は数値比較・eq/ne はスカラー文字列の等値。 */
+enum class CheckOp(val id: String, val violationSymbol: String) {
+    LTE("lte", ">"),
+    GTE("gte", "<"),
+    LT("lt", "≥"),
+    GT("gt", "≤"),
+    EQ("eq", "≠"),
+    NE("ne", "=");
+
+    companion object {
+        fun parse(raw: String, where: String): CheckOp = entries.firstOrNull { it.id == raw }
+            ?: error("$where: 演算子は ${entries.joinToString(" / ") { it.id }} のいずれかです: $raw")
+    }
+}
+
+/** check のオペランド: 束縛の値の読み出し（出現割当て σ の下の単一値。CORE-CALCULUS §7）。 */
+data class CheckOperand(val of: String, val path: YPath) {
+    companion object {
+        private val KEYS = setOf("of", "path")
+
+        fun parse(raw: Any?, where: String): CheckOperand {
+            val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります（{of: 束縛名, path: 相対パス}）")
+            m.keys.map { it.toString() }.firstOrNull { it !in KEYS }
+                ?.let { error("$where: 未知のキーです: $it（使えるキー: ${KEYS.joinToString(", ")}）") }
+            val of = m["of"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.of（束縛名）が必要です")
+            val path = parseYPath(m["path"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.path が必要です"))
+            return CheckOperand(of = of, path = path)
+        }
+    }
+}
+
+/**
+ * check 判定述語の1項目（R28-08。CORE-CALCULUS §8 の判定述語＝反例量化）: 2つの束縛の値の比較。
+ * `{lte|gte|lt|gt|eq|ne: [左, 右]}` の1キー object で書く。評価は出現割当て σ の反例量化——
+ * 違反する出現の組を1つでも発見したら違反（反例を指摘に列挙）・評価可能な組がなければ黙る
+ * （判定保留 §4.26）。項目内の σ は一貫（同一束縛は同一出現から読む）。
+ */
+data class ConstraintCheck(val op: CheckOp, val left: CheckOperand, val right: CheckOperand) {
+    companion object {
+        fun parse(raw: Any?, where: String): ConstraintCheck {
+            val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります（{演算子: [左, 右]}）")
+            if (m.size != 1) {
+                error("$where は {演算子: [左, 右]} の1キーで書きます（演算子: ${CheckOp.entries.joinToString(" / ") { it.id }}）")
+            }
+            val (k, v) = m.entries.first()
+            val op = CheckOp.parse(k.toString(), where)
+            val list = v as? List<*> ?: error("$where.${op.id} は [左, 右] の2要素配列である必要があります")
+            if (list.size != 2) error("$where.${op.id} は [左, 右] の2要素配列である必要があります")
+            return ConstraintCheck(
+                op = op,
+                left = CheckOperand.parse(list[0], "$where.${op.id}[0]"),
+                right = CheckOperand.parse(list[1], "$where.${op.id}[1]"),
+            )
+        }
+    }
+}
+
 /**
  * パターン制約（R22-03。ARCHITECTURE §4.32）。スキーマの `constraints:` に列挙する。
  * 「起点束縛（match の先頭 node。kind: entity 限定）に一致する各エンティティについて、
  * 残りのパターンに解が存在すること（expect: exists）／しないこと（expect: absent）／
- * 解の件数が範囲内であること（count: {min, max}。R28-02）」をカバレッジの一般形として検証する。
- * expect と count はどちらか一方を宣言する。
+ * 解の件数が範囲内であること（count: {min, max}。R28-02）／解ごとに束縛間の値比較が
+ * 成り立つこと（check。R28-08）」をカバレッジの一般形として検証する。
+ * expect・count・check はいずれか一つを宣言する。
  */
 data class ConstraintRule(
     val id: String? = null,
@@ -313,11 +371,12 @@ data class ConstraintRule(
     val spec: QuerySpec,
     val expect: ConstraintExpect? = null,
     val count: ConstraintCount? = null,
+    val check: List<ConstraintCheck> = emptyList(),
     val level: CoverageLevel = CoverageLevel.WARNING,
     val activeFrom: String? = null,
 ) {
     companion object {
-        private val OWN_KEYS = setOf("id", "description", "expect", "count", "level", "activeFrom")
+        private val OWN_KEYS = setOf("id", "description", "expect", "count", "check", "level", "activeFrom")
 
         fun parse(raw: Any?, where: String): ConstraintRule {
             val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります")
@@ -325,11 +384,24 @@ data class ConstraintRule(
             require(spec.start.kind == QueryNodeKind.ENTITY) { "$where: 制約の起点（match の先頭 node）は kind: entity である必要があります" }
             val expectRaw = m["expect"]?.toString()
             val countRaw = m["count"]
-            if ((expectRaw != null) == (countRaw != null)) {
-                error("$where: expect（exists / absent）か count（min / max）のどちらか一方が必要です")
+            val checkRaw = m["check"]
+            if (listOf(expectRaw != null, countRaw != null, checkRaw != null).count { it } != 1) {
+                error("$where: expect（exists / absent）・count（min / max）・check（判定述語。R28-08）のいずれか一つが必要です")
             }
             val expect = expectRaw?.let { ConstraintExpect.parse(it) }
             val count = countRaw?.let { ConstraintCount.parse(it, where) }
+            val check = when {
+                checkRaw == null -> emptyList()
+                checkRaw !is List<*> -> error("$where.check は配列である必要があります")
+                checkRaw.isEmpty() -> error("$where.check には1項目以上が必要です")
+                else -> checkRaw.mapIndexed { i, e -> ConstraintCheck.parse(e, "$where.check[$i]") }
+            }
+            // 束縛の解決はパース段階で固定する（where.of と同じ規約。実行時に黙って空にならないため）
+            check.forEach { c ->
+                listOf(c.left, c.right).forEach { operand ->
+                    require(operand.of in spec.binds) { "$where.check の束縛「${operand.of}」が見つかりません" }
+                }
+            }
             val level = when (val v = m["level"]?.toString()) {
                 null -> CoverageLevel.WARNING
                 else -> CoverageLevel.entries.firstOrNull { it.id == v } ?: error("$where.level は warning / error のいずれかです: $v")
@@ -340,6 +412,7 @@ data class ConstraintRule(
                 spec = spec,
                 expect = expect,
                 count = count,
+                check = check,
                 level = level,
                 activeFrom = m["activeFrom"]?.toString()?.takeIf { it.isNotBlank() },
             )

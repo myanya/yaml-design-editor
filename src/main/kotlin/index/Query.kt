@@ -81,6 +81,22 @@ object Query {
     }
 
     /**
+     * 起点を固定した check 判定（R28-08）: 解ごとに判定述語（束縛間の値比較）を
+     * 出現割当て σ で反例量化し、違反した組（束縛・出現・値）を返す。
+     * 空リスト＝違反なし（充足、または評価可能な組がない判定保留）。
+     */
+    fun checkFrom(
+        index: IdIndex,
+        spec: QuerySpec,
+        checks: List<schema.ConstraintCheck>,
+        startId: String,
+        loader: (Path) -> YNode? = diskLoader,
+    ): List<semantic.SemanticCheckViolation> {
+        val view = index.toKernelView()
+        return SemanticQuery.checkFrom(view.entries, view.refs, view.graph, spec, checks, startId) { d -> loader(Path.of(d.value)) }
+    }
+
+    /**
      * 網羅マトリクス（R28-03）: 行 rowId の不足セル（証人のない列。ID昇順）。
      * 行の母集団外・列の母集団が空のときは空リスト（判定保留）。
      */

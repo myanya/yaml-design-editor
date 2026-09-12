@@ -89,6 +89,20 @@ typealias PhaseProgress = schema.PhaseProgress
  */
 object Validator {
 
+    /** check 反例の列挙（R28-08。UX-98 の流儀: 先頭3組＋残数）。記号は違反した関係（lte 違反なら >）。 */
+    private fun describeCheckExamples(examples: List<semantic.SemanticCheckViolation>): String {
+        val listed = examples.take(3).joinToString(" ／ ") { v ->
+            "${v.left.bind}=${v.left.id}（${v.check.left.path.pretty()}: ${v.left.text}） " +
+                "${v.check.op.violationSymbol} " +
+                "${v.right.bind}=${v.right.id}（${v.check.right.path.pretty()}: ${v.right.text}）"
+        }
+        return listed + (if (examples.size > 3) " ほか${examples.size - 3}組" else "")
+    }
+
+    /** check 反例に関与したID（relatedIds のジャンプ用）。 */
+    private fun checkRelatedIds(examples: List<semantic.SemanticCheckViolation>): List<String> =
+        examples.take(3).flatMap { listOf(it.left.id, it.right.id) }.distinct()
+
     fun validate(
         root: YNode?,
         parseError: String?,
@@ -271,7 +285,17 @@ object Validator {
                     var messageCore: String
                     var related: List<String> = emptyList()
                     val ruleCount = rule.count
-                    if (ruleCount != null) {
+                    if (rule.check.isNotEmpty()) {
+                        // check 判定述語（R28-08。CORE-CALCULUS §8）: 解ごとに出現割当て σ を反例量化する。
+                        // 反例（違反した値の組）の発見＝違反・評価可能な組がなければ判定保留（黙る）
+                        val examples = index.Query.checkFrom(indexObj, rule.spec, rule.check, entry.id, ::constraintTree)
+                        violated = examples.isNotEmpty()
+                        messageCore = "ID「${entry.id}」を起点とする解が check を満たしません（${examples.size} 組）"
+                        if (violated) {
+                            messageCore += "。反例: ${describeCheckExamples(examples)}"
+                            related = checkRelatedIds(examples).filter { it != entry.id }.take(10)
+                        }
+                    } else if (ruleCount != null) {
                         val result = index.Query.matchesFrom(indexObj, rule.spec, entry.id, ::constraintTree)
                         violated = ruleCount.violated(result.total)
                         messageCore = "ID「${entry.id}」を起点とするパターンの解が ${result.total} 件です（count: ${ruleCount.describe()}）"
@@ -357,7 +381,12 @@ object Validator {
                         if (!activeAt(rule.activeFrom)) continue
                         if (!index.Query.startMatches(indexObj, rule.spec, entry.id, ::noticeTree)) continue
                         val ruleCount = rule.count
-                        val violated = if (ruleCount != null) {
+                        val checkExamples =
+                            if (rule.check.isEmpty()) emptyList()
+                            else index.Query.checkFrom(indexObj, rule.spec, rule.check, entry.id, ::noticeTree)
+                        val violated = if (rule.check.isNotEmpty()) {
+                            checkExamples.isNotEmpty()
+                        } else if (ruleCount != null) {
                             ruleCount.violated(index.Query.countMatchesFrom(indexObj, rule.spec, entry.id, ::noticeTree))
                         } else {
                             val hasSolution = index.Query.anyMatchFrom(indexObj, rule.spec, entry.id, ::noticeTree)
@@ -376,7 +405,10 @@ object Validator {
                             if (noticeSeverity == Severity.ERROR) "ID「${entry.id}」への制約違反があります（報告先: 定義出現 $anchorRel）"
                             else "ID「${entry.id}」には制約の指摘があります（報告先: 定義出現 $anchorRel）"
                         var noticeRelated = listOf(entry.id)
-                        if (rule.expect == ConstraintExpect.ABSENT || ruleCount != null) {
+                        if (rule.check.isNotEmpty()) {
+                            noticeMsg += "。反例: ${describeCheckExamples(checkExamples)}"
+                            noticeRelated = (listOf(entry.id) + checkRelatedIds(checkExamples)).distinct().take(10)
+                        } else if (rule.expect == ConstraintExpect.ABSENT || ruleCount != null) {
                             val result = index.Query.matchesFrom(indexObj, rule.spec, entry.id, ::noticeTree)
                             if (result.rows.isNotEmpty()) {
                                 val listed = result.rows.take(3).joinToString(" ／ ") { row ->
