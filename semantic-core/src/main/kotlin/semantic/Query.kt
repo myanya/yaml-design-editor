@@ -41,8 +41,18 @@ data class SemanticQueryNodeRef(
 /** 結果の1行（束縛名 → ノード。列順は束縛の宣言順）。 */
 data class SemanticQueryRow(val bindings: Map<String, SemanticQueryNodeRef>)
 
-/** 照合結果。total は limit 打切り前の全行数。 */
-data class SemanticQueryResult(val columns: List<String>, val rows: List<SemanticQueryRow>, val total: Int)
+/**
+ * 照合結果。total は limit 打切り前の全行数。
+ * unknownDropped は「解探索の途中で、未解決参照により候補が失われた」記録（CALC-17 の unknown-dropped。
+ * エッジ展開で参照の端をノードへ解決できなかった場合のみ真。実在するノードの絞り込み＝選択は含めない）。
+ * 消費側の制約判定は、これが真のとき「解の不足を理由とする違反」を判定保留＝沈黙へ降格する。
+ */
+data class SemanticQueryResult(
+    val columns: List<String>,
+    val rows: List<SemanticQueryRow>,
+    val total: Int,
+    val unknownDropped: Boolean = false,
+)
 
 /** check 反例の片辺（R28-08）: どの束縛の・どの出現から・何を読んだか（provenance の最小形）。 */
 data class SemanticCheckSide(
@@ -212,6 +222,9 @@ object SemanticQuery {
         /** 束縛名 → その束縛に効くプロパティ述語（束縛が確定した時点で枝刈りする）。 */
         private val predsByBind: Map<String, List<QueryWhere>> = spec.where.groupBy { it.of }
 
+        /** CALC-17: この評価の解探索で、未解決参照により候補が失われたか（expand が記録する）。 */
+        private var unknownDropped = false
+
         fun evaluate(restrictStart: String? = null, firstOnly: Boolean = false): SemanticQueryResult {
             var paths = startCandidates(restrictStart)
                 .filter { predsOk(spec.start.bind, it) }
@@ -282,7 +295,12 @@ object SemanticQuery {
                     0
                 }
             )
-            return SemanticQueryResult(columns = spec.binds, rows = sorted.take(spec.limit), total = sorted.size)
+            return SemanticQueryResult(
+                columns = spec.binds,
+                rows = sorted.take(spec.limit),
+                total = sorted.size,
+                unknownDropped = unknownDropped,
+            )
         }
 
         fun anyMatchFrom(startId: String): Boolean =
@@ -343,23 +361,28 @@ object SemanticQuery {
             }.asSequence()
                 .filter { edge.relation == null || it.relation == edge.relation }
                 .filter { edge.via == null || it.viaKey == edge.via }
+            // 端をノードへ解決できない参照（対象IDが索引になし・書き手をエンティティへ解決できない）は
+            // 黙って除外しつつ「候補の喪失」を記録する（CALC-17 の unknown-dropped）。
+            // 対象種別の不一致（entity 到達に document 参照など）は構造的な非該当であり、喪失に数えない
             val ends = when (edge.dir) {
                 QueryDir.OUT -> refs.mapNotNull { ref ->
                     when (target.kind) {
                         QueryNodeKind.ENTITY ->
-                            if (ref.targetKind == RefTarget.ENTITY && graph.entities.containsKey(ref.targetId)) {
-                                NodeKey(QueryNodeKind.ENTITY, ref.targetId)
-                            } else null
+                            if (ref.targetKind != RefTarget.ENTITY) null
+                            else if (!graph.entities.containsKey(ref.targetId)) { unknownDropped = true; null }
+                            else NodeKey(QueryNodeKind.ENTITY, ref.targetId)
                         QueryNodeKind.DOCUMENT ->
-                            if (ref.targetKind == RefTarget.DOCUMENT && graph.documents.containsKey(ref.targetId)) {
-                                NodeKey(QueryNodeKind.DOCUMENT, ref.targetId)
-                            } else null
+                            if (ref.targetKind != RefTarget.DOCUMENT) null
+                            else if (!graph.documents.containsKey(ref.targetId)) { unknownDropped = true; null }
+                            else NodeKey(QueryNodeKind.DOCUMENT, ref.targetId)
                     }
                 }
                 QueryDir.IN -> refs.mapNotNull { ref ->
                     when (target.kind) {
                         QueryNodeKind.ENTITY -> graph.sourceEntryOf(ref)?.let { NodeKey(QueryNodeKind.ENTITY, it.id) }
+                            ?: run { unknownDropped = true; null }
                         QueryNodeKind.DOCUMENT -> documentIdByDoc[ref.document]?.let { NodeKey(QueryNodeKind.DOCUMENT, it) }
+                            ?: run { unknownDropped = true; null }
                     }
                 }
             }

@@ -31,8 +31,16 @@ data class QueryNodeRef(
 /** 結果の1行（束縛名 → ノード。列順は束縛の宣言順）。 */
 data class QueryRow(val bindings: Map<String, QueryNodeRef>)
 
-/** 照合結果。total は limit 打切り前の全行数。 */
-data class QueryResult(val columns: List<String>, val rows: List<QueryRow>, val total: Int)
+/**
+ * 照合結果。total は limit 打切り前の全行数。unknownDropped は解探索の途中で未解決参照により
+ * 候補が失われた記録（CALC-17 の unknown-dropped。制約判定は「解の不足を理由とする違反」を降格する）。
+ */
+data class QueryResult(
+    val columns: List<String>,
+    val rows: List<QueryRow>,
+    val total: Int,
+    val unknownDropped: Boolean = false,
+)
 
 object Query {
 
@@ -46,6 +54,7 @@ object Query {
             columns = result.columns,
             rows = result.rows.map { row -> QueryRow(row.bindings.mapValues { (_, ref) -> ref.toNodeRef() }) },
             total = result.total,
+            unknownDropped = result.unknownDropped,
         )
     }
 
@@ -77,6 +86,7 @@ object Query {
             columns = result.columns,
             rows = result.rows.map { row -> QueryRow(row.bindings.mapValues { (_, ref) -> ref.toNodeRef() }) },
             total = result.total,
+            unknownDropped = result.unknownDropped,
         )
     }
 

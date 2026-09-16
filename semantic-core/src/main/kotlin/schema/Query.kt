@@ -281,7 +281,13 @@ enum class ConstraintExpect(val id: String) {
  * 数えたい対象のノードに bind を書くこと（束縛のないパターンでは件数は最大1になる）。
  */
 data class ConstraintCount(val min: Int? = null, val max: Int? = null) {
-    fun violated(n: Int): Boolean = (min != null && n < min) || (max != null && n > max)
+    /**
+     * 件数判定。unknownDropped（解探索での候補喪失。CALC-17）が真のとき、下限未達は
+     * 判定保留＝違反にしない（失われた候補が不足分だったかもしれないため）。
+     * 上限超過は見つかった解が実在する証拠のため降格しない。
+     */
+    fun violated(n: Int, unknownDropped: Boolean = false): Boolean =
+        (min != null && n < min && !unknownDropped) || (max != null && n > max)
     fun describe(): String = listOfNotNull(min?.let { "min $it" }, max?.let { "max $it" }).joinToString("・")
 
     companion object {

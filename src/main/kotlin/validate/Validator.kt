@@ -296,17 +296,22 @@ object Validator {
                             related = checkRelatedIds(examples).filter { it != entry.id }.take(10)
                         }
                     } else if (ruleCount != null) {
+                        // CALC-17（Unknown 降格）: 解探索で未解決参照により候補が失われていたら、
+                        // 下限未達は判定保留＝沈黙（上限超過は見つかった解が実在する証拠のため降格しない）
                         val result = index.Query.matchesFrom(indexObj, rule.spec, entry.id, ::constraintTree)
-                        violated = ruleCount.violated(result.total)
+                        violated = ruleCount.violated(result.total, result.unknownDropped)
                         messageCore = "ID「${entry.id}」を起点とするパターンの解が ${result.total} 件です（count: ${ruleCount.describe()}）"
                         if (violated && result.rows.isNotEmpty()) {
                             messageCore += "。解の組: ${describeRows(result)}"
                             related = relatedOf(result)
                         }
                     } else {
-                        val hasSolution = index.Query.anyMatchFrom(indexObj, rule.spec, entry.id, ::constraintTree)
+                        // CALC-17（Unknown 降格）: exists の「解なし」も候補喪失時は判定保留＝沈黙
+                        // （absent は解の実在が根拠のため降格しない）。未解決参照自体は参照検証が別途指摘する
+                        val result = index.Query.matchesFrom(indexObj, rule.spec, entry.id, ::constraintTree)
+                        val hasSolution = result.total > 0
                         violated = when (rule.expect) {
-                            ConstraintExpect.EXISTS -> !hasSolution
+                            ConstraintExpect.EXISTS -> !hasSolution && !result.unknownDropped
                             ConstraintExpect.ABSENT -> hasSolution
                             null -> false
                         }
@@ -314,12 +319,9 @@ object Validator {
                             ConstraintExpect.ABSENT -> "ID「${entry.id}」を起点とするパターンが成立しています（expect: absent）"
                             else -> "ID「${entry.id}」を起点とするパターンが成立していません（expect: exists）"
                         }
-                        if (violated && rule.expect == ConstraintExpect.ABSENT) {
-                            val result = index.Query.matchesFrom(indexObj, rule.spec, entry.id, ::constraintTree)
-                            if (result.rows.isNotEmpty()) {
-                                messageCore += "。該当の組: ${describeRows(result)}"
-                                related = relatedOf(result)
-                            }
+                        if (violated && rule.expect == ConstraintExpect.ABSENT && result.rows.isNotEmpty()) {
+                            messageCore += "。該当の組: ${describeRows(result)}"
+                            related = relatedOf(result)
                         }
                     }
                     if (!violated) continue
@@ -384,16 +386,19 @@ object Validator {
                         val checkExamples =
                             if (rule.check.isEmpty()) emptyList()
                             else index.Query.checkFrom(indexObj, rule.spec, rule.check, entry.id, ::noticeTree)
+                        // CALC-17（Unknown 降格）は定義側 3.7 と同じ判定（候補喪失時は解の不足を違反にしない）
                         val violated = if (rule.check.isNotEmpty()) {
                             checkExamples.isNotEmpty()
-                        } else if (ruleCount != null) {
-                            ruleCount.violated(index.Query.countMatchesFrom(indexObj, rule.spec, entry.id, ::noticeTree))
                         } else {
-                            val hasSolution = index.Query.anyMatchFrom(indexObj, rule.spec, entry.id, ::noticeTree)
-                            when (rule.expect) {
-                                ConstraintExpect.EXISTS -> !hasSolution
-                                ConstraintExpect.ABSENT -> hasSolution
-                                null -> false
+                            val result = index.Query.matchesFrom(indexObj, rule.spec, entry.id, ::noticeTree)
+                            if (ruleCount != null) {
+                                ruleCount.violated(result.total, result.unknownDropped)
+                            } else {
+                                when (rule.expect) {
+                                    ConstraintExpect.EXISTS -> result.total == 0 && !result.unknownDropped
+                                    ConstraintExpect.ABSENT -> result.total > 0
+                                    null -> false
+                                }
                             }
                         }
                         if (!violated || !noticed.add("${s.id}/c$i" to entry.id)) continue
