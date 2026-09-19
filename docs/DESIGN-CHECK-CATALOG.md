@@ -84,6 +84,10 @@
 
 ## 5. 遷移・到達性（flow: エッジ集合の到達閉包）
 
+`flow` と、関係の宣言の `acyclic` は、**専用チェッカーを使う検査**へ展開される語彙（P29 Phase 6 第4段）。何段でも辿った結果を要する計算は
+コードの専用チェッカー（`checker: flow` / `checker: cycle`）が行い、どの値を渡すか・指摘の種類ごとの文面・重大度は定義の宣言。
+同じチェッカーを、自分の `constraints` から別の文面や重大度で使える（例: 依存の循環を警告に留める `{checker: cycle, args: {relation: depends-on}, messages: {cycle: …}, level: warning}`）。
+
 エッジ文書の行（from 参照＋ to 参照）を有向グラフとみなし、経路の長さによらない到達性を検証する
 （固定長パターンの constraints では書けない領分。R28-04）。
 
@@ -125,10 +129,12 @@ enum の区分値のまま直接ノードにする形は、ID化パターンで�
 | ワークスペースごとに重大度を切り替える | `levelFrom: definingUniqueness`（関係レジストリの `enforcement` が宣言されていれば、その重大度） |
 | どのスキーマの文書の要素にも効く検査を書く | `kind: library` の文書の `constraints`（起点は `node: {typed: true}` などで絞る） |
 | 足りない参照の書き足し先を示す | `responses: [{jump: referenceSources, relation: 関係名, label: "…{file}"}]` |
+| 何段でも辿る計算（到達・循環）を、自分の文面と重大度で使う | `constraints` の `checker: flow / cycle` ＋ `args` ＋ `messages`（書かなかった種類は指摘されない） |
+| 語彙の綴りの誤りを定義エラーにする | `vocabulary` の `keys: [書けるキー]`・`requires: [必ず書くキー]` |
 | 展開された検査を確認する | CLI `checks <workspace> [schema-id] [--definitions]` |
 
 組込みの語彙（`consistency`・`coverage`・関係の宣言の `cardinality` と `source` / `target`）とエンティティの整合も同じ仕組みで書かれており、組込みだけが使える特別な機能はない。
-複雑なアルゴリズムが要る検査（例: 状態遷移への時相論理の適用）は、YAML で書こうとせず、コードの専用チェッカーとして実装する。
+複雑なアルゴリズムが要る検査（例: 状態遷移への時相論理の適用）は、YAML で書こうとせず、コードの専用チェッカーとして実装する——実装したチェッカーは `checker: 名前` で定義から使い、文面・重大度・語彙への結び付けは他の検査と同じく YAML で宣言する（遷移検証と非循環がこの形）。
 
 ## 7. プロセスへの組み込み（ゲート・集計）
 

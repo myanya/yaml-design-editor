@@ -36,7 +36,11 @@ data class SchemaDef(
     /** 網羅マトリクス（R28-03。ARCHITECTURE §4.32）: 行×列の全組合せに証人が存在すること。 */
     val matrix: List<MatrixRule> = emptyList(),
     /** 遷移検証（R28-04。ARCHITECTURE §4.32）: 宣言エッジ集合の到達閉包で到達不能・行き止まり・宣言外遷移を検出。 */
-    val flow: List<FlowRule> = emptyList(),
+    /**
+     * 専用チェッカーを使う検査（SP-13。遷移検証 flow・非循環 acyclic など。語彙と定義の使用を展開した後のもの）。
+     * flow は組込み定義体が作る語彙になった（P29 Phase 6 第4段）。
+     */
+    val checkers: List<CheckerRule> = emptyList(),
     val phases: PhasesDef? = null,
     /** エンティティ型の宣言（R20-01。ARCHITECTURE §4.30）。空 = 宣言なし（従来どおり）。 */
     val entities: List<EntityDecl> = emptyList(),
@@ -60,7 +64,10 @@ data class SchemaDef(
     private val regex: Regex by lazy { globToRegex(match) }
 
     /** constraints の各検査の由来（constraints と同じ並び）。 */
-    val constraintOrigins: List<String> get() = expandedChecks.map { it.origin }
+    val constraintOrigins: List<String> get() = expandedChecks.filter { !it.usesChecker }.map { it.origin }
+
+    /** checkers の各検査の由来（checkers と同じ並び）。 */
+    val checkerOrigins: List<String> get() = expandedChecks.filter { it.usesChecker }.map { it.origin }
 
     /** 構造コア（yaml-core）。$ref解決・cases合成・フェーズ必須・パス解決はここへ委譲する（YM-004b）。 */
     val structural: StructuralSchema by lazy { StructuralSchema(id, root, definitions, phases, definitionCatalog) }
@@ -186,7 +193,7 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
     } else {
         if (match.isNotBlank()) issues += SchemaIssue("library スキーマに match は定義できません", "match")
         // library は共有する定義の置き場——フィールドの定義（definitions）か、検査の定義・語彙の定義（functions / vocabulary）を持つ
-        if (definitions.isEmpty() && checkLibrary.functions.isEmpty() && checkLibrary.words.isEmpty() && constraints.isEmpty()) {
+        if (definitions.isEmpty() && checkLibrary.functions.isEmpty() && checkLibrary.words.isEmpty() && constraints.isEmpty() && checkers.isEmpty()) {
             issues += SchemaIssue("library スキーマには definitions・functions・vocabulary・constraints のいずれかが必要です", "definitions")
         }
         // library に直接書いた検査（constraints）は、特定のスキーマに属さない検査——ワークスペースのどの文書に
@@ -367,7 +374,7 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
     }
     constraints.forEachIndexed { i, rule -> checkActiveFrom(rule.activeFrom, constraintOrigins.getOrNull(i) ?: "constraints[$i]") }
     matrix.forEachIndexed { i, rule -> checkActiveFrom(rule.activeFrom, "matrix[$i]") }
-    flow.forEachIndexed { i, rule -> checkActiveFrom(rule.activeFrom, "flow[$i]") }
+    checkers.forEachIndexed { i, rule -> checkActiveFrom(rule.activeFrom, checkerOrigins.getOrNull(i) ?: "constraints[$i]") }
     phases?.let { p ->
         if (p.order.isEmpty()) issues += SchemaIssue("phases には1つ以上のフェーズが必要です", "phases")
         if (p.key.isBlank()) issues += SchemaIssue("phases のフェーズ申告キーが空です", "phases.key")
@@ -602,7 +609,14 @@ object SchemaLoader {
      * 組込み定義体に直接書かれた検査（constraints）。特定のスキーマに属さない検査として、ワークスペースのどの文書に
      * 定義された要素にも適用する（エンティティの整合など）。利用者も、kind: library の文書に同じように書ける。
      */
-    val builtinRules: List<ConstraintRule> by lazy { builtinChecks.map { ConstraintRule.parse(it.raw, it.origin) } }
+    val builtinRules: List<ConstraintRule> by lazy {
+        builtinChecks.filter { !it.usesChecker }.map { ConstraintRule.parse(it.raw, it.origin) }
+    }
+
+    /** 組込み定義体に直接書かれた、専用チェッカーを使う検査。 */
+    val builtinCheckers: List<CheckerRule> by lazy {
+        builtinChecks.filter { it.usesChecker }.map { CheckerRule.parse(it.raw, it.origin) }
+    }
 
     /** builtinRules の展開後の姿と由来（CLI `checks` の表示用。展開の透明性 CALC-29）。 */
     val builtinChecks: List<ExpandedCheck> by lazy {
@@ -654,16 +668,12 @@ object SchemaLoader {
         val ownLibrary = CheckLibrary.parse(raw, source.fileName.toString())
         val effectiveLibrary = library ?: (builtinLibrary + ownLibrary)
         val expanded = effectiveLibrary.expand(raw, id)
-        val constraints = expanded.map { ConstraintRule.parse(it.raw, it.origin) }
+        val constraints = expanded.filter { !it.usesChecker }.map { ConstraintRule.parse(it.raw, it.origin) }
+        val checkers = expanded.filter { it.usesChecker }.map { CheckerRule.parse(it.raw, it.origin) }
         // 網羅マトリクス（R28-03。ARCHITECTURE §4.32）: パースはカーネル（schema/Matrix.kt）と共用
         val matrix = (raw["matrix"])?.let { rawList ->
             val list = rawList as? List<*> ?: error("matrixはリストである必要があります")
             list.mapIndexed { i, entry -> MatrixRule.parse(entry, "matrix[$i]") }
-        } ?: emptyList()
-        // 遷移検証（R28-04。ARCHITECTURE §4.32）: パースはカーネル（schema/Flow.kt）と共用
-        val flow = (raw["flow"])?.let { rawList ->
-            val list = rawList as? List<*> ?: error("flowはリストである必要があります")
-            list.mapIndexed { i, entry -> FlowRule.parse(entry, "flow[$i]") }
         } ?: emptyList()
         val phases = StructuralSchemaParser.parsePhases(raw["phases"])
         val parsed = SchemaDef(
@@ -676,7 +686,7 @@ object SchemaLoader {
             constraints = constraints,
             expandedChecks = expanded,
             matrix = matrix,
-            flow = flow,
+            checkers = checkers,
             phases = phases,
             entities = entities,
             relations = relations,

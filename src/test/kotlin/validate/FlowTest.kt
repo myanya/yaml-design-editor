@@ -336,6 +336,7 @@ class FlowTest {
             """,
         )
         val ws2 = Workspace.open(dir)
-        assertTrue(ws2.schemaErrors.any { "flow[0].edges.from" in it && "relation" in it }, ws2.schemaErrors.toString())
+        // flow は組込み定義体が作る語彙（P29 Phase 6 第4段）——誤りの場所は「語彙の要素（定義の名前）.args.…」で示される
+        assertTrue(ws2.schemaErrors.any { "flow[0]" in it && "edges.from" in it && "relation" in it }, ws2.schemaErrors.toString())
     }
 }

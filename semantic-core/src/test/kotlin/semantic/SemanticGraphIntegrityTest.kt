@@ -1,6 +1,7 @@
 package semantic
 
 import model.DocumentId
+import schema.CycleArgs
 import schema.CardinalityDef
 import schema.CoverageLevel
 import schema.EnforcementDef
@@ -93,10 +94,14 @@ class SemanticGraphIntegrityTest {
             doc("a.yaml", "id: C-1\nuses:\n  - C-2"),
             doc("b.yaml", "id: C-2\nuses:\n  - C-1"),
         )
-        val cycleIssues = snapshot.issues.filter { "循環" in it.message }
-        assertEquals(2, cycleIssues.size, "循環を構成する両エッジに指摘: ${snapshot.issues}")
-        assertTrue(cycleIssues.all { it.severity == Severity.ERROR })
-        assertTrue(cycleIssues.all { "C-1 → C-2 → C-1" in it.message }, "${cycleIssues.map { it.message }}")
+        // P29 Phase 6 第4段（意図的差分 D-23）: 循環の検出は専用チェッカー（SemanticCycles）になり、組込み定義体から使う。
+        // 文面と重大度（常にエラー）は定義体の宣言——ここでは、チェッカーが循環に含まれる参照と経路を返すことを確かめる
+        assertTrue(snapshot.issues.none { "循環" in it.message }, "${snapshot.issues}")
+        val findings = SemanticCheckers.findings(snapshot.graph, snapshot.refs, CycleArgs("uses"))
+        assertEquals(2, findings.size, "循環を構成する両エッジに指摘: $findings")
+        assertTrue(findings.all { it.kind == "cycle" && it.values["path"] == "C-1 → C-2 → C-1" }, "$findings")
+        assertEquals(setOf("a.yaml", "b.yaml"), findings.mapNotNull { it.ref?.document?.value }.toSet())
+        assertTrue(findings.all { it.ref?.path == listOf<Any>("uses", 0) }, "$findings")
     }
 
     @Test

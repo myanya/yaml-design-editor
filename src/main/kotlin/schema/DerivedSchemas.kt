@@ -45,7 +45,8 @@ object DerivedSchemas {
             byDeclaring[template.id] = SchemaDerivation.compile(template.id, baseRoot, derive, sources, usedIds, errors)
                 .map { d ->
                     // 導出元の語彙（consistency）は引き継ぐ。展開後の検査はスキーマIDで文書を指すため、派生スキーマのIDで展開し直す
-                    val inherited = template.vocabularySource?.checksFor(d.id).orEmpty()
+                    // 専用チェッカーを使う検査（遷移検証など）は、対象の母集団を自分で宣言するため引き継がない
+                    val inherited = template.vocabularySource?.checksFor(d.id).orEmpty().filter { !it.usesChecker }
                     SchemaDef(
                         id = d.id,
                         name = d.name,

@@ -34,6 +34,8 @@ data class VocabularyWord(
     val requires: List<String> = emptyList(),
     /** 書き方の形（最小）: 廃止したキーと、書かれていたときに示す案内（黙って無視せず、定義エラーにして移行先を示す）。 */
     val removed: Map<String, String> = emptyMap(),
+    /** 書き方の形（最小）: 書けるキーの一覧（空 = 点検しない）。宣言すると、それ以外のキーは定義エラー（綴りの誤りを見つける）。 */
+    val keys: List<String> = emptyList(),
 ) {
     /**
      * この語彙が、書かれた要素から読むキー（when / unless と、with の from のパスの先頭）。
@@ -68,7 +70,10 @@ data class VocabularyUse(
 )
 
 /** 展開後の基本の検査1件（YAML を読んだままの値）と、その由来（どの語彙・どの定義から来たか）。 */
-data class ExpandedCheck(val raw: Map<String, Any?>, val origin: String)
+data class ExpandedCheck(val raw: Map<String, Any?>, val origin: String) {
+    /** 専用チェッカーを使う検査か（CheckerRule として読む。そうでなければクエリの検査 ConstraintRule）。 */
+    val usesChecker: Boolean get() = raw.containsKey("checker")
+}
 
 data class CheckLibrary(
     val functions: Map<String, CheckFunction> = emptyMap(),
@@ -119,6 +124,10 @@ data class CheckLibrary(
                     ?.let { (key, guide) -> error("$at.$key は廃止されました。$guide") }
                 word.requires.firstOrNull { !isWritten(readPath(entry, it)) }
                     ?.let { error("$at には $it が必要です（語彙「${word.word}」の書き方）") }
+                if (word.keys.isNotEmpty()) {
+                    entry.keys.map { it.toString() }.firstOrNull { it !in word.keys }
+                        ?.let { error("$at: 未知のキーです: $it（語彙「${word.word}」に書けるキー: ${word.keys.joinToString(", ")}）") }
+                }
                 for (use in word.uses) {
                     if (use.whenPaths.any { !isWritten(readPath(entry, it)) }) continue
                     if (use.unlessPaths.any { isWritten(readPath(entry, it)) }) continue
@@ -167,8 +176,8 @@ data class CheckLibrary(
             val words = list(schemaRaw["vocabulary"], "$origin の vocabulary").mapIndexed { i, raw ->
                 val at = "$origin の vocabulary[$i]"
                 val m = raw as? Map<*, *> ?: error("$at はobjectである必要があります")
-                m.keys.map { it.toString() }.firstOrNull { it !in setOf("word", "description", "in", "uses", "requires", "removed") }
-                    ?.let { error("$at: 未知のキーです: $it（使えるキー: word, description, in, uses, requires, removed）") }
+                m.keys.map { it.toString() }.firstOrNull { it !in setOf("word", "description", "in", "uses", "requires", "removed", "keys") }
+                    ?.let { error("$at: 未知のキーです: $it（使えるキー: word, description, in, uses, requires, removed, keys）") }
                 val word = m["word"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$at.word（語彙の名前）が必要です")
                 val location = m["in"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$at.in（書ける場所。例: consistency[]）が必要です")
                 val uses = list(m["uses"], "$at.uses").mapIndexed { j, u ->
@@ -192,7 +201,7 @@ data class CheckLibrary(
                     is Map<*, *> -> r.entries.associate { it.key.toString() to it.value.toString() }
                     else -> error("$at.removed はobject（廃止したキー: 案内）である必要があります")
                 }
-                VocabularyWord(word, location, uses, "$origin の語彙「$word」", paths(m["requires"]), removed)
+                VocabularyWord(word, location, uses, "$origin の語彙「$word」", paths(m["requires"]), removed, paths(m["keys"]))
             }
             return CheckLibrary(functions.associateBy { it.id }, words)
         }
@@ -204,9 +213,10 @@ data class CheckLibrary(
             else -> listOf(raw.toString())
         }
 
-        /** 「書かれている」の判定: 値があり、空の配列・空の object・空文字でない。 */
+        /** 「書かれている」の判定: 値があり、false・空の配列・空の object・空文字でない。 */
         private fun isWritten(value: Any?): Boolean = when (value) {
             null -> false
+            is Boolean -> value
             is List<*> -> value.isNotEmpty()
             is Map<*, *> -> value.isNotEmpty()
             is String -> value.isNotBlank()

@@ -16,8 +16,8 @@ import java.nio.file.Path
  * 判定アルゴリズムの本体は semantic-core の SemanticGraphIntegrity（3層コア移行 Phase 6A）で、
  * ここは IdIndex の走査結果をカーネル座標（DocumentId ＝ パス文字列）へ写して委譲し、
  * per-file の検証から「このファイルに座標を持つ指摘」だけを返す。
- * 扱うのは非循環（acyclic）と宣言のない関係名（enforcement）。多重度と対象型は組込み定義体
- * （builtin-definitions/relations.yaml）が作る検査になった（P29 Phase 6 第2段）。
+ * 扱うのは宣言のない関係名（enforcement）だけ。多重度と対象型は組込み定義体（builtin-definitions/relations.yaml）が
+ * 作る検査に（P29 Phase 6 第2段）、非循環は専用チェッカーを組込み定義体から使う検査になった（第4段）。
  */
 object GraphIntegrity {
 
@@ -31,7 +31,7 @@ object GraphIntegrity {
         relations: Map<String, RelationDef>,
         enforcement: EnforcementDef = EnforcementDef(),
     ): List<Issue> {
-        if (relations.values.none { it.acyclic } && enforcement.undeclaredRelation == null) return emptyList()
+        if (enforcement.undeclaredRelation == null) return emptyList()
 
         // IdIndex の走査結果をカーネル座標へ写して委譲する（変換は index/SemanticBridge.kt に一元化）
         val scans = indexObj.toDocumentScans()

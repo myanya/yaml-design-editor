@@ -1,0 +1,50 @@
+# 組込み定義体: 遷移検証（スキーマの flow）
+#
+# 「開始から到達できないノードがないこと・行き止まりがないこと・宣言にない遷移がないこと」の検査。
+# 何段でも辿った結果を要する計算は、専用チェッカー flow（コード。semantic-core の SemanticFlow）が行う。
+# この定義が決めるのは、どの語彙から・どの値を渡して使うかと、指摘の種類ごとの文面・重大度・いつから判定するか。
+# 利用者も同じ書き方で、同じチェッカーを別の文面や重大度で使える（書かなかった種類は指摘されない）。
+id: builtin-flow
+kind: library
+name: 遷移検証（組込み定義体）
+description: スキーマの flow という語彙と、その中身（専用チェッカー flow を使う検査）の定義
+
+functions:
+  - id: flow-is-sound
+    description: 遷移のつながりに、到達できないノード・行き止まり・宣言にない遷移がないこと
+    params: [nodes, edges, start, terminal, usage, level, activeFrom, description, id]
+    checks:
+      - id: $id
+        description: $description
+        level: $level
+        activeFrom: $activeFrom
+        checker: flow
+        args:
+          nodes: $nodes
+          edges: $edges
+          start: $start
+          terminal: $terminal
+          usage: $usage
+        messages:
+          unreachable: "ID「{id}」は開始ノードから到達できません（開始: {related}）"
+          deadEnd: "ID「{id}」から出る遷移がなく、終端としても宣言されていません"
+          undeclared: "ID「{id}」から宣言にない遷移があります（{count} 件）: {related}"
+
+vocabulary:
+  - word: flow
+    description: 遷移検証の専用の書き方（nodes / edges / start / terminal / usage / level / activeFrom）
+    in: flow[]
+    requires: [nodes, edges]
+    keys: [id, description, nodes, edges, start, terminal, usage, level, activeFrom]
+    uses:
+      - use: flow-is-sound
+        with:
+          id: {from: id}
+          description: {from: description}
+          nodes: {from: nodes}
+          edges: {from: edges}
+          start: {from: start}
+          terminal: {from: terminal}
+          usage: {from: usage}
+          level: {from: level}
+          activeFrom: {from: activeFrom}

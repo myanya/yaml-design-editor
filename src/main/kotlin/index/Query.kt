@@ -145,12 +145,12 @@ object Query {
     }
 
     /**
-     * 遷移検証（R28-04）: フロー規則の全指摘（ノードID昇順）。母集団が空・開始データなしは
-     * 判定保留（空リスト）。未解決参照の候補喪失時は解の不足系の判定を黙らせる（CALC-17）。
+     * 専用チェッカーの実行（SP-13。遷移検証 R28-04・循環の検出 R21-01）: 渡す値に応じたチェッカーの全指摘。
+     * 判定保留の規則（CALC-17）は各チェッカーが持つ。
      */
-    fun flowFindings(index: IdIndex, rule: schema.FlowRule): List<semantic.SemanticFlowFinding> {
+    fun checkerFindings(index: IdIndex, args: schema.CheckerArgs): List<semantic.SemanticCheckerFinding> {
         val view = index.toKernelView()
-        return semantic.SemanticFlow.findings(view.graph, view.refs, rule)
+        return semantic.SemanticCheckers.findings(view.graph, view.refs, args)
     }
 
     /**

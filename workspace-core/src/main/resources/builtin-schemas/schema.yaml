@@ -335,6 +335,19 @@ root:
       item:
         type: object
         fields:
+          - key: checker
+            label: 専用チェッカーの名前
+            type: enum
+            values: [flow, cycle]
+            description: "コードで実装された専用チェッカーを使う検査（P29 Phase 6）。flow＝遷移検証（指摘の種類 unreachable / deadEnd / undeclared）・cycle＝循環の検出（指摘の種類 cycle。指摘は参照が書かれた場所に出る）。checker を書いた検査に書けるのは id / description / checker / args / messages / level / levelFrom / activeFrom"
+          - key: args
+            label: チェッカーへ渡す値
+            type: any
+            description: "flow は {nodes, edges: {from: {relation}, to: {relation}}, start: {relation}, terminal: {relation}, usage}・cycle は {relation: 関係名}"
+          - key: messages
+            label: 指摘の種類ごとの文面
+            type: any
+            description: "{指摘の種類: 文面のひな型}。書かなかった種類は指摘しない。ひな型には {id}（対象の ID）・{related}（関連するノードの並び）・{count}（その件数）・チェッカーが返す値（cycle は {path}）を書ける"
           - key: use
             label: 使う定義の名前
             type: string
@@ -472,7 +485,7 @@ root:
             label: 定義の使用への対応
             type: any
             required: true
-            description: "（語彙には requires: [必ず書くキーのパス] と removed: {廃止したキー: 案内} も書ける——書き方の形の最小の点検で、外れていればスキーマの読み込みエラー）{when: キー, unless: キー, use: 定義の名前, with: {受け取る値: 指定}} の配列。when / unless はそのキーが書かれている／いないときだけ有効（キーの並びも書ける＝すべて。空の配列・空の object・空文字は書かれていない扱い）。with の指定は、そのままの値・{from: パス, default, map, join, format}（書かれた内容から読む。join は配列の値を区切り文字でつなぐ・format は値があるときだけ {value} を埋めた文字列にする）・{schema: id}（書かれたスキーマのID）"
+            description: "（語彙には requires: [必ず書くキーのパス]・keys: [書けるキーの一覧]・removed: {廃止したキー: 案内} も書ける——書き方の形の最小の点検で、外れていればスキーマの読み込みエラー）{when: キー, unless: キー, use: 定義の名前, with: {受け取る値: 指定}} の配列。when / unless はそのキーが書かれている／いないときだけ有効（キーの並びも書ける＝すべて。空の配列・空の object・空文字は書かれていない扱い）。with の指定は、そのままの値・{from: パス, default, map, join, format}（書かれた内容から読む。join は配列の値を区切り文字でつなぐ・format は値があるときだけ {value} を埋めた文字列にする）・{schema: id}（書かれたスキーマのID）"
     - key: matrix
       label: 網羅マトリクス
       type: array
@@ -529,7 +542,7 @@ root:
     - key: flow
       label: 遷移検証
       type: array
-      description: "宣言エッジ集合（遷移の原本）の到達閉包で、到達不能・行き止まり・宣言外遷移を検出する（R28-04。例: 画面遷移・状態遷移）。指摘はノードの定義出現に報告する"
+      description: "宣言エッジ集合（遷移の原本）の到達閉包で、到達不能・行き止まり・宣言外遷移を検出する（R28-04。例: 画面遷移・状態遷移）。指摘はノードの定義出現に報告する。組込み定義体が作る語彙で、検証の前に「専用チェッカー flow を使う検査」へ展開される（P29 Phase 6。CLI checks で確認できる）"
       item:
         type: object
         fields:

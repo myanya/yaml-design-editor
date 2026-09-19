@@ -1,12 +1,12 @@
 package semantic
 
 import schema.FlowEdges
-import schema.FlowRule
+import schema.FlowArgs
 import schema.QueryNodeStep
 import schema.RefTarget
 
 /**
- * 遷移検証のカーネル（R28-04。宣言は schema/Flow.kt）。
+ * 遷移検証のカーネル（R28-04。宣言は schema/Flow.kt）。定義体から名前で使う専用チェッカー（SP-13。SemanticCheckers の flow）。
  * エッジ文書の行（from 参照と to 参照が同じオブジェクト直下に並ぶ行）から有向エッジ集合を抽出し、
  * 到達閉包（BFS）で到達不能・行き止まり・宣言外遷移を判定する。
  *
@@ -36,7 +36,7 @@ data class SemanticFlowFinding(
 
 object SemanticFlow {
 
-    fun findings(graph: SemanticEntityGraph, refs: List<ScannedRef>, rule: FlowRule): List<SemanticFlowFinding> {
+    fun findings(graph: SemanticEntityGraph, refs: List<ScannedRef>, rule: FlowArgs): List<SemanticFlowFinding> {
         val nodes = graph.entities.keys.filter { matches(graph, rule.nodes, it) }.sorted()
         if (nodes.isEmpty()) return emptyList()
         val nodeSet = nodes.toSet()

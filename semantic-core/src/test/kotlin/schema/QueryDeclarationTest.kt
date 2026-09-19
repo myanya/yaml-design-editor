@@ -232,6 +232,59 @@ class QueryDeclarationTest {
         assertTrue("needs[0].legacy は廃止されました。target を使ってください" in removed.message.orEmpty(), removed.message)
     }
 
+    @Test
+    fun `専用チェッカーを使う検査は渡す値と指摘の種類ごとの文面を宣言する`() {
+        val rule = CheckerRule.parse(
+            mapOf(
+                "id" to "screen-flow", "checker" to "flow", "level" to "error", "activeFrom" to "design",
+                "args" to mapOf(
+                    "nodes" to mapOf("entity" to "screen"),
+                    "edges" to mapOf("from" to mapOf("relation" to "t-from"), "to" to mapOf("relation" to "t-to")),
+                    "start" to mapOf("relation" to "entry"),
+                ),
+                // 文面が無い（null の）種類は、書かなかったのと同じ＝指摘しない
+                "messages" to mapOf("unreachable" to "「{id}」へ到達できません", "deadEnd" to null),
+            ),
+            "c",
+        )
+        assertEquals(CheckerKind.FLOW, rule.kind)
+        assertEquals(setOf("unreachable"), rule.messages.keys)
+        assertEquals(CoverageLevel.ERROR, rule.level)
+        val args = assertIs<FlowArgs>(rule.args)
+        assertEquals("entry", args.startRelation)
+        assertEquals(FlowEdges("t-from", "t-to"), args.edges)
+        // 循環の検出は、参照が書かれた場所へ報告する種類
+        assertTrue(CheckerKind.CYCLE.refLocated && !CheckerKind.FLOW.refLocated)
+        assertFailsWith<IllegalArgumentException> {
+            CheckerRule.parse(mapOf("checker" to "cycle", "args" to mapOf("relation" to "r"), "messages" to emptyMap<String, String>()), "c")
+        }
+    }
+
+    @Test
+    fun `語彙に書けるキーを宣言するとそれ以外のキーは定義エラーになりfalseは書かれていない扱いになる`() {
+        val library = CheckLibrary.parse(
+            mapOf(
+                "functions" to listOf(mapOf(
+                    "id" to "f", "params" to emptyList<String>(),
+                    "checks" to listOf(mapOf("match" to listOf(mapOf("node" to mapOf("entity" to "a"))), "expect" to "exists")),
+                )),
+                "vocabulary" to listOf(mapOf(
+                    "word" to "w", "in" to "items[]", "keys" to listOf("name", "strict"),
+                    "uses" to listOf(mapOf("when" to "strict", "use" to "f")),
+                )),
+            ),
+            "lib.yaml",
+        )
+        val expanded = library.expand(mapOf("items" to listOf(
+            mapOf("name" to "a", "strict" to true),
+            mapOf("name" to "b", "strict" to false),
+            mapOf("name" to "c"),
+        )), "s")
+        assertEquals(listOf("items[0]（定義 f）"), expanded.map { it.origin })
+        val error = assertFailsWith<IllegalStateException> { library.expand(mapOf("items" to listOf(mapOf("nmae" to "a"))), "s") }
+        assertTrue("items[0]: 未知のキーです: nmae" in error.message.orEmpty(), error.message)
+    }
+
     private companion object {
         val DEFAULT_MATCH: List<Any?> = listOf(mapOf("node" to mapOf("entity" to "screen", "bind" to "s")))
     }

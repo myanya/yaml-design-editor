@@ -232,6 +232,13 @@ object Validator {
             listOf("(builtin)" to SchemaLoader.builtinRules) +
                 allSchemas.filter { it.kind != SchemaKind.DOCUMENT }.map { it.id to it.constraints }
         val registryRules = workspaceGroups.flatMap { it.second }
+        // 専用チェッカーを使う検査（SP-13。遷移検証・非循環など）も、同じ単位で扱う
+        val checkerGroups: List<Triple<String, SchemaDef?, List<schema.CheckerRule>>> =
+            allSchemas.filter { it.kind == SchemaKind.DOCUMENT }.map { Triple(it.id, it, it.checkers) } +
+                listOf(Triple("(builtin)", null, SchemaLoader.builtinCheckers)) +
+                allSchemas.filter { it.kind != SchemaKind.DOCUMENT }.map { Triple(it.id, null, it.checkers) }
+        val checkerLevelOf: (schema.CheckerRule) -> CoverageLevel =
+            { rule -> rule.levelFrom?.let { enforcement.levelOf(it) } ?: rule.level }
         // 検査の報告先と活性を決める単位: スキーマの検査（owner あり）と、特定のスキーマに属さない検査（owner なし）
         val ruleGroups: List<Triple<String, SchemaDef?, List<schema.ConstraintRule>>> =
             allSchemas.filter { it.kind == SchemaKind.DOCUMENT }.map { Triple(it.id, it, it.constraints) } +
@@ -275,10 +282,19 @@ object Validator {
                     if (!semantic.phaseActive(rule.activeFrom, phaseOrder, phaseIndex)) continue
                     for (entry in anchored) diagnostics.matrix(rule, entry.id)?.let { issues += it.reportIssue(entry.path) }
                 }
-                for (rule in schema.flow) {
+                // 専用チェッカーを使う検査（遷移検証など）: 報告先の決め方はパターン制約と同じ（意図的差分 D-23 ①）
+                val ownCheckers = schema.checkers.map { it to anchoredInSchema }
+                val sharedCheckers = checkerGroups.filter { it.second == null }.flatMap { it.third }.map { it to anchored }
+                for ((rule, anchoredEntries) in ownCheckers + sharedCheckers) {
                     if (!semantic.phaseActive(rule.activeFrom, phaseOrder, phaseIndex)) continue
-                    for (entry in anchored) diagnostics.flow(rule, entry.id).forEach { (_, d) -> issues += d.reportIssue(entry.path) }
+                    for (entry in anchoredEntries) {
+                        diagnostics.checker(rule, entry.id, checkerLevelOf(rule)).forEach { (_, d) -> issues += d.reportIssue(entry.path) }
+                    }
                 }
+            }
+            // 参照が書かれた場所へ報告するチェッカー（循環の検出など）: この文書に書かれた参照への指摘
+            for ((_, _, rules) in checkerGroups) {
+                for (rule in rules) issues += diagnostics.checkerRefIssues(rule, file, checkerLevelOf(rule))
             }
             // 出現先（R28-05・UX-96）: 指摘は定義出現にのみ報告されるため、詳細化出現の文書しか開いていないと
             // 気づけない。定義出現が他文書にあるIDの出現には、定義側で報告されている指摘を案内する
@@ -300,13 +316,27 @@ object Validator {
                             if (noticed.add("$key/c$i" to entry.id)) issues += d.noticeIssue(entry.path, anchorRel)
                         }
                     }
+                    // 専用チェッカーを使う検査: 同じ規則で、他の出現へ案内する
+                    for ((key, owner, rules) in checkerGroups) {
+                        if (rules.isEmpty()) continue
+                        val anchor = reportAnchorOf(indexObj, entry.id, owner) ?: continue
+                        if (anchor.file == file) continue
+                        val anchorRel = relOf(anchor.file)
+                        val anchorPhase = owner?.currentPhaseIndex(treeOf(anchor.file))
+                        for ((i, rule) in rules.withIndex()) {
+                            if (!semantic.phaseActive(rule.activeFrom, owner?.phases?.order.orEmpty(), anchorPhase)) continue
+                            for ((kind, d) in diagnostics.checker(rule, entry.id, checkerLevelOf(rule))) {
+                                if (noticed.add("$key/k$i:$kind" to entry.id)) issues += d.noticeIssue(entry.path, anchorRel)
+                            }
+                        }
+                    }
                     val node = indexObj.graph.entities[entry.id] ?: continue
                     val anchor = node.defining ?: node.occurrences.firstOrNull() ?: continue
                     if (anchor.file == file) continue  // 定義がこの文書なら報告先として処理済み
                     val anchorRel = workspace?.let { IdIndex.relPathOf(it, anchor.file) }
                         ?: anchor.file.toString().replace('\\', '/')
                     for (s in allSchemas) {
-                        if (s.matrix.isEmpty() && s.flow.isEmpty()) continue
+                        if (s.matrix.isEmpty()) continue
                         if (!s.matches(anchorRel)) continue  // 定義出現の文書に適用される規則だけを見る
                         val anchorPhase = s.currentPhaseIndex(treeOf(anchor.file))
                         fun activeAt(from: String?): Boolean = semantic.phaseActive(from, s.phases?.order.orEmpty(), anchorPhase)
@@ -314,12 +344,6 @@ object Validator {
                             if (!activeAt(rule.activeFrom)) continue
                             val d = diagnostics.matrix(rule, entry.id) ?: continue
                             if (noticed.add("${s.id}/m$i" to entry.id)) issues += d.noticeIssue(entry.path, anchorRel)
-                        }
-                        for ((i, rule) in s.flow.withIndex()) {
-                            if (!activeAt(rule.activeFrom)) continue
-                            for ((kind, d) in diagnostics.flow(rule, entry.id)) {
-                                if (noticed.add("${s.id}/f$i:$kind" to entry.id)) issues += d.noticeIssue(entry.path, anchorRel)
-                            }
                         }
                     }
                 }

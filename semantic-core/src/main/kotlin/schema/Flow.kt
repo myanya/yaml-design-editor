@@ -2,7 +2,8 @@ package schema
 
 /**
  * 遷移検証（フロー検証）の宣言（R28-04。ARCHITECTURE §4.32）。
- * ノード母集団（例: 画面）を定義するスキーマの `flow:` に列挙する。
+ * ノード母集団（例: 画面）を定義するスキーマの `flow:` に列挙する。`flow` は組込み定義体（builtin-definitions/flow.yaml）が
+ * 作る語彙で、検証の前に「専用チェッカー flow を使う検査」（schema/Checker.kt の CheckerRule）へ展開される（P29 Phase 6 第4段）。
  *
  * エッジ文書の各行（from 参照と to 参照が同じオブジェクト直下に並ぶ行）を有向エッジとみなし、
  * 宣言されたエッジ集合の上で到達閉包を計算して検証する（Query では書けない任意深さの到達性＝
@@ -53,9 +54,11 @@ private fun parseFlowSelector(raw: Any?, where: String): QueryNodeStep {
     return step
 }
 
-data class FlowRule(
-    val id: String? = null,
-    val description: String? = null,
+/**
+ * 遷移検証のチェッカー（CheckerKind.FLOW）へ渡す値（P29 Phase 6 第4段。以前の FlowRule から、検査の一般の項目
+ * ——id・説明・重大度・activeFrom——を除いたもの。それらは CheckerRule が持つ）。
+ */
+data class FlowArgs(
     /** ノード母集団（例 {entity: screen}）。到達不能・行き止まりはこの集合の各ノードについて判定する。 */
     val nodes: QueryNodeStep,
     /** 宣言エッジ（遷移の原本）の抽出。 */
@@ -66,30 +69,19 @@ data class FlowRule(
     val terminalRelation: String? = null,
     /** 宣言外遷移の検出対象（このエッジ集合 ⊆ 宣言エッジ を要求。省略時は判定しない）。 */
     val usage: FlowEdges? = null,
-    val level: CoverageLevel = CoverageLevel.WARNING,
-    val activeFrom: String? = null,
-) {
+) : CheckerArgs {
     companion object {
-        private val KEYS = setOf("id", "description", "nodes", "edges", "start", "terminal", "usage", "level", "activeFrom")
+        private val KEYS = setOf("nodes", "edges", "start", "terminal", "usage")
 
-        fun parse(raw: Any?, where: String): FlowRule {
-            val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります")
+        fun parse(m: Map<*, *>, where: String): FlowArgs {
             m.keys.map { it.toString() }.firstOrNull { it !in KEYS }
                 ?.let { error("$where: 未知のキーです: $it（使えるキー: ${KEYS.joinToString(", ")}）") }
-            val level = when (val v = m["level"]?.toString()) {
-                null -> CoverageLevel.WARNING
-                else -> CoverageLevel.entries.firstOrNull { it.id == v } ?: error("$where.level は warning / error のいずれかです: $v")
-            }
-            return FlowRule(
-                id = m["id"]?.toString()?.takeIf { it.isNotBlank() },
-                description = m["description"]?.toString()?.takeIf { it.isNotBlank() },
+            return FlowArgs(
                 nodes = parseFlowSelector(m["nodes"], "$where.nodes"),
                 edges = FlowEdges.parse(m["edges"] ?: error("$where.edges が必要です"), "$where.edges"),
                 startRelation = m["start"]?.let { parseFlowRelation(it, "$where.start") },
                 terminalRelation = m["terminal"]?.let { parseFlowRelation(it, "$where.terminal") },
                 usage = m["usage"]?.let { FlowEdges.parse(it, "$where.usage") },
-                level = level,
-                activeFrom = m["activeFrom"]?.toString()?.takeIf { it.isNotBlank() },
             )
         }
     }

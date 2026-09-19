@@ -103,10 +103,10 @@ class SemanticIncrementTest {
         texts.remove("items/a.yaml")
         step("削除", removed = setOf("items/a.yaml"))
 
-        // 編集: 自己参照（acyclic 宣言の循環 ERROR が現れる＝グラフ整合検証も増分経路で一致）
+        // 編集: 自己参照（循環の検出は専用チェッカーになった＝P29 Phase 6 第4段。増分経路のグラフでも循環が見つかること）
         texts["items/b.yaml"] = "id: IT-002\ntitle: B\nlink: IT-002"
         step("編集（循環の発生）", changed = setOf("items/b.yaml"))
-        assertTrue(snapshot.issues.any { "循環" in it.message }, "${snapshot.issues}")
+        assertTrue(SemanticCycles.findings(snapshot.graph, "uses").isNotEmpty(), "${snapshot.refs}")
 
         // 編集で復旧
         texts["items/b.yaml"] = "id: IT-002\ntitle: B\nlink: IT-003"

@@ -843,7 +843,8 @@ Core Calculus = 定義を実行する
 | coverage（detailIn） | 出現集合の Aggregate ＋ Predicate（CALC-21。参照ベース requiredBy は R29-01 で削除。**組込み定義体**。P29 Phase 6 第3段で、書かれた場所の数 `occurrenceCount` の比較へ展開される語彙になった） |
 | entity lint（浮遊詳細化・定義競合・型競合） | 出現集合の Aggregate ＋ Predicate（**組込み定義体**に直接書いた検査。P29 Phase 6 第3段。idPattern 逸脱と重複所有は専用の lint として残す） |
 | matrix | Query / Aggregate / Predicate または専用高水準演算 |
-| flow（遷移検証） | Query（母集団選択）＋専用高水準演算（到達閉包。R28-04・§20 通過） |
+| flow（遷移検証） | Query（母集団選択）＋専用高水準演算（到達閉包。R28-04・§20 通過）。**P29 Phase 6 第4段で、専用チェッカー（SP-13）を組込み定義体から使う形になった**——演算はコードに残し、語彙への結び付け・文面・重大度は定義の宣言 |
+| relation acyclic（非循環） | 専用高水準演算（強連結成分）。**専用チェッカー `cycle` を組込み定義体から使う形**（P29 Phase 6 第4段） |
 | Validator | Constraint executor |
 | Scaffold | Query + Rewrite |
 | Bulk edit | Query + Rewrite |

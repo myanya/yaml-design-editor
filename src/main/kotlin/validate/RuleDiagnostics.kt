@@ -7,7 +7,7 @@ import model.pretty
 import schema.ConstraintExpect
 import schema.ConstraintRule
 import schema.CoverageLevel
-import schema.FlowRule
+import schema.CheckerRule
 import schema.MatrixRule
 import java.nio.file.Path
 
@@ -68,7 +68,11 @@ internal class RuleDiagnostics(
     private val levelOf: (ConstraintRule) -> CoverageLevel = { it.level },
 ) {
 
-    private val flowCache = HashMap<FlowRule, Map<String, List<semantic.SemanticFlowFinding>>>()
+    /** 専用チェッカーの全指摘（検査ごとに1回だけ実行する）。 */
+    private val checkerCache = HashMap<CheckerRule, List<semantic.SemanticCheckerFinding>>()
+
+    private fun findingsOf(rule: CheckerRule): List<semantic.SemanticCheckerFinding> =
+        checkerCache.getOrPut(rule) { index.Query.checkerFindings(indexObj, rule.args).filter { it.kind in rule.messages } }
 
     /**
      * パターン制約（R22-03）: 主語が母集団（起点の node フィルタ＋where）に入らない・違反していないなら null。
@@ -346,19 +350,51 @@ internal class RuleDiagnostics(
         )
     }
 
-    /** 遷移検証（R28-04）: ノード id の指摘（到達不能・行き止まり・宣言外遷移。種別つき）。 */
-    fun flow(rule: FlowRule, id: String): List<Pair<semantic.SemanticFlowFindingKind, RuleDiagnosis>> {
-        val byNode = flowCache.getOrPut(rule) { index.Query.flowFindings(indexObj, rule).groupBy { it.nodeId } }
-        return byNode[id].orEmpty().map { finding ->
-            val text = describeFlowFinding(id, finding)
+    /**
+     * 専用チェッカーを使う検査（SP-13。要素を定義した場所へ報告するもの＝遷移検証など）: 要素 id の指摘（指摘の種類つき）。
+     * 文面は検査の messages のひな型から作る（書かれていない種類は指摘しない）。
+     */
+    fun checker(rule: CheckerRule, id: String, level: CoverageLevel = rule.level): List<Pair<String, RuleDiagnosis>> {
+        if (rule.kind.refLocated) return emptyList()
+        return findingsOf(rule).filter { it.subjectId == id }.map { finding ->
+            val text = renderFinding(rule, finding)
             finding.kind to RuleDiagnosis(
-                id, rule.level,
+                id, level,
                 report = text,
                 notice = { anchorRel, _ -> "$text（報告先: 定義出現 $anchorRel）" },
-                // 開始・宣言外の相手先へジャンプできるようにする（UX-98 の流儀）
+                // 関連するノード（開始・宣言にない遷移先など）へジャンプできるようにする（UX-98 の流儀）
                 related = finding.related.map { it.id }.take(10),
                 description = rule.description ?: rule.id,
             )
+        }
+    }
+
+    /**
+     * 専用チェッカーを使う検査のうち、参照が書かれた場所へ報告するもの（循環の検出など）: 指摘に付いた参照が
+     * **この文書に書かれている**ものを、その参照の場所へ指摘する。
+     */
+    fun checkerRefIssues(rule: CheckerRule, file: Path, level: CoverageLevel = rule.level): List<Issue> {
+        if (!rule.kind.refLocated) return emptyList()
+        val suffix = (rule.description ?: rule.id)?.let { " — $it" } ?: ""
+        val target = model.DocumentId(file.toString())
+        return findingsOf(rule).mapNotNull { finding ->
+            val ref = finding.ref?.takeIf { it.document == target } ?: return@mapNotNull null
+            Issue(level.toSeverity(), renderFinding(rule, finding) + suffix, ref.path)
+        }
+    }
+
+    /** 専用チェッカーの指摘の文面: `{id}`・`{related}`（先頭5件と残りの件数）・`{count}`・チェッカーが返す値（`{path}` など）。 */
+    private fun renderFinding(rule: CheckerRule, finding: semantic.SemanticCheckerFinding): String {
+        val template = rule.messages.getValue(finding.kind)
+        val listed = finding.related.take(5).joinToString("・") { n -> n.title?.let { "${n.id}（$it）" } ?: n.id } +
+            (if (finding.related.size > 5) " ほか${finding.related.size - 5}件" else "")
+        return TEMPLATE_VAR.replace(template) { m ->
+            when (val name = m.groupValues[1]) {
+                "id" -> finding.subjectId
+                "related" -> listed
+                "count" -> finding.related.size.toString()
+                else -> finding.values[name] ?: m.value
+            }
         }
     }
 
@@ -377,21 +413,6 @@ internal class RuleDiagnostics(
                 (if (v.check.terms.size > 1) "（「または」のどの条件も満たさない）" else "")
         }
         return listed + (if (examples.size > 3) " ほか${examples.size - 3}組" else "")
-    }
-
-    /** 遷移検証の指摘本文（R28-04）: 種別ごとの説明＋関連ノードの列挙（先頭5件＋残数）。 */
-    private fun describeFlowFinding(id: String, finding: semantic.SemanticFlowFinding): String {
-        fun listed(nodes: List<semantic.SemanticFlowNode>): String =
-            nodes.take(5).joinToString("・") { n -> n.title?.let { "${n.id}（$it）" } ?: n.id } +
-                (if (nodes.size > 5) " ほか${nodes.size - 5}件" else "")
-        return when (finding.kind) {
-            semantic.SemanticFlowFindingKind.UNREACHABLE ->
-                "ID「$id」は開始ノードから到達できません（開始: ${listed(finding.related)}）"
-            semantic.SemanticFlowFindingKind.DEAD_END ->
-                "ID「$id」から出る遷移がなく、終端としても宣言されていません"
-            semantic.SemanticFlowFindingKind.UNDECLARED ->
-                "ID「$id」から宣言にない遷移があります（${finding.related.size} 件）: ${listed(finding.related)}"
-        }
     }
 
     private companion object {
