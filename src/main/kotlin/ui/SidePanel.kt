@@ -432,7 +432,7 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                                             "フェーズ未到達（${status.rule.activeFrom} から判定）" +
                                                 (status.rule.description?.let { " — $it" } ?: "")
                                         status.satisfied ->
-                                            "${Validator.coverageCountLabel(status.rule)} ${status.count} 件（必要 ${status.rule.minCount} 件）" +
+                                            "出現 ${status.count} 件（必要 ${status.rule.minCount} 件）" +
                                                 (status.rule.description?.let { " — $it" } ?: "")
                                         else -> Validator.coverageMessage(status, state.schemas)
                                     },

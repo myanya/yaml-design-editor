@@ -103,6 +103,21 @@ object Validator {
     private fun checkRelatedIds(examples: List<semantic.SemanticCheckViolation>): List<String> =
         examples.take(3).flatMap { listOf(it.left.id, it.right.id) }.distinct()
 
+    /** 遷移検証の指摘本文（R28-04）: 種別ごとの説明＋関連ノードの列挙（先頭5件＋残数）。 */
+    private fun describeFlowFinding(id: String, finding: semantic.SemanticFlowFinding): String {
+        fun listed(nodes: List<semantic.SemanticFlowNode>): String =
+            nodes.take(5).joinToString("・") { n -> n.title?.let { "${n.id}（$it）" } ?: n.id } +
+                (if (nodes.size > 5) " ほか${nodes.size - 5}件" else "")
+        return when (finding.kind) {
+            semantic.SemanticFlowFindingKind.UNREACHABLE ->
+                "ID「$id」は開始ノードから到達できません（開始: ${listed(finding.related)}）"
+            semantic.SemanticFlowFindingKind.DEAD_END ->
+                "ID「$id」から出る遷移がなく、終端としても宣言されていません"
+            semantic.SemanticFlowFindingKind.UNDECLARED ->
+                "ID「$id」から宣言にない遷移があります（${finding.related.size} 件）: ${listed(finding.related)}"
+        }
+    }
+
     fun validate(
         root: YNode?,
         parseError: String?,
@@ -163,7 +178,8 @@ object Validator {
             hasDocumentId = { indexObj.graph.documents.containsKey(it) },
             indexed = indexed,
         ).map { Issue(it.severity, it.message, it.path) }
-        // 3) カバレッジ（このスキーマが要求する被参照数。activeFrom はこの文書のフェーズ到達まで判定を保留する）
+        // 3) カバレッジ（このスキーマが要求する詳細文書の存在＝出現ベース。R29-01 で参照ベースは廃止。
+        //    activeFrom はこの文書のフェーズ到達まで判定を保留する）
         if (indexed && schema != null && schema.coverage.isNotEmpty()) {
             for (entry in localIds) {
                 for (status in coverageStatuses(entry.id, schema, indexObj, root)) {
@@ -171,7 +187,7 @@ object Validator {
                     val severity = if (status.rule.level == CoverageLevel.ERROR) Severity.ERROR else Severity.WARNING
                     // detailIn 不足は「詳細文書を作成」導線を付ける（R28-05a・UX-97）
                     val scaffold = status.rule.detailSchemaIds
-                        .takeIf { status.rule.isOccurrence && it.isNotEmpty() }
+                        .takeIf { it.isNotEmpty() }
                         ?.let { IssueScaffold(entry.id, it) }
                     issues += Issue(severity, coverageMessage(status, allSchemas), entry.path, scaffold = scaffold)
                 }
@@ -260,11 +276,8 @@ object Validator {
         if (indexed && schema != null && schema.constraints.isNotEmpty()) {
             fun constraintTree(f: Path): YNode? = if (f == file) root else loader(f)
             for (rule in schema.constraints) {
-                val active = rule.activeFrom?.let { from ->
-                    val fromIdx = schema.phases?.order?.indexOf(from) ?: -1
-                    fromIdx < 0 || phaseIndex == null || phaseIndex >= fromIdx
-                } ?: true
-                if (!active) continue
+                // activeFrom はフェーズゲート共有実装で判定する（R29-03・CALC-14 の母集団判定）
+                if (!semantic.phaseActive(rule.activeFrom, schema.phases?.order.orEmpty(), phaseIndex)) continue
                 for (entry in localIds) {
                     val node = indexObj.graph.entities[entry.id] ?: continue
                     val anchor = node.defining ?: node.occurrences.firstOrNull() ?: continue
@@ -336,11 +349,8 @@ object Validator {
         //      あえて対象外のセルは witness 側に excluded: true の行として残す（存在＝充足。UX-16 の流儀）
         if (indexed && schema != null && schema.matrix.isNotEmpty()) {
             for (rule in schema.matrix) {
-                val active = rule.activeFrom?.let { from ->
-                    val fromIdx = schema.phases?.order?.indexOf(from) ?: -1
-                    fromIdx < 0 || phaseIndex == null || phaseIndex >= fromIdx
-                } ?: true
-                if (!active) continue
+                // activeFrom はフェーズゲート共有実装で判定する（R29-03・CALC-14 の母集団判定）
+                if (!semantic.phaseActive(rule.activeFrom, schema.phases?.order.orEmpty(), phaseIndex)) continue
                 for (entry in localIds) {
                     val node = indexObj.graph.entities[entry.id] ?: continue
                     val anchor = node.defining ?: node.occurrences.firstOrNull() ?: continue
@@ -354,6 +364,30 @@ object Validator {
                         ((rule.description ?: rule.id)?.let { " — $it" } ?: "")
                     // 不足した列のIDへジャンプできるようにする（R28-05・UX-98）
                     issues += Issue(severity, message, entry.path, relatedIds = missing.map { it.id }.take(10))
+                }
+            }
+        }
+        // 3.8b) 遷移検証（R28-04。ARCHITECTURE §4.32）: 宣言エッジ集合の到達閉包で到達不能・行き止まり・
+        //       宣言外遷移を検出し、ノードの定義出現に報告する。未解決参照で候補（エッジ・開始・終端）が
+        //       失われたときは解の不足系の判定を黙らせる（CALC-17）
+        if (indexed && schema != null && schema.flow.isNotEmpty()) {
+            for (rule in schema.flow) {
+                // activeFrom はフェーズゲート共有実装で判定する（R29-03・CALC-14 の母集団判定）
+                if (!semantic.phaseActive(rule.activeFrom, schema.phases?.order.orEmpty(), phaseIndex)) continue
+                val findings = index.Query.flowFindings(indexObj, rule)
+                if (findings.isEmpty()) continue
+                val byNode = findings.groupBy { it.nodeId }
+                for (entry in localIds) {
+                    val node = indexObj.graph.entities[entry.id] ?: continue
+                    val anchor = node.defining ?: node.occurrences.firstOrNull() ?: continue
+                    if (anchor.file != file || anchor.path != entry.path) continue
+                    for (finding in byNode[entry.id].orEmpty()) {
+                        val severity = if (rule.level == CoverageLevel.ERROR) Severity.ERROR else Severity.WARNING
+                        val message = describeFlowFinding(entry.id, finding) +
+                            ((rule.description ?: rule.id)?.let { " — $it" } ?: "")
+                        // 開始・宣言外の相手先へジャンプできるようにする（UX-98 の流儀）
+                        issues += Issue(severity, message, entry.path, relatedIds = finding.related.map { it.id }.take(10))
+                    }
                 }
             }
         }
@@ -372,13 +406,10 @@ object Validator {
                 if (anchor.file == file) continue  // 定義がこの文書なら 3.7 / 3.8 で報告済み
                 val anchorRel = noticeRel(anchor.file)
                 for (s in allSchemas) {
-                    if (s.constraints.isEmpty() && s.matrix.isEmpty()) continue
+                    if (s.constraints.isEmpty() && s.matrix.isEmpty() && s.flow.isEmpty()) continue
                     if (!s.matches(anchorRel)) continue  // 定義出現の文書に適用される規則だけを見る
                     val anchorPhase = s.currentPhaseIndex(noticeTree(anchor.file))
-                    fun activeAt(from: String?): Boolean = from?.let {
-                        val fromIdx = s.phases?.order?.indexOf(it) ?: -1
-                        fromIdx < 0 || anchorPhase == null || anchorPhase >= fromIdx
-                    } ?: true
+                    fun activeAt(from: String?): Boolean = semantic.phaseActive(from, s.phases?.order.orEmpty(), anchorPhase)
                     for ((i, rule) in s.constraints.withIndex()) {
                         if (!activeAt(rule.activeFrom)) continue
                         if (!index.Query.startMatches(indexObj, rule.spec, entry.id, ::noticeTree)) continue
@@ -445,6 +476,20 @@ object Validator {
                             entry.path,
                             relatedIds = (listOf(entry.id) + missing.map { it.id }).distinct().take(10),
                         )
+                    }
+                    for ((i, rule) in s.flow.withIndex()) {
+                        if (!activeAt(rule.activeFrom)) continue
+                        for (finding in index.Query.flowFindings(indexObj, rule).filter { it.nodeId == entry.id }) {
+                            if (!noticed.add("${s.id}/f$i:${finding.kind}" to entry.id)) continue
+                            val noticeSeverity = if (rule.level == CoverageLevel.ERROR) Severity.ERROR else Severity.INFO
+                            issues += Issue(
+                                noticeSeverity,
+                                describeFlowFinding(entry.id, finding) + "（報告先: 定義出現 $anchorRel）" +
+                                    ((rule.description ?: rule.id)?.let { " — $it" } ?: ""),
+                                entry.path,
+                                relatedIds = (listOf(entry.id) + finding.related.map { it.id }).distinct().take(10),
+                            )
+                        }
                     }
                 }
             }
@@ -555,20 +600,17 @@ object Validator {
     }
 
     /**
-     * ID 1件に適用されるカバレッジルールの判定。索引（保存済み状態）の参照または出現を数える。
-     * - 参照ベース（requiredBy）: このIDへの参照を数える
-     * - 出現ベース（detailIn）: このIDの、指定スキーマの文書への出現＝詳細文書の存在を数える（R7-02）
+     * ID 1件に適用されるカバレッジルールの判定（出現ベース detailIn のみ。R29-01 で参照ベースは廃止）:
+     * このIDの、指定スキーマの文書への出現＝詳細文書の存在を数える（R7-02）。
      * definingRoot は ID を定義している文書のルート（activeFrom のフェーズ判定に使う。null なら常時判定）。
-     * 判定コアはカーネル（semantic.SemanticCoverage。B-3・RB-03a）——ここはこの ID の出現・被参照を
-     * カーネル座標へ写し、フェーズの現在位置を解決して渡す変換シェル。数え上げの規則
-     * （requiredBy = 入次数・detailIn = 詳細化出現＝グラフ整合 R21-01 と共有。§4.31）はカーネル側にある。
+     * 判定コアはカーネル（semantic.SemanticCoverage。B-3・RB-03a）——ここはこの ID の出現を
+     * カーネル座標へ写し、フェーズの現在位置を解決して渡す変換シェル。
      */
     fun coverageStatuses(id: String, schema: SchemaDef, indexObj: IdIndex, definingRoot: YNode? = null): List<CoverageStatus> =
         semantic.SemanticCoverage.statuses(
             id = id,
             rules = schema.coverage,
             occurrences = indexObj.occurrences(id).map { it.toScanned() },
-            inbound = indexObj.graph.backlinksTo(setOf(id)).map { it.toScanned() },
             phaseOrder = schema.phases?.order.orEmpty(),
             currentPhaseIndex = definingRoot?.let { schema.currentPhaseIndex(it) },
         ).map { CoverageStatus(it.rule, it.id, it.count, it.active) }
@@ -592,21 +634,14 @@ object Validator {
      * match パターン）を併記する（「どこに作ればよいか」の案内。R28-05・UX-97）。
      */
     fun coverageMessage(status: CoverageStatus, allSchemas: List<SchemaDef> = emptyList()): String = buildString {
-        if (status.rule.isOccurrence) {
-            append("ID「${status.id}」の詳細文書が不足しています（現在 ${status.count} 件／必要 ${status.rule.minCount} 件")
-            val detail = status.rule.detailSchemaIds.joinToString(", ") { sid ->
-                allSchemas.firstOrNull { it.id == sid }?.match?.let { "$sid（$it に作成）" } ?: sid
-            }
-            append("、詳細スキーマ: $detail")
-        } else {
-            append("ID「${status.id}」への参照が不足しています（現在 ${status.count} 件／必要 ${status.rule.minCount} 件")
-            if (status.rule.fromSchemaIds.isNotEmpty()) append("、参照元スキーマ: ${status.rule.fromSchemaIds.joinToString(", ")}")
-            status.rule.relation?.let { append("、関係: $it") }
+        append("ID「${status.id}」の詳細文書が不足しています（現在 ${status.count} 件／必要 ${status.rule.minCount} 件")
+        val detail = status.rule.detailSchemaIds.joinToString(", ") { sid ->
+            allSchemas.firstOrNull { it.id == sid }?.match?.let { "$sid（$it に作成）" } ?: sid
         }
+        append("、詳細スキーマ: $detail")
         append("）")
         status.rule.description?.let { append(" — $it") }
     }
 
     /** カバレッジの数え上げ対象の表示名（参照ベース=「参照」、出現ベース=「出現」）。UI表示で共用する。 */
-    fun coverageCountLabel(rule: CoverageRule): String = if (rule.isOccurrence) "出現" else "参照"
 }

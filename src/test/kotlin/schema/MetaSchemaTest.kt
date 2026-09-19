@@ -87,11 +87,10 @@ class MetaSchemaTest {
                   - key: text
                     type: text
             coverage:
-              - description: 全IDは設計から参照されること
+              - description: 全IDは詳細文書を持つこと
                 idPattern: "TBL-*"
-                requiredBy:
-                  schemaIds: [design-item]
-                  relation: implements
+                detailIn:
+                  schemaIds: [detail-schema]
                   minCount: 1
                 level: warning
                 activeFrom: logical-design

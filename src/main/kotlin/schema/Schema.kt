@@ -30,6 +30,8 @@ data class SchemaDef(
     val constraints: List<ConstraintRule> = emptyList(),
     /** 網羅マトリクス（R28-03。ARCHITECTURE §4.32）: 行×列の全組合せに証人が存在すること。 */
     val matrix: List<MatrixRule> = emptyList(),
+    /** 遷移検証（R28-04。ARCHITECTURE §4.32）: 宣言エッジ集合の到達閉包で到達不能・行き止まり・宣言外遷移を検出。 */
+    val flow: List<FlowRule> = emptyList(),
     val phases: PhasesDef? = null,
     /** エンティティ型の宣言（R20-01。ARCHITECTURE §4.30）。空 = 宣言なし（従来どおり）。 */
     val entities: List<EntityDecl> = emptyList(),
@@ -325,22 +327,26 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
     definitions.forEach { (name, field) ->
         check(field, "definitions.$name", setOf(DefinitionKey(id, name)))
     }
+    // activeFrom の静的検査は全検証語彙で共通（R29-03。従来は coverage / consistency のみだった）
+    fun checkActiveFrom(activeFrom: String?, where: String) {
+        activeFrom?.let { from ->
+            if (phases == null) issues += SchemaIssue("activeFrom を使うには phases の宣言が必要です", where)
+            else if (from !in phases.order) issues += SchemaIssue("activeFrom「$from」は phases に含まれていません", where)
+        }
+    }
     coverage.forEachIndexed { i, rule ->
         if (rule.minCount < 1) issues += SchemaIssue("minCountは1以上が必要です", "coverage[$i]")
         if (rule.idPattern?.isBlank() == true) issues += SchemaIssue("idPatternが空です", "coverage[$i]")
-        rule.activeFrom?.let { from ->
-            if (phases == null) issues += SchemaIssue("activeFrom を使うには phases の宣言が必要です", "coverage[$i]")
-            else if (from !in phases.order) issues += SchemaIssue("activeFrom「$from」は phases に含まれていません", "coverage[$i]")
-        }
+        checkActiveFrom(rule.activeFrom, "coverage[$i]")
     }
     consistency.forEachIndexed { i, rule ->
         if (rule.path.isEmpty()) issues += SchemaIssue("consistency[$i].path が空です", "consistency[$i]")
         if (rule.idPattern?.isBlank() == true) issues += SchemaIssue("idPatternが空です", "consistency[$i]")
-        rule.activeFrom?.let { from ->
-            if (phases == null) issues += SchemaIssue("activeFrom を使うには phases の宣言が必要です", "consistency[$i]")
-            else if (from !in phases.order) issues += SchemaIssue("activeFrom「$from」は phases に含まれていません", "consistency[$i]")
-        }
+        checkActiveFrom(rule.activeFrom, "consistency[$i]")
     }
+    constraints.forEachIndexed { i, rule -> checkActiveFrom(rule.activeFrom, "constraints[$i]") }
+    matrix.forEachIndexed { i, rule -> checkActiveFrom(rule.activeFrom, "matrix[$i]") }
+    flow.forEachIndexed { i, rule -> checkActiveFrom(rule.activeFrom, "flow[$i]") }
     phases?.let { p ->
         if (p.order.isEmpty()) issues += SchemaIssue("phases には1つ以上のフェーズが必要です", "phases")
         if (p.key.isBlank()) issues += SchemaIssue("phases のフェーズ申告キーが空です", "phases.key")
@@ -559,6 +565,11 @@ object SchemaLoader {
             val list = rawList as? List<*> ?: error("matrixはリストである必要があります")
             list.mapIndexed { i, entry -> MatrixRule.parse(entry, "matrix[$i]") }
         } ?: emptyList()
+        // 遷移検証（R28-04。ARCHITECTURE §4.32）: パースはカーネル（schema/Flow.kt）と共用
+        val flow = (raw["flow"])?.let { rawList ->
+            val list = rawList as? List<*> ?: error("flowはリストである必要があります")
+            list.mapIndexed { i, entry -> FlowRule.parse(entry, "flow[$i]") }
+        } ?: emptyList()
         val phases = StructuralSchemaParser.parsePhases(raw["phases"])
         val parsed = SchemaDef(
             id = id,
@@ -571,6 +582,7 @@ object SchemaLoader {
             consistency = consistency,
             constraints = constraints,
             matrix = matrix,
+            flow = flow,
             phases = phases,
             entities = entities,
             relations = relations,
@@ -609,23 +621,26 @@ object SchemaLoader {
         }
         return list.mapIndexed { i, entry ->
             val m = entry as? Map<*, *> ?: error("coverage[$i]はobjectである必要があります")
-            val requiredBy = m["requiredBy"] as? Map<*, *>
-            val detailIn = m["detailIn"] as? Map<*, *>
-            if (requiredBy != null && detailIn != null) {
-                error("coverage[$i]: requiredBy（参照ベース）と detailIn（出現ベース）は併用できません")
+            if (m.containsKey("requiredBy")) {
+                // 語彙の刈り込み（R29-01・意図的差分 D-16）: 黙って無視せず、移行先を案内する定義エラーにする
+                error(
+                    "coverage[$i].requiredBy（参照ベース）は廃止されました。1ホップの被参照数は関係レジストリの " +
+                        "cardinality、条件付き・多段は constraints の count / exists で宣言してください" +
+                        "（docs/DESIGN-CHECK-CATALOG.md）。coverage は detailIn（詳細文書の存在）専用です"
+                )
             }
-            val detailSchemaIds = schemaIds(detailIn?.get("schemaIds"))
-            if (detailIn != null && detailSchemaIds.isEmpty()) {
+            val detailIn = m["detailIn"] as? Map<*, *>
+                ?: error("coverage[$i] には detailIn（出現ベース: 出現先スキーマ）が必要です")
+            val detailSchemaIds = schemaIds(detailIn["schemaIds"])
+            if (detailSchemaIds.isEmpty()) {
                 error("coverage[$i].detailIn には schemaIds（出現先スキーマ）が必要です")
             }
             CoverageRule(
                 id = m["id"]?.toString(),
                 description = m["description"]?.toString(),
                 idPattern = m["idPattern"]?.toString(),
-                fromSchemaIds = schemaIds(requiredBy?.get("schemaIds")),
-                relation = requiredBy?.get("relation")?.toString(),
                 detailSchemaIds = detailSchemaIds,
-                minCount = ((detailIn ?: requiredBy)?.get("minCount") as? Number)?.toInt() ?: 1,
+                minCount = (detailIn["minCount"] as? Number)?.toInt() ?: 1,
                 level = m["level"]?.toString()?.let { value ->
                     CoverageLevel.entries.firstOrNull { it.id == value }
                         ?: error("coverage[$i].level は warning / error のいずれかである必要があります: $value")

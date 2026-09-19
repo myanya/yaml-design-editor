@@ -815,8 +815,9 @@ Core Calculus = 定義を実行する
 | Derivation | Query + Expression |
 | consistency | Query + Predicate |
 | query constraint | Query + Predicate |
-| coverage | Query / Aggregate / Predicate |
+| coverage（detailIn） | 出現集合の Aggregate ＋ Predicate（CALC-21。参照ベース requiredBy は R29-01 で削除） |
 | matrix | Query / Aggregate / Predicate または専用高水準演算 |
+| flow（遷移検証） | Query（母集団選択）＋専用高水準演算（到達閉包。R28-04・§20 通過） |
 | Validator | Constraint executor |
 | Scaffold | Query + Rewrite |
 | Bulk edit | Query + Rewrite |

@@ -9,6 +9,7 @@ import core.Workspace
 import index.DocScanner
 import index.IdIndex
 import model.YNode
+import model.pretty
 import schema.SchemaLoader
 import validate.Issue
 import validate.Severity
@@ -139,6 +140,32 @@ class Staging(val ws: Workspace) {
             }
         }
         return results
+    }
+
+    /**
+     * no-new-errors ゲート用（R28-05b・UX-47）: ステージ適用後の検証エラーのうち、同じ文書を
+     * ディスク原本（適用前）で検証したときには現れないもの。既存エラーは許容し、増えた分だけを返す。
+     * 同一性は (パスの表示形, メッセージ) の多重集合で判定する（件数を含むメッセージが変わる悪化も
+     * 新規として数える）。新規作成文書は原本がないため、そのエラーはすべて新規。
+     */
+    fun newErrors(): Map<String, List<Issue>> {
+        val out = LinkedHashMap<String, List<Issue>>()
+        for ((rel, issues) in validateAll()) {
+            val errors = issues.filter { it.severity == Severity.ERROR }
+            if (errors.isEmpty()) continue
+            val baseline = HashMap<Pair<String, String>, Int>()
+            if (Files.exists(ws.root.resolve(rel))) {
+                ws.validate(rel).filter { it.severity == Severity.ERROR }
+                    .forEach { baseline.merge(it.path.pretty() to it.message, 1, Int::plus) }
+            }
+            val fresh = errors.filter { issue ->
+                val key = issue.path.pretty() to issue.message
+                val remaining = baseline[key] ?: 0
+                if (remaining > 0) { baseline[key] = remaining - 1; false } else true
+            }
+            if (fresh.isNotEmpty()) out[rel] = fresh
+        }
+        return out
     }
 
     /** ステージされた定義文書（agents / activities / evals / skills / views ゾーン）のパースエラー。対象外は null。 */

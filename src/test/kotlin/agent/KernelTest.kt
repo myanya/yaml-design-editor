@@ -68,10 +68,15 @@ class KernelTest {
             """
             id: glossary
             match: "glossary/**/*.yaml"
-            coverage:
-              - requiredBy: { minCount: 1 }
-                level: error
+            constraints:
+              - id: term-used
                 description: 用語は1箇所以上から参照されること
+                match:
+                  - node: { schema: glossary, bind: t }
+                  - edge: { dir: in }
+                  - node: { schema: doc }
+                expect: exists
+                level: error
             root:
               type: object
               fields:
@@ -252,6 +257,48 @@ class KernelTest {
         assertTrue("循環" in rejection && "FLOW-1 → FLOW-2 → FLOW-1" in rejection, rejection)
         // 原本は未変更
         assertTrue("next" !in Files.readString(dir.resolve("flows/f2.yaml")))
+    }
+
+    @Test
+    fun `no-new-errors gate - 既存エラーを残したままの提出は通る`() {
+        // 点検系ゲート（R28-05b・UX-47）: TERM-002 は未参照＝既存の ERROR。
+        // 触った文書に既存エラーが残っていても、増やしていなければ提出できる（error-free なら拒否される場面）
+        write("glossary/main.yaml", "terms:\n- id: TERM-001\n  title: 旧用語\n- id: TERM-002\n  title: 未参照用語")
+        val ws = Workspace.open(dir)
+        val session = FakeSession(
+            listOf(
+                turn(call("apply_patch", """{"file":"glossary/main.yaml","ops":[{"op":"set","path":"terms[1].title","value":"未参照用語（説明を更新）"}]}""")),
+                turn(call("submit_changeset", """{"summary":"用語の説明を更新"}""")),
+            )
+        )
+        val result = run(ws, session, RecordingHost(), activity(gate = ValidationGate.NO_NEW_ERRORS))
+
+        assertEquals(RunStatus.SUBMITTED, result.status)
+        assertTrue("提出しました" in session.toolResults[1].single().content)
+    }
+
+    @Test
+    fun `no-new-errors gate - 新しく増えたエラーだけを理由に拒否する`() {
+        // 既存エラー（TERM-002 未参照）は拒否理由に載らず、この変更で増えたエラー（TERM-999 未解決）だけが載る
+        write("glossary/main.yaml", "terms:\n- id: TERM-001\n  title: 旧用語\n- id: TERM-002\n  title: 未参照用語")
+        val ws = Workspace.open(dir)
+        val session = FakeSession(
+            listOf(
+                turn(
+                    call("apply_patch", """{"file":"glossary/main.yaml","ops":[{"op":"set","path":"terms[1].title","value":"未参照用語（更新）"}]}"""),
+                    call("apply_patch", """{"file":"docs/a.yaml","ops":[{"op":"set","path":"uses[0]","value":"TERM-999"}]}"""),
+                ),
+                turn(call("submit_changeset", """{"summary":"参照を壊す変更"}""")),
+                turn(call("abort", """{"reason":"拒否されたため中断"}""")),
+            )
+        )
+        val result = run(ws, session, RecordingHost(), activity(gate = ValidationGate.NO_NEW_ERRORS))
+
+        assertEquals(RunStatus.ABORTED, result.status)
+        val rejection = session.toolResults[1].single().content
+        assertTrue("新しく増えた検証エラー" in rejection, rejection)
+        assertTrue("TERM-999" in rejection, rejection)
+        assertTrue("TERM-002" !in rejection, rejection)
     }
 
     @Test

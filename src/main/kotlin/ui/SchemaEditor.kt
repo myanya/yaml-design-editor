@@ -658,14 +658,15 @@ private fun CoverageEditor(root: YNode.Map, doc: OpenDocument) {
             val seq = ensureSeq(root, "coverage", doc, mark = false)
             seq.items.add(YNode.Map(linkedMapOf(
                 "idPattern" to YNode.Scalar("*"),
-                "requiredBy" to YNode.Map(),
+                "detailIn" to YNode.Map(),
             )))
             doc.markEdited()
         }) { Text("＋ ルールを追加", fontSize = 12.sp) }
     }
     if (coverage == null || coverage.items.isEmpty()) {
         Text(
-            "「このスキーマが定義するIDは、条件を満たす参照（または詳細文書への出現）を受けること」を機械判定します。",
+            "「このスキーマが定義するIDは、指定スキーマの詳細文書に出現すること」を機械判定します" +
+                "（被参照数の要求は関係レジストリの cardinality か constraints で宣言します）。",
             fontSize = 11.sp, color = Palette.SubText,
         )
     }
@@ -688,34 +689,9 @@ private fun CoverageEditor(root: YNode.Map, doc: OpenDocument) {
             CompactScalar(rule, "id", "ルールID（任意）", doc)
             CompactScalar(rule, "description", "説明", doc)
             CompactScalar(rule, "idPattern", "対象IDパターン", doc)
-            val occurrence = rule.entries.containsKey("detailIn")
-            Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("判定方式", fontSize = 12.sp, modifier = Modifier.width(140.dp))
-                ChoiceButton(
-                    if (occurrence) "出現ベース（詳細文書の存在）" else "参照ベース（被参照数）",
-                    listOf("参照ベース（被参照数）", "出現ベース（詳細文書の存在）"),
-                ) { choice ->
-                    if (choice.startsWith("出現") && !occurrence) {
-                        rule.entries.remove("requiredBy")
-                        rule.entries["detailIn"] = YNode.Map()
-                        doc.markEdited()
-                    } else if (choice.startsWith("参照") && occurrence) {
-                        rule.entries.remove("detailIn")
-                        rule.entries["requiredBy"] = YNode.Map()
-                        doc.markEdited()
-                    }
-                }
-            }
-            if (occurrence) {
-                val detail = ensureMap(rule, "detailIn", doc, mark = false)
-                StringListEditor(detail, "schemaIds", "出現先スキーマID", "screen-detail", doc)
-                CoverageMinCount(detail, doc)
-            } else {
-                val requiredBy = ensureMap(rule, "requiredBy", doc, mark = false)
-                StringListEditor(requiredBy, "schemaIds", "参照元スキーマID", "table-design", doc)
-                CompactScalar(requiredBy, "relation", "関係種別（任意）", doc)
-                CoverageMinCount(requiredBy, doc)
-            }
+            val detail = ensureMap(rule, "detailIn", doc, mark = false)
+            StringListEditor(detail, "schemaIds", "出現先スキーマID", "screen-detail", doc)
+            CoverageMinCount(detail, doc)
             Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("重大度", fontSize = 12.sp, modifier = Modifier.width(140.dp))
                 ChoiceButton(scalar(rule, "level") ?: "warning", listOf("warning", "error")) {

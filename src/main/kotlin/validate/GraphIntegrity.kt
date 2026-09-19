@@ -17,28 +17,8 @@ import java.nio.file.Path
  * ここは IdIndex の走査結果をカーネル座標（DocumentId ＝ パス文字列）へ写して委譲し、
  * per-file の検証から「このファイルに座標を持つ指摘」だけを返す。
  * - 判定保留の哲学（§4.26）: 型未宣言のエンティティ・未解決参照には黙る（未解決は V-02 の領分）。
- * - 入次数・出現数のカウンタはカバレッジ（requiredBy / detailIn）と共有する（coverage は糖衣として存続）。
  */
 object GraphIntegrity {
-
-    /**
-     * 指定IDへの参照（入次数エッジ）。relation / 参照元スキーマで絞り込む。
-     * カバレッジ（requiredBy）と多重度（in）の共有カウンタ。
-     */
-    fun inboundRefs(
-        indexObj: IdIndex,
-        id: String,
-        relation: String? = null,
-        fromSchemaIds: List<String> = emptyList(),
-    ): List<RefEntry> = indexObj.graph.backlinksTo(setOf(id)).filter { ref ->
-        ref.targetKind == schema.RefTarget.ENTITY &&
-            (relation == null || ref.relation == relation) &&
-            (fromSchemaIds.isEmpty() || ref.sourceSchemaId in fromSchemaIds)
-    }
-
-    /** 指定IDの、指定スキーマ群の文書への出現数。カバレッジ（detailIn）の共有カウンタ。 */
-    fun occurrenceCount(indexObj: IdIndex, id: String, schemaIds: List<String>): Int =
-        indexObj.occurrences(id).count { it.schemaId in schemaIds }
 
     /**
      * このファイルに座標を持つグラフ整合の指摘を返す。

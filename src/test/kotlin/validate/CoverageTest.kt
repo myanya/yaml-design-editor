@@ -147,7 +147,27 @@ class CoverageTest {
     }
 
     @Test
-    fun `requiredByとdetailInの併用は定義エラー`() {
+    fun `idPattern外のIDにはルールが適用されない`() {
+        val patterned = SchemaLoader.parseSchemaText(
+            """
+            id: screen-list
+            name: 画面一覧
+            match: "screens/index.yaml"
+            coverage:
+              - idPattern: "SCR-*"
+                detailIn: { schemaIds: [screen-detail] }
+            root:
+              type: object
+            """.trimIndent(),
+            Path.of("_schemas/screen-list.yaml"),
+        )
+        assertTrue(Validator.coverageStatuses("OTHER-1", patterned, index(withDetail = false)).isEmpty())
+        assertFalse(Validator.coverageStatuses("SCR-EDIT", patterned, index(withDetail = false)).isEmpty())
+    }
+
+    @Test
+    fun `廃止されたrequiredByは移行先を案内する定義エラーになる`() {
+        // 語彙の刈り込み（R29-01・D-16）: 黙って無視せず、正準の綴り（cardinality / constraints）を案内する
         val ex = assertFailsWith<IllegalStateException> {
             SchemaLoader.parseSchemaText(
                 """
@@ -156,14 +176,15 @@ class CoverageTest {
                 match: "*.yaml"
                 coverage:
                   - requiredBy: { minCount: 1 }
-                    detailIn: { schemaIds: [d] }
                 root:
                   type: object
                 """.trimIndent(),
                 Path.of("_schemas/s.yaml"),
             )
         }
-        assertTrue("併用できません" in (ex.message ?: ""), ex.message ?: "")
+        val message = ex.message ?: ""
+        assertTrue("廃止されました" in message, message)
+        assertTrue("cardinality" in message && "constraints" in message, message)
     }
 
     @Test

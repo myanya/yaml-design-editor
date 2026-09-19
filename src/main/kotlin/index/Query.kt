@@ -116,6 +116,15 @@ object Query {
     }
 
     /**
+     * 遷移検証（R28-04）: フロー規則の全指摘（ノードID昇順）。母集団が空・開始データなしは
+     * 判定保留（空リスト）。未解決参照の候補喪失時は解の不足系の判定を黙らせる（CALC-17）。
+     */
+    fun flowFindings(index: IdIndex, rule: schema.FlowRule): List<semantic.SemanticFlowFinding> {
+        val view = index.toKernelView()
+        return semantic.SemanticFlow.findings(view.graph, view.refs, rule)
+    }
+
+    /**
      * startId が起点束縛の母集団（起点 node のフィルタ＋起点束縛の where 述語）に入るか（R22-03）。
      * 制約の「対象外は黙る」（判定保留 §4.26）と「解なし」を区別するために使う。
      */

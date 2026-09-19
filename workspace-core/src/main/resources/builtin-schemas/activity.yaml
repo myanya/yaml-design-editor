@@ -189,7 +189,10 @@ root:
         - key: validation
           label: 検証条件
           type: enum
-          values: [error-free, none]
+          values:
+            - { value: error-free, label: 検証エラー0（修正系） }
+            - { value: no-new-errors, label: 新規エラーなし（点検系。既存エラーは許容） }
+            - { value: none, label: なし }
           default: error-free
     - key: approval
       label: 承認方式

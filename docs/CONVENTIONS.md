@@ -56,6 +56,7 @@
 | [docs/MIGRATION-LEDGER.md](MIGRATION-LEDGER.md) | 移行台帳（作業単位の状態と記録） | 移行作業の着手・完了のたび（§8） |
 | [docs/decisions/](decisions/README.md) | ADRと意図的差分一覧 | 設計決定の追加・変更（既存ADRは書き換えず新しいADRで上書き宣言）、既存挙動を変える前（INTENTIONAL-DIFFS.md へ登録） |
 | [docs/CORE-CALCULUS.md](CORE-CALCULUS.md) | YAMLに対する計算体系の設計方針（ADR-0009 で採択・§9 の設計レビューの原本） | 計算体系の原則・体系構成を変えるとき（新しいADRで上書き宣言とセット） |
+| [docs/DESIGN-CHECK-CATALOG.md](DESIGN-CHECK-CATALOG.md) | 設計チェックカタログ（「設計への機械的チェック」のパターン台帳。R28-06） | 検証機構の追加・変更時にパターンを1行追加、テンプレートで実証した制約の実例更新時 |
 | [docs/CONVENTIONS.md](CONVENTIONS.md)（本書） | 書き方の規約 | 規約自体を変えるとき |
 
 作業のたびに次を確認する:
@@ -93,4 +94,5 @@
 - **専用評価器・専用書込経路の追加条件は「既存 calculus で表現不能であること」**（同 §10・§20）。表現できるなら組合せとして実装し、できないなら不足している最小プリミティブの追加を先に検討する（機能でなくプリミティブを増やす。同 §3.1）。
 - **設計メモ・完了報告に、その機能が5体系（Term / Query / Expression / Predicate / Rewrite ＋ Aggregate）のどこへ落ちるかを書く**。新分類は同 §21 の分類表へ追記する。
 - **LLM 境界**: 確定済み定義の実行結果を LLM に依存させない（AI＝定義を作る／Calculus＝実行する。同 §18）。
+- **語彙の予算（R29-04・Phase 2 の決定 MP-04）**: 表面語彙（スキーマ・レジストリの新しいキー）を増やせるのは、**核にない演算へ名前を付けるとき**（例: flow の到達閉包）だけ。それ以外の新しい検証要求は、まず正準の綴り（[DESIGN-CHECK-CATALOG.md](DESIGN-CHECK-CATALOG.md) §8）の組合せで書けることを確認し、書けない場合も新キーより既存キーの拡張を優先する。表面語彙を追加・変更したときは計算体系の写像表（`specs/20-semantics/calculus/feature-mapping.yaml`）へ1行追加し、重複クラスタ（OC-01〜）への影響を確認する。
 - 意味論の正式な仕様（Phase 1 以降のスペック）は `specs/` の外部仕様化ワークスペースで管理する（着手前に [specs/SPECIFICATION-GUIDE.md](../specs/SPECIFICATION-GUIDE.md) 全読が規約）。

@@ -24,6 +24,7 @@ Kotlin + Compose for Desktop 製のスキーマ駆動YAMLエディタ。ワー�
 | [docs/CONVENTIONS.md](docs/CONVENTIONS.md) | 開発規約（スタイル・Compose作法・テスト・ドキュメント更新規約・UXフィードバック運用） |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | 将来構想（サンドボックス型AI実行環境化）とフェーズ別ロードマップ |
 | [docs/CORE-CALCULUS.md](docs/CORE-CALCULUS.md) | YAMLに対する計算体系（Core Calculus）の設計方針。新しい決定論的機能は必ずこの体系を一段挟む（ADR-0009・CONVENTIONS §9） |
+| [docs/DESIGN-CHECK-CATALOG.md](docs/DESIGN-CHECK-CATALOG.md) | 設計チェックカタログ: 「設計への機械的チェック」のパターン台帳（R28-06）。検証機構を追加・変更したら対更新する |
 | [docs/BACKLOG.md](docs/BACKLOG.md) | 指摘台帳: UX試験等で見つかった気になりポイントの即時記録（対応判断は後で個別に） |
 | [docs/UX-SCENARIOS.md](docs/UX-SCENARIOS.md) | UX試験のシナリオ台帳: 触り心地試験の台本（全体通し S1 ほか）・実施トリガ・実施履歴 |
 | [docs/THREE-LAYER-CORE-MIGRATION-PLAN.md](docs/THREE-LAYER-CORE-MIGRATION-PLAN.md) | 3層コア移行の計画: フェーズ・完了条件・現行ファイルの移行先対応表 |

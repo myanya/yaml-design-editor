@@ -30,14 +30,15 @@ class WorkspaceCliTest {
             id: requirement
             name: 要求
             match: "requirements/**/*.yaml"
-            coverage:
-              - idPattern: "REQ-???"
-                requiredBy:
-                  schemaIds: [design]
-                  relation: implements
-                  minCount: 1
-                level: error
+            constraints:
+              - id: req-implemented
                 description: 全要求は設計から参照されること
+                match:
+                  - node: { id: "REQ-???", bind: req }
+                  - edge: { dir: in, relation: implements }
+                  - node: { schema: design }
+                expect: exists
+                level: error
             root:
               type: object
               fields:
@@ -201,25 +202,25 @@ class WorkspaceCliTest {
         val workspace = Workspace.open(ws)
         // REQ-001 は design から implements 関係で参照済み → 充足
         val issuesA = workspace.validate("requirements/req-a.yaml")
-        assertTrue(issuesA.none { "参照が不足" in it.message }, issuesA.toString())
-        // REQ-002 は未参照 → カバレッジエラー
+        assertTrue(issuesA.none { "成立していません" in it.message }, issuesA.toString())
+        // REQ-002 は未参照 → 被参照制約（exists）のエラー
         val issuesB = workspace.validate("requirements/req-b.yaml")
-        val coverage = issuesB.single { "参照が不足" in it.message }
-        assertEquals(Severity.ERROR, coverage.severity)
-        assertTrue("REQ-002" in coverage.message)
-        assertTrue("implements" in coverage.message)
+        val violation = issuesB.single { "成立していません" in it.message }
+        assertEquals(Severity.ERROR, violation.severity)
+        assertTrue("REQ-002" in violation.message)
+        assertTrue("全要求は設計から参照されること" in violation.message)
     }
 
     @Test
     fun `coverage status is queryable per id`() {
+        // R29-01: 被参照数の要求は coverage.requiredBy から constraints へ移行——per-id の問い合わせはクエリ面で行う
         val workspace = Workspace.open(ws)
         val schema = workspace.schemas.single { it.id == "requirement" }
-        val ok = Validator.coverageStatuses("REQ-001", schema, workspace.index).single()
-        assertTrue(ok.satisfied)
-        val ng = Validator.coverageStatuses("REQ-002", schema, workspace.index).single()
-        assertFalse(ng.satisfied)
-        // パターン外のID（サブ項目）にはルールが適用されない
-        assertTrue(Validator.coverageStatuses("REQ-001-S1", schema, workspace.index).isEmpty())
+        val rule = schema.constraints.single()
+        assertTrue(index.Query.anyMatchFrom(workspace.index, rule.spec, "REQ-001"))
+        assertFalse(index.Query.anyMatchFrom(workspace.index, rule.spec, "REQ-002"))
+        // パターン外のID（サブ項目）は母集団に入らない（対象外は黙る）
+        assertFalse(index.Query.startMatches(workspace.index, rule.spec, "REQ-001-S1"))
     }
 
     // ---------------------------------------------------------------- 変更セット適用（R1-02）
@@ -256,9 +257,9 @@ class WorkspaceCliTest {
         assertTrue(result.ok)
         assertTrue(result.results.all { it.applied })
         assertTrue("高度な検索" in Files.readString(ws.resolve("requirements/req-b.yaml")))
-        // 索引が更新され、REQ-002 のカバレッジが充足に変わる
+        // 索引が更新され、REQ-002 の被参照制約が充足に変わる
         val issuesB = workspace.validate("requirements/req-b.yaml")
-        assertTrue(issuesB.none { "参照が不足" in it.message }, issuesB.toString())
+        assertTrue(issuesB.none { "成立していません" in it.message }, issuesB.toString())
     }
 
     @Test
@@ -375,9 +376,9 @@ class WorkspaceCliTest {
         )
         val applyOut = runCli(arrayOf("apply", dir, changeSet.toString()))
         assertTrue("ok: true" in applyOut, applyOut)
-        // 3) 検証: カバレッジ不足が解消されている
+        // 3) 検証: 被参照制約の違反が解消されている
         val validateOut = runCli(arrayOf("validate", dir))
-        assertTrue("参照が不足" !in validateOut, validateOut)
+        assertTrue("成立していません" !in validateOut, validateOut)
         // 4) 保存結果の確認
         assertTrue("高度な検索機能" in Files.readString(ws.resolve("requirements/req-b.yaml")))
         Files.deleteIfExists(changeSet)

@@ -51,7 +51,7 @@ class PhaseTest {
               type: string
               requiredFrom: physical-design
         coverage:
-          - requiredBy: { schemaIds: [table-design] }
+          - detailIn: { schemaIds: [table-design] }
             activeFrom: physical-design
             level: error
         """.trimIndent(),
@@ -66,9 +66,8 @@ class PhaseTest {
         root:
           type: object
           fields:
-            - key: entity
-              type: ref
-              idPattern: "ENT-*"
+            - key: id
+              type: id
         """.trimIndent(),
         Path.of("_schemas/table-design.yaml"),
     )
@@ -152,7 +151,7 @@ class PhaseTest {
               - name: id
             physicalName: t_customer
             """.trimIndent()
-        val issues = validate(entityYaml, indexWith(entityYaml, tableYaml = "entity: ENT-001\n"))
+        val issues = validate(entityYaml, indexWith(entityYaml, tableYaml = "id: ENT-001\n"))
         assertTrue(issues.none { it.severity == Severity.ERROR }, "$issues")
     }
 
@@ -181,7 +180,7 @@ class PhaseTest {
     }
 
     @Test
-    fun `カバレッジのactiveFromに達するまでは被参照不足が判定されない`() {
+    fun `カバレッジのactiveFromに達するまでは詳細文書の不足が判定されない`() {
         val issues = validate(
             """
             id: ENT-001
@@ -191,11 +190,11 @@ class PhaseTest {
               - name: id
             """.trimIndent()
         )
-        assertTrue(issues.none { it.message.contains("参照が不足") }, "$issues")
+        assertTrue(issues.none { it.message.contains("詳細文書が不足") }, "$issues")
     }
 
     @Test
-    fun `カバレッジのactiveFromに達すると被参照不足が判定される`() {
+    fun `カバレッジのactiveFromに達すると詳細文書の不足が判定される`() {
         val issues = validate(
             """
             id: ENT-001
@@ -206,11 +205,11 @@ class PhaseTest {
             physicalName: t_customer
             """.trimIndent()
         )
-        assertTrue(issues.any { it.severity == Severity.ERROR && it.message.contains("参照が不足") }, "$issues")
+        assertTrue(issues.any { it.severity == Severity.ERROR && it.message.contains("詳細文書が不足") }, "$issues")
     }
 
     @Test
-    fun `activeFromに達し十分な参照があれば充足する`() {
+    fun `activeFromに達し詳細文書があれば充足する`() {
         val entityYaml = """
             id: ENT-001
             phase: physical-design
@@ -219,9 +218,9 @@ class PhaseTest {
               - name: id
             physicalName: t_customer
             """.trimIndent()
-        val index = indexWith(entityYaml, tableYaml = "entity: ENT-001\n")
+        val index = indexWith(entityYaml, tableYaml = "id: ENT-001\n")
         val issues = validate(entityYaml, index)
-        assertTrue(issues.none { it.message.contains("参照が不足") }, "$issues")
+        assertTrue(issues.none { it.message.contains("詳細文書が不足") }, "$issues")
     }
 
     @Test
@@ -259,6 +258,29 @@ class PhaseTest {
                 - key: x
                   type: string
                   requiredFrom: later
+            """.trimIndent(),
+            Path.of("_schemas/s.yaml"),
+        )
+        assertTrue(schema.validateDefinition().any { it.message.contains("phases の宣言が必要") })
+    }
+
+    @Test
+    fun `constraintsのactiveFromにもphases宣言が必要というメタ検証`() {
+        // R29-03: activeFrom の静的検査は全検証語彙（coverage / consistency / constraints / matrix / flow）で共通
+        val schema = SchemaLoader.parseSchemaText(
+            """
+            id: s
+            name: s
+            match: "*.yaml"
+            constraints:
+              - match:
+                  - node: { id: "X-*", bind: x }
+                  - edge: { dir: in }
+                  - node: { id: "Y-*" }
+                expect: exists
+                activeFrom: later
+            root:
+              type: object
             """.trimIndent(),
             Path.of("_schemas/s.yaml"),
         )

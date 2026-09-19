@@ -201,6 +201,7 @@ root:
     - key: coverage
       label: カバレッジルール
       type: array
+      description: "詳細文書の存在（出現ベース detailIn）の要求。被参照数の要求（旧 requiredBy）は廃止——1ホップは関係レジストリの cardinality、条件付き・多段は constraints で宣言する（R29-01）"
       item:
         type: object
         fields:
@@ -213,22 +214,10 @@ root:
           - key: idPattern
             label: 対象IDパターン
             type: string
-          - key: requiredBy
-            label: 参照ベースの条件
-            type: object
-            fields:
-              - key: schemaIds
-                label: 参照元スキーマの限定
-                type: any
-              - key: relation
-                label: 関係種別の限定
-                type: string
-              - key: minCount
-                label: 必要な参照数
-                type: int
           - key: detailIn
             label: 出現ベースの条件
             type: object
+            required: true
             fields:
               - key: schemaIds
                 label: 出現先スキーマ
@@ -443,6 +432,78 @@ root:
                   - { key: relation, label: relation, type: string, required: true }
               - key: column
                 label: 列への参照
+                type: object
+                required: true
+                fields:
+                  - { key: relation, label: relation, type: string, required: true }
+          - key: level
+            label: 重大度
+            type: enum
+            values: [warning, error]
+          - key: activeFrom
+            label: 判定を始めるフェーズ
+            type: string
+    - key: flow
+      label: 遷移検証
+      type: array
+      description: "宣言エッジ集合（遷移の原本）の到達閉包で、到達不能・行き止まり・宣言外遷移を検出する（R28-04。例: 画面遷移・状態遷移）。指摘はノードの定義出現に報告する"
+      item:
+        type: object
+        fields:
+          - key: id
+            label: ルールID
+            type: string
+          - key: description
+            label: 説明
+            type: string
+          - key: nodes
+            label: ノード母集団
+            type: any
+            required: true
+            description: "エンティティ選択（entity / schema / id。例 {entity: screen}）"
+          - key: edges
+            label: 宣言エッジ
+            type: object
+            required: true
+            description: 同じ行オブジェクト直下の from 参照と to 参照の組を1エッジとして抽出する
+            fields:
+              - key: from
+                label: 遷移元への参照
+                type: object
+                required: true
+                fields:
+                  - { key: relation, label: relation, type: string, required: true }
+              - key: to
+                label: 遷移先への参照
+                type: object
+                required: true
+                fields:
+                  - { key: relation, label: relation, type: string, required: true }
+          - key: start
+            label: 開始ノードへの参照
+            type: object
+            description: 開始ノードを指す relation。省略時は到達不能を判定しない（開始データが空のときも判定保留）
+            fields:
+              - { key: relation, label: relation, type: string, required: true }
+          - key: terminal
+            label: 終端ノードへの参照
+            type: object
+            description: 終端として許容するノードを指す relation（行き止まり判定から除外する）
+            fields:
+              - { key: relation, label: relation, type: string, required: true }
+          - key: usage
+            label: 使用エッジ
+            type: object
+            description: 宣言外遷移の検出対象（このエッジ集合が宣言エッジに含まれることを要求。省略時は判定しない）
+            fields:
+              - key: from
+                label: 遷移元への参照
+                type: object
+                required: true
+                fields:
+                  - { key: relation, label: relation, type: string, required: true }
+              - key: to
+                label: 遷移先への参照
                 type: object
                 required: true
                 fields:

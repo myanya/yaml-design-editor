@@ -7,6 +7,7 @@ import model.getAt
 import model.parseYPath
 import model.scalarText
 import schema.DerivationDef
+import schema.EntityRole
 import schema.Projection
 
 /**
@@ -45,6 +46,13 @@ object SemanticDerivation {
      * - tree: 文書ツリーの読み取り（呼び出し側がキャッシュ・オーバーレイを注入する）
      * - startOccurrences: 起点IDの出現（既定は索引。ローカル出現を重ねたい場合に上書きする）
      */
+    /**
+     * σ 選択方針（CALC-19・意図的差分 D-17）: Expression 側の出現選択は量化せず、
+     * 定義出現優先→索引順の決定的な先勝ちとする（CALC-11 の代表出現と同じ規則）。
+     */
+    private fun preferDefining(occs: List<ScannedId>): List<ScannedId> =
+        occs.sortedBy { if (it.role == EntityRole.DEFINING) 0 else 1 }
+
     fun resolve(
         def: DerivationDef,
         startId: String,
@@ -56,13 +64,14 @@ object SemanticDerivation {
         fun element(entry: ScannedId): YNode? = tree(entry.document)?.let { getAt(it, entry.path) }
         var originOcc: ScannedId? = null
         var origin: YNode? = null
+        val startOccs = preferDefining(startOccurrences)
         val subjectId: String? = if (def.lookup == null) startId else {
-            val occ = startOccurrences.firstOrNull { def.lookup.from.matches(it.schemaId, rel(it.document)) }
+            val occ = startOccs.firstOrNull { def.lookup.from.matches(it.schemaId, rel(it.document)) }
             originOcc = occ
             origin = occ?.let(::element)
             origin?.let { scalarText(getAt(it, def.lookup.via)) }
         }
-        val subjectOccs = subjectId?.let(occurrences) ?: emptyList()
+        val subjectOccs = preferDefining(subjectId?.let(occurrences) ?: emptyList())
         val sourceOcc = subjectOccs.firstOrNull { def.source.matches(it.schemaId, rel(it.document)) }
         val sourceEl = sourceOcc?.let(::element)
         val sourcePath = sourceOcc?.let { it.path + def.path }

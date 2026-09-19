@@ -49,12 +49,8 @@ object SemanticConsistency {
         val docRoot = root ?: return emptyList()
         val findings = mutableListOf<SemanticConsistencyFinding>()
         for (rule in rules) {
-            // activeFrom: カバレッジと同じく自文書のフェーズ到達まで判定を保留する
-            val active = rule.activeFrom?.let { from ->
-                val fromIdx = phaseOrder.indexOf(from)
-                fromIdx < 0 || currentPhaseIndex == null || currentPhaseIndex >= fromIdx
-            } ?: true
-            if (!active) continue
+            // activeFrom: カバレッジと同じく自文書のフェーズ到達まで判定を保留する（共有実装 R29-03）
+            if (!phaseActive(rule.activeFrom, phaseOrder, currentPhaseIndex)) continue
             for (entry in localIds) {
                 val rulePattern = rule.idPattern
                 if (rulePattern != null && !idMatchesPattern(entry.id, rulePattern)) continue

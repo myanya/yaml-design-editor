@@ -46,6 +46,9 @@ internal const val CLI_USAGE = """コマンド:
            文書ビュー（kind: document）は file で対象文書を指定（適用対象1件なら省略可）。
            view-id 省略時は定義の一覧を表示する。各セルに原本上の座標（file / path）が付く
   validate <workspace> [file]                   検証（スキーマ・参照・重複・カバレッジ・グラフ整合）
+  readiness <workspace> [--pending]             準備完了レポート（R28-05b）: 全文書の検証結果をエンティティ単位に
+           集約し、エラー0のエンティティを「準備完了」と判定する（警告は件数のみ・型／フェーズ別の集計つき）。
+           --pending は未完了（エラーあり）のエンティティだけを列挙する
   apply    <workspace> <changeset.yaml> [--dry-run] [--require-valid]   変更セットの適用
   entity   <workspace> show <id>                エンティティ全体像（R23-04）: アスペクト合成（所有フィールド
            と原本座標）・関係・被参照をYAMLで返す（エンティティページ・read_entity と同じ合成）
@@ -376,6 +379,40 @@ internal fun runCli(args: Array<String>): String {
                     "files" to fileResults,
                     "errors" to errors,
                     "warnings" to warnings,
+                )
+            )
+        }
+        "readiness" -> {
+            val ws = workspace()
+            val report = validate.Readiness.report(ws)
+            val listed = if ("--pending" in rest) report.entities.filterNot { it.ready } else report.entities
+            fun groupMaps(rows: List<validate.Readiness.GroupRow>, key: String) =
+                rows.map { linkedMapOf(key to it.key, "total" to it.total, "ready" to it.ready) }
+            dumpYaml(
+                linkedMapOf(
+                    "schemaErrors" to ws.schemaErrors,
+                    "summary" to linkedMapOf(
+                        "entities" to report.entities.size,
+                        "ready" to report.entities.count { it.ready },
+                        "pending" to report.entities.count { !it.ready },
+                    ),
+                    "byType" to groupMaps(report.byType, "type"),
+                    "byPhase" to groupMaps(report.byPhase, "phase"),
+                    "entities" to listed.map { row ->
+                        linkedMapOf(
+                            "id" to row.id,
+                            "type" to row.entityType,
+                            "title" to row.title,
+                            "file" to row.file,
+                            "phase" to row.phase,
+                            "errors" to row.errors,
+                            "warnings" to row.warnings,
+                            "ready" to row.ready,
+                        ).filterValues { it != null }
+                    },
+                    "unassigned" to report.unassigned.map {
+                        linkedMapOf("file" to it.file, "errors" to it.errors, "warnings" to it.warnings)
+                    },
                 )
             )
         }

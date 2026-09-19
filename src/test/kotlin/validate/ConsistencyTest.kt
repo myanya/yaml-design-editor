@@ -136,6 +136,81 @@ class ConsistencyTest {
     }
 
     @Test
+    fun `期待値導出は定義出現を優先して選ぶ`() {
+        // σ 選択方針（CALC-19・意図的差分 D-17）: selector が複数出現に一致するとき、
+        // 索引順の先頭ではなく定義出現から読む（R29-02）
+        val itemFields = """
+            root:
+              type: object
+              fields:
+                - key: mappings
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: id, type: id, required: true }
+                      - { key: to, type: string }
+        """.trimIndent().prependIndent("")
+        val mapDetail = SchemaLoader.parseSchemaText(
+            "id: map-detail\nname: 写像（詳細化）\nmatch: \"m1-map.yaml\"\n" +
+                "entity: { type: vtype, idPattern: \"VT-*\" }\n" + itemFields,
+            Path.of("_schemas/map-detail.yaml"),
+        )
+        val mapDef = SchemaLoader.parseSchemaText(
+            "id: map-def\nname: 写像（定義）\nmatch: \"m2-map.yaml\"\n" +
+                "entity: { type: vtype, idPattern: \"VT-*\", defines: true }\n" + itemFields,
+            Path.of("_schemas/map-def.yaml"),
+        )
+        val usageSchema = SchemaLoader.parseSchemaText(
+            """
+            id: usage
+            name: 利用
+            match: "usage.yaml"
+            consistency:
+              - idPattern: "VT-*"
+                path: declared
+                expected:
+                  source: { fileGlob: "m?-map.yaml" }
+                  path: to
+            root:
+              type: object
+              fields:
+                - key: types
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: id, type: id, required: true }
+                      - { key: declared, type: string }
+            """.trimIndent(),
+            Path.of("_schemas/usage.yaml"),
+        )
+        val schemas = listOf(mapDetail, mapDef, usageSchema)
+        fun check(usageYaml: String): List<Issue> {
+            // 索引順は m1（詳細化）→ m2（定義）→ usage: 先勝ちなら m1 の varchar(50) が期待値になる
+            val content = mapOf(
+                Path.of("m1-map.yaml") to "mappings:\n  - id: VT-TITLE\n    to: varchar(50)\n",
+                Path.of("m2-map.yaml") to "mappings:\n  - id: VT-TITLE\n    to: varchar(100)\n",
+                Path.of("usage.yaml") to usageYaml,
+            )
+            val idx = index.testIndex(Path.of("."), content.keys.toList(), schemas) { f -> YamlIO.parse(content.getValue(f)) }
+            return Validator.validate(
+                YamlIO.parse(usageYaml), null, Path.of("usage.yaml"), usageSchema, idx,
+                workspace = Path.of("."),
+                loader = { f -> content[f]?.let { YamlIO.parse(it) } },
+                allSchemas = schemas,
+            )
+        }
+        // 定義出現（m2）の値と一致 → 指摘なし
+        val ok = check("types:\n  - id: VT-TITLE\n    declared: varchar(100)\n")
+        assertTrue(ok.none { "一致しません" in it.message }, "$ok")
+        // 不一致のとき、導出値は定義出現の値になっている
+        val issue = check("types:\n  - id: VT-TITLE\n    declared: varchar(50)\n")
+            .single { "一致しません" in it.message }
+        assertTrue("導出値「varchar(100)」" in issue.message, issue.message)
+    }
+
+    @Test
     fun `宣言値が導出値と一致すれば指摘しない`() {
         val issues = validate("impl.yaml", "rows:\n  - id: FLD-TITLE\n    type: varchar(100)\n")
         assertTrue(issues.none { "一致しません" in it.message }, "$issues")

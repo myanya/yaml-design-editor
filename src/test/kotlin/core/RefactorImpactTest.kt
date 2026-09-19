@@ -27,7 +27,7 @@ class RefactorImpactTest {
             id: task-schema
             match: "tasks/**/*.yaml"
             coverage:
-              - { description: "全タスクは title を持つこと", idPattern: "TASK-*", level: warning }
+              - { description: "全タスクは title を持つこと", idPattern: "TASK-*", detailIn: { schemaIds: [task-detail] }, level: warning }
             root:
               type: object
               fields:

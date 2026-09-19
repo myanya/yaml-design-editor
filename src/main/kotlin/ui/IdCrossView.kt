@@ -242,10 +242,10 @@ private fun EntityPage(state: AppState, id: String) {
                         Text(
                             when {
                                 !status.active ->
-                                    "フェーズ未到達（${status.rule.activeFrom} から判定。現在 ${Validator.coverageCountLabel(status.rule)} ${status.count} 件／必要 ${status.rule.minCount} 件）" +
+                                    "フェーズ未到達（${status.rule.activeFrom} から判定。現在 出現 ${status.count} 件／必要 ${status.rule.minCount} 件）" +
                                         (status.rule.description?.let { " — $it" } ?: "")
                                 status.satisfied ->
-                                    "${Validator.coverageCountLabel(status.rule)} ${status.count} 件（必要 ${status.rule.minCount} 件）" +
+                                    "出現 ${status.count} 件（必要 ${status.rule.minCount} 件）" +
                                         (status.rule.description?.let { " — $it" } ?: "")
                                 else -> Validator.coverageMessage(status, state.schemas)
                             },

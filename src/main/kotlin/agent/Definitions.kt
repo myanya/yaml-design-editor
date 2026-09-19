@@ -43,7 +43,11 @@ data class ActivityLimits(
     val maxSeconds: Long = 900,
 )
 
-enum class ValidationGate { ERROR_FREE, NONE }
+/**
+ * 提出ゲートの検証区分。ERROR_FREE = 検証エラー0（修正系）。NO_NEW_ERRORS = 適用前の原本との
+ * 差分で新規エラーがないこと（点検系。既存エラーで提出を塞がない。R28-05b・UX-47）。
+ */
+enum class ValidationGate { ERROR_FREE, NO_NEW_ERRORS, NONE }
 
 /** 提出後の承認方式。AUTO はゲート通過・スコープ内・非編集中のときのみ自動適用（条件を欠くと承認待ちへ降格）。 */
 enum class ApprovalMode { HUMAN, AUTO }
@@ -266,8 +270,9 @@ object Definitions {
         fun limit(key: String): Long? = (limitsMap?.get(key) as? Number)?.toLong()
         val gate = when (val v = (raw["gates"] as? Map<*, *>)?.get("validation")?.toString()) {
             null, "error-free" -> ValidationGate.ERROR_FREE
+            "no-new-errors" -> ValidationGate.NO_NEW_ERRORS
             "none" -> ValidationGate.NONE
-            else -> error("gates.validation は error-free / none のいずれかである必要があります: $v")
+            else -> error("gates.validation は error-free / no-new-errors / none のいずれかである必要があります: $v")
         }
         val approval = when (val v = raw["approval"]?.toString()) {
             null, "human" -> ApprovalMode.HUMAN

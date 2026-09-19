@@ -643,7 +643,11 @@ private fun SelectContent(
                             "エージェント: ${agentDef?.name ?: activity.agentId}",
                             activity.targetMatch?.let { "対象: $it" },
                             "上限: ${activity.limits.maxTurns}ターン",
-                            "ゲート: " + if (activity.gate == agent.ValidationGate.ERROR_FREE) "検証エラー0" else "なし",
+                            "ゲート: " + when (activity.gate) {
+                                agent.ValidationGate.ERROR_FREE -> "検証エラー0"
+                                agent.ValidationGate.NO_NEW_ERRORS -> "新規エラーなし"
+                                agent.ValidationGate.NONE -> "なし"
+                            },
                             activity.foreach?.let { "一括: ${it.source.id}（展開上限 ${it.limit} 件）" },
                         ).joinToString(" ／ "),
                         fontSize = 11.sp, color = Palette.SubText,

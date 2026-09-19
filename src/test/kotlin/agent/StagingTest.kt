@@ -32,10 +32,15 @@ class StagingTest {
             """
             id: glossary
             match: "glossary/**/*.yaml"
-            coverage:
-              - requiredBy: { minCount: 1 }
-                level: error
+            constraints:
+              - id: term-used
                 description: 用語は1箇所以上から参照されること
+                match:
+                  - node: { schema: glossary, bind: t }
+                  - edge: { dir: in }
+                  - node: { schema: doc }
+                expect: exists
+                level: error
             root:
               type: object
               fields:
@@ -94,10 +99,10 @@ class StagingTest {
         val ws = Workspace.open(dir)
         val staging = Staging(ws)
         // 1) 改名だけ → 影響ファイル（旧IDの参照元 docs/a）が自動的に検証対象へ入り、
-        //    参照不整合とカバレッジ不足の両方が検出される
+        //    参照不整合と被参照制約（exists）の両方が検出される
         staging.applyOps("glossary/main.yaml", listOf(PatchOp.Set(parseYPath("terms[0].id"), YNode.Scalar("TERM-100"))))
         val before = staging.validateAll()
-        assertTrue(before.getValue("glossary/main.yaml").any { "参照が不足" in it.message })
+        assertTrue(before.getValue("glossary/main.yaml").any { "成立していません" in it.message })
         assertTrue(before.getValue("docs/a.yaml").any { "TERM-001" in it.message && it.severity == Severity.ERROR })
         // 2) 参照元も修正 → オーバーレイ索引で両方解消（ディスクは一切変わっていない）
         staging.applyOps("docs/a.yaml", listOf(PatchOp.Set(parseYPath("uses[0]"), YNode.Scalar("TERM-100"))))

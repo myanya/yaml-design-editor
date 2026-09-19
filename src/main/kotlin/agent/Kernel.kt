@@ -372,6 +372,7 @@ object AgentKernel {
             append(
                 when (activity.gate) {
                     ValidationGate.ERROR_FREE -> "提出ゲート: 検証エラー0（エラーが残る提出は拒否されます）"
+                    ValidationGate.NO_NEW_ERRORS -> "提出ゲート: 新規エラーなし（適用前からある既存エラーは許容。あなたの変更でエラーを増やす提出は拒否されます）"
                     ValidationGate.NONE -> "提出ゲート: なし"
                 }
             )
