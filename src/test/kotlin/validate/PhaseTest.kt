@@ -181,22 +181,21 @@ class PhaseTest {
 
     @Test
     fun `カバレッジのactiveFromに達するまでは詳細文書の不足が判定されない`() {
-        val issues = validate(
-            """
+        // 詳細文書の存在は、他の検査と同じく索引にある要素を判定する（P29 Phase 6 第3段・意図的差分 D-21 ⑤）
+        val yaml = """
             id: ENT-001
             phase: logical-design
             name: 顧客
             columns:
               - name: id
             """.trimIndent()
-        )
+        val issues = validate(yaml, indexWith(yaml))
         assertTrue(issues.none { it.message.contains("詳細文書が不足") }, "$issues")
     }
 
     @Test
     fun `カバレッジのactiveFromに達すると詳細文書の不足が判定される`() {
-        val issues = validate(
-            """
+        val yaml = """
             id: ENT-001
             phase: physical-design
             name: 顧客
@@ -204,7 +203,7 @@ class PhaseTest {
               - name: id
             physicalName: t_customer
             """.trimIndent()
-        )
+        val issues = validate(yaml, indexWith(yaml))
         assertTrue(issues.any { it.severity == Severity.ERROR && it.message.contains("詳細文書が不足") }, "$issues")
     }
 

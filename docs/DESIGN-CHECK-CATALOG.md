@@ -64,6 +64,7 @@
 | 「AまたはB」「〜でない」の条件（例外つきの義務・禁止する形式） | `where` / `check` の `{or: [条件, ...]}`・`{not: 条件}`（入れ子は1段）・node の `entity: [型, ...]` と `not: {entity: [...]}` | — |
 | 参照の本数の範囲（条件つき・他の値と比べる） | 値の式 `{refCount: {of, dir, relation}}` を `check` で比べる（無条件・型全体に一律なら §2 の `cardinality`） | — |
 | 子の値の合計・最小・最大と、親の値の整合 | 値の式 `{sum / min / max: {of, path}}`・`{count: {of}}`（同じ起点の全ての解にわたる集計） | — |
+| 同じ ID が、指定のスキーマの文書に何か所書かれているか（詳細文書の数・記録の数） | 値の式 `{occurrenceCount: {of, schema, role}}` を `check` で比べる（「詳細文書があること」だけなら §2 の `coverage`） | — |
 | 参照そのものを指摘したい（禁止された相手への参照・無効な要素への参照） | `edge` の `bind` ＋ `reportAt: {ref: 束縛名}` ＋ `expect: absent`（見つかった解ごとに、参照が書かれた場所へ指摘） | — |
 | 計算した値どうしの整合（文字数の上限・合計や積の一致） | 値の式 `{length: 式}`・`{add / subtract / multiply / divide: [...]}`・`{number: 式}`（例 `{eq: [{number: {of,path}}, {multiply: [{of,path},{of,path}]}]}`） | — |
 
@@ -118,10 +119,15 @@ enum の区分値のまま直接ノードにする形は、ID化パターンで�
 | 指摘を値の場所に出し、直し方を示す | `reportAt`・`message`・`responses`（移動 `jump`・値の書き込み `apply`） |
 | 関係の宣言に効く語彙を作る | `vocabulary` の `in: relations[]`（展開された検査は、どの文書の要素にも適用される） |
 | 指摘の文面に、見つかった要素を埋め込む | `message` の `{id}` `{束縛名.id}` `{束縛名.type}` `{束縛名.title}` `{count}`（どの判定にも書ける） |
+| 要素ごとの充足状況の一覧に出す | `status: ひな型`（例 `レビュー記録 {left} 件（必要 {right} 件）`。右パネル・ID 横ぐし・ビューの状態列・エージェントの `related`） |
+| 直せる場所（書き足し先の文書）にも案内する | `fixSite: {schema: 書き足し先のスキーマ, message: "…{count} 件…{ids}"}` |
+| 足りない詳細文書をその場で作れるようにする | `responses: [{create: detailDocument, schemas: [スキーマID], label: "…{id}（{schema}）"}]` |
+| ワークスペースごとに重大度を切り替える | `levelFrom: definingUniqueness`（関係レジストリの `enforcement` が宣言されていれば、その重大度） |
+| どのスキーマの文書の要素にも効く検査を書く | `kind: library` の文書の `constraints`（起点は `node: {typed: true}` などで絞る） |
 | 足りない参照の書き足し先を示す | `responses: [{jump: referenceSources, relation: 関係名, label: "…{file}"}]` |
 | 展開された検査を確認する | CLI `checks <workspace> [schema-id] [--definitions]` |
 
-組込みの語彙（`consistency`・関係の宣言の `cardinality` と `source` / `target`）も同じ仕組みで書かれており、組込みだけが使える特別な機能はない。
+組込みの語彙（`consistency`・`coverage`・関係の宣言の `cardinality` と `source` / `target`）とエンティティの整合も同じ仕組みで書かれており、組込みだけが使える特別な機能はない。
 複雑なアルゴリズムが要る検査（例: 状態遷移への時相論理の適用）は、YAML で書こうとせず、コードの専用チェッカーとして実装する。
 
 ## 7. プロセスへの組み込み（ゲート・集計）
@@ -144,7 +150,7 @@ enum の区分値のまま直接ノードにする形は、ID化パターンで�
    数える単位は**参照の本数**（同じ相手への重複参照も数える＝リンク規律の検査）。
 3. **条件付き（where）・多段・組の distinct が要る数え上げ**は constraints の `exists` / `count`（§3）。
    数える単位は**束縛タプルの distinct 件数**。値比較は `check`、宣言値=導出値は consistency（§6。中身は `check` へ展開される語彙）。
-4. **同一IDの詳細化の存在**は coverage の `detailIn`（§2）。出現集合への集約であり、参照では書けない。
+4. **同一IDの詳細化の存在**は coverage の `detailIn`（§2）。書かれた場所の数の検査であり、参照では書けない（中身は値の式 `occurrenceCount` の比較へ展開される語彙。数や条件を変えたいときは `occurrenceCount` を直接 `check` に書く）。
    （被参照数の要求＝旧 `requiredBy` は R29-01 で削除——上記 2 か 3 で書く。）
 5. **全組合せの網羅**は matrix（§4）、**経路の長さによらない到達性**は flow（§5）。
 6. チェックの粒度に迷ったら「違反メッセージを読んだ人が直す場所へ飛べるか」（relatedIds・報告先）で決める。

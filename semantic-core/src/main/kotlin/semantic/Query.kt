@@ -106,6 +106,19 @@ data class SemanticCheckViolation(
 )
 
 /**
+ * check の1項目を評価した結果1件（検査の状況の表示用）: 条件を満たさなかった組があればその組（satisfied = false）、
+ * なければ評価できた最初の組（satisfied = true）。評価できる組が1つも無い項目は結果に含まれない（判定保留）。
+ */
+data class SemanticCheckEvaluation(
+    val check: ConstraintCheck,
+    val term: CheckTerm,
+    val left: SemanticCheckSide,
+    val right: SemanticCheckSide,
+    val row: SemanticQueryRow,
+    val satisfied: Boolean,
+)
+
+/**
  * node ステップの絞り込み（型のどれか・出現スキーマ・ID パターンと、その否定）にエンティティが合うか。
  * クエリ・網羅マトリクス・遷移検証が共有する（1つの意味には1つの評価器）。
  * 否定（not）は3値で判定する——中の条件がすべて合えば「合わない」、どれかが合わなければ「合う」、
@@ -114,6 +127,7 @@ data class SemanticCheckViolation(
 internal fun QueryNodeStep.matchesEntity(id: String, node: SemanticEntityNode): Boolean {
     if (idPattern != null && !idMatchesPattern(id, idPattern!!)) return false
     if (entities.isNotEmpty() && node.entityType !in entities) return false
+    if (typed != null && (node.entityType != null) != typed) return false
     if (schema != null && node.occurrences.none { it.schemaId == schema }) return false
     val filter = not ?: return true
     // 中の条件のどれかが合わなければ、否定は成り立つ
@@ -198,6 +212,21 @@ object SemanticQuery {
         pin: Pair<ValueExpr.ScopeRef, SemanticExpression.Occurrence>? = null,
         loader: (DocumentId) -> YNode?,
     ): List<SemanticCheckViolation> = Evaluator(ids, refs, graph, spec, loader, rel).checkFrom(startId, checks, pin)
+
+    /**
+     * 起点を固定した check の評価（検査の状況の表示用）: checkFrom と同じ評価で、条件を満たしている項目も
+     * 値つきで返す（「出現 1 件（必要 1 件）」のように、満たしている状況も示すため）。
+     */
+    fun checkEvaluationsFrom(
+        ids: Map<String, List<ScannedId>>,
+        refs: List<ScannedRef>,
+        graph: SemanticEntityGraph,
+        spec: QuerySpec,
+        checks: List<ConstraintCheck>,
+        startId: String,
+        rel: (DocumentId) -> String = { it.value },
+        loader: (DocumentId) -> YNode?,
+    ): List<SemanticCheckEvaluation> = Evaluator(ids, refs, graph, spec, loader, rel).checkEvaluationsFrom(startId, checks)
 
     /** startId が起点束縛の母集団（起点 node のフィルタ＋起点束縛の where 述語）に入るか（R22-03）。 */
     fun startMatches(
@@ -546,7 +575,8 @@ object SemanticQuery {
             val violations = mutableListOf<SemanticCheckViolation>()
             for (row in all.take(spec.limit)) {
                 for (check in checks) {
-                    val found = counterexampleOf(row, check, pin) ?: continue
+                    val found = evaluationOf(row, check, pin)?.takeIf { !it.satisfied }
+                        ?.let { SemanticCheckViolation(it.check, it.term, it.left, it.right, it.row) } ?: continue
                     // 集計を含む項目は、どの解で評価しても同じ結果になる——同じ組を解の数だけ並べない
                     val duplicate = check.operands.any { it.hasAggregate() } && violations.any {
                         it.check == found.check && it.left == found.left && it.right == found.right
@@ -555,6 +585,22 @@ object SemanticQuery {
                 }
             }
             return violations
+        }
+
+        fun checkEvaluationsFrom(startId: String, checks: List<ConstraintCheck>): List<SemanticCheckEvaluation> {
+            val all = solve(startId, firstOnly = false)
+            aggregateRows = all
+            val out = mutableListOf<SemanticCheckEvaluation>()
+            for (row in all.take(spec.limit)) {
+                for (check in checks) {
+                    val found = evaluationOf(row, check, pin = null) ?: continue
+                    val duplicate = check.operands.any { it.hasAggregate() } && out.any {
+                        it.check == found.check && it.left == found.left && it.right == found.right
+                    }
+                    if (!duplicate) out += found
+                }
+            }
+            return out
         }
 
         /** 集計の対象になる解（checkFrom が、評価の前に同じ起点の全ての解を入れる）。 */
@@ -567,36 +613,39 @@ object SemanticQuery {
          * null（判定保留＝黙る）。同じ「束縛と文書の指定」は項目の中で同じ出現から読む（CORE-CALCULUS §7 の σ）。
          * 候補が1つも無い指定は「その入れ物は無い」として扱う（読み出しは得られない・テンプレートの入れ物からは外れる）。
          */
-        private fun counterexampleOf(
+        private fun evaluationOf(
             row: SemanticQueryRow,
             check: ConstraintCheck,
             pin: Pair<ValueExpr.ScopeRef, SemanticExpression.Occurrence>?,
-        ): SemanticCheckViolation? {
+        ): SemanticCheckEvaluation? {
             val sources = check.operands.flatMap { it.sources() }.distinct()
             val candidates: List<List<SemanticExpression.Occurrence?>> = sources.map { source ->
                 if (pin != null && pin.first == source) listOf(pin.second)
                 else candidatesFor(row, source).ifEmpty { listOf(null) }
             }
             val assignment = HashMap<ValueExpr.ScopeRef, SemanticExpression.Occurrence?>()
-            fun search(index: Int): SemanticCheckViolation? {
+            // 条件を満たした最初の組（満たさない組が見つからなかったときに、状況の表示用として返す）
+            var firstSatisfied: SemanticCheckEvaluation? = null
+            fun search(index: Int): SemanticCheckEvaluation? {
                 if (index == sources.size) {
                     // 項目は値の条件の「または」（1つなら単独）: どれかが成り立てば成立・成り立つものがなく
                     // 評価できない条件が残れば判定保留（飛ばす）・すべて成り立たなければ、最初の条件の値を示して違反
                     var unknown = false
-                    var firstFailed: SemanticCheckViolation? = null
+                    var firstFailed: SemanticCheckEvaluation? = null
                     for (term in check.terms) {
                         val left = evalExpr(term.left, row, assignment)
                         val rights = term.rights.map { evalExpr(it, row, assignment) }
                         // 値の条件は共有評価部——評価できない（null）条件は判定保留
                         val plain = left?.let { SemanticExpression.test(term.op, it.text, rights.map { r -> r?.text }) }
                         if (left == null || plain == null) { unknown = true; continue }
-                        if (plain != term.negated) return null
-                        if (firstFailed == null) {
-                            // 右辺が複数（oneOf の選択肢）のときは、選択肢を並べた1つの辺として示す
-                            val right = rights.singleOrNull()
-                                ?: SemanticCheckSide(text = rights.filterNotNull().joinToString("・") { it.text })
-                            firstFailed = SemanticCheckViolation(check, term, left, right, row)
+                        // 右辺が複数（oneOf の選択肢）のときは、選択肢を並べた1つの辺として示す
+                        val right = rights.singleOrNull()
+                            ?: SemanticCheckSide(text = rights.filterNotNull().joinToString("・") { it.text })
+                        if (plain != term.negated) {
+                            if (firstSatisfied == null) firstSatisfied = SemanticCheckEvaluation(check, term, left, right, row, satisfied = true)
+                            return null
                         }
+                        if (firstFailed == null) firstFailed = SemanticCheckEvaluation(check, term, left, right, row, satisfied = false)
                     }
                     return if (unknown) null else firstFailed
                 }
@@ -606,7 +655,7 @@ object SemanticQuery {
                 }
                 return null
             }
-            return search(0)
+            return search(0) ?: firstSatisfied
         }
 
         /** 値を読む出現の候補: 束縛の全出現のうち、文書の指定（スキーマID・ファイルのパターン）に合うもの（索引順）。 */
@@ -673,6 +722,18 @@ object SemanticQuery {
                 }
                 val n = refs.count { (expr.relation == null || it.relation == expr.relation) && (expr.via == null || it.viaKey == expr.via) }
                 SemanticCheckSide(text = n.toString(), id = node.id, raw = n.toString())
+            }
+            // 書かれた場所の数（SP-05）: その ID が書かれている場所のうち、指定（スキーマ・ファイル・役割）に合うものを数える。
+            // distinct: type は、合う場所で宣言されているエンティティ型の種類を数える（元の値に、型の並びを添える）
+            is ValueExpr.OccurrenceCount -> row.bindings[expr.of]?.takeIf { it.kind == QueryNodeKind.ENTITY }?.let { node ->
+                val occurrences = graph.entities[node.id]?.occurrences.orEmpty()
+                    .filter { expr.matches(it.schemaId, rel(it.document), it.role) }
+                if (expr.distinct == null) {
+                    SemanticCheckSide(text = occurrences.size.toString(), id = node.id, raw = occurrences.size.toString())
+                } else {
+                    val types = occurrences.mapNotNull { it.entityType }.distinct()
+                    SemanticCheckSide(text = types.size.toString(), id = node.id, raw = types.joinToString(", "))
+                }
             }
             // 集計（SP-03）: 同じ起点の全ての解にわたり、束縛の要素（重複は1つ）の値をまとめる。値は指定に合う文書のうち
             // 定義した側を優先して1つから読む（CALC-19）。得られない・数値として読めない値が1つでもあれば得られない

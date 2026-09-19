@@ -218,7 +218,12 @@ private fun EntityPage(state: AppState, id: String) {
             val statuses = remember(id, state.indexVersion, state.editVersion) {
                 occurrences.mapNotNull { e -> state.schemas.firstOrNull { it.id == e.schemaId }?.let { it to e } }
                     .distinctBy { it.first.id }
-                    .flatMap { (sc, e) -> Validator.coverageStatuses(id, sc, state.overlayIndex(), state.ensureDoc(e.file).root) }
+                    .flatMap { (sc, e) ->
+                        Validator.ruleStatuses(
+                            id, sc, state.overlayIndex(), state.ensureDoc(e.file).root,
+                            state.schemas, state.workspace, state.unsavedFirstLoader(),
+                        )
+                    }
             }
             if (statuses.isNotEmpty()) {
                 Spacer(Modifier.height(12.dp))
@@ -240,15 +245,7 @@ private fun EntityPage(state: AppState, id: String) {
                         )
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            when {
-                                !status.active ->
-                                    "フェーズ未到達（${status.rule.activeFrom} から判定。現在 出現 ${status.count} 件／必要 ${status.rule.minCount} 件）" +
-                                        (status.rule.description?.let { " — $it" } ?: "")
-                                status.satisfied ->
-                                    "出現 ${status.count} 件（必要 ${status.rule.minCount} 件）" +
-                                        (status.rule.description?.let { " — $it" } ?: "")
-                                else -> Validator.coverageMessage(status, state.schemas)
-                            },
+                            status.text,
                             fontSize = 12.sp,
                             color = when {
                                 !status.active -> Palette.SubText

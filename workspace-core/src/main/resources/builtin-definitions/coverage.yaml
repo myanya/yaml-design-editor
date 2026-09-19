@@ -1,0 +1,60 @@
+# 組込み定義体: 詳細文書の存在（スキーマの coverage）
+#
+# 「このスキーマの文書に書かれた ID は、指定したスキーマの文書（詳細文書）にも必要な数だけ書かれていること」
+# という検査を、プリミティブだけで定義する。不足の指摘・充足の状況の一覧・「詳細文書を作成」の対応・
+# 詳細文書の側への案内も、すべて検査の宣言として書かれている。
+# ここにコードは無い。利用者も同じ書き方（functions / vocabulary）で、自分の定義と語彙を作れる。
+id: builtin-coverage
+kind: library
+name: 詳細文書の存在（組込み定義体）
+description: スキーマの coverage という語彙と、その中身（ID が書かれた場所の数の検査）の定義
+
+functions:
+  - id: detail-documents-exist
+    description: 対象の ID が、詳細スキーマの文書に、必要な数だけ書かれていること
+    params: [schema, idPattern, detailSchemas, minCount, level, activeFrom, description, id, fixNote]
+    checks:
+      - id: $id
+        description: $description
+        level: $level
+        activeFrom: $activeFrom
+        match:
+          - node: {schema: $schema, id: $idPattern, bind: subject}
+        check:
+          - gte: [{occurrenceCount: {of: subject, schema: $detailSchemas}}, $minCount]
+        message: "ID「{id}」の詳細文書が不足しています（現在 {left} 件／必要 {right} 件、詳細スキーマ: {create.places}）"
+        # 充足の状況の一覧（右パネルのカバレッジ・ID 横ぐし・ビューの状態列）に出す。満たしているときの表示
+        status: 出現 {left} 件（必要 {right} 件）
+        # 足りない詳細文書は、その場で作れるようにする（詳細スキーマごとに1件）
+        responses:
+          - create: detailDocument
+            schemas: $detailSchemas
+            label: "詳細文書を作成: {id}（{schema}）"
+            note: スキーマの配置先に新規ファイルを作成して開きます
+        # 直せる場所は詳細スキーマの文書——そちらの文書にも、不足している ID を案内する
+        fixSite:
+          schema: $detailSchemas
+          message: "この文書のスキーマを出現先とするカバレッジで不足しているIDが {count} 件あります: {ids}$fixNote"
+
+vocabulary:
+  - word: coverage
+    description: 詳細文書の存在の専用の書き方（idPattern / detailIn / level / activeFrom）
+    in: coverage[]
+    requires: [detailIn.schemaIds]
+    removed:
+      requiredBy: >-
+        （参照ベースの coverage.requiredBy）1ホップの被参照数は関係レジストリの cardinality、
+        条件付き・多段は constraints の count / exists で宣言してください（docs/DESIGN-CHECK-CATALOG.md）。
+        coverage は detailIn（詳細文書の存在）専用です
+    uses:
+      - use: detail-documents-exist
+        with:
+          schema: {schema: id}
+          id: {from: id}
+          description: {from: description}
+          idPattern: {from: idPattern}
+          detailSchemas: {from: detailIn.schemaIds}
+          minCount: {from: detailIn.minCount, default: 1}
+          level: {from: level}
+          activeFrom: {from: activeFrom}
+          fixNote: {from: description, format: "（{value}）"}

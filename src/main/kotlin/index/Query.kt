@@ -119,6 +119,22 @@ object Query {
         ) { d -> loader(Path.of(d.value)) }
     }
 
+    /** 起点を固定した check の評価（検査の状況の表示用）: 条件を満たしている項目も値つきで返す。 */
+    fun checkEvaluationsFrom(
+        index: IdIndex,
+        spec: QuerySpec,
+        checks: List<schema.ConstraintCheck>,
+        startId: String,
+        loader: (Path) -> YNode? = diskLoader,
+        rel: (Path) -> String = { it.toString().replace('\\', '/') },
+    ): List<semantic.SemanticCheckEvaluation> {
+        val view = index.toKernelView()
+        return SemanticQuery.checkEvaluationsFrom(
+            view.entries, view.refs, view.graph, spec, checks, startId,
+            rel = { d -> rel(Path.of(d.value)) },
+        ) { d -> loader(Path.of(d.value)) }
+    }
+
     /**
      * 網羅マトリクス（R28-03）: 行 rowId の不足セル（証人のない列。ID昇順）。
      * 行の母集団外・列の母集団が空のときは空リスト（判定保留）。

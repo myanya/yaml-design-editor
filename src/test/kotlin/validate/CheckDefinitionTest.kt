@@ -161,9 +161,11 @@ class CheckDefinitionTest {
                 workspace.BuiltinDefinitionResources.text(name), Path.of("(builtin)/$name.yaml"),
                 library = schema.CheckLibrary(),
             )
-            assertTrue(parsed.checkLibrary.functions.isNotEmpty(), name)
+            // 定義と語彙を持つか、特定のスキーマに属さない検査を直接持つ（エンティティの整合）
+            assertTrue(parsed.checkLibrary.functions.isNotEmpty() || parsed.constraints.isNotEmpty(), name)
             assertTrue(parsed.validateDefinition().isEmpty(), parsed.validateDefinition().toString())
         }
         assertTrue("consistency" in SchemaLoader.builtinLibrary.topLevelKeys)
+        assertEquals(3, SchemaLoader.builtinRules.size)
     }
 }

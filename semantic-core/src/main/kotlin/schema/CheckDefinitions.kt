@@ -30,6 +30,10 @@ data class VocabularyWord(
     val location: String,
     val uses: List<VocabularyUse>,
     val origin: String,
+    /** 書き方の形（最小）: 必ず書くキー（パス）。書かれていなければ定義エラー。 */
+    val requires: List<String> = emptyList(),
+    /** 書き方の形（最小）: 廃止したキーと、書かれていたときに示す案内（黙って無視せず、定義エラーにして移行先を示す）。 */
+    val removed: Map<String, String> = emptyMap(),
 ) {
     /**
      * この語彙が、書かれた要素から読むキー（when / unless と、with の from のパスの先頭）。
@@ -53,7 +57,7 @@ data class VocabularyWord(
  * with は「定義へ渡す値」の指定で、値ごとに次のどれかを書く:
  * - そのままの値（スカラー・配列・マップ）
  * - `{from: パス}` 語彙として書かれた内容から読む（`default:` で無いときの値、`map:` で値の読み替え、
- *   `join:` で配列の値を区切り文字でつないだ文字列にできる）
+ *   `join:` で配列の値を区切り文字でつないだ文字列、`format:` で値があるときだけ `{value}` を埋めた文字列にできる）
  * - `{schema: id}` その語彙が書かれたスキーマのID
  */
 data class VocabularyUse(
@@ -111,6 +115,10 @@ data class CheckLibrary(
         }
         for (word in words) {
             for ((entry, at) in entriesAt(schemaRaw, word.location)) {
+                word.removed.entries.firstOrNull { isWritten(readPath(entry, it.key)) }
+                    ?.let { (key, guide) -> error("$at.$key は廃止されました。$guide") }
+                word.requires.firstOrNull { !isWritten(readPath(entry, it)) }
+                    ?.let { error("$at には $it が必要です（語彙「${word.word}」の書き方）") }
                 for (use in word.uses) {
                     if (use.whenPaths.any { !isWritten(readPath(entry, it)) }) continue
                     if (use.unlessPaths.any { isWritten(readPath(entry, it)) }) continue
@@ -159,8 +167,8 @@ data class CheckLibrary(
             val words = list(schemaRaw["vocabulary"], "$origin の vocabulary").mapIndexed { i, raw ->
                 val at = "$origin の vocabulary[$i]"
                 val m = raw as? Map<*, *> ?: error("$at はobjectである必要があります")
-                m.keys.map { it.toString() }.firstOrNull { it !in setOf("word", "description", "in", "uses") }
-                    ?.let { error("$at: 未知のキーです: $it（使えるキー: word, description, in, uses）") }
+                m.keys.map { it.toString() }.firstOrNull { it !in setOf("word", "description", "in", "uses", "requires", "removed") }
+                    ?.let { error("$at: 未知のキーです: $it（使えるキー: word, description, in, uses, requires, removed）") }
                 val word = m["word"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$at.word（語彙の名前）が必要です")
                 val location = m["in"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$at.in（書ける場所。例: consistency[]）が必要です")
                 val uses = list(m["uses"], "$at.uses").mapIndexed { j, u ->
@@ -179,7 +187,12 @@ data class CheckLibrary(
                     )
                 }
                 require(uses.isNotEmpty()) { "$at.uses には1件以上の対応が必要です" }
-                VocabularyWord(word, location, uses, "$origin の語彙「$word」")
+                val removed = when (val r = m["removed"]) {
+                    null -> emptyMap()
+                    is Map<*, *> -> r.entries.associate { it.key.toString() to it.value.toString() }
+                    else -> error("$at.removed はobject（廃止したキー: 案内）である必要があります")
+                }
+                VocabularyWord(word, location, uses, "$origin の語彙「$word」", paths(m["requires"]), removed)
             }
             return CheckLibrary(functions.associateBy { it.id }, words)
         }
@@ -240,8 +253,8 @@ data class CheckLibrary(
             val m = spec as? Map<*, *> ?: return spec
             return when {
                 m.containsKey("from") -> {
-                    m.keys.map { it.toString() }.firstOrNull { it !in setOf("from", "default", "map", "join") }
-                        ?.let { error("$where: 未知のキーです: $it（使えるキー: from, default, map, join）") }
+                    m.keys.map { it.toString() }.firstOrNull { it !in setOf("from", "default", "map", "join", "format") }
+                        ?.let { error("$where: 未知のキーです: $it（使えるキー: from, default, map, join, format）") }
                     val read = readPath(entry, m["from"].toString())
                         // join: 配列の値を、区切り文字でつないだ1つの文字列にする（文面に並べて示すため）
                         ?.let { value -> m["join"]?.let { sep -> (value as? List<*>)?.joinToString(sep.toString()) } ?: value }
@@ -249,9 +262,12 @@ data class CheckLibrary(
                         read?.let { value -> dict.entries.firstOrNull { it.key.toString() == value.toString() }?.value ?: value }
                     } ?: read
                     // map つきで値が無いときは、default も読み替えの対象にする（「省略時は equals」のような既定を1か所で書く）
-                    mapped ?: m["default"]?.let { d ->
+                    val value = mapped ?: m["default"]?.let { d ->
                         (m["map"] as? Map<*, *>)?.entries?.firstOrNull { it.key.toString() == d.toString() }?.value ?: d
                     }
+                    // format: 値があるときだけ、ひな型の {value} へ埋めた文字列にする（「（説明）」のように、値があるときだけ添える文言）
+                    val format = m["format"]?.toString()
+                    if (format != null && value != null) format.replace("{value}", value.toString()) else value
                 }
                 m.keys.map { it.toString() } == listOf("schema") && m["schema"]?.toString() == "id" -> schemaId
                 m.isEmpty() -> spec

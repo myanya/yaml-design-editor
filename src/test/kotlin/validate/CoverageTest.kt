@@ -13,6 +13,8 @@ import kotlin.test.assertTrue
 /**
  * 出現ベースのカバレッジルール（R7-02 / L-15）のテスト。
  * 「一覧の全IDに詳細文書（指定スキーマの出現）があること」を索引の出現数で機械判定する。
+ * P29 Phase 6 第3段で、coverage は組込み定義体（builtin-definitions/coverage.yaml）が作る検査になった——
+ * 充足の状況は「status を宣言した検査」の一般の仕組み（Validator.ruleStatuses）で読む。
  */
 class CoverageTest {
 
@@ -86,17 +88,20 @@ class CoverageTest {
 
     @Test
     fun `詳細出現がminCountに達すれば充足する`() {
-        val status = Validator.coverageStatuses("SCR-LIST", listSchema, index(withDetail = true)).single()
-        assertEquals(1, status.count)
+        val status = Validator.ruleStatuses("SCR-LIST", listSchema, index(withDetail = true)).single()
+        assertEquals("出現 1 件（必要 1 件）", status.summary)
         assertTrue(status.satisfied)
+        assertEquals("出現 1 件（必要 1 件） — 全画面は詳細文書を持つこと", status.text)
     }
 
     @Test
     fun `一覧文書自身の出現は詳細スキーマの出現として数えない`() {
         // SCR-EDIT は一覧（screen-list）にのみ出現する。screen-detail の出現数は 0 のまま
-        val status = Validator.coverageStatuses("SCR-EDIT", listSchema, index(withDetail = true)).single()
-        assertEquals(0, status.count)
+        val status = Validator.ruleStatuses("SCR-EDIT", listSchema, index(withDetail = true)).single()
+        assertEquals("出現 0 件（必要 1 件）", status.summary)
         assertFalse(status.satisfied)
+        // 不足しているときの表示は、検証パネルに出る指摘の文面と同じ
+        assertTrue("ID「SCR-EDIT」の詳細文書が不足しています（現在 0 件／必要 1 件" in status.text, status.text)
     }
 
     @Test
@@ -113,8 +118,8 @@ class CoverageTest {
             """.trimIndent(),
             Path.of("_schemas/screen-list.yaml"),
         )
-        val status = Validator.coverageStatuses("SCR-LIST", schema, index(withDetail = true)).single()
-        assertEquals(2, status.rule.minCount)
+        val status = Validator.ruleStatuses("SCR-LIST", schema, index(withDetail = true)).single()
+        assertEquals("出現 1 件（必要 2 件）", status.summary)
         assertFalse(status.satisfied)
     }
 
@@ -135,11 +140,13 @@ class CoverageTest {
             """.trimIndent(),
             Path.of("_schemas/screen-list.yaml"),
         )
-        val pending = Validator.coverageStatuses(
+        val pending = Validator.ruleStatuses(
             "SCR-EDIT", phased, index(withDetail = false), definingRoot = YamlIO.parse("phase: draft\n"),
         ).single()
         assertFalse(pending.active)
-        val active = Validator.coverageStatuses(
+        // フェーズ未到達でも、いまの値は状況に出す
+        assertEquals("フェーズ未到達（detail-design から判定。現在 出現 0 件（必要 1 件））", pending.text)
+        val active = Validator.ruleStatuses(
             "SCR-EDIT", phased, index(withDetail = false), definingRoot = YamlIO.parse("phase: detail-design\n"),
         ).single()
         assertTrue(active.active)
@@ -161,8 +168,8 @@ class CoverageTest {
             """.trimIndent(),
             Path.of("_schemas/screen-list.yaml"),
         )
-        assertTrue(Validator.coverageStatuses("OTHER-1", patterned, index(withDetail = false)).isEmpty())
-        assertFalse(Validator.coverageStatuses("SCR-EDIT", patterned, index(withDetail = false)).isEmpty())
+        assertTrue(Validator.ruleStatuses("OTHER-1", patterned, index(withDetail = false)).isEmpty())
+        assertFalse(Validator.ruleStatuses("SCR-EDIT", patterned, index(withDetail = false)).isEmpty())
     }
 
     @Test

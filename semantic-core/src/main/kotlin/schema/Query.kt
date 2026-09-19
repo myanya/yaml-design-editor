@@ -64,12 +64,13 @@ data class QueryNodeStep(
     val bind: String? = null,       // 束縛名（結果の列になる）
     val same: String? = null,       // 先行する束縛名（そのノード自身への到達を要求。R28-07）
     val not: QueryNodeFilter? = null, // この絞り込みに合わないノードだけを残す（SP-02）
+    val typed: Boolean? = null,     // true = エンティティ型が宣言されている要素だけ／false = 宣言されていない要素だけ
 ) {
     /** 母集団を絞る条件が1つでも書かれているか（マトリクス・遷移検証の選択は1つ以上を要求する）。 */
-    val hasFilter: Boolean get() = entities.isNotEmpty() || schema != null || idPattern != null || not != null
+    val hasFilter: Boolean get() = entities.isNotEmpty() || schema != null || idPattern != null || not != null || typed != null
 
     companion object {
-        private val KEYS = setOf("kind", "entity", "schema", "id", "bind", "same", "not")
+        private val KEYS = setOf("kind", "entity", "schema", "id", "bind", "same", "not", "typed")
         internal val BIND_RE = Regex("""[a-zA-Z][a-zA-Z0-9_-]*""")
 
         /** entity の値: 型名1つ、または型名の並び（1つ以上）。 */
@@ -105,7 +106,7 @@ data class QueryNodeStep(
                 ).also { require(!it.isEmpty) { "$where.node.not には entity / schema / id のいずれかが必要です" } }
             }
             if (kind == QueryNodeKind.DOCUMENT &&
-                (entities.isNotEmpty() || schema != null || not?.entities?.isNotEmpty() == true || not?.schema != null)
+                (entities.isNotEmpty() || schema != null || not?.entities?.isNotEmpty() == true || not?.schema != null || m["typed"] != null)
             ) {
                 error("$where.node: kind: document に entity / schema は指定できません（文書ノードは id（documentId のパターン）で絞ります）")
             }
@@ -120,6 +121,7 @@ data class QueryNodeStep(
                 idPattern = m["id"]?.toString()?.takeIf { it.isNotBlank() },
                 bind = bind,
                 not = not,
+                typed = m["typed"]?.let { it as? Boolean ?: error("$where.node.typed は true / false で書きます") },
             )
         }
     }
@@ -601,6 +603,8 @@ data class ReportAt(
  *   と `referenceSources`（起点の要素への参照を書き足せそうな文書。`relation: 関係名` を添える。候補ごとに1件。
  *   ラベルに `{file}`＝候補の文書のパス）
  * - apply: 値（`left` / `right`）を、指摘の場所へ書き込む（reportAt を宣言した検査でだけ使える）
+ * - create: 文書を新しく作る。`detailDocument`＝起点の ID の詳細文書を、`schemas` のスキーマの置き場所に作って開く
+ *   （スキーマごとに1件。ラベルに `{schema}`＝作るスキーマの ID）
  * ラベルのひな型には `{left}` `{right}` `{left.raw}` `{right.raw}`、inputs では `{input.placeholder}` `{input.value}` を書ける。
  * note はメニューでラベルの下に添える補足の1行（省略可）。
  */
@@ -611,27 +615,43 @@ data class ResponseDecl(
     /** jump: referenceSources のときの関係名。 */
     val relation: String? = null,
     val note: String? = null,
+    /** create: detailDocument のときの、作る文書のスキーマ ID。 */
+    val schemas: List<String> = emptyList(),
 ) {
-    enum class Kind { JUMP, APPLY }
+    enum class Kind { JUMP, APPLY, CREATE }
 
     /** 値の比較（check）で条件を満たさなかった組を使う対応か（使わない対応は、どの判定の検査にも書ける）。 */
-    val needsCheck: Boolean get() = kind == Kind.APPLY || target != REFERENCE_SOURCES
+    val needsCheck: Boolean get() = kind == Kind.APPLY || (kind == Kind.JUMP && target != REFERENCE_SOURCES)
 
     companion object {
         const val REFERENCE_SOURCES = "referenceSources"
+        const val DETAIL_DOCUMENT = "detailDocument"
         private val JUMP_TARGETS = setOf("left.source", "right.source", "left.inputs", "right.inputs", REFERENCE_SOURCES)
         private val APPLY_TARGETS = setOf("left", "right")
 
         fun parse(raw: Any?, where: String): ResponseDecl {
             val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります（{jump または apply, label}）")
-            m.keys.map { it.toString() }.firstOrNull { it !in setOf("jump", "apply", "label", "relation", "note") }
-                ?.let { error("$where: 未知のキーです: $it（使えるキー: jump, apply, label, relation, note）") }
+            m.keys.map { it.toString() }.firstOrNull { it !in setOf("jump", "apply", "create", "label", "relation", "note", "schemas") }
+                ?.let { error("$where: 未知のキーです: $it（使えるキー: jump, apply, create, label, relation, note, schemas）") }
             val label = m["label"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.label が必要です")
             val note = m["note"]?.toString()?.takeIf { it.isNotBlank() }
             val relation = m["relation"]?.toString()?.takeIf { it.isNotBlank() }
             val jump = m["jump"]?.toString()
             val apply = m["apply"]?.toString()
-            if ((jump != null) == (apply != null)) error("$where には jump か apply のどちらか一方が必要です")
+            val create = m["create"]?.toString()
+            if (listOfNotNull(jump, apply, create).size != 1) error("$where には jump / apply / create のどれか1つが必要です")
+            if (create != null) {
+                require(create == DETAIL_DOCUMENT) { "$where.create は $DETAIL_DOCUMENT です: $create" }
+                require(relation == null) { "$where: relation は jump: $REFERENCE_SOURCES のときだけ書けます" }
+                val schemas = when (val v = m["schemas"]) {
+                    is List<*> -> v.map { it.toString() }
+                    null -> emptyList()
+                    else -> listOf(v.toString())
+                }
+                require(schemas.isNotEmpty()) { "$where.schemas（作る文書のスキーマ ID）が必要です" }
+                return ResponseDecl(Kind.CREATE, create, label, note = note, schemas = schemas)
+            }
+            require(m["schemas"] == null) { "$where: schemas は create のときだけ書けます" }
             return if (jump != null) {
                 require(jump in JUMP_TARGETS) { "$where.jump は ${JUMP_TARGETS.joinToString(" / ")} のいずれかです: $jump" }
                 require((jump == REFERENCE_SOURCES) == (relation != null)) {
@@ -643,6 +663,29 @@ data class ResponseDecl(
                 require(relation == null) { "$where: relation は jump: $REFERENCE_SOURCES のときだけ書けます" }
                 ResponseDecl(Kind.APPLY, apply!!, label, note = note)
             }
+        }
+    }
+}
+
+/**
+ * 直せる場所への案内の宣言（SP-08）: この検査の指摘は「別の文書へ何かを書き足す」ことで直る——その書き足し先になる
+ * スキーマの文書の検証に、指摘が出ている起点の ID の一覧を、案内（情報）として出す。
+ * message は案内の文面のひな型（`{count}`＝ID の件数・`{ids}`＝ID の並び。先頭5件と残りの件数）。
+ * その文書に既に書かれている ID は載せない（書き足したその場で案内から消える）。
+ */
+data class FixSite(val schemas: List<String>, val message: String) {
+    companion object {
+        fun parse(raw: Any?, where: String): FixSite {
+            val m = raw as? Map<*, *> ?: error("$where はobject（{schema, message}）である必要があります")
+            m.keys.map { it.toString() }.firstOrNull { it !in setOf("schema", "message") }
+                ?.let { error("$where: 未知のキーです: $it（使えるキー: schema, message）") }
+            val schemas = when (val v = m["schema"]) {
+                is List<*> -> v.map { it.toString() }
+                null -> emptyList()
+                else -> listOf(v.toString())
+            }
+            require(schemas.isNotEmpty()) { "$where.schema（書き足し先になる文書のスキーマ ID）が必要です" }
+            return FixSite(schemas, m["message"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.message が必要です"))
         }
     }
 }
@@ -674,10 +717,23 @@ data class ConstraintRule(
     val reportAt: ReportAt? = null,
     /** エラー時の対応（SP-09）。 */
     val responses: List<ResponseDecl> = emptyList(),
+    /**
+     * 充足の状況の一覧に出す宣言（SP-08）。書いた検査は、要素ごとの「検査の状況」（満たしている・不足している・
+     * フェーズ未到達）の一覧に出る。値は、状況を1行で示すひな型（message と同じものを埋め込める。例「出現 {left} 件（必要 {right} 件）」）。
+     */
+    val status: String? = null,
+    /** 直せる場所への案内（SP-08）。 */
+    val fixSite: FixSite? = null,
+    /**
+     * 重大度の切り替え: 関係レジストリの強制スイッチ（enforcement）のキー名。そのキーが宣言されていれば、その重大度で
+     * 指摘する（宣言されていなければ level）。ワークスペースごとに「警告に留めるか、エラーで塞ぐか」を選べる検査に使う。
+     */
+    val levelFrom: String? = null,
 ) {
     companion object {
         private val OWN_KEYS = setOf(
             "id", "description", "expect", "count", "check", "level", "activeFrom", "message", "reportAt", "responses",
+            "status", "fixSite", "levelFrom",
         )
 
         fun parse(raw: Any?, where: String): ConstraintRule {
@@ -743,6 +799,15 @@ data class ConstraintRule(
                 message = m["message"]?.toString()?.takeIf { it.isNotBlank() },
                 reportAt = reportAt,
                 responses = responses,
+                status = m["status"]?.toString()?.takeIf { it.isNotBlank() }?.also {
+                    require(reportAt == null) { "$where.status は、起点を定義した場所へ報告する検査に書けます（reportAt とは組み合わせられません）" }
+                },
+                levelFrom = m["levelFrom"]?.toString()?.takeIf { it.isNotBlank() }?.also {
+                    require(it in EnforcementDef.KEYS) { "$where.levelFrom は ${EnforcementDef.KEYS.joinToString(" / ")} のいずれかです: $it" }
+                },
+                fixSite = m["fixSite"]?.let { FixSite.parse(it, "$where.fixSite") }?.also {
+                    require(reportAt == null) { "$where.fixSite は、起点を定義した場所へ報告する検査に書けます（reportAt とは組み合わせられません）" }
+                },
             )
         }
     }

@@ -1,0 +1,40 @@
+# 組込み定義体: エンティティの整合（定義した場所が1つ・型の食い違いがない）
+#
+# スキーマの entity 宣言で型を持った ID について、「書かれた場所」を数え比べる検査を、プリミティブだけで定義する。
+# ここに直接書いた検査（constraints）は特定のスキーマに属さない——ワークスペースのどの文書に定義された要素にも効く。
+# 利用者も kind: library の文書に同じように書ける。
+#
+# idPattern 逸脱と重複所有は、スキーマの構造（エンティティ型の宣言の一式・所有するフィールド）に依存するため、
+# 専用のコード（validate/Validator.kt）に残している。
+id: builtin-entities
+kind: library
+name: エンティティの整合（組込み定義体）
+description: 型が宣言された ID の、定義した場所の数と、宣言された型の種類の検査
+
+constraints:
+  # 浮遊詳細化: 詳細化した場所はあるのに、定義した場所（defines: true のスキーマの文書）がどこにもない
+  - match:
+      - node: {typed: true, bind: subject}
+    check:
+      - gte: [{occurrenceCount: {of: subject, role: defining}}, 1]
+    message: "エンティティ型「{subject.type}」のID「{id}」に定義出現がありません（浮遊詳細化。defines: true の文書群への出現が必要です）"
+    # 関係レジストリの enforcement.definingUniqueness が宣言されていれば、その重大度（error なら提出を塞ぐ）
+    levelFrom: definingUniqueness
+    level: warning
+
+  # 定義競合: 定義した場所が2つ以上ある
+  - match:
+      - node: {typed: true, bind: subject}
+    check:
+      - lte: [{occurrenceCount: {of: subject, role: defining}}, 1]
+    message: ID「{id}」の定義出現が {left} 件あります（定義競合）
+    levelFrom: definingUniqueness
+    level: warning
+
+  # 型競合: 書かれた場所によって、宣言されたエンティティ型が違う
+  - match:
+      - node: {typed: true, bind: subject}
+    check:
+      - lte: [{occurrenceCount: {of: subject, distinct: type}}, 1]
+    message: ID「{id}」が複数のエンティティ型（{left.raw}）で出現しています（型競合）
+    level: warning

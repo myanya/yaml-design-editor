@@ -9,7 +9,7 @@ package workspace
 object BuiltinDefinitionResources {
 
     /** 資源名（読み込みの順序もこの並び＝語彙の展開順）。検査を定義体へ移すたびに、ここへ1つずつ足す。 */
-    val names: List<String> = listOf("consistency", "relations")
+    val names: List<String> = listOf("consistency", "relations", "coverage", "entities")
 
     /** 1件の原文を読む（読み込み失敗はあり得ない前提。失敗時は例外で気付かせる）。 */
     fun text(name: String): String =

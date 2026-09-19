@@ -201,7 +201,7 @@ root:
     - key: coverage
       label: カバレッジルール
       type: array
-      description: "詳細文書の存在（出現ベース detailIn）の要求。被参照数の要求（旧 requiredBy）は廃止——1ホップは関係レジストリの cardinality、条件付き・多段は constraints で宣言する（R29-01）"
+      description: "詳細文書の存在（出現ベース detailIn）の要求。組込み定義体が作る語彙で、検証の前に基本の検査（書かれた場所の数の比較）へ展開される（P29 Phase 6。CLI checks で確認できる）。被参照数の要求（旧 requiredBy）は廃止——1ホップは関係レジストリの cardinality、条件付き・多段は constraints で宣言する（R29-01）"
       item:
         type: object
         fields:
@@ -352,7 +352,7 @@ root:
           - key: match
             label: パターン（node / edge の連鎖）
             type: any
-            description: "先頭 node が起点束縛（kind: entity 限定）。例 [{node: {entity: usecase, bind: uc}}, {edge: {relation: uses, dir: in}}, {node: {entity: screen}}]。node の entity には型の並び（どれか）も書け、not: {entity, schema, id} はその絞り込みに合わないノードだけを残す（型が宣言されていない要素は残さない）。node: {same: 束縛名} は先行して束縛済みのノードそのものへの到達を要求（ノード一致＝2経路の合流。他のキーと同居不可）。edge の bind は辿った参照そのものを束縛する（同じ相手への参照が2本あれば2つの解。reportAt: {ref: 束縛名} で指摘を参照の場所へ出せる）。edge の in: {schemaId, fileGlob} は参照が書かれた文書の指定"
+            description: "先頭 node が起点束縛（kind: entity 限定）。例 [{node: {entity: usecase, bind: uc}}, {edge: {relation: uses, dir: in}}, {node: {entity: screen}}]。node の entity には型の並び（どれか）も書け、not: {entity, schema, id} はその絞り込みに合わないノードだけを残す（型が宣言されていない要素は残さない）。typed: true は型が宣言された要素だけ（false は宣言されていない要素だけ）。node: {same: 束縛名} は先行して束縛済みのノードそのものへの到達を要求（ノード一致＝2経路の合流。他のキーと同居不可）。edge の bind は辿った参照そのものを束縛する（同じ相手への参照が2本あれば2つの解。reportAt: {ref: 束縛名} で指摘を参照の場所へ出せる）。edge の in: {schemaId, fileGlob} は参照が書かれた文書の指定"
           - key: also
             label: 分岐（1段）
             type: any
@@ -389,7 +389,7 @@ root:
           - key: check
             label: 判定述語
             type: any
-            description: "値の比較（R28-08）。{演算子: [左, 右]} または {op: 演算子, left: 左, right: 右} の配列（すべて成立が期待。expect / count と排他）。{not: 条件} と {or: [条件, ...]}（どれかが成り立てばよい）も書ける（入れ子は1段まで）。演算子は eq / ne（文字列の等値）・lte / gte / lt / gt（数値）・oneOf（右は選択肢の配列）・matches（正規表現の全体一致）・startsWith / endsWith / contains。左右は値の式——読み出し {of: 束縛, in: {schemaId, fileGlob}, path: 相対パス}（in は値を読む文書の指定。省略可）・決まった値（そのまま書く。値が無いかもしれないときは {value}）・テンプレートの展開 {format: 式, scopes: [{of, in}]}・辞書での置き換え {map: 式, using: {元: 先}}・最初に得られた値 {first: [式]}・文字数 {length: 式}・大文字と小文字 {upper: 式} {lower: 式}・数値の表記を揃える {number: 式}・四則演算 {add / multiply: [式, ...]} {subtract / divide: [式, 式]}・参照の本数 {refCount: {of: 束縛, dir: out | in, relation, via}}（同じ相手への参照が2本あれば2。出ていく参照は相手が見つからないものも数える）・集計 {sum | min | max: {of: 束縛, in, path}} {count: {of: 束縛}}（同じ起点の全ての解にわたり、その束縛の要素の値をまとめる）。同じ ID が書かれた文書の組をすべて調べ、条件を満たさない組を1つでも見つけたら指摘・評価できる組（値が得られない・数値として読めない）がなければ黙る"
+            description: "値の比較（R28-08）。{演算子: [左, 右]} または {op: 演算子, left: 左, right: 右} の配列（すべて成立が期待。expect / count と排他）。{not: 条件} と {or: [条件, ...]}（どれかが成り立てばよい）も書ける（入れ子は1段まで）。演算子は eq / ne（文字列の等値）・lte / gte / lt / gt（数値）・oneOf（右は選択肢の配列）・matches（正規表現の全体一致）・startsWith / endsWith / contains。左右は値の式——読み出し {of: 束縛, in: {schemaId, fileGlob}, path: 相対パス}（in は値を読む文書の指定。省略可）・決まった値（そのまま書く。値が無いかもしれないときは {value}）・テンプレートの展開 {format: 式, scopes: [{of, in}]}・辞書での置き換え {map: 式, using: {元: 先}}・最初に得られた値 {first: [式]}・文字数 {length: 式}・大文字と小文字 {upper: 式} {lower: 式}・数値の表記を揃える {number: 式}・四則演算 {add / multiply: [式, ...]} {subtract / divide: [式, 式]}・参照の本数 {refCount: {of: 束縛, dir: out | in, relation, via}}（同じ相手への参照が2本あれば2。出ていく参照は相手が見つからないものも数える）・集計 {sum | min | max: {of: 束縛, in, path}} {count: {of: 束縛}}（同じ起点の全ての解にわたり、その束縛の要素の値をまとめる）・書かれた場所の数 {occurrenceCount: {of: 束縛, schema: スキーマID または 並び, fileGlob, role: defining | detail, distinct: type}}（その ID が書かれている場所のうち指定に合うものの数。distinct: type は宣言されたエンティティ型の種類の数）。同じ ID が書かれた文書の組をすべて調べ、条件を満たさない組を1つでも見つけたら指摘・評価できる組（値が得られない・数値として読めない）がなければ黙る"
           - key: message
             label: 指摘の文面のひな型
             type: string
@@ -398,10 +398,23 @@ root:
             label: 指摘を出す場所（値の場所）
             type: any
             description: "省略時は起点を定義した場所。{of: 束縛, in: {schemaId, fileGlob}, path: 相対パス}＝値が書かれた場所（その値が書かれた文書の検証で、要素ごとに報告する。check と組み合わせる）・{ref: 参照の束縛名}＝edge の bind で束縛した参照が書かれた場所（見つかった解ごとに報告する。expect: absent か check と組み合わせる）"
+          - key: status
+            label: 充足の状況の表示
+            type: string
+            description: "書いた検査は、要素ごとの「検査の状況」の一覧（右パネルのカバレッジ・ID 横ぐし・ビューの状態列・エージェントの related）に出る。値は状況を1行で示すひな型（message と同じものを埋め込める。例 出現 {left} 件（必要 {right} 件））。reportAt とは組み合わせられない"
+          - key: fixSite
+            label: 直せる場所への案内
+            type: any
+            description: "{schema: スキーマID または 並び, message: 文面} 。この検査の指摘が「別の文書へ書き足す」ことで直るとき、書き足し先のスキーマの文書の検証に、指摘が出ている ID の一覧を案内（情報）として出す。message には {count}（件数）と {ids}（ID の並び）を書ける。その文書に既に書かれている ID は載せない"
+          - key: levelFrom
+            label: 重大度の切り替え
+            type: enum
+            values: [undeclaredRelation, definingUniqueness]
+            description: 関係レジストリの強制スイッチ（enforcement）のキー名。そのキーが宣言されていれば、その重大度で指摘する（宣言されていなければ level）
           - key: responses
             label: エラー時の対応
             type: any
-            description: "対応の宣言の配列。{jump: left.source|right.source|left.inputs|right.inputs, label}（値の出どころへ移動。check と組み合わせる）・{jump: referenceSources, relation: 関係名, label}（起点の要素への参照を書き足せそうな文書を開く。候補ごとに1件。label に {file}）・{apply: left|right, label}（値を指摘の場所へ書き込む。値の場所の reportAt が必要）。label には {left} {right} {left.raw} {right.raw}、inputs では {input.placeholder} {input.value} を書ける。note はメニューでラベルの下に添える補足"
+            description: "対応の宣言の配列。{jump: left.source|right.source|left.inputs|right.inputs, label}（値の出どころへ移動。check と組み合わせる）・{jump: referenceSources, relation: 関係名, label}（起点の要素への参照を書き足せそうな文書を開く。候補ごとに1件。label に {file}）・{apply: left|right, label}（値を指摘の場所へ書き込む。値の場所の reportAt が必要）・{create: detailDocument, schemas: [スキーマID], label}（起点の ID の詳細文書を、そのスキーマの置き場所に作って開く。スキーマごとに1件。label に {schema}）。label には {left} {right} {left.raw} {right.raw}、inputs では {input.placeholder} {input.value} を書ける。note はメニューでラベルの下に添える補足"
           - key: level
             label: 重大度
             type: enum
@@ -459,7 +472,7 @@ root:
             label: 定義の使用への対応
             type: any
             required: true
-            description: "{when: キー, unless: キー, use: 定義の名前, with: {受け取る値: 指定}} の配列。when / unless はそのキーが書かれている／いないときだけ有効（キーの並びも書ける＝すべて。空の配列・空の object・空文字は書かれていない扱い）。with の指定は、そのままの値・{from: パス, default, map, join}（書かれた内容から読む。join は配列の値を区切り文字でつなぐ）・{schema: id}（書かれたスキーマのID）"
+            description: "（語彙には requires: [必ず書くキーのパス] と removed: {廃止したキー: 案内} も書ける——書き方の形の最小の点検で、外れていればスキーマの読み込みエラー）{when: キー, unless: キー, use: 定義の名前, with: {受け取る値: 指定}} の配列。when / unless はそのキーが書かれている／いないときだけ有効（キーの並びも書ける＝すべて。空の配列・空の object・空文字は書かれていない扱い）。with の指定は、そのままの値・{from: パス, default, map, join, format}（書かれた内容から読む。join は配列の値を区切り文字でつなぐ・format は値があるときだけ {value} を埋めた文字列にする）・{schema: id}（書かれたスキーマのID）"
     - key: matrix
       label: 網羅マトリクス
       type: array

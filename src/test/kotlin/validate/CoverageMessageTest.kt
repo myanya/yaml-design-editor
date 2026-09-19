@@ -79,8 +79,12 @@ class CoverageMessageTest {
         // R28-05a（UX-97）: 指摘の scaffold から「詳細文書を作成」→ 作成後は不足が解消される
         val ws = Workspace.open(dir)
         val issue = ws.validate("list.yaml").single { "詳細文書が不足" in it.message }
-        kotlin.test.assertEquals("X-1", issue.scaffold?.id)
-        kotlin.test.assertEquals(listOf("detail"), issue.scaffold?.schemaIds)
+        // 対応は組込み定義体の宣言（responses の create: detailDocument）から作られる（P29 Phase 6 第3段）
+        val create = issue.responses.filterIsInstance<IssueResponse.CreateDetail>().single()
+        kotlin.test.assertEquals("X-1", create.id)
+        kotlin.test.assertEquals("detail", create.schemaId)
+        kotlin.test.assertEquals("詳細文書を作成: X-1（detail）", create.label)
+        kotlin.test.assertEquals("スキーマの配置先に新規ファイルを作成して開きます", create.note)
 
         val state = app.AppState().also { it.openWorkspace(dir) }
         val created = state.createDetailForCoverage("detail", "X-1").getOrThrow()

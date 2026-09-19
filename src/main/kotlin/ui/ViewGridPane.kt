@@ -584,7 +584,12 @@ private fun StatusCell(state: AppState, row: ViewRow) {
         val statuses = remember(row.id, state.indexVersion, state.editVersion) {
             row.occurrences.mapNotNull { e -> state.schemas.firstOrNull { it.id == e.schemaId }?.let { it to e } }
                 .distinctBy { it.first.id }
-                .flatMap { (sc, e) -> Validator.coverageStatuses(row.id, sc, state.overlayIndex(), state.ensureDoc(e.file).root) }
+                .flatMap { (sc, e) ->
+                    Validator.ruleStatuses(
+                        row.id, sc, state.overlayIndex(), state.ensureDoc(e.file).root,
+                        state.schemas, state.workspace, state.unsavedFirstLoader(),
+                    )
+                }
         }
         val active = statuses.filter { it.active }
         if (active.isEmpty()) {

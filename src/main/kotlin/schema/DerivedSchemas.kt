@@ -53,7 +53,6 @@ object DerivedSchemas {
                         match = d.match,
                         root = d.root,
                         definitions = template.definitions,
-                        coverage = template.coverage,
                         constraints = inherited.map { ConstraintRule.parse(it.raw, it.origin) },
                         expandedChecks = inherited,
                         phases = template.phases,

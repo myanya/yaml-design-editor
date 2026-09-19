@@ -435,6 +435,12 @@ internal fun runCli(args: Array<String>): String {
                     )
                 },
             )
+            // 特定のスキーマに属さない検査のうち、組込み定義体に直接書かれたもの（エンティティの整合など）
+            if (only == null) {
+                out["builtinChecks"] = schema.SchemaLoader.builtinChecks.map {
+                    linkedMapOf("origin" to it.origin, "check" to pruneNulls(it.raw))
+                }
+            }
             if ("--definitions" in rest) {
                 val library = ws.schemas.fold(schema.SchemaLoader.builtinLibrary) { acc, s ->
                     runCatching { acc + s.checkLibrary }.getOrDefault(acc)

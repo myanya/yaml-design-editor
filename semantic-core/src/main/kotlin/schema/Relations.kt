@@ -145,7 +145,18 @@ fun ownedFieldKeys(schema: StructuralSchema, root: model.YNode, path: model.YPat
 data class EnforcementDef(
     val undeclaredRelation: CoverageLevel? = null,
     val definingUniqueness: CoverageLevel? = null,
-)
+) {
+    /** キー名で引く（検査の宣言 levelFrom＝重大度の切り替えが使う）。宣言されていなければ null。 */
+    fun levelOf(key: String): CoverageLevel? = when (key) {
+        "undeclaredRelation" -> undeclaredRelation
+        "definingUniqueness" -> definingUniqueness
+        else -> null
+    }
+
+    companion object {
+        val KEYS = listOf("undeclaredRelation", "definingUniqueness")
+    }
+}
 
 /**
  * relation 名 → 表示ラベルの解決（R20-02）。バックリンクを表示する全面（SidePanel・ID横ぐし・

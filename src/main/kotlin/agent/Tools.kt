@@ -750,11 +750,11 @@ class AgentToolbox(
                 appendLine("）[${ws.relPath(b.file)} :: ${b.path.pretty()}]")
             }
             if (backlinks.size > relationLimit) appendLine("…他 ${backlinks.size - relationLimit} 件（limit 引数で拡張できます）")
-            // ---- カバレッジ充足（判定は Validator と共有）
+            // ---- 検査の状況（status を宣言した検査＝詳細文書の存在など。判定は Validator と共有）
             val statuses = idx.occurrences(id)
                 .mapNotNull { e -> ws.schemas.firstOrNull { it.id == e.schemaId }?.let { it to e } }
                 .distinctBy { it.first.id }
-                .flatMap { (sc, e) -> Validator.coverageStatuses(id, sc, idx, loader(e.file)) }
+                .flatMap { (sc, e) -> Validator.ruleStatuses(id, sc, idx, loader(e.file), ws.schemas, ws.root, loader) }
             if (statuses.isNotEmpty()) {
                 appendLine("## カバレッジ（${statuses.count { it.active && it.satisfied }}/${statuses.count { it.active }} 充足）")
                 statuses.forEach { st ->
@@ -763,8 +763,8 @@ class AgentToolbox(
                         st.satisfied -> "充足"
                         else -> "不足"
                     }
-                    appendLine("- [$state] 出現 ${st.count} 件／必要 ${st.rule.minCount} 件" +
-                        (st.rule.description?.let { " — $it" } ?: ""))
+                    appendLine("- [$state] " + (st.summary ?: "（評価できません）") +
+                        ((st.rule.description ?: st.rule.id)?.let { " — $it" } ?: ""))
                 }
             }
         }.trimEnd()

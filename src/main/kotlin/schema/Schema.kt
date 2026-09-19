@@ -7,8 +7,8 @@ import model.YNode
 import model.parseYPath
 import model.scalarText
 
-// CoverageRule は semantic-core の schema/Coverage.kt へ移動（B-3・RB-03a。判定コア
-// semantic.SemanticCoverage と宣言を揃えるため）。同一パッケージのためこのファイルの利用箇所は変更なし。
+// 詳細文書の存在（coverage）は、組込み定義体（builtin-definitions/coverage.yaml）が作る検査になった（P29 Phase 6 第3段）。
+// 専用のデータ型（CoverageRule）と読み取りコード（parseCoverage）は削除した——coverage は constraints へ展開される語彙。
 
 // DeriveDef / DeriveTypeRule（R11-03）は semantic-core の schema/SchemaDerivation.kt へ移動（C-2。
 // 展開コアを reader / session と共有するため）。同一パッケージのためこのファイルの利用箇所は変更なし。
@@ -23,7 +23,6 @@ data class SchemaDef(
     val match: String,
     val root: FieldDef,
     val definitions: Map<String, FieldDef> = emptyMap(),
-    val coverage: List<CoverageRule> = emptyList(),
     /**
      * 検査（基本の書き方へ展開済み。P29 Phase 6）: `constraints` に直接書いた検査と、定義を名前で使った検査、
      * 語彙（`consistency` など。組込み定義体・利用者の定義が作る）から展開された検査を、展開順に持つ。
@@ -146,7 +145,9 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
         if (match.isNotBlank()) issues += SchemaIssue("relations 文書に match は定義できません", "match")
         if (relations.isEmpty()) issues += SchemaIssue("kind: relations には1つ以上の relations が必要です", "relations")
         if (definitions.isNotEmpty()) issues += SchemaIssue("relations 文書に definitions は定義できません", "definitions")
-        if (coverage.isNotEmpty()) issues += SchemaIssue("relations 文書に coverage は定義できません", "coverage")
+        if (expandedChecks.any { it.origin.startsWith("coverage[") }) {
+            issues += SchemaIssue("relations 文書に coverage は定義できません", "coverage")
+        }
         // 関係の宣言（relations[]）に書かれた語彙は検査へ展開される（多重度・対象型など。P29 Phase 6 第2段）。
         // 検査を直接書くこと（constraints）はできない——関係レジストリは宣言の文書で、検査は語彙を通して作る
         if (expandedChecks.any { it.origin.startsWith("constraints[") }) {
@@ -185,11 +186,11 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
     } else {
         if (match.isNotBlank()) issues += SchemaIssue("library スキーマに match は定義できません", "match")
         // library は共有する定義の置き場——フィールドの定義（definitions）か、検査の定義・語彙の定義（functions / vocabulary）を持つ
-        if (definitions.isEmpty() && checkLibrary.functions.isEmpty() && checkLibrary.words.isEmpty()) {
-            issues += SchemaIssue("library スキーマには definitions・functions・vocabulary のいずれかが必要です", "definitions")
+        if (definitions.isEmpty() && checkLibrary.functions.isEmpty() && checkLibrary.words.isEmpty() && constraints.isEmpty()) {
+            issues += SchemaIssue("library スキーマには definitions・functions・vocabulary・constraints のいずれかが必要です", "definitions")
         }
-        if (coverage.isNotEmpty()) issues += SchemaIssue("library スキーマに coverage は定義できません", "coverage")
-        if (constraints.isNotEmpty()) issues += SchemaIssue("library スキーマに検査（constraints / consistency）は定義できません", "constraints")
+        // library に直接書いた検査（constraints）は、特定のスキーマに属さない検査——ワークスペースのどの文書に
+        // 定義された要素にも適用される（組込み定義体のエンティティの整合と同じ扱い。P29 Phase 6 第3段）
         if (phases != null) issues += SchemaIssue("library スキーマに phases は定義できません", "phases")
     }
 
@@ -363,11 +364,6 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
             if (phases == null) issues += SchemaIssue("activeFrom を使うには phases の宣言が必要です", where)
             else if (from !in phases.order) issues += SchemaIssue("activeFrom「$from」は phases に含まれていません", where)
         }
-    }
-    coverage.forEachIndexed { i, rule ->
-        if (rule.minCount < 1) issues += SchemaIssue("minCountは1以上が必要です", "coverage[$i]")
-        if (rule.idPattern?.isBlank() == true) issues += SchemaIssue("idPatternが空です", "coverage[$i]")
-        checkActiveFrom(rule.activeFrom, "coverage[$i]")
     }
     constraints.forEachIndexed { i, rule -> checkActiveFrom(rule.activeFrom, constraintOrigins.getOrNull(i) ?: "constraints[$i]") }
     matrix.forEachIndexed { i, rule -> checkActiveFrom(rule.activeFrom, "matrix[$i]") }
@@ -603,6 +599,22 @@ object SchemaLoader {
     }
 
     /**
+     * 組込み定義体に直接書かれた検査（constraints）。特定のスキーマに属さない検査として、ワークスペースのどの文書に
+     * 定義された要素にも適用する（エンティティの整合など）。利用者も、kind: library の文書に同じように書ける。
+     */
+    val builtinRules: List<ConstraintRule> by lazy { builtinChecks.map { ConstraintRule.parse(it.raw, it.origin) } }
+
+    /** builtinRules の展開後の姿と由来（CLI `checks` の表示用。展開の透明性 CALC-29）。 */
+    val builtinChecks: List<ExpandedCheck> by lazy {
+        workspace.BuiltinDefinitionResources.names.flatMap { name ->
+            val raw = YamlIO.parseToRaw(workspace.BuiltinDefinitionResources.text(name)) as? Map<*, *> ?: return@flatMap emptyList()
+            if (raw["constraints"] == null) return@flatMap emptyList()
+            builtinLibrary.expand(mapOf("constraints" to raw["constraints"]), raw["id"]?.toString() ?: name)
+                .map { ExpandedCheck(it.raw, "（組込み）$name.yaml の ${it.origin}") }
+        }
+    }
+
+    /**
      * スキーマ1件をパースする。library は検査の展開に使う定義の一式（ワークスペース全体で集めたもの）。
      * null のとき（単体のパース）は、組込み定義体とこの文書自身の定義で展開する。
      */
@@ -637,7 +649,6 @@ object SchemaLoader {
         // 構造部分（definitions・root・フィールド木）のパースは yaml-core の StructuralSchemaParser（YM-004c）
         val definitions = StructuralSchemaParser.parseDefinitions(raw["definitions"], id)
         val root = StructuralSchemaParser.parseRoot(raw["root"], kind, id, allowMissingRoot = derive != null)
-        val coverage = parseCoverage(raw["coverage"])
         // 検査（P29 Phase 6）: constraints に書いた検査（プリミティブを直接書く／定義を名前で使う）と、
         // 語彙（consistency など）を、基本の検査へ展開してからパースする。パースはクエリコア（schema/Query.kt）と共用
         val ownLibrary = CheckLibrary.parse(raw, source.fileName.toString())
@@ -662,7 +673,6 @@ object SchemaLoader {
             match = match,
             root = root,
             definitions = definitions,
-            coverage = coverage,
             constraints = constraints,
             expandedChecks = expanded,
             matrix = matrix,
@@ -696,45 +706,6 @@ object SchemaLoader {
     private fun parseRelations(raw: Any?): List<RelationDef> = SemanticDeclParser.parseRelations(raw)
 
     private fun parseEnforcement(raw: Any?): EnforcementDef? = SemanticDeclParser.parseEnforcement(raw)
-
-    private fun parseCoverage(raw: Any?): List<CoverageRule> {
-        if (raw == null) return emptyList()
-        val list = raw as? List<*> ?: error("coverageはリストである必要があります")
-        fun schemaIds(raw: Any?): List<String> = when (raw) {
-            is List<*> -> raw.map { it.toString() }
-            null -> emptyList()
-            else -> listOf(raw.toString())
-        }
-        return list.mapIndexed { i, entry ->
-            val m = entry as? Map<*, *> ?: error("coverage[$i]はobjectである必要があります")
-            if (m.containsKey("requiredBy")) {
-                // 語彙の刈り込み（R29-01・意図的差分 D-16）: 黙って無視せず、移行先を案内する定義エラーにする
-                error(
-                    "coverage[$i].requiredBy（参照ベース）は廃止されました。1ホップの被参照数は関係レジストリの " +
-                        "cardinality、条件付き・多段は constraints の count / exists で宣言してください" +
-                        "（docs/DESIGN-CHECK-CATALOG.md）。coverage は detailIn（詳細文書の存在）専用です"
-                )
-            }
-            val detailIn = m["detailIn"] as? Map<*, *>
-                ?: error("coverage[$i] には detailIn（出現ベース: 出現先スキーマ）が必要です")
-            val detailSchemaIds = schemaIds(detailIn["schemaIds"])
-            if (detailSchemaIds.isEmpty()) {
-                error("coverage[$i].detailIn には schemaIds（出現先スキーマ）が必要です")
-            }
-            CoverageRule(
-                id = m["id"]?.toString(),
-                description = m["description"]?.toString(),
-                idPattern = m["idPattern"]?.toString(),
-                detailSchemaIds = detailSchemaIds,
-                minCount = (detailIn["minCount"] as? Number)?.toInt() ?: 1,
-                level = m["level"]?.toString()?.let { value ->
-                    CoverageLevel.entries.firstOrNull { it.id == value }
-                        ?: error("coverage[$i].level は warning / error のいずれかである必要があります: $value")
-                } ?: CoverageLevel.WARNING,
-                activeFrom = m["activeFrom"]?.toString(),
-            )
-        }
-    }
 
     /** 導出宣言（R16-02/03a 共通語彙）のパース。ビューの computed（Views.parseView）と共有する。 */
     internal fun parseDerivationSelector(raw: Any?, where: String): DerivationSelector {

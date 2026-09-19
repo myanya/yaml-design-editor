@@ -111,7 +111,12 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
             else occurrences
                 .mapNotNull { e -> state.schemas.firstOrNull { it.id == e.schemaId }?.let { it to e } }
                 .distinctBy { it.first.id }
-                .flatMap { (sc, e) -> Validator.coverageStatuses(id, sc, state.overlayIndex(), state.ensureDoc(e.file).root) }
+                .flatMap { (sc, e) ->
+                    Validator.ruleStatuses(
+                        id, sc, state.overlayIndex(), state.ensureDoc(e.file).root,
+                        state.schemas, state.workspace, state.unsavedFirstLoader(),
+                    )
+                }
         }
         // フェーズ進捗（phases 宣言のあるスキーマのみ。未来フェーズの未記入はエラーではなく進捗で見せる）
         val phases = doc.schema?.phases
@@ -428,15 +433,7 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                                 )
                                 Spacer(Modifier.width(6.dp))
                                 Text(
-                                    when {
-                                        !status.active ->
-                                            "フェーズ未到達（${status.rule.activeFrom} から判定）" +
-                                                (status.rule.description?.let { " — $it" } ?: "")
-                                        status.satisfied ->
-                                            "出現 ${status.count} 件（必要 ${status.rule.minCount} 件）" +
-                                                (status.rule.description?.let { " — $it" } ?: "")
-                                        else -> Validator.coverageMessage(status, state.schemas)
-                                    },
+                                    status.text,
                                     fontSize = 11.sp,
                                     color = when {
                                         !status.active -> Palette.SubText
@@ -546,25 +543,22 @@ private fun IssueRow(state: AppState, file: Path, issue: Issue) {
                                 onClick = { menuOpen = false; applyDerivedValue(state, state.ensureDoc(file), issue, response.value) },
                             )
                         }
-                    }
-                }
-                // 詳細文書の作成（R28-05a・UX-97 の導線）: detailIn 不足の指摘からその場でスキャフォールドする
-                val sc = issue.scaffold
-                if (sc != null && !state.readOnlyMode) {
-                    sc.schemaIds.take(3).forEach { sid ->
-                        DropdownMenuItem(
-                            text = {
-                                Column {
-                                    Text("詳細文書を作成: ${sc.id}（$sid）", fontSize = 12.sp, color = Palette.Primary)
-                                    Text("スキーマの配置先に新規ファイルを作成して開きます", fontSize = 10.sp, color = Palette.SubText)
-                                }
-                            },
-                            onClick = {
-                                menuOpen = false
-                                state.createDetailForCoverage(sid, sc.id)
-                                    .onFailure { state.status = "詳細文書を作成できません: ${it.message}" }
-                            },
-                        )
+                        // 詳細文書の作成（R28-05a・UX-97 の導線）: 不足の指摘から、その場でスキャフォールドする
+                        is validate.IssueResponse.CreateDetail -> if (!state.readOnlyMode) {
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(response.label, fontSize = 12.sp, color = Palette.Primary)
+                                        response.note?.let { Text(it, fontSize = 10.sp, color = Palette.SubText) }
+                                    }
+                                },
+                                onClick = {
+                                    menuOpen = false
+                                    state.createDetailForCoverage(response.schemaId, response.id)
+                                        .onFailure { state.status = "詳細文書を作成できません: ${it.message}" }
+                                },
+                            )
+                        }
                     }
                 }
                 // 関連ID（UX-15 の不足案内など）: 各IDの定義へジャンプできる

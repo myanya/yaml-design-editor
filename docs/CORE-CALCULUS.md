@@ -437,6 +437,7 @@ Unknown が残れば Unknown・すべて False なら False」。
 Count(Query)
 RefCount(binding, dir, relation)          -- ノードの参照の本数（グラフの隣接の集合への Count）
 Sum / Min / Max / Count(binding, path)    -- 同じ起点の全ての解にわたる、束縛の要素の値の集計
+OccurrenceCount(binding, schema, role)    -- その ID が書かれた場所（出現集合）への Count。CALC-21 の演算面に名前を付けたもの
 ```
 
 `RefCount` と解にわたる集計は Phase 6 第2段（ROADMAP R29-12）で、値の式（Expression）の中で使える Aggregate として入れた
@@ -839,7 +840,8 @@ Core Calculus = 定義を実行する
 | query constraint | Query + Predicate |
 | relation cardinality（多重度） | Query + Aggregate（参照の本数）+ Predicate（**組込み定義体**。P29 Phase 6 第2段。専用の検査プログラムは無い） |
 | relation source / target（対象型） | Query（ノードの条件の否定・参照の束縛）+ Predicate（**組込み定義体**。P29 Phase 6 第2段） |
-| coverage（detailIn） | 出現集合の Aggregate ＋ Predicate（CALC-21。参照ベース requiredBy は R29-01 で削除） |
+| coverage（detailIn） | 出現集合の Aggregate ＋ Predicate（CALC-21。参照ベース requiredBy は R29-01 で削除。**組込み定義体**。P29 Phase 6 第3段で、書かれた場所の数 `occurrenceCount` の比較へ展開される語彙になった） |
+| entity lint（浮遊詳細化・定義競合・型競合） | 出現集合の Aggregate ＋ Predicate（**組込み定義体**に直接書いた検査。P29 Phase 6 第3段。idPattern 逸脱と重複所有は専用の lint として残す） |
 | matrix | Query / Aggregate / Predicate または専用高水準演算 |
 | flow（遷移検証） | Query（母集団選択）＋専用高水準演算（到達閉包。R28-04・§20 通過） |
 | Validator | Constraint executor |

@@ -23,6 +23,9 @@ import model.parseYPath
  * - 集計 `{sum | min | max: {of: 束縛名, in: 指定, path: 相対パス}}`・`{count: {of: 束縛名}}`（SP-03。同じ起点について
  *   見つかった全ての解にわたり、その束縛の要素（重複は1つ）の値を合計・最小・最大する／要素を数える。値は、指定に合う文書の
  *   うち定義した側を優先して1つから読む。値が得られない・数値として読めない要素が1つでもあれば「得られない」）
+ * - 書かれた場所の数 `{occurrenceCount: {of: 束縛名, schema: スキーマID または その並び, fileGlob: パターン, role: defining | detail}}`
+ *   （SP-05。その ID が書かれている場所のうち、指定に合うものの数。指定は省略でき、すべて「かつ」。
+ *   `distinct: type` を書くと、場所の数ではなく、それらの場所で宣言されているエンティティ型の種類の数）
  * 評価（どの出現から読むか・得られない値の扱い）は semantic.SemanticQuery の check 判定が担う。
  * 計算そのもの（文字列と数値の純粋な関数）は semantic.SemanticExpression にある。
  */
@@ -51,6 +54,26 @@ sealed interface ValueExpr {
 
     /** 参照の本数（SP-03）。relation / via を書かなければ、その向きの全ての参照を数える。 */
     data class RefCount(val of: String, val dir: QueryDir, val relation: String?, val via: String?) : ValueExpr
+
+    /**
+     * 書かれた場所の数（SP-05）。schemas が空なら全スキーマ・fileGlob / role が null なら制限なし。
+     * distinct が "type" のときは、合う場所で宣言されているエンティティ型の種類の数。
+     */
+    data class OccurrenceCount(
+        val of: String,
+        val schemas: List<String>,
+        val fileGlob: String?,
+        val role: EntityRole?,
+        val distinct: String?,
+    ) : ValueExpr {
+        private val regex: Regex? by lazy { fileGlob?.let { runCatching { globToRegex(it) }.getOrNull() } }
+
+        /** 場所（スキーマID・ワークスペース相対パス・役割）が指定に合うか。 */
+        fun matches(schemaId: String?, relPath: String, occRole: EntityRole?): Boolean =
+            (schemas.isEmpty() || schemaId in schemas) &&
+                (regex == null || regex!!.matches(relPath)) &&
+                (role == null || occRole == role)
+    }
 
     /** 解にわたる集計（SP-03）。count は path を持たない。 */
     data class Aggregate(val fn: AggregateFn, val of: String, val inDoc: DerivationSelector?, val path: YPath?) : ValueExpr
@@ -91,13 +114,14 @@ sealed interface ValueExpr {
         is First -> options.flatMap { it.sources() }.distinct()
         is Unary -> input.sources()
         is Arith -> operands.flatMap { it.sources() }.distinct()
-        // 参照の本数と集計は、値を読む出現を選ばない（本数はグラフから・集計は定義した側を優先して1つに決める）
-        is RefCount, is Aggregate -> emptyList()
+        // 参照の本数・書かれた場所の数・集計は、値を読む出現を選ばない（数はグラフから・集計は定義した側を優先して1つに決める）
+        is RefCount, is OccurrenceCount, is Aggregate -> emptyList()
     }
 
     /** この式が使う束縛の名前（パース時に、束縛が見つかるかを点検する）。 */
     fun binds(): List<String> = when (this) {
         is RefCount -> listOf(of)
+        is OccurrenceCount -> listOf(of)
         is Aggregate -> listOf(of)
         is Format -> (template.binds() + scopes.map { it.of }).distinct()
         is MapValue -> input.binds()
@@ -116,7 +140,7 @@ sealed interface ValueExpr {
         is First -> options.any { it.hasAggregate() }
         is Unary -> input.hasAggregate()
         is Arith -> operands.any { it.hasAggregate() }
-        is Get, is Literal, is RefCount -> false
+        is Get, is Literal, is RefCount, is OccurrenceCount -> false
     }
 
     /**
@@ -124,7 +148,7 @@ sealed interface ValueExpr {
      * テンプレートが書かれた文書の側で、プレースホルダが解決できるかを先に点検する（テンプレート健全性）のに使う。
      */
     fun templateReads(): List<Get> = when (this) {
-        is Get, is Literal, is RefCount, is Aggregate -> emptyList()
+        is Get, is Literal, is RefCount, is OccurrenceCount, is Aggregate -> emptyList()
         is Format -> template.reads() + template.templateReads()
         is MapValue -> input.templateReads()
         is First -> options.flatMap { it.templateReads() }
@@ -135,7 +159,7 @@ sealed interface ValueExpr {
     /** この式が値を読む読み出し（入れ子を含む）。 */
     fun reads(): List<Get> = when (this) {
         is Get -> listOf(this)
-        is Literal, is RefCount, is Aggregate -> emptyList()
+        is Literal, is RefCount, is OccurrenceCount, is Aggregate -> emptyList()
         is Format -> template.reads()
         is MapValue -> input.reads()
         is First -> options.flatMap { it.reads() }
@@ -196,6 +220,31 @@ sealed interface ValueExpr {
                         dir = QueryDir.parse(r["dir"]?.toString() ?: error("$where.refCount.dir（out / in）が必要です")),
                         relation = r["relation"]?.toString()?.takeIf { it.isNotBlank() },
                         via = r["via"]?.toString()?.takeIf { it.isNotBlank() },
+                    )
+                }
+                m.containsKey("occurrenceCount") -> {
+                    onlyKeys(setOf("occurrenceCount"))
+                    val o = m["occurrenceCount"] as? Map<*, *>
+                        ?: error("$where.occurrenceCount はobject（{of, schema, fileGlob, role, distinct}）である必要があります")
+                    o.keys.map { it.toString() }.firstOrNull { it !in setOf("of", "schema", "fileGlob", "role", "distinct") }
+                        ?.let { error("$where.occurrenceCount: 未知のキーです: $it（使えるキー: of, schema, fileGlob, role, distinct）") }
+                    OccurrenceCount(
+                        of = o["of"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.occurrenceCount.of（束縛名）が必要です"),
+                        schemas = when (val v = o["schema"]) {
+                            null -> emptyList()
+                            is List<*> -> v.map { it.toString() }
+                            else -> listOf(v.toString())
+                        },
+                        fileGlob = o["fileGlob"]?.toString()?.takeIf { it.isNotBlank() },
+                        role = when (val r = o["role"]?.toString()) {
+                            null -> null
+                            "defining" -> EntityRole.DEFINING
+                            "detail" -> EntityRole.DETAIL
+                            else -> error("$where.occurrenceCount.role は defining / detail のいずれかです: $r")
+                        },
+                        distinct = o["distinct"]?.toString()?.also {
+                            require(it == "type") { "$where.occurrenceCount.distinct に書けるのは type（エンティティ型の種類を数える）だけです: $it" }
+                        },
                     )
                 }
                 aggregate != null -> {

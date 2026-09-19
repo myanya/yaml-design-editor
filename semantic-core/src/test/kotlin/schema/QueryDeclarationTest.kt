@@ -155,6 +155,83 @@ class QueryDeclarationTest {
         assertEquals(listOf("usecase", "batch"), ConstraintRule.parse(expanded.single().raw, "x").spec.start.entities)
     }
 
+    @Test
+    fun `書かれた場所の数と状況の表示と直せる場所への案内と文書を作る対応を宣言できる`() {
+        val count = ValueExpr.parse(
+            mapOf("occurrenceCount" to mapOf("of" to "s", "schema" to listOf("detail-a", "detail-b"), "role" to "defining")), "x",
+        )
+        val parsedCount = assertIs<ValueExpr.OccurrenceCount>(count)
+        assertEquals(listOf("detail-a", "detail-b"), parsedCount.schemas)
+        assertEquals(EntityRole.DEFINING, parsedCount.role)
+        assertTrue(parsedCount.matches("detail-a", "x.yaml", EntityRole.DEFINING))
+        assertTrue(!parsedCount.matches("detail-a", "x.yaml", EntityRole.DETAIL))
+        assertTrue(!parsedCount.matches("other", "x.yaml", EntityRole.DEFINING))
+        assertFailsWith<IllegalStateException> { ValueExpr.parse(mapOf("occurrenceCount" to mapOf("of" to "s", "role" to "owner")), "x") }
+        assertFailsWith<IllegalArgumentException> { ValueExpr.parse(mapOf("occurrenceCount" to mapOf("of" to "s", "distinct" to "schema")), "x") }
+
+        val parsed = rule(
+            "check" to listOf(mapOf("gte" to listOf(mapOf("occurrenceCount" to mapOf("of" to "s", "schema" to "detail")), 1))),
+            "status" to "出現 {left} 件（必要 {right} 件）",
+            "fixSite" to mapOf("schema" to "detail", "message" to "不足が {count} 件あります: {ids}"),
+            "levelFrom" to "definingUniqueness",
+            "responses" to listOf(mapOf("create" to "detailDocument", "schemas" to listOf("detail"), "label" to "作成: {id}（{schema}）")),
+            match = listOf(mapOf("node" to mapOf("typed" to true, "bind" to "s"))),
+        )
+        assertEquals(true, parsed.spec.start.typed)
+        assertEquals("出現 {left} 件（必要 {right} 件）", parsed.status)
+        assertEquals(FixSite(listOf("detail"), "不足が {count} 件あります: {ids}"), parsed.fixSite)
+        assertEquals("definingUniqueness", parsed.levelFrom)
+        assertEquals(ResponseDecl.Kind.CREATE, parsed.responses.single().kind)
+        assertEquals(listOf("detail"), parsed.responses.single().schemas)
+        // 誤り: 知らない強制スイッチ・作る文書のスキーマなし・値の場所への指摘との組合せ
+        assertFailsWith<IllegalArgumentException> { rule("expect" to "exists", "levelFrom" to "noSuchSwitch") }
+        assertFailsWith<IllegalArgumentException> {
+            rule("expect" to "exists", "responses" to listOf(mapOf("create" to "detailDocument", "label" to "x")))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            rule(
+                "check" to listOf(mapOf("eq" to listOf(mapOf("of" to "s", "path" to "a"), 1))),
+                "reportAt" to mapOf("of" to "s", "path" to "a"), "status" to "x",
+            )
+        }
+    }
+
+    @Test
+    fun `語彙は必ず書くキーと廃止したキーを宣言でき値があるときだけ文言を添えられる`() {
+        val library = CheckLibrary.parse(
+            mapOf(
+                "functions" to listOf(mapOf(
+                    "id" to "f", "params" to listOf("target", "note"),
+                    "checks" to listOf(mapOf(
+                        "match" to listOf(mapOf("node" to mapOf("schema" to "\$target", "bind" to "s"))),
+                        "expect" to "exists", "message" to "不足\$note",
+                    )),
+                )),
+                "vocabulary" to listOf(mapOf(
+                    "word" to "needs", "in" to "needs[]",
+                    "requires" to listOf("target.schema"),
+                    "removed" to mapOf("legacy" to "target を使ってください"),
+                    "uses" to listOf(mapOf(
+                        "use" to "f",
+                        "with" to mapOf("target" to mapOf("from" to "target.schema"), "note" to mapOf("from" to "why", "format" to "（{value}）")),
+                    )),
+                )),
+            ),
+            "lib.yaml",
+        )
+        val ok = library.expand(mapOf("needs" to listOf(
+            mapOf("target" to mapOf("schema" to "a"), "why" to "理由"),
+            mapOf("target" to mapOf("schema" to "b")),
+        )), "s")
+        assertEquals(listOf("不足（理由）", "不足"), ok.map { it.raw["message"] })
+        val missing = assertFailsWith<IllegalStateException> { library.expand(mapOf("needs" to listOf(mapOf("why" to "x"))), "s") }
+        assertTrue("needs[0] には target.schema が必要です" in missing.message.orEmpty(), missing.message)
+        val removed = assertFailsWith<IllegalStateException> {
+            library.expand(mapOf("needs" to listOf(mapOf("legacy" to true, "target" to mapOf("schema" to "a")))), "s")
+        }
+        assertTrue("needs[0].legacy は廃止されました。target を使ってください" in removed.message.orEmpty(), removed.message)
+    }
+
     private companion object {
         val DEFAULT_MATCH: List<Any?> = listOf(mapOf("node" to mapOf("entity" to "screen", "bind" to "s")))
     }
