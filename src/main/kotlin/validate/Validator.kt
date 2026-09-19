@@ -1,6 +1,5 @@
 package validate
 
-import index.Derivation
 import index.DocScanner
 import index.IdEntry
 import index.IdIndex
@@ -11,7 +10,6 @@ import model.YNode
 import model.YPath
 import model.getAt
 import model.scalarText
-import schema.ConsistencyAssert
 import schema.CoverageRule
 import schema.EnforcementDef
 import schema.EntityRole
@@ -35,16 +33,18 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * 整合検証の指摘に添付する導出の来歴（R16-03c / UX-13）。
- * UIは指摘クリックで「エラー箇所へ／導出規則へ／入力値へ／導出値を適用」の選択を提示する。
+ * エラー時の対応（SP-09。P29 Phase 6 第1段）: 対応の種類は閉じた一覧で、どれを・どのラベルで示すかは
+ * 検査の定義（YAML）が宣言する。UIは指摘のメニューに、宣言された順で並べる。
  */
-data class IssueDerivation(
-    val expected: String,        // 導出値（「導出値を適用」で書き込む値）
-    val raw: String?,            // 元値（テンプレート）
-    val sourceFile: Path?,       // 導出規則の座標
-    val sourcePath: YPath?,
-    val inputs: List<Derivation.Input>,  // 入力値の座標（プレースホルダごと）
-)
+sealed interface IssueResponse {
+    val label: String
+
+    /** その場所へ移動する（値の出どころ——テンプレートや、差し込んだ値が書かれた場所など）。 */
+    data class Jump(override val label: String, val file: Path, val path: YPath?) : IssueResponse
+
+    /** 値を、指摘の場所へ書き込む（未保存の編集として。Undo 可）。 */
+    data class ApplyValue(override val label: String, val value: String) : IssueResponse
+}
 
 /** detailIn カバレッジ不足の作成導線（R28-05a・UX-97）: このIDの詳細文書をどのスキーマで作れるか。 */
 data class IssueScaffold(val id: String, val schemaIds: List<String>)
@@ -53,8 +53,8 @@ data class Issue(
     val severity: Severity,
     val message: String,
     val path: YPath,
-    /** 整合検証の指摘のみ非null（R16-03c）。導出の来歴と適用可能な修正。 */
-    val derivation: IssueDerivation? = null,
+    /** エラー時の対応（SP-09）。検査の定義が宣言したものを、宣言順に持つ。 */
+    val responses: List<IssueResponse> = emptyList(),
     /** 指摘に関連するID（UX-15 の不足案内など）。UIはクリックで各IDの定義へジャンプできる。 */
     val relatedIds: List<String> = emptyList(),
     /** detailIn 不足のみ非null（R28-05a）。UIは「詳細文書を作成」メニューを出す。 */
@@ -118,6 +118,8 @@ object Validator {
         // 他文書のツリー（検証1回の中でキャッシュする。この文書自身は未保存の現在状態＝root を読む）
         val treeCache = mutableMapOf<Path, YNode?>()
         fun treeOf(f: Path): YNode? = if (f == file) root else treeCache.getOrPut(f) { loader(f) }
+        fun relOf(f: Path): String =
+            workspace?.let { IdIndex.relPathOf(it, f) } ?: f.toString().replace('\\', '/')
 
         // 1) スキーマ検証（構造検証。yaml-core の StructuralValidator へ委譲＝YM-005。
         //    型・必須・enum・制約語彙・cases・未定義キー・フェーズ申告を StructuralIssue として受け取り、
@@ -241,7 +243,7 @@ object Validator {
         //      判定は規則×主語IDごとに1回だけ診断（RuleDiagnostics）へ写し、2つの配送先へ届ける（R29-06）。
         //      母集団に入らないID・型未宣言・未解決参照には黙る（判定保留 §4.26・CALC-17）
         if (indexed) {
-            val diagnostics = RuleDiagnostics(indexObj, ::treeOf)
+            val diagnostics = RuleDiagnostics(indexObj, ::treeOf, ::relOf)
             // 報告先: 主語の定義出現（なければ先頭出現）を持つファイルの検証でのみ報告する（多重報告しない）。
             // 規則はこの文書のスキーマの宣言・activeFrom はこの文書のフェーズで判定する（R29-03・CALC-14）
             if (schema != null) {
@@ -253,6 +255,12 @@ object Validator {
                 }
                 for (rule in schema.constraints) {
                     if (!semantic.phaseActive(rule.activeFrom, phaseOrder, phaseIndex)) continue
+                    if (rule.reportAt != null) {
+                        // 値の場所へ出す検査（SP-08。整合検証など）: 定義した場所ではなく、この文書に書かれた要素ごとに、
+                        // その値だけを調べて値の場所へ指摘する（他の文書への案内は要らない＝値のある文書が報告先）
+                        for (entry in localIds) issues += diagnostics.valueIssues(rule, entry.id, file, entry.path)
+                        continue
+                    }
                     for (entry in anchored) diagnostics.constraint(rule, entry.id)?.let { issues += it.reportIssue(entry.path) }
                 }
                 // 網羅マトリクス: 不足セルは行の定義出現に列挙で報告する。あえて対象外のセルは witness 側に
@@ -283,7 +291,7 @@ object Validator {
                         val anchorPhase = s.currentPhaseIndex(treeOf(anchor.file))
                         fun activeAt(from: String?): Boolean = semantic.phaseActive(from, s.phases?.order.orEmpty(), anchorPhase)
                         for ((i, rule) in s.constraints.withIndex()) {
-                            if (!activeAt(rule.activeFrom)) continue
+                            if (rule.reportAt != null || !activeAt(rule.activeFrom)) continue
                             val d = diagnostics.constraint(rule, entry.id) ?: continue
                             if (noticed.add("${s.id}/c$i" to entry.id)) issues += d.noticeIssue(entry.path, anchorRel)
                         }
@@ -302,73 +310,36 @@ object Validator {
                 }
             }
         }
-        // 4) 整合検証（R16-03a）: ID要素の宣言値が導出値と一致すること（等値判定。ARCHITECTURE §4.26）
+        // 4) テンプレート健全性（R16-03a / UX-12）: いずれかのスキーマの検査が、この文書に書かれた値を
+        //    テンプレートとして展開する（値の式 format。整合検証の expected など）とき、テンプレートのプレースホルダが
+        //    同じ要素の値（この文書の要素と、同じ ID が書かれた他の文書の要素）から解決できるかを、書いたその場で点検する。
+        //    参照元の要素（lookup の起点）から来る値は、この文書だけからは分からないため対象にしない（§4.26）
         if (indexed) {
-            fun relOf(f: Path): String =
-                workspace?.let { IdIndex.relPathOf(it, f) } ?: f.toString().replace('\\', '/')
-
-            // 判定コアはカーネル（semantic.SemanticConsistency。B-3・RB-05）——ここは座標・ローダの変換シェル。
-            // 来歴（R16-03c）は Path 座標へ写し戻し、UIの「導出規則へ／入力値へ／導出値を適用」に使う
-            schema?.takeIf { it.consistency.isNotEmpty() }?.let { sc ->
-                issues += semantic.SemanticConsistency.check(
-                    rules = sc.consistency,
-                    localIds = localIds.map { it.toScanned() },
-                    root = root,
-                    phaseOrder = sc.phases?.order.orEmpty(),
-                    currentPhaseIndex = phaseIndex,
-                    occurrences = { id -> indexObj.entries[id].orEmpty().map { it.toScanned() } },
-                    rel = { d -> relOf(Path.of(d.value)) },
-                    tree = { d -> treeOf(Path.of(d.value)) },
-                ).map { f ->
-                    Issue(
-                        f.severity, f.message, f.path,
-                        derivation = IssueDerivation(
-                            expected = f.expected,
-                            raw = f.raw,
-                            sourceFile = f.sourceDocument?.let { Path.of(it.value) },
-                            sourcePath = f.sourcePath,
-                            inputs = f.inputs.map { i ->
-                                Derivation.Input(i.placeholder, i.value, i.document?.let { d -> Path.of(d.value) }, i.path)
-                            },
-                        ),
-                    )
-                }
-            }
-
-            // 5) テンプレート健全性（R16-03a / UX-12）: いずれかのスキーマの整合ルールがこの文書を
-            //    導出元（expected.source）に選んでいるとき、テンプレートのプレースホルダが導出の入力
-            //    （自要素・values で選んだ同一IDの出現・同一IDの他出現）から解決できるかを書いたその場で検査する。
-            //    lookup 起点（対象要素）由来のプレースホルダは静的に判定できない（§4.26）
             val relSelf = relOf(file)
-            val sourceRules = (allSchemas.ifEmpty { listOfNotNull(schema) })
-                .flatMap { it.consistency }
-                .filter { it.expected.source.matches(schema?.id, relSelf) }
-            if (sourceRules.isNotEmpty()) {
-                fun elementOf(e: IdEntry): YNode? = treeOf(e.file)?.let { getAt(it, e.path) }
-                for (rule in sourceRules) {
-                    for (entry in localIds) {
-                        val element = getAt(root, entry.path) ?: continue
-                        val raw = scalarText(getAt(element, rule.expected.path)) ?: continue
-                        if ('{' !in raw) continue
-                        val occs = indexObj.entries[entry.id].orEmpty()
-                        // values の出現選択は実際の導出と同じ σ 選択方針（定義出現優先。CALC-19・D-17）を共有する
-                        val scanned = occs.map { it.toScanned() }
-                        val valueScopes = rule.expected.values.mapNotNull { sel ->
-                            semantic.SemanticExpression.select(scanned, sel) { d -> relOf(Path.of(d.value)) }
-                                ?.let { s -> treeOf(Path.of(s.document.value))?.let { getAt(it, s.path) } }
-                        }
-                        val otherScopes = occs
-                            .filter { !(it.file == file && it.path == entry.path) }
-                            .mapNotNull(::elementOf)
-                        val eval = Projection.evaluate(raw, listOf(element) + valueScopes + otherScopes)
-                        eval.resolutions.filter { it.value == null }.forEach { r ->
-                            issues += Issue(
-                                Severity.WARNING,
-                                "プレースホルダ {${r.placeholder}} を導出の入力（値型定義等）から解決できません" +
-                                    (rule.description?.let { " — $it" } ?: ""),
-                                entry.path + rule.expected.path,
-                            )
-                        }
+            val templateReads = (allSchemas.ifEmpty { listOfNotNull(schema) })
+                .flatMap { it.constraints }
+                .flatMap { rule ->
+                    rule.check.flatMap { c -> c.left.templateReads() + c.right.templateReads() }
+                        .filter { read -> read.inDoc?.matches(schema?.id, relSelf) == true }
+                        .map { read -> rule to read }
+                }
+                .distinct()
+            for ((rule, read) in templateReads) {
+                for (entry in localIds) {
+                    val element = getAt(root, entry.path) ?: continue
+                    val raw = scalarText(getAt(element, read.path)) ?: continue
+                    if ('{' !in raw) continue
+                    val others = indexObj.entries[entry.id].orEmpty()
+                        .filter { !(it.file == file && it.path == entry.path) }
+                        .mapNotNull { e -> treeOf(e.file)?.let { getAt(it, e.path) } }
+                    val eval = Projection.evaluate(raw, listOf(element) + others)
+                    eval.resolutions.filter { it.value == null }.forEach { r ->
+                        issues += Issue(
+                            Severity.WARNING,
+                            "プレースホルダ {${r.placeholder}} を導出の入力（値型定義等）から解決できません" +
+                                (rule.description?.let { " — $it" } ?: ""),
+                            entry.path + read.path,
+                        )
                     }
                 }
             }

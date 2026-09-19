@@ -101,9 +101,19 @@ object Query {
         checks: List<schema.ConstraintCheck>,
         startId: String,
         loader: (Path) -> YNode? = diskLoader,
+        /** ワークスペース相対パス（値を読む文書の指定の fileGlob 判定に使う。既定はパス文字列そのまま）。 */
+        rel: (Path) -> String = { it.toString().replace('\\', '/') },
+        /** 値を読む出現の固定（指摘を「値が書かれた場所」へ出す検査用。束縛と文書の指定 → その出現）。 */
+        pin: Pair<schema.ValueExpr.ScopeRef, Pair<Path, YPath>>? = null,
     ): List<semantic.SemanticCheckViolation> {
         val view = index.toKernelView()
-        return SemanticQuery.checkFrom(view.entries, view.refs, view.graph, spec, checks, startId) { d -> loader(Path.of(d.value)) }
+        return SemanticQuery.checkFrom(
+            view.entries, view.refs, view.graph, spec, checks, startId,
+            rel = { d -> rel(Path.of(d.value)) },
+            pin = pin?.let { (source, occ) ->
+                source to semantic.SemanticExpression.Occurrence(model.DocumentId(occ.first.toString()), occ.second)
+            },
+        ) { d -> loader(Path.of(d.value)) }
     }
 
     /**

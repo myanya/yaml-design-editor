@@ -178,7 +178,7 @@ root:
       label: 種別
       type: enum
       values: [document, library, relations]
-      description: document（既定）は文書に適用、library は共通定義のみ公開、relations は関係レジストリ（保存すると専用フォームが適用される）
+      description: document（既定）は文書に適用、library は共有する定義の置き場（フィールドの定義 definitions・検査の定義 functions・語彙の定義 vocabulary）、relations は関係レジストリ（保存すると専用フォームが適用される）
     - key: match
       label: 適用パターン（glob）
       type: string
@@ -329,12 +329,20 @@ root:
             label: 判定を始めるフェーズ
             type: string
     - key: constraints
-      label: パターン制約
+      label: 検査（基本の書き方）
       type: array
-      description: "起点束縛に一致する各エンティティについて、グラフパターンの存在（exists）／不在（absent）／解の件数（count。R28-02）／束縛間の値比較（check。R28-08）を検証する（R22-03。カバレッジの一般形）"
+      description: "検査を1件ずつ書く（P29 Phase 6。CORE-CALCULUS §25）。書き方は2通り——①プリミティブを直接書く: match（クエリ）＋ expect / count / check のどれか ②定義を名前で使う: use（定義の名前）＋ with（渡す値）。consistency などの語彙は、検証の前にこの形へ展開される"
       item:
         type: object
         fields:
+          - key: use
+            label: 使う定義の名前
+            type: string
+            description: "functions に定義した検査（組込み定義体・利用者の定義）を名前で使う。use を書いた検査に書けるのは use と with だけ"
+          - key: with
+            label: 定義へ渡す値
+            type: any
+            description: "定義の params に対応する値（例 {relation: groups, min: 1}）"
           - key: id
             label: ルールID
             type: string
@@ -344,7 +352,6 @@ root:
           - key: match
             label: パターン（node / edge の連鎖）
             type: any
-            required: true
             description: "先頭 node が起点束縛（kind: entity 限定）。例 [{node: {entity: usecase, bind: uc}}, {edge: {relation: uses, dir: in}}, {node: {entity: screen}}]。node: {same: 束縛名} は先行して束縛済みのノードそのものへの到達を要求（ノード一致＝2経路の合流。他のキーと同居不可）"
           - key: also
             label: 分岐（1段）
@@ -382,7 +389,19 @@ root:
           - key: check
             label: 判定述語
             type: any
-            description: "束縛間の値比較（R28-08）。{lte|gte|lt|gt|eq|ne: [{of: 束縛, path: 相対パス}, {of: 束縛, path: 相対パス}]} の配列（すべて成立が期待。expect / count と排他）。解ごとに出現の組を走査し、違反する組（反例）を発見したら指摘・評価可能な組がなければ黙る。順序系（lte 等）は両辺が数値のときだけ評価する"
+            description: "値の比較（R28-08）。{lte|gte|lt|gt|eq|ne: [左, 右]} または {op: 演算子, left: 左, right: 右} の配列（すべて成立が期待。expect / count と排他）。左右は値の式——読み出し {of: 束縛, in: {schemaId, fileGlob}, path: 相対パス}（in は値を読む文書の指定。省略可）・決まった値 {value}・テンプレートの展開 {format: 式, scopes: [{of, in}]}・辞書での置き換え {map: 式, using: {元: 先}}・最初に得られた値 {first: [式]}。同じ ID が書かれた文書の組をすべて調べ、条件を満たさない組を1つでも見つけたら指摘・評価できる組がなければ黙る。大小の比較は両辺が数値のときだけ評価する"
+          - key: message
+            label: 指摘の文面のひな型
+            type: string
+            description: "check の指摘の文面（省略時は既定の文面）。{left} {right}（比べた値）・{left.raw} {right.raw}（計算前の元の値）を書ける"
+          - key: reportAt
+            label: 指摘を出す場所（値の場所）
+            type: any
+            description: "{of: 束縛, in: {schemaId, fileGlob}, path: 相対パス}。省略時は起点を定義した場所。値の場所を選ぶと、その値が書かれた文書の検証で、要素ごとに報告する（check と組み合わせて使う）"
+          - key: responses
+            label: エラー時の対応
+            type: any
+            description: "対応の宣言の配列。{jump: left.source|right.source|left.inputs|right.inputs, label}（値の出どころへ移動）・{apply: left|right, label}（値を指摘の場所へ書き込む。reportAt が必要）。label には {left} {right} {left.raw} {right.raw}、inputs では {input.placeholder} {input.value} を書ける"
           - key: level
             label: 重大度
             type: enum
@@ -390,6 +409,57 @@ root:
           - key: activeFrom
             label: 判定を始めるフェーズ
             type: string
+    - key: functions
+      label: 検査の定義（関数のような定義）
+      type: array
+      description: "名前と受け取る値を持つ検査の定義（P29 Phase 6）。constraints の use で名前を指定して使う。どのスキーマ文書に書いてもワークスペース全体で使える（置き場は kind: library が向く）"
+      item:
+        type: object
+        fields:
+          - key: id
+            label: 定義の名前
+            type: string
+            required: true
+            role: title
+          - key: description
+            label: 説明
+            type: text
+            role: subtitle
+          - key: params
+            label: 受け取る値の名前
+            type: array
+            item: { type: string }
+          - key: checks
+            label: 中身（検査のひな型）
+            type: any
+            required: true
+            description: "constraints と同じ書き方の検査の配列。文字列の $名前 に、渡された値が差し込まれる（文字列がちょうど $名前 なら値そのもの＝配列やマップも渡せる。文中の $名前 は文字列として埋まる。$ そのものは $$）"
+    - key: vocabulary
+      label: 語彙の定義（短く書くための書き方）
+      type: array
+      description: "スキーマに短く書ける書き方を作る（P29 Phase 6）。どこに書けるか（in）と、書かれた内容からどの定義をどの値で使うか（uses）を宣言する。スキーマの consistency は、組込み定義体が作る語彙"
+      item:
+        type: object
+        fields:
+          - key: word
+            label: 語彙の名前
+            type: string
+            required: true
+            role: title
+          - key: description
+            label: 説明
+            type: text
+            role: subtitle
+          - key: in
+            label: 書ける場所
+            type: string
+            required: true
+            description: "スキーマ直下の配列の各要素（例 consistency[]）"
+          - key: uses
+            label: 定義の使用への対応
+            type: any
+            required: true
+            description: "{when: キー, unless: キー, use: 定義の名前, with: {受け取る値: 指定}} の配列。when / unless はそのキーが書かれている／いないときだけ有効。with の指定は、そのままの値・{from: パス, default, map}（書かれた内容から読む）・{schema: id}（書かれたスキーマのID）"
     - key: matrix
       label: 網羅マトリクス
       type: array

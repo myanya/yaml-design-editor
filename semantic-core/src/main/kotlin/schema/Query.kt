@@ -86,14 +86,19 @@ data class QueryNodeStep(
     }
 }
 
-/** edge ステップ: フロンティアから参照エッジを1段辿る。 */
+/**
+ * edge ステップ: フロンティアから参照エッジを1段辿る。
+ * inDoc は「その参照が書かれた文書」の指定（SP-01。同じ ID が複数の文書に書かれているとき、
+ * どの文書に書かれた参照を辿るかを絞る。値を読む文書の指定と同じ書き方）。
+ */
 data class QueryEdgeStep(
     val dir: QueryDir = QueryDir.OUT,
     val relation: String? = null,
     val via: String? = null,        // 参照が書かれたキー名（viaKey）
+    val inDoc: DerivationSelector? = null, // 参照が書かれた文書の指定（SP-01）
 ) {
     companion object {
-        private val KEYS = setOf("dir", "relation", "via")
+        private val KEYS = setOf("dir", "relation", "via", "in")
 
         fun parse(raw: Any?, where: String): QueryEdgeStep {
             val m = raw as? Map<*, *> ?: error("$where.edge はobjectである必要があります")
@@ -103,6 +108,7 @@ data class QueryEdgeStep(
                 dir = m["dir"]?.toString()?.let { QueryDir.parse(it) } ?: QueryDir.OUT,
                 relation = m["relation"]?.toString()?.takeIf { it.isNotBlank() },
                 via = m["via"]?.toString()?.takeIf { it.isNotBlank() },
+                inDoc = ValueExpr.parseSelector(m["in"], "$where.edge.in"),
             )
         }
     }
@@ -321,32 +327,32 @@ enum class CheckOp(val id: String, val violationSymbol: String) {
     }
 }
 
-/** check のオペランド: 束縛の値の読み出し（出現割当て σ の下の単一値。CORE-CALCULUS §7）。 */
-data class CheckOperand(val of: String, val path: YPath) {
-    companion object {
-        private val KEYS = setOf("of", "path")
-
-        fun parse(raw: Any?, where: String): CheckOperand {
-            val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります（{of: 束縛名, path: 相対パス}）")
-            m.keys.map { it.toString() }.firstOrNull { it !in KEYS }
-                ?.let { error("$where: 未知のキーです: $it（使えるキー: ${KEYS.joinToString(", ")}）") }
-            val of = m["of"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.of（束縛名）が必要です")
-            val path = parseYPath(m["path"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.path が必要です"))
-            return CheckOperand(of = of, path = path)
-        }
-    }
-}
-
 /**
- * check 判定述語の1項目（R28-08。CORE-CALCULUS §8 の判定述語＝反例量化）: 2つの束縛の値の比較。
- * `{lte|gte|lt|gt|eq|ne: [左, 右]}` の1キー object で書く。評価は出現割当て σ の反例量化——
- * 違反する出現の組を1つでも発見したら違反（反例を指摘に列挙）・評価可能な組がなければ黙る
- * （判定保留 §4.26）。項目内の σ は一貫（同一束縛は同一出現から読む）。
+ * check 判定述語の1項目（R28-08。CORE-CALCULUS §8 の判定述語）: 2つの値の比較。
+ * 書き方は2通り——`{lte|gte|lt|gt|eq|ne: [左, 右]}`（1キーの短い形）と、
+ * `{op: 演算子, left: 左, right: 右}`（演算子を値として渡せる形。定義体のひな型で使う）。
+ * 左右は値の式（schema.ValueExpr。束縛からの読み出し・テンプレートの展開など）。
+ * 評価は、同じ ID が書かれた文書のうちどれから値を読むかの全ての組を調べ、条件を満たさない組を1つでも見つけたら
+ * 違反（その組を指摘に示す）・評価できる組がなければ黙る（判定保留 §4.26）。項目の中で同じ「束縛と文書の指定」は
+ * 同じ文書から読む。
  */
-data class ConstraintCheck(val op: CheckOp, val left: CheckOperand, val right: CheckOperand) {
+data class ConstraintCheck(val op: CheckOp, val left: ValueExpr, val right: ValueExpr) {
+
+    /** この項目が読む束縛の名前（パース時の束縛の解決検査に使う）。 */
+    val binds: List<String> get() = (left.sources() + right.sources()).map { it.of }.distinct()
+
     companion object {
         fun parse(raw: Any?, where: String): ConstraintCheck {
             val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります（{演算子: [左, 右]}）")
+            if (m.containsKey("op")) {
+                m.keys.map { it.toString() }.firstOrNull { it !in setOf("op", "left", "right") }
+                    ?.let { error("$where: 未知のキーです: $it（使えるキー: op, left, right）") }
+                return ConstraintCheck(
+                    op = CheckOp.parse(m["op"].toString(), where),
+                    left = ValueExpr.parse(m["left"] ?: error("$where.left が必要です"), "$where.left"),
+                    right = ValueExpr.parse(m["right"] ?: error("$where.right が必要です"), "$where.right"),
+                )
+            }
             if (m.size != 1) {
                 error("$where は {演算子: [左, 右]} の1キーで書きます（演算子: ${CheckOp.entries.joinToString(" / ") { it.id }}）")
             }
@@ -356,9 +362,55 @@ data class ConstraintCheck(val op: CheckOp, val left: CheckOperand, val right: C
             if (list.size != 2) error("$where.${op.id} は [左, 右] の2要素配列である必要があります")
             return ConstraintCheck(
                 op = op,
-                left = CheckOperand.parse(list[0], "$where.${op.id}[0]"),
-                right = CheckOperand.parse(list[1], "$where.${op.id}[1]"),
+                left = ValueExpr.parse(list[0], "$where.${op.id}[0]"),
+                right = ValueExpr.parse(list[1], "$where.${op.id}[1]"),
             )
+        }
+    }
+}
+
+/** 指摘を出す場所を「値が書かれた場所」にする宣言（SP-08）: 束縛の、指定に合う文書に書かれた要素の中のパス。 */
+data class ReportAt(val of: String, val inDoc: DerivationSelector?, val path: YPath) {
+    val source: ValueExpr.ScopeRef get() = ValueExpr.ScopeRef(of, inDoc)
+
+    companion object {
+        fun parse(raw: Any?, where: String): ReportAt {
+            val get = ValueExpr.parse(raw, where) as? ValueExpr.Get
+                ?: error("$where は {of: 束縛名, in: 文書の指定, path: 相対パス} で書きます")
+            return ReportAt(get.of, get.inDoc, get.path)
+        }
+    }
+}
+
+/**
+ * エラー時の対応の宣言（SP-09）。対応の種類は閉じた一覧で、定義の側はどれを・どのラベルで示すかを選ぶ。
+ * - jump: 値の出どころへ移動する。対象は `left.source` / `right.source`（テンプレートなど元の値が書かれた場所）と
+ *   `left.inputs` / `right.inputs`（テンプレートへ差し込んだ値が書かれた場所。入力ごとに1件）
+ * - apply: 値（`left` / `right`）を、指摘の場所へ書き込む（reportAt を宣言した検査でだけ使える）
+ * ラベルのひな型には `{left}` `{right}` `{left.raw}` `{right.raw}`、inputs では `{input.placeholder}` `{input.value}` を書ける。
+ */
+data class ResponseDecl(val kind: Kind, val target: String, val label: String) {
+    enum class Kind { JUMP, APPLY }
+
+    companion object {
+        private val JUMP_TARGETS = setOf("left.source", "right.source", "left.inputs", "right.inputs")
+        private val APPLY_TARGETS = setOf("left", "right")
+
+        fun parse(raw: Any?, where: String): ResponseDecl {
+            val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります（{jump または apply, label}）")
+            m.keys.map { it.toString() }.firstOrNull { it !in setOf("jump", "apply", "label") }
+                ?.let { error("$where: 未知のキーです: $it（使えるキー: jump, apply, label）") }
+            val label = m["label"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.label が必要です")
+            val jump = m["jump"]?.toString()
+            val apply = m["apply"]?.toString()
+            if ((jump != null) == (apply != null)) error("$where には jump か apply のどちらか一方が必要です")
+            return if (jump != null) {
+                require(jump in JUMP_TARGETS) { "$where.jump は ${JUMP_TARGETS.joinToString(" / ")} のいずれかです: $jump" }
+                ResponseDecl(Kind.JUMP, jump, label)
+            } else {
+                require(apply in APPLY_TARGETS) { "$where.apply は ${APPLY_TARGETS.joinToString(" / ")} のいずれかです: $apply" }
+                ResponseDecl(Kind.APPLY, apply!!, label)
+            }
         }
     }
 }
@@ -380,9 +432,17 @@ data class ConstraintRule(
     val check: List<ConstraintCheck> = emptyList(),
     val level: CoverageLevel = CoverageLevel.WARNING,
     val activeFrom: String? = null,
+    /** 指摘の文面のひな型（SP-08。null = 判定の種類ごとの既定の文面）。check では `{left}` `{right}` を書ける。 */
+    val message: String? = null,
+    /** 指摘を出す場所（SP-08。null = 起点を定義した場所）。値が書かれた場所を選ぶと、その文書の検証で報告する。 */
+    val reportAt: ReportAt? = null,
+    /** エラー時の対応（SP-09）。 */
+    val responses: List<ResponseDecl> = emptyList(),
 ) {
     companion object {
-        private val OWN_KEYS = setOf("id", "description", "expect", "count", "check", "level", "activeFrom")
+        private val OWN_KEYS = setOf(
+            "id", "description", "expect", "count", "check", "level", "activeFrom", "message", "reportAt", "responses",
+        )
 
         fun parse(raw: Any?, where: String): ConstraintRule {
             val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります")
@@ -404,10 +464,24 @@ data class ConstraintRule(
             }
             // 束縛の解決はパース段階で固定する（where.of と同じ規約。実行時に黙って空にならないため）
             check.forEach { c ->
-                listOf(c.left, c.right).forEach { operand ->
-                    require(operand.of in spec.binds) { "$where.check の束縛「${operand.of}」が見つかりません" }
+                c.binds.forEach { bind ->
+                    require(bind in spec.binds) { "$where.check の束縛「$bind」が見つかりません" }
                 }
             }
+            val reportAt = m["reportAt"]?.let { ReportAt.parse(it, "$where.reportAt") }
+            reportAt?.let {
+                require(it.of in spec.binds) { "$where.reportAt の束縛「${it.of}」が見つかりません" }
+                require(check.isNotEmpty()) { "$where.reportAt は check と組み合わせて使います（値の場所へ指摘を出すのは値の比較だけです）" }
+            }
+            val responses = when (val r = m["responses"]) {
+                null -> emptyList()
+                is List<*> -> r.mapIndexed { i, e -> ResponseDecl.parse(e, "$where.responses[$i]") }
+                else -> error("$where.responses は配列である必要があります")
+            }
+            responses.firstOrNull { it.kind == ResponseDecl.Kind.APPLY }?.let {
+                require(reportAt != null) { "$where.responses の apply は reportAt（書き込む場所）の宣言が必要です" }
+            }
+            require(responses.isEmpty() || check.isNotEmpty()) { "$where.responses は check と組み合わせて使います" }
             val level = when (val v = m["level"]?.toString()) {
                 null -> CoverageLevel.WARNING
                 else -> CoverageLevel.entries.firstOrNull { it.id == v } ?: error("$where.level は warning / error のいずれかです: $v")
@@ -421,6 +495,9 @@ data class ConstraintRule(
                 check = check,
                 level = level,
                 activeFrom = m["activeFrom"]?.toString()?.takeIf { it.isNotBlank() },
+                message = m["message"]?.toString()?.takeIf { it.isNotBlank() },
+                reportAt = reportAt,
+                responses = responses,
             )
         }
     }

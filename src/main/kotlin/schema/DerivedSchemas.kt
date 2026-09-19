@@ -44,6 +44,8 @@ object DerivedSchemas {
                 .map { (rel, file) -> rel to loader(file) }
             byDeclaring[template.id] = SchemaDerivation.compile(template.id, baseRoot, derive, sources, usedIds, errors)
                 .map { d ->
+                    // 導出元の語彙（consistency）は引き継ぐ。展開後の検査はスキーマIDで文書を指すため、派生スキーマのIDで展開し直す
+                    val inherited = template.vocabularySource?.checksFor(d.id).orEmpty()
                     SchemaDef(
                         id = d.id,
                         name = d.name,
@@ -52,7 +54,8 @@ object DerivedSchemas {
                         root = d.root,
                         definitions = template.definitions,
                         coverage = template.coverage,
-                        consistency = template.consistency,
+                        constraints = inherited.map { ConstraintRule.parse(it.raw, it.origin) },
+                        expandedChecks = inherited,
                         phases = template.phases,
                         source = fileByRel.getValue(d.sourceRel),
                         kind = SchemaKind.DOCUMENT,

@@ -49,6 +49,9 @@ internal const val CLI_USAGE = """コマンド:
   readiness <workspace> [--pending]             準備完了レポート（R28-05b）: 全文書の検証結果をエンティティ単位に
            集約し、エラー0のエンティティを「準備完了」と判定する（警告は件数のみ・型／フェーズ別の集計つき）。
            --pending は未完了（エラーあり）のエンティティだけを列挙する
+  checks   <workspace> [schema-id] [--definitions]   展開後の検査の表示（P29 Phase 6）: スキーマの語彙（consistency など）と
+           定義の使用（constraints の use）が、検証の前にどんな基本の検査へ展開されたかを由来つきで表示する。
+           --definitions は使える検査の定義（functions）と語彙（vocabulary）の一覧も出す
   apply    <workspace> <changeset.yaml> [--dry-run] [--require-valid]   変更セットの適用
   entity   <workspace> show <id>                エンティティ全体像（R23-04）: アスペクト合成（所有フィールド
            と原本座標）・関係・被参照をYAMLで返す（エンティティページ・read_entity と同じ合成）
@@ -415,6 +418,37 @@ internal fun runCli(args: Array<String>): String {
                     },
                 )
             )
+        }
+        "checks" -> {
+            // 展開の透明性（P29 Phase 6・CALC-29）: 語彙（consistency など）と定義の使用（use）が、検証の前に
+            // どんな基本の検査へ展開されたかを、由来つきで表示する。--definitions で使える定義と語彙の一覧も出す
+            val ws = workspace()
+            val only = rest.drop(1).firstOrNull { !it.startsWith("--") }
+            val targets = ws.schemas.filter { it.expandedChecks.isNotEmpty() && (only == null || it.id == only) }
+            val out = linkedMapOf<String, Any?>(
+                "schemaErrors" to ws.schemaErrors,
+                "schemas" to targets.map { s ->
+                    linkedMapOf(
+                        "schema" to s.id,
+                        // 渡されなかった値（null）の項目は、読みやすさのため表示から省く
+                        "checks" to s.expandedChecks.map { linkedMapOf("origin" to it.origin, "check" to pruneNulls(it.raw)) },
+                    )
+                },
+            )
+            if ("--definitions" in rest) {
+                val library = ws.schemas.fold(schema.SchemaLoader.builtinLibrary) { acc, s ->
+                    runCatching { acc + s.checkLibrary }.getOrDefault(acc)
+                }
+                out["definitions"] = linkedMapOf(
+                    "functions" to library.functions.values.map {
+                        linkedMapOf("id" to it.id, "params" to it.params, "definedIn" to it.origin)
+                    },
+                    "vocabulary" to library.words.map {
+                        linkedMapOf("word" to it.word, "in" to it.location, "definedIn" to it.origin)
+                    },
+                )
+            }
+            dumpYaml(out)
         }
         "apply" -> {
             val ws = workspace()
@@ -1063,5 +1097,18 @@ private fun stringFlags(args: List<String>, name: String): List<String> =
 
 private fun intFlag(args: List<String>, name: String): Int? =
     stringFlag(args, name)?.let { it.toIntOrNull() ?: error("$name には整数を指定してください: $it") }
+
+/**
+ * 値が無い（null）項目を、入れ子も含めて取り除く（CLI の表示用）。中身が全て無くなったマップは、それ自体を「無い」として扱う
+ * （例: 渡されなかった既定値 `{value: $default}` は `first` の選択肢から消える——評価の結果は変わらない）。
+ */
+private fun pruneNulls(value: Any?): Any? = when (value) {
+    is Map<*, *> -> value.entries
+        .mapNotNull { e -> pruneNulls(e.value)?.let { e.key to it } }
+        .toMap(LinkedHashMap())
+        .takeIf { it.isNotEmpty() || value.isEmpty() }
+    is List<*> -> value.mapNotNull { pruneNulls(it) }
+    else -> value
+}
 
 private fun dumpYaml(value: Any?): String = YamlIO.dump(YamlIO.fromAny(value))

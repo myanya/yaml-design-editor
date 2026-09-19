@@ -813,7 +813,7 @@ Core Calculus = 定義を実行する
 | foreach | Query |
 | Projection | Expression |
 | Derivation | Query + Expression |
-| consistency | Query + Predicate |
+| consistency | Query + Predicate（**組込み定義体**。P29 Phase 6 第1段で、`check`＝クエリ＋値の比較へ展開される語彙になった。専用の検査プログラムは無い） |
 | query constraint | Query + Predicate |
 | coverage（detailIn） | 出現集合の Aggregate ＋ Predicate（CALC-21。参照ベース requiredBy は R29-01 で削除） |
 | matrix | Query / Aggregate / Predicate または専用高水準演算 |

@@ -55,7 +55,8 @@ src/main/kotlin/
 | `EntityDecl` / `RelationDef` / `Relations` | schema/Relations.kt | 二層モデルの宣言語彙（P20。§4.30）: スキーマの `entity:` 宣言（型・idPattern・定義出現・アスペクト `aspect` / `owns`。R23-01）と関係レジストリ（`kind: relations` の `relations:`・`entities:` 節＝`EntityTypeDef` / `AspectDecl`）。`Relations.labelOf` / `inverseLabelOf` が relation 名→表示ラベルの解決を、`ownedFieldKeys` が出現の所有フィールド解決（合成・重複所有検証の共有実装。§4.33）を一元化 |
 | `Aspects` | core/Aspects.kt | エンティティ合成（R23-01。§4.33): 全出現を「定義出現→アスペクト宣言順」に並べ所有フィールドを座標つきでマージした `EntityComposite` を決定的に構築する純ロジック。エンティティページ・`read_entity`・CLI `entity show` が同じ合成を消費（共有契約）。`ownerSection` は書き先解決 |
 | `Projection` | schema/Projection.kt | 決定論的射影の評価器（R16-02）: `{パス}` プレースホルダのテンプレート置換（スコープ連鎖・1段評価・解決トレース）と値辞書。単一実装（§4.26） |
-| `DerivationDef` / `ConsistencyRule` | schema/Derivation.kt | 導出の宣言モデル（`lookup`/`source`/`path`/`values`/`map`/`default`）と整合ルール（R16-03a/b。`assert`: equals / lte / gte）。ビューの計算列とスキーマの `consistency:` が同じ語彙を共有する |
+| `DerivationDef` | schema/Derivation.kt | 導出の宣言モデル（`lookup`/`source`/`path`/`values`/`map`/`default`）。ビューの計算列が使う。スキーマの `consistency:`（整合検証）は専用の型を持たず、組込み定義体（YAML）が値の式（`schema/ValueExpr.kt`）へ展開する（P29 Phase 6 第1段。§4.36） |
+| `CheckLibrary` / `ValueExpr` | schema/CheckDefinitions.kt・schema/ValueExpr.kt（semantic-core） | 定義体の仕組み（関数のような定義 `functions`・語彙の定義 `vocabulary`・基本の検査への展開）と、値の式（読み出し・決まった値・テンプレートの展開・辞書での置き換え・最初に得られた値）。§4.36 |
 | `Derivation` | index/Derivation.kt | 導出の解決器（R16-03a）: 対象ID（lookup 1ホップ）→ source 出現 → スコープ連鎖 → `Projection` 評価＋来歴。計算列（core/Views）と整合検証（Validator）の共有実装（§4.26） |
 | `SchemaCatalog` / `SchemaKind` | schema/Schema.kt | 全スキーマ・libraryの定義を `(moduleId, definitionName)` でリンクする中央カタログ。`kind: library` はdefinitionsだけを公開し文書には適用されない |
 | `PhasesDef` / `currentPhaseIndex` / `requiredAt` | schema/Schema.kt | フェーズ機構（§4.15）: スキーマの `phases` 宣言と、文書の現在フェーズ解決・フェーズ考慮の実効必須判定（検証・進捗計算が共有） |
@@ -379,11 +380,11 @@ UI層（app）を「Compose購読のシェル」に純化し、ロジックを c
 - **未保存編集に追随する（R16-04 / UX-02）**: 計算セルの値はビュー解決（`Views.resolve`）時に評価され、値の読み取りは loader（docCache 優先）が担うため、UIのグリッドは `AppState.editVersion`（どの文書かの未保存編集・Undo/Redo で進む軽量カウンタ。`OpenDocument.onEdited` で通知）を購読して再解決する。「未保存で確認→OKなら保存」の流れを成立させ、保存を強いない。行の集合（新規ID）はディスク索引基準のまま（§4.5 / L-14 は不変）。エージェント経路はステージング loader で従来どおり。
 - **来歴（provenance）はセルの一級情報（R16-04 / UX-01）**: 計算セルは評価結果に加えて「元値（テンプレート）とプレースホルダごとの解決値・座標」（`ViewCell.trace`）を持つ。UIのクリックは直接ジャンプではなく、**導出の説明（元値→入力値→結果）と行き先の選択**（導出規則・各入力値）をポップアップメニューで提示する（規則を確認したい場合と入力値を確認したい場合の両方があるため。モーダル新設禁止 §4.24 と整合）。`read_view` / CLI にも同じ来歴を出力し、人間とAIが同じ導出説明を見る。
 
-整合検証（R16-03a）に固有の不変条件:
+整合検証（R16-03a）に固有の不変条件（**P29 Phase 6 第1段で、整合検証は専用の検査プログラムではなく組込み定義体（YAML）になった**——`consistency` という語彙が、クエリ＋値の比較（`check`）の基本の検査へ展開されて評価される。§4.36。下の箇条のうち「導出の語彙と解決は1実装」「出現選択」はビューの計算列についての記述として残る。整合検証の側は、指定に合う文書をすべて調べる値の比較の共通規則に従う＝意図的差分 D-19）:
 
 - **導出の語彙と解決は1実装**: 導出の宣言モデル（`DerivationDef`: `lookup` / `source` / `path` / `values` / `map` / `default`）は `schema/Derivation.kt`、対象ID→出現→スコープ→評価の解決は `index/Derivation.kt` に置き、ビューの計算列（`core/Views`）と整合検証（`validate/Validator`）が**同じモデル・同じ解決**を共有する（依存方向 §2 上、core の Views に置いたままでは Validator から使えないための配置）。ビューで見えている導出値と検証される期待値は常に一致する（人間・AI・検証器が同じ導出を見る）。
 - **出現選択は σ 選択方針（R29-02・D-17・CALC-19）**: lookup / source / values の selector が同一IDの複数出現に一致するときは、**定義出現優先→索引順**の決定的な先勝ちで1出現を選ぶ（共有評価部 `SemanticExpression.select`。CALC-11 の代表出現と同じ規則。テンプレート健全性検査 UX-12 の values 選択も同じ関数を通す＝検査と実際の導出が別の出現を見ない）。式（Expression）は単一値の計算なので量化しない——述語側の量化（∃σ／反例∃σ）との非対称は Core Calculus の原理（CALC-12/13）であり、揃えない。
-- **Expression／要素述語の共有評価部（R29-05。P29 Phase 3）**: `semantic/Expression.kt` の `SemanticExpression` が「Get（σ が選んだ1出現からの単一値の読み出し）」「要素述語 `compare`（eq / ne は文字列等値・順序系は数値比較・数値として読めなければ null＝Unknown の3値）」「式側の σ 選択 `select`」の単一実装。整合検証の `assert`（`ConsistencyAssert.op` で check と同じ `CheckOp` へ落ちる）・check 判定述語・where 選択述語（σ 候補の列挙 `sigmaCandidates` を check と共有）・期待値導出が通る。**値の比較や出現からの値読みを新しく書くときはここを通す**（集合性＝どの出現を読むかの量化は述語境界＝呼び出し側の責務で、ここへ持ち込まない。CALC-12/13）。
+- **Expression／要素述語の共有評価部（R29-05。P29 Phase 3）**: `semantic/Expression.kt` の `SemanticExpression` が「Get（σ が選んだ1出現からの単一値の読み出し）」「要素述語 `compare`（eq / ne は文字列等値・順序系は数値比較・数値として読めなければ null＝Unknown の3値）」「式側の σ 選択 `select`」の単一実装。check 判定述語（整合検証の `assert` も、組込み定義体の中で check の演算子へ読み替えられてここを通る）・where 選択述語（σ 候補の列挙 `sigmaCandidates` を check と共有）・期待値導出が通る。**値の比較や出現からの値読みを新しく書くときはここを通す**（集合性＝どの出現を読むかの量化は述語境界＝呼び出し側の責務で、ここへ持ち込まない。CALC-12/13）。
 - **整合ルールは検査される文書のスキーマが宣言する**: スキーマの `consistency:`（`idPattern`＝対象ID要素の絞り込み・`path`＝検査する値の要素からの相対パス・`expected`＝導出宣言・`level`・`activeFrom`）。判定は `Validator.validate` に一元化し、検証パネル・CLI・エージェントゲートへ自然に乗せる。`activeFrom` はカバレッジと同じく自文書のフェーズで判定する。
 - **判定は `assert` で選ぶ**: `equals`（宣言値 = 導出値。既定）に加え、`lte` / `gte`（**適合判定** R16-03b: 両辺を数値として以下／以上で比較。数値でなければ判定保留）。適合判定は「画面入力の maxLength ≦ 値型の maxLength」のような**制約の流れ**（設定できない値を許す入力欄の検出）に使う。文字列・enum 集合の包含は実需が出たら拡張する。
 - **判定保留は沈黙**: 検査する値が未記入・期待値の元（写像行）が無い・プレースホルダ未解決で期待値を評価できない場合は指摘しない（未記入は required／写像行の欠落は detailIn カバレッジの領分。エラーの二重計上を避ける）。
@@ -571,6 +572,21 @@ limit: 100                               # 既定 100（total は打切り前の
 **変更語彙の2層（R29-08。RP-02）**: 変更命令の基礎語彙は6種（Set / Insert / Delete / Move / RenameKey / ReorderKeys）で、**内部の正準は型付き操作 `edit.YamlOperation`（逆操作つき）＋ `WorkspaceTransaction`（版の検査・履歴・原子適用）**。`core.PatchOp` と変更セット（`core.ChangeSet`。基準ハッシュで衝突検出）は同じ基礎命令の**外部との交換形式**（エージェントの `apply_patch`・CLI・skill の取込）で、適用の入口（`Workspace.applyInternal`／エージェントのステージング）でだけ解釈される。**内部で計画を作るコードは PatchOp を作らない**（ビュー追随 `Views.fieldRenameImpact` も型付き操作で生成し、計画へ変換なしで合成する）。変更セット型の workspace-core への再配置は P27 と合流。
 
 **文書の新規作成（R29-09。RP-03・D-18）**: 新規 YAML・ビューの詳細文書／新規行ファイル・カバレッジ指摘からの詳細文書・スキーマ推測は、`AppState.createDocumentFile` の単一経路——セッションへ `CreateDocument` 1件のトランザクションを適用→保存→`refreshAfterSessionWrite`（`reload` しない）。作成は履歴に入り Ctrl+Z で取り消せ、それまでの履歴も保たれる（`reload` はセッションを開き直すため履歴を失う）。**文書の作成・削除を含む履歴の Undo / Redo は `afterHistoryStep` がファイルの有無までその場で確定する**（対象文書だけ `session.save`）——内容の編集の Undo は「未保存●」に留めて保存で確定できるが、作成の取り消し（文書が消える）には保存の手段が無く、削除予約のままではディスクとセッションが食い違うため。セッションが文書として扱わないパス（隠しパス等）とセッション不在時だけ、従来の直接書込＋`reload` へフォールバックする。**新しい「文書を作る」機能はこの経路を通す**（`Files.writeString` ＋ `reload()` を書かない）。
+### 4.36 定義層: 検査の書き方の3段と組込み定義体（P29 Phase 6）
+
+Core Calculus の本来の目的（[CORE-CALCULUS.md](CORE-CALCULUS.md) §25）——機能を直交させて個別実装をなくし、**プリミティブな実装＋組込み定義＋ユーザ定義**だけで検証を行う——を実装に下ろす層。検証に関わるものを4層に分ける: **文法プリミティブ**（yaml-core。YAML の構造と最小の構造チェックだけ・小さく保つ）／**意味プリミティブ**（semantic-core。どう解釈するか。定義の中で組み合わせる「部品」と、複雑なアルゴリズムをまるごと実装する「専用チェッカー」）／**組込み定義体**（同梱の YAML）／**ユーザ定義**（利用者の YAML）。
+
+**検査の書き方の3段**（上の段は、検証の前に下の段へ展開される）:
+
+1. **基本の書き方**: スキーマの `constraints` に1件ずつ——プリミティブを直接書く（`match` ＋ `expect` / `count` / `check`）か、定義を名前で使う（`use` ＋ `with`）。
+2. **関数のような定義**（`functions`）: 名前・受け取る値（`params`）・中身（`checks`＝基本の検査のひな型）。渡された値をひな型の `$名前` へ差し込む（文字列がちょうど `$名前` なら値そのもの・文中なら文字列・`$$` は `$`）。
+3. **語彙の定義**（`vocabulary`）: どこに書けるか（`in`。第1段はスキーマ直下の配列 `名前[]`）と、書かれた内容からどの定義をどの値で使うか（`uses`。`when` / `unless` と、`with` の値の指定＝そのままの値・`{from, default, map}`・`{schema: id}`）。
+
+**実装の配置**: 展開は `semantic-core/schema/CheckDefinitions.kt` の `CheckLibrary`（YAML を読んだままの値の上の操作だけ。検査の意味を知らない。差し込みは値の置き換えだけ＝条件分岐・繰り返し・定義からの定義の呼び出しなし）。組込み定義体の原文は workspace-core の資源 `builtin-definitions/`（供給は `workspace.BuiltinDefinitionResources`。**検査を定義体へ移すたびに、ここへ YAML を1つ足す**）。`SchemaLoader` は全スキーマ文書から定義（`functions` / `vocabulary`。置き場は `kind: library` が向く）を先に集め、組込み定義体と合成してから、各スキーマの検査を展開して `ConstraintRule.parse` へ渡す。`SchemaDef.constraints` は展開済みの検査、`SchemaDef.expandedChecks` は展開後の姿と由来（CLI `checks`＝**展開の透明性**。CALC-29）。派生スキーマ（`derive`）は導出元の語彙を**自分のスキーマIDで展開し直して**引き継ぐ（`VocabularySource.checksFor`）。利用者が定義した語彙のキーは、メタスキーマの「知っている項目」に足される（書き方の形の検証は後続）。**組込みは特権を持たない**（CALC-28）——組込み定義体も利用者の定義も同じ `CheckLibrary` を通り、テスト `CheckDefinitionTest` が利用者の定義だけで同じことができるのを固定する。
+
+**第1段で足した意味プリミティブ**: ①値の式（`schema/ValueExpr.kt`。読み出し `{of, in, path}`・決まった値・テンプレートの展開 `format`・辞書での置き換え `map`・最初に得られた値 `first`。`check` の左右に書ける）②値を読む文書の指定（`in: {schemaId, fileGlob}`。値の読み出しと `edge` に書ける）③メッセージの宣言（`message`）と指摘の場所（`reportAt`＝値が書かれた場所。`RuleDiagnostics.valueIssues` が、この文書に書かれた要素ごとに、その値だけを調べて報告する）④エラー時の対応の宣言（`responses`。対応の種類は閉じた一覧＝移動 `jump`・値の書き込み `apply`。`Issue.responses: List<IssueResponse>` を検証パネルのメニューが宣言の順に並べる＝**メッセージと対応の直交性**。CALC-30）。評価は `SemanticQuery.checkFrom`——項目が読む「束縛と文書の指定」ごとに値を読む出現の候補を並べ、全ての組を決まった順で調べて、条件を満たさない最初の組を返す（値が得られない組は評価しない＝判定保留）。違反した組は、値の出どころ（元の値とその場所・テンプレートへ差し込んだ値の場所）を持つ（`SemanticCheckSide`）。
+
+**定義体へ移した検査**: 整合検証（`consistency`。第1段・意図的差分 D-19）。`semantic/Consistency.kt`・`ConsistencyRule`・`ConsistencyAssert`・`SchemaLoader.parseConsistency`・`IssueDerivation` は削除した。残りの検査（多重度・対象型・詳細文書の存在・エンティティの整合・非循環・遷移検証・網羅マトリクス）は、ROADMAP P29 Phase 6 の第2〜5段で順に移す。
 
 ## 5. 主要データフロー
 
@@ -595,7 +611,9 @@ limit: 100                               # 既定 100（total は打切り前の
 - **ビュー定義の項目追加**: `core/Views.kt` の `parseView` と `schema/BuiltinSchemas.kt` の `builtin-view` スキーマを**対で**更新する（フォーム編集・検証と実行時パースの二重定義のため）。
 - **共通スキーマ定義の追加**: `_schemas` に `kind: library` を置き、利用側は `moduleId#definition` で参照する。解決規則を増やす場合は `SchemaCatalog` に閉じ、各利用側で参照文字列を個別解析しない。
 - **派生スキーマの写像項目の追加**: `semantic-core/schema/SchemaDerivation.kt` の `parse`（宣言のパース）と `compile`（コンパイル。root `SchemaLoader.parseDerive`・`DerivedSchemas` はこの委譲シェル）、組込みメタスキーマ（`builtin-schema` の `derive` 定義）を**そろえて**更新する。語彙は skill の列マッピング（SK-02）と揃える（§4.23 / C-2）。
-- **導出・整合ルールの語彙追加**: 宣言モデル（`schema/Derivation.kt`）・パース（`SchemaLoader.parseConsistency` / `Views.parseView` の computed）・組込みメタスキーマ（`builtin-schema` の `consistency`）・`builtin-view`（computed）・解決器（`index/Derivation.kt`）を**そろえて**更新する（§4.26）。
+- **導出（計算列）の語彙追加**: 宣言モデル（`schema/Derivation.kt`）・パース（`Views.parseView` の computed）・`builtin-view`（computed）・解決器（`index/Derivation.kt`）を**そろえて**更新する（§4.26）。
+- **整合ルール（`consistency`）の変更**: コードではなく**組込み定義体** `workspace-core/src/main/resources/builtin-definitions/consistency.yaml`（検査の定義と語彙の定義）と、書き方の形を持つ組込みメタスキーマ（`builtin-schema` の `consistency`）を更新する（§4.36）。
+- **検査を新しく足すとき**: まず YAML の定義体で書けるかを考える（§4.36・CONVENTIONS §9）。書けないなら、足りない部分を小さな意味プリミティブ（semantic-core）として足す。複雑なアルゴリズムの検査は専用チェッカーとして個別に実装してよい。
 - **エンティティ・関係語彙の追加**: 宣言モデル（`schema/Relations.kt`）・パース（`SchemaLoader` の `entity:` / `kind: relations` / `entities:` / `enforcement:`）・組込みメタスキーマ（`builtin-schema` の entity・`builtin-relations`）・スキーマ設計UI（`SchemaEditor` のエンティティ節）を**そろえて**更新する（§4.30 / §4.33）。グラフの導出項目を増やすときは `EntityGraph` に閉じ、消費側で走査を書かない。グラフ整合の制約を増やすときは `validate/GraphIntegrity.kt` に閉じる（判定保留の哲学＝型未宣言・未解決には黙る。§4.31）。エンティティ合成の項目を増やすときは `core/Aspects.kt` に閉じ、消費側（ページUI・read_entity・CLI）で合成を書かない（§4.33）。
 - **クエリ語彙の追加**: 宣言モデル・パース（`schema/Query.kt`）・評価器（`index/Query.kt`）・組込みメタスキーマ（`builtin-view` の rows（match / where / also / rowKey）・`builtin-activity` の foreach.query・`builtin-schema` の constraints）を**そろえて**更新する（§4.32）。消費側（Views / Foreach / Validator / CLI）に評価ロジックを書かない。「やらないこと」（集約は件数のみ・任意深さの再帰なし・任意式なし・optional 結合なし）の解禁は実例の需要で段階判断する。
 - **AIプロバイダの追加**: OpenAI互換のエンドポイントなら `AiConnection`（ベースURL上書き・プリセット）で足りる。独自APIのプロバイダは `AiProvider` に enum を追加し、`AiGenerator.generate` の分岐と専用クライアント（`generate` + `parseResponse` を持つ object）・`ToolChat.newSession` の分岐を実装する。HTTP送信は `AiHttp.post` を使う（§4.18）。

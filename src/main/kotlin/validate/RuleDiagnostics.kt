@@ -54,7 +54,12 @@ internal class RuleDiagnosis(
  * SemanticQuery / SemanticMatrix / SemanticFlow）で、ここは結果を指摘の本文へ写すだけ。
  * 検証1回（Validator.validate の1呼び出し）につき1インスタンス——遷移検証の全指摘は規則単位でキャッシュする。
  */
-internal class RuleDiagnostics(private val indexObj: IdIndex, private val tree: (Path) -> YNode?) {
+internal class RuleDiagnostics(
+    private val indexObj: IdIndex,
+    private val tree: (Path) -> YNode?,
+    /** ワークスペース相対パス（値を読む文書の指定の fileGlob 判定に使う）。 */
+    private val rel: (Path) -> String = { it.toString().replace('\\', '/') },
+) {
 
     private val flowCache = HashMap<FlowRule, Map<String, List<semantic.SemanticFlowFinding>>>()
 
@@ -73,14 +78,14 @@ internal class RuleDiagnostics(private val indexObj: IdIndex, private val tree: 
         if (rule.check.isNotEmpty()) {
             // check 判定述語（R28-08。CORE-CALCULUS §8）: 解ごとに出現割当て σ を反例量化する。
             // 反例（違反した値の組）の発見＝違反・評価可能な組がなければ判定保留（黙る）
-            val examples = index.Query.checkFrom(indexObj, rule.spec, rule.check, id, tree)
+            val examples = index.Query.checkFrom(indexObj, rule.spec, rule.check, id, tree, rel)
             if (examples.isEmpty()) return null
             val evidence = "。反例: ${describeCheckExamples(examples)}"
             return RuleDiagnosis(
                 id, rule.level,
                 report = "ID「$id」を起点とする解が check を満たしません（${examples.size} 組）$evidence",
                 notice = notice(evidence),
-                related = examples.take(3).flatMap { listOf(it.left.id, it.right.id) }.distinct().filter { it != id }.take(10),
+                related = examples.take(3).flatMap { listOfNotNull(it.left.id, it.right.id) }.distinct().filter { it != id }.take(10),
                 description = description,
             )
         }
@@ -132,6 +137,66 @@ internal class RuleDiagnostics(private val indexObj: IdIndex, private val tree: 
         }
     }
 
+    /**
+     * 値の場所へ指摘を出す検査（SP-08。rule.reportAt を宣言した check）: この文書に書かれた要素（file の occPath）について、
+     * その要素の値だけを調べ、条件を満たさない組ごとに指摘を返す。指摘の場所は「要素のパス＋reportAt のパス」。
+     * 文面は rule.message のひな型（無ければ既定の文面）、エラー時の対応は rule.responses の宣言から作る（SP-09）。
+     */
+    fun valueIssues(rule: ConstraintRule, id: String, file: Path, occPath: YPath): List<Issue> {
+        val reportAt = rule.reportAt ?: return emptyList()
+        if (!index.Query.startMatches(indexObj, rule.spec, id, tree)) return emptyList()
+        val violations = index.Query.checkFrom(
+            indexObj, rule.spec, rule.check, id, tree, rel,
+            pin = reportAt.source to (file to occPath),
+        )
+        val suffix = (rule.description ?: rule.id)?.let { " — $it" } ?: ""
+        return violations.map { v ->
+            val text = rule.message?.let { renderTemplate(it, v, input = null) }
+                ?: "「${reportAt.path.pretty()}」の値が条件を満たしません: ${describeCheckExamples(listOf(v))}"
+            Issue(rule.level.toSeverity(), text + suffix, occPath + reportAt.path, responses = responsesOf(rule, v))
+        }
+    }
+
+    /** 対応の宣言（rule.responses）を、条件を満たさなかった組の値と出どころから具体的な対応へ写す。 */
+    private fun responsesOf(rule: ConstraintRule, v: semantic.SemanticCheckViolation): List<IssueResponse> =
+        rule.responses.flatMap { decl ->
+            val side = if (decl.target.startsWith("left")) v.left else v.right
+            when {
+                decl.kind == schema.ResponseDecl.Kind.APPLY ->
+                    listOf(IssueResponse.ApplyValue(renderTemplate(decl.label, v, input = null), side.text))
+                decl.target.endsWith(".source") -> {
+                    val document = side.sourceDocument
+                    if (document == null) emptyList()
+                    else listOf(IssueResponse.Jump(renderTemplate(decl.label, v, input = null), Path.of(document.value), side.sourcePath))
+                }
+                else -> side.inputs.mapNotNull { input ->
+                    val document = input.document ?: return@mapNotNull null
+                    IssueResponse.Jump(renderTemplate(decl.label, v, input), Path.of(document.value), input.path)
+                }
+            }
+        }
+
+    /**
+     * 文面・ラベルのひな型の差し込み（1回の走査で置き換える＝差し込んだ値の中の波括弧は再解釈しない）。
+     * 書けるのは `{left}` `{right}` `{left.raw}` `{right.raw}`、入力ごとの対応では `{input.placeholder}` `{input.value}`。
+     * それ以外の波括弧はそのまま残す。
+     */
+    private fun renderTemplate(
+        template: String,
+        v: semantic.SemanticCheckViolation,
+        input: semantic.SemanticValueInput?,
+    ): String = TEMPLATE_VAR.replace(template) { m ->
+        when (m.groupValues[1]) {
+            "left" -> v.left.text
+            "right" -> v.right.text
+            "left.raw" -> v.left.raw ?: v.left.text
+            "right.raw" -> v.right.raw ?: v.right.text
+            "input.placeholder" -> input?.let { "{${it.placeholder}}" } ?: m.value
+            "input.value" -> input?.value ?: m.value
+            else -> m.value
+        }
+    }
+
     /** 網羅マトリクス（R28-03）: 行 id の不足セル（証人のない列）。不足がなければ null。 */
     fun matrix(rule: MatrixRule, id: String): RuleDiagnosis? {
         val missing = index.Query.matrixMissingColumns(indexObj, rule, id)
@@ -168,10 +233,10 @@ internal class RuleDiagnostics(private val indexObj: IdIndex, private val tree: 
 
     /** check 反例の列挙（R28-08。UX-98 の流儀: 先頭3組＋残数）。記号は違反した関係（lte 違反なら >）。 */
     private fun describeCheckExamples(examples: List<semantic.SemanticCheckViolation>): String {
+        fun side(s: semantic.SemanticCheckSide): String =
+            if (s.bind != null && s.path != null) "${s.bind}=${s.id}（${s.path!!.pretty()}: ${s.text}）" else "「${s.text}」"
         val listed = examples.take(3).joinToString(" ／ ") { v ->
-            "${v.left.bind}=${v.left.id}（${v.check.left.path.pretty()}: ${v.left.text}） " +
-                "${v.check.op.violationSymbol} " +
-                "${v.right.bind}=${v.right.id}（${v.check.right.path.pretty()}: ${v.right.text}）"
+            "${side(v.left)} ${v.check.op.violationSymbol} ${side(v.right)}"
         }
         return listed + (if (examples.size > 3) " ほか${examples.size - 3}組" else "")
     }
@@ -189,5 +254,9 @@ internal class RuleDiagnostics(private val indexObj: IdIndex, private val tree: 
             semantic.SemanticFlowFindingKind.UNDECLARED ->
                 "ID「$id」から宣言にない遷移があります（${finding.related.size} 件）: ${listed(finding.related)}"
         }
+    }
+
+    private companion object {
+        val TEMPLATE_VAR = Regex("""\{([a-z]+(?:\.[a-z]+)?)}""")
     }
 }

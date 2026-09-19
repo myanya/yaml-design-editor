@@ -6,6 +6,8 @@ import model.YPath
 import model.parseYPath
 import model.scalarText
 import schema.ConstraintCheck
+import schema.Projection
+import schema.ValueExpr
 import schema.QueryDir
 import schema.QueryEdgeStep
 import schema.QueryNodeKind
@@ -52,16 +54,34 @@ data class SemanticQueryResult(
     val unknownDropped: Boolean = false,
 )
 
-/** check 反例の片辺（R28-08）: どの束縛の・どの出現から・何を読んだか（provenance の最小形）。 */
-data class SemanticCheckSide(
-    val bind: String,
-    val id: String,
-    val document: DocumentId,
-    val occPath: YPath,
-    val text: String,
+/** テンプレートへ差し込んだ値1件の出どころ（未解決なら値と場所なし）。 */
+data class SemanticValueInput(
+    val placeholder: String,
+    val value: String?,
+    val document: DocumentId?,
+    val path: YPath?,
 )
 
-/** check 判定の反例1件: 違反した出現割当て σ（項目内で同一束縛は同一出現。CORE-CALCULUS §8）。 */
+/**
+ * check で条件を満たさなかった組の片辺（R28-08）: 計算した値と、その出どころ（provenance の最小形）。
+ * 束縛からの読み出しなら bind / id / 読んだ出現（document・occPath）と要素内のパス（path）を持つ。
+ * raw と source は元の値とその場所（テンプレートの展開ならテンプレートの文字列と、それが書かれた場所）、
+ * inputs はテンプレートへ差し込んだ値の場所。エラー時の対応（移動・書き込み。SP-09）がこれを使う。
+ */
+data class SemanticCheckSide(
+    val text: String,
+    val bind: String? = null,
+    val id: String? = null,
+    val document: DocumentId? = null,
+    val occPath: YPath? = null,
+    val path: YPath? = null,
+    val raw: String? = null,
+    val sourceDocument: DocumentId? = null,
+    val sourcePath: YPath? = null,
+    val inputs: List<SemanticValueInput> = emptyList(),
+)
+
+/** check 判定で条件を満たさなかった組1件（項目の中で、同じ「束縛と文書の指定」は同じ出現から読む。CORE-CALCULUS §8）。 */
 data class SemanticCheckViolation(
     val check: ConstraintCheck,
     val left: SemanticCheckSide,
@@ -132,8 +152,15 @@ object SemanticQuery {
         spec: QuerySpec,
         checks: List<ConstraintCheck>,
         startId: String,
+        /** 文書のワークスペース相対パス（値を読む文書の指定の fileGlob 判定に使う）。 */
+        rel: (DocumentId) -> String = { it.value },
+        /**
+         * 値を読む出現の固定（SP-08: 指摘を「値が書かれた場所」へ出す検査で、その場所の出現だけを調べるために使う）。
+         * 指定した「束縛と文書の指定」は、この出現からだけ読む。
+         */
+        pin: Pair<ValueExpr.ScopeRef, SemanticExpression.Occurrence>? = null,
         loader: (DocumentId) -> YNode?,
-    ): List<SemanticCheckViolation> = Evaluator(ids, refs, graph, spec, loader).checkFrom(startId, checks)
+    ): List<SemanticCheckViolation> = Evaluator(ids, refs, graph, spec, loader, rel).checkFrom(startId, checks, pin)
 
     /** startId が起点束縛の母集団（起点 node のフィルタ＋起点束縛の where 述語）に入るか（R22-03）。 */
     fun startMatches(
@@ -194,6 +221,7 @@ object SemanticQuery {
         private val graph: SemanticEntityGraph,
         private val spec: QuerySpec,
         private val loader: (DocumentId) -> YNode?,
+        private val rel: (DocumentId) -> String = { it.value },
     ) {
         private val trees = mutableMapOf<DocumentId, YNode?>()
 
@@ -359,6 +387,7 @@ object SemanticQuery {
             }.asSequence()
                 .filter { edge.relation == null || it.relation == edge.relation }
                 .filter { edge.via == null || it.viaKey == edge.via }
+                .filter { ref -> edge.inDoc?.matches(ref.sourceSchemaId, rel(ref.document)) ?: true }
             // 端をノードへ解決できない参照（対象IDが索引になし・書き手をエンティティへ解決できない）は
             // 黙って除外しつつ「候補の喪失」を記録する（CALC-17 の unknown-dropped）。
             // 対象種別の不一致（entity 到達に document 参照など）は構造的な非該当であり、喪失に数えない
@@ -425,44 +454,106 @@ object SemanticQuery {
 
         // ---------------------------------------------------------------- check 判定（R28-08）
 
-        fun checkFrom(startId: String, checks: List<ConstraintCheck>): List<SemanticCheckViolation> {
+        fun checkFrom(
+            startId: String,
+            checks: List<ConstraintCheck>,
+            pin: Pair<ValueExpr.ScopeRef, SemanticExpression.Occurrence>? = null,
+        ): List<SemanticCheckViolation> {
             val result = evaluate(restrictStart = startId)
             val violations = mutableListOf<SemanticCheckViolation>()
             for (row in result.rows) {
                 for (check in checks) {
-                    counterexampleOf(row, check)?.let { violations += it }
+                    counterexampleOf(row, check, pin)?.let { violations += it }
                 }
             }
             return violations
         }
 
         /**
-         * 1行×1項目の反例探索。σ（束縛への出現の割当て）を出現リスト順に走査し、要素述語が
-         * False になる最初の組を返す（決定的）。値が読めない・順序比較で数値でない組は評価不能
-         * として飛ばし、評価可能な組がなければ null（判定保留＝黙る）。
+         * 1行×1項目の検査。項目が読む「束縛と文書の指定」ごとに、値を読む出現の候補を並べ、その全ての組を
+         * 決まった順（項目に現れた順・出現は索引順）で調べて、条件を満たさない最初の組を返す（決定的）。
+         * 値が得られない・大小の比較で数値でない組は評価できないものとして飛ばし、評価できる組がなければ
+         * null（判定保留＝黙る）。同じ「束縛と文書の指定」は項目の中で同じ出現から読む（CORE-CALCULUS §7 の σ）。
+         * 候補が1つも無い指定は「その入れ物は無い」として扱う（読み出しは得られない・テンプレートの入れ物からは外れる）。
          */
-        private fun counterexampleOf(row: SemanticQueryRow, check: ConstraintCheck): SemanticCheckViolation? {
-            val leftRef = row.bindings[check.left.of] ?: return null
-            val rightRef = row.bindings[check.right.of] ?: return null
-            val sameBind = check.left.of == check.right.of
-            for (leftOcc in sigmaCandidates(leftRef.kind, leftRef.id)) {
-                val leftText = SemanticExpression.textAt(::tree, leftOcc, check.left.path) ?: continue
-                // 項目内の σ は一貫: 同一束縛の両辺は同一出現から読む（CORE-CALCULUS §7 の σ）
-                val rightOccs = if (sameBind) listOf(leftOcc) else sigmaCandidates(rightRef.kind, rightRef.id)
-                for (rightOcc in rightOccs) {
-                    val rightText = SemanticExpression.textAt(::tree, rightOcc, check.right.path) ?: continue
-                    // 要素述語（σ 固定の単一値比較）は共有評価部——評価不能（null）の組は飛ばす
-                    val satisfied = SemanticExpression.compare(check.op, leftText, rightText) ?: continue
-                    if (!satisfied) {
-                        return SemanticCheckViolation(
-                            check = check,
-                            left = SemanticCheckSide(check.left.of, leftRef.id, leftOcc.document, leftOcc.path, leftText),
-                            right = SemanticCheckSide(check.right.of, rightRef.id, rightOcc.document, rightOcc.path, rightText),
-                        )
-                    }
+        private fun counterexampleOf(
+            row: SemanticQueryRow,
+            check: ConstraintCheck,
+            pin: Pair<ValueExpr.ScopeRef, SemanticExpression.Occurrence>?,
+        ): SemanticCheckViolation? {
+            val sources = (check.left.sources() + check.right.sources()).distinct()
+            val candidates: List<List<SemanticExpression.Occurrence?>> = sources.map { source ->
+                if (pin != null && pin.first == source) listOf(pin.second)
+                else candidatesFor(row, source).ifEmpty { listOf(null) }
+            }
+            val assignment = HashMap<ValueExpr.ScopeRef, SemanticExpression.Occurrence?>()
+            fun search(index: Int): SemanticCheckViolation? {
+                if (index == sources.size) {
+                    val left = evalExpr(check.left, row, assignment) ?: return null
+                    val right = evalExpr(check.right, row, assignment) ?: return null
+                    // 要素述語（値の比較）は共有評価部——評価できない（null）組は飛ばす
+                    val satisfied = SemanticExpression.compare(check.op, left.text, right.text) ?: return null
+                    return if (satisfied) null else SemanticCheckViolation(check, left, right)
+                }
+                for (occ in candidates[index]) {
+                    assignment[sources[index]] = occ
+                    search(index + 1)?.let { return it }
+                }
+                return null
+            }
+            return search(0)
+        }
+
+        /** 値を読む出現の候補: 束縛の全出現のうち、文書の指定（スキーマID・ファイルのパターン）に合うもの（索引順）。 */
+        private fun candidatesFor(row: SemanticQueryRow, source: ValueExpr.ScopeRef): List<SemanticExpression.Occurrence> {
+            val ref = row.bindings[source.of] ?: return emptyList()
+            val selector = source.inDoc
+            return when (ref.kind) {
+                QueryNodeKind.ENTITY -> graph.entities[ref.id]?.occurrences.orEmpty()
+                    .filter { selector == null || selector.matches(it.schemaId, rel(it.document)) }
+                    .map { SemanticExpression.Occurrence(it.document, it.path) }
+                // 文書ノードの値は _document 配下の1点（文書の指定は効かない）
+                QueryNodeKind.DOCUMENT -> sigmaCandidates(ref.kind, ref.id)
+            }
+        }
+
+        /** 値の式を、決めた出現の組の下で計算する（得られなければ null）。値の出どころを併せて返す。 */
+        private fun evalExpr(
+            expr: ValueExpr,
+            row: SemanticQueryRow,
+            assignment: Map<ValueExpr.ScopeRef, SemanticExpression.Occurrence?>,
+        ): SemanticCheckSide? = when (expr) {
+            is ValueExpr.Get -> assignment[ValueExpr.ScopeRef(expr.of, expr.inDoc)]?.let { occ ->
+                SemanticExpression.textAt(::tree, occ, expr.path)?.let { text ->
+                    SemanticCheckSide(
+                        text = text,
+                        bind = expr.of, id = row.bindings[expr.of]?.id,
+                        document = occ.document, occPath = occ.path, path = expr.path,
+                        raw = text, sourceDocument = occ.document, sourcePath = occ.path + expr.path,
+                    )
                 }
             }
-            return null
+            is ValueExpr.Literal -> expr.value?.let { SemanticCheckSide(text = it, raw = it) }
+            is ValueExpr.Format -> evalExpr(expr.template, row, assignment)?.let { template ->
+                // 入れ物は、出現が決まったものだけを宣言順（近い順）に並べる
+                val scopes = expr.scopes.mapNotNull { ref ->
+                    assignment[ref]?.let { occ -> SemanticExpression.nodeAt(::tree, occ, emptyList())?.let { occ to it } }
+                }
+                val evaluated = Projection.evaluate(template.text, scopes.map { it.second })
+                if (!evaluated.complete) return@let null
+                template.copy(
+                    text = evaluated.text,
+                    raw = template.text,
+                    inputs = evaluated.resolutions.map { r ->
+                        val occ = r.scopeIndex?.let { scopes.getOrNull(it)?.first }
+                        val inputPath = occ?.let { o -> runCatching { o.path + parseYPath(r.placeholder) }.getOrNull() }
+                        SemanticValueInput(r.placeholder, r.value, occ?.document, inputPath)
+                    },
+                )
+            }
+            is ValueExpr.MapValue -> evalExpr(expr.input, row, assignment)
+                ?.let { it.copy(text = Projection.applyMap(it.text, expr.using)) }
+            is ValueExpr.First -> expr.options.firstNotNullOfOrNull { evalExpr(it, row, assignment) }
         }
 
         /**

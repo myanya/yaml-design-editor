@@ -24,10 +24,16 @@ data class SchemaDef(
     val root: FieldDef,
     val definitions: Map<String, FieldDef> = emptyMap(),
     val coverage: List<CoverageRule> = emptyList(),
-    /** 整合ルール（R16-03a）: このスキーマの文書のID要素の値と、導出値との一致要件。 */
-    val consistency: List<ConsistencyRule> = emptyList(),
-    /** パターン制約（R22-03。ARCHITECTURE §4.32）: 起点エンティティごとのパターンの存在／不在要件。 */
+    /**
+     * 検査（基本の書き方へ展開済み。P29 Phase 6）: `constraints` に直接書いた検査と、定義を名前で使った検査、
+     * 語彙（`consistency` など。組込み定義体・利用者の定義が作る）から展開された検査を、展開順に持つ。
+     */
     val constraints: List<ConstraintRule> = emptyList(),
+    /**
+     * constraints の各検査の、展開後の姿（YAML を読んだままの値）と由来（どこに書かれ、どの定義から展開されたか）。
+     * 定義エラーの場所の表示と、CLI `checks`（展開の透明性。CALC-29）が使う。constraints と同じ並び。
+     */
+    val expandedChecks: List<ExpandedCheck> = emptyList(),
     /** 網羅マトリクス（R28-03。ARCHITECTURE §4.32）: 行×列の全組合せに証人が存在すること。 */
     val matrix: List<MatrixRule> = emptyList(),
     /** 遷移検証（R28-04。ARCHITECTURE §4.32）: 宣言エッジ集合の到達閉包で到達不能・行き止まり・宣言外遷移を検出。 */
@@ -47,8 +53,15 @@ data class SchemaDef(
     val derive: DeriveDef? = null,
     /** SchemaLoader が全モジュールを読み込んだ後にリンクする。単体生成時はローカル定義だけで動作する。 */
     internal val definitionCatalog: SchemaCatalog = SchemaCatalog.local(id, definitions),
+    /** このスキーマ文書が宣言する検査の定義と語彙の定義（functions / vocabulary）。 */
+    val checkLibrary: CheckLibrary = CheckLibrary(),
+    /** 語彙の再展開に使う原文（派生スキーマが、導出元の語彙を自分のスキーマIDで展開し直すため）。 */
+    internal val vocabularySource: VocabularySource? = null,
 ) {
     private val regex: Regex by lazy { globToRegex(match) }
+
+    /** constraints の各検査の由来（constraints と同じ並び）。 */
+    val constraintOrigins: List<String> get() = expandedChecks.map { it.origin }
 
     /** 構造コア（yaml-core）。$ref解決・cases合成・フェーズ必須・パス解決はここへ委譲する（YM-004b）。 */
     val structural: StructuralSchema by lazy { StructuralSchema(id, root, definitions, phases, definitionCatalog) }
@@ -99,6 +112,16 @@ fun SchemaDef.effectiveFields(fields: List<FieldDef>, node: YNode.Map?): Effecti
  */
 fun SchemaDef.fieldAt(root: YNode, path: model.YPath): FieldDef? = structural.fieldAt(root, path)
 
+/**
+ * 語彙の再展開に使う原文と定義の一式。派生スキーマ（derive）は導出元のスキーマの語彙（consistency）を引き継ぐが、
+ * 展開された検査は「どのスキーマの文書に書かれた値か」をスキーマIDで指すため、派生スキーマのIDで展開し直す。
+ */
+data class VocabularySource(private val raw: Map<*, *>, private val library: CheckLibrary) {
+    /** 語彙から展開される検査だけを、指定のスキーマIDで展開する（constraints に直接書いた検査は引き継がない）。 */
+    fun checksFor(schemaId: String): List<ExpandedCheck> =
+        library.expand(raw.entries.filter { it.key.toString() != "constraints" }.associate { it.key to it.value }, schemaId)
+}
+
 data class SchemaIssue(val message: String, val path: String)
 
 /** スキーマ定義自体を検証するメタスキーマ検証。 */
@@ -124,7 +147,7 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
         if (relations.isEmpty()) issues += SchemaIssue("kind: relations には1つ以上の relations が必要です", "relations")
         if (definitions.isNotEmpty()) issues += SchemaIssue("relations 文書に definitions は定義できません", "definitions")
         if (coverage.isNotEmpty()) issues += SchemaIssue("relations 文書に coverage は定義できません", "coverage")
-        if (consistency.isNotEmpty()) issues += SchemaIssue("relations 文書に consistency は定義できません", "consistency")
+        if (constraints.isNotEmpty()) issues += SchemaIssue("relations 文書に検査（constraints / consistency）は定義できません", "constraints")
         if (phases != null) issues += SchemaIssue("relations 文書に phases は定義できません", "phases")
         relations.groupBy { it.name }.filterValues { it.size > 1 }.keys.forEach {
             issues += SchemaIssue("関係「$it」が重複しています", "relations")
@@ -157,9 +180,12 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
         }
     } else {
         if (match.isNotBlank()) issues += SchemaIssue("library スキーマに match は定義できません", "match")
-        if (definitions.isEmpty()) issues += SchemaIssue("library スキーマには1つ以上の definitions が必要です", "definitions")
+        // library は共有する定義の置き場——フィールドの定義（definitions）か、検査の定義・語彙の定義（functions / vocabulary）を持つ
+        if (definitions.isEmpty() && checkLibrary.functions.isEmpty() && checkLibrary.words.isEmpty()) {
+            issues += SchemaIssue("library スキーマには definitions・functions・vocabulary のいずれかが必要です", "definitions")
+        }
         if (coverage.isNotEmpty()) issues += SchemaIssue("library スキーマに coverage は定義できません", "coverage")
-        if (consistency.isNotEmpty()) issues += SchemaIssue("library スキーマに consistency は定義できません", "consistency")
+        if (constraints.isNotEmpty()) issues += SchemaIssue("library スキーマに検査（constraints / consistency）は定義できません", "constraints")
         if (phases != null) issues += SchemaIssue("library スキーマに phases は定義できません", "phases")
     }
 
@@ -339,12 +365,7 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
         if (rule.idPattern?.isBlank() == true) issues += SchemaIssue("idPatternが空です", "coverage[$i]")
         checkActiveFrom(rule.activeFrom, "coverage[$i]")
     }
-    consistency.forEachIndexed { i, rule ->
-        if (rule.path.isEmpty()) issues += SchemaIssue("consistency[$i].path が空です", "consistency[$i]")
-        if (rule.idPattern?.isBlank() == true) issues += SchemaIssue("idPatternが空です", "consistency[$i]")
-        checkActiveFrom(rule.activeFrom, "consistency[$i]")
-    }
-    constraints.forEachIndexed { i, rule -> checkActiveFrom(rule.activeFrom, "constraints[$i]") }
+    constraints.forEachIndexed { i, rule -> checkActiveFrom(rule.activeFrom, constraintOrigins.getOrNull(i) ?: "constraints[$i]") }
     matrix.forEachIndexed { i, rule -> checkActiveFrom(rule.activeFrom, "matrix[$i]") }
     flow.forEachIndexed { i, rule -> checkActiveFrom(rule.activeFrom, "flow[$i]") }
     phases?.let { p ->
@@ -440,15 +461,43 @@ object SchemaLoader {
         }.sortedBy { it.fileName.toString() }
         val schemas = mutableListOf<SchemaDef>()
         val errors = mutableListOf<String>()
+        // 検査の定義と語彙の定義（functions / vocabulary）は、どのスキーマ文書に書いてもワークスペース全体で使える。
+        // 先に全ファイルから集めてから、各スキーマの検査を展開する（組込み定義体も同じ仕組みで合成する）
+        var library = builtinLibrary
+        val texts = files.associateWith { f -> runCatching { Files.readString(f) }.getOrNull() }
         files.forEach { f ->
-            runCatching { parseSchemaFile(f) }.onSuccess { schemas += it }
+            runCatching {
+                val raw = texts[f]?.let { YamlIO.parseToRaw(it) } as? Map<*, *> ?: return@runCatching
+                library += CheckLibrary.parse(raw, f.fileName.toString())
+            }.onFailure { errors += "${f.fileName}: ${it.message ?: it::class.simpleName}" }
+        }
+        files.forEach { f ->
+            runCatching { parseSchemaText(texts[f] ?: Files.readString(f), f, library = library) }.onSuccess { schemas += it }
                 .onFailure { errors += "${f.fileName}: ${it.message ?: it::class.simpleName}" }
         }
         schemas.groupBy { it.id }.filterValues { it.size > 1 }.forEach { (id, duplicates) ->
             errors += "スキーマID「$id」が重複しています（${duplicates.joinToString(", ") { it.source.fileName.toString() }}）"
         }
-        // 組込みスキーマ（agents / activities 等の定義ゾーン用）は利用者スキーマの後ろに置く（先勝ちのため利用者定義が優先）
-        val all = schemas + BuiltinSchemas.forLayout(layout).filter { builtin -> schemas.none { it.id == builtin.id } }
+        // 組込みスキーマ（agents / activities 等の定義ゾーン用）は利用者スキーマの後ろに置く（先勝ちのため利用者定義が優先）。
+        // 利用者が定義した語彙（vocabulary）のキーは、メタスキーマの「知っている項目」に足す——語彙として定義された書き方が
+        // スキーマ文書で「定義されていない項目」と警告されないようにする（書き方の形の検証までは行わない＝配列であることだけ。
+        // 語彙の定義に形を持たせてメタスキーマへ合成するのは後続。specs の definition-layers OQ-DL-03）
+        val builtins = BuiltinSchemas.forLayout(layout).map { builtin ->
+            if (builtin.id != BuiltinSchemas.META_SCHEMA_ID) return@map builtin
+            val known = builtin.root.fields.mapNotNull { it.key }.toSet()
+            val wordFields = library.words
+                .map { it.location.substringBefore('[') to it }
+                .filter { (key, _) -> key !in known }
+                .distinctBy { it.first }
+                .map { (key, word) ->
+                    FieldDef(
+                        key = key, label = "語彙: ${word.word}", type = FieldType.ARRAY, item = FieldDef(type = FieldType.ANY),
+                        description = "語彙の定義（${word.origin}）が作る書き方。検証の前に基本の検査（constraints）へ展開される",
+                    )
+                }
+            if (wordFields.isEmpty()) builtin else builtin.copy(root = builtin.root.copy(fields = builtin.root.fields + wordFields))
+        }
+        val all = schemas + builtins.filter { builtin -> schemas.none { it.id == builtin.id } }
         val catalog = SchemaCatalog.linked(all.map { it.id to it.definitions })
         val linked = all.map { it.withDefinitionCatalog(catalog) }
         linked.take(schemas.size).forEach { schema ->
@@ -527,7 +576,25 @@ object SchemaLoader {
         return names
     }
 
-    fun parseSchemaText(text: String, source: Path, availableSchemas: List<SchemaDef> = emptyList()): SchemaDef {
+    /** 組込み定義体（同梱の YAML。workspace-core の資源）。利用者の定義と同じ仕組みで読み込む。 */
+    val builtinLibrary: CheckLibrary by lazy {
+        workspace.BuiltinDefinitionResources.names.fold(CheckLibrary()) { acc, name ->
+            val raw = YamlIO.parseToRaw(workspace.BuiltinDefinitionResources.text(name)) as? Map<*, *>
+                ?: error("組込み定義体のルートはobjectである必要があります: $name")
+            acc + CheckLibrary.parse(raw, "（組込み）$name.yaml")
+        }
+    }
+
+    /**
+     * スキーマ1件をパースする。library は検査の展開に使う定義の一式（ワークスペース全体で集めたもの）。
+     * null のとき（単体のパース）は、組込み定義体とこの文書自身の定義で展開する。
+     */
+    fun parseSchemaText(
+        text: String,
+        source: Path,
+        availableSchemas: List<SchemaDef> = emptyList(),
+        library: CheckLibrary? = null,
+    ): SchemaDef {
         val raw = YamlIO.parseToRaw(text) as? Map<*, *> ?: error("スキーマのルートはobjectである必要があります")
         val fallbackId = source.fileName.toString().substringBeforeLast('.')
         val id = raw["id"]?.toString() ?: fallbackId
@@ -554,12 +621,12 @@ object SchemaLoader {
         val definitions = StructuralSchemaParser.parseDefinitions(raw["definitions"], id)
         val root = StructuralSchemaParser.parseRoot(raw["root"], kind, id, allowMissingRoot = derive != null)
         val coverage = parseCoverage(raw["coverage"])
-        val consistency = parseConsistency(raw["consistency"])
-        // パターン制約（R22-03。ARCHITECTURE §4.32）: パースはクエリコア（schema/Query.kt）と共用
-        val constraints = (raw["constraints"])?.let { rawList ->
-            val list = rawList as? List<*> ?: error("constraintsはリストである必要があります")
-            list.mapIndexed { i, entry -> ConstraintRule.parse(entry, "constraints[$i]") }
-        } ?: emptyList()
+        // 検査（P29 Phase 6）: constraints に書いた検査（プリミティブを直接書く／定義を名前で使う）と、
+        // 語彙（consistency など）を、基本の検査へ展開してからパースする。パースはクエリコア（schema/Query.kt）と共用
+        val ownLibrary = CheckLibrary.parse(raw, source.fileName.toString())
+        val effectiveLibrary = library ?: (builtinLibrary + ownLibrary)
+        val expanded = effectiveLibrary.expand(raw, id)
+        val constraints = expanded.map { ConstraintRule.parse(it.raw, it.origin) }
         // 網羅マトリクス（R28-03。ARCHITECTURE §4.32）: パースはカーネル（schema/Matrix.kt）と共用
         val matrix = (raw["matrix"])?.let { rawList ->
             val list = rawList as? List<*> ?: error("matrixはリストである必要があります")
@@ -579,8 +646,8 @@ object SchemaLoader {
             root = root,
             definitions = definitions,
             coverage = coverage,
-            consistency = consistency,
             constraints = constraints,
+            expandedChecks = expanded,
             matrix = matrix,
             flow = flow,
             phases = phases,
@@ -591,6 +658,8 @@ object SchemaLoader {
             source = source,
             kind = kind,
             derive = derive,
+            checkLibrary = ownLibrary,
+            vocabularySource = VocabularySource(raw, effectiveLibrary),
         )
         if (availableSchemas.isEmpty()) return parsed
         val modules = availableSchemas.filter { it.id != parsed.id }.map { it.id to it.definitions } +
@@ -680,31 +749,6 @@ object SchemaLoader {
                 ?.associate { it.key.toString() to (it.value?.toString() ?: "") } ?: emptyMap(),
             default = m["default"]?.toString(),
         )
-    }
-
-    /** 整合ルール（R16-03a）のパース。level / activeFrom の語彙は coverage と揃える。 */
-    private fun parseConsistency(raw: Any?): List<ConsistencyRule> {
-        if (raw == null) return emptyList()
-        val list = raw as? List<*> ?: error("consistencyはリストである必要があります")
-        return list.mapIndexed { i, entry ->
-            val m = entry as? Map<*, *> ?: error("consistency[$i]はobjectである必要があります")
-            ConsistencyRule(
-                id = m["id"]?.toString(),
-                description = m["description"]?.toString(),
-                idPattern = m["idPattern"]?.toString(),
-                path = parseYPath(m["path"]?.toString() ?: error("consistency[$i].path が必要です")),
-                expected = parseDerivation(m["expected"] ?: error("consistency[$i].expected が必要です"), "consistency[$i].expected"),
-                assert = m["assert"]?.toString()?.let { value ->
-                    ConsistencyAssert.entries.firstOrNull { it.id == value }
-                        ?: error("consistency[$i].assert は equals / lte / gte のいずれかである必要があります: $value")
-                } ?: ConsistencyAssert.EQUALS,
-                level = m["level"]?.toString()?.let { value ->
-                    CoverageLevel.entries.firstOrNull { it.id == value }
-                        ?: error("consistency[$i].level は warning / error のいずれかである必要があります: $value")
-                } ?: CoverageLevel.WARNING,
-                activeFrom = m["activeFrom"]?.toString(),
-            )
-        }
     }
 
     private fun parseSchemaFile(file: Path): SchemaDef = parseSchemaText(Files.readString(file), file)

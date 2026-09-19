@@ -1,0 +1,133 @@
+# 組込み定義体: 整合検証（スキーマの consistency）
+#
+# 「このスキーマの文書に書かれた値が、同じ要素について別の文書（型の写像など）から計算した値と、
+#  決まった関係（一致・以下・以上）にあること」という検査を、プリミティブだけで定義する。
+# ここにコードは無い。利用者も同じ書き方（functions / vocabulary）で、自分の定義と語彙を作れる。
+id: builtin-consistency
+kind: library
+name: 整合検証（組込み定義体）
+description: スキーマの consistency という語彙と、その中身（値の比較の検査）の定義
+
+functions:
+  # 計算のもとになる値を、対象の要素そのものから読む形（lookup なし）
+  - id: value-matches-derived
+    description: 対象の要素の値が、同じ要素の別の文書に書かれた元の値から計算した値と、指定の関係にあること
+    params: [schema, idPattern, path, pathText, op, relation, source, exprPath, values, using, default, level, activeFrom, description, id]
+    checks:
+      - id: $id
+        description: $description
+        level: $level
+        activeFrom: $activeFrom
+        match:
+          - node: {schema: $schema, id: $idPattern, bind: subject}
+        check:
+          - op: $op
+            left: {of: subject, in: {schemaId: $schema}, path: $path}
+            right:
+              map:
+                format:
+                  first:
+                    - {of: subject, in: $source, path: $exprPath}
+                    - {value: $default}
+                scopes:
+                  - {of: subject, in: $source}
+                  - {of: subject, in: $values}
+              using: $using
+        reportAt: {of: subject, in: {schemaId: $schema}, path: $path}
+        message: 「$pathText」の値「{left}」は$relation
+        responses:
+          - {jump: right.source, label: "導出規則へ: {right.raw}"}
+          - {jump: right.inputs, label: "入力値へ: {input.placeholder} = {input.value}"}
+          - {apply: right, label: "導出値を適用: {right}"}
+
+  # 計算のもとになる値を、対象の要素が参照している先（lookup）から読む形
+  - id: value-matches-derived-via
+    description: 対象の要素の値が、その要素が参照している先の要素の元の値から計算した値と、指定の関係にあること
+    params: [schema, idPattern, path, pathText, op, relation, via, lookupFrom, source, exprPath, values, using, default, level, activeFrom, description, id]
+    checks:
+      - id: $id
+        description: $description
+        level: $level
+        activeFrom: $activeFrom
+        match:
+          - node: {schema: $schema, id: $idPattern, bind: subject}
+          - edge: {dir: out, via: $via, in: $lookupFrom}
+          - node: {bind: target}
+        check:
+          - op: $op
+            left: {of: subject, in: {schemaId: $schema}, path: $path}
+            right:
+              map:
+                format:
+                  first:
+                    - {of: target, in: $source, path: $exprPath}
+                    - {value: $default}
+                scopes:
+                  - {of: target, in: $source}
+                  - {of: target, in: $values}
+                  - {of: subject, in: $lookupFrom}
+              using: $using
+        reportAt: {of: subject, in: {schemaId: $schema}, path: $path}
+        message: 「$pathText」の値「{left}」は$relation
+        responses:
+          - {jump: right.source, label: "導出規則へ: {right.raw}"}
+          - {jump: right.inputs, label: "入力値へ: {input.placeholder} = {input.value}"}
+          - {apply: right, label: "導出値を適用: {right}"}
+
+vocabulary:
+  - word: consistency
+    description: 整合検証の専用の書き方（path / expected / assert / level / activeFrom）
+    in: consistency[]
+    uses:
+      - unless: expected.lookup
+        use: value-matches-derived
+        with:
+          schema: {schema: id}
+          id: {from: id}
+          description: {from: description}
+          idPattern: {from: idPattern}
+          path: {from: path}
+          pathText: {from: path}
+          op: {from: assert, default: equals, map: {equals: eq, lte: lte, gte: gte}}
+          relation:
+            from: assert
+            default: equals
+            map:
+              equals: 導出値「{right}」と一致しません
+              lte: 導出値「{right}」以下である必要があります
+              gte: 導出値「{right}」以上である必要があります
+          source: {from: expected.source}
+          exprPath: {from: expected.path}
+          values: {from: expected.values, default: []}
+          using: {from: expected.map}
+          default: {from: expected.default}
+          level: {from: level}
+          activeFrom: {from: activeFrom}
+      - when: expected.lookup
+        use: value-matches-derived-via
+        with:
+          schema: {schema: id}
+          id: {from: id}
+          description: {from: description}
+          idPattern: {from: idPattern}
+          path: {from: path}
+          pathText: {from: path}
+          op: {from: assert, default: equals, map: {equals: eq, lte: lte, gte: gte}}
+          relation:
+            from: assert
+            default: equals
+            map:
+              equals: 導出値「{right}」と一致しません
+              lte: 導出値「{right}」以下である必要があります
+              gte: 導出値「{right}」以上である必要があります
+          source: {from: expected.source}
+          exprPath: {from: expected.path}
+          values: {from: expected.values, default: []}
+          using: {from: expected.map}
+          default: {from: expected.default}
+          level: {from: level}
+          activeFrom: {from: activeFrom}
+          via: {from: expected.lookup.via}
+          lookupFrom:
+            schemaId: {from: expected.lookup.schemaId}
+            fileGlob: {from: expected.lookup.fileGlob}

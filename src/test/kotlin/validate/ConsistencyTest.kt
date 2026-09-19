@@ -13,6 +13,9 @@ import kotlin.test.assertTrue
 /**
  * 整合検証（R16-03a）のテスト。値型→写像→実装の todos ワールドを縮約した3文書で、
  * 「宣言値 = 導出値」の等値判定・判定保留・テンプレート健全性（UX-12）・activeFrom を検証する。
+ * P29 Phase 6 第1段から、整合検証は専用の検査プログラムではなく**組込み定義体（YAML）**——スキーマの
+ * `consistency` という語彙が、クエリ＋値の比較（check）へ展開されて評価される。このテストは、その展開結果が
+ * 従来と同じ指摘（場所・文面・エラー時の対応）を出すことを固定する（変えた点は意図的差分 D-19）。
  */
 class ConsistencyTest {
 
@@ -136,9 +139,9 @@ class ConsistencyTest {
     }
 
     @Test
-    fun `期待値導出は定義出現を優先して選ぶ`() {
-        // σ 選択方針（CALC-19・意図的差分 D-17）: selector が複数出現に一致するとき、
-        // 索引順の先頭ではなく定義出現から読む（R29-02）
+    fun `比べる相手の値が複数の文書に書かれていれば全て調べ1つでも食い違えば指摘する`() {
+        // 意図的差分 D-19（DL-05「共通の規則に合わせる」）: 従来は指定に合う文書のうち1つ（定義出現を優先。D-17）だけを
+        // 読んでいた。定義体へ移してからは、値の比較の共通規則どおり、指定に合う文書をすべて調べる
         val itemFields = """
             root:
               type: object
@@ -201,13 +204,13 @@ class ConsistencyTest {
                 allSchemas = schemas,
             )
         }
-        // 定義出現（m2）の値と一致 → 指摘なし
-        val ok = check("types:\n  - id: VT-TITLE\n    declared: varchar(100)\n")
-        assertTrue(ok.none { "一致しません" in it.message }, "$ok")
-        // 不一致のとき、導出値は定義出現の値になっている
-        val issue = check("types:\n  - id: VT-TITLE\n    declared: varchar(50)\n")
+        // m1（varchar(50)）と m2（varchar(100)）の両方が指定に合う → どちらの値を書いても、もう一方と食い違う
+        val withDefining = check("types:\n  - id: VT-TITLE\n    declared: varchar(100)\n")
             .single { "一致しません" in it.message }
-        assertTrue("導出値「varchar(100)」" in issue.message, issue.message)
+        assertTrue("導出値「varchar(50)」" in withDefining.message, withDefining.message)
+        val withDetail = check("types:\n  - id: VT-TITLE\n    declared: varchar(50)\n")
+            .single { "一致しません" in it.message }
+        assertTrue("導出値「varchar(100)」" in withDetail.message, withDetail.message)
     }
 
     @Test
@@ -224,15 +227,19 @@ class ConsistencyTest {
         assertTrue("「int」" in issue.message && "導出値「varchar(100)」" in issue.message, issue.message)
         assertEquals(parseYPath("rows[0].type"), issue.path, "指摘は検査した値の座標に付く")
 
-        // 来歴（R16-03c）: UIの「導出規則へ／入力値へ／導出値を適用」に使う情報が指摘に添付される
-        val d = issue.derivation!!
-        assertEquals("varchar(100)", d.expected)
-        assertEquals("varchar({maxLength})", d.raw)
-        assertEquals(parseYPath("mappings[0].to"), d.sourcePath)
-        val input = d.inputs.single()
-        assertEquals("maxLength", input.placeholder)
-        assertEquals("100", input.value)
-        assertEquals(parseYPath("types[0].maxLength"), input.path)
+        // エラー時の対応（SP-09）: 組込み定義体が宣言した「導出規則へ／入力値へ／導出値を適用」が、宣言の順に付く
+        val (toRule, toInput, apply) = issue.responses
+        toRule as IssueResponse.Jump
+        assertEquals("導出規則へ: varchar({maxLength})", toRule.label)
+        assertEquals(Path.of("mapping.yaml"), toRule.file)
+        assertEquals(parseYPath("mappings[0].to"), toRule.path)
+        toInput as IssueResponse.Jump
+        assertEquals("入力値へ: {maxLength} = 100", toInput.label)
+        assertEquals(Path.of("concepts.yaml"), toInput.file)
+        assertEquals(parseYPath("types[0].maxLength"), toInput.path)
+        apply as IssueResponse.ApplyValue
+        assertEquals("導出値を適用: varchar(100)", apply.label)
+        assertEquals("varchar(100)", apply.value)
     }
 
     @Test

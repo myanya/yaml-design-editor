@@ -463,7 +463,8 @@ class SchemaLoaderTest {
         )
 
         val loaded = SchemaLoader.loadAllWithErrors(workspace)
-        assertTrue(loaded.errors.any { "definitions が必要" in it }, loaded.errors.toString())
+        // library は共有する定義の置き場——フィールドの定義か、検査の定義・語彙の定義のいずれかを持つ（P29 Phase 6）
+        assertTrue(loaded.errors.any { "definitions・functions・vocabulary のいずれかが必要" in it }, loaded.errors.toString())
         assertTrue(loaded.errors.any { "library スキーマに match" in it }, loaded.errors.toString())
         assertTrue(loaded.errors.any { "library スキーマに root" in it }, loaded.errors.toString())
     }

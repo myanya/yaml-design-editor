@@ -508,53 +508,35 @@ private fun IssueRow(state: AppState, file: Path, issue: Issue) {
                         else { state.openFile(file, issue.path.takeIf { it.isNotEmpty() }); state.editorTab = 0 }
                     },
                 )
-                val d = issue.derivation
-                if (d != null) {
-                val sourceFile = d.sourceFile
-                if (sourceFile != null) {
-                    DropdownMenuItem(
-                        text = {
-                            Column {
-                                Text("導出規則へ" + (d.raw?.let { ": $it" } ?: ""), fontSize = 12.sp)
-                                Text(
-                                    "${state.relPath(sourceFile)} :: ${d.sourcePath?.pretty()}",
-                                    fontSize = 10.sp, color = Palette.SubText,
-                                )
-                            }
-                        },
-                        onClick = { menuOpen = false; state.openFile(sourceFile, d.sourcePath) },
-                    )
-                }
-                d.inputs.forEach { input ->
-                    val inputFile = input.file
-                    val inputPath = input.path
-                    if (inputFile != null && inputPath != null) {
-                        DropdownMenuItem(
+                // エラー時の対応（SP-09。P29 Phase 6）: 検査の定義（YAML）が宣言した対応を、宣言の順に並べる。
+                // 対応の種類は閉じた一覧（移動・値の書き込み）で、どれをどのラベルで示すかは定義の側が選ぶ
+                issue.responses.forEach { response ->
+                    when (response) {
+                        is validate.IssueResponse.Jump -> DropdownMenuItem(
                             text = {
                                 Column {
-                                    Text("入力値へ: {${input.placeholder}} = ${input.value}", fontSize = 12.sp)
+                                    Text(response.label, fontSize = 12.sp)
                                     Text(
-                                        "${state.relPath(inputFile)} :: ${inputPath.pretty()}",
+                                        "${state.relPath(response.file)} :: ${response.path?.pretty()}",
                                         fontSize = 10.sp, color = Palette.SubText,
                                     )
                                 }
                             },
-                            onClick = { menuOpen = false; state.openFile(inputFile, inputPath) },
+                            onClick = { menuOpen = false; state.openFile(response.file, response.path) },
                         )
+                        is validate.IssueResponse.ApplyValue -> if (!state.readOnlyMode) {
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(response.label, fontSize = 12.sp, color = Palette.Primary)
+                                        Text("未保存の編集として書き込みます（Undo可）", fontSize = 10.sp, color = Palette.SubText)
+                                    }
+                                },
+                                // 対象文書が開かれていなくても ensureDoc で通常の編集経路に載せる（未保存・Undo可）
+                                onClick = { menuOpen = false; applyDerivedValue(state, state.ensureDoc(file), issue, response.value) },
+                            )
+                        }
                     }
-                }
-                if (!state.readOnlyMode) {
-                    DropdownMenuItem(
-                        text = {
-                            Column {
-                                Text("導出値を適用: ${d.expected}", fontSize = 12.sp, color = Palette.Primary)
-                                Text("未保存の編集として書き込みます（Undo可）", fontSize = 10.sp, color = Palette.SubText)
-                            }
-                        },
-                        // 対象文書が開かれていなくても ensureDoc で通常の編集経路に載せる（未保存・Undo可）
-                        onClick = { menuOpen = false; applyDerivedValue(state, state.ensureDoc(file), issue, d.expected) },
-                    )
-                }
                 }
                 // 詳細文書の作成（R28-05a・UX-97 の導線）: detailIn 不足の指摘からその場でスキャフォールドする
                 val sc = issue.scaffold

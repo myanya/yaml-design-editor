@@ -4,7 +4,6 @@ import model.DocumentId
 import model.YNode
 import model.parseYPath
 import schema.CheckOp
-import schema.ConsistencyAssert
 import schema.DerivationSelector
 import schema.EntityRole
 import yaml.YamlIO
@@ -36,13 +35,6 @@ class SemanticExpressionTest {
         assertEquals(false, SemanticExpression.compare(CheckOp.GTE, "1", "2"))
         assertNull(SemanticExpression.compare(CheckOp.LTE, "abc", "10"))  // Unknown＝呼び出し側は判定保留
         assertNull(SemanticExpression.compare(CheckOp.GT, "10", ""))
-    }
-
-    @Test
-    fun `整合検証のassertはcheckと同じ要素述語へ落ちる`() {
-        assertEquals(CheckOp.EQ, ConsistencyAssert.EQUALS.op)
-        assertEquals(CheckOp.LTE, ConsistencyAssert.LTE.op)
-        assertEquals(CheckOp.GTE, ConsistencyAssert.GTE.op)
     }
 
     @Test
