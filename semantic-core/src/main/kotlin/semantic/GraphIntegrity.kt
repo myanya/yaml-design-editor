@@ -6,8 +6,9 @@ import validate.Severity
 
 /**
  * グラフ整合検証のカーネル（R21-01。3層コア移行 Phase 6A で validate/GraphIntegrity.kt から移動）。
- * 関係レジストリの宣言（対象型・多重度・非循環）と強制スイッチ（enforcement）を
+ * 関係レジストリの宣言のうち非循環（acyclic）と、強制スイッチ（enforcement）の宣言のない関係名を
  * SemanticEntityGraph の隣接上で判定し、全文書分の指摘を文書座標つきで返す。
+ * 対象型と多重度は、組込み定義体が作る検査になった（P29 Phase 6 第2段）。
  * ルート側 GraphIntegrity は IdIndex → カーネル座標の変換シェル（ファイル単位の絞り込みのみ）。
  * - 判定保留の哲学（§4.26）: 型未宣言のエンティティ・未解決参照には黙る（未解決は参照解決の領分）。
  */
@@ -28,91 +29,24 @@ object SemanticGraphIntegrity {
         val enforcement = declarations.enforcement
         if (relations.isEmpty() && enforcement.undeclaredRelation == null) return emptyList()
         val issues = mutableListOf<SemanticIssue>()
-        val refsByTarget = refs.filter { it.targetKind == RefTarget.ENTITY }.groupBy { it.targetId }
 
-        // 1) 対象型・未宣言 relation: 参照値の座標へ指摘する
-        for (ref in refs) {
-            if (ref.targetKind != RefTarget.ENTITY) continue  // 文書参照（R21-03）は別名前空間
-            val name = ref.relation ?: continue
-            val def = relations[name]
-            if (def == null) {
-                enforcement.undeclaredRelation?.let { level ->
-                    issues += SemanticIssue(
-                        severityOf(level),
-                        "参照「${ref.targetId}」の関係「$name」は関係レジストリに宣言されていません",
-                        ref.document, ref.path,
-                    )
-                }
-                continue
-            }
-            if (def.source.isNotEmpty()) {
-                val sourceType = graph.sourceEntryOf(ref)?.entityType
-                if (sourceType != null && sourceType !in def.source) {
-                    issues += SemanticIssue(
-                        severityOf(def.level),
-                        "関係「$name」の参照元エンティティ型「$sourceType」は宣言（source: ${def.source.joinToString(", ")}）に一致しません",
-                        ref.document, ref.path,
-                    )
-                }
-            }
-            if (def.target.isNotEmpty()) {
-                val targetType = graph.entities[ref.targetId]?.entityType
-                if (targetType != null && targetType !in def.target) {
-                    issues += SemanticIssue(
-                        severityOf(def.level),
-                        "関係「$name」の参照先エンティティ型「$targetType」は宣言（target: ${def.target.joinToString(", ")}）に一致しません",
-                        ref.document, ref.path,
-                    )
-                }
+        // 1) 宣言のない関係名（enforcement.undeclaredRelation）: 参照値の座標へ指摘する。
+        //    データではなく宣言そのものの検査のため、定義体にせずここに残す（P29 Phase 6・DL-04）
+        enforcement.undeclaredRelation?.let { level ->
+            for (ref in refs) {
+                if (ref.targetKind != RefTarget.ENTITY) continue  // 文書参照（R21-03）は別名前空間
+                val name = ref.relation ?: continue
+                if (name in relations) continue
+                issues += SemanticIssue(
+                    severityOf(level),
+                    "参照「${ref.targetId}」の関係「$name」は関係レジストリに宣言されていません",
+                    ref.document, ref.path,
+                )
             }
         }
 
-        // 2) 多重度: 母集団は source / target の型宣言に一致する型つきエンティティ。
-        //    座標は該当エンティティの定義出現（なければ先頭出現）
-        for (node in graph.entities.values) {
-            val type = node.entityType ?: continue
-            val anchor: ScannedId = node.defining ?: node.occurrences.first()
-            for (def in relations.values) {
-                val c = def.cardinality ?: continue
-                if (type in def.source && (c.outMin != null || c.outMax != null)) {
-                    // out はエンティティ単位の合算（同一関係の参照を複数出現に分けて書けるため）
-                    val count = graph.outgoingRefs(node.id).count { it.relation == def.name }
-                    c.outMin?.let { min ->
-                        if (count < min) issues += SemanticIssue(
-                            severityOf(def.level),
-                            "エンティティ「${node.id}」の関係「${def.name}」の参照が不足しています（現在 $count 件／下限 $min 件）",
-                            anchor.document, anchor.path,
-                        )
-                    }
-                    c.outMax?.let { max ->
-                        if (count > max) issues += SemanticIssue(
-                            severityOf(def.level),
-                            "エンティティ「${node.id}」の関係「${def.name}」の参照が過剰です（現在 $count 件／上限 $max 件）",
-                            anchor.document, anchor.path,
-                        )
-                    }
-                }
-                if (type in def.target && (c.inMin != null || c.inMax != null)) {
-                    val count = refsByTarget[node.id].orEmpty().count { it.relation == def.name }
-                    c.inMin?.let { min ->
-                        if (count < min) issues += SemanticIssue(
-                            severityOf(def.level),
-                            "エンティティ「${node.id}」への関係「${def.name}」の被参照が不足しています（現在 $count 件／下限 $min 件）",
-                            anchor.document, anchor.path,
-                            // 修正は「他の文書からこのIDへの参照を書き足すこと」——消費側が追加先候補を導出できるよう構造情報を添える（UX-100）
-                            shortage = SemanticShortage(relation = def.name, targetId = node.id),
-                        )
-                    }
-                    c.inMax?.let { max ->
-                        if (count > max) issues += SemanticIssue(
-                            severityOf(def.level),
-                            "エンティティ「${node.id}」への関係「${def.name}」の被参照が過剰です（現在 $count 件／上限 $max 件）",
-                            anchor.document, anchor.path,
-                        )
-                    }
-                }
-            }
-        }
+        // 2) 多重度と対象型は、組込み定義体（builtin-definitions/relations.yaml）が作る検査になった
+        //    （P29 Phase 6 第2段。クエリ＋参照の本数＋値の比較／ノードの条件の否定＋参照の場所への指摘）
 
         // 3) 非循環: acyclic 宣言された relation のエッジ集合で循環を検出し、
         //    循環構成参照値の座標へ ERROR（宣言した時点で構造の前提のため常にエラー）

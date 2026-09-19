@@ -28,8 +28,11 @@ data class QueryNodeRef(
     val path: YPath,
 )
 
-/** 結果の1行（束縛名 → ノード。列順は束縛の宣言順）。 */
-data class QueryRow(val bindings: Map<String, QueryNodeRef>)
+/** 束縛した参照（edge の bind）が書かれた場所。 */
+data class QueryRefLocation(val file: Path, val path: YPath, val targetId: String, val relation: String?)
+
+/** 結果の1行（束縛名 → ノード。列順は束縛の宣言順）。refs は edge の bind で束縛した参照の場所。 */
+data class QueryRow(val bindings: Map<String, QueryNodeRef>, val refs: Map<String, QueryRefLocation> = emptyMap())
 
 /**
  * 照合結果。total は limit 打切り前の全行数。unknownDropped は解探索の途中で未解決参照により
@@ -52,7 +55,7 @@ object Query {
         val result = SemanticQuery.run(view.entries, view.refs, view.graph, spec) { d -> loader(Path.of(d.value)) }
         return QueryResult(
             columns = result.columns,
-            rows = result.rows.map { row -> QueryRow(row.bindings.mapValues { (_, ref) -> ref.toNodeRef() }) },
+            rows = result.rows.map { it.toRow() },
             total = result.total,
             unknownDropped = result.unknownDropped,
         )
@@ -84,7 +87,7 @@ object Query {
         val result = SemanticQuery.matchesFrom(view.entries, view.refs, view.graph, spec, startId) { d -> loader(Path.of(d.value)) }
         return QueryResult(
             columns = result.columns,
-            rows = result.rows.map { row -> QueryRow(row.bindings.mapValues { (_, ref) -> ref.toNodeRef() }) },
+            rows = result.rows.map { it.toRow() },
             total = result.total,
             unknownDropped = result.unknownDropped,
         )
@@ -158,6 +161,12 @@ object Query {
         val view = index.toKernelView()
         return SemanticQuery.neighborIds(view.entries, view.refs, view.graph, frontier, follow, relation, via, schemaId)
     }
+
+    /** カーネルの行を Path 座標の行へ写す（check の違反が持つ行にも使う）。 */
+    fun semantic.SemanticQueryRow.toRow(): QueryRow = QueryRow(
+        bindings = bindings.mapValues { (_, ref) -> ref.toNodeRef() },
+        refs = refs.mapValues { (_, r) -> QueryRefLocation(Path.of(r.document.value), r.path, r.targetId, r.relation) },
+    )
 
     private fun SemanticQueryNodeRef.toNodeRef() = QueryNodeRef(
         kind = kind,

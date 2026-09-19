@@ -14,7 +14,7 @@ import validate.Severity
 /**
  * ワークスペース単位の意味宣言（3層コア移行 Phase 5・SM-002。計画書§4.2）。
  * `kind: relations` 文書などから上位層（workspace-core）が集約して渡す。
- * relations / enforcement はグラフ整合検証（SemanticGraphIntegrity。6A）が使う。
+ * relations / enforcement はグラフ整合検証（SemanticGraphIntegrity。6A。非循環と、宣言のない関係名）が使う。
  */
 data class SemanticDeclarations(
     val relations: Map<String, RelationDef> = emptyMap(),
@@ -36,12 +36,7 @@ data class SemanticIssue(
     val message: String,
     val document: DocumentId,
     val path: YPath,
-    /** 被参照不足（多重度 inMin 違反）のみ非null（UX-100）: 消費側が「参照の追加先候補」を導出する材料。 */
-    val shortage: SemanticShortage? = null,
 )
-
-/** 被参照不足の構造情報（UX-100）: どのIDへの、どの関係の参照が不足しているか。 */
-data class SemanticShortage(val relation: String, val targetId: String)
 
 /** ID用 glob との一致（走査カーネル側の述語。ルート index.idMatchesPattern と同じ規則）。 */
 fun idMatchesPattern(id: String, pattern: String): Boolean =

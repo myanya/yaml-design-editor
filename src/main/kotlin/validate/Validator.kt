@@ -27,6 +27,7 @@ import schema.currentPhaseValue
 import schema.effectiveFields
 import schema.phaseProgress
 import schema.phaseSummaryText
+import schema.SchemaKind
 import schema.requiredAt
 import yaml.YamlIO
 import java.nio.file.Files
@@ -39,8 +40,11 @@ import java.nio.file.Path
 sealed interface IssueResponse {
     val label: String
 
-    /** その場所へ移動する（値の出どころ——テンプレートや、差し込んだ値が書かれた場所など）。 */
-    data class Jump(override val label: String, val file: Path, val path: YPath?) : IssueResponse
+    /**
+     * その場所へ移動する（値の出どころ——テンプレートや、差し込んだ値が書かれた場所、参照を書き足せそうな文書など）。
+     * path が無ければ文書を開く。note はメニューでラベルの下に添える補足。
+     */
+    data class Jump(override val label: String, val file: Path, val path: YPath?, val note: String? = null) : IssueResponse
 
     /** 値を、指摘の場所へ書き込む（未保存の編集として。Undo 可）。 */
     data class ApplyValue(override val label: String, val value: String) : IssueResponse
@@ -59,8 +63,6 @@ data class Issue(
     val relatedIds: List<String> = emptyList(),
     /** detailIn 不足のみ非null（R28-05a）。UIは「詳細文書を作成」メニューを出す。 */
     val scaffold: IssueScaffold? = null,
-    /** 被参照不足（多重度 inMin）の「参照の追加先候補」の文書（UX-100）。UIは開くメニューを出す。 */
-    val openFiles: List<java.nio.file.Path> = emptyList(),
 )
 
 /** カバレッジルール1件の判定結果（検証と横ぐしビューで共用）。 */
@@ -234,16 +236,20 @@ object Validator {
                 }
             }
         }
-        // 3.6) グラフ整合検証（R21-01。ARCHITECTURE §4.31）: 関係レジストリの制約（対象型・多重度・非循環）と
-        //      未宣言 relation の enforcement をこのファイルに座標を持つ指摘として判定する
+        // 3.6) グラフ整合検証（R21-01。ARCHITECTURE §4.31）: 関係レジストリの非循環（acyclic）と、宣言のない関係名
+        //      （enforcement）を、このファイルに座標を持つ指摘として判定する。多重度と対象型は組込み定義体
+        //      （builtin-definitions/relations.yaml）が作る検査になり、下の 3.7 で他の検査と同じ規則で評価する（P29 Phase 6 第2段）
         if (indexed) {
-            issues += GraphIntegrity.issues(file, indexObj, relations, enforcement, allSchemas)
+            issues += GraphIntegrity.issues(file, indexObj, relations, enforcement)
         }
         // 3.7) 規則の診断と配送（パターン制約 R22-03・網羅マトリクス R28-03・遷移検証 R28-04。ARCHITECTURE §4.32）:
         //      判定は規則×主語IDごとに1回だけ診断（RuleDiagnostics）へ写し、2つの配送先へ届ける（R29-06）。
         //      母集団に入らないID・型未宣言・未解決参照には黙る（判定保留 §4.26・CALC-17）
+        // 関係レジストリ（kind: relations の文書）に書かれた語彙から展開された検査は、特定のスキーマに属さない
+        // ——ワークスペースのどの文書に定義された要素にも適用する（多重度・対象型。利用者の語彙も同じ）
+        val registryRules = allSchemas.filter { it.kind == SchemaKind.RELATIONS }.flatMap { it.constraints }
         if (indexed) {
-            val diagnostics = RuleDiagnostics(indexObj, ::treeOf, ::relOf)
+            val diagnostics = RuleDiagnostics(indexObj, ::treeOf, ::relOf, relations, allSchemas)
             // 報告先: 主語の定義出現（なければ先頭出現）を持つファイルの検証でのみ報告する（多重報告しない）。
             // 規則はこの文書のスキーマの宣言・activeFrom はこの文書のフェーズで判定する（R29-03・CALC-14）
             if (schema != null) {
@@ -253,8 +259,13 @@ object Validator {
                     val anchor = node?.defining ?: node?.occurrences?.firstOrNull()
                     anchor != null && anchor.file == file && anchor.path == entry.path
                 }
-                for (rule in schema.constraints) {
+                for (rule in schema.constraints + registryRules) {
                     if (!semantic.phaseActive(rule.activeFrom, phaseOrder, phaseIndex)) continue
+                    if (rule.reportAt?.ref != null) {
+                        // 参照の場所へ出す検査（対象型の不一致など）: 見つかった解ごとに、この文書に書かれた参照の場所へ指摘する
+                        issues += diagnostics.refIssues(rule, file, localIds.map { it.id }, localRefs.map { it.targetId })
+                        continue
+                    }
                     if (rule.reportAt != null) {
                         // 値の場所へ出す検査（SP-08。整合検証など）: 定義した場所ではなく、この文書に書かれた要素ごとに、
                         // その値だけを調べて値の場所へ指摘する（他の文書への案内は要らない＝値のある文書が報告先）
@@ -287,7 +298,8 @@ object Validator {
                         ?: anchor.file.toString().replace('\\', '/')
                     for (s in allSchemas) {
                         if (s.constraints.isEmpty() && s.matrix.isEmpty() && s.flow.isEmpty()) continue
-                        if (!s.matches(anchorRel)) continue  // 定義出現の文書に適用される規則だけを見る
+                        // 定義出現の文書に適用される規則だけを見る（関係レジストリの検査は、どの文書の要素にも適用される）
+                        if (s.kind != SchemaKind.RELATIONS && !s.matches(anchorRel)) continue
                         val anchorPhase = s.currentPhaseIndex(treeOf(anchor.file))
                         fun activeAt(from: String?): Boolean = semantic.phaseActive(from, s.phases?.order.orEmpty(), anchorPhase)
                         for ((i, rule) in s.constraints.withIndex()) {
@@ -319,7 +331,7 @@ object Validator {
             val templateReads = (allSchemas.ifEmpty { listOfNotNull(schema) })
                 .flatMap { it.constraints }
                 .flatMap { rule ->
-                    rule.check.flatMap { c -> c.left.templateReads() + c.right.templateReads() }
+                    rule.check.flatMap { c -> c.operands.flatMap { it.templateReads() } }
                         .filter { read -> read.inDoc?.matches(schema?.id, relSelf) == true }
                         .map { read -> rule to read }
                 }

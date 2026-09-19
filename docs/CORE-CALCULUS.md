@@ -420,7 +420,10 @@ Or(p...)
 値の条件（Equals〜Contains）は、判定（`check`）と選択（`where`）が同じ演算子・同じ判定を共有する（ROADMAP R29-11）。
 `OneOf` は「どれかと等しければ True・等しい選択肢がなく Unknown の選択肢が残れば Unknown」、`Matches` は全体一致で、
 正規表現として読めなければ Unknown。`Exists` / `IsEmpty` は値そのものの有無を問うため、選択（`where`）でだけ使う
-（判定では、値が得られない組は Unknown として飛ばされるため）。`Not` / `Or` は Phase 6 第2段で足す。
+（判定では、値が得られない組は Unknown として飛ばされるため）。
+`Not` / `Or` は Phase 6 第2段（ROADMAP R29-12）で、選択（`where`）・判定（`check`）・ノードの条件（node の `not`・型の並び）に入れた。
+入れ子は1段まで・`And` は並べて書く。3値で評価し、`Not(Unknown)` は `Unknown`、`Or` は「どれかが True なら True・True がなく
+Unknown が残れば Unknown・すべて False なら False」。
 
 ---
 
@@ -432,7 +435,13 @@ Or(p...)
 
 ```text
 Count(Query)
+RefCount(binding, dir, relation)          -- ノードの参照の本数（グラフの隣接の集合への Count）
+Sum / Min / Max / Count(binding, path)    -- 同じ起点の全ての解にわたる、束縛の要素の値の集計
 ```
+
+`RefCount` と解にわたる集計は Phase 6 第2段（ROADMAP R29-12）で、値の式（Expression）の中で使える Aggregate として入れた
+（多重度の検査を、専用の検査プログラムではなく「参照の本数と決まった値の比較」として書くため）。集計は出現を量化せず、
+値を読む出現を定義した側を優先して1つに決める（CALC-19）。値が得られない要素が1つでもあれば Unknown。
 
 今後、
 
@@ -828,6 +837,8 @@ Core Calculus = 定義を実行する
 | Derivation | Query + Expression |
 | consistency | Query + Predicate（**組込み定義体**。P29 Phase 6 第1段で、`check`＝クエリ＋値の比較へ展開される語彙になった。専用の検査プログラムは無い） |
 | query constraint | Query + Predicate |
+| relation cardinality（多重度） | Query + Aggregate（参照の本数）+ Predicate（**組込み定義体**。P29 Phase 6 第2段。専用の検査プログラムは無い） |
+| relation source / target（対象型） | Query（ノードの条件の否定・参照の束縛）+ Predicate（**組込み定義体**。P29 Phase 6 第2段） |
 | coverage（detailIn） | 出現集合の Aggregate ＋ Predicate（CALC-21。参照ベース requiredBy は R29-01 で削除） |
 | matrix | Query / Aggregate / Predicate または専用高水準演算 |
 | flow（遷移検証） | Query（母集団選択）＋専用高水準演算（到達閉包。R28-04・§20 通過） |

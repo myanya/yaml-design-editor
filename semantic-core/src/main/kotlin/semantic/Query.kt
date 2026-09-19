@@ -4,9 +4,12 @@ import model.DocumentId
 import model.YNode
 import model.YPath
 import model.parseYPath
+import model.pretty
 import model.scalarText
+import schema.CheckTerm
 import schema.ConstraintCheck
 import schema.Projection
+import schema.QueryWhereClause
 import schema.ValueExpr
 import schema.QueryDir
 import schema.QueryEdgeStep
@@ -38,8 +41,14 @@ data class SemanticQueryNodeRef(
     val path: YPath,
 )
 
-/** 結果の1行（束縛名 → ノード。列順は束縛の宣言順）。 */
-data class SemanticQueryRow(val bindings: Map<String, SemanticQueryNodeRef>)
+/**
+ * 結果の1行（束縛名 → ノード。列順は束縛の宣言順）。refs は edge の bind で束縛した参照（参照の束縛名 → 参照）で、
+ * 行の同一性に加わる（同じ相手への参照が2本あれば2行）。
+ */
+data class SemanticQueryRow(
+    val bindings: Map<String, SemanticQueryNodeRef>,
+    val refs: Map<String, ScannedRef> = emptyMap(),
+)
 
 /**
  * 照合結果。total は limit 打切り前の全行数。
@@ -83,12 +92,38 @@ data class SemanticCheckSide(
     val note: String? = null,
 )
 
-/** check 判定で条件を満たさなかった組1件（項目の中で、同じ「束縛と文書の指定」は同じ出現から読む。CORE-CALCULUS §8）。 */
+/**
+ * check 判定で条件を満たさなかった組1件（項目の中で、同じ「束縛と文書の指定」は同じ出現から読む。CORE-CALCULUS §8）。
+ * term は満たさなかった条件（「または」の項目では、満たさなかった最初の条件）で、left / right はその条件の値。
+ * row は、その組が見つかった解（参照の場所への指摘と、文面への ID の埋め込みに使う）。
+ */
 data class SemanticCheckViolation(
     val check: ConstraintCheck,
+    val term: CheckTerm,
     val left: SemanticCheckSide,
     val right: SemanticCheckSide,
+    val row: SemanticQueryRow,
 )
+
+/**
+ * node ステップの絞り込み（型のどれか・出現スキーマ・ID パターンと、その否定）にエンティティが合うか。
+ * クエリ・網羅マトリクス・遷移検証が共有する（1つの意味には1つの評価器）。
+ * 否定（not）は3値で判定する——中の条件がすべて合えば「合わない」、どれかが合わなければ「合う」、
+ * 型が宣言されていないために決まらないときは判定保留＝合わない（型未宣言のエンティティには黙る §4.26）。
+ */
+internal fun QueryNodeStep.matchesEntity(id: String, node: SemanticEntityNode): Boolean {
+    if (idPattern != null && !idMatchesPattern(id, idPattern!!)) return false
+    if (entities.isNotEmpty() && node.entityType !in entities) return false
+    if (schema != null && node.occurrences.none { it.schemaId == schema }) return false
+    val filter = not ?: return true
+    // 中の条件のどれかが合わなければ、否定は成り立つ
+    if (filter.idPattern != null && !idMatchesPattern(id, filter.idPattern!!)) return true
+    if (filter.schema != null && node.occurrences.none { it.schemaId == filter.schema }) return true
+    val type = node.entityType
+    if (filter.entities.isNotEmpty() && type != null && type !in filter.entities) return true
+    // すべて合った（否定は成り立たない）か、型が宣言されておらず決まらない（判定保留）
+    return false
+}
 
 object SemanticQuery {
 
@@ -248,27 +283,41 @@ object SemanticQuery {
         }
 
         /** 束縛名 → その束縛に効くプロパティ述語（束縛が確定した時点で枝刈りする）。 */
-        private val predsByBind: Map<String, List<QueryWhere>> = spec.where.groupBy { it.of }
+        private val predsByBind: Map<String, List<QueryWhereClause>> = spec.where.groupBy { it.of }
 
         /** CALC-17: この評価の解探索で、未解決参照により候補が失われたか（expand が記録する）。 */
         private var unknownDropped = false
 
+        /** 照合経路の1歩: 着いたノードと、edge に bind があるときは辿った参照そのもの。 */
+        private inner class Step(val key: NodeKey, val ref: ScannedRef? = null)
+
         fun evaluate(restrictStart: String? = null, firstOnly: Boolean = false): SemanticQueryResult {
-            var paths = startCandidates(restrictStart)
+            val sorted = solve(restrictStart, firstOnly)
+            return SemanticQueryResult(
+                columns = spec.binds,
+                rows = sorted.take(spec.limit),
+                total = sorted.size,
+                unknownDropped = unknownDropped,
+            )
+        }
+
+        /** 全ての解（並びは決定的。limit で切らない）。 */
+        private fun solve(restrictStart: String?, firstOnly: Boolean): List<SemanticQueryRow> {
+            var paths: List<List<Step>> = startCandidates(restrictStart)
                 .filter { predsOk(spec.start.bind, it) }
-                .map { listOf(it) }
+                .map { listOf(Step(it)) }
             for (hop in spec.hops) {
                 paths = paths.flatMap { path ->
-                    val sameKey = hop.node.same?.let { path[bindPositionInMatch(it)] }
+                    val sameKey = hop.node.same?.let { path[bindPositionInMatch(it)].key }
                     if (sameKey != null) {
                         // same: 束縛済みノードそのものへの到達を要求（二度通らない規則の意図的な例外。R28-07）
-                        expand(path.last(), hop.edge, hop.node.copy(kind = sameKey.kind))
-                            .filter { it == sameKey }
+                        expand(path.last().key, hop.edge, hop.node.copy(kind = sameKey.kind))
+                            .filter { it.key == sameKey }
                             .map { path + it }
                     } else {
-                        expand(path.last(), hop.edge, hop.node)
-                            .filter { it !in path }
-                            .filter { predsOk(hop.node.bind, it) }
+                        expand(path.last().key, hop.edge, hop.node)
+                            .filter { step -> path.none { it.key == step.key } }
+                            .filter { predsOk(hop.node.bind, it.key) }
                             .map { path + it }
                     }
                 }
@@ -278,23 +327,23 @@ object SemanticQuery {
             if (branch != null) {
                 val fromPos = bindPositionInMatch(branch.from)
                 paths = paths.flatMap { path ->
-                    var branches = listOf(emptyList<NodeKey>())
+                    var branches = listOf(emptyList<Step>())
                     for ((hopIndex, hop) in branch.hops.withIndex()) {
                         branches = branches.flatMap { bPath ->
-                            val fromKey = bPath.lastOrNull() ?: path[fromPos]
+                            val fromKey = bPath.lastOrNull()?.key ?: path[fromPos].key
                             val sameKey = hop.node.same?.let { s ->
                                 val mPos = bindPositionInMatch(s)
-                                if (mPos >= 0) path[mPos]
-                                else bPath[branch.hops.take(hopIndex).indexOfFirst { it.node.bind == s }]
+                                if (mPos >= 0) path[mPos].key
+                                else bPath[branch.hops.take(hopIndex).indexOfFirst { it.node.bind == s }].key
                             }
                             if (sameKey != null) {
                                 expand(fromKey, hop.edge, hop.node.copy(kind = sameKey.kind))
-                                    .filter { it == sameKey }
+                                    .filter { it.key == sameKey }
                                     .map { bPath + it }
                             } else {
                                 expand(fromKey, hop.edge, hop.node)
-                                    .filter { it !in path && it !in bPath }
-                                    .filter { predsOk(hop.node.bind, it) }
+                                    .filter { step -> path.none { it.key == step.key } && bPath.none { it.key == step.key } }
+                                    .filter { predsOk(hop.node.bind, it.key) }
                                     .map { bPath + it }
                             }
                         }
@@ -302,34 +351,42 @@ object SemanticQuery {
                     branches.map { path + it }
                 }
             }
-            // 行 = 束縛値の組（宣言順の列）。束縛されない中間ノードは行の同一性に関与しない
+            // 行 = 束縛値の組（宣言順の列）＋束縛した参照。束縛されない中間ノードは行の同一性に関与しない
             val bindPositions = bindPositions()
+            val edgePositions = edgeBindPositions()
             val seen = LinkedHashSet<List<String>>()
             val rows = mutableListOf<SemanticQueryRow>()
             for (path in paths) {
-                val key = bindPositions.map { (_, pos) -> path[pos].kind.id + ":" + path[pos].id }
+                val key = bindPositions.map { (_, pos) -> path[pos].key.kind.id + ":" + path[pos].key.id } +
+                    edgePositions.map { (_, pos) -> refSortKey(path[pos].ref) }
                 if (!seen.add(key)) continue
-                rows += SemanticQueryRow(bindPositions.associate { (bind, pos) -> bind to refOf(path[pos]) })
+                rows += SemanticQueryRow(
+                    bindings = bindPositions.associate { (bind, pos) -> bind to refOf(path[pos].key) },
+                    refs = edgePositions.mapNotNull { (bind, pos) -> path[pos].ref?.let { bind to it } }.toMap(),
+                )
                 if (firstOnly) break
             }
-            // 行の並び: 束縛名の辞書順に並べた列の値（ID昇順）の辞書式比較（§4.32。列の表示順は宣言順のまま）
+            // 行の並び: 束縛名の辞書順に並べた列の値（ID昇順）の辞書式比較（§4.32。列の表示順は宣言順のまま）。
+            // 束縛した参照があれば、その書かれた場所（文書・パス）で続けて比べる
             val sortBinds = spec.binds.sorted()
-            val sorted = rows.sortedWith(
+            val sortEdges = spec.edgeBinds.sorted()
+            return rows.sortedWith(
                 Comparator { a, b ->
                     for (bind in sortBinds) {
                         val c = (a.bindings[bind]?.id ?: "").compareTo(b.bindings[bind]?.id ?: "")
                         if (c != 0) return@Comparator c
                     }
+                    for (bind in sortEdges) {
+                        val c = refSortKey(a.refs[bind]).compareTo(refSortKey(b.refs[bind]))
+                        if (c != 0) return@Comparator c
+                    }
                     0
                 }
             )
-            return SemanticQueryResult(
-                columns = spec.binds,
-                rows = sorted.take(spec.limit),
-                total = sorted.size,
-                unknownDropped = unknownDropped,
-            )
         }
+
+        /** 参照の同一性と並びのキー（書かれた文書とパス）。 */
+        private fun refSortKey(ref: ScannedRef?): String = ref?.let { it.document.value + "#" + it.path.pretty() } ?: ""
 
         fun anyMatchFrom(startId: String): Boolean =
             evaluate(restrictStart = startId, firstOnly = true).total > 0
@@ -349,6 +406,10 @@ object SemanticQuery {
             return steps.mapIndexedNotNull { i, s -> s.bind?.let { it to i } }
         }
 
+        /** 参照の束縛（edge の bind）の経路内位置（その edge で着いた歩の位置。宣言順）。 */
+        private fun edgeBindPositions(): List<Pair<String, Int>> =
+            (spec.hops + spec.also?.hops.orEmpty()).mapIndexedNotNull { i, hop -> hop.edge.bind?.let { it to i + 1 } }
+
         private fun startCandidates(restrictStart: String?): List<NodeKey> {
             val candidates0 = when (spec.start.kind) {
                 QueryNodeKind.ENTITY -> graph.entities.keys
@@ -360,14 +421,11 @@ object SemanticQuery {
 
         private fun nodeMatches(step: QueryNodeStep, key: NodeKey): Boolean {
             if (key.kind != step.kind) return false
-            if (step.idPattern != null && !idMatchesPattern(key.id, step.idPattern)) return false
             return when (key.kind) {
-                QueryNodeKind.ENTITY -> {
-                    val node = graph.entities[key.id] ?: return false
-                    (step.entity == null || node.entityType == step.entity) &&
-                        (step.schema == null || node.occurrences.any { it.schemaId == step.schema })
-                }
-                QueryNodeKind.DOCUMENT -> graph.documents.containsKey(key.id)
+                QueryNodeKind.ENTITY -> graph.entities[key.id]?.let { step.matchesEntity(key.id, it) } ?: false
+                QueryNodeKind.DOCUMENT -> graph.documents.containsKey(key.id) &&
+                    (step.idPattern == null || idMatchesPattern(key.id, step.idPattern)) &&
+                    (step.not?.idPattern == null || !idMatchesPattern(key.id, step.not.idPattern))
             }
         }
 
@@ -375,8 +433,9 @@ object SemanticQuery {
          * エッジ1段の展開。端の解決は到達側 node ステップの kind が決める（§4.32）:
          * out → entity = 解決済みのエンティティ参照先／document = 解決済みの文書参照先、
          * in → entity = 参照を書いた最内のID要素／document = 参照が書かれた文書。
+         * edge に bind があれば参照ごとに1歩（同じ相手への参照が2本あれば2歩）、なければ着いたノードごとに1歩。
          */
-        private fun expand(from: NodeKey, edge: QueryEdgeStep, target: QueryNodeStep): List<NodeKey> {
+        private fun expand(from: NodeKey, edge: QueryEdgeStep, target: QueryNodeStep): List<Step> {
             val refs = when (edge.dir) {
                 QueryDir.OUT -> when (from.kind) {
                     QueryNodeKind.ENTITY -> graph.outgoingRefs(from.id)
@@ -393,60 +452,72 @@ object SemanticQuery {
             // 端をノードへ解決できない参照（対象IDが索引になし・書き手をエンティティへ解決できない）は
             // 黙って除外しつつ「候補の喪失」を記録する（CALC-17 の unknown-dropped）。
             // 対象種別の不一致（entity 到達に document 参照など）は構造的な非該当であり、喪失に数えない
-            val ends = when (edge.dir) {
+            val ends: Sequence<Pair<NodeKey, ScannedRef>> = when (edge.dir) {
                 QueryDir.OUT -> refs.mapNotNull { ref ->
                     when (target.kind) {
                         QueryNodeKind.ENTITY ->
                             if (ref.targetKind != RefTarget.ENTITY) null
                             else if (!graph.entities.containsKey(ref.targetId)) { unknownDropped = true; null }
-                            else NodeKey(QueryNodeKind.ENTITY, ref.targetId)
+                            else NodeKey(QueryNodeKind.ENTITY, ref.targetId) to ref
                         QueryNodeKind.DOCUMENT ->
                             if (ref.targetKind != RefTarget.DOCUMENT) null
                             else if (!graph.documents.containsKey(ref.targetId)) { unknownDropped = true; null }
-                            else NodeKey(QueryNodeKind.DOCUMENT, ref.targetId)
+                            else NodeKey(QueryNodeKind.DOCUMENT, ref.targetId) to ref
                     }
                 }
                 QueryDir.IN -> refs.mapNotNull { ref ->
                     when (target.kind) {
-                        QueryNodeKind.ENTITY -> graph.sourceEntryOf(ref)?.let { NodeKey(QueryNodeKind.ENTITY, it.id) }
+                        QueryNodeKind.ENTITY -> graph.sourceEntryOf(ref)?.let { NodeKey(QueryNodeKind.ENTITY, it.id) to ref }
                             ?: run { unknownDropped = true; null }
-                        QueryNodeKind.DOCUMENT -> documentIdByDoc[ref.document]?.let { NodeKey(QueryNodeKind.DOCUMENT, it) }
+                        QueryNodeKind.DOCUMENT -> documentIdByDoc[ref.document]?.let { NodeKey(QueryNodeKind.DOCUMENT, it) to ref }
                             ?: run { unknownDropped = true; null }
                     }
                 }
             }
-            return ends.distinct().filter { nodeMatches(target, it) }.sortedBy { it.id }.toList()
+            val matched = ends.filter { nodeMatches(target, it.first) }.toList()
+            return if (edge.bind == null) matched.map { it.first }.distinct().sortedBy { it.id }.map { Step(it) }
+            else matched.distinctBy { it.first to refSortKey(it.second) }
+                .sortedWith(compareBy({ it.first.id }, { refSortKey(it.second) }))
+                .map { Step(it.first, it.second) }
         }
 
-        /** 束縛が確定したノードに、その束縛のプロパティ述語をすべて適用する。 */
+        /** 束縛が確定したノードに、その束縛のプロパティ述語をすべて適用する（1件の中の「または」は、どれかが成立すればよい）。 */
         private fun predsOk(bind: String?, key: NodeKey): Boolean {
-            val preds = bind?.let { predsByBind[it] } ?: return true
-            return preds.all { predOk(it, key) }
+            val clauses = bind?.let { predsByBind[it] } ?: return true
+            return clauses.all { clause -> clause.alternatives.any { predValue(it, key) == true } }
         }
 
         /**
-         * 選択述語（where）: σ の候補（sigmaCandidates）を存在量化する（CALC-13。エンティティは
+         * 選択述語（where）の3値の判定: σ の候補（sigmaCandidates）を存在量化する（CALC-13。エンティティは
          * いずれかの出現の該当パス＝多段定義の OR。§4.32）。値の読み出しは共有評価部の Get。
+         * 値が無くて判定できないときは null（否定しても null＝ノードは選ばれない）。
          */
-        private fun predOk(pred: QueryWhere, key: NodeKey): Boolean {
-            val values = sigmaCandidates(key.kind, key.id).map { SemanticExpression.nodeAt(::tree, it, pred.path) }
-            return when {
-                pred.equals != null -> values.any { scalarText(it) == pred.equals }
+        private fun predValue(pred: QueryWhere, key: NodeKey): Boolean? {
+            val nodes = sigmaCandidates(key.kind, key.id).map { SemanticExpression.nodeAt(::tree, it, pred.path) }
+            val texts = nodes.mapNotNull { scalarText(it) }
+            val test = pred.test
+            val plain: Boolean? = when {
+                pred.equals != null -> if (texts.isEmpty()) null else texts.any { it == pred.equals }
                 // notEquals（R28-02）: 値が1つ以上あり、どの出現の値も指定値でない
                 // （equals の OR 解釈の否定。値がなければ黙る＝判定保留）
                 pred.notEquals != null ->
-                    values.any { it != null } && values.none { scalarText(it) == pred.notEquals }
-                pred.exists == true -> values.any { it != null }
-                pred.exists == false -> values.none { it != null }
+                    if (nodes.none { it != null }) null else nodes.none { scalarText(it) == pred.notEquals }
+                pred.exists != null -> nodes.any { it != null } == pred.exists
                 // empty: false = 中身のある値がどこかに書かれている／true = どの出現にも中身のある値がない
-                pred.empty == false -> values.any { !SemanticExpression.isEmpty(it) }
-                pred.empty == true -> values.all { SemanticExpression.isEmpty(it) }
-                // 値の条件（check と同じ判定）: どれかの出現の値が条件を満たせば成立（評価できない値は成立しない）
-                pred.test != null -> values.any { v ->
-                    scalarText(v)?.let { SemanticExpression.test(pred.test.first, it, pred.test.second) } == true
+                pred.empty != null -> nodes.all { SemanticExpression.isEmpty(it) } == pred.empty
+                // 値の条件（check と同じ判定）: どれかの出現の値が条件を満たせば成立。満たす値がなく、
+                // 評価できない値（書かれていない・数値として読めない）が残れば判定保留
+                test != null -> {
+                    val results = texts.map { SemanticExpression.test(test.first, it, test.second) }
+                    when {
+                        results.any { it == true } -> true
+                        results.isEmpty() || results.any { it == null } -> null
+                        else -> false
+                    }
                 }
-                else -> false
+                else -> null
             }
+            return plain?.let { if (pred.negated) !it else it }
         }
 
         private fun refOf(key: NodeKey): SemanticQueryNodeRef = when (key.kind) {
@@ -469,15 +540,25 @@ object SemanticQuery {
             checks: List<ConstraintCheck>,
             pin: Pair<ValueExpr.ScopeRef, SemanticExpression.Occurrence>? = null,
         ): List<SemanticCheckViolation> {
-            val result = evaluate(restrictStart = startId)
+            val all = solve(startId, firstOnly = false)
+            // 集計（合計・最小・最大・件数）は、同じ起点の全ての解にわたって計算する
+            aggregateRows = all
             val violations = mutableListOf<SemanticCheckViolation>()
-            for (row in result.rows) {
+            for (row in all.take(spec.limit)) {
                 for (check in checks) {
-                    counterexampleOf(row, check, pin)?.let { violations += it }
+                    val found = counterexampleOf(row, check, pin) ?: continue
+                    // 集計を含む項目は、どの解で評価しても同じ結果になる——同じ組を解の数だけ並べない
+                    val duplicate = check.operands.any { it.hasAggregate() } && violations.any {
+                        it.check == found.check && it.left == found.left && it.right == found.right
+                    }
+                    if (!duplicate) violations += found
                 }
             }
             return violations
         }
+
+        /** 集計の対象になる解（checkFrom が、評価の前に同じ起点の全ての解を入れる）。 */
+        private var aggregateRows: List<SemanticQueryRow> = emptyList()
 
         /**
          * 1行×1項目の検査。項目が読む「束縛と文書の指定」ごとに、値を読む出現の候補を並べ、その全ての組を
@@ -499,15 +580,25 @@ object SemanticQuery {
             val assignment = HashMap<ValueExpr.ScopeRef, SemanticExpression.Occurrence?>()
             fun search(index: Int): SemanticCheckViolation? {
                 if (index == sources.size) {
-                    val left = evalExpr(check.left, row, assignment) ?: return null
-                    val rights = check.rights.map { evalExpr(it, row, assignment) }
-                    // 値の条件は共有評価部——評価できない（null）組は飛ばす
-                    val satisfied = SemanticExpression.test(check.op, left.text, rights.map { it?.text }) ?: return null
-                    if (satisfied) return null
-                    // 右辺が複数（oneOf の選択肢）のときは、選択肢を並べた1つの辺として示す
-                    val right = rights.singleOrNull()
-                        ?: SemanticCheckSide(text = rights.filterNotNull().joinToString("・") { it.text })
-                    return SemanticCheckViolation(check, left, right)
+                    // 項目は値の条件の「または」（1つなら単独）: どれかが成り立てば成立・成り立つものがなく
+                    // 評価できない条件が残れば判定保留（飛ばす）・すべて成り立たなければ、最初の条件の値を示して違反
+                    var unknown = false
+                    var firstFailed: SemanticCheckViolation? = null
+                    for (term in check.terms) {
+                        val left = evalExpr(term.left, row, assignment)
+                        val rights = term.rights.map { evalExpr(it, row, assignment) }
+                        // 値の条件は共有評価部——評価できない（null）条件は判定保留
+                        val plain = left?.let { SemanticExpression.test(term.op, it.text, rights.map { r -> r?.text }) }
+                        if (left == null || plain == null) { unknown = true; continue }
+                        if (plain != term.negated) return null
+                        if (firstFailed == null) {
+                            // 右辺が複数（oneOf の選択肢）のときは、選択肢を並べた1つの辺として示す
+                            val right = rights.singleOrNull()
+                                ?: SemanticCheckSide(text = rights.filterNotNull().joinToString("・") { it.text })
+                            firstFailed = SemanticCheckViolation(check, term, left, right, row)
+                        }
+                    }
+                    return if (unknown) null else firstFailed
                 }
                 for (occ in candidates[index]) {
                     assignment[sources[index]] = occ
@@ -573,6 +664,32 @@ object SemanticQuery {
                     input.copy(text = text, raw = input.raw ?: input.text, note = expr.fn.label ?: input.note)
                 }
             }
+            // 参照の本数（SP-03）: グラフの隣接から数える。出ていく参照は相手が見つからないものも数え（CALC-20）、
+            // 入ってくる参照はエンティティへの参照を数える。値の読み出しではないため、出現は選ばない
+            is ValueExpr.RefCount -> row.bindings[expr.of]?.takeIf { it.kind == QueryNodeKind.ENTITY }?.let { node ->
+                val refs = when (expr.dir) {
+                    QueryDir.OUT -> graph.outgoingRefs(node.id)
+                    QueryDir.IN -> entityRefsByTarget[node.id].orEmpty()
+                }
+                val n = refs.count { (expr.relation == null || it.relation == expr.relation) && (expr.via == null || it.viaKey == expr.via) }
+                SemanticCheckSide(text = n.toString(), id = node.id, raw = n.toString())
+            }
+            // 集計（SP-03）: 同じ起点の全ての解にわたり、束縛の要素（重複は1つ）の値をまとめる。値は指定に合う文書のうち
+            // 定義した側を優先して1つから読む（CALC-19）。得られない・数値として読めない値が1つでもあれば得られない
+            is ValueExpr.Aggregate -> {
+                val nodes = aggregateRows.mapNotNull { it.bindings[expr.of] }.distinctBy { it.kind to it.id }
+                val path = expr.path
+                if (path == null) SemanticCheckSide(text = nodes.size.toString(), raw = nodes.size.toString())
+                else {
+                    val values = nodes.map { node ->
+                        val occ = aggregateOccurrence(node, expr.inDoc) ?: return null
+                        SemanticExpression.textAt(::tree, occ, path) ?: return null
+                    }
+                    SemanticExpression.aggregate(expr.fn, values)?.let { text ->
+                        SemanticCheckSide(text = text, raw = "${expr.fn.label}: ${values.joinToString("・")}")
+                    }
+                }
+            }
             is ValueExpr.Arith -> {
                 val operands = expr.operands.map { evalExpr(it, row, assignment) ?: return null }
                 SemanticExpression.arith(expr.op, operands.map { it.text })?.let { text ->
@@ -587,6 +704,15 @@ object SemanticQuery {
                 }
             }
         }
+
+        /** 集計で値を読む出現: 指定に合う出現のうち、定義した側を優先して1つ（式側の決定的な選択。CALC-19）。 */
+        private fun aggregateOccurrence(node: SemanticQueryNodeRef, selector: schema.DerivationSelector?): SemanticExpression.Occurrence? =
+            when (node.kind) {
+                QueryNodeKind.ENTITY -> SemanticExpression.preferDefining(graph.entities[node.id]?.occurrences.orEmpty())
+                    .firstOrNull { selector == null || selector.matches(it.schemaId, rel(it.document)) }
+                    ?.let { SemanticExpression.Occurrence(it.document, it.path) }
+                QueryNodeKind.DOCUMENT -> sigmaCandidates(node.kind, node.id).firstOrNull()
+            }
 
         /**
          * σ の割当て先（where の存在量化と check の反例量化が共有する。R29-05）: エンティティは

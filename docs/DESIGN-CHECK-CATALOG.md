@@ -44,6 +44,9 @@
 | 循環の禁止 | レジストリの `acyclic: true` | （テンプレ未使用。変更セット提出時も循環を拒否） |
 | 詳細文書の存在（同一IDの詳細化） | スキーマの `coverage: - detailIn:` | 画面定義・画面設計書の存在（screen-list。作成スキャフォールドつき） |
 
+多重度（`cardinality`）と対象型（`source` / `target`）は、**組込みの定義体（YAML）が作る語彙**で、検証の前に基本の検査へ展開される
+（P29 Phase 6 第2段。展開結果は CLI `checks <workspace> <レジストリのID>`）。同じ仕組みで、関係の宣言に効く自分の語彙を足せる（§6b）。
+
 ## 3. パターン制約（constraints: グラフの経路パターン＋述語）
 
 `match:`（node / edge の連鎖と束縛）で「起点エンティティごとの経路パターン」を宣言し、要求を1つ添える。
@@ -58,6 +61,10 @@
 | 束縛間の値比較（大小・等値の整合） | `check: [{lte: [{of,path},{of,path}]}]`（lte/gte/lt/gt/eq/ne） | spi-length-within-dtype（入力制約が業務型の制約からはみ出さない）・dtype-bounds-ordered（同一束縛内の min≦max） |
 | 値が決められた選択肢のどれかであること（文書をまたぐ・条件つき） | `check: [{oneOf: [{of,path}, [値, ...]]}]` | — |
 | 値の形式（命名規約・コード体系）を、別の要素の値と組み合わせて調べる | `check: [{matches: [式, 正規表現]}]`・`startsWith` / `endsWith` / `contains`（右辺も値の式にできる。例: 子のコードが親のコードで始まる） | — |
+| 「AまたはB」「〜でない」の条件（例外つきの義務・禁止する形式） | `where` / `check` の `{or: [条件, ...]}`・`{not: 条件}`（入れ子は1段）・node の `entity: [型, ...]` と `not: {entity: [...]}` | — |
+| 参照の本数の範囲（条件つき・他の値と比べる） | 値の式 `{refCount: {of, dir, relation}}` を `check` で比べる（無条件・型全体に一律なら §2 の `cardinality`） | — |
+| 子の値の合計・最小・最大と、親の値の整合 | 値の式 `{sum / min / max: {of, path}}`・`{count: {of}}`（同じ起点の全ての解にわたる集計） | — |
+| 参照そのものを指摘したい（禁止された相手への参照・無効な要素への参照） | `edge` の `bind` ＋ `reportAt: {ref: 束縛名}` ＋ `expect: absent`（見つかった解ごとに、参照が書かれた場所へ指摘） | — |
 | 計算した値どうしの整合（文字数の上限・合計や積の一致） | 値の式 `{length: 式}`・`{add / subtract / multiply / divide: [...]}`・`{number: 式}`（例 `{eq: [{number: {of,path}}, {multiply: [{of,path},{of,path}]}]}`） | — |
 
 1文書の1項目で閉じる形式・選択肢・文字数は、フィールド宣言（§1 の `pattern` / `enum` / `maxLength`）で書くのが先——
@@ -109,9 +116,12 @@ enum の区分値のまま直接ノードにする形は、ID化パターンで�
 | 値を計算してから比べる | `check` の値の式（テンプレートの展開 `format`・辞書での置き換え `map`・最初に得られた値 `first`・決まった値 `value`） |
 | どの文書に書かれた値を比べるかを指定する | 値の読み出しの `in: {schemaId, fileGlob}` |
 | 指摘を値の場所に出し、直し方を示す | `reportAt`・`message`・`responses`（移動 `jump`・値の書き込み `apply`） |
+| 関係の宣言に効く語彙を作る | `vocabulary` の `in: relations[]`（展開された検査は、どの文書の要素にも適用される） |
+| 指摘の文面に、見つかった要素を埋め込む | `message` の `{id}` `{束縛名.id}` `{束縛名.type}` `{束縛名.title}` `{count}`（どの判定にも書ける） |
+| 足りない参照の書き足し先を示す | `responses: [{jump: referenceSources, relation: 関係名, label: "…{file}"}]` |
 | 展開された検査を確認する | CLI `checks <workspace> [schema-id] [--definitions]` |
 
-組込みの語彙（`consistency`）も同じ仕組みで書かれており、組込みだけが使える特別な機能はない。
+組込みの語彙（`consistency`・関係の宣言の `cardinality` と `source` / `target`）も同じ仕組みで書かれており、組込みだけが使える特別な機能はない。
 複雑なアルゴリズムが要る検査（例: 状態遷移への時相論理の適用）は、YAML で書こうとせず、コードの専用チェッカーとして実装する。
 
 ## 7. プロセスへの組み込み（ゲート・集計）

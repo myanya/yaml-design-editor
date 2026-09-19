@@ -147,7 +147,11 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
         if (relations.isEmpty()) issues += SchemaIssue("kind: relations には1つ以上の relations が必要です", "relations")
         if (definitions.isNotEmpty()) issues += SchemaIssue("relations 文書に definitions は定義できません", "definitions")
         if (coverage.isNotEmpty()) issues += SchemaIssue("relations 文書に coverage は定義できません", "coverage")
-        if (constraints.isNotEmpty()) issues += SchemaIssue("relations 文書に検査（constraints / consistency）は定義できません", "constraints")
+        // 関係の宣言（relations[]）に書かれた語彙は検査へ展開される（多重度・対象型など。P29 Phase 6 第2段）。
+        // 検査を直接書くこと（constraints）はできない——関係レジストリは宣言の文書で、検査は語彙を通して作る
+        if (expandedChecks.any { it.origin.startsWith("constraints[") }) {
+            issues += SchemaIssue("relations 文書に検査（constraints）は直接定義できません（関係の宣言に書く語彙から展開されます）", "constraints")
+        }
         if (phases != null) issues += SchemaIssue("relations 文書に phases は定義できません", "phases")
         relations.groupBy { it.name }.filterValues { it.size > 1 }.keys.forEach {
             issues += SchemaIssue("関係「$it」が重複しています", "relations")
@@ -482,20 +486,33 @@ object SchemaLoader {
         // 利用者が定義した語彙（vocabulary）のキーは、メタスキーマの「知っている項目」に足す——語彙として定義された書き方が
         // スキーマ文書で「定義されていない項目」と警告されないようにする（書き方の形の検証までは行わない＝配列であることだけ。
         // 語彙の定義に形を持たせてメタスキーマへ合成するのは後続。specs の definition-layers OQ-DL-03）
+        //   ・語彙が新しい配列を作るとき（例 limits[]）は、スキーマ文書のメタスキーマへその配列を足す
+        //   ・語彙が既にある配列の要素に効くとき（例 関係の宣言 relations[]）は、語彙が要素から読むキーを、その要素の項目へ足す
         val builtins = BuiltinSchemas.forLayout(layout).map { builtin ->
-            if (builtin.id != BuiltinSchemas.META_SCHEMA_ID) return@map builtin
-            val known = builtin.root.fields.mapNotNull { it.key }.toSet()
-            val wordFields = library.words
-                .map { it.location.substringBefore('[') to it }
-                .filter { (key, _) -> key !in known }
-                .distinctBy { it.first }
-                .map { (key, word) ->
-                    FieldDef(
-                        key = key, label = "語彙: ${word.word}", type = FieldType.ARRAY, item = FieldDef(type = FieldType.ANY),
-                        description = "語彙の定義（${word.origin}）が作る書き方。検証の前に基本の検査（constraints）へ展開される",
+            if (builtin.id != BuiltinSchemas.META_SCHEMA_ID && builtin.id != BuiltinSchemas.RELATIONS_SCHEMA_ID) return@map builtin
+            var fields = builtin.root.fields
+            for (word in library.words) {
+                val key = word.location.substringBefore('[')
+                val description = "語彙の定義（${word.origin}）が作る書き方。検証の前に基本の検査（constraints）へ展開される"
+                val existing = fields.firstOrNull { it.key == key }
+                if (existing == null) {
+                    if (builtin.id != BuiltinSchemas.META_SCHEMA_ID) continue
+                    fields = fields + FieldDef(
+                        key = key, label = "語彙: ${word.word}", type = FieldType.ARRAY,
+                        item = FieldDef(type = FieldType.ANY), description = description,
                     )
+                    continue
                 }
-            if (wordFields.isEmpty()) builtin else builtin.copy(root = builtin.root.copy(fields = builtin.root.fields + wordFields))
+                val item = existing.item?.takeIf { it.type == FieldType.OBJECT } ?: continue
+                val known = item.fields.mapNotNull { it.key }.toSet()
+                val added = word.readKeys.filter { it !in known }.map { readKey ->
+                    FieldDef(key = readKey, label = "語彙: ${word.word}", type = FieldType.ANY, description = description)
+                }
+                if (added.isNotEmpty()) {
+                    fields = fields.map { if (it === existing) existing.copy(item = item.copy(fields = item.fields + added)) else it }
+                }
+            }
+            if (fields === builtin.root.fields) builtin else builtin.copy(root = builtin.root.copy(fields = fields))
         }
         val all = schemas + builtins.filter { builtin -> schemas.none { it.id == builtin.id } }
         val catalog = SchemaCatalog.linked(all.map { it.id to it.definitions })

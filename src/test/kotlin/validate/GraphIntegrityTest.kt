@@ -441,9 +441,13 @@ class GraphIntegrityTest {
         write("basic/S2.yaml", "id: SCR-2\nitems:\n- { id: SI-B }")
         val ws = Workspace.open(dir)
         val issueA = ws.validate("basic/S1.yaml").single { "SI-A" in it.message && "被参照が不足" in it.message }
-        assertEquals(listOf(dir.resolve("detail/S1.yaml")), issueA.openFiles, issueA.toString())
+        // 対応は組込み定義体の宣言（responses の jump: referenceSources）から作られる（P29 Phase 6 第2段）
+        val jumpA = issueA.responses.filterIsInstance<IssueResponse.Jump>()
+        assertEquals(listOf(dir.resolve("detail/S1.yaml")), jumpA.map { it.file }, issueA.toString())
+        assertEquals("参照の追加先を開く: detail/S1.yaml", jumpA.single().label)
+        assertEquals("この文書に参照を書き足すと解消できます", jumpA.single().note)
         val issueB = ws.validate("basic/S2.yaml").single { "SI-B" in it.message && "被参照が不足" in it.message }
-        assertTrue(issueB.openFiles.isEmpty(), issueB.toString())
+        assertTrue(issueB.responses.isEmpty(), issueB.toString())
     }
 
     @Test
@@ -494,6 +498,10 @@ class GraphIntegrityTest {
         write("mapping.yaml", "mappings:\n- { id: MAP-2, dtype: DT-2 }")
         val ws = Workspace.open(dir)
         val issue = ws.validate("types.yaml").single { "DT-1" in it.message && "被参照が不足" in it.message }
-        assertEquals(listOf(dir.resolve("mapping.yaml")), issue.openFiles, issue.toString())
+        assertEquals(
+            listOf(dir.resolve("mapping.yaml")),
+            issue.responses.filterIsInstance<IssueResponse.Jump>().map { it.file },
+            issue.toString(),
+        )
     }
 }

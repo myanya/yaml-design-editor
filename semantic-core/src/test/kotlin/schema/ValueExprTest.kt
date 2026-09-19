@@ -48,8 +48,8 @@ class ValueExprTest {
     fun `oneOfの右は選択肢の並びで他の演算子の右は値の式1つ`() {
         val get = mapOf("of" to "item", "path" to "status")
         val short = ConstraintCheck.parse(mapOf("oneOf" to listOf(get, listOf("draft", "approved"))), "c")
-        assertEquals(CheckOp.ONE_OF, short.op)
-        assertEquals(listOf(ValueExpr.Literal("draft"), ValueExpr.Literal("approved")), short.rights)
+        assertEquals(CheckOp.ONE_OF, short.terms.single().op)
+        assertEquals(listOf(ValueExpr.Literal("draft"), ValueExpr.Literal("approved")), short.terms.single().rights)
         // 演算子を値として渡す形（定義体のひな型用）でも同じ
         val long = ConstraintCheck.parse(mapOf("op" to "oneOf", "left" to get, "right" to listOf("draft", "approved")), "c")
         assertEquals(short, long)

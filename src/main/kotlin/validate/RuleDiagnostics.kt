@@ -31,11 +31,13 @@ internal class RuleDiagnosis(
     private val related: List<String>,
     /** 規則の説明（description ?: id）。 */
     private val description: String?,
+    /** エラー時の対応（SP-09。規則の responses の宣言から作ったもの。報告先にだけ付ける）。 */
+    private val responses: List<IssueResponse> = emptyList(),
 ) {
     private val suffix: String get() = description?.let { " — $it" } ?: ""
 
     fun reportIssue(path: YPath): Issue =
-        Issue(level.toSeverity(), report + suffix, path, relatedIds = related)
+        Issue(level.toSeverity(), report + suffix, path, responses = responses, relatedIds = related)
 
     fun noticeIssue(path: YPath, anchorRel: String): Issue {
         val escalated = level == CoverageLevel.ERROR
@@ -59,6 +61,9 @@ internal class RuleDiagnostics(
     private val tree: (Path) -> YNode?,
     /** ワークスペース相対パス（値を読む文書の指定の fileGlob 判定に使う）。 */
     private val rel: (Path) -> String = { it.toString().replace('\\', '/') },
+    /** 関係レジストリと全スキーマ（エラー時の対応「参照を書き足せそうな文書へ移動」の候補の導出に使う）。 */
+    private val relations: Map<String, schema.RelationDef> = emptyMap(),
+    private val allSchemas: List<schema.SchemaDef> = emptyList(),
 ) {
 
     private val flowCache = HashMap<FlowRule, Map<String, List<semantic.SemanticFlowFinding>>>()
@@ -73,6 +78,8 @@ internal class RuleDiagnostics(
             (if (escalated) "ID「$id」への制約違反があります（報告先: 定義出現 $anchorRel）"
             else "ID「$id」には制約の指摘があります（報告先: 定義出現 $anchorRel）") + evidence
         }
+        // 文面のひな型（rule.message）を宣言した検査は、報告先にも出現先にも、その文面を出す
+        fun customNotice(text: String): (String, Boolean) -> String = { anchorRel, _ -> "$text（報告先: 定義出現 $anchorRel）" }
         val description = rule.description ?: rule.id
         val ruleCount = rule.count
         if (rule.check.isNotEmpty()) {
@@ -81,12 +88,17 @@ internal class RuleDiagnostics(
             val examples = index.Query.checkFrom(indexObj, rule.spec, rule.check, id, tree, rel)
             if (examples.isEmpty()) return null
             val evidence = "。反例: ${describeCheckExamples(examples)}"
+            val custom = rule.message?.let { template ->
+                renderTemplate(template, id, row = examples.first().row.let { with(index.Query) { it.toRow() } }, v = examples.first()) +
+                    (if (examples.size > 1) "（ほか${examples.size - 1}組）" else "")
+            }
             return RuleDiagnosis(
                 id, rule.level,
-                report = "ID「$id」を起点とする解が check を満たしません（${examples.size} 組）$evidence",
-                notice = notice(evidence),
+                report = custom ?: "ID「$id」を起点とする解が check を満たしません（${examples.size} 組）$evidence",
+                notice = custom?.let(::customNotice) ?: notice(evidence),
                 related = examples.take(3).flatMap { listOfNotNull(it.left.id, it.right.id) }.distinct().filter { it != id }.take(10),
                 description = description,
+                responses = responsesOf(rule, id, examples.first()),
             )
         }
         val result = index.Query.matchesFrom(indexObj, rule.spec, id, tree)
@@ -101,14 +113,17 @@ internal class RuleDiagnostics(
             // 下限未達は判定保留＝沈黙（上限超過は見つかった解が実在する証拠のため降格しない）
             if (!ruleCount.violated(result.total, result.unknownDropped)) return null
             val head = "ID「$id」を起点とするパターンの解が ${result.total} 件です（count: ${ruleCount.describe()}）"
+            val custom = rule.message?.let { renderTemplate(it, id, row = result.rows.firstOrNull(), count = result.total) }
             return RuleDiagnosis(
                 id, rule.level,
-                report = head + (if (result.rows.isNotEmpty()) "。解の組: $rows" else ""),
-                notice = notice(if (result.rows.isNotEmpty()) "。該当の組: $rows" else ""),
+                report = custom ?: (head + (if (result.rows.isNotEmpty()) "。解の組: $rows" else "")),
+                notice = custom?.let(::customNotice) ?: notice(if (result.rows.isNotEmpty()) "。該当の組: $rows" else ""),
                 related = related,
                 description = description,
+                responses = responsesOf(rule, id, null),
             )
         }
+        val custom = rule.message?.let { renderTemplate(it, id, row = result.rows.firstOrNull(), count = result.total) }
         return when (rule.expect) {
             // CALC-17（Unknown 降格）: exists の「解なし」も候補喪失時は判定保留＝沈黙
             // （absent は解の実在が根拠のため降格しない）。未解決参照自体は参照検証が別途指摘する
@@ -116,10 +131,11 @@ internal class RuleDiagnostics(
                 if (result.total > 0 || result.unknownDropped) null
                 else RuleDiagnosis(
                     id, rule.level,
-                    report = "ID「$id」を起点とするパターンが成立していません（expect: exists）",
-                    notice = notice(""),
+                    report = custom ?: "ID「$id」を起点とするパターンが成立していません（expect: exists）",
+                    notice = custom?.let(::customNotice) ?: notice(""),
                     related = emptyList(),
                     description = description,
+                    responses = responsesOf(rule, id, null),
                 )
             ConstraintExpect.ABSENT ->
                 if (result.total == 0) null
@@ -127,10 +143,11 @@ internal class RuleDiagnostics(
                     val evidence = if (result.rows.isNotEmpty()) "。該当の組: $rows" else ""
                     RuleDiagnosis(
                         id, rule.level,
-                        report = "ID「$id」を起点とするパターンが成立しています（expect: absent）$evidence",
-                        notice = notice(evidence),
+                        report = custom ?: "ID「$id」を起点とするパターンが成立しています（expect: absent）$evidence",
+                        notice = custom?.let(::customNotice) ?: notice(evidence),
                         related = related,
                         description = description,
+                        responses = responsesOf(rule, id, null),
                     )
                 }
             null -> null
@@ -151,50 +168,115 @@ internal class RuleDiagnostics(
         )
         val suffix = (rule.description ?: rule.id)?.let { " — $it" } ?: ""
         return violations.map { v ->
-            val text = rule.message?.let { renderTemplate(it, v, input = null) }
+            val text = rule.message?.let { renderTemplate(it, id, v = v) }
                 ?: "「${reportAt.path.pretty()}」の値が条件を満たしません: ${describeCheckExamples(listOf(v))}"
-            Issue(rule.level.toSeverity(), text + suffix, occPath + reportAt.path, responses = responsesOf(rule, v))
+            Issue(rule.level.toSeverity(), text + suffix, occPath + reportAt.path, responses = responsesOf(rule, id, v))
         }
     }
 
-    /** 対応の宣言（rule.responses）を、条件を満たさなかった組の値と出どころから具体的な対応へ写す。 */
-    private fun responsesOf(rule: ConstraintRule, v: semantic.SemanticCheckViolation): List<IssueResponse> =
+    /**
+     * 参照の場所へ指摘を出す検査（SP-08。rule.reportAt.ref を宣言した検査。対象型の不一致など）: 見つかった解
+     * （expect: absent）または条件を満たさなかった組（check）ごとに、束縛した参照が**この文書に書かれている**ものを、
+     * その参照の場所へ指摘する。起点は全エンティティから探すが、参照が最初の edge で束縛されているときは、
+     * この文書に関わる起点だけを調べる（出ていく参照ならこの文書に書かれた要素・入ってくる参照ならこの文書の参照の相手）。
+     */
+    fun refIssues(rule: ConstraintRule, file: Path, localIds: List<String>, localTargets: List<String>): List<Issue> {
+        val refBind = rule.reportAt?.ref ?: return emptyList()
+        val firstEdge = rule.spec.hops.firstOrNull()?.edge
+        val starts = when {
+            firstEdge?.bind != refBind -> indexObj.graph.entities.keys.sorted()
+            firstEdge.dir == schema.QueryDir.OUT -> localIds.distinct().sorted()
+            else -> localTargets.distinct().sorted()
+        }
+        val suffix = (rule.description ?: rule.id)?.let { " — $it" } ?: ""
+        val issues = mutableListOf<Issue>()
+        for (id in starts) {
+            if (!index.Query.startMatches(indexObj, rule.spec, id, tree)) continue
+            if (rule.check.isNotEmpty()) {
+                for (v in index.Query.checkFrom(indexObj, rule.spec, rule.check, id, tree, rel)) {
+                    val row = with(index.Query) { v.row.toRow() }
+                    val at = row.refs[refBind]?.takeIf { it.file == file } ?: continue
+                    val text = rule.message?.let { renderTemplate(it, id, row = row, v = v) }
+                        ?: "参照「${at.targetId}」が条件を満たしません: ${describeCheckExamples(listOf(v))}"
+                    issues += Issue(rule.level.toSeverity(), text + suffix, at.path, responses = responsesOf(rule, id, v))
+                }
+            } else {
+                for (row in index.Query.matchesFrom(indexObj, rule.spec, id, tree).rows) {
+                    val at = row.refs[refBind]?.takeIf { it.file == file } ?: continue
+                    val text = rule.message?.let { renderTemplate(it, id, row = row) }
+                        ?: "参照「${at.targetId}」は、あってはならないパターンに当たります（expect: absent）"
+                    issues += Issue(rule.level.toSeverity(), text + suffix, at.path, responses = responsesOf(rule, id, null))
+                }
+            }
+        }
+        return issues
+    }
+
+    /**
+     * 対応の宣言（rule.responses）を、具体的な対応へ写す。値の出どころへの移動と値の書き込みは、条件を満たさなかった組
+     * （v）の値と出どころから作る。参照を書き足せそうな文書への移動（referenceSources）は、起点の要素と関係名から候補を導出する。
+     */
+    private fun responsesOf(rule: ConstraintRule, id: String, v: semantic.SemanticCheckViolation?): List<IssueResponse> =
         rule.responses.flatMap { decl ->
+            if (decl.target == schema.ResponseDecl.REFERENCE_SOURCES) {
+                return@flatMap ReferenceSources.candidates(indexObj, relations, allSchemas, decl.relation.orEmpty(), id).take(3).map { f ->
+                    IssueResponse.Jump(renderTemplate(decl.label, id, v = v, file = f), f, path = null, note = decl.note)
+                }
+            }
+            if (v == null) return@flatMap emptyList()
             val side = if (decl.target.startsWith("left")) v.left else v.right
             when {
                 decl.kind == schema.ResponseDecl.Kind.APPLY ->
-                    listOf(IssueResponse.ApplyValue(renderTemplate(decl.label, v, input = null), side.text))
+                    listOf(IssueResponse.ApplyValue(renderTemplate(decl.label, id, v = v), side.text))
                 decl.target.endsWith(".source") -> {
                     val document = side.sourceDocument
                     if (document == null) emptyList()
-                    else listOf(IssueResponse.Jump(renderTemplate(decl.label, v, input = null), Path.of(document.value), side.sourcePath))
+                    else listOf(IssueResponse.Jump(renderTemplate(decl.label, id, v = v), Path.of(document.value), side.sourcePath, decl.note))
                 }
                 else -> side.inputs.mapNotNull { input ->
                     val document = input.document ?: return@mapNotNull null
-                    IssueResponse.Jump(renderTemplate(decl.label, v, input), Path.of(document.value), input.path)
+                    IssueResponse.Jump(renderTemplate(decl.label, id, v = v, input = input), Path.of(document.value), input.path, decl.note)
                 }
             }
         }
 
     /**
      * 文面・ラベルのひな型の差し込み（1回の走査で置き換える＝差し込んだ値の中の波括弧は再解釈しない）。
-     * 書けるのは `{left}` `{right}` `{left.raw}` `{right.raw}`、入力ごとの対応では `{input.placeholder}` `{input.value}`。
-     * それ以外の波括弧はそのまま残す。
+     * 書けるのは `{id}`＝起点の ID・`{束縛名.id}` `{束縛名.type}` `{束縛名.title}`＝見つかった解のノード・`{count}`＝解の件数・
+     * `{left}` `{right}` `{left.raw}` `{right.raw}`＝比べた値・`{file}`＝移動先の文書、入力ごとの対応では
+     * `{input.placeholder}` `{input.value}`。当てはまらない波括弧と、その場面で値が無いものは、そのまま残す。
      */
     private fun renderTemplate(
         template: String,
-        v: semantic.SemanticCheckViolation,
-        input: semantic.SemanticValueInput?,
+        id: String,
+        row: index.QueryRow? = null,
+        v: semantic.SemanticCheckViolation? = null,
+        count: Int? = null,
+        input: semantic.SemanticValueInput? = null,
+        file: Path? = null,
     ): String = TEMPLATE_VAR.replace(template) { m ->
-        when (m.groupValues[1]) {
-            "left" -> v.left.text
-            "right" -> v.right.text
-            "left.raw" -> v.left.raw ?: v.left.text
-            "right.raw" -> v.right.raw ?: v.right.text
-            "input.placeholder" -> input?.let { "{${it.placeholder}}" } ?: m.value
-            "input.value" -> input?.value ?: m.value
-            else -> m.value
-        }
+        val name = m.groupValues[1]
+        when (name) {
+            "id" -> id
+            "count" -> count?.toString()
+            "left" -> v?.left?.text
+            "right" -> v?.right?.text
+            "left.raw" -> v?.let { it.left.raw ?: it.left.text }
+            "right.raw" -> v?.let { it.right.raw ?: it.right.text }
+            "input.placeholder" -> input?.let { "{${it.placeholder}}" }
+            "input.value" -> input?.value
+            "file" -> file?.let(rel)
+            else -> {
+                // {束縛名.id} {束縛名.type} {束縛名.title}
+                val node = (row ?: v?.row?.let { with(index.Query) { it.toRow() } })?.bindings?.get(name.substringBeforeLast('.'))
+                when (name.substringAfterLast('.', "")) {
+                    "id" -> node?.id
+                    "type" -> node?.entityType
+                    "title" -> node?.title
+                    else -> null
+                }
+            }
+        } ?: m.value
     }
 
     /** 網羅マトリクス（R28-03）: 行 id の不足セル（証人のない列）。不足がなければ null。 */
@@ -242,7 +324,8 @@ internal class RuleDiagnostics(
             else -> "「${s.text}」"
         }
         val listed = examples.take(3).joinToString(" ／ ") { v ->
-            "${side(v.left)} ${v.check.op.violationSymbol} ${side(v.right)}"
+            "${side(v.left)} ${v.term.violationSymbol} ${side(v.right)}" +
+                (if (v.check.terms.size > 1) "（「または」のどの条件も満たさない）" else "")
         }
         return listed + (if (examples.size > 3) " ほか${examples.size - 3}組" else "")
     }
@@ -263,6 +346,6 @@ internal class RuleDiagnostics(
     }
 
     private companion object {
-        val TEMPLATE_VAR = Regex("""\{([a-z]+(?:\.[a-z]+)?)}""")
+        val TEMPLATE_VAR = Regex("""\{([A-Za-z][A-Za-z0-9_-]*(?:\.[a-z]+)?)}""")
     }
 }

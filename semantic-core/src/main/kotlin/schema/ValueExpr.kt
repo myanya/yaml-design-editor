@@ -18,6 +18,11 @@ import model.parseYPath
  *   `{number: 式}`（数値として読み直して表記を揃える。`12.0` → `12`。数値として読めなければ「得られない」）
  * - 四則演算 `{add: [式, ...]}`・`{multiply: [式, ...]}`（2つ以上）・`{subtract: [式, 式]}`・`{divide: [式, 式]}`
  *   （どれかが数値として読めない・0 で割る場合は「得られない」。結果の表記は number と同じに揃える）
+ * - 参照の本数 `{refCount: {of: 束縛名, dir: out | in, relation: 関係名, via: キー名}}`（SP-03。その要素から出ていく／
+ *   その要素へ入ってくる参照の本数。同じ相手への参照が2本あれば2と数える。出ていく参照は相手が見つからないものも数える）
+ * - 集計 `{sum | min | max: {of: 束縛名, in: 指定, path: 相対パス}}`・`{count: {of: 束縛名}}`（SP-03。同じ起点について
+ *   見つかった全ての解にわたり、その束縛の要素（重複は1つ）の値を合計・最小・最大する／要素を数える。値は、指定に合う文書の
+ *   うち定義した側を優先して1つから読む。値が得られない・数値として読めない要素が1つでもあれば「得られない」）
  * 評価（どの出現から読むか・得られない値の扱い）は semantic.SemanticQuery の check 判定が担う。
  * 計算そのもの（文字列と数値の純粋な関数）は semantic.SemanticExpression にある。
  */
@@ -43,6 +48,20 @@ sealed interface ValueExpr {
 
     /** 四則演算（数値として読めない値があれば「得られない」）。 */
     data class Arith(val op: ArithOp, val operands: List<ValueExpr>) : ValueExpr
+
+    /** 参照の本数（SP-03）。relation / via を書かなければ、その向きの全ての参照を数える。 */
+    data class RefCount(val of: String, val dir: QueryDir, val relation: String?, val via: String?) : ValueExpr
+
+    /** 解にわたる集計（SP-03）。count は path を持たない。 */
+    data class Aggregate(val fn: AggregateFn, val of: String, val inDoc: DerivationSelector?, val path: YPath?) : ValueExpr
+
+    /** 集計の種類。label は指摘の文面に添える言葉。 */
+    enum class AggregateFn(val id: String, val label: String) {
+        SUM("sum", "合計"),
+        MIN("min", "最小"),
+        MAX("max", "最大"),
+        COUNT("count", "件数"),
+    }
 
     /** 値を1つ受け取る計算の種類。label は指摘の文面で「name の文字数」のように添える言葉（無ければ添えない）。 */
     enum class UnaryFn(val id: String, val label: String?) {
@@ -72,6 +91,32 @@ sealed interface ValueExpr {
         is First -> options.flatMap { it.sources() }.distinct()
         is Unary -> input.sources()
         is Arith -> operands.flatMap { it.sources() }.distinct()
+        // 参照の本数と集計は、値を読む出現を選ばない（本数はグラフから・集計は定義した側を優先して1つに決める）
+        is RefCount, is Aggregate -> emptyList()
+    }
+
+    /** この式が使う束縛の名前（パース時に、束縛が見つかるかを点検する）。 */
+    fun binds(): List<String> = when (this) {
+        is RefCount -> listOf(of)
+        is Aggregate -> listOf(of)
+        is Format -> (template.binds() + scopes.map { it.of }).distinct()
+        is MapValue -> input.binds()
+        is First -> options.flatMap { it.binds() }.distinct()
+        is Unary -> input.binds()
+        is Arith -> operands.flatMap { it.binds() }.distinct()
+        is Get -> listOf(of)
+        is Literal -> emptyList()
+    }
+
+    /** 解にわたる集計を含むか（含む検査は、同じ起点の全ての解を先に集めてから評価する）。 */
+    fun hasAggregate(): Boolean = when (this) {
+        is Aggregate -> true
+        is Format -> template.hasAggregate()
+        is MapValue -> input.hasAggregate()
+        is First -> options.any { it.hasAggregate() }
+        is Unary -> input.hasAggregate()
+        is Arith -> operands.any { it.hasAggregate() }
+        is Get, is Literal, is RefCount -> false
     }
 
     /**
@@ -79,7 +124,7 @@ sealed interface ValueExpr {
      * テンプレートが書かれた文書の側で、プレースホルダが解決できるかを先に点検する（テンプレート健全性）のに使う。
      */
     fun templateReads(): List<Get> = when (this) {
-        is Get, is Literal -> emptyList()
+        is Get, is Literal, is RefCount, is Aggregate -> emptyList()
         is Format -> template.reads() + template.templateReads()
         is MapValue -> input.templateReads()
         is First -> options.flatMap { it.templateReads() }
@@ -90,7 +135,7 @@ sealed interface ValueExpr {
     /** この式が値を読む読み出し（入れ子を含む）。 */
     fun reads(): List<Get> = when (this) {
         is Get -> listOf(this)
-        is Literal -> emptyList()
+        is Literal, is RefCount, is Aggregate -> emptyList()
         is Format -> template.reads()
         is MapValue -> input.reads()
         is First -> options.flatMap { it.reads() }
@@ -108,6 +153,7 @@ sealed interface ValueExpr {
                 ?: error("$where は値の式である必要があります（{of: 束縛名, path: 相対パス}・決まった値 など）")
             val unary = UnaryFn.entries.firstOrNull { m.containsKey(it.id) }
             val arith = ArithOp.entries.firstOrNull { m.containsKey(it.id) }
+            val aggregate = AggregateFn.entries.firstOrNull { m.containsKey(it.id) }
             fun onlyKeys(allowed: Set<String>) {
                 m.keys.map { it.toString() }.firstOrNull { it !in allowed }
                     ?.let { error("$where: 未知のキーです: $it（使えるキー: ${allowed.joinToString(", ")}）") }
@@ -139,6 +185,32 @@ sealed interface ValueExpr {
                 m.containsKey("value") -> {
                     onlyKeys(setOf("value"))
                     Literal(m["value"]?.toString())
+                }
+                m.containsKey("refCount") -> {
+                    onlyKeys(setOf("refCount"))
+                    val r = m["refCount"] as? Map<*, *> ?: error("$where.refCount はobject（{of, dir, relation, via}）である必要があります")
+                    r.keys.map { it.toString() }.firstOrNull { it !in setOf("of", "dir", "relation", "via") }
+                        ?.let { error("$where.refCount: 未知のキーです: $it（使えるキー: of, dir, relation, via）") }
+                    RefCount(
+                        of = r["of"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.refCount.of（束縛名）が必要です"),
+                        dir = QueryDir.parse(r["dir"]?.toString() ?: error("$where.refCount.dir（out / in）が必要です")),
+                        relation = r["relation"]?.toString()?.takeIf { it.isNotBlank() },
+                        via = r["via"]?.toString()?.takeIf { it.isNotBlank() },
+                    )
+                }
+                aggregate != null -> {
+                    onlyKeys(setOf(aggregate.id))
+                    val a = m[aggregate.id] as? Map<*, *> ?: error("$where.${aggregate.id} はobject（{of, in, path}）である必要があります")
+                    a.keys.map { it.toString() }.firstOrNull { it !in GET_KEYS }
+                        ?.let { error("$where.${aggregate.id}: 未知のキーです: $it（使えるキー: ${GET_KEYS.joinToString(", ")}）") }
+                    val of = a["of"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.${aggregate.id}.of（束縛名）が必要です")
+                    val pathText = a["path"]?.toString()?.takeIf { it.isNotBlank() }
+                    if (aggregate == AggregateFn.COUNT) {
+                        require(pathText == null && a["in"] == null) { "$where.count は要素を数えます（書けるのは of だけです）" }
+                    } else {
+                        require(pathText != null) { "$where.${aggregate.id}.path が必要です" }
+                    }
+                    Aggregate(aggregate, of, parseSelector(a["in"], "$where.${aggregate.id}.in"), pathText?.let { parseYPath(it) })
                 }
                 unary != null -> {
                     onlyKeys(setOf(unary.id))

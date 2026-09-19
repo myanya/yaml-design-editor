@@ -352,7 +352,7 @@ root:
           - key: match
             label: パターン（node / edge の連鎖）
             type: any
-            description: "先頭 node が起点束縛（kind: entity 限定）。例 [{node: {entity: usecase, bind: uc}}, {edge: {relation: uses, dir: in}}, {node: {entity: screen}}]。node: {same: 束縛名} は先行して束縛済みのノードそのものへの到達を要求（ノード一致＝2経路の合流。他のキーと同居不可）"
+            description: "先頭 node が起点束縛（kind: entity 限定）。例 [{node: {entity: usecase, bind: uc}}, {edge: {relation: uses, dir: in}}, {node: {entity: screen}}]。node の entity には型の並び（どれか）も書け、not: {entity, schema, id} はその絞り込みに合わないノードだけを残す（型が宣言されていない要素は残さない）。node: {same: 束縛名} は先行して束縛済みのノードそのものへの到達を要求（ノード一致＝2経路の合流。他のキーと同居不可）。edge の bind は辿った参照そのものを束縛する（同じ相手への参照が2本あれば2つの解。reportAt: {ref: 束縛名} で指摘を参照の場所へ出せる）。edge の in: {schemaId, fileGlob} は参照が書かれた文書の指定"
           - key: also
             label: 分岐（1段）
             type: any
@@ -360,7 +360,7 @@ root:
           - key: where
             label: プロパティ述語
             type: any
-            description: "ノードを値で絞る条件。1件につき条件を一つ（例 {of: br, path: status, notEquals: approved}）。equals / notEquals（値があり指定値でないとき成立。値がなければ黙る）・exists（項目が書かれているか）・empty（false = 中身のある値がある／true = 書かれていないか空）・oneOf: [値, ...]（選択肢のどれか）・matches（正規表現の全体一致）・startsWith / endsWith / contains・lt / lte / gt / gte（数値として読めない値は成立しない）"
+            description: "ノードを値で絞る条件。{not: 条件}（条件が成り立たない。値が無く判定できないときは選ばれない）と {or: [条件, ...]}（どれか。同じ束縛の条件どうし）も書ける（入れ子は1段まで。「かつ」は並べて書く）。1件につき条件を一つ（例 {of: br, path: status, notEquals: approved}）。equals / notEquals（値があり指定値でないとき成立。値がなければ黙る）・exists（項目が書かれているか）・empty（false = 中身のある値がある／true = 書かれていないか空）・oneOf: [値, ...]（選択肢のどれか）・matches（正規表現の全体一致）・startsWith / endsWith / contains・lt / lte / gt / gte（数値として読めない値は成立しない）"
           - key: limit
             label: 照合上限
             type: int
@@ -389,19 +389,19 @@ root:
           - key: check
             label: 判定述語
             type: any
-            description: "値の比較（R28-08）。{演算子: [左, 右]} または {op: 演算子, left: 左, right: 右} の配列（すべて成立が期待。expect / count と排他）。演算子は eq / ne（文字列の等値）・lte / gte / lt / gt（数値）・oneOf（右は選択肢の配列）・matches（正規表現の全体一致）・startsWith / endsWith / contains。左右は値の式——読み出し {of: 束縛, in: {schemaId, fileGlob}, path: 相対パス}（in は値を読む文書の指定。省略可）・決まった値（そのまま書く。値が無いかもしれないときは {value}）・テンプレートの展開 {format: 式, scopes: [{of, in}]}・辞書での置き換え {map: 式, using: {元: 先}}・最初に得られた値 {first: [式]}・文字数 {length: 式}・大文字と小文字 {upper: 式} {lower: 式}・数値の表記を揃える {number: 式}・四則演算 {add / multiply: [式, ...]} {subtract / divide: [式, 式]}。同じ ID が書かれた文書の組をすべて調べ、条件を満たさない組を1つでも見つけたら指摘・評価できる組（値が得られない・数値として読めない）がなければ黙る"
+            description: "値の比較（R28-08）。{演算子: [左, 右]} または {op: 演算子, left: 左, right: 右} の配列（すべて成立が期待。expect / count と排他）。{not: 条件} と {or: [条件, ...]}（どれかが成り立てばよい）も書ける（入れ子は1段まで）。演算子は eq / ne（文字列の等値）・lte / gte / lt / gt（数値）・oneOf（右は選択肢の配列）・matches（正規表現の全体一致）・startsWith / endsWith / contains。左右は値の式——読み出し {of: 束縛, in: {schemaId, fileGlob}, path: 相対パス}（in は値を読む文書の指定。省略可）・決まった値（そのまま書く。値が無いかもしれないときは {value}）・テンプレートの展開 {format: 式, scopes: [{of, in}]}・辞書での置き換え {map: 式, using: {元: 先}}・最初に得られた値 {first: [式]}・文字数 {length: 式}・大文字と小文字 {upper: 式} {lower: 式}・数値の表記を揃える {number: 式}・四則演算 {add / multiply: [式, ...]} {subtract / divide: [式, 式]}・参照の本数 {refCount: {of: 束縛, dir: out | in, relation, via}}（同じ相手への参照が2本あれば2。出ていく参照は相手が見つからないものも数える）・集計 {sum | min | max: {of: 束縛, in, path}} {count: {of: 束縛}}（同じ起点の全ての解にわたり、その束縛の要素の値をまとめる）。同じ ID が書かれた文書の組をすべて調べ、条件を満たさない組を1つでも見つけたら指摘・評価できる組（値が得られない・数値として読めない）がなければ黙る"
           - key: message
             label: 指摘の文面のひな型
             type: string
-            description: "check の指摘の文面（省略時は既定の文面）。{left} {right}（比べた値）・{left.raw} {right.raw}（計算前の元の値）を書ける"
+            description: "指摘の文面（省略時は判定の種類ごとの既定の文面）。どの判定にも書ける。{id}（起点の ID）・{束縛名.id} {束縛名.type} {束縛名.title}（見つかった解のノード）・{count}（解の件数）・{left} {right}（比べた値）・{left.raw} {right.raw}（計算前の元の値）を書ける"
           - key: reportAt
             label: 指摘を出す場所（値の場所）
             type: any
-            description: "{of: 束縛, in: {schemaId, fileGlob}, path: 相対パス}。省略時は起点を定義した場所。値の場所を選ぶと、その値が書かれた文書の検証で、要素ごとに報告する（check と組み合わせて使う）"
+            description: "省略時は起点を定義した場所。{of: 束縛, in: {schemaId, fileGlob}, path: 相対パス}＝値が書かれた場所（その値が書かれた文書の検証で、要素ごとに報告する。check と組み合わせる）・{ref: 参照の束縛名}＝edge の bind で束縛した参照が書かれた場所（見つかった解ごとに報告する。expect: absent か check と組み合わせる）"
           - key: responses
             label: エラー時の対応
             type: any
-            description: "対応の宣言の配列。{jump: left.source|right.source|left.inputs|right.inputs, label}（値の出どころへ移動）・{apply: left|right, label}（値を指摘の場所へ書き込む。reportAt が必要）。label には {left} {right} {left.raw} {right.raw}、inputs では {input.placeholder} {input.value} を書ける"
+            description: "対応の宣言の配列。{jump: left.source|right.source|left.inputs|right.inputs, label}（値の出どころへ移動。check と組み合わせる）・{jump: referenceSources, relation: 関係名, label}（起点の要素への参照を書き足せそうな文書を開く。候補ごとに1件。label に {file}）・{apply: left|right, label}（値を指摘の場所へ書き込む。値の場所の reportAt が必要）。label には {left} {right} {left.raw} {right.raw}、inputs では {input.placeholder} {input.value} を書ける。note はメニューでラベルの下に添える補足"
           - key: level
             label: 重大度
             type: enum
@@ -437,7 +437,7 @@ root:
     - key: vocabulary
       label: 語彙の定義（短く書くための書き方）
       type: array
-      description: "スキーマに短く書ける書き方を作る（P29 Phase 6）。どこに書けるか（in）と、書かれた内容からどの定義をどの値で使うか（uses）を宣言する。スキーマの consistency は、組込み定義体が作る語彙"
+      description: "スキーマに短く書ける書き方を作る（P29 Phase 6）。どこに書けるか（in）と、書かれた内容からどの定義をどの値で使うか（uses）を宣言する。スキーマの consistency と、関係の宣言の cardinality・source / target は、組込み定義体が作る語彙"
       item:
         type: object
         fields:
@@ -454,12 +454,12 @@ root:
             label: 書ける場所
             type: string
             required: true
-            description: "スキーマ直下の配列の各要素（例 consistency[]）"
+            description: "スキーマ文書の直下の配列の各要素（例 consistency[]）。関係レジストリの関係の宣言（relations[]）にも書ける"
           - key: uses
             label: 定義の使用への対応
             type: any
             required: true
-            description: "{when: キー, unless: キー, use: 定義の名前, with: {受け取る値: 指定}} の配列。when / unless はそのキーが書かれている／いないときだけ有効。with の指定は、そのままの値・{from: パス, default, map}（書かれた内容から読む）・{schema: id}（書かれたスキーマのID）"
+            description: "{when: キー, unless: キー, use: 定義の名前, with: {受け取る値: 指定}} の配列。when / unless はそのキーが書かれている／いないときだけ有効（キーの並びも書ける＝すべて。空の配列・空の object・空文字は書かれていない扱い）。with の指定は、そのままの値・{from: パス, default, map, join}（書かれた内容から読む。join は配列の値を区切り文字でつなぐ）・{schema: id}（書かれたスキーマのID）"
     - key: matrix
       label: 網羅マトリクス
       type: array

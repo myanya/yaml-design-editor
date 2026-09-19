@@ -16,23 +16,22 @@ import java.nio.file.Path
  * 判定アルゴリズムの本体は semantic-core の SemanticGraphIntegrity（3層コア移行 Phase 6A）で、
  * ここは IdIndex の走査結果をカーネル座標（DocumentId ＝ パス文字列）へ写して委譲し、
  * per-file の検証から「このファイルに座標を持つ指摘」だけを返す。
- * - 判定保留の哲学（§4.26）: 型未宣言のエンティティ・未解決参照には黙る（未解決は V-02 の領分）。
+ * 扱うのは非循環（acyclic）と宣言のない関係名（enforcement）。多重度と対象型は組込み定義体
+ * （builtin-definitions/relations.yaml）が作る検査になった（P29 Phase 6 第2段）。
  */
 object GraphIntegrity {
 
     /**
      * このファイルに座標を持つグラフ整合の指摘を返す。
      * レジストリが空なら何もしない（宣言のないワークスペースは挙動不変）。
-     * allSchemas を渡すと、被参照不足（inMin）の指摘に「参照の追加先候補」の文書を添える（UX-100）。
      */
     fun issues(
         file: Path,
         indexObj: IdIndex,
         relations: Map<String, RelationDef>,
         enforcement: EnforcementDef = EnforcementDef(),
-        allSchemas: List<schema.SchemaDef> = emptyList(),
     ): List<Issue> {
-        if (relations.isEmpty() && enforcement.undeclaredRelation == null) return emptyList()
+        if (relations.values.none { it.acyclic } && enforcement.undeclaredRelation == null) return emptyList()
 
         // IdIndex の走査結果をカーネル座標へ写して委譲する（変換は index/SemanticBridge.kt に一元化）
         val scans = indexObj.toDocumentScans()
@@ -42,16 +41,18 @@ object GraphIntegrity {
         val target = DocumentId(file.toString())
         return SemanticGraphIntegrity.issues(allRefs, graph, SemanticDeclarations(relations = relations, enforcement = enforcement))
             .filter { it.document == target }
-            .map { issue ->
-                val open = issue.shortage
-                    ?.let { referenceCandidates(indexObj, relations, allSchemas, it) }
-                    .orEmpty()
-                Issue(issue.severity, issue.message, issue.path, openFiles = open)
-            }
+            .map { issue -> Issue(issue.severity, issue.message, issue.path) }
     }
+}
+
+/**
+ * エラー時の対応「参照を書き足せそうな文書へ移動」（responses の jump: referenceSources。SP-09・UX-100）の解決。
+ * 被参照が足りない要素について、その関係の参照を書けそうな文書を導出する。
+ */
+object ReferenceSources {
 
     /**
-     * 被参照不足（inMin）の「参照の追加先候補」（UX-100）: 不足を解消する参照を書けそうな文書を導出する。
+     * 「参照の追加先候補」（UX-100）: targetId への relation の参照を書けそうな文書を導出する。
      * ① 関係の source 型を entity 宣言するスキーマ（追加先スキーマ）を特定する
      * ② 対象IDの定義ファイルに出現するエンティティが追加先スキーマの文書にも出現していれば、その文書
      *    （同一IDの詳細化パターン: 画面定義の項目 → 同じ画面IDの画面設計書。先頭3件）
@@ -61,13 +62,14 @@ object GraphIntegrity {
      *    詳細化文書が対象ごとにある形）は、該当文書の未作成を別の文書で肩代わりさせないため対象外
      * どちらでもなければ黙る（複数テーブルのどれに実装するか等、機械が選べない場合は誤誘導しない）。
      */
-    private fun referenceCandidates(
+    fun candidates(
         indexObj: IdIndex,
         relations: Map<String, RelationDef>,
         allSchemas: List<schema.SchemaDef>,
-        shortage: semantic.SemanticShortage,
+        relation: String,
+        targetId: String,
     ): List<Path> {
-        val def = relations[shortage.relation] ?: return emptyList()
+        val def = relations[relation] ?: return emptyList()
         if (def.source.isEmpty() || allSchemas.isEmpty()) return emptyList()
         val sourceSchemaIds = allSchemas
             .filter { s -> s.entities.any { it.type in def.source } }
@@ -75,7 +77,7 @@ object GraphIntegrity {
             .toSet()
         if (sourceSchemaIds.isEmpty()) return emptyList()
         val graph = indexObj.graph
-        val targetFile = indexObj.resolve(shortage.targetId)?.file ?: return emptyList()
+        val targetFile = indexObj.resolve(targetId)?.file ?: return emptyList()
         val siblingIds = graph.documents.values.firstOrNull { it.file == targetFile }?.entityIds.orEmpty()
         val cooccurring = siblingIds.asSequence()
             .flatMap { indexObj.occurrences(it) }

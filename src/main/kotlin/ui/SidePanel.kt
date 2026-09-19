@@ -24,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -515,14 +516,23 @@ private fun IssueRow(state: AppState, file: Path, issue: Issue) {
                         is validate.IssueResponse.Jump -> DropdownMenuItem(
                             text = {
                                 Column {
-                                    Text(response.label, fontSize = 12.sp)
+                                    // 場所を持たない移動（参照を書き足せそうな文書を開く、など）は、直し方の提案として目立たせる
                                     Text(
-                                        "${state.relPath(response.file)} :: ${response.path?.pretty()}",
+                                        response.label, fontSize = 12.sp,
+                                        color = if (response.path == null) Palette.Primary else Color.Unspecified,
+                                    )
+                                    Text(
+                                        response.note
+                                            ?: (state.relPath(response.file) + (response.path?.let { " :: ${it.pretty()}" } ?: "")),
                                         fontSize = 10.sp, color = Palette.SubText,
                                     )
                                 }
                             },
-                            onClick = { menuOpen = false; state.openFile(response.file, response.path) },
+                            onClick = {
+                                menuOpen = false
+                                state.openFile(response.file, response.path)
+                                if (response.path == null) state.editorTab = 0
+                            },
                         )
                         is validate.IssueResponse.ApplyValue -> if (!state.readOnlyMode) {
                             DropdownMenuItem(
@@ -556,19 +566,6 @@ private fun IssueRow(state: AppState, file: Path, issue: Issue) {
                             },
                         )
                     }
-                }
-                // 参照の追加先候補（UX-100）: 被参照不足（inMin）は「他の文書からの参照の書き足し」が修正——
-                // 追加先になりそうな文書（同一IDの詳細化文書・唯一の台帳文書）を開ける
-                issue.openFiles.take(3).forEach { f ->
-                    DropdownMenuItem(
-                        text = {
-                            Column {
-                                Text("参照の追加先を開く: ${state.relPath(f)}", fontSize = 12.sp, color = Palette.Primary)
-                                Text("この文書に参照を書き足すと解消できます", fontSize = 10.sp, color = Palette.SubText)
-                            }
-                        },
-                        onClick = { menuOpen = false; state.openFile(f); state.editorTab = 0 },
-                    )
                 }
                 // 関連ID（UX-15 の不足案内など）: 各IDの定義へジャンプできる
                 issue.relatedIds.take(10).forEach { id ->

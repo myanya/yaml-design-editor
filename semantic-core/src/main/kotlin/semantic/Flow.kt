@@ -150,8 +150,6 @@ object SemanticFlow {
     /** エンティティが選択（entity / schema / id）に一致するか（クエリの node ステップと同じ判定）。 */
     private fun matches(graph: SemanticEntityGraph, step: QueryNodeStep, id: String): Boolean {
         val node = graph.entities[id] ?: return false
-        if (step.idPattern != null && !idMatchesPattern(id, step.idPattern)) return false
-        return (step.entity == null || node.entityType == step.entity) &&
-            (step.schema == null || node.occurrences.any { it.schemaId == step.schema })
+        return step.matchesEntity(id, node)
     }
 }

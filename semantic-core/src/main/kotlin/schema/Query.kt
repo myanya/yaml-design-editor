@@ -36,7 +36,21 @@ enum class QueryDir(val id: String) {
 }
 
 /**
+ * ノードの絞り込み条件（エンティティ型のどれか・出現スキーマ・IDパターン）。node ステップの否定（not）が持つ。
+ * 複数書くと「すべてに合う」で、not はその全体の否定になる。
+ */
+data class QueryNodeFilter(
+    val entities: List<String> = emptyList(),
+    val schema: String? = null,
+    val idPattern: String? = null,
+) {
+    val isEmpty: Boolean get() = entities.isEmpty() && schema == null && idPattern == null
+}
+
+/**
  * node ステップ: フロンティアのノード集合を絞る（kind・エンティティ型・出現スキーマ・IDパターン）。
+ * entity には型を1つ、または型の並び（どれかに合えばよい＝「または」）を書ける。not には同じ絞り込みを書き、
+ * それに合わないノードだけを残す（SP-02。型が宣言されていないエンティティは、型の否定では判定保留＝残さない）。
  * bind を書いたノードは結果の束縛列になる（束縛されない中間ノードは行の同一性に関与しない）。
  * same を書いたノードは「先行して束縛済みのノードそのもの」に到達することを要求する
  * （ノード一致。2経路が同一ノードへ到達する照合＝型不一致検査等の土台。R28-07）。
@@ -44,15 +58,27 @@ enum class QueryDir(val id: String) {
  */
 data class QueryNodeStep(
     val kind: QueryNodeKind = QueryNodeKind.ENTITY,
-    val entity: String? = null,     // エンティティ型名（kind: entity のみ）
+    val entities: List<String> = emptyList(), // エンティティ型名（kind: entity のみ。複数 = どれか）
     val schema: String? = null,     // 出現スキーマID（kind: entity のみ）
     val idPattern: String? = null,  // ID（kind: document では documentId）の glob
     val bind: String? = null,       // 束縛名（結果の列になる）
     val same: String? = null,       // 先行する束縛名（そのノード自身への到達を要求。R28-07）
+    val not: QueryNodeFilter? = null, // この絞り込みに合わないノードだけを残す（SP-02）
 ) {
+    /** 母集団を絞る条件が1つでも書かれているか（マトリクス・遷移検証の選択は1つ以上を要求する）。 */
+    val hasFilter: Boolean get() = entities.isNotEmpty() || schema != null || idPattern != null || not != null
+
     companion object {
-        private val KEYS = setOf("kind", "entity", "schema", "id", "bind", "same")
-        private val BIND_RE = Regex("""[a-zA-Z][a-zA-Z0-9_-]*""")
+        private val KEYS = setOf("kind", "entity", "schema", "id", "bind", "same", "not")
+        internal val BIND_RE = Regex("""[a-zA-Z][a-zA-Z0-9_-]*""")
+
+        /** entity の値: 型名1つ、または型名の並び（1つ以上）。 */
+        private fun parseEntities(raw: Any?, where: String): List<String> = when (raw) {
+            null -> emptyList()
+            is List<*> -> raw.map { it?.toString()?.takeIf { s -> s.isNotBlank() } ?: error("$where.entity に空の型名は書けません") }
+                .also { require(it.isNotEmpty()) { "$where.entity の並びには1つ以上の型名が必要です" } }
+            else -> listOfNotNull(raw.toString().takeIf { it.isNotBlank() })
+        }
 
         fun parse(raw: Any?, where: String): QueryNodeStep {
             val m = raw as? Map<*, *> ?: error("$where.node はobjectである必要があります")
@@ -66,9 +92,21 @@ data class QueryNodeStep(
                 return QueryNodeStep(same = same)
             }
             val kind = m["kind"]?.toString()?.let { QueryNodeKind.parse(it) } ?: QueryNodeKind.ENTITY
-            val entity = m["entity"]?.toString()?.takeIf { it.isNotBlank() }
+            val entities = parseEntities(m["entity"], "$where.node")
             val schema = m["schema"]?.toString()?.takeIf { it.isNotBlank() }
-            if (kind == QueryNodeKind.DOCUMENT && (entity != null || schema != null)) {
+            val not = m["not"]?.let { raw ->
+                val n = raw as? Map<*, *> ?: error("$where.node.not はobject（{entity, schema, id}）である必要があります")
+                n.keys.map { it.toString() }.firstOrNull { it !in setOf("entity", "schema", "id") }
+                    ?.let { error("$where.node.not: 未知のキーです: $it（使えるキー: entity, schema, id）") }
+                QueryNodeFilter(
+                    entities = parseEntities(n["entity"], "$where.node.not"),
+                    schema = n["schema"]?.toString()?.takeIf { it.isNotBlank() },
+                    idPattern = n["id"]?.toString()?.takeIf { it.isNotBlank() },
+                ).also { require(!it.isEmpty) { "$where.node.not には entity / schema / id のいずれかが必要です" } }
+            }
+            if (kind == QueryNodeKind.DOCUMENT &&
+                (entities.isNotEmpty() || schema != null || not?.entities?.isNotEmpty() == true || not?.schema != null)
+            ) {
                 error("$where.node: kind: document に entity / schema は指定できません（文書ノードは id（documentId のパターン）で絞ります）")
             }
             val bind = m["bind"]?.toString()?.takeIf { it.isNotBlank() }
@@ -77,10 +115,11 @@ data class QueryNodeStep(
             }
             return QueryNodeStep(
                 kind = kind,
-                entity = entity,
+                entities = entities,
                 schema = schema,
                 idPattern = m["id"]?.toString()?.takeIf { it.isNotBlank() },
                 bind = bind,
+                not = not,
             )
         }
     }
@@ -90,15 +129,18 @@ data class QueryNodeStep(
  * edge ステップ: フロンティアから参照エッジを1段辿る。
  * inDoc は「その参照が書かれた文書」の指定（SP-01。同じ ID が複数の文書に書かれているとき、
  * どの文書に書かれた参照を辿るかを絞る。値を読む文書の指定と同じ書き方）。
+ * bind を書くと、辿った**参照そのもの**（どの文書のどこに書かれた参照か）を束縛する。束縛した参照は解の同一性に
+ * 加わり（同じ相手への参照が2本あれば2つの解）、指摘を参照の場所へ出す reportAt: {ref: 束縛名} で使える。
  */
 data class QueryEdgeStep(
     val dir: QueryDir = QueryDir.OUT,
     val relation: String? = null,
     val via: String? = null,        // 参照が書かれたキー名（viaKey）
     val inDoc: DerivationSelector? = null, // 参照が書かれた文書の指定（SP-01）
+    val bind: String? = null,       // 参照の束縛名
 ) {
     companion object {
-        private val KEYS = setOf("dir", "relation", "via", "in")
+        private val KEYS = setOf("dir", "relation", "via", "in", "bind")
 
         fun parse(raw: Any?, where: String): QueryEdgeStep {
             val m = raw as? Map<*, *> ?: error("$where.edge はobjectである必要があります")
@@ -109,6 +151,11 @@ data class QueryEdgeStep(
                 relation = m["relation"]?.toString()?.takeIf { it.isNotBlank() },
                 via = m["via"]?.toString()?.takeIf { it.isNotBlank() },
                 inDoc = ValueExpr.parseSelector(m["in"], "$where.edge.in"),
+                bind = m["bind"]?.toString()?.takeIf { it.isNotBlank() }?.also {
+                    if (!QueryNodeStep.BIND_RE.matches(it)) {
+                        error("$where.edge.bind は英字で始まる英数字・ハイフン・アンダースコアである必要があります: $it")
+                    }
+                },
             )
         }
     }
@@ -140,6 +187,8 @@ data class QueryWhere(
     val empty: Boolean? = null,
     /** 値の条件（演算子と、比べる決まった値。oneOf は複数・他は1つ）。 */
     val test: Pair<CheckOp, List<String>>? = null,
+    /** 条件の否定（SP-02）。条件が「成り立たない」ときに成立する（値が無く判定できないときは成立しない）。 */
+    val negated: Boolean = false,
 ) {
     companion object {
         /** where に書ける値の条件（eq / ne は equals / notEquals が担う）。 */
@@ -177,6 +226,41 @@ data class QueryWhere(
 }
 
 /**
+ * where の1件（SP-02）: 条件1つ、その否定（`{not: 条件}`）、または条件の「または」（`{or: [条件, ...]}`）。
+ * 入れ子は1段まで——or の中には条件かその否定を書ける（or の中の or・not の中の or や not は書けない）。
+ * or の条件はすべて同じ束縛（of）について書く（束縛が決まった時点で判定して枝刈りするため）。
+ * 「かつ」は where に並べて書く。
+ */
+data class QueryWhereClause(val alternatives: List<QueryWhere>) {
+    val of: String get() = alternatives.first().of
+
+    companion object {
+        fun parse(raw: Any?, where: String): QueryWhereClause {
+            val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります")
+            if (m.containsKey("or")) {
+                if (m.size != 1) error("$where: or は単独で書きます（{or: [条件, ...]}）")
+                val list = (m["or"] as? List<*>)?.takeIf { it.size >= 2 } ?: error("$where.or は条件の配列（2つ以上）である必要があります")
+                val alternatives = list.mapIndexed { i, e -> parseLeaf(e, "$where.or[$i]") }
+                require(alternatives.map { it.of }.distinct().size == 1) { "$where.or の条件は、すべて同じ束縛（of）について書きます" }
+                return QueryWhereClause(alternatives)
+            }
+            return QueryWhereClause(listOf(parseLeaf(raw, where)))
+        }
+
+        /** 条件1つ、またはその否定。 */
+        private fun parseLeaf(raw: Any?, where: String): QueryWhere {
+            val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります")
+            if (m.containsKey("or")) error("$where: or の入れ子は書けません（入れ子は1段まで）")
+            if (!m.containsKey("not")) return QueryWhere.parse(raw, where)
+            if (m.size != 1) error("$where: not は単独で書きます（{not: 条件}）")
+            val inner = m["not"] as? Map<*, *> ?: error("$where.not は条件のobjectである必要があります")
+            if (inner.containsKey("not") || inner.containsKey("or")) error("$where.not の中に not / or は書けません（入れ子は1段まで）")
+            return QueryWhere.parse(inner, "$where.not").copy(negated = true)
+        }
+    }
+}
+
+/**
  * パターン照合のスペック1件。match（node で始まり node で終わる交互連鎖）＋ also（分岐）＋ where（述語）＋ limit。
  * パースは raw Map（YAML/JSON 由来）からの1実装で、日本語エラーをそのまま定義エラーとして表示する。
  */
@@ -184,12 +268,15 @@ data class QuerySpec(
     val start: QueryNodeStep,
     val hops: List<QueryHop>,
     val also: QueryBranch? = null,
-    val where: List<QueryWhere> = emptyList(),
+    val where: List<QueryWhereClause> = emptyList(),
     val limit: Int = DEFAULT_LIMIT,
 ) {
-    /** 束縛名の一覧（宣言順）。結果の列順・rowKey / of / from の解決に使う。 */
+    /** ノードの束縛名の一覧（宣言順）。結果の列順・rowKey / of / from の解決に使う。 */
     val binds: List<String> =
         (listOf(start) + hops.map { it.node } + also?.hops?.map { it.node }.orEmpty()).mapNotNull { it.bind }
+
+    /** 参照（edge）の束縛名の一覧（宣言順）。reportAt: {ref} の解決に使う。 */
+    val edgeBinds: List<String> = (hops + also?.hops.orEmpty()).mapNotNull { it.edge.bind }
 
     /** 束縛名に対応する node ステップ（ビューの rowKey の kind 検査等に使う）。 */
     fun bindStep(name: String): QueryNodeStep? =
@@ -222,7 +309,7 @@ data class QuerySpec(
                 if (raw.containsKey("also")) error("$where.also はobjectである必要があります")
                 null
             }
-            val whereList = (raw["where"] as? List<*>)?.mapIndexed { i, e -> QueryWhere.parse(e, "$where.where[$i]") }
+            val whereList = (raw["where"] as? List<*>)?.mapIndexed { i, e -> QueryWhereClause.parse(e, "$where.where[$i]") }
                 ?: run {
                     if (raw.containsKey("where")) error("$where.where は配列である必要があります")
                     emptyList()
@@ -232,7 +319,7 @@ data class QuerySpec(
 
             val spec = QuerySpec(start = start, hops = hops, also = also, where = whereList, limit = limit)
             // 束縛名の重複と、also.from / where.of の解決をパース段階で固定する（実行時に黙って空にならないため）
-            spec.binds.groupBy { it }.filterValues { it.size > 1 }.keys.firstOrNull()
+            (spec.binds + spec.edgeBinds).groupBy { it }.filterValues { it.size > 1 }.keys.firstOrNull()
                 ?.let { error("$where: 束縛名「$it」が重複しています") }
             also?.let { branch ->
                 val matchBinds = (listOf(start) + hops.map { it.node }).mapNotNull { it.bind }
@@ -345,18 +432,18 @@ data class ConstraintCount(val min: Int? = null, val max: Int? = null) {
  * - startsWith / endsWith / contains: 前方・後方・部分の一致
  * violationSymbol は、条件を満たさなかった組を文面に示すときに左右の間へ置く言葉。
  */
-enum class CheckOp(val id: String, val violationSymbol: String) {
-    LTE("lte", ">"),
-    GTE("gte", "<"),
-    LT("lt", "≥"),
-    GT("gt", "≤"),
-    EQ("eq", "≠"),
-    NE("ne", "="),
-    ONE_OF("oneOf", "が次のどれでもない:"),
-    MATCHES("matches", "が次の正規表現に一致しない:"),
-    STARTS_WITH("startsWith", "が次で始まらない:"),
-    ENDS_WITH("endsWith", "が次で終わらない:"),
-    CONTAINS("contains", "が次を含まない:");
+enum class CheckOp(val id: String, val violationSymbol: String, val satisfiedSymbol: String) {
+    LTE("lte", ">", "≤"),
+    GTE("gte", "<", "≥"),
+    LT("lt", "≥", "<"),
+    GT("gt", "≤", ">"),
+    EQ("eq", "≠", "="),
+    NE("ne", "=", "≠"),
+    ONE_OF("oneOf", "が次のどれでもない:", "が次のどれかである:"),
+    MATCHES("matches", "が次の正規表現に一致しない:", "が次の正規表現に一致する:"),
+    STARTS_WITH("startsWith", "が次で始まらない:", "が次で始まる:"),
+    ENDS_WITH("endsWith", "が次で終わらない:", "が次で終わる:"),
+    CONTAINS("contains", "が次を含まない:", "が次を含む:");
 
     /** 決まった値として書かれた右辺の、定義時の点検（正規表現として読めること）。 */
     fun requireValidOperand(literal: String, where: String) {
@@ -372,36 +459,78 @@ enum class CheckOp(val id: String, val violationSymbol: String) {
 }
 
 /**
- * check 判定述語の1項目（R28-08。CORE-CALCULUS §8 の判定述語）: 2つの値の比較。
+ * check 判定述語の値の条件1つ（R28-08。CORE-CALCULUS §8 の判定述語）: 2つの値の比較。
  * 書き方は2通り——`{演算子: [左, 右]}`（1キーの短い形）と、
  * `{op: 演算子, left: 左, right: 右}`（演算子を値として渡せる形。定義体のひな型で使う）。
  * 左右は値の式（schema.ValueExpr。束縛からの読み出し・テンプレートの展開・計算・決まった値）。
  * oneOf の右は値の式の並び（`{oneOf: [左, [選択肢, ...]]}`）で、rights に全ての選択肢が入る（他の演算子は1つ）。
+ * 値の条件1つが CheckTerm、check の1項目（条件1つ、またはその「または」）が ConstraintCheck。
  * 評価は、同じ ID が書かれた文書のうちどれから値を読むかの全ての組を調べ、条件を満たさない組を1つでも見つけたら
  * 違反（その組を指摘に示す）・評価できる組がなければ黙る（判定保留 §4.26）。項目の中で同じ「束縛と文書の指定」は
  * 同じ文書から読む。
  */
-data class ConstraintCheck(val op: CheckOp, val left: ValueExpr, val rights: List<ValueExpr>) {
-
-    constructor(op: CheckOp, left: ValueExpr, right: ValueExpr) : this(op, left, listOf(right))
-
+data class CheckTerm(
+    val op: CheckOp,
+    val left: ValueExpr,
+    val rights: List<ValueExpr>,
+    /** 条件の否定（SP-02）。`{not: {演算子: [左, 右]}}`。評価できない組は、否定しても評価できないまま（判定保留）。 */
+    val negated: Boolean = false,
+) {
     /** 右辺（oneOf では最初の選択肢）。 */
     val right: ValueExpr get() = rights.first()
 
-    /** この項目の値の式すべて（左・右の順）。 */
+    /** この条件の値の式すべて（左・右の順）。 */
     val operands: List<ValueExpr> get() = listOf(left) + rights
 
+    /** 条件を満たさなかった組を文面に示すときに、左右の間へ置く言葉（否定した条件は、成り立ってしまった関係を示す）。 */
+    val violationSymbol: String get() = if (negated) op.satisfiedSymbol else op.violationSymbol
+}
+
+/**
+ * check の1項目: 値の条件1つ、またはその「または」（`{or: [条件, ...]}`。SP-02）。入れ子は1段まで——
+ * or の中には条件かその否定（`{not: 条件}`）を書ける。「かつ」は check に並べて書く。
+ * or は、どれかが成り立てば成立・成り立つものがなく評価できない条件が残れば判定保留・すべて成り立たなければ違反。
+ */
+data class ConstraintCheck(val terms: List<CheckTerm>) {
+
+    constructor(op: CheckOp, left: ValueExpr, right: ValueExpr) : this(listOf(CheckTerm(op, left, listOf(right))))
+
+    /** この項目の値の式すべて。 */
+    val operands: List<ValueExpr> get() = terms.flatMap { it.operands }
+
     /** この項目が読む束縛の名前（パース時の束縛の解決検査に使う）。 */
-    val binds: List<String> get() = operands.flatMap { it.sources() }.map { it.of }.distinct()
+    val binds: List<String> get() = operands.flatMap { it.binds() }.distinct()
 
     companion object {
         fun parse(raw: Any?, where: String): ConstraintCheck {
             val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります（{演算子: [左, 右]}）")
+            if (m.containsKey("or")) {
+                if (m.size != 1) error("$where: or は単独で書きます（{or: [条件, ...]}）")
+                val list = (m["or"] as? List<*>)?.takeIf { it.size >= 2 } ?: error("$where.or は条件の配列（2つ以上）である必要があります")
+                return ConstraintCheck(list.mapIndexed { i, e -> parseTerm(e, "$where.or[$i]", nested = true) })
+            }
+            return ConstraintCheck(listOf(parseTerm(raw, where, nested = false)))
+        }
+
+        /** 値の条件1つ、またはその否定。nested は or の中（or の入れ子は書けない）。 */
+        private fun parseTerm(raw: Any?, where: String, nested: Boolean): CheckTerm {
+            val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります（{演算子: [左, 右]}）")
+            if (m.containsKey("or")) error("$where: or の入れ子は書けません（入れ子は1段まで）")
+            if (m.containsKey("not")) {
+                if (m.size != 1) error("$where: not は単独で書きます（{not: {演算子: [左, 右]}}）")
+                val inner = m["not"] as? Map<*, *> ?: error("$where.not は条件のobjectである必要があります")
+                if (inner.containsKey("not") || inner.containsKey("or")) error("$where.not の中に not / or は書けません（入れ子は1段まで）")
+                return parseCompare(inner, "$where.not").copy(negated = true)
+            }
+            return parseCompare(m, where)
+        }
+
+        private fun parseCompare(m: Map<*, *>, where: String): CheckTerm {
             if (m.containsKey("op")) {
                 m.keys.map { it.toString() }.firstOrNull { it !in setOf("op", "left", "right") }
                     ?.let { error("$where: 未知のキーです: $it（使えるキー: op, left, right）") }
                 val op = CheckOp.parse(m["op"].toString(), where)
-                return ConstraintCheck(
+                return CheckTerm(
                     op = op,
                     left = ValueExpr.parse(m["left"] ?: error("$where.left が必要です"), "$where.left"),
                     rights = parseRights(op, m["right"] ?: error("$where.right が必要です"), "$where.right"),
@@ -414,7 +543,7 @@ data class ConstraintCheck(val op: CheckOp, val left: ValueExpr, val rights: Lis
             val op = CheckOp.parse(k.toString(), where)
             val list = v as? List<*> ?: error("$where.${op.id} は [左, 右] の2要素配列である必要があります")
             if (list.size != 2) error("$where.${op.id} は [左, 右] の2要素配列である必要があります")
-            return ConstraintCheck(
+            return CheckTerm(
                 op = op,
                 left = ValueExpr.parse(list[0], "$where.${op.id}[0]"),
                 rights = parseRights(op, list[1], "$where.${op.id}[1]"),
@@ -437,14 +566,29 @@ data class ConstraintCheck(val op: CheckOp, val left: ValueExpr, val rights: Lis
     }
 }
 
-/** 指摘を出す場所を「値が書かれた場所」にする宣言（SP-08）: 束縛の、指定に合う文書に書かれた要素の中のパス。 */
-data class ReportAt(val of: String, val inDoc: DerivationSelector?, val path: YPath) {
+/**
+ * 指摘を出す場所の宣言（SP-08）。書かなければ、起点を定義した場所に出る。
+ * - 値が書かれた場所 `{of: 束縛名, in: 文書の指定, path: 相対パス}`: 束縛の、指定に合う文書に書かれた要素の中のパス（check と組み合わせる）
+ * - 参照が書かれた場所 `{ref: 参照の束縛名}`: edge の bind で束縛した参照の場所（expect: absent か check と組み合わせる。
+ *   見つかった解ごとに、その参照が書かれた文書の検証で報告する）
+ */
+data class ReportAt(
+    val of: String = "",
+    val inDoc: DerivationSelector? = null,
+    val path: YPath = emptyList(),
+    val ref: String? = null,
+) {
     val source: ValueExpr.ScopeRef get() = ValueExpr.ScopeRef(of, inDoc)
 
     companion object {
         fun parse(raw: Any?, where: String): ReportAt {
+            val m = raw as? Map<*, *>
+            if (m != null && m.containsKey("ref")) {
+                if (m.size != 1) error("$where: ref は単独で書きます（{ref: 参照の束縛名}）")
+                return ReportAt(ref = m["ref"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.ref（参照の束縛名）が必要です"))
+            }
             val get = ValueExpr.parse(raw, where) as? ValueExpr.Get
-                ?: error("$where は {of: 束縛名, in: 文書の指定, path: 相対パス} で書きます")
+                ?: error("$where は {of: 束縛名, in: 文書の指定, path: 相対パス} か {ref: 参照の束縛名} で書きます")
             return ReportAt(get.of, get.inDoc, get.path)
         }
     }
@@ -454,30 +598,50 @@ data class ReportAt(val of: String, val inDoc: DerivationSelector?, val path: YP
  * エラー時の対応の宣言（SP-09）。対応の種類は閉じた一覧で、定義の側はどれを・どのラベルで示すかを選ぶ。
  * - jump: 値の出どころへ移動する。対象は `left.source` / `right.source`（テンプレートなど元の値が書かれた場所）と
  *   `left.inputs` / `right.inputs`（テンプレートへ差し込んだ値が書かれた場所。入力ごとに1件）
+ *   と `referenceSources`（起点の要素への参照を書き足せそうな文書。`relation: 関係名` を添える。候補ごとに1件。
+ *   ラベルに `{file}`＝候補の文書のパス）
  * - apply: 値（`left` / `right`）を、指摘の場所へ書き込む（reportAt を宣言した検査でだけ使える）
  * ラベルのひな型には `{left}` `{right}` `{left.raw}` `{right.raw}`、inputs では `{input.placeholder}` `{input.value}` を書ける。
+ * note はメニューでラベルの下に添える補足の1行（省略可）。
  */
-data class ResponseDecl(val kind: Kind, val target: String, val label: String) {
+data class ResponseDecl(
+    val kind: Kind,
+    val target: String,
+    val label: String,
+    /** jump: referenceSources のときの関係名。 */
+    val relation: String? = null,
+    val note: String? = null,
+) {
     enum class Kind { JUMP, APPLY }
 
+    /** 値の比較（check）で条件を満たさなかった組を使う対応か（使わない対応は、どの判定の検査にも書ける）。 */
+    val needsCheck: Boolean get() = kind == Kind.APPLY || target != REFERENCE_SOURCES
+
     companion object {
-        private val JUMP_TARGETS = setOf("left.source", "right.source", "left.inputs", "right.inputs")
+        const val REFERENCE_SOURCES = "referenceSources"
+        private val JUMP_TARGETS = setOf("left.source", "right.source", "left.inputs", "right.inputs", REFERENCE_SOURCES)
         private val APPLY_TARGETS = setOf("left", "right")
 
         fun parse(raw: Any?, where: String): ResponseDecl {
             val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります（{jump または apply, label}）")
-            m.keys.map { it.toString() }.firstOrNull { it !in setOf("jump", "apply", "label") }
-                ?.let { error("$where: 未知のキーです: $it（使えるキー: jump, apply, label）") }
+            m.keys.map { it.toString() }.firstOrNull { it !in setOf("jump", "apply", "label", "relation", "note") }
+                ?.let { error("$where: 未知のキーです: $it（使えるキー: jump, apply, label, relation, note）") }
             val label = m["label"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.label が必要です")
+            val note = m["note"]?.toString()?.takeIf { it.isNotBlank() }
+            val relation = m["relation"]?.toString()?.takeIf { it.isNotBlank() }
             val jump = m["jump"]?.toString()
             val apply = m["apply"]?.toString()
             if ((jump != null) == (apply != null)) error("$where には jump か apply のどちらか一方が必要です")
             return if (jump != null) {
                 require(jump in JUMP_TARGETS) { "$where.jump は ${JUMP_TARGETS.joinToString(" / ")} のいずれかです: $jump" }
-                ResponseDecl(Kind.JUMP, jump, label)
+                require((jump == REFERENCE_SOURCES) == (relation != null)) {
+                    "$where: relation（関係名）は jump: $REFERENCE_SOURCES のときに、必ず書きます"
+                }
+                ResponseDecl(Kind.JUMP, jump, label, relation, note)
             } else {
                 require(apply in APPLY_TARGETS) { "$where.apply は ${APPLY_TARGETS.joinToString(" / ")} のいずれかです: $apply" }
-                ResponseDecl(Kind.APPLY, apply!!, label)
+                require(relation == null) { "$where: relation は jump: $REFERENCE_SOURCES のときだけ書けます" }
+                ResponseDecl(Kind.APPLY, apply!!, label, note = note)
             }
         }
     }
@@ -500,7 +664,11 @@ data class ConstraintRule(
     val check: List<ConstraintCheck> = emptyList(),
     val level: CoverageLevel = CoverageLevel.WARNING,
     val activeFrom: String? = null,
-    /** 指摘の文面のひな型（SP-08。null = 判定の種類ごとの既定の文面）。check では `{left}` `{right}` を書ける。 */
+    /**
+     * 指摘の文面のひな型（SP-08。null = 判定の種類ごとの既定の文面）。どの判定にも書ける。
+     * 書けるもの: `{id}`＝起点の ID・`{束縛名.id}` `{束縛名.type}` `{束縛名.title}`＝見つかった解のノード・
+     * `{count}`＝解の件数（count）・`{left}` `{right}` `{left.raw}` `{right.raw}`＝比べた値（check）。
+     */
     val message: String? = null,
     /** 指摘を出す場所（SP-08。null = 起点を定義した場所）。値が書かれた場所を選ぶと、その文書の検証で報告する。 */
     val reportAt: ReportAt? = null,
@@ -538,8 +706,15 @@ data class ConstraintRule(
             }
             val reportAt = m["reportAt"]?.let { ReportAt.parse(it, "$where.reportAt") }
             reportAt?.let {
-                require(it.of in spec.binds) { "$where.reportAt の束縛「${it.of}」が見つかりません" }
-                require(check.isNotEmpty()) { "$where.reportAt は check と組み合わせて使います（値の場所へ指摘を出すのは値の比較だけです）" }
+                if (it.ref != null) {
+                    require(it.ref in spec.edgeBinds) { "$where.reportAt の参照の束縛「${it.ref}」が見つかりません（edge に bind を書きます）" }
+                    require(check.isNotEmpty() || expect == ConstraintExpect.ABSENT) {
+                        "$where.reportAt の ref は、expect: absent か check と組み合わせて使います（見つかった解ごとに、その参照の場所へ指摘します）"
+                    }
+                } else {
+                    require(it.of in spec.binds) { "$where.reportAt の束縛「${it.of}」が見つかりません" }
+                    require(check.isNotEmpty()) { "$where.reportAt は check と組み合わせて使います（値の場所へ指摘を出すのは値の比較だけです）" }
+                }
             }
             val responses = when (val r = m["responses"]) {
                 null -> emptyList()
@@ -547,9 +722,11 @@ data class ConstraintRule(
                 else -> error("$where.responses は配列である必要があります")
             }
             responses.firstOrNull { it.kind == ResponseDecl.Kind.APPLY }?.let {
-                require(reportAt != null) { "$where.responses の apply は reportAt（書き込む場所）の宣言が必要です" }
+                require(reportAt != null && reportAt.ref == null) { "$where.responses の apply は reportAt（書き込む値の場所）の宣言が必要です" }
             }
-            require(responses.isEmpty() || check.isNotEmpty()) { "$where.responses は check と組み合わせて使います" }
+            require(responses.none { it.needsCheck } || check.isNotEmpty()) {
+                "$where.responses の jump（left / right の出どころ）と apply は、check と組み合わせて使います"
+            }
             val level = when (val v = m["level"]?.toString()) {
                 null -> CoverageLevel.WARNING
                 else -> CoverageLevel.entries.firstOrNull { it.id == v } ?: error("$where.level は warning / error のいずれかです: $v")

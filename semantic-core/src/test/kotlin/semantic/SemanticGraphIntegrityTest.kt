@@ -15,6 +15,7 @@ import kotlin.test.assertTrue
 
 /**
  * グラフ整合検証カーネル（SemanticGraphIntegrity。R21-01）の契約テスト（Phase 6A）。
+ * 扱うのは非循環と、宣言のない関係名（多重度と対象型は組込み定義体が作る検査になった。P29 Phase 6 第2段）。
  * ルート validate/GraphIntegrityTest が旧経路（IdIndex シェル）との一致を引き続き保証する。
  */
 class SemanticGraphIntegrityTest {
@@ -65,26 +66,15 @@ class SemanticGraphIntegrityTest {
     }
 
     @Test
-    fun `対象型の不一致が参照値の座標へ指摘される`() {
-        val snapshot = build(
-            SemanticDeclarations(relations = mapOf("uses" to RelationDef(name = "uses", source = listOf("screen")))),
-            doc("a.yaml", "id: C-1\nuses:\n  - C-2"),
-            doc("b.yaml", "id: C-2"),
-        )
-        val issue = snapshot.issues.single { "参照元エンティティ型" in it.message }
-        assertTrue("「comp」" in issue.message && "screen" in issue.message, issue.message)
-        assertEquals("a.yaml", issue.document.value)
-        assertEquals(listOf<Any>("uses", 0), issue.path)
-    }
-
-    @Test
-    fun `多重度の不足と過剰が定義出現の座標へ指摘される`() {
+    fun `多重度と対象型はカーネルの検査プログラムでは判定しない`() {
+        // P29 Phase 6 第2段（意図的差分 D-20）: 多重度と対象型は組込み定義体（builtin-definitions/relations.yaml）が作る
+        // 検査になり、スキーマの constraints と同じ経路で評価される。判定の内容はルート validate/GraphIntegrityTest が保証する
         val snapshot = build(
             SemanticDeclarations(
                 relations = mapOf(
                     "uses" to RelationDef(
                         name = "uses",
-                        source = listOf("comp"),
+                        source = listOf("screen"),
                         target = listOf("comp"),
                         cardinality = CardinalityDef(outMin = 2, inMax = 0),
                     )
@@ -93,9 +83,7 @@ class SemanticGraphIntegrityTest {
             doc("a.yaml", "id: C-1\nuses:\n  - C-2"),
             doc("b.yaml", "id: C-2"),
         )
-        val messages = snapshot.issues.map { it.message }
-        assertTrue(messages.any { "「C-1」の関係「uses」の参照が不足" in it && "現在 1 件／下限 2 件" in it }, "$messages")
-        assertTrue(messages.any { "「C-2」への関係「uses」の被参照が過剰" in it && "現在 1 件／上限 0 件" in it }, "$messages")
+        assertTrue(snapshot.issues.none { "エンティティ型" in it.message || "参照が" in it.message }, "${snapshot.issues}")
     }
 
     @Test

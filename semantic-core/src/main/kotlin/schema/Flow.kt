@@ -47,7 +47,7 @@ private fun parseFlowSelector(raw: Any?, where: String): QueryNodeStep {
     val step = QueryNodeStep.parse(raw ?: error("$where が必要です"), where)
     require(step.kind == QueryNodeKind.ENTITY) { "$where: フローのノード選択は kind: entity のみです" }
     require(step.bind == null) { "$where: フローのノード選択に bind は書けません" }
-    require(step.entity != null || step.schema != null || step.idPattern != null) {
+    require(step.hasFilter) {
         "$where: entity / schema / id のいずれかで母集団を絞る必要があります"
     }
     return step

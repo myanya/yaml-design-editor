@@ -99,6 +99,20 @@ object SemanticExpression {
         return numberText(result)
     }
 
+    /**
+     * 集計（SP-03）: 合計・最小・最大。どれかが数値として読めなければ null（得られない＝判定保留）。
+     * 値が1つも無いとき、合計は 0・最小と最大は null。件数は値を読まないため、ここでは扱わない。
+     */
+    fun aggregate(fn: ValueExpr.AggregateFn, values: List<String>): String? {
+        val numbers = values.map { numberOf(it) ?: return null }
+        return when (fn) {
+            ValueExpr.AggregateFn.SUM -> numberText(numbers.fold(BigDecimal.ZERO) { acc, n -> acc + n })
+            ValueExpr.AggregateFn.MIN -> numbers.minOrNull()?.let(::numberText)
+            ValueExpr.AggregateFn.MAX -> numbers.maxOrNull()?.let(::numberText)
+            ValueExpr.AggregateFn.COUNT -> values.size.toString()
+        }
+    }
+
     /** 「空」の判定（where の empty）: 書かれていない・空文字・null・空の配列・空の object。 */
     fun isEmpty(node: YNode?): Boolean = when (node) {
         null -> true

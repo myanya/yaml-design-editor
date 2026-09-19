@@ -1,0 +1,143 @@
+# 組込み定義体: 関係の宣言の検査（関係レジストリの cardinality と source / target）
+#
+# 「その関係の参照の本数が、宣言した範囲にあること」（多重度）と、
+# 「その関係の参照の両端が、宣言した型のエンティティであること」（対象型）を、プリミティブだけで定義する。
+# ここにコードは無い。利用者も同じ書き方（functions / vocabulary）で、関係の宣言に効く自分の語彙を作れる。
+id: builtin-relations-checks
+kind: library
+name: 関係の宣言の検査（組込み定義体）
+description: 関係レジストリの cardinality・source・target という語彙と、その中身（参照の本数の検査・参照の両端の型の検査）の定義
+
+functions:
+  # 多重度（出ていく参照）: 宣言した型の要素から出る、その関係の参照の本数。
+  # 同じ相手への参照が2本あれば2と数え、相手が見つからない参照も数える（複数の文書に分けて書いた参照は合算する）
+  - id: relation-out-count
+    description: 宣言した型の要素から出ていく、その関係の参照の本数が、指定の関係（以上・以下）にあること
+    params: [relation, types, op, limit, problem, bound, level]
+    checks:
+      - match:
+          - node: {entity: $types, bind: subject}
+        check:
+          - op: $op
+            left: {refCount: {of: subject, dir: out, relation: $relation}}
+            right: $limit
+        message: エンティティ「{id}」の関係「$relation」の参照が$problem（現在 {left} 件／$bound {right} 件）
+        level: $level
+
+  # 多重度（入ってくる参照）: 宣言した型の要素へ入る、その関係の参照の本数
+  - id: relation-in-count
+    description: 宣言した型の要素へ入ってくる、その関係の参照の本数が、指定の関係（以上・以下）にあること
+    params: [relation, types, op, limit, problem, bound, level, responses]
+    checks:
+      - match:
+          - node: {entity: $types, bind: subject}
+        check:
+          - op: $op
+            left: {refCount: {of: subject, dir: in, relation: $relation}}
+            right: $limit
+        message: エンティティ「{id}」への関係「$relation」の被参照が$problem（現在 {left} 件／$bound {right} 件）
+        responses: $responses
+        level: $level
+
+  # 対象型（参照元）: 宣言した型のどれでもない要素が、その関係の参照を書いていないこと。指摘は参照が書かれた場所に出す。
+  # 参照を書いた要素は「その参照を含む、最も内側の ID を持つ要素」（入ってくる向きの edge の相手）——出ていく向きの edge は、
+  # 入れ子の要素が書いた参照も外側の要素のものとして辿るため、参照先の側から入ってくる向きに辿って調べる
+  - id: relation-source-type
+    description: その関係の参照を書いている要素が、宣言した型（source）のどれかであること
+    params: [relation, types, typesText, level]
+    checks:
+      - match:
+          - node: {bind: target}
+          - edge: {dir: in, relation: $relation, bind: ref}
+          - node: {not: {entity: $types}, bind: source}
+        expect: absent
+        reportAt: {ref: ref}
+        message: "関係「$relation」の参照元エンティティ型「{source.type}」は宣言（source: $typesText）に一致しません"
+        level: $level
+
+  # 対象型（参照先）: 宣言した型のどれでもない要素へ、その関係の参照が入っていないこと。指摘は参照が書かれた場所に出す
+  - id: relation-target-type
+    description: その関係の参照が指している要素が、宣言した型（target）のどれかであること
+    params: [relation, types, typesText, level]
+    checks:
+      - match:
+          - node: {not: {entity: $types}, bind: target}
+          - edge: {dir: in, relation: $relation, bind: ref}
+          - node: {kind: document}
+        expect: absent
+        reportAt: {ref: ref}
+        message: "関係「$relation」の参照先エンティティ型「{target.type}」は宣言（target: $typesText）に一致しません"
+        level: $level
+
+vocabulary:
+  # 関係の宣言の source / target（参照の両端の型）
+  - word: relation-types
+    description: 関係の宣言の対象型（source / target）
+    in: relations[]
+    uses:
+      - when: source
+        use: relation-source-type
+        with:
+          relation: {from: name}
+          types: {from: source}
+          typesText: {from: source, join: ", "}
+          level: {from: level}
+      - when: target
+        use: relation-target-type
+        with:
+          relation: {from: name}
+          types: {from: target}
+          typesText: {from: target, join: ", "}
+          level: {from: level}
+
+  # 関係の宣言の cardinality。出ていく参照の範囲は source の型、入ってくる参照の範囲は target の型の要素に効く
+  - word: relation-cardinality
+    description: 関係の宣言の多重度（cardinality の outMin / outMax / inMin / inMax）
+    in: relations[]
+    uses:
+      - when: [cardinality.outMin, source]
+        use: relation-out-count
+        with:
+          relation: {from: name}
+          types: {from: source}
+          op: gte
+          limit: {from: cardinality.outMin}
+          problem: 不足しています
+          bound: 下限
+          level: {from: level}
+      - when: [cardinality.outMax, source]
+        use: relation-out-count
+        with:
+          relation: {from: name}
+          types: {from: source}
+          op: lte
+          limit: {from: cardinality.outMax}
+          problem: 過剰です
+          bound: 上限
+          level: {from: level}
+      - when: [cardinality.inMin, target]
+        use: relation-in-count
+        with:
+          relation: {from: name}
+          types: {from: target}
+          op: gte
+          limit: {from: cardinality.inMin}
+          problem: 不足しています
+          bound: 下限
+          level: {from: level}
+          # 足りない参照は「他の文書に書き足す」のが直し方——書き足せそうな文書を開けるようにする
+          responses:
+            - jump: referenceSources
+              relation: {from: name}
+              label: "参照の追加先を開く: {file}"
+              note: この文書に参照を書き足すと解消できます
+      - when: [cardinality.inMax, target]
+        use: relation-in-count
+        with:
+          relation: {from: name}
+          types: {from: target}
+          op: lte
+          limit: {from: cardinality.inMax}
+          problem: 過剰です
+          bound: 上限
+          level: {from: level}

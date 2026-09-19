@@ -30,18 +30,35 @@ data class VocabularyWord(
     val location: String,
     val uses: List<VocabularyUse>,
     val origin: String,
-)
+) {
+    /**
+     * この語彙が、書かれた要素から読むキー（when / unless と、with の from のパスの先頭）。
+     * スキーマ文書の検証が「語彙として意味のあるキー」を知るのに使う（定義されていない項目と警告しないため）。
+     */
+    val readKeys: Set<String>
+        get() {
+            fun froms(spec: Any?): List<String> = when (spec) {
+                is Map<*, *> -> listOfNotNull(spec["from"]?.toString()) + spec.filterKeys { it.toString() != "from" }.values.flatMap { froms(it) }
+                is List<*> -> spec.flatMap { froms(it) }
+                else -> emptyList()
+            }
+            return uses.flatMap { it.whenPaths + it.unlessPaths + it.with.values.flatMap { v -> froms(v) } }
+                .map { it.substringBefore('.') }.toSet()
+        }
+}
 
 /**
- * 語彙から定義の使用への対応1件。whenPath のキーが書かれているとき（unlessPath は書かれていないとき）にだけ有効。
+ * 語彙から定義の使用への対応1件。whenPaths のキーがすべて書かれているとき（unlessPaths はどれも書かれていないとき）に
+ * だけ有効（空の配列・空の object・空文字は「書かれていない」とみなす）。
  * with は「定義へ渡す値」の指定で、値ごとに次のどれかを書く:
  * - そのままの値（スカラー・配列・マップ）
- * - `{from: パス}` 語彙として書かれた内容から読む（`default:` で無いときの値、`map:` で値の読み替えができる）
+ * - `{from: パス}` 語彙として書かれた内容から読む（`default:` で無いときの値、`map:` で値の読み替え、
+ *   `join:` で配列の値を区切り文字でつないだ文字列にできる）
  * - `{schema: id}` その語彙が書かれたスキーマのID
  */
 data class VocabularyUse(
-    val whenPath: String?,
-    val unlessPath: String?,
+    val whenPaths: List<String>,
+    val unlessPaths: List<String>,
     val function: String,
     val with: Map<String, Any?>,
 )
@@ -95,8 +112,8 @@ data class CheckLibrary(
         for (word in words) {
             for ((entry, at) in entriesAt(schemaRaw, word.location)) {
                 for (use in word.uses) {
-                    if (use.whenPath != null && readPath(entry, use.whenPath) == null) continue
-                    if (use.unlessPath != null && readPath(entry, use.unlessPath) != null) continue
+                    if (use.whenPaths.any { !isWritten(readPath(entry, it)) }) continue
+                    if (use.unlessPaths.any { isWritten(readPath(entry, it)) }) continue
                     val args = use.with.mapValues { (name, spec) -> argument(spec, entry, schemaId, "${word.word} の with.$name") }
                     out += call(use.function, args, at)
                 }
@@ -151,8 +168,8 @@ data class CheckLibrary(
                     um.keys.map { it.toString() }.firstOrNull { it !in setOf("when", "unless", "use", "with") }
                         ?.let { error("$at.uses[$j]: 未知のキーです: $it（使えるキー: when, unless, use, with）") }
                     VocabularyUse(
-                        whenPath = um["when"]?.toString(),
-                        unlessPath = um["unless"]?.toString(),
+                        whenPaths = paths(um["when"]),
+                        unlessPaths = paths(um["unless"]),
                         function = um["use"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$at.uses[$j].use（使う定義の名前）が必要です"),
                         with = when (val w = um["with"]) {
                             null -> emptyMap()
@@ -165,6 +182,22 @@ data class CheckLibrary(
                 VocabularyWord(word, location, uses, "$origin の語彙「$word」")
             }
             return CheckLibrary(functions.associateBy { it.id }, words)
+        }
+
+        /** when / unless の値: パス1つ、またはパスの並び。 */
+        private fun paths(raw: Any?): List<String> = when (raw) {
+            null -> emptyList()
+            is List<*> -> raw.map { it.toString() }
+            else -> listOf(raw.toString())
+        }
+
+        /** 「書かれている」の判定: 値があり、空の配列・空の object・空文字でない。 */
+        private fun isWritten(value: Any?): Boolean = when (value) {
+            null -> false
+            is List<*> -> value.isNotEmpty()
+            is Map<*, *> -> value.isNotEmpty()
+            is String -> value.isNotBlank()
+            else -> true
         }
 
         private fun list(raw: Any?, where: String): List<Any?> = when (raw) {
@@ -207,9 +240,11 @@ data class CheckLibrary(
             val m = spec as? Map<*, *> ?: return spec
             return when {
                 m.containsKey("from") -> {
-                    m.keys.map { it.toString() }.firstOrNull { it !in setOf("from", "default", "map") }
-                        ?.let { error("$where: 未知のキーです: $it（使えるキー: from, default, map）") }
+                    m.keys.map { it.toString() }.firstOrNull { it !in setOf("from", "default", "map", "join") }
+                        ?.let { error("$where: 未知のキーです: $it（使えるキー: from, default, map, join）") }
                     val read = readPath(entry, m["from"].toString())
+                        // join: 配列の値を、区切り文字でつないだ1つの文字列にする（文面に並べて示すため）
+                        ?.let { value -> m["join"]?.let { sep -> (value as? List<*>)?.joinToString(sep.toString()) } ?: value }
                     val mapped = (m["map"] as? Map<*, *>)?.let { dict ->
                         read?.let { value -> dict.entries.firstOrNull { it.key.toString() == value.toString() }?.value ?: value }
                     } ?: read

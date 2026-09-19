@@ -56,7 +56,7 @@ root:
           - key: cardinality
             label: 多重度
             type: object
-            description: in（被参照数）/ out（参照数）の下限上限。source / target の型宣言がある側にだけ効く（R21-01）
+            description: in（被参照数）/ out（参照数）の下限上限。source / target の型宣言がある側にだけ効く（R21-01）。組込み定義体が作る語彙で、検証の前に基本の検査（参照の本数の比較）へ展開される
             fields:
               - { key: inMin, label: 入次数の下限, type: int }
               - { key: inMax, label: 入次数の上限, type: int }
