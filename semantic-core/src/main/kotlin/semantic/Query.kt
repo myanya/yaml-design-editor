@@ -79,6 +79,8 @@ data class SemanticCheckSide(
     val sourceDocument: DocumentId? = null,
     val sourcePath: YPath? = null,
     val inputs: List<SemanticValueInput> = emptyList(),
+    /** 読んだ値に施した計算の呼び名（「文字数」など。文面で「name の文字数: 25」のように添える）。 */
+    val note: String? = null,
 )
 
 /** check 判定で条件を満たさなかった組1件（項目の中で、同じ「束縛と文書の指定」は同じ出現から読む。CORE-CALCULUS §8）。 */
@@ -435,7 +437,15 @@ object SemanticQuery {
                 pred.notEquals != null ->
                     values.any { it != null } && values.none { scalarText(it) == pred.notEquals }
                 pred.exists == true -> values.any { it != null }
-                else -> values.none { it != null }
+                pred.exists == false -> values.none { it != null }
+                // empty: false = 中身のある値がどこかに書かれている／true = どの出現にも中身のある値がない
+                pred.empty == false -> values.any { !SemanticExpression.isEmpty(it) }
+                pred.empty == true -> values.all { SemanticExpression.isEmpty(it) }
+                // 値の条件（check と同じ判定）: どれかの出現の値が条件を満たせば成立（評価できない値は成立しない）
+                pred.test != null -> values.any { v ->
+                    scalarText(v)?.let { SemanticExpression.test(pred.test.first, it, pred.test.second) } == true
+                }
+                else -> false
             }
         }
 
@@ -481,7 +491,7 @@ object SemanticQuery {
             check: ConstraintCheck,
             pin: Pair<ValueExpr.ScopeRef, SemanticExpression.Occurrence>?,
         ): SemanticCheckViolation? {
-            val sources = (check.left.sources() + check.right.sources()).distinct()
+            val sources = check.operands.flatMap { it.sources() }.distinct()
             val candidates: List<List<SemanticExpression.Occurrence?>> = sources.map { source ->
                 if (pin != null && pin.first == source) listOf(pin.second)
                 else candidatesFor(row, source).ifEmpty { listOf(null) }
@@ -490,10 +500,14 @@ object SemanticQuery {
             fun search(index: Int): SemanticCheckViolation? {
                 if (index == sources.size) {
                     val left = evalExpr(check.left, row, assignment) ?: return null
-                    val right = evalExpr(check.right, row, assignment) ?: return null
-                    // 要素述語（値の比較）は共有評価部——評価できない（null）組は飛ばす
-                    val satisfied = SemanticExpression.compare(check.op, left.text, right.text) ?: return null
-                    return if (satisfied) null else SemanticCheckViolation(check, left, right)
+                    val rights = check.rights.map { evalExpr(it, row, assignment) }
+                    // 値の条件は共有評価部——評価できない（null）組は飛ばす
+                    val satisfied = SemanticExpression.test(check.op, left.text, rights.map { it?.text }) ?: return null
+                    if (satisfied) return null
+                    // 右辺が複数（oneOf の選択肢）のときは、選択肢を並べた1つの辺として示す
+                    val right = rights.singleOrNull()
+                        ?: SemanticCheckSide(text = rights.filterNotNull().joinToString("・") { it.text })
+                    return SemanticCheckViolation(check, left, right)
                 }
                 for (occ in candidates[index]) {
                     assignment[sources[index]] = occ
@@ -554,6 +568,24 @@ object SemanticQuery {
             is ValueExpr.MapValue -> evalExpr(expr.input, row, assignment)
                 ?.let { it.copy(text = Projection.applyMap(it.text, expr.using)) }
             is ValueExpr.First -> expr.options.firstNotNullOfOrNull { evalExpr(it, row, assignment) }
+            is ValueExpr.Unary -> evalExpr(expr.input, row, assignment)?.let { input ->
+                SemanticExpression.unary(expr.fn, input.text)?.let { text ->
+                    input.copy(text = text, raw = input.raw ?: input.text, note = expr.fn.label ?: input.note)
+                }
+            }
+            is ValueExpr.Arith -> {
+                val operands = expr.operands.map { evalExpr(it, row, assignment) ?: return null }
+                SemanticExpression.arith(expr.op, operands.map { it.text })?.let { text ->
+                    // 計算結果は特定の1か所に書かれた値ではない——式（3 + 12）を元の値として示し、移動先は最初の値の場所
+                    val first = operands.firstOrNull { it.sourceDocument != null }
+                    SemanticCheckSide(
+                        text = text,
+                        id = first?.id,
+                        raw = operands.joinToString(" ${expr.op.symbol} ") { it.text },
+                        sourceDocument = first?.sourceDocument, sourcePath = first?.sourcePath,
+                    )
+                }
+            }
         }
 
         /**

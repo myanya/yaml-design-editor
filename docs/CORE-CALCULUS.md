@@ -337,11 +337,16 @@ Get(binding, path)
 Coalesce(expr...)
 Map(expr, dictionary)
 Format(template, expr...)
+Length(expr)  Upper(expr)  Lower(expr)  Number(expr)
+Add(expr...)  Subtract(a, b)  Multiply(expr...)  Divide(a, b)
 ```
 
 Expression の目的は万能式言語になることではない。
 
-算術式・スクリプト・ユーザ定義関数などは、実需要が明確になるまで導入しない。
+スクリプト・ユーザ定義関数・条件分岐を持つ式は導入しない。文字数・大文字と小文字の変換・数値の表記を揃える計算・四則演算は、
+P29 Phase 6 で「想定される処理と計算は、需要を待たずに用意しておく」（§25。2026-09-19 オーナー決定）に沿って用意した
+（ROADMAP R29-11）。数値として読めない値・0 での割り算は Unknown（値が得られない＝判定保留）。四則演算は小数の誤差を持ち込まない。
+`Equals` は文字列の等値のままで、数値どうしを等値で比べるときは `Number` で表記を揃える。
 
 既存の Projection / Derivation は段階的に Expression Calculus へ整理する。
 
@@ -397,8 +402,11 @@ LessThan(a, b)
 LessThanOrEqual(a, b)
 GreaterThan(a, b)
 GreaterThanOrEqual(a, b)
+OneOf(a, b...)
+Matches(a, regex)  StartsWith(a, b)  EndsWith(a, b)  Contains(a, b)
 
 Exists(a)
+IsEmpty(a)
 
 SameNode(a, b)
 
@@ -408,6 +416,11 @@ Or(p...)
 ```
 
 `same` のようなノード同一性と、値 equality は明確に区別する。
+
+値の条件（Equals〜Contains）は、判定（`check`）と選択（`where`）が同じ演算子・同じ判定を共有する（ROADMAP R29-11）。
+`OneOf` は「どれかと等しければ True・等しい選択肢がなく Unknown の選択肢が残れば Unknown」、`Matches` は全体一致で、
+正規表現として読めなければ Unknown。`Exists` / `IsEmpty` は値そのものの有無を問うため、選択（`where`）でだけ使う
+（判定では、値が得られない組は Unknown として飛ばされるため）。`Not` / `Or` は Phase 6 第2段で足す。
 
 ---
 

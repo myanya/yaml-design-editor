@@ -121,10 +121,15 @@ data class QueryHop(val edge: QueryEdgeStep, val node: QueryNodeStep)
 data class QueryBranch(val from: String, val hops: List<QueryHop>)
 
 /**
- * プロパティ述語。equals / notEquals / exists のいずれか一つを持つ。
- * 値は「いずれかの出現の該当パスのスカラー」（多段定義の OR）。
- * notEquals は「値が1つ以上あり、どの出現の値も指定値でない」（equals の OR 解釈の否定。
- * 値がなければ黙る＝判定保留の哲学 §4.26。R28-02）。
+ * プロパティ述語（ノードを値で絞る条件）。条件を一つだけ持つ。
+ * 値は「いずれかの出現の該当パスのスカラー」（多段定義の OR）——どれかの出現の値が条件を満たせば成立。
+ * - equals / notEquals: notEquals は「値が1つ以上あり、どの出現の値も指定値でない」（equals の OR 解釈の否定。
+ *   値がなければ黙る＝判定保留の哲学 §4.26。R28-02）
+ * - exists: true = 項目が書かれている／false = どの出現にも書かれていない
+ * - empty: false = 中身のある値が書かれている／true = どの出現にも中身のある値がない
+ *   （書かれていない・空文字・null・空の配列・空の object を「空」とみなす）
+ * - 値の条件（check と同じ演算子・同じ判定。test）: oneOf（選択肢のどれか）・matches（正規表現の全体一致）・
+ *   startsWith / endsWith / contains・lt / lte / gt / gte（数値として読めない値は成立しない）
  */
 data class QueryWhere(
     val of: String,
@@ -132,9 +137,15 @@ data class QueryWhere(
     val equals: String? = null,
     val exists: Boolean? = null,
     val notEquals: String? = null,
+    val empty: Boolean? = null,
+    /** 値の条件（演算子と、比べる決まった値。oneOf は複数・他は1つ）。 */
+    val test: Pair<CheckOp, List<String>>? = null,
 ) {
     companion object {
-        private val KEYS = setOf("of", "path", "equals", "notEquals", "exists")
+        /** where に書ける値の条件（eq / ne は equals / notEquals が担う）。 */
+        private val TEST_OPS = CheckOp.entries.filter { it != CheckOp.EQ && it != CheckOp.NE }
+        private val CONDITION_KEYS = listOf("equals", "notEquals", "exists", "empty") + TEST_OPS.map { it.id }
+        private val KEYS = setOf("of", "path") + CONDITION_KEYS
 
         fun parse(raw: Any?, where: String): QueryWhere {
             val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります")
@@ -142,12 +153,25 @@ data class QueryWhere(
                 ?.let { error("$where: 未知のキーです: $it（使えるキー: ${KEYS.joinToString(", ")}）") }
             val of = m["of"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.of（束縛名）が必要です")
             val path = parseYPath(m["path"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.path が必要です"))
-            val equals = m["equals"]?.toString()
-            val notEquals = m["notEquals"]?.toString()
-            val exists = m["exists"] as? Boolean
-            val given = listOfNotNull(equals, notEquals, exists?.toString()).size
-            if (given != 1) error("$where: equals / notEquals / exists のいずれか一つが必要です")
-            return QueryWhere(of = of, path = path, equals = equals, exists = exists, notEquals = notEquals)
+            val given = CONDITION_KEYS.filter { m[it] != null }
+            if (given.size != 1) error("$where: 条件（${CONDITION_KEYS.joinToString(" / ")}）のいずれか一つが必要です")
+            fun flag(key: String): Boolean? = m[key]?.let { it as? Boolean ?: error("$where.$key は true / false で書きます") }
+            val test = TEST_OPS.firstOrNull { m[it.id] != null }?.let { op ->
+                val v = m[op.id]
+                val operands = when {
+                    op == CheckOp.ONE_OF -> (v as? List<*>)?.takeIf { it.isNotEmpty() }?.map { it.toString() }
+                        ?: error("$where.${op.id} は値の配列（1つ以上）である必要があります")
+                    v is List<*> || v is Map<*, *> -> error("$where.${op.id} は決まった値（文字列・数値）で書きます")
+                    else -> listOf(v.toString())
+                }
+                op.requireValidOperand(operands.first(), "$where.${op.id}")
+                op to operands
+            }
+            return QueryWhere(
+                of = of, path = path,
+                equals = m["equals"]?.toString(), exists = flag("exists"), notEquals = m["notEquals"]?.toString(),
+                empty = flag("empty"), test = test,
+            )
         }
     }
 }
@@ -312,14 +336,34 @@ data class ConstraintCount(val min: Int? = null, val max: Int? = null) {
     }
 }
 
-/** check 判定述語の比較演算子（R28-08）。順序系（lte/gte/lt/gt）は数値比較・eq/ne はスカラー文字列の等値。 */
+/**
+ * 値の条件の演算子（R28-08・P29 Phase 6 の部品 SP-10）。check（判定）と where（ノードの絞り込み）が共有する。
+ * - eq / ne: スカラー文字列の等値（数値の表記は揃えない。揃えたいときは値の計算 number を通す）
+ * - lte / gte / lt / gt: 数値比較（数値として読めなければ評価できない＝判定保留）
+ * - oneOf: 選択肢のどれかと等しい（右辺は値の並び）
+ * - matches: 正規表現の全体一致（フィールドの pattern と同じ規則）
+ * - startsWith / endsWith / contains: 前方・後方・部分の一致
+ * violationSymbol は、条件を満たさなかった組を文面に示すときに左右の間へ置く言葉。
+ */
 enum class CheckOp(val id: String, val violationSymbol: String) {
     LTE("lte", ">"),
     GTE("gte", "<"),
     LT("lt", "≥"),
     GT("gt", "≤"),
     EQ("eq", "≠"),
-    NE("ne", "=");
+    NE("ne", "="),
+    ONE_OF("oneOf", "が次のどれでもない:"),
+    MATCHES("matches", "が次の正規表現に一致しない:"),
+    STARTS_WITH("startsWith", "が次で始まらない:"),
+    ENDS_WITH("endsWith", "が次で終わらない:"),
+    CONTAINS("contains", "が次を含まない:");
+
+    /** 決まった値として書かれた右辺の、定義時の点検（正規表現として読めること）。 */
+    fun requireValidOperand(literal: String, where: String) {
+        if (this == MATCHES) {
+            runCatching { Regex(literal) }.onFailure { error("$where は正規表現として読めません: $literal") }
+        }
+    }
 
     companion object {
         fun parse(raw: String, where: String): CheckOp = entries.firstOrNull { it.id == raw }
@@ -329,17 +373,26 @@ enum class CheckOp(val id: String, val violationSymbol: String) {
 
 /**
  * check 判定述語の1項目（R28-08。CORE-CALCULUS §8 の判定述語）: 2つの値の比較。
- * 書き方は2通り——`{lte|gte|lt|gt|eq|ne: [左, 右]}`（1キーの短い形）と、
+ * 書き方は2通り——`{演算子: [左, 右]}`（1キーの短い形）と、
  * `{op: 演算子, left: 左, right: 右}`（演算子を値として渡せる形。定義体のひな型で使う）。
- * 左右は値の式（schema.ValueExpr。束縛からの読み出し・テンプレートの展開など）。
+ * 左右は値の式（schema.ValueExpr。束縛からの読み出し・テンプレートの展開・計算・決まった値）。
+ * oneOf の右は値の式の並び（`{oneOf: [左, [選択肢, ...]]}`）で、rights に全ての選択肢が入る（他の演算子は1つ）。
  * 評価は、同じ ID が書かれた文書のうちどれから値を読むかの全ての組を調べ、条件を満たさない組を1つでも見つけたら
  * 違反（その組を指摘に示す）・評価できる組がなければ黙る（判定保留 §4.26）。項目の中で同じ「束縛と文書の指定」は
  * 同じ文書から読む。
  */
-data class ConstraintCheck(val op: CheckOp, val left: ValueExpr, val right: ValueExpr) {
+data class ConstraintCheck(val op: CheckOp, val left: ValueExpr, val rights: List<ValueExpr>) {
+
+    constructor(op: CheckOp, left: ValueExpr, right: ValueExpr) : this(op, left, listOf(right))
+
+    /** 右辺（oneOf では最初の選択肢）。 */
+    val right: ValueExpr get() = rights.first()
+
+    /** この項目の値の式すべて（左・右の順）。 */
+    val operands: List<ValueExpr> get() = listOf(left) + rights
 
     /** この項目が読む束縛の名前（パース時の束縛の解決検査に使う）。 */
-    val binds: List<String> get() = (left.sources() + right.sources()).map { it.of }.distinct()
+    val binds: List<String> get() = operands.flatMap { it.sources() }.map { it.of }.distinct()
 
     companion object {
         fun parse(raw: Any?, where: String): ConstraintCheck {
@@ -347,10 +400,11 @@ data class ConstraintCheck(val op: CheckOp, val left: ValueExpr, val right: Valu
             if (m.containsKey("op")) {
                 m.keys.map { it.toString() }.firstOrNull { it !in setOf("op", "left", "right") }
                     ?.let { error("$where: 未知のキーです: $it（使えるキー: op, left, right）") }
+                val op = CheckOp.parse(m["op"].toString(), where)
                 return ConstraintCheck(
-                    op = CheckOp.parse(m["op"].toString(), where),
+                    op = op,
                     left = ValueExpr.parse(m["left"] ?: error("$where.left が必要です"), "$where.left"),
-                    right = ValueExpr.parse(m["right"] ?: error("$where.right が必要です"), "$where.right"),
+                    rights = parseRights(op, m["right"] ?: error("$where.right が必要です"), "$where.right"),
                 )
             }
             if (m.size != 1) {
@@ -363,8 +417,22 @@ data class ConstraintCheck(val op: CheckOp, val left: ValueExpr, val right: Valu
             return ConstraintCheck(
                 op = op,
                 left = ValueExpr.parse(list[0], "$where.${op.id}[0]"),
-                right = ValueExpr.parse(list[1], "$where.${op.id}[1]"),
+                rights = parseRights(op, list[1], "$where.${op.id}[1]"),
             )
+        }
+
+        /** 右辺のパース。oneOf は値の式の並び（1つ以上）・他は値の式1つ。決まった値は定義時に点検する（正規表現など）。 */
+        private fun parseRights(op: CheckOp, raw: Any?, where: String): List<ValueExpr> {
+            val rights = if (op == CheckOp.ONE_OF) {
+                val list = (raw as? List<*>)?.takeIf { it.isNotEmpty() }
+                    ?: error("$where は選択肢の配列（1つ以上）である必要があります")
+                list.mapIndexed { i, e -> ValueExpr.parse(e, "$where[$i]") }
+            } else {
+                if (raw is List<*>) error("$where は値の式1つで書きます（配列を書けるのは oneOf の選択肢だけです）")
+                listOf(ValueExpr.parse(raw, where))
+            }
+            rights.forEach { r -> (r as? ValueExpr.Literal)?.value?.let { op.requireValidOperand(it, where) } }
+            return rights
         }
     }
 }

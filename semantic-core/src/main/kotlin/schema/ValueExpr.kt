@@ -8,12 +8,18 @@ import model.parseYPath
  * 比較のオペランド（check）に書ける式の閉じた一式——利用者が定義する関数・条件分岐・再帰は持たない。
  * YAML の書き方:
  * - 読み出し   `{of: 束縛名, path: 相対パス}`（`in: {schemaId, fileGlob}` で、値を読む文書を指定できる）
- * - 決まった値 `{value: 値}`（値が無ければ「得られない」扱い）
+ * - 決まった値 値をそのまま書く（`10`・`approved`）。`{value: 値}` とも書ける（値が無ければ「得られない」扱い——
+ *   定義のひな型で、渡されないかもしれない値を受けるのに使う）
  * - テンプレートの展開 `{format: 式, scopes: [{of: 束縛名, in: 指定 または 指定の配列}, ...]}`
  *   （式が返す文字列の `{パス}` を、scopes の要素の値で近い順に置き換える。置き換えられなければ「得られない」）
  * - 辞書での置き換え `{map: 式, using: {元: 先}}`（辞書に無い値はそのまま）
  * - 最初に得られた値 `{first: [式, ...]}`
+ * - 値を1つ受け取る計算 `{length: 式}`（文字数）・`{upper: 式}`（大文字へ）・`{lower: 式}`（小文字へ）・
+ *   `{number: 式}`（数値として読み直して表記を揃える。`12.0` → `12`。数値として読めなければ「得られない」）
+ * - 四則演算 `{add: [式, ...]}`・`{multiply: [式, ...]}`（2つ以上）・`{subtract: [式, 式]}`・`{divide: [式, 式]}`
+ *   （どれかが数値として読めない・0 で割る場合は「得られない」。結果の表記は number と同じに揃える）
  * 評価（どの出現から読むか・得られない値の扱い）は semantic.SemanticQuery の check 判定が担う。
+ * 計算そのもの（文字列と数値の純粋な関数）は semantic.SemanticExpression にある。
  */
 sealed interface ValueExpr {
 
@@ -32,6 +38,28 @@ sealed interface ValueExpr {
     /** 最初に得られた値。 */
     data class First(val options: List<ValueExpr>) : ValueExpr
 
+    /** 値を1つ受け取る計算（文字数・大文字へ・小文字へ・数値として読み直す）。 */
+    data class Unary(val fn: UnaryFn, val input: ValueExpr) : ValueExpr
+
+    /** 四則演算（数値として読めない値があれば「得られない」）。 */
+    data class Arith(val op: ArithOp, val operands: List<ValueExpr>) : ValueExpr
+
+    /** 値を1つ受け取る計算の種類。label は指摘の文面で「name の文字数」のように添える言葉（無ければ添えない）。 */
+    enum class UnaryFn(val id: String, val label: String?) {
+        LENGTH("length", "文字数"),
+        UPPER("upper", "大文字"),
+        LOWER("lower", "小文字"),
+        NUMBER("number", null),
+    }
+
+    /** 四則演算の種類。pairOnly は「ちょうど2つの値を取る」（引き算・割り算）。 */
+    enum class ArithOp(val id: String, val symbol: String, val pairOnly: Boolean) {
+        ADD("add", "+", false),
+        SUBTRACT("subtract", "-", true),
+        MULTIPLY("multiply", "×", false),
+        DIVIDE("divide", "÷", true),
+    }
+
     /** テンプレートの展開で値を探す入れ物1つ（束縛の、指定に合う文書に書かれた要素）。 */
     data class ScopeRef(val of: String, val inDoc: DerivationSelector?)
 
@@ -42,6 +70,8 @@ sealed interface ValueExpr {
         is Format -> (template.sources() + scopes).distinct()
         is MapValue -> input.sources()
         is First -> options.flatMap { it.sources() }.distinct()
+        is Unary -> input.sources()
+        is Arith -> operands.flatMap { it.sources() }.distinct()
     }
 
     /**
@@ -53,6 +83,8 @@ sealed interface ValueExpr {
         is Format -> template.reads() + template.templateReads()
         is MapValue -> input.templateReads()
         is First -> options.flatMap { it.templateReads() }
+        is Unary -> input.templateReads()
+        is Arith -> operands.flatMap { it.templateReads() }
     }
 
     /** この式が値を読む読み出し（入れ子を含む）。 */
@@ -62,14 +94,20 @@ sealed interface ValueExpr {
         is Format -> template.reads()
         is MapValue -> input.reads()
         is First -> options.flatMap { it.reads() }
+        is Unary -> input.reads()
+        is Arith -> operands.flatMap { it.reads() }
     }
 
     companion object {
         private val GET_KEYS = setOf("of", "in", "path")
 
         fun parse(raw: Any?, where: String): ValueExpr {
+            // 決まった値は、そのまま書ける（文字列・数値・真偽値）
+            if (raw is String || raw is Number || raw is Boolean) return Literal(raw.toString())
             val m = raw as? Map<*, *>
-                ?: error("$where はobjectである必要があります（{of: 束縛名, path: 相対パス} など）")
+                ?: error("$where は値の式である必要があります（{of: 束縛名, path: 相対パス}・決まった値 など）")
+            val unary = UnaryFn.entries.firstOrNull { m.containsKey(it.id) }
+            val arith = ArithOp.entries.firstOrNull { m.containsKey(it.id) }
             fun onlyKeys(allowed: Set<String>) {
                 m.keys.map { it.toString() }.firstOrNull { it !in allowed }
                     ?.let { error("$where: 未知のキーです: $it（使えるキー: ${allowed.joinToString(", ")}）") }
@@ -101,6 +139,17 @@ sealed interface ValueExpr {
                 m.containsKey("value") -> {
                     onlyKeys(setOf("value"))
                     Literal(m["value"]?.toString())
+                }
+                unary != null -> {
+                    onlyKeys(setOf(unary.id))
+                    Unary(unary, parse(m[unary.id], "$where.${unary.id}"))
+                }
+                arith != null -> {
+                    onlyKeys(setOf(arith.id))
+                    val list = m[arith.id] as? List<*> ?: error("$where.${arith.id} は式の配列である必要があります")
+                    if (arith.pairOnly) require(list.size == 2) { "$where.${arith.id} は [式, 式] の2要素配列である必要があります" }
+                    else require(list.size >= 2) { "$where.${arith.id} には2つ以上の式が必要です" }
+                    Arith(arith, list.mapIndexed { i, e -> parse(e, "$where.${arith.id}[$i]") })
                 }
                 else -> {
                     onlyKeys(GET_KEYS)

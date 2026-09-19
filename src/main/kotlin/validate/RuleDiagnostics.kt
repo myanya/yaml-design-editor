@@ -233,8 +233,14 @@ internal class RuleDiagnostics(
 
     /** check 反例の列挙（R28-08。UX-98 の流儀: 先頭3組＋残数）。記号は違反した関係（lte 違反なら >）。 */
     private fun describeCheckExamples(examples: List<semantic.SemanticCheckViolation>): String {
-        fun side(s: semantic.SemanticCheckSide): String =
-            if (s.bind != null && s.path != null) "${s.bind}=${s.id}（${s.path!!.pretty()}: ${s.text}）" else "「${s.text}」"
+        fun side(s: semantic.SemanticCheckSide): String = when {
+            // 読み出した値: どの要素のどの項目か（計算を施した値は「name の文字数」のように添える）
+            s.bind != null && s.path != null ->
+                "${s.bind}=${s.id}（${s.path!!.pretty()}${s.note?.let { " の$it" } ?: ""}: ${s.text}）"
+            // 計算した値: 式を添える（「15」（= 3 + 12））
+            s.raw != null && s.raw != s.text -> "「${s.text}」（= ${s.raw}）"
+            else -> "「${s.text}」"
+        }
         val listed = examples.take(3).joinToString(" ／ ") { v ->
             "${side(v.left)} ${v.check.op.violationSymbol} ${side(v.right)}"
         }

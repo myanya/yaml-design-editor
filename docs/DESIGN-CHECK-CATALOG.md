@@ -53,9 +53,15 @@
 | 多段トレースの義務（経路の存在） | `expect: exists` | ti-covered（除外でないテスト項目は消化されること） |
 | レイヤ規約・禁止経路 | `expect: absent` | screen-no-ext-api（画面は外部APIを直接呼ばない） |
 | 解の件数の範囲 | `count: {min, max}` | proc-unit-min2（処理は単体テスト項目2件以上） |
-| 条件付きの義務・免除 | 起点や途中の `where:`（equals / notEquals / exists） | br-unapproved-referenced（未承認BRの参照検出） |
+| 条件付きの義務・免除 | 起点や途中の `where:`（equals / notEquals / exists / empty と、値の条件 oneOf / matches / startsWith / endsWith / contains / lt / lte / gt / gte） | br-unapproved-referenced（未承認BRの参照検出） |
 | 2経路が同一ノードで合流すること（型不一致検出） | `node: {same: 束縛名}` | col-type-consistent（カラムの型 ≠ 実装属性の型を error） |
 | 束縛間の値比較（大小・等値の整合） | `check: [{lte: [{of,path},{of,path}]}]`（lte/gte/lt/gt/eq/ne） | spi-length-within-dtype（入力制約が業務型の制約からはみ出さない）・dtype-bounds-ordered（同一束縛内の min≦max） |
+| 値が決められた選択肢のどれかであること（文書をまたぐ・条件つき） | `check: [{oneOf: [{of,path}, [値, ...]]}]` | — |
+| 値の形式（命名規約・コード体系）を、別の要素の値と組み合わせて調べる | `check: [{matches: [式, 正規表現]}]`・`startsWith` / `endsWith` / `contains`（右辺も値の式にできる。例: 子のコードが親のコードで始まる） | — |
+| 計算した値どうしの整合（文字数の上限・合計や積の一致） | 値の式 `{length: 式}`・`{add / subtract / multiply / divide: [...]}`・`{number: 式}`（例 `{eq: [{number: {of,path}}, {multiply: [{of,path},{of,path}]}]}`） | — |
+
+1文書の1項目で閉じる形式・選択肢・文字数は、フィールド宣言（§1 の `pattern` / `enum` / `maxLength`）で書くのが先——
+上の値の条件と値の計算は、**別の要素の値と比べる・条件つきにする・計算してから比べる**ときに使う。
 
 原則: **値の一致で意味を推測しない**（ADR-0008）。「同じものを指しているか」は same（ノード同一性）で、
 「値の大小・整合」だけを check で書く。

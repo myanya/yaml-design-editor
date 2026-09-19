@@ -152,7 +152,7 @@ root:
         - key: where
           label: プロパティ述語
           type: any
-          description: "束縛ノードの値の絞り込み（例 [{of: scr, path: status, equals: approved}]。equals / exists のみ）"
+          description: "束縛ノードの値の絞り込み（例 [{of: scr, path: status, equals: approved}]）。条件はスキーマの constraints の where と同じ（equals / notEquals / exists / empty / oneOf / matches / startsWith / endsWith / contains / lt / lte / gt / gte）"
         - key: rowKey
           label: 行キーの束縛名
           type: string
