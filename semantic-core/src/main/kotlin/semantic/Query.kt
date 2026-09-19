@@ -3,10 +3,8 @@ package semantic
 import model.DocumentId
 import model.YNode
 import model.YPath
-import model.getAt
 import model.parseYPath
 import model.scalarText
-import schema.CheckOp
 import schema.ConstraintCheck
 import schema.QueryDir
 import schema.QueryEdgeStep
@@ -395,19 +393,12 @@ object SemanticQuery {
             return preds.all { predOk(it, key) }
         }
 
+        /**
+         * 選択述語（where）: σ の候補（sigmaCandidates）を存在量化する（CALC-13。エンティティは
+         * いずれかの出現の該当パス＝多段定義の OR。§4.32）。値の読み出しは共有評価部の Get。
+         */
         private fun predOk(pred: QueryWhere, key: NodeKey): Boolean {
-            fun nodesAt(): List<YNode?> = when (key.kind) {
-                // エンティティ: いずれかの出現の該当パス（多段定義の OR。§4.32）
-                QueryNodeKind.ENTITY -> graph.entities[key.id]?.occurrences.orEmpty()
-                    .map { e -> tree(e.document)?.let { getAt(it, e.path + pred.path) } }
-                // 文書: プロパティは _document 配下に限る（ROADMAP §4.9 原則3）
-                QueryNodeKind.DOCUMENT -> listOf(
-                    graph.documents[key.id]?.let { doc ->
-                        ((tree(doc.document) as? YNode.Map)?.entries?.get("_document"))?.let { getAt(it, pred.path) }
-                    }
-                )
-            }
-            val values = nodesAt()
+            val values = sigmaCandidates(key.kind, key.id).map { SemanticExpression.nodeAt(::tree, it, pred.path) }
             return when {
                 pred.equals != null -> values.any { scalarText(it) == pred.equals }
                 // notEquals（R28-02）: 値が1つ以上あり、どの出現の値も指定値でない
@@ -454,18 +445,19 @@ object SemanticQuery {
             val leftRef = row.bindings[check.left.of] ?: return null
             val rightRef = row.bindings[check.right.of] ?: return null
             val sameBind = check.left.of == check.right.of
-            for (leftOcc in checkOccurrences(leftRef)) {
-                val leftText = readAt(leftOcc, check.left.path) ?: continue
+            for (leftOcc in sigmaCandidates(leftRef.kind, leftRef.id)) {
+                val leftText = SemanticExpression.textAt(::tree, leftOcc, check.left.path) ?: continue
                 // 項目内の σ は一貫: 同一束縛の両辺は同一出現から読む（CORE-CALCULUS §7 の σ）
-                val rightOccs = if (sameBind) listOf(leftOcc) else checkOccurrences(rightRef)
+                val rightOccs = if (sameBind) listOf(leftOcc) else sigmaCandidates(rightRef.kind, rightRef.id)
                 for (rightOcc in rightOccs) {
-                    val rightText = readAt(rightOcc, check.right.path) ?: continue
-                    val satisfied = elementPredicate(check.op, leftText, rightText) ?: continue
+                    val rightText = SemanticExpression.textAt(::tree, rightOcc, check.right.path) ?: continue
+                    // 要素述語（σ 固定の単一値比較）は共有評価部——評価不能（null）の組は飛ばす
+                    val satisfied = SemanticExpression.compare(check.op, leftText, rightText) ?: continue
                     if (!satisfied) {
                         return SemanticCheckViolation(
                             check = check,
-                            left = SemanticCheckSide(check.left.of, leftRef.id, leftOcc.first, leftOcc.second, leftText),
-                            right = SemanticCheckSide(check.right.of, rightRef.id, rightOcc.first, rightOcc.second, rightText),
+                            left = SemanticCheckSide(check.left.of, leftRef.id, leftOcc.document, leftOcc.path, leftText),
+                            right = SemanticCheckSide(check.right.of, rightRef.id, rightOcc.document, rightOcc.path, rightText),
                         )
                     }
                 }
@@ -473,36 +465,19 @@ object SemanticQuery {
             return null
         }
 
-        /** σ の割当て先: エンティティは全出現（定義＋詳細化）・文書は _document 配下の自明な1点。 */
-        private fun checkOccurrences(ref: SemanticQueryNodeRef): List<Pair<DocumentId, YPath>> = when (ref.kind) {
-            QueryNodeKind.ENTITY -> graph.entities[ref.id]?.occurrences.orEmpty().map { it.document to it.path }
+        /**
+         * σ の割当て先（where の存在量化と check の反例量化が共有する。R29-05）: エンティティは
+         * 全出現（定義＋詳細化）・文書は _document 配下の自明な1点（プロパティは _document 配下に限る。
+         * ROADMAP §4.9 原則3）。
+         */
+        private fun sigmaCandidates(kind: QueryNodeKind, id: String): List<SemanticExpression.Occurrence> = when (kind) {
+            QueryNodeKind.ENTITY ->
+                graph.entities[id]?.occurrences.orEmpty().map { SemanticExpression.Occurrence(it.document, it.path) }
             QueryNodeKind.DOCUMENT ->
-                graph.documents[ref.id]?.let { listOf(it.document to DOCUMENT_META_PATH) }.orEmpty()
-        }
-
-        /** σ が選んだ1出現からの読み出し（単一値。値集合は作らない）。 */
-        private fun readAt(occ: Pair<DocumentId, YPath>, path: YPath): String? =
-            tree(occ.first)?.let { scalarText(getAt(it, occ.second + path)) }
-
-        /** 要素述語の評価（σ 固定の単一値比較）。順序系で数値でない辺があれば null（評価不能）。 */
-        private fun elementPredicate(op: CheckOp, left: String, right: String): Boolean? = when (op) {
-            CheckOp.EQ -> left == right
-            CheckOp.NE -> left != right
-            else -> {
-                val l = left.toDoubleOrNull()
-                val r = right.toDoubleOrNull()
-                if (l == null || r == null) null
-                else when (op) {
-                    CheckOp.LTE -> l <= r
-                    CheckOp.GTE -> l >= r
-                    CheckOp.LT -> l < r
-                    CheckOp.GT -> l > r
-                    else -> null
-                }
-            }
+                graph.documents[id]?.let { listOf(SemanticExpression.Occurrence(it.document, DOCUMENT_META_PATH)) }.orEmpty()
         }
     }
 
-    /** 文書ノードのプロパティの読み出し起点（predOk と同じ _document 配下限定の規約）。 */
+    /** 文書ノードのプロパティの読み出し起点（_document 配下限定の規約）。 */
     private val DOCUMENT_META_PATH: YPath = parseYPath("_document")
 }

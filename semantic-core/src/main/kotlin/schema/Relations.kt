@@ -10,6 +10,10 @@ package schema
 enum class CoverageLevel(val id: String) {
     WARNING("warning"),
     ERROR("error");
+
+    /** 規則の宣言重大度 → 指摘の重大度（全検証語彙で共通の単一写像。R29-06）。 */
+    fun toSeverity(): validate.Severity =
+        if (this == ERROR) validate.Severity.ERROR else validate.Severity.WARNING
 }
 
 /** ID用 glob（`*` `?`）を正規表現へ変換する。パス用の globToRegex と異なり `/` を特別扱いしない。 */

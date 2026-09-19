@@ -8,7 +8,6 @@ import model.pretty
 import model.scalarText
 import schema.ConsistencyAssert
 import schema.ConsistencyRule
-import schema.CoverageLevel
 import validate.Severity
 
 /** 整合検証の指摘1件（来歴つき。root validate.Issue + IssueDerivation はこの写し）。 */
@@ -68,18 +67,11 @@ object SemanticConsistency {
                 val expected = result.value
                 // 期待値が評価できない（写像行なし・プレースホルダ未解決）ときは判定保留（§4.26）
                 if (expected == null || !result.complete) continue
-                // 判定（R16-03b）: equals は等値、lte / gte は数値としての包含（数値でなければ判定保留）
-                val satisfied: Boolean? = when (rule.assert) {
-                    ConsistencyAssert.EQUALS -> actual == expected
-                    ConsistencyAssert.LTE, ConsistencyAssert.GTE -> {
-                        val a = actual.toDoubleOrNull()
-                        val e = expected.toDoubleOrNull()
-                        if (a == null || e == null) null
-                        else if (rule.assert == ConsistencyAssert.LTE) a <= e else a >= e
-                    }
-                }
+                // 判定（R16-03b）: equals は等値、lte / gte は数値としての包含（数値でなければ判定保留）。
+                // 要素述語の評価は check 判定述語と共有する（SemanticExpression.compare。R29-05）
+                val satisfied: Boolean? = SemanticExpression.compare(rule.assert.op, actual, expected)
                 if (satisfied == false) {
-                    val severity = if (rule.level == CoverageLevel.ERROR) Severity.ERROR else Severity.WARNING
+                    val severity = rule.level.toSeverity()
                     val relationText = when (rule.assert) {
                         ConsistencyAssert.EQUALS -> "導出値「$expected」と一致しません"
                         ConsistencyAssert.LTE -> "導出値「$expected」以下である必要があります"

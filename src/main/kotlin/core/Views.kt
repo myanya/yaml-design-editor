@@ -892,7 +892,7 @@ object Views {
     // ---------------------------------------------------------------- フィールド改名の追随（R25-01）
 
     /** フィールド改名のビュー追随の結果。ops はビュー定義ファイルごとの書換、warnings は自動書換できない参照箇所。 */
-    data class FieldRenameImpact(val ops: Map<Path, List<PatchOp>>, val warnings: List<String>)
+    data class FieldRenameImpact(val ops: Map<Path, List<edit.YamlOperation>>, val warnings: List<String>)
 
     /**
      * スキーマのフィールド改名（R25-01 / R25-02。ARCHITECTURE §4.35）にビュー定義を追随させる。
@@ -909,7 +909,9 @@ object Views {
         oldName: String,
         newName: String,
     ): FieldRenameImpact {
-        val ops = LinkedHashMap<Path, MutableList<PatchOp>>()
+        // 計画（内部の正準＝型付き操作）へそのまま合成できる形で生成する（P29 Phase 4・RP-02: 交換形式の PatchOp を
+        // 内部の計画生成では作らない）
+        val ops = LinkedHashMap<Path, MutableList<edit.YamlOperation>>()
         val warnings = mutableListOf<String>()
         val docSchemas = schemas.filter { it.kind == schema.SchemaKind.DOCUMENT }
         val byId = docSchemas.associateBy { it.id }
@@ -934,7 +936,7 @@ object Views {
                 val rewritten = results.filter { it.second }.map { it.first }.distinct()
                 when {
                     rewritten.size == 1 && results.all { it.second } -> {
-                        ops.getOrPut(file) { mutableListOf() } += PatchOp.Set(yamlPath, YNode.Scalar(rewritten.single().pretty()))
+                        ops.getOrPut(file) { mutableListOf() } += edit.YamlOperation.SetScalar(yamlPath, rewritten.single().pretty())
                         handled += crumb
                     }
                     rewritten.isNotEmpty() -> {
@@ -959,7 +961,7 @@ object Views {
                     }
                     when {
                         hits.isNotEmpty() && hits.all { it } -> {
-                            ops.getOrPut(file) { mutableListOf() } += PatchOp.Set(yamlBase + listKey + j, YNode.Scalar(newName))
+                            ops.getOrPut(file) { mutableListOf() } += edit.YamlOperation.SetScalar(yamlBase + listKey + j, newName)
                             handled += crumb
                         }
                         hits.any { it } -> {

@@ -42,38 +42,32 @@ object SemanticSchemaRefactor {
         require(newName !in res.siblings) { "同じ階層に「$newName」が既に定義されています（スキーマ側の衝突）" }
         verifyFieldNode(res.site, oldName, tree)
 
-        val reachable = schemas.values.filter { it.kind == SchemaKind.DOCUMENT && reaches(it, schemas) { f -> f === target } }
-        val reachableIds = reachable.map { it.id }.toSet()
-        val builder = OpsBuilder()
+        // 文書側: Query＝対象フィールドのデータキー／Predicate＝改名先キーが同じ親に無いこと（あれば中止）／Edit＝RenameKey
+        val reach = SemanticRewrite.reach(schemas) { f -> f === target }
+        val reachable = reach.schemas
+        val builder = SemanticRewrite.PlanOps()
         val conflicts = mutableListOf<String>()
-        var occurrenceCount = 0
-        var docFileCount = 0
-        for (doc in documents) {
-            val docSchema = doc.schemaId?.takeIf { it in reachableIds }?.let { schemas[it] } ?: continue
-            val found = collectFieldHits(docSchema.structural, doc.root) { it === target }
+        val tally = SemanticRewrite.rewriteDocuments(reach.documents(documents), builder) { doc, docSchema ->
+            val found = SemanticRewrite.fieldHits(docSchema.structural, doc.root) { it === target }
             val fileConflicts = found.filter { hit ->
                 (getAt(doc.root, hit.dropLast(1)) as? YNode.Map)?.entries?.containsKey(newName) == true
             }
             if (fileConflicts.isNotEmpty()) {
                 conflicts += "${doc.id.value}（${fileConflicts.first().pretty()} など ${fileConflicts.size} 箇所）"
-                continue
+                return@rewriteDocuments emptyList()
             }
-            if (found.isEmpty()) continue
-            occurrenceCount += found.size
-            docFileCount++
             // 深い方から改名する（祖先キーの改名で子のパスが無効にならないように）
-            builder.addAll(doc.id, found.sortedWith(pathDescending).map { YamlOperation.RenameKey(it, newName) })
+            found.sortedWith(SemanticRewrite.pathDescending).map { YamlOperation.RenameKey(it, newName) }
         }
         if (conflicts.isNotEmpty()) {
             error(
                 "改名先のキー「$newName」が既存文書に存在するため中止します（先に該当キーを整理してください）: " +
-                    conflicts.take(5).joinToString("、") + (if (conflicts.size > 5) " 他${conflicts.size - 5}件" else "")
+                    SemanticRewrite.listTop(conflicts)
             )
         }
 
         // スキーマ側: フィールドキーの書換（＋ルート直下フィールドなら phases.key の追随）
-        val definitionSource = res.site.module.source
-            ?: error("フィールドの定義元スキーマに書き換え先の文書がありません: ${res.site.module.id}")
+        val definitionSource = sourceOf(res.site.module)
         builder.add(definitionSource, YamlOperation.SetScalar(res.site.path + "key", newName))
         var schemaFollowups = 1
         for (s in reachable) {
@@ -89,12 +83,10 @@ object SemanticSchemaRefactor {
             sourceVersion = sourceVersion,
             request = request,
             changes = builder.toChanges(),
-            warnings = listOf(
-                "ビュー定義・アクティビティ等の「$oldName」への言及は追随しません（6E 仮想文書の設計後に対応。該当があれば手動で更新してください）",
-            ),
+            warnings = nonFollowupWarning(oldName),
             summary = listOf(
                 "スキーマ「${request.schemaId}」のフィールド「$oldName」→「$newName」",
-                "文書 $docFileCount ファイル・$occurrenceCount 箇所のキーを改名（順序・コメント保持）",
+                "文書 ${tally.files} ファイル・${tally.edits} 箇所のキーを改名（順序・コメント保持）",
                 "スキーマ定義 $schemaFollowups 箇所を追随",
             ) + (if (reachable.size > 1) listOf("影響スキーマ: ${reachable.joinToString("、") { it.id }}") else emptyList()),
         )
@@ -143,42 +135,35 @@ object SemanticSchemaRefactor {
         }
         require(key !in childKeysOf(schemas, entry, dst.objectSite)) { "移動先に同名のフィールド「$key」が既にあります" }
 
-        val reachable = schemas.values.filter { it.kind == SchemaKind.DOCUMENT && reaches(it, schemas) { f -> f === target } }
+        val reach = SemanticRewrite.reach(schemas) { f -> f === target }
+        val reachable = reach.schemas
         for (s in reachable) {
             require(!(s.structural.phases?.key == key && isRootField(s.structural, target) && dst.objectSite.path != listOf<Any>("root"))) {
                 "フェーズ申告キー「$key」はルート直下に必要なため移動できません（スキーマ「${s.id}」の phases）"
             }
         }
 
-        // 文書側: 値の移動（中間 object の生成・空親の削除・衝突検査）
-        val reachableIds = reachable.map { it.id }.toSet()
-        val builder = OpsBuilder()
+        // 文書側: 値の移動（中間 object の生成・空親の削除・衝突検査）。場所ごとの操作が独立でない
+        // （中間生成 → Move → 空親の削除の列）ため、操作列は moveDataOps が組み立てる（Rewrite の戦略側）
+        val builder = SemanticRewrite.PlanOps()
         val conflicts = mutableListOf<String>()
         var moved = 0
-        var docFileCount = 0
-        for (doc in documents) {
-            val docSchema = doc.schemaId?.takeIf { it in reachableIds }?.let { schemas[it] } ?: continue
+        val tally = SemanticRewrite.rewriteDocuments(reach.documents(documents), builder) { doc, docSchema ->
             val (ops, fileConflicts) =
                 moveDataOps(docSchema.structural, doc.root, target, src.tailKeys.size, dst.tailKeys, key, deleteEmptyParents)
             if (fileConflicts.isNotEmpty()) {
                 conflicts += "${doc.id.value}（${fileConflicts.first()} など ${fileConflicts.size} 件）"
-                continue
+                return@rewriteDocuments emptyList()
             }
-            if (ops.isEmpty()) continue
             moved += ops.count { it is YamlOperation.Move }
-            docFileCount++
-            builder.addAll(doc.id, ops)
+            ops
         }
         if (conflicts.isNotEmpty()) {
-            error(
-                "移動先に既存の値があるため中止します（先に該当キーを整理してください）: " +
-                    conflicts.take(5).joinToString("、") + (if (conflicts.size > 5) " 他${conflicts.size - 5}件" else "")
-            )
+            error("移動先に既存の値があるため中止します（先に該当キーを整理してください）: " + SemanticRewrite.listTop(conflicts))
         }
 
         // スキーマ側: 定義の移動（移動先の fields が無ければ生成。同一ファイル内の削除によるインデックスずれを調整）
-        val definitionSource = src.site.module.source
-            ?: error("フィールドの定義元スキーマに書き換え先の文書がありません: ${src.site.module.id}")
+        val definitionSource = sourceOf(src.site.module)
         val moduleTree = tree(definitionSource) ?: error("スキーマ文書が読めません: ${definitionSource.value}")
         val dstObjNode = getAt(moduleTree, dst.objectSite.path) as? YNode.Map
             ?: error("移動先の実体が見つかりません: ${dst.objectSite.path.pretty()}")
@@ -195,7 +180,7 @@ object SemanticSchemaRefactor {
             warnings = listOf("移動によるビュー等の「$key」参照の自動追随は対象外・要修正") + nonFollowupWarning(key),
             summary = listOf(
                 "スキーマ「$schemaId」のフィールド「$fieldPath」→「${if (destPath.isBlank() || destPath == ".") "（ルート）" else destPath}」配下へ移動",
-                "文書 $docFileCount ファイル・$moved 箇所の値を移動" +
+                "文書 ${tally.files} ファイル・$moved 箇所の値を移動" +
                     (if (deleteEmptyParents) "（空になった親 object は削除）" else ""),
             ) + (if (reachable.size > 1) listOf("影響スキーマ: ${reachable.joinToString("、") { it.id }}") else emptyList()),
         )
@@ -213,47 +198,20 @@ object SemanticSchemaRefactor {
         val entry = schemas[schemaId] ?: error("スキーマ「$schemaId」が見つかりません")
         require(entry.kind == SchemaKind.DOCUMENT) { "文書スキーマを指定してください: $schemaId" }
         require(entry.source != null) { "組込みスキーマは対象外です: $schemaId" }
-        val builder = OpsBuilder()
-        var elements = 0
-        var docFileCount = 0
-        for (doc in documents) {
-            if (doc.schemaId != schemaId) continue
-            val s = entry.structural
+        // Query＝このスキーマの文書の全 object ノード／Edit＝現在のキー順とスキーマ順が違う object への ReorderKeys
+        // （操作は場所の関数——キー集合とフィールド順から計算する）。スキーマ自体は変更しない
+        val builder = SemanticRewrite.PlanOps()
+        val targets = documents.filter { it.schemaId == schemaId }.map { it to entry }
+        val tally = SemanticRewrite.rewriteDocuments(targets, builder) { doc, docSchema ->
             val ops = mutableListOf<YamlOperation>()
-            fun walk(def: FieldDef, node: YNode, path: YPath) {
-                val eff = s.resolve(def) ?: def
-                when (eff.type) {
-                    FieldType.OBJECT -> {
-                        val m = node as? YNode.Map ?: return
-                        val fs = s.effectiveFields(eff.fields, m).fields
-                        val current = m.entries.keys.toList()
-                        val head = if (path.isEmpty() && "_document" in m.entries) listOf("_document") else emptyList()
-                        val known = fs.mapNotNull { it.key }.filter { it in m.entries && it !in head }.distinct()
-                        val desired = head + known + current.filter { it !in head && it !in known }
-                        if (desired != current) {
-                            ops += YamlOperation.ReorderKeys(path, desired)
-                            elements++
-                        }
-                        fs.forEach { f -> f.key?.let { k -> m.entries[k]?.let { child -> walk(f, child, path + k) } } }
-                    }
-                    FieldType.ARRAY -> {
-                        val seq = node as? YNode.Seq ?: return
-                        val item = eff.item ?: return
-                        seq.items.forEachIndexed { i, child -> walk(item, child, path + i) }
-                    }
-                    FieldType.MAP -> {
-                        val m = node as? YNode.Map ?: return
-                        val value = eff.value ?: return
-                        m.entries.forEach { (k, child) -> walk(value, child, path + k) }
-                    }
-                    else -> Unit
-                }
-            }
-            walk(s.root, doc.root, emptyList())
-            if (ops.isNotEmpty()) {
-                docFileCount++
-                builder.addAll(doc.id, ops)
-            }
+            SemanticRewrite.walkDocument(docSchema.structural, doc.root, onObject = { path, m, fs ->
+                val current = m.entries.keys.toList()
+                val head = if (path.isEmpty() && "_document" in m.entries) listOf("_document") else emptyList()
+                val known = fs.mapNotNull { it.key }.filter { it in m.entries && it !in head }.distinct()
+                val desired = head + known + current.filter { it !in head && it !in known }
+                if (desired != current) ops += YamlOperation.ReorderKeys(path, desired)
+            })
+            ops
         }
         return RefactoringPlan(
             sourceVersion = sourceVersion,
@@ -262,7 +220,7 @@ object SemanticSchemaRefactor {
             warnings = emptyList(),
             summary = listOf(
                 "スキーマ「$schemaId」の文書をスキーマ順へ整列",
-                "文書 $docFileCount ファイル・$elements 要素のキー順を並べ替え（値・コメント保持。未知キーは末尾に相対順で残す）",
+                "文書 ${tally.files} ファイル・${tally.edits} 要素のキー順を並べ替え（値・コメント保持。未知キーは末尾に相対順で残す）",
             ),
         )
     }
@@ -287,9 +245,9 @@ object SemanticSchemaRefactor {
         require(oldValue in owner.def.values) { "選択肢に「$oldValue」がありません（選択肢: ${owner.def.values.joinToString(", ")}）" }
         require(newValue !in owner.def.values) { "選択肢「$newValue」は既にあります" }
 
-        val builder = OpsBuilder()
+        val builder = SemanticRewrite.PlanOps()
         // 選択肢の実体（文字列 or リッチ選択肢）
-        val ownerSource = owner.module.source ?: error("スキーマ「${owner.module.id}」に書き換え先の文書がありません")
+        val ownerSource = sourceOf(owner.module)
         val ownerTree = tree(ownerSource) ?: error("スキーマ文書が読めません: ${ownerSource.value}")
         val valuesSeq = getAt(ownerTree, owner.path + "values") as? YNode.Seq
             ?: error("values の実体が見つかりません: ${owner.path.pretty()}")
@@ -301,8 +259,7 @@ object SemanticSchemaRefactor {
         builder.add(ownerSource, YamlOperation.SetScalar(valuePath, newValue))
         // cases のキー（実効 cases を持つサイト）
         if (casesSite != null && oldValue in casesSite.def.cases) {
-            val casesSource = casesSite.module.source ?: error("スキーマ「${casesSite.module.id}」に書き換え先の文書がありません")
-            builder.add(casesSource, YamlOperation.RenameKey(casesSite.path + "cases" + oldValue, newValue))
+            builder.add(sourceOf(casesSite.module), YamlOperation.RenameKey(casesSite.path + "cases" + oldValue, newValue))
         }
         // default（使用サイト・定義サイトの両方を確認）
         val sites = listOf(res.site, owner).distinctBy { (it.module.source?.value ?: it.module.id) + it.path.pretty() }
@@ -316,10 +273,8 @@ object SemanticSchemaRefactor {
         // フェーズ申告フィールドなら order / requiredFrom / activeFrom を追随（フェーズ名の改名にあたる）
         val target = res.site.def
         val fieldKey = target.key
-        val reachable = schemas.values.filter {
-            it.kind == SchemaKind.DOCUMENT && reaches(it, schemas) { f -> finalDef(entry, f) === owner.def || f === target }
-        }
-        for (s in reachable) {
+        val reach = SemanticRewrite.reach(schemas) { f -> finalDef(entry, f) === owner.def || f === target }
+        for (s in reach.schemas) {
             if (s.structural.phases?.key != fieldKey || !isRootField(s.structural, target)) continue
             val source = s.source ?: continue
             val sTree = tree(source) ?: continue
@@ -332,24 +287,17 @@ object SemanticSchemaRefactor {
                 }
                 else -> Unit
             }
-            walkYamlEntries(sTree) { path, entryKey, value ->
+            SemanticRewrite.walkEntries(sTree) { path, entryKey, value ->
                 if (entryKey in setOf("requiredFrom", "activeFrom") && scalarText(value) == oldValue) {
                     builder.add(source, YamlOperation.SetScalar(path + entryKey, newValue))
                 }
             }
         }
-        // 文書の現在値
-        var valueCount = 0
-        var docFileCount = 0
-        val reachableIds = reachable.map { it.id }.toSet()
-        for (doc in documents) {
-            val docSchema = doc.schemaId?.takeIf { it in reachableIds }?.let { schemas[it] } ?: continue
-            val hits = collectFieldHits(docSchema.structural, doc.root) { finalDef(docSchema, it) === owner.def || it === target }
+        // 文書の現在値: Query＝対象 enum フィールドのデータキー／Predicate＝値が旧選択肢であること／Edit＝SetScalar
+        val tally = SemanticRewrite.rewriteDocuments(reach.documents(documents), builder) { doc, docSchema ->
+            SemanticRewrite.fieldHits(docSchema.structural, doc.root) { finalDef(docSchema, it) === owner.def || it === target }
                 .filter { scalarText(getAt(doc.root, it)) == oldValue }
-            if (hits.isEmpty()) continue
-            valueCount += hits.size
-            docFileCount++
-            builder.addAll(doc.id, hits.map { YamlOperation.SetScalar(it, newValue) })
+                .map { YamlOperation.SetScalar(it, newValue) }
         }
         return RefactoringPlan(
             sourceVersion = sourceVersion,
@@ -358,7 +306,7 @@ object SemanticSchemaRefactor {
             warnings = nonFollowupWarning(oldValue),
             summary = listOf(
                 "スキーマ「$schemaId」の「$fieldPath」の選択肢「$oldValue」→「$newValue」",
-                "文書 $docFileCount ファイル・$valueCount 箇所の値を書き換え",
+                "文書 ${tally.files} ファイル・${tally.edits} 箇所の値を書き換え",
             ),
         )
     }
@@ -381,23 +329,19 @@ object SemanticSchemaRefactor {
         val (real, _) = derefChain(schemas, entry, res.site)
         require(real.def.type != FieldType.ID) { "ID型フィールドは削除できません（参照・エンティティが壊れます。要素の削除は entity delete を使ってください）" }
         verifyFieldNode(res.site, key, tree)
-        val reachable = schemas.values.filter { it.kind == SchemaKind.DOCUMENT && reaches(it, schemas) { f -> f === target } }
+        val reach = SemanticRewrite.reach(schemas) { f -> f === target }
+        val reachable = reach.schemas
         for (s in reachable) {
             require(!(s.structural.phases?.key == key && isRootField(s.structural, target))) {
                 "フェーズ申告キー「$key」は削除できません（スキーマ「${s.id}」の phases が参照しています）"
             }
         }
 
-        val builder = OpsBuilder()
-        var hitCount = 0
+        // 文書側: Query＝対象フィールドのデータキー／Predicate なし（全件）／Edit＝Remove（深い方から）
+        val builder = SemanticRewrite.PlanOps()
         var valueCount = 0
-        var docFileCount = 0
-        val reachableIds = reachable.map { it.id }.toSet()
-        for (doc in documents) {
-            val docSchema = doc.schemaId?.takeIf { it in reachableIds }?.let { schemas[it] } ?: continue
-            val hits = collectFieldHits(docSchema.structural, doc.root) { it === target }
-            if (hits.isEmpty()) continue
-            hitCount += hits.size
+        val tally = SemanticRewrite.rewriteDocuments(reach.documents(documents), builder) { doc, docSchema ->
+            val hits = SemanticRewrite.fieldHits(docSchema.structural, doc.root) { it === target }
             valueCount += hits.count { hit ->
                 when (val node = getAt(doc.root, hit)) {
                     is YNode.Scalar -> !scalarText(node).isNullOrBlank()
@@ -406,17 +350,15 @@ object SemanticSchemaRefactor {
                     else -> false
                 }
             }
-            docFileCount++
-            builder.addAll(doc.id, hits.sortedWith(pathDescending).map { YamlOperation.Remove(it) })
+            hits.sortedWith(SemanticRewrite.pathDescending).map { YamlOperation.Remove(it) }
         }
         // スキーマ側: 定義の削除と entity.owns の掃除
-        val definitionSource = res.site.module.source
-            ?: error("フィールドの定義元スキーマに書き換え先の文書がありません: ${res.site.module.id}")
+        val definitionSource = sourceOf(res.site.module)
         builder.add(definitionSource, YamlOperation.Remove(res.site.path))
         for (s in reachable) {
             val source = s.source ?: continue
             val sTree = tree(source) ?: continue
-            ownsEntryPaths(sTree, key).sortedWith(pathDescending).forEach { p ->
+            ownsEntryPaths(sTree, key).sortedWith(SemanticRewrite.pathDescending).forEach { p ->
                 builder.add(source, YamlOperation.Remove(p))
             }
         }
@@ -427,7 +369,7 @@ object SemanticSchemaRefactor {
             warnings = listOf("削除によりビュー等の「$key」への参照は壊れます・要修正") + nonFollowupWarning(key),
             summary = listOf(
                 "スキーマ「$schemaId」のフィールド「$fieldPath」を削除",
-                "文書 $docFileCount ファイル・$hitCount 箇所のキーを削除（**うち値あり $valueCount 箇所**＝データが失われます）",
+                "文書 ${tally.files} ファイル・${tally.edits} 箇所のキーを削除（**うち値あり $valueCount 箇所**＝データが失われます）",
             ) + (if (reachable.size > 1) listOf("影響スキーマ: ${reachable.joinToString("、") { it.id }}") else emptyList()),
         )
     }
@@ -471,9 +413,8 @@ object SemanticSchemaRefactor {
         }
         val node = verifyFieldNode(res.site, key, tree)
 
-        val builder = OpsBuilder()
-        val definitionSource = res.site.module.source
-            ?: error("フィールドの定義元スキーマに書き換え先の文書がありません: ${res.site.module.id}")
+        val builder = SemanticRewrite.PlanOps()
+        val definitionSource = sourceOf(res.site.module)
         // スキーマ側: required / requiredFrom（併用不可のため他方を消す）
         if (fromPhase != null) {
             builder.add(definitionSource, YamlOperation.SetScalar(res.site.path + "requiredFrom", fromPhase))
@@ -484,29 +425,21 @@ object SemanticSchemaRefactor {
             }
             if ("requiredFrom" in node.entries) builder.add(definitionSource, YamlOperation.Remove(res.site.path + "requiredFrom"))
         }
-        // 文書側: 欠落・空値の充填（親 object が存在する要素だけ。requiredFrom はフェーズ到達文書のみ）
-        val reachable = schemas.values.filter { it.kind == SchemaKind.DOCUMENT && reaches(it, schemas) { f -> f === target } }
-        val reachableIds = reachable.map { it.id }.toSet()
-        var filled = 0
-        var docFileCount = 0
-        for (doc in documents) {
-            val docSchema = doc.schemaId?.takeIf { it in reachableIds }?.let { schemas[it] } ?: continue
+        // 文書側: 欠落・空値の充填。Query＝対象フィールドを実効フィールドに持つ親 object（値が無い場所も含む）／
+        // Predicate＝requiredFrom ならフェーズ到達文書だけ・値が欠落または空であること／Edit＝SetScalar
+        val reach = SemanticRewrite.reach(schemas) { f -> f === target }
+        val tally = SemanticRewrite.rewriteDocuments(reach.documents(documents), builder) { doc, docSchema ->
             if (fromPhase != null) {
-                val order = docSchema.structural.phases?.order ?: continue
-                val phaseIdx = docSchema.structural.currentPhaseIndex(doc.root) ?: continue
+                val order = docSchema.structural.phases?.order ?: return@rewriteDocuments emptyList()
+                val phaseIdx = docSchema.structural.currentPhaseIndex(doc.root) ?: return@rewriteDocuments emptyList()
                 val fromIdx = order.indexOf(fromPhase)
-                if (fromIdx < 0 || fromIdx > phaseIdx) continue
+                if (fromIdx < 0 || fromIdx > phaseIdx) return@rewriteDocuments emptyList()
             }
-            val parents = collectParentObjects(docSchema.structural, doc.root, target)
-            val ops = parents.mapNotNull { (path, m) ->
+            SemanticRewrite.parentObjects(docSchema.structural, doc.root, target).mapNotNull { (path, m) ->
                 val current = m.entries[key]
                 val missing = current == null || (current is YNode.Scalar && scalarText(current).isNullOrBlank())
                 if (missing) YamlOperation.SetScalar(path + key, defaultValue()) else null
             }
-            if (ops.isEmpty()) continue
-            filled += ops.size
-            docFileCount++
-            builder.addAll(doc.id, ops)
         }
         return RefactoringPlan(
             sourceVersion = sourceVersion,
@@ -515,7 +448,7 @@ object SemanticSchemaRefactor {
             warnings = emptyList(),
             summary = listOf(
                 "スキーマ「$schemaId」のフィールド「$fieldPath」を必須化" + (fromPhase?.let { "（フェーズ「$it」以降）" } ?: ""),
-                "文書 $docFileCount ファイル・$filled 箇所へ既定値「$defaultRaw」を充填",
+                "文書 ${tally.files} ファイル・${tally.edits} 箇所へ既定値「$defaultRaw」を充填",
             ),
         )
     }
@@ -546,31 +479,24 @@ object SemanticSchemaRefactor {
             FieldType.BOOLEAN, FieldType.DATE, FieldType.ENUM,
         )
         val constraintKeys = listOf("values", "pattern", "minLength", "maxLength", "min", "max")
-        val builder = OpsBuilder()
-        val schemaFile = res.site.module.source
-            ?: error("フィールドの定義元スキーマに書き換え先の文書がありません: ${res.site.module.id}")
-        val reachable = schemas.values.filter { it.kind == SchemaKind.DOCUMENT && reaches(it, schemas) { f -> f === target } }
-        val reachableIds = reachable.map { it.id }.toSet()
+        val builder = SemanticRewrite.PlanOps()
+        val schemaFile = sourceOf(res.site.module)
+        val reach = SemanticRewrite.reach(schemas) { f -> f === target }
         val violations = mutableListOf<String>()
         val warnings = mutableListOf<String>()
         var converted = 0
         var docFileCount = 0
 
-        // 文書側の変換を全ファイルへ適用する（transform が null を返した箇所は違反として集める）
+        // 文書側の変換: Query＝対象フィールドのデータキー／Edit＝transform（null は「操作なし」。変換できない値は
+        // violations へ集め、全文書の評価後にまとめて中止する）
         fun convertDocs(transform: (YNode, YPath, DocumentId) -> YamlOperation?) {
-            for (doc in documents) {
-                val docSchema = doc.schemaId?.takeIf { it in reachableIds }?.let { schemas[it] } ?: continue
-                val hits = collectFieldHits(docSchema.structural, doc.root) { it === target }
-                val ops = mutableListOf<YamlOperation>()
-                for (hit in hits) {
-                    val value = getAt(doc.root, hit) ?: continue
-                    transform(value, hit, doc.id)?.let { ops += it }
+            val tally = SemanticRewrite.rewriteDocuments(reach.documents(documents), builder) { doc, docSchema ->
+                SemanticRewrite.fieldHits(docSchema.structural, doc.root) { it === target }.mapNotNull { hit ->
+                    getAt(doc.root, hit)?.let { value -> transform(value, hit, doc.id) }
                 }
-                if (ops.isEmpty()) continue
-                converted += ops.size
-                docFileCount++
-                builder.addAll(doc.id, ops)
             }
+            converted += tally.edits
+            docFileCount += tally.files
         }
 
         when {
@@ -667,10 +593,7 @@ object SemanticSchemaRefactor {
             )
         }
         if (violations.isNotEmpty()) {
-            error(
-                "変換できない値があるため中止します: " +
-                    violations.take(5).joinToString("、") + (if (violations.size > 5) " 他${violations.size - 5}件" else "")
-            )
+            error("変換できない値があるため中止します: " + SemanticRewrite.listTop(violations))
         }
         return RefactoringPlan(
             sourceVersion = sourceVersion,
@@ -704,23 +627,15 @@ object SemanticSchemaRefactor {
         }
         require(newName !in definitions) { "定義「$newName」は既にあります" }
 
-        val builder = OpsBuilder()
-        val moduleSource = module.source ?: error("スキーマ「$moduleId」に書き換え先の文書がありません")
-        builder.add(moduleSource, YamlOperation.RenameKey(listOf("definitions", defName), newName))
+        // Query＝全スキーマ文書の `$ref` / `ref` エントリ／Predicate＝この定義を指すこと／Edit＝SetScalar
+        val builder = SemanticRewrite.PlanOps()
+        builder.add(sourceOf(module), YamlOperation.RenameKey(listOf("definitions", defName), newName))
         var refCount = 0
-        for (s in schemas.values) {
-            val source = s.source ?: continue
-            val sTree = tree(source) ?: continue
-            walkYamlEntries(sTree) { path, entryKey, value ->
-                if (entryKey != "\$ref" && entryKey != "ref") return@walkYamlEntries
-                val v = scalarText(value) ?: return@walkYamlEntries
-                val qualified = v.contains('#')
-                val mod = if (qualified) v.substringBefore('#') else s.id
-                val name = if (qualified) v.substringAfter('#') else v
-                if (mod == moduleId && name == defName) {
-                    builder.add(source, YamlOperation.SetScalar(path + entryKey, if (qualified) "$moduleId#$newName" else newName))
-                    refCount++
-                }
+        SemanticRewrite.forEachSchemaEntry(schemas, tree) { s, source, path, entryKey, value ->
+            val ref = definitionRefOf(s, entryKey, value) ?: return@forEachSchemaEntry
+            if (ref.moduleId == moduleId && ref.name == defName) {
+                builder.add(source, YamlOperation.SetScalar(path + entryKey, if (ref.qualified) "$moduleId#$newName" else newName))
+                refCount++
             }
         }
         return RefactoringPlan(
@@ -759,8 +674,8 @@ object SemanticSchemaRefactor {
         val moved = node.entries.keys.filter { it !in keep }
         require(moved.isNotEmpty()) { "抽出する構造がありません（type などの構造キーが必要です）" }
 
-        val builder = OpsBuilder()
-        val file = res.site.module.source ?: error("スキーマ「${res.site.module.id}」に書き換え先の文書がありません")
+        val builder = SemanticRewrite.PlanOps()
+        val file = sourceOf(res.site.module)
         val fileTree = tree(file) ?: error("スキーマ文書が読めません: ${file.value}")
         val defMap = YNode.Map()
         moved.forEach { k -> defMap.entries[k] = node.entries[k]!!.deepCopy() }
@@ -808,12 +723,12 @@ object SemanticSchemaRefactor {
         val (defKey, _) = located
         val defModule = schemas[defKey.moduleId] ?: error("定義モジュール「${defKey.moduleId}」が見つかりません")
         requireEditable(defModule, "定義モジュール（${defModule.id}）")
-        val defSource = defModule.source ?: error("スキーマ「${defModule.id}」に書き換え先の文書がありません")
+        val defSource = sourceOf(defModule)
         val defNode = tree(defSource)?.let { getAt(it, listOf("definitions", defKey.name)) } as? YNode.Map
             ?: error("定義「$defKey」の実体が見つかりません")
 
-        val builder = OpsBuilder()
-        val useSource = res.site.module.source ?: error("スキーマ「${res.site.module.id}」に書き換え先の文書がありません")
+        val builder = SemanticRewrite.PlanOps()
+        val useSource = sourceOf(res.site.module)
         builder.add(useSource, YamlOperation.Remove(res.site.path + refKey))
         var copied = 0
         defNode.entries.forEach { (k, v) ->
@@ -856,20 +771,17 @@ object SemanticSchemaRefactor {
         requireValidName(newName, "改名先の関係名")
         require(newName != oldName) { "改名先が現在の関係名と同じです: $oldName" }
         require(newName !in declaredRelationNames(schemas, tree)) { "関係「$newName」は既にレジストリに宣言されています" }
-        val builder = OpsBuilder()
+        // Query＝全スキーマ文書のエントリ／Predicate＝値が旧関係名の `relation:`、またはレジストリの `name`／Edit＝SetScalar
+        val builder = SemanticRewrite.PlanOps()
         var count = 0
-        for (s in schemas.values) {
-            val source = s.source ?: continue
-            val sTree = tree(source) ?: continue
-            walkYamlEntries(sTree) { path, entryKey, value ->
-                val hit = scalarText(value) == oldName && (
-                    entryKey == "relation" ||
-                        (entryKey == "name" && s.kind == SchemaKind.RELATIONS && path.firstOrNull() == "relations")
-                    )
-                if (hit) {
-                    builder.add(source, YamlOperation.SetScalar(path + entryKey, newName))
-                    count++
-                }
+        SemanticRewrite.forEachSchemaEntry(schemas, tree) { s, source, path, entryKey, value ->
+            val hit = scalarText(value) == oldName && (
+                entryKey == "relation" ||
+                    (entryKey == "name" && s.kind == SchemaKind.RELATIONS && path.firstOrNull() == "relations")
+                )
+            if (hit) {
+                builder.add(source, YamlOperation.SetScalar(path + entryKey, newName))
+                count++
             }
         }
         require(count > 0) { "関係「$oldName」の出現が見つかりません" }
@@ -887,7 +799,7 @@ object SemanticSchemaRefactor {
 
     /**
      * スキーマIDの改名: スキーマの `id:` と、全スキーマの修飾 `$ref`（`old#name`）・`definition`・
-     * `schemaId(s)` 系・クエリの `schema:`・coverage の `fromSchemaIds` / `detailSchemaIds` を書き換える。
+     * `schemaId(s)` 系・クエリの `schema:`・coverage の `detailIn.schemaIds` を書き換える。
      * 文書・match（glob）は変わらない。
      */
     fun renameSchemaId(
@@ -903,37 +815,32 @@ object SemanticSchemaRefactor {
         requireEditable(schemaDef, "スキーマ「$oldId」")
         require(newId !in schemas) { "スキーマID「$newId」は既にあります" }
 
-        val builder = OpsBuilder()
-        val defSource = schemaDef.source ?: error("スキーマ「$oldId」に書き換え先の文書がありません")
-        builder.add(defSource, YamlOperation.SetScalar(listOf("id"), newId))
+        // Query＝全スキーマ文書のエントリ／Predicate＝旧IDを指す参照キー（修飾 ref・schemaId 系・schemaIds 系の配列項目）／
+        // Edit＝SetScalar
+        val builder = SemanticRewrite.PlanOps()
+        builder.add(sourceOf(schemaDef), YamlOperation.SetScalar(listOf("id"), newId))
         var count = 0
-        fun rewriteIn(file: DocumentId, root: YNode) {
-            walkYamlEntries(root) { path, entryKey, value ->
-                when {
-                    (entryKey == "\$ref" || entryKey == "ref" || entryKey == "definition") &&
-                        scalarText(value)?.startsWith("$oldId#") == true -> {
-                        builder.add(file, YamlOperation.SetScalar(path + entryKey, "$newId#${scalarText(value)!!.substringAfter('#')}"))
-                        count++
-                    }
-                    (entryKey == "schemaId" || entryKey == "schema") && scalarText(value) == oldId -> {
-                        builder.add(file, YamlOperation.SetScalar(path + entryKey, newId))
-                        count++
-                    }
-                    entryKey in setOf("schemaIds", "fromSchemaIds", "detailSchemaIds") && value is YNode.Seq -> {
-                        value.items.forEachIndexed { i, v ->
-                            if (scalarText(v) == oldId) {
-                                builder.add(file, YamlOperation.SetScalar(path + entryKey + i, newId))
-                                count++
-                            }
+        SemanticRewrite.forEachSchemaEntry(schemas, tree) { _, file, path, entryKey, value ->
+            when {
+                (entryKey == "\$ref" || entryKey == "ref" || entryKey == "definition") &&
+                    scalarText(value)?.startsWith("$oldId#") == true -> {
+                    builder.add(file, YamlOperation.SetScalar(path + entryKey, "$newId#${scalarText(value)!!.substringAfter('#')}"))
+                    count++
+                }
+                (entryKey == "schemaId" || entryKey == "schema") && scalarText(value) == oldId -> {
+                    builder.add(file, YamlOperation.SetScalar(path + entryKey, newId))
+                    count++
+                }
+                entryKey in setOf("schemaIds", "detailSchemaIds") && value is YNode.Seq -> {
+                    value.items.forEachIndexed { i, v ->
+                        if (scalarText(v) == oldId) {
+                            builder.add(file, YamlOperation.SetScalar(path + entryKey + i, newId))
+                            count++
                         }
                     }
-                    else -> Unit
                 }
+                else -> Unit
             }
-        }
-        for (s in schemas.values) {
-            val source = s.source ?: continue
-            tree(source)?.let { rewriteIn(source, it) }
         }
         return RefactoringPlan(
             sourceVersion = sourceVersion,
@@ -992,6 +899,10 @@ object SemanticSchemaRefactor {
         require(s.source != null) { "$label は組込み・派生スキーマのため変更できません" }
     }
 
+    /** スキーマの書き換え先の文書（requireEditable 済みなら必ずある。無ければ組込み・派生スキーマ）。 */
+    private fun sourceOf(module: SchemaSemantics): DocumentId =
+        module.source ?: error("スキーマ「${module.id}」に書き換え先の文書がありません")
+
     private fun requireValidName(name: String, label: String) {
         require(name.isNotBlank()) { "${label}を指定してください" }
         require(name.none { it in ".[]#" || it.isWhitespace() }) { "${label}に . [ ] # や空白は使えません: $name" }
@@ -999,7 +910,7 @@ object SemanticSchemaRefactor {
 
     /** スキーマYAMLの実体（フィールド定義の map）を確認して返す。解決結果と文書がずれていたら中止する安全確認。 */
     private fun verifyFieldNode(site: Site, expectedKey: String, tree: (DocumentId) -> YNode?): YNode.Map {
-        val source = site.module.source ?: error("スキーマ「${site.module.id}」に書き換え先の文書がありません")
+        val source = sourceOf(site.module)
         val node = tree(source)?.let { getAt(it, site.path) } as? YNode.Map
             ?: error("スキーマ定義の実体が見つかりません: ${source.value} の ${site.path.pretty()}")
         require(scalarText(node.entries["key"]) == expectedKey) {
@@ -1025,19 +936,18 @@ object SemanticSchemaRefactor {
         return current
     }
 
-    /** YNode ツリーの全マップエントリを訪問する（親パス・キー・値）。宣言の横断書換に使う。 */
-    private fun walkYamlEntries(root: YNode, visit: (parentPath: YPath, key: String, value: YNode) -> Unit) {
-        fun walk(node: YNode, path: YPath) {
-            when (node) {
-                is YNode.Map -> node.entries.forEach { (k, v) ->
-                    visit(path, k, v)
-                    walk(v, path + k)
-                }
-                is YNode.Seq -> node.items.forEachIndexed { i, v -> walk(v, path + i) }
-                else -> Unit
-            }
-        }
-        walk(root, emptyList())
+    /** `$ref` / `ref` エントリが指す定義（非修飾は書かれているスキーマ自身のモジュール）。参照キーでなければ null。 */
+    private class DefinitionRef(val moduleId: String, val name: String, val qualified: Boolean)
+
+    private fun definitionRefOf(holder: SchemaSemantics, entryKey: String, value: YNode): DefinitionRef? {
+        if (entryKey != "\$ref" && entryKey != "ref") return null
+        val v = scalarText(value) ?: return null
+        val qualified = v.contains('#')
+        return DefinitionRef(
+            moduleId = if (qualified) v.substringBefore('#') else holder.id,
+            name = if (qualified) v.substringAfter('#') else v,
+            qualified = qualified,
+        )
     }
 
     /** 全編集可能スキーマの `$ref` / `ref` のうち、指定定義を参照するものの件数。 */
@@ -1048,16 +958,9 @@ object SemanticSchemaRefactor {
         defName: String,
     ): Int {
         var count = 0
-        for (s in schemas.values) {
-            val sTree = s.source?.let(tree) ?: continue
-            walkYamlEntries(sTree) { _, entryKey, value ->
-                if (entryKey != "\$ref" && entryKey != "ref") return@walkYamlEntries
-                val v = scalarText(value) ?: return@walkYamlEntries
-                val qualified = v.contains('#')
-                val mod = if (qualified) v.substringBefore('#') else s.id
-                val name = if (qualified) v.substringAfter('#') else v
-                if (mod == moduleId && name == defName) count++
-            }
+        SemanticRewrite.forEachSchemaEntry(schemas, tree) { s, _, _, entryKey, value ->
+            val ref = definitionRefOf(s, entryKey, value) ?: return@forEachSchemaEntry
+            if (ref.moduleId == moduleId && ref.name == defName) count++
         }
         return count
     }
@@ -1068,12 +971,8 @@ object SemanticSchemaRefactor {
         tree: (DocumentId) -> YNode?,
     ): Set<String> {
         val names = mutableSetOf<String>()
-        for (s in schemas.values) {
-            if (s.kind != SchemaKind.RELATIONS) continue
-            val sTree = s.source?.let(tree) ?: continue
-            walkYamlEntries(sTree) { path, entryKey, value ->
-                if (entryKey == "name" && path.firstOrNull() == "relations") scalarText(value)?.let(names::add)
-            }
+        SemanticRewrite.forEachSchemaEntry(schemas, tree, only = { it.kind == SchemaKind.RELATIONS }) { _, _, path, entryKey, value ->
+            if (entryKey == "name" && path.firstOrNull() == "relations") scalarText(value)?.let(names::add)
         }
         return names
     }
@@ -1090,35 +989,6 @@ object SemanticSchemaRefactor {
             is YNode.Seq -> entity.items.forEachIndexed { i, d -> scanOwns(listOf("entity", i), d) }
             else -> Unit
         }
-        return out
-    }
-
-    /** target を実効フィールドに含む親 object の（パス, マップ）一覧（必須化バックフィルの充填先）。 */
-    private fun collectParentObjects(s: StructuralSchema, root: YNode, target: FieldDef): List<Pair<YPath, YNode.Map>> {
-        val out = mutableListOf<Pair<YPath, YNode.Map>>()
-        fun walk(def: FieldDef, node: YNode, path: YPath) {
-            val eff = s.resolve(def) ?: def
-            when (eff.type) {
-                FieldType.OBJECT -> {
-                    val m = node as? YNode.Map ?: return
-                    val fs = s.effectiveFields(eff.fields, m).fields
-                    if (fs.any { it === target }) out += path to m
-                    fs.forEach { f -> f.key?.let { k -> m.entries[k]?.let { child -> walk(f, child, path + k) } } }
-                }
-                FieldType.ARRAY -> {
-                    val seq = node as? YNode.Seq ?: return
-                    val item = eff.item ?: return
-                    seq.items.forEachIndexed { i, child -> walk(item, child, path + i) }
-                }
-                FieldType.MAP -> {
-                    val m = node as? YNode.Map ?: return
-                    val value = eff.value ?: return
-                    m.entries.forEach { (k, child) -> walk(value, child, path + k) }
-                }
-                else -> Unit
-            }
-        }
-        walk(s.root, root, emptyList())
         return out
     }
 
@@ -1275,73 +1145,11 @@ object SemanticSchemaRefactor {
         return Target(candidates.single(), siblings)
     }
 
-    /** スキーマの走査で条件に合うフィールドへ到達できるか（$ref 共有の影響判定）。 */
-    private fun reaches(
-        s: SchemaSemantics,
-        schemas: Map<String, SchemaSemantics>,
-        predicate: (FieldDef) -> Boolean,
-    ): Boolean {
-        var found = false
-        val seen = mutableSetOf<String>()
-        fun walk(f: FieldDef) {
-            if (found) return
-            if (predicate(f)) {
-                found = true
-                return
-            }
-            val located = s.structural.definitionTarget(f)
-            if (located != null && !seen.add(located.first.toString())) return
-            val r = s.structural.resolve(f) ?: f
-            r.fields.forEach(::walk)
-            r.item?.let(::walk)
-            r.value?.let(::walk)
-            r.cases.values.flatten().forEach(::walk)
-        }
-        walk(s.structural.root)
-        return found
-    }
-
     /** target がスキーマのルート直下フィールドか（phases.key の追随判定）。 */
     private fun isRootField(s: StructuralSchema, target: FieldDef): Boolean =
         (s.resolve(s.root) ?: s.root).fields.any { it === target }
 
-    // ================================================================ 文書側の列挙
-
-    /**
-     * 文書ツリーをスキーマ誘導で走査し、条件に合うフィールドに対応するデータキーの座標を集める。
-     * cases は effectiveFields（現在の enum 値で実効なフィールドだけ）を通すため、
-     * 同名キーを持つ別 case の値を誤って対象にしない。
-     */
-    private fun collectFieldHits(s: StructuralSchema, root: YNode, predicate: (FieldDef) -> Boolean): List<YPath> {
-        val hits = mutableListOf<YPath>()
-        fun walk(def: FieldDef, node: YNode, path: YPath) {
-            val eff = s.resolve(def) ?: def
-            when (eff.type) {
-                FieldType.OBJECT -> {
-                    val m = node as? YNode.Map ?: return
-                    s.effectiveFields(eff.fields, m).fields.forEach { f ->
-                        val k = f.key ?: return@forEach
-                        val child = m.entries[k] ?: return@forEach
-                        if (predicate(f)) hits += path + k
-                        walk(f, child, path + k)
-                    }
-                }
-                FieldType.ARRAY -> {
-                    val seq = node as? YNode.Seq ?: return
-                    val item = eff.item ?: return
-                    seq.items.forEachIndexed { i, child -> walk(item, child, path + i) }
-                }
-                FieldType.MAP -> {
-                    val m = node as? YNode.Map ?: return
-                    val value = eff.value ?: return
-                    m.entries.forEach { (k, child) -> walk(value, child, path + k) }
-                }
-                else -> Unit
-            }
-        }
-        walk(s.root, root, emptyList())
-        return hits
-    }
+    // ================================================================ 文書側の操作列（戦略）
 
     /** 移動の文書側ops: 中間 object の生成 → Move → 空になった親の削除。衝突（移動先の既存値）を集める。 */
     private fun moveDataOps(
@@ -1355,7 +1163,7 @@ object SemanticSchemaRefactor {
     ): Pair<List<YamlOperation>, List<String>> {
         val ops = mutableListOf<YamlOperation>()
         val conflicts = mutableListOf<String>()
-        val hits = collectFieldHits(s, root) { it === target }.sortedWith(pathDescending)
+        val hits = SemanticRewrite.fieldHits(s, root) { it === target }.sortedWith(SemanticRewrite.pathDescending)
         for (p in hits) {
             val elementRoot = p.dropLast(tailSize)
             val destParent = elementRoot + destTail
@@ -1404,32 +1212,5 @@ object SemanticSchemaRefactor {
         val idx = path[seqPath.size] as? Int ?: return path
         if (idx <= removedIdx) return path
         return path.toMutableList().also { it[seqPath.size] = idx - 1 }
-    }
-
-    /** 同一文書内の削除・改名を深い方から行うためのパス降順（数値セグメントは数値比較）。 */
-    private val pathDescending = Comparator<YPath> { x, y ->
-        for (i in 0 until minOf(x.size, y.size)) {
-            val sx = x[i]
-            val sy = y[i]
-            val c = if (sx is Int && sy is Int) sx.compareTo(sy) else sx.toString().compareTo(sy.toString())
-            if (c != 0) return@Comparator -c
-        }
-        -(x.size.compareTo(y.size))
-    }
-
-    /** 文書単位の操作を集める（文書ID順）。 */
-    private class OpsBuilder {
-        private val byDoc = LinkedHashMap<DocumentId, MutableList<YamlOperation>>()
-
-        fun add(document: DocumentId, op: YamlOperation) {
-            byDoc.getOrPut(document) { mutableListOf() } += op
-        }
-
-        fun addAll(document: DocumentId, ops: List<YamlOperation>) {
-            if (ops.isNotEmpty()) byDoc.getOrPut(document) { mutableListOf() } += ops
-        }
-
-        fun toChanges(): List<PlannedDocumentChange> =
-            byDoc.entries.sortedBy { it.key.value }.map { (document, ops) -> PlannedDocumentChange(document, ops) }
     }
 }

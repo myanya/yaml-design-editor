@@ -18,11 +18,14 @@ import model.deepCopy
 import schema.SchemaLoader
 import semantic.RefactoringPlan
 import semantic.RefactoringRequest
+import workspace.ChangeIntent
 import workspace.ChangeRecord
 import workspace.FileSystemDocumentStore
 import workspace.WorkspaceDerivedState
 import workspace.WorkspaceOperation
+import workspace.WorkspaceReader
 import workspace.WorkspaceSession
+import workspace.WorkspaceTransaction
 import yaml.YamlIO
 import java.nio.file.Files
 import java.nio.file.Path
@@ -931,11 +934,27 @@ class AppState {
         return session?.canRedo() ?: (openDoc?.canRedo() ?: false)
     }
 
-    /** Undo/Redo 適用後の追随: 影響文書のツリーをセッションの working から取り直し、派生を進める。 */
+    /**
+     * Undo/Redo 適用後の追随: 影響文書のツリーをセッションの working から取り直し、派生を進める。
+     * 文書の作成・削除を含む履歴は、**ファイルの有無までその場で確定する**（D-18）——内容の編集の Undo は
+     * 「未保存●」に留めて保存で確定できるが、作成の取り消し（＝文書が消える）には保存の手段が無く、
+     * 削除予約のままではディスクとセッションが食い違うため。
+     */
     private fun afterHistoryStep(record: ChangeRecord, undo: Boolean) {
         val ids = historyTargets(record)
-        refreshDocsFromSession(ids)
-        editVersion++
+        val fileLevel = (record.forward.operations + record.inverse.operations)
+            .filter { it is WorkspaceOperation.CreateDocument || it is WorkspaceOperation.DeleteDocument }
+            .flatMap(::operationIds)
+            .toSet()
+        val s = session
+        if (s != null && fileLevel.isNotEmpty()) {
+            val saved = s.save(fileLevel)
+            if (!saved.ok) status = "ファイルの反映に失敗しました: ${saved.failures.entries.first().let { "${it.key.value}: ${it.value}" }}"
+            refreshAfterSessionWrite(ids)
+        } else {
+            refreshDocsFromSession(ids)
+            editVersion++
+        }
         noteHistoryStep(record, ids, undo)
     }
 
@@ -1013,6 +1032,8 @@ class AppState {
             mirrorCore(cw)
             docCache.values.forEach { it.schema = schemaFor(it.file) }
         }
+        // 文書の作成・削除（D-18）でディレクトリ構成が変わり得るため、ツリーの供給も更新する
+        directories = scanDirectories(ws)
         workspaceStamp = snapshotFiles(ws)
         indexVersion++
         editVersion++
@@ -1083,11 +1104,7 @@ class AppState {
         val draft = schema.SchemaInference.infer(samples, schemaId = id, match = glob)
         val file = ws.resolve(layout.schemasDir).resolve("$id.yaml")
         require(!Files.exists(file)) { "既にスキーマファイルが存在します: ${relPath(file)}" }
-        Files.createDirectories(file.parent)
-        Files.writeString(file, YamlIO.dump(draft))
-        reload()
-        openFile(file)
-        file
+        createDocumentFile(file, draft, "スキーマの推測: $id")
     }
 
     /** リファクタリング計画を生成するセッション（B-1・RB-01: 計画・適用はカーネルへ一本化）。 */
@@ -1195,11 +1212,8 @@ class AppState {
         require(!Files.exists(file)) { "同名のファイルが存在します" }
         val schema = schemaFor(file)
         // スキーマ初期値の生成は core.Views.defaultTree に一本化する（R9-02 で重複実装を解消）
-        val initial = schema?.let { YamlIO.dump(core.Views.defaultTree(it.root, it)) } ?: "{}\n"
-        Files.writeString(file, initial)
-        reload()
-        openFile(file)
-        file
+        val initial = schema?.let { core.Views.defaultTree(it.root, it) } ?: YNode.Map()
+        createDocumentFile(file, initial, "新規作成: ${relPath(file)}")
     }
 
     /**
@@ -1240,17 +1254,48 @@ class AppState {
         createScaffoldFile(core.Views.scaffold(pattern, id, schemas))
     }
 
-    /** スキャフォールドをディスクへ書き出し、再読込してその文書を開く（詳細作成・新規行ファイルモード共用）。 */
+    /** スキャフォールドを新規文書として作成し、その文書を開く（詳細作成・新規行ファイルモード共用）。 */
     private fun createScaffoldFile(scaffold: core.Views.Scaffold): Path {
         val ws = workspace ?: error("ワークスペースが開かれていません")
         val file = ws.resolve(scaffold.rel).normalize()
-        require(file.startsWith(ws)) { "ワークスペース外には作成できません: ${scaffold.rel}" }
         require(!Files.exists(file)) { "既に同名のファイルが存在します: ${scaffold.rel}" }
-        Files.createDirectories(file.parent)
-        Files.writeString(file, YamlIO.dump(scaffold.root))
-        reload()
-        openFile(file)
-        return file
+        return createDocumentFile(file, scaffold.root, "文書の作成: ${scaffold.rel}")
+    }
+
+    /**
+     * 文書の新規作成の単一経路（P29 Phase 4・RP-03／意図的差分 D-18）: セッションの1トランザクション
+     * （CreateDocument）として適用→保存し、全体の再読込をしない＝**Ctrl+Z で作成を取り消せる**うえ、
+     * それまでの Undo 履歴も保たれる（従来の直接書込＋reload はセッションを開き直して履歴を失っていた）。
+     * セッションが文書として扱わないパス（隠しパス等）・セッション不在時だけ、従来の直接書込＋再読込へ
+     * フォールバックする。作成後はその文書を開く。
+     */
+    private fun createDocumentFile(file: Path, root: YNode, intent: String): Path {
+        val ws = workspace ?: error("ワークスペースが開かれていません")
+        val target = file.normalize()
+        require(target.startsWith(ws)) { "ワークスペース外には作成できません: $target" }
+        require(!Files.exists(target)) { "既に同名のファイルが存在します: ${relPath(target)}" }
+        val id = DocumentId(relPath(target))
+        val s = session
+        if (s != null && !s.hasDocument(id) && !WorkspaceReader.hiddenPath(id.value, s.layout)) {
+            val applied = s.apply(
+                WorkspaceTransaction(
+                    baseVersion = s.version,
+                    intent = ChangeIntent(intent),
+                    operations = listOf(WorkspaceOperation.CreateDocument(id, YDocument(id, listOf(root)))),
+                )
+            )
+            require(applied.ok) { applied.message ?: "文書を作成できませんでした" }
+            val saved = s.save(setOf(id))
+            require(saved.ok) { saved.failures[id] ?: "書込に失敗しました" }
+            refreshAfterSessionWrite(listOf(id))
+            status = "作成しました: ${id.value}（Ctrl+Z で取り消せます）"
+        } else {
+            Files.createDirectories(target.parent)
+            Files.writeString(target, YamlIO.dump(root))
+            reload()
+        }
+        openFile(target)
+        return target
     }
 
     /**

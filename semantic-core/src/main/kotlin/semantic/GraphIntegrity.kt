@@ -14,7 +14,7 @@ import validate.Severity
 object SemanticGraphIntegrity {
 
     private fun severityOf(level: CoverageLevel): Severity =
-        if (level == CoverageLevel.ERROR) Severity.ERROR else Severity.WARNING
+        level.toSeverity()
 
     /**
      * グラフ整合の指摘（全文書分）。レジストリが空なら何もしない（宣言のないワークスペースは挙動不変）。

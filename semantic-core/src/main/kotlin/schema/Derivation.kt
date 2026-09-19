@@ -47,11 +47,12 @@ data class DerivationDef(
  * - EQUALS: 宣言値が導出値と一致すること（既定）
  * - LTE / GTE: 宣言値が導出値**以下／以上**であること（両方を数値として比較。数値でなければ判定保留）
  *   例: 画面入力の maxLength は、参照する値型の maxLength 以下なら適合（等値でなくてよい）
+ * 判定の実体は check 判定述語と同じ要素述語（`op`。評価は semantic.SemanticExpression.compare＝R29-05）。
  */
-enum class ConsistencyAssert(val id: String) {
-    EQUALS("equals"),
-    LTE("lte"),
-    GTE("gte");
+enum class ConsistencyAssert(val id: String, val op: CheckOp) {
+    EQUALS("equals", CheckOp.EQ),
+    LTE("lte", CheckOp.LTE),
+    GTE("gte", CheckOp.GTE);
 }
 
 /**

@@ -1,8 +1,6 @@
 package core
 
-import edit.YamlOperation
 import model.DocumentId
-import model.YNode
 import schema.FieldDef
 import schema.FieldType
 import schema.SchemaDef
@@ -35,14 +33,9 @@ object RefactorImpact {
             .filter { it.kind == SchemaKind.DOCUMENT && reaches(it) { f -> f === target } }
             .map { it.id }.toSet()
         val impact = Views.fieldRenameImpact(ws.root, ws.schemas, reachableIds, target, oldName, newName)
+        // ビュー追随は型付き操作（内部の正準）で生成される＝変換なしで計画へ合成する（RP-02）
         val changes = impact.ops.entries.sortedBy { it.key.toString() }.mapNotNull { (file, ops) ->
-            // fieldRenameImpact が生成するのはスカラー Set のみ（パス文字列・選別キーの書換）＝型付き操作へ1:1で写せる
-            val operations = ops.mapNotNull { op ->
-                (op as? PatchOp.Set)?.let { set ->
-                    (set.value as? YNode.Scalar)?.let { YamlOperation.SetScalar(set.path, it.value) }
-                }
-            }
-            if (operations.isEmpty()) null else PlannedDocumentChange(DocumentId(ws.relPath(file)), operations)
+            if (ops.isEmpty()) null else PlannedDocumentChange(DocumentId(ws.relPath(file)), ops)
         }
         return Impact(changes, impact.warnings + mentions)
     }

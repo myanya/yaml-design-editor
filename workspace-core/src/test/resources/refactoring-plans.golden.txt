@@ -1,0 +1,371 @@
+### RenameEntity(oldId=IT-001, newId=IT-100)
+  change: details/IT-001.yaml
+    SetScalar id = IT-100（String）
+  change: items/a.yaml
+    SetScalar id = IT-100（String）
+  change: items/b.yaml
+    SetScalar parent = IT-100（String）
+  change: items/c.yaml
+    SetScalar parent = IT-100（String）
+  summary: ID「IT-001」→「IT-100」
+  summary: 出現 2 件（2 文書）のIDフィールドを書き換え
+  summary: 参照 2 件を書き換え
+
+### RenameEntity(oldId=IT-001, newId=IT-002)
+  rejected（IllegalArgumentException）: 改名先のID「IT-002」は既に存在します（統合は merge を使ってください）
+
+### MergeEntity(sourceId=IT-002, targetId=IT-003, deleteOccurrences=false)
+  change: items/b.yaml
+    SetScalar id = IT-003（String）
+  summary: ID「IT-002」を「IT-003」へ統合
+  summary: 参照 0 件を張り替え
+  summary: 出現 1 件を「IT-003」の詳細化として残す
+
+### MergeEntity(sourceId=IT-002, targetId=IT-003, deleteOccurrences=true)
+  rejected（IllegalStateException）: 出現が文書ルートのため要素削除できません（詳細化として残す方を選ぶか、ファイル削除は手動で行ってください）: items/b.yaml
+
+### DeleteEntity(id=IT-003)
+  rejected（IllegalStateException）: 出現が文書ルートのため要素削除できません（ファイルの削除は手動で行ってください）: items/c.yaml
+
+### DeleteEntity(id=IT-001)
+  rejected（IllegalStateException）: ID「IT-001」への参照が 2 件あるため削除できません（先に参照を編集するか merge を使ってください）: items/b.yaml の parent、items/c.yaml の parent
+
+### MoveDocument(from=items/b.yaml, to=items/sub/b.yaml)
+  move: items/b.yaml -> items/sub/b.yaml
+  summary: 文書「items/b.yaml」→「items/sub/b.yaml」
+
+### RenameField(schemaId=fx-item, fieldPath=memo, newName=note2)
+  change: _schemas/item.yaml
+    SetScalar root.fields[2].key = note2（String）
+  change: items/a.yaml
+    RenameKey memo -> note2
+  change: items/b.yaml
+    RenameKey memo -> note2
+  warning: ビュー定義・アクティビティ等の「memo」への言及は追随しません（6E 仮想文書の設計後に対応。該当があれば手動で更新してください）
+  summary: スキーマ「fx-item」のフィールド「memo」→「note2」
+  summary: 文書 2 ファイル・2 箇所のキーを改名（順序・コメント保持）
+  summary: スキーマ定義 1 箇所を追随
+
+### RenameField(schemaId=fx-item, fieldPath=price.amount, newName=value)
+  change: _schemas/lib.yaml
+    SetScalar definitions.money.fields[0].key = value（String）
+  change: details/IT-001.yaml
+    RenameKey budget.amount -> value
+  change: items/a.yaml
+    RenameKey tasks[2].cost.amount -> value
+    RenameKey tasks[0].cost.amount -> value
+    RenameKey price.amount -> value
+  warning: ビュー定義・アクティビティ等の「amount」への言及は追随しません（6E 仮想文書の設計後に対応。該当があれば手動で更新してください）
+  summary: スキーマ「fx-item」のフィールド「amount」→「value」
+  summary: 文書 2 ファイル・4 箇所のキーを改名（順序・コメント保持）
+  summary: スキーマ定義 1 箇所を追随
+  summary: 影響スキーマ: fx-detail、fx-item
+
+### RenameField(schemaId=fx-item, fieldPath=tasks.name, newName=title)
+  change: _schemas/item.yaml
+    SetScalar root.fields[9].item.fields[0].key = title（String）
+  change: items/a.yaml
+    RenameKey tasks[1].name -> title
+    RenameKey tasks[0].name -> title
+  change: items/c.yaml
+    RenameKey tasks[0].name -> title
+  warning: ビュー定義・アクティビティ等の「name」への言及は追随しません（6E 仮想文書の設計後に対応。該当があれば手動で更新してください）
+  summary: スキーマ「fx-item」のフィールド「name」→「title」
+  summary: 文書 2 ファイル・3 箇所のキーを改名（順序・コメント保持）
+  summary: スキーマ定義 1 箇所を追随
+
+### RenameField(schemaId=fx-item, fieldPath=status, newName=state)
+  change: _schemas/item.yaml
+    SetScalar root.fields[1].key = state（String）
+    SetScalar phases.key = state（String）
+  change: items/a.yaml
+    RenameKey status -> state
+  change: items/b.yaml
+    RenameKey status -> state
+  change: items/c.yaml
+    RenameKey status -> state
+  warning: ビュー定義・アクティビティ等の「status」への言及は追随しません（6E 仮想文書の設計後に対応。該当があれば手動で更新してください）
+  summary: スキーマ「fx-item」のフィールド「status」→「state」
+  summary: 文書 3 ファイル・3 箇所のキーを改名（順序・コメント保持）
+  summary: スキーマ定義 2 箇所を追随
+
+### RenameField(schemaId=fx-item, fieldPath=tag, newName=memo)
+  rejected（IllegalArgumentException）: 同じ階層に「memo」が既に定義されています（スキーマ側の衝突）
+
+### RenameField(schemaId=fx-item, fieldPath=tag, newName=unknown)
+  rejected（IllegalStateException）: 改名先のキー「unknown」が既存文書に存在するため中止します（先に該当キーを整理してください）: items/b.yaml（tag など 1 箇所）
+
+### MoveField(schemaId=fx-item, fieldPath=memo, destPath=details, deleteEmptyParents=true)
+  change: _schemas/item.yaml
+    Move root.fields[2] -> root.fields[7].fields[1]
+  change: items/a.yaml
+    Move memo -> details.memo
+  change: items/b.yaml
+    Insert details = {}
+    Move memo -> details.memo
+  warning: 移動によるビュー等の「memo」参照の自動追随は対象外・要修正
+  warning: ビュー定義・アクティビティ等の「memo」への言及は追随しません（6E 仮想文書の設計後に対応。該当があれば手動で更新してください）
+  summary: スキーマ「fx-item」のフィールド「memo」→「details」配下へ移動
+  summary: 文書 2 ファイル・2 箇所の値を移動（空になった親 object は削除）
+
+### MoveField(schemaId=fx-item, fieldPath=details.note, destPath=., deleteEmptyParents=true)
+  change: _schemas/item.yaml
+    Move root.fields[8].fields[0] -> root.fields[10]
+  change: items/a.yaml
+    Move details.note -> note
+    Remove details
+  warning: 移動によるビュー等の「note」参照の自動追随は対象外・要修正
+  warning: ビュー定義・アクティビティ等の「note」への言及は追随しません（6E 仮想文書の設計後に対応。該当があれば手動で更新してください）
+  summary: スキーマ「fx-item」のフィールド「details.note」→「（ルート）」配下へ移動
+  summary: 文書 1 ファイル・1 箇所の値を移動（空になった親 object は削除）
+
+### MoveField(schemaId=fx-item, fieldPath=tasks.sub.hint, destPath=tasks, deleteEmptyParents=true)
+  change: _schemas/item.yaml
+    Move root.fields[9].item.fields[2].fields[0] -> root.fields[9].item.fields[3]
+  change: items/a.yaml
+    Move tasks[0].sub.hint -> tasks[0].hint
+    Remove tasks[0].sub
+  warning: 移動によるビュー等の「hint」参照の自動追随は対象外・要修正
+  warning: ビュー定義・アクティビティ等の「hint」への言及は追随しません（6E 仮想文書の設計後に対応。該当があれば手動で更新してください）
+  summary: スキーマ「fx-item」のフィールド「tasks.sub.hint」→「tasks」配下へ移動
+  summary: 文書 1 ファイル・1 箇所の値を移動（空になった親 object は削除）
+
+### MoveField(schemaId=fx-item, fieldPath=tasks.sub.hint, destPath=tasks, deleteEmptyParents=false)
+  change: _schemas/item.yaml
+    Move root.fields[9].item.fields[2].fields[0] -> root.fields[9].item.fields[3]
+  change: items/a.yaml
+    Move tasks[0].sub.hint -> tasks[0].hint
+  warning: 移動によるビュー等の「hint」参照の自動追随は対象外・要修正
+  warning: ビュー定義・アクティビティ等の「hint」への言及は追随しません（6E 仮想文書の設計後に対応。該当があれば手動で更新してください）
+  summary: スキーマ「fx-item」のフィールド「tasks.sub.hint」→「tasks」配下へ移動
+  summary: 文書 1 ファイル・1 箇所の値を移動
+
+### MoveField(schemaId=fx-item, fieldPath=memo, destPath=tasks, deleteEmptyParents=true)
+  rejected（IllegalArgumentException）: 配列・map の境界をまたぐ移動はできません（移動元と移動先が同じ要素コンテキストにありません）
+
+### MoveField(schemaId=fx-item, fieldPath=status, destPath=details, deleteEmptyParents=true)
+  rejected（IllegalArgumentException）: フェーズ申告キー「status」はルート直下に必要なため移動できません（スキーマ「fx-item」の phases）
+
+### AlignOrder(schemaId=fx-item)
+  change: items/a.yaml
+    ReorderKeys (root) [id, status, reviewer, memo, score, labels, price, details, tasks]
+  change: items/b.yaml
+    ReorderKeys (root) [id, status, memo, tag, parent, unknown]
+  change: items/c.yaml
+    ReorderKeys (root) [id, status, score, labels, parent, details, tasks]
+    ReorderKeys tasks[0] [name, cost]
+  summary: スキーマ「fx-item」の文書をスキーマ順へ整列
+  summary: 文書 3 ファイル・4 要素のキー順を並べ替え（値・コメント保持。未知キーは末尾に相対順で残す）
+
+### AlignOrder(schemaId=fx-lib)
+  rejected（IllegalArgumentException）: 文書スキーマを指定してください: fx-lib
+
+### RenameEnumValue(schemaId=fx-item, fieldPath=status, oldValue=review, newValue=checking)
+  change: _schemas/item.yaml
+    SetScalar root.fields[1].values[1] = checking（String）
+    RenameKey root.fields[1].cases.review -> checking
+    SetScalar phases.order[1] = checking（String）
+    SetScalar root.fields[8].fields[0].requiredFrom = checking（String）
+  change: items/a.yaml
+    SetScalar status = checking（String）
+  warning: ビュー定義・アクティビティ等の「review」への言及は追随しません（6E 仮想文書の設計後に対応。該当があれば手動で更新してください）
+  summary: スキーマ「fx-item」の「status」の選択肢「review」→「checking」
+  summary: 文書 1 ファイル・1 箇所の値を書き換え
+
+### RenameEnumValue(schemaId=fx-item, fieldPath=price.currency, oldValue=JPY, newValue=YEN)
+  change: _schemas/lib.yaml
+    SetScalar definitions.money.fields[1].values[0] = YEN（String）
+    SetScalar definitions.money.fields[1].default = YEN（String）
+  change: details/IT-001.yaml
+    SetScalar budget.currency = YEN（String）
+  change: items/a.yaml
+    SetScalar price.currency = YEN（String）
+  change: items/c.yaml
+    SetScalar tasks[0].cost.currency = YEN（String）
+  warning: ビュー定義・アクティビティ等の「JPY」への言及は追随しません（6E 仮想文書の設計後に対応。該当があれば手動で更新してください）
+  summary: スキーマ「fx-item」の「price.currency」の選択肢「JPY」→「YEN」
+  summary: 文書 3 ファイル・3 箇所の値を書き換え
+
+### RenameEnumValue(schemaId=fx-item, fieldPath=status, oldValue=review, newValue=draft)
+  rejected（IllegalArgumentException）: 選択肢「draft」は既にあります
+
+### DeleteField(schemaId=fx-item, fieldPath=memo)
+  change: _schemas/item.yaml
+    Remove root.fields[2]
+    Remove entity.owns[0]
+  change: items/a.yaml
+    Remove memo
+  change: items/b.yaml
+    Remove memo
+  warning: 削除によりビュー等の「memo」への参照は壊れます・要修正
+  warning: ビュー定義・アクティビティ等の「memo」への言及は追随しません（6E 仮想文書の設計後に対応。該当があれば手動で更新してください）
+  summary: スキーマ「fx-item」のフィールド「memo」を削除
+  summary: 文書 2 ファイル・2 箇所のキーを削除（**うち値あり 1 箇所**＝データが失われます）
+
+### DeleteField(schemaId=fx-item, fieldPath=tasks.cost)
+  change: _schemas/item.yaml
+    Remove root.fields[9].item.fields[1]
+  change: items/a.yaml
+    Remove tasks[2].cost
+    Remove tasks[0].cost
+  change: items/c.yaml
+    Remove tasks[0].cost
+  warning: 削除によりビュー等の「cost」への参照は壊れます・要修正
+  warning: ビュー定義・アクティビティ等の「cost」への言及は追随しません（6E 仮想文書の設計後に対応。該当があれば手動で更新してください）
+  summary: スキーマ「fx-item」のフィールド「tasks.cost」を削除
+  summary: 文書 2 ファイル・3 箇所のキーを削除（**うち値あり 3 箇所**＝データが失われます）
+
+### DeleteField(schemaId=fx-item, fieldPath=id)
+  rejected（IllegalArgumentException）: ID型フィールドは削除できません（参照・エンティティが壊れます。要素の削除は entity delete を使ってください）
+
+### DeleteField(schemaId=fx-item, fieldPath=status)
+  rejected（IllegalArgumentException）: フェーズ申告キー「status」は削除できません（スキーマ「fx-item」の phases が参照しています）
+
+### RequireField(schemaId=fx-item, fieldPath=memo, default=未記入, fromPhase=null)
+  change: _schemas/item.yaml
+    SetScalar root.fields[2].required = true（Boolean）
+  change: items/a.yaml
+    SetScalar memo = 未記入（String）
+  change: items/c.yaml
+    SetScalar memo = 未記入（String）
+  summary: スキーマ「fx-item」のフィールド「memo」を必須化
+  summary: 文書 2 ファイル・2 箇所へ既定値「未記入」を充填
+
+### RequireField(schemaId=fx-item, fieldPath=details.note, default=-, fromPhase=review)
+  change: _schemas/item.yaml
+    SetScalar root.fields[8].fields[0].requiredFrom = review（String）
+  change: items/c.yaml
+    SetScalar details.note = -（String）
+  summary: スキーマ「fx-item」のフィールド「details.note」を必須化（フェーズ「review」以降）
+  summary: 文書 1 ファイル・1 箇所へ既定値「-」を充填
+
+### RequireField(schemaId=fx-item, fieldPath=tasks.name, default=無名, fromPhase=null)
+  change: _schemas/item.yaml
+    SetScalar root.fields[9].item.fields[0].required = true（Boolean）
+  change: items/a.yaml
+    SetScalar tasks[2].name = 無名（String）
+  summary: スキーマ「fx-item」のフィールド「tasks.name」を必須化
+  summary: 文書 1 ファイル・1 箇所へ既定値「無名」を充填
+
+### RequireField(schemaId=fx-item, fieldPath=price.currency, default=EUR, fromPhase=null)
+  rejected（IllegalArgumentException）: --default は選択肢のいずれかである必要があります: JPY, USD
+
+### ConvertFieldType(schemaId=fx-item, fieldPath=score, targetTypeId=int, enumValues=[])
+  change: _schemas/item.yaml
+    SetScalar root.fields[3].type = int（String）
+  change: items/a.yaml
+    SetScalar score = 10（Long）
+  change: items/c.yaml
+    SetScalar score = 7（Long）
+  summary: スキーマ「fx-item」のフィールド「score」を string → int へ変換
+  summary: 文書 2 ファイル・2 箇所の値を変換
+
+### ConvertFieldType(schemaId=fx-item, fieldPath=score, targetTypeId=array, enumValues=[])
+  change: _schemas/item.yaml
+    SetScalar root.fields[3].type = array（String）
+    Insert root.fields[3].item = type: string
+  change: items/a.yaml
+    Replace score =   - '10'
+  change: items/c.yaml
+    Replace score =   - '7'
+  summary: スキーマ「fx-item」のフィールド「score」を string → array へ変換
+  summary: 文書 2 ファイル・2 箇所の値を変換
+
+### ConvertFieldType(schemaId=fx-item, fieldPath=labels, targetTypeId=string, enumValues=[])
+  change: _schemas/item.yaml
+    SetScalar root.fields[5].type = string（String）
+    Remove root.fields[5].item
+  change: items/a.yaml
+    Replace labels = x
+  change: items/c.yaml
+    Remove labels
+  summary: スキーマ「fx-item」のフィールド「labels」を array → string へ変換
+  summary: 文書 2 ファイル・2 箇所の値を変換
+
+### ConvertFieldType(schemaId=fx-item, fieldPath=tag, targetTypeId=enum, enumValues=[z])
+  change: _schemas/item.yaml
+    SetScalar root.fields[4].type = enum（String）
+    Replace root.fields[4].values =   - z
+  summary: スキーマ「fx-item」のフィールド「tag」を string → enum へ変換
+  summary: 文書 0 ファイル・0 箇所の値を変換
+
+### ConvertFieldType(schemaId=fx-item, fieldPath=tag, targetTypeId=enum, enumValues=[q])
+  rejected（IllegalStateException）: 変換できない値があるため中止します: items/b.yaml の tag（値「z」）
+
+### ConvertFieldType(schemaId=fx-item, fieldPath=status, targetTypeId=string, enumValues=[])
+  rejected（IllegalArgumentException）: cases を持つフィールドの型変換は未対応です
+
+### ConvertFieldType(schemaId=fx-item, fieldPath=price, targetTypeId=string, enumValues=[])
+  rejected（IllegalArgumentException）: 参照（$ref）フィールドは定義側を変換してください（使用側のパスで定義内フィールドを指定できます）
+
+### RenameDefinition(moduleId=fx-lib, defName=money, newName=cash)
+  change: _schemas/detail.yaml
+    SetScalar root.fields[1].$ref = fx-lib#cash（String）
+  change: _schemas/item.yaml
+    SetScalar root.fields[7].$ref = fx-lib#cash（String）
+    SetScalar root.fields[9].item.fields[1].$ref = fx-lib#cash（String）
+  change: _schemas/lib.yaml
+    RenameKey definitions.money -> cash
+  warning: ビュー定義・アクティビティ等の「money」への言及は追随しません（6E 仮想文書の設計後に対応。該当があれば手動で更新してください）
+  summary: 定義「fx-lib#money」→「fx-lib#cash」
+  summary: スキーマの参照 3 箇所を書き換え（文書は変わりません）
+
+### ExtractDefinition(schemaId=fx-item, fieldPath=score, defName=scoreDef)
+  change: _schemas/item.yaml
+    Replace definitions = {}
+    Insert definitions.scoreDef = type: string
+    Remove root.fields[3].type
+    Insert root.fields[3].$ref = scoreDef
+  summary: フィールド「score」の構造を定義「fx-item#scoreDef」へ抽出
+  summary: 使用側は $ref 参照に置き換え（1 キーを移動。文書は変わりません）
+
+### InlineDefinition(schemaId=fx-item, fieldPath=price)
+  change: _schemas/item.yaml
+    Remove root.fields[7].$ref
+    Insert root.fields[7].type = object
+    Insert root.fields[7].fields =   - key: amount⏎    type: string⏎  - key: currency⏎    type: enum⏎    values:⏎      - JPY⏎      - USD⏎    default: JPY
+  summary: フィールド「price」の $ref を定義「fx-lib#money」の内容へインライン化（2 キーを複製。文書は変わりません）
+  summary: 定義「fx-lib#money」は他に 2 箇所から参照されているため残します
+
+### InlineDefinition(schemaId=fx-item, fieldPath=score)
+  rejected（IllegalStateException）: 定義参照（$ref）ではありません: score
+
+### RenameRelation(oldName=belongs, newName=linked)
+  change: _schemas/item.yaml
+    SetScalar root.fields[6].relation = linked（String）
+  change: _schemas/rel.yaml
+    SetScalar relations[0].name = linked（String）
+  warning: ビュー定義・アクティビティ等の「belongs」への言及は追随しません（6E 仮想文書の設計後に対応。該当があれば手動で更新してください）
+  summary: 関係「belongs」→「linked」
+  summary: レジストリ・スキーマの 2 箇所を書き換え（文書は変わりません）
+
+### RenameRelation(oldName=belongs, newName=blocks)
+  rejected（IllegalArgumentException）: 関係「blocks」は既にレジストリに宣言されています
+
+### RenameRelation(oldName=nothing, newName=linked)
+  rejected（IllegalArgumentException）: 関係「nothing」の出現が見つかりません
+
+### RenameSchemaId(oldId=fx-detail, newId=fx-spec)
+  change: _schemas/detail.yaml
+    SetScalar id = fx-spec（String）
+  change: _schemas/item.yaml
+    SetScalar coverage[0].detailIn.schemaIds[0] = fx-spec（String）
+  warning: ビュー定義・アクティビティ等の「fx-detail」への言及は追随しません（6E 仮想文書の設計後に対応。該当があれば手動で更新してください）
+  summary: スキーマID「fx-detail」→「fx-spec」
+  summary: スキーマの参照 1 箇所を書き換え（文書と match は変わりません）
+
+### RenameSchemaId(oldId=fx-lib, newId=fx-common)
+  change: _schemas/detail.yaml
+    SetScalar root.fields[1].$ref = fx-common#money（String）
+  change: _schemas/item.yaml
+    SetScalar root.fields[7].$ref = fx-common#money（String）
+    SetScalar root.fields[9].item.fields[1].$ref = fx-common#money（String）
+  change: _schemas/lib.yaml
+    SetScalar id = fx-common（String）
+  warning: ビュー定義・アクティビティ等の「fx-lib」への言及は追随しません（6E 仮想文書の設計後に対応。該当があれば手動で更新してください）
+  summary: スキーマID「fx-lib」→「fx-common」
+  summary: スキーマの参照 3 箇所を書き換え（文書と match は変わりません）
+
+### RenameSchemaId(oldId=fx-item, newId=fx-lib)
+  rejected（IllegalArgumentException）: スキーマID「fx-lib」は既にあります
+

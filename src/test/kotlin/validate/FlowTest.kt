@@ -105,6 +105,34 @@ class FlowTest {
     }
 
     @Test
+    fun `詳細化出現の文書には定義出現への報告が案内される`() {
+        // R28-05a（UX-96）の配送: 報告先はノードの定義出現のみ・同じIDの詳細化出現には INFO の案内
+        write(
+            "_schemas/screen-detail.yaml",
+            """
+            id: screen-detail
+            match: "details/*.yaml"
+            entity: { type: screen, idPattern: "SCR-*" }
+            root:
+              type: object
+              fields:
+                - { key: id, type: id, required: true }
+            """,
+        )
+        write("details/SCR-C.yaml", "id: SCR-C")
+        val ws = Workspace.open(dir)
+        val notices = ws.validate("details/SCR-C.yaml")
+        val unreachable = notices.single { "到達できません" in it.message }
+        assertEquals(Severity.INFO, unreachable.severity)
+        assertTrue("報告先: 定義出現 screens.yaml" in unreachable.message, unreachable.message)
+        assertTrue("行き止まりは終端宣言があること" in unreachable.message, unreachable.message)
+        assertEquals(listOf("SCR-C", "SCR-A"), unreachable.relatedIds)
+        val deadEnd = notices.single { "出る遷移がなく" in it.message }
+        assertEquals(Severity.INFO, deadEnd.severity)
+        assertEquals(listOf("SCR-C"), deadEnd.relatedIds)
+    }
+
+    @Test
     fun `全ノードが到達可能で終端宣言があれば黙る`() {
         write(
             "transitions.yaml",

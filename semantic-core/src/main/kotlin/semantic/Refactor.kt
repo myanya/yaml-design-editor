@@ -196,10 +196,10 @@ object SemanticRefactor {
         val refs = if (idDeclared) emptyList() else snapshot.refs.filter {
             it.targetKind == schema.RefTarget.DOCUMENT && it.targetId == oldRel
         }
-        val builder = DocOpsBuilder()
+        val builder = SemanticRewrite.PlanOps(removesLast = true)
         refs.forEach { r ->
             val target = if (r.document == from) to else r.document
-            builder.at(target) += YamlOperation.SetScalar(r.path, newRel)
+            builder.add(target, YamlOperation.SetScalar(r.path, newRel))
         }
         if (refs.isNotEmpty()) {
             notes += "パスIDの文書参照 ${refs.size} 件を「$newRel」へ書き換えます"
@@ -233,13 +233,13 @@ object SemanticRefactor {
 
         val refs = snapshot.backlinksTo(setOf(oldId))
         val warnings = idPatternWarnings(schemas, occurrences, newId)
-        val builder = DocOpsBuilder()
+        val builder = SemanticRewrite.PlanOps(removesLast = true)
         occurrences.forEach { e ->
             idFieldPaths(schemas, e, tree).forEach { path ->
-                builder.at(e.document) += YamlOperation.SetScalar(path, newId)
+                builder.add(e.document, YamlOperation.SetScalar(path, newId))
             }
         }
-        refs.forEach { r -> builder.at(r.document) += YamlOperation.SetScalar(r.path, newId) }
+        refs.forEach { r -> builder.add(r.document, YamlOperation.SetScalar(r.path, newId)) }
         return RefactoringPlan(
             sourceVersion = snapshot.sourceVersion,
             request = request,
@@ -287,17 +287,17 @@ object SemanticRefactor {
         val refs = snapshot.backlinksTo(setOf(fromId)).filterNot { r ->
             deletedRoots.any { (d, p) -> r.document == d && r.path.size >= p.size && r.path.subList(0, p.size) == p }
         }
-        val builder = DocOpsBuilder()
-        refs.forEach { r -> builder.at(r.document) += YamlOperation.SetScalar(r.path, intoId) }
+        val builder = SemanticRewrite.PlanOps(removesLast = true)
+        refs.forEach { r -> builder.add(r.document, YamlOperation.SetScalar(r.path, intoId)) }
         if (deleteOccurrences) {
             // 削除は Set の後ろへ・パス降順（後方の要素から消してインデックスのずれを避ける）
-            occurrences.sortedWith(pathDescending).forEach { e ->
-                builder.at(e.document) += YamlOperation.Remove(e.path)
+            occurrences.sortedWith(occurrenceDescending).forEach { e ->
+                builder.add(e.document, YamlOperation.Remove(e.path))
             }
         } else {
             occurrences.forEach { e ->
                 idFieldPaths(schemas, e, tree).forEach { path ->
-                    builder.at(e.document) += YamlOperation.SetScalar(path, intoId)
+                    builder.add(e.document, YamlOperation.SetScalar(path, intoId))
                 }
             }
         }
@@ -322,16 +322,14 @@ object SemanticRefactor {
         require(occurrences.isNotEmpty()) { "ID「$id」の出現が見つかりません" }
         val inbound = snapshot.backlinksTo(setOf(id))
         if (inbound.isNotEmpty()) {
-            val shown = inbound.take(5).joinToString("、") { r ->
-                "${r.document.value} の ${r.path.pretty()}"
-            } + (if (inbound.size > 5) " 他${inbound.size - 5}件" else "")
+            val shown = SemanticRewrite.listTop(inbound.map { r -> "${r.document.value} の ${r.path.pretty()}" })
             error("ID「$id」への参照が ${inbound.size} 件あるため削除できません（先に参照を編集するか merge を使ってください）: $shown")
         }
         occurrences.firstOrNull { it.path.isEmpty() }?.let { e ->
             error("出現が文書ルートのため要素削除できません（ファイルの削除は手動で行ってください）: ${e.document.value}")
         }
-        val builder = DocOpsBuilder()
-        occurrences.sortedWith(pathDescending).forEach { e -> builder.at(e.document) += YamlOperation.Remove(e.path) }
+        val builder = SemanticRewrite.PlanOps(removesLast = true)
+        occurrences.sortedWith(occurrenceDescending).forEach { e -> builder.add(e.document, YamlOperation.Remove(e.path)) }
         return RefactoringPlan(
             sourceVersion = snapshot.sourceVersion,
             request = request,
@@ -372,32 +370,6 @@ object SemanticRefactor {
         } else null
     }.distinct()
 
-    /** 同一文書内の削除を後方から行うためのパス降順（数値セグメントは数値比較）。 */
-    private val pathDescending = Comparator<ScannedId> { a, b ->
-        val x = a.path
-        val y = b.path
-        for (i in 0 until minOf(x.size, y.size)) {
-            val sx = x[i]
-            val sy = y[i]
-            val c = when {
-                sx is Int && sy is Int -> sx.compareTo(sy)
-                else -> sx.toString().compareTo(sy.toString())
-            }
-            if (c != 0) return@Comparator -c
-        }
-        -(x.size.compareTo(y.size))
-    }
-
-    /** 文書単位の操作を集める（文書ID順・Set 先／Remove 後の安定整列＝EntityOps と同じ規則）。 */
-    private class DocOpsBuilder {
-        private val byDoc = LinkedHashMap<DocumentId, MutableList<YamlOperation>>()
-
-        fun at(document: DocumentId): MutableList<YamlOperation> = byDoc.getOrPut(document) { mutableListOf() }
-
-        fun toChanges(): List<PlannedDocumentChange> =
-            byDoc.entries.sortedBy { it.key.value }.map { (document, ops) ->
-                val ordered = ops.filter { it !is YamlOperation.Remove } + ops.filterIsInstance<YamlOperation.Remove>()
-                PlannedDocumentChange(document, ordered)
-            }
-    }
+    /** 同一文書内の削除を後方から行うための出現の降順（パス降順は Rewrite 共有基盤の比較器）。 */
+    private val occurrenceDescending: Comparator<ScannedId> = compareBy(SemanticRewrite.pathDescending) { it.path }
 }

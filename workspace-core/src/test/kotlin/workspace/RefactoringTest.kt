@@ -794,7 +794,8 @@ class RefactoringTest {
                     id: fx-item
                     match: "items/**/*.yaml"
                     coverage:
-                      fromSchemaIds: [fx-lib]
+                      - detailIn:
+                          schemaIds: [fx-lib]
                     root:
                       type: object
                       fields:
@@ -808,7 +809,7 @@ class RefactoringTest {
         )
         val s = session(store)
         val plan = s.planRefactoring(semantic.RefactoringRequest.RenameSchemaId("fx-lib", "fx-common"))
-        assertTrue(plan.summary.any { "参照 2 箇所" in it }, "\$ref と fromSchemaIds: ${plan.summary}")
+        assertTrue(plan.summary.any { "参照 2 箇所" in it }, "\$ref と detailIn.schemaIds: ${plan.summary}")
         assertTrue(s.applyRefactoring(plan).ok)
         val libText = DefaultYamlCodec.dump(s.snapshot.documents.getValue(DocumentId("_schemas/lib.yaml")).document)
         assertTrue("id: fx-common" in libText, libText)

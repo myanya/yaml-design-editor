@@ -164,6 +164,33 @@ class MatrixTest {
     }
 
     @Test
+    fun `詳細化出現の文書には定義出現への報告が案内される`() {
+        // R28-05a（UX-96）の配送: 報告先は行の定義出現のみ・同じIDの詳細化出現には INFO の案内
+        write(
+            "_schemas/process-detail.yaml",
+            """
+            id: process-detail
+            match: "details/*.yaml"
+            entity: { type: process, idPattern: "PROC-*" }
+            root:
+              type: object
+              fields:
+                - { key: id, type: id, required: true }
+            """,
+        )
+        write("details/PROC-1.yaml", "id: PROC-1")
+        val ws = Workspace.open(dir)
+        val notice = ws.validate("details/PROC-1.yaml").single { "網羅マトリクス" in it.message }
+        assertEquals(Severity.INFO, notice.severity)
+        assertTrue("報告先: 定義出現 procs/PROC-1.yaml" in notice.message, notice.message)
+        assertTrue("1 件" in notice.message && "VP-2（境界値）" in notice.message, notice.message)
+        assertTrue("全試験観点のテスト項目" in notice.message, notice.message)
+        assertEquals(listOf("PROC-1", "VP-2"), notice.relatedIds)
+        // 報告先（定義出現）の指摘は従来どおり1件
+        assertEquals(Severity.WARNING, ws.validate("procs/PROC-1.yaml").single { "網羅マトリクス" in it.message }.severity)
+    }
+
+    @Test
     fun `複数の不足セルは件数と一覧で報告される`() {
         write("vps.yaml", "viewpoints:\n- { id: VP-1, name: 正常系 }\n- { id: VP-2, name: 境界値 }\n- { id: VP-3, name: 排他 }")
         write("items.yaml", "items: []")
