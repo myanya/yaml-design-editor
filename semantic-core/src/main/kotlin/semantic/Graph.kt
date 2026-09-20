@@ -53,6 +53,18 @@ class SemanticEntityGraph private constructor(
     /** 参照値の位置を含む、最も内側（パスが最長）の ID 出現＝参照を書いた要素。 */
     fun sourceEntryOf(ref: ScannedRef): ScannedId? = sourceByRef[ref]
 
+    /**
+     * 全参照から引く表（クエリの評価が使う）。クエリは「検査 × 要素」の数だけ評価されるため、評価のたびに作ると
+     * 全体の検証の時間が規模の2乗で伸びる（BACKLOG UX-116 の実測）。同じ参照の並び（同じ走査結果）については1回だけ作る。
+     */
+    fun refIndexFor(refs: List<ScannedRef>): SemanticRefIndex {
+        refIndexCache?.let { (cachedRefs, index) -> if (cachedRefs === refs) return index }
+        return SemanticRefIndex(refs, this).also { refIndexCache = refs to it }
+    }
+
+    @Volatile
+    private var refIndexCache: Pair<List<ScannedRef>, SemanticRefIndex>? = null
+
     /** ID の全出現のサブツリー配下に書かれた参照（出次エッジ。出現順→文書内の走査順）。 */
     fun outgoingRefs(id: String): List<ScannedRef> =
         entities[id]?.occurrences.orEmpty().flatMap { outByEntry[it].orEmpty() }
@@ -89,6 +101,13 @@ class SemanticEntityGraph private constructor(
         entities.values.flatMap { it.occurrences }.filter { it !in parentByEntry }
             .groupBy({ it.document }, { it.id }).mapValues { it.value.distinct().sorted() }
     }
+
+    /** node の絞り込みに合うエンティティの ID（ID 昇順）。「すべての要素について」の検査が、起点ごとに数え直さないように覚える。 */
+    fun entityIdsMatching(step: schema.QueryNodeStep): List<String> = synchronized(membersCache) {
+        membersCache.getOrPut(step) { entities.entries.filter { (id, node) -> step.matchesEntity(id, node) }.map { it.key }.sorted() }
+    }
+
+    private val membersCache = HashMap<schema.QueryNodeStep, List<String>>()
 
     companion object {
         /** 文書単位の走査結果からグラフを導出する（同一文書内の突合だけで足りるため、コストは文書単位に閉じる）。 */
@@ -151,5 +170,33 @@ class SemanticEntityGraph private constructor(
 
             return SemanticEntityGraph(entities, documents, sourceByRef, outByEntry, parentByEntry)
         }
+    }
+}
+
+/**
+ * 全参照から引く表（SemanticEntityGraph.refIndexFor が、同じ参照の並びにつき1回だけ作る）。どれも必要になったときに作る。
+ */
+class SemanticRefIndex(refs: List<ScannedRef>, graph: SemanticEntityGraph) {
+    /** エンティティ参照の被参照索引（in エッジ）。全参照の並び順を保つ。 */
+    val entityRefsByTarget: Map<String, List<ScannedRef>> by lazy {
+        refs.filter { it.targetKind == schema.RefTarget.ENTITY }.groupBy { it.targetId }
+    }
+
+    /** 文書内に書かれた全参照（文書ノードの out エッジ）。 */
+    val refsByDocument: Map<DocumentId, List<ScannedRef>> by lazy { refs.groupBy { it.document } }
+
+    /** 文書参照（targetKind: document）の被参照索引（文書ノードの in エッジ）。 */
+    val docRefsByTarget: Map<String, List<ScannedRef>> by lazy {
+        refs.filter { it.targetKind == schema.RefTarget.DOCUMENT }.groupBy { it.targetId }
+    }
+
+    /** 文書 → 文書ノードID（in エッジで「参照が書かれた文書」へ着地するときの解決）。 */
+    val documentIdByDoc: Map<DocumentId, String> by lazy {
+        graph.documents.values.associate { it.document to it.documentId }
+    }
+
+    /** 行（文書と、参照の1つ上のパス）→ その行の直下に書かれたエンティティ参照（行を線とみなす指定 row 用）。 */
+    val refsByRow: Map<Pair<DocumentId, model.YPath>, List<ScannedRef>> by lazy {
+        refs.filter { it.targetKind == schema.RefTarget.ENTITY }.groupBy { it.document to it.path.dropLast(1) }
     }
 }

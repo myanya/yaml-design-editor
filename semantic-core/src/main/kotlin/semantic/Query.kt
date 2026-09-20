@@ -286,9 +286,7 @@ object SemanticQuery {
         loader: (DocumentId) -> YNode?,
     ): SemanticForAllResult? {
         if (!Evaluator(ids, refs, graph, spec, loader, rel).startMatches(startId)) return null
-        val members = graph.entities.entries
-            .filter { (id, node) -> forAll.node.matchesEntity(id, node) }
-            .map { it.key }.sorted()
+        val members = graph.entityIdsMatching(forAll.node)
         if (members.isEmpty()) return null
         val memberBind = forAll.node.bind ?: return null
         // 起点側の束縛（from）から steps を辿る。集まりの要素は、あらかじめ決まった束縛として same から指す
@@ -382,23 +380,15 @@ object SemanticQuery {
 
         private fun tree(d: DocumentId): YNode? = trees.getOrPut(d) { loader(d) }
 
-        /** エンティティ参照の被参照索引（in エッジ）。全参照の並び順を保つ。 */
-        private val entityRefsByTarget: Map<String, List<ScannedRef>> by lazy {
-            allRefs.filter { it.targetKind == RefTarget.ENTITY }.groupBy { it.targetId }
-        }
-
-        /** 文書内に書かれた全参照（文書ノードの out エッジ）。 */
-        private val refsByDocument: Map<DocumentId, List<ScannedRef>> by lazy { allRefs.groupBy { it.document } }
-
-        /** 文書参照（targetKind: document）の被参照索引（文書ノードの in エッジ）。 */
-        private val docRefsByTarget: Map<String, List<ScannedRef>> by lazy {
-            allRefs.filter { it.targetKind == RefTarget.DOCUMENT }.groupBy { it.targetId }
-        }
-
-        /** 文書 → 文書ノードID（in エッジで「参照が書かれた文書」へ着地するときの解決）。 */
-        private val documentIdByDoc: Map<DocumentId, String> by lazy {
-            graph.documents.values.associate { it.document to it.documentId }
-        }
+        /**
+         * 全参照から引く表（被参照・文書ごとの参照・行ごとの参照など）。評価のたびに作らず、グラフが同じ参照の並びにつき
+         * 1回だけ作ったものを使う（評価は「検査 × 要素」の数だけ起きるため。BACKLOG UX-116）。
+         */
+        private val refIndex: SemanticRefIndex = graph.refIndexFor(allRefs)
+        private val entityRefsByTarget: Map<String, List<ScannedRef>> get() = refIndex.entityRefsByTarget
+        private val refsByDocument: Map<DocumentId, List<ScannedRef>> get() = refIndex.refsByDocument
+        private val docRefsByTarget: Map<String, List<ScannedRef>> get() = refIndex.docRefsByTarget
+        private val documentIdByDoc: Map<DocumentId, String> get() = refIndex.documentIdByDoc
 
         /** 束縛名 → その束縛に効くプロパティ述語（束縛が確定した時点で枝刈りする）。 */
         private val predsByBind: Map<String, List<QueryWhereClause>> = spec.where.groupBy { it.of }
@@ -418,10 +408,7 @@ object SemanticQuery {
             val stayed: Boolean = false,
         )
 
-        /** 行（文書と、参照の1つ上のパス）→ その行の直下に書かれたエンティティ参照（行を線とみなす指定 row 用）。 */
-        private val refsByRow: Map<Pair<DocumentId, YPath>, List<ScannedRef>> by lazy {
-            allRefs.filter { it.targetKind == RefTarget.ENTITY }.groupBy { it.document to it.path.dropLast(1) }
-        }
+        private val refsByRow: Map<Pair<DocumentId, YPath>, List<ScannedRef>> get() = refIndex.refsByRow
 
         fun evaluate(restrictStart: String? = null, firstOnly: Boolean = false): SemanticQueryResult {
             val sorted = solve(restrictStart, firstOnly)
@@ -559,7 +546,8 @@ object SemanticQuery {
                 QueryNodeKind.ENTITY -> graph.entities.keys
                 QueryNodeKind.DOCUMENT -> graph.documents.keys
             }
-            val candidates = (restrictStart?.let { r -> candidates0.filter { it == r } } ?: candidates0.sorted())
+            // 起点を固定した評価は、全要素を総なめしない（評価は要素の数だけ起きるため）
+            val candidates = (restrictStart?.let { r -> if (r in candidates0) listOf(r) else emptyList() } ?: candidates0.sorted())
             return candidates.map { NodeKey(spec.start.kind, it) }.filter { nodeMatches(spec.start, it) }
         }
 

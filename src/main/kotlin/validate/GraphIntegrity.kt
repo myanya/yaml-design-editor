@@ -1,14 +1,12 @@
 package validate
 
 import index.IdIndex
+import index.toKernelView
 import index.RefEntry
-import index.kernelGraphOf
-import index.toDocumentScans
 import model.DocumentId
 import schema.EnforcementDef
 import schema.RelationDef
 import semantic.SemanticDeclarations
-import semantic.SemanticGraphIntegrity
 import java.nio.file.Path
 
 /**
@@ -33,14 +31,10 @@ object GraphIntegrity {
     ): List<Issue> {
         if (enforcement.undeclaredRelation == null) return emptyList()
 
-        // IdIndex の走査結果をカーネル座標へ写して委譲する（変換は index/SemanticBridge.kt に一元化）
-        val scans = indexObj.toDocumentScans()
-        val graph = kernelGraphOf(scans)
-        val allRefs = scans.flatMap { it.refs }
-
-        val target = DocumentId(file.toString())
-        return SemanticGraphIntegrity.issues(allRefs, graph, SemanticDeclarations(relations = relations, enforcement = enforcement))
-            .filter { it.document == target }
+        // IdIndex の走査結果をカーネル座標へ写して委譲する（変換は index/SemanticBridge.kt に一元化）。
+        // ワークスペース全体の指摘は索引につき1回だけ求め、この文書の分を取り出す（文書ごとにグラフと全参照を調べ直さない）
+        val declarations = SemanticDeclarations(relations = relations, enforcement = enforcement)
+        return indexObj.toKernelView().integrityIssues(declarations)[DocumentId(file.toString())].orEmpty()
             .map { issue -> Issue(issue.severity, issue.message, issue.path) }
     }
 }

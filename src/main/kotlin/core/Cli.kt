@@ -45,10 +45,14 @@ internal const val CLI_USAGE = """コマンド:
   view     <workspace> [view-id] [file]         ビュー（_views）を解決する。横断グリッドは行×列、
            文書ビュー（kind: document）は file で対象文書を指定（適用対象1件なら省略可）。
            view-id 省略時は定義の一覧を表示する。各セルに原本上の座標（file / path）が付く
-  validate <workspace> [file]                   検証（スキーマ・参照・重複・カバレッジ・グラフ整合）
+  validate <workspace> [file] [--sources]       検証（スキーマ・参照・重複・カバレッジ・グラフ整合）。判定を保留した検査があれば
+           withheld に内訳と件数を出す。--sources は指摘の出どころ（どの検査の・どの要素についての指摘か）も出す
   readiness <workspace> [--pending]             準備完了レポート（R28-05b）: 全文書の検証結果をエンティティ単位に
            集約し、エラー0のエンティティを「準備完了」と判定する（警告は件数のみ・型／フェーズ別の集計つき）。
            --pending は未完了（エラーあり）のエンティティだけを列挙する
+  bench    [--modules 2,4,8,16] [--keep <dir>]   規模の計測（P27）: 大きさを指定して合成ワークスペースを作り、開く・全体を検証する・
+           準備完了レポートを作る、の時間を測る。--modules は大きさ（モジュールの数）の並び。前の大きさとの比（時間の伸び ÷ 大きさの伸び）で、
+           時間が規模に比例しているか（1.0 前後）、それ以上に伸びているかが分かる。--keep は作ったワークスペースを残す場所（省略時は消す）
   checks   <workspace> [schema-id] [--definitions]   展開後の検査の表示（P29 Phase 6）: スキーマの語彙（consistency など）と
            定義の使用（constraints の use）が、検証の前にどんな基本の検査へ展開されたかを由来つきで表示する。
            --definitions は使える検査の定義（functions）と語彙（vocabulary）の一覧も出す
@@ -433,6 +437,46 @@ internal fun runCli(args: Array<String>): String {
                     }.takeIf { it.isNotEmpty() },
                 ).filterValues { it != null }
             )
+        }
+        "bench" -> {
+            val sizes = (stringFlag(rest, "--modules") ?: "2,4,8,16").split(',').map { it.trim().toIntOrNull() ?: error("--modules には整数の並びを指定してください: $it") }
+            val keep = stringFlag(rest, "--keep")?.let { Path.of(it) }
+            // 1回目は JIT の暖機として捨てる（最小の大きさで1回まわす）
+            run {
+                val warm = Files.createTempDirectory("yde-bench-warm")
+                try { Bench.measure(warm, Bench.generate(warm, sizes.min())) } finally { warm.toFile().deleteRecursively() }
+            }
+            var previous: Bench.Result? = null
+            val rows = sizes.map { modules ->
+                val dir = keep?.resolve("m$modules")?.also { Files.createDirectories(it) } ?: Files.createTempDirectory("yde-bench")
+                try {
+                    val result = Bench.measure(dir, Bench.generate(dir, modules))
+                    val prev = previous
+                    // 伸び方: 時間の伸び ÷ 文書数の伸び（1.0 前後なら文書数に比例。2.0 なら、規模が2倍で時間が4倍）
+                    fun growth(now: Long, before: Long?): String? = prev?.let { p ->
+                        if (before == null || before == 0L) null
+                        else "%.2f".format((now.toDouble() / before) / (result.size.files.toDouble() / p.size.files))
+                    }
+                    previous = result
+                    linkedMapOf(
+                        "modules" to modules,
+                        "files" to result.size.files,
+                        "lines" to result.size.lines,
+                        "entities" to result.size.entities,
+                        "openMs" to result.openMs,
+                        "validateMs" to result.validateMs,
+                        "readinessMs" to result.readinessMs,
+                        "validateMsPerFile" to "%.1f".format(result.validateMs.toDouble() / result.size.files),
+                        "validateGrowth" to growth(result.validateMs, prev?.validateMs),
+                        "openGrowth" to growth(result.openMs, prev?.openMs),
+                        "errors" to result.errors,
+                        "warnings" to result.warnings,
+                    ).filterValues { it != null }
+                } finally {
+                    if (keep == null) dir.toFile().deleteRecursively()
+                }
+            }
+            dumpYaml(linkedMapOf("bench" to rows))
         }
         "checks" -> {
             // 展開の透明性（P29 Phase 6・CALC-29）: 語彙（consistency など）と定義の使用（use）が、検証の前に
