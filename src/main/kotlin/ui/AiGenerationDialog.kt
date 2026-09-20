@@ -216,8 +216,11 @@ fun AiGenerationHost(state: AppState) {
 
     val validationIssues = remember(proposedRoot) {
         proposedRoot?.let { root ->
+            // 提案の内容を重ねた索引で検証する（提案で新しく書かれた ID にも、定義体の検査——詳細文書の不足・
+            // エンティティの整合・利用者の constraints——を効かせる。BACKLOG UX-109）
             Validator.validate(
-                root, null, doc.file, doc.schema, state.overlayIndex(),
+                root, null, doc.file, doc.schema, state.overlayIndexWith(doc.file, root),
+                indexed = state.isIndexed(doc.file),
                 workspace = state.workspace, allSchemas = state.schemas, loader = state.unsavedFirstLoader(),
                 relations = state.relations, enforcement = state.enforcement,
             )

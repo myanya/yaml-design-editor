@@ -143,6 +143,14 @@ data class QueryNodeStep(
  * 行を線とみなす（SP-07）: `row: {from: {relation: A}, to: {relation: B}}` を書くと、同じ行（object）の直下に書かれた
  * 2つの参照——A の相手から B の相手へ——を1本の線として辿る（遷移の表のように、ID を持たない行に from と to が並ぶ書き方）。
  * dir: in は逆向き（B の相手から A の相手へ）。row を書いた線に relation / via は書けない。bind は、辿り着いた側の参照を束縛する。
+ *
+ * 参照を書いた要素（意図的差分 D-27）: 参照の線は、向きによらず「その参照を含む最も内側の ID を持つ要素」が書いたものとして辿る。
+ * `dir: out` はその要素が直接書いた参照だけ・`dir: in` の相手はその参照を直接書いた要素（入れ子の要素が書いた参照を、外側の要素の参照とはみなさない）。
+ * `via` は、参照が書かれた場所の末尾のキーの並び（1語ならキー名。`target.ref` は「target の下の ref」に書かれた参照。配列の番号は無視）。
+ *
+ * 入れ子の線: `contains: true` を書くと、参照ではなく**入れ子**を辿る——その要素の直下に入れ子になった ID を持つ要素へ進む
+ * （dir: in は外側の要素へ。文書ノードとの間は、その文書にいちばん外側で書かれた要素）。repeat と組み合わせれば、何段の入れ子でも辿れる。
+ * contains を書いた線に relation / via / in / bind / row は書けない（参照を通らないため）。
  */
 data class QueryEdgeStep(
     val dir: QueryDir = QueryDir.OUT,
@@ -152,9 +160,20 @@ data class QueryEdgeStep(
     val bind: String? = null,       // 参照の束縛名
     val repeatMin: Int? = null,     // 何段でも辿る（null = 1段だけ・1 = 1回以上・0 = 0回以上）
     val row: FlowEdges? = null,     // 同じ行の2つの参照を1本の線とみなす（from の相手 → to の相手）
+    val contains: Boolean = false,  // 入れ子の線（参照ではなく、要素の入れ子を辿る）
 ) {
+    /** 参照が書かれた場所が via の指定に合うか（1語ならキー名・複数語なら場所の末尾のキーの並び。配列の番号は無視）。 */
+    fun viaMatches(viaKey: String, path: List<Any>): Boolean = via == null || viaMatches(via, viaKey, path)
+
     companion object {
-        private val KEYS = setOf("dir", "relation", "via", "in", "bind", "repeat", "row")
+        private val KEYS = setOf("dir", "relation", "via", "in", "bind", "repeat", "row", "contains")
+
+        /** via の指定と、参照が書かれた場所の突き合わせ（edge と、値の式 refCount・文脈の開示が共有する）。 */
+        fun viaMatches(via: String, viaKey: String, path: List<Any>): Boolean {
+            val keys = via.split('.').map { it.substringBefore('[').trim() }.filter { it.isNotEmpty() }
+            if (keys.size <= 1) return viaKey == (keys.firstOrNull() ?: via)
+            return path.filterIsInstance<String>().takeLast(keys.size) == keys
+        }
 
         fun parse(raw: Any?, where: String): QueryEdgeStep {
             val m = raw as? Map<*, *> ?: error("$where.edge はobjectである必要があります")
@@ -176,12 +195,22 @@ data class QueryEdgeStep(
             if (row != null && (m["relation"] != null || m["via"] != null)) {
                 error("$where.edge: row を書いた線に relation / via は書けません（線になる2つの参照は row の from と to で決まります）")
             }
+            val contains = when (val c = m["contains"]) {
+                null, false -> false
+                true -> true
+                else -> error("$where.edge.contains は true で書きます")
+            }
+            if (contains) {
+                listOf("relation", "via", "in", "bind", "row").firstOrNull { m[it] != null }
+                    ?.let { error("$where.edge: contains（入れ子の線）を書いた線に $it は書けません（参照を通らないため）") }
+            }
             if (repeatMin != null && m["bind"] != null) {
                 error("$where.edge: repeat を書いた線に bind は書けません（何本もの参照を通るため、1本に決まりません）")
             }
             return QueryEdgeStep(
                 repeatMin = repeatMin,
                 row = row,
+                contains = contains,
                 dir = m["dir"]?.toString()?.let { QueryDir.parse(it) } ?: QueryDir.OUT,
                 relation = m["relation"]?.toString()?.takeIf { it.isNotBlank() },
                 via = m["via"]?.toString()?.takeIf { it.isNotBlank() },

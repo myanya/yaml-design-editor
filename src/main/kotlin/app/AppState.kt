@@ -263,6 +263,20 @@ class AppState {
         return result
     }
 
+    /**
+     * まだ文書に入れていない内容（AI 生成の提案など）を重ねた索引（BACKLOG UX-109）。定義体の検査は索引にある要素だけを
+     * 判定するため、提案の内容で新しく書かれた ID にも検査を効かせるには、提案を重ねた索引が要る。未保存の編集も重ねる。
+     * 台帳の外の文書・セッションを開けない場合は、通常の overlayIndex を返す。
+     */
+    fun overlayIndexWith(file: Path, root: YNode): IdIndex {
+        val cw = coreWs ?: return index
+        if (!isIndexed(file)) return overlayIndex()
+        val overlays: Map<Path, YNode?> = docCache.values
+            .filter { it.dirty && isIndexed(it.file) }
+            .associate { it.file to it.root as YNode? } + (file to root)
+        return runCatching { cw.overlayIndex(overlays) }.getOrElse { overlayIndex() }
+    }
+
     /** 従来の二層オーバーレイ（RA-02 のフォールバック。セッションを開けない場合のみ）。 */
     private fun legacyOverlayIndex(cw: core.Workspace): IdIndex {
         val overlays = docCache.values

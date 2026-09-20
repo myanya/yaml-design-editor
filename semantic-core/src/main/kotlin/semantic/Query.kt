@@ -342,7 +342,7 @@ object SemanticQuery {
         "out" -> frontier.flatMap { id -> graph.outgoingRefs(id) }
             .asSequence()
             .filter { relation == null || it.relation == relation }
-            .filter { via == null || it.viaKey == via }
+            .filter { via == null || QueryEdgeStep.viaMatches(via, it.viaKey, it.path) }
             .map { it.targetId }
             .distinct()
             .filter { schemaId == null || ids[it].orEmpty().any { e -> e.schemaId == schemaId } }
@@ -353,7 +353,7 @@ object SemanticQuery {
             refs.filter { it.targetKind == RefTarget.ENTITY && it.targetId in targets }
                 .asSequence()
                 .filter { relation == null || it.relation == relation }
-                .filter { via == null || it.viaKey == via }
+                .filter { via == null || QueryEdgeStep.viaMatches(via, it.viaKey, it.path) }
                 .mapNotNull { graph.sourceEntryOf(it)?.id }
                 .distinct()
                 .filter { schemaId == null || ids[it].orEmpty().any { e -> e.schemaId == schemaId } }
@@ -581,8 +581,10 @@ object SemanticQuery {
             val repeatMin = edge.repeatMin
             if (repeatMin != null) return reach(from, edge, target, repeatMin)
             val matched = expandOnce(from, edge, target.kind).filter { nodeMatches(target, it.first) }
-            return if (edge.bind == null) matched.map { it.first }.distinct().sortedBy { it.id }.map { Step(it) }
-            else matched.distinctBy { it.first to refSortKey(it.second) }
+            if (edge.bind == null) return matched.map { it.first }.distinct().sortedBy { it.id }.map { Step(it) }
+            // 参照を束縛する線（入れ子の線に bind は書けないため、ここへ来る線は必ず参照を持つ）
+            return matched.mapNotNull { (key, ref) -> ref?.let { key to it } }
+                .distinctBy { it.first to refSortKey(it.second) }
                 .sortedWith(compareBy({ it.first.id }, { refSortKey(it.second) }))
                 .map { Step(it.first, it.second) }
         }
@@ -627,8 +629,27 @@ object SemanticQuery {
          * out → entity = 解決済みのエンティティ参照先／document = 解決済みの文書参照先、
          * in → entity = 参照を書いた最内のID要素／document = 参照が書かれた文書。
          * row（行を線とみなす。SP-07）は、同じ行の直下の2つの参照——from の相手から to の相手へ——を1本の線として辿る。
+         * contains（入れ子の線）は参照を通らない: out → 直下に入れ子になった要素（文書からは、いちばん外側で書かれた要素）、
+         * in → 外側の要素（文書へは、その要素がいちばん外側で書かれている文書）。
          */
-        private fun expandOnce(from: NodeKey, edge: QueryEdgeStep, targetKind: QueryNodeKind): List<Pair<NodeKey, ScannedRef>> {
+        private fun expandOnce(from: NodeKey, edge: QueryEdgeStep, targetKind: QueryNodeKind): List<Pair<NodeKey, ScannedRef?>> {
+            if (edge.contains) {
+                val keys: List<NodeKey> = when (edge.dir) {
+                    QueryDir.OUT -> when {
+                        targetKind != QueryNodeKind.ENTITY -> emptyList()
+                        from.kind == QueryNodeKind.ENTITY -> graph.childIds(from.id).map { NodeKey(QueryNodeKind.ENTITY, it) }
+                        else -> graph.documents[from.id]?.let { graph.topLevelIds(it.document) }.orEmpty()
+                            .map { NodeKey(QueryNodeKind.ENTITY, it) }
+                    }
+                    QueryDir.IN -> when {
+                        from.kind != QueryNodeKind.ENTITY -> emptyList()
+                        targetKind == QueryNodeKind.ENTITY -> graph.parentIds(from.id).map { NodeKey(QueryNodeKind.ENTITY, it) }
+                        else -> graph.topLevelDocuments(from.id).mapNotNull { documentIdByDoc[it] }.distinct().sorted()
+                            .map { NodeKey(QueryNodeKind.DOCUMENT, it) }
+                    }
+                }
+                return keys.map { it to null }
+            }
             val row = edge.row
             if (row != null) {
                 if (from.kind != QueryNodeKind.ENTITY || targetKind != QueryNodeKind.ENTITY) return emptyList()
@@ -650,7 +671,8 @@ object SemanticQuery {
             }
             val refs = when (edge.dir) {
                 QueryDir.OUT -> when (from.kind) {
-                    QueryNodeKind.ENTITY -> graph.outgoingRefs(from.id)
+                    // その要素が直接書いた参照だけ（入れ子の要素が書いた参照は、その要素のもの。意図的差分 D-27）
+                    QueryNodeKind.ENTITY -> graph.ownRefs(from.id)
                     QueryNodeKind.DOCUMENT -> graph.documents[from.id]?.let { refsByDocument[it.document] }.orEmpty()
                 }
                 QueryDir.IN -> when (from.kind) {
@@ -659,7 +681,7 @@ object SemanticQuery {
                 }
             }.asSequence()
                 .filter { edge.relation == null || it.relation == edge.relation }
-                .filter { edge.via == null || it.viaKey == edge.via }
+                .filter { edge.viaMatches(it.viaKey, it.path) }
                 .filter { ref -> edge.inDoc?.matches(ref.sourceSchemaId, rel(ref.document)) ?: true }
             // 端をノードへ解決できない参照（対象IDが索引になし・書き手をエンティティへ解決できない）は
             // 黙って除外しつつ「候補の喪失」を記録する（CALC-17 の unknown-dropped）。
@@ -921,10 +943,13 @@ object SemanticQuery {
             // 入ってくる参照はエンティティへの参照を数える。値の読み出しではないため、出現は選ばない
             is ValueExpr.RefCount -> row.bindings[expr.of]?.takeIf { it.kind == QueryNodeKind.ENTITY }?.let { node ->
                 val refs = when (expr.dir) {
-                    QueryDir.OUT -> graph.outgoingRefs(node.id)
+                    QueryDir.OUT -> graph.ownRefs(node.id)
                     QueryDir.IN -> entityRefsByTarget[node.id].orEmpty()
                 }
-                val n = refs.count { (expr.relation == null || it.relation == expr.relation) && (expr.via == null || it.viaKey == expr.via) }
+                val n = refs.count { ref ->
+                    (expr.relation == null || ref.relation == expr.relation) &&
+                        (expr.via == null || QueryEdgeStep.viaMatches(expr.via!!, ref.viaKey, ref.path))
+                }
                 SemanticCheckSide(text = n.toString(), id = node.id, raw = n.toString())
             }
             // 書かれた場所の数（SP-05）: その ID が書かれている場所のうち、指定（スキーマ・ファイル・役割）に合うものを数える。

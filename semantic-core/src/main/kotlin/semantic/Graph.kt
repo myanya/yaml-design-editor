@@ -46,6 +46,8 @@ class SemanticEntityGraph private constructor(
     val documents: Map<String, SemanticDocumentNode>,
     private val sourceByRef: Map<ScannedRef, ScannedId>,
     private val outByEntry: Map<ScannedId, List<ScannedRef>>,
+    /** ID 出現 → その出現を含む、最も内側の別の ID 出現（入れ子の外側の要素。いちばん外側なら無い）。 */
+    private val parentByEntry: Map<ScannedId, ScannedId>,
 ) {
 
     /** 参照値の位置を含む、最も内側（パスが最長）の ID 出現＝参照を書いた要素。 */
@@ -58,6 +60,36 @@ class SemanticEntityGraph private constructor(
     /** 1出現のサブツリー配下に書かれた参照。 */
     fun outgoingRefs(entry: ScannedId): List<ScannedRef> = outByEntry[entry].orEmpty()
 
+    /**
+     * その要素が**直接書いた**参照（参照を含む最も内側の ID 出現が、この ID のもの。入れ子の要素が書いた参照は含めない）。
+     * クエリの edge と参照の本数は、向きによらずこの捉え方を使う（sourceEntryOf と対になる。意図的差分 D-27）。
+     * outgoingRefs（配下の全参照）は、その要素の配下を読む機能（文脈の開示・エンティティページ）が使う。
+     */
+    fun ownRefs(id: String): List<ScannedRef> = outgoingRefs(id).filter { sourceByRef[it]?.id == id }
+
+    /** 入れ子の線（contains）: この要素の直下に入れ子になった、ID を持つ要素（ID 昇順）。 */
+    fun childIds(id: String): List<String> = childrenById[id].orEmpty()
+
+    /** 入れ子の線の逆向き: この要素を直下に持つ、外側の要素（ID 昇順。出現ごとに外側が違えば複数）。 */
+    fun parentIds(id: String): List<String> =
+        entities[id]?.occurrences.orEmpty().mapNotNull { parentByEntry[it]?.id }.distinct().sorted()
+
+    /** その文書に、いちばん外側で（他の ID を持つ要素の入れ子にならずに）書かれた要素（ID 昇順）。 */
+    fun topLevelIds(document: DocumentId): List<String> = topLevelByDocument[document].orEmpty()
+
+    /** この要素が、いちばん外側で書かれている文書。 */
+    fun topLevelDocuments(id: String): List<DocumentId> =
+        entities[id]?.occurrences.orEmpty().filter { it !in parentByEntry }.map { it.document }.distinct()
+
+    private val childrenById: Map<String, List<String>> by lazy {
+        parentByEntry.entries.groupBy({ it.value.id }, { it.key.id }).mapValues { it.value.distinct().sorted() }
+    }
+
+    private val topLevelByDocument: Map<DocumentId, List<String>> by lazy {
+        entities.values.flatMap { it.occurrences }.filter { it !in parentByEntry }
+            .groupBy({ it.document }, { it.id }).mapValues { it.value.distinct().sorted() }
+    }
+
     companion object {
         /** 文書単位の走査結果からグラフを導出する（同一文書内の突合だけで足りるため、コストは文書単位に閉じる）。 */
         fun build(
@@ -67,6 +99,20 @@ class SemanticEntityGraph private constructor(
             // 参照 → 参照元要素（最内のID出現）と、ID出現 → サブツリー配下の参照（出次）
             val sourceByRef = HashMap<ScannedRef, ScannedId>()
             val outByEntry = HashMap<ScannedId, MutableList<ScannedRef>>()
+            // ID 出現 → それを含む最も内側の別の ID 出現（入れ子の線。同じ文書の中だけで決まる）
+            val parentByEntry = HashMap<ScannedId, ScannedId>()
+            for ((_, _, ids, _) in perDocument) {
+                if (ids.size < 2) continue
+                for (e in ids) {
+                    var parent: ScannedId? = null
+                    for (other in ids) {
+                        if (other.path.size < e.path.size && e.path.subList(0, other.path.size) == other.path) {
+                            if (parent == null || other.path.size > parent.path.size) parent = other
+                        }
+                    }
+                    parent?.let { parentByEntry[e] = it }
+                }
+            }
             for ((_, _, ids, refs) in perDocument) {
                 if (refs.isEmpty() || ids.isEmpty()) continue
                 for (ref in refs) {
@@ -103,7 +149,7 @@ class SemanticEntityGraph private constructor(
                 )
             }
 
-            return SemanticEntityGraph(entities, documents, sourceByRef, outByEntry)
+            return SemanticEntityGraph(entities, documents, sourceByRef, outByEntry, parentByEntry)
         }
     }
 }
