@@ -60,11 +60,11 @@ fun kernelGraphOf(scans: List<DocumentScan>): SemanticEntityGraph =
 /** この索引の走査結果からカーネルのエンティティグラフを導出する（呼び出しごとに構築）。 */
 fun IdIndex.toKernelGraph(): SemanticEntityGraph = kernelGraphOf(toDocumentScans())
 
-/** この索引の走査結果からカーネル入力一式を作る（呼び出しごとに構築。Phase 7〜8 で解消）。 */
-fun IdIndex.toKernelView(): KernelIndexView {
+/** この索引の走査結果からカーネル入力一式を作る（索引につき1回だけ構築し、走査結果が変わるまで使い回す）。 */
+fun IdIndex.toKernelView(): KernelIndexView = cachedKernelView {
     val scans = toDocumentScans()
     val entries = aggregateEntries(scans)
-    return KernelIndexView(scans, entries, scans.flatMap { it.refs }, SemanticEntityGraph.build(scans, entries))
+    KernelIndexView(scans, entries, scans.flatMap { it.refs }, SemanticEntityGraph.build(scans, entries))
 }
 
 /**

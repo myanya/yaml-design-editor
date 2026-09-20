@@ -112,6 +112,17 @@ class IdIndex {
     /** 導出グラフ（R20-04）。走査結果が変わる（derive）たびに無効化し、次のアクセスで再導出する。 */
     private var graphCache: EntityGraph? = null
 
+    /**
+     * カーネル入力一式（走査列・ID集約・全参照・カーネルのグラフ）のキャッシュ。graphCache と同じく、走査結果が変わる
+     * （derive）たびに無効化する。検査はクエリを「規則 × 要素」の数だけ呼ぶため、呼び出しごとに作り直すと
+     * 全体検証の時間の大半をここで使ってしまう（BACKLOG UX-112）。
+     */
+    private var kernelViewCache: KernelIndexView? = null
+
+    /** カーネル入力一式を、この索引につき1回だけ作る（作り方は SemanticBridge の toKernelView が渡す）。 */
+    internal fun cachedKernelView(build: () -> KernelIndexView): KernelIndexView =
+        kernelViewCache ?: build().also { kernelViewCache = it }
+
     /** 論理 id -> 文書ごとの出現一覧 */
     var entries: Map<String, List<IdEntry>> = emptyMap()
         private set
@@ -150,6 +161,7 @@ class IdIndex {
         entries = ids
         refs = allRefs
         graphCache = null
+        kernelViewCache = null
     }
 
     /**
