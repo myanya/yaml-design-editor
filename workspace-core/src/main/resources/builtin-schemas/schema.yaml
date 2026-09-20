@@ -338,16 +338,16 @@ root:
           - key: checker
             label: 専用チェッカーの名前
             type: enum
-            values: [flow, cycle]
-            description: "コードで実装された専用チェッカーを使う検査（P29 Phase 6）。flow＝遷移検証（指摘の種類 unreachable / deadEnd / undeclared）・cycle＝循環の検出（指摘の種類 cycle。指摘は参照が書かれた場所に出る）。checker を書いた検査に書けるのは id / description / checker / args / messages / level / levelFrom / activeFrom"
+            values: [flow]
+            description: "コードで実装された専用チェッカーを使う検査（P29 Phase 6）。flow＝遷移検証（指摘の種類 unreachable / deadEnd / undeclared）。checker を書いた検査に書けるのは id / description / checker / args / messages / level / levelFrom / activeFrom。循環の検出は専用チェッカーではなく、edge の repeat と node の same で書く"
           - key: args
             label: チェッカーへ渡す値
             type: any
-            description: "flow は {nodes, edges: {from: {relation}, to: {relation}}, start: {relation}, terminal: {relation}, usage}・cycle は {relation: 関係名}"
+            description: "flow は {nodes, edges: {from: {relation}, to: {relation}}, start: {relation}, terminal: {relation}, usage}"
           - key: messages
             label: 指摘の種類ごとの文面
             type: any
-            description: "{指摘の種類: 文面のひな型}。書かなかった種類は指摘しない。ひな型には {id}（対象の ID）・{related}（関連するノードの並び）・{count}（その件数）・チェッカーが返す値（cycle は {path}）を書ける"
+            description: "{指摘の種類: 文面のひな型}。書かなかった種類は指摘しない。ひな型には {id}（対象の ID）・{related}（関連するノードの並び）・{count}（その件数）を書ける"
           - key: use
             label: 使う定義の名前
             type: string
@@ -365,7 +365,7 @@ root:
           - key: match
             label: パターン（node / edge の連鎖）
             type: any
-            description: "先頭 node が起点束縛（kind: entity 限定）。例 [{node: {entity: usecase, bind: uc}}, {edge: {relation: uses, dir: in}}, {node: {entity: screen}}]。node の entity には型の並び（どれか）も書け、not: {entity, schema, id} はその絞り込みに合わないノードだけを残す（型が宣言されていない要素は残さない）。typed: true は型が宣言された要素だけ（false は宣言されていない要素だけ）。node: {same: 束縛名} は先行して束縛済みのノードそのものへの到達を要求（ノード一致＝2経路の合流。他のキーと同居不可）。edge の bind は辿った参照そのものを束縛する（同じ相手への参照が2本あれば2つの解。reportAt: {ref: 束縛名} で指摘を参照の場所へ出せる）。edge の in: {schemaId, fileGlob} は参照が書かれた文書の指定"
+            description: "先頭 node が起点束縛（kind: entity 限定）。例 [{node: {entity: usecase, bind: uc}}, {edge: {relation: uses, dir: in}}, {node: {entity: screen}}]。node の entity には型の並び（どれか）も書け、not: {entity, schema, id} はその絞り込みに合わないノードだけを残す（型が宣言されていない要素は残さない）。typed: true は型が宣言された要素だけ（false は宣言されていない要素だけ）。node: {same: 束縛名} は先行して束縛済みのノードそのものへの到達を要求（ノード一致＝2経路の合流。他のキーと同居不可）。edge の bind は辿った参照そのものを束縛する（同じ相手への参照が2本あれば2つの解。reportAt: {ref: 束縛名} で指摘を参照の場所へ出せる）。edge の in: {schemaId, fileGlob} は参照が書かれた文書の指定。edge の repeat: true は、その線を1回以上くり返して辿り着けるすべての要素へ進む（何段でも辿る。repeat: {min: 0} は0回以上＝出発した要素そのものも含む。辿る計算は専用アルゴリズムで必ず止まる。見つけた道すじは message の {path} に出せる。bind とは併用不可）。edge の row: {from: {relation}, to: {relation}} は、同じ行（object）の直下に書かれた2つの参照——from の相手から to の相手へ——を1本の線として辿る（遷移の表など。dir: in は逆向き。relation / via とは併用不可）"
           - key: also
             label: 分岐（1段）
             type: any
@@ -406,11 +406,15 @@ root:
           - key: message
             label: 指摘の文面のひな型
             type: string
-            description: "指摘の文面（省略時は判定の種類ごとの既定の文面）。どの判定にも書ける。{id}（起点の ID）・{束縛名.id} {束縛名.type} {束縛名.title}（見つかった解のノード）・{count}（解の件数）・{left} {right}（比べた値）・{left.raw} {right.raw}（計算前の元の値）を書ける"
+            description: "指摘の文面（省略時は判定の種類ごとの既定の文面）。どの判定にも書ける。{id}（起点の ID）・{束縛名.id} {束縛名.type} {束縛名.title}（見つかった解のノード）・{count}（解の件数）・{path}（見つけた道すじ。何段でも辿る線が通った要素を含む）・{left} {right}（比べた値）・{left.raw} {right.raw}（計算前の元の値）を書ける"
           - key: reportAt
             label: 指摘を出す場所（値の場所）
             type: any
             description: "省略時は起点を定義した場所。{of: 束縛, in: {schemaId, fileGlob}, path: 相対パス}＝値が書かれた場所（その値が書かれた文書の検証で、要素ごとに報告する。check と組み合わせる）・{ref: 参照の束縛名}＝edge の bind で束縛した参照が書かれた場所（見つかった解ごとに報告する。expect: absent か check と組み合わせる）"
+          - key: forAll
+            label: すべての要素について
+            type: any
+            description: "{node: {絞り込み, bind: 束縛名}, from: 起点側の束縛名, steps: [edge, node, ...]}。起点とは参照でつながらない、もう1つの集まり（node）を持ち込み、そのすべての要素について、from の要素（省略時は起点）から steps を辿った流れに解があることを求める（expect / count / check と排他。match は起点の node 1つだけ）。steps の中では、集まりの要素を node: {same: 束縛名} で指す。解のなかった要素が不足で、message に {count}（不足の件数）と {missing}（不足の並び）を書ける。集まりが空なら判定しない。相手の見つからない参照に出会った要素は不足に数えない"
           - key: status
             label: 充足の状況の表示
             type: string
@@ -489,7 +493,7 @@ root:
     - key: matrix
       label: 網羅マトリクス
       type: array
-      description: "行×列の全組合せに証人（witness）が存在することを検証する（R28-03。例: 処理×試験観点→テスト項目）。あえて対象外のセルは証人側に excluded: true の行として残す（存在＝充足）"
+      description: "（組込み定義体が作る語彙——検証の前に「すべての要素について」の検査 forAll へ展開される。P29 Phase 6。CLI checks で確認できる）行×列の全組合せに証人（witness）が存在することを検証する（R28-03。例: 処理×試験観点→テスト項目）。あえて対象外のセルは証人側に excluded: true の行として残す（存在＝充足）"
       item:
         type: object
         fields:

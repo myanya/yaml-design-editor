@@ -31,8 +31,15 @@ data class QueryNodeRef(
 /** 束縛した参照（edge の bind）が書かれた場所。 */
 data class QueryRefLocation(val file: Path, val path: YPath, val targetId: String, val relation: String?)
 
-/** 結果の1行（束縛名 → ノード。列順は束縛の宣言順）。refs は edge の bind で束縛した参照の場所。 */
-data class QueryRow(val bindings: Map<String, QueryNodeRef>, val refs: Map<String, QueryRefLocation> = emptyMap())
+/**
+ * 結果の1行（束縛名 → ノード。列順は束縛の宣言順）。refs は edge の bind で束縛した参照の場所。
+ * trail は見つけた道すじ（通った要素の ID。何段でも辿る線が途中で通った要素を含む。指摘の文面の `{path}` 用）。
+ */
+data class QueryRow(
+    val bindings: Map<String, QueryNodeRef>,
+    val refs: Map<String, QueryRefLocation> = emptyMap(),
+    val trail: List<String> = emptyList(),
+)
 
 /**
  * 照合結果。total は limit 打切り前の全行数。unknownDropped は解探索の途中で未解決参照により
@@ -136,12 +143,22 @@ object Query {
     }
 
     /**
-     * 網羅マトリクス（R28-03）: 行 rowId の不足セル（証人のない列。ID昇順）。
-     * 行の母集団外・列の母集団が空のときは空リスト（判定保留）。
+     * 起点を固定した「すべての要素について」の判定（SP-04。網羅マトリクス R28-03 の一般形）: 集まりの要素の数と、
+     * 解のなかった要素（ID昇順）。起点が母集団に入らない・集まりが空のときは null（判定保留）。
      */
-    fun matrixMissingColumns(index: IdIndex, rule: schema.MatrixRule, rowId: String): List<semantic.SemanticMatrixColumn> {
+    fun forAllFrom(
+        index: IdIndex,
+        spec: QuerySpec,
+        forAll: schema.ConstraintForAll,
+        startId: String,
+        loader: (Path) -> YNode? = diskLoader,
+        rel: (Path) -> String = { it.toString().replace('\\', '/') },
+    ): semantic.SemanticForAllResult? {
         val view = index.toKernelView()
-        return semantic.SemanticMatrix.missingColumns(view.graph, rule, rowId)
+        return SemanticQuery.forAllFrom(
+            view.entries, view.refs, view.graph, spec, forAll, startId,
+            rel = { d -> rel(Path.of(d.value)) },
+        ) { d -> loader(Path.of(d.value)) }
     }
 
     /**
@@ -182,6 +199,7 @@ object Query {
     fun semantic.SemanticQueryRow.toRow(): QueryRow = QueryRow(
         bindings = bindings.mapValues { (_, ref) -> ref.toNodeRef() },
         refs = refs.mapValues { (_, r) -> QueryRefLocation(Path.of(r.document.value), r.path, r.targetId, r.relation) },
+        trail = trail,
     )
 
     private fun SemanticQueryNodeRef.toNodeRef() = QueryNodeRef(

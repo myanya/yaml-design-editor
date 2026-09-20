@@ -2,6 +2,7 @@ package semantic
 
 import model.DocumentId
 import schema.EntityDecl
+import schema.QuerySpec
 import schema.RelationDef
 import schema.StructuralSchemaParser
 import yaml.YamlIO
@@ -103,10 +104,18 @@ class SemanticIncrementTest {
         texts.remove("items/a.yaml")
         step("削除", removed = setOf("items/a.yaml"))
 
-        // 編集: 自己参照（循環の検出は専用チェッカーになった＝P29 Phase 6 第4段。増分経路のグラフでも循環が見つかること）
+        // 編集: 自己参照（非循環は、クエリで書かれた検査になった＝P29 Phase 6。増分経路のグラフでも自己参照が見つかること）
         texts["items/b.yaml"] = "id: IT-002\ntitle: B\nlink: IT-002"
         step("編集（循環の発生）", changed = setOf("items/b.yaml"))
-        assertTrue(SemanticCycles.findings(snapshot.graph, "uses").isNotEmpty(), "${snapshot.refs}")
+        val selfLoop = QuerySpec.parse(
+            mapOf("match" to listOf(
+                mapOf("node" to mapOf("bind" to "a")),
+                mapOf("edge" to mapOf("relation" to "uses")),
+                mapOf("node" to mapOf("same" to "a")),
+            )),
+            "spec",
+        )
+        assertEquals(1, SemanticQuery.run(snapshot.ids, snapshot.refs, snapshot.graph, selfLoop) { null }.total, "${snapshot.refs}")
 
         // 編集で復旧
         texts["items/b.yaml"] = "id: IT-002\ntitle: B\nlink: IT-003"

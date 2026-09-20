@@ -133,6 +133,16 @@ data class QueryNodeStep(
  * どの文書に書かれた参照を辿るかを絞る。値を読む文書の指定と同じ書き方）。
  * bind を書くと、辿った**参照そのもの**（どの文書のどこに書かれた参照か）を束縛する。束縛した参照は解の同一性に
  * 加わり（同じ相手への参照が2本あれば2つの解）、指摘を参照の場所へ出す reportAt: {ref: 束縛名} で使える。
+ *
+ * 何段でも辿る（SP-06。P29 Phase 6）: `repeat: true` を書くと、この線を1回以上くり返して**辿り着けるすべての要素**へ進む
+ * （`repeat: {min: 0}` は0回以上＝出発した要素そのものも含む）。辿る計算はコードの専用アルゴリズム（辿り着ける要素の
+ * 集まりを求める。必ず止まる）が行い、その先の判定（あること・ないこと・件数・値の比較）は今までどおり YAML で書く。
+ * 途中で通る要素は node の絞り込みを受けない（絞り込みは、辿り着いた先の要素にだけ効く）。見つけた道すじ（最短）は、
+ * 指摘の文面の `{path}` に出せる。repeat を書いた線に bind は書けない（何本もの参照を通るため）。
+ *
+ * 行を線とみなす（SP-07）: `row: {from: {relation: A}, to: {relation: B}}` を書くと、同じ行（object）の直下に書かれた
+ * 2つの参照——A の相手から B の相手へ——を1本の線として辿る（遷移の表のように、ID を持たない行に from と to が並ぶ書き方）。
+ * dir: in は逆向き（B の相手から A の相手へ）。row を書いた線に relation / via は書けない。bind は、辿り着いた側の参照を束縛する。
  */
 data class QueryEdgeStep(
     val dir: QueryDir = QueryDir.OUT,
@@ -140,15 +150,38 @@ data class QueryEdgeStep(
     val via: String? = null,        // 参照が書かれたキー名（viaKey）
     val inDoc: DerivationSelector? = null, // 参照が書かれた文書の指定（SP-01）
     val bind: String? = null,       // 参照の束縛名
+    val repeatMin: Int? = null,     // 何段でも辿る（null = 1段だけ・1 = 1回以上・0 = 0回以上）
+    val row: FlowEdges? = null,     // 同じ行の2つの参照を1本の線とみなす（from の相手 → to の相手）
 ) {
     companion object {
-        private val KEYS = setOf("dir", "relation", "via", "in", "bind")
+        private val KEYS = setOf("dir", "relation", "via", "in", "bind", "repeat", "row")
 
         fun parse(raw: Any?, where: String): QueryEdgeStep {
             val m = raw as? Map<*, *> ?: error("$where.edge はobjectである必要があります")
             m.keys.map { it.toString() }.firstOrNull { it !in KEYS }
                 ?.let { error("$where.edge: 未知のキーです: $it（使えるキー: ${KEYS.joinToString(", ")}）") }
+            val repeatMin = when (val r = m["repeat"]) {
+                null, false -> null
+                true -> 1
+                is Map<*, *> -> {
+                    r.keys.map { it.toString() }.firstOrNull { it != "min" }
+                        ?.let { error("$where.edge.repeat: 未知のキーです: $it（使えるキー: min）") }
+                    ((r["min"] as? Number)?.toInt() ?: 1).also {
+                        require(it == 0 || it == 1) { "$where.edge.repeat.min は 0 か 1 です（0 = 出発した要素そのものも含む）: $it" }
+                    }
+                }
+                else -> error("$where.edge.repeat は true か {min: 0 | 1} で書きます")
+            }
+            val row = m["row"]?.let { FlowEdges.parse(it, "$where.edge.row") }
+            if (row != null && (m["relation"] != null || m["via"] != null)) {
+                error("$where.edge: row を書いた線に relation / via は書けません（線になる2つの参照は row の from と to で決まります）")
+            }
+            if (repeatMin != null && m["bind"] != null) {
+                error("$where.edge: repeat を書いた線に bind は書けません（何本もの参照を通るため、1本に決まりません）")
+            }
             return QueryEdgeStep(
+                repeatMin = repeatMin,
+                row = row,
                 dir = m["dir"]?.toString()?.let { QueryDir.parse(it) } ?: QueryDir.OUT,
                 relation = m["relation"]?.toString()?.takeIf { it.isNotBlank() },
                 via = m["via"]?.toString()?.takeIf { it.isNotBlank() },
@@ -346,6 +379,14 @@ data class QuerySpec(
             return spec
         }
 
+        /** edge で始まり node で終わる連鎖（also.steps と同じ形）を読む。forAll の steps が使う。 */
+        internal fun parseBranch(list: List<*>, where: String): List<QueryHop> {
+            val (start, hops) = parseChain(list, where, startsWithNode = false)
+            require(start == null) { "$where は edge で始まる必要があります" }
+            require(hops.isNotEmpty()) { "$where には1ホップ以上が必要です" }
+            return hops
+        }
+
         /**
          * node / edge の交互連鎖をパースする。startsWithNode=true は match（node 始まり）、
          * false は also.steps（edge 始まり）。いずれも node で終わることを強制する。
@@ -368,6 +409,9 @@ data class QuerySpec(
                     if (!expectNode) error("$where[$i]: node が連続しています（node と edge は交互に書きます）")
                     val node = QueryNodeStep.parse(nodeRaw, "$where[$i]")
                     val edge = pendingEdge
+                    if (edge != null && (edge.repeatMin != null || edge.row != null) && node.kind != QueryNodeKind.ENTITY) {
+                        error("$where[$i]: repeat / row を書いた線の先は kind: entity の node です（何段でも辿る線と、行を線とみなす指定は、要素どうしをつなぎます）")
+                    }
                     if (edge == null) start = node else hops += QueryHop(edge, node)
                     pendingEdge = null
                     expectNode = false
@@ -379,6 +423,50 @@ data class QuerySpec(
             }
             if (pendingEdge != null) error("$where は node で終わる必要があります（最後の edge の到達先を node で書きます）")
             return start to hops
+        }
+    }
+}
+
+/**
+ * 「すべての要素について」の判定（SP-04。P29 Phase 6 第5段）: 起点とは参照でつながらない、もう1つの集まり（node）を
+ * 持ち込み、その**すべての要素について**、起点側の要素（from。省略時は起点）から steps を辿った流れに解があることを求める。
+ * steps の中では、集まりの要素を `node: {same: 束縛名}` で指す。解のなかった要素が「不足」で、1つでもあれば違反
+ * （不足の一覧は文面の `{missing}`・件数は `{count}`）。集まりが空なら判定しない（判定保留）。
+ * ある要素の解を探す途中で相手の見つからない参照に出会ったら、その要素は不足に数えない（CALC-17）。
+ * 例（網羅マトリクス）: 起点＝処理・集まり＝試験観点・steps＝処理を指すテスト項目が、その観点も指していること。
+ */
+data class ConstraintForAll(
+    /** もう1つの集まり（kind: entity。bind が必要）。 */
+    val node: QueryNodeStep,
+    /** steps を辿り始める、起点側の束縛名。 */
+    val from: String,
+    /** from の要素から辿る連鎖（edge で始まり node で終わる）。 */
+    val hops: List<QueryHop>,
+) {
+    companion object {
+        fun parse(raw: Any?, mainBinds: List<String>, startBind: String?, where: String): ConstraintForAll {
+            val m = raw as? Map<*, *> ?: error("$where はobject（{node, from, steps}）である必要があります")
+            m.keys.map { it.toString() }.firstOrNull { it !in setOf("node", "from", "steps") }
+                ?.let { error("$where: 未知のキーです: $it（使えるキー: node, from, steps）") }
+            val node = QueryNodeStep.parse(m["node"] ?: error("$where.node（もう1つの集まり）が必要です"), where)
+            require(node.kind == QueryNodeKind.ENTITY) { "$where.node は kind: entity です" }
+            val bind = node.bind ?: error("$where.node.bind（集まりの要素の束縛名）が必要です")
+            require(node.same == null) { "$where.node に same は書けません" }
+            require(node.hasFilter) { "$where.node は entity / schema / id のいずれかで集まりを絞る必要があります" }
+            require(bind !in mainBinds) { "$where.node.bind「$bind」は match の束縛名と重複しています" }
+            val from = m["from"]?.toString()?.takeIf { it.isNotBlank() } ?: startBind
+                ?: error("$where.from（辿り始める束縛名）が必要です（起点の node に bind を書けば省略できます）")
+            require(from in mainBinds) { "$where.from の束縛「$from」が match に見つかりません" }
+            val stepsRaw = m["steps"] as? List<*> ?: error("$where.steps（edge で始まり node で終わる連鎖）が必要です")
+            val hops = QuerySpec.parseBranch(stepsRaw, "$where.steps")
+            // same で指せるのは、match の束縛・集まりの要素・steps の中で先に束縛したもの
+            val seen = (mainBinds + bind).toMutableSet()
+            hops.forEach { hop ->
+                hop.node.same?.let { require(it in seen) { "$where.steps: same の束縛「$it」がこのステップより前に見つかりません" } }
+                hop.node.bind?.let { require(seen.add(it)) { "$where.steps: 束縛名「$it」が重複しています" } }
+            }
+            require(hops.any { it.node.same == bind }) { "$where.steps の中で、集まりの要素を node: {same: $bind} として指す必要があります" }
+            return ConstraintForAll(node, from, hops)
         }
     }
 }
@@ -705,6 +793,8 @@ data class ConstraintRule(
     val expect: ConstraintExpect? = null,
     val count: ConstraintCount? = null,
     val check: List<ConstraintCheck> = emptyList(),
+    /** 「すべての要素について」の判定（SP-04）。expect・count・check・forAll はいずれか一つ。 */
+    val forAll: ConstraintForAll? = null,
     val level: CoverageLevel = CoverageLevel.WARNING,
     val activeFrom: String? = null,
     /**
@@ -732,7 +822,7 @@ data class ConstraintRule(
 ) {
     companion object {
         private val OWN_KEYS = setOf(
-            "id", "description", "expect", "count", "check", "level", "activeFrom", "message", "reportAt", "responses",
+            "id", "description", "expect", "count", "check", "forAll", "level", "activeFrom", "message", "reportAt", "responses",
             "status", "fixSite", "levelFrom",
         )
 
@@ -743,8 +833,13 @@ data class ConstraintRule(
             val expectRaw = m["expect"]?.toString()
             val countRaw = m["count"]
             val checkRaw = m["check"]
-            if (listOf(expectRaw != null, countRaw != null, checkRaw != null).count { it } != 1) {
-                error("$where: expect（exists / absent）・count（min / max）・check（判定述語。R28-08）のいずれか一つが必要です")
+            val forAllRaw = m["forAll"]
+            if (listOf(expectRaw != null, countRaw != null, checkRaw != null, forAllRaw != null).count { it } != 1) {
+                error("$where: expect（exists / absent）・count（min / max）・check（値の比較）・forAll（すべての要素について）のいずれか一つが必要です")
+            }
+            val forAll = forAllRaw?.let {
+                require(spec.hops.isEmpty() && spec.also == null) { "$where: forAll を書く検査の match は、起点の node 1つだけにします" }
+                ConstraintForAll.parse(it, spec.binds, spec.start.bind, "$where.forAll")
             }
             val expect = expectRaw?.let { ConstraintExpect.parse(it) }
             val count = countRaw?.let { ConstraintCount.parse(it, where) }
@@ -794,6 +889,7 @@ data class ConstraintRule(
                 expect = expect,
                 count = count,
                 check = check,
+                forAll = forAll,
                 level = level,
                 activeFrom = m["activeFrom"]?.toString()?.takeIf { it.isNotBlank() },
                 message = m["message"]?.toString()?.takeIf { it.isNotBlank() },

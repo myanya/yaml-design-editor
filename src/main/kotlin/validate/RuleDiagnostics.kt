@@ -8,7 +8,6 @@ import schema.ConstraintExpect
 import schema.ConstraintRule
 import schema.CoverageLevel
 import schema.CheckerRule
-import schema.MatrixRule
 import java.nio.file.Path
 
 /**
@@ -105,6 +104,25 @@ internal class RuleDiagnostics(
                 related = examples.take(3).flatMap { listOfNotNull(it.left.id, it.right.id) }.distinct().filter { it != id }.take(10),
                 description = description,
                 responses = responsesOf(rule, id, examples.first()),
+            )
+        }
+        rule.forAll?.let { forAll ->
+            // 「すべての要素について」の判定（SP-04。網羅マトリクスなど）: 解のなかった要素を列挙して報告する
+            val outcome = index.Query.forAllFrom(indexObj, rule.spec, forAll, id, tree, rel) ?: return null
+            if (outcome.missing.isEmpty()) return null
+            val listed = outcome.missing.take(5).joinToString("・") { m -> m.title?.let { "${m.id}（$it）" } ?: m.id } +
+                (if (outcome.missing.size > 5) " ほか${outcome.missing.size - 5}件" else "")
+            val text = rule.message?.let {
+                renderTemplate(it, id, rule = rule, count = outcome.missing.size).replace("{missing}", listed)
+            } ?: "ID「$id」について、解のない要素があります（${outcome.missing.size} 件／全 ${outcome.total} 件）: $listed"
+            return RuleDiagnosis(
+                id, levelOf(rule),
+                report = text,
+                notice = customNotice(text),
+                // 不足した要素へジャンプできるようにする（R28-05・UX-98）
+                related = outcome.missing.map { it.id }.take(10),
+                description = description,
+                responses = responsesOf(rule, id, null),
             )
         }
         val result = index.Query.matchesFrom(indexObj, rule.spec, id, tree)
@@ -288,7 +306,7 @@ internal class RuleDiagnostics(
     /**
      * 文面・ラベルのひな型の差し込み（1回の走査で置き換える＝差し込んだ値の中の波括弧は再解釈しない）。
      * 書けるのは `{id}`＝起点の ID・`{束縛名.id}` `{束縛名.type}` `{束縛名.title}`＝見つかった解のノード・`{count}`＝解の件数・
-     * `{left}` `{right}` `{left.raw}` `{right.raw}`＝比べた値・`{file}`＝移動先の文書・`{schema}`＝作る文書のスキーマ・
+     * `{left}` `{right}` `{left.raw}` `{right.raw}`＝比べた値・`{path}`＝見つけた道すじ・`{file}`＝移動先の文書・`{schema}`＝作る文書のスキーマ・
      * `{create.places}`＝対応「文書を作る」の作り先（スキーマと、その置き場所のパターン）、入力ごとの対応では
      * `{input.placeholder}` `{input.value}`。当てはまらない波括弧と、その場面で値が無いものは、そのまま残す。
      */
@@ -315,39 +333,26 @@ internal class RuleDiagnostics(
             "input.value" -> input?.value
             "file" -> file?.let(rel)
             "schema" -> schemaId
+            // 見つけた道すじ（何段でも辿る線が通った要素を含む。例: 循環の経路）
+            "path" -> (row ?: v?.row?.let { with(index.Query) { it.toRow() } })?.trail?.takeIf { it.isNotEmpty() }?.joinToString(" → ")
             // 対応「文書を作る」の作り先: スキーマの ID と、分かればその置き場所（match のパターン）。R28-05・UX-97
             "create.places" -> rule?.responses?.filter { it.kind == schema.ResponseDecl.Kind.CREATE }?.flatMap { it.schemas }
                 ?.takeIf { it.isNotEmpty() }
                 ?.joinToString(", ") { sid -> allSchemas.firstOrNull { it.id == sid }?.match?.let { "$sid（$it に作成）" } ?: sid }
             else -> {
-                // {束縛名.id} {束縛名.type} {束縛名.title}
-                val node = (row ?: v?.row?.let { with(index.Query) { it.toRow() } })?.bindings?.get(name.substringBeforeLast('.'))
+                // {束縛名.id} {束縛名.type} {束縛名.title}。解が無いとき（あるはずの流れが見つからない指摘など）も、
+                // 起点の束縛だけは起点の要素から埋める
+                val bind = name.substringBeforeLast('.')
+                val node = (row ?: v?.row?.let { with(index.Query) { it.toRow() } })?.bindings?.get(bind)
+                val start = if (node == null && rule != null && bind == rule.spec.start.bind) indexObj.graph.entities[id] else null
                 when (name.substringAfterLast('.', "")) {
-                    "id" -> node?.id
-                    "type" -> node?.entityType
-                    "title" -> node?.title
+                    "id" -> node?.id ?: start?.id
+                    "type" -> node?.entityType ?: start?.entityType
+                    "title" -> node?.title ?: start?.title
                     else -> null
                 }
             }
         } ?: m.value
-    }
-
-    /** 網羅マトリクス（R28-03）: 行 id の不足セル（証人のない列）。不足がなければ null。 */
-    fun matrix(rule: MatrixRule, id: String): RuleDiagnosis? {
-        val missing = index.Query.matrixMissingColumns(indexObj, rule, id)
-        if (missing.isEmpty()) return null
-        val listed = missing.take(5).joinToString("・") { m -> m.title?.let { "${m.id}（$it）" } ?: m.id } +
-            (if (missing.size > 5) " ほか${missing.size - 5}件" else "")
-        return RuleDiagnosis(
-            id, rule.level,
-            report = "ID「$id」の網羅マトリクスに不足セルがあります（${missing.size} 件）: $listed",
-            notice = { anchorRel, _ ->
-                "ID「$id」には網羅マトリクスの不足があります（${missing.size} 件。報告先: 定義出現 $anchorRel）: $listed"
-            },
-            // 不足した列のIDへジャンプできるようにする（R28-05・UX-98）
-            related = missing.map { it.id }.take(10),
-            description = rule.description ?: rule.id,
-        )
     }
 
     /**

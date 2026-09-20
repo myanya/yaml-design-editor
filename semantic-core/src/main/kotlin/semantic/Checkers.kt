@@ -1,7 +1,6 @@
 package semantic
 
 import schema.CheckerArgs
-import schema.CycleArgs
 import schema.FlowArgs
 
 /**
@@ -38,6 +37,5 @@ object SemanticCheckers {
                 related = f.related,
             )
         }
-        is CycleArgs -> SemanticCycles.findings(graph, args.relation)
     }
 }

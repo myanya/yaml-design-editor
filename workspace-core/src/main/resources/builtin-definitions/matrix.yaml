@@ -1,0 +1,50 @@
+# 組込み定義体: 網羅マトリクス（スキーマの matrix）
+#
+# 「行の要素 × 列の要素のすべての組（セル）に、両方を参照する証人がいること」の検査を、プリミティブだけで定義する。
+# 列の集まりは、行とは参照でつながっていない——検査の基本の書き方 forAll（もう1つの集まりの、すべての要素について）で持ち込み、
+# 「行を指している証人が、その列も指していること」を、列の要素ごとに調べる。解のなかった列が、不足セル。
+# あえて対象外にするセルは、証人の側に行として残す（証人がいれば充足＝理由がデータに残る）。
+# ここにコードは無い。利用者も同じ書き方（functions / vocabulary）で、自分の「すべての組について」の検査を作れる。
+id: builtin-matrix
+kind: library
+name: 網羅マトリクス（組込み定義体）
+description: スキーマの matrix という語彙と、その中身（すべての列について証人がいることの検査）の定義
+
+functions:
+  - id: all-combinations-witnessed
+    description: 行の要素のそれぞれについて、列のすべての要素に、行と列の両方を参照する証人がいること
+    params: [rows, columns, witness, rowRelation, columnRelation, level, activeFrom, description, id]
+    checks:
+      - id: $id
+        description: $description
+        level: $level
+        activeFrom: $activeFrom
+        match:
+          - node: {$merge: $rows, bind: row}
+        forAll:
+          node: {$merge: $columns, bind: column}
+          steps:
+            - edge: {dir: in, relation: $rowRelation}       # 行を指している
+            - node: {$merge: $witness}                      # 証人が
+            - edge: {dir: out, relation: $columnRelation}   # その列も指している
+            - node: {same: column}
+        message: "ID「{id}」の網羅マトリクスに不足セルがあります（{count} 件）: {missing}"
+
+vocabulary:
+  - word: matrix
+    description: 網羅マトリクスの専用の書き方（rows / columns / witness / level / activeFrom）
+    in: matrix[]
+    requires: [rows, columns, witness.node, witness.row.relation, witness.column.relation]
+    keys: [id, description, rows, columns, witness, level, activeFrom]
+    uses:
+      - use: all-combinations-witnessed
+        with:
+          id: {from: id}
+          description: {from: description}
+          rows: {from: rows}
+          columns: {from: columns}
+          witness: {from: witness.node}
+          rowRelation: {from: witness.row.relation}
+          columnRelation: {from: witness.column.relation}
+          level: {from: level}
+          activeFrom: {from: activeFrom}

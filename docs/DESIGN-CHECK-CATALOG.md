@@ -65,6 +65,8 @@
 | 参照の本数の範囲（条件つき・他の値と比べる） | 値の式 `{refCount: {of, dir, relation}}` を `check` で比べる（無条件・型全体に一律なら §2 の `cardinality`） | — |
 | 子の値の合計・最小・最大と、親の値の整合 | 値の式 `{sum / min / max: {of, path}}`・`{count: {of}}`（同じ起点の全ての解にわたる集計） | — |
 | 同じ ID が、指定のスキーマの文書に何か所書かれているか（詳細文書の数・記録の数） | 値の式 `{occurrenceCount: {of, schema, role}}` を `check` で比べる（「詳細文書があること」だけなら §2 の `coverage`） | — |
+| 何段辿るか決まらない流れがあること・無いこと（呼び出しの連鎖の先に対応付けがある・循環が無い・どの画面からもメインへ戻れる） | `edge` の `repeat: true`（何段でも辿る。`{min: 0}` は0回以上）＋ `expect: exists / absent`。遷移の表のような行は `edge` の `row: {from, to}`。道すじは `message` の `{path}` | — |
+| 2つの集まりのすべての組に、つなぐものがあること（設定項目 × 環境 → 設定値） | `forAll: {node: {…, bind}, steps: […, {node: {same: 束縛名}}]}`（行 × 列 → 証人の形なら §4 の `matrix`） | — |
 | 参照そのものを指摘したい（禁止された相手への参照・無効な要素への参照） | `edge` の `bind` ＋ `reportAt: {ref: 束縛名}` ＋ `expect: absent`（見つかった解ごとに、参照が書かれた場所へ指摘） | — |
 | 計算した値どうしの整合（文字数の上限・合計や積の一致） | 値の式 `{length: 式}`・`{add / subtract / multiply / divide: [...]}`・`{number: 式}`（例 `{eq: [{number: {of,path}}, {multiply: [{of,path},{of,path}]}]}`） | — |
 
@@ -76,6 +78,9 @@
 
 ## 4. 網羅（matrix: 行×列の全組合せ）
 
+`matrix` は、検査の基本の書き方 `forAll`（もう1つの集まりの、すべての要素について）へ展開される語彙（P29 Phase 6 第5段）。
+行 × 列 → 証人の形に収まらない「すべての組について」の検査は、`forAll` を直接書く（§3）。
+
 「行の各エンティティ × 列の各エンティティ」の全セルに、両方を参照する**証人**が存在すること。
 
 - 例: 処理 × 試験観点 → テスト項目（テスト項目一覧の機械的抽出規約。proc-viewpoint-matrix）
@@ -84,9 +89,11 @@
 
 ## 5. 遷移・到達性（flow: エッジ集合の到達閉包）
 
-`flow` と、関係の宣言の `acyclic` は、**専用チェッカーを使う検査**へ展開される語彙（P29 Phase 6 第4段）。何段でも辿った結果を要する計算は
-コードの専用チェッカー（`checker: flow` / `checker: cycle`）が行い、どの値を渡すか・指摘の種類ごとの文面・重大度は定義の宣言。
-同じチェッカーを、自分の `constraints` から別の文面や重大度で使える（例: 依存の循環を警告に留める `{checker: cycle, args: {relation: depends-on}, messages: {cycle: …}, level: warning}`）。
+`flow` は、**専用チェッカーを使う検査**へ展開される語彙（P29 Phase 6 第4段）。到達できない・行き止まり・宣言にない遷移の計算は
+コードの専用チェッカー（`checker: flow`）が行い、どの値を渡すか・指摘の種類ごとの文面・重大度は定義の宣言（同じチェッカーを、自分の `constraints` から別の文面や重大度で使える）。
+関係の宣言の `acyclic` と、「辿り着けること」「循環が無いこと」の類は、専用チェッカーではなく `edge` の `repeat`（何段でも辿る線。§3）で YAML に書く
+（例: 依存の循環を警告に留める `match: [{node: {bind: a}}, {edge: {relation: depends-on, repeat: true}}, {node: {same: a}}]` ＋ `expect: absent` ＋ `level: warning`）。
+「どの流れを通っても最後は必ず着く」（すべての道についての性質）は、まだ検査できない（BACKLOG UX-110）。
 
 エッジ文書の行（from 参照＋ to 参照）を有向グラフとみなし、経路の長さによらない到達性を検証する
 （固定長パターンの constraints では書けない領分。R28-04）。
@@ -129,7 +136,7 @@ enum の区分値のまま直接ノードにする形は、ID化パターンで�
 | ワークスペースごとに重大度を切り替える | `levelFrom: definingUniqueness`（関係レジストリの `enforcement` が宣言されていれば、その重大度） |
 | どのスキーマの文書の要素にも効く検査を書く | `kind: library` の文書の `constraints`（起点は `node: {typed: true}` などで絞る） |
 | 足りない参照の書き足し先を示す | `responses: [{jump: referenceSources, relation: 関係名, label: "…{file}"}]` |
-| 何段でも辿る計算（到達・循環）を、自分の文面と重大度で使う | `constraints` の `checker: flow / cycle` ＋ `args` ＋ `messages`（書かなかった種類は指摘されない） |
+| 遷移検証の計算（到達できない・行き止まり・宣言にない遷移）を、自分の文面と重大度で使う | `constraints` の `checker: flow` ＋ `args` ＋ `messages`（書かなかった種類は指摘されない） |
 | 語彙の綴りの誤りを定義エラーにする | `vocabulary` の `keys: [書けるキー]`・`requires: [必ず書くキー]` |
 | 展開された検査を確認する | CLI `checks <workspace> [schema-id] [--definitions]` |
 
@@ -158,7 +165,8 @@ enum の区分値のまま直接ノードにする形は、ID化パターンで�
    数える単位は**束縛タプルの distinct 件数**。値比較は `check`、宣言値=導出値は consistency（§6。中身は `check` へ展開される語彙）。
 4. **同一IDの詳細化の存在**は coverage の `detailIn`（§2）。書かれた場所の数の検査であり、参照では書けない（中身は値の式 `occurrenceCount` の比較へ展開される語彙。数や条件を変えたいときは `occurrenceCount` を直接 `check` に書く）。
    （被参照数の要求＝旧 `requiredBy` は R29-01 で削除——上記 2 か 3 で書く。）
-5. **全組合せの網羅**は matrix（§4）、**経路の長さによらない到達性**は flow（§5）。
+5. **全組合せの網羅**は matrix（§4。形に収まらなければ `forAll`）、**開始からの到達・行き止まり・宣言にない遷移**は flow（§5）、
+   それ以外の「何段でも辿る」検査（辿り着けること・循環が無いこと）は `edge` の `repeat`（§3）。
 6. チェックの粒度に迷ったら「違反メッセージを読んだ人が直す場所へ飛べるか」（relatedIds・報告先）で決める。
 7. **表面語彙は増やさない**（語彙の予算。CONVENTIONS §9）: 新しい検証要求は、まず本書の正準の組合せで
    書けることを確認する。書けないときも新キーより既存キーの拡張を優先し、核にない演算へ名前を付けるとき

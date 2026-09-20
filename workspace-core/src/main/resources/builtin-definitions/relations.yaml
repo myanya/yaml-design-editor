@@ -69,17 +69,32 @@ functions:
         message: "関係「$relation」の参照先エンティティ型「{target.type}」は宣言（target: $typesText）に一致しません"
         level: $level
 
-  # 非循環: その関係の参照を辿って、自分自身へ戻る循環がないこと。循環の検出は専用チェッカー cycle（コード。
-  # semantic-core の SemanticCycles）が行い、循環に含まれる参照の1つひとつを、その参照が書かれた場所へ指摘する。
-  # 非循環は宣言した時点で構造の前提になるため、重大度は常にエラー
+  # 非循環: その関係の参照を辿って、自分自身へ戻る循環がないこと。
+  # 何段でも辿る計算は edge の repeat（コードの専用アルゴリズム）が行い、判定と文面はここに書く。
+  # 循環に含まれる参照の1つひとつを、その参照が書かれた場所へ指摘する。非循環は宣言した時点で構造の前提になるため、常にエラー
   - id: relation-is-acyclic
     description: その関係の参照が循環していないこと
     params: [relation]
     checks:
-      - checker: cycle
-        args: {relation: $relation}
-        messages:
-          cycle: "関係「$relation」は非循環（acyclic）ですが循環しています（循環経路: {path}）"
+      # 参照の相手から、同じ関係を何段か辿って、参照を書いた要素へ戻ってくる
+      - match:
+          - node: {bind: source}
+          - edge: {dir: out, relation: $relation, bind: ref}
+          - node: {bind: target}
+          - edge: {dir: out, relation: $relation, repeat: true}
+          - node: {same: source}
+        expect: absent
+        reportAt: {ref: ref}
+        message: "関係「$relation」は非循環（acyclic）ですが循環しています（循環経路: {path}）"
+        level: error
+      # 自分自身への参照
+      - match:
+          - node: {bind: source}
+          - edge: {dir: out, relation: $relation, bind: ref}
+          - node: {same: source}
+        expect: absent
+        reportAt: {ref: ref}
+        message: "関係「$relation」は非循環（acyclic）ですが循環しています（循環経路: {path}）"
         level: error
 
 vocabulary:

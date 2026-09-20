@@ -155,6 +155,9 @@ data class CheckLibrary(
     companion object {
         private val PARAM = Regex("""\$(\$|[A-Za-z][A-Za-z0-9_]*)""")
 
+        /** ひな型の object で、渡された object の中身を混ぜ込むキー。 */
+        private const val MERGE_KEY = "\$merge"
+
         /** スキーマ文書（YAML を読んだままの値）から、その文書が持つ定義（functions / vocabulary）を読む。 */
         fun parse(schemaRaw: Map<*, *>, origin: String): CheckLibrary {
             val functions = list(schemaRaw["functions"], "$origin の functions").mapIndexed { i, raw ->
@@ -229,10 +232,24 @@ data class CheckLibrary(
             else -> error("$where は配列である必要があります")
         }
 
-        /** ひな型への差し込み。文字列がちょうど `$名前` なら渡された値そのもの（配列・マップ・null も可）、文中の `$名前` は文字列として埋める。`$$` は `$`。 */
+        /**
+         * ひな型への差し込み。文字列がちょうど `$名前` なら渡された値そのもの（配列・マップ・null も可）、文中の `$名前` は文字列として埋める。`$$` は `$`。
+         * object のキー `$merge` は「渡された object の中身を、この object へ混ぜ込む」（例 `node: {$merge: $rows, bind: row}`＝
+         * 渡された絞り込みに束縛名を足す）。同じキーは、ひな型に直接書いたほうが勝つ。渡された値が無ければ何も混ぜない。
+         */
         internal fun substitute(template: Any?, args: Map<String, Any?>): Any? = when (template) {
             is Map<*, *> -> LinkedHashMap<Any?, Any?>().also { out ->
-                template.forEach { (k, v) -> out[k] = substitute(v, args) }
+                template.forEach { (k, v) ->
+                    if (k.toString() == MERGE_KEY) {
+                        when (val merged = substitute(v, args)) {
+                            null -> Unit
+                            is Map<*, *> -> merged.forEach { (mk, mv) -> if (!template.containsKey(mk)) out[mk] = mv }
+                            else -> error("ひな型の $MERGE_KEY には object を渡します（渡された値: $merged）")
+                        }
+                    } else {
+                        out[k] = substitute(v, args)
+                    }
+                }
             }
             is List<*> -> template.map { substitute(it, args) }
             is String -> {

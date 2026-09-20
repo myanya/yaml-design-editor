@@ -12,8 +12,9 @@ import kotlin.test.assertTrue
 
 /**
  * 専用チェッカーを定義から使う（意味プリミティブ SP-13。P29 Phase 6 第4段・意図的差分 D-23）のテスト。
- * 到達の計算と循環の検出はコードの専用チェッカーで、どの値を渡して使うか・指摘の種類ごとの文面・重大度は
- * 定義（YAML）の側が宣言する。組込みの語彙（flow / acyclic）の判定の内容は FlowTest・GraphIntegrityTest が従来どおり保証する。
+ * 到達の計算（遷移検証）はコードの専用チェッカーで、どの値を渡して使うか・指摘の種類ごとの文面・重大度は
+ * 定義（YAML）の側が宣言する。組込みの語彙 flow の判定の内容は FlowTest が従来どおり保証する
+ * （循環の検出は専用チェッカーではなく、クエリの「何段でも辿る線」で書く——ReachabilityTest・GraphIntegrityTest）。
  * ここでは、利用者が同じチェッカーを自分の検査から使えること（組込みは特権を持たない）を確かめる。
  */
 class CheckerRuleTest {
@@ -96,49 +97,6 @@ class CheckerRuleTest {
     }
 
     @Test
-    fun `循環の検出も利用者の検査から使え指摘は参照が書かれた場所に出る`() {
-        write(
-            "_schemas/house-rules.yaml",
-            """
-            id: house-rules
-            kind: library
-            constraints:
-              - checker: cycle
-                args: { relation: step-to }
-                messages:
-                  cycle: "手順の流れが循環しています（{path}）"
-                level: warning
-            """,
-        )
-        // step-to の参照は ID を持たない行に書かれているため、手順どうしの循環にはならない——手順に直接の参照を足して循環を作る
-        write(
-            "_schemas/step.yaml",
-            """
-            id: step
-            match: "steps.yaml"
-            entity: { type: step, idPattern: "ST-*", defines: true }
-            root:
-              type: object
-              fields:
-                - key: steps
-                  type: array
-                  item:
-                    type: object
-                    fields:
-                      - { key: id, type: id, required: true }
-                      - { key: next, type: ref, relation: step-to }
-            """,
-        )
-        write("steps.yaml", "steps:\n- { id: ST-1, next: ST-2 }\n- { id: ST-2, next: ST-1 }\n- { id: ST-3 }")
-        val ws = Workspace.open(dir)
-        assertEquals(emptyList(), ws.schemaErrors)
-        val issues = ws.validate("steps.yaml").filter { "循環" in it.message }
-        assertEquals(2, issues.size, issues.toString())
-        assertTrue(issues.all { it.severity == Severity.WARNING && it.message == "手順の流れが循環しています（ST-1 → ST-2 → ST-1）" }, issues.toString())
-        assertEquals(setOf(listOf<Any>("steps", 0, "next"), listOf<Any>("steps", 1, "next")), issues.map { it.path }.toSet())
-    }
-
-    @Test
     fun `知らないチェッカーと指摘の種類と渡す値の誤りは定義エラーになる`() {
         fun errorsWith(constraint: String): List<String> {
             write(
@@ -147,13 +105,17 @@ class CheckerRuleTest {
             )
             return Workspace.open(dir).schemaErrors.filter { "bad.yaml" in it }
         }
+        val flowArgs = "    args: { nodes: { entity: step }, edges: { from: { relation: a }, to: { relation: b } } }"
         val unknown = errorsWith("  - checker: temporal-logic\n    args: {}\n    messages: { x: y }")
-        assertTrue(unknown.any { "checker は flow / cycle のいずれかです" in it }, unknown.toString())
-        val kind = errorsWith("  - checker: cycle\n    args: { relation: r }\n    messages: { unreachable: x }")
-        assertTrue(kind.any { "「unreachable」という指摘の種類はありません" in it }, kind.toString())
-        val args = errorsWith("  - checker: cycle\n    args: { relations: r }\n    messages: { cycle: x }")
-        assertTrue(args.any { "未知のキーです: relations" in it }, args.toString())
-        val mixed = errorsWith("  - checker: cycle\n    args: { relation: r }\n    messages: { cycle: x }\n    match: [{ node: { entity: a } }]")
+        assertTrue(unknown.any { "checker は flow のいずれかです" in it }, unknown.toString())
+        // 循環の検出は専用チェッカーではなくなった（edge の repeat と node の same で書く。意図的差分 D-24）
+        val cycle = errorsWith("  - checker: cycle\n    args: { relation: r }\n    messages: { cycle: x }")
+        assertTrue(cycle.any { "checker は flow のいずれかです" in it }, cycle.toString())
+        val kind = errorsWith("  - checker: flow\n$flowArgs\n    messages: { looped: x }")
+        assertTrue(kind.any { "「looped」という指摘の種類はありません" in it }, kind.toString())
+        val args = errorsWith("  - checker: flow\n    args: { node: { entity: step } }\n    messages: { deadEnd: x }")
+        assertTrue(args.any { "未知のキーです: node" in it }, args.toString())
+        val mixed = errorsWith("  - checker: flow\n$flowArgs\n    messages: { deadEnd: x }\n    match: [{ node: { entity: a } }]")
         assertTrue(mixed.any { "未知のキーです: match" in it }, mixed.toString())
     }
 }

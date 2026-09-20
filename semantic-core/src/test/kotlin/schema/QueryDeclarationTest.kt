@@ -253,10 +253,11 @@ class QueryDeclarationTest {
         val args = assertIs<FlowArgs>(rule.args)
         assertEquals("entry", args.startRelation)
         assertEquals(FlowEdges("t-from", "t-to"), args.edges)
-        // 循環の検出は、参照が書かれた場所へ報告する種類
-        assertTrue(CheckerKind.CYCLE.refLocated && !CheckerKind.FLOW.refLocated)
-        assertFailsWith<IllegalArgumentException> {
-            CheckerRule.parse(mapOf("checker" to "cycle", "args" to mapOf("relation" to "r"), "messages" to emptyMap<String, String>()), "c")
+        // 遷移検証は、要素を定義した場所へ報告する種類（他の出現へは案内）
+        assertTrue(!CheckerKind.FLOW.refLocated)
+        // 循環の検出は専用チェッカーではない（edge の repeat と node の same で YAML に書く。R29-15）
+        assertFailsWith<IllegalStateException> {
+            CheckerRule.parse(mapOf("checker" to "cycle", "args" to mapOf("relation" to "r"), "messages" to mapOf("cycle" to "x")), "c")
         }
     }
 
@@ -283,6 +284,67 @@ class QueryDeclarationTest {
         assertEquals(listOf("items[0]（定義 f）"), expanded.map { it.origin })
         val error = assertFailsWith<IllegalStateException> { library.expand(mapOf("items" to listOf(mapOf("nmae" to "a"))), "s") }
         assertTrue("items[0]: 未知のキーです: nmae" in error.message.orEmpty(), error.message)
+    }
+
+    @Test
+    fun `edgeのrepeatとrowは何段でも辿る線と行を線とみなす指定になる`() {
+        val plain = QueryEdgeStep.parse(mapOf("relation" to "calls"), "m")
+        assertNull(plain.repeatMin)
+        assertEquals(1, QueryEdgeStep.parse(mapOf("relation" to "calls", "repeat" to true), "m").repeatMin)
+        assertEquals(0, QueryEdgeStep.parse(mapOf("relation" to "calls", "repeat" to mapOf("min" to 0)), "m").repeatMin)
+        val row = QueryEdgeStep.parse(
+            mapOf("row" to mapOf("from" to mapOf("relation" to "t-from"), "to" to mapOf("relation" to "t-to")), "dir" to "in"), "m",
+        )
+        assertEquals(FlowEdges("t-from", "t-to"), row.row)
+        assertEquals(QueryDir.IN, row.dir)
+        assertFailsWith<IllegalStateException> { QueryEdgeStep.parse(mapOf("relation" to "r", "repeat" to true, "bind" to "x"), "m") }
+        assertFailsWith<IllegalStateException> { QueryEdgeStep.parse(mapOf("relation" to "r", "repeat" to "always"), "m") }
+        assertFailsWith<IllegalArgumentException> { QueryEdgeStep.parse(mapOf("relation" to "r", "repeat" to mapOf("min" to 3)), "m") }
+    }
+
+    @Test
+    fun `ひな型のmergeは渡されたobjectを混ぜ込みforAllはもう1つの集まりを持ち込む`() {
+        val library = CheckLibrary.parse(
+            mapOf(
+                "functions" to listOf(mapOf(
+                    "id" to "covered", "params" to listOf("rows", "columns", "extra"),
+                    "checks" to listOf(mapOf(
+                        "match" to listOf(mapOf("node" to mapOf("\$merge" to "\$rows", "bind" to "row"))),
+                        "forAll" to mapOf(
+                            // 渡されなかった object（extra）は、何も混ぜない
+                            "node" to mapOf("\$merge" to "\$columns", "bind" to "column", "extraKey" to mapOf("\$merge" to "\$extra")),
+                            "steps" to listOf(
+                                mapOf("edge" to mapOf("dir" to "in", "relation" to "targets")),
+                                mapOf("node" to mapOf("same" to "column")),
+                            ),
+                        ),
+                    )),
+                )),
+            ),
+            "lib.yaml",
+        )
+        val expanded = library.expand(
+            mapOf("constraints" to listOf(mapOf(
+                "use" to "covered",
+                // rows に書かれた bind は、ひな型に直接書いた bind: row が勝つ
+                "with" to mapOf("rows" to mapOf("entity" to "process", "bind" to "ignored"), "columns" to mapOf("entity" to "viewpoint")),
+            ))),
+            "s",
+        ).single().raw
+        assertEquals(listOf(mapOf("node" to mapOf("entity" to "process", "bind" to "row"))), expanded["match"])
+        val forAllRaw = (expanded["forAll"] as Map<*, *>).toMutableMap().also { m ->
+            m["node"] = (m["node"] as Map<*, *>).filterKeys { it != "extraKey" }
+        }
+        val rule = ConstraintRule.parse(mapOf("match" to expanded["match"], "forAll" to forAllRaw), "c")
+        val forAll = rule.forAll!!
+        assertEquals(listOf("viewpoint"), forAll.node.entities)
+        assertEquals("column", forAll.node.bind)
+        assertEquals("row", forAll.from)
+        assertEquals("column", forAll.hops.single().node.same)
+        // \$merge に object 以外を渡すのは定義エラー
+        assertFailsWith<IllegalStateException> {
+            library.expand(mapOf("constraints" to listOf(mapOf("use" to "covered", "with" to mapOf("rows" to "process")))), "s")
+        }
     }
 
     private companion object {

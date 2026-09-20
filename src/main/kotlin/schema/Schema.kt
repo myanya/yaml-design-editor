@@ -34,7 +34,6 @@ data class SchemaDef(
      */
     val expandedChecks: List<ExpandedCheck> = emptyList(),
     /** 網羅マトリクス（R28-03。ARCHITECTURE §4.32）: 行×列の全組合せに証人が存在すること。 */
-    val matrix: List<MatrixRule> = emptyList(),
     /** 遷移検証（R28-04。ARCHITECTURE §4.32）: 宣言エッジ集合の到達閉包で到達不能・行き止まり・宣言外遷移を検出。 */
     /**
      * 専用チェッカーを使う検査（SP-13。遷移検証 flow・非循環 acyclic など。語彙と定義の使用を展開した後のもの）。
@@ -373,7 +372,6 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
         }
     }
     constraints.forEachIndexed { i, rule -> checkActiveFrom(rule.activeFrom, constraintOrigins.getOrNull(i) ?: "constraints[$i]") }
-    matrix.forEachIndexed { i, rule -> checkActiveFrom(rule.activeFrom, "matrix[$i]") }
     checkers.forEachIndexed { i, rule -> checkActiveFrom(rule.activeFrom, checkerOrigins.getOrNull(i) ?: "constraints[$i]") }
     phases?.let { p ->
         if (p.order.isEmpty()) issues += SchemaIssue("phases には1つ以上のフェーズが必要です", "phases")
@@ -670,11 +668,6 @@ object SchemaLoader {
         val expanded = effectiveLibrary.expand(raw, id)
         val constraints = expanded.filter { !it.usesChecker }.map { ConstraintRule.parse(it.raw, it.origin) }
         val checkers = expanded.filter { it.usesChecker }.map { CheckerRule.parse(it.raw, it.origin) }
-        // 網羅マトリクス（R28-03。ARCHITECTURE §4.32）: パースはカーネル（schema/Matrix.kt）と共用
-        val matrix = (raw["matrix"])?.let { rawList ->
-            val list = rawList as? List<*> ?: error("matrixはリストである必要があります")
-            list.mapIndexed { i, entry -> MatrixRule.parse(entry, "matrix[$i]") }
-        } ?: emptyList()
         val phases = StructuralSchemaParser.parsePhases(raw["phases"])
         val parsed = SchemaDef(
             id = id,
@@ -685,7 +678,6 @@ object SchemaLoader {
             definitions = definitions,
             constraints = constraints,
             expandedChecks = expanded,
-            matrix = matrix,
             checkers = checkers,
             phases = phases,
             entities = entities,

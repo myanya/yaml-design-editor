@@ -3,8 +3,9 @@ package schema
 /**
  * 専用チェッカーを使う検査の宣言（意味プリミティブ SP-13。P29 Phase 6 第4段。CORE-CALCULUS §25）。
  *
- * 到達の計算や循環の検出のように、アルゴリズムが複雑で、クエリの部品の組合せで書くと不自然になる検査は、
- * コードで個別に実装する（専用チェッカー。semantic パッケージ）。ただし、どの語彙から・どの値を渡して使うか、
+ * アルゴリズムが複雑で、クエリの部品の組合せで書くと不自然になる検査は、コードで個別に実装する（専用チェッカー。
+ * semantic パッケージ）。何段でも辿るだけなら、クエリの edge の repeat（辿る計算だけが専用アルゴリズム）で YAML に書ける——
+ * 循環の検出は R29-15 でそちらへ移し、専用チェッカーから外した。ただし、どの語彙から・どの値を渡して使うか、
  * 指摘の文面・重大度・いつから判定するかは、他の検査と同じく定義（YAML）の側が宣言する:
  *
  * ```yaml
@@ -23,14 +24,11 @@ enum class CheckerKind(
     val id: String,
     /** このチェッカーが返す指摘の種類。 */
     val findingKinds: List<String>,
-    /** 指摘を出す場所: true = 指摘に付いた参照が書かれた場所／false = 対象の要素を定義した場所（他の出現には案内）。 */
+    /** 指摘を出す場所: true = 指摘に付いた参照が書かれた場所／false = 対象の要素を定義した場所（他の出現には案内）。今は false だけ。 */
     val refLocated: Boolean,
 ) {
     /** 遷移検証: 到達できない・行き止まり・宣言にない遷移（semantic.SemanticFlow）。 */
-    FLOW("flow", listOf("unreachable", "deadEnd", "undeclared"), refLocated = false),
-
-    /** 循環の検出: その関係の参照のうち、循環に含まれるもの（semantic.SemanticCycles）。 */
-    CYCLE("cycle", listOf("cycle"), refLocated = true);
+    FLOW("flow", listOf("unreachable", "deadEnd", "undeclared"), refLocated = false);
 
     companion object {
         fun parse(raw: String, where: String): CheckerKind = entries.firstOrNull { it.id == raw }
@@ -41,21 +39,10 @@ enum class CheckerKind(
 /** 専用チェッカーへ渡す値（チェッカーごとの型）。 */
 sealed interface CheckerArgs
 
-/** 循環の検出へ渡す値: 調べる関係の名前。 */
-data class CycleArgs(val relation: String) : CheckerArgs {
-    companion object {
-        fun parse(raw: Map<*, *>, where: String): CycleArgs {
-            raw.keys.map { it.toString() }.firstOrNull { it != "relation" }
-                ?.let { error("$where: 未知のキーです: $it（使えるキー: relation）") }
-            return CycleArgs(raw["relation"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.relation（関係名）が必要です"))
-        }
-    }
-}
-
 /**
  * 専用チェッカーを使う検査1件。messages は「指摘の種類 → 文面のひな型」で、書かなかった種類は指摘しない。
  * ひな型に書けるもの: `{id}`＝対象の ID・`{related}`＝関連するノードの並び（先頭5件と残りの件数）・
- * `{count}`＝関連するノードの件数・チェッカーが返す値（循環の検出は `{path}`＝循環の経路）。
+ * `{count}`＝関連するノードの件数・チェッカーが返す値。
  */
 data class CheckerRule(
     val id: String? = null,
@@ -78,7 +65,6 @@ data class CheckerRule(
             val argsRaw = m["args"] as? Map<*, *> ?: error("$where.args（チェッカーへ渡す値）はobjectである必要があります")
             val args: CheckerArgs = when (kind) {
                 CheckerKind.FLOW -> FlowArgs.parse(argsRaw, "$where.args")
-                CheckerKind.CYCLE -> CycleArgs.parse(argsRaw, "$where.args")
             }
             val messages = (m["messages"] as? Map<*, *> ?: error("$where.messages（指摘の種類ごとの文面）はobjectである必要があります"))
                 .entries.filter { it.value != null }.associate { it.key.toString() to it.value.toString() }

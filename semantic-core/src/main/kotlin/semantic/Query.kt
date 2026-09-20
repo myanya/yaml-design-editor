@@ -48,6 +48,11 @@ data class SemanticQueryNodeRef(
 data class SemanticQueryRow(
     val bindings: Map<String, SemanticQueryNodeRef>,
     val refs: Map<String, ScannedRef> = emptyMap(),
+    /**
+     * 見つけた道すじ（通った要素の ID。束縛していない途中の要素と、何段でも辿る線が通った要素を含む）。
+     * 行の同一性には加わらない（同じ束縛の組へ着く道が複数あれば、決まった順で最初に見つけた道）。指摘の文面の `{path}` に使う。
+     */
+    val trail: List<String> = emptyList(),
 )
 
 /**
@@ -104,6 +109,12 @@ data class SemanticCheckViolation(
     val right: SemanticCheckSide,
     val row: SemanticQueryRow,
 )
+
+/**
+ * 「すべての要素について」の判定の結果（SP-04）: total = 集まりの要素の数・missing = 解のなかった要素（ID 昇順）。
+ * 解を探す途中で相手の見つからない参照に出会った要素は、不足に数えない（判定保留。CALC-17）。
+ */
+data class SemanticForAllResult(val total: Int, val missing: List<SemanticQueryNodeRef>)
 
 /**
  * check の1項目を評価した結果1件（検査の状況の表示用）: 条件を満たさなかった組があればその組（satisfied = false）、
@@ -228,6 +239,46 @@ object SemanticQuery {
         loader: (DocumentId) -> YNode?,
     ): List<SemanticCheckEvaluation> = Evaluator(ids, refs, graph, spec, loader, rel).checkEvaluationsFrom(startId, checks)
 
+    /**
+     * 起点を固定した「すべての要素について」の判定（SP-04）。起点が母集団に入らない・集まりが空なら null（判定しない）。
+     */
+    fun forAllFrom(
+        ids: Map<String, List<ScannedId>>,
+        refs: List<ScannedRef>,
+        graph: SemanticEntityGraph,
+        spec: QuerySpec,
+        forAll: schema.ConstraintForAll,
+        startId: String,
+        rel: (DocumentId) -> String = { it.value },
+        loader: (DocumentId) -> YNode?,
+    ): SemanticForAllResult? {
+        if (!Evaluator(ids, refs, graph, spec, loader, rel).startMatches(startId)) return null
+        val members = graph.entities.entries
+            .filter { (id, node) -> forAll.node.matchesEntity(id, node) }
+            .map { it.key }.sorted()
+        if (members.isEmpty()) return null
+        val memberBind = forAll.node.bind ?: return null
+        // 起点側の束縛（from）から steps を辿る。集まりの要素は、あらかじめ決まった束縛として same から指す
+        val fromStep = spec.bindStep(forAll.from) ?: return null
+        val branch = QuerySpec(start = fromStep, hops = forAll.hops)
+        val missing = members.filter { member ->
+            val evaluator = Evaluator(
+                ids, refs, graph, branch, loader, rel,
+                fixed = mapOf(memberBind to NodeKey(QueryNodeKind.ENTITY, member)),
+            )
+            val result = evaluator.evaluate(restrictStart = startId, firstOnly = true)
+            result.total == 0 && !result.unknownDropped
+        }
+        return SemanticForAllResult(
+            total = members.size,
+            missing = missing.map { id ->
+                val node = graph.entities.getValue(id)
+                val anchor = node.defining ?: node.occurrences.first()
+                SemanticQueryNodeRef(QueryNodeKind.ENTITY, id, node.title, node.entityType, anchor.document, anchor.path)
+            },
+        )
+    }
+
     /** startId が起点束縛の母集団（起点 node のフィルタ＋起点束縛の where 述語）に入るか（R22-03）。 */
     fun startMatches(
         ids: Map<String, List<ScannedId>>,
@@ -288,6 +339,8 @@ object SemanticQuery {
         private val spec: QuerySpec,
         private val loader: (DocumentId) -> YNode?,
         private val rel: (DocumentId) -> String = { it.value },
+        /** あらかじめ決まった束縛（forAll の集まりの要素）。node の same から指せる。 */
+        private val fixed: Map<String, NodeKey> = emptyMap(),
     ) {
         private val trees = mutableMapOf<DocumentId, YNode?>()
 
@@ -317,8 +370,22 @@ object SemanticQuery {
         /** CALC-17: この評価の解探索で、未解決参照により候補が失われたか（expand が記録する）。 */
         private var unknownDropped = false
 
-        /** 照合経路の1歩: 着いたノードと、edge に bind があるときは辿った参照そのもの。 */
-        private inner class Step(val key: NodeKey, val ref: ScannedRef? = null)
+        /**
+         * 照合経路の1歩: 着いたノードと、edge に bind があるときは辿った参照そのもの。
+         * through は、何段でも辿る線が途中で通った要素（出発した要素と着いた要素の間。道すじの表示用）。
+         * stayed は、0回以上くり返す線（repeat: {min: 0}）で「進まずに、出発した要素にとどまった」歩。
+         */
+        private inner class Step(
+            val key: NodeKey,
+            val ref: ScannedRef? = null,
+            val through: List<String> = emptyList(),
+            val stayed: Boolean = false,
+        )
+
+        /** 行（文書と、参照の1つ上のパス）→ その行の直下に書かれたエンティティ参照（行を線とみなす指定 row 用）。 */
+        private val refsByRow: Map<Pair<DocumentId, YPath>, List<ScannedRef>> by lazy {
+            allRefs.filter { it.targetKind == RefTarget.ENTITY }.groupBy { it.document to it.path.dropLast(1) }
+        }
 
         fun evaluate(restrictStart: String? = null, firstOnly: Boolean = false): SemanticQueryResult {
             val sorted = solve(restrictStart, firstOnly)
@@ -337,7 +404,7 @@ object SemanticQuery {
                 .map { listOf(Step(it)) }
             for (hop in spec.hops) {
                 paths = paths.flatMap { path ->
-                    val sameKey = hop.node.same?.let { path[bindPositionInMatch(it)].key }
+                    val sameKey = hop.node.same?.let { fixed[it] ?: path[bindPositionInMatch(it)].key }
                     if (sameKey != null) {
                         // same: 束縛済みノードそのものへの到達を要求（二度通らない規則の意図的な例外。R28-07）
                         expand(path.last().key, hop.edge, hop.node.copy(kind = sameKey.kind))
@@ -345,7 +412,7 @@ object SemanticQuery {
                             .map { path + it }
                     } else {
                         expand(path.last().key, hop.edge, hop.node)
-                            .filter { step -> path.none { it.key == step.key } }
+                            .filter { step -> path.none { it.key == step.key } || staysInPlace(hop.edge, path.last().key, step) }
                             .filter { predsOk(hop.node.bind, it.key) }
                             .map { path + it }
                     }
@@ -371,7 +438,10 @@ object SemanticQuery {
                                     .map { bPath + it }
                             } else {
                                 expand(fromKey, hop.edge, hop.node)
-                                    .filter { step -> path.none { it.key == step.key } && bPath.none { it.key == step.key } }
+                                    .filter { step ->
+                                        (path.none { it.key == step.key } && bPath.none { it.key == step.key }) ||
+                                            staysInPlace(hop.edge, fromKey, step)
+                                    }
                                     .filter { predsOk(hop.node.bind, it.key) }
                                     .map { bPath + it }
                             }
@@ -392,6 +462,8 @@ object SemanticQuery {
                 rows += SemanticQueryRow(
                     bindings = bindPositions.associate { (bind, pos) -> bind to refOf(path[pos].key) },
                     refs = edgePositions.mapNotNull { (bind, pos) -> path[pos].ref?.let { bind to it } }.toMap(),
+                    // 0回の線でとどまった歩は、道すじに並べない（自分自身へ戻る歩は「A → A」と並べる）
+                    trail = path.filter { !it.stayed }.flatMap { it.through + it.key.id },
                 )
                 if (firstOnly) break
             }
@@ -413,6 +485,13 @@ object SemanticQuery {
                 }
             )
         }
+
+        /**
+         * 0回以上くり返す線（repeat: {min: 0}）で、出発した要素にとどまる1歩か。「同じ要素を二度通らない」規則の例外
+         * （0回＝進まないことを選んだだけで、戻ってきたわけではない）。
+         */
+        private fun staysInPlace(edge: QueryEdgeStep, from: NodeKey, step: Step): Boolean =
+            edge.repeatMin == 0 && step.key == from && step.stayed
 
         /** 参照の同一性と並びのキー（書かれた文書とパス）。 */
         private fun refSortKey(ref: ScannedRef?): String = ref?.let { it.document.value + "#" + it.path.pretty() } ?: ""
@@ -459,12 +538,80 @@ object SemanticQuery {
         }
 
         /**
-         * エッジ1段の展開。端の解決は到達側 node ステップの kind が決める（§4.32）:
-         * out → entity = 解決済みのエンティティ参照先／document = 解決済みの文書参照先、
-         * in → entity = 参照を書いた最内のID要素／document = 参照が書かれた文書。
-         * edge に bind があれば参照ごとに1歩（同じ相手への参照が2本あれば2歩）、なければ着いたノードごとに1歩。
+         * エッジの展開。edge に bind があれば参照ごとに1歩（同じ相手への参照が2本あれば2歩）、なければ着いたノードごとに1歩。
+         * repeat を書いた線は、くり返して辿り着けるすべての要素へ進む（reach）。
          */
         private fun expand(from: NodeKey, edge: QueryEdgeStep, target: QueryNodeStep): List<Step> {
+            val repeatMin = edge.repeatMin
+            if (repeatMin != null) return reach(from, edge, target, repeatMin)
+            val matched = expandOnce(from, edge, target.kind).filter { nodeMatches(target, it.first) }
+            return if (edge.bind == null) matched.map { it.first }.distinct().sortedBy { it.id }.map { Step(it) }
+            else matched.distinctBy { it.first to refSortKey(it.second) }
+                .sortedWith(compareBy({ it.first.id }, { refSortKey(it.second) }))
+                .map { Step(it.first, it.second) }
+        }
+
+        /**
+         * 何段でも辿る（SP-06）: この線をくり返して辿り着ける要素の集まりを、幅優先で求める（専用アルゴリズム。
+         * 一度着いた要素は二度調べないため必ず止まる・隣は ID 昇順で決定的）。道すじは最短のものを覚える。
+         * 出発した要素へ戻る循環があれば、出発した要素も「辿り着ける要素」に入る（node の same で循環を調べられる）。
+         * 途中の要素は node の絞り込みを受けない——絞り込みは辿り着いた先にだけ効く。
+         */
+        private fun reach(from: NodeKey, edge: QueryEdgeStep, target: QueryNodeStep, min: Int): List<Step> {
+            val parent = LinkedHashMap<NodeKey, NodeKey>()   // 着いた要素 → その1つ手前の要素（最短の道すじ）
+            val queue = ArrayDeque(listOf(from))
+            val expanded = HashSet<NodeKey>()
+            while (queue.isNotEmpty()) {
+                val current = queue.removeFirst()
+                if (!expanded.add(current)) continue
+                for (next in expandOnce(current, edge, QueryNodeKind.ENTITY).map { it.first }.distinct().sortedBy { it.id }) {
+                    if (next !in parent) {
+                        parent[next] = current
+                        queue.addLast(next)
+                    }
+                }
+            }
+            fun throughOf(end: NodeKey): List<String> {
+                val reversed = mutableListOf<String>()
+                var cursor = parent[end]
+                while (cursor != null && cursor != from) {
+                    reversed += cursor.id
+                    cursor = parent[cursor]
+                }
+                return reversed.reversed()
+            }
+            val steps = parent.keys.filter { nodeMatches(target, it) }.map { Step(it, through = throughOf(it)) }
+            // 0回以上: 出発した要素そのものも含む（進まずにとどまる歩。循環で戻ってくる歩とは別に、いつでも選べる）
+            val self = if (min == 0 && nodeMatches(target, from)) listOf(Step(from, stayed = true)) else emptyList()
+            return (self + steps).sortedBy { it.key.id }
+        }
+
+        /**
+         * エッジ1段の展開（着いた先の node の絞り込みをかける前）。端の解決は到達側の kind が決める（§4.32）:
+         * out → entity = 解決済みのエンティティ参照先／document = 解決済みの文書参照先、
+         * in → entity = 参照を書いた最内のID要素／document = 参照が書かれた文書。
+         * row（行を線とみなす。SP-07）は、同じ行の直下の2つの参照——from の相手から to の相手へ——を1本の線として辿る。
+         */
+        private fun expandOnce(from: NodeKey, edge: QueryEdgeStep, targetKind: QueryNodeKind): List<Pair<NodeKey, ScannedRef>> {
+            val row = edge.row
+            if (row != null) {
+                if (from.kind != QueryNodeKind.ENTITY || targetKind != QueryNodeKind.ENTITY) return emptyList()
+                // この要素を「こちら側」の参照で指している行を探し、同じ行の「向こう側」の参照の相手へ進む
+                val (nearRelation, farRelation) = when (edge.dir) {
+                    QueryDir.OUT -> row.fromRelation to row.toRelation
+                    QueryDir.IN -> row.toRelation to row.fromRelation
+                }
+                return entityRefsByTarget[from.id].orEmpty().asSequence()
+                    .filter { it.relation == nearRelation }
+                    .filter { ref -> edge.inDoc?.matches(ref.sourceSchemaId, rel(ref.document)) ?: true }
+                    .flatMap { near -> refsByRow[near.document to near.path.dropLast(1)].orEmpty().asSequence() }
+                    .filter { it.relation == farRelation }
+                    .mapNotNull { far ->
+                        if (!graph.entities.containsKey(far.targetId)) { unknownDropped = true; null }
+                        else NodeKey(QueryNodeKind.ENTITY, far.targetId) to far
+                    }
+                    .toList()
+            }
             val refs = when (edge.dir) {
                 QueryDir.OUT -> when (from.kind) {
                     QueryNodeKind.ENTITY -> graph.outgoingRefs(from.id)
@@ -481,9 +628,9 @@ object SemanticQuery {
             // 端をノードへ解決できない参照（対象IDが索引になし・書き手をエンティティへ解決できない）は
             // 黙って除外しつつ「候補の喪失」を記録する（CALC-17 の unknown-dropped）。
             // 対象種別の不一致（entity 到達に document 参照など）は構造的な非該当であり、喪失に数えない
-            val ends: Sequence<Pair<NodeKey, ScannedRef>> = when (edge.dir) {
+            return when (edge.dir) {
                 QueryDir.OUT -> refs.mapNotNull { ref ->
-                    when (target.kind) {
+                    when (targetKind) {
                         QueryNodeKind.ENTITY ->
                             if (ref.targetKind != RefTarget.ENTITY) null
                             else if (!graph.entities.containsKey(ref.targetId)) { unknownDropped = true; null }
@@ -495,19 +642,14 @@ object SemanticQuery {
                     }
                 }
                 QueryDir.IN -> refs.mapNotNull { ref ->
-                    when (target.kind) {
+                    when (targetKind) {
                         QueryNodeKind.ENTITY -> graph.sourceEntryOf(ref)?.let { NodeKey(QueryNodeKind.ENTITY, it.id) to ref }
                             ?: run { unknownDropped = true; null }
                         QueryNodeKind.DOCUMENT -> documentIdByDoc[ref.document]?.let { NodeKey(QueryNodeKind.DOCUMENT, it) to ref }
                             ?: run { unknownDropped = true; null }
                     }
                 }
-            }
-            val matched = ends.filter { nodeMatches(target, it.first) }.toList()
-            return if (edge.bind == null) matched.map { it.first }.distinct().sortedBy { it.id }.map { Step(it) }
-            else matched.distinctBy { it.first to refSortKey(it.second) }
-                .sortedWith(compareBy({ it.first.id }, { refSortKey(it.second) }))
-                .map { Step(it.first, it.second) }
+            }.toList()
         }
 
         /** 束縛が確定したノードに、その束縛のプロパティ述語をすべて適用する（1件の中の「または」は、どれかが成立すればよい）。 */

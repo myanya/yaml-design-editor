@@ -276,12 +276,8 @@ object Validator {
                     }
                     for (entry in anchored) diagnostics.constraint(rule, entry.id)?.let { issues += it.reportIssue(entry.path) }
                 }
-                // 網羅マトリクス: 不足セルは行の定義出現に列挙で報告する。あえて対象外のセルは witness 側に
-                // excluded: true の行として残す（存在＝充足。UX-16 の流儀）
-                for (rule in schema.matrix) {
-                    if (!semantic.phaseActive(rule.activeFrom, phaseOrder, phaseIndex)) continue
-                    for (entry in anchored) diagnostics.matrix(rule, entry.id)?.let { issues += it.reportIssue(entry.path) }
-                }
+                // 網羅マトリクス（スキーマの matrix）は、組込み定義体が「すべての要素について」の検査（forAll）へ展開する
+                // 語彙になった（P29 Phase 6 第5段）——上のパターン制約と同じ規則で評価・配送される
                 // 専用チェッカーを使う検査（遷移検証など）: 報告先の決め方はパターン制約と同じ（意図的差分 D-23 ①）
                 val ownCheckers = schema.checkers.map { it to anchoredInSchema }
                 val sharedCheckers = checkerGroups.filter { it.second == null }.flatMap { it.third }.map { it to anchored }
@@ -328,22 +324,6 @@ object Validator {
                             for ((kind, d) in diagnostics.checker(rule, entry.id, checkerLevelOf(rule))) {
                                 if (noticed.add("$key/k$i:$kind" to entry.id)) issues += d.noticeIssue(entry.path, anchorRel)
                             }
-                        }
-                    }
-                    val node = indexObj.graph.entities[entry.id] ?: continue
-                    val anchor = node.defining ?: node.occurrences.firstOrNull() ?: continue
-                    if (anchor.file == file) continue  // 定義がこの文書なら報告先として処理済み
-                    val anchorRel = workspace?.let { IdIndex.relPathOf(it, anchor.file) }
-                        ?: anchor.file.toString().replace('\\', '/')
-                    for (s in allSchemas) {
-                        if (s.matrix.isEmpty()) continue
-                        if (!s.matches(anchorRel)) continue  // 定義出現の文書に適用される規則だけを見る
-                        val anchorPhase = s.currentPhaseIndex(treeOf(anchor.file))
-                        fun activeAt(from: String?): Boolean = semantic.phaseActive(from, s.phases?.order.orEmpty(), anchorPhase)
-                        for ((i, rule) in s.matrix.withIndex()) {
-                            if (!activeAt(rule.activeFrom)) continue
-                            val d = diagnostics.matrix(rule, entry.id) ?: continue
-                            if (noticed.add("${s.id}/m$i" to entry.id)) issues += d.noticeIssue(entry.path, anchorRel)
                         }
                     }
                 }
