@@ -54,6 +54,48 @@ sealed interface IssueResponse {
     data class CreateDetail(override val label: String, val schemaId: String, val id: String, val note: String? = null) : IssueResponse
 }
 
+/** 指摘の配り方（P27 段A）: 同じ違反が、どの立場でこの場所に出ているか。 */
+enum class IssueDelivery {
+    /** 報告先（対象の要素を定義した場所）への指摘。違反1件につき1つ。 */
+    REPORT,
+
+    /** 同じ要素の、他の文書の出現への案内（報告先の指摘の写し）。 */
+    NOTICE,
+
+    /** 直せる場所への案内（検査の宣言 fixSite）。 */
+    FIX_SITE,
+
+    /** 値が書かれた場所への指摘（検査の宣言 reportAt）。 */
+    VALUE,
+
+    /** 参照が書かれた場所への指摘（検査の宣言 reportAt の ref・専用チェッカー）。 */
+    REF,
+}
+
+/**
+ * 指摘の出どころ（P27 段A。BACKLOG UX-114）: どの検査の・どの要素についての指摘かを、文面とは別にデータとして持つ。
+ * - rule: 検査の出どころ（どの文書の・どの書き方から展開された・何番目の検査か）。単体でパースした検査は null
+ * - ruleId: 検査の呼び名（利用者が付けた id。無ければ null）
+ * - kind: 専用チェッカーの指摘の種類（unreachable など。クエリの検査は null）
+ * - subjectId: 対象の要素（検査の起点）
+ * - evidence: 根拠に関わった要素の ID（対象の要素を除く・ID 昇順・全件。relatedIds は表示用に先頭だけを持つ）
+ * 構造の検証・参照の解決など、定義体を通らない指摘は出どころを持たない（source = null）。
+ */
+data class IssueSource(
+    val rule: schema.RuleOrigin?,
+    val ruleId: String?,
+    val kind: String?,
+    val subjectId: String?,
+    val delivery: IssueDelivery,
+    val evidence: List<String> = emptyList(),
+) {
+    /**
+     * 「同じ検査の・同じ要素についての・同じ配り方の指摘」を見分けるキー。場所と文面は含めない——要素の挿入で場所の番号が
+     * ずれても、文面の件数が変わっても、同じ指摘として扱える（提出ゲート no-new-errors が使う）。出どころの分からない検査は null。
+     */
+    val identity: String? get() = rule?.let { "${it.key}|${kind.orEmpty()}|${subjectId.orEmpty()}|$delivery" }
+}
+
 data class Issue(
     val severity: Severity,
     val message: String,
@@ -62,12 +104,39 @@ data class Issue(
     val responses: List<IssueResponse> = emptyList(),
     /** 指摘に関連するID（UX-15 の不足案内など）。UIはクリックで各IDの定義へジャンプできる。 */
     val relatedIds: List<String> = emptyList(),
+    /** 指摘の出どころ（定義体の検査から出た指摘だけが持つ）。 */
+    val source: IssueSource? = null,
 )
+
+/**
+ * 判定を保留した検査1件（P27 段A。BACKLOG UX-113）: データの不備（相手の見つからない参照など）のために、
+ * 充足とも違反とも決められなかった「検査 × 要素」。指摘ではない——検証パネルには出さず、準備完了レポートと CLI が件数と内訳を示す。
+ * 報告先（対象の要素を定義した場所）の文書の検証でだけ集める（値・参照の場所へ出す検査は対象外）。
+ */
+data class WithheldCheck(
+    val rule: schema.RuleOrigin?,
+    val ruleId: String?,
+    val description: String?,
+    /** 専用チェッカーの指摘の種類（クエリの検査は null）。 */
+    val kind: String?,
+    val subjectId: String,
+    val path: YPath,
+    val reason: semantic.CheckReason,
+) {
+    /** 表示用の1行。 */
+    val text: String
+        get() = "ID「$subjectId」の検査を保留しました: " + (description ?: ruleId ?: rule?.at ?: "（名前のない検査）") +
+            (kind?.let { "（$it）" } ?: "") + " — ${reason.text}"
+}
+
+/** 文書1つの検証の結果: 指摘と、判定を保留した検査。 */
+data class ValidationResult(val issues: List<Issue>, val withheld: List<WithheldCheck>)
 
 /**
  * 検査の状況1件（SP-08。`status` を宣言した検査×ID。右パネルのカバレッジ・ID 横ぐし・ビューの状態列・エージェントの related が共用）。
  * - active: activeFrom のフェーズに達しているか（false は指摘にせず「フェーズ未到達」として表示する）
- * - satisfied: 検査を満たしているか
+ * - outcome / reason: 検査の結果（違反・充足・保留・対象外）と、保留・対象外の理由（P27 段A）
+ * - satisfied: 検査を満たしているか（結果が「充足」。保留は充足に数えない＝意図的差分 D-26 ③）
  * - summary: 状況の1行（検査の status のひな型に、いまの値を埋めたもの。例「出現 1 件（必要 1 件）」。評価できなければ null）
  * - message: 満たしていないときの指摘の文面（検証パネルに出るものと同じ）
  */
@@ -75,10 +144,19 @@ data class RuleStatus(
     val rule: schema.ConstraintRule,
     val id: String,
     val active: Boolean,
-    val satisfied: Boolean,
+    val outcome: semantic.CheckOutcome,
+    val reason: semantic.CheckReason?,
     val summary: String?,
     val message: String?,
 ) {
+    val satisfied: Boolean get() = outcome == semantic.CheckOutcome.SATISFIED
+
+    /** 確かめられなかった（保留）か。 */
+    val withheld: Boolean get() = outcome == semantic.CheckOutcome.WITHHELD
+
+    /** 充足とも不足とも言えない（保留・対象外）か。UI は充足・不足と別の見せ方にする。 */
+    val undetermined: Boolean get() = outcome == semantic.CheckOutcome.WITHHELD || outcome == semantic.CheckOutcome.NOT_APPLICABLE
+
     /** 表示用の1行（UI とエージェントで共用）。 */
     val text: String
         get() {
@@ -86,6 +164,8 @@ data class RuleStatus(
             return when {
                 !active -> "フェーズ未到達（${rule.activeFrom} から判定" + (summary?.let { "。現在 $it" } ?: "") + "）" + note
                 satisfied -> (summary ?: "充足") + note
+                withheld -> "判定保留（${reason?.text ?: "確かめられませんでした"}）" + note
+                outcome == semantic.CheckOutcome.NOT_APPLICABLE -> "対象外（${reason?.text ?: "確かめるものがありません"}）" + note
                 else -> message ?: ((summary ?: "不足") + note)
             }
         }
@@ -103,7 +183,24 @@ typealias PhaseProgress = schema.PhaseProgress
  */
 object Validator {
 
+    /** 文書1つの検証（指摘だけ）。判定を保留した検査も要るときは validateDetailed。 */
     fun validate(
+        root: YNode?,
+        parseError: String?,
+        file: Path,
+        schema: SchemaDef?,
+        indexObj: IdIndex,
+        indexed: Boolean = true,
+        workspace: Path? = null,
+        loader: (Path) -> YNode? = { f -> runCatching { YamlIO.parseFirst(Files.readString(f)) }.getOrNull() },
+        allSchemas: List<SchemaDef> = emptyList(),
+        relations: Map<String, RelationDef> = emptyMap(),
+        enforcement: EnforcementDef = EnforcementDef(),
+    ): List<Issue> = validateDetailed(
+        root, parseError, file, schema, indexObj, indexed, workspace, loader, allSchemas, relations, enforcement,
+    ).issues
+
+    fun validateDetailed(
         root: YNode?,
         parseError: String?,
         file: Path,
@@ -126,12 +223,14 @@ object Validator {
         relations: Map<String, RelationDef> = emptyMap(),
         /** 強制スイッチ（R21-01。ARCHITECTURE §4.31）: 未宣言キーは P20 の挙動のまま。 */
         enforcement: EnforcementDef = EnforcementDef(),
-    ): List<Issue> {
+    ): ValidationResult {
         if (root == null) {
-            return listOf(Issue(Severity.ERROR, "YAML パースエラー: ${parseError ?: "不明"}", emptyList()))
+            return ValidationResult(listOf(Issue(Severity.ERROR, "YAML パースエラー: ${parseError ?: "不明"}", emptyList())), emptyList())
         }
 
         val issues = mutableListOf<Issue>()
+        // 判定を保留した検査（報告先の文書でだけ集める）
+        val withheld = mutableListOf<WithheldCheck>()
         // 他文書のツリー（検証1回の中でキャッシュする。この文書自身は未保存の現在状態＝root を読む）
         val treeCache = mutableMapOf<Path, YNode?>()
         fun treeOf(f: Path): YNode? = if (f == file) root else treeCache.getOrPut(f) { loader(f) }
@@ -274,7 +373,12 @@ object Validator {
                         for (entry in localIds) issues += diagnostics.valueIssues(rule, entry.id, file, entry.path)
                         continue
                     }
-                    for (entry in anchored) diagnostics.constraint(rule, entry.id)?.let { issues += it.reportIssue(entry.path) }
+                    for (entry in anchored) {
+                        diagnostics.constraint(rule, entry.id)?.let { issues += it.reportIssue(entry.path) }
+                        diagnostics.withheldReason(rule, entry.id)?.let { reason ->
+                            withheld += WithheldCheck(rule.origin, rule.id, rule.description, null, entry.id, entry.path, reason)
+                        }
+                    }
                 }
                 // 網羅マトリクス（スキーマの matrix）は、組込み定義体が「すべての要素について」の検査（forAll）へ展開する
                 // 語彙になった（P29 Phase 6 第5段）——上のパターン制約と同じ規則で評価・配送される
@@ -285,6 +389,9 @@ object Validator {
                     if (!semantic.phaseActive(rule.activeFrom, phaseOrder, phaseIndex)) continue
                     for (entry in anchoredEntries) {
                         diagnostics.checker(rule, entry.id, checkerLevelOf(rule)).forEach { (_, d) -> issues += d.reportIssue(entry.path) }
+                        diagnostics.checkerWithheld(rule, entry.id).forEach { (kind, reason) ->
+                            withheld += WithheldCheck(rule.origin, rule.id, rule.description, kind, entry.id, entry.path, reason)
+                        }
                     }
                 }
             }
@@ -381,12 +488,19 @@ object Validator {
                                 diagnostics.constraint(rule, id) != null
                         }
                         if (missing.isEmpty()) continue
-                        issues += Issue(Severity.INFO, diagnostics.fixSiteMessage(fixSite, missing), emptyList(), relatedIds = missing)
+                        issues += Issue(
+                            Severity.INFO, diagnostics.fixSiteMessage(fixSite, missing), emptyList(), relatedIds = missing,
+                            source = IssueSource(rule.origin, rule.id, null, null, IssueDelivery.FIX_SITE, missing),
+                        )
                     }
                 }
             }
         }
-        return issues.distinct()
+        // 同じ指摘の重複を除く（出どころは見ない——文面・場所・対応が同じなら、利用者には同じ指摘）
+        return ValidationResult(
+            issues.distinctBy { listOf(it.severity, it.message, it.path, it.responses, it.relatedIds) },
+            withheld.distinct(),
+        )
     }
 
     /**

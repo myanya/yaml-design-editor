@@ -145,23 +145,47 @@ class Staging(val ws: Workspace) {
     /**
      * no-new-errors ゲート用（R28-05b・UX-47）: ステージ適用後の検証エラーのうち、同じ文書を
      * ディスク原本（適用前）で検証したときには現れないもの。既存エラーは許容し、増えた分だけを返す。
-     * 同一性は (パスの表示形, メッセージ) の多重集合で判定する（件数を含むメッセージが変わる悪化も
-     * 新規として数える）。新規作成文書は原本がないため、そのエラーはすべて新規。
+     * 新規作成文書は原本がないため、そのエラーはすべて新規。
+     *
+     * 「同じエラー」の見分け方（P27 段A・意図的差分 D-26 ①）:
+     * - 出どころを持つ指摘（定義体の検査から出た指摘）は、（検査, 対象の要素, 配り方）で見分ける。場所と文面は見ない——
+     *   要素の挿入で場所の番号がずれても、文面の件数が変わっても、同じエラーとして扱う。そのうえで、**根拠に関わる要素が
+     *   増えたときだけ**新しいエラーとする（不足が3件→2件は既存のエラー・2件→3件は新しいエラー）
+     * - 出どころを持たない指摘（構造の検証・参照の解決など）は、(パスの表示形, メッセージ) の多重集合で見分ける
      */
     fun newErrors(): Map<String, List<Issue>> {
         val out = LinkedHashMap<String, List<Issue>>()
         for ((rel, issues) in validateAll()) {
             val errors = issues.filter { it.severity == Severity.ERROR }
             if (errors.isEmpty()) continue
-            val baseline = HashMap<Pair<String, String>, Int>()
-            if (Files.exists(ws.root.resolve(rel))) {
-                ws.validate(rel).filter { it.severity == Severity.ERROR }
-                    .forEach { baseline.merge(it.path.pretty() to it.message, 1, Int::plus) }
+            val before = if (Files.exists(ws.root.resolve(rel))) ws.validate(rel).filter { it.severity == Severity.ERROR } else emptyList()
+            // 出どころを持つ指摘: 見分けるキー → 適用前の件数と、根拠に関わった要素
+            val sourcedCount = HashMap<String, Int>()
+            val sourcedEvidence = HashMap<String, MutableSet<String>>()
+            // 出どころを持たない指摘: (場所, 文面) → 適用前の件数
+            val plain = HashMap<Pair<String, String>, Int>()
+            for (issue in before) {
+                val key = issue.source?.identity
+                if (key == null) {
+                    plain.merge(issue.path.pretty() to issue.message, 1, Int::plus)
+                } else {
+                    sourcedCount.merge(key, 1, Int::plus)
+                    sourcedEvidence.getOrPut(key) { mutableSetOf() } += issue.source.evidence
+                }
             }
             val fresh = errors.filter { issue ->
-                val key = issue.path.pretty() to issue.message
-                val remaining = baseline[key] ?: 0
-                if (remaining > 0) { baseline[key] = remaining - 1; false } else true
+                val key = issue.source?.identity
+                if (key == null) {
+                    val plainKey = issue.path.pretty() to issue.message
+                    val remaining = plain[plainKey] ?: 0
+                    if (remaining > 0) { plain[plainKey] = remaining - 1; false } else true
+                } else {
+                    val remaining = sourcedCount[key] ?: 0
+                    if (remaining == 0) return@filter true
+                    sourcedCount[key] = remaining - 1
+                    // 同じ検査 × 要素のエラーが適用前にもある: 根拠に関わる要素が増えていれば、悪化＝新しいエラー
+                    !sourcedEvidence.getValue(key).containsAll(issue.source.evidence)
+                }
             }
             if (fresh.isNotEmpty()) out[rel] = fresh
         }

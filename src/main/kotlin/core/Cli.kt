@@ -357,9 +357,14 @@ internal fun runCli(args: Array<String>): String {
             val files = if (target != null) listOf(ws.resolve(target)) else ws.files
             var errors = 0
             var warnings = 0
+            var withheld = 0
+            // --sources: 指摘の出どころ（どの検査の・どの要素についての指摘か）も出す（P27 段A）
+            val withSources = "--sources" in rest
             val fileResults = files.mapNotNull { file ->
                 val rel = ws.relPath(file)
-                val issues = ws.validate(rel)
+                val result = ws.validateDetailed(rel)
+                val issues = result.issues
+                withheld += result.withheld.size
                 errors += issues.count { it.severity == Severity.ERROR }
                 warnings += issues.count { it.severity == Severity.WARNING }
                 // phases 宣言のあるスキーマは記入進捗（未来フェーズの未記入はエラーではなくここに出る）も付与する
@@ -367,10 +372,12 @@ internal fun runCli(args: Array<String>): String {
                 val docSchema = doc.schema
                 val progress = docSchema?.phases?.let { validate.Validator.phaseProgress(doc.root, docSchema) }
                     ?.filter { it.total > 0 }
-                if (issues.isEmpty() && progress.isNullOrEmpty()) return@mapNotNull null
+                if (issues.isEmpty() && progress.isNullOrEmpty() && result.withheld.isEmpty()) return@mapNotNull null
                 linkedMapOf(
                     "file" to rel,
-                    "issues" to issues.map { issueMap(it) },
+                    "issues" to issues.map { issueMap(it, withSources) },
+                    // 判定を保留した検査（指摘ではない。データの不備で、充足とも違反とも決められなかった検査）
+                    "withheld" to result.withheld.map { linkedMapOf("path" to it.path.pretty(), "message" to it.text) },
                     "phaseProgress" to progress?.map {
                         linkedMapOf("phase" to it.phase, "filled" to it.filled, "total" to it.total)
                     },
@@ -382,7 +389,8 @@ internal fun runCli(args: Array<String>): String {
                     "files" to fileResults,
                     "errors" to errors,
                     "warnings" to warnings,
-                )
+                    "withheld" to withheld.takeIf { it > 0 },
+                ).filterValues { it != null }
             )
         }
         "readiness" -> {
@@ -398,7 +406,9 @@ internal fun runCli(args: Array<String>): String {
                         "entities" to report.entities.size,
                         "ready" to report.entities.count { it.ready },
                         "pending" to report.entities.count { !it.ready },
-                    ),
+                        // 判定を保留した検査（データの不備で確かめられなかった検査）の件数。0 なら出さない
+                        "withheld" to report.withheld.size.takeIf { it > 0 },
+                    ).filterValues { it != null },
                     "byType" to groupMaps(report.byType, "type"),
                     "byPhase" to groupMaps(report.byPhase, "phase"),
                     "entities" to listed.map { row ->
@@ -410,13 +420,18 @@ internal fun runCli(args: Array<String>): String {
                             "phase" to row.phase,
                             "errors" to row.errors,
                             "warnings" to row.warnings,
+                            "withheld" to row.withheld.takeIf { it > 0 },
                             "ready" to row.ready,
                         ).filterValues { it != null }
                     },
                     "unassigned" to report.unassigned.map {
                         linkedMapOf("file" to it.file, "errors" to it.errors, "warnings" to it.warnings)
                     },
-                )
+                    // 判定を保留した検査の内訳（--pending でも全件を出す: 「エラー0」の要素にも、確かめられなかった検査がありうる）
+                    "withheld" to report.withheld.map { (file, check) ->
+                        linkedMapOf("file" to file, "id" to check.subjectId, "message" to check.text)
+                    }.takeIf { it.isNotEmpty() },
+                ).filterValues { it != null }
             )
         }
         "checks" -> {
@@ -1089,11 +1104,21 @@ internal fun changeSetToYaml(cs: ChangeSet): String {
     return YamlIO.dump(YamlIO.fromAny(linkedMapOf("changes" to changes)))
 }
 
-private fun issueMap(issue: validate.Issue) = linkedMapOf(
+private fun issueMap(issue: validate.Issue, withSource: Boolean = false): Map<String, Any?> = linkedMapOf(
     "severity" to issue.severity.name,
     "path" to issue.path.pretty(),
     "message" to issue.message,
-)
+    "source" to issue.source?.takeIf { withSource }?.let { source ->
+        linkedMapOf(
+            "rule" to source.rule?.key,
+            "id" to source.ruleId,
+            "kind" to source.kind,
+            "subject" to source.subjectId,
+            "delivery" to source.delivery.name,
+            "evidence" to source.evidence.takeIf { it.isNotEmpty() },
+        ).filterValues { it != null }
+    },
+).filterValues { it != null }
 
 private fun stringFlag(args: List<String>, name: String): String? =
     args.indexOf(name).takeIf { it >= 0 && it + 1 < args.size }?.let { args[it + 1] }

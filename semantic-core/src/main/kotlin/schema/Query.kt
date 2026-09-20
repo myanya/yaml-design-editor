@@ -779,6 +779,18 @@ data class FixSite(val schemas: List<String>, val message: String) {
 }
 
 /**
+ * 検査の出どころ（P27 段A）: どの文書の・どの書き方から展開された・何番目の検査か。指摘に付けて、どの検査の指摘かを
+ * 見分けるのに使う（検査の `id` は利用者が付ける呼び名で、定義のひな型から展開した検査どうしでは重なりうるため、見分けには使わない）。
+ * - owner: 検査を宣言した文書（スキーマの id。組込み定義体に直接書いた検査は `(builtin)`）
+ * - at: 書かれた場所と使った定義（`constraints[2]`・`relations[0]（定義 relation-is-acyclic）` など。展開の記録と同じ文字列）
+ * - index: 同じ場所から展開された検査の中の何番目か
+ */
+data class RuleOrigin(val owner: String, val at: String, val index: Int = 0) {
+    /** ワークスペースの中で検査を見分けるキー。 */
+    val key: String get() = "$owner:$at#$index"
+}
+
+/**
  * パターン制約（R22-03。ARCHITECTURE §4.32）。スキーマの `constraints:` に列挙する。
  * 「起点束縛（match の先頭 node。kind: entity 限定）に一致する各エンティティについて、
  * 残りのパターンに解が存在すること（expect: exists）／しないこと（expect: absent）／
@@ -819,6 +831,8 @@ data class ConstraintRule(
      * 指摘する（宣言されていなければ level）。ワークスペースごとに「警告に留めるか、エラーで塞ぐか」を選べる検査に使う。
      */
     val levelFrom: String? = null,
+    /** 検査の出どころ（スキーマの読み込みが、展開の記録から付ける。単体でパースした検査は null）。 */
+    val origin: RuleOrigin? = null,
 ) {
     companion object {
         private val OWN_KEYS = setOf(

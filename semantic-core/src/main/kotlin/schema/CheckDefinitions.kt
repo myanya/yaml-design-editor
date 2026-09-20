@@ -69,8 +69,11 @@ data class VocabularyUse(
     val with: Map<String, Any?>,
 )
 
-/** 展開後の基本の検査1件（YAML を読んだままの値）と、その由来（どの語彙・どの定義から来たか）。 */
-data class ExpandedCheck(val raw: Map<String, Any?>, val origin: String) {
+/**
+ * 展開後の基本の検査1件（YAML を読んだままの値）と、その由来（どの語彙・どの定義から来たか）。
+ * index は、同じ由来（1回の定義の使用）から展開された検査の中の何番目か——由来と合わせて、検査を見分けるのに使う（RuleOrigin）。
+ */
+data class ExpandedCheck(val raw: Map<String, Any?>, val origin: String, val index: Int = 0) {
     /** 専用チェッカーを使う検査か（CheckerRule として読む。そうでなければクエリの検査 ConstraintRule）。 */
     val usesChecker: Boolean get() = raw.containsKey("checker")
 }
@@ -148,7 +151,7 @@ data class CheckLibrary(
         return function.checks.mapIndexed { i, template ->
             val expanded = substitute(template, args) as? Map<*, *>
                 ?: error("${function.origin} の checks[$i] はobjectである必要があります")
-            ExpandedCheck(expanded.entries.associate { it.key.toString() to it.value }, "$at（定義 $functionId）")
+            ExpandedCheck(expanded.entries.associate { it.key.toString() to it.value }, "$at（定義 $functionId）", index = i)
         }
     }
 

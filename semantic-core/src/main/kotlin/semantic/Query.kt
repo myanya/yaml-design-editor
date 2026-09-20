@@ -114,7 +114,27 @@ data class SemanticCheckViolation(
  * 「すべての要素について」の判定の結果（SP-04）: total = 集まりの要素の数・missing = 解のなかった要素（ID 昇順）。
  * 解を探す途中で相手の見つからない参照に出会った要素は、不足に数えない（判定保留。CALC-17）。
  */
-data class SemanticForAllResult(val total: Int, val missing: List<SemanticQueryNodeRef>)
+data class SemanticForAllResult(
+    val total: Int,
+    val missing: List<SemanticQueryNodeRef>,
+    /** 解が無く、しかも相手の見つからない参照に出会ったため、不足とも充足とも決められなかった要素の数（検査の結果の「保留」の根拠）。 */
+    val undecided: Int = 0,
+)
+
+/**
+ * 起点を固定した check 判定の1回分（P27 段A）: 条件を満たさなかった組と、「充足」と言い切れるかどうかを決める材料。
+ * - evaluated: 評価できた「解 × 項目」の数（0 なら、比べる組が1つも無かった）
+ * - unknownDropped: 解を探す途中で、相手の見つからない参照により候補が失われた（CALC-17）
+ * - noValue: 比べる値が書かれていないために評価できなかった「解 × 項目」がある
+ * - incomparable: 値はあるが、大小の比較で数値として読めないために評価できなかった「解 × 項目」がある
+ */
+data class SemanticCheckRun(
+    val violations: List<SemanticCheckViolation>,
+    val evaluated: Int,
+    val unknownDropped: Boolean,
+    val noValue: Boolean,
+    val incomparable: Boolean,
+)
 
 /**
  * check の1項目を評価した結果1件（検査の状況の表示用）: 条件を満たさなかった組があればその組（satisfied = false）、
@@ -224,6 +244,19 @@ object SemanticQuery {
         loader: (DocumentId) -> YNode?,
     ): List<SemanticCheckViolation> = Evaluator(ids, refs, graph, spec, loader, rel).checkFrom(startId, checks, pin)
 
+    /** 起点を固定した check 判定を、結果を決める材料つきで返す（checkFrom と同じ評価。P27 段A の SemanticRules が使う）。 */
+    fun checkRunFrom(
+        ids: Map<String, List<ScannedId>>,
+        refs: List<ScannedRef>,
+        graph: SemanticEntityGraph,
+        spec: QuerySpec,
+        checks: List<ConstraintCheck>,
+        startId: String,
+        rel: (DocumentId) -> String = { it.value },
+        pin: Pair<ValueExpr.ScopeRef, SemanticExpression.Occurrence>? = null,
+        loader: (DocumentId) -> YNode?,
+    ): SemanticCheckRun = Evaluator(ids, refs, graph, spec, loader, rel).checkRun(startId, checks, pin)
+
     /**
      * 起点を固定した check の評価（検査の状況の表示用）: checkFrom と同じ評価で、条件を満たしている項目も
      * 値つきで返す（「出現 1 件（必要 1 件）」のように、満たしている状況も示すため）。
@@ -261,15 +294,18 @@ object SemanticQuery {
         // 起点側の束縛（from）から steps を辿る。集まりの要素は、あらかじめ決まった束縛として same から指す
         val fromStep = spec.bindStep(forAll.from) ?: return null
         val branch = QuerySpec(start = fromStep, hops = forAll.hops)
+        var undecided = 0
         val missing = members.filter { member ->
             val evaluator = Evaluator(
                 ids, refs, graph, branch, loader, rel,
                 fixed = mapOf(memberBind to NodeKey(QueryNodeKind.ENTITY, member)),
             )
             val result = evaluator.evaluate(restrictStart = startId, firstOnly = true)
+            if (result.total == 0 && result.unknownDropped) undecided++
             result.total == 0 && !result.unknownDropped
         }
         return SemanticForAllResult(
+            undecided = undecided,
             total = members.size,
             missing = missing.map { id ->
                 val node = graph.entities.getValue(id)
@@ -729,6 +765,21 @@ object SemanticQuery {
             return violations
         }
 
+        /** checkFrom と同じ評価を、結果を決める材料つきで返す。 */
+        fun checkRun(
+            startId: String,
+            checks: List<ConstraintCheck>,
+            pin: Pair<ValueExpr.ScopeRef, SemanticExpression.Occurrence>? = null,
+        ): SemanticCheckRun {
+            val violations = checkFrom(startId, checks, pin)
+            return SemanticCheckRun(violations, evaluatedCount, unknownDropped, sawNoValue, sawIncomparable)
+        }
+
+        /** 評価できた「解 × 項目」の数と、評価できなかった理由（値が書かれていない／数値として読めない）の記録。 */
+        private var evaluatedCount = 0
+        private var sawNoValue = false
+        private var sawIncomparable = false
+
         fun checkEvaluationsFrom(startId: String, checks: List<ConstraintCheck>): List<SemanticCheckEvaluation> {
             val all = solve(startId, firstOnly = false)
             aggregateRows = all
@@ -768,6 +819,9 @@ object SemanticQuery {
             val assignment = HashMap<ValueExpr.ScopeRef, SemanticExpression.Occurrence?>()
             // 条件を満たした最初の組（満たさない組が見つからなかったときに、状況の表示用として返す）
             var firstSatisfied: SemanticCheckEvaluation? = null
+            // この「解 × 項目」で、評価できない条件に出会った理由（評価できる組が1つも無かったときだけ、結果の材料にする）
+            var noValue = false
+            var incomparable = false
             fun search(index: Int): SemanticCheckEvaluation? {
                 if (index == sources.size) {
                     // 項目は値の条件の「または」（1つなら単独）: どれかが成り立てば成立・成り立つものがなく
@@ -779,7 +833,11 @@ object SemanticQuery {
                         val rights = term.rights.map { evalExpr(it, row, assignment) }
                         // 値の条件は共有評価部——評価できない（null）条件は判定保留
                         val plain = left?.let { SemanticExpression.test(term.op, it.text, rights.map { r -> r?.text }) }
-                        if (left == null || plain == null) { unknown = true; continue }
+                        if (left == null || plain == null) {
+                            unknown = true
+                            if (left == null || rights.any { it == null }) noValue = true else incomparable = true
+                            continue
+                        }
                         // 右辺が複数（oneOf の選択肢）のときは、選択肢を並べた1つの辺として示す
                         val right = rights.singleOrNull()
                             ?: SemanticCheckSide(text = rights.filterNotNull().joinToString("・") { it.text })
@@ -797,7 +855,11 @@ object SemanticQuery {
                 }
                 return null
             }
-            return search(0) ?: firstSatisfied
+            val found = search(0) ?: firstSatisfied
+            if (found != null) evaluatedCount++
+            else if (incomparable) sawIncomparable = true
+            else if (noValue) sawNoValue = true
+            return found
         }
 
         /** 値を読む出現の候補: 束縛の全出現のうち、文書の指定（スキーマID・ファイルのパターン）に合うもの（索引順）。 */

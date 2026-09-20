@@ -286,11 +286,14 @@ class Workspace private constructor(val root: Path) {
     }
 
     /** 1 ファイルを検証する（スキーマ適合・参照解決・重複・カバレッジ。台帳外は索引前提の判定を降格。R13-03）。 */
-    fun validate(rel: String): List<Issue> {
+    fun validate(rel: String): List<Issue> = validateDetailed(rel).issues
+
+    /** 1 ファイルの検証を、判定を保留した検査つきで返す（P27 段A。準備完了レポートと CLI が使う）。 */
+    fun validateDetailed(rel: String): validate.ValidationResult {
         val doc = load(rel)
         // 走査対象（台帳＋予約領域）に載っていない文書＝台帳外のエディタ層。索引前提の判定は成立しない
         val indexed = doc.file in files
-        return Validator.validate(
+        return Validator.validateDetailed(
             doc.root, doc.parseError, doc.file, doc.schema, index,
             // （このヘッドレス経路はディスク索引・ディスク loader のまま。UIは overlayIndex を渡す。§4.5）
             indexed = indexed, workspace = root, allSchemas = schemas,

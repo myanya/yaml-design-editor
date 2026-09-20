@@ -12,7 +12,10 @@ import java.nio.file.Path
  *   どの出現にも含まれない指摘は文書レベル（unassigned）として別掲する
  * - 準備完了 = 帰属するエラー0。警告は判定に使わず件数で示す（意図的警告の運用を塞がないため）
  * - フェーズ = 定義出現のある文書の現在フェーズ（phases 宣言のあるスキーマのみ）
- * - INFO（他出現への案内等）は数えない（定義側の指摘と二重になるため）
+ * - INFO（他出現への案内等）は数えない（定義側の指摘と二重になるため）。エラー級の検査が他の出現へ出す同格の案内
+ *   （配り方 NOTICE）も、報告先の指摘の写しなので数えない（P27 段A・意図的差分 D-26 ②）
+ * - 保留 = 判定を保留した検査の件数（データの不備で、充足とも違反とも決められなかった検査。BACKLOG UX-113）。
+ *   準備完了の判定には使わず、件数で示す——「エラー0」が「すべて確かめて問題なし」なのかを読み手が見分けられるようにする
  * - ヘッドレス経路（CLI）のディスク基準で検証する。決定性: 一覧はID昇順・集計はキー昇順
  */
 object Readiness {
@@ -27,6 +30,8 @@ object Readiness {
         val phase: String?,
         val errors: Int,
         val warnings: Int,
+        /** 判定を保留した検査の件数。 */
+        val withheld: Int = 0,
     ) {
         val ready: Boolean get() = errors == 0
     }
@@ -41,6 +46,8 @@ object Readiness {
         val unassigned: List<FileRow>,
         val byType: List<GroupRow>,
         val byPhase: List<GroupRow>,
+        /** 判定を保留した検査（ファイル → 内訳）。 */
+        val withheld: List<Pair<String, WithheldCheck>> = emptyList(),
     )
 
     fun report(ws: Workspace): Report {
@@ -48,10 +55,13 @@ object Readiness {
         val errorsById = mutableMapOf<String, Int>()
         val warningsById = mutableMapOf<String, Int>()
         val unassigned = mutableListOf<FileRow>()
+        val withheld = mutableListOf<Pair<String, WithheldCheck>>()
 
         for (file in ws.files) {
             val rel = ws.relPath(file)
-            val issues = ws.validate(rel).filter { it.severity != Severity.INFO }
+            val result = ws.validateDetailed(rel)
+            withheld += result.withheld.map { rel to it }
+            val issues = result.issues.filter { it.severity != Severity.INFO && it.source?.delivery != IssueDelivery.NOTICE }
             if (issues.isEmpty()) continue
             val entries = entriesByFile[file].orEmpty()
             var docErrors = 0
@@ -83,6 +93,7 @@ object Readiness {
             }.getOrNull()
         }
 
+        val withheldById = withheld.groupingBy { it.second.subjectId }.eachCount()
         val entities = ws.index.graph.entities.values
             .sortedBy { it.id }
             .map { node ->
@@ -95,6 +106,7 @@ object Readiness {
                     phase = anchor?.let { phaseOf(it.file) },
                     errors = errorsById[node.id] ?: 0,
                     warnings = warningsById[node.id] ?: 0,
+                    withheld = withheldById[node.id] ?: 0,
                 )
             }
 
@@ -108,6 +120,7 @@ object Readiness {
             unassigned = unassigned.sortedBy { it.file },
             byType = groups { it.entityType },
             byPhase = groups { it.phase },
+            withheld = withheld.sortedWith(compareBy({ it.first }, { it.second.subjectId })),
         )
     }
 }

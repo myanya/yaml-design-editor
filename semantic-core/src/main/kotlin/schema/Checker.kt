@@ -53,9 +53,11 @@ data class CheckerRule(
     val level: CoverageLevel = CoverageLevel.WARNING,
     val levelFrom: String? = null,
     val activeFrom: String? = null,
+    /** 検査の出どころ（スキーマの読み込みが、展開の記録から付ける。単体でパースした検査は null）。 */
+    val origin: RuleOrigin? = null,
 ) {
     companion object {
-        private val KEYS = setOf("id", "description", "checker", "args", "messages", "level", "levelFrom", "activeFrom")
+        private val KEYS =setOf("id", "description", "checker", "args", "messages", "level", "levelFrom", "activeFrom")
 
         fun parse(raw: Any?, where: String): CheckerRule {
             val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります")

@@ -34,12 +34,26 @@ data class SemanticFlowFinding(
     val related: List<SemanticFlowNode>,
 )
 
+/**
+ * 遷移検証の1回分（P27 段A）: 対象のノード・指摘・判定しなかった種類とその理由。
+ * 指摘の無いノードを「充足」と言い切れるのは、その種類が skipped に無いときだけ。
+ */
+data class SemanticFlowRun(
+    val nodes: List<String>,
+    val findings: List<SemanticFlowFinding>,
+    val skipped: Map<SemanticFlowFindingKind, CheckReason>,
+)
+
 object SemanticFlow {
 
-    fun findings(graph: SemanticEntityGraph, refs: List<ScannedRef>, rule: FlowArgs): List<SemanticFlowFinding> {
+    fun findings(graph: SemanticEntityGraph, refs: List<ScannedRef>, rule: FlowArgs): List<SemanticFlowFinding> =
+        run(graph, refs, rule).findings
+
+    fun run(graph: SemanticEntityGraph, refs: List<ScannedRef>, rule: FlowArgs): SemanticFlowRun {
         val nodes = graph.entities.keys.filter { matches(graph, rule.nodes, it) }.sorted()
-        if (nodes.isEmpty()) return emptyList()
+        if (nodes.isEmpty()) return SemanticFlowRun(emptyList(), emptyList(), emptyMap())
         val nodeSet = nodes.toSet()
+        val skipped = LinkedHashMap<SemanticFlowFindingKind, CheckReason>()
 
         val declared = extractEdges(graph, refs, rule.edges, nodeSet)
         val starts = rule.startRelation?.let { extractTargets(graph, refs, it, nodeSet) }
@@ -62,6 +76,10 @@ object SemanticFlow {
             nodes.filterNot { it in reachable }.forEach {
                 findings += SemanticFlowFinding(SemanticFlowFindingKind.UNREACHABLE, it, startNodes)
             }
+        } else {
+            skipped[SemanticFlowFindingKind.UNREACHABLE] =
+                if (starts == null || (starts.ids.isEmpty() && !starts.dropped)) CheckReason.NOT_DECLARED
+                else CheckReason.UNRESOLVED_REFERENCE
         }
 
         // 行き止まり: 出るエッジがなく terminal でもないノード（終端の候補喪失時は黙る）
@@ -69,6 +87,8 @@ object SemanticFlow {
             nodes.filterNot { it in declared.outgoing || it in terminals.ids }.forEach {
                 findings += SemanticFlowFinding(SemanticFlowFindingKind.DEAD_END, it, emptyList())
             }
+        } else {
+            skipped[SemanticFlowFindingKind.DEAD_END] = CheckReason.UNRESOLVED_REFERENCE
         }
 
         // 宣言外遷移: usage エッジ集合 ⊆ 宣言エッジ集合（宣言側の候補喪失時は黙る）
@@ -81,9 +101,12 @@ object SemanticFlow {
                     val targets = tos.distinct().sorted().map { SemanticFlowNode(it, graph.entities[it]?.title) }
                     findings += SemanticFlowFinding(SemanticFlowFindingKind.UNDECLARED, from, targets)
                 }
+        } else {
+            skipped[SemanticFlowFindingKind.UNDECLARED] =
+                if (rule.usage == null) CheckReason.NOT_DECLARED else CheckReason.UNRESOLVED_REFERENCE
         }
 
-        return findings.sortedWith(compareBy({ it.nodeId }, { it.kind.ordinal }))
+        return SemanticFlowRun(nodes, findings.sortedWith(compareBy({ it.nodeId }, { it.kind.ordinal })), skipped)
     }
 
     private data class Edges(

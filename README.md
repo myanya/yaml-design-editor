@@ -1261,7 +1261,8 @@ allowedFiles: ["01_requirements/**"]     # 書込を許可する範囲（省略�
 allowedPaths: ["review_comments*"]       # 書込を許可するパス（省略時は全パス）
 limits: { maxTurns: 16 }
 gates: { validation: error-free }        # 検証エラーが残る提出は拒否。点検系には no-new-errors
-                                         # （既存エラーは許容し、この実行で増えたエラーだけ拒否）・none も選べる
+                                         # （既存エラーは許容し、この実行で増えたエラーだけ拒否。同じエラーかどうかは「検査 × 対象の要素」で
+                                         #  見分けるため、既存の不足を一部だけ直す提出も通る）・none も選べる
 ```
 
 ### コンテキストレシピ（初期文脈の設計）
@@ -1552,8 +1553,8 @@ GUIを起動せずに、ワークスペースの探索・検索・部分変更�
 ./gradlew runCli -q --args="query my-ws --spec '{match: [{node: {entity: screen, bind: scr}}, {edge: {relation: uses}}, {node: {entity: usecase, bind: uc}}]}'"  # グラフパターン照合（束縛の表。ビューのクエリ行・foreach source: query・constraints の試作台。spec はファイル指定も可）
 ./gradlew runCli -q --args="view sample-workspace screen-catalog"         # ビューの解決（引数なしで一覧。セルに原本座標つき）
 ./gradlew runCli -q --args="view my-ws actor-document 00-requirements/01-actors.yaml"  # 文書ビューの解決（適用対象1件なら file 省略可）
-./gradlew runCli -q --args="validate sample-workspace"                    # 全文書の検証（カバレッジ含む）
-./gradlew runCli -q --args="readiness sample-workspace --pending"         # 準備完了レポート（エンティティ単位にエラーを帰属。--pending で未完了のみ）
+./gradlew runCli -q --args="validate sample-workspace"                    # 全文書の検証（カバレッジ含む。判定を保留した検査があれば withheld に内訳と件数。--sources で指摘の出どころ＝どの検査の・どの要素についての指摘か）
+./gradlew runCli -q --args="readiness sample-workspace --pending"         # 準備完了レポート（エンティティ単位にエラーを帰属。--pending で未完了のみ。判定を保留した検査＝データの不備で確かめられなかった検査の件数と内訳も出る）
 ./gradlew runCli -q --args="checks sample-workspace --definitions"        # 展開後の検査の表示（語彙・定義の使用が、どんな基本の検査へ展開されたか。--definitions で定義と語彙の一覧も）
 ./gradlew runCli -q --args="hash sample-workspace path/to/doc.yaml"       # 変更セットの base に使う内容ハッシュ
 ./gradlew runCli -q --args="apply sample-workspace changeset.yaml --dry-run"  # 変更セットの適用（ドライラン）

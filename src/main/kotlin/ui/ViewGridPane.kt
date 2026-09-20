@@ -591,9 +591,11 @@ private fun StatusCell(state: AppState, row: ViewRow) {
                     )
                 }
         }
-        val active = statuses.filter { it.active }
+        // 確かめられなかった検査（保留・対象外）は、充足の数にも母数にも入れない（P27 段A・意図的差分 D-26 ③）
+        val undetermined = statuses.count { it.active && it.undetermined }
+        val active = statuses.filter { it.active && !it.undetermined }
         if (active.isEmpty()) {
-            Text("—", fontSize = 11.sp, color = Palette.SubText)
+            Text(if (undetermined > 0) "保留" else "—", fontSize = 11.sp, color = Palette.SubText)
         } else {
             val satisfied = active.count { it.satisfied }
             Row(verticalAlignment = Alignment.CenterVertically) {

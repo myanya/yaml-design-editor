@@ -162,13 +162,39 @@ object Query {
     }
 
     /**
-     * 専用チェッカーの実行（SP-13。遷移検証 R28-04・循環の検出 R21-01）: 渡す値に応じたチェッカーの全指摘。
-     * 判定保留の規則（CALC-17）は各チェッカーが持つ。
+     * 専用チェッカーの実行（SP-13。遷移検証 R28-04）: 渡す値に応じたチェッカーの1回分
+     * （対象の要素・全指摘・判定しなかった種類とその理由）。判定保留の規則（CALC-17）は各チェッカーが持つ。
      */
-    fun checkerFindings(index: IdIndex, args: schema.CheckerArgs): List<semantic.SemanticCheckerFinding> {
+    fun checkerRun(index: IdIndex, args: schema.CheckerArgs): semantic.SemanticCheckerRun {
         val view = index.toKernelView()
-        return semantic.SemanticCheckers.findings(view.graph, view.refs, args)
+        return semantic.SemanticCheckers.run(view.graph, view.refs, args)
     }
+
+    /**
+     * クエリの検査1件 × 要素1つの判定（P27 段A）: 結果（違反・充足・保留・対象外）と、文面を作るための根拠。
+     * 判定の実体はカーネル（semantic.SemanticRules）。
+     */
+    fun evaluateRule(
+        index: IdIndex,
+        rule: schema.ConstraintRule,
+        startId: String,
+        loader: (Path) -> YNode? = diskLoader,
+        rel: (Path) -> String = { it.toString().replace('\\', '/') },
+        pin: Pair<schema.ValueExpr.ScopeRef, Pair<Path, YPath>>? = null,
+    ): semantic.SemanticRuleResult {
+        val view = index.toKernelView()
+        return semantic.SemanticRules.evaluate(
+            view.entries, view.refs, view.graph, rule, startId,
+            rel = { d -> rel(Path.of(d.value)) },
+            pin = pin?.let { (source, occ) ->
+                source to semantic.SemanticExpression.Occurrence(model.DocumentId(occ.first.toString()), occ.second)
+            },
+        ) { d -> loader(Path.of(d.value)) }
+    }
+
+    /** カーネルの照合結果を Path 座標の結果へ写す。 */
+    fun semantic.SemanticQueryResult.toResult(): QueryResult =
+        QueryResult(columns = columns, rows = rows.map { it.toRow() }, total = total, unknownDropped = unknownDropped)
 
     /**
      * startId が起点束縛の母集団（起点 node のフィルタ＋起点束縛の where 述語）に入るか（R22-03）。

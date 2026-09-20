@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -235,10 +236,15 @@ private fun EntityPage(state: AppState, id: String) {
                 statuses.forEach { status ->
                     Row(Modifier.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            if (status.active && status.satisfied) Icons.Default.CheckCircle else Icons.Default.Warning,
+                            when {
+                                status.active && status.satisfied -> Icons.Default.CheckCircle
+                                // 確かめられなかった検査（保留・対象外）は、充足とも不足とも違う見せ方にする（P27 段A）
+                                status.active && status.undetermined -> Icons.Default.Info
+                                else -> Icons.Default.Warning
+                            },
                             contentDescription = null, Modifier.size(14.dp),
                             tint = when {
-                                !status.active -> Palette.SubText
+                                !status.active || status.undetermined -> Palette.SubText
                                 status.satisfied -> Palette.OkGreen
                                 else -> Palette.WarnOrange
                             },
@@ -248,7 +254,7 @@ private fun EntityPage(state: AppState, id: String) {
                             status.text,
                             fontSize = 12.sp,
                             color = when {
-                                !status.active -> Palette.SubText
+                                !status.active || status.undetermined -> Palette.SubText
                                 status.satisfied -> Palette.Text
                                 else -> Palette.WarnOrange
                             },

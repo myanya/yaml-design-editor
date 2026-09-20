@@ -602,6 +602,38 @@ Core Calculus の本来の目的（[CORE-CALCULUS.md](CORE-CALCULUS.md) §25）�
 
 **定義体へ移した検査**: 網羅マトリクス（`matrix`。第5段・意図的差分 D-25。`builtin-definitions/matrix.yaml`）。遷移検証（`flow`）と非循環（`acyclic`）（第4段・意図的差分 D-23。`builtin-definitions/flow.yaml`・`relations.yaml`。`SchemaDef.flow`・`FlowRule`（→`FlowArgs`）・`RuleDiagnostics.flow` / `describeFlowFinding`・`index.Query.flowFindings`・`Validator` の flow の配送・`SemanticGraphIntegrity` の非循環の部分（→`SemanticCycles`）を削除または移動。カーネルの `SemanticGraphIntegrity` に残るのは、宣言のない関係名の検査だけ）。詳細文書の存在（`coverage`。第3段・意図的差分 D-21。`semantic/Coverage.kt`・`schema/Coverage.kt`（`CoverageRule`）・`SchemaLoader.parseCoverage`・`Validator.coverageStatuses` / `coverageMessage`・`CoverageStatus`・`IssueScaffold` と、出現先への不足案内の専用コードを削除）。エンティティの整合のうち浮遊詳細化・定義競合・型競合（第3段・意図的差分 D-22。組込み定義体 `entities.yaml` に直接書いた検査。idPattern 逸脱と重複所有は、スキーマの構造に依存する lint として `Validator` に残す）。多重度と対象型（関係の宣言の `cardinality`・`source` / `target`。第2段・意図的差分 D-20。`SemanticGraphIntegrity` の該当部分・`SemanticShortage`・`SemanticIssue.shortage` を削除。評価は constraints と同じ経路になり、カーネルの snapshot には出ない＝検査の実行をカーネルへ移す P27・D-4 で揃える）。整合検証（`consistency`。第1段・意図的差分 D-19）。`semantic/Consistency.kt`・`ConsistencyRule`・`ConsistencyAssert`・`SchemaLoader.parseConsistency`・`IssueDerivation` は削除した。**これで、検査の語彙はすべて定義体になった**（P29 Phase 6 の第1〜5段）。コードに残る検査は、専用チェッカー（遷移検証の到達の計算）と、定義体にしないと決めたもの（宣言のない関係名＝宣言の検査・エンティティの idPattern 逸脱と重複所有＝スキーマの構造に依存する lint・構造検証と参照解決＝検査の土台）だけ。
 
+### 4.37 検査の結果の4つと、指摘の出どころ（P27 段A）
+
+検査の語彙がすべて定義体になった（§4.36）あとに残った弱点——①判定を保留した検査が「充足」と区別できない ②指摘が、どの検査の・どの要素についての指摘かを文面でしか持たない——を、検査の実行をカーネルへ移す（P27 段B）前に、出力の形から直した。
+
+**検査の結果は4つ**（`semantic.CheckOutcome`。仕様 CALC-31）: 検査1件を要素1つについて評価した結果は、次のどれか1つになる。
+
+| 結果 | 意味 | 理由（`semantic.CheckReason`） |
+|---|---|---|
+| 違反 | 検査に反している。**指摘が出るのはこれだけ** | — |
+| 充足 | 確かめて、問題が無かった | — |
+| 保留 | データの不備のために、充足とも違反とも決められなかった（CALC-17 の判定保留） | 辿る途中に相手の見つからない参照がある／比べる値を数値として読めない |
+| 対象外 | この要素・この時点では、確かめるものが無い | 検査の対象でない／フェーズ未到達／比べる値が書かれていない／比べる組が無い／調べる相手の集まりが空／チェッカーの前提が宣言されていない |
+
+「比べる値が書かれていない」を保留ではなく対象外にしたのは、任意の項目を比べる検査（最大文字数の比較など）では値が無いのがふつうで、これを保留に数えると、本当に確かめられなかった検査（データの不備）が埋もれるため。
+
+**判定の置き場**: どの結果になるかを決めるのはカーネルの `semantic.SemanticRules.evaluate`（検査 × 要素 → `SemanticRuleResult`＝結果・理由・文面を作るための根拠）だけ。判定の保留の規則（解の不足を理由とする違反だけを保留にし、見つかった解が根拠になる違反＝あってはならない解・上限の超過・条件を満たさない組は保留にしない）もここに集めた。root の `validate.RuleDiagnostics` は、結果が違反のときに根拠を文面へ写すだけで、同じ「検査 × 要素」は検証1回の中で1回だけ評価する（`result` のキャッシュ）。専用チェッカーは1回分（`SemanticCheckerRun`＝対象の要素・指摘・判定しなかった指摘の種類とその理由）を返す。フェーズ（`activeFrom`）は文書の状態で決まるため、呼び出し側が先に判定する。
+
+**検査の出どころ**（`schema.RuleOrigin`）: どの文書の（`owner`＝スキーマの id。組込み定義体に直接書いた検査は `(builtin)`）・どの書き方から展開された（`at`＝展開の記録と同じ文字列。`constraints[2]`・`relations[18]（定義 relation-in-count）` など）・何番目の検査か（`index`）。スキーマの読み込みが、展開の記録（`ExpandedCheck`）から `ConstraintRule.origin`・`CheckerRule.origin` に付ける。検査の `id` は利用者が付ける呼び名で、定義のひな型から展開した検査どうしでは重なりうるため、見分けには使わない。
+
+**指摘の出どころ**（`validate.IssueSource`。仕様 CALC-32）: 検査の出どころ・呼び名・専用チェッカーの指摘の種類・対象の要素・配り方（`IssueDelivery`: `REPORT`＝報告先／`NOTICE`＝同じ要素の他の出現への案内／`FIX_SITE`＝直せる場所への案内／`VALUE`＝値の場所／`REF`＝参照の場所）・根拠に関わった要素（対象の要素を除く・ID 昇順・**全件**。`relatedIds` は表示用に先頭だけ）。`identity` は「同じ検査の・同じ要素についての・同じ配り方の指摘」を見分けるキーで、場所と文面を含めない。定義体を通らない指摘（構造の検証・参照の解決・ID の重複など）は、まだ出どころを持たない（`source = null`。段B で扱う）。
+
+**保留の残し方**: 判定を保留した検査は指摘にしない（検証パネルには出さない）。`Validator.validateDetailed` が返す `ValidationResult.withheld`（`WithheldCheck`＝検査・対象の要素・場所・理由）に残し、`validate` はその指摘だけを返す薄い入口。集めるのは報告先（対象の要素を定義した場所）の文書の検証でだけ——他の出現の文書では集めない（二重に数えない）。値・参照の場所へ出す検査の保留は集めていない（段B）。
+
+**載せ替えたもの**（意図的差分 D-26）:
+
+- 提出ゲート `no-new-errors`（`Staging.newErrors`）: 出どころを持つ指摘は `identity` で見分ける。同じ検査 × 要素のエラーが適用前にもあれば既存のエラーとし、**根拠に関わる要素が増えたときだけ**新しいエラーとする（不足が3件→2件は既存・2件→3件は新しい。要素の挿入で場所の番号がずれても既存のまま）。出どころを持たない指摘は今までどおり（場所, 文面）
+- 準備完了レポート（`Readiness`）: 他の出現への案内（`NOTICE`）は、報告先の指摘の写しなので数えない。保留の件数を要素ごとに出し、内訳の一覧を付ける（`--pending` でも全件。「エラー0」の要素にも、確かめられなかった検査がありうるため）
+- 検査の状況（`RuleStatus`）: `outcome` と `reason` を持ち、保留は「判定保留（理由）」と表示して充足に数えない。UI は充足・不足と別の見せ方（情報のアイコン・淡色）
+- CLI `validate`: 保留の内訳（文書ごとの `withheld`）と件数（あるときだけ）。`--sources` で指摘の出どころを出す
+
+**検証の指摘（文面・重大度・場所）は変わらない**——テンプレート・サンプル・specs の `validate` と `readiness` の出力は、変更の前後で完全に一致する。
+
 ## 5. 主要データフロー
 
 - **編集**: フォーム操作 → `Slot.set` / ツリー直接変更 → `markEdited()`（履歴・dirty は core.EditBuffer が記録。連続入力は合体キーで1エントリへ＝§4.34） → `version`++ → 再コンポーズ。ソースタブはライブ同期（パース成功時だけ `applySourceText` で同じ経路へ。§4.34）

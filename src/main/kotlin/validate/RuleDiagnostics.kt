@@ -32,11 +32,18 @@ internal class RuleDiagnosis(
     private val description: String?,
     /** エラー時の対応（SP-09。規則の responses の宣言から作ったもの。報告先にだけ付ける）。 */
     private val responses: List<IssueResponse> = emptyList(),
+    /** 指摘の出どころ（P27 段A）: 検査の出どころ・呼び名・専用チェッカーの指摘の種類・根拠に関わった要素（主語を除く全件）。 */
+    private val rule: schema.RuleOrigin? = null,
+    private val ruleId: String? = null,
+    private val kind: String? = null,
+    private val evidence: List<String> = emptyList(),
 ) {
     private val suffix: String get() = description?.let { " — $it" } ?: ""
 
+    private fun source(delivery: IssueDelivery) = IssueSource(rule, ruleId, kind, subjectId, delivery, evidence)
+
     fun reportIssue(path: YPath): Issue =
-        Issue(level.toSeverity(), report + suffix, path, responses = responses, relatedIds = related)
+        Issue(level.toSeverity(), report + suffix, path, responses = responses, relatedIds = related, source = source(IssueDelivery.REPORT))
 
     fun noticeIssue(path: YPath, anchorRel: String): Issue {
         val escalated = level == CoverageLevel.ERROR
@@ -46,6 +53,7 @@ internal class RuleDiagnosis(
             path,
             // 出現先では主語の定義へ戻れるよう、主語IDを先頭に加える
             relatedIds = (listOf(subjectId) + related).distinct().take(10),
+            source = source(IssueDelivery.NOTICE),
         )
     }
 }
@@ -67,113 +75,129 @@ internal class RuleDiagnostics(
     private val levelOf: (ConstraintRule) -> CoverageLevel = { it.level },
 ) {
 
-    /** 専用チェッカーの全指摘（検査ごとに1回だけ実行する）。 */
-    private val checkerCache = HashMap<CheckerRule, List<semantic.SemanticCheckerFinding>>()
+    /** 専用チェッカーの1回分（検査ごとに1回だけ実行する）。 */
+    private val checkerCache = HashMap<CheckerRule, semantic.SemanticCheckerRun>()
+
+    private fun runOf(rule: CheckerRule): semantic.SemanticCheckerRun =
+        checkerCache.getOrPut(rule) { index.Query.checkerRun(indexObj, rule.args) }
 
     private fun findingsOf(rule: CheckerRule): List<semantic.SemanticCheckerFinding> =
-        checkerCache.getOrPut(rule) { index.Query.checkerFindings(indexObj, rule.args).filter { it.kind in rule.messages } }
+        runOf(rule).findings.filter { it.kind in rule.messages }
+
+    /** クエリの検査 × 要素の判定（カーネルの SemanticRules。検証1回の中では同じ組を1回だけ評価する）。 */
+    private val resultCache = HashMap<Pair<ConstraintRule, String>, semantic.SemanticRuleResult>()
+
+    fun result(rule: ConstraintRule, id: String): semantic.SemanticRuleResult =
+        resultCache.getOrPut(rule to id) { index.Query.evaluateRule(indexObj, rule, id, tree, rel) }
+
+    /** 判定を保留した理由（保留でなければ null）。対象外（検査の対象でない・比べる値が無い など）は含めない。 */
+    fun withheldReason(rule: ConstraintRule, id: String): semantic.CheckReason? =
+        result(rule, id).takeIf { it.outcome == semantic.CheckOutcome.WITHHELD }?.reason
+
+    /** 専用チェッカーを使う検査で、要素 id について判定を保留した指摘の種類と理由。 */
+    fun checkerWithheld(rule: CheckerRule, id: String): List<Pair<String, semantic.CheckReason>> {
+        if (rule.kind.refLocated) return emptyList()
+        val run = runOf(rule)
+        if (id !in run.subjects) return emptyList()
+        return rule.messages.keys.mapNotNull { kind ->
+            run.skipped[kind]?.takeIf { it.outcome == semantic.CheckOutcome.WITHHELD }?.let { kind to it }
+        }
+    }
+
+    /** 根拠に関わった要素（解の束縛と、比べた値の要素）の ID。主語を除き、ID 昇順で全件。 */
+    private fun evidenceOf(id: String, rows: List<index.QueryRow>, violations: List<semantic.SemanticCheckViolation> = emptyList()): List<String> =
+        (rows.flatMap { row -> row.bindings.values.map { it.id } } + violations.flatMap { listOfNotNull(it.left.id, it.right.id) })
+            .distinct().filter { it != id }.sorted()
 
     /**
-     * パターン制約（R22-03）: 主語が母集団（起点の node フィルタ＋where）に入らない・違反していないなら null。
-     * 判定は expect（存在／不在）・count（件数範囲）・check（判定述語）のいずれか一つ（パースで保証）。
+     * クエリの検査の診断: 結果が「違反」のときだけ診断を返す（充足・保留・対象外は null）。どの結果になるかの判定は
+     * カーネル（semantic.SemanticRules。判定の保留の規則 CALC-17 もそこ）で、ここは根拠を指摘の文面へ写すだけ。
      */
     fun constraint(rule: ConstraintRule, id: String): RuleDiagnosis? {
-        if (!index.Query.startMatches(indexObj, rule.spec, id, tree)) return null
+        val outcome = result(rule, id)
+        if (outcome.outcome != semantic.CheckOutcome.VIOLATED) return null
         fun notice(evidence: String): (String, Boolean) -> String = { anchorRel, escalated ->
             (if (escalated) "ID「$id」への制約違反があります（報告先: 定義出現 $anchorRel）"
             else "ID「$id」には制約の指摘があります（報告先: 定義出現 $anchorRel）") + evidence
         }
         // 文面のひな型（rule.message）を宣言した検査は、報告先にも出現先にも、その文面を出す
         fun customNotice(text: String): (String, Boolean) -> String = { anchorRel, _ -> "$text（報告先: 定義出現 $anchorRel）" }
-        val description = rule.description ?: rule.id
-        val ruleCount = rule.count
+        fun diagnosis(
+            report: String,
+            notice: (String, Boolean) -> String,
+            related: List<String>,
+            evidence: List<String>,
+            v: semantic.SemanticCheckViolation? = null,
+        ) = RuleDiagnosis(
+            id, levelOf(rule), report, notice, related,
+            description = rule.description ?: rule.id,
+            responses = responsesOf(rule, id, v),
+            rule = rule.origin, ruleId = rule.id, evidence = evidence,
+        )
         if (rule.check.isNotEmpty()) {
-            // check 判定述語（R28-08。CORE-CALCULUS §8）: 解ごとに出現割当て σ を反例量化する。
-            // 反例（違反した値の組）の発見＝違反・評価可能な組がなければ判定保留（黙る）
-            val examples = index.Query.checkFrom(indexObj, rule.spec, rule.check, id, tree, rel)
-            if (examples.isEmpty()) return null
+            // check 判定述語（R28-08。CORE-CALCULUS §8）: 条件を満たさない値の組（反例）を列挙する
+            val examples = outcome.violations
             val evidence = "。反例: ${describeCheckExamples(examples)}"
             val custom = rule.message?.let { template ->
                 renderTemplate(template, id, rule = rule, row = examples.first().row.let { with(index.Query) { it.toRow() } }, v = examples.first()) +
                     (if (examples.size > 1) "（ほか${examples.size - 1}組）" else "")
             }
-            return RuleDiagnosis(
-                id, levelOf(rule),
+            return diagnosis(
                 report = custom ?: "ID「$id」を起点とする解が check を満たしません（${examples.size} 組）$evidence",
                 notice = custom?.let(::customNotice) ?: notice(evidence),
                 related = examples.take(3).flatMap { listOfNotNull(it.left.id, it.right.id) }.distinct().filter { it != id }.take(10),
-                description = description,
-                responses = responsesOf(rule, id, examples.first()),
+                evidence = evidenceOf(id, examples.map { with(index.Query) { it.row.toRow() } }, examples),
+                v = examples.first(),
             )
         }
-        rule.forAll?.let { forAll ->
+        outcome.forAll?.let { found ->
             // 「すべての要素について」の判定（SP-04。網羅マトリクスなど）: 解のなかった要素を列挙して報告する
-            val outcome = index.Query.forAllFrom(indexObj, rule.spec, forAll, id, tree, rel) ?: return null
-            if (outcome.missing.isEmpty()) return null
-            val listed = outcome.missing.take(5).joinToString("・") { m -> m.title?.let { "${m.id}（$it）" } ?: m.id } +
-                (if (outcome.missing.size > 5) " ほか${outcome.missing.size - 5}件" else "")
+            val listed = found.missing.take(5).joinToString("・") { m -> m.title?.let { "${m.id}（$it）" } ?: m.id } +
+                (if (found.missing.size > 5) " ほか${found.missing.size - 5}件" else "")
             val text = rule.message?.let {
-                renderTemplate(it, id, rule = rule, count = outcome.missing.size).replace("{missing}", listed)
-            } ?: "ID「$id」について、解のない要素があります（${outcome.missing.size} 件／全 ${outcome.total} 件）: $listed"
-            return RuleDiagnosis(
-                id, levelOf(rule),
+                renderTemplate(it, id, rule = rule, count = found.missing.size).replace("{missing}", listed)
+            } ?: "ID「$id」について、解のない要素があります（${found.missing.size} 件／全 ${found.total} 件）: $listed"
+            return diagnosis(
                 report = text,
                 notice = customNotice(text),
                 // 不足した要素へジャンプできるようにする（R28-05・UX-98）
-                related = outcome.missing.map { it.id }.take(10),
-                description = description,
-                responses = responsesOf(rule, id, null),
+                related = found.missing.map { it.id }.take(10),
+                evidence = found.missing.map { it.id }.sorted(),
             )
         }
-        val result = index.Query.matchesFrom(indexObj, rule.spec, id, tree)
+        val result = with(index.Query) { (outcome.matches ?: return null).toResult() }
         // 違反時は該当の組（束縛の表）を列挙し、関連IDのジャンプ導線を付ける（R28-05・UX-98）
         val rows = result.rows.take(3).joinToString(" ／ ") { row ->
             row.bindings.entries.joinToString("・") { (b, ref) -> "$b=${ref.id}" }
         } + (if (result.total > 3) " ほか${result.total - 3}組" else "")
         val related = result.rows.take(3).flatMap { row -> row.bindings.values.map { it.id } }
             .distinct().filter { it != id }.take(10)
-        if (ruleCount != null) {
-            // CALC-17（Unknown 降格）: 解探索で未解決参照により候補が失われていたら、
-            // 下限未達は判定保留＝沈黙（上限超過は見つかった解が実在する証拠のため降格しない）
-            if (!ruleCount.violated(result.total, result.unknownDropped)) return null
+        val custom = rule.message?.let { renderTemplate(it, id, rule = rule, row = result.rows.firstOrNull(), count = result.total) }
+        rule.count?.let { ruleCount ->
             val head = "ID「$id」を起点とするパターンの解が ${result.total} 件です（count: ${ruleCount.describe()}）"
-            val custom = rule.message?.let { renderTemplate(it, id, rule = rule, row = result.rows.firstOrNull(), count = result.total) }
-            return RuleDiagnosis(
-                id, levelOf(rule),
+            return diagnosis(
                 report = custom ?: (head + (if (result.rows.isNotEmpty()) "。解の組: $rows" else "")),
                 notice = custom?.let(::customNotice) ?: notice(if (result.rows.isNotEmpty()) "。該当の組: $rows" else ""),
                 related = related,
-                description = description,
-                responses = responsesOf(rule, id, null),
+                evidence = evidenceOf(id, result.rows),
             )
         }
-        val custom = rule.message?.let { renderTemplate(it, id, rule = rule, row = result.rows.firstOrNull(), count = result.total) }
         return when (rule.expect) {
-            // CALC-17（Unknown 降格）: exists の「解なし」も候補喪失時は判定保留＝沈黙
-            // （absent は解の実在が根拠のため降格しない）。未解決参照自体は参照検証が別途指摘する
-            ConstraintExpect.EXISTS ->
-                if (result.total > 0 || result.unknownDropped) null
-                else RuleDiagnosis(
-                    id, levelOf(rule),
-                    report = custom ?: "ID「$id」を起点とするパターンが成立していません（expect: exists）",
-                    notice = custom?.let(::customNotice) ?: notice(""),
-                    related = emptyList(),
-                    description = description,
-                    responses = responsesOf(rule, id, null),
+            ConstraintExpect.EXISTS -> diagnosis(
+                report = custom ?: "ID「$id」を起点とするパターンが成立していません（expect: exists）",
+                notice = custom?.let(::customNotice) ?: notice(""),
+                related = emptyList(),
+                evidence = emptyList(),
+            )
+            ConstraintExpect.ABSENT -> {
+                val evidence = if (result.rows.isNotEmpty()) "。該当の組: $rows" else ""
+                diagnosis(
+                    report = custom ?: "ID「$id」を起点とするパターンが成立しています（expect: absent）$evidence",
+                    notice = custom?.let(::customNotice) ?: notice(evidence),
+                    related = related,
+                    evidence = evidenceOf(id, result.rows),
                 )
-            ConstraintExpect.ABSENT ->
-                if (result.total == 0) null
-                else {
-                    val evidence = if (result.rows.isNotEmpty()) "。該当の組: $rows" else ""
-                    RuleDiagnosis(
-                        id, levelOf(rule),
-                        report = custom ?: "ID「$id」を起点とするパターンが成立しています（expect: absent）$evidence",
-                        notice = custom?.let(::customNotice) ?: notice(evidence),
-                        related = related,
-                        description = description,
-                        responses = responsesOf(rule, id, null),
-                    )
-                }
+            }
             null -> null
         }
     }
@@ -186,7 +210,8 @@ internal class RuleDiagnostics(
      */
     fun status(rule: ConstraintRule, id: String, active: Boolean): RuleStatus? {
         val template = rule.status ?: return null
-        if (!index.Query.startMatches(indexObj, rule.spec, id, tree)) return null
+        val outcome = result(rule, id)
+        if (outcome.reason == semantic.CheckReason.NOT_IN_SCOPE) return null
         val diagnosis = constraint(rule, id)
         val summary = if (rule.check.isNotEmpty()) {
             val evaluations = index.Query.checkEvaluationsFrom(indexObj, rule.spec, rule.check, id, tree, rel)
@@ -200,7 +225,7 @@ internal class RuleDiagnostics(
             renderTemplate(template, id, rule = rule, row = result.rows.firstOrNull(), count = result.total)
         }
         return RuleStatus(
-            rule = rule, id = id, active = active, satisfied = diagnosis == null, summary = summary,
+            rule = rule, id = id, active = active, outcome = outcome.outcome, reason = outcome.reason, summary = summary,
             message = diagnosis?.reportIssue(emptyList())?.message,
         )
     }
@@ -218,16 +243,18 @@ internal class RuleDiagnostics(
      */
     fun valueIssues(rule: ConstraintRule, id: String, file: Path, occPath: YPath): List<Issue> {
         val reportAt = rule.reportAt ?: return emptyList()
-        if (!index.Query.startMatches(indexObj, rule.spec, id, tree)) return emptyList()
-        val violations = index.Query.checkFrom(
-            indexObj, rule.spec, rule.check, id, tree, rel,
-            pin = reportAt.source to (file to occPath),
-        )
+        val violations = index.Query.evaluateRule(indexObj, rule, id, tree, rel, pin = reportAt.source to (file to occPath)).violations
         val suffix = (rule.description ?: rule.id)?.let { " — $it" } ?: ""
         return violations.map { v ->
             val text = rule.message?.let { renderTemplate(it, id, rule = rule, v = v) }
                 ?: "「${reportAt.path.pretty()}」の値が条件を満たしません: ${describeCheckExamples(listOf(v))}"
-            Issue(levelOf(rule).toSeverity(), text + suffix, occPath + reportAt.path, responses = responsesOf(rule, id, v))
+            Issue(
+                levelOf(rule).toSeverity(), text + suffix, occPath + reportAt.path, responses = responsesOf(rule, id, v),
+                source = IssueSource(
+                    rule.origin, rule.id, null, id, IssueDelivery.VALUE,
+                    evidenceOf(id, listOf(with(index.Query) { v.row.toRow() }), listOf(v)),
+                ),
+            )
         }
     }
 
@@ -248,21 +275,28 @@ internal class RuleDiagnostics(
         val suffix = (rule.description ?: rule.id)?.let { " — $it" } ?: ""
         val issues = mutableListOf<Issue>()
         for (id in starts) {
-            if (!index.Query.startMatches(indexObj, rule.spec, id, tree)) continue
+            val outcome = result(rule, id)
+            if (outcome.outcome != semantic.CheckOutcome.VIOLATED) continue
             if (rule.check.isNotEmpty()) {
-                for (v in index.Query.checkFrom(indexObj, rule.spec, rule.check, id, tree, rel)) {
+                for (v in outcome.violations) {
                     val row = with(index.Query) { v.row.toRow() }
                     val at = row.refs[refBind]?.takeIf { it.file == file } ?: continue
                     val text = rule.message?.let { renderTemplate(it, id, rule = rule, row = row, v = v) }
                         ?: "参照「${at.targetId}」が条件を満たしません: ${describeCheckExamples(listOf(v))}"
-                    issues += Issue(levelOf(rule).toSeverity(), text + suffix, at.path, responses = responsesOf(rule, id, v))
+                    issues += Issue(
+                        levelOf(rule).toSeverity(), text + suffix, at.path, responses = responsesOf(rule, id, v),
+                        source = IssueSource(rule.origin, rule.id, null, id, IssueDelivery.REF, evidenceOf(id, listOf(row), listOf(v))),
+                    )
                 }
             } else {
-                for (row in index.Query.matchesFrom(indexObj, rule.spec, id, tree).rows) {
+                for (row in with(index.Query) { outcome.matches?.toResult() }?.rows.orEmpty()) {
                     val at = row.refs[refBind]?.takeIf { it.file == file } ?: continue
                     val text = rule.message?.let { renderTemplate(it, id, rule = rule, row = row) }
                         ?: "参照「${at.targetId}」は、あってはならないパターンに当たります（expect: absent）"
-                    issues += Issue(levelOf(rule).toSeverity(), text + suffix, at.path, responses = responsesOf(rule, id, null))
+                    issues += Issue(
+                        levelOf(rule).toSeverity(), text + suffix, at.path, responses = responsesOf(rule, id, null),
+                        source = IssueSource(rule.origin, rule.id, null, id, IssueDelivery.REF, evidenceOf(id, listOf(row))),
+                    )
                 }
             }
         }
@@ -370,6 +404,8 @@ internal class RuleDiagnostics(
                 // 関連するノード（開始・宣言にない遷移先など）へジャンプできるようにする（UX-98 の流儀）
                 related = finding.related.map { it.id }.take(10),
                 description = rule.description ?: rule.id,
+                rule = rule.origin, ruleId = rule.id, kind = finding.kind,
+                evidence = finding.related.map { it.id }.sorted(),
             )
         }
     }
@@ -384,7 +420,13 @@ internal class RuleDiagnostics(
         val target = model.DocumentId(file.toString())
         return findingsOf(rule).mapNotNull { finding ->
             val ref = finding.ref?.takeIf { it.document == target } ?: return@mapNotNull null
-            Issue(level.toSeverity(), renderFinding(rule, finding) + suffix, ref.path)
+            Issue(
+                level.toSeverity(), renderFinding(rule, finding) + suffix, ref.path,
+                source = IssueSource(
+                    rule.origin, rule.id, finding.kind, finding.subjectId, IssueDelivery.REF,
+                    finding.related.map { it.id }.sorted(),
+                ),
+            )
         }
     }
 

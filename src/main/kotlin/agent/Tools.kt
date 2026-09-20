@@ -761,6 +761,9 @@ class AgentToolbox(
                     val state = when {
                         !st.active -> "フェーズ未到達"
                         st.satisfied -> "充足"
+                        // 確かめられなかった検査は、充足とも不足とも言わない（P27 段A）
+                        st.withheld -> "判定保留: ${st.reason?.text ?: "確かめられませんでした"}"
+                        st.undetermined -> "対象外: ${st.reason?.text ?: "確かめるものがありません"}"
                         else -> "不足"
                     }
                     appendLine("- [$state] " + (st.summary ?: "（評価できません）") +

@@ -56,7 +56,9 @@ object DerivedSchemas {
                         match = d.match,
                         root = d.root,
                         definitions = template.definitions,
-                        constraints = inherited.map { ConstraintRule.parse(it.raw, it.origin) },
+                        constraints = inherited.map {
+                            ConstraintRule.parse(it.raw, it.origin).copy(origin = RuleOrigin(d.id, it.origin, it.index))
+                        },
                         expandedChecks = inherited,
                         phases = template.phases,
                         source = fileByRel.getValue(d.sourceRel),

@@ -594,6 +594,9 @@ object SchemaLoader {
         return names
     }
 
+    /** 組込み定義体に直接書かれた検査の、出どころの文書名（RuleOrigin.owner）。 */
+    const val BUILTIN_OWNER = "(builtin)"
+
     /** 組込み定義体（同梱の YAML。workspace-core の資源）。利用者の定義と同じ仕組みで読み込む。 */
     val builtinLibrary: CheckLibrary by lazy {
         workspace.BuiltinDefinitionResources.names.fold(CheckLibrary()) { acc, name ->
@@ -608,12 +611,14 @@ object SchemaLoader {
      * 定義された要素にも適用する（エンティティの整合など）。利用者も、kind: library の文書に同じように書ける。
      */
     val builtinRules: List<ConstraintRule> by lazy {
-        builtinChecks.filter { !it.usesChecker }.map { ConstraintRule.parse(it.raw, it.origin) }
+        builtinChecks.filter { !it.usesChecker }
+            .map { ConstraintRule.parse(it.raw, it.origin).copy(origin = RuleOrigin(BUILTIN_OWNER, it.origin, it.index)) }
     }
 
     /** 組込み定義体に直接書かれた、専用チェッカーを使う検査。 */
     val builtinCheckers: List<CheckerRule> by lazy {
-        builtinChecks.filter { it.usesChecker }.map { CheckerRule.parse(it.raw, it.origin) }
+        builtinChecks.filter { it.usesChecker }
+            .map { CheckerRule.parse(it.raw, it.origin).copy(origin = RuleOrigin(BUILTIN_OWNER, it.origin, it.index)) }
     }
 
     /** builtinRules の展開後の姿と由来（CLI `checks` の表示用。展開の透明性 CALC-29）。 */
@@ -622,7 +627,7 @@ object SchemaLoader {
             val raw = YamlIO.parseToRaw(workspace.BuiltinDefinitionResources.text(name)) as? Map<*, *> ?: return@flatMap emptyList()
             if (raw["constraints"] == null) return@flatMap emptyList()
             builtinLibrary.expand(mapOf("constraints" to raw["constraints"]), raw["id"]?.toString() ?: name)
-                .map { ExpandedCheck(it.raw, "（組込み）$name.yaml の ${it.origin}") }
+                .map { ExpandedCheck(it.raw, "（組込み）$name.yaml の ${it.origin}", it.index) }
         }
     }
 
@@ -666,8 +671,11 @@ object SchemaLoader {
         val ownLibrary = CheckLibrary.parse(raw, source.fileName.toString())
         val effectiveLibrary = library ?: (builtinLibrary + ownLibrary)
         val expanded = effectiveLibrary.expand(raw, id)
-        val constraints = expanded.filter { !it.usesChecker }.map { ConstraintRule.parse(it.raw, it.origin) }
-        val checkers = expanded.filter { it.usesChecker }.map { CheckerRule.parse(it.raw, it.origin) }
+        // 検査の出どころ（どの文書の・どの書き方から展開された・何番目の検査か）を付ける——指摘がどの検査のものかを見分けるのに使う
+        val constraints = expanded.filter { !it.usesChecker }
+            .map { ConstraintRule.parse(it.raw, it.origin).copy(origin = RuleOrigin(id, it.origin, it.index)) }
+        val checkers = expanded.filter { it.usesChecker }
+            .map { CheckerRule.parse(it.raw, it.origin).copy(origin = RuleOrigin(id, it.origin, it.index)) }
         val phases = StructuralSchemaParser.parsePhases(raw["phases"])
         val parsed = SchemaDef(
             id = id,
