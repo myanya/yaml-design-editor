@@ -178,48 +178,8 @@ fun SchemaDef.fieldAt(root: YNode, path: model.YPath): FieldDef? = tree.fieldAt(
  */
 fun SchemaDef.validateDefinition(): List<SchemaIssue> = SchemaDefinitionChecks.issuesOf(kernel)
 
-/** プレビューや新規作成に使うサンプルYAMLツリーを生成する。 */
-fun SchemaDef.generateSample(): YNode {
-    fun create(original: FieldDef, depth: Int, stack: Set<DefinitionKey>): YNode {
-        if (depth > 16) return YNode.Map()
-        val reference = definitionTarget(original)?.first
-        if (reference != null && reference in stack) return YNode.Map()
-        val nextStack = if (reference == null) stack else stack + reference
-        val field = resolve(original) ?: original
-        if (field.default != null) return YamlIO.fromAny(field.default)
-        return when (field.type) {
-            FieldType.OBJECT -> {
-                val entries = LinkedHashMap<String, YNode>().apply {
-                    field.fields.forEach { child -> child.key?.let { put(it, create(child, depth + 1, nextStack)) } }
-                }
-                // enum の生成値（default または先頭の選択肢）に応じた case フィールドを実効順で合成する
-                val ordered = effectiveFields(field.fields, YNode.Map(entries)).fields
-                YNode.Map(LinkedHashMap<String, YNode>().apply {
-                    ordered.forEach { child ->
-                        val key = child.key ?: return@forEach
-                        put(key, entries[key] ?: create(child, depth + 1, nextStack))
-                    }
-                })
-            }
-            FieldType.ARRAY -> YNode.Seq(
-                if (field.item?.let { item -> definitionTarget(item)?.first?.let { it in nextStack } } == true) mutableListOf()
-                else field.item?.let { mutableListOf(create(it, depth + 1, nextStack)) } ?: mutableListOf()
-            )
-            FieldType.MAP -> YNode.Map()
-            FieldType.BOOLEAN -> YNode.Scalar(false)
-            FieldType.INT, FieldType.NUMBER -> YNode.Scalar(0)
-            FieldType.ENUM -> YNode.Scalar(field.values.firstOrNull() ?: "")
-            FieldType.DATE -> YNode.Scalar("2026-01-01")
-            FieldType.ID -> YNode.Scalar("SAMPLE-001")
-            // 必須スカラーは空文字にせず型別の例値を入れる（UX-28。空文字は必須エラーになりプレビューが赤くなる）
-            FieldType.REF -> YNode.Scalar(if (field.required || field.requiredFrom != null) "SAMPLE-001" else "")
-            FieldType.TEXT, FieldType.STRING ->
-                YNode.Scalar(if (field.required || field.requiredFrom != null) "サンプル" else "")
-            FieldType.ANY -> YNode.Scalar("")
-        }
-    }
-    return create(root, 0, emptySet())
-}
+/** プレビューや新規作成に使うサンプルYAMLツリーを生成する（実体は semantic-core の SchemaScaffold。P27 段D の D-c）。 */
+fun SchemaDef.generateSample(): YNode = SchemaScaffold.sample(tree)
 
 /**
  * ワークスペース直下の `_schemas/` からスキーマ定義（*.yaml / *.yml）を読み込む。

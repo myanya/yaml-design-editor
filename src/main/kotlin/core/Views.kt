@@ -25,9 +25,12 @@ import schema.QueryNodeKind
 import schema.QuerySpec
 import schema.SchemaDef
 import schema.SchemaLoader
+import schema.SchemaScaffold
 import schema.effectiveFields
 import schema.fieldAt
 import schema.globToRegex
+import workspace.DocumentScaffold
+import workspace.DocumentScaffolds
 import yaml.YamlIO
 import java.nio.file.Files
 import java.nio.file.Path
@@ -1333,81 +1336,27 @@ object Views {
     fun fieldAt(schema: SchemaDef, root: YNode, path: YPath): FieldDef? = schema.fieldAt(root, path)
 
     // ---------------------------------------------------------------- 詳細文書のスキャフォールド
-
-    data class Scaffold(val rel: String, val root: YNode)
+    // 実体はカーネル（workspace-core の DocumentScaffolds・semantic-core の SchemaScaffold。P27 段D の D-c）。ここは窓口
 
     /**
      * 行のIDから詳細文書の新規作成内容を組み立てる（作成自体は呼び出し側が行う:
      * UIはファイル書き込み、エージェントは create_document）。
      */
-    fun detailScaffold(view: ViewDef, id: String, schemas: List<SchemaDef>): Scaffold {
+    fun detailScaffold(view: ViewDef, id: String, schemas: List<SchemaDef>): DocumentScaffold {
         val pattern = view.detail?.filePattern
             ?: error("このビューには detail.filePattern が定義されていません")
         return scaffold(pattern, id, schemas)
     }
 
-    /**
-     * detailIn カバレッジの作成導線（R28-05a・UX-97）: 詳細スキーマの match（glob）から
-     * `{id}` 置換のファイルパターンを導く。対応するのはファイル名部分が「*.yaml」
-     * 「*.yml」「*.{yaml,yml}」で、ディレクトリ部分にワイルドカードを含まない単純な形のみ
-     * （それ以外は null ＝作成先を機械的に決められない）。
-     */
-    fun detailPatternFromMatch(match: String): String? {
-        val slash = match.lastIndexOf('/')
-        val dir = if (slash >= 0) match.substring(0, slash + 1) else ""
-        val name = match.substring(slash + 1)
-        if (dir.any { it == '*' || it == '?' || it == '{' }) return null
-        val m = Regex("""^\*\.(yaml|yml|\{yaml,yml\}|\{yml,yaml\})$""").matchEntire(name) ?: return null
-        val ext = m.groupValues[1].takeUnless { it.startsWith("{") } ?: "yaml"
-        return "$dir{id}.$ext"
-    }
+    /** 詳細スキーマの match（glob）から `{id}` 置換のファイルパターンを導く（R28-05a・UX-97。決められなければ null）。 */
+    fun detailPatternFromMatch(match: String): String? = DocumentScaffolds.detailPatternFromMatch(match)
 
-    /**
-     * filePattern（detail / newRow ファイルモード共用）とIDから新規文書の内容を組み立てる。
-     * スキーマは `{id}` 置換後のパスにマッチするものを使い、必須フィールドの初期値と
-     * ルート直下の ID フィールドへIDを設定する。
-     */
-    fun scaffold(pattern: String, id: String, schemas: List<SchemaDef>): Scaffold {
-        require(id.isNotBlank() && !id.contains('/') && !id.contains('\\') && !id.contains("..")) {
-            "ファイル名に使用できないIDです: $id"
-        }
-        val rel = pattern.replace("{id}", id)
-        val schema = schemas.firstOrNull { it.matches(rel) }
-        val root = schema?.let { defaultTree(it.resolve(it.root) ?: it.root, it) } ?: YNode.Map()
-        (root as? YNode.Map)?.let { map ->
-            val idKey = schema?.let { s ->
-                (s.resolve(s.root) ?: s.root).fields.firstOrNull { (s.resolve(it) ?: it).type == FieldType.ID }?.key
-            } ?: "id"
-            map.entries[idKey] = YNode.Scalar(id)
-        }
-        return Scaffold(rel, root)
-    }
+    /** filePattern（detail / newRow ファイルモード共用）とIDから新規文書の内容を組み立てる。 */
+    fun scaffold(pattern: String, id: String, schemas: List<SchemaDef>): DocumentScaffold =
+        DocumentScaffolds.scaffold(pattern, id, schemas.map { it.kernel })
 
     /** スキーマ定義から必須フィールドの初期値ツリーを生成する（default 尊重・cases 対応）。 */
-    fun defaultTree(field: FieldDef, schema: SchemaDef, depth: Int = 0): YNode {
-        if (depth > 24) return YNode.Map()
-        val f = schema.resolve(field) ?: field
-        if (f.default != null) return YamlIO.fromAny(f.default)
-        return when (f.type) {
-            FieldType.OBJECT -> {
-                val entries = LinkedHashMap<String, YNode>().apply {
-                    f.fields.filter { it.required && it.key != null }
-                        .forEach { put(it.key!!, defaultTree(it, schema, depth + 1)) }
-                }
-                val map = YNode.Map(entries)
-                schema.effectiveFields(f.fields, map).fields.forEach { child ->
-                    val key = child.key ?: return@forEach
-                    if (child.required && key !in entries) entries[key] = defaultTree(child, schema, depth + 1)
-                }
-                map
-            }
-            FieldType.ARRAY -> YNode.Seq()
-            FieldType.MAP -> YNode.Map()
-            FieldType.BOOLEAN -> YNode.Scalar(false)
-            FieldType.INT, FieldType.NUMBER -> YNode.Scalar(0)
-            else -> YNode.Scalar("")
-        }
-    }
+    fun defaultTree(field: FieldDef, schema: SchemaDef): YNode = SchemaScaffold.defaultTree(schema.tree, field)
 
     // ---------------------------------------------------------------- テキスト表現（エージェント・CLI 共用）
 

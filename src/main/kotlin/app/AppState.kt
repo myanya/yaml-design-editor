@@ -1270,7 +1270,7 @@ class AppState {
     }
 
     /** スキャフォールドを新規文書として作成し、その文書を開く（詳細作成・新規行ファイルモード共用）。 */
-    private fun createScaffoldFile(scaffold: core.Views.Scaffold): Path {
+    private fun createScaffoldFile(scaffold: workspace.DocumentScaffold): Path {
         val ws = workspace ?: error("ワークスペースが開かれていません")
         val file = ws.resolve(scaffold.rel).normalize()
         require(!Files.exists(file)) { "既に同名のファイルが存在します: ${scaffold.rel}" }

@@ -65,7 +65,9 @@ src/main/kotlin/
 | `CoverageLevel`（`CoverageRule` は P29 Phase 6 第3段で削除＝coverage は組込み定義体が作る語彙） | schema/Relations.kt | 検査の重大度（warning / error）。旧: スキーマの `coverage`（被参照必須などのトレーサビリティ要件）の定義。`activeFrom` でフェーズ到達までの判定保留を宣言できる |
 | `SchemaLoader` | schema/Schema.kt | schemas ゾーンの読込・パース・スキーマID重複検出。ロードは「パース→リンク→導出」の三段階（§4.23） |
 | `WorkspaceLayout` | schema/WorkspaceLayout.kt | ワークスペースの配置ポリシー（R13-02）: レガシー／`.yde` 構成の判定・ゾーン解決（`zoneOf`）・台帳判定（`inLedger`）・索引除外（`indexExcluded`）を一元化（§4.25） |
-| `validateDefinition` / `generateSample` | schema/Schema.kt | メタスキーマ検証の窓口（実体はカーネルの `SchemaDefinitionChecks`）・サンプルデータ生成（拡張関数） |
+| `validateDefinition` / `generateSample` | schema/Schema.kt | メタスキーマ検証の窓口（実体はカーネルの `SchemaDefinitionChecks`）・サンプルデータ生成の窓口（実体は `SchemaScaffold.sample`） |
+| `SchemaScaffold` | semantic-core/schema/SchemaScaffold.kt | 利用者が書いたスキーマの木から、文書の中身を作る: `defaultTree`（新しい文書・新しい要素の初期値＝必須の項目だけ。default を尊重・cases に対応）と `sample`（プレビュー用のサンプル）。P27 段D の D-c で root から移した（§4.47） |
+| `DocumentScaffolds` / `DocumentScaffold` | workspace-core/workspace/DocumentScaffold.kt | 新しい文書のひな型（作り先と初期の内容）: filePattern と ID から、作り先に合うスキーマの初期値と ID を持つ文書を組み立てる・詳細スキーマの match から作り先のパターンを導く。root の `core.Views.scaffold` などは窓口（§4.47） |
 | `SchemaDefinitionChecks` / `SchemaIssue` | workspace-core/workspace/SchemaDefinitionChecks.kt | スキーマの定義の点検（種別ごとに書けるもの・型と制約の食い違い・`$ref` の参照先・cases・フェーズの宣言など）と、宣言のない関係名の点検。`WorkspaceReader.buildSchemas` が、スキーマ置き場に書かれたスキーマについて行い、スキーマの読み込みエラーへ足す（P27 段D の D-a で root から移した。§4.44・意図的差分 D-33） |
 | `CodedDocumentChecks` | workspace-core/validate/CodedDocumentChecks.kt | コードで実装された検査のうち、ワークスペースの他の文書も見るもの（ID のパターンからの逸脱・重複所有・テンプレートの健全性）。`WorkspaceChecks.deliver` が、定義体の検査と一緒に文書へ配る（P27 段D の D-a で root の `Validator` から移した。§4.44） |
 | `BuiltinSchemas` | schema/BuiltinSchemas.kt | 予約ディレクトリ用の組込みスキーマ。`builtin-schema`（R11-02）は `_schemas` 文書に適用されるメタスキーマ（再帰 `$ref` と `cases` のドッグフーディング） |
@@ -793,6 +795,12 @@ Core Calculus の本来の目的（[CORE-CALCULUS.md](CORE-CALCULUS.md) §25）�
 - **変わる挙動（D-35）**: root の `Workspace.apply`（root の CLI `apply`・自動適用・skill のインポートなど）の書き込みが、ファイルへの直接の書き込みから、セッション経由になった（書かれる内容は同じ）。このため、適用できるのは、セッションが読み込んでいる YAML 文書と、新しく作る文書だけ——構成ファイル（`.yde/workspace.yaml`）や隠しファイルへの変更は、エラーになる（アプリの承認の経路は、もともとこの扱い）。変更セットの `file` は、ワークスペース相対のパスだけを受け付ける。
 - **確かめ方**: root の既存のテスト（`ChangeSetsTest`・`StagingTest`・`SessionWriteParityTest`・`WorkspaceCliTest`・エージェントの適用と自動適用のテスト）が、無変更で通る。カーネルだけの確認は workspace-core の `ChangeSetApplierTest`（複数の文書が連動する変更・Undo 1回・`requireValid`・ドライラン・競合と操作のエラー・ワークスペースの外へ出るパス）と、cli の `CliTest`。
 
+### 4.47 root に残る読み出しの移設（P27 段D の D-c）
+
+root には、スキーマの型（`SchemaDef`）に依存していたために残っていた読み出しがあった。`SchemaDef` がカーネルの `WorkspaceSchema` を包む薄い型になった（§4.43）ので、順にカーネルへ移す（移動であって複製ではない。root の入口は、呼び出し側を変えないための窓口として残す）。
+
+- **①ひな型の文書とサンプルの生成（R27-16）**: 初期値の木（`defaultTree`）とサンプル（`generateSample`）は、スキーマの項目の木だけを見る処理なので semantic-core の `schema.SchemaScaffold` へ。新しい文書のひな型（filePattern と ID から、作り先・初期の内容・ID の項目を決める `scaffold`／詳細スキーマの match から作り先のパターンを導く `detailPatternFromMatch`）は、作り先に合うスキーマを選ぶ（`WorkspaceSchema.matches`）ので workspace-core の `workspace.DocumentScaffolds` へ。挙動は変わらない。root の `core.Views.scaffold` / `detailScaffold` / `defaultTree` / `detailPatternFromMatch` と `SchemaDef.generateSample` は窓口。
+
 ## 5. 主要データフロー
 
 - **編集**: フォーム操作 → `Slot.set` / ツリー直接変更 → `markEdited()`（履歴・dirty は core.EditBuffer が記録。連続入力は合体キーで1エントリへ＝§4.34） → `version`++ → 再コンポーズ。ソースタブはライブ同期（パース成功時だけ `applySourceText` で同じ経路へ。§4.34）
@@ -810,7 +818,7 @@ Core Calculus の本来の目的（[CORE-CALCULUS.md](CORE-CALCULUS.md) §25）�
 
 ## 6. 拡張ポイント
 
-- **フィールド型の追加**: `FieldType` に enum を追加し、`Validator.checkField`・`FormView.ValueEditor`・`ai.fieldToJsonSchema`・`SchemaDef.generateSample`/`defaultNode` に分岐を追加する。
+- **フィールド型の追加**: `FieldType` に enum を追加し、`Validator.checkField`・`FormView.ValueEditor`・`ai.fieldToJsonSchema`・semantic-core の `SchemaScaffold`（`sample` / `defaultTree`）に分岐を追加する。
 - **YAML表層仕様の変更**: コメント・スタイル保持は実装済み（§4.17）。挙動を変える場合も `YamlIO` に閉じる（ツリー変換層が隔離されているため影響範囲は限定的）。構造比較や派生成果物には `dumpPlain` を使い、通常ダンプの表層情報に依存させない。
 - **横断ビューの追加**: データソースとして `AppState.workspaceRecords()` と `IdIndex` を利用し、`ui/Shell.kt` の `LedgerSpace`（台帳スペースのタブと `workspaceView` 分岐）に追加する。要素の1行要約（タイトル・サブタイトル）は `schema/Display`（§4.22）を使い、独自のタイトル抽出を書かない。
 - **ビュー定義の項目追加**: `core/Views.kt` の `parseView` と `schema/BuiltinSchemas.kt` の `builtin-view` スキーマを**対で**更新する（フォーム編集・検証と実行時パースの二重定義のため）。
