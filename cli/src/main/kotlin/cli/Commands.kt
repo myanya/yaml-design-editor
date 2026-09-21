@@ -54,6 +54,13 @@ fun workspaceValidate(root: String?, args: List<String>, out: (String) -> Unit):
     val structuralWarnings = structural.count { it.second.severity == Severity.WARNING }
     val semanticErrors = semantic.count { it.severity == Severity.ERROR }
     val semanticWarnings = semantic.count { it.severity == Severity.WARNING }
+    // 定義体の検査（詳細文書の存在・整合・多重度・対象型・非循環・網羅・遷移・利用者の constraints。P27 段B-4・意図的差分 D-28）:
+    // アプリと同じ実装（validate.WorkspaceChecks）で評価して文書へ配る。スキーマを読めなかったときは実行しない
+    val deliveries = if (ws.schemaErrors.isEmpty()) workspace.WorkspaceCheckRunner.deliverAll(ws) else emptyMap()
+    val checks = deliveries.entries.flatMap { (id, d) -> d.issues.map { id to it } }
+    val withheld = deliveries.entries.flatMap { (id, d) -> d.withheld.map { id to it } }
+    val checkErrors = checks.count { it.second.severity == Severity.ERROR }
+    val checkWarnings = checks.count { it.second.severity == Severity.WARNING }
 
     if (format == OutputFormat.TEXT) {
         out("スキーマ: ${ws.schemas.size} 件（${ws.schemas.joinToString(", ") { it.id }}）")
@@ -66,8 +73,15 @@ fun workspaceValidate(root: String?, args: List<String>, out: (String) -> Unit):
         semantic.forEach { issue ->
             out("  [意味:${issue.severity}] ${issue.document.value} ${issue.path.pretty()}: ${issue.message}")
         }
+        checks.forEach { (id, issue) ->
+            out("  [検査:${issue.severity}] ${id.value} ${issue.path.pretty()}: ${issue.message}")
+        }
+        withheld.forEach { (id, check) ->
+            out("  [保留] ${id.value} ${check.path.pretty()}: ${check.text}")
+        }
         out("構造検証: エラー $structuralErrors 件 / 警告 $structuralWarnings 件")
         out("意味検証: エラー $semanticErrors 件 / 警告 $semanticWarnings 件")
+        out("検査: エラー $checkErrors 件 / 警告 $checkWarnings 件" + (if (withheld.isNotEmpty()) " / 保留 ${withheld.size} 件" else ""))
     } else {
         CliOutput.emit(
             linkedMapOf(
@@ -94,11 +108,28 @@ fun workspaceValidate(root: String?, args: List<String>, out: (String) -> Unit):
                         "message" to issue.message,
                     )
                 },
+                "checks" to checks.map { (id, issue) ->
+                    linkedMapOf(
+                        "severity" to issue.severity.name,
+                        "document" to id.value,
+                        "path" to issue.path.pretty(),
+                        "message" to issue.message,
+                        "rule" to issue.source.rule?.key,
+                        "subject" to issue.source.subjectId,
+                        "delivery" to issue.source.delivery.name,
+                    ).filterValues { it != null }
+                },
+                "withheld" to withheld.map { (id, check) ->
+                    linkedMapOf("document" to id.value, "path" to check.path.pretty(), "message" to check.text)
+                },
                 "counts" to linkedMapOf(
                     "structuralErrors" to structuralErrors,
                     "structuralWarnings" to structuralWarnings,
                     "semanticErrors" to semanticErrors,
                     "semanticWarnings" to semanticWarnings,
+                    "checkErrors" to checkErrors,
+                    "checkWarnings" to checkWarnings,
+                    "withheld" to withheld.size,
                 ),
             ),
             format, out,
@@ -106,7 +137,7 @@ fun workspaceValidate(root: String?, args: List<String>, out: (String) -> Unit):
     }
     return when {
         ws.schemaErrors.isNotEmpty() || ws.parseErrors.isNotEmpty() || structuralErrors > 0 -> 2
-        semanticErrors > 0 -> 3
+        semanticErrors > 0 || checkErrors > 0 -> 3
         else -> 0
     }
 }

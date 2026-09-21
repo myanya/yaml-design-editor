@@ -54,6 +54,17 @@ class KernelIndexView(
     val checkSession: semantic.SemanticCheckSession by lazy { semantic.SemanticCheckSession(entries, refs, graph) }
 
     /**
+     * ファイルに当たる、この索引の文書ID（索引に無いファイルは、パス文字列そのままの ID）。検査の報告先の判定は文書ID の一致で行うため、
+     * 呼び出し側の Path の表記（大文字・小文字など）が索引と違っても、索引の側の ID に揃える。
+     */
+    fun documentIdOf(file: java.nio.file.Path): model.DocumentId =
+        documentIdsByFile[file] ?: model.DocumentId(file.toString())
+
+    private val documentIdsByFile: Map<java.nio.file.Path, model.DocumentId> by lazy {
+        scans.associate { java.nio.file.Path.of(it.document.value) to it.document }
+    }
+
+    /**
      * グラフ整合（宣言のない関係名）のワークスペース全体の指摘。文書ごとの検証が、そのたびに全参照を調べ直さないように、
      * 宣言の内容ごとに1回だけ求める（この一式は走査結果が変わると作り直されるため、無効化は要らない。BACKLOG UX-116）。
      */

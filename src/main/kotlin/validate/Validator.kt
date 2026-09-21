@@ -55,47 +55,7 @@ sealed interface IssueResponse {
     data class CreateDetail(override val label: String, val schemaId: String, val id: String, val note: String? = null) : IssueResponse
 }
 
-/** 指摘の配り方（P27 段A）: 同じ違反が、どの立場でこの場所に出ているか。 */
-enum class IssueDelivery {
-    /** 報告先（対象の要素を定義した場所）への指摘。違反1件につき1つ。 */
-    REPORT,
-
-    /** 同じ要素の、他の文書の出現への案内（報告先の指摘の写し）。 */
-    NOTICE,
-
-    /** 直せる場所への案内（検査の宣言 fixSite）。 */
-    FIX_SITE,
-
-    /** 値が書かれた場所への指摘（検査の宣言 reportAt）。 */
-    VALUE,
-
-    /** 参照が書かれた場所への指摘（検査の宣言 reportAt の ref・専用チェッカー）。 */
-    REF,
-}
-
-/**
- * 指摘の出どころ（P27 段A。BACKLOG UX-114）: どの検査の・どの要素についての指摘かを、文面とは別にデータとして持つ。
- * - rule: 検査の出どころ（どの文書の・どの書き方から展開された・何番目の検査か）。単体でパースした検査は null
- * - ruleId: 検査の呼び名（利用者が付けた id。無ければ null）
- * - kind: 専用チェッカーの指摘の種類（unreachable など。クエリの検査は null）
- * - subjectId: 対象の要素（検査の起点）
- * - evidence: 根拠に関わった要素の ID（対象の要素を除く・ID 昇順・全件。relatedIds は表示用に先頭だけを持つ）
- * 構造の検証・参照の解決など、定義体を通らない指摘は出どころを持たない（source = null）。
- */
-data class IssueSource(
-    val rule: schema.RuleOrigin?,
-    val ruleId: String?,
-    val kind: String?,
-    val subjectId: String?,
-    val delivery: IssueDelivery,
-    val evidence: List<String> = emptyList(),
-) {
-    /**
-     * 「同じ検査の・同じ要素についての・同じ配り方の指摘」を見分けるキー。場所と文面は含めない——要素の挿入で場所の番号が
-     * ずれても、文面の件数が変わっても、同じ指摘として扱える（提出ゲート no-new-errors が使う）。出どころの分からない検査は null。
-     */
-    val identity: String? get() = rule?.let { "${it.key}|${kind.orEmpty()}|${subjectId.orEmpty()}|$delivery" }
-}
+// 指摘の配り方（IssueDelivery）と指摘の出どころ（IssueSource）は、カーネル（workspace-core の validate/WorkspaceChecks.kt）にある
 
 data class Issue(
     val severity: Severity,
@@ -109,68 +69,10 @@ data class Issue(
     val source: IssueSource? = null,
 )
 
-/**
- * 判定を保留した検査1件（P27 段A。BACKLOG UX-113）: データの不備（相手の見つからない参照など）のために、
- * 充足とも違反とも決められなかった「検査 × 要素」。指摘ではない——検証パネルには出さず、準備完了レポートと CLI が件数と内訳を示す。
- * 報告先（対象の要素を定義した場所）の文書の検証でだけ集める（値・参照の場所へ出す検査は対象外）。
- */
-data class WithheldCheck(
-    val rule: schema.RuleOrigin?,
-    val ruleId: String?,
-    val description: String?,
-    /** 専用チェッカーの指摘の種類（クエリの検査は null）。 */
-    val kind: String?,
-    val subjectId: String,
-    val path: YPath,
-    val reason: semantic.CheckReason,
-) {
-    /** 表示用の1行。 */
-    val text: String
-        get() = "ID「$subjectId」の検査を保留しました: " + (description ?: ruleId ?: rule?.at ?: "（名前のない検査）") +
-            (kind?.let { "（$it）" } ?: "") + " — ${reason.text}"
-}
+// 判定を保留した検査（WithheldCheck）と検査の状況（RuleStatus）も、カーネル（workspace-core の validate/WorkspaceChecks.kt）にある
 
 /** 文書1つの検証の結果: 指摘と、判定を保留した検査。 */
 data class ValidationResult(val issues: List<Issue>, val withheld: List<WithheldCheck>)
-
-/**
- * 検査の状況1件（SP-08。`status` を宣言した検査×ID。右パネルのカバレッジ・ID 横ぐし・ビューの状態列・エージェントの related が共用）。
- * - active: activeFrom のフェーズに達しているか（false は指摘にせず「フェーズ未到達」として表示する）
- * - outcome / reason: 検査の結果（違反・充足・保留・対象外）と、保留・対象外の理由（P27 段A）
- * - satisfied: 検査を満たしているか（結果が「充足」。保留は充足に数えない＝意図的差分 D-26 ③）
- * - summary: 状況の1行（検査の status のひな型に、いまの値を埋めたもの。例「出現 1 件（必要 1 件）」。評価できなければ null）
- * - message: 満たしていないときの指摘の文面（検証パネルに出るものと同じ）
- */
-data class RuleStatus(
-    val rule: schema.ConstraintRule,
-    val id: String,
-    val active: Boolean,
-    val outcome: semantic.CheckOutcome,
-    val reason: semantic.CheckReason?,
-    val summary: String?,
-    val message: String?,
-) {
-    val satisfied: Boolean get() = outcome == semantic.CheckOutcome.SATISFIED
-
-    /** 確かめられなかった（保留）か。 */
-    val withheld: Boolean get() = outcome == semantic.CheckOutcome.WITHHELD
-
-    /** 充足とも不足とも言えない（保留・対象外）か。UI は充足・不足と別の見せ方にする。 */
-    val undetermined: Boolean get() = outcome == semantic.CheckOutcome.WITHHELD || outcome == semantic.CheckOutcome.NOT_APPLICABLE
-
-    /** 表示用の1行（UI とエージェントで共用）。 */
-    val text: String
-        get() {
-            val note = (rule.description ?: rule.id)?.let { " — $it" } ?: ""
-            return when {
-                !active -> "フェーズ未到達（${rule.activeFrom} から判定" + (summary?.let { "。現在 $it" } ?: "") + "）" + note
-                satisfied -> (summary ?: "充足") + note
-                withheld -> "判定保留（${reason?.text ?: "確かめられませんでした"}）" + note
-                outcome == semantic.CheckOutcome.NOT_APPLICABLE -> "対象外（${reason?.text ?: "確かめるものがありません"}）" + note
-                else -> message ?: ((summary ?: "不足") + note)
-            }
-        }
-}
 
 /** フェーズ1つ分の記入進捗。実体は yaml-core の schema.PhaseProgress（B-3・RB-04 で移設。FQN 互換の別名）。 */
 typealias PhaseProgress = schema.PhaseProgress
@@ -328,124 +230,28 @@ object Validator {
         if (indexed) {
             issues += GraphIntegrity.issues(file, indexObj, relations, enforcement)
         }
-        // 3.7) 規則の診断と配送（パターン制約 R22-03・網羅マトリクス R28-03・遷移検証 R28-04。ARCHITECTURE §4.32）:
-        //      判定は規則×主語IDごとに1回だけ診断（RuleDiagnostics）へ写し、2つの配送先へ届ける（R29-06）。
-        //      母集団に入らないID・型未宣言・未解決参照には黙る（判定保留 §4.26・CALC-17）
-        // 関係レジストリ（kind: relations の文書）に書かれた語彙から展開された検査は、特定のスキーマに属さない
-        // ——ワークスペースのどの文書に定義された要素にも適用する（多重度・対象型。利用者の語彙も同じ）
-        // 同じく、共有する定義の置き場（kind: library）に直接書かれた検査と、組込み定義体に直接書かれた検査
-        // （エンティティの整合など）も、特定のスキーマに属さない検査として扱う
-        val workspaceGroups: List<Pair<String, List<schema.ConstraintRule>>> =
-            listOf("(builtin)" to SchemaLoader.builtinRules) +
-                allSchemas.filter { it.kind != SchemaKind.DOCUMENT }.map { it.id to it.constraints }
-        val registryRules = workspaceGroups.flatMap { it.second }
-        // 専用チェッカーを使う検査（SP-13。遷移検証・非循環など）も、同じ単位で扱う
-        val checkerGroups: List<Triple<String, SchemaDef?, List<schema.CheckerRule>>> =
-            allSchemas.filter { it.kind == SchemaKind.DOCUMENT }.map { Triple(it.id, it, it.checkers) } +
-                listOf(Triple("(builtin)", null, SchemaLoader.builtinCheckers)) +
-                allSchemas.filter { it.kind != SchemaKind.DOCUMENT }.map { Triple(it.id, null, it.checkers) }
-        val checkerLevelOf: (schema.CheckerRule) -> CoverageLevel =
-            { rule -> rule.levelFrom?.let { enforcement.levelOf(it) } ?: rule.level }
-        // 検査の報告先と活性を決める単位: スキーマの検査（owner あり）と、特定のスキーマに属さない検査（owner なし）
-        val ruleGroups: List<Triple<String, SchemaDef?, List<schema.ConstraintRule>>> =
-            allSchemas.filter { it.kind == SchemaKind.DOCUMENT }.map { Triple(it.id, it, it.constraints) } +
-                workspaceGroups.map { Triple(it.first, null, it.second) }
-        // 重大度の切り替え（検査の宣言 levelFrom）: 関係レジストリの強制スイッチが宣言されていれば、その重大度
-        val levelOf: (schema.ConstraintRule) -> CoverageLevel =
-            { rule -> rule.levelFrom?.let { enforcement.levelOf(it) } ?: rule.level }
-        // 検査の評価の覚え書き: 共有するなら索引のもの、しないならこの検証1回の中だけのもの（診断の2か所で同じものを使う）
-        val sharedSession: semantic.SemanticCheckSession =
-            indexObj.toKernelView().let { if (shareEvaluations) it.checkSession else semantic.SemanticCheckSession(it.entries, it.refs, it.graph) }
+        // 3.7) 定義体の検査（パターン制約・詳細文書の存在・整合・多重度・対象型・非循環・網羅マトリクス・遷移検証・利用者の検査）:
+        //      評価と、指摘を文書へ配る規則（報告先・他の出現への案内・値と参照の場所・直せる場所への案内）は、
+        //      カーネルの validate.WorkspaceChecks が持つ（P27 段B-3。ARCHITECTURE §4.41）。ここは、この文書の分を受け取って
+        //      ファイルの座標（Path）の Issue へ写すだけ。母集団に入らないID・型未宣言・未解決参照には黙る（§4.26・CALC-17）
+        var fixSiteIssues = emptyList<Issue>()
         if (indexed) {
-            val diagnostics = RuleDiagnostics(indexObj, ::treeOf, ::relOf, relations, allSchemas, levelOf, sharedSession)
-            // 報告先: 主語の定義出現（なければ先頭出現）を持つファイルの検証でのみ報告する（多重報告しない）。
-            // 規則はこの文書のスキーマの宣言・activeFrom はこの文書のフェーズで判定する（R29-03・CALC-14）
-            if (schema != null) {
-                val phaseOrder = schema.phases?.order.orEmpty()
-                val anchored = localIds.filter { entry ->
-                    val anchor = reportAnchorOf(indexObj, entry.id, owner = null)
-                    anchor != null && anchor.file == file && anchor.path == entry.path
-                }
-                // スキーマの検査の報告先は、その検査を宣言したスキーマの文書の中で決める（意図的差分 D-21 ④）
-                val anchoredInSchema = localIds.filter { entry ->
-                    val anchor = reportAnchorOf(indexObj, entry.id, owner = schema)
-                    anchor != null && anchor.file == file && anchor.path == entry.path
-                }
-                for ((rule, anchored) in schema.constraints.map { it to anchoredInSchema } + registryRules.map { it to anchored }) {
-                    if (!semantic.phaseActive(rule.activeFrom, phaseOrder, phaseIndex)) continue
-                    if (rule.reportAt?.ref != null) {
-                        // 参照の場所へ出す検査（対象型の不一致など）: 見つかった解ごとに、この文書に書かれた参照の場所へ指摘する
-                        issues += diagnostics.refIssues(rule, file, localIds.map { it.id }, localRefs.map { it.targetId })
-                        continue
-                    }
-                    if (rule.reportAt != null) {
-                        // 値の場所へ出す検査（SP-08。整合検証など）: 定義した場所ではなく、この文書に書かれた要素ごとに、
-                        // その値だけを調べて値の場所へ指摘する（他の文書への案内は要らない＝値のある文書が報告先）
-                        for (entry in localIds) issues += diagnostics.valueIssues(rule, entry.id, file, entry.path)
-                        continue
-                    }
-                    for (entry in anchored) {
-                        diagnostics.constraint(rule, entry.id)?.let { issues += it.reportIssue(entry.path) }
-                        diagnostics.withheldReason(rule, entry.id)?.let { reason ->
-                            withheld += WithheldCheck(rule.origin, rule.id, rule.description, null, entry.id, entry.path, reason)
-                        }
-                    }
-                }
-                // 網羅マトリクス（スキーマの matrix）は、組込み定義体が「すべての要素について」の検査（forAll）へ展開する
-                // 語彙になった（P29 Phase 6 第5段）——上のパターン制約と同じ規則で評価・配送される
-                // 専用チェッカーを使う検査（遷移検証など）: 報告先の決め方はパターン制約と同じ（意図的差分 D-23 ①）
-                val ownCheckers = schema.checkers.map { it to anchoredInSchema }
-                val sharedCheckers = checkerGroups.filter { it.second == null }.flatMap { it.third }.map { it to anchored }
-                for ((rule, anchoredEntries) in ownCheckers + sharedCheckers) {
-                    if (!semantic.phaseActive(rule.activeFrom, phaseOrder, phaseIndex)) continue
-                    for (entry in anchoredEntries) {
-                        diagnostics.checker(rule, entry.id, checkerLevelOf(rule)).forEach { (_, d) -> issues += d.reportIssue(entry.path) }
-                        diagnostics.checkerWithheld(rule, entry.id).forEach { (kind, reason) ->
-                            withheld += WithheldCheck(rule.origin, rule.id, rule.description, kind, entry.id, entry.path, reason)
-                        }
-                    }
-                }
-            }
-            // 参照が書かれた場所へ報告するチェッカー（循環の検出など）: この文書に書かれた参照への指摘
-            for ((_, _, rules) in checkerGroups) {
-                for (rule in rules) issues += diagnostics.checkerRefIssues(rule, file, checkerLevelOf(rule))
-            }
-            // 出現先（R28-05・UX-96）: 指摘は定義出現にのみ報告されるため、詳細化出現の文書しか開いていないと
-            // 気づけない。定義出現が他文書にあるIDの出現には、定義側で報告されている指摘を案内する
-            // （警告級は INFO・エラー級は同格の ERROR。規則と activeFrom は定義出現の文書のスキーマ・フェーズで判定）
-            run {
-                val noticed = mutableSetOf<Pair<String, String>>()  // (規則キー, ID) の重複案内を防ぐ
-                for (entry in localIds) {
-                    // パターン制約: 報告先は検査を宣言したスキーマごとに決まる（特定のスキーマに属さない検査は、定義出現か先頭の出現）
-                    for ((key, owner, rules) in ruleGroups) {
-                        if (rules.isEmpty()) continue
-                        val anchor = reportAnchorOf(indexObj, entry.id, owner) ?: continue
-                        if (anchor.file == file) continue  // 報告先がこの文書なら処理済み
-                        val anchorRel = relOf(anchor.file)
-                        val anchorPhase = owner?.currentPhaseIndex(treeOf(anchor.file))
-                        for ((i, rule) in rules.withIndex()) {
-                            if (rule.reportAt != null) continue
-                            if (!semantic.phaseActive(rule.activeFrom, owner?.phases?.order.orEmpty(), anchorPhase)) continue
-                            val d = diagnostics.constraint(rule, entry.id) ?: continue
-                            if (noticed.add("$key/c$i" to entry.id)) issues += d.noticeIssue(entry.path, anchorRel)
-                        }
-                    }
-                    // 専用チェッカーを使う検査: 同じ規則で、他の出現へ案内する
-                    for ((key, owner, rules) in checkerGroups) {
-                        if (rules.isEmpty()) continue
-                        val anchor = reportAnchorOf(indexObj, entry.id, owner) ?: continue
-                        if (anchor.file == file) continue
-                        val anchorRel = relOf(anchor.file)
-                        val anchorPhase = owner?.currentPhaseIndex(treeOf(anchor.file))
-                        for ((i, rule) in rules.withIndex()) {
-                            if (!semantic.phaseActive(rule.activeFrom, owner?.phases?.order.orEmpty(), anchorPhase)) continue
-                            for ((kind, d) in diagnostics.checker(rule, entry.id, checkerLevelOf(rule))) {
-                                if (noticed.add("$key/k$i:$kind" to entry.id)) issues += d.noticeIssue(entry.path, anchorRel)
-                            }
-                        }
-                    }
-                }
-            }
+            val view = indexObj.toKernelView()
+            // 検査の評価の覚え書き: 共有するなら索引のもの、しないならこの検証1回の中だけのもの
+            val session = if (shareEvaluations) view.checkSession else semantic.SemanticCheckSession(view.entries, view.refs, view.graph)
+            val checkSchemas = allSchemas.map { it.toCheckSchema() }
+            val self = schema?.let { s -> allSchemas.indexOfFirst { it === s }.takeIf { it >= 0 }?.let(checkSchemas::get) ?: s.toCheckSchema() }
+            val checks = WorkspaceChecks(
+                checkSchemas, relations, enforcement, view.entries, view.refs, view.graph, session,
+                rel = { d -> relOf(Path.of(d.value)) },
+                tree = { d -> treeOf(Path.of(d.value)) },
+            )
+            val delivery = checks.deliver(view.documentIdOf(file), self, root, docScan.ids, docScan.refs)
+            val delivered = delivery.issues.map { it.toIssue() }
+            // 直せる場所への案内は、今までどおり、テンプレート健全性の指摘の後ろに並べる
+            issues += delivered.filter { it.source?.delivery != IssueDelivery.FIX_SITE }
+            fixSiteIssues = delivered.filter { it.source?.delivery == IssueDelivery.FIX_SITE }
+            withheld += delivery.withheld
         }
         // 4) テンプレート健全性（R16-03a / UX-12）: いずれかのスキーマの検査が、この文書に書かれた値を
         //    テンプレートとして展開する（値の式 format。整合検証の expected など）とき、テンプレートのプレースホルダが
@@ -481,30 +287,8 @@ object Validator {
                 }
             }
 
-            // 6) 直せる場所への案内（SP-08。検査の宣言 fixSite。旧・出現先への不足案内 UX-15）: この文書のスキーマが
-            //    「書き足し先」に指定されている検査について、指摘が出ている ID の一覧を、この文書にも案内する（INFO）。
-            //    指摘の本体は報告先の文書に出る。この文書に既に書かれている ID（未保存の追加を含む）は載せない
-            val selfSchemaId = schema?.id
-            if (selfSchemaId != null) {
-                val diagnostics = RuleDiagnostics(indexObj, ::treeOf, ::relOf, relations, allSchemas, levelOf, sharedSession)
-                for ((_, owner, rules) in ruleGroups) {
-                    for (rule in rules) {
-                        val fixSite = rule.fixSite ?: continue
-                        if (selfSchemaId !in fixSite.schemas) continue
-                        // 違反している要素の一覧は検査ごとに1回だけ求め、この文書に既に書かれている ID を除く
-                        val missing = diagnostics.fixSiteIds(rule) { id ->
-                            val anchor = reportAnchorOf(indexObj, id, owner) ?: return@fixSiteIds false
-                            val anchorPhase = owner?.currentPhaseIndex(treeOf(anchor.file))
-                            semantic.phaseActive(rule.activeFrom, owner?.phases?.order.orEmpty(), anchorPhase)
-                        }.filter { it !in localIdSet }
-                        if (missing.isEmpty()) continue
-                        issues += Issue(
-                            Severity.INFO, diagnostics.fixSiteMessage(fixSite, missing), emptyList(), relatedIds = missing,
-                            source = IssueSource(rule.origin, rule.id, null, null, IssueDelivery.FIX_SITE, missing),
-                        )
-                    }
-                }
-            }
+            // 6) 直せる場所への案内（SP-08。検査の宣言 fixSite）: カーネルから受け取ったものを、ここへ並べる
+            issues += fixSiteIssues
         }
         // 同じ指摘の重複を除く（出どころは見ない——文面・場所・対応が同じなら、利用者には同じ指摘）
         return ValidationResult(
@@ -514,9 +298,9 @@ object Validator {
     }
 
     /**
-     * 検査の報告先（意図的差分 D-21 ④）。スキーマの検査（owner = 検査を宣言したスキーマ）は、定義出現がそのスキーマの文書に
-     * あればそこ、なければそのスキーマの文書の先頭の出現（そのスキーマの文書に出現がなければ null＝報告しない）。
-     * 特定のスキーマに属さない検査（owner = null。関係レジストリの検査）は、定義出現（なければ先頭の出現）。
+     * 検査の報告先（意図的差分 D-21 ④）。決め方の実体はカーネルの WorkspaceChecks.reportAnchorOf（同じ規則）。
+     * スキーマの検査（owner = 検査を宣言したスキーマ）は、定義出現がそのスキーマの文書にあればそこ、なければそのスキーマの文書の
+     * 先頭の出現（無ければ null＝報告しない）。特定のスキーマに属さない検査（owner = null）は、定義出現（なければ先頭の出現）。
      */
     fun reportAnchorOf(indexObj: IdIndex, id: String, owner: SchemaDef?): index.IdEntry? {
         val node = indexObj.graph.entities[id] ?: return null
@@ -526,7 +310,7 @@ object Validator {
 
     /**
      * ID 1件の「検査の状況」（SP-08）: このスキーマの検査のうち `status` を宣言したもの（詳細文書の存在＝coverage など）について、
-     * 満たしているか・不足しているか・フェーズ未到達かを、いまの値つきで返す。判定は検証と同じ経路（RuleDiagnostics）。
+     * 満たしているか・不足しているか・保留か・フェーズ未到達かを、いまの値つきで返す。判定は検証と同じ経路（カーネルの WorkspaceChecks）。
      * definingRoot は、この ID がこのスキーマの文書に書かれている、その文書のルート（activeFrom のフェーズ判定に使う。null なら常時判定）。
      */
     fun ruleStatuses(
@@ -538,19 +322,16 @@ object Validator {
         workspace: Path? = null,
         loader: (Path) -> YNode? = { f -> runCatching { YamlIO.parseFirst(Files.readString(f)) }.getOrNull() },
     ): List<RuleStatus> {
-        val rules = schema.constraints.filter { it.status != null }
-        if (rules.isEmpty()) return emptyList()
+        if (schema.constraints.none { it.status != null }) return emptyList()
         val trees = mutableMapOf<Path, YNode?>()
-        val diagnostics = RuleDiagnostics(
-            indexObj,
-            tree = { f -> trees.getOrPut(f) { loader(f) } },
-            rel = { f -> workspace?.let { IdIndex.relPathOf(it, f) } ?: f.toString().replace('\\', '/') },
-            allSchemas = allSchemas,
+        val view = indexObj.toKernelView()
+        val checks = WorkspaceChecks(
+            allSchemas.map { it.toCheckSchema() }, emptyMap(), EnforcementDef(), view.entries, view.refs, view.graph,
+            semantic.SemanticCheckSession(view.entries, view.refs, view.graph),
+            rel = { d -> Path.of(d.value).let { f -> workspace?.let { IdIndex.relPathOf(it, f) } ?: f.toString().replace('\\', '/') } },
+            tree = { d -> Path.of(d.value).let { f -> trees.getOrPut(f) { loader(f) } } },
         )
-        val phaseIndex = definingRoot?.let { schema.currentPhaseIndex(it) }
-        return rules.mapNotNull { rule ->
-            diagnostics.status(rule, id, semantic.phaseActive(rule.activeFrom, schema.phases?.order.orEmpty(), phaseIndex))
-        }
+        return checks.statuses(id, schema.toCheckSchema(), definingRoot)
     }
 
     /**
@@ -569,3 +350,21 @@ object Validator {
 
     /** カバレッジの数え上げ対象の表示名（参照ベース=「参照」、出現ベース=「出現」）。UI表示で共用する。 */
 }
+
+/** 検査を配るのに要る情報だけを、カーネルの形へ写す（検査は同じものをそのまま渡す——評価の覚え書きは、同じものかどうかで見分ける）。 */
+internal fun SchemaDef.toCheckSchema(): CheckSchema =
+    CheckSchema(id, kind, match, structural, entities, constraints, checkers)
+
+/** カーネルの指摘を、ファイルの座標（Path）の Issue へ写す。 */
+internal fun CheckIssue.toIssue(): Issue = Issue(
+    severity, message, path,
+    responses = responses.map { r ->
+        when (r) {
+            is CheckResponse.Jump -> IssueResponse.Jump(r.label, Path.of(r.document.value), r.path, r.note)
+            is CheckResponse.ApplyValue -> IssueResponse.ApplyValue(r.label, r.value)
+            is CheckResponse.CreateDetail -> IssueResponse.CreateDetail(r.label, r.schemaId, r.id, r.note)
+        }
+    },
+    relatedIds = relatedIds,
+    source = source,
+)

@@ -1584,6 +1584,7 @@ GUIを起動せずに、ワークスペースの探索・検索・部分変更�
 ./gradlew runCli -q --args="init new-ws --template ledger"                # テンプレートで初期化
 ./gradlew runCli -q --args="infer-schema my-ws 'issues/**/*.yaml' --apply"  # 既存文書からスキーマ推測（--apply なしはプレビュー）
 ./gradlew runCli -q --args="infer-relations my-ws --apply"                # 参照実績から関係レジストリのドラフト生成（§4）
+./gradlew :cli:run -q --args="workspace validate my-ws"                    # 新CLI の検証（構造・意味・定義体の検査。アプリと同じ実装で評価する。検査のエラーは終了コード 3。--format yaml / json で機械可読）
 ./gradlew :cli:run -q --args="workspace bench my-ws --iterations 3"       # 意味解析の性能計測（新CLI。全再構築 vs 増分更新）
 ./gradlew runCli -q --args="migrate my-ws --ledger doc"                   # レガシー構成 → .yde 構成へ移行（README §3）
 ```

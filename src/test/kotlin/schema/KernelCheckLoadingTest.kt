@@ -61,6 +61,37 @@ class KernelCheckLoadingTest {
     }
 
     @Test
+    fun `カーネル側で検査を実行した結果は アプリ側と一致する`() {
+        Bench.generate(dir, modules = 3)
+        // 違反・他の出現への案内・直せる場所への案内・参照の場所への指摘・保留がひととおり出るように壊す
+        fun rewrite(rel: String, transform: (String) -> String) =
+            Files.writeString(dir.resolve(rel), transform(Files.readString(dir.resolve(rel))))
+        rewrite("m001/tests.yaml") { it.lines().filterNot { l -> "TI-1-1-1," in l }.joinToString("\n") }
+        rewrite("m001/screens/SCR-1-1.yaml") { it.replace(Regex("""max_length: \d+ }"""), "max_length: 9999 }") }
+        Files.delete(dir.resolve("m002/screens/SCR-2-6.yaml"))
+        rewrite("m002/processes/PROC-2-6.yaml") { it.replace("calls: []", "calls: [PROC-2-1]") }
+        rewrite("m003/screens/SCR-3-1.yaml") { it.replaceFirst(Regex("""dtype: DT-\d+"""), "dtype: DT-GONE") }
+        rewrite("m003/transitions.yaml") { it.lines().filterNot { l -> "from: SCR-3-4, to: SCR-3-5" in l }.joinToString("\n") }
+
+        val root = Workspace.open(dir)
+        val kernel = workspace.WorkspaceCheckRunner.deliverAll(loadKernel())
+        var compared = 0
+        for (file in root.files) {
+            val rel = root.relPath(file)
+            val result = root.validateDetailed(rel)
+            // アプリ側の指摘のうち、定義体の検査から出たもの（出どころを持つもの）
+            val app = result.issues.filter { it.source != null }.map { listOf(it.severity, it.message, it.path, it.source) }
+            val delivery = kernel[model.DocumentId(rel)]
+            val core = delivery?.issues.orEmpty().map { listOf(it.severity, it.message, it.path, it.source) }.distinct()
+            assertEquals(app, core, "指摘: $rel")
+            assertEquals(result.withheld, delivery?.withheld.orEmpty(), "保留: $rel")
+            compared += app.size
+        }
+        assertTrue(compared > 20, "壊した内容の指摘を比べていること（$compared 件）")
+        assertTrue(kernel.values.any { it.withheld.isNotEmpty() }, "保留が出ていること")
+    }
+
+    @Test
     fun `利用者の語彙のキーは カーネル側でも 定義されていない項目と警告されない`() {
         write(
             "_schemas/lib.yaml",

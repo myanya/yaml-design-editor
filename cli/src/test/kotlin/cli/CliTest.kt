@@ -34,6 +34,53 @@ class CliTest {
     }
 
     @Test
+    fun `定義体の検査に違反があるワークスペースはexit 3になる`() {
+        // P27 段B-4（意図的差分 D-28）: カーネル側の CLI も、定義体で書かれた検査（利用者の constraints・詳細文書の存在など）を実行する
+        val temp = kotlin.io.path.createTempDirectory("cli-checks")
+        try {
+            fun write(rel: String, content: String) {
+                val file = temp.resolve(rel)
+                java.nio.file.Files.createDirectories(file.parent)
+                java.nio.file.Files.writeString(file, content.trimIndent() + "\n")
+            }
+            write(
+                "_schemas/screen.yaml",
+                """
+                id: screen
+                match: "screens/*.yaml"
+                entity: { type: screen, idPattern: "SCR-*", defines: true }
+                constraints:
+                  - id: uses-something
+                    description: 何かを1つ以上利用すること
+                    match:
+                      - node: { entity: screen, bind: scr }
+                      - edge: { relation: uses }
+                      - node: { bind: t }
+                    expect: exists
+                    level: error
+                root:
+                  type: object
+                  fields:
+                    - { key: id, type: id, required: true }
+                    - key: uses
+                      type: array
+                      item: { type: ref, relation: uses }
+                """,
+            )
+            write("screens/SCR-1.yaml", "id: SCR-1\nuses: [SCR-2]")
+            write("screens/SCR-2.yaml", "id: SCR-2\nuses: []")
+            val (code, output) = capture("workspace", "validate", temp.toString())
+            assertEquals(3, code, output)
+            assertTrue("[検査:ERROR] screens/SCR-2.yaml" in output, output)
+            assertTrue("何かを1つ以上利用すること" in output, output)
+            assertTrue("検査: エラー 1 件 / 警告 0 件" in output, output)
+            assertTrue("意味検証: エラー 0 件" in output, output)
+        } finally {
+            temp.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
     fun `問題のないワークスペースはexit 0になる`() {
         val (code, output) = capture("workspace", "validate", fixture("workspaces", "yde-basic"))
         assertEquals(0, code, output)
