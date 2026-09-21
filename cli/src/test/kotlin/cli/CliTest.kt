@@ -118,6 +118,54 @@ class CliTest {
     }
 
     @Test
+    fun `applyは変更セットを検証してから適用し 保存まで行う`() {
+        // P27 段D の D-b（意図的差分 D-35）: 変更セットの適用は、アプリと同じ部品（workspace-core の ChangeSetApplier）
+        val temp = kotlin.io.path.createTempDirectory("cli-apply")
+        try {
+            fun write(rel: String, content: String) {
+                val file = temp.resolve(rel)
+                java.nio.file.Files.createDirectories(file.parent)
+                java.nio.file.Files.writeString(file, content.trimIndent() + "\n")
+            }
+            write(
+                "_schemas/item.yaml",
+                """
+                id: item
+                match: "items/*.yaml"
+                root:
+                  type: object
+                  fields:
+                    - { key: id, type: id, required: true }
+                    - { key: title, type: string, required: true }
+                """,
+            )
+            write("items/a.yaml", "id: IT-1\ntitle: A")
+            write("broken.yaml", "changes:\n  - file: items/a.yaml\n    ops:\n      - { op: delete, path: title }")
+            write("good.yaml", "changes:\n  - file: items/a.yaml\n    ops:\n      - { op: set, path: title, value: 新しい題 }")
+            val changeSets = temp.resolve("broken.yaml").toString() to temp.resolve("good.yaml").toString()
+
+            // 適用後に検証のエラーが残る変更は、--require-valid では書き込まない（終了コード 3）
+            val (rejected, rejectedOutput) = capture("workspace", "apply", temp.toString(), changeSets.first, "--require-valid")
+            assertEquals(3, rejected, rejectedOutput)
+            assertTrue("必須項目「title」が未設定です" in rejectedOutput, rejectedOutput)
+            assertTrue("title: A" in java.nio.file.Files.readString(temp.resolve("items/a.yaml")))
+
+            // ドライランは書き込まない
+            val (dry, dryOutput) = capture("workspace", "apply", temp.toString(), changeSets.second, "--dry-run")
+            assertEquals(0, dry, dryOutput)
+            assertTrue("書き込んでいません" in dryOutput, dryOutput)
+            assertTrue("title: A" in java.nio.file.Files.readString(temp.resolve("items/a.yaml")))
+
+            val (code, output) = capture("workspace", "apply", temp.toString(), changeSets.second, "--require-valid", "--format", "yaml")
+            assertEquals(0, code, output)
+            assertTrue("applied: true" in output, output)
+            assertTrue("title: 新しい題" in java.nio.file.Files.readString(temp.resolve("items/a.yaml")))
+        } finally {
+            temp.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
     fun `問題のないワークスペースはexit 0になる`() {
         val (code, output) = capture("workspace", "validate", fixture("workspaces", "yde-basic"))
         assertEquals(0, code, output)

@@ -183,6 +183,9 @@ class WorkspaceSession(
     /** 文書としてセッションに載っているか（snapshot の全コピーを避ける軽量版。編集ごとの直結＝RA-05 が使う）。 */
     fun hasDocument(id: DocumentId): Boolean = id in workingDocuments
 
+    /** ストアにいま保存されている内容（無ければ null）。変更セットの適用が、競合の判定と、操作を当てる元の内容に使う。 */
+    fun storedText(id: DocumentId): String? = store.read(id)?.text
+
     /** 変更履歴（古い順）。 */
     val history: List<ChangeRecord> get() = undoStack.toList()
 

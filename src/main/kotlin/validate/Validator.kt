@@ -203,12 +203,15 @@ object Validator {
     /** カバレッジの数え上げ対象の表示名（参照ベース=「参照」、出現ベース=「出現」）。UI表示で共用する。 */
 }
 
-/** カーネルの指摘を、ファイルの座標（Path）の Issue へ写す。 */
-internal fun CheckIssue.toIssue(): Issue = Issue(
+/**
+ * カーネルの指摘を、ファイルの座標（Path）の Issue へ写す。resolve は、文書ID をファイルの場所へ写す決め方
+ * （既定は、文書ID の値がそのままパス＝索引 IdIndex の座標。ワークスペース相対の文書ID なら、ルートから解決する関数を渡す）。
+ */
+internal fun CheckIssue.toIssue(resolve: (model.DocumentId) -> Path = { Path.of(it.value) }): Issue = Issue(
     severity, message, path,
     responses = responses.map { r ->
         when (r) {
-            is CheckResponse.Jump -> IssueResponse.Jump(r.label, Path.of(r.document.value), r.path, r.note)
+            is CheckResponse.Jump -> IssueResponse.Jump(r.label, resolve(r.document), r.path, r.note)
             is CheckResponse.ApplyValue -> IssueResponse.ApplyValue(r.label, r.value)
             is CheckResponse.CreateDetail -> IssueResponse.CreateDetail(r.label, r.schemaId, r.id, r.note)
         }

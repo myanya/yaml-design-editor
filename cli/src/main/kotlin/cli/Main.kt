@@ -31,6 +31,8 @@ fun run(args: Array<String>, out: (String) -> Unit): Int = try {
         args.size >= 2 && args[0] == "yaml" && args[1] == "roundtrip" -> yamlRoundtrip(args.getOrNull(2), out)
         args.size >= 2 && args[0] == "workspace" && args[1] == "validate" ->
             workspaceValidate(args.getOrNull(2), args.drop(3), out)
+        args.size >= 2 && args[0] == "workspace" && args[1] == "apply" ->
+            workspaceApply(args.getOrNull(2), args.drop(3), out)
         args.size >= 2 && args[0] == "workspace" && args[1] == "catalog" ->
             workspaceCatalog(args.getOrNull(2), args.drop(3), out)
         args.size >= 2 && args[0] == "workspace" && args[1] == "entity" ->
@@ -48,7 +50,9 @@ fun run(args: Array<String>, out: (String) -> Unit): Int = try {
             out("使い方:")
             out("  yaml parse <file>                     YAMLをパースしてドキュメント数を表示する")
             out("  yaml roundtrip <file>                 parse → dump → parse の往復一致を確認する")
-            out("  workspace validate <root>             構造・意味検証の結果を表示する")
+            out("  workspace validate <root>             検証の結果（スキーマの定義・構造・意味・検査）を表示する")
+            out("  workspace apply <root> <変更セット.yaml> [--dry-run] [--require-valid]")
+            out("                                        変更セットを適用する（競合の判定 → 適用後の姿の検証 → 保存）")
             out("  workspace catalog <root>              スキーマと文書の一覧・割当を表示する")
             out("  workspace entity <root> <id>          エンティティの出現・被参照・出参照を表示する")
             out("  workspace refactor <root> <op> … [--apply]")

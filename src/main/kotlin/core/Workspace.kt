@@ -10,6 +10,7 @@ import schema.WorkspaceLayout
 import validate.Issue
 import validate.Severity
 import validate.Validator
+import validate.toIssue
 import yaml.YamlIO
 import java.nio.file.Files
 import java.nio.file.Path
@@ -307,120 +308,44 @@ class Workspace private constructor(val root: Path) {
     }
 
     /**
-     * 変更セットを適用する（R1-02 / R2-05）。
+     * 変更セットを適用する（R1-02 / R2-05）。適用の本体は、カーネルの workspace.ChangeSetApplier（P27 段D の D-b・意図的差分 D-35。
+     * カーネル側の CLI `workspace apply` も同じ部品）で、ここは、結果をファイルの座標（Path）の形へ写すだけ。
      * - 全ファイルの競合チェックと操作適用を先に行い、1件でも失敗すれば何も書き込まない。
      * - create = true の変更は新規ファイル作成（既存ファイルがあれば競合）。
-     * - 検証は「適用後の全ファイルを重ねたオーバーレイ索引」に対して行うため、
+     * - 検証は「適用後の全ファイルを重ねた走査結果」に対して行うため、
      *   ID改名と参照元修正のような複数ファイル連動の変更も正しく判定される。
      * - dryRun = true では書き込みを行わず、適用後の検証結果のみ返す。
      * - requireValid = true では、適用後に検証エラーが残る場合も書き込まない。
+     * - 書き込みは、ディスクを映した内部のセッションの1トランザクション＋保存（ストアの atomic な書き込み）。
      */
     fun apply(changeSet: ChangeSet, dryRun: Boolean = false, requireValid: Boolean = false): ChangeSetResult =
-        applyInternal(changeSet, dryRun, requireValid) { staged ->
-            staged.forEach { s ->
-                Files.createDirectories(s.file.parent)
-                Files.writeString(s.file, YamlIO.dump(s.newRoot))
-            }
-            null
-        }
+        applyVia(null, changeSet, dryRun, requireValid)
 
     /**
-     * 変更セット適用のセッション書込版（A-2b・D-04）: 競合判定・オーバーレイ検証（coverage 等の
-     * 全Validator）は apply と完全に同一のまま、書込だけを WorkspaceSession（DocumentStore ポート＝
-     * atomic 書込）へ集約する。適用は1トランザクション（CreateDocument / ReplaceDocument）で、
-     * 履歴一元化（A-3）後は Undo 1回で全ファイルが戻る。
+     * 変更セット適用のセッション書込版（A-2b・D-04）: 競合判定・適用後の姿の検証は apply と完全に同一のまま（基準はディスクの内容）、
+     * 書込だけを、渡されたセッション（アプリの編集用のセッション）へ行う。適用は1トランザクション（CreateDocument / ReplaceDocument）で、
+     * Undo 1回で全ファイルが戻る。
      */
     fun applyViaSession(
         session: workspace.WorkspaceSession,
         changeSet: ChangeSet,
         dryRun: Boolean = false,
         requireValid: Boolean = false,
-    ): ChangeSetResult = applyInternal(changeSet, dryRun, requireValid) { staged ->
-        val ops = staged.map { s ->
-            val id = model.DocumentId(relPath(s.file))
-            val doc = model.YDocument(id, listOf(s.newRoot))
-            if (s.change.create) workspace.WorkspaceOperation.CreateDocument(id, doc)
-            else workspace.WorkspaceOperation.ReplaceDocument(id, doc)
-        }
-        val applied = session.apply(
-            workspace.WorkspaceTransaction(
-                baseVersion = session.version,
-                intent = workspace.ChangeIntent("変更セットの適用（${staged.size} ファイル）"),
-                operations = ops,
-            )
-        )
-        if (!applied.ok) applied.message ?: "セッションへの適用に失敗しました"
-        else {
-            val saved = session.save(staged.map { model.DocumentId(relPath(it.file)) }.toSet())
-            if (saved.ok) null
-            else saved.failures.entries.firstOrNull()?.let { (id, m) -> "${id.value}: $m" } ?: "書込に失敗しました"
-        }
-    }
+    ): ChangeSetResult = applyVia(session, changeSet, dryRun, requireValid)
 
-    private data class Staged(val change: FileChange, val file: Path, val newRoot: YNode)
-
-    /** 適用の本体（競合判定→オーバーレイ検証→writer による書込）。writer は失敗理由を返す（null = 成功）。 */
-    private fun applyInternal(
+    private fun applyVia(
+        target: workspace.WorkspaceSession?,
         changeSet: ChangeSet,
         dryRun: Boolean,
         requireValid: Boolean,
-        writer: (List<Staged>) -> String?,
     ): ChangeSetResult {
-        val results = mutableListOf<FileChangeResult>()
-        val staged = mutableListOf<Staged>()
-        var failed = false
-
-        for (change in changeSet.changes) {
-            val outcome = runCatching {
-                val file = resolve(change.file)
-                if (change.create) {
-                    require(!Files.exists(file)) { "競合: 既に同名のファイルが存在します: ${change.file}" }
-                    Staged(change, file, change.content ?: error("createにはcontentが必要です"))
-                } else {
-                    require(Files.isRegularFile(file)) { "ファイルが存在しません: ${change.file}" }
-                    val diskText = Files.readString(file)
-                    if (change.baseHash != null && ChangeSets.contentHash(diskText) != change.baseHash) {
-                        error("競合: ディスク内容が変更の前提（base）から変わっています")
-                    }
-                    val tree = YamlIO.parse(diskText)
-                    change.ops.forEach { Patcher.apply(tree, it) }
-                    Staged(change, file, tree)
-                }
-            }
-            outcome.onSuccess { staged += it }.onFailure {
-                failed = true
-                results += FileChangeResult(change.file, applied = false, message = it.message, issues = emptyList())
-            }
+        val base = session ?: error("セッションが開かれていません")
+        val applied = workspace.ChangeSetApplier.apply(base, changeSet, dryRun, requireValid, target = target ?: base)
+        val results = applied.results.map { r ->
+            FileChangeResult(r.file, r.applied, r.message, r.issues.map { it.toIssue { d -> root.resolve(d.value).normalize() } })
         }
-
-        // 適用後の状態を重ねたオーバーレイ索引で検証する（書き込み前。供給はセッション派生＝RB-07 で一本化）
-        val overlayRoots: Map<Path, YNode?> = staged.associate { it.file to it.newRoot }
-        val applyOverlay = overlayIndex(overlayRoots)
-        val validated = staged.map { s ->
-            // 整合検証の材料もオーバーレイ（適用後の姿）で読む（索引と同じ基準を保つ。R16-03a）
-            s to Validator.validate(
-                s.newRoot, null, s.file, schemaFor(s.file), applyOverlay,
-                workspace = root, allSchemas = schemas,
-                loader = { f -> overlayRoots[f] ?: runCatching { YamlIO.parse(Files.readString(f)) }.getOrNull() },
-                relations = relations, enforcement = enforcement,
-                shareEvaluations = true,  // 適用後の姿を重ねた索引と、同じ姿を読む loader
-            )
-        }
-        if (requireValid && validated.any { (_, issues) -> issues.any { it.severity == Severity.ERROR } }) {
-            failed = true
-        }
-
-        val write = !dryRun && !failed
-        val writeError = if (write) writer(validated.map { it.first }) else null
-        validated.forEach { (s, issues) ->
-            results += FileChangeResult(
-                s.change.file,
-                applied = write && writeError == null,
-                message = writeError,
-                issues = issues,
-            )
-        }
-        if (write && writeError == null) refreshAfterWrite(validated.map { it.first.file })
-        return ChangeSetResult(ok = !failed && writeError == null, dryRun = dryRun, results = results)
+        val written = applied.results.filter { it.applied }.map { resolve(it.file) }
+        if (written.isNotEmpty()) refreshAfterWrite(written)
+        return ChangeSetResult(applied.ok, applied.dryRun, results)
     }
 }

@@ -83,7 +83,9 @@ src/main/kotlin/
 | `Query` | index/Query.kt | パターン照合エンジン（R22-01。§4.32）: `QuerySpec` を EntityGraph の隣接上で評価し束縛の表（`QueryResult`）を返す。決定性（起点ID昇順・束縛名辞書順の行比較・決定的打切り）・経路内の再訪禁止・判定保留（未解決参照・型未宣言は黙る）。`neighborIds` はトラバースと共有する隣接1段、`anyMatchFrom` / `startMatches` は `Validator` の制約判定が使う |
 | `Workspace` / `WorkspaceScan` | core/Workspace.kt | ヘッドレスなワークスペース操作（開く・読む・保存・検証・変更セット適用）。相対パス解決はワークスペース外への脱出を拒否。`noteDiskChanges` が保存・外部変更の索引更新方針（増分／スキーマ変更時の全再構築）を一元化し、UI（AppState）もこの経路を通る（R9-02） |
 | `EditBuffer` / `WorkspaceRecords` | core/Documents.kt | 文書キャッシュ層の中核（R9-02）: 履歴（Undo/Redo）・dirty判定・複数ドキュメント再出力（`EditBuffer`）と、一覧レコード収集・一括編集（`WorkspaceRecords`。未保存優先の loader 注入）。`app.OpenDocument` / `AppState` はこの層への委譲＋Compose購読ミラー |
-| `PatchOp` / `Patcher` / `ChangeSets` | core/Patch.kt | YPathパッチ（set/insert/delete/move/rename＝順序・コメント保持のキー改名/reorder＝キー並べ替え。R25-01/02）と変更セット（baseハッシュ競合検出、YAML解析） |
+| `PatchOp` / `Patcher` | yaml-core/core/Patch.kt | YPathパッチ（set/insert/delete/move/rename＝順序・コメント保持のキー改名/reorder＝キー並べ替え。R25-01/02） |
+| `ChangeSet` / `FileChange` / `ChangeSets` | workspace-core/core/ChangeSets.kt | 変更セット（複数の文書への変更の束・baseハッシュ競合検出・YAML解析）。P27 段D の D-b で root から移した（パッケージ名 `core` のまま。§4.46） |
+| `ChangeSetApplier` / `ChangeSetApplication` | workspace-core/workspace/ChangeSetApplier.kt | 変更セットの適用の本体（競合の判定 → 適用後の姿を重ねた検証〔`validate.DocumentValidator`〕→ セッションの1つのトランザクション＋保存）。root の `Workspace.apply` / `applyViaSession` と、カーネル側の CLI `workspace apply` が共有する（§4.46・意図的差分 D-35） |
 | `RefactorImpact` | core/RefactorImpact.kt | リファクタリングのアプリ層影響解決（B-1・RB-01。D-10 のアプリ層再接続）: 計画生成はカーネル（`semantic.SemanticRefactor`＝`session.planRefactoring`）へ一本化され、ここはビュー追随の追加変更（SchemaDef 静的解決・スカラー Set のみ）と宣言節・定義文書の言及警告で計画を**補強**する（旧 EntityOps / SchemaRefactor / DocMove は B-1 で削除） |
 | `FileWatcher` | core/FileWatcher.kt | WatchService による再帰的なファイル監視（R8-03）。「変更があったか」のフラグだけを通知し、差分判定は呼び出し側のスタンプ比較に委ねる。使えない環境では open() が null（ポーリングへフォールバック） |
 | `Disclosure` | core/Disclosure.kt | 段階的開示: カタログ→骨子→ノード全文、文字数予算付き文脈バンドル |
@@ -779,6 +781,18 @@ Core Calculus の本来の目的（[CORE-CALCULUS.md](CORE-CALCULUS.md) §25）�
 - **変わる挙動（カーネル側の CLI だけ。D-34）**: 中身が空の文書に、必須の項目のエラーと、直せる場所への案内が出る（`sample-workspace` は、構造のエラーが 2 件 → 5 件になり、アプリの「エラー5・警告12」と揃った）。台帳の外の文書に、文書の中の ID の重複と、相手の見つからない参照（情報レベル）が出る。アプリと root の CLI の検証結果は変わらない。
 - **確かめ方**: テンプレート・サンプル・specs・壊した合成ワークスペース・5つの点検がひととおり出るワークスペースで、`validate`・`validate --sources`・`readiness` の出力が、移す前と完全に一致（カーネル側の CLI の出力も、`sample-workspace` の上の差分を除いて一致）。`KernelCheckLoadingTest` が、文書ごとの指摘（重大度・文面・場所・出どころ・**並び順**）と保留が、アプリとカーネルで一致することを確かめる（中身が空の文書を含む）。カーネルだけの確認は workspace-core の `KernelOnlyChecksTest`（並び・空の文書・台帳の外の文書）。`bench` の伸び方は 0.94（523文書で 0.79 秒）。
 
+### 4.46 変更セットの適用のカーネル化（P27 段D の D-b の2つ目）
+
+変更セット（エージェント・CLI・skill との交換の形式。§4.35 の変更語彙の2層）の型と、その適用は、root にだけあった。root の `Workspace.apply` はファイルへ直接書き、アプリの承認の経路（`applyViaSession`）だけがセッション経由で書いていた。カーネル側の CLI には、変更セットの適用が無かった（移行後リファクタリングの B-4 で「意図して残す運用コマンド」に分類していた残り）。これをカーネルへ移した（移動であって複製ではない。意図的差分 D-35）。
+
+- **型と読み取り**: `ChangeSet` / `FileChange` / `ChangeSets`（YAML の読み取り・競合の検出に使うハッシュ）を、パッケージ名 `core` のまま workspace-core へ移した（単一の文書への操作 `PatchOp` / `Patcher` は、もともと yaml-core）。
+- **適用の本体 `workspace.ChangeSetApplier.apply(base, changeSet, dryRun, requireValid, target)`**: ①変更ごとに、ストアの内容（`WorkspaceSession.storedText`）に対して競合を判定し（`create` は既にあれば競合・`base` のハッシュの食い違いは競合）、メモリの上で操作を当てる。1件でも失敗すれば何も書かない ②適用後の姿を重ねた派生状態（`base.derivedWith`）の上で、変更した文書を、アプリの検証と同じ組み立て（`validate.DocumentValidator`＝§4.45）で検証する。他の文書の中身も、適用後の姿で読む ③`requireValid` なら、検証のエラーが残るときも書かない ④書き込みは、`target` のセッションの1つのトランザクション（`CreateDocument` / `ReplaceDocument`）＋保存（ストアの atomic な書き込み）。Undo 1回で全部の文書が戻る。
+- **`base` と `target`**: `base` は、競合の判定と検証の基準にするセッション（ストアの内容を映したもの）。`target` は書き込み先。カーネル側の CLI と、root の `Workspace.apply` は、同じセッションを両方に使う。アプリの承認の経路（`applyViaSession`）は、`base` にディスクを映した内部のセッション、`target` に編集用のセッションを渡す——検証の基準は、今までどおりディスクの内容（編集用のセッションの未保存の編集は、検証に混ぜない）。
+- **root の `Workspace.apply` / `applyViaSession`** は、カーネルの適用を呼び、結果をファイルの座標（`FileChangeResult`・`Issue`。文書ID は、ワークスペースのルートから解決する）へ写して、書いたファイルの分だけ索引を更新するだけ。
+- **カーネル側の CLI**: `workspace apply <root> <変更セット.yaml> [--dry-run] [--require-valid] [--format yaml|json]`。終了コードは、0＝成功（ドライランの成功を含む）・2＝競合・操作のエラー・書き込みの失敗・3＝適用後の検証にエラーが残るため書き込まなかった。
+- **変わる挙動（D-35）**: root の `Workspace.apply`（root の CLI `apply`・自動適用・skill のインポートなど）の書き込みが、ファイルへの直接の書き込みから、セッション経由になった（書かれる内容は同じ）。このため、適用できるのは、セッションが読み込んでいる YAML 文書と、新しく作る文書だけ——構成ファイル（`.yde/workspace.yaml`）や隠しファイルへの変更は、エラーになる（アプリの承認の経路は、もともとこの扱い）。変更セットの `file` は、ワークスペース相対のパスだけを受け付ける。
+- **確かめ方**: root の既存のテスト（`ChangeSetsTest`・`StagingTest`・`SessionWriteParityTest`・`WorkspaceCliTest`・エージェントの適用と自動適用のテスト）が、無変更で通る。カーネルだけの確認は workspace-core の `ChangeSetApplierTest`（複数の文書が連動する変更・Undo 1回・`requireValid`・ドライラン・競合と操作のエラー・ワークスペースの外へ出るパス）と、cli の `CliTest`。
+
 ## 5. 主要データフロー
 
 - **編集**: フォーム操作 → `Slot.set` / ツリー直接変更 → `markEdited()`（履歴・dirty は core.EditBuffer が記録。連続入力は合体キーで1エントリへ＝§4.34） → `version`++ → 再コンポーズ。ソースタブはライブ同期（パース成功時だけ `applySourceText` で同じ経路へ。§4.34）
@@ -787,7 +801,7 @@ Core Calculus の本来の目的（[CORE-CALCULUS.md](CORE-CALCULUS.md) §25）�
 - **ジャンプ**: `navigateToId` → 索引の出現検索（複数なら選択ダイアログ／横ぐしビュー）→ `openFile(file, focus)` → `highlightPath` 設定 → `Highlightable` がスクロール
 - **ビューグリッド**: `_views` 定義 → `Views.resolve`（行=ディスク索引、セル値=編集中ツリー優先の loader）→ セル編集は該当文書の `Slot` 直接変更＋`markEdited()` → 保存 → `rebuildIndex()` で行集合にも反映。行アクションは `AppState.createViewDetail`（スキャフォールド→書込→開く）／`addViewRow`（一覧文書の配列へ未保存編集として追加）
 - **AI生成**: ✨/ボタン → `AppState.requestAi(doc, field, path)`（対象文書は押したフォームの `FormCtx.doc`。R24-01） → シェル直下の `AiGenerationHost` が対象文書のツリーを複製して入力構築 → `GenerationRun.run`（カーネル上の1ターン提出。Structured Outputs で生成 → ステージング → 実行記録 `_runs`。§4.19） → `combineProposal`/`replaceInClone` で適用後ツリーを合成 → 差分プレビュー＋`Validator` で事前検証 → 適用（対象文書の `root` 差し替え。編集スペース以外＝エンティティページ等からでも同経路）
-- **ヘッドレス変更セット適用**（CLI／エージェント）: `ChangeSets.parse` → 全ファイルの base ハッシュ照合＋パッチ適用（メモリ上）→ 適用後状態を重ねた**オーバーレイ索引**で検証（複数ファイル連動の変更も正しく判定）→ **全件成功時のみ**書き込み（`--require-valid` 指定時は検証エラーでも中止）→ `refresh()` で索引更新。1件でも失敗すれば何も書かないオール・オア・ナッシング
+- **ヘッドレス変更セット適用**（CLI／エージェント。本体はカーネルの `workspace.ChangeSetApplier`＝§4.46）: `ChangeSets.parse` → 全ファイルの base ハッシュ照合＋パッチ適用（メモリ上）→ 適用後状態を重ねた**走査結果**の上で検証（複数ファイル連動の変更も正しく判定）→ **全件成功時のみ**、セッションの1つのトランザクション＋保存で書き込み（`--require-valid` 指定時は検証エラーでも中止）→ 索引更新。1件でも失敗すれば何も書かないオール・オア・ナッシング
 - **エージェント実行**: アクティビティ起動 → `AgentKernel` がシステムプロンプト（persona＋規範）と初期文脈（指示・カタログ・権限・ゲート）を構築 → ツール使用ループ（探索→パッチ→検証→…、必要なら `delegate` で相談）→ `submit_changeset`（ゲート通過）→ `RunLog` 書き出し → レビューUIで部分採用（採用サブセットを `Staging` で再検証）→ `Workspace.apply` で反映 → `AppState.reload()`
 - **自動実行**: `AutomationEngine.tick(now)` がトリガ判定（on-change はデバウンス、on-invalid は変更ファイルの検証）→ キュー投入 → `processOnce` がカーネル実行 → 提出後は承認方式で分岐（auto: `AutoApply.applyWithBackup` → スタンプ更新 → 連鎖／human: 承認待ち＋変更セットのファイル保存 → 採否後に連鎖）→ 失敗はフィードバック付きリトライ（収束打ち切りあり）
 - **評価**: `Evals.load` → `EvalRunner.run` がケース×変異ごとに（サンドボックスコピー作成 → `setup` のゴールデン入力を上書き → カーネル実行 → 宣言的期待結果の判定 → コピー破棄）→ レポートを原本の `_runs/eval-*.yaml` に保存 → 自己改善パネル／CLI `eval` で変異別の合格率・コストを比較

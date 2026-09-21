@@ -36,6 +36,8 @@ object WorkspaceCheckRunner {
         derived: WorkspaceDerivedState,
         /** 検証する文書（省略時は全部）。 */
         only: Set<DocumentId>? = null,
+        /** 索引（台帳）に載る文書か。既定は、アプリの走査対象と同じ決め方（台帳の文書と、予約領域の文書）。 */
+        indexedOf: (DocumentId) -> Boolean = { layout.inLedger(it.value) || layout.isReserved(it.value) },
     ): Map<DocumentId, DocumentValidation> {
         val snapshot = derived.semantic
         val schemaById = schemas.associateBy { it.id }
@@ -60,8 +62,7 @@ object WorkspaceCheckRunner {
                 root = root,
                 parseError = null,
                 documentId = scan?.documentId ?: DocumentMeta.idOf(root, id.value),
-                // 索引（台帳）に載る文書か: 台帳の文書と、予約領域の文書（アプリの走査対象と同じ決め方）
-                indexed = layout.inLedger(id.value) || layout.isReserved(id.value),
+                indexed = indexedOf(id),
                 // 走査結果が手元にある文書（中身が空でない、索引に載る文書）は、走査し直さない
                 scan = scan,
             )

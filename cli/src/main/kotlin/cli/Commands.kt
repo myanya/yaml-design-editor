@@ -157,6 +157,62 @@ fun workspaceValidate(root: String?, args: List<String>, out: (String) -> Unit):
     }
 }
 
+// ---------------------------------------------------------------- apply
+
+/**
+ * 変更セット（複数の文書への変更の束）の適用（P27 段D の D-b・意図的差分 D-35）。適用の本体は workspace-core の ChangeSetApplier で、
+ * アプリ（承認・自動適用・root の CLI `apply`）と同じ部品——競合の判定 → 適用後の姿を重ねた検証 → 1つのトランザクション＋保存。
+ * exit: 0 = 成功（ドライランの成功を含む）／1 = 入力エラー／2 = 競合・操作のエラー・書き込みの失敗／
+ * 3 = 適用後の検証にエラーが残るため書き込まなかった（--require-valid）。
+ */
+fun workspaceApply(root: String?, args: List<String>, out: (String) -> Unit): Int {
+    val format = CliArgs.format(args)
+    val file = args.firstOrNull { !it.startsWith("--") && it != CliArgs.stringFlag(args, "--format") }
+        ?: error("変更セットの YAML ファイルを指定してください")
+    val changeSet = core.ChangeSets.parse(Files.readString(Path.of(file)))
+    val session = openSession(root)
+    val result = workspace.ChangeSetApplier.apply(
+        session, changeSet, dryRun = "--dry-run" in args, requireValid = "--require-valid" in args,
+    )
+    if (format == OutputFormat.TEXT) {
+        result.results.forEach { r ->
+            val state = if (r.applied) "適用" else if (r.message != null) "失敗" else if (result.dryRun) "確認" else "未適用"
+            out("  [$state] ${r.file}" + (r.message?.let { ": $it" } ?: ""))
+            r.issues.forEach { issue -> out("    [${issue.severity}] ${issue.path.pretty()}: ${issue.message}") }
+        }
+        out(
+            when {
+                result.ok && result.dryRun -> "ドライラン: 適用できます（${result.results.size} 文書。書き込んでいません）"
+                result.ok -> "適用して保存しました（${result.results.count { it.applied }} 文書）"
+                else -> "適用しませんでした（何も書き込んでいません）"
+            }
+        )
+    } else {
+        CliOutput.emit(
+            linkedMapOf(
+                "ok" to result.ok,
+                "dryRun" to result.dryRun,
+                "changes" to result.results.map { r ->
+                    linkedMapOf<String, Any?>(
+                        "file" to r.file,
+                        "applied" to r.applied,
+                        "message" to r.message,
+                        "issues" to r.issues.map { issue ->
+                            linkedMapOf("severity" to issue.severity.name, "path" to issue.path.pretty(), "message" to issue.message)
+                        },
+                    ).filterValues { it != null }
+                },
+            ),
+            format, out,
+        )
+    }
+    return when {
+        result.ok -> 0
+        result.results.none { it.message != null } && result.errorIssueCount > 0 -> 3
+        else -> 2
+    }
+}
+
 // ---------------------------------------------------------------- catalog
 
 /** ワークスペースの棚卸し（スキーマと文書の一覧・割当）。検証は validate の仕事のため exit は 0 / 1 のみ。 */

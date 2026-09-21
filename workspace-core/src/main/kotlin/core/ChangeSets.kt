@@ -7,10 +7,10 @@ import yaml.YamlIO
 import java.security.MessageDigest
 
 /*
- * 変更セット（複数ファイルへのパッチの束）。3層コア移行 YM-007a で Patch.kt から分離。
- * 単一文書への操作（PatchOp / Patcher）は yaml-core の core/Patch.kt にあり、
- * ファイル・baseHash・変更セットYAMLの解析というワークスペース関心だけをここに残す
- * （Phase 8 で workspace-core の WorkspaceTransaction へ再構成する予定）。
+ * 変更セット（複数ファイルへのパッチの束）。エージェント・CLI・skill との交換の形式（内部で変更を作るコードは、型付きの操作
+ * edit.YamlOperation を使う。R29-08）。単一文書への操作（PatchOp / Patcher）は yaml-core の core/Patch.kt にあり、ここは、
+ * ファイル・baseHash・変更セットYAMLの解析という、ワークスペースの関心を持つ。P27 段D の D-b で、root からパッケージ名のまま
+ * workspace-core へ移した（意図的差分 D-35）。適用の本体は workspace.ChangeSetApplier。
  */
 
 /**
