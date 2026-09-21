@@ -72,6 +72,9 @@ data class SchemaDef(
     /** 構造コア（yaml-core）。$ref解決・cases合成・フェーズ必須・パス解決はここへ委譲する（YM-004b）。 */
     val structural: StructuralSchema by lazy { StructuralSchema(id, root, definitions, phases, definitionCatalog) }
 
+    /** このスキーマから導出した、最小の構造のスキーマ（構造の検証はここを通す。P27 段C の C-1。カーネルと同じ部品）。 */
+    val structures: workspace.DerivedStructures by lazy { workspace.DerivedStructures(structural) }
+
     /** ワークスペース相対パス（区切りは '/'）がこのスキーマの対象か。derive 宣言スキーマはマッチしない。 */
     fun matches(relPath: String): Boolean =
         kind == SchemaKind.DOCUMENT && derive == null && match.isNotBlank() && regex.matches(relPath)

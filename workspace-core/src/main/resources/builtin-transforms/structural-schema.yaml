@@ -1,6 +1,7 @@
-# 構造のスキーマの導出を「YAML から YAML への変換」で書いたもの（P27 段C。ROADMAP の SC-01〜04・TF-03）。
-# 利用者が書くスキーマ（意味のスキーマ）から、yaml-core が検証に使う最小の構造のスキーマを作る。
-# いまは素案（テストと CLI `transform` の試し用）。段C の C-1 で、組込みの変換定義として使う。
+# 構造のスキーマの導出（P27 段C の C-1。ROADMAP の SC-01〜04・TF-03。意図的差分 D-30）。
+# 利用者が書くスキーマ（意味のスキーマ）から、yaml-core が検証に使う最小の構造のスキーマを作る、組込みの変換定義
+# （YAML から YAML への変換。docs/ARCHITECTURE.md §4.42・§4.43）。workspace-core の DerivedStructures が、スキーマごと・文書のフェーズごとに実行する。
+# 構造の検証を変えたいときは、この定義と、yaml-core の structure パッケージ（最小の構造のスキーマ）を直す。
 id: structural-schema
 description: 利用者が書くスキーマ（意味のスキーマ）から、最小の構造のスキーマを作る
 # 文書の現在のフェーズまでに到達したフェーズの名前の一覧。意味の側が文書から読んで渡す（構造の側はフェーズを知らない。SC-02）
@@ -27,7 +28,11 @@ rules:
           unknownFields: { $copy: unknownFields }
           fields:
             $concat:
-              - [ { key: to, type: string, required: true } ]
+              # 参照の値 to は必須。表示名は、指摘の文面（必須項目「X の to（参照値）」が未設定です）のために付ける
+              - - key: to
+                  label: { $first: [ { $format: "{label} の to（参照値）" }, { $format: "{key} の to（参照値）" } ] }
+                  type: string
+                  required: true
               - { $each: fields, $apply: field }
 
   # 項目1つ → 構造のスキーマの項目1つ。ここに書かないキー（role・display・description・default・relation・scope・

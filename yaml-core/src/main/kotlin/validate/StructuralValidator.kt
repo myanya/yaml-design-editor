@@ -12,6 +12,11 @@ import schema.UnknownFieldsPolicy
  * 単一文書×構造スキーマの検証（3層コア移行 Phase 3・YM-005で Validator から分離）。
  * IdIndex・ワークスペース・ファイルI/Oに依存しない（ADR-0002）。
  * 参照の存在確認・カバレッジ・グラフ整合・整合ルールは意味検証（ルート側 `Validator`）が担う。
+ *
+ * **本番の経路からは呼ばれない**（P27 段C の C-1・意図的差分 D-30）: 構造の検証は、利用者が書いたスキーマから導出した最小の構造のスキーマ
+ * （structure.StructureValidator。入口は workspace-core の DerivedStructures）で行う。ここは、導出した経路の結果を比べる相手として
+ * テスト（StructureParityTest・StructuralDerivationTransformTest）が使うだけで、段C の C-2 で利用者の木（FieldDef）と一緒に yaml-core から無くなる。
+ * 検証の決まりを変えるときは、こちらではなく structure.StructureValidator を直す。
  */
 object StructuralValidator {
 

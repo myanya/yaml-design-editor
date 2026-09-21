@@ -691,7 +691,7 @@ Core Calculus の本来の目的（[CORE-CALCULUS.md](CORE-CALCULUS.md) §25）�
 - **入力**: 検査を配るのに要るスキーマの情報（`CheckSchema`＝id・kind・match・構造のスキーマ〔フェーズ〕・entity 宣言・検査。root の `SchemaDef` とカーネルの `WorkspaceSchema` のどちらからも作れる。検査は同じものをそのまま渡す——評価の覚え書きは、同じものかどうかで見分けるため）・関係レジストリと強制スイッチ・走査結果（ids / refs / グラフ）・評価の覚え書き・文書の相対パスと中身を返す関数。
 - **`deliver(document, schema, root, localIds, localRefs)`**: 文書1つへ配る（`CheckDelivery`＝指摘 `CheckIssue` と、判定を保留した検査 `WithheldCheck`）。配り方の規則——報告先（`REPORT`。スキーマの検査は、宣言したスキーマの文書の中で決める／特定のスキーマに属さない検査は、定義出現か先頭の出現）・他の出現への案内（`NOTICE`）・値の場所（`VALUE`）・参照の場所（`REF`）・直せる場所への案内（`FIX_SITE`）——と、文面のひな型の差し込み・エラー時の対応の導出（`CheckResponse`＝移動・値の書き込み・文書の作成。参照を書き足せそうな文書の導出 `referenceSources` も含む）・専用チェッカーの文面が、ここに集まる。聞かれた文書の分だけを評価する（アプリの1文字ごとの検証を重くしないため。§4.39）。`statuses` は検査の状況（`RuleStatus`）。
 - **型の置き場**: `IssueDelivery`・`IssueSource`・`WithheldCheck`・`RuleStatus` は、パッケージ名 `validate` のまま workspace-core へ移した。エラー時の対応は、カーネルでは文書ID の `CheckResponse`、アプリでは `Path` の `IssueResponse`（`CheckIssue.toIssue` が写す）。
-- **root の `Validator`** は、構造の検証・ID と参照の検証・root に残る検査（ID のパターンからの逸脱・重複所有・テンプレートの健全性）を行い、定義体の検査は `WorkspaceChecks.deliver` の結果を `Issue` へ写すだけ。呼び出し側の `Path` の表記が索引と違っても報告先の判定がずれないよう、文書ID は索引の側のものに揃える（`KernelIndexView.documentIdOf`）。
+- **root の `Validator`** は、構造の検証（導出した最小の構造のスキーマで行う＝§4.43）・ID と参照の検証・root に残る検査（ID のパターンからの逸脱・重複所有・テンプレートの健全性）を行い、定義体の検査は `WorkspaceChecks.deliver` の結果を `Issue` へ写すだけ。呼び出し側の `Path` の表記が索引と違っても報告先の判定がずれないよう、文書ID は索引の側のものに揃える（`KernelIndexView.documentIdOf`）。
 - **カーネル側の CLI**（`workspace validate`。意図的差分 D-28）: `workspace.WorkspaceCheckRunner.deliverAll` が、読み取ったワークスペースの全文書へ配る。出力に「検査」の区分と保留が加わり、検査のエラーがあれば終了コード 3。派生状態の導出（`WorkspaceReader.derive`）には含めない——導出はセッションの編集のたびに走るため。
 - **確かめ方**: コミット済みの版をクリーンビルドして比べ、テンプレート・サンプル・壊した合成ワークスペース（違反21件・保留1件）の `validate --sources` と `readiness` が完全に一致。`KernelCheckLoadingTest` が、壊した合成ワークスペースで、アプリ側の指摘（出どころを持つもの）と保留が、カーネル側の結果と文書ごとに一致することを確かめる。
 - **まだ root にだけ残る検査**: ID のパターンからの逸脱・重複所有（スキーマの構造に依存）・テンプレートの健全性。カーネル側の CLI には出ない（P27 段D）。
@@ -719,8 +719,30 @@ Core Calculus の本来の目的（[CORE-CALCULUS.md](CORE-CALCULUS.md) §25）�
 - **出どころ**: 結果 `TransformResult` は、組み立てた項と、出力の場所 → 入力の文書と場所の一覧（`TransformOrigin`）を持つ。`$concat` でつなげた配列も、つなげた後の番号で入力の場所を指す。
 - **定義の誤りは読み込みの段階で分かる**: 未知の指示・指示と出力のキーの混在・宣言されていない規則名と受け取る値・クエリで付けていない束縛名は、`TransformDef.parse` がエラーにする。
 - **既存の共有部品を使う**: クエリは `SemanticQuery.run`、値の条件は `SemanticExpression.test` / `isEmpty`、文字のひな型と辞書は `Projection`、出現の選び方は `SemanticExpression.preferDefining`——比較や選び方を変換の側に書き直さない。
-- **いまの使いどころ**: CLI `transform`（試作台）と、構造のスキーマの導出の素案（`test-fixtures/transforms/structural-schema.yaml`。ID と参照を文字列へ・フェーズに達したら必須を素の必須へ・属性付き参照を「値の形ごとの決まり」へ・意味と表示の語彙を落とす）。導出したスキーマで検証した結果が、利用者が書いたスキーマでそのまま検証した結果と一致することを `StructuralDerivationTransformTest` が確かめている（実データ——テンプレート・サンプル・specs の81文書——でも、属性付き参照の1件を除いて一致。その1件は、yaml-core が「値の形ごとの決まり」をまだ知らないためで、段C の C-1 で足す）。
+- **いまの使いどころ**: CLI `transform`（試作台。定義に `builtin:structural-schema` と書くと組込みの変換定義を使う）と、**構造のスキーマの導出**（§4.43。組込みの変換定義 `builtin-transforms/structural-schema.yaml`）。
 - **まだ無いもの**: 繰り返しの源にクエリを使うこと（ビューの被参照の列に当たる）・既存の値の式（四則演算・参照の本数・集計）をひな型の中で使うこと・利用者が変換定義を置く場所（`_transforms` のような置き場）。文字の出力（Markdown など）は、土台の外の派生として別に作る（CORE-CALCULUS §26 の検討メモ）。
+
+### 4.43 構造のスキーマの導出: 構造の検証は、導出した最小の構造のスキーマで行う（P27 段C の C-1）
+
+利用者が書くスキーマは**意味のスキーマ**で、構造の検証は、そこから**導出した最小の構造のスキーマ**で行う（意図的差分 D-30。ROADMAP の SC-01〜04）。
+
+```
+利用者が書いたスキーマの木（FieldDef）
+  → FieldYaml（利用者が書く形の YAML の項へ書き出す）
+  → SemanticTransform × 組込みの変換定義 builtin-transforms/structural-schema.yaml（＋到達したフェーズの一覧）
+  → StructureParser → StructureSchema（yaml-core の structure パッケージ）
+  → StructureValidator（文書の構造の検証）
+```
+
+- **最小の構造のスキーマ**（yaml-core `structure/`。`StructureSchema`・`StructureField`・`StructureParser`・`StructureValidator`）: 持つのは、値の形（`ValueType`＝string / text / int / number / boolean / enum / date / array / map / object / any）・必須・値の形式的なチェック（選択肢・範囲・文字数・形式）・選択肢の値ごとの項目（`cases`）・未定義の項目の扱い・定義への参照（`$ref`。再帰の形）・**値の形ごとの決まり**（`shapes: {scalar, object, array}`）と、指摘の文面のための表示名だけ。**ID・参照・関係・参照先の範囲・フェーズ・表示のヒントを知らない**——書けないキーは、読み取りの段階で誤りになる。
+- **分け方の基準**（オーナー決定 2026-09-21）: その値1つと、その項目の決まりだけを見て決まるチェックは形式的（yaml-core）。他の値・他の要素・他の文書・索引・文書のフェーズを見るチェックは意味的（semantic-core）。`cases`（同じオブジェクトの中の選択肢の値を見る）だけは、選択肢の一部として yaml-core に残す。ID の形式（`pattern`）と日付の形式は yaml-core、参照先の絞り込み（`idPatterns`・`scope`）とエンティティ型の ID のパターンからの逸脱は semantic-core。
+- **導出の規則**（組込みの変換定義。規則3つ）: ID と参照は文字列にする／属性付き参照（スカラーでも `{to, 属性…}` でも書ける）は「値の形ごとの決まり」にする（形を見れば決まりが1つに決まるので、試して戻る処理は要らない）／フェーズに達したら必須（`requiredFrom`）は素の必須へ畳む／意味と表示の語彙（`role`・`display`・`description`・`default`・`relation`・`scope`・`idPatterns`・`target`・選択肢のラベル）は落とす／`$ref` は写すだけで辿らない／`cases` は残す。
+- **導出の入口は1つ**: workspace-core の `DerivedStructures`（スキーマ1件につき1つ。root の `SchemaDef.structures` とカーネルの `WorkspaceSchema.structures` が持つ）。アプリ（root の `Validator`）とカーネル（`WorkspaceReader.validateOne`・セッションの増分導出・cli）が、同じ `validate(root)` を通る。入力は、スキーマの項目の木を `FieldYaml` で YAML の項へ書き出したもの——ファイルのスキーマだけでなく、派生スキーマ（`derive:`）や、語彙のキーを足したメタスキーマのように、読み込みの後でプログラムが組み立てたスキーマも同じ経路を通る。別のモジュールで定義された項目の非修飾の `$ref` は、書き出すときに `モジュール#名前` に直す。他のモジュールの定義も同じ変換で導出してつなぐ（必須の畳み込みは、検証する文書のフェーズで行う）。
+- **フェーズ**: `DerivedStructures` が文書のフェーズを読み、到達したフェーズの一覧を変換へ渡す。導出した構造のスキーマは、文書のフェーズごとに1つ（覚えておく）。定義されていないフェーズの申告の警告も、フェーズの解釈なので、ここ（意味の側）が出す。yaml-core はフェーズを知らない。
+- **速さ**: 導出はスキーマごと・フェーズごとに1回だけ（数十ミリ秒の固定費）。文書ごとの検証の時間は、以前と変わらない（`bench` で同じ条件の比較をして確かめた）。
+- **確かめ方**: テンプレート・サンプル・specs・合成ワークスペース・共通 fixture の全221文書（スキーマ文書へのメタスキーマの適用を含む）で、旧い検証と指摘が並び順まで一致。`StructureParityTest`（合成ワークスペースの全文書）・`StructuralDerivationTransformTest`（導出した形・値のチェック・フェーズ・他のモジュールの定義・D-30 の違い）・yaml-core `StructureValidatorTest`。
+- **併存しているもの（段C の C-2 で解消）**: 利用者が書くスキーマの木（`FieldDef`）とその読み取り・`cases` の合成・フェーズの読み取りは、まだ yaml-core にある。旧い検証 `StructuralValidator` は、本番の経路からは呼ばれず、比べる相手としてだけ残している。C-2 で、これらを semantic-core へ移す（旧い検証は無くす）。走査・フォーム・AI 生成などは、今までどおり利用者の木を読む。
+- **構造の検証を変えるとき**: 検証そのもの（値の形式的なチェック）は yaml-core の `structure/StructureValidator.kt`、利用者の語彙から構造への写し方は `builtin-transforms/structural-schema.yaml` を直す。利用者の語彙を足しただけでは、構造の検証には現れない（導出の規則に書いて初めて現れる）。
 
 ## 5. 主要データフロー
 

@@ -48,6 +48,8 @@ internal const val CLI_USAGE = """コマンド:
            評価して、組み立てた YAML を返す。from を書かない定義は --input の文書1つが入力（ワークスペース相対か、ファイルのパス）。
            --param の値は YAML として読む（例: --param "reachedPhases=[基本設計, 詳細設計]"）。--origins で、出力の各値が
            入力のどこから来たかを添える。出力は保存しない（原本は変わらない）
+           定義に「builtin:structural-schema」と書くと、組込みの変換定義（構造のスキーマの導出）を使う
+           （例: transform <workspace> builtin:structural-schema --input _schemas/x.yaml＝そのスキーマから導出される、最小の構造のスキーマ）
   view     <workspace> [view-id] [file]         ビュー（_views）を解決する。横断グリッドは行×列、
            文書ビュー（kind: document）は file で対象文書を指定（適用対象1件なら省略可）。
            view-id 省略時は定義の一覧を表示する。各セルに原本上の座標（file / path）が付く
@@ -198,7 +200,9 @@ internal fun runCli(args: Array<String>): String {
             val ws = workspace()
             val defFile = rest.getOrNull(1)?.takeIf { !it.startsWith("--") }
                 ?: error("変換の定義を指定してください（transform <workspace> <定義.yaml> [--input <file>] [--param 名前=値]）")
-            val def = schema.TransformDef.parse(yaml.YamlIO.parseToRaw(Files.readString(Path.of(defFile))), "transform")
+            // 「builtin:名前」は、組込みの変換定義（例: builtin:structural-schema＝構造のスキーマの導出）
+            val def = if (defFile.startsWith("builtin:")) workspace.BuiltinTransforms.parse(defFile.removePrefix("builtin:"))
+            else schema.TransformDef.parse(yaml.YamlIO.parseToRaw(Files.readString(Path.of(defFile))), "transform")
             val params = stringFlags(rest, "--param").associate { raw ->
                 val at = raw.indexOf('=').takeIf { it > 0 } ?: error("--param は 名前=値 で書きます: $raw")
                 raw.substring(0, at) to yaml.YamlIO.parseToRaw(raw.substring(at + 1))

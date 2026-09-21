@@ -18,7 +18,6 @@ import semantic.SemanticEngine
 import semantic.SemanticInput
 import semantic.SemanticSnapshot
 import validate.StructuralIssue
-import validate.StructuralValidator
 import yaml.DefaultYamlCodec
 import yaml.YamlIO
 
@@ -61,6 +60,9 @@ class WorkspaceSchema(
     ): WorkspaceSchema = WorkspaceSchema(
         id, kind, match, structural, entities, isTemplate, source, derive, constraints, checkers, expandedChecks, vocabularySource,
     )
+
+    /** このスキーマから導出した、最小の構造のスキーマ（構造の検証はここを通す。P27 段C の C-1）。 */
+    val structures: DerivedStructures by lazy { DerivedStructures(structural) }
 
     private val regex: Regex? =
         if (match.isBlank()) null else runCatching { globToRegex(match) }.getOrNull()
@@ -363,7 +365,8 @@ object WorkspaceReader {
     fun validateOne(d: WorkspaceDocument, schemasById: Map<String, WorkspaceSchema>): List<StructuralIssue>? {
         val sc = d.schemaId?.let { schemasById[it] } ?: return null
         val root = d.document.documents.firstOrNull() ?: return null
-        return StructuralValidator.validate(root, sc.structural)
+        // 利用者が書いたスキーマから導出した、最小の構造のスキーマで検証する（P27 段C の C-1・意図的差分 D-30）
+        return sc.structures.validate(root)
     }
 
     /** 意味解析の入力組立（索引除外・台帳規則の適用。derive・増分導出・計測で共有する）。 */

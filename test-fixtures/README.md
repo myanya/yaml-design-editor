@@ -25,7 +25,6 @@
 
 | ファイル | 内容 | 期待結果 |
 |---|---|---|
-| structural-schema.yaml | 構造のスキーマの導出の素案（意味のスキーマ → 最小の構造のスキーマ。入力はスキーマ文書1つ・受け取る値は `reachedPhases`） | `schemas/task.yaml` を入力にすると、ID と参照が `string` になり、`scope`・`match` が落ち、`$ref`・`cases` は残る。導出したスキーマで検証した結果は、元のスキーマで検証した結果と一致する（workspace-core `StructuralDerivationTransformTest`） |
 | sysdev-screen-items.yaml | 設計情報テンプレート（`sysdev-template`）で試すための例（テストでは使わない）。クエリで選んだ画面ごとに、元のユーザアクションと、画面設計書の項目の一覧を入れ子で組み立てる | 画面3件。`SCR-RESERVE-INPUT` の項目は7件（`purpose` だけ最大文字数 100 を持つ） |
 | req-list.yaml | クエリで選んだ要素ごとに、値を組み立てる例（`workspaces/rename-target` で使う） | 要求3件。REQ-002・REQ-003 は `related: [{to: REQ-001}]` を持ち、REQ-001 は `related` を持たない（値が得られないキーは落ちる） |
 
@@ -66,7 +65,7 @@
 ```bash
 ./gradlew runCli -q --args="validate test-fixtures/workspaces/legacy-basic"
 ./gradlew runCli -q --args="transform test-fixtures/workspaces/rename-target test-fixtures/transforms/req-list.yaml --origins"
-./gradlew runCli -q --args="transform test-fixtures/workspaces/legacy-basic test-fixtures/transforms/structural-schema.yaml --input _schemas/task.yaml"
+./gradlew runCli -q --args="transform test-fixtures/workspaces/legacy-basic builtin:structural-schema --input _schemas/task.yaml"   # 構造のスキーマの導出（組込みの変換定義）
 ./gradlew runCli -q --args="validate test-fixtures/workspaces/yde-basic"
 ./gradlew runCli -q --args="catalog test-fixtures/workspaces/yde-basic"
 ./gradlew runCli -q --args="entity test-fixtures/workspaces/rename-target rename REQ-001 REQ-100"

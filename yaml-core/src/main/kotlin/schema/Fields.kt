@@ -125,6 +125,9 @@ class SchemaCatalog private constructor(
         return definitionsByModule[moduleId]?.get(name)?.let { key to it }
     }
 
+    /** つながっている全モジュールの定義（モジュール → 名前 → 定義）。構造のスキーマの導出が、他のモジュールの定義も導出するのに使う。 */
+    fun modules(): Map<String, Map<String, FieldDef>> = definitionsByModule
+
     companion object {
         fun local(moduleId: String, definitions: Map<String, FieldDef>): SchemaCatalog =
             SchemaCatalog(mapOf(moduleId to definitions))

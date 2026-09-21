@@ -165,10 +165,11 @@ object Validator {
         fun coded(at: String, kind: String, delivery: IssueDelivery, path: YPath) =
             CodedChecks.source(at, kind, delivery, docScan.ids, path)
 
-        // 1) スキーマ検証（構造検証。yaml-core の StructuralValidator へ委譲＝YM-005。
-        //    型・必須・enum・制約語彙・cases・未定義キー・フェーズ申告を StructuralIssue として受け取り、Issue へ写して返す）
+        // 1) スキーマ検証（構造検証）: 利用者が書いたスキーマから導出した、最小の構造のスキーマで検証する
+        //    （P27 段C の C-1・意図的差分 D-30。導出と検証の入口は workspace-core の DerivedStructures＝カーネルと同じ部品）。
+        //    型・必須・選択肢・値の形式的なチェック・cases・未定義キー・フェーズ申告を StructuralIssue として受け取り、Issue へ写して返す
         schema?.let { s ->
-            issues += StructuralValidator.validate(root, s.structural).map {
+            issues += s.structures.validate(root).map {
                 Issue(it.severity, it.message, it.path, source = CodedChecks.structural(it, docScan.ids))
             }
         }
