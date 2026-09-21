@@ -25,19 +25,20 @@ fun ScannedId.toIdEntry(): IdEntry =
 fun ScannedRef.toRefEntry(): RefEntry =
     RefEntry(targetId, Path.of(document.value), path, viaKey, idPatterns, scope, relation, sourceSchemaId, attributes, targetKind)
 
-/** 走査結果を文書単位の DocumentScan へ写す（パス順で安定化＝索引の derive と同じ）。 */
-fun IdIndex.toDocumentScans(): List<DocumentScan> {
-    val idsByFile = entries.values.flatten().groupBy { it.file }
-    val refsByFile = refs.groupBy { it.file }
-    return (idsByFile.keys + refsByFile.keys).sortedBy { it.toString() }.map { f ->
+/**
+ * 走査結果を文書単位の DocumentScan へ写す（パス順で安定化＝索引の derive と同じ）。ファイル単位の走査結果を、そのまま写す
+ * ——ID も参照も持たない文書と、その論理ID（`_document.id`）も落とさない（以前は、集約した ID と参照から作り直していたため、
+ * そういう文書が抜けていた。P27 段D の D-d）。
+ */
+fun IdIndex.toDocumentScans(): List<DocumentScan> =
+    fileScans().map { scan ->
         DocumentScan(
-            document = DocumentId(f.toString()),
-            documentId = idsByFile[f]?.firstOrNull()?.documentId ?: f.toString(),
-            ids = idsByFile[f].orEmpty().map { it.toScanned() },
-            refs = refsByFile[f].orEmpty().map { it.toScanned() },
+            document = DocumentId(scan.file.toString()),
+            documentId = scan.documentId,
+            ids = scan.ids.map { it.toScanned() },
+            refs = scan.refs.map { it.toScanned() },
         )
     }
-}
 
 /** カーネル入力一式（走査列・ID集約・全参照・グラフ）。シェルが1回の変換で共有する。 */
 class KernelIndexView(

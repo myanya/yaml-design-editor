@@ -1,7 +1,5 @@
 package index
 
-import model.DocumentId
-import semantic.DocumentScan
 import semantic.SemanticEntityGraph
 import java.nio.file.Path
 
@@ -64,29 +62,16 @@ class EntityGraph private constructor(
     fun outgoingRefs(entry: IdEntry): List<RefEntry> = kernel.outgoingRefs(entry.toScanned()).map { it.toRefEntry() }
 
     companion object {
-        internal fun build(
-            files: List<FileScanView>,
-            entries: Map<String, List<IdEntry>>,
-            refs: List<RefEntry>,
-        ): EntityGraph {
+        /**
+         * kernel は、同じ走査結果から作ったカーネルのグラフ（IdIndex.toKernelView のもの）。ここでは作り直さず、
+         * ファイルの座標（Path）の表へ写すだけ（P27 段D の D-d）。
+         */
+        internal fun build(refs: List<RefEntry>, kernel: SemanticEntityGraph): EntityGraph {
             // 参照の全体順（backlinksTo の複数ID版が従来の全走査順を保つための索引）＝Path 側の集約として残す
             val refOrder = HashMap<RefEntry, Int>(refs.size * 2)
             refs.forEachIndexed { i, r -> refOrder.putIfAbsent(r, i) }
             val refsByTarget = refs.groupBy { it.targetId }
 
-            // 突合・表の導出はカーネルへ（走査結果をパス順のまま DocumentId 座標へ写す）
-            val scans = files.map { scan ->
-                DocumentScan(
-                    document = DocumentId(scan.file.toString()),
-                    documentId = scan.documentId,
-                    ids = scan.ids.map { it.toScanned() },
-                    refs = scan.refs.map { it.toScanned() },
-                )
-            }
-            val kernel = SemanticEntityGraph.build(
-                scans,
-                entries.mapValues { (_, occurrences) -> occurrences.map { it.toScanned() } },
-            )
             val entityNodes = LinkedHashMap<String, EntityNode>(kernel.entities.size * 2)
             kernel.entities.forEach { (id, n) ->
                 entityNodes[id] = EntityNode(

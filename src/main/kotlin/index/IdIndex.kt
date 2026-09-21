@@ -123,6 +123,14 @@ class IdIndex {
     internal fun cachedKernelView(build: () -> KernelIndexView): KernelIndexView =
         kernelViewCache ?: build().also { kernelViewCache = it }
 
+    /**
+     * ファイル単位の走査結果（パス順）。カーネル入力一式（toKernelView）と、導出グラフ（graph）の、共通の入力。
+     * ID も参照も持たない文書も含む——文書への参照の解決（その論理ID の文書があるか）が、カーネルのグラフでも成り立つ。
+     */
+    internal fun fileScans(): List<FileScanView> =
+        byFile.entries.sortedBy { it.key.toString() }
+            .map { (f, scan) -> FileScanView(f, scan.documentId, scan.ids, scan.refs) }
+
     /** 論理 id -> 文書ごとの出現一覧 */
     var entries: Map<String, List<IdEntry>> = emptyMap()
         private set
@@ -170,11 +178,8 @@ class IdIndex {
      * 各 IdIndex インスタンスが自分のグラフを持つため、§4.5 の二層構造は崩れない。
      */
     val graph: EntityGraph
-        get() = graphCache ?: EntityGraph.build(
-            byFile.entries.sortedBy { it.key.toString() }
-                .map { (f, scan) -> FileScanView(f, scan.documentId, scan.ids, scan.refs) },
-            entries, refs,
-        ).also { graphCache = it }
+        // カーネルのグラフは、カーネル入力一式（toKernelView）のものをそのまま使う（同じ走査結果から、2回作らない）
+        get() = graphCache ?: EntityGraph.build(refs, toKernelView().graph).also { graphCache = it }
 
     fun occurrences(id: String): List<IdEntry> = entries[id].orEmpty()
 

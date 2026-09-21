@@ -45,12 +45,6 @@ class DocumentValidator(
     /** 文書のワークスペース相対パス。 */
     private val rel: (DocumentId) -> String,
     private val tree: (DocumentId) -> YNode?,
-    /**
-     * その論理ID（`_document.id` か相対パス）の文書が、ワークスペースにあるか（文書への参照の解決に使う）。
-     * 既定は、走査結果のグラフ。アプリ側は、索引（IdIndex）のグラフを渡す——索引から作り直した走査結果には、ID も参照も持たない文書が
-     * 載らないため（IdIndex ファサードの解消＝P27 段D の D-d で、この引数は要らなくなる）。
-     */
-    private val hasDocumentId: (String) -> Boolean = { graph.documents.containsKey(it) },
 ) {
     /**
      * document はこの文書、schema はこの文書のスキーマ、root はいまの内容（パースできなかったときは null と parseError）。
@@ -99,7 +93,8 @@ class DocumentValidator(
             refs = docScan.refs,
             ownDocumentId = documentId,
             occurrences = { target -> docScan.ids.filter { it.id == target } + ids[target].orEmpty() },
-            hasDocumentId = hasDocumentId,
+            // その論理ID（`_document.id` か相対パス）の文書が、ワークスペースにあるか
+            hasDocumentId = { graph.documents.containsKey(it) },
             indexed = indexed,
         ).map { it.toCheckIssue(docScan.ids) }
 

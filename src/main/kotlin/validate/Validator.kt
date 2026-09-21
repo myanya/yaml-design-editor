@@ -135,7 +135,6 @@ object Validator {
             integrity = { view.integrityIssues(semantic.SemanticDeclarations(relations = relations, enforcement = enforcement)) },
             rel = { d -> relOf(Path.of(d.value)) },
             tree = { d -> loader(Path.of(d.value)) },
-            hasDocumentId = { indexObj.graph.documents.containsKey(it) },
         )
         val result = validator.validate(
             // 呼び出し側の Path の表記が索引と違っても報告先の判定がずれないよう、文書ID は索引の側のものに揃える
