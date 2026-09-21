@@ -1,9 +1,9 @@
 package edit
 
 import model.YNode
-import schema.StructuralSchemaParser
+import structure.StructureParser
+import structure.StructureValidator
 import validate.Severity
-import validate.StructuralValidator
 import yaml.YamlIO
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -23,28 +23,28 @@ class ScenarioTest {
         val root = YamlIO.parse(text)
         val canonical = YamlIO.dump(root)
 
-        // 2. スキーマを適用する（構造スキーマの解決）
-        val schema = StructuralSchemaParser.parse(
+        // 2. スキーマを適用する（最小の構造のスキーマ。yaml-core は ID の意味を知らない——ID は、構造の上では文字列）
+        val schema = StructureParser.parse(YamlIO.parseToRaw(
             """
             id: item
             root:
               type: object
               fields:
                 - key: id
-                  type: id
+                  type: string
                 - key: title
                   type: string
                   required: true
-            """.trimIndent(),
+            """.trimIndent()),
             fallbackId = "item",
         )
-        assertTrue(StructuralValidator.validate(root, schema).none { it.severity == Severity.ERROR })
+        assertTrue(StructureValidator.validate(root, schema).none { it.severity == Severity.ERROR })
 
         // 3. スカラーを変更する（逆操作列を受け取る）
         val inverse = YamlEdit.apply(root, YamlOperation.SetScalar(listOf("title"), "新タイトル"))
 
         // 4. 構造検証する（必須 title は満たされたまま）
-        assertTrue(StructuralValidator.validate(root, schema).none { it.severity == Severity.ERROR })
+        assertTrue(StructureValidator.validate(root, schema).none { it.severity == Severity.ERROR })
         assertEquals("新タイトル", ((root as YNode.Map).entries["title"] as YNode.Scalar).value)
 
         // 5. inverse operation で元へ戻す（コメント・表記ごと正規形一致）

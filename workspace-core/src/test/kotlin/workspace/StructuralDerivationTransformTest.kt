@@ -7,7 +7,6 @@ import structure.ValueType
 import validate.Severity
 import validate.StructuralIssue
 import validate.StructuralIssueKind
-import validate.StructuralValidator
 import yaml.YamlIO
 import java.nio.file.Files
 import java.nio.file.Path
@@ -17,10 +16,11 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * 構造のスキーマの導出（P27 段C の C-1。意図的差分 D-30）: 構造の検証は、利用者が書いたスキーマから、組込みの変換定義
+ * 構造のスキーマの導出（P27 段C の C-1・C-2。意図的差分 D-30）: 構造の検証は、利用者が書いたスキーマから、組込みの変換定義
  * （builtin-transforms/structural-schema.yaml）で導出した最小の構造のスキーマ（yaml-core の structure パッケージ）で行う。
- * 導出した構造のスキーマで検証した結果が、利用者が書いたスキーマの木をそのまま読む旧い検証（StructuralValidator。
- * 段C の C-2 で利用者の木と一緒に yaml-core から無くなるまで、比べる相手として残してある）と一致することを確かめる。
+ * C-1 では、利用者の木をそのまま読む旧い検証と全221文書で結果を突き合わせて切り替えた。旧い検証は C-2 で無くしたので、
+ * ここでは導出した形と、検証の結果そのもの（種類・重大度・場所・文面）を固定する。
+ * cases・属性付き参照・値の形式的なチェックの細かなケースは StructuralValidatorTest・StructuralConstraintTest（旧い検証のテストを移したもの）。
  */
 class StructuralDerivationTransformTest {
 
@@ -32,11 +32,11 @@ class StructuralDerivationTransformTest {
 
     private fun schema(text: String, id: String = "s"): StructuralSchema = StructuralSchemaParser.parse(text.trimIndent(), id)
 
-    private fun old(schema: StructuralSchema, document: String): List<StructuralIssue> =
-        StructuralValidator.validate(YamlIO.parse(document), schema)
-
-    private fun derived(schema: StructuralSchema, document: String): List<StructuralIssue> =
+    private fun validate(schema: StructuralSchema, document: String): List<StructuralIssue> =
         DerivedStructures(schema).validate(YamlIO.parse(document))
+
+    /** 指摘を「種類 @ 場所」の一覧にする（並び順も固定する）。 */
+    private fun List<StructuralIssue>.brief(): List<String> = map { "${it.kind.code}@${it.path.joinToString("/")}" }
 
     @Test
     fun `導出した構造のスキーマは 意味の語彙を持たない最小の形になる`() {
@@ -52,24 +52,20 @@ class StructuralDerivationTransformTest {
     }
 
     @Test
-    fun `導出したスキーマで検証した結果は 旧い検証と一致する`() {
+    fun `導出したスキーマで 必須 選択肢 型 未定義の項目 使えない項目を検証する`() {
         val original = schema(taskSchemaText, "fx-task")
-        val documents = listOf(
-            "id: T-1\ntitle: 手動の作業\nkind: manual\nassignee: 山田\nsteps:\n  - { name: 準備, done: true }",
-            // 必須の欠落（title・cases の assignee）・型の違い・未定義の項目
-            "id: T-2\nkind: manual\nsteps:\n  - { done: たぶん }\nextra: 1",
-            // 選択肢に無い値・配列でない値
-            "id: T-3\ntitle: 定期\nkind: weekly\nblocked_by: T-1",
-            // いまの選択肢の値では使えない項目
-            "id: T-4\ntitle: 定期\nkind: scheduled\ncron: '0 0 * * *'\nassignee: 使えない項目",
+        assertEquals(emptyList(), validate(original, "id: T-1\ntitle: 手動の作業\nkind: manual\nassignee: 山田\nsteps:\n  - { name: 準備, done: true }"))
+        // 必須の欠落（title・cases の assignee・定義 step の name）・型の違い・未定義の項目
+        assertEquals(
+            listOf("required@title", "required@assignee", "required@steps/0/name", "type@steps/0/done", "unknown-key@extra"),
+            validate(original, "id: T-2\nkind: manual\nsteps:\n  - { done: たぶん }\nextra: 1").brief(),
         )
-        var compared = 0
-        for (text in documents) {
-            val expected = old(original, text)
-            assertEquals(expected, derived(original, text), text)
-            compared += expected.size
-        }
-        assertTrue(compared >= 6, "指摘のある文書を比べていること（$compared 件）")
+        // 選択肢に無い値・配列でない値
+        assertEquals(listOf("enum@kind", "type@blocked_by"), validate(original, "id: T-3\ntitle: 定期\nkind: weekly\nblocked_by: T-1").brief())
+        // いまの選択肢の値では使えない項目
+        val inactive = validate(original, "id: T-4\ntitle: 定期\nkind: scheduled\ncron: '0 0 * * *'\nassignee: 使えない項目").single()
+        assertEquals(StructuralIssueKind.INACTIVE_KEY to Severity.WARNING, inactive.kind to inactive.severity)
+        assertEquals("「assignee」は「種別」が manual のときのみ使用できます", inactive.message)
     }
 
     @Test
@@ -90,13 +86,16 @@ class StructuralDerivationTransformTest {
                 - { key: labels, type: map, value: { type: string, pattern: "[a-z]+" } }
             """
         )
-        for (document in listOf(
-            "id: SCR-1\nname: 画面\ncount: 3\nratio: 0.5\ndue: 2026-09-21\ndone: true\nlabels: { a: abc }",
-            "id: screen\nname: あ\ncount: 11\nratio: 2\ndue: 9/21\ndone: はい\nlabels: { a: ABC }\nextra: 1",
-            "id: SCR-2\nname: 長すぎる名前です\ncount: 多い\nlabels: []",
-        )) {
-            assertEquals(old(original, document), derived(original, document), document)
-        }
+        assertEquals(emptyList(), validate(original, "id: SCR-1\nname: 画面\ncount: 3\nratio: 0.5\ndue: 2026-09-21\ndone: true\nlabels: { a: abc }"))
+        val issues = validate(original, "id: screen\nname: あ\ncount: 11\nratio: 2\ndue: 9/21\ndone: はい\nlabels: { a: ABC }\nextra: 1")
+        assertEquals(
+            listOf("format@id", "length@name", "range@count", "range@ratio", "format@due", "type@done", "format@labels/a", "unknown-key@extra"),
+            issues.brief(),
+        )
+        // 未定義の項目は、スキーマの指定（unknownFields: error）どおりエラー。日付の形式は警告
+        assertEquals(Severity.ERROR, issues.last().severity)
+        assertEquals(Severity.WARNING, issues.single { it.path == listOf<Any>("due") }.severity)
+        assertEquals("「count」は 10 以下で入力してください（現在値: 11）", issues.single { it.path == listOf<Any>("count") }.message)
     }
 
     @Test
@@ -116,19 +115,20 @@ class StructuralDerivationTransformTest {
             "phased",
         )
         val structures = DerivedStructures(original)
-        for (phase in original.phases!!.order) {
-            val document = "id: X-1\nphase: $phase"
-            assertEquals(old(original, document), structures.validate(YamlIO.parse(document)), "フェーズ: $phase")
-        }
-        // 導出した構造のスキーマは、フェーズごとに1つ（必須が素の必須になっている）
+        fun missing(phase: String) = structures.validate(YamlIO.parse("id: X-1\nphase: $phase")).brief()
+        assertEquals(emptyList(), missing("要件定義"))
+        assertEquals(listOf("required@summary"), missing("基本設計"))
+        assertEquals(listOf("required@summary", "required@detail"), missing("詳細設計"))
+        // 導出した構造のスキーマは、フェーズごとに1つ（必須が素の必須になっている）。同じフェーズの導出は1回だけ
         fun required(phase: String, key: String): Boolean =
             structures.at(YamlIO.parse("phase: $phase")).root.fields.single { it.key == key }.required
         assertEquals(listOf(false, true, true), original.phases!!.order.map { required(it, "summary") })
         assertEquals(listOf(false, false, true), original.phases!!.order.map { required(it, "detail") })
-        // 定義されていないフェーズの申告の警告は、意味の側（ここ）が出す。文面と場所は以前と同じ
-        val unknownPhase = "id: X-1\nphase: 運用"
-        assertEquals(old(original, unknownPhase).filter { it.kind == StructuralIssueKind.PHASE }, structures.validate(YamlIO.parse(unknownPhase)).filter { it.kind == StructuralIssueKind.PHASE })
-        assertEquals(1, structures.validate(YamlIO.parse(unknownPhase)).count { it.kind == StructuralIssueKind.PHASE })
+        assertTrue(structures.at(YamlIO.parse("phase: 基本設計")) === structures.at(YamlIO.parse("id: X-2\nphase: 基本設計")))
+        // 定義されていないフェーズの申告の警告は、意味の側（ここ）が出す。先頭のフェーズとして扱う
+        val unknownPhase = structures.validate(YamlIO.parse("id: X-1\nphase: 運用"))
+        assertEquals(listOf("phase@phase", "enum@phase"), unknownPhase.brief())
+        assertEquals("フェーズ「運用」は phases（要件定義 → 基本設計 → 詳細設計）に定義されていません（先頭フェーズとして扱います）", unknownPhase.first().message)
     }
 
     @Test
@@ -157,16 +157,15 @@ class StructuralDerivationTransformTest {
             """,
             "doc",
         )
-        val catalog = SchemaCatalog.linked(listOf("doc" to document.definitions, "lib" to library.definitions))
-        val linked = document.copy(definitionCatalog = catalog)
-        for (text in listOf("id: D-1\nprice: { amount: 100, owner: ACT-1 }", "id: D-2\nprice: { amount: -1, extra: x }", "id: D-3")) {
-            assertEquals(old(linked, text), derived(linked, text), text)
-        }
-        assertTrue(derived(linked, "id: D-2\nprice: { amount: -1 }").any { it.kind == StructuralIssueKind.RANGE })
+        val linked = document.copy(definitionCatalog = SchemaCatalog.linked(listOf("doc" to document.definitions, "lib" to library.definitions)))
+        assertEquals(emptyList(), validate(linked, "id: D-1\nprice: { amount: 100, owner: ACT-1 }"))
+        assertEquals(listOf("range@price/amount", "unknown-key@price/extra"), validate(linked, "id: D-2\nprice: { amount: -1, extra: x }").brief())
+        // 使う側に書いた必須は、定義の側より優先して効く
+        assertEquals(listOf("required@price"), validate(linked, "id: D-3").brief())
     }
 
     @Test
-    fun `変わるのは 意図的差分 D-30 に登録した文面と警告だけ`() {
+    fun `ID と属性付き参照の文面は 意図的差分 D-30 のとおり`() {
         val original = schema(
             """
             id: s
@@ -181,32 +180,19 @@ class StructuralDerivationTransformTest {
                     - { key: role, type: string }
             """
         )
-        fun only(issues: List<StructuralIssue>, path: List<Any>) = issues.single { it.path == path }
-        // ① ID の項目が書かれていて値が空: 文面から「（ID）」が取れる（種類・重大度・場所は同じ）
-        val emptyId = "id:\nowner: ACT-1"
-        assertEquals("必須項目「画面ID」（ID）が未設定です", only(old(original, emptyId), listOf("id")).message)
-        val after = only(derived(original, emptyId), listOf("id"))
-        assertEquals("必須項目「画面ID」が未設定です", after.message)
-        assertEquals(StructuralIssueKind.REQUIRED to Severity.ERROR, after.kind to after.severity)
-        // ③ 属性付き参照の to が無い: 文面だけが変わる（場所は to・エラー）
-        val missingTo = "id: SCR-1\nowner: { role: 管理者 }"
-        assertEquals("「担当」の to（参照値）が未設定です", only(old(original, missingTo), listOf("owner", "to")).message)
-        assertEquals("必須項目「担当 の to（参照値）」が未設定です", only(derived(original, missingTo), listOf("owner", "to")).message)
-        // ③ スカラーでもオブジェクトでもない値: 警告のまま、文面が変わる
-        val wrongForm = "id: SCR-1\nowner: [ACT-1]"
-        assertEquals(Severity.WARNING, only(old(original, wrongForm), listOf("owner")).severity)
-        val form = only(derived(original, wrongForm), listOf("owner"))
+        fun only(document: String, path: List<Any>) = validate(original, document).single { it.path == path }
+        // ① ID の項目が書かれていて値が空: 「（ID）」の付かない、ふつうの必須の文面
+        val emptyId = only("id:\nowner: ACT-1", listOf("id"))
+        assertEquals(Triple(StructuralIssueKind.REQUIRED, Severity.ERROR, "必須項目「画面ID」が未設定です"), Triple(emptyId.kind, emptyId.severity, emptyId.message))
+        // ② ID にスカラーでない値: 文字列の項目と同じ警告
+        assertEquals("「画面ID」はスカラー値を想定しています", only("id: [SCR-1]\nowner: ACT-1", listOf("id")).message)
+        // ③ 属性付き参照の to が無い・スカラーでもオブジェクトでもない値
+        assertEquals("必須項目「担当 の to（参照値）」が未設定です", only("id: SCR-1\nowner: { role: 管理者 }", listOf("owner", "to")).message)
+        val form = only("id: SCR-1\nowner: [ACT-1]", listOf("owner"))
         assertEquals(Severity.WARNING to "「担当」は、スカラーかオブジェクトのどちらかで書きます", form.severity to form.message)
-        // 属性付き参照の正しい形（スカラー・オブジェクト）と、属性の検証・未定義の属性の警告は、以前と同じ
-        for (text in listOf("id: SCR-1\nowner: ACT-1", "id: SCR-1\nowner: { to: ACT-1, role: 管理者 }", "id: SCR-1\nowner: { to: ACT-1, extra: x }")) {
-            assertEquals(old(original, text), derived(original, text), text)
-        }
-    }
-
-    @Test
-    fun `同じスキーマの導出は フェーズごとに1回だけ行う`() {
-        val structures = DerivedStructures(schema(taskSchemaText, "fx-task"))
-        val first = structures.at(null)
-        assertTrue(first === structures.at(YamlIO.parse("id: T-1")), "フェーズの宣言が無いスキーマの導出は1つ")
+        // 属性付き参照の正しい形（スカラー・オブジェクト）は指摘なし。未定義の属性は警告
+        assertEquals(emptyList(), validate(original, "id: SCR-1\nowner: ACT-1"))
+        assertEquals(emptyList(), validate(original, "id: SCR-1\nowner: { to: ACT-1, role: 管理者 }"))
+        assertEquals(listOf("unknown-key@owner/extra"), validate(original, "id: SCR-1\nowner: { to: ACT-1, extra: x }").brief())
     }
 }

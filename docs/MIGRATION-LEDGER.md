@@ -23,7 +23,7 @@
 | YM-002 | yaml/YamlIO.kt と YamlIOTest の移動 | yaml-core | done | なし | 既存契約維持＋fixture round-tripテスト追加（2026-08-16） |
 | YM-003 | YDocument / DocumentId / YamlCodec 新設 | yaml-core | done | なし（新API） | Phase 2完了。完了条件3点を確認（2026-08-16） |
 | YM-004 | Schema.kt: FieldDefクラスタ（純構造型12種）の分離 | yaml-core | done | 可視性3箇所・smart cast修正7箇所 | Phase 3前半（2026-08-16） |
-| YM-004b | SchemaDef の構造分割（StructuralSchema 新設・resolve／effectiveFields 等の移動） | yaml-core | done | なし（委譲化） | Phase 3（2026-08-17） |
+| YM-004b | SchemaDef の構造分割（StructuralSchema 新設・resolve／effectiveFields 等の移動）（**追記 2026-09-21・P27 段C の C-2**: この単位で yaml-core へ置いた `StructuralSchema`・`FieldDef`・`StructuralSchemaParser`・`PhaseProgress` は、ID・参照・フェーズという意味を持つ木のため、semantic-core へ移した。yaml-core の構造の検証は、導出した最小の構造のスキーマ＝`structure` パッケージで行う。ARCHITECTURE §4.43） | yaml-core | done | なし（委譲化） | Phase 3（2026-08-17） |
 | YM-004c | スキーマ構文パースの構造部分を yaml-core へ（StructuralSchemaParser） | yaml-core | done | なし（委譲化） | Phase 3（2026-08-17） |
 | YM-005 | Validator の構造検証分離（StructuralValidator・StructuralIssue・Severity 移動） | yaml-core | done | 構造指摘の別型化 | Phase 3（2026-08-17） |
 | YM-006 | ConstraintTest 単文書ケース・ValidatorTest 構造ケースの移動 | yaml-core | done | 属性付き参照の ok 判定から INFO フィルタ除去（構造検証は参照解決をしないため） | Phase 3（2026-08-17） |

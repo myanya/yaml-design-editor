@@ -1,14 +1,16 @@
-package validate
+package workspace
 
 import schema.StructuralSchemaParser
+import validate.Severity
 import yaml.YamlIO
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * 構造検証（StructuralValidator）のテスト。旧 validate/ValidatorTest の単一文書ケースを
- * 新しい境界（StructuralSchemaParser ＋ StructuralValidator。IdIndex・Path 不要）へ移設（YM-006）。
+ * 構造の検証のテスト: 利用者が書くスキーマ（cases・属性付き参照など）で書いた文書を、導出した最小の構造のスキーマで検証する
+ * （入口は DerivedStructures。P27 段C の C-2 で、yaml-core の旧い検証 StructuralValidator のテストをここへ移した——期待値は以前のまま）。
+ * 旧 validate/ValidatorTest の単一文書ケースが由来（YM-006）。
  * メタスキーマ検証（validateDefinition）のケースはルート側 ValidatorTest に残る。
  */
 class StructuralValidatorTest {
@@ -42,7 +44,7 @@ class StructuralValidatorTest {
         fallbackId = "screen",
     )
 
-    private fun validate(yaml: String) = StructuralValidator.validate(YamlIO.parse(yaml), schema)
+    private fun validate(yaml: String) = DerivedStructures(schema).validate(YamlIO.parse(yaml))
 
     @Test
     fun `アクティブなcaseの必須フィールドが検証される`() {
@@ -121,7 +123,7 @@ class StructuralValidatorTest {
             fallbackId = "nested-cases",
         )
 
-        val issues = StructuralValidator.validate(YamlIO.parse("value-type: direct\ntype: string\n"), nestedSchema)
+        val issues = DerivedStructures(nestedSchema).validate(YamlIO.parse("value-type: direct\ntype: string\n"))
 
         assertTrue(issues.any { it.severity == Severity.ERROR && it.path == listOf("min") })
     }
@@ -148,7 +150,7 @@ class StructuralValidatorTest {
     )
 
     private fun validateAttributed(yaml: String) =
-        StructuralValidator.validate(YamlIO.parse(yaml), attributedSchema)
+        DerivedStructures(attributedSchema).validate(YamlIO.parse(yaml))
 
     @Test
     fun `属性付き参照はtoの必須と属性の型と未宣言キーが検証される`() {
@@ -182,7 +184,7 @@ class StructuralValidatorTest {
             """.trimIndent(),
             fallbackId = "plain",
         )
-        val issues = StructuralValidator.validate(YamlIO.parse("owner:\n  to: ACT-1"), plain)
+        val issues = DerivedStructures(plain).validate(YamlIO.parse("owner:\n  to: ACT-1"))
         assertTrue(issues.any { it.severity == Severity.WARNING && "スカラー値" in it.message }, issues.toString())
     }
 }

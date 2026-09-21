@@ -1,13 +1,16 @@
 package schema
 
 /*
- * スキーマの構造型モデル（3層コア移行 Phase 3・YM-004で Schema.kt から分離）。
- * このファイルは単一文書の構造（フィールド型・$ref カタログ）だけを扱い、
- * 意味宣言（entity / relation / coverage）・ワークスペース探索・Path を持ち込まない（ADR-0002）。
+ * 利用者が書くスキーマ（意味のスキーマ）の、項目の木のモデル。
+ * 3層コア移行 Phase 3（YM-004）で Schema.kt から分離して yaml-core に置いていたが、P27 段C の C-2（2026-09-21）で
+ * semantic-core へ移した——この木は、ID・参照・関係・参照先の範囲・フェーズ・表示のヒントという「意味」を持つため
+ * （CORE-CALCULUS §25: 文法プリミティブは ID・参照・関係・フェーズの意味を知らない）。
+ * yaml-core が構造の検証に使うのは、この木から導出した最小の構造のスキーマ（structure パッケージ。ARCHITECTURE §4.43）。
+ * 未定義の項目の扱い（UnknownFieldsPolicy）だけは、構造の決まりなので yaml-core に残している。
  *
  * 注意: DefinitionKey / SchemaCatalog の生成・検索と FieldDef.definitionScope は
  * スキーマ層（SchemaLoader / SchemaDef）専用のAPI。モジュール分割のため internal から
- * public へ広げているが、一般コードから直接使わない（ローダ移動後に internal へ戻す）。
+ * public へ広げているが、一般コードから直接使わない。
  */
 
 /**
@@ -30,18 +33,6 @@ enum class FieldType(val id: String) {
 
     companion object {
         fun of(s: String?): FieldType = entries.firstOrNull { it.id == s } ?: STRING
-    }
-}
-
-/** `object` に含まれる未定義キーの検証方針。未指定時は WARNING。 */
-enum class UnknownFieldsPolicy(val id: String) {
-    ALLOW("allow"),
-    WARNING("warning"),
-    ERROR("error");
-
-    companion object {
-        fun parse(value: String?): UnknownFieldsPolicy? =
-            value?.let { raw -> entries.firstOrNull { it.id == raw } }
     }
 }
 

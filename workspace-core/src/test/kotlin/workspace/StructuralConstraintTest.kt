@@ -1,6 +1,7 @@
-package validate
+package workspace
 
 import schema.StructuralSchemaParser
+import validate.Severity
 import yaml.YamlIO
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -8,7 +9,8 @@ import kotlin.test.assertTrue
 
 /**
  * 制約語彙（R16-01: minLength / maxLength / pattern / min / max）の実行時検証テスト。
- * 旧 validate/ConstraintTest の単一文書ケースを新しい境界へ移設（YM-006）。
+ * 旧 validate/ConstraintTest の単一文書ケースが由来（YM-006）。P27 段C の C-2 で、yaml-core の旧い検証のテストをここへ移した
+ * ——利用者が書くスキーマから導出した最小の構造のスキーマで検証する（入口は DerivedStructures）。期待値は以前のまま。
  * メタスキーマ検証（validateDefinition）・JSON Schema 伝搬はルート側 ConstraintTest に残る。
  */
 class StructuralConstraintTest {
@@ -46,7 +48,7 @@ class StructuralConstraintTest {
         fallbackId = "constrained",
     )
 
-    private fun validate(yaml: String) = StructuralValidator.validate(YamlIO.parse(yaml), schema)
+    private fun validate(yaml: String) = DerivedStructures(schema).validate(YamlIO.parse(yaml))
 
     @Test
     fun `制約を満たす値は指摘されない`() {
@@ -86,7 +88,7 @@ class StructuralConstraintTest {
             """.trimIndent(),
             fallbackId = "tasks",
         )
-        fun run(yaml: String) = StructuralValidator.validate(YamlIO.parse(yaml), idSchema)
+        fun run(yaml: String) = DerivedStructures(idSchema).validate(YamlIO.parse(yaml))
         assertEquals(emptyList(), run("id: TASK-001\n").filter { it.severity == Severity.ERROR })
         assertTrue(run("id: T1\n").any { "「id」は形式" in it.message }, "${run("id: T1\n")}")
     }

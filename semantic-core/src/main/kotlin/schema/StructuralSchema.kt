@@ -6,9 +6,12 @@ import model.getAt
 import model.scalarText
 
 /**
- * スキーマの構造コア（3層コア移行 Phase 3・YM-004b。計画書§4.1の CompiledDocumentSchema に相当）。
- * 単一文書の構造（`$ref` 解決・cases 合成・フェーズ必須・パス→定義解決）だけを担い、
- * 意味宣言（entity / relation / coverage）・match・ワークスペース・`Path` を持たない（ADR-0002）。
+ * 利用者が書くスキーマ1件の、項目の木と、その読み方（`$ref` 解決・cases 合成・フェーズに応じた必須・パス→定義解決）。
+ * 走査（ID と参照）・フォーム・AI 生成・リファクタリングなどが、この木を読む。
+ * 名前は 3層コア移行（YM-004b。当時は yaml-core の構造コア）のままだが、P27 段C の C-2（2026-09-21）で semantic-core へ移した
+ * ——ID・参照・フェーズといった意味を持つ木だからである。**構造の検証には、この木をそのまま使わない**: この木から導出した
+ * 最小の構造のスキーマ（yaml-core の structure パッケージ。入口は workspace-core の DerivedStructures）で行う（ARCHITECTURE §4.43）。
+ * 意味宣言（entity / relation / 検査）・match・ワークスペース・`Path` は持たない（ADR-0002）。
  * ルート側の `SchemaDef` は `SchemaDef.structural` でこの型へ委譲する。
  */
 data class StructuralSchema(

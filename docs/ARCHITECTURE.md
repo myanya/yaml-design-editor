@@ -50,7 +50,7 @@ src/main/kotlin/
 |---|---|---|
 | `YNode` (Scalar/Seq/Map) | model/YNode.kt | YAMLの可変ツリー。`YPath`（String=キー, Int=索引）で位置を表現。コメント（`YComments`）・表記スタイルヒントを編集に影響しないメタ情報として保持（R8-01） |
 | `YamlIO` | yaml/YamlIO.kt | テキスト⇔`YNode` 変換。SnakeYAML の Node API（processComments）ベースで、コメント・キー順・スカラー/フロー表記を往復保持する（§4.17）。`parseAll` / `dumpAll`（複数ドキュメント）、`parseFirst`（読み取り専用の寛容パース）、`dumpPlain`（コメント・スタイル抜きの正規化ダンプ＝構造比較・派生成果物用）を提供 |
-| `FieldType` / `FieldDef` / `SchemaDef` | schema/Schema.kt | スキーマモデル。`resolve()` がローカル／横断 `$ref` を属性合成しつつ解決。`FieldDef.relation` が参照の関係種別、`role` が表示役割（R10-01）、`options` が enum のリッチ選択肢（`EnumOption`。R10-03）。`effectiveFields()` が enum の `cases` を合成した object の実効フィールドを返す |
+| `FieldType` / `FieldDef` / `SchemaDef` | schema/Fields.kt・schema/StructuralSchema.kt（**semantic-core**。P27 段C の C-2 で yaml-core から移動＝ID・参照・フェーズ・表示のヒントという意味を持つ木のため）, schema/Schema.kt | 利用者が書くスキーマ（意味のスキーマ）のモデル。走査・フォーム・AI 生成・リファクタリングが読む。**構造の検証には、この木をそのまま使わない**（導出した最小の構造のスキーマで行う＝§4.43）。`resolve()` がローカル／横断 `$ref` を属性合成しつつ解決。`FieldDef.relation` が参照の関係種別、`role` が表示役割（R10-01）、`options` が enum のリッチ選択肢（`EnumOption`。R10-03）。`effectiveFields()` が enum の `cases` を合成した object の実効フィールドを返す |
 | `Display` | schema/Display.kt | 表示解決（R10-01）: 要素の1行要約（タイトル・サブタイトル・ID・畳み込みヘッダ）を role ＞ 予約語 ＞ id ＞ キー数の優先順位で解決する。索引のタイトル抽出（`DocScanner`）・UI・エージェント要約が共有する（§4.22） |
 | `EntityDecl` / `RelationDef` / `Relations` | schema/Relations.kt | 二層モデルの宣言語彙（P20。§4.30）: スキーマの `entity:` 宣言（型・idPattern・定義出現・アスペクト `aspect` / `owns`。R23-01）と関係レジストリ（`kind: relations` の `relations:`・`entities:` 節＝`EntityTypeDef` / `AspectDecl`）。`Relations.labelOf` / `inverseLabelOf` が relation 名→表示ラベルの解決を、`ownedFieldKeys` が出現の所有フィールド解決（合成・重複所有検証の共有実装。§4.33）を一元化 |
 | `Aspects` | core/Aspects.kt | エンティティ合成（R23-01。§4.33): 全出現を「定義出現→アスペクト宣言順」に並べ所有フィールドを座標つきでマージした `EntityComposite` を決定的に構築する純ロジック。エンティティページ・`read_entity`・CLI `entity show` が同じ合成を消費（共有契約）。`ownerSection` は書き先解決 |
@@ -59,7 +59,9 @@ src/main/kotlin/
 | `CheckLibrary` / `ValueExpr` | schema/CheckDefinitions.kt・schema/ValueExpr.kt（semantic-core） | 定義体の仕組み（関数のような定義 `functions`・語彙の定義 `vocabulary`・基本の検査への展開）と、値の式（読み出し・決まった値・テンプレートの展開・辞書での置き換え・最初に得られた値）。§4.36 |
 | `Derivation` | index/Derivation.kt | 導出の解決器（R16-03a）: 対象ID（lookup 1ホップ）→ source 出現 → スコープ連鎖 → `Projection` 評価＋来歴。計算列（core/Views）と整合検証（Validator）の共有実装（§4.26） |
 | `SchemaCatalog` / `SchemaKind` | schema/Schema.kt | 全スキーマ・libraryの定義を `(moduleId, definitionName)` でリンクする中央カタログ。`kind: library` はdefinitionsだけを公開し文書には適用されない |
-| `PhasesDef` / `currentPhaseIndex` / `requiredAt` | schema/Schema.kt | フェーズ機構（§4.15）: スキーマの `phases` 宣言と、文書の現在フェーズ解決・フェーズ考慮の実効必須判定（検証・進捗計算が共有） |
+| `StructureSchema` / `StructureField` / `StructureValidator` | structure/（**yaml-core**） | 最小の構造のスキーマと、その検証（P27 段C。§4.43）: 値の形・必須・値の形式的なチェック・`cases`・未定義の項目・定義への参照・値の形ごとの決まりだけを持ち、ID・参照・フェーズ・表示のヒントを知らない。利用者が書くスキーマから、組込みの変換定義で導出される |
+| `DerivedStructures` / `BuiltinTransforms` | workspace/DerivedStructures.kt（workspace-core） | 構造のスキーマの導出と、構造の検証の入口（§4.43）。アプリとカーネルが共有する。フェーズに達したら必須の畳み込みと、定義されていないフェーズの申告の警告もここ |
+| `PhasesDef` / `currentPhaseIndex` / `requiredAt` | schema/Fields.kt・schema/StructuralSchema.kt・schema/PhaseProgress.kt（semantic-core。C-2 で yaml-core から移動＝フェーズは意味） | フェーズ機構（§4.15）: スキーマの `phases` 宣言と、文書の現在フェーズ解決・フェーズ考慮の実効必須判定（検証・進捗計算が共有） |
 | `CoverageLevel`（`CoverageRule` は P29 Phase 6 第3段で削除＝coverage は組込み定義体が作る語彙） | schema/Relations.kt | 検査の重大度（warning / error）。旧: スキーマの `coverage`（被参照必須などのトレーサビリティ要件）の定義。`activeFrom` でフェーズ到達までの判定保留を宣言できる |
 | `SchemaLoader` | schema/Schema.kt | schemas ゾーンの読込・パース・スキーマID重複検出。ロードは「パース→リンク→導出」の三段階（§4.23） |
 | `WorkspaceLayout` | schema/WorkspaceLayout.kt | ワークスペースの配置ポリシー（R13-02）: レガシー／`.yde` 構成の判定・ゾーン解決（`zoneOf`）・台帳判定（`inLedger`）・索引除外（`indexExcluded`）を一元化（§4.25） |
@@ -741,7 +743,7 @@ Core Calculus の本来の目的（[CORE-CALCULUS.md](CORE-CALCULUS.md) §25）�
 - **フェーズ**: `DerivedStructures` が文書のフェーズを読み、到達したフェーズの一覧を変換へ渡す。導出した構造のスキーマは、文書のフェーズごとに1つ（覚えておく）。定義されていないフェーズの申告の警告も、フェーズの解釈なので、ここ（意味の側）が出す。yaml-core はフェーズを知らない。
 - **速さ**: 導出はスキーマごと・フェーズごとに1回だけ（数十ミリ秒の固定費）。文書ごとの検証の時間は、以前と変わらない（`bench` で同じ条件の比較をして確かめた）。
 - **確かめ方**: テンプレート・サンプル・specs・合成ワークスペース・共通 fixture の全221文書（スキーマ文書へのメタスキーマの適用を含む）で、旧い検証と指摘が並び順まで一致。`StructureParityTest`（合成ワークスペースの全文書）・`StructuralDerivationTransformTest`（導出した形・値のチェック・フェーズ・他のモジュールの定義・D-30 の違い）・yaml-core `StructureValidatorTest`。
-- **併存しているもの（段C の C-2 で解消）**: 利用者が書くスキーマの木（`FieldDef`）とその読み取り・`cases` の合成・フェーズの読み取りは、まだ yaml-core にある。旧い検証 `StructuralValidator` は、本番の経路からは呼ばれず、比べる相手としてだけ残している。C-2 で、これらを semantic-core へ移す（旧い検証は無くす）。走査・フォーム・AI 生成などは、今までどおり利用者の木を読む。
+- **利用者が書く木の置き場（段C の C-2。2026-09-21）**: 利用者が書くスキーマの木（`FieldDef`・`StructuralSchema`）とその読み取り（`StructuralSchemaParser`）・`cases` の合成・フェーズの読み取りと記入の進み具合（`PhaseProgress`）を、パッケージ名 `schema` のまま yaml-core から **semantic-core へ移した**（移動であって複製ではない。利用する側のコードは1行も変わらない）。旧い検証 `StructuralValidator` は削除した（そのテストは、期待値を変えずに、導出した経路を通す形で workspace-core へ移した）。**yaml-core に残るのは、YAML の項とパス・変更の基礎命令・最小の構造のスキーマとその検証・未定義の項目の扱い（`UnknownFieldsPolicy`）だけ**——ID・参照・関係・フェーズ・表示のヒントという語は、yaml-core のコードに1つも無い。走査・フォーム・AI 生成などは、今までどおり利用者の木を読む。`StructuralSchema` という名前は移行時のままで、実体は「利用者が書くスキーマの項目の木」（名前の整理は C-3 の型の一本化で行う）。
 - **構造の検証を変えるとき**: 検証そのもの（値の形式的なチェック）は yaml-core の `structure/StructureValidator.kt`、利用者の語彙から構造への写し方は `builtin-transforms/structural-schema.yaml` を直す。利用者の語彙を足しただけでは、構造の検証には現れない（導出の規則に書いて初めて現れる）。
 
 ## 5. 主要データフロー
