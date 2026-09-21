@@ -84,7 +84,7 @@ src/main/kotlin/
 | `QuerySpec` / `ConstraintRule` | schema/Query.kt | クエリコアの宣言モデルとパース（R22-01 / R22-03。§4.32）: node / edge の交互連鎖・1段分岐（also）・プロパティ述語（where）・limit と、パターン制約（expect: exists / absent）。パースは1実装で、ビュー `rows: match`・foreach `source: query`・スキーマ `constraints:`・CLI `query` が共用する |
 | `Query` | index/Query.kt | パターン照合エンジン（R22-01。§4.32）: `QuerySpec` を EntityGraph の隣接上で評価し束縛の表（`QueryResult`）を返す。決定性（起点ID昇順・束縛名辞書順の行比較・決定的打切り）・経路内の再訪禁止・判定保留（未解決参照・型未宣言は黙る）。`neighborIds` はトラバースと共有する隣接1段、`anyMatchFrom` / `startMatches` は `Validator` の制約判定が使う |
 | `Workspace` / `WorkspaceScan` | core/Workspace.kt | ヘッドレスなワークスペース操作（開く・読む・保存・検証・変更セット適用）。相対パス解決はワークスペース外への脱出を拒否。`noteDiskChanges` が保存・外部変更の索引更新方針（増分／スキーマ変更時の全再構築）を一元化し、UI（AppState）もこの経路を通る（R9-02） |
-| `EditBuffer` / `WorkspaceRecords` | core/Documents.kt | 文書キャッシュ層の中核（R9-02）: 履歴（Undo/Redo）・dirty判定・複数ドキュメント再出力（`EditBuffer`）と、一覧レコード収集・一括編集（`WorkspaceRecords`。未保存優先の loader 注入）。`app.OpenDocument` / `AppState` はこの層への委譲＋Compose購読ミラー |
+| `EditBuffer` / `WorkspaceRecords` | core/Documents.kt | 文書キャッシュ層の中核（R9-02）: 複数ドキュメントの再出力と、保存した内容との比較（`EditBuffer`。履歴は持たない——Undo / Redo と dirty の正はカーネルのセッション。ここの dirty は、セッションが文書として扱わないパス用で、聞かれたときにだけ計算する。P27 段D の D-d・意図的差分 D-37）と、一覧レコード収集・一括編集（`WorkspaceRecords`。未保存優先の loader 注入）。`app.OpenDocument` / `AppState` はこの層への委譲＋Compose購読ミラー |
 | `PatchOp` / `Patcher` | yaml-core/core/Patch.kt | YPathパッチ（set/insert/delete/move/rename＝順序・コメント保持のキー改名/reorder＝キー並べ替え。R25-01/02） |
 | `ChangeSet` / `FileChange` / `ChangeSets` | workspace-core/core/ChangeSets.kt | 変更セット（複数の文書への変更の束・baseハッシュ競合検出・YAML解析）。P27 段D の D-b で root から移した（パッケージ名 `core` のまま。§4.46） |
 | `ChangeSetApplier` / `ChangeSetApplication` | workspace-core/workspace/ChangeSetApplier.kt | 変更セットの適用の本体（競合の判定 → 適用後の姿を重ねた検証〔`validate.DocumentValidator`〕→ セッションの1つのトランザクション＋保存）。root の `Workspace.apply` / `applyViaSession` と、カーネル側の CLI `workspace apply` が共有する（§4.46・意図的差分 D-35） |
@@ -119,7 +119,7 @@ src/main/kotlin/
 | `AutomationSection` | ui/AutomationPanel.kt | 自動化タブ: 監視ON/OFF・キュー・履歴・ログ・停止（承認待ちレビューは受信箱） |
 | `ImprovementSection` | ui/ImprovementPanel.kt | 計測・評価タブ: 実行メトリクスの表示・評価セットの実行と変異別結果の比較 |
 | `SkillsSection` | ui/SkillsPanel.kt | 連携（skill）: 一覧・エクスポート実行・インポートのプレビュー→検証つき適用（設計スペースに常設） |
-| `OpenDocument` | app/AppState.kt | 開いている1文書。中核（履歴・dirty・複数ドキュメント再出力）は core.EditBuffer へ委譲し、Compose購読（version / dirty / parseError）のシェルに徹する（R9-02）。外部競合の管理を担う |
+| `OpenDocument` | app/AppState.kt | 開いている1文書。複数ドキュメントの再出力と、保存した内容との比較は core.EditBuffer へ委譲し（履歴と dirty の正は、カーネルのセッション）、Compose購読（version / dirty / parseError）のシェルに徹する（R9-02）。外部競合の管理を担う |
 | `AppState` | app/AppState.kt | アプリ状態。走査・スキーマ・索引・更新方針は保持する core.Workspace へ委譲し、Compose購読用のミラー（schemas / yamlFiles / indexVersion）・文書キャッシュ（docCache）・ナビゲーション・ファイル操作を担う（R9-02）。閲覧専用モード（`readOnlyMode`。R10-04）・ワークスペース履歴（`recentWorkspaces`。R10-05）・スペース（`uiSpace` / `showSpace`。R12-01・§4.24）もここが持つ |
 | `AiGenerator` ほか | ai/ | スキーマ→JSON Schema 変換、REF候補の enum 制約、プロバイダ振り分け |
 | `OpenAiGenerator` / `AnthropicGenerator` | ai/ | 各API（Responses / Messages）のリクエスト構築とレスポンス解析 |
@@ -144,7 +144,7 @@ src/main/kotlin/
 
 Undo/Redo は `YamlIO.dump` したスナップショット文字列の履歴（最大100件）。dirty は保存時スナップショットとの文字列比較。ツリーの構造比較は実装しない。
 
-移行後リファクタリング（A-3・RA-06 / D-07）以降、アプリの Undo/Redo・dirty の正は**セッション（workspace-core）のワークスペース横断の単一履歴**で、`EditBuffer` の履歴はセッション不在時のフォールバック。横断履歴は開いていない文書も戻すため、`AppState` は実行後に「何が戻ったか」の通知（`historyNotice`＝変更の意図＋対象ファイルへのジャンプ導線＋未保存化（●）の明示。次の編集・保存・✕で消える）と、Undo/Redo ボタンのホバー予告（`undoPreview` / `redoPreview`）を組み立てる（UX-86 / UX-93。FEATURES E-05）。
+移行後リファクタリング（A-3・RA-06 / D-07）以降、アプリの Undo/Redo・dirty の正は**セッション（workspace-core）のワークスペース横断の単一履歴**（文書ごとの履歴は持たない。以前は `EditBuffer` が、セッションが無いときのための履歴を併走させていたが、ワークスペースを開けば必ずセッションも開くので、P27 段D の D-d で無くした＝意図的差分 D-37）。横断履歴は開いていない文書も戻すため、`AppState` は実行後に「何が戻ったか」の通知（`historyNotice`＝変更の意図＋対象ファイルへのジャンプ導線＋未保存化（●）の明示。次の編集・保存・✕で消える）と、Undo/Redo ボタンのホバー予告（`undoPreview` / `redoPreview`）を組み立てる（UX-86 / UX-93。FEATURES E-05）。
 
 ### 4.3 Slot 抽象
 
@@ -317,7 +317,7 @@ definition 参照とリント（R14-02）に固有の不変条件:
 UI層（app）を「Compose購読のシェル」に純化し、ロジックを core へ寄せる。守るべき不変条件:
 
 - **索引更新方針は `Workspace.noteDiskChanges` に一元化**: 保存・外部変更・変更セット適用のいずれも、「スキーマ（`_schemas/`）が変わったら全再構築、それ以外は変更ファイルだけの増分更新」（§4.5）の振り分けをこの1点で行う。AppState 側に振り分けを書かない。
-- **`OpenDocument` は `core.EditBuffer` のシェル**: 履歴（Undo/Redo）・dirty判定・複数ドキュメント再出力の中核は `EditBuffer`（UI非依存・単体テスト対象）にあり、`OpenDocument` は Compose 購読（`version` / `dirty` / `parseError` のミラー）と外部競合フラグだけを持つ。編集APIの意味を変えるときは `EditBuffer` を直す。
+- **`OpenDocument` は `core.EditBuffer` のシェル**: 複数ドキュメントの再出力と、保存した内容との比較は `EditBuffer`（UI非依存・単体テスト対象）にあり（履歴と dirty の正は、カーネルのセッション＝ADR-0006）、`OpenDocument` は Compose 購読（`version` / `dirty` / `parseError` のミラー）と外部競合フラグだけを持つ。編集APIの意味を変えるときは `EditBuffer` を直す。
 - **一覧・一括編集は loader 注入**: `WorkspaceRecords`（一覧レコード・一括編集キー候補）は「未保存編集を優先するツリー取得」を注入で受ける（§4.5 の二層構造と同じ流儀）。UIは docCache を、ヘッドレス経路はディスクを渡す。
 - **AppState のミラーは読み取り専用の写し**: `schemas` / `yamlFiles` 等の Compose 状態は core.Workspace の状態の写しであり、AppState 側で加工しない。core 側を更新したら `mirrorCore` で写し直し、`indexVersion` を進めて再コンポーズを駆動する。
 - **ビューグリッドの行集合はUIではオーバーレイ索引基準**（UX-03 で旧 L-14 を改訂）: 行の増減（新しいID）も dirty 文書のオーバーレイ（`AppState.overlayIndex()`）で未保存反映される。ディスク索引（`Workspace.index`）が正であること・ヘッドレス経路がディスク基準であることは不変。
@@ -548,9 +548,9 @@ limit: 100                               # 既定 100（total は打切り前の
 
 ### 4.34 編集履歴の合体とソースライブ同期（R17-03 第4波: UX-11 / UX-23）
 
-編集の根幹2点の設計。いずれも「ツリー（EditBuffer）が単一の正・履歴はスナップショット」という既存モデル（§4.2 / §4.20）を変えずに、その上の記録規則・同期規則だけを足す。
+編集の根幹2点の設計。いずれも「ツリーが単一の正」という既存モデル（§4.2 / §4.20）を変えずに、その上の記録規則・同期規則だけを足す。履歴の実体は、カーネルのセッション（`WorkspaceSession.recordEdit`。A-3・RA-06）。
 
-**履歴の合体（UX-11）**: `EditBuffer.recordEdit(coalesceKey: Any?, nowMillis)` に合体キーを導入する。
+**履歴の合体（UX-11）**: 編集の記録（`WorkspaceSession.recordEdit(id, document, coalesceKey, nowMillis)`。当初は `EditBuffer.recordEdit` にあったが、履歴の一元化で、セッションへ移った）に合体キーを渡す。
 
 - **規則**: 直前の記録と「同じキー（`==` 比較）かつ 1000ms 以内かつ 履歴の先端（Undo後でない）」なら、新しいエントリを積まずに先端スナップショットを**置換**する。キーが null（既定）・キー不一致・時間超過・Undo/Redo 直後は従来どおり新規エントリ＝**境界**になる。
 - **キーの正体**: 連続入力になり得る編集面だけがキーを渡す。①フォーム・グリッドのスカラー入力＝`FormCtx.writeScalar` が**変異対象の `YNode.Scalar` インスタンス**をキーにする（同一フィールドへの連続タイプだけが合体し、フィールド移動・Undo後はインスタンスが変わり自然に境界になる）②スキーマ設計UIのテキスト入力＝`Pair(対象Map, キー名)` ③ソース編集＝文書単位の固定キー。構造操作（追加・削除・移動・enum選択・変換）はキーなし＝常に境界。
@@ -807,7 +807,7 @@ root には、スキーマの型（`SchemaDef`）に依存していたために�
 
 ## 5. 主要データフロー
 
-- **編集**: フォーム操作 → `Slot.set` / ツリー直接変更 → `markEdited()`（履歴・dirty は core.EditBuffer が記録。連続入力は合体キーで1エントリへ＝§4.34） → `version`++ → 再コンポーズ。ソースタブはライブ同期（パース成功時だけ `applySourceText` で同じ経路へ。§4.34）
+- **編集**: フォーム操作 → `Slot.set` / ツリー直接変更 → `markEdited()`（履歴・dirty は、カーネルのセッションが記録する＝`AppState.recordEditToSession`。連続入力は合体キーで1エントリへ＝§4.34） → `version`++ → 再コンポーズ。ソースタブはライブ同期（パース成功時だけ `applySourceText` で同じ経路へ。§4.34）
 - **保存**: `canonicalText()`（コメント・スタイル込み）をファイルへ書き出し → `Workspace.noteDiskChanges`（通常文書は増分索引更新、スキーマファイル・派生スキーマの導出元文書は全再構築。§4.5／§4.20／§4.23） → `indexVersion`++
 - **外部変更検出**: `FileWatcher` の変更フラグ（またはフォールバックの1秒周期）→ `pollExternalChanges` がスタンプ比較 → 変更ファイルの再読込＋増分索引更新（`_schemas` 変更時のみ全再構築）
 - **ジャンプ**: `navigateToId` → 索引の出現検索（複数なら選択ダイアログ／横ぐしビュー）→ `openFile(file, focus)` → `highlightPath` 設定 → `Highlightable` がスクロール

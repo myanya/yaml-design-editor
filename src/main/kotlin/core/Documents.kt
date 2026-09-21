@@ -10,8 +10,13 @@ import java.nio.file.Path
 /**
  * 文書キャッシュ層の中核（R9-02）。
  * app.OpenDocument（Compose購読のシェル）から、UI非依存のロジック——
- * 複数ドキュメントのパース・正規化テキスト・履歴（Undo/Redo）・dirty判定——を core へ抽出したもの。
+ * 複数ドキュメントのパース・正規化テキスト・保存した内容との比較——を core へ抽出したもの。
  * 単体テストはこの層（`DocumentsTest`）に書く。
+ *
+ * 履歴（Undo / Redo）は持たない——履歴と dirty の正は、カーネルのセッション（ADR-0006・D-07）。以前は、セッションが無いときのために
+ * 文書ごとのスナップショットの履歴を併走させていたが、ワークスペースを開けば必ずセッションも開くので、無くした
+ * （P27 段D の D-d・意図的差分 D-37）。ここの dirty は、セッションが文書として扱わないパス（構成ファイル・開いた時点で
+ * パースできなかった文書など）のための判定で、聞かれたときにだけ計算する。
  */
 class EditBuffer(
     val file: Path,
@@ -23,9 +28,6 @@ class EditBuffer(
     data class Parsed(val root: YNode?, val extraDocs: List<YNode>, val error: String?)
 
     companion object {
-        /** 連続入力を1エントリへ合体する時間窓（ms。UX-11）。超えるとタイプの区切りとみなし境界になる。 */
-        const val COALESCE_WINDOW_MS = 1000L
-
         /** テキストを複数ドキュメントとしてパースする（失敗はエラーメッセージとして返す）。 */
         fun parse(text: String): Parsed = try {
             val docs = YamlIO.parseAll(text)
@@ -41,59 +43,14 @@ class EditBuffer(
         }
     }
 
-    private val history = mutableListOf(if (root != null) canonicalText() else rawText)
-    private var savedSnapshot = history.first()
-    var historyIndex: Int = 0
-        private set
-    var dirty: Boolean = false
-        private set
+    /** 保存した内容（開いたとき・保存したとき・ディスクから読み直したときの正規化テキスト）。 */
+    private var savedSnapshot = canonicalText()
 
-    // 履歴の合体（UX-11。ARCHITECTURE §4.34）: 直前の記録と同じキー・時間窓内なら先端を置換する
-    private var lastCoalesceKey: Any? = null
-    private var lastEditAtMillis: Long = 0L
+    /** 保存した内容から変わっているか（聞かれたときに、正規化テキストを比べる）。 */
+    val dirty: Boolean get() = canonicalText() != savedSnapshot
 
     /** 保存・ソース表示に使う正規化テキスト。パース不能なら元テキストを返す。 */
     fun canonicalText(): String = root?.let { YamlIO.dumpAll(listOf(it) + extraDocs) } ?: rawText
-
-    /**
-     * 編集をスナップショット履歴に記録し、dirty を更新する（最大100件）。
-     * coalesceKey（UX-11）: 連続入力になり得る編集面が渡す合体キー。直前の記録と同じキー（`==`）かつ
-     * COALESCE_WINDOW_MS 以内かつ履歴の先端なら、新規エントリを積まず先端スナップショットを置換する
-     * （タイプ1文字ごとに Undo 1回が要る粒度の粗さを解消する）。null（既定）は常に境界＝新規エントリ。
-     * nowMillis はテストからの時刻注入用（タイマー・sleep を使わない規約）。
-     */
-    fun recordEdit(coalesceKey: Any? = null, nowMillis: Long = System.currentTimeMillis()) {
-        dirty = canonicalText() != savedSnapshot
-        val snapshot = canonicalText()
-        if (history.getOrNull(historyIndex) == snapshot) return
-        val coalesce = coalesceKey != null && coalesceKey == lastCoalesceKey &&
-            nowMillis - lastEditAtMillis <= COALESCE_WINDOW_MS &&
-            historyIndex == history.lastIndex && historyIndex > 0
-        while (history.lastIndex > historyIndex) history.removeAt(history.lastIndex)
-        if (coalesce) {
-            history[historyIndex] = snapshot
-        } else {
-            history.add(snapshot)
-            if (history.size > 100) history.removeAt(0) else historyIndex++
-        }
-        lastCoalesceKey = coalesceKey
-        lastEditAtMillis = nowMillis
-    }
-
-    fun canUndo(): Boolean = historyIndex > 0
-    fun canRedo(): Boolean = historyIndex < history.lastIndex
-
-    fun undo(): Boolean {
-        if (!canUndo()) return false
-        restore(historyIndex - 1)
-        return true
-    }
-
-    fun redo(): Boolean {
-        if (!canRedo()) return false
-        restore(historyIndex + 1)
-        return true
-    }
 
     /** ソース編集のテキストをツリーへ取り込む（複数ドキュメントは先頭を編集対象にし後続を保持）。 */
     fun applySourceText(text: String) {
@@ -103,32 +60,9 @@ class EditBuffer(
         parseError = null
     }
 
-    private fun restore(index: Int) {
-        val text = history[index]
-        val docs = runCatching { YamlIO.parseAll(text) }.getOrNull()
-        root = if (docs != null) (docs.firstOrNull() ?: YNode.Map()) else null
-        extraDocs = docs?.drop(1).orEmpty()
-        rawText = text
-        parseError = if (root == null) "履歴の復元に失敗しました" else null
-        historyIndex = index
-        dirty = text != savedSnapshot
-        // 復元した状態へ後続の入力が合体しないよう、合体キーをリセットする（UX-11）
-        lastCoalesceKey = null
-    }
-
-    /** ディスク再読込などで内容が差し替わったとき、履歴と保存基準を取り直す。 */
-    fun resetHistory() {
-        history.clear()
-        history.add(canonicalText())
-        historyIndex = 0
-        savedSnapshot = canonicalText()
-        dirty = false
-        lastCoalesceKey = null
-    }
-
+    /** いまの内容を、保存した内容にする（保存したとき・ディスク再読込などで内容が差し替わったとき）。 */
     fun markSaved() {
         savedSnapshot = canonicalText()
-        dirty = false
     }
 }
 

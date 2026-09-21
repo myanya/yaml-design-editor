@@ -43,11 +43,13 @@ class OpenDocumentTest {
     }
 
     @Test
-    fun `undo restores following documents too`() {
+    fun `resetBaseline takes the current content as saved`() {
+        // 文書ごとの Undo は持たない（履歴の正は、カーネルのセッション。意図的差分 D-37）。ここが持つのは、保存した内容との比較だけ
         val doc = openMultiDoc("a: 1\n---\nb: 2\n")
         doc.applySourceText("a: 1\n")
+        assertTrue(doc.dirty)
+        doc.resetBaseline()
+        assertFalse(doc.dirty)
         assertEquals("a: 1\n", doc.canonicalText())
-        doc.undo()
-        assertEquals("a: 1\n---\nb: 2\n", doc.canonicalText())
     }
 }

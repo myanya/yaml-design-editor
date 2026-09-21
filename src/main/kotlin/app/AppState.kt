@@ -35,8 +35,9 @@ import java.util.prefs.Preferences
  * 開いている 1 ドキュメント。
  * root ツリーが正（source of truth）。フォーム編集はツリーを直接書き換え、
  * markEdited() で version をインクリメントして再コンポーズを駆動する。
- * 履歴・dirty判定・複数ドキュメント再出力の中核は core.EditBuffer（UI非依存。R9-02）へ委譲し、
- * このクラスは Compose 購読（version / dirty / parseError）のシェルに徹する。
+ * 複数ドキュメントの再出力と、保存した内容との比較は core.EditBuffer（UI非依存。R9-02）へ委譲し、
+ * このクラスは Compose 購読（version / dirty / parseError）のシェルに徹する。履歴（Undo / Redo）と dirty の正は、
+ * カーネルのセッション（ADR-0006）——文書ごとの履歴は持たない（P27 段D の D-d・意図的差分 D-37）。
  */
 class OpenDocument(
     val file: Path,
@@ -80,7 +81,6 @@ class OpenDocument(
     val dirty: Boolean get() = dirtyState.value
     var externalConflict by mutableStateOf(false)
     var diskModifiedMillis: Long = runCatching { Files.getLastModifiedTime(file).toMillis() }.getOrDefault(0L)
-    val historyIndex: Int get() = buffer.historyIndex
 
     /**
      * 編集通知（R16-04 / UX-02 / RA-06）: AppState が全文書横断の編集カウンタ（editVersion）を進め、
@@ -90,7 +90,8 @@ class OpenDocument(
 
     /**
      * dirty の供給元（RA-06）: セッション（履歴・dirty の単一所有。ADR-0006）が判定を返す。
-     * null（セッション不在・対象外文書）のときだけ EditBuffer の判定へフォールバックする。
+     * null（セッションが文書として扱わないパス＝構成ファイル・開いた時点でパースできなかった文書など）のときだけ、
+     * 保存した内容との比較（EditBuffer）で判定する。
      */
     internal var dirtySource: (() -> Boolean?)? = null
 
@@ -106,21 +107,13 @@ class OpenDocument(
      * 編集をツリーへ記録する。coalesceWith（UX-11。ARCHITECTURE §4.34）: 連続入力になり得る編集面が
      * 渡す合体キー（同一スカラーノード・`Pair(map, key)`・ソースの固定キー等）。同じキーの連続編集は
      * 履歴1記録に合体する。構造操作は渡さない＝常に境界。
-     * 履歴の記録先はセッション（onEdited 経由。RA-06）。EditBuffer の履歴はセッション不在時の
-     * フォールバック用に併走する（A-3 完了後の縮退は B 段）。
+     * 履歴の記録先はセッション（onEdited 経由。RA-06）。
      */
     fun markEdited(coalesceWith: Any? = null) {
         version++
-        buffer.recordEdit(coalesceWith)
         onEdited?.invoke(coalesceWith)
         sync()
     }
-
-    fun canUndo(): Boolean = buffer.canUndo()
-    fun canRedo(): Boolean = buffer.canRedo()
-
-    fun undo() { if (buffer.undo()) { version++; onEdited?.invoke(null); sync() } }
-    fun redo() { if (buffer.redo()) { version++; onEdited?.invoke(null); sync() } }
 
     /** ソース編集のテキストをツリーへ取り込む。複数ドキュメントは先頭を編集対象にし、後続を保持する。 */
     fun applySourceText(text: String) {
@@ -129,8 +122,9 @@ class OpenDocument(
         markEdited(coalesceWith = "source")
     }
 
-    fun resetHistory() {
-        buffer.resetHistory()
+    /** ディスク再読込などで内容が差し替わったとき、保存した内容（dirty の判定の基準）を取り直す。 */
+    fun resetBaseline() {
+        buffer.markSaved()
         sync()
     }
 
@@ -536,7 +530,7 @@ class AppState {
      * 編集内容をセッションの working 状態へ直結する（A-3 前半・RA-05）。markEdited（Undo/Redo 含む）の
      * たびに呼ばれ、セッションが常に「見たまま」を所有する（UX-03 の構造保証の最終形）。
      * パース不能（root=null）の編集は反映せず、derivedState() が null オーバーレイで文書集合から外す。
-     * 履歴は積まない（replaceDocument）＝Undo/dirty は A-3 完了（履歴一元化）まで EditBuffer 所有のまま。
+     * ここでは履歴は積まない（replaceDocument。履歴の記録は recordEditToSession）。
      */
     private fun pushEditToSession(doc: OpenDocument) {
         val s = session ?: return
@@ -871,7 +865,7 @@ class AppState {
         doc.diskModifiedMillis = modified
         doc.externalConflict = false
         doc.version++
-        doc.resetHistory()  // 履歴・保存基準・dirty を取り直す
+        doc.resetBaseline()  // 保存基準・dirty を取り直す
     }
 
     fun acceptDiskVersion() {
@@ -901,16 +895,15 @@ class AppState {
     /**
      * Undo（A-3・RA-06 / D-07）: 履歴はセッション単一所有＝**ワークスペース横断**の1本の履歴。
      * 直前の変更が他の文書のものなら、その文書が戻る（ツリーはセッションから追随更新される）。
-     * セッション不在時のみ従来の文書単位 Undo（EditBuffer）へフォールバックする。
      */
     fun undo() {
-        val s = session ?: run { openDoc?.undo(); return }
+        val s = session ?: return
         val record = s.peekUndo() ?: return
         if (s.undo().ok) afterHistoryStep(record, undo = true)
     }
 
     fun redo() {
-        val s = session ?: run { openDoc?.redo(); return }
+        val s = session ?: return
         val record = s.peekRedo() ?: return
         if (s.redo().ok) afterHistoryStep(record, undo = false)
     }
@@ -941,12 +934,12 @@ class AppState {
     /** Undo可能か（ツールバー活性用。editVersion を読むことで再コンポーズを購読する）。 */
     fun canUndo(): Boolean {
         editVersion
-        return session?.canUndo() ?: (openDoc?.canUndo() ?: false)
+        return session?.canUndo() ?: false
     }
 
     fun canRedo(): Boolean {
         editVersion
-        return session?.canRedo() ?: (openDoc?.canRedo() ?: false)
+        return session?.canRedo() ?: false
     }
 
     /**
@@ -1068,7 +1061,7 @@ class AppState {
             val root = doc.root
             val id = DocumentId(relPath(doc.file))
             // A-2a: 書込はセッション（DocumentStore ポート）へ集約する（ADR-0005）。
-            // working を UI の編集内容で置き換えて保存（履歴は A-3 まで EditBuffer 所有＝replaceDocument は積まない）。
+            // working を UI の編集内容で置き換えて保存（replaceDocument は履歴を積まない）。
             // セッションが文書として扱わないパス（構成ファイル等）・パース不能文書・セッション不在は従来の直接書込。
             val viaSession = s != null && root != null && s.hasDocument(id)
             if (viaSession) {
