@@ -16,7 +16,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -24,6 +23,8 @@ import kotlin.test.assertTrue
  * - 指摘は、どの検査の・どの要素についての・どの配り方の指摘かをデータとして持つ
  * - 判定を保留した検査は、指摘にはならないが、検証の結果に内訳つきで残る（準備完了レポート・検査の状況に出る）
  * - 提出ゲート no-new-errors は、出どころを持つ指摘を（検査, 要素, 配り方）で見分け、根拠に関わる要素が増えたときだけ新しいエラーとする
+ * - コードで実装された検査（構造の検証・参照の解決など）の指摘も出どころを持ち、場所の番号がずれても同じ指摘として見分けられる
+ *   （P27 段B の残り・意図的差分 D-29）
  */
 class CheckOutcomeTest {
 
@@ -156,9 +157,18 @@ class CheckOutcomeTest {
         // 根拠に関わった要素（あってはならない解の相手）は全件を持つ
         val old = ws.validate("screens.yaml").single { "SCR-OLD" in it.message && "成立しています" in it.message }
         assertEquals(listOf("UC-D1", "UC-D2"), old.source?.evidence)
-        // 構造の検証・参照の解決の指摘は、出どころを持たない
+        // 参照の解決の指摘（コードで実装された検査）: 対象の要素は参照を書いた要素・場所は番号を除いたキーの並び・根拠は参照の相手
         val unresolved = ws.validate("screens.yaml").single { "UC-GONE" in it.message }
-        assertNull(unresolved.source)
+        val coded = assertNotNull(unresolved.source)
+        assertTrue(coded.coded)
+        assertEquals("(code):reference#0", coded.rule?.key)
+        assertEquals("unresolved", coded.kind)
+        assertEquals("SCR-DANGLING", coded.subjectId)
+        assertEquals("uses[]", coded.within)
+        assertEquals(IssueDelivery.REF, coded.delivery)
+        assertEquals(listOf("UC-GONE"), coded.evidence)
+        // 定義体の検査の指摘は、コードで実装された検査ではない
+        assertFalse(source.coded)
     }
 
     @Test
@@ -213,12 +223,12 @@ class CheckOutcomeTest {
             assertTrue(staging.validateAll().getValue("screens.yaml").any { "SCR-OLD" in it.message && it.severity == Severity.ERROR })
             assertTrue(staging.newErrors().isEmpty(), staging.newErrors().toString())
         }
-        // 2) 手前に要素を挿入して場所の番号がずれても（SCR-OLD は screens[3] → screens[4]）、既存のエラーは既存のまま。
-        //    出どころを持たない指摘（参照の解決など）は今までどおり場所と文面で見分けるため、ここでは SCR-DANGLING より後ろへ挿入する
+        // 2) 先頭に要素を挿入して場所の番号がずれても（SCR-OLD は screens[3] → screens[4]）、既存のエラーは既存のまま。
+        //    参照の解決の指摘（SCR-DANGLING の UC-GONE。文面に場所を含む）も、出どころで見分けるので既存のまま（意図的差分 D-29 ①）
         Staging(ws).let { staging ->
             staging.applyOps(
                 "screens.yaml",
-                listOf(PatchOp.Insert(parseYPath("screens[3]"), YamlIO.parse("id: SCR-NEW\nname: 新画面\nuses: [UC-1]"))),
+                listOf(PatchOp.Insert(parseYPath("screens[0]"), YamlIO.parse("id: SCR-NEW\nname: 新画面\nuses: [UC-1]"))),
             )
             assertTrue(staging.newErrors().isEmpty(), staging.newErrors().toString())
         }
@@ -233,6 +243,46 @@ class CheckOutcomeTest {
             staging.applyOps("screens.yaml", listOf(PatchOp.Insert(parseYPath("screens[0].uses[1]"), YamlIO.parse("UC-D1"))))
             val fresh = staging.newErrors().getValue("screens.yaml")
             assertEquals("SCR-OK", fresh.single().source?.subjectId)
+        }
+    }
+
+    @Test
+    fun `提出ゲートは構造と参照のエラーも場所のずれに左右されずに見分ける`() {
+        // 前からある構造のエラー（uses が配列でない）を1つ足しておく
+        Files.writeString(
+            dir.resolve("screens.yaml"),
+            Files.readString(dir.resolve("screens.yaml")) + "  - id: SCR-BAD\n    name: 形の違う画面\n    uses: oops\n",
+        )
+        val ws = Workspace.open(dir)
+        val structural = ws.validate("screens.yaml").single { "配列である必要" in it.message }
+        assertEquals("(code):structure#0", structural.source?.rule?.key)
+        assertEquals("type", structural.source?.kind)
+        assertEquals("SCR-BAD", structural.source?.subjectId)
+        assertEquals("uses", structural.source?.within)
+        // 1) 先頭に正しい要素を挿入する: 構造のエラーも参照のエラーも場所がずれるが、新しいエラーは無い
+        Staging(ws).let { staging ->
+            staging.applyOps(
+                "screens.yaml",
+                listOf(PatchOp.Insert(parseYPath("screens[0]"), YamlIO.parse("id: SCR-NEW\nname: 新画面\nuses: [UC-1]"))),
+            )
+            assertTrue(staging.newErrors().isEmpty(), staging.newErrors().toString())
+        }
+        // 2) 同じ要素に、相手の見つからない参照をもう1つ、前からある参照より手前に足す: 足した参照だけが新しいエラー
+        Staging(ws).let { staging ->
+            staging.applyOps("screens.yaml", listOf(PatchOp.Insert(parseYPath("screens[2].uses[0]"), YamlIO.parse("UC-GONE2"))))
+            val fresh = staging.newErrors().getValue("screens.yaml")
+            assertEquals(listOf("UC-GONE2"), fresh.single().source?.evidence)
+        }
+        // 3) 別の要素に同じ種類の構造のエラーを作る → 新しいエラー（前からある SCR-BAD のエラーは数えない）
+        Staging(ws).let { staging ->
+            staging.applyOps(
+                "screens.yaml",
+                listOf(PatchOp.Insert(parseYPath("screens[0]"), YamlIO.parse("id: SCR-BAD2\nname: 形の違う画面2\nuses: oops"))),
+            )
+            val fresh = staging.newErrors().getValue("screens.yaml")
+            // 新しい要素のエラーだけ（構造のエラーと、利用が1つも無いことへの検査の違反）
+            assertEquals(setOf("SCR-BAD2"), fresh.map { it.source?.subjectId }.toSet())
+            assertEquals(1, fresh.count { it.source?.rule?.key == "(code):structure#0" && it.source?.kind == "type" })
         }
     }
 }

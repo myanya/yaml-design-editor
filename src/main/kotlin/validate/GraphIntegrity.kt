@@ -28,6 +28,8 @@ object GraphIntegrity {
         indexObj: IdIndex,
         relations: Map<String, RelationDef>,
         enforcement: EnforcementDef = EnforcementDef(),
+        /** この文書に書かれた ID（指摘の出どころの「対象の要素」を決めるのに使う）。 */
+        ids: List<semantic.ScannedId> = emptyList(),
     ): List<Issue> {
         if (enforcement.undeclaredRelation == null) return emptyList()
 
@@ -35,6 +37,6 @@ object GraphIntegrity {
         // ワークスペース全体の指摘は索引につき1回だけ求め、この文書の分を取り出す（文書ごとにグラフと全参照を調べ直さない）
         val declarations = SemanticDeclarations(relations = relations, enforcement = enforcement)
         return indexObj.toKernelView().integrityIssues(declarations)[DocumentId(file.toString())].orEmpty()
-            .map { issue -> Issue(issue.severity, issue.message, issue.path) }
+            .map { issue -> Issue(issue.severity, issue.message, issue.path, source = CodedChecks.semantic(issue, ids)) }
     }
 }

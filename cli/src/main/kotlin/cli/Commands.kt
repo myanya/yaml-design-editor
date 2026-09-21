@@ -61,6 +61,16 @@ fun workspaceValidate(root: String?, args: List<String>, out: (String) -> Unit):
     val withheld = deliveries.entries.flatMap { (id, d) -> d.withheld.map { id to it } }
     val checkErrors = checks.count { it.second.severity == Severity.ERROR }
     val checkWarnings = checks.count { it.second.severity == Severity.WARNING }
+    // コードで実装された検査（構造の検証・意味の検証）の指摘の出どころ（P27 段B の残り・意図的差分 D-29）: 機械可読の出力に添える
+    val idsByDocument = ws.derived.semantic.scans.associate { it.document to it.ids }
+    fun sourceMap(source: validate.IssueSource): Map<String, Any?> = linkedMapOf(
+        "rule" to source.rule?.key,
+        "kind" to source.kind,
+        "subject" to source.subjectId,
+        "within" to source.within?.takeIf { it.isNotEmpty() },
+        "delivery" to source.delivery.name,
+        "evidence" to source.evidence.takeIf { it.isNotEmpty() },
+    ).filterValues { it != null }
 
     if (format == OutputFormat.TEXT) {
         out("スキーマ: ${ws.schemas.size} 件（${ws.schemas.joinToString(", ") { it.id }}）")
@@ -98,7 +108,7 @@ fun workspaceValidate(root: String?, args: List<String>, out: (String) -> Unit):
                         "document" to id.value,
                         "path" to issue.path.pretty(),
                         "message" to issue.message,
-                    )
+                    ) + sourceMap(validate.CodedChecks.structural(issue, idsByDocument[id].orEmpty()))
                 },
                 "semantic" to semantic.map { issue ->
                     linkedMapOf(
@@ -106,7 +116,7 @@ fun workspaceValidate(root: String?, args: List<String>, out: (String) -> Unit):
                         "document" to issue.document.value,
                         "path" to issue.path.pretty(),
                         "message" to issue.message,
-                    )
+                    ) + sourceMap(validate.CodedChecks.semantic(issue, idsByDocument[issue.document].orEmpty()))
                 },
                 "checks" to checks.map { (id, issue) ->
                     linkedMapOf(
@@ -114,10 +124,7 @@ fun workspaceValidate(root: String?, args: List<String>, out: (String) -> Unit):
                         "document" to id.value,
                         "path" to issue.path.pretty(),
                         "message" to issue.message,
-                        "rule" to issue.source.rule?.key,
-                        "subject" to issue.source.subjectId,
-                        "delivery" to issue.source.delivery.name,
-                    ).filterValues { it != null }
+                    ) + sourceMap(issue.source)
                 },
                 "withheld" to withheld.map { (id, check) ->
                     linkedMapOf("document" to id.value, "path" to check.path.pretty(), "message" to check.text)

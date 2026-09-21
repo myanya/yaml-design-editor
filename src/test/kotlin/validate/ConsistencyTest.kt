@@ -120,7 +120,16 @@ class ConsistencyTest {
         concepts: String = conceptsYaml,
         /** 非null なら「未保存編集中のツリー」として検証する（索引は content 基準のまま）。 */
         editedText: String? = null,
-    ): List<Issue> {
+    ): List<Issue> = validateDetailed(rel, implYaml, mappingYaml, schema, concepts, editedText).issues
+
+    private fun validateDetailed(
+        rel: String,
+        implYaml: String,
+        mappingYaml: String = "mappings:\n  - id: VT-TITLE\n    to: varchar({maxLength})\n",
+        schema: schema.SchemaDef = implSchema(),
+        concepts: String = conceptsYaml,
+        editedText: String? = null,
+    ): ValidationResult {
         val content = mapOf(
             Path.of("concepts.yaml") to concepts,
             Path.of("mapping.yaml") to mappingYaml,
@@ -129,13 +138,31 @@ class ConsistencyTest {
         val schemas = listOf(conceptsSchema, mappingSchema, schema)
         val idx = index.testIndex(Path.of("."), content.keys.toList(), schemas) { f -> YamlIO.parse(content.getValue(f)) }
         val file = Path.of(rel)
-        return Validator.validate(
+        return Validator.validateDetailed(
             YamlIO.parse(editedText ?: content.getValue(file)), null, file,
             schemas.first { it.matches(rel) }, idx,
             workspace = Path.of("."),
             loader = { f -> content[f]?.let { YamlIO.parse(it) } },
             allSchemas = schemas,
         )
+    }
+
+    @Test
+    fun `値の場所へ出す検査の保留は その値が書かれた文書で集める`() {
+        // P27 段B の残り（意図的差分 D-29 ③）: 比べる相手を辿る参照（vtype）の相手が見つからないと、整合検証は充足とも違反とも
+        // 決められない。以前は、値の場所へ出す検査の保留は、どこにも残らなかった
+        val dangling = "types:\n  - id: VT-TITLE\n    maxLength: 100\nfields:\n  - id: FLD-TITLE\n    vtype: VT-GONE\n"
+        val result = validateDetailed("impl.yaml", "rows:\n  - id: FLD-TITLE\n    type: varchar(999)\n", concepts = dangling)
+        assertTrue(result.issues.none { "実装型" in it.message }, result.issues.toString())
+        val withheld = result.withheld.single()
+        assertEquals("FLD-TITLE", withheld.subjectId)
+        assertEquals(semantic.CheckReason.UNRESOLVED_REFERENCE, withheld.reason)
+        // 保留の場所は、値が書かれた場所
+        assertEquals(listOf<Any>("rows", 0, "type"), withheld.path)
+        // 参照が解決できれば、保留ではなく違反として指摘される
+        val resolved = validateDetailed("impl.yaml", "rows:\n  - id: FLD-TITLE\n    type: varchar(999)\n")
+        assertTrue(resolved.withheld.isEmpty())
+        assertTrue(resolved.issues.any { "実装型" in it.message })
     }
 
     @Test

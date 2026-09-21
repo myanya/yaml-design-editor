@@ -1158,6 +1158,8 @@ private fun issueMap(issue: validate.Issue, withSource: Boolean = false): Map<St
             "id" to source.ruleId,
             "kind" to source.kind,
             "subject" to source.subjectId,
+            // 対象の要素の中の場所（配列の番号を除いたキーの並び。コードで実装された検査の指摘だけが持つ）
+            "within" to source.within?.takeIf { it.isNotEmpty() },
             "delivery" to source.delivery.name,
             "evidence" to source.evidence.takeIf { it.isNotEmpty() },
         ).filterValues { it != null }

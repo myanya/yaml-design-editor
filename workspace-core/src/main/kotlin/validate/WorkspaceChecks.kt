@@ -57,7 +57,9 @@ enum class IssueDelivery {
  * - kind: 専用チェッカーの指摘の種類（unreachable など。クエリの検査は null）
  * - subjectId: 対象の要素（検査の起点）
  * - evidence: 根拠に関わった要素の ID（対象の要素を除く・ID 昇順・全件。relatedIds は表示用に先頭だけを持つ）
- * 構造の検証・参照の解決など、定義体を通らない指摘は出どころを持たない（source = null）。
+ * - within: 対象の要素の中の場所（配列の番号を除いたキーの並び。コードで実装された検査の指摘だけが持つ）
+ * 構造の検証・参照の解決など、定義体を通らない指摘（コードで実装された検査）の出どころは CodedChecks が作る
+ * （検査の出どころの owner が `(code)`。P27 段B の残り・意図的差分 D-29）。
  */
 data class IssueSource(
     val rule: schema.RuleOrigin?,
@@ -66,18 +68,24 @@ data class IssueSource(
     val subjectId: String?,
     val delivery: IssueDelivery,
     val evidence: List<String> = emptyList(),
+    val within: String? = null,
 ) {
+    /** コードで実装された検査（定義体を通らない指摘）か。 */
+    val coded: Boolean get() = rule?.owner == CodedChecks.OWNER
+
     /**
-     * 「同じ検査の・同じ要素についての・同じ配り方の指摘」を見分けるキー。場所と文面は含めない——要素の挿入で場所の番号が
+     * 「同じ検査の・同じ要素についての・同じ配り方の指摘」を見分けるキー。場所の番号と文面は含めない——要素の挿入で場所の番号が
      * ずれても、文面の件数が変わっても、同じ指摘として扱える（提出ゲート no-new-errors が使う）。出どころの分からない検査は null。
      */
-    val identity: String? get() = rule?.let { "${it.key}|${kind.orEmpty()}|${subjectId.orEmpty()}|$delivery" }
+    val identity: String?
+        get() = rule?.let { "${it.key}|${kind.orEmpty()}|${subjectId.orEmpty()}|$delivery" + (within?.let { w -> "|$w" } ?: "") }
 }
 
 /**
  * 判定を保留した検査1件（P27 段A。BACKLOG UX-113）: データの不備（相手の見つからない参照など）のために、
  * 充足とも違反とも決められなかった「検査 × 要素」。指摘ではない——検証パネルには出さず、準備完了レポートと CLI が件数と内訳を示す。
- * 報告先（対象の要素を定義した場所）の文書の検証でだけ集める（値・参照の場所へ出す検査は対象外）。
+ * 集める文書は1つに決まる: 報告先へ出す検査と、参照の場所へ出す検査は、対象の要素の報告先（対象の要素を定義した場所）の文書で。
+ * 値の場所へ出す検査は、その値が書かれた文書で（path は値の場所）。
  */
 data class WithheldCheck(
     val rule: schema.RuleOrigin?,
@@ -268,13 +276,27 @@ class WorkspaceChecks(
                 if (rule.reportAt?.ref != null) {
                     // 参照の場所へ出す検査（対象型の不一致など）: 見つかった解ごとに、この文書に書かれた参照の場所へ指摘する
                     issues += refIssues(rule, document, localIds.map { it.id }, localRefs.map { it.targetId })
+                    // 保留は、対象の要素の報告先の文書で集める（参照が書かれた文書ごとに重ねて数えない。意図的差分 D-29 ③）
+                    for (entry in entries) {
+                        result(rule, entry.id).takeIf { it.outcome == CheckOutcome.WITHHELD }?.reason?.let { reason ->
+                            withheld += WithheldCheck(rule.origin, rule.id, rule.description, null, entry.id, entry.path, reason)
+                        }
+                    }
                     continue
                 }
-                if (rule.reportAt != null) {
-                    // 値の場所へ出す検査（整合検証など）: この文書に書かれた要素ごとに、その値だけを調べて値の場所へ指摘する
-                    for (entry in localIds) issues += valueIssues(rule, entry.id, document, entry.path)
-                    continue
+                rule.reportAt?.let { reportAt ->
+                    // 値の場所へ出す検査（整合検証など）: この文書に書かれた要素ごとに、その値だけを調べて値の場所へ指摘する。
+                    // 保留も、その値が書かれた文書で集める（意図的差分 D-29 ③）
+                    for (entry in localIds) {
+                        val pin = reportAt.source to SemanticExpression.Occurrence(document, entry.path)
+                        val pinned = session.pinnedResult(rule, entry.id, pin, rel, tree)
+                        issues += valueIssues(rule, entry.id, entry.path, pinned)
+                        pinned.takeIf { it.outcome == CheckOutcome.WITHHELD }?.reason?.let { reason ->
+                            withheld += WithheldCheck(rule.origin, rule.id, rule.description, null, entry.id, entry.path + reportAt.path, reason)
+                        }
+                    }
                 }
+                if (rule.reportAt != null) continue
                 for (entry in entries) {
                     constraint(rule, entry.id)?.let { issues += it.reportIssue(entry.path) }
                     result(rule, entry.id).takeIf { it.outcome == CheckOutcome.WITHHELD }?.reason?.let { reason ->
@@ -536,12 +558,11 @@ class WorkspaceChecks(
 
     /**
      * 値の場所へ指摘を出す検査（SP-08。rule.reportAt を宣言した check）: この文書に書かれた要素（occPath）について、
-     * その要素の値だけを調べ、条件を満たさない組ごとに指摘を返す。指摘の場所は「要素のパス＋reportAt のパス」。
+     * その要素の値だけを調べた結果（pinned）から、条件を満たさない組ごとに指摘を返す。指摘の場所は「要素のパス＋reportAt のパス」。
      */
-    private fun valueIssues(rule: ConstraintRule, id: String, document: DocumentId, occPath: YPath): List<CheckIssue> {
+    private fun valueIssues(rule: ConstraintRule, id: String, occPath: YPath, pinned: SemanticRuleResult): List<CheckIssue> {
         val reportAt = rule.reportAt ?: return emptyList()
-        val pin = reportAt.source to SemanticExpression.Occurrence(document, occPath)
-        val violations = session.pinnedResult(rule, id, pin, rel, tree).violations
+        val violations = pinned.violations
         val suffix = (rule.description ?: rule.id)?.let { " — $it" } ?: ""
         return violations.map { v ->
             val text = rule.message?.let { renderTemplate(it, id, rule = rule, v = v) }

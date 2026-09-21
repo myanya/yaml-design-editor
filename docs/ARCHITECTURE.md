@@ -621,16 +621,18 @@ Core Calculus の本来の目的（[CORE-CALCULUS.md](CORE-CALCULUS.md) §25）�
 
 **検査の出どころ**（`schema.RuleOrigin`）: どの文書の（`owner`＝スキーマの id。組込み定義体に直接書いた検査は `(builtin)`）・どの書き方から展開された（`at`＝展開の記録と同じ文字列。`constraints[2]`・`relations[18]（定義 relation-in-count）` など）・何番目の検査か（`index`）。スキーマの読み込みが、展開の記録（`ExpandedCheck`）から `ConstraintRule.origin`・`CheckerRule.origin` に付ける。検査の `id` は利用者が付ける呼び名で、定義のひな型から展開した検査どうしでは重なりうるため、見分けには使わない。
 
-**指摘の出どころ**（`validate.IssueSource`。仕様 CALC-32）: 検査の出どころ・呼び名・専用チェッカーの指摘の種類・対象の要素・配り方（`IssueDelivery`: `REPORT`＝報告先／`NOTICE`＝同じ要素の他の出現への案内／`FIX_SITE`＝直せる場所への案内／`VALUE`＝値の場所／`REF`＝参照の場所）・根拠に関わった要素（対象の要素を除く・ID 昇順・**全件**。`relatedIds` は表示用に先頭だけ）。`identity` は「同じ検査の・同じ要素についての・同じ配り方の指摘」を見分けるキーで、場所と文面を含めない。定義体を通らない指摘（構造の検証・参照の解決・ID の重複など）は、まだ出どころを持たない（`source = null`。段B で扱う）。
+**指摘の出どころ**（`validate.IssueSource`。仕様 CALC-32）: 検査の出どころ・呼び名・専用チェッカーの指摘の種類・対象の要素・配り方（`IssueDelivery`: `REPORT`＝報告先／`NOTICE`＝同じ要素の他の出現への案内／`FIX_SITE`＝直せる場所への案内／`VALUE`＝値の場所／`REF`＝参照の場所）・根拠に関わった要素（対象の要素を除く・ID 昇順・**全件**。`relatedIds` は表示用に先頭だけ）。`identity` は「同じ検査の・同じ要素についての・同じ配り方の指摘」を見分けるキーで、場所の番号と文面を含めない。
 
-**保留の残し方**: 判定を保留した検査は指摘にしない（検証パネルには出さない）。`Validator.validateDetailed` が返す `ValidationResult.withheld`（`WithheldCheck`＝検査・対象の要素・場所・理由）に残し、`validate` はその指摘だけを返す薄い入口。集めるのは報告先（対象の要素を定義した場所）の文書の検証でだけ——他の出現の文書では集めない（二重に数えない）。値・参照の場所へ出す検査の保留は集めていない（段B）。
+**コードで実装された検査の指摘の出どころ**（P27 段B の残り。意図的差分 D-29。カーネルの `validate.CodedChecks`）: 定義体を通らない指摘（構造の検証・ID の重複・参照の解決・宣言のない関係名・ID のパターンからの逸脱・重複所有・テンプレートの健全性・YAML のパースエラー）にも、同じ形の出どころを付ける。検査の出どころは owner が `(code)`（組込み定義体の `(builtin)` と並ぶ名前）・`at` が検査の名前（`structure`・`id`・`reference`・`relation-registry`・`entity`・`template`・`yaml`）。`kind` は指摘の種類（構造の検証は yaml-core の `StructuralIssueKind`＝`required`・`type`・`enum`・`range`・`length`・`format`・`unknown-key`・`inactive-key`・`phase`。意味の検証は semantic-core の `SemanticIssueKind`＝`duplicate`・`unresolved`・`out-of-scope`・`unresolved-document`・`out-of-ledger`・`undeclared-relation`）。対象の要素は「指摘の場所を含む、最も内側の ID を持つ要素」（無ければ文書そのもの＝null）、`within` はその要素の中の場所（配列の番号を除いたキーの並び。例 `uses[]`・`fields[].name`）、参照の指摘では参照の相手を「根拠に関わった要素」に入れる。`identity` には `within` が加わる——**場所の番号と文面を含めないので、要素の挿入で場所がずれても同じ指摘として見分けられる**（未解決の参照の文面は場所を含むため、文面で比べると必ず食い違う）。`IssueSource.coded` は、コードで実装された検査の指摘かどうか。指摘の種類は、文面を読み取って決めるのではなく、指摘を作る場所（`StructuralValidator`・`SemanticEngine`・`SemanticGraphIntegrity`）がデータとして付ける。
+
+**保留の残し方**: 判定を保留した検査は指摘にしない（検証パネルには出さない）。`Validator.validateDetailed` が返す `ValidationResult.withheld`（`WithheldCheck`＝検査・対象の要素・場所・理由）に残し、`validate` はその指摘だけを返す薄い入口。集める文書は、検査ごとに1つに決まる（二重に数えない）: 報告先へ出す検査と、参照の場所へ出す検査（対象型など）は、対象の要素の報告先（対象の要素を定義した場所）の文書で。値の場所へ出す検査（整合検証など）は、その値が書かれた文書で（保留の場所は値の場所。P27 段B の残り・意図的差分 D-29 ③）。
 
 **載せ替えたもの**（意図的差分 D-26）:
 
-- 提出ゲート `no-new-errors`（`Staging.newErrors`）: 出どころを持つ指摘は `identity` で見分ける。同じ検査 × 要素のエラーが適用前にもあれば既存のエラーとし、**根拠に関わる要素が増えたときだけ**新しいエラーとする（不足が3件→2件は既存・2件→3件は新しい。要素の挿入で場所の番号がずれても既存のまま）。出どころを持たない指摘は今までどおり（場所, 文面）
+- 提出ゲート `no-new-errors`（`Staging.newErrors`）: 出どころを持つ指摘は `identity` で見分ける。同じ検査 × 要素のエラーが適用前にもあれば既存のエラーとし、**根拠に関わる要素が増えたときだけ**新しいエラーとする（不足が3件→2件は既存・2件→3件は新しい。要素の挿入で場所の番号がずれても既存のまま）。コードで実装された検査のエラー（構造の検証・参照の解決など）も出どころで見分ける——同じ出どころのエラーは件数で比べ、根拠に関わる要素（参照の相手）が増えたものは新しいエラー。指摘の並び順には左右されない（意図的差分 D-29 ①）。出どころの分からない指摘（単体でパースした検査）だけが（場所, 文面）
 - 準備完了レポート（`Readiness`）: 他の出現への案内（`NOTICE`）は、報告先の指摘の写しなので数えない。保留の件数を要素ごとに出し、内訳の一覧を付ける（`--pending` でも全件。「エラー0」の要素にも、確かめられなかった検査がありうるため）
 - 検査の状況（`RuleStatus`）: `outcome` と `reason` を持ち、保留は「判定保留（理由）」と表示して充足に数えない。UI は充足・不足と別の見せ方（情報のアイコン・淡色）
-- CLI `validate`: 保留の内訳（文書ごとの `withheld`）と件数（あるときだけ）。`--sources` で指摘の出どころを出す
+- CLI `validate`: 保留の内訳（文書ごとの `withheld`）と件数（あるときだけ）。`--sources` で指摘の出どころを出す（すべての指摘に。コードで実装された検査の指摘には `within` も）。カーネル側の CLI `workspace validate` の機械可読の出力（`--format yaml|json`）も、構造・意味・検査のどの指摘にも出どころを添える
 
 **検証の指摘（文面・重大度・場所）は変わらない**——テンプレート・サンプル・specs の `validate` と `readiness` の出力は、変更の前後で完全に一致する。
 

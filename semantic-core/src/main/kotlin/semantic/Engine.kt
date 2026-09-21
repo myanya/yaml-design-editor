@@ -30,12 +30,39 @@ data class SemanticInput(
     val declarations: SemanticDeclarations = SemanticDeclarations(),
 )
 
+/**
+ * コードで実装された意味検証の指摘の種類（P27 段B の残り）: どの検査の・どの種類の指摘かを、文面とは別にデータとして持つ。
+ * at は検査の名前、code は指摘の種類——指摘の出どころ（workspace-core の validate.IssueSource）の rule.at と kind に写す。
+ */
+enum class SemanticIssueKind(val at: String, val code: String) {
+    /** 同じ文書の中で ID が重複している。 */
+    DUPLICATE_ID("id", "duplicate"),
+
+    /** 参照の相手が見つからない。 */
+    UNRESOLVED_REFERENCE("reference", "unresolved"),
+
+    /** 参照の相手はあるが、パターンまたはスコープの対象外。 */
+    REFERENCE_OUT_OF_SCOPE("reference", "out-of-scope"),
+
+    /** 文書参照の相手が見つからない。 */
+    UNRESOLVED_DOCUMENT_REFERENCE("reference", "unresolved-document"),
+
+    /** 台帳外の文書のため、参照を解決しない（案内）。 */
+    REFERENCE_OUT_OF_LEDGER("reference", "out-of-ledger"),
+
+    /** 関係レジストリに宣言のない関係名。 */
+    UNDECLARED_RELATION("relation-registry", "undeclared-relation"),
+}
+
 /** 意味検証の指摘（構造検証の StructuralIssue と別型。計画書 Phase 3 作業順9）。 */
 data class SemanticIssue(
     val severity: Severity,
     val message: String,
     val document: DocumentId,
     val path: YPath,
+    val kind: SemanticIssueKind,
+    /** 参照の指摘では、参照の相手の ID（指摘の出どころの「根拠に関わった要素」になる）。 */
+    val targetId: String? = null,
 )
 
 /** ID用 glob との一致（走査カーネル側の述語。ルート index.idMatchesPattern と同じ規則）。 */
@@ -137,7 +164,7 @@ object SemanticEngine {
     /** 文書内の ID 重複（ERROR）。文書間の同一 ID は「同一エンティティの複数出現」で合法。 */
     fun duplicateIdIssues(scan: DocumentScan): List<SemanticIssue> =
         scan.ids.groupBy { it.id }.filterValues { it.size > 1 }.flatMap { (id, list) ->
-            list.map { e -> SemanticIssue(Severity.ERROR, "ID「$id」がこの文書内で重複しています", scan.document, e.path) }
+            list.map { e -> SemanticIssue(Severity.ERROR, "ID「$id」がこの文書内で重複しています", scan.document, e.path, SemanticIssueKind.DUPLICATE_ID) }
         }
 
     /**
@@ -158,12 +185,16 @@ object SemanticEngine {
             if (r.targetKind == RefTarget.DOCUMENT) {
                 if (r.targetId == ownDocumentId || hasDocumentId(r.targetId)) continue
                 issues += if (!indexed) {
-                    SemanticIssue(Severity.INFO, "文書参照「${r.targetId}」は台帳外の文書のため解決されません", r.document, r.path)
+                    SemanticIssue(
+                        Severity.INFO, "文書参照「${r.targetId}」は台帳外の文書のため解決されません", r.document, r.path,
+                        SemanticIssueKind.REFERENCE_OUT_OF_LEDGER, r.targetId,
+                    )
                 } else {
                     SemanticIssue(
                         Severity.ERROR,
                         "文書参照「${r.targetId}」を解決できません（_document.id または相対パス）",
                         r.document, r.path,
+                        SemanticIssueKind.UNRESOLVED_DOCUMENT_REFERENCE, r.targetId,
                     )
                 }
                 continue
@@ -172,11 +203,20 @@ object SemanticEngine {
             if (occs.none { it.isAllowedBy(r) }) {
                 issues += when {
                     !indexed ->
-                        SemanticIssue(Severity.INFO, "参照「${r.targetId}」は台帳外の文書のため解決されません", r.document, r.path)
+                        SemanticIssue(
+                            Severity.INFO, "参照「${r.targetId}」は台帳外の文書のため解決されません", r.document, r.path,
+                            SemanticIssueKind.REFERENCE_OUT_OF_LEDGER, r.targetId,
+                        )
                     occs.isNotEmpty() ->
-                        SemanticIssue(Severity.ERROR, "参照「${r.targetId}」はパターンまたはスコープの対象外です", r.document, r.path)
+                        SemanticIssue(
+                            Severity.ERROR, "参照「${r.targetId}」はパターンまたはスコープの対象外です", r.document, r.path,
+                            SemanticIssueKind.REFERENCE_OUT_OF_SCOPE, r.targetId,
+                        )
                     else ->
-                        SemanticIssue(Severity.ERROR, "参照「${r.targetId}」（${r.path.pretty()}）を解決できません", r.document, r.path)
+                        SemanticIssue(
+                            Severity.ERROR, "参照「${r.targetId}」（${r.path.pretty()}）を解決できません", r.document, r.path,
+                            SemanticIssueKind.UNRESOLVED_REFERENCE, r.targetId,
+                        )
                 }
             }
         }

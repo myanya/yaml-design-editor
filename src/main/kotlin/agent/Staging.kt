@@ -148,11 +148,15 @@ class Staging(val ws: Workspace) {
      * ディスク原本（適用前）で検証したときには現れないもの。既存エラーは許容し、増えた分だけを返す。
      * 新規作成文書は原本がないため、そのエラーはすべて新規。
      *
-     * 「同じエラー」の見分け方（P27 段A・意図的差分 D-26 ①）:
-     * - 出どころを持つ指摘（定義体の検査から出た指摘）は、（検査, 対象の要素, 配り方）で見分ける。場所と文面は見ない——
-     *   要素の挿入で場所の番号がずれても、文面の件数が変わっても、同じエラーとして扱う。そのうえで、**根拠に関わる要素が
-     *   増えたときだけ**新しいエラーとする（不足が3件→2件は既存のエラー・2件→3件は新しいエラー）
-     * - 出どころを持たない指摘（構造の検証・参照の解決など）は、(パスの表示形, メッセージ) の多重集合で見分ける
+     * 「同じエラー」の見分け方（P27 段A・段B の残り。意図的差分 D-26 ①・D-29 ①）:
+     * - 指摘は出どころ（IssueSource.identity）で見分ける。場所の番号と文面は見ない——要素の挿入で場所の番号がずれても、
+     *   文面の件数が変わっても、同じエラーとして扱う
+     *   - 定義体の検査の指摘: （検査, 対象の要素, 配り方）
+     *   - コードで実装された検査の指摘（構造の検証・ID の重複・参照の解決など）: （検査の名前, 指摘の種類, 指摘の場所を含む
+     *     最も内側の ID を持つ要素, 配り方, その要素の中の場所＝番号を除いたキーの並び）
+     * - 同じ出どころのエラーは件数で比べる。そのうえで、**根拠に関わる要素が増えたもの**（不足が2件→3件・参照の相手が
+     *   前には無かった ID）は、件数にかかわらず新しいエラーとする。指摘の並び順には左右されない
+     * - 出どころの分からない指摘（単体でパースした検査）だけは、(パスの表示形, メッセージ) の多重集合で見分ける
      */
     fun newErrors(): Map<String, List<Issue>> {
         val out = LinkedHashMap<String, List<Issue>>()
@@ -160,10 +164,10 @@ class Staging(val ws: Workspace) {
             val errors = issues.filter { it.severity == Severity.ERROR }
             if (errors.isEmpty()) continue
             val before = if (Files.exists(ws.root.resolve(rel))) ws.validate(rel).filter { it.severity == Severity.ERROR } else emptyList()
-            // 出どころを持つ指摘: 見分けるキー → 適用前の件数と、根拠に関わった要素
+            // 出どころで見分けるキー → 適用前の件数と、根拠に関わった要素
             val sourcedCount = HashMap<String, Int>()
             val sourcedEvidence = HashMap<String, MutableSet<String>>()
-            // 出どころを持たない指摘: (場所, 文面) → 適用前の件数
+            // 出どころの分からない指摘: (場所, 文面) → 適用前の件数
             val plain = HashMap<Pair<String, String>, Int>()
             for (issue in before) {
                 val key = issue.source?.identity
@@ -174,20 +178,26 @@ class Staging(val ws: Workspace) {
                     sourcedEvidence.getOrPut(key) { mutableSetOf() } += issue.source.evidence
                 }
             }
-            val fresh = errors.filter { issue ->
+            val freshAt = HashSet<Int>()
+            val byKey = LinkedHashMap<String, MutableList<Int>>()
+            errors.forEachIndexed { i, issue ->
                 val key = issue.source?.identity
                 if (key == null) {
                     val plainKey = issue.path.pretty() to issue.message
                     val remaining = plain[plainKey] ?: 0
-                    if (remaining > 0) { plain[plainKey] = remaining - 1; false } else true
+                    if (remaining > 0) plain[plainKey] = remaining - 1 else freshAt += i
                 } else {
-                    val remaining = sourcedCount[key] ?: 0
-                    if (remaining == 0) return@filter true
-                    sourcedCount[key] = remaining - 1
-                    // 同じ検査 × 要素のエラーが適用前にもある: 根拠に関わる要素が増えていれば、悪化＝新しいエラー
-                    !sourcedEvidence.getValue(key).containsAll(issue.source.evidence)
+                    byKey.getOrPut(key) { mutableListOf() } += i
                 }
             }
+            for ((key, at) in byKey) {
+                val known = sourcedEvidence[key].orEmpty()
+                // 根拠に関わる要素が増えたものは、悪化＝新しいエラー。残りは、適用前の件数を超えた分だけが新しいエラー
+                val (same, grown) = at.partition { known.containsAll(errors[it].source?.evidence.orEmpty()) }
+                freshAt += grown
+                freshAt += same.drop(sourcedCount[key] ?: 0)
+            }
+            val fresh = errors.filterIndexed { i, _ -> i in freshAt }
             if (fresh.isNotEmpty()) out[rel] = fresh
         }
         return out

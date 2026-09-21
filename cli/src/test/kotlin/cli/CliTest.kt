@@ -134,6 +134,8 @@ class CliTest {
         val (code, yaml) = capture("workspace", "validate", fixture("workspaces", "legacy-basic"), "--format", "yaml")
         assertEquals(3, code, yaml)
         assertTrue("semanticErrors: 3" in yaml, yaml)
+        // コードで実装された検査の指摘にも、出どころが付く（P27 段B の残り・意図的差分 D-29）
+        assertTrue("rule: (code):reference#0" in yaml && "kind: unresolved" in yaml, yaml)
         val (jsonCode, json) = capture("workspace", "catalog", fixture("workspaces", "rename-target"), "--format", "json")
         assertEquals(0, jsonCode, json)
         assertTrue(json.trim().startsWith("{") && "\"schemas\":" in json, json)

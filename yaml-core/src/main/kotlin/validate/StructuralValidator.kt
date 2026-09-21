@@ -28,6 +28,7 @@ object StructuralValidator {
                     Severity.WARNING,
                     "フェーズ「$declared」は phases（${phases.order.joinToString(" → ")}）に定義されていません（先頭フェーズとして扱います）",
                     listOf(phases.key),
+                    StructuralIssueKind.PHASE,
                 )
             }
         }
@@ -43,10 +44,10 @@ object StructuralValidator {
         if (f.min == null && f.max == null) return
         val n = (v as? Number)?.toDouble() ?: (v as? String)?.toDoubleOrNull() ?: return
         f.min?.let { limit ->
-            if (n < limit) issues += StructuralIssue(Severity.ERROR, "「$label」は ${numText(limit)} 以上で入力してください（現在値: $v）", path)
+            if (n < limit) issues += StructuralIssue(Severity.ERROR, "「$label」は ${numText(limit)} 以上で入力してください（現在値: $v）", path, StructuralIssueKind.RANGE)
         }
         f.max?.let { limit ->
-            if (n > limit) issues += StructuralIssue(Severity.ERROR, "「$label」は ${numText(limit)} 以下で入力してください（現在値: $v）", path)
+            if (n > limit) issues += StructuralIssue(Severity.ERROR, "「$label」は ${numText(limit)} 以下で入力してください（現在値: $v）", path, StructuralIssueKind.RANGE)
         }
     }
 
@@ -55,13 +56,13 @@ object StructuralValidator {
         val label = f.displayLabel
         val required = schema.requiredAt(f, phaseIndex)
         if (node == null) {
-            if (required) issues += StructuralIssue(Severity.ERROR, "必須項目「$label」が未設定です", path)
+            if (required) issues += StructuralIssue(Severity.ERROR, "必須項目「$label」が未設定です", path, StructuralIssueKind.REQUIRED)
             return
         }
         when (f.type) {
             FieldType.OBJECT -> {
                 if (node !is YNode.Map) {
-                    issues += StructuralIssue(Severity.ERROR, "「$label」はオブジェクトである必要があります", path)
+                    issues += StructuralIssue(Severity.ERROR, "「$label」はオブジェクトである必要があります", path, StructuralIssueKind.TYPE)
                 } else {
                     val effective = schema.effectiveFields(f.fields, node)
                     for (ch in effective.fields) {
@@ -85,9 +86,10 @@ object StructuralValidator {
                                     severity,
                                     "「$key」は「${inactive.discriminator.displayLabel}」が ${inactive.values.joinToString(" / ")} のときのみ使用できます",
                                     path + key,
+                                    StructuralIssueKind.INACTIVE_KEY,
                                 )
                             } else {
-                                StructuralIssue(severity, "スキーマに定義されていない項目です: $key", path + key)
+                                StructuralIssue(severity, "スキーマに定義されていない項目です: $key", path + key, StructuralIssueKind.UNKNOWN_KEY)
                             }
                         }
                     }
@@ -95,7 +97,7 @@ object StructuralValidator {
             }
             FieldType.ARRAY -> {
                 if (node !is YNode.Seq) {
-                    issues += StructuralIssue(Severity.ERROR, "「$label」は配列である必要があります", path)
+                    issues += StructuralIssue(Severity.ERROR, "「$label」は配列である必要があります", path, StructuralIssueKind.TYPE)
                 } else {
                     val itemDef = f.item ?: return
                     node.items.forEachIndexed { i, child ->
@@ -105,7 +107,7 @@ object StructuralValidator {
             }
             FieldType.MAP -> {
                 if (node !is YNode.Map) {
-                    issues += StructuralIssue(Severity.ERROR, "「$label」はMapである必要があります", path)
+                    issues += StructuralIssue(Severity.ERROR, "「$label」はMapである必要があります", path, StructuralIssueKind.TYPE)
                 } else {
                     val valueDef = f.value ?: return
                     node.entries.forEach { (key, value) ->
@@ -116,46 +118,46 @@ object StructuralValidator {
             FieldType.ENUM -> {
                 val v = scalarText(node)
                 if (v == null) {
-                    if (required) issues += StructuralIssue(Severity.ERROR, "必須項目「$label」が未設定です", path)
+                    if (required) issues += StructuralIssue(Severity.ERROR, "必須項目「$label」が未設定です", path, StructuralIssueKind.REQUIRED)
                 } else if (v !in f.values) {
-                    issues += StructuralIssue(Severity.ERROR, "「$label」の値「$v」は選択肢 ${f.values} に含まれていません", path)
+                    issues += StructuralIssue(Severity.ERROR, "「$label」の値「$v」は選択肢 ${f.values} に含まれていません", path, StructuralIssueKind.ENUM)
                 }
             }
             FieldType.INT -> {
                 val v = (node as? YNode.Scalar)?.value
                 val ok = v == null || v is Int || v is Long || (v is String && v.toLongOrNull() != null)
-                if (!ok) issues += StructuralIssue(Severity.ERROR, "「$label」は整数である必要があります（現在値: $v）", path)
+                if (!ok) issues += StructuralIssue(Severity.ERROR, "「$label」は整数である必要があります（現在値: $v）", path, StructuralIssueKind.TYPE)
                 else checkRange(f, label, v, path, issues)
             }
             FieldType.NUMBER -> {
                 val v = (node as? YNode.Scalar)?.value
                 val ok = v == null || v is Number || (v is String && v.toDoubleOrNull() != null)
-                if (!ok) issues += StructuralIssue(Severity.ERROR, "「$label」は数値である必要があります（現在値: $v）", path)
+                if (!ok) issues += StructuralIssue(Severity.ERROR, "「$label」は数値である必要があります（現在値: $v）", path, StructuralIssueKind.TYPE)
                 else checkRange(f, label, v, path, issues)
             }
             FieldType.BOOLEAN -> {
                 val v = (node as? YNode.Scalar)?.value
                 if (v != null && v !is Boolean) {
-                    issues += StructuralIssue(Severity.ERROR, "「$label」は真偽値である必要があります（現在値: $v）", path)
+                    issues += StructuralIssue(Severity.ERROR, "「$label」は真偽値である必要があります（現在値: $v）", path, StructuralIssueKind.TYPE)
                 }
             }
             FieldType.DATE -> {
                 val v = scalarText(node)
                 if (v != null && !DATE_RE.matches(v)) {
-                    issues += StructuralIssue(Severity.WARNING, "「$label」は YYYY-MM-DD 形式を推奨します（現在値: $v）", path)
+                    issues += StructuralIssue(Severity.WARNING, "「$label」は YYYY-MM-DD 形式を推奨します（現在値: $v）", path, StructuralIssueKind.FORMAT)
                 }
             }
             FieldType.ID -> {
                 val v = scalarText(node)
                 if (v == null && required) {
-                    issues += StructuralIssue(Severity.ERROR, "必須項目「$label」（ID）が未設定です", path)
+                    issues += StructuralIssue(Severity.ERROR, "必須項目「$label」（ID）が未設定です", path, StructuralIssueKind.REQUIRED)
                 }
                 // IDフォーマットの強制（UX-79）: pattern 制約（R16-01）を ID 型にも適用する
                 if (v != null) {
                     f.pattern?.let { p ->
                         runCatching { Regex(p) }.getOrNull()?.let { re ->
                             if (!re.matches(v)) {
-                                issues += StructuralIssue(Severity.ERROR, "「$label」は形式（$p）に一致していません（現在値: $v）", path)
+                                issues += StructuralIssue(Severity.ERROR, "「$label」は形式（$p）に一致していません（現在値: $v）", path, StructuralIssueKind.FORMAT)
                             }
                         }
                     }
@@ -166,7 +168,7 @@ object StructuralValidator {
                     // 属性付き参照（R20-03。ARCHITECTURE §4.30）: {to, 属性...} を object の流儀で検証する。
                     // to の解決検証は参照走査（DocScanner の RefEntry）が従来の ref と同一に担う
                     if (scalarText(node.entries["to"]) == null) {
-                        issues += StructuralIssue(Severity.ERROR, "「$label」の to（参照値）が未設定です", path + "to")
+                        issues += StructuralIssue(Severity.ERROR, "「$label」の to（参照値）が未設定です", path + "to", StructuralIssueKind.REQUIRED)
                     }
                     val effective = schema.effectiveFields(f.fields, node)
                     for (ch in effective.fields) {
@@ -181,7 +183,7 @@ object StructuralValidator {
                     }
                     if (severity != null) {
                         node.entries.keys.filter { it !in definedKeys }.forEach { key ->
-                            issues += StructuralIssue(severity, "スキーマに定義されていない項目です: $key", path + key)
+                            issues += StructuralIssue(severity, "スキーマに定義されていない項目です: $key", path + key, StructuralIssueKind.UNKNOWN_KEY)
                         }
                     }
                 } else if (node !is YNode.Scalar) {
@@ -190,35 +192,36 @@ object StructuralValidator {
                         if (f.fields.isNotEmpty()) "「$label」は参照ID（スカラー）または {to, 属性} のオブジェクトを想定しています"
                         else "「$label」はスカラー値を想定しています",
                         path,
+                        StructuralIssueKind.TYPE,
                     )
                 } else if (required && scalarText(node) == null) {
-                    issues += StructuralIssue(Severity.ERROR, "必須項目「$label」が未設定です", path)
+                    issues += StructuralIssue(Severity.ERROR, "必須項目「$label」が未設定です", path, StructuralIssueKind.REQUIRED)
                 }
             }
             FieldType.STRING, FieldType.TEXT -> {
                 if (node !is YNode.Scalar) {
-                    issues += StructuralIssue(Severity.WARNING, "「$label」はスカラー値を想定しています", path)
+                    issues += StructuralIssue(Severity.WARNING, "「$label」はスカラー値を想定しています", path, StructuralIssueKind.TYPE)
                 } else if (required && scalarText(node) == null) {
-                    issues += StructuralIssue(Severity.ERROR, "必須項目「$label」が未設定です", path)
+                    issues += StructuralIssue(Severity.ERROR, "必須項目「$label」が未設定です", path, StructuralIssueKind.REQUIRED)
                 } else {
                     // 制約語彙（R16-01）: 文字数・正規表現（値が入っているときだけ検査する）
                     val text = scalarText(node)
                     if (text != null) {
                         f.minLength?.let { limit ->
                             if (text.length < limit) {
-                                issues += StructuralIssue(Severity.ERROR, "「$label」は $limit 文字以上で入力してください（現在 ${text.length} 文字）", path)
+                                issues += StructuralIssue(Severity.ERROR, "「$label」は $limit 文字以上で入力してください（現在 ${text.length} 文字）", path, StructuralIssueKind.LENGTH)
                             }
                         }
                         f.maxLength?.let { limit ->
                             if (text.length > limit) {
-                                issues += StructuralIssue(Severity.ERROR, "「$label」は $limit 文字以内で入力してください（現在 ${text.length} 文字）", path)
+                                issues += StructuralIssue(Severity.ERROR, "「$label」は $limit 文字以内で入力してください（現在 ${text.length} 文字）", path, StructuralIssueKind.LENGTH)
                             }
                         }
                         f.pattern?.let { p ->
                             // 不正な正規表現はメタスキーマ検証（validateDefinition）が指摘するため、ここでは黙って飛ばす
                             runCatching { Regex(p) }.getOrNull()?.let { re ->
                                 if (!re.matches(text)) {
-                                    issues += StructuralIssue(Severity.ERROR, "「$label」は形式（$p）に一致していません（現在値: $text）", path)
+                                    issues += StructuralIssue(Severity.ERROR, "「$label」は形式（$p）に一致していません（現在値: $text）", path, StructuralIssueKind.FORMAT)
                                 }
                             }
                         }

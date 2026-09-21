@@ -79,8 +79,8 @@ class KernelCheckLoadingTest {
         for (file in root.files) {
             val rel = root.relPath(file)
             val result = root.validateDetailed(rel)
-            // アプリ側の指摘のうち、定義体の検査から出たもの（出どころを持つもの）
-            val app = result.issues.filter { it.source != null }.map { listOf(it.severity, it.message, it.path, it.source) }
+            // アプリ側の指摘のうち、定義体の検査から出たもの（コードで実装された検査＝構造の検証・参照の解決などを除く）
+            val app = result.issues.filter { it.source?.coded == false }.map { listOf(it.severity, it.message, it.path, it.source) }
             val delivery = kernel[model.DocumentId(rel)]
             val core = delivery?.issues.orEmpty().map { listOf(it.severity, it.message, it.path, it.source) }.distinct()
             assertEquals(app, core, "指摘: $rel")

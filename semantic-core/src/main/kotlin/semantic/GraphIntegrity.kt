@@ -42,6 +42,7 @@ object SemanticGraphIntegrity {
                     severityOf(level),
                     "参照「${ref.targetId}」の関係「$name」は関係レジストリに宣言されていません",
                     ref.document, ref.path,
+                    SemanticIssueKind.UNDECLARED_RELATION, ref.targetId,
                 )
             }
         }
