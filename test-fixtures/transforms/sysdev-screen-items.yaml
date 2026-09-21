@@ -1,0 +1,21 @@
+# 設計情報テンプレート（sysdev-template）で試すための例（テストでは使わない）。
+# 画面ごとに、元のユーザアクションと、画面設計書（同じ画面 ID の、もう1つの出現）の項目の一覧を、入れ子で組み立てる。
+#   ./gradlew runCli -q --args="transform sysdev-template test-fixtures/transforms/sysdev-screen-items.yaml --origins"
+id: screen-items
+description: 画面ごとに、元のユーザアクションと、画面設計書の項目の一覧
+from:
+  match:
+    - node: { entity: screen, bind: scr }
+    - edge: { relation: derived-from }
+    - node: { bind: ua }
+build:
+  画面: { $format: "{id} {name}" }
+  元のユーザアクション: { $copy: name, $of: ua }
+  項目:
+    $each: items
+    $of: scr
+    $in: { schemaId: screen-design }
+    $build:
+      物理名: { $copy: physical_name }
+      型: { $copy: type }
+      最大文字数: { $copy: max_length }

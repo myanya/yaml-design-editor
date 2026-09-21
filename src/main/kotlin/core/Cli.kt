@@ -1,5 +1,6 @@
 package core
 
+import index.toKernelView
 import model.parseYPath
 import model.pretty
 import schema.validateDefinition
@@ -42,6 +43,11 @@ internal const val CLI_USAGE = """コマンド:
            グラフパターン照合（R22-01）: match（node / edge の連鎖）＋ where ＋ also を評価し、
            束縛の表を返す（ビュー rows: match / foreach source: query / constraints の試作台）。
            --spec 例: "{match: [{node: {entity: screen, bind: scr}}, {edge: {relation: uses}}, {node: {entity: usecase, bind: uc}}]}"
+  transform <workspace> <定義.yaml> [--input <file>] [--param 名前=値]... [--origins]
+           YAML から YAML への変換（P27 段C。試作台）: 定義（from＝クエリで選ぶ／build＝出力のひな型／rules＝入れ子に当てる規則）を
+           評価して、組み立てた YAML を返す。from を書かない定義は --input の文書1つが入力（ワークスペース相対か、ファイルのパス）。
+           --param の値は YAML として読む（例: --param "reachedPhases=[基本設計, 詳細設計]"）。--origins で、出力の各値が
+           入力のどこから来たかを添える。出力は保存しない（原本は変わらない）
   view     <workspace> [view-id] [file]         ビュー（_views）を解決する。横断グリッドは行×列、
            文書ビュー（kind: document）は file で対象文書を指定（適用対象1件なら省略可）。
            view-id 省略時は定義の一覧を表示する。各セルに原本上の座標（file / path）が付く
@@ -184,6 +190,44 @@ internal fun runCli(args: Array<String>): String {
                                 "path" to node.path.takeIf { it.isNotEmpty() }?.pretty(),
                             ).filterValues { it != null }
                         }
+                    },
+                )
+            )
+        }
+        "transform" -> {
+            val ws = workspace()
+            val defFile = rest.getOrNull(1)?.takeIf { !it.startsWith("--") }
+                ?: error("変換の定義を指定してください（transform <workspace> <定義.yaml> [--input <file>] [--param 名前=値]）")
+            val def = schema.TransformDef.parse(yaml.YamlIO.parseToRaw(Files.readString(Path.of(defFile))), "transform")
+            val params = stringFlags(rest, "--param").associate { raw ->
+                val at = raw.indexOf('=').takeIf { it > 0 } ?: error("--param は 名前=値 で書きます: $raw")
+                raw.substring(0, at) to yaml.YamlIO.parseToRaw(raw.substring(at + 1))
+            }
+            val result = if (def.from == null) {
+                val input = stringFlag(rest, "--input") ?: error("この定義は入力の文書を1つ受け取ります。--input <file> を指定してください")
+                // ワークスペースの文書ならその相対パス、そうでなければファイルのパスとして読む
+                val file = ws.root.resolve(input).takeIf { Files.exists(it) } ?: Path.of(input)
+                val root = yaml.YamlIO.parseFirst(Files.readString(file)) ?: error("入力を YAML として読めません: $input")
+                semantic.SemanticTransform.run(def, root, model.DocumentId(file.toString()), params)
+            } else {
+                val view = ws.index.toKernelView()
+                semantic.SemanticTransform.run(
+                    def, view.entries, view.refs, view.graph,
+                    rel = { d -> ws.relPath(Path.of(d.value)) },
+                    params = params,
+                    loader = { d -> runCatching { ws.load(ws.relPath(Path.of(d.value))).root }.getOrNull() },
+                )
+            }
+            val text = result.term?.let { YamlIO.dumpPlain(it) } ?: "# （何も得られませんでした）\n"
+            if ("--origins" !in rest) text
+            else text + "\n" + dumpYaml(
+                linkedMapOf(
+                    "origins" to result.origins.map { o ->
+                        linkedMapOf(
+                            "output" to o.output.pretty(),
+                            "file" to o.document?.let { d -> runCatching { ws.relPath(Path.of(d.value)) }.getOrDefault(d.value) },
+                            "path" to o.path.pretty(),
+                        ).filterValues { it != null }
                     },
                 )
             )

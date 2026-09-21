@@ -1556,6 +1556,7 @@ GUIを起動せずに、ワークスペースの探索・検索・部分変更�
 ./gradlew runCli -q --args="view sample-workspace screen-catalog"         # ビューの解決（引数なしで一覧。セルに原本座標つき）
 ./gradlew runCli -q --args="view my-ws actor-document 00-requirements/01-actors.yaml"  # 文書ビューの解決（適用対象1件なら file 省略可）
 ./gradlew runCli -q --args="validate sample-workspace"                    # 全文書の検証（カバレッジ含む。判定を保留した検査があれば withheld に内訳と件数。--sources で指摘の出どころ＝どの検査の・どの要素についての指摘か。構造の検証・参照の解決などの指摘にも付く）
+./gradlew runCli -q --args="transform test-fixtures/workspaces/rename-target test-fixtures/transforms/req-list.yaml --origins"   # YAML から YAML への変換（試作台）: 定義（from＝クエリで選ぶ／build＝出力のひな型／rules＝入れ子に当てる規則）を評価して、組み立てた YAML と出どころを返す。出力は保存しない
 ./gradlew runCli -q --args="readiness sample-workspace --pending"         # 準備完了レポート（エンティティ単位にエラーを帰属。--pending で未完了のみ。判定を保留した検査＝データの不備で確かめられなかった検査の件数と内訳も出る）
 ./gradlew runCli -q --args="bench --modules 2,4,8,16"                    # 規模の計測（合成ワークスペースを作り、開く・全体の検証・準備完了レポートの時間と、規模に対する伸び方を出す。--keep <dir> で作ったものを残す）
 ./gradlew runCli -q --args="checks sample-workspace --definitions"        # 展開後の検査の表示（語彙・定義の使用が、どんな基本の検査へ展開されたか。--definitions で定義と語彙の一覧も）

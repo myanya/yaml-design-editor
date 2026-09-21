@@ -1,0 +1,13 @@
+# クエリで選んだ要素ごとに、値を組み立てる例（workspaces/rename-target で使う）。
+# SQL でいえば、from.match が FROM・JOIN・WHERE、build が SELECT 句に当たる。出力は入れ子にできる（related が配列）。
+id: req-list
+description: 要求の一覧（要求ごとに、見出しと、関連する要求の一覧）
+from:
+  match:
+    - node: { schema: fx-req, bind: req }
+build:
+  id: { $copy: id }
+  heading: { $format: "{id} {title}" }
+  related:
+    $each: relates_to
+    $build: { to: { $copy: . } }

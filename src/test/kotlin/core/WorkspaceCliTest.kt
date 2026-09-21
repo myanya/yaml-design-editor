@@ -394,6 +394,40 @@ class WorkspaceCliTest {
     }
 
     @Test
+    fun `cli transform は クエリで選んで組み立てた YAML と その出どころを返す`() {
+        // YAML から YAML への変換（P27 段C）: from＝クエリで選ぶ・build＝出力のひな型。出力は保存されない
+        val dir = ws.toString()
+        val def = Files.createTempFile("transform", ".yaml")
+        Files.writeString(
+            def,
+            """
+            id: design-list
+            from:
+              match:
+                - node: { schema: design, bind: dsn }
+                - edge: { relation: implements }
+                - node: { bind: req }
+            build:
+              設計: { ${'$'}copy: id }
+              要求: { ${'$'}format: "{id} {title}", ${'$'}of: req }
+            """.trimIndent(),
+        )
+        try {
+            val before = Files.walk(ws).use { s -> s.filter { Files.isRegularFile(it) }.count() }
+            val out = runCli(arrayOf("transform", dir, def.toString(), "--origins"))
+            assertTrue("設計: DSN-001" in out && "要求: REQ-001 ログイン機能" in out, out)
+            assertTrue("file: designs/dsn-a.yaml" in out && "file: requirements/req-a.yaml" in out, out)
+            // 入力の文書を受け取る定義（from なし）は --input で渡す
+            Files.writeString(def, "id: titles\nbuild: { 見出し: { ${'$'}copy: title }, 明細: { ${'$'}each: items, ${'$'}build: { ${'$'}copy: id } } }")
+            val single = runCli(arrayOf("transform", dir, def.toString(), "--input", "requirements/req-a.yaml"))
+            assertTrue("見出し: ログイン機能" in single && "REQ-001-S1" in single, single)
+            assertEquals(before, Files.walk(ws).use { s -> s.filter { Files.isRegularFile(it) }.count() }, "ワークスペースに何も書かない")
+        } finally {
+            Files.deleteIfExists(def)
+        }
+    }
+
+    @Test
     fun `cli entity show returns composition with coordinates and backlinks`() {
         val dir = ws.toString()
         // エンティティページ・read_entity と同じ合成（R23-04。ARCHITECTURE §4.33）をYAMLで返す
