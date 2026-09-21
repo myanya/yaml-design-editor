@@ -65,7 +65,9 @@ src/main/kotlin/
 | `CoverageLevel`（`CoverageRule` は P29 Phase 6 第3段で削除＝coverage は組込み定義体が作る語彙） | schema/Relations.kt | 検査の重大度（warning / error）。旧: スキーマの `coverage`（被参照必須などのトレーサビリティ要件）の定義。`activeFrom` でフェーズ到達までの判定保留を宣言できる |
 | `SchemaLoader` | schema/Schema.kt | schemas ゾーンの読込・パース・スキーマID重複検出。ロードは「パース→リンク→導出」の三段階（§4.23） |
 | `WorkspaceLayout` | schema/WorkspaceLayout.kt | ワークスペースの配置ポリシー（R13-02）: レガシー／`.yde` 構成の判定・ゾーン解決（`zoneOf`）・台帳判定（`inLedger`）・索引除外（`indexExcluded`）を一元化（§4.25） |
-| `validateDefinition` / `generateSample` | schema/Schema.kt | メタスキーマ検証・サンプルデータ生成（拡張関数） |
+| `validateDefinition` / `generateSample` | schema/Schema.kt | メタスキーマ検証の窓口（実体はカーネルの `SchemaDefinitionChecks`）・サンプルデータ生成（拡張関数） |
+| `SchemaDefinitionChecks` / `SchemaIssue` | workspace-core/workspace/SchemaDefinitionChecks.kt | スキーマの定義の点検（種別ごとに書けるもの・型と制約の食い違い・`$ref` の参照先・cases・フェーズの宣言など）と、宣言のない関係名の点検。`WorkspaceReader.buildSchemas` が、スキーマ置き場に書かれたスキーマについて行い、スキーマの読み込みエラーへ足す（P27 段D の D-a で root から移した。§4.44・意図的差分 D-33） |
+| `CodedDocumentChecks` | workspace-core/validate/CodedDocumentChecks.kt | コードで実装された検査のうち、ワークスペースの他の文書も見るもの（ID のパターンからの逸脱・重複所有・テンプレートの健全性）。`WorkspaceChecks.deliver` が、定義体の検査と一緒に文書へ配る（P27 段D の D-a で root の `Validator` から移した。§4.44） |
 | `BuiltinSchemas` | schema/BuiltinSchemas.kt | 予約ディレクトリ用の組込みスキーマ。`builtin-schema`（R11-02）は `_schemas` 文書に適用されるメタスキーマ（再帰 `$ref` と `cases` のドッグフーディング） |
 | `RefNaming` / `SchemaInference` | schema/SchemaInference.kt | スキーマ推測（R11-01）: 既存文書群からのドラフト推測（純ロジック）。`RefNaming` は参照命名規約の共有実体（`DocScanner` が委譲。§4.23） |
 | `IdSuggest` | schema/IdSuggest.kt | ID自動採番（UX-64）: 既存ID集合からの次連番の決定的提案（純ロジック）。形式の源は field の `pattern`（UX-79）と entity 宣言・ビュー行の idPattern＝検証と同じ宣言を読む。フォームのID入力メニュー・ビュー新規行の初期値が消費 |
@@ -695,10 +697,10 @@ Core Calculus の本来の目的（[CORE-CALCULUS.md](CORE-CALCULUS.md) §25）�
 - **入力**: 検査を配るのに要るスキーマの情報（`CheckSchema`＝id・kind・match・構造のスキーマ〔フェーズ〕・entity 宣言・検査。root の `SchemaDef` とカーネルの `WorkspaceSchema` のどちらからも作れる。検査は同じものをそのまま渡す——評価の覚え書きは、同じものかどうかで見分けるため）・関係レジストリと強制スイッチ・走査結果（ids / refs / グラフ）・評価の覚え書き・文書の相対パスと中身を返す関数。
 - **`deliver(document, schema, root, localIds, localRefs)`**: 文書1つへ配る（`CheckDelivery`＝指摘 `CheckIssue` と、判定を保留した検査 `WithheldCheck`）。配り方の規則——報告先（`REPORT`。スキーマの検査は、宣言したスキーマの文書の中で決める／特定のスキーマに属さない検査は、定義出現か先頭の出現）・他の出現への案内（`NOTICE`）・値の場所（`VALUE`）・参照の場所（`REF`）・直せる場所への案内（`FIX_SITE`）——と、文面のひな型の差し込み・エラー時の対応の導出（`CheckResponse`＝移動・値の書き込み・文書の作成。参照を書き足せそうな文書の導出 `referenceSources` も含む）・専用チェッカーの文面が、ここに集まる。聞かれた文書の分だけを評価する（アプリの1文字ごとの検証を重くしないため。§4.39）。`statuses` は検査の状況（`RuleStatus`）。
 - **型の置き場**: `IssueDelivery`・`IssueSource`・`WithheldCheck`・`RuleStatus` は、パッケージ名 `validate` のまま workspace-core へ移した。エラー時の対応は、カーネルでは文書ID の `CheckResponse`、アプリでは `Path` の `IssueResponse`（`CheckIssue.toIssue` が写す）。
-- **root の `Validator`** は、構造の検証（導出した最小の構造のスキーマで行う＝§4.43）・ID と参照の検証・root に残る検査（ID のパターンからの逸脱・重複所有・テンプレートの健全性）を行い、定義体の検査は `WorkspaceChecks.deliver` の結果を `Issue` へ写すだけ。呼び出し側の `Path` の表記が索引と違っても報告先の判定がずれないよう、文書ID は索引の側のものに揃える（`KernelIndexView.documentIdOf`）。
+- **root の `Validator`** は、構造の検証（導出した最小の構造のスキーマで行う＝§4.43）・ID と参照の検証を、カーネルの部品を呼んで行い、ワークスペースの他の文書も見る検査（定義体の検査と、ID のパターンからの逸脱・重複所有・テンプレートの健全性＝§4.44）は `WorkspaceChecks.deliver` の結果を `Issue` へ写すだけ。呼び出し側の `Path` の表記が索引と違っても報告先の判定がずれないよう、文書ID は索引の側のものに揃える（`KernelIndexView.documentIdOf`）。
 - **カーネル側の CLI**（`workspace validate`。意図的差分 D-28）: `workspace.WorkspaceCheckRunner.deliverAll` が、読み取ったワークスペースの全文書へ配る。出力に「検査」の区分と保留が加わり、検査のエラーがあれば終了コード 3。派生状態の導出（`WorkspaceReader.derive`）には含めない——導出はセッションの編集のたびに走るため。
 - **確かめ方**: コミット済みの版をクリーンビルドして比べ、テンプレート・サンプル・壊した合成ワークスペース（違反21件・保留1件）の `validate --sources` と `readiness` が完全に一致。`KernelCheckLoadingTest` が、壊した合成ワークスペースで、アプリ側の指摘（出どころを持つもの）と保留が、カーネル側の結果と文書ごとに一致することを確かめる。
-- **まだ root にだけ残る検査**: ID のパターンからの逸脱・重複所有（スキーマの構造に依存）・テンプレートの健全性。カーネル側の CLI には出ない（P27 段D）。
+- **root にだけ残っていた検査**（ID のパターンからの逸脱・重複所有・テンプレートの健全性）は、P27 段D の D-a でカーネルへ移した（§4.44）。
 
 ### 4.42 YAML から YAML への変換（Construct。P27 段C）
 
@@ -749,10 +751,21 @@ Core Calculus の本来の目的（[CORE-CALCULUS.md](CORE-CALCULUS.md) §25）�
 - **スキーマの型と読み込みの一本化・表示の区画・名前の整理（段C の C-3b。2026-09-21。意図的差分 D-32）**: 
   - **スキーマを読むのは、カーネルの経路だけ**: root の `Workspace.refresh` は、開いたセッション（カーネルの `WorkspaceReader`＝スキーマ文書・組込みスキーマ・derive の展開）が読んだ結果を `SchemaLoader.fromKernel` へ渡し、アプリの形（`SchemaDef` と、関係レジストリの集約）にする。以前は root の `SchemaLoader` がファイルからもう一度読んでいた。組込みスキーマの2経路の読み取り（root の `BuiltinSchemas` とカーネルの `BuiltinSchemaResources`）と、派生スキーマの root 側の包装（`DerivedSchemas`）も、カーネルの1経路になった。
   - **`SchemaDef` は、カーネルの `WorkspaceSchema` を包む薄い型**: スキーマの中身の原本は `WorkspaceSchema`（名前・説明・関係レジストリの宣言・検査の定義も持つようにした）で、`SchemaDef` が足すのは、スキーマ定義文書のファイルの場所だけ。項目の木（`tree`）も、導出した構造のスキーマ（`structures`）も、カーネルの型のものをそのまま使う（二重に持たない）。data class ではない——同じかどうかは、同じものかどうかで見分ける。
-  - **アプリだけに残る点検**: スキーマの定義の点検（`validateDefinition`）と、宣言のない関係名の点検は、`fromKernel` が読み込みエラーへ足す（P27 段D で移す）。
+  - **アプリだけに残っていた点検**（スキーマの定義の点検 `validateDefinition` と、宣言のない関係名の点検）は、P27 段D の D-a でカーネルの読み込みへ移した（§4.44）。`fromKernel` は、カーネルの読み込みエラーをそのまま使う。
   - **表示の区画**: 項目の表示と編集のためのヒント（ラベル・説明・選択肢のラベル・一覧の見せ方・初期値）を `FieldHints` にまとめた（`FieldDef.hints`。読み出しは今までどおり `field.label` などでもできる）。検証・走査・検査は、ここを読まない（例外は、指摘の文面のために導出した構造のスキーマへ写す `label` だけ）。タイトルの役割（`role`）は、索引のタイトルを決めるので、項目の側（意味）に置く。
   - **名前の整理**: 利用者が書く項目の木の型を `StructuralSchema` → `SchemaTree`、その読み取りを `StructuralSchemaParser` → `SchemaTreeParser`、各型のプロパティを `structural` → `tree` に改めた（yaml-core の最小の構造のスキーマ `StructureSchema` と紛らわしかったため）。
 - **構造の検証を変えるとき**: 検証そのもの（値の形式的なチェック）は yaml-core の `structure/StructureValidator.kt`、利用者の語彙から構造への写し方は `builtin-transforms/structural-schema.yaml` を直す。利用者の語彙を足しただけでは、構造の検証には現れない（導出の規則に書いて初めて現れる）。
+
+### 4.44 root にだけ残っていた点検と検査のカーネル化（P27 段D の D-a）
+
+段B・段C の後も、アプリ側（root）にだけ残っていた点検と検査が5つあった。このため、カーネル側の CLI（`workspace validate`）は、アプリと結果が食い違うことがあった（スキーマの定義に誤りがあっても報告しない・下の③④⑤の警告が出ない）。5つともカーネルへ移した（移動であって複製ではない。意図的差分 D-33）。
+
+- **スキーマの定義そのものの点検**（workspace-core の `workspace.SchemaDefinitionChecks`）: ①スキーマの定義の点検（`issuesOf`。root の `SchemaDef.validateDefinition` の本体だったもの）②宣言のない関係名の点検（`undeclaredRelations`。関係レジストリが1つでもあるときだけ）。`WorkspaceReader.buildSchemas` が、**スキーマ置き場に書かれたスキーマ**について行い（組込みスキーマと、derive から導出されたスキーマには行わない）、スキーマの読み込みエラー（`schemaErrors`）へ足す。文面と並び順は、root にあったときと同じ。root の `SchemaLoader.fromKernel` は、カーネルの読み込みエラーをそのまま使う。`SchemaDef.validateDefinition()` は、1件だけを読んだ場面（スキーマ編集画面のプレビュー・スキーマの生成の入口の保証）のための窓口として残し、カーネルの実装を呼ぶだけ。
+- **ワークスペースの他の文書も見る、コードで実装された検査**（workspace-core の `validate.CodedDocumentChecks`）: ③ID のパターンからの逸脱④重複所有（エンティティ型の宣言に関わる点検。§4.30・§4.33）⑤テンプレートの健全性（§4.26 の整合検証の項）。定義体の検査と同じ入口（`WorkspaceChecks.deliver`）が、この文書の分を一緒に返す——指摘の並びは、エンティティ型の点検 → 定義体の検査 → テンプレートの健全性 → 直せる場所への案内。出どころは今までと同じ（`CodedChecks`。owner が `(code)`・at が `entity` / `template`）。root の `Validator` は、結果を `Issue` へ写すだけ（宣言のない関係名＝グラフ整合検証の指摘を、今までどおりエンティティ型の点検の後ろへ並べるため、そこだけ分けて並べる）。
+- **これらをコードに残す理由**: ③④は、スキーマの項目の木（所有する項目の一式）と、エンティティ型の宣言の一式（どのパターンにも合わない）を見る点検で、クエリ（要素と参照のグラフ）では書けない。⑤は、検査の定義そのもの（どの検査が、この文書の値をテンプレートとして展開するか）を見る点検。①②は、データではなく宣言そのものの点検（DL-04）。
+- **変わる挙動**: カーネル側の CLI `workspace validate`（と、セッションの `schemaErrors`）が、①②をスキーマエラーとして報告する（終了コード 2。定義体の検査は実行しない）。③④⑤の警告を「検査」の区分で報告する。アプリと root の CLI の検証結果は変わらない。
+- **確かめ方**: テンプレート・サンプル・specs・壊した合成ワークスペースと、5つがひととおり出るワークスペースで、`validate`・`validate --sources`・`readiness` の出力が、移す前と完全に一致。`KernelCheckLoadingTest` が、①②の読み込みエラーがアプリとカーネルで同じであること、文書ごとの指摘の全体（構造の検証＋意味の検証＋文書へ配る指摘）が、アプリの検証の結果と一致することを確かめる。カーネルだけで動くことは、workspace-core の `KernelOnlyChecksTest` と、cli の `CliTest`。
+- **まだ残る、アプリとカーネル側の CLI の食い違い**: 中身が空の文書（0バイトのファイル）。アプリは、スキーマの必須の項目が無いというエラーを出すが、カーネルは、空の文書を検証しない（BACKLOG UX-117。段D の D-b で扱う）。
 
 ## 5. 主要データフロー
 
@@ -776,7 +789,7 @@ Core Calculus の本来の目的（[CORE-CALCULUS.md](CORE-CALCULUS.md) §25）�
 - **横断ビューの追加**: データソースとして `AppState.workspaceRecords()` と `IdIndex` を利用し、`ui/Shell.kt` の `LedgerSpace`（台帳スペースのタブと `workspaceView` 分岐）に追加する。要素の1行要約（タイトル・サブタイトル）は `schema/Display`（§4.22）を使い、独自のタイトル抽出を書かない。
 - **ビュー定義の項目追加**: `core/Views.kt` の `parseView` と `schema/BuiltinSchemas.kt` の `builtin-view` スキーマを**対で**更新する（フォーム編集・検証と実行時パースの二重定義のため）。
 - **共通スキーマ定義の追加**: `_schemas` に `kind: library` を置き、利用側は `moduleId#definition` で参照する。解決規則を増やす場合は `SchemaCatalog` に閉じ、各利用側で参照文字列を個別解析しない。
-- **派生スキーマの写像項目の追加**: `semantic-core/schema/SchemaDerivation.kt` の `parse`（宣言のパース）と `compile`（コンパイル。root `SchemaLoader.parseDerive`・`DerivedSchemas` はこの委譲シェル）、組込みメタスキーマ（`builtin-schema` の `derive` 定義）を**そろえて**更新する。語彙は skill の列マッピング（SK-02）と揃える（§4.23 / C-2）。
+- **派生スキーマの写像項目の追加**: `semantic-core/schema/SchemaDerivation.kt` の `parse`（宣言のパース）と `compile`（コンパイル。呼ぶのはカーネルの `WorkspaceReader.expandDerived` だけ——root の委譲シェルは、読み込みの一本化＝P27 段C の C-3b で無くした）、組込みメタスキーマ（`builtin-schema` の `derive` 定義）を**そろえて**更新する。語彙は skill の列マッピング（SK-02）と揃える（§4.23 / C-2）。
 - **導出（計算列）の語彙追加**: 宣言モデル（`schema/Derivation.kt`）・パース（`Views.parseView` の computed）・`builtin-view`（computed）・解決器（`index/Derivation.kt`）を**そろえて**更新する（§4.26）。
 - **カバレッジ（`coverage`）とエンティティの整合の変更**: コードではなく**組込み定義体** `builtin-definitions/coverage.yaml`・`entities.yaml` を更新する（coverage の書き方の形は組込みメタスキーマ `builtin-schema` の `coverage`）。充足状況の表示の文言は検査の `status`、詳細文書の側への案内は `fixSite`、「詳細文書を作成」は `responses` の `create` の宣言（§4.36）。
 - **関係の宣言の検査（多重度・対象型）の変更**: コードではなく**組込み定義体** `workspace-core/src/main/resources/builtin-definitions/relations.yaml` と、書き方の形を持つ組込みメタスキーマ（`builtin-relations`）を更新する（§4.36）。

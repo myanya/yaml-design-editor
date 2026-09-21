@@ -166,7 +166,7 @@ class Workspace private constructor(val root: Path) {
             builtins = schema.BuiltinSchemas.kernelSchemas(layout),
         )
         session = opened
-        val loaded = SchemaLoader.fromKernel(root, layout, opened.schemas, opened.declarations, opened.schemaErrors)
+        val loaded = SchemaLoader.fromKernel(root, opened.schemas, opened.declarations, opened.schemaErrors)
         schemas = loaded.schemas
         schemaErrors = loaded.errors
         relations = loaded.relations

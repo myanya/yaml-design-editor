@@ -81,6 +81,43 @@ class CliTest {
     }
 
     @Test
+    fun `スキーマの定義の点検と ID のパターンからの逸脱も報告する`() {
+        // P27 段D の D-a（意図的差分 D-33）: 以前はアプリ側（root）だけが行っていた点検と検査を、カーネル側の CLI も報告する
+        val temp = kotlin.io.path.createTempDirectory("cli-lints")
+        try {
+            fun write(rel: String, content: String) {
+                val file = temp.resolve(rel)
+                java.nio.file.Files.createDirectories(file.parent)
+                java.nio.file.Files.writeString(file, content.trimIndent() + "\n")
+            }
+            fun schema(extra: String) = """
+                id: screen
+                match: "screens/*.yaml"
+                entity: { type: screen, idPattern: "SCR-*", defines: true }
+                root:
+                  type: object
+                  fields:
+                    - { key: id, type: id, required: true }
+                    $extra
+            """
+            write("_schemas/screen.yaml", schema("- { key: note, type: int, maxLength: 5 }"))
+            write("screens/a.yaml", "id: X-1")
+            // スキーマの定義の誤りは、スキーマエラー（終了コード 2。定義体の検査などは実行しない）
+            val (broken, brokenOutput) = capture("workspace", "validate", temp.toString())
+            assertEquals(2, broken, brokenOutput)
+            assertTrue("スキーマエラー: screen.yaml [root.note]: minLength / maxLength は string / text 型でのみ使用できます" in brokenOutput, brokenOutput)
+            // スキーマを直すと、ID のパターンからの逸脱が「検査」の区分の警告として出る
+            write("_schemas/screen.yaml", schema("- { key: note, type: string, maxLength: 5 }"))
+            val (code, output) = capture("workspace", "validate", temp.toString())
+            assertEquals(0, code, output)
+            assertTrue("[検査:WARNING] screens/a.yaml (root): ID「X-1」はエンティティ型の idPattern（SCR-*）のいずれにも一致しません" in output, output)
+            assertTrue("検査: エラー 0 件 / 警告 1 件" in output, output)
+        } finally {
+            temp.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
     fun `問題のないワークスペースはexit 0になる`() {
         val (code, output) = capture("workspace", "validate", fixture("workspaces", "yde-basic"))
         assertEquals(0, code, output)

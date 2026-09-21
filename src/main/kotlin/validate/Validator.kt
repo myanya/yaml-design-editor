@@ -9,17 +9,12 @@ import index.toKernelView
 import index.toScanned
 import model.YNode
 import model.YPath
-import model.getAt
-import model.scalarText
 import schema.EnforcementDef
 import schema.EntityRole
 import schema.RefTarget
 import schema.RelationDef
 import schema.FieldDef
 import schema.FieldType
-import schema.entityFor
-import schema.ownedFieldKeys
-import schema.Projection
 import schema.SchemaDef
 import schema.UnknownFieldsPolicy
 import schema.currentPhaseIndex
@@ -192,63 +187,14 @@ object Validator {
         // 3) 詳細文書の存在（スキーマの coverage）は、組込み定義体（builtin-definitions/coverage.yaml）が作る検査になった
         //    （P29 Phase 6 第3段）。不足の指摘・「詳細文書を作成」の対応・詳細文書の側への案内は、下の 3.7 と 6 で
         //    他の検査と同じ規則で評価する
-        // 3.5) エンティティ整合 lint（R20-01。ARCHITECTURE §4.30）のうち、スキーマの構造に依存するもの:
-        //      idPattern 逸脱（このスキーマのエンティティ型の宣言の一式）と重複所有（所有するフィールド）。
-        //      entity 宣言のあるスキーマのIDだけを判定する（宣言のないスキーマは挙動不変＝非破壊）。
-        //      浮遊詳細化・定義競合・型競合は「書かれた場所の数」の検査として、組込み定義体
-        //      （builtin-definitions/entities.yaml）になった（P29 Phase 6 第3段・意図的差分 D-22。下の 3.7 で評価する）
-        if (indexed && schema != null && schema.entities.isNotEmpty()) {
-            for (entry in localIds) {
-                val decl = schema.entityFor(entry.id)
-                if (decl == null) {
-                    val patterns = schema.entities.mapNotNull { it.idPattern }
-                    issues += Issue(
-                        Severity.WARNING,
-                        "ID「${entry.id}」はエンティティ型の idPattern（${patterns.joinToString(", ")}）のいずれにも一致しません",
-                        entry.path,
-                        source = coded(CodedChecks.ENTITY, "id-pattern", IssueDelivery.REPORT, entry.path),
-                    )
-                    continue
-                }
-                // 重複所有（R23-01。ARCHITECTURE §4.33）: 同一エンティティの2出現が同じフィールドを
-                // 所有していたら WARNING（「重複記載しない」運用規約の機械化）。誤検知回避のため、
-                // 双方の出現に entity 宣言があり、少なくとも一方が明示的な owns を持つ組だけを判定する
-                val myKeys = ownedFieldKeys(schema, root, entry.path, decl)
-                if (myKeys.isNotEmpty()) {
-                    val others = indexObj.occurrences(entry.id).filter { it.file != file } +
-                        localIds.filter { it.id == entry.id && it.path != entry.path }
-                    for (other in others) {
-                        val otherSchema = (allSchemas.ifEmpty { listOf(schema) }).firstOrNull { it.id == other.schemaId }
-                            ?: continue
-                        val otherDecl = otherSchema.entityFor(entry.id) ?: continue
-                        if (decl.owns == null && otherDecl.owns == null) continue
-                        val otherRoot = treeOf(other.file) ?: continue
-                        val overlap = myKeys.filter { it in ownedFieldKeys(otherSchema, otherRoot, other.path, otherDecl) }
-                        if (overlap.isNotEmpty()) {
-                            val where = workspace?.let { IdIndex.relPathOf(it, other.file) } ?: other.file.toString()
-                            issues += Issue(
-                                Severity.WARNING,
-                                "エンティティ「${entry.id}」のフィールド（${overlap.joinToString(", ")}）が" +
-                                    " $where の出現でも所有されています（重複所有。片側の owns を絞ってください）",
-                                entry.path,
-                                source = coded(CodedChecks.ENTITY, "duplicate-ownership", IssueDelivery.REPORT, entry.path),
-                            )
-                        }
-                    }
-                }
-            }
-        }
-        // 3.6) グラフ整合検証（R21-01。ARCHITECTURE §4.31）: 関係レジストリの非循環（acyclic）と、宣言のない関係名
-        //      （enforcement）を、このファイルに座標を持つ指摘として判定する。多重度と対象型は組込み定義体
-        //      （builtin-definitions/relations.yaml）が作る検査になり、下の 3.7 で他の検査と同じ規則で評価する（P29 Phase 6 第2段）
-        if (indexed) {
-            issues += GraphIntegrity.issues(file, indexObj, relations, enforcement, docScan.ids)
-        }
-        // 3.7) 定義体の検査（パターン制約・詳細文書の存在・整合・多重度・対象型・非循環・網羅マトリクス・遷移検証・利用者の検査）:
-        //      評価と、指摘を文書へ配る規則（報告先・他の出現への案内・値と参照の場所・直せる場所への案内）は、
-        //      カーネルの validate.WorkspaceChecks が持つ（P27 段B-3。ARCHITECTURE §4.41）。ここは、この文書の分を受け取って
-        //      ファイルの座標（Path）の Issue へ写すだけ。母集団に入らないID・型未宣言・未解決参照には黙る（§4.26・CALC-17）
-        var fixSiteIssues = emptyList<Issue>()
+        // 3.5〜6) ワークスペースの他の文書も見る検査は、カーネルの validate.WorkspaceChecks が、この文書の分をまとめて返す
+        //      （P27 段B-3・段D の D-a。ARCHITECTURE §4.41・意図的差分 D-33）。ここは、ファイルの座標（Path）の Issue へ写すだけ:
+        //      - エンティティ型の宣言に関わる点検（ID のパターンからの逸脱・重複所有。コードで実装された検査）
+        //      - 定義体の検査（パターン制約・詳細文書の存在・整合・多重度・対象型・非循環・網羅マトリクス・遷移検証・利用者の検査）の、
+        //        報告先・他の出現への案内・値と参照の場所への指摘。母集団に入らないID・型未宣言・未解決参照には黙る（§4.26・CALC-17）
+        //      - テンプレートの健全性（コードで実装された検査）
+        //      - 直せる場所への案内（SP-08。検査の宣言 fixSite）
+        //      宣言のない関係名（グラフ整合検証。R21-01・ARCHITECTURE §4.31）は、今までどおり、エンティティ型の点検の後ろに並べる
         if (indexed) {
             val view = indexObj.toKernelView()
             // 検査の評価の覚え書き: 共有するなら索引のもの、しないならこの検証1回の中だけのもの
@@ -261,49 +207,12 @@ object Validator {
                 tree = { d -> treeOf(Path.of(d.value)) },
             )
             val delivery = checks.deliver(view.documentIdOf(file), self, root, docScan.ids, docScan.refs)
-            val delivered = delivery.issues.map { it.toIssue() }
-            // 直せる場所への案内は、今までどおり、テンプレート健全性の指摘の後ろに並べる
-            issues += delivered.filter { it.source?.delivery != IssueDelivery.FIX_SITE }
-            fixSiteIssues = delivered.filter { it.source?.delivery == IssueDelivery.FIX_SITE }
+            val (entityLints, rest) = delivery.issues.map { it.toIssue() }
+                .partition { it.source?.coded == true && it.source.rule?.at == CodedChecks.ENTITY }
+            issues += entityLints
+            issues += GraphIntegrity.issues(file, indexObj, relations, enforcement, docScan.ids)
+            issues += rest
             withheld += delivery.withheld
-        }
-        // 4) テンプレート健全性（R16-03a / UX-12）: いずれかのスキーマの検査が、この文書に書かれた値を
-        //    テンプレートとして展開する（値の式 format。整合検証の expected など）とき、テンプレートのプレースホルダが
-        //    同じ要素の値（この文書の要素と、同じ ID が書かれた他の文書の要素）から解決できるかを、書いたその場で点検する。
-        //    参照元の要素（lookup の起点）から来る値は、この文書だけからは分からないため対象にしない（§4.26）
-        if (indexed) {
-            val relSelf = relOf(file)
-            val templateReads = (allSchemas.ifEmpty { listOfNotNull(schema) })
-                .flatMap { it.constraints }
-                .flatMap { rule ->
-                    rule.check.flatMap { c -> c.operands.flatMap { it.templateReads() } }
-                        .filter { read -> read.inDoc?.matches(schema?.id, relSelf) == true }
-                        .map { read -> rule to read }
-                }
-                .distinct()
-            for ((rule, read) in templateReads) {
-                for (entry in localIds) {
-                    val element = getAt(root, entry.path) ?: continue
-                    val raw = scalarText(getAt(element, read.path)) ?: continue
-                    if ('{' !in raw) continue
-                    val others = indexObj.entries[entry.id].orEmpty()
-                        .filter { !(it.file == file && it.path == entry.path) }
-                        .mapNotNull { e -> treeOf(e.file)?.let { getAt(it, e.path) } }
-                    val eval = Projection.evaluate(raw, listOf(element) + others)
-                    eval.resolutions.filter { it.value == null }.forEach { r ->
-                        issues += Issue(
-                            Severity.WARNING,
-                            "プレースホルダ {${r.placeholder}} を導出の入力（値型定義等）から解決できません" +
-                                (rule.description?.let { " — $it" } ?: ""),
-                            entry.path + read.path,
-                            source = coded(CodedChecks.TEMPLATE, "unresolved-placeholder", IssueDelivery.VALUE, entry.path + read.path),
-                        )
-                    }
-                }
-            }
-
-            // 6) 直せる場所への案内（SP-08。検査の宣言 fixSite）: カーネルから受け取ったものを、ここへ並べる
-            issues += fixSiteIssues
         }
         // 同じ指摘の重複を除く（出どころは見ない——文面・場所・対応が同じなら、利用者には同じ指摘）
         return ValidationResult(

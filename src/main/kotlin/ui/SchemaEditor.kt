@@ -22,11 +22,11 @@ import app.AppState
 import model.YNode
 import schema.FieldType
 import schema.SchemaDef
-import schema.SchemaIssue
 import schema.SchemaKind
 import schema.SchemaLoader
 import schema.generateSample
 import schema.validateDefinition
+import workspace.SchemaIssue
 import yaml.YamlIO
 
 /** `_schemas` 用の構造化エディタ。YAML の表現を意識せずフィールド定義を編集できる。 */

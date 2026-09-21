@@ -120,7 +120,10 @@ sealed interface CheckResponse {
     data class CreateDetail(override val label: String, val schemaId: String, val id: String, val note: String? = null) : CheckResponse
 }
 
-/** 定義体の検査から出た指摘1件（場所は、配り先の文書の中のパス）。 */
+/**
+ * 文書へ配る指摘1件（場所は、配り先の文書の中のパス）。定義体の検査から出た指摘と、コードで実装された検査のうち
+ * ワークスペースの他の文書も見るもの（CodedDocumentChecks。出どころの owner が `(code)`）の指摘。
+ */
 data class CheckIssue(
     val severity: Severity,
     val message: String,
@@ -130,7 +133,10 @@ data class CheckIssue(
     val source: IssueSource,
 )
 
-/** 文書1つへ配られた、定義体の検査の結果: 指摘と、判定を保留した検査。 */
+/**
+ * 文書1つへ配られた検査の結果: 指摘と、判定を保留した検査。指摘の並びは、エンティティ型の宣言に関わる点検 → 定義体の検査
+ * （報告先・値と参照の場所・他の出現への案内）→ テンプレートの健全性 → 直せる場所への案内。
+ */
 data class CheckDelivery(val issues: List<CheckIssue>, val withheld: List<WithheldCheck>)
 
 /**
@@ -196,6 +202,8 @@ class CheckSchema(
  * - 他の出現への案内（NOTICE）: 報告先が他の文書にある要素の出現に、報告先で出ている指摘を案内する（警告級は INFO・エラー級は同格の ERROR）
  * - 値の場所（VALUE）・参照の場所（REF）: 検査の宣言 reportAt に従い、この文書に書かれた値・参照の場所へ指摘する
  * - 直せる場所への案内（FIX_SITE）: この文書のスキーマが検査の「書き足し先」なら、違反している要素の一覧を案内する（INFO）
+ * コードで実装された検査のうち、ワークスペースの他の文書も見るもの（ID のパターンからの逸脱・重複所有・テンプレートの健全性）も、
+ * ここが一緒に返す（実体は CodedDocumentChecks。P27 段D の D-a・意図的差分 D-33）。
  * 判定そのもの（違反・充足・保留・対象外）は semantic.SemanticRules、その覚え書きは SemanticCheckSession。
  * tree は、この検証で読む文書の中身（検証中の文書は、呼び出し側がいまの内容を返す）。
  */
@@ -216,6 +224,9 @@ class WorkspaceChecks(
     private val builtinCheckers: List<CheckerRule> = CheckCatalog.builtinCheckers,
 ) {
     private class RuleGroup<R>(val key: String, val owner: CheckSchema?, val rules: List<R>)
+
+    /** コードで実装された検査のうち、ワークスペースの他の文書も見るもの。 */
+    private val coded = CodedDocumentChecks(schemas, ids, rel, tree)
 
     // 特定のスキーマに属さない検査: 組込み定義体に直接書いた検査と、kind: relations / library の文書の検査
     private val sharedRuleGroups: List<RuleGroup<ConstraintRule>> =
@@ -260,6 +271,9 @@ class WorkspaceChecks(
         val issues = mutableListOf<CheckIssue>()
         val withheld = mutableListOf<WithheldCheck>()
         val localIdSet = localIds.map { it.id }.toSet()
+
+        // エンティティ型の宣言に関わる点検（ID のパターンからの逸脱・重複所有。コードで実装された検査）
+        issues += coded.entityIssues(document, schema, root, localIds)
 
         // 報告先: 規則はこの文書のスキーマの宣言・activeFrom はこの文書のフェーズで判定する（R29-03・CALC-14）
         if (schema != null) {
@@ -353,6 +367,9 @@ class WorkspaceChecks(
                 }
             }
         }
+        // テンプレートの健全性（コードで実装された検査）: 直せる場所への案内の前に並べる
+        issues += coded.templateIssues(document, schema, root, localIds)
+
         // 直せる場所への案内（SP-08。検査の宣言 fixSite）: この文書のスキーマが「書き足し先」に指定されている検査について、
         // 指摘が出ている ID の一覧を案内する（INFO）。この文書に既に書かれている ID（未保存の追加を含む）は載せない
         if (schema != null) {

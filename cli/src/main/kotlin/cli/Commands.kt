@@ -55,7 +55,9 @@ fun workspaceValidate(root: String?, args: List<String>, out: (String) -> Unit):
     val semanticErrors = semantic.count { it.severity == Severity.ERROR }
     val semanticWarnings = semantic.count { it.severity == Severity.WARNING }
     // 定義体の検査（詳細文書の存在・整合・多重度・対象型・非循環・網羅・遷移・利用者の constraints。P27 段B-4・意図的差分 D-28）:
-    // アプリと同じ実装（validate.WorkspaceChecks）で評価して文書へ配る。スキーマを読めなかったときは実行しない
+    // アプリと同じ実装（validate.WorkspaceChecks）で評価して文書へ配る。スキーマを読めなかったときは実行しない。
+    // コードで実装された検査のうち、ワークスペースの他の文書も見るもの（ID のパターンからの逸脱・重複所有・テンプレートの健全性）も、
+    // ここに含まれる（P27 段D の D-a・意図的差分 D-33）。スキーマの定義の点検と、宣言のない関係名の点検は、スキーマエラーに出る
     val deliveries = if (ws.schemaErrors.isEmpty()) workspace.WorkspaceCheckRunner.deliverAll(ws) else emptyMap()
     val checks = deliveries.entries.flatMap { (id, d) -> d.issues.map { id to it } }
     val withheld = deliveries.entries.flatMap { (id, d) -> d.withheld.map { id to it } }

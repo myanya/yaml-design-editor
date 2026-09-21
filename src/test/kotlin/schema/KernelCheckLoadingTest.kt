@@ -43,6 +43,12 @@ class KernelCheckLoadingTest {
         FileSystemDocumentStore(dir), builtins = BuiltinSchemaResources.kernelSchemas(WorkspaceLayout.of(dir)),
     )
 
+    /** カーネルが文書へ配る指摘か（定義体の検査と、コードで実装された検査のうち、エンティティ型の点検とテンプレートの健全性）。 */
+    private fun deliveredByKernel(issue: validate.Issue): Boolean {
+        val source = issue.source ?: return false
+        return !source.coded || source.rule?.at in setOf(validate.CodedChecks.ENTITY, validate.CodedChecks.TEMPLATE)
+    }
+
     @Test
     fun `カーネルのスキーマ読み込みは アプリ側と同じ検査を持つ`() {
         Bench.generate(dir, modules = 1)
@@ -79,8 +85,9 @@ class KernelCheckLoadingTest {
         for (file in root.files) {
             val rel = root.relPath(file)
             val result = root.validateDetailed(rel)
-            // アプリ側の指摘のうち、定義体の検査から出たもの（コードで実装された検査＝構造の検証・参照の解決などを除く）
-            val app = result.issues.filter { it.source?.coded == false }.map { listOf(it.severity, it.message, it.path, it.source) }
+            // アプリ側の指摘のうち、カーネルが文書へ配るもの（定義体の検査と、コードで実装された検査のうちワークスペースの他の文書も見るもの。
+            // 構造の検証・参照の解決などは、カーネルでは別の区分で出る）
+            val app = result.issues.filter { deliveredByKernel(it) }.map { listOf(it.severity, it.message, it.path, it.source) }
             val delivery = kernel[model.DocumentId(rel)]
             val core = delivery?.issues.orEmpty().map { listOf(it.severity, it.message, it.path, it.source) }.distinct()
             assertEquals(app, core, "指摘: $rel")
@@ -230,5 +237,161 @@ class KernelCheckLoadingTest {
         )
         val kernel = loadKernel()
         assertTrue(kernel.schemaErrors.any { "no-such-definition" in it }, kernel.schemaErrors.toString())
+    }
+    /** スキーマの定義の点検・関係名の点検・ID のパターン・重複所有・テンプレートの健全性がひととおり出るワークスペース。 */
+    private fun writeLintWorkspace(withSchemaErrors: Boolean) {
+        write("_schemas/relations.yaml", "id: relations\nkind: relations\nrelations:\n  - { name: typed-as, label: 値型 }")
+        val extra = if (withSchemaErrors) {
+            "\n          - { key: owner, type: ref, relation: owned-by }\n          - { key: note, type: int, maxLength: 5 }"
+        } else ""
+        write(
+            "_schemas/concepts.yaml",
+            """
+            id: concepts
+            name: 概念
+            match: "concepts.yaml"
+            entity:
+              - { type: vtype, idPattern: "VT-*", defines: true }
+              - { type: field, idPattern: "FLD-*", defines: true }
+            root:
+              type: object
+              fields:
+                - key: types
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: id, type: id, required: true }
+                      - { key: maxLength, type: int }
+                - key: fields
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: id, type: id, required: true }
+                      - { key: vtype, type: ref, idPattern: "VT-*", relation: typed-as }
+            """.trimIndent() + extra,
+        )
+        write(
+            "_schemas/mapping.yaml",
+            """
+            id: mapping
+            name: 型写像
+            match: "mapping.yaml"
+            root:
+              type: object
+              fields:
+                - key: mappings
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: id, type: id, required: true }
+                      - { key: to, type: string }
+            """,
+        )
+        write(
+            "_schemas/impl.yaml",
+            """
+            id: impl
+            name: 実装設計
+            match: "impl.yaml"
+            consistency:
+              - description: 実装型は型写像から導出した値と一致すること
+                idPattern: "FLD-*"
+                path: type
+                expected:
+                  lookup: { schemaId: concepts, via: vtype }
+                  source: { schemaId: mapping }
+                  path: to
+                  values:
+                    - schemaId: concepts
+            root:
+              type: object
+              fields:
+                - key: rows
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: id, type: id, required: true }
+                      - { key: type, type: string }
+            """,
+        )
+        for ((id, entity) in listOf(
+            "design" to "{ type: screen, idPattern: \"SCR-*\", aspect: 設計, owns: [layout, memo] }",
+            "memo" to "{ type: screen, idPattern: \"SCR-*\", defines: true }",
+        )) {
+            write(
+                "_schemas/$id.yaml",
+                """
+                id: $id
+                name: 画面（$id）
+                match: "details-$id/*.yaml"
+                entity: $entity
+                root:
+                  type: object
+                  fields:
+                    - { key: id, type: id, required: true }
+                    - { key: memo, type: string }
+                """,
+            )
+        }
+        // ID のパターンからの逸脱（BAD-1）・相手の見つからない参照（VT-GONE）・同じ ID の重複（VT-TITLE）
+        write("concepts.yaml", "types:\n  - id: VT-TITLE\n    maxLength: 100\n  - id: VT-TITLE\n  - id: BAD-1\nfields:\n  - id: FLD-TITLE\n    vtype: VT-TITLE\n  - id: FLD-X\n    vtype: VT-GONE")
+        write("mapping.yaml", "mappings:\n  - id: VT-TITLE\n    to: varchar({maxlen})\nextra: 1")
+        write("impl.yaml", "rows:\n  - id: FLD-TITLE\n    type: varchar(100)")
+        write("details-design/scr-001.yaml", "id: SCR-001\nmemo: 設計のメモ")
+        write("details-memo/scr-001.yaml", "id: SCR-001\nmemo: 補足メモ")
+    }
+
+    @Test
+    fun `スキーマの定義の点検と 宣言のない関係名の点検は カーネルの読み込みが行い アプリはそのまま使う`() {
+        // P27 段D の D-a（意図的差分 D-33）: 以前は root の SchemaLoader だけが行っていた
+        writeLintWorkspace(withSchemaErrors = true)
+        val kernel = loadKernel()
+        val app = Workspace.open(dir)
+        assertEquals(
+            listOf(
+                "concepts.yaml [root.fields.item.note]: minLength / maxLength は string / text 型でのみ使用できます",
+                "concepts.yaml: 関係「owned-by」は関係レジストリに宣言されていません",
+            ),
+            kernel.schemaErrors,
+        )
+        assertEquals(kernel.schemaErrors, app.schemaErrors)
+        // 1件だけを読んだ場面の窓口（スキーマ編集画面のプレビューなど）も、カーネルの同じ実装
+        val concepts = app.schemas.first { it.id == "concepts" }
+        assertEquals(workspace.SchemaDefinitionChecks.issuesOf(concepts.kernel), concepts.validateDefinition())
+    }
+
+    @Test
+    fun `カーネルだけで検証した結果は アプリの検証の結果と 文書ごとに一致する`() {
+        // P27 段D の D-a（意図的差分 D-33）: ID のパターンからの逸脱・重複所有・テンプレートの健全性も、カーネルが文書へ配る。
+        // 構造の検証・意味の検証（ID の重複・参照の解決）と合わせて、カーネル側の CLI（workspace validate）が出す指摘の全体が、アプリと揃う
+        writeLintWorkspace(withSchemaErrors = false)
+        val app = Workspace.open(dir)
+        val kernel = loadKernel()
+        assertTrue(kernel.schemaErrors.isEmpty(), kernel.schemaErrors.toString())
+        val delivered = workspace.WorkspaceCheckRunner.deliverAll(kernel)
+        val seen = mutableSetOf<String>()
+        for (file in app.files) {
+            val rel = app.relPath(file)
+            val id = model.DocumentId(rel)
+            val fromApp = app.validateDetailed(rel).issues.map { Triple(it.severity, it.message, it.path) }
+            val fromKernel = kernel.derived.structuralIssues[id].orEmpty().map { Triple(it.severity, it.message, it.path) } +
+                kernel.derived.semantic.issues.filter { it.document == id }.map { Triple(it.severity, it.message, it.path) } +
+                delivered[id]?.issues.orEmpty().map { Triple(it.severity, it.message, it.path) }
+            assertEquals(fromApp.map { it.toString() }.sorted(), fromKernel.distinct().map { it.toString() }.sorted(), "指摘: $rel")
+            // カーネルが文書へ配る分は、並び順と出どころまで一致する
+            assertEquals(
+                app.validateDetailed(rel).issues.filter { deliveredByKernel(it) }.map { listOf(it.message, it.path, it.source) },
+                delivered[id]?.issues.orEmpty().map { listOf(it.message, it.path, it.source) }.distinct(),
+                "文書へ配る指摘: $rel",
+            )
+            seen += fromApp.map { it.second }
+        }
+        for (expected in listOf("いずれにも一致しません", "重複所有", "プレースホルダ {maxlen}", "VT-GONE", "重複", "スキーマに定義されていない項目")) {
+            assertTrue(seen.any { expected in it }, "$expected が出ていること: $seen")
+        }
     }
 }

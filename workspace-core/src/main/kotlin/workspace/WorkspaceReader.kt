@@ -229,6 +229,9 @@ object WorkspaceReader {
         val withBuiltins = parsed.schemas + composed.filter { b -> parsed.schemas.none { it.id == b.id } }
         val errors = parsed.errors.toMutableList()
         val expanded = expandDerived(withBuiltins, documents, layout, errors)
+        // スキーマ置き場に書かれたスキーマ（組込みスキーマと、derive から導出されたスキーマを除く）の、定義の点検と、
+        // 宣言のない関係名の点検（P27 段D の D-a で root から移した。意図的差分 D-33）
+        errors += SchemaDefinitionChecks.loadErrors(parsed.schemas, parsed.declarations.relations)
         return SchemaLoadResult(expanded, parsed.declarations, errors, parsed.library)
     }
 
