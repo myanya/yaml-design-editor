@@ -83,7 +83,7 @@ internal fun mergeGenField(
         (ownedKeys == null || key in ownedKeys) && (schema.resolve(f) ?: f).type != FieldType.ID
     }
     if (fields.isEmpty()) return null
-    return resolved.copy(fields = fields, label = label)
+    return resolved.copy(fields = fields, hints = resolved.hints.copy(label = label))
 }
 
 /**

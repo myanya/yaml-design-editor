@@ -72,7 +72,7 @@ object Aspects {
         loader: (Path) -> YNode?,
     ): EntityComposite? {
         val graph = index.toKernelGraph()
-        val semantics = schemas.associate { it.id to SchemaSemantics(it.id, it.structural, it.entities) }
+        val semantics = schemas.associate { it.id to SchemaSemantics(it.id, it.tree, it.entities) }
         val composite = SemanticAspects.compose(id, graph, semantics, entityTypes) { d -> loader(Path.of(d.value)) }
             ?: return null
 

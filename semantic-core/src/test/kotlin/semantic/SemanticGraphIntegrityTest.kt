@@ -7,7 +7,7 @@ import schema.CoverageLevel
 import schema.EnforcementDef
 import schema.EntityDecl
 import schema.RelationDef
-import schema.StructuralSchemaParser
+import schema.SchemaTreeParser
 import validate.Severity
 import yaml.YamlIO
 import kotlin.test.Test
@@ -21,7 +21,7 @@ import kotlin.test.assertTrue
  */
 class SemanticGraphIntegrityTest {
 
-    private val schema = StructuralSchemaParser.parse(
+    private val schema = SchemaTreeParser.parse(
         """
         id: node
         root:

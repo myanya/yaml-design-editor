@@ -118,7 +118,9 @@ class WorkspaceSession(
     var schemaErrors: List<String>
         private set
 
-    private var declarations: semantic.SemanticDeclarations
+    /** 関係レジストリの集約（関係・エンティティ型・強制スイッチ。スキーマの再構築のたびに更新）。 */
+    var declarations: semantic.SemanticDeclarations
+        private set
 
     private var workingDocuments: MutableMap<DocumentId, WorkspaceDocument>
 
@@ -289,7 +291,7 @@ class WorkspaceSession(
         schemas.associate {
             it.id to semantic.SchemaSemantics(
                 id = it.id,
-                structural = it.structural,
+                tree = it.tree,
                 entities = it.entities,
                 source = if (it.isTemplate) null else it.source,
                 kind = it.kind,

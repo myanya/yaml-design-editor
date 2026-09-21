@@ -8,7 +8,7 @@ import schema.EntityDecl
 import schema.EntityTypeDef
 import schema.FieldDef
 import schema.FieldType
-import schema.StructuralSchema
+import schema.SchemaTree
 import schema.entityFor
 import schema.ownedFieldKeys
 
@@ -23,7 +23,7 @@ import schema.ownedFieldKeys
 /** スキーマ1件の意味束（合成・リファクタリングが必要とする構造コア＋宣言）。上位層が SchemaDef から作る。 */
 data class SchemaSemantics(
     val id: String,
-    val structural: StructuralSchema,
+    val tree: SchemaTree,
     val entities: List<EntityDecl> = emptyList(),
     /** スキーマ定義文書の座標（スキーマ自身の書き換え先。組込み・derive 派生は null＝編集不可。RF-002b）。 */
     val source: model.DocumentId? = null,
@@ -99,7 +99,7 @@ object SemanticAspects {
             val sc = entry.schemaId?.let { schemas[it] }
             val root = tree(entry.document)
             val objectField = if (sc != null && root != null) {
-                sc.structural.fieldAt(root, entry.path)?.takeIf { it.type == FieldType.OBJECT }
+                sc.tree.fieldAt(root, entry.path)?.takeIf { it.type == FieldType.OBJECT }
             } else null
             if (sc == null || root == null || objectField == null) {
                 unassigned += entry
@@ -124,16 +124,16 @@ object SemanticAspects {
         // 所有フィールドを座標つきでマージする。重複所有は隠さず duplicateOf で注記する（§4.33）
         val claimed = mutableMapOf<String, Pair<DocumentId, YPath>>()
         val sections = ordered.map { p ->
-            val ownedKeys = ownedFieldKeys(p.schema.structural, p.root, p.entry.path, p.decl)
+            val ownedKeys = ownedFieldKeys(p.schema.tree, p.root, p.entry.path, p.decl)
             val element = getAt(p.root, p.entry.path) as? YNode.Map
-            val declared = p.schema.structural.effectiveFields(p.objectField.fields, element).fields.associateBy { it.key }
+            val declared = p.schema.tree.effectiveFields(p.objectField.fields, element).fields.associateBy { it.key }
             val fields = ownedKeys.map { key ->
                 val fieldPath = p.entry.path + key
                 val dup = claimed[key]
                 if (dup == null) claimed[key] = p.entry.document to fieldPath
                 SemanticAspectField(
                     key = key,
-                    label = declared[key]?.let { (p.schema.structural.resolve(it) ?: it).displayLabel } ?: key,
+                    label = declared[key]?.let { (p.schema.tree.resolve(it) ?: it).displayLabel } ?: key,
                     value = element?.entries?.get(key),
                     document = p.entry.document,
                     path = fieldPath,

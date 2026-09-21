@@ -26,55 +26,22 @@ object BuiltinSchemas {
 
     private fun yaml(name: String): String = workspace.BuiltinSchemaResources.text(name)
 
-    /** 組込みスキーマ一覧（読み込み失敗はあり得ない前提。失敗時は例外で気付かせる）。match はレガシー配置。 */
-    val all: List<SchemaDef> by lazy {
-        workspace.BuiltinSchemaResources.names.map { name ->
-            SchemaLoader.parseSchemaText(yaml(name), Path.of("(builtin)/$name.yaml"))
-        }
-    }
-
-    /** 組込みスキーマID → 適用先ゾーン（match の書き換えに使う。R13-02）。 */
-    private val zoneById = mapOf(
-        "builtin-agent" to WorkspaceLayout.Zone.AGENTS,
-        "builtin-activity" to WorkspaceLayout.Zone.ACTIVITIES,
-        "builtin-eval" to WorkspaceLayout.Zone.EVALS,
-        "builtin-skill" to WorkspaceLayout.Zone.SKILLS,
-        "builtin-view" to WorkspaceLayout.Zone.VIEWS,
-        META_SCHEMA_ID to WorkspaceLayout.Zone.SCHEMAS,
-        RELATIONS_SCHEMA_ID to WorkspaceLayout.Zone.SCHEMAS,
-    )
-
     /**
      * レイアウトに合わせて match を各ゾーンの実ディレクトリへ書き換えた組込みスキーマ一覧（R13-02）。
-     * レガシー構成では `all` と同一。SchemaDef は data class のため copy で match だけ差し替える
-     * （glob の正規表現は lazy で再コンパイルされる）。
+     * 読み取りは、カーネルの1経路（workspace.BuiltinSchemaResources.kernelSchemas）——以前は同じ資源の原文を、root とカーネルで
+     * 別々に読んでいた（P27 段C の C-3b で統一・意図的差分 D-32）。ここは、アプリの形（SchemaDef）へ包むだけ。
      */
-    fun forLayout(layout: WorkspaceLayout): List<SchemaDef> {
-        if (layout.configDir == null) return all
-        return all.map { builtin ->
-            val zone = zoneById[builtin.id] ?: return@map builtin
-            builtin.copy(match = "${layout.dir(zone)}/**/*.{yaml,yml}")
-        }
-    }
+    fun forLayout(layout: WorkspaceLayout): List<SchemaDef> =
+        kernelSchemas(layout).map { SchemaDef(it, Path.of(it.source.value)) }
+
+    /** 組込みスキーマ一覧（match はレガシー配置）。 */
+    val all: List<SchemaDef> by lazy { forLayout(WorkspaceLayout.LEGACY) }
 
     /** 組込みスキーマの原文（テスト用: すべてがメタスキーマ検証を通ることのドッグフーディングに使う）。 */
     internal val allYamlTexts: List<String>
         get() = listOf("schema", "relations", "agent", "activity", "eval", "skill", "view").map(::yaml)
 
-    /**
-     * 組込みスキーマをコア reader / session の注入形式へ写す（C-2）。メタスキーマ適用・定義ゾーンの
-     * 構造検証を新経路でも成立させるための併存期ブリッジで、C-4 第2弾（cli 接続）で core 自身の供給に揃える。
-     */
+    /** 組込みスキーマを、カーネルの reader / session へ注入する形で返す（実体は workspace-core の資源供給）。 */
     fun kernelSchemas(layout: WorkspaceLayout): List<workspace.WorkspaceSchema> =
-        forLayout(layout).map { b ->
-            workspace.WorkspaceSchema(
-                id = b.id,
-                kind = b.kind,
-                match = b.match,
-                structural = b.structural,
-                entities = b.entities,
-                isTemplate = false,
-                source = model.DocumentId(b.source.toString().replace('\\', '/')),
-            )
-        }
+        workspace.BuiltinSchemaResources.kernelSchemas(layout)
 }

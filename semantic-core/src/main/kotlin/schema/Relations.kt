@@ -125,7 +125,7 @@ data class EntityTypeDef(
  * 宣言フィールド全部（enum cases 合成込み）から `type: id` のフィールド（合流キー）を除いたもの。
  * 要素が object に解決できない場合は空（判定保留 §4.26）。
  */
-fun ownedFieldKeys(schema: StructuralSchema, root: model.YNode, path: model.YPath, decl: EntityDecl?): List<String> {
+fun ownedFieldKeys(schema: SchemaTree, root: model.YNode, path: model.YPath, decl: EntityDecl?): List<String> {
     decl?.owns?.let { return it }
     val field = schema.fieldAt(root, path) ?: return emptyList()
     if (field.type != FieldType.OBJECT) return emptyList()

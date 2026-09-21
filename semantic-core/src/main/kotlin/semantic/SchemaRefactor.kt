@@ -11,13 +11,13 @@ import model.scalarText
 import schema.FieldDef
 import schema.FieldType
 import schema.SchemaKind
-import schema.StructuralSchema
+import schema.SchemaTree
 
 /**
  * スキーマ・リファクタリングのカーネル（P25。3層コア移行 RF-002b で core/SchemaRefactor.kt から
  * 薄切りで移植を開始。第1弾は renameField＝R25-01）。
- * フィールドの同定は FieldDef の**同一インスタンス**（`===`）。StructuralSchemaParser が定義を1回だけ
- * 生成し、`StructuralSchema.resolve`（浅いコピー）が子リストのインスタンスを保つことが前提（§4.35）。
+ * フィールドの同定は FieldDef の**同一インスタンス**（`===`）。SchemaTreeParser が定義を1回だけ
+ * 生成し、`SchemaTree.resolve`（浅いコピー）が子リストのインスタンスを保つことが前提（§4.35）。
  * ビュー定義・アクティビティ等の追随は行わない（6E 仮想文書の設計後に対応。警告で案内する）。
  */
 object SemanticSchemaRefactor {
@@ -48,7 +48,7 @@ object SemanticSchemaRefactor {
         val builder = SemanticRewrite.PlanOps()
         val conflicts = mutableListOf<String>()
         val tally = SemanticRewrite.rewriteDocuments(reach.documents(documents), builder) { doc, docSchema ->
-            val found = SemanticRewrite.fieldHits(docSchema.structural, doc.root) { it === target }
+            val found = SemanticRewrite.fieldHits(docSchema.tree, doc.root) { it === target }
             val fileConflicts = found.filter { hit ->
                 (getAt(doc.root, hit.dropLast(1)) as? YNode.Map)?.entries?.containsKey(newName) == true
             }
@@ -71,7 +71,7 @@ object SemanticSchemaRefactor {
         builder.add(definitionSource, YamlOperation.SetScalar(res.site.path + "key", newName))
         var schemaFollowups = 1
         for (s in reachable) {
-            if (s.structural.phases?.key != oldName || !isRootField(s.structural, target)) continue
+            if (s.tree.phases?.key != oldName || !isRootField(s.tree, target)) continue
             val source = s.source ?: continue
             val phasesNode = tree(source)?.let { getAt(it, listOf("phases")) } as? YNode.Map ?: continue
             if (scalarText(phasesNode.entries["key"]) != oldName) continue  // リスト省略形（key 暗黙）は対象外
@@ -138,7 +138,7 @@ object SemanticSchemaRefactor {
         val reach = SemanticRewrite.reach(schemas) { f -> f === target }
         val reachable = reach.schemas
         for (s in reachable) {
-            require(!(s.structural.phases?.key == key && isRootField(s.structural, target) && dst.objectSite.path != listOf<Any>("root"))) {
+            require(!(s.tree.phases?.key == key && isRootField(s.tree, target) && dst.objectSite.path != listOf<Any>("root"))) {
                 "フェーズ申告キー「$key」はルート直下に必要なため移動できません（スキーマ「${s.id}」の phases）"
             }
         }
@@ -150,7 +150,7 @@ object SemanticSchemaRefactor {
         var moved = 0
         val tally = SemanticRewrite.rewriteDocuments(reach.documents(documents), builder) { doc, docSchema ->
             val (ops, fileConflicts) =
-                moveDataOps(docSchema.structural, doc.root, target, src.tailKeys.size, dst.tailKeys, key, deleteEmptyParents)
+                moveDataOps(docSchema.tree, doc.root, target, src.tailKeys.size, dst.tailKeys, key, deleteEmptyParents)
             if (fileConflicts.isNotEmpty()) {
                 conflicts += "${doc.id.value}（${fileConflicts.first()} など ${fileConflicts.size} 件）"
                 return@rewriteDocuments emptyList()
@@ -204,7 +204,7 @@ object SemanticSchemaRefactor {
         val targets = documents.filter { it.schemaId == schemaId }.map { it to entry }
         val tally = SemanticRewrite.rewriteDocuments(targets, builder) { doc, docSchema ->
             val ops = mutableListOf<YamlOperation>()
-            SemanticRewrite.walkDocument(docSchema.structural, doc.root, onObject = { path, m, fs ->
+            SemanticRewrite.walkDocument(docSchema.tree, doc.root, onObject = { path, m, fs ->
                 val current = m.entries.keys.toList()
                 val head = if (path.isEmpty() && "_document" in m.entries) listOf("_document") else emptyList()
                 val known = fs.mapNotNull { it.key }.filter { it in m.entries && it !in head }.distinct()
@@ -275,7 +275,7 @@ object SemanticSchemaRefactor {
         val fieldKey = target.key
         val reach = SemanticRewrite.reach(schemas) { f -> finalDef(entry, f) === owner.def || f === target }
         for (s in reach.schemas) {
-            if (s.structural.phases?.key != fieldKey || !isRootField(s.structural, target)) continue
+            if (s.tree.phases?.key != fieldKey || !isRootField(s.tree, target)) continue
             val source = s.source ?: continue
             val sTree = tree(source) ?: continue
             when (val ph = (sTree as? YNode.Map)?.entries?.get("phases")) {
@@ -295,7 +295,7 @@ object SemanticSchemaRefactor {
         }
         // 文書の現在値: Query＝対象 enum フィールドのデータキー／Predicate＝値が旧選択肢であること／Edit＝SetScalar
         val tally = SemanticRewrite.rewriteDocuments(reach.documents(documents), builder) { doc, docSchema ->
-            SemanticRewrite.fieldHits(docSchema.structural, doc.root) { finalDef(docSchema, it) === owner.def || it === target }
+            SemanticRewrite.fieldHits(docSchema.tree, doc.root) { finalDef(docSchema, it) === owner.def || it === target }
                 .filter { scalarText(getAt(doc.root, it)) == oldValue }
                 .map { YamlOperation.SetScalar(it, newValue) }
         }
@@ -332,7 +332,7 @@ object SemanticSchemaRefactor {
         val reach = SemanticRewrite.reach(schemas) { f -> f === target }
         val reachable = reach.schemas
         for (s in reachable) {
-            require(!(s.structural.phases?.key == key && isRootField(s.structural, target))) {
+            require(!(s.tree.phases?.key == key && isRootField(s.tree, target))) {
                 "フェーズ申告キー「$key」は削除できません（スキーマ「${s.id}」の phases が参照しています）"
             }
         }
@@ -341,7 +341,7 @@ object SemanticSchemaRefactor {
         val builder = SemanticRewrite.PlanOps()
         var valueCount = 0
         val tally = SemanticRewrite.rewriteDocuments(reach.documents(documents), builder) { doc, docSchema ->
-            val hits = SemanticRewrite.fieldHits(docSchema.structural, doc.root) { it === target }
+            val hits = SemanticRewrite.fieldHits(docSchema.tree, doc.root) { it === target }
             valueCount += hits.count { hit ->
                 when (val node = getAt(doc.root, hit)) {
                     is YNode.Scalar -> !scalarText(node).isNullOrBlank()
@@ -408,7 +408,7 @@ object SemanticSchemaRefactor {
         }
         defaultValue()  // 型検査を先に走らせる
         if (fromPhase != null) {
-            val phases = entry.structural.phases ?: error("requiredFrom を使うにはスキーマ「$schemaId」に phases の宣言が必要です")
+            val phases = entry.tree.phases ?: error("requiredFrom を使うにはスキーマ「$schemaId」に phases の宣言が必要です")
             require(fromPhase in phases.order) { "フェーズ「$fromPhase」は phases（${phases.order.joinToString(", ")}）にありません" }
         }
         val node = verifyFieldNode(res.site, key, tree)
@@ -430,12 +430,12 @@ object SemanticSchemaRefactor {
         val reach = SemanticRewrite.reach(schemas) { f -> f === target }
         val tally = SemanticRewrite.rewriteDocuments(reach.documents(documents), builder) { doc, docSchema ->
             if (fromPhase != null) {
-                val order = docSchema.structural.phases?.order ?: return@rewriteDocuments emptyList()
-                val phaseIdx = docSchema.structural.currentPhaseIndex(doc.root) ?: return@rewriteDocuments emptyList()
+                val order = docSchema.tree.phases?.order ?: return@rewriteDocuments emptyList()
+                val phaseIdx = docSchema.tree.currentPhaseIndex(doc.root) ?: return@rewriteDocuments emptyList()
                 val fromIdx = order.indexOf(fromPhase)
                 if (fromIdx < 0 || fromIdx > phaseIdx) return@rewriteDocuments emptyList()
             }
-            SemanticRewrite.parentObjects(docSchema.structural, doc.root, target).mapNotNull { (path, m) ->
+            SemanticRewrite.parentObjects(docSchema.tree, doc.root, target).mapNotNull { (path, m) ->
                 val current = m.entries[key]
                 val missing = current == null || (current is YNode.Scalar && scalarText(current).isNullOrBlank())
                 if (missing) YamlOperation.SetScalar(path + key, defaultValue()) else null
@@ -491,7 +491,7 @@ object SemanticSchemaRefactor {
         // violations へ集め、全文書の評価後にまとめて中止する）
         fun convertDocs(transform: (YNode, YPath, DocumentId) -> YamlOperation?) {
             val tally = SemanticRewrite.rewriteDocuments(reach.documents(documents), builder) { doc, docSchema ->
-                SemanticRewrite.fieldHits(docSchema.structural, doc.root) { it === target }.mapNotNull { hit ->
+                SemanticRewrite.fieldHits(docSchema.tree, doc.root) { it === target }.mapNotNull { hit ->
                     getAt(doc.root, hit)?.let { value -> transform(value, hit, doc.id) }
                 }
             }
@@ -621,7 +621,7 @@ object SemanticSchemaRefactor {
         require(newName != defName) { "改名先が現在の定義名と同じです: $defName" }
         val module = schemas[moduleId] ?: error("スキーマ「$moduleId」が見つかりません")
         requireEditable(module, "スキーマ「$moduleId」")
-        val definitions = module.structural.definitions
+        val definitions = module.tree.definitions
         require(defName in definitions) {
             "定義「$defName」が見つかりません（定義: ${definitions.keys.sorted().joinToString(", ")}）"
         }
@@ -666,7 +666,7 @@ object SemanticSchemaRefactor {
         val entry = targetSchema(schemas, schemaId)
         val res = resolveField(schemas, entry, fieldPath)
         requireEditable(res.site.module, "フィールドの定義元（${res.site.module.id}）")
-        require(defName !in res.site.module.structural.definitions) { "定義「$defName」は既にあります" }
+        require(defName !in res.site.module.tree.definitions) { "定義「$defName」は既にあります" }
         val key = res.site.def.key ?: error("フィールドのキーを特定できません: $fieldPath")
         val node = verifyFieldNode(res.site, key, tree)
         require(node.entries["\$ref"] == null && node.entries["ref"] == null) { "既に定義参照（\$ref）です: $fieldPath" }
@@ -718,7 +718,7 @@ object SemanticSchemaRefactor {
             "ref" in node.entries -> "ref"
             else -> error("定義参照（\$ref）ではありません: $fieldPath")
         }
-        val located = entry.structural.definitionTarget(res.site.def)
+        val located = entry.tree.definitionTarget(res.site.def)
             ?: error("参照先の定義が見つかりません: ${scalarText(node.entries[refKey])}")
         val (defKey, _) = located
         val defModule = schemas[defKey.moduleId] ?: error("定義モジュール「${defKey.moduleId}」が見つかりません")
@@ -929,7 +929,7 @@ object SemanticSchemaRefactor {
         var current = field
         val seen = mutableSetOf<String>()
         while (current.ref != null) {
-            val (key, targetDef) = entry.structural.definitionTarget(current) ?: break
+            val (key, targetDef) = entry.tree.definitionTarget(current) ?: break
             if (!seen.add(key.toString())) break
             current = targetDef
         }
@@ -1000,7 +1000,7 @@ object SemanticSchemaRefactor {
     ): Resolution {
         val segments = fieldPath.split('.').map { it.trim() }.filter { it.isNotEmpty() }
         require(segments.isNotEmpty()) { "フィールドパスを指定してください（例 details.priority）" }
-        var container = Site(entry, listOf("root"), entry.structural.root)
+        var container = Site(entry, listOf("root"), entry.tree.root)
         val crossings = mutableListOf<Crossing>()
         val consumed = mutableListOf<String>()
         val tail = mutableListOf<String>()
@@ -1027,7 +1027,7 @@ object SemanticSchemaRefactor {
     ): ContainerResolution {
         val trimmed = containerPath.trim()
         if (trimmed.isEmpty() || trimmed == ".") {
-            val (real, _) = derefChain(schemas, entry, Site(entry, listOf("root"), entry.structural.root))
+            val (real, _) = derefChain(schemas, entry, Site(entry, listOf("root"), entry.tree.root))
             require(real.def.type == FieldType.OBJECT) { "スキーマの root が object ではありません" }
             return ContainerResolution(real, emptyList(), emptyList())
         }
@@ -1058,7 +1058,7 @@ object SemanticSchemaRefactor {
         while (true) {
             if (casesSite == null && current.def.cases.isNotEmpty()) casesSite = current
             if (current.def.ref == null) break
-            val (key, targetDef) = entry.structural.definitionTarget(current.def) ?: break
+            val (key, targetDef) = entry.tree.definitionTarget(current.def) ?: break
             if (!seen.add(key.toString())) break
             val module = schemas[key.moduleId] ?: error("定義モジュール「${key.moduleId}」が見つかりません")
             current = Site(module, listOf("definitions", key.name), targetDef)
@@ -1146,14 +1146,14 @@ object SemanticSchemaRefactor {
     }
 
     /** target がスキーマのルート直下フィールドか（phases.key の追随判定）。 */
-    private fun isRootField(s: StructuralSchema, target: FieldDef): Boolean =
+    private fun isRootField(s: SchemaTree, target: FieldDef): Boolean =
         (s.resolve(s.root) ?: s.root).fields.any { it === target }
 
     // ================================================================ 文書側の操作列（戦略）
 
     /** 移動の文書側ops: 中間 object の生成 → Move → 空になった親の削除。衝突（移動先の既存値）を集める。 */
     private fun moveDataOps(
-        s: StructuralSchema,
+        s: SchemaTree,
         root: YNode,
         target: FieldDef,
         tailSize: Int,

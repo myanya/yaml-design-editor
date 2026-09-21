@@ -1,6 +1,6 @@
 package workspace
 
-import schema.StructuralSchemaParser
+import schema.SchemaTreeParser
 import validate.Severity
 import yaml.YamlIO
 import kotlin.test.Test
@@ -15,7 +15,7 @@ import kotlin.test.assertTrue
  */
 class StructuralValidatorTest {
 
-    private val schema = StructuralSchemaParser.parse(
+    private val schema = SchemaTreeParser.parse(
         """
         id: screen
         name: 画面
@@ -100,7 +100,7 @@ class StructuralValidatorTest {
 
     @Test
     fun `ネストしたcaseの必須フィールドも検証される`() {
-        val nestedSchema = StructuralSchemaParser.parse(
+        val nestedSchema = SchemaTreeParser.parse(
             """
             id: nested-cases
             root:
@@ -130,7 +130,7 @@ class StructuralValidatorTest {
 
     // ---------------------------------------------------------------- 属性付き参照（R20-03）
 
-    private val attributedSchema = StructuralSchemaParser.parse(
+    private val attributedSchema = SchemaTreeParser.parse(
         """
         id: attributed
         root:
@@ -173,7 +173,7 @@ class StructuralValidatorTest {
 
     @Test
     fun `fields宣言のないrefにオブジェクトが来たら従来どおり型不一致の警告`() {
-        val plain = StructuralSchemaParser.parse(
+        val plain = SchemaTreeParser.parse(
             """
             id: plain
             root:

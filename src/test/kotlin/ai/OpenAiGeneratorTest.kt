@@ -21,7 +21,7 @@ class OpenAiGeneratorTest {
 
     @Test
     fun `string field becomes string schema with description`() {
-        val field = FieldDef(key = "title", type = FieldType.STRING, description = "タイトル")
+        val field = FieldDef(key = "title", type = FieldType.STRING, hints = schema.FieldHints(description = "タイトル"))
         val json = fieldToJsonSchema(field, schemaOf(field))
         assertEquals("string", json["type"]?.jsonPrimitive?.content)
         assertEquals("タイトル", json["description"]?.jsonPrimitive?.content)

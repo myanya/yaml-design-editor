@@ -1,7 +1,11 @@
 package schema
 
+import workspace.BuiltinSchemaResources
 import workspace.CheckCatalog
+import workspace.FileSystemDocumentStore
 import workspace.SchemaDocuments
+import workspace.WorkspaceSchema
+import workspace.WorkspaceReader
 import yaml.YamlIO
 import java.nio.file.Files
 import java.nio.file.Path
@@ -17,52 +21,92 @@ import model.scalarText
 
 /**
  * スキーマ 1 件。`match` の glob にマッチするファイルへ適用される。
+ * スキーマの中身の原本はカーネルの WorkspaceSchema（kernel）で、ここは、アプリに要るもの（スキーマ定義文書のファイルの場所）を
+ * 足すだけの薄い型（P27 段C の C-3b・意図的差分 D-32）。スキーマを読むのはカーネルの経路だけで、アプリとカーネルは同じ中身を見る。
+ * 中身は変えられない（写しを作って一部を変えるには withDefinitionCatalog など、カーネルの型の写しを包み直す）。
  */
-data class SchemaDef(
-    val id: String,
-    val name: String,
-    val description: String? = null,
-    val match: String,
-    val root: FieldDef,
-    val definitions: Map<String, FieldDef> = emptyMap(),
+class SchemaDef(
+    /** スキーマの中身の原本（カーネルの型）。 */
+    val kernel: WorkspaceSchema,
+    /** スキーマ定義文書のファイル（派生スキーマでは導出元の文書・組込みスキーマでは `(builtin)/名前.yaml`）。 */
+    val source: Path,
+) {
+    /** 中身を直接渡して作る（テストと、1件だけを組み立てる場面用）。ふつうは SchemaLoader・Workspace が、カーネルの読み込みの結果から作る。 */
+    constructor(
+        id: String,
+        name: String,
+        description: String? = null,
+        match: String,
+        root: FieldDef,
+        definitions: Map<String, FieldDef> = emptyMap(),
+        constraints: List<ConstraintRule> = emptyList(),
+        expandedChecks: List<ExpandedCheck> = emptyList(),
+        checkers: List<CheckerRule> = emptyList(),
+        phases: PhasesDef? = null,
+        entities: List<EntityDecl> = emptyList(),
+        relations: List<RelationDef> = emptyList(),
+        entityTypes: List<EntityTypeDef> = emptyList(),
+        enforcement: EnforcementDef? = null,
+        source: Path,
+        kind: SchemaKind = SchemaKind.DOCUMENT,
+        derive: DeriveDef? = null,
+        definitionCatalog: SchemaCatalog = SchemaCatalog.local(id, definitions),
+        checkLibrary: CheckLibrary = CheckLibrary(),
+        vocabularySource: VocabularySource? = null,
+    ) : this(
+        WorkspaceSchema(
+            id = id, kind = kind, match = match,
+            tree = SchemaTree(id, root, definitions, phases, definitionCatalog),
+            entities = entities, isTemplate = derive != null,
+            source = model.DocumentId(source.toString().replace('\\', '/')),
+            derive = derive, constraints = constraints, checkers = checkers, expandedChecks = expandedChecks,
+            vocabularySource = vocabularySource, name = name, description = description,
+            relations = relations, entityTypes = entityTypes, enforcement = enforcement, checkLibrary = checkLibrary,
+        ),
+        source,
+    )
+
+    val id: String get() = kernel.id
+    val name: String get() = kernel.name
+    val description: String? get() = kernel.description
+    val match: String get() = kernel.match
+    val root: FieldDef get() = kernel.tree.root
+    val definitions: Map<String, FieldDef> get() = kernel.tree.definitions
+
     /**
      * 検査（基本の書き方へ展開済み。P29 Phase 6）: `constraints` に直接書いた検査と、定義を名前で使った検査、
      * 語彙（`consistency` など。組込み定義体・利用者の定義が作る）から展開された検査を、展開順に持つ。
      */
-    val constraints: List<ConstraintRule> = emptyList(),
+    val constraints: List<ConstraintRule> get() = kernel.constraints
+
     /**
      * constraints の各検査の、展開後の姿（YAML を読んだままの値）と由来（どこに書かれ、どの定義から展開されたか）。
      * 定義エラーの場所の表示と、CLI `checks`（展開の透明性。CALC-29）が使う。constraints と同じ並び。
      */
-    val expandedChecks: List<ExpandedCheck> = emptyList(),
-    /** 網羅マトリクス（R28-03。ARCHITECTURE §4.32）: 行×列の全組合せに証人が存在すること。 */
-    /** 遷移検証（R28-04。ARCHITECTURE §4.32）: 宣言エッジ集合の到達閉包で到達不能・行き止まり・宣言外遷移を検出。 */
-    /**
-     * 専用チェッカーを使う検査（SP-13。遷移検証 flow・非循環 acyclic など。語彙と定義の使用を展開した後のもの）。
-     * flow は組込み定義体が作る語彙になった（P29 Phase 6 第4段）。
-     */
-    val checkers: List<CheckerRule> = emptyList(),
-    val phases: PhasesDef? = null,
+    val expandedChecks: List<ExpandedCheck> get() = kernel.expandedChecks
+
+    /** 専用チェッカーを使う検査（SP-13。遷移検証 flow など。語彙と定義の使用を展開した後のもの）。 */
+    val checkers: List<CheckerRule> get() = kernel.checkers
+    val phases: PhasesDef? get() = kernel.tree.phases
+
     /** エンティティ型の宣言（R20-01。ARCHITECTURE §4.30）。空 = 宣言なし（従来どおり）。 */
-    val entities: List<EntityDecl> = emptyList(),
+    val entities: List<EntityDecl> get() = kernel.entities
+
     /** 関係レジストリの内容（kind: relations のみ。R20-02）。 */
-    val relations: List<RelationDef> = emptyList(),
+    val relations: List<RelationDef> get() = kernel.relations
+
     /** エンティティ型のレジストリ宣言（kind: relations のみ。表示名・アスペクト順序。R23-01。§4.33）。 */
-    val entityTypes: List<EntityTypeDef> = emptyList(),
+    val entityTypes: List<EntityTypeDef> get() = kernel.entityTypes
+
     /** 強制スイッチ（kind: relations のみ。R21-01。ARCHITECTURE §4.31）。 */
-    val enforcement: EnforcementDef? = null,
-    val source: Path,
-    val kind: SchemaKind = SchemaKind.DOCUMENT,
+    val enforcement: EnforcementDef? get() = kernel.enforcement
+    val kind: SchemaKind get() = kernel.kind
+
     /** 派生スキーマの宣言（R11-03）。非 null のスキーマはテンプレートであり、自身は文書にマッチしない。 */
-    val derive: DeriveDef? = null,
-    /** SchemaLoader が全モジュールを読み込んだ後にリンクする。単体生成時はローカル定義だけで動作する。 */
-    internal val definitionCatalog: SchemaCatalog = SchemaCatalog.local(id, definitions),
+    val derive: DeriveDef? get() = kernel.derive
+
     /** このスキーマ文書が宣言する検査の定義と語彙の定義（functions / vocabulary）。 */
-    val checkLibrary: CheckLibrary = CheckLibrary(),
-    /** 語彙の再展開に使う原文（派生スキーマが、導出元の語彙を自分のスキーマIDで展開し直すため）。 */
-    internal val vocabularySource: VocabularySource? = null,
-) {
-    private val regex: Regex by lazy { globToRegex(match) }
+    val checkLibrary: CheckLibrary get() = kernel.checkLibrary
 
     /** constraints の各検査の由来（constraints と同じ並び）。 */
     val constraintOrigins: List<String> get() = expandedChecks.filter { !it.usesChecker }.map { it.origin }
@@ -70,20 +114,21 @@ data class SchemaDef(
     /** checkers の各検査の由来（checkers と同じ並び）。 */
     val checkerOrigins: List<String> get() = expandedChecks.filter { it.usesChecker }.map { it.origin }
 
-    /** 構造コア（yaml-core）。$ref解決・cases合成・フェーズ必須・パス解決はここへ委譲する（YM-004b）。 */
-    val structural: StructuralSchema by lazy { StructuralSchema(id, root, definitions, phases, definitionCatalog) }
+    /** 利用者が書く項目の木と、その読み方（$ref解決・cases合成・フェーズに応じた必須・パス解決）。カーネルの型のものをそのまま使う。 */
+    val tree: SchemaTree get() = kernel.tree
 
-    /** このスキーマから導出した、最小の構造のスキーマ（構造の検証はここを通す。P27 段C の C-1。カーネルと同じ部品）。 */
-    val structures: workspace.DerivedStructures by lazy { workspace.DerivedStructures(structural) }
+    /** このスキーマから導出した、最小の構造のスキーマ（構造の検証はここを通す。P27 段C の C-1。カーネルの型のものをそのまま使う）。 */
+    val structures: workspace.DerivedStructures get() = kernel.structures
 
     /** ワークスペース相対パス（区切りは '/'）がこのスキーマの対象か。derive 宣言スキーマはマッチしない。 */
-    fun matches(relPath: String): Boolean =
-        kind == SchemaKind.DOCUMENT && derive == null && match.isNotBlank() && regex.matches(relPath)
+    fun matches(relPath: String): Boolean = kernel.matches(relPath)
 
     /** `$ref` の参照先。非修飾名はフィールドの定義元、修飾名は `module#name` から引く。 */
-    internal fun definitionTarget(field: FieldDef): Pair<DefinitionKey, FieldDef>? = structural.definitionTarget(field)
+    internal fun definitionTarget(field: FieldDef): Pair<DefinitionKey, FieldDef>? = tree.definitionTarget(field)
 
-    internal fun withDefinitionCatalog(catalog: SchemaCatalog): SchemaDef = copy(definitionCatalog = catalog)
+    /** 他のモジュールの定義もつないだ写し（スキーマ編集画面のプレビューなど、1件だけを読んだ場面用）。 */
+    internal fun withDefinitionCatalog(catalog: SchemaCatalog): SchemaDef =
+        SchemaDef(kernel.copy(tree = kernel.tree.copy(definitionCatalog = catalog)), source)
 
     /**
      * フィールドが参照する named definition の修飾名（`module#name`）。`$ref` でなければ null。
@@ -91,36 +136,38 @@ data class SchemaDef(
      */
     fun definitionRefOf(field: FieldDef?): String? = field?.let { f -> definitionTarget(f)?.first?.toString() }
 
-    /** $ref を1段ずつ解決する。循環はデータ走査側が有限なので許容する。実装は yaml-core（YM-004b）。 */
-    fun resolve(field: FieldDef?): FieldDef? = structural.resolve(field)
+    /** $ref を1段ずつ解決する。循環はデータ走査側が有限なので許容する。 */
+    fun resolve(field: FieldDef?): FieldDef? = tree.resolve(field)
+
+    override fun toString(): String = "SchemaDef($id, $source)"
 }
 
 /** 文書ルートから現在フェーズの申告値を読む（phases 未宣言なら null）。 */
-fun SchemaDef.currentPhaseValue(root: YNode?): String? = structural.currentPhaseValue(root)
+fun SchemaDef.currentPhaseValue(root: YNode?): String? = tree.currentPhaseValue(root)
 
 /** 現在フェーズの順序位置。未申告・未知の値は先頭フェーズ（最も緩い判定）。phases 未宣言なら null。 */
-fun SchemaDef.currentPhaseIndex(root: YNode?): Int? = structural.currentPhaseIndex(root)
+fun SchemaDef.currentPhaseIndex(root: YNode?): Int? = tree.currentPhaseIndex(root)
 
 /**
  * フェーズを考慮した実効 required。requiredFrom は「そのフェーズ以降で必須」（累積的）。
  * 検証・進捗計算・フォーム表示はこの判定を共有する（ARCHITECTURE §4.15）。
  */
-fun SchemaDef.requiredAt(field: FieldDef, phaseIndex: Int?): Boolean = structural.requiredAt(field, phaseIndex)
+fun SchemaDef.requiredAt(field: FieldDef, phaseIndex: Int?): Boolean = tree.requiredAt(field, phaseIndex)
 
 /**
  * object の子フィールド一覧に、データノードの enum 値に応じた case フィールドを合成して返す。
  * object のフィールドを列挙する側（検証・フォーム・索引・AI変換・初期値生成）は必ずこの関数を通すこと。
- * 実装は yaml-core の StructuralSchema（YM-004b）。
+ * 実装は yaml-core の SchemaTree（YM-004b）。
  */
 fun SchemaDef.effectiveFields(fields: List<FieldDef>, node: YNode.Map?): EffectiveFields =
-    structural.effectiveFields(fields, node)
+    tree.effectiveFields(fields, node)
 
 /**
  * データパスに対応するフィールド定義をスキーマを辿って解決する（object の子は effectiveFields＝
  * enum の cases 合成、$ref は resolve を通す）。旧 core/Views.fieldAt の移設先（R23-01。ARCHITECTURE §4.33）。
- * 実装は yaml-core の StructuralSchema（YM-004b）。`Views.fieldAt` は互換のためこの関数へ委譲する。
+ * 実装は yaml-core の SchemaTree（YM-004b）。`Views.fieldAt` は互換のためこの関数へ委譲する。
  */
-fun SchemaDef.fieldAt(root: YNode, path: model.YPath): FieldDef? = structural.fieldAt(root, path)
+fun SchemaDef.fieldAt(root: YNode, path: model.YPath): FieldDef? = tree.fieldAt(root, path)
 
 data class SchemaIssue(val message: String, val path: String)
 
@@ -232,8 +279,9 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
 
     fun check(field: FieldDef, path: String, stack: Set<DefinitionKey>) {
         field.requiredFrom?.let { from ->
-            if (phases == null) issues += SchemaIssue("requiredFrom を使うには phases の宣言が必要です", path)
-            else if (from !in phases.order) issues += SchemaIssue("requiredFrom「$from」は phases に含まれていません", path)
+            val declared = phases
+            if (declared == null) issues += SchemaIssue("requiredFrom を使うには phases の宣言が必要です", path)
+            else if (from !in declared.order) issues += SchemaIssue("requiredFrom「$from」は phases に含まれていません", path)
             if (field.required) issues += SchemaIssue("required と requiredFrom は併用できません", path)
         }
         field.ref?.let { ref ->
@@ -362,8 +410,9 @@ fun SchemaDef.validateDefinition(): List<SchemaIssue> {
     // activeFrom の静的検査は全検証語彙で共通（R29-03。従来は coverage / consistency のみだった）
     fun checkActiveFrom(activeFrom: String?, where: String) {
         activeFrom?.let { from ->
-            if (phases == null) issues += SchemaIssue("activeFrom を使うには phases の宣言が必要です", where)
-            else if (from !in phases.order) issues += SchemaIssue("activeFrom「$from」は phases に含まれていません", where)
+            val declared = phases
+            if (declared == null) issues += SchemaIssue("activeFrom を使うには phases の宣言が必要です", where)
+            else if (from !in declared.order) issues += SchemaIssue("activeFrom「$from」は phases に含まれていません", where)
         }
     }
     constraints.forEachIndexed { i, rule -> checkActiveFrom(rule.activeFrom, constraintOrigins.getOrNull(i) ?: "constraints[$i]") }
@@ -450,83 +499,54 @@ object SchemaLoader {
 
     fun loadAll(workspace: Path): List<SchemaDef> = loadAllWithErrors(workspace).schemas
 
+    /**
+     * ワークスペースのスキーマを読む。読むのはカーネルの経路（WorkspaceReader＝スキーマ文書・組込みスキーマ・derive の展開）だけで、
+     * ここは、その結果から SchemaDef を作り、アプリだけに残る点検を足す（P27 段C の C-3b・意図的差分 D-32）。
+     * アプリ本体（core.Workspace）は、開いたセッションが読んだ結果を fromKernel へ渡す（スキーマを読み直さない）。
+     */
     fun loadAllWithErrors(workspace: Path, layout: WorkspaceLayout = WorkspaceLayout.of(workspace)): LoadResult {
-        val dir = workspace.resolve(layout.schemasDir)
-        if (!Files.isDirectory(dir)) return LoadResult(emptyList(), emptyList())
-        val files = Files.list(dir).use { stream ->
-            stream.filter { p ->
-                val n = p.fileName.toString()
-                Files.isRegularFile(p) && (n.endsWith(".yaml") || n.endsWith(".yml"))
-            }.toList()
-        }.sortedBy { it.fileName.toString() }
-        val schemas = mutableListOf<SchemaDef>()
-        val errors = mutableListOf<String>()
-        // 検査の定義と語彙の定義（functions / vocabulary）は、どのスキーマ文書に書いてもワークスペース全体で使える。
-        // 先に全ファイルから集めてから、各スキーマの検査を展開する（組込み定義体も同じ仕組みで合成する）
-        // （集め方と展開の実体は workspace-core の CheckCatalog——カーネルのスキーマ読み込みと同じ実装を使う。P27 段B-2）
-        val texts = files.associateWith { f -> runCatching { Files.readString(f) }.getOrNull() }
-        val raws = files.mapNotNull { f ->
-            runCatching { texts[f]?.let { YamlIO.parseToRaw(it) } as? Map<*, *> }
-                .onFailure { errors += "${f.fileName}: ${it.message ?: it::class.simpleName}" }
-                .getOrNull()?.let { f.fileName.toString() to it }
-        }
-        val library = CheckCatalog.libraryOf(raws) { name, e -> errors += "$name: ${e.message ?: e::class.simpleName}" }
-        files.forEach { f ->
-            runCatching { parseSchemaText(texts[f] ?: Files.readString(f), f, library = library) }.onSuccess { schemas += it }
-                .onFailure { errors += "${f.fileName}: ${it.message ?: it::class.simpleName}" }
-        }
-        schemas.groupBy { it.id }.filterValues { it.size > 1 }.forEach { (id, duplicates) ->
-            errors += "スキーマID「$id」が重複しています（${duplicates.joinToString(", ") { it.source.fileName.toString() }}）"
-        }
-        // 組込みスキーマ（agents / activities 等の定義ゾーン用）は利用者スキーマの後ろに置く（先勝ちのため利用者定義が優先）。
-        // 利用者が定義した語彙（vocabulary）のキーは、メタスキーマの「知っている項目」に足す——語彙として定義された書き方が
-        // スキーマ文書で「定義されていない項目」と警告されないようにする（書き方の形の検証までは行わない＝配列であることだけ。
-        // 語彙の定義に形を持たせてメタスキーマへ合成するのは後続。specs の definition-layers OQ-DL-03）
-        //   ・語彙が新しい配列を作るとき（例 limits[]）は、スキーマ文書のメタスキーマへその配列を足す
-        //   ・語彙が既にある配列の要素に効くとき（例 関係の宣言 relations[]）は、語彙が要素から読むキーを、その要素の項目へ足す
-        val builtins = BuiltinSchemas.forLayout(layout).map { builtin ->
-            if (builtin.id != BuiltinSchemas.META_SCHEMA_ID && builtin.id != BuiltinSchemas.RELATIONS_SCHEMA_ID) return@map builtin
-            val root = CheckCatalog.withVocabularyKeys(
-                builtin.root, library, addNewArrays = builtin.id == BuiltinSchemas.META_SCHEMA_ID,
-            )
-            if (root === builtin.root) builtin else builtin.copy(root = root)
-        }
-        val all = schemas + builtins.filter { builtin -> schemas.none { it.id == builtin.id } }
-        val catalog = SchemaCatalog.linked(all.map { it.id to it.definitions })
-        val linked = all.map { it.withDefinitionCatalog(catalog) }
-        linked.take(schemas.size).forEach { schema ->
+        if (!Files.isDirectory(workspace)) return LoadResult(emptyList(), emptyList())
+        val loaded = WorkspaceReader.load(
+            FileSystemDocumentStore(workspace), builtins = BuiltinSchemaResources.kernelSchemas(layout),
+        )
+        return fromKernel(workspace, loaded.layout, loaded.schemas, loaded.declarations, loaded.schemaErrors)
+    }
+
+    /**
+     * カーネルが読んだスキーマの一式から、アプリの形（SchemaDef と、関係レジストリの集約）を作る。
+     * アプリだけに残る点検——スキーマの定義の点検（validateDefinition）と、宣言のない関係名の点検——を、読み込みエラーへ足す（P27 段D で移す）。
+     */
+    fun fromKernel(
+        workspace: Path,
+        layout: WorkspaceLayout,
+        kernelSchemas: List<WorkspaceSchema>,
+        declarations: semantic.SemanticDeclarations,
+        kernelErrors: List<String>,
+    ): LoadResult {
+        val errors = kernelErrors.toMutableList()
+        val schemas = kernelSchemas.map { k -> SchemaDef(k, sourcePathOf(workspace, k)) }
+        // スキーマ置き場に書かれたスキーマ（組込みスキーマと、derive から導出されたスキーマを除く）
+        val written = schemas.filter { s -> layout.zoneOf(s.kernel.source.value) == WorkspaceLayout.Zone.SCHEMAS }
+        written.forEach { schema ->
             schema.validateDefinition().forEach { issue ->
                 errors += "${schema.source.fileName} [${issue.path}]: ${issue.message}"
             }
         }
-        // 第3段階「導出」（R11-03）: derive 宣言を導出元文書から検証スキーマへコンパイルし、
-        // 宣言スキーマの直後に挿入する（match の先勝ち規則を宣言位置で制御できるようにする）
-        val derived = DerivedSchemas.compile(linked, workspace, layout)
-        errors += derived.errors
-        val result = if (derived.byDeclaring.isEmpty()) linked
-        else linked.flatMap { s -> listOf(s) + derived.byDeclaring[s.id].orEmpty() }
-        // 関係レジストリ（R20-02・R23-01・R21-01）: kind: relations の文書から、関係・エンティティ型・強制スイッチを集約する。
-        // 複数の文書での重複は誤りにして、先に読んだほうを採る（1つの文書の中の重複は validateDefinition が報告する）。
-        // 集約の実体は、カーネルと同じ1実装（workspace-core の SchemaDocuments。P27 段C の C-3a）
-        val declarations = SchemaDocuments.declarationsOf(
-            linked.filter { it.kind == SchemaKind.RELATIONS }.map { doc ->
-                SchemaDocuments.RegistryPart(doc.source.fileName.toString(), doc.relations, doc.entityTypes, doc.enforcement)
-            },
-            errors,
-        )
-        val registry = declarations.relations
-        val typeRegistry = declarations.entityTypes.associateBy { it.type }
-        val enforcement = declarations.enforcement
         // 未宣言 relation の lint（R20-02）: レジストリが1つでもあるときだけ判定する（非破壊。§4.30）
+        val registry = declarations.relations
         if (registry.isNotEmpty()) {
-            linked.take(schemas.size).filter { it.kind == SchemaKind.DOCUMENT }.forEach { s ->
+            written.filter { it.kind == SchemaKind.DOCUMENT }.forEach { s ->
                 collectRelationNames(s).filter { it !in registry }.sorted().forEach { name ->
                     errors += "${s.source.fileName}: 関係「$name」は関係レジストリに宣言されていません"
                 }
             }
         }
-        return LoadResult(result, errors, registry, enforcement, typeRegistry)
+        return LoadResult(schemas, errors, registry, declarations.enforcement, declarations.entityTypes.associateBy { it.type })
     }
+
+    /** カーネルの座標（DocumentId）を、ファイルの場所へ写す。組込みスキーマ（`(builtin)/名前.yaml`）は、そのままの名前のパス。 */
+    private fun sourcePathOf(workspace: Path, schema: WorkspaceSchema): Path =
+        if (schema.source.value.startsWith("(builtin)/")) Path.of(schema.source.value) else workspace.resolve(schema.source.value)
 
     /** スキーマの ref フィールドが宣言する関係種別（relation）を収集する（未宣言 relation の lint 用）。 */
     private fun collectRelationNames(schema: SchemaDef): Set<String> {
@@ -578,27 +598,7 @@ object SchemaLoader {
         // ここは、読み取りの結果に、アプリに要るもの（ファイルの場所）を足して SchemaDef にするだけ
         val fileName = source.fileName.toString()
         val document = SchemaDocuments.parse(text, fileName.substringBeforeLast('.'), fileName, library)
-        val parsed = SchemaDef(
-            id = document.id,
-            name = document.name,
-            description = document.description,
-            match = document.match,
-            root = document.structural.root,
-            definitions = document.structural.definitions,
-            constraints = document.checks.constraints,
-            expandedChecks = document.checks.expanded,
-            checkers = document.checks.checkers,
-            phases = document.structural.phases,
-            entities = document.entities,
-            relations = document.relations,
-            entityTypes = document.entityTypes,
-            enforcement = document.enforcement,
-            source = source,
-            kind = document.kind,
-            derive = document.derive,
-            checkLibrary = document.ownLibrary,
-            vocabularySource = document.vocabularySource,
-        )
+        val parsed = SchemaDef(WorkspaceSchema.of(document, model.DocumentId(source.toString().replace('\\', '/'))), source)
         if (availableSchemas.isEmpty()) return parsed
         val modules = availableSchemas.filter { it.id != parsed.id }.map { it.id to it.definitions } +
             (parsed.id to parsed.definitions)

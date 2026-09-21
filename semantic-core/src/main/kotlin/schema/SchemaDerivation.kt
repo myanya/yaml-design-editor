@@ -10,7 +10,7 @@ import model.scalarText
  * glob 照合（globToRegex）が semantic-core 所在のため置き場もここ）。
  * `derive:` を宣言したスキーマ（テンプレート）と導出元文書から、検証スキーマの実体
  * （ID・表示名・適用先 glob・フィールド追加済み root）を組み立てる。
- * - SchemaDef（root）への包装は schema.DerivedSchemas、StructuralSchema（コア reader / session）への
+ * - SchemaDef（root）への包装は schema.DerivedSchemas、SchemaTree（コア reader / session）への
  *   包装は workspace.WorkspaceReader が行う（実装はこの1箇所）
  * - 写像項目を増やすときは parse・compile・メタスキーマ（BuiltinSchemas）を対で更新する（§4.23）
  */
@@ -203,11 +203,13 @@ object SchemaDerivation {
             } ?: FieldType.STRING
             derivedFields += FieldDef(
                 key = key,
-                label = derive.labelPath?.let { scalarText(getAt(item, parseYPath(it))) },
                 type = type,
                 required = derive.requiredPath?.let { (getAt(item, parseYPath(it)) as? YNode.Scalar)?.value } == true,
-                description = derive.descriptionPath?.let { scalarText(getAt(item, parseYPath(it))) },
                 definitionScope = templateId,
+                hints = FieldHints(
+                    label = derive.labelPath?.let { scalarText(getAt(item, parseYPath(it))) },
+                    description = derive.descriptionPath?.let { scalarText(getAt(item, parseYPath(it))) },
+                ),
             )
         }
         return Derived(

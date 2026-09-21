@@ -3,7 +3,7 @@ package semantic
 import model.DocumentId
 import schema.EntityDecl
 import schema.EntityRole
-import schema.StructuralSchemaParser
+import schema.SchemaTreeParser
 import yaml.YamlIO
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -16,7 +16,7 @@ import kotlin.test.assertTrue
  */
 class SemanticScannerTest {
 
-    private val schema = StructuralSchemaParser.parse(
+    private val schema = SchemaTreeParser.parse(
         """
         id: item
         root:
@@ -113,7 +113,7 @@ class SemanticScannerTest {
 
     @Test
     fun `属性付き参照はto座標と属性の写しを持つ`() {
-        val attributed = StructuralSchemaParser.parse(
+        val attributed = SchemaTreeParser.parse(
             """
             id: attributed
             root:

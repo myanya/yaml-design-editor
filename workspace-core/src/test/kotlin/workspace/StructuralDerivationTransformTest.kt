@@ -1,8 +1,8 @@
 package workspace
 
 import schema.SchemaCatalog
-import schema.StructuralSchema
-import schema.StructuralSchemaParser
+import schema.SchemaTree
+import schema.SchemaTreeParser
 import structure.ValueType
 import validate.Severity
 import validate.StructuralIssue
@@ -30,9 +30,9 @@ class StructuralDerivationTransformTest {
 
     private val taskSchemaText: String = Files.readString(fixtures.resolve("schemas/task.yaml"))
 
-    private fun schema(text: String, id: String = "s"): StructuralSchema = StructuralSchemaParser.parse(text.trimIndent(), id)
+    private fun schema(text: String, id: String = "s"): SchemaTree = SchemaTreeParser.parse(text.trimIndent(), id)
 
-    private fun validate(schema: StructuralSchema, document: String): List<StructuralIssue> =
+    private fun validate(schema: SchemaTree, document: String): List<StructuralIssue> =
         DerivedStructures(schema).validate(YamlIO.parse(document))
 
     /** 指摘を「種類 @ 場所」の一覧にする（並び順も固定する）。 */

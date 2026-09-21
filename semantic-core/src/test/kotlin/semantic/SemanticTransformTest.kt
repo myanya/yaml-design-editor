@@ -4,7 +4,7 @@ import model.DocumentId
 import model.YNode
 import model.parseYPath
 import schema.EntityDecl
-import schema.StructuralSchemaParser
+import schema.SchemaTreeParser
 import schema.TransformDef
 import yaml.YamlIO
 import kotlin.test.Test
@@ -237,7 +237,7 @@ class SemanticTransformTest {
 
     // ---------------------------------------------------------------- クエリで選んだ行ごとに組み立てる
 
-    private val schema = StructuralSchemaParser.parse(
+    private val schema = SchemaTreeParser.parse(
         """
         id: node
         root:
@@ -258,7 +258,7 @@ class SemanticTransformTest {
         fallbackId = "node",
     )
 
-    private val detailSchema = StructuralSchemaParser.parse(
+    private val detailSchema = SchemaTreeParser.parse(
         "id: detail\nroot:\n  type: object\n  fields:\n    - { key: id, type: id }\n    - key: items\n      type: array\n      item:\n        type: object\n        fields:\n          - { key: label, type: string }",
         fallbackId = "detail",
     )

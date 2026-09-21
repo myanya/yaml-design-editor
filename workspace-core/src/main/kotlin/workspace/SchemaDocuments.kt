@@ -9,8 +9,8 @@ import schema.RelationDef
 import schema.SchemaDerivation
 import schema.SchemaKind
 import schema.SemanticDeclParser
-import schema.StructuralSchema
-import schema.StructuralSchemaParser
+import schema.SchemaTree
+import schema.SchemaTreeParser
 import schema.VocabularySource
 import semantic.SemanticDeclarations
 import yaml.YamlIO
@@ -28,7 +28,7 @@ class ParsedSchemaDocument(
     val match: String,
     val derive: DeriveDef?,
     /** 項目の木（root・definitions・phases）。 */
-    val structural: StructuralSchema,
+    val tree: SchemaTree,
     val entities: List<EntityDecl>,
     /** 関係レジストリの内容（kind: relations の文書だけ）。 */
     val relations: List<RelationDef>,
@@ -70,11 +70,11 @@ object SchemaDocuments {
         require(kind == SchemaKind.RELATIONS || raw["enforcement"] == null) { "enforcement は kind: relations の文書でのみ定義できます" }
         val isRegistry = kind == SchemaKind.RELATIONS
         val match = raw["match"]?.toString() ?: if (kind == SchemaKind.DOCUMENT && derive == null) "**/*.{yaml,yml}" else ""
-        val structural = StructuralSchema(
+        val tree = SchemaTree(
             id = id,
-            root = StructuralSchemaParser.parseRoot(raw["root"], kind, id, allowMissingRoot = derive != null),
-            definitions = StructuralSchemaParser.parseDefinitions(raw["definitions"], id),
-            phases = StructuralSchemaParser.parsePhases(raw["phases"]),
+            root = SchemaTreeParser.parseRoot(raw["root"], kind, id, allowMissingRoot = derive != null),
+            definitions = SchemaTreeParser.parseDefinitions(raw["definitions"], id),
+            phases = SchemaTreeParser.parsePhases(raw["phases"]),
         )
         // 検査: constraints に書いた検査と語彙を、基本の検査へ展開してからパースする（CheckCatalog）
         val ownLibrary = CheckLibrary.parse(raw, sourceName)
@@ -86,7 +86,7 @@ object SchemaDocuments {
             kind = kind,
             match = match,
             derive = derive,
-            structural = structural,
+            tree = tree,
             entities = entities,
             relations = if (isRegistry) SemanticDeclParser.parseRelations(raw["relations"]) else emptyList(),
             entityTypes = if (isRegistry) SemanticDeclParser.parseEntityTypes(raw["entities"]) else emptyList(),

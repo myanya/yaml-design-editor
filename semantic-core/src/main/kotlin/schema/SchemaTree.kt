@@ -12,9 +12,9 @@ import model.scalarText
  * ——ID・参照・フェーズといった意味を持つ木だからである。**構造の検証には、この木をそのまま使わない**: この木から導出した
  * 最小の構造のスキーマ（yaml-core の structure パッケージ。入口は workspace-core の DerivedStructures）で行う（ARCHITECTURE §4.43）。
  * 意味宣言（entity / relation / 検査）・match・ワークスペース・`Path` は持たない（ADR-0002）。
- * ルート側の `SchemaDef` は `SchemaDef.structural` でこの型へ委譲する。
+ * ルート側の `SchemaDef` は `SchemaDef.tree` でこの型へ委譲する。
  */
-data class StructuralSchema(
+data class SchemaTree(
     val id: String,
     val root: FieldDef,
     val definitions: Map<String, FieldDef> = emptyMap(),
@@ -42,10 +42,8 @@ data class StructuralSchema(
             if (!seen.add(key)) return current
             current = target.copy(
                 key = current.key ?: target.key,
-                label = current.label ?: target.label,
                 required = current.required || target.required,
                 requiredFrom = current.requiredFrom ?: target.requiredFrom,
-                description = current.description ?: target.description,
                 idPatterns = current.idPatterns.ifEmpty { target.idPatterns },
                 scope = if (current.scope == RefScope()) target.scope else current.scope,
                 relation = current.relation ?: target.relation,
@@ -53,7 +51,7 @@ data class StructuralSchema(
                 unknownFields = current.unknownFields ?: target.unknownFields,
                 cases = current.cases.ifEmpty { target.cases },
                 role = current.role ?: target.role,
-                display = current.display ?: target.display,
+                hints = current.hints.over(target.hints),
                 minLength = current.minLength ?: target.minLength,
                 maxLength = current.maxLength ?: target.maxLength,
                 pattern = current.pattern ?: target.pattern,

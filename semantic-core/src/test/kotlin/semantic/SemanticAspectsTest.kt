@@ -3,7 +3,7 @@ package semantic
 import model.DocumentId
 import model.YNode
 import schema.EntityDecl
-import schema.StructuralSchemaParser
+import schema.SchemaTreeParser
 import yaml.YamlIO
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -17,7 +17,7 @@ import kotlin.test.assertTrue
  */
 class SemanticAspectsTest {
 
-    private val structural = StructuralSchemaParser.parse(
+    private val structural = SchemaTreeParser.parse(
         """
         id: comp
         root:
@@ -36,7 +36,7 @@ class SemanticAspectsTest {
     private val schemas = mapOf(
         "comp" to SchemaSemantics(
             id = "comp",
-            structural = structural,
+            tree = structural,
             entities = listOf(EntityDecl(type = "comp", idPattern = "C-*", defines = true)),
         )
     )

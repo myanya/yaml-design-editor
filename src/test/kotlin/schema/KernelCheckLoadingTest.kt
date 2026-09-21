@@ -182,6 +182,38 @@ class KernelCheckLoadingTest {
     }
 
     @Test
+    fun `アプリのスキーマは カーネルが読んだスキーマを包むだけ`() {
+        // P27 段C の C-3b（意図的差分 D-32）: スキーマを読むのはカーネルの経路だけ。SchemaDef は、カーネルの型に、ファイルの場所を足す薄い型
+        write("_schemas/doc.yaml", "id: doc\nname: 文書\nmatch: \"docs/*.yaml\"\nroot:\n  type: object\n  fields:\n    - { key: id, type: id }")
+        // スキーマ置き場の下の階層のファイルも読む（カーネルと同じ）
+        write("_schemas/sub/note.yaml", "id: note\nmatch: \"notes/*.yaml\"\nroot:\n  type: object\n  fields:\n    - { key: id, type: id }")
+        write("_schemas/dup.yaml", "id: doc\nmatch: \"other/*.yaml\"\nroot:\n  type: object")
+        val app = Workspace.open(dir)
+        val doc = app.schemas.first { it.id == "doc" }
+        assertEquals("文書", doc.name)
+        assertEquals(dir.resolve("_schemas/doc.yaml").toAbsolutePath().normalize(), doc.source.toAbsolutePath().normalize())
+        assertEquals("_schemas/doc.yaml", doc.kernel.source.value)
+        // 項目の木も、導出した構造のスキーマも、カーネルの型のものをそのまま使う（二重に持たない）
+        assertTrue(doc.tree === doc.kernel.tree && doc.structures === doc.kernel.structures)
+        assertTrue(app.schemas.any { it.id == "note" }, "下の階層のスキーマ: ${app.schemas.map { it.id }}")
+        // 組込みスキーマも、カーネルの1経路から（アプリとカーネルで同じ中身）
+        val kernel = loadKernel()
+        assertEquals(kernel.schemas.map { it.id }, app.schemas.map { it.id })
+        // 同じ ID のスキーマは、どちらの側でも誤り。文面は、ワークスペース相対のパスか、ファイル名の並び
+        for (errors in listOf(app.schemaErrors, kernel.schemaErrors)) {
+            assertTrue(errors.any { "スキーマID「doc」が重複しています" in it && "doc.yaml" in it && "dup.yaml" in it }, errors.toString())
+        }
+    }
+
+    @Test
+    fun `スキーマ置き場が無くても 組込みスキーマは適用される`() {
+        write("_agents/a.yaml", "id: agent-a\nname: エージェント\nunknown_key: 1")
+        val app = Workspace.open(dir)
+        assertTrue(app.schemas.any { it.id == "builtin-agent" }, app.schemas.map { it.id }.toString())
+        assertTrue(app.validate("_agents/a.yaml").any { "unknown_key" in it.message })
+    }
+
+    @Test
     fun `定義の誤りは カーネル側でもスキーマの読み込みエラーになる`() {
         write(
             "_schemas/doc.yaml",

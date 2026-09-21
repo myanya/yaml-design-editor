@@ -7,7 +7,7 @@ import model.YPath
 import schema.FieldDef
 import schema.FieldType
 import schema.SchemaKind
-import schema.StructuralSchema
+import schema.SchemaTree
 
 /**
  * Core Calculus の Rewrite 共有基盤（P29 Phase 4・R29-07。CORE-CALCULUS §11〜§13）。
@@ -32,7 +32,7 @@ internal object SemanticRewrite {
      * - onField: 実効フィールドのうち文書に値があるものごと（そのフィールドの子へ降りる**前**。データキーの座標）
      */
     fun walkDocument(
-        s: StructuralSchema,
+        s: SchemaTree,
         root: YNode,
         onObject: (path: YPath, map: YNode.Map, fields: List<FieldDef>) -> Unit = { _, _, _ -> },
         onField: (path: YPath, field: FieldDef) -> Unit = { _, _ -> },
@@ -68,14 +68,14 @@ internal object SemanticRewrite {
     }
 
     /** 条件に合うフィールドに対応するデータキーの座標（値がある場所だけ）。 */
-    fun fieldHits(s: StructuralSchema, root: YNode, predicate: (FieldDef) -> Boolean): List<YPath> {
+    fun fieldHits(s: SchemaTree, root: YNode, predicate: (FieldDef) -> Boolean): List<YPath> {
         val hits = mutableListOf<YPath>()
         walkDocument(s, root, onField = { path, f -> if (predicate(f)) hits += path })
         return hits
     }
 
     /** target を実効フィールドに含む親 object の（パス, マップ）一覧（値が無い場所への充填先の列挙）。 */
-    fun parentObjects(s: StructuralSchema, root: YNode, target: FieldDef): List<Pair<YPath, YNode.Map>> {
+    fun parentObjects(s: SchemaTree, root: YNode, target: FieldDef): List<Pair<YPath, YNode.Map>> {
         val out = mutableListOf<Pair<YPath, YNode.Map>>()
         walkDocument(s, root, onObject = { path, m, fs -> if (fs.any { it === target }) out += path to m })
         return out
@@ -105,15 +105,15 @@ internal object SemanticRewrite {
                 found = true
                 return
             }
-            val located = s.structural.definitionTarget(f)
+            val located = s.tree.definitionTarget(f)
             if (located != null && !seen.add(located.first.toString())) return
-            val r = s.structural.resolve(f) ?: f
+            val r = s.tree.resolve(f) ?: f
             r.fields.forEach(::walk)
             r.item?.let(::walk)
             r.value?.let(::walk)
             r.cases.values.flatten().forEach(::walk)
         }
-        walk(s.structural.root)
+        walk(s.tree.root)
         return found
     }
 

@@ -349,7 +349,7 @@ object SemanticRefactor {
     ): List<YPath> {
         val root = tree(e.document) ?: return emptyList()
         val element = getAt(root, e.path) as? YNode.Map ?: return emptyList()
-        val structural = e.schemaId?.let { schemas[it]?.structural }
+        val structural = e.schemaId?.let { schemas[it]?.tree }
         return element.entries.mapNotNull { (k, v) ->
             if (scalarText(v) != e.id) return@mapNotNull null
             val isIdField = if (structural == null) k == "id"

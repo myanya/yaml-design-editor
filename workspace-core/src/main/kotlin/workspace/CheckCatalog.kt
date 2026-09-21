@@ -5,6 +5,7 @@ import schema.CheckerRule
 import schema.ConstraintRule
 import schema.ExpandedCheck
 import schema.FieldDef
+import schema.FieldHints
 import schema.FieldType
 import schema.RuleOrigin
 import yaml.YamlIO
@@ -99,15 +100,15 @@ object CheckCatalog {
             if (existing == null) {
                 if (!addNewArrays) continue
                 fields = fields + FieldDef(
-                    key = key, label = "語彙: ${word.word}", type = FieldType.ARRAY,
-                    item = FieldDef(type = FieldType.ANY), description = description,
+                    key = key, type = FieldType.ARRAY, item = FieldDef(type = FieldType.ANY),
+                    hints = FieldHints(label = "語彙: ${word.word}", description = description),
                 )
                 continue
             }
             val item = existing.item?.takeIf { it.type == FieldType.OBJECT } ?: continue
             val known = item.fields.mapNotNull { it.key }.toSet()
             val added = word.readKeys.filter { it !in known }.map { readKey ->
-                FieldDef(key = readKey, label = "語彙: ${word.word}", type = FieldType.ANY, description = description)
+                FieldDef(key = readKey, type = FieldType.ANY, hints = FieldHints(label = "語彙: ${word.word}", description = description))
             }
             if (added.isNotEmpty()) {
                 fields = fields.map { if (it === existing) existing.copy(item = item.copy(fields = item.fields + added)) else it }

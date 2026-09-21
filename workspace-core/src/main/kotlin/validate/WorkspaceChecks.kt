@@ -14,7 +14,7 @@ import schema.QueryDir
 import schema.RelationDef
 import schema.ResponseDecl
 import schema.SchemaKind
-import schema.StructuralSchema
+import schema.SchemaTree
 import semantic.CheckOutcome
 import semantic.CheckReason
 import semantic.ScannedId
@@ -178,8 +178,8 @@ class CheckSchema(
     val kind: SchemaKind,
     /** 文書の置き場所のパターン（対応「文書を作る」の作り先の表示に使う）。 */
     val match: String,
-    /** 構造のスキーマ（フェーズの宣言と、文書の現在のフェーズの読み取りに使う）。 */
-    val structural: StructuralSchema,
+    /** 利用者が書く項目の木（フェーズの宣言と、文書の現在のフェーズの読み取りに使う）。 */
+    val tree: SchemaTree,
     val entities: List<EntityDecl>,
     val constraints: List<ConstraintRule>,
     val checkers: List<CheckerRule>,
@@ -263,8 +263,8 @@ class WorkspaceChecks(
 
         // 報告先: 規則はこの文書のスキーマの宣言・activeFrom はこの文書のフェーズで判定する（R29-03・CALC-14）
         if (schema != null) {
-            val phaseOrder = schema.structural.phases?.order.orEmpty()
-            val phaseIndex = schema.structural.currentPhaseIndex(root)
+            val phaseOrder = schema.tree.phases?.order.orEmpty()
+            val phaseIndex = schema.tree.currentPhaseIndex(root)
             fun anchoredFor(ownerSchemaId: String?) = localIds.filter { entry ->
                 val anchor = reportAnchorOf(entry.id, ownerSchemaId)
                 anchor != null && anchor.document == document && anchor.path == entry.path
@@ -331,10 +331,10 @@ class WorkspaceChecks(
                 val anchor = reportAnchorOf(entry.id, group.owner?.id) ?: continue
                 if (anchor.document == document) continue  // 報告先がこの文書なら、上で報告済み
                 val anchorRel = rel(anchor.document)
-                val anchorPhase = group.owner?.structural?.currentPhaseIndex(tree(anchor.document))
+                val anchorPhase = group.owner?.tree?.currentPhaseIndex(tree(anchor.document))
                 for ((i, rule) in group.rules.withIndex()) {
                     if (rule.reportAt != null) continue
-                    if (!phaseActive(rule.activeFrom, group.owner?.structural?.phases?.order.orEmpty(), anchorPhase)) continue
+                    if (!phaseActive(rule.activeFrom, group.owner?.tree?.phases?.order.orEmpty(), anchorPhase)) continue
                     val d = constraint(rule, entry.id) ?: continue
                     if (noticed.add("${group.key}/c$i" to entry.id)) issues += d.noticeIssue(entry.path, anchorRel)
                 }
@@ -344,9 +344,9 @@ class WorkspaceChecks(
                 val anchor = reportAnchorOf(entry.id, group.owner?.id) ?: continue
                 if (anchor.document == document) continue
                 val anchorRel = rel(anchor.document)
-                val anchorPhase = group.owner?.structural?.currentPhaseIndex(tree(anchor.document))
+                val anchorPhase = group.owner?.tree?.currentPhaseIndex(tree(anchor.document))
                 for ((i, rule) in group.rules.withIndex()) {
-                    if (!phaseActive(rule.activeFrom, group.owner?.structural?.phases?.order.orEmpty(), anchorPhase)) continue
+                    if (!phaseActive(rule.activeFrom, group.owner?.tree?.phases?.order.orEmpty(), anchorPhase)) continue
                     for ((kind, d) in checker(rule, entry.id)) {
                         if (noticed.add("${group.key}/k$i:$kind" to entry.id)) issues += d.noticeIssue(entry.path, anchorRel)
                     }
@@ -364,8 +364,8 @@ class WorkspaceChecks(
                     val missing = session.memo(rule, "fixSiteIds") {
                         graph.entities.keys.sorted().filter { id ->
                             val anchor = reportAnchorOf(id, group.owner?.id) ?: return@filter false
-                            val anchorPhase = group.owner?.structural?.currentPhaseIndex(tree(anchor.document))
-                            phaseActive(rule.activeFrom, group.owner?.structural?.phases?.order.orEmpty(), anchorPhase) &&
+                            val anchorPhase = group.owner?.tree?.currentPhaseIndex(tree(anchor.document))
+                            phaseActive(rule.activeFrom, group.owner?.tree?.phases?.order.orEmpty(), anchorPhase) &&
                                 constraint(rule, id) != null
                         }
                     }.filter { it !in localIdSet }
@@ -389,9 +389,9 @@ class WorkspaceChecks(
      * （activeFrom のフェーズ判定に使う。null なら常時判定）。
      */
     fun statuses(id: String, schema: CheckSchema, definingRoot: YNode?): List<RuleStatus> {
-        val phaseIndex = definingRoot?.let { schema.structural.currentPhaseIndex(it) }
+        val phaseIndex = definingRoot?.let { schema.tree.currentPhaseIndex(it) }
         return schema.constraints.filter { it.status != null }.mapNotNull { rule ->
-            status(rule, id, phaseActive(rule.activeFrom, schema.structural.phases?.order.orEmpty(), phaseIndex))
+            status(rule, id, phaseActive(rule.activeFrom, schema.tree.phases?.order.orEmpty(), phaseIndex))
         }
     }
 

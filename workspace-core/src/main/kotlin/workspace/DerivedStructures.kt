@@ -3,7 +3,7 @@ package workspace
 import model.YNode
 import schema.FieldDef
 import schema.FieldYaml
-import schema.StructuralSchema
+import schema.SchemaTree
 import schema.TransformDef
 import semantic.SemanticTransform
 import structure.StructureField
@@ -40,7 +40,7 @@ object BuiltinTransforms {
  * - 他のモジュールの定義（`モジュール#名前`）も、同じ変換で導出してつなぐ
  * - 定義されていないフェーズの申告の警告は、フェーズの解釈なので、ここ（意味の側）が出す
  */
-class DerivedStructures(private val schema: StructuralSchema) {
+class DerivedStructures(private val schema: SchemaTree) {
 
     /** フェーズの順位（フェーズの宣言が無ければ -1）→ 導出した構造のスキーマ。 */
     private val byPhase = ConcurrentHashMap<Int, StructureSchema>()

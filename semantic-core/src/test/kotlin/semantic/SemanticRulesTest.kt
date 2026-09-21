@@ -4,7 +4,7 @@ import model.DocumentId
 import model.YNode
 import schema.ConstraintRule
 import schema.EntityDecl
-import schema.StructuralSchemaParser
+import schema.SchemaTreeParser
 import yaml.YamlIO
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -15,7 +15,7 @@ import kotlin.test.assertEquals
  */
 class SemanticRulesTest {
 
-    private val schema = StructuralSchemaParser.parse(
+    private val schema = SchemaTreeParser.parse(
         """
         id: node
         root:

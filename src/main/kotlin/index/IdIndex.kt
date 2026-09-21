@@ -81,7 +81,7 @@ object DocScanner {
             SemanticDocument(
                 id = DocumentId(file.toString()),
                 root = root,
-                schema = schemaDef?.structural,
+                schema = schemaDef?.tree,
                 schemaId = schemaDef?.id,
                 entities = schemaDef?.entities ?: emptyList(),
                 documentId = documentId,

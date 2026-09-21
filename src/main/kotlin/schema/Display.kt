@@ -27,11 +27,11 @@ object Display {
         schema: SchemaDef?,
         field: FieldDef? = null,
         titleLookup: ((String) -> String?)? = null,
-    ): DisplayCore.Summary = DisplayCore.summarize(node, schema?.structural, field, titleLookup)
+    ): DisplayCore.Summary = DisplayCore.summarize(node, schema?.tree, field, titleLookup)
 
     /** 要素のタイトルのみ（role ＞ 予約語。なければ null）。 */
     fun titleOf(node: YNode?, schema: SchemaDef?, field: FieldDef? = null): String? =
-        DisplayCore.titleOf(node, schema?.structural, field)
+        DisplayCore.titleOf(node, schema?.tree, field)
 
     /** object の畳み込みヘッダ（R10-02 / UX-71）。 */
     fun headerText(
@@ -40,7 +40,7 @@ object Display {
         field: FieldDef? = null,
         fallback: String = "詳細",
         titleLookup: ((String) -> String?)? = null,
-    ): String = DisplayCore.headerText(node, schema?.structural, field, fallback, titleLookup)
+    ): String = DisplayCore.headerText(node, schema?.tree, field, fallback, titleLookup)
 
     /** 配列の畳み込みヘッダ（R10-02）。 */
     fun seqHeaderText(
@@ -49,7 +49,7 @@ object Display {
         itemField: FieldDef? = null,
         maxItems: Int = 3,
         titleLookup: ((String) -> String?)? = null,
-    ): String = DisplayCore.seqHeaderText(seq, schema?.structural, itemField, maxItems, titleLookup)
+    ): String = DisplayCore.seqHeaderText(seq, schema?.tree, itemField, maxItems, titleLookup)
 
     /** 任意ノードの1行要約（スカラー=値、オブジェクト=タイトル解決、配列=件数）。 */
     fun inline(
@@ -58,9 +58,9 @@ object Display {
         field: FieldDef? = null,
         maxLength: Int = 40,
         titleLookup: ((String) -> String?)? = null,
-    ): String = DisplayCore.inline(node, schema?.structural, field, maxLength, titleLookup)
+    ): String = DisplayCore.inline(node, schema?.tree, field, maxLength, titleLookup)
 
     /** 配列・map をテーブル表示すべきときの列定義（R12-06）。 */
     fun tableColumns(schema: SchemaDef?, field: FieldDef?): List<FieldDef>? =
-        DisplayCore.tableColumns(schema?.structural, field)
+        DisplayCore.tableColumns(schema?.tree, field)
 }

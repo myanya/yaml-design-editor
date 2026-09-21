@@ -4,7 +4,7 @@ import model.DocumentId
 import model.parseYPath
 import schema.DerivationDef
 import schema.DerivationSelector
-import schema.StructuralSchemaParser
+import schema.SchemaTreeParser
 import yaml.YamlIO
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -20,7 +20,7 @@ import kotlin.test.assertTrue
  */
 class SemanticDerivationTest {
 
-    private val schema = StructuralSchemaParser.parse(
+    private val schema = SchemaTreeParser.parse(
         """
         id: tbl
         root:

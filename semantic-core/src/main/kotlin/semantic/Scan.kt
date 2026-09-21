@@ -12,7 +12,7 @@ import schema.FieldType
 import schema.RefNaming
 import schema.RefScope
 import schema.RefTarget
-import schema.StructuralSchema
+import schema.SchemaTree
 import schema.entityFor
 
 /**
@@ -23,7 +23,7 @@ data class SemanticDocument(
     val id: DocumentId,
     val root: YNode,
     /** 適用スキーマの構造コア（null = スキーマなし。命名規約ヒューリスティクスで検出）。 */
-    val schema: StructuralSchema? = null,
+    val schema: SchemaTree? = null,
     /** 適用スキーマのID（ScannedId.schemaId / ScannedRef.sourceSchemaId に写す）。 */
     val schemaId: String? = null,
     /** スキーマの entity 宣言（エンティティ型・役割の解決。空 = 宣言なし）。 */

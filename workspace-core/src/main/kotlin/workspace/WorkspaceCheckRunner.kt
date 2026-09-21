@@ -17,7 +17,7 @@ object WorkspaceCheckRunner {
 
     /** スキーマを、検査を配るのに要る情報の形へ写す（検査は同じものをそのまま渡す）。 */
     fun checkSchemaOf(schema: WorkspaceSchema): CheckSchema =
-        CheckSchema(schema.id, schema.kind, schema.match, schema.structural, schema.entities, schema.constraints, schema.checkers)
+        CheckSchema(schema.id, schema.kind, schema.match, schema.tree, schema.entities, schema.constraints, schema.checkers)
 
     /**
      * 索引に載っている文書（意味解析の走査結果を持つ文書）ごとの、定義体の検査の結果。文書ID 順。

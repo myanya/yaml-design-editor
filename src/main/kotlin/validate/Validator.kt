@@ -351,24 +351,24 @@ object Validator {
 
     /**
      * フェーズ別の記入進捗（requiredFrom を持つフィールドの記入済み／総数）。phases 未宣言のスキーマでは空。
-     * 走査の実体は yaml-core の `StructuralSchema.phaseProgress`（B-3・RB-04 で移設。§4.15）。
+     * 走査の実体は yaml-core の `SchemaTree.phaseProgress`（B-3・RB-04 で移設。§4.15）。
      */
     fun phaseProgress(root: YNode?, schema: SchemaDef): List<PhaseProgress> =
-        schema.structural.phaseProgress(root)
+        schema.tree.phaseProgress(root)
 
     /**
      * 現在フェーズと記入進捗の1行サマリ（UI・CLI・エージェントの表示で共用）。
      * `phases` 未宣言のスキーマでは null（呼び出し側は表示自体を省略する）。
      */
     fun phaseSummaryText(root: YNode?, schema: SchemaDef): String? =
-        schema.structural.phaseSummaryText(root)
+        schema.tree.phaseSummaryText(root)
 
     /** カバレッジの数え上げ対象の表示名（参照ベース=「参照」、出現ベース=「出現」）。UI表示で共用する。 */
 }
 
 /** 検査を配るのに要る情報だけを、カーネルの形へ写す（検査は同じものをそのまま渡す——評価の覚え書きは、同じものかどうかで見分ける）。 */
 internal fun SchemaDef.toCheckSchema(): CheckSchema =
-    CheckSchema(id, kind, match, structural, entities, constraints, checkers)
+    CheckSchema(id, kind, match, tree, entities, constraints, checkers)
 
 /** カーネルの指摘を、ファイルの座標（Path）の Issue へ写す。 */
 internal fun CheckIssue.toIssue(): Issue = Issue(

@@ -159,17 +159,20 @@ class Workspace private constructor(val root: Path) {
     /** スキーマ・ファイル一覧・索引をディスクから再構築する。 */
     fun refresh() {
         layout = WorkspaceLayout.of(root)
-        val loaded = SchemaLoader.loadAllWithErrors(root, layout)
+        // スキーマを読むのは、カーネルの経路（セッション）だけ。ここは、その結果からアプリの形（SchemaDef）を作り、
+        // アプリだけに残る点検を足す——以前は root の SchemaLoader でもう一度読んでいた（P27 段C の C-3b・意図的差分 D-32）
+        val opened = workspace.WorkspaceSession(
+            workspace.FileSystemDocumentStore(root),
+            builtins = schema.BuiltinSchemas.kernelSchemas(layout),
+        )
+        session = opened
+        val loaded = SchemaLoader.fromKernel(root, layout, opened.schemas, opened.declarations, opened.schemaErrors)
         schemas = loaded.schemas
         schemaErrors = loaded.errors
         relations = loaded.relations
         enforcement = loaded.enforcement
         entityTypes = loaded.entityTypes
         files = WorkspaceScan.yamlFiles(root, layout)
-        session = workspace.WorkspaceSession(
-            workspace.FileSystemDocumentStore(root),
-            builtins = schema.BuiltinSchemas.kernelSchemas(layout),
-        )
         repopulateIndex()
     }
 

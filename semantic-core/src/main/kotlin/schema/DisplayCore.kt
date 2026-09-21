@@ -5,7 +5,7 @@ import model.scalarText
 
 /**
  * 表示解決（R10-01）の実装本体（3層コア移行 SM-001 で Display から分離）。
- * 構造コア（StructuralSchema）だけに依存し、ファイルI/O・SchemaDef を知らない。
+ * 構造コア（SchemaTree）だけに依存し、ファイルI/O・SchemaDef を知らない。
  * ルート側の `Display` は SchemaDef 向けの委譲ファサード（最終リネーム時に統合する）。
  *
  * 優先順位: スキーマの `role` 指定 ＞ 予約語（title / name / label、description / summary）＞ id ＞ キー数の要約。
@@ -33,7 +33,7 @@ object DisplayCore {
      */
     fun summarize(
         node: YNode?,
-        schema: StructuralSchema?,
+        schema: SchemaTree?,
         field: FieldDef? = null,
         titleLookup: ((String) -> String?)? = null,
     ): Summary {
@@ -65,7 +65,7 @@ object DisplayCore {
     }
 
     /** 要素のタイトルのみ（role ＞ 予約語。なければ null）。索引のタイトル抽出（走査カーネル）と共用する。 */
-    fun titleOf(node: YNode?, schema: StructuralSchema?, field: FieldDef? = null): String? =
+    fun titleOf(node: YNode?, schema: SchemaTree?, field: FieldDef? = null): String? =
         summarize(node, schema, field).title
 
     /**
@@ -74,7 +74,7 @@ object DisplayCore {
      */
     fun headerText(
         node: YNode?,
-        schema: StructuralSchema?,
+        schema: SchemaTree?,
         field: FieldDef? = null,
         fallback: String = "詳細",
         titleLookup: ((String) -> String?)? = null,
@@ -88,7 +88,7 @@ object DisplayCore {
     /** 配列の畳み込みヘッダ（R10-02）:「n件: 先頭要素の要約, …」。 */
     fun seqHeaderText(
         seq: YNode.Seq,
-        schema: StructuralSchema?,
+        schema: SchemaTree?,
         itemField: FieldDef? = null,
         maxItems: Int = 3,
         titleLookup: ((String) -> String?)? = null,
@@ -102,7 +102,7 @@ object DisplayCore {
     /** 任意ノードの1行要約（スカラー=値、オブジェクト=タイトル解決、配列=件数）。タイトルがなければ subtitle で補う（UX-77）。 */
     fun inline(
         node: YNode?,
-        schema: StructuralSchema? = null,
+        schema: SchemaTree? = null,
         field: FieldDef? = null,
         maxLength: Int = 40,
         titleLookup: ((String) -> String?)? = null,
@@ -139,7 +139,7 @@ object DisplayCore {
      * 配列（object 要素）または map（object 値）をテーブル表示すべきときの列定義（`$ref` 解決済み）を返す。
      * 向かなければ null。判定規則は移動前の Display.tableColumns と同一（R12-06）。
      */
-    fun tableColumns(schema: StructuralSchema?, field: FieldDef?): List<FieldDef>? {
+    fun tableColumns(schema: SchemaTree?, field: FieldDef?): List<FieldDef>? {
         val container = schema?.resolve(field) ?: field ?: return null
         if (container.display == CollectionDisplay.LIST) return null
         val elementDef = when (container.type) {

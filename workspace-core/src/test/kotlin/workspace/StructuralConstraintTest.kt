@@ -1,6 +1,6 @@
 package workspace
 
-import schema.StructuralSchemaParser
+import schema.SchemaTreeParser
 import validate.Severity
 import yaml.YamlIO
 import kotlin.test.Test
@@ -15,7 +15,7 @@ import kotlin.test.assertTrue
  */
 class StructuralConstraintTest {
 
-    private val schema = StructuralSchemaParser.parse(
+    private val schema = SchemaTreeParser.parse(
         """
         id: constrained
         name: 制約つき
@@ -76,7 +76,7 @@ class StructuralConstraintTest {
     @Test
     fun `id 型の pattern がIDフォーマットを強制する`() {
         // UX-79: type: id の pattern で「フォーマット: TASK-nnn」を description でなく検証として強制できる
-        val idSchema = StructuralSchemaParser.parse(
+        val idSchema = SchemaTreeParser.parse(
             """
             id: tasks
             root:

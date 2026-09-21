@@ -3,7 +3,7 @@ package semantic
 import model.DocumentId
 import schema.EntityDecl
 import schema.QuerySpec
-import schema.StructuralSchemaParser
+import schema.SchemaTreeParser
 import yaml.YamlIO
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -15,7 +15,7 @@ import kotlin.test.assertEquals
  */
 class SemanticQueryTest {
 
-    private val schema = StructuralSchemaParser.parse(
+    private val schema = SchemaTreeParser.parse(
         """
         id: node
         root:

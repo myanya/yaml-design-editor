@@ -46,7 +46,7 @@
 
 | ID | 機能 | 状態 | 主な実装 | テスト |
 |---|---|---|---|---|
-| S-01 | スキーマ読込（`_schemas/*.yaml`、`match` glob 先勝ち、id 重複検出） | ✅ | `schema/Schema.kt`（`SchemaLoader`） | 手動 |
+| S-01 | スキーマ読込（スキーマ置き場の YAML、`match` glob 先勝ち、id 重複検出）。**読むのはカーネルの経路だけ**（P27 段C の C-3a・C-3b。ARCHITECTURE §4.40・§4.43・意図的差分 D-31・D-32）: スキーマ文書1件の読み取りと関係レジストリの集約は workspace-core の `SchemaDocuments`、読み込みの組み立て（組込みスキーマ・derive の展開）は `WorkspaceReader`。root の `SchemaDef` は、カーネルの `WorkspaceSchema` にファイルの場所を足す薄い型で、`SchemaLoader.fromKernel` が、アプリだけに残る点検（スキーマの定義の点検・宣言のない関係名の点検）を足す | ✅ | `workspace-core/workspace/SchemaDocuments.kt`・`WorkspaceReader.kt`（`WorkspaceSchema`）, `schema/Schema.kt`（`SchemaDef`・`SchemaLoader`） | 単体（`SchemaLoaderTest`, `KernelCheckLoadingTest`＝アプリとカーネルで同じ中身・同じ誤り） |
 | S-02 | 型システム13種（string/text/int/number/boolean/enum/date/id/ref/array/map/object/any。`any` は「検証しない」の明示＝必須チェックのみ・汎用エディタ・構造化出力の無効化。ROADMAP R11-02） | ✅ | `schema/Schema.kt`（`FieldType`） | 単体（`MetaSchemaTest`）＋手動 |
 | S-03 | 名前付き定義と再帰参照（`definitions` / `$ref`、属性のオーバーライド合成） | ✅ | `SchemaDef.resolve` | 手動 |
 | S-04 | メタスキーマ検証（必須情報、キー重複、子定義不足、enum選択肢、`cases` の整合、未解決 `$ref`） | ✅ | `SchemaDef.validateDefinition` | 単体（`SchemaLoaderTest`） |

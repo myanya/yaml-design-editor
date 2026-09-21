@@ -8,20 +8,20 @@ import yaml.YamlIO
  * 意味宣言（entity / relations / coverage / consistency / constraints / derive）・match・
  * ワークスペース探索・`Path` はルート側 SchemaLoader が担う（ADR-0002）。
  */
-object StructuralSchemaParser {
+object SchemaTreeParser {
 
     /**
      * スキーマYAMLテキストから構造コアを組み立てる（yaml-core 単体利用・テスト用の入口）。
      * fallbackId は `id:` 未宣言時の補完（通常はファイル名由来。上位層が与える）。
      * derive 宣言スキーマの root 省略は原文に `derive:` があるかどうかだけで判定し、derive の内容は解釈しない。
      */
-    fun parse(text: String, fallbackId: String): StructuralSchema {
+    fun parse(text: String, fallbackId: String): SchemaTree {
         val raw = YamlIO.parseToRaw(text) as? Map<*, *> ?: error("スキーマのルートはobjectである必要があります")
         val id = raw["id"]?.toString() ?: fallbackId
         val kind = SchemaKind.parse(raw["kind"]?.toString())
         val definitions = parseDefinitions(raw["definitions"], id)
         val root = parseRoot(raw["root"], kind, id, allowMissingRoot = raw["derive"] != null)
-        return StructuralSchema(id = id, root = root, definitions = definitions, phases = parsePhases(raw["phases"]))
+        return SchemaTree(id = id, root = root, definitions = definitions, phases = parsePhases(raw["phases"]))
     }
 
     /** definitions ブロックのパース。 */
@@ -104,14 +104,11 @@ object StructuralSchemaParser {
         }
         return FieldDef(
             key = key,
-            label = m["label"]?.toString(),
             type = type,
             required = (m["required"] as? Boolean) ?: false,
             requiredFrom = m["requiredFrom"]?.toString(),
             values = options.map { it.value },
-            options = options,
             role = FieldRole.parse(m["role"]?.toString()),
-            display = CollectionDisplay.parse(m["display"]?.toString()),
             cases = cases,
             item = item,
             value = value,
@@ -131,13 +128,18 @@ object StructuralSchemaParser {
             pattern = m["pattern"]?.toString(),
             min = (m["min"] as? Number)?.toDouble(),
             max = (m["max"] as? Number)?.toDouble(),
-            default = m["default"],
-            description = m["description"]?.toString(),
             ref = (m["\$ref"] ?: m["ref"])?.toString(),
             unknownFields = m["unknownFields"]?.toString()?.let { raw ->
                 UnknownFieldsPolicy.parse(raw) ?: error("unknownFields は allow / warning / error のいずれかである必要があります: $raw")
             },
             definitionScope = definitionScope,
+            hints = FieldHints(
+                label = m["label"]?.toString(),
+                description = m["description"]?.toString(),
+                options = options,
+                display = CollectionDisplay.parse(m["display"]?.toString()),
+                default = m["default"],
+            ),
         )
     }
 }

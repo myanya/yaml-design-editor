@@ -132,18 +132,41 @@ class SchemaCatalog private constructor(
 }
 
 /**
- * スキーマ内の 1 フィールド定義。
+ * 項目の表示と編集のためのヒント（P27 段C の C-3b。ROADMAP の SC-05「項目ごとに、意味と表示の区画を分ける」）。
+ * 検証・走査（ID と参照）・検査は、ここを読まない——読むのは、フォーム・一覧・AI 生成・ひな型の文書の作成だけ。
+ * 例外は label だけ: 指摘の文面のために、導出した構造のスキーマへ表示名として写される（SC-04）。
+ * タイトルの役割（role）は、索引のタイトルを決めるので、表示のヒントではなく項目の側（意味）に置く。
+ */
+data class FieldHints(
+    /** 表示ラベル（未指定なら key）。 */
+    val label: String? = null,
+    /** 項目の説明（フォームに表示）。 */
+    val description: String? = null,
+    /** ENUM のリッチ選択肢（label / description。R10-03）。 */
+    val options: List<EnumOption> = emptyList(),
+    /** ARRAY / MAP の一覧表示形式（table / list。未指定は自動判定。R12-06）。 */
+    val display: CollectionDisplay? = null,
+    /** 新規作成時の初期値。 */
+    val default: Any? = null,
+) {
+    /** 定義への参照（`$ref`）の解決: 使う側に書いたラベル・説明・一覧の見せ方は、定義の側より優先。選択肢のラベルと初期値は、定義の側のもの。 */
+    fun over(target: FieldHints): FieldHints = target.copy(
+        label = label ?: target.label,
+        description = description ?: target.description,
+        display = display ?: target.display,
+    )
+}
+
+/**
+ * スキーマ内の 1 フィールド定義。表示と編集のためのヒントは hints にまとめてある（label などの読み出しは、今までどおり項目から直接できる）。
  */
 data class FieldDef(
     val key: String? = null,          // 親オブジェクト内でのキー（ルート・配列要素では null）
-    val label: String? = null,        // 表示ラベル（未指定なら key）
     val type: FieldType = FieldType.STRING,
     val required: Boolean = false,
     val requiredFrom: String? = null, // このフェーズ以降で必須（累積的。phases 宣言が前提。required との併用不可）
     val values: List<String> = emptyList(),  // ENUM の選択肢（値のリスト。検証・cases・AI制約はこちらを使う）
-    val options: List<EnumOption> = emptyList(), // ENUM のリッチ選択肢（label / description。表示専用。R10-03）
     val role: FieldRole? = null,             // 表示役割（title / subtitle。表示解決の上書き。R10-01）
-    val display: CollectionDisplay? = null,  // ARRAY / MAP の一覧表示形式（table / list。未指定は自動判定。R12-06）
     val cases: Map<String, List<FieldDef>> = emptyMap(), // ENUM の値ごとに親オブジェクトへ追加される兄弟フィールド
     val item: FieldDef? = null,              // ARRAY の要素定義
     val value: FieldDef? = null,             // MAP の値定義
@@ -157,13 +180,19 @@ data class FieldDef(
     val pattern: String? = null,             // STRING / TEXT / ID: 正規表現（完全一致。R16-01 / UX-79）
     val min: Double? = null,                 // INT / NUMBER: 最小値（R16-01）
     val max: Double? = null,                 // INT / NUMBER: 最大値（R16-01）
-    val default: Any? = null,                // 新規作成時の初期値
-    val description: String? = null,         // フィールドの説明（フォームに表示）
     val ref: String? = null,                 // definitions 内の名前付き定義への参照
     val unknownFields: UnknownFieldsPolicy? = null, // object の未定義キー。null は warning
     /** 非修飾 `$ref` の解決元。パーサーが設定し、横断参照した定義の子でも元モジュールを保つ（スキーマ層専用）。 */
     val definitionScope: String? = null,
+    /** 表示と編集のためのヒント（検証・走査・検査は読まない）。 */
+    val hints: FieldHints = FieldHints(),
 ) {
+    val label: String? get() = hints.label
+    val description: String? get() = hints.description
+    val options: List<EnumOption> get() = hints.options
+    val display: CollectionDisplay? get() = hints.display
+    val default: Any? get() = hints.default
+
     val displayLabel: String get() = label ?: key ?: "(root)"
 
     /** enum の選択肢（表示用）。リッチ選択肢（options）がなければ値そのままの選択肢を返す。 */

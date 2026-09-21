@@ -3,7 +3,7 @@ package semantic
 import model.DocumentId
 import schema.EntityDecl
 import schema.EntityRole
-import schema.StructuralSchemaParser
+import schema.SchemaTreeParser
 import yaml.YamlIO
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -16,7 +16,7 @@ import validate.Severity
  */
 class SemanticEngineTest {
 
-    private val schema = StructuralSchemaParser.parse(
+    private val schema = SchemaTreeParser.parse(
         """
         id: item
         root:
@@ -129,7 +129,7 @@ class SemanticEngineTest {
 
     @Test
     fun `文書参照は文書IDの名前空間で解決される`() {
-        val attributed = StructuralSchemaParser.parse(
+        val attributed = SchemaTreeParser.parse(
             """
             id: doc-ref
             root:
