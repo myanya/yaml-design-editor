@@ -6,9 +6,7 @@ import schema.EntityDecl
 import schema.SchemaCatalog
 import schema.SchemaDerivation
 import schema.SchemaKind
-import schema.SemanticDeclParser
 import schema.StructuralSchema
-import schema.StructuralSchemaParser
 import schema.WorkspaceLayout
 import schema.globToRegex
 import semantic.DocumentMeta
@@ -138,9 +136,7 @@ object WorkspaceReader {
     fun parseSchemas(sources: List<Pair<DocumentId, String>>): SchemaLoadResult {
         val errors = mutableListOf<String>()
         val schemas = mutableListOf<WorkspaceSchema>()
-        val relationsDecl = linkedMapOf<String, schema.RelationDef>()
-        val entityTypes = mutableListOf<schema.EntityTypeDef>()
-        var enforcement = schema.EnforcementDef()
+        val registry = mutableListOf<SchemaDocuments.RegistryPart>()
         // 検査の定義と語彙の定義（functions / vocabulary）は、どのスキーマ文書に書いてもワークスペース全体で使える。
         // 先に全文書から集めてから、各スキーマの検査を展開する（root の SchemaLoader と同じ実装＝CheckCatalog）
         val raws = sources.mapNotNull { (id, text) ->
@@ -149,48 +145,37 @@ object WorkspaceReader {
         val library = CheckCatalog.libraryOf(raws) { name, e -> errors += "$name: ${e.message ?: e::class.simpleName}" }
         for ((id, text) in sources) {
             val rel = id.value
-            val fallbackId = rel.substringAfterLast('/').substringBeforeLast('.')
+            val fileName = rel.substringAfterLast('/')
             try {
-                val raw = YamlIO.parseToRaw(text) as? Map<*, *> ?: error("スキーマのルートはobjectである必要があります")
-                val kind = SchemaKind.parse(raw["kind"]?.toString())
-                val structural = StructuralSchemaParser.parse(text, fallbackId)
-                // 派生スキーマ宣言（R11-03 / C-2）。制約は SchemaLoader.parseSchemaText と同じ
-                val derive = SchemaDerivation.parse(raw["derive"])
-                if (derive != null) {
-                    require(kind == SchemaKind.DOCUMENT) { "derive は ${kind.id} スキーマには定義できません" }
-                    require(raw["match"] == null) { "derive 宣言スキーマに match は定義できません（適用先は derive.match で決まります）" }
-                }
-                val isTemplate = derive != null
-                val match = raw["match"]?.toString()
-                    ?: if (kind == SchemaKind.DOCUMENT && !isTemplate) "**/*.{yaml,yml}" else ""
-                val checks = CheckCatalog.checksOf(library, raw, structural.id)
+                // スキーマ文書1件の読み取りは、アプリ側と同じ1実装（SchemaDocuments。P27 段C の C-3a・意図的差分 D-31）
+                val parsed = SchemaDocuments.parse(text, fileName.substringBeforeLast('.'), fileName, library)
                 schemas += WorkspaceSchema(
-                    id = structural.id,
-                    kind = kind,
-                    match = match,
-                    structural = structural,
-                    entities = SemanticDeclParser.parseEntities(raw["entity"]),
-                    isTemplate = isTemplate,
+                    id = parsed.id,
+                    kind = parsed.kind,
+                    match = parsed.match,
+                    structural = parsed.structural,
+                    entities = parsed.entities,
+                    isTemplate = parsed.derive != null,
                     source = id,
-                    derive = derive,
-                    constraints = checks.constraints,
-                    checkers = checks.checkers,
-                    expandedChecks = checks.expanded,
-                    vocabularySource = schema.VocabularySource(raw, library),
+                    derive = parsed.derive,
+                    constraints = parsed.checks.constraints,
+                    checkers = parsed.checks.checkers,
+                    expandedChecks = parsed.checks.expanded,
+                    vocabularySource = parsed.vocabularySource,
                 )
-                if (kind == SchemaKind.RELATIONS) {
-                    SemanticDeclParser.parseRelations(raw["relations"]).forEach { relationsDecl[it.name] = it }
-                    entityTypes += SemanticDeclParser.parseEntityTypes(raw["entities"])
-                    SemanticDeclParser.parseEnforcement(raw["enforcement"])?.let { enforcement = it }
+                if (parsed.kind == SchemaKind.RELATIONS) {
+                    registry += SchemaDocuments.RegistryPart(fileName, parsed.relations, parsed.entityTypes, parsed.enforcement)
                 }
             } catch (e: Exception) {
                 errors += "$rel: ${e.message}"
             }
         }
+        // 関係レジストリの集約（複数の文書での重複は誤りにして、先に読んだほうを採る。アプリ側と同じ実装）
+        val declarations = SchemaDocuments.declarationsOf(registry, errors)
         // `$ref` の横断解決（module#name）: 全モジュールの定義をリンクする（SchemaLoader と同じ流儀）
         val catalog = SchemaCatalog.linked(schemas.map { it.id to it.structural.definitions })
         val linked = schemas.map { it.copy(structural = it.structural.copy(definitionCatalog = catalog)) }
-        return SchemaLoadResult(linked, SemanticDeclarations(relationsDecl, entityTypes, enforcement), errors, library)
+        return SchemaLoadResult(linked, declarations, errors, library)
     }
 
     /**

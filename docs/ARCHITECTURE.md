@@ -686,6 +686,8 @@ Core Calculus の本来の目的（[CORE-CALCULUS.md](CORE-CALCULUS.md) §25）�
 - **root の `SchemaLoader`** は、これらを呼ぶだけになった（`builtinLibrary` などの名前は、呼び出し側のために残している）。**カーネルの `WorkspaceReader`** は、スキーマ文書の生の値から先に定義の一式を集め、スキーマごとに検査を展開して `WorkspaceSchema.constraints` / `checkers` / `expandedChecks` に持つ。組込みのメタスキーマへの語彙のキーの合成は `buildSchemas` が行う（アプリ・cli のどちらのセッションにも効く）。
 - **確かめ方**: `KernelCheckLoadingTest` が、合成ワークスペースのスキーマについて、検査の中身と出どころが root とカーネルで完全に一致することを確かめる。
 
+**スキーマ文書の読み取りも1実装にした（P27 段C の C-3a。意図的差分 D-31）**: スキーマ文書1件の読み取り（ID・種類・適用先・derive・エンティティ型の宣言・関係レジストリ・項目の木・検査の展開）と、関係レジストリの集約（関係・エンティティ型・強制スイッチ。複数の文書での重複は誤りにして、先に読んだほうを採る）を、workspace-core の `SchemaDocuments`（`parse` → `ParsedSchemaDocument`・`declarationsOf`）にまとめた。root の `SchemaLoader.parseSchemaText` は、その結果にファイルの場所を足して `SchemaDef` にするだけ、カーネルの `WorkspaceReader.parseSchemas` は `WorkspaceSchema` にするだけ。以前はカーネル側が、書ける場所の決まりの誤り（`entity` を `kind: library` に書く、など）を見逃し、レジストリの重複を黙って後から読んだほうで上書きしていた。アプリ側だけに残るのは、スキーマの定義の点検（`validateDefinition`）と、宣言のない関係名の点検（段D）。`SchemaDef` と `WorkspaceSchema` という2つの型の一本化は、次の段（C-3b）。
+
 ### 4.41 定義体の検査を評価して文書へ配る部品のカーネル化（P27 段B-3・B-4）
 
 定義体の検査を「評価して、指摘を文書へ配る」処理は、以前は root の `Validator`（配り方）と `RuleDiagnostics`（文面の組み立て）が持っていた。これをカーネルの座標（`DocumentId`）で workspace-core の **`validate.WorkspaceChecks`** へ移した（移動であって複製ではない。root の `RuleDiagnostics.kt` は削除）。

@@ -140,6 +140,48 @@ class KernelCheckLoadingTest {
     }
 
     @Test
+    fun `スキーマ文書の読み取りは アプリ側とカーネル側で同じ誤りを同じように報告する`() {
+        // P27 段C の C-3a（意図的差分 D-31）: 読み取りと関係レジストリの集約は workspace-core の SchemaDocuments の1実装。
+        // 以前のカーネル側は、書ける場所の決まりの誤りを見逃し、レジストリの重複は黙って後から読んだほうを採っていた
+        write(
+            "_schemas/a-relations.yaml",
+            """
+            id: a-relations
+            kind: relations
+            relations:
+              - { name: uses, label: 利用する }
+            """,
+        )
+        write(
+            "_schemas/b-relations.yaml",
+            """
+            id: b-relations
+            kind: relations
+            relations:
+              - { name: uses, label: 重ねて宣言した関係 }
+            """,
+        )
+        write(
+            "_schemas/lib.yaml",
+            """
+            id: lib
+            kind: library
+            entity: { type: doc, idPattern: "D-*" }
+            """,
+        )
+        write("_schemas/doc.yaml", "id: doc\nmatch: \"docs/*.yaml\"\nroot:\n  type: object\n  fields:\n    - { key: id, type: id }")
+        val kernel = loadKernel()
+        val app = Workspace.open(dir)
+        for (expected in listOf("関係「uses」が複数のレジストリで宣言されています", "entity は kind: library には定義できません")) {
+            assertTrue(kernel.schemaErrors.any { expected in it }, "カーネル側: $expected / ${kernel.schemaErrors}")
+            assertTrue(app.schemaErrors.any { expected in it }, "アプリ側: $expected / ${app.schemaErrors}")
+        }
+        // 重ねて宣言された関係は、どちらの側も、先に読んだほう（a-relations）を採る
+        assertEquals("利用する", kernel.declarations.relations.getValue("uses").label)
+        assertEquals("利用する", app.relations.getValue("uses").label)
+    }
+
+    @Test
     fun `定義の誤りは カーネル側でもスキーマの読み込みエラーになる`() {
         write(
             "_schemas/doc.yaml",

@@ -1,6 +1,7 @@
 package schema
 
 import workspace.CheckCatalog
+import workspace.SchemaDocuments
 import yaml.YamlIO
 import java.nio.file.Files
 import java.nio.file.Path
@@ -504,48 +505,24 @@ object SchemaLoader {
         errors += derived.errors
         val result = if (derived.byDeclaring.isEmpty()) linked
         else linked.flatMap { s -> listOf(s) + derived.byDeclaring[s.id].orEmpty() }
-        // 関係レジストリ（R20-02）: kind: relations の文書から集約する。文書内の重複は
-        // validateDefinition が報告するため、ここではレジストリ間の name 重複だけをエラーにする
-        val registry = LinkedHashMap<String, RelationDef>()
-        linked.filter { it.kind == SchemaKind.RELATIONS }.forEach { doc ->
-            doc.relations.distinctBy { it.name }.forEach { r ->
-                if (registry.putIfAbsent(r.name, r) != null) {
-                    errors += "${doc.source.fileName}: 関係「${r.name}」が複数のレジストリで宣言されています"
-                }
-            }
-        }
+        // 関係レジストリ（R20-02・R23-01・R21-01）: kind: relations の文書から、関係・エンティティ型・強制スイッチを集約する。
+        // 複数の文書での重複は誤りにして、先に読んだほうを採る（1つの文書の中の重複は validateDefinition が報告する）。
+        // 集約の実体は、カーネルと同じ1実装（workspace-core の SchemaDocuments。P27 段C の C-3a）
+        val declarations = SchemaDocuments.declarationsOf(
+            linked.filter { it.kind == SchemaKind.RELATIONS }.map { doc ->
+                SchemaDocuments.RegistryPart(doc.source.fileName.toString(), doc.relations, doc.entityTypes, doc.enforcement)
+            },
+            errors,
+        )
+        val registry = declarations.relations
+        val typeRegistry = declarations.entityTypes.associateBy { it.type }
+        val enforcement = declarations.enforcement
         // 未宣言 relation の lint（R20-02）: レジストリが1つでもあるときだけ判定する（非破壊。§4.30）
         if (registry.isNotEmpty()) {
             linked.take(schemas.size).filter { it.kind == SchemaKind.DOCUMENT }.forEach { s ->
                 collectRelationNames(s).filter { it !in registry }.sorted().forEach { name ->
                     errors += "${s.source.fileName}: 関係「$name」は関係レジストリに宣言されていません"
                 }
-            }
-        }
-        // エンティティ型レジストリ（R23-01。§4.33）: entities 節を集約する。文書内の重複は
-        // validateDefinition が報告するため、ここではレジストリ間の type 重複だけをエラーにする
-        val typeRegistry = LinkedHashMap<String, EntityTypeDef>()
-        linked.filter { it.kind == SchemaKind.RELATIONS }.forEach { doc ->
-            doc.entityTypes.distinctBy { it.type }.forEach { t ->
-                if (typeRegistry.putIfAbsent(t.type, t) != null) {
-                    errors += "${doc.source.fileName}: エンティティ型「${t.type}」が複数のレジストリで宣言されています"
-                }
-            }
-        }
-        // 強制スイッチ（R21-01。§4.31）: レジストリ文書の enforcement 節を集約する。
-        // 同一キーの重複宣言は relation name 重複と同じ流儀でロードエラー
-        var enforcement = EnforcementDef()
-        linked.filter { it.kind == SchemaKind.RELATIONS }.forEach { doc ->
-            val e = doc.enforcement ?: return@forEach
-            e.undeclaredRelation?.let { v ->
-                if (enforcement.undeclaredRelation != null) {
-                    errors += "${doc.source.fileName}: enforcement.undeclaredRelation が複数のレジストリで宣言されています"
-                } else enforcement = enforcement.copy(undeclaredRelation = v)
-            }
-            e.definingUniqueness?.let { v ->
-                if (enforcement.definingUniqueness != null) {
-                    errors += "${doc.source.fileName}: enforcement.definingUniqueness が複数のレジストリで宣言されています"
-                } else enforcement = enforcement.copy(definingUniqueness = v)
             }
         }
         return LoadResult(result, errors, registry, enforcement, typeRegistry)
@@ -597,61 +574,30 @@ object SchemaLoader {
         availableSchemas: List<SchemaDef> = emptyList(),
         library: CheckLibrary? = null,
     ): SchemaDef {
-        val raw = YamlIO.parseToRaw(text) as? Map<*, *> ?: error("スキーマのルートはobjectである必要があります")
-        val fallbackId = source.fileName.toString().substringBeforeLast('.')
-        val id = raw["id"]?.toString() ?: fallbackId
-        val name = raw["name"]?.toString() ?: id
-        val description = raw["description"]?.toString()
-        val kind = SchemaKind.parse(raw["kind"]?.toString())
-        val derive = parseDerive(raw["derive"])
-        if (derive != null) {
-            require(kind == SchemaKind.DOCUMENT) { "derive は ${kind.id} スキーマには定義できません" }
-            require(raw["match"] == null) { "derive 宣言スキーマに match は定義できません（適用先は derive.match で決まります）" }
-        }
-        // エンティティ型宣言（R20-01）と関係レジストリ（R20-02）。ARCHITECTURE §4.30
-        val entities = parseEntities(raw["entity"])
-        require(entities.isEmpty() || kind == SchemaKind.DOCUMENT) { "entity は kind: ${kind.id} には定義できません" }
-        require(kind == SchemaKind.RELATIONS || raw["relations"] == null) { "relations は kind: relations の文書でのみ定義できます" }
-        val relations = if (kind == SchemaKind.RELATIONS) parseRelations(raw["relations"]) else emptyList()
-        require(kind == SchemaKind.RELATIONS || raw["entities"] == null) { "entities は kind: relations の文書でのみ定義できます" }
-        val entityTypes = if (kind == SchemaKind.RELATIONS) parseEntityTypes(raw["entities"]) else emptyList()
-        require(kind == SchemaKind.RELATIONS || raw["enforcement"] == null) { "enforcement は kind: relations の文書でのみ定義できます" }
-        val enforcement = if (kind == SchemaKind.RELATIONS) parseEnforcement(raw["enforcement"]) else null
-        val match = raw["match"]?.toString()
-            ?: if (kind == SchemaKind.DOCUMENT && derive == null) "**/*.{yaml,yml}" else ""
-        // 構造部分（definitions・root・フィールド木）のパースは yaml-core の StructuralSchemaParser（YM-004c）
-        val definitions = StructuralSchemaParser.parseDefinitions(raw["definitions"], id)
-        val root = StructuralSchemaParser.parseRoot(raw["root"], kind, id, allowMissingRoot = derive != null)
-        // 検査（P29 Phase 6）: constraints に書いた検査（プリミティブを直接書く／定義を名前で使う）と、
-        // 語彙（consistency など）を、基本の検査へ展開してからパースする。パースはクエリコア（schema/Query.kt）と共用
-        val ownLibrary = CheckLibrary.parse(raw, source.fileName.toString())
-        val effectiveLibrary = library ?: (builtinLibrary + ownLibrary)
-        // 展開とパース（検査の出どころつき）の実体は workspace-core の CheckCatalog（カーネルのスキーマ読み込みと共有）
-        val checks = CheckCatalog.checksOf(effectiveLibrary, raw, id)
-        val expanded = checks.expanded
-        val constraints = checks.constraints
-        val checkers = checks.checkers
-        val phases = StructuralSchemaParser.parsePhases(raw["phases"])
+        // スキーマ文書1件の読み取りは、カーネルと同じ1実装（workspace-core の SchemaDocuments。P27 段C の C-3a）。
+        // ここは、読み取りの結果に、アプリに要るもの（ファイルの場所）を足して SchemaDef にするだけ
+        val fileName = source.fileName.toString()
+        val document = SchemaDocuments.parse(text, fileName.substringBeforeLast('.'), fileName, library)
         val parsed = SchemaDef(
-            id = id,
-            name = name,
-            description = description,
-            match = match,
-            root = root,
-            definitions = definitions,
-            constraints = constraints,
-            expandedChecks = expanded,
-            checkers = checkers,
-            phases = phases,
-            entities = entities,
-            relations = relations,
-            entityTypes = entityTypes,
-            enforcement = enforcement,
+            id = document.id,
+            name = document.name,
+            description = document.description,
+            match = document.match,
+            root = document.structural.root,
+            definitions = document.structural.definitions,
+            constraints = document.checks.constraints,
+            expandedChecks = document.checks.expanded,
+            checkers = document.checks.checkers,
+            phases = document.structural.phases,
+            entities = document.entities,
+            relations = document.relations,
+            entityTypes = document.entityTypes,
+            enforcement = document.enforcement,
             source = source,
-            kind = kind,
-            derive = derive,
-            checkLibrary = ownLibrary,
-            vocabularySource = VocabularySource(raw, effectiveLibrary),
+            kind = document.kind,
+            derive = document.derive,
+            checkLibrary = document.ownLibrary,
+            vocabularySource = document.vocabularySource,
         )
         if (availableSchemas.isEmpty()) return parsed
         val modules = availableSchemas.filter { it.id != parsed.id }.map { it.id to it.definitions } +
@@ -659,18 +605,6 @@ object SchemaLoader {
         val catalog = SchemaCatalog.linked(modules)
         return parsed.withDefinitionCatalog(catalog)
     }
-
-    /** 派生スキーマ宣言（R11-03）のパース。実装は semantic-core の SchemaDerivation（C-2 で移動）。 */
-    private fun parseDerive(raw: Any?): DeriveDef? = SchemaDerivation.parse(raw)
-
-    // 意味宣言のパース本体は semantic-core の SemanticDeclParser（WS-002）。ここは委譲
-    private fun parseEntities(raw: Any?): List<EntityDecl> = SemanticDeclParser.parseEntities(raw)
-
-    private fun parseEntityTypes(raw: Any?): List<EntityTypeDef> = SemanticDeclParser.parseEntityTypes(raw)
-
-    private fun parseRelations(raw: Any?): List<RelationDef> = SemanticDeclParser.parseRelations(raw)
-
-    private fun parseEnforcement(raw: Any?): EnforcementDef? = SemanticDeclParser.parseEnforcement(raw)
 
     /** 導出宣言（R16-02/03a 共通語彙）のパース。ビューの computed（Views.parseView）と共有する。 */
     internal fun parseDerivationSelector(raw: Any?, where: String): DerivationSelector {
