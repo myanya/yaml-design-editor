@@ -47,6 +47,13 @@ class KernelIndexView(
     val graph: SemanticEntityGraph,
 ) {
     /**
+     * 検査の評価の覚え書き（P27 段B）: この索引の上では、検査 × 要素の結果を1回だけ評価する。全体を回す経路
+     * （CLI validate・準備完了レポート・提出ゲート・アプリの全体検証）が共有する。この一式は走査結果が変わると作り直されるため、
+     * 覚え書きも一緒に捨てられる。共有してよいのは、loader の中身がこの索引と同じ内容の呼び出しだけ（SemanticCheckSession の前提）。
+     */
+    val checkSession: semantic.SemanticCheckSession by lazy { semantic.SemanticCheckSession(entries, refs, graph) }
+
+    /**
      * グラフ整合（宣言のない関係名）のワークスペース全体の指摘。文書ごとの検証が、そのたびに全参照を調べ直さないように、
      * 宣言の内容ごとに1回だけ求める（この一式は走査結果が変わると作り直されるため、無効化は要らない。BACKLOG UX-116）。
      */

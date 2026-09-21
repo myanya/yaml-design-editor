@@ -730,6 +730,7 @@ class AppState {
                 cached?.schema ?: cw.schemaFor(file), overlay,
                 indexed = true, workspace = workspace, allSchemas = schemas,
                 loader = loader, relations = relations, enforcement = enforcement,
+                shareEvaluations = true,  // 未保存の編集を重ねた索引と、未保存を優先する loader
             )
             if (issues.isEmpty()) null else file to issues
         }

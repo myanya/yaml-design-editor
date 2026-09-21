@@ -5,6 +5,7 @@ import index.IdEntry
 import index.IdIndex
 import index.idMatchesPattern
 import index.isAllowedBy
+import index.toKernelView
 import index.toScanned
 import model.YNode
 import model.YPath
@@ -196,8 +197,9 @@ object Validator {
         allSchemas: List<SchemaDef> = emptyList(),
         relations: Map<String, RelationDef> = emptyMap(),
         enforcement: EnforcementDef = EnforcementDef(),
+        shareEvaluations: Boolean = false,
     ): List<Issue> = validateDetailed(
-        root, parseError, file, schema, indexObj, indexed, workspace, loader, allSchemas, relations, enforcement,
+        root, parseError, file, schema, indexObj, indexed, workspace, loader, allSchemas, relations, enforcement, shareEvaluations,
     ).issues
 
     fun validateDetailed(
@@ -223,6 +225,12 @@ object Validator {
         relations: Map<String, RelationDef> = emptyMap(),
         /** 強制スイッチ（R21-01。ARCHITECTURE §4.31）: 未宣言キーは P20 の挙動のまま。 */
         enforcement: EnforcementDef = EnforcementDef(),
+        /**
+         * 検査の評価を、同じ索引の他の文書の検証と共有する（P27 段B。全体を回す経路用）。true にしてよいのは、root と loader の中身が
+         * indexObj と同じ内容のときだけ（ディスクの索引とディスクの内容・未保存の編集を重ねた索引と未保存を優先する loader・
+         * ステージングの索引とステージングの内容）。索引に重ねていない内容（提案のプレビューなど）を検証するときは false のままにする。
+         */
+        shareEvaluations: Boolean = false,
     ): ValidationResult {
         if (root == null) {
             return ValidationResult(listOf(Issue(Severity.ERROR, "YAML パースエラー: ${parseError ?: "不明"}", emptyList())), emptyList())
@@ -345,8 +353,11 @@ object Validator {
         // 重大度の切り替え（検査の宣言 levelFrom）: 関係レジストリの強制スイッチが宣言されていれば、その重大度
         val levelOf: (schema.ConstraintRule) -> CoverageLevel =
             { rule -> rule.levelFrom?.let { enforcement.levelOf(it) } ?: rule.level }
+        // 検査の評価の覚え書き: 共有するなら索引のもの、しないならこの検証1回の中だけのもの（診断の2か所で同じものを使う）
+        val sharedSession: semantic.SemanticCheckSession =
+            indexObj.toKernelView().let { if (shareEvaluations) it.checkSession else semantic.SemanticCheckSession(it.entries, it.refs, it.graph) }
         if (indexed) {
-            val diagnostics = RuleDiagnostics(indexObj, ::treeOf, ::relOf, relations, allSchemas, levelOf)
+            val diagnostics = RuleDiagnostics(indexObj, ::treeOf, ::relOf, relations, allSchemas, levelOf, sharedSession)
             // 報告先: 主語の定義出現（なければ先頭出現）を持つファイルの検証でのみ報告する（多重報告しない）。
             // 規則はこの文書のスキーマの宣言・activeFrom はこの文書のフェーズで判定する（R29-03・CALC-14）
             if (schema != null) {
@@ -475,18 +486,17 @@ object Validator {
             //    指摘の本体は報告先の文書に出る。この文書に既に書かれている ID（未保存の追加を含む）は載せない
             val selfSchemaId = schema?.id
             if (selfSchemaId != null) {
-                val diagnostics = RuleDiagnostics(indexObj, ::treeOf, ::relOf, relations, allSchemas, levelOf)
+                val diagnostics = RuleDiagnostics(indexObj, ::treeOf, ::relOf, relations, allSchemas, levelOf, sharedSession)
                 for ((_, owner, rules) in ruleGroups) {
                     for (rule in rules) {
                         val fixSite = rule.fixSite ?: continue
                         if (selfSchemaId !in fixSite.schemas) continue
-                        val missing = indexObj.entries.keys.sorted().filter { id ->
-                            if (id in localIdSet) return@filter false
-                            val anchor = reportAnchorOf(indexObj, id, owner) ?: return@filter false
+                        // 違反している要素の一覧は検査ごとに1回だけ求め、この文書に既に書かれている ID を除く
+                        val missing = diagnostics.fixSiteIds(rule) { id ->
+                            val anchor = reportAnchorOf(indexObj, id, owner) ?: return@fixSiteIds false
                             val anchorPhase = owner?.currentPhaseIndex(treeOf(anchor.file))
-                            semantic.phaseActive(rule.activeFrom, owner?.phases?.order.orEmpty(), anchorPhase) &&
-                                diagnostics.constraint(rule, id) != null
-                        }
+                            semantic.phaseActive(rule.activeFrom, owner?.phases?.order.orEmpty(), anchorPhase)
+                        }.filter { it !in localIdSet }
                         if (missing.isEmpty()) continue
                         issues += Issue(
                             Severity.INFO, diagnostics.fixSiteMessage(fixSite, missing), emptyList(), relatedIds = missing,

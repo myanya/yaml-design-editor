@@ -69,4 +69,34 @@ class BenchTest {
         assertTrue(errors.any { "循環" in it }, errors.joinToString("\n"))
         assertTrue(errors.any { "SCR-2-5" in it && "到達" in it }, errors.joinToString("\n"))
     }
+
+    @Test
+    fun `検査の評価を文書の間で共有しても 指摘と保留は1件も変わらない`() {
+        Bench.generate(dir, modules = 3)
+        // 違反・他の出現への案内・直せる場所への案内・保留がひととおり出るように壊す
+        rewrite("m001/tests.yaml") { it.lines().filterNot { l -> "TI-1-1-1," in l }.joinToString("\n") }
+        rewrite("m001/screens/SCR-1-1.yaml") { it.replace(Regex("""max_length: \d+ }"""), "max_length: 9999 }") }
+        Files.delete(dir.resolve("m002/screens/SCR-2-6.yaml"))
+        rewrite("m002/processes/PROC-2-6.yaml") { it.replace("calls: []", "calls: [PROC-2-1]") }
+        rewrite("m003/screen-list.yaml") { it.replace("realizes: [UC-3-2]", "realizes: [UC-GONE]") }
+        rewrite("m003/tests.yaml") { it.replace("verifies: PROC-3-1, viewpoint: VP-1", "verifies: PROC-GONE, viewpoint: VP-1") }
+        // データ型への参照を壊す → 最大文字数の比較は、辿る途中の参照の相手が見つからないため保留になる
+        rewrite("m003/screens/SCR-3-1.yaml") { it.replaceFirst(Regex("""dtype: DT-\d+"""), "dtype: DT-GONE") }
+        val ws = Workspace.open(dir)
+        fun validateAll(share: Boolean) = ws.files.associate { file ->
+            val doc = ws.load(ws.relPath(file))
+            ws.relPath(file) to validate.Validator.validateDetailed(
+                doc.root, doc.parseError, doc.file, doc.schema, ws.index,
+                workspace = dir, allSchemas = ws.schemas, relations = ws.relations, enforcement = ws.enforcement,
+                shareEvaluations = share,
+            )
+        }
+        val separate = validateAll(share = false)
+        val shared = validateAll(share = true)
+        assertEquals(separate, shared)
+        // 共有した結果を、もう一度聞いても同じ（覚え書きから答えても変わらない）
+        assertEquals(shared, validateAll(share = true))
+        assertTrue(separate.values.sumOf { it.issues.size } > 10, "壊した内容の指摘が出ていること")
+        assertTrue(separate.values.any { it.withheld.isNotEmpty() }, "保留が出ていること: ${separate.values.flatMap { it.issues }.map { it.message }}")
+    }
 }

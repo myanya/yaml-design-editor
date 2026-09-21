@@ -298,6 +298,8 @@ class Workspace private constructor(val root: Path) {
             // （このヘッドレス経路はディスク索引・ディスク loader のまま。UIは overlayIndex を渡す。§4.5）
             indexed = indexed, workspace = root, allSchemas = schemas,
             relations = relations, enforcement = enforcement,
+            // ディスクの索引とディスクの内容: 検査の評価を、他の文書の検証と共有する（全体の検証が文書数に比例する。P27 段B）
+            shareEvaluations = true,
         )
     }
 
@@ -398,6 +400,7 @@ class Workspace private constructor(val root: Path) {
                 workspace = root, allSchemas = schemas,
                 loader = { f -> overlayRoots[f] ?: runCatching { YamlIO.parse(Files.readString(f)) }.getOrNull() },
                 relations = relations, enforcement = enforcement,
+                shareEvaluations = true,  // 適用後の姿を重ねた索引と、同じ姿を読む loader
             )
         }
         if (requireValid && validated.any { (_, issues) -> issues.any { it.severity == Severity.ERROR } }) {

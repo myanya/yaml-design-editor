@@ -1,6 +1,7 @@
 package validate
 
 import index.IdIndex
+import index.toKernelView
 import model.YNode
 import model.YPath
 import model.pretty
@@ -73,22 +74,33 @@ internal class RuleDiagnostics(
     private val allSchemas: List<schema.SchemaDef> = emptyList(),
     /** 検査の重大度（検査の宣言 levelFrom＝関係レジストリの強制スイッチによる切り替えを、呼び出し側が解決して渡す）。 */
     private val levelOf: (ConstraintRule) -> CoverageLevel = { it.level },
+    /**
+     * 検査の評価の覚え書き（P27 段B）。索引と共有のもの（KernelIndexView.checkSession）を渡すと、他の文書の検証で評価済みの
+     * 「検査 × 要素」を評価し直さない。渡さなければ、この検証1回の中だけの覚え書きを使う（tree の中身が索引と食い違いうる呼び出し用）。
+     */
+    session: semantic.SemanticCheckSession? = null,
 ) {
+    private val checks: semantic.SemanticCheckSession = session
+        ?: indexObj.toKernelView().let { semantic.SemanticCheckSession(it.entries, it.refs, it.graph) }
+    private val kernelRel: (model.DocumentId) -> String = { d -> rel(Path.of(d.value)) }
+    private val kernelTree: (model.DocumentId) -> YNode? = { d -> tree(Path.of(d.value)) }
 
-    /** 専用チェッカーの1回分（検査ごとに1回だけ実行する）。 */
-    private val checkerCache = HashMap<CheckerRule, semantic.SemanticCheckerRun>()
-
-    private fun runOf(rule: CheckerRule): semantic.SemanticCheckerRun =
-        checkerCache.getOrPut(rule) { index.Query.checkerRun(indexObj, rule.args) }
+    /** 専用チェッカーの1回分（渡す値ごとに1回だけ実行する）。 */
+    private fun runOf(rule: CheckerRule): semantic.SemanticCheckerRun = checks.checkerRun(rule.args)
 
     private fun findingsOf(rule: CheckerRule): List<semantic.SemanticCheckerFinding> =
         runOf(rule).findings.filter { it.kind in rule.messages }
 
-    /** クエリの検査 × 要素の判定（カーネルの SemanticRules。検証1回の中では同じ組を1回だけ評価する）。 */
-    private val resultCache = HashMap<Pair<ConstraintRule, String>, semantic.SemanticRuleResult>()
+    /** クエリの検査 × 要素の判定（カーネルの SemanticRules。覚え書きにあれば評価しない）。 */
+    fun result(rule: ConstraintRule, id: String): semantic.SemanticRuleResult = checks.result(rule, id, kernelRel, kernelTree)
 
-    fun result(rule: ConstraintRule, id: String): semantic.SemanticRuleResult =
-        resultCache.getOrPut(rule to id) { index.Query.evaluateRule(indexObj, rule, id, tree, rel) }
+    /**
+     * その検査に違反していて、直せる場所へ案内する要素の一覧（ID 昇順。報告先があり、フェーズに達しているものだけ）。
+     * 案内先の文書ごとに全要素を調べ直さないよう、検査ごとに1回だけ求める。
+     */
+    fun fixSiteIds(rule: ConstraintRule, eligible: (String) -> Boolean): List<String> = checks.memo(rule, "fixSiteIds") {
+        indexObj.entries.keys.sorted().filter { id -> eligible(id) && constraint(rule, id) != null }
+    }
 
     /** 判定を保留した理由（保留でなければ null）。対象外（検査の対象でない・比べる値が無い など）は含めない。 */
     fun withheldReason(rule: ConstraintRule, id: String): semantic.CheckReason? =
@@ -243,7 +255,8 @@ internal class RuleDiagnostics(
      */
     fun valueIssues(rule: ConstraintRule, id: String, file: Path, occPath: YPath): List<Issue> {
         val reportAt = rule.reportAt ?: return emptyList()
-        val violations = index.Query.evaluateRule(indexObj, rule, id, tree, rel, pin = reportAt.source to (file to occPath)).violations
+        val pin = reportAt.source to semantic.SemanticExpression.Occurrence(model.DocumentId(file.toString()), occPath)
+        val violations = checks.pinnedResult(rule, id, pin, kernelRel, kernelTree).violations
         val suffix = (rule.description ?: rule.id)?.let { " — $it" } ?: ""
         return violations.map { v ->
             val text = rule.message?.let { renderTemplate(it, id, rule = rule, v = v) }
