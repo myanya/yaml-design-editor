@@ -248,7 +248,8 @@ class RefactoringTest {
         // 文書側（RenameKey）とスキーマ側（fields[i].key の Set）が1計画にまとまる
         assertEquals(listOf("_schemas/item.yaml", "items/a.yaml"), plan.changes.map { it.document.value })
         assertTrue(plan.summary.any { "文書 1 ファイル・1 箇所" in it }, "${plan.summary}")
-        assertTrue(plan.warnings.any { "追随しません" in it }, "ビュー非追随の案内: ${plan.warnings}")
+        // ビュー定義も定義文書も無いワークスペースでは、警告は出ない（以前は、定型の「追随しません」の案内が出ていた。意図的差分 D-36）
+        assertTrue(plan.warnings.isEmpty(), "言及が無ければ警告も無い: ${plan.warnings}")
         assertTrue(s.applyRefactoring(plan).ok)
         val docText = DefaultYamlCodec.dump(s.snapshot.documents.getValue(a).document)
         assertTrue("urgency: high" in docText && "大事" in docText, "キー改名でコメント保持: $docText")
@@ -262,6 +263,37 @@ class RefactoringTest {
         // 1回の Undo で文書もスキーマも戻る
         assertTrue(s.undo().ok)
         assertTrue("priority: high" in DefaultYamlCodec.dump(s.snapshot.documents.getValue(a).document))
+    }
+
+    @Test
+    fun `rename-fieldの計画は ビュー定義の追随と 言及の警告を含む`() {
+        // P27 段D の D-c（意図的差分 D-36）: 以前は、アプリ層（root の RefactorImpact）だけが計画を補強していた
+        val store = renameFieldStore()
+        store.write(
+            DocumentId("_views/items.yaml"),
+            """
+            id: items
+            rows: { idPattern: "IT-*" }
+            columns:
+              - { label: 優先度, schemaId: fx-item, path: details.priority }
+              - { label: 段階, schemaId: fx-item, path: stage }
+            """.trimIndent() + "\n",
+        )
+        store.write(DocumentId("_activities/fill.yaml"), "id: fill\nname: 補完\ninstruction: 各項目の priority を補完する\n")
+        val s = session(store)
+        val plan = s.planRefactoring(semantic.RefactoringRequest.RenameField("fx-item", "details.priority", "urgency"))
+        assertEquals(listOf("_schemas/item.yaml", "items/a.yaml", "_views/items.yaml"), plan.changes.map { it.document.value })
+        assertTrue(plan.summary.any { it == "ビュー 1 箇所を追随" }, "${plan.summary}")
+        // 定義文書の言及は書き換えず、警告に挙げる
+        assertTrue(plan.warnings.any { "_activities/fill.yaml" in it && "priority" in it }, "${plan.warnings}")
+        assertTrue(plan.warnings.none { "追随しません" in it }, "${plan.warnings}")
+        assertTrue(s.applyRefactoring(plan).ok)
+        val viewText = DefaultYamlCodec.dump(s.snapshot.documents.getValue(DocumentId("_views/items.yaml")).document)
+        assertTrue("path: details.urgency" in viewText && "path: stage" in viewText, viewText)
+        // フィールドの削除は、言及のあるビューと定義文書を警告に挙げる
+        val deletion = session(store).planRefactoring(semantic.RefactoringRequest.DeleteField("fx-item", "details.priority"))
+        assertTrue(deletion.warnings.any { "items.yaml" in it && "壊れます" in it }, "${deletion.warnings}")
+        assertTrue(deletion.warnings.any { "_activities/fill.yaml" in it }, "${deletion.warnings}")
     }
 
     @Test

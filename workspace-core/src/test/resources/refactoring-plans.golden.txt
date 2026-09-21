@@ -41,7 +41,7 @@
     RenameKey memo -> note2
   change: items/b.yaml
     RenameKey memo -> note2
-  warning: ビュー定義・アクティビティ等の「memo」への言及は追随しません（6E 仮想文書の設計後に対応。該当があれば手動で更新してください）
+  warning: スキーマ「fx-item」の entity.owns に「memo」があります（自動書換の対象外・要確認）
   summary: スキーマ「fx-item」のフィールド「memo」→「note2」
   summary: 文書 2 ファイル・2 箇所のキーを改名（順序・コメント保持）
   summary: スキーマ定義 1 箇所を追随
@@ -55,7 +55,6 @@
     RenameKey tasks[2].cost.amount -> value
     RenameKey tasks[0].cost.amount -> value
     RenameKey price.amount -> value
-  warning: ビュー定義・アクティビティ等の「amount」への言及は追随しません（6E 仮想文書の設計後に対応。該当があれば手動で更新してください）
   summary: スキーマ「fx-item」のフィールド「amount」→「value」
   summary: 文書 2 ファイル・4 箇所のキーを改名（順序・コメント保持）
   summary: スキーマ定義 1 箇所を追随
@@ -69,7 +68,6 @@
     RenameKey tasks[0].name -> title
   change: items/c.yaml
     RenameKey tasks[0].name -> title
-  warning: ビュー定義・アクティビティ等の「name」への言及は追随しません（6E 仮想文書の設計後に対応。該当があれば手動で更新してください）
   summary: スキーマ「fx-item」のフィールド「name」→「title」
   summary: 文書 2 ファイル・3 箇所のキーを改名（順序・コメント保持）
   summary: スキーマ定義 1 箇所を追随
@@ -84,7 +82,7 @@
     RenameKey status -> state
   change: items/c.yaml
     RenameKey status -> state
-  warning: ビュー定義・アクティビティ等の「status」への言及は追随しません（6E 仮想文書の設計後に対応。該当があれば手動で更新してください）
+  warning: スキーマ「fx-item」の entity.owns に「status」があります（自動書換の対象外・要確認）
   summary: スキーマ「fx-item」のフィールド「status」→「state」
   summary: 文書 3 ファイル・3 箇所のキーを改名（順序・コメント保持）
   summary: スキーマ定義 2 箇所を追随
@@ -197,8 +195,7 @@
     Remove memo
   change: items/b.yaml
     Remove memo
-  warning: 削除によりビュー等の「memo」への参照は壊れます・要修正
-  warning: ビュー定義・アクティビティ等の「memo」への言及は追随しません（6E 仮想文書の設計後に対応。該当があれば手動で更新してください）
+  warning: スキーマ「fx-item」の entity.owns に「memo」があります（自動書換の対象外・要確認）
   summary: スキーマ「fx-item」のフィールド「memo」を削除
   summary: 文書 2 ファイル・2 箇所のキーを削除（**うち値あり 1 箇所**＝データが失われます）
 
@@ -210,8 +207,6 @@
     Remove tasks[0].cost
   change: items/c.yaml
     Remove tasks[0].cost
-  warning: 削除によりビュー等の「cost」への参照は壊れます・要修正
-  warning: ビュー定義・アクティビティ等の「cost」への言及は追随しません（6E 仮想文書の設計後に対応。該当があれば手動で更新してください）
   summary: スキーマ「fx-item」のフィールド「tasks.cost」を削除
   summary: 文書 2 ファイル・3 箇所のキーを削除（**うち値あり 3 箇所**＝データが失われます）
 

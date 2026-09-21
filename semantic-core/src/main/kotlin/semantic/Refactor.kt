@@ -40,7 +40,9 @@ sealed interface RefactoringRequest {
     /**
      * スキーマのフィールド改名（R25-01）。スキーマ定義のキーと全該当文書のデータキー
      * （順序・コメント保持の RenameKey）を1計画にまとめる。fieldPath はデータと同じドット区切り。
-     * ビュー定義等の追随は行わない（6E 仮想文書の設計後に対応。警告で案内する）。
+     * ビュー定義の追随と、宣言節・定義文書の言及の警告は、ここ（1つのスキーマと文書だけを見る計画）では行わない——
+     * ワークスペースの定義文書を見る workspace-core の RefactoringImpact が作り、WorkspaceSession.planRefactoring が計画に含める
+     * （P27 段D の D-c・意図的差分 D-36）。
      */
     data class RenameField(val schemaId: String, val fieldPath: String, val newName: String) : RefactoringRequest
 

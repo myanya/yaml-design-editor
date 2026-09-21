@@ -1146,34 +1146,15 @@ class AppState {
     }
 
     /**
-     * スキーマのフィールド一括改名のプレビュー（R25-01。ARCHITECTURE §4.35）: データ・スキーマ本体の
-     * 計画はカーネル、ビュー追随・言及警告はアプリ層（core.RefactorImpact）が補強する（D-10 の再接続）。
+     * スキーマのフィールド一括改名のプレビュー（R25-01。ARCHITECTURE §4.35）: データ・スキーマ本体の計画も、ビュー定義の追随と
+     * 言及の警告も、カーネルのセッションが1つの計画にして返す（P27 段D の D-c・意図的差分 D-36。以前は、アプリ層が補強していた）。
      */
     fun planSchemaFieldRename(schemaId: String, fieldPath: String, newName: String): Result<RefactoringPlan> =
-        runCatching {
-            val s = refactorSession()
-            val plan = s.planRefactoring(RefactoringRequest.RenameField(schemaId, fieldPath, newName))
-            val cw = coreWs ?: return@runCatching plan
-            val impact = core.RefactorImpact.fieldRename(cw, schemaId, fieldPath, newName)
-            // セッションが扱わない文書（台帳外のビュー定義等）への追随は適用できないため、警告へ降格する
-            val (applicable, outside) = impact.changes.partition { s.hasDocument(it.document) }
-            val viewOps = applicable.sumOf { it.operations.size }
-            plan.copy(
-                changes = plan.changes + applicable,
-                // カーネルの定型警告（D-10: 追随しません）は、実測の影響（追随結果と要確認の列挙）で置き換える
-                warnings = impact.warnings +
-                    outside.map { "ビュー定義（${it.document.value}）は台帳外のため自動追随できません（手動で更新してください）" },
-                summary = plan.summary +
-                    (if (viewOps > 0) listOf("ビュー $viewOps 箇所を追随") else emptyList()),
-            )
-        }
+        runCatching { refactorSession().planRefactoring(RefactoringRequest.RenameField(schemaId, fieldPath, newName)) }
 
-    /** スキーマのフィールド一括削除のプレビュー（R25-03。ビュー・宣言の言及警告はアプリ層が補強する）。 */
+    /** スキーマのフィールド一括削除のプレビュー（R25-03。ビュー・宣言の言及の警告も、カーネルの計画に入っている）。 */
     fun planSchemaFieldDelete(schemaId: String, fieldPath: String): Result<RefactoringPlan> = runCatching {
-        val plan = refactorSession().planRefactoring(RefactoringRequest.DeleteField(schemaId, fieldPath))
-        val cw = coreWs ?: return@runCatching plan
-        // カーネルの定型警告（D-10: 追随しません）は、実測の言及スキャン（該当ビュー・宣言の列挙）で置き換える
-        plan.copy(warnings = core.RefactorImpact.fieldDeleteWarnings(cw, fieldPath))
+        refactorSession().planRefactoring(RefactoringRequest.DeleteField(schemaId, fieldPath))
     }
 
     /** 文書キー順のスキーマ順整列のプレビュー（R25-02。スキーマは変更しない正規化）。 */
@@ -1365,13 +1346,11 @@ class AppState {
         val target = path.resolveSibling(trimmed)
         if (Files.exists(target)) return emptyList()
         return runCatching {
-            // 移動計画はカーネル（summary 先頭は見出し・以降が補足。スキーマ適用の変化は warnings に入る）、
-            // ビュー定義が対象外れになる警告はアプリ層（RefactorImpact）が補強する（B-1）
+            // 移動計画はカーネル（summary 先頭は見出し・以降が補足。スキーマ適用の変化と、ビュー定義が対象外れになる警告は warnings に入る）
             val plan = s.planRefactoring(
                 RefactoringRequest.MoveDocument(DocumentId(relPath(path)), DocumentId(relPath(target)))
             )
-            val viewWarnings = core.RefactorImpact.moveWarnings(cw, relPath(path), relPath(target))
-            plan.summary.drop(1) + (plan.warnings + viewWarnings).map { "注意: $it" }
+            plan.summary.drop(1) + plan.warnings.map { "注意: $it" }
         }.getOrDefault(emptyList())
     }
 

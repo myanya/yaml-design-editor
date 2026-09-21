@@ -186,6 +186,9 @@ class WorkspaceSession(
     /** ストアにいま保存されている内容（無ければ null）。変更セットの適用が、競合の判定と、操作を当てる元の内容に使う。 */
     fun storedText(id: DocumentId): String? = store.read(id)?.text
 
+    /** ストアにいま保存されている YAML 文書の一覧（パースできない文書も含む。定義文書の言及の走査などが使う）。 */
+    fun storedDocuments(): List<DocumentId> = store.list().map { it.id }
+
     /** 変更履歴（古い順）。 */
     val history: List<ChangeRecord> get() = undoStack.toList()
 
@@ -310,6 +313,8 @@ class WorkspaceSession(
     /**
      * リファクタリング計画を生成する（workspace は変化しない）。
      * 計画の sourceVersion は現在の version で、適用（applyRefactoring）時に古い計画は拒否される。
+     * ワークスペースの定義文書を見て決まる分（フィールドの改名へのビュー定義の追随・言及の警告・ビュー定義の対象から外れる警告）も、
+     * ここで計画に含める（RefactoringImpact。P27 段D の D-c・意図的差分 D-36）——どの入口でも同じ計画になる。
      */
     fun planRefactoring(request: semantic.RefactoringRequest): semantic.RefactoringPlan {
         // 文書移動の前提検査と、スキーマ適用の変化警告（DocMove.plan と同じ内容）は working 状態を知るここで行う
@@ -324,10 +329,31 @@ class WorkspaceSession(
             val warning = if (oldSchema?.id != newSchema?.id) {
                 listOf("スキーマの適用が変わります: ${oldSchema?.id ?: "（なし）"} → ${newSchema?.id ?: "（なし）"}")
             } else emptyList()
-            return plan.copy(warnings = plan.warnings + warning)
+            // ビュー定義が、このファイルを対象にしなくなる警告
+            val viewWarnings = RefactoringImpact.moveWarnings(this, request.from.value, request.to.value)
+            return plan.copy(warnings = plan.warnings + warning + viewWarnings)
         }
-        return semantic.SemanticRefactor.plan(derived.semantic, schemaSemantics(), request, refactorDocuments()) { id ->
+        val plan = semantic.SemanticRefactor.plan(derived.semantic, schemaSemantics(), request, refactorDocuments()) { id ->
             workingDocuments[id]?.document?.documents?.firstOrNull()
+        }
+        return when (request) {
+            is semantic.RefactoringRequest.RenameField -> {
+                val impact = RefactoringImpact.fieldRename(this, request.schemaId, request.fieldPath, request.newName)
+                // セッションが扱わない文書（パースできないビュー定義など）への追随は適用できないため、警告へ降格する
+                val (applicable, outside) = impact.changes.partition { hasDocument(it.document) }
+                val viewOps = applicable.sumOf { it.operations.size }
+                plan.copy(
+                    changes = plan.changes + applicable,
+                    // 定型の警告（追随しません）は、実測の影響（追随の結果と、要確認の列挙）で置き換える
+                    warnings = impact.warnings +
+                        outside.map { "ビュー定義（${it.document.value}）は台帳外のため自動追随できません（手動で更新してください）" },
+                    summary = plan.summary + (if (viewOps > 0) listOf("ビュー $viewOps 箇所を追随") else emptyList()),
+                )
+            }
+            // 定型の警告（追随しません）は、実測の言及の走査（該当するビュー・宣言の列挙）で置き換える
+            is semantic.RefactoringRequest.DeleteField ->
+                plan.copy(warnings = RefactoringImpact.fieldDeleteWarnings(this, request.fieldPath))
+            else -> plan
         }
     }
 

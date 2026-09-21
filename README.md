@@ -437,7 +437,7 @@ root:
 - **一括削除…**: スキーマ定義と全該当文書のデータキーを削除。**値が入っている件数**をプレビューで明示します（ID型・フェーズ申告キーは拒否）
 - **文書をスキーマ順へ整列…**（ルート定義の右上）: 全該当文書のキー順をスキーマのフィールド順へ正規化します（値・コメント保持。`_document` は先頭・スキーマ外キーは末尾に相対順で残る。スキーマは変更しません）
 
-新CLI `workspace refactor`（§16）にはさらに次があります。フィールドパスはドット区切り（例 `details.priority`。配列・map は暗黙に降ります）。CLI 経路のビュー追随は行われず、言及箇所の警告のみです（自動追随は GUI 経路）。
+新CLI `workspace refactor`（§16）にはさらに次があります。フィールドパスはドット区切り（例 `details.priority`。配列・map は暗黙に降ります）。フィールドの改名（`rename-field`）は、GUI と同じく、ビュー定義も追随します（書き換えられない言及は、警告に挙がります）。
 
 - `move-field <schema-id> <field-path> <dest-path>`: フィールドの親子移動（`dest-path` は object のパス・ルートは `.`）。移動元と移動先が**同じ要素コンテキスト**にある場合のみ（配列・map の境界をまたぐ移動は1対Nの対応になるため拒否）。文書側は中間 object を生成し、空になった親 object は削除します（`--keep-empty` で残す）
 - `rename-enum-value <schema-id> <field-path> <old> <new>`: enum 値の改名。`values`・`cases` のキー・`default`・（フェーズ申告フィールドなら）`phases.order` と `requiredFrom` / `activeFrom`・全該当文書の現在値が追随します

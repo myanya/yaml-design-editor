@@ -238,13 +238,20 @@ class CliTest {
         val temp = kotlin.io.path.createTempDirectory("refactor-apply")
         try {
             Path.of(fixture("workspaces", "rename-target")).toFile().copyRecursively(temp.toFile())
+            // ビュー定義も、フィールドの改名に追随する（P27 段D の D-c・意図的差分 D-36。以前は、アプリだけが追随させていた）
+            temp.resolve("_views").toFile().mkdirs()
+            temp.resolve("_views/reqs.yaml").toFile().writeText(
+                "id: reqs\nrows: { idPattern: \"*\" }\ncolumns:\n  - { label: 題, schemaId: fx-req, path: title }\n"
+            )
             val (code, output) = capture(
                 "workspace", "refactor", temp.toString(), "rename-field", "fx-req", "title", "name", "--apply",
             )
             assertEquals(0, code, output)
             assertTrue("保存しました" in output, output)
+            assertTrue("ビュー 1 箇所を追随" in output, output)
             assertTrue("name: 基本要求" in temp.resolve("reqs/one.yaml").toFile().readText())
             assertTrue("key: name" in temp.resolve("_schemas/req.yaml").toFile().readText())
+            assertTrue("path: name" in temp.resolve("_views/reqs.yaml").toFile().readText())
             assertEquals(0, capture("workspace", "validate", temp.toString()).first, "適用後も検証が通る")
         } finally {
             temp.toFile().deleteRecursively()
