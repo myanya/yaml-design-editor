@@ -40,11 +40,7 @@ object BuiltinSchemaResources {
         if (layout.configDir == null) return parsed.schemas
         return parsed.schemas.map { b ->
             val zone = zoneById[b.id] ?: return@map b
-            WorkspaceSchema(
-                id = b.id, kind = b.kind, match = "${layout.dir(zone)}/**/*.{yaml,yml}",
-                structural = b.structural, entities = b.entities,
-                isTemplate = b.isTemplate, source = b.source, derive = b.derive,
-            )
+            b.copy(match = "${layout.dir(zone)}/**/*.{yaml,yml}")
         }
     }
 }

@@ -1,5 +1,6 @@
 package schema
 
+import workspace.CheckCatalog
 import yaml.YamlIO
 import java.nio.file.Files
 import java.nio.file.Path
@@ -116,16 +117,6 @@ fun SchemaDef.effectiveFields(fields: List<FieldDef>, node: YNode.Map?): Effecti
  * 実装は yaml-core の StructuralSchema（YM-004b）。`Views.fieldAt` は互換のためこの関数へ委譲する。
  */
 fun SchemaDef.fieldAt(root: YNode, path: model.YPath): FieldDef? = structural.fieldAt(root, path)
-
-/**
- * 語彙の再展開に使う原文と定義の一式。派生スキーマ（derive）は導出元のスキーマの語彙（consistency）を引き継ぐが、
- * 展開された検査は「どのスキーマの文書に書かれた値か」をスキーマIDで指すため、派生スキーマのIDで展開し直す。
- */
-data class VocabularySource(private val raw: Map<*, *>, private val library: CheckLibrary) {
-    /** 語彙から展開される検査だけを、指定のスキーマIDで展開する（constraints に直接書いた検査は引き継がない）。 */
-    fun checksFor(schemaId: String): List<ExpandedCheck> =
-        library.expand(raw.entries.filter { it.key.toString() != "constraints" }.associate { it.key to it.value }, schemaId)
-}
 
 data class SchemaIssue(val message: String, val path: String)
 
@@ -468,14 +459,14 @@ object SchemaLoader {
         val errors = mutableListOf<String>()
         // 検査の定義と語彙の定義（functions / vocabulary）は、どのスキーマ文書に書いてもワークスペース全体で使える。
         // 先に全ファイルから集めてから、各スキーマの検査を展開する（組込み定義体も同じ仕組みで合成する）
-        var library = builtinLibrary
+        // （集め方と展開の実体は workspace-core の CheckCatalog——カーネルのスキーマ読み込みと同じ実装を使う。P27 段B-2）
         val texts = files.associateWith { f -> runCatching { Files.readString(f) }.getOrNull() }
-        files.forEach { f ->
-            runCatching {
-                val raw = texts[f]?.let { YamlIO.parseToRaw(it) } as? Map<*, *> ?: return@runCatching
-                library += CheckLibrary.parse(raw, f.fileName.toString())
-            }.onFailure { errors += "${f.fileName}: ${it.message ?: it::class.simpleName}" }
+        val raws = files.mapNotNull { f ->
+            runCatching { texts[f]?.let { YamlIO.parseToRaw(it) } as? Map<*, *> }
+                .onFailure { errors += "${f.fileName}: ${it.message ?: it::class.simpleName}" }
+                .getOrNull()?.let { f.fileName.toString() to it }
         }
+        val library = CheckCatalog.libraryOf(raws) { name, e -> errors += "$name: ${e.message ?: e::class.simpleName}" }
         files.forEach { f ->
             runCatching { parseSchemaText(texts[f] ?: Files.readString(f), f, library = library) }.onSuccess { schemas += it }
                 .onFailure { errors += "${f.fileName}: ${it.message ?: it::class.simpleName}" }
@@ -491,29 +482,10 @@ object SchemaLoader {
         //   ・語彙が既にある配列の要素に効くとき（例 関係の宣言 relations[]）は、語彙が要素から読むキーを、その要素の項目へ足す
         val builtins = BuiltinSchemas.forLayout(layout).map { builtin ->
             if (builtin.id != BuiltinSchemas.META_SCHEMA_ID && builtin.id != BuiltinSchemas.RELATIONS_SCHEMA_ID) return@map builtin
-            var fields = builtin.root.fields
-            for (word in library.words) {
-                val key = word.location.substringBefore('[')
-                val description = "語彙の定義（${word.origin}）が作る書き方。検証の前に基本の検査（constraints）へ展開される"
-                val existing = fields.firstOrNull { it.key == key }
-                if (existing == null) {
-                    if (builtin.id != BuiltinSchemas.META_SCHEMA_ID) continue
-                    fields = fields + FieldDef(
-                        key = key, label = "語彙: ${word.word}", type = FieldType.ARRAY,
-                        item = FieldDef(type = FieldType.ANY), description = description,
-                    )
-                    continue
-                }
-                val item = existing.item?.takeIf { it.type == FieldType.OBJECT } ?: continue
-                val known = item.fields.mapNotNull { it.key }.toSet()
-                val added = word.readKeys.filter { it !in known }.map { readKey ->
-                    FieldDef(key = readKey, label = "語彙: ${word.word}", type = FieldType.ANY, description = description)
-                }
-                if (added.isNotEmpty()) {
-                    fields = fields.map { if (it === existing) existing.copy(item = item.copy(fields = item.fields + added)) else it }
-                }
-            }
-            if (fields === builtin.root.fields) builtin else builtin.copy(root = builtin.root.copy(fields = fields))
+            val root = CheckCatalog.withVocabularyKeys(
+                builtin.root, library, addNewArrays = builtin.id == BuiltinSchemas.META_SCHEMA_ID,
+            )
+            if (root === builtin.root) builtin else builtin.copy(root = root)
         }
         val all = schemas + builtins.filter { builtin -> schemas.none { it.id == builtin.id } }
         val catalog = SchemaCatalog.linked(all.map { it.id to it.definitions })
@@ -594,42 +566,23 @@ object SchemaLoader {
         return names
     }
 
-    /** 組込み定義体に直接書かれた検査の、出どころの文書名（RuleOrigin.owner）。 */
-    const val BUILTIN_OWNER = "(builtin)"
+    /** 組込み定義体に直接書かれた検査の、出どころの文書名（RuleOrigin.owner）。実体は workspace-core の CheckCatalog。 */
+    const val BUILTIN_OWNER = CheckCatalog.BUILTIN_OWNER
 
     /** 組込み定義体（同梱の YAML。workspace-core の資源）。利用者の定義と同じ仕組みで読み込む。 */
-    val builtinLibrary: CheckLibrary by lazy {
-        workspace.BuiltinDefinitionResources.names.fold(CheckLibrary()) { acc, name ->
-            val raw = YamlIO.parseToRaw(workspace.BuiltinDefinitionResources.text(name)) as? Map<*, *>
-                ?: error("組込み定義体のルートはobjectである必要があります: $name")
-            acc + CheckLibrary.parse(raw, "（組込み）$name.yaml")
-        }
-    }
+    val builtinLibrary: CheckLibrary get() = CheckCatalog.builtinLibrary
 
     /**
      * 組込み定義体に直接書かれた検査（constraints）。特定のスキーマに属さない検査として、ワークスペースのどの文書に
      * 定義された要素にも適用する（エンティティの整合など）。利用者も、kind: library の文書に同じように書ける。
      */
-    val builtinRules: List<ConstraintRule> by lazy {
-        builtinChecks.filter { !it.usesChecker }
-            .map { ConstraintRule.parse(it.raw, it.origin).copy(origin = RuleOrigin(BUILTIN_OWNER, it.origin, it.index)) }
-    }
+    val builtinRules: List<ConstraintRule> get() = CheckCatalog.builtinRules
 
     /** 組込み定義体に直接書かれた、専用チェッカーを使う検査。 */
-    val builtinCheckers: List<CheckerRule> by lazy {
-        builtinChecks.filter { it.usesChecker }
-            .map { CheckerRule.parse(it.raw, it.origin).copy(origin = RuleOrigin(BUILTIN_OWNER, it.origin, it.index)) }
-    }
+    val builtinCheckers: List<CheckerRule> get() = CheckCatalog.builtinCheckers
 
     /** builtinRules の展開後の姿と由来（CLI `checks` の表示用。展開の透明性 CALC-29）。 */
-    val builtinChecks: List<ExpandedCheck> by lazy {
-        workspace.BuiltinDefinitionResources.names.flatMap { name ->
-            val raw = YamlIO.parseToRaw(workspace.BuiltinDefinitionResources.text(name)) as? Map<*, *> ?: return@flatMap emptyList()
-            if (raw["constraints"] == null) return@flatMap emptyList()
-            builtinLibrary.expand(mapOf("constraints" to raw["constraints"]), raw["id"]?.toString() ?: name)
-                .map { ExpandedCheck(it.raw, "（組込み）$name.yaml の ${it.origin}", it.index) }
-        }
-    }
+    val builtinChecks: List<ExpandedCheck> get() = CheckCatalog.builtinChecks
 
     /**
      * スキーマ1件をパースする。library は検査の展開に使う定義の一式（ワークスペース全体で集めたもの）。
@@ -670,12 +623,11 @@ object SchemaLoader {
         // 語彙（consistency など）を、基本の検査へ展開してからパースする。パースはクエリコア（schema/Query.kt）と共用
         val ownLibrary = CheckLibrary.parse(raw, source.fileName.toString())
         val effectiveLibrary = library ?: (builtinLibrary + ownLibrary)
-        val expanded = effectiveLibrary.expand(raw, id)
-        // 検査の出どころ（どの文書の・どの書き方から展開された・何番目の検査か）を付ける——指摘がどの検査のものかを見分けるのに使う
-        val constraints = expanded.filter { !it.usesChecker }
-            .map { ConstraintRule.parse(it.raw, it.origin).copy(origin = RuleOrigin(id, it.origin, it.index)) }
-        val checkers = expanded.filter { it.usesChecker }
-            .map { CheckerRule.parse(it.raw, it.origin).copy(origin = RuleOrigin(id, it.origin, it.index)) }
+        // 展開とパース（検査の出どころつき）の実体は workspace-core の CheckCatalog（カーネルのスキーマ読み込みと共有）
+        val checks = CheckCatalog.checksOf(effectiveLibrary, raw, id)
+        val expanded = checks.expanded
+        val constraints = checks.constraints
+        val checkers = checks.checkers
         val phases = StructuralSchemaParser.parsePhases(raw["phases"])
         val parsed = SchemaDef(
             id = id,

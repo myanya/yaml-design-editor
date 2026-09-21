@@ -1,6 +1,7 @@
 package schema
 
 import model.YNode
+import workspace.CheckCatalog
 import yaml.YamlIO
 import java.nio.file.Files
 import java.nio.file.Path
@@ -47,8 +48,7 @@ object DerivedSchemas {
                     // 導出元の語彙（consistency）は引き継ぐ。展開後の検査はスキーマIDで文書を指すため、派生スキーマのIDで展開し直す
                     // 専用チェッカーを使う検査（遷移検証）と「すべての要素について」の検査（網羅マトリクス）は、
                     // 対象の母集団を自分で宣言するため引き継がない（以前から、派生スキーマは flow / matrix を引き継いでいない）
-                    val inherited = template.vocabularySource?.checksFor(d.id).orEmpty()
-                        .filter { !it.usesChecker && !it.raw.containsKey("forAll") }
+                    val inherited = template.vocabularySource?.inheritedChecksFor(d.id).orEmpty()
                     SchemaDef(
                         id = d.id,
                         name = d.name,
@@ -56,9 +56,7 @@ object DerivedSchemas {
                         match = d.match,
                         root = d.root,
                         definitions = template.definitions,
-                        constraints = inherited.map {
-                            ConstraintRule.parse(it.raw, it.origin).copy(origin = RuleOrigin(d.id, it.origin, it.index))
-                        },
+                        constraints = CheckCatalog.rulesOf(inherited, d.id).constraints,
                         expandedChecks = inherited,
                         phases = template.phases,
                         source = fileByRel.getValue(d.sourceRel),

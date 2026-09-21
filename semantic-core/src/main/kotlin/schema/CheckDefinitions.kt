@@ -78,6 +78,23 @@ data class ExpandedCheck(val raw: Map<String, Any?>, val origin: String, val ind
     val usesChecker: Boolean get() = raw.containsKey("checker")
 }
 
+/**
+ * 語彙の再展開に使う原文と定義の一式。派生スキーマ（derive）は導出元のスキーマの語彙（consistency）を引き継ぐが、
+ * 展開された検査は「どのスキーマの文書に書かれた値か」をスキーマIDで指すため、派生スキーマのIDで展開し直す。
+ */
+data class VocabularySource(private val raw: Map<*, *>, private val library: CheckLibrary) {
+    /** 語彙から展開される検査だけを、指定のスキーマIDで展開する（constraints に直接書いた検査は引き継がない）。 */
+    fun checksFor(schemaId: String): List<ExpandedCheck> =
+        library.expand(raw.entries.filter { it.key.toString() != "constraints" }.associate { it.key to it.value }, schemaId)
+
+    /**
+     * 派生スキーマが引き継ぐ検査。専用チェッカーを使う検査（遷移検証）と「すべての要素について」の検査（網羅マトリクス）は、
+     * 対象の母集団を自分で宣言するため引き継がない。
+     */
+    fun inheritedChecksFor(schemaId: String): List<ExpandedCheck> =
+        checksFor(schemaId).filter { !it.usesChecker && !it.raw.containsKey("forAll") }
+}
+
 data class CheckLibrary(
     val functions: Map<String, CheckFunction> = emptyMap(),
     val words: List<VocabularyWord> = emptyList(),

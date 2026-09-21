@@ -674,6 +674,14 @@ Core Calculus の本来の目的（[CORE-CALCULUS.md](CORE-CALCULUS.md) §25）�
 | 128 | 2,059 | 8,461 | — | 2,833 ms | 0.95 |
 | 256 | 4,107 | 16,909 | — | 6,068 ms | 1.07 |
 
+### 4.40 検査の定義の読み込みの共有（P27 段B-2）
+
+検査の定義を読み込む実装は、以前は root の `SchemaLoader` だけが持っていた。カーネルのスキーマ読み込み（`WorkspaceReader.parseSchemas`）は構造と意味宣言（entity・relations）しか読まず、定義体で書かれた検査を知らなかった（カーネル側の CLI が検査を実行できない原因＝BACKLOG UX-115。利用者の語彙のキーが警告になる UX-105 も同じ根）。
+
+- **`workspace.CheckCatalog`**（workspace-core）: ①組込み定義体（`builtinLibrary` / `builtinChecks` / `builtinRules` / `builtinCheckers`）②ワークスペースの定義の一式の収集（`libraryOf`＝組込み＋全スキーマ文書の functions / vocabulary）③スキーマ1件の検査の展開とパース（`checksOf`。検査の出どころ `RuleOrigin` つき）④展開後の検査のパース（`rulesOf`。派生スキーマが引き継ぐ検査にも使う）⑤語彙のキーをメタスキーマの「知っている項目」へ足す（`withVocabularyKeys`）。語彙の再展開に使う `VocabularySource` は semantic-core へ移した（パッケージ名 `schema` のまま）。
+- **root の `SchemaLoader`** は、これらを呼ぶだけになった（`builtinLibrary` などの名前は、呼び出し側のために残している）。**カーネルの `WorkspaceReader`** は、スキーマ文書の生の値から先に定義の一式を集め、スキーマごとに検査を展開して `WorkspaceSchema.constraints` / `checkers` / `expandedChecks` に持つ。組込みのメタスキーマへの語彙のキーの合成は `buildSchemas` が行う（アプリ・cli のどちらのセッションにも効く）。
+- **確かめ方**: `KernelCheckLoadingTest` が、合成ワークスペースのスキーマについて、検査の中身と出どころが root とカーネルで完全に一致することを確かめる。
+
 ## 5. 主要データフロー
 
 - **編集**: フォーム操作 → `Slot.set` / ツリー直接変更 → `markEdited()`（履歴・dirty は core.EditBuffer が記録。連続入力は合体キーで1エントリへ＝§4.34） → `version`++ → 再コンポーズ。ソースタブはライブ同期（パース成功時だけ `applySourceText` で同じ経路へ。§4.34）

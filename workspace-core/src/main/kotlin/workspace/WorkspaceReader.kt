@@ -43,7 +43,25 @@ class WorkspaceSchema(
     val source: DocumentId,
     /** 派生スキーマの宣言（C-2）。非null のとき isTemplate＝true で、導出元文書の変更はスキーマ再構築の契機になる。 */
     val derive: schema.DeriveDef? = null,
+    /**
+     * 検査（P27 段B-2）: constraints に書いた検査と語彙を、基本の検査へ展開してパースしたもの（CheckCatalog）。
+     * kind: library と kind: relations の文書の検査は、特定のスキーマに属さない検査（どの文書の要素にも適用する）。
+     */
+    val constraints: List<schema.ConstraintRule> = emptyList(),
+    val checkers: List<schema.CheckerRule> = emptyList(),
+    /** 展開後の検査の姿と由来（展開の透明性 CALC-29）。 */
+    val expandedChecks: List<schema.ExpandedCheck> = emptyList(),
+    /** 語彙の再展開に使う原文と定義の一式（派生スキーマが、導出元の語彙を自分の ID で展開し直すために使う）。 */
+    val vocabularySource: schema.VocabularySource? = null,
 ) {
+    /** 構造・適用先などを差し替えた写し（検査の一式は引き継ぐ）。 */
+    fun copy(
+        match: String = this.match,
+        structural: StructuralSchema = this.structural,
+    ): WorkspaceSchema = WorkspaceSchema(
+        id, kind, match, structural, entities, isTemplate, source, derive, constraints, checkers, expandedChecks, vocabularySource,
+    )
+
     private val regex: Regex? =
         if (match.isBlank()) null else runCatching { globToRegex(match) }.getOrNull()
 
@@ -99,6 +117,8 @@ class SchemaLoadResult(
     val schemas: List<WorkspaceSchema>,
     val declarations: SemanticDeclarations,
     val errors: List<String>,
+    /** ワークスペースの検査の定義の一式（組込み定義体＋利用者の functions / vocabulary）。 */
+    val library: schema.CheckLibrary = CheckCatalog.builtinLibrary,
 )
 
 object WorkspaceReader {
@@ -119,6 +139,12 @@ object WorkspaceReader {
         val relationsDecl = linkedMapOf<String, schema.RelationDef>()
         val entityTypes = mutableListOf<schema.EntityTypeDef>()
         var enforcement = schema.EnforcementDef()
+        // 検査の定義と語彙の定義（functions / vocabulary）は、どのスキーマ文書に書いてもワークスペース全体で使える。
+        // 先に全文書から集めてから、各スキーマの検査を展開する（root の SchemaLoader と同じ実装＝CheckCatalog）
+        val raws = sources.mapNotNull { (id, text) ->
+            (runCatching { YamlIO.parseToRaw(text) }.getOrNull() as? Map<*, *>)?.let { id.value.substringAfterLast('/') to it }
+        }
+        val library = CheckCatalog.libraryOf(raws) { name, e -> errors += "$name: ${e.message ?: e::class.simpleName}" }
         for ((id, text) in sources) {
             val rel = id.value
             val fallbackId = rel.substringAfterLast('/').substringBeforeLast('.')
@@ -135,6 +161,7 @@ object WorkspaceReader {
                 val isTemplate = derive != null
                 val match = raw["match"]?.toString()
                     ?: if (kind == SchemaKind.DOCUMENT && !isTemplate) "**/*.{yaml,yml}" else ""
+                val checks = CheckCatalog.checksOf(library, raw, structural.id)
                 schemas += WorkspaceSchema(
                     id = structural.id,
                     kind = kind,
@@ -144,6 +171,10 @@ object WorkspaceReader {
                     isTemplate = isTemplate,
                     source = id,
                     derive = derive,
+                    constraints = checks.constraints,
+                    checkers = checks.checkers,
+                    expandedChecks = checks.expanded,
+                    vocabularySource = schema.VocabularySource(raw, library),
                 )
                 if (kind == SchemaKind.RELATIONS) {
                     SemanticDeclParser.parseRelations(raw["relations"]).forEach { relationsDecl[it.name] = it }
@@ -156,10 +187,8 @@ object WorkspaceReader {
         }
         // `$ref` の横断解決（module#name）: 全モジュールの定義をリンクする（SchemaLoader と同じ流儀）
         val catalog = SchemaCatalog.linked(schemas.map { it.id to it.structural.definitions })
-        val linked = schemas.map {
-            WorkspaceSchema(it.id, it.kind, it.match, it.structural.copy(definitionCatalog = catalog), it.entities, it.isTemplate, it.source, it.derive)
-        }
-        return SchemaLoadResult(linked, SemanticDeclarations(relationsDecl, entityTypes, enforcement), errors)
+        val linked = schemas.map { it.copy(structural = it.structural.copy(definitionCatalog = catalog)) }
+        return SchemaLoadResult(linked, SemanticDeclarations(relationsDecl, entityTypes, enforcement), errors, library)
     }
 
     /**
@@ -174,10 +203,17 @@ object WorkspaceReader {
         layout: WorkspaceLayout,
     ): SchemaLoadResult {
         val parsed = parseSchemas(schemaSources)
-        val withBuiltins = parsed.schemas + builtins.filter { b -> parsed.schemas.none { it.id == b.id } }
+        // 利用者が定義した語彙のキーは、スキーマ文書のメタスキーマの「知っている項目」へ足す（root の SchemaLoader と同じ実装。
+        // これが無いと、語彙として定義された書き方が「スキーマに定義されていない項目」と警告される＝BACKLOG UX-105）
+        val composed = builtins.map { b ->
+            if (b.id != META_SCHEMA_ID && b.id != RELATIONS_SCHEMA_ID) return@map b
+            val root = CheckCatalog.withVocabularyKeys(b.structural.root, parsed.library, addNewArrays = b.id == META_SCHEMA_ID)
+            if (root === b.structural.root) b else b.copy(structural = b.structural.copy(root = root))
+        }
+        val withBuiltins = parsed.schemas + composed.filter { b -> parsed.schemas.none { it.id == b.id } }
         val errors = parsed.errors.toMutableList()
         val expanded = expandDerived(withBuiltins, documents, layout, errors)
-        return SchemaLoadResult(expanded, parsed.declarations, errors)
+        return SchemaLoadResult(expanded, parsed.declarations, errors, parsed.library)
     }
 
     /** 導出元にできる文書＝台帳の一般文書のみ（root DerivedSchemas.listYamlFiles と同じ規則）。 */
@@ -213,6 +249,9 @@ object WorkspaceReader {
                         entities = emptyList(),  // root DerivedSchemas と同じ（導出スキーマに entity 宣言は継がない）
                         isTemplate = false,
                         source = DocumentId(d.sourceRel),
+                        // 導出元の語彙（consistency など）は引き継ぐ。展開後の検査はスキーマIDで文書を指すため、派生スキーマのIDで展開し直す
+                        constraints = CheckCatalog.rulesOf(template.vocabularySource?.inheritedChecksFor(d.id).orEmpty(), d.id).constraints,
+                        expandedChecks = template.vocabularySource?.inheritedChecksFor(d.id).orEmpty(),
                     )
                 }
         }
