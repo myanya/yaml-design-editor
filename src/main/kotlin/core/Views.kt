@@ -31,6 +31,7 @@ import schema.fieldAt
 import schema.globToRegex
 import workspace.DocumentScaffold
 import workspace.DocumentScaffolds
+import workspace.ViewDefinitions
 import yaml.YamlIO
 import java.nio.file.Files
 import java.nio.file.Path
@@ -46,173 +47,21 @@ import java.nio.file.Path
  * - 詳細文書のスキャフォールド（filePattern）により「一覧から新しい文書を作る」ペア規約を機械化する
  */
 
-/** ビュー定義の共通部。kind により横断グリッド（ViewDef）と文書ビュー（DocViewDef）に分かれる。 */
-sealed interface ViewDefinition {
-    val id: String
-    val name: String
-    val description: String?
-    val source: Path
-}
-
-/** 列が値を取り出す出現の選択条件。schemaId / fileGlob の AND（null は制限なし）。 */
-data class ViewSource(
-    val schemaId: String? = null,
-    val fileGlob: String? = null,
-) {
-    private val regex: Regex? by lazy { fileGlob?.let { runCatching { globToRegex(it) }.getOrNull() } }
-
-    fun matches(entry: IdEntry, rel: String): Boolean =
-        (schemaId == null || entry.schemaId == schemaId) &&
-            (regex == null || regex!!.matches(rel))
-
-    val isEmpty: Boolean get() = schemaId == null && fileGlob == null
-}
-
-/**
- * バックリンク列の条件。行IDへの参照（被参照）を関係種別・参照元スキーマで絞る。
- * 1:N詳細化（新ID＋親への ref。R7-02）の「親から見た分裂先の一覧」を表示する。
- */
-data class ViewBacklinksDef(
-    val relation: String? = null,
-    val schemaIds: List<String> = emptyList(),
-) {
-    fun matches(ref: RefEntry): Boolean =
-        (relation == null || ref.relation == relation) &&
-            (schemaIds.isEmpty() || ref.sourceSchemaId in schemaIds)
-}
-
-/** ビューの1列。出現要素からの相対YPathで値を指すか、backlinks / computed で派生表示の列にする。 */
-data class ViewColumn(
-    val label: String,
-    val from: ViewSource = ViewSource(),
-    val path: YPath,
-    val editable: Boolean = false,
-    val backlinks: ViewBacklinksDef? = null,  // 非null のとき被参照一覧の列（path / editable とは排他）
-    /**
-     * 非null のとき計算列（path / backlinks / editable とは排他。R16-02）。
-     * 宣言モデル（lookup / source / path / values / map / default）と解決は整合検証と共有する
-     * （schema/Derivation.kt・index/Derivation.kt。ARCHITECTURE §4.26）。
-     */
-    val computed: DerivationDef? = null,
-    /**
-     * クエリ行（rows: match）の値元の束縛名（R22-02。省略時は行キーの束縛。ARCHITECTURE §4.32）。
-     * 結合先ノードの値をセル化する——セルの座標は束縛ノードの原本座標で、編集経路は従来のまま。
-     */
-    val of: String? = null,
-)
-
-/** 行の集合の定義。idPattern に一致する論理IDが行になる。 */
-data class ViewRowsDef(
-    val idPattern: String,
-    val schemaIds: List<String> = emptyList(),  // 空でなければ、いずれかのスキーマに出現するIDのみ行にする
-)
-
-/** 詳細文書の扱い。source に一致する出現を「詳細」と見なし、filePattern から新規作成できる。 */
-data class ViewDetailDef(
-    val source: ViewSource = ViewSource(),
-    val filePattern: String? = null,   // 例 "designs/{id}.yaml"（{id} が行のIDで置換される）
-)
-
-/**
- * 新規行の入口。2モードのどちらか一方を持つ（パースで排他を強制）。
- * - 配列モード（file + path）: 一覧文書内の配列へ新しい要素を追加する
- * - ファイルモード（filePattern）: `{id}` を入力IDで置換したパスへ詳細文書そのものを新規作成する
- *   （一覧文書を持たず詳細文書だけでIDを運用するレイアウト向け。作成されるのは通常の原本文書）
- */
-data class ViewNewRowDef(
-    val file: String? = null,
-    val path: YPath = emptyList(),
-    val filePattern: String? = null,
-)
-
-data class ViewDef(
-    override val id: String,
-    override val name: String,
-    override val description: String? = null,
-    /** 従来の行定義（idPattern×schemaIds）。クエリ行（rowsQuery）とは排他で、どちらか一方が非null。 */
-    val rows: ViewRowsDef? = null,
-    /** クエリ行（rows: match。R22-02 / ARCHITECTURE §4.32）: 行 = パターン照合の束縛行。 */
-    val rowsQuery: QuerySpec? = null,
-    /** クエリ行の行キーの束縛名（rowsQuery 非null のとき非null。kind: entity 限定）。 */
-    val rowKey: String? = null,
-    val columns: List<ViewColumn>,
-    val orderBy: ViewSource? = null,   // この条件に一致する出現の文書内順で行を並べる（省略時はID順。クエリ行では併用不可）
-    val detail: ViewDetailDef? = null,
-    val newRow: ViewNewRowDef? = null,
-    override val source: Path,
-) : ViewDefinition
-
-// ---------------------------------------------------------------- 文書ビュー（R14-01）
-
-/**
- * 文書ビューのセクション1件。fields（スキーマ駆動フォームの射影）か backlinks（被参照表）のどちらか一方を持つ。
- * fields セクションの編集は既存のフォーム経路（FormCtx / Slot）に委譲され、backlinks セクションは
- * 読み取り専用の派生表示（ジャンプのみ）——ビュー専用の書込経路は作らない（ARCHITECTURE §4.14）。
- */
-data class DocViewSection(
-    val label: String? = null,
-    val fieldsPath: YPath? = null,           // 非null = fields セクション（空リスト = ルート全体）
-    val fieldsDefinition: String? = null,    // fields が参照する named definition（module#name。リントで実使用を検査）
-    val fieldsInclude: List<String> = emptyList(),  // object の表示キーの選別（この順で表示。exclude と排他。R14-03）
-    val fieldsExclude: List<String> = emptyList(),  // object の表示キーの除外（R14-03）
-    val backlinks: DocBacklinksDef? = null,  // 非null = backlinks セクション（fieldsPath とは排他）
-)
-
-/** アタッチ先パターンの「任意のインデックス」（`[*]`）。 */
-private object AnyIndex {
-    override fun toString(): String = "[*]"
-}
-
-/**
- * 要素単位アタッチ（R14-03）: `at` パターンに一致する要素の展開フォーム内に、その要素のIDへの
- * 被参照表を差し込む。セクション（文書レベルの合成）と違い、フォーム中の要素の位置に描画される。
- * 対象要素にIDがなければ何も差し込まれない（被参照はIDに対して解決されるため）。
- */
-data class DocViewAttachment(
-    val label: String? = null,
-    val atText: String,              // 定義に書かれたパターン（表示用）
-    val at: List<Any>,               // 要素パスのパターン（キー / インデックス / AnyIndex）
-    val backlinks: DocBacklinksDef,
-) {
-    /** 要素パスがこのアタッチの対象か。`[*]` は任意のインデックスに一致する。 */
-    fun matches(path: YPath): Boolean =
-        at.size == path.size && at.zip(path).all { (p, seg) -> (p === AnyIndex && seg is Int) || p == seg }
-}
-
-/** 被参照表の1列。参照元要素からの相対YPathで値を取り出す（表示専用）。 */
-data class DocBacklinkColumn(val label: String, val path: YPath)
-
-/**
- * 被参照表の定義。文書内の対象ID（idPattern。null = 文書内の全ID）ごとに、
- * そのIDへの参照（被参照）を relation・参照元スキーマで絞って一覧する。
- */
-data class DocBacklinksDef(
-    val idPattern: String? = null,
-    val filter: ViewBacklinksDef = ViewBacklinksDef(),
-    val columns: List<DocBacklinkColumn> = emptyList(),
-)
-
-/**
- * 文書ビュー（kind: document）。match（glob）／schemaId で適用先文書を決め、sections を上から順に描画する。
- * マッチしない文書は従来のスキーマ駆動フォーム＝暗黙の既定ビューで表示される（opt-in）。
- */
-data class DocViewDef(
-    override val id: String,
-    override val name: String,
-    override val description: String? = null,
-    val match: String? = null,      // 適用先ファイルの glob（schemaId と併記時は AND）
-    val schemaId: String? = null,   // 適用先文書のスキーマID
-    val sections: List<DocViewSection>,
-    val attachments: List<DocViewAttachment> = emptyList(),  // 要素単位アタッチ（R14-03）
-    override val source: Path,
-) : ViewDefinition {
-    private val regex: Regex? by lazy { match?.let { runCatching { globToRegex(it) }.getOrNull() } }
-
-    /** ワークスペース相対パス（区切りは '/'）の文書にこのビューを適用するか。 */
-    fun appliesTo(relPath: String, schemaId: String?): Boolean =
-        (match == null || regex?.matches(relPath) == true) &&
-            (this.schemaId == null || this.schemaId == schemaId)
-}
+// ビュー定義の型は、カーネルの型（semantic-core の semantic/VirtualViews.kt）の別名（P27 段D の D-c。以前は、同じ形の型を root にも持ち、
+// 解決のたびにカーネルの型へ写していた）。定義文書の座標（source）は、ワークスペース相対の文書ID
+typealias ViewDefinition = semantic.VirtualViewDefinition
+typealias ViewSource = VirtualViewSource
+typealias ViewBacklinksDef = VirtualBacklinksDef
+typealias ViewColumn = VirtualViewColumn
+typealias ViewRowsDef = VirtualRowsDef
+typealias ViewDetailDef = VirtualDetailDef
+typealias ViewNewRowDef = semantic.VirtualNewRowDef
+typealias ViewDef = VirtualGridDef
+typealias DocViewSection = semantic.VirtualDocSection
+typealias DocViewAttachment = semantic.VirtualDocAttachment
+typealias DocBacklinkColumn = semantic.VirtualDocBacklinkColumn
+typealias DocBacklinksDef = semantic.VirtualDocBacklinksDef
+typealias DocViewDef = semantic.VirtualDocViewDef
 
 /** バックリンク列の1件。参照元要素を含む最も近いID（その位置にIDがなければ null）と、参照値の座標。 */
 data class ViewBacklink(
@@ -320,6 +169,7 @@ object Views {
     /**
      * views ゾーン（`_views/` または `.yde/views/`）からビュー定義を読み込む（エラー収集つき）。
      * schemas を渡すと、definition 参照の列展開（R14-02）と、ビュー→スキーマの整合検査（リント）が有効になる。
+     * 読み取りとリントの実体は、カーネルの workspace.ViewDefinitions（P27 段D の D-c）。ここは、ファイルを読んで渡す窓口。
      */
     fun load(workspace: Path, schemas: List<SchemaDef> = emptyList()): LoadResult {
         val dir = workspace.resolve(schema.WorkspaceLayout.of(workspace).viewsDir)
@@ -330,569 +180,41 @@ object Views {
                 Files.isRegularFile(p) && (n.endsWith(".yaml") || n.endsWith(".yml"))
             }.toList()
         }.sortedBy { it.fileName.toString() }
-        val all = mutableListOf<ViewDefinition>()
-        val errors = mutableListOf<String>()
-        files.forEach { file ->
-            runCatching {
-                val raw = YamlIO.parseToRaw(Files.readString(file)) as? Map<*, *>
-                    ?: error("ルートはobjectである必要があります")
-                parseView(raw, file, schemas)
-            }.onSuccess { all += it }
-                .onFailure { errors += "${file.fileName}: ${it.message ?: it::class.simpleName}" }
-        }
-        all.groupBy { it.id }.filterValues { it.size > 1 }.forEach { (id, duplicates) ->
-            errors += "ビューID「$id」が重複しています（${duplicates.joinToString(", ") { it.source.fileName.toString() }}）"
-        }
-        val views = all.filterIsInstance<ViewDef>()
-        val docViews = all.filterIsInstance<DocViewDef>()
-        if (schemas.isNotEmpty()) errors += lint(views, docViews, schemas)
-        return LoadResult(views = views, docViews = docViews, errors = errors)
+        val sources = files.map { file -> documentIdOf(workspace, file) to Files.readString(file) }
+        val catalog = ViewDefinitions.load(sources, schemas.map { it.kernel })
+        return LoadResult(catalog.views, catalog.docViews, catalog.errors)
+    }
+
+    /** ビュー定義文書の座標（ワークスペース相対の文書ID。ワークスペースの外のパスは、そのままの文字列）。 */
+    private fun documentIdOf(workspace: Path?, file: Path): model.DocumentId {
+        val abs = file.toAbsolutePath().normalize()
+        val base = workspace?.toAbsolutePath()?.normalize()
+        val rel = if (base != null && abs.startsWith(base)) base.relativize(abs) else file
+        return model.DocumentId(rel.toString().replace('\\', '/'))
     }
 
     /**
      * ビュー定義1件（編集中の未保存ツリーでもよい）の検査（UX-43）。
      * パース不能はその内容を1件、パースできればリント（ビュー→スキーマの整合検査）の指摘を返す。
-     * 検証パネルが `_views` の文書を開いている間、保存を待たずにその場で指摘を出すために使う。
      */
-    fun lintDocument(root: YNode?, source: Path, schemas: List<SchemaDef>): List<String> {
-        if (root == null) return emptyList()  // パースエラーは検証本体（Validator）が報告する
-        val raw = runCatching { YamlIO.parseToRaw(YamlIO.dumpPlain(root)) }.getOrNull() as? Map<*, *>
-            ?: return listOf("ビュー定義のルートはobjectである必要があります")
-        val def = runCatching { parseView(raw, source, schemas) }
-            .getOrElse { return listOf(it.message ?: (it::class.simpleName ?: "定義を解析できません")) }
-        return when (def) {
-            is ViewDef -> lint(listOf(def), emptyList(), schemas)
-            is DocViewDef -> lint(emptyList(), listOf(def), schemas)
-            else -> emptyList()
-        }
-    }
+    fun lintDocument(root: YNode?, source: Path, schemas: List<SchemaDef>): List<String> =
+        ViewDefinitions.lintDocument(root, documentIdOf(null, source), schemas.map { it.kernel })
 
     /**
      * ビュー定義1件のパース（kind で分岐）。ステージングの定義ゲート（Staging）からも使う。
      * schemas は definition 参照の解決に使う（未指定時は definition を使う定義がパースエラーになる）。
      */
     fun parseView(raw: Map<*, *>, source: Path, schemas: List<SchemaDef> = emptyList()): ViewDefinition =
-        when (val kind = raw["kind"]?.toString()) {
-            null, "grid" -> parseGridView(raw, source, schemas)
-            "document" -> parseDocView(raw, source, schemas)
-            else -> error("kind は grid / document のいずれかである必要があります: $kind")
-        }
-
-    /** 横断グリッド（kind: grid）のパース。 */
-    private fun parseGridView(raw: Map<*, *>, source: Path, schemas: List<SchemaDef>): ViewDef {
-        val id = raw["id"]?.toString()?.takeIf { it.isNotBlank() } ?: error("id が必要です")
-        if (raw.containsKey("sections")) error("sections は kind: document のビューでのみ使えます")
-        val rowsMap = raw["rows"] as? Map<*, *> ?: error("rows が必要です")
-        // 行の定義: 従来（idPattern×schemaIds）とクエリ行（match。R22-02 / ARCHITECTURE §4.32）の排他
-        var rowsDef: ViewRowsDef? = null
-        var rowsQuery: QuerySpec? = null
-        var rowKey: String? = null
-        if (rowsMap.containsKey("match")) {
-            listOf("idPattern", "schemaIds").firstOrNull { rowsMap.containsKey(it) }
-                ?.let { error("rows: match と $it は併用できません（従来の行定義とクエリ行は排他）") }
-            if (raw.containsKey("order")) error("rows: match のビューに order は使えません（並びはクエリの決定的順序）")
-            val spec = QuerySpec.parse(rowsMap, "rows", ignoreKeys = setOf("rowKey"))
-            require(spec.binds.isNotEmpty()) { "rows.match には bind（束縛名）が1つ以上必要です" }
-            val keyName = rowsMap["rowKey"]?.toString()?.takeIf { it.isNotBlank() } ?: spec.binds.first()
-            require(keyName in spec.binds) { "rows.rowKey の束縛「$keyName」が match に見つかりません" }
-            require(spec.bindStep(keyName)?.kind == QueryNodeKind.ENTITY) {
-                "rows.rowKey の束縛「$keyName」は kind: entity である必要があります（行キーは論理ID）"
-            }
-            rowsQuery = spec
-            rowKey = keyName
-        } else {
-            val idPattern = rowsMap["idPattern"]?.toString()?.takeIf { it.isNotBlank() }
-                ?: error("rows.idPattern か rows.match が必要です")
-            rowsDef = ViewRowsDef(idPattern = idPattern, schemaIds = stringList(rowsMap["schemaIds"]))
-        }
-        val binds = rowsQuery?.binds
-        val columnsRaw = raw["columns"] as? List<*> ?: error("columns が必要です")
-        require(columnsRaw.isNotEmpty()) { "columns には1列以上が必要です" }
-        val columns = columnsRaw.flatMapIndexed { i: Int, entry: Any? ->
-            val m = entry as? Map<*, *> ?: error("columns[$i] はobjectである必要があります")
-            // of（R22-02）: クエリ行の値元の束縛。従来の行定義では使えない
-            val of = m["of"]?.toString()?.takeIf { it.isNotBlank() }
-            if (of != null) {
-                if (binds == null) error("columns[$i]: of は rows: match のビューでのみ使えます")
-                require(of in binds) { "columns[$i]: of の束縛「$of」が rows.match に見つかりません" }
-            }
-            if (m.containsKey("definition")) {
-                if (of != null) error("columns[$i]: definition と of は併用できません")
-                // definition 参照列（R14-02）: named definition のセル型フィールドを列集合に展開する
-                return@flatMapIndexed expandDefinitionColumns(m, i, schemas)
-            }
-            val label = m["label"]?.toString()?.takeIf { it.isNotBlank() } ?: error("columns[$i].label が必要です")
-            if (m.containsKey("computed")) {
-                // 計算列（R16-02）: 読み取り専用の派生表示のため、出現の選択・編集・他の派生列とは排他。
-                // 宣言のパースは整合検証（consistency.expected）と共有する（SchemaLoader.parseDerivation）
-                listOf("path", "backlinks", "schemaId", "fileGlob").firstOrNull { m.containsKey(it) }
-                    ?.let { error("columns[$i]: computed と $it は併用できません") }
-                if (m["editable"] == true) error("columns[$i]: computed 列は editable にできません（読み取り専用の派生表示）")
-                return@flatMapIndexed listOf(
-                    ViewColumn(
-                        label = label,
-                        path = emptyList(),
-                        computed = SchemaLoader.parseDerivation(m["computed"], "columns[$i].computed"),
-                        of = of,
-                    )
-                )
-            }
-            if (m.containsKey("backlinks")) {
-                // バックリンク列: 被参照の派生表示のため、出現の選択（path / schemaId / fileGlob）や編集とは排他
-                val b = m["backlinks"] as? Map<*, *> ?: error("columns[$i].backlinks はobjectである必要があります")
-                if (m["path"] != null) error("columns[$i]: path と backlinks は併用できません")
-                if (m["editable"] == true) error("columns[$i]: backlinks 列は editable にできません")
-                if (m["schemaId"] != null || m["fileGlob"] != null) {
-                    error("columns[$i]: backlinks 列に schemaId / fileGlob は指定できません（絞り込みは backlinks 配下に書きます）")
-                }
-                listOf(
-                    ViewColumn(
-                        label = label,
-                        path = emptyList(),
-                        backlinks = ViewBacklinksDef(
-                            relation = b["relation"]?.toString(),
-                            schemaIds = stringList(b["schemaIds"]),
-                        ),
-                        of = of,
-                    )
-                )
-            } else listOf(
-                ViewColumn(
-                    label = label,
-                    from = parseSource(m),
-                    path = parseYPath(m["path"]?.toString() ?: error("columns[$i].path が必要です")),
-                    editable = m["editable"] as? Boolean ?: false,
-                    of = of,
-                )
-            )
-        }
-        val detail = (raw["detail"] as? Map<*, *>)?.let { m ->
-            val pattern = m["filePattern"]?.toString()
-            pattern?.let { validateFilePattern("detail", it) }
-            ViewDetailDef(source = parseSource(m), filePattern = pattern)
-        }
-        val newRow = (raw["newRow"] as? Map<*, *>)?.let { m ->
-            val pattern = m["filePattern"]?.toString()?.takeIf { it.isNotBlank() }
-            if (pattern != null) {
-                // ファイルモード: 配列モードのキーとは排他（どちらの意図か曖昧な定義を弾く）
-                listOf("file", "path").firstOrNull { m.containsKey(it) }
-                    ?.let { error("newRow: filePattern と $it は併用できません（配列モードとファイルモードは排他）") }
-                validateFilePattern("newRow", pattern)
-                ViewNewRowDef(filePattern = pattern)
-            } else ViewNewRowDef(
-                file = m["file"]?.toString()?.takeIf { it.isNotBlank() } ?: error("newRow.file か newRow.filePattern が必要です"),
-                path = parseYPath(m["path"]?.toString() ?: error("newRow.path が必要です")),
-            )
-        }
-        return ViewDef(
-            id = id,
-            name = raw["name"]?.toString() ?: id,
-            description = raw["description"]?.toString(),
-            rows = rowsDef,
-            rowsQuery = rowsQuery,
-            rowKey = rowKey,
-            columns = columns,
-            orderBy = (raw["order"] as? Map<*, *>)?.let { parseSource(it) }?.takeIf { !it.isEmpty },
-            detail = detail,
-            newRow = newRow,
-            source = source,
-        )
-    }
-
-    /** filePattern（detail / newRow 共通）の形式検査。`{id}` 置換でYAMLファイル名になること。 */
-    private fun validateFilePattern(where: String, pattern: String) {
-        require(pattern.contains("{id}")) { "$where.filePattern には {id} を含めてください: $pattern" }
-        require(pattern.endsWith(".yaml") || pattern.endsWith(".yml")) { "$where.filePattern はYAMLファイルである必要があります: $pattern" }
-    }
-
-    /**
-     * definition 参照列（R14-02）の展開。named definition（object）のセル型フィールド
-     * （`Display.tableColumns` と同じ規則。ID型は行キーと重複するため除く）を列に展開し、
-     * ラベル・パスをスキーマから導出する（列定義の重複記載をなくす）。
-     */
-    private fun expandDefinitionColumns(m: Map<*, *>, index: Int, schemas: List<SchemaDef>): List<ViewColumn> {
-        listOf("label", "path", "backlinks").firstOrNull { m.containsKey(it) }
-            ?.let { error("columns[$index]: definition と $it は併用できません（ラベル・パスは定義から導出されます）") }
-        val from = parseSource(m)
-        val ref = m["definition"]?.toString()?.takeIf { it.isNotBlank() } ?: error("columns[$index].definition が空です")
-        val (schema, target) = resolveDefinition(ref, from.schemaId, schemas)
-            ?: error("columns[$index]: definition「$ref」が見つかりません")
-        val resolved = schema.resolve(target) ?: target
-        require(resolved.type == FieldType.OBJECT) { "columns[$index]: definition「$ref」は object である必要があります" }
-        val editable = m["editable"] as? Boolean ?: false
-        val columns = resolved.fields.mapNotNull { field ->
-            val key = field.key ?: return@mapNotNull null
-            val eff = schema.resolve(field) ?: field
-            if (eff.type !in Display.CELL_TYPES || eff.type == FieldType.ID) return@mapNotNull null
-            ViewColumn(label = eff.label ?: key, from = from, path = listOf(key), editable = editable)
-        }
-        require(columns.isNotEmpty()) { "columns[$index]: definition「$ref」に列にできるセル型フィールドがありません" }
-        return columns
-    }
-
-    /**
-     * definition 参照（`module#name`。非修飾は fallbackModule の definitions から引く）を解決する。
-     * schemas 未指定（定義ゲート以外からの素のパース）では解決できないため null。
-     */
-    private fun resolveDefinition(
-        ref: String,
-        fallbackModule: String?,
-        schemas: List<SchemaDef>,
-    ): Pair<SchemaDef, FieldDef>? {
-        if (schemas.isEmpty()) error("definition「$ref」の解決にはスキーマ情報が必要です")
-        val hash = ref.indexOf('#')
-        val moduleId = if (hash >= 0) ref.substring(0, hash)
-        else fallbackModule ?: error("definition「$ref」には module#name 形式か、schemaId の指定が必要です")
-        val name = if (hash >= 0) ref.substring(hash + 1) else ref
-        val schema = schemas.firstOrNull { it.id == moduleId } ?: return null
-        val target = schema.definitions[name] ?: return null
-        return schema to target
-    }
-
-    /** 文書ビュー（kind: document。R14-01）のパース。 */
-    private fun parseDocView(raw: Map<*, *>, source: Path, schemas: List<SchemaDef>): DocViewDef {
-        val id = raw["id"]?.toString()?.takeIf { it.isNotBlank() } ?: error("id が必要です")
-        listOf("rows", "columns", "order", "detail", "newRow").firstOrNull { raw.containsKey(it) }
-            ?.let { error("$it は kind: grid のビューでのみ使えます") }
-        val match = raw["match"]?.toString()?.takeIf { it.isNotBlank() }
-        val schemaId = raw["schemaId"]?.toString()?.takeIf { it.isNotBlank() }
-        if (match == null && schemaId == null) error("文書ビューには match（適用先glob）か schemaId が必要です")
-        match?.let { runCatching { globToRegex(it) }.getOrElse { e -> error("match が不正です: ${e.message}") } }
-        val sectionsRaw = raw["sections"] as? List<*> ?: error("sections が必要です")
-        require(sectionsRaw.isNotEmpty()) { "sections には1つ以上のセクションが必要です" }
-        val sections = sectionsRaw.mapIndexed { i, entry ->
-            val m = entry as? Map<*, *> ?: error("sections[$i] はobjectである必要があります")
-            val label = m["label"]?.toString()?.takeIf { it.isNotBlank() }
-            val fieldsRaw = m["fields"]
-            val backlinksRaw = m["backlinks"]
-            if ((fieldsRaw != null) == (backlinksRaw != null)) {
-                error("sections[$i]: fields か backlinks のどちらか一方が必要です")
-            }
-            if (fieldsRaw != null) {
-                val fm = fieldsRaw as? Map<*, *> ?: error("sections[$i].fields はobjectである必要があります（空なら {}）")
-                // definition（R14-02）: このセクションが参照する named definition の宣言。修飾名へ正規化して保持し、
-                // 存在（パース・ゲート）と実使用（リント）を検査する
-                val definition = fm["definition"]?.toString()?.takeIf { it.isNotBlank() }?.let { ref ->
-                    val qualified = if (ref.contains('#')) ref
-                    else "${schemaId ?: error("sections[$i].fields.definition: 非修飾名「$ref」を使うにはビューの schemaId が必要です")}#$ref"
-                    if (schemas.isNotEmpty() && resolveDefinition(qualified, null, schemas) == null) {
-                        error("sections[$i].fields.definition「$qualified」が見つかりません")
-                    }
-                    qualified
-                }
-                // 表示キーの選別（R14-03）: include はこの順で表示、exclude は除外（両立不可）
-                val include = stringList(fm["include"])
-                val exclude = stringList(fm["exclude"])
-                if (include.isNotEmpty() && exclude.isNotEmpty()) {
-                    error("sections[$i].fields: include と exclude は併用できません")
-                }
-                DocViewSection(
-                    label = label,
-                    fieldsPath = parseYPath(fm["path"]?.toString() ?: ""),
-                    fieldsDefinition = definition,
-                    fieldsInclude = include,
-                    fieldsExclude = exclude,
-                )
-            } else {
-                val bm = backlinksRaw as? Map<*, *> ?: error("sections[$i].backlinks はobjectである必要があります")
-                DocViewSection(label = label, backlinks = parseDocBacklinks(bm, "sections[$i].backlinks"))
-            }
-        }
-        val attachments = (raw["attachments"] as? List<*>)?.mapIndexed { i, entry ->
-            val m = entry as? Map<*, *> ?: error("attachments[$i] はobjectである必要があります")
-            val atText = m["at"]?.toString()?.takeIf { it.isNotBlank() } ?: error("attachments[$i].at が必要です")
-            val bm = m["backlinks"] as? Map<*, *> ?: error("attachments[$i].backlinks が必要です")
-            DocViewAttachment(
-                label = m["label"]?.toString()?.takeIf { it.isNotBlank() },
-                atText = atText,
-                at = runCatching { parseAttachPattern(atText) }
-                    .getOrElse { error("attachments[$i].at が不正です: ${it.message}") },
-                backlinks = parseDocBacklinks(bm, "attachments[$i].backlinks"),
-            )
-        } ?: emptyList()
-        return DocViewDef(
-            id = id,
-            name = raw["name"]?.toString() ?: id,
-            description = raw["description"]?.toString(),
-            match = match,
-            schemaId = schemaId,
-            sections = sections,
-            attachments = attachments,
-            source = source,
-        )
-    }
-
-    /** 被参照表の定義（セクション・アタッチ共用）のパース。 */
-    private fun parseDocBacklinks(bm: Map<*, *>, where: String): DocBacklinksDef {
-        val columns = (bm["columns"] as? List<*>)?.mapIndexed { ci, c ->
-            val cm = c as? Map<*, *> ?: error("$where.columns[$ci] はobjectである必要があります")
-            DocBacklinkColumn(
-                label = cm["label"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.columns[$ci].label が必要です"),
-                path = parseYPath(cm["path"]?.toString() ?: error("$where.columns[$ci].path が必要です")),
-            )
-        } ?: emptyList()
-        return DocBacklinksDef(
-            idPattern = bm["idPattern"]?.toString()?.takeIf { it.isNotBlank() },
-            filter = ViewBacklinksDef(
-                relation = bm["relation"]?.toString(),
-                schemaIds = stringList(bm["schemaIds"]),
-            ),
-            columns = columns,
-        )
-    }
-
-    /**
-     * アタッチ先のパスパターン。YPath 構文＋ `[*]`（任意のインデックス）。
-     * 実装は `[*]` を仮のインデックス -1 として parseYPath に通し、あとから AnyIndex へ戻す
-     * （リテラルの `[-1]` はデータのパスとして成立しないため衝突しない）。
-     */
-    private fun parseAttachPattern(text: String): List<Any> =
-        parseYPath(text.replace("[*]", "[-1]")).map { seg -> if (seg == -1) AnyIndex else seg }
-
-    /** 出現の選択条件（schemaId / fileGlob）を、定義の当該オブジェクト直下のキーから読む。 */
-    private fun parseSource(m: Map<*, *>): ViewSource = ViewSource(
-        schemaId = m["schemaId"]?.toString(),
-        fileGlob = m["fileGlob"]?.toString(),
-    )
-
-    private fun stringList(raw: Any?): List<String> = when (raw) {
-        is List<*> -> raw.map { it.toString() }
-        null -> emptyList()
-        else -> listOf(raw.toString())
-    }
-
-    // ---------------------------------------------------------------- ビュー定義リント（R14-02）
-
-    /**
-     * ビュー→スキーマの参照（schemaId・パス・definition）の整合検査。スキーマ変更でビューが黙って
-     * 壊れる事態をロード時に検出する。指摘はビューを無効化しない（解決・表示は従来どおり行われる）。
-     * パスの検査は「スキーマのID要素（ID型フィールドを持つ object）のいずれかから静的に解決できるか」で
-     * 判定する（出現要素は必ずID要素のため。ID要素が見つからないスキーマでは判定しない＝誤検知を避ける）。
-     */
-    private fun lint(views: List<ViewDef>, docViews: List<DocViewDef>, schemas: List<SchemaDef>): List<String> {
-        val errors = mutableListOf<String>()
-        val ids = schemas.map { it.id }.toSet()
-        val byId = schemas.associateBy { it.id }
-        val idElementsCache = mutableMapOf<String, List<FieldDef>>()
-        fun idElementsOf(s: SchemaDef): List<FieldDef> = idElementsCache.getOrPut(s.id) { idElements(s) }
-        fun unresolvableFromIdElements(s: SchemaDef, path: YPath): Boolean {
-            if (path.isEmpty()) return false
-            val candidates = idElementsOf(s)
-            return candidates.isNotEmpty() && candidates.none { staticFieldAt(s, it, path) != null }
-        }
-        // fileGlob だけの出現選択は、代表パス（glob のワイルドカードを仮埋め）にマッチするスキーマで検査する
-        // （newRow.filePattern の検査と同じ流儀。マッチするスキーマが無ければ判定しない＝誤検知を避ける。UX-36）
-        fun representative(glob: String): String = glob
-            .replace(Regex("\\{([^}]*)\\}")) { it.groupValues[1].substringBefore(',') }
-            .replace("**", "X").replace("*", "X").replace("?", "X")
-        fun schemasBy(schemaId: String?, fileGlob: String?): List<SchemaDef> = when {
-            schemaId != null -> listOfNotNull(byId[schemaId])
-            fileGlob != null -> representative(fileGlob).let { rel -> schemas.filter { it.matches(rel) } }
-            else -> emptyList()
-        }
-        fun schemasFor(sel: ViewSource): List<SchemaDef> = schemasBy(sel.schemaId, sel.fileGlob)
-        fun names(sels: List<SchemaDef>): String = sels.joinToString("、") { it.id }
-
-        views.forEach { v ->
-            fun report(msg: String) { errors += "${v.source.fileName}: $msg" }
-            v.rows?.schemaIds?.filterNot { it in ids }?.forEach { report("rows.schemaIds のスキーマ「$it」が見つかりません") }
-            v.orderBy?.schemaId?.let { if (it !in ids) report("order のスキーマ「$it」が見つかりません") }
-            v.detail?.source?.schemaId?.let { if (it !in ids) report("detail のスキーマ「$it」が見つかりません") }
-            v.columns.forEach { col ->
-                col.backlinks?.schemaIds?.filterNot { it in ids }?.forEach {
-                    report("列「${col.label}」の参照元スキーマ「$it」が見つかりません")
-                }
-                if (col.backlinks != null) return@forEach
-                col.computed?.let { comp ->
-                    // 計算列（R16-02）: 参照スキーマの存在と、via / path がID要素から静的に解決できるかを検査する
-                    (listOfNotNull(comp.lookup?.from?.schemaId, comp.source.schemaId) + comp.values.mapNotNull { it.schemaId })
-                        .filterNot { it in ids }.distinct()
-                        .forEach { report("列「${col.label}」の計算列のスキーマ「$it」が見つかりません") }
-                    comp.lookup?.let { lk ->
-                        val lkSchemas = schemasBy(lk.from.schemaId, lk.from.fileGlob)
-                        if (lkSchemas.isNotEmpty() && lkSchemas.all { unresolvableFromIdElements(it, lk.via) }) {
-                            report("列「${col.label}」の lookup.via「${lk.via.pretty()}」はスキーマ「${names(lkSchemas)}」のID要素から解決できません")
-                        }
-                    }
-                    val srcSchemas = schemasBy(comp.source.schemaId, comp.source.fileGlob)
-                    if (srcSchemas.isNotEmpty() && srcSchemas.all { unresolvableFromIdElements(it, comp.path) }) {
-                        report("列「${col.label}」の computed.path「${comp.path.pretty()}」はスキーマ「${names(srcSchemas)}」のID要素から解決できません")
-                    }
-                    return@forEach
-                }
-                col.from.schemaId?.let { sid ->
-                    if (sid !in ids) { report("列「${col.label}」のスキーマ「$sid」が見つかりません"); return@forEach }
-                }
-                val fromSchemas = schemasFor(col.from)
-                if (fromSchemas.isNotEmpty() && fromSchemas.all { unresolvableFromIdElements(it, col.path) }) {
-                    report("列「${col.label}」のパス「${col.path.pretty()}」はスキーマ「${names(fromSchemas)}」のID要素から解決できません")
-                }
-            }
-            v.newRow?.filePattern?.let { pattern ->
-                // 代表ID（idPattern の * を仮埋め。クエリ行では行キー束縛の id パターン・なければ "X"）で
-                // 作成先を解決し、スキーマなし・detail 認定外の事故を検出する
-                val representativeId = (v.rows?.idPattern ?: v.rowKey?.let { v.rowsQuery?.bindStep(it)?.idPattern })
-                    ?.replace("*", "X") ?: "X"
-                val rel = pattern.replace("{id}", representativeId)
-                val matched = schemas.firstOrNull { it.matches(rel) }
-                if (matched == null) {
-                    report("newRow.filePattern「$pattern」の作成先にマッチするスキーマがありません（作成される文書が空になります）")
-                }
-                v.detail?.source?.let { src ->
-                    val globOk = src.fileGlob?.let { g ->
-                        runCatching { globToRegex(g).matches(rel) }.getOrDefault(true)
-                    } ?: true
-                    val schemaOk = src.schemaId == null || matched == null || matched.id == src.schemaId
-                    if (!globOk || !schemaOk) {
-                        report("newRow.filePattern「$pattern」の作成先が detail の認定条件に一致しません（作成直後の行が「未作成」になります）")
-                    }
-                }
-            }
-        }
-
-        docViews.forEach { v ->
-            fun report(msg: String) { errors += "${v.source.fileName}: $msg" }
-            val docSchema = v.schemaId?.let { sid ->
-                byId[sid] ?: run { report("適用先スキーマ「$sid」が見つかりません"); null }
-            }
-            v.sections.forEachIndexed { i, s ->
-                val where = s.label ?: "sections[${i + 1}]"
-                val fieldsPath = s.fieldsPath
-                if (fieldsPath != null && docSchema != null) {
-                    val field = staticFieldAt(docSchema, docSchema.root, fieldsPath)
-                    if (fieldsPath.isNotEmpty() && field == null) {
-                        report("セクション「$where」のパス「${fieldsPath.pretty()}」はスキーマ「${docSchema.id}」から解決できません")
-                    } else if (s.fieldsDefinition != null && field != null) {
-                        // 宣言した definition を、パス先のフィールド（配列は要素・map は値）が実際に参照しているか
-                        val resolved = docSchema.resolve(field) ?: field
-                        val actual = listOfNotNull(field, resolved.item, resolved.value)
-                            .firstNotNullOfOrNull { docSchema.definitionRefOf(it) }
-                        if (actual != s.fieldsDefinition) {
-                            report(
-                                "セクション「$where」のパス「${fieldsPath.pretty()}」は definition「${s.fieldsDefinition}」を参照していません" +
-                                    (actual?.let { "（実際: $it）" } ?: "")
-                            )
-                        }
-                    }
-                    // 選別キー（include / exclude）がスキーマの子フィールドに存在するか（R14-03）
-                    val selection = s.fieldsInclude + s.fieldsExclude
-                    if (selection.isNotEmpty() && field != null) {
-                        val resolvedField = docSchema.resolve(field) ?: field
-                        if (resolvedField.type == FieldType.OBJECT) {
-                            val keys = staticChildren(docSchema, resolvedField).mapNotNull { it.key }.toSet()
-                            selection.filterNot { it in keys }.forEach {
-                                report("セクション「$where」の選別キー「$it」はスキーマにありません")
-                            }
-                        }
-                    }
-                }
-                s.backlinks?.let { b ->
-                    b.filter.schemaIds.filterNot { it in ids }.forEach {
-                        report("セクション「$where」の参照元スキーマ「$it」が見つかりません")
-                    }
-                    val sourceSchemas = b.filter.schemaIds.mapNotNull { byId[it] }
-                    if (b.columns.isNotEmpty() && sourceSchemas.isNotEmpty()) {
-                        b.columns.forEach { col ->
-                            val ok = sourceSchemas.any { !unresolvableFromIdElements(it, col.path) }
-                            if (!ok) {
-                                report("セクション「$where」の列「${col.label}」のパス「${col.path.pretty()}」は参照元スキーマのID要素から解決できません")
-                            }
-                        }
-                    }
-                }
-            }
-            v.attachments.forEachIndexed { i, a ->
-                val where = a.label ?: "attachments[${i + 1}]"
-                a.backlinks.filter.schemaIds.filterNot { it in ids }.forEach {
-                    report("アタッチ「$where」の参照元スキーマ「$it」が見つかりません")
-                }
-                val sourceSchemas = a.backlinks.filter.schemaIds.mapNotNull { byId[it] }
-                if (a.backlinks.columns.isNotEmpty() && sourceSchemas.isNotEmpty()) {
-                    a.backlinks.columns.forEach { col ->
-                        val ok = sourceSchemas.any { !unresolvableFromIdElements(it, col.path) }
-                        if (!ok) {
-                            report("アタッチ「$where」の列「${col.label}」のパス「${col.path.pretty()}」は参照元スキーマのID要素から解決できません")
-                        }
-                    }
-                }
-                if (docSchema != null) {
-                    val target = staticFieldAt(docSchema, docSchema.root, a.at)
-                    if (target == null) {
-                        report("アタッチ「$where」の at「${a.atText}」はスキーマ「${docSchema.id}」から解決できません")
-                    } else {
-                        // アタッチ先の要素にIDがなければ被参照を解決できず、何も表示されない
-                        val resolvedTarget = docSchema.resolve(target) ?: target
-                        val hasId = resolvedTarget.type == FieldType.OBJECT &&
-                            staticChildren(docSchema, resolvedTarget).any { (docSchema.resolve(it) ?: it).type == FieldType.ID }
-                        if (!hasId) {
-                            report("アタッチ「$where」の at「${a.atText}」の要素にID型フィールドがありません（被参照はIDに対して解決されます）")
-                        }
-                    }
-                }
-            }
-        }
-        return errors
-    }
-
-    /** スキーマ内の「ID要素」（ID型フィールドを持つ object）の候補。出現要素からのパス検査の起点に使う。 */
-    private fun idElements(schema: SchemaDef): List<FieldDef> {
-        val result = mutableListOf<FieldDef>()
-        fun walk(field: FieldDef?, depth: Int, stack: Set<String>) {
-            if (field == null || depth > 24) return
-            // 再帰スキーマ（$ref の循環）は definition の修飾名で打ち切る（generateSample と同じ規則）
-            val refKey = schema.definitionRefOf(field)
-            if (refKey != null && refKey in stack) return
-            val nextStack = if (refKey == null) stack else stack + refKey
-            val f = schema.resolve(field) ?: return
-            when (f.type) {
-                FieldType.OBJECT -> {
-                    val children = staticChildren(schema, f)
-                    if (children.any { (schema.resolve(it) ?: it).type == FieldType.ID }) result += f
-                    children.forEach { walk(it, depth + 1, nextStack) }
-                }
-                FieldType.ARRAY -> walk(f.item, depth + 1, nextStack)
-                FieldType.MAP -> walk(f.value, depth + 1, nextStack)
-                else -> Unit
-            }
-        }
-        walk(schema.root, 0, emptySet())
-        return result
-    }
-
-    /** object の静的な子フィールド候補（enum cases は全ケースの和＝「存在しうる子」。ノードなしの検査用）。 */
-    private fun staticChildren(schema: SchemaDef, def: FieldDef): List<FieldDef> {
-        val out = mutableListOf<FieldDef>()
-        fun add(field: FieldDef, depth: Int) {
-            out += field
-            if (depth > 8) return
-            val eff = schema.resolve(field) ?: field
-            if (eff.type == FieldType.ENUM) eff.cases.values.flatten().forEach { add(it, depth + 1) }
-        }
-        def.fields.forEach { add(it, 0) }
-        return out
-    }
-
-    /**
-     * データノードなしでスキーマ定義だけを辿るフィールド解決（リント用の `fieldAt` の静的版）。
-     * 戻り値は**未解決**のフィールド（definition 判定に `$ref` を残す）。配列は任意インデックス
-     * （アタッチパターンの `[*]` 含む）、map は任意キーとして辿る。解決できなければ null。
-     */
-    private fun staticFieldAt(schema: SchemaDef, start: FieldDef, path: List<Any>): FieldDef? {
-        var current = start
-        for (seg in path) {
-            val def = schema.resolve(current) ?: return null
-            val next: FieldDef? = when {
-                def.type == FieldType.OBJECT && seg is String -> staticChildren(schema, def).firstOrNull { it.key == seg }
-                def.type == FieldType.MAP && seg is String -> def.value
-                def.type == FieldType.ARRAY && (seg is Int || seg === AnyIndex) -> def.item
-                else -> null
-            }
-            current = next ?: return null
-        }
-        return current
-    }
+        ViewDefinitions.parseView(raw, documentIdOf(null, source), schemas.map { it.kernel })
 
     // ---------------------------------------------------------------- フィールド改名の追随（R25-01）
+
+    // スキーマの静的な解決（リントと共用）の実体は、カーネルの workspace.ViewDefinitions
+    private fun idElements(schema: SchemaDef): List<FieldDef> = ViewDefinitions.idElements(schema.kernel)
+    private fun staticChildren(schema: SchemaDef, def: FieldDef): List<FieldDef> = ViewDefinitions.staticChildren(schema.kernel, def)
+    private fun staticFieldAt(schema: SchemaDef, start: FieldDef, path: List<Any>): FieldDef? =
+        ViewDefinitions.staticFieldAt(schema.kernel, start, path)
+
 
     /** フィールド改名のビュー追随の結果。ops はビュー定義ファイルごとの書換、warnings は自動書換できない参照箇所。 */
     data class FieldRenameImpact(val ops: Map<Path, List<edit.YamlOperation>>, val warnings: List<String>)
@@ -1089,7 +411,7 @@ object Views {
             val next: FieldDef? = when {
                 def.type == FieldType.OBJECT && seg is String -> staticChildren(schema, def).firstOrNull { it.key == seg }
                 def.type == FieldType.MAP && seg is String -> def.value
-                def.type == FieldType.ARRAY && (seg is Int || seg === AnyIndex) -> def.item
+                def.type == FieldType.ARRAY && (seg is Int || seg === semantic.VirtualAnyIndex) -> def.item
                 else -> null
             }
             if (next == null) return null
@@ -1149,7 +471,7 @@ object Views {
         val rel = { document: model.DocumentId -> IdIndex.relPathOf(workspace, fileOf(document)) }
         val trees = mutableMapOf<Path, YNode?>()
         val tree = { document: model.DocumentId -> trees.getOrPut(fileOf(document)) { loader(fileOf(document)) } }
-        return VirtualViews.resolve(toKernel(view), kernel.entries, kernel.refs, kernel.graph, rel, tree)
+        return VirtualViews.resolve(view, kernel.entries, kernel.refs, kernel.graph, rel, tree)
             .map { row ->
                 ViewRow(
                     id = row.id,
@@ -1182,34 +504,6 @@ object Views {
             }
     }
 
-    // ---------------------------------------------------------------- カーネル宣言への写し（RC-01）
-
-    private fun toKernel(view: ViewDef): VirtualGridDef = VirtualGridDef(
-        id = view.id,
-        name = view.name,
-        description = view.description,
-        rows = view.rows?.let { VirtualRowsDef(it.idPattern, it.schemaIds) },
-        rowsQuery = view.rowsQuery,
-        rowKey = view.rowKey,
-        columns = view.columns.map { toKernel(it) },
-        orderBy = view.orderBy?.let(::toKernel),
-        detail = view.detail?.let { VirtualDetailDef(toKernel(it.source), it.filePattern) },
-        newRow = view.newRow?.let { semantic.VirtualNewRowDef(it.file, it.path, it.filePattern) },
-        source = model.DocumentId(view.source.toString()),
-    )
-
-    private fun toKernel(c: ViewColumn): VirtualViewColumn = VirtualViewColumn(
-        label = c.label,
-        from = toKernel(c.from),
-        path = c.path,
-        editable = c.editable,
-        backlinks = c.backlinks?.let { VirtualBacklinksDef(it.relation, it.schemaIds) },
-        computed = c.computed,
-        of = c.of,
-    )
-
-    private fun toKernel(source: ViewSource): VirtualViewSource = VirtualViewSource(source.schemaId, source.fileGlob)
-
     // ---------------------------------------------------------------- 文書ビューの解決（R14-01）
 
     /**
@@ -1235,7 +529,7 @@ object Views {
             trees.getOrPut(f) { loader(f) }
         }
         return VirtualViews.resolveDocument(
-            toKernel(view), model.DocumentId(file.toString()),
+            view, model.DocumentId(file.toString()),
             kernel.entries, kernel.refs, kernel.graph,
             localIds?.map { it.toScanned() }, rel, tree,
         ).mapIndexed { i, resolved ->
@@ -1264,7 +558,7 @@ object Views {
             trees.getOrPut(f) { loader(f) }
         }
         return VirtualViews.resolveAttachments(
-            toKernel(view), model.DocumentId(file.toString()),
+            view, model.DocumentId(file.toString()),
             kernel.entries, kernel.refs, kernel.graph,
             localIds?.map { it.toScanned() }, rel, tree,
         ).mapIndexed { i, resolved ->
@@ -1273,39 +567,6 @@ object Views {
     }
 
     // ---------------------------------------------------------------- カーネル宣言への写し（文書ビュー。RC-02）
-
-    private fun toKernel(view: DocViewDef): semantic.VirtualDocViewDef = semantic.VirtualDocViewDef(
-        id = view.id,
-        name = view.name,
-        description = view.description,
-        match = view.match,
-        schemaId = view.schemaId,
-        sections = view.sections.map(::toKernel),
-        attachments = view.attachments.map { toKernel(it) },
-        source = model.DocumentId(view.source.toString()),
-    )
-
-    private fun toKernel(a: DocViewAttachment): semantic.VirtualDocAttachment = semantic.VirtualDocAttachment(
-        label = a.label,
-        atText = a.atText,
-        at = a.at.map { seg -> if (seg === AnyIndex) semantic.VirtualAnyIndex else seg },
-        backlinks = toKernel(a.backlinks),
-    )
-
-    private fun toKernel(section: DocViewSection): semantic.VirtualDocSection = semantic.VirtualDocSection(
-        label = section.label,
-        fieldsPath = section.fieldsPath,
-        fieldsDefinition = section.fieldsDefinition,
-        fieldsInclude = section.fieldsInclude,
-        fieldsExclude = section.fieldsExclude,
-        backlinks = section.backlinks?.let(::toKernel),
-    )
-
-    private fun toKernel(def: DocBacklinksDef): semantic.VirtualDocBacklinksDef = semantic.VirtualDocBacklinksDef(
-        idPattern = def.idPattern,
-        filter = VirtualBacklinksDef(def.filter.relation, def.filter.schemaIds),
-        columns = def.columns.map { semantic.VirtualDocBacklinkColumn(it.label, it.path) },
-    )
 
     private fun toDocRow(row: semantic.VirtualDocBacklinkRow, rel: (model.DocumentId) -> String): DocBacklinkRow =
         DocBacklinkRow(
@@ -1380,7 +641,7 @@ object Views {
                 occurrences = row.occurrences.map { it.toScanned() },
                 cells = row.cells.map { cell ->
                     semantic.VirtualCell(
-                        column = toKernel(cell.column),
+                        column = cell.column,
                         document = doc(cell.file, cell.rel),
                         path = cell.path,
                         value = cell.value,
@@ -1403,7 +664,7 @@ object Views {
             )
         }
         return VirtualViews.renderText(
-            toKernel(view), kernelRows, columns,
+            view, kernelRows, columns,
             ids = index?.toKernelView()?.entries,
             rel = { relByDoc[it] ?: it.value },
         )
@@ -1433,9 +694,9 @@ object Views {
             },
         )
         return VirtualViews.renderDocText(
-            toKernel(view), rel,
-            sections.map { s -> semantic.VirtualDocSectionResolved(toKernel(s.section), s.rows?.map(::toKernelRow)) },
-            attachments.map { a -> semantic.VirtualDocAttachmentResolved(toKernel(a.attachment), a.rows.map(::toKernelRow)) },
+            view, rel,
+            sections.map { s -> semantic.VirtualDocSectionResolved(s.section, s.rows?.map(::toKernelRow)) },
+            attachments.map { a -> semantic.VirtualDocAttachmentResolved(a.attachment, a.rows.map(::toKernelRow)) },
             relOf = { relByDoc[it] ?: it.value },
         )
     }

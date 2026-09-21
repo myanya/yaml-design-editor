@@ -20,11 +20,21 @@ import schema.globToRegex
  *   （ADR-0003 帰結の注記）で、snapshot には決して保持しない
  * - 行の集合・被参照・計算列は SemanticSnapshot と同じ入力（ids / refs / graph）から解決する。
  *   UI は overlay 済みの索引、エージェントはステージングの入力を渡すことで同じ射影を得る
- * - 文書ビュー（kind: document）は第2弾（RC-02）。宣言のパース・リントは当面ルート（core/Views.kt）
- *   に残し、本カーネルは解決だけを担う
+ * - 宣言の読み取りとリントは workspace-core の workspace/ViewDefinitions.kt（リントが、作り先に合うスキーマを選ぶため。
+ *   P27 段D の D-c で root から移した）。ここは、宣言の型と解決を持つ
  */
 
 // ---------------------------------------------------------------- 宣言（カーネル座標）
+
+/** ビュー定義の共通部。kind により横断グリッド（VirtualGridDef）と文書ビュー（VirtualDocViewDef）に分かれる。 */
+sealed interface VirtualViewDefinition {
+    val id: String
+    val name: String
+    val description: String?
+
+    /** ビュー定義文書の座標。 */
+    val source: DocumentId
+}
 
 /** 列が値を取り出す出現の選択条件。schemaId / fileGlob の AND（null は制限なし）。 */
 data class VirtualViewSource(
@@ -80,11 +90,11 @@ data class VirtualNewRowDef(
     val filePattern: String? = null,
 )
 
-/** グリッドビューの宣言（カーネル座標。ルート ViewDef からの写しは変換シェルが行う）。 */
+/** グリッドビューの宣言（カーネル座標。root の ViewDef は、この型の別名）。 */
 data class VirtualGridDef(
-    val id: String,
-    val name: String,
-    val description: String? = null,
+    override val id: String,
+    override val name: String,
+    override val description: String? = null,
     /** 従来の行定義（idPattern×schemaIds）。クエリ行（rowsQuery）とは排他で、どちらか一方が非null。 */
     val rows: VirtualRowsDef? = null,
     /** クエリ行（rows: match。R22-02）: 行 = パターン照合の束縛行。 */
@@ -95,8 +105,8 @@ data class VirtualGridDef(
     val orderBy: VirtualViewSource? = null,
     val detail: VirtualDetailDef? = null,
     val newRow: VirtualNewRowDef? = null,
-    val source: DocumentId,
-)
+    override val source: DocumentId,
+) : VirtualViewDefinition
 
 // ---------------------------------------------------------------- 文書ビューの宣言（カーネル座標。RC-02）
 
@@ -140,17 +150,27 @@ data class VirtualDocAttachment(
         at.size == path.size && at.zip(path).all { (p, seg) -> (p === VirtualAnyIndex && seg is Int) || p == seg }
 }
 
-/** 文書ビューの宣言（kind: document。カーネル座標）。 */
+/**
+ * 文書ビューの宣言（kind: document。カーネル座標）。match（glob）／schemaId で適用先文書を決め、sections を上から順に描画する。
+ * マッチしない文書は従来のスキーマ駆動フォーム＝暗黙の既定ビューで表示される（opt-in）。
+ */
 data class VirtualDocViewDef(
-    val id: String,
-    val name: String,
-    val description: String? = null,
+    override val id: String,
+    override val name: String,
+    override val description: String? = null,
     val match: String? = null,
     val schemaId: String? = null,
     val sections: List<VirtualDocSection>,
     val attachments: List<VirtualDocAttachment> = emptyList(),
-    val source: DocumentId,
-)
+    override val source: DocumentId,
+) : VirtualViewDefinition {
+    private val regex: Regex? by lazy { match?.let { runCatching { globToRegex(it) }.getOrNull() } }
+
+    /** ワークスペース相対パス（区切りは '/'）の文書にこのビューを適用するか。 */
+    fun appliesTo(relPath: String, schemaId: String?): Boolean =
+        (match == null || regex?.matches(relPath) == true) &&
+            (this.schemaId == null || this.schemaId == schemaId)
+}
 
 // ---------------------------------------------------------------- 解決結果（読み出しモデル）
 

@@ -41,4 +41,39 @@ data class DerivationDef(
     val values: List<DerivationSelector> = emptyList(),      // プレースホルダ解決に使う対象IDの出現（宣言順）
     val map: Map<String, String> = emptyMap(),               // 評価後の値辞書（DeriveTypeRule / skill と同じ語彙）
     val default: String? = null,                             // 元値が無いときの既定値
-)
+) {
+    companion object {
+        /** 出現の選択条件の読み取り。 */
+        fun parseSelector(raw: Any?, where: String): DerivationSelector {
+            val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります")
+            return DerivationSelector(
+                schemaId = m["schemaId"]?.toString(),
+                fileGlob = m["fileGlob"]?.toString(),
+            )
+        }
+
+        /** 導出宣言（R16-02）の読み取り。ビューの計算列（computed）が使う（P27 段D の D-c で root の SchemaLoader から移した）。 */
+        fun parse(raw: Any?, where: String): DerivationDef {
+            val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります")
+            val source = parseSelector(m["source"] ?: error("$where.source が必要です"), "$where.source")
+            require(!source.isEmpty) { "$where.source には schemaId か fileGlob が必要です" }
+            val lookup = (m["lookup"] as? Map<*, *>)?.let { lm ->
+                DerivationLookup(
+                    from = DerivationSelector(lm["schemaId"]?.toString(), lm["fileGlob"]?.toString()),
+                    via = model.parseYPath(lm["via"]?.toString() ?: error("$where.lookup.via が必要です")),
+                )
+            }
+            return DerivationDef(
+                lookup = lookup,
+                source = source,
+                path = model.parseYPath(m["path"]?.toString() ?: error("$where.path が必要です")),
+                values = (m["values"] as? List<*>)?.mapIndexed { i, v ->
+                    parseSelector(v, "$where.values[$i]")
+                } ?: emptyList(),
+                map = (m["map"] as? Map<*, *>)?.entries
+                    ?.associate { it.key.toString() to (it.value?.toString() ?: "") } ?: emptyMap(),
+                default = m["default"]?.toString(),
+            )
+        }
+    }
+}

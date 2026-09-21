@@ -286,37 +286,5 @@ object SchemaLoader {
         return parsed.withDefinitionCatalog(catalog)
     }
 
-    /** 導出宣言（R16-02/03a 共通語彙）のパース。ビューの computed（Views.parseView）と共有する。 */
-    internal fun parseDerivationSelector(raw: Any?, where: String): DerivationSelector {
-        val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります")
-        return DerivationSelector(
-            schemaId = m["schemaId"]?.toString(),
-            fileGlob = m["fileGlob"]?.toString(),
-        )
-    }
-
-    internal fun parseDerivation(raw: Any?, where: String): DerivationDef {
-        val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります")
-        val source = parseDerivationSelector(m["source"] ?: error("$where.source が必要です"), "$where.source")
-        require(!source.isEmpty) { "$where.source には schemaId か fileGlob が必要です" }
-        val lookup = (m["lookup"] as? Map<*, *>)?.let { lm ->
-            DerivationLookup(
-                from = DerivationSelector(lm["schemaId"]?.toString(), lm["fileGlob"]?.toString()),
-                via = parseYPath(lm["via"]?.toString() ?: error("$where.lookup.via が必要です")),
-            )
-        }
-        return DerivationDef(
-            lookup = lookup,
-            source = source,
-            path = parseYPath(m["path"]?.toString() ?: error("$where.path が必要です")),
-            values = (m["values"] as? List<*>)?.mapIndexed { i, v ->
-                parseDerivationSelector(v, "$where.values[$i]")
-            } ?: emptyList(),
-            map = (m["map"] as? Map<*, *>)?.entries
-                ?.associate { it.key.toString() to (it.value?.toString() ?: "") } ?: emptyMap(),
-            default = m["default"]?.toString(),
-        )
-    }
-
     private fun parseSchemaFile(file: Path): SchemaDef = parseSchemaText(Files.readString(file), file)
 }
