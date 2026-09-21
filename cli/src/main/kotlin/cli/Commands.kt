@@ -48,23 +48,29 @@ fun workspaceValidate(root: String?, args: List<String>, out: (String) -> Unit):
     val format = CliArgs.format(args)
     val ws = loadWorkspace(root)
 
-    val structural = ws.derived.structuralIssues.entries.flatMap { (id, issues) -> issues.map { id to it } }
-    val semantic = ws.derived.semantic.issues
+    // 読み込んだ文書の1つ1つを、アプリと同じ組み立て（validate.DocumentValidator）で検証する（P27 段D の D-b・意図的差分 D-34）。
+    // 出力の区分は、指摘の出どころで分ける: 構造の検証＝「構造」・ID の重複と参照の解決と宣言のない関係名＝「意味」・
+    // 文書へ配る指摘（定義体の検査と、ID のパターンからの逸脱・重複所有・テンプレートの健全性）＝「検査」。
+    // スキーマの定義の点検と、宣言のない関係名（スキーマ側）の点検は、スキーマエラーに出る（意図的差分 D-33）
+    val validations = workspace.WorkspaceCheckRunner.validateAll(ws)
+    val all = validations.entries.flatMap { (id, v) -> v.issues.map { id to it } }
+    fun areaOf(issue: validate.CheckIssue): String = when {
+        !issue.source.coded -> "check"
+        issue.source.rule?.at == validate.CodedChecks.STRUCTURE -> "structure"
+        issue.source.rule?.at in setOf(validate.CodedChecks.ENTITY, validate.CodedChecks.TEMPLATE) -> "check"
+        else -> "semantic"
+    }
+    val structural = all.filter { areaOf(it.second) == "structure" }
+    val semantic = all.filter { areaOf(it.second) == "semantic" }
+    // 文書へ配る指摘は、スキーマを読めなかったときは出さない（スキーマエラーを先に直してもらう）
+    val checks = if (ws.schemaErrors.isEmpty()) all.filter { areaOf(it.second) == "check" } else emptyList()
+    val withheld = if (ws.schemaErrors.isEmpty()) validations.entries.flatMap { (id, v) -> v.withheld.map { id to it } } else emptyList()
     val structuralErrors = structural.count { it.second.severity == Severity.ERROR }
     val structuralWarnings = structural.count { it.second.severity == Severity.WARNING }
-    val semanticErrors = semantic.count { it.severity == Severity.ERROR }
-    val semanticWarnings = semantic.count { it.severity == Severity.WARNING }
-    // 定義体の検査（詳細文書の存在・整合・多重度・対象型・非循環・網羅・遷移・利用者の constraints。P27 段B-4・意図的差分 D-28）:
-    // アプリと同じ実装（validate.WorkspaceChecks）で評価して文書へ配る。スキーマを読めなかったときは実行しない。
-    // コードで実装された検査のうち、ワークスペースの他の文書も見るもの（ID のパターンからの逸脱・重複所有・テンプレートの健全性）も、
-    // ここに含まれる（P27 段D の D-a・意図的差分 D-33）。スキーマの定義の点検と、宣言のない関係名の点検は、スキーマエラーに出る
-    val deliveries = if (ws.schemaErrors.isEmpty()) workspace.WorkspaceCheckRunner.deliverAll(ws) else emptyMap()
-    val checks = deliveries.entries.flatMap { (id, d) -> d.issues.map { id to it } }
-    val withheld = deliveries.entries.flatMap { (id, d) -> d.withheld.map { id to it } }
+    val semanticErrors = semantic.count { it.second.severity == Severity.ERROR }
+    val semanticWarnings = semantic.count { it.second.severity == Severity.WARNING }
     val checkErrors = checks.count { it.second.severity == Severity.ERROR }
     val checkWarnings = checks.count { it.second.severity == Severity.WARNING }
-    // コードで実装された検査（構造の検証・意味の検証）の指摘の出どころ（P27 段B の残り・意図的差分 D-29）: 機械可読の出力に添える
-    val idsByDocument = ws.derived.semantic.scans.associate { it.document to it.ids }
     fun sourceMap(source: validate.IssueSource): Map<String, Any?> = linkedMapOf(
         "rule" to source.rule?.key,
         "kind" to source.kind,
@@ -82,8 +88,8 @@ fun workspaceValidate(root: String?, args: List<String>, out: (String) -> Unit):
         structural.forEach { (id, issue) ->
             out("  [構造:${issue.severity}] ${id.value} ${issue.path.pretty()}: ${issue.message}")
         }
-        semantic.forEach { issue ->
-            out("  [意味:${issue.severity}] ${issue.document.value} ${issue.path.pretty()}: ${issue.message}")
+        semantic.forEach { (id, issue) ->
+            out("  [意味:${issue.severity}] ${id.value} ${issue.path.pretty()}: ${issue.message}")
         }
         checks.forEach { (id, issue) ->
             out("  [検査:${issue.severity}] ${id.value} ${issue.path.pretty()}: ${issue.message}")
@@ -110,15 +116,15 @@ fun workspaceValidate(root: String?, args: List<String>, out: (String) -> Unit):
                         "document" to id.value,
                         "path" to issue.path.pretty(),
                         "message" to issue.message,
-                    ) + sourceMap(validate.CodedChecks.structural(issue, idsByDocument[id].orEmpty()))
+                    ) + sourceMap(issue.source)
                 },
-                "semantic" to semantic.map { issue ->
+                "semantic" to semantic.map { (id, issue) ->
                     linkedMapOf(
                         "severity" to issue.severity.name,
-                        "document" to issue.document.value,
+                        "document" to id.value,
                         "path" to issue.path.pretty(),
                         "message" to issue.message,
-                    ) + sourceMap(validate.CodedChecks.semantic(issue, idsByDocument[issue.document].orEmpty()))
+                    ) + sourceMap(issue.source)
                 },
                 "checks" to checks.map { (id, issue) ->
                     linkedMapOf(

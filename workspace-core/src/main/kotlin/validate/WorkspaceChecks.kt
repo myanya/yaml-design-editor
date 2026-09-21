@@ -31,6 +31,7 @@ import semantic.SemanticRuleResult
 import semantic.SemanticValueInput
 import semantic.phaseActive
 import workspace.CheckCatalog
+import workspace.WorkspaceSchema
 
 /** 指摘の配り方（P27 段A）: 同じ違反が、どの立場でこの場所に出ているか。 */
 enum class IssueDelivery {
@@ -178,19 +179,6 @@ data class RuleStatus(
         }
 }
 
-/** 検査を配るのに要る、スキーマ1件の情報（アプリ側の SchemaDef とカーネルの WorkspaceSchema の、どちらからも作れる）。 */
-class CheckSchema(
-    val id: String,
-    val kind: SchemaKind,
-    /** 文書の置き場所のパターン（対応「文書を作る」の作り先の表示に使う）。 */
-    val match: String,
-    /** 利用者が書く項目の木（フェーズの宣言と、文書の現在のフェーズの読み取りに使う）。 */
-    val tree: SchemaTree,
-    val entities: List<EntityDecl>,
-    val constraints: List<ConstraintRule>,
-    val checkers: List<CheckerRule>,
-)
-
 /**
  * 定義体の検査を評価して、指摘を文書へ配る（P27 段B-3）。以前は root の Validator と RuleDiagnostics が持っていた
  * 配り方の規則と文面の組み立てを、カーネルの座標（DocumentId）でここへ移した——アプリとカーネル側の CLI が同じ結果を返す。
@@ -209,7 +197,7 @@ class CheckSchema(
  */
 class WorkspaceChecks(
     /** ワークスペースの全スキーマ（他の出現への案内・直せる場所への案内・対応の導出に使う。空なら自スキーマの報告だけ）。 */
-    private val schemas: List<CheckSchema>,
+    private val schemas: List<WorkspaceSchema>,
     private val relations: Map<String, RelationDef>,
     private val enforcement: EnforcementDef,
     private val ids: Map<String, List<ScannedId>>,
@@ -223,7 +211,7 @@ class WorkspaceChecks(
     private val builtinRules: List<ConstraintRule> = CheckCatalog.builtinRules,
     private val builtinCheckers: List<CheckerRule> = CheckCatalog.builtinCheckers,
 ) {
-    private class RuleGroup<R>(val key: String, val owner: CheckSchema?, val rules: List<R>)
+    private class RuleGroup<R>(val key: String, val owner: WorkspaceSchema?, val rules: List<R>)
 
     /** コードで実装された検査のうち、ワークスペースの他の文書も見るもの。 */
     private val coded = CodedDocumentChecks(schemas, ids, rel, tree)
@@ -263,7 +251,7 @@ class WorkspaceChecks(
      */
     fun deliver(
         document: DocumentId,
-        schema: CheckSchema?,
+        schema: WorkspaceSchema?,
         root: YNode,
         localIds: List<ScannedId>,
         localRefs: List<ScannedRef>,
@@ -405,7 +393,7 @@ class WorkspaceChecks(
      * 保留か・フェーズ未到達かを、いまの値つきで返す。definingRoot は、この ID がこのスキーマの文書に書かれている、その文書のルート
      * （activeFrom のフェーズ判定に使う。null なら常時判定）。
      */
-    fun statuses(id: String, schema: CheckSchema, definingRoot: YNode?): List<RuleStatus> {
+    fun statuses(id: String, schema: WorkspaceSchema, definingRoot: YNode?): List<RuleStatus> {
         val phaseIndex = definingRoot?.let { schema.tree.currentPhaseIndex(it) }
         return schema.constraints.filter { it.status != null }.mapNotNull { rule ->
             status(rule, id, phaseActive(rule.activeFrom, schema.tree.phases?.order.orEmpty(), phaseIndex))

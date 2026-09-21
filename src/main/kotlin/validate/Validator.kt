@@ -1,30 +1,15 @@
 package validate
 
-import index.DocScanner
 import index.IdEntry
 import index.IdIndex
-import index.idMatchesPattern
-import index.isAllowedBy
 import index.toKernelView
-import index.toScanned
 import model.YNode
 import model.YPath
 import schema.EnforcementDef
-import schema.EntityRole
-import schema.RefTarget
 import schema.RelationDef
-import schema.FieldDef
-import schema.FieldType
 import schema.SchemaDef
-import schema.UnknownFieldsPolicy
-import schema.currentPhaseIndex
-import schema.currentPhaseValue
-import schema.effectiveFields
 import schema.phaseProgress
 import schema.phaseSummaryText
-import schema.CoverageLevel
-import schema.SchemaKind
-import schema.SchemaLoader
 import yaml.YamlIO
 import java.nio.file.Files
 import java.nio.file.Path
@@ -75,7 +60,8 @@ data class ValidationResult(val issues: List<Issue>, val withheld: List<Withheld
 typealias PhaseProgress = schema.PhaseProgress
 
 /**
- * ドキュメントの検証。UI・アプリ状態に依存しない（core / CLI からも使う）。
+ * ドキュメントの検証。UI・アプリ状態に依存しない（core / CLI からも使う）。検証の組み立ての実体は、カーネルの
+ * validate.DocumentValidator（workspace-core。P27 段D の D-b）で、ここは、座標（Path と IdIndex）を写して呼ぶ窓口。
  * - スキーマ適合（必須／型／enum／日付形式）
  * - 参照解決（索引 + 同一ドキュメント内の未保存 ID を考慮）
  * - ID 重複（同一ドキュメント内）
@@ -131,94 +117,36 @@ object Validator {
          */
         shareEvaluations: Boolean = false,
     ): ValidationResult {
-        if (root == null) {
-            val source = CodedChecks.source(CodedChecks.YAML, "parse-error", IssueDelivery.REPORT, emptyList(), emptyList())
-            return ValidationResult(
-                listOf(Issue(Severity.ERROR, "YAML パースエラー: ${parseError ?: "不明"}", emptyList(), source = source)), emptyList(),
-            )
-        }
-
-        val issues = mutableListOf<Issue>()
-        // 判定を保留した検査（集める文書は、検査ごとに1つに決まる。WithheldCheck）
-        val withheld = mutableListOf<WithheldCheck>()
-        // 他文書のツリー（検証1回の中でキャッシュする。この文書自身は未保存の現在状態＝root を読む）
-        val treeCache = mutableMapOf<Path, YNode?>()
-        fun treeOf(f: Path): YNode? = if (f == file) root else treeCache.getOrPut(f) { loader(f) }
+        // 検証の組み立て（構造の検証 → ID と参照 → エンティティ型の点検 → 宣言のない関係名 → 定義体の検査 → テンプレートの健全性 →
+        // 直せる場所への案内・台帳の外の文書での降格・同じ指摘の重複の除去）は、カーネルの validate.DocumentValidator が持つ
+        // （P27 段D の D-b・意図的差分 D-34。カーネル側の CLI と、変更セットの適用も、同じ組み立てで検証する）。
+        // ここは、索引（IdIndex）とファイルの座標（Path）をカーネルの形へ写して呼び、結果を Issue へ写すだけ
+        val view = indexObj.toKernelView()
         fun relOf(f: Path): String =
             workspace?.let { IdIndex.relPathOf(it, f) } ?: f.toString().replace('\\', '/')
-
-        // 0) この文書の現在の状態の走査（ID と参照）。指摘の出どころの「対象の要素」（指摘の場所を含む最も内側の ID を持つ要素）も
-        //    ここから決める（コードで実装された検査の出どころ＝カーネルの CodedChecks。意図的差分 D-29）
-        val documentId = indexObj.documentIdFor(file, root)
-        val (localIds, localRefs) = DocScanner.scan(root, file, schema, documentId)
-        val docScan = semantic.DocumentScan(
-            document = model.DocumentId(file.toString()),
-            documentId = documentId,
-            ids = localIds.map { it.toScanned() },
-            refs = localRefs.map { it.toScanned() },
-        )
-        fun coded(at: String, kind: String, delivery: IssueDelivery, path: YPath) =
-            CodedChecks.source(at, kind, delivery, docScan.ids, path)
-
-        // 1) スキーマ検証（構造検証）: 利用者が書いたスキーマから導出した、最小の構造のスキーマで検証する
-        //    （P27 段C の C-1・意図的差分 D-30。導出と検証の入口は workspace-core の DerivedStructures＝カーネルと同じ部品）。
-        //    型・必須・選択肢・値の形式的なチェック・cases・未定義キー・フェーズ申告を StructuralIssue として受け取り、Issue へ写して返す
-        schema?.let { s ->
-            issues += s.structures.validate(root).map {
-                Issue(it.severity, it.message, it.path, source = CodedChecks.structural(it, docScan.ids))
-            }
-        }
-
-        // 2) ID / 参照の検証 —— 判定コアはカーネル（SemanticEngine.duplicateIdIssues / referenceIssues。
-        //    B-3・RB-06 で単一所有化）。出現の供給は「索引の他文書分＋この文書の現在の状態」の二層（§4.5）で、
-        //    台帳外（indexed=false）の INFO 降格・未保存文書の自己文書参照（ownDocumentId）もカーネルが判定する
-        issues += semantic.SemanticEngine.duplicateIdIssues(docScan).map {
-            Issue(it.severity, it.message, it.path, source = CodedChecks.semantic(it, docScan.ids))
-        }
-        issues += semantic.SemanticEngine.referenceIssues(
-            refs = docScan.refs,
-            ownDocumentId = documentId,
-            occurrences = { tid ->
-                localIds.filter { it.id == tid }.map { it.toScanned() } + indexObj.occurrences(tid).map { it.toScanned() }
-            },
-            hasDocumentId = { indexObj.graph.documents.containsKey(it) },
-            indexed = indexed,
-        ).map { Issue(it.severity, it.message, it.path, source = CodedChecks.semantic(it, docScan.ids)) }
-        // 3) 詳細文書の存在（スキーマの coverage）は、組込み定義体（builtin-definitions/coverage.yaml）が作る検査になった
-        //    （P29 Phase 6 第3段）。不足の指摘・「詳細文書を作成」の対応・詳細文書の側への案内は、下の 3.7 と 6 で
-        //    他の検査と同じ規則で評価する
-        // 3.5〜6) ワークスペースの他の文書も見る検査は、カーネルの validate.WorkspaceChecks が、この文書の分をまとめて返す
-        //      （P27 段B-3・段D の D-a。ARCHITECTURE §4.41・意図的差分 D-33）。ここは、ファイルの座標（Path）の Issue へ写すだけ:
-        //      - エンティティ型の宣言に関わる点検（ID のパターンからの逸脱・重複所有。コードで実装された検査）
-        //      - 定義体の検査（パターン制約・詳細文書の存在・整合・多重度・対象型・非循環・網羅マトリクス・遷移検証・利用者の検査）の、
-        //        報告先・他の出現への案内・値と参照の場所への指摘。母集団に入らないID・型未宣言・未解決参照には黙る（§4.26・CALC-17）
-        //      - テンプレートの健全性（コードで実装された検査）
-        //      - 直せる場所への案内（SP-08。検査の宣言 fixSite）
-        //      宣言のない関係名（グラフ整合検証。R21-01・ARCHITECTURE §4.31）は、今までどおり、エンティティ型の点検の後ろに並べる
-        if (indexed) {
-            val view = indexObj.toKernelView()
+        val validator = DocumentValidator(
+            schemas = allSchemas.map { it.kernel },
+            relations = relations,
+            enforcement = enforcement,
+            ids = view.entries, refs = view.refs, graph = view.graph,
             // 検査の評価の覚え書き: 共有するなら索引のもの、しないならこの検証1回の中だけのもの
-            val session = if (shareEvaluations) view.checkSession else semantic.SemanticCheckSession(view.entries, view.refs, view.graph)
-            val checkSchemas = allSchemas.map { it.toCheckSchema() }
-            val self = schema?.let { s -> allSchemas.indexOfFirst { it === s }.takeIf { it >= 0 }?.let(checkSchemas::get) ?: s.toCheckSchema() }
-            val checks = WorkspaceChecks(
-                checkSchemas, relations, enforcement, view.entries, view.refs, view.graph, session,
-                rel = { d -> relOf(Path.of(d.value)) },
-                tree = { d -> treeOf(Path.of(d.value)) },
-            )
-            val delivery = checks.deliver(view.documentIdOf(file), self, root, docScan.ids, docScan.refs)
-            val (entityLints, rest) = delivery.issues.map { it.toIssue() }
-                .partition { it.source?.coded == true && it.source.rule?.at == CodedChecks.ENTITY }
-            issues += entityLints
-            issues += GraphIntegrity.issues(file, indexObj, relations, enforcement, docScan.ids)
-            issues += rest
-            withheld += delivery.withheld
-        }
-        // 同じ指摘の重複を除く（出どころは見ない——文面・場所・対応が同じなら、利用者には同じ指摘）
-        return ValidationResult(
-            issues.distinctBy { listOf(it.severity, it.message, it.path, it.responses, it.relatedIds) },
-            withheld.distinct(),
+            session = if (shareEvaluations) view.checkSession else semantic.SemanticCheckSession(view.entries, view.refs, view.graph),
+            // 宣言のない関係名の指摘は、索引につき1回だけ求めたものから、この文書の分を取り出す
+            integrity = { view.integrityIssues(semantic.SemanticDeclarations(relations = relations, enforcement = enforcement)) },
+            rel = { d -> relOf(Path.of(d.value)) },
+            tree = { d -> loader(Path.of(d.value)) },
+            hasDocumentId = { indexObj.graph.documents.containsKey(it) },
         )
+        val result = validator.validate(
+            // 呼び出し側の Path の表記が索引と違っても報告先の判定がずれないよう、文書ID は索引の側のものに揃える
+            document = view.documentIdOf(file),
+            schema = schema?.kernel,
+            root = root,
+            parseError = parseError,
+            documentId = root?.let { indexObj.documentIdFor(file, it) } ?: file.toString(),
+            indexed = indexed,
+        )
+        return ValidationResult(result.issues.map { it.toIssue() }, result.withheld)
     }
 
     /**
@@ -250,12 +178,12 @@ object Validator {
         val trees = mutableMapOf<Path, YNode?>()
         val view = indexObj.toKernelView()
         val checks = WorkspaceChecks(
-            allSchemas.map { it.toCheckSchema() }, emptyMap(), EnforcementDef(), view.entries, view.refs, view.graph,
+            allSchemas.map { it.kernel }, emptyMap(), EnforcementDef(), view.entries, view.refs, view.graph,
             semantic.SemanticCheckSession(view.entries, view.refs, view.graph),
             rel = { d -> Path.of(d.value).let { f -> workspace?.let { IdIndex.relPathOf(it, f) } ?: f.toString().replace('\\', '/') } },
             tree = { d -> Path.of(d.value).let { f -> trees.getOrPut(f) { loader(f) } } },
         )
-        return checks.statuses(id, schema.toCheckSchema(), definingRoot)
+        return checks.statuses(id, schema.kernel, definingRoot)
     }
 
     /**
@@ -274,10 +202,6 @@ object Validator {
 
     /** カバレッジの数え上げ対象の表示名（参照ベース=「参照」、出現ベース=「出現」）。UI表示で共用する。 */
 }
-
-/** 検査を配るのに要る情報だけを、カーネルの形へ写す（検査は同じものをそのまま渡す——評価の覚え書きは、同じものかどうかで見分ける）。 */
-internal fun SchemaDef.toCheckSchema(): CheckSchema =
-    CheckSchema(id, kind, match, tree, entities, constraints, checkers)
 
 /** カーネルの指摘を、ファイルの座標（Path）の Issue へ写す。 */
 internal fun CheckIssue.toIssue(): Issue = Issue(

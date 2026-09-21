@@ -179,4 +179,78 @@ class KernelOnlyChecksTest {
         assertEquals(listOf<Any>("mappings", 0, "to"), template.path)
         assertEquals(CodedChecks.TEMPLATE to IssueDelivery.VALUE, template.source.rule?.at to template.source.delivery)
     }
+    @Test
+    fun `文書の1つ1つの検証は 構造 意味 文書へ配る指摘を 決まった並びで返す`() {
+        // P27 段D の D-b（意図的差分 D-34）: 文書1つの検証の全体（validate.DocumentValidator）は、アプリとカーネル側の CLI の共通の入口
+        val ws = load(
+            mapOf(
+                "_schemas/relations.yaml" to relations,
+                "_schemas/concepts.yaml" to concepts(),
+                "concepts.yaml" to "types:\n  - id: VT-TITLE\n  - id: VT-TITLE\n  - id: BAD-1\nfields:\n  - id: FLD-X\n    vtype: VT-GONE\nextra: 1\n",
+            )
+        )
+        val issues = WorkspaceCheckRunner.validateAll(ws).getValue(DocumentId("concepts.yaml")).issues
+        assertEquals(
+            listOf(
+                "(code):structure#0/unknown-key", "(code):id#0/duplicate", "(code):id#0/duplicate",
+                "(code):reference#0/unresolved", "(code):entity#0/id-pattern",
+            ),
+            issues.filter { it.source.coded }.map { "${it.source.rule?.key}/${it.source.kind}" },
+        )
+        // 定義体の検査（組込みのエンティティの整合＝同じ ID を2か所で定義している）は、エンティティ型の点検の後ろに並ぶ
+        assertEquals(listOf(false), issues.drop(5).map { it.source.coded }, issues.drop(5).toString())
+    }
+
+    @Test
+    fun `中身が空の文書は 空のマップとして検証する`() {
+        // アプリの読み込み（YamlIO.parse）と同じ扱い。以前は、カーネルは空の文書を検証せずに飛ばしていた（BACKLOG UX-117）
+        val ws = load(mapOf("_schemas/concepts.yaml" to concepts(), "_schemas/mapping.yaml" to mapping, "mapping.yaml" to "", "concepts.yaml" to ""))
+        val validated = WorkspaceCheckRunner.validateAll(ws)
+        // 必須の項目を持たないスキーマ（mapping・concepts のルートは任意の項目だけ）では、何も出ない
+        assertTrue(validated.isEmpty(), validated.toString())
+        val required = load(
+            mapOf(
+                "_schemas/doc.yaml" to "id: doc\nmatch: \"docs/*.yaml\"\nroot:\n  type: object\n  fields:\n    - { key: id, label: 文書ID, type: id, required: true }",
+                "docs/empty.yaml" to "",
+            )
+        )
+        val issue = WorkspaceCheckRunner.validateAll(required).getValue(DocumentId("docs/empty.yaml")).issues.single()
+        assertEquals(Severity.ERROR to "必須項目「文書ID」が未設定です", issue.severity to issue.message)
+    }
+
+    @Test
+    fun `台帳の外の文書には 文書の中で閉じる検証だけを行い 相手の見つからない参照は情報レベルにする`() {
+        val ws = load(
+            mapOf(
+                ".yde/workspace.yaml" to "ledger: doc",
+                ".yde/schemas/item.yaml" to """
+                    id: item
+                    match: "**/*.yaml"
+                    entity: { type: item, idPattern: "IT-*", defines: true }
+                    root:
+                      type: object
+                      fields:
+                        - key: items
+                          type: array
+                          item:
+                            type: object
+                            fields:
+                              - { key: id, type: id, required: true }
+                              - { key: next, type: ref }
+                """.trimIndent(),
+                "doc/a.yaml" to "items:\n  - id: IT-1\n    next: IT-404\n",
+                "outside/note.yaml" to "items:\n  - id: IT-9\n    next: IT-404\n  - id: IT-9\n  - id: X-1\n",
+            )
+        )
+        assertTrue(ws.schemaErrors.isEmpty(), ws.schemaErrors.toString())
+        val validated = WorkspaceCheckRunner.validateAll(ws)
+        // 台帳の文書: 相手の見つからない参照はエラー
+        assertEquals(listOf(Severity.ERROR), validated.getValue(DocumentId("doc/a.yaml")).issues.map { it.severity })
+        // 台帳の外の文書: ID の重複はエラー・相手の見つからない参照は情報レベル・ワークスペースの他の文書も見る検査（ID のパターンなど）は行わない
+        val outside = validated.getValue(DocumentId("outside/note.yaml")).issues
+        assertEquals(
+            listOf("duplicate" to Severity.ERROR, "duplicate" to Severity.ERROR, "out-of-ledger" to Severity.INFO),
+            outside.map { it.source.kind to it.severity },
+        )
+    }
 }

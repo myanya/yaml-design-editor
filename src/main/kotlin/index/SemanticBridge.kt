@@ -9,7 +9,7 @@ import java.nio.file.Path
 
 /*
  * IdIndex（Path 座標）と semantic-core カーネル（DocumentId 座標）の変換ブリッジ。
- * Phase 6A/6B のシェル（GraphIntegrity / Aspects）が共有する。DocumentId の値はパス文字列。
+ * Phase 6A/6B のシェル（Validator / Aspects）が共有する。DocumentId の値はパス文字列。
  * IdIndex が SemanticEngine の上へ再構成される Phase 7〜8 でこのブリッジごと解消する。
  */
 

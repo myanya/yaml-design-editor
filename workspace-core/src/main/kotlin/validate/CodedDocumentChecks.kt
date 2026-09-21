@@ -10,6 +10,7 @@ import schema.ValueExpr
 import schema.entityFor
 import schema.ownedFieldKeys
 import semantic.ScannedId
+import workspace.WorkspaceSchema
 
 /**
  * コードで実装された検査のうち、ワークスペースの他の文書も見るもの（P27 段D の D-a で、root の Validator から移した。意図的差分 D-33）。
@@ -21,7 +22,7 @@ import semantic.ScannedId
  */
 internal class CodedDocumentChecks(
     /** ワークスペースの全スキーマ（空なら、この文書のスキーマだけで判定する）。 */
-    private val schemas: List<CheckSchema>,
+    private val schemas: List<WorkspaceSchema>,
     private val ids: Map<String, List<ScannedId>>,
     /** 文書のワークスペース相対パス。 */
     private val rel: (DocumentId) -> String,
@@ -32,7 +33,7 @@ internal class CodedDocumentChecks(
      * 重複所有（所有するフィールド）。entity 宣言のあるスキーマの ID だけを判定する（宣言のないスキーマは挙動不変＝非破壊）。
      * 浮遊詳細化・定義競合・型競合は「書かれた場所の数」の検査として、組込み定義体（builtin-definitions/entities.yaml）にある。
      */
-    fun entityIssues(document: DocumentId, schema: CheckSchema?, root: YNode, localIds: List<ScannedId>): List<CheckIssue> {
+    fun entityIssues(document: DocumentId, schema: WorkspaceSchema?, root: YNode, localIds: List<ScannedId>): List<CheckIssue> {
         if (schema == null || schema.entities.isEmpty()) return emptyList()
         val issues = mutableListOf<CheckIssue>()
         fun coded(kind: String, entry: ScannedId) =
@@ -91,7 +92,7 @@ internal class CodedDocumentChecks(
      * 同じ要素の値（この文書の要素と、同じ ID が書かれた他の文書の要素）から解決できるかを、書いたその場で点検する。
      * 参照元の要素（lookup の起点）から来る値は、この文書だけからは分からないため対象にしない（§4.26）
      */
-    fun templateIssues(document: DocumentId, schema: CheckSchema?, root: YNode, localIds: List<ScannedId>): List<CheckIssue> {
+    fun templateIssues(document: DocumentId, schema: WorkspaceSchema?, root: YNode, localIds: List<ScannedId>): List<CheckIssue> {
         val relSelf = rel(document)
         val all = if (schemas.isEmpty()) schema?.constraints.orEmpty().flatMap(::templateReadsOf) else templateReads
         val reads = all.filter { (_, read) -> read.inDoc?.matches(schema?.id, relSelf) == true }.distinct()

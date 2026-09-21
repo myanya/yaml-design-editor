@@ -343,6 +343,9 @@ class KernelCheckLoadingTest {
         write("impl.yaml", "rows:\n  - id: FLD-TITLE\n    type: varchar(100)")
         write("details-design/scr-001.yaml", "id: SCR-001\nmemo: 設計のメモ")
         write("details-memo/scr-001.yaml", "id: SCR-001\nmemo: 補足メモ")
+        // 中身が空の文書（0バイト）: アプリもカーネルも、空のマップとして検証する（意図的差分 D-34）
+        Files.createDirectories(dir.resolve("details-memo"))
+        Files.writeString(dir.resolve("details-memo/empty.yaml"), "")
     }
 
     @Test
@@ -372,24 +375,25 @@ class KernelCheckLoadingTest {
         val app = Workspace.open(dir)
         val kernel = loadKernel()
         assertTrue(kernel.schemaErrors.isEmpty(), kernel.schemaErrors.toString())
-        val delivered = workspace.WorkspaceCheckRunner.deliverAll(kernel)
+        // カーネル側の CLI（workspace validate）と同じ入口: 文書の1つ1つを、アプリと同じ組み立て（validate.DocumentValidator）で検証する
+        // （P27 段D の D-b・意図的差分 D-34）
+        val validated = workspace.WorkspaceCheckRunner.validateAll(kernel)
         val seen = mutableSetOf<String>()
         for (file in app.files) {
             val rel = app.relPath(file)
-            val id = model.DocumentId(rel)
-            val fromApp = app.validateDetailed(rel).issues.map { Triple(it.severity, it.message, it.path) }
-            val fromKernel = kernel.derived.structuralIssues[id].orEmpty().map { Triple(it.severity, it.message, it.path) } +
-                kernel.derived.semantic.issues.filter { it.document == id }.map { Triple(it.severity, it.message, it.path) } +
-                delivered[id]?.issues.orEmpty().map { Triple(it.severity, it.message, it.path) }
-            assertEquals(fromApp.map { it.toString() }.sorted(), fromKernel.distinct().map { it.toString() }.sorted(), "指摘: $rel")
-            // カーネルが文書へ配る分は、並び順と出どころまで一致する
+            val fromApp = app.validateDetailed(rel)
+            val fromKernel = validated[model.DocumentId(rel)]
+            // 重大度・文面・場所・出どころ・並び順まで一致する
             assertEquals(
-                app.validateDetailed(rel).issues.filter { deliveredByKernel(it) }.map { listOf(it.message, it.path, it.source) },
-                delivered[id]?.issues.orEmpty().map { listOf(it.message, it.path, it.source) }.distinct(),
-                "文書へ配る指摘: $rel",
+                fromApp.issues.map { listOf(it.severity, it.message, it.path, it.source) },
+                fromKernel?.issues.orEmpty().map { listOf(it.severity, it.message, it.path, it.source) },
+                "指摘: $rel",
             )
-            seen += fromApp.map { it.second }
+            assertEquals(fromApp.withheld, fromKernel?.withheld.orEmpty(), "保留: $rel")
+            seen += fromApp.issues.map { it.message }
         }
+        // 中身が空の文書にも、必須の項目のエラーが出る
+        assertTrue(validated[model.DocumentId("details-memo/empty.yaml")]?.issues.orEmpty().any { "必須項目" in it.message })
         for (expected in listOf("いずれにも一致しません", "重複所有", "プレースホルダ {maxlen}", "VT-GONE", "重複", "スキーマに定義されていない項目")) {
             assertTrue(seen.any { expected in it }, "$expected が出ていること: $seen")
         }
