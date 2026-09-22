@@ -5,7 +5,7 @@ plugins {
 }
 
 application {
-    mainClass.set("cli.MainKt")
+    mainClass.set("dev.toros.yde.cli.MainKt")
 }
 
 // 相対パス引数をリポジトリルート基準で解決する（計画書§14の実行例に合わせる）

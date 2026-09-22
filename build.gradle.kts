@@ -38,14 +38,14 @@ kotlin {
 // 例: ./gradlew runCli --args="catalog sample-workspace" -q
 tasks.register<JavaExec>("runCli") {
     group = "application"
-    description = "ヘッドレスCLIを実行する（core.CliKt）"
+    description = "ヘッドレスCLIを実行する（dev.toros.yde.app.core.CliKt）"
     classpath = sourceSets["main"].runtimeClasspath
-    mainClass.set("core.CliKt")
+    mainClass.set("dev.toros.yde.app.core.CliKt")
 }
 
 compose.desktop {
     application {
-        mainClass = "MainKt"
+        mainClass = "dev.toros.yde.app.MainKt"
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "yaml-design-editor"

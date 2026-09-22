@@ -1,0 +1,259 @@
+package dev.toros.yde.app.core
+
+import dev.toros.yde.app.index.IdEntry
+import dev.toros.yde.app.index.IdIndex
+import dev.toros.yde.app.index.RefEntry
+import dev.toros.yde.semantic.VirtualBacklink
+import dev.toros.yde.semantic.VirtualBacklinksDef
+import dev.toros.yde.semantic.VirtualCell
+import dev.toros.yde.semantic.VirtualComputedInput
+import dev.toros.yde.semantic.VirtualComputedTrace
+import dev.toros.yde.semantic.VirtualDetailDef
+import dev.toros.yde.semantic.VirtualDocAttachment
+import dev.toros.yde.semantic.VirtualDocAttachmentResolved
+import dev.toros.yde.semantic.VirtualDocBacklinkColumn
+import dev.toros.yde.semantic.VirtualDocBacklinkItem
+import dev.toros.yde.semantic.VirtualDocBacklinkRow
+import dev.toros.yde.semantic.VirtualDocBacklinksDef
+import dev.toros.yde.semantic.VirtualDocSection
+import dev.toros.yde.semantic.VirtualDocSectionResolved
+import dev.toros.yde.semantic.VirtualDocViewDef
+import dev.toros.yde.semantic.VirtualGridDef
+import dev.toros.yde.semantic.VirtualNewRowDef
+import dev.toros.yde.semantic.VirtualRow
+import dev.toros.yde.semantic.VirtualRowsDef
+import dev.toros.yde.semantic.VirtualViewColumn
+import dev.toros.yde.semantic.VirtualViewDefinition
+import dev.toros.yde.semantic.VirtualViewSource
+import dev.toros.yde.semantic.VirtualViews
+import dev.toros.yde.workspace.layout.WorkspaceLayout
+import dev.toros.yde.yaml.model.DocumentId
+import dev.toros.yde.yaml.model.YNode
+import dev.toros.yde.yaml.model.YPath
+import dev.toros.yde.yaml.model.parseYPath
+import dev.toros.yde.yaml.model.pretty
+import dev.toros.yde.semantic.schema.DerivationDef
+import dev.toros.yde.app.schema.Display
+import dev.toros.yde.semantic.schema.FieldDef
+import dev.toros.yde.semantic.schema.FieldType
+import dev.toros.yde.semantic.schema.QueryNodeKind
+import dev.toros.yde.semantic.schema.QuerySpec
+import dev.toros.yde.app.schema.SchemaDef
+import dev.toros.yde.app.schema.SchemaLoader
+import dev.toros.yde.semantic.schema.SchemaScaffold
+import dev.toros.yde.app.schema.effectiveFields
+import dev.toros.yde.app.schema.fieldAt
+import dev.toros.yde.semantic.schema.globToRegex
+import dev.toros.yde.workspace.DocumentScaffold
+import dev.toros.yde.workspace.DocumentScaffolds
+import dev.toros.yde.workspace.ViewDefinitions
+import dev.toros.yde.yaml.YamlIO
+import java.nio.file.Files
+import java.nio.file.Path
+
+/**
+ * ビュー機構（P6 / P14）。宣言的なビュー定義（`_views` 配下のYAML）と、その解決エンジン。
+ * - `kind: grid`（既定）: 複数文書の一部を「行（＝論理ID）×列（＝出現からの相対YPath）」に射影する横断一覧
+ * - `kind: document`（R14-01）: 文書単位の表示合成。適用先文書のフォームを sections（スキーマ駆動フォームの
+ *   射影＋被参照表）の並びとして組み立てる。「内容はスキーマで検証し、表示はビューでコントロールする」の実現形
+ * - ビューは派生表示であり、データを一切持たない（原本主義）。セルは原本上の座標 (file, YPath) に解決される
+ * - 行の集合は索引（IdIndex）から解決する。UI・エージェントはそれぞれの索引（未保存重ね・ステージング
+ *   オーバーレイ）と loader を注入することで、同じ定義から同じ射影を得る
+ * - 詳細文書のスキャフォールド（filePattern）により「一覧から新しい文書を作る」ペア規約を機械化する
+ */
+
+// ビュー定義の型は、カーネルの型（semantic-core の semantic/VirtualViews.kt）の別名（P27 段D の D-c。以前は、同じ形の型を root にも持ち、
+// 解決のたびにカーネルの型へ写していた）。定義文書の座標（source）は、ワークスペース相対の文書ID
+typealias ViewDefinition = VirtualViewDefinition
+typealias ViewSource = VirtualViewSource
+typealias ViewBacklinksDef = VirtualBacklinksDef
+typealias ViewColumn = VirtualViewColumn
+typealias ViewRowsDef = VirtualRowsDef
+typealias ViewDetailDef = VirtualDetailDef
+typealias ViewNewRowDef = VirtualNewRowDef
+typealias ViewDef = VirtualGridDef
+typealias DocViewSection = VirtualDocSection
+typealias DocViewAttachment = VirtualDocAttachment
+typealias DocBacklinkColumn = VirtualDocBacklinkColumn
+typealias DocBacklinksDef = VirtualDocBacklinksDef
+typealias DocViewDef = VirtualDocViewDef
+
+// 解決の結果の型も、カーネルの型の別名（P27 段D の D-d・D-e）。場所は、文書ID（document＝ワークスペース相対パス）と、文書の中のパス。
+// 以前は、ファイルの場所（file: Path）と相対パス（rel）を持つ同じ形の型を root にも持ち、解決のたびに写していた。
+// - ViewRow: 解決済みの1行（＝1論理ID）。detailDocument は詳細出現の文書（なければ null）。key は行の同一性キー（R22-02）
+// - ViewCell: 解決済みのセル。document が null のときは対応する出現がない（値なし）。computed=true は評価済みの導出値（読み取り専用）
+// - ViewBacklink / DocBacklinkItem: 被参照の1件（参照元要素の ID・タイトルと、参照値の場所＝ジャンプ先）
+// - ComputedTrace / ComputedInput: 計算セルの来歴（元値と、プレースホルダごとの解決。R16-04）
+typealias ViewBacklink = VirtualBacklink
+typealias ComputedInput = VirtualComputedInput
+typealias ComputedTrace = VirtualComputedTrace
+typealias ViewCell = VirtualCell
+typealias ViewRow = VirtualRow
+typealias DocBacklinkItem = VirtualDocBacklinkItem
+typealias DocBacklinkRow = VirtualDocBacklinkRow
+typealias DocSectionResolved = VirtualDocSectionResolved
+typealias DocAttachmentResolved = VirtualDocAttachmentResolved
+
+object Views {
+
+    data class LoadResult(val views: List<ViewDef>, val docViews: List<DocViewDef>, val errors: List<String>) {
+        fun view(id: String): ViewDef? = views.firstOrNull { it.id == id }
+
+        fun docView(id: String): DocViewDef? = docViews.firstOrNull { it.id == id }
+
+        /** 文書に適用する文書ビュー。スキーマの match と同じ「定義ファイル名順の先勝ち」。 */
+        fun docViewFor(relPath: String, schemaId: String?): DocViewDef? =
+            docViews.firstOrNull { it.appliesTo(relPath, schemaId) }
+    }
+
+    /**
+     * views ゾーン（`_views/` または `.yde/views/`）からビュー定義を読み込む（エラー収集つき）。
+     * schemas を渡すと、definition 参照の列展開（R14-02）と、ビュー→スキーマの整合検査（リント）が有効になる。
+     * 読み取りとリントの実体は、カーネルの workspace.ViewDefinitions（P27 段D の D-c）。ここは、ファイルを読んで渡す窓口。
+     */
+    fun load(workspace: Path, schemas: List<SchemaDef> = emptyList()): LoadResult {
+        val dir = workspace.resolve(WorkspaceLayout.of(workspace).viewsDir)
+        if (!Files.isDirectory(dir)) return LoadResult(emptyList(), emptyList(), emptyList())
+        val files = Files.list(dir).use { stream ->
+            stream.filter { p ->
+                val n = p.fileName.toString()
+                Files.isRegularFile(p) && (n.endsWith(".yaml") || n.endsWith(".yml"))
+            }.toList()
+        }.sortedBy { it.fileName.toString() }
+        val sources = files.map { file -> documentIdOf(workspace, file) to Files.readString(file) }
+        val catalog = ViewDefinitions.load(sources, schemas.map { it.kernel })
+        return LoadResult(catalog.views, catalog.docViews, catalog.errors)
+    }
+
+    /** ビュー定義文書の座標（ワークスペース相対の文書ID。ワークスペースの外のパスは、そのままの文字列）。 */
+    private fun documentIdOf(workspace: Path?, file: Path): DocumentId {
+        val abs = file.toAbsolutePath().normalize()
+        val base = workspace?.toAbsolutePath()?.normalize()
+        val rel = if (base != null && abs.startsWith(base)) base.relativize(abs) else file
+        return DocumentId(rel.toString().replace('\\', '/'))
+    }
+
+    /**
+     * ビュー定義1件（編集中の未保存ツリーでもよい）の検査（UX-43）。
+     * パース不能はその内容を1件、パースできればリント（ビュー→スキーマの整合検査）の指摘を返す。
+     */
+    fun lintDocument(root: YNode?, source: Path, schemas: List<SchemaDef>): List<String> =
+        ViewDefinitions.lintDocument(root, documentIdOf(null, source), schemas.map { it.kernel })
+
+    /**
+     * ビュー定義1件のパース（kind で分岐）。ステージングの定義ゲート（Staging）からも使う。
+     * schemas は definition 参照の解決に使う（未指定時は definition を使う定義がパースエラーになる）。
+     */
+    fun parseView(raw: Map<*, *>, source: Path, schemas: List<SchemaDef> = emptyList()): ViewDefinition =
+        ViewDefinitions.parseView(raw, documentIdOf(null, source), schemas.map { it.kernel })
+
+    // ---------------------------------------------------------------- 解決
+    // 解決の本体はカーネル（semantic.VirtualViews。RC-01・RC-02）。索引も結果もカーネルの型そのものなので、ここは呼ぶだけの窓口
+
+    /**
+     * ビューを行×セルに解決する。
+     * - index: 行の集合と出現の解決に使う（UIは未保存の編集を重ねた索引、エージェントはステージングを重ねた索引を渡す）
+     * - loader: セル値の読み取り（文書ID → 文書の中身。UIは未保存編集を優先する loader、エージェントはステージングの tree）
+     */
+    fun resolve(view: ViewDef, index: IdIndex, loader: (DocumentId) -> YNode?): List<ViewRow> {
+        val trees = mutableMapOf<DocumentId, YNode?>()
+        return VirtualViews.resolve(view, index.entries, index.refs, index.graph, { it.value }) { d -> trees.getOrPut(d) { loader(d) } }
+    }
+
+    /**
+     * 文書ビューを解決する。fields セクションは描画側（フォーム／テキスト表現）が文書ツリーから直接
+     * 描くため、ここでは backlinks セクションの被参照表だけを座標つきで解決する。
+     * - document: 適用先の文書
+     * - localIds: 未保存編集を含む文書内のID一覧（UIは DocScanner の結果を渡す。null なら索引から引く）
+     * - 被参照は索引（refs）基準＝保存済み状態。行（文書内ID）だけが編集中ツリーへ追随する
+     */
+    fun resolveDocument(
+        view: DocViewDef,
+        document: DocumentId,
+        index: IdIndex,
+        localIds: List<IdEntry>? = null,
+        loader: (DocumentId) -> YNode?,
+    ): List<DocSectionResolved> {
+        val trees = mutableMapOf<DocumentId, YNode?>()
+        return VirtualViews.resolveDocument(view, document, index.entries, index.refs, index.graph, localIds, { it.value }) { d ->
+            trees.getOrPut(d) { loader(d) }
+        }
+    }
+
+    /**
+     * 要素単位アタッチ（R14-03）の解決。各アタッチについて「at パターンに一致し、IDを持つ要素」を
+     * 行にし、その要素のIDへの被参照を解決する（差し込み先の座標は行の path）。
+     */
+    fun resolveAttachments(
+        view: DocViewDef,
+        document: DocumentId,
+        index: IdIndex,
+        localIds: List<IdEntry>? = null,
+        loader: (DocumentId) -> YNode?,
+    ): List<DocAttachmentResolved> {
+        if (view.attachments.isEmpty()) return emptyList()
+        val trees = mutableMapOf<DocumentId, YNode?>()
+        return VirtualViews.resolveAttachments(view, document, index.entries, index.refs, index.graph, localIds, { it.value }) { d ->
+            trees.getOrPut(d) { loader(d) }
+        }
+    }
+
+    // ---------------------------------------------------------------- スキーマフィールドの解決
+
+    /**
+     * データパスに対応するフィールド定義を、スキーマを辿って解決する（セルエディタの型決定に使う）。
+     * 実装は schema 層の `SchemaDef.fieldAt` へ移設した（R23-01。重複所有の検証＝validate 層からも
+     * 使うため。ARCHITECTURE §4.33）。この委譲は既存呼び出しの互換維持。
+     */
+    fun fieldAt(schema: SchemaDef, root: YNode, path: YPath): FieldDef? = schema.fieldAt(root, path)
+
+    // ---------------------------------------------------------------- 詳細文書のスキャフォールド
+    // 実体はカーネル（workspace-core の DocumentScaffolds・semantic-core の SchemaScaffold。P27 段D の D-c）。ここは窓口
+
+    /**
+     * 行のIDから詳細文書の新規作成内容を組み立てる（作成自体は呼び出し側が行う:
+     * UIはファイル書き込み、エージェントは create_document）。
+     */
+    fun detailScaffold(view: ViewDef, id: String, schemas: List<SchemaDef>): DocumentScaffold {
+        val pattern = view.detail?.filePattern
+            ?: error("このビューには detail.filePattern が定義されていません")
+        return scaffold(pattern, id, schemas)
+    }
+
+    /** 詳細スキーマの match（glob）から `{id}` 置換のファイルパターンを導く（R28-05a・UX-97。決められなければ null）。 */
+    fun detailPatternFromMatch(match: String): String? = DocumentScaffolds.detailPatternFromMatch(match)
+
+    /** filePattern（detail / newRow ファイルモード共用）とIDから新規文書の内容を組み立てる。 */
+    fun scaffold(pattern: String, id: String, schemas: List<SchemaDef>): DocumentScaffold =
+        DocumentScaffolds.scaffold(pattern, id, schemas.map { it.kernel })
+
+    /** スキーマ定義から必須フィールドの初期値ツリーを生成する（default 尊重・cases 対応）。 */
+    fun defaultTree(field: FieldDef, schema: SchemaDef): YNode = SchemaScaffold.defaultTree(schema.tree, field)
+
+    // ---------------------------------------------------------------- テキスト表現（エージェント・CLI 共用）
+
+    /**
+     * 解決済みビューの機械可読テキスト。各セルに原本上の座標（file / path）を添えるため、
+     * エージェントはこの出力から直接 apply_patch の対象を決められる。
+     * columns 非null のときは、ラベルが一致する列だけを描画する（コンテキストレシピの列絞り。R19-02）。
+     * index 非null のときは、ref 値のセルに参照先のタイトルを「ID（タイトル）」で注記する（R19-05）。
+     * 描画の本体はカーネル（semantic.VirtualViews.renderText。RC-03）。
+     */
+    fun renderText(view: ViewDef, rows: List<ViewRow>, columns: List<String>? = null, index: IdIndex? = null): String =
+        VirtualViews.renderText(view, rows, columns, ids = index?.entries, rel = { it.value })
+
+    /**
+     * 解決済み文書ビューの機械可読テキスト（エージェント・CLI 共用）。
+     * fields セクションは対象座標のみを示し（内容は read_node 等で座標を指定して読む）、
+     * backlinks セクションは被参照の一覧を参照値の座標つきで列挙する。描画の本体はカーネル（RC-03）。
+     */
+    fun renderDocText(
+        view: DocViewDef,
+        rel: String,
+        sections: List<DocSectionResolved>,
+        attachments: List<DocAttachmentResolved> = emptyList(),
+    ): String = VirtualViews.renderDocText(view, rel, sections, attachments, relOf = { it.value })
+
+    /** セル値の1行要約（本体はカーネル。UI・CLI の既存呼び出しの互換維持）。 */
+    fun cellText(value: YNode?, maxLength: Int = 80): String = VirtualViews.cellText(value, maxLength)
+}

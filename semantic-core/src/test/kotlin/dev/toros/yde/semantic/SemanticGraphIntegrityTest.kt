@@ -1,0 +1,128 @@
+package dev.toros.yde.semantic
+
+import dev.toros.yde.yaml.model.DocumentId
+import dev.toros.yde.semantic.schema.QuerySpec
+import dev.toros.yde.semantic.schema.CardinalityDef
+import dev.toros.yde.semantic.schema.CoverageLevel
+import dev.toros.yde.semantic.schema.EnforcementDef
+import dev.toros.yde.semantic.schema.EntityDecl
+import dev.toros.yde.semantic.schema.RelationDef
+import dev.toros.yde.semantic.schema.SchemaTreeParser
+import dev.toros.yde.yaml.validate.Severity
+import dev.toros.yde.yaml.YamlIO
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+
+/**
+ * グラフ整合検証カーネル（SemanticGraphIntegrity。R21-01）の契約テスト（Phase 6A）。
+ * 扱うのは非循環と、宣言のない関係名（多重度と対象型は組込み定義体が作る検査になった。P29 Phase 6 第2段）。
+ * ルート validate/GraphIntegrityTest が旧経路（IdIndex シェル）との一致を引き続き保証する。
+ */
+class SemanticGraphIntegrityTest {
+
+    private val schema = SchemaTreeParser.parse(
+        """
+        id: node
+        root:
+          type: object
+          fields:
+            - key: id
+              type: id
+            - key: uses
+              type: array
+              item:
+                type: ref
+                relation: uses
+            - key: peer
+              type: ref
+              relation: mystery
+        """.trimIndent(),
+        fallbackId = "node",
+    )
+
+    private val compEntities = listOf(EntityDecl(type = "comp", idPattern = "C-*", defines = true))
+
+    private fun doc(name: String, yaml: String) = SemanticDocument(
+        id = DocumentId(name),
+        root = YamlIO.parse(yaml.trimIndent()),
+        schema = schema,
+        schemaId = "node",
+        entities = compEntities,
+    )
+
+    private fun build(declarations: SemanticDeclarations, vararg docs: SemanticDocument) =
+        SemanticEngine.build(SemanticInput(1, docs.toList(), declarations))
+
+    @Test
+    fun `未宣言のrelationはenforcementで指摘される`() {
+        val snapshot = build(
+            SemanticDeclarations(enforcement = EnforcementDef(undeclaredRelation = CoverageLevel.WARNING)),
+            doc("a.yaml", "id: C-1\npeer: C-2"),
+            doc("b.yaml", "id: C-2"),
+        )
+        val issue = snapshot.issues.single { "mystery" in it.message }
+        assertEquals(Severity.WARNING, issue.severity)
+        assertTrue("宣言されていません" in issue.message, issue.message)
+    }
+
+    @Test
+    fun `多重度と対象型はカーネルの検査プログラムでは判定しない`() {
+        // P29 Phase 6 第2段（意図的差分 D-20）: 多重度と対象型は組込み定義体（builtin-definitions/relations.yaml）が作る
+        // 検査になり、スキーマの constraints と同じ経路で評価される。判定の内容はルート validate/GraphIntegrityTest が保証する
+        val snapshot = build(
+            SemanticDeclarations(
+                relations = mapOf(
+                    "uses" to RelationDef(
+                        name = "uses",
+                        source = listOf("screen"),
+                        target = listOf("comp"),
+                        cardinality = CardinalityDef(outMin = 2, inMax = 0),
+                    )
+                )
+            ),
+            doc("a.yaml", "id: C-1\nuses:\n  - C-2"),
+            doc("b.yaml", "id: C-2"),
+        )
+        assertTrue(snapshot.issues.none { "エンティティ型" in it.message || "参照が" in it.message }, "${snapshot.issues}")
+    }
+
+    @Test
+    fun `acyclic宣言の循環がERRORと経路つきで指摘される`() {
+        val snapshot = build(
+            SemanticDeclarations(relations = mapOf("uses" to RelationDef(name = "uses", acyclic = true))),
+            doc("a.yaml", "id: C-1\nuses:\n  - C-2"),
+            doc("b.yaml", "id: C-2\nuses:\n  - C-1"),
+        )
+        // P29 Phase 6（意図的差分 D-23・D-24）: 非循環は、クエリの「何段でも辿る線」（edge の repeat）と node の same で
+        // 組込み定義体（YAML）に書かれた検査になった。ここでは、カーネルのクエリが循環と道すじを見つけることを確かめる
+        assertTrue(snapshot.issues.none { "循環" in it.message }, "${snapshot.issues}")
+        val spec = QuerySpec.parse(
+            mapOf("match" to listOf(
+                mapOf("node" to mapOf("bind" to "source")),
+                mapOf("edge" to mapOf("relation" to "uses", "bind" to "ref")),
+                mapOf("node" to mapOf("bind" to "target")),
+                mapOf("edge" to mapOf("relation" to "uses", "repeat" to true)),
+                mapOf("node" to mapOf("same" to "source")),
+            )),
+            "spec",
+        )
+        val result = SemanticQuery.run(snapshot.ids, snapshot.refs, snapshot.graph, spec) { null }
+        assertEquals(2, result.rows.size, "循環を構成する両方の参照が見つかる: ${result.rows}")
+        assertEquals(
+            listOf(listOf("C-1", "C-2", "C-1"), listOf("C-2", "C-1", "C-2")),
+            result.rows.map { it.trail },
+        )
+        assertEquals(setOf("a.yaml", "b.yaml"), result.rows.mapNotNull { it.refs["ref"]?.document?.value }.toSet())
+    }
+
+    @Test
+    fun `レジストリが空でenforcementもなければ何も指摘しない`() {
+        val snapshot = build(
+            SemanticDeclarations(),
+            doc("a.yaml", "id: C-1\nuses:\n  - C-2"),
+            doc("b.yaml", "id: C-2"),
+        )
+        assertTrue(snapshot.issues.isEmpty(), "${snapshot.issues}")
+    }
+}

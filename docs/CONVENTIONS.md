@@ -63,7 +63,7 @@
 
 1. **着手前**: 対象領域の FEATURES.md の該当行と ARCHITECTURE.md の該当節を読む。
 2. **実装後**: 上の表に従って影響するドキュメントを更新する（機能追加なら FEATURES.md に行を追加し、README に利用方法を書く）。
-3. コード内の行番号・件数など変わりやすい値はドキュメントに書かない（クラス名・ファイル名で参照する）。
+3. コード内の行番号・件数など変わりやすい値はドキュメントに書かない（クラス名・ファイル名で参照する）。パッケージは接頭辞 `dev.toros.yde.<モジュール>` を省いた短い形で書く（§8-3）。
 
 ## 7. UXフィードバック運用（機能追加の完了報告と指摘の記録）
 
@@ -79,7 +79,7 @@
 
 1. **着手前に台帳を見る**: コア（model / yaml / schema / index / validate / core）へ触る前に [MIGRATION-LEDGER.md](MIGRATION-LEDGER.md) で対象の移行状態を確認する。done（移動済み）のコードは移行先モジュールで変更する。
 2. **移動であって複製ではない**: ファイルはモジュールへ `git mv` し、旧位置に残さない。各ステップでアプリ含む `./gradlew test` を緑に保つ。
-3. **パッケージ改名禁止**: 移行中は既存パッケージ名（model・yaml・schema・index・core・validate）のまま移動する。`dev.toros.yde.*` への改名は移行完了後の独立変更（ファイル分割で新設するコードは最初から新パッケージでよい）。
+3. **パッケージの名前（2026-09-22・UX-119 で改名済み）**: 接頭辞は `dev.toros.yde`、その下にモジュールの根＝yaml-core `yaml` / semantic-core `semantic` / workspace-core `workspace` / cli `cli` / アプリ `app`。モジュール名と同じ名前のパッケージ（`YamlIO`・`SemanticEngine`・`WorkspaceSession`・`AppState`）とアプリの `Main.kt` は根に置き、ほかは根の下にそのまま（`dev.toros.yde.semantic.schema`・`dev.toros.yde.app.ui` など。対応表は ARCHITECTURE §2）。新しいコードもこの規則に従う（同じ裸の名前を複数のモジュールに作らない）。**ドキュメントとコメントでは接頭辞 `dev.toros.yde.<モジュール>` を省いた短い形**（`schema.FieldDef`・`validate/Validator.kt`）で書き、同じ短い名前が複数のモジュールにあるとき（`schema`・`validate`・`core`）はモジュール名を添える。
 4. **依存方向の厳守（ADR-0002）**: `yaml-core ← semantic-core ← workspace-core ← cli／アプリ`。3coreからアプリ・Compose・AI・agent・skillへの依存禁止。yaml-core / semantic-core のmainソースへ `java.nio.file.Path` を持ち込まない（テストがfixture読込に使うのは可）。
 5. **挙動差分は登録が先**: 既存挙動を変える場合、実装より先に [decisions/INTENTIONAL-DIFFS.md](decisions/INTENTIONAL-DIFFS.md) へ行を足す。登録なき挙動差分は移植ミスとして扱う。
 6. **コミットの分類**: 変更は port（移動）／refactor／behavior-change のいずれかに分類し、1コミットに混ぜない（計画書§10.7）。

@@ -1346,3 +1346,13 @@ StructuralSchema → StructuralValidator）③代表的な既存 constraint テ�
 未解決事項:
 完了確認コマンド:
 ```
+
+### UX-119 パッケージ改名（2026-09-22）
+旧実装: 裸のパッケージ名（model・yaml・edit・structure・schema・validate・core・semantic・workspace・cli・index・agent・ai・app・skill・ui）が、移行の規約（§3・CONVENTIONS §8-3）どおりモジュールへ移した後も残り、同じ名前（`schema`・`validate`・`core`）が複数のモジュールにまたがっていた。
+旧テスト: 全テスト（パッケージ名だけが変わる）。
+新しい責務: 接頭辞 `dev.toros.yde`＋モジュールの根（yaml-core `yaml` / semantic-core `semantic` / workspace-core `workspace` / cli `cli` / アプリ `app`）。モジュール名と同じ名前のパッケージとアプリの `Main.kt` は根へ、ほかは根の下にそのまま。1ファイルだけの置き場と `core` は中身の名前に（yaml-core `core`→`yaml.patch`・`schema`→`yaml.structure` へ合流・workspace-core `core`→`workspace.changeset`・`schema`→`workspace.layout`）。対応表は ARCHITECTURE §2。
+新しい公開API: なし（名前だけ。mainClass は `dev.toros.yde.app.MainKt`・`dev.toros.yde.app.core.CliKt`・`dev.toros.yde.cli.MainKt`）。
+維持する挙動: すべて。root の CLI（catalog / validate / readiness / checks / view / outline / read / bundle / traverse / entity / transform ほか）とカーネル側の CLI（workspace validate / catalog / entity / refactor・yaml parse / roundtrip）の出力が、改名前のビルドと完全に一致。全テスト緑。
+意図的に変える挙動: なし。
+未解決事項: なし。モジュールの中の分け直し（例: `semantic` の評価器を graph / query などに割る）は今回の範囲外。
+完了確認コマンド: ./gradlew test

@@ -14,35 +14,40 @@
 
 ## 2. パッケージ構成と依存方向
 
-> **3層コア移行中**（[計画](THREE-LAYER-CORE-MIGRATION-PLAN.md)・[台帳](MIGRATION-LEDGER.md)・[ADR](decisions/README.md)）: 以下のパッケージは段階的にGradleモジュール（`yaml-core` / `semantic-core` / `workspace-core` / `cli`）へ**移動**する。パッケージ名は移行中不変のため本節の論理構成はそのまま有効だが、台帳で done の単位はファイルの物理位置がモジュール側にある（例: `model/`・`yaml/` → `yaml-core/src/`）。モジュール間の依存方向は ADR-0002 を正とする。
+パッケージは **`dev.toros.yde.<モジュール>.*`**（2026-09-22・BACKLOG UX-119。規則は [CONVENTIONS.md](CONVENTIONS.md) §8-3）。モジュール間の依存方向は ADR-0002 を正とする（`yaml-core ← semantic-core ← workspace-core ← cli／アプリ`）。ドキュメントとコメントでは接頭辞 `dev.toros.yde.<モジュール>` を省いて `schema.FieldDef`・`validate/Validator.kt` のように書く（同じ短い名前が複数のモジュールにあるとき＝`schema`・`validate`・`core` は、モジュール名を添える）。
 
-```
-src/main/kotlin/
-├── model/     YNode: YAMLの可変ツリー表現、YPath（パース含む） （依存なし）
-├── yaml/      YamlIO: SnakeYAML との相互変換               （→ model）
-├── schema/    スキーマモデル・ローダ・メタ検証・カバレッジルール・glob・
-│              スキーマ推測・派生スキーマ・配置ポリシー（WorkspaceLayout）（→ model, yaml）
-├── index/     ID索引・参照スキャナ（関係種別つき）          （→ model, schema, yaml）
-├── validate/  スキーマ検証・参照解決・重複・カバレッジ検証  （→ model, schema, index）
-├── core/      ヘッドレス層: ワークスペース操作・パッチ・段階的開示・構造検索・ビュー射影・
-│              ファイル監視・性能計測・CLI（→ model, yaml, schema, index, validate。UI/Compose 非依存）
-├── ai/        AI生成・LLMクライアント: JSON Schema変換・構造化出力・ツール使用チャット（→ model, schema, index）
-├── skill/     入出力変換: skill定義・表形式の読み書き・インポート・エクスポート・
-│              テンプレートパック （→ core ほか。UI/Compose 非依存）
-├── agent/     エージェント実行: 定義・ステージング・ツールセット・カーネル・実行記録・
-│              自動化・メトリクス・評価 （→ core, skill, ai, validate ほか。UI/Compose 非依存）
-├── app/       AppState / OpenDocument: アプリ状態・ファイル操作（→ core とロジック層）
-├── ui/        Composeビュー一式                             （→ 上記すべて）
-└── Main.kt    エントリポイント・ウィンドウ・スタート画面・ツールバー・ステータスバー・パレット（→ app, ui, index。シェルの骨格＝レール・スペースは ui/Shell.kt）
-```
+| モジュール | パッケージ（`dev.toros.yde.` を省略） | 中身 |
+|---|---|---|
+| yaml-core | `yaml` | `YamlIO` / `YamlCodec`: SnakeYAML との相互変換（モジュールの根） |
+| | `yaml.model` | `YNode`・`YPath`・`YDocument`・`DocumentId`（依存なし） |
+| | `yaml.edit` | `YamlOperation`（変更の基礎命令＝内部の正準） |
+| | `yaml.patch` | `PatchOp` / `Patcher`（YPath パッチ＝エージェント・CLI・skill との交換形式） |
+| | `yaml.structure` | 最小の構造のスキーマとその検証（`StructureSchema` / `StructureValidator`）・`UnknownFieldsPolicy` |
+| | `yaml.validate` | `Severity`・`StructuralIssue`・`StructuralIssueKind` |
+| semantic-core | `semantic` | 意味解析の評価器（`SemanticEngine`・走査・グラフ・クエリ・検査の判定・書き換え・変換・仮想文書）（モジュールの根） |
+| | `semantic.schema` | 利用者が書くスキーマの宣言（`FieldDef`・`SchemaTree`・`EntityDecl`・`QuerySpec`・検査の定義・変換定義・ひな型 ほか） |
+| workspace-core | `workspace` | セッション・ストア・読み込み・スキーマ文書の読み取り・検査の定義の読み込み・変更セットの適用・ひな型の文書・ビュー定義・リファクタリングの影響（モジュールの根） |
+| | `workspace.layout` | `WorkspaceLayout`（配置の判定） |
+| | `workspace.changeset` | `ChangeSet` / `FileChange` / `ChangeSets`（変更セット） |
+| | `workspace.validate` | 文書の検証の組み立てと検査の配り方（`DocumentValidator`・`WorkspaceChecks`・`CodedChecks`・`IssueSource` ほか） |
+| cli | `cli` | カーネル側の CLI（`cli.MainKt`） |
+| アプリ（root） | `app` | `Main.kt`（エントリポイント・ウィンドウ・ショートカット・スタート画面）・`AppState` / `OpenDocument`（モジュールの根） |
+| | `app.ui` | Compose の画面一式（シェルの骨格＝レール・スペースは `ui/Shell.kt`） |
+| | `app.core` | ワークスペースの窓口（`Workspace`）・文書キャッシュ・ファイル監視・読み出しモデル（`Traverse` / `Disclosure` / `Search` / `Aspects` / `Views`）・root の CLI（`core/Cli.kt`＝`runCli`。mainClass `dev.toros.yde.app.core.CliKt`）・規模の計測 |
+| | `app.index` | 索引のファサード（`IdIndex`。カーネルの型の別名）・クエリの窓口 |
+| | `app.schema` | `SchemaDef`（カーネルのスキーマにファイルの場所を足す薄い型）・`SchemaLoader`・表示解決 `Display`・ID 候補・スキーマ推測 |
+| | `app.validate` | `Validator`（窓口）・`Readiness` |
+| | `app.ai` | AI 生成・LLM クライアント |
+| | `app.skill` | 入出力変換（skill定義・表形式の読み書き・インポート・エクスポート・テンプレートパック） |
+| | `app.agent` | エージェント実行（定義・ステージング・ツールセット・カーネル・実行記録・自動化・メトリクス・評価） |
 
-**依存ルール**: `model` → `yaml` → `schema` → `index` → `validate` → `core` → `skill` → `agent` → `app` → `ui` の一方向。逆流させない（例外: エントリポイントである `core/Cli.kt` は Main.kt と同様に `skill` / `agent` を呼んでよい）。
+**依存ルール（アプリの中）**: `app.core` → `app.skill` → `app.agent` → `app`（AppState）→ `app.ui` の一方向で、`app.index` / `app.schema` / `app.validate` は `app.core` より下に置く。逆流させない（例外: エントリポイントである `core/Cli.kt` は Main.kt と同様に `skill` / `agent` を呼んでよい）。
 
-- `model` / `yaml` / `schema` / `index` / `validate` / `core` / `agent` / `ai` は **Compose・UI 非依存**（純粋ロジック）。単体テストはこの層に書く。
-- `core` はエージェント・CLI・UI が共通で使うヘッドレス操作の層（ROADMAP P1）。UI（AppState）はファイル走査などの基盤処理を `core` に委譲する。
-- `agent` はP1のAPIをツールとして束ね、マルチターンのエージェント実行を提供する層（ROADMAP P2）。LLMセッションは注入可能で、テストは台本を返す疑似セッションで行う。
-- `app` は Compose の `mutableStateOf` のみに依存（UI部品には依存しない）。
-- `ai` はネットワークを伴うが、リクエスト構築・レスポンス解析は純粋関数として分離しテスト可能にしている。
+- `app.core` / `app.index` / `app.schema` / `app.validate` / `app.agent` / `app.ai` / `app.skill` は **Compose・UI 非依存**（純粋ロジック）。単体テストはこの層に書く。
+- `app.core` はエージェント・CLI・UI が共通で使うヘッドレス操作の層（ROADMAP P1）。UI（AppState）はファイル走査などの基盤処理を `core` に委譲する。
+- `app.agent` はP1のAPIをツールとして束ね、マルチターンのエージェント実行を提供する層（ROADMAP P2）。LLMセッションは注入可能で、テストは台本を返す疑似セッションで行う。
+- `app`（AppState）は Compose の `mutableStateOf` のみに依存（UI部品には依存しない）。
+- `app.ai` はネットワークを伴うが、リクエスト構築・レスポンス解析は純粋関数として分離しテスト可能にしている。
 
 ## 3. 主要クラスと責務
 
@@ -64,7 +69,7 @@ src/main/kotlin/
 | `PhasesDef` / `currentPhaseIndex` / `requiredAt` | schema/Fields.kt・schema/SchemaTree.kt・schema/PhaseProgress.kt（semantic-core。C-2 で yaml-core から移動＝フェーズは意味） | フェーズ機構（§4.15）: スキーマの `phases` 宣言と、文書の現在フェーズ解決・フェーズ考慮の実効必須判定（検証・進捗計算が共有） |
 | `CoverageLevel`（`CoverageRule` は P29 Phase 6 第3段で削除＝coverage は組込み定義体が作る語彙） | schema/Relations.kt | 検査の重大度（warning / error）。旧: スキーマの `coverage`（被参照必須などのトレーサビリティ要件）の定義。`activeFrom` でフェーズ到達までの判定保留を宣言できる |
 | `SchemaLoader` | schema/Schema.kt | schemas ゾーンの読込・パース・スキーマID重複検出。ロードは「パース→リンク→導出」の三段階（§4.23） |
-| `WorkspaceLayout` | schema/WorkspaceLayout.kt | ワークスペースの配置ポリシー（R13-02）: レガシー／`.yde` 構成の判定・ゾーン解決（`zoneOf`）・台帳判定（`inLedger`）・索引除外（`indexExcluded`）を一元化（§4.25） |
+| `WorkspaceLayout` | workspace-core/layout/WorkspaceLayout.kt | ワークスペースの配置ポリシー（R13-02）: レガシー／`.yde` 構成の判定・ゾーン解決（`zoneOf`）・台帳判定（`inLedger`）・索引除外（`indexExcluded`）を一元化（§4.25） |
 | `validateDefinition` / `generateSample` | schema/Schema.kt | メタスキーマ検証の窓口（実体はカーネルの `SchemaDefinitionChecks`）・サンプルデータ生成の窓口（実体は `SchemaScaffold.sample`） |
 | `SchemaScaffold` | semantic-core/schema/SchemaScaffold.kt | 利用者が書いたスキーマの木から、文書の中身を作る: `defaultTree`（新しい文書・新しい要素の初期値＝必須の項目だけ。default を尊重・cases に対応）と `sample`（プレビュー用のサンプル）。P27 段D の D-c で root から移した（§4.47） |
 | `DocumentScaffolds` / `DocumentScaffold` | workspace-core/workspace/DocumentScaffold.kt | 新しい文書のひな型（作り先と初期の内容）: filePattern と ID から、作り先に合うスキーマの初期値と ID を持つ文書を組み立てる・詳細スキーマの match から作り先のパターンを導く。root の `core.Views.scaffold` などは窓口（§4.47） |
@@ -85,8 +90,8 @@ src/main/kotlin/
 | `Query` | index/Query.kt | パターン照合エンジン（R22-01。§4.32）: `QuerySpec` を EntityGraph の隣接上で評価し束縛の表（`QueryResult`）を返す。決定性（起点ID昇順・束縛名辞書順の行比較・決定的打切り）・経路内の再訪禁止・判定保留（未解決参照・型未宣言は黙る）。`neighborIds` はトラバースと共有する隣接1段、`anyMatchFrom` / `startMatches` は `Validator` の制約判定が使う |
 | `Workspace` / `WorkspaceScan` | core/Workspace.kt | ヘッドレスなワークスペース操作（開く・読む・保存・検証・変更セット適用）。相対パス解決はワークスペース外への脱出を拒否。`noteDiskChanges` が保存・外部変更の索引更新方針（増分／スキーマ変更時の全再構築）を一元化し、UI（AppState）もこの経路を通る（R9-02） |
 | `EditBuffer` / `WorkspaceRecords` | core/Documents.kt | 文書キャッシュ層の中核（R9-02）: 複数ドキュメントの再出力と、保存した内容との比較（`EditBuffer`。履歴は持たない——Undo / Redo と dirty の正はカーネルのセッション。ここの dirty は、セッションが文書として扱わないパス用で、聞かれたときにだけ計算する。P27 段D の D-d・意図的差分 D-37）と、一覧レコード収集・一括編集（`WorkspaceRecords`。未保存優先の loader 注入）。`app.OpenDocument` / `AppState` はこの層への委譲＋Compose購読ミラー |
-| `PatchOp` / `Patcher` | yaml-core/core/Patch.kt | YPathパッチ（set/insert/delete/move/rename＝順序・コメント保持のキー改名/reorder＝キー並べ替え。R25-01/02） |
-| `ChangeSet` / `FileChange` / `ChangeSets` | workspace-core/core/ChangeSets.kt | 変更セット（複数の文書への変更の束・baseハッシュ競合検出・YAML解析）。P27 段D の D-b で root から移した（パッケージ名 `core` のまま。§4.46） |
+| `PatchOp` / `Patcher` | yaml-core/patch/Patch.kt | YPathパッチ（set/insert/delete/move/rename＝順序・コメント保持のキー改名/reorder＝キー並べ替え。R25-01/02） |
+| `ChangeSet` / `FileChange` / `ChangeSets` | workspace-core/changeset/ChangeSets.kt | 変更セット（複数の文書への変更の束・baseハッシュ競合検出・YAML解析）。P27 段D の D-b で root から移した（当時はパッケージ名 `core` のまま。UX-119 で `workspace.changeset` へ改名。§4.46） |
 | `ChangeSetApplier` / `ChangeSetApplication` | workspace-core/workspace/ChangeSetApplier.kt | 変更セットの適用の本体（競合の判定 → 適用後の姿を重ねた検証〔`validate.DocumentValidator`〕→ セッションの1つのトランザクション＋保存）。root の `Workspace.apply` / `applyViaSession` と、カーネル側の CLI `workspace apply` が共有する（§4.46・意図的差分 D-35） |
 | `RefactoringImpact` | workspace-core/workspace/RefactoringImpact.kt | リファクタリングの計画のうち、ワークスペースの定義文書を見て決まる分: フィールドの改名へのビュー定義の追随（スカラーの書き換えだけ。全部の静的な解決が改名の対象を指すときだけ・多義は警告）と、宣言節・定義文書の言及の警告／フィールドの削除の言及の警告／文書の移動でビュー定義の対象から外れる警告。`WorkspaceSession.planRefactoring` が計画に含める（P27 段D の D-c で root の `core/RefactorImpact.kt` と `core/Views.kt` から移した。§4.47・意図的差分 D-36。D-10 の解決）。root の `core.RefactorImpact` は窓口 |
 | `FileWatcher` | core/FileWatcher.kt | WatchService による再帰的なファイル監視（R8-03）。「変更があったか」のフラグだけを通知し、差分判定は呼び出し側のスタンプ比較に委ねる。使えない環境では open() が null（ポーリングへフォールバック） |
@@ -374,7 +379,7 @@ UI層（app）を「Compose購読のシェル」に純化し、ロジックを c
 
 ワークスペースの物理配置と機能の適用範囲を分離する機構（R13-01〜03）。守るべき不変条件:
 
-- **配置の判定は `schema/WorkspaceLayout` に一元化**: 「どこが定義・記録ディレクトリか（`zoneOf` / `isReserved`）」「どこが台帳か（`inLedger`）」「索引から除外するか（`indexExcluded`）」の判定を単一のポリシーオブジェクトが持つ。従来 `startsWith("_")` の直書きが兼ねていた3つの意味（索引除外・書込可否・スキーマ適用の特例）はこの述語群に分解されている。**機能側でプレフィックスやディレクトリ名の直書き判定を書かない**。配置が core でなく schema パッケージなのは `SchemaLoader` / `BuiltinSchemas` が使うため（§4.22 の Display と同じ理由）。
+- **配置の判定は `layout/WorkspaceLayout`（workspace-core）に一元化**: 「どこが定義・記録ディレクトリか（`zoneOf` / `isReserved`）」「どこが台帳か（`inLedger`）」「索引から除外するか（`indexExcluded`）」の判定を単一のポリシーオブジェクトが持つ。従来 `startsWith("_")` の直書きが兼ねていた3つの意味（索引除外・書込可否・スキーマ適用の特例）はこの述語群に分解されている。**機能側でプレフィックスやディレクトリ名の直書き判定を書かない**。配置が core でなく schema パッケージなのは `SchemaLoader` / `BuiltinSchemas` が使うため（§4.22 の Display と同じ理由）。
 - **2つの構成モード**: `.yde/` ディレクトリが無ければ**レガシー構成**（ルート直下の `_schemas` 等7予約ディレクトリ・台帳=ワークスペース全体＝従来動作そのまま。既存テスト・既存ワークスペースの互換はこのモードが保証する）。あれば **`.yde` 構成**（定義・記録は `.yde/schemas` 等アンダースコア無しのサブディレクトリ・`.yde/workspace.yaml` の `ledger:`（文字列またはリスト）で台帳ディレクトリを宣言。未宣言なら全体）。判定は `WorkspaceLayout.of(root)`。`Workspace` が保持し `refresh()` で再評価する。`.yde/workspace.yaml` の変更は走査規則が変わるためスキーマ変更と同じ扱い（`noteDiskChanges` が全再構築へ振り分け）。レガシー→`.yde` の移行は CLI `migrate`（ディレクトリ移動＋構成ファイル作成のみ。文書・定義の中身は書き換えない）。
 - **エディタ層／台帳層の分割基準は「単一ファイルで完結するか」**: スキーマ適用（match→フォーム・単文書検証・表示解決）は1文書とスキーマ定義で完結するため**エディタ層**＝台帳外のYAMLにも効く。`match` は常に**ワークスペース相対**の単一座標系（root相対にしない。スキーマが台帳外にも当たるため）。**台帳層**（ID索引・参照解決・バックリンク・カバレッジ・ビュー・エージェント・自動化・入出力skill・検証の集計）は `inLedger` のファイルだけを対象にする。`ref` の解決・未解決検出は索引前提のため、台帳外の文書では未解決参照を情報レベルへ降格する（`Validator.validate` の `indexed` フラグ。呼び出し側が `layout.inLedger` を渡す）。
 - **走査は台帳＋構成ディレクトリのみ**: `WorkspaceScan` は隠しディレクトリを枝刈りし（構成ディレクトリ `.yde` だけ例外）、`ledger` 宣言時は台帳外を含めない。索引・外部変更スタンプ・自動化トリガ・カタログはこの走査に載るものだけが対象。台帳外YAMLの表示・編集はUI側の別走査（`AppState.editorFiles`）で行い、ファイルツリーで視覚的に区別する（開いたときに match 解決＝遅延。大量のYAMLを持つリポジトリでも一括走査コストに乗せない）。
@@ -584,7 +589,7 @@ limit: 100                               # 既定 100（total は打切り前の
 **警告に留める消費者（自動書換しない）**: スキーマ内の宣言節（consistency / constraints / coverage / derive）・定義文書（`_activities` / `_agents` / `_skills` / `_evals`）の言及・多義な列パス・アタッチ（`at`）・skill の写像。語境界つきの近似スキャンで**言及箇所を列挙**し、対応判断は人間に委ねる。フィールドパス・関係名・スキーマIDを参照する機能を増やすときは、この「書換 or 警告」のどちらに載せるかを必ず決めること（§6 の変更箇所リストと同じ役割）。なお relation / schemaId の改名は YAML キー基準の横断書換（`relation:`・`schemaId(s)`・修飾 `$ref` 等）で、レジストリ・スキーマ・ビューを対で書き換える。
 **計画生成の共有基盤（R29-07。P29 Phase 4）**: 高水準操作（スキーマ・リファクタリング12操作・エンティティ操作）は、Core Calculus の Rewrite＝「場所の列挙（Query）× 絞り込みと中止条件（Predicate）× 場所ごとの操作（Edit*）」の形で書かれ、列挙と集積は `semantic/Rewrite.kt`（`SemanticRewrite`）の単一実装を通る——`walkDocument`（スキーマ誘導の文書走査。object へ入った時点／値のあるフィールドごとの2つの訪問点。cases は実効フィールドだけを辿る）・`reach`（対象フィールドへ到達する文書スキーマとその文書）・`forEachSchemaEntry`（書き換え可能な全スキーマ文書の全エントリ）・`rewriteDocuments`（基本戦略: 全一致を列挙→文書ごとの操作列。件数集計つき）・`PlanOps`（文書ID順の集積。エンティティ操作は削除を後ろへ寄せる）。各操作に残るのは「1文書分の規則」と事前条件・スキーマ側の追随・サマリだけ。**中止条件**（改名先キーの衝突・移動先の既存値・変換できない値）に当たった文書は空の操作列を返して理由を集め、全文書の評価後にまとめて中止する（部分計画を返さない）。**基本形に落とさないもの**: フィールド移動（中間生成→Move→空親の削除の列。`moveDataOps`）・定義の抽出／インライン化・型変換のスキーマ側は、操作列の組み立て自体に意味がある**戦略**として操作側が持つ（列挙器だけ共有）。**新しい変更操作を足すときは、走査や文書ループを書かずにこの基盤の列挙器と基本戦略を使う**。計画の決定性（同じ入力から操作順まで同じ計画）は `RefactoringPlanGoldenTest`（workspace-core。全操作＋拒否ケースの計画を正準テキストで固定。意図した変更時のみ `./gradlew :workspace-core:test -DupdateGolden=true` で期待値を更新し差分をレビュー）が守る。写像の全体と判断の記録は `specs/20-semantics/calculus/rewrite-model.yaml`。
 
-**変更語彙の2層（R29-08。RP-02）**: 変更命令の基礎語彙は6種（Set / Insert / Delete / Move / RenameKey / ReorderKeys）で、**内部の正準は型付き操作 `edit.YamlOperation`（逆操作つき）＋ `WorkspaceTransaction`（版の検査・履歴・原子適用）**。`core.PatchOp` と変更セット（`core.ChangeSet`。基準ハッシュで衝突検出）は同じ基礎命令の**外部との交換形式**（エージェントの `apply_patch`・CLI・skill の取込）で、適用の入口（`Workspace.applyInternal`／エージェントのステージング）でだけ解釈される。**内部で計画を作るコードは PatchOp を作らない**（ビュー追随 `Views.fieldRenameImpact` も型付き操作で生成し、計画へ変換なしで合成する）。変更セット型の workspace-core への再配置は P27 と合流。
+**変更語彙の2層（R29-08。RP-02）**: 変更命令の基礎語彙は6種（Set / Insert / Delete / Move / RenameKey / ReorderKeys）で、**内部の正準は型付き操作 `edit.YamlOperation`（逆操作つき）＋ `WorkspaceTransaction`（版の検査・履歴・原子適用）**。`patch.PatchOp` と変更セット（`changeset.ChangeSet`。基準ハッシュで衝突検出）は同じ基礎命令の**外部との交換形式**（エージェントの `apply_patch`・CLI・skill の取込）で、適用の入口（`Workspace.applyInternal`／エージェントのステージング）でだけ解釈される。**内部で計画を作るコードは PatchOp を作らない**（ビュー追随 `Views.fieldRenameImpact` も型付き操作で生成し、計画へ変換なしで合成する）。変更セット型の workspace-core への再配置は P27 と合流。
 
 **文書の新規作成（R29-09。RP-03・D-18）**: 新規 YAML・ビューの詳細文書／新規行ファイル・カバレッジ指摘からの詳細文書・スキーマ推測は、`AppState.createDocumentFile` の単一経路——セッションへ `CreateDocument` 1件のトランザクションを適用→保存→`refreshAfterSessionWrite`（`reload` しない）。作成は履歴に入り Ctrl+Z で取り消せ、それまでの履歴も保たれる（`reload` はセッションを開き直すため履歴を失う）。**文書の作成・削除を含む履歴の Undo / Redo は `afterHistoryStep` がファイルの有無までその場で確定する**（対象文書だけ `session.save`）——内容の編集の Undo は「未保存●」に留めて保存で確定できるが、作成の取り消し（文書が消える）には保存の手段が無く、削除予約のままではディスクとセッションが食い違うため。セッションが文書として扱わないパス（隠しパス等）とセッション不在時だけ、従来の直接書込＋`reload` へフォールバックする。**新しい「文書を作る」機能はこの経路を通す**（`Files.writeString` ＋ `reload()` を書かない）。
 ### 4.36 定義層: 検査の書き方の3段と組込み定義体（P29 Phase 6）
@@ -693,7 +698,7 @@ Core Calculus の本来の目的（[CORE-CALCULUS.md](CORE-CALCULUS.md) §25）�
 
 検査の定義を読み込む実装は、以前は root の `SchemaLoader` だけが持っていた。カーネルのスキーマ読み込み（`WorkspaceReader.parseSchemas`）は構造と意味宣言（entity・relations）しか読まず、定義体で書かれた検査を知らなかった（カーネル側の CLI が検査を実行できない原因＝BACKLOG UX-115。利用者の語彙のキーが警告になる UX-105 も同じ根）。
 
-- **`workspace.CheckCatalog`**（workspace-core）: ①組込み定義体（`builtinLibrary` / `builtinChecks` / `builtinRules` / `builtinCheckers`）②ワークスペースの定義の一式の収集（`libraryOf`＝組込み＋全スキーマ文書の functions / vocabulary）③スキーマ1件の検査の展開とパース（`checksOf`。検査の出どころ `RuleOrigin` つき）④展開後の検査のパース（`rulesOf`。派生スキーマが引き継ぐ検査にも使う）⑤語彙のキーをメタスキーマの「知っている項目」へ足す（`withVocabularyKeys`）。語彙の再展開に使う `VocabularySource` は semantic-core へ移した（パッケージ名 `schema` のまま）。
+- **`workspace.CheckCatalog`**（workspace-core）: ①組込み定義体（`builtinLibrary` / `builtinChecks` / `builtinRules` / `builtinCheckers`）②ワークスペースの定義の一式の収集（`libraryOf`＝組込み＋全スキーマ文書の functions / vocabulary）③スキーマ1件の検査の展開とパース（`checksOf`。検査の出どころ `RuleOrigin` つき）④展開後の検査のパース（`rulesOf`。派生スキーマが引き継ぐ検査にも使う）⑤語彙のキーをメタスキーマの「知っている項目」へ足す（`withVocabularyKeys`）。語彙の再展開に使う `VocabularySource` は semantic-core へ移した（パッケージ名 `schema` のまま。UX-119 後は `semantic.schema`）。
 - **root の `SchemaLoader`** は、これらを呼ぶだけになった（`builtinLibrary` などの名前は、呼び出し側のために残している）。**カーネルの `WorkspaceReader`** は、スキーマ文書の生の値から先に定義の一式を集め、スキーマごとに検査を展開して `WorkspaceSchema.constraints` / `checkers` / `expandedChecks` に持つ。組込みのメタスキーマへの語彙のキーの合成は `buildSchemas` が行う（アプリ・cli のどちらのセッションにも効く）。
 - **確かめ方**: `KernelCheckLoadingTest` が、合成ワークスペースのスキーマについて、検査の中身と出どころが root とカーネルで完全に一致することを確かめる。
 
@@ -705,7 +710,7 @@ Core Calculus の本来の目的（[CORE-CALCULUS.md](CORE-CALCULUS.md) §25）�
 
 - **入力**: ワークスペースの全スキーマ（カーネルの `WorkspaceSchema` をそのまま渡す。以前あった、検査を配るのに要る情報だけの型 `CheckSchema` は、root の `SchemaDef` が `WorkspaceSchema` を包む薄い型になったため、P27 段D の D-b で無くした。検査は同じものをそのまま渡す——評価の覚え書きは、同じものかどうかで見分けるため）・関係レジストリと強制スイッチ・走査結果（ids / refs / グラフ）・評価の覚え書き・文書の相対パスと中身を返す関数。
 - **`deliver(document, schema, root, localIds, localRefs)`**: 文書1つへ配る（`CheckDelivery`＝指摘 `CheckIssue` と、判定を保留した検査 `WithheldCheck`）。配り方の規則——報告先（`REPORT`。スキーマの検査は、宣言したスキーマの文書の中で決める／特定のスキーマに属さない検査は、定義出現か先頭の出現）・他の出現への案内（`NOTICE`）・値の場所（`VALUE`）・参照の場所（`REF`）・直せる場所への案内（`FIX_SITE`）——と、文面のひな型の差し込み・エラー時の対応の導出（`CheckResponse`＝移動・値の書き込み・文書の作成。参照を書き足せそうな文書の導出 `referenceSources` も含む）・専用チェッカーの文面が、ここに集まる。聞かれた文書の分だけを評価する（アプリの1文字ごとの検証を重くしないため。§4.39）。`statuses` は検査の状況（`RuleStatus`）。
-- **型の置き場**: `IssueDelivery`・`IssueSource`・`WithheldCheck`・`RuleStatus` は、パッケージ名 `validate` のまま workspace-core へ移した。エラー時の対応は、カーネルでは文書ID の `CheckResponse`、アプリでは `Path` の `IssueResponse`（`CheckIssue.toIssue` が写す）。
+- **型の置き場**: `IssueDelivery`・`IssueSource`・`WithheldCheck`・`RuleStatus` は、パッケージ名 `validate` のまま workspace-core へ移した（UX-119 後は `workspace.validate`）。エラー時の対応は、カーネルでは文書ID の `CheckResponse`、アプリでは `Path` の `IssueResponse`（`CheckIssue.toIssue` が写す）。
 - **root の `Validator`** は、構造の検証（導出した最小の構造のスキーマで行う＝§4.43）・ID と参照の検証を、カーネルの部品を呼んで行い、ワークスペースの他の文書も見る検査（定義体の検査と、ID のパターンからの逸脱・重複所有・テンプレートの健全性＝§4.44）は `WorkspaceChecks.deliver` の結果を `Issue` へ写すだけ。呼び出し側の `Path` の表記が索引と違っても報告先の判定がずれないよう、文書ID は索引の側のものに揃える（`KernelIndexView.documentIdOf`）。
 - **カーネル側の CLI**（`workspace validate`。意図的差分 D-28）: `workspace.WorkspaceCheckRunner.deliverAll` が、読み取ったワークスペースの全文書へ配る。出力に「検査」の区分と保留が加わり、検査のエラーがあれば終了コード 3。派生状態の導出（`WorkspaceReader.derive`）には含めない——導出はセッションの編集のたびに走るため。
 - **確かめ方**: コミット済みの版をクリーンビルドして比べ、テンプレート・サンプル・壊した合成ワークスペース（違反21件・保留1件）の `validate --sources` と `readiness` が完全に一致。`KernelCheckLoadingTest` が、壊した合成ワークスペースで、アプリ側の指摘（出どころを持つもの）と保留が、カーネル側の結果と文書ごとに一致することを確かめる。
@@ -756,7 +761,7 @@ Core Calculus の本来の目的（[CORE-CALCULUS.md](CORE-CALCULUS.md) §25）�
 - **フェーズ**: `DerivedStructures` が文書のフェーズを読み、到達したフェーズの一覧を変換へ渡す。導出した構造のスキーマは、文書のフェーズごとに1つ（覚えておく）。定義されていないフェーズの申告の警告も、フェーズの解釈なので、ここ（意味の側）が出す。yaml-core はフェーズを知らない。
 - **速さ**: 導出はスキーマごと・フェーズごとに1回だけ（数十ミリ秒の固定費）。文書ごとの検証の時間は、以前と変わらない（`bench` で同じ条件の比較をして確かめた）。
 - **確かめ方**: テンプレート・サンプル・specs・合成ワークスペース・共通 fixture の全221文書（スキーマ文書へのメタスキーマの適用を含む）で、旧い検証と指摘が並び順まで一致。`StructureParityTest`（合成ワークスペースの全文書）・`StructuralDerivationTransformTest`（導出した形・値のチェック・フェーズ・他のモジュールの定義・D-30 の違い）・yaml-core `StructureValidatorTest`。
-- **利用者が書く木の置き場（段C の C-2。2026-09-21）**: 利用者が書くスキーマの木（`FieldDef`・`SchemaTree`＝当時の名前は `StructuralSchema`）とその読み取り（`SchemaTreeParser`）・`cases` の合成・フェーズの読み取りと記入の進み具合（`PhaseProgress`）を、パッケージ名 `schema` のまま yaml-core から **semantic-core へ移した**（移動であって複製ではない。利用する側のコードは1行も変わらない）。旧い検証 `StructuralValidator` は削除した（そのテストは、期待値を変えずに、導出した経路を通す形で workspace-core へ移した）。**yaml-core に残るのは、YAML の項とパス・変更の基礎命令・最小の構造のスキーマとその検証・未定義の項目の扱い（`UnknownFieldsPolicy`）だけ**——ID・参照・関係・フェーズ・表示のヒントという語は、yaml-core のコードに1つも無い。走査・フォーム・AI 生成などは、今までどおり利用者の木を読む。この時点の名前 `StructuralSchema` は移行時のままで、実体は「利用者が書くスキーマの項目の木」（C-3b で `SchemaTree` に改名した）。
+- **利用者が書く木の置き場（段C の C-2。2026-09-21）**: 利用者が書くスキーマの木（`FieldDef`・`SchemaTree`＝当時の名前は `StructuralSchema`）とその読み取り（`SchemaTreeParser`）・`cases` の合成・フェーズの読み取りと記入の進み具合（`PhaseProgress`）を、パッケージ名 `schema` のまま yaml-core から **semantic-core へ移した**（UX-119 後は `semantic.schema`）（移動であって複製ではない。利用する側のコードは1行も変わらない）。旧い検証 `StructuralValidator` は削除した（そのテストは、期待値を変えずに、導出した経路を通す形で workspace-core へ移した）。**yaml-core に残るのは、YAML の項とパス・変更の基礎命令・最小の構造のスキーマとその検証・未定義の項目の扱い（`UnknownFieldsPolicy`）だけ**——ID・参照・関係・フェーズ・表示のヒントという語は、yaml-core のコードに1つも無い。走査・フォーム・AI 生成などは、今までどおり利用者の木を読む。この時点の名前 `StructuralSchema` は移行時のままで、実体は「利用者が書くスキーマの項目の木」（C-3b で `SchemaTree` に改名した）。
 - **スキーマの型と読み込みの一本化・表示の区画・名前の整理（段C の C-3b。2026-09-21。意図的差分 D-32）**: 
   - **スキーマを読むのは、カーネルの経路だけ**: root の `Workspace.refresh` は、開いたセッション（カーネルの `WorkspaceReader`＝スキーマ文書・組込みスキーマ・derive の展開）が読んだ結果を `SchemaLoader.fromKernel` へ渡し、アプリの形（`SchemaDef` と、関係レジストリの集約）にする。以前は root の `SchemaLoader` がファイルからもう一度読んでいた。組込みスキーマの2経路の読み取り（root の `BuiltinSchemas` とカーネルの `BuiltinSchemaResources`）と、派生スキーマの root 側の包装（`DerivedSchemas`）も、カーネルの1経路になった。
   - **`SchemaDef` は、カーネルの `WorkspaceSchema` を包む薄い型**: スキーマの中身の原本は `WorkspaceSchema`（名前・説明・関係レジストリの宣言・検査の定義も持つようにした）で、`SchemaDef` が足すのは、スキーマ定義文書のファイルの場所だけ。項目の木（`tree`）も、導出した構造のスキーマ（`structures`）も、カーネルの型のものをそのまま使う（二重に持たない）。data class ではない——同じかどうかは、同じものかどうかで見分ける。
@@ -791,7 +796,7 @@ Core Calculus の本来の目的（[CORE-CALCULUS.md](CORE-CALCULUS.md) §25）�
 
 変更セット（エージェント・CLI・skill との交換の形式。§4.35 の変更語彙の2層）の型と、その適用は、root にだけあった。root の `Workspace.apply` はファイルへ直接書き、アプリの承認の経路（`applyViaSession`）だけがセッション経由で書いていた。カーネル側の CLI には、変更セットの適用が無かった（移行後リファクタリングの B-4 で「意図して残す運用コマンド」に分類していた残り）。これをカーネルへ移した（移動であって複製ではない。意図的差分 D-35）。
 
-- **型と読み取り**: `ChangeSet` / `FileChange` / `ChangeSets`（YAML の読み取り・競合の検出に使うハッシュ）を、パッケージ名 `core` のまま workspace-core へ移した（単一の文書への操作 `PatchOp` / `Patcher` は、もともと yaml-core）。
+- **型と読み取り**: `ChangeSet` / `FileChange` / `ChangeSets`（YAML の読み取り・競合の検出に使うハッシュ）を、パッケージ名 `core` のまま workspace-core へ移した（UX-119 後は `workspace.changeset`）（単一の文書への操作 `PatchOp` / `Patcher` は、もともと yaml-core）。
 - **適用の本体 `workspace.ChangeSetApplier.apply(base, changeSet, dryRun, requireValid, target)`**: ①変更ごとに、ストアの内容（`WorkspaceSession.storedText`）に対して競合を判定し（`create` は既にあれば競合・`base` のハッシュの食い違いは競合）、メモリの上で操作を当てる。1件でも失敗すれば何も書かない ②適用後の姿を重ねた派生状態（`base.derivedWith`）の上で、変更した文書を、アプリの検証と同じ組み立て（`validate.DocumentValidator`＝§4.45）で検証する。他の文書の中身も、適用後の姿で読む ③`requireValid` なら、検証のエラーが残るときも書かない ④書き込みは、`target` のセッションの1つのトランザクション（`CreateDocument` / `ReplaceDocument`）＋保存（ストアの atomic な書き込み）。Undo 1回で全部の文書が戻る。
 - **`base` と `target`**: `base` は、競合の判定と検証の基準にするセッション（ストアの内容を映したもの）。`target` は書き込み先。カーネル側の CLI と、root の `Workspace.apply` は、同じセッションを両方に使う。アプリの承認の経路（`applyViaSession`）は、`base` にディスクを映した内部のセッション、`target` に編集用のセッションを渡す——検証の基準は、今までどおりディスクの内容（編集用のセッションの未保存の編集は、検証に混ぜない）。
 - **root の `Workspace.apply` / `applyViaSession`** は、カーネルの適用を呼び、結果をファイルの座標（`FileChangeResult`・`Issue`。文書ID は、ワークスペースのルートから解決する）へ写して、書いたファイルの分だけ索引を更新するだけ。
