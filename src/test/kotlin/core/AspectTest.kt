@@ -119,7 +119,7 @@ class AspectTest {
     }
 
     private fun compose(ws: Workspace, id: String): EntityComposite? =
-        Aspects.compose(id, ws.index, ws.schemas, ws.entityTypes, diskLoader)
+        Aspects.compose(id, ws.index, ws.schemas, ws.entityTypes, ws::treeOf)
 
     @Test
     fun 合成は定義出現とアスペクト宣言順に並び座標と表示名を持つ() {
@@ -143,10 +143,10 @@ class AspectTest {
         val name = composite.sections[0].fields.first { it.key == "name" }
         assertEquals("ログイン", scalarText(name.value))
         assertEquals("画面名", name.label)
-        assertEquals(dir.resolve("screens/index.yaml"), name.file)
+        assertEquals(model.DocumentId("screens/index.yaml"), name.document)
         assertEquals(listOf("screens", 0, "name"), name.path)
         // スキーマなし出現は合成に混ぜず unassigned へ
-        assertEquals(listOf(dir.resolve("notes/free.yaml")), composite.unassigned.map { it.file })
+        assertEquals(listOf(model.DocumentId("notes/free.yaml")), composite.unassigned.map { it.document })
         // 決定性: 同じ入力からは同じ合成（YNode は同値比較を持たないため構造指紋で比較する）
         fun fingerprint(c: EntityComposite) = c.sections.map { s ->
             Triple(s.aspect, s.ownedKeys, s.fields.map { f -> Triple(f.key, f.path, scalarText(f.value)) })

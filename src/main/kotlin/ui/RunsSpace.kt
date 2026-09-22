@@ -780,7 +780,11 @@ internal fun ReviewContent(
                 else staging.applyOps(change.file, change.ops)
             }
             if (staging.isEmpty()) emptyList() else staging.validateAll().flatMap { (rel, issues) -> issues.map { rel to it } }
-        }.getOrElse { listOf("(全体)" to validate.Issue(Severity.ERROR, "検証できません: ${it.message}", emptyList())) }
+        }.getOrElse {
+            // 検証そのものが失敗した（コードで実装された検査の指摘として、出どころを付ける）
+            val source = validate.CodedChecks.source("validation", "failed", validate.IssueDelivery.REPORT, emptyList(), emptyList())
+            listOf("(全体)" to validate.Issue(Severity.ERROR, "検証できません: ${it.message}", emptyList(), source = source))
+        }
     }
 
     Column(Modifier.fillMaxWidth()) {

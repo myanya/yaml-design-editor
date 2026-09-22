@@ -111,8 +111,8 @@ object Foreach {
         if (def.where == "detail-missing" && view.detail == null) {
             error("ビュー「$viewId」に detail 定義がないため where: detail-missing は使えません")
         }
-        return Views.resolve(view, ws.root, ws.index)
-            .filter { def.where == "all" || it.detailRel == null }
+        return Views.resolve(view, ws.index, ws::treeOf)
+            .filter { def.where == "all" || it.detailDocument?.value == null }
             .map { row ->
                 Candidate(
                     key = row.id,
@@ -185,10 +185,10 @@ object Foreach {
      */
     private fun fromQuery(ws: Workspace, def: ForeachDef): List<Candidate> {
         val spec = def.query ?: error("foreach.query が必要です")
-        return index.Query.run(ws.index, spec).rows.map { row ->
+        return index.Query.run(ws.index, spec, ws::treeOf).rows.map { row ->
             val first = row.bindings.entries.firstOrNull()
             val bindValues = row.bindings.entries.flatMap { (name, node) ->
-                listOf(name to node.id, "${name}_file" to node.file?.let { ws.relPath(it) })
+                listOf(name to node.id, "${name}_file" to node.document?.value)
             }
             Candidate(
                 key = row.bindings.entries.joinToString(" ") { (k, v) -> "$k=${v.id}" },
@@ -198,7 +198,7 @@ object Foreach {
                 values = mapOf(
                     "id" to first?.value?.id,
                     "title" to first?.value?.title,
-                    "file" to first?.value?.file?.let { ws.relPath(it) },
+                    "file" to first?.value?.document?.value,
                 ) + bindValues,
             )
         }
@@ -220,7 +220,7 @@ object Foreach {
                     values = mapOf(
                         "id" to id,
                         "title" to occurrences.firstNotNullOfOrNull { it.title },
-                        "file" to occurrences.firstOrNull()?.let { ws.relPath(it.file) },
+                        "file" to occurrences.firstOrNull()?.let { it.document.value },
                     ),
                 )
             }

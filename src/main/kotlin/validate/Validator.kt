@@ -2,70 +2,37 @@ package validate
 
 import index.IdEntry
 import index.IdIndex
-import index.toKernelView
+import model.DocumentId
 import model.YNode
-import model.YPath
 import schema.EnforcementDef
 import schema.RelationDef
 import schema.SchemaDef
 import schema.phaseProgress
 import schema.phaseSummaryText
-import yaml.YamlIO
-import java.nio.file.Files
-import java.nio.file.Path
 
 /**
- * エラー時の対応（SP-09。P29 Phase 6 第1段）: 対応の種類は閉じた一覧で、どれを・どのラベルで示すかは
- * 検査の定義（YAML）が宣言する。UIは指摘のメニューに、宣言された順で並べる。
+ * 検証の指摘・エラー時の対応・文書1つの検証の結果は、カーネルの型（workspace-core の validate パッケージ）の別名
+ * （P27 段D の D-d・D-e。以前は、ファイルの場所を Path で持つ同じ形の型を root にも持ち、検証のたびに写していた）。
+ * - Issue: 重大度・文面・場所（文書の中のパス）・エラー時の対応・関連する ID・出どころ（IssueSource）
+ * - IssueResponse（SP-09）: 対応の種類は閉じた一覧（Jump＝その場所へ移動・ApplyValue＝値を書き込む・CreateDetail＝詳細文書を作る）で、
+ *   どれを・どのラベルで示すかは、検査の定義（YAML）が宣言する。Jump の行き先は文書ID（document）——画面は、開く所で Path へ直す
+ * - ValidationResult: 指摘と、判定を保留した検査
  */
-sealed interface IssueResponse {
-    val label: String
+typealias Issue = CheckIssue
+typealias IssueResponse = CheckResponse
+typealias ValidationResult = DocumentValidation
 
-    /**
-     * その場所へ移動する（値の出どころ——テンプレートや、差し込んだ値が書かれた場所、参照を書き足せそうな文書など）。
-     * path が無ければ文書を開く。note はメニューでラベルの下に添える補足。
-     */
-    data class Jump(override val label: String, val file: Path, val path: YPath?, val note: String? = null) : IssueResponse
-
-    /** 値を、指摘の場所へ書き込む（未保存の編集として。Undo 可）。 */
-    data class ApplyValue(override val label: String, val value: String) : IssueResponse
-
-    /** この ID の詳細文書を、指定のスキーマの置き場所に新しく作って開く（R28-05a・UX-97 の導線）。 */
-    data class CreateDetail(override val label: String, val schemaId: String, val id: String, val note: String? = null) : IssueResponse
-}
-
-// 指摘の配り方（IssueDelivery）と指摘の出どころ（IssueSource）は、カーネル（workspace-core の validate/WorkspaceChecks.kt）にある
-
-data class Issue(
-    val severity: Severity,
-    val message: String,
-    val path: YPath,
-    /** エラー時の対応（SP-09）。検査の定義が宣言したものを、宣言順に持つ。 */
-    val responses: List<IssueResponse> = emptyList(),
-    /** 指摘に関連するID（UX-15 の不足案内など）。UIはクリックで各IDの定義へジャンプできる。 */
-    val relatedIds: List<String> = emptyList(),
-    /**
-     * 指摘の出どころ。定義体の検査から出た指摘も、コードで実装された検査（構造の検証・参照の解決など）の指摘も持つ
-     * （後者はカーネルの CodedChecks が作る。P27 段B の残り・意図的差分 D-29）。
-     */
-    val source: IssueSource? = null,
-)
-
-// 判定を保留した検査（WithheldCheck）と検査の状況（RuleStatus）も、カーネル（workspace-core の validate/WorkspaceChecks.kt）にある
-
-/** 文書1つの検証の結果: 指摘と、判定を保留した検査。 */
-data class ValidationResult(val issues: List<Issue>, val withheld: List<WithheldCheck>)
-
-/** フェーズ1つ分の記入進捗。実体は yaml-core の schema.PhaseProgress（B-3・RB-04 で移設。FQN 互換の別名）。 */
+/** フェーズ1つ分の記入進捗。実体は semantic-core の schema.PhaseProgress（B-3・RB-04 で移設。FQN 互換の別名）。 */
 typealias PhaseProgress = schema.PhaseProgress
 
 /**
- * ドキュメントの検証。UI・アプリ状態に依存しない（core / CLI からも使う）。検証の組み立ての実体は、カーネルの
- * validate.DocumentValidator（workspace-core。P27 段D の D-b）で、ここは、座標（Path と IdIndex）を写して呼ぶ窓口。
+ * ドキュメントの検証を、索引（IdIndex）とアプリ側のスキーマの型（SchemaDef）から呼ぶ窓口。UI・アプリ状態に依存しない
+ * （core / CLI からも使う）。検証の組み立ての実体は、カーネルの validate.DocumentValidator（workspace-core。P27 段D の D-b）で、
+ * 場所は、文書ID（ワークスペース相対パス）で表す（P27 段D の D-d・D-e）。
  * - スキーマ適合（必須／型／enum／日付形式）
  * - 参照解決（索引 + 同一ドキュメント内の未保存 ID を考慮）
  * - ID 重複（同一ドキュメント内）
- * - カバレッジ（スキーマの coverage ルールによる被参照数の充足。索引＝保存済み状態に基づく）
+ * - 定義体の検査（詳細文書の存在・整合・多重度・対象型・網羅・遷移・利用者の検査）と、エンティティ型の点検・テンプレートの健全性
  */
 object Validator {
 
@@ -73,24 +40,24 @@ object Validator {
     fun validate(
         root: YNode?,
         parseError: String?,
-        file: Path,
+        document: DocumentId,
         schema: SchemaDef?,
         indexObj: IdIndex,
         indexed: Boolean = true,
-        workspace: Path? = null,
-        loader: (Path) -> YNode? = { f -> runCatching { YamlIO.parseFirst(Files.readString(f)) }.getOrNull() },
+        loader: (DocumentId) -> YNode? = { null },
         allSchemas: List<SchemaDef> = emptyList(),
         relations: Map<String, RelationDef> = emptyMap(),
         enforcement: EnforcementDef = EnforcementDef(),
         shareEvaluations: Boolean = false,
     ): List<Issue> = validateDetailed(
-        root, parseError, file, schema, indexObj, indexed, workspace, loader, allSchemas, relations, enforcement, shareEvaluations,
+        root, parseError, document, schema, indexObj, indexed, loader, allSchemas, relations, enforcement, shareEvaluations,
     ).issues
 
     fun validateDetailed(
         root: YNode?,
         parseError: String?,
-        file: Path,
+        /** この文書の文書ID（ワークスペース相対パス）。 */
+        document: DocumentId,
         schema: SchemaDef?,
         indexObj: IdIndex,
         /**
@@ -100,10 +67,11 @@ object Validator {
          * そのまま行う（ARCHITECTURE §4.25 のエディタ層）。
          */
         indexed: Boolean = true,
-        /** ワークスペースのルート（整合検証 R16-03a で selector の fileGlob 判定に使う相対パス化。null ならパス文字列をそのまま使う）。 */
-        workspace: Path? = null,
-        /** 整合検証で他文書のツリーを読む loader。既定はディスク（索引と同じ基準）。変更セット適用・ステージングはオーバーレイを渡す。 */
-        loader: (Path) -> YNode? = { f -> runCatching { YamlIO.parseFirst(Files.readString(f)) }.getOrNull() },
+        /**
+         * 他の文書の中身を読む loader（整合検証・重複所有・テンプレートの健全性が使う）。索引と同じ基準の内容を返すこと
+         * （ディスクの索引ならディスクの内容・未保存の編集を重ねた索引なら未保存を優先・ステージングの索引ならステージングの内容）。
+         */
+        loader: (DocumentId) -> YNode? = { null },
         /** 全スキーマ（テンプレート健全性検査 UX-12 が他スキーマの整合ルールを参照するため。空なら自スキーマのみ）。 */
         allSchemas: List<SchemaDef> = emptyList(),
         /** 関係レジストリ（R21-01）: グラフ整合検証（対象型・多重度・非循環）の制約宣言。空なら判定しない。 */
@@ -120,32 +88,28 @@ object Validator {
         // 検証の組み立て（構造の検証 → ID と参照 → エンティティ型の点検 → 宣言のない関係名 → 定義体の検査 → テンプレートの健全性 →
         // 直せる場所への案内・台帳の外の文書での降格・同じ指摘の重複の除去）は、カーネルの validate.DocumentValidator が持つ
         // （P27 段D の D-b・意図的差分 D-34。カーネル側の CLI と、変更セットの適用も、同じ組み立てで検証する）。
-        // ここは、索引（IdIndex）とファイルの座標（Path）をカーネルの形へ写して呼び、結果を Issue へ写すだけ
-        val view = indexObj.toKernelView()
-        fun relOf(f: Path): String =
-            workspace?.let { IdIndex.relPathOf(it, f) } ?: f.toString().replace('\\', '/')
+        // 索引も結果も、カーネルの型そのもの——ここは、アプリ側のスキーマの型（SchemaDef）を、カーネルの型へ読み替えて呼ぶだけ
         val validator = DocumentValidator(
             schemas = allSchemas.map { it.kernel },
             relations = relations,
             enforcement = enforcement,
-            ids = view.entries, refs = view.refs, graph = view.graph,
+            ids = indexObj.entries, refs = indexObj.refs, graph = indexObj.graph,
             // 検査の評価の覚え書き: 共有するなら索引のもの、しないならこの検証1回の中だけのもの
-            session = if (shareEvaluations) view.checkSession else semantic.SemanticCheckSession(view.entries, view.refs, view.graph),
+            session = if (shareEvaluations) indexObj.checkSession
+            else semantic.SemanticCheckSession(indexObj.entries, indexObj.refs, indexObj.graph),
             // 宣言のない関係名の指摘は、索引につき1回だけ求めたものから、この文書の分を取り出す
-            integrity = { view.integrityIssues(semantic.SemanticDeclarations(relations = relations, enforcement = enforcement)) },
-            rel = { d -> relOf(Path.of(d.value)) },
-            tree = { d -> loader(Path.of(d.value)) },
+            integrity = { indexObj.integrityIssues(semantic.SemanticDeclarations(relations = relations, enforcement = enforcement)) },
+            rel = { d -> d.value },
+            tree = loader,
         )
-        val result = validator.validate(
-            // 呼び出し側の Path の表記が索引と違っても報告先の判定がずれないよう、文書ID は索引の側のものに揃える
-            document = view.documentIdOf(file),
+        return validator.validate(
+            document = document,
             schema = schema?.kernel,
             root = root,
             parseError = parseError,
-            documentId = root?.let { indexObj.documentIdFor(file, it) } ?: file.toString(),
+            documentId = root?.let { indexObj.documentIdFor(document, it) } ?: document.value,
             indexed = indexed,
         )
-        return ValidationResult(result.issues.map { it.toIssue() }, result.withheld)
     }
 
     /**
@@ -153,7 +117,7 @@ object Validator {
      * スキーマの検査（owner = 検査を宣言したスキーマ）は、定義出現がそのスキーマの文書にあればそこ、なければそのスキーマの文書の
      * 先頭の出現（無ければ null＝報告しない）。特定のスキーマに属さない検査（owner = null）は、定義出現（なければ先頭の出現）。
      */
-    fun reportAnchorOf(indexObj: IdIndex, id: String, owner: SchemaDef?): index.IdEntry? {
+    fun reportAnchorOf(indexObj: IdIndex, id: String, owner: SchemaDef?): IdEntry? {
         val node = indexObj.graph.entities[id] ?: return null
         if (owner == null) return node.defining ?: node.occurrences.firstOrNull()
         return node.defining?.takeIf { it.schemaId == owner.id } ?: node.occurrences.firstOrNull { it.schemaId == owner.id }
@@ -170,24 +134,22 @@ object Validator {
         indexObj: IdIndex,
         definingRoot: YNode? = null,
         allSchemas: List<SchemaDef> = emptyList(),
-        workspace: Path? = null,
-        loader: (Path) -> YNode? = { f -> runCatching { YamlIO.parseFirst(Files.readString(f)) }.getOrNull() },
+        loader: (DocumentId) -> YNode? = { null },
     ): List<RuleStatus> {
         if (schema.constraints.none { it.status != null }) return emptyList()
-        val trees = mutableMapOf<Path, YNode?>()
-        val view = indexObj.toKernelView()
+        val trees = mutableMapOf<DocumentId, YNode?>()
         val checks = WorkspaceChecks(
-            allSchemas.map { it.kernel }, emptyMap(), EnforcementDef(), view.entries, view.refs, view.graph,
-            semantic.SemanticCheckSession(view.entries, view.refs, view.graph),
-            rel = { d -> Path.of(d.value).let { f -> workspace?.let { IdIndex.relPathOf(it, f) } ?: f.toString().replace('\\', '/') } },
-            tree = { d -> Path.of(d.value).let { f -> trees.getOrPut(f) { loader(f) } } },
+            allSchemas.map { it.kernel }, emptyMap(), EnforcementDef(), indexObj.entries, indexObj.refs, indexObj.graph,
+            semantic.SemanticCheckSession(indexObj.entries, indexObj.refs, indexObj.graph),
+            rel = { d -> d.value },
+            tree = { d -> trees.getOrPut(d) { loader(d) } },
         )
         return checks.statuses(id, schema.kernel, definingRoot)
     }
 
     /**
      * フェーズ別の記入進捗（requiredFrom を持つフィールドの記入済み／総数）。phases 未宣言のスキーマでは空。
-     * 走査の実体は yaml-core の `SchemaTree.phaseProgress`（B-3・RB-04 で移設。§4.15）。
+     * 走査の実体は semantic-core の `SchemaTree.phaseProgress`（B-3・RB-04 で移設。§4.15）。
      */
     fun phaseProgress(root: YNode?, schema: SchemaDef): List<PhaseProgress> =
         schema.tree.phaseProgress(root)
@@ -198,23 +160,4 @@ object Validator {
      */
     fun phaseSummaryText(root: YNode?, schema: SchemaDef): String? =
         schema.tree.phaseSummaryText(root)
-
-    /** カバレッジの数え上げ対象の表示名（参照ベース=「参照」、出現ベース=「出現」）。UI表示で共用する。 */
 }
-
-/**
- * カーネルの指摘を、ファイルの座標（Path）の Issue へ写す。resolve は、文書ID をファイルの場所へ写す決め方
- * （既定は、文書ID の値がそのままパス＝索引 IdIndex の座標。ワークスペース相対の文書ID なら、ルートから解決する関数を渡す）。
- */
-internal fun CheckIssue.toIssue(resolve: (model.DocumentId) -> Path = { Path.of(it.value) }): Issue = Issue(
-    severity, message, path,
-    responses = responses.map { r ->
-        when (r) {
-            is CheckResponse.Jump -> IssueResponse.Jump(r.label, resolve(r.document), r.path, r.note)
-            is CheckResponse.ApplyValue -> IssueResponse.ApplyValue(r.label, r.value)
-            is CheckResponse.CreateDetail -> IssueResponse.CreateDetail(r.label, r.schemaId, r.id, r.note)
-        }
-    },
-    relatedIds = relatedIds,
-    source = source,
-)

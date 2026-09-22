@@ -64,10 +64,10 @@ class SessionReadParityTest {
     /** 旧経路の走査結果を（相対パス, ID, パス）の組へ写す。 */
     private fun oldEntries(idx: index.IdIndex, root: Path): Set<Triple<String, String, YPath>> =
         idx.entries.values.flatten()
-            .map { Triple(index.IdIndex.relPathOf(root, it.file), it.id, it.path) }.toSet()
+            .map { Triple(it.document.value, it.id, it.path) }.toSet()
 
     private fun oldRefs(idx: index.IdIndex, root: Path): Set<Triple<String, String, YPath>> =
-        idx.refs.map { Triple(index.IdIndex.relPathOf(root, it.file), it.targetId, it.path) }.toSet()
+        idx.refs.map { Triple(it.document.value, it.targetId, it.path) }.toSet()
 
     /** 新経路の走査結果を同じ座標系（相対パス, ID, パス）へ写す。 */
     private fun newEntries(derived: workspace.WorkspaceDerivedState): Set<Triple<String, String, YPath>> =
@@ -170,20 +170,20 @@ class SessionReadParityTest {
         val editedB = YamlIO.parse("id: IT-002\ntitle: B編集\nlink: IT-999\n")
         val old = cw.overlayIndex(mapOf(ws.resolve("items/b.yaml") to editedB))
         assertTrue(s.replaceDocument(DocumentId("items/b.yaml"), YDocument(DocumentId("items/b.yaml"), listOf(editedB))).ok)
-        val facade = index.derivedIdIndex(s.derived.semantic.scans, cw.root)
+        val facade = index.IdIndex.of(s.derived.semantic)
         assertEquals(old.entries, facade.entries, "編集直結後の entries")
         assertEquals(old.refs, facade.refs, "編集直結後の refs")
     }
 
     @Test
-    fun `derivedIdIndexファサードがoverlayIndexと完全一致する`() {
+    fun `セッションの意味解析の結果から作った索引がoverlayIndexと完全一致する`() {
         val cw = Workspace.open(ws)
         val s = WorkspaceSession(
             FileSystemDocumentStore(ws),
             builtins = schema.BuiltinSchemas.kernelSchemas(cw.layout),
         )
         // ディスク状態: エントリ（並び含む）・参照・被参照が一致
-        val diskFacade = index.derivedIdIndex(s.derived.semantic.scans, cw.root)
+        val diskFacade = index.IdIndex.of(s.derived.semantic)
         assertEquals(cw.index.entries, diskFacade.entries, "entries（出現の並び含む）")
         assertEquals(cw.index.refs, diskFacade.refs, "refs（並び含む）")
 
@@ -193,12 +193,12 @@ class SessionReadParityTest {
         val derived = s.derivedWith(
             mapOf(DocumentId("items/b.yaml") to YDocument(DocumentId("items/b.yaml"), listOf(editedB)))
         )
-        val facade = index.derivedIdIndex(derived.semantic.scans, cw.root)
+        val facade = index.IdIndex.of(derived.semantic)
         assertEquals(old.entries, facade.entries, "オーバーレイ後の entries")
         assertEquals(old.refs, facade.refs, "オーバーレイ後の refs")
         assertEquals(old.backlinksTo(setOf("IT-001")), facade.backlinksTo(setOf("IT-001")), "グラフ導出（被参照）")
         assertEquals(
-            old.resolve("IT-002")?.file, facade.resolve("IT-002")?.file,
+            old.resolve("IT-002")?.document, facade.resolve("IT-002")?.document,
             "代表出現の解決（ジャンプ先）",
         )
     }

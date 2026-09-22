@@ -48,7 +48,7 @@ class MetaSchemaTest {
     }
 
     private fun metaErrors(schemaYaml: String): List<String> =
-        Validator.validate(YamlIO.parse(schemaYaml), null, Path.of("_schemas/x.yaml"), meta, IdIndex())
+        Validator.validate(YamlIO.parse(schemaYaml), null, model.DocumentId("_schemas/x.yaml"), meta, IdIndex())
             .filter { it.severity == Severity.ERROR }
             .map { it.message }
 
@@ -244,7 +244,7 @@ class MetaSchemaTest {
             Path.of("_schemas/any-test.yaml"),
         )
         fun errorsOf(yaml: String) =
-            Validator.validate(YamlIO.parse(yaml), null, Path.of("a.yaml"), schema, IdIndex())
+            Validator.validate(YamlIO.parse(yaml), null, model.DocumentId("a.yaml"), schema, IdIndex())
                 .filter { it.severity == Severity.ERROR }
         // どんな構造でも検証エラー・警告を出さない
         assertEquals(emptyList(), errorsOf("freeform: 文字列\nmandatory: 1"))

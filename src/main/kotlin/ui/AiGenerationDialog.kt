@@ -126,13 +126,13 @@ fun AiGenerationHost(state: AppState) {
     // 最大 REF_DOC_AUTO_SELECT 件（なければ従来どおり同一スキーマの先頭 REF_DOC_AUTO_SELECT 件）
     val refChoices = remember(request) {
         val rootTitles = state.overlayIndex().entries.values.flatten()
-            .filter { it.path.isEmpty() }.associateBy({ it.file }, { it.title })
+            .filter { it.path.isEmpty() }.associateBy({ it.document }, { it.title })
         val related = request.relatedFiles.filter { it != doc.file }.distinct()
         val relatedSet = related.toSet()
         val sameSchema = state.sameSchemaFiles(doc.file, schema.id).filter { it !in relatedSet }
         (related.map { it to true } + sameSchema.map { it to false })
             .take(REF_DOC_CHOICE_LIMIT)
-            .map { (file, rel) -> RefDocChoice(file, state.relPath(file), rootTitles[file], related = rel) }
+            .map { (file, rel) -> RefDocChoice(file, state.relPath(file), rootTitles[state.documentOf(file)], related = rel) }
     }
     var selectedRefs by remember(request) {
         mutableStateOf(
@@ -219,9 +219,9 @@ fun AiGenerationHost(state: AppState) {
             // 提案の内容を重ねた索引で検証する（提案で新しく書かれた ID にも、定義体の検査——詳細文書の不足・
             // エンティティの整合・利用者の constraints——を効かせる。BACKLOG UX-109）
             Validator.validate(
-                root, null, doc.file, doc.schema, state.overlayIndexWith(doc.file, root),
+                root, null, state.documentOf(doc.file), doc.schema, state.overlayIndexWith(doc.file, root),
                 indexed = state.isIndexed(doc.file),
-                workspace = state.workspace, allSchemas = state.schemas, loader = state.unsavedFirstLoader(),
+                allSchemas = state.schemas, loader = state.unsavedFirstTree(),
                 relations = state.relations, enforcement = state.enforcement,
             )
         }.orEmpty()

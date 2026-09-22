@@ -152,8 +152,8 @@ class DocRefTest {
         // 台帳外（indexed=false）は INFO 降格（既存 R13-03 と同じ流儀）
         val doc = ws.load("notes/a.yaml")
         val demoted = Validator.validate(
-            doc.root, null, doc.file, doc.schema, ws.index,
-            indexed = false, workspace = ws.root, allSchemas = ws.schemas,
+            doc.root, null, ws.documentOf(doc.file), doc.schema, ws.index,
+            indexed = false, loader = ws::treeOf, allSchemas = ws.schemas,
         )
         assertTrue(
             demoted.any { it.severity == Severity.INFO && "文書参照「NOTE-9」は台帳外" in it.message },

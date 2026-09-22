@@ -90,7 +90,7 @@ class TraverseTest {
 
     private fun run(spec: TraverseSpec): String {
         val ws = Workspace.open(dir)
-        return Traverse.run(ws.index, { ws.relPath(it) }, { f -> ws.load(ws.relPath(f)).root }, spec)
+        return Traverse.run(ws.index, { d -> ws.load(d.value).root }, spec)
     }
 
     @Test

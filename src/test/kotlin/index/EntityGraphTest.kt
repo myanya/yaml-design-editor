@@ -81,7 +81,7 @@ class EntityGraphTest {
 
     private fun legacySourceEntryOf(index: IdIndex, ref: RefEntry): IdEntry? =
         index.entries.values.asSequence().flatten()
-            .filter { it.file == ref.file && it.path.size <= ref.path.size && ref.path.subList(0, it.path.size) == it.path }
+            .filter { it.document == ref.document && it.path.size <= ref.path.size && ref.path.subList(0, it.path.size) == it.path }
             .maxByOrNull { it.path.size }
 
     private fun legacyBacklinksTo(index: IdIndex, idSet: Set<String>): List<RefEntry> =
@@ -90,7 +90,7 @@ class EntityGraphTest {
     private fun legacyOutgoing(index: IdIndex, id: String): List<RefEntry> =
         index.occurrences(id).flatMap { e ->
             index.refs.filter { r ->
-                r.file == e.file && r.path.size >= e.path.size && r.path.subList(0, e.path.size) == e.path
+                r.document == e.document && r.path.size >= e.path.size && r.path.subList(0, e.path.size) == e.path
             }
         }
 
@@ -120,7 +120,7 @@ class EntityGraphTest {
         val node = ws.index.graph.entities.getValue("ITEM-A")
         assertEquals("item", node.entityType)
         assertEquals("A", node.title)
-        assertEquals("docs/a.yaml", ws.relPath(node.defining!!.file))
+        assertEquals("docs/a.yaml", node.defining!!.document.value)
         val doc = ws.index.graph.documents.getValue("docs/a.yaml")
         assertEquals(listOf("ITEM-A", "ITEM-A1", "ITEM-A2"), doc.entityIds)
     }
@@ -193,7 +193,7 @@ class EntityGraphTest {
         """)
         val ws = Workspace.open(dir)
         assertGraphMatchesLegacy(ws.index)
-        val backlink = ws.index.backlinksTo(setOf("ITEM-A")).first { it.file.endsWith("s.yaml") }
+        val backlink = ws.index.backlinksTo(setOf("ITEM-A")).first { it.document.value.endsWith("s.yaml") }
         assertEquals(listOf("owner", "to"), backlink.path)
         assertEquals("role: 承認者", backlink.attributeSummary())
         assertEquals("SCR-1", ws.index.sourceEntryOf(backlink)?.id)

@@ -241,9 +241,7 @@ private fun GridBody(state: AppState, view: ViewDef) {
     // 行の構造（座標）は索引基準で解決し、セル値の表示・編集は編集中ツリーを優先する。
     // editVersion の購読（R16-04 / UX-02）: 計算列が他文書の未保存編集にも追随するための再解決契機
     val rows = remember(view, state.indexVersion, state.editVersion) {
-        Views.resolve(view, ws, state.overlayIndex()) { f ->
-            state.docFor(f)?.root ?: runCatching { YamlIO.parseFirst(Files.readString(f)) }.getOrNull()
-        }
+        Views.resolve(view, state.overlayIndex(), state.unsavedFirstTree())
     }
     val filtered = remember(rows, query) {
         if (query.isBlank()) rows
@@ -342,7 +340,7 @@ private fun GridCell(state: AppState, cell: ViewCell) {
             BacklinkCell(state, backlinks)
             return@Box
         }
-        val file = cell.file
+        val file = cell.document
         val path = cell.path
         if (file == null || path == null) {
             Text("—", fontSize = 12.sp, color = Palette.SubText, modifier = Modifier.padding(top = 8.dp))
@@ -396,7 +394,7 @@ private fun GridCell(state: AppState, cell: ViewCell) {
         val ctx = remember(doc, doc.version, state.indexVersion) {
             val localIds = if (fieldDef?.type == FieldType.REF) {
                 val documentId = IdIndex.documentIdOf(root, state.relPath(doc.file))
-                DocScanner.scan(root, doc.file, doc.schema, documentId).first
+                DocScanner.scan(root, state.documentOf(doc.file), doc.schema, documentId).first
             } else emptyList()
             FormCtx(state, doc, localIds)
         }
@@ -429,9 +427,9 @@ private fun BacklinkCell(state: AppState, backlinks: List<core.ViewBacklink>) {
     val shown = backlinks.take(5)
     Column(Modifier.padding(top = 8.dp)) {
         shown.forEach { b ->
-            Column(Modifier.clickable { state.openFile(b.file, b.path) }) {
+            Column(Modifier.clickable { state.openFile(b.document, b.path) }) {
                 Text(
-                    b.sourceId ?: b.rel.substringAfterLast('/'),
+                    b.sourceId ?: b.document.value.substringAfterLast('/'),
                     fontSize = 12.sp, color = Palette.Primary, maxLines = 1,
                 )
                 // 参照元要素のタイトル（表示解決の結果。R10-01）＋属性付き参照の属性注記（R20-03）
@@ -469,27 +467,27 @@ private fun ComputedCellLink(state: AppState, cell: ViewCell) {
                     Text("${trace.raw} → $text", fontSize = 11.sp, color = Palette.SubText)
                 }
             }
-            val file = cell.file
+            val file = cell.document
             if (file != null) {
                 DropdownMenuItem(
                     text = {
                         Column {
                             Text("導出規則へ", fontSize = 12.sp)
-                            Text("${cell.rel} :: ${cell.path?.pretty()}", fontSize = 10.sp, color = Palette.SubText)
+                            Text("${cell.document?.value} :: ${cell.path?.pretty()}", fontSize = 10.sp, color = Palette.SubText)
                         }
                     },
                     onClick = { menuOpen = false; state.openFile(file, cell.path) },
                 )
             }
             trace?.inputs.orEmpty().forEach { input ->
-                val inputFile = input.file
+                val inputFile = input.document
                 val inputPath = input.path
                 if (inputFile != null && inputPath != null) {
                     DropdownMenuItem(
                         text = {
                             Column {
                                 Text("入力値へ: {${input.placeholder}} = ${input.value}", fontSize = 12.sp)
-                                Text("${input.rel} :: ${inputPath.pretty()}", fontSize = 10.sp, color = Palette.SubText)
+                                Text("${inputFile.value} :: ${inputPath.pretty()}", fontSize = 10.sp, color = Palette.SubText)
                             }
                         },
                         onClick = { menuOpen = false; state.openFile(inputFile, inputPath) },
@@ -511,14 +509,14 @@ private fun CellLink(state: AppState, cell: ViewCell, text: String) {
         text, fontSize = 12.sp, maxLines = 2,
         color = if (text == "—" || text == "（未設定）") Palette.SubText else Palette.Text,
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-            .clickable { cell.file?.let { state.openFile(it, cell.path) } },
+            .clickable { cell.document?.let { state.openFile(it, cell.path) } },
     )
 }
 
 @Composable
 private fun DetailCell(state: AppState, view: ViewDef, row: ViewRow) {
     Box(Modifier.width(DETAIL_WIDTH).padding(end = 8.dp, top = 4.dp)) {
-        val detailRel = row.detailRel
+        val detailRel = row.detailDocument?.value
         if (detailRel != null) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -586,8 +584,8 @@ private fun StatusCell(state: AppState, row: ViewRow) {
                 .distinctBy { it.first.id }
                 .flatMap { (sc, e) ->
                     Validator.ruleStatuses(
-                        row.id, sc, state.overlayIndex(), state.ensureDoc(e.file).root,
-                        state.schemas, state.workspace, state.unsavedFirstLoader(),
+                        row.id, sc, state.overlayIndex(), state.ensureDoc(e.document).root,
+                        state.schemas, state.unsavedFirstTree(),
                     )
                 }
         }

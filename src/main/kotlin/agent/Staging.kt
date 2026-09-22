@@ -107,27 +107,27 @@ class Staging(val ws: Workspace) {
             e.baseText?.let { base ->
                 runCatching { YamlIO.parse(base) }.getOrNull()?.let { beforeRoot ->
                     val docId = IdIndex.documentIdOf(beforeRoot, e.rel)
-                    affectedIds += DocScanner.scan(beforeRoot, e.file, schemaDef, docId).first.map { it.id }
+                    affectedIds += DocScanner.scan(beforeRoot, model.DocumentId(e.rel), schemaDef, docId).first.map { it.id }
                 }
             }
             val docId = IdIndex.documentIdOf(e.root, e.rel)
-            affectedIds += DocScanner.scan(e.root, e.file, schemaDef, docId).first.map { it.id }
+            affectedIds += DocScanner.scan(e.root, model.DocumentId(e.rel), schemaDef, docId).first.map { it.id }
         }
         // それらのIDを参照しているファイルを検証対象に加える（ディスク索引＋オーバーレイ索引の双方から）
         (ws.index.refs + idx.refs).asSequence()
             .filter { it.targetId in affectedIds }
-            .map { it.file }
+            .map { it.document }
             .distinct()
-            .forEach { f ->
-                val rel = ws.relPath(f)
-                if (rel !in targets) tree(rel)?.let { targets[rel] = f to it }
+            .forEach { d ->
+                val rel = d.value
+                if (rel !in targets) tree(rel)?.let { targets[rel] = ws.fileOf(d) to it }
             }
         val results = targets.mapValues { (_, target) ->
             // 整合検証の材料もステージング（オーバーレイ）優先で読む（R16-03a）
             Validator.validate(
-                target.second, null, target.first, ws.schemaFor(target.first), idx,
-                workspace = ws.root, allSchemas = ws.schemas,
-                loader = { f -> tree(ws.relPath(f)) },
+                target.second, null, ws.documentOf(target.first), ws.schemaFor(target.first), idx,
+                allSchemas = ws.schemas,
+                loader = { d -> tree(d.value) },
                 // グラフ整合検証（R21-01）も提出ゲートに乗せる（循環を作る変更セットの拒否。§4.31）
                 relations = ws.relations, enforcement = ws.enforcement,
                 shareEvaluations = true,  // ステージングを重ねた索引と、ステージングの内容を読む loader
@@ -137,7 +137,9 @@ class Staging(val ws: Workspace) {
         // （スキーマ検証だけでは「schedule に everyMinutes がない」等の意味的エラーを見逃すため）
         entries.values.forEach { e ->
             definitionParseError(e)?.let { message ->
-                results[e.rel] = (results[e.rel] ?: emptyList()) + Issue(Severity.ERROR, message, emptyList())
+                // 定義文書のローダの読み取りエラー（コードで実装された検査。出どころは、文書そのもの）
+                val source = validate.CodedChecks.source("definition", "load-error", validate.IssueDelivery.REPORT, emptyList(), emptyList())
+                results[e.rel] = (results[e.rel] ?: emptyList()) + Issue(Severity.ERROR, message, emptyList(), source = source)
             }
         }
         return results

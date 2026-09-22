@@ -67,9 +67,9 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
 
         val issues = remember(doc, doc.version, state.indexVersion, state.editVersion) {
             Validator.validate(
-                doc.root, doc.parseError, doc.file, doc.schema, state.overlayIndex(),
-                indexed = state.isIndexed(doc.file), workspace = state.workspace, allSchemas = state.schemas,
-                loader = state.unsavedFirstLoader(),
+                doc.root, doc.parseError, state.documentOf(doc.file), doc.schema, state.overlayIndex(),
+                indexed = state.isIndexed(doc.file), allSchemas = state.schemas,
+                loader = state.unsavedFirstTree(),
                 relations = state.relations, enforcement = state.enforcement,
             )
         }
@@ -83,19 +83,19 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
         val scanned = remember(doc, doc.version) {
             val root = doc.root
             if (root == null) emptyList<index.IdEntry>() to emptyList<index.RefEntry>()
-            else DocScanner.scan(root, doc.file, doc.schema, state.overlayIndex().documentIdFor(doc.file, root))
+            else state.documentOf(doc.file).let { d -> DocScanner.scan(root, d, doc.schema, state.overlayIndex().documentIdFor(d, root)) }
         }
         val (localIds, localRefs) = scanned
         val backlinks = remember(doc, doc.version, state.indexVersion, state.editVersion) {
             state.overlayIndex().backlinksTo(localIds.map { it.id }.toSet())
-                .filter { it.file != doc.file && it.targetKind == schema.RefTarget.ENTITY }
+                .filter { it.document != state.documentOf(doc.file) && it.targetKind == schema.RefTarget.ENTITY }
         }
         // この文書への参照（target: document。R21-03）: 文書ノード（documentId）宛の被参照
         val docBacklinks = remember(doc, doc.version, state.indexVersion, state.editVersion) {
-            val docId = doc.root?.let { state.overlayIndex().documentIdFor(doc.file, it) }
+            val docId = doc.root?.let { state.overlayIndex().documentIdFor(state.documentOf(doc.file), it) }
             if (docId == null) emptyList()
             else state.overlayIndex().refs.filter {
-                it.targetKind == schema.RefTarget.DOCUMENT && it.targetId == docId && it.file != doc.file
+                it.targetKind == schema.RefTarget.DOCUMENT && it.targetId == docId && it.document != state.documentOf(doc.file)
             }
         }
         // 出現タブの対象ID: 文書ルートのID（段階的詳細化の単位。E-09 と同じ基準）
@@ -114,8 +114,8 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                 .distinctBy { it.first.id }
                 .flatMap { (sc, e) ->
                     Validator.ruleStatuses(
-                        id, sc, state.overlayIndex(), state.ensureDoc(e.file).root,
-                        state.schemas, state.workspace, state.unsavedFirstLoader(),
+                        id, sc, state.overlayIndex(), state.ensureDoc(e.document).root,
+                        state.schemas, state.unsavedFirstTree(),
                     )
                 }
         }
@@ -297,7 +297,7 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                         Modifier.fillMaxWidth()
                             .clickable {
                                 // 参照元の位置へジャンプ（参照値そのものの位置を指す）
-                                state.openFile(bl.file, bl.path)
+                                state.openFile(bl.document, bl.path)
                                 state.editorTab = 0
                             }
                             .padding(horizontal = 12.dp, vertical = 4.dp),
@@ -311,12 +311,12 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                         Column {
                             Text(
                                 "${bl.targetId} ← " + (source?.let { listOfNotNull(it.id, it.title).joinToString(" — ") }
-                                    ?: state.relPath(bl.file)),
+                                    ?: bl.document.value),
                                 fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                             )
                             Text(
                                 // 被参照方向は inverseLabel（R20-02）＋属性注記（R20-03）
-                                "${state.relPath(bl.file)} ／ " + bl.viaKey +
+                                "${bl.document.value} ／ " + bl.viaKey +
                                     (schema.Relations.inverseLabelOf(state.relations, bl.relation)?.let { "（関係: $it）" } ?: "") +
                                     (bl.attributeSummary()?.let { "（$it）" } ?: "") +
                                     " ／ ${bl.path.pretty()}",
@@ -334,7 +334,7 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                         Row(
                             Modifier.fillMaxWidth()
                                 .clickable {
-                                    state.openFile(bl.file, bl.path)
+                                    state.openFile(bl.document, bl.path)
                                     state.editorTab = 0
                                 }
                                 .padding(horizontal = 12.dp, vertical = 4.dp),
@@ -348,11 +348,11 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                             Column {
                                 Text(
                                     "この文書 ← " + (source?.let { listOfNotNull(it.id, it.title).joinToString(" — ") }
-                                        ?: state.relPath(bl.file)),
+                                        ?: bl.document.value),
                                     fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                                 )
                                 Text(
-                                    "${state.relPath(bl.file)} ／ ${bl.viaKey} ／ ${bl.path.pretty()}",
+                                    "${bl.document.value} ／ ${bl.viaKey} ／ ${bl.path.pretty()}",
                                     fontSize = 10.sp, color = Palette.SubText,
                                 )
                             }
@@ -383,7 +383,7 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                     }
                     items(occurrences.size) { i ->
                         val entry = occurrences[i]
-                        val isHere = entry.file == doc.file
+                        val isHere = entry.document == state.documentOf(doc.file)
                         Row(
                             Modifier.fillMaxWidth()
                                 .clickable(enabled = !isHere) { state.navigateToOccurrence(entry) }
@@ -402,7 +402,7 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                                     fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                                 )
                                 Text(
-                                    listOfNotNull(state.relPath(entry.file), entry.schemaId).joinToString(" ／ "),
+                                    listOfNotNull(entry.document.value, entry.schemaId).joinToString(" ／ "),
                                     fontSize = 10.sp, color = Palette.SubText,
                                 )
                             }
@@ -516,7 +516,7 @@ private fun IssueRow(state: AppState, file: Path, issue: Issue) {
                 // 対応の種類は閉じた一覧（移動・値の書き込み）で、どれをどのラベルで示すかは定義の側が選ぶ
                 issue.responses.forEach { response ->
                     when (response) {
-                        is validate.IssueResponse.Jump -> DropdownMenuItem(
+                        is validate.CheckResponse.Jump -> DropdownMenuItem(
                             text = {
                                 Column {
                                     // 場所を持たない移動（参照を書き足せそうな文書を開く、など）は、直し方の提案として目立たせる
@@ -526,18 +526,18 @@ private fun IssueRow(state: AppState, file: Path, issue: Issue) {
                                     )
                                     Text(
                                         response.note
-                                            ?: (state.relPath(response.file) + (response.path?.let { " :: ${it.pretty()}" } ?: "")),
+                                            ?: (response.document.value + (response.path?.let { " :: ${it.pretty()}" } ?: "")),
                                         fontSize = 10.sp, color = Palette.SubText,
                                     )
                                 }
                             },
                             onClick = {
                                 menuOpen = false
-                                state.openFile(response.file, response.path)
+                                state.openFile(response.document, response.path)
                                 if (response.path == null) state.editorTab = 0
                             },
                         )
-                        is validate.IssueResponse.ApplyValue -> if (!state.readOnlyMode) {
+                        is validate.CheckResponse.ApplyValue -> if (!state.readOnlyMode) {
                             DropdownMenuItem(
                                 text = {
                                     Column {
@@ -550,7 +550,7 @@ private fun IssueRow(state: AppState, file: Path, issue: Issue) {
                             )
                         }
                         // 詳細文書の作成（R28-05a・UX-97 の導線）: 不足の指摘から、その場でスキャフォールドする
-                        is validate.IssueResponse.CreateDetail -> if (!state.readOnlyMode) {
+                        is validate.CheckResponse.CreateDetail -> if (!state.readOnlyMode) {
                             DropdownMenuItem(
                                 text = {
                                     Column {

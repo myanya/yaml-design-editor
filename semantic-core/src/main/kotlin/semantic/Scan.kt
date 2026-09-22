@@ -60,7 +60,11 @@ data class ScannedRef(
     val attributes: Map<String, String> = emptyMap(),
     /** 参照の対象種別（R21-03）: エンティティ（既定）／文書。文書参照は別名前空間で解決する。 */
     val targetKind: RefTarget = RefTarget.ENTITY,
-)
+) {
+    /** 属性の1行注記（例「role: 承認者」）。表示側は括弧に閉じて添える（R20-03）。 */
+    fun attributeSummary(): String? =
+        attributes.entries.takeIf { it.isNotEmpty() }?.joinToString(", ") { (k, v) -> "$k: $v" }
+}
 
 /**
  * 1文書から ID 定義と参照を抽出する走査カーネル（旧 index.DocScanner の Path 非依存版。SM-001）。

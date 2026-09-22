@@ -142,7 +142,7 @@ class EntityDeclTest {
             Path.of("_schemas/list.yaml"),
         )
         val root = YamlIO.parse("screens:\n  - id: SCR-001\n  - id: MEMO-1")
-        val (ids, _) = DocScanner.scan(root, Path.of("list.yaml"), schema)
+        val (ids, _) = DocScanner.scan(root, model.DocumentId("list.yaml"), schema)
         val scr = ids.first { it.id == "SCR-001" }
         assertEquals("screen", scr.entityType)
         assertEquals(EntityRole.DEFINING, scr.role)
@@ -156,7 +156,7 @@ class EntityDeclTest {
             "id: p\nmatch: \"p.yaml\"\nroot: { type: object, fields: [ { key: id, type: id } ] }",
             Path.of("_schemas/p.yaml"),
         )
-        val (plainIds, _) = DocScanner.scan(YamlIO.parse("id: X-1"), Path.of("p.yaml"), plain)
+        val (plainIds, _) = DocScanner.scan(YamlIO.parse("id: X-1"), model.DocumentId("p.yaml"), plain)
         assertNull(plainIds.single().entityType)
         assertNull(plainIds.single().role)
     }
@@ -194,11 +194,11 @@ class EntityDeclTest {
         val ws = Workspace.open(dir)
         val resolved = ws.index.resolve("SCR-001")!!
         assertEquals(EntityRole.DEFINING, resolved.role)
-        assertEquals("z-list.yaml", ws.relPath(resolved.file))
+        assertEquals("z-list.yaml", resolved.document.value)
         // グラフのエンティティ表も定義出現を持つ
         val node = ws.index.graph.entities.getValue("SCR-001")
         assertEquals("screen", node.entityType)
-        assertEquals("z-list.yaml", ws.relPath(node.defining!!.file))
+        assertEquals("z-list.yaml", node.defining!!.document.value)
     }
 
     // ---------------------------------------------------------------- lint（Validator）

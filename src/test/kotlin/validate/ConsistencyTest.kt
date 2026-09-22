@@ -139,10 +139,9 @@ class ConsistencyTest {
         val idx = index.testIndex(Path.of("."), content.keys.toList(), schemas) { f -> YamlIO.parse(content.getValue(f)) }
         val file = Path.of(rel)
         return Validator.validateDetailed(
-            YamlIO.parse(editedText ?: content.getValue(file)), null, file,
+            YamlIO.parse(editedText ?: content.getValue(file)), null, model.DocumentId(rel),
             schemas.first { it.matches(rel) }, idx,
-            workspace = Path.of("."),
-            loader = { f -> content[f]?.let { YamlIO.parse(it) } },
+            loader = { d -> content[Path.of(d.value)]?.let { YamlIO.parse(it) } },
             allSchemas = schemas,
         )
     }
@@ -225,9 +224,8 @@ class ConsistencyTest {
             )
             val idx = index.testIndex(Path.of("."), content.keys.toList(), schemas) { f -> YamlIO.parse(content.getValue(f)) }
             return Validator.validate(
-                YamlIO.parse(usageYaml), null, Path.of("usage.yaml"), usageSchema, idx,
-                workspace = Path.of("."),
-                loader = { f -> content[f]?.let { YamlIO.parse(it) } },
+                YamlIO.parse(usageYaml), null, model.DocumentId("usage.yaml"), usageSchema, idx,
+                loader = { d -> content[Path.of(d.value)]?.let { YamlIO.parse(it) } },
                 allSchemas = schemas,
             )
         }
@@ -256,15 +254,15 @@ class ConsistencyTest {
 
         // エラー時の対応（SP-09）: 組込み定義体が宣言した「導出規則へ／入力値へ／導出値を適用」が、宣言の順に付く
         val (toRule, toInput, apply) = issue.responses
-        toRule as IssueResponse.Jump
+        toRule as CheckResponse.Jump
         assertEquals("導出規則へ: varchar({maxLength})", toRule.label)
-        assertEquals(Path.of("mapping.yaml"), toRule.file)
+        assertEquals(model.DocumentId("mapping.yaml"), toRule.document)
         assertEquals(parseYPath("mappings[0].to"), toRule.path)
-        toInput as IssueResponse.Jump
+        toInput as CheckResponse.Jump
         assertEquals("入力値へ: {maxLength} = 100", toInput.label)
-        assertEquals(Path.of("concepts.yaml"), toInput.file)
+        assertEquals(model.DocumentId("concepts.yaml"), toInput.document)
         assertEquals(parseYPath("types[0].maxLength"), toInput.path)
-        apply as IssueResponse.ApplyValue
+        apply as CheckResponse.ApplyValue
         assertEquals("導出値を適用: varchar(100)", apply.label)
         assertEquals("varchar(100)", apply.value)
     }

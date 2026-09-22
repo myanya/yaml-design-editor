@@ -51,7 +51,7 @@ object Readiness {
     )
 
     fun report(ws: Workspace): Report {
-        val entriesByFile = ws.index.entries.values.flatten().groupBy { it.file }
+        val entriesByDocument = ws.index.entries.values.flatten().groupBy { it.document }
         val errorsById = mutableMapOf<String, Int>()
         val warningsById = mutableMapOf<String, Int>()
         val unassigned = mutableListOf<FileRow>()
@@ -63,7 +63,7 @@ object Readiness {
             withheld += result.withheld.map { rel to it }
             val issues = result.issues.filter { it.severity != Severity.INFO && it.source?.delivery != IssueDelivery.NOTICE }
             if (issues.isEmpty()) continue
-            val entries = entriesByFile[file].orEmpty()
+            val entries = entriesByDocument[ws.documentOf(file)].orEmpty()
             var docErrors = 0
             var docWarnings = 0
             for (issue in issues) {
@@ -83,10 +83,10 @@ object Readiness {
         }
 
         // フェーズは定義文書ごとに1回だけ解決する
-        val phaseByFile = mutableMapOf<Path, String?>()
-        fun phaseOf(file: Path): String? = phaseByFile.getOrPut(file) {
+        val phaseByDocument = mutableMapOf<model.DocumentId, String?>()
+        fun phaseOf(document: model.DocumentId): String? = phaseByDocument.getOrPut(document) {
             runCatching {
-                val doc = ws.load(ws.relPath(file))
+                val doc = ws.load(document.value)
                 val schema = doc.schema ?: return@getOrPut null
                 val order = schema.phases?.order ?: return@getOrPut null
                 schema.currentPhaseIndex(doc.root)?.let { order.getOrNull(it) }
@@ -102,8 +102,8 @@ object Readiness {
                     id = node.id,
                     entityType = node.entityType,
                     title = node.title,
-                    file = anchor?.let { ws.relPath(it.file) },
-                    phase = anchor?.let { phaseOf(it.file) },
+                    file = anchor?.let { it.document.value },
+                    phase = anchor?.let { phaseOf(it.document) },
                     errors = errorsById[node.id] ?: 0,
                     warnings = warningsById[node.id] ?: 0,
                     withheld = withheldById[node.id] ?: 0,

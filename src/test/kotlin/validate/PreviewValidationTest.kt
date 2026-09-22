@@ -72,7 +72,7 @@ class PreviewValidationTest {
         val file = dir.resolve("screens.yaml")
         val proposal = YamlIO.parse("screens:\n  - id: SCR-1\n    uses: [UC-1]\n  - id: SCR-NEW\n    uses: []")
         fun issues(index: index.IdIndex) = Validator.validate(
-            proposal, null, file, ws.schemaFor(file), index, workspace = dir, allSchemas = ws.schemas,
+            proposal, null, ws.documentOf(file), ws.schemaFor(file), index, loader = ws::treeOf, allSchemas = ws.schemas,
             relations = ws.relations, enforcement = ws.enforcement,
         )
         // ディスクの索引のまま: SCR-NEW は索引に無いため、検査の対象にならない（指摘が出ない）

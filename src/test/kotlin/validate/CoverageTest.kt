@@ -77,7 +77,7 @@ class CoverageTest {
     @Test
     fun `詳細文書のないIDは出現ベースのカバレッジで指摘される`() {
         val issues = Validator.validate(
-            YamlIO.parse(listYaml), null, Path.of("screens/index.yaml"), listSchema, index(withDetail = true),
+            YamlIO.parse(listYaml), null, model.DocumentId("screens/index.yaml"), listSchema, index(withDetail = true),
         )
         assertTrue(issues.none { "SCR-LIST" in it.message }, "$issues")
         assertTrue(

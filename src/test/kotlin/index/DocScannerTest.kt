@@ -45,7 +45,7 @@ class DocScannerTest {
                 rel: TARGET-1
             """.trimIndent()
         )
-        val (ids, refs) = DocScanner.scan(root, Path.of("screens/a.yaml"), schema)
+        val (ids, refs) = DocScanner.scan(root, model.DocumentId("screens/a.yaml"), schema)
         assertEquals(listOf("OPT-1"), ids.map { it.id })
         assertEquals(listOf("TARGET-1"), refs.map { it.targetId })
     }
@@ -60,7 +60,7 @@ class DocScannerTest {
                 rel: TARGET-1
             """.trimIndent()
         )
-        val (ids, refs) = DocScanner.scan(root, Path.of("screens/a.yaml"), schema)
+        val (ids, refs) = DocScanner.scan(root, model.DocumentId("screens/a.yaml"), schema)
         assertTrue(ids.isEmpty())
         assertTrue(refs.isEmpty())
     }
@@ -103,7 +103,7 @@ class DocScannerTest {
             owner: ACT-OWNER
             """.trimIndent()
         )
-        val (_, refs) = DocScanner.scan(root, Path.of("screens/a.yaml"), attributedSchema)
+        val (_, refs) = DocScanner.scan(root, model.DocumentId("screens/a.yaml"), attributedSchema)
         val attributed = refs.first { it.targetId == "ACT-ADMIN" }
         // path は to 値の座標（ジャンプ・パッチ・バックリンクの既存セマンティクス。§4.30）
         assertEquals(listOf("actors", 0, "to"), attributed.path)
@@ -126,7 +126,7 @@ class DocScannerTest {
               role: 管理者
             """.trimIndent()
         )
-        val (_, refs) = DocScanner.scan(root, Path.of("screens/a.yaml"), attributedSchema)
+        val (_, refs) = DocScanner.scan(root, model.DocumentId("screens/a.yaml"), attributedSchema)
         assertTrue(refs.none { it.targetId == "ACT-OWNER" }, refs.toString())
     }
 
@@ -172,7 +172,7 @@ class DocScannerTest {
             """.trimIndent(),
         )
 
-        val (ids, refs) = DocScanner.scan(root, Path.of("screens/a.yaml"), nestedSchema)
+        val (ids, refs) = DocScanner.scan(root, model.DocumentId("screens/a.yaml"), nestedSchema)
 
         assertEquals(listOf("OPT-1"), ids.map { it.id })
         assertEquals(listOf("TARGET-1"), refs.map { it.targetId })

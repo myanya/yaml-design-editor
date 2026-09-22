@@ -6,7 +6,6 @@ import androidx.compose.runtime.setValue
 import index.DocScanner
 import index.IdIndex
 import index.IdEntry
-import index.derivedIdIndex
 import index.idMatchesPattern
 import model.DocumentId
 import model.YDocument
@@ -243,15 +242,14 @@ class AppState {
      * indexVersion / editVersion（Compose状態）を読むため、コンポジション中の呼び出しは自動で購読される。
      * `remember` の計算内で使う場合はキーに editVersion を含めること。
      *
-     * A-1 後半（RA-02）: 供給元はセッション派生（derivedState＝カーネルの増分導出）で、IdIndex は
-     * 変換ファサード（index.derivedIdIndex）として残る。セッションを開けていない場合だけ
-     * 従来の二層 overlay（ディスク索引＋dirty 再走査）へフォールバックする。
+     * 供給元はセッション派生（derivedState＝カーネルの増分導出。RA-02）で、索引は、その意味解析の結果そのもの
+     * （写しを持たない。P27 段D の D-d・D-e）。セッションを開けていない場合だけ、ディスクを映した索引へ重ねる。
      */
     fun overlayIndex(): IdIndex {
         val cw = coreWs ?: return index
         val key = indexVersion to editVersion
         overlayCache?.let { (k, cached) -> if (k == key) return cached }
-        val result = derivedState()?.let { derived -> derivedIdIndex(derived.semantic.scans, cw.root) }
+        val result = derivedState()?.let { derived -> IdIndex.of(derived.semantic) }
             ?: legacyOverlayIndex(cw)
         overlayCache = key to result
         return result
@@ -429,13 +427,13 @@ class AppState {
      */
     fun entityRelatedFiles(id: String, exclude: Path): List<Path> {
         val overlay = overlayIndex()
-        val occurrenceFiles = overlay.occurrences(id).map { it.file }
+        val occurrenceFiles = overlay.occurrences(id).map { it.document }
         val refTargets = overlay.outgoingRefs(id).mapNotNull { r ->
-            if (r.targetKind == schema.RefTarget.DOCUMENT) overlay.graph.documents[r.targetId]?.file
-            else overlay.occurrences(r.targetId).firstOrNull()?.file
+            if (r.targetKind == schema.RefTarget.DOCUMENT) overlay.graph.documents[r.targetId]?.document
+            else overlay.occurrences(r.targetId).firstOrNull()?.document
         }
-        val backlinkSources = overlay.backlinksTo(setOf(id)).map { it.file }
-        return (occurrenceFiles + refTargets + backlinkSources).distinct().filter { it != exclude }
+        val backlinkSources = overlay.backlinksTo(setOf(id)).map { it.document }
+        return (occurrenceFiles + refTargets + backlinkSources).distinct().map(::fileOf).filter { it != exclude }
     }
 
     fun dismissAi() { aiRequest = null }
@@ -468,8 +466,9 @@ class AppState {
         val cw = coreWs?.also { it.refresh() } ?: core.Workspace.open(ws).also { coreWs = it }
         mirrorCore(cw)
         // A-1: 新経路セッションもディスク再読込と同じタイミングで開き直す（レイアウト変化も追随する）。
-        // 開き直し後は編集中文書を再反映する（RA-05）
-        reopenSession(ws)
+        // 開き直し後は編集中文書を再反映する（RA-05）。ディスクを映すセッションを読み直した直後なので、
+        // その読み込み済みの状態から起こす（同じワークスペースを2回読まない。P27 段D の D-d・D-e）
+        reopenSession(ws, fromMirror = true)
         directories = scanDirectories(ws)
         val existing = yamlFiles.toSet() + editorOnlyFiles
         docCache.keys.filter { it !in existing }.toList().forEach { removed ->
@@ -511,18 +510,25 @@ class AppState {
     /**
      * 新経路セッションを開く（失敗してもアプリは旧経路で動き続ける）。
      * 組込スキーマ（メタスキーマ等）を注入し、`_schemas`・定義ゾーンの検証を旧経路と揃える（C-2）。
+     *
+     * [fromMirror]: ディスクを映すセッション（core.Workspace の内部）を読み直した直後なら、その読み込み済みの状態から
+     * 起こす（`fork`）。2つのセッションは別物のまま——編集用は未保存の編集と作業中のスキーマを持ち、ディスクを映す側は
+     * エージェント・自動実行・CLI の基準（docs/ARCHITECTURE.md §4.5 の二層）——で、読み込みだけを1回にする。
      */
-    private fun openSession(ws: Path): WorkspaceSession? = runCatching {
-        val wsLayout = coreWs?.layout ?: schema.WorkspaceLayout.of(ws)
-        WorkspaceSession(FileSystemDocumentStore(ws), builtins = schema.BuiltinSchemas.kernelSchemas(wsLayout))
+    private fun openSession(ws: Path, fromMirror: Boolean = false): WorkspaceSession? = runCatching {
+        val forked = if (fromMirror) runCatching { coreWs?.mirror?.fork() }.getOrNull() else null
+        forked ?: run {
+            val wsLayout = coreWs?.layout ?: schema.WorkspaceLayout.of(ws)
+            WorkspaceSession(FileSystemDocumentStore(ws), builtins = schema.BuiltinSchemas.kernelSchemas(wsLayout))
+        }
     }.getOrNull()
 
     /**
      * セッションを開き直し、編集中（dirty）の文書を working 状態へ再反映する（RA-05）。
      * 開き直しはディスク基準になるため、UIの「見たまま」を編集直結で回復する。
      */
-    private fun reopenSession(ws: Path) {
-        session = openSession(ws)
+    private fun reopenSession(ws: Path, fromMirror: Boolean = false) {
+        session = openSession(ws, fromMirror)
         docCache.values.filter { it.dirty }.forEach(::pushEditToSession)
     }
 
@@ -652,6 +658,22 @@ class AppState {
         return IdIndex.relPathOf(ws, file)
     }
 
+    /**
+     * ファイルの文書ID（ワークスペース相対パス）。索引・検証・ビューの解決は、場所をこの座標で表す（P27 段D の D-d・D-e）。
+     * 画面は、開いている文書をファイル（Path）で持つので、索引へ聞くときに、ここで文書ID へ直す。
+     */
+    fun documentOf(file: Path): DocumentId = DocumentId(relPath(file))
+
+    /** 文書ID のファイル。ファイルを開く・文書キャッシュを引くなど、Path が要る所でだけ使う。 */
+    fun fileOf(document: DocumentId): Path =
+        (workspace?.resolve(document.value) ?: Path.of(document.value)).normalize()
+
+    // 文書ID で呼べる入口（索引・検証・ビューの解決の結果は、場所を文書ID で持つ。ファイルへ直すのは、ここの1か所）
+    fun openFile(document: DocumentId, focus: YPath? = null) = openFile(fileOf(document), focus)
+    fun ensureDoc(document: DocumentId): OpenDocument = ensureDoc(fileOf(document))
+    fun schemaFor(document: DocumentId): SchemaDef? = schemaFor(fileOf(document))
+    fun isIndexed(document: DocumentId): Boolean = isIndexed(fileOf(document))
+
     fun schemaFor(file: Path): SchemaDef? = coreWs?.schemaFor(file)
 
     /**
@@ -705,6 +727,9 @@ class AppState {
         docCache[file]?.root ?: runCatching { YamlIO.parseFirst(Files.readString(file)) }.getOrNull()
     }
 
+    /** 未保存編集を優先するツリー取得の、文書ID 版（索引・検証・ビューの解決へ渡す loader）。 */
+    fun unsavedFirstTree(): (DocumentId) -> YNode? = unsavedFirstLoader().let { load -> { d -> load(fileOf(d)) } }
+
     fun workspaceRecords(): List<core.WorkspaceRecord> =
         coreWs?.let { core.WorkspaceRecords.collect(it, unsavedFirstLoader()) }.orEmpty()
 
@@ -720,10 +745,10 @@ class AppState {
         return cw.files.mapNotNull { file ->
             val cached = docCache[file]
             val issues = validate.Validator.validate(
-                cached?.root ?: loader(file), cached?.parseError, file,
+                cached?.root ?: loader(file), cached?.parseError, documentOf(file),
                 cached?.schema ?: cw.schemaFor(file), overlay,
-                indexed = true, workspace = workspace, allSchemas = schemas,
-                loader = loader, relations = relations, enforcement = enforcement,
+                indexed = true, allSchemas = schemas,
+                loader = unsavedFirstTree(), relations = relations, enforcement = enforcement,
                 shareEvaluations = true,  // 未保存の編集を重ねた索引と、未保存を優先する loader
             )
             if (issues.isEmpty()) null else file to issues
@@ -1227,7 +1252,7 @@ class AppState {
             }
         }
         index.entries[trimmed]?.firstOrNull()?.let {
-            error("ID「$trimmed」は既に存在します: ${relPath(it.file)}")
+            error("ID「$trimmed」は既に存在します: ${it.document.value}")
         }
         createScaffoldFile(core.Views.scaffold(pattern, trimmed, schemas))
     }
@@ -1506,7 +1531,7 @@ class AppState {
         val doc = openDoc
         if (doc?.root != null) {
             val documentId = IdIndex.documentIdOf(doc.root!!, relPath(doc.file))
-            val (ids, _) = DocScanner.scan(doc.root, doc.file, doc.schema, documentId)
+            val (ids, _) = DocScanner.scan(doc.root, documentOf(doc.file), doc.schema, documentId)
             val local = ids.firstOrNull { it.id == id }
             if (local != null) {
                 navigateToPath(local.path)
@@ -1518,7 +1543,7 @@ class AppState {
 
     fun navigateToOccurrence(entry: IdEntry) {
         navigationCandidates = emptyList()
-        openFile(entry.file, entry.path)
+        openFile(entry.document, entry.path)
         editorTab = 0
     }
 

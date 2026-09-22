@@ -191,7 +191,7 @@ class CheckOutcomeTest {
         val ws = Workspace.open(dir)
         val schema = ws.schemas.first { it.id == "screens" }
         val root = ws.load("screens.yaml").root
-        fun status(id: String) = Validator.ruleStatuses(id, schema, ws.index, root, ws.schemas, dir).single()
+        fun status(id: String) = Validator.ruleStatuses(id, schema, ws.index, root, ws.schemas, ws::treeOf).single()
         assertEquals(CheckOutcome.SATISFIED, status("SCR-OK").outcome)
         assertTrue(status("SCR-OK").satisfied)
         assertEquals(CheckOutcome.VIOLATED, status("SCR-EMPTY").outcome)

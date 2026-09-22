@@ -66,7 +66,7 @@ object Exporter {
         val view = loaded.view(viewId)
             ?: error("ビュー「$viewId」が見つかりません" +
                 (loaded.errors.takeIf { it.isNotEmpty() }?.let { "（定義エラー: ${it.joinToString(" / ")}）" } ?: ""))
-        val rows = Views.resolve(view, ws.root, ws.index)
+        val rows = Views.resolve(view, ws.index, ws::treeOf)
         val headers = listOf("id") + view.columns.map { it.label }
         val table = Table(headers, rows.map { row -> listOf<Any?>(row.id) + row.cells.map(::viewCellValue) })
         val target = ws.resolve(def.outputFile)
@@ -77,7 +77,7 @@ object Exporter {
     /** ビューのセル値を表のセルへ落とす（バックリンク列は参照元IDの列挙）。 */
     private fun viewCellValue(cell: ViewCell): Any? {
         cell.backlinks?.let { backlinks ->
-            return backlinks.joinToString(", ") { it.sourceId ?: it.rel }.takeIf { it.isNotBlank() }
+            return backlinks.joinToString(", ") { it.sourceId ?: it.document.value }.takeIf { it.isNotBlank() }
         }
         return when (val node = cell.value) {
             null -> null

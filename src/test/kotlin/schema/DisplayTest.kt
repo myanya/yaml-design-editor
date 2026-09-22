@@ -129,7 +129,7 @@ class DisplayTest {
                 subject: role指定の件名
             """
         )
-        val (ids, _) = DocScanner.scan(root, Path.of("docs/a.yaml"), schema)
+        val (ids, _) = DocScanner.scan(root, model.DocumentId("docs/a.yaml"), schema)
         assertEquals("role指定の件名", ids.single().title)
     }
 

@@ -268,26 +268,26 @@ class ViewsTest {
     fun `resolve joins occurrences by id with coordinates`() {
         val workspace = Workspace.open(ws)
         val view = Views.load(ws).view("screen-catalog")!!
-        val rows = Views.resolve(view, ws, workspace.index)
+        val rows = Views.resolve(view, workspace.index, workspace::treeOf)
         assertEquals(listOf("SCR-LIST", "SCR-EDIT"), rows.map { it.id }, "一覧文書の出現順で並ぶ")
 
         val list = rows[0]
         // 一覧側のセル: 値と座標
         val name = list.cells[0]
         assertEquals("一覧画面", (name.value as YNode.Scalar).value)
-        assertEquals("screens/index.yaml", name.rel)
+        assertEquals("screens/index.yaml", name.document?.value)
         assertEquals(parseYPath("screens[0].name"), name.path)
         assertTrue(name.column.editable)
         // 詳細側のセル: 別文書の同一IDから解決される
         val areas = list.cells[2]
-        assertEquals("screens/detail/SCR-LIST.yaml", areas.rel)
+        assertEquals("screens/detail/SCR-LIST.yaml", areas.document?.value)
         assertEquals(2, (areas.value as YNode.Seq).items.size)
         // 詳細出現の判定
-        assertEquals("screens/detail/SCR-LIST.yaml", list.detailRel)
+        assertEquals("screens/detail/SCR-LIST.yaml", list.detailDocument?.value)
 
         val edit = rows[1]
-        assertNull(edit.cells[2].file, "詳細未作成の行はセルが出現なしになる")
-        assertNull(edit.detailRel)
+        assertNull(edit.cells[2].document, "詳細未作成の行はセルが出現なしになる")
+        assertNull(edit.detailDocument?.value)
     }
 
     @Test
@@ -297,9 +297,9 @@ class ViewsTest {
         // 未保存編集に相当するオーバーレイを loader で注入する
         val edited = YamlIO.parse(Files.readString(ws.resolve("screens/index.yaml")))
         Patcher.apply(edited, PatchOp.Set(parseYPath("screens[0].name"), YNode.Scalar("編集済みの画面名")))
-        val rows = Views.resolve(view, ws, workspace.index) { f ->
-            if (workspace.relPath(f) == "screens/index.yaml") edited
-            else runCatching { YamlIO.parse(Files.readString(f)) }.getOrNull()
+        val rows = Views.resolve(view, workspace.index) { d ->
+            if (d.value == "screens/index.yaml") edited
+            else workspace.treeOf(d)
         }
         assertEquals("編集済みの画面名", (rows[0].cells[0].value as YNode.Scalar).value)
     }
@@ -354,12 +354,12 @@ class ViewsTest {
         val workspace = Workspace.open(ws)
         val view = Views.load(ws).view("screen-tables")!!
         assertEquals("derives", view.columns[1].backlinks?.relation)
-        val rows = Views.resolve(view, ws, workspace.index)
+        val rows = Views.resolve(view, workspace.index, workspace::treeOf)
 
         val list = rows.first { it.id == "SCR-LIST" }
         val backlinks = list.cells[1].backlinks!!
         assertEquals(listOf("TBL-LIST-M", "TBL-LIST-S"), backlinks.map { it.sourceId }, "参照元ファイル順で並ぶ")
-        assertEquals("tables/TBL-LIST-M.yaml", backlinks[0].rel)
+        assertEquals("tables/TBL-LIST-M.yaml", backlinks[0].document.value)
         assertEquals(parseYPath("screen"), backlinks[0].path, "参照値の座標を持つ（ジャンプ・apply_patch に使える）")
 
         // relation の絞り込み: see_also（relation なし）による参照は derives 列に現れない
@@ -541,14 +541,14 @@ class ViewsTest {
         val workspace = Workspace.open(ws)
         val loaded = Views.load(ws, workspace.schemas)
         assertTrue(loaded.errors.isEmpty(), loaded.errors.toString())
-        val rows = Views.resolve(loaded.view("vt-computed")!!, ws, workspace.index)
+        val rows = Views.resolve(loaded.view("vt-computed")!!, workspace.index, workspace::treeOf)
 
         // 同一ID出現の写像行のテンプレートを、値型定義（values で選んだ出現）の値で評価する
         val title = rows.first { it.id == "VT-TITLE" }
         val ddl = title.cells[1]
         assertEquals("varchar(100)", (ddl.value as YNode.Scalar).value)
         assertTrue(ddl.computed)
-        assertEquals("ddl-mapping.yaml", ddl.rel, "座標は元値（導出規則）の位置")
+        assertEquals("ddl-mapping.yaml", ddl.document?.value, "座標は元値（導出規則）の位置")
         assertEquals(parseYPath("mappings[0].to"), ddl.path)
 
         // 来歴（R16-04）: 元値と、プレースホルダごとの解決値・入力値の座標を持つ（ジャンプ先の選択肢）
@@ -557,7 +557,7 @@ class ViewsTest {
         val input = trace.inputs.single()
         assertEquals("maxLength", input.placeholder)
         assertEquals("100", input.value)
-        assertEquals("types.yaml", input.rel, "入力値の座標は値型定義の位置")
+        assertEquals("types.yaml", input.document?.value, "入力値の座標は値型定義の位置")
         assertEquals(parseYPath("types[0].maxLength"), input.path)
 
         // 解決できないプレースホルダは {...} のまま残す（作業を止めない。ARCHITECTURE §4.26）
@@ -567,7 +567,7 @@ class ViewsTest {
         val missing = note.cells[1].trace!!.inputs.single()
         assertEquals("missing", missing.placeholder)
         assertNull(missing.value)
-        assertNull(missing.file)
+        assertNull(missing.document)
 
         // 値辞書は評価後の値に適用される
         assertEquals("VARCHAR2(100 CHAR)", (title.cells[2].value as YNode.Scalar).value)
@@ -584,7 +584,7 @@ class ViewsTest {
     fun `computed column follows one hop lookup and falls back to default`() {
         writeComputedFixtures()
         val workspace = Workspace.open(ws)
-        val rows = Views.resolve(Views.load(ws).view("fld-computed")!!, ws, workspace.index)
+        val rows = Views.resolve(Views.load(ws).view("fld-computed")!!, workspace.index, workspace::treeOf)
 
         // lookup: 属性の ref（vtype）を1ホップ辿り、参照先IDの写像行から導出する
         val titled = rows.first { it.id == "FLD-TITLE" }
@@ -593,7 +593,7 @@ class ViewsTest {
         // ref が未記入の行は default にフォールバックする（導出元の座標はない）
         val free = rows.first { it.id == "FLD-FREE" }
         assertEquals("text", (free.cells[0].value as YNode.Scalar).value)
-        assertNull(free.cells[0].file)
+        assertNull(free.cells[0].document)
     }
 
     @Test
@@ -694,7 +694,7 @@ class ViewsTest {
         writeDocViewFixtures()
         val workspace = Workspace.open(ws)
         val view = Views.load(ws).docView("screen-index-doc")!!
-        val sections = Views.resolveDocument(view, ws, ws.resolve("screens/index.yaml"), workspace.index)
+        val sections = Views.resolveDocument(view, model.DocumentId("screens/index.yaml"), workspace.index, loader = workspace::treeOf)
         assertEquals(2, sections.size)
         assertNull(sections[0].rows, "fields セクションは行を持たない（描画側が文書ツリーから直接描く）")
 
@@ -703,7 +703,7 @@ class ViewsTest {
         assertEquals(parseYPath("screens[0]"), rows[0].path)
         val backlinks = rows[0].backlinks
         assertEquals(listOf("TBL-LIST-M", "TBL-LIST-S"), backlinks.map { it.sourceId }, "参照元ファイル順で並ぶ")
-        assertEquals("tables/TBL-LIST-M.yaml", backlinks[0].rel)
+        assertEquals("tables/TBL-LIST-M.yaml", backlinks[0].document.value)
         assertEquals(parseYPath("screen"), backlinks[0].refPath, "参照値の座標を持つ（ジャンプ・apply_patch に使える）")
         assertEquals("TBL-LIST-M", (backlinks[0].values[0] as YNode.Scalar).value, "columns は参照元要素からの相対値")
         assertTrue(rows[1].backlinks.isEmpty(), "relation が一致しない参照（see_also）は現れない")
@@ -821,7 +821,7 @@ class ViewsTest {
         val workspace = Workspace.open(ws)
         val view = Views.load(ws, workspace.schemas).docView("screen-index-composed")!!
         val file = ws.resolve("screens/index.yaml")
-        val attachments = Views.resolveAttachments(view, ws, file, workspace.index)
+        val attachments = Views.resolveAttachments(view, workspace.documentOf(file), workspace.index, loader = workspace::treeOf)
         val rows = attachments.single().rows
         assertEquals(listOf("SCR-LIST", "SCR-EDIT"), rows.map { it.id }, "要素の文書内順で並ぶ")
         assertEquals(parseYPath("screens[0]"), rows[0].path, "差し込み先の要素座標を持つ")
@@ -830,7 +830,7 @@ class ViewsTest {
         assertTrue(rows[1].backlinks.isEmpty(), "relation が一致しない参照は現れない")
 
         // テキスト表現（エージェント・CLI 共用）に選別・アタッチが載る
-        val sections = Views.resolveDocument(view, ws, file, workspace.index)
+        val sections = Views.resolveDocument(view, workspace.documentOf(file), workspace.index, loader = workspace::treeOf)
         val text = Views.renderDocText(view, "screens/index.yaml", sections, attachments)
         assertTrue("（選別: screens）" in text, text)
         assertTrue("アタッチ: 実装テーブル（at: screens[*]）" in text, text)
@@ -904,7 +904,7 @@ class ViewsTest {
         assertTrue(view.columns.all { it.editable })
         assertTrue(view.columns.all { it.from.schemaId == "screen-list" })
 
-        val rows = Views.resolve(view, ws, workspace.index)
+        val rows = Views.resolve(view, workspace.index, workspace::treeOf)
         val list = rows.first { it.id == "SCR-LIST" }
         assertEquals("一覧画面", (list.cells[0].value as YNode.Scalar).value)
     }
@@ -1245,7 +1245,7 @@ class ViewsTest {
         val view = loaded.view("join-view")!!
         assertNull(view.rows)
         assertEquals("scr", view.rowKey)
-        val rows = Views.resolve(view, ws, workspace.index)
+        val rows = Views.resolve(view, workspace.index, workspace::treeOf)
         // 行 = 束縛行（結合）。行IDは行キー束縛で、結合により重複しうる。key は束縛値の組で一意
         assertEquals(listOf("QS-1", "QS-1", "QS-2"), rows.map { it.id })
         assertEquals(
@@ -1254,12 +1254,12 @@ class ViewsTest {
         )
         val first = rows[0]
         // of 省略の列は行キー束縛（qscreen）の座標へ、of: uc の列は結合先（qusecase）の座標へ解決される
-        assertEquals("qscreens/QS-1.yaml", first.cells[0].rel)
+        assertEquals("qscreens/QS-1.yaml", first.cells[0].document?.value)
         assertEquals(parseYPath("name"), first.cells[0].path)
         assertEquals("画面A", (first.cells[0].value as? YNode.Scalar)?.value)
-        assertEquals("qucs/QU-1.yaml", first.cells[1].rel)
+        assertEquals("qucs/QU-1.yaml", first.cells[1].document?.value)
         assertEquals("ユースX", (first.cells[1].value as? YNode.Scalar)?.value)
-        assertEquals("qucs/QU-1.yaml", first.cells[2].rel)
+        assertEquals("qucs/QU-1.yaml", first.cells[2].document?.value)
         assertEquals(parseYPath("owner"), first.cells[2].path)
         assertTrue(first.cells[2].column.editable)
         // テキスト表現には束縛が明示される

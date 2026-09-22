@@ -217,10 +217,10 @@ class WorkspaceCliTest {
         val workspace = Workspace.open(ws)
         val schema = workspace.schemas.single { it.id == "requirement" }
         val rule = schema.constraints.single()
-        assertTrue(index.Query.anyMatchFrom(workspace.index, rule.spec, "REQ-001"))
-        assertFalse(index.Query.anyMatchFrom(workspace.index, rule.spec, "REQ-002"))
+        assertTrue(index.Query.anyMatchFrom(workspace.index, rule.spec, "REQ-001", workspace::treeOf))
+        assertFalse(index.Query.anyMatchFrom(workspace.index, rule.spec, "REQ-002", workspace::treeOf))
         // パターン外のID（サブ項目）は母集団に入らない（対象外は黙る）
-        assertFalse(index.Query.startMatches(workspace.index, rule.spec, "REQ-001-S1"))
+        assertFalse(index.Query.startMatches(workspace.index, rule.spec, "REQ-001-S1", workspace::treeOf))
     }
 
     // ---------------------------------------------------------------- 変更セット適用（R1-02）

@@ -101,7 +101,7 @@ class RuleStatusTest {
     private fun statuses(ws: Workspace, id: String): List<RuleStatus> {
         val schema = ws.schemas.first { it.id == "feature-list" }
         val root = yaml.YamlIO.parseFirst(Files.readString(dir.resolve("x-features.yaml")))
-        return Validator.ruleStatuses(id, schema, ws.index, root, ws.schemas, dir)
+        return Validator.ruleStatuses(id, schema, ws.index, root, ws.schemas, ws::treeOf)
     }
 
     @Test

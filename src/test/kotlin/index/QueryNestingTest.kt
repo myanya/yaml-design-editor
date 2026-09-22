@@ -108,7 +108,7 @@ class QueryNestingTest {
     private fun spec(yaml: String): QuerySpec = QuerySpec.parse(YamlIO.parseToRaw(yaml.trimIndent()) as Map<*, *>, "spec")
 
     private fun ids(ws: Workspace, yaml: String, bind: String): List<String> =
-        Query.run(ws.index, spec(yaml)).rows.map { it.bindings.getValue(bind).id }
+        Query.run(ws.index, spec(yaml), ws::treeOf).rows.map { it.bindings.getValue(bind).id }
 
     @Test
     fun `出ていく向きは その要素が直接書いた参照だけを辿り 入ってくる向きと対になる`() {

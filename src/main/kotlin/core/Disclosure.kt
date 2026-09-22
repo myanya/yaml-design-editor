@@ -34,7 +34,7 @@ object Disclosure {
             .map { file ->
                 val rel = ws.relPath(file)
                 val root = runCatching { YamlIO.parseFirst(java.nio.file.Files.readString(file)) }.getOrNull()
-                val ids = ws.index.entries.values.asSequence().flatten().count { it.file == file }
+                val ids = ws.index.entries.values.asSequence().flatten().count { it.document.value == rel }
                 val schemaDef = ws.schemaFor(file)
                 CatalogEntry(
                     file = rel,
@@ -132,11 +132,11 @@ object Disclosure {
 
         // 対象サブツリーからの参照と、サブツリー内で定義される ID への被参照
         val documentId = IdIndex.documentIdOf(root, rel)
-        val (ids, refs) = index.DocScanner.scan(root, doc.file, doc.schema, documentId)
+        val (ids, refs) = index.DocScanner.scan(root, model.DocumentId(rel), doc.schema, documentId)
         fun under(p: YPath): Boolean = p.size >= path.size && p.subList(0, path.size) == path
         val refsOut = refs.filter { under(it.path) }
         val idsIn = ids.filter { under(it.path) }.map { it.id }.toSet()
-        val backlinks = ws.index.backlinksTo(idsIn).filter { it.file != doc.file }
+        val backlinks = ws.index.backlinksTo(idsIn).filter { it.document.value != rel }
 
         if (refsOut.isNotEmpty()) {
             sb.append("refs:\n")
@@ -146,7 +146,7 @@ object Disclosure {
                 sb.append("  - id: ").append(r.targetId)
                 // 関係レジストリの表示ラベル（R20-02。未宣言は名前のまま）
                 schema.Relations.labelOf(ws.relations, r.relation)?.let { sb.append("  relation: ").append(it) }
-                target?.let { sb.append("  file: ").append(ws.relPath(it.file)); it.title?.let { t -> sb.append("  title: ").append(t) } }
+                target?.let { sb.append("  file: ").append(it.document.value); it.title?.let { t -> sb.append("  title: ").append(t) } }
                 sb.append('\n')
             }
         }
@@ -154,7 +154,7 @@ object Disclosure {
             sb.append("backlinks:\n")
             for (b in backlinks) {
                 if (sb.length > budgetChars) break
-                sb.append("  - id: ").append(b.targetId).append("  from: ").append(ws.relPath(b.file))
+                sb.append("  - id: ").append(b.targetId).append("  from: ").append(b.document.value)
                     .append("  via: ").append(b.viaKey)
                 schema.Relations.inverseLabelOf(ws.relations, b.relation)?.let { sb.append("  relation: ").append(it) }
                 sb.append('\n')

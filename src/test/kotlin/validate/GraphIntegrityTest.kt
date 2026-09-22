@@ -442,8 +442,8 @@ class GraphIntegrityTest {
         val ws = Workspace.open(dir)
         val issueA = ws.validate("basic/S1.yaml").single { "SI-A" in it.message && "被参照が不足" in it.message }
         // 対応は組込み定義体の宣言（responses の jump: referenceSources）から作られる（P29 Phase 6 第2段）
-        val jumpA = issueA.responses.filterIsInstance<IssueResponse.Jump>()
-        assertEquals(listOf(dir.resolve("detail/S1.yaml")), jumpA.map { it.file }, issueA.toString())
+        val jumpA = issueA.responses.filterIsInstance<CheckResponse.Jump>()
+        assertEquals(listOf(model.DocumentId("detail/S1.yaml")), jumpA.map { it.document }, issueA.toString())
         assertEquals("参照の追加先を開く: detail/S1.yaml", jumpA.single().label)
         assertEquals("この文書に参照を書き足すと解消できます", jumpA.single().note)
         val issueB = ws.validate("basic/S2.yaml").single { "SI-B" in it.message && "被参照が不足" in it.message }
@@ -499,8 +499,8 @@ class GraphIntegrityTest {
         val ws = Workspace.open(dir)
         val issue = ws.validate("types.yaml").single { "DT-1" in it.message && "被参照が不足" in it.message }
         assertEquals(
-            listOf(dir.resolve("mapping.yaml")),
-            issue.responses.filterIsInstance<IssueResponse.Jump>().map { it.file },
+            listOf(model.DocumentId("mapping.yaml")),
+            issue.responses.filterIsInstance<CheckResponse.Jump>().map { it.document },
             issue.toString(),
         )
     }

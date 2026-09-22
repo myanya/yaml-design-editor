@@ -26,8 +26,10 @@ fun testIndex(
             val root = loader(f) ?: return@mapNotNull null
             val schemaDef = schemas.firstOrNull { it.matches(rel) }
             val documentId = IdIndex.documentIdOf(root, rel)
-            val (ids, refs) = DocScanner.scan(root, f, schemaDef, documentId)
-            IdIndex.PopulatedScan(f, documentId, ids, refs)
+            // 場所は、文書ID（ワークスペース相対パス）で表す（本体の供給経路＝セッション派生と同じ座標）
+            val document = model.DocumentId(rel)
+            val (ids, refs) = DocScanner.scan(root, document, schemaDef, documentId)
+            semantic.DocumentScan(document, documentId, ids, refs)
         }
     )
     return idx

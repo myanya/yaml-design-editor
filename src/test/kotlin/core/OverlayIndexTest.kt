@@ -99,9 +99,9 @@ class OverlayIndexTest {
 
         // オーバーレイ索引で検証すると、保存前でもカバレッジが充足する（UIの「見たまま判定」）
         val overlayIssues = Validator.validate(
-            YamlIO.parse(Files.readString(listFile)), null, listFile,
+            YamlIO.parse(Files.readString(listFile)), null, workspace.documentOf(listFile),
             workspace.schemaFor(listFile), overlay,
-            workspace = root, allSchemas = workspace.schemas,
+            loader = workspace::treeOf, allSchemas = workspace.schemas,
         )
         assertTrue(overlayIssues.none { "SCR-B" in it.message && "詳細文書" in it.message }, "$overlayIssues")
 

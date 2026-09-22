@@ -59,7 +59,7 @@ object Search {
         // 参照の検索（索引ベース）
         if (query.refsTo != null || query.unresolvedRefs) {
             return index.refs.asSequence()
-                .filter { fileMatches(it.file) }
+                .filter { fileMatches(ws.fileOf(it.document)) }
                 .filter { query.refsTo == null || it.targetId == query.refsTo }
                 .filter { query.text == null || it.targetId.contains(query.text, ignoreCase = true) }
                 .filter { pathRegex == null || pathRegex.matches(it.path.pretty()) }
@@ -67,7 +67,7 @@ object Search {
                     val unresolved = index.resolve(ref).isEmpty()
                     if (query.unresolvedRefs && !unresolved) return@mapNotNull null
                     SearchHit(
-                        file = ws.relPath(ref.file),
+                        file = ref.document.value,
                         path = ref.path.pretty(),
                         kind = if (unresolved) "unresolved-ref" else "ref",
                         excerpt = buildString {

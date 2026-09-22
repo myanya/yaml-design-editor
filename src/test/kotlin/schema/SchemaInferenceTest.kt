@@ -243,7 +243,7 @@ class SchemaInferenceTest {
         val draft = SchemaInference.infer(docs, "doc", "*.yaml")
         val meta = BuiltinSchemas.all.first { it.id == BuiltinSchemas.META_SCHEMA_ID }
         val issues = validate.Validator.validate(
-            YamlIO.parse(YamlIO.dump(draft)), null, Path.of("_schemas/doc.yaml"), meta, index.IdIndex(),
+            YamlIO.parse(YamlIO.dump(draft)), null, model.DocumentId("_schemas/doc.yaml"), meta, index.IdIndex(),
         )
         assertEquals(emptyList(), issues.filter { it.severity == validate.Severity.ERROR })
     }

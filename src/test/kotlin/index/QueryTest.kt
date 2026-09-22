@@ -108,6 +108,7 @@ class QueryTest {
                   - node: { entity: usecase, bind: uc }
                 """
             ),
+            ws::treeOf,
         )
         assertEquals(listOf("scr", "uc"), result.columns)
         assertEquals(
@@ -119,7 +120,7 @@ class QueryTest {
         val first = result.rows.first().bindings.getValue("scr")
         assertEquals("画面1", first.title)
         assertEquals("screen", first.entityType)
-        assertTrue(first.file.toString().replace('\\', '/').endsWith("screens/SCR-1.yaml"))
+        assertTrue(first.document.toString().replace('\\', '/').endsWith("screens/SCR-1.yaml"))
     }
 
     @Test
@@ -135,6 +136,7 @@ class QueryTest {
                   - { of: scr, path: status, equals: approved }
                 """
             ),
+            ws::treeOf,
         )
         assertEquals(listOf(listOf("SCR-1")), rowIds(approved))
         val noStatus = Query.run(
@@ -147,6 +149,7 @@ class QueryTest {
                   - { of: scr, path: status, exists: false }
                 """
             ),
+            ws::treeOf,
         )
         assertEquals(listOf(listOf("SCR-2")), rowIds(noStatus))
     }
@@ -169,6 +172,7 @@ class QueryTest {
                     - node: { entity: domain, bind: dom }
                 """
             ),
+            ws::treeOf,
         )
         assertEquals(listOf("scr", "uc", "dom"), result.columns)
         assertEquals(
@@ -194,6 +198,7 @@ class QueryTest {
                   - node: { entity: screen, bind: scr }
                 """
             ),
+            ws::treeOf,
         )
         assertEquals(
             listOf(listOf("UC-1", "SCR-1"), listOf("UC-2", "SCR-1"), listOf("UC-2", "SCR-2")),
@@ -217,6 +222,7 @@ class QueryTest {
                 limit: 2
                 """
             ),
+            ws::treeOf,
         )
         assertEquals(listOf(listOf("SCR-1", "UC-1"), listOf("SCR-1", "UC-2")), rowIds(result))
         assertEquals(3, result.total)
@@ -235,6 +241,7 @@ class QueryTest {
                   - node: { entity: usecase, bind: uc }
                 """
             ),
+            ws::treeOf,
         )
         assertEquals(
             listOf(listOf("screens/SCR-1.yaml", "UC-1"), listOf("screens/SCR-1.yaml", "UC-2")),
@@ -261,6 +268,7 @@ class QueryTest {
                   - node: { entity: screen, bind: b }
                 """
             ),
+            ws::treeOf,
         )
         assertEquals(listOf(listOf("SCR-1", "SCR-2"), listOf("SCR-2", "SCR-1")), rowIds(result))
     }
@@ -280,8 +288,8 @@ class QueryTest {
             """
         )
         // ディスク索引には現れず、オーバーレイ索引には未保存の参照先（UC-3）が行として現れる
-        assertTrue(rowIds(Query.run(ws.index, q)).none { it == listOf("SCR-2", "UC-3") })
-        assertTrue(rowIds(Query.run(overlay, q)).any { it == listOf("SCR-2", "UC-3") })
+        assertTrue(rowIds(Query.run(ws.index, q, ws::treeOf)).none { it == listOf("SCR-2", "UC-3") })
+        assertTrue(rowIds(Query.run(overlay, q, ws::treeOf)).any { it == listOf("SCR-2", "UC-3") })
     }
 
     @Test
@@ -295,11 +303,11 @@ class QueryTest {
               - node: { entity: screen }
             """
         )
-        assertTrue(Query.startMatches(ws.index, q, "UC-3"))
-        assertFalse(Query.anyMatchFrom(ws.index, q, "UC-3"))
-        assertTrue(Query.anyMatchFrom(ws.index, q, "UC-1"))
+        assertTrue(Query.startMatches(ws.index, q, "UC-3", ws::treeOf))
+        assertFalse(Query.anyMatchFrom(ws.index, q, "UC-3", ws::treeOf))
+        assertTrue(Query.anyMatchFrom(ws.index, q, "UC-1", ws::treeOf))
         // 母集団に入らないID（型不一致）は startMatches が false = 判定保留（黙る）
-        assertFalse(Query.startMatches(ws.index, q, "SCR-1"))
+        assertFalse(Query.startMatches(ws.index, q, "SCR-1", ws::treeOf))
     }
 
     @Test

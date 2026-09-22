@@ -318,7 +318,7 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
                             Column(Modifier.fillMaxWidth()) {
                                 Text(entry.title ?: entry.id, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                                 Text(
-                                    "${state.relPath(entry.file)} · ${entry.documentId}",
+                                    "${entry.document.value} · ${entry.documentId}",
                                     fontSize = 11.sp, color = Palette.SubText,
                                 )
                             }
@@ -802,9 +802,9 @@ fun StatusBar(state: AppState, engine: AutomationEngine?, inboxCount: Int, onOpe
             state.indexVersion
             val issues = remember(doc, doc.version, state.indexVersion, state.editVersion) {
                 Validator.validate(
-                    doc.root, doc.parseError, doc.file, doc.schema, state.overlayIndex(),
-                    indexed = state.isIndexed(doc.file), workspace = state.workspace, allSchemas = state.schemas,
-                    loader = state.unsavedFirstLoader(),
+                    doc.root, doc.parseError, state.documentOf(doc.file), doc.schema, state.overlayIndex(),
+                    indexed = state.isIndexed(doc.file), allSchemas = state.schemas,
+                    loader = state.unsavedFirstTree(),
                     relations = state.relations, enforcement = state.enforcement,
                 )
             }

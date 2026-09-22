@@ -477,7 +477,7 @@ class AgentToolbox(
                     "（利用可能: ${(loaded.views + loaded.docViews).joinToString(", ") { it.id }.ifEmpty { "なし" }}）"
             )
         val index = staging.index()
-        val rows = core.Views.resolve(view, ws.root, index) { f -> staging.tree(ws.relPath(f)) }
+        val rows = core.Views.resolve(view, index) { d -> staging.tree(d.value) }
             .filter { rowsPattern == null || idMatchesPattern(it.id, rowsPattern) }
         return core.Views.renderText(view, rows, columns, index)
     }
@@ -501,11 +501,11 @@ class AgentToolbox(
             else -> return "ビュー「${view.id}」は文書ビューです。file で対象文書を指定してください:\n" +
                 candidates.joinToString("\n") { "- $it" }
         }
-        val file = ws.resolve(rel)
+        val document = model.DocumentId(ws.relPath(ws.resolve(rel)))
         val index = staging.index()
-        val loader = { f: java.nio.file.Path -> staging.tree(ws.relPath(f)) }
-        val sections = core.Views.resolveDocument(view, ws.root, file, index, loader = loader)
-        val attachments = core.Views.resolveAttachments(view, ws.root, file, index, loader = loader)
+        val loader = { d: model.DocumentId -> staging.tree(d.value) }
+        val sections = core.Views.resolveDocument(view, document, index, loader = loader)
+        val attachments = core.Views.resolveAttachments(view, document, index, loader = loader)
         return core.Views.renderDocText(view, rel, sections, attachments)
     }
 
@@ -528,8 +528,7 @@ class AgentToolbox(
     fun traverseText(start: String, steps: List<core.TraverseStep>, budgetChars: Int): String =
         core.Traverse.run(
             staging.index(),
-            relPath = { f -> ws.relPath(f) },
-            loader = { f -> staging.tree(ws.relPath(f)) },
+            loader = { d -> staging.tree(d.value) },
             spec = core.TraverseSpec(start = start, steps = steps, budgetChars = budgetChars),
         )
 
@@ -629,13 +628,13 @@ class AgentToolbox(
         return buildString {
             appendLine("出現（${occurrences.size}件）:")
             occurrences.forEach { e ->
-                append("- ").append(ws.relPath(e.file)).append(" :: ").append(e.path.pretty())
+                append("- ").append(e.document.value).append(" :: ").append(e.path.pretty())
                 e.title?.let { append(" — ").append(it) }
                 e.schemaId?.let { append(" [schema: ").append(it).append(']') }
                 appendLine()
                 // 出現の中身を要約表示する（R7-04の横ぐしビューと同等の情報をツール1回で得られるようにする）
-                val docRoot = staging.tree(ws.relPath(e.file))
-                ws.schemaFor(e.file)?.let { sc -> Validator.phaseSummaryText(docRoot, sc) }
+                val docRoot = staging.tree(e.document.value)
+                ws.schemaFor(e.document)?.let { sc -> Validator.phaseSummaryText(docRoot, sc) }
                     ?.let { appendLine("    $it") }
                 val element = docRoot?.let { getAt(it, e.path) } as? YNode.Map
                 element?.entries?.asSequence()
@@ -663,7 +662,7 @@ class AgentToolbox(
             }
             appendLine("被参照（${backlinks.size}件）:")
             backlinks.take(backlinkLimit).forEach { b ->
-                append("- ").append(ws.relPath(b.file)).append(" :: ").append(b.path.pretty())
+                append("- ").append(b.document.value).append(" :: ").append(b.path.pretty())
                     .append("（").append(b.viaKey)
                 schema.Relations.inverseLabelOf(ws.relations, b.relation)?.let { append("・関係: ").append(it) }
                 b.attributeSummary()?.let { append("・").append(it) }
@@ -686,7 +685,7 @@ class AgentToolbox(
      */
     fun entityText(id: String, relationLimit: Int = 20): String {
         val idx = staging.index()
-        val loader: (java.nio.file.Path) -> YNode? = { f -> staging.tree(ws.relPath(f)) }
+        val loader: (model.DocumentId) -> YNode? = { d -> staging.tree(d.value) }
         val composite = core.Aspects.compose(id, idx, ws.schemas, ws.entityTypes, loader)
             ?: return "ID「$id」は見つかりません"
         return buildString {
@@ -698,7 +697,7 @@ class AgentToolbox(
             composite.sections.forEach { s ->
                 append("## ").append(s.label)
                 if (s.entry.role == schema.EntityRole.DEFINING) append("（定義）")
-                appendLine(" [${ws.relPath(s.entry.file)} :: ${s.entry.path.pretty()}]")
+                appendLine(" [${s.entry.document.value} :: ${s.entry.path.pretty()}]")
                 val unset = mutableListOf<String>()
                 s.fields.forEach { f ->
                     val value = f.value
@@ -713,16 +712,16 @@ class AgentToolbox(
                         else -> schema.Display.inline(value)
                     }
                     append("- ").append(f.key).append(": ").append(text)
-                    f.duplicateOf?.let { append("（重複所有: ${ws.relPath(it.first)} と重複）") }
+                    f.duplicateOf?.let { append("（重複所有: ${it.first.value} と重複）") }
                     appendLine()
                 }
                 if (unset.isNotEmpty()) appendLine("- 未記入: ${unset.joinToString(", ")}")
-                ws.schemaFor(s.entry.file)?.let { sc -> Validator.phaseSummaryText(loader(s.entry.file), sc) }
+                ws.schemaFor(s.entry.document)?.let { sc -> Validator.phaseSummaryText(loader(s.entry.document), sc) }
                     ?.let { appendLine("  $it") }
             }
             if (composite.unassigned.isNotEmpty()) {
                 appendLine("## その他の出現（スキーマなし）")
-                composite.unassigned.forEach { e -> appendLine("- ${ws.relPath(e.file)} :: ${e.path.pretty()}") }
+                composite.unassigned.forEach { e -> appendLine("- ${e.document.value} :: ${e.path.pretty()}") }
             }
             // ---- 関係（両方向。関係レジストリの label / inverseLabel と属性注記）
             val refsOut = idx.outgoingRefs(id)
@@ -743,18 +742,18 @@ class AgentToolbox(
             backlinks.take(relationLimit).forEach { b ->
                 append("- ← ")
                 idx.sourceEntryOf(b)?.let { src -> append(listOfNotNull(src.id, src.title).joinToString(" ")) }
-                    ?: append(ws.relPath(b.file))
+                    ?: append(b.document.value)
                 append("（").append(b.viaKey)
                 schema.Relations.inverseLabelOf(ws.relations, b.relation)?.let { append("・関係: ").append(it) }
                 b.attributeSummary()?.let { append("・").append(it) }
-                appendLine("）[${ws.relPath(b.file)} :: ${b.path.pretty()}]")
+                appendLine("）[${b.document.value} :: ${b.path.pretty()}]")
             }
             if (backlinks.size > relationLimit) appendLine("…他 ${backlinks.size - relationLimit} 件（limit 引数で拡張できます）")
             // ---- 検査の状況（status を宣言した検査＝詳細文書の存在など。判定は Validator と共有）
             val statuses = idx.occurrences(id)
                 .mapNotNull { e -> ws.schemas.firstOrNull { it.id == e.schemaId }?.let { it to e } }
                 .distinctBy { it.first.id }
-                .flatMap { (sc, e) -> Validator.ruleStatuses(id, sc, idx, loader(e.file), ws.schemas, ws.root, loader) }
+                .flatMap { (sc, e) -> Validator.ruleStatuses(id, sc, idx, loader(e.document), ws.schemas, loader) }
             if (statuses.isNotEmpty()) {
                 appendLine("## カバレッジ（${statuses.count { it.active && it.satisfied }}/${statuses.count { it.active }} 充足）")
                 statuses.forEach { st ->
@@ -780,7 +779,7 @@ class AgentToolbox(
     private fun refsFooterText(rel: String, path: model.YPath): String {
         val idx = staging.index()
         val targetIds = idx.refs
-            .filter { ws.relPath(it.file) == rel && it.path.size >= path.size && it.path.subList(0, path.size) == path }
+            .filter { it.document.value == rel && it.path.size >= path.size && it.path.subList(0, path.size) == path }
             .map { it.targetId }
             .distinct()
         if (targetIds.isEmpty()) return ""
@@ -789,7 +788,7 @@ class AgentToolbox(
             if (occurrences.isEmpty()) "- $id（未解決）"
             else {
                 val title = occurrences.firstNotNullOfOrNull { it.title }
-                "- $id" + (title?.let { " = $it" } ?: "") + " [${ws.relPath(occurrences.first().file)}]"
+                "- $id" + (title?.let { " = $it" } ?: "") + " [${occurrences.first().document.value}]"
             }
         }
         return buildString {

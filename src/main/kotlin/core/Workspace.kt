@@ -1,8 +1,6 @@
 package core
 
 import index.IdIndex
-import index.derivedIdIndex
-import index.populateFromScans
 import model.YNode
 import schema.SchemaDef
 import schema.SchemaLoader
@@ -10,7 +8,6 @@ import schema.WorkspaceLayout
 import validate.Issue
 import validate.Severity
 import validate.Validator
-import validate.toIssue
 import yaml.YamlIO
 import java.nio.file.Files
 import java.nio.file.Path
@@ -180,13 +177,23 @@ class Workspace private constructor(val root: Path) {
         repopulateIndex()
     }
 
-    /** index ファサードをセッション派生から写す。 */
+    /** 索引を、セッションの意味解析の結果にする（写しを持たない。P27 段D の D-d・D-e）。 */
     private fun repopulateIndex() {
         val s = session ?: error("セッションが開かれていません")
-        index.populateFromScans(s.derivedWith(emptyMap()).semantic.scans, root)
+        index.populate(s.derivedWith(emptyMap()).semantic)
     }
 
     fun relPath(file: Path): String = IdIndex.relPathOf(root, file)
+
+    /** ファイルの文書ID（ワークスペース相対パス）。索引・検証・ビューの解決は、この座標で場所を表す。 */
+    fun documentOf(file: Path): model.DocumentId = model.DocumentId(relPath(file))
+
+    /** 文書ID のファイル。ファイルを開く・読むなど、Path が要る所でだけ使う。 */
+    fun fileOf(document: model.DocumentId): Path = root.resolve(document.value).normalize()
+
+    /** 文書ID の文書の中身（ディスクの内容。読めなければ null）。索引と同じ基準で文書を読む loader として渡す。 */
+    fun treeOf(document: model.DocumentId): YNode? =
+        runCatching { YamlIO.parseFirst(Files.readString(fileOf(document))) }.getOrNull()
 
     /** 相対パスを検証付きで解決する（ワークスペース外への脱出を拒否）。 */
     fun resolve(rel: String): Path {
@@ -194,6 +201,9 @@ class Workspace private constructor(val root: Path) {
         require(resolved.startsWith(root)) { "ワークスペース外のパスは扱えません: $rel" }
         return resolved
     }
+
+    /** 文書ID の文書に当てるスキーマ。 */
+    fun schemaFor(document: model.DocumentId): SchemaDef? = schemaFor(fileOf(document))
 
     fun schemaFor(file: Path): SchemaDef? {
         val rel = relPath(file)
@@ -289,7 +299,7 @@ class Workspace private constructor(val root: Path) {
             val id = model.DocumentId(relPath(f))
             id to tree?.let { model.YDocument(id, listOf(it)) }
         }
-        return derivedIdIndex(s.derivedWith(kernelOverlays).semantic.scans, root)
+        return IdIndex.of(s.derivedWith(kernelOverlays).semantic)
     }
 
     /** 1 ファイルを検証する（スキーマ適合・参照解決・重複・カバレッジ。台帳外は索引前提の判定を降格。R13-03）。 */
@@ -301,9 +311,9 @@ class Workspace private constructor(val root: Path) {
         // 走査対象（台帳＋予約領域）に載っていない文書＝台帳外のエディタ層。索引前提の判定は成立しない
         val indexed = doc.file in files
         return Validator.validateDetailed(
-            doc.root, doc.parseError, doc.file, doc.schema, index,
+            doc.root, doc.parseError, documentOf(doc.file), doc.schema, index,
             // （このヘッドレス経路はディスク索引・ディスク loader のまま。UIは overlayIndex を渡す。§4.5）
-            indexed = indexed, workspace = root, allSchemas = schemas,
+            indexed = indexed, loader = ::treeOf, allSchemas = schemas,
             relations = relations, enforcement = enforcement,
             // ディスクの索引とディスクの内容: 検査の評価を、他の文書の検証と共有する（全体の検証が文書数に比例する。P27 段B）
             shareEvaluations = true,
@@ -345,7 +355,7 @@ class Workspace private constructor(val root: Path) {
         val base = session ?: error("セッションが開かれていません")
         val applied = workspace.ChangeSetApplier.apply(base, changeSet, dryRun, requireValid, target = target ?: base)
         val results = applied.results.map { r ->
-            FileChangeResult(r.file, r.applied, r.message, r.issues.map { it.toIssue { d -> root.resolve(d.value).normalize() } })
+            FileChangeResult(r.file, r.applied, r.message, r.issues)
         }
         val written = applied.results.filter { it.applied }.map { resolve(it.file) }
         if (written.isNotEmpty()) refreshAfterWrite(written)

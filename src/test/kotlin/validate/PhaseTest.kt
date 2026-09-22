@@ -73,7 +73,7 @@ class PhaseTest {
     )
 
     private fun validate(yaml: String, index: IdIndex = IdIndex()) =
-        Validator.validate(YamlIO.parse(yaml), null, Path.of("models/a.yaml"), entitySchema, index)
+        Validator.validate(YamlIO.parse(yaml), null, model.DocumentId("models/a.yaml"), entitySchema, index)
 
     /** models/a.yaml に entityYaml、tables/t.yaml に tableYaml（null なら文書なし）を置いた索引を組む。 */
     private fun indexWith(entityYaml: String, tableYaml: String? = null): IdIndex {
@@ -350,7 +350,7 @@ class PhaseTest {
         assertEquals(listOf("a", "b"), schema.phases?.order)
         val issues = Validator.validate(
             YamlIO.parse("phase: a\n") as YNode,
-            null, Path.of("x.yaml"), schema, IdIndex(),
+            null, model.DocumentId("x.yaml"), schema, IdIndex(),
         )
         assertFalse(issues.any { it.message.contains("必須項目「y」") })
     }

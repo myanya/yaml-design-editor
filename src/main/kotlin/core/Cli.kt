@@ -1,6 +1,5 @@
 package core
 
-import index.toKernelView
 import model.parseYPath
 import model.pretty
 import schema.validateDefinition
@@ -163,8 +162,7 @@ internal fun runCli(args: Array<String>): String {
             val budget = intFlag(rest, "--budget") ?: 8_000
             Traverse.run(
                 ws.index,
-                relPath = { f -> ws.relPath(f) },
-                loader = { f -> runCatching { ws.load(ws.relPath(f)).root }.getOrNull() },
+                loader = { d -> runCatching { ws.load(d.value).root }.getOrNull() },
                 spec = TraverseSpec(start = start, steps = steps, budgetChars = budget),
             ) + "\n"
         }
@@ -176,7 +174,7 @@ internal fun runCli(args: Array<String>): String {
                 ?: error("クエリのスペックを指定してください（query <workspace> <spec.yaml> または --spec \"<YAML>\"）")
             val raw = yaml.YamlIO.parseToRaw(specText) as? Map<*, *> ?: error("スペックのルートはobjectである必要があります")
             val spec = schema.QuerySpec.parse(raw, "query")
-            val result = index.Query.run(ws.index, spec)
+            val result = index.Query.run(ws.index, spec, ws::treeOf)
             dumpYaml(
                 linkedMapOf<String, Any?>(
                     "columns" to result.columns,
@@ -188,7 +186,7 @@ internal fun runCli(args: Array<String>): String {
                                 "kind" to node.kind.id.takeIf { node.kind != schema.QueryNodeKind.ENTITY },
                                 "title" to node.title,
                                 "entityType" to node.entityType,
-                                "file" to node.file?.let { ws.relPath(it) },
+                                "file" to node.document?.value,
                                 "path" to node.path.takeIf { it.isNotEmpty() }?.pretty(),
                             ).filterValues { it != null }
                         }
@@ -214,12 +212,12 @@ internal fun runCli(args: Array<String>): String {
                 val root = yaml.YamlIO.parseFirst(Files.readString(file)) ?: error("入力を YAML として読めません: $input")
                 semantic.SemanticTransform.run(def, root, model.DocumentId(file.toString()), params)
             } else {
-                val view = ws.index.toKernelView()
+                val view = ws.index
                 semantic.SemanticTransform.run(
                     def, view.entries, view.refs, view.graph,
-                    rel = { d -> ws.relPath(Path.of(d.value)) },
+                    rel = { d -> d.value },
                     params = params,
-                    loader = { d -> runCatching { ws.load(ws.relPath(Path.of(d.value))).root }.getOrNull() },
+                    loader = { d -> runCatching { ws.load(d.value).root }.getOrNull() },
                 )
             }
             val text = result.term?.let { YamlIO.dumpPlain(it) } ?: "# （何も得られませんでした）\n"
@@ -229,7 +227,7 @@ internal fun runCli(args: Array<String>): String {
                     "origins" to result.origins.map { o ->
                         linkedMapOf(
                             "output" to o.output.pretty(),
-                            "file" to o.document?.let { d -> runCatching { ws.relPath(Path.of(d.value)) }.getOrDefault(d.value) },
+                            "file" to o.document?.value,
                             "path" to o.path.pretty(),
                         ).filterValues { it != null }
                     },
@@ -292,8 +290,8 @@ internal fun runCli(args: Array<String>): String {
                         "hint" to "view <workspace> ${dv.id} <file> で対象文書を指定してください",
                     )
                 )
-                val sections = Views.resolveDocument(dv, ws.root, ws.resolve(rel), ws.index)
-                val attachments = Views.resolveAttachments(dv, ws.root, ws.resolve(rel), ws.index)
+                val sections = Views.resolveDocument(dv, model.DocumentId(rel), ws.index, loader = ws::treeOf)
+                val attachments = Views.resolveAttachments(dv, model.DocumentId(rel), ws.index, loader = ws::treeOf)
                 // 被参照行 → YAML 構造（セクション・アタッチ共用）
                 fun rowMaps(rows: List<DocBacklinkRow>?, def: DocBacklinksDef?): List<Map<String, Any?>>? =
                     rows?.map { row ->
@@ -305,7 +303,7 @@ internal fun runCli(args: Array<String>): String {
                                 linkedMapOf<String, Any?>(
                                     "id" to b.sourceId,
                                     "title" to b.sourceTitle,
-                                    "file" to b.rel,
+                                    "file" to b.document.value,
                                     "path" to b.refPath.pretty(),
                                     "values" to def?.columns
                                         ?.mapIndexed { ci, col -> col.label to Views.cellText(b.values.getOrNull(ci)) }
@@ -342,7 +340,7 @@ internal fun runCli(args: Array<String>): String {
             }
             val view = loaded.view(viewId)
                 ?: error("ビュー「$viewId」が見つかりません（view コマンドで一覧を確認できます）")
-            val rows = Views.resolve(view, ws.root, ws.index)
+            val rows = Views.resolve(view, ws.index, ws::treeOf)
             dumpYaml(
                 linkedMapOf<String, Any?>(
                     "view" to view.id,
@@ -366,7 +364,7 @@ internal fun runCli(args: Array<String>): String {
                                 linkedMapOf<String, Any?>(
                                     "column" to cell.column.label,
                                     "value" to value,
-                                    "file" to cell.rel,
+                                    "file" to cell.document?.value,
                                     "path" to cell.path?.pretty(),
                                     "editable" to cell.column.editable.takeIf { it },
                                     // 計算列（R16-02/04）: 値は評価済み・座標は導出規則の位置。derivation が来歴（元値と入力値の座標）
@@ -378,7 +376,7 @@ internal fun runCli(args: Array<String>): String {
                                                 linkedMapOf<String, Any?>(
                                                     "placeholder" to input.placeholder,
                                                     "value" to input.value,
-                                                    "file" to input.rel,
+                                                    "file" to input.document?.value,
                                                     "path" to input.path?.pretty(),
                                                 ).filterValues { it != null }
                                             },
@@ -388,14 +386,14 @@ internal fun runCli(args: Array<String>): String {
                                     "backlinks" to cell.backlinks?.map { b ->
                                         linkedMapOf(
                                             "id" to b.sourceId,
-                                            "file" to b.rel,
+                                            "file" to b.document.value,
                                             "path" to b.path.pretty(),
                                         ).filterValues { it != null }
                                     },
                                 ).filterValues { it != null }
                             },
-                            "detail" to row.detailRel,
-                            "detailCreatePath" to if (row.detailRel == null)
+                            "detail" to row.detailDocument?.value,
+                            "detailCreatePath" to if (row.detailDocument?.value == null)
                                 view.detail?.filePattern?.replace("{id}", row.id) else null,
                         ).filterValues { it != null }
                     },
@@ -600,9 +598,8 @@ internal fun runCli(args: Array<String>): String {
             // 全体像の表示（R23-04。ARCHITECTURE §4.33）: エンティティページ・read_entity と同じ合成を返す
             if (op == "show") {
                 val id = rest.getOrNull(2)?.takeIf { !it.startsWith("--") } ?: error("表示するIDを指定してください")
-                val composite = Aspects.compose(id, ws.index, ws.schemas, ws.entityTypes) { f ->
-                    runCatching { YamlIO.parseFirst(Files.readString(f)) }.getOrNull()
-                } ?: error("ID「$id」の出現が見つかりません")
+                val composite = Aspects.compose(id, ws.index, ws.schemas, ws.entityTypes, ws::treeOf)
+                    ?: error("ID「$id」の出現が見つかりません")
                 val idx = ws.index
                 return dumpYaml(
                     linkedMapOf(
@@ -615,19 +612,19 @@ internal fun runCli(args: Array<String>): String {
                                 "aspect" to s.aspect,
                                 "label" to s.label.takeIf { it != s.aspect },
                                 "defining" to (s.entry.role == schema.EntityRole.DEFINING).takeIf { it },
-                                "file" to ws.relPath(s.entry.file),
+                                "file" to s.entry.document.value,
                                 "path" to s.entry.path.pretty(),
                                 "fields" to s.fields.map { f ->
                                     linkedMapOf(
                                         "key" to f.key,
                                         "value" to (f.value as? model.YNode.Scalar)?.value,
                                         "path" to f.path.pretty(),
-                                        "duplicateOf" to f.duplicateOf?.let { "${ws.relPath(it.first)} :: ${it.second.pretty()}" },
+                                        "duplicateOf" to f.duplicateOf?.let { "${it.first.value} :: ${it.second.pretty()}" },
                                     ).filterValues { it != null }
                                 },
                             ).filterValues { it != null }
                         },
-                        "unassigned" to composite.unassigned.map { "${ws.relPath(it.file)} :: ${it.path.pretty()}" }.ifEmpty { null },
+                        "unassigned" to composite.unassigned.map { "${it.document.value} :: ${it.path.pretty()}" }.ifEmpty { null },
                         "refs" to idx.outgoingRefs(id).map { r ->
                             linkedMapOf(
                                 "to" to r.targetId,
@@ -638,8 +635,8 @@ internal fun runCli(args: Array<String>): String {
                         }.ifEmpty { null },
                         "backlinks" to idx.backlinksTo(setOf(id)).map { b ->
                             linkedMapOf(
-                                "from" to (idx.sourceEntryOf(b)?.id ?: ws.relPath(b.file)),
-                                "file" to ws.relPath(b.file),
+                                "from" to (idx.sourceEntryOf(b)?.id ?: b.document.value),
+                                "file" to b.document.value,
                                 "path" to b.path.pretty(),
                                 "relation" to b.relation,
                                 "attributes" to b.attributeSummary(),

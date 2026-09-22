@@ -96,18 +96,31 @@ data class SaveResult(
     val ok: Boolean get() = failures.isEmpty()
 }
 
-class WorkspaceSession(
+class WorkspaceSession private constructor(
     private val store: DocumentStore,
     /**
      * 増分導出を使うか（Phase 11・PF-002）。false で全トランザクションが全再構築になる
      * （性能最適化を無効化しても正しく動くことの保証。計画書 Phase 11 完了条件）。
      */
-    private val incrementalDerive: Boolean = true,
+    private val incrementalDerive: Boolean,
     /** 組込スキーマの注入口（C-2。メタスキーマ等。reload・スキーマ再構築でも維持される）。 */
-    private val builtins: List<WorkspaceSchema> = emptyList(),
-    /** 時刻は注入し、テストで固定する（計画書§5）。末尾引数を維持（既存の末尾ラムダ呼び出し互換）。 */
-    private val clock: () -> Instant = { Instant.now() },
+    private val builtins: List<WorkspaceSchema>,
+    /** 読み込み済みの状態（fork 用）。null なら、ストアから読み込む。 */
+    seed: Seed?,
+    /** 時刻は注入し、テストで固定する（計画書§5）。 */
+    private val clock: () -> Instant,
 ) {
+    /** ストアから読み込んで開く。時刻は注入し、テストで固定する（末尾引数を維持＝既存の末尾ラムダ呼び出し互換）。 */
+    constructor(
+        store: DocumentStore,
+        incrementalDerive: Boolean = true,
+        builtins: List<WorkspaceSchema> = emptyList(),
+        clock: () -> Instant = { Instant.now() },
+    ) : this(store, incrementalDerive, builtins, null, clock)
+
+    /** fork が渡す、読み込み済みの状態（読み取り専用の写し）。 */
+    private class Seed(val loaded: LoadedWorkspace, val storeTexts: Map<DocumentId, String>)
+
     val layout: schema.WorkspaceLayout
 
     /** スキーマ束（スキーマ文書の変更を含むトランザクションで再構築される。WS-006）。 */
@@ -159,14 +172,31 @@ class WorkspaceSession(
     }
 
     init {
-        val loaded = WorkspaceReader.load(store, version = 0, builtins = builtins)
+        val loaded = seed?.loaded ?: WorkspaceReader.load(store, version = 0, builtins = builtins)
         layout = loaded.layout
         schemas = loaded.schemas
         schemaErrors = loaded.schemaErrors
         declarations = loaded.declarations
         workingDocuments = LinkedHashMap(loaded.snapshot.documents)
+        version = loaded.snapshot.version
         derived = loaded.derived
-        refreshStoreTexts()
+        if (seed != null) storeTexts.putAll(seed.storeTexts) else refreshStoreTexts()
+    }
+
+    /**
+     * このセッションの、保存済みの状態から、別のセッションを起こす（ストアを読み直さない・パースし直さない）。
+     * アプリが、ディスクを映すセッションと編集用のセッションの2つを開くときに、同じワークスペースを2回読まないために使う
+     * （P27 段D の D-d・D-e）。履歴は引き継がない。文書の中身（YNode）は初めは同じものを指すが、セッションは、変更のたびに
+     * 対象を写してから書き換える（ADR-0003）ので、片方の編集がもう片方へ漏れることはない。
+     * 未保存の変更を持つセッションからは起こせない（保存済みの状態と食い違うため）。
+     */
+    fun fork(): WorkspaceSession {
+        require(dirtyDocuments().isEmpty() && pendingDeletes.isEmpty()) { "未保存の変更を持つセッションからは fork できません" }
+        val loaded = LoadedWorkspace(
+            layout = layout, schemas = schemas, declarations = declarations, schemaErrors = schemaErrors,
+            parseErrors = emptyMap(), snapshot = WorkspaceSnapshot(version, workingDocuments.toMap()), derived = derived,
+        )
+        return WorkspaceSession(store, incrementalDerive, builtins, Seed(loaded, storeTexts.toMap()), clock)
     }
 
     /** ストア生テキストの追跡を読み直す（外部変更検出の基準を今のストア内容に合わせる）。 */

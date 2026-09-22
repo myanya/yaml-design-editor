@@ -221,8 +221,8 @@ private fun EntityPage(state: AppState, id: String) {
                     .distinctBy { it.first.id }
                     .flatMap { (sc, e) ->
                         Validator.ruleStatuses(
-                            id, sc, state.overlayIndex(), state.ensureDoc(e.file).root,
-                            state.schemas, state.workspace, state.unsavedFirstLoader(),
+                            id, sc, state.overlayIndex(), state.ensureDoc(e.document).root,
+                            state.schemas, state.unsavedFirstTree(),
                         )
                     }
             }
@@ -306,7 +306,7 @@ private fun parentSummary(doc: OpenDocument, path: YPath): String? {
 
 @Composable
 private fun AspectCard(state: AppState, section: AspectSection) {
-    val doc = state.ensureDoc(section.entry.file)
+    val doc = state.ensureDoc(section.entry.document)
     doc.version
     state.indexVersion
     val root = doc.root
@@ -337,7 +337,7 @@ private fun AspectCard(state: AppState, section: AspectSection) {
                 )
                 Text(
                     listOfNotNull(
-                        state.relPath(section.entry.file),
+                        section.entry.document.value,
                         section.schemaId?.let { "スキーマ: $it" },
                         section.entry.path.pretty().takeIf { it != "(root)" },
                         // 親ノード情報（UX-68）: この出現がどの親要素の配下かを示す
@@ -370,7 +370,7 @@ private fun AspectCard(state: AppState, section: AspectSection) {
         }
         val localIds = remember(doc, doc.version) {
             val documentId = IdIndex.documentIdOf(root, state.relPath(doc.file))
-            DocScanner.scan(root, doc.file, doc.schema, documentId).first
+            DocScanner.scan(root, state.documentOf(doc.file), doc.schema, documentId).first
         }
         val ctx = remember(doc, doc.version, state.indexVersion, state.readOnlyMode) {
             FormCtx(state, doc, localIds, baseDepth = section.entry.path.size, aiRelatedFiles = relatedFiles)
@@ -393,7 +393,7 @@ private fun AspectCard(state: AppState, section: AspectSection) {
         // 重複所有の注記（検証と同じ観点。値は隠さない。§4.33）
         section.fields.filter { it.duplicateOf != null }.forEach { f ->
             Text(
-                "「${f.key}」は ${state.relPath(f.duplicateOf!!.first)} の出現でも所有されています（重複所有）",
+                "「${f.key}」は ${f.duplicateOf!!.first.value} の出現でも所有されています（重複所有）",
                 fontSize = 10.sp, color = Palette.WarnOrange,
             )
         }
@@ -428,13 +428,13 @@ private fun RelationsPanel(state: AppState, id: String) {
             RelationRow(
                 main = r.targetId + (title?.let { " — $it" } ?: "") +
                     (r.attributeSummary()?.let { "（$it）" } ?: ""),
-                sub = "${r.viaKey} ／ ${state.relPath(r.file)} ／ ${r.path.pretty()}",
+                sub = "${r.viaKey} ／ ${r.document.value} ／ ${r.path.pretty()}",
                 onClick = {
                     if (r.targetKind == RefTarget.DOCUMENT) {
-                        overlay.graph.documents[r.targetId]?.let { state.openFile(it.file) }
+                        overlay.graph.documents[r.targetId]?.let { state.openFile(it.document) }
                     } else state.openCrossView(r.targetId)
                 },
-                onJump = { state.openFile(r.file, r.path) },
+                onJump = { state.openFile(r.document, r.path) },
             )
         }
     }
@@ -448,13 +448,13 @@ private fun RelationsPanel(state: AppState, id: String) {
             val source = overlay.sourceEntryOf(bl)
             RelationRow(
                 main = (source?.let { listOfNotNull(it.id, it.title).joinToString(" — ") }
-                    ?: state.relPath(bl.file)) +
+                    ?: bl.document.value) +
                     (bl.attributeSummary()?.let { "（$it）" } ?: ""),
-                sub = "${bl.viaKey} ／ ${state.relPath(bl.file)} ／ ${bl.path.pretty()}",
+                sub = "${bl.viaKey} ／ ${bl.document.value} ／ ${bl.path.pretty()}",
                 onClick = {
-                    if (source != null) state.openCrossView(source.id) else state.openFile(bl.file, bl.path)
+                    if (source != null) state.openCrossView(source.id) else state.openFile(bl.document, bl.path)
                 },
-                onJump = { state.openFile(bl.file, bl.path) },
+                onJump = { state.openFile(bl.document, bl.path) },
             )
         }
     }
@@ -588,7 +588,7 @@ private fun EntityOpDialog(state: AppState, id: String, op: EntityOp, onDismiss:
  */
 @Composable
 private fun OccurrenceCard(state: AppState, entry: IdEntry) {
-    val doc = state.ensureDoc(entry.file)
+    val doc = state.ensureDoc(entry.document)
     doc.version
     state.indexVersion
     val root = doc.root
@@ -609,7 +609,7 @@ private fun OccurrenceCard(state: AppState, entry: IdEntry) {
 
     val refsOut = remember(entry, state.indexVersion, state.editVersion) {
         state.overlayIndex().refs.filter {
-            it.file == entry.file && it.path.size >= entry.path.size &&
+            it.document == entry.document && it.path.size >= entry.path.size &&
                 it.path.subList(0, entry.path.size) == entry.path
         }
     }
@@ -622,7 +622,7 @@ private fun OccurrenceCard(state: AppState, entry: IdEntry) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    listOfNotNull(entry.title, state.relPath(entry.file)).joinToString(" — "),
+                    listOfNotNull(entry.title, entry.document.value).joinToString(" — "),
                     fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                 )
                 Text(
@@ -697,7 +697,7 @@ private fun OccurrenceForm(
 ) {
     val localIds = remember(doc, doc.version) {
         val documentId = IdIndex.documentIdOf(root, state.relPath(doc.file))
-        DocScanner.scan(root, doc.file, doc.schema, documentId).first
+        DocScanner.scan(root, state.documentOf(doc.file), doc.schema, documentId).first
     }
     // 既定展開の深さは文書ルートではなく表示対象要素（entry.path）を基準に判定する
     val ctx = remember(doc, doc.version, state.indexVersion, state.readOnlyMode) {

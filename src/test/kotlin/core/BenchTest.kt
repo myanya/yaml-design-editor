@@ -86,8 +86,8 @@ class BenchTest {
         fun validateAll(share: Boolean) = ws.files.associate { file ->
             val doc = ws.load(ws.relPath(file))
             ws.relPath(file) to validate.Validator.validateDetailed(
-                doc.root, doc.parseError, doc.file, doc.schema, ws.index,
-                workspace = dir, allSchemas = ws.schemas, relations = ws.relations, enforcement = ws.enforcement,
+                doc.root, doc.parseError, ws.documentOf(doc.file), doc.schema, ws.index,
+                loader = ws::treeOf, allSchemas = ws.schemas, relations = ws.relations, enforcement = ws.enforcement,
                 shareEvaluations = share,
             )
         }

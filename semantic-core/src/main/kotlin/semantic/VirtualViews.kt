@@ -262,8 +262,7 @@ data class VirtualRow(
 object VirtualViews {
 
     /** 属性付き参照の1行注記（例「role: 承認者」。ルート RefEntry.attributeSummary と同じ書式）。 */
-    fun attributeSummary(ref: ScannedRef): String? =
-        ref.attributes.entries.takeIf { it.isNotEmpty() }?.joinToString(", ") { (k, v) -> "$k: $v" }
+    fun attributeSummary(ref: ScannedRef): String? = ref.attributeSummary()
 
     /**
      * ビューを行×セルに解決する。

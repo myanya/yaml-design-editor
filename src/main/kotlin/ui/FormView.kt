@@ -120,7 +120,7 @@ class FormCtx(
 
     /** スキーマ外の汎用参照は、パターン／スコープ制約なしで解決する。 */
     fun resolvable(id: String): Boolean =
-        resolvable(RefEntry(id, doc.file, emptyList(), "ref"))
+        resolvable(RefEntry(id, state.documentOf(doc.file), emptyList(), "ref"))
 
     /** スキーマ型に応じてスカラー値を変換して書き込む。 */
     fun setScalar(slot: Slot, raw: String, type: FieldType) {
@@ -212,7 +212,7 @@ fun FormView(state: AppState, doc: OpenDocument) {
 
     val localIds = remember(doc, doc.version) {
         val documentId = IdIndex.documentIdOf(root, state.relPath(doc.file))
-        DocScanner.scan(root, doc.file, doc.schema, documentId).first
+        DocScanner.scan(root, state.documentOf(doc.file), doc.schema, documentId).first
     }
     // 文書ビュー（R14-01）: マッチする定義があれば表示合成をビューに委ねる。ビューは台帳層の機構のため台帳の文書に限る
     val docView = remember(state.indexVersion, doc.file, doc.schema) {
@@ -225,18 +225,16 @@ fun FormView(state: AppState, doc: OpenDocument) {
     val attachments = remember(doc, doc.version, state.indexVersion, docView) {
         val ws = state.workspace
         if (docView == null || docView.attachments.isEmpty() || ws == null) emptyMap()
-        else Views.resolveAttachments(docView, ws, doc.file, state.overlayIndex(), localIds) { f ->
-            state.docFor(f)?.root
-                ?: runCatching { YamlIO.parseFirst(java.nio.file.Files.readString(f)) }.getOrNull()
-        }.flatMap { resolved -> resolved.rows.map { row -> row.path to (resolved.attachment to row) } }
+        else Views.resolveAttachments(docView, state.documentOf(doc.file), state.overlayIndex(), localIds, state.unsavedFirstTree())
+            .flatMap { resolved -> resolved.rows.map { row -> row.path to (resolved.attachment to row) } }
             .groupBy({ it.first }, { it.second })
     }
     // 検証指摘のパス索引（UX-14）: 指摘のあるフィールドの入力枠を色づけする（全指摘種別に効く）
     val fieldIssues = remember(doc, doc.version, state.indexVersion, state.editVersion) {
         Validator.validate(
-            doc.root, doc.parseError, doc.file, doc.schema, state.overlayIndex(),
-            indexed = state.isIndexed(doc.file), workspace = state.workspace, allSchemas = state.schemas,
-            loader = state.unsavedFirstLoader(),
+            doc.root, doc.parseError, state.documentOf(doc.file), doc.schema, state.overlayIndex(),
+            indexed = state.isIndexed(doc.file), allSchemas = state.schemas,
+            loader = state.unsavedFirstTree(),
             relations = state.relations, enforcement = state.enforcement,
         )
             .filter { it.path.isNotEmpty() && it.severity != Severity.INFO }
@@ -346,7 +344,7 @@ private fun SameIdOccurrencesStrip(ctx: FormCtx, localIds: List<IdEntry>) {
     state.indexVersion
     val rootId = localIds.firstOrNull { it.path.isEmpty() }?.id ?: return
     val others = remember(rootId, state.indexVersion, state.editVersion) {
-        state.overlayIndex().occurrences(rootId).filter { it.file != ctx.doc.file }
+        state.overlayIndex().occurrences(rootId).filter { it.document != state.documentOf(ctx.doc.file) }
     }
     if (others.isEmpty()) return
     Column(
@@ -365,8 +363,7 @@ private fun SameIdOccurrencesStrip(ctx: FormCtx, localIds: List<IdEntry>) {
         }
         others.forEach { entry ->
             val summary = remember(entry, state.indexVersion, state.editVersion) {
-                val root = state.docFor(entry.file)?.root
-                    ?: runCatching { YamlIO.parseFirst(java.nio.file.Files.readString(entry.file)) }.getOrNull()
+                val root = state.unsavedFirstTree()(entry.document)
                 val element = root?.let { model.getAt(it, entry.path) } as? YNode.Map
                 element?.entries?.asSequence()
                     ?.filter { (_, v) -> v is YNode.Scalar }
@@ -386,7 +383,7 @@ private fun SameIdOccurrencesStrip(ctx: FormCtx, localIds: List<IdEntry>) {
                 Spacer(Modifier.width(6.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        listOfNotNull(entry.title, state.relPath(entry.file)).joinToString(" — "),
+                        listOfNotNull(entry.title, entry.document.value).joinToString(" — "),
                         fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
                     )
                     if (summary.isNotBlank()) {
@@ -438,9 +435,8 @@ private fun DocViewSections(ctx: FormCtx, view: DocViewDef, root: YNode.Map, loc
     // 行（文書内ID）は未保存編集を反映（localIds）、被参照は索引＝保存済み状態基準（SidePanel と同じ）
     val resolved = remember(doc, doc.version, state.indexVersion, view) {
         state.workspace?.let { ws ->
-            Views.resolveDocument(view, ws, doc.file, state.overlayIndex(), localIds) { f ->
-                state.docFor(f)?.root
-                    ?: runCatching { YamlIO.parseFirst(java.nio.file.Files.readString(f)) }.getOrNull()
+            Views.resolveDocument(view, state.documentOf(doc.file), state.overlayIndex(), localIds) { d ->
+                state.unsavedFirstTree()(d)
             }
         }.orEmpty()
     }
@@ -514,7 +510,7 @@ private fun BacklinkItems(state: AppState, def: DocBacklinksDef, row: DocBacklin
             Modifier.fillMaxWidth()
                 .clickable {
                     // 参照元の位置へジャンプ（参照値そのものの位置。SidePanel の被参照と同じ経路）
-                    state.openFile(b.file, b.refPath)
+                    state.openFile(b.document, b.refPath)
                     state.editorTab = 0
                 }
                 .padding(vertical = 2.dp),
@@ -524,7 +520,7 @@ private fun BacklinkItems(state: AppState, def: DocBacklinksDef, row: DocBacklin
             Spacer(Modifier.width(6.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    listOfNotNull(b.sourceId ?: b.rel, b.sourceTitle).joinToString(" "),
+                    listOfNotNull(b.sourceId ?: b.document.value, b.sourceTitle).joinToString(" "),
                     fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
                 )
                 val details = def.columns.mapIndexed { ci, col ->
@@ -533,7 +529,7 @@ private fun BacklinkItems(state: AppState, def: DocBacklinksDef, row: DocBacklin
                     // 被参照方向は inverseLabel（R20-02）＋属性付き参照の属性注記（R20-03）
                     schema.Relations.inverseLabelOf(state.relations, b.relation)?.let { "関係: $it" },
                     b.attributes,
-                    b.rel,
+                    b.document.value,
                 )
                 Text(details.joinToString("　"), fontSize = 10.sp, color = Palette.SubText, maxLines = 2)
             }
@@ -895,7 +891,7 @@ private fun EnumEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
 private fun IdEditor(ctx: FormCtx, field: FieldDef?, slot: Slot) {
     val text = (slot.get() as? YNode.Scalar)?.value?.toString() ?: ""
     val otherOccurrences = if (text.isBlank()) 0 else
-        ctx.state.overlayIndex().entries[text].orEmpty().count { it.file != ctx.doc.file }
+        ctx.state.overlayIndex().entries[text].orEmpty().count { it.document != ctx.state.documentOf(ctx.doc.file) }
     Column {
         if (ctx.readOnly) {
             ReadOnlyValueText(text)
@@ -962,7 +958,7 @@ private fun IdEditor(ctx: FormCtx, field: FieldDef?, slot: Slot) {
                                 Column {
                                     Text(e.id, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                                     Text(
-                                        listOfNotNull(e.title, ctx.state.relPath(e.file)).joinToString(" — "),
+                                        listOfNotNull(e.title, e.document.value).joinToString(" — "),
                                         fontSize = 11.sp, color = Palette.SubText,
                                     )
                                 }
@@ -1023,7 +1019,7 @@ private fun RefScalarEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
     }
     val current = (slot.get() as? YNode.Scalar)?.value?.toString() ?: ""
     var menuOpen by remember { mutableStateOf(false) }
-    val refConstraint = RefEntry(current, ctx.doc.file, emptyList(), field.key ?: "ref", field.idPatterns, field.scope)
+    val refConstraint = RefEntry(current, ctx.state.documentOf(ctx.doc.file), emptyList(), field.key ?: "ref", field.idPatterns, field.scope)
     val resolved = ctx.resolvable(refConstraint)
     if (ctx.readOnly) {
         // 閲覧専用モードでもジャンプは閲覧行為として残す（R10-04）
@@ -1106,7 +1102,7 @@ private fun RefScalarEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
                                 color = if (selected) Palette.Primary else Palette.Text,
                             )
                             Text(
-                                listOfNotNull(e.title, ctx.state.relPath(e.file)).joinToString(" — "),
+                                listOfNotNull(e.title, e.document.value).joinToString(" — "),
                                 fontSize = 11.sp, color = Palette.SubText,
                             )
                         }
@@ -1181,14 +1177,14 @@ private fun DocRefScalarEditor(ctx: FormCtx, slot: Slot) {
         ctx.state.overlayIndex().graph.documents
     }
     val selfDocId = remember(ctx.doc, ctx.state.indexVersion) {
-        ctx.doc.root?.let { ctx.state.overlayIndex().documentIdFor(ctx.doc.file, it) }
+        ctx.doc.root?.let { ctx.state.overlayIndex().documentIdFor(ctx.state.documentOf(ctx.doc.file), it) }
     }
     val resolved = current.isNotBlank() && (documents.containsKey(current) || current == selfDocId)
     // 文書名（_document.name）は表示専用の注記
-    val loader = ctx.state.unsavedFirstLoader()
-    val targetName = documents[current]?.let { node -> loader(node.file)?.let { IdIndex.documentNameOf(it) } }
+    val loader = ctx.state.unsavedFirstTree()
+    val targetName = documents[current]?.let { node -> loader(node.document)?.let { IdIndex.documentNameOf(it) } }
     fun open(documentId: String) {
-        documents[documentId]?.let { ctx.state.openFile(it.file) }
+        documents[documentId]?.let { ctx.state.openFile(it.document) }
     }
     if (ctx.readOnly) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1252,9 +1248,9 @@ private fun DocRefScalarEditor(ctx: FormCtx, slot: Slot) {
                                 fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
                                 color = if (selected) Palette.Primary else Palette.Text,
                             )
-                            val name = loader(node.file)?.let { IdIndex.documentNameOf(it) }
+                            val name = loader(node.document)?.let { IdIndex.documentNameOf(it) }
                             Text(
-                                listOfNotNull(name, ctx.state.relPath(node.file)).joinToString(" — "),
+                                listOfNotNull(name, node.document.value).joinToString(" — "),
                                 fontSize = 11.sp, color = Palette.SubText,
                             )
                         }

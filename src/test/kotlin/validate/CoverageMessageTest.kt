@@ -80,7 +80,7 @@ class CoverageMessageTest {
         val ws = Workspace.open(dir)
         val issue = ws.validate("list.yaml").single { "詳細文書が不足" in it.message }
         // 対応は組込み定義体の宣言（responses の create: detailDocument）から作られる（P29 Phase 6 第3段）
-        val create = issue.responses.filterIsInstance<IssueResponse.CreateDetail>().single()
+        val create = issue.responses.filterIsInstance<CheckResponse.CreateDetail>().single()
         kotlin.test.assertEquals("X-1", create.id)
         kotlin.test.assertEquals("detail", create.schemaId)
         kotlin.test.assertEquals("詳細文書を作成: X-1（detail）", create.label)

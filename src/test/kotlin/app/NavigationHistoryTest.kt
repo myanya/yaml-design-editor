@@ -120,7 +120,7 @@ class NavigationHistoryTest {
         assertFalse(state.canGoBack)
 
         // 出現カードの→ボタン・参照クリックはいずれも navigateToOccurrence → openFile に到達する
-        state.navigateToOccurrence(index.IdEntry("x", a, emptyList(), null, null, "a"))
+        state.navigateToOccurrence(index.IdEntry("x", state.documentOf(a), emptyList(), null, null, "a"))
         assertEquals(0, state.workspaceView)
         assertTrue(state.canGoBack)
 

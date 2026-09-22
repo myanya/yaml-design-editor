@@ -81,8 +81,7 @@ object Traverse {
 
     fun run(
         index: IdIndex,
-        relPath: (Path) -> String,
-        loader: (Path) -> YNode?,
+        loader: (model.DocumentId) -> YNode?,
         spec: TraverseSpec,
     ): String {
         require(spec.steps.isNotEmpty()) { "steps には1ステップ以上が必要です" }
@@ -121,7 +120,7 @@ object Traverse {
                 sb.appendLine("== ステップ$i（起点・emit: ${step.emit}）")
             }
             for (id in frontier) {
-                val block = emitNode(index, relPath, loader, id, step.emit)
+                val block = emitNode(index, loader, id, step.emit)
                 if (sb.length + block.length > spec.budgetChars) {
                     truncated = true
                     break@loop
@@ -153,8 +152,7 @@ object Traverse {
     /** 1ノードの開示ブロック。出現（多段定義）ごとに emit の粒度で描く。 */
     private fun emitNode(
         index: IdIndex,
-        relPath: (Path) -> String,
-        loader: (Path) -> YNode?,
+        loader: (model.DocumentId) -> YNode?,
         id: String,
         emit: String,
     ): String = buildString {
@@ -165,10 +163,10 @@ object Traverse {
         appendLine()
         if (emit == "title") return@buildString
         occurrences.forEach { e ->
-            append("  [").append(relPath(e.file)).append(" :: ").append(e.path.pretty())
+            append("  [").append(e.document.value).append(" :: ").append(e.path.pretty())
             e.schemaId?.let { append("  schema: ").append(it) }
             appendLine("]")
-            val element = loader(e.file)?.let { getAt(it, e.path) } ?: return@forEach
+            val element = loader(e.document)?.let { getAt(it, e.path) } ?: return@forEach
             when (emit) {
                 "summary" -> (element as? YNode.Map)?.entries?.asSequence()
                     ?.filter { (_, v) -> v is YNode.Scalar }
