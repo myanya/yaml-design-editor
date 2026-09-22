@@ -1,0 +1,75 @@
+# 画面一覧のスキーマ（SCR-* の定義出現）
+#
+# 画面はユーザアクション（またはユースケース）から導出する——この導出規約を
+# derived-from 参照＋レジストリの outMin: 1 で機械検証する。
+# フェーズ機構: 基本設計 → 詳細設計。画面定義（論理）は基本設計から、
+# 画面設計書（物理）は詳細設計フェーズ到達後に存在が要求される（activeFrom）。
+# レイヤ規約「画面は外部APIを直接呼ばない」は constraints（expect: absent）で強制する。
+id: screen-list
+name: 画面一覧
+match: 30_basic-design/screen-list.yaml
+description: |
+  システムが提供する画面の台帳（SCR-*）。論理定義は画面定義（screens/*.yaml）、
+  物理設計は画面設計書（40_detail-design/screens/*.yaml）へ同一IDで詳細化する。
+entity:
+  type: screen
+  idPattern: "SCR-*"
+  defines: true
+phases:
+  order: [基本設計, 詳細設計]
+coverage:
+  - description: 全画面は画面定義（30_basic-design/screens/ に同ID文書）を持つこと
+    detailIn:
+      schemaIds: [screen-def]
+    level: warning
+  - description: 全画面は画面設計書（40_detail-design/screens/ に同ID文書）を持つこと（詳細設計フェーズ到達後に判定）
+    detailIn:
+      schemaIds: [screen-design]
+    activeFrom: 詳細設計
+    level: warning
+constraints:
+  - id: screen-no-ext-api
+    description: 画面は外部APIを直接呼ばないこと（内部API経由とするレイヤ規約）
+    match:
+      - node: { entity: screen, bind: scr }
+      - edge: { dir: out, relation: calls }
+      - node: { entity: ext-api }
+    expect: absent
+    level: error
+flow:
+  - id: screen-flow
+    description: 全画面は開始画面から到達でき、行き止まりの画面は終端として宣言されていること（原本は画面遷移文書）
+    nodes: { entity: screen }
+    edges: { from: { relation: transition-from }, to: { relation: transitions-to } }
+    start: { relation: flow-start }
+    terminal: { relation: flow-terminal }
+    level: error
+root:
+  type: object
+  fields:
+    - key: phase
+      label: 設計フェーズ
+      type: enum
+      values: [基本設計, 詳細設計]
+      default: 基本設計
+      description: 画面群の現在の詳細化段階。詳細設計に進めると画面設計書の存在チェックが有効になる。
+    - key: screens
+      label: 画面一覧
+      type: array
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: id, label: 画面ID, type: id, required: true, description: 例 SCR-ROOM-LIST。 }
+          - { key: name, label: 画面名, type: string, required: true }
+          - key: derived_from
+            label: 導出元
+            type: array
+            required: true
+            description: この画面を必要とする根拠（ユーザアクション／ユースケース）。
+            item:
+              type: ref
+              relation: derived-from
+              scope:
+                schemaIds: [domain-detail, usecase-list]
+          - { key: summary, label: 概要, type: string }

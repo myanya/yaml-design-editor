@@ -1,0 +1,56 @@
+# 内部API設計書のスキーマ（詳細設計・物理。1ファイル1API。IAPI-* の詳細化出現）
+id: int-api-design
+name: 内部API設計書
+match: 40_detail-design/int-apis/*.{yaml,yml}
+description: 内部APIの物理設計（物理項目名・データ型・使用テーブル）。
+entity:
+  type: int-api
+  idPattern: "IAPI-*"
+  aspect: physical
+root:
+  type: object
+  fields:
+    - key: id
+      label: APIID
+      type: id
+      required: true
+      description: 内部API一覧・定義と同じID。
+    - key: uses_tables
+      label: 使用テーブル
+      type: array
+      required: true
+      item:
+        type: ref
+        idPattern: "TBL-*"
+        relation: uses-table
+        scope:
+          schemaIds: [table-design]
+    - key: request
+      label: リクエスト項目（物理）
+      type: array
+      item:
+        type: object
+        fields:
+          - { key: logical_name, label: 論理項目名, type: string, required: true }
+          - { key: physical_name, label: 物理項目名, type: string, required: true }
+          - key: type
+            label: データ型
+            type: enum
+            required: true
+            values: [string, int, long, boolean, date, datetime, decimal]
+    - key: response
+      label: レスポンス項目（物理）
+      type: array
+      item:
+        type: object
+        fields:
+          - { key: logical_name, label: 論理項目名, type: string, required: true }
+          - { key: physical_name, label: 物理項目名, type: string, required: true }
+          - key: type
+            label: データ型
+            type: enum
+            required: true
+            values: [string, int, long, boolean, date, datetime, decimal]
+    - key: notes
+      label: 実装メモ
+      type: text

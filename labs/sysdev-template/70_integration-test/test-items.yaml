@@ -1,0 +1,6 @@
+# 結合テスト項目一覧（基本設計向け: 画面・遷移が対象）
+items:
+  - id: TI-201
+    target: SCR-ROOM-LIST
+    viewpoint: VP-001
+    description: 空き枠選択→予約登録→予約詳細→一覧へ戻る、の一連の遷移が画面遷移の定義どおりであること。

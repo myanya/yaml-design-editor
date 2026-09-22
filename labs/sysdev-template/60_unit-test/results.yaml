@@ -1,0 +1,19 @@
+results:
+  - id: RES-101
+    testcase: TC-101
+    date: "2026-09-01"
+    result: ok
+    tester: メンバＡ
+  - id: RES-102
+    testcase: TC-102
+    date: "2026-09-01"
+    result: ng
+    tester: メンバＡ
+    note: |
+      手順2（開始60分ちょうど）が取消不可エラーになった。BR-003 の「1時間前まで」の
+      境界解釈（含む/含まない）を確認し、処理設計側の判定条件を修正予定。
+  - id: RES-103
+    testcase: TC-103
+    date: "2026-09-02"
+    result: ok
+    tester: メンバＢ

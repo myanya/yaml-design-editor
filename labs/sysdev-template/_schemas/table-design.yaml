@@ -1,0 +1,117 @@
+# テーブル定義書のスキーマ（詳細設計・物理ER。1ファイル1テーブル。TBL-* の定義＋COL-* カラムの定義）
+#
+# implements-entity 参照で論理エンティティ（ENT-*）へ逆リンクする。
+# レジストリの inMin: 1 により「どのテーブルにも実装されていないエンティティ」が検出される。
+# カラムは COL-* のIDを持つエンティティ:
+# - origin: エンティティ由来 → implements（EA-* 属性への対応）が必須。FKカラムは参照先の
+#   キー属性でなく自エンティティの参照属性（例 EA-RESERVE-ROOM）を実装する
+# - origin: 技術カラム → created_at 等。理由を必須にして逃がす
+# - 型は dtype（業務データ型 DT-*）参照で宣言する。物理型（DDL型）はカラムに書かない——
+#   単一真実源は物理型マッピング表（40_detail-design/type-mapping.yaml）
+# pii（個人情報）フラグは外部APIの認可必須制約（eapi-auth-for-pii）の判定材料。
+id: table-design
+name: テーブル定義書
+match: 40_detail-design/tables/*.{yaml,yml}
+description: 物理テーブルの定義書（TBL-*）。カラムの物理名・業務型・制約を確定する。
+entity:
+  - { type: db-table, idPattern: "TBL-*", defines: true }
+  - { type: db-column, idPattern: "COL-*", defines: true }
+constraints:
+  - id: col-type-consistent
+    description: エンティティ由来のカラムの業務データ型は、実装する属性の業務データ型と一致すること
+    match:
+      - node: { entity: db-column, bind: c }
+      - edge: { relation: implements-attr }
+      - node: { entity: entity-attr }
+      - edge: { relation: dtype }
+      - node: { entity: data-type, bind: t }
+    also:
+      from: c
+      steps:
+        - edge: { relation: dtype }
+        - node: { same: t }
+    where:
+      - { of: c, path: origin, equals: エンティティ由来 }
+    expect: exists
+    level: error
+root:
+  type: object
+  fields:
+    - key: id
+      label: テーブルID
+      type: id
+      required: true
+      description: 例 TBL-RESERVATION（物理名 t_reservation に対応）。
+    - key: name
+      label: 論理テーブル名
+      type: string
+      required: true
+    - key: physical_name
+      label: 物理テーブル名
+      type: string
+      required: true
+    - key: implements
+      label: 実装するエンティティ
+      type: ref
+      required: true
+      idPattern: "ENT-*"
+      relation: implements-entity
+      scope:
+        schemaIds: [domain-detail]
+      description: このテーブルが実装する論理エンティティ（1エンティティ→複数テーブルの分裂も可）。
+    - key: pii
+      label: 個人情報
+      type: boolean
+      description: 個人を特定できる情報を含むテーブルは true にする（外部APIの認可必須制約が効く）。
+    - key: columns
+      label: カラム定義
+      type: array
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: id, label: カラムID, type: id, required: true, description: 例 COL-MEMBER-MAIL（COL-<テーブル>-<カラム>）。 }
+          - { key: name, label: 物理カラム名, type: string, required: true, description: スネークケース（例 room_id）。 }
+          - { key: logical_name, label: 論理カラム名, type: string, required: true, description: 表示用の論理名。属性との対応は implements 参照が正。 }
+          - key: origin
+            label: 由来
+            type: enum
+            required: true
+            values: [エンティティ由来, 技術カラム]
+            cases:
+              エンティティ由来:
+                - key: implements
+                  label: 実装する属性
+                  type: ref
+                  required: true
+                  idPattern: "EA-*"
+                  relation: implements-attr
+                  scope:
+                    schemaIds: [entity-detail]
+              技術カラム:
+                - { key: reason, label: 追加理由, type: string, required: true, description: 属性に対応しないカラムを足す理由（例 監査用の作成日時）。 }
+          - key: dtype
+            label: 業務データ型
+            type: ref
+            required: true
+            idPattern: "DT-*"
+            relation: dtype
+            scope:
+              schemaIds: [data-type-list]
+            description: 物理型（DDL型）は物理型マッピング表で決まる（カラムには書かない）。
+          - { key: nullable, label: NULL許可, type: boolean }
+          - { key: pk, label: 主キー, type: boolean }
+          - { key: description, label: 説明, type: string }
+    - key: indexes
+      label: インデックス
+      type: array
+      item:
+        type: object
+        fields:
+          - { key: name, label: インデックス名, type: string, required: true }
+          - key: columns
+            label: 対象カラム
+            type: array
+            required: true
+            item: { type: string }
+          - { key: unique, label: ユニーク, type: boolean }

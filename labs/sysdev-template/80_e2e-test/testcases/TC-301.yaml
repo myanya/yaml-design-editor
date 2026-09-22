@@ -1,0 +1,17 @@
+id: TC-301
+name: ユースケース通し試験（予約・取消）
+preconditions:
+  - 一般社員のアカウントでログインできること
+steps:
+  - no: 1
+    operation: UC-001 の基本フロー（照会→入力→登録→詳細表示）を通しで実施する
+    expected: 各手順が定義どおり進み、予約が登録される
+    items: [TI-301]
+  - no: 2
+    operation: 登録した予約で UC-002 の基本フロー（取消）を実施する
+    expected: 取消が完了し空き状況に反映される
+    items: [TI-302]
+  - no: 3
+    operation: 開始1時間前を過ぎた予約で UC-002 の代替フローを実施する
+    expected: 取消不可エラーと案内が表示される
+    items: [TI-302]

@@ -1,0 +1,23 @@
+id: screen-transition
+name: 画面遷移（画面別の逆引き）
+description: |
+  画面ごとの遷移の逆引きビュー。原本は画面遷移文書（30_basic-design/screen-transitions.yaml）で、
+  「この画面から」列は transition-from、「この画面へ」列は transitions-to のバックリンク。
+rows:
+  idPattern: "SCR-*"
+  schemaIds: [screen-list]
+columns:
+  - label: 画面名
+    schemaId: screen-list
+    path: name
+  - label: URL
+    schemaId: screen-def
+    path: url
+  - label: この画面から
+    backlinks:
+      relation: transition-from
+      schemaIds: [screen-transition]
+  - label: この画面へ
+    backlinks:
+      relation: transitions-to
+      schemaIds: [screen-transition]

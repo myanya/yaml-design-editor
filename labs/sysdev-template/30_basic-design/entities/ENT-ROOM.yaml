@@ -1,0 +1,6 @@
+id: ENT-ROOM
+attributes:
+  - { id: EA-ROOM-CODE, name: 会議室コード, dtype: DT-ROOM-CODE, required: true }
+  - { id: EA-ROOM-NAME, name: 会議室名, dtype: DT-ROOM-NAME, required: true }
+  - { id: EA-ROOM-CAPACITY, name: 収容人数, dtype: DT-ROOM-CAPACITY, required: true }
+  - { id: EA-ROOM-AVAILABLE, name: 利用可否, dtype: DT-AVAILABLE-FLAG, required: true, description: 改装中などで予約対象から外す場合に false }

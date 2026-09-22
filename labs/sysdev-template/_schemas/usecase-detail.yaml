@@ -1,0 +1,63 @@
+# ユースケース定義書のスキーマ（1ファイル1ユースケース。UC-* の詳細化出現）
+#
+# 名前・概要は一覧側（定義出現）が持つ。ここではフロー・条件・根拠ルールを詳細化する。
+id: usecase-detail
+name: ユースケース定義書
+match: 10_requirements/usecases/*.{yaml,yml}
+description: ユースケースの事前条件・フロー・事後条件と、根拠となるビジネスルールを記述する。
+entity:
+  type: usecase
+  idPattern: "UC-*"
+  aspect: detail
+root:
+  type: object
+  fields:
+    - key: id
+      label: ユースケースID
+      type: id
+      required: true
+      description: 一覧（usecase-list）と同じID。名前・概要は一覧側に書く。
+    - key: actor
+      label: 主アクター
+      type: string
+      required: true
+      description: システム概要の利用者区分の名前（例 一般社員）。
+    - key: based_on
+      label: 根拠ルール
+      type: array
+      description: このユースケースの仕様の根拠となるビジネスルール。
+      item:
+        type: ref
+        idPattern: "BR-*"
+        relation: based-on
+        scope:
+          schemaIds: [business-rule]
+    - key: preconditions
+      label: 事前条件
+      type: array
+      item: { type: string }
+    - key: main_flow
+      label: 基本フロー
+      type: array
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: no, label: 手順番号, type: int, required: true }
+          - { key: action, label: アクション, type: string, required: true }
+    - key: alt_flows
+      label: 代替フロー
+      type: array
+      item:
+        type: object
+        fields:
+          - { key: condition, label: 分岐条件, type: string, required: true }
+          - key: steps
+            label: 手順
+            type: array
+            required: true
+            item: { type: string }
+    - key: postconditions
+      label: 事後条件
+      type: array
+      item: { type: string }

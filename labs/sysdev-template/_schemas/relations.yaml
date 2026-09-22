@@ -1,0 +1,182 @@
+# 関係レジストリ: このテンプレートの工程間トレーサビリティの語彙と制約を一元宣言する。
+# - source / target / cardinality はグラフ整合検証（対象型・多重度）の宣言
+# - enforcement で未宣言 relation の使用と定義出現の重複をエラーにする（規約の機械強制）
+id: sysdev-relations
+kind: relations
+enforcement:
+  undeclaredRelation: error
+  definingUniqueness: error
+entities:
+  - { type: business-rule, label: ビジネスルール }
+  - { type: usecase, label: ユースケース }
+  - { type: domain, label: ドメイン }
+  - { type: entity-model, label: エンティティ }
+  - { type: user-action, label: ユーザアクション }
+  - { type: system-event, label: システムイベント }
+  - { type: screen, label: 画面 }
+  - { type: ext-api, label: 外部API }
+  - { type: int-api, label: 内部API }
+  - { type: arch-policy, label: 方式 }
+  - { type: db-table, label: テーブル }
+  - { type: process, label: 処理 }
+  - { type: test-viewpoint, label: 試験観点 }
+  - { type: test-item, label: テスト項目 }
+  - { type: test-case, label: テストケース }
+  - { type: test-result, label: テスト実施結果 }
+  - { type: entity-attr, label: エンティティ属性 }
+  - { type: screen-item, label: 画面項目（論理） }
+  - { type: screen-item-physical, label: 画面項目（物理） }
+  - { type: db-column, label: カラム }
+  - { type: data-type, label: 業務データ型 }
+  - { type: type-mapping, label: 物理型マッピング }
+relations:
+  - name: based-on
+    label: 根拠とする
+    inverseLabel: 根拠として参照される
+    source: [usecase, process, test-item]
+    target: [business-rule]
+    description: ビジネスルールを仕様・試験の根拠として参照する（BRの取りこぼし検出の土台）
+  - name: groups
+    label: グルーピングする
+    inverseLabel: 所属ドメイン
+    source: [domain]
+    target: [usecase]
+    cardinality: { inMin: 1, inMax: 1 }
+    description: |
+      ドメイン定義書（基本設計）がユースケース（要件）をグルーピングする。
+      依存方向は基本設計→要件（要件文書は下位工程を参照しない）。
+      inMin/inMax 1 = すべてのUCはちょうど1つのドメインに取り込まれる
+  - name: acts-in
+    label: 現れるユースケース
+    inverseLabel: 関与するアクション・イベント
+    source: [user-action, system-event]
+    target: [usecase]
+    description: ユーザアクション・システムイベントがどのユースケースに現れるか
+  - name: derived-from
+    label: 導出元
+    inverseLabel: 導出された成果物
+    source: [screen, ext-api, int-api]
+    target: [user-action, usecase]
+    cardinality: { outMin: 1 }
+    description: 画面・APIはユーザアクション（またはユースケース）から導出される（導出規約の宣言化）
+  - name: realizes
+    label: 実現する
+    inverseLabel: 実現される
+    source: [process]
+    target: [user-action, system-event]
+    cardinality: { outMin: 1 }
+    description: 処理はユーザアクションまたはシステムイベントに紐づく
+  - name: calls
+    label: 呼び出す
+    inverseLabel: 呼び出される
+    source: [screen]
+    target: [int-api]
+    description: 画面が呼ぶのは内部APIのみ（レイヤ規約。外部APIは対象型不一致で検出される）
+  - name: transition-from
+    label: 遷移元画面
+    inverseLabel: この画面からの遷移
+    target: [screen]
+    description: 画面遷移文書（30_basic-design/screen-transitions.yaml＝原本）の行が遷移元画面を指す
+  - name: transitions-to
+    label: 遷移先画面
+    inverseLabel: この画面への遷移
+    target: [screen]
+    description: 画面遷移文書の行が遷移先画面を指す。人間レビューで確定するシンプルな遷移一覧が原本
+  - name: flow-start
+    label: 開始画面
+    inverseLabel: 開始画面として宣言される
+    target: [screen]
+    description: 画面遷移文書が到達性検証（flow。R28-04）の開始画面を宣言する
+  - name: flow-terminal
+    label: 終端画面
+    inverseLabel: 終端画面として宣言される
+    target: [screen]
+    description: 画面遷移文書が「出る遷移がなくてよい画面」を宣言する（行き止まり検出から除外）
+  - name: implements-entity
+    label: 実装する
+    inverseLabel: 実装される
+    source: [db-table]
+    target: [entity-model]
+    cardinality: { inMin: 1 }
+    description: 物理テーブルが論理エンティティを実装する（1エンティティ→複数テーブルの分裂も可）
+  - name: uses-table
+    label: 使用テーブル
+    inverseLabel: 使用される
+    source: [process, int-api, ext-api]
+    target: [db-table]
+    description: 処理・APIが読み書きするテーブル
+  - name: follows-policy
+    label: 準拠方式
+    inverseLabel: 準拠される
+    source: [process]
+    target: [arch-policy]
+    description: 処理が準拠する方式設計（オンライン・バッチ等）
+  - name: verifies
+    label: 検証対象
+    inverseLabel: 検証される
+    source: [test-item]
+    target: [process, int-api, ext-api, screen, usecase]
+    cardinality: { outMin: 1 }
+    description: テスト項目の検証対象（処理・API・画面・ユースケース）
+  - name: viewpoint
+    label: 試験観点
+    inverseLabel: 適用される項目
+    source: [test-item]
+    target: [test-viewpoint]
+    cardinality: { outMin: 1, outMax: 1 }
+    description: テスト項目はちょうど1つの試験観点を持つ（対象×観点のマトリクスのセル）
+  - name: covers
+    label: 消化する項目
+    inverseLabel: 消化される
+    source: [test-case]
+    target: [test-item]
+    description: |
+      テストケースの手順が消化するテスト項目。「excluded でない全項目は消化されること」は
+      各項目スキーマの制約 ti-covered で判定する（excluded: true の項目は消化不要のため、
+      一律の多重度 inMin ではなく条件付き制約にしている。R28-03）
+  - name: records
+    label: 実施対象
+    inverseLabel: 実施記録
+    source: [test-result]
+    target: [test-case]
+    description: テスト実施結果が対象とするテストケース
+  - name: field-source
+    label: 対応する属性
+    inverseLabel: 現れる画面項目
+    source: [screen-item]
+    target: [entity-attr]
+    description: 画面項目（論理）が対応するエンティティ属性（入力・選択は必須＝スキーマの cases で強制）
+  - name: field-basic
+    label: 対応する論理項目
+    inverseLabel: 物理化された項目
+    source: [screen-item-physical]
+    target: [screen-item]
+    cardinality: { inMin: 1 }
+    description: |
+      画面項目（物理）が物理化する論理項目。inMin: 1 = 全論理項目は詳細設計で物理化されること
+      （物理化されていない論理項目＝画面 基本↔詳細の「不足」の検出）
+  - name: implements-attr
+    label: 実装する属性
+    inverseLabel: 実装するカラム
+    source: [db-column]
+    target: [entity-attr]
+    description: |
+      カラムが実装するエンティティ属性（origin: エンティティ由来 のカラムは必須＝スキーマの cases で強制。
+      「実装されていない属性」の検出は entity-detail の制約 attr-implemented——transient: true の
+      導出属性を逃がすため、一律の inMin ではなく条件付き制約にしている）
+  - name: dtype
+    label: 業務データ型
+    inverseLabel: 使用する項目
+    source: [entity-attr, db-column]
+    target: [data-type]
+    cardinality: { outMax: 1 }
+    description: 属性・カラムの業務データ型。型不一致（カラムの型 ≠ 実装する属性の型）の検査の土台
+  - name: maps-type
+    label: マッピング対象の業務型
+    inverseLabel: 物理型マッピング
+    source: [type-mapping]
+    target: [data-type]
+    cardinality: { outMin: 1, outMax: 1, inMin: 1, inMax: 1 }
+    description: |
+      物理型マッピング行が対象とする業務データ型。inMin: 1 = 全業務型はマッピング行を持つこと
+      （マッピング漏れの検出）、inMax: 1 = 二重マッピングの禁止（単一DBMS前提）

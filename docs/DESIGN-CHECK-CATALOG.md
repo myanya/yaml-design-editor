@@ -2,7 +2,7 @@
 
 設計情報（YAML文書群）に対して**どのような機械的チェックが可能か**のパターン台帳。
 「AIが書き、機械が検証し、人間は差分を承認する」ループの検証部を設計するときの語彙集として使う。
-各パターンは sysdev-template（会議室予約サンプル。gitignore 対象の実戦投入場）での実例IDを添える。
+各パターンは `labs/sysdev-template`（会議室予約サンプル。今後の開発用の実験場）での実例IDを添える。
 機構の詳細仕様は [README.md](../README.md)（利用者向けリファレンス）と [ARCHITECTURE.md](ARCHITECTURE.md) §4.30〜§4.32、
 評価の意味論は [CORE-CALCULUS.md](CORE-CALCULUS.md) を参照。
 
@@ -181,7 +181,7 @@ enum の区分値のまま直接ノードにする形は、ID化パターンで�
 7. **表面語彙は増やさない**（語彙の予算。CONVENTIONS §9）: 新しい検証要求は、まず本書の正準の組合せで
    書けることを確認する。書けないときも新キーより既存キーの拡張を優先し、核にない演算へ名前を付けるとき
    （例: flow の到達閉包）だけ語彙を追加する——追加時は CORE-CALCULUS §20 のチェックリストを通し、
-   計算体系の写像表（specs/20-semantics/calculus/feature-mapping.yaml）へ1行追加する。
+   [CORE-CALCULUS.md](CORE-CALCULUS.md) §21 の分類表へ1行追加する。
 
 ---
 運用: 新しい検証機構の追加・変更時は本書へパターンを1行追加する（docs/CONVENTIONS.md §6）。

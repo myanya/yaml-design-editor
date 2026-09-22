@@ -1,0 +1,13 @@
+id: IAPI-002
+endpoint: POST /api/reservations
+request:
+  - { name: 会議室コード, required: true }
+  - { name: 利用日, required: true }
+  - { name: 開始時刻, required: true }
+  - { name: 終了時刻, required: true }
+  - { name: 利用目的, required: false }
+response:
+  - { name: 予約番号, description: 採番された予約番号 }
+errors:
+  - 営業時間外の時間帯（業務エラー。BR-001）
+  - 同一時間帯に既存予約あり（業務エラー。BR-002）

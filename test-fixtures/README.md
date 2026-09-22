@@ -3,7 +3,7 @@
 3層コア移行（[docs/THREE-LAYER-CORE-MIGRATION-PLAN.md](../docs/THREE-LAYER-CORE-MIGRATION-PLAN.md) Phase 0）の検証データ。
 新モジュールのテストはここを読み取り専用で参照する。**変更を伴うテストは一時ディレクトリへコピーしてから行う。**
 
-由来: `sample-workspace/_schemas` の記法（match / fields / enum values / cases / definitions+$ref / ref scope）に合わせて手書きした最小データ。`sample-workspace/` 自体は利用者の実験場のため複製・変更しない。
+由来: 当時の実験場（旧 `sample-workspace/_schemas`）の記法（match / fields / enum values / cases / definitions+$ref / ref scope）に合わせて手書きした最小データ。実験場（`labs/` 配下）のワークスペースは複製・変更しない。
 
 期待結果はすべて現行実装（2026-08-16、コミット 677fc43 相当）のCLIで確認済み。移行後の新実装はこの結果と一致すること（意図的差分は [docs/decisions/INTENTIONAL-DIFFS.md](../docs/decisions/INTENTIONAL-DIFFS.md) 参照）。
 

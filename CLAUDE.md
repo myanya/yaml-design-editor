@@ -31,10 +31,6 @@ Kotlin + Compose for Desktop 製のスキーマ駆動YAMLエディタ。ワー�
 | [docs/MIGRATION-LEDGER.md](docs/MIGRATION-LEDGER.md) | 移行台帳: ベースライン記録・作業単位（YM/SM/WS-xx）の状態 |
 | [docs/decisions/](docs/decisions/README.md) | ADR（設計決定 0001〜0009）と意図的差分一覧（INTENTIONAL-DIFFS.md） |
 
-### 外部仕様化ワークスペース（`specs/`）
-
-`specs/`は、製品の宣言言語、意味、振る舞い、表示と操作を、実装から独立した外部契約として検討・管理するワークスペースである。`specs/`に関する議論、調査、作成、更新、または仕様に基づく実装検討へ着手するときは、**最初に [specs/SPECIFICATION-GUIDE.md](specs/SPECIFICATION-GUIDE.md) を全文読み、その手順と情報の位置づけに従うこと**。仕様化の依頼だけから、開発本線のコード変更を推測しない。
-
 **作業のワークフロー:**
 
 1. **着手前**: docs/FEATURES.md で対象機能の位置（実装ファイル・テスト有無）を確認し、docs/ARCHITECTURE.md の該当する設計方針（特に §4）を読む。

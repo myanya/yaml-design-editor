@@ -35,7 +35,7 @@ kotlin {
 }
 
 // ヘッドレスCLI（UIなしでカタログ・検索・パッチ・検証を実行する）
-// 例: ./gradlew runCli --args="catalog sample-workspace" -q
+// 例: ./gradlew runCli --args="catalog samples/sample-workspace" -q
 tasks.register<JavaExec>("runCli") {
     group = "application"
     description = "ヘッドレスCLIを実行する（dev.toros.yde.app.core.CliKt）"

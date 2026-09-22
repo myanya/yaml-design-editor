@@ -1,0 +1,17 @@
+id: TBL-RESERVATION
+name: 予約
+physical_name: t_reservation
+implements: ENT-RESERVATION
+pii: false
+columns:
+  - { id: COL-RESERVATION-NO, name: reservation_no, logical_name: 予約番号, origin: エンティティ由来, implements: EA-RESERVE-NO, dtype: DT-RESERVATION-NO, nullable: false, pk: true }
+  - { id: COL-RESERVATION-ROOM, name: room_code, logical_name: 会議室コード, origin: エンティティ由来, implements: EA-RESERVE-ROOM, dtype: DT-ROOM-CODE, nullable: false, description: t_room への外部キー }
+  - { id: COL-RESERVATION-MEMBER, name: member_no, logical_name: 社員番号, origin: エンティティ由来, implements: EA-RESERVE-MEMBER, dtype: DT-MEMBER-NO, nullable: false, description: t_member への外部キー }
+  - { id: COL-RESERVATION-DATE, name: use_date, logical_name: 利用日, origin: エンティティ由来, implements: EA-RESERVE-DATE, dtype: DT-USE-DATE, nullable: false }
+  - { id: COL-RESERVATION-START, name: start_time, logical_name: 開始時刻, origin: エンティティ由来, implements: EA-RESERVE-START, dtype: DT-RESERVE-TIME, nullable: false }
+  - { id: COL-RESERVATION-END, name: end_time, logical_name: 終了時刻, origin: エンティティ由来, implements: EA-RESERVE-END, dtype: DT-RESERVE-TIME, nullable: false }
+  - { id: COL-RESERVATION-PURPOSE, name: purpose, logical_name: 利用目的, origin: エンティティ由来, implements: EA-RESERVE-PURPOSE, dtype: DT-PURPOSE, nullable: true }
+  - { id: COL-RESERVATION-STATUS, name: status, logical_name: 状態, origin: エンティティ由来, implements: EA-RESERVE-STATUS, dtype: DT-RESERVE-STATUS, nullable: false, description: RESERVED / CANCELED }
+  - { id: COL-RESERVATION-CREATED, name: created_at, logical_name: 作成日時, origin: 技術カラム, reason: 監査用の作成日時（属性に対応しない）, dtype: DT-AUDIT-TIME, nullable: false }
+indexes:
+  - { name: idx_reservation_room_date, columns: [room_code, use_date], unique: false }

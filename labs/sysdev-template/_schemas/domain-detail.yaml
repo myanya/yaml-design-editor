@@ -1,0 +1,90 @@
+# ドメイン定義書のスキーマ（1ファイル1ドメイン。DOM-* の詳細化出現）
+#
+# このドメインで管理するエンティティ（概念ER相当）・ユーザアクション・システムイベントの
+# 一覧と概要をここで**定義**する（ENT-* / UA-* / EV-* の定義出現）。
+# エンティティの属性詳細は同じIDのエンティティ定義書（entities/*.yaml）へ詳細化する。
+id: domain-detail
+name: ドメイン定義書
+match: 30_basic-design/domains/*.{yaml,yml}
+description: 業務ドメインの構成要素（エンティティ・ユーザアクション・システムイベント）を定義する。
+entity:
+  - { type: domain, idPattern: "DOM-*", aspect: detail }
+  - { type: entity-model, idPattern: "ENT-*", defines: true }
+  - { type: user-action, idPattern: "UA-*", defines: true }
+  - { type: system-event, idPattern: "EV-*", defines: true }
+coverage:
+  - description: 全エンティティはエンティティ定義書（30_basic-design/entities/ に同ID文書）を持つこと
+    idPattern: "ENT-*"
+    detailIn:
+      schemaIds: [entity-detail]
+    level: warning
+root:
+  type: object
+  fields:
+    - key: id
+      label: ドメインID
+      type: id
+      required: true
+      description: ドメイン一覧と同じID。名前・概要は一覧側に書く。
+    - key: usecases
+      label: グルーピングするユースケース
+      type: array
+      required: true
+      description: |
+        このドメインに取り込むユースケース（要件）。依存方向は基本設計→要件。
+        レジストリの groups（inMin/inMax 1）により、どのドメインにも取り込まれないUC・
+        複数ドメインに取り込まれたUCが検出される。
+      item:
+        type: ref
+        idPattern: "UC-*"
+        relation: groups
+        scope:
+          schemaIds: [usecase-list]
+    - key: entities
+      label: エンティティ一覧（概念ER）
+      type: array
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: id, label: エンティティID, type: id, required: true, description: 例 ENT-RESERVATION。 }
+          - { key: name, label: エンティティ名, type: string, required: true }
+          - { key: summary, label: 概要, type: text, required: true }
+    - key: user_actions
+      label: ユーザアクション一覧
+      type: array
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: id, label: アクションID, type: id, required: true, description: 例 UA-001。 }
+          - { key: name, label: アクション名, type: string, required: true }
+          - { key: summary, label: 概要, type: string }
+          - key: usecases
+            label: 現れるユースケース
+            type: array
+            required: true
+            item:
+              type: ref
+              idPattern: "UC-*"
+              relation: acts-in
+              scope:
+                schemaIds: [usecase-list]
+    - key: system_events
+      label: システムイベント一覧
+      type: array
+      item:
+        type: object
+        fields:
+          - { key: id, label: イベントID, type: id, required: true, description: 例 EV-001。 }
+          - { key: name, label: イベント名, type: string, required: true }
+          - { key: summary, label: 概要, type: string }
+          - key: usecases
+            label: 現れるユースケース
+            type: array
+            item:
+              type: ref
+              idPattern: "UC-*"
+              relation: acts-in
+              scope:
+                schemaIds: [usecase-list]

@@ -1,0 +1,8 @@
+id: SCR-ROOM-LIST
+items:
+  - { id: SPI-ROOM-LIST-DATE, origin: 論理項目由来, item: SI-ROOM-LIST-DATE, physical_name: useDate, type: date }
+  - { id: SPI-ROOM-LIST-TIME, origin: 論理項目由来, item: SI-ROOM-LIST-TIME, physical_name: timeRange, type: select }
+  - { id: SPI-ROOM-LIST-ROOM, origin: 論理項目由来, item: SI-ROOM-LIST-ROOM, physical_name: roomCode, type: select }
+  - { id: SPI-ROOM-LIST-AVAILABILITY, origin: 論理項目由来, item: SI-ROOM-LIST-AVAILABILITY, physical_name: availabilityList, type: text }
+  - { id: SPI-ROOM-LIST-RESERVE, origin: 論理項目由来, item: SI-ROOM-LIST-RESERVE, physical_name: reserveButton, type: button }
+notes: 空き状況一覧は会議室×30分刻みのグリッド表示。IAPI-001 のレスポンスをそのまま描画する。

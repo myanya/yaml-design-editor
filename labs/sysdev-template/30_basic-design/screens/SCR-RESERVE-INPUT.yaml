@@ -1,0 +1,10 @@
+id: SCR-RESERVE-INPUT
+url: /reservations/new
+items:
+  - { id: SI-RESERVE-INPUT-ROOM, name: 会議室, kind: 表示, source: EA-RESERVE-ROOM, description: 前画面で選択した会議室 }
+  - { id: SI-RESERVE-INPUT-DATE, name: 利用日, kind: 表示, source: EA-RESERVE-DATE }
+  - { id: SI-RESERVE-INPUT-START, name: 開始時刻, kind: 入力, source: EA-RESERVE-START }
+  - { id: SI-RESERVE-INPUT-END, name: 終了時刻, kind: 入力, source: EA-RESERVE-END }
+  - { id: SI-RESERVE-INPUT-PURPOSE, name: 利用目的, kind: 入力, source: EA-RESERVE-PURPOSE }
+  - { id: SI-RESERVE-INPUT-SUBMIT, name: 登録する, kind: ボタン }
+calls: [IAPI-002]

@@ -1,0 +1,10 @@
+id: EAPI-001
+endpoint: GET /external/v1/reservations
+request:
+  - {name: 対象日, required: true}
+  - {name: 会議室コード, required: false}
+response:
+  - {name: 予約一覧, description: 会議室・時間帯・予約者所属の配列（氏名・連絡先は返さない）}
+errors:
+  - APIキー不正（認可エラー）
+auth: api-key

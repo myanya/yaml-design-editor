@@ -1,0 +1,66 @@
+# 結合テスト項目一覧のスキーマ（基本設計向け試験。TI-2xx の定義出現）
+#
+# 検証対象は基本設計の成果物（画面・画面遷移）に限定する（scope で機械強制）。
+id: integration-test-item
+name: 結合テスト項目一覧
+match: 70_integration-test/test-items.yaml
+description: 基本設計（画面・遷移）× 試験観点で抽出した結合テスト項目の台帳。
+entity:
+  type: test-item
+  idPattern: "TI-*"
+  defines: true
+constraints:
+  - id: ti-covered
+    description: 対象外（excluded）でない全テスト項目は、いずれかのテストケースの手順に消化されること
+    match:
+      - node: { entity: test-item, schema: integration-test-item, bind: ti }
+      - edge: { dir: in, relation: covers }
+      - node: { entity: test-case }
+    where:
+      - { of: ti, path: excluded, exists: false }
+    expect: exists
+    level: warning
+root:
+  type: object
+  fields:
+    - key: items
+      label: テスト項目一覧
+      type: array
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: id, label: 項目ID, type: id, required: true, description: 例 TI-201（結合は 2xx）。 }
+          - key: target
+            label: 検証対象
+            type: ref
+            required: true
+            relation: verifies
+            scope:
+              schemaIds: [screen-list]
+            description: 画面（SCR-*）。遷移はその起点画面を対象として書く。
+          - key: viewpoint
+            label: 試験観点
+            type: ref
+            required: true
+            idPattern: "VP-*"
+            relation: viewpoint
+            scope:
+              schemaIds: [test-viewpoint]
+          - { key: description, label: 確認内容, type: string, required: true }
+          - key: excluded
+            label: 対象外
+            type: boolean
+            description: あえて試験しないセルはこの行を残して true にする（網羅判定は充足扱い・消化は不要）。
+          - key: exclude_reason
+            label: 対象外の理由
+            type: string
+          - key: based_on
+            label: 根拠ルール
+            type: array
+            item:
+              type: ref
+              idPattern: "BR-*"
+              relation: based-on
+              scope:
+                schemaIds: [business-rule]

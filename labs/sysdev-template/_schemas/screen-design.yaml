@@ -1,0 +1,99 @@
+# 画面設計書のスキーマ（詳細設計・物理。1ファイル1画面。SCR-* の詳細化出現＋SPI-* 物理項目の定義）
+#
+# 画面定義（論理）の項目を、利用するフロントエンドに合わせて物理名・具体的なデータ型へ落とす。
+# 物理項目は SPI-* のIDを持ち、item 参照（field-basic）で論理項目（SI-*)と対応づける:
+# - origin: 論理項目由来 → item 参照が必須（過剰＝論理にない項目の混入を構造的に防ぐ）
+# - origin: 技術項目 → hidden 等の実装都合の項目。理由を必須にして逃がす
+# 論理側の不足（物理化されていない SI-*）はレジストリ field-basic の inMin: 1 が検出する。
+# 制約 spi-length/range-within-dtype =「入力制約（最大文字数・数値範囲）が、対応する業務
+# データ型の制約からはみ出さないこと」（check 判定述語 R28-08。SPI→SI→EA→DT を辿って値比較。
+# 値が書かれていない項目・型は判定保留＝黙る）。
+id: screen-design
+name: 画面設計書
+match: 40_detail-design/screens/*.{yaml,yml}
+description: 画面の物理設計（物理項目名・データ型・入力制約）。論理定義は画面定義（基本設計）側。
+entity:
+  - { type: screen, idPattern: "SCR-*", aspect: physical }
+  - { type: screen-item-physical, idPattern: "SPI-*", defines: true }
+constraints:
+  - id: spi-length-within-dtype
+    description: 画面項目（物理）の最大文字数は、対応する業務データ型の最大文字数以内であること
+    match:
+      - node: { entity: screen-item-physical, bind: p }
+      - edge: { relation: field-basic }
+      - node: { entity: screen-item }
+      - edge: { relation: field-source }
+      - node: { entity: entity-attr }
+      - edge: { relation: dtype }
+      - node: { entity: data-type, bind: t }
+    check:
+      - lte: [{ of: p, path: max_length }, { of: t, path: max_length }]
+    level: error
+  - id: spi-range-within-dtype
+    description: 画面項目（物理）の数値範囲は、対応する業務データ型の範囲からはみ出さないこと
+    match:
+      - node: { entity: screen-item-physical, bind: p }
+      - edge: { relation: field-basic }
+      - node: { entity: screen-item }
+      - edge: { relation: field-source }
+      - node: { entity: entity-attr }
+      - edge: { relation: dtype }
+      - node: { entity: data-type, bind: t }
+    check:
+      - gte: [{ of: p, path: min }, { of: t, path: min }]
+      - lte: [{ of: p, path: max }, { of: t, path: max }]
+    level: error
+root:
+  type: object
+  fields:
+    - key: id
+      label: 画面ID
+      type: id
+      required: true
+      description: 画面一覧・画面定義と同じID。
+    - key: items
+      label: 画面項目（物理）
+      type: array
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: id, label: 項目ID, type: id, required: true, description: 例 SPI-ROOM-LIST-DATE（SPI-<画面>-<項目>）。 }
+          - key: origin
+            label: 由来
+            type: enum
+            required: true
+            values: [論理項目由来, 技術項目]
+            cases:
+              論理項目由来:
+                - key: item
+                  label: 対応する論理項目
+                  type: ref
+                  required: true
+                  idPattern: "SI-*"
+                  relation: field-basic
+                  scope:
+                    schemaIds: [screen-def]
+              技術項目:
+                - { key: reason, label: 追加理由, type: string, required: true, description: 論理定義にない項目を足す実装上の理由（例 CSRFトークンのhidden）。 }
+          - { key: physical_name, label: 物理項目名, type: string, required: true, description: 例 roomId（キャメルケース）。 }
+          - key: type
+            label: データ型
+            type: enum
+            required: true
+            values:
+              - { value: text, label: テキスト }
+              - { value: number, label: 数値 }
+              - { value: date, label: 日付 }
+              - { value: datetime, label: 日時 }
+              - { value: select, label: 選択 }
+              - { value: button, label: ボタン }
+            cases:
+              text:
+                - { key: max_length, label: 最大文字数, type: int }
+              number:
+                - { key: min, label: 最小値, type: int }
+                - { key: max, label: 最大値, type: int }
+    - key: notes
+      label: 実装メモ
+      type: text

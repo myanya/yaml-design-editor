@@ -1,0 +1,17 @@
+id: TC-102
+name: 予約取消の期限境界
+preconditions:
+  - 開始まで61分・60分・59分の予約が1件ずつ存在すること
+steps:
+  - no: 1
+    operation: 開始まで61分の予約を取り消す
+    expected: 取消できる
+    items: [TI-103]
+  - no: 2
+    operation: 開始まで60分ちょうどの予約を取り消す
+    expected: 取消できる（1時間前まで＝含む）
+    items: [TI-103]
+  - no: 3
+    operation: 開始まで59分の予約を取り消す
+    expected: 取消不可エラーと総務部連絡の案内が表示される
+    items: [TI-103]

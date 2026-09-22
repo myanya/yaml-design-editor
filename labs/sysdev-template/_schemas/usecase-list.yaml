@@ -1,0 +1,64 @@
+# ユースケース一覧のスキーマ（機能概要を含む台帳。UC-* の定義出現）
+#
+# 詳細は同じIDの「ユースケース定義書」（usecases/*.yaml）に書く（1:1詳細化）。
+# constraints で「UCが画面まで導出されていること」「テストまで到達していること」を機械検証する。
+id: usecase-list
+name: ユースケース一覧
+match: 10_requirements/usecase-list.yaml
+description: |
+  システムの機能をユースケース（UC-*）として一覧化する。機能概要はここに書き、
+  フロー等の詳細はユースケース定義書（同一ID）で詳細化する。
+entity:
+  type: usecase
+  idPattern: "UC-*"
+  defines: true
+coverage:
+  - description: 全ユースケースはユースケース定義書（10_requirements/usecases/ に同ID文書）を持つこと
+    detailIn:
+      schemaIds: [usecase-detail]
+    level: warning
+constraints:
+  - id: uc-realized-by-screen
+    description: 全ユースケースは、関与するユーザアクションを介していずれかの画面へ導出されていること（宙に浮いたUCの検出）
+    match:
+      - node: { entity: usecase, bind: uc }
+      - edge: { dir: in, relation: acts-in }
+      - node: { entity: user-action }
+      - edge: { dir: in, relation: derived-from }
+      - node: { entity: screen }
+    expect: exists
+    level: warning
+  - id: uc-tested
+    description: 全ユースケースは、総合テスト項目を経てテストケースまで到達していること（要件向け試験の存在）
+    match:
+      - node: { entity: usecase, bind: uc }
+      - edge: { dir: in, relation: verifies }
+      - node: { entity: test-item, schema: system-test-item }
+      - edge: { dir: in, relation: covers }
+      - node: { entity: test-case }
+    expect: exists
+    level: warning
+root:
+  type: object
+  fields:
+    - key: usecases
+      label: ユースケース一覧
+      type: array
+      required: true
+      item:
+        type: object
+        fields:
+          - key: id
+            label: ユースケースID
+            type: id
+            required: true
+            description: 例 UC-001。
+          - key: name
+            label: ユースケース名
+            type: string
+            required: true
+            description: 「（アクターが）〜する」の形（例 会議室を予約する）。
+          - key: summary
+            label: 機能概要
+            type: text
+            required: true

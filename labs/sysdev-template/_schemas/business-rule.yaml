@@ -1,0 +1,82 @@
+# ビジネスルール台帳のスキーマ
+#
+# フリーフォーマットの「ビジネスルール定義書」を、ルール1件 = BR-* のIDを持つ要素へ
+# 最小構造化した台帳。本文（text）は自由記述のままでよい——IDが付くだけで
+# 「どこからも参照されないルール（取りこぼし）」「廃止済みルールの参照」が機械検証になる。
+id: business-rule
+name: ビジネスルール台帳
+match: 00_input/business-rules.yaml
+description: |
+  顧客社内ルール・既存システム制約などの原文を、ルール単位（BR-*）に分割して登録する台帳。
+  原文からの分割・取り込みはAIアクティビティに委託できる（取り込み後はこの台帳が原本）。
+entity:
+  type: business-rule
+  idPattern: "BR-*"
+  defines: true
+constraints:
+  - id: br-referenced
+    description: 承認済みのビジネスルールは、ユースケース・処理・テスト項目のいずれかから根拠として参照されること（取りこぼし検出）
+    match:
+      - node: { entity: business-rule, bind: br }
+      - edge: { dir: in, relation: based-on }
+      - node: {}
+    where:
+      - { of: br, path: status, equals: approved }
+    expect: exists
+    level: warning
+  - id: br-unapproved-referenced
+    description: 承認済みでないビジネスルール（起草中・廃止など）が参照され続けていないこと
+    match:
+      - node: { entity: business-rule, bind: br }
+      - edge: { dir: in, relation: based-on }
+      - node: {}
+    where:
+      - { of: br, path: status, notEquals: approved }
+    expect: absent
+    level: error
+root:
+  type: object
+  fields:
+    - key: rules
+      label: ルール一覧
+      type: array
+      required: true
+      item:
+        type: object
+        fields:
+          - key: id
+            label: ルールID
+            type: id
+            required: true
+            description: ルールを一意に識別するID（例 BR-001）。
+          - key: name
+            label: ルール名
+            type: string
+            required: true
+            description: ルールの1行要約（例 予約は営業時間内に限る）。
+          - key: text
+            label: ルール本文
+            type: text
+            required: true
+            description: 原文のままの自由記述。構造化は無理にしない。
+          - key: category
+            label: 分類
+            type: enum
+            values:
+              - { value: business, label: 業務ルール }
+              - { value: legacy, label: 既存システム制約 }
+              - { value: legal, label: 法令・規程 }
+            default: business
+          - key: status
+            label: 状態
+            type: enum
+            required: true
+            values:
+              - { value: draft, label: 起草中 }
+              - { value: approved, label: 承認済み, description: 参照必須の対象（取りこぼし検出が効く） }
+              - { value: deprecated, label: 廃止, description: 参照が残っているとエラーになる }
+            default: draft
+          - key: source
+            label: 出典
+            type: string
+            description: 原文の所在（資料名・ヒアリング日など）。

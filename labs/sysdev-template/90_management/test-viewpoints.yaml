@@ -1,0 +1,13 @@
+viewpoints:
+  - id: VP-001
+    name: 正常系
+    description: 基本フローどおりの操作で期待どおりの結果になること。
+  - id: VP-002
+    name: 境界値
+    description: 営業時間・取消期限などの境界（ちょうど・直前・直後）で仕様どおりに振る舞うこと。
+  - id: VP-003
+    name: 排他・競合
+    description: 同時操作・重複データがあっても整合が保たれること。
+  - id: VP-004
+    name: 異常値
+    description: 異常値をうけとらないこ受け取らないことを確認する

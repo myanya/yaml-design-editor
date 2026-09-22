@@ -1,0 +1,70 @@
+# 方式設計書のスキーマ（アーキテクチャ設計。1ファイル1方式）
+#
+# オンライン処理方式・バッチ処理方式・ログ出力方式などの共通基盤の設計書。
+# 種別（kind）の enum cases で、種別ごとに必須の設計項目を切り替える（判別共用体）。
+# 処理設計書は follows-policy 参照でどの方式に準拠するかを宣言する。
+id: arch-policy
+name: 方式設計書
+match: 20_architecture/*.{yaml,yml}
+description: 共通的なアプリケーション基盤（処理方式・ログ等）を定義する設計書。IDは POL-* とする。
+entity:
+  type: arch-policy
+  idPattern: "POL-*"
+  defines: true
+root:
+  type: object
+  fields:
+    - key: id
+      label: 方式ID
+      type: id
+      required: true
+      description: 例 POL-ONLINE / POL-BATCH / POL-LOG。
+    - key: name
+      label: 方式名
+      type: string
+      required: true
+    - key: kind
+      label: 方式種別
+      type: enum
+      required: true
+      values:
+        - { value: online, label: オンライン処理方式 }
+        - { value: batch, label: バッチ処理方式 }
+        - { value: logging, label: ログ出力方式 }
+        - { value: other, label: その他基盤 }
+      cases:
+        online:
+          - key: timeout_seconds
+            label: 標準タイムアウト（秒）
+            type: int
+            required: true
+          - key: error_policy
+            label: エラー応答方針
+            type: text
+            required: true
+        batch:
+          - key: rerun_policy
+            label: リラン方式
+            type: text
+            required: true
+            description: 異常終了時の再実行の考え方（再実行可否・洗い替え/差分など）。
+          - key: schedule_policy
+            label: スケジュール方針
+            type: text
+        logging:
+          - key: format
+            label: ログ形式
+            type: text
+            required: true
+          - key: levels
+            label: レベル運用
+            type: text
+    - key: policy
+      label: 方式概要
+      type: text
+      required: true
+    - key: rules
+      label: 設計規約
+      type: array
+      description: この方式に従う設計が守るべき規約の列挙。
+      item: { type: string }

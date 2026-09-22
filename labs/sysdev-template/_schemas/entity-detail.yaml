@@ -1,0 +1,63 @@
+# エンティティ定義書のスキーマ（1ファイル1エンティティ。ENT-* の詳細化出現＋EA-* 属性の定義）
+#
+# エンティティの定義（誕生）はドメイン定義書の一覧側。ここでは論理属性と関係を詳細化する。
+# 属性は EA-* のIDを持つエンティティ（項目レベルのトレーサビリティの土台）:
+# - 型は業務データ型一覧（DT-*）への dtype 参照で宣言する（論理型の直書きはしない）
+# - 画面項目は field-source、カラムは implements-attr でここを指す
+# - 制約 attr-implemented =「transient でない全属性はカラムに実装されること」（不足の検出）
+# 物理実装はテーブル定義書（TBL-*）が implements-entity 参照で逆リンクする。
+id: entity-detail
+name: エンティティ定義書
+match: 30_basic-design/entities/*.{yaml,yml}
+description: エンティティの論理属性・他エンティティとの関係を定義する（論理ER）。
+entity:
+  - { type: entity-model, idPattern: "ENT-*", aspect: detail }
+  - { type: entity-attr, idPattern: "EA-*", defines: true }
+constraints:
+  - id: attr-implemented
+    description: 導出属性（transient）でない全属性は、いずれかのカラムに実装されること
+    match:
+      - node: { entity: entity-attr, bind: a }
+      - edge: { dir: in, relation: implements-attr }
+      - node: { entity: db-column }
+    where:
+      - { of: a, path: transient, exists: false }
+    expect: exists
+    level: warning
+root:
+  type: object
+  fields:
+    - key: id
+      label: エンティティID
+      type: id
+      required: true
+      description: ドメイン定義書のエンティティ一覧と同じID。
+    - key: attributes
+      label: 属性一覧（論理）
+      type: array
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: id, label: 属性ID, type: id, required: true, description: 例 EA-MEMBER-MAIL（EA-<エンティティ>-<属性>）。 }
+          - { key: name, label: 属性名, type: string, required: true, description: 論理名（日本語）。 }
+          - key: dtype
+            label: 業務データ型
+            type: ref
+            required: true
+            idPattern: "DT-*"
+            relation: dtype
+            scope:
+              schemaIds: [data-type-list]
+          - { key: required, label: 必須, type: boolean }
+          - { key: transient, label: 導出属性, type: boolean, description: 永続化しない導出属性は true にする（カラム実装チェックの対象外になる）。 }
+          - { key: description, label: 説明, type: string }
+    - key: relations
+      label: 関係
+      type: array
+      description: 他エンティティとの論理的な関係（概念レベルの記述。機械検証の対象外）。
+      item:
+        type: object
+        fields:
+          - { key: to, label: 相手エンティティ, type: string, required: true, description: 例 ENT-ROOM（1:N）。 }
+          - { key: description, label: 説明, type: string }

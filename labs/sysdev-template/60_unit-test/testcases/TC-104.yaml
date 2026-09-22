@@ -1,0 +1,17 @@
+id: TC-104
+name: 営業時間の境界
+preconditions:
+  - 対象日の会議室 A に既存予約がないこと
+steps:
+  - no: 1
+    operation: 9:00-10:00 の予約を登録する
+    expected: 受け付けられる（開始境界ちょうどは営業時間内）
+    items: [TI-106]
+  - no: 2
+    operation: 17:00-18:00 の予約を登録する
+    expected: 受け付けられる（終了境界ちょうどは営業時間内）
+    items: [TI-106]
+  - no: 3
+    operation: 8:30-9:30 の予約を登録する
+    expected: 営業時間外エラーになる
+    items: [TI-106]

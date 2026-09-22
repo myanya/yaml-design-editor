@@ -1,0 +1,82 @@
+# 画面定義のスキーマ（基本設計・論理。1ファイル1画面。SCR-* の詳細化出現＋SI-* 画面項目の定義）
+#
+# 実装に踏み込まない論理的な画面定義。URL・論理項目・呼び出す内部APIを書く。
+# 画面項目は SI-* のIDを持つエンティティ:
+# - 入力・選択の項目は source（エンティティ属性 EA-* への対応）が必須（kind の cases で強制）。
+#   表示は任意（合計等の導出表示があるため）、ボタンは対応を持たない
+# - 詳細設計の画面設計書（SPI-*）が field-basic 参照でここを指す。レジストリの inMin: 1 により
+#   「物理化されていない論理項目」が検出される
+# 画面遷移は書かない——原本は画面遷移文書（30_basic-design/screen-transitions.yaml）。
+# レビューの流れ: 画面一覧＋画面遷移を確定させてから、画面定義に入る。
+id: screen-def
+name: 画面定義
+match: 30_basic-design/screens/*.{yaml,yml}
+description: 画面の論理定義（項目・遷移・API呼び出し）。物理化は画面設計書（詳細設計）で行う。
+entity:
+  - { type: screen, idPattern: "SCR-*", aspect: basic }
+  - { type: screen-item, idPattern: "SI-*", defines: true }
+root:
+  type: object
+  fields:
+    - key: id
+      label: 画面ID
+      type: id
+      required: true
+      description: 画面一覧と同じID。名前・導出元は一覧側に書く。
+    - key: url
+      label: URLパス
+      type: string
+      required: true
+      description: 論理的なURL（例 /rooms）。
+    - key: items
+      label: 画面項目（論理）
+      type: array
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: id, label: 項目ID, type: id, required: true, description: 例 SI-ROOM-LIST-DATE（SI-<画面>-<項目>）。 }
+          - { key: name, label: 項目名, type: string, required: true }
+          - key: kind
+            label: 項目種別
+            type: enum
+            required: true
+            values: [表示, 入力, 選択, ボタン]
+            cases:
+              表示:
+                - key: source
+                  label: 対応する属性
+                  type: ref
+                  idPattern: "EA-*"
+                  relation: field-source
+                  scope:
+                    schemaIds: [entity-detail]
+                  description: 表示元のエンティティ属性。複数属性の合成表示なら省略可（説明に書く）。
+              入力:
+                - key: source
+                  label: 対応する属性
+                  type: ref
+                  required: true
+                  idPattern: "EA-*"
+                  relation: field-source
+                  scope:
+                    schemaIds: [entity-detail]
+              選択:
+                - key: source
+                  label: 対応する属性
+                  type: ref
+                  required: true
+                  idPattern: "EA-*"
+                  relation: field-source
+                  scope:
+                    schemaIds: [entity-detail]
+          - { key: description, label: 説明, type: string }
+    - key: calls
+      label: 呼び出す内部API
+      type: array
+      item:
+        type: ref
+        idPattern: "IAPI-*"
+        relation: calls
+        scope:
+          schemaIds: [int-api-list]

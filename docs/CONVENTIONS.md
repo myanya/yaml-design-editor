@@ -38,7 +38,7 @@
 
 - コミットメッセージは日本語で「何を・なぜ」を要約する（既存履歴のスタイルに合わせる）。
 - 論理的に独立した変更は分けてコミットする。
-- `sample-workspace/` と `gradle/` は `.gitignore` 対象（履歴に含めない）。
+- `samples/` は公開用のサンプル、`labs/` は今後の開発用の実験場で、どちらも履歴に含める。`scratchpad/` は `.gitignore` 対象（履歴に含めない）。
 
 ## 6. ドキュメント更新規約（重要）
 
@@ -83,7 +83,7 @@
 4. **依存方向の厳守（ADR-0002）**: `yaml-core ← semantic-core ← workspace-core ← cli／アプリ`。3coreからアプリ・Compose・AI・agent・skillへの依存禁止。yaml-core / semantic-core のmainソースへ `java.nio.file.Path` を持ち込まない（テストがfixture読込に使うのは可）。
 5. **挙動差分は登録が先**: 既存挙動を変える場合、実装より先に [decisions/INTENTIONAL-DIFFS.md](decisions/INTENTIONAL-DIFFS.md) へ行を足す。登録なき挙動差分は移植ミスとして扱う。
 6. **コミットの分類**: 変更は port（移動）／refactor／behavior-change のいずれかに分類し、1コミットに混ぜない（計画書§10.7）。
-7. **fixtureは読み取り専用**: `test-fixtures/` の期待結果は現行実装で確認済み（[test-fixtures/README.md](../test-fixtures/README.md)）。変更を伴うテストは一時ディレクトリへコピーして使う。`sample-workspace/` は従来どおり変更しない。
+7. **fixtureは読み取り専用**: `test-fixtures/` の期待結果は現行実装で確認済み（[test-fixtures/README.md](../test-fixtures/README.md)）。変更を伴うテストは一時ディレクトリへコピーして使う。`labs/` 配下の実験場は、テストから読まない（テストが依存してよいのは `test-fixtures/` だけ）。
 8. **台帳の記録**: 作業単位の完了時に MIGRATION-LEDGER.md の状態と記録様式（旧実装・新しい公開API・維持する挙動・意図的差分）を更新する。
 
 ## 9. Core Calculus（新しい決定論的機能の設計レビュー）
@@ -94,9 +94,8 @@
 - **専用評価器・専用書込経路の追加条件は「既存 calculus で表現不能であること」**（同 §10・§20）。表現できるなら組合せとして実装し、できないなら不足している最小プリミティブの追加を先に検討する（機能でなくプリミティブを増やす。同 §3.1）。
 - **設計メモ・完了報告に、その機能が6体系（Term / Query / Expression / Predicate / Rewrite / Construct ＋ Aggregate）のどこへ落ちるかを書く**。新分類は同 §21 の分類表へ追記する。
 - **LLM 境界**: 確定済み定義の実行結果を LLM に依存させない（AI＝定義を作る／Calculus＝実行する。同 §18）。
-- **語彙の予算（R29-04・Phase 2 の決定 MP-04）**: 表面語彙（スキーマ・レジストリの新しいキー）を増やせるのは、**核にない演算へ名前を付けるとき**（例: flow の到達閉包）だけ。それ以外の新しい検証要求は、まず正準の綴り（[DESIGN-CHECK-CATALOG.md](DESIGN-CHECK-CATALOG.md) §8）の組合せで書けることを確認し、書けない場合も新キーより既存キーの拡張を優先する。表面語彙を追加・変更したときは計算体系の写像表（`specs/20-semantics/calculus/feature-mapping.yaml`）へ1行追加し、重複クラスタ（OC-01〜）への影響を確認する。
+- **語彙の予算（R29-04・Phase 2 の決定 MP-04）**: 表面語彙（スキーマ・レジストリの新しいキー）を増やせるのは、**核にない演算へ名前を付けるとき**（例: flow の到達閉包）だけ。それ以外の新しい検証要求は、まず正準の綴り（[DESIGN-CHECK-CATALOG.md](DESIGN-CHECK-CATALOG.md) §8）の組合せで書けることを確認し、書けない場合も新キーより既存キーの拡張を優先する。表面語彙を追加・変更したときは、[CORE-CALCULUS.md](CORE-CALCULUS.md) §21 の分類表へ追記し、[DESIGN-CHECK-CATALOG.md](DESIGN-CHECK-CATALOG.md) §8 の正準の綴りと重ならないことを確認する。
 - **検査は、まず YAML の定義体で書けるかを考える（P29 Phase 6。CORE-CALCULUS §25・ARCHITECTURE §4.36）**: 検証に関わるものは4層——文法プリミティブ（yaml-core。YAML の構造と最小の構造チェックだけ・小さく保つ）／意味プリミティブ（semantic-core。どう解釈するか）／組込み定義体（同梱の YAML）／ユーザ定義。①既存のプリミティブの組合せで無理なく書ける検査は、コードで作らず**定義体**（`builtin-definitions/*.yaml` の `functions` / `vocabulary`）にする ②書けないなら、足りない部分を小さな意味プリミティブとして足す（想定される処理と計算は需要を待たずに用意してよい）③複雑なアルゴリズムの検査は**専用チェッカー**として個別に実装してよい（すべてを YAML で定義できる必要はない）④yaml-core には、YAML の構造と最小の構造チェックに属するものしか足さない——迷うものは意味側 ⑤**組込み定義体だけが使える特別な機能を作らない**（組込みにできることは利用者にもできる）⑥指摘のメッセージとエラー時の対応は、検査の実装へ作り込まず、定義の宣言（`message` / `responses`）で決める。設計メモ・完了報告には、その検査をどの層に置いたかを書く。
 - **共有評価部を通す（R29-05/06・Phase 3）**: 値どうしの比較・出現からの値の読み出し・式側の出現選択は `semantic.SemanticExpression`（`compare` / `textAt` / `select`）を通し、`toDoubleOrNull` の比較や `firstOrNull { selector.matches }` を機能側へ書かない（比較の3値＝数値として読めなければ判定保留、選択の定義出現優先＝CALC-19 を全機能で同じにするため）。規則系の検証語彙（起点エンティティごとに判定して定義出現へ報告する型）の指摘は、まず YAML の定義体で書く。配り方そのものを足すときは、カーネルの `validate/WorkspaceChecks.kt`（workspace-core）に**診断を1つ足す**——判定式やメッセージ組立を配送先（報告先／出現先）ごとに書かない（ARCHITECTURE §4.32「規則の診断と配送」）。規則の level → 重大度は `CoverageLevel.toSeverity()`。
 - **変更操作は Rewrite 共有基盤を通す（R29-07・Phase 4）**: 文書への変更を生成する操作（リファクタリング・一括変更の類）は「場所の列挙 × 絞り込みと中止条件 × 場所ごとの操作」で書き、列挙と集積は `semantic.SemanticRewrite`（`walkDocument` / `fieldHits` / `reach` / `forEachSchemaEntry` / `rewriteDocuments` / `PlanOps`）を使う——スキーマ誘導の走査や文書ループを操作ごとに書き直さない。中止条件は部分計画を返さず全対象の評価後にまとめて中止する。計画の内容（操作の順序を含む）を変える変更は `RefactoringPlanGoldenTest` の期待値差分としてレビューし、既存挙動の変更なら先に INTENTIONAL-DIFFS へ登録する（ARCHITECTURE §4.35）。
 - **新しい YAML を組み立てる処理は、まず変換定義で書けるかを考える（P27 段C。CORE-CALCULUS §26・ARCHITECTURE §4.42）**: 入力の YAML から別の形の YAML を作る処理（スキーマからの導出・一覧や帳票のもとになる値の一式など）は、`SemanticTransform` の変換定義（選ぶ × 組み立てる × 規則を子に当てる）で書けるかを先に確かめ、書けないなら足りない部品を足す。組み立ての Kotlin を機能ごとに書き足さない。変換の出力はワークスペースへ保存しない（原本へ書くなら Rewrite を通す）。
-- 意味論の正式な仕様（Phase 1 以降のスペック）は `specs/` の外部仕様化ワークスペースで管理する（着手前に [specs/SPECIFICATION-GUIDE.md](../specs/SPECIFICATION-GUIDE.md) 全読が規約）。

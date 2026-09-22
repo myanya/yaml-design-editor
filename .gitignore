@@ -10,11 +10,10 @@ local.properties
 .VSCodeCounter/
 *.ttf
 .kotlin/
-sample-workspace/
-gradle/
-samples/
-system-development-template/
-software-template/
-sysdev-template/
-specs
-scratchpad
+/scratchpad/
+
+# 旧ディレクトリ（削除予定。削除したらこの行も消す）
+/sample-workspace/
+/system-development-template/
+/software-template/
+/specs/

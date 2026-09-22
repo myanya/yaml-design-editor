@@ -1,0 +1,6 @@
+domains:
+  - id: DOM-001
+    name: 予約管理
+    summary: |
+      会議室の予約・取消・空き照会を扱う中核ドメイン。
+      予約（ENT-RESERVATION）を中心に、会議室・利用者のマスタを参照する。

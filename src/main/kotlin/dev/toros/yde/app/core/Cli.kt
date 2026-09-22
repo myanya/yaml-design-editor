@@ -49,7 +49,7 @@ import dev.toros.yde.yaml.YamlIO
 
 /**
  * ヘッドレスCLI（R1-01）。UIを起動せずにワークスペースの探索・検索・パッチ・検証を行う。
- * 実行例: ./gradlew runCli --args="catalog sample-workspace"
+ * 実行例: ./gradlew runCli --args="catalog samples/sample-workspace"
  * 出力は原則 YAML（機械可読）。
  */
 fun main(args: Array<String>) {

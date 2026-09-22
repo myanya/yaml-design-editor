@@ -13,7 +13,7 @@ P28（設計検証の拡充）で `count` / `notEquals` / matrix / `same` など
 - 1つの意味には1つの評価器（1実装・多面開示の一般原則化）。読取（Query）・計算（Expression）・判定（Predicate）・変更生成（Rewrite）・適用（Transaction）を混在させない。Rewrite の結果は必ず ChangeSet であり、適用は workspace-core へ委譲する（ADR-0005/0006 と整合）。
 - 評価は決定的・三値論理（True / False / Unknown）を基本とし、provenance を計算結果の一級情報とする。LLM は定義を作る側であり、確定済み定義の実行結果を LLM に依存させない。
 - 新しい決定論的機能の追加時は、文書 §20 のチェックリスト（10項目）を実装前に通す（[CONVENTIONS.md §9](../CONVENTIONS.md) へ接続）。専用評価器・専用書込経路の追加は「既存 calculus で表現不能であること」を条件とする。
-- 導入は大規模 rewrite にせず、文書 §22 の Phase 1（意味論の紙上固定）から段階的に進める。Phase 1 の意味論スペックは `specs/` で管理する（外部仕様化ワークスペース）。
+- 導入は大規模 rewrite にせず、文書 §22 の Phase 1（意味論の紙上固定）から段階的に進める。Phase 1 の意味論スペックは、当初は外部の仕様ワークスペースで管理したが、2026-09-22 に廃止し、[docs/CORE-CALCULUS.md](../CORE-CALCULUS.md) と ROADMAP P29 の記録に集約した。
 
 ## 帰結
 

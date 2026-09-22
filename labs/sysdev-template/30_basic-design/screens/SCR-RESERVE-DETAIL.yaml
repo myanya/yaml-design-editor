@@ -1,0 +1,6 @@
+id: SCR-RESERVE-DETAIL
+url: /reservations/{id}
+items:
+  - { id: SI-RESERVE-DETAIL-CONTENT, name: 予約内容, kind: 表示, description: 会議室・利用日・時間帯・目的（複数属性の合成表示のため source なし） }
+  - { id: SI-RESERVE-DETAIL-CANCEL, name: 予約を取り消す, kind: ボタン, description: 開始1時間前まで有効 }
+calls: [IAPI-003]

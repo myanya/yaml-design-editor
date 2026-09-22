@@ -1,0 +1,17 @@
+id: TC-103
+name: リマインド送信バッチ
+preconditions:
+  - 30分後開始・2時間後開始・取消済み（30分後開始）の予約が1件ずつ存在すること
+steps:
+  - no: 1
+    operation: リマインド送信処理を起動する
+    expected: 30分後開始の予約者にのみメールが送信される
+    items: [TI-104]
+  - no: 2
+    operation: ちょうど30分後開始の予約を用意して起動する
+    expected: 境界の予約も抽出対象に含まれ、メールが送信される
+    items: [TI-105]
+  - no: 3
+    operation: 同じ条件でもう一度起動する
+    expected: 二重送信されない（送信済みフラグ）
+    items: [TI-104]

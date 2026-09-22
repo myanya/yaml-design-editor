@@ -1,0 +1,11 @@
+id: IAPI-002
+uses_tables: [TBL-RESERVATION, TBL-ROOM]
+request:
+  - { logical_name: 会議室コード, physical_name: roomCode, type: string }
+  - { logical_name: 利用日, physical_name: useDate, type: date }
+  - { logical_name: 開始時刻, physical_name: startTime, type: datetime }
+  - { logical_name: 終了時刻, physical_name: endTime, type: datetime }
+  - { logical_name: 利用目的, physical_name: purpose, type: string }
+response:
+  - { logical_name: 予約番号, physical_name: reservationNo, type: string }
+notes: 重複チェックは t_reservation を時間帯重なり条件で検索（PROC-001 手順2）。登録と同一トランザクション。

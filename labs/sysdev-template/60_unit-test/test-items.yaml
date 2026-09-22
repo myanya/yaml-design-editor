@@ -1,0 +1,35 @@
+# 単体テスト項目一覧（詳細設計向け: 処理・APIが対象）
+items:
+  - id: TI-101
+    target: PROC-001
+    viewpoint: VP-001
+    description: 空きのある会議室・営業時間内の時間帯で予約が登録できること。
+  - id: TI-102
+    target: PROC-001
+    viewpoint: VP-003
+    description: 同一会議室・重なる時間帯の予約が重複エラーで拒否されること。
+    based_on: [BR-002]
+  - id: TI-103
+    target: IAPI-003
+    viewpoint: VP-002
+    description: 開始1時間前ちょうどでは取消でき、1分過ぎると取消不可エラーになること。
+    based_on: [BR-003]
+  - id: TI-104
+    target: PROC-002
+    viewpoint: VP-001
+    description: 30分後開始の予約にリマインドが送信され、対象外には送信されないこと。
+  - id: TI-105
+    target: PROC-002
+    viewpoint: VP-002
+    description: ちょうど30分後に開始する予約が抽出の境界で対象に含まれること。
+  - id: TI-106
+    target: PROC-001
+    viewpoint: VP-002
+    description: 営業時間の境界（9:00 開始・18:00 終了ちょうど）の予約が受け付けられ、範囲外は拒否されること。
+    based_on: [BR-001]
+  - id: TI-107
+    target: PROC-002
+    viewpoint: VP-003
+    description: （対象外）リマインド送信処理の排他・競合。
+    excluded: true
+    exclude_reason: バッチは単一プロセスの逐次実行（POL-BATCH）のため、排他・競合の観点は対象外とする。

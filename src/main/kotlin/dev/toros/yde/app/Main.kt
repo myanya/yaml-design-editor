@@ -142,11 +142,12 @@ fun StartScreen(state: AppState) {
             Spacer(Modifier.width(6.dp))
             Text("ワークスペースを開く…", fontSize = 13.sp)
         }
-        val sample = Path.of("sample-workspace")
+        // 同梱サンプル（samples/ 配下。公開用のサンプル定義を置く場所）
+        val sample = Path.of("samples", "sample-workspace")
         if (Files.isDirectory(sample) && state.recentWorkspaces.none { it.fileName?.toString() == "sample-workspace" }) {
             Spacer(Modifier.height(6.dp))
             TextButton(onClick = { state.openWorkspace(sample) }) {
-                Text("sample-workspace を開く", fontSize = 12.sp)
+                Text("samples/sample-workspace を開く", fontSize = 12.sp)
             }
         }
         if (state.recentWorkspaces.isNotEmpty()) {

@@ -1,0 +1,34 @@
+# 物理型マッピング表のスキーマ（詳細設計。MAP-* の定義出現）
+#
+# 業務データ型（DT-*）→ 物理データ型（DDL型）の対応の単一真実源。
+# カラムには物理型文字列を書かない——カラムは dtype で業務型を指し、物理型はこの表で決まる。
+# レジストリの maps-type（inMin/inMax 1）により、マッピング漏れと二重マッピングが検出される。
+id: type-mapping
+name: 物理型マッピング表
+match: 40_detail-design/type-mapping.yaml
+description: 業務データ型から物理データ型（DDL型）へのマッピング表。物理型の単一真実源。
+entity:
+  type: type-mapping
+  idPattern: "MAP-*"
+  defines: true
+root:
+  type: object
+  fields:
+    - key: mappings
+      label: マッピング
+      type: array
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: id, label: マッピングID, type: id, required: true, description: 例 MAP-MAIL-ADDRESS。 }
+          - key: dtype
+            label: 業務データ型
+            type: ref
+            required: true
+            idPattern: "DT-*"
+            relation: maps-type
+            scope:
+              schemaIds: [data-type-list]
+          - { key: physical, label: 物理型, type: string, required: true, description: DDLの型（例 VARCHAR(100)・TIMESTAMP）。 }
+          - { key: notes, label: 備考, type: string }

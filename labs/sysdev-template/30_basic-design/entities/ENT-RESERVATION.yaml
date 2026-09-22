@@ -1,0 +1,13 @@
+id: ENT-RESERVATION
+attributes:
+  - { id: EA-RESERVE-NO, name: 予約番号, dtype: DT-RESERVATION-NO, required: true, description: システム採番 }
+  - { id: EA-RESERVE-ROOM, name: 会議室, dtype: DT-ROOM-CODE, required: true, description: ENT-ROOM への参照（会議室コードを保持） }
+  - { id: EA-RESERVE-MEMBER, name: 予約者, dtype: DT-MEMBER-NO, required: true, description: ENT-MEMBER への参照（社員番号を保持） }
+  - { id: EA-RESERVE-DATE, name: 利用日, dtype: DT-USE-DATE, required: true }
+  - { id: EA-RESERVE-START, name: 開始時刻, dtype: DT-RESERVE-TIME, required: true }
+  - { id: EA-RESERVE-END, name: 終了時刻, dtype: DT-RESERVE-TIME, required: true }
+  - { id: EA-RESERVE-PURPOSE, name: 利用目的, dtype: DT-PURPOSE, required: false }
+  - { id: EA-RESERVE-STATUS, name: 状態, dtype: DT-RESERVE-STATUS, required: true, description: 予約中／取消済み }
+relations:
+  - { to: ENT-ROOM, description: 予約は1つの会議室に対して行う（N:1） }
+  - { to: ENT-MEMBER, description: 予約は1人の利用者が行う（N:1） }

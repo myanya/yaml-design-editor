@@ -1,0 +1,22 @@
+# 試験観点台帳のスキーマ（VP-* の定義出現）
+id: test-viewpoint
+name: 試験観点台帳
+match: 90_management/test-viewpoints.yaml
+description: テスト項目の抽出に使う試験観点（VP-*）の台帳。「対象 × 観点」がテスト項目になる。
+entity:
+  type: test-viewpoint
+  idPattern: "VP-*"
+  defines: true
+root:
+  type: object
+  fields:
+    - key: viewpoints
+      label: 観点一覧
+      type: array
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: id, label: 観点ID, type: id, required: true, description: 例 VP-001。 }
+          - { key: name, label: 観点名, type: string, required: true, description: 例 正常系・境界値・排他/競合。 }
+          - { key: description, label: 説明, type: text, required: true }

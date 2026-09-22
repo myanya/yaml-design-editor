@@ -1,0 +1,29 @@
+# システム概要のスキーマ（要件定義の入口。1ファイル）
+id: system-overview
+name: システム概要
+match: 10_requirements/system-overview.yaml
+description: システムの目的・スコープ・利用者を1枚で記述する。
+root:
+  type: object
+  fields:
+    - key: name
+      label: システム名
+      type: string
+      required: true
+    - key: purpose
+      label: 目的
+      type: text
+      required: true
+    - key: scope
+      label: スコープ
+      type: text
+      required: true
+      description: 対象業務と、対象外とする範囲。
+    - key: users
+      label: 利用者
+      type: array
+      item:
+        type: object
+        fields:
+          - { key: name, label: 利用者区分, type: string, required: true }
+          - { key: description, label: 説明, type: string }

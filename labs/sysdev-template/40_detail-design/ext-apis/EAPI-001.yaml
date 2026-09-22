@@ -1,0 +1,8 @@
+id: EAPI-001
+uses_tables: [TBL-RESERVATION, TBL-MEMBER]
+request:
+  - { logical_name: 対象日, physical_name: targetDate, type: date }
+  - { logical_name: 会議室コード, physical_name: roomCode, type: string }
+response:
+  - { logical_name: 予約一覧, physical_name: reservations, type: string }
+notes: 予約者は所属部署のみ返す（氏名・メールは返さない。POL-LOG の個人情報方針と整合）。

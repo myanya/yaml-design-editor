@@ -1,0 +1,48 @@
+# テストケースのスキーマ（1ファイル1ケース。TC-* の定義出現。試験3階層共通）
+#
+# テスト項目の消化（covers）は**手順ごと**に宣言する——どの手順がどの項目を
+# 消化するかが追えることが重要（詳細設計の構造と同じ流儀）。
+id: test-case
+name: テストケース
+match: "{60_unit-test,70_integration-test,80_e2e-test}/testcases/*.{yaml,yml}"
+description: テスト項目（TI-*）を消化するシナリオ（TC-*）。手順ごとに消化する項目を宣言する。
+entity:
+  type: test-case
+  idPattern: "TC-*"
+  defines: true
+root:
+  type: object
+  fields:
+    - key: id
+      label: ケースID
+      type: id
+      required: true
+      description: 例 TC-101（単体）・TC-201（結合）・TC-301（総合）。
+    - key: name
+      label: ケース名
+      type: string
+      required: true
+    - key: preconditions
+      label: 事前条件
+      type: array
+      item: { type: string }
+    - key: steps
+      label: 手順
+      type: array
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: no, label: 手順番号, type: int, required: true }
+          - { key: operation, label: 操作, type: string, required: true }
+          - { key: expected, label: 期待結果, type: string, required: true }
+          - key: items
+            label: 消化するテスト項目
+            type: array
+            description: この手順で消化されるテスト項目。ケース全体で全対象項目を消化すること。
+            item:
+              type: ref
+              idPattern: "TI-*"
+              relation: covers
+              scope:
+                schemaIds: [unit-test-item, integration-test-item, system-test-item]
