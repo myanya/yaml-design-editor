@@ -46,6 +46,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.system.exitProcess
 import dev.toros.yde.yaml.YamlIO
+import dev.toros.yde.app.BuildInfo
 
 /**
  * ヘッドレスCLI（R1-01）。UIを起動せずにワークスペースの探索・検索・パッチ・検証を行う。
@@ -141,6 +142,7 @@ internal const val CLI_USAGE = """コマンド:
   migrate  <workspace> [--ledger dir]           レガシー構成（ルートの _schemas 等）を .yde 構成へ移行する（R13-01）。
            予約ディレクトリを .yde/ 配下へ移動し .yde/workspace.yaml を作成する。
            --ledger で台帳ディレクトリを宣言（未指定なら全体が台帳＝従来と同じ検証範囲）
+  version                                       バージョン（appVersion＝外部・buildVersion＝内部 yyyymmdd.ビルド番号・commit）
   help                                          このヘルプ
 """
 
@@ -153,6 +155,7 @@ internal fun runCli(args: Array<String>): String {
         return Workspace.open(Path.of(dir))
     }
     return when (command) {
+        "version" -> "appVersion: ${BuildInfo.appVersion}\nbuildVersion: ${BuildInfo.buildVersion}\ncommit: ${BuildInfo.commit}\n"
         "catalog" -> {
             val ws = workspace()
             dumpYaml(Disclosure.catalog(ws).map { entry ->

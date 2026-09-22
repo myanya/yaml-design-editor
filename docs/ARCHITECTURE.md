@@ -1,6 +1,6 @@
 # アーキテクチャ（クラス設計と設計方針）
 
-本書は実装の構造と、変更時に守るべき設計方針を定義します。構造や方針に影響する変更を行ったら**必ず本書を更新**してください。機能の有無・実装状況は [FEATURES.md](FEATURES.md)、利用者向けの仕様は [README.md](../README.md) を参照。
+本書は実装の構造と、変更時に守るべき設計方針を定義します。構造や方針に影響する変更を行ったら**必ず本書を更新**してください。機能の有無・実装状況は [FEATURES.md](FEATURES.md)、利用者向けの仕様は [MANUAL.md](MANUAL.md) を参照。
 
 ## 1. 技術スタック
 
@@ -10,7 +10,7 @@
 - Excel・Word入出力: Apache POI（poi-ooxml。skill機構のインポート・エクスポートのみで使用。docx は XWPF で表を読む）
 - 永続化: `java.util.prefs.Preferences`（UIレイアウト・テーマ・履歴・AIモデル設定）
 - ビルド: Gradle（Wrapper 同梱）マルチモジュール——ルート＝Composeアプリ＋ `yaml-core` / `semantic-core` / `workspace-core` / `cli`（3層コア移行中。[THREE-LAYER-CORE-MIGRATION-PLAN.md](THREE-LAYER-CORE-MIGRATION-PLAN.md)）、テスト: kotlin.test
-- ヘッドレスCLI: `./gradlew runCli --args="…"`（GUIなしで探索・検索・パッチ・検証・エージェント実行・評価・入出力変換。README §16） 
+- ヘッドレスCLI: `./gradlew runCli --args="…"`（GUIなしで探索・検索・パッチ・検証・エージェント実行・評価・入出力変換。MANUAL §16） 
 
 ## 2. パッケージ構成と依存方向
 
@@ -126,6 +126,7 @@
 | `SkillsSection` | ui/SkillsPanel.kt | 連携（skill）: 一覧・エクスポート実行・インポートのプレビュー→検証つき適用（設計スペースに常設） |
 | `OpenDocument` | app/AppState.kt | 開いている1文書。複数ドキュメントの再出力と、保存した内容との比較は core.EditBuffer へ委譲し（履歴と dirty の正は、カーネルのセッション）、Compose購読（version / dirty / parseError）のシェルに徹する（R9-02）。外部競合の管理を担う |
 | `AppState` | app/AppState.kt | アプリ状態。走査・スキーマ・索引・更新方針は保持する core.Workspace へ委譲し、Compose購読用のミラー（schemas / yamlFiles / indexVersion）・文書キャッシュ（docCache）・ナビゲーション・ファイル操作を担う（R9-02）。閲覧専用モード（`readOnlyMode`。R10-04）・ワークスペース履歴（`recentWorkspaces`。R10-05）・スペース（`uiSpace` / `showSpace`。R12-01・§4.24）もここが持つ |
+| `BuildInfo` | app/BuildInfo.kt | ビルド時に生成される `build-info.properties`（root の build.gradle.kts の `generateBuildInfo`）を読む。外部バージョン（`appVersion`）・内部バージョン（`buildVersion`＝yyyymmdd.ビルド番号）・コミット。スタート画面と CLI `version` が表示する（CONVENTIONS §5） |
 | `AiGenerator` ほか | ai/ | スキーマ→JSON Schema 変換、REF候補の enum 制約、プロバイダ振り分け |
 | `OpenAiGenerator` / `AnthropicGenerator` | ai/ | 各API（Responses / Messages）のリクエスト構築とレスポンス解析 |
 | `FormView` / `FormCtx` | ui/FormView.kt | スキーマ駆動フォームと汎用エディタ（中核UI）。`FormCtx` が編集操作と参照解決を仲介 |
@@ -465,7 +466,7 @@ P19（コンテキストエンジニアリングの一級化）の計測基盤�
 - **索引への反映は走査時**: エンティティ型と役割（定義／詳細化）は `DocScanner` がID検出時にスキーマの `entity:` 宣言と `idPattern` で解決し、`IdEntry.entityType` / `IdEntry.role`（null = 宣言なし）へ付与する。「スキーマが変わったら全再構築」（§4.5）の既存規約が整合性を保証し、増分更新の仕組みは変えない。`IdIndex.resolve(id)` は**定義出現（role=DEFINING）があればそれを優先**する（表示解決・ジャンプ先が「定義」に安定する。「最初の出現＝定義」ヒューリスティクスの**廃止**は P21）。
 - **lint は既存の報告経路に乗せる**: ①エンティティ整合（定義出現0＝浮遊詳細化／2以上＝定義競合・`idPattern` 逸脱・同一IDの複数型競合）は `Validator.validate` のワークスペース横断判定（カバレッジと同じ流儀。座標は各出現のID要素・すべて WARNING。台帳外では判定しない）。②未宣言 relation（レジストリが1つでもあるとき、スキーマの ref フィールドの `relation` がレジストリにない）は `SchemaLoader.loadAllWithErrors` のエラー一覧（スキーマ読込エラーの流儀）。判定保留の哲学（§4.26）を踏襲し、宣言のないスキーマのIDには黙る。
 - **関係レジストリの消費は表示と lint のみ（P20）**: バックリンクを表示する全面（SidePanel 関係タブ・ID横ぐし・ビュー backlinks 列・文書ビュー・エージェント `related`・グラフ・bundle）は relation 名の代わりに `label`（参照方向）／`inverseLabel`（被参照方向）を表示する。解決は `schema/Relations` の `labelOf` / `inverseLabelOf` に一元化し、未宣言 relation は従来どおり名前のまま。**検証・解決の意味論には関与させない**（enum のリッチ選択肢 §4.22 と同じ「表示専用」の規律）。レジストリは `SchemaLoader.LoadResult.relations`（name → `RelationDef`。重複 name はロードエラー）→ `Workspace.relations` → AppState ミラーで配られる。
-- **属性付き参照は「IDを持たない注記」**: `type: ref` のフィールドに `fields:`（エッジ属性の型宣言）がある場合のみ、オブジェクト形式 `{to: <ID>, <属性>...}` を許可する（宣言なしにオブジェクトが来たら従来どおり型不一致）。予約キー `to` が参照値で、`RefEntry.path` は **to 値の座標**（ジャンプ・パッチ・バックリンクの既存セマンティクスを保つ）。属性は走査境界（属性内の入れ子 ref / id はメタスキーマ検証で不許可）で、`RefEntry.attributes`（スカラー属性の写し）として索引に載り、表示は「（role: 承認者）」の括弧注記に閉じる（値はIDのまま。R19-05 の規約踏襲）。検証は to の解決（従来の ref と同一）＋属性の object 検証。フォームは参照行（to）＋属性行（`ObjectFields` 再利用）、AI生成は `{to: enum制約, 属性...}` の object へ変換。`YamlIO` は変更不要（通常の Map として往復＝コメント・スタイル保持は自動）。関係自体を参照・詳細化したくなったら従来どおり 1:N 具体化（新ID＋逆リンク。§4.6）を使う——使い分けは README に明文化。
+- **属性付き参照は「IDを持たない注記」**: `type: ref` のフィールドに `fields:`（エッジ属性の型宣言）がある場合のみ、オブジェクト形式 `{to: <ID>, <属性>...}` を許可する（宣言なしにオブジェクトが来たら従来どおり型不一致）。予約キー `to` が参照値で、`RefEntry.path` は **to 値の座標**（ジャンプ・パッチ・バックリンクの既存セマンティクスを保つ）。属性は走査境界（属性内の入れ子 ref / id はメタスキーマ検証で不許可）で、`RefEntry.attributes`（スカラー属性の写し）として索引に載り、表示は「（role: 承認者）」の括弧注記に閉じる（値はIDのまま。R19-05 の規約踏襲）。検証は to の解決（従来の ref と同一）＋属性の object 検証。フォームは参照行（to）＋属性行（`ObjectFields` 再利用）、AI生成は `{to: enum制約, 属性...}` の object へ変換。`YamlIO` は変更不要（通常の Map として往復＝コメント・スタイル保持は自動）。関係自体を参照・詳細化したくなったら従来どおり 1:N 具体化（新ID＋逆リンク。§4.6）を使う——使い分けは MANUAL に明文化。
 - **EntityGraph は導出専用（グラフストアを持たない）**: グラフ（semantic-core の `SemanticEntityGraph`。root の `EntityGraph` は別名。§4.48）は、走査結果から導出する読み取り専用ビュー——エンティティ表（id → 型・定義出現・出現一覧・タイトル）・隣接（出次＝出現サブツリー配下の参照、入次＝被参照、参照→最内の参照元要素）・文書ノード表（documentId → file・contains エンティティ。識別は既存 `documentIdOf`）・包含エッジは**書かずに導出**。`IdIndex` インスタンスに lazy 保持し `derive()`（rebuild / update / overlay）で無効化するため、ディスク・オーバーレイ（UX-03）・ステージングの各 `IdIndex` が自然に自分のグラフを持ち、§4.5 の二層構造を崩さない。`sourceEntryOf` / `backlinksTo` / `Traverse.neighbors`（out）／`related` の出次列挙は EntityGraph の事前計算へ委譲した（**公開APIと出力は不変**の載せ替え。`backlinksTo` は元の全参照順を order 索引で保存する）。導出コストは CLI `bench` の `graphDeriveMillis` で計測する。
 - **レジストリの自動推測は入口保証つき**: CLI `infer-relations` は索引の全 `RefEntry` から relation ごとに viaKey・参照元／先の entityType 実績を集計してレジストリ文書のドラフトを生成する（inverseLabel は TODO コメント）。生成物は必ず `SchemaLoader.parseSchemaText` → `validateDefinition` を通る形で出力する（スキーマ推測 R11-01 と同じ入口保証）。
 
@@ -851,7 +852,7 @@ root の索引・検証・ビュー・クエリは、カーネルの結果を、
 - **カバレッジ（`coverage`）とエンティティの整合の変更**: コードではなく**組込み定義体** `builtin-definitions/coverage.yaml`・`entities.yaml` を更新する（coverage の書き方の形は組込みメタスキーマ `builtin-schema` の `coverage`）。充足状況の表示の文言は検査の `status`、詳細文書の側への案内は `fixSite`、「詳細文書を作成」は `responses` の `create` の宣言（§4.36）。
 - **関係の宣言の検査（多重度・対象型）の変更**: コードではなく**組込み定義体** `workspace-core/src/main/resources/builtin-definitions/relations.yaml` と、書き方の形を持つ組込みメタスキーマ（`builtin-relations`）を更新する（§4.36）。
 - **整合ルール（`consistency`）の変更**: コードではなく**組込み定義体** `workspace-core/src/main/resources/builtin-definitions/consistency.yaml`（検査の定義と語彙の定義）と、書き方の形を持つ組込みメタスキーマ（`builtin-schema` の `consistency`）を更新する（§4.36）。
-- **値の条件・値の計算の追加**: 値の条件は `schema.CheckOp`（演算子と、文面で左右の間に置く言葉）と `SemanticExpression.compare` / `test` に足す——`check` と `where` の両方で使えるようになる。値の計算は `schema.ValueExpr`（パースと `sources` / `reads` / `templateReads`）・`SemanticExpression`（純粋な関数）・`SemanticQuery.evalExpr`（値の出どころの引き継ぎ）に足す。どちらも、評価できないときは null（判定保留）を返す規則を守る。組込みメタスキーマ（`builtin-schema` の constraints の `where` / `check` の説明・`builtin-view` の `where`）と README を**そろえて**更新する（§4.36）。
+- **値の条件・値の計算の追加**: 値の条件は `schema.CheckOp`（演算子と、文面で左右の間に置く言葉）と `SemanticExpression.compare` / `test` に足す——`check` と `where` の両方で使えるようになる。値の計算は `schema.ValueExpr`（パースと `sources` / `reads` / `templateReads`）・`SemanticExpression`（純粋な関数）・`SemanticQuery.evalExpr`（値の出どころの引き継ぎ）に足す。どちらも、評価できないときは null（判定保留）を返す規則を守る。組込みメタスキーマ（`builtin-schema` の constraints の `where` / `check` の説明・`builtin-view` の `where`）と MANUAL を**そろえて**更新する（§4.36）。
 - **検査を新しく足すとき**: まず YAML の定義体で書けるかを考える（§4.36・CONVENTIONS §9）。書けないなら、足りない部分を小さな意味プリミティブ（semantic-core）として足す。複雑なアルゴリズムの検査は専用チェッカーとして個別に実装してよい。
 - **エンティティ・関係語彙の追加**: 宣言モデル（`schema/Relations.kt`）・パース（`SchemaLoader` の `entity:` / `kind: relations` / `entities:` / `enforcement:`）・組込みメタスキーマ（`builtin-schema` の entity・`builtin-relations`）・スキーマ設計UI（`SchemaEditor` のエンティティ節）を**そろえて**更新する（§4.30 / §4.33）。グラフの導出項目を増やすときは `EntityGraph` に閉じ、消費側で走査を書かない。グラフ整合の制約を増やすときは semantic-core の `semantic/GraphIntegrity.kt` に閉じる（判定保留の哲学＝型未宣言・未解決には黙る。§4.31）。エンティティ合成の項目を増やすときは `core/Aspects.kt` に閉じ、消費側（ページUI・read_entity・CLI）で合成を書かない（§4.33）。
 - **クエリ語彙の追加**: 宣言モデル・パース（`schema/Query.kt`）・評価器（`index/Query.kt`）・組込みメタスキーマ（`builtin-view` の rows（match / where / also / rowKey）・`builtin-activity` の foreach.query・`builtin-schema` の constraints）を**そろえて**更新する（§4.32）。消費側（Views / Foreach / Validator / CLI）に評価ロジックを書かない。「やらないこと」（集約は件数のみ・任意深さの再帰なし・任意式なし・optional 結合なし）の解禁は実例の需要で段階判断する。

@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "dev.toros"
-version = "0.1.0"
+version = providers.gradleProperty("appVersion").get()
 
 repositories {
     mavenCentral()

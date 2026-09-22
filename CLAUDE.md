@@ -8,7 +8,8 @@ Kotlin + Compose for Desktop 製のスキーマ駆動YAMLエディタ。ワー�
 ./gradlew test                              # 単体テスト（コミット前に必ず実行）
 ./gradlew run                               # スタート画面で起動（履歴からワークスペース選択）
 ./gradlew run --args="/path/to/workspace"   # ワークスペース指定で起動
-./gradlew runCli -q --args="help"           # ヘッドレスCLI（探索・検索・パッチ・検証・エージェント実行・評価・入出力変換。README §16）
+./gradlew runCli -q --args="help"           # ヘッドレスCLI（探索・検索・パッチ・検証・エージェント実行・評価・入出力変換。docs/MANUAL.md §16）
+./gradlew runCli -q --args="version"        # バージョン表示（外部＝appVersion・内部＝yyyymmdd.ビルド番号・コミット）
 ./gradlew packageDistributionForCurrentOS   # 配布物作成
 ```
 
@@ -18,7 +19,8 @@ Kotlin + Compose for Desktop 製のスキーマ駆動YAMLエディタ。ワー�
 
 | ドキュメント | 役割 |
 |---|---|
-| [README.md](README.md) | 利用者マニュアル（操作・スキーマ定義リファレンス・制約） |
+| [README.md](README.md) | 公開の入口: 概要・クイックスタート・文書一覧（詳しい説明は書かない） |
+| [docs/MANUAL.md](docs/MANUAL.md) | 利用者マニュアル（操作・スキーマ定義リファレンス・制約） |
 | [docs/FEATURES.md](docs/FEATURES.md) | 機能台帳: 全機能の一覧・実装状況・テスト有無・未実装項目 |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | クラス設計・設計方針・データフロー・拡張ポイント |
 | [docs/CONVENTIONS.md](docs/CONVENTIONS.md) | 開発規約（スタイル・Compose作法・テスト・ドキュメント更新規約・UXフィードバック運用） |

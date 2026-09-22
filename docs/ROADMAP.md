@@ -301,7 +301,7 @@ P1〜P6 の各フェーズに「将来拡張」として残っていた継続課
 | ID | 項目 | 状態 | 内容 |
 |---|---|---|---|
 | R7-01 | フェーズ機構（状態依存の検証プロファイル） | ✅ | スキーマが順序付きフェーズ（`phases`）を宣言し、文書がルート項目で現在フェーズを申告する。フィールドの `requiredFrom` は「そのフェーズ以降で必須」（累積的）、カバレッジルールの `activeFrom` は「そのフェーズ以降で判定」。未到達フェーズの未記入はエラーにせず、フェーズ別の記入進捗として可視化する（検証パネル・CLI `validate`。[FEATURES.md](FEATURES.md) S-11・V-06） |
-| R7-02 | 1:N詳細化の一級化 | ✅ | 1:1の詳細化＝同一ID、1:Nの分裂（例: データモデルの1エンティティ→単票・明細の2テーブル）＝新ID＋`ref`（`relation`）で親へ逆リンク、という規約を確立した（README §6）。ビュー定義にバックリンク列（`backlinks`: `relation` / 参照元スキーマで絞った被参照の一覧表示）を追加し、旧L-15（出現ベースのカバレッジ `detailIn`＝詳細文書の存在検証）を実装。詳細は [FEATURES.md](FEATURES.md) S-09・V-05・X-05・X-06・C-07・ARCHITECTURE §4.6／§4.14 |
+| R7-02 | 1:N詳細化の一級化 | ✅ | 1:1の詳細化＝同一ID、1:Nの分裂（例: データモデルの1エンティティ→単票・明細の2テーブル）＝新ID＋`ref`（`relation`）で親へ逆リンク、という規約を確立した（MANUAL §6）。ビュー定義にバックリンク列（`backlinks`: `relation` / 参照元スキーマで絞った被参照の一覧表示）を追加し、旧L-15（出現ベースのカバレッジ `detailIn`＝詳細文書の存在検証）を実装。詳細は [FEATURES.md](FEATURES.md) S-09・V-05・X-05・X-06・C-07・ARCHITECTURE §4.6／§4.14 |
 | R7-03 | スキーマの共通部品（横断 `$ref`） | ✅ | `kind: library` のスキーマ文書がdefinitionsだけを公開し、工程別スキーマは `moduleId#definition` の修飾`$ref`で参照する。`SchemaCatalog`が全モジュールのパース後にリンクするためファイル順に依存せず、共有定義内の非修飾`$ref`も宣言元libraryを基準に解決する。既存のローカル`$ref`は後方互換。詳細は [FEATURES.md](FEATURES.md) S-12・ARCHITECTURE §4.7 |
 | R7-04 | 編集可能なID横ぐしフォーム | ✅ | `_views` 定義を書かずに、同一IDの全出現をID横ぐしビュー上でその場編集できる。詳細は [FEATURES.md](FEATURES.md) I-07・ARCHITECTURE §4.16 |
 | R7-05 | 段階的詳細化のAI導線 | ✅ | R7-01/R7-04は人間向けUIのみで、エージェント側の露出がなかった（`related` は出現の座標のみ、フェーズ状態は検証エラーでしか気づけない）ギャップを埋める。`related`/`list_documents` が出現の主要フィールド要約とフェーズ状態を1回の呼び出しで返し、`context.include: [phase]` で対象文書のフェーズ状態を初期文脈に載せられるようにした。詳細は [FEATURES.md](FEATURES.md) AG-25。あわせて `sample-workspace` に `table-design` スキーマへの `phases` 適用例（`tables/TBL-TASK.yaml` requirements 段階／`tables/TBL-USER.yaml` physical-design 段階）と、ID串刺しレビュー（`review-screen-elaboration`）・フェーズ前進（`advance-table-phase`）の `_activities` 例を追加 |
@@ -357,7 +357,7 @@ P1〜P6 の各フェーズに「将来拡張」として残っていた継続課
 |---|---|---|
 | R10-01 | 表示解決機構（予約語＋スキーマヒント） | ✅ S-13（`schema/Display.kt`: 優先順位はスキーマの `FieldDef.role: title / subtitle`（`$ref` 合成・library 共有・object 内重複のメタ検証）＞予約語（title / name / label、description / summary）＞ id ＞ キー数の要約。索引のタイトル抽出（`DocScanner` → `IdEntry.title`）に一元化したため、参照候補（I-04）・ID検索（I-06）・ビュー行タイトル（X-06）は自動追随。バックリンク（I-05・X-06・AG-25）は `IdIndex.sourceEntryOf` で「参照を書いた要素」のID・タイトルを表示。配置は依存方向の都合で core ではなく schema パッケージ＝UI非依存の純ロジック層（ARCHITECTURE §4.22）） |
 | R10-02 | 畳み込みサマリ | ✅ E-11（畳んだ object=「ID タイトル（n項目）」、配列=「n件: 先頭要素の要約, …」を `Display.headerText` / `seqHeaderText` で生成） |
-| R10-03 | enum のリッチ選択肢 | ✅ S-14（`values` の要素を文字列または `{value, label, description}` に拡張＝後方互換・混在可。検証・`cases`・AI生成の制約は `value` のまま、フォームは label 表示＋現在選択値の ✓ ＋説明表示、スキーマ設計UIに入力欄を追加。`type: ref` ＋ `scope` による台帳管理の運用ガイドは README §4） |
+| R10-03 | enum のリッチ選択肢 | ✅ S-14（`values` の要素を文字列または `{value, label, description}` に拡張＝後方互換・混在可。検証・`cases`・AI生成の制約は `value` のまま、フォームは label 表示＋現在選択値の ✓ ＋説明表示、スキーマ設計UIに入力欄を追加。`type: ref` ＋ `scope` による台帳管理の運用ガイドは MANUAL §4） |
 | R10-04 | 閲覧専用モード | ✅ E-12（`FormCtx.readOnly`: テキスト表示化・追加/削除/AIボタン非表示・パディング圧縮。既定畳みはその後編集モードと共通化（E-11）。ジャンプ・バックリンクは残置。ID横ぐしの埋め込みフォーム・ビューグリッドへ `FormCtx` 共有で自動波及。トグルはツールバー＋ `uiPreferences` 永続化） |
 | R10-05 | ワークスペース管理 | ✅ W-08（最近開いたワークスペース履歴＝アプリグローバル Preferences・起動時スタート画面＝sample-workspace 自動オープンを履歴選択に置換・コマンドパレットからの切替。未保存確認は W-07 を共用。複数ウィンドウ同時オープンは対象外のまま＝必要になったら別項目として起こす） |
 
@@ -532,7 +532,7 @@ P1〜P6 の各フェーズに「将来拡張」として残っていた継続課
 | ID | 項目 | 状態 | 内容 |
 |---|---|---|---|
 | R19-01 | コンテキスト会計 | ✅ | 2026-08-10 実装（[FEATURES.md](FEATURES.md) AG-27）。実行記録に `context.sections`（区分別の文字数・概算トークン）・`context.turnInputTokens`（送信別入力の実測）・`toolCalls[].resultChars`（打切り前の全長）を記録し、レビューUIに内訳を表示。`usage.cachedInputTokens`（入力の内数へ正規化。Anthropic は input_tokens + cache_read + cache_creation を総入力化）を追加しメトリクスへ合算。予算判定は総入力基準を維持し、キャッシュ割引の重み付けは R19-05 のキャッシュ有効化時に再判断（ARCHITECTURE §4.28） |
-| R19-02 | コンテキストレシピ語彙 | ✅ | 2026-08-10 実装（[FEATURES.md](FEATURES.md) AG-28）。`context.items`: `catalog`（match 絞り）/ `phase` / `view`（rows・columns 絞り）/ `doc` / `related` / `sample`（同スキーマの手本N件）。各項目に `budgetChars`（決定的打切り。全文系は既定8,000字）・`when`（always / has-target / no-target）・`{target}` 等のプレースホルダ（foreach 対象値に連動。未解決の項目は開示しない）。旧キー（include / views）は移行ヒント付き定義エラー・無指定の既定は空。`builtin-activity`（kind の cases 展開＝設計スペースのフォームも追随）・README を対更新し、同梱テンプレート16定義＋ledger パックを新形式へ移行（ARCHITECTURE §4.28） |
+| R19-02 | コンテキストレシピ語彙 | ✅ | 2026-08-10 実装（[FEATURES.md](FEATURES.md) AG-28）。`context.items`: `catalog`（match 絞り）/ `phase` / `view`（rows・columns 絞り）/ `doc` / `related` / `sample`（同スキーマの手本N件）。各項目に `budgetChars`（決定的打切り。全文系は既定8,000字）・`when`（always / has-target / no-target）・`{target}` 等のプレースホルダ（foreach 対象値に連動。未解決の項目は開示しない）。旧キー（include / views）は移行ヒント付き定義エラー・無指定の既定は空。`builtin-activity`（kind の cases 展開＝設計スペースのフォームも追随）・MANUAL を対更新し、同梱テンプレート16定義＋ledger パックを新形式へ移行（ARCHITECTURE §4.28） |
 | R19-03 | グラフトラバース基盤 | ✅ | 2026-08-10 実装（[FEATURES.md](FEATURES.md) AG-30）。宣言的トラバース評価器 `core/Traverse`（経路パターン: `start`＋`steps` の**連鎖**（各ステップは前ステップの到達ノードから辿る）。`follow: out / in` × `relation`・`via`・`schema` 絞り、`emit`＝段階的開示の4階層、`limitPerHop` 既定10）。訪問済み集合で循環停止・ID昇順の安定ソート・「他n件」・`budgetChars` 打切り＝決定的出力。CLI `traverse`（`--steps` にYAML配列＝レシピの試作台） |
 | R19-04 | グラフの開示統合 | ✅ | 2026-08-10 実装（AG-30）。レシピ `kind: graph` 項目（`{target}` 連動・when / budgetChars 対応の決定的プリフェッチ）とエージェントツール `traverse`（related の多段版・相談モード可）。エージェント経路は `staging.index()`（オーバーレイ）、CLI はディスク索引——既存の二層構造（§4.5）を踏襲。`builtin-activity` の graph case で設計スペースのフォームも対応 |
 | R19-05 | 参照の名前解決とツール減量 | ✅ | 2026-08-10 実装（[FEATURES.md](FEATURES.md) AG-29。会計の実測＝related(ACT-001) 被参照144件13.5K字・read_view 全量28.6K字の履歴膨張と、ID解決目的の read_node が毎実行2〜4ターンある事実を受け、R19-03/04 より前倒し）。**参照の名前解決**: read_node／doc 項目の末尾に「参照の解決」フッタ（配下の参照IDを `ID = タイトル [定義元]` で列挙・未解決も明示）、related の「この要素からの参照」に参照先タイトル付与、ビュー renderText の ref 値セルを「ID（タイトル）」注記へ（従来は「（配列 n 件）」）——「このIDは何か」を追加のツール呼び出しなしで閉じる。**ツール減量**: related の被参照は既定20件打切り＋`limit` 引数、read_view に `rows`／`columns` 引数、list_documents に `match` 引数 |
@@ -547,7 +547,7 @@ P1〜P6 の各フェーズに「将来拡張」として残っていた継続課
 
 狙い: 情報管理基盤の抜本強化（§4.9 の二層モデル）の第1弾。グラフを走査の副産物から**宣言されたモデル**へ昇格させる入口として、宣言語彙と lint を**非破壊**で導入し、既存ワークスペースを診断できる状態を先に作る。破壊的変更（宣言の必須化・ヒューリスティクスの廃止）は P21 のスイッチに閉じ込める——`.yde`/`ledger`（P13）で実証済みの「opt-in で導入 → lint で診断 → 宣言を標準化」パターンの踏襲。解消したい現状の摩擦: 「最初の出現＝定義」ヒューリスティクス（`IdIndex.resolve` はパス順の先頭を返すだけで、どの出現がエンティティの誕生かを機械が知らない）・relation の自由文字列（語彙の一覧も逆方向ラベルもなく、被参照は常に汎用の「被参照」表示）・エッジ属性の欠如（`type: ref` はスカラー限定で、関係への注記は 1:N 具体化しか手段がない）・`backlinksTo` / `sourceEntryOf` / `Traverse.neighbors` の全参照線形走査。
 
-**前提と着手手順**（独立セッションで実装するための自己完結記載）: 依存フェーズなし（P19 までが実装済み）。着手時に本節と §4.9（二層モデルの原則）・ARCHITECTURE §4.5（索引の二層構造とオーバーレイ）・§4.6（ID・参照のセマンティクス）・§4.7（`resolve` / `effectiveFields`）・§4.23（メタスキーマとローダ三段階）を読み、本フェーズの設計を ARCHITECTURE の新節（§4.30 を想定）へ起こしてから実装する（§8 の規約）。完了時は FEATURES.md への機能登録・README のスキーマリファレンス追記・完了報告への試し方添付（CONVENTIONS §7）まで。
+**前提と着手手順**（独立セッションで実装するための自己完結記載）: 依存フェーズなし（P19 までが実装済み）。着手時に本節と §4.9（二層モデルの原則）・ARCHITECTURE §4.5（索引の二層構造とオーバーレイ）・§4.6（ID・参照のセマンティクス）・§4.7（`resolve` / `effectiveFields`）・§4.23（メタスキーマとローダ三段階）を読み、本フェーズの設計を ARCHITECTURE の新節（§4.30 を想定）へ起こしてから実装する（§8 の規約）。完了時は FEATURES.md への機能登録・MANUAL のスキーマリファレンス追記・完了報告への試し方添付（CONVENTIONS §7）まで。
 
 方針（承認済みの設計判断）:
 
@@ -555,7 +555,7 @@ P1〜P6 の各フェーズに「将来拡張」として残っていた継続課
 - **宣言の置き場所**: エンティティ型はスキーマ文書ルートの `entity:`（`match` / `phases` / `coverage` と同列）。関係レジストリは `_schemas` の専用文書（`kind: relations`。`kind: library` と同様「文書にはマッチしない」種別）。いずれも `builtin-schema` / 新設 `builtin-relations` メタスキーマを**対で**更新する（§4.23 の対更新規約）。
 - **索引への反映は走査時**: エンティティ型・役割（定義／詳細化）は `DocScanner` の走査時に `IdEntry` へ付与する。「スキーマが変わったら全再構築」（§4.5）の既存規約がそのまま整合性を保証し、増分更新の仕組みは変えない。
 - **スキーマなし文書のヒューリスティクス検出（I-02）は拡張しない**: 属性付き参照・エンティティ型は宣言があるときだけの機能（推測の誤爆を増やさない）。
-- **使い分け規約を README に明文化**: エッジ属性は「それ自身がIDを持たない注記」。関係自体を参照・詳細化したくなったら従来どおり 1:N 具体化＝新ID＋逆リンク（ARCHITECTURE §4.6。§4.9 原則4）。
+- **使い分け規約を MANUAL に明文化**: エッジ属性は「それ自身がIDを持たない注記」。関係自体を参照・詳細化したくなったら従来どおり 1:N 具体化＝新ID＋逆リンク（ARCHITECTURE §4.6。§4.9 原則4）。
 
 宣言の形（実装の基準。細部の確定と記録は ARCHITECTURE 反映時に行う）:
 
@@ -589,7 +589,7 @@ actors:
 |---|---|---|---|
 | R20-01 | エンティティ型宣言 | ✅ | `SchemaLoader` に `entity:`（単一／リスト）のパースと `SchemaDef` へのモデル追加。`DocScanner` はID検出時に宣言と `idPattern` で型・役割を解決し `IdEntry.entityType` / `IdEntry.role`（定義／詳細化／宣言なし）へ付与。`IdIndex.resolve` は定義出現があればそれを優先する順序に変更してよい（表示解決・ジャンプ先が「定義」に安定する。従来ヒューリスティクスの**廃止**は P21 のスイッチ）。lint は `Validator`（索引を受け取る coverage と同じ流儀のワークスペース横断判定）: 型つきエンティティの定義出現 0（浮遊詳細化）／2以上（定義競合）・`idPattern` 逸脱・同一IDの複数型競合を WARNING（座標は各出現のID要素）。`builtin-schema`・スキーマ設計UI（S-05）を対更新。テスト: `DocScannerTest` 拡張＋新設 `EntityDeclTest`（宣言パース・役割付与・lint） |
 | R20-02 | 関係レジストリ | ✅ | `SchemaLoader` に `kind: relations` のパースを追加（`matches()` 常に false）。モデル `RelationDef` は **schema パッケージ**に置く（表示解決が index / UI 双方から使うため。`Display` の配置理由 §4.22 と同じ）。`LoadResult` から `relations: Map<name, RelationDef>` を公開、name 重複はロードエラー。`builtin-relations` メタスキーマを `BuiltinSchemas` へ追加（設計スペースのカタログ・フォーム編集・検証が自動で効く §4.2）。P20 での消費は2つ: ①**逆方向ラベル表示**——バックリンクを表示する全面（SidePanel 関係タブ I-09・ID横ぐし I-07・ビュー backlinks 列 X-05・文書ビュー X-07・エージェント `related` AG-25）で relation 名の代わりに label / inverseLabel を表示（未宣言 relation は従来どおり名前のまま）②**lint**——スキーマの ref フィールドが未宣言 relation を使っていたら WARNING（スキーマ読込エラーの流儀で報告）。自動推測 CLI `infer-relations`: 索引の全 `RefEntry` から relation・viaKey・参照元／先の entityType 実績を集計しレジストリ文書のドラフトを生成（inverseLabel は TODO コメント。生成物はメタスキーマ検証を通ること＝R11-01 と同じ入口保証）。テスト: 新設 `RelationRegistryTest`（パース・重複・lint・推測ドラフトの検証通過） |
-| R20-03 | 属性付き参照 | ✅ | `type: ref` のフィールドに `fields:`（エッジ属性の型宣言）がある場合のみオブジェクト形式 `{to: <ID>, <属性>...}` を許可（宣言なしにオブジェクトが来たら従来どおり型不一致）。`DocScanner`: effective が REF かつ fields 宣言ありの Map ノードで `to` のスカラーを `RefEntry` 化（**path は to 値の座標**＝ジャンプ・パッチ・バックリンクの既存セマンティクスを保つ）。属性は走査境界（属性内の入れ子 ref はメタ検証で不許可＝初期対象外）。`Validator`: to の解決検証は従来の ref と同一・属性は object フィールドとして検証。`FormView`（RefEditor）: 参照行＋属性行（`ObjectFields` 再利用）。`ai/fieldToJsonSchema`: `{to: enum制約, 属性...}` の object へ変換（配列 item の属性付き ref も対応）。バックリンク・related の表示は属性を「（role: 承認者）」の括弧注記で添える（値はIDのまま・注記は括弧に閉じる＝R19-05 の規約踏襲）。`YamlIO` は変更不要（通常の Map として往復＝コメント・スタイル保持は自動）。README: スキーマリファレンスと使い分け規約を追記。テスト: `DocScannerTest` / `ValidatorTest` / `AiGeneratorTest` 拡張 |
+| R20-03 | 属性付き参照 | ✅ | `type: ref` のフィールドに `fields:`（エッジ属性の型宣言）がある場合のみオブジェクト形式 `{to: <ID>, <属性>...}` を許可（宣言なしにオブジェクトが来たら従来どおり型不一致）。`DocScanner`: effective が REF かつ fields 宣言ありの Map ノードで `to` のスカラーを `RefEntry` 化（**path は to 値の座標**＝ジャンプ・パッチ・バックリンクの既存セマンティクスを保つ）。属性は走査境界（属性内の入れ子 ref はメタ検証で不許可＝初期対象外）。`Validator`: to の解決検証は従来の ref と同一・属性は object フィールドとして検証。`FormView`（RefEditor）: 参照行＋属性行（`ObjectFields` 再利用）。`ai/fieldToJsonSchema`: `{to: enum制約, 属性...}` の object へ変換（配列 item の属性付き ref も対応）。バックリンク・related の表示は属性を「（role: 承認者）」の括弧注記で添える（値はIDのまま・注記は括弧に閉じる＝R19-05 の規約踏襲）。`YamlIO` は変更不要（通常の Map として往復＝コメント・スタイル保持は自動）。MANUAL: スキーマリファレンスと使い分け規約を追記。テスト: `DocScannerTest` / `ValidatorTest` / `AiGeneratorTest` 拡張 |
 | R20-04 | 導出グラフ基盤（EntityGraph） | ✅ | `index/EntityGraph.kt` 新設。`IdIndex` の走査結果とレジストリから導出する読み取り専用ビュー: エンティティ表（id → 型・定義出現・詳細化一覧・タイトル）・出次／入次の隣接リスト（`RefEntry` ＋解決済み参照元エンティティ）・文書ノード表（documentId → file・contains エンティティ一覧。識別は既存 `documentIdOf`＝`_document.id`＞相対パス）・包含エッジ（defined-in。書かずに導出）。`IdIndex` インスタンスに lazy 保持し `derive()` で無効化——ディスク・オーバーレイ（UX-03）・ステージングの各 `IdIndex` が自然に自分のグラフを持ち、§4.5 の二層構造を崩さない。**載せ替え（挙動不変のリファクタリング）**: `sourceEntryOf`・`backlinksTo` の線形走査と `Traverse.neighbors` の out 側（occurrences×refs 突合）を隣接リスト参照へ置換（公開APIと出力は不変＝`TraverseTest` ほか既存テストが回帰保証）。CLI `bench` に導出コストの計測項目を追加。テスト: 新設 `EntityGraphTest`（旧実装との出力一致・増分更新後の一致・オーバーレイ／ステージング経路の一致） |
 
 **実装順の推奨**: R20-01・R20-02（宣言のパースと索引付与）→ R20-04（導出基盤と線形走査の載せ替え）→ lint・逆方向ラベル表示（R20-01/02 の残り）→ R20-03（属性付き参照。独立性が高く並行可）。
@@ -600,7 +600,7 @@ actors:
 
 狙い: P20 の宣言を**制約**と**操作**に変える。本シリーズの破壊的変更はこのフェーズに集約する。
 
-**前提と着手手順**: P20 の成果（`entity:` 宣言・関係レジストリ・EntityGraph）に依存する。着手時に本節と §4.9・P20 実装時に新設された ARCHITECTURE 節（§4.30 想定）・§4.10（ステージングと提出ゲート）・§4.11（自動化の不変条件）・yaml-core の patch/Patch.kt と workspace-core の changeset/ChangeSets.kt（変更セット C-02/C-03: baseハッシュ・オール・オア・ナッシング・オーバーレイ検証）を読み、設計を ARCHITECTURE へ反映してから実装する。完了時は FEATURES.md 登録・README 更新（検証リファレンス・CLI）・試し方の報告まで。
+**前提と着手手順**: P20 の成果（`entity:` 宣言・関係レジストリ・EntityGraph）に依存する。着手時に本節と §4.9・P20 実装時に新設された ARCHITECTURE 節（§4.30 想定）・§4.10（ステージングと提出ゲート）・§4.11（自動化の不変条件）・yaml-core の patch/Patch.kt と workspace-core の changeset/ChangeSets.kt（変更セット C-02/C-03: baseハッシュ・オール・オア・ナッシング・オーバーレイ検証）を読み、設計を ARCHITECTURE へ反映してから実装する。完了時は FEATURES.md 登録・MANUAL 更新（検証リファレンス・CLI）・試し方の報告まで。
 
 方針（承認済みの設計判断）:
 
@@ -623,7 +623,7 @@ actors:
 
 狙い: 照会5系統——構造検索（C-05）・トラバース（AG-30）・ビューの行決定（idPattern×schema）・foreach の列挙（AG-26）・導出 lookup（1ホップ。ARCHITECTURE §4.26）——は、いずれも「グラフパターン照合」の断片的な再実装である。単一のパターン照合エンジンに統合し、「1実装・多面開示」（Display / Projection / Traverse の流儀）を照会にも適用する。とくにビューの行が多段結合（例:「画面→uses→ユースケース」の組を1行に）を表現できるようになることが、人間側の最大の機能向上。
 
-**前提と着手手順**: P20 の EntityGraph に依存（P21 とは技術的に独立だが、整合検証と語彙を揃えるため P21 完了後を推奨）。着手時に本節と §4.9・`core/Traverse.kt`（決定性規約の母体。§4.28）・ARCHITECTURE §4.14（ビューの不変条件: データを持たない・原本座標ルーティング・書込経路を作らない）・§4.27（foreach の3関心事）を読み、**パターン語彙の最終形を ARCHITECTURE へ起こしてから**実装する。完了時は FEATURES.md 登録・README（ビュー定義リファレンス・CLI）更新・試し方の報告まで。
+**前提と着手手順**: P20 の EntityGraph に依存（P21 とは技術的に独立だが、整合検証と語彙を揃えるため P21 完了後を推奨）。着手時に本節と §4.9・`core/Traverse.kt`（決定性規約の母体。§4.28）・ARCHITECTURE §4.14（ビューの不変条件: データを持たない・原本座標ルーティング・書込経路を作らない）・§4.27（foreach の3関心事）を読み、**パターン語彙の最終形を ARCHITECTURE へ起こしてから**実装する。完了時は FEATURES.md 登録・MANUAL（ビュー定義リファレンス・CLI）更新・試し方の報告まで。
 
 方針（承認済みの設計判断）:
 
@@ -659,7 +659,7 @@ limit: 100
 
 狙い: 論理層の読み書き面を人間とAIの共有契約として確立する。ノード中心の「エンティティページ」を主役に据え、参照グラフ（X-03）を作り直す。文書ビュー（X-07）は「文書中心の読み面」、エンティティページは「ノード中心の読み書き面」という役割分担を完成させる。
 
-**前提と着手手順**: P20（宣言・EntityGraph）・P21（エンティティ操作・レジストリ強制）・P22（クエリ）に依存する（R23-01 のみ P20 だけで着手可）。UIの変更が大きいフェーズのため、着手時に本節と §4.9・ARCHITECTURE §4.16（ID横ぐしの現行不変条件: `fieldAt` / `slotAt` 共有・ビュー専用の書込経路を作らない）・§4.22（表示解決）・§4.24（スペース・モーダル新設禁止・状態の退避先）を読み、設計を ARCHITECTURE へ反映してから実装する。Compose UI は自動テスト対象外（L-09）のため、core 側の合成ロジックにテストを置き、UIは UX-SCENARIOS の触り心地試験（S1/S2 の改訂）で確認する計画までをフェーズ内に含める。完了時は FEATURES.md 登録・README 更新・試し方の報告まで。
+**前提と着手手順**: P20（宣言・EntityGraph）・P21（エンティティ操作・レジストリ強制）・P22（クエリ）に依存する（R23-01 のみ P20 だけで着手可）。UIの変更が大きいフェーズのため、着手時に本節と §4.9・ARCHITECTURE §4.16（ID横ぐしの現行不変条件: `fieldAt` / `slotAt` 共有・ビュー専用の書込経路を作らない）・§4.22（表示解決）・§4.24（スペース・モーダル新設禁止・状態の退避先）を読み、設計を ARCHITECTURE へ反映してから実装する。Compose UI は自動テスト対象外（L-09）のため、core 側の合成ロジックにテストを置き、UIは UX-SCENARIOS の触り心地試験（S1/S2 の改訂）で確認する計画までをフェーズ内に含める。完了時は FEATURES.md 登録・MANUAL 更新・試し方の報告まで。
 
 方針（承認済みの設計判断）:
 

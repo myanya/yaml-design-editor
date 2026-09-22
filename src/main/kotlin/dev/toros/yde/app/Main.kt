@@ -131,6 +131,7 @@ fun StartScreen(state: AppState) {
         verticalArrangement = Arrangement.Center,
     ) {
         Text("YAML Design Editor", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text(BuildInfo.display, fontSize = 11.sp, color = Palette.SubText)
         Spacer(Modifier.height(4.dp))
         Text(
             "スキーマ駆動のYAML編集・検証・エージェント実行環境",

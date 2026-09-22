@@ -10,6 +10,9 @@ application {
 
 // 相対パス引数をリポジトリルート基準で解決する（計画書§14の実行例に合わせる）
 tasks.named<JavaExec>("run") {
+    // ルートで ./gradlew run（GUI）と打つと、同名のこのタスクまで走って使い方を表示し BUILD FAILED になる。
+    // :cli:run と明示したときだけ実行する（./gradlew run --args=… は GUI だけに渡る）
+    enabled = gradle.startParameter.taskNames.any { it.endsWith("cli:run") }
     workingDir = rootDir
     // CLI出力はUTF-8固定（JDK 17のWindows既定はMS932。機械可読出力を文字化けさせない）
     jvmArgs("-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8")
@@ -17,7 +20,7 @@ tasks.named<JavaExec>("run") {
 }
 
 group = "dev.toros"
-version = "0.1.0"
+version = providers.gradleProperty("appVersion").get()
 
 repositories {
     mavenCentral()
