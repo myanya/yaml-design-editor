@@ -56,6 +56,7 @@ fun main(args: Array<String>) = application {
     val state = remember { AppState() }
     var confirmExit by remember { mutableStateOf(false) }
     var darkMode by remember { mutableStateOf(uiPreferences.getBoolean("darkMode", false)) }
+    var commandOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         state.readOnlyMode = uiPreferences.getBoolean("readOnly", false)
@@ -67,12 +68,15 @@ fun main(args: Array<String>) = application {
         onCloseRequest = { if (state.hasDirtyDocs()) confirmExit = true else exitApplication() },
         title = "YAML Design Editor" + if (state.hasDirtyDocs()) " ●" else "",
         state = rememberWindowState(width = 1440.dp, height = 920.dp),
+        // ショートカットはウィンドウで受ける（UX-120）: 焦点のある部品が消費しなかったキーが、画面のどこにも焦点が無い
+        // とき（ジャンプの直後など）でも届く。画面の部品の Modifier.onKeyEvent は、焦点のある子がいるときにしか呼ばれない
+        onKeyEvent = { event -> state.workspace != null && handleShortcut(event, state) { commandOpen = true } },
     ) {
         AppTheme(darkMode) {
             Surface(Modifier.fillMaxSize(), color = Palette.EditorBg) {
                 if (state.workspace == null) {
                     StartScreen(state)
-                } else AppRoot(state, darkMode) {
+                } else AppRoot(state, darkMode, commandOpen, { commandOpen = it }) {
                     darkMode = !darkMode
                     uiPreferences.putBoolean("darkMode", darkMode)
                 }
@@ -85,6 +89,31 @@ fun main(args: Array<String>) = application {
                 dismissButton = { TextButton(onClick = { confirmExit = false }) { Text("キャンセル") } },
             )
         }
+    }
+}
+
+/**
+ * アプリ全体のキーボードショートカット（戻る／進む・保存・Undo/Redo・コマンドパレット）。
+ * ウィンドウの onKeyEvent から呼ばれる＝焦点のある部品（テキスト入力など）が先に受け、消費しなかったキーだけが来る。
+ */
+private fun handleShortcut(event: KeyEvent, state: AppState, openPalette: () -> Unit): Boolean {
+    if (event.type != KeyEventType.KeyDown) return false
+    if (event.isAltPressed) {
+        return when (event.key) {
+            Key.DirectionLeft -> { state.goBack(); true }
+            Key.DirectionRight -> { state.goForward(); true }
+            else -> false
+        }
+    }
+    if (!event.isCtrlPressed) return false
+    return when {
+        event.key == Key.S && event.isShiftPressed -> { state.saveAll(); true }
+        event.key == Key.S -> { state.saveCurrent(); true }
+        event.key == Key.Z && event.isShiftPressed -> { state.redo(); true }
+        event.key == Key.Z -> { state.undo(); true }
+        event.key == Key.Y -> { state.redo(); true }
+        event.key == Key.K -> { openPalette(); true }
+        else -> false
     }
 }
 
@@ -149,12 +178,17 @@ fun StartScreen(state: AppState) {
 }
 
 @Composable
-fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
+fun AppRoot(
+    state: AppState,
+    darkMode: Boolean,
+    commandOpen: Boolean,
+    setCommandOpen: (Boolean) -> Unit,
+    toggleDarkMode: () -> Unit,
+) {
     var leftWidth by remember { mutableStateOf(uiPreferences.getFloat("leftWidth", 240f).dp) }
     var rightWidth by remember { mutableStateOf(uiPreferences.getFloat("rightWidth", 280f).dp) }
     var leftOpen by remember { mutableStateOf(uiPreferences.getBoolean("leftOpen", true)) }
     var rightOpen by remember { mutableStateOf(uiPreferences.getBoolean("rightOpen", true)) }
-    var commandOpen by remember { mutableStateOf(false) }
     var entityRenameOpen by remember { mutableStateOf(false) }
     // ワークスペース切替（R10-05）: ツールバー・コマンドパレット共通。未保存確認（W-07）を一元化する
     var pendingWorkspace by remember { mutableStateOf<Path?>(null) }
@@ -212,32 +246,14 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
             watcher?.close()
         }
     }
-    Column(Modifier.fillMaxSize().onKeyEvent { event ->
-        if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
-        if (event.isAltPressed) {
-            return@onKeyEvent when (event.key) {
-                Key.DirectionLeft -> { state.goBack(); true }
-                Key.DirectionRight -> { state.goForward(); true }
-                else -> false
-            }
-        }
-        if (!event.isCtrlPressed) return@onKeyEvent false
-        when {
-            event.key == Key.S && event.isShiftPressed -> { state.saveAll(); true }
-            event.key == Key.S -> { state.saveCurrent(); true }
-            event.key == Key.Z && event.isShiftPressed -> { state.redo(); true }
-            event.key == Key.Z -> { state.undo(); true }
-            event.key == Key.Y -> { state.redo(); true }
-            event.key == Key.K -> { commandOpen = true; true }
-            else -> false
-        }
-    }) {
+    // ショートカット（Alt+←/→・Ctrl+S・Ctrl+Z・Ctrl+K）は main の Window.onKeyEvent（handleShortcut）で受ける（UX-120）
+    Column(Modifier.fillMaxSize()) {
         automationVersion  // エンジン状態の変化でレール・受信箱バッジ・ステータスバーを再描画する
         // 受信箱の件数（R12-02）: 承認待ち変更セット＋エージェントの質問＋外部変更の競合
         val inboxCount = (automation?.pendingSnapshot()?.size ?: 0) +
             state.conflictedDocs().size +
             (if (runController?.pendingQuestion != null) 1 else 0)
-        Toolbar(state, leftOpen, rightOpen, darkMode, toggleDarkMode, { commandOpen = true },
+        Toolbar(state, leftOpen, rightOpen, darkMode, toggleDarkMode, { setCommandOpen(true) },
             switchWorkspace = switchWorkspace,
             toggleReadOnly = {
                 state.readOnlyMode = !state.readOnlyMode
@@ -285,7 +301,7 @@ fun AppRoot(state: AppState, darkMode: Boolean, toggleDarkMode: () -> Unit) {
         state, switchWorkspace,
         onShowRuns = { state.showSpace(UiSpace.RUNS) },
         onRenameEntity = { entityRenameOpen = true },
-    ) { commandOpen = false }
+    ) { setCommandOpen(false) }
     if (entityRenameOpen) EntityRenameDialog(state) { entityRenameOpen = false }
     // AI生成ダイアログはスペース非依存（R24-01）: 対象文書は要求（AiRequest）が持つため、
     // 編集スペースだけでなくエンティティページ等の台帳スペースからの✨でもその場で開く
