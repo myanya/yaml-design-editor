@@ -67,7 +67,7 @@ class ViewDefinitionsTest {
         assertTrue(catalog.errors.isEmpty(), catalog.errors.toString())
         val view = assertNotNull(catalog.view("screen-list"))
         assertEquals(DocumentId("_views/a-grid.yaml"), view.source)
-        assertEquals("screens/{id}.yaml", view.detail?.filePattern)
+        assertEquals("screens/{id}.yaml", view.detail?.filePattern?.text)
         val doc = assertNotNull(catalog.docViewFor("screens/SCR-1.yaml", "screen"))
         assertEquals("screen#item", doc.sections.single().fieldsDefinition)
         assertTrue(doc.attachments.single().matches(listOf("items", 3)))

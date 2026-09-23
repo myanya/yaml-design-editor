@@ -12,6 +12,19 @@ build:
   definitions: { $eachEntry: definitions, $apply: field }
 
 rules:
+  # 式を受け取る項目（expression: true。P31）→ 値の形ごとの決まり: 文字列（短い書き方）か、式の object（完全な書き方）。
+  # 式として読めるかは意味の側（ExpressionFields）が点検する。構造の側は形だけを見る
+  - id: field
+    when:
+      - { path: expression, equals: true }
+    build:
+      key: { $copy: key }
+      label: { $copy: label }
+      required: { $apply: required }
+      shapes:
+        scalar: { type: string }
+        object: { type: object, unknownFields: allow }
+
   # 属性付き参照（スカラーでも {to, 属性…} のオブジェクトでも書ける）→ 値の形ごとの決まり（SC-03）
   - id: field
     when:

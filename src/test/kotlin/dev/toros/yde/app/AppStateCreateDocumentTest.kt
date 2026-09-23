@@ -145,4 +145,29 @@ class AppStateCreateDocumentTest {
         assertTrue(result.isFailure)
         assertFalse(state.canUndo(), "拒否された作成は履歴に積まれない")
     }
+
+    @Test
+    fun `詳細スキーマの filePattern と scaffold で 作り先と中身が一覧側の要素から決まる`() {
+        write("_schemas/task-detail.yaml", """
+            id: task-detail
+            match: "details/**/*.yaml"
+            filePattern: "details/{status}/{id}_{title}.yaml"
+            scaffold:
+              note: { ${'$'}format: "{title} の詳細" }
+            root:
+              type: object
+              fields:
+                - { key: id, type: id }
+                - { key: note, type: text }
+        """)
+        val state = openState()
+        val file = state.createDetailForCoverage("task-detail", "TASK-001").getOrThrow()
+        assertEquals(dir.resolve("details/open/TASK-001_最初のタスク.yaml"), file)
+        val text = Files.readString(file)
+        assertTrue("note: 最初のタスク の詳細" in text, text)
+        assertTrue("id: TASK-001" in text, text)
+        // 作成は Undo できる
+        state.undo()
+        assertFalse(Files.exists(file))
+    }
 }

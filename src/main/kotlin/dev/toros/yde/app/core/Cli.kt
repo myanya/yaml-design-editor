@@ -31,6 +31,8 @@ import dev.toros.yde.semantic.schema.QuerySpec
 import dev.toros.yde.semantic.schema.SchemaKind
 import dev.toros.yde.semantic.schema.TransformDef
 import dev.toros.yde.semantic.schema.globToRegex
+import dev.toros.yde.workspace.DocumentScaffolds
+import dev.toros.yde.workspace.ScaffoldSource
 import dev.toros.yde.workspace.BuiltinTransforms
 import dev.toros.yde.workspace.changeset.ChangeSet
 import dev.toros.yde.workspace.changeset.ChangeSets
@@ -388,7 +390,7 @@ internal fun runCli(args: Array<String>): String {
                     "name" to view.name,
                     // 新規行の入口（配列モード: file+path へ要素追加／ファイルモード: filePattern の {id} 置換先へ文書作成）
                     "newRow" to view.newRow?.let { nr ->
-                        if (nr.filePattern != null) linkedMapOf("filePattern" to nr.filePattern)
+                        if (nr.filePattern != null) linkedMapOf("filePattern" to nr.filePattern!!.text)
                         else linkedMapOf("file" to nr.file, "path" to nr.path.pretty())
                     },
                     "rows" to rows.map { row ->
@@ -434,8 +436,13 @@ internal fun runCli(args: Array<String>): String {
                                 ).filterValues { it != null }
                             },
                             "detail" to row.detailDocument?.value,
+                            // 詳細が未作成の行の作り先（filePattern を行の要素で評価。決められなければ出さない）
                             "detailCreatePath" to if (row.detailDocument?.value == null)
-                                view.detail?.filePattern?.replace("{id}", row.id) else null,
+                                view.detail?.filePattern?.let { p ->
+                                    runCatching {
+                                        DocumentScaffolds.pathFor(p, ScaffoldSource.of(row.id, ws.index.occurrences(row.id), ws::treeOf, ws.index.graph))
+                                    }.getOrNull()
+                                } else null,
                         ).filterValues { it != null }
                     },
                 ).filterValues { it != null }

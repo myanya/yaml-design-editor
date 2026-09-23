@@ -104,4 +104,25 @@ class CoverageMessageTest {
         kotlin.test.assertEquals(null, Views.detailPatternFromMatch("a/**/*.yaml"))
         kotlin.test.assertEquals(null, Views.detailPatternFromMatch("a/x-*.yaml"))
     }
+
+    @Test
+    fun `詳細スキーマに filePattern があれば 作成場所は元の要素で評価した実際のパスになる`() {
+        write(
+            "_schemas/detail.yaml",
+            """
+            id: detail
+            match: "details/**/*.yaml"
+            filePattern: "details/{id}_{title}.yaml"
+            root:
+              type: object
+              fields:
+                - { key: id, type: id, required: true }
+                - { key: body, type: text }
+            """,
+        )
+        write("list.yaml", "items:\n- { id: X-1, title: 最初 }")
+        val ws = Workspace.open(dir)
+        val issue = ws.validate("list.yaml").single { "詳細文書が不足" in it.message }
+        assertTrue("detail（details/X-1_最初.yaml に作成）" in issue.message, issue.message)
+    }
 }

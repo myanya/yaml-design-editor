@@ -486,7 +486,7 @@ class AgentToolbox(
         val index = staging.index()
         val rows = Views.resolve(view, index) { d -> staging.tree(d.value) }
             .filter { rowsPattern == null || idMatchesPattern(it.id, rowsPattern) }
-        return Views.renderText(view, rows, columns, index)
+        return Views.renderText(view, rows, columns, index, tree = { d -> staging.tree(d.value) })
     }
 
     /** 文書ビュー（R14-01）の解決テキスト。対象文書は file 指定＞適用対象が1件なら自動選択。 */

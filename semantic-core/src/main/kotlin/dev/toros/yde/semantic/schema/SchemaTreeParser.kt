@@ -108,6 +108,7 @@ object SchemaTreeParser {
             type = type,
             required = (m["required"] as? Boolean) ?: false,
             requiredFrom = m["requiredFrom"]?.toString(),
+            expression = (m["expression"] as? Boolean) ?: false,
             values = options.map { it.value },
             role = FieldRole.parse(m["role"]?.toString()),
             cases = cases,

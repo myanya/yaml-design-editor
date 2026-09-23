@@ -370,6 +370,12 @@ Derivation = Query + Expression
 
 として説明可能な状態を目標とする。
 
+**検査の外での評価（P31。2026-09-23）**: Expression の評価器は、Query の check 判定の中に閉じていた（解の束縛と σ の割当てを前提）。
+`SemanticValues.evaluate(式, 環境)` として外へ出し、環境に「いまの要素」（`of` を省略した読み出しの相手）・予約の名前（`{id}` `{title}`）・
+穴に入る値の直し方を足した。同じ式が、検査の check と、スキーマの値（新しい文書のファイル名 `filePattern`）の両方で同じ意味を持つ
+（1つの意味には1つの評価器）。`Format` は名前を付けた値（`with`）を受け取れる（`Format(template, expr...)` の形の実装）。
+書き方は2つ（`{パス}` を含む文字列＝`Format` の省略形・値の式そのもの）で、パイプ記法のような別の式言語は作らない。
+
 ---
 
 # 8. Predicate Calculus
@@ -857,7 +863,7 @@ Core Calculus = 定義を実行する
 | Validator | Constraint executor |
 | Transform（YAML から YAML への変換。`SemanticTransform`） | Query + Construct（＋Predicate＝項目を出す条件。§26） |
 | 構造のスキーマの導出（P27 段C） | Construct だけ（入力はスキーマ文書1つ。クエリは使わない）。**変換定義（YAML）**で書く |
-| Scaffold | Query + Rewrite |
+| Scaffold（新しい文書のひな型） | Expression（ファイル名 `filePattern`。P31・R31-02）＋ Construct（中身 `scaffold`。R31-03）＋ Rewrite（作成） |
 | Bulk edit | Query + Rewrite |
 | Schema Refactoring | Query + Rewrite |
 | Entity operations | Query + Rewrite |

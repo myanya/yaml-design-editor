@@ -131,6 +131,10 @@ class SchemaDef(
 
     /** このスキーマ文書が宣言する検査の定義と語彙の定義（functions / vocabulary）。 */
     val checkLibrary: CheckLibrary get() = kernel.checkLibrary
+    /** 新しい文書の置き場所（式を受け取る項目。P31）。null なら match から導く（DocumentScaffolds.filePatternOf）。 */
+    val filePattern: dev.toros.yde.semantic.schema.ExpressionValue? get() = kernel.expressionAt("filePattern")
+    /** 新しい文書のひな型（変換のひな型。P31）。 */
+    val scaffold: dev.toros.yde.semantic.schema.TransformDef? get() = kernel.scaffold
 
     /** constraints の各検査の由来（constraints と同じ並び）。 */
     val constraintOrigins: List<String> get() = expandedChecks.filter { !it.usesChecker }.map { it.origin }

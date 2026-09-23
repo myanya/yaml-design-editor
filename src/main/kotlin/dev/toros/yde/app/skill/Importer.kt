@@ -1,5 +1,6 @@
 package dev.toros.yde.app.skill
 
+import dev.toros.yde.semantic.schema.FileNames
 import dev.toros.yde.workspace.changeset.ChangeSet
 import dev.toros.yde.workspace.changeset.ChangeSets
 import dev.toros.yde.workspace.changeset.FileChange
@@ -125,13 +126,10 @@ object Importer {
             val column = match.groupValues[1]
             val value = cell(column)?.let(::asString)?.trim()
                 ?: error("取り込み先の決定に使う列「$column」が空です")
-            sanitizeFileToken(value).ifBlank { error("列「$column」の値がファイル名に使えません: $value") }
+            FileNames.safeToken(value).ifBlank { error("列「$column」の値がファイル名に使えません: $value") }
         }
         return rel.replace('\\', '/')
     }
-
-    private fun sanitizeFileToken(value: String): String =
-        value.map { c -> if (c in "\\/:*?\"<>|" || c.isISOControl()) '-' else c }.joinToString("")
 
     /** セル値をマッピング（辞書→分割→型変換）に従って YNode へ変換する。 */
     internal fun convert(raw: Any?, m: FieldMapping): YNode {

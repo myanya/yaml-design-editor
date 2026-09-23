@@ -80,4 +80,39 @@ class ValueExprTest {
         assertFailsWith<IllegalStateException> { QueryWhere.parse(mapOf("of" to "item", "path" to "status", "empty" to "yes"), "w") }
         assertFailsWith<IllegalStateException> { QueryWhere.parse(mapOf("of" to "item", "path" to "code", "matches" to "([A-Z"), "w") }
     }
+
+    // ---------------------------------------------------------------- スキーマの値の式（P31・R31-01）
+
+    @Test
+    fun `スキーマの値の式は穴を含む文字列をformatの省略形として読む`() {
+        val short = ValueExpr.parseValue("screens/{id}_{name}.yaml", "filePattern")
+        assertEquals(ValueExpr.Format(ValueExpr.Literal("screens/{id}_{name}.yaml"), emptyList()), short)
+        // 穴の無い文字列は決まった値
+        assertEquals(ValueExpr.Literal("fixed.yaml"), ValueExpr.parseValue("fixed.yaml", "x"))
+        // いまの要素から読む項目（予約の id を含む・with で付けた名前は含まない）
+        assertEquals(listOf("id", "name"), short.currentReads())
+        val full = ValueExpr.parseValue(
+            mapOf("format" to "{dir}/{id}.yaml", "with" to mapOf("dir" to mapOf("lower" to mapOf("path" to "domain")))),
+            "x",
+        )
+        assertEquals(listOf("id", "domain"), full.currentReads())
+        assertTrue(full.binds().isEmpty(), "of を省略した読み出しは束縛を使わない")
+    }
+
+    @Test
+    fun `束縛名の省略はスキーマの値の式だけで許される`() {
+        // 検査の check では、of の省略は定義エラー（クエリの解に「いまの要素」は無い）
+        assertFailsWith<IllegalStateException> { ValueExpr.parse(mapOf("path" to "name"), "x") }
+        assertFailsWith<IllegalStateException> { ValueExpr.parse(mapOf("format" to "{name}"), "x") }
+        assertFailsWith<IllegalStateException> { ValueExpr.parse(mapOf("refCount" to mapOf("dir" to "in")), "x") }
+        // スキーマの値の式では、いまの要素
+        val get = assertIs<ValueExpr.Get>(ValueExpr.parseValue(mapOf("path" to "name"), "x"))
+        assertEquals(null, get.of)
+        val format = assertIs<ValueExpr.Format>(ValueExpr.parseValue(mapOf("format" to "{name}"), "x"))
+        assertTrue(format.scopes.isEmpty())
+        // with の名前は英字で始まる英数字
+        assertFailsWith<IllegalArgumentException> {
+            ValueExpr.parseValue(mapOf("format" to "{a.b}", "with" to mapOf("a.b" to "x")), "x")
+        }
+    }
 }

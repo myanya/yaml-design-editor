@@ -27,11 +27,18 @@ object Projection {
 
     private val PLACEHOLDER = Regex("""\{([^{}]+)}""")
 
+    /** テンプレートの中の穴の名前（初出順・重複なし）。 */
+    fun placeholders(template: String): List<String> = PLACEHOLDER.findAll(template).map { it.groupValues[1] }.distinct().toList()
+
+    /** 残っている穴をすべて同じ値で埋める（定義の点検で代表値を得るためのもの）。 */
+    fun fillRemaining(text: String, value: String): String = PLACEHOLDER.replace(text) { value }
+
     /**
      * `{パス}` をスコープ連鎖（近い順）のスカラー値で置換する。パスは各スコープ要素からの相対YPath。
      * 最初に見つかったスカラー値を採用し、どのスコープにも無ければそのまま残す。
+     * holeValue は、穴に入る値の直し方（ファイル名に使える文字に直す、など。来歴にも直した後の値が残る）。
      */
-    fun evaluate(template: String, scopes: List<YNode>): Evaluated {
+    fun evaluate(template: String, scopes: List<YNode>, holeValue: (String) -> String = { it }): Evaluated {
         var complete = true
         val resolutions = LinkedHashMap<String, Resolution>()
         val text = PLACEHOLDER.replace(template) { m ->
@@ -39,7 +46,7 @@ object Projection {
             val path = runCatching { parseYPath(placeholder) }.getOrNull()
             val hit = path?.let { p ->
                 scopes.withIndex().firstNotNullOfOrNull { (i, scope) ->
-                    scalarText(getAt(scope, p))?.let { i to it }
+                    scalarText(getAt(scope, p))?.let { i to holeValue(it) }
                 }
             }
             resolutions.putIfAbsent(placeholder, Resolution(placeholder, hit?.first, hit?.second))

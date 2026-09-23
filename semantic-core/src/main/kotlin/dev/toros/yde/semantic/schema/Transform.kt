@@ -155,6 +155,16 @@ data class TransformDef(
             return def
         }
 
+        /**
+         * ひな型だけの変換定義（P31・R31-03。スキーマの `scaffold` など、クエリも規則も受け取る値も持たず、呼び出し側が渡した
+         * 項1つを「いまの場所」として組み立てるもの）。宣言の点検は、ふつうの変換定義と同じ。
+         */
+        fun ofTemplate(id: String, raw: Any?, where: String): TransformDef {
+            val def = TransformDef(id, null, emptyList(), null, parseTemplate(raw, where), emptyList())
+            def.requireClosed(where)
+            return def
+        }
+
         /** ひな型のパース。 */
         fun parseTemplate(raw: Any?, where: String): Template = when (raw) {
             is Map<*, *> -> parseMap(raw, where)

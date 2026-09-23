@@ -6,6 +6,7 @@ import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.model.getAt
 import dev.toros.yde.yaml.model.pretty
 import dev.toros.yde.semantic.schema.DerivationDef
+import dev.toros.yde.semantic.schema.ExpressionValue
 import dev.toros.yde.semantic.schema.QueryNodeKind
 import dev.toros.yde.semantic.schema.QuerySpec
 import dev.toros.yde.semantic.schema.globToRegex
@@ -80,14 +81,16 @@ data class VirtualRowsDef(
 /** 詳細文書の扱い。source に一致する出現を「詳細」と見なす。 */
 data class VirtualDetailDef(
     val source: VirtualViewSource = VirtualViewSource(),
-    val filePattern: String? = null,
+    /** 「作成」の作り先（式を受け取る項目の値。いまの要素＝行の要素。P31）。 */
+    val filePattern: ExpressionValue? = null,
 )
 
 /** 新規行の入口。配列モード（file + path）とファイルモード（filePattern）のどちらか一方を持つ。 */
 data class VirtualNewRowDef(
     val file: String? = null,
     val path: YPath = emptyList(),
-    val filePattern: String? = null,
+    /** ファイルモードの作り先（式を受け取る項目の値。行がまだ無いので、書ける穴は {id} だけ。P31）。 */
+    val filePattern: ExpressionValue? = null,
 )
 
 /** グリッドビューの宣言（カーネル座標。root の ViewDef は、この型の別名）。 */
@@ -525,6 +528,8 @@ object VirtualViews {
         columns: List<String>? = null,
         ids: Map<String, List<ScannedId>>? = null,
         rel: (DocumentId) -> String,
+        /** 詳細が未作成の行の作り先（filePattern を行の要素で評価したもの。決められなければ null）。 */
+        detailCreatePath: (VirtualRow) -> String? = { null },
     ): String = buildString {
         appendLine("ビュー: ${view.name}（${view.id}）")
         view.description?.let { appendLine(it.trim()) }
@@ -534,7 +539,7 @@ object VirtualViews {
         view.newRow?.let { nr ->
             // エージェントが「新しい行の作り方」を出力から判断できるようにする（配列＝apply_patch／ファイル＝create_document）
             if (nr.filePattern != null) {
-                appendLine("新規行: ${nr.filePattern} の {id} を新しいIDに置換したパスへ create_document で文書を作成すると行になる")
+                appendLine("新規行: ${nr.filePattern.text} の {id} を新しいIDに置換したパスへ create_document で文書を作成すると行になる")
             } else {
                 appendLine("新規行: ${nr.file} :: ${nr.path.pretty()} へ要素を追加し、IDを設定すると行になる")
             }
@@ -593,7 +598,7 @@ object VirtualViews {
                 if (detailDoc != null) appendLine("    詳細: ${rel(detailDoc)}")
                 else appendLine(
                     "    詳細: 未作成" +
-                        (view.detail.filePattern?.let { "（filePattern: $it → ${it.replace("{id}", row.id)}）" } ?: "")
+                        (view.detail.filePattern?.let { p -> "（filePattern: ${p.text}" + (detailCreatePath(row)?.let { " → $it" } ?: "") + "）" } ?: "")
                 )
             }
         }

@@ -46,6 +46,8 @@ import dev.toros.yde.app.schema.fieldAt
 import dev.toros.yde.semantic.schema.globToRegex
 import dev.toros.yde.workspace.DocumentScaffold
 import dev.toros.yde.workspace.DocumentScaffolds
+import dev.toros.yde.workspace.ScaffoldSource
+import dev.toros.yde.semantic.schema.ExpressionValue
 import dev.toros.yde.workspace.ViewDefinitions
 import dev.toros.yde.yaml.YamlIO
 import java.nio.file.Files
@@ -211,19 +213,23 @@ object Views {
     // 実体はカーネル（workspace-core の DocumentScaffolds・semantic-core の SchemaScaffold。P27 段D の D-c）。ここは窓口
 
     /**
-     * 行のIDから詳細文書の新規作成内容を組み立てる（作成自体は呼び出し側が行う:
-     * UIはファイル書き込み、エージェントは create_document）。
+     * 行の要素から詳細文書の新規作成内容を組み立てる（作成自体は呼び出し側が行う:
+     * UIはファイル書き込み、エージェントは create_document）。source は行の要素（ID の定義出現。P31）。
      */
-    fun detailScaffold(view: ViewDef, id: String, schemas: List<SchemaDef>): DocumentScaffold {
+    fun detailScaffold(view: ViewDef, source: ScaffoldSource, schemas: List<SchemaDef>): DocumentScaffold {
         val pattern = view.detail?.filePattern
             ?: error("このビューには detail.filePattern が定義されていません")
-        return scaffold(pattern, id, schemas)
+        return scaffold(pattern, source, schemas)
     }
 
     /** 詳細スキーマの match（glob）から `{id}` 置換のファイルパターンを導く（R28-05a・UX-97。決められなければ null）。 */
     fun detailPatternFromMatch(match: String): String? = DocumentScaffolds.detailPatternFromMatch(match)
 
-    /** filePattern（detail / newRow ファイルモード共用）とIDから新規文書の内容を組み立てる。 */
+    /** filePattern（値の式。detail / newRow ファイルモード・カバレッジの対応が共用）と元の要素から新規文書の内容を組み立てる。 */
+    fun scaffold(pattern: ExpressionValue, source: ScaffoldSource, schemas: List<SchemaDef>): DocumentScaffold =
+        DocumentScaffolds.scaffold(pattern, source, schemas.map { it.kernel })
+
+    /** 文字列のパターンと ID だけから（newRow のファイルモード・テスト）。 */
     fun scaffold(pattern: String, id: String, schemas: List<SchemaDef>): DocumentScaffold =
         DocumentScaffolds.scaffold(pattern, id, schemas.map { it.kernel })
 
@@ -239,8 +245,23 @@ object Views {
      * index 非null のときは、ref 値のセルに参照先のタイトルを「ID（タイトル）」で注記する（R19-05）。
      * 描画の本体はカーネル（semantic.VirtualViews.renderText。RC-03）。
      */
-    fun renderText(view: ViewDef, rows: List<ViewRow>, columns: List<String>? = null, index: IdIndex? = null): String =
-        VirtualViews.renderText(view, rows, columns, ids = index?.entries, rel = { it.value })
+    fun renderText(
+        view: ViewDef,
+        rows: List<ViewRow>,
+        columns: List<String>? = null,
+        index: IdIndex? = null,
+        /** 文書の木の読み手（詳細が未作成の行の作り先を、filePattern の式で決めるのに使う。P31）。 */
+        tree: (DocumentId) -> YNode? = { null },
+    ): String =
+        VirtualViews.renderText(
+            view, rows, columns, ids = index?.entries, rel = { it.value },
+            detailCreatePath = { row ->
+                val pattern = view.detail?.filePattern ?: return@renderText null
+                runCatching {
+                    DocumentScaffolds.pathFor(pattern, ScaffoldSource.of(row.id, index?.occurrences(row.id).orEmpty(), tree, index?.graph))
+                }.getOrNull()
+            },
+        )
 
     /**
      * 解決済み文書ビューの機械可読テキスト（エージェント・CLI 共用）。

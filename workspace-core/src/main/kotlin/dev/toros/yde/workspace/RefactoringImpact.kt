@@ -181,7 +181,7 @@ object RefactoringImpact {
         session.layout.zoneOf(s.source.value) == WorkspaceLayout.Zone.SCHEMAS
 
     /**
-     * スキーマ内の宣言節（consistency / constraints / coverage / derive）と entity.owns の言及スキャン。
+     * スキーマ内の宣言節（consistency / constraints / coverage / derive / filePattern / scaffold）と entity.owns の言及スキャン。
      * 自動書換の対象外のため、語境界つきの近似で言及箇所を列挙し対応判断は人間に委ねる。
      */
     private fun schemaSectionMentions(session: WorkspaceSession, token: String): List<String> {
@@ -190,7 +190,7 @@ object RefactoringImpact {
         for (s in session.schemas) {
             if (!isEditableSchema(session, s)) continue
             val raw = runCatching { YamlIO.parseToRaw(session.storedText(s.source) ?: "") }.getOrNull() as? Map<*, *> ?: continue
-            for (section in listOf("consistency", "constraints", "coverage", "derive")) {
+            for (section in listOf("consistency", "constraints", "coverage", "derive", "filePattern", "scaffold")) {
                 val sub = raw[section] ?: continue
                 val text = runCatching { YamlIO.dumpPlain(YamlIO.fromAny(sub)) }.getOrNull() ?: continue
                 if (re.containsMatchIn(text)) out += "スキーマ「${s.id}」の $section に「$token」の言及があります（自動書換の対象外・要確認）"

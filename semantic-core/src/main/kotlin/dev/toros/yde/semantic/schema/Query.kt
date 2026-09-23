@@ -708,7 +708,7 @@ data class ReportAt(
             }
             val get = ValueExpr.parse(raw, where) as? ValueExpr.Get
                 ?: error("$where は {of: 束縛名, in: 文書の指定, path: 相対パス} か {ref: 参照の束縛名} で書きます")
-            return ReportAt(get.of, get.inDoc, get.path)
+            return ReportAt(get.of ?: error("$where.of（束縛名）が必要です"), get.inDoc, get.path)
         }
     }
 }

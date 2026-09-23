@@ -294,7 +294,8 @@ root:
         - key: filePattern
           label: 新規作成先パターン
           type: string
-          description: 例 designs/{id}.yaml（{id} が行のIDで置換される）
+          expression: true
+          description: "「作成」の作り先。値の式を受け取る項目（短い書き方は {パス} を含む文字列。例 designs/{id}_{name}.yaml＝穴は行の要素の値・{id} は行のID・{title} は表示の解決結果。完全な書き方は {format, with} などの値の式）。穴に入った値はファイル名に使える文字に直される"
     - key: newRow
       label: 新規行の入口
       type: object
@@ -309,4 +310,5 @@ root:
         - key: filePattern
           label: 新規作成先パターン
           type: string
-          description: ファイルモード。例 designs/{id}.yaml（入力したIDで {id} を置換した詳細文書を新規作成する。file / path とは併用不可）
+          expression: true
+          description: ファイルモード。例 designs/{id}.yaml（入力したIDで {id} を置換した詳細文書を新規作成する。行がまだ無いので、書ける穴は {id} だけ。file / path とは併用不可）

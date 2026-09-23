@@ -1,5 +1,6 @@
 package dev.toros.yde.app.core
 
+import dev.toros.yde.workspace.ScaffoldSource
 import dev.toros.yde.app.agent.ActivityDef
 import dev.toros.yde.app.agent.AgentHost
 import dev.toros.yde.app.agent.AgentToolbox
@@ -23,6 +24,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -167,7 +169,7 @@ class ViewsTest {
         assertEquals("SCR-*", view.rows?.idPattern)
         assertEquals(listOf("画面名", "種別", "エリア"), view.columns.map { it.label })
         assertEquals("screen-list", view.orderBy?.schemaId)
-        assertEquals("screens/detail/{id}.yaml", view.detail?.filePattern)
+        assertEquals("screens/detail/{id}.yaml", view.detail?.filePattern?.text)
         assertEquals(parseYPath("screens"), view.newRow?.path)
     }
 
@@ -211,7 +213,7 @@ class ViewsTest {
         val loaded = Views.load(ws, Workspace.open(ws).schemas)
         assertTrue(loaded.errors.isEmpty(), loaded.errors.toString())
         val view = loaded.view("detail-only")!!
-        assertEquals("screens/detail/{id}.yaml", view.newRow?.filePattern)
+        assertEquals("screens/detail/{id}.yaml", view.newRow?.filePattern?.text)
         assertNull(view.newRow?.file)
         // テキスト表現に新規行の作り方が出る（エージェントは create_document で行を作れる）
         assertTrue("create_document" in Views.renderText(view, emptyList()))
@@ -1097,13 +1099,13 @@ class ViewsTest {
     fun `detailScaffold builds new document with id and defaults`() {
         val workspace = Workspace.open(ws)
         val view = Views.load(ws).view("screen-catalog")!!
-        val scaffold = Views.detailScaffold(view, "SCR-EDIT", workspace.schemas)
+        val scaffold = Views.detailScaffold(view, ScaffoldSource.idOnly("SCR-EDIT"), workspace.schemas)
         assertEquals("screens/detail/SCR-EDIT.yaml", scaffold.rel)
         val map = scaffold.root as YNode.Map
         assertEquals("SCR-EDIT", (map.entries["id"] as YNode.Scalar).value)
         assertEquals("single-column", (map.entries["layout"] as YNode.Scalar).value, "スキーマの default を尊重する")
         // 不正なIDはファイル名にできない
-        assertFailsWith<IllegalArgumentException> { Views.detailScaffold(view, "../escape", workspace.schemas) }
+        assertFailsWith<IllegalArgumentException> { Views.detailScaffold(view, ScaffoldSource.idOnly("../escape"), workspace.schemas) }
     }
 
     @Test
@@ -1338,5 +1340,16 @@ class ViewsTest {
                 ws.resolve("_views/x.yaml"),
             )
         }
+    }
+
+    @Test
+    fun `filePattern は値の式 newRow に書ける穴は id だけで detail の id 無しは注意になる`() {
+        write("_views/bad-nr4.yaml", "id: n4\nrows: { idPattern: \"*\" }\ncolumns:\n  - { label: A, path: name }\nnewRow: { filePattern: \"x/{id}_{name}.yaml\" }")
+        write("_views/no-id.yaml", "id: noid\nrows: { idPattern: \"SCR-*\" }\ncolumns:\n  - { label: A, path: name }\ndetail: { filePattern: \"screens/detail/{name}.yaml\" }")
+        // リント（detail の {id} の注意）はスキーマ付きの読み込みで走る
+        val loaded = Views.load(ws, Workspace.open(ws).schemas)
+        assertTrue(loaded.errors.any { "bad-nr4" in it && "書ける穴は {id} だけ" in it }, loaded.errors.toString())
+        assertNotNull(loaded.view("noid"), "{id} が無い detail.filePattern は定義エラーにしない")
+        assertTrue(loaded.errors.any { "no-id" in it && "{id} がありません" in it }, loaded.errors.toString())
     }
 }

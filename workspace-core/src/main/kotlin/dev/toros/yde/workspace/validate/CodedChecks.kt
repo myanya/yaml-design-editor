@@ -24,6 +24,7 @@ object CodedChecks {
     const val STRUCTURE = "structure"
     const val ENTITY = "entity"
     const val TEMPLATE = "template"
+    const val EXPRESSION = "expression"
     const val YAML = "yaml"
 
     fun origin(at: String): RuleOrigin = RuleOrigin(OWNER, at, 0)

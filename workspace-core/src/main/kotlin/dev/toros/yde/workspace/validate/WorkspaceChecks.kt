@@ -32,6 +32,8 @@ import dev.toros.yde.semantic.SemanticRuleResult
 import dev.toros.yde.semantic.SemanticValueInput
 import dev.toros.yde.semantic.phaseActive
 import dev.toros.yde.workspace.CheckCatalog
+import dev.toros.yde.workspace.DocumentScaffolds
+import dev.toros.yde.workspace.ScaffoldSource
 import dev.toros.yde.workspace.WorkspaceSchema
 import dev.toros.yde.yaml.validate.Severity
 
@@ -264,6 +266,8 @@ class WorkspaceChecks(
 
         // エンティティ型の宣言に関わる点検（ID のパターンからの逸脱・重複所有。コードで実装された検査）
         issues += coded.entityIssues(document, schema, root, localIds)
+        // 式を受け取る項目（expression: true）の値が式として読めるか（P31。スキーマ文書・ビュー定義と同じ読み取り）
+        issues += coded.expressionIssues(document, schema, root, localIds)
 
         // 報告先: 規則はこの文書のスキーマの宣言・activeFrom はこの文書のフェーズで判定する（R29-03・CALC-14）
         if (schema != null) {
@@ -740,7 +744,7 @@ class WorkspaceChecks(
             // 対応「文書を作る」の作り先: スキーマの ID と、分かればその置き場所（match のパターン）。R28-05・UX-97
             "create.places" -> rule?.responses?.filter { it.kind == ResponseDecl.Kind.CREATE }?.flatMap { it.schemas }
                 ?.takeIf { it.isNotEmpty() }
-                ?.joinToString(", ") { sid -> schemas.firstOrNull { it.id == sid }?.match?.let { "$sid（$it に作成）" } ?: sid }
+                ?.joinToString(", ") { sid -> schemas.firstOrNull { it.id == sid }?.let { "$sid（${createPlace(it, id)} に作成）" } ?: sid }
             else -> {
                 // {束縛名.id} {束縛名.type} {束縛名.title}。解が無いとき（あるはずの流れが見つからない指摘など）も、
                 // 起点の束縛だけは起点の要素から埋める
@@ -755,6 +759,16 @@ class WorkspaceChecks(
                 }
             }
         } ?: m.value
+    }
+
+    /**
+     * 対応「文書を作る」の作り先の表示: スキーマに filePattern（P31）があれば、起点の要素で評価した実際のパス
+     * （決められなければパターンの文字）。無ければ match のパターン（今までどおり）。
+     */
+    private fun createPlace(schema: WorkspaceSchema, id: String): String {
+        val pattern = schema.expressionAt("filePattern") ?: return schema.match
+        val source = ScaffoldSource.of(id, ids[id].orEmpty(), tree, graph, rel)
+        return runCatching { DocumentScaffolds.pathFor(pattern, source) }.getOrNull() ?: pattern.text
     }
 
     // ---------------------------------------------------------------- 専用チェッカーを使う検査

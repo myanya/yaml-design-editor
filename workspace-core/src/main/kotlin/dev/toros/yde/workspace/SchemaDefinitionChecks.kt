@@ -61,12 +61,28 @@ object SchemaDefinitionChecks {
         return names
     }
 
+    /**
+     * 新しい文書の置き場所（式を受け取る項目 filePattern。P31）を、ファイル名として使う決まり（FileNameRules）で点検する:
+     * 文書のスキーマにだけ書ける・書き方・代表値で解決した作り先が match に合う・{id} の有無（注意）。文面は FileNameRules の表。
+     */
+    private fun filePatternIssues(schema: WorkspaceSchema): List<SchemaIssue> {
+        val pattern = schema.expressionAt("filePattern") ?: return emptyList()
+        if (schema.kind != SchemaKind.DOCUMENT || schema.isTemplate) {
+            return listOf(SchemaIssue(FileNameRules.message(FileNameRules.Kind.NOT_DOCUMENT_SCHEMA, pattern.where), "filePattern"))
+        }
+        val representative = schema.entities.firstNotNullOfOrNull { it.idPattern }?.replace("*", "X") ?: "X"
+        val issues = FileNameRules.formIssues(pattern) +
+            FileNameRules.placementIssues(pattern, representative, schema.match, schema::matches)
+        return issues.map { SchemaIssue(it.message, "filePattern") }
+    }
+
     /** スキーマ定義自体を検証するメタスキーマ検証。 */
     fun issuesOf(schema: WorkspaceSchema): List<SchemaIssue> = with(schema) {
         val root = tree.root
         val definitions = tree.definitions
         val phases = tree.phases
         val issues = mutableListOf<SchemaIssue>()
+        issues += filePatternIssues(schema)
         if (name.isBlank()) issues += SchemaIssue("スキーマ名が空です", "name")
         if (id.isBlank()) issues += SchemaIssue("スキーマIDが空です", "id")
         val deriveDef = derive
@@ -148,6 +164,9 @@ object SchemaDefinitionChecks {
             val stringy = f.type == FieldType.STRING || f.type == FieldType.TEXT
             if ((f.minLength != null || f.maxLength != null) && !stringy) {
                 issues += SchemaIssue("minLength / maxLength は string / text 型でのみ使用できます", path)
+            }
+            if (f.expression && !stringy) {
+                issues += SchemaIssue("expression（値の式を受け取る印）は string / text 型でのみ使用できます", path)
             }
             // pattern は ID のフォーマット強制（UX-79）にも使う
             if (f.pattern != null && !stringy && f.type != FieldType.ID) {

@@ -4,6 +4,7 @@ import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.getAt
 import dev.toros.yde.yaml.model.scalarText
+import dev.toros.yde.semantic.schema.ExpressionFields
 import dev.toros.yde.semantic.schema.ConstraintRule
 import dev.toros.yde.semantic.schema.Projection
 import dev.toros.yde.semantic.schema.ValueExpr
@@ -34,6 +35,20 @@ internal class CodedDocumentChecks(
      * 重複所有（所有するフィールド）。entity 宣言のあるスキーマの ID だけを判定する（宣言のないスキーマは挙動不変＝非破壊）。
      * 浮遊詳細化・定義競合・型競合は「書かれた場所の数」の検査として、組込み定義体（builtin-definitions/entities.yaml）にある。
      */
+    /**
+     * 式を受け取る項目（expression: true。P31）の値が、式として読めるか。どの項目かはスキーマの印だけが知り、読み取りは
+     * ExpressionFields（スキーマ文書・ビュー定義と同じ1実装）、文面は ExpressionMessages。値の式は書いたその場で点検される。
+     */
+    fun expressionIssues(document: DocumentId, schema: WorkspaceSchema?, root: YNode, localIds: List<ScannedId>): List<CheckIssue> {
+        if (schema == null) return emptyList()
+        return ExpressionFields.readAll(root, schema.tree).errors.map { (path, message) ->
+            CheckIssue(
+                Severity.ERROR, message, path,
+                source = CodedChecks.source(CodedChecks.EXPRESSION, "unreadable", IssueDelivery.REPORT, localIds, path),
+            )
+        }
+    }
+
     fun entityIssues(document: DocumentId, schema: WorkspaceSchema?, root: YNode, localIds: List<ScannedId>): List<CheckIssue> {
         if (schema == null || schema.entities.isEmpty()) return emptyList()
         val issues = mutableListOf<CheckIssue>()

@@ -1,6 +1,7 @@
 package dev.toros.yde.workspace
 
 import dev.toros.yde.workspace.layout.WorkspaceLayout
+import dev.toros.yde.semantic.schema.SchemaTree
 import dev.toros.yde.yaml.model.DocumentId
 
 /**
@@ -19,6 +20,19 @@ object BuiltinSchemaResources {
         requireNotNull(BuiltinSchemaResources::class.java.getResourceAsStream("/builtin-schemas/$name.yaml")) {
             "組込みスキーマ資源が見つかりません: $name"
         }.use { it.readBytes().decodeToString() }
+
+    /**
+     * メタスキーマ（builtin-schema）とビューのメタスキーマ（builtin-view）の項目の木。スキーマ文書・ビュー定義のどの項目が
+     * 値の式を受け取るか（expression: true の印。P31）は、この木だけが知る——読み取り（ExpressionFields）が沿って辿る。
+     */
+    val metaSchemaTree: SchemaTree by lazy { tree("schema") }
+    val viewSchemaTree: SchemaTree by lazy { tree("view") }
+
+    private fun tree(name: String): SchemaTree {
+        val parsed = WorkspaceReader.parseSchemas(listOf(DocumentId("(builtin)/$name.yaml") to text(name)))
+        require(parsed.errors.isEmpty()) { "組込みスキーマのパースに失敗しました: ${parsed.errors.first()}" }
+        return parsed.schemas.single().tree
+    }
 
     /** 組込みスキーマID → 適用先ゾーン（match の書き換え規則は root BuiltinSchemas.forLayout と同一。R13-02）。 */
     private val zoneById = mapOf(

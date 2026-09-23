@@ -887,101 +887,39 @@ object SemanticQuery {
             }
         }
 
-        /** 値の式を、決めた出現の組の下で計算する（得られなければ null）。値の出どころを併せて返す。 */
+        /**
+         * 値の式を、決めた出現の組の下で計算する（得られなければ null）。値の出どころを併せて返す。
+         * 評価そのものは SemanticValues（1つの環境での値の式の評価。P31）——解の束縛と出現の割当てを環境に写して呼ぶ。
+         */
         private fun evalExpr(
             expr: ValueExpr,
             row: SemanticQueryRow,
             assignment: Map<ValueExpr.ScopeRef, SemanticExpression.Occurrence?>,
-        ): SemanticCheckSide? = when (expr) {
-            is ValueExpr.Get -> assignment[ValueExpr.ScopeRef(expr.of, expr.inDoc)]?.let { occ ->
-                SemanticExpression.textAt(::tree, occ, expr.path)?.let { text ->
-                    SemanticCheckSide(
-                        text = text,
-                        bind = expr.of, id = row.bindings[expr.of]?.id,
-                        document = occ.document, occPath = occ.path, path = expr.path,
-                        raw = text, sourceDocument = occ.document, sourcePath = occ.path + expr.path,
-                    )
-                }
+        ): SemanticCheckSide? = SemanticValues.evaluate(
+            expr,
+            SemanticValues.Environment(
+                tree = ::tree, rel = rel, nodes = row.bindings, assignment = assignment, graph = graph,
+                refsInto = { entityRefsByTarget[it].orEmpty() },
+                aggregate = ::aggregateSide,
+            ),
+        )
+
+        /**
+         * 集計（SP-03）: 同じ起点の全ての解にわたり、束縛の要素（重複は1つ）の値をまとめる。値は指定に合う文書のうち
+         * 定義した側を優先して1つから読む（CALC-19）。得られない・数値として読めない値が1つでもあれば得られない。
+         * 解の一覧を要するため、クエリの評価器だけが担う（環境の aggregate として SemanticValues へ渡す）。
+         */
+        private fun aggregateSide(expr: ValueExpr.Aggregate): SemanticCheckSide? {
+            val of = expr.of ?: return null
+            val nodes = aggregateRows.mapNotNull { it.bindings[of] }.distinctBy { it.kind to it.id }
+            val path = expr.path
+            if (path == null) return SemanticCheckSide(text = nodes.size.toString(), raw = nodes.size.toString())
+            val values = nodes.map { node ->
+                val occ = aggregateOccurrence(node, expr.inDoc) ?: return null
+                SemanticExpression.textAt(::tree, occ, path) ?: return null
             }
-            is ValueExpr.Literal -> expr.value?.let { SemanticCheckSide(text = it, raw = it) }
-            is ValueExpr.Format -> evalExpr(expr.template, row, assignment)?.let { template ->
-                // 入れ物は、出現が決まったものだけを宣言順（近い順）に並べる
-                val scopes = expr.scopes.mapNotNull { ref ->
-                    assignment[ref]?.let { occ -> SemanticExpression.nodeAt(::tree, occ, emptyList())?.let { occ to it } }
-                }
-                val evaluated = Projection.evaluate(template.text, scopes.map { it.second })
-                if (!evaluated.complete) return@let null
-                template.copy(
-                    text = evaluated.text,
-                    raw = template.text,
-                    inputs = evaluated.resolutions.map { r ->
-                        val occ = r.scopeIndex?.let { scopes.getOrNull(it)?.first }
-                        val inputPath = occ?.let { o -> runCatching { o.path + parseYPath(r.placeholder) }.getOrNull() }
-                        SemanticValueInput(r.placeholder, r.value, occ?.document, inputPath)
-                    },
-                )
-            }
-            is ValueExpr.MapValue -> evalExpr(expr.input, row, assignment)
-                ?.let { it.copy(text = Projection.applyMap(it.text, expr.using)) }
-            is ValueExpr.First -> expr.options.firstNotNullOfOrNull { evalExpr(it, row, assignment) }
-            is ValueExpr.Unary -> evalExpr(expr.input, row, assignment)?.let { input ->
-                SemanticExpression.unary(expr.fn, input.text)?.let { text ->
-                    input.copy(text = text, raw = input.raw ?: input.text, note = expr.fn.label ?: input.note)
-                }
-            }
-            // 参照の本数（SP-03）: グラフの隣接から数える。出ていく参照は相手が見つからないものも数え（CALC-20）、
-            // 入ってくる参照はエンティティへの参照を数える。値の読み出しではないため、出現は選ばない
-            is ValueExpr.RefCount -> row.bindings[expr.of]?.takeIf { it.kind == QueryNodeKind.ENTITY }?.let { node ->
-                val refs = when (expr.dir) {
-                    QueryDir.OUT -> graph.ownRefs(node.id)
-                    QueryDir.IN -> entityRefsByTarget[node.id].orEmpty()
-                }
-                val n = refs.count { ref ->
-                    (expr.relation == null || ref.relation == expr.relation) &&
-                        (expr.via == null || QueryEdgeStep.viaMatches(expr.via!!, ref.viaKey, ref.path))
-                }
-                SemanticCheckSide(text = n.toString(), id = node.id, raw = n.toString())
-            }
-            // 書かれた場所の数（SP-05）: その ID が書かれている場所のうち、指定（スキーマ・ファイル・役割）に合うものを数える。
-            // distinct: type は、合う場所で宣言されているエンティティ型の種類を数える（元の値に、型の並びを添える）
-            is ValueExpr.OccurrenceCount -> row.bindings[expr.of]?.takeIf { it.kind == QueryNodeKind.ENTITY }?.let { node ->
-                val occurrences = graph.entities[node.id]?.occurrences.orEmpty()
-                    .filter { expr.matches(it.schemaId, rel(it.document), it.role) }
-                if (expr.distinct == null) {
-                    SemanticCheckSide(text = occurrences.size.toString(), id = node.id, raw = occurrences.size.toString())
-                } else {
-                    val types = occurrences.mapNotNull { it.entityType }.distinct()
-                    SemanticCheckSide(text = types.size.toString(), id = node.id, raw = types.joinToString(", "))
-                }
-            }
-            // 集計（SP-03）: 同じ起点の全ての解にわたり、束縛の要素（重複は1つ）の値をまとめる。値は指定に合う文書のうち
-            // 定義した側を優先して1つから読む（CALC-19）。得られない・数値として読めない値が1つでもあれば得られない
-            is ValueExpr.Aggregate -> {
-                val nodes = aggregateRows.mapNotNull { it.bindings[expr.of] }.distinctBy { it.kind to it.id }
-                val path = expr.path
-                if (path == null) SemanticCheckSide(text = nodes.size.toString(), raw = nodes.size.toString())
-                else {
-                    val values = nodes.map { node ->
-                        val occ = aggregateOccurrence(node, expr.inDoc) ?: return null
-                        SemanticExpression.textAt(::tree, occ, path) ?: return null
-                    }
-                    SemanticExpression.aggregate(expr.fn, values)?.let { text ->
-                        SemanticCheckSide(text = text, raw = "${expr.fn.label}: ${values.joinToString("・")}")
-                    }
-                }
-            }
-            is ValueExpr.Arith -> {
-                val operands = expr.operands.map { evalExpr(it, row, assignment) ?: return null }
-                SemanticExpression.arith(expr.op, operands.map { it.text })?.let { text ->
-                    // 計算結果は特定の1か所に書かれた値ではない——式（3 + 12）を元の値として示し、移動先は最初の値の場所
-                    val first = operands.firstOrNull { it.sourceDocument != null }
-                    SemanticCheckSide(
-                        text = text,
-                        id = first?.id,
-                        raw = operands.joinToString(" ${expr.op.symbol} ") { it.text },
-                        sourceDocument = first?.sourceDocument, sourcePath = first?.sourcePath,
-                    )
-                }
+            return SemanticExpression.aggregate(expr.fn, values)?.let { text ->
+                SemanticCheckSide(text = text, raw = "${expr.fn.label}: ${values.joinToString("・")}")
             }
         }
 

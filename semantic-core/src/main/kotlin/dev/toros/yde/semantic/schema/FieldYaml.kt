@@ -29,6 +29,7 @@ object FieldYaml {
         // 定義への参照では、型は定義の側で決まる
         if (f.ref == null) m["type"] = f.type.id
         if (f.required) m["required"] = true
+        if (f.expression) m["expression"] = true
         f.requiredFrom?.let { m["requiredFrom"] = it }
         if (f.values.isNotEmpty()) {
             m["values"] = f.enumOptions().map { o ->

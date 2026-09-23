@@ -6,16 +6,19 @@ import dev.toros.yde.semantic.schema.ConstraintRule
 import dev.toros.yde.semantic.schema.DeriveDef
 import dev.toros.yde.semantic.schema.EnforcementDef
 import dev.toros.yde.semantic.schema.EntityTypeDef
+import dev.toros.yde.semantic.schema.ExpressionValue
 import dev.toros.yde.semantic.schema.ExpandedCheck
 import dev.toros.yde.semantic.schema.RelationDef
 import dev.toros.yde.semantic.schema.VocabularySource
 import dev.toros.yde.yaml.model.DocumentId
+import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.model.YDocument
 import dev.toros.yde.semantic.schema.EntityDecl
 import dev.toros.yde.semantic.schema.SchemaCatalog
 import dev.toros.yde.semantic.schema.SchemaDerivation
 import dev.toros.yde.semantic.schema.SchemaKind
 import dev.toros.yde.semantic.schema.SchemaTree
+import dev.toros.yde.semantic.schema.TransformDef
 import dev.toros.yde.workspace.layout.WorkspaceLayout
 import dev.toros.yde.semantic.schema.globToRegex
 import dev.toros.yde.semantic.DocumentMeta
@@ -74,6 +77,10 @@ class WorkspaceSchema(
     val enforcement: EnforcementDef? = null,
     /** このスキーマ文書が宣言する検査の定義と語彙の定義（functions / vocabulary）。 */
     val checkLibrary: CheckLibrary = CheckLibrary(),
+    /** 式を受け取る項目（メタスキーマの expression: true の印）の値（場所 → 式。P31）。使う側は expressionAt で引く。 */
+    val expressions: Map<YPath, ExpressionValue> = emptyMap(),
+    /** 新しい文書のひな型（変換のひな型。いまの場所＝元の要素。P31・R31-03）。 */
+    val scaffold: TransformDef? = null,
 ) {
     /** 構造・適用先などを差し替えた写し（ほかは引き継ぐ）。 */
     fun copy(
@@ -81,8 +88,11 @@ class WorkspaceSchema(
         tree: SchemaTree = this.tree,
     ): WorkspaceSchema = WorkspaceSchema(
         id, kind, match, tree, entities, isTemplate, source, derive, constraints, checkers, expandedChecks, vocabularySource,
-        name, description, relations, entityTypes, enforcement, checkLibrary,
+        name, description, relations, entityTypes, enforcement, checkLibrary, expressions, scaffold,
     )
+
+    /** 式を受け取る項目の値（ルートからのキーの並びで指す。例: expressionAt("filePattern")）。 */
+    fun expressionAt(vararg keys: String): ExpressionValue? = expressions[keys.toList()]
 
     companion object {
         /** スキーマ文書1件を読んだ結果から作る（アプリ側とカーネル側が共有する）。 */
@@ -105,6 +115,8 @@ class WorkspaceSchema(
             entityTypes = parsed.entityTypes,
             enforcement = parsed.enforcement,
             checkLibrary = parsed.ownLibrary,
+            expressions = parsed.expressions,
+            scaffold = parsed.scaffold,
         )
     }
 
@@ -182,7 +194,7 @@ object WorkspaceReader {
      * スキーマ文書のテキスト集合からスキーマ束を組み立てる（構造＋意味宣言・`$ref` の横断リンク）。
      * sources は（文書ID, 本文）の相対パス順。
      */
-    fun parseSchemas(sources: List<Pair<DocumentId, String>>): SchemaLoadResult {
+    fun parseSchemas(sources: List<Pair<DocumentId, String>>, metaschema: SchemaTree? = null): SchemaLoadResult {
         val errors = mutableListOf<String>()
         val schemas = mutableListOf<WorkspaceSchema>()
         val registry = mutableListOf<SchemaDocuments.RegistryPart>()
@@ -197,7 +209,7 @@ object WorkspaceReader {
             val fileName = rel.substringAfterLast('/')
             try {
                 // スキーマ文書1件の読み取りは、アプリ側と同じ1実装（SchemaDocuments。P27 段C の C-3a・意図的差分 D-31）
-                val parsed = SchemaDocuments.parse(text, fileName.substringBeforeLast('.'), fileName, library)
+                val parsed = SchemaDocuments.parse(text, fileName.substringBeforeLast('.'), fileName, library, metaschema)
                 schemas += WorkspaceSchema.of(parsed, id)
                 if (parsed.kind == SchemaKind.RELATIONS) {
                     registry += SchemaDocuments.RegistryPart(fileName, parsed.relations, parsed.entityTypes, parsed.enforcement)
@@ -229,7 +241,7 @@ object WorkspaceReader {
         documents: List<Pair<DocumentId, YDocument>>,
         layout: WorkspaceLayout,
     ): SchemaLoadResult {
-        val parsed = parseSchemas(schemaSources)
+        val parsed = parseSchemas(schemaSources, BuiltinSchemaResources.metaSchemaTree)
         // 利用者が定義した語彙のキーは、スキーマ文書のメタスキーマの「知っている項目」へ足す（root の SchemaLoader と同じ実装。
         // これが無いと、語彙として定義された書き方が「スキーマに定義されていない項目」と警告される＝BACKLOG UX-105）
         val composed = builtins.map { b ->

@@ -23,6 +23,8 @@ import dev.toros.yde.semantic.schema.RefTarget
 import dev.toros.yde.semantic.schema.RelationDef
 import dev.toros.yde.semantic.schema.globToRegex
 import dev.toros.yde.workspace.DocumentScaffold
+import dev.toros.yde.workspace.DocumentScaffolds
+import dev.toros.yde.workspace.ScaffoldSource
 import dev.toros.yde.workspace.changeset.ChangeSet
 import dev.toros.yde.workspace.layout.WorkspaceLayout
 import dev.toros.yde.yaml.model.DocumentId
@@ -1253,7 +1255,16 @@ class AppState {
      * 作成先とスキーマ初期値は core.Views.detailScaffold が決め、作成後はその文書を開く。
      */
     fun createViewDetail(view: ViewDef, id: String): Result<Path> = runCatching {
-        createScaffoldFile(dev.toros.yde.app.core.Views.detailScaffold(view, id, schemas))
+        createScaffoldFile(dev.toros.yde.app.core.Views.detailScaffold(view, scaffoldSource(id), schemas))
+    }
+
+    /**
+     * 新しい文書の元になる要素（P31）: ID の定義出現（未保存の編集を優先した「見たまま」の索引から）と、そのタイトル・木の読み手・グラフ。
+     * filePattern の穴（`{name}` など）と scaffold のひな型は、この要素の値で埋まる。
+     */
+    private fun scaffoldSource(id: String): ScaffoldSource {
+        val index = overlayIndex()
+        return ScaffoldSource.of(id, index.occurrences(id), unsavedFirstTree(), index.graph)
     }
 
     /**
@@ -1272,18 +1283,20 @@ class AppState {
         index.entries[trimmed]?.firstOrNull()?.let {
             error("ID「$trimmed」は既に存在します: ${it.document.value}")
         }
-        createScaffoldFile(dev.toros.yde.app.core.Views.scaffold(pattern, trimmed, schemas))
+        // 行がまだ無いので、元は ID だけ（newRow の filePattern に書ける穴は {id} だけ＝定義の段階で保証）
+        createScaffoldFile(dev.toros.yde.app.core.Views.scaffold(pattern, ScaffoldSource.idOnly(trimmed), schemas))
     }
 
     /**
      * カバレッジ（detailIn）不足の指摘から詳細文書を新規作成する（R28-05a・UX-97 の導線）。
-     * 作成先は詳細スキーマの match から導く（単純な glob のみ。導けないスキーマはエラー）。
+     * 作成先は詳細スキーマの filePattern（値の式。P31）、無ければ match から導く（単純な glob のみ。導けないスキーマはエラー）。
+     * 穴は、その ID の定義出現（一覧側の要素）の値で埋まる。
      */
     fun createDetailForCoverage(schemaId: String, id: String): Result<Path> = runCatching {
         val schema = schemas.firstOrNull { it.id == schemaId } ?: error("スキーマが見つかりません: $schemaId")
-        val pattern = dev.toros.yde.app.core.Views.detailPatternFromMatch(schema.match)
-            ?: error("スキーマ「$schemaId」の match（${schema.match}）から作成先を決められません")
-        createScaffoldFile(dev.toros.yde.app.core.Views.scaffold(pattern, id, schemas))
+        val pattern = DocumentScaffolds.filePatternOf(schema.kernel)
+            ?: error("スキーマ「$schemaId」の match（${schema.match}）から作成先を決められません（スキーマに filePattern を書くと決められます）")
+        createScaffoldFile(dev.toros.yde.app.core.Views.scaffold(pattern, scaffoldSource(id), schemas))
     }
 
     /** スキャフォールドを新規文書として作成し、その文書を開く（詳細作成・新規行ファイルモード共用）。 */

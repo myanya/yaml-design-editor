@@ -37,6 +37,8 @@ import dev.toros.yde.app.index.DocScanner
 import dev.toros.yde.app.index.IdIndex
 import dev.toros.yde.app.schema.Display
 import dev.toros.yde.app.schema.IdSuggest
+import dev.toros.yde.workspace.DocumentScaffolds
+import dev.toros.yde.workspace.ScaffoldSource
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.model.getAt
@@ -213,8 +215,12 @@ private fun NewRowIdDialog(state: AppState, view: ViewDef, onDismiss: () -> Unit
         title = { Text("新規行（詳細文書の作成）", fontSize = 16.sp) },
         text = {
             Column {
+                // 作成先のプレビュー（filePattern は値の式。newRow で埋まる穴は {id} だけ）
+                val idText = value.trim()
+                val preview = if (idText.isBlank()) pattern.text
+                    else runCatching { DocumentScaffolds.pathFor(pattern, ScaffoldSource.idOnly(idText)) }.getOrElse { pattern.text }
                 Text(
-                    "入力したIDで ${pattern.replace("{id}", value.trim().ifBlank { "{id}" })} を作成します",
+                    "入力したIDで $preview を作成します",
                     fontSize = 12.sp, color = Palette.SubText,
                 )
                 Spacer(Modifier.height(8.dp))

@@ -51,6 +51,7 @@ data class SchemaTree(
                 unknownFields = current.unknownFields ?: target.unknownFields,
                 cases = current.cases.ifEmpty { target.cases },
                 role = current.role ?: target.role,
+                expression = current.expression || target.expression,
                 hints = current.hints.over(target.hints),
                 minLength = current.minLength ?: target.minLength,
                 maxLength = current.maxLength ?: target.maxLength,

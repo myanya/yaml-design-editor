@@ -186,6 +186,11 @@ data class FieldDef(
     val unknownFields: UnknownFieldsPolicy? = null, // object の未定義キー。null は warning
     /** 非修飾 `$ref` の解決元。パーサーが設定し、横断参照した定義の子でも元モジュールを保つ（スキーマ層専用）。 */
     val definitionScope: String? = null,
+    /**
+     * 値の式を受け取る項目（P31）: 値は短い書き方（`{パス}` を含む文字列）でも完全な書き方（式の object）でもよい。
+     * 式が返す値の型が type。どの項目が式かはこの印だけが知り、読み取りは schema.ExpressionFields・評価は semantic.SemanticValues。
+     */
+    val expression: Boolean = false,
     /** 表示と編集のためのヒント（検証・走査・検査は読まない）。 */
     val hints: FieldHints = FieldHints(),
 ) {

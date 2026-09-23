@@ -5,15 +5,19 @@ import dev.toros.yde.semantic.schema.DeriveDef
 import dev.toros.yde.semantic.schema.EnforcementDef
 import dev.toros.yde.semantic.schema.EntityDecl
 import dev.toros.yde.semantic.schema.EntityTypeDef
+import dev.toros.yde.semantic.schema.ExpressionFields
+import dev.toros.yde.semantic.schema.ExpressionValue
 import dev.toros.yde.semantic.schema.RelationDef
 import dev.toros.yde.semantic.schema.SchemaDerivation
 import dev.toros.yde.semantic.schema.SchemaKind
 import dev.toros.yde.semantic.schema.SemanticDeclParser
 import dev.toros.yde.semantic.schema.SchemaTree
 import dev.toros.yde.semantic.schema.SchemaTreeParser
+import dev.toros.yde.semantic.schema.TransformDef
 import dev.toros.yde.semantic.schema.VocabularySource
 import dev.toros.yde.semantic.SemanticDeclarations
 import dev.toros.yde.yaml.YamlIO
+import dev.toros.yde.yaml.model.YPath
 
 /**
  * スキーマ文書1件を読んだ結果（P27 段C の C-3a。意図的差分 D-31）。アプリ側（root の SchemaLoader → SchemaDef）と
@@ -40,6 +44,10 @@ class ParsedSchemaDocument(
     val ownLibrary: CheckLibrary,
     /** 語彙の再展開に使う原文と定義の一式（派生スキーマが、導出元の語彙を自分の ID で展開し直すために使う）。 */
     val vocabularySource: VocabularySource,
+    /** 式を受け取る項目（メタスキーマの expression: true の印）の値（場所 → 式。P31）。例: filePattern＝新しい文書の置き場所。 */
+    val expressions: Map<YPath, ExpressionValue> = emptyMap(),
+    /** 新しい文書のひな型（変換のひな型。いまの場所＝元の要素。P31・R31-03）。 */
+    val scaffold: TransformDef? = null,
 )
 
 /**
@@ -53,7 +61,14 @@ object SchemaDocuments {
      * library は検査の展開に使う定義の一式（ワークスペース全体で集めたもの）。null のとき（単体の読み取り）は、
      * 組込み定義体とこの文書自身の定義で展開する。
      */
-    fun parse(text: String, fallbackId: String, sourceName: String, library: CheckLibrary?): ParsedSchemaDocument {
+    fun parse(
+        text: String,
+        fallbackId: String,
+        sourceName: String,
+        library: CheckLibrary?,
+        /** メタスキーマの木（どの項目が値の式を受け取るか。null＝式の項目を読まない＝組込みスキーマ自身の読み取り）。 */
+        metaschema: SchemaTree? = null,
+    ): ParsedSchemaDocument {
         val raw = YamlIO.parseToRaw(text) as? Map<*, *> ?: error("スキーマのルートはobjectである必要があります")
         val id = raw["id"]?.toString() ?: fallbackId
         val kind = SchemaKind.parse(raw["kind"]?.toString())
@@ -70,6 +85,11 @@ object SchemaDocuments {
         require(kind == SchemaKind.RELATIONS || raw["enforcement"] == null) { "enforcement は kind: relations の文書でのみ定義できます" }
         val isRegistry = kind == SchemaKind.RELATIONS
         val match = raw["match"]?.toString() ?: if (kind == SchemaKind.DOCUMENT && derive == null) "**/*.{yaml,yml}" else ""
+        // 値の式を受け取る項目（P31）: どの項目かはメタスキーマの印（expression: true）だけが知り、読み取りは共通（ExpressionFields）
+        val expressions = metaschema?.let { ExpressionFields.read(YamlIO.fromAny(raw), it) }.orEmpty()
+        // 新しい文書のひな型（変換のひな型。値の式ではないので、キーで読む）: 文書のスキーマ（derive 宣言でないもの）にだけ書ける
+        val scaffold = raw["scaffold"]?.let { TransformDef.ofTemplate("$id-scaffold", it, "scaffold") }
+        require(scaffold == null || (kind == SchemaKind.DOCUMENT && derive == null)) { "scaffold は、文書のスキーマ（derive 宣言でないもの）にだけ書けます" }
         val tree = SchemaTree(
             id = id,
             root = SchemaTreeParser.parseRoot(raw["root"], kind, id, allowMissingRoot = derive != null),
@@ -94,6 +114,8 @@ object SchemaDocuments {
             checks = CheckCatalog.checksOf(effectiveLibrary, raw, id),
             ownLibrary = ownLibrary,
             vocabularySource = VocabularySource(raw, effectiveLibrary),
+            expressions = expressions,
+            scaffold = scaffold,
         )
     }
 

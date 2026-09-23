@@ -6,6 +6,7 @@ import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.model.parseYPath
 import dev.toros.yde.yaml.model.pretty
 import dev.toros.yde.semantic.schema.DerivationDef
+import dev.toros.yde.semantic.schema.ExpressionFields
 import dev.toros.yde.semantic.schema.DisplayCore
 import dev.toros.yde.semantic.schema.FieldDef
 import dev.toros.yde.semantic.schema.FieldType
@@ -189,18 +190,22 @@ object ViewDefinitions {
                 )
             )
         }
+        // 値の式を受け取る項目（builtin-view の expression: true の印。P31）: どの項目かは印だけが知り、読み取りは共通
+        val expressions = ExpressionFields.read(YamlIO.fromAny(raw), BuiltinSchemaResources.viewSchemaTree)
         val detail = (raw["detail"] as? Map<*, *>)?.let { m ->
-            val pattern = m["filePattern"]?.toString()
-            pattern?.let { validateFilePattern("detail", it) }
+            // 作り先は、ファイル名として使う式（いまの要素＝行の要素）
+            val pattern = expressions[listOf("detail", "filePattern")]?.let { FileNameRules.requireWellFormed(it) }
             VirtualDetailDef(source = parseSource(m), filePattern = pattern)
         }
         val newRow = (raw["newRow"] as? Map<*, *>)?.let { m ->
-            val pattern = m["filePattern"]?.toString()?.takeIf { it.isNotBlank() }
-            if (pattern != null) {
+            val fileMode = m["filePattern"]?.takeIf { it !is String || it.isNotBlank() } != null
+            if (fileMode) {
                 // ファイルモード: 配列モードのキーとは排他（どちらの意図か曖昧な定義を弾く）
                 listOf("file", "path").firstOrNull { m.containsKey(it) }
                     ?.let { error("newRow: filePattern と $it は併用できません（配列モードとファイルモードは排他）") }
-                validateFilePattern("newRow", pattern)
+                // 行がまだ無いので、埋められる穴は {id} だけ（判断点 E-07）
+                val pattern = expressions[listOf("newRow", "filePattern")]?.let { FileNameRules.requireWellFormed(it, idOnly = true) }
+                    ?: error("newRow.filePattern を読めません")
                 VirtualNewRowDef(filePattern = pattern)
             } else VirtualNewRowDef(
                 file = m["file"]?.toString()?.takeIf { it.isNotBlank() } ?: error("newRow.file か newRow.filePattern が必要です"),
@@ -220,12 +225,6 @@ object ViewDefinitions {
             newRow = newRow,
             source = source,
         )
-    }
-
-    /** filePattern（detail / newRow 共通）の形式検査。`{id}` 置換でYAMLファイル名になること。 */
-    private fun validateFilePattern(where: String, pattern: String) {
-        require(pattern.contains("{id}")) { "$where.filePattern には {id} を含めてください: $pattern" }
-        require(pattern.endsWith(".yaml") || pattern.endsWith(".yml")) { "$where.filePattern はYAMLファイルである必要があります: $pattern" }
     }
 
     /**
@@ -451,15 +450,18 @@ object ViewDefinitions {
                     report("列「${col.label}」のパス「${col.path.pretty()}」はスキーマ「${names(fromSchemas)}」のID要素から解決できません")
                 }
             }
+            v.detail?.filePattern?.let { pattern ->
+                if (!pattern.usesId) report(FileNameRules.message(FileNameRules.Kind.NO_ID, pattern.where))
+            }
             v.newRow?.filePattern?.let { pattern ->
                 // 代表ID（idPattern の * を仮埋め。クエリ行では行キー束縛の id パターン・なければ "X"）で
                 // 作成先を解決し、スキーマなし・detail 認定外の事故を検出する
                 val representativeId = (v.rows?.idPattern ?: v.rowKey?.let { v.rowsQuery?.bindStep(it)?.idPattern })
                     ?.replace("*", "X") ?: "X"
-                val rel = pattern.replace("{id}", representativeId)
+                val rel = DocumentScaffolds.representativePath(pattern, representativeId) ?: return@let
                 val matched = schemas.firstOrNull { it.matches(rel) }
                 if (matched == null) {
-                    report("newRow.filePattern「$pattern」の作成先にマッチするスキーマがありません（作成される文書が空になります）")
+                    report("newRow.filePattern「${pattern.text}」の作成先にマッチするスキーマがありません（作成される文書が空になります）")
                 }
                 v.detail?.source?.let { src ->
                     val globOk = src.fileGlob?.let { g ->
@@ -467,7 +469,7 @@ object ViewDefinitions {
                     } ?: true
                     val schemaOk = src.schemaId == null || matched == null || matched.id == src.schemaId
                     if (!globOk || !schemaOk) {
-                        report("newRow.filePattern「$pattern」の作成先が detail の認定条件に一致しません（作成直後の行が「未作成」になります）")
+                        report("newRow.filePattern「${pattern.text}」の作成先が detail の認定条件に一致しません（作成直後の行が「未作成」になります）")
                     }
                 }
             }
