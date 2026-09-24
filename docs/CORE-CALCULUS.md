@@ -1,7 +1,7 @@
 # YDE Core Calculus  
 ## YAMLに対する計算体系の設計方針
 
-**Status:** Accepted Architecture Policy（[ADR-0009](decisions/0009-core-calculus.md) として 2026-09-05 採択）  
+**Status:** Accepted Architecture Policy（[ADR-0009](decisions/0009-core-calculus.md)）  
 **Scope:** yaml-core / semantic-core / workspace-core およびその上に構築される検証・ビュー・リファクタリング・エージェント機能  
 **Purpose:** 今後の機能追加・リファクタリングに対する設計判断の基準を定める
 
@@ -25,7 +25,7 @@ Query Core はすでに、それまで複数箇所で個別実装されていた
 
 また、決定論的射影では、評価器を一元化し、任意式やコード実行を導入せず、1段評価・判定保留・provenance を重視する設計が採用されている。
 
-一方で、P28 の設計検証拡充では、`count`、`notEquals`、matrix、`same`、遷移検証など、実ユースケースに応じて意味語彙が拡大し始めている。
+一方で、設計検証の拡充では、`count`、`notEquals`、matrix、`same`、遷移検証など、実ユースケースに応じて意味語彙が拡大し始めている。
 
 これは自然な進化である一方、このまま機能要求ごとに個別の評価器・検証器・変更器を追加すると、次の問題が起こる。
 
@@ -41,7 +41,7 @@ Query Core はすでに、それまで複数箇所で個別実装されていた
 
 ---
 
-# 2. 基本方針
+## 2. 基本方針
 
 YDE Core Calculus の目的は、新しい万能 DSL を作ることではない。
 
@@ -72,7 +72,7 @@ Rewrite Calculus
 
 これらの下位には変更を実行するための Patch / Transaction が存在する。
 
-2026-09-21、6つ目の体系として **Construct Calculus（組み立て）**——束縛と値から、新しい項を組み立てる——を足した（§26）。
+6つ目の体系として **Construct Calculus（組み立て）**——束縛と値から、新しい項を組み立てる——を足した（§26）。
 Rewrite が「いまある文書への変更の一式」を作るのに対し、Construct は「新しい項」を作る。
 
 ```text
@@ -104,9 +104,9 @@ Expression      Predicate
 
 ---
 
-# 3. 設計原則
+## 3. 設計原則
 
-## 3.1 機能ではなくプリミティブを増やす
+### 3.1 機能ではなくプリミティブを増やす
 
 新しい要求が出たとき、
 
@@ -126,7 +126,7 @@ Expression      Predicate
 
 ---
 
-## 3.2 1つの意味には1つの評価器
+### 3.2 1つの意味には1つの評価器
 
 同一概念の評価ロジックを複数の消費者へ実装してはならない。
 
@@ -145,7 +145,7 @@ Expression      Predicate
 
 ---
 
-## 3.3 読取・判定・変更を分離する
+### 3.3 読取・判定・変更を分離する
 
 次を混在させてはならない。
 
@@ -167,7 +167,7 @@ Rewrite の結果は必ず `PatchOp` または `ChangeSet` とし、適用は wo
 
 ---
 
-## 3.4 決定性を既定とする
+### 3.4 決定性を既定とする
 
 Core Calculus は原則として決定的でなければならない。
 
@@ -187,7 +187,7 @@ Core Calculus は原則として決定的でなければならない。
 
 ---
 
-## 3.5 説明可能性を計算結果の一部とする
+### 3.5 説明可能性を計算結果の一部とする
 
 YDE では計算結果だけでなく、
 
@@ -214,7 +214,7 @@ Expression は値の出典を、Predicate は判定根拠を、Rewrite は変更
 
 ---
 
-# 4. Semantic Domain
+## 4. Semantic Domain
 
 Core Calculus の最下位は YAML の構造である。
 
@@ -249,7 +249,7 @@ Location = Document × YPath
 
 ---
 
-# 5. Semantic Value と Presentation Metadata
+## 5. Semantic Value と Presentation Metadata
 
 YAML の意味的内容と表記情報を概念上分離する。
 
@@ -284,7 +284,7 @@ YAML の意味的内容と表記情報を概念上分離する。
 
 ---
 
-# 6. Query Calculus
+## 6. Query Calculus
 
 Query の責務は、
 
@@ -320,7 +320,7 @@ Query 内の `where` は、対象集合を決定するために必要な限定�
 
 ---
 
-# 7. Expression Calculus
+## 7. Expression Calculus
 
 Expression は Query によって得られた Environment を入力とし、値を生成する純粋計算である。
 
@@ -347,8 +347,8 @@ Add(expr...)  Subtract(a, b)  Multiply(expr...)  Divide(a, b)
 Expression の目的は万能式言語になることではない。
 
 スクリプト・ユーザ定義関数・条件分岐を持つ式は導入しない。文字数・大文字と小文字の変換・数値の表記を揃える計算・四則演算は、
-P29 Phase 6 で「想定される処理と計算は、需要を待たずに用意しておく」（§25。2026-09-19 オーナー決定）に沿って用意した
-（ROADMAP R29-11）。数値として読めない値・0 での割り算は Unknown（値が得られない＝判定保留）。四則演算は小数の誤差を持ち込まない。
+「想定される処理と計算は、需要を待たずに用意しておく」（§25）に沿って用意した
+。数値として読めない値・0 での割り算は Unknown（値が得られない＝判定保留）。四則演算は小数の誤差を持ち込まない。
 `Equals` は文字列の等値のままで、数値どうしを等値で比べるときは `Number` で表記を揃える。
 
 既存の Projection / Derivation は段階的に Expression Calculus へ整理する。
@@ -370,7 +370,7 @@ Derivation = Query + Expression
 
 として説明可能な状態を目標とする。
 
-**検査の外での評価（P31。2026-09-23）**: Expression の評価器は、Query の check 判定の中に閉じていた（解の束縛と σ の割当てを前提）。
+**検査の外での評価**: Expression の評価器は、Query の check 判定の中に閉じていた（解の束縛と σ の割当てを前提）。
 `SemanticValues.evaluate(式, 環境)` として外へ出し、環境に「いまの要素」（`of` を省略した読み出しの相手）・予約の名前（`{id}` `{title}`）・
 穴に入る値の直し方を足した。同じ式が、検査の check と、スキーマの値（新しい文書のファイル名 `filePattern`）の両方で同じ意味を持つ
 （1つの意味には1つの評価器）。`Format` は名前を付けた値（`with`）を受け取れる（`Format(template, expr...)` の形の実装）。
@@ -378,7 +378,7 @@ Derivation = Query + Expression
 
 ---
 
-# 8. Predicate Calculus
+## 8. Predicate Calculus
 
 Predicate は値またはノード間の関係を判定する。
 
@@ -402,7 +402,7 @@ Predicate は値またはノード間の関係を判定する。
 
 これは現在の consistency が採用している「判定保留は沈黙」という方針を一般化する。
 
-**検査の結果は4つ**（P27 段A・CALC-31。ARCHITECTURE §4.37）: 判定の結果を利用者へ返すときは、`True` / `False` / `Unknown` を
+**検査の結果は4つ**（CALC-31。ARCHITECTURE §4.37）: 判定の結果を利用者へ返すときは、`True` / `False` / `Unknown` を
 **充足・違反・保留・対象外**の4つへ写す。`Unknown` のうち、データの不備（相手の見つからない参照・数値として読めない値）によるものが保留、
 確かめるものが無いこと（検査の対象でない・フェーズ未到達・比べる値が書かれていない）によるものが対象外。指摘を生成するのは違反だけだが、
 保留は「確かめられなかった」として記録し、充足に数えない（沈黙は指摘を出さないという意味であって、結果を捨てるという意味ではない）。
@@ -432,17 +432,17 @@ Or(p...)
 
 `same` のようなノード同一性と、値 equality は明確に区別する。
 
-値の条件（Equals〜Contains）は、判定（`check`）と選択（`where`）が同じ演算子・同じ判定を共有する（ROADMAP R29-11）。
+値の条件（Equals〜Contains）は、判定（`check`）と選択（`where`）が同じ演算子・同じ判定を共有する。
 `OneOf` は「どれかと等しければ True・等しい選択肢がなく Unknown の選択肢が残れば Unknown」、`Matches` は全体一致で、
 正規表現として読めなければ Unknown。`Exists` / `IsEmpty` は値そのものの有無を問うため、選択（`where`）でだけ使う
 （判定では、値が得られない組は Unknown として飛ばされるため）。
-`Not` / `Or` は Phase 6 第2段（ROADMAP R29-12）で、選択（`where`）・判定（`check`）・ノードの条件（node の `not`・型の並び）に入れた。
+`Not` / `Or` は、選択（`where`）・判定（`check`）・ノードの条件（node の `not`・型の並び）に入れた。
 入れ子は1段まで・`And` は並べて書く。3値で評価し、`Not(Unknown)` は `Unknown`、`Or` は「どれかが True なら True・True がなく
 Unknown が残れば Unknown・すべて False なら False」。
 
 ---
 
-# 9. Aggregate
+## 9. Aggregate
 
 集合に対する計算は Expression / Predicate と区別して明示する。
 
@@ -455,7 +455,7 @@ Sum / Min / Max / Count(binding, path)    -- 同じ起点の全ての解にわ�
 OccurrenceCount(binding, schema, role)    -- その ID が書かれた場所（出現集合）への Count。CALC-21 の演算面に名前を付けたもの
 ```
 
-`RefCount` と解にわたる集計は Phase 6 第2段（ROADMAP R29-12）で、値の式（Expression）の中で使える Aggregate として入れた
+`RefCount` と解にわたる集計は、値の式（Expression）の中で使える Aggregate として入れた
 （多重度の検査を、専用の検査プログラムではなく「参照の本数と決まった値の比較」として書くため）。集計は出現を量化せず、
 値を読む出現を定義した側を優先して1つに決める（CALC-19）。値が得られない要素が1つでもあれば Unknown。
 
@@ -473,7 +473,7 @@ ROADMAP でも Query Core の語彙肥大化をリスクとして認識し、任
 
 ---
 
-# 10. Constraint
+## 10. Constraint
 
 Constraint は独自の計算体系を持たない。
 
@@ -520,7 +520,7 @@ for each env in Query(workspace):
 
 ---
 
-# 11. Rewrite Calculus
+## 11. Rewrite Calculus
 
 Rewrite は Workspace を検索し、条件を満たした場所に対する変更案を生成する。
 
@@ -541,7 +541,7 @@ Rewrite 自体は副作用を持たない。
 
 ---
 
-# 12. PatchOp を変更命令の最小集合とする
+## 12. PatchOp を変更命令の最小集合とする
 
 最終的な書込は PatchOp へ正規化する。
 
@@ -573,11 +573,11 @@ renameSchemaId
 
 などは利用者向け・ドメイン向けの高水準操作であり、Core Calculus 上のプリミティブとは区別する。
 
-P25 で実装された各種 Schema Refactoring は、この整理の最初の候補となる。
+各種 Schema Refactoring は、この整理の最初の候補となる。
 
 ---
 
-# 13. Rewrite Strategy
+## 13. Rewrite Strategy
 
 Rewrite Rule と、その適用戦略を分離する。
 
@@ -615,7 +615,7 @@ snapshot
 
 ---
 
-# 14. Transaction
+## 14. Transaction
 
 ChangeSet の生成と適用を明確に分離する。
 
@@ -655,7 +655,7 @@ semantic-core が直接ファイルを書き換えてはならない。
 
 ---
 
-# 15. 3層コアとの対応
+## 15. 3層コアとの対応
 
 Core Calculus を現在の3層へ概ね次のように配置する。
 
@@ -690,75 +690,7 @@ workspace-core
 
 ---
 
-# 16. P27 との関係
-
-P27 では SchemaDef を、
-
-- Structural Schema
-- Semantic declarations
-- Presentation hints
-
-へ分割する方針がある。
-
-Core Calculus はこの分割の意味的基盤となる。
-
-```text
-Structural Schema
-    Term がどのような構造を取れるか
-
-Semantic Schema
-    Query / Constraint / Relation 等により
-    その構造が何を意味するか
-
-Presentation
-    人間へどう表示・編集させるか
-```
-
-P27 を単なる SchemaDef のクラス分割として実施せず、
-
-> 構造・意味・表示のそれぞれがどの Calculus を所有するか
-
-を明確にした上で進める。
-
----
-
-# 17. P28 との関係
-
-P28 の目的である「システム開発の設計情報管理と機械的検証」は維持する。
-
-ただし今後は、実ユースケースから新しい検証要求が見つかったとき、
-
-```text
-新しい検証要求
-      ↓
-既存 calculus で表現可能か
-      ↓
-YES ──→ 組合せとして実装
-      │
-      NO
-      ↓
-不足している最小プリミティブを特定
-      ↓
-Calculus 自体を拡張
-      ↓
-その上で検証を実装
-```
-
-という順序を取る。
-
-P28 の「テンプレート先行」という進め方自体は有効である。実データから需要を確認してから語彙を追加するという規律は維持する。
-
-変更するのは、
-
-> 要求 → Constraint DSL の機能追加
-
-という直接経路である。
-
-今後は必ず Core Calculus を一段挟む。
-
----
-
-# 18. LLMとの境界
+## 18. LLMとの境界
 
 Core Calculus は LLM に依存しない。
 
@@ -795,7 +727,7 @@ Core Calculus = 定義を実行する
 
 ---
 
-# 19. 導入しないもの
+## 19. 導入しないもの
 
 需要が実証されるまでは、次を Core Calculus に導入しない。
 
@@ -817,7 +749,7 @@ Core Calculus = 定義を実行する
 
 ---
 
-# 20. 新機能追加時の設計レビュー
+## 20. 新機能追加時の設計レビュー
 
 新しい決定論的機能を追加するとき、最低限次を確認する。
 
@@ -836,7 +768,7 @@ Core Calculus = 定義を実行する
 
 ---
 
-# 21. 既存機能の再分類
+## 21. 既存機能の再分類
 
 既存機能を直ちに全面改修する必要はない。
 
@@ -851,19 +783,19 @@ Core Calculus = 定義を実行する
 | foreach | Query |
 | Projection | Expression |
 | Derivation | Query + Expression |
-| consistency | Query + Predicate（**組込み定義体**。P29 Phase 6 第1段で、`check`＝クエリ＋値の比較へ展開される語彙になった。専用の検査プログラムは無い） |
+| consistency | Query + Predicate（**組込み定義体**。`check`＝クエリ＋値の比較へ展開される語彙になった。専用の検査プログラムは無い） |
 | query constraint | Query + Predicate |
-| relation cardinality（多重度） | Query + Aggregate（参照の本数）+ Predicate（**組込み定義体**。P29 Phase 6 第2段。専用の検査プログラムは無い） |
-| relation source / target（対象型） | Query（ノードの条件の否定・参照の束縛）+ Predicate（**組込み定義体**。P29 Phase 6 第2段） |
-| coverage（detailIn） | 出現集合の Aggregate ＋ Predicate（CALC-21。参照ベース requiredBy は R29-01 で削除。**組込み定義体**。P29 Phase 6 第3段で、書かれた場所の数 `occurrenceCount` の比較へ展開される語彙になった） |
-| entity lint（浮遊詳細化・定義競合・型競合） | 出現集合の Aggregate ＋ Predicate（**組込み定義体**に直接書いた検査。P29 Phase 6 第3段。idPattern 逸脱と重複所有は専用の lint として残す） |
-| matrix | Query ＋「すべての要素について」の判定（**組込み定義体**。P29 Phase 6 第5段で、検査の基本の書き方 `forAll` へ展開される語彙になった。専用の検査プログラムは無い） |
-| flow（遷移検証） | Query（母集団選択）＋専用高水準演算（到達閉包。R28-04・§20 通過）。**P29 Phase 6 第4段で、専用チェッカー（SP-13）を組込み定義体から使う形になった**——演算はコードに残し、語彙への結び付け・文面・重大度は定義の宣言 |
-| relation acyclic（非循環） | Query（何段でも辿る線 `repeat` ＋ノード一致 `same`）＋ Predicate（**組込み定義体**。R29-15。辿る計算だけが専用アルゴリズムで、判定は YAML。専用チェッカー `cycle` は廃止） |
+| relation cardinality（多重度） | Query + Aggregate（参照の本数）+ Predicate（**組込み定義体**。専用の検査プログラムは無い） |
+| relation source / target（対象型） | Query（ノードの条件の否定・参照の束縛）+ Predicate（**組込み定義体**） |
+| coverage（detailIn） | 出現集合の Aggregate ＋ Predicate（CALC-21。参照ベース requiredBy は削除済み。**組込み定義体**。書かれた場所の数 `occurrenceCount` の比較へ展開される語彙になった） |
+| entity lint（浮遊詳細化・定義競合・型競合） | 出現集合の Aggregate ＋ Predicate（**組込み定義体**に直接書いた検査。idPattern 逸脱と重複所有は専用の lint として残す） |
+| matrix | Query ＋「すべての要素について」の判定（**組込み定義体**。検査の基本の書き方 `forAll` へ展開される語彙になった。専用の検査プログラムは無い） |
+| flow（遷移検証） | Query（母集団選択）＋専用高水準演算（到達閉包。§20 通過）。**専用チェッカー（SP-13）を組込み定義体から使う形になった**——演算はコードに残し、語彙への結び付け・文面・重大度は定義の宣言 |
+| relation acyclic（非循環） | Query（何段でも辿る線 `repeat` ＋ノード一致 `same`）＋ Predicate（**組込み定義体**。辿る計算だけが専用アルゴリズムで、判定は YAML。専用チェッカー `cycle` は廃止） |
 | Validator | Constraint executor |
 | Transform（YAML から YAML への変換。`SemanticTransform`） | Query + Construct（＋Predicate＝項目を出す条件。§26） |
-| 構造のスキーマの導出（P27 段C） | Construct だけ（入力はスキーマ文書1つ。クエリは使わない）。**変換定義（YAML）**で書く |
-| Scaffold（新しい文書のひな型） | Expression（ファイル名 `filePattern`。P31・R31-02）＋ Construct（中身 `scaffold`。R31-03）＋ Rewrite（作成） |
+| 構造のスキーマの導出 | Construct だけ（入力はスキーマ文書1つ。クエリは使わない）。**変換定義（YAML）**で書く |
+| Scaffold（新しい文書のひな型） | Expression（ファイル名 `filePattern`）＋ Construct（中身 `scaffold`）＋ Rewrite（作成） |
 | Bulk edit | Query + Rewrite |
 | Schema Refactoring | Query + Rewrite |
 | Entity operations | Query + Rewrite |
@@ -875,150 +807,7 @@ Core Calculus = 定義を実行する
 
 ---
 
-# 22. 移行方針
-
-Core Calculus 導入を大規模 rewrite として実施しない。
-
-以下の順で進める。
-
-## Phase 1: 意味論の固定
-
-コードを変更する前に、以下を文書として定義する。
-
-- Semantic Domain
-- Query
-- Environment / Binding
-- Expression
-- Predicate
-- Unknown
-- Constraint
-- Rewrite
-- Patch
-- ChangeSet
-- Provenance
-
-最低限の評価規則を記述する。
-
----
-
-## Phase 2: 既存機能のマッピング
-
-既存の、
-
-- Query
-- Projection
-- Derivation
-- Constraint
-- Coverage
-- Matrix
-- SchemaRefactor
-- PatchOp
-
-を Core Calculus 上へマッピングする。
-
-この時点ではコード統合を目的としない。
-
-まず、
-
-> 同じ意味なのに異なる実装になっている箇所
-
-を可視化する。
-
----
-
-## Phase 3: Expression / Predicate の共通化
-
-最も小さく純粋な評価部分から共通化する。
-
-特に、
-
-- Projection
-- Derivation
-- consistency
-- query where
-- query constraint
-
-間の重複を確認する。
-
----
-
-## Phase 4: Rewrite の形式化
-
-SchemaRefactor 等の高水準操作から、
-
-```text
-Query
-→ Predicate
-→ Rewrite
-→ PatchOp
-```
-
-として自然に表現できるものを抽出する。
-
-高水準操作の API は維持してよい。
-
-内部実装だけを共通基盤へ寄せる。
-
----
-
-## Phase 5: 新規機能を Calculus First にする
-
-既存機能の完全移行を待たず、
-
-> 新しく追加する決定論的機能は Core Calculus を経由する
-
-ことを規約化する。
-
-これにより、既存負債を増やさず段階移行できる。
-
----
-
-## Phase 6: 定義層の実体化（2026-09-19 追加）
-
-Phase 2 の写像は「説明できる」ことを成果物とし、コード統合を目的としなかった。Phase 6 は次の段として、
-個別に実装された検証語彙（整合・多重度・詳細文書の存在・網羅・遷移など）を、§25 の定義層モデルに沿って
-**組込み定義体（YAML）へ実際に移す**。
-
-```text
-個別の評価器
-→ 組合せで書けない残差を最小のプリミティブとして切り出す
-→ 残りを組込み定義体（YAML）として書く
-→ 個別の評価器・宣言モデル・パーサを削除する
-```
-
-プリミティブは一括で入れず、語彙を1つ移すたびに、必要になったものだけを1つずつ採択する。
-各段は、検証出力の一致（または意図的差分の登録だけで説明できる差）を完了条件とする。
-スキーマ2層化（ROADMAP P27）は Phase 6 の後に置く——意味スキーマ層の中身を「定義体の呼び出しの集合」に
-してから分割する（先に分割すると、個別の語彙がそのまま新しい層の型構造として固定される）。
-
-設計の判断点の記録は [ROADMAP.md](ROADMAP.md) の P29 Phase 6 の行にある。
-
----
-
-# 23. 完了条件
-
-Core Calculus の導入完了とは、全コードが1つの巨大な汎用エンジンへ統合されることではない。
-
-次を満たした状態を完了とする。
-
-1. YAML に対する主要な計算を5体系で説明できる
-2. 新機能追加時にどの体系へ属するか判断できる
-3. 同じ意味を持つ評価器の重複が原則なくなる
-4. 読取・判定・変更・適用の境界が明確である
-5. 上位機能が基礎演算の組合せとして説明できる
-6. provenance が人間・AI・CLI・検証で共有される
-7. 決定論的機能と LLM による非決定的処理の境界が明確である
-8. 新しい要求が出ても、専用機能を追加する前に Calculus 上で検討される
-9. 検証の個別実装が、意味プリミティブの合格基準（§25）を満たすものだけになり、それ以外の検証語彙は組込み定義体として YAML で書かれている（2026-09-19 追加。条件 5 の「説明できる」を「実際にそう作られている」へ強める）
-10. 組込み定義体にできることは、利用者も同じ定義言語で書ける（2026-09-19 追加）
-
-目標はコード量を最小化することではない。
-
-**独立した概念の数を最小化すること**である。
-
----
-
-# 24. 最終原則
+## 24. 最終原則
 
 YDE の今後の発展では、次を最上位の設計原則とする。
 
@@ -1041,7 +830,7 @@ YDE を、
 
 ---
 
-# 25. 定義層モデル（本来の目的の明文化。2026-09-19 オーナー方針）
+## 25. 定義層モデル（本来の目的）
 
 Core Calculus の本来の目的は、機能を直交させることで個別実装をなくし、
 
@@ -1080,31 +869,31 @@ Core Calculus の本来の目的は、機能を直交させることで個別実
 **yaml-core の構造チェックについての仮説**: YAML の構造を検証するスキーマは、本質的には、通常の構造チェック
 （属性の有無・属性の値の型・値の基本的なチェック）に、選択肢（enum）と再帰を足せば足りる。利用者が書くスキーマは
 意味のスキーマであり、そこから最小の構造チェック用のスキーマを導出して yaml-core で検証する。現在の yaml-core にある
-解釈寄りの部分（`requiredFrom`・ID と参照の型）の切り分けは、スキーマ2層化（ROADMAP P27）で行う。
-**`cases` は yaml-core に残す**（2026-09-20 オーナーの判断）: 選択肢（enum）の一部であり、見るのは同じ object の中の選択肢の値だけ
+解釈寄りの部分（`requiredFrom`・ID と参照の型）の切り分けは、スキーマ2層化で行う。
+**`cases` は yaml-core に残す**: 選択肢（enum）の一部であり、見るのは同じ object の中の選択肢の値だけ
 （1つの文書の中で閉じる）。仮説の「選択肢」は、値によって有効な属性が変わる形を含むものとして読む。
-**2026-09-21、この仮説を実装した（ROADMAP P27 段C の C-1・C-2。ARCHITECTURE §4.43）**: 構造の検証は、利用者が書くスキーマから組込みの変換定義（§26）で
+**この仮説は実装済み（ARCHITECTURE §4.43）**: 構造の検証は、利用者が書くスキーマから組込みの変換定義（§26）で
 導出した最小の構造のスキーマで行い、利用者が書く木（ID・参照・フェーズ・表示のヒントを持つ）は semantic-core へ移した。値の形式的なチェック
 （範囲・文字数・形式・選択肢）は yaml-core に置く——分け方の基準は「その値1つと、その項目の決まりだけを見て決まるか」（オーナーの判断）。
 
 **組込み定義体の非特権**: 組込み定義体にできることは、すべてユーザ定義にもできる。確認の方法は
 「組込み定義体をすべて取り除いてもツールは動き、利用者が同じ定義を自分で書き直せる」こと。
 
-**プリミティブの拡張**: プリミティブは必要に応じて拡張してよい（§7・§9 の「実需要が明確になるまで導入しない」と、§19・ROADMAP P22 の
+**プリミティブの拡張**: プリミティブは必要に応じて拡張してよい（§7・§9 の「実需要が明確になるまで導入しない」と、§19 の
 クエリの制限は、語彙の肥大化を防ぐためのものであり、想定される処理と計算の範囲については、制限を付け直したうえで緩める）。
 用意する範囲・緩める範囲・新しい制限は、本文書（本節と §21 の分類表）で管理する。
 利用者が定義する関数と再帰・条件分岐を持つ式・任意のコードの実行は、これからも入れない。
 
 ---
 
-# 26. Construct Calculus（組み立て）——YAML から YAML への変換（2026-09-21 オーナー方針）
+## 26. Construct Calculus（組み立て）——YAML から YAML への変換
 
 §2 の5体系は「選ぶ・値を計算する・判定する・書き換える」を持つが、**新しい YAML を組み立てる体系が無かった**。
 SQL にたとえると、Query は FROM・JOIN・WHERE に当たり、SELECT 句（結果をどんな形で出すか）に当たるものが無い。
 そのため、変換に当たる仕組み（ビューの列・skill の書き出し・派生スキーマ・AI 生成用の JSON Schema・ひな型の文書の生成・
-文脈の開示など。ROADMAP P27 節の棚卸し）は、それぞれが別の書き方と別のプログラムを持っていた。
+文脈の開示など。棚卸し済み）は、それぞれが別の書き方と別のプログラムを持っていた。
 
-オーナーの方針（2026-09-21）: YAML から YAML への変換を汎用にし、汎用の変換器の土台にする。構造のスキーマの導出（P27 段C）は、
+方針: YAML から YAML への変換を汎用にし、汎用の変換器の土台にする。構造のスキーマの導出は、
 その内部利用の1つ。いずれはビューなどでも使い、テンプレートエンジンなどの派生を足して、YAML から Markdown への変換器なども作っていく。
 
 ```text
@@ -1120,7 +909,7 @@ Workspace, Params ⊢ Construct ⇓ Term（＋出どころ）
 ②出力の形——SQL の出力は平らな表だが、YAML は入れ子の木。木を出すために、SQL に無い道具が2つ要る:
 **繰り返し**（出力の中に配列・マップを作る）と、**規則を子に当てること**（入れ子の深さが決まっていない入力を扱う）。
 
-**決めたこと**（ROADMAP P27 節の判断点 TF-01〜09。オーナー決定）:
+**決めたこと**（判断点 TF-01〜09）:
 
 - **選び方**: 要素と文書を選んで名前を付けるのは、既存の Query をそのまま使う。選んだものの「中」は、パスと繰り返しで辿る。
   **Query 自体を ID の無い場所まで広げない**（Query は索引の上の評価と、判定を保留する規則が土台のため）。
@@ -1146,6 +935,6 @@ Workspace, Params ⊢ Construct ⇓ Term（＋出どころ）
 `$first`・`$each`・`$eachEntry`・`$apply`・`$concat`・`$when`）で、それ以外は書いたとおりに出力される。値が得られない指示は
 「無い」になり、マップのキーごと出力から落ちる。これは、検査の定義の展開（`$名前`・`$merge`。§25）と同じ流儀の延長にある。
 
-**既存の仕組みとの関係**: P27 段C では、構造のスキーマの導出だけをこの体系で書く（2026-09-21 に切り替え済み＝構造の検証は、組込みの変換定義で導出した最小の構造のスキーマで行う。ARCHITECTURE §4.43）。ビューの列・skill の書き出し・派生スキーマ・
+**既存の仕組みとの関係**: 構造のスキーマの導出だけをこの体系で書く（切り替え済み＝構造の検証は、組込みの変換定義で導出した最小の構造のスキーマで行う。ARCHITECTURE §4.43）。ビューの列・skill の書き出し・派生スキーマ・
 ひな型の文書の生成などは「寄せる候補」で、寄せるかどうかは1つずつ判断する。利用者が変換定義を置く場所は、その次の段で開く
 （組込みだけの特別な機能にはしない＝§25 の非特権）。

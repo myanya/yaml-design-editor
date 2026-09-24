@@ -9,7 +9,7 @@
 - AI連携: Java 11 HttpClient + kotlinx-serialization-json（外部SDK不使用）。HttpClient の生成は `ai/Http.kt` の単一ファクトリに集約し、プロキシ（システム設定尊重／手動＋Basic認証）と OpenAI 互換エンドポイント（Azure 等）を一元管理する（R9-07・R9-08。§4.18）
 - Excel・Word入出力: Apache POI（poi-ooxml。skill機構のインポート・エクスポートのみで使用。docx は XWPF で表を読む）
 - 永続化: `java.util.prefs.Preferences`（UIレイアウト・テーマ・履歴・AIモデル設定）
-- ビルド: Gradle（Wrapper 同梱）マルチモジュール——ルート＝Composeアプリ＋ `yaml-core` / `semantic-core` / `workspace-core` / `cli`（3層コア移行中。[THREE-LAYER-CORE-MIGRATION-PLAN.md](THREE-LAYER-CORE-MIGRATION-PLAN.md)）、テスト: kotlin.test
+- ビルド: Gradle（Wrapper 同梱）マルチモジュール——ルート＝Composeアプリ＋ `yaml-core` / `semantic-core` / `workspace-core` / `cli`（依存方向は §2）、テスト: kotlin.test
 - ヘッドレスCLI: `./gradlew runCli --args="…"`（GUIなしで探索・検索・パッチ・検証・エージェント実行・評価・入出力変換。MANUAL §16） 
 
 ## 2. パッケージ構成と依存方向

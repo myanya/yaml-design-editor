@@ -1,9 +1,9 @@
 # 移行後リファクタリング計画（root 5パッケージの解体）
 
 > **状態: ✅ 完了（2026-09-02。S1 第2回の実施＝完了ラインの全消化を確認）。**
-> 作業単位 RC-01〜07・RA-01〜07・RB-01〜09（記録: [MIGRATION-LEDGER.md](MIGRATION-LEDGER.md)）。S1 第2回の指摘は UX-86〜94 として BACKLOG 登録（横断 Undo のフィードバック＝UX-86 が最優先の手当て候補）。Phase D 相当と残置分は [ROADMAP.md](ROADMAP.md) **P27** で独立管理。
+> 作業単位 RC-01〜07・RA-01〜07・RB-01〜09（記録: [MIGRATION-LEDGER.md](migration-ledger.md)）。S1 第2回の指摘は UX-86〜94 として BACKLOG 登録（横断 Undo のフィードバック＝UX-86 が最優先の手当て候補）。Phase D 相当と残置分は [ROADMAP.md](../ROADMAP.md) **P27** で独立管理。
 > （旧状態: 承認済み・進行中——2026-08-21 分析・2026-08-23 オーナー決定を反映。）
-> 3層コア移行（[THREE-LAYER-CORE-MIGRATION-PLAN.md](THREE-LAYER-CORE-MIGRATION-PLAN.md)・全フェーズ完了）の続編として、
+> 3層コア移行（[THREE-LAYER-CORE-MIGRATION-PLAN.md](three-layer-core-migration-plan.md)・全フェーズ完了）の続編として、
 > ルートに残る `app` / `core` / `schema` / `index` / `validate` の5パッケージ（計 11,167 行）を解体し、
 > 併存期（アプリ＝旧経路・コア＋cli＝新経路）を解消する。作業規約は docs/CONVENTIONS.md §8 と ADR を引き続き適用する。
 >
@@ -115,7 +115,7 @@
 
 ### Phase D: スキーマ2層化 → **独立テーマ P27 へ切り出し（2026-08-31 オーナー決定）**
 
-D-1（SchemaDef 3分割）・D-2（2層導出の正式機構）・D-3（改名・Path 整理）は「解体の後片付け」ではなく §17 の新機構づくりのため、[ROADMAP.md](ROADMAP.md) の **P27** として独立管理する（SchemaDef 依存で root 残置した項目＝スキャフォールド・ビュー宣言パース・リント・エンティティ整合 lint・テンプレート健全性・RefactorImpact・EditBuffer 削除も P27・D-4 へ引き継ぎ）。
+D-1（SchemaDef 3分割）・D-2（2層導出の正式機構）・D-3（改名・Path 整理）は「解体の後片付け」ではなく §17 の新機構づくりのため、[ROADMAP.md](../ROADMAP.md) の **P27** として独立管理する（SchemaDef 依存で root 残置した項目＝スキャフォールド・ビュー宣言パース・リント・エンティティ整合 lint・テンプレート健全性・RefactorImpact・EditBuffer 削除も P27・D-4 へ引き継ぎ）。
 
 **本計画の完了ライン（同決定・2026-08-31 更新）: C-3 ✅ → C-4 ✅ → UX S1 第2回（オーナー実施）のみ残**。
 （RB-10 は P27・D-4 へ統合＝B-2 行参照。B-4 残部の validate / apply は「意図して残す運用コマンド」へ再分類＝C-4 行参照。）
@@ -146,4 +146,4 @@ D-1（SchemaDef 3分割）・D-2（2層導出の正式機構）・D-3（改名�
 - Undo / dirty / 履歴の所有が WorkspaceSession に一本化されている（D-03/D-07 完了。EditBuffer は**セッション不在時フォールバックとして残置**＝削除は P27・D-4）。✅ RA-06 で達成
 - 検証・索引の**供給・判定**が セッション派生／カーネルに一本化されている（✅ RA-02〜RB-09 で達成）。`state.overlayIndex()`（IdIndex 型）は走査経路撤去済みの **Path 座標読み出しファサード**として残置＝SemanticBridge 境界の枠（型の解消は P27・D-4）。
 - `./gradlew test` 全緑＋UX-SCENARIOS **S1 第2回**通しで従来と同等の操作感（差分は BACKLOG 登録）。✅ 2026-09-02 実施——操作感の劣化なし・指摘 UX-86〜94 登録（D-07 のフィードバック不足＝UX-86 は完了後の最優先手当て候補）
-- 進捗・記録は [MIGRATION-LEDGER.md](MIGRATION-LEDGER.md) の様式を踏襲（作業単位 RA-xx / RB-xx / RC-xx）。✅ 継続中
+- 進捗・記録は [MIGRATION-LEDGER.md](migration-ledger.md) の様式を踏襲（作業単位 RA-xx / RB-xx / RC-xx）。✅ 継続中

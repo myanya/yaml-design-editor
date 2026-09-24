@@ -1,6 +1,6 @@
 # 3層コア移行台帳
 
-[THREE-LAYER-CORE-MIGRATION-PLAN.md](THREE-LAYER-CORE-MIGRATION-PLAN.md) §12の作業台帳。テストまたは機能単位で更新する。
+[THREE-LAYER-CORE-MIGRATION-PLAN.md](three-layer-core-migration-plan.md) §12の作業台帳。テストまたは機能単位で更新する。
 状態は `todo` / `doing` / `blocked` / `done` のみ。`blocked` には必ず再開条件を書く。
 
 ## ベースライン（Phase 0記録）

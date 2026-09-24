@@ -14,4 +14,4 @@
 
 - 未保存確認・Undo・AI提案・dry-runが同じ候補snapshot機構で共通化できる。
 - `apply` のテストではDocumentStoreの書込回数0を必須にする。
-- 現行 `Workspace.apply`（検証してそのままファイルへ書く）とは意図的差分（[INTENTIONAL-DIFFS.md](INTENTIONAL-DIFFS.md) D-01）。
+- 現行 `Workspace.apply`（検証してそのままファイルへ書く）とは意図的差分（[意図的差分一覧](../archive/intentional-diffs.md) D-01）。

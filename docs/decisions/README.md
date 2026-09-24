@@ -1,6 +1,6 @@
 # 設計決定記録（ADR）
 
-3層コア移行（[../THREE-LAYER-CORE-MIGRATION-PLAN.md](../THREE-LAYER-CORE-MIGRATION-PLAN.md)）をはじめとするアーキテクチャ決定の台帳。
+アーキテクチャ決定の台帳。
 決定を変更する場合は、既存ADRを書き換えず、新しいADRで上書きを宣言する。
 
 | ID | タイトル | 状態 |
@@ -17,5 +17,5 @@
 
 関連文書:
 
-- [意図的差分一覧](INTENTIONAL-DIFFS.md) — 既存挙動から意図して変える点。比較テストで「移植ミス」と区別するための台帳
-- [移行台帳](../MIGRATION-LEDGER.md) — テスト・機能単位の移行状態
+- [意図的差分一覧](../archive/intentional-diffs.md) — 3層コア移行で意図して変えた挙動の記録（移行完了により退役。archive）
+- [3層コア移行の計画](../archive/three-layer-core-migration-plan.md)・[移行台帳](../archive/migration-ledger.md) — 完了した移行の記録（archive）

@@ -1,11 +1,11 @@
 # test-fixtures — 3層コア移行の共通fixture
 
-3層コア移行（[docs/THREE-LAYER-CORE-MIGRATION-PLAN.md](../docs/THREE-LAYER-CORE-MIGRATION-PLAN.md) Phase 0）の検証データ。
+3層コア移行（[3層コア移行計画](../docs/archive/three-layer-core-migration-plan.md) Phase 0）の検証データ。
 新モジュールのテストはここを読み取り専用で参照する。**変更を伴うテストは一時ディレクトリへコピーしてから行う。**
 
 由来: 当時の実験場（旧 `sample-workspace/_schemas`）の記法（match / fields / enum values / cases / definitions+$ref / ref scope）に合わせて手書きした最小データ。実験場（`labs/` 配下）のワークスペースは複製・変更しない。
 
-期待結果はすべて現行実装（2026-08-16、コミット 677fc43 相当）のCLIで確認済み。移行後の新実装はこの結果と一致すること（意図的差分は [docs/decisions/INTENTIONAL-DIFFS.md](../docs/decisions/INTENTIONAL-DIFFS.md) 参照）。
+期待結果はすべて現行実装（2026-08-16、コミット 677fc43 相当）のCLIで確認済み。移行後の新実装はこの結果と一致すること（意図的差分は [意図的差分一覧](../docs/archive/intentional-diffs.md) 参照）。
 
 ## yaml/ — 単文書のround-trip素材（Phase 2で使用）
 

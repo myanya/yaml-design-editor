@@ -29,9 +29,8 @@ Kotlin + Compose for Desktop 製のスキーマ駆動YAMLエディタ。ワー�
 | [docs/DESIGN-CHECK-CATALOG.md](docs/DESIGN-CHECK-CATALOG.md) | 設計チェックカタログ: 「設計への機械的チェック」のパターン台帳（R28-06）。検証機構を追加・変更したら対更新する |
 | [docs/BACKLOG.md](docs/BACKLOG.md) | 指摘台帳: UX試験等で見つかった気になりポイントの即時記録（対応判断は後で個別に） |
 | [docs/UX-SCENARIOS.md](docs/UX-SCENARIOS.md) | UX試験のシナリオ台帳: 触り心地試験の台本（全体通し S1 ほか）・実施トリガ・実施履歴 |
-| [docs/THREE-LAYER-CORE-MIGRATION-PLAN.md](docs/THREE-LAYER-CORE-MIGRATION-PLAN.md) | 3層コア移行の計画: フェーズ・完了条件・現行ファイルの移行先対応表 |
-| [docs/MIGRATION-LEDGER.md](docs/MIGRATION-LEDGER.md) | 移行台帳: ベースライン記録・作業単位（YM/SM/WS-xx）の状態 |
-| [docs/decisions/](docs/decisions/README.md) | ADR（設計決定 0001〜0009）と意図的差分一覧（INTENTIONAL-DIFFS.md） |
+| [docs/decisions/](docs/decisions/README.md) | ADR（設計決定 0001〜0009） |
+| [docs/archive/](docs/archive/README.md) | 記録: 完了した計画・台帳・経緯（3層コア移行の計画と台帳・意図的差分など）。読まない前提 |
 
 **作業のワークフロー:**
 
@@ -42,12 +41,12 @@ Kotlin + Compose for Desktop 製のスキーマ駆動YAMLエディタ。ワー�
 
 ## 3層コア（コアに触る前に必読）
 
-3層コア移行（Phase 0〜12。[docs/THREE-LAYER-CORE-MIGRATION-PLAN.md](docs/THREE-LAYER-CORE-MIGRATION-PLAN.md)）と**移行後リファクタリング（root 5パッケージの解体。[docs/POST-MIGRATION-REFACTORING-PLAN.md](docs/POST-MIGRATION-REFACTORING-PLAN.md)）は完了**（2026-09-02・記録: [docs/MIGRATION-LEDGER.md](docs/MIGRATION-LEDGER.md)）。**併存期は解消済み**——走査・集約・判定（検証族）・リファクタリング計画・履歴（Undo/dirty）・書込の実体はコア3モジュールの単一所有で、アプリは `AppState` が `WorkspaceSession` 直結（編集はセッション直結・Undoはワークスペース横断＝D-07・`overlayIndex()` は、セッションの意味解析の結果をそのまま持つ索引）、root に残るのは UIシェル・読み出しモデル（Traverse/Disclosure/Search/SchemaInference/IdSuggest）・root Cli 探索系＝意図した残置のみ。6E仮想文書（解決・テキスト表現は `semantic/VirtualViews.kt`・root `core/Views.kt` は、ファイルを読んで渡す窓口）・derive/メタスキーマ（展開コアは `semantic-core/schema/SchemaDerivation.kt`・組込原文は workspace-core 資源 `builtin-schemas/`）も完了。**SchemaDef 依存の残置分の解消は ROADMAP P27（スキーマ2層化）で管理**（段D で、root にだけ残っていた検査・検証の組み立て・変更セットの適用・ビュー宣言の読み取り・リファクタリングの影響の解決・文書キャッシュの履歴の併走・索引の型の写しと `Path` の座標は解消済み。パッケージ改名も UX-119 で完了〔2026-09-22〕＝パッケージは `dev.toros.yde.<モジュール>.*`）——勝手に着手しない。コアを触る際の規約は docs/CONVENTIONS.md §8 と以下＝**引き続き有効**:
+3層コア移行（Phase 0〜12。[計画](docs/archive/three-layer-core-migration-plan.md)）と**移行後リファクタリング（root 5パッケージの解体。[計画](docs/archive/post-migration-refactoring-plan.md)）は完了**（2026-09-02・記録: [移行台帳](docs/archive/migration-ledger.md)）。**併存期は解消済み**——走査・集約・判定（検証族）・リファクタリング計画・履歴（Undo/dirty）・書込の実体はコア3モジュールの単一所有で、アプリは `AppState` が `WorkspaceSession` 直結（編集はセッション直結・Undoはワークスペース横断＝D-07・`overlayIndex()` は、セッションの意味解析の結果をそのまま持つ索引）、root に残るのは UIシェル・読み出しモデル（Traverse/Disclosure/Search/SchemaInference/IdSuggest）・root Cli 探索系＝意図した残置のみ。6E仮想文書（解決・テキスト表現は `semantic/VirtualViews.kt`・root `core/Views.kt` は、ファイルを読んで渡す窓口）・derive/メタスキーマ（展開コアは `semantic-core/schema/SchemaDerivation.kt`・組込原文は workspace-core 資源 `builtin-schemas/`）も完了。**SchemaDef 依存の残置分の解消は ROADMAP P27（スキーマ2層化）で管理**（段D で、root にだけ残っていた検査・検証の組み立て・変更セットの適用・ビュー宣言の読み取り・リファクタリングの影響の解決・文書キャッシュの履歴の併走・索引の型の写しと `Path` の座標は解消済み。パッケージ改名も UX-119 で完了〔2026-09-22〕＝パッケージは `dev.toros.yde.<モジュール>.*`）——勝手に着手しない。コアを触る際の規約は docs/CONVENTIONS.md §8 と以下＝**引き続き有効**:
 
 - [docs/decisions/](docs/decisions/README.md) のADRは本書・CONVENTIONS と同格の規約。特に: 依存方向 `yaml-core ← semantic-core ← workspace-core ← cli／アプリ`（coreからアプリ・Compose・`Path` への逆依存禁止。ADR-0002）／可変YNode＋copy-on-write規律（ADR-0003）／Undo・履歴はworkspace-core単一所有（ADR-0006）／表記→意味の禁止（ADR-0008）。
 - 移行は**移動であって複製ではない**。移動後もアプリ含む `./gradlew test` を緑に保つ。パッケージは `dev.toros.yde.<モジュール>.*`（yaml / semantic / workspace / cli / app。UX-119・規則は CONVENTIONS §8-3）。ドキュメントとコメントでは接頭辞 `dev.toros.yde.<モジュール>` を省いた短い形（`schema.FieldDef`・`validate/Validator.kt`）で書き、同じ短い名前が複数のモジュールにあるときはモジュール名を添える。
 - 台帳で done の単位はモジュール側にファイルがある（例: `model/`・`yaml/` → `yaml-core/src/`）。変更は移行先で行う。
-- 既存挙動を変えるときは実装より先に [INTENTIONAL-DIFFS.md](docs/decisions/INTENTIONAL-DIFFS.md) へ登録する（登録なき挙動差分は移植ミスとして扱う）。
+- 既存挙動を変えるときはコミットメッセージに書き、設計の決定を変えるなら新しい ADR で上書きを宣言する。
 - `test-fixtures/` は読み取り専用の共通fixture（期待結果は [test-fixtures/README.md](test-fixtures/README.md)）。変更を伴うテストは一時ディレクトリへコピーして使う。
 
 ## 落とし穴（要注意）

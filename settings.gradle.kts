@@ -1,6 +1,6 @@
 rootProject.name = "yaml-design-editor"
 
-// 3層コア移行（docs/THREE-LAYER-CORE-MIGRATION-PLAN.md）のモジュール。
+// モジュール構成（docs/ARCHITECTURE.md「パッケージ構成と依存方向」）。
 // 依存方向: yaml-core ← semantic-core ← workspace-core ← cli / ルート（アプリ）
 include(
     ":yaml-core",

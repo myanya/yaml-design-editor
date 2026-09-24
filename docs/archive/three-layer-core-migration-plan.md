@@ -1,7 +1,7 @@
 # 3層コア移行計画
 
 > **状態: 計画の全フェーズ（Phase 0〜12・M1〜M5）完了（2026-08-21）。** DoD 照合の記録は
-> [MIGRATION-LEDGER.md](MIGRATION-LEDGER.md) の Phase 12 完了判定を参照。現在は併存期
+> [MIGRATION-LEDGER.md](migration-ledger.md) の Phase 12 完了判定を参照。現在は併存期
 > （アプリ＝旧経路・コア＋cli＝新経路）で、残課題（6E 仮想文書・derive／メタスキーマ reader・
 > イベント watch・UI の新API接続）と §17 のメモは移行後テーマとして個別に判断する。
 
