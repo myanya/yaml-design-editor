@@ -26,12 +26,6 @@
 |---|---|
 | [archive/](archive/README.md) | 完了した計画・台帳・経緯。追記だけで書き換えず、経緯を調べるときだけ読む |
 
-## 進行中の計画
-
-| 文書 | 内容 |
-|---|---|
-| [DOCS-RESTRUCTURING-PLAN.md](DOCS-RESTRUCTURING-PLAN.md) | ドキュメント再編。完了したら archive へ |
-
 ## 読む順
 
 着手前は FEATURES の該当行 → architecture/ の該当する主題 → 必要なら manual/ の該当ファイル。

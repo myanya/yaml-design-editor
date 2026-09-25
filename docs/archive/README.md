@@ -14,3 +14,4 @@
 | [core-calculus-phases.md](core-calculus-phases.md) | Core Calculus のテーマとの関係・移行の Phase 1〜6・完了条件 | 2026-09 |
 | [ux-scenario-runs.md](ux-scenario-runs.md) | UX 試験の各回の重点観点と実施履歴 | 2026-08〜09 |
 | [architecture-2026-09.md](architecture-2026-09.md) | 主題別に書き直す前の ARCHITECTURE.md の丸ごと（§番号 → 新ファイルの対応表つき） | 2026-07〜09 |
+| [docs-restructuring-plan.md](docs-restructuring-plan.md)・[docs-restructuring-map.md](docs-restructuring-map.md) | ドキュメント再編（今の姿と記録の分離・architecture と manual の主題別分割・CLAUDE.md 圧縮）の計画と節ごとの対応表 | 2026-09 |

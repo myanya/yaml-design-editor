@@ -1,7 +1,7 @@
 # ドキュメント再編計画（役割の分離とサイズの削減）
 
-作成: 2026-09-24。状態: 提案（オーナーの判断待ち）。
-完了したら本書は `docs/archive/` へ移す。
+作成: 2026-09-24。状態: 完了（2026-09-25。段 0〜6 をすべて実施）。
+記録として archive に置く。
 
 ## 1. 現状と原則
 
@@ -246,4 +246,4 @@ after:  // 並び: 定義出現 → レジストリのアスペクト宣言順 �
 
 ## 8. 対応表
 
-既存の節ごとの行き先と処置は [DOCS-RESTRUCTURING-MAP.md](DOCS-RESTRUCTURING-MAP.md) にある。
+既存の節ごとの行き先と処置は [docs-restructuring-map.md](docs-restructuring-map.md) にある。
