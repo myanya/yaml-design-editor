@@ -12,7 +12,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * 遷移検証（R28-04。ARCHITECTURE §4.32）のテスト。
+ * 遷移検証（R28-04。architecture/graph-query.md「クエリコア」）のテスト。
  * 宣言エッジ集合の到達閉包による到達不能・行き止まり・宣言外遷移の検出——ノードの定義出現への報告・
  * 終端宣言による除外・開始データなしの判定保留・未解決参照による候補喪失時の降格（CALC-17）を検証する。
  */

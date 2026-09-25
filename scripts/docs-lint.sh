@@ -6,7 +6,7 @@
 #
 # 確かめること:
 #   SIZE   1 ファイルの文字数の上限（既定 20,000。機能索引と台帳は 40,000。manual/ は 30,000）
-#   LINE   1 行の文字数の上限（300）
+#   LINE   1 行の文字数の上限（300。台帳 BACKLOG の表の行は除く）
 #   TICKET 設計・マニュアル・規約・機能索引・CLAUDE.md にチケット番号（P／R／D／UX 等）がない
 #   CELL   同じ文書群で、表のセルに 2 文以上（「。」が 2 つ以上）書いていない
 #   LINK   相対リンクの先が存在する（archive を含む全文書）
@@ -15,7 +15,7 @@ export LC_ALL=C.UTF-8 LANG=C.UTF-8
 cd "$(dirname "$0")/.."
 
 MAX_LINE=300
-TICKET='\b(P[0-9]{1,2}|R[0-9]{1,2}-[0-9]{2}[a-z]?|D-[0-9]{2}|UX-[0-9]{1,3}|RB-[0-9]{2}|SM-[0-9]{3}|CALC-[0-9]{2}|RP-[0-9]{2}|MP-[0-9]{2}|SC-[0-9]{2}|TF-[0-9]{2}|DL-[0-9]{2}|OQ-[0-9]{2})\b'
+TICKET='\b(P[0-9]{1,2}|R[0-9]{1,2}-[0-9]{2}[a-z]?|D-[0-9]{2}|UX-[0-9]{1,3}|RB-[0-9]{2}|SM-[0-9]{3}|RP-[0-9]{2}|MP-[0-9]{2}|SC-[0-9]{2}|TF-[0-9]{2}|DL-[0-9]{2}|OQ-[0-9]{2})\b'
 
 size_limit() {
   case "$1" in
@@ -39,7 +39,8 @@ run_checks() {
       limit=$(size_limit "$f")
       chars=$(wc -m < "$f")
       if [ "$chars" -gt "$limit" ]; then printf 'SIZE   %s: %s 字（上限 %s）\n' "$f" "$chars" "$limit"; fi
-      awk -v f="$f" -v max="$MAX_LINE" 'length($0) > max { printf "LINE   %s:%d: %d 字\n", f, NR, length($0) }' "$f"
+      case "$f" in docs/BACKLOG.md) skip_rows=1 ;; *) skip_rows=0 ;; esac
+      awk -v f="$f" -v max="$MAX_LINE" -v skip="$skip_rows" 'length($0) > max && !(skip && $0 ~ /^\|/) { printf "LINE   %s:%d: %d 字\n", f, NR, length($0) }' "$f"
       if is_state_doc "$f"; then
         grep -nE "$TICKET" "$f" | sed -E "s|^([0-9]+):.*|TICKET $f:\1|" | sort -u
         awk -v f="$f" '

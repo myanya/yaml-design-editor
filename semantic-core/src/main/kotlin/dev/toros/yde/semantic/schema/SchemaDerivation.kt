@@ -12,7 +12,7 @@ import dev.toros.yde.yaml.model.scalarText
  * （ID・表示名・適用先 glob・フィールド追加済み root）を組み立てる。
  * - SchemaDef（root）への包装は schema.DerivedSchemas、SchemaTree（コア reader / session）への
  *   包装は workspace.WorkspaceReader が行う（実装はこの1箇所）
- * - 写像項目を増やすときは parse・compile・メタスキーマ（BuiltinSchemas）を対で更新する（§4.23）
+ * - 写像項目を増やすときは parse・compile・メタスキーマ（BuiltinSchemas）を対で更新する（architecture/schema.md「推測・メタスキーマ・派生」）
  */
 
 /**

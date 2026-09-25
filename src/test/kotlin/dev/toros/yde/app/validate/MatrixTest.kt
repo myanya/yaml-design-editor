@@ -12,7 +12,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * 網羅マトリクス検証（R28-03。ARCHITECTURE §4.32）のテスト。
+ * 網羅マトリクス検証（R28-03。architecture/graph-query.md「クエリコア」）のテスト。
  * 「行×列の全組合せに証人（witness）が存在すること」——不足セルの列挙・行の定義出現への報告・
  * 明示的除外（証人の excluded: true 行）による充足・母集団外／列空の判定保留を検証する。
  */

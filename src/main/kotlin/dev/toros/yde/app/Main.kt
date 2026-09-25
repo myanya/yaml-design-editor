@@ -529,7 +529,7 @@ private fun CommandItem(text: String, onClick: () -> Unit) {
 }
 
 /**
- * エンティティ改名の確認ダイアログ（R21-02。ARCHITECTURE §4.31）。
+ * エンティティ改名の確認ダイアログ（R21-02。architecture/graph-query.md「エンティティ操作」）。
  * 計画（全出現・全参照の書き換え）をプレビューし、適用はセッションの1トランザクション
  * （AppState.applyEntityPlan。Undo 1回で戻る。B-1）。本格的な操作UIは P23 のエンティティページで扱う。
  */

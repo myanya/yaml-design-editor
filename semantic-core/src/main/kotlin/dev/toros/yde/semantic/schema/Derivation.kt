@@ -4,7 +4,7 @@ import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.model.parseYPath
 
 /**
- * 決定論的導出の宣言モデル（R16-02）。ビューの計算列（`computed:`）が使う（ARCHITECTURE §4.26）。
+ * 決定論的導出の宣言モデル（R16-02）。ビューの計算列（`computed:`）が使う（architecture/transform.md「計算列と決定論的射影」）。
  * スキーマの整合検証（`consistency`）は P29 Phase 6 第1段で組込み定義体（YAML）になり、同じ内容を
  * 値の式（schema.ValueExpr）として書く——専用の規則の型（ConsistencyRule）は持たない。
  * 解決（対象ID→出現→スコープ→評価）は `index/Derivation.kt`、評価は `Projection` が担う。

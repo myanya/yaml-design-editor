@@ -17,7 +17,7 @@ import dev.toros.yde.yaml.validate.Severity
 /**
  * コードで実装された検査のうち、ワークスペースの他の文書も見るもの（P27 段D の D-a で、root の Validator から移した。意図的差分 D-33）。
  * 定義体の検査と同じ入口（WorkspaceChecks.deliver）が、この文書の分を返す——アプリとカーネル側の CLI が同じ結果を返す。
- * - エンティティ型の宣言に関わる点検（R20-01・R23-01。ARCHITECTURE §4.30・§4.33）: ID のパターンからの逸脱と、重複所有
+ * - エンティティ型の宣言に関わる点検（R20-01・R23-01。architecture/graph-query.md「エンティティ型と関係レジストリ」・architecture/graph-query.md「エンティティページ」）: ID のパターンからの逸脱と、重複所有
  * - テンプレートの健全性（R16-03a / UX-12）
  * 指摘の出どころは CodedChecks が作る（検査の出どころの owner が `(code)`・at が `entity` / `template`）。
  * tree は、この検証で読む文書の中身（検証中の文書は、渡された root をそのまま使う）。
@@ -66,7 +66,7 @@ internal class CodedDocumentChecks(
                 )
                 continue
             }
-            // 重複所有（R23-01。ARCHITECTURE §4.33）: 同一エンティティの2出現が同じフィールドを
+            // 重複所有（R23-01。architecture/graph-query.md「エンティティページ」）: 同一エンティティの2出現が同じフィールドを
             // 所有していたら WARNING（「重複記載しない」運用規約の機械化）。誤検知回避のため、
             // 双方の出現に entity 宣言があり、少なくとも一方が明示的な owns を持つ組だけを判定する
             val myKeys = ownedFieldKeys(schema.tree, root, entry.path, decl)
@@ -106,7 +106,7 @@ internal class CodedDocumentChecks(
      * テンプレート健全性（R16-03a / UX-12）: いずれかのスキーマの検査が、この文書に書かれた値を
      * テンプレートとして展開する（値の式 format。整合検証の expected など）とき、テンプレートのプレースホルダが
      * 同じ要素の値（この文書の要素と、同じ ID が書かれた他の文書の要素）から解決できるかを、書いたその場で点検する。
-     * 参照元の要素（lookup の起点）から来る値は、この文書だけからは分からないため対象にしない（§4.26）
+     * 参照元の要素（lookup の起点）から来る値は、この文書だけからは分からないため対象にしない（architecture/transform.md「計算列と決定論的射影」）
      */
     fun templateIssues(document: DocumentId, schema: WorkspaceSchema?, root: YNode, localIds: List<ScannedId>): List<CheckIssue> {
         val relSelf = rel(document)

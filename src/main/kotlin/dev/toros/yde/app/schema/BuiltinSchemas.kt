@@ -15,8 +15,8 @@ import java.nio.file.Path
  * コード内文字列から資源化＝YM-006b。供給は workspace.BuiltinSchemaResources）。設計意図の要点:
  * - メタスキーマ（R11-02）: FieldDef の再帰は `$ref`（definitions.field）、「type の値ごとに持てる属性」は
  *   `cases`（S-10）、default・values 要素・phases など単一の型で表せない箇所は `any`（検証しない明示。
- *   ARCHITECTURE §4.23）——自機能のドッグフーディング
- * - 関係レジストリのメタスキーマ（R20-02・§4.30）: `_schemas` の `kind: relations` 文書にだけ適用される
+ *   architecture/schema.md「推測・メタスキーマ・派生」）——自機能のドッグフーディング
+ * - 関係レジストリのメタスキーマ（R20-02・architecture/graph-query.md「エンティティ型と関係レジストリ」）: `_schemas` の `kind: relations` 文書にだけ適用される
  *   （振り分けは core.Workspace.schemaFor）
  */
 object BuiltinSchemas {

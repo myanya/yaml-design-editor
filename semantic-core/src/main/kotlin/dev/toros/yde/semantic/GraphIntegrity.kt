@@ -11,7 +11,7 @@ import dev.toros.yde.yaml.validate.Severity
  * 対象型と多重度は組込み定義体が作る検査に（P29 Phase 6 第2段）、非循環は専用チェッカー SemanticCycles を
  * 組込み定義体から使う検査になった（第4段）。
  * ルート側 GraphIntegrity は IdIndex → カーネル座標の変換シェル（ファイル単位の絞り込みのみ）。
- * - 判定保留の哲学（§4.26）: 型未宣言のエンティティ・未解決参照には黙る（未解決は参照解決の領分）。
+ * - 判定保留の哲学（architecture/transform.md「計算列と決定論的射影」）: 型未宣言のエンティティ・未解決参照には黙る（未解決は参照解決の領分）。
  */
 object SemanticGraphIntegrity {
 

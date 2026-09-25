@@ -361,7 +361,7 @@ class AgentToolbox(
     private fun checkWritableFile(rel: String) {
         val normalized = rel.replace('\\', '/')
         val layout = ws.layout
-        // 書込可否の統一規則（ARCHITECTURE §4.25）: 台帳内、またはメタアクティビティの定義ゾーンのみ
+        // 書込可否の統一規則（architecture/workspace.md「ワークスペース構造と layout」）: 台帳内、またはメタアクティビティの定義ゾーンのみ
         if (layout.isReserved(normalized)) {
             if (!(activity.meta && layout.writableByMeta(normalized))) {
                 error("予約ディレクトリへの書き込みはできません: $rel")
@@ -540,7 +540,7 @@ class AgentToolbox(
         )
 
     /**
-     * コンテキストレシピ項目を初期コンテキストの1区分へ解決する（R19-02 / ARCHITECTURE §4.28）。
+     * コンテキストレシピ項目を初期コンテキストの1区分へ解決する（R19-02 / architecture/agents.md「コンテキスト」）。
      * プレースホルダ（{target} 等）を解決できない項目は null（開示しない）。予算（budgetChars）超過は打切り。
      * doc / related / sample は既定でも予算8,000字を掛ける（全文系は上限なしにしない）。
      */
@@ -687,7 +687,7 @@ class AgentToolbox(
     }
 
     /**
-     * エンティティ全体像の開示テキスト（R23-04。ARCHITECTURE §4.33）。read_entity・レシピの entity 項目が共用する。
+     * エンティティ全体像の開示テキスト（R23-04。architecture/graph-query.md「エンティティページ」）。read_entity・レシピの entity 項目が共用する。
      * 合成（core.Aspects）はエンティティページ・CLI `entity show` と同一実装＝人間とAIが同じ1枚を見る。
      */
     fun entityText(id: String, relationLimit: Int = 20): String {

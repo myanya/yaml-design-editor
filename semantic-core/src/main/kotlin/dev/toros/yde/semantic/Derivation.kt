@@ -12,7 +12,7 @@ import dev.toros.yde.semantic.schema.Projection
 /**
  * 決定論的導出の解決器カーネル（R16-02 / R16-03a。3層コア移行 Phase 6D で index/Derivation.kt から移動）。
  * 導出宣言（schema/Derivation.kt）を出現に対して解決し、`Projection` でテンプレートを評価する。
- * ビューの計算列と整合検証の共有実装（ARCHITECTURE §4.26。見えている導出値と検証される期待値を
+ * ビューの計算列と整合検証の共有実装（architecture/transform.md「計算列と決定論的射影」。見えている導出値と検証される期待値を
  * 常に一致させる）。出現・ツリー・相対パスはすべて注入で受け、ファイルI/Oを行わない。
  * 完了条件（計画書 Phase 6D）: 導出値は入力座標（inputs）と規則座標（sourceDocument / sourcePath）の
  * 来歴を持ち、未解決はプレースホルダ単位で構造化される（Input.value = null・座標なし・complete = false）。

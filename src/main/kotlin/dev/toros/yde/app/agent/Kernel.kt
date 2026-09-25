@@ -12,7 +12,7 @@ import kotlinx.coroutines.CancellationException
 import dev.toros.yde.app.validate.Issue
 
 /**
- * エージェント実行カーネル（R2-03 / ROADMAP §4.8）。
+ * エージェント実行カーネル（R2-03 / ROADMAP architecture/agents.md「安全性」）。
  * LLMが自ら次の行動（探索・編集・検証・対話）を選ぶマルチターンのツール使用ループを実行する。
  * - 編集はすべて Staging（オーバーレイ）上。原本は提出後の人間の承認まで変更されない
  * - 終了: submit_changeset（ゲート通過）/ abort / 上限到達 / キャンセル。上限到達時も未提出ドラフトを保持する
@@ -69,7 +69,7 @@ class ContextSection(val label: String, val body: String)
 /** コンテキスト会計の1行。tokensEst は estimateTokens による目安（実測はターン別入力で確認する）。 */
 class ContextSectionStat(val section: String, val chars: Int, val tokensEst: Int)
 
-/** 概算トークン数。ASCII 4文字≒1・非ASCII 1文字≒1の目安（会計表示用。ARCHITECTURE §4.28）。 */
+/** 概算トークン数。ASCII 4文字≒1・非ASCII 1文字≒1の目安（会計表示用。architecture/agents.md「コンテキスト」）。 */
 internal fun estimateTokens(text: String): Int {
     var ascii = 0
     var other = 0

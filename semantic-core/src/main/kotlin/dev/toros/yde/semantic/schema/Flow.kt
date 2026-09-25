@@ -1,7 +1,7 @@
 package dev.toros.yde.semantic.schema
 
 /**
- * 遷移検証（フロー検証）の宣言（R28-04。ARCHITECTURE §4.32）。
+ * 遷移検証（フロー検証）の宣言（R28-04。architecture/graph-query.md「クエリコア」）。
  * ノード母集団（例: 画面）を定義するスキーマの `flow:` に列挙する。`flow` は組込み定義体（builtin-definitions/flow.yaml）が
  * 作る語彙で、検証の前に「専用チェッカー flow を使う検査」（schema/Checker.kt の CheckerRule）へ展開される（P29 Phase 6 第4段）。
  *

@@ -30,7 +30,7 @@ data class ToolResult(
 
 /**
  * トークン消費。inputTokens は総入力（キャッシュ分を含む）、cachedInputTokens はその内数（キャッシュから読まれた分）。
- * プロバイダ間の報告差はパース側で正規化する（Anthropic の input_tokens はキャッシュ分を含まないため合算する。ARCHITECTURE §4.28）。
+ * プロバイダ間の報告差はパース側で正規化する（Anthropic の input_tokens はキャッシュ分を含まないため合算する。architecture/agents.md「コンテキスト」）。
  */
 data class ChatUsage(val inputTokens: Long = 0, val outputTokens: Long = 0, val cachedInputTokens: Long = 0) {
     operator fun plus(other: ChatUsage) =
@@ -126,7 +126,7 @@ internal class AnthropicToolSession(
     }
 
     /**
-     * リクエスト本文の組み立て（prompt caching 対応。R19-07 / ARCHITECTURE §4.28）。
+     * リクエスト本文の組み立て（prompt caching 対応。R19-07 / architecture/agents.md「コンテキスト」）。
      * ツールループでは system・ツール定義・会話履歴の前方が毎ターン不変のため、キャッシュ切れ目を
      * ①system ②ツール定義の末尾 ③最新メッセージの末尾ブロック（毎ターン前進する切れ目）に置き、
      * 2ターン目以降の再送プレフィクス全体をキャッシュ読取にする。会計は usage の
@@ -203,7 +203,7 @@ internal class AnthropicToolSession(
             )
         }
         val usage = root["usage"]?.jsonObject
-        // Anthropic の input_tokens はキャッシュ読取・作成分を含まないため、総入力へ正規化する（§4.28）
+        // Anthropic の input_tokens はキャッシュ読取・作成分を含まないため、総入力へ正規化する（architecture/agents.md「コンテキスト」）
         val base = usage?.get("input_tokens")?.jsonPrimitive?.longOrNull ?: 0
         val cacheRead = usage?.get("cache_read_input_tokens")?.jsonPrimitive?.longOrNull ?: 0
         val cacheCreation = usage?.get("cache_creation_input_tokens")?.jsonPrimitive?.longOrNull ?: 0

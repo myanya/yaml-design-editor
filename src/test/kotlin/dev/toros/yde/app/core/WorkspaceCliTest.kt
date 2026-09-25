@@ -432,7 +432,7 @@ class WorkspaceCliTest {
     @Test
     fun `cli entity show returns composition with coordinates and backlinks`() {
         val dir = ws.toString()
-        // エンティティページ・read_entity と同じ合成（R23-04。ARCHITECTURE §4.33）をYAMLで返す
+        // エンティティページ・read_entity と同じ合成（R23-04。architecture/graph-query.md「エンティティページ」）をYAMLで返す
         val out = runCli(arrayOf("entity", dir, "show", "REQ-001"))
         assertTrue("id: REQ-001" in out, out)
         assertTrue("title: ログイン機能" in out, out)

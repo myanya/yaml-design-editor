@@ -113,7 +113,7 @@ internal fun fieldToJsonSchema(original: FieldDef, schema: SchemaDef, depth: Int
             FieldType.DATE, FieldType.ID -> put("type", "string")
             FieldType.REF -> {
                 if (field.fields.isNotEmpty()) {
-                    // 属性付き参照（R20-03。ARCHITECTURE §4.30）: {to: enum制約, 属性...} の object へ変換する
+                    // 属性付き参照（R20-03。architecture/graph-query.md「エンティティ型と関係レジストリ」）: {to: enum制約, 属性...} の object へ変換する
                     put("type", "object")
                     putJsonObject("properties") {
                         put("to", buildJsonObject {

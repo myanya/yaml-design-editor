@@ -106,7 +106,7 @@ class DocScannerTest {
         )
         val (_, refs) = DocScanner.scan(root, DocumentId("screens/a.yaml"), attributedSchema)
         val attributed = refs.first { it.targetId == "ACT-ADMIN" }
-        // path は to 値の座標（ジャンプ・パッチ・バックリンクの既存セマンティクス。§4.30）
+        // path は to 値の座標（ジャンプ・パッチ・バックリンクの既存セマンティクス。architecture/graph-query.md「エンティティ型と関係レジストリ」）
         assertEquals(listOf("actors", 0, "to"), attributed.path)
         assertEquals("uses", attributed.relation)
         assertEquals(mapOf("role" to "承認者"), attributed.attributes)

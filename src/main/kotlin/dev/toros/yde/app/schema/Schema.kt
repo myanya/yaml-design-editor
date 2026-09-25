@@ -113,16 +113,16 @@ class SchemaDef(
     val checkers: List<CheckerRule> get() = kernel.checkers
     val phases: PhasesDef? get() = kernel.tree.phases
 
-    /** エンティティ型の宣言（R20-01。ARCHITECTURE §4.30）。空 = 宣言なし（従来どおり）。 */
+    /** エンティティ型の宣言（R20-01。architecture/graph-query.md「エンティティ型と関係レジストリ」）。空 = 宣言なし（従来どおり）。 */
     val entities: List<EntityDecl> get() = kernel.entities
 
     /** 関係レジストリの内容（kind: relations のみ。R20-02）。 */
     val relations: List<RelationDef> get() = kernel.relations
 
-    /** エンティティ型のレジストリ宣言（kind: relations のみ。表示名・アスペクト順序。R23-01。§4.33）。 */
+    /** エンティティ型のレジストリ宣言（kind: relations のみ。表示名・アスペクト順序。R23-01。architecture/graph-query.md「エンティティページ」）。 */
     val entityTypes: List<EntityTypeDef> get() = kernel.entityTypes
 
-    /** 強制スイッチ（kind: relations のみ。R21-01。ARCHITECTURE §4.31）。 */
+    /** 強制スイッチ（kind: relations のみ。R21-01。architecture/graph-query.md「エンティティ操作」）。 */
     val enforcement: EnforcementDef? get() = kernel.enforcement
     val kind: SchemaKind get() = kernel.kind
 
@@ -178,7 +178,7 @@ fun SchemaDef.currentPhaseIndex(root: YNode?): Int? = tree.currentPhaseIndex(roo
 
 /**
  * フェーズを考慮した実効 required。requiredFrom は「そのフェーズ以降で必須」（累積的）。
- * 検証・進捗計算・フォーム表示はこの判定を共有する（ARCHITECTURE §4.15）。
+ * 検証・進捗計算・フォーム表示はこの判定を共有する（architecture/schema.md「フェーズ」）。
  */
 fun SchemaDef.requiredAt(field: FieldDef, phaseIndex: Int?): Boolean = tree.requiredAt(field, phaseIndex)
 
@@ -192,7 +192,7 @@ fun SchemaDef.effectiveFields(fields: List<FieldDef>, node: YNode.Map?): Effecti
 
 /**
  * データパスに対応するフィールド定義をスキーマを辿って解決する（object の子は effectiveFields＝
- * enum の cases 合成、$ref は resolve を通す）。旧 core/Views.fieldAt の移設先（R23-01。ARCHITECTURE §4.33）。
+ * enum の cases 合成、$ref は resolve を通す）。旧 core/Views.fieldAt の移設先（R23-01。architecture/graph-query.md「エンティティページ」）。
  * 実装は yaml-core の SchemaTree（YM-004b）。`Views.fieldAt` は互換のためこの関数へ委譲する。
  */
 fun SchemaDef.fieldAt(root: YNode, path: YPath): FieldDef? = tree.fieldAt(root, path)
@@ -215,7 +215,7 @@ object SchemaLoader {
     // 予約ディレクトリ名の正は WorkspaceLayout.Zone（workspace-core。WS-001）。ここは互換の同値リテラル
     const val SCHEMA_DIR = "_schemas"
 
-    /** エージェント実行の予約ディレクトリ（セルフホスティング。ROADMAP §4.2）。 */
+    /** エージェント実行の予約ディレクトリ（セルフホスティング。ROADMAP architecture/editing-history.md「履歴と dirty」）。 */
     const val AGENTS_DIR = "_agents"
     const val ACTIVITIES_DIR = "_activities"
     const val RUNS_DIR = "_runs"
@@ -230,7 +230,7 @@ object SchemaLoader {
         val relations: Map<String, RelationDef> = emptyMap(),
         /** 強制スイッチ（R21-01）: レジストリ文書の enforcement 節から集約（未宣言キーは null）。 */
         val enforcement: EnforcementDef = EnforcementDef(),
-        /** エンティティ型レジストリ（R23-01。§4.33）: `entities:` 節から集約した type → EntityTypeDef。 */
+        /** エンティティ型レジストリ（R23-01。architecture/graph-query.md「エンティティページ」）: `entities:` 節から集約した type → EntityTypeDef。 */
         val entityTypes: Map<String, EntityTypeDef> = emptyMap(),
     )
 

@@ -72,7 +72,7 @@ object Validator {
          * この文書が索引（台帳）に載っているか（R13-03）。台帳外の文書（ledger 宣言の対象外）では
          * 索引前提の判定（未解決参照・カバレッジ）が成立しないため、未解決参照を情報レベルへ降格し、
          * カバレッジ判定を行わない。単一ファイルで完結する検証（型・必須・enum・フェーズ・ファイル内重複）は
-         * そのまま行う（ARCHITECTURE §4.25 のエディタ層）。
+         * そのまま行う（architecture/workspace.md「ワークスペース構造と layout」 のエディタ層）。
          */
         indexed: Boolean = true,
         /**
@@ -84,7 +84,7 @@ object Validator {
         allSchemas: List<SchemaDef> = emptyList(),
         /** 関係レジストリ（R21-01）: グラフ整合検証（対象型・多重度・非循環）の制約宣言。空なら判定しない。 */
         relations: Map<String, RelationDef> = emptyMap(),
-        /** 強制スイッチ（R21-01。ARCHITECTURE §4.31）: 未宣言キーは P20 の挙動のまま。 */
+        /** 強制スイッチ（R21-01。architecture/graph-query.md「エンティティ操作」）: 未宣言キーは P20 の挙動のまま。 */
         enforcement: EnforcementDef = EnforcementDef(),
         /**
          * 検査の評価を、同じ索引の他の文書の検証と共有する（P27 段B。全体を回す経路用）。true にしてよいのは、root と loader の中身が
@@ -157,7 +157,7 @@ object Validator {
 
     /**
      * フェーズ別の記入進捗（requiredFrom を持つフィールドの記入済み／総数）。phases 未宣言のスキーマでは空。
-     * 走査の実体は semantic-core の `SchemaTree.phaseProgress`（B-3・RB-04 で移設。§4.15）。
+     * 走査の実体は semantic-core の `SchemaTree.phaseProgress`（B-3・RB-04 で移設。architecture/schema.md「フェーズ」）。
      */
     fun phaseProgress(root: YNode?, schema: SchemaDef): List<PhaseProgress> =
         schema.tree.phaseProgress(root)

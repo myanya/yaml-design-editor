@@ -32,7 +32,7 @@ object SemanticDeclParser {
         }
     }
 
-    /** エンティティ型のレジストリ宣言（R23-01。ARCHITECTURE §4.33）のパース。`entities:` 節。 */
+    /** エンティティ型のレジストリ宣言（R23-01。architecture/graph-query.md「エンティティページ」）のパース。`entities:` 節。 */
     fun parseEntityTypes(raw: Any?): List<EntityTypeDef> {
         if (raw == null) return emptyList()
         val list = raw as? List<*> ?: error("entities はリストである必要があります")
@@ -94,7 +94,7 @@ object SemanticDeclParser {
         }
     }
 
-    /** 強制スイッチ（R21-01。ARCHITECTURE §4.31）のパース。各キーは3値（未宣言＝null / warning / error）。 */
+    /** 強制スイッチ（R21-01。architecture/graph-query.md「エンティティ操作」）のパース。各キーは3値（未宣言＝null / warning / error）。 */
     fun parseEnforcement(raw: Any?): EnforcementDef? {
         if (raw == null) return null
         val m = raw as? Map<*, *> ?: error("enforcement は object である必要があります")

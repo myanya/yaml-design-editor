@@ -10,7 +10,7 @@ import dev.toros.yde.yaml.model.scalarText
  * 走査（ID と参照）・フォーム・AI 生成・リファクタリングなどが、この木を読む。
  * 名前は 3層コア移行（YM-004b。当時は yaml-core の構造コア）のままだが、P27 段C の C-2（2026-09-21）で semantic-core へ移した
  * ——ID・参照・フェーズといった意味を持つ木だからである。**構造の検証には、この木をそのまま使わない**: この木から導出した
- * 最小の構造のスキーマ（yaml-core の structure パッケージ。入口は workspace-core の DerivedStructures）で行う（ARCHITECTURE §4.43）。
+ * 最小の構造のスキーマ（yaml-core の structure パッケージ。入口は workspace-core の DerivedStructures）で行う（architecture/schema.md「構造スキーマの導出」）。
  * 意味宣言（entity / relation / 検査）・match・ワークスペース・`Path` は持たない（ADR-0002）。
  * ルート側の `SchemaDef` は `SchemaDef.tree` でこの型へ委譲する。
  */
@@ -73,7 +73,7 @@ data class SchemaTree(
 
     /**
      * フェーズを考慮した実効 required。requiredFrom は「そのフェーズ以降で必須」（累積的）。
-     * 検証・進捗計算・フォーム表示はこの判定を共有する（ARCHITECTURE §4.15）。
+     * 検証・進捗計算・フォーム表示はこの判定を共有する（architecture/schema.md「フェーズ」）。
      */
     fun requiredAt(field: FieldDef, phaseIndex: Int?): Boolean {
         val from = field.requiredFrom ?: return field.required
@@ -118,7 +118,7 @@ data class SchemaTree(
     /**
      * データパスに対応するフィールド定義をスキーマを辿って解決する（object の子は effectiveFields＝
      * enum の cases 合成、$ref は resolve を通す）。ビューのセル型解決・ID横ぐし・エンティティ合成・
-     * 重複所有の検証が共有する1実装（R23-01。ARCHITECTURE §4.33）。
+     * 重複所有の検証が共有する1実装（R23-01。architecture/graph-query.md「エンティティページ」）。
      */
     fun fieldAt(root: YNode, path: YPath): FieldDef? {
         var def: FieldDef = resolve(this.root) ?: return null

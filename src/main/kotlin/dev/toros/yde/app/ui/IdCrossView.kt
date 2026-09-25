@@ -54,11 +54,11 @@ import dev.toros.yde.app.validate.Validator
 import java.nio.file.Path
 
 /**
- * エンティティページ（R23-02。ARCHITECTURE §4.33）。ID横ぐしビュー（R1-05 / R7-04）の改築:
+ * エンティティページ（R23-02。architecture/graph-query.md「エンティティページ」）。ID横ぐしビュー（R1-05 / R7-04）の改築:
  * 同一論理IDの全出現を「アスペクト合成（エンティティ全体像）」として1画面に集約し、
  * ヘッダ（型・操作メニュー）・関係パネル（両方向）・カバレッジを併置する。
  * 合成は core.Aspects（read_entity / CLI と同一実装）、値の編集は各所有フィールドの原本座標への
- * Slot ルーティング（文書キャッシュのツリー直接編集＝§4.16 の既存経路のまま）。
+ * Slot ルーティング（文書キャッシュのツリー直接編集＝architecture/graph-query.md「エンティティページ」 の既存経路のまま）。
  */
 @Composable
 fun IdCrossView(state: AppState) {
@@ -143,7 +143,7 @@ fun IdCrossView(state: AppState) {
 @Composable
 private fun EntityPage(state: AppState, id: String) {
     // 合成は core.Aspects（read_entity / CLI と同一実装）。loader は文書キャッシュのツリー
-    // ＝未保存編集に追随し、編集はそのツリーへの Slot ルーティングで dirty・Undo・保存が効く（§4.16）
+    // ＝未保存編集に追随し、編集はそのツリーへの Slot ルーティングで dirty・Undo・保存が効く（architecture/graph-query.md「エンティティページ」）
     val composite = remember(id, state.indexVersion, state.editVersion) {
         Aspects.compose(id, state.overlayIndex(), state.schemas, state.entityTypes) { f -> state.ensureDoc(f).root }
     }
@@ -283,7 +283,7 @@ private fun EntityPage(state: AppState, id: String) {
 /**
  * 1アスペクト（1出現）のカード。所有フィールドだけを ObjectFields の選別描画（include）で編集する。
  * 文書は `state.ensureDoc` で docCache へ取り込み、編集は他のフォームと同じ Slot＋markEdited() の経路
- * （ビュー専用の書込経路は作らない。ARCHITECTURE §4.16）。
+ * （ビュー専用の書込経路は作らない。architecture/graph-query.md「エンティティページ」）。
  */
 /**
  * 出現要素の親ノード情報（UX-68）: パスを上へ辿り、最初にID・タイトルを持つ祖先要素の1行要約を返す。
@@ -393,7 +393,7 @@ private fun AspectCard(state: AppState, section: AspectSection) {
                 else Text("この要素を編集できません", fontSize = 11.sp, color = Palette.WarnOrange)
             }
         }
-        // 重複所有の注記（検証と同じ観点。値は隠さない。§4.33）
+        // 重複所有の注記（検証と同じ観点。値は隠さない。architecture/graph-query.md「エンティティページ」）
         section.fields.filter { it.duplicateOf != null }.forEach { f ->
             Text(
                 "「${f.key}」は ${f.duplicateOf!!.first.value} の出現でも所有されています（重複所有）",
@@ -490,7 +490,7 @@ private fun RelationRow(main: String, sub: String, onClick: () -> Unit, onJump: 
 private enum class EntityOp { RENAME, MERGE, DELETE }
 
 /**
- * エンティティ操作の確認ダイアログ（R23-02。破壊的操作の確認＝§4.24 の許容範囲）。
+ * エンティティ操作の確認ダイアログ（R23-02。破壊的操作の確認＝architecture/ui.md「UI シェル」 の許容範囲）。
  * 計画（R21-02 → B-1 でカーネル生成）をプレビューし、適用はセッションの1トランザクション
  * （AppState.applyEntityPlan。Undo 1回で戻る）。
  */
@@ -587,7 +587,7 @@ private fun EntityOpDialog(state: AppState, id: String, op: EntityOp, onDismiss:
 /**
  * 1 出現のカード。要素をその場で編集できるフォーム（R7-04）と、その要素サブツリーからの参照を表示する。
  * 文書は `state.ensureDoc` でdocCacheへ取り込み、編集は他のフォームと同じ Slot＋markEdited() の経路を通す
- * （`_views` のようなビュー定義は不要。ビュー専用の書込経路は作らない。ARCHITECTURE §4.14 の原則をここにも適用）。
+ * （`_views` のようなビュー定義は不要。ビュー専用の書込経路は作らない。architecture/views.md「ビュー機構」 の原則をここにも適用）。
  */
 @Composable
 private fun OccurrenceCard(state: AppState, entry: IdEntry) {

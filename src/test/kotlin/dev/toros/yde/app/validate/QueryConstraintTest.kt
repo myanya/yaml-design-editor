@@ -16,7 +16,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * パターン制約（R22-03。ARCHITECTURE §4.32）のテスト。
+ * パターン制約（R22-03。architecture/graph-query.md「クエリコア」）のテスト。
  * exists（起点ごとに解があること）／absent（解がないこと）・座標（起点の定義出現）・
  * activeFrom のフェーズ保留・提出ゲート（Staging.validateAll）への波及を検証する。
  */

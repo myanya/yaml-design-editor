@@ -4,16 +4,16 @@ import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.model.parseYPath
 
 /**
- * クエリコアの宣言モデルとパース（R22-01。ARCHITECTURE §4.32）。
+ * クエリコアの宣言モデルとパース（R22-01。architecture/graph-query.md「クエリコア」）。
  * グラフパターン照合の語彙（node / edge の交互連鎖＋1段分岐＋プロパティ述語＋ノード一致 same）をここに一元化し、
  * ビューの `rows: match:`・foreach の `source: query`・スキーマの `constraints:`・CLI `query` が共用する。
- * 評価器は `index/Query.kt`（依存方向 §2 上、`Validator` から使うため index 層。§4.26 の Derivation と同じ2分割）。
+ * 評価器は `index/Query.kt`（依存方向 §2 上、`Validator` から使うため index 層。architecture/transform.md「計算列と決定論的射影」 の Derivation と同じ2分割）。
  *
- * やらないこと（P22 の不変条件。§4.32）: 集約は件数のみ・任意深さの再帰パスなし・任意式なし・
+ * やらないこと（P22 の不変条件。architecture/graph-query.md「クエリコア」）: 集約は件数のみ・任意深さの再帰パスなし・任意式なし・
  * optional 結合なし・分岐は also の1段まで。
  */
 
-/** ノードの種別。エンティティ（論理ID）と文書（容れ物の仮想ノード）は別種（ROADMAP §4.9 原則3）。 */
+/** ノードの種別。エンティティ（論理ID）と文書（容れ物の仮想ノード）は別種（ROADMAP architecture/agents.md「AI 生成」 原則3）。 */
 enum class QueryNodeKind(val id: String) {
     ENTITY("entity"),
     DOCUMENT("document");
@@ -228,14 +228,14 @@ data class QueryEdgeStep(
 /** 連鎖の1ホップ（edge で移動して node で絞る）。 */
 data class QueryHop(val edge: QueryEdgeStep, val node: QueryNodeStep)
 
-/** 束縛済みノードからの分岐（1段のみ・内部結合。§4.32）。 */
+/** 束縛済みノードからの分岐（1段のみ・内部結合。architecture/graph-query.md「クエリコア」）。 */
 data class QueryBranch(val from: String, val hops: List<QueryHop>)
 
 /**
  * プロパティ述語（ノードを値で絞る条件）。条件を一つだけ持つ。
  * 値は「いずれかの出現の該当パスのスカラー」（多段定義の OR）——どれかの出現の値が条件を満たせば成立。
  * - equals / notEquals: notEquals は「値が1つ以上あり、どの出現の値も指定値でない」（equals の OR 解釈の否定。
- *   値がなければ黙る＝判定保留の哲学 §4.26。R28-02）
+ *   値がなければ黙る＝判定保留の哲学 architecture/transform.md「計算列と決定論的射影」。R28-02）
  * - exists: true = 項目が書かれている／false = どの出現にも書かれていない
  * - empty: false = 中身のある値が書かれている／true = どの出現にも中身のある値がない
  *   （書かれていない・空文字・null・空の配列・空の object を「空」とみなす）
@@ -585,7 +585,7 @@ enum class CheckOp(val id: String, val violationSymbol: String, val satisfiedSym
  * oneOf の右は値の式の並び（`{oneOf: [左, [選択肢, ...]]}`）で、rights に全ての選択肢が入る（他の演算子は1つ）。
  * 値の条件1つが CheckTerm、check の1項目（条件1つ、またはその「または」）が ConstraintCheck。
  * 評価は、同じ ID が書かれた文書のうちどれから値を読むかの全ての組を調べ、条件を満たさない組を1つでも見つけたら
- * 違反（その組を指摘に示す）・評価できる組がなければ黙る（判定保留 §4.26）。項目の中で同じ「束縛と文書の指定」は
+ * 違反（その組を指摘に示す）・評価できる組がなければ黙る（判定保留 architecture/transform.md「計算列と決定論的射影」）。項目の中で同じ「束縛と文書の指定」は
  * 同じ文書から読む。
  */
 data class CheckTerm(
@@ -820,7 +820,7 @@ data class RuleOrigin(val owner: String, val at: String, val index: Int = 0) {
 }
 
 /**
- * パターン制約（R22-03。ARCHITECTURE §4.32）。スキーマの `constraints:` に列挙する。
+ * パターン制約（R22-03。architecture/graph-query.md「クエリコア」）。スキーマの `constraints:` に列挙する。
  * 「起点束縛（match の先頭 node。kind: entity 限定）に一致する各エンティティについて、
  * 残りのパターンに解が存在すること（expect: exists）／しないこと（expect: absent）／
  * 解の件数が範囲内であること（count: {min, max}。R28-02）／解ごとに束縛間の値比較が

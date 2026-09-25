@@ -26,7 +26,7 @@ object Disclosure {
         val description: String?,
         val schemaId: String?,
         val idCount: Int,
-        /** 現在フェーズと記入進捗の1行サマリ（`phases` 未宣言のスキーマ・スキーマなし文書では null。§4.15） */
+        /** 現在フェーズと記入進捗の1行サマリ（`phases` 未宣言のスキーマ・スキーマなし文書では null。architecture/schema.md「フェーズ」） */
         val phase: String? = null,
     )
 

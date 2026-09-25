@@ -7,7 +7,7 @@ import dev.toros.yde.yaml.structure.UnknownFieldsPolicy
  * 3層コア移行 Phase 3（YM-004）で Schema.kt から分離して yaml-core に置いていたが、P27 段C の C-2（2026-09-21）で
  * semantic-core へ移した——この木は、ID・参照・関係・参照先の範囲・フェーズ・表示のヒントという「意味」を持つため
  * （CORE-CALCULUS §25: 文法プリミティブは ID・参照・関係・フェーズの意味を知らない）。
- * yaml-core が構造の検証に使うのは、この木から導出した最小の構造のスキーマ（structure パッケージ。ARCHITECTURE §4.43）。
+ * yaml-core が構造の検証に使うのは、この木から導出した最小の構造のスキーマ（structure パッケージ。architecture/schema.md「構造スキーマの導出」）。
  * 未定義の項目の扱い（UnknownFieldsPolicy）だけは、構造の決まりなので yaml-core に残している。
  *
  * 注意: DefinitionKey / SchemaCatalog の生成・検索と FieldDef.definitionScope は
@@ -83,7 +83,7 @@ data class EnumOption(
 
 /**
  * `_schemas` 配下の文書種別。library は共通定義だけを公開し、業務文書には適用されない。
- * relations は関係レジストリ（R20-02。ARCHITECTURE §4.30）で、同様に文書には適用されない。
+ * relations は関係レジストリ（R20-02。architecture/graph-query.md「エンティティ型と関係レジストリ」）で、同様に文書には適用されない。
  */
 enum class SchemaKind(val id: String) {
     DOCUMENT("document"),
@@ -210,7 +210,7 @@ data class FieldDef(
 }
 
 /**
- * ref フィールドの参照対象種別（R21-03。ARCHITECTURE §4.31）。既定は entity（論理ID）。
+ * ref フィールドの参照対象種別（R21-03。architecture/graph-query.md「エンティティ操作」）。既定は entity（論理ID）。
  * document は文書ノード（documentId ＝ `_document.id` ＞ 相対パス）への参照で、別名前空間として解決する。
  */
 enum class RefTarget(val id: String) {

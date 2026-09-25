@@ -9,7 +9,7 @@ import dev.toros.yde.yaml.model.pretty
 import java.nio.file.Path
 
 /**
- * グラフトラバース評価器（R19-03 / ARCHITECTURE §4.28）。
+ * グラフトラバース評価器（R19-03 / architecture/agents.md「コンテキスト」）。
  * ID索引を型付きグラフ（ノード=論理ID・出現=多段定義、エッジ=参照）と見て、宣言的な経路パターン
  * （steps）で多段に辿り、到達ノードを段階的開示の粒度（title / summary / outline / full）で
  * テキスト化する。消費者はコンテキストレシピ（graph 項目）・エージェントツール（traverse）・CLI の3面で、
@@ -135,7 +135,7 @@ object Traverse {
 
     /**
      * フロンティアからエッジを1段辿る。戻り値は（安定ソート・limit適用後の到達ID列, 打切り前の総数）。
-     * 隣接の展開はパターン照合エンジンと共有する（`index.Query.neighborIds`。R22-02③ / ARCHITECTURE §4.32）——
+     * 隣接の展開はパターン照合エンジンと共有する（`index.Query.neighborIds`。R22-02③ / architecture/graph-query.md「クエリコア」）——
      * Traverse は visited・limitPerHop・emit 描画だけを担う「Query の上の emit レンダラ」。
      */
     private fun neighbors(

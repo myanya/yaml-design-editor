@@ -1,6 +1,65 @@
+# 旧 ARCHITECTURE.md（2026-09-24 時点の丸ごと）
+
+主題別の設計文書 [../architecture/](../architecture/README.md) へ書き直す前の原本。書き換えない。
+旧 §4 の節番号から新しいファイルと見出しへの対応は次のとおり。§1〜§3・§5・§6 は architecture/README.md と各主題の「部品」「流れ」「拡張ポイント」へ分配した。
+
+| 旧 | 新しいファイル | 見出し |
+|---|---|---|
+| §4.1 | [yaml-model.md](../architecture/yaml-model.md) | 木が単一の正 |
+| §4.2 | [editing-history.md](../architecture/editing-history.md) | 履歴と dirty |
+| §4.3 | [yaml-model.md](../architecture/yaml-model.md) | Slot |
+| §4.4 | [ui.md](../architecture/ui.md) | 畳みとハイライト |
+| §4.5 | [index-references.md](../architecture/index-references.md) | 索引の二層 |
+| §4.6 | [index-references.md](../architecture/index-references.md) | ID と参照の意味 |
+| §4.7 | [schema.md](../architecture/schema.md) | $ref と実効フィールド |
+| §4.8 | [agents.md](../architecture/agents.md) | 安全性 |
+| §4.9 | [agents.md](../architecture/agents.md) | AI 生成 |
+| §4.10 | [agents.md](../architecture/agents.md) | エージェント実行と Staging |
+| §4.11 | [agents.md](../architecture/agents.md) | 自動実行 |
+| §4.12 | [agents.md](../architecture/agents.md) | 自己改善 |
+| §4.13 | [agents.md](../architecture/agents.md) | skill |
+| §4.14 | [views.md](../architecture/views.md) | ビュー機構 |
+| §4.15 | [schema.md](../architecture/schema.md) | フェーズ |
+| §4.16 | [graph-query.md](../architecture/graph-query.md) | エンティティページ |
+| §4.17 | [yaml-model.md](../architecture/yaml-model.md) | コメントと表記の保持 |
+| §4.18 | [agents.md](../architecture/agents.md) | AI 接続 |
+| §4.19 | [agents.md](../architecture/agents.md) | AI 生成 |
+| §4.20 | [workspace.md](../architecture/workspace.md) | 文書キャッシュと Workspace |
+| §4.21 | [agents.md](../architecture/agents.md) | skill |
+| §4.22 | [index-references.md](../architecture/index-references.md) | 表示解決 |
+| §4.23 | [schema.md](../architecture/schema.md) | 推測・メタスキーマ・派生 |
+| §4.24 | [ui.md](../architecture/ui.md) | UI シェル |
+| §4.25 | [workspace.md](../architecture/workspace.md) | ワークスペース構造と layout |
+| §4.26 | [transform.md](../architecture/transform.md) | 計算列と決定論的射影 |
+| §4.27 | [agents.md](../architecture/agents.md) | 一括実行 |
+| §4.28 | [agents.md](../architecture/agents.md) | コンテキスト |
+| §4.29 | [ui.md](../architecture/ui.md) | エラー処理 |
+| §4.30 | [graph-query.md](../architecture/graph-query.md) | エンティティ型と関係レジストリ |
+| §4.31 | [graph-query.md](../architecture/graph-query.md) | エンティティ操作 |
+| §4.32 | [graph-query.md](../architecture/graph-query.md) | クエリコア |
+| §4.33 | [graph-query.md](../architecture/graph-query.md) | エンティティページ |
+| §4.34 | [editing-history.md](../architecture/editing-history.md) | 履歴の合体 |
+| §4.35 | [schema.md](../architecture/schema.md) | リファクタリング |
+| §4.36 | [checks.md](../architecture/checks.md) | 定義層の 3 段 |
+| §4.37 | [checks.md](../architecture/checks.md) | 4 つの結果 |
+| §4.38 | [graph-query.md](../architecture/graph-query.md) | 線の意味 |
+| §4.39 | [checks.md](../architecture/checks.md) | 評価は 1 回 |
+| §4.40 | [checks.md](../architecture/checks.md) | 検査の定義の読み込み |
+| §4.41 | [checks.md](../architecture/checks.md) | 配り方 |
+| §4.42 | [transform.md](../architecture/transform.md) | 変換 |
+| §4.43 | [schema.md](../architecture/schema.md) | 構造スキーマの導出 |
+| §4.44 | [checks.md](../architecture/checks.md) | 文書 1 つの検証 |
+| §4.45 | [checks.md](../architecture/checks.md) | 文書 1 つの検証 |
+| §4.46 | [workspace.md](../architecture/workspace.md) | 変更セットの適用 |
+| §4.47 | [workspace.md](../architecture/workspace.md) | リファクタリングの影響 |
+| §4.48 | [index-references.md](../architecture/index-references.md) | 場所は文書ID |
+| §4.49 | [schema.md](../architecture/schema.md) | 値の式 |
+
+---
+
 # アーキテクチャ（クラス設計と設計方針）
 
-本書は実装の構造と、変更時に守るべき設計方針を定義します。構造や方針に影響する変更を行ったら**必ず本書を更新**してください。機能の有無・実装状況は [FEATURES.md](FEATURES.md)、利用者向けの仕様は [MANUAL.md](MANUAL.md) を参照。
+本書は実装の構造と、変更時に守るべき設計方針を定義します。構造や方針に影響する変更を行ったら**必ず本書を更新**してください。機能の有無・実装状況は [FEATURES.md](../FEATURES.md)、利用者向けの仕様は [MANUAL.md](../MANUAL.md) を参照。
 
 ## 1. 技術スタック
 
@@ -14,7 +73,7 @@
 
 ## 2. パッケージ構成と依存方向
 
-パッケージは **`dev.toros.yde.<モジュール>.*`**（2026-09-22・BACKLOG UX-119。規則は [CONVENTIONS.md](CONVENTIONS.md) §8-3）。モジュール間の依存方向は ADR-0002 を正とする（`yaml-core ← semantic-core ← workspace-core ← cli／アプリ`）。ドキュメントとコメントでは接頭辞 `dev.toros.yde.<モジュール>` を省いて `schema.FieldDef`・`validate/Validator.kt` のように書く（同じ短い名前が複数のモジュールにあるとき＝`schema`・`validate`・`core` は、モジュール名を添える）。
+パッケージは **`dev.toros.yde.<モジュール>.*`**（2026-09-22・BACKLOG UX-119。規則は [CONVENTIONS.md](../CONVENTIONS.md) §8-3）。モジュール間の依存方向は ADR-0002 を正とする（`yaml-core ← semantic-core ← workspace-core ← cli／アプリ`）。ドキュメントとコメントでは接頭辞 `dev.toros.yde.<モジュール>` を省いて `schema.FieldDef`・`validate/Validator.kt` のように書く（同じ短い名前が複数のモジュールにあるとき＝`schema`・`validate`・`core` は、モジュール名を添える）。
 
 | モジュール | パッケージ（`dev.toros.yde.` を省略） | 中身 |
 |---|---|---|
@@ -139,7 +198,7 @@
 | `Slot` (Map/Seq/Root) | ui/Common.kt | 「値の置き場所」の抽象。後述 |
 | `AiGenerationHost` | ui/AiGenerationDialog.kt | AI生成ダイアログの状態機械（入力→生成→プレビュー→適用）と提案合成。アプリシェル直下にマウント（スペース非依存）・対象文書は `AiRequest` が持つ（R24-01） |
 | `SchemaEditor` | ui/SchemaEditor.kt | `_schemas` 用の構造化エディタ（設計・プレビュー・適用対象） |
-| その他 ui | FileTreePane / SourcePane / DiffPane / SidePanel（IDインスペクタ: 検証・関係・出現の3タブ。R12-03） / WorkspaceViews / Common | 各ペイン。[FEATURES.md](FEATURES.md) の対応表を参照。テスト可能な純ロジックは `ui/SourceHighlight.kt`（YAMLトークナイザ・置換）、`ui/GraphLayout.kt`（力学レイアウト）、`DiffPane.calculateDiff` / `charDiffRanges` に切り出す |
+| その他 ui | FileTreePane / SourcePane / DiffPane / SidePanel（IDインスペクタ: 検証・関係・出現の3タブ。R12-03） / WorkspaceViews / Common | 各ペイン。[FEATURES.md](../FEATURES.md) の対応表を参照。テスト可能な純ロジックは `ui/SourceHighlight.kt`（YAMLトークナイザ・置換）、`ui/GraphLayout.kt`（力学レイアウト）、`DiffPane.calculateDiff` / `charDiffRanges` に切り出す |
 
 ## 4. 設計方針（変更時に守ること）
 
@@ -575,7 +634,7 @@ limit: 100                               # 既定 100（total は打切り前の
 
 **パターン制約（R22-03・R28-02/07/08 で拡張）**: スキーマの `constraints:`（`match`（＋`where` / `also` / `limit`・ノード一致 `same` 含む）＋ `expect: exists / absent`・`count: {min, max}`（R28-02）・`check`（R28-08）の**三者排他**・`level`・`activeFrom`）。「起点束縛に一致する各エンティティについて、残りのパターンに解が存在すること（exists）／しないこと（absent）／解の件数が範囲内であること（count。件数はクエリ結果の行と同じ同一性＝bind 列の組の distinct。`SemanticQuery.countMatchesFrom` は limit 打切り前の total を返す）／解ごとに束縛間の値比較が成り立つこと（check）」をカバレッジの一般形として検証する。`where` の述語は `equals` / `notEquals` / `exists` のいずれか一つ（R28-02。notEquals =「値が1つ以上あり、どの出現の値も指定値でない」＝equals の OR 解釈の否定。値がなければ黙る）。判定は `Validator.validate` に一元化（検証パネル・CLI・変更セット適用・提出ゲートに同一判定）。座標は起点束縛の定義出現（なければ先頭出現）で、その出現を持つファイルの検証でのみ報告する（多重報告しない）。起点は `kind: entity` のみ（パースで強制）。`activeFrom` はカバレッジと同じく自文書のフェーズで判定し、型未宣言・未解決参照には黙る（§4.26）。**Aggregate の Unknown 降格（CALC-17・意図的差分 D-15）**: 解探索のエッジ展開で参照の端をノードへ解決できなかった場合（OUT: 対象IDが索引に存在しない／IN: 参照の書き手をエンティティへ解決できない）は「候補の喪失」として `SemanticQueryResult.unknownDropped` に記録され、**解の不足を理由とする違反（exists の解なし・count の下限未達）は判定保留＝沈黙へ降格**する。解の実在を根拠とする違反（absent で解あり・count の上限超過）と、実在するノードの絞り込み（型・idPattern・where 不一致＝選択）は降格しない。未解決参照そのものは参照検証（§4.5）が別途指摘する。3.9 節の他出現への案内も同じ判定。既存 coverage は置き換えない（P21 で吸収済みの判定器の上位語彙として追加）。
 
-**束縛間の値比較 `check`（R28-08＝Core Calculus 初の calculus-first 実装。[CORE-CALCULUS.md](CORE-CALCULUS.md) §7/§8・CONVENTIONS §9 チェックリスト通過）**: `check:` は `{lte|gte|lt|gt|eq|ne: [{of: 束縛, path: 相対パス}, {of: 束縛, path: 相対パス}]}` の配列（すべて成立が期待・束縛の解決と演算子はパースで固定＝where の `of` と同じ規約）。評価カーネルは `SemanticQuery.checkFrom`——解（束縛の表の行）ごとに**出現割当て σ**（各束縛にどの出現＝定義／詳細化を選ぶか）を**反例量化**し、要素述語（σ 固定の単一値比較。順序系は数値・eq / ne はスカラー文字列＝consistency の LTE/GTE と同じ規約）が False になる最初の組を反例として返す（決定的）。**1項目内の σ は一貫**（同一束縛の両辺は同一出現から読む＝出現をまたいだ突合はしない）・値が読めない／数値でない組は評価不能として飛ばし、評価可能な組がなければ判定保留（黙る）。反例（束縛・出現・値）は `SemanticCheckViolation` として `Validator` へ渡り、メッセージの反例列挙（違反した関係の記号つき）＋`relatedIds` ジャンプになる＝**provenance の最小形**。選択述語（where＝存在量化）と判定述語（check＝反例量化）で量化の向きが逆なのは意図的な仕様（CALC-13）。
+**束縛間の値比較 `check`（R28-08＝Core Calculus 初の calculus-first 実装。[CORE-CALCULUS.md](../CORE-CALCULUS.md) §7/§8・CONVENTIONS §9 チェックリスト通過）**: `check:` は `{lte|gte|lt|gt|eq|ne: [{of: 束縛, path: 相対パス}, {of: 束縛, path: 相対パス}]}` の配列（すべて成立が期待・束縛の解決と演算子はパースで固定＝where の `of` と同じ規約）。評価カーネルは `SemanticQuery.checkFrom`——解（束縛の表の行）ごとに**出現割当て σ**（各束縛にどの出現＝定義／詳細化を選ぶか）を**反例量化**し、要素述語（σ 固定の単一値比較。順序系は数値・eq / ne はスカラー文字列＝consistency の LTE/GTE と同じ規約）が False になる最初の組を反例として返す（決定的）。**1項目内の σ は一貫**（同一束縛の両辺は同一出現から読む＝出現をまたいだ突合はしない）・値が読めない／数値でない組は評価不能として飛ばし、評価可能な組がなければ判定保留（黙る）。反例（束縛・出現・値）は `SemanticCheckViolation` として `Validator` へ渡り、メッセージの反例列挙（違反した関係の記号つき）＋`relatedIds` ジャンプになる＝**provenance の最小形**。選択述語（where＝存在量化）と判定述語（check＝反例量化）で量化の向きが逆なのは意図的な仕様（CALC-13）。
 
 **網羅マトリクス（R28-03）**: スキーマの `matrix:`（`rows` / `columns` = エンティティ選択・`witness` = セルの証人（`node`＋`row: {relation}`・`column: {relation}`）・`level`・`activeFrom`）。「行×列の全組合せに、行と列の両方を参照する証人エンティティが存在すること」を検証する（宣言は `schema/Matrix.kt`・判定カーネルは `semantic/Matrix.kt` の `SemanticMatrix.missingColumns`・報告はパターン制約と同じく `Validator.validate` の行の定義出現）。証人への参照キーを `relation` にしてあるのは、rename-relation リファクタリングの書換 walker（`entryKey == "relation"`）がそのまま効くようにするため。明示的除外は証人側の `excluded: true` 行（存在＝充足。UX-16 の流儀＝理由がデータとして残る）。列の母集団が空・行の母集団外は判定保留。
 
@@ -631,7 +690,7 @@ limit: 100                               # 既定 100（total は打切り前の
 **移動の決定性（R25-02）**: 移動元と移動先は**要素コンテキスト署名**（ルートからの配列・map 横断の列＝横断キー列×コンテナ実体の同一性）が一致するときだけ許可する。境界をまたぐ移動は1↔Nの対応になり決定的に解決できないため拒否。共有定義（definitions）をまたぐ移動も拒否（他の使用箇所の文書が壊れる）。文書側は要素ごとに「中間 object の生成 → Move → 空になった親の削除（移動先の経路上は除外）」を発行する。
 
 **警告に留める消費者（自動書換しない）**: スキーマ内の宣言節（consistency / constraints / coverage / derive）・定義文書（`_activities` / `_agents` / `_skills` / `_evals`）の言及・多義な列パス・アタッチ（`at`）・skill の写像。語境界つきの近似スキャンで**言及箇所を列挙**し、対応判断は人間に委ねる。フィールドパス・関係名・スキーマIDを参照する機能を増やすときは、この「書換 or 警告」のどちらに載せるかを必ず決めること（§6 の変更箇所リストと同じ役割）。なお relation / schemaId の改名は YAML キー基準の横断書換（`relation:`・`schemaId(s)`・修飾 `$ref` 等）で、レジストリ・スキーマ・ビューを対で書き換える。
-**計画生成の共有基盤（R29-07。P29 Phase 4）**: 高水準操作（スキーマ・リファクタリング12操作・エンティティ操作）は、Core Calculus の Rewrite＝「場所の列挙（Query）× 絞り込みと中止条件（Predicate）× 場所ごとの操作（Edit*）」の形で書かれ、列挙と集積は `semantic/Rewrite.kt`（`SemanticRewrite`）の単一実装を通る——`walkDocument`（スキーマ誘導の文書走査。object へ入った時点／値のあるフィールドごとの2つの訪問点。cases は実効フィールドだけを辿る）・`reach`（対象フィールドへ到達する文書スキーマとその文書）・`forEachSchemaEntry`（書き換え可能な全スキーマ文書の全エントリ）・`rewriteDocuments`（基本戦略: 全一致を列挙→文書ごとの操作列。件数集計つき）・`PlanOps`（文書ID順の集積。エンティティ操作は削除を後ろへ寄せる）。各操作に残るのは「1文書分の規則」と事前条件・スキーマ側の追随・サマリだけ。**中止条件**（改名先キーの衝突・移動先の既存値・変換できない値）に当たった文書は空の操作列を返して理由を集め、全文書の評価後にまとめて中止する（部分計画を返さない）。**基本形に落とさないもの**: フィールド移動（中間生成→Move→空親の削除の列。`moveDataOps`）・定義の抽出／インライン化・型変換のスキーマ側は、操作列の組み立て自体に意味がある**戦略**として操作側が持つ（列挙器だけ共有）。**新しい変更操作を足すときは、走査や文書ループを書かずにこの基盤の列挙器と基本戦略を使う**。計画の決定性（同じ入力から操作順まで同じ計画）は `RefactoringPlanGoldenTest`（workspace-core。全操作＋拒否ケースの計画を正準テキストで固定。意図した変更時のみ `./gradlew :workspace-core:test -DupdateGolden=true` で期待値を更新し差分をレビュー）が守る。写像の全体と判断の記録は [ROADMAP.md](ROADMAP.md) の P29 Phase 4 の行にある。
+**計画生成の共有基盤（R29-07。P29 Phase 4）**: 高水準操作（スキーマ・リファクタリング12操作・エンティティ操作）は、Core Calculus の Rewrite＝「場所の列挙（Query）× 絞り込みと中止条件（Predicate）× 場所ごとの操作（Edit*）」の形で書かれ、列挙と集積は `semantic/Rewrite.kt`（`SemanticRewrite`）の単一実装を通る——`walkDocument`（スキーマ誘導の文書走査。object へ入った時点／値のあるフィールドごとの2つの訪問点。cases は実効フィールドだけを辿る）・`reach`（対象フィールドへ到達する文書スキーマとその文書）・`forEachSchemaEntry`（書き換え可能な全スキーマ文書の全エントリ）・`rewriteDocuments`（基本戦略: 全一致を列挙→文書ごとの操作列。件数集計つき）・`PlanOps`（文書ID順の集積。エンティティ操作は削除を後ろへ寄せる）。各操作に残るのは「1文書分の規則」と事前条件・スキーマ側の追随・サマリだけ。**中止条件**（改名先キーの衝突・移動先の既存値・変換できない値）に当たった文書は空の操作列を返して理由を集め、全文書の評価後にまとめて中止する（部分計画を返さない）。**基本形に落とさないもの**: フィールド移動（中間生成→Move→空親の削除の列。`moveDataOps`）・定義の抽出／インライン化・型変換のスキーマ側は、操作列の組み立て自体に意味がある**戦略**として操作側が持つ（列挙器だけ共有）。**新しい変更操作を足すときは、走査や文書ループを書かずにこの基盤の列挙器と基本戦略を使う**。計画の決定性（同じ入力から操作順まで同じ計画）は `RefactoringPlanGoldenTest`（workspace-core。全操作＋拒否ケースの計画を正準テキストで固定。意図した変更時のみ `./gradlew :workspace-core:test -DupdateGolden=true` で期待値を更新し差分をレビュー）が守る。写像の全体と判断の記録は [ROADMAP.md](../ROADMAP.md) の P29 Phase 4 の行にある。
 
 **変更語彙の2層（R29-08。RP-02）**: 変更命令の基礎語彙は6種（Set / Insert / Delete / Move / RenameKey / ReorderKeys）で、**内部の正準は型付き操作 `edit.YamlOperation`（逆操作つき）＋ `WorkspaceTransaction`（版の検査・履歴・原子適用）**。`patch.PatchOp` と変更セット（`changeset.ChangeSet`。基準ハッシュで衝突検出）は同じ基礎命令の**外部との交換形式**（エージェントの `apply_patch`・CLI・skill の取込）で、適用の入口（`Workspace.applyInternal`／エージェントのステージング）でだけ解釈される。**内部で計画を作るコードは PatchOp を作らない**（ビュー追随 `Views.fieldRenameImpact` も型付き操作で生成し、計画へ変換なしで合成する）。変更セット型の workspace-core への再配置は P27 と合流。
 
@@ -641,7 +700,7 @@ limit: 100                               # 既定 100（total は打切り前の
 
 ### 4.36 定義層: 検査の書き方の3段と組込み定義体（P29 Phase 6）
 
-Core Calculus の本来の目的（[CORE-CALCULUS.md](CORE-CALCULUS.md) §25）——機能を直交させて個別実装をなくし、**プリミティブな実装＋組込み定義＋ユーザ定義**だけで検証を行う——を実装に下ろす層。検証に関わるものを4層に分ける: **文法プリミティブ**（yaml-core。YAML の構造と最小の構造チェックだけ・小さく保つ）／**意味プリミティブ**（semantic-core。どう解釈するか。定義の中で組み合わせる「部品」と、複雑なアルゴリズムをまるごと実装する「専用チェッカー」）／**組込み定義体**（同梱の YAML）／**ユーザ定義**（利用者の YAML）。
+Core Calculus の本来の目的（[CORE-CALCULUS.md](../CORE-CALCULUS.md) §25）——機能を直交させて個別実装をなくし、**プリミティブな実装＋組込み定義＋ユーザ定義**だけで検証を行う——を実装に下ろす層。検証に関わるものを4層に分ける: **文法プリミティブ**（yaml-core。YAML の構造と最小の構造チェックだけ・小さく保つ）／**意味プリミティブ**（semantic-core。どう解釈するか。定義の中で組み合わせる「部品」と、複雑なアルゴリズムをまるごと実装する「専用チェッカー」）／**組込み定義体**（同梱の YAML）／**ユーザ定義**（利用者の YAML）。
 
 **検査の書き方の3段**（上の段は、検証の前に下の段へ展開される）:
 

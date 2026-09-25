@@ -17,7 +17,7 @@ import dev.toros.yde.semantic.schema.QuerySpec
 import dev.toros.yde.semantic.SemanticQuery
 
 /**
- * パターン照合エンジン（R22-01。ARCHITECTURE §4.32）を、索引（IdIndex）から呼ぶ窓口。
+ * パターン照合エンジン（R22-01。architecture/graph-query.md「クエリコア」）を、索引（IdIndex）から呼ぶ窓口。
  * 評価アルゴリズムの本体は semantic-core の SemanticQuery（3層コア移行 Phase 6C）。索引も結果も、カーネルの型そのもの
  * （P27 段D の D-d・D-e。以前は、結果をファイルの座標 Path へ写し戻す型 QueryNodeRef などを root にも持っていた）。
  * 決定性・判定保留・循環照合の停止・loader 注入の契約はカーネル側に記載。
@@ -103,7 +103,7 @@ object Query {
 
     /**
      * startId が起点束縛の母集団（起点 node のフィルタ＋起点束縛の where 述語）に入るか（R22-03）。
-     * 制約の「対象外は黙る」（判定保留 §4.26）と「解なし」を区別するために使う。
+     * 制約の「対象外は黙る」（判定保留 architecture/transform.md「計算列と決定論的射影」）と「解なし」を区別するために使う。
      */
     fun startMatches(index: IdIndex, spec: QuerySpec, startId: String, loader: (DocumentId) -> YNode?): Boolean =
         SemanticQuery.startMatches(index.entries, index.refs, index.graph, spec, startId, loader)

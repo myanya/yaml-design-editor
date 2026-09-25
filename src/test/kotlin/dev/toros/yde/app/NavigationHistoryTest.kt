@@ -163,7 +163,7 @@ class NavigationHistoryTest {
     @Test
     fun `スペースはナビゲーションで文書世界へ同期される`() {
         // R12-01: 実行・設計スペースからのジャンプは編集／台帳スペースへ着地し、
-        // レールで台帳へ戻ると最後の下位ビューが復元される（ARCHITECTURE §4.24）
+        // レールで台帳へ戻ると最後の下位ビューが復元される（architecture/ui.md「UI シェル」）
         val state = AppState()
         val a = newFile("a.yaml")
         assertEquals(UiSpace.EDIT, state.uiSpace)

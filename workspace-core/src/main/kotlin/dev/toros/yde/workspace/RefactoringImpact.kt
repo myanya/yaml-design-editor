@@ -106,7 +106,7 @@ object RefactoringImpact {
         return null
     }
 
-    /** `$ref` の最終実体（定義インスタンス）。子リストのインスタンス保持が前提（§4.35）。 */
+    /** `$ref` の最終実体（定義インスタンス）。子リストのインスタンス保持が前提（architecture/schema.md「リファクタリング」）。 */
     private fun deref(entry: WorkspaceSchema, field: FieldDef): FieldDef {
         var current = field
         val seen = mutableSetOf<String>()
@@ -229,7 +229,7 @@ object RefactoringImpact {
     data class FieldRenameImpact(val ops: Map<DocumentId, List<YamlOperation>>, val warnings: List<String>)
 
     /**
-     * スキーマのフィールド改名（R25-01 / R25-02。ARCHITECTURE §4.35）にビュー定義を追随させる。
+     * スキーマのフィールド改名（R25-01 / R25-02。architecture/schema.md「リファクタリング」）にビュー定義を追随させる。
      * 自動書換は「パスの静的解決が**全て改名対象を指す**場合」に限る——通常列 `path`・計算列の
      * `computed.path` / `computed.lookup.via`・`newRow.path`・文書ビューの `sections[].fields.path` と
      * include / exclude・被参照表の列 `path` が対象。多義（同名の別フィールドにも解決しうる）は

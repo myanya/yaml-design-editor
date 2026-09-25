@@ -13,3 +13,4 @@
 | [backlog-closed.md](backlog-closed.md) | 解決・見送りの指摘（UX-01〜） | 2026-08〜09 |
 | [core-calculus-phases.md](core-calculus-phases.md) | Core Calculus のテーマとの関係・移行の Phase 1〜6・完了条件 | 2026-09 |
 | [ux-scenario-runs.md](ux-scenario-runs.md) | UX 試験の各回の重点観点と実施履歴 | 2026-08〜09 |
+| [architecture-2026-09.md](architecture-2026-09.md) | 主題別に書き直す前の ARCHITECTURE.md の丸ごと（§番号 → 新ファイルの対応表つき） | 2026-07〜09 |

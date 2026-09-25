@@ -643,7 +643,7 @@ internal fun runCli(args: Array<String>): String {
         "entity" -> {
             val ws = workspace()
             val op = rest.getOrNull(1) ?: error("操作（show / rename / merge / delete）を指定してください")
-            // 全体像の表示（R23-04。ARCHITECTURE §4.33）: エンティティページ・read_entity と同じ合成を返す
+            // 全体像の表示（R23-04。architecture/graph-query.md「エンティティページ」）: エンティティページ・read_entity と同じ合成を返す
             if (op == "show") {
                 val id = rest.getOrNull(2)?.takeIf { !it.startsWith("--") } ?: error("表示するIDを指定してください")
                 val composite = Aspects.compose(id, ws.index, ws.schemas, ws.entityTypes, ws::treeOf)
@@ -843,7 +843,7 @@ internal fun runCli(args: Array<String>): String {
                 }
             }
             val configText = buildString {
-                appendLine("# ワークスペース構成（R13-02。ARCHITECTURE §4.25）")
+                appendLine("# ワークスペース構成（R13-02。architecture/workspace.md「ワークスペース構造と layout」）")
                 appendLine("# ledger: 台帳ディレクトリの宣言（文字列またはリスト）。未宣言ならワークスペース全体が台帳。")
                 if (ledger != null) appendLine("ledger: $ledger") else appendLine("# ledger: doc")
             }
@@ -924,7 +924,7 @@ internal fun runCli(args: Array<String>): String {
 }
 
 /**
- * 関係レジストリのドラフト生成（R20-02。ARCHITECTURE §4.30）。
+ * 関係レジストリのドラフト生成（R20-02。architecture/graph-query.md「エンティティ型と関係レジストリ」）。
  * 索引の全参照から relation ごとに viaKey・参照元／先のエンティティ型の実績を集計する。
  * 生成物は必ず `SchemaLoader.parseSchemaText` → `validateDefinition` を通ること（R11-01 と同じ入口保証）。
  */

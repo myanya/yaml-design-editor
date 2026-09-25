@@ -12,7 +12,7 @@ import kotlin.test.assertTrue
  * 型付き編集操作（YamlOperation / YamlEdit）の契約テスト（Phase 4・YM-007b）。
  * - すべての操作に逆操作があり、順に適用すると dump（コメント・スタイル・キー順込み）が元に戻る
  * - 失敗する操作・EditBatch の途中失敗は文書を変更しない
- * - SetScalar は値域の閉集合と往復型安全（§4.1）を守る
+ * - SetScalar は値域の閉集合と往復型安全（architecture/yaml-model.md「木が単一の正」）を守る
  */
 class YamlEditTest {
 

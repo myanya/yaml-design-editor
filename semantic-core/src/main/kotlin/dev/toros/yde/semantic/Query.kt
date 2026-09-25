@@ -26,7 +26,7 @@ import dev.toros.yde.semantic.schema.RefTarget
  * `QuerySpec`（schema/Query.kt）を SemanticEntityGraph の隣接上で評価し、束縛の表を返す。
  * - 決定性: 起点候補はID昇順・エッジ展開は distinct＋ID昇順・行の並びは
  *   「束縛名の辞書順に並べた束縛値（ID昇順）の辞書式比較」・limit 超過は決定的打切り
- * - 判定保留の哲学（§4.26）: 未解決参照・型未宣言のエンティティは黙って照合から外す
+ * - 判定保留の哲学（architecture/transform.md「計算列と決定論的射影」）: 未解決参照・型未宣言のエンティティは黙って照合から外す
  * - 1本の照合経路の中で同じノードを二度通らない（循環照合の停止）。例外は same ステップ
  *   （束縛済みノードそのものへの到達を要求＝意図的にサイクルを閉じる。R28-07）
  * - プロパティ述語の値は loader 注入で読む（ルート側シェルがディスク・docCache・ステージングを渡す）
@@ -155,7 +155,7 @@ data class SemanticCheckEvaluation(
  * node ステップの絞り込み（型のどれか・出現スキーマ・ID パターンと、その否定）にエンティティが合うか。
  * クエリ・網羅マトリクス・遷移検証が共有する（1つの意味には1つの評価器）。
  * 否定（not）は3値で判定する——中の条件がすべて合えば「合わない」、どれかが合わなければ「合う」、
- * 型が宣言されていないために決まらないときは判定保留＝合わない（型未宣言のエンティティには黙る §4.26）。
+ * 型が宣言されていないために決まらないときは判定保留＝合わない（型未宣言のエンティティには黙る architecture/transform.md「計算列と決定論的射影」）。
  */
 internal fun QueryNodeStep.matchesEntity(id: String, node: SemanticEntityNode): Boolean {
     if (idPattern != null && !idMatchesPattern(id, idPattern!!)) return false
@@ -365,7 +365,7 @@ object SemanticQuery {
 
     // ---------------------------------------------------------------- 評価
 
-    /** 照合経路上のノードの同一性（kind＋ID）。エンティティと文書は別名前空間（§4.9 原則3）。 */
+    /** 照合経路上のノードの同一性（kind＋ID）。エンティティと文書は別名前空間（architecture/agents.md「AI 生成」 原則3）。 */
     private data class NodeKey(val kind: QueryNodeKind, val id: String)
 
     private class Evaluator(
@@ -492,7 +492,7 @@ object SemanticQuery {
                 )
                 if (firstOnly) break
             }
-            // 行の並び: 束縛名の辞書順に並べた列の値（ID昇順）の辞書式比較（§4.32。列の表示順は宣言順のまま）。
+            // 行の並び: 束縛名の辞書順に並べた列の値（ID昇順）の辞書式比較（architecture/graph-query.md「クエリコア」。列の表示順は宣言順のまま）。
             // 束縛した参照があれば、その書かれた場所（文書・パス）で続けて比べる
             val sortBinds = spec.binds.sorted()
             val sortEdges = spec.edgeBinds.sorted()
@@ -615,7 +615,7 @@ object SemanticQuery {
         }
 
         /**
-         * エッジ1段の展開（着いた先の node の絞り込みをかける前）。端の解決は到達側の kind が決める（§4.32）:
+         * エッジ1段の展開（着いた先の node の絞り込みをかける前）。端の解決は到達側の kind が決める（architecture/graph-query.md「クエリコア」）:
          * out → entity = 解決済みのエンティティ参照先／document = 解決済みの文書参照先、
          * in → entity = 参照を書いた最内のID要素／document = 参照が書かれた文書。
          * row（行を線とみなす。SP-07）は、同じ行の直下の2つの参照——from の相手から to の相手へ——を1本の線として辿る。
@@ -708,7 +708,7 @@ object SemanticQuery {
 
         /**
          * 選択述語（where）の3値の判定: σ の候補（sigmaCandidates）を存在量化する（CALC-13。エンティティは
-         * いずれかの出現の該当パス＝多段定義の OR。§4.32）。値の読み出しは共有評価部の Get。
+         * いずれかの出現の該当パス＝多段定義の OR。architecture/graph-query.md「クエリコア」）。値の読み出しは共有評価部の Get。
          * 値が無くて判定できないときは null（否定しても null＝ノードは選ばれない）。
          */
         private fun predValue(pred: QueryWhere, key: NodeKey): Boolean? {
@@ -935,7 +935,7 @@ object SemanticQuery {
         /**
          * σ の割当て先（where の存在量化と check の反例量化が共有する。R29-05）: エンティティは
          * 全出現（定義＋詳細化）・文書は _document 配下の自明な1点（プロパティは _document 配下に限る。
-         * ROADMAP §4.9 原則3）。
+         * ROADMAP architecture/agents.md「AI 生成」 原則3）。
          */
         private fun sigmaCandidates(kind: QueryNodeKind, id: String): List<SemanticExpression.Occurrence> = when (kind) {
             QueryNodeKind.ENTITY ->

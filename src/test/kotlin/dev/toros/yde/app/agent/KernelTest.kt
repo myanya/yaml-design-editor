@@ -216,7 +216,7 @@ class KernelTest {
 
     @Test
     fun `graph integrity gate rejects a changeset that creates a cycle`() {
-        // グラフ整合検証（R21-01。ARCHITECTURE §4.31）が提出ゲートに乗ることの確認:
+        // グラフ整合検証（R21-01。architecture/graph-query.md「エンティティ操作」）が提出ゲートに乗ることの確認:
         // acyclic 宣言された relation の循環を作る変更セットは拒否され、拒否理由に循環経路が載る
         write(
             "_schemas/flow.yaml",

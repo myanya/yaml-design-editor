@@ -19,7 +19,7 @@ sealed interface YamlOperation {
 
     /**
      * スカラー値の設定（無ければ作成）。value の値域はスカラーの閉集合
-     * （String / Boolean / Int / Long / Double / null）で、Kotlin の型が正（§4.1 スカラー値と表記の契約）。
+     * （String / Boolean / Int / Long / Double / null）で、Kotlin の型が正（architecture/yaml-model.md「木が単一の正」 スカラー値と表記の契約）。
      * 既存ノードを置換した場合、styleHint・コメントは継承される（R8-01）。
      */
     data class SetScalar(val path: YPath, val value: Any?) : YamlOperation
@@ -120,7 +120,7 @@ object YamlEdit {
         return inverses
     }
 
-    /** SetScalar の値域検査（§4.1: スカラーの閉集合。Kotlin の型が正）。 */
+    /** SetScalar の値域検査（architecture/yaml-model.md「木が単一の正」: スカラーの閉集合。Kotlin の型が正）。 */
     private fun requireScalarValue(value: Any?) {
         val ok = value == null || value is String || value is Boolean ||
             value is Int || value is Long || value is Double

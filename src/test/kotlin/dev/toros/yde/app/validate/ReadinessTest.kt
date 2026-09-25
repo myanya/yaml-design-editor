@@ -11,7 +11,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * 準備完了レポート（R28-05b。ARCHITECTURE §4.32）のテスト。
+ * 準備完了レポート（R28-05b。architecture/graph-query.md「クエリコア」）のテスト。
  * 検証指摘のエンティティへの帰属（最も内側のID出現）・準備完了判定（エラー0）・
  * 文書レベル（unassigned）の別掲・フェーズ解決と型／フェーズ別集計を検証する。
  */

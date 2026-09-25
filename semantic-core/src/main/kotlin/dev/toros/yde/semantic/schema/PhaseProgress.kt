@@ -8,7 +8,7 @@ data class PhaseProgress(val phase: String, val filled: Int, val total: Int)
 
 /**
  * フェーズ別の記入進捗（requiredFrom を持つフィールドの記入済み／総数）。phases 未宣言のスキーマでは空。
- * 未来フェーズの未記入はエラーではなくこの進捗として可視化する（ARCHITECTURE §4.15）。
+ * 未来フェーズの未記入はエラーではなくこの進捗として可視化する（architecture/schema.md「フェーズ」）。
  * 存在しないオブジェクト配下は総数に数えるが、存在しない配列要素・Map項目は数えない（構造が確定してから数える）。
  * B-3（RB-04）で root validate.Validator から移設（構造層の走査のため SchemaTree の拡張＝yaml-core）。
  */

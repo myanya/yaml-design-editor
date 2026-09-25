@@ -12,7 +12,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * check 判定述語（R28-08。CORE-CALCULUS §8 / ARCHITECTURE §4.32）のテスト。
+ * check 判定述語（R28-08。CORE-CALCULUS §8 / architecture/graph-query.md「クエリコア」）のテスト。
  * 束縛間の値比較を出現割当て σ で反例量化する——反例の発見＝違反（値つきで列挙・relatedIds ジャンプ）・
  * 評価可能な組がなければ判定保留（黙る）・項目内の σ は一貫（同一束縛は同一出現から読む）。
  */

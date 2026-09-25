@@ -77,7 +77,7 @@ object SchemaDocuments {
             require(kind == SchemaKind.DOCUMENT) { "derive は ${kind.id} スキーマには定義できません" }
             require(raw["match"] == null) { "derive 宣言スキーマに match は定義できません（適用先は derive.match で決まります）" }
         }
-        // エンティティ型の宣言と関係レジストリ: 書ける文書の種類が決まっている（ARCHITECTURE §4.30）
+        // エンティティ型の宣言と関係レジストリ: 書ける文書の種類が決まっている（architecture/graph-query.md「エンティティ型と関係レジストリ」）
         val entities = SemanticDeclParser.parseEntities(raw["entity"])
         require(entities.isEmpty() || kind == SchemaKind.DOCUMENT) { "entity は kind: ${kind.id} には定義できません" }
         require(kind == SchemaKind.RELATIONS || raw["relations"] == null) { "relations は kind: relations の文書でのみ定義できます" }

@@ -332,7 +332,7 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                         }
                     }
                 }
-                // この文書への参照（target: document。R21-03。ARCHITECTURE §4.31）
+                // この文書への参照（target: document。R21-03。architecture/graph-query.md「エンティティ操作」）
                 if (docBacklinks.isNotEmpty()) {
                     item { SectionHeader("この文書への参照（${docBacklinks.size}）") }
                     items(docBacklinks.size) { i ->

@@ -1,6 +1,6 @@
 # 将来構想とロードマップ
 
-本書は方向性と、未完のテーマだけを扱う。実装済みの機能は [FEATURES.md](FEATURES.md)、現行の設計は [ARCHITECTURE.md](ARCHITECTURE.md) が正。
+本書は方向性と、未完のテーマだけを扱う。実装済みの機能は [FEATURES.md](FEATURES.md)、現行の設計は [architecture/](architecture/README.md) が正。
 完了したテーマの本文と、未完のテーマの完了した項目の詳細は [archive/roadmap-history.md](archive/roadmap-history.md) にある。
 テーマの項目を実装したら FEATURES に機能として登録し、本書の状態表を更新する。テーマが完了したら本文を記録へ移す。
 
@@ -40,7 +40,7 @@
 
 ## 中核コンセプト
 
-詳しい仕組みは ARCHITECTURE の該当する主題に書く。ここには考え方だけを置く。
+詳しい仕組みは architecture/ の該当する主題に書く。ここには考え方だけを置く。
 
 - **原本主義**: 情報管理は YAML に統一する。Excel・Markdown・Word は副次的な入出力形式で、インポートした時点から YAML が原本。派生成果物は原本からいつでも再生成できる。
 - **セルフホスティング**: アクティビティ・エージェント・skill・実行記録も、予約ディレクトリに置くスキーマ付き YAML 文書。本ツール自身の編集・検証・差分・レビュー・AI 生成が、エージェント運用の管理にもそのまま使える。

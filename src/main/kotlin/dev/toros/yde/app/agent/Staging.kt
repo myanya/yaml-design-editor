@@ -134,7 +134,7 @@ class Staging(val ws: Workspace) {
                 target.second, null, ws.documentOf(target.first), ws.schemaFor(target.first), idx,
                 allSchemas = ws.schemas,
                 loader = { d -> tree(d.value) },
-                // グラフ整合検証（R21-01）も提出ゲートに乗せる（循環を作る変更セットの拒否。§4.31）
+                // グラフ整合検証（R21-01）も提出ゲートに乗せる（循環を作る変更セットの拒否。architecture/graph-query.md「エンティティ操作」）
                 relations = ws.relations, enforcement = ws.enforcement,
                 shareEvaluations = true,  // ステージングを重ねた索引と、ステージングの内容を読む loader
             )

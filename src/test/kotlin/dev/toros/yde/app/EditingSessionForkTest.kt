@@ -13,7 +13,7 @@ import kotlin.test.assertTrue
 
 /**
  * 編集用のセッションを、ディスクを映すセッションの読み込み済みの状態から起こす（P27 段D の D-d・D-e。意図的差分 D-38）。
- * 読み込みを1回にしても、二層（ディスクの索引＝正／見たままの索引＝未保存の編集を重ねたもの。ARCHITECTURE §4.5）が
+ * 読み込みを1回にしても、二層（ディスクの索引＝正／見たままの索引＝未保存の編集を重ねたもの。architecture/index-references.md「索引の二層」）が
  * 崩れないことを固定する。
  */
 class EditingSessionForkTest {

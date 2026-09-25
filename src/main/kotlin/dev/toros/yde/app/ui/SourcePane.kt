@@ -32,7 +32,7 @@ import org.yaml.snakeyaml.error.MarkedYAMLException
 import androidx.compose.ui.input.key.*
 
 /**
- * YAML ソースを直接編集するペイン（ライブ同期。UX-23。ARCHITECTURE §4.34）。
+ * YAML ソースを直接編集するペイン（ライブ同期。UX-23。architecture/editing-history.md「履歴の合体」）。
  * 入力のたびにパースし、成功時だけツリー（source of truth）へ自動反映する（フォーム編集と同じ
  * markEdited 経路＝履歴・dirty・検証・オーバーレイ索引がその場で追随）。パース不能の間はツリー＝
  * 最後に解析できた状態が正で、保存もそれを書く（未解析テキストは画面上にだけ存在する）。
@@ -73,7 +73,7 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
     Column(Modifier.fillMaxSize().onPreviewKeyEvent { event ->
         if (event.type == KeyEventType.KeyDown && event.isCtrlPressed && event.key == Key.S) {
             if (error != null) {
-                // 黙って「最後に解析できた状態」を書かない（ARCHITECTURE §4.34）
+                // 黙って「最後に解析できた状態」を書かない（architecture/editing-history.md「履歴の合体」）
                 state.status = "パースエラーのため保存できません（エラーを直すか「編集を破棄」してください)"
             } else if (event.isShiftPressed) state.saveAll() else state.saveCurrent()
             true

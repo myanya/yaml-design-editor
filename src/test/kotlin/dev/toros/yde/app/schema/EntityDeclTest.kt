@@ -19,7 +19,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * エンティティ型宣言（R20-01。ARCHITECTURE §4.30）のテスト。
+ * エンティティ型宣言（R20-01。architecture/graph-query.md「エンティティ型と関係レジストリ」）のテスト。
  * - `entity:` のパース（単一／リスト・定義検証）
  * - DocScanner の型・役割付与と、IdIndex.resolve の定義出現優先
  * - Validator のエンティティ整合 lint（浮遊詳細化・定義競合・idPattern 逸脱・型競合。すべて WARNING）

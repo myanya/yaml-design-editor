@@ -17,7 +17,7 @@ import kotlin.test.assertTrue
 /**
  * 派生スキーマ（R11-03）のテスト。
  * 「テーブル定義書 → レコード検証スキーマ」の導出と、導出元文書の変更が再検証に反映される
- * 往復（導出の往復）を検証する（ARCHITECTURE §4.23）。
+ * 往復（導出の往復）を検証する（architecture/schema.md「推測・メタスキーマ・派生」）。
  */
 class DerivedSchemasTest {
 
@@ -138,7 +138,7 @@ class DerivedSchemasTest {
               - { name: point, dataType: number }
               - { name: owner, dataType: varchar, required: true }
         """)
-        // 導出元文書の変更はスキーマ変更と同じ扱い（noteDiskChanges が全再構築へ振り分ける。§4.23）
+        // 導出元文書の変更はスキーマ変更と同じ扱い（noteDiskChanges が全再構築へ振り分ける。architecture/schema.md「推測・メタスキーマ・派生」）
         ws.noteDiskChanges(listOf(dir.resolve("tables/tbl-task.yaml")))
         val issues = ws.validate("records/TBL-TASK/r1.yaml")
         assertTrue(issues.any { it.severity == Severity.ERROR && "owner" in it.message }, issues.toString())

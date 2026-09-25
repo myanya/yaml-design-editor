@@ -107,7 +107,7 @@ object ViewDefinitions {
         val id = raw["id"]?.toString()?.takeIf { it.isNotBlank() } ?: error("id が必要です")
         if (raw.containsKey("sections")) error("sections は kind: document のビューでのみ使えます")
         val rowsMap = raw["rows"] as? Map<*, *> ?: error("rows が必要です")
-        // 行の定義: 従来（idPattern×schemaIds）とクエリ行（match。R22-02 / ARCHITECTURE §4.32）の排他
+        // 行の定義: 従来（idPattern×schemaIds）とクエリ行（match。R22-02 / architecture/graph-query.md「クエリコア」）の排他
         var rowsDef: VirtualRowsDef? = null
         var rowsQuery: QuerySpec? = null
         var rowKey: String? = null

@@ -123,7 +123,7 @@ class OpenDocument(
     internal fun refreshDirty() = sync()
 
     /**
-     * 編集をツリーへ記録する。coalesceWith（UX-11。ARCHITECTURE §4.34）: 連続入力になり得る編集面が
+     * 編集をツリーへ記録する。coalesceWith（UX-11。architecture/editing-history.md「履歴の合体」）: 連続入力になり得る編集面が
      * 渡す合体キー（同一スカラーノード・`Pair(map, key)`・ソースの固定キー等）。同じキーの連続編集は
      * 履歴1記録に合体する。構造操作は渡さない＝常に境界。
      * 履歴の記録先はセッション（onEdited 経由。RA-06）。
@@ -157,7 +157,7 @@ class OpenDocument(
 }
 
 /**
- * UIシェルのスペース（ROADMAP P12 / ARCHITECTURE §4.24）。
+ * UIシェルのスペース（ROADMAP P12 / architecture/ui.md「UI シェル」）。
  * EDIT / LEDGER は文書世界（workspaceView 0 / 1〜4）と同期し、RUNS / DESIGN は文書状態を保ったまま重なる。
  * 同期はナビゲーション系メソッドとレール（showSpace / showWorkspaceView）だけが行い、直接書き換えない。
  */
@@ -220,7 +220,7 @@ class AppState {
     /** 強制スイッチ（R21-01）: グラフ整合検証の enforcement。検証呼び出しが relations と対で渡す。 */
     var enforcement by mutableStateOf(EnforcementDef())
         private set
-    /** エンティティ型レジストリ（R23-01。§4.33）: 型の表示名・アスペクト順序。エンティティページ・レンズが使う。 */
+    /** エンティティ型レジストリ（R23-01。architecture/graph-query.md「エンティティページ」）: 型の表示名・アスペクト順序。エンティティページ・レンズが使う。 */
     var entityTypes by mutableStateOf<Map<String, EntityTypeDef>>(emptyMap())
         private set
     var yamlFiles by mutableStateOf<List<Path>>(emptyList())
@@ -247,7 +247,7 @@ class AppState {
 
     /**
      * 全文書横断の編集カウンタ（R16-04 / UX-02）: docCache のどの文書かの未保存編集・Undo/Redo で進む。
-     * 計算列など「他文書の未保存編集に追随したい」派生表示が再解決の購読に使う（ARCHITECTURE §4.26）。
+     * 計算列など「他文書の未保存編集に追随したい」派生表示が再解決の購読に使う（architecture/transform.md「計算列と決定論的射影」）。
      */
     var editVersion by mutableStateOf(0)
         private set
@@ -257,7 +257,7 @@ class AppState {
 
     /**
      * 未保存編集を重ねたオーバーレイ索引（UX-03）。dirty な文書キャッシュの編集中ツリーを
-     * 重ねた「見たまま」の索引を返す（ARCHITECTURE §4.5）。UI層の検証・カバレッジ・ビュー行集合・
+     * 重ねた「見たまま」の索引を返す（architecture/index-references.md「索引の二層」）。UI層の検証・カバレッジ・ビュー行集合・
      * 参照解決はディスク索引（index）ではなく**こちら**を読む＝「見たままの状態で判定する」。
      * indexVersion / editVersion（Compose状態）を読むため、コンポジション中の呼び出しは自動で購読される。
      * `remember` の計算内で使う場合はキーに editVersion を含めること。
@@ -368,7 +368,7 @@ class AppState {
     }
 
     /**
-     * グラフレンズ（R23-03。ARCHITECTURE §4.33）の起点ID。null = 起点なし（型・relation で絞る全体表示）。
+     * グラフレンズ（R23-03。architecture/graph-query.md「エンティティページ」）の起点ID。null = 起点なし（型・relation で絞る全体表示）。
      * レンズ画面側で解除・変更できる（NavLocation には含めない＝復元はビュー位置まで）。
      */
     var lensOriginId by mutableStateOf<String?>(null)
@@ -533,7 +533,7 @@ class AppState {
      *
      * [fromMirror]: ディスクを映すセッション（core.Workspace の内部）を読み直した直後なら、その読み込み済みの状態から
      * 起こす（`fork`）。2つのセッションは別物のまま——編集用は未保存の編集と作業中のスキーマを持ち、ディスクを映す側は
-     * エージェント・自動実行・CLI の基準（docs/ARCHITECTURE.md §4.5 の二層）——で、読み込みだけを1回にする。
+     * エージェント・自動実行・CLI の基準（docs/architecture/index-references.md「索引の二層」 の二層）——で、読み込みだけを1回にする。
      */
     private fun openSession(ws: Path, fromMirror: Boolean = false): WorkspaceSession? = runCatching {
         val forked = if (fromMirror) runCatching { coreWs?.mirror?.fork() }.getOrNull() else null
@@ -740,7 +740,7 @@ class AppState {
     private fun workspaceKey(): String = "ws-${workspace?.toString()?.hashCode() ?: 0}"
 
     /**
-     * 未保存編集を優先するツリー取得（docCache → ディスク。§4.5 の二層構造）。
+     * 未保存編集を優先するツリー取得（docCache → ディスク。architecture/index-references.md「索引の二層」 の二層構造）。
      * core への loader 注入と、UIの検証（整合検証の材料読み）に使う（UX-03）。
      */
     fun unsavedFirstLoader(): (Path) -> YNode? = { file ->
@@ -756,7 +756,7 @@ class AppState {
     /**
      * ワークスペース全体の検証（UX-44）: 索引対象の全文書を「見たまま」（未保存編集込みの
      * オーバーレイ索引＋unsavedFirstLoader）で検証し、指摘のあるファイルだけ返す。
-     * 検証タブの「全体」スコープが読む。ヘッドレス経路（CLI `validate`）はディスク基準のまま（§4.5）。
+     * 検証タブの「全体」スコープが読む。ヘッドレス経路（CLI `validate`）はディスク基準のまま（architecture/index-references.md「索引の二層」）。
      */
     fun validateWorkspace(): List<Pair<Path, List<Issue>>> {
         val cw = coreWs ?: return emptyList()
@@ -1165,7 +1165,7 @@ class AppState {
         session ?: error("ワークスペースが開かれていません")
 
     /**
-     * エンティティ改名のプレビュー（R21-02。ARCHITECTURE §4.31）: 全出現・全参照を書き換える計画を
+     * エンティティ改名のプレビュー（R21-02。architecture/graph-query.md「エンティティ操作」）: 全出現・全参照を書き換える計画を
      * 生成する（適用しない）。計画はセッションの working 状態＝「見たまま」が基準（B-1）。
      */
     fun planEntityRename(oldId: String, newId: String): Result<RefactoringPlan> = runCatching {
@@ -1184,7 +1184,7 @@ class AppState {
     }
 
     /**
-     * スキーマのフィールド一括改名のプレビュー（R25-01。ARCHITECTURE §4.35）: データ・スキーマ本体の計画も、ビュー定義の追随と
+     * スキーマのフィールド一括改名のプレビュー（R25-01。architecture/schema.md「リファクタリング」）: データ・スキーマ本体の計画も、ビュー定義の追随と
      * 言及の警告も、カーネルのセッションが1つの計画にして返す（P27 段D の D-c・意図的差分 D-36。以前は、アプリ層が補強していた）。
      */
     fun planSchemaFieldRename(schemaId: String, fieldPath: String, newName: String): Result<RefactoringPlan> =
@@ -1384,7 +1384,7 @@ class AppState {
     }
 
     /**
-     * 改名の影響プレビュー（R21-03。ARCHITECTURE §4.31）: パスID文書参照の書き換え・スキーマ match の
+     * 改名の影響プレビュー（R21-03。architecture/graph-query.md「エンティティ操作」）: パスID文書参照の書き換え・スキーマ match の
      * 変化・ビュー定義の対象外れを、実行前にダイアログへ表示するための1行リスト。
      */
     fun renameImpact(path: Path, newName: String): List<String> {

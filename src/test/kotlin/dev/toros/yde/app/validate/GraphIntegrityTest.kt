@@ -17,7 +17,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * グラフ整合検証（R21-01。ARCHITECTURE §4.31）のテスト。
+ * グラフ整合検証（R21-01。architecture/graph-query.md「エンティティ操作」）のテスト。
  * - 対象型（source / target）・多重度（in / out）・非循環（acyclic）の検証
  * - 強制スイッチ enforcement（undeclaredRelation / definingUniqueness）の3値
  * - relation の level による重大度・宣言のないワークスペースの非破壊

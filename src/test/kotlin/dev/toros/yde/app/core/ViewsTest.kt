@@ -566,7 +566,7 @@ class ViewsTest {
         assertEquals("types.yaml", input.document?.value, "入力値の座標は値型定義の位置")
         assertEquals(parseYPath("types[0].maxLength"), input.path)
 
-        // 解決できないプレースホルダは {...} のまま残す（作業を止めない。ARCHITECTURE §4.26）
+        // 解決できないプレースホルダは {...} のまま残す（作業を止めない。architecture/transform.md「計算列と決定論的射影」）
         val note = rows.first { it.id == "VT-NOTE" }
         assertEquals("{missing} text", (note.cells[1].value as YNode.Scalar).value)
         // 未解決の入力は来歴に「座標なし」として残る（UIは未解決の説明を出す）

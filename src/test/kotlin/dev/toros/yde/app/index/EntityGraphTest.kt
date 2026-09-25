@@ -13,7 +13,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * 導出グラフ（EntityGraph。R20-04。ARCHITECTURE §4.30）のテスト。
+ * 導出グラフ（EntityGraph。R20-04。architecture/graph-query.md「エンティティ型と関係レジストリ」）のテスト。
  * `sourceEntryOf` / `backlinksTo` / 出次列挙の載せ替えが**旧実装（全参照の線形走査）と同一の出力**を
  * 返すことを、テスト内に旧ロジックを再現して照合する。増分更新後・オーバーレイ経路でも一致を確認する。
  */

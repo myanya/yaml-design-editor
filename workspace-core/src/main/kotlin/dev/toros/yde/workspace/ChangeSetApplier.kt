@@ -135,7 +135,7 @@ object ChangeSetApplier {
         else saved.failures.entries.firstOrNull()?.let { (id, m) -> "${id.value}: $m" } ?: "書込に失敗しました"
     }
 
-    /** 文書に当てるスキーマ。ゾーンの外の構成ファイル（`.yde/workspace.yaml` など）には当てない（ARCHITECTURE §4.25）。 */
+    /** 文書に当てるスキーマ。ゾーンの外の構成ファイル（`.yde/workspace.yaml` など）には当てない（architecture/workspace.md「ワークスペース構造と layout」）。 */
     private fun schemaIdFor(rel: String, document: YDocument, schemas: List<WorkspaceSchema>, layout: WorkspaceLayout): String? =
         if (layout.isReserved(rel) && layout.zoneOf(rel) == null) null
         else WorkspaceReader.assignSchemaId(rel, document, schemas, layout)

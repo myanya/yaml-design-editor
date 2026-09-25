@@ -56,7 +56,7 @@ data class SemanticAspectSection(
     val fields: List<SemanticAspectField>,
 )
 
-/** エンティティ全体像（R23-01）。sections の並びは決定的（§4.33）。 */
+/** エンティティ全体像（R23-01）。sections の並びは決定的（architecture/graph-query.md「エンティティページ」）。 */
 data class SemanticEntityComposite(
     val id: String,
     val entityType: String?,
@@ -110,7 +110,7 @@ object SemanticAspects {
             prepared += Prepared(entry, sc, root, decl, decl?.aspect ?: sc.id, objectField)
         }
 
-        // 並び: 定義出現 → レジストリのアスペクト宣言順 → 文書 → 要素パス → アスペクト名（決定的。§4.33）。
+        // 並び: 定義出現 → レジストリのアスペクト宣言順 → 文書 → 要素パス → アスペクト名（決定的。architecture/graph-query.md「エンティティページ」）。
         // 宣言のないスキーマ群はスキーマIDのアルファベット順でなく文書ID（パス）順に落とす（UX-80）
         val ordered = prepared.sortedWith(
             compareBy(
@@ -122,7 +122,7 @@ object SemanticAspects {
             )
         )
 
-        // 所有フィールドを座標つきでマージする。重複所有は隠さず duplicateOf で注記する（§4.33）
+        // 所有フィールドを座標つきでマージする。重複所有は隠さず duplicateOf で注記する（architecture/graph-query.md「エンティティページ」）
         val claimed = mutableMapOf<String, Pair<DocumentId, YPath>>()
         val sections = ordered.map { p ->
             val ownedKeys = ownedFieldKeys(p.schema.tree, p.root, p.entry.path, p.decl)

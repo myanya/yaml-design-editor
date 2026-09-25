@@ -1,13 +1,13 @@
 # 開発規約
 
-本書はコードとドキュメントの書き方の規約を定義します。設計上の方針（依存方向・状態管理・安全性の原則）は [ARCHITECTURE.md](ARCHITECTURE.md) を参照。規約を変更したら本書を更新してください。
+本書はコードとドキュメントの書き方の規約を定義します。設計上の方針（依存方向・状態管理・安全性の原則）は [architecture/](architecture/README.md) を参照。規約を変更したら本書を更新してください。
 
 ## 1. 言語・コードスタイル
 
 - Kotlin 公式コードスタイル（`kotlin.code.style=official`）。インデント4スペース、1行はおおむね120桁まで。
 - KDoc・コード内コメント・コミットメッセージ・UI文言・エラーメッセージは**日本語**で書く（識別子は英語）。
 - コメントは「何をするか」の逐語訳ではなく、制約・理由・注意点を書く（例: 「索引はディスク基準のため未保存編集は反映されない」）。
-- パッケージごとの配置は [ARCHITECTURE.md](ARCHITECTURE.md) §2 の依存ルールに従う。コアの3モジュールと、アプリの純粋ロジック層（`app.core`・`app.index`・`app.schema`・`app.validate`・`app.agent`・`app.ai`・`app.skill`）に Compose を import しない。
+- パッケージごとの配置は [architecture/README.md](architecture/README.md)「モジュールと依存方向」の依存ルールに従う。コアの3モジュールと、アプリの純粋ロジック層（`app.core`・`app.index`・`app.schema`・`app.validate`・`app.agent`・`app.ai`・`app.skill`）に Compose を import しない。
 
 ## 2. Compose UI の書き方
 
@@ -83,7 +83,7 @@
 - **依存方向**（ADR-0002）: `yaml-core ← semantic-core ← workspace-core ← cli／アプリ`。コアからアプリ・Compose・AI・agent・skill へ依存しない。
 - yaml-core と semantic-core の main ソースへ `java.nio.file.Path` を持ち込まない（テストが fixture 読込に使うのは可）。
 - **パッケージ名**: 接頭辞は `dev.toros.yde`、その下にモジュールの根（yaml-core `yaml` / semantic-core `semantic` / workspace-core `workspace` / cli `cli` / アプリ `app`）。
-- モジュール名と同じ名前のクラス（`YamlIO`・`SemanticEngine`・`WorkspaceSession`・`AppState`）とアプリの `Main.kt` は根に置き、ほかは根の下に置く（`semantic.schema`・`app.ui` など。対応表は ARCHITECTURE §2）。同じ裸の名前を複数のモジュールに作らない。
+- モジュール名と同じ名前のクラス（`YamlIO`・`SemanticEngine`・`WorkspaceSession`・`AppState`）とアプリの `Main.kt` は根に置き、ほかは根の下に置く（`semantic.schema`・`app.ui` など。対応表は architecture/README.md「モジュールと依存方向」）。同じ裸の名前を複数のモジュールに作らない。
 - **文書とコメントでは接頭辞を省いた短い形**（`schema.FieldDef`・`validate/Validator.kt`）で書き、同じ短い名前が複数のモジュールにあるとき（`schema`・`validate`・`core`）はモジュール名を添える。
 - **移動であって複製ではない**: ファイルをモジュール間で移すときは `git mv` し、旧位置に残さない。各ステップで `./gradlew test` を緑に保つ。
 - **fixture は読み取り専用**: `test-fixtures/` の期待結果は [test-fixtures/README.md](../test-fixtures/README.md) にある。変更を伴うテストは一時ディレクトリへコピーして使う。`labs/` 配下をテストから読まない。
@@ -99,7 +99,7 @@
 - **LLM 境界**: 確定済み定義の実行結果を LLM に依存させない（AI＝定義を作る／Calculus＝実行する）。
 - **語彙の予算**: 表面語彙（スキーマ・レジストリの新しいキー）を増やせるのは、**核にない演算へ名前を付けるとき**（例: flow の到達閉包）だけ。それ以外の新しい検証要求は、まず正準の綴り（[DESIGN-CHECK-CATALOG.md](DESIGN-CHECK-CATALOG.md) §8）の組合せで書けることを確認し、書けない場合も新キーより既存キーの拡張を優先する。
 - 表面語彙を追加・変更したときは、CORE-CALCULUS の分類表へ追記し、DESIGN-CHECK-CATALOG §8 の正準の綴りと重ならないことを確認する。
-- **検査は、まず YAML の定義体で書けるかを考える**（CORE-CALCULUS「定義層モデル」・ARCHITECTURE §4.36）。検証に関わるものは4層——文法プリミティブ（yaml-core。YAML の構造と最小の構造チェックだけ・小さく保つ）／意味プリミティブ（semantic-core。どう解釈するか）／組込み定義体（同梱の YAML）／ユーザ定義。
+- **検査は、まず YAML の定義体で書けるかを考える**（CORE-CALCULUS「定義層モデル」・architecture/checks.md「定義層の 3 段」）。検証に関わるものは4層——文法プリミティブ（yaml-core。YAML の構造と最小の構造チェックだけ・小さく保つ）／意味プリミティブ（semantic-core。どう解釈するか）／組込み定義体（同梱の YAML）／ユーザ定義。
   - 既存のプリミティブの組合せで無理なく書ける検査は、コードで作らず**定義体**（`builtin-definitions/*.yaml` の `functions` / `vocabulary`）にする。
   - 書けないなら、足りない部分を小さな意味プリミティブとして足す（想定される処理と計算は需要を待たずに用意してよい）。
   - 複雑なアルゴリズムの検査は**専用チェッカー**として個別に実装してよい（すべてを YAML で定義できる必要はない）。
@@ -109,6 +109,6 @@
 - **共有評価部を通す**: 値どうしの比較・出現からの値の読み出し・式側の出現選択は `semantic.SemanticExpression`（`compare` / `textAt` / `select`）を通し、`toDoubleOrNull` の比較や `firstOrNull { selector.matches }` を機能側へ書かない（比較の3値＝数値として読めなければ判定保留、選択の定義出現優先を全機能で同じにするため）。
 - 規則系の検証語彙（起点エンティティごとに判定して定義出現へ報告する型）の指摘は、まず YAML の定義体で書く。配り方そのものを足すときは、カーネルの `validate/WorkspaceChecks.kt`（workspace-core）に**診断を1つ足す**——判定式やメッセージ組立を配送先（報告先／出現先）ごとに書かない。規則の level → 重大度は `CoverageLevel.toSeverity()`。
 - **変更操作は Rewrite 共有基盤を通す**: 文書への変更を生成する操作（リファクタリング・一括変更の類）は「場所の列挙 × 絞り込みと中止条件 × 場所ごとの操作」で書き、列挙と集積は `semantic.SemanticRewrite`（`walkDocument` / `fieldHits` / `reach` / `forEachSchemaEntry` / `rewriteDocuments` / `PlanOps`）を使う——スキーマ誘導の走査や文書ループを操作ごとに書き直さない。
-- 中止条件は部分計画を返さず全対象の評価後にまとめて中止する。計画の内容（操作の順序を含む）を変える変更は `RefactoringPlanGoldenTest` の期待値差分としてレビューし、既存挙動の変更ならコミットメッセージに書く（ARCHITECTURE §4.35）。
-- **新しい YAML を組み立てる処理は、まず変換定義で書けるかを考える**（CORE-CALCULUS「Construct Calculus」・ARCHITECTURE §4.42）。入力の YAML から別の形の YAML を作る処理（スキーマからの導出・一覧や帳票のもとになる値の一式など）は、`SemanticTransform` の変換定義（選ぶ × 組み立てる × 規則を子に当てる）で書けるかを先に確かめ、書けないなら足りない部品を足す。
+- 中止条件は部分計画を返さず全対象の評価後にまとめて中止する。計画の内容（操作の順序を含む）を変える変更は `RefactoringPlanGoldenTest` の期待値差分としてレビューし、既存挙動の変更ならコミットメッセージに書く（architecture/schema.md「リファクタリング」）。
+- **新しい YAML を組み立てる処理は、まず変換定義で書けるかを考える**（CORE-CALCULUS「Construct Calculus」・architecture/transform.md「変換」）。入力の YAML から別の形の YAML を作る処理（スキーマからの導出・一覧や帳票のもとになる値の一式など）は、`SemanticTransform` の変換定義（選ぶ × 組み立てる × 規則を子に当てる）で書けるかを先に確かめ、書けないなら足りない部品を足す。
 - 組み立ての Kotlin を機能ごとに書き足さない。変換の出力はワークスペースへ保存しない（原本へ書くなら Rewrite を通す）。

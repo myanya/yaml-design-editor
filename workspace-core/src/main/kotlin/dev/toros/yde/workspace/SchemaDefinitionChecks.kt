@@ -27,7 +27,7 @@ object SchemaDefinitionChecks {
         written.forEach { schema ->
             issuesOf(schema).forEach { issue -> errors += "${fileName(schema)} [${issue.path}]: ${issue.message}" }
         }
-        // 未宣言 relation の lint（R20-02）: レジストリが1つでもあるときだけ判定する（非破壊。§4.30）
+        // 未宣言 relation の lint（R20-02）: レジストリが1つでもあるときだけ判定する（非破壊。architecture/graph-query.md「エンティティ型と関係レジストリ」）
         if (registry.isNotEmpty()) {
             written.filter { it.kind == SchemaKind.DOCUMENT }.forEach { schema ->
                 undeclaredRelations(schema, registry).forEach { name ->
@@ -98,7 +98,7 @@ object SchemaDefinitionChecks {
             runCatching { globToRegex(match) }
                 .onFailure { issues += SchemaIssue("適用パターンが不正です: ${it.message}", "match") }
         } else if (kind == SchemaKind.RELATIONS) {
-            // 関係レジストリ（R20-02）: 文書には適用されない宣言専用の文書。ARCHITECTURE §4.30
+            // 関係レジストリ（R20-02）: 文書には適用されない宣言専用の文書。architecture/graph-query.md「エンティティ型と関係レジストリ」
             if (match.isNotBlank()) issues += SchemaIssue("relations 文書に match は定義できません", "match")
             if (relations.isEmpty()) issues += SchemaIssue("kind: relations には1つ以上の relations が必要です", "relations")
             if (definitions.isNotEmpty()) issues += SchemaIssue("relations 文書に definitions は定義できません", "definitions")
@@ -284,7 +284,7 @@ object SchemaDefinitionChecks {
                     }
                 }
                 FieldType.REF -> {
-                    // 属性付き参照（R20-03）: 属性は「IDを持たない注記」。入れ子の ref / id は不許可（走査境界。§4.30）
+                    // 属性付き参照（R20-03）: 属性は「IDを持たない注記」。入れ子の ref / id は不許可（走査境界。architecture/graph-query.md「エンティティ型と関係レジストリ」）
                     if (field.fields.isNotEmpty()) {
                         field.fields.mapNotNull { it.key }.groupBy { it }.filterValues { it.size > 1 }.keys.forEach {
                             issues += SchemaIssue("キー「$it」が重複しています", path)

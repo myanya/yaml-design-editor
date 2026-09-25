@@ -3,7 +3,7 @@ package dev.toros.yde.semantic.schema
 /**
  * 参照認識の命名規約（I-02。3層コア移行 SM-001 で SchemaInference.kt から移動）。
  * スキーマなし文書の参照検出（走査カーネル SemanticScanner）とスキーマ推測（R11-01）が
- * 同じ規約を共有する（独自の規約を増やさない。ARCHITECTURE §4.23）。
+ * 同じ規約を共有する（独自の規約を増やさない。architecture/schema.md「推測・メタスキーマ・派生」）。
  */
 object RefNaming {
     fun isRefKey(k: String): Boolean = k == "ref" || k.endsWith("_ref")

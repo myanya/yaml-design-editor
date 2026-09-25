@@ -160,7 +160,7 @@ docs/
 | 1 | 記録の移動（移行 3 文書・INTENTIONAL-DIFFS・ROADMAP 完了 P・BACKLOG 解決行・CORE-CALCULUS Phase・UX 実施履歴）とリンク更新 | 1 セッション | 切れたリンク 0 | ✅ 2026-09-24 |
 | 2 | CLAUDE.md の圧縮（落とし穴の 1 行化。リンク先は暫定で旧 §番号） | 半セッション | 5 千字以内 | ✅ 2026-09-24 |
 | 3 | FEATURES の刈り込み | 1 セッション | 各行 200 字以内 | ✅ 2026-09-24 |
-| 4 | architecture/ の主題別書き直し。順: checks → index-references → schema → graph-query → agents → 残り。最後にコード参照の一括置換と旧ファイルの削除 | 3〜4 セッション | `./gradlew test` 緑・§参照 0 | 未着手 |
+| 4 | architecture/ の主題別書き直し。順: checks → index-references → schema → graph-query → agents → 残り。最後にコード参照の一括置換と旧ファイルの削除 | 3〜4 セッション | `./gradlew test` 緑・§参照 0 | ✅ 2026-09-25 |
 | 5 | manual/ の分割 | 1 セッション | 切れたリンク 0 | 未着手 |
 | 6 | memory の整理 | 半セッション | 1.5 万字以内 | 未着手 |
 
@@ -186,7 +186,7 @@ docs/
 before（W-03。1,252 バイト）:
 
 ```
-| W-03 | ファイル／ディレクトリの作成・改名・削除（未保存保護、削除確認、新規YAMLはスキーマ初期値で生成。**文書の新規作成はセッションの1トランザクション＝Ctrl+Z で取り消せ、それまでの Undo 履歴も保つ**（P29 Phase 4・RP-03／D-18。`AppState.createDocumentFile` が…）… | ✅ | … | … |
+| W-03 | ファイル／ディレクトリの作成・改名・削除（未保存保護、削除確認、新規YAMLは…。**文書の新規作成はセッションの1トランザクション＝Ctrl+Z で取り消せ…**（P29 Phase 4・RP-03／D-18。…）… | ✅ | … | … |
 ```
 
 after:

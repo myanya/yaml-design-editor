@@ -17,7 +17,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * パターン照合エンジン（R22-01。ARCHITECTURE §4.32）のテスト。
+ * パターン照合エンジン（R22-01。architecture/graph-query.md「クエリコア」）のテスト。
  * 決定性（行の順序・limit）・1段分岐（also）・文書ノード（kind: document）・プロパティ述語・
  * 経路内の再訪禁止・オーバーレイ索引での評価（EntityGraph 経路差）を検証する。
  */

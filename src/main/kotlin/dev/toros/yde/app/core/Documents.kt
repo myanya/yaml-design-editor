@@ -85,7 +85,7 @@ data class WorkspaceRecord(
 
 /**
  * 一覧・一括編集のデータ収集（R9-02 で AppState から core へ抽出）。
- * loader には「未保存編集を優先するツリー取得」を注入する（UI: docCache → ディスク。§4.5 の二層構造）。
+ * loader には「未保存編集を優先するツリー取得」を注入する（UI: docCache → ディスク。architecture/index-references.md「索引の二層」 の二層構造）。
  */
 object WorkspaceRecords {
 

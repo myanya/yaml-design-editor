@@ -29,7 +29,7 @@ object WorkspaceScan {
 
     /**
      * 走査対象の *.yaml / *.yml を列挙する（隠しファイル・隠しディレクトリを除く。構成ディレクトリ `.yde` だけ例外）。
-     * `ledger` 宣言があるレイアウトでは台帳＋構成ディレクトリのみを対象にする（ARCHITECTURE §4.25）。
+     * `ledger` 宣言があるレイアウトでは台帳＋構成ディレクトリのみを対象にする（architecture/workspace.md「ワークスペース構造と layout」）。
      */
     fun yamlFiles(ws: Path, layout: WorkspaceLayout = WorkspaceLayout.of(ws)): List<Path> {
         val result = mutableListOf<Path>()
@@ -137,10 +137,10 @@ class Workspace private constructor(val root: Path) {
     /** 関係レジストリ（R20-02 / R21-01）: `kind: relations` 文書から集約した name → RelationDef。表示とグラフ整合検証に使う。 */
     var relations: Map<String, dev.toros.yde.semantic.schema.RelationDef> = emptyMap()
         private set
-    /** 強制スイッチ（R21-01。ARCHITECTURE §4.31）: レジストリ文書の enforcement 節の集約。 */
+    /** 強制スイッチ（R21-01。architecture/graph-query.md「エンティティ操作」）: レジストリ文書の enforcement 節の集約。 */
     var enforcement: EnforcementDef = EnforcementDef()
         private set
-    /** エンティティ型レジストリ（R23-01。§4.33）: `entities:` 節の集約。表示名・アスペクト順序の解決に使う。 */
+    /** エンティティ型レジストリ（R23-01。architecture/graph-query.md「エンティティページ」）: `entities:` 節の集約。表示名・アスペクト順序の解決に使う。 */
     var entityTypes: Map<String, EntityTypeDef> = emptyMap()
         private set
     var files: List<Path> = emptyList()
@@ -221,12 +221,12 @@ class Workspace private constructor(val root: Path) {
         if (layout.zoneOf(rel) == WorkspaceLayout.Zone.SCHEMAS) {
             // schemas ゾーンにはメタスキーマ（R11-02）だけを適用する。一般スキーマの match は及ばない
             // （catch-all スキーマの誤適用を防ぐ。利用者は同IDのスキーマで上書きできる）。
-            // kind: relations の文書には関係レジストリのメタスキーマ（R20-02。§4.30）を振り分ける
+            // kind: relations の文書には関係レジストリのメタスキーマ（R20-02。architecture/graph-query.md「エンティティ型と関係レジストリ」）を振り分ける
             val metaId = if (isRelationsDoc(file)) BuiltinSchemas.RELATIONS_SCHEMA_ID
             else BuiltinSchemas.META_SCHEMA_ID
             return schemas.firstOrNull { it.id == metaId && it.matches(rel) }
         }
-        // ゾーン外の構成ファイル（.yde/workspace.yaml 等）にはスキーマを当てない（§4.25）
+        // ゾーン外の構成ファイル（.yde/workspace.yaml 等）にはスキーマを当てない（architecture/workspace.md「ワークスペース構造と layout」）
         if (layout.isReserved(rel) && layout.zoneOf(rel) == null) return null
         return schemas.firstOrNull { it.matches(rel) }
     }
@@ -268,7 +268,7 @@ class Workspace private constructor(val root: Path) {
 
     /**
      * ディスク上のファイル変更（保存・外部変更・削除）をコアへ通知し、索引を更新する（R9-02）。
-     * 増分か全再構築かの振り分け（スキーマ変更時のみ全再構築。§4.5）はここに一元化されており、
+     * 増分か全再構築かの振り分け（スキーマ変更時のみ全再構築。architecture/index-references.md「索引の二層」）はここに一元化されており、
      * UI（AppState）の保存・外部変更検出もこの経路を通る。
      */
     fun noteDiskChanges(changed: Collection<Path>, removed: Collection<Path> = emptyList()) {
@@ -300,7 +300,7 @@ class Workspace private constructor(val root: Path) {
     /**
      * 未保存編集を重ねたオーバーレイ索引（UX-03）。overlays（ファイル → 編集中ツリー）の文書だけを
      * 走査し直した新しい索引を返す。ディスク索引（index）は変更しない。
-     * UIが「見たままの状態」で検証・カバレッジ・ビュー行集合を判定するために使う（ARCHITECTURE §4.5）。
+     * UIが「見たままの状態」で検証・カバレッジ・ビュー行集合を判定するために使う（architecture/index-references.md「索引の二層」）。
      */
     fun overlayIndex(overlays: Map<Path, YNode?>): IdIndex {
         if (overlays.isEmpty()) return index
@@ -323,7 +323,7 @@ class Workspace private constructor(val root: Path) {
         val indexed = doc.file in files
         return Validator.validateDetailed(
             doc.root, doc.parseError, documentOf(doc.file), doc.schema, index,
-            // （このヘッドレス経路はディスク索引・ディスク loader のまま。UIは overlayIndex を渡す。§4.5）
+            // （このヘッドレス経路はディスク索引・ディスク loader のまま。UIは overlayIndex を渡す。architecture/index-references.md「索引の二層」）
             indexed = indexed, loader = ::treeOf, allSchemas = schemas,
             relations = relations, enforcement = enforcement,
             // ディスクの索引とディスクの内容: 検査の評価を、他の文書の検証と共有する（全体の検証が文書数に比例する。P27 段B）

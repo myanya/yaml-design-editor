@@ -43,7 +43,7 @@ object RunLog {
             "usage" to LinkedHashMap<String, Any>().apply {
                 put("inputTokens", result.usage.inputTokens)
                 put("outputTokens", result.usage.outputTokens)
-                // キャッシュ読取（入力の内数。ARCHITECTURE §4.28）。報告のないプロバイダでは出力しない
+                // キャッシュ読取（入力の内数。architecture/agents.md「コンテキスト」）。報告のないプロバイダでは出力しない
                 if (result.usage.cachedInputTokens > 0) put("cachedInputTokens", result.usage.cachedInputTokens)
             },
             // コンテキスト会計（R19-01）: 毎ターン再送される固定部の内訳と、送信ごとの入力トークン実測

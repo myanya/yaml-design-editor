@@ -13,7 +13,7 @@ import dev.toros.yde.yaml.validate.Severity
 
 /**
  * 一括実行の対象列挙（foreach。R18-01）。アクティビティ定義の宣言から「残作業の集合」を列挙し、
- * 1件=1実行の作業項目（対象キー＋追加指示）へ展開する（docs/ARCHITECTURE.md §4.27）。
+ * 1件=1実行の作業項目（対象キー＋追加指示）へ展開する（docs/architecture/agents.md「一括実行」）。
  * - 対象の列挙は機械（ビュー・検証・検索・ファイル・索引）が行い、エージェントには対象を明示注入する。
  *   「次の対象選び」をLLMに委ねない（決定性とコストのため）
  * - 一括実行が収束するのは「完了した項目が次回の列挙に現れない」列挙条件のとき
@@ -28,7 +28,7 @@ enum class ForeachSource(val id: String) {
     SEARCH("search"),   // 検索ヒット（テキスト・パス・参照・未解決）
     FILES("files"),     // glob に一致する文書
     IDS("ids"),         // idPattern × schemaIds に一致する論理ID
-    QUERY("query");     // パターン照合の束縛行（R22-02。ARCHITECTURE §4.32）
+    QUERY("query");     // パターン照合の束縛行（R22-02。architecture/graph-query.md「クエリコア」）
 
     companion object {
         fun parse(raw: String): ForeachSource = entries.firstOrNull { it.id == raw }
@@ -181,7 +181,7 @@ object Foreach {
     }
 
     /**
-     * パターン照合の束縛行（R22-02。ARCHITECTURE §4.32）。1行=1実行で、プレースホルダは
+     * パターン照合の束縛行（R22-02。architecture/graph-query.md「クエリコア」）。1行=1実行で、プレースホルダは
      * 先頭束縛の既定（{id} {title} {file}）に加えて束縛名でも参照できる（{scr}＝そのID・{scr_file}＝定義出現のファイル）。
      * 列挙はディスク索引基準（他の列挙元と同じ）で、値の述語（where）もディスクの内容で判定される。
      */

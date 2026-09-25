@@ -23,7 +23,7 @@ data class DocumentValidation(val issues: List<CheckIssue>, val withheld: List<W
  * 文書1つの検証の全体（P27 段D の D-b で、root の Validator から移した。意図的差分 D-34）。アプリ（root の Validator は、座標を写して
  * ここを呼ぶだけ）・カーネル側の CLI・変更セットの適用が、同じ組み立てで検証する。指摘の並び:
  * 1. 構造の検証（利用者が書いたスキーマから導出した、最小の構造のスキーマで行う。P27 段C の C-1）
- * 2. ID の重複（この文書の中）と、参照の解決（出現の供給は「索引の他の文書の分＋この文書のいまの内容」の二層。ARCHITECTURE §4.5）
+ * 2. ID の重複（この文書の中）と、参照の解決（出現の供給は「索引の他の文書の分＋この文書のいまの内容」の二層。architecture/index-references.md「索引の二層」）
  * 3. エンティティ型の宣言に関わる点検 → 宣言のない関係名（グラフ整合検証）→ 定義体の検査 → テンプレートの健全性 → 直せる場所への案内
  *    （WorkspaceChecks.deliver。索引に載っている文書だけ）
  * どの指摘にも出どころ（IssueSource）が付く。判定を保留した検査は、指摘にせず withheld に残す。

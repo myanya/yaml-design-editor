@@ -101,7 +101,7 @@
 | 4.48 場所の表し方の統一 | index-references.md | 場所は文書ID | 書き直す | 0 |
 | 4.49 値の式 | schema.md | 値の式 | 書き直す | 0 |
 
-新ファイルごとの受け入れ: yaml-model（4.1・4.3・4.4・4.17）／editing-history（4.2・4.34・4.35 の一部）／index-references（4.5・4.6・4.22・4.48）／schema（4.7・4.15・4.23・4.35・4.43・4.47 の一部・4.49）／graph-query（4.30〜4.33・4.38）／checks（4.36・4.37・4.39・4.40・4.41・4.44・4.45・4.31 の一部）／transform（4.26・4.42）／views（4.14・4.16・4.47 の一部）／workspace（4.8 の一部・4.20・4.25・4.46）／agents（4.8〜4.13・4.18・4.19・4.21・4.27・4.28）／ui（4.24・4.29）。
+新ファイルごとの受け入れは上の表のとおり。おおまかには、yaml-model と editing-history が木と編集、index-references が索引、schema が定義、graph-query がグラフとクエリ、checks が検証、transform が変換、views・workspace・agents・ui がそれぞれの主題を受ける。
 
 ## 3. MANUAL.md
 

@@ -19,12 +19,12 @@ scripts/docs-lint.sh                        # 文書の形の機械チェック
 ## 文書
 
 - 役割と更新のタイミングは [docs/README.md](docs/README.md) の表が正。規則は [docs/CONVENTIONS.md](docs/CONVENTIONS.md)「ドキュメント更新規約」。
-- 着手前に読むのは [docs/FEATURES.md](docs/FEATURES.md) の該当行と [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) の該当する主題。
+- 着手前に読むのは [docs/FEATURES.md](docs/FEATURES.md) の該当行と [docs/architecture/](docs/architecture/README.md) の該当する主題。
 - 記録（[docs/archive/](docs/archive/README.md)）は経緯を調べるときだけ読む。
 
 ## ワークフロー
 
-1. **着手前**: FEATURES で対象機能の実装ファイルとテストを引き、ARCHITECTURE の該当する主題（部品・流れ・規律・拡張ポイント）を読む。
+1. **着手前**: FEATURES で対象機能の実装ファイルとテストを引き、architecture/ の該当する主題（部品・流れ・規律・拡張ポイント）を読む。
 2. **実装中**: CONVENTIONS に従う。UI 文言・コメント・エラーメッセージは日本語。純粋ロジック層に Compose を持ち込まない。ツリー変更には `markEdited()`。
 3. **完了前**: `./gradlew test` を通し、docs/README.md の表に従って文書を更新し、完了したものは archive へ移す。`/sync-docs` と `scripts/docs-lint.sh` で確かめる。
 4. **完了報告**: 機能を追加・変更したら**試し方**（操作手順＋見てほしい観点）を必ず含める。本題と異なる気になりポイントは直しに行かず [docs/BACKLOG.md](docs/BACKLOG.md) へ即時登録する。
@@ -40,25 +40,25 @@ scripts/docs-lint.sh                        # 文書の形の機械チェック
 
 ## 落とし穴
 
-説明は ARCHITECTURE の各節末尾の「規律」にある。
+説明は docs/architecture/ の各ファイルの「規律」にある。
 
-- `YNode` は Compose の State ではない。ビューは `doc.version` / `state.indexVersion` を読んで購読する → §4.24
-- UI は `state.index` でなく `state.overlayIndex()` を読み、`remember` のキーに `state.editVersion` を含める → §4.5
-- ディスク変更の取り込みの振り分けは `Workspace.noteDiskChanges` だけ。ディスクを映すセッションと編集用セッションは 1 つにまとめない → §4.5
-- 場所はワークスペース相対の `DocumentId`。`DocumentId == Path` は常に偽。`Validator` の `loader` を省くと他の文書を読まない → §4.48
-- ノードの置換は `inheritMetaFrom` で表記を引き継ぐ。構造の比較・派生出力は `YamlIO.dumpPlain`。複数文書は `OpenDocument` に閉じる → §4.17
-- 構造の検証は `FieldDef` を直接読まず、導出した構造スキーマ（yaml-core `structure`）で行う。ID・参照・フェーズ・表示に関わるものを yaml-core へ戻さない → §4.43
-- スキーマを読むのはカーネル（`WorkspaceReader`）だけ。`SchemaDef` は薄い窓口で data class ではない。表示のヒントは `FieldHints` に置き検証から読まない → §4.7
-- `FieldDef` は `schema.resolve`、子フィールドは `schema.effectiveFields`、必須は `schema.requiredAt(field, phaseIndex)` を通す → §4.7・§4.15
-- 値の式は項目の印 `expression: true` だけが決める。読み取り `ExpressionFields`・評価 `SemanticValues`。独自の `{…}` 穴埋めを書かない → §4.49
-- 要素の 1 行要約は `schema/Display` に一元化。enum の label は表示専用で、検証と AI 制約は `value` → §4.22
-- フォームの編集 UI は `FormCtx` を通し `ctx.readOnly` の分岐を入れる。画面はモーダルでなくスペース内の常設画面。全体のショートカットは `Main.kt` の `handleShortcut` → §4.24
-- エージェントの編集は `agent/Staging` 経由。適用の本体はカーネルの `ChangeSetApplier` で、root に適用規則を書かない → §4.46
-- 検査はまず定義体（`builtin-definitions/*.yaml`）とメタスキーマで書く。検証の組み立てと配り方はカーネルにあり、root の `Validator` に検査を書き足さない → §4.36・§4.45
-- 検査の結果は 4 つ（違反・充足・保留・対象外）。「指摘が出ない＝充足」と判定しない。同じ指摘かは `IssueSource.identity` で見る → §4.37
-- 全体を回す検証は `shareEvaluations = true` を渡す。ただし索引に重ねていない内容の検証では渡さない → §4.39
-- クエリの線は `graph.ownRefs`（直接書いた参照）で辿る。判定に `graph.outgoingRefs` を使わない → §4.38
-- 文書の新規作成は `AppState.createDocumentFile` の単一経路。`Files.writeString` ＋ `reload()` は Undo 履歴を全て失う → §4.35
-- 配置判定は `WorkspaceLayout` に一元化。`_schemas/` にはメタスキーマだけ。定義文書への書込は `meta: true` のアクティビティのみ → §4.25・§4.23・§4.10
-- ビューは射影で、専用の書込経路を作らない。AI の HTTP は `AiHttp.post` に一元化 → §4.14・§4.18
-- カーネルのテストは疑似セッション注入、自動化のテストは `tick(now)` を直接呼ぶ。実 API を叩かない → §4.10・§4.11
+- `YNode` は Compose の State ではない。ビューは `doc.version` / `state.indexVersion` を読んで購読する → architecture/ui.md「UI シェル」
+- UI は `state.index` でなく `state.overlayIndex()` を読み、`remember` のキーに `state.editVersion` を含める → architecture/index-references.md「索引の二層」
+- ディスク変更の取り込みの振り分けは `Workspace.noteDiskChanges` だけ。ディスクを映すセッションと編集用セッションは 1 つにまとめない → architecture/index-references.md「索引の二層」
+- 場所はワークスペース相対の `DocumentId`。`DocumentId == Path` は常に偽。`Validator` の `loader` を省くと他の文書を読まない → architecture/index-references.md「場所は文書ID」
+- ノードの置換は `inheritMetaFrom` で表記を引き継ぐ。構造の比較・派生出力は `YamlIO.dumpPlain`。複数文書は `OpenDocument` に閉じる → architecture/yaml-model.md「コメントと表記の保持」
+- 構造の検証は `FieldDef` を直接読まず、導出した構造スキーマ（yaml-core `structure`）で行う。ID・参照・フェーズ・表示に関わるものを yaml-core へ戻さない → architecture/schema.md「構造スキーマの導出」
+- スキーマを読むのはカーネル（`WorkspaceReader`）だけ。`SchemaDef` は薄い窓口で data class ではない。表示のヒントは `FieldHints` に置き検証から読まない → architecture/schema.md「$ref と実効フィールド」
+- `FieldDef` は `schema.resolve`、子フィールドは `schema.effectiveFields`、必須は `schema.requiredAt(field, phaseIndex)` を通す → architecture/schema.md「$ref と実効フィールド」・architecture/schema.md「フェーズ」
+- 値の式は項目の印 `expression: true` だけが決める。読み取り `ExpressionFields`・評価 `SemanticValues`。独自の `{…}` 穴埋めを書かない → architecture/schema.md「値の式」
+- 要素の 1 行要約は `schema/Display` に一元化。enum の label は表示専用で、検証と AI 制約は `value` → architecture/index-references.md「表示解決」
+- フォームの編集 UI は `FormCtx` を通し `ctx.readOnly` の分岐を入れる。画面はモーダルでなくスペース内の常設画面。全体のショートカットは `Main.kt` の `handleShortcut` → architecture/ui.md「UI シェル」
+- エージェントの編集は `agent/Staging` 経由。適用の本体はカーネルの `ChangeSetApplier` で、root に適用規則を書かない → architecture/workspace.md「変更セットの適用」
+- 検査はまず定義体（`builtin-definitions/*.yaml`）とメタスキーマで書く。検証の組み立てと配り方はカーネルにあり、root の `Validator` に検査を書き足さない → architecture/checks.md「定義層の 3 段」・architecture/checks.md「文書 1 つの検証」
+- 検査の結果は 4 つ（違反・充足・保留・対象外）。「指摘が出ない＝充足」と判定しない。同じ指摘かは `IssueSource.identity` で見る → architecture/checks.md「4 つの結果」
+- 全体を回す検証は `shareEvaluations = true` を渡す。ただし索引に重ねていない内容の検証では渡さない → architecture/checks.md「評価は 1 回」
+- クエリの線は `graph.ownRefs`（直接書いた参照）で辿る。判定に `graph.outgoingRefs` を使わない → architecture/graph-query.md「線の意味」
+- 文書の新規作成は `AppState.createDocumentFile` の単一経路。`Files.writeString` ＋ `reload()` は Undo 履歴を全て失う → architecture/schema.md「リファクタリング」
+- 配置判定は `WorkspaceLayout` に一元化。`_schemas/` にはメタスキーマだけ。定義文書への書込は `meta: true` のアクティビティのみ → architecture/workspace.md「ワークスペース構造と layout」・architecture/schema.md「推測・メタスキーマ・派生」・architecture/agents.md「エージェント実行と Staging」
+- ビューは射影で、専用の書込経路を作らない。AI の HTTP は `AiHttp.post` に一元化 → architecture/views.md「ビュー機構」・architecture/agents.md「AI 接続」
+- カーネルのテストは疑似セッション注入、自動化のテストは `tick(now)` を直接呼ぶ。実 API を叩かない → architecture/agents.md「エージェント実行と Staging」・architecture/agents.md「自動実行」

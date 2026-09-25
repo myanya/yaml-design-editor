@@ -147,7 +147,7 @@ enum class ContextWhen(val id: String) {
 }
 
 /**
- * コンテキストレシピの1項目（R19-02 / ARCHITECTURE §4.28）。kind ごとに使えるキーをパースで制限する。
+ * コンテキストレシピの1項目（R19-02 / architecture/agents.md「コンテキスト」）。kind ごとに使えるキーをパースで制限する。
  * 文字列パラメータ（rows / file / path / id）にはプレースホルダ（{target} / {id} / {file} 等。foreach の
  * 対象値に連動）を書ける。実行時に解決できないプレースホルダが残る項目は開示から除外される（Kernel 側）。
  */

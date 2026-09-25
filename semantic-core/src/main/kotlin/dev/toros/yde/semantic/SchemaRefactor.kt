@@ -17,7 +17,7 @@ import dev.toros.yde.semantic.schema.SchemaTree
  * スキーマ・リファクタリングのカーネル（P25。3層コア移行 RF-002b で core/SchemaRefactor.kt から
  * 薄切りで移植を開始。第1弾は renameField＝R25-01）。
  * フィールドの同定は FieldDef の**同一インスタンス**（`===`）。SchemaTreeParser が定義を1回だけ
- * 生成し、`SchemaTree.resolve`（浅いコピー）が子リストのインスタンスを保つことが前提（§4.35）。
+ * 生成し、`SchemaTree.resolve`（浅いコピー）が子リストのインスタンスを保つことが前提（architecture/schema.md「リファクタリング」）。
  * ビュー定義・アクティビティ等の追随は、ここでは行わず、定型の警告で案内する。フィールドの改名と削除については、
  * WorkspaceSession.planRefactoring が、この警告を、実測の影響（workspace-core の RefactoringImpact＝ビュー定義の追随と、
  * 言及の列挙）で置き換える（P27 段D の D-c・意図的差分 D-36）。

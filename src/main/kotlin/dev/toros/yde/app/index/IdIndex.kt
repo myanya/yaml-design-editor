@@ -29,7 +29,7 @@ import java.nio.file.Path
 typealias IdEntry = ScannedId
 typealias RefEntry = ScannedRef
 
-/** エンティティグラフ（R20-04。ARCHITECTURE §4.30）と、そのノード。カーネルの型の別名。 */
+/** エンティティグラフ（R20-04。architecture/graph-query.md「エンティティ型と関係レジストリ」）と、そのノード。カーネルの型の別名。 */
 typealias EntityGraph = SemanticEntityGraph
 typealias EntityNode = SemanticEntityNode
 typealias DocumentNode = SemanticDocumentNode
@@ -48,7 +48,7 @@ fun IdEntry.isAllowedBy(ref: RefEntry): Boolean = kernelIsAllowedBy(ref)
  */
 object DocScanner {
 
-    // 命名規約の実体は schema.RefNaming（スキーマ推測 R11-01 と共有。ARCHITECTURE §4.23）
+    // 命名規約の実体は schema.RefNaming（スキーマ推測 R11-01 と共有。architecture/schema.md「推測・メタスキーマ・派生」）
     fun isGenericRefKey(k: String): Boolean = dev.toros.yde.semantic.schema.RefNaming.isRefKey(k)
 
     fun isGenericRefListKey(k: String): Boolean = dev.toros.yde.semantic.schema.RefNaming.isRefListKey(k)
@@ -146,8 +146,8 @@ class IdIndex {
     }
 
     /**
-     * 走査結果から導出したエンティティグラフ（R20-04。ARCHITECTURE §4.30）。走査結果の更新で入れ替わる。
-     * ディスク・オーバーレイ・ステージングの各 IdIndex インスタンスが自分のグラフを持つため、§4.5 の二層構造は崩れない。
+     * 走査結果から導出したエンティティグラフ（R20-04。architecture/graph-query.md「エンティティ型と関係レジストリ」）。走査結果の更新で入れ替わる。
+     * ディスク・オーバーレイ・ステージングの各 IdIndex インスタンスが自分のグラフを持つため、architecture/index-references.md「索引の二層」 の二層構造は崩れない。
      */
     val graph: EntityGraph get() = derived().graph
 

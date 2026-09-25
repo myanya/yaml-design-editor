@@ -64,7 +64,7 @@ import java.nio.file.Path
  * エージェント実行の状態機械（選択→実行→レビュー→完了）。
  * 旧 AgentRunHost がコンポーザブルの remember に持っていた状態を AppRoot 生存期間のクラスへ退避し、
  * スペースを切り替えて実行画面がコンポジションから外れても実行・レビューが失われないようにする
- * （ARCHITECTURE §4.24。実行状態をコンポーザブルローカルへ戻さない）。
+ * （architecture/ui.md「UI シェル」。実行状態をコンポーザブルローカルへ戻さない）。
  */
 class RunController(private val state: AppState, val wsPath: Path, private val scope: CoroutineScope) {
 
@@ -524,7 +524,7 @@ private fun ManualRunTab(
 
 /**
  * foreach の列挙結果をチェックボックス付き一覧で表示し、選択した対象だけを自動化キューへ投入する。
- * モーダルではなく SELECT ステージ内のインライン区画（§4.24: 新しい画面をモーダルで作らない）。
+ * モーダルではなく SELECT ステージ内のインライン区画（architecture/ui.md「UI シェル」: 新しい画面をモーダルで作らない）。
  * 選択状態は RunController が保持し、スペースを切り替えても失われない。
  */
 @Composable

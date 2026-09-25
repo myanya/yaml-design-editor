@@ -6,7 +6,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * ワークスペースの物理配置ポリシー（R13-02。ARCHITECTURE §4.25）。
+ * ワークスペースの物理配置ポリシー（R13-02。architecture/workspace.md「ワークスペース構造と layout」）。
  * 「どこが定義・記録ディレクトリか」「どこが台帳か」「索引から除外するか」の判定を一元化する。
  * 機能側でプレフィックスやディレクトリ名の直書き判定を書かないこと。
  *

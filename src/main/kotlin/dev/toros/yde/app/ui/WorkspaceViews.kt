@@ -124,7 +124,7 @@ private fun FilterMenu(label: String, value: String, values: List<String>, onCha
     }
 }
 
-// ================================================================ グラフレンズ（R23-03。ARCHITECTURE §4.33）
+// ================================================================ グラフレンズ（R23-03。architecture/graph-query.md「エンティティページ」）
 
 /** レンズの1エッジ（エンティティ → エンティティの型付き参照）。 */
 private data class LensEdge(val from: String, val to: String, val relation: String?)
@@ -232,7 +232,7 @@ fun GraphLensView(state: AppState) {
             Spacer(Modifier.weight(1f))
             Text("${nodes.size} ノード / ${visibleEdges.size} エッジ", fontSize = 11.sp, color = Palette.SubText)
         }
-        // 型・relation のチェックボックス（アドホックなレンズ。宣言的レンズ定義は需要待ち。§4.33）
+        // 型・relation のチェックボックス（アドホックなレンズ。宣言的レンズ定義は需要待ち。architecture/graph-query.md「エンティティページ」）
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
                 .padding(horizontal = 12.dp, vertical = 2.dp),

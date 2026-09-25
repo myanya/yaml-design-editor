@@ -588,7 +588,7 @@ class WorkspaceSession private constructor(
      * UX-03「見たまま判定」のカーネル供給版）。セッションの状態（working・履歴・version）は変えない。
      * - overlays: 文書ID → 編集中の内容（null = パース不能。文書集合から外して判定する）
      * - 構造検証は overlay 文書だけ再検証し、意味解析は SemanticEngine.update（増分導出と同じ正しさ経路）
-     * - スキーマ文書の overlay はスキーマ束へ反映しない（索引と同じ「保存で反映」の二層規律。§4.5）
+     * - スキーマ文書の overlay はスキーマ束へ反映しない（索引と同じ「保存で反映」の二層規律。architecture/index-references.md「索引の二層」）
      */
     fun derivedWith(overlays: Map<DocumentId, YDocument?>): WorkspaceDerivedState {
         if (overlays.isEmpty()) return derived

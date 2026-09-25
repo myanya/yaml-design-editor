@@ -6,9 +6,9 @@ import dev.toros.yde.yaml.model.getAt
 import dev.toros.yde.yaml.validate.Severity
 
 /**
- * 二層モデルの宣言語彙（P20: R20-01 / R20-02。ARCHITECTURE §4.30）。
+ * 二層モデルの宣言語彙（P20: R20-01 / R20-02。architecture/graph-query.md「エンティティ型と関係レジストリ」）。
  * エンティティ型（スキーマ文書ルートの `entity:`）と関係レジストリ（`kind: relations` の `relations:`）の
- * モデルをここに置く。表示解決が index / UI 双方から使うため schema パッケージに配置する（Display §4.22 と同じ理由）。
+ * モデルをここに置く。表示解決が index / UI 双方から使うため schema パッケージに配置する（Display architecture/index-references.md「表示解決」 と同じ理由）。
  */
 
 /** カバレッジ・整合・関係制約の指摘重大度（3層コア移行 SM-000 で Schema.kt から移動）。 */
@@ -47,7 +47,7 @@ enum class EntityRole {
 /**
  * エンティティ型の宣言（R20-01）。スキーマ文書ルートの `entity:`（単一 object または複数型のリスト）。
  * 複数型を持つスキーマは idPattern で型を判別する。defines=true の文書群の出現が「定義（誕生）」。
- * aspect / owns はアスペクト宣言（R23-01。ARCHITECTURE §4.33）: この出現がエンティティの
+ * aspect / owns はアスペクト宣言（R23-01。architecture/graph-query.md「エンティティページ」）: この出現がエンティティの
  * どの側面を所有するか。owns=null（未宣言）は「この出現要素の宣言フィールド全部」。
  */
 data class EntityDecl(
@@ -79,7 +79,7 @@ data class CardinalityDef(
 /**
  * 関係レジストリの1関係（R20-02）。`_schemas` の `kind: relations` 文書の `relations:` に列挙する。
  * 表示（label / inverseLabel）に加え、source / target / cardinality / acyclic は
- * グラフ整合検証（R21-01。ARCHITECTURE §4.31）の制約宣言になる。
+ * グラフ整合検証（R21-01。architecture/graph-query.md「エンティティ操作」）の制約宣言になる。
  */
 data class RelationDef(
     val name: String,
@@ -105,7 +105,7 @@ data class AspectDecl(
 }
 
 /**
- * エンティティ型のレジストリ宣言（R23-01。ARCHITECTURE §4.33）。関係レジストリ文書（kind: relations）の
+ * エンティティ型のレジストリ宣言（R23-01。architecture/graph-query.md「エンティティページ」）。関係レジストリ文書（kind: relations）の
  * `entities:` 節に列挙する。型の表示名と、エンティティページ・read_entity の合成で使うアスペクト順序を宣言する。
  */
 data class EntityTypeDef(
@@ -125,10 +125,10 @@ data class EntityTypeDef(
 }
 
 /**
- * 出現1件の所有フィールドキー（R23-01。ARCHITECTURE §4.33）。エンティティ合成（core/Aspects）と
+ * 出現1件の所有フィールドキー（R23-01。architecture/graph-query.md「エンティティページ」）。エンティティ合成（core/Aspects）と
  * 重複所有の検証（Validator）の共有実装。明示 `owns` があればそのまま、なければ出現要素の
  * 宣言フィールド全部（enum cases 合成込み）から `type: id` のフィールド（合流キー）を除いたもの。
- * 要素が object に解決できない場合は空（判定保留 §4.26）。
+ * 要素が object に解決できない場合は空（判定保留 architecture/transform.md「計算列と決定論的射影」）。
  */
 fun ownedFieldKeys(schema: SchemaTree, root: YNode, path: YPath, decl: EntityDecl?): List<String> {
     decl?.owns?.let { return it }
@@ -142,7 +142,7 @@ fun ownedFieldKeys(schema: SchemaTree, root: YNode, path: YPath, decl: EntityDec
 }
 
 /**
- * ワークスペース単位の強制スイッチ（R21-01。ARCHITECTURE §4.31）。レジストリ文書の `enforcement:` 節。
+ * ワークスペース単位の強制スイッチ（R21-01。architecture/graph-query.md「エンティティ操作」）。レジストリ文書の `enforcement:` 節。
  * 各キーは3値: null（未宣言＝P20 の挙動のまま）／ WARNING ／ ERROR。
  * - undeclaredRelation: レジストリにない relation を使う参照を文書側でも指摘する
  * - definingUniqueness: 定義出現の一意性（浮遊詳細化・定義競合）の重大度＝「最初の出現＝定義」廃止スイッチ

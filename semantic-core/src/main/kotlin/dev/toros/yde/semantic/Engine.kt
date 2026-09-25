@@ -169,7 +169,7 @@ object SemanticEngine {
 
     /**
      * 参照解決の判定（B-3・RB-06 で aggregate から抽出＝root Validator と単一所有）。
-     * 出現・文書IDの供給元（全体集約／索引＋ローカルの二層 §4.5）は上位層が注入する。
+     * 出現・文書IDの供給元（全体集約／索引＋ローカルの二層 architecture/index-references.md「索引の二層」）は上位層が注入する。
      * - ownDocumentId: 検証対象文書自身の論理ID（未保存で索引に無い場合の自己文書参照の解決。null = 供給元に含まれる）
      * - indexed = false（台帳外。R13-03）: 未解決を INFO へ降格する（エディタ層。全体集約では常に true）
      */

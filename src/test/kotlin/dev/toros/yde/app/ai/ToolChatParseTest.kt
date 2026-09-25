@@ -90,7 +90,7 @@ class ToolChatParseTest {
 
     @Test
     fun `anthropic cache tokens are normalized into total input`() {
-        // Anthropic の input_tokens はキャッシュ分を含まないため、総入力へ正規化される（ARCHITECTURE §4.28）
+        // Anthropic の input_tokens はキャッシュ分を含まないため、総入力へ正規化される（architecture/agents.md「コンテキスト」）
         val body = """
             {"content":[{"type":"text","text":"ok"}],"stop_reason":"end_turn",
              "usage":{"input_tokens":100,"output_tokens":10,

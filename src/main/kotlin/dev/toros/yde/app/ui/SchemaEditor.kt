@@ -130,7 +130,7 @@ fun SchemaEditor(state: AppState, doc: OpenDocument) {
                 PhasesEditor(root, doc)
                 Spacer(Modifier.height(12.dp))
                 CoverageEditor(root, doc)
-                // エンティティ型の宣言（R20-01。builtin-schema の entity と対更新 §4.30）
+                // エンティティ型の宣言（R20-01。builtin-schema の entity と対更新 architecture/graph-query.md「エンティティ型と関係レジストリ」）
                 Spacer(Modifier.height(12.dp))
                 EntityEditor(root, doc)
             } else {
@@ -584,7 +584,7 @@ private fun PhasesEditor(root: YNode.Map, doc: OpenDocument) {
     Text("先頭が最初の工程。文書はルート直下の「$currentKey」で現在フェーズを申告します。", fontSize = 11.sp, color = Palette.SubText)
 }
 
-/** スキーマの `entity`（エンティティ型宣言。R20-01）の構造化編集。builtin-schema の entity と対更新（§4.30）。 */
+/** スキーマの `entity`（エンティティ型宣言。R20-01）の構造化編集。builtin-schema の entity と対更新（architecture/graph-query.md「エンティティ型と関係レジストリ」）。 */
 @Composable
 private fun EntityEditor(root: YNode.Map, doc: OpenDocument) {
     doc.version  // CONVENTIONS §2 / UX-24
@@ -636,7 +636,7 @@ private fun EntityEditor(root: YNode.Map, doc: OpenDocument) {
                 Checkbox(defines, { decl.entries["defines"] = YNode.Scalar(it); doc.markEdited() })
                 Text("この文書群の出現が定義（誕生）", fontSize = 11.sp)
             }
-            // アスペクト宣言（R23-01。§4.33）: この出現が所有する側面名と所有フィールドの限定
+            // アスペクト宣言（R23-01。architecture/graph-query.md「エンティティページ」）: この出現が所有する側面名と所有フィールドの限定
             CompactScalar(decl, "aspect", "アスペクト名（省略時はスキーマID）", doc)
             StringListEditor(decl, "owns", "所有フィールド（省略時は宣言フィールド全部）", "status, summary", doc)
         }
@@ -915,7 +915,7 @@ private fun DefaultValueEditor(map: YNode.Map, type: String, doc: OpenDocument) 
 }
 
 /**
- * フィールド一括改名の確認ダイアログ（R25-01。ARCHITECTURE §4.35）。
+ * フィールド一括改名の確認ダイアログ（R25-01。architecture/schema.md「リファクタリング」）。
  * スキーマ定義・全該当文書のデータキー（順序・コメント保持）・ビュー通常列の計画をプレビューし、
  * 適用はセッションの1トランザクション（AppState.applyEntityPlan。Undo 1回で戻る。B-1）。
  * 未保存の変更があるときは先に保存を求める（適用→保存が未保存編集まで書かないように。EntityRenameDialog と同じ流儀）。

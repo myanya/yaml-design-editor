@@ -300,7 +300,7 @@ object VirtualViews {
                 .sortedWith(compareBy({ rel(it.document) }, { pathSortKey(it.path) }))
 
         fun computedCell(column: VirtualViewColumn, def: DerivationDef, rowId: String, occurrences: List<ScannedId>): VirtualCell {
-            // 解決は整合検証と共有の SemanticDerivation。ビューで見えている導出値と検証される期待値を一致させる（§4.26）
+            // 解決は整合検証と共有の SemanticDerivation。ビューで見えている導出値と検証される期待値を一致させる（architecture/transform.md「計算列と決定論的射影」）
             val result = SemanticDerivation.resolve(def, rowId, ::occurrencesOf, rel, ::cachedTree, occurrences)
             return VirtualCell(
                 column = column,

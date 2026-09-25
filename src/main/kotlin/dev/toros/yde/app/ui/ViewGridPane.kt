@@ -455,7 +455,7 @@ private fun BacklinkCell(state: AppState, backlinks: List<ViewBacklink>) {
 /**
  * 計算セル（R16-04 / UX-01）。クリックは直接ジャンプではなく、導出の説明（元値→結果）と
  * 行き先の選択（導出規則・各入力値）をポップアップメニューで提示する。規則を確認したい場合と
- * 入力値を確認したい場合の両方に応える（ARCHITECTURE §4.26。モーダルではなくポップアップ）。
+ * 入力値を確認したい場合の両方に応える（architecture/transform.md「計算列と決定論的射影」。モーダルではなくポップアップ）。
  */
 @Composable
 private fun ComputedCellLink(state: AppState, cell: ViewCell) {

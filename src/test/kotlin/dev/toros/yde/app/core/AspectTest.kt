@@ -16,7 +16,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * アスペクト宣言とエンティティ合成（R23-01。ARCHITECTURE §4.33）のテスト。
+ * アスペクト宣言とエンティティ合成（R23-01。architecture/graph-query.md「エンティティページ」）のテスト。
  * - 合成の決定性: 出現の並びは「定義出現 → レジストリのアスペクト宣言順 → アスペクト名 → ファイル順」
  * - 所有フィールド: owns 明示はそのまま、省略時は宣言フィールド全部（type: id を除く）
  * - 重複所有は隠さず duplicateOf で注記し、検証は「双方に宣言・少なくとも一方が明示 owns」の組だけ WARNING

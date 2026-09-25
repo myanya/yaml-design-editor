@@ -15,7 +15,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * 関係レジストリ（R20-02。ARCHITECTURE §4.30）のテスト。
+ * 関係レジストリ（R20-02。architecture/graph-query.md「エンティティ型と関係レジストリ」）のテスト。
  * - `kind: relations` のパースと定義検証（重複・match 禁止・cardinality）
  * - LoadResult.relations の集約と、未宣言 relation の lint（レジストリがあるときだけ）
  * - schemaFor の kind ディスパッチ（builtin-relations）

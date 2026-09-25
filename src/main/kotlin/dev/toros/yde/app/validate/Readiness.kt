@@ -9,7 +9,7 @@ import dev.toros.yde.yaml.validate.Severity
 import java.nio.file.Path
 
 /**
- * 準備完了レポート（R28-05b。ARCHITECTURE §4.32）: ワークスペース全文書の検証結果を
+ * 準備完了レポート（R28-05b。architecture/graph-query.md「クエリコア」）: ワークスペース全文書の検証結果を
  * エンティティ単位に集約し、「準備完了（そのエンティティに帰属するエラーが0）」を機械判定する。
  *
  * - 指摘の帰属: 指摘のパスを含む最も内側（パスが最長）のID出現のエンティティ（sourceEntryOf と同じ規則）。

@@ -31,7 +31,7 @@ object BuiltinTransforms {
 }
 
 /**
- * 利用者が書いたスキーマ1件から導出した、最小の構造のスキーマ（P27 段C の C-1。ARCHITECTURE §4.43・意図的差分 D-30）。
+ * 利用者が書いたスキーマ1件から導出した、最小の構造のスキーマ（P27 段C の C-1。architecture/schema.md「構造スキーマの導出」・意図的差分 D-30）。
  * 構造の検証の入口——アプリ（root の Validator）とカーネル（WorkspaceReader・セッション）が、同じここを通る。
  * - 導出は、組込みの変換定義（builtin-transforms/structural-schema.yaml）を SemanticTransform で実行する。入力は、スキーマの項目の木を
  *   利用者が書く形の YAML へ書き出したもの（FieldYaml）——ファイルのスキーマも、派生スキーマも、語彙のキーを足したメタスキーマも同じ経路

@@ -22,7 +22,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * 文書参照とファイル移動（R21-03。ARCHITECTURE §4.31）のテスト。
+ * 文書参照とファイル移動（R21-03。architecture/graph-query.md「エンティティ操作」）のテスト。
  * - `target: document` の宣言・解決（documentId ＝ `_document.id` ＞ 相対パス）・台帳外の INFO 降格
  * - エンティティ名前空間との分離（文書参照はエンティティIDに解決されない）
  * - 移動（B-1 でカーネル MoveDocument へ移行）: パスID参照の書き換え・スキーマ match の警告・

@@ -205,7 +205,7 @@ object Views {
     /**
      * データパスに対応するフィールド定義を、スキーマを辿って解決する（セルエディタの型決定に使う）。
      * 実装は schema 層の `SchemaDef.fieldAt` へ移設した（R23-01。重複所有の検証＝validate 層からも
-     * 使うため。ARCHITECTURE §4.33）。この委譲は既存呼び出しの互換維持。
+     * 使うため。architecture/graph-query.md「エンティティページ」）。この委譲は既存呼び出しの互換維持。
      */
     fun fieldAt(schema: SchemaDef, root: YNode, path: YPath): FieldDef? = schema.fieldAt(root, path)
 

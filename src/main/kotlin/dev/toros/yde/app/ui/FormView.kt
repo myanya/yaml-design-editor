@@ -432,7 +432,7 @@ private fun SchemaRootForm(
 
 /**
  * 文書ビューのセクション描画。fields セクションは既存のフォーム経路（FormCtx / Slot）へ委譲し、
- * backlinks セクションは読み取り専用の被参照表を出す——ビュー専用の書込経路は作らない（ARCHITECTURE §4.14）。
+ * backlinks セクションは読み取り専用の被参照表を出す——ビュー専用の書込経路は作らない（architecture/views.md「ビュー機構」）。
  */
 @Composable
 private fun DocViewSections(ctx: FormCtx, view: DocViewDef, root: YNode.Map, localIds: List<IdEntry>) {
@@ -991,7 +991,7 @@ private fun IdEditor(ctx: FormCtx, field: FieldDef?, slot: Slot) {
 
 @Composable
 fun RefEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath = emptyList()) {
-    // 属性付き参照（R20-03。ARCHITECTURE §4.30）: fields 宣言のある ref は
+    // 属性付き参照（R20-03。architecture/graph-query.md「エンティティ型と関係レジストリ」）: fields 宣言のある ref は
     // 参照行（to）＋属性行（ObjectFields 再利用）で編集する。スカラー形式のままでも編集できる。
     if (field.fields.isNotEmpty()) {
         val node = slot.get()
@@ -1054,7 +1054,7 @@ private fun RefScalarEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
             .toList()
     }
 
-    // 解決先タイトル（表示解決は IdEntry.title に一元化済み・R10-01）。未保存編集を含むローカルIDを優先する（§4.5）。
+    // 解決先タイトル（表示解決は IdEntry.title に一元化済み・R10-01）。未保存編集を含むローカルIDを優先する（architecture/index-references.md「索引の二層」）。
     val targetTitle = if (!resolved) null else
         (ctx.localIds.firstOrNull { it.id == current && it.isAllowedBy(refConstraint) }
             ?: ctx.state.overlayIndex().occurrences(current).firstOrNull { it.isAllowedBy(refConstraint) })
@@ -1137,7 +1137,7 @@ private fun RefScalarEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
 
 /**
  * 参照ジャンプボタン（UX-75）: クリックで行き先（定義ファイル／エンティティページ）を選ぶメニューを出す。
- * 検証指摘・計算セルの来歴と同じ「行き先の選択」流儀（DropdownMenu。§4.24 整合）。
+ * 検証指摘・計算セルの来歴と同じ「行き先の選択」流儀（DropdownMenu。architecture/ui.md「UI シェル」 整合）。
  */
 @Composable
 private fun RefJumpButton(
@@ -1171,7 +1171,7 @@ private fun RefJumpButton(
 }
 
 /**
- * 文書参照（target: document。R21-03。ARCHITECTURE §4.31）のエディタ。
+ * 文書参照（target: document。R21-03。architecture/graph-query.md「エンティティ操作」）のエディタ。
  * 候補・解決は文書ノード表（documentId ＝ `_document.id` ＞ 相対パス）に対して行い、
  * エンティティの名前空間には混ぜない。ジャンプは参照先文書を開く。
  */
