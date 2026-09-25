@@ -140,5 +140,5 @@
 - **共通スキーマ定義の追加**: `_schemas` に `kind: library` を置き、利用側は `moduleId#definition` で参照する。解決規則を増やすなら `SchemaCatalog` に閉じる。
 - **派生スキーマの写像項目の追加**: `SchemaDerivation.parse` / `compile` とメタスキーマの `derive` 定義をそろえて更新する。語彙は skill の列マッピングと揃える。
 - **式を受け取る項目の追加**: 印を付け、使う側が `expressionAt` で引いて `SemanticValues.evaluate` を呼ぶ。読み取り・構造の検証・指摘・文面は共通。
-- **値の計算の追加**: `ValueExpr`（パースと `sources` / `reads`）・`SemanticExpression`（純粋な関数）・`SemanticValues` に足し、評価できないときは null を返す規則を守る。メタスキーマの説明と MANUAL を対で更新する。
+- **値の計算の追加**: `ValueExpr`（パースと `sources` / `reads`）・`SemanticExpression`（純粋な関数）・`SemanticValues` に足し、評価できないときは null を返す規則を守る。メタスキーマの説明と manual/ を対で更新する。
 - **リファクタリング操作の追加**: `SemanticRewrite` の列挙器と基本戦略で書き、`RefactoringPlanGoldenTest` に計画を固定する。CLI `workspace refactor` とスキーマエディタに入口を足す。

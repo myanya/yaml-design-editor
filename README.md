@@ -30,7 +30,7 @@ Kotlin + Compose for Desktop 製の、スキーマ駆動の YAML エディタで
 
 | ドキュメント | 内容 |
 |---|---|
-| [docs/MANUAL.md](docs/MANUAL.md) | 利用者マニュアル（画面・操作・スキーマ定義リファレンス・検証・CLI・既知の制約） |
+| [docs/manual/](docs/manual/README.md) | 利用者マニュアル（画面・スキーマ定義・検証・ビュー・ID・AI・CLI・既知の制約） |
 | [tutorial.md](tutorial.md) | チュートリアル（タスク管理を題材に、文書の作成からスキーマ・検証まで） |
 | [docs/FEATURES.md](docs/FEATURES.md) | 機能一覧と実装状況 |
 | [docs/architecture/](docs/architecture/README.md) | 設計（主題ごとに 1 ファイル。部品・流れ・規律・拡張ポイント） |

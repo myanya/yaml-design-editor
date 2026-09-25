@@ -8,7 +8,7 @@ Kotlin + Compose for Desktop 製のスキーマ駆動 YAML エディタ。ワー
 ./gradlew test                              # 単体テスト（コミット前に必ず実行）
 ./gradlew run                               # スタート画面で起動（履歴からワークスペース選択）
 ./gradlew run --args="/path/to/workspace"   # ワークスペース指定で起動
-./gradlew runCli -q --args="help"           # ヘッドレス CLI（docs/MANUAL.md「ヘッドレスCLI」）
+./gradlew runCli -q --args="help"           # ヘッドレス CLI（docs/manual/cli.md）
 ./gradlew runCli -q --args="version"        # バージョン表示（外部＝appVersion・内部＝yyyymmdd.ビルド番号）
 ./gradlew packageDistributionForCurrentOS   # 配布物作成
 scripts/docs-lint.sh                        # 文書の形の機械チェック

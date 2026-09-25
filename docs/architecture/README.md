@@ -27,7 +27,7 @@
 - Excel・Word 入出力: Apache POI（skill のインポート・エクスポートのみ）
 - 永続化: `java.util.prefs.Preferences`（UI レイアウト・テーマ・履歴・AI モデル設定）
 - ビルド: Gradle（Wrapper 同梱）マルチモジュール。ルート＝Compose アプリ＋ `yaml-core` / `semantic-core` / `workspace-core` / `cli`。テスト: kotlin.test
-- ヘッドレス CLI: `./gradlew runCli --args="…"`（MANUAL「ヘッドレスCLI」）
+- ヘッドレス CLI: `./gradlew runCli --args="…"`（[manual/cli.md](../manual/cli.md)）
 
 ## モジュールと依存方向
 

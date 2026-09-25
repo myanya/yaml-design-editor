@@ -141,7 +141,7 @@
 ## 拡張ポイント
 
 - **検査の追加**: まず定義体（`functions` / `vocabulary`）。書けないなら足りない部分を小さな意味プリミティブとして semantic-core に足す。複雑なアルゴリズムは専用チェッカー。設計メモにどの層に置いたかを書く。
-- **値の条件・値の計算の追加**: `CheckOp`（演算子と文面の言葉）と `SemanticExpression.compare` / `test` に足すと `check` と `where` の両方で使える。値の計算は `ValueExpr`・`SemanticExpression`・`SemanticValues`。メタスキーマの説明と MANUAL を対で更新する。
+- **値の条件・値の計算の追加**: `CheckOp`（演算子と文面の言葉）と `SemanticExpression.compare` / `test` に足すと `check` と `where` の両方で使える。値の計算は `ValueExpr`・`SemanticExpression`・`SemanticValues`。メタスキーマの説明と manual/ を対で更新する。
 - **エラー時の対応の追加**: `ResponseDecl` と `CheckResponse` に種類を足し、`WorkspaceChecks` で導出し、検証パネルのメニューに載せる。
 - **配り方の追加**: `IssueDelivery` と `WorkspaceChecks.deliver` に足す。
 - **組込み定義体の追加**: `builtin-definitions/` に YAML を 1 つ足し、書き方の形をメタスキーマへ書く。

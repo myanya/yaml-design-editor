@@ -1,10 +1,10 @@
 # 機能索引
 
 機能から実装ファイルとテストを引く索引。1 行 1 機能で、経緯は書かない（記録は [archive/](archive/README.md) と git log）。
-利用方法は [MANUAL.md](MANUAL.md)、設計は [architecture/](architecture/README.md) が正。「設計」列は設計文書の主題。
+利用方法は [manual/](manual/README.md)、設計は [architecture/](architecture/README.md) が正。「設計」列は設計文書の主題。
 
 - **テスト**: `単体` は単体テストあり（代表のテスト名を添える）。`手動` は手動確認のみ。
-- 未実装は [ROADMAP.md](ROADMAP.md)、既知の制約は [BACKLOG.md](BACKLOG.md) と MANUAL「既知の制約」に置く。
+- 未実装は [ROADMAP.md](ROADMAP.md)、既知の制約は [BACKLOG.md](BACKLOG.md) と manual/limits.mdに置く。
 
 ## 1. ワークスペース・ファイル管理
 

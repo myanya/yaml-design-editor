@@ -3,7 +3,7 @@
 設計情報（YAML文書群）に対して**どのような機械的チェックが可能か**のパターン台帳。
 「AIが書き、機械が検証し、人間は差分を承認する」ループの検証部を設計するときの語彙集として使う。
 各パターンは `labs/sysdev-template`（会議室予約サンプル。今後の開発用の実験場）での実例IDを添える。
-機構の詳細仕様は [MANUAL.md](MANUAL.md)（利用者向けリファレンス）と [architecture/graph-query.md](architecture/graph-query.md)、
+機構の詳細仕様は [manual/checks.md](manual/checks.md)（利用者向けリファレンス）と [architecture/graph-query.md](architecture/graph-query.md)、
 評価の意味論は [CORE-CALCULUS.md](CORE-CALCULUS.md) を参照。
 
 ## 0. 全チェック共通の性質
@@ -129,7 +129,7 @@ enum の区分値のまま直接ノードにする形は、ID化パターンで�
 ## 6b. 自分の検査に名前を付ける（検査の定義と語彙の定義）
 
 同じ形の検査を何度も書くとき・組込みに無い検査が欲しいときは、`functions`（関数のような定義）と
-`vocabulary`（短く書くための語彙）で自分の検査を作る（MANUAL「検査の定義と語彙の定義」）。
+`vocabulary`（短く書くための語彙）で自分の検査を作る（manual/checks.md「検査の定義と語彙の定義」）。
 
 | 目的 | 機構 |
 |---|---|
