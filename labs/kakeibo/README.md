@@ -16,6 +16,8 @@
     monthly-sums.yaml     # 月×費目（金額）: 収入・食費・支出・期末残高
     monthly-counts.yaml   # 月×費目（件数）
     transactions.yaml     # 取引明細（日付の新しい順。金額・費目・メモはグリッドで編集できる）
+    month-by-category.yaml  # 月×費目（クロス集計 kind: matrix。費目が増えても列は自動・合計つき）
+    month-by-kind.yaml    # 月×区分（クロス集計。収入・支出の件数）
   skills/
     import-smbc.yaml      # 三井住友銀行の CSV を book/tx/ の配列へ取り込む（採番つき）
 book/
@@ -45,6 +47,8 @@ inbox/
 | 月×費目（金額） | 収入・食費・支出・期末残高 | 行＝月を起点に `all` で取引を集め、`sum` と `subtract` |
 | 月×費目（件数） | 食費の件数・支出の件数 | 同じ `all` を `count` に渡す |
 | 取引明細（日付順） | 全取引を日付の新しい順に | `order: { path: date, type: date, direction: desc }`。ID の並びに頼らない |
+| 月×費目（クロス集計） | 行＝月・列＝費目（費目一覧の順）・セル＝金額の合計・合計の行と列 | `kind: matrix`。`cells.match` で月から取引を集め、`columns: { via: category }` で費目ごとの列に広げる。費目を足せば列が増える |
+| 月×区分（件数） | 行＝月・列＝収入／支出・セル＝件数 | `columns: { path: kind, values: [...] }`。値が列になる形 |
 
 ## 取り込み（skill `import-smbc`）
 
@@ -73,6 +77,7 @@ CSV の各行を「見出し → セル」の項にして、ひな型（`build`�
 ./gradlew runCli -q --args="validate labs/kakeibo"                   # 検査（上の 5 件が出る）
 ./gradlew runCli -q --args="view labs/kakeibo monthly-sums"          # 月×費目（金額）。CLI の数は桁区切りしない
 ./gradlew runCli -q --args="view labs/kakeibo transactions"          # 取引明細（日付の新しい順）
+./gradlew runCli -q --args="view labs/kakeibo month-by-category"     # 月×費目（クロス集計。最後の行が合計）
 ./gradlew runCli -q --args="import labs/kakeibo import-smbc labs/kakeibo/inbox/smbc-sample.csv"          # 取り込みのプレビュー（取り込み済みなので追加 0 件）
 ./gradlew runCli -q --args="import labs/kakeibo import-smbc labs/kakeibo/inbox/smbc-sample.csv --apply"  # 取り込む（book/tx/2021-08.yaml を消してから試すと 2 件できる）
 ```

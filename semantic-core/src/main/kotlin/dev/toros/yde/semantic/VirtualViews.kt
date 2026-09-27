@@ -10,6 +10,7 @@ import dev.toros.yde.semantic.schema.DerivationSelector
 import dev.toros.yde.semantic.schema.ExpressionValue
 import dev.toros.yde.semantic.schema.NumberDisplay
 import dev.toros.yde.semantic.schema.PathPattern
+import dev.toros.yde.semantic.schema.idGlobToRegex
 import dev.toros.yde.semantic.schema.QueryNodeKind
 import dev.toros.yde.semantic.schema.QuerySpec
 import dev.toros.yde.semantic.schema.ValueExpr
@@ -91,6 +92,45 @@ data class VirtualOrderValue(
     val descending: Boolean = false,
 )
 
+// ---------------------------------------------------------------- クロス集計（kind: matrix）
+
+/** 列の軸への対応: セルの要素の参照先（via）を列にするか、要素の値（path）を列にするか。 */
+sealed interface VirtualMatrixKey {
+    /** 参照先のエンティティが列。列の集まりは idPattern（と schemaIds）に合う索引の ID で、見出しはタイトル。order は列の並び（出現の文書内順）。 */
+    data class Ref(
+        val via: String,
+        val idPattern: String,
+        val schemaIds: List<String> = emptyList(),
+        val order: VirtualViewSource? = null,
+    ) : VirtualMatrixKey
+
+    /** 要素の値が列。values は列にする値の並び（値と見出し）。 */
+    data class Value(val path: YPath, val pathText: String, val values: List<Pair<String, String?>>) : VirtualMatrixKey
+}
+
+/**
+ * セルの集計: 行の要素を起点に固定した照合（値の式の all の match の形）で集めた要素を、列ごとに絞って畳む。
+ * all は書かれたまま（match / where / also / of / in / path）を持ち、列ごとの絞りを足して値の式にする（評価は値の式の列と同じ）。
+ */
+data class VirtualMatrixCells(
+    val all: Map<String, Any?>,
+    val of: String,
+    val aggregate: dev.toros.yde.semantic.schema.ValueExpr.AggregateFn,
+    val kind: dev.toros.yde.semantic.schema.ValueExpr.OrderKind,
+    val key: VirtualMatrixKey,
+)
+
+/** クロス集計の宣言（VirtualGridDef.matrix）。列を広げたグリッドに下ろして解決する（lower）。 */
+data class VirtualMatrixDef(
+    val cells: VirtualMatrixCells,
+    /** 合計の列と行。 */
+    val totals: Boolean = true,
+    /** 列の軸に当たらない要素の列の見出し（null＝出さない）。 */
+    val unclassified: String? = "（未分類）",
+    /** セルの数の見せ方（桁区切り）。 */
+    val display: NumberDisplay? = null,
+)
+
 /** 行の集合の定義。idPattern に一致する論理IDが行になる。 */
 data class VirtualRowsDef(
     val idPattern: String,
@@ -130,6 +170,8 @@ data class VirtualGridDef(
     val detail: VirtualDetailDef? = null,
     val newRow: VirtualNewRowDef? = null,
     override val source: DocumentId,
+    /** クロス集計（kind: matrix）。非 null なら columns は空で、列は解決のときに索引から広げる（VirtualViews.lower）。 */
+    val matrix: VirtualMatrixDef? = null,
 ) : VirtualViewDefinition
 
 // ---------------------------------------------------------------- 文書ビューの宣言（カーネル座標。RC-02）
@@ -289,13 +331,14 @@ object VirtualViews {
      * - tree: セル値の読み取り（呼び出し側が未保存編集・ステージングを注入する）
      */
     fun resolve(
-        view: VirtualGridDef,
+        viewDef: VirtualGridDef,
         ids: Map<String, List<ScannedId>>,
         refs: List<ScannedRef>,
         graph: SemanticEntityGraph,
         rel: (DocumentId) -> String,
         tree: (DocumentId) -> YNode?,
     ): List<VirtualRow> {
+        val view = lower(viewDef, ids, rel)  // クロス集計は、列を広げたグリッドとして解決する
         val trees = mutableMapOf<DocumentId, YNode?>()
         fun cachedTree(document: DocumentId): YNode? = trees.getOrPut(document) { tree(document) }
         fun occurrencesOf(id: String): List<ScannedId> = ids[id].orEmpty()
@@ -459,7 +502,103 @@ object VirtualViews {
                 )
             }
             .toList()
-        return sortRows(view, rows, rel, ::cachedTree)
+        return withTotals(view, sortRows(view, rows, rel, ::cachedTree))
+    }
+
+    // ---------------------------------------------------------------- クロス集計（kind: matrix）の展開
+
+    /** 合計の行の見出し（行の ID の位置に出る）。 */
+    const val TOTAL_LABEL = "合計"
+
+    /**
+     * クロス集計を、列を広げたグリッドにする（matrix でなければそのまま）。列の軸は索引の ID（参照先）か決まった値で、
+     * 列ごとに「行から集めた要素を、その列に当たるものに絞って畳む」値の式を組み立てる。未分類の列と合計の列も同じ式の形。
+     * ヘッダを描く側（画面・書き出し）は、同じ索引でこの関数を呼ぶと、解決した行のセルと同じ列が得られる。
+     */
+    fun lower(view: VirtualGridDef, ids: Map<String, List<ScannedId>>, rel: (DocumentId) -> String): VirtualGridDef {
+        val matrix = view.matrix ?: return view
+        val cells = matrix.cells
+        val key = cells.key
+        data class Axis(val key: String, val label: String)
+        val axis: List<Axis> = when (key) {
+            is VirtualMatrixKey.Ref -> {
+                val regex = idGlobToRegex(key.idPattern)
+                val matched = ids.entries.filter { (id, occ) ->
+                    regex.matches(id) && (key.schemaIds.isEmpty() || occ.any { it.schemaId in key.schemaIds })
+                }
+                val order = key.order
+                fun anchor(occ: List<ScannedId>): ScannedId? = order?.let { o -> occ.firstOrNull { o.matches(it, rel(it.document)) } }
+                matched.sortedWith(
+                    compareBy<Map.Entry<String, List<ScannedId>>>(
+                        { (_, occ) -> if (order == null || anchor(occ) != null) 0 else 1 },
+                        { (_, occ) -> anchor(occ)?.let { rel(it.document) } ?: "" },
+                        { (_, occ) -> anchor(occ)?.path?.let(::pathSortKey) ?: "" },
+                        { (id, _) -> id },
+                    )
+                ).map { (id, occ) -> Axis(id, occ.firstNotNullOfOrNull { it.title } ?: id) }
+            }
+            is VirtualMatrixKey.Value -> key.values.map { (v, label) -> Axis(v, label ?: v) }
+        }
+        val keyPath = when (key) { is VirtualMatrixKey.Ref -> key.via; is VirtualMatrixKey.Value -> key.pathText }
+        fun narrowed(extraMatch: List<Any?>, extraWhere: List<Any?>): Map<String, Any?> {
+            val all = LinkedHashMap<String, Any?>(cells.all)
+            if (extraMatch.isNotEmpty()) all["match"] = (cells.all["match"] as? List<*>).orEmpty() + extraMatch
+            if (extraWhere.isNotEmpty()) all["where"] = (cells.all["where"] as? List<*>).orEmpty() + extraWhere
+            return all
+        }
+        fun column(label: String, all: Map<String, Any?>): VirtualViewColumn {
+            val raw = LinkedHashMap<String, Any?>()
+            raw[cells.aggregate.id] = mapOf("all" to all)
+            if (cells.aggregate != dev.toros.yde.semantic.schema.ValueExpr.AggregateFn.COUNT &&
+                cells.kind == dev.toros.yde.semantic.schema.ValueExpr.OrderKind.DATE
+            ) raw["type"] = "date"
+            return VirtualViewColumn(label = label, path = emptyList(), value = ExpressionValue.of(raw, "cells", label), display = matrix.display)
+        }
+        val columns = mutableListOf<VirtualViewColumn>()
+        for (a in axis) {
+            columns += when (key) {
+                // 参照先が列: 照合に「その参照を辿って、列のエンティティに着く」を足す（属性つきの参照でも辿れる）
+                is VirtualMatrixKey.Ref -> column(
+                    a.label,
+                    narrowed(listOf(mapOf("edge" to mapOf("via" to key.via)), mapOf("node" to mapOf("id" to a.key))), emptyList()),
+                )
+                is VirtualMatrixKey.Value -> column(a.label, narrowed(emptyList(), listOf(mapOf("of" to cells.of, "path" to keyPath, "equals" to a.key))))
+            }
+        }
+        matrix.unclassified?.let { label ->
+            // 列の軸に当たらない要素: 値が無いか、どの列の値でもない（参照は書かれた ID の文字で見る）
+            val condition: Map<String, Any?> = if (axis.isEmpty()) emptyMap() else mapOf(
+                "or" to listOf(
+                    mapOf("of" to cells.of, "path" to keyPath, "exists" to false),
+                    mapOf("not" to mapOf("of" to cells.of, "path" to keyPath, "oneOf" to axis.map { it.key })),
+                )
+            )
+            columns += column(label, narrowed(emptyList(), if (condition.isEmpty()) emptyList() else listOf(condition)))
+        }
+        if (matrix.totals) columns += column(TOTAL_LABEL, cells.all)
+        return view.copy(columns = columns)
+    }
+
+    /** クロス集計の合計の行: 各列のセルの値を畳む（件数と合計は足し、最小・最大はその順で選ぶ）。読めないセルがあれば、その列の合計は無い。 */
+    private fun withTotals(view: VirtualGridDef, rows: List<VirtualRow>): List<VirtualRow> {
+        val matrix = view.matrix ?: return rows
+        if (!matrix.totals || rows.isEmpty()) return rows
+        val fn = when (matrix.cells.aggregate) {
+            dev.toros.yde.semantic.schema.ValueExpr.AggregateFn.MIN -> dev.toros.yde.semantic.schema.ValueExpr.AggregateFn.MIN
+            dev.toros.yde.semantic.schema.ValueExpr.AggregateFn.MAX -> dev.toros.yde.semantic.schema.ValueExpr.AggregateFn.MAX
+            else -> dev.toros.yde.semantic.schema.ValueExpr.AggregateFn.SUM
+        }
+        val kind = if (matrix.cells.aggregate == dev.toros.yde.semantic.schema.ValueExpr.AggregateFn.COUNT) {
+            dev.toros.yde.semantic.schema.ValueExpr.OrderKind.NUMBER
+        } else matrix.cells.kind
+        val totalCells = view.columns.mapIndexed { i, column ->
+            val texts = rows.map { r -> scalarText(r.cells.getOrNull(i)?.value) }
+            val total = if (texts.any { it == null }) null else SemanticExpression.aggregate(fn, texts.map { it!! }, kind)
+            VirtualCell(column = column, document = null, path = null, value = total?.let { YNode.Scalar(it) }, computed = true)
+        }
+        return rows + VirtualRow(
+            id = TOTAL_LABEL, title = null, occurrences = emptyList(), cells = totalCells, detailDocument = null, detailPath = null,
+        )
     }
 
     /**

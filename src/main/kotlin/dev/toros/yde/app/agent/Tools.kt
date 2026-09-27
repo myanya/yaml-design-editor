@@ -466,7 +466,8 @@ class AgentToolbox(
             if (loaded.views.isEmpty() && loaded.docViews.isEmpty()) return "（ビュー定義がありません）"
             val lines = loaded.views.map { v ->
                 val rowsLabel = v.rows?.let { "idPattern=${it.idPattern}" } ?: "matchクエリ（行キー: ${v.rowKey}）"
-                "- ${v.id}（${v.name}）: $rowsLabel, 列=${v.columns.joinToString("/") { it.label }}"
+                val columnsLabel = if (v.matrix != null) "クロス集計（列は cells.columns から）" else v.columns.joinToString("/") { it.label }
+                "- ${v.id}（${v.name}）: $rowsLabel, 列=$columnsLabel"
             } + loaded.docViews.map { v ->
                 "- ${v.id}（${v.name}）: 文書ビュー 適用先=" +
                     listOfNotNull(v.match, v.schemaId?.let { "schema:$it" }).joinToString(" & ")

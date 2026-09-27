@@ -755,6 +755,7 @@ Core Calculus = 定義を実行する
 | Traverse | Query |
 | Query Core | Query |
 | View rows | Query |
+| Matrix view（クロス集計） | Query ＋ Aggregate（列を広げたグリッドへ下ろす） |
 | foreach | Query |
 | Projection | Expression |
 | Derivation（ビューの派生列。専用の語彙は廃止） | Expression（`via`＝1 段の参照）＋ Aggregate |
@@ -762,15 +763,15 @@ Core Calculus = 定義を実行する
 | query constraint | Query + Predicate |
 | relation cardinality（多重度） | Query + Aggregate（参照の本数）+ Predicate（**組込み定義体**。専用の検査プログラムは無い） |
 | relation source / target（対象型） | Query（ノードの条件の否定・参照の束縛）+ Predicate（**組込み定義体**） |
-| coverage（detailIn） | 出現集合の Aggregate ＋ Predicate（CALC-21。参照ベース requiredBy は削除済み。**組込み定義体**。書かれた場所の数 `occurrenceCount` の比較へ展開される語彙になった） |
+| coverage（detailIn） | 出現集合の Aggregate ＋ Predicate（CALC-21。**組込み定義体**。書かれた場所の数 `occurrenceCount` の比較へ展開される語彙になった） |
 | entity lint（浮遊詳細化・定義競合・型競合） | 出現集合の Aggregate ＋ Predicate（**組込み定義体**に直接書いた検査。idPattern 逸脱と重複所有は専用の lint として残す） |
 | matrix | Query ＋「すべての要素について」の判定（**組込み定義体**。検査の基本の書き方 `forAll` へ展開される語彙になった。専用の検査プログラムは無い） |
 | flow（遷移検証） | Query（母集団選択）＋専用高水準演算（到達閉包。§20 通過）。**専用チェッカー（SP-13）を組込み定義体から使う形になった**——演算はコードに残し、語彙への結び付け・文面・重大度は定義の宣言 |
 | relation acyclic（非循環） | Query（何段でも辿る線 `repeat` ＋ノード一致 `same`）＋ Predicate（**組込み定義体**。辿る計算だけが専用アルゴリズムで、判定は YAML。専用チェッカー `cycle` は廃止） |
 | Validator | Constraint executor |
-| Transform（YAML から YAML への変換） | Query + Construct（＋Predicate＝項目を出す条件。§26） |
-| 構造のスキーマの導出 | Construct だけ（入力はスキーマ文書 1 つ）。**変換定義（YAML）**で書く |
-| Scaffold（新しい文書のひな型）・Import（skill の取り込み） | Expression（ファイル名 `filePattern`）＋ Construct（中身 `scaffold`・取り込みの `build`）＋ Rewrite（作成・配列への追記と採番） |
+| Transform（YAML から YAML への変換） | Query + Construct（＋Predicate＝項目を出す条件） |
+| 構造のスキーマの導出 | Construct だけ。**変換定義（YAML）**で書く |
+| Scaffold（新しい文書のひな型）・Import（skill の取り込み） | Expression（`filePattern`）＋ Construct（`scaffold`・`build`）＋ Rewrite（作成・追記と採番） |
 | Bulk edit | Query + Rewrite |
 | Schema Refactoring | Query + Rewrite |
 | Entity operations | Query + Rewrite |

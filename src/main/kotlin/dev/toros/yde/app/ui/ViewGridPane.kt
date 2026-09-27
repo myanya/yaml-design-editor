@@ -271,9 +271,11 @@ private fun GridBody(state: AppState, view: ViewDef) {
     }
     val hScroll = rememberScrollState()
     // ヘッダ行
+    // クロス集計（kind: matrix）は列を索引から広げるので、ヘッダは解決と同じ索引で決めた列を使う
+    val effectiveView = remember(view, state.indexVersion, state.editVersion) { Views.effective(view, state.overlayIndex()) }
     Row(Modifier.fillMaxWidth().background(Palette.PanelBg).horizontalScroll(hScroll).padding(horizontal = 8.dp, vertical = 5.dp)) {
         GridHeaderCell("ID", ID_WIDTH)
-        view.columns.forEach { column ->
+        effectiveView.columns.forEach { column ->
             val suffix = when {
                 column.backlinks != null -> "（被参照）"
                 column.editable -> ""
@@ -332,8 +334,11 @@ private fun IdCell(state: AppState, row: ViewRow) {
                     row.occurrences.firstOrNull()?.let { state.navigateToOccurrence(it) }
                 },
             )
-            IconButton(onClick = { state.openCrossView(row.id) }, modifier = Modifier.size(22.dp)) {
-                Icon(Icons.Default.Hub, contentDescription = "横ぐしビューで表示", Modifier.size(13.dp), tint = Palette.SubText)
+            // 出現の無い行（クロス集計の合計の行）には横ぐしビューは無い
+            if (row.occurrences.isNotEmpty()) {
+                IconButton(onClick = { state.openCrossView(row.id) }, modifier = Modifier.size(22.dp)) {
+                    Icon(Icons.Default.Hub, contentDescription = "横ぐしビューで表示", Modifier.size(13.dp), tint = Palette.SubText)
+                }
             }
         }
         row.title?.let { Text(it, fontSize = 10.sp, color = Palette.SubText, maxLines = 1) }

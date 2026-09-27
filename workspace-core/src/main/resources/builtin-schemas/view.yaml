@@ -58,7 +58,85 @@ root:
         - value: document
           label: 文書ビュー
           description: match / schemaId に一致する文書のフォーム表示を sections で合成する
+        - value: matrix
+          label: クロス集計
+          description: 行（rows の論理ID）×列（cells.columns＝参照先か値）のセルに、行から集めた要素の集計を出す。合計の行と列つき
       default: grid
+    - key: cells
+      label: セルの集計（matrix）
+      type: object
+      description: "行の要素を起点に集める照合（値の式の all の match の形）と、列の軸、集計の種類"
+      fields:
+        - key: match
+          label: 照合
+          type: any
+          description: "行の要素を起点に、セルに数える要素まで辿る（例 [{node: {entity: month, bind: m}}, {edge: {via: month, dir: in}}, {node: {entity: transaction, bind: tx}}]）"
+        - key: where
+          label: 絞り込み
+          type: any
+        - key: also
+          label: 合流の照合
+          type: any
+        - key: of
+          label: 数える要素の束縛名
+          type: string
+          required: true
+        - key: in
+          label: 値を読む文書の指定
+          type: object
+          fields:
+            - { key: schemaId, label: スキーマ, type: string }
+            - { key: fileGlob, label: ファイル（glob）, type: string }
+        - key: path
+          label: 集計する値（相対パス）
+          type: string
+          description: sum / min / max のとき必須（例 amount）
+        - key: aggregate
+          label: 集計
+          type: enum
+          values: [count, sum, min, max]
+          default: count
+        - key: type
+          label: 順序の種類
+          type: enum
+          values: [number, date]
+          description: min / max を日付で比べるなら date
+        - key: columns
+          label: 列の軸
+          type: object
+          description: "via（要素の参照先が列。idPattern で列にする ID の形、order で並び）か path（要素の値が列。values で並びと見出し）"
+          fields:
+            - { key: via, label: 参照の項目（参照先が列）, type: string }
+            - { key: idPattern, label: 列にする ID の形（via）, type: string }
+            - key: schemaIds
+              label: 列のスキーマの限定（via）
+              type: array
+              item: { type: string }
+            - key: order
+              label: 列の並び（via）
+              type: object
+              fields:
+                - { key: schemaId, label: 並び基準の出現スキーマ, type: string }
+                - { key: fileGlob, label: 並び基準の出現ファイル（glob）, type: string }
+            - { key: path, label: 値の項目（値が列）, type: string }
+            - key: values
+              label: 列にする値の並び（path）
+              type: array
+              item: { type: any }
+              description: "値の文字か {value, label}（見出し）"
+    - key: totals
+      label: 合計の行と列（matrix）
+      type: boolean
+      default: true
+    - key: unclassified
+      label: 未分類の列の見出し（matrix）
+      type: any
+      description: "列の軸に当たらない要素の列。既定は「（未分類）」。false で出さない"
+    - key: display
+      label: セルの数の表示の形（matrix）
+      type: enum
+      values: [grouped]
+      description: grouped は桁区切り（画面の見せ方だけ）
     - key: match
       label: 適用先ファイル（glob）
       type: string

@@ -162,6 +162,12 @@ object Views {
     }
 
     /**
+     * 列の並びが決まったビュー定義。クロス集計（kind: matrix）は列を索引から広げるので、ヘッダを描く側は
+     * resolve と同じ索引でこれを呼ぶ（ふつうのグリッドはそのまま）。
+     */
+    fun effective(view: ViewDef, index: IdIndex): ViewDef = VirtualViews.lower(view, index.entries) { it.value }
+
+    /**
      * 文書ビューを解決する。fields セクションは描画側（フォーム／テキスト表現）が文書ツリーから直接
      * 描くため、ここでは backlinks セクションの被参照表だけを座標つきで解決する。
      * - document: 適用先の文書

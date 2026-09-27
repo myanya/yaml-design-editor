@@ -306,9 +306,10 @@ internal fun runCli(args: Array<String>): String {
                         "views" to (loaded.views.map { v ->
                             linkedMapOf(
                                 "id" to v.id, "name" to v.name,
+                                "kind" to if (v.matrix != null) "matrix" else null,
                                 "idPattern" to v.rows?.idPattern,
                                 "rowKey" to v.rowKey,
-                                "columns" to v.columns.map { it.label },
+                                "columns" to if (v.matrix != null) "（列は cells.columns から広げる）" else v.columns.map { it.label },
                             ).filterValues { it != null }
                         } + loaded.docViews.map { v ->
                             linkedMapOf(

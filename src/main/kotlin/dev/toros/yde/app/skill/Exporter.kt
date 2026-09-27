@@ -67,7 +67,7 @@ object Exporter {
             ?: error("ビュー「$viewId」が見つかりません" +
                 (loaded.errors.takeIf { it.isNotEmpty() }?.let { "（定義エラー: ${it.joinToString(" / ")}）" } ?: ""))
         val rows = Views.resolve(view, ws.index, ws::treeOf)
-        val headers = listOf("id") + view.columns.map { it.label }
+        val headers = listOf("id") + Views.effective(view, ws.index).columns.map { it.label }  // クロス集計は列を索引から広げる
         val table = Table(headers, rows.map { row -> listOf<Any?>(row.id) + row.cells.map(::viewCellValue) })
         val target = ws.resolve(def.outputFile)
         Tables.write(table, target, TableFormat.fromExtension(def.outputFile), def.sheet)

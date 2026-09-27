@@ -184,6 +184,35 @@ columns:
 
 また、詳細文書をフォームで開くと、上部に**「他文書での定義」ストリップ**が表示され、同じIDの一覧側の情報（名前・種別など）を参照・ジャンプできます。一覧側にある情報を詳細文書へ重複記載する必要はありません。
 
+## クロス集計（`kind: matrix`）— 行×列のセルに集計
+
+「月×費目の金額」「カテゴリ×状態の件数」のように、**両方の軸が動く表**を 1 つの定義で書けます。行は論理 ID（`rows.idPattern`）、列は「セルに数える要素の参照先」か「要素の値」から自動で広がり、合計の行と列が付きます。
+
+```yaml
+# _views/month-by-category.yaml
+id: month-by-category
+name: 月×費目
+kind: matrix
+rows: { idPattern: "M-*" }                      # 行の軸＝月
+display: grouped                                # セルの数を桁区切りで見せる（省略可）
+cells:
+  match:                                        # 行の要素を起点に、セルに数える要素まで辿る（値の式の all と同じ書き方）
+    - node: { entity: month, bind: m }
+    - edge: { via: month, dir: in }
+    - node: { entity: transaction, bind: tx }
+  where: [ { of: tx, path: kind, equals: expense } ]   # 絞り込み（省略可。also も書けます）
+  of: tx                                        # 数える要素
+  columns: { via: category, idPattern: "CAT-*", order: { schemaId: categories } }   # 列の軸＝取引の費目（費目一覧の順）
+  aggregate: sum                                # count（既定）/ sum / min / max
+  path: amount                                  # sum / min / max で集計する値
+```
+
+- **列の軸**は 2 通りです。`columns: { via: 参照の項目, idPattern: "CAT-*" }` は、要素の参照先のエンティティが列になり、見出しはそのタイトル、並びは ID 順（`order: { schemaId / fileGlob }` でその出現の文書内の順）。`columns: { path: 値の項目, values: [ { value: income, label: 収入 }, expense ] }` は、要素の値が列になり、`values` の並びと見出しで出ます。
+- **セル**は、行の要素から `match` で集めた要素のうち、その列に当たるもの（参照先がその列のエンティティ、または値がその列の値）を `aggregate` で畳んだ値です。値の式の列と同じ評価なので、セルをクリックすると集めた要素へ移動できます。
+- **未分類の列**（既定の見出しは「（未分類）」）は、参照が無い・列の軸に無い値の要素です。`unclassified: 見出し` で名前を変え、`unclassified: false` で出しません（項目が必須なら不要です）。
+- **合計**は列の右端「合計」（行の要素をすべて畳んだ値）と、最後の行「合計」（各列のセルを畳んだ値）です。`totals: false` で出しません。`count` / `sum` は足し、`min` / `max` はその順で選びます。
+- 行の並びは `order`（[上](#ビューグリッドとビュー定義_views)の「行の並び」）で、CLI `view`・エクスポート・エージェントの `read_view` にも同じ表が出ます。`columns`・`detail`・`newRow` はこの種類では書けません。
+
 ## 文書ビュー（`kind: document`）— フォーム表示の合成
 
 スキーマは「データの構造と検証」を、ビューは「画面の見せ方」を受け持ちます。**文書ビュー**は `_views` のビュー定義に `kind: document` を指定したもので、特定の文書をフォームで開いたときの表示を**セクションの並び**として合成します。「内容はスキーマでチェックし、表示はビューでコントロールする」ための機構です。

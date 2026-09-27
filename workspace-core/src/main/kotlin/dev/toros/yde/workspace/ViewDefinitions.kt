@@ -25,7 +25,11 @@ import dev.toros.yde.semantic.VirtualDocBacklinksDef
 import dev.toros.yde.semantic.VirtualDocSection
 import dev.toros.yde.semantic.VirtualDocViewDef
 import dev.toros.yde.semantic.VirtualGridDef
+import dev.toros.yde.semantic.VirtualMatrixCells
+import dev.toros.yde.semantic.VirtualMatrixDef
+import dev.toros.yde.semantic.VirtualMatrixKey
 import dev.toros.yde.semantic.VirtualNewRowDef
+import dev.toros.yde.semantic.schema.ExpressionValue
 import dev.toros.yde.semantic.VirtualRowsDef
 import dev.toros.yde.semantic.VirtualViewColumn
 import dev.toros.yde.semantic.VirtualViewDefinition
@@ -102,13 +106,108 @@ object ViewDefinitions {
         when (val kind = raw["kind"]?.toString()) {
             null, "grid" -> parseGridView(raw, source, schemas)
             "document" -> parseDocView(raw, source, schemas)
-            else -> error("kind は grid / document のいずれかである必要があります: $kind")
+            "matrix" -> parseMatrixView(raw, source)
+            else -> error("kind は grid / document / matrix のいずれかである必要があります: $kind")
         }
+
+    private val MATRIX_KEYS = listOf("cells", "totals", "unclassified")
+
+    /**
+     * クロス集計（kind: matrix）のパース。行の軸は rows（idPattern）、列の軸とセルの集計は cells。
+     * 列は解決のときに索引から広げるので、ここでは columns を空にした VirtualGridDef（matrix つき）にする。
+     */
+    private fun parseMatrixView(raw: Map<*, *>, source: DocumentId): VirtualGridDef {
+        val id = raw["id"]?.toString()?.takeIf { it.isNotBlank() } ?: error("id が必要です")
+        listOf("columns", "detail", "newRow", "sections", "attachments", "match", "schemaId").firstOrNull { raw.containsKey(it) }
+            ?.let { error("$it は kind: matrix のビューでは使えません（列は cells.columns で決まります）") }
+        val rowsMap = raw["rows"] as? Map<*, *> ?: error("rows が必要です")
+        if (rowsMap.containsKey("match")) error("kind: matrix の rows は idPattern で書きます（クエリ行は使えません）")
+        val rowsDef = VirtualRowsDef(
+            idPattern = rowsMap["idPattern"]?.toString()?.takeIf { it.isNotBlank() } ?: error("rows.idPattern が必要です"),
+            schemaIds = stringList(rowsMap["schemaIds"]),
+        )
+        val orderMap = raw["order"] as? Map<*, *>
+        val cellsMap = raw["cells"] as? Map<*, *> ?: error("cells（セルの集計）が必要です")
+        val known = listOf("match", "where", "also", "of", "in", "path", "columns", "aggregate", "type")
+        cellsMap.keys.map { it.toString() }.firstOrNull { it !in known }
+            ?.let { error("cells: 未知のキーです: $it（使えるキー: ${known.joinToString(", ")}）") }
+        val of = cellsMap["of"]?.toString()?.takeIf { it.isNotBlank() } ?: error("cells.of（数える要素の束縛名）が必要です")
+        if (!cellsMap.containsKey("match")) error("cells.match（行の要素からセルの要素への照合）が必要です")
+        val aggregate = cellsMap["aggregate"]?.toString()?.let { t ->
+            ValueExpr.AggregateFn.entries.firstOrNull { it.id == t } ?: error("cells.aggregate は count / sum / min / max のいずれかです: $t")
+        } ?: ValueExpr.AggregateFn.COUNT
+        val kind = cellsMap["type"]?.toString()?.let { ValueExpr.OrderKind.parse(it, "cells") } ?: ValueExpr.OrderKind.NUMBER
+        if (aggregate != ValueExpr.AggregateFn.COUNT && !cellsMap.containsKey("path")) {
+            error("cells.path（集計する値の相対パス）が必要です（aggregate: ${aggregate.id}）")
+        }
+        val columnsMap = cellsMap["columns"] as? Map<*, *> ?: error("cells.columns（列の軸: via か path）が必要です")
+        val key = parseMatrixKey(columnsMap)
+        val all = LinkedHashMap<String, Any?>()
+        listOf("match", "where", "also", "of", "in", "path").forEach { k -> cellsMap[k]?.let { all[k] = it } }
+        // 定義の点検: 列の絞りを足す前の式（合計の列と同じ形）が、値の式として読めること
+        val probe = LinkedHashMap<String, Any?>()
+        probe[aggregate.id] = mapOf("all" to all)
+        if (aggregate != ValueExpr.AggregateFn.COUNT && kind == ValueExpr.OrderKind.DATE) probe["type"] = "date"
+        ExpressionValue.of(probe, "cells")
+        val totals = when (val t = raw["totals"]) {
+            null -> true
+            is Boolean -> t
+            else -> error("totals は true / false で書きます: $t")
+        }
+        val unclassified = when (val u = raw["unclassified"]) {
+            null -> "（未分類）"  // 括弧つき: 「未分類」という名前のエンティティ（費目など）の列と見分けるため
+            false -> null
+            is String -> u.takeIf { it.isNotBlank() } ?: error("unclassified は見出しの文字か false で書きます")
+            else -> error("unclassified は見出しの文字か false で書きます: $u")
+        }
+        val display = runCatching { NumberDisplay.parse(raw["display"]?.toString()) }.getOrElse { error("display: ${it.message}") }
+        return VirtualGridDef(
+            id = id,
+            name = raw["name"]?.toString() ?: id,
+            description = raw["description"]?.toString(),
+            rows = rowsDef,
+            columns = emptyList(),
+            orderBy = orderMap?.let { parseSource(it) }?.takeIf { !it.isEmpty },
+            orderValue = orderMap?.let { parseOrderValue(it) },
+            source = source,
+            matrix = VirtualMatrixDef(
+                cells = VirtualMatrixCells(all = all, of = of, aggregate = aggregate, kind = kind, key = key),
+                totals = totals,
+                unclassified = unclassified,
+                display = display,
+            ),
+        )
+    }
+
+    /** 列の軸（cells.columns）: via（参照先を列に。idPattern・schemaIds・order）か path（値を列に。values）。 */
+    private fun parseMatrixKey(m: Map<*, *>): VirtualMatrixKey {
+        val via = m["via"]?.toString()?.takeIf { it.isNotBlank() }
+        val pathText = m["path"]?.toString()?.takeIf { it.isNotBlank() }
+        if (via == null && pathText == null) error("cells.columns には via（要素の参照先を列に）か path（要素の値を列に）が必要です")
+        if (via != null && pathText != null) error("cells.columns の via と path は、どちらか一方を書きます")
+        if (via != null) {
+            if (m.containsKey("values")) error("cells.columns の values は path と一緒に書きます")
+            val idPattern = m["idPattern"]?.toString()?.takeIf { it.isNotBlank() } ?: error("cells.columns.idPattern（列にする ID の形）が必要です")
+            val order = (m["order"] as? Map<*, *>)?.let { parseSource(it) }?.takeIf { !it.isEmpty }
+            return VirtualMatrixKey.Ref(via = via, idPattern = idPattern, schemaIds = stringList(m["schemaIds"]), order = order)
+        }
+        listOf("idPattern", "schemaIds", "order").firstOrNull { m.containsKey(it) }?.let { error("cells.columns の $it は via と一緒に書きます") }
+        val path = runCatching { parseYPath(pathText!!) }.getOrElse { error("cells.columns.path が読めません: $pathText") }
+        val values = (m["values"] as? List<*>)?.takeIf { it.isNotEmpty() } ?: error("cells.columns.values（列にする値の並び）が必要です")
+        val parsed = values.map { v ->
+            when (v) {
+                is Map<*, *> -> (v["value"]?.toString()?.takeIf { it.isNotBlank() } ?: error("cells.columns.values の各要素は値か {value, label} で書きます")) to v["label"]?.toString()
+                else -> v.toString() to null
+            }
+        }
+        return VirtualMatrixKey.Value(path = path, pathText = pathText!!, values = parsed)
+    }
 
     /** 横断グリッド（kind: grid）のパース。 */
     private fun parseGridView(raw: Map<*, *>, source: DocumentId, schemas: List<WorkspaceSchema>): VirtualGridDef {
         val id = raw["id"]?.toString()?.takeIf { it.isNotBlank() } ?: error("id が必要です")
         if (raw.containsKey("sections")) error("sections は kind: document のビューでのみ使えます")
+        MATRIX_KEYS.firstOrNull { raw.containsKey(it) }?.let { error("$it は kind: matrix のビューでのみ使えます") }
         val rowsMap = raw["rows"] as? Map<*, *> ?: error("rows が必要です")
         // 行の定義: 従来（idPattern×schemaIds）とクエリ行（match。R22-02 / architecture/graph-query.md「クエリコア」）の排他
         var rowsDef: VirtualRowsDef? = null
@@ -281,6 +380,7 @@ object ViewDefinitions {
         val id = raw["id"]?.toString()?.takeIf { it.isNotBlank() } ?: error("id が必要です")
         listOf("rows", "columns", "order", "detail", "newRow").firstOrNull { raw.containsKey(it) }
             ?.let { error("$it は kind: grid のビューでのみ使えます") }
+        MATRIX_KEYS.firstOrNull { raw.containsKey(it) }?.let { error("$it は kind: matrix のビューでのみ使えます") }
         val match = raw["match"]?.toString()?.takeIf { it.isNotBlank() }
         val schemaId = raw["schemaId"]?.toString()?.takeIf { it.isNotBlank() }
         if (match == null && schemaId == null) error("文書ビューには match（適用先glob）か schemaId が必要です")

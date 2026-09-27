@@ -264,6 +264,167 @@ class ViewsTest {
         assertTrue(loaded.errors.any { "bad-order.yaml" in it && "order.direction" in it }, loaded.errors.toString())
     }
 
+    // ---------------------------------------------------------------- クロス集計（kind: matrix）
+
+    private fun writeMatrixFixtures() {
+        write(
+            "_schemas/months.yaml",
+            """
+            id: months
+            name: 月
+            match: "m/*.yaml"
+            entity: { type: month, idPattern: "M-*", defines: true }
+            root:
+              type: object
+              fields:
+                - { key: id, type: id, required: true }
+                - { key: yearMonth, type: string, role: title }
+            """,
+        )
+        write(
+            "_schemas/categories.yaml",
+            """
+            id: categories
+            name: 費目
+            match: "cat/*.yaml"
+            entity: { type: category, idPattern: "CAT-*", defines: true }
+            root:
+              type: object
+              fields:
+                - key: categories
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: id, type: id, required: true }
+                      - { key: name, type: string, role: title }
+            """,
+        )
+        write(
+            "_schemas/tx.yaml",
+            """
+            id: tx
+            name: 取引
+            match: "tx/*.yaml"
+            entity: { type: transaction, idPattern: "TX-*", defines: true }
+            root:
+              type: object
+              fields:
+                - key: entries
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: id, type: id, required: true }
+                      - { key: kind, type: enum, values: [income, expense] }
+                      - { key: amount, type: int }
+                      - { key: category, type: ref, idPattern: "CAT-*" }
+                      - { key: month, type: ref, idPattern: "M-*" }
+            """,
+        )
+        write("m/2021-08.yaml", "id: M-2021-08\nyearMonth: \"2021-08\"")
+        write("m/2021-09.yaml", "id: M-2021-09\nyearMonth: \"2021-09\"")
+        // 費目は文書内の順（家賃 → 食費）が ID 順（CAT-FOOD → CAT-RENT）と違う
+        write("cat/list.yaml", "categories:\n  - { id: CAT-RENT, name: 家賃 }\n  - { id: CAT-FOOD, name: 食費 }")
+        write(
+            "tx/a.yaml",
+            """
+            entries:
+              - { id: TX-1, kind: expense, amount: 100, category: CAT-FOOD, month: M-2021-08 }
+              - { id: TX-2, kind: expense, amount: 200, category: CAT-RENT, month: M-2021-08 }
+              - { id: TX-3, kind: income, amount: 50, month: M-2021-08 }
+              - { id: TX-4, kind: expense, amount: 300, category: CAT-FOOD, month: M-2021-09 }
+            """,
+        )
+    }
+
+    @Test
+    fun `matrix view expands columns from referenced entities with unclassified and totals`() {
+        writeMatrixFixtures()
+        write(
+            "_views/month-by-category.yaml",
+            """
+            id: month-by-category
+            name: 月×費目
+            kind: matrix
+            rows: { idPattern: "M-*" }
+            display: grouped
+            cells:
+              match:
+                - node: { entity: month, bind: m }
+                - edge: { via: month, dir: in }
+                - node: { entity: transaction, bind: tx }
+              of: tx
+              columns: { via: category, idPattern: "CAT-*", order: { schemaId: categories } }
+              aggregate: sum
+              path: amount
+            """,
+        )
+        val workspace = Workspace.open(ws)
+        val loaded = Views.load(ws, workspace.schemas)
+        assertTrue(loaded.errors.none { "month-by-category" in it }, loaded.errors.toString())
+        val view = loaded.view("month-by-category")!!
+        // 列は索引から広げる（費目は文書内の順）。ヘッダ用の列と、解決した行のセルの列は同じ
+        val effective = Views.effective(view, workspace.index)
+        assertEquals(listOf("家賃", "食費", "（未分類）", "合計"), effective.columns.map { it.label })
+        val rows = Views.resolve(view, workspace.index, workspace::treeOf)
+        fun cells(id: String) = rows.single { it.id == id }.cells.map { Views.cellText(it.value) }
+        assertEquals(listOf("M-2021-08", "M-2021-09", "合計"), rows.map { it.id })
+        assertEquals(effective.columns.map { it.label }, rows.first().cells.map { it.column.label })
+        assertEquals(listOf("200", "100", "50", "350"), cells("M-2021-08"))
+        assertEquals(listOf("0", "300", "0", "300"), cells("M-2021-09"))
+        assertEquals(listOf("200", "400", "50", "650"), cells("合計"))
+        assertTrue(rows.last().occurrences.isEmpty())
+        assertTrue(rows.first().cells.all { it.computed && it.column.display == dev.toros.yde.semantic.schema.NumberDisplay.GROUPED })
+    }
+
+    @Test
+    fun `matrix view can use values of a field as columns and count without totals`() {
+        writeMatrixFixtures()
+        write(
+            "_views/month-by-kind.yaml",
+            """
+            id: month-by-kind
+            name: 月×区分
+            kind: matrix
+            rows: { idPattern: "M-*" }
+            totals: false
+            unclassified: false
+            cells:
+              match:
+                - node: { entity: month, bind: m }
+                - edge: { via: month, dir: in }
+                - node: { entity: transaction, bind: tx }
+              of: tx
+              columns: { path: kind, values: [ { value: income, label: 収入 }, expense ] }
+            """,
+        )
+        val workspace = Workspace.open(ws)
+        val loaded = Views.load(ws, workspace.schemas)
+        assertTrue(loaded.errors.none { "month-by-kind" in it }, loaded.errors.toString())
+        val rows = Views.resolve(loaded.view("month-by-kind")!!, workspace.index, workspace::treeOf)
+        assertEquals(listOf("M-2021-08", "M-2021-09"), rows.map { it.id })
+        assertEquals(listOf("収入", "expense"), rows.first().cells.map { it.column.label })
+        assertEquals(listOf("1", "2"), rows[0].cells.map { Views.cellText(it.value) })
+        assertEquals(listOf("0", "1"), rows[1].cells.map { Views.cellText(it.value) })
+    }
+
+    @Test
+    fun `matrix view definition errors are reported at load`() {
+        writeMatrixFixtures()
+        val head = "kind: matrix\nrows: { idPattern: \"M-*\" }\n"
+        val cellsOk = "cells:\n  match: [ { node: { entity: month, bind: m } } ]\n  of: m\n  columns: { path: yearMonth, values: [a] }\n"
+        write("_views/bad-m1.yaml", "id: bad-m1\n$head${cellsOk}columns: [ { label: x, path: id } ]")   // columns は書けない
+        write("_views/bad-m2.yaml", "id: bad-m2\n${head}cells:\n  match: [ { node: { entity: month, bind: m } } ]\n  columns: { path: yearMonth, values: [a] }")  // of が無い
+        write("_views/bad-m3.yaml", "id: bad-m3\n${head}cells:\n  match: [ { node: { entity: month, bind: m } } ]\n  of: m\n  columns: { via: x, path: y }")  // via と path
+        write("_views/bad-m4.yaml", "id: bad-m4\n${head}cells:\n  match: [ { node: { entity: month, bind: m } } ]\n  of: m\n  aggregate: sum\n  columns: { path: yearMonth, values: [a] }")  // sum に path が無い
+        write("_views/bad-m5.yaml", "id: bad-m5\nrows: { idPattern: \"M-*\" }\ncolumns: [ { label: x, path: id } ]\ntotals: true")  // grid に matrix のキー
+        val loaded = Views.load(ws, Workspace.open(ws).schemas)
+        listOf("bad-m1" to "columns", "bad-m2" to "cells.of", "bad-m3" to "どちらか一方", "bad-m4" to "cells.path", "bad-m5" to "totals").forEach { (file, text) ->
+            assertTrue(loaded.errors.any { "$file.yaml" in it && text in it }, "$file: ${loaded.errors}")
+        }
+    }
+
     @Test
     fun `load collects definition errors`() {
         write("_views/broken.yaml", "id: broken\ncolumns:\n  - label: A\n    path: name")

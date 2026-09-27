@@ -1,0 +1,14 @@
+id: month-by-kind
+name: 月×区分（件数）
+description: 行＝月、列＝取引の区分（収入・支出）。セルは件数。区分は取引の必須項目なので未分類の列は出さない
+kind: matrix
+rows: { idPattern: "M-*" }
+unclassified: false
+cells:
+  match:
+    - node: { entity: month, bind: m }
+    - edge: { via: month, dir: in }
+    - node: { entity: transaction, bind: tx }
+  of: tx
+  columns: { path: kind, values: [ { value: income, label: 収入 }, { value: expense, label: 支出 } ] }   # 列＝取引の区分の値
+  aggregate: count
