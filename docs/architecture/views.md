@@ -28,6 +28,9 @@
 - **クロス集計は列を広げたグリッド**（`kind: matrix`。`VirtualGridDef.matrix`＝`VirtualMatrixDef`）: 列の軸（`VirtualMatrixKey`＝参照先の ID か決まった値）を索引から並べ、列ごとに「行から集めた要素をその列に絞って畳む」値の式を組み立てる（`VirtualViews.lower`。参照先は照合に `edge`＋`node` を足し、値は `where` の `equals`、未分類は `exists: false` と `oneOf` の否定、合計の列は絞らない）。
   評価は値の式の列と同じで、CLI・書き出し・`read_view`・桁区切り・並びは何も知らなくてよい。合計の行はセルの値を `SemanticExpression.aggregate` で畳んで足す。
   ヘッダを描く側は `Views.effective`（同じ索引で `lower`）を使う。セルの集計の宣言は `all` の中身を書かれたまま（raw）持つ。
+- **要素ごとに列を広げる**（columns の `each`＝`VirtualEachDef`）は、クロス集計と同じ `VirtualViews.lower` で索引の要素ごとの列に広がる。値の式は書かれたまま（raw）を持ち、列ごとに `$bind` の文字をその要素の ID に置き換えて（`substituteColumnRef`）値の式にする。
+  置き換え前の式でも `$cat` は決まった ID の文字として読めるので、定義の文書の検証（メタスキーマの式の点検）とリントはそのまま通る（`{same: …}` は「前のステップの束縛」の点検に引っかかるので使わない）。列の集まりの並べ方（`entitiesOf`）はクロス集計と共有。
+- **セルの併記は画面だけ**（`ViewGridPane`）: 編集できない列の enum は `FieldDef.optionFor` のラベル、参照は索引のタイトルを「値（ラベル）」「ID（名前）」で添える。編集できる参照のセルは入力欄の下に名前を出す。セルの値・CLI・書き出し・`read_view` は変えない（`read_view` は元から「ID（タイトル）」を注記する）。
 - **行の並びは 3 段**（`VirtualViews.sortRows`）: `order.path`（`VirtualOrderValue`）があれば並び基準の出現から読んだ値の順（`type: number` は `SemanticExpression.numberOf`、`date` は ISO の文字、無指定は文字の順。読めない行は後ろ、同値は ID 順）、無ければ `order` の出現の文書内順、どちらも無ければ ID 順。値の読み出しは `resolve` の木の読み込みを共有する。
 - **桁区切りは見せ方だけ**: 列の `display: grouped`（`VirtualViewColumn.display`）か、`path` の列の項目の `display: grouped`（`FieldHints.numberDisplay`）で、グリッドのセルの文字を `NumberDisplay.format` に通す。セルの値・`read_view`・CLI `view`・エクスポートは元のまま。編集できる列はエディタに同じヒントを渡す。
 - **クエリ行**（`rows: match:`。`rows: idPattern` と排他）: 行＝クエリの束縛行。行キーは `rowKey:`（省略時は先頭の束縛。kind: entity 限定）。列の `of:` で結合先ノードの値をセル化でき、セルは各束縛ノードの原本座標へ解決される。バックリンク列・値の式の列も `of` の束縛 ID を対象にでき、値の式は行の束縛を式の `of` で読める。行の同一性は `ViewRow.key`（束縛値の組）。`order` は併用不可。

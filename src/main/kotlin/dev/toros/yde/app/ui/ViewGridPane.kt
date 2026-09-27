@@ -382,12 +382,13 @@ private fun GridCell(state: AppState, cell: ViewCell) {
         }
         val editableType = fieldDef == null || fieldDef.type in EDITABLE_TYPES
         val complexValue = value is YNode.Seq || value is YNode.Map
+        // 参照先のタイトル（索引から借用。UX-71）。複合値の要約と、参照セルの併記に使う
+        val titleLookup: (String) -> String? = { id ->
+            state.overlayIndex().occurrences(id).firstNotNullOfOrNull { it.title }
+        }
         // 閲覧専用モード（R10-04）は全セルをジャンプ可能な表示専用にする
         if (state.readOnlyMode || !cell.column.editable || !editableType || complexValue) {
-            // 複合値は表示解決（R10-01）で「ID タイトル」「n件: 要約」に要約する（タイトルは索引から借用。UX-71）
-            val titleLookup: (String) -> String? = { id ->
-                state.overlayIndex().occurrences(id).firstNotNullOfOrNull { it.title }
-            }
+            // 複合値は表示解決（R10-01）で「ID タイトル」「n件: 要約」に要約する
             val text = if (complexValue && doc.schema != null && fieldDef != null) {
                 when {
                     value is YNode.Map && fieldDef.type == dev.toros.yde.semantic.schema.FieldType.OBJECT ->
@@ -397,9 +398,19 @@ private fun GridCell(state: AppState, cell: ViewCell) {
                     else -> Views.cellText(value)
                 }
             } else {
-                // 桁区切り（display: grouped）は列の宣言か、項目の側の宣言（見せ方だけ。値は変えない）
-                val grouping = cell.column.display ?: fieldDef?.hints?.numberDisplay
-                Views.cellText(value).let { t -> grouping?.format(t) ?: t }
+                val raw = Views.cellText(value)
+                when {
+                    // enum は「値（ラベル）」、参照は「ID（名前）」の併記（物理名だけでは読みにくい。値そのものは変えない）
+                    fieldDef?.type == FieldType.ENUM ->
+                        fieldDef.optionFor(raw)?.displayLabel?.takeIf { it != raw }?.let { "$raw（$it）" } ?: raw
+                    fieldDef?.type == FieldType.REF && value is YNode.Scalar ->
+                        titleLookup(raw)?.takeIf { it.isNotBlank() && it != raw }?.let { "$raw（$it）" } ?: raw
+                    else -> {
+                        // 桁区切り（display: grouped）は列の宣言か、項目の側の宣言（見せ方だけ。値は変えない）
+                        val grouping = cell.column.display ?: fieldDef?.hints?.numberDisplay
+                        grouping?.format(raw) ?: raw
+                    }
+                }
             }
             CellLink(state, cell, text)
             return@Box
@@ -421,7 +432,16 @@ private fun GridCell(state: AppState, cell: ViewCell) {
             // 列に display: grouped があれば、編集のエディタにも桁区切りの見せ方を渡す（項目の側の宣言が無いとき）
             val effective = cell.column.display?.takeIf { fieldDef.hints.numberDisplay == null }
                 ?.let { fieldDef.copy(hints = fieldDef.hints.copy(numberDisplay = it)) } ?: fieldDef
-            ValueEditor(ctx, effective, slot, path)
+            Column {
+                ValueEditor(ctx, effective, slot, path)
+                // 参照セルは参照先の名前を入力欄の下に併記する（入力欄の右端の併記はセル幅で隠れやすい）
+                if (fieldDef.type == FieldType.REF) {
+                    val id = (value as? YNode.Scalar)?.value?.toString().orEmpty()
+                    titleLookup(id)?.takeIf { it.isNotBlank() && it != id }?.let {
+                        Text(it, fontSize = 10.sp, color = Palette.SubText, maxLines = 1)
+                    }
+                }
+            }
         } else {
             // スキーマなし文書のセルは元の型を保って編集する
             val text = (value as? YNode.Scalar)?.value?.toString() ?: ""

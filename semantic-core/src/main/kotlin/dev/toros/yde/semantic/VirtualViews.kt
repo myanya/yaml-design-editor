@@ -80,6 +80,20 @@ data class VirtualViewColumn(
     val of: String? = null,
     /** 数の表示の形（grouped＝桁区切り。画面の見せ方だけで、CLI や書き出しの値は変えない）。path の列は項目の側の宣言も効く。 */
     val display: NumberDisplay? = null,
+    /** 要素ごとに列を広げる宣言（columns の each）。非 null なら、解決のときに索引の要素ごとの列に広がる（VirtualViews.lower）。 */
+    val each: VirtualEachDef? = null,
+)
+
+/**
+ * 要素ごとに列を広げる（columns の each）: idPattern（と schemaIds）に合う索引の要素ごとに 1 列（見出しはタイトル・並びは order の出現の文書内順）。
+ * 値の式（rawValue＝書かれたまま）の中の `$bind`（例 `node: { id: $cat }`）が、列ごとにその要素の ID に置き換わる。
+ */
+data class VirtualEachDef(
+    val idPattern: String,
+    val schemaIds: List<String> = emptyList(),
+    val order: VirtualViewSource? = null,
+    val bind: String,
+    val rawValue: Any?,
 )
 
 /**
@@ -516,27 +530,60 @@ object VirtualViews {
      * ヘッダを描く側（画面・書き出し）は、同じ索引でこの関数を呼ぶと、解決した行のセルと同じ列が得られる。
      */
     fun lower(view: VirtualGridDef, ids: Map<String, List<ScannedId>>, rel: (DocumentId) -> String): VirtualGridDef {
-        val matrix = view.matrix ?: return view
+        view.matrix?.let { return lowerMatrix(view, it, ids, rel) }
+        if (view.columns.none { it.each != null }) return view
+        // 要素ごとに列を広げる（columns の each）: 列の要素を指す $名前 を、その要素の ID に置き換えた値の式の列にする
+        val columns = view.columns.flatMap { column ->
+            val each = column.each ?: return@flatMap listOf(column)
+            entitiesOf(ids, each.idPattern, each.schemaIds, each.order, rel).map { (id, label) ->
+                column.copy(label = label, each = null, value = ExpressionValue.of(substituteColumnRef(each.rawValue, each.bind, id), "columns.value", label))
+            }
+        }
+        return view.copy(columns = columns)
+    }
+
+    /** 列の軸にする要素: idPattern（と schemaIds）に合う索引の ID を、order の出現の文書内順（無ければ ID 順）で並べ、見出し（タイトル）を添える。 */
+    private fun entitiesOf(
+        ids: Map<String, List<ScannedId>>,
+        idPattern: String,
+        schemaIds: List<String>,
+        order: VirtualViewSource?,
+        rel: (DocumentId) -> String,
+    ): List<Pair<String, String>> {
+        val regex = idGlobToRegex(idPattern)
+        val matched = ids.entries.filter { (id, occ) ->
+            regex.matches(id) && (schemaIds.isEmpty() || occ.any { it.schemaId in schemaIds })
+        }
+        fun anchor(occ: List<ScannedId>): ScannedId? = order?.let { o -> occ.firstOrNull { o.matches(it, rel(it.document)) } }
+        return matched.sortedWith(
+            compareBy<Map.Entry<String, List<ScannedId>>>(
+                { (_, occ) -> if (order == null || anchor(occ) != null) 0 else 1 },
+                { (_, occ) -> anchor(occ)?.let { rel(it.document) } ?: "" },
+                { (_, occ) -> anchor(occ)?.path?.let(::pathSortKey) ?: "" },
+                { (id, _) -> id },
+            )
+        ).map { (id, occ) -> id to (occ.firstNotNullOfOrNull { it.title } ?: id) }
+    }
+
+    /**
+     * 値の式（書かれたまま）の中の `$bind`（列の要素を指す名前）を、列の要素の ID に置き換える（each の列を広げるとき）。
+     * 置き換えるのは、その文字だけの値（`node: { id: $cat }`・`equals: $cat` など）。定義の文書の検証は置き換え前の式を読むので、
+     * `$cat` は決まった ID の文字として読めるだけでよい。
+     */
+    fun substituteColumnRef(raw: Any?, bind: String, id: String): Any? = when (raw) {
+        is Map<*, *> -> LinkedHashMap<Any?, Any?>().also { m -> raw.forEach { (k, v) -> m[k] = substituteColumnRef(v, bind, id) } }
+        is List<*> -> raw.map { substituteColumnRef(it, bind, id) }
+        is String -> if (raw == "\$$bind") id else raw
+        else -> raw
+    }
+
+    /** クロス集計（kind: matrix）を、列を広げたグリッドにする。 */
+    private fun lowerMatrix(view: VirtualGridDef, matrix: VirtualMatrixDef, ids: Map<String, List<ScannedId>>, rel: (DocumentId) -> String): VirtualGridDef {
         val cells = matrix.cells
         val key = cells.key
         data class Axis(val key: String, val label: String)
         val axis: List<Axis> = when (key) {
-            is VirtualMatrixKey.Ref -> {
-                val regex = idGlobToRegex(key.idPattern)
-                val matched = ids.entries.filter { (id, occ) ->
-                    regex.matches(id) && (key.schemaIds.isEmpty() || occ.any { it.schemaId in key.schemaIds })
-                }
-                val order = key.order
-                fun anchor(occ: List<ScannedId>): ScannedId? = order?.let { o -> occ.firstOrNull { o.matches(it, rel(it.document)) } }
-                matched.sortedWith(
-                    compareBy<Map.Entry<String, List<ScannedId>>>(
-                        { (_, occ) -> if (order == null || anchor(occ) != null) 0 else 1 },
-                        { (_, occ) -> anchor(occ)?.let { rel(it.document) } ?: "" },
-                        { (_, occ) -> anchor(occ)?.path?.let(::pathSortKey) ?: "" },
-                        { (id, _) -> id },
-                    )
-                ).map { (id, occ) -> Axis(id, occ.firstNotNullOfOrNull { it.title } ?: id) }
-            }
+            is VirtualMatrixKey.Ref -> entitiesOf(ids, key.idPattern, key.schemaIds, key.order, rel).map { (id, label) -> Axis(id, label) }
             is VirtualMatrixKey.Value -> key.values.map { (v, label) -> Axis(v, label ?: v) }
         }
         val keyPath = when (key) { is VirtualMatrixKey.Ref -> key.via; is VirtualMatrixKey.Value -> key.pathText }

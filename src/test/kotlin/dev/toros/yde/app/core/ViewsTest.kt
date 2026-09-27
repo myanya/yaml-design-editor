@@ -410,6 +410,53 @@ class ViewsTest {
     }
 
     @Test
+    fun `each column expands into one column per entity substituting the column id`() {
+        writeMatrixFixtures()
+        write(
+            "_views/month-by-category-b.yaml",
+            """
+            id: month-by-category-b
+            name: 月×費目（列を広げる）
+            rows: { idPattern: "M-*" }
+            columns:
+              - { label: 年月, schemaId: months, path: yearMonth }
+              - each: { idPattern: "CAT-*", bind: cat, order: { schemaId: categories } }
+                display: grouped
+                value:
+                  sum:
+                    all:
+                      of: tx
+                      path: amount
+                      match:
+                        - node: { entity: month, bind: m }
+                        - edge: { via: month, dir: in }
+                        - node: { entity: transaction, bind: tx }
+                        - edge: { via: category }
+                        - node: { id: ${'$'}cat }
+              - label: 合計
+                schemaId: months
+                value:
+                  sum: { all: { of: tx, path: amount, match: [ { node: { entity: month, bind: m } }, { edge: { via: month, dir: in } }, { node: { entity: transaction, bind: tx } } ] } }
+            """,
+        )
+        val workspace = Workspace.open(ws)
+        val loaded = Views.load(ws, workspace.schemas)
+        assertTrue(loaded.errors.none { "month-by-category-b" in it }, loaded.errors.toString())
+        val view = loaded.view("month-by-category-b")!!
+        assertEquals(listOf("年月", "家賃", "食費", "合計"), Views.effective(view, workspace.index).columns.map { it.label })
+        val rows = Views.resolve(view, workspace.index, workspace::treeOf)
+        assertEquals(listOf("2021-08", "200", "100", "350"), rows[0].cells.map { Views.cellText(it.value) })
+        assertEquals(listOf("2021-09", "0", "300", "300"), rows[1].cells.map { Views.cellText(it.value) })
+        assertTrue(rows[0].cells[1].column.display == dev.toros.yde.semantic.schema.NumberDisplay.GROUPED)
+
+        write("_views/bad-each1.yaml", "id: bad-each1\nrows: { idPattern: \"M-*\" }\ncolumns:\n  - each: { idPattern: \"CAT-*\" }\n    value: 1\n")
+        write("_views/bad-each2.yaml", "id: bad-each2\nrows: { idPattern: \"M-*\" }\ncolumns:\n  - each: { idPattern: \"CAT-*\", bind: c }\n    label: x\n    value: 1\n")
+        val again = Views.load(ws, workspace.schemas)
+        assertTrue(again.errors.any { "bad-each1" in it && "bind" in it }, again.errors.toString())
+        assertTrue(again.errors.any { "bad-each2" in it && "label" in it }, again.errors.toString())
+    }
+
+    @Test
     fun `matrix view definition errors are reported at load`() {
         writeMatrixFixtures()
         val head = "kind: matrix\nrows: { idPattern: \"M-*\" }\n"

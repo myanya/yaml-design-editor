@@ -275,7 +275,7 @@ root:
           - key: label
             label: 見出し
             type: string
-            required: true
+            description: path / backlinks / value の列では必須（definition / each の列では要素から決まるので書かない）
           - key: schemaId
             label: 値を取る出現のスキーマ
             type: string
@@ -285,7 +285,7 @@ root:
           - key: path
             label: 相対パス
             type: string
-            description: 出現要素からの相対YPath（例 name / areas / inputs[0].type）。path / backlinks / definition のいずれか一つが必要
+            description: 出現要素からの相対YPath（例 name / areas / inputs[0].type）。path / backlinks / definition / value / each のいずれか一つが必要
           - key: definition
             label: 定義参照
             type: string
@@ -303,6 +303,29 @@ root:
             type: enum
             values: [grouped]
             description: "grouped は桁区切り（45000 → 45,000）。画面の見せ方だけで、CLI や書き出しの値は変えない。path の列は項目の側の display: grouped も効く"
+          - key: each
+            label: 要素ごとに列を広げる
+            type: object
+            description: "idPattern に合う要素ごとに列を作る（見出しは要素のタイトル）。value の式の中で列の要素の ID を $bind の名前（例 node: { id: $cat }）で指す。label / path / editable とは併用不可"
+            fields:
+              - key: idPattern
+                label: 列にする ID の形
+                type: string
+                required: true
+              - key: schemaIds
+                label: 列のスキーマの限定
+                type: array
+                item: { type: string }
+              - key: order
+                label: 列の並び
+                type: object
+                fields:
+                  - { key: schemaId, label: 並び基準の出現スキーマ, type: string }
+                  - { key: fileGlob, label: 並び基準の出現ファイル（glob）, type: string }
+              - key: bind
+                label: 列の要素を指す名前
+                type: string
+                required: true
           - key: backlinks
             label: バックリンク列
             type: object

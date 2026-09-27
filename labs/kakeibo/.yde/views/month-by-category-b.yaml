@@ -1,0 +1,31 @@
+id: month-by-category-b
+name: 月×費目（列を広げる書き方）
+description: "month-by-category（kind: matrix）と同じ表を、ふつうのグリッドの「要素ごとに列を広げる」列（each）で書いた比較用の例。合計の列は手で書く。合計の行と未分類の列は付かない"
+rows: { idPattern: "M-*" }
+columns:
+  - { label: 年月, schemaId: months, path: yearMonth }
+  - each: { idPattern: "CAT-*", bind: cat, order: { schemaId: categories } }   # 費目ごとに列を作る（見出しは費目の名前・並びは費目一覧の順）
+    display: grouped
+    value:
+      sum:
+        all:
+          of: tx
+          path: amount
+          match:
+            - node: { entity: month, bind: m }
+            - edge: { via: month, dir: in }
+            - node: { entity: transaction, bind: tx }
+            - edge: { via: category }
+            - node: { id: $cat }                    # 列の費目そのもの（$cat は列ごとに、その費目の ID に置き換わる）
+  - label: 合計
+    schemaId: months
+    display: grouped
+    value:
+      sum:
+        all:
+          of: tx
+          path: amount
+          match:
+            - node: { entity: month, bind: m }
+            - edge: { via: month, dir: in }
+            - node: { entity: transaction, bind: tx }

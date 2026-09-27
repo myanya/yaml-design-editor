@@ -24,6 +24,7 @@ import dev.toros.yde.semantic.VirtualDocBacklinkColumn
 import dev.toros.yde.semantic.VirtualDocBacklinksDef
 import dev.toros.yde.semantic.VirtualDocSection
 import dev.toros.yde.semantic.VirtualDocViewDef
+import dev.toros.yde.semantic.VirtualEachDef
 import dev.toros.yde.semantic.VirtualGridDef
 import dev.toros.yde.semantic.VirtualMatrixCells
 import dev.toros.yde.semantic.VirtualMatrixDef
@@ -232,7 +233,8 @@ object ViewDefinitions {
             rowsDef = VirtualRowsDef(idPattern = idPattern, schemaIds = stringList(rowsMap["schemaIds"]))
         }
         val binds = rowsQuery?.binds
-        // 値の式を受け取る項目（builtin-view の expression: true の印。P31）: どの項目かは印だけが知り、読み取りは共通
+        // 値の式を受け取る項目（builtin-view の expression: true の印。P31）: どの項目かは印だけが知り、読み取りは共通。
+        // each の列の値の式は、列の要素を指す $名前 が決まった ID の文字として読めるので、そのまま点検できる（列を広げるときに本当の ID になる）
         val expressions = ExpressionFields.read(YamlIO.fromAny(raw), BuiltinSchemaResources.viewSchemaTree)
         val columnsRaw = raw["columns"] as? List<*> ?: error("columns が必要です")
         require(columnsRaw.isNotEmpty()) { "columns には1列以上が必要です" }
@@ -243,6 +245,24 @@ object ViewDefinitions {
             if (of != null) {
                 if (binds == null) error("columns[$i]: of は rows: match のビューでのみ使えます")
                 require(of in binds) { "columns[$i]: of の束縛「$of」が rows.match に見つかりません" }
+            }
+            if (m.containsKey("each")) {
+                // 要素ごとに列を広げる: 読み取り専用の派生列。見出し・列は要素から決まるので、他の列の種類・編集とは排他
+                val e = m["each"] as? Map<*, *> ?: error("columns[$i].each は object（idPattern・bind など）で書きます")
+                listOf("label", "path", "backlinks", "definition", "of").firstOrNull { m.containsKey(it) }
+                    ?.let { error("columns[$i]: each と $it は併用できません（見出しは要素のタイトルになります）") }
+                if (m["editable"] == true) error("columns[$i]: each の列は editable にできません（読み取り専用の派生列）")
+                if (!m.containsKey("value")) error("columns[$i]: each には value（列ごとの値の式。列の要素は \$名前 で指す）が必要です")
+                val idPattern = e["idPattern"]?.toString()?.takeIf { it.isNotBlank() } ?: error("columns[$i].each.idPattern（列にする ID の形）が必要です")
+                val bind = e["bind"]?.toString()?.takeIf { it.isNotBlank() } ?: error("columns[$i].each.bind（式の中で列の要素を指す名前）が必要です")
+                val order = (e["order"] as? Map<*, *>)?.let { parseSource(it) }?.takeIf { !it.isEmpty }
+                val value = expressions[listOf("columns", i, "value")] ?: error("columns[$i].value を読めません")
+                return@flatMapIndexed listOf(
+                    VirtualViewColumn(
+                        label = "$idPattern（要素ごと）", from = parseSource(m), path = emptyList(), value = value, display = parseDisplay(m, i),
+                        each = VirtualEachDef(idPattern = idPattern, schemaIds = stringList(e["schemaIds"]), order = order, bind = bind, rawValue = m["value"]),
+                    )
+                )
             }
             if (m.containsKey("value")) {
                 // 値の式の列: 読み取り専用の派生列のため、他の列の種類・編集とは排他。出現の選択（schemaId / fileGlob）は普通の列と同じ
