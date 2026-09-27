@@ -32,7 +32,6 @@ import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.model.parseYPath
 import dev.toros.yde.yaml.model.pretty
-import dev.toros.yde.semantic.schema.DerivationDef
 import dev.toros.yde.app.schema.Display
 import dev.toros.yde.semantic.schema.FieldDef
 import dev.toros.yde.semantic.schema.FieldType

@@ -18,6 +18,12 @@ object StructureValidator {
 
     private val DATE_RE = Regex("""\d{4}-\d{2}-\d{2}""")
 
+    /**
+     * 日付として読める書き方か（YYYY-MM-DD）。date 型の項目の検証と、値の式の日付の順序（semantic-core）が同じ規則を使う
+     * （1 つの意味には 1 つの判定）。この形の文字列は、文字の順がそのまま日付の順になる。
+     */
+    fun isDateText(text: String): Boolean = DATE_RE.matches(text)
+
     fun validate(root: YNode, schema: StructureSchema): List<StructuralIssue> {
         val issues = mutableListOf<StructuralIssue>()
         checkField(schema.root, root, emptyList(), issues, schema)

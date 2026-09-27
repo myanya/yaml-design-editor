@@ -8,7 +8,8 @@ import dev.toros.yde.yaml.model.pretty
  * 値の計算（意味プリミティブ SP-10）と、値を読む文書の指定（SP-01）の宣言モデル（P29 Phase 6 第1段）。
  * 比較のオペランド（check）に書ける式の閉じた一式——利用者が定義する関数・条件分岐・再帰は持たない。
  * YAML の書き方:
- * - 読み出し   `{of: 束縛名, path: 相対パス}`（`in: {schemaId, fileGlob}` で、値を読む文書を指定できる）
+ * - 読み出し   `{of: 束縛名, path: 相対パス}`（`in: {schemaId, fileGlob}` で、値を読む文書を指定できる。
+ *   `via: 参照の項目` を添えると、その要素に書かれた参照を 1 段辿った相手の要素から読む＝検査の外だけ。参照がちょうど 1 本のとき相手が決まる）
  * - 決まった値 値をそのまま書く（`10`・`approved`）。`{value: 値}` とも書ける（値が無ければ「得られない」扱い——
  *   定義のひな型で、渡されないかもしれない値を受けるのに使う）
  * - テンプレートの展開 `{format: 式, scopes: [{of: 束縛名, in: 指定 または 指定の配列}, ...]}`
@@ -21,9 +22,12 @@ import dev.toros.yde.yaml.model.pretty
  *   （どれかが数値として読めない・0 で割る場合は「得られない」。結果の表記は number と同じに揃える）
  * - 参照の本数 `{refCount: {of: 束縛名, dir: out | in, relation: 関係名, via: キー名}}`（SP-03。その要素から出ていく／
  *   その要素へ入ってくる参照の本数。同じ相手への参照が2本あれば2と数える。出ていく参照は相手が見つからないものも数える）
- * - 集計 `{sum | min | max: {of: 束縛名, in: 指定, path: 相対パス}}`・`{count: {of: 束縛名}}`（SP-03。同じ起点について
+ * - 集計 `{sum | min | max: {of: 束縛名, in: 指定, path: 相対パス, type: number | date}}`・`{count: {of: 束縛名}}`（SP-03。同じ起点について
  *   見つかった全ての解にわたり、その束縛の要素（重複は1つ）の値を合計・最小・最大する／要素を数える。値は、指定に合う文書の
  *   うち定義した側を優先して1つから読む。値が得られない・数値として読めない要素が1つでもあれば「得られない」）
+ *   パスに `[*]`（任意の番号）を書くと、配列の全ての要素に広がる（`comments[*].date`＝各コメントの date。1 つの要素の中の集計）。
+ *   `type` は順序の種類で、`min` / `max` がどう比べるか（省略時は数値。`date` は YYYY-MM-DD の日付として比べる。
+ *   表記から意味を決めないため、日付は宣言する）。`count` にも `path` を書け、配列の要素の数になる（`{count: {path: "comments[*]"}}`）
  * - 書かれた場所の数 `{occurrenceCount: {of: 束縛名, schema: スキーマID または その並び, fileGlob: パターン, role: defining | detail}}`
  *   （SP-05。その ID が書かれている場所のうち、指定に合うものの数。指定は省略でき、すべて「かつ」。
  *   `distinct: type` を書くと、場所の数ではなく、それらの場所で宣言されているエンティティ型の種類の数）
@@ -37,8 +41,11 @@ import dev.toros.yde.yaml.model.pretty
  */
 sealed interface ValueExpr {
 
-    /** 束縛からの値の読み出し（of が null＝いまの要素）。inDoc は値を読む文書の指定（null = 同じ ID が書かれた全文書が候補）。 */
-    data class Get(val of: String?, val inDoc: DerivationSelector?, val path: YPath) : ValueExpr
+    /**
+     * 束縛からの値の読み出し（of が null＝いまの要素）。inDoc は値を読む文書の指定（null = 同じ ID が書かれた全文書が候補）。
+     * via は参照を 1 段辿る項目（その要素に書かれた参照の相手の要素から読む。null＝辿らない）。
+     */
+    data class Get(val of: String?, val inDoc: DerivationSelector?, val path: YPath, val via: YPath? = null) : ValueExpr
 
     /** 決まった値（null は「得られない」）。 */
     data class Literal(val value: String?) : ValueExpr
@@ -84,8 +91,18 @@ sealed interface ValueExpr {
                 (role == null || occRole == role)
     }
 
-    /** 解にわたる集計（SP-03）。count は path を持たない。 */
-    data class Aggregate(val fn: AggregateFn, val of: String?, val inDoc: DerivationSelector?, val path: YPath?) : ValueExpr
+    /**
+     * 集計（SP-03）。解にわたる集計（of＝束縛名）と、1 つの要素の中の配列にわたる集計（path に `[*]`）の両方。
+     * path はパスのパターン（PathPattern。`[*]` を含んでよい）。count で path が null なら解（要素）を数える。
+     * kind は順序の種類（min / max がどう比べるか）。
+     */
+    data class Aggregate(
+        val fn: AggregateFn,
+        val of: String?,
+        val inDoc: DerivationSelector?,
+        val path: List<Any>?,
+        val kind: OrderKind = OrderKind.NUMBER,
+    ) : ValueExpr
 
     /** 集計の種類。label は指摘の文面に添える言葉。 */
     enum class AggregateFn(val id: String, val label: String) {
@@ -93,6 +110,19 @@ sealed interface ValueExpr {
         MIN("min", "最小"),
         MAX("max", "最大"),
         COUNT("count", "件数"),
+    }
+
+    /** 順序の種類（値をどう比べるか）。スキーマの項目の型と同じ言葉で、順序を持つ型は数値（int / number）と日付（date）。 */
+    enum class OrderKind(val id: String, val label: String) {
+        NUMBER("number", "数値"),
+        DATE("date", "日付"),
+        ;
+
+        companion object {
+            fun parse(text: String, where: String): OrderKind =
+                entries.firstOrNull { it.id == text }
+                    ?: error("$where.type は ${entries.joinToString(" / ") { it.id }} のいずれかです: $text")
+        }
     }
 
     /** 値を1つ受け取る計算の種類。label は指摘の文面で「name の文字数」のように添える言葉（無ければ添えない）。 */
@@ -111,12 +141,15 @@ sealed interface ValueExpr {
         DIVIDE("divide", "÷", true),
     }
 
-    /** テンプレートの展開で値を探す入れ物1つ（束縛の、指定に合う文書に書かれた要素。of が null＝いまの要素）。 */
-    data class ScopeRef(val of: String?, val inDoc: DerivationSelector?)
+    /**
+     * テンプレートの展開で値を探す入れ物1つ（束縛の、指定に合う文書に書かれた要素。of が null＝いまの要素）。
+     * via は参照を 1 段辿る項目（辿った相手の要素が入れ物になる）。
+     */
+    data class ScopeRef(val of: String?, val inDoc: DerivationSelector?, val via: YPath? = null)
 
     /** この式が読む束縛と文書の指定の組（出現の選び方を決める単位。初出順・重複なし）。 */
     fun sources(): List<ScopeRef> = when (this) {
-        is Get -> listOf(ScopeRef(of, inDoc))
+        is Get -> listOf(ScopeRef(of, inDoc, via))
         is Literal -> emptyList()
         is Format -> (template.sources() + scopes + with.values.flatMap { it.sources() }).distinct()
         is MapValue -> input.sources()
@@ -182,22 +215,53 @@ sealed interface ValueExpr {
      * ファイル名のパターンの点検（{id} の有無・newRow で使える穴）に使う。
      */
     fun currentReads(): List<String> = when (this) {
-        is Get -> if (of == null) listOf(path.pretty()) else emptyList()
+        // 参照を辿る読み出しが、いまの要素から読むのは参照の項目（値そのものは相手の要素から読む）
+        is Get -> if (of != null) emptyList() else listOf((via ?: path).pretty())
+        // いまの要素の中の配列にわたる集計は、そのパスのパターンを読む
+        is Aggregate -> if (of == null && path != null) listOf(PathPattern.pretty(path)) else emptyList()
         is Literal -> emptyList()
-        is Format -> {
-            val holes = (template as? Literal)?.value?.let(Projection::placeholders).orEmpty()
-            val own = if (scopes.isEmpty() || scopes.any { it.of == null }) holes.filter { it !in with } else emptyList()
-            (own + template.currentReads() + with.values.flatMap { it.currentReads() }).distinct()
-        }
+        is Format -> (ownHoles() + template.currentReads() + with.values.flatMap { it.currentReads() }).distinct()
         is MapValue -> input.currentReads()
         is First -> options.flatMap { it.currentReads() }.distinct()
         is Unary -> input.currentReads()
         is Arith -> operands.flatMap { it.currentReads() }.distinct()
-        is RefCount, is OccurrenceCount, is Aggregate -> emptyList()
+        is RefCount, is OccurrenceCount -> emptyList()
+    }
+
+    /**
+     * 短い書き方の穴の名前のうち、いまの要素の値で埋まりうるもの（入れ物を書かないか、いまの要素の入れ物があるとき。
+     * with で付けた名前は除く）。入れ子と with の中を含む。ビューのリントが、行のスキーマから解決できるかを見るのに使う。
+     */
+    fun holes(): List<String> = when (this) {
+        is Format -> (ownHoles() + template.holes() + with.values.flatMap { it.holes() }).distinct()
+        is MapValue -> input.holes()
+        is First -> options.flatMap { it.holes() }.distinct()
+        is Unary -> input.holes()
+        is Arith -> operands.flatMap { it.holes() }.distinct()
+        is Get, is Literal, is RefCount, is OccurrenceCount, is Aggregate -> emptyList()
+    }
+
+    /** テンプレートの展開の、いまの要素で埋まりうる穴（入れ物を書かないか、参照を辿らない「いまの要素」の入れ物があるとき）。 */
+    private fun Format.ownHoles(): List<String> {
+        val holes = (template as? Literal)?.value?.let(Projection::placeholders).orEmpty()
+        return if (scopes.isEmpty() || scopes.any { it.of == null && it.via == null }) holes.filter { it !in with } else emptyList()
+    }
+
+    /** この式に含まれる集計（入れ子を含む。ビューのリントが、読む項目の型と順序の種類の食い違いを見るのに使う）。 */
+    fun aggregates(): List<Aggregate> = when (this) {
+        is Aggregate -> listOf(this)
+        is Format -> template.aggregates() + with.values.flatMap { it.aggregates() }
+        is MapValue -> input.aggregates()
+        is First -> options.flatMap { it.aggregates() }
+        is Unary -> input.aggregates()
+        is Arith -> operands.flatMap { it.aggregates() }
+        is Get, is Literal, is RefCount, is OccurrenceCount -> emptyList()
     }
 
     companion object {
         private val GET_KEYS = setOf("of", "in", "path")
+        private val READ_KEYS = setOf("of", "in", "path", "via")
+        private val AGGREGATE_KEYS = setOf("of", "in", "path", "type")
         private val WITH_NAME = Regex("""[A-Za-z][A-Za-z0-9_]*""")
 
         /**
@@ -299,17 +363,25 @@ sealed interface ValueExpr {
                 }
                 aggregate != null -> {
                     onlyKeys(setOf(aggregate.id))
-                    val a = m[aggregate.id] as? Map<*, *> ?: error("$where.${aggregate.id} はobject（{of, in, path}）である必要があります")
-                    a.keys.map { it.toString() }.firstOrNull { it !in GET_KEYS }
-                        ?.let { error("$where.${aggregate.id}: 未知のキーです: $it（使えるキー: ${GET_KEYS.joinToString(", ")}）") }
+                    val a = m[aggregate.id] as? Map<*, *> ?: error("$where.${aggregate.id} はobject（{of, in, path, type}）である必要があります")
+                    a.keys.map { it.toString() }.firstOrNull { it !in AGGREGATE_KEYS }
+                        ?.let { error("$where.${aggregate.id}: 未知のキーです: $it（使えるキー: ${AGGREGATE_KEYS.joinToString(", ")}）") }
                     val of = a["of"]?.toString()?.takeIf { it.isNotBlank() } ?: if (current) null else error("$where.${aggregate.id}.of（束縛名）が必要です")
                     val pathText = a["path"]?.toString()?.takeIf { it.isNotBlank() }
+                    val typeText = a["type"]?.toString()?.takeIf { it.isNotBlank() }
                     if (aggregate == AggregateFn.COUNT) {
-                        require(pathText == null && a["in"] == null) { "$where.count は要素を数えます（書けるのは of だけです）" }
+                        // 数えるのは解（of だけ）か、配列の要素（path）。type は読まない
+                        require(typeText == null) { "$where.count に type は書けません（数えるだけで、値は比べません）" }
+                        if (pathText == null) {
+                            require(a["in"] == null) { "$where.count は要素を数えます（書けるのは of だけです）" }
+                            require(of != null) { "$where.count には of（束縛名）か path（配列）が必要です" }
+                        }
                     } else {
                         require(pathText != null) { "$where.${aggregate.id}.path が必要です" }
                     }
-                    Aggregate(aggregate, of, parseSelector(a["in"], "$where.${aggregate.id}.in"), pathText?.let { parseYPath(it) })
+                    val kind = typeText?.let { OrderKind.parse(it, "$where.${aggregate.id}") } ?: OrderKind.NUMBER
+                    require(!(aggregate == AggregateFn.SUM && kind == OrderKind.DATE)) { "$where.sum に type: date は書けません（日付は足せません）" }
+                    Aggregate(aggregate, of, parseSelector(a["in"], "$where.${aggregate.id}.in"), pathText?.let { PathPattern.parse(it) }, kind)
                 }
                 unary != null -> {
                     onlyKeys(setOf(unary.id))
@@ -323,11 +395,11 @@ sealed interface ValueExpr {
                     Arith(arith, list.mapIndexed { i, e -> parse(e, "$where.${arith.id}[$i]", current) })
                 }
                 else -> {
-                    onlyKeys(GET_KEYS)
+                    onlyKeys(READ_KEYS)
                     val of = m["of"]?.toString()?.takeIf { it.isNotBlank() }
                         ?: if (current) null else error("$where.of（束縛名）が必要です（スキーマの値の式では省略できます＝いまの要素）")
                     val path = parseYPath(m["path"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.path が必要です"))
-                    Get(of, parseSelector(m["in"], "$where.in"), path)
+                    Get(of, parseSelector(m["in"], "$where.in"), path, parseVia(m["via"], where, current))
                 }
             }
         }
@@ -347,17 +419,28 @@ sealed interface ValueExpr {
             return selector
         }
 
-        /** scopes の1項目。in に指定の配列を書くと、指定ごとに1つずつ（書いた順に）入れ物になる。 */
+        /** scopes の1項目。in に指定の配列を書くと、指定ごとに1つずつ（書いた順に）入れ物になる。via は参照を辿る項目。 */
         private fun parseScopes(raw: Any?, where: String, current: Boolean): List<ScopeRef> {
-            val m = raw as? Map<*, *> ?: error("$where はobject（{of: 束縛名, in: 文書の指定}）である必要があります")
-            m.keys.map { it.toString() }.firstOrNull { it !in setOf("of", "in") }
-                ?.let { error("$where: 未知のキーです: $it（使えるキー: of, in）") }
+            val m = raw as? Map<*, *> ?: error("$where はobject（{of: 束縛名, in: 文書の指定, via: 参照の項目}）である必要があります")
+            m.keys.map { it.toString() }.firstOrNull { it !in setOf("of", "in", "via") }
+                ?.let { error("$where: 未知のキーです: $it（使えるキー: of, in, via）") }
             val of = m["of"]?.toString()?.takeIf { it.isNotBlank() } ?: if (current) null else error("$where.of（束縛名）が必要です")
+            val via = parseVia(m["via"], where, current)
             return when (val inRaw = m["in"]) {
-                null -> listOf(ScopeRef(of, null))
-                is List<*> -> inRaw.mapIndexed { i, s -> ScopeRef(of, parseSelector(s, "$where.in[$i]")) }
-                else -> listOf(ScopeRef(of, parseSelector(inRaw, "$where.in")))
+                null -> listOf(ScopeRef(of, null, via))
+                is List<*> -> inRaw.mapIndexed { i, s -> ScopeRef(of, parseSelector(s, "$where.in[$i]"), via) }
+                else -> listOf(ScopeRef(of, parseSelector(inRaw, "$where.in"), via))
             }
+        }
+
+        /**
+         * 参照を辿る項目（via）。検査の外（スキーマの値の式・ビューの列）だけで書ける——検査の中では、辿るのはクエリの edge の
+         * 役目で、式は σ を固定した単一値の計算に留める。
+         */
+        private fun parseVia(raw: Any?, where: String, current: Boolean): YPath? {
+            val text = raw?.toString()?.takeIf { it.isNotBlank() } ?: return null
+            require(current) { "$where.via は検査の中では書けません（参照を辿るのはクエリの edge で書きます）" }
+            return parseYPath(text)
         }
     }
 }

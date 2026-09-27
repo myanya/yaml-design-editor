@@ -15,7 +15,7 @@ YAML Design Editor（以下 YDE）は、当初の汎用 YAML エディタから�
 
 - `YNode` / `YPath` による YAML 構造と位置の表現
 - Query Core による構造検索・トラバース・ビュー行決定・foreach・導出 lookup の統合
-- Projection / Derivation による決定論的な値導出
+- Expression（値の式）による決定論的な値導出
 - Constraint / Validation による意味的検証
 - PatchOp / ChangeSet による部分変更と原子的適用
 - Schema Refactoring による複数文書・定義の決定論的変更
@@ -351,24 +351,8 @@ Expression の目的は万能式言語になることではない。
 。数値として読めない値・0 での割り算は Unknown（値が得られない＝判定保留）。四則演算は小数の誤差を持ち込まない。
 `Equals` は文字列の等値のままで、数値どうしを等値で比べるときは `Number` で表記を揃える。
 
-既存の Projection / Derivation は段階的に Expression Calculus へ整理する。
-
-特に現在の `DerivationDef` に含まれる責務は、
-
-```text
-対象探索       → Query
-値の取得・変換 → Expression
-```
-
-へ分離できるかを検討する。
-
-長期的には、
-
-```text
-Derivation = Query + Expression
-```
-
-として説明可能な状態を目標とする。
+Projection は `Format` の穴埋めの実装として残り、専用の Derivation は無い。ビューの派生列は Derivation = Query + Expression の形
+（値の式。参照を 1 段辿る `via` は Get の相手の選び方で、量化はしない）で書く。
 
 **検査の外での評価**: Expression の評価器は、Query の check 判定の中に閉じていた（解の束縛と σ の割当てを前提）。
 `SemanticValues.evaluate(式, 環境)` として外へ出し、環境に「いまの要素」（`of` を省略した読み出しの相手）・予約の名前（`{id}` `{title}`）・
@@ -444,14 +428,13 @@ Unknown が残れば Unknown・すべて False なら False」。
 
 ## 9. Aggregate
 
-集合に対する計算は Expression / Predicate と区別して明示する。
-
-初期段階では必要最小限に限定する。
+集合に対する計算は Expression / Predicate と区別して明示し、必要最小限に限定する。
 
 ```text
 Count(Query)
 RefCount(binding, dir, relation)          -- ノードの参照の本数（グラフの隣接の集合への Count）
 Sum / Min / Max / Count(binding, path)    -- 同じ起点の全ての解にわたる、束縛の要素の値の集計
+Sum / Min / Max / Count(path with [*])    -- 1 つの項の中の配列の要素にわたる集計
 OccurrenceCount(binding, schema, role)    -- その ID が書かれた場所（出現集合）への Count。CALC-21 の演算面に名前を付けたもの
 ```
 
@@ -459,17 +442,17 @@ OccurrenceCount(binding, schema, role)    -- その ID が書かれた場所（�
 （多重度の検査を、専用の検査プログラムではなく「参照の本数と決まった値の比較」として書くため）。集計は出現を量化せず、
 値を読む出現を定義した側を優先して1つに決める（CALC-19）。値が得られない要素が1つでもあれば Unknown。
 
+`[*]` の集計は場所を項の中で広げ、σ は固定のまま（PathPattern）。順序の種類は式に宣言し、表記から意味を決めない。
+読めない要素が1つでもあれば Unknown。
+
 今後、
 
-- min / max
 - all / any
 - set containment
 
 等の需要が生じても、個別 Constraint の特殊機能として追加せず、Aggregate として一般化可能かを先に検討する。
 
 ただし DB エンジン化を避けるため、実需要なしに集約語彙を拡大しない。
-
-ROADMAP でも Query Core の語彙肥大化をリスクとして認識し、任意式・任意深さ再帰などを避ける方針が明示されている。
 
 ---
 
@@ -782,7 +765,7 @@ Core Calculus = 定義を実行する
 | View rows | Query |
 | foreach | Query |
 | Projection | Expression |
-| Derivation | Query + Expression |
+| Derivation（ビューの派生列。専用の語彙は廃止） | Expression（`via`＝1 段の参照）＋ Aggregate |
 | consistency | Query + Predicate（**組込み定義体**。`check`＝クエリ＋値の比較へ展開される語彙になった。専用の検査プログラムは無い） |
 | query constraint | Query + Predicate |
 | relation cardinality（多重度） | Query + Aggregate（参照の本数）+ Predicate（**組込み定義体**。専用の検査プログラムは無い） |

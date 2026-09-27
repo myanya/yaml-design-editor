@@ -11,7 +11,9 @@ import dev.toros.yde.semantic.schema.SchemaKind
 import dev.toros.yde.workspace.layout.WorkspaceLayout
 import dev.toros.yde.semantic.schema.globToRegex
 import dev.toros.yde.semantic.PlannedDocumentChange
-import dev.toros.yde.semantic.VirtualAnyIndex
+import dev.toros.yde.semantic.schema.AnyIndex
+import dev.toros.yde.semantic.schema.PathPattern
+import dev.toros.yde.semantic.schema.Projection
 import dev.toros.yde.yaml.YamlIO
 
 /**
@@ -230,8 +232,8 @@ object RefactoringImpact {
 
     /**
      * スキーマのフィールド改名（R25-01 / R25-02。architecture/schema.md「リファクタリング」）にビュー定義を追随させる。
-     * 自動書換は「パスの静的解決が**全て改名対象を指す**場合」に限る——通常列 `path`・計算列の
-     * `computed.path` / `computed.lookup.via`・`newRow.path`・文書ビューの `sections[].fields.path` と
+     * 自動書換は「パスの静的解決が**全て改名対象を指す**場合」に限る——通常列 `path`・値の式の列 `value` の中の
+     * 読み出しの `path` / 参照を辿る `via` / 短い書き方の穴・`newRow.path`・文書ビューの `sections[].fields.path` と
      * include / exclude・被参照表の列 `path` が対象。多義（同名の別フィールドにも解決しうる）は
      * 書き換えず警告する（黙って壊さない）。アタッチ（`at`）等その他の参照箇所は旧名の言及として警告に列挙する。
      */
@@ -261,22 +263,97 @@ object RefactoringImpact {
             val raw = runCatching { YamlIO.parseToRaw(session.storedText(file) ?: "") }.getOrNull() as? Map<*, *> ?: continue
             val handled = mutableSetOf<String>()  // 書換済み・多義警告済みの座標（collectMentions と同じ crumb 形式）
 
+            /**
+             * パス（`[*]` を含んでよい）の静的解決: 全ての解決が改名対象を指せば書き換え後のパス、同名の別フィールドにも
+             * 解決しうれば多義（null と true）、改名対象に届かなければ null。
+             */
+            fun resolveRename(pattern: List<Any>, ctx: List<WorkspaceSchema>, starts: (WorkspaceSchema) -> List<FieldDef>): Pair<List<Any>?, Boolean>? {
+                if (pattern.none { it == oldName }) return null
+                val results = ctx.flatMap { s -> starts(s).mapNotNull { start -> staticRewrite(s, start, pattern, target, newName) } }
+                val rewritten = results.filter { it.second }.map { it.first }.distinct()
+                return when {
+                    rewritten.size == 1 && results.all { it.second } -> rewritten.single() to false
+                    rewritten.isNotEmpty() -> null to true
+                    else -> null
+                }
+            }
+
             /** パスを contexts×starts の静的解決で書き換える。全解決が対象を指すときだけ書換、多義は警告。 */
             fun tryRewrite(pathValue: Any?, crumb: String, yamlPath: YPath, ctx: List<WorkspaceSchema>, starts: (WorkspaceSchema) -> List<FieldDef>) {
                 val text = pathValue?.toString() ?: return
-                val path = runCatching { parseYPath(text) }.getOrNull() ?: return
-                if (path.none { it == oldName }) return
-                val results = ctx.flatMap { s -> starts(s).mapNotNull { start -> staticRewrite(s, start, path, target, newName) } }
-                val rewritten = results.filter { it.second }.map { it.first }.distinct()
+                val pattern = runCatching { PathPattern.parse(text) }.getOrNull() ?: return
+                val (rewritten, ambiguous) = resolveRename(pattern, ctx, starts) ?: return
                 when {
-                    rewritten.size == 1 && results.all { it.second } -> {
-                        ops.getOrPut(file) { mutableListOf() } += YamlOperation.SetScalar(yamlPath, rewritten.single().pretty())
+                    rewritten != null -> {
+                        ops.getOrPut(file) { mutableListOf() } += YamlOperation.SetScalar(yamlPath, PathPattern.pretty(rewritten))
                         handled += crumb
                     }
-                    rewritten.isNotEmpty() -> {
+                    ambiguous -> {
                         warnings += "${fileName(file)}: $crumb の path「$text」は同名の別フィールドにも解決しうるため書き換えません（要確認）"
                         handled += crumb
                     }
+                }
+            }
+
+            /** 短い書き方（`{パス}` を含む文字列）の穴を 1 つずつ静的解決で書き換える。どれかが多義なら書き換えず警告。 */
+            fun rewriteTemplate(text: String, crumb: String, yamlPath: YPath, ctx: List<WorkspaceSchema>) {
+                var out = text
+                var changed = false
+                var ambiguous = false
+                for (hole in Projection.placeholders(text)) {
+                    val pattern = runCatching { PathPattern.parse(hole) }.getOrNull() ?: continue
+                    val (rewritten, isAmbiguous) = resolveRename(pattern, ctx, ViewDefinitions::idElements) ?: continue
+                    if (isAmbiguous) ambiguous = true
+                    else if (rewritten != null) {
+                        out = out.replace("{$hole}", "{${PathPattern.pretty(rewritten)}}")
+                        changed = true
+                    }
+                }
+                when {
+                    ambiguous -> {
+                        warnings += "${fileName(file)}: $crumb の「$text」の穴は同名の別フィールドにも解決しうるため書き換えません（要確認）"
+                        handled += crumb
+                    }
+                    changed -> {
+                        ops.getOrPut(file) { mutableListOf() } += YamlOperation.SetScalar(yamlPath, out)
+                        handled += crumb
+                    }
+                }
+            }
+
+            /**
+             * 値の式（列の `value`）の中のパスの書き換え。いまの要素から読む場所（読み出しの `path`・参照を辿る `via`・集計のパス・
+             * `format` の短い書き方の穴）は列の出現のスキーマから、`in` で相手を指定した読み出しの `path` は相手のスキーマから解決する。
+             * 束縛（`of`）から読む場所や、`via` だけで相手を指定した `path` は文脈が決まらないので言及の警告に任せる。
+             * 辞書（`using`）・文書の指定（`in`）・順序の種類（`type`）・決まった値（`value`・配列の中の文字列）はパスではない。
+             */
+            fun rewriteValue(node: Any?, crumb: String, yamlPath: YPath, rowCtx: List<WorkspaceSchema>) {
+                when (node) {
+                    is Map<*, *> -> {
+                        val hasOf = node["of"] != null
+                        val inSel = node["in"] as? Map<*, *>
+                        val hasVia = node["via"] != null
+                        node.forEach { (k, v) ->
+                            val key = k.toString()
+                            val here = "$crumb.$key"
+                            val yp = yamlPath + key
+                            when {
+                                key == "via" && !hasOf -> tryRewrite(v, here, yp, rowCtx, ViewDefinitions::idElements)
+                                key == "path" && !hasOf -> {
+                                    val ctx = when {
+                                        inSel != null -> contexts(inSel["schemaId"], inSel["fileGlob"])
+                                        hasVia -> emptyList()
+                                        else -> rowCtx
+                                    }
+                                    tryRewrite(v, here, yp, ctx, ViewDefinitions::idElements)
+                                }
+                                key == "format" && v is String -> rewriteTemplate(v, here, yp, rowCtx)
+                                key in setOf("using", "in", "type", "value", "of") -> Unit
+                                else -> rewriteValue(v, here, yp, rowCtx)
+                            }
+                        }
+                    }
+                    is List<*> -> node.forEachIndexed { j, v -> rewriteValue(v, "$crumb[${j + 1}]", yamlPath + j, rowCtx) }
                     else -> Unit
                 }
             }
@@ -312,18 +389,14 @@ object RefactoringImpact {
                     val m = entry as? Map<*, *> ?: return@forEachIndexed
                     when {
                         m.containsKey("definition") || m.containsKey("backlinks") -> Unit
-                        m.containsKey("computed") -> {
-                            val comp = m["computed"] as? Map<*, *> ?: return@forEachIndexed
-                            val src = comp["source"] as? Map<*, *>
-                            tryRewrite(
-                                comp["path"], "columns[${i + 1}].computed.path", listOf("columns", i, "computed", "path"),
-                                contexts(src?.get("schemaId"), src?.get("fileGlob")), ViewDefinitions::idElements,
-                            )
-                            (comp["lookup"] as? Map<*, *>)?.let { lk ->
-                                tryRewrite(
-                                    lk["via"], "columns[${i + 1}].computed.lookup.via", listOf("columns", i, "computed", "lookup", "via"),
-                                    contexts(lk["schemaId"], lk["fileGlob"]), ViewDefinitions::idElements,
-                                )
+                        m.containsKey("value") -> {
+                            // 値の式の列: 短い書き方は穴を、完全な書き方は式の中のパスを、それぞれの文脈で書き換える
+                            val rowCtx = contexts(m["schemaId"], m["fileGlob"])
+                            val crumb = "columns[${i + 1}].value"
+                            val yp = listOf("columns", i, "value")
+                            when (val v = m["value"]) {
+                                is String -> rewriteTemplate(v, crumb, yp, rowCtx)
+                                else -> rewriteValue(v, crumb, yp, rowCtx)
                             }
                         }
                         else -> tryRewrite(
@@ -408,7 +481,7 @@ object RefactoringImpact {
             val next: FieldDef? = when {
                 def.type == FieldType.OBJECT && seg is String -> ViewDefinitions.staticChildren(schema, def).firstOrNull { it.key == seg }
                 def.type == FieldType.MAP && seg is String -> def.value
-                def.type == FieldType.ARRAY && (seg is Int || seg === VirtualAnyIndex) -> def.item
+                def.type == FieldType.ARRAY && (seg is Int || seg === AnyIndex) -> def.item
                 else -> null
             }
             if (next == null) return null
@@ -419,13 +492,13 @@ object RefactoringImpact {
     }
 
     /**
-     * ビュー定義の生YAMLから、パス系のキー（path / via / at / include / exclude）に含まれる旧名の言及を集める。
-     * 戻り値は座標（例 `columns[2].path`）。fieldRenameImpact の書換済み座標フィルタと同じ形式。
+     * ビュー定義の生YAMLから、パス系のキー（path / via / at / include / exclude）と、値の式の短い書き方（value / format の
+     * 文字列の穴）に含まれる旧名の言及を集める。戻り値は座標（例 `columns[2].path`）。fieldRenameImpact の書換済み座標フィルタと同じ形式。
      */
     private fun collectMentions(raw: Any?, oldName: String): List<String> {
         val out = mutableListOf<String>()
         fun containsOld(text: String): Boolean =
-            runCatching { parseYPath(text.replace("[*]", "[-1]")) }.getOrNull()?.any { it == oldName } ?: false
+            runCatching { PathPattern.parse(text) }.getOrNull()?.any { it == oldName } ?: false
         fun walk(node: Any?, crumb: String) {
             when (node) {
                 is Map<*, *> -> node.forEach { (k, v) ->
@@ -434,6 +507,8 @@ object RefactoringImpact {
                     when {
                         key in setOf("path", "via", "at") && v != null && v !is Map<*, *> && v !is List<*> ->
                             if (containsOld(v.toString())) out += here
+                        key in setOf("value", "format") && v is String ->
+                            if (Projection.placeholders(v).any { containsOld(it) }) out += here
                         key in setOf("include", "exclude") && v is List<*> ->
                             if (v.any { it?.toString() == oldName }) out += here
                         else -> walk(v, here)

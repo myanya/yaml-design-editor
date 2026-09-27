@@ -5,10 +5,12 @@ import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.model.getAt
 import dev.toros.yde.yaml.model.pretty
-import dev.toros.yde.semantic.schema.DerivationDef
+import dev.toros.yde.semantic.schema.DerivationSelector
 import dev.toros.yde.semantic.schema.ExpressionValue
+import dev.toros.yde.semantic.schema.PathPattern
 import dev.toros.yde.semantic.schema.QueryNodeKind
 import dev.toros.yde.semantic.schema.QuerySpec
+import dev.toros.yde.semantic.schema.ValueExpr
 import dev.toros.yde.semantic.schema.globToRegex
 
 /**
@@ -61,14 +63,17 @@ data class VirtualBacklinksDef(
             (schemaIds.isEmpty() || ref.sourceSchemaId in schemaIds)
 }
 
-/** ビューの1列。出現要素からの相対YPathで値を指すか、backlinks / computed / of（クエリ束縛）の列にする。 */
+/**
+ * ビューの1列。出現要素からの相対YPathで値を指すか、backlinks / value（値の式）/ of（クエリ束縛）の列にする。
+ * value は列の値を値の式で決める読み取り専用の派生列（from で選んだ行の出現の要素が「いまの要素」）。
+ */
 data class VirtualViewColumn(
     val label: String,
     val from: VirtualViewSource = VirtualViewSource(),
     val path: YPath,
     val editable: Boolean = false,
     val backlinks: VirtualBacklinksDef? = null,
-    val computed: DerivationDef? = null,
+    val value: ExpressionValue? = null,
     val of: String? = null,
 )
 
@@ -113,11 +118,6 @@ data class VirtualGridDef(
 
 // ---------------------------------------------------------------- 文書ビューの宣言（カーネル座標。RC-02）
 
-/** アタッチ先パターンの「任意のインデックス」（`[*]`）。 */
-object VirtualAnyIndex {
-    override fun toString(): String = "[*]"
-}
-
 /** 被参照表の1列。参照元要素からの相対YPathで値を取り出す（表示専用）。 */
 data class VirtualDocBacklinkColumn(val label: String, val path: YPath)
 
@@ -148,9 +148,8 @@ data class VirtualDocAttachment(
     val at: List<Any>,
     val backlinks: VirtualDocBacklinksDef,
 ) {
-    /** 要素パスがこのアタッチの対象か。`[*]`（VirtualAnyIndex）は任意のインデックスに一致する。 */
-    fun matches(path: YPath): Boolean =
-        at.size == path.size && at.zip(path).all { (p, seg) -> (p === VirtualAnyIndex && seg is Int) || p == seg }
+    /** 要素パスがこのアタッチの対象か。`[*]`（AnyIndex）は任意のインデックスに一致する（schema.PathPattern）。 */
+    fun matches(path: YPath): Boolean = PathPattern.matches(at, path)
 }
 
 /**
@@ -195,7 +194,7 @@ data class VirtualComputedInput(
     val path: YPath?,
 )
 
-/** 計算セルの来歴: 元値（テンプレート）とプレースホルダごとの解決。 */
+/** 計算セルの来歴: 元値（ひな型・集計の材料。得られなければその理由）と、入力ごとの解決。 */
 data class VirtualComputedTrace(
     val raw: String,
     val inputs: List<VirtualComputedInput>,
@@ -299,19 +298,83 @@ object VirtualViews {
                 }
                 .sortedWith(compareBy({ rel(it.document) }, { pathSortKey(it.path) }))
 
-        fun computedCell(column: VirtualViewColumn, def: DerivationDef, rowId: String, occurrences: List<ScannedId>): VirtualCell {
-            // 解決は整合検証と共有の SemanticDerivation。ビューで見えている導出値と検証される期待値を一致させる（architecture/transform.md「計算列と決定論的射影」）
-            val result = SemanticDerivation.resolve(def, rowId, ::occurrencesOf, rel, ::cachedTree, occurrences)
-            return VirtualCell(
-                column = column,
-                document = result.sourceDocument,
-                path = result.sourcePath,
-                value = result.value?.let { YNode.Scalar(it) },
-                computed = true,
-                trace = result.raw?.let { raw ->
-                    VirtualComputedTrace(raw, result.inputs.map { VirtualComputedInput(it.placeholder, it.value, it.document, it.path) })
+        /**
+         * 値の式の列（読み取り専用の派生列＝計算セル）: 行の要素（列の schemaId / fileGlob で選んだ出現。式側の選び方＝定義出現優先）を
+         * 「いまの要素」として、値の式を 1 つの環境で評価する（SemanticValues＝検査の check と同じ評価器。整合検証の期待値と同じ解決）。
+         * セルの座標は値の出どころ（ひな型の場所・読み出した値の場所・最小と最大で選ばれた要素。合計は無し）。来歴は全ての材料。
+         * 得られなければ値なしで、理由を来歴の元値に残す（表示で気づける）。クエリ行では束縛（of）も読める（割当ては渡さず、
+         * 定義出現優先の選び方に任せる）。
+         */
+        fun valueCell(
+            column: VirtualViewColumn,
+            value: ExpressionValue,
+            node: SemanticQueryNodeRef,
+            occurrences: List<ScannedId>,
+            nodes: Map<String, SemanticQueryNodeRef>,
+            aggregate: ((ValueExpr.Aggregate) -> SemanticValues.AggregateOutcome?)?,
+        ): VirtualCell {
+            val selector = DerivationSelector(column.from.schemaId, column.from.fileGlob)
+            val currentOccurrence = when (node.kind) {
+                QueryNodeKind.ENTITY -> SemanticExpression.select(occurrences, selector, rel)
+                    ?.let { SemanticExpression.Occurrence(it.document, it.path) }
+                QueryNodeKind.DOCUMENT -> node.document?.let { SemanticExpression.Occurrence(it, emptyList()) }
+            }
+            val env = SemanticValues.Environment(
+                tree = ::cachedTree, rel = rel,
+                current = node, currentOccurrence = currentOccurrence,
+                nodes = nodes, graph = graph,
+                refsInto = { id -> refs.filter { it.targetId == id } },
+                aggregate = aggregate,
+                reserved = buildMap {
+                    put(SemanticValues.RESERVED_ID, node.id)
+                    node.title?.let { put(SemanticValues.RESERVED_TITLE, it) }
                 },
             )
+            val result = SemanticValues.evaluateDetailed(value.expr, env)
+            val side = result.side
+            val raw = side?.raw ?: result.reason
+                ?: result.missing.takeIf { it.isNotEmpty() }?.let { m -> "埋まらない穴: " + m.joinToString("・") { "{$it}" } }
+                ?: value.text
+            return VirtualCell(
+                column = column,
+                document = side?.sourceDocument,
+                path = side?.sourcePath,
+                value = side?.let { YNode.Scalar(it.text) },
+                computed = true,
+                trace = VirtualComputedTrace(
+                    raw = raw,
+                    inputs = side?.inputs.orEmpty().map { VirtualComputedInput(it.placeholder, it.value, it.document, it.path) },
+                ),
+            )
+        }
+
+        /** 従来の行（1 論理 ID）を、値の式の「いまの要素」として表すノード。 */
+        fun entityNode(id: String, occurrences: List<ScannedId>): SemanticQueryNodeRef = SemanticQueryNodeRef(
+            kind = QueryNodeKind.ENTITY,
+            id = id,
+            title = occurrences.firstNotNullOfOrNull { it.title },
+            entityType = occurrences.firstNotNullOfOrNull { it.entityType },
+            document = occurrences.firstOrNull()?.document,
+            path = occurrences.firstOrNull()?.path ?: emptyList(),
+        )
+
+        /** クエリ行の集計（of＝束縛名）: 行を 1 つの解と見なし、その束縛の要素から材料を集める（クエリの評価器と同じ選び方）。 */
+        fun rowAggregate(bindings: Map<String, SemanticQueryNodeRef>): (ValueExpr.Aggregate) -> SemanticValues.AggregateOutcome? = { expr ->
+            val node = expr.of?.let { bindings[it] }
+            val path = expr.path
+            when {
+                node == null -> null
+                path == null -> SemanticValues.AggregateOutcome(SemanticCheckSide(text = "1", raw = "1"))
+                else -> {
+                    val occ = when (node.kind) {
+                        QueryNodeKind.ENTITY -> SemanticExpression.select(occurrencesOf(node.id), expr.inDoc ?: DerivationSelector(), rel)
+                            ?.let { SemanticExpression.Occurrence(it.document, it.path) }
+                        QueryNodeKind.DOCUMENT -> node.document?.let { SemanticExpression.Occurrence(it, emptyList()) }
+                    }
+                    if (occ == null) SemanticValues.AggregateOutcome(null, "${node.id} の出現がありません")
+                    else SemanticValues.aggregate(expr, SemanticExpression.collect(::cachedTree, occ, path))
+                }
+            }
         }
 
         // クエリ行（rows: match）: 行 = パターン照合の束縛行。並びはクエリの決定的順序（sortRows は通さない）
@@ -324,11 +387,11 @@ object VirtualViews {
                 val cells = view.columns.map { column ->
                     val node = qr.bindings[column.of ?: rowKeyName]
                     val backlinksDef = column.backlinks
-                    val computedDef = column.computed
+                    val valueDef = column.value
                     when {
                         node == null -> VirtualCell(column, null, null, null)
                         backlinksDef != null -> VirtualCell(column, null, null, null, backlinks = backlinksFor(node.id, backlinksDef))
-                        computedDef != null -> computedCell(column, computedDef, node.id, occurrencesOf(node.id))
+                        valueDef != null -> valueCell(column, valueDef, node, occurrencesOf(node.id), qr.bindings, rowAggregate(qr.bindings))
                         node.kind == QueryNodeKind.DOCUMENT -> {
                             // 文書ノードのセル: 文書ルートからの相対パス（座標はその文書＝通常の原本編集経路）
                             val document = node.document
@@ -370,13 +433,13 @@ object VirtualViews {
             .map { (id, occurrences) ->
                 val cells = view.columns.map { column ->
                     val backlinksDef = column.backlinks
-                    val computedDef = column.computed
+                    val valueDef = column.value
                     val occurrence =
-                        if (backlinksDef != null || computedDef != null) null
+                        if (backlinksDef != null || valueDef != null) null
                         else occurrences.firstOrNull { column.from.matches(it, rel(it.document)) }
                     when {
                         backlinksDef != null -> VirtualCell(column, null, null, null, backlinks = backlinksFor(id, backlinksDef))
-                        computedDef != null -> computedCell(column, computedDef, id, occurrences)
+                        valueDef != null -> valueCell(column, valueDef, entityNode(id, occurrences), occurrences, emptyMap(), null)
                         occurrence == null -> VirtualCell(column, null, null, null)
                         else -> {
                             val absolute = occurrence.path + column.path
@@ -544,6 +607,23 @@ object VirtualViews {
                 appendLine("新規行: ${nr.file} :: ${nr.path.pretty()} へ要素を追加し、IDを設定すると行になる")
             }
         }
+        // 来歴（R16-04）: 元値（テンプレート・集計の材料）と入力値の座標。エージェントはここから入力値側も辿れる
+        fun appendTrace(trace: VirtualComputedTrace?) {
+            if (trace == null || trace.inputs.isEmpty()) return
+            append("      導出: ").append(trace.raw)
+            trace.inputs.forEach { input ->
+                append("  {").append(input.placeholder).append("}=")
+                if (input.value == null) append("未解決")
+                else {
+                    append(input.value)
+                    val inputDoc = input.document
+                    if (inputDoc != null && input.path != null) {
+                        append(" [").append(rel(inputDoc)).append(" :: ").append(input.path.pretty()).append("]")
+                    }
+                }
+            }
+            appendLine()
+        }
         for (row in rows) {
             append("- id: ").append(row.id)
             row.title?.let { append("  title: ").append(it) }
@@ -566,31 +646,27 @@ object VirtualViews {
                         }
                     )
                 } else if (cell.document == null) {
-                    appendLine(if (cell.computed) "（導出元なし）" else "（出現なし）")
+                    val value = cell.value
+                    val trace = cell.trace
+                    when {
+                        // 値の式の列で、値が特定の 1 か所に無いとき（ひな型の展開・合計など）: 値と来歴だけを出す
+                        cell.computed && value != null -> {
+                            append(refAnnotatedCellText(value, ids)).appendLine("  [計算値（座標なし）]")
+                            appendTrace(trace)
+                        }
+                        // 値が得られない計算列: 理由（来歴の元値）を出す
+                        cell.computed && trace != null -> appendLine("（値が得られません: ${trace.raw}）")
+                        cell.computed -> appendLine("（導出元なし）")
+                        else -> appendLine("（出現なし）")
+                    }
                 } else {
                     append(refAnnotatedCellText(cell.value, ids))
                     append("  [").append(rel(cell.document)).append(" :: ").append(cell.path!!.pretty())
                     if (cell.column.editable) append("  編集可")
-                    // 計算列: 値は評価済みの導出値で、座標は元値（規則）の位置。書込はこの座標か入力値への通常編集で行う
-                    if (cell.computed) append("  計算値（座標は導出規則）")
+                    // 計算列: 値は評価済みで、座標は値の出どころ（ひな型・読み出した値・選ばれた要素）。書込はこの座標か入力値への通常編集で行う
+                    if (cell.computed) append("  計算値（座標は値の出どころ）")
                     appendLine("]")
-                    // 来歴（R16-04）: 元値（テンプレート）と入力値の座標。エージェントはここから入力値側も辿れる
-                    val trace = cell.trace
-                    if (trace != null && trace.inputs.isNotEmpty()) {
-                        append("      導出: ").append(trace.raw)
-                        trace.inputs.forEach { input ->
-                            append("  {").append(input.placeholder).append("}=")
-                            if (input.value == null) append("未解決")
-                            else {
-                                append(input.value)
-                                val inputDoc = input.document
-                                if (inputDoc != null && input.path != null) {
-                                    append(" [").append(rel(inputDoc)).append(" :: ").append(input.path.pretty()).append("]")
-                                }
-                            }
-                        }
-                        appendLine()
-                    }
+                    appendTrace(cell.trace)
                 }
             }
             if (view.detail != null) {

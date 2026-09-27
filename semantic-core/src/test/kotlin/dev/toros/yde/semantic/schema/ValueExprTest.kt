@@ -4,6 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -114,5 +115,50 @@ class ValueExprTest {
         assertFailsWith<IllegalArgumentException> {
             ValueExpr.parseValue(mapOf("format" to "{a.b}", "with" to mapOf("a.b" to "x")), "x")
         }
+    }
+
+    @Test
+    fun `集計はパスに任意の番号と順序の種類を書け誤りは定義エラーになる`() {
+        val max = assertIs<ValueExpr.Aggregate>(
+            ValueExpr.parseValue(mapOf("max" to mapOf("path" to "comments[*].date", "type" to "date")), "x")
+        )
+        assertEquals(ValueExpr.OrderKind.DATE, max.kind)
+        assertEquals(listOf("comments", AnyIndex, "date"), max.path)
+        assertNull(max.of)
+        // いまの要素から読む項目として、ビューのリントが解決を点検できる
+        assertEquals(listOf("comments[*].date"), max.currentReads())
+        assertEquals(listOf(max), max.aggregates())
+        // 省略時は数値
+        val sum = assertIs<ValueExpr.Aggregate>(ValueExpr.parse(mapOf("sum" to mapOf("of" to "l", "path" to "amount")), "x"))
+        assertEquals(ValueExpr.OrderKind.NUMBER, sum.kind)
+        // count は path で配列の要素を数える
+        val count = assertIs<ValueExpr.Aggregate>(ValueExpr.parseValue(mapOf("count" to mapOf("path" to "comments[*]")), "x"))
+        assertEquals(ValueExpr.AggregateFn.COUNT, count.fn)
+        // 日付は足せない・未知の種類・count の type・of も path も無い count・検査の中では of が要る
+        assertFailsWith<IllegalArgumentException> { ValueExpr.parseValue(mapOf("sum" to mapOf("path" to "a[*].d", "type" to "date")), "x") }
+        assertFailsWith<IllegalStateException> { ValueExpr.parseValue(mapOf("max" to mapOf("path" to "a[*].d", "type" to "text")), "x") }
+        assertFailsWith<IllegalArgumentException> { ValueExpr.parseValue(mapOf("count" to mapOf("path" to "a[*]", "type" to "date")), "x") }
+        assertFailsWith<IllegalArgumentException> { ValueExpr.parseValue(mapOf("count" to emptyMap<String, Any>()), "x") }
+        assertFailsWith<IllegalStateException> { ValueExpr.parse(mapOf("max" to mapOf("path" to "a[*].d")), "x") }
+    }
+
+    @Test
+    fun `参照を辿る読み出しと入れ物は検査の外だけで書ける`() {
+        val get = assertIs<ValueExpr.Get>(
+            ValueExpr.parseValue(mapOf("via" to "vtype", "in" to mapOf("schemaId" to "ddl"), "path" to "to"), "x")
+        )
+        assertEquals(listOf("vtype"), get.via)
+        assertEquals(listOf(ValueExpr.ScopeRef(null, DerivationSelector(schemaId = "ddl"), listOf("vtype"))), get.sources())
+        // いまの要素から読むのは参照の項目（値そのものは相手の要素から読む）
+        assertEquals(listOf("vtype"), get.currentReads())
+        val format = assertIs<ValueExpr.Format>(
+            ValueExpr.parseValue(mapOf("format" to "{maxLength}", "scopes" to listOf(mapOf("via" to "vtype", "in" to mapOf("schemaId" to "vt")))), "x")
+        )
+        assertEquals(listOf("vtype"), format.scopes.single().via)
+        // 参照を辿る入れ物だけなら、穴はいまの要素で埋まる前提にならない（入れ物を書かなければ、いまの要素の穴）
+        assertEquals(emptyList(), format.holes())
+        assertEquals(listOf("maxLength"), assertIs<ValueExpr.Format>(ValueExpr.parseValue("{maxLength}", "x")).holes())
+        // 検査の中（束縛名が要る文脈）では書けない
+        assertFailsWith<IllegalArgumentException> { ValueExpr.parse(mapOf("of" to "a", "via" to "vtype", "path" to "to"), "x") }
     }
 }

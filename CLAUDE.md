@@ -50,7 +50,7 @@ scripts/docs-lint.sh                        # 文書の形の機械チェック
 - 構造の検証は `FieldDef` を直接読まず、導出した構造スキーマ（yaml-core `structure`）で行う。ID・参照・フェーズ・表示に関わるものを yaml-core へ戻さない → architecture/schema.md「構造スキーマの導出」
 - スキーマを読むのはカーネル（`WorkspaceReader`）だけ。`SchemaDef` は薄い窓口で data class ではない。表示のヒントは `FieldHints` に置き検証から読まない → architecture/schema.md「$ref と実効フィールド」
 - `FieldDef` は `schema.resolve`、子フィールドは `schema.effectiveFields`、必須は `schema.requiredAt(field, phaseIndex)` を通す → architecture/schema.md「$ref と実効フィールド」・architecture/schema.md「フェーズ」
-- 値の式は項目の印 `expression: true` だけが決める。読み取り `ExpressionFields`・評価 `SemanticValues`。独自の `{…}` 穴埋めを書かない → architecture/schema.md「値の式」
+- 値の式は項目の印 `expression: true` だけが決める。読み取り `ExpressionFields`・評価 `SemanticValues`。独自の `{…}` 穴埋めを書かない。`[*]` を含むパスは `PathPattern`（`-1` 置換を書かない） → architecture/schema.md「値の式」
 - 要素の 1 行要約は `schema/Display` に一元化。enum の label は表示専用で、検証と AI 制約は `value` → architecture/index-references.md「表示解決」
 - フォームの編集 UI は `FormCtx` を通し `ctx.readOnly` の分岐を入れる。画面はモーダルでなくスペース内の常設画面。全体のショートカットは `Main.kt` の `handleShortcut` → architecture/ui.md「UI シェル」
 - エージェントの編集は `agent/Staging` 経由。適用の本体はカーネルの `ChangeSetApplier` で、root に適用規則を書かない → architecture/workspace.md「変更セットの適用」

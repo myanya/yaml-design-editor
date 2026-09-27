@@ -906,21 +906,24 @@ object SemanticQuery {
 
         /**
          * 集計（SP-03）: 同じ起点の全ての解にわたり、束縛の要素（重複は1つ）の値をまとめる。値は指定に合う文書のうち
-         * 定義した側を優先して1つから読む（CALC-19）。得られない・数値として読めない値が1つでもあれば得られない。
+         * 定義した側を優先して1つから読む（CALC-19）。パスに `[*]` があれば、各要素の配列の全ての要素に広がる。
+         * 得られない・順序の種類として読めない値が1つでもあれば得られない（計算は SemanticValues.aggregate と共有）。
          * 解の一覧を要するため、クエリの評価器だけが担う（環境の aggregate として SemanticValues へ渡す）。
          */
-        private fun aggregateSide(expr: ValueExpr.Aggregate): SemanticCheckSide? {
+        private fun aggregateSide(expr: ValueExpr.Aggregate): SemanticValues.AggregateOutcome? {
             val of = expr.of ?: return null
             val nodes = aggregateRows.mapNotNull { it.bindings[of] }.distinctBy { it.kind to it.id }
             val path = expr.path
-            if (path == null) return SemanticCheckSide(text = nodes.size.toString(), raw = nodes.size.toString())
-            val values = nodes.map { node ->
-                val occ = aggregateOccurrence(node, expr.inDoc) ?: return null
-                SemanticExpression.textAt(::tree, occ, path) ?: return null
+            if (path == null) {
+                val n = nodes.size.toString()
+                return SemanticValues.AggregateOutcome(SemanticCheckSide(text = n, raw = n))
             }
-            return SemanticExpression.aggregate(expr.fn, values)?.let { text ->
-                SemanticCheckSide(text = text, raw = "${expr.fn.label}: ${values.joinToString("・")}")
+            val items = nodes.flatMap { node ->
+                val occ = aggregateOccurrence(node, expr.inDoc)
+                    ?: return SemanticValues.AggregateOutcome(null, "${node.id} の出現がありません")
+                SemanticExpression.collect(::tree, occ, path)
             }
+            return SemanticValues.aggregate(expr, items)
         }
 
         /** 集計で値を読む出現: 指定に合う出現のうち、定義した側を優先して1つ（式側の決定的な選択。CALC-19）。 */

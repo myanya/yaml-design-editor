@@ -1,7 +1,7 @@
 # 変換と決定論的射影
 
 入力の YAML から別の形の YAML を組み立てる処理は、変換定義（選ぶ × 組み立てる × 規則を子に当てる）で書く。純粋で決定的、出力は保存しない。
-値のレベルの決定論的な導出（ビューの計算列）は `{パス}` プレースホルダのテンプレート置換で、評価器は 1 実装。いずれも計算体系（CORE-CALCULUS）の Construct と Expression の実装。
+値のレベルの決定論的な導出（ビューの値の式の列）は値の式の評価器（`SemanticValues`）の 1 実装で、`{パス}` の穴埋めは `Projection`。いずれも計算体系（CORE-CALCULUS）の Construct と Expression の実装。
 
 ## 部品
 
@@ -10,9 +10,8 @@
 | `TransformDef` / `Template` | semantic-core/schema/Transform.kt | 変換定義の宣言とパース（`parse`・`ofTemplate`） |
 | `SemanticTransform` / `TransformResult` / `TransformOrigin` | semantic-core/semantic/Transform.kt | 変換の評価器。組み立てた項と、出力の場所 → 入力の文書と場所 |
 | `Projection` | schema/Projection.kt | `{パス}` プレースホルダのテンプレート置換（スコープ連鎖・1 段評価・解決トレース・穴の値の直し方）と値辞書 |
-| `DerivationDef` | schema/Derivation.kt | 導出の宣言モデル（`lookup` / `source` / `path` / `values` / `map` / `default`）。ビューの計算列が使う |
-| `SemanticDerivation` | semantic-core/semantic/ | 導出の解決器（対象 ID → source 出現 → スコープ連鎖 → `Projection` 評価＋来歴） |
-| `ViewCell.trace` / `ComputedTrace` | core/Views.kt | 計算セルの来歴（元値のテンプレート・プレースホルダごとの解決値と座標） |
+| `ViewCell.trace` / `ComputedTrace` | core/Views.kt | 計算セルの来歴（元値のテンプレート・プレースホルダごとの解決値と座標。値の式の列では集計の材料と、得られない理由） |
+| `VirtualViews.valueCell` | semantic-core/semantic/VirtualViews.kt | 値の式の列の解決（行の出現の要素を「いまの要素」とする環境で `SemanticValues` を呼ぶ） |
 | 組込みの変換定義 | workspace-core 資源 `builtin-transforms/` | `structural-schema.yaml`（構造のスキーマの導出） |
 
 ## 変換
@@ -43,17 +42,20 @@
 
 ## 計算列と決定論的射影
 
-段階的詳細化の機械的に置換可能な領域（例: 値型の maxLength → `varchar(100)`）を、宣言的なルールで参照時に導出する。
+段階的詳細化の機械的に置換可能な領域（例: 値型の maxLength → `varchar(100)`）を、ビューの値の式の列（`value`）で参照時に導出する。専用の導出の語彙は無く、「クエリ＋値の式」（CORE-CALCULUS「Expression Calculus」）の形で書く。
 
-- **評価器は `Projection` に一元化**: `{パス}` プレースホルダのテンプレート置換と値辞書（`map` / `default`。skill の列マッピングと同じ語彙）は純ロジックの単一実装。消費者（ビューの計算列・スキャフォールド・値の式の `format`・テンプレートの健全性）はこれを共有する。任意式・コード実行は導入しない。
-- **1 段評価**: プレースホルダが参照できるのは原本に書かれた値だけ。計算値の上の計算はしない（依存グラフ・評価順序・循環検出を持つスプレッドシートエンジンにしない）。
-- **lookup は 1 ホップ**: 計算列の対象 ID は「行の ID 自身」か「行の出現の ref フィールドを 1 回辿った先」のみ。
-- **導出の語彙と解決は 1 実装**: 宣言モデルは `DerivationDef`、対象 ID → 出現 → スコープ → 評価の解決は `SemanticDerivation`。出現の選択は定義出現優先 → 索引順（`SemanticExpression.select`）。
-- **計算列は読み取り専用の派生表示**: `editable` とは排他。セルの座標は元値（テンプレート）の原本座標＝ジャンプ先で、編集は規則か入力値への通常編集で行う。
-- **評価失敗は作業を止めない**: 解決できないプレースホルダは `{...}` のまま表示に残す。元値が無いセルは `default`、それも無ければ値なし。
+- **穴埋めの評価器は `Projection` に一元化**: `{パス}` の穴埋めと値辞書は純ロジックの単一実装。消費者（値の式の `format`・スキャフォールド・テンプレートの健全性）はこれを共有する。任意式・コード実行は導入しない。
+- **1 段評価**: 穴が参照できるのは原本に書かれた値だけ。計算値の上の計算はしない（依存グラフ・評価順序・循環検出を持つスプレッドシートエンジンにしない）。
+- **参照を辿るのは `via` で 1 段**: 読み出しと入れ物の `via` は、行の要素に書かれた参照の線を辿る（検査の `edge` と同じ突き合わせ。ref 型でない項目は辿らない）。参照がちょうど 1 本のときだけ相手が決まる。相手の出現は `in` で選ぶ（定義出現優先 `SemanticExpression.select`）。
+- **値の式の列は読み取り専用の派生列**: 列の `value`（`expression: true` の項目）に値の式を書き、行の出現（列の `schemaId` / `fileGlob`）の要素を「いまの要素」として評価する（[schema.md「値の式」](schema.md)）。`editable` とは排他。
+  - ひな型の展開は `format`（ひな型を `in` / `via` で読み、`scopes` の入れ物 → いまの要素の順で穴を埋める）、辞書は `map`、既定値は `first`、配列の集計は `[*]`（`type: date` で日付の順序）。
+  - セルの座標は値の出どころ（ひな型の場所・読み出した値・最小と最大で選ばれた要素。合計は座標なし）、来歴は全ての材料（穴ごと・要素ごと）。
+  - 得られなければ値なしで、理由（埋まらない穴・書かれていない値・辿れない参照）を来歴の元値に残す。表示で気づける。
+  - クエリ行では束縛（`of`）も読め、行を 1 つの解と見なして集計する。列側に評価を書かない。
 - **未保存編集に追随**: 計算セルの値はビュー解決時に評価され、値の読み取りは loader（docCache 優先）が担う。グリッドは `AppState.editVersion` を購読して再解決する。
-- **来歴はセルの一級情報**: 計算セルは評価結果に加えて元値とプレースホルダごとの解決値・座標（`ViewCell.trace`）を持つ。UI のクリックは導出の説明と行き先の選択（導出規則・各入力値）をポップアップで提示する。`read_view` / CLI にも同じ来歴を出す。
-- 整合検証（`consistency`）は、この導出と同じ語彙 `expected` で期待値を作り、組込み定義体が値の比較 `check` へ展開する（[checks.md](checks.md)）。ビューで見えている導出値と検証される期待値は常に一致する。テンプレートの解決不能プレースホルダは、そのテンプレートを書いた文書の座標に WARNING（テンプレートの健全性）。
+- **来歴はセルの一級情報**: 計算セルは評価結果に加えて元値と入力ごとの解決値・座標（`ViewCell.trace`）を持つ。UI のクリックは導出の説明と行き先の選択（元の値・各入力値）をポップアップで提示する。`read_view` / CLI にも同じ来歴を出す。
+- 整合検証（`consistency`）は `expected`（`lookup` / `source` / `path` / `values` / `map` / `default`）を、組込み定義体がクエリ＋値の式の `check` へ展開する（[checks.md](checks.md)）。ビューの列と同じ評価器なので、見えている導出値と検証される期待値は一致する。テンプレートの解決不能プレースホルダは、そのテンプレートを書いた文書の座標に WARNING（テンプレートの健全性）。
+- 古い `computed`（`lookup` / `source` / `path` / `values` / `map` / `default`）は定義エラーにし、同じ意味の `value` の書き方を文面で案内する（`ViewDefinitions`）。
 
 ## 規律
 
@@ -67,5 +69,5 @@
 ## 拡張ポイント
 
 - **ひな型の指示の追加**: `Template` のパースと `SemanticTransform` の評価に足す。出どころを結果に持たせる。
-- **導出（計算列）の語彙の追加**: `DerivationDef`・`DerivationDef.parse`・`builtin-view`（computed）・`SemanticDerivation` をそろえて更新する。
+- **値の式の列で新しい計算が要るとき**: 値の式の語彙（[schema.md「値の式」](schema.md)）に足す。列や `VirtualViews` に評価を書かない。
 - **組込みの変換定義の追加**: `builtin-transforms/` に YAML を足し、`BuiltinTransforms` から引けるようにする。

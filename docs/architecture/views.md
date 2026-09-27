@@ -24,8 +24,8 @@
 - **`_views` は予約ディレクトリ**: 書込はメタアクティビティのみ、自動実行の監視対象外、ステージされた定義はパース可否が提出ゲートに加わる。
 - **セルエディタの型解決**: 列の相対パスから `Views.fieldAt` でフィールド定義を辿る（`resolve` / `effectiveFields` を通す）。直接編集はスカラー系フィールドに限定し、複合値はジャンプで個別フォームへ。
 - **バックリンク列は編集不可の派生表示**: `backlinks` 列は索引の被参照を relation・参照元スキーマで絞って解決し、出現の選択や `editable` とは排他（パースで拒否）。参照元要素の ID は「参照位置をパスの接頭辞に含む最も長いパスの出現」。セルが指す座標は参照値の位置＝ジャンプ先。
-- **計算列**は読み取り専用の派生表示で来歴を持つ（[transform.md「計算列と決定論的射影」](transform.md)）。
-- **クエリ行**（`rows: match:`。`rows: idPattern` と排他）: 行＝クエリの束縛行。行キーは `rowKey:`（省略時は先頭の束縛。kind: entity 限定）。列の `of:` で結合先ノードの値をセル化でき、セルは各束縛ノードの原本座標へ解決される。バックリンク列・計算列も `of` の束縛 ID を対象にできる。行の同一性は `ViewRow.key`（束縛値の組）。`order` は併用不可。
+- **値の式の列**（`value`）は読み取り専用の派生表示（計算セル）で、行の出現の要素を「いまの要素」として値の式を評価する。座標は値の出どころ、来歴は材料、得られなければ値なしで理由を来歴に残す（[transform.md「計算列と決定論的射影」](transform.md)）。
+- **クエリ行**（`rows: match:`。`rows: idPattern` と排他）: 行＝クエリの束縛行。行キーは `rowKey:`（省略時は先頭の束縛。kind: entity 限定）。列の `of:` で結合先ノードの値をセル化でき、セルは各束縛ノードの原本座標へ解決される。バックリンク列・値の式の列も `of` の束縛 ID を対象にでき、値の式は行の束縛を式の `of` で読める。行の同一性は `ViewRow.key`（束縛値の組）。`order` は併用不可。
 - **新規行の入口は 2 モード**: `newRow` は配列モード（`file` ＋ `path`: 一覧文書の配列へ要素追加＝未保存編集として積む）とファイルモード（`filePattern`: 詳細文書をスキャフォールドしてディスクへ書込＝索引更新で行が現れる）の排他。スキャフォールドは `detail.filePattern` の「作成」と共通（[schema.md「ひな型」](schema.md)）。`newRow.filePattern` に書ける穴は `{id}` だけ。ビューが宣言するのは「新しい原本がどこで生まれるか」だけ。
 
 ## 文書ビュー
@@ -47,8 +47,10 @@
 
 ## ビュー定義の読み取り
 
-- 定義文書の座標（`source`）はワークスペース相対の文書ID。読み取り（`parseView`＝グリッド・文書ビュー・definition 参照の列展開）とリントは workspace-core（作り先に合うスキーマを選ぶ `WorkspaceSchema.matches` を使うため）。計算列の宣言の読み取りは semantic-core の `DerivationDef.parse`。
-- `filePattern` は値の式（[schema.md「値の式」](schema.md)）で、共通の読み取り `ExpressionFields` を通る（`viewSchemaTree`）。
+- 定義文書の座標（`source`）はワークスペース相対の文書ID。読み取り（`parseView`＝グリッド・文書ビュー・definition 参照の列展開）とリントは workspace-core（作り先に合うスキーマを選ぶ `WorkspaceSchema.matches` を使うため）。
+- `filePattern` と列の `value` は値の式（[schema.md「値の式」](schema.md)）で、共通の読み取り `ExpressionFields` を通る（`viewSchemaTree`）。`value` は `path` / `backlinks` / `definition` / `editable` と排他。古い `computed` は定義エラー（同じ意味の `value` を案内）。
+- 値の式の列のリントは、式が読む項目（穴・読み出し・集計のパス）が出現のスキーマの ID 要素から解決できるか、`via` が参照型の項目か、`in` のスキーマがあるか、相手から読む `path` が相手のスキーマから解決できるか、集計の順序の種類と項目の型（date）が食い違っていないかを見る。
+- `[*]` を含むパス（アタッチ先・集計のパス）の読み取りは `PathPattern`。`-1` への置き換えを機能側に書かない。
 - リファクタリングのビュー定義の追随（フィールド改名）と言及の警告は、カーネルの `RefactoringImpact` が作り `planRefactoring` が計画に含める（[workspace.md「リファクタリングの影響」](workspace.md)）。
 - 宣言的レンズ定義（`kind: lens`）は需要待ちで導入しない。
 

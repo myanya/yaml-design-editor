@@ -402,7 +402,7 @@ class ViewsTest {
     // ---------------------------------------------------------------- 計算列（R16-02）
 
     /** 値型台帳・型写像（同一ID出現）・属性（値型への ref）と、計算列を持つビューを追加する。 */
-    private fun writeComputedFixtures() {
+    private fun writeDerivedFixtures() {
         write(
             "_schemas/vt.yaml",
             """
@@ -504,18 +504,19 @@ class ViewsTest {
                 schemaId: vt
                 path: name
               - label: DDL型
-                computed:
-                  source: { schemaId: vt-ddl }
-                  path: to
-                  values:
-                    - schemaId: vt
+                schemaId: vt
+                value:
+                  format: { in: { schemaId: vt-ddl }, path: to }
+                  scopes:
+                    - { in: { schemaId: vt-ddl } }
               - label: 方言変換
-                computed:
-                  source: { schemaId: vt-ddl }
-                  path: to
-                  values:
-                    - schemaId: vt
+                schemaId: vt
+                value:
                   map:
+                    format: { in: { schemaId: vt-ddl }, path: to }
+                    scopes:
+                      - { in: { schemaId: vt-ddl } }
+                  using:
                     "varchar(100)": "VARCHAR2(100 CHAR)"
             """,
         )
@@ -530,34 +531,35 @@ class ViewsTest {
               schemaId: attr
             columns:
               - label: DDL型
-                computed:
-                  lookup: { schemaId: attr, via: vtype }
-                  source: { schemaId: vt-ddl }
-                  path: to
-                  values:
-                    - schemaId: vt
-                  default: text
+                schemaId: attr
+                value:
+                  first:
+                    - format: { via: vtype, in: { schemaId: vt-ddl }, path: to }
+                      scopes:
+                        - { via: vtype, in: { schemaId: vt-ddl } }
+                        - { via: vtype, in: { schemaId: vt } }
+                    - text
             """,
         )
     }
 
     @Test
-    fun `computed column evaluates template with placeholder scopes`() {
-        writeComputedFixtures()
+    fun `value column expands a template read from another occurrence of the same id`() {
+        writeDerivedFixtures()
         val workspace = Workspace.open(ws)
         val loaded = Views.load(ws, workspace.schemas)
         assertTrue(loaded.errors.isEmpty(), loaded.errors.toString())
         val rows = Views.resolve(loaded.view("vt-computed")!!, workspace.index, workspace::treeOf)
 
-        // 同一ID出現の写像行のテンプレートを、値型定義（values で選んだ出現）の値で評価する
+        // 同じ ID の写像行（in: vt-ddl）のひな型を、写像行 → 行の要素（値型の定義。暗黙の末尾）の順で穴埋めする
         val title = rows.first { it.id == "VT-TITLE" }
         val ddl = title.cells[1]
         assertEquals("varchar(100)", (ddl.value as YNode.Scalar).value)
         assertTrue(ddl.computed)
-        assertEquals("ddl-mapping.yaml", ddl.document?.value, "座標は元値（導出規則）の位置")
+        assertEquals("ddl-mapping.yaml", ddl.document?.value, "座標はひな型（元の値）の位置")
         assertEquals(parseYPath("mappings[0].to"), ddl.path)
 
-        // 来歴（R16-04）: 元値と、プレースホルダごとの解決値・入力値の座標を持つ（ジャンプ先の選択肢）
+        // 来歴: ひな型と、穴ごとの解決値・入力値の座標（ジャンプ先の選択肢）
         val trace = ddl.trace!!
         assertEquals("varchar({maxLength})", trace.raw)
         val input = trace.inputs.single()
@@ -566,14 +568,10 @@ class ViewsTest {
         assertEquals("types.yaml", input.document?.value, "入力値の座標は値型定義の位置")
         assertEquals(parseYPath("types[0].maxLength"), input.path)
 
-        // 解決できないプレースホルダは {...} のまま残す（作業を止めない。architecture/transform.md「計算列と決定論的射影」）
+        // 穴が埋まらなければ「得られない」（値なし・理由つき。値の式の規則。表示で気づける）
         val note = rows.first { it.id == "VT-NOTE" }
-        assertEquals("{missing} text", (note.cells[1].value as YNode.Scalar).value)
-        // 未解決の入力は来歴に「座標なし」として残る（UIは未解決の説明を出す）
-        val missing = note.cells[1].trace!!.inputs.single()
-        assertEquals("missing", missing.placeholder)
-        assertNull(missing.value)
-        assertNull(missing.document)
+        assertNull(note.cells[1].value)
+        assertEquals("埋まらない穴: {missing}", note.cells[1].trace!!.raw)
 
         // 値辞書は評価後の値に適用される
         assertEquals("VARCHAR2(100 CHAR)", (title.cells[2].value as YNode.Scalar).value)
@@ -584,47 +582,240 @@ class ViewsTest {
         assertTrue("計算値" in text, text)
         assertTrue("導出: varchar({maxLength})" in text, text)
         assertTrue("{maxLength}=100 [types.yaml :: types[0].maxLength]" in text, text)
+        assertTrue("（値が得られません: 埋まらない穴: {missing}）" in text, text)
     }
 
     @Test
-    fun `computed column follows one hop lookup and falls back to default`() {
-        writeComputedFixtures()
+    fun `value column follows one reference with via and falls back with first`() {
+        writeDerivedFixtures()
         val workspace = Workspace.open(ws)
-        val rows = Views.resolve(Views.load(ws).view("fld-computed")!!, workspace.index, workspace::treeOf)
+        val loaded = Views.load(ws, workspace.schemas)
+        assertTrue(loaded.errors.isEmpty(), loaded.errors.toString())
+        val rows = Views.resolve(loaded.view("fld-computed")!!, workspace.index, workspace::treeOf)
 
-        // lookup: 属性の ref（vtype）を1ホップ辿り、参照先IDの写像行から導出する
+        // via: 属性の参照（vtype）を 1 段辿り、参照先 ID の写像行のひな型を、写像行 → 値型の定義 → 行の要素の順で穴埋めする
         val titled = rows.first { it.id == "FLD-TITLE" }
         assertEquals("varchar(100)", (titled.cells[0].value as YNode.Scalar).value)
+        assertEquals("ddl-mapping.yaml", titled.cells[0].document?.value)
+        assertEquals("types.yaml", titled.cells[0].trace!!.inputs.single().document?.value)
 
-        // ref が未記入の行は default にフォールバックする（導出元の座標はない）
+        // 参照が書かれていない行は first の既定値に落ちる（決まった値なので座標はない）
         val free = rows.first { it.id == "FLD-FREE" }
         assertEquals("text", (free.cells[0].value as YNode.Scalar).value)
         assertNull(free.cells[0].document)
     }
 
     @Test
-    fun `computed column rejects invalid combinations and lints unknown schemas`() {
+    fun `computed column is rejected with a hint that shows the equivalent value column`() {
+        writeDerivedFixtures()
         write(
-            "_views/bad-c1.yaml",
-            "id: c1\nrows: { idPattern: \"*\" }\ncolumns:\n  - label: A\n    path: name\n    computed: { source: { schemaId: s }, path: to }",
+            "_views/old-computed.yaml",
+            """
+            id: old
+            rows: { idPattern: "FLD-*" }
+            columns:
+              - label: DDL型
+                computed:
+                  lookup: { schemaId: attr, via: vtype }
+                  source: { schemaId: vt-ddl }
+                  path: to
+                  values:
+                    - schemaId: vt
+                  default: text
+            """,
+        )
+        val errors = Views.load(ws, SchemaLoader.loadAll(ws)).errors
+        val error = errors.single { "old-computed.yaml" in it }
+        assertTrue("computed は廃止されました" in error, error)
+        // 案内には同じ意味の value の列（参照を辿る via・相手の in・穴の入れ物・既定値）が出る
+        assertTrue("schemaId: attr" in error, error)
+        assertTrue("via: vtype" in error, error)
+        assertTrue("schemaId: vt-ddl" in error, error)
+        assertTrue("path: to" in error, error)
+        assertTrue("first" in error && "text" in error, error)
+    }
+
+    @Test
+    fun `value column reads query row bindings with of`() {
+        setupQueryRows()
+        write(
+            "_views/join-value.yaml",
+            """
+            id: join-value
+            name: 画面×ユースケース（値の式）
+            rows:
+              match:
+                - node: { entity: qscreen, bind: scr }
+                - edge: { relation: uses }
+                - node: { entity: qusecase, bind: uc }
+            columns:
+              - { label: UC名, value: { of: uc, path: name } }
+              - { label: 要約, value: { format: "{name} → {uc}", with: { uc: { of: uc, path: name } } } }
+              - { label: uses数, value: { count: { of: scr, path: "uses[*]" } } }
+            """,
+        )
+        val workspace = Workspace.open(ws)
+        val loaded = Views.load(ws, workspace.schemas)
+        assertTrue(loaded.errors.isEmpty(), loaded.errors.toString())
+        val rows = Views.resolve(loaded.view("join-value")!!, workspace.index, workspace::treeOf)
+        val first = rows.first { it.key == "scr=QS-1|uc=QU-1" }
+        // 束縛の読み出しは結合先の出現から（座標も結合先）
+        assertEquals("ユースX", (first.cells[0].value as YNode.Scalar).value)
+        assertEquals("qucs/QU-1.yaml", first.cells[0].document?.value)
+        assertEquals("画面A → ユースX", (first.cells[1].value as YNode.Scalar).value)
+        // 束縛の配列にわたる集計（行を 1 つの解と見なす）
+        assertEquals("2", (first.cells[2].value as YNode.Scalar).value)
+    }
+
+    // ---------------------------------------------------------------- 値の式の列
+
+    /** TODO 個票（コメントの日付の配列）と、最終更新日をコメントから導く一覧（値の式の列）。 */
+    private fun writeValueColumnFixtures() {
+        write(
+            "_schemas/todo-detail.yaml",
+            """
+            id: todo-detail
+            name: TODO 個票
+            match: "todos/*.yaml"
+            root:
+              type: object
+              fields:
+                - { key: id, type: id, required: true }
+                - { key: name, label: 件名, type: string, role: title }
+                - { key: status, type: string }
+                - key: comments
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: date, label: 日付, type: date }
+                      - { key: body, type: text }
+            """,
         )
         write(
-            "_views/bad-c2.yaml",
-            "id: c2\nrows: { idPattern: \"*\" }\ncolumns:\n  - label: A\n    editable: true\n    computed: { source: { schemaId: s }, path: to }",
+            "todos/T-1.yaml",
+            """
+            id: T-1
+            name: 検索の改善
+            status: doing
+            comments:
+              - { date: "2026-09-02", body: 対応を開始した。 }
+              - { date: "2026-09-05", body: 動作確認を実施した。 }
+              - { date: "2026-09-01", body: 過去の記録を追記した。 }
+            """,
         )
+        write("todos/T-2.yaml", "id: T-2\nname: 未着手の件\nstatus: todo\n")
+        write("todos/T-3.yaml", "id: T-3\nname: 日付なし\nstatus: doing\ncomments:\n  - { date: \"2026-09-02\", body: a }\n  - { body: 日付を忘れた }\n")
         write(
-            "_views/bad-c3.yaml",
-            "id: c3\nrows: { idPattern: \"*\" }\ncolumns:\n  - label: A\n    computed: { source: {}, path: to }",
+            "_views/todo-board.yaml",
+            """
+            id: todo-board
+            name: TODO 一覧
+            rows: { idPattern: "T-*" }
+            columns:
+              - label: 件名
+                schemaId: todo-detail
+                path: name
+              - label: 最終更新日
+                schemaId: todo-detail
+                value:
+                  max: { path: "comments[*].date", type: date }
+              - label: 最終更新日（既定値つき）
+                schemaId: todo-detail
+                value:
+                  first:
+                    - max: { path: "comments[*].date", type: date }
+                    - 未更新
+              - label: 要約
+                schemaId: todo-detail
+                value: "{id} {name}（{status}）"
+              - label: コメント数
+                schemaId: todo-detail
+                value: { count: { path: "comments[*]" } }
+            """,
         )
+    }
+
+    @Test
+    fun `value column aggregates array dates regardless of order and follows unsaved edits`() {
+        writeValueColumnFixtures()
+        val workspace = Workspace.open(ws)
+        val loaded = Views.load(ws, workspace.schemas)
+        assertTrue(loaded.errors.isEmpty(), loaded.errors.toString())
+        val view = loaded.view("todo-board")!!
+        val rows = Views.resolve(view, workspace.index, workspace::treeOf)
+
+        val t1 = rows.first { it.id == "T-1" }
+        val latest = t1.cells[1]
+        assertEquals("2026-09-05", (latest.value as YNode.Scalar).value)
+        assertTrue(latest.computed)
+        // 座標は選ばれた要素（最新のコメント）＝ジャンプ先。来歴は全ての材料
+        assertEquals("todos/T-1.yaml", latest.document?.value)
+        assertEquals(parseYPath("comments[1].date"), latest.path)
+        assertEquals("最大: 2026-09-02・2026-09-05・2026-09-01", latest.trace!!.raw)
+        assertEquals(listOf("comments[0].date", "comments[1].date", "comments[2].date"), latest.trace!!.inputs.map { it.placeholder })
+        // 短い書き方は行の要素の値と予約の名前で穴を埋める（値は特定の 1 か所ではないので座標なし）
+        assertEquals("T-1 検索の改善（doing）", (t1.cells[3].value as YNode.Scalar).value)
+        assertNull(t1.cells[3].document)
+        assertEquals("3", (t1.cells[4].value as YNode.Scalar).value)
+
+        // 配列が無い行: 得られない（値なし・理由つき）。first で既定値に落とせる
+        val t2 = rows.first { it.id == "T-2" }
+        assertNull(t2.cells[1].value)
+        assertEquals("値がありません", t2.cells[1].trace!!.raw)
+        assertEquals("未更新", (t2.cells[2].value as YNode.Scalar).value)
+        assertEquals("0", (t2.cells[4].value as YNode.Scalar).value)
+
+        // 日付が書かれていないコメントが 1 つでもあれば得られない（厳格。表示で気づける）
+        val t3 = rows.first { it.id == "T-3" }
+        assertNull(t3.cells[1].value)
+        assertEquals("comments[1].date が書かれていません", t3.cells[1].trace!!.raw)
+
+        // 未保存の編集に追随: 読み手（loader）が編集中の木を返せば、保存しなくても値が変わる
+        val edited = YamlIO.parse(Files.readString(ws.resolve("todos/T-1.yaml")).replace("2026-09-05", "2026-09-09"))
+        val liveRows = Views.resolve(view, workspace.index) { d -> if (d.value == "todos/T-1.yaml") edited else workspace.treeOf(d) }
+        assertEquals("2026-09-09", (liveRows.first { it.id == "T-1" }.cells[1].value as YNode.Scalar).value)
+
+        // テキスト表現（エージェント・CLI 共用）にも値・座標・来歴が出る
+        val text = Views.renderText(view, rows)
+        assertTrue("最終更新日: 2026-09-05  [todos/T-1.yaml :: comments[1].date  計算値（座標は値の出どころ）]" in text, text)
+        assertTrue("導出: 最大: 2026-09-02・2026-09-05・2026-09-01" in text, text)
+        assertTrue("（値が得られません: comments[1].date が書かれていません）" in text, text)
+        assertTrue("T-1 検索の改善（doing）  [計算値（座標なし）]" in text, text)
+    }
+
+    @Test
+    fun `value column rejects invalid combinations and lints paths and date ordering`() {
+        writeValueColumnFixtures()
+        write("_views/bad-v1.yaml", "id: v1\nrows: { idPattern: \"*\" }\ncolumns:\n  - label: A\n    path: name\n    value: \"{name}\"")
+        write("_views/bad-v2.yaml", "id: v2\nrows: { idPattern: \"*\" }\ncolumns:\n  - label: A\n    editable: true\n    value: \"{name}\"")
+        write("_views/bad-v3.yaml", "id: v3\nrows: { idPattern: \"*\" }\ncolumns:\n  - label: A\n    value: { max: { path: \"comments[*].date\", type: text } }")
         write(
-            "_views/bad-c4.yaml",
-            "id: c4\nrows: { idPattern: \"*\" }\ncolumns:\n  - label: A\n    computed: { source: { schemaId: no-such-schema }, path: to }",
+            "_views/lint-v4.yaml",
+            """
+            id: v4
+            rows: { idPattern: "*" }
+            columns:
+              - label: A
+                schemaId: todo-detail
+                value: { max: { path: "comments[*].date" } }
+              - label: B
+                schemaId: todo-detail
+                value: "{nosuch}"
+              - label: C
+                schemaId: todo-detail
+                value: { max: { path: "comments[*].body", type: date } }
+            """,
         )
-        val loaded = Views.load(ws, SchemaLoader.loadAll(ws))
-        assertTrue(loaded.errors.any { "bad-c1.yaml" in it && "併用できません" in it }, loaded.errors.toString())
-        assertTrue(loaded.errors.any { "bad-c2.yaml" in it && "editable" in it }, loaded.errors.toString())
-        assertTrue(loaded.errors.any { "bad-c3.yaml" in it && "schemaId か fileGlob" in it }, loaded.errors.toString())
-        assertTrue(loaded.errors.any { "bad-c4.yaml" in it && "no-such-schema" in it }, loaded.errors.toString())
+        val errors = Views.load(ws, SchemaLoader.loadAll(ws)).errors
+        assertTrue(errors.any { "bad-v1.yaml" in it && "value と path は併用できません" in it }, errors.toString())
+        assertTrue(errors.any { "bad-v2.yaml" in it && "editable" in it }, errors.toString())
+        assertTrue(errors.any { "bad-v3.yaml" in it && "type は number / date" in it }, errors.toString())
+        assertTrue(errors.any { "lint-v4.yaml" in it && "列「A」" in it && "日付の項目です" in it }, errors.toString())
+        assertTrue(errors.any { "lint-v4.yaml" in it && "列「B」" in it && "「nosuch」" in it && "解決できません" in it }, errors.toString())
+        assertTrue(errors.any { "lint-v4.yaml" in it && "列「C」" in it && "日付の項目ではありません" in it }, errors.toString())
+        // 正しい定義には指摘が無い
+        assertTrue(errors.none { "todo-board.yaml" in it }, errors.toString())
     }
 
     // ---------------------------------------------------------------- 文書ビュー（R14-01）

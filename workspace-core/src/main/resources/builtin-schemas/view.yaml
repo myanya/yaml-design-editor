@@ -220,67 +220,11 @@ root:
                 item:
                   type: string
                 description: 参照元文書のスキーマIDを限定する（省略時は制限なし）
-          - key: computed
-            label: 計算列
-            type: object
-            description: 決定論的射影の計算列（R16-02）。対象IDの出現から読んだ元値（テンプレート）を評価して表示する読み取り専用の派生列（path / backlinks / editable とは併用不可）
-            fields:
-              - key: lookup
-                label: 参照の1ホップ
-                type: object
-                description: 行の出現の ref フィールドを辿り、対象を参照先IDへ切り替える（省略時は行のID自身が対象）
-                fields:
-                  - key: schemaId
-                    label: 参照値を読む出現のスキーマ
-                    type: string
-                  - key: fileGlob
-                    label: 参照値を読む出現のファイル（glob）
-                    type: string
-                  - key: via
-                    label: ref フィールドの相対パス
-                    type: string
-                    required: true
-                    description: 出現要素からの相対YPath（例 type）。この値（ID）の先が対象になる
-              - key: source
-                label: 元値を読む出現
-                type: object
-                required: true
-                description: 元値（テンプレート）を読む対象IDの出現の選択（schemaId / fileGlob のいずれかが必要）
-                fields:
-                  - key: schemaId
-                    label: スキーマ
-                    type: string
-                  - key: fileGlob
-                    label: ファイル（glob）
-                    type: string
-              - key: path
-                label: 元値の相対パス
-                type: string
-                required: true
-                description: source 出現要素からの相対YPath。値の {パス} プレースホルダは評価スコープの値で置換される（例 varchar({maxLength})）
-              - key: values
-                label: プレースホルダ解決に使う出現
-                type: array
-                description: 対象IDのこの出現の値でプレースホルダを解決する（解決順は source 要素 → values（宣言順）→ lookup の起点要素）
-                item:
-                  type: object
-                  fields:
-                    - key: schemaId
-                      label: スキーマ
-                      type: string
-                    - key: fileGlob
-                      label: ファイル（glob）
-                      type: string
-              - key: map
-                label: 値辞書
-                type: map
-                value:
-                  type: string
-                description: 評価後の値を辞書で置換する（辞書に無い値はそのまま）
-              - key: default
-                label: 既定値
-                type: string
-                description: 元値が無いときに使う値
+          - key: value
+            label: 値の式
+            type: string
+            expression: true
+            description: "列の値を値の式で決める読み取り専用の派生列（path / backlinks / definition / editable とは併用不可）。短い書き方は {パス} を含む文字列（例 {name}（{status}））、完全な書き方は値の式（例 {max: {path: \"comments[*].date\", type: date}}＝配列の各要素の date の最大。ひな型の展開 {format: {via: type, in: {schemaId: 写像}, path: to}, scopes: [...]}＝参照を辿った相手のひな型を穴埋め。既定値は {first: [式, 値]}）。穴と path は schemaId / fileGlob で選んだ行の出現の要素から読む。{id} は行の ID・{title} は表示の解決結果"
     - key: detail
       label: 詳細文書
       type: object

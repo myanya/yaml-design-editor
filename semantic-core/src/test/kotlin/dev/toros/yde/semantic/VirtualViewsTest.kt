@@ -3,6 +3,7 @@ package dev.toros.yde.semantic
 import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.getAt
+import dev.toros.yde.semantic.schema.AnyIndex
 import dev.toros.yde.yaml.model.scalarText
 import dev.toros.yde.yaml.YamlIO
 import kotlin.test.Test
@@ -127,7 +128,7 @@ class VirtualViewsTest {
                 VirtualDocSection(label = "被参照", backlinks = backlinksDef),
             ),
             attachments = listOf(
-                VirtualDocAttachment(atText = "items[*]", at = listOf("items", VirtualAnyIndex), backlinks = backlinksDef),
+                VirtualDocAttachment(atText = "items[*]", at = listOf("items", AnyIndex), backlinks = backlinksDef),
             ),
             source = DocumentId("_views/dv.yaml"),
         )
@@ -206,7 +207,7 @@ class VirtualViewsTest {
                 VirtualDocSection(label = "被参照", backlinks = backlinksDef),
             ),
             attachments = listOf(
-                VirtualDocAttachment(atText = "items[*]", at = listOf("items", VirtualAnyIndex), backlinks = backlinksDef),
+                VirtualDocAttachment(atText = "items[*]", at = listOf("items", AnyIndex), backlinks = backlinksDef),
             ),
             source = DocumentId("_views/dv.yaml"),
         )

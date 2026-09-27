@@ -81,7 +81,7 @@
 | V-06 | フェーズ考慮の検証（`requiredFrom` は到達フェーズから・`activeFrom` は到達まで保留・フェーズ別進捗） | `validate/Validator.kt`（`phaseProgress`） | 単体 `PhaseTest` | [schema](architecture/schema.md) |
 | V-07 | 整合検証（`consistency`・導出した期待値と `assert` の関係・組込み定義体・来歴つきの指摘と「導出値を適用」） | `builtin-definitions/consistency.yaml`, `workspace-core/validate/WorkspaceChecks.kt` | 単体 `ConsistencyTest` | [checks](architecture/checks.md) |
 | V-08 | グラフ整合検証（対象型・多重度・非循環・強制スイッチ・いずれも組込み定義体・「参照の追加先を開く」） | `builtin-definitions/relations.yaml`, `semantic-core/schema/Relations.kt`（`EnforcementDef`） | 単体 `GraphIntegrityTest` | [checks](architecture/checks.md) |
-| V-09 | パターン制約（`constraints`・`match` / `also` / `where` / `expect` / `count` / `same` / `check`・否定と「または」・値の式・`repeat`・`forAll`） | `semantic-core/schema/Query.kt`, `semantic-core/semantic/Query.kt` | 単体 `QueryConstraintTest`, `CheckConstraintTest` | [checks](architecture/checks.md) |
+| V-09 | パターン制約（`constraints`・`match` / `also` / `where` / `expect` / `count` / `same` / `check`・否定と「または」・値の式・`repeat`・`forAll`） | `semantic-core/schema/Query.kt`・`semantic/Query.kt` | 単体 `QueryConstraintTest`, `CheckConstraintTest`, `ArrayAggregateCheckTest` | [checks](architecture/checks.md) |
 | V-10 | 重複所有の検証（同一エンティティの複数出現が同じフィールドを所有したら警告・双方に entity 宣言と `owns` があるときだけ） | `workspace-core/validate/CodedDocumentChecks.kt` | 単体 `AspectTest`, `KernelOnlyChecksTest` | [checks](architecture/checks.md) |
 | V-11 | 網羅マトリクス（`matrix`・行 × 列の全組合せに証人があること・組込み定義体で `forAll` へ展開） | `builtin-definitions/matrix.yaml` | 単体 `MatrixTest` | [checks](architecture/checks.md) |
 | V-12 | 遷移検証（`flow`・到達不能・行き止まり・宣言外遷移・到達の計算は専用チェッカーで文面と重大度は定義体） | `semantic-core/semantic/Flow.kt`, `builtin-definitions/flow.yaml` | 単体 `FlowTest` | [checks](architecture/checks.md) |
@@ -123,7 +123,7 @@
 | X-06 | ビューグリッド（セルの直接編集・要約とジャンプ・詳細文書の作成・新規行・バックリンク列・カバレッジ表示・絞り込み） | `ui/ViewGridPane.kt`, `AppState.createViewDetail` / `addViewRow` | 単体 `ViewsTest` | [views](architecture/views.md) |
 | X-07 | 文書ビュー（`kind: document`・`sections` の fields と backlinks・`attachments`・マッチしない文書は既定フォーム） | `core/Views.kt`（`resolveDocument`）, `ui/FormView.kt`（`DocViewSections`） | 単体 `ViewsTest` | [views](architecture/views.md) |
 | X-08 | ビュー定義のスキーマ参照とリント（`definition:` 列の展開・スキーマとの整合を検査し定義エラーとして表示） | `workspace-core/workspace/ViewDefinitions.kt`（`lint`） | 単体 `ViewsTest`, `ViewDefinitionsTest` | [views](architecture/views.md) |
-| X-09 | 計算列（`computed:` の 1 段評価の派生列・来歴つきで他文書の未保存編集にも追随） | `schema/Projection.kt`, `core/Views.kt`（`computedCell`） | 単体 `ViewsTest` | [transform](architecture/transform.md) |
+| X-09 | 値の式の列（`value:`＝ひな型の展開・参照を 1 段辿る `via`・配列の集計 `[*]`・日付の順序 `type: date`・来歴つきで未保存編集にも追随） | `semantic/VirtualViews.kt`（`valueCell`）, `semantic/Values.kt` | 単体 `ViewsTest`, `SemanticViaTest`, `SemanticAggregateTest`, `PathPatternTest` | [transform](architecture/transform.md) |
 | X-10 | クエリ行（`rows: match:` の束縛行・結合先ノードの値をセル化・行の同一性は束縛値の組） | `core/Views.kt`（`rowsQuery`）, `index/Query.kt` | 単体 `ViewsTest` | [views](architecture/views.md) |
 
 ## 7. AI による作成支援

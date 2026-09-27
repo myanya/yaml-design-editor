@@ -410,9 +410,10 @@ internal fun runCli(args: Array<String>): String {
                                     "file" to cell.document?.value,
                                     "path" to cell.path?.pretty(),
                                     "editable" to cell.column.editable.takeIf { it },
-                                    // 計算列（R16-02/04）: 値は評価済み・座標は導出規則の位置。derivation が来歴（元値と入力値の座標）
+                                    // 計算列（値の式の列）: 値は評価済み・座標は値の出どころ（ひな型・読み出した値・選ばれた要素）。
+                                    // derivation が来歴（元値と入力値の座標。値が得られなければ raw がその理由）
                                     "computed" to cell.computed.takeIf { it },
-                                    "derivation" to cell.trace?.takeIf { it.inputs.isNotEmpty() }?.let { t ->
+                                    "derivation" to cell.trace?.takeIf { it.inputs.isNotEmpty() || cell.value == null }?.let { t ->
                                         linkedMapOf<String, Any?>(
                                             "raw" to t.raw,
                                             "inputs" to t.inputs.map { input ->

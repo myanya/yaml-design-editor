@@ -349,17 +349,18 @@ private fun GridCell(state: AppState, cell: ViewCell) {
             BacklinkCell(state, backlinks)
             return@Box
         }
+        if (cell.computed) {
+            // 計算セル（R16-02 / R16-04）: 評価済みの導出値を表示する読み取り専用セル。
+            // 文書キャッシュから再読すると元値（テンプレート）が見えてしまうため、評価結果をそのまま出す。
+            // クリックは直接ジャンプではなく、導出の説明と行き先の選択（規則・入力値）を提示する。
+            // 値の出どころが特定の 1 か所に無いセル（座標なし）も、値と来歴は出す
+            ComputedCellLink(state, cell)
+            return@Box
+        }
         val file = cell.document
         val path = cell.path
         if (file == null || path == null) {
             Text("—", fontSize = 12.sp, color = Palette.SubText, modifier = Modifier.padding(top = 8.dp))
-            return@Box
-        }
-        if (cell.computed) {
-            // 計算セル（R16-02 / R16-04）: 評価済みの導出値を表示する読み取り専用セル。
-            // 文書キャッシュから再読すると元値（テンプレート）が見えてしまうため、評価結果をそのまま出す。
-            // クリックは直接ジャンプではなく、導出の説明と行き先の選択（規則・入力値）を提示する
-            ComputedCellLink(state, cell)
             return@Box
         }
         // セル編集は通常の編集と同じ経路（キャッシュ上の文書ツリー＋markEdited）を通す
@@ -453,8 +454,8 @@ private fun BacklinkCell(state: AppState, backlinks: List<ViewBacklink>) {
 }
 
 /**
- * 計算セル（R16-04 / UX-01）。クリックは直接ジャンプではなく、導出の説明（元値→結果）と
- * 行き先の選択（導出規則・各入力値）をポップアップメニューで提示する。規則を確認したい場合と
+ * 計算セル（値の式の列。R16-04 / UX-01）。クリックは直接ジャンプではなく、導出の説明（元値→結果）と
+ * 行き先の選択（元の値・各入力値）をポップアップメニューで提示する。ひな型を確認したい場合と
  * 入力値を確認したい場合の両方に応える（architecture/transform.md「計算列と決定論的射影」。モーダルではなくポップアップ）。
  */
 @Composable
@@ -469,10 +470,12 @@ private fun ComputedCellLink(state: AppState, cell: ViewCell) {
         )
         DropdownMenu(menuOpen, { menuOpen = false }) {
             val trace = cell.trace
-            // 導出の説明: 元値（テンプレート）→ 評価結果
+            // 導出の説明: 元値（テンプレート・集計の材料）→ 評価結果。値が得られなければ、その理由
             Column(Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
                 Text("計算値（読み取り専用）", fontSize = 10.sp, color = Palette.SubText)
-                if (trace != null && trace.raw != text) {
+                if (trace != null && cell.value == null) {
+                    Text("値が得られません: ${trace.raw}", fontSize = 11.sp, color = Palette.WarnOrange)
+                } else if (trace != null && trace.raw != text) {
                     Text("${trace.raw} → $text", fontSize = 11.sp, color = Palette.SubText)
                 }
             }
@@ -481,7 +484,8 @@ private fun ComputedCellLink(state: AppState, cell: ViewCell) {
                 DropdownMenuItem(
                     text = {
                         Column {
-                            Text("導出規則へ", fontSize = 12.sp)
+                            // 計算セルの座標は値の出どころ（ひな型・読み出した値・最小と最大で選ばれた要素）
+                            Text("元の値へ", fontSize = 12.sp)
                             Text("${cell.document?.value} :: ${cell.path?.pretty()}", fontSize = 10.sp, color = Palette.SubText)
                         }
                     },

@@ -96,7 +96,8 @@ class QueryDeclarationTest {
         assertEquals(listOf("l"), sum.binds())
         assertNull(assertIs<ValueExpr.Aggregate>(ValueExpr.parse(mapOf("count" to mapOf("of" to "l")), "x")).path)
         assertFailsWith<IllegalArgumentException> { ValueExpr.parse(mapOf("sum" to mapOf("of" to "l")), "x") }
-        assertFailsWith<IllegalArgumentException> { ValueExpr.parse(mapOf("count" to mapOf("of" to "l", "path" to "a")), "x") }
+        // count に path を書くと、その束縛の要素の配列の要素を数える（解ではなく）
+        assertEquals(listOf("a"), assertIs<ValueExpr.Aggregate>(ValueExpr.parse(mapOf("count" to mapOf("of" to "l", "path" to "a")), "x")).path)
         assertFailsWith<IllegalStateException> { ValueExpr.parse(mapOf("refCount" to mapOf("of" to "s")), "x") }
         assertFailsWith<IllegalArgumentException> {
             rule("check" to listOf(mapOf("gte" to listOf(mapOf("refCount" to mapOf("of" to "nobody", "dir" to "out")), 1))))

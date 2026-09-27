@@ -5,15 +5,17 @@ import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.model.parseYPath
 import dev.toros.yde.yaml.model.pretty
-import dev.toros.yde.semantic.schema.DerivationDef
 import dev.toros.yde.semantic.schema.ExpressionFields
 import dev.toros.yde.semantic.schema.DisplayCore
 import dev.toros.yde.semantic.schema.FieldDef
 import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.semantic.schema.QueryNodeKind
 import dev.toros.yde.semantic.schema.QuerySpec
+import dev.toros.yde.semantic.schema.ValueExpr
 import dev.toros.yde.semantic.schema.globToRegex
-import dev.toros.yde.semantic.VirtualAnyIndex
+import dev.toros.yde.semantic.schema.AnyIndex
+import dev.toros.yde.semantic.schema.PathPattern
+import dev.toros.yde.semantic.SemanticValues
 import dev.toros.yde.semantic.VirtualBacklinksDef
 import dev.toros.yde.semantic.VirtualDetailDef
 import dev.toros.yde.semantic.VirtualDocAttachment
@@ -130,6 +132,8 @@ object ViewDefinitions {
             rowsDef = VirtualRowsDef(idPattern = idPattern, schemaIds = stringList(rowsMap["schemaIds"]))
         }
         val binds = rowsQuery?.binds
+        // 値の式を受け取る項目（builtin-view の expression: true の印。P31）: どの項目かは印だけが知り、読み取りは共通
+        val expressions = ExpressionFields.read(YamlIO.fromAny(raw), BuiltinSchemaResources.viewSchemaTree)
         val columnsRaw = raw["columns"] as? List<*> ?: error("columns が必要です")
         require(columnsRaw.isNotEmpty()) { "columns には1列以上が必要です" }
         val columns = columnsRaw.flatMapIndexed { i: Int, entry: Any? ->
@@ -140,6 +144,17 @@ object ViewDefinitions {
                 if (binds == null) error("columns[$i]: of は rows: match のビューでのみ使えます")
                 require(of in binds) { "columns[$i]: of の束縛「$of」が rows.match に見つかりません" }
             }
+            if (m.containsKey("value")) {
+                // 値の式の列: 読み取り専用の派生列のため、他の列の種類・編集とは排他。出現の選択（schemaId / fileGlob）は普通の列と同じ
+                listOf("path", "backlinks", "definition", "computed").firstOrNull { m.containsKey(it) }
+                    ?.let { error("columns[$i]: value と $it は併用できません") }
+                if (m["editable"] == true) error("columns[$i]: value 列は editable にできません（読み取り専用の派生列）")
+                val label = m["label"]?.toString()?.takeIf { it.isNotBlank() } ?: error("columns[$i].label が必要です")
+                val value = expressions[listOf("columns", i, "value")] ?: error("columns[$i].value を読めません")
+                return@flatMapIndexed listOf(
+                    VirtualViewColumn(label = label, from = parseSource(m), path = emptyList(), value = value, of = of)
+                )
+            }
             if (m.containsKey("definition")) {
                 if (of != null) error("columns[$i]: definition と of は併用できません")
                 // definition 参照列（R14-02）: named definition のセル型フィールドを列集合に展開する
@@ -147,19 +162,8 @@ object ViewDefinitions {
             }
             val label = m["label"]?.toString()?.takeIf { it.isNotBlank() } ?: error("columns[$i].label が必要です")
             if (m.containsKey("computed")) {
-                // 計算列（R16-02）: 読み取り専用の派生表示のため、出現の選択・編集・他の派生列とは排他。
-                // 宣言のパースは整合検証（consistency.expected）と共有する（SchemaLoader.parseDerivation）
-                listOf("path", "backlinks", "schemaId", "fileGlob").firstOrNull { m.containsKey(it) }
-                    ?.let { error("columns[$i]: computed と $it は併用できません") }
-                if (m["editable"] == true) error("columns[$i]: computed 列は editable にできません（読み取り専用の派生表示）")
-                return@flatMapIndexed listOf(
-                    VirtualViewColumn(
-                        label = label,
-                        path = emptyList(),
-                        computed = DerivationDef.parse(m["computed"], "columns[$i].computed"),
-                        of = of,
-                    )
-                )
+                // 廃止した書き方（テンプレートの導出）: 同じ意味の value の書き方を文面で案内する（黙って別の意味にしない）
+                error("columns[$i]: computed は廃止されました。同じ意味の value で書いてください:\n${computedToValueHint(m)}")
             }
             if (m.containsKey("backlinks")) {
                 // バックリンク列: 被参照の派生表示のため、出現の選択（path / schemaId / fileGlob）や編集とは排他
@@ -190,8 +194,6 @@ object ViewDefinitions {
                 )
             )
         }
-        // 値の式を受け取る項目（builtin-view の expression: true の印。P31）: どの項目かは印だけが知り、読み取りは共通
-        val expressions = ExpressionFields.read(YamlIO.fromAny(raw), BuiltinSchemaResources.viewSchemaTree)
         val detail = (raw["detail"] as? Map<*, *>)?.let { m ->
             // 作り先は、ファイル名として使う式（いまの要素＝行の要素）
             val pattern = expressions[listOf("detail", "filePattern")]?.let { FileNameRules.requireWellFormed(it) }
@@ -363,13 +365,37 @@ object ViewDefinitions {
         )
     }
 
+    /** アタッチ先のパスパターン。YPath 構文＋ `[*]`（任意のインデックス。schema.PathPattern）。 */
+    private fun parseAttachPattern(text: String): List<Any> = PathPattern.parse(text)
+
     /**
-     * アタッチ先のパスパターン。YPath 構文＋ `[*]`（任意のインデックス）。
-     * 実装は `[*]` を仮のインデックス -1 として parseYPath に通し、あとから VirtualAnyIndex へ戻す
-     * （リテラルの `[-1]` はデータのパスとして成立しないため衝突しない）。
+     * 廃止した `computed`（lookup / source / path / values / map / default）から、同じ意味の `value` の列の書き方を作る
+     * （定義エラーの文面に添える案内）。参照を辿る lookup は読み出しと入れ物の `via`、source と values は `in`、
+     * 穴の解決順（source → values → 行の要素）は scopes の並びと末尾に暗黙に続く「いまの要素」で同じになる。
+     * 行の出現（旧 lookup の起点。無ければ source）は列の schemaId / fileGlob にする。
      */
-    private fun parseAttachPattern(text: String): List<Any> =
-        parseYPath(text.replace("[*]", "[-1]")).map { seg -> if (seg == -1) VirtualAnyIndex else seg }
+    private fun computedToValueHint(m: Map<*, *>): String {
+        val comp = m["computed"] as? Map<*, *> ?: return ""
+        val lookup = comp["lookup"] as? Map<*, *>
+        val via = lookup?.get("via")?.toString()?.takeIf { it.isNotBlank() }
+        val source = comp["source"] as? Map<*, *>
+        fun scope(selector: Map<*, *>?): Map<String, Any?> = linkedMapOf<String, Any?>().apply {
+            via?.let { put("via", it) }
+            selector?.let { put("in", it) }
+        }
+        val template = scope(source) + mapOf("path" to comp["path"])
+        val scopes = listOf(scope(source)) + (comp["values"] as? List<*>).orEmpty().map { scope(it as? Map<*, *>) }
+        var expr: Any = linkedMapOf("format" to template, "scopes" to scopes)
+        (comp["map"] as? Map<*, *>)?.let { expr = linkedMapOf("map" to expr, "using" to it) }
+        comp["default"]?.let { expr = linkedMapOf("first" to listOf(expr, it)) }
+        val column = linkedMapOf<String, Any?>("label" to m["label"])
+        val from = lookup ?: source
+        from?.get("schemaId")?.let { column["schemaId"] = it }
+        from?.get("fileGlob")?.let { column["fileGlob"] = it }
+        m["of"]?.let { column["of"] = it }
+        column["value"] = expr
+        return YamlIO.dumpPlain(YamlIO.fromAny(listOf(column))).trim()
+    }
 
     /** 出現の選択条件（schemaId / fileGlob）を、定義の当該オブジェクト直下のキーから読む。 */
     private fun parseSource(m: Map<*, *>): VirtualViewSource = VirtualViewSource(
@@ -425,21 +451,60 @@ object ViewDefinitions {
                     report("列「${col.label}」の参照元スキーマ「$it」が見つかりません")
                 }
                 if (col.backlinks != null) return@forEach
-                col.computed?.let { comp ->
-                    // 計算列（R16-02）: 参照スキーマの存在と、via / path がID要素から静的に解決できるかを検査する
-                    (listOfNotNull(comp.lookup?.from?.schemaId, comp.source.schemaId) + comp.values.mapNotNull { it.schemaId })
-                        .filterNot { it in ids }.distinct()
-                        .forEach { report("列「${col.label}」の計算列のスキーマ「$it」が見つかりません") }
-                    comp.lookup?.let { lk ->
-                        val lkSchemas = schemasBy(lk.from.schemaId, lk.from.fileGlob)
-                        if (lkSchemas.isNotEmpty() && lkSchemas.all { unresolvableFromIdElements(it, lk.via) }) {
-                            report("列「${col.label}」の lookup.via「${lk.via.pretty()}」はスキーマ「${names(lkSchemas)}」のID要素から解決できません")
+                col.value?.let { value ->
+                    // 値の式の列: 読む項目（いまの要素からの読み出し・短い書き方の穴・集計のパス・参照を辿る項目）が出現のスキーマの
+                    // ID要素から解決できるか。`in` / `via` で相手を指定した読み出しの path は相手のスキーマから。
+                    // 集計の順序の種類（type）と項目の型の食い違いも指摘する（日付の項目は type: date で比べる）
+                    col.from.schemaId?.let { sid ->
+                        if (sid !in ids) { report("列「${col.label}」のスキーマ「$sid」が見つかりません"); return@forEach }
+                    }
+                    val expr = value.expr
+                    expr.sources().mapNotNull { it.inDoc?.schemaId }.distinct().filterNot { it in ids }.forEach {
+                        report("列「${col.label}」の in のスキーマ「$it」が見つかりません")
+                    }
+                    val fromSchemas = schemasFor(col.from)
+                    if (fromSchemas.isEmpty()) return@forEach
+                    val reserved = setOf(SemanticValues.RESERVED_ID, SemanticValues.RESERVED_TITLE)
+                    // いまの要素から読む場所: 短い書き方の穴・of も in も via も無い読み出し・集計のパス
+                    val ownReads = expr.holes() +
+                        expr.reads().filter { it.of == null && it.via == null && it.inDoc == null }.map { it.path.pretty() } +
+                        expr.aggregates().filter { it.of == null && it.path != null }.map { PathPattern.pretty(it.path!!) }
+                    ownReads.distinct().filterNot { it in reserved }.forEach { read ->
+                        val pattern = runCatching { PathPattern.parse(read) }.getOrNull() ?: return@forEach
+                        if (fromSchemas.all { unresolvableFromIdElements(it, pattern) }) {
+                            report("列「${col.label}」の値の式が読む「$read」はスキーマ「${names(fromSchemas)}」のID要素から解決できません")
                         }
                     }
-                    val srcSchemas = schemasBy(comp.source.schemaId, comp.source.fileGlob)
-                    if (srcSchemas.isNotEmpty() && srcSchemas.all { unresolvableFromIdElements(it, comp.path) }) {
-                        report("列「${col.label}」の computed.path「${comp.path.pretty()}」はスキーマ「${names(srcSchemas)}」のID要素から解決できません")
+                    // 参照を辿る項目（via）は、行のスキーマの参照（ref）型の項目
+                    expr.sources().filter { it.of == null }.mapNotNull { it.via }.distinct().forEach { via ->
+                        val fields = fromSchemas.flatMap { s -> idElementsOf(s).mapNotNull { staticFieldAt(s, it, via) }.map { s.tree.resolve(it) ?: it } }
+                        when {
+                            fields.isEmpty() -> report("列「${col.label}」の via「${via.pretty()}」はスキーマ「${names(fromSchemas)}」のID要素から解決できません")
+                            fields.none { it.type == FieldType.REF } -> report("列「${col.label}」の via「${via.pretty()}」は参照（ref）型の項目ではありません（参照の線として辿ります）")
+                        }
                     }
+                    // 相手を指定した読み出しの path は、相手のスキーマ（in の指定）のID要素から
+                    expr.reads().filter { it.of == null && (it.via != null || it.inDoc != null) }.forEach { get ->
+                        val targetSchemas = schemasBy(get.inDoc?.schemaId, get.inDoc?.fileGlob)
+                        if (targetSchemas.isNotEmpty() && targetSchemas.all { unresolvableFromIdElements(it, get.path) }) {
+                            report("列「${col.label}」の path「${get.path.pretty()}」はスキーマ「${names(targetSchemas)}」のID要素から解決できません")
+                        }
+                    }
+                    value.expr.aggregates()
+                        .filter { it.of == null && it.path != null && it.fn != ValueExpr.AggregateFn.COUNT }
+                        .forEach { agg ->
+                            val pattern = agg.path ?: return@forEach
+                            val types = fromSchemas.flatMap { s ->
+                                idElementsOf(s).mapNotNull { staticFieldAt(s, it, pattern) }.map { (s.tree.resolve(it) ?: it).type }
+                            }.distinct()
+                            if (types.isEmpty()) return@forEach
+                            val subject = "${agg.fn.id} が読む「${PathPattern.pretty(pattern)}」"
+                            if (FieldType.DATE in types && agg.kind != ValueExpr.OrderKind.DATE) {
+                                report("列「${col.label}」の${subject}は日付の項目です（type: date を書くと日付として比べます）")
+                            } else if (agg.kind == ValueExpr.OrderKind.DATE && FieldType.DATE !in types) {
+                                report("列「${col.label}」の${subject}は日付の項目ではありません（type: date は日付の項目に書きます）")
+                            }
+                        }
                     return@forEach
                 }
                 col.from.schemaId?.let { sid ->
@@ -609,7 +674,7 @@ object ViewDefinitions {
             val next: FieldDef? = when {
                 def.type == FieldType.OBJECT && seg is String -> staticChildren(schema, def).firstOrNull { it.key == seg }
                 def.type == FieldType.MAP && seg is String -> def.value
-                def.type == FieldType.ARRAY && (seg is Int || seg === VirtualAnyIndex) -> def.item
+                def.type == FieldType.ARRAY && (seg is Int || seg === AnyIndex) -> def.item
                 else -> null
             }
             current = next ?: return null

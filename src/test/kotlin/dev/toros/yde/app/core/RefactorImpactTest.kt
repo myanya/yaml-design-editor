@@ -1,5 +1,6 @@
 package dev.toros.yde.app.core
 
+import dev.toros.yde.workspace.RefactoringImpact
 import dev.toros.yde.yaml.edit.YamlOperation
 import java.nio.file.Files
 import java.nio.file.Path
@@ -104,5 +105,59 @@ class RefactorImpactTest {
         val ws = Workspace.open(dir)
         val warnings = RefactorImpact.fieldDeleteWarnings(ws, "details.priority")
         assertTrue(warnings.any { "tasks.yaml" in it && "壊れます" in it }, warnings.toString())
+    }
+
+    @Test
+    fun `値の式の列の穴とパスと参照の項目も改名に追随する`() {
+        write("_schemas/person.yaml", """
+            id: person-schema
+            match: "people/*.yaml"
+            root:
+              type: object
+              fields:
+                - { key: id, type: id }
+                - { key: name, type: string }
+        """)
+        write("_schemas/task.yaml", """
+            id: task-schema
+            match: "tasks/**/*.yaml"
+            root:
+              type: object
+              fields:
+                - { key: id, type: id }
+                - { key: title, type: string }
+                - { key: owner, type: ref }
+                - key: details
+                  type: object
+                  fields:
+                    - { key: priority, type: string }
+        """)
+        write("_views/tasks-value.yaml", """
+            id: task-value
+            rows: { idPattern: "TASK-*" }
+            columns:
+              - { label: 要約, value: "{title}（{details.priority}）" }
+              - label: 優先度
+                value: { path: details.priority }
+              - label: 担当者名
+                value:
+                  format: { via: owner, in: { schemaId: person-schema }, path: name }
+                  scopes:
+                    - { via: owner, in: { schemaId: person-schema } }
+        """)
+        val ws = Workspace.open(dir)
+        fun opsOf(impact: RefactoringImpact.Impact) = impact.changes.first { it.document.value == "_views/tasks-value.yaml" }
+            .operations.filterIsInstance<YamlOperation.SetScalar>().map { it.value }
+        // 短い書き方の穴
+        assertEquals(listOf("{name}（{details.priority}）"), opsOf(RefactorImpact.fieldRename(ws, "task-schema", "title", "name")))
+        // 穴と、いまの要素からの読み出しの path
+        assertEquals(
+            setOf("{title}（{details.urgency}）", "details.urgency"),
+            opsOf(RefactorImpact.fieldRename(ws, "task-schema", "details.priority", "urgency")).toSet(),
+        )
+        // 参照を辿る項目（読み出しと入れ物の両方）
+        assertEquals(listOf("assignee", "assignee"), opsOf(RefactorImpact.fieldRename(ws, "task-schema", "owner", "assignee")))
+        // 相手のスキーマ（in）から解決する path
+        assertEquals(listOf("fullName"), opsOf(RefactorImpact.fieldRename(ws, "person-schema", "name", "fullName")))
     }
 }

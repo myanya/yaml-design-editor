@@ -4,10 +4,13 @@ import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.model.getAt
+import dev.toros.yde.yaml.model.pretty
 import dev.toros.yde.yaml.model.scalarText
+import dev.toros.yde.yaml.structure.StructureValidator
 import dev.toros.yde.semantic.schema.CheckOp
 import dev.toros.yde.semantic.schema.DerivationSelector
 import dev.toros.yde.semantic.schema.EntityRole
+import dev.toros.yde.semantic.schema.PathPattern
 import dev.toros.yde.semantic.schema.ValueExpr
 import java.math.BigDecimal
 import java.math.MathContext
@@ -33,6 +36,22 @@ object SemanticExpression {
     /** Get（単一値）: 出現要素からの相対パスのスカラー値。値集合は作らない。 */
     fun textAt(tree: (DocumentId) -> YNode?, occ: Occurrence, path: YPath): String? =
         scalarText(nodeAt(tree, occ, path))
+
+    /** 集計の材料 1 件: 出現要素からの相対パス（placeholder）・値（書かれていなければ null）・絶対座標（要素が読めなければ null）。 */
+    data class Collected(val placeholder: String, val value: String?, val document: DocumentId?, val path: YPath?)
+
+    /**
+     * Get（複数の場所）: 出現要素からのパスのパターンに合う場所の値（PathPattern.expand。`[*]` は配列の全ての要素に広がる）。
+     * σ は固定のまま（出現は 1 つ）で、集合は 1 つの項の中にだけ現れる。出現の要素そのものが読めなければ値なしの 1 件
+     * （得られない理由を、呼び出し側が場所ごとに扱えるように）。
+     */
+    fun collect(tree: (DocumentId) -> YNode?, occ: Occurrence, pattern: List<Any>): List<Collected> {
+        val element = tree(occ.document)?.let { getAt(it, occ.path) }
+            ?: return listOf(Collected(PathPattern.pretty(pattern), null, null, null))
+        return PathPattern.expand(element, pattern).map { rel ->
+            Collected(rel.pretty(), scalarText(getAt(element, rel)), occ.document, occ.path + rel)
+        }
+    }
 
     /**
      * 要素述語（σ 固定の単一値比較。3値）: eq / ne はスカラー文字列の等値、順序系（lte / gte / lt / gt）は
@@ -99,19 +118,52 @@ object SemanticExpression {
         return numberText(result)
     }
 
+    /** 集計の結果: 値と、最小・最大で選ばれた材料の番号（合計・件数では null）。 */
+    data class Aggregated(val text: String, val winner: Int?)
+
     /**
-     * 集計（SP-03）: 合計・最小・最大。どれかが数値として読めなければ null（得られない＝判定保留）。
-     * 値が1つも無いとき、合計は 0・最小と最大は null。件数は値を読まないため、ここでは扱わない。
+     * 集計（SP-03）: 合計・最小・最大・件数。kind は順序の種類（数値か日付）。どれかがその種類として読めなければ null
+     * （得られない＝判定保留）。値が1つも無いとき、合計は 0・最小と最大は null。件数は値を読まない。
      */
-    fun aggregate(fn: ValueExpr.AggregateFn, values: List<String>): String? {
-        val numbers = values.map { numberOf(it) ?: return null }
-        return when (fn) {
-            ValueExpr.AggregateFn.SUM -> numberText(numbers.fold(BigDecimal.ZERO) { acc, n -> acc + n })
-            ValueExpr.AggregateFn.MIN -> numbers.minOrNull()?.let(::numberText)
-            ValueExpr.AggregateFn.MAX -> numbers.maxOrNull()?.let(::numberText)
-            ValueExpr.AggregateFn.COUNT -> values.size.toString()
+    fun aggregate(fn: ValueExpr.AggregateFn, values: List<String>, kind: ValueExpr.OrderKind = ValueExpr.OrderKind.NUMBER): String? =
+        aggregateDetailed(fn, values, kind)?.text
+
+    /**
+     * 集計（結果の出どころつき）。最小・最大は同じ値が複数あれば最初の材料を選ぶ（決定的）。
+     * 日付（YYYY-MM-DD）は文字の順がそのまま日付の順なので、読めることを確かめて文字で比べ、値はそのまま返す。
+     */
+    fun aggregateDetailed(fn: ValueExpr.AggregateFn, values: List<String>, kind: ValueExpr.OrderKind): Aggregated? {
+        if (fn == ValueExpr.AggregateFn.COUNT) return Aggregated(values.size.toString(), null)
+        return when (kind) {
+            ValueExpr.OrderKind.NUMBER -> {
+                val numbers = values.map { numberOf(it) ?: return null }
+                when (fn) {
+                    ValueExpr.AggregateFn.SUM -> Aggregated(numberText(numbers.fold(BigDecimal.ZERO) { acc, n -> acc + n }), null)
+                    ValueExpr.AggregateFn.MIN -> numbers.withIndex().minByOrNull { it.value }?.let { Aggregated(numberText(it.value), it.index) }
+                    ValueExpr.AggregateFn.MAX -> numbers.withIndex().maxByOrNull { it.value }?.let { Aggregated(numberText(it.value), it.index) }
+                    ValueExpr.AggregateFn.COUNT -> null
+                }
+            }
+            ValueExpr.OrderKind.DATE -> {
+                val dates = values.map { dateOf(it) ?: return null }
+                when (fn) {
+                    ValueExpr.AggregateFn.MIN -> dates.withIndex().minByOrNull { it.value }?.let { Aggregated(it.value, it.index) }
+                    ValueExpr.AggregateFn.MAX -> dates.withIndex().maxByOrNull { it.value }?.let { Aggregated(it.value, it.index) }
+                    // 日付は足せない（定義の読み取りが弾く）
+                    ValueExpr.AggregateFn.SUM, ValueExpr.AggregateFn.COUNT -> null
+                }
+            }
         }
     }
+
+    /** 順序の種類として読めるか（数値・日付）。 */
+    fun readable(kind: ValueExpr.OrderKind, text: String): Boolean = when (kind) {
+        ValueExpr.OrderKind.NUMBER -> numberOf(text) != null
+        ValueExpr.OrderKind.DATE -> dateOf(text) != null
+    }
+
+    /** 日付として読めれば、その表記（前後の空白を除く）。規則は date 型の項目の検証と同じ 1 か所（StructureValidator.isDateText）。 */
+    private fun dateOf(text: String): String? = text.trim().takeIf { StructureValidator.isDateText(it) }
 
     /** 「空」の判定（where の empty）: 書かれていない・空文字・null・空の配列・空の object。 */
     fun isEmpty(node: YNode?): Boolean = when (node) {
