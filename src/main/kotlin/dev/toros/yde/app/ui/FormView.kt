@@ -768,8 +768,10 @@ private fun ReadOnlyValueText(text: String?, modifier: Modifier = Modifier) {
 private fun ScalarTextEditor(ctx: FormCtx, field: FieldDef, slot: Slot, singleLine: Boolean) {
     val node = slot.get()
     val text = (node as? YNode.Scalar)?.value?.toString() ?: ""
+    // 桁区切り（display: grouped）: 見せ方だけの宣言。編集中は元の表記で、打ち込んだ桁区切りは値から落とす
+    val numberDisplay = field.hints.numberDisplay?.takeIf { field.type == FieldType.INT || field.type == FieldType.NUMBER }
     if (ctx.readOnly) {
-        ReadOnlyValueText(text)
+        ReadOnlyValueText(numberDisplay?.format(text) ?: text)
         return
     }
     val typeError = when (field.type) {
@@ -779,10 +781,11 @@ private fun ScalarTextEditor(ctx: FormCtx, field: FieldDef, slot: Slot, singleLi
     }
     CompactTextField(
         value = text,
-        onValueChange = { ctx.setScalar(slot, it, field.type) },
+        onValueChange = { ctx.setScalar(slot, if (numberDisplay != null) it.replace(",", "") else it, field.type) },
         singleLine = singleLine,
         isError = typeError,
         textStyle = fieldTextStyle,
+        unfocusedText = numberDisplay?.let { d -> { s: String -> d.format(s) } },
         placeholder = {
             val hint = when (field.type) {
                 FieldType.DATE -> "YYYY-MM-DD"

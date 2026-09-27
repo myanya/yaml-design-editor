@@ -25,7 +25,7 @@ root:
             values:
               - { value: income, label: 収入 }
               - { value: expense, label: 支出 }
-          - { key: amount, label: 金額, type: int, required: true }
+          - { key: amount, label: 金額, type: int, required: true, display: grouped }
           - { key: category, label: 費目, type: ref, idPattern: "CAT-*", scope: { schemaIds: [categories] }, required: true }
           - { key: month, label: 月, type: ref, idPattern: "M-*", scope: { schemaIds: [months] }, required: true }
           - { key: memo, label: メモ, type: string, role: title }

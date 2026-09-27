@@ -205,6 +205,11 @@ root:
             label: 一覧上で編集可
             type: boolean
             default: false
+          - key: display
+            label: 数の表示の形
+            type: enum
+            values: [grouped]
+            description: "grouped は桁区切り（45000 → 45,000）。画面の見せ方だけで、CLI や書き出しの値は変えない。path の列は項目の側の display: grouped も効く"
           - key: backlinks
             label: バックリンク列
             type: object

@@ -70,6 +70,30 @@ enum class CollectionDisplay(val id: String) {
 }
 
 /**
+ * int / number の表示の形（`display: grouped`＝桁区切り）。表示のヒントで、値そのもの・検証・CLI や書き出しのデータは変えない
+ * （フォームとビューグリッドの見せ方だけ。編集中は元の表記）。
+ */
+enum class NumberDisplay(val id: String) {
+    GROUPED("grouped");
+
+    /** 表示の文字にする。数の表記（符号・整数・小数）でなければそのまま。 */
+    fun format(text: String): String = when (this) {
+        GROUPED -> PLAIN_NUMBER.matchEntire(text.trim())?.let { m ->
+            val (sign, whole, fraction) = m.destructured
+            sign + whole.reversed().chunked(3).joinToString(",").reversed() + fraction
+        } ?: text
+    }
+
+    companion object {
+        private val PLAIN_NUMBER = Regex("""([-+]?)(\d+)(\.\d+)?""")
+
+        fun parse(value: String?): NumberDisplay? = value?.let { raw ->
+            entries.firstOrNull { it.id == raw } ?: error("int / number の display は grouped（桁区切り）だけです: $raw")
+        }
+    }
+}
+
+/**
  * enum の選択肢1件（R10-03）。データ・検証・cases のキー・AI生成の制約は常に `value` を使い、
  * label / description はフォーム表示専用。文字列だけの選択肢は label / description なしと等価。
  */
@@ -148,14 +172,17 @@ data class FieldHints(
     val options: List<EnumOption> = emptyList(),
     /** ARRAY / MAP の一覧表示形式（table / list。未指定は自動判定。R12-06）。 */
     val display: CollectionDisplay? = null,
+    /** INT / NUMBER の表示の形（grouped＝桁区切り）。 */
+    val numberDisplay: NumberDisplay? = null,
     /** 新規作成時の初期値。 */
     val default: Any? = null,
 ) {
-    /** 定義への参照（`$ref`）の解決: 使う側に書いたラベル・説明・一覧の見せ方は、定義の側より優先。選択肢のラベルと初期値は、定義の側のもの。 */
+    /** 定義への参照（`$ref`）の解決: 使う側に書いたラベル・説明・見せ方は、定義の側より優先。選択肢のラベルと初期値は、定義の側のもの。 */
     fun over(target: FieldHints): FieldHints = target.copy(
         label = label ?: target.label,
         description = description ?: target.description,
         display = display ?: target.display,
+        numberDisplay = numberDisplay ?: target.numberDisplay,
     )
 }
 

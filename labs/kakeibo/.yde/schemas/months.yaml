@@ -12,7 +12,7 @@ root:
     - { key: id, label: ID, type: id, required: true, description: "M-YYYY-MM" }
     - { key: yearMonth, label: 年月, type: string, required: true, role: title, description: "YYYY-MM" }
     - { key: prev, label: 前月, type: ref, idPattern: "M-*", scope: { schemaIds: [months] } }
-    - { key: opening, label: 期首残高, type: int, required: true, description: "月初の残高。前月の期末残高を手で写す" }
+    - { key: opening, label: 期首残高, type: int, required: true, display: grouped, description: "月初の残高。前月の期末残高を手で写す" }
 constraints:
   - id: month-matches-date
     description: 取引の日付は、取引が指す月に入っていること

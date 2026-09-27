@@ -46,6 +46,11 @@ definitions:
             - key: max
               label: 最大値
               type: int
+            - key: display
+              label: 表示の形
+              type: enum
+              values: [grouped]
+              description: grouped は桁区切り（45000 → 45,000）。フォームとビューの見せ方だけで、値・検証・CLI や書き出しは変えない
           number:
             - key: min
               label: 最小値
@@ -53,6 +58,11 @@ definitions:
             - key: max
               label: 最大値
               type: number
+            - key: display
+              label: 表示の形
+              type: enum
+              values: [grouped]
+              description: grouped は桁区切り（12345.5 → 12,345.5）。フォームとビューの見せ方だけで、値・検証・CLI や書き出しは変えない
           enum:
             - key: values
               label: 選択肢

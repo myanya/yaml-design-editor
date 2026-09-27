@@ -23,6 +23,34 @@ class DisplayTest {
     private fun schemaOf(text: String): SchemaDef =
         SchemaLoader.parseSchemaText(text.trimIndent(), Path.of("_schemas/test.yaml"))
 
+    // ---------------------------------------------------------------- 数の表示の形（display: grouped）
+
+    @Test
+    fun `int と number の display は桁区切りの宣言で 配列の display とは別の意味`() {
+        val schema = schemaOf(
+            """
+            id: ledger
+            name: 台帳
+            match: "book/**/*.yaml"
+            root:
+              type: object
+              fields:
+                - { key: amount, type: int, display: grouped }
+                - { key: rate, type: number }
+                - { key: items, type: array, display: table, item: { type: string } }
+            """
+        )
+        val fields = schema.resolve(schema.root)!!.fields.map { schema.resolve(it)!! }
+        assertEquals(dev.toros.yde.semantic.schema.NumberDisplay.GROUPED, fields[0].hints.numberDisplay)
+        assertNull(fields[0].hints.display)
+        assertNull(fields[1].hints.numberDisplay)
+        assertEquals(dev.toros.yde.semantic.schema.CollectionDisplay.TABLE, fields[2].hints.display)
+        assertNull(fields[2].hints.numberDisplay)
+        // 型に合わない値は定義エラー
+        assertFails { schemaOf("id: a\nname: a\nmatch: \"x/*.yaml\"\nroot: { type: object, fields: [ { key: n, type: int, display: table } ] }") }
+        assertFails { schemaOf("id: a\nname: a\nmatch: \"x/*.yaml\"\nroot: { type: object, fields: [ { key: l, type: array, display: grouped, item: { type: string } } ] }") }
+    }
+
     // ---------------------------------------------------------------- 予約語規約
 
     @Test

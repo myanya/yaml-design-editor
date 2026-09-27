@@ -6,6 +6,7 @@ columns:
   - { label: 年月, schemaId: months, path: yearMonth }
   - { label: 期首残高, schemaId: months, path: opening }
   - label: 収入
+    display: grouped
     schemaId: months
     value:
       sum:
@@ -18,6 +19,7 @@ columns:
             - node: { entity: transaction, bind: tx }
           where: [ { of: tx, path: kind, equals: income } ]
   - label: 食費
+    display: grouped
     schemaId: months
     value:
       sum:
@@ -31,6 +33,7 @@ columns:
             - edge: { via: category }
             - node: { id: CAT-FOOD }
   - label: 支出
+    display: grouped
     schemaId: months
     value:
       sum:
@@ -43,6 +46,7 @@ columns:
             - node: { entity: transaction, bind: tx }
           where: [ { of: tx, path: kind, equals: expense } ]
   - label: 期末残高
+    display: grouped
     schemaId: months
     value:
       subtract:

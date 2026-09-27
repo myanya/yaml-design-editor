@@ -174,6 +174,39 @@ class ViewsTest {
     }
 
     @Test
+    fun `column display grouped is parsed for path and value columns`() {
+        write(
+            "_views/grouped.yaml",
+            """
+            id: grouped
+            name: 桁区切り
+            rows: { idPattern: "SCR-*" }
+            columns:
+              - { label: 名前, schemaId: screen-list, path: name }
+              - { label: 幅, schemaId: screen-list, path: width, display: grouped }
+              - { label: 合計, schemaId: screen-list, value: { sum: { path: "sizes[*]" } }, display: grouped }
+            """
+        )
+        write(
+            "_views/bad-display.yaml",
+            """
+            id: bad-display
+            name: 桁区切りの誤り
+            rows: { idPattern: "SCR-*" }
+            columns:
+              - { label: 幅, schemaId: screen-list, path: width, display: table }
+            """
+        )
+        val loaded = Views.load(ws)
+        val view = loaded.view("grouped")!!
+        assertEquals(
+            listOf(null, dev.toros.yde.semantic.schema.NumberDisplay.GROUPED, dev.toros.yde.semantic.schema.NumberDisplay.GROUPED),
+            view.columns.map { it.display },
+        )
+        assertTrue(loaded.errors.any { "bad-display.yaml" in it && "grouped" in it }, loaded.errors.toString())
+    }
+
+    @Test
     fun `load collects definition errors`() {
         write("_views/broken.yaml", "id: broken\ncolumns:\n  - label: A\n    path: name")
         write("_views/badpattern.yaml", "id: bad\nrows: { idPattern: \"X-*\" }\ncolumns:\n  - { label: A, path: name }\ndetail: { filePattern: \"x/{id}.md\" }")

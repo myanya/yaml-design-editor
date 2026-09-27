@@ -41,6 +41,7 @@
 `{count: {all: ...}}` で件数、`{sum: {all: {..., path: amount}}}` で合計になり、セルのクリックで集めた要素へジャンプできます。`{each: 配列の式, value: 式}` は各要素をいまの要素として式を当てた配列です（例 `{sum: {each: {path: lines}, value: {multiply: [{path: price}, {path: qty}]}}}`）。`limit` は書けません
   - ビュー定義のリントは、式が読む項目がスキーマから解決できるか、`via` が参照型の項目か、日付の項目を `type: date` なしで比べていないかを指摘します
   - 古い書き方 `computed`（`lookup` / `source` / `path` / `values` / `map` / `default`）は定義エラーになり、同じ意味の `value` の書き方が文面に出ます
+- **桁区切り**: 列に `display: grouped` を書くと、数のセルを桁区切り（45000 → 45,000）で見せます。`path` の列は、項目の側の `display: grouped`（[schema.md](schema.md)）でも同じに見えます。見せ方だけで、値・CLI `view`・エクスポートは変わりません。編集できる列は、編集中だけ元の表記に戻ります
 - **状態列**: カバレッジルール（[schema.md](schema.md)）の充足状況を行ごとに表示します
 
 ```yaml

@@ -391,7 +391,11 @@ private fun GridCell(state: AppState, cell: ViewCell) {
                         Display.seqHeaderText(value, doc.schema, fieldDef.item, maxItems = 2, titleLookup = titleLookup)
                     else -> Views.cellText(value)
                 }
-            } else Views.cellText(value)
+            } else {
+                // 桁区切り（display: grouped）は列の宣言か、項目の側の宣言（見せ方だけ。値は変えない）
+                val grouping = cell.column.display ?: fieldDef?.hints?.numberDisplay
+                Views.cellText(value).let { t -> grouping?.format(t) ?: t }
+            }
             CellLink(state, cell, text)
             return@Box
         }
@@ -409,7 +413,10 @@ private fun GridCell(state: AppState, cell: ViewCell) {
             FormCtx(state, doc, localIds)
         }
         if (fieldDef != null) {
-            ValueEditor(ctx, fieldDef, slot, path)
+            // 列に display: grouped があれば、編集のエディタにも桁区切りの見せ方を渡す（項目の側の宣言が無いとき）
+            val effective = cell.column.display?.takeIf { fieldDef.hints.numberDisplay == null }
+                ?.let { fieldDef.copy(hints = fieldDef.hints.copy(numberDisplay = it)) } ?: fieldDef
+            ValueEditor(ctx, effective, slot, path)
         } else {
             // スキーマなし文書のセルは元の型を保って編集する
             val text = (value as? YNode.Scalar)?.value?.toString() ?: ""
@@ -461,7 +468,7 @@ private fun BacklinkCell(state: AppState, backlinks: List<ViewBacklink>) {
 @Composable
 private fun ComputedCellLink(state: AppState, cell: ViewCell) {
     var menuOpen by remember { mutableStateOf(false) }
-    val text = Views.cellText(cell.value)
+    val text = Views.cellText(cell.value).let { t -> cell.column.display?.format(t) ?: t }  // 桁区切りは列の宣言
     Box {
         Text(
             text, fontSize = 12.sp, maxLines = 2,

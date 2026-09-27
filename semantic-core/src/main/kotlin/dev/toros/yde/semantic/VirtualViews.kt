@@ -7,6 +7,7 @@ import dev.toros.yde.yaml.model.getAt
 import dev.toros.yde.yaml.model.pretty
 import dev.toros.yde.semantic.schema.DerivationSelector
 import dev.toros.yde.semantic.schema.ExpressionValue
+import dev.toros.yde.semantic.schema.NumberDisplay
 import dev.toros.yde.semantic.schema.PathPattern
 import dev.toros.yde.semantic.schema.QueryNodeKind
 import dev.toros.yde.semantic.schema.QuerySpec
@@ -75,6 +76,8 @@ data class VirtualViewColumn(
     val backlinks: VirtualBacklinksDef? = null,
     val value: ExpressionValue? = null,
     val of: String? = null,
+    /** 数の表示の形（grouped＝桁区切り。画面の見せ方だけで、CLI や書き出しの値は変えない）。path の列は項目の側の宣言も効く。 */
+    val display: NumberDisplay? = null,
 )
 
 /** 行の集合の定義。idPattern に一致する論理IDが行になる。 */

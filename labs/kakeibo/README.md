@@ -30,7 +30,7 @@ inbox/
 
 - **月はエンティティ**。取引は `date` のほかに `month` を参照で書きます。冗長ですが、検査「取引の日付は月に入っていること」で守ります。
 - **残高は手書きの期首残高と検査**。累計の列は作りません。月の文書に `opening` を手で書き、検査「当月の期首残高＝前月の期首＋前月の収入−前月の支出」で連続を守ります。不便になったら、前月の期末を写す組込みエージェントを考えます。
-- **金額は区分（`kind`）と正の数**。収入と支出は `where` で分けて別々に合計します。
+- **金額は区分（`kind`）と正の数**。収入と支出は `where` で分けて別々に合計します。金額の項目とビューの合計の列は `display: grouped` で桁区切りに見せます（値は変えません）。
 - **取り込みは追記と採番**。銀行の CSV には ID が無いので、取り込みが `TX-YYYYMMDD-NN` を付けます（同じ日の続き番号）。同じ明細（日付・区分・金額・メモが同じ）が既にあれば取り込まないので、同じ CSV を 2 回入れても増えず、手で直した費目も戻りません。費目は `CAT-UNSORTED`（未分類）で入り、検査が「未分類のまま」を警告します。
 
 ## 検査とビュー
@@ -60,14 +60,16 @@ CSV の各行を「見出し → セル」の項にして、ひな型（`build`�
 - その取引が 8 月に数えられるので、9 月の期首残高 112000 は前月から計算した値と合わず、`opening-continues` がエラーにします。
 - 9 月の食費は 45000 で予算 40000 を超えているので、`budget-overrun` が警告します。
 
-取り込みは実行していません（`inbox/` に CSV を置いてあるだけ）。取り込むと 2021 年 8 月の取引が 2 件でき、`unsorted-category` の警告が 2 件増えます。
+- `book/tx/2021-08.yaml` はサンプル CSV を取り込んだ結果（2 件）で、費目が `CAT-UNSORTED` のままなので `unsorted-category` が 2 件警告します。費目を手で直すと消えます。
+
+合計はエラー 2・警告 3 です。同じ CSV をもう一度取り込んでも、同じ明細として飛ばされて増えません。
 
 ## 動かし方
 
 ```bash
 ./gradlew run --args="labs/kakeibo"                                  # GUI で開く（台帳スペース → ビュー。設計スペース → 連携で取り込み）
-./gradlew runCli -q --args="validate labs/kakeibo"                   # 検査（上の 3 件が出る）
-./gradlew runCli -q --args="view labs/kakeibo monthly-sums"          # 月×費目（金額）
-./gradlew runCli -q --args="import labs/kakeibo import-smbc labs/kakeibo/inbox/smbc-sample.csv"          # 取り込みのプレビュー
-./gradlew runCli -q --args="import labs/kakeibo import-smbc labs/kakeibo/inbox/smbc-sample.csv --apply"  # 取り込む（book/tx/2021-08.yaml ができる）
+./gradlew runCli -q --args="validate labs/kakeibo"                   # 検査（上の 5 件が出る）
+./gradlew runCli -q --args="view labs/kakeibo monthly-sums"          # 月×費目（金額）。CLI の数は桁区切りしない
+./gradlew runCli -q --args="import labs/kakeibo import-smbc labs/kakeibo/inbox/smbc-sample.csv"          # 取り込みのプレビュー（取り込み済みなので追加 0 件）
+./gradlew runCli -q --args="import labs/kakeibo import-smbc labs/kakeibo/inbox/smbc-sample.csv --apply"  # 取り込む（book/tx/2021-08.yaml を消してから試すと 2 件できる）
 ```

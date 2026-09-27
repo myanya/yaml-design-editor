@@ -139,7 +139,9 @@ object SchemaTreeParser {
                 label = m["label"]?.toString(),
                 description = m["description"]?.toString(),
                 options = options,
-                display = CollectionDisplay.parse(m["display"]?.toString()),
+                // display は型で意味が変わる: array / map は一覧の見せ方（table / list）、int / number は桁区切り（grouped）
+                display = if (type == FieldType.INT || type == FieldType.NUMBER) null else CollectionDisplay.parse(m["display"]?.toString()),
+                numberDisplay = if (type == FieldType.INT || type == FieldType.NUMBER) NumberDisplay.parse(m["display"]?.toString()) else null,
                 default = m["default"],
             ),
         )

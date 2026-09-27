@@ -19,7 +19,7 @@ root:
           - { key: id, label: ID, type: id, required: true }
           - { key: month, label: 月, type: ref, idPattern: "M-*", scope: { schemaIds: [months] }, required: true }
           - { key: category, label: 費目, type: ref, idPattern: "CAT-*", scope: { schemaIds: [categories] }, required: true }
-          - { key: amount, label: 予算額, type: int, required: true }
+          - { key: amount, label: 予算額, type: int, required: true, display: grouped }
 constraints:
   - id: budget-overrun
     description: 費目の支出の合計が、その月の予算を超えていないこと

@@ -8,6 +8,7 @@ import dev.toros.yde.yaml.model.pretty
 import dev.toros.yde.semantic.schema.ExpressionFields
 import dev.toros.yde.semantic.schema.DisplayCore
 import dev.toros.yde.semantic.schema.FieldDef
+import dev.toros.yde.semantic.schema.NumberDisplay
 import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.semantic.schema.QueryNodeKind
 import dev.toros.yde.semantic.schema.QuerySpec
@@ -152,7 +153,7 @@ object ViewDefinitions {
                 val label = m["label"]?.toString()?.takeIf { it.isNotBlank() } ?: error("columns[$i].label が必要です")
                 val value = expressions[listOf("columns", i, "value")] ?: error("columns[$i].value を読めません")
                 return@flatMapIndexed listOf(
-                    VirtualViewColumn(label = label, from = parseSource(m), path = emptyList(), value = value, of = of)
+                    VirtualViewColumn(label = label, from = parseSource(m), path = emptyList(), value = value, of = of, display = parseDisplay(m, i))
                 )
             }
             if (m.containsKey("definition")) {
@@ -191,6 +192,7 @@ object ViewDefinitions {
                     path = parseYPath(m["path"]?.toString() ?: error("columns[$i].path が必要です")),
                     editable = m["editable"] as? Boolean ?: false,
                     of = of,
+                    display = parseDisplay(m, i),
                 )
             )
         }
@@ -398,6 +400,10 @@ object ViewDefinitions {
     }
 
     /** 出現の選択条件（schemaId / fileGlob）を、定義の当該オブジェクト直下のキーから読む。 */
+    /** 列の数の表示の形（display: grouped＝桁区切り）。 */
+    private fun parseDisplay(m: Map<*, *>, i: Int): NumberDisplay? =
+        runCatching { NumberDisplay.parse(m["display"]?.toString()) }.getOrElse { error("columns[$i]: ${it.message}") }
+
     private fun parseSource(m: Map<*, *>): VirtualViewSource = VirtualViewSource(
         schemaId = m["schemaId"]?.toString(),
         fileGlob = m["fileGlob"]?.toString(),

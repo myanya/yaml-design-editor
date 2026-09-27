@@ -136,6 +136,8 @@ fun CompactTextField(
     placeholder: (@Composable () -> Unit)? = null,
     trailingIcon: (@Composable () -> Unit)? = null,
     suffix: (@Composable () -> Unit)? = null,
+    /** フォーカスが無いときの見せ方（桁区切りなど）。編集中は元の文字のまま。 */
+    unfocusedText: ((String) -> String)? = null,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
@@ -143,13 +145,14 @@ fun CompactTextField(
     LaunchedEffect(value) {
         if (value != localValue) localValue = value
     }
+    val shown = if (!focused && unfocusedText != null) unfocusedText(localValue) else localValue
     val borderColor = when {
         isError -> Palette.ErrorRed
         focused -> Palette.Primary
         else -> Palette.Border
     }
     BasicTextField(
-        value = localValue,
+        value = shown,
         onValueChange = {
             localValue = it
             onValueChange(it)
