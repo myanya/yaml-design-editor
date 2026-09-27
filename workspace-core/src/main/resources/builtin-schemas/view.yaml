@@ -224,7 +224,7 @@ root:
             label: 値の式
             type: string
             expression: true
-            description: "列の値を値の式で決める読み取り専用の派生列（path / backlinks / definition / editable とは併用不可）。短い書き方は {パス} を含む文字列（例 {name}（{status}））、完全な書き方は値の式（例 {max: {path: \"comments[*].date\", type: date}}＝配列の各要素の date の最大。ひな型の展開 {format: {via: type, in: {schemaId: 写像}, path: to}, scopes: [...]}＝参照を辿った相手のひな型を穴埋め。既定値は {first: [式, 値]}）。穴と path は schemaId / fileGlob で選んだ行の出現の要素から読む。{id} は行の ID・{title} は表示の解決結果"
+            description: "列の値を値の式で決める読み取り専用の派生列（path / backlinks / definition / editable とは併用不可）。短い書き方は {パス} を含む文字列（例 {name}（{status}））、完全な書き方は値の式（例 {max: {path: \"comments[*].date\", type: date}}＝配列の各要素の date の最大。ひな型の展開 {format: {via: type, in: {schemaId: 写像}, path: to}, scopes: [...]}＝参照を辿った相手のひな型を穴埋め。解の件数 {count: {match: [...], where: [...]}}＝行の要素を起点にしたパターンの解の件数（検査の count と同じ数え方。数える node に bind を書く）。既定値は {first: [式, 値]}）。穴と path は schemaId / fileGlob で選んだ行の出現の要素から読む。{id} は行の ID・{title} は表示の解決結果"
     - key: detail
       label: 詳細文書
       type: object

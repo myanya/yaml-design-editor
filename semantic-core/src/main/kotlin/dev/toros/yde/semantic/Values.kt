@@ -9,6 +9,7 @@ import dev.toros.yde.semantic.schema.Projection
 import dev.toros.yde.semantic.schema.QueryDir
 import dev.toros.yde.semantic.schema.QueryEdgeStep
 import dev.toros.yde.semantic.schema.QueryNodeKind
+import dev.toros.yde.semantic.schema.QuerySpec
 import dev.toros.yde.semantic.schema.ValueExpr
 
 /**
@@ -50,6 +51,11 @@ object SemanticValues {
          * of を省略した集計（いまの要素の中の配列）は、ここを通らずに評価器が自分で計算する。
          */
         val aggregate: ((ValueExpr.Aggregate) -> AggregateOutcome?)? = null,
+        /**
+         * 解の件数（count に match）: 起点のノードを固定してパターン照合を評価する（クエリの評価器＝SemanticQuery.matchesFrom を
+         * 持つ側が渡す。無ければ「得られない」）。
+         */
+        val countFrom: ((SemanticQueryNodeRef, QuerySpec) -> SemanticQueryResult?)? = null,
         /** 予約の名前の値（{id} {title} など）。 */
         val reserved: Map<String, String> = emptyMap(),
         /** 穴に入る値の直し方（ファイル名に使える文字に直す、など）。 */
@@ -227,6 +233,7 @@ object SemanticValues {
                 }
             }
             is ValueExpr.Aggregate -> aggregateOf(expr)
+            is ValueExpr.CountMatches -> countMatchesOf(expr)
             is ValueExpr.Arith -> {
                 val operands = expr.operands.map { eval(it) ?: return null }
                 SemanticExpression.arith(expr.op, operands.map { it.text })?.let { text ->
@@ -261,6 +268,35 @@ object SemanticValues {
                 if (reason == null) reason = o.reason
             }
             return fallbackSide()
+        }
+
+        /**
+         * 解の件数（count に match）: 起点（of の束縛か、いまの要素）を固定してパターン照合を評価し、解の件数を値にする。
+         * 起点が match の先頭の node に合わなければ 0。来歴は見つかった解の束縛（起点を除く）で、各ノードの座標へ行ける。
+         * 元の値は数えたノードの並び。評価器が無い（検査の外でグラフを持たない環境）なら理由を残して得られない。
+         */
+        private fun countMatchesOf(expr: ValueExpr.CountMatches): SemanticCheckSide? {
+            val node = node(expr.of) ?: run {
+                fail(if (expr.of == null) "いまの要素がありません" else "束縛「${expr.of}」がありません")
+                return fallbackSide()
+            }
+            val countFrom = env.countFrom ?: run {
+                fail("解の件数はここでは数えられません（ビューの列で数えます）")
+                return fallbackSide()
+            }
+            val result = countFrom(node, expr.query) ?: run {
+                fail("解の件数を数えられません")
+                return fallbackSide()
+            }
+            val origin = expr.query.start.bind
+            val counted = result.rows.map { row -> row.bindings.filter { (name, _) -> name != origin } }
+            val inputs = counted.flatMap { bindings ->
+                bindings.map { (name, ref) -> SemanticValueInput(name, ref.id, ref.document, ref.path) }
+            }
+            val n = result.total.toString()
+            val raw = if (counted.isEmpty() || counted.all { it.isEmpty() }) n
+            else "件数: " + counted.joinToString("・") { b -> b.values.joinToString("/") { it.id } }
+            return SemanticCheckSide(text = n, id = node.id, raw = raw, inputs = inputs)
         }
 
         /**

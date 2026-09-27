@@ -31,6 +31,9 @@ import dev.toros.yde.yaml.model.pretty
  * - 書かれた場所の数 `{occurrenceCount: {of: 束縛名, schema: スキーマID または その並び, fileGlob: パターン, role: defining | detail}}`
  *   （SP-05。その ID が書かれている場所のうち、指定に合うものの数。指定は省略でき、すべて「かつ」。
  *   `distinct: type` を書くと、場所の数ではなく、それらの場所で宣言されているエンティティ型の種類の数）
+ * - 解の件数 `{count: {of: 束縛名, match: [...], where: [...], also: {...}}}`（起点を固定したパターン照合の解の件数。起点は of の
+ *   束縛（省略＝いまの要素）で、match の先頭の node に合うときだけ数える。数えるのは束縛の組の distinct 件数＝制約の count と
+ *   同じ規則で、数えたい対象の node に bind を書く。検査の外（ビューの列）だけで書ける——検査の中では制約の count で数える）
  * 評価（どの出現から読むか・得られない値の扱い）は semantic.SemanticQuery の check 判定が担う。
  * 計算そのもの（文字列と数値の純粋な関数）は semantic.SemanticExpression にある。
  *
@@ -90,6 +93,13 @@ sealed interface ValueExpr {
                 (regex == null || regex!!.matches(relPath)) &&
                 (role == null || occRole == role)
     }
+
+    /**
+     * 解の件数（CORE-CALCULUS「Aggregate」の Count(Query)）。of の束縛（null＝いまの要素）を起点に固定してパターン照合を評価し、
+     * 解（束縛の組）の distinct 件数を返す。制約の count と同じ数え方で、評価はクエリの評価器（環境の countFrom）が担う。
+     * 検査の外（ビューの列）だけで書ける（検査の中では、パターンの件数は制約の count の役目）。
+     */
+    data class CountMatches(val of: String?, val query: QuerySpec) : ValueExpr
 
     /**
      * 集計（SP-03）。解にわたる集計（of＝束縛名）と、1 つの要素の中の配列にわたる集計（path に `[*]`）の両方。
@@ -156,8 +166,8 @@ sealed interface ValueExpr {
         is First -> options.flatMap { it.sources() }.distinct()
         is Unary -> input.sources()
         is Arith -> operands.flatMap { it.sources() }.distinct()
-        // 参照の本数・書かれた場所の数・集計は、値を読む出現を選ばない（数はグラフから・集計は定義した側を優先して1つに決める）
-        is RefCount, is OccurrenceCount, is Aggregate -> emptyList()
+        // 参照の本数・書かれた場所の数・集計・解の件数は、値を読む出現を選ばない（数はグラフから・集計は定義した側を優先して1つに決める）
+        is RefCount, is OccurrenceCount, is Aggregate, is CountMatches -> emptyList()
     }
 
     /** この式が使う束縛の名前（パース時に、束縛が見つかるかを点検する）。 */
@@ -165,6 +175,7 @@ sealed interface ValueExpr {
         is RefCount -> listOfNotNull(of)
         is OccurrenceCount -> listOfNotNull(of)
         is Aggregate -> listOfNotNull(of)
+        is CountMatches -> listOfNotNull(of)
         is Format -> (template.binds() + scopes.mapNotNull { it.of } + with.values.flatMap { it.binds() }).distinct()
         is MapValue -> input.binds()
         is First -> options.flatMap { it.binds() }.distinct()
@@ -182,7 +193,8 @@ sealed interface ValueExpr {
         is First -> options.any { it.hasAggregate() }
         is Unary -> input.hasAggregate()
         is Arith -> operands.any { it.hasAggregate() }
-        is Get, is Literal, is RefCount, is OccurrenceCount -> false
+        // 解の件数は自分のパターンを起点から評価する（外のクエリの解の一覧は要らない）
+        is Get, is Literal, is RefCount, is OccurrenceCount, is CountMatches -> false
     }
 
     /**
@@ -190,7 +202,7 @@ sealed interface ValueExpr {
      * テンプレートが書かれた文書の側で、プレースホルダが解決できるかを先に点検する（テンプレート健全性）のに使う。
      */
     fun templateReads(): List<Get> = when (this) {
-        is Get, is Literal, is RefCount, is OccurrenceCount, is Aggregate -> emptyList()
+        is Get, is Literal, is RefCount, is OccurrenceCount, is Aggregate, is CountMatches -> emptyList()
         is Format -> template.reads() + template.templateReads() + with.values.flatMap { it.templateReads() }
         is MapValue -> input.templateReads()
         is First -> options.flatMap { it.templateReads() }
@@ -201,7 +213,7 @@ sealed interface ValueExpr {
     /** この式が値を読む読み出し（入れ子を含む）。 */
     fun reads(): List<Get> = when (this) {
         is Get -> listOf(this)
-        is Literal, is RefCount, is OccurrenceCount, is Aggregate -> emptyList()
+        is Literal, is RefCount, is OccurrenceCount, is Aggregate, is CountMatches -> emptyList()
         is Format -> template.reads() + with.values.flatMap { it.reads() }
         is MapValue -> input.reads()
         is First -> options.flatMap { it.reads() }
@@ -225,7 +237,7 @@ sealed interface ValueExpr {
         is First -> options.flatMap { it.currentReads() }.distinct()
         is Unary -> input.currentReads()
         is Arith -> operands.flatMap { it.currentReads() }.distinct()
-        is RefCount, is OccurrenceCount -> emptyList()
+        is RefCount, is OccurrenceCount, is CountMatches -> emptyList()
     }
 
     /**
@@ -238,7 +250,7 @@ sealed interface ValueExpr {
         is First -> options.flatMap { it.holes() }.distinct()
         is Unary -> input.holes()
         is Arith -> operands.flatMap { it.holes() }.distinct()
-        is Get, is Literal, is RefCount, is OccurrenceCount, is Aggregate -> emptyList()
+        is Get, is Literal, is RefCount, is OccurrenceCount, is Aggregate, is CountMatches -> emptyList()
     }
 
     /** テンプレートの展開の、いまの要素で埋まりうる穴（入れ物を書かないか、参照を辿らない「いまの要素」の入れ物があるとき）。 */
@@ -255,13 +267,14 @@ sealed interface ValueExpr {
         is First -> options.flatMap { it.aggregates() }
         is Unary -> input.aggregates()
         is Arith -> operands.flatMap { it.aggregates() }
-        is Get, is Literal, is RefCount, is OccurrenceCount -> emptyList()
+        is Get, is Literal, is RefCount, is OccurrenceCount, is CountMatches -> emptyList()
     }
 
     companion object {
         private val GET_KEYS = setOf("of", "in", "path")
         private val READ_KEYS = setOf("of", "in", "path", "via")
         private val AGGREGATE_KEYS = setOf("of", "in", "path", "type")
+        private val COUNT_MATCH_KEYS = setOf("of", "match", "where", "also")
         private val WITH_NAME = Regex("""[A-Za-z][A-Za-z0-9_]*""")
 
         /**
@@ -364,6 +377,7 @@ sealed interface ValueExpr {
                 aggregate != null -> {
                     onlyKeys(setOf(aggregate.id))
                     val a = m[aggregate.id] as? Map<*, *> ?: error("$where.${aggregate.id} はobject（{of, in, path, type}）である必要があります")
+                    if (aggregate == AggregateFn.COUNT && a.containsKey("match")) return parseCountMatches(a, "$where.count", current)
                     a.keys.map { it.toString() }.firstOrNull { it !in AGGREGATE_KEYS }
                         ?.let { error("$where.${aggregate.id}: 未知のキーです: $it（使えるキー: ${AGGREGATE_KEYS.joinToString(", ")}）") }
                     val of = a["of"]?.toString()?.takeIf { it.isNotBlank() } ?: if (current) null else error("$where.${aggregate.id}.of（束縛名）が必要です")
@@ -431,6 +445,19 @@ sealed interface ValueExpr {
                 is List<*> -> inRaw.mapIndexed { i, s -> ScopeRef(of, parseSelector(s, "$where.in[$i]"), via) }
                 else -> listOf(ScopeRef(of, parseSelector(inRaw, "$where.in"), via))
             }
+        }
+
+        /**
+         * 解の件数（count に match）。起点は of の束縛（省略＝いまの要素）で、match・where・also はクエリと同じ書き方。
+         * limit は書けない（全ての解を数える）。検査の外（ビューの列）だけで書ける——検査の中では、パターンの解の件数は
+         * 制約の count の役目で、式は σ を固定した単一値の計算に留める。
+         */
+        private fun parseCountMatches(a: Map<*, *>, where: String, current: Boolean): CountMatches {
+            require(current) { "$where に match は検査の中では書けません（パターンの解の件数は制約の count で数えます）" }
+            a.keys.map { it.toString() }.firstOrNull { it !in COUNT_MATCH_KEYS }
+                ?.let { error("$where: 未知のキーです: $it（match と一緒に書けるキー: ${COUNT_MATCH_KEYS.joinToString(", ")}）") }
+            val of = a["of"]?.toString()?.takeIf { it.isNotBlank() }
+            return CountMatches(of, QuerySpec.parse(a, where, ignoreKeys = setOf("of")))
         }
 
         /**

@@ -95,9 +95,11 @@
 - **読み取り（共通）**: `ExpressionFields.read` / `readAll` がスキーマの木に沿って文書を辿り（`SemanticRewrite.walkDocument`）、印のある項目の値を `ExpressionValue`（書かれたままの文字・式・場所・表示名）にする。スキーマ文書・ビュー定義・利用者の文書が同じ関数を通り、結果は `WorkspaceSchema.expressions`（場所 → 式）。使う側は `expressionAt("filePattern")` のように引く。
 - **評価（共通）**: `SemanticValues.evaluate(式, 環境)`。環境は使う側が作る（いまの要素・予約の名前 `{id}` `{title}`・穴の値の直し方・代表値）。クエリの check 判定も、解と割当てを環境に写してこれを呼ぶ。`of` の省略はいまの要素、`format` の `with` は穴の名前 → 式。埋まらなかった穴は `Result.missing`。
 - **文面（共通）**: `ExpressionMessages`＝式として読めない・穴が埋まらない、の 1 つの表。
-- **式の中身**: 読み出し `{of, in, path, via}`・決まった値・`format`・`map`・`first`・`length` / `upper` / `lower` / `number`・四則演算・`refCount`・`occurrenceCount`・集計（`sum` / `min` / `max` / `count`）。条件分岐・利用者の関数・非決定的な値（今日の日付・乱数・連番）は入れない。連番は `IdSuggest` の領分。
+- **式の中身**: 読み出し `{of, in, path, via}`・決まった値・`format`・`map`・`first`・`length` / `upper` / `lower` / `number`・四則演算・`refCount`・`occurrenceCount`・集計（`sum` / `min` / `max` / `count`）・解の件数（`count` に `match`）。条件分岐・利用者の関数・非決定的な値（今日の日付・乱数・連番）は入れない。連番は `IdSuggest` の領分。
 - **参照を辿る（`via`）**: 読み出し `{via: type, in: 指定, path}` と `format` の入れ物 `{via: type, in: 指定}`。行の要素に書かれた参照の線（検査の `edge` と同じ突き合わせ）をちょうど 1 本辿り、相手の出現を `in` で選ぶ（定義出現優先）。検査の中では書けない（辿るのはクエリの `edge`）。`scopes` を書いた式でも、末尾に「いまの要素」が続く。
 - **集計の 2 つの広がり**: `of`（束縛名）は同じ起点の全ての解にわたる集計、パスの `[*]` は 1 つの要素の中の配列の要素にわたる集計（`comments[*].date`。σ は固定のままで、集合は項の中にだけ現れる）。両方を同時に書いてもよい。
+- **解の件数（`count` に `match`）**: 起点（いまの要素か `of` の束縛）を固定してパターン照合を評価し、解の distinct 件数を値にする（制約の `count` と同じ数え方）。
+  評価は環境の `countFrom`（`SemanticQuery.matchesFrom`）で、ビューが渡す。起点が先頭の node に合わなければ 0。来歴は数えたノード。検査の中では書けない（パターンの件数は制約の `count`）。
 - **順序の種類**: `type: number / date`（`min` / `max` の比べ方。省略時は数値。表記から意味を決めないため、日付は宣言する。日付として読める規則は date 型の検証と同じ `StructureValidator.isDateText`）。
 - **集計の規則**: 値が書かれていない・種類として読めない材料が 1 つでもあれば得られない（理由は `Result.reason`）。最小・最大の出どころは選ばれた材料、来歴は全ての材料。計算は `SemanticValues.aggregate` の 1 実装で、クエリの check とビューの列が共有する。
 - **使う側**: 新しい文書のファイル名（`filePattern`）・ひな型の中身（`scaffold`）・ビューの列 `value`（[views.md](views.md)）。

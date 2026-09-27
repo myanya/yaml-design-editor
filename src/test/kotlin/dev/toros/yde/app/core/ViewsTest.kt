@@ -818,6 +818,176 @@ class ViewsTest {
         assertTrue(errors.none { "todo-board.yaml" in it }, errors.toString())
     }
 
+    // ---------------------------------------------------------------- 解の件数の列（カテゴリ × 状態の集計表）
+
+    /** カテゴリ一覧・TODO 一覧（カテゴリ参照）・TODO 個票（状態）と、行＝カテゴリ・列＝状態ごとの件数の集計表。 */
+    private fun writeCountFixtures() {
+        write(
+            "_schemas/category-list.yaml",
+            """
+            id: category-list
+            match: "todos/category-list.yaml"
+            entity: { type: category, idPattern: "CAT-*", defines: true }
+            root:
+              type: object
+              fields:
+                - key: categories
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: id, type: id, required: true }
+                      - { key: name, type: string, role: title }
+            """,
+        )
+        write(
+            "_schemas/todo-list.yaml",
+            """
+            id: todo-list
+            match: "todos/todo-list.yaml"
+            entity: { type: todo, idPattern: "TODO-*", defines: true }
+            root:
+              type: object
+              fields:
+                - key: todos
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: id, type: id, required: true }
+                      - { key: title, type: string, role: title }
+                      - { key: category, type: ref, idPattern: "CAT-*", scope: { schemaIds: [category-list] } }
+            """,
+        )
+        write(
+            "_schemas/todo-detail.yaml",
+            """
+            id: todo-detail
+            match: "todos/details/*.yaml"
+            entity: { type: todo, idPattern: "TODO-*", defines: false }
+            root:
+              type: object
+              fields:
+                - { key: id, type: id, required: true }
+                - { key: status, type: enum, values: [OPEN, IN_PROGRESS, CLOSED, CANCELED] }
+            """,
+        )
+        write(
+            "todos/category-list.yaml",
+            """
+            categories:
+              - { id: CAT-001, name: 環境整備 }
+              - { id: CAT-002, name: データ登録 }
+            """,
+        )
+        write(
+            "todos/todo-list.yaml",
+            """
+            todos:
+              - { id: TODO-001, title: 一覧の作成, category: CAT-001 }
+              - { id: TODO-002, title: TODO の追加, category: CAT-002 }
+              - { id: TODO-003, title: 個票の作成, category: CAT-002 }
+              - { id: TODO-004, title: 集計表の検討, category: CAT-001 }
+              - { id: TODO-005, title: README の更新, category: CAT-002 }
+              - { id: TODO-006, title: 未分類の作業 }
+              - { id: TODO-007, title: 中止した作業, category: CAT-001 }
+            """,
+        )
+        mapOf(
+            "TODO-001" to "CLOSED", "TODO-002" to "CLOSED", "TODO-003" to "CLOSED", "TODO-004" to "OPEN",
+            "TODO-005" to "IN_PROGRESS", "TODO-006" to "OPEN", "TODO-007" to "CANCELED",
+        ).forEach { (id, status) -> write("todos/details/$id.yaml", listOf("id: $id", "status: $status").joinToString(System.lineSeparator())) }
+        fun countColumn(label: String, status: String?) = """
+              - label: $label
+                schemaId: category-list
+                value:
+                  count:
+                    match:
+                      - node: { entity: category, bind: cat }
+                      - edge: { via: category, dir: in }
+                      - node: { entity: todo, bind: t }
+        """.trimEnd() + (status?.let { System.lineSeparator() + "                    where: [ { of: t, path: status, equals: $it } ]" } ?: "")
+        write(
+            "_views/category-status.yaml",
+            """
+            id: category-status
+            name: カテゴリ×ステータス
+            rows: { idPattern: "CAT-*" }
+            columns:
+              - { label: カテゴリ名, schemaId: category-list, path: name }
+            ${countColumn("未着手", "OPEN")}
+            ${countColumn("対応中", "IN_PROGRESS")}
+            ${countColumn("完了", "CLOSED")}
+            ${countColumn("中止", "CANCELED")}
+            ${countColumn("合計", null)}
+            """,
+        )
+        // クエリ行のビュー: 束縛（of）を起点にして数える
+        write(
+            "_views/category-status-query.yaml",
+            """
+            id: category-status-query
+            name: カテゴリ×未着手（クエリ行）
+            rows:
+              match:
+                - node: { entity: category, bind: c }
+            columns:
+              - { label: カテゴリ名, path: name }
+              - label: 未着手
+                value:
+                  count:
+                    of: c
+                    match:
+                      - node: { entity: category, bind: cat }
+                      - edge: { via: category, dir: in }
+                      - node: { entity: todo, bind: t }
+                    where: [ { of: t, path: status, equals: OPEN } ]
+            """,
+        )
+    }
+
+    @Test
+    fun `value column counts pattern solutions from the row and lists the counted nodes`() {
+        writeCountFixtures()
+        val workspace = Workspace.open(ws)
+        val loaded = Views.load(ws, workspace.schemas)
+        assertTrue(loaded.errors.isEmpty(), loaded.errors.toString())
+        val view = loaded.view("category-status")!!
+        val rows = Views.resolve(view, workspace.index, workspace::treeOf)
+        fun cells(id: String) = rows.first { it.id == id }.cells.drop(1).map { (it.value as YNode.Scalar).value }
+        // 行＝カテゴリ、列＝状態ごとの件数と合計。カテゴリの無い TODO-006 はどの行にも数えられない
+        assertEquals(listOf("1", "0", "1", "1", "3"), cells("CAT-001"))
+        assertEquals(listOf("0", "1", "2", "0", "3"), cells("CAT-002"))
+
+        // 来歴: 数えた TODO（座標は一覧の定義出現＝ジャンプ先）。件数そのものは特定の 1 か所ではない（座標なし）
+        val open = rows.first { it.id == "CAT-001" }.cells[1]
+        assertTrue(open.computed)
+        assertNull(open.document)
+        assertEquals("件数: TODO-004", open.trace!!.raw)
+        val input = open.trace!!.inputs.single()
+        assertEquals("t", input.placeholder)
+        assertEquals("TODO-004", input.value)
+        assertEquals("todos/todo-list.yaml", input.document?.value)
+        assertEquals(parseYPath("todos[3]"), input.path)
+        val zero = rows.first { it.id == "CAT-002" }.cells[1]
+        assertEquals("0", (zero.value as YNode.Scalar).value)
+        assertTrue(zero.trace!!.inputs.isEmpty())
+
+        // 未保存の編集に追随: 読み手が編集中の木を返せば、個票の状態を変えただけで件数が動く
+        val edited = YamlIO.parse(listOf("id: TODO-004", "status: IN_PROGRESS").joinToString(System.lineSeparator()))
+        val liveRows = Views.resolve(view, workspace.index) { d -> if (d.value == "todos/details/TODO-004.yaml") edited else workspace.treeOf(d) }
+        assertEquals(listOf("0", "1", "1", "1", "3"), liveRows.first { it.id == "CAT-001" }.cells.drop(1).map { (it.value as YNode.Scalar).value })
+
+        // テキスト表現（エージェント・CLI 共用）にも件数と来歴が出る
+        val text = Views.renderText(view, rows)
+        assertTrue("未着手: 1  [計算値（座標なし）]" in text, text)
+        assertTrue("導出: 件数: TODO-004" in text, text)
+
+        // クエリ行のビュー: of の束縛を起点に数える
+        val queryRows = Views.resolve(loaded.view("category-status-query")!!, workspace.index, workspace::treeOf)
+        assertEquals(listOf("1", "0"), queryRows.map { (it.cells[1].value as YNode.Scalar).value })
+    }
+
     // ---------------------------------------------------------------- 文書ビュー（R14-01）
 
     /** 文書ビュー: 画面一覧文書のフォームに、実装テーブル（被参照）の表セクションを合成する。 */

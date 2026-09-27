@@ -445,6 +445,8 @@ OccurrenceCount(binding, schema, role)    -- その ID が書かれた場所（�
 `[*]` の集計は場所を項の中で広げ、σ は固定のまま（PathPattern）。順序の種類は式に宣言し、表記から意味を決めない。
 読めない要素が1つでもあれば Unknown。
 
+`Count(Query)` は値の式 `count: {match}` としても使える（起点を固定した解の件数。ビューの列。検査の中では Constraint の count）。
+
 今後、
 
 - all / any

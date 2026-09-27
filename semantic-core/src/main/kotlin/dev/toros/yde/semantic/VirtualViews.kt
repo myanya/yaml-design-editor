@@ -303,7 +303,7 @@ object VirtualViews {
          * 「いまの要素」として、値の式を 1 つの環境で評価する（SemanticValues＝検査の check と同じ評価器。整合検証の期待値と同じ解決）。
          * セルの座標は値の出どころ（ひな型の場所・読み出した値の場所・最小と最大で選ばれた要素。合計は無し）。来歴は全ての材料。
          * 得られなければ値なしで、理由を来歴の元値に残す（表示で気づける）。クエリ行では束縛（of）も読める（割当ては渡さず、
-         * 定義出現優先の選び方に任せる）。
+         * 定義出現優先の選び方に任せる）。解の件数（count に match）は行の要素を起点に固定したパターン照合（SemanticQuery.matchesFrom）。
          */
         fun valueCell(
             column: VirtualViewColumn,
@@ -325,6 +325,7 @@ object VirtualViews {
                 nodes = nodes, graph = graph,
                 refsInto = { id -> refs.filter { it.targetId == id } },
                 aggregate = aggregate,
+                countFrom = { origin, spec -> SemanticQuery.matchesFrom(ids, refs, graph, spec, origin.id, ::cachedTree) },
                 reserved = buildMap {
                     put(SemanticValues.RESERVED_ID, node.id)
                     node.title?.let { put(SemanticValues.RESERVED_TITLE, it) }
