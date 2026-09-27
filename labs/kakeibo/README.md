@@ -15,6 +15,7 @@
   views/
     monthly-sums.yaml     # 月×費目（金額）: 収入・食費・支出・期末残高
     monthly-counts.yaml   # 月×費目（件数）
+    transactions.yaml     # 取引明細（日付の新しい順。金額・費目・メモはグリッドで編集できる）
   skills/
     import-smbc.yaml      # 三井住友銀行の CSV を book/tx/ の配列へ取り込む（採番つき）
 book/
@@ -43,6 +44,7 @@ inbox/
 | `unsorted-category` | 取り込んだ取引の費目が未分類のままでないこと | `expect: absent` で「未分類を指す取引が無いこと」（警告） |
 | 月×費目（金額） | 収入・食費・支出・期末残高 | 行＝月を起点に `all` で取引を集め、`sum` と `subtract` |
 | 月×費目（件数） | 食費の件数・支出の件数 | 同じ `all` を `count` に渡す |
+| 取引明細（日付順） | 全取引を日付の新しい順に | `order: { path: date, type: date, direction: desc }`。ID の並びに頼らない |
 
 ## 取り込み（skill `import-smbc`）
 
@@ -70,6 +72,7 @@ CSV の各行を「見出し → セル」の項にして、ひな型（`build`�
 ./gradlew run --args="labs/kakeibo"                                  # GUI で開く（台帳スペース → ビュー。設計スペース → 連携で取り込み）
 ./gradlew runCli -q --args="validate labs/kakeibo"                   # 検査（上の 5 件が出る）
 ./gradlew runCli -q --args="view labs/kakeibo monthly-sums"          # 月×費目（金額）。CLI の数は桁区切りしない
+./gradlew runCli -q --args="view labs/kakeibo transactions"          # 取引明細（日付の新しい順）
 ./gradlew runCli -q --args="import labs/kakeibo import-smbc labs/kakeibo/inbox/smbc-sample.csv"          # 取り込みのプレビュー（取り込み済みなので追加 0 件）
 ./gradlew runCli -q --args="import labs/kakeibo import-smbc labs/kakeibo/inbox/smbc-sample.csv --apply"  # 取り込む（book/tx/2021-08.yaml を消してから試すと 2 件できる）
 ```

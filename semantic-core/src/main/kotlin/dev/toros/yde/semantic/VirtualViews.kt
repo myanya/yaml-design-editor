@@ -5,6 +5,7 @@ import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.model.getAt
 import dev.toros.yde.yaml.model.pretty
+import dev.toros.yde.yaml.model.scalarText
 import dev.toros.yde.semantic.schema.DerivationSelector
 import dev.toros.yde.semantic.schema.ExpressionValue
 import dev.toros.yde.semantic.schema.NumberDisplay
@@ -80,6 +81,16 @@ data class VirtualViewColumn(
     val display: NumberDisplay? = null,
 )
 
+/**
+ * 行の並びの値（order.path）: 並び基準の出現（order の schemaId / fileGlob。無ければ行のどの出現でも）から読んだ値の順。
+ * kind は順序の種類（number / date。null＝文字の順）、descending は向き。値の読めない行は向きによらず後ろ。
+ */
+data class VirtualOrderValue(
+    val path: YPath,
+    val kind: dev.toros.yde.semantic.schema.ValueExpr.OrderKind? = null,
+    val descending: Boolean = false,
+)
+
 /** 行の集合の定義。idPattern に一致する論理IDが行になる。 */
 data class VirtualRowsDef(
     val idPattern: String,
@@ -114,6 +125,8 @@ data class VirtualGridDef(
     val rowKey: String? = null,
     val columns: List<VirtualViewColumn>,
     val orderBy: VirtualViewSource? = null,
+    /** 値の順（order.path）。orderBy は並び基準の出現の選び方として使う。 */
+    val orderValue: VirtualOrderValue? = null,
     val detail: VirtualDetailDef? = null,
     val newRow: VirtualNewRowDef? = null,
     override val source: DocumentId,
@@ -446,7 +459,7 @@ object VirtualViews {
                 )
             }
             .toList()
-        return sortRows(view, rows, rel)
+        return sortRows(view, rows, rel, ::cachedTree)
     }
 
     /**
@@ -546,8 +559,42 @@ object VirtualViews {
         }
     }
 
-    /** 行の並び: orderBy 出現の（ファイル→文書内パス）順 → それ以外はID順で後ろに。 */
-    private fun sortRows(view: VirtualGridDef, rows: List<VirtualRow>, rel: (DocumentId) -> String): List<VirtualRow> {
+    /**
+     * 行の並び。order.path があれば、並び基準の出現（orderBy に合う出現。無ければどの出現でも）から読んだ値の順
+     * （type: number / date か文字の順。読めない行は向きによらず後ろ。同じ値は ID 順）。
+     * 無ければ orderBy 出現の（ファイル→文書内パス）順 → それ以外はID順で後ろに。
+     */
+    private fun sortRows(
+        view: VirtualGridDef,
+        rows: List<VirtualRow>,
+        rel: (DocumentId) -> String,
+        tree: (DocumentId) -> YNode?,
+    ): List<VirtualRow> {
+        val orderValue = view.orderValue
+        if (orderValue != null) {
+            val source = view.orderBy
+            data class Keyed(val row: VirtualRow, val number: java.math.BigDecimal?, val text: String?) {
+                val missing: Boolean get() = number == null && text == null
+            }
+            fun keyOf(row: VirtualRow): Keyed {
+                val text = row.occurrences.asSequence()
+                    .filter { occ -> source == null || source.matches(occ, rel(occ.document)) }
+                    .mapNotNull { occ -> tree(occ.document)?.let { scalarText(getAt(it, occ.path + orderValue.path)) } }
+                    .firstOrNull()
+                return when (orderValue.kind) {
+                    dev.toros.yde.semantic.schema.ValueExpr.OrderKind.NUMBER -> Keyed(row, text?.let(SemanticExpression::numberOf), null)
+                    dev.toros.yde.semantic.schema.ValueExpr.OrderKind.DATE ->
+                        Keyed(row, null, text?.trim()?.takeIf { dev.toros.yde.yaml.structure.StructureValidator.isDateText(it) })
+                    null -> Keyed(row, null, text)
+                }
+            }
+            val byValue: Comparator<Keyed> =
+                if (orderValue.kind == dev.toros.yde.semantic.schema.ValueExpr.OrderKind.NUMBER) compareBy { it.number } else compareBy { it.text }
+            val comparator = compareBy<Keyed> { if (it.missing) 1 else 0 }
+                .then(if (orderValue.descending) byValue.reversed() else byValue)
+                .thenBy { it.row.id }
+            return rows.map(::keyOf).sortedWith(comparator).map { it.row }
+        }
         val orderBy = view.orderBy ?: return rows.sortedBy { it.id }
         fun anchor(row: VirtualRow): ScannedId? = row.occurrences.firstOrNull { orderBy.matches(it, rel(it.document)) }
         val comparator = compareBy<Pair<VirtualRow, ScannedId?>>(

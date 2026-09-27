@@ -225,6 +225,7 @@ object ViewDefinitions {
             rowKey = rowKey,
             columns = columns,
             orderBy = (raw["order"] as? Map<*, *>)?.let { parseSource(it) }?.takeIf { !it.isEmpty },
+            orderValue = (raw["order"] as? Map<*, *>)?.let { parseOrderValue(it) },
             detail = detail,
             newRow = newRow,
             source = source,
@@ -400,6 +401,23 @@ object ViewDefinitions {
     }
 
     /** 出現の選択条件（schemaId / fileGlob）を、定義の当該オブジェクト直下のキーから読む。 */
+    /** 行の並びの値（order.path・type・direction）。path が無ければ従来の出現順で、type / direction は書けない。 */
+    private fun parseOrderValue(m: Map<*, *>): dev.toros.yde.semantic.VirtualOrderValue? {
+        val pathText = m["path"]?.toString()?.takeIf { it.isNotBlank() }
+        if (pathText == null) {
+            listOf("type", "direction").firstOrNull { m.containsKey(it) }?.let { error("order.$it は order.path（並びの値）と一緒に書きます") }
+            return null
+        }
+        val path = runCatching { parseYPath(pathText) }.getOrElse { error("order.path が読めません: $pathText") }
+        val kind = m["type"]?.toString()?.let { dev.toros.yde.semantic.schema.ValueExpr.OrderKind.parse(it, "order") }
+        val descending = when (val d = m["direction"]?.toString()) {
+            null, "asc" -> false
+            "desc" -> true
+            else -> error("order.direction は asc / desc のどちらかです: $d")
+        }
+        return dev.toros.yde.semantic.VirtualOrderValue(path, kind, descending)
+    }
+
     /** 列の数の表示の形（display: grouped＝桁区切り）。 */
     private fun parseDisplay(m: Map<*, *>, i: Int): NumberDisplay? =
         runCatching { NumberDisplay.parse(m["display"]?.toString()) }.getOrElse { error("columns[$i]: ${it.message}") }

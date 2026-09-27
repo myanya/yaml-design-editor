@@ -207,6 +207,64 @@ class ViewsTest {
     }
 
     @Test
+    fun `order path sorts rows by a value read from the anchor occurrence`() {
+        write(
+            "_schemas/tx.yaml",
+            """
+            id: tx
+            name: 取引
+            match: "tx/*.yaml"
+            root:
+              type: object
+              fields:
+                - key: entries
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: id, type: id, required: true }
+                      - { key: date, type: date }
+                      - { key: amount, type: int }
+            """,
+        )
+        write(
+            "tx/a.yaml",
+            """
+            entries:
+              - { id: TX-1, date: "2021-08-31", amount: 9 }
+              - { id: TX-2, date: "2021-08-02", amount: 10000 }
+              - { id: TX-3, amount: 500 }
+              - { id: TX-4, date: "2021-08-15", amount: 10000 }
+            """,
+        )
+        fun view(id: String, order: String) = write(
+            "_views/$id.yaml",
+            """
+            id: $id
+            name: $id
+            rows: { idPattern: "TX-*" }
+            order: $order
+            columns:
+              - { label: 金額, schemaId: tx, path: amount }
+            """,
+        )
+        view("by-date", "{ schemaId: tx, path: date, type: date, direction: desc }")
+        view("by-amount", "{ path: amount, type: number }")
+        view("by-text", "{ path: amount }")
+        view("bad-order", "{ direction: desc }")
+        val workspace = Workspace.open(ws)
+        val loaded = Views.load(ws, workspace.schemas)
+        fun ids(id: String) = Views.resolve(loaded.view(id)!!, workspace.index, workspace::treeOf).map { it.id }
+        // 日付の新しい順。日付の無い行は後ろ
+        assertEquals(listOf("TX-1", "TX-4", "TX-2", "TX-3"), ids("by-date"))
+        // 数として: 9 < 500 < 10000。同じ値は ID 順
+        assertEquals(listOf("TX-1", "TX-3", "TX-2", "TX-4"), ids("by-amount"))
+        // 文字として: "10000" < "500" < "9"
+        assertEquals(listOf("TX-2", "TX-4", "TX-3", "TX-1"), ids("by-text"))
+        assertTrue(loaded.errors.any { "bad-order.yaml" in it && "order.direction" in it }, loaded.errors.toString())
+    }
+
+    @Test
     fun `load collects definition errors`() {
         write("_views/broken.yaml", "id: broken\ncolumns:\n  - label: A\n    path: name")
         write("_views/badpattern.yaml", "id: bad\nrows: { idPattern: \"X-*\" }\ncolumns:\n  - { label: A, path: name }\ndetail: { filePattern: \"x/{id}.md\" }")

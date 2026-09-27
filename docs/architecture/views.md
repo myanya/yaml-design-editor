@@ -25,6 +25,7 @@
 - **セルエディタの型解決**: 列の相対パスから `Views.fieldAt` でフィールド定義を辿る（`resolve` / `effectiveFields` を通す）。直接編集はスカラー系フィールドに限定し、複合値はジャンプで個別フォームへ。
 - **バックリンク列は編集不可の派生表示**: `backlinks` 列は索引の被参照を relation・参照元スキーマで絞って解決し、出現の選択や `editable` とは排他（パースで拒否）。参照元要素の ID は「参照位置をパスの接頭辞に含む最も長いパスの出現」。セルが指す座標は参照値の位置＝ジャンプ先。
 - **値の式の列**（`value`）は読み取り専用の派生表示（計算セル）で、行の出現の要素を「いまの要素」として値の式を評価する。座標は値の出どころ、来歴は材料、得られなければ値なしで理由を来歴に残す（[transform.md「計算列と決定論的射影」](transform.md)）。集合から値へ落とす `all` には、行を 1 つの解と見なした解の一覧と、行の要素を起点に固定した照合（環境の `solveFrom`＝`SemanticQuery.matchesFrom`）を渡す。値が配列ならセルの値は配列の項。
+- **行の並びは 3 段**（`VirtualViews.sortRows`）: `order.path`（`VirtualOrderValue`）があれば並び基準の出現から読んだ値の順（`type: number` は `SemanticExpression.numberOf`、`date` は ISO の文字、無指定は文字の順。読めない行は後ろ、同値は ID 順）、無ければ `order` の出現の文書内順、どちらも無ければ ID 順。値の読み出しは `resolve` の木の読み込みを共有する。
 - **桁区切りは見せ方だけ**: 列の `display: grouped`（`VirtualViewColumn.display`）か、`path` の列の項目の `display: grouped`（`FieldHints.numberDisplay`）で、グリッドのセルの文字を `NumberDisplay.format` に通す。セルの値・`read_view`・CLI `view`・エクスポートは元のまま。編集できる列はエディタに同じヒントを渡す。
 - **クエリ行**（`rows: match:`。`rows: idPattern` と排他）: 行＝クエリの束縛行。行キーは `rowKey:`（省略時は先頭の束縛。kind: entity 限定）。列の `of:` で結合先ノードの値をセル化でき、セルは各束縛ノードの原本座標へ解決される。バックリンク列・値の式の列も `of` の束縛 ID を対象にでき、値の式は行の束縛を式の `of` で読める。行の同一性は `ViewRow.key`（束縛値の組）。`order` は併用不可。
 - **新規行の入口は 2 モード**: `newRow` は配列モード（`file` ＋ `path`: 一覧文書の配列へ要素追加＝未保存編集として積む）とファイルモード（`filePattern`: 詳細文書をスキャフォールドしてディスクへ書込＝索引更新で行が現れる）の排他。スキャフォールドは `detail.filePattern` の「作成」と共通（[schema.md「ひな型」](schema.md)）。`newRow.filePattern` に書ける穴は `{id}` だけ。ビューが宣言するのは「新しい原本がどこで生まれるか」だけ。

@@ -171,7 +171,22 @@ root:
         - key: fileGlob
           label: 並び基準の出現ファイル（glob）
           type: string
-      description: 条件に一致する出現の文書内順で並べる（省略時はID順）
+        - key: path
+          label: 並びの値（相対パス）
+          type: string
+          description: 並び基準の出現の要素から読む値で並べる（例 date）。省略時は出現の文書内順
+        - key: type
+          label: 順序の種類
+          type: enum
+          values: [number, date]
+          description: 値を数として／日付として比べる（省略時は文字の順）。path と一緒に書く
+        - key: direction
+          label: 向き
+          type: enum
+          values: [asc, desc]
+          default: asc
+          description: desc は大きい順・新しい順（値の無い行はどちらでも後ろ）。path と一緒に書く
+      description: 条件に一致する出現の文書内順、または path の値の順で並べる（省略時はID順）
     - key: columns
       label: 列の定義
       type: array

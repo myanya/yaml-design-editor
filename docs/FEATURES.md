@@ -119,7 +119,7 @@
 | X-02 | 一括編集（ルート直下の任意スカラーキー・セッション 1 トランザクション＝Undo 1 回） | `AppState.bulkUpdate`, `core/Documents.kt` | 単体 `AppStateRefactorTest`, `SessionWriteParityTest` | [editing-history](architecture/editing-history.md) |
 | X-03 | グラフレンズ（エンティティ起点の近傍・型と relation で絞った部分グラフ・力学配置） | `ui/WorkspaceViews.kt`（`GraphLensView`）, `ui/GraphLayout.kt` | 単体 `GraphLayoutTest` | [graph-query](architecture/graph-query.md) |
 | X-04 | コマンドパレット（Ctrl+K・ID・ファイル・本文検索・ビュー切替・スペース切替・保存） | `Main.kt`（`CommandPalette`）, `app/AppState.kt`（`searchContent`） | 手動 | [ui](architecture/ui.md) |
-| X-05 | ビュー定義 `_views`（`kind: grid` の行・列・並び・詳細文書・新規行・バックリンク列・`kind: document`） | `core/Views.kt`, `workspace-core/workspace/ViewDefinitions.kt` | 単体 `ViewsTest` | [views](architecture/views.md) |
+| X-05 | ビュー定義 `_views`（`kind: grid` の行・列・並び〔出現順か `order.path` の値の順〕・詳細文書・新規行・バックリンク列・`kind: document`） | `core/Views.kt`, `workspace-core/workspace/ViewDefinitions.kt` | 単体 `ViewsTest` | [views](architecture/views.md) |
 | X-06 | ビューグリッド（セルの直接編集・要約とジャンプ・詳細文書の作成・新規行・バックリンク列・カバレッジ表示・絞り込み・列の桁区切り `display: grouped`） | `ui/ViewGridPane.kt`, `AppState.createViewDetail` / `addViewRow` | 単体 `ViewsTest` | [views](architecture/views.md) |
 | X-07 | 文書ビュー（`kind: document`・`sections` の fields と backlinks・`attachments`・マッチしない文書は既定フォーム） | `core/Views.kt`（`resolveDocument`）, `ui/FormView.kt`（`DocViewSections`） | 単体 `ViewsTest` | [views](architecture/views.md) |
 | X-08 | ビュー定義のスキーマ参照とリント（`definition:` 列の展開・スキーマとの整合を検査し定義エラーとして表示） | `workspace-core/workspace/ViewDefinitions.kt`（`lint`） | 単体 `ViewsTest`, `ViewDefinitionsTest` | [views](architecture/views.md) |
