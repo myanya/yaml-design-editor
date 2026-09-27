@@ -1,0 +1,12 @@
+id: TODO-003
+status: CLOSED
+created_on: '2026-09-22'
+due_on: 2026-09-24
+completed_on: 2026-09-23
+details: TODOリストに基づいて、TODOの個票を３つ作成。
+result: ３つ作成し、完了。
+comments:
+  - date: 2026-09-23
+    body: ３つ作成、完了。
+  - date: 2026-09-27
+    body: 最終日付の問題を更新

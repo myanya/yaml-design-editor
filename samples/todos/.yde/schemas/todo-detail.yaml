@@ -1,0 +1,72 @@
+id: todo-detail
+name: TODO個票
+kind: document
+description: 一覧のTODOを同じIDで詳細化し、進捗とコメントを記録します。
+match: "todos/details/*.yaml"
+entity:
+  type: todo
+  idPattern: "TODO-*"
+  defines: false
+  owns: [status, created_on, due_on, completed_on, details, result, comments]
+root:
+  type: object
+  fields:
+    - key: id
+      label: ID
+      type: id
+      required: true
+      pattern: 'TODO-[0-9]{3,}'
+      description: 一覧のIDと一致させ、todos/details/<ID>.yaml に保存します。
+    - key: status
+      label: ステータス
+      type: enum
+      required: true
+      default: OPEN
+      values:
+        - value: OPEN
+          label: 未着手
+        - value: IN_PROGRESS
+          label: 対応中
+        - value: CLOSED
+          label: 完了
+        - value: CANCELED
+          label: 中止
+    - key: created_on
+      label: 作成日
+      type: date
+      required: true
+      description: TODOを登録した日。YYYY-MM-DD形式で入力します。
+    - key: due_on
+      label: 期限
+      type: date
+      description: YYYY-MM-DD形式。未定の場合は省略します。
+    - key: completed_on
+      label: 完了日
+      type: date
+      description: 完了時にYYYY-MM-DD形式で入力します。未完了・中止の場合は省略します。
+    - key: details
+      label: 詳細
+      type: text
+      description: 作業内容や完了条件を記載します。
+    - key: result
+      label: 結果
+      type: text
+      description: 対応結果や中止理由を記載します。
+    - key: comments
+      label: コメント一覧
+      type: array
+      default: []
+      display: list
+      description: 日付の降順で記録してください。先頭の日付をビューの更新日として表示します。日付の変更・削除時も並び順を確認してください。
+      item:
+        type: object
+        fields:
+          - key: date
+            label: 日付
+            type: date
+            required: true
+            description: YYYY-MM-DD形式で入力します。
+          - key: body
+            label: コメント本文
+            type: text
+            required: true

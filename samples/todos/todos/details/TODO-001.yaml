@@ -1,0 +1,16 @@
+id: TODO-001
+status: CLOSED
+created_on: '2026-09-22'
+due_on: 2026-09-22
+completed_on: 2026-09-22
+details: |-
+  TODO管理サンプルとして、以下の３つのスキーマ定義を行う。
+  - TODO一覧スキーマ
+  - TODO個票スキーマ
+  - TODO一覧管理ビュー
+result: ３つのスキーマに関して定義を完了させた。
+comments:
+  - date: 2026-09-22
+    body: |-
+      CLAUDE CODEによりスキーマの作成を実施。
+      内容をRVし、問題ないことを確認。

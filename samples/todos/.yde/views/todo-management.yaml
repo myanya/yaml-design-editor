@@ -1,0 +1,40 @@
+id: todo-management
+name: TODO管理
+rows:
+  idPattern: "TODO-*"
+order:
+  fileGlob: todos/todo-list.yaml
+columns:
+  # ID列と個票へのリンク／作成列はYDEが表示します。
+  - label: カテゴリ
+    schemaId: todo-list
+    path: category
+    editable: true
+  - label: ステータス
+    schemaId: todo-detail
+    path: status
+    editable: true
+  - label: 期限
+    schemaId: todo-detail
+    path: due_on
+    editable: true
+  - label: 概要
+    schemaId: todo-list
+    path: summary
+    editable: true
+  - label: 作成日
+    schemaId: todo-detail
+    path: created_on
+    editable: true
+  - label: 更新日
+    schemaId: todo-detail
+    value:
+      first:
+        - max: { path: "comments[*].date", type: date }
+        - 未更新
+detail:
+  fileGlob: "todos/details/*.yaml"
+  filePattern: "todos/details/{id}.yaml"
+newRow:
+  file: todos/todo-list.yaml
+  path: todos

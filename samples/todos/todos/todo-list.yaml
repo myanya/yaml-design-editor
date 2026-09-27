@@ -1,0 +1,13 @@
+todos:
+  - id: TODO-001
+    title: サンプルTODO一覧の作成
+    category: CAT-001
+    summary: YDE(Yaml Design Editor)用のTODO管理サンプルワークスペースを作成する。
+  - id: TODO-002
+    title: ３つのTODOの追加
+    category: CAT-002
+    summary: サンプルTODO一覧に対して、３つのサンプルTODOを追加する。
+  - id: TODO-003
+    title: 各TODOに対する個票の作成
+    category: CAT-002
+    summary: ３つのサンプルTODOに対して、３つの個票を作成し、内容を埋める。

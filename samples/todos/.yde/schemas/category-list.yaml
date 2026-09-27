@@ -1,0 +1,32 @@
+id: category-list
+name: カテゴリ一覧
+kind: document
+description: TODOからIDで参照するカテゴリを管理します。
+match: todos/category-list.yaml
+entity:
+  type: category
+  idPattern: "CAT-*"
+  defines: true
+  owns: [name]
+root:
+  type: object
+  fields:
+    - key: categories
+      label: カテゴリ一覧
+      type: array
+      default: []
+      display: table
+      item:
+        type: object
+        fields:
+          - key: id
+            label: ID
+            type: id
+            required: true
+            pattern: 'CAT-[0-9]{3,}'
+            description: 一覧内で一意のID。例：CAT-001。TODOからこのIDを参照します。
+          - key: name
+            label: カテゴリ名
+            type: string
+            role: title
+            required: true

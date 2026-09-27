@@ -1,0 +1,44 @@
+id: todo-list
+name: TODO一覧
+kind: document
+description: ID・タイトル・概要・カテゴリを管理する一覧。個票と同じIDを使用します。
+match: todos/todo-list.yaml
+entity:
+  type: todo
+  idPattern: "TODO-*"
+  defines: true
+  owns: [title, summary, category]
+root:
+  type: object
+  fields:
+    - key: todos
+      label: TODO一覧
+      type: array
+      default: []
+      display: table
+      item:
+        type: object
+        fields:
+          - key: id
+            label: ID
+            type: id
+            required: true
+            pattern: 'TODO-[0-9]{3,}'
+            description: 一覧内で一意のID。例：TODO-001。個票のIDとファイル名にも使用します。
+          - key: title
+            label: タイトル
+            type: string
+            role: title
+            required: true
+          - key: summary
+            label: 概要
+            type: string
+            role: subtitle
+            required: true
+          - key: category
+            label: カテゴリ
+            type: ref
+            idPattern: "CAT-*"
+            scope:
+              schemaIds: [category-list]
+            description: カテゴリ一覧のIDを指定します。未分類の場合は省略できます。
