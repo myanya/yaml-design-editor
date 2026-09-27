@@ -15,9 +15,14 @@ import dev.toros.yde.yaml.model.parseYPath
  *
  * ひな型に書ける指示（どれも `$when` で「条件に合うときだけ出す」にできる。値が得られない指示は「無い」になり、マップのキーごと出力から落ちる）:
  *   {$copy: パス}                         その場所の値（部分木ごと）をそのまま写す。`.` は、いまの場所そのもの
- *   {$format: "…{パス}…", $at: パス}      文字のひな型を、その場所の値で埋める（既存の Projection。埋まらない穴があれば「無い」）
+ *   {$format: "…{パス}…", $at: パス, $with: {名前: ひな型}}
+ *                                         文字のひな型を、その場所の値で埋める（既存の Projection。埋まらない穴があれば「無い」）。
+ *                                         `$with` は計算した値を穴へ差し込む（場所の値より先に埋まる。値の式の format の with と同じ）
  *   {$map: ひな型, $using: {a: b}}        スカラーの値を辞書で置き換える（辞書に無い値はそのまま）
  *   {$first: [ひな型, …]}                 最初に得られた値
+ *   {$date: ひな型, $as: 形}              年月日をそろえる（2021/8/21・2021-8-21・20210821・2021年8月21日 → yyyy-MM-dd。`$as` で yyyyMMdd・yyyy-MM などの形。読めなければ「無い」）
+ *   {$number: ひな型}                     数として読む（¥ と桁区切りと全角、▲ の負を許す。読めなければ「無い」。値の式の number と同じ読み方）
+ *   {$trim: ひな型}                       前後の空白を落とし、続く空白を 1 つにまとめる（全角の空白も。空なら「無い」）
  *   {$each: パス, $build: ひな型}         配列の要素ごとに組み立てて、配列を作る（`$apply: 規則名` とも書ける）
  *   {$eachEntry: パス, $build: ひな型}    マップの項目ごとに組み立てて、同じキーのマップを作る（同上）
  *   {$apply: 規則名, $at: パス}           名前を付けた規則を、その場所に当てる
@@ -49,9 +54,20 @@ sealed interface Template {
     data class ListOf(val items: List<Template>) : Template
 
     data class Copy(val site: TemplateSite) : Template
-    data class Format(val template: String, val site: TemplateSite) : Template
+
+    /** 文字のひな型。with は計算した値を穴へ差し込む（名前 → ひな型。場所の値より先に埋まる）。 */
+    data class Format(val template: String, val site: TemplateSite, val with: List<Pair<String, Template>> = emptyList()) : Template
     data class MapValue(val input: Template, val using: Map<String, String>) : Template
     data class First(val options: List<Template>) : Template
+
+    /** 年月日をそろえる（pattern は出力の形。null＝yyyy-MM-dd）。 */
+    data class DateOf(val input: Template, val pattern: String?) : Template
+
+    /** 数として読む。 */
+    data class NumberOf(val input: Template) : Template
+
+    /** 前後の空白を落とし、続く空白を 1 つにまとめる。 */
+    data class TrimOf(val input: Template) : Template
 
     /** 繰り返し。entries = true はマップの項目ごと（出力もマップ）・false は配列の要素ごと（出力も配列）。 */
     data class Each(val site: TemplateSite, val entries: Boolean, val body: Template) : Template
@@ -114,8 +130,16 @@ data class TransformDef(
         private const val BUILD = "\$build"
         private const val AT = "\$at"
         private const val WHEN = "\$when"
-        private val PRIMARY = listOf(COPY, FORMAT, MAP, FIRST, EACH, EACH_ENTRY, APPLY, CONCAT, THEN)
-        private val DIRECTIVE_KEYS = PRIMARY + listOf(OF, IN, USING, BUILD, AT, WHEN)
+        private const val DATE = "\$date"
+        private const val NUMBER = "\$number"
+        private const val TRIM = "\$trim"
+        private const val AS = "\$as"
+        private const val WITH = "\$with"
+        private val PRIMARY = listOf(COPY, FORMAT, MAP, FIRST, EACH, EACH_ENTRY, APPLY, CONCAT, THEN, DATE, NUMBER, TRIM)
+        private val DIRECTIVE_KEYS = PRIMARY + listOf(OF, IN, USING, BUILD, AT, WHEN, AS, WITH)
+
+        /** `$as`（日付の出力の形）に書ける文字: 年 y・月 M・日 d と区切り。 */
+        private val DATE_PATTERN = Regex("""[yMd\-/.]+""")
 
         private val CONDITION_OPS = CheckOp.entries.filter { it != CheckOp.EQ && it != CheckOp.NE }
         private val CONDITION_KEYS = listOf("equals", "notEquals", "exists", "empty") + CONDITION_OPS.map { it.id }
@@ -220,9 +244,24 @@ data class TransformDef(
                 when (main) {
                     COPY -> { allow(OF, IN); Template.Copy(site(m[COPY], "$where.$COPY")) }
                     FORMAT -> {
-                        allow(OF, IN, AT)
-                        Template.Format(m[FORMAT]?.toString() ?: error("$where.$FORMAT は文字列で書きます"), site(m[AT], "$where.$AT"))
+                        allow(OF, IN, AT, WITH)
+                        val with = m[WITH]?.let { raw ->
+                            val wm = raw as? Map<*, *> ?: error("$where.$WITH は {穴の名前: ひな型} で書きます")
+                            wm.entries.map { (k, v) -> k.toString() to parseTemplate(v, "$where.$WITH.$k") }
+                        }.orEmpty()
+                        Template.Format(m[FORMAT]?.toString() ?: error("$where.$FORMAT は文字列で書きます"), site(m[AT], "$where.$AT"), with)
                     }
+                    DATE -> {
+                        allow(AS)
+                        val pattern = m[AS]?.toString()?.also { p ->
+                            require(DATE_PATTERN.matches(p) && 'y' in p) {
+                                "$where.$AS は年月日の形（y・M・d と区切り。例 yyyyMMdd・yyyy-MM）で書きます: $p"
+                            }
+                        }
+                        Template.DateOf(parseTemplate(m[DATE], "$where.$DATE"), pattern)
+                    }
+                    NUMBER -> { allow(); Template.NumberOf(parseTemplate(m[NUMBER], "$where.$NUMBER")) }
+                    TRIM -> { allow(); Template.TrimOf(parseTemplate(m[TRIM], "$where.$TRIM")) }
                     MAP -> {
                         allow(USING)
                         val using = (m[USING] as? Map<*, *>)?.entries?.associate { (k, v) -> k.toString() to v.toString() }
@@ -337,9 +376,12 @@ data class TransformDef(
                 is Template.MapOf -> t.entries.forEach { walk(it.second) }
                 is Template.ListOf -> t.items.forEach(::walk)
                 is Template.Copy -> site(t.site)
-                is Template.Format -> site(t.site)
+                is Template.Format -> { site(t.site); t.with.forEach { walk(it.second) } }
                 is Template.MapValue -> walk(t.input)
                 is Template.First -> t.options.forEach(::walk)
+                is Template.DateOf -> walk(t.input)
+                is Template.NumberOf -> walk(t.input)
+                is Template.TrimOf -> walk(t.input)
                 is Template.Each -> { site(t.site); walk(t.body) }
                 is Template.Apply -> {
                     site(t.site)

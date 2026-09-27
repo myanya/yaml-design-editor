@@ -39,14 +39,51 @@ root:
         - key: table
           label: 表の番号（docx・1始まり）
           type: int
+        - key: encoding
+          label: 文字コード（csv / json / markdown）
+          type: string
+          description: 省略時は UTF-8。銀行の CSV などは windows-31j（Shift_JIS）
     - key: target
       label: 取り込み先（import）
       type: object
       fields:
         - key: file
-          label: ファイルパターン
+          label: ファイル
+          type: any
+          description: mapping では issues/{ID}.yaml の {列名} が行の値。build では組み立てた明細の値で埋める文字列か、ひな型（$format など）
+        - key: path
+          label: 配列のパス
           type: string
-          description: 例 issues/{ID}.yaml（{列名} が行の値で置換される）
+          description: 文書の中の配列へ追記する（例 entries）。省略時は 1 行 1 文書
+        - key: id
+          label: 採番
+          type: object
+          description: 組み立てた明細に ID が無いとき、接頭辞＋連番を付ける（配列への取り込みだけ）
+          fields:
+            - key: path
+              label: ID の項目
+              type: string
+            - key: prefix
+              label: 接頭辞のひな型
+              type: any
+              description: 組み立てた明細の値で埋める文字列（例 TX-{date}-）か、ひな型（$format など）
+            - key: digits
+              label: 連番の桁数
+              type: int
+              default: 2
+        - key: key
+          label: 同じ明細の見分け方
+          type: array
+          description: この項目の値が同じ明細が既にあれば取り込まない（配列への取り込みだけ）
+          item: { type: string }
+    - key: build
+      label: 行のひな型（import）
+      type: any
+      description: 行（列名 → セル）を項として当てる変換のひな型。mapping の代わりに書く（$when で行を飛ばせる）
+    - key: rules
+      label: ひな型の規則（import）
+      type: any
+      description: build から $apply で当てる名前付きの規則（変換定義の rules と同じ）
     - key: mapping
       label: 列の対応（import）
       type: array

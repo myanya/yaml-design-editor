@@ -50,4 +50,16 @@ class IdSuggestTest {
     fun `末尾が数字のIDがなければ提案しない`() {
         assertNull(IdSuggest.next(listOf("alpha", "beta")))
     }
+
+    @Test
+    fun `接頭辞を決めた系列の次の連番（取り込みの採番）`() {
+        assertEquals("TX-20210821-01", IdSuggest.nextInSeries(emptyList(), "TX-20210821-", 2))
+        assertEquals(
+            "TX-20210821-03",
+            IdSuggest.nextInSeries(listOf("TX-20210821-02", "TX-20210821-01", "TX-20210822-05"), "TX-20210821-", 2),
+        )
+        assertEquals("TX-20210821-100", IdSuggest.nextInSeries(listOf("TX-20210821-99"), "TX-20210821-", 2), "桁があふれたら桁を増やす")
+        assertEquals("TX-20210821-0004", IdSuggest.nextInSeries(listOf("TX-20210821-0003"), "TX-20210821-", 2), "既存の桁幅を保つ")
+        assertEquals("A-01", IdSuggest.nextInSeries(listOf("A-x", "A-", "B-7"), "A-", 2), "数字でない残りは系列に入れない")
+    }
 }

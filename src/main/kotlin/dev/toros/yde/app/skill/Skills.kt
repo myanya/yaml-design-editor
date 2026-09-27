@@ -1,8 +1,12 @@
 package dev.toros.yde.app.skill
 
 import dev.toros.yde.app.schema.SchemaLoader
+import dev.toros.yde.semantic.schema.TransformDef
 import dev.toros.yde.workspace.layout.WorkspaceLayout
 import dev.toros.yde.yaml.YamlIO
+import dev.toros.yde.yaml.model.YPath
+import dev.toros.yde.yaml.model.parseYPath
+import java.nio.charset.Charset
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -59,14 +63,27 @@ data class FieldMapping(
     val split: String? = null,       // 区切り文字で配列化（例 ", "）
 )
 
+/** 配列への取り込みの採番（target.id）: 組み立てた明細に path の値が無ければ、接頭辞（明細で埋めるひな型）＋連番を付ける。 */
+data class IdRule(val path: YPath, val prefix: TransformDef, val digits: Int)
+
+/**
+ * インポートの定義。行の組み立ては、列の対応表（mapping）か、行を項として当てるひな型（build＝変換定義）のどちらか 1 つ。
+ * 取り込み先は 1 行 1 文書（targetPath == null）か、文書の中の配列への追記（targetPath）。
+ */
 data class ImportDef(
     val format: TableFormat,
     val sheet: String? = null,       // xlsx: シート名（省略時は先頭）
     val headerRow: Int = 1,          // xlsx: ヘッダ行（1始まり）
     val jsonPath: String? = null,    // json: 行配列へのドット区切りパス（省略時はルート配列）
     val tableIndex: Int = 1,         // docx: 文書内の何番目の表か（1始まり）
-    val targetFile: String,          // 取り込み先（例 "issues/{ID}.yaml"。{列名} が行の値で置換される）
-    val mapping: List<FieldMapping>,
+    val encoding: Charset = Charsets.UTF_8,  // csv / json / markdown の文字コード（例 windows-31j）
+    val targetFile: String,          // 取り込み先（mapping: "issues/{ID}.yaml" の {列名} が行の値。build: 表示用の文字）
+    val fileTemplate: TransformDef? = null,  // build のとき: 取り込み先のひな型（組み立てた明細を「いまの場所」として埋める）
+    val targetPath: YPath? = null,   // 文書の中の配列（キーだけのパス。無ければ 1 行 1 文書）
+    val idRule: IdRule? = null,      // 配列への取り込みの採番
+    val key: List<YPath> = emptyList(),  // 配列への取り込みで「同じ明細」を見分ける項目（既にあれば飛ばす）
+    val mapping: List<FieldMapping> = emptyList(),
+    val build: TransformDef? = null, // 行（列名 → セル）を項として当てるひな型
 )
 
 data class ExportColumn(
@@ -169,30 +186,116 @@ object Skills {
     }
 
     private fun parseImport(raw: Map<*, *>): ImportDef {
+        val skillId = raw["id"]?.toString().orEmpty()
         val input = raw["input"] as? Map<*, *> ?: error("import には input（format 等）が必要です")
         val target = raw["target"] as? Map<*, *> ?: error("import には target.file が必要です")
-        val targetFile = target["file"]?.toString()?.takeIf { it.isNotBlank() } ?: error("target.file が必要です")
-        require(targetFile.endsWith(".yaml") || targetFile.endsWith(".yml")) { "target.file はYAML（.yaml / .yml）である必要があります: $targetFile" }
-        val targetNorm = targetFile.replace('\\', '/')
-        require(!targetNorm.startsWith("_") && !targetNorm.startsWith(".")) { "予約ディレクトリ・隠しディレクトリへの取り込みはできません: $targetFile" }
-        val mapping = (raw["mapping"] as? List<*>)?.map { parseMapping(it) } ?: error("mapping が必要です")
-        if (mapping.isEmpty()) error("mapping は1件以上必要です")
-        mapping.groupBy { it.path }.filterValues { it.size > 1 }.keys.forEach { error("mapping の path「$it」が重複しています") }
+
+        // 行の組み立て: mapping（列の対応表）か build（行を項として当てるひな型）のどちらか 1 つ
+        val hasMapping = raw["mapping"] != null
+        val hasBuild = raw["build"] != null
+        require(hasMapping || hasBuild) { "mapping（列の対応表）か build（行を組み立てるひな型）が必要です" }
+        require(!(hasMapping && hasBuild)) { "mapping と build は、どちらか一方を書きます" }
+        val mapping = if (!hasMapping) emptyList() else {
+            val list = (raw["mapping"] as? List<*>)?.map { parseMapping(it) } ?: error("mapping は配列である必要があります")
+            if (list.isEmpty()) error("mapping は1件以上必要です")
+            list.groupBy { it.path }.filterValues { it.size > 1 }.keys.forEach { error("mapping の path「$it」が重複しています") }
+            list
+        }
+        val build = if (!hasBuild) null else TransformDef.parse(
+            linkedMapOf<String, Any?>("id" to skillId.ifBlank { "build" }, "build" to raw["build"]).also { m ->
+                raw["rules"]?.let { m["rules"] = it }
+            },
+            "build",
+        )
+        require(hasBuild || raw["rules"] == null) { "rules は build と一緒に書きます" }
+
+        // 取り込み先。mapping では {列名} を行の値で埋める文字列。build では組み立てた明細で埋めるひな型（文字列は $format の略記）
+        val fileRaw = target["file"] ?: error("target.file が必要です")
+        val targetFile: String
+        val fileTemplate: TransformDef?
+        if (build == null) {
+            targetFile = fileRaw.toString().takeIf { it.isNotBlank() } ?: error("target.file が必要です")
+            fileTemplate = null
+            requireImportableFile(targetFile)
+        } else {
+            val templateRaw: Any = when (fileRaw) {
+                is String -> {
+                    require(fileRaw.isNotBlank()) { "target.file が必要です" }
+                    requireImportableFile(fileRaw)
+                    mapOf("\$format" to fileRaw)
+                }
+                is Map<*, *> -> fileRaw
+                else -> error("target.file は文字列（{項目} を組み立てた明細の値で埋める）か、ひな型（\$format など）で書きます")
+            }
+            targetFile = fileRaw as? String ?: "(ひな型)"
+            fileTemplate = TransformDef.ofTemplate("${skillId.ifBlank { "import" }}.target.file", templateRaw, "target.file")
+        }
+
+        // 文書の中の配列への追記
+        val targetPath = target["path"]?.toString()?.takeIf { it.isNotBlank() }?.let { text ->
+            val path = runCatching { parseYPath(text) }.getOrElse { error("target.path が読めません: $text") }
+            require(path.isNotEmpty() && path.all { it is String }) { "target.path はキーだけのパス（例 entries・book.entries）で書きます: $text" }
+            path
+        }
+        val idRule = target["id"]?.let { rawId ->
+            require(targetPath != null) { "target.id（採番）は target.path（配列への取り込み）と一緒に書きます" }
+            val m = rawId as? Map<*, *> ?: error("target.id は {path, prefix, digits} で書きます")
+            val pathText = m["path"]?.toString()?.takeIf { it.isNotBlank() } ?: error("target.id.path（ID を書く項目）が必要です")
+            val path = runCatching { parseYPath(pathText) }.getOrElse { error("target.id.path が読めません: $pathText") }
+            require(path.isNotEmpty() && path.all { it is String }) { "target.id.path はキーだけのパスで書きます: $pathText" }
+            val prefixRaw: Any = when (val p = m["prefix"] ?: error("target.id.prefix（連番の前に付ける文字のひな型）が必要です")) {
+                is String -> mapOf("\$format" to p)
+                is Map<*, *> -> p
+                else -> error("target.id.prefix は文字列か、ひな型（\$format など）で書きます")
+            }
+            val digits = (m["digits"] as? Number)?.toInt() ?: 2
+            require(digits in 1..9) { "target.id.digits（連番の桁数）は 1〜9 で書きます: $digits" }
+            IdRule(path, TransformDef.ofTemplate("${skillId.ifBlank { "import" }}.target.id.prefix", prefixRaw, "target.id.prefix"), digits)
+        }
+        val key = (target["key"] as? List<*>)?.let { list ->
+            require(targetPath != null) { "target.key（同じ明細の見分け方）は target.path（配列への取り込み）と一緒に書きます" }
+            require(list.isNotEmpty()) { "target.key は項目のパスの配列（1つ以上）で書きます" }
+            list.map { k ->
+                val text = k?.toString().orEmpty()
+                runCatching { parseYPath(text) }.getOrNull()?.takeIf { it.isNotEmpty() } ?: error("target.key が読めません: $text")
+            }
+        } ?: run {
+            require(target["key"] == null) { "target.key は項目のパスの配列で書きます" }
+            emptyList()
+        }
+
         val headerRow = (input["headerRow"] as? Number)?.toInt() ?: 1
         require(headerRow >= 1) { "input.headerRow は1以上である必要があります" }
         val tableIndex = (input["table"] as? Number)?.toInt() ?: 1
         require(tableIndex >= 1) { "input.table は1以上である必要があります" }
         val format = TableFormat.parse(input["format"]?.toString() ?: error("input.format が必要です"))
         require(format != TableFormat.HTML) { "HTML はエクスポート専用の形式です（インポートには使えません）" }
+        val encoding = input["encoding"]?.toString()?.takeIf { it.isNotBlank() }?.let { name ->
+            runCatching { Charset.forName(name) }.getOrElse { error("input.encoding の文字コードが分かりません: $name（例 UTF-8・windows-31j）") }
+        } ?: Charsets.UTF_8
         return ImportDef(
             format = format,
             sheet = input["sheet"]?.toString(),
             headerRow = headerRow,
             jsonPath = input["path"]?.toString(),
             tableIndex = tableIndex,
+            encoding = encoding,
             targetFile = targetFile,
+            fileTemplate = fileTemplate,
+            targetPath = targetPath,
+            idRule = idRule,
+            key = key,
             mapping = mapping,
+            build = build,
         )
+    }
+
+    /** 取り込み先のファイル名の決まり: YAML で、予約ディレクトリ・隠しディレクトリ・上のディレクトリへ出ないこと。 */
+    internal fun requireImportableFile(file: String) {
+        require(file.endsWith(".yaml") || file.endsWith(".yml")) { "取り込み先はYAML（.yaml / .yml）である必要があります: $file" }
+        val norm = file.replace('\\', '/')
+        require(!norm.startsWith("_") && !norm.startsWith(".") && !norm.startsWith("/")) { "予約ディレクトリ・隠しディレクトリへの取り込みはできません: $file" }
+        require(norm.split('/').none { it == ".." }) { "上のディレクトリへの取り込みはできません: $file" }
     }
 
     private fun parseMapping(raw: Any?): FieldMapping {

@@ -1035,6 +1035,8 @@ private fun runImportCommand(rest: List<String>): String {
         "updated" to preview.updated,
         "unchanged" to preview.unchanged,
     )
+    if (preview.details.isNotEmpty()) summary["details"] = preview.details
+    if (preview.skippedRows > 0) summary["skippedRows"] = preview.skippedRows
     if ("--apply" !in rest) {
         return dumpYaml(summary) +
             (if (preview.changeSet.changes.isEmpty()) "" else "---\n" + changeSetToYaml(preview.changeSet))

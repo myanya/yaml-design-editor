@@ -337,4 +337,59 @@ class SemanticTransformTest {
         assertFailsWith<IllegalStateException> { runQuery(def("id: t\nbuild: { v: 1 }")) }
         assertNull(SemanticTransform.run(def("id: t\nbuild: { ${'$'}copy: nothing }"), YamlIO.parse("k: v")).term)
     }
+
+    // ---------------------------------------------------------------- 値をそろえる指示（$date / $number / $trim）と $format の $with
+
+    @Test
+    fun `年月日と数と空白をそろえる 銀行の CSV の行を明細にする`() {
+        val transform = def(
+            """
+            id: t
+            build:
+              ${'$'}when: { path: 月, exists: true }              # 月の無い行（期首の残高行）は、ひな型ごと「無い」
+              ${'$'}then:
+                date: { ${'$'}date: { ${'$'}format: "{年}-{月}-{日}" } }
+                ym: { ${'$'}date: { ${'$'}format: "{年}-{月}-{日}" }, ${'$'}as: yyyy-MM }
+                compact: { ${'$'}date: { ${'$'}copy: 取引日 }, ${'$'}as: yyyyMMdd }
+                kind: { ${'$'}first: [ { ${'$'}when: { path: ご入金, exists: true }, ${'$'}then: income }, expense ] }
+                amount: { ${'$'}number: { ${'$'}first: [ { ${'$'}copy: ご入金 }, { ${'$'}copy: ご出金 } ] } }
+                memo: { ${'$'}trim: { ${'$'}copy: 摘要 } }
+                bad: { ${'$'}date: { ${'$'}copy: 摘要 } }            # 日付として読めない → 無い
+            """
+        )
+        val income = YamlIO.parse("年: 2021\n月: 8\n日: 21\n取引日: \"2021/8/21\"\nご入金: \"¥10,000\"\n摘要: \"振込　　　　トウキヨウ　　　\"")
+        assertEquals(
+            expected("""{ date: "2021-08-21", ym: "2021-08", compact: "20210821", kind: income, amount: 10000, memo: 振込 トウキヨウ }"""),
+            plain(SemanticTransform.run(transform, income).term),
+        )
+        assertNull(SemanticTransform.run(transform, YamlIO.parse("年: 2021\n摘要: 期首")).term)
+        // 出金の行は expense。▲ と全角の数字も数として読み、空白だけの摘要は「無い」
+        val expense = YamlIO.parse("年: 2021\n月: 12\n日: 3\n取引日: 2021年12月3日\nご出金: \"▲１,５００\"\n摘要: \"　　\"")
+        assertEquals(
+            expected("""{ date: "2021-12-03", ym: "2021-12", compact: "20211203", kind: expense, amount: -1500 }"""),
+            plain(SemanticTransform.run(transform, expense).term),
+        )
+    }
+
+    @Test
+    fun `format の with は計算した値を穴へ差し込む 場所の値より先に埋まる`() {
+        val transform = def(
+            """
+            id: t
+            build:
+              file: { ${'$'}format: "book/tx/{ym}.yaml", ${'$'}with: { ym: { ${'$'}date: { ${'$'}copy: date }, ${'$'}as: yyyy-MM } } }
+              prefix: { ${'$'}format: "TX-{d}-", ${'$'}with: { d: { ${'$'}date: { ${'$'}copy: date }, ${'$'}as: yyyyMMdd } } }
+              same: { ${'$'}format: "{date}", ${'$'}with: { date: 上書き } }
+              missing: { ${'$'}format: "{x}", ${'$'}with: { x: { ${'$'}copy: nothing } } }   # 計算できず、場所にも無い → 無い
+            """
+        )
+        assertEquals(
+            expected("""{ file: book/tx/2021-08.yaml, prefix: TX-20210821-, same: 上書き }"""),
+            plain(SemanticTransform.run(transform, YamlIO.parse("date: \"2021-08-21\"")).term),
+        )
+        // 定義の誤り: $as は年月日の形だけ・$with は {名前: ひな型}・$date に $using は添えられない
+        assertFailsWith<IllegalArgumentException> { def("id: t\nbuild: { d: { ${'$'}date: x, ${'$'}as: mm } }") }
+        assertFailsWith<IllegalStateException> { def("id: t\nbuild: { d: { ${'$'}format: x, ${'$'}with: 1 } }") }
+        assertFailsWith<IllegalStateException> { def("id: t\nbuild: { d: { ${'$'}date: x, ${'$'}using: { a: b } } }") }
+    }
 }

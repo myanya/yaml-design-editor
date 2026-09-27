@@ -3,3 +3,5 @@ categories:
   - { id: CAT-FOOD, name: 食費, kind: expense }
   - { id: CAT-RENT, name: 家賃, kind: expense }
   - { id: CAT-UTIL, name: 光熱費, kind: expense }
+  # 取り込んだ直後の費目。区分は仮で、収入の明細にも付く。検査 unsorted-category が残っている取引を警告する
+  - { id: CAT-UNSORTED, name: 未分類, kind: expense }

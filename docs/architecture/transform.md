@@ -24,9 +24,12 @@
   | 指示 | 意味 |
   |---|---|
   | `{$copy: パス}` | その場所の値を部分木ごと写す（`.` はいまの場所） |
-  | `{$format: "…{パス}…", $at: パス}` | 文字のひな型をその場所の値で埋める（`Projection`） |
+  | `{$format: "…{パス}…", $at: パス, $with: {名前: ひな型}}` | 文字のひな型をその場所の値で埋める（`Projection`）。`$with` は計算した値を穴へ（場所の値より先。値の式の `format` の `with` と同じ） |
   | `{$map: ひな型, $using: {a: b}}` | スカラーの値を辞書で置き換える |
   | `{$first: [ひな型, …]}` | 最初に得られた値 |
+  | `{$date: ひな型, $as: 形}` | 年月日をそろえる（`2021/8/21`・`20210821`・`2021年8月21日` → `yyyy-MM-dd`。`$as` は y・M・d と区切りの形。読めなければ「無い」。`SemanticExpression.readDate` / `formatDate`） |
+  | `{$number: ひな型}` | 数として読む（桁区切り・通貨記号・全角・`▲` の負を許す。値の式の `number` と同じ `SemanticExpression.numberOf`。整数は YAML を読んだときと同じ Int / Long） |
+  | `{$trim: ひな型}` | 前後の空白を落とし、続く空白（全角も）を 1 つに（`SemanticExpression.squashSpaces`。空なら「無い」） |
   | `{$each: パス, $build: ひな型}` / `{$eachEntry: パス, $build: ひな型}` | 配列の要素ごと／マップの項目ごとに組み立てる（`$apply: 規則名` とも書ける。`$index` / `$key`） |
   | `{$apply: 規則名, $at: パス}` | 名前を付けた規則をその場所に当てる |
   | `{$concat: [ひな型, …]}` | 配列をつなげる |
@@ -37,7 +40,7 @@
 - **出どころ**: `TransformResult` は組み立てた項と、出力の場所 → 入力の文書と場所の一覧を持つ。`$concat` でつなげた配列も、つなげた後の番号で入力の場所を指す。
 - **定義の誤りは読み込みの段階で分かる**: 未知の指示・指示と出力のキーの混在・宣言されていない規則名と受け取る値・クエリで付けていない束縛名は `TransformDef.parse` がエラーにする。
 - **既存の共有部品を使う**: クエリは `SemanticQuery.run`、値の条件は `SemanticExpression.test` / `isEmpty`、文字のひな型と辞書は `Projection`、出現の選び方は `SemanticExpression.preferDefining`。
-- **使いどころ**: CLI `transform <workspace> <定義.yaml> [--input] [--param] [--origins]`（定義に `builtin:structural-schema` と書くと組込みの定義）・構造のスキーマの導出（[schema.md「構造スキーマの導出」](schema.md)）・スキーマの `scaffold`（新しい文書のひな型の中身）。
+- **使いどころ**: CLI `transform <workspace> <定義.yaml> [--input] [--param] [--origins]`（定義に `builtin:structural-schema` と書くと組込みの定義）・構造のスキーマの導出（[schema.md「構造スキーマの導出」](schema.md)）・スキーマの `scaffold`（新しい文書のひな型の中身）・skill の取り込みの `build`（表の行を項にして当てる。取り込み先と採番の接頭辞も同じひな型。[agents.md「skill」](agents.md)）。
 - 拡張と応用（繰り返しの源にクエリ・値の式をひな型の指示として・利用者の変換定義の置き場・Markdown への派生）は ROADMAP の変換のテーマ。
 
 ## 計算列と決定論的射影

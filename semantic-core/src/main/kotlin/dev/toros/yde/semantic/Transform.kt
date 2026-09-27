@@ -139,12 +139,35 @@ object SemanticTransform {
                 copyOf(found.node)
             }
             is Template.Format -> place(t.site, here)?.let { found ->
-                val evaluated = Projection.evaluate(t.template, listOf(found.node))
+                // $with: 計算した値を穴へ（いまの場所で計算し、場所の値より先に埋まる）
+                val computed = LinkedHashMap<String, YNode>()
+                for ((name, child) in t.with) build(child, here, out, loop)?.let { computed[name] = it }
+                val scopes = if (computed.isEmpty()) listOf(found.node) else listOf(YNode.Map(computed), found.node)
+                val evaluated = Projection.evaluate(t.template, scopes)
                 if (!evaluated.complete) null
                 else {
                     origins += TransformOrigin(out, found.document, found.path)
                     YNode.Scalar(evaluated.text)
                 }
+            }
+            is Template.DateOf -> build(t.input, here, out, loop)?.let { input ->
+                scalarText(input)?.let(SemanticExpression::readDate)?.let { YNode.Scalar(SemanticExpression.formatDate(it, t.pattern)) }
+            }
+            is Template.NumberOf -> build(t.input, here, out, loop)?.let { input ->
+                scalarText(input)?.let(SemanticExpression::numberOf)?.let { n ->
+                    // 整数なら整数の値（YAML を読んだときと同じ Int / Long）、そうでなければ小数の値にする
+                    val whole = n.stripTrailingZeros()
+                    YNode.Scalar(
+                        when {
+                            whole.scale() > 0 -> n.toDouble()
+                            whole.toBigInteger().bitLength() < 32 -> whole.toInt()
+                            else -> whole.toBigInteger().toLong()
+                        }
+                    )
+                }
+            }
+            is Template.TrimOf -> build(t.input, here, out, loop)?.let { input ->
+                scalarText(input)?.let { SemanticExpression.squashSpaces(it) }?.takeIf { it.isNotEmpty() }?.let { YNode.Scalar(it) }
             }
             is Template.MapValue -> build(t.input, here, out, loop)?.let { input ->
                 val text = scalarText(input)

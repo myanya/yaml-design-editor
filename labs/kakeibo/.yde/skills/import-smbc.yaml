@@ -1,0 +1,19 @@
+id: import-smbc
+name: 三井住友銀行の入出金明細を取り込む
+description: 公式サイト形式の CSV（見出し行あり）を book/tx/YYYY-MM.yaml の明細へ追記する。費目は CAT-UNSORTED（未分類）で入るので、あとで手で直す。取り込む前に、その月の文書（book/months/）を作っておく
+kind: import
+input: { format: csv, encoding: UTF-8 }          # 実物のダウンロードが Shift_JIS なら windows-31j
+target:
+  file: { $format: "book/tx/{ym}.yaml", $with: { ym: { $date: { $copy: date }, $as: yyyy-MM } } }
+  path: entries                                   # この配列の末尾へ追記
+  id: { path: id, prefix: { $format: "TX-{ymd}-", $with: { ymd: { $date: { $copy: date }, $as: yyyyMMdd } } }, digits: 2 }
+  key: [date, kind, amount, memo]                 # 同じ明細が既にあれば取り込まない（手で直した費目を戻さない）
+build:
+  $when: { path: 月, exists: true }               # 月が空の行（期首の残高行）は飛ばす
+  $then:
+    date: { $date: { $format: "{対象日（自）_年}-{月}-{日}" } }
+    kind: { $first: [ { $when: { path: ご入金, exists: true }, $then: income }, expense ] }
+    amount: { $number: { $first: [ { $copy: ご入金 }, { $copy: ご出金 } ] } }
+    category: CAT-UNSORTED
+    month: { $format: "M-{ym}", $with: { ym: { $date: { $format: "{対象日（自）_年}-{月}-{日}" }, $as: yyyy-MM } } }
+    memo: { $trim: { $copy: 摘要 } }

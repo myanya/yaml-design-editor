@@ -215,7 +215,10 @@ fun SkillsSection(state: AppState) {
                                 fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
                             )
                             (p.created.take(8).map { "＋ $it" } + p.updated.take(8).map { "± $it" }).forEach {
-                                Text(it, fontSize = 10.sp, color = Palette.SubText)
+                                Text(it + (p.details[it.substring(2)]?.let { d -> "（$d）" } ?: ""), fontSize = 10.sp, color = Palette.SubText)
+                            }
+                            if (p.skippedRows > 0) {
+                                Text("条件に合わず飛ばした行: ${p.skippedRows}", fontSize = 10.sp, color = Palette.SubText)
                             }
                             Row {
                                 Button(

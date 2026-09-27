@@ -13,7 +13,7 @@ ID 索引はディスク基準（正）で、UI は未保存の編集を重ね�
 | `IdIndex.resolve` / `backlinksTo` / `sourceEntryOf` | index/IdIndex.kt | ID の解決（定義出現を優先）・被参照・参照を書いた最内の要素 |
 | `AppState.overlayIndex()` / `overlayIndexWith` | app/AppState.kt | dirty 文書を重ねた索引。提案の内容を重ねた索引 |
 | `Display` | schema/Display.kt | 表示解決（`summarize` / `titleOf` / `headerText` / `seqHeaderText` / `inline` / `tableColumns`） |
-| `IdSuggest` | schema/IdSuggest.kt | 既存 ID 集合からの次の連番の決定的提案。形式の源は `pattern`・entity 宣言・ビュー行の idPattern |
+| `IdSuggest` | schema/IdSuggest.kt | 既存 ID 集合からの次の連番の決定的提案（skill の取り込みの採番は、接頭辞を決めた系列の次 `nextInSeries`）。形式の源は `pattern`・entity 宣言・ビュー行の idPattern |
 | `RefNaming` | schema/SchemaInference.kt | 参照の命名規約（`ref` / `*_ref` / `refs` / `depends_on` など）の共有実体 |
 | `Search` | core/Search.kt | 構造検索（本文とキーの部分一致・スキーマと glob 条件・参照検索・未解決参照） |
 | `Workspace.fileOf` / `documentOf` / `treeOf`・`AppState.fileOf` / `documentOf` / `unsavedFirstTree()` | core/Workspace.kt・app/AppState.kt | 文書ID と `Path` の行き来の入口 |

@@ -29,3 +29,13 @@ root:
           - { key: category, label: 費目, type: ref, idPattern: "CAT-*", scope: { schemaIds: [categories] }, required: true }
           - { key: month, label: 月, type: ref, idPattern: "M-*", scope: { schemaIds: [months] }, required: true }
           - { key: memo, label: メモ, type: string, role: title }
+constraints:
+  - id: unsorted-category
+    description: 取り込んだ取引の費目が、未分類（CAT-UNSORTED）のままになっていないこと
+    match:
+      - node: { entity: transaction, bind: tx }
+      - edge: { via: category }
+      - node: { id: CAT-UNSORTED }
+    expect: absent
+    level: warning
+    message: "{tx.id} の費目が未分類です"

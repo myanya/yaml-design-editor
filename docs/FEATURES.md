@@ -203,7 +203,7 @@
 | C-12 | パターン照合エンジン（クエリコア・`match` / `also` / `where` / `limit` / `same`・束縛の表・決定的） | `semantic-core/schema/Query.kt`, `semantic-core/semantic/Query.kt` | 単体 `QueryTest`, `TraverseTest` | [graph-query](architecture/graph-query.md) |
 | C-13 | エンティティ合成（全出現を決定的に並べ所有フィールドを原本座標つきでマージ・CLI `entity show`） | `core/Aspects.kt` | 単体 `AspectTest` | [graph-query](architecture/graph-query.md) |
 | C-14 | スキーマ・リファクタリング（12 操作・スキーマと文書とビューを 1 つの計画で追随・カーネルが計画を作る） | `semantic-core/semantic/SchemaRefactor.kt`, `semantic-core/semantic/Rewrite.kt` | 単体 `RefactoringTest`, `RefactoringPlanGoldenTest` | [schema](architecture/schema.md) |
-| C-15 | YAML から YAML への変換（選ぶ × 組み立てる × 規則を子に当てる・出どころつき・保存しない・CLI `transform`・拡張は ROADMAP の変換のテーマ） | `semantic-core/schema/Transform.kt`, `semantic-core/semantic/Transform.kt` | 単体 `SemanticTransformTest`, `StructuralDerivationTransformTest` | [transform](architecture/transform.md) |
+| C-15 | YAML から YAML への変換（選ぶ × 組み立てる × 規則を子に当てる・値をそろえる `$date` `$number` `$trim`・出どころつき・保存しない・CLI `transform`） | `semantic-core/schema/Transform.kt`, `semantic-core/semantic/Transform.kt` | 単体 `SemanticTransformTest`, `StructuralDerivationTransformTest` | [transform](architecture/transform.md) |
 | C-16 | バージョン表示（外部 `appVersion`・内部 `yyyymmdd.ビルド番号`・コミット・CLI `version` とスタート画面） | `app/BuildInfo.kt`, `build.gradle.kts` | 単体 `BuildInfoTest` | [workspace](architecture/workspace.md) |
 
 ## 10. skill・テンプレート（フォーマット適合）
@@ -211,7 +211,7 @@
 | ID | 機能 | 主な実装 | テスト | 設計 |
 |---|---|---|---|---|
 | SK-01 | skill 定義 `_skills`（import / export の宣言型と run） | `skill/Skills.kt` | 単体 `ImportExportTest`, `RunSkillTest` | [agents](architecture/agents.md) |
-| SK-02 | インポート（xlsx / csv / json / markdown / docx → 変更セット・列マッピング） | `skill/Importer.kt`, `skill/Tables.kt` | 単体 `ImportExportTest`, `TablesTest` | [agents](architecture/agents.md) |
+| SK-02 | インポート（xlsx / csv / json / markdown / docx → 変更セット。列の対応表 `mapping`・行のひな型 `build`・配列へ追記 `target.path`・採番 `target.id`・同じ明細 `target.key`・文字コード） | `skill/Importer.kt`, `skill/Tables.kt` | 単体 `ImportExportTest`, `ArrayImportTest`, `TablesTest` | [agents](architecture/agents.md) |
 | SK-03 | エクスポート（glob × 行 × 列 → xlsx / csv / markdown / json / html・`source.view`・YAML 出力は拒否） | `skill/Exporter.kt`, `skill/Tables.kt` | 単体 `ImportExportTest` | [agents](architecture/agents.md) |
 | SK-04 | CLI（`skills` / `import` / `export` / `run-skill` / `init`） | `core/Cli.kt` | 単体 `RunSkillTest` | [agents](architecture/agents.md) |
 | SK-05 | テンプレートパック（`init --template ledger`・既存ファイルは上書きしない） | `skill/TemplatePacks.kt` | 単体 `ImportExportTest` | [agents](architecture/agents.md) |

@@ -102,6 +102,8 @@
 
 - **YAML が唯一の原本**: インポートは取り込んだ時点で YAML 側を正とする。エクスポートは派生成果物で、YAML への出力は定義段階で拒否する。
 - **インポートは変更セット経由**: 直接ファイルへ書かず `Workspace.apply` を通す。既存文書はマップした項目だけを、値が変わる場合だけ set する（エクスポート → 再インポートが空の変更セットになる）。
+- **行の組み立ては変換定義**: 列の対応表 `mapping` は素朴な形で、複雑な行は `build`（`TransformDef`）に書く。`Importer` は行を項（見出し → セル）にして `SemanticTransform.run` に渡すだけで、組み立ての語彙（`$format` `$first` `$when` `$date` `$number` `$trim`）を Importer に持たない。取り込み先（`target.file`）と採番の接頭辞（`target.id.prefix`）も同じひな型で、組み立てた明細を「いまの場所」として埋める。
+- **配列への取り込みは追記と採番**（`target.path`）: 明細は配列の末尾へ `PatchOp.Insert`。`target.key` が同じ明細は飛ばす（更新しない＝手で直した値を戻さない）。ID の無い明細は `IdSuggest.nextInSeries`（接頭辞を決めた系列の次）で番号を付け、既存の ID は索引と取り込み先の配列から集める。1 行 1 文書の取り込み（`target.file` だけ）の意味は変えていない。
 - **宣言型が既定**: import / export にコード実行はない。宣言型で書けない変換・定型手順だけがコード実行 skill（kind: run）の対象。
 - **形式は Table 抽象に集約**: xlsx / csv / json / markdown / docx / html の差は `skill/Tables.kt` に閉じる。`source.view` は `Views.load` / `Views.resolve` の結果をそのまま表にする。
 - **コード実行 skill の明示許可制**: `Runner.run` は `Runner.Approval` を必須引数に取り、`Approval` は `approve(def)` でしか作れない。承認はコマンド・作業ディレクトリ・書込宣言・タイムアウトの指紋に紐づき、定義が変わると失効する。エージェント・自動実行からは起動不可。実行後に `writes` 宣言外の変更を警告し、予約ディレクトリの変更を逸脱として報告する。プロセス起動は注入可能（`RunSkillTest`）。

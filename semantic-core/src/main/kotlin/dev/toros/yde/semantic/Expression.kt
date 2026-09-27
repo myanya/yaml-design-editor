@@ -14,6 +14,8 @@ import dev.toros.yde.semantic.schema.PathPattern
 import dev.toros.yde.semantic.schema.ValueExpr
 import java.math.BigDecimal
 import java.math.MathContext
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -91,7 +93,7 @@ object SemanticExpression {
         return if (rights.any { it == null }) null else false
     }
 
-    /** 値を1つ受け取る計算（SP-10）。得られなければ null（number: 数値として読めない）。 */
+    /** 値を1つ受け取る計算（SP-10）。得られなければ null（number: 数として読めない。読み方は numberOf＝桁区切り・通貨記号・全角を許す）。 */
     fun unary(fn: ValueExpr.UnaryFn, text: String): String? = when (fn) {
         // 文字数の数え方は、フィールドの maxLength の検証と同じ（String.length）
         ValueExpr.UnaryFn.LENGTH -> text.length.toString()
@@ -181,7 +183,57 @@ object SemanticExpression {
         is YNode.Map -> node.entries.isEmpty()
     }
 
-    private fun numberOf(text: String): BigDecimal? = text.trim().toBigDecimalOrNull()
+    /**
+     * 数として読む（値の式の number・四則演算・集計と、変換の $number が共有する 1 つの読み方）。
+     * 桁区切り（`12,000`）・通貨記号（`¥` `$`・末尾の `円`）・全角の数字と記号・`▲` `△` の負を許す。読めなければ null。
+     */
+    fun numberOf(text: String): BigDecimal? {
+        var s = toHalfWidth(text.trim())
+        if (s.isEmpty()) return null
+        var negative = false
+        if (s.startsWith("▲") || s.startsWith("△")) { negative = true; s = s.substring(1).trim() }
+        if (s.startsWith("-")) { negative = !negative; s = s.substring(1).trim() } else if (s.startsWith("+")) s = s.substring(1).trim()
+        s = s.removePrefix("¥").removePrefix("$").removeSuffix("円").trim().replace(",", "")
+        val n = s.toBigDecimalOrNull() ?: return null
+        return if (negative) n.negate() else n
+    }
+
+    /**
+     * 年月日として読む（変換の $date）。`2021-8-21`・`2021/8/21`・`2021.8.21`・`20210821`・`2021年8月21日`（全角の数字も）。
+     * 暦に無い日付（2 月 30 日など）と、それ以外の形は null。
+     */
+    fun readDate(text: String): LocalDate? {
+        val s = toHalfWidth(text.trim())
+        val m = DATE_PARTS.matchEntire(s) ?: DATE_COMPACT.matchEntire(s) ?: return null
+        val (y, mo, d) = m.destructured
+        return runCatching { LocalDate.of(y.toInt(), mo.toInt(), d.toInt()) }.getOrNull()
+    }
+
+    /** 年月日を形にする（pattern は y・M・d と区切り。null＝yyyy-MM-dd）。 */
+    fun formatDate(date: LocalDate, pattern: String?): String =
+        date.format(if (pattern == null) DateTimeFormatter.ISO_LOCAL_DATE else DateTimeFormatter.ofPattern(pattern))
+
+    /** 前後の空白を落とし、続く空白（全角の空白も）を半角の空白 1 つにまとめる（変換の $trim）。 */
+    fun squashSpaces(text: String): String = text.trim().replace(SPACES, " ")
+
+    private val DATE_PARTS = Regex("""(\d{4})\s*[-/.年]\s*(\d{1,2})\s*[-/.月]\s*(\d{1,2})\s*日?""")
+    private val DATE_COMPACT = Regex("""(\d{4})(\d{2})(\d{2})""")
+    private val SPACES = Regex("""[\s\p{Z}]+""")  // Java の \s は全角の空白（U+3000）を含まないため \p{Z} も
+
+    /** 全角の数字と記号を半角にする（数と日付の読み取り用）。 */
+    private fun toHalfWidth(text: String): String = text.map { c ->
+        when (c) {
+            in '０'..'９' -> '0' + (c - '０')
+            '．' -> '.'
+            '，' -> ','
+            '－', '−', '‐', '–', '—' -> '-'
+            '＋' -> '+'
+            '／' -> '/'
+            '￥' -> '¥'
+            '＄' -> '$'
+            else -> c
+        }
+    }.joinToString("")
 
     /** 数値の表記を揃える（末尾の 0 と指数表記を落とす。`12.0` → `12`）。 */
     private fun numberText(n: BigDecimal): String = if (n.signum() == 0) "0" else n.stripTrailingZeros().toPlainString()

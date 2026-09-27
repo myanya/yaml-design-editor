@@ -37,12 +37,20 @@ object Tables {
 
     fun read(file: Path, def: ImportDef): Table = when (def.format) {
         TableFormat.XLSX -> readXlsx(file, def.sheet, def.headerRow)
-        TableFormat.CSV -> readCsv(Files.readString(file))
-        TableFormat.JSON -> readJson(Files.readString(file), def.jsonPath)
-        TableFormat.MARKDOWN -> readMarkdown(Files.readString(file))
+        TableFormat.CSV -> readCsv(readText(file, def))
+        TableFormat.JSON -> readJson(readText(file, def), def.jsonPath)
+        TableFormat.MARKDOWN -> readMarkdown(readText(file, def))
         TableFormat.DOCX -> readDocx(file, def.tableIndex)
         TableFormat.HTML -> error("HTML はエクスポート専用の形式です")
     }
+
+    /** 文字コード（input.encoding。既定 UTF-8）で読む。合わない文字コードは、化けた表にせず誤りとして知らせる。 */
+    private fun readText(file: Path, def: ImportDef): String =
+        try {
+            Files.readString(file, def.encoding)
+        } catch (e: java.nio.charset.CharacterCodingException) {
+            error("文字コード ${def.encoding.name()} として読めません: ${file.fileName}（銀行の CSV などは input.encoding: windows-31j を試してください）")
+        }
 
     /** CSV（RFC 4180 準拠: ダブルクォート・埋め込み改行・引用符の二重化）。 */
     fun readCsv(text: String): Table {
