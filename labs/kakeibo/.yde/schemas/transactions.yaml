@@ -1,0 +1,31 @@
+id: transactions
+name: 取引
+kind: document
+match: "book/tx/*.yaml"
+entity:
+  type: transaction
+  idPattern: "TX-*"
+  defines: true
+root:
+  type: object
+  fields:
+    - key: entries
+      label: 明細
+      type: array
+      display: table
+      item:
+        type: object
+        fields:
+          - { key: id, label: ID, type: id, required: true, description: "TX-YYYYMMDD-NN" }
+          - { key: date, label: 日付, type: date, required: true }
+          - key: kind
+            label: 区分
+            type: enum
+            required: true
+            values:
+              - { value: income, label: 収入 }
+              - { value: expense, label: 支出 }
+          - { key: amount, label: 金額, type: int, required: true }
+          - { key: category, label: 費目, type: ref, idPattern: "CAT-*", scope: { schemaIds: [categories] }, required: true }
+          - { key: month, label: 月, type: ref, idPattern: "M-*", scope: { schemaIds: [months] }, required: true }
+          - { key: memo, label: メモ, type: string, role: title }

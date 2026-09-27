@@ -1,0 +1,31 @@
+id: monthly-counts
+name: 月×費目（件数）
+rows:
+  idPattern: "M-*"
+columns:
+  - { label: 年月, schemaId: months, path: yearMonth }
+  # 行（月）を起点に、その月を指す取引を all で集め、count で数える
+  - label: 食費の件数
+    schemaId: months
+    value:
+      count:
+        all:
+          of: tx
+          match:
+            - node: { entity: month, bind: m }
+            - edge: { via: month, dir: in }
+            - node: { entity: transaction, bind: tx }
+            - edge: { via: category }
+            - node: { id: CAT-FOOD }
+  - label: 支出の件数
+    schemaId: months
+    value:
+      count:
+        all:
+          of: tx
+          match:
+            - node: { entity: month, bind: m }
+            - edge: { via: month, dir: in }
+            - node: { entity: transaction, bind: tx }
+          where:
+            - { of: tx, path: kind, equals: expense }

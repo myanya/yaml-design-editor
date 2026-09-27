@@ -1,0 +1,5 @@
+categories:
+  - { id: CAT-SALARY, name: 給与, kind: income }
+  - { id: CAT-FOOD, name: 食費, kind: expense }
+  - { id: CAT-RENT, name: 家賃, kind: expense }
+  - { id: CAT-UTIL, name: 光熱費, kind: expense }

@@ -1,0 +1,60 @@
+id: months
+name: 月
+kind: document
+match: "book/months/*.yaml"
+entity:
+  type: month
+  idPattern: "M-*"
+  defines: true
+root:
+  type: object
+  fields:
+    - { key: id, label: ID, type: id, required: true, description: "M-YYYY-MM" }
+    - { key: yearMonth, label: 年月, type: string, required: true, role: title, description: "YYYY-MM" }
+    - { key: prev, label: 前月, type: ref, idPattern: "M-*", scope: { schemaIds: [months] } }
+    - { key: opening, label: 期首残高, type: int, required: true, description: "月初の残高。前月の期末残高を手で写す" }
+constraints:
+  - id: month-matches-date
+    description: 取引の日付は、取引が指す月に入っていること
+    match:
+      - node: { entity: month, bind: m }
+      - edge: { via: month, dir: in }
+      - node: { entity: transaction, bind: tx }
+    check:
+      - { startsWith: [ { of: tx, path: date }, { of: m, path: yearMonth } ] }
+    level: error
+    message: "{tx.id} の日付 {left} は月 {right} に入っていません"
+  - id: opening-continues
+    description: 当月の期首残高は、前月の期首残高に前月の収入を足し支出を引いたものと一致すること
+    match:
+      - node: { entity: month, bind: m }
+      - edge: { via: prev }
+      - node: { entity: month, bind: p }
+    check:
+      - eq:
+          - { of: m, path: opening }
+          - subtract:
+              - add:
+                  - { of: p, path: opening }
+                  - sum:
+                      all:
+                        from: p
+                        of: tx
+                        path: amount
+                        match:
+                          - node: { entity: month, bind: pm }
+                          - edge: { via: month, dir: in }
+                          - node: { entity: transaction, bind: tx }
+                        where: [ { of: tx, path: kind, equals: income } ]
+              - sum:
+                  all:
+                    from: p
+                    of: tx
+                    path: amount
+                    match:
+                      - node: { entity: month, bind: pm }
+                      - edge: { via: month, dir: in }
+                      - node: { entity: transaction, bind: tx }
+                    where: [ { of: tx, path: kind, equals: expense } ]
+    level: error
+    message: "{m.title} の期首残高 {left} は、前月から計算した {right} と一致しません"

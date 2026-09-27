@@ -1,0 +1,68 @@
+id: monthly-sums
+name: 月×費目（金額）
+rows:
+  idPattern: "M-*"
+columns:
+  - { label: 年月, schemaId: months, path: yearMonth }
+  - { label: 期首残高, schemaId: months, path: opening }
+  - label: 収入
+    schemaId: months
+    value:
+      sum:
+        all:
+          of: tx
+          path: amount
+          match:
+            - node: { entity: month, bind: m }
+            - edge: { via: month, dir: in }
+            - node: { entity: transaction, bind: tx }
+          where: [ { of: tx, path: kind, equals: income } ]
+  - label: 食費
+    schemaId: months
+    value:
+      sum:
+        all:
+          of: tx
+          path: amount
+          match:
+            - node: { entity: month, bind: m }
+            - edge: { via: month, dir: in }
+            - node: { entity: transaction, bind: tx }
+            - edge: { via: category }
+            - node: { id: CAT-FOOD }
+  - label: 支出
+    schemaId: months
+    value:
+      sum:
+        all:
+          of: tx
+          path: amount
+          match:
+            - node: { entity: month, bind: m }
+            - edge: { via: month, dir: in }
+            - node: { entity: transaction, bind: tx }
+          where: [ { of: tx, path: kind, equals: expense } ]
+  - label: 期末残高
+    schemaId: months
+    value:
+      subtract:
+        - add:
+            - { path: opening }
+            - sum:
+                all:
+                  of: tx
+                  path: amount
+                  match:
+                    - node: { entity: month, bind: m }
+                    - edge: { via: month, dir: in }
+                    - node: { entity: transaction, bind: tx }
+                  where: [ { of: tx, path: kind, equals: income } ]
+        - sum:
+            all:
+              of: tx
+              path: amount
+              match:
+                - node: { entity: month, bind: m }
+                - edge: { via: month, dir: in }
+                - node: { entity: transaction, bind: tx }
+              where: [ { of: tx, path: kind, equals: expense } ]

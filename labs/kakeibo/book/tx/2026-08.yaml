@@ -1,0 +1,6 @@
+entries:
+  - { id: TX-20260825-01, date: "2026-08-25", kind: income, amount: 250000, category: CAT-SALARY, month: M-2026-08, memo: 8月給与 }
+  - { id: TX-20260801-01, date: "2026-08-01", kind: expense, amount: 80000, category: CAT-RENT, month: M-2026-08, memo: 家賃 }
+  - { id: TX-20260810-01, date: "2026-08-10", kind: expense, amount: 21000, category: CAT-FOOD, month: M-2026-08, memo: スーパー }
+  - { id: TX-20260820-01, date: "2026-08-20", kind: expense, amount: 17000, category: CAT-FOOD, month: M-2026-08, memo: スーパー }
+  - { id: TX-20260828-01, date: "2026-08-28", kind: expense, amount: 20000, category: CAT-UTIL, month: M-2026-08, memo: 電気・ガス }
