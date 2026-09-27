@@ -133,19 +133,21 @@ value:
 
 件数のセルをクリックすると、数えた TODO の一覧が出て、各 TODO の一覧の行へ移動できます。個票のステータスを変えて保存すると、件数はすぐに動きます。
 
-ビュー定義（`.yde/views/category-status-matrix.yaml`）では、行のカテゴリを起点に「このカテゴリを参照している TODO」を状態で絞って数えます。列は状態ごとに 1 つ書き、`where` の値だけが違います。合計の列は `where` を書きません。
+ビュー定義（`.yde/views/category-status-matrix.yaml`）では、行のカテゴリを起点に「このカテゴリを参照している TODO」を `all` で集め、状態で絞って `count` で数えます。列は状態ごとに 1 つ書き、`where` の値だけが違います。合計の列は `where` を書きません。
 
 ```yaml
 - label: 未着手
   schemaId: category-list
   value:
-    count:
-      match:
-        - node: { entity: category, bind: cat }   # 起点＝行のカテゴリ
-        - edge: { via: category, dir: in }        # カテゴリを参照している要素へ
-        - node: { entity: todo, bind: t }         # 数える対象
-      where:
-        - { of: t, path: status, equals: OPEN }   # 個票のステータスで絞る
+    count:                                        # 配列の件数
+      all:                                        # 照合の解を配列にする
+        of: t                                     # 集める対象
+        match:
+          - node: { entity: category, bind: cat } # 起点＝行のカテゴリ
+          - edge: { via: category, dir: in }      # カテゴリを参照している要素へ
+          - node: { entity: todo, bind: t }
+        where:
+          - { of: t, path: status, equals: OPEN } # 個票のステータスで絞る
 ```
 
 カテゴリを付けていない TODO はどの行にも数えられません。個票をまだ作っていない TODO はステータスが無いため、合計にだけ数えられます。

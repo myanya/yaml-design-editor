@@ -303,7 +303,8 @@ object VirtualViews {
          * 「いまの要素」として、値の式を 1 つの環境で評価する（SemanticValues＝検査の check と同じ評価器。整合検証の期待値と同じ解決）。
          * セルの座標は値の出どころ（ひな型の場所・読み出した値の場所・最小と最大で選ばれた要素。合計は無し）。来歴は全ての材料。
          * 得られなければ値なしで、理由を来歴の元値に残す（表示で気づける）。クエリ行では束縛（of）も読める（割当ては渡さず、
-         * 定義出現優先の選び方に任せる）。解の件数（count に match）は行の要素を起点に固定したパターン照合（SemanticQuery.matchesFrom）。
+         * 定義出現優先の選び方に任せる）。集合から値へ落とす all には、行を 1 つの解と見なした解の一覧（クエリ行）と、
+         * 行の要素を起点に固定した照合（SemanticQuery.matchesFrom）を渡す。値が配列ならセルの値は配列の項。
          */
         fun valueCell(
             column: VirtualViewColumn,
@@ -311,7 +312,7 @@ object VirtualViews {
             node: SemanticQueryNodeRef,
             occurrences: List<ScannedId>,
             nodes: Map<String, SemanticQueryNodeRef>,
-            aggregate: ((ValueExpr.Aggregate) -> SemanticValues.AggregateOutcome?)?,
+            solutions: List<SemanticQueryRow>,
         ): VirtualCell {
             val selector = DerivationSelector(column.from.schemaId, column.from.fileGlob)
             val currentOccurrence = when (node.kind) {
@@ -324,8 +325,8 @@ object VirtualViews {
                 current = node, currentOccurrence = currentOccurrence,
                 nodes = nodes, graph = graph,
                 refsInto = { id -> refs.filter { it.targetId == id } },
-                aggregate = aggregate,
-                countFrom = { origin, spec -> SemanticQuery.matchesFrom(ids, refs, graph, spec, origin.id, ::cachedTree) },
+                solutions = { solutions },
+                solveFrom = { origin, spec -> SemanticQuery.matchesFrom(ids, refs, graph, spec, origin.id, ::cachedTree) },
                 reserved = buildMap {
                     put(SemanticValues.RESERVED_ID, node.id)
                     node.title?.let { put(SemanticValues.RESERVED_TITLE, it) }
@@ -340,7 +341,7 @@ object VirtualViews {
                 column = column,
                 document = side?.sourceDocument,
                 path = side?.sourcePath,
-                value = side?.let { YNode.Scalar(it.text) },
+                value = side?.let { it.node ?: YNode.Scalar(it.text) },
                 computed = true,
                 trace = VirtualComputedTrace(
                     raw = raw,
@@ -359,25 +360,6 @@ object VirtualViews {
             path = occurrences.firstOrNull()?.path ?: emptyList(),
         )
 
-        /** クエリ行の集計（of＝束縛名）: 行を 1 つの解と見なし、その束縛の要素から材料を集める（クエリの評価器と同じ選び方）。 */
-        fun rowAggregate(bindings: Map<String, SemanticQueryNodeRef>): (ValueExpr.Aggregate) -> SemanticValues.AggregateOutcome? = { expr ->
-            val node = expr.of?.let { bindings[it] }
-            val path = expr.path
-            when {
-                node == null -> null
-                path == null -> SemanticValues.AggregateOutcome(SemanticCheckSide(text = "1", raw = "1"))
-                else -> {
-                    val occ = when (node.kind) {
-                        QueryNodeKind.ENTITY -> SemanticExpression.select(occurrencesOf(node.id), expr.inDoc ?: DerivationSelector(), rel)
-                            ?.let { SemanticExpression.Occurrence(it.document, it.path) }
-                        QueryNodeKind.DOCUMENT -> node.document?.let { SemanticExpression.Occurrence(it, emptyList()) }
-                    }
-                    if (occ == null) SemanticValues.AggregateOutcome(null, "${node.id} の出現がありません")
-                    else SemanticValues.aggregate(expr, SemanticExpression.collect(::cachedTree, occ, path))
-                }
-            }
-        }
-
         // クエリ行（rows: match）: 行 = パターン照合の束縛行。並びはクエリの決定的順序（sortRows は通さない）
         val query = view.rowsQuery
         if (query != null) {
@@ -392,7 +374,7 @@ object VirtualViews {
                     when {
                         node == null -> VirtualCell(column, null, null, null)
                         backlinksDef != null -> VirtualCell(column, null, null, null, backlinks = backlinksFor(node.id, backlinksDef))
-                        valueDef != null -> valueCell(column, valueDef, node, occurrencesOf(node.id), qr.bindings, rowAggregate(qr.bindings))
+                        valueDef != null -> valueCell(column, valueDef, node, occurrencesOf(node.id), qr.bindings, listOf(qr))
                         node.kind == QueryNodeKind.DOCUMENT -> {
                             // 文書ノードのセル: 文書ルートからの相対パス（座標はその文書＝通常の原本編集経路）
                             val document = node.document
@@ -440,7 +422,7 @@ object VirtualViews {
                         else occurrences.firstOrNull { column.from.matches(it, rel(it.document)) }
                     when {
                         backlinksDef != null -> VirtualCell(column, null, null, null, backlinks = backlinksFor(id, backlinksDef))
-                        valueDef != null -> valueCell(column, valueDef, entityNode(id, occurrences), occurrences, emptyMap(), null)
+                        valueDef != null -> valueCell(column, valueDef, entityNode(id, occurrences), occurrences, emptyMap(), emptyList())
                         occurrence == null -> VirtualCell(column, null, null, null)
                         else -> {
                             val absolute = occurrence.path + column.path

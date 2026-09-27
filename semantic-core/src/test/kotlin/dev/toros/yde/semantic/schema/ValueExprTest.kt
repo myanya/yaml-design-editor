@@ -123,23 +123,29 @@ class ValueExprTest {
             ValueExpr.parseValue(mapOf("max" to mapOf("path" to "comments[*].date", "type" to "date")), "x")
         )
         assertEquals(ValueExpr.OrderKind.DATE, max.kind)
-        assertEquals(listOf("comments", AnyIndex, "date"), max.path)
-        assertNull(max.of)
+        // 短い書き方の引数は、いまの要素からの読み出し（配列を返す式）
+        val read = assertIs<ValueExpr.Get>(max.input)
+        assertEquals(listOf("comments", AnyIndex, "date"), read.path)
+        assertNull(read.of)
+        assertTrue(read.spreads)
         // いまの要素から読む項目として、ビューのリントが解決を点検できる
         assertEquals(listOf("comments[*].date"), max.currentReads())
         assertEquals(listOf(max), max.aggregates())
-        // 省略時は数値
-        val sum = assertIs<ValueExpr.Aggregate>(ValueExpr.parse(mapOf("sum" to mapOf("of" to "l", "path" to "amount")), "x"))
+        // 省略時は数値。引数には式（all）も書ける
+        val sum = assertIs<ValueExpr.Aggregate>(ValueExpr.parse(mapOf("sum" to mapOf("all" to mapOf("of" to "l", "path" to "amount"))), "x"))
         assertEquals(ValueExpr.OrderKind.NUMBER, sum.kind)
-        // count は path で配列の要素を数える
+        assertIs<ValueExpr.All>(sum.input)
+        // count は配列の要素を数える
         val count = assertIs<ValueExpr.Aggregate>(ValueExpr.parseValue(mapOf("count" to mapOf("path" to "comments[*]")), "x"))
         assertEquals(ValueExpr.AggregateFn.COUNT, count.fn)
-        // 日付は足せない・未知の種類・count の type・of も path も無い count・検査の中では of が要る
+        // 日付は足せない・未知の種類・count の type・引数の無い count・検査の中にはいまの要素が無い・古い書き方
         assertFailsWith<IllegalArgumentException> { ValueExpr.parseValue(mapOf("sum" to mapOf("path" to "a[*].d", "type" to "date")), "x") }
         assertFailsWith<IllegalStateException> { ValueExpr.parseValue(mapOf("max" to mapOf("path" to "a[*].d", "type" to "text")), "x") }
         assertFailsWith<IllegalArgumentException> { ValueExpr.parseValue(mapOf("count" to mapOf("path" to "a[*]", "type" to "date")), "x") }
-        assertFailsWith<IllegalArgumentException> { ValueExpr.parseValue(mapOf("count" to emptyMap<String, Any>()), "x") }
-        assertFailsWith<IllegalStateException> { ValueExpr.parse(mapOf("max" to mapOf("path" to "a[*].d")), "x") }
+        assertFailsWith<IllegalStateException> { ValueExpr.parseValue(mapOf("count" to emptyMap<String, Any>()), "x") }
+        assertFailsWith<IllegalArgumentException> { ValueExpr.parse(mapOf("max" to mapOf("path" to "a[*].d")), "x") }
+        val old = assertFailsWith<IllegalStateException> { ValueExpr.parse(mapOf("sum" to mapOf("of" to "l", "path" to "amount")), "x") }
+        assertTrue("{sum: {all: {of: l, path: amount}}}" in old.message.orEmpty(), old.message)
     }
 
     @Test

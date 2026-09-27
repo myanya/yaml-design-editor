@@ -88,16 +88,19 @@ class QueryDeclarationTest {
     fun `参照の本数と集計は値の式として書け束縛が見つからなければ定義エラーになる`() {
         val refCount = ValueExpr.parse(mapOf("refCount" to mapOf("of" to "s", "dir" to "in", "relation" to "uses")), "x")
         assertEquals(ValueExpr.RefCount("s", QueryDir.IN, "uses", null), refCount)
-        val sum = assertIs<ValueExpr.Aggregate>(ValueExpr.parse(mapOf("sum" to mapOf("of" to "l", "path" to "amount")), "x"))
+        val sum = assertIs<ValueExpr.Aggregate>(ValueExpr.parse(mapOf("sum" to mapOf("all" to mapOf("of" to "l", "path" to "amount"))), "x"))
         assertEquals(ValueExpr.AggregateFn.SUM, sum.fn)
-        assertTrue(sum.hasAggregate())
+        // 同じ起点の全ての解の一覧を要する
+        assertTrue(sum.needsSolutions())
         // 出現を選ぶ対象にはならないが、束縛の点検の対象にはなる
         assertEquals(emptyList(), sum.sources())
         assertEquals(listOf("l"), sum.binds())
-        assertNull(assertIs<ValueExpr.Aggregate>(ValueExpr.parse(mapOf("count" to mapOf("of" to "l")), "x")).path)
-        assertFailsWith<IllegalArgumentException> { ValueExpr.parse(mapOf("sum" to mapOf("of" to "l")), "x") }
-        // count に path を書くと、その束縛の要素の配列の要素を数える（解ではなく）
-        assertEquals(listOf("a"), assertIs<ValueExpr.Aggregate>(ValueExpr.parse(mapOf("count" to mapOf("of" to "l", "path" to "a")), "x")).path)
+        assertNull(assertIs<ValueExpr.All>(assertIs<ValueExpr.Aggregate>(ValueExpr.parse(mapOf("count" to mapOf("all" to mapOf("of" to "l"))), "x")).input).path)
+        // 古い書き方（集計の中の of）は残さず、定義エラーで all の書き方を案内する
+        assertFailsWith<IllegalStateException> { ValueExpr.parse(mapOf("sum" to mapOf("of" to "l", "path" to "amount")), "x") }
+        assertFailsWith<IllegalStateException> { ValueExpr.parse(mapOf("count" to mapOf("of" to "l")), "x") }
+        // all に path を書くと、その束縛の要素の配列の要素を並べる（解ではなく）
+        assertEquals(listOf("a"), assertIs<ValueExpr.All>(assertIs<ValueExpr.Aggregate>(ValueExpr.parse(mapOf("count" to mapOf("all" to mapOf("of" to "l", "path" to "a"))), "x")).input).path)
         assertFailsWith<IllegalStateException> { ValueExpr.parse(mapOf("refCount" to mapOf("of" to "s")), "x") }
         assertFailsWith<IllegalArgumentException> {
             rule("check" to listOf(mapOf("gte" to listOf(mapOf("refCount" to mapOf("of" to "nobody", "dir" to "out")), 1))))

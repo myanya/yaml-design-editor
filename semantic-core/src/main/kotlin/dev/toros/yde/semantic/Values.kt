@@ -2,9 +2,13 @@ package dev.toros.yde.semantic
 
 import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.YNode
+import dev.toros.yde.yaml.model.YPath
+import dev.toros.yde.yaml.model.getAt
 import dev.toros.yde.yaml.model.parseYPath
 import dev.toros.yde.yaml.model.pretty
+import dev.toros.yde.yaml.model.scalarText
 import dev.toros.yde.semantic.schema.DerivationSelector
+import dev.toros.yde.semantic.schema.PathPattern
 import dev.toros.yde.semantic.schema.Projection
 import dev.toros.yde.semantic.schema.QueryDir
 import dev.toros.yde.semantic.schema.QueryEdgeStep
@@ -13,13 +17,14 @@ import dev.toros.yde.semantic.schema.QuerySpec
 import dev.toros.yde.semantic.schema.ValueExpr
 
 /**
- * 1つの環境での値の式の評価（P31・R31-01。CORE-CALCULUS §7 の Expression＝σ を固定した単一値の純粋な計算）。
- * 以前はクエリの評価器（SemanticQuery）の中に閉じていた評価を、環境（Environment）を渡せば検査の外——新しい文書の
- * ファイル名（DocumentScaffolds）・変換のひな型など——からも同じ意味で使えるようにした。クエリの check 判定も、
- * 解の束縛と出現の割当てを環境に写して、ここを呼ぶ（1つの意味には1つの評価器）。
- * - いまの要素（current）: `of` を省略した読み出し・参照の本数・書かれた場所の数の相手。無ければ「得られない」
+ * 1つの環境での値の式の評価（P31・R31-01。CORE-CALCULUS「Expression Calculus」＝σ を固定した純粋な計算）。
+ * 値は項（スカラー・配列・マップ）と出どころ（ADR-0010）。関数（集計・四則演算など）は引数を先に評価して値を受け取り、
+ * 形を受け取る語（format・first・all・each）は自分の規則で評価する。集合（解・出現）から値へ落とす入口は all の 1 つで、
+ * 解の一覧と起点を固定した照合は、クエリの評価器かビューが環境に渡す。クエリの check 判定も、解の束縛と出現の割当てを環境に
+ * 写してここを呼ぶ（1つの意味には1つの評価器）。
+ * - いまの要素（current）: `of` を省略した読み出し・参照の本数・書かれた場所の数・all の match の起点。無ければ「得られない」
  * - 予約の名前（reserved）: 短い書き方の穴 `{id}` `{title}` を、要素の項目より先に埋める
- * - 得られない値は null（判定保留の流儀）。埋まらなかった穴の名前は Result.missing に残す（作成をエラーにする文面の材料）
+ * - 得られない値は null（判定保留の流儀）。埋まらなかった穴の名前は Result.missing に、理由は Result.reason に残す
  */
 object SemanticValues {
 
@@ -42,36 +47,43 @@ object SemanticValues {
          * 無ければ、束縛の出現は定義出現を優先して 1 つ選ぶ（ビューの行の束縛。グラフが要る）。
          */
         val assignment: Map<ValueExpr.ScopeRef, SemanticExpression.Occurrence?> = emptyMap(),
-        /** グラフ（参照の本数・書かれた場所の数・`in` 付きのいまの要素の読み出しに使う。無ければ、それらは「得られない」）。 */
+        /** グラフ（参照の本数・書かれた場所の数・`in` 付きのいまの要素の読み出し・all の出現の選択に使う。無ければ、それらは「得られない」）。 */
         val graph: SemanticEntityGraph? = null,
         /** その ID へ入ってくる参照（refCount の dir: in）。 */
         val refsInto: (String) -> List<ScannedRef> = { emptyList() },
         /**
-         * 解にわたる集計（of＝束縛名。解の一覧を持つクエリの評価器か、行を 1 つの解と見なすビューが担う。無ければ「得られない」）。
-         * of を省略した集計（いまの要素の中の配列）は、ここを通らずに評価器が自分で計算する。
+         * 同じ起点の全ての解（all の of の形）。解の一覧を持つクエリの評価器か、行を 1 つの解と見なすビューが渡す。
+         * 無ければ「得られない」。
          */
-        val aggregate: ((ValueExpr.Aggregate) -> AggregateOutcome?)? = null,
-        /**
-         * 解の件数（count に match）: 起点のノードを固定してパターン照合を評価する（クエリの評価器＝SemanticQuery.matchesFrom を
-         * 持つ側が渡す。無ければ「得られない」）。
-         */
-        val countFrom: ((SemanticQueryNodeRef, QuerySpec) -> SemanticQueryResult?)? = null,
+        val solutions: (() -> List<SemanticQueryRow>)? = null,
+        /** 起点を固定した照合（all の match の形）。クエリの評価器（SemanticQuery.matchesFrom）を持つ側が渡す。無ければ「得られない」。 */
+        val solveFrom: ((SemanticQueryNodeRef, QuerySpec) -> SemanticQueryResult?)? = null,
         /** 予約の名前の値（{id} {title} など）。 */
         val reserved: Map<String, String> = emptyMap(),
         /** 穴に入る値の直し方（ファイル名に使える文字に直す、など）。 */
         val holeValue: (String) -> String = { it },
         /** 得られない読み出しと埋まらない穴の代わりの値（定義の点検で代表値を得るためのもの。null＝得られない）。 */
         val fallback: String? = null,
-    )
+    ) {
+        /** each の 1 つの要素を「いまの要素」とする環境（出現の割当ては引き継がない。束縛と解の一覧はそのまま）。 */
+        fun forElement(element: SemanticQueryNodeRef?, occurrence: SemanticExpression.Occurrence?): Environment = Environment(
+            tree = tree, rel = rel, current = element, currentOccurrence = occurrence, nodes = nodes,
+            assignment = emptyMap(), graph = graph, refsInto = refsInto, solutions = solutions, solveFrom = solveFrom,
+            reserved = buildMap {
+                element?.let { e ->
+                    put(RESERVED_ID, e.id)
+                    e.title?.let { put(RESERVED_TITLE, it) }
+                }
+            },
+            holeValue = holeValue, fallback = fallback,
+        )
+    }
 
     /**
      * 評価の結果: 値（得られなければ null）と、埋まらなかった穴・読めなかった項目の名前（初出順）と、
      * 得られなかった理由（集計が値を読めなかった場所など。表示に添える文。無ければ null）。
      */
     class Result(val side: SemanticCheckSide?, val missing: List<String>, val reason: String? = null)
-
-    /** 集計の結果: 値（得られなければ null）・得られなかった理由・値が書かれていなかった場所。 */
-    class AggregateOutcome(val side: SemanticCheckSide?, val reason: String? = null, val missing: List<String> = emptyList())
 
     /** 式を評価する（得られなければ null）。 */
     fun evaluate(expr: ValueExpr, env: Environment): SemanticCheckSide? = evaluateDetailed(expr, env).side
@@ -85,35 +97,30 @@ object SemanticValues {
     }
 
     /**
-     * 集計の評価（共有）。items は集めた材料（クエリの解にわたる材料か、いまの要素の配列の要素。SemanticExpression.collect）。
-     * 値が書かれていない・順序の種類として読めない材料が 1 つでもあれば「得られない」（理由つき。CORE-CALCULUS の集計の規則）。
-     * 件数は値を読まない。結果の出どころ: 最小・最大は選ばれた材料の場所、合計・件数は特定の 1 か所ではない。inputs は全ての材料。
+     * 配列の値を組み立てる。要素は値と出どころ（node の並びと同じ順）。来歴（inputs）にも要素を並べる（表示で材料をたどれるように）。
+     * node を渡さなければ、要素の値をスカラーに並べた配列にする。
      */
-    fun aggregate(expr: ValueExpr.Aggregate, items: List<SemanticExpression.Collected>): AggregateOutcome {
-        val inputs = items.map { SemanticValueInput(it.placeholder, it.value, it.document, it.path) }
-        if (expr.fn == ValueExpr.AggregateFn.COUNT) {
-            val n = items.size.toString()
-            return AggregateOutcome(SemanticCheckSide(text = n, raw = n, inputs = inputs))
-        }
-        val values = ArrayList<String>(items.size)
-        for (item in items) {
-            val v = item.value ?: return AggregateOutcome(null, "${item.placeholder} が書かれていません", listOf(item.placeholder))
-            if (!SemanticExpression.readable(expr.kind, v)) {
-                return AggregateOutcome(null, "${item.placeholder} が${expr.kind.label}として読めません: $v")
-            }
-            values += v
-        }
-        val result = SemanticExpression.aggregateDetailed(expr.fn, values, expr.kind)
-            ?: return AggregateOutcome(null, if (values.isEmpty()) "値がありません" else "${expr.fn.label}を計算できません")
-        val winner = result.winner?.let { items[it] }
-        return AggregateOutcome(
-            SemanticCheckSide(
-                text = result.text,
-                raw = "${expr.fn.label}: ${values.joinToString("・")}",
-                sourceDocument = winner?.document, sourcePath = winner?.path,
-                inputs = inputs,
-            )
+    fun arraySide(
+        elements: List<SemanticValueInput>,
+        node: YNode.Seq? = null,
+        bind: String? = null,
+        id: String? = null,
+        sourceDocument: DocumentId? = null,
+        sourcePath: YPath? = null,
+    ): SemanticCheckSide {
+        val seq = node ?: YNode.Seq(elements.map { YNode.Scalar(it.value) }.toMutableList())
+        return SemanticCheckSide(
+            text = SemanticExpression.flowText(seq), bind = bind, id = id,
+            sourceDocument = sourceDocument, sourcePath = sourcePath,
+            inputs = elements, node = seq, elements = elements,
         )
+    }
+
+    /** 配列の要素の値（スカラーならその文字。書かれていなければ null。配列やマップは流れ書きの文字）。 */
+    private fun elementText(node: YNode?): String? = when (node) {
+        null -> null
+        is YNode.Scalar -> scalarText(node)
+        else -> SemanticExpression.flowText(node)
     }
 
     private class Eval(private val env: Environment, private val missing: MutableSet<String>) {
@@ -181,28 +188,23 @@ object SemanticValues {
         private fun fallbackSide(): SemanticCheckSide? = env.fallback?.let { SemanticCheckSide(text = it, raw = it) }
 
         fun eval(expr: ValueExpr): SemanticCheckSide? = when (expr) {
-            is ValueExpr.Get -> {
-                val occ = occurrence(ValueExpr.ScopeRef(expr.of, expr.inDoc, expr.via))
-                val text = occ?.let { SemanticExpression.textAt(env.tree, it, expr.path) }
-                if (text != null && occ != null) {
-                    SemanticCheckSide(
-                        text = text,
-                        bind = expr.of, id = node(expr.of)?.id,
-                        document = occ.document, occPath = occ.path, path = expr.path,
-                        raw = text, sourceDocument = occ.document, sourcePath = occ.path + expr.path,
-                    )
-                } else {
-                    missing += expr.path.pretty()
-                    fallbackSide()
-                }
-            }
+            is ValueExpr.Get -> get(expr)
             is ValueExpr.Literal -> expr.value?.let { SemanticCheckSide(text = it, raw = it) }
-            is ValueExpr.Format -> eval(expr.template)?.let { template -> format(expr, template) }
-            is ValueExpr.MapValue -> eval(expr.input)?.let { it.copy(text = Projection.applyMap(it.text, expr.using)) }
+            is ValueExpr.Format -> eval(expr.template)?.let { template ->
+                if (!template.isScalar) fail("ひな型が文字ではありません: ${template.text}") else format(expr, template)
+            }
+            is ValueExpr.MapValue -> eval(expr.input)?.let { input ->
+                if (!input.isScalar) fail("map はスカラーだけを受け取ります: ${input.text}")
+                else input.copy(text = Projection.applyMap(input.text, expr.using))
+            }
             is ValueExpr.First -> expr.options.firstNotNullOfOrNull { eval(it) }
             is ValueExpr.Unary -> eval(expr.input)?.let { input ->
-                SemanticExpression.unary(expr.fn, input.text)?.let { text ->
-                    input.copy(text = text, raw = input.raw ?: input.text, note = expr.fn.label ?: input.note)
+                when {
+                    !input.isScalar && expr.fn == ValueExpr.UnaryFn.LENGTH -> fail("length は文字数です（配列の件数は count で数えます）: ${input.text}")
+                    !input.isScalar -> fail("${expr.fn.id} はスカラーだけを受け取ります: ${input.text}")
+                    else -> SemanticExpression.unary(expr.fn, input.text)?.let { text ->
+                        input.copy(text = text, raw = input.raw ?: input.text, note = expr.fn.label ?: input.note)
+                    }
                 }
             }
             // 参照の本数（SP-03）: グラフの隣接から数える。出ていく参照は相手が見つからないものも数え（CALC-20）、
@@ -233,80 +235,238 @@ object SemanticValues {
                 }
             }
             is ValueExpr.Aggregate -> aggregateOf(expr)
-            is ValueExpr.CountMatches -> countMatchesOf(expr)
-            is ValueExpr.Arith -> {
-                val operands = expr.operands.map { eval(it) ?: return null }
-                SemanticExpression.arith(expr.op, operands.map { it.text })?.let { text ->
-                    // 計算結果は特定の1か所に書かれた値ではない——式（3 + 12）を元の値として示し、移動先は最初の値の場所
-                    val first = operands.firstOrNull { it.sourceDocument != null }
+            is ValueExpr.All -> allOf(expr)
+            is ValueExpr.Each -> eachOf(expr)
+            is ValueExpr.Arith -> arithOf(expr)
+        }
+
+        /** 四則演算: 引数を先に評価し、スカラーだけを受け取る。結果は特定の 1 か所の値ではない（式を元の値として示す）。 */
+        private fun arithOf(expr: ValueExpr.Arith): SemanticCheckSide? {
+            val operands = expr.operands.map { eval(it) ?: return null }
+            if (operands.any { !it.isScalar }) return fail("四則演算はスカラーだけを受け取ります")
+            val text = SemanticExpression.arith(expr.op, operands.map { it.text }) ?: return null
+            // 計算結果は特定の1か所に書かれた値ではない——式（3 + 12）を元の値として示し、移動先は最初の値の場所
+            val first = operands.firstOrNull { it.sourceDocument != null }
+            return SemanticCheckSide(
+                text = text,
+                id = first?.id,
+                raw = operands.joinToString(" ${expr.op.symbol} ") { it.text },
+                sourceDocument = first?.sourceDocument, sourcePath = first?.sourcePath,
+            )
+        }
+
+        /**
+         * 読み出し: 出現の要素からの相対パスの項をそのまま値にする。スカラーはその文字、配列は要素ごとに出どころを持つ配列、
+         * マップは流れ書きの文字を持つ項。パスに `[*]` があれば、合う場所の値を並べた配列（書かれていない要素が 1 つでもあれば得られない）。
+         */
+        private fun get(expr: ValueExpr.Get): SemanticCheckSide? {
+            val pretty = PathPattern.pretty(expr.path)
+            val occ = occurrence(ValueExpr.ScopeRef(expr.of, expr.inDoc, expr.via)) ?: run {
+                missing += pretty
+                return fallbackSide()
+            }
+            val id = node(expr.of)?.id
+            if (expr.spreads) {
+                val element = SemanticExpression.nodeAt(env.tree, occ, emptyList()) ?: run {
+                    missing += pretty
+                    return fallbackSide()
+                }
+                val elements = spreadElements(element, expr.path, occ, prefix = null) ?: return fallbackSide()
+                return arraySide(elements, bind = expr.of, id = id)
+            }
+            val node = SemanticExpression.nodeAt(env.tree, occ, expr.path)
+            val absolute = occ.path + expr.path
+            return when (node) {
+                null -> {
+                    missing += pretty
+                    fallbackSide()
+                }
+                is YNode.Scalar -> {
+                    val text = scalarText(node) ?: run {
+                        missing += pretty
+                        return fallbackSide()
+                    }
                     SemanticCheckSide(
                         text = text,
-                        id = first?.id,
-                        raw = operands.joinToString(" ${expr.op.symbol} ") { it.text },
-                        sourceDocument = first?.sourceDocument, sourcePath = first?.sourcePath,
+                        bind = expr.of, id = id,
+                        document = occ.document, occPath = occ.path, path = expr.path,
+                        raw = text, sourceDocument = occ.document, sourcePath = absolute,
+                    )
+                }
+                is YNode.Seq -> arraySide(
+                    elements = node.items.mapIndexed { i, item ->
+                        SemanticValueInput(PathPattern.pretty(expr.path + i), elementText(item), occ.document, absolute + i)
+                    },
+                    node = node, bind = expr.of, id = id, sourceDocument = occ.document, sourcePath = absolute,
+                )
+                is YNode.Map -> {
+                    val text = SemanticExpression.flowText(node)
+                    SemanticCheckSide(
+                        text = text, bind = expr.of, id = id,
+                        document = occ.document, occPath = occ.path, path = expr.path,
+                        raw = text, sourceDocument = occ.document, sourcePath = absolute, node = node,
                     )
                 }
             }
         }
 
         /**
-         * 集計: of があれば解にわたる集計（環境の aggregate）。of を省略すれば、いまの要素の出現（`in` があれば同じ ID の
-         * 指定に合う出現）から、パスのパターンに合う場所（`[*]`＝配列の全要素）の値を集めて計算する（1 つの要素の中の集計）。
-         * 得られなければ理由を残し、代表値（fallback）があればそれで続ける。
+         * `[*]` を含むパスの場所の値を集める（集める側で厳しく判定する: 書かれていない場所が 1 つでもあれば得られない）。
+         * prefix は要素の名前の前に添える言葉（all で複数の要素から集めるとき、その ID）。
          */
-        private fun aggregateOf(expr: ValueExpr.Aggregate): SemanticCheckSide? {
-            val outcome = if (expr.of != null) env.aggregate?.invoke(expr) else {
-                val pattern = expr.path ?: return null
-                val occ = occurrence(ValueExpr.ScopeRef(null, expr.inDoc))
-                if (occ == null) AggregateOutcome(null, "いまの要素がありません")
-                else aggregate(expr, SemanticExpression.collect(env.tree, occ, pattern))
+        private fun spreadElements(
+            element: YNode,
+            pattern: List<Any>,
+            occ: SemanticExpression.Occurrence,
+            prefix: String?,
+            ref: SemanticQueryNodeRef? = null,
+        ): List<SemanticValueInput>? {
+            val out = ArrayList<SemanticValueInput>()
+            for (rel in PathPattern.expand(element, pattern)) {
+                val name = (prefix?.let { "$it " } ?: "") + rel.pretty()
+                val value = elementText(getAt(element, rel)) ?: run {
+                    missing += name
+                    return fail("$name が書かれていません")
+                }
+                out += SemanticValueInput(name, value, occ.document, occ.path + rel, ref)
             }
-            val side = outcome?.side
-            if (side != null) return side
-            outcome?.let { o ->
-                missing += o.missing
-                if (reason == null) reason = o.reason
-            }
-            return fallbackSide()
+            return out
         }
 
         /**
-         * 解の件数（count に match）: 起点（of の束縛か、いまの要素）を固定してパターン照合を評価し、解の件数を値にする。
-         * 起点が match の先頭の node に合わなければ 0。来歴は見つかった解の束縛（起点を除く）で、各ノードの座標へ行ける。
-         * 元の値は数えたノードの並び。評価器が無い（検査の外でグラフを持たない環境）なら理由を残して得られない。
+         * 集計（配列を受け取る関数）: 引数を先に評価し、配列でなければ得られない。件数は値を読まない。合計・最小・最大は
+         * 要素が順序の種類として読めなければ得られない。最小・最大の出どころは選ばれた要素、来歴は全ての要素。
          */
-        private fun countMatchesOf(expr: ValueExpr.CountMatches): SemanticCheckSide? {
-            val node = node(expr.of) ?: run {
-                fail(if (expr.of == null) "いまの要素がありません" else "束縛「${expr.of}」がありません")
+        private fun aggregateOf(expr: ValueExpr.Aggregate): SemanticCheckSide? {
+            val input = eval(expr.input) ?: return fallbackSide()
+            val elements = input.elements ?: run {
+                fail("${expr.fn.label}の引数が配列ではありません: ${input.text}")
                 return fallbackSide()
             }
-            val countFrom = env.countFrom ?: run {
-                fail("解の件数はここでは数えられません（ビューの列で数えます）")
+            if (expr.fn == ValueExpr.AggregateFn.COUNT) {
+                val n = elements.size.toString()
+                val raw = if (elements.isEmpty()) n else "件数: " + elements.joinToString("・") { it.ref?.id ?: it.placeholder }
+                return SemanticCheckSide(text = n, bind = input.bind, id = input.id, raw = raw, inputs = elements)
+            }
+            val values = elements.map { el ->
+                val v = el.value ?: run {
+                    missing += el.placeholder
+                    fail("${el.placeholder} が書かれていません")
+                    return fallbackSide()
+                }
+                if (!SemanticExpression.readable(expr.kind, v)) {
+                    fail("${el.placeholder} が${expr.kind.label}として読めません: $v")
+                    return fallbackSide()
+                }
+                v
+            }
+            val result = SemanticExpression.aggregateDetailed(expr.fn, values, expr.kind) ?: run {
+                fail(if (values.isEmpty()) "値がありません" else "${expr.fn.label}を計算できません")
                 return fallbackSide()
             }
-            val result = countFrom(node, expr.query) ?: run {
-                fail("解の件数を数えられません")
+            val winner = result.winner?.let { elements[it] }
+            return SemanticCheckSide(
+                text = result.text,
+                bind = input.bind, id = input.id,
+                raw = "${expr.fn.label}: ${values.joinToString("・")}",
+                sourceDocument = winner?.document, sourcePath = winner?.path,
+                inputs = elements,
+            )
+        }
+
+        /**
+         * 集合から配列へ（all）: 解の一覧（of の形＝同じ起点の全ての解）か、起点を固定した照合（match の形）から、束縛の要素
+         * （重複は 1 つ）を並べる。path があれば各要素の出現（定義した側を優先して 1 つ。`in` で絞る）から値を読み、`[*]` は平らに広がる。
+         * path が無ければ ID の配列（各要素はそのノード＝each のいまの要素になれる）。読めない要素が 1 つでもあれば得られない。
+         */
+        private fun allOf(expr: ValueExpr.All): SemanticCheckSide? {
+            val query = expr.query
+            val rows: List<SemanticQueryRow> = if (query != null) {
+                val origin = (if (expr.from == null) env.current else env.nodes[expr.from]) ?: run {
+                    fail(if (expr.from == null) "いまの要素がありません" else "束縛「${expr.from}」がありません")
+                    return fallbackSide()
+                }
+                val solve = env.solveFrom ?: run {
+                    fail("起点を固定した照合はここでは評価できません（検査かビューの列で使えます）")
+                    return fallbackSide()
+                }
+                solve(origin, query)?.rows ?: run {
+                    fail("照合を評価できません")
+                    return fallbackSide()
+                }
+            } else {
+                env.solutions?.invoke() ?: run {
+                    fail("解の一覧がありません（all の of の形は、検査かクエリ行のビューで使えます）")
+                    return fallbackSide()
+                }
+            }
+            val nodes = rows.mapNotNull { it.bindings[expr.of] }.distinctBy { it.kind to it.id }
+            val path = expr.path
+            val elements = if (path == null) {
+                nodes.map { SemanticValueInput(expr.of, it.id, it.document, it.path, it) }
+            } else {
+                nodes.flatMap { n ->
+                    val occ = occurrenceOf(n, expr.inDoc) ?: run {
+                        fail("${n.id} の出現がありません" + (expr.inDoc?.let { "（in の指定に合う文書）" } ?: ""))
+                        return fallbackSide()
+                    }
+                    val element = SemanticExpression.nodeAt(env.tree, occ, emptyList()) ?: run {
+                        fail("${n.id} の要素が読めません")
+                        return fallbackSide()
+                    }
+                    if (PathPattern.hasWildcard(path)) {
+                        spreadElements(element, path, occ, prefix = n.id, ref = n) ?: return fallbackSide()
+                    } else {
+                        val value = elementText(getAt(element, path)) ?: run {
+                            val name = "${n.id} ${path.pretty()}"
+                            missing += name
+                            fail("$name が書かれていません")
+                            return fallbackSide()
+                        }
+                        listOf(SemanticValueInput(n.id, value, occ.document, occ.path + path, n))
+                    }
+                }
+            }
+            return arraySide(elements, bind = expr.of)
+        }
+
+        /**
+         * 要素ごとの式（each）: 配列の各要素を「いまの要素」として value を評価し、配列にする。要素がノード（all で集めた ID）なら
+         * その ID の要素、場所を持つ要素ならその場所がいまの要素。1 つでも得られなければ得られない（理由つき）。
+         */
+        private fun eachOf(expr: ValueExpr.Each): SemanticCheckSide? {
+            val input = eval(expr.input) ?: return fallbackSide()
+            val elements = input.elements ?: run {
+                fail("each の対象が配列ではありません: ${input.text}")
                 return fallbackSide()
             }
-            val origin = expr.query.start.bind
-            val counted = result.rows.map { row -> row.bindings.filter { (name, _) -> name != origin } }
-            val inputs = counted.flatMap { bindings ->
-                bindings.map { (name, ref) -> SemanticValueInput(name, ref.id, ref.document, ref.path) }
+            val out = elements.map { el ->
+                val ref = el.ref
+                val occ = when {
+                    // ノードの要素: いまの要素はその ID の出現（定義した側を優先）。場所を持つ要素: その場所
+                    ref != null && el.document != null && el.path != null && el.value == ref.id ->
+                        occurrenceOf(ref, null) ?: SemanticExpression.Occurrence(el.document, el.path)
+                    el.document != null && el.path != null -> SemanticExpression.Occurrence(el.document, el.path)
+                    else -> null
+                }
+                val child = Eval(env.forElement(ref, occ), missing)
+                val side = child.eval(expr.value) ?: run {
+                    fail("要素「${el.placeholder}」の値が得られません" + (child.reason?.let { ": $it" } ?: ""))
+                    return fallbackSide()
+                }
+                SemanticValueInput(el.placeholder, side.text, side.sourceDocument ?: el.document, side.sourcePath ?: el.path, ref)
             }
-            val n = result.total.toString()
-            val raw = if (counted.isEmpty() || counted.all { it.isEmpty() }) n
-            else "件数: " + counted.joinToString("・") { b -> b.values.joinToString("/") { it.id } }
-            return SemanticCheckSide(text = n, id = node.id, raw = raw, inputs = inputs)
+            return arraySide(out, bind = input.bind, id = input.id)
         }
 
         /**
          * テンプレートの展開: 入れ物は「with で名付けた値 → 予約の名前 → 入れ物（scopes）→ いまの要素」の順に近い
          * （いまの要素は、書いた入れ物の後にいつも続く。検査の中にはいまの要素が無いので影響しない）。
-         * 穴が埋まらなければ「得られない」（fallback があれば、それで埋めて続ける）。
+         * 穴が埋まらなければ「得られない」（fallback があれば、それで埋めて続ける）。with の値はスカラーだけが穴に入る。
          */
         private fun format(expr: ValueExpr.Format, template: SemanticCheckSide): SemanticCheckSide? {
             val withSides = LinkedHashMap<String, SemanticCheckSide>()
-            for ((name, e) in expr.with) eval(e)?.let { withSides[name] = it }
+            for ((name, e) in expr.with) eval(e)?.takeIf { it.isScalar }?.let { withSides[name] = it }
             val scopeNodes = ArrayList<Pair<SemanticExpression.Occurrence?, YNode>>()
             val withIndex = if (withSides.isEmpty()) -1 else scopeNodes.size.also {
                 scopeNodes += null to YNode.Map(LinkedHashMap(withSides.mapValues { YNode.Scalar(it.value.text) }))

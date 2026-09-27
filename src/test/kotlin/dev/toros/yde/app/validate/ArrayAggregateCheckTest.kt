@@ -48,14 +48,14 @@ class ArrayAggregateCheckTest {
                 match:
                   - node: { entity: todo, bind: t }
                 check:
-                  - eq: [{ of: t, path: lastUpdated }, { max: { of: t, path: "comments[*].date", type: date } }]
+                  - eq: [{ of: t, path: lastUpdated }, { max: { all: { of: t, path: "comments[*].date" }, type: date } }]
                 level: error
               - id: has-comment
                 description: コメントが 1 件以上あること
                 match:
                   - node: { entity: todo, bind: t }
                 check:
-                  - gte: [{ count: { of: t, path: "comments[*]" } }, 1]
+                  - gte: [{ count: { all: { of: t, path: "comments[*]" } } }, 1]
                 level: error
             """,
         )

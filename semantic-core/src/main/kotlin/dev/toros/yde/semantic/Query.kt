@@ -76,6 +76,8 @@ data class SemanticValueInput(
     val value: String?,
     val document: DocumentId?,
     val path: YPath?,
+    /** 要素がノード（all で集めた ID）のとき、そのノード（each のいまの要素になる）。 */
+    val ref: SemanticQueryNodeRef? = null,
 )
 
 /**
@@ -97,7 +99,14 @@ data class SemanticCheckSide(
     val inputs: List<SemanticValueInput> = emptyList(),
     /** 読んだ値に施した計算の呼び名（「文字数」など。文面で「name の文字数: 25」のように添える）。 */
     val note: String? = null,
-)
+    /** 値の項（配列・マップのとき。null＝スカラーで、値は text）。ADR-0010。 */
+    val node: YNode? = null,
+    /** 配列のとき、要素ごとの値と出どころ（node の並びと同じ順）。 */
+    val elements: List<SemanticValueInput>? = null,
+) {
+    /** スカラー（文字 1 つ）か。比較・穴埋め・四則演算はスカラーだけを受け取る。 */
+    val isScalar: Boolean get() = node == null || node is YNode.Scalar
+}
 
 /**
  * check 判定で条件を満たさなかった組1件（項目の中で、同じ「束縛と文書の指定」は同じ出現から読む。CORE-CALCULUS §8）。
@@ -760,7 +769,7 @@ object SemanticQuery {
             pin: Pair<ValueExpr.ScopeRef, SemanticExpression.Occurrence>? = null,
         ): List<SemanticCheckViolation> {
             val all = solve(startId, firstOnly = false)
-            // 集計（合計・最小・最大・件数）は、同じ起点の全ての解にわたって計算する
+            // 解にわたる集計（all の of の形）は、同じ起点の全ての解にわたって計算する
             aggregateRows = all
             val violations = mutableListOf<SemanticCheckViolation>()
             for (row in all.take(spec.limit)) {
@@ -768,7 +777,7 @@ object SemanticQuery {
                     val found = evaluationOf(row, check, pin)?.takeIf { !it.satisfied }
                         ?.let { SemanticCheckViolation(it.check, it.term, it.left, it.right, it.row) } ?: continue
                     // 集計を含む項目は、どの解で評価しても同じ結果になる——同じ組を解の数だけ並べない
-                    val duplicate = check.operands.any { it.hasAggregate() } && violations.any {
+                    val duplicate = check.operands.any { it.needsSolutions() } && violations.any {
                         it.check == found.check && it.left == found.left && it.right == found.right
                     }
                     if (!duplicate) violations += found
@@ -799,7 +808,7 @@ object SemanticQuery {
             for (row in all.take(spec.limit)) {
                 for (check in checks) {
                     val found = evaluationOf(row, check, pin = null) ?: continue
-                    val duplicate = check.operands.any { it.hasAggregate() } && out.any {
+                    val duplicate = check.operands.any { it.needsSolutions() } && out.any {
                         it.check == found.check && it.left == found.left && it.right == found.right
                     }
                     if (!duplicate) out += found
@@ -808,7 +817,7 @@ object SemanticQuery {
             return out
         }
 
-        /** 集計の対象になる解（checkFrom が、評価の前に同じ起点の全ての解を入れる）。 */
+        /** all（of の形）の対象になる解（checkFrom が、評価の前に同じ起点の全ての解を入れる）。 */
         private var aggregateRows: List<SemanticQueryRow> = emptyList()
 
         /**
@@ -843,8 +852,9 @@ object SemanticQuery {
                     for (term in check.terms) {
                         val left = evalExpr(term.left, row, assignment)
                         val rights = term.rights.map { evalExpr(it, row, assignment) }
-                        // 値の条件は共有評価部——評価できない（null）条件は判定保留
-                        val plain = left?.let { SemanticExpression.test(term.op, it.text, rights.map { r -> r?.text }) }
+                        // 値の条件は共有評価部——評価できない（null）条件は判定保留。配列やマップは比べられない（スカラーだけ）
+                        val comparable = left != null && left.isScalar && rights.all { it == null || it.isScalar }
+                        val plain = left?.takeIf { comparable }?.let { SemanticExpression.test(term.op, it.text, rights.map { r -> r?.text }) }
                         if (left == null || plain == null) {
                             unknown = true
                             if (left == null || rights.any { it == null }) noValue = true else incomparable = true
@@ -890,6 +900,7 @@ object SemanticQuery {
         /**
          * 値の式を、決めた出現の組の下で計算する（得られなければ null）。値の出どころを併せて返す。
          * 評価そのものは SemanticValues（1つの環境での値の式の評価。P31）——解の束縛と出現の割当てを環境に写して呼ぶ。
+         * 集合から値へ落とす all には、同じ起点の全ての解（checkFrom が先に集める）と、起点を固定した照合（この評価器で解く）を渡す。
          */
         private fun evalExpr(
             expr: ValueExpr,
@@ -900,40 +911,10 @@ object SemanticQuery {
             SemanticValues.Environment(
                 tree = ::tree, rel = rel, nodes = row.bindings, assignment = assignment, graph = graph,
                 refsInto = { entityRefsByTarget[it].orEmpty() },
-                aggregate = ::aggregateSide,
+                solutions = { aggregateRows },
+                solveFrom = { origin, sub -> Evaluator(ids, allRefs, graph, sub, loader, rel).evaluate(restrictStart = origin.id) },
             ),
         )
-
-        /**
-         * 集計（SP-03）: 同じ起点の全ての解にわたり、束縛の要素（重複は1つ）の値をまとめる。値は指定に合う文書のうち
-         * 定義した側を優先して1つから読む（CALC-19）。パスに `[*]` があれば、各要素の配列の全ての要素に広がる。
-         * 得られない・順序の種類として読めない値が1つでもあれば得られない（計算は SemanticValues.aggregate と共有）。
-         * 解の一覧を要するため、クエリの評価器だけが担う（環境の aggregate として SemanticValues へ渡す）。
-         */
-        private fun aggregateSide(expr: ValueExpr.Aggregate): SemanticValues.AggregateOutcome? {
-            val of = expr.of ?: return null
-            val nodes = aggregateRows.mapNotNull { it.bindings[of] }.distinctBy { it.kind to it.id }
-            val path = expr.path
-            if (path == null) {
-                val n = nodes.size.toString()
-                return SemanticValues.AggregateOutcome(SemanticCheckSide(text = n, raw = n))
-            }
-            val items = nodes.flatMap { node ->
-                val occ = aggregateOccurrence(node, expr.inDoc)
-                    ?: return SemanticValues.AggregateOutcome(null, "${node.id} の出現がありません")
-                SemanticExpression.collect(::tree, occ, path)
-            }
-            return SemanticValues.aggregate(expr, items)
-        }
-
-        /** 集計で値を読む出現: 指定に合う出現のうち、定義した側を優先して1つ（式側の決定的な選択。CALC-19）。 */
-        private fun aggregateOccurrence(node: SemanticQueryNodeRef, selector: DerivationSelector?): SemanticExpression.Occurrence? =
-            when (node.kind) {
-                QueryNodeKind.ENTITY -> SemanticExpression.preferDefining(graph.entities[node.id]?.occurrences.orEmpty())
-                    .firstOrNull { selector == null || selector.matches(it.schemaId, rel(it.document)) }
-                    ?.let { SemanticExpression.Occurrence(it.document, it.path) }
-                QueryNodeKind.DOCUMENT -> sigmaCandidates(node.kind, node.id).firstOrNull()
-            }
 
         /**
          * σ の割当て先（where の存在量化と check の反例量化が共有する。R29-05）: エンティティは

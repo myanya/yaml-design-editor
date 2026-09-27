@@ -32,13 +32,13 @@
 - **定義参照列**: 列に `label`／`path` の代わりに `definition: モジュール#定義名` を書くと、スキーマの**名前付き定義**（[schema.md](schema.md)）のセル型フィールドが列に展開され、見出し・パスがスキーマから導出されます（ID型の項目は行のID列と重複するため除かれます）。`schemaId` を併記した場合は定義名だけでも書けます（例 `definition: screen`）。列の見出しをビューへ重複記載する必要がなくなり、スキーマの変更に自動で追随します。`editable: true` は展開された全列に適用されます
 - **値の式の列**: 列に `path` の代わりに `value` を書くと、行の要素の値から**値の式**（[schema.md](schema.md)「新しい文書の置き場所とひな型」の `filePattern` と同じ書き方）で計算した値を表示します（読み取り専用の派生表示）。行の要素は `schemaId`／`fileGlob` で選んだ出現で、未保存の編集にも追随します
   - 短い書き方: `value: "{name}（{status}）"`（穴は行の要素の値。`{id}` は行のID・`{title}` は表示の解決結果）
-  - 完全な書き方: `value: {max: {path: "comments[*].date", type: date}}`（配列の各要素の `date` の最大）。パスの `[*]` は配列の全ての要素に広がり、`type: date` は日付として比べる宣言です（省略すると数値として比べます。表記から意味を決めません）。`min`・`sum`・`count`（`path` を書くと配列の要素の数）も同じ書き方です
+  - 完全な書き方: `value: {max: {path: "comments[*].date", type: date}}`（配列の各要素の `date` の最大）。読み出しは項をそのまま返し、パスの `[*]` は合う場所の値を並べた配列になります。`sum` / `min` / `max` / `count` は配列を受け取る関数で、`type: date` は日付として比べる宣言です（省略すると数値として比べます。表記から意味を決めません）。`count` は配列の件数、`length` は文字数です
   - 値が得られないとき（配列が空・要素に値が書かれていない・日付として読めない値がある）はセルが空になり、クリックすると理由が出ます。既定値は `{first: [式, 値]}` で書きます
   - セルの座標は値の出どころ（最大・最小なら選ばれた要素）で、クリックのメニュー「元の値へ」でそこへジャンプできます。集計の材料（各要素の値と場所）も来歴として並びます
   - 参照を辿るには `via`: `{via: type, in: {schemaId: ddl-mapping}, path: to}` は、行の要素の `type` に書かれた参照を 1 段辿り、相手の写像行の `to` を読みます。`format` の入れ物（`scopes`）にも `via` を書けます。参照がちょうど 1 本のときだけ相手が決まり、無い・複数のときは理由つきで得られません。入れ物を書いても、最後にいつも行の要素が続きます
-  - 解の件数を数えるには `count` に `match`: `{count: {match: [{node: {entity: category, bind: cat}}, {edge: {via: category, dir: in}}, {node: {entity: todo, bind: t}}], where: [{of: t, path: status, equals: OPEN}]}}` は、
-行の要素を起点にパターン照合（[checks.md](checks.md)「パターン制約」と同じ書き方）を評価し、解の件数を表示します。起点は行の要素（クエリ行では `of` の束縛）で、先頭の `node` に合わなければ 0 です。
-数える対象の `node` に `bind` を書きます（束縛の組の数＝検査の `count` と同じ数え方）。`where` で絞れば「カテゴリごとの未着手の件数」のような条件つきの件数になり、セルのクリックで数えた要素へジャンプできます。`limit` は書けません
+  - 集合から配列へは `all`: `{all: {match: [{node: {entity: category, bind: cat}}, {edge: {via: category, dir: in}}, {node: {entity: todo, bind: t}}], where: [{of: t, path: status, equals: OPEN}], of: t}}` は、
+行の要素を起点にパターン照合（[checks.md](checks.md)「パターン制約」と同じ書き方）を評価し、`of` の束縛の要素を並べた配列にします。`path` を添えれば各要素の値の配列です（`in` で読む文書を選びます）。起点は行の要素（`from` に束縛名を書けばその束縛。クエリ行）で、先頭の `node` に合わなければ空です。
+`{count: {all: ...}}` で件数、`{sum: {all: {..., path: amount}}}` で合計になり、セルのクリックで集めた要素へジャンプできます。`{each: 配列の式, value: 式}` は各要素をいまの要素として式を当てた配列です（例 `{sum: {each: {path: lines}, value: {multiply: [{path: price}, {path: qty}]}}}`）。`limit` は書けません
   - ビュー定義のリントは、式が読む項目がスキーマから解決できるか、`via` が参照型の項目か、日付の項目を `type: date` なしで比べていないかを指摘します
   - 古い書き方 `computed`（`lookup` / `source` / `path` / `values` / `map` / `default`）は定義エラーになり、同じ意味の `value` の書き方が文面に出ます
 - **状態列**: カバレッジルール（[schema.md](schema.md)）の充足状況を行ごとに表示します
@@ -145,24 +145,26 @@ columns:
 
 同じ式は検査の `check` にも書けます（[checks.md](checks.md)「パターン制約」の値の式）。一覧で見えている値と、検査が比べる値は常に一致します。
 
-解の件数の列の例（カテゴリ × ステータスの集計表。行＝カテゴリ、列＝状態ごとの TODO の件数。`samples/todos` の `category-status-matrix.yaml` が実例です）:
+集合から配列へ落とす `all` の列の例（カテゴリ × ステータスの集計表。行＝カテゴリ、列＝状態ごとの TODO の件数。`samples/todos` の `category-status-matrix.yaml` が実例です）:
 
 ```yaml
-# 行 = カテゴリの ID。行を起点に「このカテゴリを参照する TODO」を状態で絞って数える
+# 行 = カテゴリの ID。行を起点に「このカテゴリを参照する TODO」を状態で絞って集め、件数にする
 rows: { idPattern: "CAT-*" }
 columns:
   - { label: カテゴリ名, schemaId: category-list, path: name }
   - label: 未着手
     schemaId: category-list
     value:
-      count:
-        match:
-          - node: { entity: category, bind: cat }         # 起点（行の要素がこれに合うときだけ数える）
-          - edge: { via: category, dir: in }              # カテゴリを参照している要素へ
-          - node: { entity: todo, bind: t }               # 数える対象に bind を書く
-        where:
-          - { of: t, path: status, equals: OPEN }         # 状態で絞る（個票の値）
-  # 対応中・完了・中止は where の値を変えた同じ列。合計は where を書かない列
+      count:                                              # 配列の件数
+        all:                                              # 照合の解を配列にする
+          of: t                                           # 集める対象
+          match:
+            - node: { entity: category, bind: cat }       # 起点（行の要素がこれに合うときだけ集める）
+            - edge: { via: category, dir: in }            # カテゴリを参照している要素へ
+            - node: { entity: todo, bind: t }
+          where:
+            - { of: t, path: status, equals: OPEN }       # 状態で絞る（個票の値）
+  # 対応中・完了・中止は where の値を変えた同じ列。合計は where を書かない列。金額の合計なら sum に path: amount を添えた all
 ```
 
 | カテゴリ名 | 未着手 | 対応中 | 完了 | 中止 | 合計 |
@@ -170,7 +172,7 @@ columns:
 | 環境整備 | 1 | 0 | 1 | 1 | 3 |
 | データ登録 | 0 | 1 | 2 | 0 | 3 |
 
-セルのクリックで数えた TODO が並び、「入力値へ」で各 TODO の一覧の行へ移動できます。カテゴリを付けていない TODO はどの行にも数えられず、個票の無い TODO は状態の列に数えられません（合計にだけ入ります）。検査の `count`（[checks.md](checks.md)「パターン制約」）と同じ数え方なので、見えている件数と検査が数える件数は一致します。
+セルのクリックで集めた TODO が並び、「入力値へ」で各 TODO の一覧の行へ移動できます。カテゴリを付けていない TODO はどの行にも数えられず、個票の無い TODO は状態の列に数えられません（合計にだけ入ります）。検査の中でも同じ `all` を書けるので（[checks.md](checks.md)「パターン制約」）、見えている件数と検査が数える件数は一致します。
 
 `_views` は予約ディレクトリで、組込みスキーマによりフォーム編集・検証できます。エージェントは同じビューを `read_view` ツールで参照でき（[ai.md](ai.md)）、CLI では `view` コマンドで解決できます（[cli.md](cli.md)）。
 

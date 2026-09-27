@@ -95,13 +95,15 @@
 - **読み取り（共通）**: `ExpressionFields.read` / `readAll` がスキーマの木に沿って文書を辿り（`SemanticRewrite.walkDocument`）、印のある項目の値を `ExpressionValue`（書かれたままの文字・式・場所・表示名）にする。スキーマ文書・ビュー定義・利用者の文書が同じ関数を通り、結果は `WorkspaceSchema.expressions`（場所 → 式）。使う側は `expressionAt("filePattern")` のように引く。
 - **評価（共通）**: `SemanticValues.evaluate(式, 環境)`。環境は使う側が作る（いまの要素・予約の名前 `{id}` `{title}`・穴の値の直し方・代表値）。クエリの check 判定も、解と割当てを環境に写してこれを呼ぶ。`of` の省略はいまの要素、`format` の `with` は穴の名前 → 式。埋まらなかった穴は `Result.missing`。
 - **文面（共通）**: `ExpressionMessages`＝式として読めない・穴が埋まらない、の 1 つの表。
-- **式の中身**: 読み出し `{of, in, path, via}`・決まった値・`format`・`map`・`first`・`length` / `upper` / `lower` / `number`・四則演算・`refCount`・`occurrenceCount`・集計（`sum` / `min` / `max` / `count`）・解の件数（`count` に `match`）。条件分岐・利用者の関数・非決定的な値（今日の日付・乱数・連番）は入れない。連番は `IdSuggest` の領分。
+- **式の中身**: 読み出し `{of, in, path, via}`（項をそのまま返す。`[*]` は合う場所の値の配列）・決まった値・`format`・`map`・`first`・`length` / `upper` / `lower` / `number`・四則演算・`refCount`・`occurrenceCount`・集計（`sum` / `min` / `max` / `count`＝配列を受け取る関数）・集合から配列へ `all`・要素ごとの式 `each`。
+  条件分岐・利用者の関数・ラムダ・非決定的な値（今日の日付・乱数・連番）は入れない。連番は `IdSuggest` の領分。
 - **参照を辿る（`via`）**: 読み出し `{via: type, in: 指定, path}` と `format` の入れ物 `{via: type, in: 指定}`。行の要素に書かれた参照の線（検査の `edge` と同じ突き合わせ）をちょうど 1 本辿り、相手の出現を `in` で選ぶ（定義出現優先）。検査の中では書けない（辿るのはクエリの `edge`）。`scopes` を書いた式でも、末尾に「いまの要素」が続く。
-- **集計の 2 つの広がり**: `of`（束縛名）は同じ起点の全ての解にわたる集計、パスの `[*]` は 1 つの要素の中の配列の要素にわたる集計（`comments[*].date`。σ は固定のままで、集合は項の中にだけ現れる）。両方を同時に書いてもよい。
-- **解の件数（`count` に `match`）**: 起点（いまの要素か `of` の束縛）を固定してパターン照合を評価し、解の distinct 件数を値にする（制約の `count` と同じ数え方）。
-  評価は環境の `countFrom`（`SemanticQuery.matchesFrom`）で、ビューが渡す。起点が先頭の node に合わなければ 0。来歴は数えたノード。検査の中では書けない（パターンの件数は制約の `count`）。
+- **値は項と出どころ**（ADR-0010）: 式の値はスカラー・配列・マップと、その出どころ（`SemanticCheckSide` の `node` / `elements`）。関数（集計・四則演算・`length` など）は引数を先に評価し、型が合わなければ得られない。比較・穴埋め・四則演算はスカラーだけを受け取る。形を受け取る語は `format` / `first` / `all` / `each`。
+- **集合から配列へ（`all`）**: 同じ起点の全ての解にわたる形（`{all: {of, in, path}}`。環境の `solutions`＝検査の解の一覧か、行を 1 つの解と見なすビュー）と、起点を固定した照合の形（`{all: {from, match, where, also, of, in, path}}`。環境の `solveFrom`＝`SemanticQuery.matchesFrom`。`from` は起点の束縛で、省略はいまの要素。検査の中でも書ける）。
+  値を読む出現は定義した側を優先して 1 つ（`in` で選ぶ）。`[*]` は平らに広がる。読めない要素が 1 つでもあれば配列そのものが得られない。古い書き方（集計の中の `of`・`count` に `match`）は定義エラーで `all` を案内する。
+- **要素ごとの式（`each`）**: `{each: 配列の式, value: 式}`。各要素をいまの要素（ノードならその要素の出現・場所ならその場所）として `value` を評価し、配列にする。名前を付けた引数は無い。
 - **順序の種類**: `type: number / date`（`min` / `max` の比べ方。省略時は数値。表記から意味を決めないため、日付は宣言する。日付として読める規則は date 型の検証と同じ `StructureValidator.isDateText`）。
-- **集計の規則**: 値が書かれていない・種類として読めない材料が 1 つでもあれば得られない（理由は `Result.reason`）。最小・最大の出どころは選ばれた材料、来歴は全ての材料。計算は `SemanticValues.aggregate` の 1 実装で、クエリの check とビューの列が共有する。
+- **集計の規則**: 値が書かれていない・種類として読めない要素が 1 つでもあれば得られない（理由は `Result.reason`）。最小・最大の出どころは選ばれた要素、来歴は全ての要素。計算は `SemanticExpression.aggregateDetailed` の 1 実装で、検査とビューが共有する。
 - **使う側**: 新しい文書のファイル名（`filePattern`）・ひな型の中身（`scaffold`）・ビューの列 `value`（[views.md](views.md)）。
 - 印を読むのは読み取り・評価・「式として読めるか」の検証だけで、走査・検査は式を評価しない。置き場は semantic-core（印・読み取り・評価・文面）と workspace-core（ファイル名の決まり）。
 
@@ -148,5 +150,5 @@
 - **共通スキーマ定義の追加**: `_schemas` に `kind: library` を置き、利用側は `moduleId#definition` で参照する。解決規則を増やすなら `SchemaCatalog` に閉じる。
 - **派生スキーマの写像項目の追加**: `SchemaDerivation.parse` / `compile` とメタスキーマの `derive` 定義をそろえて更新する。語彙は skill の列マッピングと揃える。
 - **式を受け取る項目の追加**: 印を付け、使う側が `expressionAt` で引いて `SemanticValues.evaluate` を呼ぶ。読み取り・構造の検証・指摘・文面は共通。
-- **値の計算の追加**: `ValueExpr`（パースと `sources` / `reads`）・`SemanticExpression`（純粋な関数）・`SemanticValues` に足し、評価できないときは null を返す規則を守る。メタスキーマの説明と manual/ を対で更新する。
+- **値の計算の追加**: 関数（引数を先に評価）か形を受け取る語かを決め、`ValueExpr`（パースと `sources` / `reads` / `binds`）・`SemanticExpression`（純粋な関数）・`SemanticValues` に足し、型が合わない・評価できないときは null を返す規則を守る。メタスキーマの説明と manual/ を対で更新する。
 - **リファクタリング操作の追加**: `SemanticRewrite` の列挙器と基本戦略で書き、`RefactoringPlanGoldenTest` に計画を固定する。CLI `workspace refactor` とスキーマエディタに入口を足す。

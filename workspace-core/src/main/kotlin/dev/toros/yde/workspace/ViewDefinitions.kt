@@ -465,10 +465,9 @@ object ViewDefinitions {
                     val fromSchemas = schemasFor(col.from)
                     if (fromSchemas.isEmpty()) return@forEach
                     val reserved = setOf(SemanticValues.RESERVED_ID, SemanticValues.RESERVED_TITLE)
-                    // いまの要素から読む場所: 短い書き方の穴・of も in も via も無い読み出し・集計のパス
+                    // いまの要素から読む場所: 短い書き方の穴・of も in も via も無い読み出し（集計の短い書き方を含む）
                     val ownReads = expr.holes() +
-                        expr.reads().filter { it.of == null && it.via == null && it.inDoc == null }.map { it.path.pretty() } +
-                        expr.aggregates().filter { it.of == null && it.path != null }.map { PathPattern.pretty(it.path!!) }
+                        expr.reads().filter { it.of == null && it.via == null && it.inDoc == null }.map { PathPattern.pretty(it.path) }
                     ownReads.distinct().filterNot { it in reserved }.forEach { read ->
                         val pattern = runCatching { PathPattern.parse(read) }.getOrNull() ?: return@forEach
                         if (fromSchemas.all { unresolvableFromIdElements(it, pattern) }) {
@@ -487,13 +486,16 @@ object ViewDefinitions {
                     expr.reads().filter { it.of == null && (it.via != null || it.inDoc != null) }.forEach { get ->
                         val targetSchemas = schemasBy(get.inDoc?.schemaId, get.inDoc?.fileGlob)
                         if (targetSchemas.isNotEmpty() && targetSchemas.all { unresolvableFromIdElements(it, get.path) }) {
-                            report("列「${col.label}」の path「${get.path.pretty()}」はスキーマ「${names(targetSchemas)}」のID要素から解決できません")
+                            report("列「${col.label}」の path「${PathPattern.pretty(get.path)}」はスキーマ「${names(targetSchemas)}」のID要素から解決できません")
                         }
                     }
+                    // 集計の順序の種類と項目の型の食い違い: 引数がいまの要素からの読み出し（短い書き方）のときだけ静的に見られる
                     value.expr.aggregates()
-                        .filter { it.of == null && it.path != null && it.fn != ValueExpr.AggregateFn.COUNT }
+                        .filter { it.fn != ValueExpr.AggregateFn.COUNT }
                         .forEach { agg ->
-                            val pattern = agg.path ?: return@forEach
+                            val get = agg.input as? ValueExpr.Get ?: return@forEach
+                            if (get.of != null || get.via != null || get.inDoc != null) return@forEach
+                            val pattern = get.path
                             val types = fromSchemas.flatMap { s ->
                                 idElementsOf(s).mapNotNull { staticFieldAt(s, it, pattern) }.map { (s.tree.resolve(it) ?: it).type }
                             }.distinct()

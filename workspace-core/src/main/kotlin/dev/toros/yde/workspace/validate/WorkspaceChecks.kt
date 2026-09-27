@@ -650,7 +650,8 @@ class WorkspaceChecks(
             val side = if (decl.target.startsWith("left")) v.left else v.right
             when {
                 decl.kind == ResponseDecl.Kind.APPLY ->
-                    listOf(CheckResponse.ApplyValue(renderTemplate(decl.label, id, v = v), side.text))
+                    // 書き込めるのはスカラーの値だけ（配列やマップの導出値は適用の対象にしない）
+                    if (side.isScalar) listOf(CheckResponse.ApplyValue(renderTemplate(decl.label, id, v = v), side.text)) else emptyList()
                 decl.target.endsWith(".source") -> {
                     val document = side.sourceDocument
                     if (document == null) emptyList()

@@ -57,7 +57,7 @@
 
 ## クエリコア
 
-パースは `QuerySpec.parse` の 1 実装で、ビュー `rows: match`・foreach `source: query`・スキーマ `constraints:`・変換 `from`・値の式の解の件数（`count` に `match`）・CLI `query` が共用する。評価は `SemanticQuery`。
+パースは `QuerySpec.parse` の 1 実装で、ビュー `rows: match`・foreach `source: query`・スキーマ `constraints:`・変換 `from`・値の式の `all`（起点を固定した照合）・CLI `query` が共用する。評価は `SemanticQuery`。
 
 ```yaml
 match:                                   # node で始まり node で終わる node / edge の交互連鎖
@@ -78,7 +78,7 @@ limit: 100
 - **ノード一致 `same`**: `node: {same: 束縛名}` は先行して束縛済みのノードそのものへの到達を要求する（他のキーと同居不可・先頭には書けない・宣言順で先行する束縛のみ）。「2 経路が同一ノードで合流すること」の照合で、値の比較ではなくノードの同一性で判定する（ADR-0008）。評価器では「同じノードを二度通らない」規則の意図的な例外。
 - **決定性**: 起点候補は ID 昇順・エッジ展開は索引の安定順・行の並びは束縛値の辞書式比較・`limit` 超過は決定的打切り。1 本の照合経路の中で同じノードを二度通らない。未解決参照・型未宣言のエンティティは黙って照合から外す（判定保留）。
 - **やらないこと**: 集約は件数のみ・任意深さの再帰パス（`*`）なし（`repeat` は集まりの計算で、経路の列挙ではない）・任意式なし・外部結合なし・分岐は `also` の 1 段まで。語彙の解禁は実例の需要で段階的に判断する。
-- 消費面: トラバース（`Traverse` は `neighborIds` の上の emit レンダラ）・ビューのクエリ行（[views.md](views.md)）・foreach の `source: query`・パターン制約と判定（[checks.md「検査の書き方」](checks.md)）・変換の `from`（[transform.md](transform.md)）・値の式の解の件数（起点を固定した `matchesFrom`。[schema.md「値の式」](schema.md)）・CLI `query`。
+- 消費面: トラバース（`Traverse` は `neighborIds` の上の emit レンダラ）・ビューのクエリ行（[views.md](views.md)）・foreach の `source: query`・パターン制約と判定（[checks.md「検査の書き方」](checks.md)）・変換の `from`（[transform.md](transform.md)）・値の式の `all`（起点を固定した `matchesFrom`。[schema.md「値の式」](schema.md)）・CLI `query`。
 
 ## エンティティ操作
 

@@ -69,8 +69,9 @@
 | 値の形式（命名規約・コード体系）を、別の要素の値と組み合わせて調べる | `check: [{matches: [式, 正規表現]}]`・`startsWith` / `endsWith` / `contains`（右辺も値の式にできる。例: 子のコードが親のコードで始まる） | — |
 | 「AまたはB」「〜でない」の条件（例外つきの義務・禁止する形式） | `where` / `check` の `{or: [条件, ...]}`・`{not: 条件}`（入れ子は1段）・node の `entity: [型, ...]` と `not: {entity: [...]}` | — |
 | 参照の本数の範囲（条件つき・他の値と比べる） | 値の式 `{refCount: {of, dir, relation}}` を `check` で比べる（無条件・型全体に一律なら §2 の `cardinality`） | — |
-| 子の値の合計・最小・最大と、親の値の整合 | 値の式 `{sum / min / max: {of, path}}`・`{count: {of}}`（同じ起点の全ての解にわたる集計） | — |
-| 1 つの要素の中の配列の値の集計と、手書きの値の整合（最終更新日＝最新のコメントの日付） | 値の式の集計のパスに `[*]`（`{max: {of, path: "comments[*].date", type: date}}`。日付は `type: date` で比べる。`{count: {of, path: "comments[*]"}}` は要素の数） | — |
+| 子の値の合計・最小・最大と、親の値の整合 | 値の式 `{sum / min / max: {all: {of, path}}}`・`{count: {all: {of}}}`（同じ起点の全ての解を `all` で配列にし、関数で畳む） | — |
+| 絞り方の違う複数の合計を 1 つの検査に（当月の期首残高＝前月の期首＋前月の収入−前月の支出） | `all` の `from` で束縛を起点に固定した照合（`{sum: {all: {from: p, match: [...], where: [...], of: tx, path: amount}}}`）を四則演算で組み合わせる | — |
+| 1 つの要素の中の配列の値の集計と、手書きの値の整合（最終更新日＝最新のコメントの日付） | 値の式の集計のパスに `[*]`（`{max: {all: {of, path: "comments[*].date"}, type: date}}`。日付は `type: date` で比べる。`{count: {all: {of, path: "comments[*]"}}}` は要素の数） | — |
 | 同じ ID が、指定のスキーマの文書に何か所書かれているか（詳細文書の数・記録の数） | 値の式 `{occurrenceCount: {of, schema, role}}` を `check` で比べる（「詳細文書があること」だけなら §2 の `coverage`） | — |
 | 何段辿るか決まらない流れがあること・無いこと（呼び出しの連鎖の先に対応付けがある・循環が無い・どの画面からもメインへ戻れる） | `edge` の `repeat: true`（何段でも辿る。`{min: 0}` は0回以上）＋ `expect: exists / absent`。遷移の表のような行は `edge` の `row: {from, to}`。道すじは `message` の `{path}` | — |
 | 2つの集まりのすべての組に、つなぐものがあること（設定項目 × 環境 → 設定値） | `forAll: {node: {…, bind}, steps: […, {node: {same: 束縛名}}]}`（行 × 列 → 証人の形なら §4 の `matrix`） | — |

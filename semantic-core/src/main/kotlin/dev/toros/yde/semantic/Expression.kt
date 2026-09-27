@@ -165,6 +165,14 @@ object SemanticExpression {
     /** 日付として読めれば、その表記（前後の空白を除く）。規則は date 型の項目の検証と同じ 1 か所（StructureValidator.isDateText）。 */
     private fun dateOf(text: String): String? = text.trim().takeIf { StructureValidator.isDateText(it) }
 
+    /** 項の流れ書きの文字（配列は `[a, b]`・マップは `{k: v}`。文面と表示に使う。スカラーはその文字）。 */
+    fun flowText(node: YNode?): String = when (node) {
+        null -> ""
+        is YNode.Scalar -> node.value?.toString() ?: ""
+        is YNode.Seq -> node.items.joinToString(", ", "[", "]") { flowText(it) }
+        is YNode.Map -> node.entries.entries.joinToString(", ", "{", "}") { (k, v) -> "$k: ${flowText(v)}" }
+    }
+
     /** 「空」の判定（where の empty）: 書かれていない・空文字・null・空の配列・空の object。 */
     fun isEmpty(node: YNode?): Boolean = when (node) {
         null -> true

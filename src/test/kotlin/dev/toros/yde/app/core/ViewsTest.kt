@@ -651,7 +651,7 @@ class ViewsTest {
             columns:
               - { label: UC名, value: { of: uc, path: name } }
               - { label: 要約, value: { format: "{name} → {uc}", with: { uc: { of: uc, path: name } } } }
-              - { label: uses数, value: { count: { of: scr, path: "uses[*]" } } }
+              - { label: uses数, value: { count: { all: { of: scr, path: "uses[*]" } } } }
             """,
         )
         val workspace = Workspace.open(ws)
@@ -902,11 +902,13 @@ class ViewsTest {
                 schemaId: category-list
                 value:
                   count:
-                    match:
-                      - node: { entity: category, bind: cat }
-                      - edge: { via: category, dir: in }
-                      - node: { entity: todo, bind: t }
-        """.trimEnd() + (status?.let { System.lineSeparator() + "                    where: [ { of: t, path: status, equals: $it } ]" } ?: "")
+                    all:
+                      of: t
+                      match:
+                        - node: { entity: category, bind: cat }
+                        - edge: { via: category, dir: in }
+                        - node: { entity: todo, bind: t }
+        """.trimEnd() + (status?.let { System.lineSeparator() + "                      where: [ { of: t, path: status, equals: $it } ]" } ?: "")
         write(
             "_views/category-status.yaml",
             """
@@ -936,18 +938,20 @@ class ViewsTest {
               - label: 未着手
                 value:
                   count:
-                    of: c
-                    match:
-                      - node: { entity: category, bind: cat }
-                      - edge: { via: category, dir: in }
-                      - node: { entity: todo, bind: t }
-                    where: [ { of: t, path: status, equals: OPEN } ]
+                    all:
+                      from: c
+                      of: t
+                      match:
+                        - node: { entity: category, bind: cat }
+                        - edge: { via: category, dir: in }
+                        - node: { entity: todo, bind: t }
+                      where: [ { of: t, path: status, equals: OPEN } ]
             """,
         )
     }
 
     @Test
-    fun `value column counts pattern solutions from the row and lists the counted nodes`() {
+    fun `value column counts the solutions collected by all from the row and lists the counted nodes`() {
         writeCountFixtures()
         val workspace = Workspace.open(ws)
         val loaded = Views.load(ws, workspace.schemas)

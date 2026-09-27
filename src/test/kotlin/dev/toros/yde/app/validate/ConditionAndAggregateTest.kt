@@ -48,7 +48,7 @@ class ConditionAndAggregateTest {
                   - edge: { relation: has-line }
                   - node: { entity: line, bind: l }
                 check:
-                  - eq: [{ number: { of: o, path: total } }, { sum: { of: l, path: amount } }]
+                  - eq: [{ number: { of: o, path: total } }, { sum: { all: { of: l, path: amount } } }]
                 level: error
               - id: confirmed-order-has-lines
                 match:
