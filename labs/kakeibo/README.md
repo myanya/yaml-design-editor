@@ -23,13 +23,21 @@
     import-smbc.yaml      # 三井住友銀行の CSV を book/tx/ の配列へ取り込む（採番つき）
 book/
   categories.yaml         # CAT-UNSORTED（未分類）は取り込んだ直後の費目
-  months/M-2021-08.yaml, M-2026-08.yaml, M-2026-09.yaml   # ファイル名は月の ID（新規行で作れるように）
-  tx/2021-08.yaml, 2026-08.yaml, 2026-09.yaml
+  months/M-2026-08.yaml, M-2026-09.yaml   # ファイル名は月の ID（新規行で作れるように）
+  tx/2026-08.yaml, 2026-09.yaml
   budgets/2026-09.yaml
 inbox/
   smbc-sample.csv         # 三井住友銀行の公式サイトのサンプル CSV（2021 年 8 月・3 行）
   smbc-sample-2.csv       # 同じ形で作った架空の 2021 年 9 月分（費目の規則が当たる摘要を入れてある）
 ```
+
+## 使い始める（毎月の流れ）
+
+1. YDE でこのワークスペースを開き、台帳スペースの「ビュー」で「月次サマリ」を開きます。
+2. 「新規行」に月の ID（`M-YYYY-MM`）を入れると `book/months/M-YYYY-MM.yaml` ができます。表の上で年月・前月・期首残高（前月の期末残高を写す）を埋めて保存します。
+3. 取引を入れます。手で `book/tx/YYYY-MM.yaml` に書くか、設計スペースの「連携」で skill「三井住友銀行の入出金明細を取り込む」に CSV を渡し、プレビューを見て「適用（検証つき）」します。
+4. 「取引明細（日付順）」で、未分類のままの費目を直します。検証パネルの警告が消えます。
+5. 「予算と実績」で予算を書き、差額（マイナスは超過）を見ます。「月×費目」で費目ごとの合計、「月×区分」で件数を見ます。
 
 ## 決めていること
 
@@ -72,21 +80,21 @@ CSV の各行を「見出し → セル」の項にして、ひな型（`build`�
 - その取引が 8 月に数えられるので、9 月の期首残高 112000 は前月から計算した値と合わず、`opening-continues` がエラーにします。
 - 9 月の食費は 45000 で予算 40000 を超えているので、`budget-overrun` が警告します。
 
-- `book/tx/2021-08.yaml` はサンプル CSV を取り込んだ結果（2 件）で、費目が `CAT-UNSORTED` のままなので `unsorted-category` が 2 件警告します。費目を手で直すと消えます。
+合計はエラー 2・警告 1 です。
 
-合計はエラー 2・警告 3 です。同じ CSV をもう一度取り込んでも、同じ明細として飛ばされて増えません。
+取り込みの筋書き: 月次サマリの「新規行」で `M-2021-08` を作ってから `inbox/smbc-sample.csv` を取り込むと、取引が 2 件でき（費目は未分類のまま）、`unsorted-category` の警告が 2 件増えます。費目を直すと消えます。同じ CSV をもう一度取り込んでも、同じ明細として飛ばされて増えません。
 
 ## 動かし方
 
 ```bash
 ./gradlew run --args="labs/kakeibo"                                  # GUI で開く（台帳スペース → ビュー。設計スペース → 連携で取り込み）
-./gradlew runCli -q --args="validate labs/kakeibo"                   # 検査（上の 5 件が出る）
+./gradlew runCli -q --args="validate labs/kakeibo"                   # 検査（上の 3 件が出る）
 ./gradlew runCli -q --args="view labs/kakeibo monthly-summary"       # 月次サマリ。CLI の数は桁区切りしない
 ./gradlew runCli -q --args="view labs/kakeibo transactions"          # 取引明細（日付の新しい順）
 ./gradlew runCli -q --args="view labs/kakeibo month-by-category"     # 月×費目（クロス集計。最後の行が合計）
 ./gradlew runCli -q --args="view labs/kakeibo month-by-category-b"   # 同じ表の、列を広げる書き方
 ./gradlew runCli -q --args="view labs/kakeibo budget-vs-actual"      # 予算と実績（食費は差額がマイナス＝超過）
-./gradlew runCli -q --args="import labs/kakeibo import-smbc labs/kakeibo/inbox/smbc-sample.csv"          # 取り込みのプレビュー（取り込み済みなので追加 0 件）
-./gradlew runCli -q --args="import labs/kakeibo import-smbc labs/kakeibo/inbox/smbc-sample.csv --apply"  # 取り込む（book/tx/2021-08.yaml を消してから試すと 2 件できる）
+./gradlew runCli -q --args="import labs/kakeibo import-smbc labs/kakeibo/inbox/smbc-sample.csv"          # 取り込みのプレビュー（2 件。月の文書が無くても見られる）
+./gradlew runCli -q --args="import labs/kakeibo import-smbc labs/kakeibo/inbox/smbc-sample.csv --apply"  # 取り込む（先に月次サマリの新規行で M-2021-08 を作る）
 ./gradlew runCli -q --args="import labs/kakeibo import-smbc labs/kakeibo/inbox/smbc-sample-2.csv"        # 費目の規則が当たるプレビュー（食費・光熱費・給与・家賃）
 ```
