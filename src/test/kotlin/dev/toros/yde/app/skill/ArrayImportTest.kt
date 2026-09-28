@@ -122,6 +122,50 @@ class ArrayImportTest {
     }
 
     @Test
+    fun `build で同じ内容に組み立てられた行は 1 つの文書に畳まれ 内容が違えば誤り`() {
+        // 期間の見出し（対象日の年月）から月の文書を 1 つ作る。どの行も同じ月なので 1 文書
+        write(
+            ".yde/skills/import-month.yaml",
+            """
+            id: import-month
+            kind: import
+            input: { format: csv }
+            target: { file: "book/months/{id}.yaml" }
+            build:
+              ${'$'}when: { path: 月, exists: true }
+              ${'$'}then:
+                id: { ${'$'}format: "M-{ym}", ${'$'}with: { ym: { ${'$'}date: { ${'$'}format: "{対象日（自）_年}-{月}-1" }, ${'$'}as: yyyy-MM } } }
+            """ + "\n",
+        )
+        val csv = dir.resolve("bank.csv")
+        Files.writeString(csv, CSV)
+        val preview = Importer.build(ws(), skill("import-month"), csv)
+        // 8 月の行 2 つは同じ内容 → 1 文書。9 月の行は別の文書。月の無い行は飛ばす
+        assertTrue(preview.ok, preview.errors.toString())
+        assertEquals(listOf("book/months/M-2021-08.yaml", "book/months/M-2021-09.yaml"), preview.created.sorted())
+        assertEquals(1, preview.skippedRows)
+
+        // 同じ文書に違う内容 → 誤り
+        write(
+            ".yde/skills/import-month-bad.yaml",
+            """
+            id: import-month-bad
+            kind: import
+            input: { format: csv }
+            target: { file: "book/months/{id}.yaml" }
+            build:
+              ${'$'}when: { path: 月, exists: true }
+              ${'$'}then:
+                id: { ${'$'}format: "M-{ym}", ${'$'}with: { ym: { ${'$'}date: { ${'$'}format: "{対象日（自）_年}-{月}-1" }, ${'$'}as: yyyy-MM } } }
+                day: { ${'$'}copy: 日 }
+            """ + "\n",
+        )
+        val bad = Importer.build(ws(), skill("import-month-bad"), csv)
+        assertFalse(bad.ok)
+        assertTrue(bad.errors.single().contains("同じファイル"), bad.errors.toString())
+    }
+
+    @Test
     fun `定義の誤りは読み込みで分かる`() {
         fun parse(yaml: String) = Skills.parseSkill(YamlIO.parseToRaw(yaml.trimIndent()) as Map<*, *>, dir.resolve("x.yaml"))
         val head = "id: a\nkind: import\ninput: { format: csv }\n"

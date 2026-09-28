@@ -112,8 +112,10 @@ object Importer {
             plans += RowPlan(rowNo, rel, entry)
         }
         if (def.targetPath == null) {
-            plans.groupBy { it.rel }.filterValues { it.size > 1 }.keys.forEach {
-                errors += "複数の行が同じファイル「$it」に解決されます（キー列の重複）"
+            plans.groupBy { it.rel }.filterValues { it.size > 1 }.forEach { (rel, group) ->
+                // build で同じ内容に組み立てられた行（例: 表の見出しの値から 1 つの文書を作る）は 1 つに畳む。内容が違えば誤り
+                val identical = def.build != null && group.map { YamlIO.dumpPlain(it.entry) }.distinct().size == 1
+                if (!identical) errors += "複数の行が同じファイル「$rel」に解決されます（キー列の重複）"
             }
         }
         if (errors.isNotEmpty()) return failed()
@@ -137,7 +139,7 @@ object Importer {
             }
             val existing = parsed?.getOrNull()
             if (def.targetPath == null) {
-                val plan = group.single()
+                val plan = group.first()  // 複数あれば同じ内容（上で確かめた）
                 if (existing == null) {
                     changes += FileChange(file = rel, baseHash = null, ops = emptyList(), create = true, content = plan.entry)
                     created += rel

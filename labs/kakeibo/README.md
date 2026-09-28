@@ -20,7 +20,8 @@
     month-by-kind.yaml        # 月×区分（クロス集計。収入・支出の件数）
     budget-vs-actual.yaml     # 予算と実績（予算の行ごとに実績・予算・差額。予算はグリッドで直せる）
   skills/
-    import-smbc.yaml      # 三井住友銀行の CSV を book/tx/ の配列へ取り込む（採番つき）
+    import-smbc-month.yaml  # 三井住友銀行の CSV の期間と期首の残高から、月の文書を作る（先にこれ）
+    import-smbc.yaml      # 三井住友銀行の CSV を book/tx/ の配列へ取り込む（採番・費目の規則つき）
 book/
   categories.yaml         # CAT-UNSORTED（未分類）は取り込んだ直後の費目
   months/M-2026-08.yaml, M-2026-09.yaml   # ファイル名は月の ID（新規行で作れるように）
@@ -34,8 +35,8 @@ inbox/
 ## 使い始める（毎月の流れ）
 
 1. YDE でこのワークスペースを開き、台帳スペースの「ビュー」で「月次サマリ」を開きます。
-2. 「新規行」に月の ID（`M-YYYY-MM`）を入れると `book/months/M-YYYY-MM.yaml` ができます。表の上で年月・前月・期首残高（前月の期末残高を写す）を埋めて保存します。
-3. 取引を入れます。手で `book/tx/YYYY-MM.yaml` に書くか、設計スペースの「連携」で skill「三井住友銀行の入出金明細を取り込む」に CSV を渡し、プレビューを見て「適用（検証つき）」します。
+2. 新しい月の文書を作ります。銀行の CSV があるなら、設計スペースの「連携」で skill「三井住友銀行の CSV から月の文書を作る」に CSV を渡して「適用（検証つき）」します（期間と期首の残高から `book/months/M-YYYY-MM.yaml` ができます）。手で作るなら「新規行」に月の ID（`M-YYYY-MM`）を入れます。どちらの場合も、前月（と手で作ったときは年月・期首残高）は表の上で埋めて保存します。
+3. 取引を入れます。同じ「連携」で skill「三井住友銀行の入出金明細を取り込む」に同じ CSV を渡し、プレビューを見て「適用（検証つき）」します。手で `book/tx/YYYY-MM.yaml` に書いても構いません。月の文書が無いと、取引の `month` の参照が解決できず、適用が止まります。
 4. 「取引明細（日付順）」で、未分類のままの費目を直します。検証パネルの警告が消えます。
 5. 「予算と実績」で予算を書き、差額（マイナスは超過）を見ます。「月×費目」で費目ごとの合計、「月×区分」で件数を見ます。
 
@@ -70,7 +71,8 @@ CSV の各行を「見出し → セル」の項にして、ひな型（`build`�
 - 月が空の行（期首の残高行）は `$when` で飛ばす。年・月・日の 3 列を `$date` で `yyyy-MM-dd` にそろえる。`ご入金` があれば収入、無ければ支出。`¥10,000` は `$number` で 10000。摘要の埋め草の空白は `$trim` で落とす。
 - **費目は摘要の言葉で当てます**（`$first` に `$when: { path: 摘要, contains: スーパー }` の規則を並べる。スーパー・コンビニ→食費、電気・デンキ・ガス→光熱費、家賃・ヤチン→家賃、給与・キユウヨ→給与）。どれにも当たらなければ `CAT-UNSORTED`（未分類）で入り、検査が警告します。言葉は skill に直書きなので、増やすときは `import-smbc.yaml` を直します。
 - 取り込み先は `book/tx/{yyyy-MM}.yaml` の `entries`。ID は `TX-{yyyyMMdd}-` に 2 桁の続き番号。
-- **取り込む前に、その月の文書を作っておきます**。月次サマリの「新規行」に `M-YYYY-MM` を入れると `book/months/M-YYYY-MM.yaml` ができるので、表の上で年月・前月・期首残高を埋めます。無いと `month` の参照が解決できず、GUI の「適用（検証つき）」が止まります。
+- **月の文書も同じ CSV から作れます**（skill `import-smbc-month`）。期間（対象日（自））から `M-YYYY-MM` を、月が空の期首の残高行の残高から期首残高を取り、`book/months/M-YYYY-MM.yaml` を 1 つ作ります（`$when` で残高行だけを組み立て、1 行 1 文書の取り込み）。既にあれば年月と期首残高だけ合わせます。前月（`prev`）は月次サマリの表で書きます。
+- **順番は 月 → 取引**です。月の文書が無いと `month` の参照が解決できず、GUI の「適用（検証つき）」が止まります（CLI の `--apply` は書き込んだうえで検査に出ます）。
 
 分かっている制約: 期間が年をまたぐ CSV（12 月〜1 月）は、年を「対象日（自）_年」から取るので 1 月の明細の年を取り違えます。これは運用で逃がします（年をまたぐときは 12 月までと 1 月からで分けてダウンロードする。汎用ツールに特定の銀行向けの仕掛けは足さない）。実物のダウンロードが Shift_JIS のときは `input.encoding: windows-31j` にします（サンプルは UTF-8）。
 
@@ -82,7 +84,7 @@ CSV の各行を「見出し → セル」の項にして、ひな型（`build`�
 
 合計はエラー 2・警告 1 です。
 
-取り込みの筋書き: 月次サマリの「新規行」で `M-2021-08` を作ってから `inbox/smbc-sample.csv` を取り込むと、取引が 2 件でき（費目は未分類のまま）、`unsorted-category` の警告が 2 件増えます。費目を直すと消えます。同じ CSV をもう一度取り込んでも、同じ明細として飛ばされて増えません。
+取り込みの筋書き: `inbox/smbc-sample.csv` を skill「…月の文書を作る」→「…入出金明細を取り込む」の順に適用すると、月 `M-2021-08` と取引 2 件ができ（費目は未分類のまま）、`unsorted-category` の警告が 2 件増えます。費目を直すと消えます。同じ CSV をもう一度取り込んでも、同じ明細として飛ばされて増えません。
 
 ## 動かし方
 
@@ -94,7 +96,7 @@ CSV の各行を「見出し → セル」の項にして、ひな型（`build`�
 ./gradlew runCli -q --args="view labs/kakeibo month-by-category"     # 月×費目（クロス集計。最後の行が合計）
 ./gradlew runCli -q --args="view labs/kakeibo month-by-category-b"   # 同じ表の、列を広げる書き方
 ./gradlew runCli -q --args="view labs/kakeibo budget-vs-actual"      # 予算と実績（食費は差額がマイナス＝超過）
-./gradlew runCli -q --args="import labs/kakeibo import-smbc labs/kakeibo/inbox/smbc-sample.csv"          # 取り込みのプレビュー（2 件。月の文書が無くても見られる）
-./gradlew runCli -q --args="import labs/kakeibo import-smbc labs/kakeibo/inbox/smbc-sample.csv --apply"  # 取り込む（先に月次サマリの新規行で M-2021-08 を作る）
+./gradlew runCli -q --args="import labs/kakeibo import-smbc-month labs/kakeibo/inbox/smbc-sample.csv --apply --require-valid"  # 月の文書 M-2021-08 を作る
+./gradlew runCli -q --args="import labs/kakeibo import-smbc labs/kakeibo/inbox/smbc-sample.csv --apply --require-valid"        # 取引 2 件を取り込む（月が先）
 ./gradlew runCli -q --args="import labs/kakeibo import-smbc labs/kakeibo/inbox/smbc-sample-2.csv"        # 費目の規則が当たるプレビュー（食費・光熱費・給与・家賃）
 ```

@@ -58,6 +58,32 @@ class KakeiboLabTest {
         )
         val skills = Skills.load(dir)
         assertTrue(skills.errors.isEmpty(), skills.errors.toString())
+        assertEquals(setOf("import-smbc", "import-smbc-month"), skills.skills.map { it.id }.toSet())
+    }
+
+    @Test
+    fun `CSV から月の文書を作ってから取引を取り込むと 検証つきの適用が通る`() {
+        val ws = Workspace.open(dir)
+        val csv = dir.resolve("inbox/smbc-sample.csv")
+        val month = Importer.build(ws, Skills.load(dir).skill("import-smbc-month")!!, csv)
+        assertTrue(month.ok, month.errors.toString())
+        assertEquals(listOf("book/months/M-2021-08.yaml"), month.created)
+        val root = month.changeSet.changes.single().content!!
+        assertEquals("M-2021-08", scalarText(getAt(root, parseYPath("id"))))
+        assertEquals("2021-08", scalarText(getAt(root, parseYPath("yearMonth"))))
+        assertEquals("0", scalarText(getAt(root, parseYPath("opening"))))
+        assertTrue(ws.apply(month.changeSet, requireValid = true).ok)
+
+        val after = Workspace.open(dir)
+        val tx = Importer.build(after, Skills.load(dir).skill("import-smbc")!!, csv)
+        assertTrue(tx.ok, tx.errors.toString())
+        val applied = after.apply(tx.changeSet, requireValid = true)
+        assertTrue(applied.ok, applied.results.joinToString { "${it.file}: ${it.message} ${it.issues}" })
+        // 取り込んだ 2 件は未分類のまま → 警告 2 件増える（README の筋書き）
+        val again = Workspace.open(dir)
+        val issues = again.files.flatMap { again.validate(again.relPath(it)) }
+        assertEquals(2, issues.count { it.severity == Severity.ERROR })
+        assertEquals(3, issues.count { it.severity == Severity.WARNING })
     }
 
     @Test
