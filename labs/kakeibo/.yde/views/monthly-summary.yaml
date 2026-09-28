@@ -1,10 +1,12 @@
-id: monthly-sums
-name: 月×費目（金額）
+id: monthly-summary
+name: 月次サマリ
+description: "月ごとの期首残高・収入・支出・期末残高。新しい月は「新規行」に ID（M-YYYY-MM）を入れると book/months/M-YYYY-MM.yaml ができるので、この表の上で年月・前月・期首残高（前月の期末を写す）を埋める"
 rows:
   idPattern: "M-*"
 columns:
-  - { label: 年月, schemaId: months, path: yearMonth }
-  - { label: 期首残高, schemaId: months, path: opening }
+  - { label: 年月, schemaId: months, path: yearMonth, editable: true }
+  - { label: 前月, schemaId: months, path: prev, editable: true }
+  - { label: 期首残高, schemaId: months, path: opening, editable: true }
   - label: 収入
     display: grouped
     schemaId: months
@@ -18,20 +20,6 @@ columns:
             - edge: { via: month, dir: in }
             - node: { entity: transaction, bind: tx }
           where: [ { of: tx, path: kind, equals: income } ]
-  - label: 食費
-    display: grouped
-    schemaId: months
-    value:
-      sum:
-        all:
-          of: tx
-          path: amount
-          match:
-            - node: { entity: month, bind: m }
-            - edge: { via: month, dir: in }
-            - node: { entity: transaction, bind: tx }
-            - edge: { via: category }
-            - node: { id: CAT-FOOD }
   - label: 支出
     display: grouped
     schemaId: months
@@ -70,3 +58,5 @@ columns:
                 - edge: { via: month, dir: in }
                 - node: { entity: transaction, bind: tx }
               where: [ { of: tx, path: kind, equals: expense } ]
+newRow:
+  filePattern: "book/months/{id}.yaml"          # 「新規行」で ID を入れると、月の文書がこの場所にできる

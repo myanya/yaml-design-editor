@@ -25,7 +25,7 @@
 - 取り込み skill の採番（2026-09-28）: `.yde/skills/import-smbc.yaml`。三井住友銀行の公式サンプル CSV（`inbox/smbc-sample.csv`）を `book/tx/2021-08.yaml` へ取り込んである（費目は未分類のままで、警告 2 件）。
 - 桁区切りの表示（2026-09-28）: 金額の項目とビューの合計の列に `display: grouped`。GUI の見せ方だけで、CLI の出力は元の数のまま。
 - 明細の並び（2026-09-28）: ビューの `order` に `path` / `type` / `direction`。`.yde/views/transactions.yaml` が日付の新しい順。ID の形はそのまま（`TX-YYYYMMDD-NN`）。
-- 両方の軸が動く表（2026-09-28）: クロス集計ビュー `kind: matrix`（旧 UX-135）。`.yde/views/month-by-category.yaml`（月×費目の金額）と `month-by-kind.yaml`（月×区分の件数）。月×費目（金額）の手書きの `monthly-sums.yaml` は、期末残高の列があるので残してある。オーナーの希望で、同じ表を「要素ごとに列を広げる」列（`each`）で書いた `month-by-category-b.yaml` も比較用に置いた。
+- 両方の軸が動く表（2026-09-28）: クロス集計ビュー `kind: matrix`（旧 UX-135）。`.yde/views/month-by-category.yaml`（月×費目の金額）と `month-by-kind.yaml`（月×区分の件数）。手書きの月×費目は「月次サマリ」（`monthly-summary.yaml`。期首・収入・支出・期末と、新しい月を作る「新規行」）に役割を絞った。オーナーの希望で、同じ表を「要素ごとに列を広げる」列（`each`）で書いた `month-by-category-b.yaml` も比較用に置き、両方を残し続ける。
 - ビューグリッドの併記（2026-09-28）: 編集できない列の enum は「値（ラベル）」、参照は「ID（名前）」。編集できる参照のセルは入力欄の下に名前。
 
 まだ手を付けていないもの（`PLAN.md` に段階と順番の案がある。以下はその要約）:

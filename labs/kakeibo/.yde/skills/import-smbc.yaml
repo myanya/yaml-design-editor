@@ -14,6 +14,12 @@ build:
     date: { $date: { $format: "{対象日（自）_年}-{月}-{日}" } }
     kind: { $first: [ { $when: { path: ご入金, exists: true }, $then: income }, expense ] }
     amount: { $number: { $first: [ { $copy: ご入金 }, { $copy: ご出金 } ] } }
-    category: CAT-UNSORTED
+    category:                                     # 摘要の言葉で費目を当てる。どれにも当たらなければ未分類（検査が警告する）
+      $first:
+        - { $when: { or: [ { path: 摘要, contains: スーパー }, { path: 摘要, contains: コンビニ } ] }, $then: CAT-FOOD }
+        - { $when: { or: [ { path: 摘要, contains: 電気 }, { path: 摘要, contains: デンキ }, { path: 摘要, contains: ガス } ] }, $then: CAT-UTIL }
+        - { $when: { or: [ { path: 摘要, contains: 家賃 }, { path: 摘要, contains: ヤチン } ] }, $then: CAT-RENT }
+        - { $when: { or: [ { path: 摘要, contains: 給与 }, { path: 摘要, contains: キユウヨ } ] }, $then: CAT-SALARY }
+        - CAT-UNSORTED
     month: { $format: "M-{ym}", $with: { ym: { $date: { $format: "{対象日（自）_年}-{月}-{日}" }, $as: yyyy-MM } } }
     memo: { $trim: { $copy: 摘要 } }

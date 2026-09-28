@@ -13,8 +13,7 @@
     transactions.yaml     # 取引（TX-YYYYMMDD-NN。日付・区分・金額・費目・月・メモ）と検査 1 つ
     budgets.yaml          # 予算（BG-*。月×費目の予算額）と検査 1 つ
   views/
-    monthly-sums.yaml     # 月×費目（金額）: 収入・食費・支出・期末残高
-    monthly-counts.yaml   # 月×費目（件数）
+    monthly-summary.yaml  # 月次サマリ: 期首残高・収入・支出・期末残高。「新規行」で新しい月の文書を作る
     transactions.yaml     # 取引明細（日付の新しい順。金額・費目・メモはグリッドで編集できる）
     month-by-category.yaml    # 月×費目（クロス集計 kind: matrix。費目が増えても列は自動・合計つき）
     month-by-category-b.yaml  # 同じ表を、ふつうのグリッドの「要素ごとに列を広げる」列（each）で書いた比較用
@@ -23,11 +22,12 @@
     import-smbc.yaml      # 三井住友銀行の CSV を book/tx/ の配列へ取り込む（採番つき）
 book/
   categories.yaml         # CAT-UNSORTED（未分類）は取り込んだ直後の費目
-  months/2021-08.yaml, 2026-08.yaml, 2026-09.yaml
-  tx/2026-08.yaml, 2026-09.yaml
+  months/M-2021-08.yaml, M-2026-08.yaml, M-2026-09.yaml   # ファイル名は月の ID（新規行で作れるように）
+  tx/2021-08.yaml, 2026-08.yaml, 2026-09.yaml
   budgets/2026-09.yaml
 inbox/
   smbc-sample.csv         # 三井住友銀行の公式サイトのサンプル CSV（2021 年 8 月・3 行）
+  smbc-sample-2.csv       # 同じ形で作った架空の 2021 年 9 月分（費目の規則が当たる摘要を入れてある）
 ```
 
 ## 決めていること
@@ -45,8 +45,7 @@ inbox/
 | `opening-continues` | 当月の期首残高＝前月の期首＋前月の収入−前月の支出 | `all` の `from` で前月を起点に固定し、絞り方の違う 2 つの合計を四則演算で組む |
 | `budget-overrun` | 費目の支出の合計が予算以下 | `same` で月を合流させ、`sum` に `all` の解の一覧を渡す |
 | `unsorted-category` | 取り込んだ取引の費目が未分類のままでないこと | `expect: absent` で「未分類を指す取引が無いこと」（警告） |
-| 月×費目（金額） | 収入・食費・支出・期末残高 | 行＝月を起点に `all` で取引を集め、`sum` と `subtract` |
-| 月×費目（件数） | 食費の件数・支出の件数 | 同じ `all` を `count` に渡す |
+| 月次サマリ | 期首残高・収入・支出・期末残高。新しい月はこの表の「新規行」で作り、年月・前月・期首残高をその場で埋める | 行＝月を起点に `all` で取引を集め、`sum` と `subtract`。`newRow: { filePattern: "book/months/{id}.yaml" }` |
 | 取引明細（日付順） | 全取引を日付の新しい順に | `order: { path: date, type: date, direction: desc }`。ID の並びに頼らない |
 | 月×費目（クロス集計） | 行＝月・列＝費目（費目一覧の順）・セル＝金額の合計・合計の行と列 | `kind: matrix`。`cells.match` で月から取引を集め、`columns: { via: category }` で費目ごとの列に広げる。費目を足せば列が増える |
 | 月×区分（件数） | 行＝月・列＝収入／支出・セル＝件数 | `columns: { path: kind, values: [...] }`。値が列になる形 |
@@ -59,10 +58,11 @@ inbox/
 CSV の各行を「見出し → セル」の項にして、ひな型（`build`）で明細を組み立てます。要点は次のとおりで、書き方の説明は [docs/manual/ai.md](../../docs/manual/ai.md)「行をひな型で組み立てて、配列へ追記する」にあります。
 
 - 月が空の行（期首の残高行）は `$when` で飛ばす。年・月・日の 3 列を `$date` で `yyyy-MM-dd` にそろえる。`ご入金` があれば収入、無ければ支出。`¥10,000` は `$number` で 10000。摘要の埋め草の空白は `$trim` で落とす。
+- **費目は摘要の言葉で当てます**（`$first` に `$when: { path: 摘要, contains: スーパー }` の規則を並べる。スーパー・コンビニ→食費、電気・デンキ・ガス→光熱費、家賃・ヤチン→家賃、給与・キユウヨ→給与）。どれにも当たらなければ `CAT-UNSORTED`（未分類）で入り、検査が警告します。言葉は skill に直書きなので、増やすときは `import-smbc.yaml` を直します。
 - 取り込み先は `book/tx/{yyyy-MM}.yaml` の `entries`。ID は `TX-{yyyyMMdd}-` に 2 桁の続き番号。
-- **取り込む前に、その月の文書（`book/months/M-YYYY-MM`）を作っておきます**。無いと `month` の参照が解決できず、GUI の「適用（検証つき）」が止まります。サンプルの 2021 年 8 月は用意してあります。
+- **取り込む前に、その月の文書を作っておきます**。月次サマリの「新規行」に `M-YYYY-MM` を入れると `book/months/M-YYYY-MM.yaml` ができるので、表の上で年月・前月・期首残高を埋めます。無いと `month` の参照が解決できず、GUI の「適用（検証つき）」が止まります。
 
-分かっている制約: 期間が年をまたぐ CSV（12 月〜1 月）は、年を「対象日（自）_年」から取るので 1 月の明細の年を取り違えます。実物のダウンロードが Shift_JIS のときは `input.encoding: windows-31j` にします（サンプルは UTF-8）。
+分かっている制約: 期間が年をまたぐ CSV（12 月〜1 月）は、年を「対象日（自）_年」から取るので 1 月の明細の年を取り違えます。これは運用で逃がします（年をまたぐときは 12 月までと 1 月からで分けてダウンロードする。汎用ツールに特定の銀行向けの仕掛けは足さない）。実物のダウンロードが Shift_JIS のときは `input.encoding: windows-31j` にします（サンプルは UTF-8）。
 
 ## わざと入れてある食い違い
 
@@ -79,10 +79,11 @@ CSV の各行を「見出し → セル」の項にして、ひな型（`build`�
 ```bash
 ./gradlew run --args="labs/kakeibo"                                  # GUI で開く（台帳スペース → ビュー。設計スペース → 連携で取り込み）
 ./gradlew runCli -q --args="validate labs/kakeibo"                   # 検査（上の 5 件が出る）
-./gradlew runCli -q --args="view labs/kakeibo monthly-sums"          # 月×費目（金額）。CLI の数は桁区切りしない
+./gradlew runCli -q --args="view labs/kakeibo monthly-summary"       # 月次サマリ。CLI の数は桁区切りしない
 ./gradlew runCli -q --args="view labs/kakeibo transactions"          # 取引明細（日付の新しい順）
 ./gradlew runCli -q --args="view labs/kakeibo month-by-category"     # 月×費目（クロス集計。最後の行が合計）
 ./gradlew runCli -q --args="view labs/kakeibo month-by-category-b"   # 同じ表の、列を広げる書き方
 ./gradlew runCli -q --args="import labs/kakeibo import-smbc labs/kakeibo/inbox/smbc-sample.csv"          # 取り込みのプレビュー（取り込み済みなので追加 0 件）
 ./gradlew runCli -q --args="import labs/kakeibo import-smbc labs/kakeibo/inbox/smbc-sample.csv --apply"  # 取り込む（book/tx/2021-08.yaml を消してから試すと 2 件できる）
+./gradlew runCli -q --args="import labs/kakeibo import-smbc labs/kakeibo/inbox/smbc-sample-2.csv"        # 費目の規則が当たるプレビュー（食費・光熱費・給与・家賃）
 ```
