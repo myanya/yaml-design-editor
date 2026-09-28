@@ -1,0 +1,56 @@
+id: budget-vs-actual
+name: 予算と実績
+description: 予算の行（月×費目）ごとに、実績（その月にその費目で書かれた支出の合計）・予算・差額（予算 − 実績。マイナスは超過）を並べる。予算はこの表の上で直せる
+rows:
+  idPattern: "BG-*"
+order: { schemaId: budgets, path: month }         # 月の ID（M-YYYY-MM）の順
+columns:
+  - { label: 月, schemaId: budgets, path: month }
+  - { label: 費目, schemaId: budgets, path: category }
+  - label: 実績
+    schemaId: budgets
+    display: grouped
+    value:
+      sum:
+        all:
+          of: tx
+          path: amount
+          match:                                  # 予算の行を起点に、その月へ
+            - node: { entity: budget, bind: bg }
+            - edge: { via: month }
+            - node: { entity: month, bind: m }
+          also:                                   # 同じ予算の費目を参照する取引のうち、同じ月のもの
+            from: bg
+            steps:
+              - edge: { via: category }
+              - node: { entity: category, bind: cat }
+              - edge: { via: category, dir: in }
+              - node: { entity: transaction, bind: tx }
+              - edge: { via: month }
+              - node: { same: m }
+          where: [ { of: tx, path: kind, equals: expense } ]
+  - { label: 予算, schemaId: budgets, path: amount, editable: true }
+  - label: 差額
+    schemaId: budgets
+    display: grouped
+    value:
+      subtract:
+        - { path: amount }
+        - sum:
+            all:
+              of: tx
+              path: amount
+              match:
+                - node: { entity: budget, bind: bg }
+                - edge: { via: month }
+                - node: { entity: month, bind: m }
+              also:
+                from: bg
+                steps:
+                  - edge: { via: category }
+                  - node: { entity: category, bind: cat }
+                  - edge: { via: category, dir: in }
+                  - node: { entity: transaction, bind: tx }
+                  - edge: { via: month }
+                  - node: { same: m }
+              where: [ { of: tx, path: kind, equals: expense } ]

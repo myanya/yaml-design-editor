@@ -18,6 +18,7 @@
     month-by-category.yaml    # 月×費目（クロス集計 kind: matrix。費目が増えても列は自動・合計つき）
     month-by-category-b.yaml  # 同じ表を、ふつうのグリッドの「要素ごとに列を広げる」列（each）で書いた比較用
     month-by-kind.yaml        # 月×区分（クロス集計。収入・支出の件数）
+    budget-vs-actual.yaml     # 予算と実績（予算の行ごとに実績・予算・差額。予算はグリッドで直せる）
   skills/
     import-smbc.yaml      # 三井住友銀行の CSV を book/tx/ の配列へ取り込む（採番つき）
 book/
@@ -49,6 +50,7 @@ inbox/
 | 取引明細（日付順） | 全取引を日付の新しい順に | `order: { path: date, type: date, direction: desc }`。ID の並びに頼らない |
 | 月×費目（クロス集計） | 行＝月・列＝費目（費目一覧の順）・セル＝金額の合計・合計の行と列 | `kind: matrix`。`cells.match` で月から取引を集め、`columns: { via: category }` で費目ごとの列に広げる。費目を足せば列が増える |
 | 月×区分（件数） | 行＝月・列＝収入／支出・セル＝件数 | `columns: { path: kind, values: [...] }`。値が列になる形 |
+| 予算と実績 | 予算の行（月×費目）ごとに実績・予算・差額 | 実績は予算を起点に `also` で「同じ費目を参照する取引のうち同じ月のもの」を集めて `sum`（検査 `budget-overrun` と同じ照合）。差額は `subtract` |
 | 月×費目（列を広げる書き方） | 上と同じ表を、ふつうのグリッドで | 列に `each: { idPattern: "CAT-*", bind: cat }` を書き、値の式の中で列の費目を `node: { same: cat }` で指す。合計の列は手で書く |
 
 2 つの書き方の比べ方: クロス集計（`kind: matrix`）は行・列・セルを宣言するだけで、合計の行と未分類の列が自動で付きます。列を広げる書き方（`each`）は「ふつうの列の 1 つ」なので、年月のような他の列と混ぜられ、式を列ごとに変えられますが、合計の行は付きません。
@@ -83,6 +85,7 @@ CSV の各行を「見出し → セル」の項にして、ひな型（`build`�
 ./gradlew runCli -q --args="view labs/kakeibo transactions"          # 取引明細（日付の新しい順）
 ./gradlew runCli -q --args="view labs/kakeibo month-by-category"     # 月×費目（クロス集計。最後の行が合計）
 ./gradlew runCli -q --args="view labs/kakeibo month-by-category-b"   # 同じ表の、列を広げる書き方
+./gradlew runCli -q --args="view labs/kakeibo budget-vs-actual"      # 予算と実績（食費は差額がマイナス＝超過）
 ./gradlew runCli -q --args="import labs/kakeibo import-smbc labs/kakeibo/inbox/smbc-sample.csv"          # 取り込みのプレビュー（取り込み済みなので追加 0 件）
 ./gradlew runCli -q --args="import labs/kakeibo import-smbc labs/kakeibo/inbox/smbc-sample.csv --apply"  # 取り込む（book/tx/2021-08.yaml を消してから試すと 2 件できる）
 ./gradlew runCli -q --args="import labs/kakeibo import-smbc labs/kakeibo/inbox/smbc-sample-2.csv"        # 費目の規則が当たるプレビュー（食費・光熱費・給与・家賃）
