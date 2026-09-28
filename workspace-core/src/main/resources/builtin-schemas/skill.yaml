@@ -43,6 +43,11 @@ root:
           label: 文字コード（csv / json / markdown）
           type: string
           description: 省略時は UTF-8。銀行の CSV などは windows-31j（Shift_JIS）
+        - key: columns
+          label: 列の名前の並び（見出しの無い csv）
+          type: array
+          item: { type: string }
+          description: 見出しの行が無い CSV に列の名前を与える（1 行目からデータ）。mapping の column や build のパスはこの名前で書く
     - key: target
       label: 取り込み先（import）
       type: object

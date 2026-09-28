@@ -77,6 +77,7 @@ data class ImportDef(
     val jsonPath: String? = null,    // json: 行配列へのドット区切りパス（省略時はルート配列）
     val tableIndex: Int = 1,         // docx: 文書内の何番目の表か（1始まり）
     val encoding: Charset = Charsets.UTF_8,  // csv / json / markdown の文字コード（例 windows-31j）
+    val columns: List<String> = emptyList(), // csv: 見出しの行が無いとき、列の名前の並び（1 行目からデータ）
     val targetFile: String,          // 取り込み先（mapping: "issues/{ID}.yaml" の {列名} が行の値。build: 表示用の文字）
     val fileTemplate: TransformDef? = null,  // build のとき: 取り込み先のひな型（組み立てた明細を「いまの場所」として埋める）
     val targetPath: YPath? = null,   // 文書の中の配列（キーだけのパス。無ければ 1 行 1 文書）
@@ -273,6 +274,15 @@ object Skills {
         val encoding = input["encoding"]?.toString()?.takeIf { it.isNotBlank() }?.let { name ->
             runCatching { Charset.forName(name) }.getOrElse { error("input.encoding の文字コードが分かりません: $name（例 UTF-8・windows-31j）") }
         } ?: Charsets.UTF_8
+        val columns = (input["columns"] as? List<*>)?.map { it?.toString()?.trim().orEmpty() } ?: run {
+            require(input["columns"] == null) { "input.columns は列の名前の配列で書きます" }
+            emptyList()
+        }
+        if (columns.isNotEmpty()) {
+            require(format == TableFormat.CSV) { "input.columns（見出しの無い表に列の名前を与える）は csv で使えます" }
+            require(columns.none { it.isEmpty() }) { "input.columns に空の名前があります" }
+            columns.groupBy { it }.filterValues { it.size > 1 }.keys.firstOrNull()?.let { error("input.columns の名前「$it」が重複しています") }
+        }
         return ImportDef(
             format = format,
             sheet = input["sheet"]?.toString(),
@@ -280,6 +290,7 @@ object Skills {
             jsonPath = input["path"]?.toString(),
             tableIndex = tableIndex,
             encoding = encoding,
+            columns = columns,
             targetFile = targetFile,
             fileTemplate = fileTemplate,
             targetPath = targetPath,

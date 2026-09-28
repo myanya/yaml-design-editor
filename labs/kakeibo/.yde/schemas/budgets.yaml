@@ -42,3 +42,21 @@ constraints:
       - { lte: [ { sum: { all: { of: tx, path: amount } } }, { of: bg, path: amount } ] }
     level: warning
     message: "{m.title} の {cat.title} の支出 {left} が予算 {right} を超えています"
+  - id: budget-unique
+    description: 同じ月に同じ費目の予算が 2 つ以上無いこと
+    match:
+      - node: { entity: budget, bind: bg }
+      - edge: { via: month }
+      - node: { entity: month, bind: m }
+    also:
+      from: bg
+      steps:
+        - edge: { via: category }
+        - node: { entity: category, bind: cat }
+        - edge: { via: category, dir: in }
+        - node: { entity: budget, bind: other }
+        - edge: { via: month }
+        - node: { same: m }
+    count: { max: 1 }                           # 自分自身を含めて 1 件だけ
+    level: error
+    message: "{m.title} の {cat.title} の予算が {count} 件あります"

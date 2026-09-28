@@ -14,6 +14,14 @@ root:
     - { key: prev, label: 前月, type: ref, idPattern: "M-*", scope: { schemaIds: [months] } }
     - { key: opening, label: 期首残高, type: int, required: true, display: grouped, description: "月初の残高。前月の期末残高を手で写す" }
 constraints:
+  - id: month-id-matches
+    description: 月の ID が「M-年月」になっていること（新規行で作った月の年月の書き間違いを防ぐ）
+    match:
+      - node: { entity: month, bind: m }
+    check:
+      - { eq: [ { of: m, path: id }, { format: "M-{yearMonth}", scopes: [ { of: m } ] } ] }
+    level: error
+    message: "月 {left} の年月が {right} と合いません"
   - id: month-matches-date
     description: 取引の日付は、取引が指す月に入っていること
     match:

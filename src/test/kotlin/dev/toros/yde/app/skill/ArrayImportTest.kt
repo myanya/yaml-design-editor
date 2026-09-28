@@ -166,6 +166,44 @@ class ArrayImportTest {
     }
 
     @Test
+    fun `見出しの行が無い CSV は input columns で列の名前を与えて読む`() {
+        write(
+            ".yde/skills/import-plain.yaml",
+            """
+            id: import-plain
+            kind: import
+            input: { format: csv, columns: [日付, 摘要, 金額] }
+            target:
+              file: { ${'$'}format: "book/tx/{ym}.yaml", ${'$'}with: { ym: { ${'$'}date: { ${'$'}copy: date }, ${'$'}as: yyyy-MM } } }
+              path: entries
+              id: { path: id, prefix: { ${'$'}format: "TX-{ymd}-", ${'$'}with: { ymd: { ${'$'}date: { ${'$'}copy: date }, ${'$'}as: yyyyMMdd } } } }
+            build:
+              date: { ${'$'}date: { ${'$'}copy: 日付 } }
+              kind: expense
+              amount: { ${'$'}number: { ${'$'}copy: 金額 } }
+              memo: { ${'$'}trim: { ${'$'}copy: 摘要 } }
+            """ + "\n",
+        )
+        val csv = dir.resolve("plain.csv")
+        Files.writeString(csv, "2021/8/21,スーパー,\"1,200\"\n2021/8/22,コンビニ,300\n")
+        val preview = Importer.build(ws(), skill("import-plain"), csv)
+        assertTrue(preview.ok, preview.errors.toString())
+        assertEquals(listOf("book/tx/2021-08.yaml"), preview.updated)
+        val inserted = preview.changeSet.changes.single().ops.map { (it as PatchOp.Insert).value }
+        assertEquals(
+            expected("""[ { id: TX-20210821-02, date: "2021-08-21", kind: expense, amount: 1200, memo: スーパー }, { id: TX-20210822-01, date: "2021-08-22", kind: expense, amount: 300, memo: コンビニ } ]"""),
+            inserted.map { YamlIO.toAny(it) },
+        )
+        // columns は csv だけ・重複は誤り
+        assertFailsWith<IllegalArgumentException> {
+            Skills.parseSkill(YamlIO.parseToRaw("id: a\nkind: import\ninput: { format: json, columns: [a] }\ntarget: { file: a.yaml }\nbuild: { a: 1 }") as Map<*, *>, dir.resolve("x.yaml"))
+        }
+        assertFailsWith<IllegalStateException> {
+            Skills.parseSkill(YamlIO.parseToRaw("id: a\nkind: import\ninput: { format: csv, columns: [a, a] }\ntarget: { file: a.yaml }\nbuild: { a: 1 }") as Map<*, *>, dir.resolve("x.yaml"))
+        }
+    }
+
+    @Test
     fun `定義の誤りは読み込みで分かる`() {
         fun parse(yaml: String) = Skills.parseSkill(YamlIO.parseToRaw(yaml.trimIndent()) as Map<*, *>, dir.resolve("x.yaml"))
         val head = "id: a\nkind: import\ninput: { format: csv }\n"

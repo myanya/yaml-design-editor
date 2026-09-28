@@ -37,7 +37,7 @@ object Tables {
 
     fun read(file: Path, def: ImportDef): Table = when (def.format) {
         TableFormat.XLSX -> readXlsx(file, def.sheet, def.headerRow)
-        TableFormat.CSV -> readCsv(readText(file, def))
+        TableFormat.CSV -> readCsv(readText(file, def), def.columns.takeIf { it.isNotEmpty() })
         TableFormat.JSON -> readJson(readText(file, def), def.jsonPath)
         TableFormat.MARKDOWN -> readMarkdown(readText(file, def))
         TableFormat.DOCX -> readDocx(file, def.tableIndex)
@@ -52,12 +52,15 @@ object Tables {
             error("文字コード ${def.encoding.name()} として読めません: ${file.fileName}（銀行の CSV などは input.encoding: windows-31j を試してください）")
         }
 
-    /** CSV（RFC 4180 準拠: ダブルクォート・埋め込み改行・引用符の二重化）。 */
-    fun readCsv(text: String): Table {
+    /**
+     * CSV（RFC 4180 準拠: ダブルクォート・埋め込み改行・引用符の二重化）。
+     * columns を渡すと見出しの行が無い CSV として読む（列の名前は columns の並び。1 行目からデータ）。
+     */
+    fun readCsv(text: String, columns: List<String>? = null): Table {
         val records = parseCsv(text.removePrefix("﻿"))
         if (records.isEmpty()) error("CSVが空です")
-        val headers = records.first().map { it.trim() }
-        val rows = records.drop(1)
+        val headers = columns ?: records.first().map { it.trim() }
+        val rows = (if (columns == null) records.drop(1) else records)
             .filter { row -> row.any { it.isNotBlank() } }
             .map { row -> headers.indices.map { i -> row.getOrNull(i)?.takeIf { it.isNotEmpty() } } }
         return Table(headers, rows)

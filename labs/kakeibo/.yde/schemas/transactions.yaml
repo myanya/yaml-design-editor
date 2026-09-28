@@ -39,3 +39,15 @@ constraints:
     expect: absent
     level: warning
     message: "{tx.id} の費目が未分類です"
+  - id: category-kind-matches
+    description: 取引の区分（収入・支出）が、費目の区分と一致していること（未分類は除く）
+    match:
+      - node: { entity: transaction, bind: tx }
+      - edge: { via: category }
+      - node: { entity: category, bind: cat }
+    where:
+      - { of: cat, path: id, notEquals: CAT-UNSORTED }
+    check:
+      - { eq: [ { of: tx, path: kind }, { of: cat, path: kind } ] }
+    level: error
+    message: "{tx.id} の区分 {left} が、費目 {cat.title} の区分 {right} と違います"

@@ -9,9 +9,9 @@
   workspace.yaml          # 台帳は book 配下
   schemas/
     categories.yaml       # 費目（CAT-*。収入・支出の区分）
-    months.yaml           # 月（M-YYYY-MM。前月への参照・期首残高）と検査 2 つ
-    transactions.yaml     # 取引（TX-YYYYMMDD-NN。日付・区分・金額・費目・月・メモ）と検査 1 つ
-    budgets.yaml          # 予算（BG-*。月×費目の予算額）と検査 1 つ
+    months.yaml           # 月（M-YYYY-MM。前月への参照・期首残高）と検査 3 つ
+    transactions.yaml     # 取引（TX-YYYYMMDD-NN。日付・区分・金額・費目・月・メモ）と検査 2 つ
+    budgets.yaml          # 予算（BG-*。月×費目の予算額）と検査 2 つ
   views/
     monthly-summary.yaml  # 月次サマリ: 期首残高・収入・支出・期末残高。「新規行」で新しい月の文書を作る
     transactions.yaml     # 取引明細（日付の新しい順。金額・費目・メモはグリッドで編集できる）
@@ -55,6 +55,9 @@ inbox/
 | `opening-continues` | 当月の期首残高＝前月の期首＋前月の収入−前月の支出 | `all` の `from` で前月を起点に固定し、絞り方の違う 2 つの合計を四則演算で組む |
 | `budget-overrun` | 費目の支出の合計が予算以下 | `same` で月を合流させ、`sum` に `all` の解の一覧を渡す |
 | `unsorted-category` | 取り込んだ取引の費目が未分類のままでないこと | `expect: absent` で「未分類を指す取引が無いこと」（警告） |
+| `category-kind-matches` | 取引の区分（収入・支出）が費目の区分と一致すること（未分類は除く） | 参照を辿って両側の `kind` を `eq` で比べる。`where` の `notEquals` で未分類を外す |
+| `budget-unique` | 同じ月に同じ費目の予算が 2 つ以上無いこと | 予算から月と費目を辿り、同じ費目・同じ月の予算（自分を含む）を `count: { max: 1 }` |
+| `month-id-matches` | 月の ID が「M-年月」になっていること | `eq` の右辺に `format: "M-{yearMonth}"`（新規行で作った月の書き間違いを防ぐ） |
 | 月次サマリ | 期首残高・収入・支出・期末残高。新しい月はこの表の「新規行」で作り、年月・前月・期首残高をその場で埋める | 行＝月を起点に `all` で取引を集め、`sum` と `subtract`。`newRow: { filePattern: "book/months/{id}.yaml" }` |
 | 取引明細（日付順） | 全取引を日付の新しい順に | `order: { path: date, type: date, direction: desc }`。ID の並びに頼らない |
 | 月×費目（クロス集計） | 行＝月・列＝費目（費目一覧の順）・セル＝金額の合計・合計の行と列 | `kind: matrix`。`cells.match` で月から取引を集め、`columns: { via: category }` で費目ごとの列に広げる。費目を足せば列が増える |
