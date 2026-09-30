@@ -212,7 +212,7 @@
 | ID | 機能 | 主な実装 | テスト | 設計 |
 |---|---|---|---|---|
 | SK-01 | skill 定義 `_skills`（import / export の宣言型と run） | `skill/Skills.kt` | 単体 `ImportExportTest`, `RunSkillTest` | [agents](architecture/agents.md) |
-| SK-02 | インポート（xlsx / csv / json / markdown / docx → 変更セット。列の対応表 `mapping`・行のひな型 `build`・配列へ追記 `target.path`・採番 `target.id`・同じ明細 `target.key`・文字コード・見出しの無い csv の `input.columns`） | `skill/Importer.kt`, `skill/Tables.kt` | 単体 `ImportExportTest`, `ArrayImportTest`, `TablesTest` | [agents](architecture/agents.md) |
+| SK-02 | インポート（xlsx / csv / json / markdown / docx → 変更セット。`mapping`・`build`・配列へ追記 `target.path`・採番 `target.id`・重複の `target.key`・文字コード・見出しの無い csv の `input.columns`） | `skill/Importer.kt`, `skill/Tables.kt` | 単体 `ImportExportTest`, `ArrayImportTest`, `TablesTest` | [agents](architecture/agents.md) |
 | SK-03 | エクスポート（glob × 行 × 列 → xlsx / csv / markdown / json / html・`source.view`・YAML 出力は拒否） | `skill/Exporter.kt`, `skill/Tables.kt` | 単体 `ImportExportTest` | [agents](architecture/agents.md) |
 | SK-04 | CLI（`skills` / `import` / `export` / `run-skill` / `init`） | `core/Cli.kt` | 単体 `RunSkillTest` | [agents](architecture/agents.md) |
 | SK-05 | テンプレートパック（`init --template ledger`・既存ファイルは上書きしない） | `skill/TemplatePacks.kt` | 単体 `ImportExportTest` | [agents](architecture/agents.md) |
