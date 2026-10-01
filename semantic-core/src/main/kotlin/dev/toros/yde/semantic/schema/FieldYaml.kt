@@ -56,9 +56,12 @@ object FieldYaml {
         if (f.refTarget != RefTarget.ENTITY) m["target"] = f.refTarget.id
         f.minLength?.let { m["minLength"] = it }
         f.maxLength?.let { m["maxLength"] = it }
-        // 形式: 型の連鎖から引き継いだものがあれば一覧（すべてに一致）、無ければ書かれたとおり
+        // 形式: 型の連鎖から引き継いだものとあわせて、1 つなら文字・複数なら一覧（すべてに一致）
         val patterns = f.patterns
-        if (patterns.size > 1) m["pattern"] = patterns else f.pattern?.let { m["pattern"] = it }
+        when {
+            patterns.size > 1 -> m["pattern"] = patterns
+            patterns.size == 1 -> m["pattern"] = patterns[0]
+        }
         f.min?.let { m["min"] = it }
         f.max?.let { m["max"] = it }
         f.default?.let { m["default"] = it }

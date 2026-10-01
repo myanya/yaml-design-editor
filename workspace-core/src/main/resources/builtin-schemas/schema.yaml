@@ -35,6 +35,10 @@ definitions:
               type: enum
               values: [multiline]
               description: multiline は複数行の欄で編集する（組込みの型 text がこれを持つ。見せ方だけで、値・検証は変えない）
+            - key: rows
+              label: 欄の行数
+              type: int
+              description: "複数行の欄の高さの目安（display: multiline の型で使う。例 5）"
           int:
             - key: min
               label: 最小値

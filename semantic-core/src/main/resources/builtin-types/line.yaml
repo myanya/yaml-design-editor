@@ -1,0 +1,8 @@
+# 組込みの型（定義体。P33）: line ＝ 改行なしを保証した文字列（空白は可）。
+# string は自由な文字列（改行も可。編集欄は 1 行で始まり、改行が入れば縦に伸びる）。1 行であることをスキーマで保証したいときに使う。
+id: builtin-types
+kind: library
+definitions:
+  line:
+    type: string
+    pattern: "^[^\\r\\n]*$"

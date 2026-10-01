@@ -165,6 +165,47 @@ class TypeDefinitionsTest {
     }
 
     @Test
+    fun `文字列の階層 string は自由 text は複数行 line は改行なし word は空白なし id と ref は word`() {
+        val ws = load(
+            mapOf(
+                "_schemas/doc.yaml" to """
+                    id: doc
+                    match: "d/*.yaml"
+                    entity: { type: thing, idPattern: "TH-*", defines: true }
+                    definitions:
+                      備考: { type: text, rows: 5 }
+                    root:
+                      type: object
+                      fields:
+                        - { key: id, type: id, required: true }
+                        - { key: free, type: string }
+                        - { key: note, type: 備考 }
+                        - { key: title, type: line }
+                        - { key: code, type: word }
+                        - { key: next, type: ref, idPattern: "TH-*" }
+                """.trimIndent(),
+                "d/a.yaml" to "id: TH-1\nfree: |\n  自由な\n  文字列\nnote: |\n  複数行\ntitle: 空白 は 可\ncode: ONE-WORD\nnext: TH-2\n",
+                "d/b.yaml" to "id: TH 2\ntitle: |\n  改行は\n  不可\ncode: two words\nnext: \"TH 1\"\n",
+            )
+        )
+        assertEquals(emptyList(), ws.schemaErrors)
+        assertEquals(emptyList(), structural(ws, "d/a.yaml"))
+        val b = structural(ws, "d/b.yaml")
+        assertTrue(b.any { "「id」は形式（^\\S+$）に一致していません" in it }, b.toString())
+        assertTrue(b.any { "「title」は形式（^[^\\r\\n]*$）に一致していません" in it }, b.toString())
+        assertTrue(b.any { "「code」は形式（^\\S+$）に一致していません" in it }, b.toString())
+        assertTrue(b.any { "「next」は形式（^\\S+$）に一致していません" in it }, b.toString())
+        val doc = ws.schemas.first { it.id == "doc" }
+        fun field(key: String) = doc.tree.resolve(doc.tree.root.fields.first { it.key == key })!!
+        assertEquals(5, field("note").rows)
+        assertTrue(field("note").multiline)
+        assertTrue(field("code").isA(BuiltinTypes.WORD) && field("code").isA(BuiltinTypes.LINE))
+        assertEquals(listOf("^[^\\r\\n]*$", "^\\S+$"), field("code").patterns)
+        // 利用者が書いた id の形式（pattern）はそのまま（空白なしは構造の検証にだけ足される）
+        assertEquals(null, field("id").pattern)
+    }
+
+    @Test
     fun `display multiline は基底の種類が string の型にだけ書ける`() {
         val ws = load(mapOf("_schemas/bad.yaml" to "id: bad\nmatch: \"x/*.yaml\"\nroot:\n  type: object\n  fields:\n    - { key: n, type: int, display: multiline }\n"))
         assertTrue(ws.schemaErrors.any { "multiline" in it }, ws.schemaErrors.toString())

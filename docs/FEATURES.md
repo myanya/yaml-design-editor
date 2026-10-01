@@ -46,7 +46,7 @@
 | ID | 機能 | 主な実装 | テスト | 設計 |
 |---|---|---|---|---|
 | S-01 | スキーマ読込（`match` glob 先勝ち・id 重複検出・読むのはカーネルの経路だけ・root の `SchemaDef` は薄い型） | `workspace-core/workspace/SchemaDocuments.kt`・`WorkspaceReader.kt`, `schema/Schema.kt` | 単体 `SchemaLoaderTest`, `KernelCheckLoadingTest` | [schema](architecture/schema.md) |
-| S-02 | 型システム: 基底の種類 11 種（`any` は検証しない明示）＋組込みの型 `text` / `date` / `time` / `datetime`（定義体。ヒント `display: multiline` / `placeholder` / `sample` を引き継ぐ） | `semantic-core/schema/Fields.kt`・`BuiltinTypes.kt` | 単体 `MetaSchemaTest`, `TypeDefinitionsTest` | [schema](architecture/schema.md) |
+| S-02 | 型システム: 基底の種類 11 種（`any` は検証しない明示）＋組込みの型 `text` / `line` / `word` / `date` / `time` / `datetime`（定義体。ヒントを引き継ぐ） | `semantic-core/schema/Fields.kt`・`BuiltinTypes.kt` | 単体 `MetaSchemaTest`, `TypeDefinitionsTest` | [schema](architecture/schema.md) |
 | S-03 | 名前付き定義と再帰参照（`definitions` / `$ref`・狭める規則の合成） | `semantic-core/schema/SchemaTree.kt`（`resolve`） | 単体 `TypeDefinitionsTest` | [schema](architecture/schema.md) |
 | S-04 | メタスキーマ検証と宣言のない関係名の点検（実体はカーネル・読み込みエラーへ足す） | `workspace-core/workspace/SchemaDefinitionChecks.kt` | 単体 `SchemaLoaderTest`, `KernelOnlyChecksTest` | [schema](architecture/schema.md) |
 | S-05 | スキーマ設計 UI（説明・document／library・`$ref`・プレビュー・適用対象・`requiredFrom`・`role`・enum 選択肢・制約・`phases`・`coverage`・エンティティ節） | `ui/SchemaEditor.kt` | 手動 | [ui](architecture/ui.md) |

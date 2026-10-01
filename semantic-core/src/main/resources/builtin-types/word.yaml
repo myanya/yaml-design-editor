@@ -1,0 +1,8 @@
+# 組込みの型（定義体。P33）: word ＝ 1 語（空白なし）を保証した文字列。line から狭める。
+# id / ref の直列化もこの形（空白なし）で、構造の検証に同じ形式が足される（意味の基底型として内部は ID と参照）。
+id: builtin-types
+kind: library
+definitions:
+  word:
+    type: line
+    pattern: "^\\S+$"

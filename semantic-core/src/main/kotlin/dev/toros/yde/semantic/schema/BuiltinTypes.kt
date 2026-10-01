@@ -16,8 +16,17 @@ object BuiltinTypes {
     /** 組込みの型のモジュール ID（定義の修飾名 `builtin-types#名前`）。 */
     const val MODULE_ID = "builtin-types"
 
-    /** 複数行の文字列（決まりは string と同じ。編集の欄が複数行になる＝ヒント display: multiline）。 */
+    /** 複数行の文字列（決まりは string と同じ。編集の欄が複数行になる＝ヒント display: multiline。行数は rows）。 */
     const val TEXT = "$MODULE_ID#text"
+
+    /** 改行なしを保証した文字列（空白は可）。 */
+    const val LINE = "$MODULE_ID#line"
+
+    /** 1 語（空白なし）を保証した文字列。id / ref の直列化もこの形。 */
+    const val WORD = "$MODULE_ID#word"
+
+    /** 空白なし（word）の形式。id / ref の構造の検証にも足す（直列化は word）。 */
+    const val WORD_PATTERN = "^\\S+$"
 
     /** 年月日（string ＋ 形式 YYYY-MM-DD。日付としての順序は値の式の type: date が決める）。 */
     const val DATE = "$MODULE_ID#date"
@@ -29,7 +38,7 @@ object BuiltinTypes {
     const val DATETIME = "$MODULE_ID#datetime"
 
     /** 資源名（読み込みの順序もこの並び）。 */
-    val names: List<String> = listOf("text", "date", "time", "datetime")
+    val names: List<String> = listOf("text", "line", "word", "date", "time", "datetime")
 
     /** 1 件の原文を読む（読み込み失敗はあり得ない前提。失敗時は例外で気付かせる）。 */
     fun text(name: String): String =

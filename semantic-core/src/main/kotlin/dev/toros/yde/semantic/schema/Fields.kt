@@ -219,6 +219,8 @@ data class FieldHints(
     val placeholder: String? = null,
     /** サンプル値（プレビューのサンプル YAML で、初期値が無いときに使う。例 2026-01-01）。 */
     val sample: Any? = null,
+    /** 複数行の欄の行数（欄の高さの目安。display: multiline の型で使う）。 */
+    val rows: Int? = null,
 ) {
     /**
      * 定義（型）への参照の解決: 使う側に書いたラベル・説明・見せ方・案内・サンプルは、定義の側より優先し、書かなければ型のものを引き継ぐ。
@@ -232,6 +234,7 @@ data class FieldHints(
         textDisplay = textDisplay ?: target.textDisplay,
         placeholder = placeholder ?: target.placeholder,
         sample = sample ?: target.sample,
+        rows = rows ?: target.rows,
     )
 }
 
@@ -299,6 +302,7 @@ data class FieldDef(
     val multiline: Boolean get() = hints.textDisplay == TextDisplay.MULTILINE
     val placeholder: String? get() = hints.placeholder
     val sample: Any? get() = hints.sample
+    val rows: Int? get() = hints.rows
 
     /** 効く形式（正規表現）の一覧: 型の連鎖から引き継いだものと自分の pattern。値はすべてに一致すること。 */
     val patterns: List<String> get() = (inheritedPatterns + listOfNotNull(pattern)).distinct()

@@ -170,6 +170,7 @@ object SchemaTreeParser {
             textDisplay = textDisplay,
             placeholder = m["placeholder"]?.toString(),
             sample = m["sample"],
+            rows = (m["rows"] as? Number)?.toInt()?.also { require(it > 0) { "rows は 1 以上が必要です: $it" } },
         )
     }
 }

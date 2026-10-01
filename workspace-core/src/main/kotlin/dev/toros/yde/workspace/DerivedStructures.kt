@@ -1,7 +1,9 @@
 package dev.toros.yde.workspace
 
 import dev.toros.yde.yaml.model.YNode
+import dev.toros.yde.semantic.schema.BuiltinTypes
 import dev.toros.yde.semantic.schema.FieldDef
+import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.semantic.schema.FieldYaml
 import dev.toros.yde.semantic.schema.SchemaTree
 import dev.toros.yde.semantic.schema.TransformDef
@@ -96,10 +98,14 @@ class DerivedStructures(private val schema: SchemaTree) {
      * 項目に写す（P33）。定義への参照のまま残すのは、入れ物（object / array / map）の定義だけ（再帰のため。中身は定義の側で導出する）。
      */
     private fun inlineScalarTypes(field: FieldDef): FieldDef {
-        val inlined = if (field.ref != null) {
+        val resolvedOrSelf = if (field.ref != null) {
             val resolved = schema.resolve(field) ?: field
             if (resolved.type.isContainer) field else resolved.copy(ref = null, typeName = null, lineage = emptyList())
         } else field
+        // id / ref の直列化は word（空白なし）: 意味の基底型の内部は ID と参照で、構造の上では空白なしの文字列（P33）
+        val inlined = if (resolvedOrSelf.type == FieldType.ID || resolvedOrSelf.type == FieldType.REF) {
+            resolvedOrSelf.copy(inheritedPatterns = (resolvedOrSelf.inheritedPatterns + BuiltinTypes.WORD_PATTERN).distinct())
+        } else resolvedOrSelf
         return inlined.copy(
             fields = inlined.fields.map(::inlineScalarTypes),
             item = inlined.item?.let(::inlineScalarTypes),

@@ -773,6 +773,10 @@ private fun ReadOnlyValueText(text: String?, modifier: Modifier = Modifier) {
 private fun ScalarTextEditor(ctx: FormCtx, field: FieldDef, slot: Slot, singleLine: Boolean) {
     val node = slot.get()
     val text = (node as? YNode.Scalar)?.value?.toString() ?: ""
+    // string は自由な文字列: 欄は 1 行で始まり、改行が入れば縦に伸びる（複数行を保証するのは text＝display: multiline）
+    val oneLine = singleLine && '\n' !in text
+    // 複数行の欄の高さ: text の rows（行数）があればその分、無ければ 3 行ほど
+    val multilineMinHeight = (field.rows?.let { it * 20 + 16 } ?: 72).dp
     // 桁区切り（display: grouped）: 見せ方だけの宣言。編集中は元の表記で、打ち込んだ桁区切りは値から落とす
     val numberDisplay = field.hints.numberDisplay?.takeIf { field.type == FieldType.INT || field.type == FieldType.NUMBER }
     if (ctx.readOnly) {
@@ -787,7 +791,7 @@ private fun ScalarTextEditor(ctx: FormCtx, field: FieldDef, slot: Slot, singleLi
     CompactTextField(
         value = text,
         onValueChange = { ctx.setScalar(slot, if (numberDisplay != null) it.replace(",", "") else it, field.type) },
-        singleLine = singleLine,
+        singleLine = oneLine,
         isError = typeError,
         textStyle = fieldTextStyle,
         unfocusedText = numberDisplay?.let { d -> { s: String -> d.format(s) } },
@@ -800,8 +804,8 @@ private fun ScalarTextEditor(ctx: FormCtx, field: FieldDef, slot: Slot, singleLi
             }
             if (hint.isNotEmpty()) Text(hint)
         },
-        modifier = if (singleLine) Modifier.fillMaxWidth()
-        else Modifier.fillMaxWidth().heightIn(min = 72.dp),
+        modifier = if (oneLine) Modifier.fillMaxWidth()
+        else Modifier.fillMaxWidth().heightIn(min = multilineMinHeight),
     )
 }
 

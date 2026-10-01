@@ -50,6 +50,7 @@ root:                                 # ルートのフィールド定義（通�
 | `item` | `array` の要素定義（フィールド定義を再帰的に記述） |
 | `display` | `array` / `map` のフォーム表示形式（`table`＝表形式に固定〔map はキー列つき〕、`list`＝縦並びに固定、省略時は自動判定＝要素〔array は `item`、map は `value`〕が object で、スカラー系の列が2〜8個 かつ 項目の過半を占めるとき表形式）、`int` / `number` では `grouped`＝桁区切り（45000 → 45,000・フォームとビューの見せ方だけで、値・検証・CLI や書き出しは変えず、編集中は元の表記で、打ち込んだ区切りは落とす） |
 | `display`（`string` 系） | `multiline`＝複数行の欄で編集する（組込みの型 `text` のヒント。見せ方だけで値・検証は変えない） |
+| `rows` | 複数行の欄の行数（高さの目安。`text` など `display: multiline` の型で） |
 | `value` | `map` の値定義（必須。フィールド定義を再帰的に記述） |
 | `fields` | `object` の子フィールド定義のリスト |
 | `unknownFields` | `object` のスキーマ外項目を `allow` / `warning` / `error` で扱う（省略時 `warning`） |
@@ -69,8 +70,10 @@ root:                                 # ルートのフィールド定義（通�
 
 | type | フォーム表現 | 検証 |
 |---|---|---|
-| `string` | 1 行テキスト | required |
-| `text` | 複数行テキスト（組込みの型＝後述「型の定義」。決まりは `string` と同じで、基底の種類は `string`） | required |
+| `string` | 自由な文字列。欄は 1 行で始まり、改行が入れば縦に伸びる | required |
+| `text` | 複数行の編集を保証した `string`（組込みの型＝後述「型の定義」。`rows: 5` で欄の行数） | required |
+| `line` | 改行なしを保証した `string`（組込みの型。空白は可） | 改行を含まないこと |
+| `word` | 1 語（空白なし）を保証した `line`（組込みの型） | 空白を含まないこと |
 | `int` | テキスト（整数変換） | 整数であること |
 | `number` | テキスト（数値変換） | 数値であること |
 | `boolean` | チェックボックス | 真偽値であること |
@@ -78,8 +81,8 @@ root:                                 # ルートのフィールド定義（通�
 | `date` | テキスト（組込みの型＝`string` ＋ 形式・案内 `YYYY-MM-DD` とサンプル値は型のヒント） | `YYYY-MM-DD` 形式に一致すること |
 | `time` | テキスト（組込みの型。案内 `HH:MM`） | `HH:MM` か `HH:MM:SS` 形式に一致すること |
 | `datetime` | テキスト（組込みの型。案内 `YYYY-MM-DD HH:MM`） | `YYYY-MM-DD HH:MM`（秒は任意・区切りは空白か `T`）形式に一致すること |
-| `id` | テキスト＋重複警告＋被参照数 | 必須チェック、重複検出 |
-| `ref` | テキスト＋候補ドロップダウン＋ジャンプボタン。解決済みの参照は入力欄の枠内右端に参照先タイトルを併記（IDと表示名を1つの領域で確認できる） | 参照解決 |
+| `id` | テキスト＋重複警告＋被参照数 | 必須チェック、重複検出、空白を含まないこと（直列化は `word`） |
+| `ref` | テキスト＋候補ドロップダウン＋ジャンプボタン。解決済みの参照は入力欄の枠内右端に参照先タイトルを併記（IDと表示名を1つの領域で確認できる） | 参照解決、空白を含まないこと（直列化は `word`） |
 | `array` | 要素の追加・削除・並べ替え | 要素ごとに `item` を再帰検証 |
 | `map` | 任意キーの追加・削除＋型付き値エディタ | 各キーの値を `value` で再帰検証 |
 | `object` | 枠付きのネストフォーム | `fields` を再帰検証 |
@@ -311,7 +314,7 @@ root:
 | `unknownFields` | 厳しくするだけ（allow → warning → error） |
 | `label` / `description` / `display` / `default` | 決まりではないので、使う側が優先 |
 
-- **組込みの型**: `text`（複数行の文字列＝`{ type: string, display: multiline }`）・`date`（`string` ＋ 形式 `YYYY-MM-DD`・案内・サンプル値）・`time`・`datetime` は Kotlin の型ではなく、組込みの型の定義です。
+- **組込みの型**: 文字列の階層 `text`（複数行を保証＝`{ type: string, display: multiline }`）・`line`（改行なし）・`word`（空白なし）と、`date`（`string` ＋ 形式 `YYYY-MM-DD`・案内・サンプル値）・`time`・`datetime` は Kotlin の型ではなく、組込みの型の定義です。`id` / `ref` の直列化は `word` で、空白を含む値は誤りになります。
 - 利用者の型と同じ仕組みで、`type: text` や `type: date` から自分の型を作れます（`備考: { type: text, maxLength: 2000 }`・`予約日: { type: date, description: 会議室を使う日 }`）。同じ名前の定義を自分のスキーマに置けば、そちらが優先されます。
 - **ヒントの引き継ぎ**: `label` / `description` / `display`（`multiline` / `grouped`）/ `placeholder` / `sample` / `default` は、使う側に書いたものが優先され、書かなければ型のものを引き継ぎます。
 - フォームは型の名前でなくヒントで動くので、`{ type: string, display: multiline }` と書けば `text` を通さなくても複数行の欄になります。
