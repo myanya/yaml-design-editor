@@ -6,7 +6,7 @@ import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.model.getAt
 import dev.toros.yde.yaml.model.pretty
 import dev.toros.yde.yaml.model.scalarText
-import dev.toros.yde.yaml.structure.StructureValidator
+import dev.toros.yde.semantic.schema.ValueSemantics
 import dev.toros.yde.semantic.schema.CheckOp
 import dev.toros.yde.semantic.schema.DerivationSelector
 import dev.toros.yde.semantic.schema.EntityRole
@@ -164,8 +164,8 @@ object SemanticExpression {
         ValueExpr.OrderKind.DATE -> dateOf(text) != null
     }
 
-    /** 日付として読めれば、その表記（前後の空白を除く）。規則は date 型の項目の検証と同じ 1 か所（StructureValidator.isDateText）。 */
-    private fun dateOf(text: String): String? = text.trim().takeIf { StructureValidator.isDateText(it) }
+    /** 日付として読めれば、その表記（前後の空白を除く）。規則は意味の基底型 date の 1 か所（ValueSemantics.DATE＝正準の形で、存在する日付）。 */
+    private fun dateOf(text: String): String? = text.trim().takeIf { ValueSemantics.DATE.reads(it) }
 
     /** 項の流れ書きの文字（配列は `[a, b]`・マップは `{k: v}`。文面と表示に使う。スカラーはその文字）。 */
     fun flowText(node: YNode?): String = when (node) {

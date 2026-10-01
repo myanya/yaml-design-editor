@@ -645,8 +645,8 @@ object ViewDefinitions {
                                 idElementsOf(s).mapNotNull { staticFieldAt(s, it, pattern) }.map { s.tree.resolve(it) ?: it }
                             }
                             if (fields.isEmpty()) return@forEach
-                            // 日付の項目は、組込みの型 date（型の連鎖）で見分ける
-                            val dateField = fields.any { it.isA(BuiltinTypes.DATE) }
+                            // 日付の項目は、意味の基底型 date（利用者の型は連鎖の末端がこれ）で見分ける
+                            val dateField = fields.any { it.type == FieldType.DATE }
                             val subject = "${agg.fn.id} が読む「${PathPattern.pretty(pattern)}」"
                             if (dateField && agg.kind != ValueExpr.OrderKind.DATE) {
                                 report("列「${col.label}」の${subject}は日付の項目です（type: date を書くと日付として比べます）")

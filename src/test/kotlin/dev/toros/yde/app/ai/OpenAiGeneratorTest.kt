@@ -35,13 +35,14 @@ class OpenAiGeneratorTest {
             val json = fieldToJsonSchema(field, schemaOf(field))
             assertEquals("string", json["type"]?.jsonPrimitive?.content, "type=$type")
         }
-        // 組込みの型 text / date（型の名前。基底の種類は string）も文字列。date は format で日付と伝える
+        // 組込みの型 text（型の名前。基底の種類は string）も文字列。意味の基底型 date は文字列＋ format で日付と伝える
         val text = FieldDef(key = "f", typeName = "text", ref = "text")
         assertEquals("string", fieldToJsonSchema(text, schemaOf(text))["type"]?.jsonPrimitive?.content)
-        val date = FieldDef(key = "f", typeName = "date", ref = "date")
+        val date = FieldDef(key = "f", type = FieldType.DATE)
         val dateJson = fieldToJsonSchema(date, schemaOf(date))
         assertEquals("string", dateJson["type"]?.jsonPrimitive?.content)
         assertEquals("date", dateJson["format"]?.jsonPrimitive?.content)
+        assertEquals("date-time", fieldToJsonSchema(FieldDef(key = "f", type = FieldType.DATETIME), schemaOf(date))["format"]?.jsonPrimitive?.content)
     }
 
     @Test

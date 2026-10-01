@@ -1,7 +1,6 @@
 package dev.toros.yde.app.ui
 
 import androidx.compose.ui.unit.dp
-import dev.toros.yde.semantic.schema.BuiltinTypes
 import dev.toros.yde.semantic.schema.FieldDef
 import dev.toros.yde.semantic.schema.FieldHints
 import dev.toros.yde.semantic.schema.FieldType
@@ -17,8 +16,8 @@ class ArrayTableTest {
 
     private fun cols(vararg types: FieldType) = types.map { FieldDef(type = it) }
 
-    /** 組込みの型 date を解決した列（基底の種類は string・連鎖に builtin-types#date）。 */
-    private val dateColumn = FieldDef(type = FieldType.STRING, lineage = listOf(BuiltinTypes.DATE))
+    /** 意味の基底型 date の列（直列化は string だが、基底の種類は date）。 */
+    private val dateColumn = FieldDef(type = FieldType.DATE)
 
     @Test
     fun `余白は文字系の列で等分され表が右端まで使われる`() {
@@ -38,10 +37,9 @@ class ArrayTableTest {
 
     @Test
     fun `文字系の列がなければ伸ばさない（数値だけの表を間延びさせない）`() {
-        // 日付の列（組込みの型 date）は 110 の固定幅で、余白の配分先にはならない… が、基底の種類は string なので文字系に数える
+        // 日付の列（意味の基底型 date）は 110 の固定幅で、余白の配分先にはならない
         val types = cols(FieldType.INT, FieldType.BOOLEAN) + dateColumn
-        assertEquals(listOf(90.dp, 90.dp, 110.dp), tableColumnWidths(types, available = 290.dp, fixed = 28.dp))
-        assertEquals(listOf(90.dp, 90.dp), tableColumnWidths(cols(FieldType.INT, FieldType.BOOLEAN), available = 1000.dp, fixed = 28.dp))
+        assertEquals(listOf(90.dp, 90.dp, 110.dp), tableColumnWidths(types, available = 1000.dp, fixed = 28.dp))
     }
 
     @Test

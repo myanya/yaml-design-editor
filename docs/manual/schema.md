@@ -78,9 +78,9 @@ root:                                 # ルートのフィールド定義（通�
 | `number` | テキスト（数値変換） | 数値であること |
 | `boolean` | チェックボックス | 真偽値であること |
 | `enum` | ドロップダウン | `values` に含まれること。`cases` で値ごとの追加フィールドを定義可能 |
-| `date` | テキスト（組込みの型＝`string` ＋ 形式・案内 `YYYY-MM-DD` とサンプル値は型のヒント） | `YYYY-MM-DD` 形式に一致すること |
-| `time` | テキスト（組込みの型。案内 `HH:MM`） | `HH:MM` か `HH:MM:SS` 形式に一致すること |
-| `datetime` | テキスト（組込みの型。案内 `YYYY-MM-DD HH:MM`） | `YYYY-MM-DD HH:MM`（秒は任意・区切りは空白か `T`）形式に一致すること |
+| `date` | テキスト（意味の基底型＝内部は日付・ファイルは `YYYY-MM-DD`・案内とサンプル値は型の既定） | `YYYY-MM-DD` 形式に一致し、存在する日付であること（`2026-02-30` は誤り） |
+| `time` | テキスト（意味の基底型＝案内 `HH:MM`） | `HH:MM` か `HH:MM:SS` 形式に一致し、存在する時刻であること |
+| `datetime` | テキスト（意味の基底型＝案内 `YYYY-MM-DD HH:MM`） | `YYYY-MM-DD HH:MM`（秒は任意・区切りは空白か `T`）形式に一致し、存在する日時であること |
 | `id` | テキスト＋重複警告＋被参照数 | 必須チェック、重複検出、空白を含まないこと（直列化は `word`） |
 | `ref` | テキスト＋候補ドロップダウン＋ジャンプボタン。解決済みの参照は入力欄の枠内右端に参照先タイトルを併記（IDと表示名を1つの領域で確認できる） | 参照解決、空白を含まないこと（直列化は `word`） |
 | `array` | 要素の追加・削除・並べ替え | 要素ごとに `item` を再帰検証 |
@@ -314,7 +314,8 @@ root:
 | `unknownFields` | 厳しくするだけ（allow → warning → error） |
 | `label` / `description` / `display` / `default` | 決まりではないので、使う側が優先 |
 
-- **組込みの型**: 文字列の階層 `text`（複数行を保証＝`{ type: string, display: multiline }`）・`line`（改行なし）・`word`（空白なし）と、`date`（`string` ＋ 形式 `YYYY-MM-DD`・案内・サンプル値）・`time`・`datetime` は Kotlin の型ではなく、組込みの型の定義です。`id` / `ref` の直列化は `word` で、空白を含む値は誤りになります。
+- **組込みの型（定義体）**: 文字列の階層 `text`（複数行を保証＝`{ type: string, display: multiline }`）・`line`（改行なし）・`word`（空白なし）は Kotlin の型ではなく、組込みの型の定義です。
+- **意味の基底型**: `date` / `time` / `datetime` と `id` / `ref` は内部に値（日付・時刻・日時・ID・参照）を持ち、ファイルには正準の文字（`YYYY-MM-DD`、ID は `word`）で書きます。形式に合っても存在しない値（`2026-02-30`）は誤りになり、`予約時刻: { type: time, pattern: "^\\d{2}:(00|30)$" }` のように狭めた型を作れます。空白を含む ID・参照は誤りです。
 - 利用者の型と同じ仕組みで、`type: text` や `type: date` から自分の型を作れます（`備考: { type: text, maxLength: 2000 }`・`予約日: { type: date, description: 会議室を使う日 }`）。同じ名前の定義を自分のスキーマに置けば、そちらが優先されます。
 - **ヒントの引き継ぎ**: `label` / `description` / `display`（`multiline` / `grouped`）/ `placeholder` / `sample` / `default` は、使う側に書いたものが優先され、書かなければ型のものを引き継ぎます。
 - フォームは型の名前でなくヒントで動くので、`{ type: string, display: multiline }` と書けば `text` を通さなくても複数行の欄になります。

@@ -69,8 +69,7 @@ class SchemaInferenceTest {
         assertEquals(FieldType.INT, fieldOf(schema, "points")?.type)
         assertEquals(FieldType.NUMBER, fieldOf(schema, "rate")?.type)
         assertEquals(FieldType.BOOLEAN, fieldOf(schema, "done")?.type)
-        // 年月日は組込みの型 date（型の名前。解決すると基底の種類は string）
-        assertEquals("date", fieldOf(schema, "due")?.typeName)
+        assertEquals(FieldType.DATE, fieldOf(schema, "due")?.type)
         // 片方が長文なら text（複数行テキスト）とする
         // 長文は組込みの型 text（型の名前。解決すると基底の種類は string）
         assertEquals("text", fieldOf(schema, "body")?.typeName)

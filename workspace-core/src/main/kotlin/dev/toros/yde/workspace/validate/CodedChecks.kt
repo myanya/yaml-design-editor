@@ -25,6 +25,8 @@ object CodedChecks {
     const val ENTITY = "entity"
     const val TEMPLATE = "template"
     const val EXPRESSION = "expression"
+    /** 意味の基底型（date / time / datetime）の値の存在（形式には合うが値として読めない）。 */
+    const val VALUE = "value"
     const val YAML = "yaml"
 
     fun origin(at: String): RuleOrigin = RuleOrigin(OWNER, at, 0)

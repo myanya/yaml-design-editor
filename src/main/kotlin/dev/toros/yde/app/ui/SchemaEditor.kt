@@ -567,6 +567,8 @@ private fun FieldDefinitionEditor(
         }
         // IDフォーマットの強制（UX-79）: pattern 制約（R16-01）を id 型でも宣言できる（検証・採番の共通パターン源）
         "id" -> CompactOptionalScalar(map, "pattern", "形式（正規表現）", "例 TASK-\\d{3}（IDの形式を強制）", doc)
+        // 意味の基底型（日付・時刻・日時）: 正準の形に加えて狭める形式
+        "date", "time", "datetime" -> CompactOptionalScalar(map, "pattern", "形式（正規表現）", "正準の形に加えて狭める形式（例 30 分刻み ^\\d{2}:(00|30)$）", doc)
         // 制約語彙（R16-01）の入力（UX-73: 設計UIに未露出だった分）
         "string", "text" -> {
             CompactOptionalScalar(map, "pattern", "形式（正規表現）", "値の全体が一致する正規表現（R16-01）", doc)

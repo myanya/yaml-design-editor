@@ -128,8 +128,8 @@ object DisplayCore {
 
     /** テーブルのセルとして1行で表示・編集できる型（ビューグリッドの直接編集対象と同種のスカラー系）。 */
     val CELL_TYPES = setOf(
-        FieldType.STRING, FieldType.INT, FieldType.NUMBER,
-        FieldType.BOOLEAN, FieldType.ENUM, FieldType.ID, FieldType.REF,
+        FieldType.STRING, FieldType.INT, FieldType.NUMBER, FieldType.BOOLEAN, FieldType.ENUM,
+        FieldType.DATE, FieldType.TIME, FieldType.DATETIME, FieldType.ID, FieldType.REF,
     )
 
     /** 自動判定でテーブル表示にする列数の上限（超えると走査性が落ちるため縦リストへ倒す）。 */

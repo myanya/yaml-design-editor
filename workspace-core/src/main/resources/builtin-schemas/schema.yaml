@@ -17,8 +17,23 @@ definitions:
         label: 型
         type: enum
         description: "基底の種類（この選択肢）か、型の名前（組込みの型 text・definitions に定義した型 金額 / common#金額）。型の名前を書くと定義の決まりを引き継ぎ、ここに書く決まりは狭めるだけ（P33）。型の名前の選択肢は読み込み時に足される"
-        values: [string, int, number, boolean, enum, id, ref, array, map, object, any]
+        values: [string, int, number, boolean, enum, date, time, datetime, id, ref, array, map, object, any]
         cases:
+          date:
+            - key: pattern
+              label: 形式（正規表現）
+              type: string
+              description: "正準の形（YYYY-MM-DD）に加えて狭める形式（例 ^\\d{4}-(04|10)-\\d{2}$）。存在しない日付（2026-02-30）は形式に合っても誤りになる"
+          time:
+            - key: pattern
+              label: 形式（正規表現）
+              type: string
+              description: "正準の形（HH:MM か HH:MM:SS）に加えて狭める形式（例 30 分刻み ^\\d{2}:(00|30)$）"
+          datetime:
+            - key: pattern
+              label: 形式（正規表現）
+              type: string
+              description: "正準の形（YYYY-MM-DD HH:MM。区切りは空白か T・秒は任意）に加えて狭める形式"
           string:
             - key: minLength
               label: 最小文字数

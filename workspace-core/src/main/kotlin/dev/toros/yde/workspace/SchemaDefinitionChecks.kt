@@ -209,9 +209,9 @@ object SchemaDefinitionChecks {
             if (f.expression && !stringy) {
                 issues += SchemaIssue("expression（値の式を受け取る印）は string / text 型でのみ使用できます", path)
             }
-            // pattern は ID のフォーマット強制（UX-79）にも使う
-            if (f.pattern != null && !stringy && f.type != FieldType.ID) {
-                issues += SchemaIssue("pattern は string / text / id 型でのみ使用できます", path)
+            // pattern は文字列として直列化される種類（string と、意味の基底型 id / ref / date / time / datetime）に書ける（ID の形式の強制 UX-79 を含む）
+            if (f.pattern != null && !f.type.isTextual) {
+                issues += SchemaIssue("pattern は string / id / ref / date / time / datetime 型でのみ使用できます", path)
             }
             if ((f.min != null || f.max != null) && f.type != FieldType.INT && f.type != FieldType.NUMBER) {
                 issues += SchemaIssue("min / max は int / number 型でのみ使用できます", path)

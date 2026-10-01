@@ -394,8 +394,8 @@ object SemanticSchemaRefactor {
         val key = target.key ?: error("フィールドのキーを特定できません: $fieldPath")
         val (real, _) = derefChain(schemas, entry, res.site)
         val fillable = setOf(
-            FieldType.STRING, FieldType.INT, FieldType.NUMBER,
-            FieldType.BOOLEAN, FieldType.ENUM, FieldType.REF,
+            FieldType.STRING, FieldType.INT, FieldType.NUMBER, FieldType.BOOLEAN, FieldType.ENUM,
+            FieldType.DATE, FieldType.TIME, FieldType.DATETIME, FieldType.REF,
         )
         require(real.def.type in fillable) { "型 ${real.def.type.id} は一括充填の対象外です（スカラー型のみ）" }
         fun defaultValue(): Any = when (real.def.type) {
@@ -482,8 +482,8 @@ object SemanticSchemaRefactor {
         val curType = target.type
         val curTypeId = target.typeName ?: curType.id
         val scalarTypes = setOf(
-            FieldType.STRING, FieldType.INT, FieldType.NUMBER,
-            FieldType.BOOLEAN, FieldType.ENUM,
+            FieldType.STRING, FieldType.INT, FieldType.NUMBER, FieldType.BOOLEAN, FieldType.ENUM,
+            FieldType.DATE, FieldType.TIME, FieldType.DATETIME,
         )
         // 文字列の型の名前（string と、基底が string の組込みの型）。この間の変換は型の名前の書き換えだけ
         val stringTypeIds = setOf(FieldType.STRING.id) + BUILTIN_STRING_TYPES
@@ -593,8 +593,9 @@ object SemanticSchemaRefactor {
                 }
                 builder.add(schemaFile, YamlOperation.SetScalar(res.site.path + "type", targetTypeId))
             }
-            // int / number / boolean → string / text / date など（文字列化）
-            targetTypeId in stringTypeIds && curType in setOf(FieldType.INT, FieldType.NUMBER, FieldType.BOOLEAN) -> {
+            // int / number / boolean / date / time / datetime → string / text など（文字列化。日付などは値がもともと文字なので変わらない）
+            targetTypeId in stringTypeIds &&
+                curType in setOf(FieldType.INT, FieldType.NUMBER, FieldType.BOOLEAN, FieldType.DATE, FieldType.TIME, FieldType.DATETIME) -> {
                 convertDocs { value, hit, _ ->
                     val text = scalarText(value) ?: return@convertDocs null
                     YamlOperation.SetScalar(hit, text)
@@ -603,7 +604,7 @@ object SemanticSchemaRefactor {
             }
             else -> error(
                 "対応していない型変換です: $curTypeId → $targetTypeId" +
-                    "（対応: スカラー→array・array→要素型・string↔text/date などの文字列の型・string→enum/int/number・enum→string・int/number/boolean→string）"
+                    "（対応: スカラー→array・array→要素型・string↔text/line/word・string→enum/int/number・enum→string・int/number/boolean/date/time/datetime→string）"
             )
         }
         if (violations.isNotEmpty()) {

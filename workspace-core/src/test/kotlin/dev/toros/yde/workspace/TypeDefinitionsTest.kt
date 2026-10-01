@@ -110,7 +110,46 @@ class TypeDefinitionsTest {
     }
 
     @Test
-    fun `組込みの型 date time datetime は string と形式の定義体で ヒントを型から引き継ぐ`() {
+    fun `意味の基底型 date time datetime は形式に合っても存在しない値を誤りにする`() {
+        val ws = load(
+            mapOf(
+                "_schemas/doc.yaml" to """
+                    id: doc
+                    match: "d/*.yaml"
+                    entity: { type: thing, idPattern: "TH-*", defines: true }
+                    root:
+                      type: object
+                      fields:
+                        - { key: id, type: id, required: true }
+                        - { key: day, label: 利用日, type: date }
+                        - { key: start, type: time, pattern: "^\\d{2}:(00|30)$" }
+                        - { key: at, type: datetime }
+                        - key: slots
+                          type: array
+                          item: { type: time }
+                """.trimIndent(),
+                // 時刻は引用符なしでも文字として読める（YAML 1.1 の 60 進数の整数 25:00 → 1500 は解釈しない）
+                "d/a.yaml" to "id: TH-1\nday: 2026-02-30\nstart: 25:00\nat: 2026-13-01 09:00\nslots: [09:00, 24:30]\n",
+                "d/b.yaml" to "id: TH-2\nday: 2026-02-28\nstart: 09:15\nat: 2026-10-01T09:00:00\nslots: [\"09:00\"]\n",
+            )
+        )
+        assertEquals(emptyList(), ws.schemaErrors)
+        val delivered = WorkspaceCheckRunner.deliverAll(ws)
+        val a = delivered[DocumentId("d/a.yaml")]?.issues.orEmpty().map { it.message }
+        // 形式には合うが値として存在しない: 構造の検証は通し、存在の検証（コードの検査 value）が誤りにする
+        assertEquals(emptyList(), structural(ws, "d/a.yaml"))
+        assertTrue(a.any { it == "「利用日」は日付として読めません（現在値: 2026-02-30）" }, a.toString())
+        assertTrue(a.any { it == "「start」は時刻として読めません（現在値: 25:00）" }, a.toString())
+        assertTrue(a.any { it == "「at」は日時として読めません（現在値: 2026-13-01 09:00）" }, a.toString())
+        assertTrue(a.any { it == "「slots[1]」は時刻として読めません（現在値: 24:30）" }, a.toString())
+        // 狭めた形式（30 分刻み）は構造の検証。存在する値は通る
+        val b = structural(ws, "d/b.yaml")
+        assertTrue(b.any { "「start」は形式（^\\d{2}:(00|30)$）に一致していません" in it }, b.toString())
+        assertTrue(delivered[DocumentId("d/b.yaml")]?.issues.orEmpty().none { "として読めません" in it.message })
+    }
+
+    @Test
+    fun `意味の基底型 date time datetime は正準の形で検証し ヒントは型の既定を使う側が上書きする`() {
         val ws = load(
             mapOf(
                 "_schemas/common.yaml" to """
@@ -146,10 +185,11 @@ class TypeDefinitionsTest {
         val doc = ws.schemas.first { it.id == "doc" }
         fun field(key: String) = doc.tree.resolve(doc.tree.root.fields.first { it.key == key })!!
         val day = field("day")
-        assertEquals(FieldType.STRING, day.type)
-        assertTrue(day.isA(BuiltinTypes.DATE))
-        assertEquals(listOf("common#予約日", BuiltinTypes.DATE), day.lineage)
-        // ヒントは型から引き継ぎ、使う側（型から型へ）に書いたものが優先
+        // 意味の基底型: 連鎖の末端が date（直列化は string だが、基底の種類は date）
+        assertEquals(FieldType.DATE, day.type)
+        assertTrue(day.isA("date"))
+        assertEquals(listOf("common#予約日"), day.lineage)
+        // ヒントは型から引き継ぎ、使う側（型から型へ）に書いたものが優先。無ければ意味の基底型の既定
         assertEquals("YYYY-MM-DD", day.placeholder)
         assertEquals("2026-01-01", day.sample)
         assertEquals("会議室を使う日", day.description)

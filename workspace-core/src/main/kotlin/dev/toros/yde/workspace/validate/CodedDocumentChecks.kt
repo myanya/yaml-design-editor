@@ -2,9 +2,12 @@ package dev.toros.yde.workspace.validate
 
 import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.YNode
+import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.model.getAt
 import dev.toros.yde.yaml.model.scalarText
 import dev.toros.yde.semantic.schema.ExpressionFields
+import dev.toros.yde.semantic.schema.FieldDef
+import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.semantic.schema.ConstraintRule
 import dev.toros.yde.semantic.schema.Projection
 import dev.toros.yde.semantic.schema.ValueExpr
@@ -47,6 +50,52 @@ internal class CodedDocumentChecks(
                 source = CodedChecks.source(CodedChecks.EXPRESSION, "unreadable", IssueDelivery.REPORT, localIds, path),
             )
         }
+    }
+
+    /**
+     * 意味の基底型（date / time / datetime。ValueSemantics）の値が、その値として存在するか（例 2026-02-30 は形式には合うが日付として
+     * 読めない）。形式は構造の検証（yaml-core）が見るので、ここは正準の形の値だけを読む（1 つの誤りに 2 つの指摘を出さない）。
+     */
+    fun valueIssues(document: DocumentId, schema: WorkspaceSchema?, root: YNode, localIds: List<ScannedId>): List<CheckIssue> {
+        if (schema == null) return emptyList()
+        val tree = schema.tree
+        val issues = mutableListOf<CheckIssue>()
+        fun walk(def: FieldDef, node: YNode, path: YPath, label: String) {
+            val eff = tree.resolve(def) ?: def
+            when (eff.type) {
+                FieldType.OBJECT -> {
+                    val m = node as? YNode.Map ?: return
+                    tree.effectiveFields(eff.fields, m).fields.forEach { f ->
+                        val k = f.key ?: return@forEach
+                        m.entries[k]?.let { walk(f, it, path + k, (tree.resolve(f) ?: f).displayLabel) }
+                    }
+                }
+                FieldType.ARRAY -> {
+                    val seq = node as? YNode.Seq ?: return
+                    val item = eff.item ?: return
+                    seq.items.forEachIndexed { i, child -> walk(item, child, path + i, "$label[$i]") }
+                }
+                FieldType.MAP -> {
+                    val m = node as? YNode.Map ?: return
+                    val value = eff.value ?: return
+                    m.entries.forEach { (k, child) -> walk(value, child, path + k, "$label.$k") }
+                }
+                else -> {
+                    val value = eff.type.value ?: return
+                    val text = scalarText(node) ?: return
+                    if (value.isCanonical(text) && value.parse(text) == null) {
+                        issues += CheckIssue(
+                            Severity.ERROR,
+                            "「$label」は${value.label}として読めません（現在値: $text）",
+                            path,
+                            source = CodedChecks.source(CodedChecks.VALUE, value.id, IssueDelivery.VALUE, localIds, path),
+                        )
+                    }
+                }
+            }
+        }
+        walk(tree.root, root, emptyList(), tree.root.displayLabel)
+        return issues
     }
 
     fun entityIssues(document: DocumentId, schema: WorkspaceSchema?, root: YNode, localIds: List<ScannedId>): List<CheckIssue> {

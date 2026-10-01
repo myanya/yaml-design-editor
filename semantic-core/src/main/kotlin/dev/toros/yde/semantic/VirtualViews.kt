@@ -770,7 +770,7 @@ object VirtualViews {
                 return when (orderValue.kind) {
                     dev.toros.yde.semantic.schema.ValueExpr.OrderKind.NUMBER -> Keyed(row, text?.let(SemanticExpression::numberOf), null)
                     dev.toros.yde.semantic.schema.ValueExpr.OrderKind.DATE ->
-                        Keyed(row, null, text?.trim()?.takeIf { dev.toros.yde.yaml.structure.StructureValidator.isDateText(it) })
+                        Keyed(row, null, text?.trim()?.takeIf { dev.toros.yde.semantic.schema.ValueSemantics.DATE.reads(it) })
                     null -> Keyed(row, null, text)
                 }
             }

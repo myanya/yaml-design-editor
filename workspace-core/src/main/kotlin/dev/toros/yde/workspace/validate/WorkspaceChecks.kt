@@ -268,6 +268,8 @@ class WorkspaceChecks(
         issues += coded.entityIssues(document, schema, root, localIds)
         // 式を受け取る項目（expression: true）の値が式として読めるか（P31。スキーマ文書・ビュー定義と同じ読み取り）
         issues += coded.expressionIssues(document, schema, root, localIds)
+        // 意味の基底型（date / time / datetime）の値の存在（形式は構造の検証、存在はここ。P33）
+        issues += coded.valueIssues(document, schema, root, localIds)
 
         // 報告先: 規則はこの文書のスキーマの宣言・activeFrom はこの文書のフェーズで判定する（R29-03・CALC-14）
         if (schema != null) {

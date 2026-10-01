@@ -28,17 +28,8 @@ object BuiltinTypes {
     /** 空白なし（word）の形式。id / ref の構造の検証にも足す（直列化は word）。 */
     const val WORD_PATTERN = "^\\S+$"
 
-    /** 年月日（string ＋ 形式 YYYY-MM-DD。日付としての順序は値の式の type: date が決める）。 */
-    const val DATE = "$MODULE_ID#date"
-
-    /** 時刻（string ＋ 形式 HH:MM または HH:MM:SS）。 */
-    const val TIME = "$MODULE_ID#time"
-
-    /** 日時（string ＋ 形式 YYYY-MM-DD HH:MM。区切りは空白か T）。 */
-    const val DATETIME = "$MODULE_ID#datetime"
-
-    /** 資源名（読み込みの順序もこの並び）。 */
-    val names: List<String> = listOf("text", "line", "word", "date", "time", "datetime")
+    /** 資源名（読み込みの順序もこの並び）。日付・時刻は定義体でなく意味の基底型（FieldType.DATE など。値の表現を持つ）。 */
+    val names: List<String> = listOf("text", "line", "word")
 
     /** 1 件の原文を読む（読み込み失敗はあり得ない前提。失敗時は例外で気付かせる）。 */
     fun text(name: String): String =

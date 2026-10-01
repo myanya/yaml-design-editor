@@ -693,6 +693,8 @@ fun ValueEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
     }
     when (effective.type) {
         FieldType.STRING -> ScalarTextEditor(ctx, effective, slot, singleLine = true)
+        // 意味の基底型（日付・時刻・日時）は正準の形の文字で編集する（案内はヒント→型の既定）
+        FieldType.DATE, FieldType.TIME, FieldType.DATETIME -> ScalarTextEditor(ctx, effective, slot, singleLine = true)
         FieldType.INT, FieldType.NUMBER -> ScalarTextEditor(ctx, effective, slot, singleLine = true)
         FieldType.BOOLEAN -> BooleanEditor(ctx, slot)
         FieldType.ENUM -> EnumEditor(ctx, effective, slot)
@@ -1407,10 +1409,12 @@ private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) 
 /** 列の型に応じたセルの最小幅（余白があれば tableColumnWidths が広げ、収まらなければ横スクロール）。列は `$ref` 解決済み。 */
 private fun tableCellWidth(column: FieldDef): Dp = when {
     column.multiline -> 240.dp                 // 複数行の文字列（ヒント display: multiline。組込みの型 text）
-    column.isA(BuiltinTypes.DATE) -> 110.dp    // 年月日（組込みの型 date。型の連鎖で見分ける）
     else -> when (column.type) {
         FieldType.BOOLEAN -> 90.dp
         FieldType.INT, FieldType.NUMBER -> 90.dp
+        FieldType.DATE -> 110.dp
+        FieldType.TIME -> 90.dp
+        FieldType.DATETIME -> 160.dp
         FieldType.ENUM -> 140.dp
         FieldType.ID -> 150.dp
         FieldType.REF -> 200.dp

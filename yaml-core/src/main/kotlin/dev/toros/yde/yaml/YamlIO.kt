@@ -60,14 +60,28 @@ object YamlIO {
     private class PlainDateResolver : Resolver() {
         override fun addImplicitResolvers() {
             addImplicitResolver(Tag.BOOL, Resolver.BOOL, "yYnNtTfFoO", 10)
-            addImplicitResolver(Tag.INT, Resolver.INT, "-+0123456789")
-            addImplicitResolver(Tag.FLOAT, Resolver.FLOAT, "-+0123456789.")
+            // YAML 1.1 の 60 進数（`09:30` → 570・`1:30.5`）は整数・小数として読まない（時刻は文字列のまま。YAML 1.2 と同じ）
+            addImplicitResolver(Tag.INT, INT_WITHOUT_SEXAGESIMAL, "-+0123456789")
+            addImplicitResolver(Tag.FLOAT, FLOAT_WITHOUT_SEXAGESIMAL, "-+0123456789.")
             addImplicitResolver(Tag.MERGE, Resolver.MERGE, "<", 10)
             // 既定の Resolver は NUL 文字も first に含めるが、実データに現れないため省く
             addImplicitResolver(Tag.NULL, Resolver.NULL, "~nN", 10)
             addImplicitResolver(Tag.NULL, Resolver.EMPTY, null, 10)
             // Tag.TIMESTAMP は登録しない: 日付・日時は文字列のまま扱う
             addImplicitResolver(Tag.YAML, Resolver.YAML, "!&*", 10)
+        }
+
+        private companion object {
+            /** SnakeYAML の Resolver.INT から 60 進数の形（`[1-9][0-9_]*(:[0-5]?[0-9])+`）を除いたもの。 */
+            val INT_WITHOUT_SEXAGESIMAL: java.util.regex.Pattern = java.util.regex.Pattern.compile(
+                "^(?:[-+]?0b[0-1_]+|[-+]?0[0-7_]+|[-+]?(?:0|[1-9][0-9_]*)|[-+]?0x[0-9a-fA-F_]+)$",
+            )
+
+            /** SnakeYAML の Resolver.FLOAT から 60 進数の形を除いたもの。 */
+            val FLOAT_WITHOUT_SEXAGESIMAL: java.util.regex.Pattern = java.util.regex.Pattern.compile(
+                "^(?:[-+]?(?:[0-9][0-9_]*)\\.[0-9_]*(?:[eE][-+][0-9]+)?|[-+]?(?:[0-9][0-9_]*)(?:[eE][-+][0-9]+)|" +
+                    "\\.[0-9_]+(?:[eE][-+][0-9]+)?|[-+]?\\.(?:inf|Inf|INF)|\\.(?:nan|NaN|NAN))$",
+            )
         }
     }
 

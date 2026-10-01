@@ -16,17 +16,22 @@ import dev.toros.yde.yaml.structure.UnknownFieldsPolicy
  */
 
 /**
- * 基底の種類（P33）。スキーマ YAML の `type:` に書ける名前のうち、Kotlin が知るもの＝YAML の値の形と、
- * 索引・参照解決のようにコードが要る意味（id / ref）。それ以外の名前（組込みの型 `text`・利用者の型）は定義の名前で、
- * 解決すると型の連鎖（`FieldDef.lineage`）の末端がこの基底の種類になる。
- * `text` は組込みの型（定義体 builtin-types/text.yaml）へ移した——ここに分岐を足さず、`FieldDef.isA` で連鎖を見る。
+ * 基底の種類（P33）。スキーマ YAML の `type:` に書ける名前のうち、Kotlin が知るもの。2 種類ある:
+ * - 表現の基底（yaml-core の値の形と同じ）: string / int / number / boolean / enum / array / map / object / any
+ * - 意味の基底型（値の表現を持つ。直列化は文字列）: id / ref（内部は ID と参照。直列化は word）、date / time / datetime
+ *   （内部は LocalDate 系＝ValueSemantics。直列化は正準の形）
+ * それ以外の名前（組込みの定義体 `text` / `line` / `word`・利用者の型）は定義の名前で、解決すると型の連鎖
+ * （`FieldDef.lineage`）の末端がこの基底の種類になる。見せ方の分岐は型の名前でなくヒント（`FieldDef.multiline` など）で行う。
  */
-enum class FieldType(val id: String) {
-    STRING("string"),   // 文字列（1行の編集欄。複数行は組込みの型 text）
+enum class FieldType(val id: String, val value: ValueSemantics? = null) {
+    STRING("string"),   // 文字列（自由。欄は 1 行で始まり改行で伸びる。複数行の保証は組込みの型 text・1 行は line・1 語は word）
     INT("int"),         // 整数
     NUMBER("number"),   // 数値（小数可）
     BOOLEAN("boolean"), // 真偽値
-    ENUM("enum"),       // 選択肢（values 必須）。日付・時刻は組込みの型 date / time / datetime（string ＋ 形式）
+    ENUM("enum"),       // 選択肢（values 必須）
+    DATE("date", ValueSemantics.DATE),             // 年月日（YYYY-MM-DD）
+    TIME("time", ValueSemantics.TIME),             // 時刻（HH:MM か HH:MM:SS）
+    DATETIME("datetime", ValueSemantics.DATETIME), // 日時（YYYY-MM-DD HH:MM。区切りは空白か T）
     ID("id"),           // 論理要素の ID（異なる文書での同一 ID を許容）
     REF("ref"),         // 他要素の ID への参照（リンク化される）
     ARRAY("array"),     // 配列（item 必須）
@@ -36,6 +41,9 @@ enum class FieldType(val id: String) {
 
     /** 入れ物（object / array / map）。型の連鎖を辿らず定義への参照のまま扱う（再帰のため）のはこの種類だけ。 */
     val isContainer: Boolean get() = this == ARRAY || this == MAP || this == OBJECT
+
+    /** 文字列として直列化される種類（string と、意味の基底型 id / ref / date / time / datetime）。形式（pattern）を書けるのはこれら。 */
+    val isTextual: Boolean get() = this == STRING || this == ID || this == REF || value != null
 
     companion object {
         fun of(s: String?): FieldType = entries.firstOrNull { it.id == s } ?: STRING
@@ -300,8 +308,10 @@ data class FieldDef(
 
     /** 複数行の欄で編集する文字列か（組込みの型 text のヒント。型の連鎖で引き継ぐ）。 */
     val multiline: Boolean get() = hints.textDisplay == TextDisplay.MULTILINE
-    val placeholder: String? get() = hints.placeholder
-    val sample: Any? get() = hints.sample
+    /** 入力欄の案内（ヒント → 意味の基底型の既定の順）。 */
+    val placeholder: String? get() = hints.placeholder ?: type.value?.placeholder
+    /** サンプル値（ヒント → 意味の基底型の既定の順）。 */
+    val sample: Any? get() = hints.sample ?: type.value?.sample
     val rows: Int? get() = hints.rows
 
     /** 効く形式（正規表現）の一覧: 型の連鎖から引き継いだものと自分の pattern。値はすべてに一致すること。 */

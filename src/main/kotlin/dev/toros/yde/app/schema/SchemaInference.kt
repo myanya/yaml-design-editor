@@ -241,6 +241,6 @@ object SchemaInference {
     /** 長文の項目に推測する型の名前（組込みの型 text。builtin-types/text.yaml）。 */
     private const val LONG_TEXT_TYPE = "text"
 
-    /** 年月日の項目に推測する型の名前（組込みの型 date。builtin-types/date.yaml）。 */
-    private const val DATE_TYPE = "date"
+    /** 年月日の項目に推測する型の名前（意味の基底型 date）。 */
+    private val DATE_TYPE = FieldType.DATE.id
 }

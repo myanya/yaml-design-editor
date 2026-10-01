@@ -102,10 +102,15 @@ class DerivedStructures(private val schema: SchemaTree) {
             val resolved = schema.resolve(field) ?: field
             if (resolved.type.isContainer) field else resolved.copy(ref = null, typeName = null, lineage = emptyList())
         } else field
-        // id / ref の直列化は word（空白なし）: 意味の基底型の内部は ID と参照で、構造の上では空白なしの文字列（P33）
-        val inlined = if (resolvedOrSelf.type == FieldType.ID || resolvedOrSelf.type == FieldType.REF) {
-            resolvedOrSelf.copy(inheritedPatterns = (resolvedOrSelf.inheritedPatterns + BuiltinTypes.WORD_PATTERN).distinct())
-        } else resolvedOrSelf
+        // 意味の基底型は構造の上では文字列（P33）: id / ref の直列化は word（空白なし）、date / time / datetime は正準の形（ValueSemantics）
+        val value = resolvedOrSelf.type.value
+        val inlined = when {
+            resolvedOrSelf.type == FieldType.ID || resolvedOrSelf.type == FieldType.REF ->
+                resolvedOrSelf.copy(inheritedPatterns = (resolvedOrSelf.inheritedPatterns + BuiltinTypes.WORD_PATTERN).distinct())
+            value != null ->
+                resolvedOrSelf.copy(type = FieldType.STRING, inheritedPatterns = (listOf(value.canonicalPattern) + resolvedOrSelf.inheritedPatterns).distinct())
+            else -> resolvedOrSelf
+        }
         return inlined.copy(
             fields = inlined.fields.map(::inlineScalarTypes),
             item = inlined.item?.let(::inlineScalarTypes),

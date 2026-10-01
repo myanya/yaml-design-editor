@@ -8,7 +8,8 @@
 | 部品 | ファイル | 責務 |
 |---|---|---|
 | `FieldType` / `FieldDef` / `FieldHints` / `SchemaTree` | semantic-core/schema/Fields.kt・SchemaTree.kt | 利用者が書く項目の木とその読み方（`SchemaTreeParser`）。`resolve()` が `$ref` と型の名前を狭める規則で合成しつつ解決し、型の連鎖（`lineage`・`isA`）・`relation`・`role`・`options`・`expression` と、表示と編集のヒント（`FieldHints`）を持つ |
-| `BuiltinTypes` | semantic-core/schema/BuiltinTypes.kt・資源 `builtin-types/` | 組込みの型（定義体 `text` / `line` / `word` / `date` / `time` / `datetime`）。モジュール `builtin-types` としてカタログ（`SchemaCatalog`）に常に含まれ、非修飾の名前は自分のモジュールの次に引く |
+| `ValueSemantics` | semantic-core/schema/ValueSemantics.kt | 意味の基底型 `date` / `time` / `datetime` の値の表現（正準の形・読み＝存在の判定・案内・サンプル・JSON Schema の format）。`FieldType.value` から引く |
+| `BuiltinTypes` | semantic-core/schema/BuiltinTypes.kt・資源 `builtin-types/` | 組込みの型（定義体 `text` / `line` / `word`）。モジュール `builtin-types` としてカタログ（`SchemaCatalog`）に常に含まれ、非修飾の名前は自分のモジュールの次に引く |
 | `MetaSchemaTypes` | workspace-core/workspace/MetaSchemaTypes.kt | 読み込み時に、型の名前をメタスキーマの `type` の選択肢と `cases` へ足す |
 | `WorkspaceSchema` | workspace-core/workspace/WorkspaceReader.kt | スキーマの中身の原本（名前・説明・項目の木・関係の宣言・検査・式・導出した構造 `structures`） |
 | `SchemaDef` / `SchemaLoader` / `SchemaCatalog` | schema/Schema.kt | root の薄い型（`WorkspaceSchema` ＋ ファイルの場所）と、カーネルの読み込み結果をアプリの形にする `fromKernel`。`SchemaCatalog` は全スキーマと library の定義を `(moduleId, definitionName)` でリンクする |
@@ -50,7 +51,7 @@
 
 ## 型の連鎖と狭める規則
 
-型は 3 段に分かれる。基底の種類（Kotlin の `FieldType`＝YAML の値の形と、索引・参照解決のようにコードが要る意味 `id` / `ref`）、組込みの型（semantic-core の資源 `builtin-types/` の定義体。文字列の階層 `text` / `line` / `word` と `date` / `time` / `datetime`）、ユーザ型（`definitions` のスカラーの定義）。組込みの型とユーザ型は同じ書き方・同じ能力で、組込みに特権は無い（CORE-CALCULUS「定義層モデル」）。
+型は 3 段に分かれる。基底の種類（Kotlin の `FieldType`。表現の基底＝YAML の値の形と、意味の基底型＝値の表現を持つ `id` / `ref`・`date` / `time` / `datetime`。意味の基底型の直列化は文字列）、組込みの定義体（semantic-core の資源 `builtin-types/`。文字列の階層 `text` / `line` / `word`）、ユーザ型（`definitions` のスカラーの定義）。組込みの型とユーザ型は同じ書き方・同じ能力で、組込みに特権は無い（CORE-CALCULUS「定義層モデル」）。
 
 - **書き方と解決順**: 項目の `type:` に基底の種類でない名前を書くと定義の名前。解決順は基底の種類 → 自分のモジュール → `モジュール#名前` → 組込みの型（`SchemaCatalog.find`。利用者が同じ名前を自分のモジュールに置けばそちらが勝つ）。
 - `$ref` は同じ意味の別記法で、入れ物（object / array / map）の定義はこちらで使う。
@@ -58,10 +59,12 @@
 - **循環**: 定義自身の `ref` を辿って戻る循環は定義の点検（`SchemaTree.typeChainCycle`）が誤りにする。object の再帰は `fields` / `item` / `value` を通るので循環にならない。
 - **狭める合成**（`SchemaTree.narrow`）: 最小は大きい方・最大は小さい方・形式は重ねる（`patterns`＝全てに一致）・選択肢は部分集合・`cases` は定義に無いときだけ・参照の絞り込みは層を重ねる（`idPatternLayers`。全ての層に合う ID だけ。`ScannedRef.outerIdPatterns` → `isAllowedBy`）・範囲は共通部分・未定義の項目の扱いは厳しい方。
 - 表示のヒントと `default` は使う側が優先。緩める書き方は `SchemaDefinitionChecks.checkNarrowing` が定義エラーにし、合成は誤りがあっても広がらない向きに倒す。
-- **構造への写し**: 導出（`DerivedStructures`）はスカラーの連鎖を導出の前に解決し、基底の種類と合成した決まりを写す。`$ref` のまま写すのは入れ物の定義だけ（再帰のため）。yaml-core は型の名前を知らず、足したのは形式の一覧（`StructureField.patterns`）だけ。`id` / `ref` の直列化は `word`（空白なし）で、導出が同じ形式を足す。
+- **構造への写し**: 導出（`DerivedStructures`）はスカラーの連鎖を導出の前に解決し、基底の種類と合成した決まりを写す。`$ref` のまま写すのは入れ物の定義だけ（再帰のため）。yaml-core は型の名前を知らず、足したのは形式の一覧（`StructureField.patterns`）だけ。
+- **意味の基底型の直列化**: `id` / `ref` は `word`（空白なし）で、導出が同じ形式を足す。`date` / `time` / `datetime` は正準の形（`ValueSemantics.canonicalPattern`）を足した `string`。存在の検証（`2026-02-30`）はコードの検査 `value`（`CodedDocumentChecks.valueIssues`）が行う。
 - **メタスキーマ**: `builtin-schema` の `type` は基底の種類の選択肢だけを持ち、`MetaSchemaTypes` が読み込み時に型の名前を選択肢と `cases`（基底の種類の分を写す）へ足す。組込みの型は `BuiltinSchemaResources.kernelSchemas`、利用者の型は `WorkspaceReader.buildSchemas`。`$ref` ＋決まりのキーの警告は残る（型は `type:` で書くのが正）。
 - **道具**: `extract-definition` はスカラーなら使う側に `type: 名前` を書く。`rename-definition` / `rename-schema-id` は `type` の言及も書き換える。`convert-type` の string ↔ text は型の名前の書き換え。設計 UI の型の選択肢と基底の種類の解決は `TypeChoices`（ui/SchemaEditor.kt）。
-- **ヒントは型から引き継ぐ**: 複数行 `display: multiline`（`TextDisplay`）・入力欄の案内 `placeholder`・サンプル値 `sample` は `FieldHints.over` で使う側が優先し、無ければ型のもの。UI は型の名前でなくヒントで判定する（`FieldDef.multiline` / `placeholder`）。組込みの型の名前（`isA(BuiltinTypes.DATE)`）で判定するのは、ヒントで表せない見せ方（日付の列幅・AI 生成の `format: date`・ビューのリントの日付の項目）だけ。
+- **ヒントは型から引き継ぐ**: 複数行 `display: multiline`（`TextDisplay`）・入力欄の案内 `placeholder`・サンプル値 `sample` は `FieldHints.over` で使う側が優先し、無ければ型のもの。UI は型の名前でなくヒントで判定する（`FieldDef.multiline` / `placeholder`）。
+- 意味の基底型は基底の種類で判定し（`type == FieldType.DATE`。列幅・AI 生成の `format`・ビューのリントの日付の項目）、案内とサンプル値はヒントが無ければ `ValueSemantics` の既定。
 - **これから**: 順序（日付の比較）と読み方（`¥10,000` を数として）を型に持たせること、entity の `idPattern` を ID の型から引くこと、オブジェクト型（object の定義に同一性・表示・検査を足す）は ROADMAP のテーマ。
 
 ## 表示のヒント
@@ -92,7 +95,7 @@
 ```
 
 - 最小の構造のスキーマが持つのは、値の形（string / int / number / boolean / enum / date / array / map / object / any）・必須・値の形式的なチェック（選択肢・範囲・文字数・形式＝複数なら全てに一致）・`cases`・未定義の項目の扱い・`$ref`・値の形ごとの決まり（`shapes`）・指摘の文面のための表示名だけ。書けないキーは読み取りの段階で誤りになる。
-- 型の連鎖（`type: 名前` と、スカラーの定義への `$ref`）は導出の前に解決して、基底の種類と合成した決まりを写す（「型の連鎖と狭める規則」）。`$ref` のまま写すのは入れ物の定義だけ。組込みの型 `text` / `date` / `time` / `datetime` は構造のスキーマでは `string`（＋形式）。
+- 型の連鎖（`type: 名前` と、スカラーの定義への `$ref`）は導出の前に解決して、基底の種類と合成した決まりを写す（「型の連鎖と狭める規則」）。`$ref` のまま写すのは入れ物の定義だけ。組込みの定義体 `text` / `line` / `word` と意味の基底型 `date` / `time` / `datetime`・`id` / `ref` は構造のスキーマでは `string`（＋形式）。
 - 分け方の基準: その値 1 つとその項目の決まりだけで決まるチェックは yaml-core。他の値・要素・文書・索引・フェーズを見るチェックは semantic-core。`cases` だけは選択肢の一部として yaml-core に残す。ID の形式（`pattern`）と日付の形式は yaml-core、参照先の絞り込み（`idPatterns`・`scope`）とエンティティ型の ID のパターンからの逸脱は semantic-core。
 - 導出の規則（組込みの変換定義）: ID と参照は文字列にする。属性付き参照は値の形ごとの決まりにする。フェーズに達したら必須は素の必須へ畳む。意味と表示の語彙（`role`・`display`・`description`・`default`・`relation`・`scope`・`idPatterns`・`target`・選択肢のラベル）は落とす。`$ref` は写すだけで辿らない。式を受け取る項目は「文字列か object」の形として通す。
 - 導出の入口は `DerivedStructures` の 1 つ。アプリ（root の `Validator`）とカーネル（`WorkspaceReader.validateOne`・セッションの増分導出・cli）が同じ `validate(root)` を通る。派生スキーマや語彙のキーを足したメタスキーマのように、読み込みの後で組み立てたスキーマも同じ経路。

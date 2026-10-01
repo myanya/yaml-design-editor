@@ -105,11 +105,15 @@ internal fun fieldToJsonSchema(original: FieldDef, schema: SchemaDef, depth: Int
         when (field.type) {
             FieldType.STRING -> {
                 put("type", "string")
-                // 組込みの型 date（型の連鎖で見分ける）は JSON Schema の format で日付と伝える
-                if (field.isA(dev.toros.yde.semantic.schema.BuiltinTypes.DATE)) put("format", "date")
                 // 制約語彙（R16-01）を Structured Outputs へ伝搬する（生成値が検証を通りやすくなる）
                 field.minLength?.let { put("minLength", it) }
                 field.maxLength?.let { put("maxLength", it) }
+                field.pattern?.let { put("pattern", it) }
+            }
+            // 意味の基底型（日付・時刻・日時）は文字列＋ JSON Schema の format（date / time / date-time）
+            FieldType.DATE, FieldType.TIME, FieldType.DATETIME -> {
+                put("type", "string")
+                field.type.value?.let { put("format", it.jsonFormat) }
                 field.pattern?.let { put("pattern", it) }
             }
             FieldType.ID -> put("type", "string")
