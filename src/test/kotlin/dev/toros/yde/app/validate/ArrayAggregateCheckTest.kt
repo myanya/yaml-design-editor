@@ -107,6 +107,9 @@ class ArrayAggregateCheckTest {
     @Test
     fun `日付として読めない材料があれば最大は得られず判定を保留する`() {
         val ws = Workspace.open(dir)
-        assertEquals(emptyList(), errorsOf(ws, "todos/T-BAD.yaml").map { it.message })
+        val errors = errorsOf(ws, "todos/T-BAD.yaml")
+        // 読めない日付は組込みの型 date の形式の誤り（構造の検証）として指摘され、集計の検査は判定を保留する（指摘しない）
+        assertTrue(errors.any { "形式" in it.message && "2026/09/01" in it.message }, errors.map { it.message }.toString())
+        assertEquals(emptyList(), errors.filter { it.source.ruleId == "last-updated-matches-latest-comment" }.map { it.message })
     }
 }

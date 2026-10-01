@@ -212,7 +212,7 @@ object SchemaInference {
             stats.booleans == total -> FieldType.BOOLEAN.id
             stats.ints == total -> FieldType.INT.id
             stats.ints + stats.numbers == total -> FieldType.NUMBER.id
-            stats.dates == total -> FieldType.DATE.id
+            stats.dates == total -> DATE_TYPE
             // 長文は組込みの型 text（複数行の文字列。型の名前。P33）
             stats.longTexts > 0 && stats.longTexts + stats.plainStrings == total -> LONG_TEXT_TYPE
             else -> FieldType.STRING.id
@@ -240,4 +240,7 @@ object SchemaInference {
 
     /** 長文の項目に推測する型の名前（組込みの型 text。builtin-types/text.yaml）。 */
     private const val LONG_TEXT_TYPE = "text"
+
+    /** 年月日の項目に推測する型の名前（組込みの型 date。builtin-types/date.yaml）。 */
+    private const val DATE_TYPE = "date"
 }

@@ -92,9 +92,9 @@ class StructuralDerivationTransformTest {
             listOf("format@id", "length@name", "range@count", "range@ratio", "format@due", "type@done", "format@labels/a", "unknown-key@extra"),
             issues.brief(),
         )
-        // 未定義の項目は、スキーマの指定（unknownFields: error）どおりエラー。日付の形式は警告
+        // 未定義の項目は、スキーマの指定（unknownFields: error）どおりエラー。日付の形式も誤り（組込みの型 date＝string ＋ 形式。以前は警告）
         assertEquals(Severity.ERROR, issues.last().severity)
-        assertEquals(Severity.WARNING, issues.single { it.path == listOf<Any>("due") }.severity)
+        assertEquals(Severity.ERROR, issues.single { it.path == listOf<Any>("due") }.severity)
         assertEquals("「count」は 10 以下で入力してください（現在値: 11）", issues.single { it.path == listOf<Any>("count") }.message)
     }
 

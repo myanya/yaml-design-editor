@@ -19,8 +19,8 @@ object StructureValidator {
     private val DATE_RE = Regex("""\d{4}-\d{2}-\d{2}""")
 
     /**
-     * 日付として読める書き方か（YYYY-MM-DD）。date 型の項目の検証と、値の式の日付の順序（semantic-core）が同じ規則を使う
-     * （1 つの意味には 1 つの判定）。この形の文字列は、文字の順がそのまま日付の順になる。
+     * 日付として読める書き方か（YYYY-MM-DD）。組込みの型 date の形式（semantic-core の定義体）と、値の式の日付の順序（semantic-core）が
+     * 同じ規則を使う（1 つの意味には 1 つの判定）。この形の文字列は、文字の順がそのまま日付の順になる。
      */
     fun isDateText(text: String): Boolean = DATE_RE.matches(text)
 
@@ -151,12 +151,6 @@ object StructureValidator {
                 val v = (node as? YNode.Scalar)?.value
                 if (v != null && v !is Boolean) {
                     issues += StructuralIssue(Severity.ERROR, "「$label」は真偽値である必要があります（現在値: $v）", path, StructuralIssueKind.TYPE)
-                }
-            }
-            ValueType.DATE -> {
-                val v = scalarText(node)
-                if (v != null && !DATE_RE.matches(v)) {
-                    issues += StructuralIssue(Severity.WARNING, "「$label」は YYYY-MM-DD 形式を推奨します（現在値: $v）", path, StructuralIssueKind.FORMAT)
                 }
             }
             ValueType.STRING -> {

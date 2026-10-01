@@ -30,14 +30,18 @@ class OpenAiGeneratorTest {
 
     @Test
     fun `id ref date and text map to string`() {
-        for (type in listOf(FieldType.ID, FieldType.REF, FieldType.DATE)) {
+        for (type in listOf(FieldType.ID, FieldType.REF)) {
             val field = FieldDef(key = "f", type = type)
             val json = fieldToJsonSchema(field, schemaOf(field))
             assertEquals("string", json["type"]?.jsonPrimitive?.content, "type=$type")
         }
-        // 組込みの型 text（型の名前。基底の種類は string）も文字列
+        // 組込みの型 text / date（型の名前。基底の種類は string）も文字列。date は format で日付と伝える
         val text = FieldDef(key = "f", typeName = "text", ref = "text")
         assertEquals("string", fieldToJsonSchema(text, schemaOf(text))["type"]?.jsonPrimitive?.content)
+        val date = FieldDef(key = "f", typeName = "date", ref = "date")
+        val dateJson = fieldToJsonSchema(date, schemaOf(date))
+        assertEquals("string", dateJson["type"]?.jsonPrimitive?.content)
+        assertEquals("date", dateJson["format"]?.jsonPrimitive?.content)
     }
 
     @Test

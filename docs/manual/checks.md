@@ -402,7 +402,7 @@ sample-workspace の `_schemas/todo-entity-design.yaml`・`_schemas/todo-table-d
 - 型不一致（int / number / boolean / object / array / map）
 - `enum` の選択肢外の値
 - 非アクティブな case のキーの残存（`cases`。有効になる enum 値を案内。重大度は `unknownFields` に従う）
-- `date` の形式逸脱（警告）
+- `date` / `time` / `datetime` の形式逸脱（エラー。組込みの型＝`string` ＋ 形式）
 - `id` / `string` / `text` の `pattern` 逸脱（IDフォーマットの強制を含む）
 - 未解決の参照
 - ID の重複（同一ファイル内。異なるファイルの同一IDは許容）

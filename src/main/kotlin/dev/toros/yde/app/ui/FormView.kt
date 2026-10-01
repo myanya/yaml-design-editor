@@ -686,13 +686,13 @@ fun ValueEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
         TypeMismatchRepair(ctx, effective, slot, path, node)
         return
     }
-    // 複数行の文字列は組込みの型 text（型の連鎖で判定する。基底の種類の分岐は増やさない。P33）
-    if (effective.isA(BuiltinTypes.TEXT)) {
+    // 複数行の文字列は、型から引き継いだヒント（display: multiline。組込みの型 text）で判定する。基底の種類の分岐は増やさない
+    if (effective.multiline) {
         ScalarTextEditor(ctx, effective, slot, singleLine = false)
         return
     }
     when (effective.type) {
-        FieldType.STRING, FieldType.DATE -> ScalarTextEditor(ctx, effective, slot, singleLine = true)
+        FieldType.STRING -> ScalarTextEditor(ctx, effective, slot, singleLine = true)
         FieldType.INT, FieldType.NUMBER -> ScalarTextEditor(ctx, effective, slot, singleLine = true)
         FieldType.BOOLEAN -> BooleanEditor(ctx, slot)
         FieldType.ENUM -> EnumEditor(ctx, effective, slot)
@@ -792,8 +792,8 @@ private fun ScalarTextEditor(ctx: FormCtx, field: FieldDef, slot: Slot, singleLi
         textStyle = fieldTextStyle,
         unfocusedText = numberDisplay?.let { d -> { s: String -> d.format(s) } },
         placeholder = {
-            val hint = when (field.type) {
-                FieldType.DATE -> "YYYY-MM-DD"
+            // 入力欄の案内は型から引き継いだヒント（例 組込みの型 date の YYYY-MM-DD）。無ければ数の種類だけ案内する
+            val hint = field.placeholder ?: when (field.type) {
                 FieldType.INT -> "整数"
                 FieldType.NUMBER -> "数値"
                 else -> ""
@@ -1402,11 +1402,11 @@ private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) 
 
 /** 列の型に応じたセルの最小幅（余白があれば tableColumnWidths が広げ、収まらなければ横スクロール）。列は `$ref` 解決済み。 */
 private fun tableCellWidth(column: FieldDef): Dp = when {
-    column.isA(BuiltinTypes.TEXT) -> 240.dp   // 複数行の文字列（組込みの型。P33）
+    column.multiline -> 240.dp                 // 複数行の文字列（ヒント display: multiline。組込みの型 text）
+    column.isA(BuiltinTypes.DATE) -> 110.dp    // 年月日（組込みの型 date。型の連鎖で見分ける）
     else -> when (column.type) {
         FieldType.BOOLEAN -> 90.dp
         FieldType.INT, FieldType.NUMBER -> 90.dp
-        FieldType.DATE -> 110.dp
         FieldType.ENUM -> 140.dp
         FieldType.ID -> 150.dp
         FieldType.REF -> 200.dp
@@ -1605,7 +1605,7 @@ private fun ObjectTableCell(ctx: FormCtx, col: FieldDef, map: YNode.Map, itemPat
         when {
             // スキーマとずれた複合値はセルで編集せず要約表示に留める（編集は行の展開フォーム）
             value != null && value !is YNode.Scalar -> TableCellText(Display.inline(value, ctx.doc.schema, col))
-            ctx.readOnly || col.isA(BuiltinTypes.TEXT) -> TableCellText(readOnlyCellText(col, value as? YNode.Scalar))
+            ctx.readOnly || col.multiline -> TableCellText(readOnlyCellText(col, value as? YNode.Scalar))
             else -> ValueEditor(ctx, col, slot, itemPath + key)
         }
     }

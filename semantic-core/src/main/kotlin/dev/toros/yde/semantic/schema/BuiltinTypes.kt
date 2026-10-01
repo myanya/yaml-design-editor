@@ -16,11 +16,20 @@ object BuiltinTypes {
     /** 組込みの型のモジュール ID（定義の修飾名 `builtin-types#名前`）。 */
     const val MODULE_ID = "builtin-types"
 
-    /** 複数行の文字列（決まりは string と同じ。編集の欄が複数行になる）。 */
+    /** 複数行の文字列（決まりは string と同じ。編集の欄が複数行になる＝ヒント display: multiline）。 */
     const val TEXT = "$MODULE_ID#text"
 
+    /** 年月日（string ＋ 形式 YYYY-MM-DD。日付としての順序は値の式の type: date が決める）。 */
+    const val DATE = "$MODULE_ID#date"
+
+    /** 時刻（string ＋ 形式 HH:MM または HH:MM:SS）。 */
+    const val TIME = "$MODULE_ID#time"
+
+    /** 日時（string ＋ 形式 YYYY-MM-DD HH:MM。区切りは空白か T）。 */
+    const val DATETIME = "$MODULE_ID#datetime"
+
     /** 資源名（読み込みの順序もこの並び）。 */
-    val names: List<String> = listOf("text")
+    val names: List<String> = listOf("text", "date", "time", "datetime")
 
     /** 1 件の原文を読む（読み込み失敗はあり得ない前提。失敗時は例外で気付かせる）。 */
     fun text(name: String): String =

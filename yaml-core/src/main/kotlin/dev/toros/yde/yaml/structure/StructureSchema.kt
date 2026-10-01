@@ -15,7 +15,8 @@ import dev.toros.yde.yaml.structure.UnknownFieldsPolicy
 
 /**
  * 値の型。ID と参照は、構造の上では文字列（意味は、意味のスキーマだけが持つ）。
- * 複数行の文字列 text は、構造の上では string（組込みの型＝意味の側の定義体。導出のときに string へ解決される。P33）。
+ * 複数行の文字列 text と日付 date（時刻 time・日時 datetime）は、構造の上では string（組込みの型＝意味の側の定義体。
+ * 導出のときに string ＋ 形式へ解決される。P33）。
  */
 enum class ValueType(val id: String) {
     STRING("string"),
@@ -23,7 +24,6 @@ enum class ValueType(val id: String) {
     NUMBER("number"),
     BOOLEAN("boolean"),
     ENUM("enum"),
-    DATE("date"),
     ARRAY("array"),
     MAP("map"),
     OBJECT("object"),

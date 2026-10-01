@@ -216,6 +216,9 @@ object SchemaDefinitionChecks {
             if ((f.min != null || f.max != null) && f.type != FieldType.INT && f.type != FieldType.NUMBER) {
                 issues += SchemaIssue("min / max は int / number 型でのみ使用できます", path)
             }
+            if (f.hints.textDisplay != null && !stringy) {
+                issues += SchemaIssue("display: multiline は基底の種類が string の型でのみ使用できます", path)
+            }
             val minLength = f.minLength
             val maxLength = f.maxLength
             if (minLength != null && minLength < 0) issues += SchemaIssue("minLength は 0 以上が必要です", path)

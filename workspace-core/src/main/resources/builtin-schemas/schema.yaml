@@ -17,7 +17,7 @@ definitions:
         label: 型
         type: enum
         description: "基底の種類（この選択肢）か、型の名前（組込みの型 text・definitions に定義した型 金額 / common#金額）。型の名前を書くと定義の決まりを引き継ぎ、ここに書く決まりは狭めるだけ（P33）。型の名前の選択肢は読み込み時に足される"
-        values: [string, int, number, boolean, enum, date, id, ref, array, map, object, any]
+        values: [string, int, number, boolean, enum, id, ref, array, map, object, any]
         cases:
           string:
             - key: minLength
@@ -30,6 +30,11 @@ definitions:
               label: 形式（正規表現）
               type: string
               description: 値の全体がこの正規表現に一致すること（R16-01）
+            - key: display
+              label: 編集の形
+              type: enum
+              values: [multiline]
+              description: multiline は複数行の欄で編集する（組込みの型 text がこれを持つ。見せ方だけで、値・検証は変えない）
           int:
             - key: min
               label: 最小値
@@ -154,6 +159,14 @@ definitions:
       - key: default
         label: 初期値
         type: any
+      - key: placeholder
+        label: 入力欄の案内
+        type: string
+        description: 値が空のときに入力欄へ薄く出す文字（例 YYYY-MM-DD）。型に書けば、その型を使う項目に引き継がれる
+      - key: sample
+        label: サンプル値
+        type: any
+        description: プレビューのサンプル YAML で、初期値が無いときに使う値（例 2026-01-01）。型に書けば引き継がれる
       - key: description
         label: 説明
         type: text

@@ -3,7 +3,9 @@ package dev.toros.yde.app.ui
 import androidx.compose.ui.unit.dp
 import dev.toros.yde.semantic.schema.BuiltinTypes
 import dev.toros.yde.semantic.schema.FieldDef
+import dev.toros.yde.semantic.schema.FieldHints
 import dev.toros.yde.semantic.schema.FieldType
+import dev.toros.yde.semantic.schema.TextDisplay
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -14,6 +16,9 @@ import kotlin.test.assertEquals
 class ArrayTableTest {
 
     private fun cols(vararg types: FieldType) = types.map { FieldDef(type = it) }
+
+    /** 組込みの型 date を解決した列（基底の種類は string・連鎖に builtin-types#date）。 */
+    private val dateColumn = FieldDef(type = FieldType.STRING, lineage = listOf(BuiltinTypes.DATE))
 
     @Test
     fun `余白は文字系の列で等分され表が右端まで使われる`() {
@@ -33,17 +38,16 @@ class ArrayTableTest {
 
     @Test
     fun `文字系の列がなければ伸ばさない（数値だけの表を間延びさせない）`() {
-        val types = cols(FieldType.INT, FieldType.BOOLEAN, FieldType.DATE)
-        assertEquals(
-            listOf(90.dp, 90.dp, 110.dp),
-            tableColumnWidths(types, available = 1000.dp, fixed = 28.dp),
-        )
+        // 日付の列（組込みの型 date）は 110 の固定幅で、余白の配分先にはならない… が、基底の種類は string なので文字系に数える
+        val types = cols(FieldType.INT, FieldType.BOOLEAN) + dateColumn
+        assertEquals(listOf(90.dp, 90.dp, 110.dp), tableColumnWidths(types, available = 290.dp, fixed = 28.dp))
+        assertEquals(listOf(90.dp, 90.dp), tableColumnWidths(cols(FieldType.INT, FieldType.BOOLEAN), available = 1000.dp, fixed = 28.dp))
     }
 
     @Test
-    fun `複数行の文字列（組込みの型 text）は型の連鎖で見分けて広い最小幅にする`() {
-        // 解決済みの列は連鎖に builtin-types#text を持つ（基底の種類は string のまま）
-        val text = FieldDef(type = FieldType.STRING, lineage = listOf(BuiltinTypes.TEXT))
+    fun `複数行の文字列（組込みの型 text のヒント）は広い最小幅にする`() {
+        // 解決済みの列は型から引き継いだヒント display: multiline を持つ（基底の種類は string のまま）
+        val text = FieldDef(type = FieldType.STRING, hints = FieldHints(textDisplay = TextDisplay.MULTILINE))
         assertEquals(listOf(240.dp, 170.dp), tableColumnWidths(listOf(text, FieldDef(type = FieldType.STRING)), available = 300.dp, fixed = 28.dp))
     }
 }

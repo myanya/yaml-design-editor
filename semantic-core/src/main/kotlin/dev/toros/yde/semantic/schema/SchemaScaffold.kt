@@ -46,6 +46,8 @@ object SchemaScaffold {
             val nextStack = if (reference == null) stack else stack + reference
             val field = schema.resolve(original) ?: original
             if (field.default != null) return YamlIO.fromAny(field.default)
+            // サンプル値のヒント（型から引き継ぐ。例 組込みの型 date の 2026-01-01）
+            field.sample?.let { return YamlIO.fromAny(it) }
             return when (field.type) {
                 FieldType.OBJECT -> {
                     val entries = LinkedHashMap<String, YNode>().apply {
@@ -68,7 +70,6 @@ object SchemaScaffold {
                 FieldType.BOOLEAN -> YNode.Scalar(false)
                 FieldType.INT, FieldType.NUMBER -> YNode.Scalar(0)
                 FieldType.ENUM -> YNode.Scalar(field.values.firstOrNull() ?: "")
-                FieldType.DATE -> YNode.Scalar("2026-01-01")
                 FieldType.ID -> YNode.Scalar("SAMPLE-001")
                 // 必須スカラーは空文字にせず型別の例値を入れる（UX-28。空文字は必須エラーになりプレビューが赤くなる）
                 FieldType.REF -> YNode.Scalar(if (field.required || field.requiredFrom != null) "SAMPLE-001" else "")

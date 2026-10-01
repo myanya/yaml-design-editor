@@ -1,0 +1,13 @@
+# 組込みの型（定義体。P33 第二弾）: date ＝ 年月日（YYYY-MM-DD）。
+#
+# 以前は Kotlin の型（FieldType.DATE・yaml-core の ValueType.DATE。形式の逸脱は警告）だったが、string ＋ 形式の定義体にした
+# （形式の逸脱は誤りになる＝意図的差分 D-41）。入力欄の案内とサンプル値はヒント。
+# 日付としての順序（min / max・並び）は値の式の type: date が決める（表記から意味を決めない）。
+id: builtin-types
+kind: library
+definitions:
+  date:
+    type: string
+    pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+    placeholder: YYYY-MM-DD
+    sample: "2026-01-01"

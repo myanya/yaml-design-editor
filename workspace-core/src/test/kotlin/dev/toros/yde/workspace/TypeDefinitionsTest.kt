@@ -110,6 +110,67 @@ class TypeDefinitionsTest {
     }
 
     @Test
+    fun `組込みの型 date time datetime は string と形式の定義体で ヒントを型から引き継ぐ`() {
+        val ws = load(
+            mapOf(
+                "_schemas/common.yaml" to """
+                    id: common
+                    kind: library
+                    definitions:
+                      予約日: { type: date, description: 会議室を使う日 }
+                      予約時刻: { type: time, placeholder: "HH:MM（30 分刻み）" }
+                """.trimIndent(),
+                "_schemas/doc.yaml" to """
+                    id: doc
+                    match: "d/*.yaml"
+                    root:
+                      type: object
+                      fields:
+                        - { key: day, type: common#予約日 }
+                        - { key: start, type: common#予約時刻 }
+                        - { key: at, type: datetime }
+                        - { key: note, type: text }
+                        - { key: memo, type: string, display: multiline }
+                """.trimIndent(),
+                "d/a.yaml" to "day: 2026-10-01\nstart: 09:30\nat: 2026-10-01 09:30\n",
+                "d/b.yaml" to "day: 2026/10/1\nstart: 9:30\nat: 20261001\n",
+            )
+        )
+        assertEquals(emptyList(), ws.schemaErrors)
+        assertEquals(emptyList(), structural(ws, "d/a.yaml"))
+        val b = structural(ws, "d/b.yaml")
+        assertTrue(b.any { "「day」は形式（^\\d{4}-\\d{2}-\\d{2}$）に一致していません" in it }, b.toString())
+        assertTrue(b.any { "「start」は形式" in it }, b.toString())
+        assertTrue(b.any { "「at」は形式" in it }, b.toString())
+
+        val doc = ws.schemas.first { it.id == "doc" }
+        fun field(key: String) = doc.tree.resolve(doc.tree.root.fields.first { it.key == key })!!
+        val day = field("day")
+        assertEquals(FieldType.STRING, day.type)
+        assertTrue(day.isA(BuiltinTypes.DATE))
+        assertEquals(listOf("common#予約日", BuiltinTypes.DATE), day.lineage)
+        // ヒントは型から引き継ぎ、使う側（型から型へ）に書いたものが優先
+        assertEquals("YYYY-MM-DD", day.placeholder)
+        assertEquals("2026-01-01", day.sample)
+        assertEquals("会議室を使う日", day.description)
+        assertEquals("HH:MM（30 分刻み）", field("start").placeholder)
+        assertEquals("09:00", field("start").sample)
+        assertTrue(field("note").multiline)
+        assertTrue(field("memo").multiline)
+        assertTrue(!day.multiline)
+        // サンプル YAML はヒントのサンプル値を使う
+        val sample = dev.toros.yde.semantic.schema.SchemaScaffold.sample(doc.tree) as dev.toros.yde.yaml.model.YNode.Map
+        assertEquals("2026-01-01", (sample.entries["day"] as dev.toros.yde.yaml.model.YNode.Scalar).value)
+        assertEquals("2026-01-01 09:00", (sample.entries["at"] as dev.toros.yde.yaml.model.YNode.Scalar).value)
+    }
+
+    @Test
+    fun `display multiline は基底の種類が string の型にだけ書ける`() {
+        val ws = load(mapOf("_schemas/bad.yaml" to "id: bad\nmatch: \"x/*.yaml\"\nroot:\n  type: object\n  fields:\n    - { key: n, type: int, display: multiline }\n"))
+        assertTrue(ws.schemaErrors.any { "multiline" in it }, ws.schemaErrors.toString())
+    }
+
+    @Test
     fun `未知の型の名前は定義の誤りで メタスキーマも選択肢の誤りにする`() {
         val ws = load(mapOf("_schemas/bad.yaml" to "id: bad\nmatch: \"x/*.yaml\"\nroot:\n  type: object\n  fields:\n    - { key: v, type: nonsense }\n"))
         assertTrue(ws.schemaErrors.any { "未知の型です: nonsense" in it }, ws.schemaErrors.toString())

@@ -5,6 +5,7 @@ import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.model.parseYPath
 import dev.toros.yde.yaml.model.pretty
+import dev.toros.yde.semantic.schema.BuiltinTypes
 import dev.toros.yde.semantic.schema.ExpressionFields
 import dev.toros.yde.semantic.schema.DisplayCore
 import dev.toros.yde.semantic.schema.FieldDef
@@ -640,14 +641,16 @@ object ViewDefinitions {
                             val get = agg.input as? ValueExpr.Get ?: return@forEach
                             if (get.of != null || get.via != null || get.inDoc != null) return@forEach
                             val pattern = get.path
-                            val types = fromSchemas.flatMap { s ->
-                                idElementsOf(s).mapNotNull { staticFieldAt(s, it, pattern) }.map { (s.tree.resolve(it) ?: it).type }
-                            }.distinct()
-                            if (types.isEmpty()) return@forEach
+                            val fields = fromSchemas.flatMap { s ->
+                                idElementsOf(s).mapNotNull { staticFieldAt(s, it, pattern) }.map { s.tree.resolve(it) ?: it }
+                            }
+                            if (fields.isEmpty()) return@forEach
+                            // 日付の項目は、組込みの型 date（型の連鎖）で見分ける
+                            val dateField = fields.any { it.isA(BuiltinTypes.DATE) }
                             val subject = "${agg.fn.id} が読む「${PathPattern.pretty(pattern)}」"
-                            if (FieldType.DATE in types && agg.kind != ValueExpr.OrderKind.DATE) {
+                            if (dateField && agg.kind != ValueExpr.OrderKind.DATE) {
                                 report("列「${col.label}」の${subject}は日付の項目です（type: date を書くと日付として比べます）")
-                            } else if (agg.kind == ValueExpr.OrderKind.DATE && FieldType.DATE !in types) {
+                            } else if (agg.kind == ValueExpr.OrderKind.DATE && !dateField) {
                                 report("列「${col.label}」の${subject}は日付の項目ではありません（type: date は日付の項目に書きます）")
                             }
                         }

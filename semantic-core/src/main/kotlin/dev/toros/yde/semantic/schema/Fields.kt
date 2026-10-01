@@ -26,8 +26,7 @@ enum class FieldType(val id: String) {
     INT("int"),         // 整数
     NUMBER("number"),   // 数値（小数可）
     BOOLEAN("boolean"), // 真偽値
-    ENUM("enum"),       // 選択肢（values 必須）
-    DATE("date"),       // 日付 YYYY-MM-DD
+    ENUM("enum"),       // 選択肢（values 必須）。日付・時刻は組込みの型 date / time / datetime（string ＋ 形式）
     ID("id"),           // 論理要素の ID（異なる文書での同一 ID を許容）
     REF("ref"),         // 他要素の ID への参照（リンク化される）
     ARRAY("array"),     // 配列（item 必須）
@@ -97,6 +96,20 @@ enum class NumberDisplay(val id: String) {
 
         fun parse(value: String?): NumberDisplay? = value?.let { raw ->
             entries.firstOrNull { it.id == raw } ?: error("int / number の display は grouped（桁区切り）だけです: $raw")
+        }
+    }
+}
+
+/**
+ * 文字列の編集の形（`display: multiline`＝複数行の欄）。表示のヒントで、値も検証も変えない。組込みの型 text がこれを持ち、
+ * text から作った型や、使う側の項目に書いても引き継がれる。UI は型の名前ではなくこのヒントで複数行の欄を出す。
+ */
+enum class TextDisplay(val id: String) {
+    MULTILINE("multiline");
+
+    companion object {
+        fun parse(value: String?): TextDisplay? = value?.let { raw ->
+            entries.firstOrNull { it.id == raw } ?: error("string の display は multiline（複数行の欄）だけです: $raw")
         }
     }
 }
@@ -200,13 +213,25 @@ data class FieldHints(
     val numberDisplay: NumberDisplay? = null,
     /** 新規作成時の初期値。 */
     val default: Any? = null,
+    /** STRING（とそれを基底にする型）の編集の形（multiline＝複数行の欄）。 */
+    val textDisplay: TextDisplay? = null,
+    /** 入力欄の案内（値が空のときに薄く出す文字。例 YYYY-MM-DD）。 */
+    val placeholder: String? = null,
+    /** サンプル値（プレビューのサンプル YAML で、初期値が無いときに使う。例 2026-01-01）。 */
+    val sample: Any? = null,
 ) {
-    /** 定義への参照（`$ref`）の解決: 使う側に書いたラベル・説明・見せ方は、定義の側より優先。選択肢のラベルと初期値は、定義の側のもの。 */
+    /**
+     * 定義（型）への参照の解決: 使う側に書いたラベル・説明・見せ方・案内・サンプルは、定義の側より優先し、書かなければ型のものを引き継ぐ。
+     * 選択肢のラベルと初期値の合成は SchemaTree.narrow が行う。
+     */
     fun over(target: FieldHints): FieldHints = target.copy(
         label = label ?: target.label,
         description = description ?: target.description,
         display = display ?: target.display,
         numberDisplay = numberDisplay ?: target.numberDisplay,
+        textDisplay = textDisplay ?: target.textDisplay,
+        placeholder = placeholder ?: target.placeholder,
+        sample = sample ?: target.sample,
     )
 }
 
@@ -269,6 +294,11 @@ data class FieldDef(
     val default: Any? get() = hints.default
 
     val displayLabel: String get() = label ?: key ?: "(root)"
+
+    /** 複数行の欄で編集する文字列か（組込みの型 text のヒント。型の連鎖で引き継ぐ）。 */
+    val multiline: Boolean get() = hints.textDisplay == TextDisplay.MULTILINE
+    val placeholder: String? get() = hints.placeholder
+    val sample: Any? get() = hints.sample
 
     /** 効く形式（正規表現）の一覧: 型の連鎖から引き継いだものと自分の pattern。値はすべてに一致すること。 */
     val patterns: List<String> get() = (inheritedPatterns + listOfNotNull(pattern)).distinct()

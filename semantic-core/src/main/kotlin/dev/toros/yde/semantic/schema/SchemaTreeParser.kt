@@ -158,13 +158,18 @@ object SchemaTreeParser {
             namedType != null && displayRaw == NumberDisplay.GROUPED.id -> NumberDisplay.GROUPED
             else -> null
         }
+        // 文字列の編集の形（multiline）。基底の種類が string のときと、型の名前（基底は解決まで分からない）のとき
+        val textDisplay = if (displayRaw == TextDisplay.MULTILINE.id && (type == FieldType.STRING || namedType != null)) TextDisplay.MULTILINE else null
         return FieldHints(
             label = m["label"]?.toString(),
             description = m["description"]?.toString(),
             options = options,
-            display = if (numeric || numberDisplay != null) null else CollectionDisplay.parse(displayRaw),
+            display = if (numeric || numberDisplay != null || textDisplay != null) null else CollectionDisplay.parse(displayRaw),
             numberDisplay = numberDisplay,
             default = m["default"],
+            textDisplay = textDisplay,
+            placeholder = m["placeholder"]?.toString(),
+            sample = m["sample"],
         )
     }
 }

@@ -395,7 +395,7 @@ object SemanticSchemaRefactor {
         val (real, _) = derefChain(schemas, entry, res.site)
         val fillable = setOf(
             FieldType.STRING, FieldType.INT, FieldType.NUMBER,
-            FieldType.BOOLEAN, FieldType.ENUM, FieldType.DATE, FieldType.REF,
+            FieldType.BOOLEAN, FieldType.ENUM, FieldType.REF,
         )
         require(real.def.type in fillable) { "型 ${real.def.type.id} は一括充填の対象外です（スカラー型のみ）" }
         fun defaultValue(): Any = when (real.def.type) {
@@ -474,8 +474,8 @@ object SemanticSchemaRefactor {
         require(node.entries["\$ref"] == null && node.entries["ref"] == null) {
             "参照（\$ref）フィールドは定義側を変換してください（使用側のパスで定義内フィールドを指定できます）"
         }
-        // 型の名前（type: 名前。P33）を持つフィールドは、組込みの text を除いて定義側を変換する（text は string の連鎖なので string と同じに扱う）
-        require(target.typeName == null || target.typeName == TEXT_NAME) {
+        // 型の名前（type: 名前。P33）を持つフィールドは、基底が string の組込みの型（text / date など）を除いて定義側を変換する
+        require(target.typeName == null || target.typeName in BUILTIN_STRING_TYPES) {
             "型の名前（${target.typeName}）を持つフィールドは定義側を変換してください（使用側のパスで定義内フィールドを指定できます）"
         }
         require(node.entries["cases"] == null) { "cases を持つフィールドの型変換は未対応です" }
@@ -483,8 +483,10 @@ object SemanticSchemaRefactor {
         val curTypeId = target.typeName ?: curType.id
         val scalarTypes = setOf(
             FieldType.STRING, FieldType.INT, FieldType.NUMBER,
-            FieldType.BOOLEAN, FieldType.DATE, FieldType.ENUM,
+            FieldType.BOOLEAN, FieldType.ENUM,
         )
+        // 文字列の型の名前（string と、基底が string の組込みの型）。この間の変換は型の名前の書き換えだけ
+        val stringTypeIds = setOf(FieldType.STRING.id) + BUILTIN_STRING_TYPES
         val constraintKeys = listOf("values", "pattern", "minLength", "maxLength", "min", "max")
         val builder = SemanticRewrite.PlanOps()
         val schemaFile = sourceOf(res.site.module)
@@ -507,8 +509,8 @@ object SemanticSchemaRefactor {
         }
 
         when {
-            // string ↔ text（組込みの型 text は string の連鎖。型の名前の書き換えだけで、文書は変わらない。P33）
-            targetTypeId in setOf(FieldType.STRING.id, TEXT_NAME) && curType == FieldType.STRING -> {
+            // string ↔ text / date などの文字列の型（基底が string の組込みの型）: 型の名前の書き換えだけで、文書は変わらない（P33）
+            targetTypeId in stringTypeIds && curType == FieldType.STRING -> {
                 require(targetTypeId != curTypeId) { "既に $targetTypeId 型です: $fieldPath" }
                 builder.add(schemaFile, YamlOperation.SetScalar(res.site.path + "type", targetTypeId))
             }
@@ -534,7 +536,7 @@ object SemanticSchemaRefactor {
             // 配列 → 要素の型（unwrap）
             curType == FieldType.ARRAY -> {
                 val itemDef = target.item ?: error("配列の item 定義がありません")
-                require(itemDef.ref == null || itemDef.typeName == TEXT_NAME) { "要素が定義参照（\$ref）の配列は解除できません" }
+                require(itemDef.ref == null || itemDef.typeName in BUILTIN_STRING_TYPES) { "要素が定義参照（\$ref）の配列は解除できません" }
                 val itemTypeId = itemDef.typeName ?: itemDef.type.id
                 require(targetTypeId == itemTypeId) { "配列の解除は要素の型（$itemTypeId）を変換先に指定してください" }
                 require(itemDef.type in scalarTypes) { "スカラー要素の配列のみ解除できます（要素: $itemTypeId）" }
@@ -573,8 +575,8 @@ object SemanticSchemaRefactor {
                     YamlOperation.Replace(res.site.path + "values", YNode.Seq(enumValues.mapTo(mutableListOf()) { YNode.Scalar(it) })),
                 )
             }
-            // enum → string / text
-            curType == FieldType.ENUM && targetTypeId in setOf(FieldType.STRING.id, TEXT_NAME) -> {
+            // enum → string / text / date など
+            curType == FieldType.ENUM && targetTypeId in stringTypeIds -> {
                 builder.add(schemaFile, YamlOperation.SetScalar(res.site.path + "type", targetTypeId))
                 if ("values" in node.entries) builder.add(schemaFile, YamlOperation.Remove(res.site.path + "values"))
             }
@@ -591,9 +593,8 @@ object SemanticSchemaRefactor {
                 }
                 builder.add(schemaFile, YamlOperation.SetScalar(res.site.path + "type", targetTypeId))
             }
-            // int / number / boolean / date → string / text（文字列化）
-            targetTypeId in setOf(FieldType.STRING.id, TEXT_NAME) &&
-                curType in setOf(FieldType.INT, FieldType.NUMBER, FieldType.BOOLEAN, FieldType.DATE) -> {
+            // int / number / boolean → string / text / date など（文字列化）
+            targetTypeId in stringTypeIds && curType in setOf(FieldType.INT, FieldType.NUMBER, FieldType.BOOLEAN) -> {
                 convertDocs { value, hit, _ ->
                     val text = scalarText(value) ?: return@convertDocs null
                     YamlOperation.SetScalar(hit, text)
@@ -602,7 +603,7 @@ object SemanticSchemaRefactor {
             }
             else -> error(
                 "対応していない型変換です: $curTypeId → $targetTypeId" +
-                    "（対応: スカラー→array・array→要素型・string↔text・string→enum/int/number・enum→string・int/number/boolean/date→string）"
+                    "（対応: スカラー→array・array→要素型・string↔text/date などの文字列の型・string→enum/int/number・enum→string・int/number/boolean→string）"
             )
         }
         if (violations.isNotEmpty()) {
@@ -956,8 +957,12 @@ object SemanticSchemaRefactor {
         return current
     }
 
-    /** 組込みの型 text の名前（string の連鎖。型変換では string と同じに扱う）。 */
-    private const val TEXT_NAME = "text"
+    /** 基底が string の組込みの型の名前（text / date / time / datetime）。型変換では string と同じに扱い、相互の変換は名前の書き換えだけ。 */
+    private val BUILTIN_STRING_TYPES: Set<String> by lazy {
+        dev.toros.yde.semantic.schema.BuiltinTypes.definitions
+            .filterValues { def -> def.ref == null && def.type == FieldType.STRING }
+            .keys
+    }
 
     /**
      * `$ref` / `ref` エントリと、型の名前を書いた `type` エントリ（基底の種類でない値。P33）が指す定義
