@@ -80,6 +80,8 @@ data class VirtualViewColumn(
     val of: String? = null,
     /** 数の表示の形（grouped＝桁区切り。画面の見せ方だけで、CLI や書き出しの値は変えない）。path の列は項目の側の宣言も効く。 */
     val display: NumberDisplay? = null,
+    /** 表示の形（DecimalFormat / DateTimeFormatter のパターン。ValueFormat）。画面の見せ方だけ。path の列は項目の側の format も効く。 */
+    val format: String? = null,
     /** 要素ごとに列を広げる宣言（columns の each）。非 null なら、解決のときに索引の要素ごとの列に広がる（VirtualViews.lower）。 */
     val each: VirtualEachDef? = null,
 )

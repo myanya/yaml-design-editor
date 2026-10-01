@@ -24,16 +24,28 @@ definitions:
               label: 形式（正規表現）
               type: string
               description: "正準の形（YYYY-MM-DD）に加えて狭める形式（例 ^\\d{4}-(04|10)-\\d{2}$）。存在しない日付（2026-02-30）は形式に合っても誤りになる"
+            - key: format
+              label: 表示の形
+              type: string
+              description: "画面で見せる形（DateTimeFormatter のパターン。例 yyyy年M月d日）。ファイルと編集中は YYYY-MM-DD のまま"
           time:
             - key: pattern
               label: 形式（正規表現）
               type: string
               description: "正準の形（HH:MM か HH:MM:SS）に加えて狭める形式（例 30 分刻み ^\\d{2}:(00|30)$）"
+            - key: format
+              label: 表示の形
+              type: string
+              description: "画面で見せる形（DateTimeFormatter のパターン。例 H時mm分）"
           datetime:
             - key: pattern
               label: 形式（正規表現）
               type: string
               description: "正準の形（YYYY-MM-DD HH:MM。区切りは空白か T・秒は任意）に加えて狭める形式"
+            - key: format
+              label: 表示の形
+              type: string
+              description: "画面で見せる形（DateTimeFormatter のパターン。例 M/d H:mm）"
           string:
             - key: minLength
               label: 最小文字数
@@ -62,10 +74,14 @@ definitions:
               label: 最大値
               type: int
             - key: display
-              label: 表示の形
+              label: 桁区切り
               type: enum
               values: [grouped]
               description: grouped は桁区切り（45000 → 45,000）。フォームとビューの見せ方だけで、値・検証・CLI や書き出しは変えない
+            - key: format
+              label: 表示の形
+              type: string
+              description: "画面で見せる形（DecimalFormat のパターン。例 ¥#,##0・#,##0 円）。ファイルと編集中は素の数のまま。display: grouped より優先"
           number:
             - key: min
               label: 最小値
@@ -74,10 +90,14 @@ definitions:
               label: 最大値
               type: number
             - key: display
-              label: 表示の形
+              label: 桁区切り
               type: enum
               values: [grouped]
               description: grouped は桁区切り（12345.5 → 12,345.5）。フォームとビューの見せ方だけで、値・検証・CLI や書き出しは変えない
+            - key: format
+              label: 表示の形
+              type: string
+              description: "画面で見せる形（DecimalFormat のパターン。例 #,##0.00・0.0%）。ファイルと編集中は素の数のまま"
           enum:
             - key: values
               label: 選択肢

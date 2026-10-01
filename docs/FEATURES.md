@@ -27,7 +27,7 @@
 
 | ID | 機能 | 主な実装 | テスト | 設計 |
 |---|---|---|---|---|
-| E-01 | スキーマ駆動フォーム（基底の種類別の編集欄・型から引き継ぐヒント＝複数行と入力欄の案内・必須マーク・説明・折りたたみ・id 型は既存 ID の補完と連番の提案・int / number の桁区切り表示 `display: grouped`・残留値の修復 UI） | `ui/FormView.kt`, `schema/IdSuggest.kt` | 単体 `IdSuggestTest` | [ui](architecture/ui.md) |
+| E-01 | スキーマ駆動フォーム（基底の種類別の編集欄・型から引き継ぐヒント＝複数行と入力欄の案内と表示の形 `format`・必須マーク・説明・折りたたみ・id 型は既存 ID の補完と連番の提案・int / number の桁区切り表示 `display: grouped`・残留値の修復 UI） | `ui/FormView.kt`, `schema/IdSuggest.kt` | 単体 `IdSuggestTest` | [ui](architecture/ui.md) |
 | E-02 | 汎用ツリーエディタ（スキーマなし文書・スキーマ外キー・順序とコメントを保ったキー改名） | `ui/FormView.kt`（`GenericEditor`） | 単体 `RenameKeyTest` | [ui](architecture/ui.md) |
 | E-03 | ソース編集（入力のたびにパースし成功時だけツリーへ反映・パース不能中は最後の解析結果が正・検索置換・ハイライト） | `ui/SourcePane.kt`, `ui/SourceHighlight.kt` | 単体 `SourceHighlightTest` | [editing-history](architecture/editing-history.md) |
 | E-04 | 差分表示（保存済みと編集中の行整列・文字単位の強調） | `ui/DiffPane.kt` | 単体 `DiffPaneTest` | [ui](architecture/ui.md) |
@@ -121,7 +121,7 @@
 | X-03 | グラフレンズ（エンティティ起点の近傍・型と relation で絞った部分グラフ・力学配置） | `ui/WorkspaceViews.kt`（`GraphLensView`）, `ui/GraphLayout.kt` | 単体 `GraphLayoutTest` | [graph-query](architecture/graph-query.md) |
 | X-04 | コマンドパレット（Ctrl+K・ID・ファイル・本文検索・ビュー切替・スペース切替・保存） | `Main.kt`（`CommandPalette`）, `app/AppState.kt`（`searchContent`） | 手動 | [ui](architecture/ui.md) |
 | X-05 | ビュー定義 `_views`（`kind: grid` の行・列・並び〔出現順か `order.path` の値の順〕・詳細文書・新規行・バックリンク列・`kind: document`） | `core/Views.kt`, `workspace-core/workspace/ViewDefinitions.kt` | 単体 `ViewsTest` | [views](architecture/views.md) |
-| X-06 | ビューグリッド（セルの直接編集・要約とジャンプ・enum と参照の併記・詳細文書の作成・新規行・バックリンク列・カバレッジ表示・絞り込み・列の桁区切り `display: grouped`） | `ui/ViewGridPane.kt`, `AppState.createViewDetail` / `addViewRow` | 単体 `ViewsTest` | [views](architecture/views.md) |
+| X-06 | ビューグリッド（セルの直接編集・要約とジャンプ・enum と参照の併記・詳細文書の作成・新規行・バックリンク列・カバレッジ表示・絞り込み・列の桁区切り `display: grouped` と表示の形 `format`） | `ui/ViewGridPane.kt`, `AppState.createViewDetail` / `addViewRow` | 単体 `ViewsTest` | [views](architecture/views.md) |
 | X-07 | 文書ビュー（`kind: document`・`sections` の fields と backlinks・`attachments`・マッチしない文書は既定フォーム） | `core/Views.kt`（`resolveDocument`）, `ui/FormView.kt`（`DocViewSections`） | 単体 `ViewsTest` | [views](architecture/views.md) |
 | X-08 | ビュー定義のスキーマ参照とリント（`definition:` 列の展開・スキーマとの整合を検査し定義エラーとして表示） | `workspace-core/workspace/ViewDefinitions.kt`（`lint`） | 単体 `ViewsTest`, `ViewDefinitionsTest` | [views](architecture/views.md) |
 | X-10 | クロス集計ビュー（`kind: matrix`・行の論理ID × 列の参照先か値・セルは行から集めた要素の集計・未分類と合計・列を広げたグリッドへ下ろす）と、グリッドの要素ごとに列を広げる列 `each`（`$名前` で列の要素の ID を指す） | `semantic-core/semantic/VirtualViews.kt`（`lower`）, `workspace-core/workspace/ViewDefinitions.kt` | 単体 `ViewsTest` | [views](architecture/views.md) |

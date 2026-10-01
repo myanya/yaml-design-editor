@@ -51,6 +51,7 @@ root:                                 # ルートのフィールド定義（通�
 | `display` | `array` / `map` のフォーム表示形式（`table`＝表形式に固定〔map はキー列つき〕、`list`＝縦並びに固定、省略時は自動判定＝要素〔array は `item`、map は `value`〕が object で、スカラー系の列が2〜8個 かつ 項目の過半を占めるとき表形式）、`int` / `number` では `grouped`＝桁区切り（45000 → 45,000・フォームとビューの見せ方だけで、値・検証・CLI や書き出しは変えず、編集中は元の表記で、打ち込んだ区切りは落とす） |
 | `display`（`string` 系） | `multiline`＝複数行の欄で編集する（組込みの型 `text` のヒント。見せ方だけで値・検証は変えない） |
 | `rows` | 複数行の欄の行数（高さの目安。`text` など `display: multiline` の型で） |
+| `format` | 画面で見せる形（`int` / `number` は DecimalFormat のパターン＝例 `¥#,##0`・`date` / `time` / `datetime` は DateTimeFormatter のパターン＝例 `yyyy年M月d日`）。ファイルと編集中は素の値のままで、`display: grouped` より優先 |
 | `value` | `map` の値定義（必須。フィールド定義を再帰的に記述） |
 | `fields` | `object` の子フィールド定義のリスト |
 | `unknownFields` | `object` のスキーマ外項目を `allow` / `warning` / `error` で扱う（省略時 `warning`） |
@@ -317,7 +318,8 @@ root:
 - **組込みの型（定義体）**: 文字列の階層 `text`（複数行を保証＝`{ type: string, display: multiline }`）・`line`（改行なし）・`word`（空白なし）は Kotlin の型ではなく、組込みの型の定義です。
 - **意味の基底型**: `date` / `time` / `datetime` と `id` / `ref` は内部に値（日付・時刻・日時・ID・参照）を持ち、ファイルには正準の文字（`YYYY-MM-DD`、ID は `word`）で書きます。形式に合っても存在しない値（`2026-02-30`）は誤りになり、`予約時刻: { type: time, pattern: "^\\d{2}:(00|30)$" }` のように狭めた型を作れます。空白を含む ID・参照は誤りです。
 - 利用者の型と同じ仕組みで、`type: text` や `type: date` から自分の型を作れます（`備考: { type: text, maxLength: 2000 }`・`予約日: { type: date, description: 会議室を使う日 }`）。同じ名前の定義を自分のスキーマに置けば、そちらが優先されます。
-- **ヒントの引き継ぎ**: `label` / `description` / `display`（`multiline` / `grouped`）/ `placeholder` / `sample` / `default` は、使う側に書いたものが優先され、書かなければ型のものを引き継ぎます。
+- **ヒントの引き継ぎ**: `label` / `description` / `display`（`multiline` / `grouped`）/ `format` / `placeholder` / `sample` / `default` は、使う側に書いたものが優先され、書かなければ型のものを引き継ぎます。
+- **値と表示形式**: `金額: { type: int, min: 0, format: "¥#,##0" }` なら、ファイルと編集中は `20000`、見るときは `¥20,000` です（Excel の表示形式と同じ考え方）。`利用日: { type: date, format: "yyyy年M月d日" }` ならファイルは `2026-10-01`、見るときは `2026年10月1日`。検証・CLI・書き出しは値のままです。
 - フォームは型の名前でなくヒントで動くので、`{ type: string, display: multiline }` と書けば `text` を通さなくても複数行の欄になります。
 - **`$ref` との関係**: `$ref: 名前` も同じ意味で使えます（構造＝`object` などの定義は今までどおり `$ref` で）。ただしメタスキーマは、`$ref` を書いた項目の決まりのキー（`maxLength` など）を「型が string のときのみ」と警告するので、型は `type: 名前` で書いてください。型の名前は読み込み時にメタスキーマの `type` の選択肢へ足されます。
 - **スキーマ設計画面**: 「定義を追加」で「型（スカラー）」を選ぶとスカラーの定義になり、項目の「型」の選択肢に基底の種類と型の名前が並びます。型の名前を選ぶと、その基底の種類で書ける決まりの入力欄が出ます。

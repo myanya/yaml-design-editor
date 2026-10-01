@@ -4,6 +4,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import java.time.temporal.TemporalAccessor
 
 /**
  * 意味の基底型の値の表現（P33 第二弾）。`date` / `time` / `datetime` は Kotlin の型（FieldType）で、
@@ -26,15 +27,15 @@ enum class ValueSemantics(
     val jsonFormat: String,
 ) {
     DATE("date", "日付", "^\\d{4}-\\d{2}-\\d{2}$", "YYYY-MM-DD", "2026-01-01", "date") {
-        override fun parse(text: String): Comparable<*>? =
+        override fun parse(text: String): TemporalAccessor? =
             runCatching { LocalDate.parse(text.trim(), DateTimeFormatter.ISO_LOCAL_DATE) }.getOrNull()
     },
     TIME("time", "時刻", "^\\d{2}:\\d{2}(:\\d{2})?$", "HH:MM", "09:00", "time") {
-        override fun parse(text: String): Comparable<*>? =
+        override fun parse(text: String): TemporalAccessor? =
             runCatching { LocalTime.parse(text.trim(), DateTimeFormatter.ISO_LOCAL_TIME) }.getOrNull()
     },
     DATETIME("datetime", "日時", "^\\d{4}-\\d{2}-\\d{2}[T ]\\d{2}:\\d{2}(:\\d{2})?$", "YYYY-MM-DD HH:MM", "2026-01-01 09:00", "date-time") {
-        override fun parse(text: String): Comparable<*>? =
+        override fun parse(text: String): TemporalAccessor? =
             runCatching { LocalDateTime.parse(text.trim().replace(' ', 'T'), DateTimeFormatter.ISO_LOCAL_DATE_TIME) }.getOrNull()
     };
 
@@ -43,8 +44,8 @@ enum class ValueSemantics(
     /** 正準の形か（形式の検証と同じ規則）。 */
     fun isCanonical(text: String): Boolean = regex.matches(text.trim())
 
-    /** 値として読む（存在しない日付・時刻は null）。正準の形であることは前提にしない。 */
-    abstract fun parse(text: String): Comparable<*>?
+    /** 値として読む（存在しない日付・時刻は null）。正準の形であることは前提にしない。表示の形（ValueFormat）はこの値を整形する。 */
+    abstract fun parse(text: String): TemporalAccessor?
 
     /** 正準の形で、値としても存在するか（式の順序や並びが「読める」と見なす条件）。 */
     fun reads(text: String): Boolean = isCanonical(text) && parse(text) != null

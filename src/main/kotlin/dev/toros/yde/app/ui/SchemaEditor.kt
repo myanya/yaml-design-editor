@@ -567,8 +567,11 @@ private fun FieldDefinitionEditor(
         }
         // IDフォーマットの強制（UX-79）: pattern 制約（R16-01）を id 型でも宣言できる（検証・採番の共通パターン源）
         "id" -> CompactOptionalScalar(map, "pattern", "形式（正規表現）", "例 TASK-\\d{3}（IDの形式を強制）", doc)
-        // 意味の基底型（日付・時刻・日時）: 正準の形に加えて狭める形式
-        "date", "time", "datetime" -> CompactOptionalScalar(map, "pattern", "形式（正規表現）", "正準の形に加えて狭める形式（例 30 分刻み ^\\d{2}:(00|30)$）", doc)
+        // 意味の基底型（日付・時刻・日時）: 正準の形に加えて狭める形式と、画面で見せる形
+        "date", "time", "datetime" -> {
+            CompactOptionalScalar(map, "pattern", "形式（正規表現）", "正準の形に加えて狭める形式（例 30 分刻み ^\\d{2}:(00|30)$）", doc)
+            CompactOptionalScalar(map, "format", "表示の形", "画面で見せる形（例 yyyy年M月d日・H:mm）。ファイルは正準の形のまま", doc)
+        }
         // 制約語彙（R16-01）の入力（UX-73: 設計UIに未露出だった分）
         "string", "text" -> {
             CompactOptionalScalar(map, "pattern", "形式（正規表現）", "値の全体が一致する正規表現（R16-01）", doc)
@@ -578,10 +581,12 @@ private fun FieldDefinitionEditor(
         "int" -> {
             CompactNumberScalar(map, "min", "最小値", doc, integer = true)
             CompactNumberScalar(map, "max", "最大値", doc, integer = true)
+            CompactOptionalScalar(map, "format", "表示の形", "画面で見せる形（例 ¥#,##0・#,##0 円）。値は素の数のまま", doc)
         }
         "number" -> {
             CompactNumberScalar(map, "min", "最小値", doc, integer = false)
             CompactNumberScalar(map, "max", "最大値", doc, integer = false)
+            CompactOptionalScalar(map, "format", "表示の形", "画面で見せる形（例 #,##0.00・0.0%）。値は素の数のまま", doc)
         }
     }
     val currentType = types.baseKindOf(currentTypeId)

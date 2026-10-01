@@ -47,7 +47,7 @@ import dev.toros.yde.app.index.IdIndex
 import dev.toros.yde.app.index.RefEntry
 import dev.toros.yde.app.index.idMatchesPattern
 import dev.toros.yde.app.index.isAllowedBy
-import dev.toros.yde.semantic.schema.BuiltinTypes
+import dev.toros.yde.semantic.schema.ValueFormat
 import dev.toros.yde.app.schema.IdSuggest
 import dev.toros.yde.app.schema.SchemaDef
 import dev.toros.yde.semantic.schema.RefTarget
@@ -779,10 +779,13 @@ private fun ScalarTextEditor(ctx: FormCtx, field: FieldDef, slot: Slot, singleLi
     val oneLine = singleLine && '\n' !in text
     // 複数行の欄の高さ: text の rows（行数）があればその分、無ければ 3 行ほど
     val multilineMinHeight = (field.rows?.let { it * 20 + 16 } ?: 72).dp
-    // 桁区切り（display: grouped）: 見せ方だけの宣言。編集中は元の表記で、打ち込んだ桁区切りは値から落とす
-    val numberDisplay = field.hints.numberDisplay?.takeIf { field.type == FieldType.INT || field.type == FieldType.NUMBER }
+    // 表示の形（format。¥#,##0 や yyyy年M月d日）と桁区切り（display: grouped）: 見せ方だけの宣言。編集中は素の値で、
+    // 数は打ち込んだ桁区切りを値から落とす（ValueFormat＝値と表示形式の分離）
+    val numeric = field.type == FieldType.INT || field.type == FieldType.NUMBER
+    val numberDisplay = field.hints.numberDisplay?.takeIf { numeric }
+    val formatted: ((String) -> String)? = if (field.format != null || numberDisplay != null) { s -> ValueFormat.display(field, s) } else null
     if (ctx.readOnly) {
-        ReadOnlyValueText(numberDisplay?.format(text) ?: text)
+        ReadOnlyValueText(formatted?.invoke(text) ?: text)
         return
     }
     val typeError = when (field.type) {
@@ -792,11 +795,11 @@ private fun ScalarTextEditor(ctx: FormCtx, field: FieldDef, slot: Slot, singleLi
     }
     CompactTextField(
         value = text,
-        onValueChange = { ctx.setScalar(slot, if (numberDisplay != null) it.replace(",", "") else it, field.type) },
+        onValueChange = { ctx.setScalar(slot, if (numeric && formatted != null) it.replace(",", "") else it, field.type) },
         singleLine = oneLine,
         isError = typeError,
         textStyle = fieldTextStyle,
-        unfocusedText = numberDisplay?.let { d -> { s: String -> d.format(s) } },
+        unfocusedText = formatted,
         placeholder = {
             // 入力欄の案内は型から引き継いだヒント（例 組込みの型 date の YYYY-MM-DD）。無ければ数の種類だけ案内する
             val hint = field.placeholder ?: when (field.type) {

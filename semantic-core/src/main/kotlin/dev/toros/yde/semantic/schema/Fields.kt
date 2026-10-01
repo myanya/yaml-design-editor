@@ -229,6 +229,11 @@ data class FieldHints(
     val sample: Any? = null,
     /** 複数行の欄の行数（欄の高さの目安。display: multiline の型で使う）。 */
     val rows: Int? = null,
+    /**
+     * 表示の形（値と表示形式の分離。Excel の表示形式）: 数は DecimalFormat のパターン（例 `¥#,##0`）、日付・時刻・日時は
+     * DateTimeFormatter のパターン（例 `yyyy年M月d日`）。ファイルと編集中は素の値のままで、見せるときだけこの形に組み立てる。
+     */
+    val format: String? = null,
 ) {
     /**
      * 定義（型）への参照の解決: 使う側に書いたラベル・説明・見せ方・案内・サンプルは、定義の側より優先し、書かなければ型のものを引き継ぐ。
@@ -243,6 +248,7 @@ data class FieldHints(
         placeholder = placeholder ?: target.placeholder,
         sample = sample ?: target.sample,
         rows = rows ?: target.rows,
+        format = format ?: target.format,
     )
 }
 
@@ -313,6 +319,8 @@ data class FieldDef(
     /** サンプル値（ヒント → 意味の基底型の既定の順）。 */
     val sample: Any? get() = hints.sample ?: type.value?.sample
     val rows: Int? get() = hints.rows
+    /** 表示の形（数・日付・時刻・日時。画面で見せるときだけ使う。ValueFormat.display）。 */
+    val format: String? get() = hints.format
 
     /** 効く形式（正規表現）の一覧: 型の連鎖から引き継いだものと自分の pattern。値はすべてに一致すること。 */
     val patterns: List<String> get() = (inheritedPatterns + listOfNotNull(pattern)).distinct()

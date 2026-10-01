@@ -6,6 +6,7 @@ import dev.toros.yde.semantic.schema.FieldRole
 import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.semantic.schema.RelationDef
 import dev.toros.yde.semantic.schema.SchemaKind
+import dev.toros.yde.semantic.schema.ValueFormat
 import dev.toros.yde.semantic.schema.globToRegex
 import dev.toros.yde.yaml.structure.UnknownFieldsPolicy
 
@@ -222,6 +223,8 @@ object SchemaDefinitionChecks {
             if (f.hints.rows != null && !stringy) {
                 issues += SchemaIssue("rows は基底の種類が string の型でのみ使用できます", path)
             }
+            // 表示の形（format）は数と日付・時刻・日時だけ。パターンが読めるかもここで点検する
+            f.format?.let { format -> ValueFormat.validate(f.type, format)?.let { issues += SchemaIssue(it, path) } }
             val minLength = f.minLength
             val maxLength = f.maxLength
             if (minLength != null && minLength < 0) issues += SchemaIssue("minLength は 0 以上が必要です", path)

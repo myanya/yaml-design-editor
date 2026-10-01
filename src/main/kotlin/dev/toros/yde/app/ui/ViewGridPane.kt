@@ -44,6 +44,7 @@ import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.model.getAt
 import dev.toros.yde.yaml.model.pretty
 import dev.toros.yde.semantic.schema.FieldType
+import dev.toros.yde.semantic.schema.ValueFormat
 import dev.toros.yde.app.validate.Validator
 import dev.toros.yde.yaml.YamlIO
 import java.nio.file.Files
@@ -406,9 +407,11 @@ private fun GridCell(state: AppState, cell: ViewCell) {
                     fieldDef?.type == FieldType.REF && value is YNode.Scalar ->
                         titleLookup(raw)?.takeIf { it.isNotBlank() && it != raw }?.let { "$raw（$it）" } ?: raw
                     else -> {
-                        // 桁区切り（display: grouped）は列の宣言か、項目の側の宣言（見せ方だけ。値は変えない）
-                        val grouping = cell.column.display ?: fieldDef?.hints?.numberDisplay
-                        grouping?.format(raw) ?: raw
+                        // 表示の形（format）と桁区切り（display: grouped）は列の宣言か、項目の側の宣言（見せ方だけ。値は変えない）
+                        cell.column.format?.let { ValueFormat.display(fieldDef?.type ?: FieldType.ANY, it, raw) }
+                            ?: cell.column.display?.format(raw)
+                            ?: fieldDef?.let { ValueFormat.display(it, raw) }
+                            ?: raw
                     }
                 }
             }
@@ -429,9 +432,13 @@ private fun GridCell(state: AppState, cell: ViewCell) {
             FormCtx(state, doc, localIds)
         }
         if (fieldDef != null) {
-            // 列に display: grouped があれば、編集のエディタにも桁区切りの見せ方を渡す（項目の側の宣言が無いとき）
-            val effective = cell.column.display?.takeIf { fieldDef.hints.numberDisplay == null }
-                ?.let { fieldDef.copy(hints = fieldDef.hints.copy(numberDisplay = it)) } ?: fieldDef
+            // 列に display: grouped / format があれば、編集のエディタにも見せ方を渡す（項目の側の宣言が無いとき）
+            val effective = fieldDef.copy(
+                hints = fieldDef.hints.copy(
+                    numberDisplay = fieldDef.hints.numberDisplay ?: cell.column.display,
+                    format = fieldDef.hints.format ?: cell.column.format,
+                ),
+            )
             Column {
                 ValueEditor(ctx, effective, slot, path)
                 // 参照セルは参照先の名前を入力欄の下に併記する（入力欄の右端の併記はセル幅で隠れやすい）
@@ -493,7 +500,10 @@ private fun BacklinkCell(state: AppState, backlinks: List<ViewBacklink>) {
 @Composable
 private fun ComputedCellLink(state: AppState, cell: ViewCell) {
     var menuOpen by remember { mutableStateOf(false) }
-    val text = Views.cellText(cell.value).let { t -> cell.column.display?.format(t) ?: t }  // 桁区切りは列の宣言
+    // 表示の形と桁区切りは列の宣言（値の式の列は型が分からないので、数か日付として読めれば整形する）
+    val text = Views.cellText(cell.value).let { t ->
+        cell.column.format?.let { ValueFormat.display(FieldType.ANY, it, t) } ?: cell.column.display?.format(t) ?: t
+    }
     Box {
         Text(
             text, fontSize = 12.sp, maxLines = 2,

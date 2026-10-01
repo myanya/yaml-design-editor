@@ -9,6 +9,7 @@
 |---|---|---|
 | `FieldType` / `FieldDef` / `FieldHints` / `SchemaTree` | semantic-core/schema/Fields.kt・SchemaTree.kt | 利用者が書く項目の木とその読み方（`SchemaTreeParser`）。`resolve()` が `$ref` と型の名前を狭める規則で合成しつつ解決し、型の連鎖（`lineage`・`isA`）・`relation`・`role`・`options`・`expression` と、表示と編集のヒント（`FieldHints`）を持つ |
 | `ValueSemantics` | semantic-core/schema/ValueSemantics.kt | 意味の基底型 `date` / `time` / `datetime` の値の表現（正準の形・読み＝存在の判定・案内・サンプル・JSON Schema の format）。`FieldType.value` から引く |
+| `ValueFormat` | semantic-core/schema/ValueFormat.kt | 表示の形（`format`＝DecimalFormat / DateTimeFormatter のパターン）で値を画面の文字に組み立てる（値は変えない）。パターンの点検も |
 | `BuiltinTypes` | semantic-core/schema/BuiltinTypes.kt・資源 `builtin-types/` | 組込みの型（定義体 `text` / `line` / `word`）。モジュール `builtin-types` としてカタログ（`SchemaCatalog`）に常に含まれ、非修飾の名前は自分のモジュールの次に引く |
 | `MetaSchemaTypes` | workspace-core/workspace/MetaSchemaTypes.kt | 読み込み時に、型の名前をメタスキーマの `type` の選択肢と `cases` へ足す |
 | `WorkspaceSchema` | workspace-core/workspace/WorkspaceReader.kt | スキーマの中身の原本（名前・説明・項目の木・関係の宣言・検査・式・導出した構造 `structures`） |
@@ -69,7 +70,8 @@
 
 ## 表示のヒント
 
-- 項目の表示と編集のためのヒント（ラベル・説明・選択肢のラベル・一覧の見せ方 `display`・数の桁区切り `display: grouped`＝`NumberDisplay`・文字列の複数行 `display: multiline`＝`TextDisplay`・入力欄の案内 `placeholder`・サンプル値 `sample`・初期値）は `FieldDef.hints`（`FieldHints`）の区画。
+- 項目の表示と編集のためのヒント（ラベル・説明・選択肢のラベル・一覧の見せ方 `display`・数の桁区切り `display: grouped`＝`NumberDisplay`・文字列の複数行 `display: multiline`＝`TextDisplay`・入力欄の案内 `placeholder`・サンプル値 `sample`・表示の形 `format`・初期値）は `FieldDef.hints`（`FieldHints`）の区画。
+- **値と表示形式**: `format` は画面で見せるときだけ `ValueFormat.display` で文字を組み立てる（数は DecimalFormat・日付などは DateTimeFormatter）。ファイル・編集中・検証・CLI・書き出しは素の値。フォームは非フォーカス時に整形（`CompactTextField.unfocusedText`）、グリッドはセルの文字に適用し、列の `format` と項目の `format` のどちらも効く。
 - 型（定義）に書いたヒントは使う側へ引き継がれる（「型の連鎖と狭める規則」）。検証・走査・検査はここを読まない（例外は、指摘の文面のために構造のスキーマへ写す `label` だけ）。
 - タイトルの役割 `role` は索引のタイトルを決めるので項目の側（意味）に置く。
 - 画面合成のためのオプションをスキーマへ足さない。合成の要望はビュー側の語彙で受ける（[views.md](views.md)）。

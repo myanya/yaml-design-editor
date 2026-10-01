@@ -10,6 +10,7 @@ import dev.toros.yde.semantic.schema.ExpressionFields
 import dev.toros.yde.semantic.schema.DisplayCore
 import dev.toros.yde.semantic.schema.FieldDef
 import dev.toros.yde.semantic.schema.NumberDisplay
+import dev.toros.yde.semantic.schema.ValueFormat
 import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.semantic.schema.QueryNodeKind
 import dev.toros.yde.semantic.schema.QuerySpec
@@ -260,7 +261,8 @@ object ViewDefinitions {
                 val value = expressions[listOf("columns", i, "value")] ?: error("columns[$i].value を読めません")
                 return@flatMapIndexed listOf(
                     VirtualViewColumn(
-                        label = "$idPattern（要素ごと）", from = parseSource(m), path = emptyList(), value = value, display = parseDisplay(m, i),
+                        label = "$idPattern（要素ごと）", from = parseSource(m), path = emptyList(), value = value,
+                        display = parseDisplay(m, i), format = parseFormat(m, i),
                         each = VirtualEachDef(idPattern = idPattern, schemaIds = stringList(e["schemaIds"]), order = order, bind = bind, rawValue = m["value"]),
                     )
                 )
@@ -273,7 +275,10 @@ object ViewDefinitions {
                 val label = m["label"]?.toString()?.takeIf { it.isNotBlank() } ?: error("columns[$i].label が必要です")
                 val value = expressions[listOf("columns", i, "value")] ?: error("columns[$i].value を読めません")
                 return@flatMapIndexed listOf(
-                    VirtualViewColumn(label = label, from = parseSource(m), path = emptyList(), value = value, of = of, display = parseDisplay(m, i))
+                    VirtualViewColumn(
+                        label = label, from = parseSource(m), path = emptyList(), value = value, of = of,
+                        display = parseDisplay(m, i), format = parseFormat(m, i),
+                    )
                 )
             }
             if (m.containsKey("definition")) {
@@ -313,6 +318,7 @@ object ViewDefinitions {
                     editable = m["editable"] as? Boolean ?: false,
                     of = of,
                     display = parseDisplay(m, i),
+                    format = parseFormat(m, i),
                 )
             )
         }
@@ -542,6 +548,14 @@ object ViewDefinitions {
     /** 列の数の表示の形（display: grouped＝桁区切り）。 */
     private fun parseDisplay(m: Map<*, *>, i: Int): NumberDisplay? =
         runCatching { NumberDisplay.parse(m["display"]?.toString()) }.getOrElse { error("columns[$i]: ${it.message}") }
+
+    /** 列の表示の形（format: DecimalFormat / DateTimeFormatter のパターン。画面の見せ方だけ）。 */
+    private fun parseFormat(m: Map<*, *>, i: Int): String? =
+        m["format"]?.toString()?.takeIf { it.isNotBlank() }?.also { format ->
+            if (ValueFormat.validate(FieldType.INT, format) != null && ValueFormat.validate(FieldType.DATE, format) != null) {
+                error("columns[$i]: format が数（DecimalFormat）の形としても日付（DateTimeFormatter）の形としても読めません: $format")
+            }
+        }
 
     private fun parseSource(m: Map<*, *>): VirtualViewSource = VirtualViewSource(
         schemaId = m["schemaId"]?.toString(),

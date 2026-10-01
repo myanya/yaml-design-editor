@@ -246,6 +246,43 @@ class TypeDefinitionsTest {
     }
 
     @Test
+    fun `表示の形 format は型から引き継ぎ 数と日付以外や読めないパターンは定義の誤り`() {
+        val ws = load(
+            mapOf(
+                "_schemas/common.yaml" to """
+                    id: common
+                    kind: library
+                    definitions:
+                      金額: { type: int, min: 0, format: "¥#,##0" }
+                      利用日: { type: date, format: "yyyy年M月d日" }
+                """.trimIndent(),
+                "_schemas/doc.yaml" to """
+                    id: doc
+                    match: "d/*.yaml"
+                    root:
+                      type: object
+                      fields:
+                        - { key: amount, type: common#金額 }
+                        - { key: fee, type: common#金額, format: "#,##0 円" }
+                        - { key: day, type: common#利用日 }
+                        - { key: name, type: string, format: "¥#,##0" }
+                        - { key: bad, type: int, format: "#,##0.##0.#" }
+                """.trimIndent(),
+            )
+        )
+        val errors = ws.schemaErrors.joinToString("\n")
+        assertTrue("format は int / number / date / time / datetime 型でのみ使用できます" in errors, errors)
+        assertTrue("format が数の形（DecimalFormat）として読めません" in errors, errors)
+        val doc = ws.schemas.first { it.id == "doc" }
+        fun field(key: String) = doc.tree.resolve(doc.tree.root.fields.first { it.key == key })!!
+        assertEquals("¥#,##0", field("amount").format)
+        assertEquals("#,##0 円", field("fee").format)   // 使う側が優先
+        assertEquals("yyyy年M月d日", field("day").format)
+        assertEquals("¥20,000", dev.toros.yde.semantic.schema.ValueFormat.display(field("amount"), "20000"))
+        assertEquals("2026年10月1日", dev.toros.yde.semantic.schema.ValueFormat.display(field("day"), "2026-10-01"))
+    }
+
+    @Test
     fun `display multiline は基底の種類が string の型にだけ書ける`() {
         val ws = load(mapOf("_schemas/bad.yaml" to "id: bad\nmatch: \"x/*.yaml\"\nroot:\n  type: object\n  fields:\n    - { key: n, type: int, display: multiline }\n"))
         assertTrue(ws.schemaErrors.any { "multiline" in it }, ws.schemaErrors.toString())

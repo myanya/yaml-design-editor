@@ -35,7 +35,7 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 
 - `FormCtx` が編集操作（`writeScalar`・`markEdited`）と参照解決（`resolvable`）・対象文書（`doc`）・既定の展開（`defaultExpanded`）・ハイライト（`highlightInside`）・指摘（`issues`）・アタッチ（`attachments`）・AI の関連文書（`aiRelatedFiles`）を仲介する。フォームを再利用する画面（エンティティページ・ビューグリッド・文書ビュー）へ自動で波及する。
 - object の子フィールドは `ObjectFields`（`effectiveFields` 経由）で描く。列挙を複製しない。
-- 基底の種類別のエディタ（複数行と入力欄の案内は型から引き継ぐヒント）・必須マーク（`requiredFrom` はフェーズ名つき）・説明・折りたたみ。id 型は既存 ID の補完ピッカーと連番の提案（`IdSuggest`）。int / number の `display: grouped` は桁区切りの見せ方（`NumberDisplay.format`。`CompactTextField` の `unfocusedText`＝フォーカス中は元の表記、打ち込んだ区切りは値から落とす）。スキーマの型と値の構造が合わない残留値は修復 UI（値を消す・配列やスカラーに変換）。
+- 基底の種類別のエディタ（複数行と入力欄の案内は型から引き継ぐヒント）・必須マーク（`requiredFrom` はフェーズ名つき）・説明・折りたたみ。id 型は既存 ID の補完ピッカーと連番の提案（`IdSuggest`）。`format` と `display: grouped` は見せ方（`ValueFormat.display`。`CompactTextField` の `unfocusedText`＝フォーカス中は素の値）。スキーマの型と値の構造が合わない残留値は修復 UI（値を消す・配列やスカラーに変換）。
 - 指摘のあるフィールドは入力枠が色づく（エラー＝赤・警告＝オレンジ。`FormCtx.issues` 経由で全指摘種別に効く）。
 - 同一 ID の他文書出現ストリップ（`SameIdOccurrencesStrip`）が相手側の情報の表示とジャンプを提供する。
 

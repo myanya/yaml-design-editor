@@ -248,8 +248,9 @@ definitions:
 - **第二弾の仕組み**: `FieldType` と yaml-core の `ValueType` から `text` / `date` を外し、フォーム・表の列幅・AI 生成・サンプル・ビューのリントはヒントと連鎖で判定する。確かめ方は `TypeDefinitionsTest`（組込みの型のヒントの引き継ぎ・形式の誤り・`display: multiline` の型の制限）と labs・サンプルの出力の一致。
 - **第二弾の整理（2026-10-01 オーナーとの再検討）**: ①型の出どころは 3 つ＝表現の基底（yaml-core）・意味の基底型（semantic-core の Kotlin。値の表現を持つ `date` / `time` / `datetime`・`id` / `ref`。直列化は文字列）・組込みの定義体（YAML。`text` / `line` / `word`）②値と表示形式を分ける（ファイルと編集は素の値、表示は `format` で整形。Excel の表示形式）。
 - ③文字列の階層は `string`（自由。欄は改行で伸びる）・`text`（複数行を保証・`rows`）・`line`（改行なし）・`word`（空白なし）。`id` / `ref` の直列化は `word`。
-- **第二弾の残りの手順**: 1 文字列の階層 ✅ 2026-10-01（意図的差分 D-42）→ 2 意味の基底型 `date` / `time` / `datetime` ✅ 2026-10-01（意図的差分 D-43）→ 3 表示の形 `format`（数と日付。`display: grouped` は短縮に）。
-- 手順 2 の中身: `FieldType` に戻し、値の表現 `ValueSemantics`（正準の形・存在の検証・案内・サンプル・JSON Schema の format）を持たせ、YAML 定義体を置き換えた。残る候補: entity の `idPattern` を ID の型から引くこと・設計 UI のヒントの入力欄・読み方は「数で読む」で閉じる（UX-136 は文字の金額を読まない方針）。
+- **第二弾の残りの手順**: 1 文字列の階層 ✅ 2026-10-01（意図的差分 D-42）→ 2 意味の基底型 `date` / `time` / `datetime` ✅ 2026-10-01（意図的差分 D-43）→ 3 表示の形 `format` ✅ 2026-10-01（数は DecimalFormat・日付などは DateTimeFormatter のパターン。項目・型・ビューの列に書け、ファイルと編集中は素の値。`display: grouped` はそのまま残し `format` が優先。`ValueFormat`）。
+- 手順 2 の中身: `FieldType` に戻し、値の表現 `ValueSemantics`（正準の形・存在の検証・案内・サンプル・JSON Schema の format）を持たせ、YAML 定義体を置き換えた。
+- **第二弾の残り（候補）**: entity の `idPattern` を ID の型から引くこと・設計 UI のヒント（案内・サンプル値）の入力欄・式の `type: date` を項目の型から自動で決めること・日付の比較（UX-131）。読み方は「数で読む」で閉じる（UX-136 は文字の金額を読まない方針）。残る候補: entity の `idPattern` を ID の型から引くこと・設計 UI のヒントの入力欄・読み方は「数で読む」で閉じる（UX-136 は文字の金額を読まない方針）。
 - **第三弾（オブジェクト型）**: object の定義に同一性（`entity`）・表示・検査を足し、狭める規則を「項目を足す・必須にする」へ広げる。ID を持たない部品は今の definitions のまま。
 - **入れないもの**: 型の「どちらか」（A または B）・計算で決まる決まり・YAML から新しい UI 部品を足すこと。
 
