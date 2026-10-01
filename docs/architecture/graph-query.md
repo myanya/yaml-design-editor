@@ -7,7 +7,7 @@
 
 | 部品 | ファイル | 責務 |
 |---|---|---|
-| `EntityDecl` / `EntityRole` / `entityFor` | semantic-core/schema/Relations.kt | スキーマの `entity:` 宣言（型・`idPattern`・`defines`・`aspect` / `owns`） |
+| `EntityDecl` / `EntityRole` / `entityFor` | semantic-core/schema/Relations.kt | スキーマの `entity:` 宣言（型・`idPattern` / `idType`・`defines`・`aspect` / `owns`。ID の判定は `matchesId`） |
 | `RelationDef` / `Relations` / `EntityTypeDef` / `AspectDecl` / `EnforcementDef` | semantic-core/schema/Relations.kt | 関係レジストリ（`kind: relations`）の宣言。`labelOf` / `inverseLabelOf`・`ownedFieldKeys` |
 | `SemanticEntityGraph`（root の `EntityGraph` は別名） | semantic-core/semantic/ | 走査結果から導出する読み取り専用のグラフ。エンティティ表・隣接（`ownRefs` / `outgoingRefs` / 入次）・文書ノード表・入れ子（`childIds` / `parentIds` / `topLevelIds`）・参照の逆引き表（`refIndexFor`） |
 | `QuerySpec` / `QueryNodeStep` / `QueryEdgeStep` / `QueryWhere` | semantic-core/schema/Query.kt | クエリの宣言モデルとパース（1 実装をビュー・foreach・制約・変換・CLI が共用） |
@@ -29,7 +29,8 @@
 
 ## エンティティ型と関係レジストリ
 
-- エンティティ型はスキーマ文書ルートの `entity:`（単一 object または複数型のリスト＝`idPattern` で判別。`{type, idPattern, defines, aspect, owns}`）。宣言のないスキーマは挙動不変。
+- エンティティ型はスキーマ文書ルートの `entity:`（単一 object または複数型のリスト＝`idPattern`（glob）か `idType`（ID の型の名前。型の形式で判別）で判別。`{type, idPattern, idType, defines, aspect, owns}`）。宣言のないスキーマは挙動不変。
+- `idType` の解決は `WorkspaceSchema.entities`（木の定義の目録で `EntityDecl.resolvedIn`。[schema.md「型の連鎖と狭める規則」](schema.md)）。パーサ（`SemanticDeclParser.parseEntities`）は名前を写すだけで、semantic-core の判定（`matchesId` / `entityFor`）は解決済みの形式を見る。
 - 関係レジストリは `_schemas` の `kind: relations` 文書。`relations:` に `{name, label, inverseLabel, source, target, cardinality, acyclic, level, description}` を列挙する。
 - 同じ文書の `entities:` に型の表示名とアスペクト順序（`{type, label, description, aspects: [{name, label}]}`）、`enforcement:` に強制スイッチ（`undeclaredRelation` / `definingUniqueness` を warning / error。未宣言は非破壊の既定）。
 - 集約は `SchemaDocuments`（重複 name・重複 type・重複キーはロードエラー）→ `Workspace.relations` / `entityTypes` / `enforcement` → AppState ミラー。
@@ -83,7 +84,7 @@ limit: 100
 ## エンティティ操作
 
 - rename / merge / delete を 1 つの計画（`RefactoringPlan`＝文書ごとの型付き操作列）へ束ね、`session.planRefactoring` が作り `session.applyRefactoring` が 1 トランザクション（Undo 1 回）で適用する。計画は working 状態＝見たまま基準。
-- rename(old, new): 全出現の ID フィールドと全参照（スカラー／属性付き参照の `to`）を書き換える。new が既存 ID と衝突したら拒否、`idPattern` 逸脱は警告。
+- rename(old, new): 全出現の ID フィールドと全参照（スカラー／属性付き参照の `to`）を書き換える。new が既存 ID と衝突したら拒否、`idPattern` / `idType` の逸脱は警告。
 - merge(from, into): from への全参照を into へ張り替え、from の出現は「into の ID へ書き換えて詳細化として残す」か「要素ごと削除」。文書ルート出現の削除は拒否。
 - delete(id): 入次数が 0 でなければ参照元一覧つきで拒否（黙って壊さない）。
 - 文書の移動（`RefactoringRequest.MoveDocument`）はパス ID の文書参照の書き換えと物理移動を 1 計画にする。`_document.id` 宣言済みなら参照は安定。ビュー定義の対象から外れる警告は `RefactoringImpact`（[workspace.md](workspace.md)）。

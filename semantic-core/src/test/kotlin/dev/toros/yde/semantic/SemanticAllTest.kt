@@ -131,7 +131,7 @@ class SemanticAllTest {
         graph = snapshot.graph,
         solutions = solutions?.let { s -> { s } },
         solveFrom = if (!withSolve) null else { origin, spec ->
-            SemanticQuery.matchesFrom(snapshot.ids, snapshot.refs, snapshot.graph, spec, origin.id, ::tree)
+            SemanticQuery.matchesFrom(snapshot.ids, snapshot.refs, snapshot.graph, spec, origin.id, loader = ::tree)
         },
     )
 
@@ -203,7 +203,7 @@ class SemanticAllTest {
             current = SemanticQueryNodeRef(QueryNodeKind.ENTITY, "TODO-001", null, "todo", todosDoc, parseYPath("todos[0]")),
             currentOccurrence = SemanticExpression.Occurrence(todosDoc, parseYPath("todos[0]")),
             graph = snapshot.graph,
-            solveFrom = { origin, spec -> SemanticQuery.matchesFrom(snapshot.ids, snapshot.refs, snapshot.graph, spec, origin.id, ::tree) },
+            solveFrom = { origin, spec -> SemanticQuery.matchesFrom(snapshot.ids, snapshot.refs, snapshot.graph, spec, origin.id, loader = ::tree) },
         )
         assertEquals("0", SemanticValues.evaluate(value(mapOf("count" to mapOf("all" to todosAll("OPEN")))), todoEnv)!!.text)
 

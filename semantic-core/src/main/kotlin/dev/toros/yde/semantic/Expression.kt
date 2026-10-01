@@ -6,7 +6,6 @@ import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.model.getAt
 import dev.toros.yde.yaml.model.pretty
 import dev.toros.yde.yaml.model.scalarText
-import dev.toros.yde.semantic.schema.ValueSemantics
 import dev.toros.yde.semantic.schema.CheckOp
 import dev.toros.yde.semantic.schema.DerivationSelector
 import dev.toros.yde.semantic.schema.EntityRole
@@ -57,11 +56,12 @@ object SemanticExpression {
 
     /**
      * 要素述語（σ 固定の単一値比較。3値）: eq / ne はスカラー文字列の等値、順序系（lte / gte / lt / gt）は
-     * 数値比較で、数値として読めない辺があれば null（評価不能＝Unknown。呼び出し側は判定保留＝黙る）。
+     * 順序の種類 kind（数値か、日付・時刻・日時＝意味の基底型の値の表現）で比べ、その種類として読めない辺があれば
+     * null（評価不能＝Unknown。呼び出し側は判定保留＝黙る）。kind は呼び出し側が項目の型か `type` の宣言から決める（既定は数値）。
      * 文字列の条件は matches（正規表現の全体一致。正規表現として読めなければ null）・startsWith・endsWith・contains。
      * oneOf は選択肢が複数あるため test を使う（ここでは選択肢1つとの等値として扱う）。
      */
-    fun compare(op: CheckOp, left: String, right: String): Boolean? = when (op) {
+    fun compare(op: CheckOp, left: String, right: String, kind: ValueExpr.OrderKind = ValueExpr.OrderKind.NUMBER): Boolean? = when (op) {
         CheckOp.EQ, CheckOp.ONE_OF -> left == right
         CheckOp.NE -> left != right
         CheckOp.MATCHES -> regexOf(right)?.matches(left)
@@ -69,26 +69,35 @@ object SemanticExpression {
         CheckOp.ENDS_WITH -> left.endsWith(right)
         CheckOp.CONTAINS -> left.contains(right)
         else -> {
-            val l = left.toDoubleOrNull()
-            val r = right.toDoubleOrNull()
-            if (l == null || r == null) null
+            val order = order(kind, left, right)
+            if (order == null) null
             else when (op) {
-                CheckOp.LTE -> l <= r
-                CheckOp.GTE -> l >= r
-                CheckOp.LT -> l < r
-                CheckOp.GT -> l > r
+                CheckOp.LTE -> order <= 0
+                CheckOp.GTE -> order >= 0
+                CheckOp.LT -> order < 0
+                CheckOp.GT -> order > 0
                 else -> null
             }
         }
     }
 
+    /** 2 つの値の順序（kind の種類として読めなければ null）。数値は数として（表記は toDouble の読み方のまま）、他は値の表現で比べる。 */
+    private fun order(kind: ValueExpr.OrderKind, left: String, right: String): Int? {
+        val value = kind.value ?: run {
+            val l = left.toDoubleOrNull() ?: return null
+            val r = right.toDoubleOrNull() ?: return null
+            return l.compareTo(r)
+        }
+        return value.compare(left, right)
+    }
+
     /**
      * 値の条件の判定（3値）。rights は右辺の値（得られなかった値は null）。oneOf 以外は右辺1つとの compare。
      * oneOf は「どれかと等しければ成立」——等しい選択肢がなく、得られなかった選択肢が残るなら null
-     * （その選択肢が等しかったかもしれないため判定保留）。
+     * （その選択肢が等しかったかもしれないため判定保留）。kind は順序系の演算子が比べる種類。
      */
-    fun test(op: CheckOp, left: String, rights: List<String?>): Boolean? {
-        if (op != CheckOp.ONE_OF) return rights.firstOrNull()?.let { compare(op, left, it) }
+    fun test(op: CheckOp, left: String, rights: List<String?>, kind: ValueExpr.OrderKind = ValueExpr.OrderKind.NUMBER): Boolean? {
+        if (op != CheckOp.ONE_OF) return rights.firstOrNull()?.let { compare(op, left, it, kind) }
         if (rights.any { it != null && it == left }) return true
         return if (rights.any { it == null }) null else false
     }
@@ -132,40 +141,32 @@ object SemanticExpression {
 
     /**
      * 集計（結果の出どころつき）。最小・最大は同じ値が複数あれば最初の材料を選ぶ（決定的）。
-     * 日付（YYYY-MM-DD）は文字の順がそのまま日付の順なので、読めることを確かめて文字で比べ、値はそのまま返す。
+     * 日付・時刻・日時は値の表現（ValueSemantics）の順序で比べ、値は書かれた表記のまま返す。
      */
     fun aggregateDetailed(fn: ValueExpr.AggregateFn, values: List<String>, kind: ValueExpr.OrderKind): Aggregated? {
         if (fn == ValueExpr.AggregateFn.COUNT) return Aggregated(values.size.toString(), null)
-        return when (kind) {
-            ValueExpr.OrderKind.NUMBER -> {
-                val numbers = values.map { numberOf(it) ?: return null }
-                when (fn) {
-                    ValueExpr.AggregateFn.SUM -> Aggregated(numberText(numbers.fold(BigDecimal.ZERO) { acc, n -> acc + n }), null)
-                    ValueExpr.AggregateFn.MIN -> numbers.withIndex().minByOrNull { it.value }?.let { Aggregated(numberText(it.value), it.index) }
-                    ValueExpr.AggregateFn.MAX -> numbers.withIndex().maxByOrNull { it.value }?.let { Aggregated(numberText(it.value), it.index) }
-                    ValueExpr.AggregateFn.COUNT -> null
-                }
+        val value = kind.value
+        if (value == null) {
+            val numbers = values.map { numberOf(it) ?: return null }
+            return when (fn) {
+                ValueExpr.AggregateFn.SUM -> Aggregated(numberText(numbers.fold(BigDecimal.ZERO) { acc, n -> acc + n }), null)
+                ValueExpr.AggregateFn.MIN -> numbers.withIndex().minByOrNull { it.value }?.let { Aggregated(numberText(it.value), it.index) }
+                ValueExpr.AggregateFn.MAX -> numbers.withIndex().maxByOrNull { it.value }?.let { Aggregated(numberText(it.value), it.index) }
+                ValueExpr.AggregateFn.COUNT -> null
             }
-            ValueExpr.OrderKind.DATE -> {
-                val dates = values.map { dateOf(it) ?: return null }
-                when (fn) {
-                    ValueExpr.AggregateFn.MIN -> dates.withIndex().minByOrNull { it.value }?.let { Aggregated(it.value, it.index) }
-                    ValueExpr.AggregateFn.MAX -> dates.withIndex().maxByOrNull { it.value }?.let { Aggregated(it.value, it.index) }
-                    // 日付は足せない（定義の読み取りが弾く）
-                    ValueExpr.AggregateFn.SUM, ValueExpr.AggregateFn.COUNT -> null
-                }
-            }
+        }
+        val keyed = values.map { text -> text.trim().let { t -> (value.orderKey(t) ?: return null) to t } }
+        return when (fn) {
+            ValueExpr.AggregateFn.MIN -> keyed.withIndex().minByOrNull { it.value.first }?.let { Aggregated(it.value.second, it.index) }
+            ValueExpr.AggregateFn.MAX -> keyed.withIndex().maxByOrNull { it.value.first }?.let { Aggregated(it.value.second, it.index) }
+            // 日付などは足せない（定義の読み取りが弾く）
+            ValueExpr.AggregateFn.SUM, ValueExpr.AggregateFn.COUNT -> null
         }
     }
 
-    /** 順序の種類として読めるか（数値・日付）。 */
-    fun readable(kind: ValueExpr.OrderKind, text: String): Boolean = when (kind) {
-        ValueExpr.OrderKind.NUMBER -> numberOf(text) != null
-        ValueExpr.OrderKind.DATE -> dateOf(text) != null
-    }
-
-    /** 日付として読めれば、その表記（前後の空白を除く）。規則は意味の基底型 date の 1 か所（ValueSemantics.DATE＝正準の形で、存在する日付）。 */
-    private fun dateOf(text: String): String? = text.trim().takeIf { ValueSemantics.DATE.reads(it) }
+    /** 順序の種類として読めるか（数値か、意味の基底型の値）。 */
+    fun readable(kind: ValueExpr.OrderKind, text: String): Boolean =
+        kind.value?.reads(text.trim()) ?: (numberOf(text) != null)
 
     /** 項の流れ書きの文字（配列は `[a, b]`・マップは `{k: v}`。文面と表示に使う。スカラーはその文字）。 */
     fun flowText(node: YNode?): String = when (node) {

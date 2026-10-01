@@ -139,7 +139,8 @@ object ViewDefinitions {
         val aggregate = cellsMap["aggregate"]?.toString()?.let { t ->
             ValueExpr.AggregateFn.entries.firstOrNull { it.id == t } ?: error("cells.aggregate は count / sum / min / max のいずれかです: $t")
         } ?: ValueExpr.AggregateFn.COUNT
-        val kind = cellsMap["type"]?.toString()?.let { ValueExpr.OrderKind.parse(it, "cells") } ?: ValueExpr.OrderKind.NUMBER
+        // 順序の種類（type）は省くと集計が読む項目の型から決まる
+        val kind = cellsMap["type"]?.toString()?.let { ValueExpr.OrderKind.parse(it, "cells") }
         if (aggregate != ValueExpr.AggregateFn.COUNT && !cellsMap.containsKey("path")) {
             error("cells.path（集計する値の相対パス）が必要です（aggregate: ${aggregate.id}）")
         }
@@ -150,7 +151,7 @@ object ViewDefinitions {
         // 定義の点検: 列の絞りを足す前の式（合計の列と同じ形）が、値の式として読めること
         val probe = LinkedHashMap<String, Any?>()
         probe[aggregate.id] = mapOf("all" to all)
-        if (aggregate != ValueExpr.AggregateFn.COUNT && kind == ValueExpr.OrderKind.DATE) probe["type"] = "date"
+        if (aggregate != ValueExpr.AggregateFn.COUNT) kind?.let { probe["type"] = it.id }
         ExpressionValue.of(probe, "cells")
         val totals = when (val t = raw["totals"]) {
             null -> true
@@ -648,9 +649,10 @@ object ViewDefinitions {
                             report("列「${col.label}」の path「${PathPattern.pretty(get.path)}」はスキーマ「${names(targetSchemas)}」のID要素から解決できません")
                         }
                     }
-                    // 集計の順序の種類と項目の型の食い違い: 引数がいまの要素からの読み出し（短い書き方）のときだけ静的に見られる
+                    // 集計に書いた順序の種類（type）と項目の型の食い違い: 引数がいまの要素からの読み出し（短い書き方）のときだけ静的に
+                    // 見られる（type を省けば項目の型で比べるので、指摘するのは書いた種類が項目の型と食い違うときだけ）
                     value.expr.aggregates()
-                        .filter { it.fn != ValueExpr.AggregateFn.COUNT }
+                        .filter { it.fn != ValueExpr.AggregateFn.COUNT && it.kind != null }
                         .forEach { agg ->
                             val get = agg.input as? ValueExpr.Get ?: return@forEach
                             if (get.of != null || get.via != null || get.inDoc != null) return@forEach
@@ -659,13 +661,14 @@ object ViewDefinitions {
                                 idElementsOf(s).mapNotNull { staticFieldAt(s, it, pattern) }.map { s.tree.resolve(it) ?: it }
                             }
                             if (fields.isEmpty()) return@forEach
-                            // 日付の項目は、意味の基底型 date（利用者の型は連鎖の末端がこれ）で見分ける
-                            val dateField = fields.any { it.type == FieldType.DATE }
+                            // 項目の型が持つ順序の種類（意味の基底型は連鎖の末端の型で見分ける）
+                            val typed = fields.mapNotNull { ValueExpr.OrderKind.ofType(it.type) }.distinct()
+                            val declared = agg.kind!!
                             val subject = "${agg.fn.id} が読む「${PathPattern.pretty(pattern)}」"
-                            if (dateField && agg.kind != ValueExpr.OrderKind.DATE) {
-                                report("列「${col.label}」の${subject}は日付の項目です（type: date を書くと日付として比べます）")
-                            } else if (agg.kind == ValueExpr.OrderKind.DATE && !dateField) {
-                                report("列「${col.label}」の${subject}は日付の項目ではありません（type: date は日付の項目に書きます）")
+                            if (typed.isNotEmpty() && declared !in typed) {
+                                report("列「${col.label}」の${subject}は${typed.joinToString(" / ") { it.label }}の項目です（type: ${declared.id} は書けません。type を省くと項目の型で比べます）")
+                            } else if (typed.isEmpty() && declared.value != null) {
+                                report("列「${col.label}」の${subject}は${declared.label}の項目ではありません（type: ${declared.id} は${declared.label}の項目に書きます）")
                             }
                         }
                     return@forEach

@@ -8,11 +8,14 @@ package dev.toros.yde.semantic.schema
  */
 object SemanticDeclParser {
 
-    /** エンティティ型宣言（R20-01 / R23-01）のパース。単一 object または複数型のリスト（idPattern で判別）。 */
+    /**
+     * エンティティ型宣言（R20-01 / R23-01）のパース。単一 object または複数型のリスト（idPattern か idType で判別）。
+     * idType（ID の型の名前）の解決は、スキーマの木が決まってから WorkspaceSchema が行う（EntityDecl.resolvedIn）。
+     */
     fun parseEntities(raw: Any?): List<EntityDecl> {
         if (raw == null) return emptyList()
         fun one(m: Any?, where: String): EntityDecl {
-            val map = m as? Map<*, *> ?: error("$where は object（type / idPattern / defines / aspect / owns）である必要があります")
+            val map = m as? Map<*, *> ?: error("$where は object（type / idPattern / idType / defines / aspect / owns）である必要があります")
             val owns = when (val o = map["owns"]) {
                 null -> null
                 is List<*> -> o.map { it.toString() }
@@ -24,6 +27,7 @@ object SemanticDeclParser {
                 defines = (map["defines"] as? Boolean) ?: false,
                 aspect = map["aspect"]?.toString()?.takeIf { it.isNotBlank() },
                 owns = owns,
+                idType = map["idType"]?.toString()?.takeIf { it.isNotBlank() },
             )
         }
         return when (raw) {

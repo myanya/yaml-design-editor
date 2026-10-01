@@ -84,4 +84,33 @@ class ValueOperationsTest {
         assertFalse(SemanticExpression.isEmpty(YNode.Scalar(0)))
         assertFalse(SemanticExpression.isEmpty(YNode.Seq(mutableListOf(YNode.Scalar("x")))))
     }
+
+    @Test
+    fun `順序の比較は種類で比べる 日付と時刻と日時は値の表現で 読めない値は判定保留`() {
+        val date = ValueExpr.OrderKind.DATE
+        val time = ValueExpr.OrderKind.TIME
+        val datetime = ValueExpr.OrderKind.DATETIME
+        // 既定（数値）では日付は読めない＝判定保留
+        assertNull(SemanticExpression.compare(CheckOp.LT, "2026-01-05", "2026-01-20"))
+        assertEquals(true, SemanticExpression.compare(CheckOp.LT, "2026-01-05", "2026-01-20", date))
+        assertEquals(false, SemanticExpression.compare(CheckOp.GTE, "2026-01-05", "2026-01-20", date))
+        assertEquals(true, SemanticExpression.compare(CheckOp.LTE, "2026-01-20", "2026-01-20", date))
+        // 存在しない日付・正準でない表記は読めない
+        assertNull(SemanticExpression.compare(CheckOp.GT, "2026-02-30", "2026-01-01", date))
+        assertNull(SemanticExpression.compare(CheckOp.GT, "2026/01/05", "2026-01-01", date))
+        // 時刻は値で比べる（09:30 と 09:30:00 は同じ時刻。文字の順ではない）
+        assertEquals(true, SemanticExpression.compare(CheckOp.LTE, "09:30", "09:30:00", time))
+        assertEquals(false, SemanticExpression.compare(CheckOp.LT, "09:30", "09:30:00", time))
+        assertEquals(true, SemanticExpression.compare(CheckOp.GT, "17:00", "09:30", time))
+        assertEquals(true, SemanticExpression.compare(CheckOp.LT, "2026-01-01 09:00", "2026-01-01T10:00", datetime))
+        // test も同じ種類で比べる。等値や文字の条件は種類によらない
+        assertEquals(true, SemanticExpression.test(CheckOp.GT, "2026-01-20", listOf("2026-01-05"), date))
+        assertEquals(true, SemanticExpression.test(CheckOp.EQ, "2026-01-20", listOf("2026-01-20"), date))
+        // 集計の最小・最大も種類で（時刻の表記はそのまま返す）
+        assertEquals("09:30", SemanticExpression.aggregate(ValueExpr.AggregateFn.MIN, listOf("17:00", "09:30", "09:30:00"), time))
+        assertEquals("2026-01-01 10:00", SemanticExpression.aggregate(ValueExpr.AggregateFn.MAX, listOf("2026-01-01 09:00", "2026-01-01 10:00"), datetime))
+        assertNull(SemanticExpression.aggregate(ValueExpr.AggregateFn.SUM, listOf("09:30"), time))
+        assertTrue(SemanticExpression.readable(time, " 09:30 "))
+        assertFalse(SemanticExpression.readable(time, "25:00"))
+    }
 }

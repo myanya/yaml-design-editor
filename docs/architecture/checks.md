@@ -48,6 +48,7 @@
 - **パターン制約**: `match`（＋ `where` / `also` / `limit`。[graph-query.md「クエリコア」](graph-query.md)）に `expect: exists / absent`・`count: {min, max}`（解＝bind 列の組の distinct 件数）・`check`・`forAll` のいずれか、`level`・`levelFrom`・`activeFrom`・`status`・`fixSite`・`message`・`reportAt`・`responses`。
 - 意味は「起点束縛に一致する各エンティティについて、残りのパターンに解が存在すること／しないこと／件数が範囲内であること／解ごとに値の条件が成り立つこと」。起点は `kind: entity` のみ。
 - **判定 `check`**: `{演算子: [値の式, 値の式]}` の配列（すべて成立が期待）。演算子は `eq` / `ne`・`lte` / `gte` / `lt` / `gt`・`oneOf`・`matches`・`startsWith` / `endsWith` / `contains`、`{not}` / `{or}`。評価は解ごとに出現割当て σ を反例量化し、条件を満たさない最初の組を反例として返す（決定的）。1 項目内の σ は一貫（同一束縛の両辺は同一出現）。値が読めない組は評価しない。反例は文面の列挙と `relatedIds` のジャンプになる。
+- 順序の比較には `type`（number / date / time / datetime）を添えられ、省けば値を読んだ項目の型で比べる（`CheckTerm.kind`。`where` も同じ）。
 - **すべての要素について `forAll`**: もう 1 つの集まり `node`・辿り始める束縛 `from`・連鎖 `steps`。集まりの要素ごとに連鎖を解き、解がなく候補の喪失も無かった要素が不足（`{count}` `{missing}`）。網羅マトリクス（`matrix`）はこれへ展開される語彙。
 - **値の式と値の計算**: 読み出し・決まった値・`format`・`map`・`first`・`length` / `upper` / `lower` / `number`・四則演算（BigDecimal）・参照の本数 `refCount`（相手が見つからない参照も数える）・書かれた場所の数 `occurrenceCount`（スキーマ・ファイル・役割で絞る。`distinct: type` は型の種類の数）・集計 `sum` / `min` / `max` / `count`（配列を受け取る関数）。
   集合から配列へ `all`（同じ起点の全ての解にわたる形と、`from` の束縛を起点に固定した照合の形）・要素ごとの式 `each`。評価できないときは null（判定保留）。
@@ -58,7 +59,8 @@
 - **検査の状況 `status`**: 満たしている検査も値つきで返す（`ruleStatuses`）。右パネル・エンティティページ・ビューの状態列・エージェントの `related` が共用し、文言は `RuleStatus.text` の 1 箇所。保留は「判定保留（理由）」で充足に数えない。
 - **直せる場所への案内 `fixSite`**: 書き足し先のスキーマの文書の検証へ、指摘が出ている ID の一覧を INFO で出す。
 - **重大度**: `level`（warning / error）と、関係レジストリの強制スイッチのキー名 `levelFrom`。写像は `CoverageLevel.toSeverity()` の 1 箇所。
-- **共有評価部**: 値どうしの比較・出現からの値の読み出し・式側の出現選択は `SemanticExpression` を通す。比較の 3 値（数値として読めなければ判定保留）、選択の定義出現優先（→ 索引順）を全機能で同じにするため。`where`（存在量化）と `check`（反例量化）は σ 候補の列挙を共有する。
+- **共有評価部**: 値どうしの比較・出現からの値の読み出し・式側の出現選択は `SemanticExpression` を通す。比較の 3 値（順序の種類として読めなければ判定保留。種類は項目の型から＝[schema.md「値の式」](schema.md)）、選択の定義出現優先（→ 索引順）を全機能で同じにするため。`where`（存在量化）と `check`（反例量化）は σ 候補の列挙を共有する。
+- **項目の型を引くのはカーネル**: `WorkspaceChecks` が文書の場所に合うスキーマから `fieldAt`（文書とパス → 解決済みの項目）を組み立て、`SemanticCheckSession` → `SemanticRules` → `SemanticQuery` の評価へ渡す。semantic-core はスキーマの割当てを知らない。
 
 ## 専用チェッカー
 

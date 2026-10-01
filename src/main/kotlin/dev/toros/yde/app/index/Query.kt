@@ -37,25 +37,25 @@ object Query {
 
     /** パターンを評価して束縛の表を返す。loader は、文書ID から文書の中身を返す（値の条件 where の評価に使う）。 */
     fun run(index: IdIndex, spec: QuerySpec, loader: (DocumentId) -> YNode?): QueryResult =
-        SemanticQuery.run(index.entries, index.refs, index.graph, spec, loader)
+        SemanticQuery.run(index.entries, index.refs, index.graph, spec, loader = loader)
 
     /**
      * 起点を固定した存在判定（R22-03 パターン制約用）: startId を起点束縛に固定したとき、
      * パターン全体（起点フィルタ・hops・also・where）に解が1つ以上あるか。
      */
     fun anyMatchFrom(index: IdIndex, spec: QuerySpec, startId: String, loader: (DocumentId) -> YNode?): Boolean =
-        SemanticQuery.anyMatchFrom(index.entries, index.refs, index.graph, spec, startId, loader)
+        SemanticQuery.anyMatchFrom(index.entries, index.refs, index.graph, spec, startId, loader = loader)
 
     /**
      * 起点を固定した解の件数（R28-02 count 制約用）: 束縛の組（bind 列）の distinct 件数
      * （limit 打切り前の total）。数えたい対象のノードに bind を書くこと。
      */
     fun countMatchesFrom(index: IdIndex, spec: QuerySpec, startId: String, loader: (DocumentId) -> YNode?): Int =
-        SemanticQuery.countMatchesFrom(index.entries, index.refs, index.graph, spec, startId, loader)
+        SemanticQuery.countMatchesFrom(index.entries, index.refs, index.graph, spec, startId, loader = loader)
 
     /** 起点を固定した解の列挙（R28-05: 制約指摘の説明用）: 束縛の表（limit まで。total は打切り前）。 */
     fun matchesFrom(index: IdIndex, spec: QuerySpec, startId: String, loader: (DocumentId) -> YNode?): QueryResult =
-        SemanticQuery.matchesFrom(index.entries, index.refs, index.graph, spec, startId, loader)
+        SemanticQuery.matchesFrom(index.entries, index.refs, index.graph, spec, startId, loader = loader)
 
     /**
      * 起点を固定した check 判定（R28-08）: 解ごとに判定述語（束縛間の値比較）を
@@ -106,7 +106,7 @@ object Query {
      * 制約の「対象外は黙る」（判定保留 architecture/transform.md「計算列と決定論的射影」）と「解なし」を区別するために使う。
      */
     fun startMatches(index: IdIndex, spec: QuerySpec, startId: String, loader: (DocumentId) -> YNode?): Boolean =
-        SemanticQuery.startMatches(index.entries, index.refs, index.graph, spec, startId, loader)
+        SemanticQuery.startMatches(index.entries, index.refs, index.graph, spec, startId, loader = loader)
 
     /**
      * Traverse 互換の隣接1段（R22-02③）。out = フロンティア配下に書かれた参照の targetId、

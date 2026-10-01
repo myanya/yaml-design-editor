@@ -51,7 +51,8 @@ class WorkspaceSchema(
     val kind: SchemaKind,
     val match: String,
     val tree: SchemaTree,
-    val entities: List<EntityDecl>,
+    /** 書かれたままのエンティティ型の宣言。使う側は entities（ID の型を木で解決したもの）を読む。 */
+    val declaredEntities: List<EntityDecl>,
     /** derive 宣言スキーマ（テンプレート）か。テンプレートは文書にマッチしない。 */
     val isTemplate: Boolean,
     /** スキーマ定義文書の座標（スキーマ・リファクタリングの書き換え先。RF-002b）。派生スキーマでは、導出元の文書。 */
@@ -82,12 +83,18 @@ class WorkspaceSchema(
     /** 新しい文書のひな型（変換のひな型。いまの場所＝元の要素。P31・R31-03）。 */
     val scaffold: TransformDef? = null,
 ) {
+    /**
+     * エンティティ型の宣言（ID の型 idType を、このスキーマの木（定義の目録を含む）で解決したもの。P33）。
+     * 木を差し替えた写し（copy）は解決し直す。
+     */
+    val entities: List<EntityDecl> by lazy { declaredEntities.map { it.resolvedIn(tree) } }
+
     /** 構造・適用先などを差し替えた写し（ほかは引き継ぐ）。 */
     fun copy(
         match: String = this.match,
         tree: SchemaTree = this.tree,
     ): WorkspaceSchema = WorkspaceSchema(
-        id, kind, match, tree, entities, isTemplate, source, derive, constraints, checkers, expandedChecks, vocabularySource,
+        id, kind, match, tree, declaredEntities, isTemplate, source, derive, constraints, checkers, expandedChecks, vocabularySource,
         name, description, relations, entityTypes, enforcement, checkLibrary, expressions, scaffold,
     )
 
@@ -101,7 +108,7 @@ class WorkspaceSchema(
             kind = parsed.kind,
             match = parsed.match,
             tree = parsed.tree,
-            entities = parsed.entities,
+            declaredEntities = parsed.entities,
             isTemplate = parsed.derive != null,
             source = source,
             derive = parsed.derive,
@@ -292,7 +299,7 @@ object WorkspaceReader {
                         match = d.match,
                         // 導出スキーマはテンプレートの definitions / catalog を引き継ぐ（$ref は definitionScope で解決される）
                         tree = template.tree.copy(id = d.id, root = d.root),
-                        entities = emptyList(),  // root DerivedSchemas と同じ（導出スキーマに entity 宣言は継がない）
+                        declaredEntities = emptyList(),  // root DerivedSchemas と同じ（導出スキーマに entity 宣言は継がない）
                         isTemplate = false,
                         source = DocumentId(d.sourceRel),
                         // 導出元の語彙（consistency など）は引き継ぐ。展開後の検査はスキーマIDで文書を指すため、派生スキーマのIDで展開し直す

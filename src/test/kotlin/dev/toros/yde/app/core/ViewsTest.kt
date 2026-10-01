@@ -602,10 +602,10 @@ class ViewsTest {
         // 未保存編集に相当するオーバーレイを loader で注入する
         val edited = YamlIO.parse(Files.readString(ws.resolve("screens/index.yaml")))
         Patcher.apply(edited, PatchOp.Set(parseYPath("screens[0].name"), YNode.Scalar("編集済みの画面名")))
-        val rows = Views.resolve(view, workspace.index) { d ->
+        val rows = Views.resolve(view, workspace.index, loader = { d ->
             if (d.value == "screens/index.yaml") edited
             else workspace.treeOf(d)
-        }
+        })
         assertEquals("編集済みの画面名", (rows[0].cells[0].value as YNode.Scalar).value)
     }
 
@@ -1072,7 +1072,7 @@ class ViewsTest {
 
         // 未保存の編集に追随: 読み手（loader）が編集中の木を返せば、保存しなくても値が変わる
         val edited = YamlIO.parse(Files.readString(ws.resolve("todos/T-1.yaml")).replace("2026-09-05", "2026-09-09"))
-        val liveRows = Views.resolve(view, workspace.index) { d -> if (d.value == "todos/T-1.yaml") edited else workspace.treeOf(d) }
+        val liveRows = Views.resolve(view, workspace.index, loader = { d -> if (d.value == "todos/T-1.yaml") edited else workspace.treeOf(d) })
         assertEquals("2026-09-09", (liveRows.first { it.id == "T-1" }.cells[1].value as YNode.Scalar).value)
 
         // テキスト表現（エージェント・CLI 共用）にも値・座標・来歴が出る
@@ -1097,22 +1097,27 @@ class ViewsTest {
             columns:
               - label: A
                 schemaId: todo-detail
-                value: { max: { path: "comments[*].date" } }
+                value: { max: { path: "comments[*].date", type: number } }
               - label: B
                 schemaId: todo-detail
                 value: "{nosuch}"
               - label: C
                 schemaId: todo-detail
                 value: { max: { path: "comments[*].body", type: date } }
+              - label: D
+                schemaId: todo-detail
+                value: { max: { path: "comments[*].date" } }
             """,
         )
         val errors = Views.load(ws, SchemaLoader.loadAll(ws)).errors
         assertTrue(errors.any { "bad-v1.yaml" in it && "value と path は併用できません" in it }, errors.toString())
         assertTrue(errors.any { "bad-v2.yaml" in it && "editable" in it }, errors.toString())
         assertTrue(errors.any { "bad-v3.yaml" in it && "type は number / date" in it }, errors.toString())
+        // 書いた順序の種類が項目の型と食い違えば指摘。省けば項目の型で比べるので指摘しない（列 D）
         assertTrue(errors.any { "lint-v4.yaml" in it && "列「A」" in it && "日付の項目です" in it }, errors.toString())
         assertTrue(errors.any { "lint-v4.yaml" in it && "列「B」" in it && "「nosuch」" in it && "解決できません" in it }, errors.toString())
         assertTrue(errors.any { "lint-v4.yaml" in it && "列「C」" in it && "日付の項目ではありません" in it }, errors.toString())
+        assertTrue(errors.none { "lint-v4.yaml" in it && "列「D」" in it }, errors.toString())
         // 正しい定義には指摘が無い
         assertTrue(errors.none { "todo-board.yaml" in it }, errors.toString())
     }
@@ -1278,7 +1283,7 @@ class ViewsTest {
 
         // 未保存の編集に追随: 読み手が編集中の木を返せば、個票の状態を変えただけで件数が動く
         val edited = YamlIO.parse(listOf("id: TODO-004", "status: IN_PROGRESS").joinToString(System.lineSeparator()))
-        val liveRows = Views.resolve(view, workspace.index) { d -> if (d.value == "todos/details/TODO-004.yaml") edited else workspace.treeOf(d) }
+        val liveRows = Views.resolve(view, workspace.index, loader = { d -> if (d.value == "todos/details/TODO-004.yaml") edited else workspace.treeOf(d) })
         assertEquals(listOf("0", "1", "1", "1", "3"), liveRows.first { it.id == "CAT-001" }.cells.drop(1).map { (it.value as YNode.Scalar).value })
 
         // テキスト表現（エージェント・CLI 共用）にも件数と来歴が出る

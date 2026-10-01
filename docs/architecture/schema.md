@@ -66,7 +66,10 @@
 - **道具**: `extract-definition` はスカラーなら使う側に `type: 名前` を書く。`rename-definition` / `rename-schema-id` は `type` の言及も書き換える。`convert-type` の string ↔ text は型の名前の書き換え。設計 UI の型の選択肢と基底の種類の解決は `TypeChoices`（ui/SchemaEditor.kt）。
 - **ヒントは型から引き継ぐ**: 複数行 `display: multiline`（`TextDisplay`）・入力欄の案内 `placeholder`・サンプル値 `sample` は `FieldHints.over` で使う側が優先し、無ければ型のもの。UI は型の名前でなくヒントで判定する（`FieldDef.multiline` / `placeholder`）。
 - 意味の基底型は基底の種類で判定し（`type == FieldType.DATE`。列幅・AI 生成の `format`・ビューのリントの日付の項目）、案内とサンプル値はヒントが無ければ `ValueSemantics` の既定。
-- **これから**: 順序（日付の比較）と読み方（`¥10,000` を数として）を型に持たせること、entity の `idPattern` を ID の型から引くこと、オブジェクト型（object の定義に同一性・表示・検査を足す）は ROADMAP のテーマ。
+- **順序は型から**: 順序の種類（`OrderKind.ofType`）は読んだ項目の型で決まり、式の `type` は上書き。項目の定義を引く `fieldAt` を渡すのはスキーマを知る側（`WorkspaceChecks`・`Views.resolve`。「値の式」）。
+- **ID の型をエンティティ型の判別に**: `entity` の `idType` は型の名前で、`WorkspaceSchema.entities` が木で解決する（`EntityDecl.resolvedIn` → `SchemaTree.resolveTypeName`。形式を `idTypePatterns` に写す）。
+- 未知の名前・id でない型は `idTypeError`＝定義エラー。走査・検査・改名の警告は `EntityDecl.matchesId` の 1 か所で判定する（[graph-query.md「エンティティ型と関係レジストリ」](graph-query.md)）。読み方は数で読む（文字の金額は読まない）。
+- **これから**: オブジェクト型（object の定義に同一性・表示・検査を足す）は ROADMAP のテーマ。
 
 ## 表示のヒント
 
@@ -128,7 +131,8 @@
 - **集合から配列へ（`all`）**: 同じ起点の全ての解にわたる形（`{all: {of, in, path}}`。環境の `solutions`＝検査の解の一覧か、行を 1 つの解と見なすビュー）と、起点を固定した照合の形（`{all: {from, match, where, also, of, in, path}}`。環境の `solveFrom`＝`SemanticQuery.matchesFrom`。`from` は起点の束縛で、省略はいまの要素。検査の中でも書ける）。
   値を読む出現は定義した側を優先して 1 つ（`in` で選ぶ）。`[*]` は平らに広がる。読めない要素が 1 つでもあれば配列そのものが得られない。古い書き方（集計の中の `of`・`count` に `match`）は定義エラーで `all` を案内する。
 - **要素ごとの式（`each`）**: `{each: 配列の式, value: 式}`。各要素をいまの要素（ノードならその要素の出現・場所ならその場所）として `value` を評価し、配列にする。名前を付けた引数は無い。
-- **順序の種類**: `type: number / date`（`min` / `max` の比べ方。省略時は数値。表記から意味を決めないため、日付は宣言する。日付として読める規則は date 型の検証と同じ `StructureValidator.isDateText`）。
+- **順序の種類**（`ValueExpr.OrderKind`＝number / date / time / datetime）: `min` / `max`・順序の比較（`lt` / `lte` / `gt` / `gte`）・行の並びの比べ方。式に `type` を書かなければ、値を読んだ項目の型（`OrderKind.ofType`。環境の `fieldAt` が引く定義）で決め、決まらなければ数値。表記から意味を決めない。
+  読んだ値は `SemanticCheckSide.kind` に種類を持ち（読み出しは項目の型・集計は決めた種類・計算は数値・決まった値は null）、比較は `term.kind ?: left.kind ?: right.kind`。日付などの読みと順序は `ValueSemantics` の 1 か所。
 - **集計の規則**: 値が書かれていない・種類として読めない要素が 1 つでもあれば得られない（理由は `Result.reason`）。最小・最大の出どころは選ばれた要素、来歴は全ての要素。計算は `SemanticExpression.aggregateDetailed` の 1 実装で、検査とビューが共有する。
 - **使う側**: 新しい文書のファイル名（`filePattern`）・ひな型の中身（`scaffold`）・ビューの列 `value`（[views.md](views.md)）。
 - 印を読むのは読み取り・評価・「式として読めるか」の検証だけで、走査・検査は式を評価しない。置き場は semantic-core（印・読み取り・評価・文面）と workspace-core（ファイル名の決まり）。

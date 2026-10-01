@@ -121,7 +121,7 @@ class EntityDeclTest {
             """.trimIndent(),
             Path.of("_schemas/s.yaml"),
         )
-        assertTrue(catchAll.validateDefinition().any { "idPattern のないエンティティ型宣言は1つまで" in it.message })
+        assertTrue(catchAll.validateDefinition().any { "idPattern / idType のないエンティティ型宣言は1つまで" in it.message })
     }
 
     // ---------------------------------------------------------------- 走査時の付与と resolve 優先

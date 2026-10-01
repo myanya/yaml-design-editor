@@ -46,27 +46,56 @@ enum class EntityRole {
 
 /**
  * エンティティ型の宣言（R20-01）。スキーマ文書ルートの `entity:`（単一 object または複数型のリスト）。
- * 複数型を持つスキーマは idPattern で型を判別する。defines=true の文書群の出現が「定義（誕生）」。
+ * 複数型を持つスキーマは ID の決まり（idPattern＝glob、または idType＝ID の型の名前。P33）で型を判別する。
+ * defines=true の文書群の出現が「定義（誕生）」。
  * aspect / owns はアスペクト宣言（R23-01。architecture/graph-query.md「エンティティページ」）: この出現がエンティティの
  * どの側面を所有するか。owns=null（未宣言）は「この出現要素の宣言フィールド全部」。
  */
 data class EntityDecl(
     val type: String,
-    val idPattern: String? = null,   // この型のID命名規約（省略可。省略時は全IDに一致）
+    val idPattern: String? = null,   // この型のID命名規約（glob。省略可）
     val defines: Boolean = false,
     val aspect: String? = null,      // この出現が所有する側面名（省略時はスキーマID。R23-01）
     val owns: List<String>? = null,  // 所有フィールドキーの限定（null=宣言なし＝宣言フィールド全部）
+    /** ID の型の名前（definitions の、id を狭めた型。その形式で ID を判別する。idPattern と併用すれば両方に合う ID）。 */
+    val idType: String? = null,
+    /** idType を解決した形式（正規表現。全てに合う ID がこの型）。resolvedIn が埋める。 */
+    val idTypePatterns: List<String> = emptyList(),
+    /** idType が解決できなかった理由（定義の点検が誤りにする）。 */
+    val idTypeError: String? = null,
 ) {
     private val regex: Regex? by lazy { idPattern?.let { runCatching { idGlobToRegex(it) }.getOrNull() } }
+    private val typeRegexes: List<Regex> by lazy { idTypePatterns.mapNotNull { runCatching { Regex(it) }.getOrNull() } }
 
-    /** ID がこの型の命名規約に一致するか（idPattern 省略時は常に一致）。 */
-    fun matchesId(id: String): Boolean = regex?.matches(id) ?: (idPattern == null)
+    /** ID の決まり（idPattern か idType）を持つか。持たない宣言は全ての ID に一致する（1 スキーマに 1 つまで）。 */
+    val hasIdRule: Boolean get() = idPattern != null || idType != null
+
+    /** ID の決まりの文面（指摘に添える。idPattern はそのまま・idType は「型 名前」）。 */
+    val idRuleText: String? get() = idPattern ?: idType?.let { "型 $it" }
+
+    /** ID がこの型の決まりに一致するか（idPattern は glob・idType は型の形式。どちらも無ければ常に一致）。 */
+    fun matchesId(id: String): Boolean =
+        (if (idPattern == null) true else regex?.matches(id) ?: false) && typeRegexes.all { it.matches(id) }
+
+    /**
+     * idType をスキーマの木で解決する（型の形式を写す）。見つからない・id の型でない名前は誤りの文面を持つ宣言になり、
+     * 形式は無い（誤りは定義の点検が報告する）。
+     */
+    fun resolvedIn(tree: SchemaTree): EntityDecl {
+        val name = idType ?: return this
+        val def = tree.resolveTypeName(name)
+            ?: return copy(idTypePatterns = emptyList(), idTypeError = "エンティティ型「$type」の idType「$name」は未知の型です")
+        if (def.type != FieldType.ID) {
+            return copy(idTypePatterns = emptyList(), idTypeError = "エンティティ型「$type」の idType「$name」は id の型ではありません（基底の種類: ${def.type.id}）")
+        }
+        return copy(idTypePatterns = def.patterns, idTypeError = null)
+    }
 }
 
-/** ID に対応するエンティティ宣言を解決する（idPattern 一致が優先、なければパターンなしの宣言）。 */
+/** ID に対応するエンティティ宣言を解決する（ID の決まりに一致する宣言が優先、なければ決まりのない宣言）。 */
 fun entityFor(entities: List<EntityDecl>, id: String): EntityDecl? =
-    entities.firstOrNull { it.idPattern != null && it.matchesId(id) }
-        ?: entities.firstOrNull { it.idPattern == null }
+    entities.firstOrNull { it.hasIdRule && it.matchesId(id) }
+        ?: entities.firstOrNull { !it.hasIdRule }
 
 /** 関係の多重度宣言。検証への接続は R21-01（GraphIntegrity）。 */
 data class CardinalityDef(

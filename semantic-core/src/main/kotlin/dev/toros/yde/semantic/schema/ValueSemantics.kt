@@ -50,6 +50,20 @@ enum class ValueSemantics(
     /** 正準の形で、値としても存在するか（式の順序や並びが「読める」と見なす条件）。 */
     fun reads(text: String): Boolean = isCanonical(text) && parse(text) != null
 
+    /**
+     * 順序の鍵（読める値だけ。null＝読めない）。同じ種類の鍵どうしを比べる（`09:30` と `09:30:00` は同じ時刻）。
+     * LocalDate 系は自分の種類と比べられる Comparable で、ここでは同じ種類しか並べないため、型の印だけを落とす。
+     */
+    @Suppress("UNCHECKED_CAST")
+    fun orderKey(text: String): Comparable<Any>? = if (reads(text)) parse(text) as? Comparable<Any> else null
+
+    /** 2 つの値の順序（どちらかが読めなければ null＝比べられない）。 */
+    fun compare(a: String, b: String): Int? {
+        val x = orderKey(a) ?: return null
+        val y = orderKey(b) ?: return null
+        return x.compareTo(y)
+    }
+
     companion object {
         fun of(id: String?): ValueSemantics? = entries.firstOrNull { it.id == id }
     }

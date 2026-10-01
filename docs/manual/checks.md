@@ -13,10 +13,10 @@ entity:
   idPattern: "SCR-*"    # この型のID命名規約（省略可。逸脱は検証が警告する）
   defines: true         # この文書群の出現が「定義（誕生）」。省略時 false = 詳細化
 
-# 複数型（idPattern で判別。idPattern のない宣言は1つまで＝残り全部の受け皿）
+# 複数型（idPattern か idType で判別。どちらも無い宣言は1つまで＝残り全部の受け皿）
 entity:
   - { type: screen, idPattern: "SCR-*", defines: true }
-  - { type: usecase, idPattern: "UC-*", defines: true }
+  - { type: usecase, idType: ユースケースID, defines: true }   # ID の型（definitions の id を狭めた型。schema.md「型の定義」）の形式で判別
 
 # アスペクト宣言（省略可）: この出現がエンティティのどの「側面」を所有するか
 entity:
@@ -29,7 +29,8 @@ entity:
 宣言の効果（宣言のないスキーマは従来どおり＝**非破壊**）:
 
 - **ジャンプ・表示が定義出現に安定**: 同一IDの複数出現があるとき、参照ジャンプ・タイトル解決は定義出現（`defines: true` の文書群の出現）を優先します（従来は「パス順で最初の出現」）。
-- **エンティティ整合の検証（既定は警告）**: 定義出現がどこにもないID（浮遊詳細化）／定義出現が2文書以上にあるID（定義競合）／`idPattern` に一致しないID（命名逸脱）／同一IDが異なる型で出現（型競合）を、各出現のID要素の座標つきで指摘します。定義出現の一意性（浮遊詳細化・定義競合）は、関係レジストリ文書の `enforcement: { definingUniqueness: error }` でエラーへ昇格できます（「最初の出現＝定義」の暗黙運用をやめる opt-in スイッチ。後述）。
+- **ID の決まりは 2 通り**: `idPattern`（glob）か `idType`（ID の型の名前。`画面ID: { type: id, pattern: "^SCR-\\d{3}$" }` のような定義。型の形式＝正規表現で判別し、ID の項目の `type: 画面ID` と同じ決まりを 1 か所に書けます）。両方書けば両方に合う ID がその型です。`idType` が未知の名前・id でない型なら定義エラーです。
+- **エンティティ整合の検証（既定は警告）**: 定義出現がどこにもないID（浮遊詳細化）／定義出現が2文書以上にあるID（定義競合）／`idPattern` / `idType` に一致しないID（命名逸脱）／同一IDが異なる型で出現（型競合）を、各出現のID要素の座標つきで指摘します。定義出現の一意性（浮遊詳細化・定義競合）は、関係レジストリ文書の `enforcement: { definingUniqueness: error }` でエラーへ昇格できます（「最初の出現＝定義」の暗黙運用をやめる opt-in スイッチ。後述）。
 - **アスペクト（`aspect` / `owns`）＝エンティティ全体像の合成**: 各出現が「エンティティのどの側面（フィールド群）を所有するか」を宣言します。エンティティページ（[views.md](views.md)）・エージェントの `read_entity`（[ai.md](ai.md)）・CLI `entity show`（[cli.md](cli.md)）は、全出現を「定義出現 → レジストリのアスペクト宣言順」に並べ、所有フィールドを座標つきでマージした**エンティティ全体像**として表示します。
 複数の出現が同じフィールドを所有していると検証が警告します（「同じ情報を重複記載しない」の機械化。誤検知を避けるため、双方に `entity` 宣言があり少なくとも一方が明示的な `owns` を持つ組だけを判定します）。
 - sample-workspace の `_schemas/data-model.yaml`（`entity-model` 型）・`_schemas/table-design.yaml`（`table-design` 型）が実例です。
@@ -169,8 +170,9 @@ constraints:
   `equals` / `notEquals`・`exists: true|false`（項目が書かれているか）・`empty: true|false`（`false` = 中身のある値がある／`true` = 書かれていないか、空文字・空の配列・空の object）と、下の「値の条件」（`oneOf` / `matches` / `startsWith` / `endsWith` / `contains` / `lt` / `lte` / `gt` / `gte`。
 比べる相手は決まった値）。同じ ID が複数の文書に書かれているときは、**どれかの文書の値**が条件を満たせば成立します。`notEquals` は「値が1つ以上あり、どの出現の値も指定値でない」ときに成立します（例 `{of: br, path: status, notEquals: approved}` で「承認済み**以外**」を捕まえる。
 値がなければ黙る）。
-- **値の条件**（`check` と `where` が同じ演算子・同じ判定を共有します）: `eq` / `ne`（文字列として等しい・等しくない。`12` と `12.0` は別の値——数値として比べたいときは値の式 `number` を通す）・`lte` / `gte` / `lt` / `gt`（数値の大小。
-数値として読めなければ評価しない）・`oneOf`（選択肢のどれかと等しい。`check` では `{oneOf: [左, [選択肢, ...]]}`、`where` では `oneOf: [値, ...]`）・`matches`（正規表現の**全体**一致。
+- **値の条件**（`check` と `where` が同じ演算子・同じ判定を共有します）: `eq` / `ne`（文字列として等しい・等しくない。`12` と `12.0` は別の値——数値として比べたいときは値の式 `number` を通す）・`lte` / `gte` / `lt` / `gt`（順序の大小。
+**比べ方は値を読んだ項目の型で決まります**: `int` / `number` なら数、`date` / `time` / `datetime` なら日付・時刻・日時の値（`09:30` と `09:30:00` は同じ時刻）。項目の型が分からなければ数。その種類として読めなければ評価しません。
+決まった値どうしを日付として比べるときだけ `{lte: [左, 右], type: date}` と添えます。例 `{lte: [{of: t, path: start}, {of: t, path: end}]}`＝開始日は終了日以前）・`oneOf`（選択肢のどれかと等しい。`check` では `{oneOf: [左, [選択肢, ...]]}`、`where` では `oneOf: [値, ...]`）・`matches`（正規表現の**全体**一致。
 フィールドの `pattern` と同じ規則。決まった値で書いた正規表現が読めなければスキーマの読み込みエラー）・`startsWith` / `endsWith` / `contains`（前方・後方・部分の一致）。`where` では `eq` / `ne` の代わりに `equals` / `notEquals` を使います。
 - **型の「または」と否定**: `node` の `entity` には型の並びを書けます（`entity: [usecase, batch]`＝どれか）。`node: { not: { entity: [...], schema: ..., id: ... } }` は、その絞り込みに**合わない**ノードだけを残します（型が宣言されていない要素は、型の否定では残しません＝判定保留）。
 - **条件の否定と「または」**: `where` と `check` の各項目には、条件のほかに `{not: 条件}`（条件が成り立たない）と `{or: [条件, ...]}`（どれかが成り立つ）を書けます。入れ子は1段まで（`or` の中に書けるのは条件かその否定）・「かつ」は並べて書きます・`where` の `or` は同じ束縛（`of`）の条件どうしに限ります。
@@ -201,12 +203,12 @@ constraints:
 数として読めなければ得られない）・四則演算 `{add: [式, ...]}` / `{multiply: [式, ...]}`（2つ以上）と `{subtract: [式, 式]}` / `{divide: [式, 式]}`（どれかが数値として読めない・0 で割るときは得られない。
 小数の誤差は持ち込みません＝`0.1 + 0.2` は `0.3`）・書かれた場所の数 `{occurrenceCount: {of: 束縛, schema: スキーマID または 並び, fileGlob: パターン, role: defining | detail}}`（その ID が書かれている場所のうち、指定に合うものの数。
 `distinct: type` を添えると、宣言されたエンティティ型の種類の数）・参照の本数 `{refCount: {of: 束縛, dir: out | in, relation: 関係名, via: キー名}}`（その要素から出ていく／その要素へ入ってくる参照の本数。
-同じ相手への参照が2本あれば2と数え、出ていく参照は相手が見つからないものも数えます）・集計 `{sum | min | max: 配列を返す式, type: number | date}` と `{count: 配列を返す式}`（配列を受け取る関数。`count` は件数・`length` は文字数。値が書かれていない・順序の種類として読めない要素が1つでもあれば得られません）・
+同じ相手への参照が2本あれば2と数え、出ていく参照は相手が見つからないものも数えます）・集計 `{sum | min | max: 配列を返す式}` と `{count: 配列を返す式}`（配列を受け取る関数。`count` は件数・`length` は文字数。`min` / `max` の比べ方は読んだ項目の型で決まり、`type: number | date | time | datetime` を添えれば上書き。値が書かれていない・順序の種類として読めない要素が1つでもあれば得られません）・
 集合から配列へ `{all: {of: 束縛, in: 指定, path: 相対パス}}`（同じ起点について見つかった**全ての解**にわたり、その束縛の要素（重複は1つ）の値を並べる。`path` を省くと ID の配列。値は指定に合う文書のうち定義した側を優先して1つから読む。
 例 `{eq: [{number: {of: o, path: total}}, {sum: {all: {of: l, path: amount}}}]}`＝注文の合計は明細の金額の合計）と `{all: {from: 束縛, match: [...], where: [...], of, in, path}}`（`from` の束縛を起点に固定した照合の解から並べる。絞り方の違う合計を1つの検査に書ける）・
 要素ごとの式 `{each: 配列を返す式, value: 式}`（各要素をいまの要素として `value` を当てた配列。例 `{sum: {each: {of: o, path: lines}, value: {multiply: [{path: price}, {path: qty}]}}}`）。
-パスに `[*]` を書くと、その要素の**配列の全ての要素**の値を並べた配列になります（例 `{eq: [{of: t, path: lastUpdated}, {max: {all: {of: t, path: "comments[*].date"}, type: date}}]}`＝手書きの最終更新日は最新のコメントの日付と一致。
-`type: date` は日付として比べる宣言で、省略すると数値として比べます。`{count: {all: {of: t, path: "comments[*]"}}}` は配列の要素の数）。同じ式はビューの値の式の列（[views.md](views.md)）にも書けます。
+パスに `[*]` を書くと、その要素の**配列の全ての要素**の値を並べた配列になります（例 `{eq: [{of: t, path: lastUpdated}, {max: {all: {of: t, path: "comments[*].date"}}}]}`＝手書きの最終更新日は最新のコメントの日付と一致。
+`date` の項目なので日付として比べます。項目の型が分からない値（決まった値・計算の結果）を日付として比べるなら `type: date` を添えます。`{count: {all: {of: t, path: "comments[*]"}}}` は配列の要素の数）。同じ式はビューの値の式の列（[views.md](views.md)）にも書けます。
 制約の `count`（解の組の件数の範囲）と `all` の件数は数え方の単位が違います（制約の `count` は束縛の組・`all` は1つの束縛の要素）。
 式は入れ子に書けます（例 `{lte: [{length: {of: item, path: name}}, 10]}`＝名称は10文字以内、`{eq: [{number: {of: line, path: total}}, {multiply: [{of: line, path: price}, {of: line, path: qty}]}]}`＝金額は単価×数量）。
 指摘の文面には、何を計算したかが添えられます（`name の文字数: 14`・`「300」（= 100 × 3）`）。値が得られない組は評価せず（判定保留）、演算子を値として渡したいときは `{op: lte, left: 式, right: 式}` の形でも書けます。

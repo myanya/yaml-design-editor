@@ -156,9 +156,19 @@ object Views {
      * - index: 行の集合と出現の解決に使う（UIは未保存の編集を重ねた索引、エージェントはステージングを重ねた索引を渡す）
      * - loader: セル値の読み取り（文書ID → 文書の中身。UIは未保存編集を優先する loader、エージェントはステージングの tree）
      */
-    fun resolve(view: ViewDef, index: IdIndex, loader: (DocumentId) -> YNode?): List<ViewRow> {
+    fun resolve(
+        view: ViewDef,
+        index: IdIndex,
+        loader: (DocumentId) -> YNode?,
+        /** 文書のスキーマ（値の式の順序の種類と行の並びの種類を項目の型から決める。省くと `type` の宣言だけ）。 */
+        schemaFor: (DocumentId) -> SchemaDef? = { null },
+    ): List<ViewRow> {
         val trees = mutableMapOf<DocumentId, YNode?>()
-        return VirtualViews.resolve(view, index.entries, index.refs, index.graph, { it.value }) { d -> trees.getOrPut(d) { loader(d) } }
+        fun treeOf(d: DocumentId): YNode? = trees.getOrPut(d) { loader(d) }
+        return VirtualViews.resolve(
+            view, index.entries, index.refs, index.graph, { it.value }, ::treeOf,
+            fieldAt = { d, path -> schemaFor(d)?.let { s -> treeOf(d)?.let { root -> s.fieldAt(root, path) } } },
+        )
     }
 
     /**

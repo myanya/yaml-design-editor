@@ -100,7 +100,8 @@ data class VirtualEachDef(
 
 /**
  * 行の並びの値（order.path）: 並び基準の出現（order の schemaId / fileGlob。無ければ行のどの出現でも）から読んだ値の順。
- * kind は順序の種類（number / date。null＝文字の順）、descending は向き。値の読めない行は向きによらず後ろ。
+ * kind は順序の種類（number / date / time / datetime。null＝読む項目の型から決め、決まらなければ文字の順）、descending は向き。
+ * 値の読めない行は向きによらず後ろ。
  */
 data class VirtualOrderValue(
     val path: YPath,
@@ -132,7 +133,8 @@ data class VirtualMatrixCells(
     val all: Map<String, Any?>,
     val of: String,
     val aggregate: dev.toros.yde.semantic.schema.ValueExpr.AggregateFn,
-    val kind: dev.toros.yde.semantic.schema.ValueExpr.OrderKind,
+    /** 順序の種類（null＝集計が読む項目の型から）。 */
+    val kind: dev.toros.yde.semantic.schema.ValueExpr.OrderKind?,
     val key: VirtualMatrixKey,
 )
 
@@ -286,6 +288,8 @@ data class VirtualCell(
     val backlinks: List<VirtualBacklink>? = null,
     val computed: Boolean = false,
     val trace: VirtualComputedTrace? = null,
+    /** 計算セルの値の順序の種類（読んだ項目の型・集計の宣言から。合計の行が同じ種類で畳むために持つ）。 */
+    val kind: dev.toros.yde.semantic.schema.ValueExpr.OrderKind? = null,
 )
 
 /** 文書ビューの被参照1件。参照元要素のID・タイトルと、参照値の原本座標＝ジャンプ先。 */
@@ -345,6 +349,7 @@ object VirtualViews {
      * - ids / refs / graph: 行の集合と出現の解決（SemanticSnapshot または overlay 済みの同形入力）
      * - rel: ワークスペース相対パス（fileGlob 判定。セッション経路では DocumentId.value そのもの）
      * - tree: セル値の読み取り（呼び出し側が未保存編集・ステージングを注入する）
+     * - fieldAt: 値を読んだ場所の項目の定義（値の式の順序の種類と、行の並びの種類を項目の型から決める。無ければ `type` の宣言だけ）
      */
     fun resolve(
         viewDef: VirtualGridDef,
@@ -353,6 +358,7 @@ object VirtualViews {
         graph: SemanticEntityGraph,
         rel: (DocumentId) -> String,
         tree: (DocumentId) -> YNode?,
+        fieldAt: FieldResolver = NO_FIELDS,
     ): List<VirtualRow> {
         val view = lower(viewDef, ids, rel)  // クロス集計は、列を広げたグリッドとして解決する
         val trees = mutableMapOf<DocumentId, YNode?>()
@@ -401,11 +407,12 @@ object VirtualViews {
                 nodes = nodes, graph = graph,
                 refsInto = { id -> refs.filter { it.targetId == id } },
                 solutions = { solutions },
-                solveFrom = { origin, spec -> SemanticQuery.matchesFrom(ids, refs, graph, spec, origin.id, ::cachedTree) },
+                solveFrom = { origin, spec -> SemanticQuery.matchesFrom(ids, refs, graph, spec, origin.id, fieldAt, ::cachedTree) },
                 reserved = buildMap {
                     put(SemanticValues.RESERVED_ID, node.id)
                     node.title?.let { put(SemanticValues.RESERVED_TITLE, it) }
                 },
+                fieldAt = fieldAt,
             )
             val result = SemanticValues.evaluateDetailed(value.expr, env)
             val side = result.side
@@ -422,6 +429,7 @@ object VirtualViews {
                     raw = raw,
                     inputs = side?.inputs.orEmpty().map { VirtualComputedInput(it.placeholder, it.value, it.document, it.path) },
                 ),
+                kind = side?.kind,
             )
         }
 
@@ -439,7 +447,7 @@ object VirtualViews {
         val query = view.rowsQuery
         if (query != null) {
             val rowKeyName = view.rowKey ?: query.binds.first()
-            return SemanticQuery.run(ids, refs, graph, query, ::cachedTree).rows.map { qr ->
+            return SemanticQuery.run(ids, refs, graph, query, fieldAt, ::cachedTree).rows.map { qr ->
                 val keyNode = qr.bindings.getValue(rowKeyName)
                 val occurrences = occurrencesOf(keyNode.id)
                 val cells = view.columns.map { column ->
@@ -518,7 +526,7 @@ object VirtualViews {
                 )
             }
             .toList()
-        return withTotals(view, sortRows(view, rows, rel, ::cachedTree))
+        return withTotals(view, sortRows(view, rows, rel, ::cachedTree, fieldAt))
     }
 
     // ---------------------------------------------------------------- クロス集計（kind: matrix）の展開
@@ -598,9 +606,7 @@ object VirtualViews {
         fun column(label: String, all: Map<String, Any?>): VirtualViewColumn {
             val raw = LinkedHashMap<String, Any?>()
             raw[cells.aggregate.id] = mapOf("all" to all)
-            if (cells.aggregate != dev.toros.yde.semantic.schema.ValueExpr.AggregateFn.COUNT &&
-                cells.kind == dev.toros.yde.semantic.schema.ValueExpr.OrderKind.DATE
-            ) raw["type"] = "date"
+            if (cells.aggregate != dev.toros.yde.semantic.schema.ValueExpr.AggregateFn.COUNT) cells.kind?.let { raw["type"] = it.id }
             return VirtualViewColumn(label = label, path = emptyList(), value = ExpressionValue.of(raw, "cells", label), display = matrix.display)
         }
         val columns = mutableListOf<VirtualViewColumn>()
@@ -637,13 +643,15 @@ object VirtualViews {
             dev.toros.yde.semantic.schema.ValueExpr.AggregateFn.MAX -> dev.toros.yde.semantic.schema.ValueExpr.AggregateFn.MAX
             else -> dev.toros.yde.semantic.schema.ValueExpr.AggregateFn.SUM
         }
-        val kind = if (matrix.cells.aggregate == dev.toros.yde.semantic.schema.ValueExpr.AggregateFn.COUNT) {
-            dev.toros.yde.semantic.schema.ValueExpr.OrderKind.NUMBER
-        } else matrix.cells.kind
         val totalCells = view.columns.mapIndexed { i, column ->
-            val texts = rows.map { r -> scalarText(r.cells.getOrNull(i)?.value) }
+            val cells = rows.map { r -> r.cells.getOrNull(i) }
+            // 順序の種類: 件数は数値・それ以外は宣言か、列のセルが読んだ項目の型（セルの値の種類）
+            val kind = if (matrix.cells.aggregate == dev.toros.yde.semantic.schema.ValueExpr.AggregateFn.COUNT) {
+                dev.toros.yde.semantic.schema.ValueExpr.OrderKind.NUMBER
+            } else matrix.cells.kind ?: cells.firstNotNullOfOrNull { it?.kind } ?: dev.toros.yde.semantic.schema.ValueExpr.OrderKind.NUMBER
+            val texts = cells.map { scalarText(it?.value) }
             val total = if (texts.any { it == null }) null else SemanticExpression.aggregate(fn, texts.map { it!! }, kind)
-            VirtualCell(column = column, document = null, path = null, value = total?.let { YNode.Scalar(it) }, computed = true)
+            VirtualCell(column = column, document = null, path = null, value = total?.let { YNode.Scalar(it) }, computed = true, kind = kind)
         }
         return rows + VirtualRow(
             id = TOTAL_LABEL, title = null, occurrences = emptyList(), cells = totalCells, detailDocument = null, detailPath = null,
@@ -757,28 +765,33 @@ object VirtualViews {
         rows: List<VirtualRow>,
         rel: (DocumentId) -> String,
         tree: (DocumentId) -> YNode?,
+        fieldAt: FieldResolver,
     ): List<VirtualRow> {
         val orderValue = view.orderValue
         if (orderValue != null) {
             val source = view.orderBy
-            data class Keyed(val row: VirtualRow, val number: java.math.BigDecimal?, val text: String?) {
-                val missing: Boolean get() = number == null && text == null
-            }
+            fun occurrencesOf(row: VirtualRow) = row.occurrences.asSequence()
+                .filter { occ -> source == null || source.matches(occ, rel(occ.document)) }
+            // 順序の種類: 宣言（type）か、並びの値を読む項目の型（行のどれかの出現から。決まらなければ文字の順）
+            val kind = orderValue.kind ?: rows.asSequence().flatMap(::occurrencesOf)
+                .firstNotNullOfOrNull { occ -> fieldAt(occ.document, occ.path + orderValue.path)?.let { dev.toros.yde.semantic.schema.ValueExpr.OrderKind.ofType(it.type) } }
+            // 鍵は、数値なら数・意味の基底型なら値の表現・それ以外は文字（読めない行は鍵なし＝後ろ）
+            data class Keyed(val row: VirtualRow, val key: Comparable<Any>?)
+            @Suppress("UNCHECKED_CAST")
             fun keyOf(row: VirtualRow): Keyed {
-                val text = row.occurrences.asSequence()
-                    .filter { occ -> source == null || source.matches(occ, rel(occ.document)) }
+                val text = occurrencesOf(row)
                     .mapNotNull { occ -> tree(occ.document)?.let { scalarText(getAt(it, occ.path + orderValue.path)) } }
                     .firstOrNull()
-                return when (orderValue.kind) {
-                    dev.toros.yde.semantic.schema.ValueExpr.OrderKind.NUMBER -> Keyed(row, text?.let(SemanticExpression::numberOf), null)
-                    dev.toros.yde.semantic.schema.ValueExpr.OrderKind.DATE ->
-                        Keyed(row, null, text?.trim()?.takeIf { dev.toros.yde.semantic.schema.ValueSemantics.DATE.reads(it) })
-                    null -> Keyed(row, null, text)
+                val key: Comparable<Any>? = when {
+                    text == null -> null
+                    kind == null -> text as Comparable<Any>
+                    kind.value != null -> kind.value.orderKey(text)
+                    else -> SemanticExpression.numberOf(text) as Comparable<Any>?
                 }
+                return Keyed(row, key)
             }
-            val byValue: Comparator<Keyed> =
-                if (orderValue.kind == dev.toros.yde.semantic.schema.ValueExpr.OrderKind.NUMBER) compareBy { it.number } else compareBy { it.text }
-            val comparator = compareBy<Keyed> { if (it.missing) 1 else 0 }
+            val byValue: Comparator<Keyed> = compareBy { it.key }
+            val comparator = compareBy<Keyed> { if (it.key == null) 1 else 0 }
                 .then(if (orderValue.descending) byValue.reversed() else byValue)
                 .thenBy { it.row.id }
             return rows.map(::keyOf).sortedWith(comparator).map { it.row }

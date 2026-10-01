@@ -113,7 +113,7 @@ object Foreach {
         if (def.where == "detail-missing" && view.detail == null) {
             error("ビュー「$viewId」に detail 定義がないため where: detail-missing は使えません")
         }
-        return Views.resolve(view, ws.index, ws::treeOf)
+        return Views.resolve(view, ws.index, ws::treeOf, ws::schemaFor)
             .filter { def.where == "all" || it.detailDocument?.value == null }
             .map { row ->
                 Candidate(

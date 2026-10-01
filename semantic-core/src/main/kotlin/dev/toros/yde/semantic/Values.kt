@@ -8,6 +8,7 @@ import dev.toros.yde.yaml.model.parseYPath
 import dev.toros.yde.yaml.model.pretty
 import dev.toros.yde.yaml.model.scalarText
 import dev.toros.yde.semantic.schema.DerivationSelector
+import dev.toros.yde.semantic.schema.FieldDef
 import dev.toros.yde.semantic.schema.PathPattern
 import dev.toros.yde.semantic.schema.Projection
 import dev.toros.yde.semantic.schema.QueryDir
@@ -64,6 +65,11 @@ object SemanticValues {
         val holeValue: (String) -> String = { it },
         /** 得られない読み出しと埋まらない穴の代わりの値（定義の点検で代表値を得るためのもの。null＝得られない）。 */
         val fallback: String? = null,
+        /**
+         * 値を読んだ場所（文書と、その中のパス）の項目の定義（解決済み）。読んだ値の順序の種類（数値・日付・時刻・日時）を
+         * 項目の型から決めるために使う（式に `type` を書かないときの既定。スキーマを知る側＝カーネルやアプリが渡す。無ければ決まらない）。
+         */
+        val fieldAt: (DocumentId, YPath) -> FieldDef? = { _, _ -> null },
     ) {
         /** each の 1 つの要素を「いまの要素」とする環境（出現の割当ては引き継がない。束縛と解の一覧はそのまま）。 */
         fun forElement(element: SemanticQueryNodeRef?, occurrence: SemanticExpression.Occurrence?): Environment = Environment(
@@ -75,8 +81,12 @@ object SemanticValues {
                     e.title?.let { put(RESERVED_TITLE, it) }
                 }
             },
-            holeValue = holeValue, fallback = fallback,
+            holeValue = holeValue, fallback = fallback, fieldAt = fieldAt,
         )
+
+        /** その場所の値の順序の種類（項目の型から。場所が無い・型に順序が無ければ null）。 */
+        fun kindAt(document: DocumentId?, path: YPath?): ValueExpr.OrderKind? =
+            if (document == null || path == null) null else fieldAt(document, path)?.let { ValueExpr.OrderKind.ofType(it.type) }
     }
 
     /**
@@ -203,7 +213,12 @@ object SemanticValues {
                     !input.isScalar && expr.fn == ValueExpr.UnaryFn.LENGTH -> fail("length は文字数です（配列の件数は count で数えます）: ${input.text}")
                     !input.isScalar -> fail("${expr.fn.id} はスカラーだけを受け取ります: ${input.text}")
                     else -> SemanticExpression.unary(expr.fn, input.text)?.let { text ->
-                        input.copy(text = text, raw = input.raw ?: input.text, note = expr.fn.label ?: input.note)
+                        // 文字数と数の読みは数値・大文字と小文字はそのまま文字（順序の種類は決まらない）
+                        val kind = when (expr.fn) {
+                            ValueExpr.UnaryFn.LENGTH, ValueExpr.UnaryFn.NUMBER -> ValueExpr.OrderKind.NUMBER
+                            ValueExpr.UnaryFn.UPPER, ValueExpr.UnaryFn.LOWER -> null
+                        }
+                        input.copy(text = text, raw = input.raw ?: input.text, note = expr.fn.label ?: input.note, kind = kind)
                     }
                 }
             }
@@ -219,7 +234,7 @@ object SemanticValues {
                     (expr.relation == null || ref.relation == expr.relation) &&
                         (expr.via == null || QueryEdgeStep.viaMatches(expr.via, ref.viaKey, ref.path))
                 }
-                SemanticCheckSide(text = n.toString(), id = node.id, raw = n.toString())
+                SemanticCheckSide(text = n.toString(), id = node.id, raw = n.toString(), kind = ValueExpr.OrderKind.NUMBER)
             }
             // 書かれた場所の数（SP-05）: その ID が書かれている場所のうち、指定（スキーマ・ファイル・役割）に合うものを数える。
             // distinct: type は、合う場所で宣言されているエンティティ型の種類を数える（元の値に、型の並びを添える）
@@ -228,10 +243,10 @@ object SemanticValues {
                 val occurrences = graph.entities[node.id]?.occurrences.orEmpty()
                     .filter { expr.matches(it.schemaId, env.rel(it.document), it.role) }
                 if (expr.distinct == null) {
-                    SemanticCheckSide(text = occurrences.size.toString(), id = node.id, raw = occurrences.size.toString())
+                    SemanticCheckSide(text = occurrences.size.toString(), id = node.id, raw = occurrences.size.toString(), kind = ValueExpr.OrderKind.NUMBER)
                 } else {
                     val types = occurrences.mapNotNull { it.entityType }.distinct()
-                    SemanticCheckSide(text = types.size.toString(), id = node.id, raw = types.joinToString(", "))
+                    SemanticCheckSide(text = types.size.toString(), id = node.id, raw = types.joinToString(", "), kind = ValueExpr.OrderKind.NUMBER)
                 }
             }
             is ValueExpr.Aggregate -> aggregateOf(expr)
@@ -252,6 +267,7 @@ object SemanticValues {
                 id = first?.id,
                 raw = operands.joinToString(" ${expr.op.symbol} ") { it.text },
                 sourceDocument = first?.sourceDocument, sourcePath = first?.sourcePath,
+                kind = ValueExpr.OrderKind.NUMBER,
             )
         }
 
@@ -291,6 +307,8 @@ object SemanticValues {
                         bind = expr.of, id = id,
                         document = occ.document, occPath = occ.path, path = expr.path,
                         raw = text, sourceDocument = occ.document, sourcePath = absolute,
+                        // 読んだ項目の型が、この値の順序の種類（比較・集計が `type` を書かないときの既定）
+                        kind = env.kindAt(occ.document, absolute),
                     )
                 }
                 is YNode.Seq -> arraySide(
@@ -346,7 +364,15 @@ object SemanticValues {
             if (expr.fn == ValueExpr.AggregateFn.COUNT) {
                 val n = elements.size.toString()
                 val raw = if (elements.isEmpty()) n else "件数: " + elements.joinToString("・") { it.ref?.id ?: it.placeholder }
-                return SemanticCheckSide(text = n, bind = input.bind, id = input.id, raw = raw, inputs = elements)
+                return SemanticCheckSide(text = n, bind = input.bind, id = input.id, raw = raw, inputs = elements, kind = ValueExpr.OrderKind.NUMBER)
+            }
+            // 順序の種類: `type` の宣言か、読んだ項目の型（材料のどれかの場所から。決まらなければ数値）
+            val kind = expr.kind
+                ?: elements.firstNotNullOfOrNull { el -> env.kindAt(el.document, el.path) }
+                ?: ValueExpr.OrderKind.NUMBER
+            if (expr.fn == ValueExpr.AggregateFn.SUM && kind.value != null) {
+                fail("${kind.label}は足せません（${expr.fn.label}の材料が${kind.label}の項目です）")
+                return fallbackSide()
             }
             val values = elements.map { el ->
                 val v = el.value ?: run {
@@ -354,13 +380,13 @@ object SemanticValues {
                     fail("${el.placeholder} が書かれていません")
                     return fallbackSide()
                 }
-                if (!SemanticExpression.readable(expr.kind, v)) {
-                    fail("${el.placeholder} が${expr.kind.label}として読めません: $v")
+                if (!SemanticExpression.readable(kind, v)) {
+                    fail("${el.placeholder} が${kind.label}として読めません: $v")
                     return fallbackSide()
                 }
                 v
             }
-            val result = SemanticExpression.aggregateDetailed(expr.fn, values, expr.kind) ?: run {
+            val result = SemanticExpression.aggregateDetailed(expr.fn, values, kind) ?: run {
                 fail(if (values.isEmpty()) "値がありません" else "${expr.fn.label}を計算できません")
                 return fallbackSide()
             }
@@ -371,6 +397,7 @@ object SemanticValues {
                 raw = "${expr.fn.label}: ${values.joinToString("・")}",
                 sourceDocument = winner?.document, sourcePath = winner?.path,
                 inputs = elements,
+                kind = kind,
             )
         }
 

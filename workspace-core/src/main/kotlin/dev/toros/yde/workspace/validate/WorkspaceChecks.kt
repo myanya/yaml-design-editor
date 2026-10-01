@@ -18,6 +18,7 @@ import dev.toros.yde.semantic.schema.SchemaKind
 import dev.toros.yde.semantic.schema.SchemaTree
 import dev.toros.yde.semantic.CheckOutcome
 import dev.toros.yde.semantic.CheckReason
+import dev.toros.yde.semantic.FieldResolver
 import dev.toros.yde.semantic.ScannedId
 import dev.toros.yde.semantic.ScannedRef
 import dev.toros.yde.semantic.SemanticCheckSession
@@ -220,6 +221,16 @@ class WorkspaceChecks(
     /** コードで実装された検査のうち、ワークスペースの他の文書も見るもの。 */
     private val coded = CodedDocumentChecks(schemas, ids, rel, tree)
 
+    /**
+     * 値を読んだ場所の項目の定義（順序の比較・集計の種類を項目の型から決める。SemanticValues.Environment.fieldAt）。
+     * 文書のスキーマは、文書の場所に合う最初のスキーマ（WorkspaceReader.schemaIdFor と同じ規則）。
+     */
+    private val schemaByDocument = HashMap<DocumentId, WorkspaceSchema?>()
+    private val fieldAt: FieldResolver = { document, path ->
+        val schema = synchronized(schemaByDocument) { schemaByDocument.getOrPut(document) { schemas.firstOrNull { it.matches(rel(document)) } } }
+        schema?.let { s -> tree(document)?.let { root -> s.tree.fieldAt(root, path) } }
+    }
+
     // 特定のスキーマに属さない検査: 組込み定義体に直接書いた検査と、kind: relations / library の文書の検査
     private val sharedRuleGroups: List<RuleGroup<ConstraintRule>> =
         listOf(RuleGroup(CheckCatalog.BUILTIN_OWNER, null, builtinRules)) +
@@ -299,7 +310,7 @@ class WorkspaceChecks(
                     // 保留も、その値が書かれた文書で集める（意図的差分 D-29 ③）
                     for (entry in localIds) {
                         val pin = reportAt.source to SemanticExpression.Occurrence(document, entry.path)
-                        val pinned = session.pinnedResult(rule, entry.id, pin, rel, tree)
+                        val pinned = session.pinnedResult(rule, entry.id, pin, rel, tree, fieldAt)
                         issues += valueIssues(rule, entry.id, entry.path, pinned)
                         pinned.takeIf { it.outcome == CheckOutcome.WITHHELD }?.reason?.let { reason ->
                             withheld += WithheldCheck(rule.origin, rule.id, rule.description, null, entry.id, entry.path + reportAt.path, reason)
@@ -447,7 +458,7 @@ class WorkspaceChecks(
         }
     }
 
-    private fun result(rule: ConstraintRule, id: String): SemanticRuleResult = session.result(rule, id, rel, tree)
+    private fun result(rule: ConstraintRule, id: String): SemanticRuleResult = session.result(rule, id, rel, tree, fieldAt)
 
     /** 根拠に関わった要素（解の束縛と、比べた値の要素）の ID。対象の要素を除き、ID 昇順で全件。 */
     private fun evidenceOf(id: String, rows: List<SemanticQueryRow>, violations: List<SemanticCheckViolation> = emptyList()): List<String> =
@@ -554,13 +565,13 @@ class WorkspaceChecks(
         if (outcome.reason == CheckReason.NOT_IN_SCOPE) return null
         val diagnosis = constraint(rule, id)
         val summary = if (rule.check.isNotEmpty()) {
-            val evaluations = SemanticQuery.checkEvaluationsFrom(ids, refs, graph, rule.spec, rule.check, id, rel, tree)
+            val evaluations = SemanticQuery.checkEvaluationsFrom(ids, refs, graph, rule.spec, rule.check, id, rel, fieldAt, tree)
             // 不足している項目があればその値、なければ最初の項目の値を、状況の1行に出す
             (evaluations.firstOrNull { !it.satisfied } ?: evaluations.firstOrNull())?.let { e ->
                 renderTemplate(template, id, rule = rule, v = SemanticCheckViolation(e.check, e.term, e.left, e.right, e.row))
             }
         } else {
-            val found = SemanticQuery.matchesFrom(ids, refs, graph, rule.spec, id, tree)
+            val found = SemanticQuery.matchesFrom(ids, refs, graph, rule.spec, id, fieldAt, tree)
             renderTemplate(template, id, rule = rule, row = found.rows.firstOrNull(), count = found.total)
         }
         return RuleStatus(

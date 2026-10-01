@@ -354,4 +354,35 @@ class QueryDeclarationTest {
     private companion object {
         val DEFAULT_MATCH: List<Any?> = listOf(mapOf("node" to mapOf("entity" to "screen", "bind" to "s")))
     }
+
+    @Test
+    fun `順序の比較には type を添えられ それ以外の条件や未知の種類は定義エラー`() {
+        val left = mapOf("of" to "s", "path" to "start")
+        val right = mapOf("of" to "s", "path" to "end")
+        // 1 キーの形と op の形の両方。省けば null（項目の型から決める）
+        val short = ConstraintCheck.parse(mapOf("lte" to listOf(left, right), "type" to "date"), "c").terms.single()
+        assertEquals(ValueExpr.OrderKind.DATE, short.kind)
+        assertEquals(CheckOp.LTE, short.op)
+        val long = ConstraintCheck.parse(mapOf("op" to "gt", "left" to left, "right" to right, "type" to "time"), "c").terms.single()
+        assertEquals(ValueExpr.OrderKind.TIME, long.kind)
+        assertNull(ConstraintCheck.parse(mapOf("lte" to listOf(left, right)), "c").terms.single().kind)
+        // 否定にも添えられる
+        val negated = ConstraintCheck.parse(mapOf("not" to mapOf("lt" to listOf(left, right), "type" to "datetime")), "c").terms.single()
+        assertEquals(ValueExpr.OrderKind.DATETIME, negated.kind)
+        assertTrue(negated.negated)
+        assertFailsWith<IllegalStateException> { ConstraintCheck.parse(mapOf("eq" to listOf(left, right), "type" to "date"), "c") }
+        assertFailsWith<IllegalStateException> { ConstraintCheck.parse(mapOf("lte" to listOf(left, right), "type" to "text"), "c") }
+        // where も同じ: 順序の比較にだけ
+        val where = QueryWhere.parse(mapOf("of" to "s", "path" to "start", "gt" to "2026-06-01", "type" to "date"), "w")
+        assertEquals(ValueExpr.OrderKind.DATE, where.kind)
+        assertNull(QueryWhere.parse(mapOf("of" to "s", "path" to "start", "gt" to "2026-06-01"), "w").kind)
+        assertFailsWith<IllegalStateException> { QueryWhere.parse(mapOf("of" to "s", "path" to "start", "equals" to "x", "type" to "date"), "w") }
+        // 集計の type は省ける（項目の型から）。日時なども書ける
+        assertNull((ValueExpr.parseValue(mapOf("max" to mapOf("path" to "items[*].at")), "x") as ValueExpr.Aggregate).kind)
+        assertEquals(
+            ValueExpr.OrderKind.DATETIME,
+            (ValueExpr.parseValue(mapOf("max" to mapOf("path" to "items[*].at", "type" to "datetime")), "x") as ValueExpr.Aggregate).kind,
+        )
+        assertFailsWith<IllegalArgumentException> { ValueExpr.parseValue(mapOf("sum" to mapOf("path" to "items[*].at", "type" to "time")), "x") }
+    }
 }

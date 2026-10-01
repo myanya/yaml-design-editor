@@ -29,15 +29,16 @@ class SemanticCheckSession(
     private val checkerRuns = IdentityHashMap<CheckerArgs, SemanticCheckerRun>()
     private val memos = IdentityHashMap<Any, HashMap<String, Any>>()
 
-    /** クエリの検査 × 要素の結果（SemanticRules.evaluate。最初の1回だけ評価する）。 */
+    /** クエリの検査 × 要素の結果（SemanticRules.evaluate。最初の1回だけ評価する）。fieldAt は値を読んだ場所の項目の定義。 */
     @Synchronized
     fun result(
         rule: ConstraintRule,
         startId: String,
         rel: (DocumentId) -> String,
         loader: (DocumentId) -> YNode?,
+        fieldAt: FieldResolver = NO_FIELDS,
     ): SemanticRuleResult = results.getOrPut(rule) { HashMap() }.getOrPut(startId) {
-        SemanticRules.evaluate(ids, refs, graph, rule, startId, rel = rel, loader = loader)
+        SemanticRules.evaluate(ids, refs, graph, rule, startId, rel = rel, loader = loader, fieldAt = fieldAt)
     }
 
     /**
@@ -50,7 +51,8 @@ class SemanticCheckSession(
         pin: Pair<ValueExpr.ScopeRef, SemanticExpression.Occurrence>,
         rel: (DocumentId) -> String,
         loader: (DocumentId) -> YNode?,
-    ): SemanticRuleResult = SemanticRules.evaluate(ids, refs, graph, rule, startId, rel = rel, pin = pin, loader = loader)
+        fieldAt: FieldResolver = NO_FIELDS,
+    ): SemanticRuleResult = SemanticRules.evaluate(ids, refs, graph, rule, startId, rel = rel, pin = pin, loader = loader, fieldAt = fieldAt)
 
     /** 専用チェッカーの1回分（渡す値ごとに、最初の1回だけ実行する）。 */
     @Synchronized

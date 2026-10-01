@@ -72,7 +72,10 @@ object SchemaDefinitionChecks {
         if (schema.kind != SchemaKind.DOCUMENT || schema.isTemplate) {
             return listOf(SchemaIssue(FileNameRules.message(FileNameRules.Kind.NOT_DOCUMENT_SCHEMA, pattern.where), "filePattern"))
         }
-        val representative = schema.entities.firstNotNullOfOrNull { it.idPattern }?.replace("*", "X") ?: "X"
+        // 代表の ID: idPattern の * を仮埋め・idType なら型のサンプル値
+        val representative = schema.entities.firstNotNullOfOrNull { decl ->
+            decl.idPattern?.replace("*", "X") ?: decl.idType?.let { schema.tree.resolveTypeName(it)?.sample?.toString() }
+        } ?: "X"
         val issues = FileNameRules.formIssues(pattern) +
             FileNameRules.placementIssues(pattern, representative, schema.match, schema::matches)
         return issues.map { SchemaIssue(it.message, "filePattern") }
@@ -153,13 +156,14 @@ object SchemaDefinitionChecks {
             if (phases != null) issues += SchemaIssue("library スキーマに phases は定義できません", "phases")
         }
 
-        // エンティティ型宣言（R20-01）の妥当性: 型の重複・catch-all（idPattern なし）の多重宣言
+        // エンティティ型宣言（R20-01）の妥当性: 型の重複・catch-all（ID の決まりなし）の多重宣言・ID の型（idType）の解決
         entities.groupBy { it.type }.filterValues { it.size > 1 }.keys.forEach {
             issues += SchemaIssue("エンティティ型「$it」が重複しています", "entity")
         }
-        if (entities.count { it.idPattern == null } > 1) {
-            issues += SchemaIssue("idPattern のないエンティティ型宣言は1つまでです（複数型は idPattern で判別します）", "entity")
+        if (entities.count { !it.hasIdRule } > 1) {
+            issues += SchemaIssue("idPattern / idType のないエンティティ型宣言は1つまでです（複数型は idPattern か idType で判別します）", "entity")
         }
+        entities.mapNotNull { it.idTypeError }.forEach { issues += SchemaIssue(it, "entity") }
 
         // 狭める規則（P33）: 使う側（型から型へ、も同じ）に書いた決まりは、型（解決済みの定義 def）の決まりより緩くできない
         fun checkNarrowing(use: FieldDef, def: FieldDef, key: DefinitionKey, path: String) {

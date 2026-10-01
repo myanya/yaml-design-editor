@@ -337,7 +337,7 @@ Workspace, Environment, σ ⊢ Expression ⇓ Value | Unknown
 ```text
 関数（引数を先に評価して値を受け取る。型が合わなければ Unknown）:
   Literal(value)  Get(binding, path)
-  Sum / Min / Max / Count(array)              -- 配列を受け取る。Count は件数。順序の種類（数値・日付）は引数
+  Sum / Min / Max / Count(array)              -- 配列を受け取る。Count は件数。種類は項目の型か引数
   Length(string)  Upper  Lower  Number  Map(expr, dictionary)
   Add  Subtract  Multiply  Divide
 形を受け取る語（自分の規則で評価する）:
@@ -439,7 +439,7 @@ OccurrenceCount(binding, schema, role)    -- その ID が書かれた場所（�
 
 `All` は出現を量化せず、値を読む出現を定義した側を優先して1つに決める（CALC-19）。path の `[*]` は 1 つの要素の中の配列に広がり、
 `All` と重ねると平らな配列になる。読めない要素が1つでもあれば配列そのものが Unknown（集める側で判定する）。各要素は出どころを持ち、
-`Min` / `Max` の結果は選ばれた要素の出どころ、`Sum` / `Count` は出どころを持たない。順序の種類は関数の引数に宣言し、表記から意味を決めない。
+`Min` / `Max` の結果は選ばれた要素の出どころ、`Sum` / `Count` は出どころを持たない。順序の種類は項目の型で決まり（引数で上書き）、表記から意味を決めない。
 
 Constraint の count（解の組の件数の範囲）は数え上げの単位が異なるため統合しない。
 

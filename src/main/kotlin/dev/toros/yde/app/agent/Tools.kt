@@ -485,7 +485,7 @@ class AgentToolbox(
                     "（利用可能: ${(loaded.views + loaded.docViews).joinToString(", ") { it.id }.ifEmpty { "なし" }}）"
             )
         val index = staging.index()
-        val rows = Views.resolve(view, index) { d -> staging.tree(d.value) }
+        val rows = Views.resolve(view, index, { d -> staging.tree(d.value) }, ws::schemaFor)
             .filter { rowsPattern == null || idMatchesPattern(it.id, rowsPattern) }
         return Views.renderText(view, rows, columns, index, tree = { d -> staging.tree(d.value) })
     }

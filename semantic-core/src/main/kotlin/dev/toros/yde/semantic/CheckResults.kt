@@ -84,12 +84,14 @@ object SemanticRules {
         /** 値を読む出現の固定（指摘を「値が書かれた場所」へ出す検査で、その場所の出現だけを調べるために使う）。 */
         pin: Pair<ValueExpr.ScopeRef, SemanticExpression.Occurrence>? = null,
         loader: (DocumentId) -> YNode?,
+        /** 値を読んだ場所の項目の定義（順序の比較の種類を項目の型から決める）。 */
+        fieldAt: FieldResolver = NO_FIELDS,
     ): SemanticRuleResult {
-        if (!SemanticQuery.startMatches(ids, refs, graph, rule.spec, startId, loader)) {
+        if (!SemanticQuery.startMatches(ids, refs, graph, rule.spec, startId, fieldAt, loader)) {
             return SemanticRuleResult.skipped(CheckReason.NOT_IN_SCOPE)
         }
         if (rule.check.isNotEmpty()) {
-            val run = SemanticQuery.checkRunFrom(ids, refs, graph, rule.spec, rule.check, startId, rel, pin, loader)
+            val run = SemanticQuery.checkRunFrom(ids, refs, graph, rule.spec, rule.check, startId, rel, pin, fieldAt, loader)
             return when {
                 // 条件を満たさない組は、見つかった値が根拠（候補が失われていても違反は違反）
                 run.violations.isNotEmpty() -> SemanticRuleResult(CheckOutcome.VIOLATED, violations = run.violations)
@@ -101,7 +103,7 @@ object SemanticRules {
             }
         }
         rule.forAll?.let { forAll ->
-            val result = SemanticQuery.forAllFrom(ids, refs, graph, rule.spec, forAll, startId, rel, loader)
+            val result = SemanticQuery.forAllFrom(ids, refs, graph, rule.spec, forAll, startId, rel, fieldAt, loader)
                 ?: return SemanticRuleResult.skipped(CheckReason.EMPTY_COLLECTION)
             return when {
                 result.missing.isNotEmpty() -> SemanticRuleResult(CheckOutcome.VIOLATED, forAll = result)
@@ -109,7 +111,7 @@ object SemanticRules {
                 else -> SemanticRuleResult(CheckOutcome.SATISFIED, forAll = result)
             }
         }
-        val matches = SemanticQuery.matchesFrom(ids, refs, graph, rule.spec, startId, loader)
+        val matches = SemanticQuery.matchesFrom(ids, refs, graph, rule.spec, startId, fieldAt, loader)
         val count = rule.count
         if (count != null) {
             val below = count.min != null && matches.total < count.min!!

@@ -102,10 +102,10 @@ sealed interface ValueExpr {
     }
 
     /**
-     * 集計（配列を受け取る関数）。input は配列を返す式で、先に評価する。kind は順序の種類（min / max がどう比べるか）。
-     * count は要素の数（値は読まない）。
+     * 集計（配列を受け取る関数）。input は配列を返す式で、先に評価する。kind は順序の種類（min / max がどう比べるか。
+     * null＝読んだ項目の型から決める。型が決まらなければ数値）。count は要素の数（値は読まない）。
      */
-    data class Aggregate(val fn: AggregateFn, val input: ValueExpr, val kind: OrderKind = OrderKind.NUMBER) : ValueExpr
+    data class Aggregate(val fn: AggregateFn, val input: ValueExpr, val kind: OrderKind? = null) : ValueExpr
 
     /**
      * 集合から配列へ（CORE-CALCULUS「Aggregate」の All）。query が null なら同じ起点の全ての解にわたり、of の束縛の要素（重複は 1 つ）
@@ -131,16 +131,27 @@ sealed interface ValueExpr {
         COUNT("count", "件数"),
     }
 
-    /** 順序の種類（値をどう比べるか）。スキーマの項目の型と同じ言葉で、順序を持つ型は数値（int / number）と日付（date）。 */
-    enum class OrderKind(val id: String, val label: String) {
+    /**
+     * 順序の種類（値をどう比べるか）。スキーマの項目の型と同じ言葉で、順序を持つ型は数値（int / number）と
+     * 意味の基底型（date / time / datetime＝値の表現 ValueSemantics で比べる）。式に `type` を書かなければ、読んだ項目の型から決める。
+     */
+    enum class OrderKind(val id: String, val label: String, val value: ValueSemantics? = null) {
         NUMBER("number", "数値"),
-        DATE("date", "日付"),
+        DATE("date", "日付", ValueSemantics.DATE),
+        TIME("time", "時刻", ValueSemantics.TIME),
+        DATETIME("datetime", "日時", ValueSemantics.DATETIME),
         ;
 
         companion object {
             fun parse(text: String, where: String): OrderKind =
                 entries.firstOrNull { it.id == text }
                     ?: error("$where.type は ${entries.joinToString(" / ") { it.id }} のいずれかです: $text")
+
+            /** 項目の型が持つ順序の種類（数値・日付・時刻・日時。文字列などは null＝順序の種類は決まらない）。 */
+            fun ofType(type: FieldType): OrderKind? = when (type) {
+                FieldType.INT, FieldType.NUMBER -> NUMBER
+                else -> type.value?.let { v -> entries.firstOrNull { it.value == v } }
+            }
         }
     }
 
@@ -435,7 +446,8 @@ sealed interface ValueExpr {
         }
 
         /**
-         * 集計の読み取り。引数は配列を返す式。短い書き方（`{path, in, via}`）はいまの要素からの読み出し。`type` は順序の種類。
+         * 集計の読み取り。引数は配列を返す式。短い書き方（`{path, in, via}`）はいまの要素からの読み出し。`type` は順序の種類
+         * （省くと読んだ項目の型から決める）。
          * 古い書き方（`of` で解にわたる集計・`count` に `match`）は残さず、同じ意味の `all` の書き方を文面で案内する。
          */
         private fun parseAggregate(fn: AggregateFn, raw: Any?, where: String, current: Boolean): Aggregate {
@@ -443,8 +455,8 @@ sealed interface ValueExpr {
                 ?: error("$where はobject（{path: 配列のパス, type: number | date} か、配列を返す式）である必要があります")
             val typeText = a["type"]?.toString()?.takeIf { it.isNotBlank() }
             if (fn == AggregateFn.COUNT) require(typeText == null) { "$where に type は書けません（数えるだけで、値は比べません）" }
-            val kind = typeText?.let { OrderKind.parse(it, where) } ?: OrderKind.NUMBER
-            require(!(fn == AggregateFn.SUM && kind == OrderKind.DATE)) { "$where に type: date は書けません（日付は足せません）" }
+            val kind = typeText?.let { OrderKind.parse(it, where) }
+            require(!(fn == AggregateFn.SUM && kind?.value != null)) { "$where に type: ${kind?.id} は書けません（${kind?.label}は足せません）" }
             val rest = a.filterKeys { it.toString() != "type" }
             val keys = rest.keys.map { it.toString() }
             if ("of" in keys || "match" in keys) error(oldAggregateHint(fn, rest, where))

@@ -253,12 +253,15 @@ data class QueryWhere(
     val test: Pair<CheckOp, List<String>>? = null,
     /** 条件の否定（SP-02）。条件が「成り立たない」ときに成立する（値が無く判定できないときは成立しない）。 */
     val negated: Boolean = false,
+    /** 順序の比較（lt / lte / gt / gte）の種類（`type: date`）。null＝項目の型から決める（決まらなければ数値）。 */
+    val kind: ValueExpr.OrderKind? = null,
 ) {
     companion object {
         /** where に書ける値の条件（eq / ne は equals / notEquals が担う）。 */
         private val TEST_OPS = CheckOp.entries.filter { it != CheckOp.EQ && it != CheckOp.NE }
+        private val ORDER_OPS = setOf(CheckOp.LT, CheckOp.LTE, CheckOp.GT, CheckOp.GTE)
         private val CONDITION_KEYS = listOf("equals", "notEquals", "exists", "empty") + TEST_OPS.map { it.id }
-        private val KEYS = setOf("of", "path") + CONDITION_KEYS
+        private val KEYS = setOf("of", "path", "type") + CONDITION_KEYS
 
         fun parse(raw: Any?, where: String): QueryWhere {
             val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります")
@@ -280,10 +283,14 @@ data class QueryWhere(
                 op.requireValidOperand(operands.first(), "$where.${op.id}")
                 op to operands
             }
+            val kind = m["type"]?.toString()?.takeIf { it.isNotBlank() }?.let { ValueExpr.OrderKind.parse(it, where) }
+            if (kind != null && test?.first !in ORDER_OPS) {
+                error("$where: type は順序の比較（${ORDER_OPS.joinToString(" / ") { it.id }}）にだけ書けます")
+            }
             return QueryWhere(
                 of = of, path = path,
                 equals = m["equals"]?.toString(), exists = flag("exists"), notEquals = m["notEquals"]?.toString(),
-                empty = flag("empty"), test = test,
+                empty = flag("empty"), test = test, kind = kind,
             )
         }
     }
@@ -594,6 +601,11 @@ data class CheckTerm(
     val rights: List<ValueExpr>,
     /** 条件の否定（SP-02）。`{not: {演算子: [左, 右]}}`。評価できない組は、否定しても評価できないまま（判定保留）。 */
     val negated: Boolean = false,
+    /**
+     * 順序の比較（lt / lte / gt / gte）の種類（`{lte: [左, 右], type: date}`）。null＝左右の値を読んだ項目の型から決める
+     * （決まらなければ数値）。決まった値どうしを日付として比べるときだけ書く。
+     */
+    val kind: ValueExpr.OrderKind? = null,
 ) {
     /** 右辺（oneOf では最初の選択肢）。 */
     val right: ValueExpr get() = rights.first()
@@ -645,20 +657,28 @@ data class ConstraintCheck(val terms: List<CheckTerm>) {
         }
 
         private fun parseCompare(m: Map<*, *>, where: String): CheckTerm {
+            // 順序の種類（type）は、順序の比較にだけ添えられる（省けば項目の型から）
+            val kind = m["type"]?.toString()?.takeIf { it.isNotBlank() }?.let { ValueExpr.OrderKind.parse(it, where) }
+            fun checkedKind(op: CheckOp): ValueExpr.OrderKind? {
+                if (kind != null && op !in ORDER_OPS) error("$where: type は順序の比較（${ORDER_OPS.joinToString(" / ") { it.id }}）にだけ書けます")
+                return kind
+            }
             if (m.containsKey("op")) {
-                m.keys.map { it.toString() }.firstOrNull { it !in setOf("op", "left", "right") }
-                    ?.let { error("$where: 未知のキーです: $it（使えるキー: op, left, right）") }
+                m.keys.map { it.toString() }.firstOrNull { it !in setOf("op", "left", "right", "type") }
+                    ?.let { error("$where: 未知のキーです: $it（使えるキー: op, left, right, type）") }
                 val op = CheckOp.parse(m["op"].toString(), where)
                 return CheckTerm(
                     op = op,
                     left = ValueExpr.parse(m["left"] ?: error("$where.left が必要です"), "$where.left"),
                     rights = parseRights(op, m["right"] ?: error("$where.right が必要です"), "$where.right"),
+                    kind = checkedKind(op),
                 )
             }
-            if (m.size != 1) {
-                error("$where は {演算子: [左, 右]} の1キーで書きます（演算子: ${CheckOp.entries.joinToString(" / ") { it.id }}）")
+            val entries = m.entries.filter { it.key.toString() != "type" }
+            if (entries.size != 1) {
+                error("$where は {演算子: [左, 右]} の1キーで書きます（演算子: ${CheckOp.entries.joinToString(" / ") { it.id }}。順序の比較には type を添えられます）")
             }
-            val (k, v) = m.entries.first()
+            val (k, v) = entries.first()
             val op = CheckOp.parse(k.toString(), where)
             val list = v as? List<*> ?: error("$where.${op.id} は [左, 右] の2要素配列である必要があります")
             if (list.size != 2) error("$where.${op.id} は [左, 右] の2要素配列である必要があります")
@@ -666,8 +686,12 @@ data class ConstraintCheck(val terms: List<CheckTerm>) {
                 op = op,
                 left = ValueExpr.parse(list[0], "$where.${op.id}[0]"),
                 rights = parseRights(op, list[1], "$where.${op.id}[1]"),
+                kind = checkedKind(op),
             )
         }
+
+        /** 順序の比較の演算子（type を添えられるもの）。 */
+        private val ORDER_OPS = listOf(CheckOp.LT, CheckOp.LTE, CheckOp.GT, CheckOp.GTE)
 
         /** 右辺のパース。oneOf は値の式の並び（1つ以上）・他は値の式1つ。決まった値は定義時に点検する（正規表現など）。 */
         private fun parseRights(op: CheckOp, raw: Any?, where: String): List<ValueExpr> {

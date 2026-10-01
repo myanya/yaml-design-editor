@@ -264,7 +264,7 @@ root:
     - key: entity
       label: エンティティ型の宣言
       type: any
-      description: "この文書群の出現のエンティティ型（R20-01）。{type, idPattern, defines, aspect, owns} の object、または複数型のリスト（idPattern で判別）。aspect / owns はこの出現が所有する側面の宣言（R23-01。省略時はスキーマID／宣言フィールド全部）"
+      description: "この文書群の出現のエンティティ型（R20-01）。{type, idPattern, idType, defines, aspect, owns} の object、または複数型のリスト（idPattern＝ID の glob か idType＝ID の型の名前で判別。両方書けば両方に合う ID）。aspect / owns はこの出現が所有する側面の宣言（R23-01。省略時はスキーマID／宣言フィールド全部）"
     - key: coverage
       label: カバレッジルール
       type: array

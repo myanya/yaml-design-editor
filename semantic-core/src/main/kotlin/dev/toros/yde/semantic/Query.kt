@@ -2,6 +2,7 @@ package dev.toros.yde.semantic
 
 import dev.toros.yde.semantic.schema.ConstraintForAll
 import dev.toros.yde.semantic.schema.DerivationSelector
+import dev.toros.yde.semantic.schema.FieldDef
 import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.YPath
@@ -103,6 +104,11 @@ data class SemanticCheckSide(
     val node: YNode? = null,
     /** 配列のとき、要素ごとの値と出どころ（node の並びと同じ順）。 */
     val elements: List<SemanticValueInput>? = null,
+    /**
+     * 値の順序の種類（読んだ項目の型・集計の宣言・計算の結果から。決まった値・文字の計算では null＝決まらない）。
+     * 順序の比較（lt / lte / gt / gte）が `type` を書かないときの既定になる。
+     */
+    val kind: ValueExpr.OrderKind? = null,
 ) {
     /** スカラー（文字 1 つ）か。比較・穴埋め・四則演算はスカラーだけを受け取る。 */
     val isScalar: Boolean get() = node == null || node is YNode.Scalar
@@ -181,6 +187,12 @@ internal fun QueryNodeStep.matchesEntity(id: String, node: SemanticEntityNode): 
     return false
 }
 
+/** 値を読んだ場所（文書と、その中のパス）の項目の定義（解決済み）を引く関数。順序の比較の種類を項目の型から決めるために使う。 */
+typealias FieldResolver = (DocumentId, YPath) -> FieldDef?
+
+/** 項目の定義を引かない（順序の種類は `type` の宣言か数値）。 */
+val NO_FIELDS: FieldResolver = { _, _ -> null }
+
 object SemanticQuery {
 
     /** パターンを評価して束縛の表を返す。 */
@@ -189,8 +201,9 @@ object SemanticQuery {
         refs: List<ScannedRef>,
         graph: SemanticEntityGraph,
         spec: QuerySpec,
+        fieldAt: FieldResolver = NO_FIELDS,
         loader: (DocumentId) -> YNode?,
-    ): SemanticQueryResult = Evaluator(ids, refs, graph, spec, loader).evaluate()
+    ): SemanticQueryResult = Evaluator(ids, refs, graph, spec, loader, fieldAt = fieldAt).evaluate()
 
     /**
      * 起点を固定した存在判定（R22-03 パターン制約用）: startId を起点束縛に固定したとき、
@@ -202,8 +215,9 @@ object SemanticQuery {
         graph: SemanticEntityGraph,
         spec: QuerySpec,
         startId: String,
+        fieldAt: FieldResolver = NO_FIELDS,
         loader: (DocumentId) -> YNode?,
-    ): Boolean = Evaluator(ids, refs, graph, spec, loader).anyMatchFrom(startId)
+    ): Boolean = Evaluator(ids, refs, graph, spec, loader, fieldAt = fieldAt).anyMatchFrom(startId)
 
     /**
      * 起点を固定した解の列挙（R28-05: 制約指摘の説明用）: 束縛の表（limit まで。total は打切り前）。
@@ -215,8 +229,9 @@ object SemanticQuery {
         graph: SemanticEntityGraph,
         spec: QuerySpec,
         startId: String,
+        fieldAt: FieldResolver = NO_FIELDS,
         loader: (DocumentId) -> YNode?,
-    ): SemanticQueryResult = Evaluator(ids, refs, graph, spec, loader).evaluate(restrictStart = startId)
+    ): SemanticQueryResult = Evaluator(ids, refs, graph, spec, loader, fieldAt = fieldAt).evaluate(restrictStart = startId)
 
     /**
      * 起点を固定した解の件数（R28-02 count 制約用）: 束縛の組（bind 列）の distinct 件数
@@ -229,8 +244,9 @@ object SemanticQuery {
         graph: SemanticEntityGraph,
         spec: QuerySpec,
         startId: String,
+        fieldAt: FieldResolver = NO_FIELDS,
         loader: (DocumentId) -> YNode?,
-    ): Int = Evaluator(ids, refs, graph, spec, loader).evaluate(restrictStart = startId).total
+    ): Int = Evaluator(ids, refs, graph, spec, loader, fieldAt = fieldAt).evaluate(restrictStart = startId).total
 
     /**
      * 起点を固定した check 判定（R28-08。CORE-CALCULUS §8 の判定述語）: 解（束縛の表）ごとに
@@ -252,8 +268,9 @@ object SemanticQuery {
          * 指定した「束縛と文書の指定」は、この出現からだけ読む。
          */
         pin: Pair<ValueExpr.ScopeRef, SemanticExpression.Occurrence>? = null,
+        fieldAt: FieldResolver = NO_FIELDS,
         loader: (DocumentId) -> YNode?,
-    ): List<SemanticCheckViolation> = Evaluator(ids, refs, graph, spec, loader, rel).checkFrom(startId, checks, pin)
+    ): List<SemanticCheckViolation> = Evaluator(ids, refs, graph, spec, loader, rel, fieldAt = fieldAt).checkFrom(startId, checks, pin)
 
     /** 起点を固定した check 判定を、結果を決める材料つきで返す（checkFrom と同じ評価。P27 段A の SemanticRules が使う）。 */
     fun checkRunFrom(
@@ -265,8 +282,9 @@ object SemanticQuery {
         startId: String,
         rel: (DocumentId) -> String = { it.value },
         pin: Pair<ValueExpr.ScopeRef, SemanticExpression.Occurrence>? = null,
+        fieldAt: FieldResolver = NO_FIELDS,
         loader: (DocumentId) -> YNode?,
-    ): SemanticCheckRun = Evaluator(ids, refs, graph, spec, loader, rel).checkRun(startId, checks, pin)
+    ): SemanticCheckRun = Evaluator(ids, refs, graph, spec, loader, rel, fieldAt = fieldAt).checkRun(startId, checks, pin)
 
     /**
      * 起点を固定した check の評価（検査の状況の表示用）: checkFrom と同じ評価で、条件を満たしている項目も
@@ -280,8 +298,9 @@ object SemanticQuery {
         checks: List<ConstraintCheck>,
         startId: String,
         rel: (DocumentId) -> String = { it.value },
+        fieldAt: FieldResolver = NO_FIELDS,
         loader: (DocumentId) -> YNode?,
-    ): List<SemanticCheckEvaluation> = Evaluator(ids, refs, graph, spec, loader, rel).checkEvaluationsFrom(startId, checks)
+    ): List<SemanticCheckEvaluation> = Evaluator(ids, refs, graph, spec, loader, rel, fieldAt = fieldAt).checkEvaluationsFrom(startId, checks)
 
     /**
      * 起点を固定した「すべての要素について」の判定（SP-04）。起点が母集団に入らない・集まりが空なら null（判定しない）。
@@ -294,9 +313,10 @@ object SemanticQuery {
         forAll: ConstraintForAll,
         startId: String,
         rel: (DocumentId) -> String = { it.value },
+        fieldAt: FieldResolver = NO_FIELDS,
         loader: (DocumentId) -> YNode?,
     ): SemanticForAllResult? {
-        if (!Evaluator(ids, refs, graph, spec, loader, rel).startMatches(startId)) return null
+        if (!Evaluator(ids, refs, graph, spec, loader, rel, fieldAt = fieldAt).startMatches(startId)) return null
         val members = graph.entityIdsMatching(forAll.node)
         if (members.isEmpty()) return null
         val memberBind = forAll.node.bind ?: return null
@@ -308,6 +328,7 @@ object SemanticQuery {
             val evaluator = Evaluator(
                 ids, refs, graph, branch, loader, rel,
                 fixed = mapOf(memberBind to NodeKey(QueryNodeKind.ENTITY, member)),
+                fieldAt = fieldAt,
             )
             val result = evaluator.evaluate(restrictStart = startId, firstOnly = true)
             if (result.total == 0 && result.unknownDropped) undecided++
@@ -331,8 +352,9 @@ object SemanticQuery {
         graph: SemanticEntityGraph,
         spec: QuerySpec,
         startId: String,
+        fieldAt: FieldResolver = NO_FIELDS,
         loader: (DocumentId) -> YNode?,
-    ): Boolean = Evaluator(ids, refs, graph, spec, loader).startMatches(startId)
+    ): Boolean = Evaluator(ids, refs, graph, spec, loader, fieldAt = fieldAt).startMatches(startId)
 
     /**
      * Traverse 互換の隣接1段（R22-02③）。out = フロンティア配下に書かれた参照の targetId、
@@ -386,6 +408,8 @@ object SemanticQuery {
         private val rel: (DocumentId) -> String = { it.value },
         /** あらかじめ決まった束縛（forAll の集まりの要素）。node の same から指せる。 */
         private val fixed: Map<String, NodeKey> = emptyMap(),
+        /** 値を読んだ場所の項目の定義（順序の比較の種類を項目の型から決める。SemanticValues.Environment.fieldAt）。 */
+        private val fieldAt: FieldResolver = NO_FIELDS,
     ) {
         private val trees = mutableMapOf<DocumentId, YNode?>()
 
@@ -721,9 +745,14 @@ object SemanticQuery {
          * 値が無くて判定できないときは null（否定しても null＝ノードは選ばれない）。
          */
         private fun predValue(pred: QueryWhere, key: NodeKey): Boolean? {
-            val nodes = sigmaCandidates(key.kind, key.id).map { SemanticExpression.nodeAt(::tree, it, pred.path) }
+            val candidates = sigmaCandidates(key.kind, key.id)
+            val nodes = candidates.map { SemanticExpression.nodeAt(::tree, it, pred.path) }
             val texts = nodes.mapNotNull { scalarText(it) }
             val test = pred.test
+            // 順序の比較の種類: `type` の宣言か、値を読む項目の型（出現のどれかから。決まらなければ数値）
+            val kind = pred.kind
+                ?: candidates.firstNotNullOfOrNull { fieldAt(it.document, it.path + pred.path)?.let { f -> ValueExpr.OrderKind.ofType(f.type) } }
+                ?: ValueExpr.OrderKind.NUMBER
             val plain: Boolean? = when {
                 pred.equals != null -> if (texts.isEmpty()) null else texts.any { it == pred.equals }
                 // notEquals（R28-02）: 値が1つ以上あり、どの出現の値も指定値でない
@@ -736,7 +765,7 @@ object SemanticQuery {
                 // 値の条件（check と同じ判定）: どれかの出現の値が条件を満たせば成立。満たす値がなく、
                 // 評価できない値（書かれていない・数値として読めない）が残れば判定保留
                 test != null -> {
-                    val results = texts.map { SemanticExpression.test(test.first, it, test.second) }
+                    val results = texts.map { SemanticExpression.test(test.first, it, test.second, kind) }
                     when {
                         results.any { it == true } -> true
                         results.isEmpty() || results.any { it == null } -> null
@@ -852,9 +881,11 @@ object SemanticQuery {
                     for (term in check.terms) {
                         val left = evalExpr(term.left, row, assignment)
                         val rights = term.rights.map { evalExpr(it, row, assignment) }
-                        // 値の条件は共有評価部——評価できない（null）条件は判定保留。配列やマップは比べられない（スカラーだけ）
+                        // 値の条件は共有評価部——評価できない（null）条件は判定保留。配列やマップは比べられない（スカラーだけ）。
+                        // 順序の比較の種類は `type` の宣言か、左右の値を読んだ項目の型（左を優先。決まらなければ数値）
                         val comparable = left != null && left.isScalar && rights.all { it == null || it.isScalar }
-                        val plain = left?.takeIf { comparable }?.let { SemanticExpression.test(term.op, it.text, rights.map { r -> r?.text }) }
+                        val kind = term.kind ?: left?.kind ?: rights.firstNotNullOfOrNull { it?.kind } ?: ValueExpr.OrderKind.NUMBER
+                        val plain = left?.takeIf { comparable }?.let { SemanticExpression.test(term.op, it.text, rights.map { r -> r?.text }, kind) }
                         if (left == null || plain == null) {
                             unknown = true
                             if (left == null || rights.any { it == null }) noValue = true else incomparable = true
@@ -912,7 +943,8 @@ object SemanticQuery {
                 tree = ::tree, rel = rel, nodes = row.bindings, assignment = assignment, graph = graph,
                 refsInto = { entityRefsByTarget[it].orEmpty() },
                 solutions = { aggregateRows },
-                solveFrom = { origin, sub -> Evaluator(ids, allRefs, graph, sub, loader, rel).evaluate(restrictStart = origin.id) },
+                solveFrom = { origin, sub -> Evaluator(ids, allRefs, graph, sub, loader, rel, fieldAt = fieldAt).evaluate(restrictStart = origin.id) },
+                fieldAt = fieldAt,
             ),
         )
 

@@ -573,10 +573,25 @@ private fun FieldDefinitionEditor(
             CompactOptionalScalar(map, "format", "表示の形", "画面で見せる形（例 yyyy年M月d日・H:mm）。ファイルは正準の形のまま", doc)
         }
         // 制約語彙（R16-01）の入力（UX-73: 設計UIに未露出だった分）
-        "string", "text" -> {
+        "string" -> {
             CompactOptionalScalar(map, "pattern", "形式（正規表現）", "値の全体が一致する正規表現（R16-01）", doc)
             CompactNumberScalar(map, "minLength", "最小文字数", doc, integer = true)
             CompactNumberScalar(map, "maxLength", "最大文字数", doc, integer = true)
+            // 複数行の編集（display: multiline）と行数（rows）。組込みの型 text は既にこれを持つ（型から引き継ぐ）
+            val multiline = scalar(map, "display") == "multiline"
+            Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("複数行で編集", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+                Checkbox(multiline, {
+                    if (it) map.entries["display"] = YNode.Scalar("multiline") else { map.entries.remove("display"); map.entries.remove("rows") }
+                    doc.markEdited()
+                })
+                Text(
+                    if (currentTypeId == BuiltinTypes.TEXT) "型 text は複数行の欄（ここで付け直す必要はありません）"
+                    else "display: multiline（複数行の欄を保証。1 行の保証は型 line・1 語は型 word）",
+                    fontSize = 10.sp, color = Palette.SubText,
+                )
+            }
+            if (multiline) CompactNumberScalar(map, "rows", "行数（rows）", doc, integer = true)
         }
         "int" -> {
             CompactNumberScalar(map, "min", "最小値", doc, integer = true)
@@ -590,9 +605,20 @@ private fun FieldDefinitionEditor(
         }
     }
     val currentType = types.baseKindOf(currentTypeId)
+    // 入力欄の案内とサンプル値（P33 のヒント。型から引き継ぎ、ここに書けば上書き）: 値を文字で打つ基底の種類だけ
+    if (currentType in HINT_KINDS) {
+        CompactOptionalScalar(map, "placeholder", "入力欄の案内", "空欄のときに薄く出す文（例 YYYY-MM-DD）。型の案内を上書き", doc)
+        CompactOptionalScalar(map, "sample", "サンプル値", "例として示す値（サンプル YAML・AI 生成の例）。型のサンプルを上書き", doc)
+    }
     // enum の初期値は選択肢の直下（EnumValuesEditor 内）で選択式にしている（UX-84）
     if (currentType !in setOf("object", "array", "map", "enum")) DefaultValueEditor(map, currentType, doc)
 }
+
+/** 入力欄の案内・サンプル値を書ける基底の種類（文字で値を打つもの）。 */
+private val HINT_KINDS = setOf(
+    FieldType.STRING.id, FieldType.INT.id, FieldType.NUMBER.id, FieldType.DATE.id, FieldType.TIME.id, FieldType.DATETIME.id,
+    FieldType.ID.id, FieldType.REF.id,
+)
 
 /** 一覧表示形式のヒント（R12-06）。array / map で共有。省略時はフォーム側が列構成から自動判定する。 */
 @Composable
@@ -716,6 +742,23 @@ private fun EntityEditor(root: YNode.Map, doc: OpenDocument) {
             }
             CompactScalar(decl, "type", "型名", doc)
             CompactScalar(decl, "idPattern", "IDパターン（例 SCR-*）", doc)
+            // ID の型（P33）: definitions の id を狭めた型の名前で ID を判別する（idPattern と併用すれば両方に合う ID）
+            val types = LocalTypeChoices.current
+            val idTypes = types.names.filter { types.baseKindOf(it) == FieldType.ID.id }
+            Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("IDの型（idType）", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+                val current = scalar(decl, "idType") ?: "（なし）"
+                ChoiceButton(current, listOf("（なし）") + (idTypes + listOfNotNull(scalar(decl, "idType"))).distinct()) {
+                    if (it == "（なし）") decl.entries.remove("idType") else decl.entries["idType"] = YNode.Scalar(it)
+                    doc.markEdited()
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    if (idTypes.isEmpty()) "definitions に id を狭めた型（例 画面ID: {type: id, pattern: ...}）を定義すると選べます"
+                    else "型の形式（pattern）で ID を判別します",
+                    fontSize = 10.sp, color = Palette.SubText,
+                )
+            }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val defines = (decl.entries["defines"] as? YNode.Scalar)?.value == true
                 Checkbox(defines, { decl.entries["defines"] = YNode.Scalar(it); doc.markEdited() })
@@ -727,7 +770,7 @@ private fun EntityEditor(root: YNode.Map, doc: OpenDocument) {
         }
     }
     Text(
-        "複数型は idPattern で判別します。defines を付けた文書群の出現が「定義」になります。" +
+        "複数型は idPattern か idType（ID の型）で判別します。defines を付けた文書群の出現が「定義」になります。" +
             "aspect / owns はエンティティページ・read_entity の合成（R23-01）で「この出現がどの側面を所有するか」に使われます。",
         fontSize = 11.sp, color = Palette.SubText,
     )

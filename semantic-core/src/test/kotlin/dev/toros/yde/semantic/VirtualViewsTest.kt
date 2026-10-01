@@ -242,4 +242,40 @@ class VirtualViewsTest {
         val original = getAt(trees.getValue("items/a.yaml"), listOf("status"))
         assertTrue(cell.value === original, "エフェメラル読み出しモデル＝原本ノードの参照（写しではない）")
     }
+
+    @Test
+    fun `行の並びの種類は宣言しなければ項目の型から決まり 型が分からなければ文字の順`() {
+        val docs = mapOf(
+            "items/p.yaml" to YamlIO.parse("id: IT-P\namount: 9\nday: 2026-03-01"),
+            "items/q.yaml" to YamlIO.parse("id: IT-Q\namount: 10\nday: 2026-01-15"),
+            "items/r.yaml" to YamlIO.parse("id: IT-R\namount: 100\nday: 2026-02-01"),
+        )
+        val ids = docs.keys.associate { rel ->
+            val id = "IT-" + rel.substringAfter("items/").substringBefore(".yaml").uppercase()
+            id to listOf(ScannedId(id, DocumentId(rel), emptyList(), null, "item", rel))
+        }
+        fun view(path: String, kind: dev.toros.yde.semantic.schema.ValueExpr.OrderKind? = null) = VirtualGridDef(
+            id = "v", name = "一覧",
+            rows = VirtualRowsDef(idPattern = "IT-*"),
+            columns = listOf(VirtualViewColumn(label = "A", path = listOf(path))),
+            orderValue = VirtualOrderValue(path = listOf(path), kind = kind),
+            source = DocumentId("_views/v.yaml"),
+        )
+        val fields = mapOf(
+            "amount" to dev.toros.yde.semantic.schema.FieldDef(key = "amount", type = dev.toros.yde.semantic.schema.FieldType.INT),
+            "day" to dev.toros.yde.semantic.schema.FieldDef(key = "day", type = dev.toros.yde.semantic.schema.FieldType.DATE),
+        )
+        fun order(view: VirtualGridDef, typed: Boolean) = VirtualViews.resolve(
+            view, ids, emptyList(), graphOf(ids, emptyList()), rel = { it.value }, tree = { docs[it.value] },
+            fieldAt = if (typed) { _, path -> fields[path.lastOrNull()] } else NO_FIELDS,
+        ).map { it.id }
+        // 項目の型が int なら数の順。型が分からなければ文字の順（"10" < "100" < "9"）
+        assertEquals(listOf("IT-P", "IT-Q", "IT-R"), order(view("amount"), typed = true))
+        assertEquals(listOf("IT-Q", "IT-R", "IT-P"), order(view("amount"), typed = false))
+        // 宣言は型より優先
+        assertEquals(listOf("IT-P", "IT-Q", "IT-R"), order(view("amount", dev.toros.yde.semantic.schema.ValueExpr.OrderKind.NUMBER), typed = false))
+        // 日付の項目は日付の順（降順も）
+        assertEquals(listOf("IT-Q", "IT-R", "IT-P"), order(view("day"), typed = true))
+        assertEquals(listOf("IT-P", "IT-R", "IT-Q"), order(view("day").copy(orderValue = VirtualOrderValue(listOf("day"), null, descending = true)), typed = true))
+    }
 }

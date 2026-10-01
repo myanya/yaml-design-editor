@@ -391,6 +391,101 @@ class TypeDefinitionsTest {
     }
 
     @Test
+    fun `エンティティ型の idType は ID の型の形式で型を判別する`() {
+        val schema = """
+            id: parts
+            match: "parts/*.yaml"
+            definitions:
+              画面ID: { type: id, pattern: "^SCR-\\d{3}$", sample: SCR-001 }
+              部品ID: { type: word, pattern: "^PT-\\d+$" }
+            entity:
+              - { type: screen, idType: 画面ID, defines: true }
+              - { type: part, idPattern: "PT-*", idType: 部品ID, defines: true }
+            root:
+              type: object
+              fields:
+                - { key: id, type: id, required: true }
+                - key: items
+                  type: array
+                  item: { type: object, fields: [ { key: id, type: id } ] }
+        """.trimIndent()
+        val ws = load(
+            mapOf(
+                "_schemas/parts.yaml" to schema,
+                "parts/a.yaml" to "id: SCR-001\nitems:\n  - { id: PT-7 }\n  - { id: SCR-9 }\n",
+            )
+        )
+        // 部品ID は id の型ではない（word）ので定義の誤り。画面ID は解決される
+        assertTrue(ws.schemaErrors.any { "idType「部品ID」は id の型ではありません" in it }, ws.schemaErrors.toString())
+        val parts = ws.schemas.first { it.id == "parts" }
+        val screen = parts.entities.first { it.type == "screen" }
+        assertEquals(listOf("^SCR-\\d{3}$"), screen.idTypePatterns)
+        assertTrue(screen.matchesId("SCR-001") && !screen.matchesId("SCR-9"))
+        // 走査は ID の型で型を判別する（PT-7 は idPattern の glob で part）
+        val graph = ws.derived.semantic.graph
+        assertEquals("screen", graph.entities.getValue("SCR-001").entityType)
+        assertEquals("part", graph.entities.getValue("PT-7").entityType)
+        val a = WorkspaceCheckRunner.deliverAll(ws)[DocumentId("parts/a.yaml")]?.issues.orEmpty().map { it.message }
+        assertTrue(a.any { it == "ID「SCR-9」はエンティティ型の ID の決まり（型 画面ID, PT-*）のいずれにも一致しません" }, a.toString())
+        // 未知の型の名前は定義の誤り
+        val bad = load(mapOf("_schemas/bad.yaml" to schema.replace("idType: 画面ID", "idType: nonsense")))
+        assertTrue(bad.schemaErrors.any { "idType「nonsense」は未知の型です" in it }, bad.schemaErrors.toString())
+    }
+
+    @Test
+    fun `順序の比較と集計の種類は項目の型で決まり 日付の項目は日付として比べる`() {
+        val ws = load(
+            mapOf(
+                "_schemas/task.yaml" to """
+                    id: task
+                    match: "tasks/*.yaml"
+                    entity: { type: task, idPattern: "TK-*", defines: true }
+                    root:
+                      type: object
+                      fields:
+                        - { key: id, type: id, required: true }
+                        - { key: start, type: date }
+                        - { key: end, type: date }
+                        - { key: last, type: date }
+                        - key: comments
+                          type: array
+                          item: { type: object, fields: [ { key: date, type: date }, { key: body, type: string } ] }
+                    constraints:
+                      - id: start-before-end
+                        description: 開始日は終了日以前であること
+                        match: [ { node: { entity: task, bind: t } } ]
+                        check: [ { lte: [ { of: t, path: start }, { of: t, path: end } ] } ]
+                        level: error
+                      - id: latest-comment
+                        description: 最終更新日は最新のコメントの日付と一致すること
+                        match: [ { node: { entity: task, bind: t } } ]
+                        check: [ { eq: [ { of: t, path: last }, { max: { all: { of: t, path: "comments[*].date" } } } ] } ]
+                        level: error
+                      - id: no-late-start
+                        description: 6 月より後に始まるタスクは無いこと
+                        match: [ { node: { entity: task, bind: t } } ]
+                        where: [ { of: t, path: start, gt: "2026-06-01" } ]
+                        expect: absent
+                        level: error
+                """.trimIndent(),
+                // TK-1: 開始 > 終了（文字の順でも数でもなく、日付として比べて違反）。最終更新日はコメントの最新と一致
+                "tasks/TK-1.yaml" to "id: TK-1\nstart: 2026-03-01\nend: 2026-02-01\nlast: 2026-01-20\ncomments:\n  - { date: 2026-01-05 }\n  - { date: 2026-01-20 }\n",
+                // TK-2: 開始 ≦ 終了。最終更新日が古い。6 月より後に始まる
+                "tasks/TK-2.yaml" to "id: TK-2\nstart: 2026-07-01\nend: 2026-08-01\nlast: 2026-01-01\ncomments:\n  - { date: 2026-01-10 }\n",
+            )
+        )
+        assertEquals(emptyList(), ws.schemaErrors)
+        val delivered = WorkspaceCheckRunner.deliverAll(ws)
+        fun ruleIds(rel: String) = delivered[DocumentId(rel)]?.issues.orEmpty().mapNotNull { it.source.ruleId }
+        val t1 = ruleIds("tasks/TK-1.yaml")
+        val t2 = ruleIds("tasks/TK-2.yaml")
+        assertEquals(listOf("start-before-end"), t1, t1.toString())
+        assertEquals(listOf("latest-comment", "no-late-start"), t2.sorted(), t2.toString())
+        val message = delivered[DocumentId("tasks/TK-1.yaml")]!!.issues.first { it.source.ruleId == "start-before-end" }.message
+        assertTrue("start: 2026-03-01" in message && "end: 2026-02-01" in message, message)
+    }
+
+    @Test
     fun `メタスキーマへの型の名前の合成は 組込みの型を含み 既にある名前は足さない`() {
         val names = MetaSchemaTypes.typeNames(SchemaCatalog.linked(emptyList()))
         assertEquals(FieldType.STRING, names["text"])

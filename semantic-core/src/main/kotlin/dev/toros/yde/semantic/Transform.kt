@@ -63,7 +63,7 @@ object SemanticTransform {
         val spec = def.from ?: error("変換「${def.id}」は、呼び出し側が入力の項を渡す定義です（from がありません）")
         val trees = HashMap<DocumentId, YNode?>()
         fun tree(d: DocumentId): YNode? = trees.getOrPut(d) { loader(d) }
-        val rows = SemanticQuery.run(ids, refs, graph, spec, ::tree).rows
+        val rows = SemanticQuery.run(ids, refs, graph, spec, loader = ::tree).rows
         val origins = mutableListOf<TransformOrigin>()
         val items = mutableListOf<YNode>()
         for (row in rows) {

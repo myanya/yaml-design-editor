@@ -32,17 +32,18 @@
 - **定義参照列**: 列に `label`／`path` の代わりに `definition: モジュール#定義名` を書くと、スキーマの**名前付き定義**（[schema.md](schema.md)）のセル型フィールドが列に展開され、見出し・パスがスキーマから導出されます（ID型の項目は行のID列と重複するため除かれます）。`schemaId` を併記した場合は定義名だけでも書けます（例 `definition: screen`）。列の見出しをビューへ重複記載する必要がなくなり、スキーマの変更に自動で追随します。`editable: true` は展開された全列に適用されます
 - **値の式の列**: 列に `path` の代わりに `value` を書くと、行の要素の値から**値の式**（[schema.md](schema.md)「新しい文書の置き場所とひな型」の `filePattern` と同じ書き方）で計算した値を表示します（読み取り専用の派生表示）。行の要素は `schemaId`／`fileGlob` で選んだ出現で、未保存の編集にも追随します
   - 短い書き方: `value: "{name}（{status}）"`（穴は行の要素の値。`{id}` は行のID・`{title}` は表示の解決結果）
-  - 完全な書き方: `value: {max: {path: "comments[*].date", type: date}}`（配列の各要素の `date` の最大）。読み出しは項をそのまま返し、パスの `[*]` は合う場所の値を並べた配列になります。`sum` / `min` / `max` / `count` は配列を受け取る関数で、`type: date` は日付として比べる宣言です（省略すると数値として比べます。表記から意味を決めません）。`count` は配列の件数、`length` は文字数です
+  - 完全な書き方: `value: {max: {path: "comments[*].date"}}`（配列の各要素の `date` の最大）。読み出しは項をそのまま返し、パスの `[*]` は合う場所の値を並べた配列になります。`sum` / `min` / `max` / `count` は配列を受け取る関数です。`count` は配列の件数、`length` は文字数です
+  - `min` / `max` の比べ方は読んだ項目の型で決まります（`date` の項目なら日付・`int` なら数。表記から意味を決めません）。項目の型が分からない値を日付として比べるなら `type: date` を添えます
   - 値が得られないとき（配列が空・要素に値が書かれていない・日付として読めない値がある）はセルが空になり、クリックすると理由が出ます。既定値は `{first: [式, 値]}` で書きます
   - セルの座標は値の出どころ（最大・最小なら選ばれた要素）で、クリックのメニュー「元の値へ」でそこへジャンプできます。集計の材料（各要素の値と場所）も来歴として並びます
   - 参照を辿るには `via`: `{via: type, in: {schemaId: ddl-mapping}, path: to}` は、行の要素の `type` に書かれた参照を 1 段辿り、相手の写像行の `to` を読みます。`format` の入れ物（`scopes`）にも `via` を書けます。参照がちょうど 1 本のときだけ相手が決まり、無い・複数のときは理由つきで得られません。入れ物を書いても、最後にいつも行の要素が続きます
   - 集合から配列へは `all`: `{all: {match: [{node: {entity: category, bind: cat}}, {edge: {via: category, dir: in}}, {node: {entity: todo, bind: t}}], where: [{of: t, path: status, equals: OPEN}], of: t}}` は、
 行の要素を起点にパターン照合（[checks.md](checks.md)「パターン制約」と同じ書き方）を評価し、`of` の束縛の要素を並べた配列にします。`path` を添えれば各要素の値の配列です（`in` で読む文書を選びます）。起点は行の要素（`from` に束縛名を書けばその束縛。クエリ行）で、先頭の `node` に合わなければ空です。
 `{count: {all: ...}}` で件数、`{sum: {all: {..., path: amount}}}` で合計になり、セルのクリックで集めた要素へジャンプできます。`{each: 配列の式, value: 式}` は各要素をいまの要素として式を当てた配列です（例 `{sum: {each: {path: lines}, value: {multiply: [{path: price}, {path: qty}]}}}`）。`limit` は書けません
-  - ビュー定義のリントは、式が読む項目がスキーマから解決できるか、`via` が参照型の項目か、日付の項目を `type: date` なしで比べていないかを指摘します
+  - ビュー定義のリントは、式が読む項目がスキーマから解決できるか、`via` が参照型の項目か、集計に書いた `type` が項目の型と食い違っていないか（`date` の項目に `type: number`・文字の項目に `type: date`）を指摘します
   - 古い書き方 `computed`（`lookup` / `source` / `path` / `values` / `map` / `default`）は定義エラーになり、同じ意味の `value` の書き方が文面に出ます
-- **行の並び**: `order` を省くと ID 順です。`order: { schemaId / fileGlob }` はその出現の文書内の順（一覧文書の並び）。`order: { path: date, type: date, direction: desc }` のように `path` を書くと、並び基準の出現（`schemaId` / `fileGlob`。省けばどの出現でも）の要素から読んだ**値の順**になります。
-`type` は `number`（数として）か `date`（日付として）で、省くと文字の順。`direction: desc` で大きい順・新しい順。値の無い行はどちらの向きでも後ろ、同じ値は ID 順です
+- **行の並び**: `order` を省くと ID 順です。`order: { schemaId / fileGlob }` はその出現の文書内の順（一覧文書の並び）。`order: { path: date, direction: desc }` のように `path` を書くと、並び基準の出現（`schemaId` / `fileGlob`。省けばどの出現でも）の要素から読んだ**値の順**になります。
+並べ方は項目の型で決まります（`int` / `number` は数の順・`date` / `time` / `datetime` は日付などの順・それ以外は文字の順）。`type: number | date | time | datetime` を書けば上書きできます。`direction: desc` で大きい順・新しい順。値の無い行はどちらの向きでも後ろ、同じ値は ID 順です
 - **要素ごとに列を広げる**: 列に `label` / `path` の代わりに `each: { idPattern: "CAT-*", bind: cat }` と `value`（値の式）を書くと、`idPattern` に合う要素（費目など）ごとに 1 列ができます。見出しは要素のタイトル、並びは ID 順（`each.order: { schemaId / fileGlob }` でその出現の文書内の順）。
 `value` の式の中では列の要素を `$cat`（`bind` の名前に `$`）で指せます。その文字だけの値が、列ごとにその要素の ID に置き換わります（例: 月の行から `all` で取引を集め、`edge: { via: category }` → `node: { id: $cat }` でその費目の取引に絞って `sum`。`where` の `equals: $cat` でも同じ）。
 同じ表は[クロス集計](#クロス集計kind-matrix-行列のセルに集計)でも書けます。違いは、こちらが「ふつうの列の 1 つ」なので他の列と並べられ、合計の行や未分類の列は自分で書くことです
@@ -59,7 +60,7 @@ rows:
   idPattern: "SCR-*"                  # このIDパターンが行になる
 order:
   fileGlob: todos/10-screens-list.yaml  # 一覧文書での出現順に並べる（省略時はID順）
-  # path: date, type: date, direction: desc   # 値の順にするなら: 出現の要素の date を日付として比べ、新しい順
+  # path: date, direction: desc   # 値の順にするなら: 出現の要素の date（日付の項目なので日付として比べる）の新しい順
 columns:
   - label: 画面名
     fileGlob: todos/10-screens-list.yaml  # 値を取る出現（schemaId でも指定可）
@@ -148,7 +149,7 @@ columns:
     schemaId: todo-detail                                   # 値を読む出現（普通の列と同じ）
     value:
       first:
-        - max: { path: "comments[*].date", type: date }     # 各コメントの date の最大（日付として比べる）
+        - max: { path: "comments[*].date" }     # 各コメントの date の最大（date の項目なので日付として比べる）
         - 未更新                                            # コメントが無いときの表示
 ```
 

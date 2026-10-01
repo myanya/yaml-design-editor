@@ -31,7 +31,9 @@
 - **要素ごとに列を広げる**（columns の `each`＝`VirtualEachDef`）は、クロス集計と同じ `VirtualViews.lower` で索引の要素ごとの列に広がる。値の式は書かれたまま（raw）を持ち、列ごとに `$bind` の文字をその要素の ID に置き換えて（`substituteColumnRef`）値の式にする。
   置き換え前の式でも `$cat` は決まった ID の文字として読めるので、定義の文書の検証（メタスキーマの式の点検）とリントはそのまま通る（`{same: …}` は「前のステップの束縛」の点検に引っかかるので使わない）。列の集まりの並べ方（`entitiesOf`）はクロス集計と共有。
 - **セルの併記は画面だけ**（`ViewGridPane`）: 編集できない列の enum は `FieldDef.optionFor` のラベル、参照は索引のタイトルを「値（ラベル）」「ID（名前）」で添える。編集できる参照のセルは入力欄の下に名前を出す。セルの値・CLI・書き出し・`read_view` は変えない（`read_view` は元から「ID（タイトル）」を注記する）。
-- **行の並びは 3 段**（`VirtualViews.sortRows`）: `order.path`（`VirtualOrderValue`）があれば並び基準の出現から読んだ値の順（`type: number` は `SemanticExpression.numberOf`、`date` は ISO の文字、無指定は文字の順。読めない行は後ろ、同値は ID 順）、無ければ `order` の出現の文書内順、どちらも無ければ ID 順。値の読み出しは `resolve` の木の読み込みを共有する。
+- **行の並びは 3 段**（`VirtualViews.sortRows`）: `order.path`（`VirtualOrderValue`）があれば並び基準の出現から読んだ値の順、無ければ `order` の出現の文書内順、どちらも無ければ ID 順。値の読み出しは `resolve` の木の読み込みを共有する。
+  値の順の種類は `type` の宣言か、読む項目の型（`resolve` に渡す `fieldAt` で引く）。数値は `SemanticExpression.numberOf`・日付などは `ValueSemantics.orderKey`・決まらなければ文字の順。読めない行は後ろ、同値は ID 順。
+- **項目の型を知るのは呼び出し側**: `VirtualViews.resolve` の `fieldAt`（文書とパス → 解決済みの項目）はアプリの `Views.resolve` が `schemaFor` から組み立てて渡す（CLI・エクスポート・エージェント・グリッドの全経路）。値の式の列の順序の種類（`SemanticCheckSide.kind`）と合計の行の畳み方（`VirtualCell.kind`）もこれで決まる。
 - **桁区切りと表示の形は見せ方だけ**: 列の `display: grouped` / `format`（`VirtualViewColumn.display` / `format`）か、`path` の列の項目のヒント（`FieldHints.numberDisplay` / `format`）で、グリッドのセルの文字を `ValueFormat.display` に通す（値の式の列は値が数か日付として読めれば整形）。セルの値・`read_view`・CLI `view`・エクスポートは元のまま。編集できる列はエディタに同じヒントを渡す。
 - **クエリ行**（`rows: match:`。`rows: idPattern` と排他）: 行＝クエリの束縛行。行キーは `rowKey:`（省略時は先頭の束縛。kind: entity 限定）。列の `of:` で結合先ノードの値をセル化でき、セルは各束縛ノードの原本座標へ解決される。バックリンク列・値の式の列も `of` の束縛 ID を対象にでき、値の式は行の束縛を式の `of` で読める。行の同一性は `ViewRow.key`（束縛値の組）。`order` は併用不可。
 - **新規行の入口は 2 モード**: `newRow` は配列モード（`file` ＋ `path`: 一覧文書の配列へ要素追加＝未保存編集として積む）とファイルモード（`filePattern`: 詳細文書をスキャフォールドしてディスクへ書込＝索引更新で行が現れる）の排他。スキャフォールドは `detail.filePattern` の「作成」と共通（[schema.md「ひな型」](schema.md)）。`newRow.filePattern` に書ける穴は `{id}` だけ。ビューが宣言するのは「新しい原本がどこで生まれるか」だけ。

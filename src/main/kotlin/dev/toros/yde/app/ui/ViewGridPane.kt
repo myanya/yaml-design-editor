@@ -251,7 +251,7 @@ private fun GridBody(state: AppState, view: ViewDef) {
     // 行の構造（座標）は索引基準で解決し、セル値の表示・編集は編集中ツリーを優先する。
     // editVersion の購読（R16-04 / UX-02）: 計算列が他文書の未保存編集にも追随するための再解決契機
     val rows = remember(view, state.indexVersion, state.editVersion) {
-        Views.resolve(view, state.overlayIndex(), state.unsavedFirstTree())
+        Views.resolve(view, state.overlayIndex(), state.unsavedFirstTree(), state::schemaFor)
     }
     val filtered = remember(rows, query) {
         if (query.isBlank()) rows

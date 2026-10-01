@@ -361,15 +361,16 @@ object SemanticRefactor {
         }
     }
 
-    /** 改名・統合先のIDがエンティティ型の idPattern から逸脱する場合の警告（適用は止めない）。 */
+    /** 改名・統合先のIDがエンティティ型の ID の決まり（idPattern / idType）から逸脱する場合の警告（適用は止めない）。 */
     private fun idPatternWarnings(
         schemas: Map<String, SchemaSemantics>,
         occurrences: List<ScannedId>,
         newId: String,
     ): List<String> = occurrences.mapNotNull { e ->
         val decl = e.schemaId?.let { schemas[it] }?.let { entityFor(it.entities, e.id) } ?: return@mapNotNull null
-        if (decl.idPattern != null && !decl.matchesId(newId)) {
-            "エンティティ型「${decl.type}」の idPattern「${decl.idPattern}」に一致しません: $newId"
+        if (decl.hasIdRule && !decl.matchesId(newId)) {
+            val rule = decl.idPattern?.let { "idPattern「$it」" } ?: "ID の型「${decl.idType}」の形式"
+            "エンティティ型「${decl.type}」の${rule}に一致しません: $newId"
         } else null
     }.distinct()
 

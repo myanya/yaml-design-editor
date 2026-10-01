@@ -49,7 +49,7 @@
 | S-02 | 型システム: 基底の種類 14 種（表現の基底 9＋意味の基底型 `id` / `ref` / `date` / `time` / `datetime`。存在の検証）＋組込みの定義体 `text` / `line` / `word` | `semantic-core/schema/Fields.kt`・`ValueSemantics.kt`・`BuiltinTypes.kt` | 単体 `MetaSchemaTest`, `TypeDefinitionsTest` | [schema](architecture/schema.md) |
 | S-03 | 名前付き定義と再帰参照（`definitions` / `$ref`・狭める規則の合成） | `semantic-core/schema/SchemaTree.kt`（`resolve`） | 単体 `TypeDefinitionsTest` | [schema](architecture/schema.md) |
 | S-04 | メタスキーマ検証と宣言のない関係名の点検（実体はカーネル・読み込みエラーへ足す） | `workspace-core/workspace/SchemaDefinitionChecks.kt` | 単体 `SchemaLoaderTest`, `KernelOnlyChecksTest` | [schema](architecture/schema.md) |
-| S-05 | スキーマ設計 UI（説明・document／library・`$ref`・プレビュー・適用対象・`requiredFrom`・`role`・enum 選択肢・制約・`phases`・`coverage`・エンティティ節） | `ui/SchemaEditor.kt` | 手動 | [ui](architecture/ui.md) |
+| S-05 | スキーマ設計 UI（説明・document／library・`$ref`・プレビュー・適用対象・`requiredFrom`・`role`・enum 選択肢・制約・ヒント＝案内／サンプル値／複数行・`phases`・`coverage`・エンティティ節＝ID の型） | `ui/SchemaEditor.kt` | 手動 | [ui](architecture/ui.md) |
 | S-06 | サンプル YAML 生成（プレビュー・コピー・新規ファイルの初期値・必須スカラーに型別の例値） | `semantic-core/schema/SchemaScaffold.kt` | 単体 `SchemaLoaderTest`, `DocumentScaffoldTest` | [schema](architecture/schema.md) |
 | S-07 | スキーマ外キーの検証ポリシー（`unknownFields: allow / warning / error`） | `validate/Validator.kt`, `index/IdIndex.kt` | 手動 | [schema](architecture/schema.md) |
 | S-08 | 参照の関係種別（`type: ref` の `relation`） | `schema/Schema.kt`, `index/IdIndex.kt` | 単体 `WorkspaceCliTest` | [graph-query](architecture/graph-query.md) |
@@ -63,7 +63,7 @@
 | S-16 | スキーマ推測（既存 YAML から型・参照・enum・必須を推測してドラフト生成・CLI `infer-schema`） | `schema/SchemaInference.kt`, `app/AppState.inferSchema` | 単体 `SchemaInferenceTest` | [schema](architecture/schema.md) |
 | S-17 | 派生スキーマ（`derive:` で導出元文書から検証スキーマをコンパイル・導出元の変更は全再構築） | `semantic-core/schema/SchemaDerivation.kt`, `core/Workspace.kt` | 単体 `DerivedSchemasTest` | [schema](architecture/schema.md) |
 | S-18 | 制約語彙（`minLength` / `maxLength` / `pattern` / `min` / `max`・AI 生成の JSON Schema へ伝搬） | `schema/Schema.kt`, `yaml-core/structure/StructureValidator.kt` | 単体 `ConstraintTest` | [schema](architecture/schema.md) |
-| S-19 | エンティティ型宣言（`entity:` の型・`idPattern`・`defines`・走査が型と役割を付与し解決は定義出現を優先） | `semantic-core/schema/Relations.kt`（`EntityDecl`）, `index/IdIndex.kt` | 単体 `EntityDeclTest`, `DocScannerTest` | [graph-query](architecture/graph-query.md) |
+| S-19 | エンティティ型宣言（`entity:` の型・`idPattern` / `idType`＝ID の型の形式で判別・`defines`・走査が型と役割を付与し解決は定義出現を優先） | `semantic-core/schema/Relations.kt`（`EntityDecl`）, `index/IdIndex.kt` | 単体 `EntityDeclTest`, `DocScannerTest`, `TypeDefinitionsTest` | [graph-query](architecture/graph-query.md) |
 | S-20 | 関係レジストリ（`kind: relations` の関係語彙・label／inverseLabel・`enforcement`・CLI `infer-relations`） | `semantic-core/schema/Relations.kt`（`RelationDef`）, `core/Workspace.kt` | 単体 `RelationRegistryTest` | [graph-query](architecture/graph-query.md) |
 | S-21 | 属性付き参照（`type: ref` に `fields:` があるときだけ `{to, 属性...}` を許可・to の座標は従来と同じ） | `index/IdIndex.kt`（`RefEntry.attributes`）, `ui/FormView.kt`（`RefEditor`） | 単体 `DocScannerTest`, `ValidatorTest` | [graph-query](architecture/graph-query.md) |
 | S-22 | アスペクト宣言とエンティティ型レジストリ（`aspect` / `owns`・レジストリの `entities:` 節） | `semantic-core/schema/Relations.kt`（`EntityTypeDef`, `ownedFieldKeys`） | 単体 `AspectTest` | [graph-query](architecture/graph-query.md) |
@@ -82,7 +82,7 @@
 | V-06 | フェーズ考慮の検証（`requiredFrom` は到達フェーズから・`activeFrom` は到達まで保留・フェーズ別進捗） | `validate/Validator.kt`（`phaseProgress`） | 単体 `PhaseTest` | [schema](architecture/schema.md) |
 | V-07 | 整合検証（`consistency`・導出した期待値と `assert` の関係・組込み定義体・来歴つきの指摘と「導出値を適用」） | `builtin-definitions/consistency.yaml`, `workspace-core/validate/WorkspaceChecks.kt` | 単体 `ConsistencyTest` | [checks](architecture/checks.md) |
 | V-08 | グラフ整合検証（対象型・多重度・非循環・強制スイッチ・いずれも組込み定義体・「参照の追加先を開く」） | `builtin-definitions/relations.yaml`, `semantic-core/schema/Relations.kt`（`EnforcementDef`） | 単体 `GraphIntegrityTest` | [checks](architecture/checks.md) |
-| V-09 | パターン制約（`constraints`・`match` / `also` / `where` / `expect` / `count` / `same` / `check`・否定と「または」・値の式・`repeat`・`forAll`） | `semantic-core/schema/Query.kt`・`semantic/Query.kt` | 単体 `QueryConstraintTest`, `CheckConstraintTest`, `ArrayAggregateCheckTest` | [checks](architecture/checks.md) |
+| V-09 | パターン制約（`constraints`・`match` / `also` / `where` / `expect` / `count` / `same` / `check`・否定と「または」・値の式・順序は型で・`repeat`・`forAll`） | `semantic-core/schema/Query.kt`・`semantic/Query.kt` | 単体 `QueryConstraintTest`, `CheckConstraintTest`, `TypeDefinitionsTest` | [checks](architecture/checks.md) |
 | V-10 | 重複所有の検証（同一エンティティの複数出現が同じフィールドを所有したら警告・双方に entity 宣言と `owns` があるときだけ） | `workspace-core/validate/CodedDocumentChecks.kt` | 単体 `AspectTest`, `KernelOnlyChecksTest` | [checks](architecture/checks.md) |
 | V-11 | 網羅マトリクス（`matrix`・行 × 列の全組合せに証人があること・組込み定義体で `forAll` へ展開） | `builtin-definitions/matrix.yaml` | 単体 `MatrixTest` | [checks](architecture/checks.md) |
 | V-12 | 遷移検証（`flow`・到達不能・行き止まり・宣言外遷移・到達の計算は専用チェッカーで文面と重大度は定義体） | `semantic-core/semantic/Flow.kt`, `builtin-definitions/flow.yaml` | 単体 `FlowTest` | [checks](architecture/checks.md) |
@@ -197,7 +197,7 @@
 | C-04 | 段階的開示 API（カタログ → 骨子 → ノード全文・文字数予算つきバンドル） | `core/Disclosure.kt` | 単体 `WorkspaceCliTest` | [agents](architecture/agents.md) |
 | C-05 | 構造検索 API（本文とキーの部分一致とスキーマ・glob 条件・参照検索・未解決参照） | `core/Search.kt` | 単体 `WorkspaceCliTest` | [index-references](architecture/index-references.md) |
 | C-06 | root の CLI（探索・検索・クエリ・ビュー・検証・適用・エンティティ・エージェント・自動化・評価・skill・初期化・推測・移行・検査一覧・準備完了・計測・変換） | `core/Cli.kt` | 単体 `WorkspaceCliTest` | [workspace](architecture/workspace.md) |
-| C-07 | ビュー解決 API（定義のロード・行 × セルの原本座標化・バックリンク列・文書ビュー・CLI `view`） | `core/Views.kt` | 単体 `ViewsTest` | [views](architecture/views.md) |
+| C-07 | ビュー解決 API（定義のロード・行 × セルの原本座標化・バックリンク列・文書ビュー・行の並びと集計の種類は項目の型から・CLI `view`） | `core/Views.kt` | 単体 `ViewsTest`, `VirtualViewsTest` | [views](architecture/views.md) |
 | C-08 | 性能ベンチマーク（カーネルの全再構築・増分更新の計測・CLI `workspace bench`） | `cli/Commands.kt` | 単体 `CliTest`, `IdIndexIncrementalTest` | [workspace](architecture/workspace.md) |
 | C-09 | 文書キャッシュの中核（`EditBuffer`・`WorkspaceRecords`・`noteDiskChanges` の振り分け） | `core/Documents.kt`, `core/Workspace.kt` | 単体 `DocumentsTest` | [workspace](architecture/workspace.md) |
 | C-10 | エンティティ操作（rename / merge / delete を 1 つの計画に・1 トランザクションで Undo 1 回・CLI とパレットとエンティティページ） | `semantic-core/semantic/Refactor.kt`, `workspace-core/workspace/WorkspaceSession.kt`（`planRefactoring`） | 単体 `RefactoringTest`, `AppStateRefactorTest` | [graph-query](architecture/graph-query.md) |

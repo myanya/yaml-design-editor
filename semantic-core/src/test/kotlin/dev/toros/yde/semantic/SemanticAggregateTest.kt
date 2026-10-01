@@ -3,6 +3,8 @@ package dev.toros.yde.semantic
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.parseYPath
+import dev.toros.yde.semantic.schema.FieldDef
+import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.semantic.schema.QueryNodeKind
 import dev.toros.yde.semantic.schema.ValueExpr
 import kotlin.test.Test
@@ -65,11 +67,35 @@ class SemanticAggregateTest {
     }
 
     @Test
-    fun `順序の種類を宣言しなければ数値として読み日付は得られない`() {
-        // 表記から意味を決めない: 日付として比べるなら type: date を書く
+    fun `順序の種類を宣言せず項目の型も分からなければ数値として読み日付は得られない`() {
+        // 表記から意味を決めない: 日付として比べるのは、項目の型が日付か type: date を書いたとき
         val result = SemanticValues.evaluateDetailed(maxDate(type = null), env(threeComments))
         assertNull(result.side)
         assertEquals("comments[0].date が数値として読めません: 2026-09-02", result.reason)
+    }
+
+    @Test
+    fun `順序の種類を宣言しなければ読んだ項目の型で決まる`() {
+        // 環境が項目の定義を引ければ（カーネル・アプリが渡す）、date の項目は日付として比べる
+        val tree = YamlIO.parse(threeComments.trimIndent())
+        val dated = SemanticValues.Environment(
+            tree = { d -> tree.takeIf { d == doc } },
+            current = SemanticQueryNodeRef(QueryNodeKind.ENTITY, "T-1", null, "todo", doc, emptyList()),
+            currentOccurrence = SemanticExpression.Occurrence(doc, emptyList()),
+            fieldAt = { _, path -> if (path.lastOrNull() == "date") FieldDef(key = "date", type = FieldType.DATE) else null },
+        )
+        val side = assertNotNull(SemanticValues.evaluate(maxDate(type = null), dated))
+        assertEquals("2026-09-05", side.text)
+        assertEquals(ValueExpr.OrderKind.DATE, side.kind)
+        // 日付の項目の合計は（宣言しなくても）得られない
+        val sum = ValueExpr.parseValue(mapOf("sum" to mapOf("path" to "comments[*].date")), "x")
+        val result = SemanticValues.evaluateDetailed(sum, dated)
+        assertNull(result.side)
+        assertEquals("日付は足せません（合計の材料が日付の項目です）", result.reason)
+        // 書いた種類が優先（型が日付でも type: number と書けば数値として読み、読めない）
+        val forced = SemanticValues.evaluateDetailed(maxDate(type = "number"), dated)
+        assertNull(forced.side)
+        assertEquals("comments[0].date が数値として読めません: 2026-09-02", forced.reason)
     }
 
     @Test

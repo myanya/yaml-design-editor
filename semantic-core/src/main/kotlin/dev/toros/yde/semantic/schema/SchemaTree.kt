@@ -35,6 +35,13 @@ data class SchemaTree(
     fun definitionRefOf(field: FieldDef?): String? = field?.let { f -> definitionTarget(f)?.first?.toString() }
 
     /**
+     * 型の名前（`名前` / `module#名前`。組込みの型を含む）を、項目に `type: 名前` と書いたのと同じ規則で解決する。
+     * 見つからない・連鎖が切れる名前は null。エンティティ型の宣言（idType）など、項目の外から型を引くときに使う。
+     */
+    fun resolveTypeName(name: String): FieldDef? =
+        resolve(FieldDef(ref = name, typeName = name))?.takeIf { it.ref == null }
+
+    /**
      * `$ref` と型の名前（`type: 名前`）を1段ずつ解決する。循環は打ち切る（型の連鎖の循環は、定義の点検が誤りにする。
      * object の再帰は fields / item / value を通るので、ここでは循環にならない）。
      * 合成は「狭めるだけ」（P33 の規則）: 使う側（型から型へ、も同じ）の決まりは定義の決まりと合わせ、緩めない。

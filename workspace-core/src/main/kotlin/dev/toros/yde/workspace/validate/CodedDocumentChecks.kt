@@ -106,10 +106,12 @@ internal class CodedDocumentChecks(
         for (entry in localIds) {
             val decl = entityFor(schema.entities, entry.id)
             if (decl == null) {
-                val patterns = schema.entities.mapNotNull { it.idPattern }
+                // ID の決まり: idPattern はそのまま・idType は「型 名前」（文面の見出しは idPattern だけなら今までどおり）
+                val rules = schema.entities.mapNotNull { it.idRuleText }
+                val heading = if (schema.entities.any { it.idType != null }) "ID の決まり" else "idPattern"
                 issues += CheckIssue(
                     Severity.WARNING,
-                    "ID「${entry.id}」はエンティティ型の idPattern（${patterns.joinToString(", ")}）のいずれにも一致しません",
+                    "ID「${entry.id}」はエンティティ型の $heading（${rules.joinToString(", ")}）のいずれにも一致しません",
                     entry.path,
                     source = coded("id-pattern", entry),
                 )

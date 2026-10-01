@@ -81,7 +81,7 @@ class SchemaDef(
         WorkspaceSchema(
             id = id, kind = kind, match = match,
             tree = SchemaTree(id, root, definitions, phases, definitionCatalog),
-            entities = entities, isTemplate = derive != null,
+            declaredEntities = entities, isTemplate = derive != null,
             source = dev.toros.yde.yaml.model.DocumentId(source.toString().replace('\\', '/')),
             derive = derive, constraints = constraints, checkers = checkers, expandedChecks = expandedChecks,
             vocabularySource = vocabularySource, name = name, description = description,

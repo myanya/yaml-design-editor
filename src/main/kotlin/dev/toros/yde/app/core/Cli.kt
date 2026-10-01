@@ -384,7 +384,7 @@ internal fun runCli(args: Array<String>): String {
             }
             val view = loaded.view(viewId)
                 ?: error("ビュー「$viewId」が見つかりません（view コマンドで一覧を確認できます）")
-            val rows = Views.resolve(view, ws.index, ws::treeOf)
+            val rows = Views.resolve(view, ws.index, ws::treeOf, ws::schemaFor)
             dumpYaml(
                 linkedMapOf<String, Any?>(
                     "view" to view.id,

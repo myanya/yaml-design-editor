@@ -131,9 +131,9 @@ class ValueExprTest {
         // いまの要素から読む項目として、ビューのリントが解決を点検できる
         assertEquals(listOf("comments[*].date"), max.currentReads())
         assertEquals(listOf(max), max.aggregates())
-        // 省略時は数値。引数には式（all）も書ける
+        // 省略時は決まらない（読んだ項目の型から。型が無ければ数値）。引数には式（all）も書ける
         val sum = assertIs<ValueExpr.Aggregate>(ValueExpr.parse(mapOf("sum" to mapOf("all" to mapOf("of" to "l", "path" to "amount"))), "x"))
-        assertEquals(ValueExpr.OrderKind.NUMBER, sum.kind)
+        assertNull(sum.kind)
         assertIs<ValueExpr.All>(sum.input)
         // count は配列の要素を数える
         val count = assertIs<ValueExpr.Aggregate>(ValueExpr.parseValue(mapOf("count" to mapOf("path" to "comments[*]")), "x"))
