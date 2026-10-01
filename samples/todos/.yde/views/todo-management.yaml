@@ -26,11 +26,14 @@ columns:
     schemaId: todo-detail
     path: created_on
     editable: true
+  # 更新日: コメントの日付のいちばん新しいもの。date の項目なので日付として比べます（並び順によりません）。
+  # 計算した値には項目の型が無いので、画面の見せ方（format）は列に書きます。
   - label: 更新日
     schemaId: todo-detail
+    format: "yyyy年M月d日"
     value:
       first:
-        - max: { path: "comments[*].date", type: date }
+        - max: { path: "comments[*].date" }
         - 未更新
 detail:
   fileGlob: "todos/details/*.yaml"

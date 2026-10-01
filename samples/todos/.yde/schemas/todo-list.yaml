@@ -5,7 +5,7 @@ description: ID・タイトル・概要・カテゴリを管理する一覧。�
 match: todos/todo-list.yaml
 entity:
   type: todo
-  idPattern: "TODO-*"
+  idType: common#TODO番号   # ID の形式は共通の型から（「TODO-」と 3 桁以上の数字）
   defines: true
   owns: [title, summary, category]
 root:
@@ -21,24 +21,19 @@ root:
         fields:
           - key: id
             label: ID
-            type: id
+            type: common#TODO番号
             required: true
-            pattern: 'TODO-[0-9]{3,}'
             description: 一覧内で一意のID。例：TODO-001。個票のIDとファイル名にも使用します。
           - key: title
             label: タイトル
-            type: string
+            type: common#一行の文
             role: title
             required: true
           - key: summary
             label: 概要
-            type: string
+            type: common#一行の文
             role: subtitle
             required: true
           - key: category
             label: カテゴリ
-            type: ref
-            idPattern: "CAT-*"
-            scope:
-              schemaIds: [category-list]
-            description: カテゴリ一覧のIDを指定します。未分類の場合は省略できます。
+            type: common#カテゴリ参照

@@ -43,7 +43,7 @@
   - ビュー定義のリントは、式が読む項目がスキーマから解決できるか、`via` が参照型の項目か、集計に書いた `type` が項目の型と食い違っていないか（`date` の項目に `type: number`・文字の項目に `type: date`）を指摘します
   - 古い書き方 `computed`（`lookup` / `source` / `path` / `values` / `map` / `default`）は定義エラーになり、同じ意味の `value` の書き方が文面に出ます
 - **行の並び**: `order` を省くと ID 順です。`order: { schemaId / fileGlob }` はその出現の文書内の順（一覧文書の並び）。`order: { path: date, direction: desc }` のように `path` を書くと、並び基準の出現（`schemaId` / `fileGlob`。省けばどの出現でも）の要素から読んだ**値の順**になります。
-並べ方は項目の型で決まります（`int` / `number` は数の順・`date` / `time` / `datetime` は日付などの順・それ以外は文字の順）。`type: number | date | time | datetime` を書けば上書きできます。`direction: desc` で大きい順・新しい順。値の無い行はどちらの向きでも後ろ、同じ値は ID 順です
+並べ方は項目の型で決まります（`int` / `number` は数の順・`date` / `time` / `datetime` は日付などの順・それ以外は文字の順）。`type: number | date | time | datetime` を書けば上書きできます。`direction: desc` で大きい順・新しい順。値の無い行はどちらの向きでも後ろ、同じ値は ID 順です（`samples/todos` の `todo-by-due.yaml`＝期限順が実例）
 - **要素ごとに列を広げる**: 列に `label` / `path` の代わりに `each: { idPattern: "CAT-*", bind: cat }` と `value`（値の式）を書くと、`idPattern` に合う要素（費目など）ごとに 1 列ができます。見出しは要素のタイトル、並びは ID 順（`each.order: { schemaId / fileGlob }` でその出現の文書内の順）。
 `value` の式の中では列の要素を `$cat`（`bind` の名前に `$`）で指せます。その文字だけの値が、列ごとにその要素の ID に置き換わります（例: 月の行から `all` で取引を集め、`edge: { via: category }` → `node: { id: $cat }` でその費目の取引に絞って `sum`。`where` の `equals: $cat` でも同じ）。
 同じ表は[クロス集計](#クロス集計kind-matrix-行列のセルに集計)でも書けます。違いは、こちらが「ふつうの列の 1 つ」なので他の列と並べられ、合計の行や未分類の列は自分で書くことです

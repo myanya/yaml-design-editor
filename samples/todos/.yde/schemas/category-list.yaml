@@ -5,7 +5,7 @@ description: TODOからIDで参照するカテゴリを管理します。
 match: todos/category-list.yaml
 entity:
   type: category
-  idPattern: "CAT-*"
+  idType: common#カテゴリ番号   # ID の形式は共通の型から（「CAT-」と 3 桁以上の数字）
   defines: true
   owns: [name]
 root:
@@ -21,12 +21,11 @@ root:
         fields:
           - key: id
             label: ID
-            type: id
+            type: common#カテゴリ番号
             required: true
-            pattern: 'CAT-[0-9]{3,}'
             description: 一覧内で一意のID。例：CAT-001。TODOからこのIDを参照します。
           - key: name
             label: カテゴリ名
-            type: string
+            type: common#一行の文
             role: title
             required: true
