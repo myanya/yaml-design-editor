@@ -47,6 +47,7 @@ import dev.toros.yde.app.index.IdIndex
 import dev.toros.yde.app.index.RefEntry
 import dev.toros.yde.app.index.idMatchesPattern
 import dev.toros.yde.app.index.isAllowedBy
+import dev.toros.yde.semantic.schema.BuiltinTypes
 import dev.toros.yde.app.schema.IdSuggest
 import dev.toros.yde.app.schema.SchemaDef
 import dev.toros.yde.semantic.schema.RefTarget
@@ -330,7 +331,7 @@ private fun DocumentMetadataEditor(ctx: FormCtx, root: YNode.Map) {
             }
             CompactTextField(
                 value = (descriptionSlot.get() as? YNode.Scalar)?.value?.toString().orEmpty(),
-                onValueChange = { ctx.setScalar(descriptionSlot, it, FieldType.TEXT) },
+                onValueChange = { ctx.setScalar(descriptionSlot, it, FieldType.STRING) },
                 placeholder = { Text("この文書が何を示し、何を含むかを簡潔に記述") },
                 modifier = Modifier.weight(1f).heightIn(min = 84.dp),
             )
@@ -685,9 +686,13 @@ fun ValueEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
         TypeMismatchRepair(ctx, effective, slot, path, node)
         return
     }
+    // 複数行の文字列は組込みの型 text（型の連鎖で判定する。基底の種類の分岐は増やさない。P33）
+    if (effective.isA(BuiltinTypes.TEXT)) {
+        ScalarTextEditor(ctx, effective, slot, singleLine = false)
+        return
+    }
     when (effective.type) {
         FieldType.STRING, FieldType.DATE -> ScalarTextEditor(ctx, effective, slot, singleLine = true)
-        FieldType.TEXT -> ScalarTextEditor(ctx, effective, slot, singleLine = false)
         FieldType.INT, FieldType.NUMBER -> ScalarTextEditor(ctx, effective, slot, singleLine = true)
         FieldType.BOOLEAN -> BooleanEditor(ctx, slot)
         FieldType.ENUM -> EnumEditor(ctx, effective, slot)
@@ -1395,16 +1400,18 @@ private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) 
 
 // ================================================================ テーブル表示（R12-06: 配列・map）
 
-/** 列の型に応じたセルの最小幅（余白があれば tableColumnWidths が広げ、収まらなければ横スクロール）。 */
-private fun tableCellWidth(type: FieldType): Dp = when (type) {
-    FieldType.BOOLEAN -> 90.dp
-    FieldType.INT, FieldType.NUMBER -> 90.dp
-    FieldType.DATE -> 110.dp
-    FieldType.ENUM -> 140.dp
-    FieldType.ID -> 150.dp
-    FieldType.REF -> 200.dp
-    FieldType.TEXT -> 240.dp
-    else -> 170.dp
+/** 列の型に応じたセルの最小幅（余白があれば tableColumnWidths が広げ、収まらなければ横スクロール）。列は `$ref` 解決済み。 */
+private fun tableCellWidth(column: FieldDef): Dp = when {
+    column.isA(BuiltinTypes.TEXT) -> 240.dp   // 複数行の文字列（組込みの型。P33）
+    else -> when (column.type) {
+        FieldType.BOOLEAN -> 90.dp
+        FieldType.INT, FieldType.NUMBER -> 90.dp
+        FieldType.DATE -> 110.dp
+        FieldType.ENUM -> 140.dp
+        FieldType.ID -> 150.dp
+        FieldType.REF -> 200.dp
+        else -> 170.dp
+    }
 }
 
 private val TABLE_EXPAND_WIDTH = 28.dp
@@ -1414,21 +1421,21 @@ private val TABLE_KEY_WIDTH = 150.dp       // map のキー列
 
 /** 余白の配分先になる列（文字系）。数値・真偽・日付は固定幅のままにする。 */
 private val FLEX_CELL_TYPES = setOf(
-    FieldType.STRING, FieldType.TEXT, FieldType.ENUM, FieldType.ID, FieldType.REF,
+    FieldType.STRING, FieldType.ENUM, FieldType.ID, FieldType.REF,
 )
 
 /**
  * 列幅の割付（R12-06）: 型別の最小幅を保証しつつ、利用可能幅に余りがあれば文字系の列で
  * 等分して表を右端まで使う。文字系の列がなければ伸ばさない（数値だけの表を間延びさせない）。
- * 利用可能幅に収まらない場合は最小幅のまま＝横スクロールに委ねる。
+ * 利用可能幅に収まらない場合は最小幅のまま＝横スクロールに委ねる。列は `$ref` 解決済みの項目。
  */
-internal fun tableColumnWidths(types: List<FieldType>, available: Dp, fixed: Dp): List<Dp> {
-    val base = types.map { tableCellWidth(it) }
+internal fun tableColumnWidths(columns: List<FieldDef>, available: Dp, fixed: Dp): List<Dp> {
+    val base = columns.map { tableCellWidth(it) }
     val natural = fixed + base.fold(0.dp) { acc, w -> acc + w }
-    val flexCount = types.count { it in FLEX_CELL_TYPES }
+    val flexCount = columns.count { it.type in FLEX_CELL_TYPES }
     if (available <= natural || flexCount == 0) return base
     val extra = (available - natural) / flexCount
-    return types.mapIndexed { i, t -> base[i] + if (t in FLEX_CELL_TYPES) extra else 0.dp }
+    return columns.mapIndexed { i, c -> base[i] + if (c.type in FLEX_CELL_TYPES) extra else 0.dp }
 }
 
 /**
@@ -1454,7 +1461,7 @@ private fun ObjectTable(
     val keyWidth = if (keyHeader != null) TABLE_KEY_WIDTH else 0.dp
     val trailing = if (ctx.readOnly || ops == null) 0.dp else opsWidth
     val fixed = TABLE_EXPAND_WIDTH + keyWidth + trailing
-    val widths = tableColumnWidths(columns.map { it.type }, maxWidth, fixed)
+    val widths = tableColumnWidths(columns, maxWidth, fixed)
     val rowWidth = fixed + widths.fold(0.dp) { acc, w -> acc + w }
     Column(Modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth().horizontalScroll(hScroll)) {
@@ -1598,7 +1605,7 @@ private fun ObjectTableCell(ctx: FormCtx, col: FieldDef, map: YNode.Map, itemPat
         when {
             // スキーマとずれた複合値はセルで編集せず要約表示に留める（編集は行の展開フォーム）
             value != null && value !is YNode.Scalar -> TableCellText(Display.inline(value, ctx.doc.schema, col))
-            ctx.readOnly || col.type == FieldType.TEXT -> TableCellText(readOnlyCellText(col, value as? YNode.Scalar))
+            ctx.readOnly || col.isA(BuiltinTypes.TEXT) -> TableCellText(readOnlyCellText(col, value as? YNode.Scalar))
             else -> ValueEditor(ctx, col, slot, itemPath + key)
         }
     }

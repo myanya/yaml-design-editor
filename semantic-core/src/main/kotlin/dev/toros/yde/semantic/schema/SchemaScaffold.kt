@@ -72,7 +72,7 @@ object SchemaScaffold {
                 FieldType.ID -> YNode.Scalar("SAMPLE-001")
                 // 必須スカラーは空文字にせず型別の例値を入れる（UX-28。空文字は必須エラーになりプレビューが赤くなる）
                 FieldType.REF -> YNode.Scalar(if (field.required || field.requiredFrom != null) "SAMPLE-001" else "")
-                FieldType.TEXT, FieldType.STRING ->
+                FieldType.STRING ->
                     YNode.Scalar(if (field.required || field.requiredFrom != null) "サンプル" else "")
                 FieldType.ANY -> YNode.Scalar("")
             }

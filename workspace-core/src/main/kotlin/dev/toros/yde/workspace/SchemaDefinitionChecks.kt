@@ -7,6 +7,7 @@ import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.semantic.schema.RelationDef
 import dev.toros.yde.semantic.schema.SchemaKind
 import dev.toros.yde.semantic.schema.globToRegex
+import dev.toros.yde.yaml.structure.UnknownFieldsPolicy
 
 /** スキーマの定義の点検で見つかった誤り1件（path は、スキーマ文書の中の場所の表示）。 */
 data class SchemaIssue(val message: String, val path: String)
@@ -159,9 +160,49 @@ object SchemaDefinitionChecks {
             issues += SchemaIssue("idPattern のないエンティティ型宣言は1つまでです（複数型は idPattern で判別します）", "entity")
         }
 
+        // 狭める規則（P33）: 使う側（型から型へ、も同じ）に書いた決まりは、型（解決済みの定義 def）の決まりより緩くできない
+        fun checkNarrowing(use: FieldDef, def: FieldDef, key: DefinitionKey, path: String) {
+            val name = key.toString()
+            fun looser(what: String, own: Any, base: Any) {
+                issues += SchemaIssue("$what $own は型「$name」の $base より緩いため書けません（型は狭めるだけ）", path)
+            }
+            fun numText(d: Double): String = if (d == Math.floor(d) && !d.isInfinite()) d.toLong().toString() else d.toString()
+            use.minLength?.let { own -> def.minLength?.let { base -> if (own < base) looser("minLength", own, base) } }
+            use.maxLength?.let { own -> def.maxLength?.let { base -> if (own > base) looser("maxLength", own, base) } }
+            use.min?.let { own -> def.min?.let { base -> if (own < base) looser("min", numText(own), numText(base)) } }
+            use.max?.let { own -> def.max?.let { base -> if (own > base) looser("max", numText(own), numText(base)) } }
+            if (use.values.isNotEmpty() && def.values.isNotEmpty()) {
+                val extra = use.values.filter { it !in def.values }
+                if (extra.isNotEmpty()) {
+                    issues += SchemaIssue("選択肢 ${extra.joinToString(", ")} は型「$name」に無いため書けません（型は狭めるだけ）", path)
+                }
+            }
+            if (use.cases.isNotEmpty() && def.cases.isNotEmpty()) {
+                issues += SchemaIssue("cases は型「$name」に既にあるため書けません（cases は型に無いときだけ足せます）", path)
+            }
+            fun rank(p: UnknownFieldsPolicy?) = when (p ?: UnknownFieldsPolicy.WARNING) {
+                UnknownFieldsPolicy.ALLOW -> 0
+                UnknownFieldsPolicy.WARNING -> 1
+                UnknownFieldsPolicy.ERROR -> 2
+            }
+            use.unknownFields?.let { own ->
+                if (rank(own) < rank(def.unknownFields)) looser("unknownFields", own.id, (def.unknownFields ?: UnknownFieldsPolicy.WARNING).id)
+            }
+            use.relation?.let { own ->
+                def.relation?.let { base -> if (own != base) issues += SchemaIssue("relation「$own」は型「$name」の「$base」と違うため書けません", path) }
+            }
+            fun disjoint(what: String, own: List<String>, base: List<String>) {
+                if (own.isNotEmpty() && base.isNotEmpty() && own.none { it in base }) {
+                    issues += SchemaIssue("$what は型「$name」の範囲（${base.joinToString(", ")}）と共通部分がありません", path)
+                }
+            }
+            disjoint("scope.schemaIds", use.scope.schemaIds, def.scope.schemaIds)
+            disjoint("scope.documentIds", use.scope.documentIds, def.scope.documentIds)
+        }
+
         // 制約語彙（R16-01）の妥当性: 型との適合・範囲の整合・正規表現の可否
         fun checkConstraints(f: FieldDef, path: String) {
-            val stringy = f.type == FieldType.STRING || f.type == FieldType.TEXT
+            val stringy = f.type == FieldType.STRING
             if ((f.minLength != null || f.maxLength != null) && !stringy) {
                 issues += SchemaIssue("minLength / maxLength は string / text 型でのみ使用できます", path)
             }
@@ -184,7 +225,7 @@ object SchemaDefinitionChecks {
             val min = f.min
             val max = f.max
             if (min != null && max != null && min > max) issues += SchemaIssue("min が max を超えています", path)
-            f.pattern?.let { p ->
+            f.patterns.forEach { p ->
                 runCatching { Regex(p) }.onFailure { issues += SchemaIssue("pattern が正規表現として不正です: $p", path) }
             }
         }
@@ -197,8 +238,11 @@ object SchemaDefinitionChecks {
             }
             field.ref?.let { ref ->
                 val located = tree.definitionTarget(field)
-                if (located == null) issues += SchemaIssue("未定義の参照です: \$$ref", path)
-                else {
+                if (located == null) {
+                    // 型の名前（type: 名前。P33）が引けなければ「未知の型」、$ref なら「未定義の参照」
+                    issues += if (field.typeName != null) SchemaIssue("未知の型です: $ref（基底の種類か、definitions に定義した型の名前を書きます）", path)
+                    else SchemaIssue("未定義の参照です: \$$ref", path)
+                } else {
                     val (key, target) = located
                     if (key !in stack) check(target, "definitions.$key", stack + key)
                     val resolved = tree.resolve(field) ?: field
@@ -209,6 +253,7 @@ object SchemaDefinitionChecks {
                         issues += SchemaIssue("displayはarray / map型でのみ使用できます", path)
                     }
                     checkConstraints(resolved, path)
+                    checkNarrowing(field, tree.resolve(target) ?: target, key, path)
                 }
                 return
             }
@@ -316,6 +361,10 @@ object SchemaDefinitionChecks {
         }
         if (kind == SchemaKind.DOCUMENT) check(root, "root", emptySet())
         definitions.forEach { (name, field) ->
+            // 型の連鎖の循環（a → b → a）は定義の誤り（object の再帰は fields / item / value を通るので循環にならない。P33）
+            tree.typeChainCycle(field)?.let { cycle ->
+                issues += SchemaIssue("型の定義が循環しています: ${cycle.joinToString(" → ")}", "definitions.$name")
+            }
             check(field, "definitions.$name", setOf(DefinitionKey(id, name)))
         }
         // activeFrom の静的検査は全検証語彙で共通（R29-03。従来は coverage / consistency のみだった）

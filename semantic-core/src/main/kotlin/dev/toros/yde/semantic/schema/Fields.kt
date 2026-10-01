@@ -16,11 +16,13 @@ import dev.toros.yde.yaml.structure.UnknownFieldsPolicy
  */
 
 /**
- * フィールドの型。スキーマ YAML の `type:` に対応する。
+ * 基底の種類（P33）。スキーマ YAML の `type:` に書ける名前のうち、Kotlin が知るもの＝YAML の値の形と、
+ * 索引・参照解決のようにコードが要る意味（id / ref）。それ以外の名前（組込みの型 `text`・利用者の型）は定義の名前で、
+ * 解決すると型の連鎖（`FieldDef.lineage`）の末端がこの基底の種類になる。
+ * `text` は組込みの型（定義体 builtin-types/text.yaml）へ移した——ここに分岐を足さず、`FieldDef.isA` で連鎖を見る。
  */
 enum class FieldType(val id: String) {
-    STRING("string"),   // 1行テキスト
-    TEXT("text"),       // 複数行テキスト
+    STRING("string"),   // 文字列（1行の編集欄。複数行は組込みの型 text）
     INT("int"),         // 整数
     NUMBER("number"),   // 数値（小数可）
     BOOLEAN("boolean"), // 真偽値
@@ -33,8 +35,14 @@ enum class FieldType(val id: String) {
     OBJECT("object"),   // オブジェクト（fields 必須）
     ANY("any");         // 任意の値（検証しない。メタスキーマ等、単一の型で表せない箇所の明示。R11-02）
 
+    /** 入れ物（object / array / map）。型の連鎖を辿らず定義への参照のまま扱う（再帰のため）のはこの種類だけ。 */
+    val isContainer: Boolean get() = this == ARRAY || this == MAP || this == OBJECT
+
     companion object {
         fun of(s: String?): FieldType = entries.firstOrNull { it.id == s } ?: STRING
+
+        /** 基底の種類の名前か（`type:` に書かれた名前が、定義の名前でなく基底の種類か）。 */
+        fun isBaseKind(name: String?): Boolean = entries.any { it.id == name }
     }
 }
 
@@ -129,30 +137,46 @@ data class DefinitionKey(val moduleId: String, val name: String) {
     override fun toString(): String = "$moduleId#$name"
 }
 
-/** ワークスペース内の定義モジュールを修飾名で引く中央カタログ。生成・検索はスキーマ層に閉じる。 */
+/**
+ * ワークスペース内の定義モジュールを修飾名で引く中央カタログ。生成・検索はスキーマ層に閉じる。
+ * 組込みの型のモジュール（`builtin-types`。BuiltinTypes）は常に含まれ、非修飾の名前は
+ * 「自分のモジュール → 組込みの型」の順に引く（P33。利用者が同じ名前を自分のモジュールに置けば、そちらが勝つ）。
+ */
 class SchemaCatalog private constructor(
     private val definitionsByModule: Map<String, Map<String, FieldDef>>,
 ) {
     fun find(ref: String, fallbackModuleId: String): Pair<DefinitionKey, FieldDef>? {
         val hash = ref.indexOf('#')
-        val moduleId = if (hash >= 0) ref.substring(0, hash) else fallbackModuleId
         val name = if (hash >= 0) ref.substring(hash + 1) else ref
-        if (moduleId.isBlank() || name.isBlank()) return null
-        val key = DefinitionKey(moduleId, name)
-        return definitionsByModule[moduleId]?.get(name)?.let { key to it }
+        if (name.isBlank()) return null
+        if (hash >= 0) {
+            val moduleId = ref.substring(0, hash)
+            if (moduleId.isBlank()) return null
+            return definitionsByModule[moduleId]?.get(name)?.let { DefinitionKey(moduleId, name) to it }
+        }
+        if (fallbackModuleId.isBlank()) return null
+        definitionsByModule[fallbackModuleId]?.get(name)?.let { return DefinitionKey(fallbackModuleId, name) to it }
+        // 組込みの型は最後に引く（自分のモジュールの同じ名前が優先）
+        return definitionsByModule[BuiltinTypes.MODULE_ID]?.get(name)?.let { DefinitionKey(BuiltinTypes.MODULE_ID, name) to it }
     }
 
-    /** つながっている全モジュールの定義（モジュール → 名前 → 定義）。構造のスキーマの導出が、他のモジュールの定義も導出するのに使う。 */
+    /** つながっている全モジュールの定義（モジュール → 名前 → 定義。組込みの型のモジュールを含む）。構造のスキーマの導出が、他のモジュールの定義も導出するのに使う。 */
     fun modules(): Map<String, Map<String, FieldDef>> = definitionsByModule
 
     companion object {
         fun local(moduleId: String, definitions: Map<String, FieldDef>): SchemaCatalog =
-            SchemaCatalog(mapOf(moduleId to definitions))
+            SchemaCatalog(withBuiltinTypes(linkedMapOf(moduleId to definitions)))
 
         fun linked(modules: Iterable<Pair<String, Map<String, FieldDef>>>): SchemaCatalog {
             val definitions = linkedMapOf<String, Map<String, FieldDef>>()
             modules.forEach { (id, values) -> definitions.putIfAbsent(id, values) }
-            return SchemaCatalog(definitions)
+            return SchemaCatalog(withBuiltinTypes(definitions))
+        }
+
+        /** 組込みの型のモジュールを足す（利用者が同じ ID のモジュールを置いていれば、そのまま）。 */
+        private fun withBuiltinTypes(modules: LinkedHashMap<String, Map<String, FieldDef>>): Map<String, Map<String, FieldDef>> {
+            modules.putIfAbsent(BuiltinTypes.MODULE_ID, BuiltinTypes.definitions)
+            return modules
         }
     }
 }
@@ -214,6 +238,23 @@ data class FieldDef(
     /** 非修飾 `$ref` の解決元。パーサーが設定し、横断参照した定義の子でも元モジュールを保つ（スキーマ層専用）。 */
     val definitionScope: String? = null,
     /**
+     * 型の名前（P33）: `type:` に基底の種類でなく定義の名前（組込みの型 `text`・利用者の型 `common#金額`）を書いたときの、
+     * その名前。このとき ref にも同じ名前が入り、解決は `$ref` と同じ（type は解決までの仮の値）。
+     */
+    val typeName: String? = null,
+    /** 型の連鎖から引き継いだ形式（正規表現）の一覧。自分の pattern とあわせて、すべてに一致すること（解決が埋める）。 */
+    val inheritedPatterns: List<String> = emptyList(),
+    /**
+     * REF の参照先 ID の絞り込みのうち、型の連鎖の外側の層（解決が埋める）。各層は OR の一覧で、すべての層に合う ID だけが
+     * 許される（型を使う側で idPattern をさらに絞れる＝重ね合わせ）。
+     */
+    val outerIdPatterns: List<List<String>> = emptyList(),
+    /**
+     * 型の連鎖（解決で通った定義の修飾名。使う側に書いた名前が先頭。例 `common#予約日`・`builtin-types#text`）。
+     * 末端の基底の種類は type。UI などは isA で連鎖を見て判定し、基底の種類の分岐を増やさない。
+     */
+    val lineage: List<String> = emptyList(),
+    /**
      * 値の式を受け取る項目（P31）: 値は短い書き方（`{パス}` を含む文字列）でも完全な書き方（式の object）でもよい。
      * 式が返す値の型が type。どの項目が式かはこの印だけが知り、読み取りは schema.ExpressionFields・評価は semantic.SemanticValues。
      */
@@ -228,6 +269,15 @@ data class FieldDef(
     val default: Any? get() = hints.default
 
     val displayLabel: String get() = label ?: key ?: "(root)"
+
+    /** 効く形式（正規表現）の一覧: 型の連鎖から引き継いだものと自分の pattern。値はすべてに一致すること。 */
+    val patterns: List<String> get() = (inheritedPatterns + listOfNotNull(pattern)).distinct()
+
+    /** REF の参照先 ID の絞り込みの層（外側から順。各層は OR の一覧）。空なら制限なし。 */
+    val idPatternLayers: List<List<String>> get() = (outerIdPatterns + listOf(idPatterns)).filter { it.isNotEmpty() }
+
+    /** この項目が、その型（定義の修飾名。例 BuiltinTypes.TEXT）か基底の種類（例 "string"）を連鎖に持つか。解決した項目で使う。 */
+    fun isA(name: String): Boolean = name in lineage || name == type.id
 
     /** enum の選択肢（表示用）。リッチ選択肢（options）がなければ値そのままの選択肢を返す。 */
     fun enumOptions(): List<EnumOption> = options.ifEmpty { values.map { EnumOption(it) } }

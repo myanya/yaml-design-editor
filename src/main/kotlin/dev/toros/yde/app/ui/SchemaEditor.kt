@@ -21,7 +21,10 @@ import dev.toros.yde.app.OpenDocument
 import dev.toros.yde.app.AppState
 import dev.toros.yde.semantic.RefactoringPlan
 import dev.toros.yde.yaml.model.YNode
+import dev.toros.yde.semantic.schema.BuiltinTypes
+import dev.toros.yde.semantic.schema.FieldDef
 import dev.toros.yde.semantic.schema.FieldType
+import dev.toros.yde.semantic.schema.SchemaTree
 import dev.toros.yde.app.schema.SchemaDef
 import dev.toros.yde.semantic.schema.SchemaKind
 import dev.toros.yde.app.schema.SchemaLoader
@@ -45,6 +48,8 @@ fun SchemaEditor(state: AppState, doc: OpenDocument) {
     }
     val schema = schemaResult.getOrNull()
     val issues = remember(schema, doc.version) { schema?.validateDefinition().orEmpty() }
+    // 型の選択肢（P33）: 基底の種類のほかに、この文書の definitions のスカラーの定義・組込みの型・他モジュールのスカラーの定義
+    val typeChoices = remember(doc.version, state.schemas, schema?.id) { TypeChoices.of(root, state, schema?.id) }
     val library = scalar(root, "kind") == SchemaKind.LIBRARY.id
     var mode by remember { mutableStateOf(0) }
     // 一括改名・一括削除の対象（スキーマID × ドット区切りフィールドパス。R25-01 / R25-03）と整列（R25-02）
@@ -76,12 +81,12 @@ fun SchemaEditor(state: AppState, doc: OpenDocument) {
             Tab(mode == 1, { mode = 1 }, text = { Text("プレビュー", fontSize = 11.sp) })
             Tab(mode == 2, { mode = 2 }, text = { Text("適用対象", fontSize = 11.sp) })
         }
-        when (mode) {
+        CompositionLocalProvider(LocalTypeChoices provides typeChoices) { when (mode) {
             0 -> Box(Modifier.weight(1f).fillMaxWidth()) {
                 val scroll = rememberScrollState()
                 Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(12.dp)) {
             Text("スキーマ設計", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            Text("適用条件とフィールド構造を編集します。再帰構造は \$ref で名前付き定義を参照してください。",
+            Text("適用条件とフィールド構造を編集します。再帰構造は \$ref で名前付き定義を参照し、スカラーの定義（型）は項目の型に名前で選びます。",
                 fontSize = 11.sp, color = Palette.SubText)
             Spacer(Modifier.height(10.dp))
             CompactScalar(root, "id", "スキーマID", doc)
@@ -147,9 +152,54 @@ fun SchemaEditor(state: AppState, doc: OpenDocument) {
             }
             1 -> SchemaPreview(state, doc, schema, issues)
             else -> SchemaTargets(state, schema)
+        } }
+    }
+}
+
+/**
+ * 設計 UI の型の選択肢（P33）: 基底の種類のほかに型の名前（この文書の definitions のスカラーの定義・組込みの型・
+ * 他モジュールのスカラーの定義）。型の名前には基底の種類を添え、書ける決まりの入力欄はその基底の種類で出す。
+ */
+internal class TypeChoices(val names: List<String>, private val bases: Map<String, String>) {
+    /** 型の名前 → 基底の種類（分からなければ string）。基底の種類はそのまま。 */
+    fun baseKindOf(typeId: String): String = if (FieldType.isBaseKind(typeId)) typeId else bases[typeId] ?: FieldType.STRING.id
+
+    companion object {
+        val EMPTY = TypeChoices(emptyList(), emptyMap())
+
+        fun of(root: YNode.Map, state: AppState, ownId: String?): TypeChoices {
+            val bases = LinkedHashMap<String, String>()
+            val builtinTree = SchemaTree(BuiltinTypes.MODULE_ID, FieldDef(type = FieldType.OBJECT), BuiltinTypes.definitions)
+            BuiltinTypes.definitions.forEach { (name, def) ->
+                val resolved = builtinTree.resolve(def) ?: def
+                if (!resolved.type.isContainer) bases[name] = resolved.type.id
+            }
+            state.schemas.filter { it.id != ownId }.forEach { module ->
+                module.definitions.forEach { (name, def) ->
+                    val resolved = module.tree.resolve(def) ?: def
+                    if (!resolved.type.isContainer) bases["${module.id}#$name"] = resolved.type.id
+                }
+            }
+            // この文書の definitions は保存前の内容から（type の連鎖を辿る。$ref の定義は構造なので型にしない）
+            val definitions = root.entries["definitions"] as? YNode.Map
+            fun rawBase(name: String, depth: Int): String? {
+                if (depth > 16) return null
+                val m = definitions?.entries?.get(name) as? YNode.Map ?: return null
+                if ("\$ref" in m.entries || "ref" in m.entries) return null
+                val t = scalar(m, "type") ?: FieldType.STRING.id
+                return when {
+                    FieldType.isBaseKind(t) -> t.takeIf { FieldType.entries.first { e -> e.id == t }.isContainer.not() }
+                    definitions?.entries?.containsKey(t) == true -> rawBase(t, depth + 1)
+                    else -> bases[t]
+                }
+            }
+            definitions?.entries?.keys?.toList()?.forEach { name -> rawBase(name, 0)?.let { bases[name] = it } }
+            return TypeChoices(bases.keys.toList(), bases)
         }
     }
 }
+
+internal val LocalTypeChoices = compositionLocalOf { TypeChoices.EMPTY }
 
 @Composable
 private fun SchemaProblem(message: String) {
@@ -339,17 +389,37 @@ private fun CompactMultilineScalar(map: YNode.Map, key: String, label: String, d
 private fun AddDefinitionButton(definitions: YNode.Map, doc: OpenDocument) {
     var open by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
+    // 定義の種類（P33）: 構造（object。$ref で使う）か、型（スカラーの決まりの束。項目の type に名前で使う）
+    var kind by remember { mutableStateOf(DEFINITION_KIND_TYPE) }
     TextButton(onClick = { open = true }) { Text("＋ 定義を追加", fontSize = 12.sp) }
     if (open) AlertDialog(
         onDismissRequest = { open = false },
         title = { Text("名前付き定義を追加") },
-        text = { OutlinedTextField(name, { name = it }, singleLine = true, label = { Text("定義名") }) },
+        text = {
+            Column {
+                OutlinedTextField(name, { name = it }, singleLine = true, label = { Text("定義名") })
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("種類", fontSize = 12.sp, modifier = Modifier.width(60.dp))
+                    ChoiceButton(kind, listOf(DEFINITION_KIND_TYPE, DEFINITION_KIND_STRUCTURE)) { kind = it }
+                }
+                Text(
+                    if (kind == DEFINITION_KIND_TYPE) "型: string や int などの基底の種類に決まり（形式・範囲・選択肢）を足した定義。項目の型に名前で選んで使います（決まりは狭めるだけ）"
+                    else "構造: object などの入れ子の定義。項目の定義参照（\$ref）で使います",
+                    fontSize = 10.sp, color = Palette.SubText,
+                )
+            }
+        },
         confirmButton = { TextButton(enabled = name.isNotBlank() && name !in definitions.entries, onClick = {
-            definitions.entries[name.trim()] = newFieldMap("object"); doc.markEdited(); open = false; name = ""
+            definitions.entries[name.trim()] = newFieldMap(if (kind == DEFINITION_KIND_STRUCTURE) "object" else "string")
+            doc.markEdited(); open = false; name = ""
         }) { Text("追加") } },
         dismissButton = { TextButton(onClick = { open = false }) { Text("キャンセル") } },
     )
 }
+
+private const val DEFINITION_KIND_TYPE = "型（スカラー）"
+private const val DEFINITION_KIND_STRUCTURE = "構造（object）"
 
 @Composable
 private fun DefinitionCard(name: String, definitions: YNode.Map, doc: OpenDocument, names: List<String>) {
@@ -416,23 +486,31 @@ private fun FieldDefinitionEditor(
             Text("要約表示のタイトル／サブタイトルに使う", fontSize = 10.sp, color = Palette.SubText)
         }
     }
+    // 型の選択肢は基底の種類＋型の名前（P33）。書ける決まりの入力欄は、型の名前ならその基底の種類で出す
+    val types = LocalTypeChoices.current
+    val currentTypeId = scalar(map, "type") ?: FieldType.STRING.id
     if (ref == null) {
         Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("型", fontSize = 12.sp, modifier = Modifier.width(140.dp))
-            ChoiceButton(scalar(map, "type") ?: "string", FieldType.entries.map { it.id }) {
+            ChoiceButton(currentTypeId, FieldType.entries.map { it.id } + types.names) {
                 map.entries["type"] = YNode.Scalar(it)
-                if (it != "object") map.entries.remove("fields")
-                if (it != "object") map.entries.remove("unknownFields")
-                if (it != "array") map.entries.remove("item")
-                if (it != "array" && it != "map") map.entries.remove("display")
-                if (it != "map") map.entries.remove("value")
-                if (it != "enum") map.entries.remove("cases")
+                val base = types.baseKindOf(it)
+                if (base != "object") map.entries.remove("fields")
+                if (base != "object") map.entries.remove("unknownFields")
+                if (base != "array") map.entries.remove("item")
+                if (base != "array" && base != "map") map.entries.remove("display")
+                if (base != "map") map.entries.remove("value")
+                if (base != "enum") map.entries.remove("cases")
                 doc.markEdited()
+            }
+            if (!FieldType.isBaseKind(currentTypeId)) {
+                Spacer(Modifier.width(8.dp))
+                Text("型の名前（基底の種類: ${types.baseKindOf(currentTypeId)}。ここに書く決まりは狭めるだけ）", fontSize = 10.sp, color = Palette.SubText)
             }
         }
     }
     if (ref != null) return
-    when (scalar(map, "type") ?: "string") {
+    when (types.baseKindOf(currentTypeId)) {
         "object" -> {
             Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("スキーマ外項目", fontSize = 12.sp, modifier = Modifier.width(140.dp))
@@ -504,7 +582,7 @@ private fun FieldDefinitionEditor(
             CompactNumberScalar(map, "max", "最大値", doc, integer = false)
         }
     }
-    val currentType = scalar(map, "type") ?: "string"
+    val currentType = types.baseKindOf(currentTypeId)
     // enum の初期値は選択肢の直下（EnumValuesEditor 内）で選択式にしている（UX-84）
     if (currentType !in setOf("object", "array", "map", "enum")) DefaultValueEditor(map, currentType, doc)
 }

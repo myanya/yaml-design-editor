@@ -85,8 +85,26 @@ class DerivedStructures(private val schema: SchemaTree) {
     }
 
     private fun transform(id: String, root: FieldDef?, definitions: Map<String, FieldDef>, reached: List<String>): Any? {
-        val term = FieldYaml.schemaTerm(id, root, definitions)
+        // 型の連鎖（P33）は導出の前に解決して中身を写す。構造のスキーマは型の名前を知らない
+        val term = FieldYaml.schemaTerm(id, root?.let(::inlineScalarTypes), definitions.mapValues { (_, d) -> inlineScalarTypes(d) })
         val result = SemanticTransform.run(BuiltinTransforms.structuralSchema, term, params = mapOf("reachedPhases" to reached))
         return result.term?.let { YamlIO.toAny(it) }
+    }
+
+    /**
+     * スカラーの型の連鎖（`type: 名前` や、スカラーの定義への `$ref`）を解決し、基底の種類と合成した決まり（狭めた形式の一覧など）を
+     * 項目に写す（P33）。定義への参照のまま残すのは、入れ物（object / array / map）の定義だけ（再帰のため。中身は定義の側で導出する）。
+     */
+    private fun inlineScalarTypes(field: FieldDef): FieldDef {
+        val inlined = if (field.ref != null) {
+            val resolved = schema.resolve(field) ?: field
+            if (resolved.type.isContainer) field else resolved.copy(ref = null, typeName = null, lineage = emptyList())
+        } else field
+        return inlined.copy(
+            fields = inlined.fields.map(::inlineScalarTypes),
+            item = inlined.item?.let(::inlineScalarTypes),
+            value = inlined.value?.let(::inlineScalarTypes),
+            cases = inlined.cases.mapValues { (_, list) -> list.map(::inlineScalarTypes) },
+        )
     }
 }

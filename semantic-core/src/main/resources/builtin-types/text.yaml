@@ -1,0 +1,11 @@
+# 組込みの型（定義体。P33 第一弾）: text ＝ 複数行の文字列。
+#
+# 決まりは string と同じで、違いは「複数行で編集する」印だけ。第一弾は印を名前で持つ
+# （UI は型の連鎖に text があれば複数行の欄を出す。第二弾で印を型に書くヒントの語にする）。
+# ここにコードは無い。利用者も definitions に同じ書き方で自分の型を作れる（組込みは特権を持たない。CORE-CALCULUS §25）。
+id: builtin-types
+kind: library
+name: 組込みの型
+definitions:
+  text:
+    type: string

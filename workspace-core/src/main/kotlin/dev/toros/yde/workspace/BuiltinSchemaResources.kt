@@ -1,6 +1,7 @@
 package dev.toros.yde.workspace
 
 import dev.toros.yde.workspace.layout.WorkspaceLayout
+import dev.toros.yde.semantic.schema.SchemaCatalog
 import dev.toros.yde.semantic.schema.SchemaTree
 import dev.toros.yde.yaml.model.DocumentId
 
@@ -54,10 +55,12 @@ object BuiltinSchemaResources {
     fun kernelSchemas(layout: WorkspaceLayout): List<WorkspaceSchema> {
         val parsed = WorkspaceReader.parseSchemas(names.map { DocumentId("(builtin)/$it.yaml") to text(it) })
         require(parsed.errors.isEmpty()) { "組込みスキーマのパースに失敗しました: ${parsed.errors.first()}" }
-        if (layout.configDir == null) return parsed.schemas
+        // メタスキーマの type には、組込みの型の名前（text など。P33）を足す（利用者の型は WorkspaceReader.buildSchemas が足す）
+        val builtinTypeNames = MetaSchemaTypes.typeNames(SchemaCatalog.linked(emptyList()))
         return parsed.schemas.map { b ->
-            val zone = zoneById[b.id] ?: return@map b
-            b.copy(match = "${layout.dir(zone)}/**/*.{yaml,yml}")
+            val withTypes = if (b.id == WorkspaceReader.META_SCHEMA_ID) b.copy(tree = MetaSchemaTypes.withTypeNames(b.tree, builtinTypeNames)) else b
+            val zone = zoneById[b.id]
+            if (layout.configDir == null || zone == null) withTypes else withTypes.copy(match = "${layout.dir(zone)}/**/*.{yaml,yml}")
         }
     }
 }

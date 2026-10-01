@@ -69,9 +69,13 @@ data class SemanticIssue(
 fun idMatchesPattern(id: String, pattern: String): Boolean =
     runCatching { idGlobToRegex(pattern).matches(id) }.getOrDefault(false)
 
-/** 参照の制約（idPatterns / scope）がこの ID 出現を許すか（ルート index の isAllowedBy と同じ規則）。 */
+/** ID が、絞り込みの層（外側から順。各層は OR の一覧）のすべてに合うか。空なら制限なし（型の連鎖の重ね合わせ。P33）。 */
+fun idMatchesLayers(id: String, layers: List<List<String>>): Boolean =
+    layers.all { layer -> layer.any { idMatchesPattern(id, it) } }
+
+/** 参照の制約（idPatterns の層 / scope）がこの ID 出現を許すか（ルート index の isAllowedBy と同じ規則）。 */
 fun ScannedId.isAllowedBy(ref: ScannedRef): Boolean =
-    (ref.idPatterns.isEmpty() || ref.idPatterns.any { idMatchesPattern(id, it) }) &&
+    idMatchesLayers(id, ref.idPatternLayers) &&
         (ref.scope.schemaIds.isEmpty() || schemaId in ref.scope.schemaIds) &&
         (ref.scope.documentIds.isEmpty() || documentId in ref.scope.documentIds)
 

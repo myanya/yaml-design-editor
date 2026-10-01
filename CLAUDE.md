@@ -62,3 +62,4 @@ scripts/docs-lint.sh                        # 文書の形の機械チェック
 - 配置判定は `WorkspaceLayout` に一元化。`_schemas/` にはメタスキーマだけ。定義文書への書込は `meta: true` のアクティビティのみ → architecture/workspace.md「ワークスペース構造と layout」・architecture/schema.md「推測・メタスキーマ・派生」・architecture/agents.md「エージェント実行と Staging」
 - ビューは射影で、専用の書込経路を作らない。AI の HTTP は `AiHttp.post` に一元化 → architecture/views.md「ビュー機構」・architecture/agents.md「AI 接続」
 - カーネルのテストは疑似セッション注入、自動化のテストは `tick(now)` を直接呼ぶ。実 API を叩かない → architecture/agents.md「エージェント実行と Staging」・architecture/agents.md「自動実行」
+- 型は解決した項目の連鎖で判定する（`field.isA(BuiltinTypes.TEXT)`）。`FieldType` は基底の種類だけで、組込みの型は semantic-core の資源 `builtin-types/` の YAML。`FieldType.TEXT` のような分岐を足さない。使う側の決まりは狭めるだけで、合成は `SchemaTree.resolve`、参照の絞り込みは `idPatternLayers` を見る → architecture/schema.md「型の連鎖と狭める規則」

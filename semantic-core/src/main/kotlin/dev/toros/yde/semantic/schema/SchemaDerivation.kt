@@ -63,6 +63,10 @@ object SchemaDerivation {
         val sourceRel: String,
     )
 
+    /** 写像の型として書ける名前: 基底の種類・組込みの型・`モジュール#名前`（非修飾の利用者の型は、導出のカタログでは引けないので書けない）。 */
+    private fun isKnownTypeId(typeId: String): Boolean =
+        FieldType.isBaseKind(typeId) || typeId in BuiltinTypes.definitions || ('#' in typeId && typeId.substringAfter('#').isNotBlank())
+
     /** `derive:` 宣言のパース（旧 SchemaLoader.parseDerive）。不正な宣言は例外（呼び出し側でエラー化）。 */
     fun parse(raw: Any?): DeriveDef? {
         if (raw == null) return null
@@ -79,7 +83,9 @@ object SchemaDerivation {
                 val dict = (rawType["map"] as? Map<*, *>)?.entries?.associate { (k, v) -> k.toString() to v.toString() } ?: emptyMap()
                 val default = rawType["default"]?.toString() ?: FieldType.STRING.id
                 (dict.values + default).forEach { typeId ->
-                    require(FieldType.entries.any { it.id == typeId }) { "derive.fields.type の型「$typeId」は未知の型です" }
+                    require(isKnownTypeId(typeId)) {
+                        "derive.fields.type の型「$typeId」は未知の型です（基底の種類・組込みの型・モジュール#名前 が書けます）"
+                    }
                 }
                 DeriveTypeRule(path = path, map = dict, default = default)
             }
@@ -193,17 +199,21 @@ object SchemaDerivation {
                 errors += "$templateId: 導出スキーマ「$id」のフィールド「$key」が重複しています（導出元: $rel）"
                 return@forEachIndexed
             }
-            val type = derive.typeRule?.let { rule ->
+            // 型: 基底の種類か、型の名前（組込みの型・モジュール#名前。P33。解決は派生スキーマが引き継ぐカタログで行う）
+            val typeId = derive.typeRule?.let { rule ->
                 val raw = scalarText(getAt(item, parseYPath(rule.path)))
-                val typeId = raw?.let { rule.map[it] ?: it } ?: rule.default
-                FieldType.entries.firstOrNull { it.id == typeId } ?: run {
+                val candidate = raw?.let { rule.map[it] ?: it } ?: rule.default
+                if (isKnownTypeId(candidate)) candidate else {
                     errors += "$templateId: 導出元「$rel」の型「$raw」を解釈できません（${rule.default} として扱います）"
-                    FieldType.entries.first { it.id == rule.default }
+                    rule.default
                 }
-            } ?: FieldType.STRING
+            } ?: FieldType.STRING.id
+            val baseType = FieldType.entries.firstOrNull { it.id == typeId }
             derivedFields += FieldDef(
                 key = key,
-                type = type,
+                type = baseType ?: FieldType.STRING,
+                typeName = if (baseType == null) typeId else null,
+                ref = if (baseType == null) typeId else null,
                 required = derive.requiredPath?.let { (getAt(item, parseYPath(it)) as? YNode.Scalar)?.value } == true,
                 definitionScope = templateId,
                 hints = FieldHints(

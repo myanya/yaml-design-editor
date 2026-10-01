@@ -744,12 +744,12 @@ class RefactoringTest {
             )
         )
         val s = session(store)
-        // 抽出: 構造キーを definitions へ移し \$ref に置き換える（definitions が無ければ生成）
+        // 抽出: 構造キーを definitions へ移し、スカラーの定義（型）は type: 名前 に置き換える（definitions が無ければ生成。P33）
         val extract = s.planRefactoring(dev.toros.yde.semantic.RefactoringRequest.ExtractDefinition("fx-item", "amount", "money"))
         assertTrue(extract.summary.any { "2 キーを移動" in it }, "type と min: ${extract.summary}")
         assertTrue(s.applyRefactoring(extract).ok)
         val extracted = DefaultYamlCodec.dump(s.snapshot.documents.getValue(DocumentId("_schemas/item.yaml")).document)
-        assertTrue("definitions:" in extracted && "money:" in extracted && "\$ref: money" in extracted, extracted)
+        assertTrue("definitions:" in extracted && "money:" in extracted && "type: money" in extracted && "\$ref" !in extracted, extracted)
         assertTrue(
             s.derived.structuralIssues.values.flatten().none { it.severity == Severity.ERROR },
             "抽出後も amount は int として検証される: ${s.derived.structuralIssues}",

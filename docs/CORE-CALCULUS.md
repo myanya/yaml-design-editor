@@ -778,6 +778,7 @@ Core Calculus = 定義を実行する
 | Agent patch | Rewrite / Patch |
 | ChangeSet | Transaction input |
 | Workspace.apply | Transaction |
+| ユーザ定義の型 | 宣言。検証は Term の構造チェックへ導出（連鎖を基底の種類と決まりへ展開） |
 
 この表を用いて、重複している実装を段階的に発見する。
 
@@ -907,4 +908,4 @@ Workspace, Params ⊢ Construct ⇓ Term（＋出どころ）
   テンプレートエンジンが値の一式からパスで項目を取り出してひな形にはめ込む、という2段。土台に要るのは
   「出力が、パスで取り出せる素直な YAML であること」だけ。
 
-**書き方と既存の仕組みとの関係**は architecture/transform.md「変換」にある（`$` で始まるキーだけが指示・値が得られない指示はキーごと落ちる・寄せるかどうかは 1 つずつ判断する）。
+**書き方と既存の仕組みとの関係**は architecture/transform.md「変換」にある。

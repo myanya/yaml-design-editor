@@ -310,9 +310,9 @@
     Replace definitions = {}
     Insert definitions.scoreDef = type: string
     Remove root.fields[3].type
-    Insert root.fields[3].$ref = scoreDef
+    Insert root.fields[3].type = scoreDef
   summary: フィールド「score」の構造を定義「fx-item#scoreDef」へ抽出
-  summary: 使用側は $ref 参照に置き換え（1 キーを移動。文書は変わりません）
+  summary: 使用側は type: scoreDef（型の名前）に置き換え（1 キーを移動。文書は変わりません）
 
 ### InlineDefinition(schemaId=fx-item, fieldPath=price)
   change: _schemas/item.yaml

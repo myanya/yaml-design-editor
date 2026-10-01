@@ -36,7 +36,7 @@ ID 索引はディスク基準（正）で、UI は未保存の編集を重ね�
 ## ID と参照の意味
 
 - 同一 ID の複数文書出現は「同一論理要素の段階的詳細化」として正当。エラーは同一文書内の重複だけ。
-- 参照の解決可否は `idPatterns` × `scope.schemaIds` × `scope.documentIds` の AND（各配列内は OR）。候補表示・検証・AI 制約（`refCandidateIds`）が同じ判定 `IdEntry.isAllowedBy` を使う。
+- 参照の解決可否は `idPatterns` の層（型の連鎖で重ねた絞り込み `idPatternLayers`。全ての層に合うこと）× `scope.schemaIds` × `scope.documentIds` の AND（各配列内は OR）。候補表示・検証・AI 制約（`refCandidateIds`）が同じ判定 `IdEntry.isAllowedBy` を使う。
 - 参照には関係種別 `relation` を付けられる。解決可否には影響せず、表示と検査（多重度・対象型など）が使う。
 - `IdIndex.resolve(id)` は定義出現があればそれを優先する（表示解決・ジャンプ先が定義に安定する）。
 - 文書参照（`target: document`）は文書ノードへの参照で、エンティティ参照の解決・バックリンク・カバレッジには混ぜない（[graph-query.md「エンティティ型と関係レジストリ」](graph-query.md)）。

@@ -128,7 +128,7 @@ object DisplayCore {
 
     /** テーブルのセルとして1行で表示・編集できる型（ビューグリッドの直接編集対象と同種のスカラー系）。 */
     val CELL_TYPES = setOf(
-        FieldType.STRING, FieldType.TEXT, FieldType.INT, FieldType.NUMBER,
+        FieldType.STRING, FieldType.INT, FieldType.NUMBER,
         FieldType.BOOLEAN, FieldType.ENUM, FieldType.DATE, FieldType.ID, FieldType.REF,
     )
 

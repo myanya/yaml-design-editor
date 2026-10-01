@@ -243,11 +243,15 @@ object WorkspaceReader {
     ): SchemaLoadResult {
         val parsed = parseSchemas(schemaSources, BuiltinSchemaResources.metaSchemaTree)
         // 利用者が定義した語彙のキーは、スキーマ文書のメタスキーマの「知っている項目」へ足す（root の SchemaLoader と同じ実装。
-        // これが無いと、語彙として定義された書き方が「スキーマに定義されていない項目」と警告される＝BACKLOG UX-105）
+        // これが無いと、語彙として定義された書き方が「スキーマに定義されていない項目」と警告される＝BACKLOG UX-105）。
+        // 型の名前（組込みの型・利用者の型。P33）も同じ流儀で、メタスキーマの type の選択肢と cases へ足す
+        val catalog = parsed.schemas.firstOrNull()?.tree?.definitionCatalog ?: SchemaCatalog.linked(emptyList())
+        val typeNames = MetaSchemaTypes.typeNames(catalog)
         val composed = builtins.map { b ->
             if (b.id != META_SCHEMA_ID && b.id != RELATIONS_SCHEMA_ID) return@map b
             val root = CheckCatalog.withVocabularyKeys(b.tree.root, parsed.library, addNewArrays = b.id == META_SCHEMA_ID)
-            if (root === b.tree.root) b else b.copy(tree = b.tree.copy(root = root))
+            val tree = b.tree.copy(root = root).let { t -> if (b.id == META_SCHEMA_ID) MetaSchemaTypes.withTypeNames(t, typeNames) else t }
+            if (tree == b.tree) b else b.copy(tree = tree)
         }
         val withBuiltins = parsed.schemas + composed.filter { b -> parsed.schemas.none { it.id == b.id } }
         val errors = parsed.errors.toMutableList()

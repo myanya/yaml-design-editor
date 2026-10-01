@@ -40,10 +40,10 @@ root:                                 # ルートのフィールド定義（通�
 |---|---|
 | `key` | 親オブジェクト内のキー名（ルート・配列要素では不要） |
 | `label` | フォームでの表示名（省略時は `key`） |
-| `type` | 下表の型（省略時 `string`） |
+| `type` | 下表の基底の種類か、型の名前（`definitions` に定義したスカラーの型・組込みの型 `text`＝後述「型の定義」。省略時 `string`） |
 | `required` | `true` で必須。未設定は検証エラー |
 | `requiredFrom` | フェーズ機構（後述）: このフェーズ以降で必須。`required` と併用不可 |
-| `expression` | `true` で、この項目の値は値の式でもよくなる（短い書き方＝`{パス}` を含む文字列・完全な書き方＝式の object）・string / text 型のみ。詳しくは「新しい文書の置き場所とひな型」 |
+| `expression` | `true` で、この項目の値は値の式でもよくなる（短い書き方＝`{パス}` を含む文字列・完全な書き方＝式の object）・基底の種類が string の型のみ。詳しくは「新しい文書の置き場所とひな型」 |
 | `values` | `enum` の選択肢。文字列、または `{value, label, description}` のリッチ選択肢（後述） |
 | `role` | 表示役割 `title` / `subtitle`（後述の表示解決）。このフィールドの値を要素の要約タイトル／サブタイトルに使う |
 | `cases` | `enum` の値ごとに、親オブジェクトへ追加される兄弟フィールドを定義（後述） |
@@ -67,7 +67,7 @@ root:                                 # ルートのフィールド定義（通�
 | type | フォーム表現 | 検証 |
 |---|---|---|
 | `string` | 1 行テキスト | required |
-| `text` | 複数行テキスト | required |
+| `text` | 複数行テキスト（組込みの型＝後述「型の定義」。決まりは `string` と同じで、基底の種類は `string`） | required |
 | `int` | テキスト（整数変換） | 整数であること |
 | `number` | テキスト（数値変換） | 数値であること |
 | `boolean` | チェックボックス | 真偽値であること |
@@ -263,6 +263,55 @@ root:
 
 スキーマファイルを保存すると、メタスキーマ検証結果は通常の右側「検証」パネルにも表示されます。
 
+## 型の定義（ユーザ定義の値型）
+
+`definitions` にスカラーの定義（`string` / `int` / `enum` / `id` / `ref` などに決まりを足したもの）を置くと、それは**型**になり、項目の `type` に名前で書けます。XSD の simpleType や SQL の `CREATE DOMAIN` に当たります。同じスキーマ内は定義名だけ、別のスキーマ・ライブラリは `スキーマID#定義名` で書きます。
+
+```yaml
+# _schemas/common.yaml
+id: common
+kind: library
+definitions:
+  金額:         { type: int, min: 0, display: grouped, description: 円単位 }
+  画面ID:       { type: id, pattern: "^SCR-\\d{3}$" }
+  メールアドレス: { type: string, maxLength: 100, pattern: "^[^@]+@[^@]+$" }
+  社員メール:    { type: メールアドレス, pattern: "^[^@]+@example\\.com$", maxLength: 50 }   # 型から型へ
+  業務データ型参照: { type: ref, idPattern: "DT-*", relation: dtype, scope: { schemaIds: [data-type-list] } }
+  予約状態:      { type: enum, values: [RESERVED, CANCELED] }
+  有効な状態:    { type: 予約状態, values: [RESERVED] }                                        # 選択肢は部分集合
+
+# 使う側（別のスキーマ）
+root:
+  type: object
+  fields:
+    - { key: id, type: common#画面ID, required: true }
+    - { key: amount, label: 金額, type: common#金額 }
+    - { key: mail, type: common#メールアドレス, maxLength: 50 }   # 使う側で狭める
+```
+
+- **型の連鎖**: 型の定義は必ず `type` を持ち、値は基底の種類（型一覧）か別の型の名前です。連鎖の末端が基底の種類で、フォームの編集欄・検証・AI 生成はその基底の種類で動きます。循環する定義（`a: { type: b }`・`b: { type: a }`）はスキーマの定義エラーです。
+- **狭めるだけ**: 使う側（型から型へ、も同じ）に書いた決まりは型の決まりと合わさり、緩めることはできません。緩める書き方はスキーマの読み込みエラーになります（例: 「maxLength 200 は型「common#メールアドレス」の 100 より緩いため書けません（型は狭めるだけ）」）。
+
+| 決まり | 規則 |
+|---|---|
+| `minLength` / `min` | 型の値以上 |
+| `maxLength` / `max` | 型の値以下 |
+| `pattern` | 型の形式と両方に一致すること（形式は重なる） |
+| `values`（enum） | 型の選択肢の部分集合 |
+| `cases` | 型に無いときだけ書ける |
+| `required` / `requiredFrom` | 足すだけ |
+| ref の `idPattern` | 重ね合わせ（型の絞り込みと使う側の絞り込みの両方に合う ID だけ） |
+| ref の `scope` | 共通部分 |
+| ref の `relation` | 型に無いときだけ。違う関係名は書けない |
+| `unknownFields` | 厳しくするだけ（allow → warning → error） |
+| `label` / `description` / `display` / `default` | 決まりではないので、使う側が優先 |
+
+- **組込みの型**: `text`（複数行の文字列）は Kotlin の型ではなく、組込みの型の定義（`{ type: string }`）です。利用者の型と同じ仕組みで、`type: text` から自分の型を作れます（`備考: { type: text, maxLength: 2000 }`）。同じ名前の定義を自分のスキーマに置けば、そちらが優先されます。
+- **`$ref` との関係**: `$ref: 名前` も同じ意味で使えます（構造＝`object` などの定義は今までどおり `$ref` で）。ただしメタスキーマは、`$ref` を書いた項目の決まりのキー（`maxLength` など）を「型が string のときのみ」と警告するので、型は `type: 名前` で書いてください。型の名前は読み込み時にメタスキーマの `type` の選択肢へ足されます。
+- **スキーマ設計画面**: 「定義を追加」で「型（スカラー）」を選ぶとスカラーの定義になり、項目の「型」の選択肢に基底の種類と型の名前が並びます。型の名前を選ぶと、その基底の種類で書ける決まりの入力欄が出ます。
+- **リファクタリング**: `extract-definition` はスカラーの項目を型として抽出し、使う側を `type: 名前` にします（構造は `$ref`）。`rename-definition` は `type: 名前` の言及も書き換えます。`convert-type` の string ↔ text は型の名前の書き換えだけで、文書は変わりません。
+- **これから**: 型に表示と編集のヒント（複数行・入力欄の案内・サンプル値・順序）を持たせること、`date` を組込みの型へ移すこと、オブジェクト型は [docs/ROADMAP.md](../ROADMAP.md) のテーマで進めます。
+
 ## スキーマ・リファクタリング（既存文書を追随させるスキーマ変更）
 
 スキーマの `key` や構造を直接書き換えると、既存文書のキーが「スキーマ外項目」として残留します。スキーマ・リファクタリングは、スキーマ変更と既存文書・ビューの追随を**1つの計画**（プレビュー→適用。オール・オア・ナッシング）にまとめます。GUI からの適用は1つのトランザクションとして記録され、**Ctrl+Z（Undo）1回で全変更が戻ります**。
@@ -278,7 +327,7 @@ root:
 - `move-field <schema-id> <field-path> <dest-path>`: フィールドの親子移動（`dest-path` は object のパス・ルートは `.`）。移動元と移動先が**同じ要素コンテキスト**にある場合のみ（配列・map の境界をまたぐ移動は1対Nの対応になるため拒否）。文書側は中間 object を生成し、空になった親 object は削除します（`--keep-empty` で残す）
 - `rename-enum-value <schema-id> <field-path> <old> <new>`: enum 値の改名。`values`・`cases` のキー・`default`・（フェーズ申告フィールドなら）`phases.order` と `requiredFrom` / `activeFrom`・全該当文書の現在値が追随します
 - `require-field <schema-id> <field-path> --default <値> [--from <フェーズ>]`: 必須化と同時に、値が無い（キー欠落・空）文書へ既定値を一括充填します（`--from` 指定時はそのフェーズに達している文書だけ）
-- `convert-type <schema-id> <field-path> <型> [--values a,b,c]`: 決定的な型変換の一括版。スカラー→`array`（1要素に包む）・array→要素の型（1要素は引き継ぎ・空は削除・複数要素は拒否）・string→`enum`（逸脱値があれば一覧つき拒否）／`int`／`number`（解析検証つき）・enum／数値等→`string`
+- `convert-type <schema-id> <field-path> <型> [--values a,b,c]`: 決定的な型変換の一括版。スカラー→`array`（1要素に包む）・array→要素の型（1要素は引き継ぎ・空は削除・複数要素は拒否）・string→`enum`（逸脱値があれば一覧つき拒否）／`int`／`number`（解析検証つき）・enum／数値等→`string`・string↔`text`（組込みの型の名前の書き換えだけ。文書は変わらない）
 - `rename-definition <module-id> <name> <new>` / `extract-definition <schema-id> <field-path> <name>` / `inline-definition <schema-id> <field-path>`: 名前付き定義の改名（`$ref` を横断書換）・インライン構造の定義化・定義参照のインライン化（参照が残らない定義は削除）。文書は変わりません
 - `rename-relation <old> <new>` / `rename-schema-id <old> <new>`: 関係名（レジストリ・スキーマの `relation:`・ビュー）とスキーマID（修飾 `$ref`・`schemaId` 系の参照）の横断改名
 

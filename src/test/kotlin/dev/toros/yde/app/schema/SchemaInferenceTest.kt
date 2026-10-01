@@ -71,7 +71,9 @@ class SchemaInferenceTest {
         assertEquals(FieldType.BOOLEAN, fieldOf(schema, "done")?.type)
         assertEquals(FieldType.DATE, fieldOf(schema, "due")?.type)
         // 片方が長文なら text（複数行テキスト）とする
-        assertEquals(FieldType.TEXT, fieldOf(schema, "body")?.type)
+        // 長文は組込みの型 text（型の名前。解決すると基底の種類は string）
+        assertEquals("text", fieldOf(schema, "body")?.typeName)
+        assertEquals(FieldType.STRING, schema.resolve(fieldOf(schema, "body"))?.type)
     }
 
     @Test

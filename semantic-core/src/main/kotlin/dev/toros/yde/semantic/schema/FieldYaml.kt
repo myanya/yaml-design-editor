@@ -26,8 +26,10 @@ object FieldYaml {
         val m = LinkedHashMap<String, Any?>()
         f.key?.let { m["key"] = it }
         f.label?.let { m["label"] = it }
-        // 定義への参照では、型は定義の側で決まる
-        if (f.ref == null) m["type"] = f.type.id
+        // 定義への参照では、型は定義の側で決まる。型の名前（type: 名前）は、書かれたとおりに書き出す
+        val typeName = f.typeName
+        if (typeName != null) m["type"] = qualify(typeName, f.definitionScope, moduleId)
+        else if (f.ref == null) m["type"] = f.type.id
         if (f.required) m["required"] = true
         if (f.expression) m["expression"] = true
         f.requiredFrom?.let { m["requiredFrom"] = it }
@@ -54,16 +56,19 @@ object FieldYaml {
         if (f.refTarget != RefTarget.ENTITY) m["target"] = f.refTarget.id
         f.minLength?.let { m["minLength"] = it }
         f.maxLength?.let { m["maxLength"] = it }
-        f.pattern?.let { m["pattern"] = it }
+        // 形式: 型の連鎖から引き継いだものがあれば一覧（すべてに一致）、無ければ書かれたとおり
+        val patterns = f.patterns
+        if (patterns.size > 1) m["pattern"] = patterns else f.pattern?.let { m["pattern"] = it }
         f.min?.let { m["min"] = it }
         f.max?.let { m["max"] = it }
         f.default?.let { m["default"] = it }
         f.description?.let { m["description"] = it }
-        f.ref?.let { ref ->
-            val scope = f.definitionScope
-            m["\$ref"] = if ('#' !in ref && scope != null && scope != moduleId) "$scope#$ref" else ref
-        }
+        if (typeName == null) f.ref?.let { ref -> m["\$ref"] = qualify(ref, f.definitionScope, moduleId) }
         f.unknownFields?.let { m["unknownFields"] = it.id }
         return m
     }
+
+    /** 別のモジュールで定義された項目の非修飾の名前は、`モジュール#名前` に直す。 */
+    private fun qualify(ref: String, scope: String?, moduleId: String): String =
+        if ('#' !in ref && scope != null && scope != moduleId) "$scope#$ref" else ref
 }

@@ -4,6 +4,7 @@ import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.model.getAt
 import dev.toros.yde.yaml.model.scalarText
+import dev.toros.yde.yaml.structure.UnknownFieldsPolicy
 
 /**
  * 利用者が書くスキーマ1件の、項目の木と、その読み方（`$ref` 解決・cases 合成・フェーズに応じた必須・パス→定義解決）。
@@ -33,34 +34,100 @@ data class SchemaTree(
      */
     fun definitionRefOf(field: FieldDef?): String? = field?.let { f -> definitionTarget(f)?.first?.toString() }
 
-    /** $ref を1段ずつ解決する。循環はデータ走査側が有限なので許容する。 */
+    /**
+     * `$ref` と型の名前（`type: 名前`）を1段ずつ解決する。循環は打ち切る（型の連鎖の循環は、定義の点検が誤りにする。
+     * object の再帰は fields / item / value を通るので、ここでは循環にならない）。
+     * 合成は「狭めるだけ」（P33 の規則）: 使う側（型から型へ、も同じ）の決まりは定義の決まりと合わせ、緩めない。
+     * 緩める書き方は定義の点検（SchemaDefinitionChecks）が誤りにする。ここでの合成は、誤りがあっても広がらない向きに倒す。
+     * 解決した項目は型の連鎖（lineage）を持つ。
+     */
     fun resolve(field: FieldDef?): FieldDef? {
         var current = field ?: return null
         val seen = mutableSetOf<DefinitionKey>()
         while (current.ref != null) {
             val (key, target) = definitionTarget(current) ?: return current
             if (!seen.add(key)) return current
-            current = target.copy(
-                key = current.key ?: target.key,
-                required = current.required || target.required,
-                requiredFrom = current.requiredFrom ?: target.requiredFrom,
-                idPatterns = current.idPatterns.ifEmpty { target.idPatterns },
-                scope = if (current.scope == RefScope()) target.scope else current.scope,
-                relation = current.relation ?: target.relation,
-                refTarget = if (current.refTarget == RefTarget.ENTITY) target.refTarget else current.refTarget,
-                unknownFields = current.unknownFields ?: target.unknownFields,
-                cases = current.cases.ifEmpty { target.cases },
-                role = current.role ?: target.role,
-                expression = current.expression || target.expression,
-                hints = current.hints.over(target.hints),
-                minLength = current.minLength ?: target.minLength,
-                maxLength = current.maxLength ?: target.maxLength,
-                pattern = current.pattern ?: target.pattern,
-                min = current.min ?: target.min,
-                max = current.max ?: target.max,
-            )
+            current = narrow(current, target, key)
         }
         return current
+    }
+
+    /** 使う側 use を、定義 def の上に「狭めるだけ」で合成する（1段）。 */
+    private fun narrow(use: FieldDef, def: FieldDef, key: DefinitionKey): FieldDef {
+        // 選択肢は部分集合（定義に無い値は落とす。誤りは定義の点検が報告する）
+        val values = when {
+            use.values.isEmpty() -> def.values
+            def.values.isEmpty() -> use.values
+            else -> use.values.filter { it in def.values }
+        }
+        val hints = use.hints.over(def.hints).let { h ->
+            val options = use.options.ifEmpty { def.options }.filter { values.isEmpty() || it.value in values }
+            h.copy(options = options, default = use.default ?: def.default)
+        }
+        // 参照先の絞り込み: 層を重ねる（すべての層に合う ID だけ）。範囲は共通部分（空になる組合せは定義の点検が誤りにし、使う側の範囲を採る）
+        val layers = def.idPatternLayers + use.idPatternLayers
+        return def.copy(
+            key = use.key ?: def.key,
+            typeName = use.typeName,
+            required = use.required || def.required,
+            requiredFrom = use.requiredFrom ?: def.requiredFrom,
+            values = values,
+            idPatterns = layers.lastOrNull().orEmpty(),
+            outerIdPatterns = layers.dropLast(1),
+            scope = RefScope(
+                schemaIds = intersectScope(use.scope.schemaIds, def.scope.schemaIds),
+                documentIds = intersectScope(use.scope.documentIds, def.scope.documentIds),
+            ),
+            relation = use.relation ?: def.relation,
+            refTarget = if (use.refTarget == RefTarget.ENTITY) def.refTarget else use.refTarget,
+            unknownFields = stricter(use.unknownFields, def.unknownFields),
+            cases = def.cases.ifEmpty { use.cases },
+            role = use.role ?: def.role,
+            expression = use.expression || def.expression,
+            hints = hints,
+            minLength = maxOfNullable(use.minLength, def.minLength),
+            maxLength = minOfNullable(use.maxLength, def.maxLength),
+            pattern = use.pattern ?: def.pattern,
+            inheritedPatterns = (def.patterns + use.inheritedPatterns).distinct(),
+            min = maxOfNullable(use.min, def.min),
+            max = minOfNullable(use.max, def.max),
+            lineage = use.lineage + key.toString(),
+        )
+    }
+
+    private fun intersectScope(use: List<String>, def: List<String>): List<String> = when {
+        use.isEmpty() -> def
+        def.isEmpty() -> use
+        else -> use.filter { it in def }.ifEmpty { use }
+    }
+
+    /** 未定義の項目の扱いは厳しい方（allow < warning < error。null は warning）。両方 null なら null。 */
+    private fun stricter(a: UnknownFieldsPolicy?, b: UnknownFieldsPolicy?): UnknownFieldsPolicy? {
+        if (a == null && b == null) return null
+        fun rank(p: UnknownFieldsPolicy?) = when (p ?: UnknownFieldsPolicy.WARNING) {
+            UnknownFieldsPolicy.ALLOW -> 0
+            UnknownFieldsPolicy.WARNING -> 1
+            UnknownFieldsPolicy.ERROR -> 2
+        }
+        return if (rank(a) >= rank(b)) a ?: UnknownFieldsPolicy.WARNING else b ?: UnknownFieldsPolicy.WARNING
+    }
+
+    private fun <T : Comparable<T>> maxOfNullable(a: T?, b: T?): T? = if (a == null) b else if (b == null) a else maxOf(a, b)
+    private fun <T : Comparable<T>> minOfNullable(a: T?, b: T?): T? = if (a == null) b else if (b == null) a else minOf(a, b)
+
+    /**
+     * 定義の型の連鎖（定義自身の ref を辿る）。循環していれば、通った修飾名の並び（循環の始点を末尾にもう一度）を返す。
+     * 定義の点検が「型の定義が循環しています」の誤りにするのに使う。
+     */
+    fun typeChainCycle(definition: FieldDef): List<String>? {
+        val seen = LinkedHashSet<String>()
+        var current = definition
+        while (current.ref != null) {
+            val (key, target) = definitionTarget(current) ?: return null
+            if (!seen.add(key.toString())) return seen.toList() + key.toString()
+            current = target
+        }
+        return null
     }
 
     /** 文書ルートから現在フェーズの申告値を読む（phases 未宣言なら null）。 */

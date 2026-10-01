@@ -77,5 +77,5 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 
 - **新しい画面**: スペース内の常設画面として `ui/` に 1 ファイル。状態はコンポーザブルの外（AppState か専用のコントローラ）に置く。
 - **新しい編集面**: `FormCtx` を通し、書込は `Slot` ＋ `markEdited()`。連続入力なら合体キー（[editing-history.md](editing-history.md)）。
-- **フィールド型の追加**: `FormView.ValueEditor` に分岐を足す（他の変更箇所は [schema.md「拡張ポイント」](schema.md)）。
+- **基底の種類の追加**: `FormView.ValueEditor` に分岐を足す（他の変更箇所は [schema.md「拡張ポイント」](schema.md)）。組込みの型に専用の編集欄を付けるときは `FieldType` の分岐でなく、解決した項目の連鎖で判定する（`isA(BuiltinTypes.TEXT)` が複数行の欄を出す例）。
 - **横断ビューの追加**: `LedgerSpace` のタブと `workspaceView` の分岐に足す。

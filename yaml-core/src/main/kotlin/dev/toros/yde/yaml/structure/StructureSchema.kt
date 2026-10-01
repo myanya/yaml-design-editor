@@ -13,10 +13,12 @@ import dev.toros.yde.yaml.structure.UnknownFieldsPolicy
  * 指摘の文面のために、項目の表示名（label）だけは持つ（SC-04）。
  */
 
-/** 値の型。ID と参照は、構造の上では文字列（意味は、意味のスキーマだけが持つ）。 */
+/**
+ * 値の型。ID と参照は、構造の上では文字列（意味は、意味のスキーマだけが持つ）。
+ * 複数行の文字列 text は、構造の上では string（組込みの型＝意味の側の定義体。導出のときに string へ解決される。P33）。
+ */
 enum class ValueType(val id: String) {
     STRING("string"),
-    TEXT("text"),
     INT("int"),
     NUMBER("number"),
     BOOLEAN("boolean"),
@@ -54,7 +56,8 @@ data class StructureField(
     val fields: List<StructureField> = emptyList(),
     val minLength: Int? = null,
     val maxLength: Int? = null,
-    val pattern: String? = null,
+    /** 形式（正規表現）の一覧。値はすべてに一致すること（型の連鎖で重ねた形式は、導出が一覧にして渡す。P33）。 */
+    val patterns: List<String> = emptyList(),
     val min: Double? = null,
     val max: Double? = null,
     val unknownFields: UnknownFieldsPolicy? = null,
@@ -93,7 +96,7 @@ data class StructureSchema(
                 cases = current.cases.ifEmpty { target.cases },
                 minLength = current.minLength ?: target.minLength,
                 maxLength = current.maxLength ?: target.maxLength,
-                pattern = current.pattern ?: target.pattern,
+                patterns = (target.patterns + current.patterns).distinct(),
                 min = current.min ?: target.min,
                 max = current.max ?: target.max,
             )
@@ -190,7 +193,12 @@ object StructureParser {
             fields = children(m["fields"], "fields"),
             minLength = (m["minLength"] as? Number)?.toInt(),
             maxLength = (m["maxLength"] as? Number)?.toInt(),
-            pattern = m["pattern"]?.toString(),
+            // 形式は 1 つ（文字列）でも一覧（すべてに一致）でも書ける
+            patterns = when (val p = m["pattern"]) {
+                null -> emptyList()
+                is List<*> -> p.map { it.toString() }
+                else -> listOf(p.toString())
+            },
             min = (m["min"] as? Number)?.toDouble(),
             max = (m["max"] as? Number)?.toDouble(),
             unknownFields = m["unknownFields"]?.toString()?.let { raw ->

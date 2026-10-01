@@ -85,7 +85,7 @@ internal fun refCandidateIds(field: FieldDef, candidates: List<RefCandidate>): L
         .filter { it.kind == field.refTarget }
         .filter { c ->
             field.refTarget == RefTarget.DOCUMENT ||
-                ((field.idPatterns.isEmpty() || field.idPatterns.any { idMatchesPattern(c.id, it) }) &&
+                (dev.toros.yde.semantic.idMatchesLayers(c.id, field.idPatternLayers) &&
                     (field.scope.schemaIds.isEmpty() || c.schemaId in field.scope.schemaIds) &&
                     (field.scope.documentIds.isEmpty() || c.documentId in field.scope.documentIds))
         }
@@ -103,7 +103,7 @@ internal fun fieldToJsonSchema(original: FieldDef, schema: SchemaDef, depth: Int
     return buildJsonObject {
         field.description?.takeIf { it.isNotBlank() }?.let { put("description", it) }
         when (field.type) {
-            FieldType.STRING, FieldType.TEXT -> {
+            FieldType.STRING -> {
                 put("type", "string")
                 // 制約語彙（R16-01）を Structured Outputs へ伝搬する（生成値が検証を通りやすくなる）
                 field.minLength?.let { put("minLength", it) }

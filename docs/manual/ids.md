@@ -68,7 +68,7 @@ scope:
   documentIds: [system-overview]
 ```
 
-`idPatterns`、`schemaIds`、`documentIds`の各配列内はOR、異なる条件間はANDです。IDパターンは大文字・小文字を区別します。条件は候補表示だけでなく参照検証にも適用されます。ID自体が存在しても条件外なら検証エラーになります。条件を省略するとワークスペース全体が対象です。
+`idPatterns`、`schemaIds`、`documentIds`の各配列内はOR、異なる条件間はANDです。IDパターンは大文字・小文字を区別します。参照の型（`type: 名前`。[schema.md](schema.md)「型の定義」）から引き継いだ `idPatterns` と、使う側に書いた `idPatterns` は重ね合わせになり、両方に合う ID だけが候補になります（`scope` は共通部分）。条件は候補表示だけでなく参照検証にも適用されます。ID自体が存在しても条件外なら検証エラーになります。条件を省略するとワークスペース全体が対象です。
 
 ## 参照（リンク）の認識
 

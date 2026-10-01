@@ -207,17 +207,18 @@ object SchemaInference {
     /** スカラー値の観測からの型推測（boolean / int / number / date / text / ref / enum / string）。 */
     private fun applyScalarType(field: YNode.Map, stats: Stats, idValues: Set<String>) {
         val total = stats.scalarSamples
-        val type = when {
-            total == 0 -> FieldType.STRING
-            stats.booleans == total -> FieldType.BOOLEAN
-            stats.ints == total -> FieldType.INT
-            stats.ints + stats.numbers == total -> FieldType.NUMBER
-            stats.dates == total -> FieldType.DATE
-            stats.longTexts > 0 && stats.longTexts + stats.plainStrings == total -> FieldType.TEXT
-            else -> FieldType.STRING
+        val typeId = when {
+            total == 0 -> FieldType.STRING.id
+            stats.booleans == total -> FieldType.BOOLEAN.id
+            stats.ints == total -> FieldType.INT.id
+            stats.ints + stats.numbers == total -> FieldType.NUMBER.id
+            stats.dates == total -> FieldType.DATE.id
+            // 長文は組込みの型 text（複数行の文字列。型の名前。P33）
+            stats.longTexts > 0 && stats.longTexts + stats.plainStrings == total -> LONG_TEXT_TYPE
+            else -> FieldType.STRING.id
         }
         // 値ベースの参照認識（UX-27 追補）: 全値がサンプル中の論理IDと一致するなら参照（命名規約 I-02 の補完）
-        if (type == FieldType.STRING && stats.plainStrings == total && total > 0 &&
+        if (typeId == FieldType.STRING.id && stats.plainStrings == total && total > 0 &&
             stats.values.values.sum() == total && stats.values.keys.all { it in idValues }
         ) {
             field.entries["type"] = YNode.Scalar(FieldType.REF.id)
@@ -225,7 +226,7 @@ object SchemaInference {
         }
         // enum 候補: 純粋な短い文字列値が、小さい値集合の中で反復しているとき。
         // IDらしい値（既存IDと一致 or ID形式）は enum にしない——参照の開いた値集合を閉じてしまうため（UX-27 追補）
-        if (type == FieldType.STRING && stats.plainStrings == total && total >= ENUM_MIN_SAMPLES) {
+        if (typeId == FieldType.STRING.id && stats.plainStrings == total && total >= ENUM_MIN_SAMPLES) {
             val enumTotal = stats.values.values.sum()
             val idLike = stats.values.keys.any { it in idValues || ID_LIKE_RE.matches(it) }
             if (!idLike && stats.values.size in 1..ENUM_MAX_VALUES && enumTotal >= ENUM_MIN_SAMPLES && stats.values.size < enumTotal) {
@@ -234,6 +235,9 @@ object SchemaInference {
                 return
             }
         }
-        field.entries["type"] = YNode.Scalar(type.id)
+        field.entries["type"] = YNode.Scalar(typeId)
     }
+
+    /** 長文の項目に推測する型の名前（組込みの型 text。builtin-types/text.yaml）。 */
+    private const val LONG_TEXT_TYPE = "text"
 }

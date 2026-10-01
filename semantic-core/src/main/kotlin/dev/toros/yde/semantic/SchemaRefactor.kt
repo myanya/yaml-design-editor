@@ -394,7 +394,7 @@ object SemanticSchemaRefactor {
         val key = target.key ?: error("フィールドのキーを特定できません: $fieldPath")
         val (real, _) = derefChain(schemas, entry, res.site)
         val fillable = setOf(
-            FieldType.STRING, FieldType.TEXT, FieldType.INT, FieldType.NUMBER,
+            FieldType.STRING, FieldType.INT, FieldType.NUMBER,
             FieldType.BOOLEAN, FieldType.ENUM, FieldType.DATE, FieldType.REF,
         )
         require(real.def.type in fillable) { "型 ${real.def.type.id} は一括充填の対象外です（スカラー型のみ）" }
@@ -474,10 +474,15 @@ object SemanticSchemaRefactor {
         require(node.entries["\$ref"] == null && node.entries["ref"] == null) {
             "参照（\$ref）フィールドは定義側を変換してください（使用側のパスで定義内フィールドを指定できます）"
         }
+        // 型の名前（type: 名前。P33）を持つフィールドは、組込みの text を除いて定義側を変換する（text は string の連鎖なので string と同じに扱う）
+        require(target.typeName == null || target.typeName == TEXT_NAME) {
+            "型の名前（${target.typeName}）を持つフィールドは定義側を変換してください（使用側のパスで定義内フィールドを指定できます）"
+        }
         require(node.entries["cases"] == null) { "cases を持つフィールドの型変換は未対応です" }
         val curType = target.type
+        val curTypeId = target.typeName ?: curType.id
         val scalarTypes = setOf(
-            FieldType.STRING, FieldType.TEXT, FieldType.INT, FieldType.NUMBER,
+            FieldType.STRING, FieldType.INT, FieldType.NUMBER,
             FieldType.BOOLEAN, FieldType.DATE, FieldType.ENUM,
         )
         val constraintKeys = listOf("values", "pattern", "minLength", "maxLength", "min", "max")
@@ -502,10 +507,15 @@ object SemanticSchemaRefactor {
         }
 
         when {
+            // string ↔ text（組込みの型 text は string の連鎖。型の名前の書き換えだけで、文書は変わらない。P33）
+            targetTypeId in setOf(FieldType.STRING.id, TEXT_NAME) && curType == FieldType.STRING -> {
+                require(targetTypeId != curTypeId) { "既に $targetTypeId 型です: $fieldPath" }
+                builder.add(schemaFile, YamlOperation.SetScalar(res.site.path + "type", targetTypeId))
+            }
             // スカラー → 配列（wrap）
             targetTypeId == FieldType.ARRAY.id && curType in scalarTypes -> {
                 val item = YNode.Map()
-                item.entries["type"] = YNode.Scalar(curType.id)
+                item.entries["type"] = YNode.Scalar(curTypeId)
                 constraintKeys.forEach { k -> node.entries[k]?.let { item.entries[k] = it.deepCopy() } }
                 builder.add(schemaFile, YamlOperation.SetScalar(res.site.path + "type", FieldType.ARRAY.id))
                 (constraintKeys + "default").forEach { k ->
@@ -524,9 +534,10 @@ object SemanticSchemaRefactor {
             // 配列 → 要素の型（unwrap）
             curType == FieldType.ARRAY -> {
                 val itemDef = target.item ?: error("配列の item 定義がありません")
-                require(itemDef.ref == null) { "要素が定義参照（\$ref）の配列は解除できません" }
-                require(targetTypeId == itemDef.type.id) { "配列の解除は要素の型（${itemDef.type.id}）を変換先に指定してください" }
-                require(itemDef.type in scalarTypes) { "スカラー要素の配列のみ解除できます（要素: ${itemDef.type.id}）" }
+                require(itemDef.ref == null || itemDef.typeName == TEXT_NAME) { "要素が定義参照（\$ref）の配列は解除できません" }
+                val itemTypeId = itemDef.typeName ?: itemDef.type.id
+                require(targetTypeId == itemTypeId) { "配列の解除は要素の型（$itemTypeId）を変換先に指定してください" }
+                require(itemDef.type in scalarTypes) { "スカラー要素の配列のみ解除できます（要素: $itemTypeId）" }
                 convertDocs { value, hit, docId ->
                     when {
                         value !is YNode.Seq -> null
@@ -547,7 +558,7 @@ object SemanticSchemaRefactor {
                 builder.add(schemaFile, YamlOperation.Remove(res.site.path + "item"))
             }
             // string / text → enum（検証つき）
-            targetTypeId == FieldType.ENUM.id && curType in setOf(FieldType.STRING, FieldType.TEXT) -> {
+            targetTypeId == FieldType.ENUM.id && curType == FieldType.STRING -> {
                 require(enumValues.isNotEmpty()) { "--values で選択肢を指定してください（例 --values open,done）" }
                 convertDocs { value, hit, docId ->
                     val text = scalarText(value)
@@ -563,12 +574,12 @@ object SemanticSchemaRefactor {
                 )
             }
             // enum → string / text
-            curType == FieldType.ENUM && targetTypeId in setOf(FieldType.STRING.id, FieldType.TEXT.id) -> {
+            curType == FieldType.ENUM && targetTypeId in setOf(FieldType.STRING.id, TEXT_NAME) -> {
                 builder.add(schemaFile, YamlOperation.SetScalar(res.site.path + "type", targetTypeId))
                 if ("values" in node.entries) builder.add(schemaFile, YamlOperation.Remove(res.site.path + "values"))
             }
             // string / text → int / number（検証つきの型付け）
-            targetTypeId in setOf(FieldType.INT.id, FieldType.NUMBER.id) && curType in setOf(FieldType.STRING, FieldType.TEXT) -> {
+            targetTypeId in setOf(FieldType.INT.id, FieldType.NUMBER.id) && curType == FieldType.STRING -> {
                 convertDocs { value, hit, docId ->
                     val text = scalarText(value)?.trim()
                     if (text.isNullOrBlank()) return@convertDocs null
@@ -581,7 +592,7 @@ object SemanticSchemaRefactor {
                 builder.add(schemaFile, YamlOperation.SetScalar(res.site.path + "type", targetTypeId))
             }
             // int / number / boolean / date → string / text（文字列化）
-            targetTypeId in setOf(FieldType.STRING.id, FieldType.TEXT.id) &&
+            targetTypeId in setOf(FieldType.STRING.id, TEXT_NAME) &&
                 curType in setOf(FieldType.INT, FieldType.NUMBER, FieldType.BOOLEAN, FieldType.DATE) -> {
                 convertDocs { value, hit, _ ->
                     val text = scalarText(value) ?: return@convertDocs null
@@ -590,8 +601,8 @@ object SemanticSchemaRefactor {
                 builder.add(schemaFile, YamlOperation.SetScalar(res.site.path + "type", targetTypeId))
             }
             else -> error(
-                "対応していない型変換です: ${curType.id} → $targetTypeId" +
-                    "（対応: スカラー→array・array→要素型・string→enum/int/number・enum→string・int/number/boolean/date→string）"
+                "対応していない型変換です: $curTypeId → $targetTypeId" +
+                    "（対応: スカラー→array・array→要素型・string↔text・string→enum/int/number・enum→string・int/number/boolean/date→string）"
             )
         }
         if (violations.isNotEmpty()) {
@@ -603,7 +614,7 @@ object SemanticSchemaRefactor {
             changes = builder.toChanges(),
             warnings = warnings,
             summary = listOf(
-                "スキーマ「$schemaId」のフィールド「$fieldPath」を ${curType.id} → $targetTypeId へ変換",
+                "スキーマ「$schemaId」のフィールド「$fieldPath」を $curTypeId → $targetTypeId へ変換",
                 "文書 $docFileCount ファイル・$converted 箇所の値を変換",
             ),
         )
@@ -675,6 +686,10 @@ object SemanticSchemaRefactor {
         val keep = setOf("key", "label", "required", "requiredFrom", "description", "role")
         val moved = node.entries.keys.filter { it !in keep }
         require(moved.isNotEmpty()) { "抽出する構造がありません（type などの構造キーが必要です）" }
+        // 入れ物（object / array / map）の定義は `$ref` で、スカラーの定義（型）は `type: 名前` で使う（P33）
+        val movedType = scalarText(node.entries["type"])
+        val container = movedType != null && FieldType.entries.firstOrNull { it.id == movedType }?.isContainer == true
+        val useKey = if (container) "\$ref" else "type"
 
         val builder = SemanticRewrite.PlanOps()
         val file = sourceOf(res.site.module)
@@ -686,7 +701,7 @@ object SemanticSchemaRefactor {
         }
         builder.add(file, YamlOperation.Insert(listOf("definitions", defName), defMap))
         moved.forEach { k -> builder.add(file, YamlOperation.Remove(res.site.path + k)) }
-        builder.add(file, YamlOperation.Insert(res.site.path + "\$ref", YNode.Scalar(defName)))
+        builder.add(file, YamlOperation.Insert(res.site.path + useKey, YNode.Scalar(defName)))
         return RefactoringPlan(
             sourceVersion = sourceVersion,
             request = request,
@@ -694,7 +709,8 @@ object SemanticSchemaRefactor {
             warnings = emptyList(),
             summary = listOf(
                 "フィールド「$fieldPath」の構造を定義「${res.site.module.id}#$defName」へ抽出",
-                "使用側は \$ref 参照に置き換え（${moved.size} キーを移動。文書は変わりません）",
+                if (container) "使用側は \$ref 参照に置き換え（${moved.size} キーを移動。文書は変わりません）"
+                else "使用側は type: $defName（型の名前）に置き換え（${moved.size} キーを移動。文書は変わりません）",
             ),
         )
     }
@@ -718,6 +734,8 @@ object SemanticSchemaRefactor {
         val refKey = when {
             "\$ref" in node.entries -> "\$ref"
             "ref" in node.entries -> "ref"
+            // 型の名前（type: 名前。P33）も定義への参照
+            "type" in node.entries && !FieldType.isBaseKind(scalarText(node.entries["type"])) -> "type"
             else -> error("定義参照（\$ref）ではありません: $fieldPath")
         }
         val located = entry.tree.definitionTarget(res.site.def)
@@ -824,7 +842,7 @@ object SemanticSchemaRefactor {
         var count = 0
         SemanticRewrite.forEachSchemaEntry(schemas, tree) { _, file, path, entryKey, value ->
             when {
-                (entryKey == "\$ref" || entryKey == "ref" || entryKey == "definition") &&
+                (entryKey == "\$ref" || entryKey == "ref" || entryKey == "definition" || entryKey == "type") &&
                     scalarText(value)?.startsWith("$oldId#") == true -> {
                     builder.add(file, YamlOperation.SetScalar(path + entryKey, "$newId#${scalarText(value)!!.substringAfter('#')}"))
                     count++
@@ -938,12 +956,19 @@ object SemanticSchemaRefactor {
         return current
     }
 
-    /** `$ref` / `ref` エントリが指す定義（非修飾は書かれているスキーマ自身のモジュール）。参照キーでなければ null。 */
+    /** 組込みの型 text の名前（string の連鎖。型変換では string と同じに扱う）。 */
+    private const val TEXT_NAME = "text"
+
+    /**
+     * `$ref` / `ref` エントリと、型の名前を書いた `type` エントリ（基底の種類でない値。P33）が指す定義
+     * （非修飾は書かれているスキーマ自身のモジュール）。参照キーでなければ null。
+     */
     private class DefinitionRef(val moduleId: String, val name: String, val qualified: Boolean)
 
     private fun definitionRefOf(holder: SchemaSemantics, entryKey: String, value: YNode): DefinitionRef? {
-        if (entryKey != "\$ref" && entryKey != "ref") return null
+        if (entryKey != "\$ref" && entryKey != "ref" && entryKey != "type") return null
         val v = scalarText(value) ?: return null
+        if (entryKey == "type" && FieldType.isBaseKind(v)) return null
         val qualified = v.contains('#')
         return DefinitionRef(
             moduleId = if (qualified) v.substringBefore('#') else holder.id,

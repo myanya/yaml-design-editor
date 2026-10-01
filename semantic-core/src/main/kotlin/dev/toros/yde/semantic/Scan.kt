@@ -60,7 +60,12 @@ data class ScannedRef(
     val attributes: Map<String, String> = emptyMap(),
     /** 参照の対象種別（R21-03）: エンティティ（既定）／文書。文書参照は別名前空間で解決する。 */
     val targetKind: RefTarget = RefTarget.ENTITY,
+    /** 参照先 ID の絞り込みの外側の層（型の連鎖の重ね合わせ。P33）。idPatterns とあわせて、すべての層に合う ID だけが許される。 */
+    val outerIdPatterns: List<List<String>> = emptyList(),
 ) {
+    /** 参照先 ID の絞り込みの層（外側から順。空なら制限なし）。 */
+    val idPatternLayers: List<List<String>> get() = (outerIdPatterns + listOf(idPatterns)).filter { it.isNotEmpty() }
+
     /** 属性の1行注記（例「role: 承認者」）。表示側は括弧に閉じて添える（R20-03）。 */
     fun attributeSummary(): String? =
         attributes.entries.takeIf { it.isNotEmpty() }?.joinToString(", ") { (k, v) -> "$k: $v" }
@@ -89,6 +94,7 @@ object SemanticScanner {
                         it, doc.id, path, keyLabel ?: "ref", effective.idPatterns, effective.scope,
                         relation = effective.relation, sourceSchemaId = doc.schemaId,
                         targetKind = effective.refTarget,  // 文書参照（R21-03）は別名前空間として解決される
+                        outerIdPatterns = effective.outerIdPatterns,
                     )
                 }
                 return
@@ -105,6 +111,7 @@ object SemanticScanner {
                         target, doc.id, path + "to", keyLabel ?: "ref", effective.idPatterns, effective.scope,
                         relation = effective.relation, sourceSchemaId = doc.schemaId, attributes = attributes,
                         targetKind = effective.refTarget,
+                        outerIdPatterns = effective.outerIdPatterns,
                     )
                 }
                 return

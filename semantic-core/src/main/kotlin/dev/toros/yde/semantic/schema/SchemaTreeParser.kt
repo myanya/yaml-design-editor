@@ -57,9 +57,14 @@ object SchemaTreeParser {
     /** フィールド定義1件のパース（再帰）。 */
     fun parseField(m: Map<*, *>?, key: String?, definitionScope: String): FieldDef {
         if (m == null) return FieldDef(key = key, definitionScope = definitionScope)
-        val typeName = m["type"]?.toString()
-        val type = if (typeName == null) FieldType.STRING
-            else FieldType.entries.firstOrNull { it.id == typeName } ?: error("未知の型です: $typeName")
+        val typeText = m["type"]?.toString()
+        // 型の名前（P33）: 基底の種類でなければ定義の名前として扱う（解決は $ref と同じ。見つからなければ定義の点検が「未知の型」にする）
+        val baseType = typeText?.let { t -> FieldType.entries.firstOrNull { it.id == t } }
+        val namedType = if (typeText != null && baseType == null) typeText else null
+        val explicitRef = (m["\$ref"] ?: m["ref"])?.toString()
+        require(namedType == null || explicitRef == null) { "type に型の名前（$namedType）を書くときは \$ref と併用できません" }
+        require(namedType == null || !namedType.startsWith("$") && namedType.isNotBlank()) { "型の名前が不正です: $namedType" }
+        val type = baseType ?: FieldType.STRING
         val fields = (m["fields"] as? List<*>)?.mapIndexed { index, f ->
             val child = f as? Map<*, *> ?: error("fields[$index]はobjectである必要があります")
             parseField(child, child["key"]?.toString(), definitionScope)
@@ -122,7 +127,8 @@ object SchemaTreeParser {
             ),
             relation = m["relation"]?.toString(),
             refTarget = m["target"]?.let {
-                require(type == FieldType.REF) { "target（参照対象種別）は type: ref のフィールドでのみ定義できます" }
+                // 型の名前を書いた項目は、基底の種類が解決まで分からない（ref でなければ定義の点検が指摘する）
+                require(type == FieldType.REF || namedType != null) { "target（参照対象種別）は type: ref のフィールドでのみ定義できます" }
                 RefTarget.parse(it.toString())
             } ?: RefTarget.ENTITY,
             minLength = (m["minLength"] as? Number)?.toInt(),
@@ -130,20 +136,35 @@ object SchemaTreeParser {
             pattern = m["pattern"]?.toString(),
             min = (m["min"] as? Number)?.toDouble(),
             max = (m["max"] as? Number)?.toDouble(),
-            ref = (m["\$ref"] ?: m["ref"])?.toString(),
+            ref = explicitRef ?: namedType,
             unknownFields = m["unknownFields"]?.toString()?.let { raw ->
                 UnknownFieldsPolicy.parse(raw) ?: error("unknownFields は allow / warning / error のいずれかである必要があります: $raw")
             },
             definitionScope = definitionScope,
-            hints = FieldHints(
-                label = m["label"]?.toString(),
-                description = m["description"]?.toString(),
-                options = options,
-                // display は型で意味が変わる: array / map は一覧の見せ方（table / list）、int / number は桁区切り（grouped）
-                display = if (type == FieldType.INT || type == FieldType.NUMBER) null else CollectionDisplay.parse(m["display"]?.toString()),
-                numberDisplay = if (type == FieldType.INT || type == FieldType.NUMBER) NumberDisplay.parse(m["display"]?.toString()) else null,
-                default = m["default"],
-            ),
+            typeName = namedType,
+            hints = displayHints(m, type, namedType, options),
+        )
+    }
+
+    /**
+     * 表示のヒント。display は型で意味が変わる: array / map は一覧の見せ方（table / list）、int / number は桁区切り（grouped）。
+     * 型の名前を書いた項目は基底の種類が解決まで分からないので、書かれた値で見分ける（grouped なら桁区切り）。
+     */
+    private fun displayHints(m: Map<*, *>, type: FieldType, namedType: String?, options: List<EnumOption>): FieldHints {
+        val displayRaw = m["display"]?.toString()
+        val numeric = type == FieldType.INT || type == FieldType.NUMBER
+        val numberDisplay = when {
+            numeric -> NumberDisplay.parse(displayRaw)
+            namedType != null && displayRaw == NumberDisplay.GROUPED.id -> NumberDisplay.GROUPED
+            else -> null
+        }
+        return FieldHints(
+            label = m["label"]?.toString(),
+            description = m["description"]?.toString(),
+            options = options,
+            display = if (numeric || numberDisplay != null) null else CollectionDisplay.parse(displayRaw),
+            numberDisplay = numberDisplay,
+            default = m["default"],
         )
     }
 }

@@ -16,7 +16,8 @@ definitions:
       - key: type
         label: 型
         type: enum
-        values: [string, text, int, number, boolean, enum, date, id, ref, array, map, object, any]
+        description: "基底の種類（この選択肢）か、型の名前（組込みの型 text・definitions に定義した型 金額 / common#金額）。型の名前を書くと定義の決まりを引き継ぎ、ここに書く決まりは狭めるだけ（P33）。型の名前の選択肢は読み込み時に足される"
+        values: [string, int, number, boolean, enum, date, id, ref, array, map, object, any]
         cases:
           string:
             - key: minLength
@@ -29,16 +30,6 @@ definitions:
               label: 形式（正規表現）
               type: string
               description: 値の全体がこの正規表現に一致すること（R16-01）
-          text:
-            - key: minLength
-              label: 最小文字数
-              type: int
-            - key: maxLength
-              label: 最大文字数
-              type: int
-            - key: pattern
-              label: 形式（正規表現）
-              type: string
           int:
             - key: min
               label: 最小値
@@ -155,7 +146,7 @@ definitions:
       - key: expression
         label: 値の式を受け取る
         type: boolean
-        description: "true にすると、この項目の値は値の式でもよくなる（短い書き方＝{パス} を含む文字列・完全な書き方＝{format, with} などの式の object。式が返す値の型が type。string / text 型でのみ）。どの項目が式かはこの印だけが決め、読み取り・評価・エラーの文面は共通。使う側（例: filePattern はファイル名として）が、いまの要素を決めて評価する"
+        description: "true にすると、この項目の値は値の式でもよくなる（短い書き方＝{パス} を含む文字列・完全な書き方＝{format, with} などの式の object。式が返す値の型が type。基底の種類が string の型でのみ）。どの項目が式かはこの印だけが決め、読み取り・評価・エラーの文面は共通。使う側（例: filePattern はファイル名として）が、いまの要素を決めて評価する"
       - key: role
         label: 表示役割
         type: enum
@@ -211,6 +202,7 @@ root:
     - key: definitions
       label: 名前付き定義
       type: map
+      description: "構造（object など。$ref で使う）と型（string・int などスカラーの決まりの束。項目の type: 名前 で使う。P33）の名前付き定義。型の定義は type に基底の種類か別の型名を持ち、連鎖の末端が基底の種類になる"
       value:
         $ref: field
     - key: phases

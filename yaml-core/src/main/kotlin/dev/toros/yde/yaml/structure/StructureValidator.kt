@@ -159,7 +159,7 @@ object StructureValidator {
                     issues += StructuralIssue(Severity.WARNING, "「$label」は YYYY-MM-DD 形式を推奨します（現在値: $v）", path, StructuralIssueKind.FORMAT)
                 }
             }
-            ValueType.STRING, ValueType.TEXT -> {
+            ValueType.STRING -> {
                 if (node !is YNode.Scalar) {
                     issues += StructuralIssue(Severity.WARNING, "「$label」はスカラー値を想定しています", path, StructuralIssueKind.TYPE)
                 } else if (f.required && scalarText(node) == null) {
@@ -178,7 +178,8 @@ object StructureValidator {
                                 issues += StructuralIssue(Severity.ERROR, "「$label」は $limit 文字以内で入力してください（現在 ${text.length} 文字）", path, StructuralIssueKind.LENGTH)
                             }
                         }
-                        f.pattern?.let { p ->
+                        // 形式は一覧のすべてに一致すること（型の連鎖で重ねた形式）
+                        f.patterns.forEach { p ->
                             // 正規表現として読めない形式は、スキーマの定義の検証が指摘するため、ここでは黙って飛ばす
                             runCatching { Regex(p) }.getOrNull()?.let { re ->
                                 if (!re.matches(text)) {
