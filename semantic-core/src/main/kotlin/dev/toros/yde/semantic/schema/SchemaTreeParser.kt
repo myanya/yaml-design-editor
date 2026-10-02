@@ -25,11 +25,11 @@ object SchemaTreeParser {
         return SchemaTree(id = id, root = root, definitions = definitions, phases = parsePhases(raw["phases"]))
     }
 
-    /** definitions ブロックのパース。 */
+    /** definitions ブロックのパース。名前付きの object の `entity.type` を省くと定義名になる（オブジェクト型。P33 第三弾）。 */
     fun parseDefinitions(raw: Any?, moduleId: String): Map<String, FieldDef> =
         (raw as? Map<*, *>)?.entries?.associate { (name, value) ->
             val definition = value as? Map<*, *> ?: error("definitions.${name}: objectである必要があります")
-            name.toString() to parseField(definition, key = null, definitionScope = moduleId)
+            name.toString() to parseField(definition, key = null, definitionScope = moduleId, definitionName = name.toString())
         } ?: emptyMap()
 
     /** root ブロックのパース。allowMissingRoot は derive 宣言スキーマの root 省略（共通フィールドがなければ空の object）。 */
@@ -54,9 +54,11 @@ object SchemaTreeParser {
         else -> error("phases はフェーズのリスト、または key / order を持つ object である必要があります")
     }
 
-    /** フィールド定義1件のパース（再帰）。 */
-    fun parseField(m: Map<*, *>?, key: String?, definitionScope: String): FieldDef {
-        if (m == null) return FieldDef(key = key, definitionScope = definitionScope)
+    /**
+     * フィールド定義1件のパース（再帰）。definitionName は名前付きの定義の最上位だけに渡す（object の `entity.type` を省いたときの既定）。
+     */
+    fun parseField(m: Map<*, *>?, key: String?, definitionScope: String, definitionName: String? = null): FieldDef {
+        if (m == null) return FieldDef(key = key, definitionScope = definitionScope, typeGiven = false)
         val typeText = m["type"]?.toString()
         // 型の名前（P33）: 基底の種類でなければ定義の名前として扱う（解決は $ref と同じ。見つからなければ定義の点検が「未知の型」にする）
         val baseType = typeText?.let { t -> FieldType.entries.firstOrNull { it.id == t } }
@@ -108,6 +110,11 @@ object SchemaTreeParser {
             null -> emptyList()
             else -> listOf(value.toString())
         }
+        // 同一性（オブジェクト型。P33 第三弾）: object（基底の種類が object か、型の名前＝解決まで分からない）にだけ書ける
+        val entity = m["entity"]?.let {
+            require(type == FieldType.OBJECT || namedType != null) { "entity（同一性）は type: object のフィールドでのみ定義できます" }
+            SemanticDeclParser.parseObjectEntity(it, "entity", definitionName)
+        }
         return FieldDef(
             key = key,
             type = type,
@@ -143,6 +150,8 @@ object SchemaTreeParser {
             definitionScope = definitionScope,
             typeName = namedType,
             hints = displayHints(m, type, namedType, options),
+            entity = entity,
+            typeGiven = typeText != null || explicitRef != null,
         )
     }
 

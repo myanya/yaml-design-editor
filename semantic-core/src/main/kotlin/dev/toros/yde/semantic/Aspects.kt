@@ -106,7 +106,8 @@ object SemanticAspects {
                 unassigned += entry
                 continue
             }
-            val decl = entityFor(sc.entities, id)
+            // 要素の型の宣言（オブジェクト型）があればそれ、無ければスキーマの entity 宣言（ID の形）
+            val decl = objectField.entity ?: entityFor(sc.entities, id)
             prepared += Prepared(entry, sc, root, decl, decl?.aspect ?: sc.id, objectField)
         }
 

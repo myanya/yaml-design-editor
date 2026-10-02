@@ -100,7 +100,14 @@ class DerivedStructures(private val schema: SchemaTree) {
     private fun inlineScalarTypes(field: FieldDef): FieldDef {
         val resolvedOrSelf = if (field.ref != null) {
             val resolved = schema.resolve(field) ?: field
-            if (resolved.type.isContainer) field else resolved.copy(ref = null, typeName = null, lineage = emptyList())
+            when {
+                !resolved.type.isContainer -> resolved.copy(ref = null, typeName = null, lineage = emptyList())
+                // 入れ物の型を使う側が項目を足した・書き直したとき（オブジェクト型。P33 第三弾）は、合成した中身を展開して写す
+                field.fields.isNotEmpty() || field.item != null || field.value != null ->
+                    resolved.copy(ref = null, typeName = null, lineage = emptyList())
+                // 追加の無い入れ物の定義への参照は、定義への参照のまま（再帰のため）。type: 名前 で書かれていても $ref の綴りで写す
+                else -> field.copy(typeName = null)
+            }
         } else field
         // 意味の基底型は構造の上では文字列（P33）: id / ref の直列化は word（空白なし）、date / time / datetime は正準の形（ValueSemantics）
         val value = resolvedOrSelf.type.value

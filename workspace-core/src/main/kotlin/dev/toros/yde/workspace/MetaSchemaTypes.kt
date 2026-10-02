@@ -15,7 +15,8 @@ import dev.toros.yde.semantic.schema.SchemaTree
 object MetaSchemaTypes {
 
     /**
-     * 型の名前 → 基底の種類（連鎖の末端）。カタログの全モジュールの、入れ物（object / array / map）でない定義。
+     * 型の名前 → 基底の種類（連鎖の末端）。カタログの全モジュールの定義（スカラーの型と、オブジェクト型などの入れ物の定義。P33 第三弾で
+     * 入れ物も `type: 名前` で使えるようになった）。
      * 名前は `モジュール#名前` と非修飾の `名前` の両方（非修飾は、自分のモジュールと組込みの型の書き方。同じ名前が複数あれば先勝ち）。
      */
     fun typeNames(catalog: SchemaCatalog): Map<String, FieldType> {
@@ -25,7 +26,6 @@ object MetaSchemaTypes {
             val tree = SchemaTree(moduleId, FieldDef(type = FieldType.OBJECT), definitions, definitionCatalog = catalog)
             for ((name, definition) in definitions) {
                 val base = tree.resolve(definition) ?: definition
-                if (base.type.isContainer) continue
                 result.putIfAbsent("$moduleId#$name", base.type)
                 result.putIfAbsent(name, base.type)
             }

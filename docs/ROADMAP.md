@@ -253,8 +253,27 @@ definitions:
 - **第二弾の残り ✅ 2026-10-02**（意図的差分 D-44）: ①entity の `idType`（ID の型の名前。型の形式で判別。`idPattern` と併用可）②設計 UI のヒントの入力欄（案内・サンプル値・複数行と行数・エンティティ節の ID の型）。
 - ③式の順序の種類を項目の型から決める（`type` は上書き。検査の `min` / `max`・ビューの列・クロス集計・行の並び）④順序の比較 `lt` / `lte` / `gt` / `gte` を項目の型で（日付・時刻・日時も比べる。BACKLOG UX-131 解決）。読み方は「数で読む」で閉じる（UX-136 は文字の金額を読まない方針）。
 - 第二弾の残りの確かめ方: `TypeDefinitionsTest`（`idType` の判別と定義エラー・日付の検査 3 本）・`ValueOperationsTest`（種類ごとの比較）・`SemanticAggregateTest`（型からの種類の決定）・`QueryDeclarationTest`（`type` の書き方）・`VirtualViewsTest`（並びの種類）。labs とサンプルの CLI 出力は前後で一致。
-- **第三弾（オブジェクト型）**: object の定義に同一性（`entity`）・表示・検査を足し、狭める規則を「項目を足す・必須にする」へ広げる。ID を持たない部品は今の definitions のまま。
-- **入れないもの**: 型の「どちらか」（A または B）・計算で決まる決まり・YAML から新しい UI 部品を足すこと。
+- **入れないもの**: 型の「どちらか」（A または B）・複数の型の合成（多重継承）・計算で決まる決まり・YAML から新しい UI 部品を足すこと。
+
+#### 第三弾（オブジェクト型）の設計（決定 2026-10-03 オーナー）
+
+**一言で**: オブジェクト型 ＝ object の定義に ①同一性（`entity`）②表示（`label` と既存の `role`）③検査（`constraints`）を足し、使う側は `type: 名前` で使って「項目を足す・必須にする」だけができる。既知の技術との対応は XSD の complexType（extension＝足す・restriction＝狭める）・TypeScript の `interface B extends A`。
+
+- **書き方**: object の定義（`definitions`）でも、その場の object（配列の要素など）でも `entity: { type, defines, aspect, owns }` を書ける（1 回しか使わない形のために型を定義しなくてよい）。名前付きの型では `entity.type` を省くと定義名。使う側は `type: 名前`（`$ref` は同義で残す）。
+- **同一性の決め方**: 要素の object（解決した型）に `entity` があればそれ → 無ければ文書スキーマの `entity:`（ID の形で判別。今までどおり残す）。root を型で書き、その型が `entity` を持てばスキーマの `entity:` は省略できる。段階的詳細化（同じ ID を複数の文書に書く・側面の所有）はそのまま——オブジェクト型は要素の「形」を決め、側面をつなぐのは ID とエンティティ型の名前。
+- **同じキーは狭める・新しいキーは足す**（熟練プログラマの直感＝サブインターフェースで同じ項目を書き直すと狭い型しか許されない）: 定義に無いキー→末尾に追加。定義にあるキー＋`required` / `requiredFrom`→必須にする（外せない）。定義にあるキー＋決まり→第一弾と同じ狭める規則。定義にあるキー＋`type`→省略が普通で、書くなら定義側の型を狭めた型だけ（基底の種類が変わる書き方は定義エラー）。
+- 表示のヒント（`label` `description` `placeholder` `sample` `format` `display` `default` `role`）は使う側が勝つ。object / array / map の子（`fields` / `item` / `value`）には同じ規則を再帰的に当てる。`cases` は定義に無いときだけ。項目を外す・並べ替える・`entity.type` を変えるはできない。位置は同じキーなら定義の場所のまま。
+- **検査は要素ごと**: 型の `constraints` は「その型の要素ごとに評価する検査」（文書をスキーマに沿って歩いて解決した型がその型の要素を見つけ、要素を「いまの要素」として既存の値の式の評価器で `where` と `check` を評価する。`of` を省けばその要素。指摘はその要素の場所）。ID の無い型でも書ける（明細の「単価 × 数量 ＝ 金額」など）。他の要素へ線を辿る検査（`match` の `edge`）は `entity` を持つ型にだけ書け、グラフの検査へ展開する。
+- **表示**: 型の `label` / `description`。エンティティ型の表示名は関係レジストリ `entities:` → 型の `label` の順（レジストリはアスペクトの順序のために残す）。1 行要約は今までどおり `role`。
+- **構造の検証への写し**: 追加の無い `type: 名前` は `$ref` のまま（再帰のため）。項目を足した使い方は合成した object を展開して写す。再帰する型への追加は定義エラー。
+- **確かめ方**: labs/sysdev-template は domain-detail と screen-def だけ型へ書き換えて出力一致（ENT-* などの型付けが ID の形から要素の型に変わるだけ）。samples/todos は一覧の要素と個票を型にする。
+
+| ID | 項目 | 内容 | 状態 |
+|---|---|---|---|
+| R33-07 | 同一性と狭める規則の拡張 | object の `entity`・`type: 名前` で object を使い項目を足す／狭める（`SchemaTree.mergeFields`・定義の点検）・走査と整合と合成が要素の型から同一性を決める・導出は追加のある使い方を展開・メタスキーマ。意図的差分 D-45 | ✅ 2026-10-03 |
+| R33-08 | 表示 | 型の `label` をエンティティ型の表示名の既定に・設計 UI（定義の種類「オブジェクト型」・定義カードのエンティティ節） | 📋 |
+| R33-09 | 型の検査 | 要素ごとの検査（`where` / `check` を要素を「いまの要素」として評価。指摘は要素の場所）と、`match` を持つ検査のグラフの検査への展開（`entity` を持つ型だけ）。CLI `checks` の透明性 | 📋 |
+| R33-10 | 文書と書き換え | manual/schema.md「型の定義」の object・checks.md・architecture/schema.md・graph-query.md・FEATURES・labs（domain-detail・screen-def）と samples/todos の書き換え・BACKLOG UX-69 の解決 | 📋 |
 
 #### 残る判断
 

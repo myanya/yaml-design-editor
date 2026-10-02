@@ -243,6 +243,48 @@ object SchemaDefinitionChecks {
             }
         }
 
+        /**
+         * 入れ物の型を使う側の点検（オブジェクト型。P33 第三弾）: 定義にあるキーを書き直した項目は「同じ項目を狭める」——
+         * 型を書くなら定義側の型を狭めた型（基底の種類が同じで、連鎖に定義側の型を含む）であること・決まりは緩めないこと。
+         * 足した項目（定義に無いキー）は普通の項目として点検する。同一性（entity）は型が持てば使う側では書けない。
+         * 配列の要素・map の値にも同じ規則を当てる。
+         */
+        fun checkContainerNarrowing(
+            use: FieldDef, base: FieldDef, name: String, path: String, stack: Set<DefinitionKey>,
+            checkField: (FieldDef, String, Set<DefinitionKey>) -> Unit,
+        ) {
+            if (use.entity != null && base.entity != null) {
+                issues += SchemaIssue("entity（同一性）は型「$name」に既にあるため書けません（entity.type は変えられません）", path)
+            }
+            val baseKeys = base.fields.associateBy { it.key }
+            use.fields.forEachIndexed { index, u ->
+                val childPath = "$path.${u.key ?: index}"
+                val d = u.key?.let { baseKeys[it] }
+                if (d == null) {
+                    if (u.key.isNullOrBlank()) issues += SchemaIssue("フィールドのキーが空です", "$path.fields[$index]")
+                    checkField(u, childPath, stack)
+                    return@forEachIndexed
+                }
+                val rd = tree.resolve(d) ?: d
+                if (u.typeGiven) {
+                    val ru = tree.resolve(u) ?: u
+                    val written = u.typeName ?: u.ref?.let { "\$$it" } ?: u.type.id
+                    when {
+                        u.ref != null && tree.definitionTarget(u) == null -> checkField(u, childPath, stack)  // 未知の型は普通の点検が指摘する
+                        ru.type != rd.type ->
+                            issues += SchemaIssue("項目「${u.key}」の型 $written（${ru.type.id}）は型「$name」の項目の型（${rd.type.id}）と違うため書けません（同じ項目は狭めるだけ）", childPath)
+                        rd.lineage.isNotEmpty() && rd.lineage.first() !in ru.lineage ->
+                            issues += SchemaIssue("項目「${u.key}」の型 $written は型「$name」の項目の型「${rd.lineage.first()}」を狭めていないため書けません", childPath)
+                    }
+                    if (u.ref == null) checkConstraints(u, childPath)
+                }
+                checkNarrowing(u, rd, DefinitionKey(name.substringBefore('#'), "${name.substringAfter('#')}.${u.key}"), childPath)
+                if (u.fields.isNotEmpty() || u.item != null || u.value != null) checkContainerNarrowing(u, rd, "$name.${u.key}", childPath, stack, checkField)
+            }
+            use.item?.let { ui -> base.item?.let { di -> checkContainerNarrowing(FieldDef(fields = listOf(ui.copy(key = "item"))), FieldDef(fields = listOf((tree.resolve(di) ?: di).copy(key = "item"))), name, path, stack, checkField) } }
+            use.value?.let { uv -> base.value?.let { dv -> checkContainerNarrowing(FieldDef(fields = listOf(uv.copy(key = "value"))), FieldDef(fields = listOf((tree.resolve(dv) ?: dv).copy(key = "value"))), name, path, stack, checkField) } }
+        }
+
         fun check(field: FieldDef, path: String, stack: Set<DefinitionKey>) {
             field.requiredFrom?.let { from ->
                 if (phases == null) issues += SchemaIssue("requiredFrom を使うには phases の宣言が必要です", path)
@@ -266,10 +308,16 @@ object SchemaDefinitionChecks {
                         issues += SchemaIssue("displayはarray / map型でのみ使用できます", path)
                     }
                     checkConstraints(resolved, path)
-                    checkNarrowing(field, tree.resolve(target) ?: target, key, path)
+                    val base = tree.resolve(target) ?: target
+                    checkNarrowing(field, base, key, path)
+                    checkContainerNarrowing(field, base, key.toString(), path, stack) { f, p, s -> check(f, p, s) }
+                    if (field.entity != null && resolved.type != FieldType.OBJECT) {
+                        issues += SchemaIssue("entity（同一性）は object でのみ使用できます", path)
+                    }
                 }
                 return
             }
+            if (field.entity != null && field.type != FieldType.OBJECT) issues += SchemaIssue("entity（同一性）は object でのみ使用できます", path)
             checkConstraints(field, path)
             if (field.cases.isNotEmpty() && field.type != FieldType.ENUM) {
                 issues += SchemaIssue("casesはenum型でのみ使用できます", path)

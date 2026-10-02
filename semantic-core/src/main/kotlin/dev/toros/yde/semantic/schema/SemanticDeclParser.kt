@@ -36,6 +36,34 @@ object SemanticDeclParser {
         }
     }
 
+    /**
+     * object の同一性の宣言（オブジェクト型。P33 第三弾）のパース。`{type, defines, aspect, owns}` だけで、ID の形（idPattern / idType）は
+     * 書けない（要素の型が構造で決まるため）。defaultType は名前付きの型の定義名（`type` を省いたときの既定。その場の object では null＝必須）。
+     */
+    fun parseObjectEntity(raw: Any?, where: String, defaultType: String?): EntityDecl? {
+        if (raw == null) return null
+        val map = raw as? Map<*, *> ?: error("$where は object（type / defines / aspect / owns）である必要があります")
+        map.keys.map { it.toString() }.firstOrNull { it !in setOf("type", "defines", "aspect", "owns") }?.let { k ->
+            error(
+                if (k == "idPattern" || k == "idType") "$where に $k は書けません（要素の型が構造で決まるので、ID の形での判別は要りません）"
+                else "$where: 未知のキーです: $k（使えるキー: type, defines, aspect, owns）"
+            )
+        }
+        val owns = when (val o = map["owns"]) {
+            null -> null
+            is List<*> -> o.map { it.toString() }
+            else -> error("$where.owns は所有フィールドキーのリストである必要があります")
+        }
+        val type = map["type"]?.toString()?.takeIf { it.isNotBlank() } ?: defaultType
+            ?: error("$where.type（エンティティ型名）が必要です（名前付きの型なら省略すると定義名になります）")
+        return EntityDecl(
+            type = type,
+            defines = (map["defines"] as? Boolean) ?: false,
+            aspect = map["aspect"]?.toString()?.takeIf { it.isNotBlank() },
+            owns = owns,
+        )
+    }
+
     /** エンティティ型のレジストリ宣言（R23-01。architecture/graph-query.md「エンティティページ」）のパース。`entities:` 節。 */
     fun parseEntityTypes(raw: Any?): List<EntityTypeDef> {
         if (raw == null) return emptyList()

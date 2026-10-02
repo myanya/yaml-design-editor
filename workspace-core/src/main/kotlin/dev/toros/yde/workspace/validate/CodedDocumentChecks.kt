@@ -11,6 +11,7 @@ import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.semantic.schema.ConstraintRule
 import dev.toros.yde.semantic.schema.Projection
 import dev.toros.yde.semantic.schema.ValueExpr
+import dev.toros.yde.semantic.schema.EntityDecl
 import dev.toros.yde.semantic.schema.entityFor
 import dev.toros.yde.semantic.schema.ownedFieldKeys
 import dev.toros.yde.semantic.ScannedId
@@ -98,14 +99,20 @@ internal class CodedDocumentChecks(
         return issues
     }
 
+    /** 出現の要素の型の宣言（オブジェクト型。P33 第三弾）があればそれ、無ければスキーマの entity 宣言（ID の形）。 */
+    private fun declOf(schema: WorkspaceSchema, root: YNode, entry: ScannedId): EntityDecl? =
+        schema.tree.fieldAt(root, entry.path)?.entity ?: entityFor(schema.entities, entry.id)
+
     fun entityIssues(document: DocumentId, schema: WorkspaceSchema?, root: YNode, localIds: List<ScannedId>): List<CheckIssue> {
-        if (schema == null || schema.entities.isEmpty()) return emptyList()
+        if (schema == null || localIds.none { it.entityType != null } && schema.entities.isEmpty()) return emptyList()
         val issues = mutableListOf<CheckIssue>()
         fun coded(kind: String, entry: ScannedId) =
             CodedChecks.source(CodedChecks.ENTITY, kind, IssueDelivery.REPORT, localIds, entry.path)
         for (entry in localIds) {
-            val decl = entityFor(schema.entities, entry.id)
+            val decl = declOf(schema, root, entry)
             if (decl == null) {
+                // 要素の型の宣言が無く、スキーマに ID の形の宣言も無い要素は、型が無いだけ（指摘しない）
+                if (schema.entities.isEmpty()) continue
                 // ID の決まり: idPattern はそのまま・idType は「型 名前」（文面の見出しは idPattern だけなら今までどおり）
                 val rules = schema.entities.mapNotNull { it.idRuleText }
                 val heading = if (schema.entities.any { it.idType != null }) "ID の決まり" else "idPattern"
@@ -127,9 +134,9 @@ internal class CodedDocumentChecks(
                 localIds.filter { it.id == entry.id && it.path != entry.path }
             for (other in others) {
                 val otherSchema = schemas.ifEmpty { listOf(schema) }.firstOrNull { it.id == other.schemaId } ?: continue
-                val otherDecl = entityFor(otherSchema.entities, entry.id) ?: continue
-                if (decl.owns == null && otherDecl.owns == null) continue
                 val otherRoot = (if (other.document == document) root else tree(other.document)) ?: continue
+                val otherDecl = declOf(otherSchema, otherRoot, other) ?: continue
+                if (decl.owns == null && otherDecl.owns == null) continue
                 val overlap = myKeys.filter { it in ownedFieldKeys(otherSchema.tree, otherRoot, other.path, otherDecl) }
                 if (overlap.isNotEmpty()) {
                     issues += CheckIssue(

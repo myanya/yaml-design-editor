@@ -172,23 +172,23 @@ internal class TypeChoices(val names: List<String>, private val bases: Map<Strin
             val builtinTree = SchemaTree(BuiltinTypes.MODULE_ID, FieldDef(type = FieldType.OBJECT), BuiltinTypes.definitions)
             BuiltinTypes.definitions.forEach { (name, def) ->
                 val resolved = builtinTree.resolve(def) ?: def
-                if (!resolved.type.isContainer) bases[name] = resolved.type.id
+                bases[name] = resolved.type.id
             }
+            // 他のモジュールの定義（スカラーの型と、オブジェクト型などの入れ物の定義。P33 第三弾で入れ物も type: 名前 で使える）
             state.schemas.filter { it.id != ownId }.forEach { module ->
                 module.definitions.forEach { (name, def) ->
                     val resolved = module.tree.resolve(def) ?: def
-                    if (!resolved.type.isContainer) bases["${module.id}#$name"] = resolved.type.id
+                    bases["${module.id}#$name"] = resolved.type.id
                 }
             }
-            // この文書の definitions は保存前の内容から（type の連鎖を辿る。$ref の定義は構造なので型にしない）
+            // この文書の definitions は保存前の内容から（type の連鎖を辿る。$ref で書いた定義は、参照先の基底の種類）
             val definitions = root.entries["definitions"] as? YNode.Map
             fun rawBase(name: String, depth: Int): String? {
                 if (depth > 16) return null
                 val m = definitions?.entries?.get(name) as? YNode.Map ?: return null
-                if ("\$ref" in m.entries || "ref" in m.entries) return null
-                val t = scalar(m, "type") ?: FieldType.STRING.id
+                val t = scalar(m, "type") ?: scalar(m, "\$ref") ?: scalar(m, "ref") ?: FieldType.STRING.id
                 return when {
-                    FieldType.isBaseKind(t) -> t.takeIf { FieldType.entries.first { e -> e.id == t }.isContainer.not() }
+                    FieldType.isBaseKind(t) -> t
                     definitions?.entries?.containsKey(t) == true -> rawBase(t, depth + 1)
                     else -> bases[t]
                 }

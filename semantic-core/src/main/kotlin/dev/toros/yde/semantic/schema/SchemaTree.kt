@@ -60,7 +60,36 @@ data class SchemaTree(
     }
 
     /** 使う側 use を、定義 def の上に「狭めるだけ」で合成する（1段）。 */
-    private fun narrow(use: FieldDef, def: FieldDef, key: DefinitionKey): FieldDef {
+    private fun narrow(use: FieldDef, def: FieldDef, key: DefinitionKey): FieldDef =
+        narrowOnto(use, def, typeName = use.typeName, lineage = use.lineage + key.toString())
+
+    /**
+     * object の子の合成（オブジェクト型。P33 第三弾）: 定義に無いキーは末尾に足し、定義にあるキーは「同じ項目を狭める」
+     * （熟練プログラマの直感＝サブインターフェースで同じ項目を書き直すと、狭い型しか許されない）。位置は定義の場所のまま。
+     */
+    private fun mergeFields(use: List<FieldDef>, def: List<FieldDef>): List<FieldDef> {
+        if (use.isEmpty()) return def
+        val byKey = use.filter { it.key != null }.associateBy { it.key!! }
+        val defKeys = def.mapNotNull { it.key }.toSet()
+        val merged = def.map { d -> d.key?.let { byKey[it] }?.let { u -> mergeChild(u, d) } ?: d }
+        return merged + use.filter { it.key == null || it.key !in defKeys }
+    }
+
+    /**
+     * 同じキーの子の合成。型を省いた書き直し（typeGiven でない）は定義の型のまま決まりを狭める。型を書いた書き直しは、
+     * 使う側の型（定義側の型を狭めた型であることは定義の点検が確かめる）に、定義側の決まりを重ねる。
+     */
+    private fun mergeChild(u: FieldDef, d: FieldDef): FieldDef {
+        if (!u.typeGiven) {
+            val use = u.copy(type = d.type, ref = d.ref, typeName = d.typeName, definitionScope = d.definitionScope)
+            return narrowOnto(use, d, typeName = d.typeName, lineage = d.lineage)
+        }
+        val base = d.copy(type = u.type, ref = u.ref, typeName = u.typeName, definitionScope = u.definitionScope, lineage = emptyList())
+        return narrowOnto(u, base, typeName = u.typeName, lineage = u.lineage)
+    }
+
+    /** 使う側 use を、定義 def の上に「狭めるだけ」で合成する。typeName と lineage は合成した項目のもの。 */
+    private fun narrowOnto(use: FieldDef, def: FieldDef, typeName: String?, lineage: List<String>): FieldDef {
         // 選択肢は部分集合（定義に無い値は落とす。誤りは定義の点検が報告する）
         val values = when {
             use.values.isEmpty() -> def.values
@@ -75,7 +104,7 @@ data class SchemaTree(
         val layers = def.idPatternLayers + use.idPatternLayers
         return def.copy(
             key = use.key ?: def.key,
-            typeName = use.typeName,
+            typeName = typeName,
             required = use.required || def.required,
             requiredFrom = use.requiredFrom ?: def.requiredFrom,
             values = values,
@@ -98,7 +127,13 @@ data class SchemaTree(
             inheritedPatterns = (def.patterns + use.inheritedPatterns).distinct(),
             min = maxOfNullable(use.min, def.min),
             max = minOfNullable(use.max, def.max),
-            lineage = use.lineage + key.toString(),
+            lineage = lineage,
+            // オブジェクト型（P33 第三弾）: 項目を足す・同じ項目を狭める（object の子・配列の要素・map の値に再帰的に）。同一性は使う側が足せる（型が持てば変えられない）
+            fields = mergeFields(use.fields, def.fields),
+            item = use.item?.let { ui -> def.item?.let { di -> mergeChild(ui, di) } ?: ui } ?: def.item,
+            value = use.value?.let { uv -> def.value?.let { dv -> mergeChild(uv, dv) } ?: uv } ?: def.value,
+            entity = use.entity ?: def.entity,
+            typeGiven = true,
         )
     }
 

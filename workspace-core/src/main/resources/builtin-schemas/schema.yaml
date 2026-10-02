@@ -137,10 +137,28 @@ definitions:
               type: array
               item:
                 $ref: field
+              description: "型の名前（オブジェクト型）を使う側では、定義に無いキーは末尾に足され、定義にあるキーは同じ項目を狭める（必須にする・決まりを狭める・型は定義の型を狭めた型だけ。表示のヒントは使う側が勝つ）"
             - key: unknownFields
               label: スキーマ外キーの扱い
               type: enum
               values: [allow, warning, error]
+            - key: entity
+              label: 同一性（エンティティ型）
+              type: object
+              description: "この object の要素がどのエンティティ型か（オブジェクト型。P33 第三弾）。名前付きの型にも、その場の object にも書け、文書スキーマの entity:（ID の形で判別）より優先される。名前付きの型では type を省くと定義名"
+              fields:
+                - key: type
+                  label: エンティティ型名
+                  type: string
+                - key: defines
+                  label: この要素の出現が定義（誕生）
+                  type: boolean
+                - key: aspect
+                  label: 側面名（省略時はスキーマID）
+                  type: string
+                - key: owns
+                  label: 所有する項目（省略時は宣言した項目全部）
+                  type: any
           id:
             - key: pattern
               label: 形式（正規表現）

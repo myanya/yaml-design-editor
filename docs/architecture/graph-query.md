@@ -29,7 +29,8 @@
 
 ## エンティティ型と関係レジストリ
 
-- エンティティ型はスキーマ文書ルートの `entity:`（単一 object または複数型のリスト＝`idPattern`（glob）か `idType`（ID の型の名前。型の形式で判別）で判別。`{type, idPattern, idType, defines, aspect, owns}`）。宣言のないスキーマは挙動不変。
+- エンティティ型の決め方は 2 段。要素の object（名前付きの型でも、その場の object でも）の `entity`（`{type, defines, aspect, owns}`。オブジェクト型。[schema.md「型の連鎖と狭める規則」](schema.md)）があればそれ。
+- 無ければスキーマ文書ルートの `entity:`（単一 object または複数型のリスト＝`idPattern`（glob）か `idType`（ID の型の名前。型の形式で判別）で判別。`{type, idPattern, idType, defines, aspect, owns}`）。宣言のないスキーマは挙動不変。
 - `idType` の解決は `WorkspaceSchema.entities`（木の定義の目録で `EntityDecl.resolvedIn`。[schema.md「型の連鎖と狭める規則」](schema.md)）。パーサ（`SemanticDeclParser.parseEntities`）は名前を写すだけで、semantic-core の判定（`matchesId` / `entityFor`）は解決済みの形式を見る。
 - 関係レジストリは `_schemas` の `kind: relations` 文書。`relations:` に `{name, label, inverseLabel, source, target, cardinality, acyclic, level, description}` を列挙する。
 - 同じ文書の `entities:` に型の表示名とアスペクト順序（`{type, label, description, aspects: [{name, label}]}`）、`enforcement:` に強制スイッチ（`undeclaredRelation` / `definingUniqueness` を warning / error。未宣言は非破壊の既定）。

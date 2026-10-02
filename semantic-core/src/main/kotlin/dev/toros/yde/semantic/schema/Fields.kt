@@ -303,6 +303,16 @@ data class FieldDef(
     val expression: Boolean = false,
     /** 表示と編集のためのヒント（検証・走査・検査は読まない）。 */
     val hints: FieldHints = FieldHints(),
+    /**
+     * 同一性（オブジェクト型。P33 第三弾）: この object の要素がどのエンティティ型か（`entity: {type, defines, aspect, owns}`）。
+     * 名前付きの型にも、その場の object にも書ける。走査はこれを文書スキーマの `entity:`（ID の形で判別）より優先する。
+     */
+    val entity: EntityDecl? = null,
+    /**
+     * `type`（または `$ref`）が書かれていたか（パーサが設定する）。型を使う側が同じキーの項目を書き直すとき、
+     * 型を省いた（＝定義の型のまま狭める）のか、型を書いた（＝定義の型を狭めた型であること）のかを見分けるために持つ。
+     */
+    val typeGiven: Boolean = true,
 ) {
     val label: String? get() = hints.label
     val description: String? get() = hints.description

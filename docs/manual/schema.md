@@ -327,7 +327,56 @@ root:
 - **実例**: `samples/todos` の `.yde/schemas/common.yaml`（ID の型・日付の見せ方・1 行の文・複数行の文章・ステータスを `kind: library` に定義し、一覧と個票のスキーマが `type: common#名前` と `entity.idType` で使う）。
 - **スキーマ設計画面**: 「定義を追加」で「型（スカラー）」を選ぶとスカラーの定義になり、項目の「型」の選択肢に基底の種類と型の名前が並びます。型の名前を選ぶと、その基底の種類で書ける決まりの入力欄が出ます。文字で打つ型（string / 数 / 日付など / id / ref）には「入力欄の案内」「サンプル値」、string には「複数行で編集」（`display: multiline`）と「行数」の欄があり、エンティティ節には「ID の型」の選択肢（id を狭めた型）が出ます。
 - **リファクタリング**: `extract-definition` はスカラーの項目を型として抽出し、使う側を `type: 名前` にします（構造は `$ref`）。`rename-definition` は `type: 名前` の言及も書き換えます。`convert-type` の string ↔ text は型の名前の書き換えだけで、文書は変わりません。
-- **これから**: オブジェクト型（`object` の定義に ID や表示や検査を足すこと）は [docs/ROADMAP.md](../ROADMAP.md) のテーマで進めます。
+### オブジェクト型（object の定義に同一性を持たせ、項目を足す）
+
+object の定義も `type: 名前` で使えます（`$ref` と同じ意味）。object には **同一性** `entity` を書けます——この object の要素がどのエンティティ型か、です。名前付きの型にも、配列の要素などその場の object にも書け、文書スキーマの `entity:`（ID の形で判別）より優先されます。1 つの文書に複数の型の要素があるとき、ID の形で見分けなくても要素の形で型が決まります。
+
+```yaml
+# _schemas/model-types.yaml（kind: library）
+definitions:
+  ユーザアクション:
+    type: object
+    label: ユーザアクション
+    entity: { defines: true }            # 名前付きの型では type を省くと定義名（ユーザアクション）
+    fields:
+      - { key: id, type: common#アクションID, required: true }
+      - { key: name, label: アクション名, type: line, role: title, required: true }
+      - { key: summary, label: 概要, type: string }
+
+# _schemas/domain-detail.yaml
+root:
+  type: object
+  fields:
+    - key: user_actions
+      type: array
+      item:
+        type: model-types#ユーザアクション          # 使う側
+        fields:
+          - { key: summary, required: true }          # 定義にあるキー → 同じ項目を狭める（必須にする）
+          - { key: owner, label: 担当, type: string } # 定義に無いキー → 末尾に足す
+    - key: events
+      type: array
+      item:
+        type: object
+        entity: { type: system-event, defines: true }   # その場の object にも書ける（type は必須）
+        fields: [ ... ]
+```
+
+使う側の `fields` の規則は「同じキーは狭める・新しいキーは足す」です。TypeScript の `interface B extends A` で同じ項目を書き直すと A より狭い型しか許されないのと同じです。
+
+| 使う側に書いたもの | 挙動 |
+|---|---|
+| 定義に無いキー | 項目を足す（末尾に追加） |
+| 定義にあるキー ＋ `required` / `requiredFrom` | 必須にする（必須を外すことはできない。`required: false` は効かない） |
+| 定義にあるキー ＋ 決まり（`maxLength` `min` `pattern` `values` …） | 型と同じ狭める規則（緩めれば定義エラー） |
+| 定義にあるキー ＋ `type` | 省略が普通。書くなら定義側の型を狭めた型だけ（基底の種類が変わる書き方は定義エラー） |
+| 定義にあるキー ＋ 表示のヒント（`label` `description` `placeholder` `sample` `format` `display` `default` `role`） | 使う側が勝つ |
+| 定義にあるキーが object / array / map | 子（`fields` / `item` / `value`）にも同じ規則 |
+| 項目を外す・並べ替える・`entity.type` を変える | できない |
+
+位置は、同じキーなら定義の場所のまま、新しいキーは末尾です。root を型で書く（`root: { type: common#画面定義 }`）こともでき、その型が `entity` を持てばスキーマの `entity:` は省略できます。段階的詳細化（同じ ID を複数の文書に書く）はそのままで、一覧の要素の型と個票の型に同じエンティティ型名を書けば、側面がつながります。
+
+- **これから**: 型の表示名（エンティティ型のラベル）と、型に書く検査（要素ごとの検査）は [docs/ROADMAP.md](../ROADMAP.md) のテーマで進めます。
 
 ## スキーマ・リファクタリング（既存文書を追随させるスキーマ変更）
 

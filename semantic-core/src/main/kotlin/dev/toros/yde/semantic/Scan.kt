@@ -138,8 +138,9 @@ object SemanticScanner {
                         val idText = scalarText(node.entries[k]) ?: continue
                         // タイトルは表示解決（R10-01）に一元化する: スキーマの role 指定 ＞ 予約語（title/name/label）
                         val title = DisplayCore.titleOf(node, schema, effective)
-                        // エンティティ型と役割（R20-01）: スキーマの entity 宣言と idPattern で走査時に解決する（architecture/graph-query.md「エンティティ型と関係レジストリ」）
-                        val decl = entityFor(doc.entities, idText)
+                        // エンティティ型と役割（R20-01）: 要素の型（object の entity＝オブジェクト型。P33 第三弾）があればそれ、
+                        // 無ければスキーマの entity 宣言と ID の形で走査時に解決する（architecture/graph-query.md「エンティティ型と関係レジストリ」）
+                        val decl = effective?.entity ?: entityFor(doc.entities, idText)
                         ids += ScannedId(
                             idText, doc.id, path, title, doc.schemaId, doc.documentId,
                             entityType = decl?.type,
