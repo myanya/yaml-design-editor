@@ -1,0 +1,23 @@
+# エディタの決まり（docs/CONVENTIONS.md「Git」）。IntelliJ は標準で、VS Code は EditorConfig 拡張で読む。
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{bat,cmd}]
+end_of_line = crlf
+
+[*.md]
+# 行末の 2 つの空白は Markdown の改行なので消さない
+trim_trailing_whitespace = false
+
+[*.{kt,kts}]
+indent_style = space
+indent_size = 4
+
+[*.{yaml,yml}]
+indent_style = space
+indent_size = 2

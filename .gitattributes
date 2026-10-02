@@ -1,0 +1,14 @@
+# 改行コードの決まり（docs/CONVENTIONS.md「Git」）。開発者ごとの core.autocrlf の値によらず、ここが優先される。
+# 文字のファイルは git の中も作業ツリーも LF。Windows のバッチだけは CRLF で取り出す。
+*           text=auto eol=lf
+*.bat       text eol=crlf
+*.cmd       text eol=crlf
+
+# バイナリ（text=auto でも判定されるが、明示しておく）
+*.jar       binary
+*.png       binary
+*.jpg       binary
+*.gif       binary
+*.ico       binary
+*.pdf       binary
+*.zip       binary
