@@ -29,7 +29,7 @@ class ObjectTypesTest {
           社員メール: { type: メール, pattern: "^[^@]+@example\\.com$" }
           部品:
             type: object
-            label: 部品
+            label: 部品マスタ
             entity: { defines: true }
             fields:
               - { key: id, type: 部品ID, required: true }
@@ -115,6 +115,9 @@ class ObjectTypesTest {
         assertEquals(EntityRole.DEFINING, graph.entities.getValue("PT-1").defining?.role)
         assertEquals("event", graph.entities.getValue("EV-1").entityType)
         assertEquals("assembly", graph.entities.getValue("ASM-1").entityType)
+        // 表示名: レジストリに宣言の無いエンティティ型は、型（object の定義）の label が表示名。label の無いその場の object は型名のまま
+        assertEquals("部品マスタ", ws.declarations.entityTypes.first { it.type == "部品" }.displayLabel)
+        assertEquals("event", ws.declarations.entityTypes.first { it.type == "event" }.displayLabel)
         // 合成: 定義の項目の順のまま、同じキーは狭まり、新しいキーは末尾
         val schema = ws.schemas.first { it.id == "assembly" }
         val item = schema.tree.resolve(schema.tree.root.fields.first { it.key == "parts" }.item)!!
@@ -150,6 +153,7 @@ class ObjectTypesTest {
             mapOf(
                 "_schemas/types.yaml" to types,
                 "_schemas/widget.yaml" to "id: widget\nmatch: \"w/*.yaml\"\nroot: { type: types#部品 }\n",
+                "_schemas/registry.yaml" to "id: registry\nkind: relations\nentities:\n  - { type: 部品, label: レジストリの部品 }\nrelations:\n  - { name: uses }\n",
                 "w/p.yaml" to "id: PT-9\nname: ナット\n",
                 "w/q.yaml" to "id: PT-10\nname: ${"x".repeat(60)}\ncontact: bad\n",
             )
@@ -158,6 +162,8 @@ class ObjectTypesTest {
         val graph = ws.derived.semantic.graph
         assertEquals("部品", graph.entities.getValue("PT-9").entityType)
         assertEquals(EntityRole.DEFINING, graph.entities.getValue("PT-9").defining?.role)
+        // レジストリの宣言があれば、型の label より勝つ
+        assertEquals("レジストリの部品", ws.declarations.entityTypes.first { it.type == "部品" }.displayLabel)
         assertEquals(emptyList(), structural(ws, "w/p.yaml"))
         val q = structural(ws, "w/q.yaml")
         assertTrue(q.any { it.startsWith("「名前」は 50 文字以内で入力してください") }, q.toString())
@@ -188,6 +194,90 @@ class ObjectTypesTest {
         assertTrue("entity に idPattern は書けません" in error("id: x\nmatch: \"x/*.yaml\"\nroot:\n  type: object\n  entity: { type: a, idPattern: \"A-*\" }\n  fields: [ { key: id, type: id } ]\n"))
         assertTrue("entity（同一性）は type: object のフィールドでのみ定義できます" in error("id: x\nmatch: \"x/*.yaml\"\nroot:\n  type: object\n  fields: [ { key: id, type: id, entity: { type: a } } ]\n"))
         assertTrue("entity（同一性）は object でのみ使用できます" in error("id: x\nmatch: \"x/*.yaml\"\nroot:\n  type: object\n  fields: [ { key: m, type: types#メール, entity: { type: a } } ]\n"))
+    }
+
+    @Test
+    fun `型の検査は要素ごとに評価され ID の無い型でも書け 使う側の検査を足せる`() {
+        val typesWithChecks = """
+            id: types
+            kind: library
+            definitions:
+              明細行:
+                type: object
+                fields:
+                  - { key: price, label: 単価, type: int, min: 0, required: true }
+                  - { key: qty, label: 数量, type: int, min: 1, required: true }
+                  - { key: amount, label: 金額, type: int }
+                  - { key: from, label: 開始, type: date }
+                  - { key: to, label: 終了, type: date }
+                constraints:
+                  - id: amount-is-price-times-qty
+                    description: 金額は単価 × 数量であること
+                    check: [ { eq: [ { path: amount }, { multiply: [ { path: price }, { path: qty } ] } ] } ]
+                    level: error
+                  - id: period
+                    description: 開始は終了以前であること
+                    check: [ { lte: [ { path: from }, { path: to } ] } ]
+                  - id: no-free
+                    description: 単価 0 の明細は無いこと
+                    where: [ { path: price, equals: "0" } ]
+                    expect: absent
+                    message: "単価 0 の明細があります（{path}）"
+              部品ID: { type: id, pattern: "^PT-\\d+$" }
+              メール: { type: string, maxLength: 100, pattern: "^[^@]+@[^@]+$" }
+              社員メール: { type: メール, pattern: "^[^@]+@example\\.com$" }
+              部品:
+                type: object
+                entity: { defines: true }
+                fields:
+                  - { key: id, type: 部品ID, required: true }
+                  - { key: name, label: 名前, type: line, role: title, required: true, maxLength: 50 }
+                  - { key: summary, label: 概要, type: string }
+                  - { key: contact, label: 連絡先, type: メール }
+        """.trimIndent()
+        val lines = """
+            type: types#明細行
+            constraints:
+              - id: qty-limit
+                description: 数量は 10 以下であること
+                check: [ { lte: [ { path: qty }, 10 ] } ]
+        """.trimIndent()
+        val ws = load(
+            mapOf(
+                "_schemas/types.yaml" to typesWithChecks,
+                "_schemas/assembly.yaml" to assembly(extendedParts).replace("item: { type: types#明細行 }", "item:\n" + lines.lines().joinToString("\n") { "        $it" }),
+                "asm/a.yaml" to """
+                    id: ASM-1
+                    parts: []
+                    events: []
+                    lines:
+                      - { price: 100, qty: 2, amount: 200, from: 2026-01-01, to: 2026-01-31 }
+                      - { price: 100, qty: 3, amount: 250, from: 2026-02-01, to: 2026-01-15 }
+                      - { price: 0, qty: 20, amount: 0 }
+                      - { price: 50, qty: 1 }
+                """.trimIndent(),
+            )
+        )
+        assertEquals(emptyList(), ws.schemaErrors)
+        val delivered = WorkspaceCheckRunner.deliverAll(ws).getValue(DocumentId("asm/a.yaml"))
+        val byPath = delivered.issues.groupBy { it.path.joinToString("/") }
+        // 1 行目: すべて満たす
+        assertNull(byPath["lines/0"])
+        // 2 行目: 金額の違反（反例に式）と、日付の違反（日付として比べる）。指摘は要素の場所
+        val second = byPath.getValue("lines/1").map { it.message }
+        assertTrue(second.any { it == "types#明細行 の要素（lines[1]）が検査を満たしません。反例: amount: 250 ≠ 「300」（= 100 × 3） — 金額は単価 × 数量であること" }, second.toString())
+        assertTrue(second.any { it == "types#明細行 の要素（lines[1]）が検査を満たしません。反例: from: 2026-02-01 > to: 2026-01-15 — 開始は終了以前であること" }, second.toString())
+        assertEquals(dev.toros.yde.yaml.validate.Severity.ERROR, delivered.issues.first { it.message.startsWith("types#明細行 の要素（lines[1]）が検査を満たしません。反例: amount") }.severity)
+        // 3 行目: where に合う要素があってはならない（文面のひな型）。数量の上限は使う側で足した検査
+        val third = byPath.getValue("lines/2").map { it.message }
+        assertTrue(third.any { it == "単価 0 の明細があります（lines[2]） — 単価 0 の明細は無いこと" }, third.toString())
+        assertTrue(third.any { it.contains("反例: qty: 20 > 「10」 — 数量は 10 以下であること") }, third.toString())
+        // 4 行目: 金額が無い → 判定保留（指摘ではない）
+        assertNull(byPath["lines/3"])
+        assertTrue(delivered.withheld.any { it.path == listOf("lines", 3) && it.ruleId == "amount-is-price-times-qty" }, delivered.withheld.toString())
+        // 他の要素へ線を辿る検査は型には書けない
+        val bad = load(mapOf("_schemas/x.yaml" to "id: x\nmatch: \"x/*.yaml\"\nroot:\n  type: object\n  entity: { type: a }\n  constraints:\n    - { id: r, match: [ { edge: { relation: uses } }, { node: { entity: b } } ], expect: exists }\n  fields: [ { key: id, type: id } ]\n"))
+        assertTrue(bad.schemaErrors.any { "型の検査に match は書けません" in it }, bad.schemaErrors.toString())
     }
 
     @Test

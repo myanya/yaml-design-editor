@@ -50,7 +50,11 @@ class TodosSampleTest {
         assertTrue(issues.isEmpty(), issues.toString())
         // 共通の型: 一覧の id は TODO番号（id の型）、作成日は 年月日（date ＋ 見せ方）、タイトルは 一行の文（line）
         val detail = ws.schemas.first { it.id == "todo-detail" }
-        val created = detail.tree.resolve(detail.root.fields.first { it.key == "created_on" })!!
+        // 個票の root はオブジェクト型 TODO個票（同一性と日付の検査を型が持つ）
+        val detailRoot = detail.tree.resolve(detail.root)!!
+        assertEquals("todo", detailRoot.entity?.type)
+        assertEquals(3, detailRoot.checks.size)
+        val created = detail.tree.resolve(detailRoot.fields.first { it.key == "created_on" })!!
         assertEquals("common#年月日", created.lineage.first())
         assertEquals("yyyy年M月d日", created.format)
         val list = ws.schemas.first { it.id == "todo-list" }
@@ -84,13 +88,16 @@ class TodosSampleTest {
         // 期限 2026-09-20 < 作成日 2026-10-01（文字や数ではなく日付として比べた反例）。完了なのに完了日が無いのは警告
         val late = detailIssues.first { it.source.ruleId == "due-not-before-created" }
         assertEquals(Severity.ERROR, late.severity)
-        assertTrue("due_on: 2026-09-20） < t=TODO-004（created_on: 2026-10-01）" in late.message, late.message)
+        // 型の検査: 要素（個票）ごとに評価され、指摘は個票に出る
+        assertEquals("common#TODO個票 の要素「TODO-004」が検査を満たしません。反例: due_on: 2026-09-20 < created_on: 2026-10-01 — 期限は作成日以降であること", late.message)
         val closed = detailIssues.first { it.source.ruleId == "closed-has-completed-on" }
         assertEquals(Severity.WARNING, closed.severity)
         assertEquals("完了した TODO「TODO-004」に完了日がありません — 完了した TODO には完了日があること", closed.message)
         val listIssues = ws.validate("todos/todo-list.yaml").map { it.message }
         assertTrue(listIssues.any { "「ID」は形式（^TODO-[0-9]{3,}$）に一致していません（現在値: TODO-6）" in it }, listIssues.toString())
         assertTrue(listIssues.any { it.startsWith("「タイトル」は形式（^[^\\r\\n]*$）に一致していません") }, listIssues.toString())
-        assertTrue(listIssues.any { "ID「TODO-6」はエンティティ型の ID の決まり（型 common#TODO番号）のいずれにも一致しません" in it }, listIssues.toString())
+        // 行の形（オブジェクト型）で型が決まるので、ID の形に合わなくても要素は todo（ID の形の指摘ではなく、型 TODO番号 の形式の誤りが出る）
+        assertEquals("todo", ws.index.graph.entities.getValue("TODO-6").entityType)
+        assertTrue(listIssues.none { "ID の決まり" in it }, listIssues.toString())
     }
 }

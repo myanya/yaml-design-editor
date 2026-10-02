@@ -27,6 +27,8 @@ object CodedChecks {
     const val EXPRESSION = "expression"
     /** 意味の基底型（date / time / datetime）の値の存在（形式には合うが値として読めない）。 */
     const val VALUE = "value"
+    /** 型の検査（オブジェクト型の要素ごとの検査。出どころの持ち主は検査を書いたスキーマ）。 */
+    const val ELEMENT = "element"
     const val YAML = "yaml"
 
     fun origin(at: String): RuleOrigin = RuleOrigin(OWNER, at, 0)

@@ -281,6 +281,11 @@ class WorkspaceChecks(
         issues += coded.expressionIssues(document, schema, root, localIds)
         // 意味の基底型（date / time / datetime）の値の存在（形式は構造の検証、存在はここ。P33）
         issues += coded.valueIssues(document, schema, root, localIds)
+        // 型の検査（オブジェクト型の要素ごとの検査。P33 第三弾）: 違反は要素の場所へ、保留はこの文書で集める
+        coded.elementChecks(document, schema, root, localIds).let { (found, held) ->
+            issues += found
+            withheld += held
+        }
 
         // 報告先: 規則はこの文書のスキーマの宣言・activeFrom はこの文書のフェーズで判定する（R29-03・CALC-14）
         if (schema != null) {

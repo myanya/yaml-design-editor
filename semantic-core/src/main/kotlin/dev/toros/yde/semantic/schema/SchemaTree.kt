@@ -35,6 +35,30 @@ data class SchemaTree(
     fun definitionRefOf(field: FieldDef?): String? = field?.let { f -> definitionTarget(f)?.first?.toString() }
 
     /**
+     * 同一性（entity）を書いた object の項目の一覧（root と definitions の中を、書かれた子＝fields / item / value / cases だけ辿る。
+     * 定義への参照は辿らない）。エンティティ型の表示名の既定（型の label）と、型の検査の対象を集めるのに使う（オブジェクト型。P33 第三弾）。
+     */
+    fun objectEntities(): List<FieldDef> = objectDeclarations().map { it.second }.filter { it.entity != null }
+
+    /**
+     * 同一性（entity）か型の検査（constraints）を書いた object の一覧（書かれた場所の呼び名つき。例 `definitions.明細行`・`root.parts.item`）。
+     * root と definitions の中を、書かれた子＝fields / item / value / cases だけ辿る（定義への参照は辿らない）。
+     */
+    fun objectDeclarations(): List<Pair<String, FieldDef>> {
+        val out = mutableListOf<Pair<String, FieldDef>>()
+        fun walk(f: FieldDef, at: String) {
+            if (f.entity != null || f.checks.isNotEmpty()) out += at to f
+            f.fields.forEach { c -> walk(c, "$at.${c.key ?: "?"}") }
+            f.item?.let { walk(it, "$at.item") }
+            f.value?.let { walk(it, "$at.value") }
+            f.cases.forEach { (v, list) -> list.forEach { c -> walk(c, "$at.cases.$v.${c.key ?: "?"}") } }
+        }
+        walk(root, "root")
+        definitions.forEach { (name, d) -> walk(d, "definitions.$name") }
+        return out
+    }
+
+    /**
      * 型の名前（`名前` / `module#名前`。組込みの型を含む）を、項目に `type: 名前` と書いたのと同じ規則で解決する。
      * 見つからない・連鎖が切れる名前は null。エンティティ型の宣言（idType）など、項目の外から型を引くときに使う。
      */
@@ -133,6 +157,8 @@ data class SchemaTree(
             item = use.item?.let { ui -> def.item?.let { di -> mergeChild(ui, di) } ?: ui } ?: def.item,
             value = use.value?.let { uv -> def.value?.let { dv -> mergeChild(uv, dv) } ?: uv } ?: def.value,
             entity = use.entity ?: def.entity,
+            // 型の検査は引き継ぎ、使う側の検査を足す
+            checks = def.checks + use.checks,
             typeGiven = true,
         )
     }

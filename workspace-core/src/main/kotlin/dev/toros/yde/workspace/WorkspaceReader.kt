@@ -230,11 +230,31 @@ object WorkspaceReader {
             errors += "スキーマID「$schemaId」が重複しています（${duplicates.joinToString(", ") { it.source.value.substringAfterLast('/') }}）"
         }
         // 関係レジストリの集約（複数の文書での重複は誤りにして、先に読んだほうを採る。アプリ側と同じ実装）
-        val declarations = SchemaDocuments.declarationsOf(registry, errors)
+        val registryDeclarations = SchemaDocuments.declarationsOf(registry, errors)
         // `$ref` の横断解決（module#name）: 全モジュールの定義をリンクする（SchemaLoader と同じ流儀）
         val catalog = SchemaCatalog.linked(schemas.map { it.id to it.tree.definitions })
         val linked = schemas.map { it.copy(tree = it.tree.copy(definitionCatalog = catalog)) }
+        // エンティティ型の表示名の既定（オブジェクト型。P33 第三弾）: レジストリに宣言の無い型は、object の entity を書いた型の label を表示名にする
+        val declarations = registryDeclarations.copy(entityTypes = registryDeclarations.entityTypes + objectEntityTypes(linked, registryDeclarations))
         return SchemaLoadResult(linked, declarations, errors, library)
+    }
+
+    /**
+     * object の同一性（entity）から導くエンティティ型の宣言（レジストリに無い型だけ）。表示名は型（object の定義）の label で、
+     * 同じ型を複数の object が宣言していれば label のある最初のもの。レジストリの宣言（label・アスペクトの順序）が常に勝つ。
+     */
+    private fun objectEntityTypes(schemas: List<WorkspaceSchema>, registry: SemanticDeclarations): List<EntityTypeDef> {
+        val declared = registry.entityTypes.map { it.type }.toSet()
+        val labels = LinkedHashMap<String, String?>()
+        for (schema in schemas) {
+            for (field in schema.tree.objectEntities()) {
+                val type = field.entity?.type ?: continue
+                if (type in declared) continue
+                val current = labels[type]
+                if (current == null) labels[type] = field.label
+            }
+        }
+        return labels.map { (type, label) -> EntityTypeDef(type = type, label = label) }
     }
 
     /**

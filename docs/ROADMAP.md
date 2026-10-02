@@ -97,7 +97,7 @@
 | P30 | YAML から YAML への変換の拡張と応用 | R30-03 の一部（ビューの列）完了。他は未着手（下記） |
 | P31 | スキーマの値に式を書く | R31-01〜03・05 完了。R31-04 はビューの列（`value`）を完了、他の応用は後で考える（下記） |
 | P32 | 式の値を項にする（集合と値の分離） | 完了 |
-| P33 | ユーザ定義の型（値型 → オブジェクト型） | 第一弾・第二弾・第二弾の残り 完了（2026-10-02）。第三弾（オブジェクト型）は未着手（下記） |
+| P33 | ユーザ定義の型（値型 → オブジェクト型） | 第一弾〜第三弾 完了（2026-10-03）。残りは BACKLOG の個別項目 |
 
 ## 未完のテーマ
 
@@ -271,9 +271,11 @@ definitions:
 | ID | 項目 | 内容 | 状態 |
 |---|---|---|---|
 | R33-07 | 同一性と狭める規則の拡張 | object の `entity`・`type: 名前` で object を使い項目を足す／狭める（`SchemaTree.mergeFields`・定義の点検）・走査と整合と合成が要素の型から同一性を決める・導出は追加のある使い方を展開・メタスキーマ。意図的差分 D-45 | ✅ 2026-10-03 |
-| R33-08 | 表示 | 型の `label` をエンティティ型の表示名の既定に・設計 UI（定義の種類「オブジェクト型」・定義カードのエンティティ節） | 📋 |
-| R33-09 | 型の検査 | 要素ごとの検査（`where` / `check` を要素を「いまの要素」として評価。指摘は要素の場所）と、`match` を持つ検査のグラフの検査への展開（`entity` を持つ型だけ）。CLI `checks` の透明性 | 📋 |
-| R33-10 | 文書と書き換え | manual/schema.md「型の定義」の object・checks.md・architecture/schema.md・graph-query.md・FEATURES・labs（domain-detail・screen-def）と samples/todos の書き換え・BACKLOG UX-69 の解決 | 📋 |
+| R33-08 | 表示 | 型の `label` をエンティティ型の表示名の既定に（`WorkspaceReader.objectEntityTypes`）・設計 UI（定義の種類「オブジェクト型」・定義カードと配列の要素の同一性の欄） | ✅ 2026-10-03 |
+| R33-09 | 型の検査 | 要素ごとの検査（`ElementRule`・`SemanticElementChecks`。`where` / `check` / `expect: absent` を要素を「いまの要素」として評価。ID の無い型でも書ける。指摘は要素の場所・保留はその文書）。`match` を持つ検査は型には書けない（スキーマの `constraints` に `node: {entity: 型}` で書く＝今もできることで、展開は見送り）。CLI `checks` の `typeChecks` | ✅ 2026-10-03 |
+| R33-10 | 文書と書き換え | manual/schema.md「オブジェクト型」・checks.md・architecture/schema.md・checks.md・graph-query.md・FEATURES・labs（domain-detail・screen-def の要素を object の `entity` に。出力一致）・samples/todos（一覧の行・個票・コメントをオブジェクト型にし、日付の検査を型の検査に）・BACKLOG UX-69 の解決 | ✅ 2026-10-03 |
+
+**第三弾の確かめ方**: `ObjectTypesTest`（同一性・項目を足す／狭める・定義の誤り・表示名・要素ごとの検査）5 本と `TodosSampleTest`。labs の CLI 出力（validate / catalog / checks / view）は書き換え前後で一致。
 
 #### 残る判断
 

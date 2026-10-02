@@ -404,8 +404,8 @@ private fun AddDefinitionButton(definitions: YNode.Map, doc: OpenDocument) {
                     ChoiceButton(kind, listOf(DEFINITION_KIND_TYPE, DEFINITION_KIND_STRUCTURE)) { kind = it }
                 }
                 Text(
-                    if (kind == DEFINITION_KIND_TYPE) "型: string や int などの基底の種類に決まり（形式・範囲・選択肢）を足した定義。項目の型に名前で選んで使います（決まりは狭めるだけ）"
-                    else "構造: object などの入れ子の定義。項目の定義参照（\$ref）で使います",
+                    if (kind == DEFINITION_KIND_TYPE) "値の型: string や int などの基底の種類に決まり（形式・範囲・選択肢）を足した定義。項目の型に名前で選んで使います（決まりは狭めるだけ）"
+                    else "オブジェクト型: object の定義。同一性（どのエンティティ型か）を持たせられ、項目の型に名前で選んで使い、使う側で項目を足す・同じ項目を狭めることができます",
                     fontSize = 10.sp, color = Palette.SubText,
                 )
             }
@@ -418,8 +418,8 @@ private fun AddDefinitionButton(definitions: YNode.Map, doc: OpenDocument) {
     )
 }
 
-private const val DEFINITION_KIND_TYPE = "型（スカラー）"
-private const val DEFINITION_KIND_STRUCTURE = "構造（object）"
+private const val DEFINITION_KIND_TYPE = "値の型（スカラー）"
+private const val DEFINITION_KIND_STRUCTURE = "オブジェクト型（object）"
 
 @Composable
 private fun DefinitionCard(name: String, definitions: YNode.Map, doc: OpenDocument, names: List<String>) {
@@ -434,7 +434,43 @@ private fun DefinitionCard(name: String, definitions: YNode.Map, doc: OpenDocume
                 Text("削除", fontSize = 11.sp, color = Palette.ErrorRed)
             }
         }
-        if (expanded) FieldDefinitionEditor(map, doc, names, allowKey = false, depth = 0)
+        if (expanded) FieldDefinitionEditor(map, doc, names, allowKey = false, depth = 0, definitionName = name)
+    }
+}
+
+/**
+ * object の同一性（entity。オブジェクト型。P33 第三弾）の編集: この object の要素がどのエンティティ型か。
+ * definitionName は名前付きの定義の最上位（entity.type を省くと定義名）。
+ */
+@Composable
+private fun ObjectEntityEditor(map: YNode.Map, doc: OpenDocument, definitionName: String?) {
+    val entity = map.entries["entity"] as? YNode.Map
+    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("同一性（entity）", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+        Checkbox(entity != null, { on ->
+            if (on) map.entries["entity"] = YNode.Map() else map.entries.remove("entity")
+            doc.markEdited()
+        })
+        Text(
+            if (entity == null) "この object の要素がどのエンティティ型かを宣言する（ID の形で見分けなくてよくなる。型が同一性を持つなら不要）"
+            else "要素の型で同一性が決まる（文書スキーマの entity より優先）",
+            fontSize = 10.sp, color = Palette.SubText,
+        )
+    }
+    if (entity != null) {
+        Column(Modifier.padding(start = 12.dp)) {
+            CompactOptionalScalar(
+                entity, "type", "エンティティ型名",
+                if (definitionName != null) "省略すると定義名「$definitionName」" else "必須（例 screen-item）", doc,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val defines = (entity.entries["defines"] as? YNode.Scalar)?.value == true
+                Checkbox(defines, { if (it) entity.entries["defines"] = YNode.Scalar(true) else entity.entries.remove("defines"); doc.markEdited() })
+                Text("この要素の出現が定義（誕生）", fontSize = 11.sp)
+            }
+            CompactOptionalScalar(entity, "aspect", "側面名（省略時はスキーマID）", "例 detail", doc)
+            StringListEditor(entity, "owns", "所有する項目（省略時は宣言した項目全部）", "status, summary", doc)
+        }
     }
 }
 
@@ -450,6 +486,8 @@ private fun FieldDefinitionEditor(
     fieldPath: List<String>? = null,
     onRenameField: ((List<String>) -> Unit)? = null,
     onDeleteField: ((List<String>) -> Unit)? = null,
+    /** 名前付きの定義の最上位なら定義名（object の entity.type の既定の案内に使う）。 */
+    definitionName: String? = null,
 ) {
     doc.version  // CONVENTIONS §2 / UX-24
     if (depth > 12) { Text("表示可能な深さを超えました", color = Palette.WarnOrange); return }
@@ -520,6 +558,7 @@ private fun FieldDefinitionEditor(
                     doc.markEdited()
                 }
             }
+            ObjectEntityEditor(map, doc, definitionName)
             val fields = ensureSeq(map, "fields", doc, mark = false)
             fields.items.forEachIndexed { index, node ->
                 val child = node as? YNode.Map ?: return@forEachIndexed

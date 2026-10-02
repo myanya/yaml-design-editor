@@ -14,7 +14,13 @@ import dev.toros.yde.semantic.schema.ValueExpr
 import dev.toros.yde.semantic.schema.EntityDecl
 import dev.toros.yde.semantic.schema.entityFor
 import dev.toros.yde.semantic.schema.ownedFieldKeys
+import dev.toros.yde.semantic.CheckOutcome
+import dev.toros.yde.semantic.CheckReason
 import dev.toros.yde.semantic.ScannedId
+import dev.toros.yde.semantic.SemanticCheckSide
+import dev.toros.yde.semantic.SemanticElementChecks
+import dev.toros.yde.semantic.schema.RuleOrigin
+import dev.toros.yde.yaml.model.pretty
 import dev.toros.yde.workspace.WorkspaceSchema
 import dev.toros.yde.yaml.validate.Severity
 
@@ -97,6 +103,55 @@ internal class CodedDocumentChecks(
         }
         walk(tree.root, root, emptyList(), tree.root.displayLabel)
         return issues
+    }
+
+    /**
+     * 型の検査（オブジェクト型の要素ごとの検査。P33 第三弾）: 評価は semantic.SemanticElementChecks。ここは文面と配り方——
+     * 違反は要素の場所への指摘（出どころの持ち主は検査を書いたスキーマ・at は書かれた場所）、保留はその文書で集める。
+     */
+    fun elementChecks(document: DocumentId, schema: WorkspaceSchema?, root: YNode, localIds: List<ScannedId>): Pair<List<CheckIssue>, List<WithheldCheck>> {
+        if (schema == null) return emptyList<CheckIssue>() to emptyList()
+        val issues = mutableListOf<CheckIssue>()
+        val withheld = mutableListOf<WithheldCheck>()
+        fun side(s: SemanticCheckSide): String = when {
+            s.path != null -> "${s.path!!.pretty()}${s.note?.let { " の$it" } ?: ""}: ${s.text}"
+            s.raw != null && s.raw != s.text -> "「${s.text}」（= ${s.raw}）"
+            else -> "「${s.text}」"
+        }
+        for (r in SemanticElementChecks.run(schema.tree, root, document, rel)) {
+            val rule = r.rule
+            val origin = RuleOrigin(schema.id, rule.origin, 0)
+            val subject = r.elementId ?: CodedChecks.subjectOf(localIds, r.path)?.id
+            val where = r.elementId?.let { "「$it」" } ?: "（${r.path.pretty().ifBlank { "文書" }}）"
+            when (r.outcome) {
+                CheckOutcome.WITHHELD -> withheld += WithheldCheck(origin, rule.id, rule.description, null, subject ?: r.path.pretty(), r.path, r.reason ?: CheckReason.NO_VALUE)
+                CheckOutcome.VIOLATED -> {
+                    val term = r.term
+                    val left = r.left
+                    val right = r.right
+                    val evidence = if (term != null && left != null && right != null) {
+                        "。反例: ${side(left)} ${term.violationSymbol} ${side(right)}" +
+                            (if (rule.check.any { it.terms.size > 1 }) "（「または」のどの条件も満たさない）" else "")
+                    } else ""
+                    val custom = rule.message?.let { template ->
+                        template.replace("{left}", r.left?.text.orEmpty()).replace("{right}", r.right?.text.orEmpty())
+                            .replace("{left.raw}", r.left?.raw ?: r.left?.text.orEmpty()).replace("{right.raw}", r.right?.raw ?: r.right?.text.orEmpty())
+                            .replace("{id}", r.elementId.orEmpty()).replace("{path}", r.path.pretty())
+                    }
+                    val text = custom
+                        ?: if (rule.absent) "${r.typeLabel} の要素${where}は条件に合います（expect: absent）"
+                        else "${r.typeLabel} の要素${where}が検査を満たしません$evidence"
+                    issues += CheckIssue(
+                        rule.level.toSeverity(),
+                        text + " — ${rule.displayName}",
+                        r.path,
+                        source = IssueSource(origin, rule.id, CodedChecks.ELEMENT, subject, IssueDelivery.VALUE, emptyList(), within = CodedChecks.keyTrail(r.path)),
+                    )
+                }
+                else -> Unit
+            }
+        }
+        return issues to withheld
     }
 
     /** 出現の要素の型の宣言（オブジェクト型。P33 第三弾）があればそれ、無ければスキーマの entity 宣言（ID の形）。 */

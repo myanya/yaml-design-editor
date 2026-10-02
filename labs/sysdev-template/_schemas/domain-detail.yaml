@@ -7,11 +7,9 @@ id: domain-detail
 name: ドメイン定義書
 match: 30_basic-design/domains/*.{yaml,yml}
 description: 業務ドメインの構成要素（エンティティ・ユーザアクション・システムイベント）を定義する。
-entity:
-  - { type: domain, idPattern: "DOM-*", aspect: detail }
-  - { type: entity-model, idPattern: "ENT-*", defines: true }
-  - { type: user-action, idPattern: "UA-*", defines: true }
-  - { type: system-event, idPattern: "EV-*", defines: true }
+# 文書のルート（ドメイン）だけを ID の形で宣言する。配列の要素（エンティティ・ユーザアクション・システムイベント）の型は、
+# それぞれの object の entity（オブジェクト型）で決まる——ID の形で見分けなくてよい
+entity: { type: domain, idPattern: "DOM-*", aspect: detail }
 coverage:
   - description: 全エンティティはエンティティ定義書（30_basic-design/entities/ に同ID文書）を持つこと
     idPattern: "ENT-*"
@@ -46,6 +44,7 @@ root:
       required: true
       item:
         type: object
+        entity: { type: entity-model, defines: true }
         fields:
           - { key: id, label: エンティティID, type: id, required: true, description: 例 ENT-RESERVATION。 }
           - { key: name, label: エンティティ名, type: string, required: true }
@@ -56,6 +55,7 @@ root:
       required: true
       item:
         type: object
+        entity: { type: user-action, defines: true }
         fields:
           - { key: id, label: アクションID, type: id, required: true, description: 例 UA-001。 }
           - { key: name, label: アクション名, type: string, required: true }
@@ -75,6 +75,7 @@ root:
       type: array
       item:
         type: object
+        entity: { type: system-event, defines: true }
         fields:
           - { key: id, label: イベントID, type: id, required: true, description: 例 EV-001。 }
           - { key: name, label: イベント名, type: string, required: true }

@@ -8,9 +8,9 @@ YDE（Yaml Design Editor）で、TODOの一覧と個票を管理するための�
 .yde/
   workspace.yaml              # 台帳の対象をtodos配下に限定
   schemas/
-    common.yaml               # 共通の型（ID の形式・日付の見せ方・文字の長さ・ステータス）
-    todo-list.yaml            # TODO一覧のスキーマ
-    todo-detail.yaml          # TODO個票のスキーマ（日付の検査もここ）
+    common.yaml               # 共通の型（値の型＝ID の形式・日付の見せ方・文字の長さ・ステータス。オブジェクト型＝一覧の行・個票・コメントと日付の検査）
+    todo-list.yaml            # TODO一覧のスキーマ（行は共通の型 TODO一覧の行）
+    todo-detail.yaml          # TODO個票のスキーマ（root は共通の型 TODO個票）
     category-list.yaml        # カテゴリ一覧のスキーマ
   views/
     todo-management.yaml      # TODO管理ビュー
@@ -41,37 +41,50 @@ IDの形式・日付の見せ方・文字の長さ・ステータスの選択肢
 
 | 型 | 基になる種類 | 決まり・見せ方 | 使う項目 |
 | --- | --- | --- | --- |
-| `TODO番号` | `id` | 形式 `^TODO-[0-9]{3,}$`。入力欄の案内とサンプル値は `TODO-001` | 一覧と個票の `id`、スキーマの `entity.idType` |
+| `TODO番号` | `id` | 形式 `^TODO-[0-9]{3,}$`。入力欄の案内とサンプル値は `TODO-001` | 一覧と個票の `id` |
 | `カテゴリ番号` | `id` | 形式 `^CAT-[0-9]{3,}$` | カテゴリ一覧の `id`、`entity.idType` |
 | `カテゴリ参照` | `ref` | 候補と検証をカテゴリ一覧（`CAT-*`）に限定 | 一覧の `category` |
 | `年月日` | `date` | ファイルは `YYYY-MM-DD`、画面は `2026年9月22日` の形（`format`） | 作成日・期限・完了日・コメントの日付 |
 | `一行の文` | `line` | 改行を入れられない1行の文。100文字以内 | タイトル・概要・カテゴリ名 |
 | `文章` | `text` | 複数行の欄（4行の高さ） | 詳細・結果 |
 | `ステータス` | `enum` | 保存する値は英語、画面の表示は日本語（下の表） | 個票の `status` |
+| `TODO一覧の行` | `object` | 一覧の 1 行の形。`entity: { type: todo, defines: true }`＝この形の要素はエンティティ todo の定義 | 一覧の `todos` の要素 |
+| `TODO個票` | `object` | 個票の形。`entity: { type: todo, defines: false }`＝同じ todo の詳細化。日付の検査 3 つを持つ | 個票の root |
+| `コメント` | `object` | 日付と本文（ID を持たない部品） | 個票の `comments` の要素 |
 
-使う側はこう書きます（`todo-list.yaml` の抜粋）。
+使う側はこう書きます。一覧は行の形を、個票は root の形を型で指すだけです（`todo-list.yaml` / `todo-detail.yaml` の抜粋）。
 
 ```yaml
-entity:
-  type: todo
-  idType: common#TODO番号      # この文書群の ID は TODO番号 の形式（idPattern の代わりに型の名前で判別）
-  defines: true
+# todo-list.yaml
 root:
   type: object
   fields:
-    - key: id
-      type: common#TODO番号      # 別のスキーマの型は「スキーマID#型の名前」
-      required: true
-    - key: title
-      type: common#一行の文
-      role: title
-      required: true
+    - key: todos
+      type: array
+      item: { type: common#TODO一覧の行 }   # 別のスキーマの型は「スキーマID#型の名前」。行の形が同一性を持つので entity: は要らない
+
+# todo-detail.yaml
+root: { type: common#TODO個票 }
+```
+
+型の定義の側（`common.yaml` の抜粋）。object の型は同一性（`entity`）を持て、使う側で項目を足す・同じ項目を狭める（必須にするなど）こともできます。
+
+```yaml
+  TODO一覧の行:
+    type: object
+    label: TODO
+    entity: { type: todo, defines: true }     # この形の要素はエンティティ todo の定義（ID の形で見分けなくてよい）
+    fields:
+      - { key: id, type: TODO番号, required: true }
+      - { key: title, type: 一行の文, role: title, required: true }
+      - { key: summary, type: 一行の文, role: subtitle, required: true }
+      - { key: category, type: カテゴリ参照 }
 ```
 
 - **値と見せ方は別**: 日付はファイルに `2026-09-22` と書かれ、フォームとビューでは `2026年9月22日` と見えます。入力中は元の表記に戻り、CLI や書き出しの値も変わりません。見せ方を変えたいときは `年月日` の `format` だけを直します。
 - **文字列の種類**: `line` は改行を含む値を誤りにします（タイトルが2行になるのを防ぎます）。`text` は複数行の欄を保証します。普通の `string` は、改行があれば欄が縦に伸びる自由な文字列です。
 - **使う側で狭める**: 型を使う項目に `maxLength: 50` のように書けば、型の決まりに加えてさらに狭くできます。緩める書き方（型より長い `maxLength` など）はスキーマの定義エラーになります。
-- **IDの型で出現の型を判別**: `entity.idType` に ID の型を書くと、その形式に合う ID がその型（todo / category）になります。形式に合わない ID は「ID の決まり（型 common#TODO番号）のいずれにも一致しません」と警告されます。
+- **要素の形で型を決める**: object の型に `entity` を書くと、その形の要素がそのエンティティ型（todo）になります。一覧の行と個票は形が違う 2 つの型ですが、どちらも `type: todo` なので同じ ID でつながります（段階的詳細化）。カテゴリ一覧は、もう 1 つの書き方（スキーマの `entity` に ID の型 `idType` を書く）の例です。
 
 ## 一覧と個票の書き方
 
@@ -134,7 +147,7 @@ ID・ステータス・作成日は必須です。期限（`due_on`）は未定�
 
 ## 個票の検査
 
-個票のスキーマ（`todo-detail.yaml` の `constraints`）に、日付の決まりを3つ書いてあります。保存すると検証パネルに指摘が出ます（個票に指摘、一覧の行には案内）。
+個票の型（`common.yaml` の `TODO個票` の `constraints`）に、日付の決まりを3つ書いてあります。型の検査は**その型の要素ごと**に評価され、保存すると個票の検証パネルに指摘が出ます。
 
 | 検査 | 内容 | 重大度 |
 | --- | --- | --- |
@@ -142,20 +155,27 @@ ID・ステータス・作成日は必須です。期限（`due_on`）は未定�
 | `completed-not-before-created` | 完了日は作成日以降であること | エラー |
 | `closed-has-completed-on` | 完了した TODO には完了日があること | 警告 |
 
-日付どうしの比較は、項目の型が `年月日`（日付）なので**日付として**比べます。検査に `type: date` のような宣言を書く必要はありません。
+日付どうしの比較は、項目の型が `年月日`（日付）なので**日付として**比べます。検査に `type: date` のような宣言を書く必要はありません。条件や値の式で `of` を省くと、その要素（個票）の値です。
 
 ```yaml
-constraints:
-  - id: due-not-before-created
-    description: 期限は作成日以降であること
-    match:
-      - node: { entity: todo, bind: t }                  # 対象: todo 型の要素
-    check:
-      - gte: [ { of: t, path: due_on }, { of: t, path: created_on } ]   # 期限 ≧ 作成日
-    level: error
+  TODO個票:
+    type: object
+    entity: { type: todo, defines: false }
+    fields: [ ... ]
+    constraints:
+      - id: due-not-before-created
+        description: 期限は作成日以降であること
+        where: [ { path: due_on, exists: true } ]                          # 期限を書いた個票だけが対象
+        check: [ { gte: [ { path: due_on }, { path: created_on } ] } ]   # 期限 ≧ 作成日（この要素の値どうし）
+        level: error
+      - id: closed-has-completed-on
+        description: 完了した TODO には完了日があること
+        where: [ { path: status, equals: CLOSED }, { path: completed_on, exists: false } ]
+        expect: absent                                                     # 条件に合う要素があってはならない
+        message: "完了した TODO「{id}」に完了日がありません"
 ```
 
-試すには、`TODO-004.yaml` の `due_on` を作成日より前の日付（例 `2026-09-20`）にして保存してください。「反例: t=TODO-004（due_on: 2026-09-20） < t=TODO-004（created_on: 2026-10-01）」のようにエラーが出ます。期限を省いた個票は比べる値が無いので、指摘も充足もしません（判定保留）。
+試すには、`TODO-004.yaml` の `due_on` を作成日より前の日付（例 `2026-09-20`）にして保存してください。「`common#TODO個票` の要素「TODO-004」が検査を満たしません。反例: due_on: 2026-09-20 < created_on: 2026-10-01 — 期限は作成日以降であること」とエラーが出ます。期限を書いていない個票は `where` で対象外にしています（`where` を書かずに比べる値が無いと、指摘も充足もしない「判定保留」になります）。ID を持たない型（例 `コメント`）にも同じように検査を書けます。
 
 ## TODO管理ビュー
 
@@ -230,6 +250,6 @@ order:
 
 ## 設定を変更する場合
 
-型（IDの形式・日付の見せ方・文字の長さ・ステータスの選択肢）は `.yde/schemas/common.yaml`、項目の表示ラベルや説明は `.yde/schemas` の各スキーマ、ビューの表示項目は `.yde/views` で変更できます。一覧がIDの定義元、個票がその詳細化という構成です。個票の作成はビューの `detail` 設定で行います。設計スペースでスキーマを開くと、型の名前を項目の「型」から選べ、入力欄の案内・サンプル値・複数行の欄なども画面から設定できます。
+型（IDの形式・日付の見せ方・文字の長さ・ステータスの選択肢・一覧の行と個票の形・日付の検査）は `.yde/schemas/common.yaml`、カテゴリ一覧の項目は `.yde/schemas/category-list.yaml`、ビューの表示項目は `.yde/views` で変更できます。一覧がIDの定義元、個票がその詳細化という構成です。個票の作成はビューの `detail` 設定で行います。設計スペースでスキーマを開くと、型の名前を項目の「型」から選べ、入力欄の案内・サンプル値・複数行の欄なども画面から設定できます。
 
 このワークスペースは公開用サンプルです。共有するデータには個人情報や機密情報を含めないでください。

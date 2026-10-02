@@ -54,20 +54,21 @@
 
 型は 3 段に分かれる。基底の種類（Kotlin の `FieldType`。表現の基底＝YAML の値の形と、意味の基底型＝値の表現を持つ `id` / `ref`・`date` / `time` / `datetime`。意味の基底型の直列化は文字列）、組込みの定義体（semantic-core の資源 `builtin-types/`。文字列の階層 `text` / `line` / `word`）、ユーザ型（`definitions` のスカラーの定義）。組込みの型とユーザ型は同じ書き方・同じ能力で、組込みに特権は無い（CORE-CALCULUS「定義層モデル」）。
 
-- **書き方と解決順**: 項目の `type:` に基底の種類でない名前を書くと定義の名前。解決順は基底の種類 → 自分のモジュール → `モジュール#名前` → 組込みの型（`SchemaCatalog.find`。利用者が同じ名前を自分のモジュールに置けばそちらが勝つ）。
+- **書き方と解決順**: 項目の `type:` に基底の種類でない名前を書くと定義の名前。解決順は基底の種類 → 自分のモジュール → `モジュール#名前` → 組込みの型（`SchemaCatalog.find`。同じ名前は自分のモジュールが勝つ）。
 - `$ref` は同じ意味の別記法。入れ物（object / array / map）の定義も `type: 名前` で使える（オブジェクト型）。
 - **オブジェクト型**（第三弾）: object（名前付きでも、その場でも）の同一性は `FieldDef.entity`（`{type, defines, aspect, owns}`。名前付きの型で `type` を省くと定義名）。走査・エンティティの整合・全体像の合成は、要素の解決した object の `entity` を文書スキーマの `entity:`（ID の形）より優先する。
-- 入れ物の型を使う側の `fields` / `item` / `value` は `SchemaTree.mergeFields` / `mergeChild` が合成する: 定義に無いキーは末尾に足し、定義にあるキーは同じ項目を狭める（型を省いた書き直しは定義の型のまま。`FieldDef.typeGiven` で見分ける）。点検は `SchemaDefinitionChecks.checkContainerNarrowing`（規則は manual/schema.md「オブジェクト型」）。
-- **連鎖**: 解決した項目は `lineage`（通った定義の修飾名。使う側に書いた名前が先頭。例 `common#社員メール → common#メールアドレス`）を持ち、`type` は末端の基底の種類。使う側は `isA(BuiltinTypes.TEXT)` のように連鎖で判定し、`FieldType` に分岐を増やさない（フォームの複数行の欄・表のセルの幅がこの判定）。
+- 入れ物の型を使う側の `fields` / `item` / `value` は `SchemaTree.mergeFields` / `mergeChild` が合成する: 定義に無いキーは末尾に足し、定義にあるキーは同じ項目を狭める（型を省いた書き直しは定義の型のまま。`FieldDef.typeGiven` で見分ける）。点検は `SchemaDefinitionChecks.checkContainerNarrowing`。
+- 型の検査は `FieldDef.checks`（`ElementRule`。使う側の検査を足す）。評価は [checks.md「文書 1 つの検証」](checks.md)。
+- **連鎖**: 解決した項目は `lineage`（通った定義の修飾名。使う側に書いた名前が先頭）を持ち、`type` は末端の基底の種類。使う側は `isA(BuiltinTypes.TEXT)` のように連鎖で判定し、`FieldType` に分岐を増やさない。
 - **循環**: 定義自身の `ref` を辿って戻る循環は定義の点検（`SchemaTree.typeChainCycle`）が誤りにする。object の再帰は `fields` / `item` / `value` を通るので循環にならない。
-- **狭める合成**（`SchemaTree.narrow`）: 最小は大きい方・最大は小さい方・形式は重ねる（`patterns`＝全てに一致）・選択肢は部分集合・`cases` は定義に無いときだけ・参照の絞り込みは層を重ねる（`idPatternLayers`。全ての層に合う ID だけ。`ScannedRef.outerIdPatterns` → `isAllowedBy`）・範囲は共通部分・未定義の項目の扱いは厳しい方。
+- **狭める合成**（`SchemaTree.narrow`）: 最小は大きい方・最大は小さい方・形式は重ねる（`patterns`＝全てに一致）・選択肢は部分集合・`cases` は定義に無いときだけ・参照の絞り込みは層を重ねる（`idPatternLayers`。全ての層に合う ID だけ）・範囲は共通部分・未定義の項目の扱いは厳しい方。
 - 表示のヒントと `default` は使う側が優先。緩める書き方は `SchemaDefinitionChecks.checkNarrowing` が定義エラーにし、合成は誤りがあっても広がらない向きに倒す。
 - **構造への写し**: 導出（`DerivedStructures`）はスカラーの連鎖を導出の前に解決し、基底の種類と合成した決まりを写す。入れ物の定義への参照は、追加の無い使い方なら `$ref` のまま（再帰のため）、追加のある使い方なら合成した中身を展開して写す。yaml-core は型の名前を知らず、足したのは形式の一覧（`StructureField.patterns`）だけ。
-- **意味の基底型の直列化**: `id` / `ref` は `word`（空白なし）で、導出が同じ形式を足す。`date` / `time` / `datetime` は正準の形（`ValueSemantics.canonicalPattern`）を足した `string`。存在の検証（`2026-02-30`）はコードの検査 `value`（`CodedDocumentChecks.valueIssues`）が行う。
+- **意味の基底型の直列化**: `id` / `ref` は `word`（空白なし）で、導出が同じ形式を足す。`date` / `time` / `datetime` は正準の形（`ValueSemantics.canonicalPattern`）を足した `string`。存在の検証はコードの検査 `value`（`CodedDocumentChecks.valueIssues`）が行う。
 - **メタスキーマ**: `builtin-schema` の `type` は基底の種類の選択肢だけを持ち、`MetaSchemaTypes` が読み込み時に型の名前（入れ物の定義を含む）を選択肢と `cases` へ足す。`$ref` ＋決まりのキーの警告は残る（型は `type:` で書くのが正）。
-- **道具**: `extract-definition` はスカラーなら使う側に `type: 名前` を書く。`rename-definition` / `rename-schema-id` は `type` の言及も書き換える。`convert-type` の string ↔ text は型の名前の書き換え。設計 UI の型の選択肢と基底の種類の解決は `TypeChoices`（ui/SchemaEditor.kt）。
+- **道具**: `extract-definition` はスカラーなら `type: 名前` を書き、`rename-definition` / `rename-schema-id` は `type` の言及も書き換える。設計 UI の型の選択肢は `TypeChoices`（ui/SchemaEditor.kt）。
 - **ヒントは型から引き継ぐ**: 表示のヒントは `FieldHints.over` で使う側が優先し、無ければ型のもの。UI は型の名前でなくヒントで判定する（`FieldDef.multiline` / `placeholder`）。
-- 意味の基底型は基底の種類で判定し（`type == FieldType.DATE`。列幅・AI 生成の `format`・ビューのリントの日付の項目）、案内とサンプル値はヒントが無ければ `ValueSemantics` の既定。
+- 意味の基底型は基底の種類で判定し（`type == FieldType.DATE`。列幅・AI 生成の `format`）、案内とサンプル値はヒントが無ければ `ValueSemantics` の既定。
 - **順序は型から**: 順序の種類（`OrderKind.ofType`）は読んだ項目の型で決まり、式の `type` は上書き。項目の定義を引く `fieldAt` を渡すのはスキーマを知る側（`WorkspaceChecks`・`Views.resolve`。「値の式」）。
 - **ID の型をエンティティ型の判別に**: `entity` の `idType` は型の名前で、`WorkspaceSchema.entities` が木で解決する（`EntityDecl.resolvedIn` → `SchemaTree.resolveTypeName`。未知の名前・id でない型は `idTypeError`＝定義エラー）。判定は `EntityDecl.matchesId` の 1 か所。読み方は数で読む（文字の金額は読まない）。
 
@@ -75,7 +76,7 @@
 
 - 項目の表示と編集のためのヒント（ラベル・説明・選択肢のラベル・一覧の見せ方 `display`・桁区切り `display: grouped`・複数行 `display: multiline`・入力欄の案内 `placeholder`・サンプル値 `sample`・表示の形 `format`・初期値）は `FieldDef.hints`（`FieldHints`）の区画。
 - **値と表示形式**: `format` は画面で見せるときだけ `ValueFormat.display` で文字を組み立てる（数は DecimalFormat・日付などは DateTimeFormatter）。ファイル・編集中・検証・CLI・書き出しは素の値。フォームは非フォーカス時に整形（`CompactTextField.unfocusedText`）、グリッドは列の `format` と項目の `format` のどちらも効く。
-- 型（定義）に書いたヒントは使う側へ引き継がれる（「型の連鎖と狭める規則」）。検証・走査・検査はここを読まない（例外は、指摘の文面のために構造のスキーマへ写す `label` だけ）。
+- 型（定義）に書いたヒントは使う側へ引き継がれる（「型の連鎖と狭める規則」）。検証・走査・検査はここを読まない（例外は構造のスキーマへ写す `label` だけ）。
 - タイトルの役割 `role` は索引のタイトルを決めるので項目の側（意味）に置く。
 - 画面合成のためのオプションをスキーマへ足さない。合成の要望はビュー側の語彙で受ける（[views.md](views.md)）。
 

@@ -63,4 +63,4 @@ scripts/docs-lint.sh                        # 文書の形の機械チェック
 - ビューは射影で、専用の書込経路を作らない。AI の HTTP は `AiHttp.post` に一元化 → architecture/views.md「ビュー機構」・architecture/agents.md「AI 接続」
 - カーネルのテストは疑似セッション注入、自動化のテストは `tick(now)` を直接呼ぶ。実 API を叩かない → architecture/agents.md「エージェント実行と Staging」・architecture/agents.md「自動実行」
 - 型はヒントと基底の種類で判定する（`field.multiline`・`field.placeholder`・`field.type == FieldType.DATE`）。`FieldType` は基底の種類（表現の基底と、値を持つ意味の基底型＝`ValueSemantics`）だけで、組込みの定義体（text / line / word）は `builtin-types/` の YAML。`FieldType.TEXT` のような分岐を足さない。使う側の決まりは狭めるだけ → architecture/schema.md「型の連鎖と狭める規則」
-- object を使う側の `fields` は同じキーを狭め新しいキーを足す（`SchemaTree.mergeFields`）。エンティティ型は要素の object の `entity` が、文書スキーマの `entity:`（ID の形）より優先 → architecture/graph-query.md「エンティティ型と関係レジストリ」
+- object を使う側の `fields` は同じキーを狭め新しいキーを足す（`SchemaTree.mergeFields`）。エンティティ型は要素の object の `entity` が、文書スキーマの `entity:`（ID の形）より優先。型の `constraints` は要素ごとの検査（`SemanticElementChecks`。グラフを使わない） → architecture/graph-query.md「エンティティ型と関係レジストリ」・architecture/checks.md「文書 1 つの検証」

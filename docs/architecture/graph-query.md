@@ -34,6 +34,7 @@
 - `idType` の解決は `WorkspaceSchema.entities`（木の定義の目録で `EntityDecl.resolvedIn`。[schema.md「型の連鎖と狭める規則」](schema.md)）。パーサ（`SemanticDeclParser.parseEntities`）は名前を写すだけで、semantic-core の判定（`matchesId` / `entityFor`）は解決済みの形式を見る。
 - 関係レジストリは `_schemas` の `kind: relations` 文書。`relations:` に `{name, label, inverseLabel, source, target, cardinality, acyclic, level, description}` を列挙する。
 - 同じ文書の `entities:` に型の表示名とアスペクト順序（`{type, label, description, aspects: [{name, label}]}`）、`enforcement:` に強制スイッチ（`undeclaredRelation` / `definingUniqueness` を warning / error。未宣言は非破壊の既定）。
+- 型の表示名の既定はオブジェクト型の `label`（`WorkspaceReader.objectEntityTypes` が、レジストリに宣言の無い型だけを object の `entity` から足す。レジストリの宣言が常に勝つ）。
 - 集約は `SchemaDocuments`（重複 name・重複 type・重複キーはロードエラー）→ `Workspace.relations` / `entityTypes` / `enforcement` → AppState ミラー。
 - 索引への反映は走査時。`DocScanner` が ID 検出時に型と役割（定義／詳細化）を `IdEntry.entityType` / `role` へ付与し、`IdIndex.resolve` は定義出現を優先する。
 - レジストリの表示への消費: バックリンクを表示する全面（関係タブ・エンティティページ・ビューの backlinks 列・文書ビュー・エージェントの `related`・グラフ・bundle）は relation 名の代わりに `label`（参照方向）／`inverseLabel`（被参照方向）を表示する。未宣言は名前のまま。表示は解決の意味論に関与させない。

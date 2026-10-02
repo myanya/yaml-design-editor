@@ -257,17 +257,22 @@ data class QueryWhere(
     val kind: ValueExpr.OrderKind? = null,
 ) {
     companion object {
+        /** 「いまの要素」を指す束縛名（型の検査＝要素ごとの検査で `of` を省いたとき。利用者の束縛名とは重ならない綴り）。 */
+        const val SELF = "<self>"
+
         /** where に書ける値の条件（eq / ne は equals / notEquals が担う）。 */
         private val TEST_OPS = CheckOp.entries.filter { it != CheckOp.EQ && it != CheckOp.NE }
         private val ORDER_OPS = setOf(CheckOp.LT, CheckOp.LTE, CheckOp.GT, CheckOp.GTE)
         private val CONDITION_KEYS = listOf("equals", "notEquals", "exists", "empty") + TEST_OPS.map { it.id }
         private val KEYS = setOf("of", "path", "type") + CONDITION_KEYS
 
-        fun parse(raw: Any?, where: String): QueryWhere {
+        /** current は「いまの要素」のある場面（型の検査）: `of` を省くといまの要素（SELF）。 */
+        fun parse(raw: Any?, where: String, current: Boolean = false): QueryWhere {
             val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります")
             m.keys.map { it.toString() }.firstOrNull { it !in KEYS }
                 ?.let { error("$where: 未知のキーです: $it（使えるキー: ${KEYS.joinToString(", ")}）") }
-            val of = m["of"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.of（束縛名）が必要です")
+            val of = m["of"]?.toString()?.takeIf { it.isNotBlank() }
+                ?: if (current) SELF else error("$where.of（束縛名）が必要です")
             val path = parseYPath(m["path"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.path が必要です"))
             val given = CONDITION_KEYS.filter { m[it] != null }
             if (given.size != 1) error("$where: 条件（${CONDITION_KEYS.joinToString(" / ")}）のいずれか一つが必要です")
@@ -306,27 +311,27 @@ data class QueryWhereClause(val alternatives: List<QueryWhere>) {
     val of: String get() = alternatives.first().of
 
     companion object {
-        fun parse(raw: Any?, where: String): QueryWhereClause {
+        fun parse(raw: Any?, where: String, current: Boolean = false): QueryWhereClause {
             val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります")
             if (m.containsKey("or")) {
                 if (m.size != 1) error("$where: or は単独で書きます（{or: [条件, ...]}）")
                 val list = (m["or"] as? List<*>)?.takeIf { it.size >= 2 } ?: error("$where.or は条件の配列（2つ以上）である必要があります")
-                val alternatives = list.mapIndexed { i, e -> parseLeaf(e, "$where.or[$i]") }
+                val alternatives = list.mapIndexed { i, e -> parseLeaf(e, "$where.or[$i]", current) }
                 require(alternatives.map { it.of }.distinct().size == 1) { "$where.or の条件は、すべて同じ束縛（of）について書きます" }
                 return QueryWhereClause(alternatives)
             }
-            return QueryWhereClause(listOf(parseLeaf(raw, where)))
+            return QueryWhereClause(listOf(parseLeaf(raw, where, current)))
         }
 
         /** 条件1つ、またはその否定。 */
-        private fun parseLeaf(raw: Any?, where: String): QueryWhere {
+        private fun parseLeaf(raw: Any?, where: String, current: Boolean): QueryWhere {
             val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります")
             if (m.containsKey("or")) error("$where: or の入れ子は書けません（入れ子は1段まで）")
-            if (!m.containsKey("not")) return QueryWhere.parse(raw, where)
+            if (!m.containsKey("not")) return QueryWhere.parse(raw, where, current)
             if (m.size != 1) error("$where: not は単独で書きます（{not: 条件}）")
             val inner = m["not"] as? Map<*, *> ?: error("$where.not は条件のobjectである必要があります")
             if (inner.containsKey("not") || inner.containsKey("or")) error("$where.not の中に not / or は書けません（入れ子は1段まで）")
-            return QueryWhere.parse(inner, "$where.not").copy(negated = true)
+            return QueryWhere.parse(inner, "$where.not", current).copy(negated = true)
         }
     }
 }
@@ -633,30 +638,31 @@ data class ConstraintCheck(val terms: List<CheckTerm>) {
     val binds: List<String> get() = operands.flatMap { it.binds() }.distinct()
 
     companion object {
-        fun parse(raw: Any?, where: String): ConstraintCheck {
+        /** current は「いまの要素」のある場面（型の検査）: 値の式で `of` を省くといまの要素。 */
+        fun parse(raw: Any?, where: String, current: Boolean = false): ConstraintCheck {
             val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります（{演算子: [左, 右]}）")
             if (m.containsKey("or")) {
                 if (m.size != 1) error("$where: or は単独で書きます（{or: [条件, ...]}）")
                 val list = (m["or"] as? List<*>)?.takeIf { it.size >= 2 } ?: error("$where.or は条件の配列（2つ以上）である必要があります")
-                return ConstraintCheck(list.mapIndexed { i, e -> parseTerm(e, "$where.or[$i]", nested = true) })
+                return ConstraintCheck(list.mapIndexed { i, e -> parseTerm(e, "$where.or[$i]", nested = true, current = current) })
             }
-            return ConstraintCheck(listOf(parseTerm(raw, where, nested = false)))
+            return ConstraintCheck(listOf(parseTerm(raw, where, nested = false, current = current)))
         }
 
         /** 値の条件1つ、またはその否定。nested は or の中（or の入れ子は書けない）。 */
-        private fun parseTerm(raw: Any?, where: String, nested: Boolean): CheckTerm {
+        private fun parseTerm(raw: Any?, where: String, nested: Boolean, current: Boolean): CheckTerm {
             val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります（{演算子: [左, 右]}）")
             if (m.containsKey("or")) error("$where: or の入れ子は書けません（入れ子は1段まで）")
             if (m.containsKey("not")) {
                 if (m.size != 1) error("$where: not は単独で書きます（{not: {演算子: [左, 右]}}）")
                 val inner = m["not"] as? Map<*, *> ?: error("$where.not は条件のobjectである必要があります")
                 if (inner.containsKey("not") || inner.containsKey("or")) error("$where.not の中に not / or は書けません（入れ子は1段まで）")
-                return parseCompare(inner, "$where.not").copy(negated = true)
+                return parseCompare(inner, "$where.not", current).copy(negated = true)
             }
-            return parseCompare(m, where)
+            return parseCompare(m, where, current)
         }
 
-        private fun parseCompare(m: Map<*, *>, where: String): CheckTerm {
+        private fun parseCompare(m: Map<*, *>, where: String, current: Boolean): CheckTerm {
             // 順序の種類（type）は、順序の比較にだけ添えられる（省けば項目の型から）
             val kind = m["type"]?.toString()?.takeIf { it.isNotBlank() }?.let { ValueExpr.OrderKind.parse(it, where) }
             fun checkedKind(op: CheckOp): ValueExpr.OrderKind? {
@@ -669,8 +675,8 @@ data class ConstraintCheck(val terms: List<CheckTerm>) {
                 val op = CheckOp.parse(m["op"].toString(), where)
                 return CheckTerm(
                     op = op,
-                    left = ValueExpr.parse(m["left"] ?: error("$where.left が必要です"), "$where.left"),
-                    rights = parseRights(op, m["right"] ?: error("$where.right が必要です"), "$where.right"),
+                    left = ValueExpr.parse(m["left"] ?: error("$where.left が必要です"), "$where.left", current),
+                    rights = parseRights(op, m["right"] ?: error("$where.right が必要です"), "$where.right", current),
                     kind = checkedKind(op),
                 )
             }
@@ -684,8 +690,8 @@ data class ConstraintCheck(val terms: List<CheckTerm>) {
             if (list.size != 2) error("$where.${op.id} は [左, 右] の2要素配列である必要があります")
             return CheckTerm(
                 op = op,
-                left = ValueExpr.parse(list[0], "$where.${op.id}[0]"),
-                rights = parseRights(op, list[1], "$where.${op.id}[1]"),
+                left = ValueExpr.parse(list[0], "$where.${op.id}[0]", current),
+                rights = parseRights(op, list[1], "$where.${op.id}[1]", current),
                 kind = checkedKind(op),
             )
         }
@@ -694,14 +700,14 @@ data class ConstraintCheck(val terms: List<CheckTerm>) {
         private val ORDER_OPS = listOf(CheckOp.LT, CheckOp.LTE, CheckOp.GT, CheckOp.GTE)
 
         /** 右辺のパース。oneOf は値の式の並び（1つ以上）・他は値の式1つ。決まった値は定義時に点検する（正規表現など）。 */
-        private fun parseRights(op: CheckOp, raw: Any?, where: String): List<ValueExpr> {
+        private fun parseRights(op: CheckOp, raw: Any?, where: String, current: Boolean): List<ValueExpr> {
             val rights = if (op == CheckOp.ONE_OF) {
                 val list = (raw as? List<*>)?.takeIf { it.isNotEmpty() }
                     ?: error("$where は選択肢の配列（1つ以上）である必要があります")
-                list.mapIndexed { i, e -> ValueExpr.parse(e, "$where[$i]") }
+                list.mapIndexed { i, e -> ValueExpr.parse(e, "$where[$i]", current) }
             } else {
                 if (raw is List<*>) error("$where は値の式1つで書きます（配列を書けるのは oneOf の選択肢だけです）")
-                listOf(ValueExpr.parse(raw, where))
+                listOf(ValueExpr.parse(raw, where, current))
             }
             rights.forEach { r -> (r as? ValueExpr.Literal)?.value?.let { op.requireValidOperand(it, where) } }
             return rights

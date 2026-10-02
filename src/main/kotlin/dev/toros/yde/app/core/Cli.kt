@@ -579,15 +579,26 @@ internal fun runCli(args: Array<String>): String {
             // どんな基本の検査へ展開されたかを、由来つきで表示する。--definitions で使える定義と語彙の一覧も出す
             val ws = workspace()
             val only = rest.drop(1).firstOrNull { !it.startsWith("--") }
-            val targets = ws.schemas.filter { it.expandedChecks.isNotEmpty() && (only == null || it.id == only) }
+            // 型の検査（オブジェクト型の要素ごとの検査。P33 第三弾）は、書かれた場所（定義名か項目の場所）ごとに並べる
+            fun typeChecks(s: dev.toros.yde.app.schema.SchemaDef) = s.tree.objectDeclarations()
+                .filter { (_, f) -> f.checks.isNotEmpty() }
+                .map { (at, f) ->
+                    linkedMapOf(
+                        "at" to at,
+                        "checks" to f.checks.map { r ->
+                            pruneNulls(linkedMapOf("id" to r.id, "description" to r.description, "level" to r.level.id, "origin" to r.origin))
+                        },
+                    )
+                }
+            val targets = ws.schemas.filter { (it.expandedChecks.isNotEmpty() || typeChecks(it).isNotEmpty()) && (only == null || it.id == only) }
             val out = linkedMapOf<String, Any?>(
                 "schemaErrors" to ws.schemaErrors,
                 "schemas" to targets.map { s ->
-                    linkedMapOf(
+                    linkedMapOf<String, Any?>(
                         "schema" to s.id,
                         // 渡されなかった値（null）の項目は、読みやすさのため表示から省く
                         "checks" to s.expandedChecks.map { linkedMapOf("origin" to it.origin, "check" to pruneNulls(it.raw)) },
-                    )
+                    ).also { m -> typeChecks(s).takeIf { it.isNotEmpty() }?.let { m["typeChecks"] = it } }
                 },
             )
             // 特定のスキーマに属さない検査のうち、組込み定義体に直接書かれたもの（エンティティの整合など）

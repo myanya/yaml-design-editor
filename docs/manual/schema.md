@@ -324,7 +324,7 @@ root:
 - **`$ref` との関係**: `$ref: 名前` も同じ意味で使えます（構造＝`object` などの定義は今までどおり `$ref` で）。ただしメタスキーマは、`$ref` を書いた項目の決まりのキー（`maxLength` など）を「型が string のときのみ」と警告するので、型は `type: 名前` で書いてください。型の名前は読み込み時にメタスキーマの `type` の選択肢へ足されます。
 - **順序は型で決まる**: 検査の `lt` / `lte` / `gt` / `gte`、集計の `min` / `max`、ビューの行の並びは、値を読んだ項目の型で比べ方が決まります（`int` は数・`date` は日付。[checks.md](checks.md)「値の条件」・[views.md](views.md)「行の並び」）。読み方は数で読みます（`¥10,000` のような文字の金額は読みません。金額は `int` の型に `format` を付けて表示だけ整えます）。
 - **ID の型をエンティティ型の判別に**: `画面ID: { type: id, pattern: "^SCR-\\d{3}$" }` のような型は、スキーマの `entity` の `idType: 画面ID` にも書けます（`idPattern` の glob の代わりに、型の形式で判別。[checks.md](checks.md)「エンティティ型宣言」）。
-- **実例**: `samples/todos` の `.yde/schemas/common.yaml`（ID の型・日付の見せ方・1 行の文・複数行の文章・ステータスを `kind: library` に定義し、一覧と個票のスキーマが `type: common#名前` と `entity.idType` で使う）。
+- **実例**: `samples/todos` の `.yde/schemas/common.yaml`（値の型＝ID の形式・日付の見せ方・1 行の文・複数行の文章・ステータスと、オブジェクト型＝一覧の行・個票・コメント。一覧と個票のスキーマは `type: common#名前` で使う）。
 - **スキーマ設計画面**: 「定義を追加」で「型（スカラー）」を選ぶとスカラーの定義になり、項目の「型」の選択肢に基底の種類と型の名前が並びます。型の名前を選ぶと、その基底の種類で書ける決まりの入力欄が出ます。文字で打つ型（string / 数 / 日付など / id / ref）には「入力欄の案内」「サンプル値」、string には「複数行で編集」（`display: multiline`）と「行数」の欄があり、エンティティ節には「ID の型」の選択肢（id を狭めた型）が出ます。
 - **リファクタリング**: `extract-definition` はスカラーの項目を型として抽出し、使う側を `type: 名前` にします（構造は `$ref`）。`rename-definition` は `type: 名前` の言及も書き換えます。`convert-type` の string ↔ text は型の名前の書き換えだけで、文書は変わりません。
 ### オブジェクト型（object の定義に同一性を持たせ、項目を足す）
@@ -376,7 +376,33 @@ root:
 
 位置は、同じキーなら定義の場所のまま、新しいキーは末尾です。root を型で書く（`root: { type: common#画面定義 }`）こともでき、その型が `entity` を持てばスキーマの `entity:` は省略できます。段階的詳細化（同じ ID を複数の文書に書く）はそのままで、一覧の要素の型と個票の型に同じエンティティ型名を書けば、側面がつながります。
 
-- **これから**: 型の表示名（エンティティ型のラベル）と、型に書く検査（要素ごとの検査）は [docs/ROADMAP.md](../ROADMAP.md) のテーマで進めます。
+- **表示名**: 型の `label` は、関係レジストリ（`entities:`）に宣言が無いエンティティ型の表示名になります（エンティティページ・ID 横ぐしビュー・一覧の型の表示）。レジストリに宣言があればそちらが勝ちます。
+- **設計画面**: 「定義を追加」で「オブジェクト型」を選び、定義カードの「同一性（entity）」で型名（省略すると定義名）・定義（誕生）・側面・所有する項目を設定できます。配列の要素などその場の object にも同じ欄が出ます。
+- **型の検査（要素ごとの検査）**: object の定義に `constraints` を書くと、**その型の要素ごとに**評価されます。ID の無い型にも書けます。条件や値の式で `of` を省くと、その要素の値です。他の要素へ線を辿る検査（`match` の edge）は型には書けず、スキーマの `constraints` に `node: {entity: 型}` で書きます。
+
+```yaml
+definitions:
+  明細行:
+    type: object                       # ID は無い
+    fields:
+      - { key: price, label: 単価, type: int, min: 0, required: true }
+      - { key: qty, label: 数量, type: int, min: 1, required: true }
+      - { key: amount, label: 金額, type: int, required: true }
+    constraints:
+      - id: amount-is-price-times-qty
+        description: 金額は単価 × 数量であること
+        check: [ { eq: [ { path: amount }, { multiply: [ { path: price }, { path: qty } ] } ] } ]
+        level: error
+      - id: no-free
+        description: 単価 0 の明細は無いこと
+        where: [ { path: price, equals: "0" } ]
+        expect: absent                 # 条件に合う要素があってはならない
+        message: "単価 0 の明細があります（{path}）"
+```
+
+- 1 件に書けるのは `id`・`description`・`where`（要素を絞る条件。[checks.md](checks.md)「パターン制約」の `where` と同じ書き方で `of` を省く）・`check`（値の条件。すべて成立が期待）か `expect: absent`・`level`・`message`（`{left}` `{right}` `{left.raw}` `{right.raw}` `{id}` `{path}`）です。
+- 判定は検査と同じ 4 つ（違反・充足・保留・対象外）で、比べる値が無ければ保留になります。指摘はその要素の場所（例 `lines[1]`）に出て、文面は「`types#明細行` の要素（lines[1]）が検査を満たしません。反例: amount: 250 ≠ 「300」（= 100 × 3） — 金額は単価 × 数量であること」のように反例を添えます。
+- 型を使う側の object に書いた `constraints` は、型の検査に足されます。CLI `checks` の `typeChecks` に一覧が出ます。
 
 ## スキーマ・リファクタリング（既存文書を追随させるスキーマ変更）
 

@@ -309,6 +309,11 @@ data class FieldDef(
      */
     val entity: EntityDecl? = null,
     /**
+     * 型の検査（オブジェクト型。P33 第三弾）: この object の要素ごとに評価する検査（`constraints`）。型を使う側の object は
+     * 型の検査に自分の検査を足す（合成は SchemaTree.narrowOnto）。評価は semantic.SemanticElementChecks。
+     */
+    val checks: List<ElementRule> = emptyList(),
+    /**
      * `type`（または `$ref`）が書かれていたか（パーサが設定する）。型を使う側が同じキーの項目を書き直すとき、
      * 型を省いた（＝定義の型のまま狭める）のか、型を書いた（＝定義の型を狭めた型であること）のかを見分けるために持つ。
      */

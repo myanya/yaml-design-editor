@@ -115,6 +115,13 @@ object SchemaTreeParser {
             require(type == FieldType.OBJECT || namedType != null) { "entity（同一性）は type: object のフィールドでのみ定義できます" }
             SemanticDeclParser.parseObjectEntity(it, "entity", definitionName)
         }
+        // 型の検査（要素ごとの検査）: object にだけ書ける。出どころは定義名（名前付きの型）か書かれた場所
+        val checks = m["constraints"]?.let { raw ->
+            require(type == FieldType.OBJECT || namedType != null) { "constraints（型の検査）は type: object のフィールドでのみ定義できます" }
+            val list = raw as? List<*> ?: error("constraints は検査の配列である必要があります")
+            val at = definitionName?.let { "definitions.$it" } ?: key ?: "object"
+            list.mapIndexed { i, e -> ElementRule.parse(e, "$at.constraints[$i]") }
+        } ?: emptyList()
         return FieldDef(
             key = key,
             type = type,
@@ -151,6 +158,7 @@ object SchemaTreeParser {
             typeName = namedType,
             hints = displayHints(m, type, namedType, options),
             entity = entity,
+            checks = checks,
             typeGiven = typeText != null || explicitRef != null,
         )
     }

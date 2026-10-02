@@ -12,9 +12,8 @@ id: screen-def
 name: 画面定義
 match: 30_basic-design/screens/*.{yaml,yml}
 description: 画面の論理定義（項目・遷移・API呼び出し）。物理化は画面設計書（詳細設計）で行う。
-entity:
-  - { type: screen, idPattern: "SCR-*", aspect: basic }
-  - { type: screen-item, idPattern: "SI-*", defines: true }
+# 文書のルート（画面）だけを ID の形で宣言する。画面項目の型は items の要素の object の entity（オブジェクト型）で決まる
+entity: { type: screen, idPattern: "SCR-*", aspect: basic }
 root:
   type: object
   fields:
@@ -34,6 +33,7 @@ root:
       required: true
       item:
         type: object
+        entity: { type: screen-item, defines: true }
         fields:
           - { key: id, label: 項目ID, type: id, required: true, description: 例 SI-ROOM-LIST-DATE（SI-<画面>-<項目>）。 }
           - { key: name, label: 項目名, type: string, required: true }

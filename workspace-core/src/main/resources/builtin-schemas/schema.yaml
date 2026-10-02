@@ -142,6 +142,12 @@ definitions:
               label: スキーマ外キーの扱い
               type: enum
               values: [allow, warning, error]
+            - key: constraints
+              label: 型の検査（要素ごとの検査）
+              type: array
+              item:
+                type: any
+              description: "この object の要素ごとに評価する検査（オブジェクト型。P33 第三弾）。1 件は {id, description, where, check | expect: absent, level, message}。値の式と条件で of を省くと、その要素の値（例 {eq: [{path: amount}, {multiply: [{path: price}, {path: qty}]}]}）。ID の無い型にも書ける。他の要素へ線を辿る検査（match）はスキーマの constraints に書く"
             - key: entity
               label: 同一性（エンティティ型）
               type: object

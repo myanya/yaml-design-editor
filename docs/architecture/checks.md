@@ -19,7 +19,8 @@
 | `SemanticGraphIntegrity` | semantic-core/semantic/GraphIntegrity.kt | 宣言のない関係名の判定 |
 | `CheckCatalog` / `BuiltinDefinitionResources` | workspace-core/workspace/CheckCatalog.kt・資源 `builtin-definitions/` | 検査の定義の読み込みと組込み定義体（consistency・coverage・entities・flow・matrix・relations） |
 | `WorkspaceChecks` / `CheckDelivery` / `CheckIssue` / `CheckResponse` / `IssueSource` / `IssueDelivery` / `WithheldCheck` / `RuleStatus` | workspace-core/validate/WorkspaceChecks.kt | 定義体の検査を評価して文書へ配る（`deliver`・`statuses`） |
-| `CodedChecks` / `CodedDocumentChecks` | workspace-core/validate/ | コードで実装された検査の出どころと、ワークスペースの他の文書も見るコードの検査（ID パターンからの逸脱・重複所有・テンプレートの健全性） |
+| `CodedChecks` / `CodedDocumentChecks` | workspace-core/validate/ | コードで実装された検査の出どころと、ワークスペースの他の文書も見るコードの検査（ID パターンからの逸脱・重複所有・テンプレートの健全性）と、型の検査の文面と配り方 |
+| `ElementRule` / `SemanticElementChecks` | semantic-core/schema/ElementRule.kt・semantic/ElementChecks.kt | 型の検査（オブジェクト型の要素ごとの検査）の宣言と評価（グラフを使わない。`SemanticValues` で要素を「いまの要素」として `where` / `check` を評価） |
 | `DocumentValidator` / `DocumentValidation` | workspace-core/validate/DocumentValidator.kt | 文書 1 つの検証の全体の組み立て |
 | `WorkspaceCheckRunner` | workspace-core/workspace/WorkspaceCheckRunner.kt | カーネル側の CLI の全文書の検証（`validateAll` / `deliverAll`） |
 | `Validator` / `Issue`（＝`CheckIssue`）/ `IssueResponse`（＝`CheckResponse`） | validate/Validator.kt | root の窓口（索引とスキーマを渡して `DocumentValidator` を呼ぶ）。`validateDetailed` は保留も返す |
@@ -119,6 +120,8 @@
 
 - `DocumentValidator.validate(document, schema, root, parseError, documentId, indexed, scan)` が文書 1 つの結果（指摘と保留）を返す。どの指摘にも出どころが付く。
 - 指摘の並び: 構造の検証 → ID の重複 → 参照の解決 → エンティティ型の点検 → 宣言のない関係名 → 定義体の検査（報告先・値と参照の場所・他の出現への案内）→ テンプレートの健全性 → 直せる場所への案内。同じ指摘の重複は除く。
+- **型の検査**（オブジェクト型の `constraints`。[schema.md「型の連鎖と狭める規則」](schema.md)）は要素ごと: `WorkspaceChecks.deliver` が `CodedDocumentChecks.elementChecks` → `SemanticElementChecks.run` で、その文書の要素を解決した型の検査で評価する。
+- 型の検査の出どころは検査を書いたスキーマ（`RuleOrigin(schemaId, 書かれた場所)`・kind は `element`）、指摘は要素の場所（VALUE）、保留はその文書で集める。グラフ・索引を使わないので ID の無い要素でも評価でき、他の要素へ線を辿る検査は型には書けない（スキーマの `constraints` へ）。
 - 台帳の外の文書（`indexed = false`）では、相手の見つからない参照を情報レベルへ降格し、ワークスペースの他の文書も見る検査を行わない（[workspace.md「エディタ層と台帳層」](workspace.md)）。中身が空の文書は空のマップとして検証する。
 - 構造の検証は導出した最小の構造のスキーマで行う（[schema.md「構造スキーマの導出」](schema.md)）。参照の解決はエンティティと文書の名前空間を分ける。ID の重複は同一文書内だけ。
 - root の `Validator` は索引とスキーマを渡して呼ぶ窓口。カーネル側の CLI `workspace validate` は `WorkspaceCheckRunner.validateAll` で全文書を同じ部品で検証する（出力の区分＝構造・意味・検査は出どころで分ける）。変更セットの適用も適用後の姿の上で同じ組み立てを使う。`KernelCheckLoadingTest` が文書ごとの指摘（並び順まで）と保留がアプリとカーネルで一致することを確かめる。
