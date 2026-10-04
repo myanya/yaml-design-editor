@@ -32,7 +32,26 @@ root:
       required: true
       item:
         type: object
+        entity:
+          type: rule-item
+          defines: true
         fields:
+          - key: id
+            label: 個別ルールID
+            type: id
+            pattern: 'RITM-[0-9]{4}'
+            required: true
+            description: 全ての本文項目に文書をまたいで一意のIDを付与する。文書IDや項目の位置をIDに含めない。
+          - key: created_on
+            label: 作成日
+            type: date
+            required: true
+            description: 個別ルールを作成した日。内容を変更しても維持する。
+          - key: updated_on
+            label: 更新日
+            type: date
+            required: true
+            description: 個別ルールを最後に修正した日。現在は自動更新されないため、修正時に当日の日付を設定する。
           - { key: title, label: 見出し, type: line, role: title, required: true }
           - { key: summary, label: 概要, type: text, role: subtitle, rows: 2, required: true }
           - { key: content, label: 自由記述, type: text, rows: 6, required: true }

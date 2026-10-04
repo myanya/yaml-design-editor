@@ -5,17 +5,26 @@ derived_from:
   - RULE-0006
 
 sections:
-  - title: 内部IDと業務コードの分離
+  - id: RITM-0109
+    created_on: 2026-10-04
+    updated_on: 2026-10-04
+    title: 内部IDと業務コードの分離
     summary: システムが採番する内部IDと、業務上の識別子である業務コードを分ける。
     content: |
       社員番号・組織コードなどの業務上の識別子を、内部IDとは別に扱う。
 
-  - title: 内部IDの形式
+  - id: RITM-0110
+    created_on: 2026-10-04
+    updated_on: 2026-10-04
+    title: 内部IDの形式
     summary: 内部IDは数値連番とする。
     content: |
       ユーザ・組織・グループ・ロール等の内部IDの採番方式として、数値連番を採用する。
 
-  - title: 内部IDの採番単位と一意性
+  - id: RITM-0111
+    created_on: 2026-10-04
+    updated_on: 2026-10-04
+    title: 内部IDの採番単位と一意性
     summary: テナント内のデータ種別ごとに内部IDを一意とし、テナント・データ種別ごとに独立して採番する。
     content: |
       同一テナントのユーザ同士など、同じデータ種別の対象間で内部IDを重複させない。
@@ -24,19 +33,28 @@ sections:
     decision_reason: |
       テナントごとにスキーマを分割する利点を活かし、テナント間で採番を独立させる。
 
-  - title: 内部IDの変更と再利用
+  - id: RITM-0112
+    created_on: 2026-10-04
+    updated_on: 2026-10-04
+    title: 内部IDの変更と再利用
     summary: 内部IDは作成後に変更せず、削除後も再利用しない。
     content: |
       対象の業務上の属性が変わっても、内部IDは変更しない。
       削除した対象に割り当てていた内部IDを、別の対象に再び割り当てない。
 
-  - title: 業務コードの運用
+  - id: RITM-0113
+    created_on: 2026-10-04
+    updated_on: 2026-10-04
+    title: 業務コードの運用
     summary: 業務コードの運用ルールは利用側が定め、個別ルールで定めるシステム上の制約に従う。
     content: |
       業務コードの変更や再利用を含め、その扱いは利用側の運用で決める。
       ユーザコードの必須・一意制約、入力制約、変更権限は、RULE-0013「ユーザID（ログインID）方針」に従う。
 
-  - title: ログインURLのテナント識別子
+  - id: RITM-0114
+    created_on: 2026-10-04
+    updated_on: 2026-10-04
+    title: ログインURLのテナント識別子
     summary: ログインURLのパスでテナントを識別する値には、テナントの内部IDを使う。
     content: |
       URLでのテナント識別に、別の業務コードを用いる方式は採用しない。

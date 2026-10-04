@@ -4,34 +4,52 @@ derived_from:
   - RULE-0002
 
 sections:
-  - title: 基本の組み込み形態
+  - id: RITM-0027
+    created_on: 2026-10-04
+    updated_on: 2026-10-04
+    title: 基本の組み込み形態
     summary: モジュラモノリスを基本とし、利用側のSpring Bootアプリケーション内で動作する。
     content: |
       ユーザ管理機能をモジュールとして利用側のアプリケーションに組み込む。
       利用側から本モジュールへのアクセスは、公開サービスを経由する。
 
-  - title: マイクロサービスとしての利用
+  - id: RITM-0028
+    created_on: 2026-10-04
+    updated_on: 2026-10-04
+    title: マイクロサービスとしての利用
     summary: ユーザ管理機能をマイクロサービスとして組み込む形態にも対応する。
     content: |
       この形態では、他のサービスがAPIを通じて本マイクロサービスから情報を取得する。
       マイクロサービスとして利用する場合の認証・認可も、Spring Securityを活用して実現する。
 
-  - title: レイヤ構成
+  - id: RITM-0029
+    created_on: 2026-10-04
+    updated_on: 2026-10-04
+    title: レイヤ構成
     summary: View・Controller・Service・RepositoryからなるNレイヤーアーキテクチャを採用する。
     content: |
       システム内部を、View、Controller、Service、Repositoryの各レイヤに分けて構成する。
 
-  - title: サブドメイン間の依存関係
+  - id: RITM-0030
+    created_on: 2026-10-04
+    updated_on: 2026-10-04
+    title: サブドメイン間の依存関係
     summary: Spring Modulithを使用し、サブドメイン間の依存関係に制限をかける。
     content: |
       サブドメイン間の依存関係を制限するための仕組みとして、Spring Modulithを採用する。
 
-  - title: テナントのデータ分離
+  - id: RITM-0031
+    created_on: 2026-10-04
+    updated_on: 2026-10-04
+    title: テナントのデータ分離
     summary: テナントごとにデータベースのスキーマを分割する。
     content: |
       テナント分離の方式として、スキーマ分割を採用する。
 
-  - title: 標準機能と設定による利用
+  - id: RITM-0032
+    created_on: 2026-10-04
+    updated_on: 2026-10-04
+    title: 標準機能と設定による利用
     summary: 利用側は標準機能と設定で利用することを基本とし、画面のカスタマイズは画面デザイン方針に従う。
     content: |
       標準機能と設定によって利用できるようにする。

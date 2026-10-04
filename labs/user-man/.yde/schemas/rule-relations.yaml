@@ -2,6 +2,7 @@ id: rule-relations
 kind: relations
 entities:
   - { type: rule, label: ルール }
+  - { type: rule-item, label: 個別ルール }
 relations:
   - name: derived-from
     label: 導出元

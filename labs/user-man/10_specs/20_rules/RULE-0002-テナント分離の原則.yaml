@@ -1,7 +1,10 @@
 id: RULE-0002
 
 sections:
-  - title: テナント相互の不可侵
+  - id: RITM-0008
+    created_on: 2026-10-04
+    updated_on: 2026-10-04
+    title: テナント相互の不可侵
     summary: テナント分離をシステムの原理原則とする。
     content: |
       各テナントは互いに完全に独立し、互いに不可侵とする。
