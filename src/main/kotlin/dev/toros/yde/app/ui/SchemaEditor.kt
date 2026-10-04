@@ -21,6 +21,7 @@ import dev.toros.yde.app.OpenDocument
 import dev.toros.yde.app.AppState
 import dev.toros.yde.semantic.RefactoringPlan
 import dev.toros.yde.yaml.model.YNode
+import dev.toros.yde.semantic.schema.AutoValue
 import dev.toros.yde.semantic.schema.BuiltinTypes
 import dev.toros.yde.semantic.schema.FieldDef
 import dev.toros.yde.semantic.schema.FieldType
@@ -610,6 +611,8 @@ private fun FieldDefinitionEditor(
         "date", "time", "datetime" -> {
             CompactOptionalScalar(map, "pattern", "形式（正規表現）", "正準の形に加えて狭める形式（例 30 分刻み ^\\d{2}:(00|30)$）", doc)
             CompactOptionalScalar(map, "format", "表示の形", "画面で見せる形（例 yyyy年M月d日・H:mm）。ファイルは正準の形のまま", doc)
+            // 保存時に自動で入る値（auto）: 作成日時 created・更新日時 updated
+            AutoValueChooser(map, listOf(AutoValue.CREATED, AutoValue.UPDATED), "作成のとき／中身が変わって保存するときに今の日付・時刻が入る", doc)
         }
         // 制約語彙（R16-01）の入力（UX-73: 設計UIに未露出だった分）
         "string" -> {
@@ -635,7 +638,9 @@ private fun FieldDefinitionEditor(
         "int" -> {
             CompactNumberScalar(map, "min", "最小値", doc, integer = true)
             CompactNumberScalar(map, "max", "最大値", doc, integer = true)
-            CompactOptionalScalar(map, "format", "表示の形", "画面で見せる形（例 ¥#,##0・#,##0 円）。値は素の数のまま", doc)
+            CompactOptionalScalar(map, "format", "表示の形", "画面で見せる形（例 ¥#,##0・#,##0 円・版なら \"'rev-'000\"）。値は素の数のまま", doc)
+            // 保存時に自動で入る値（auto）: 版 revision（中身が変わって保存するたびに保存済みの値 +1。新しい要素は 1）
+            AutoValueChooser(map, listOf(AutoValue.REVISION), "中身が変わって保存するたびに +1（新しい要素は 1）", doc)
         }
         "number" -> {
             CompactNumberScalar(map, "min", "最小値", doc, integer = false)
@@ -651,6 +656,23 @@ private fun FieldDefinitionEditor(
     }
     // enum の初期値は選択肢の直下（EnumValuesEditor 内）で選択式にしている（UX-84）
     if (currentType !in setOf("object", "array", "map", "enum")) DefaultValueEditor(map, currentType, doc)
+}
+
+/** 保存時に自動で入る値（auto）の選択（型に合う印だけを選べる。「（なし）」で外す）。 */
+@Composable
+private fun AutoValueChooser(map: YNode.Map, choices: List<AutoValue>, hint: String, doc: OpenDocument) {
+    val none = "（なし）"
+    val current = scalar(map, "auto")?.let { raw -> AutoValue.parse(raw)?.let { "${it.id}（${it.label}）" } ?: raw } ?: none
+    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("自動で入る値（auto）", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+        ChoiceButton(current, listOf(none) + choices.map { "${it.id}（${it.label}）" }) { picked ->
+            val chosen = choices.firstOrNull { picked.startsWith(it.id) }
+            if (chosen == null) map.entries.remove("auto") else map.entries["auto"] = YNode.Scalar(chosen.id)
+            doc.markEdited()
+        }
+        Spacer(Modifier.width(8.dp))
+        Text(hint, fontSize = 10.sp, color = Palette.SubText)
+    }
 }
 
 /** 入力欄の案内・サンプル値を書ける基底の種類（文字で値を打つもの）。 */

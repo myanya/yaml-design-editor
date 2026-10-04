@@ -6,6 +6,7 @@ import dev.toros.yde.semantic.RefactoringRequest
 import dev.toros.yde.semantic.SchemaSemantics
 import dev.toros.yde.semantic.SemanticDeclarations
 import dev.toros.yde.semantic.SemanticDelta
+import dev.toros.yde.semantic.SemanticAutoValues
 import dev.toros.yde.semantic.SemanticRefactor
 import dev.toros.yde.workspace.layout.WorkspaceLayout
 import dev.toros.yde.yaml.edit.EditBatch
@@ -18,6 +19,7 @@ import dev.toros.yde.yaml.validate.Severity
 import dev.toros.yde.yaml.validate.StructuralIssue
 import dev.toros.yde.yaml.DefaultYamlCodec
 import java.time.Instant
+import java.time.LocalDateTime
 
 /**
  * ワークスペースのworking状態とトランザクション（3層コア移行 Phase 8・WS-004。計画書§4.3）。
@@ -95,6 +97,14 @@ data class TransactionResult(
     /** baseVersion 不一致による拒否か（CLI の exit code 4 の型付き判定。計画書 Phase 10）。 */
     val staleBase: Boolean = false,
 )
+
+/** 保存時に自動で入る値を当てた結果: トランザクションの結果と、文書ごとに入れた値の計画（空＝何も入れなかった）。 */
+data class AutoValuesApplied(
+    val result: TransactionResult,
+    val plans: Map<DocumentId, SemanticAutoValues.Plan>,
+) {
+    val isEmpty: Boolean get() = plans.isEmpty()
+}
 
 /** save の結果。一部失敗時も成功済みを明示する（計画書 Phase 8 保存の安全性）。 */
 data class SaveResult(
@@ -421,6 +431,36 @@ class WorkspaceSession private constructor(
             val known = storeTexts[id]
             known != null && store.read(id)?.text != known
         }
+
+    /**
+     * 保存時に自動で入る値（印 `auto`。architecture/schema.md「保存時に自動で入る値」）を、保存の直前に当てる。
+     * 対象の文書ごとに、保存済みの内容（persistedText。新しい文書は null）と working を比べて計画（SemanticAutoValues）を作り、
+     * 全部をまとめて 1 つのトランザクション（履歴 1 件。Undo で日付と版が戻る）として適用する。何も入れなければ履歴は増えない。
+     * スキーマの無い文書・パース不能の保存済み内容（全部を新しい要素と見る）・セッションに無い文書は、計画が空になる。
+     * 「今」は呼ぶ側が渡す（テストは固定の時刻を渡す）。
+     */
+    fun applyAutoValues(ids: Collection<DocumentId>, now: LocalDateTime): AutoValuesApplied {
+        val edits = mutableListOf<WorkspaceOperation>()
+        val plans = LinkedHashMap<DocumentId, SemanticAutoValues.Plan>()
+        for (id in ids.distinct()) {
+            val d = workingDocuments[id] ?: continue
+            val tree = d.schemaId?.let { sid -> schemas.firstOrNull { it.id == sid } }?.tree ?: continue
+            val working = d.document.documents.firstOrNull() ?: continue
+            val base = d.persistedText?.let { text ->
+                runCatching { DefaultYamlCodec.parse(id, text).documents.firstOrNull() }.getOrNull()
+            }
+            val plan = SemanticAutoValues.plan(tree, base, working, now)
+            if (plan.isEmpty) continue
+            edits += WorkspaceOperation.EditDocument(id, plan.operations)
+            plans[id] = plan
+        }
+        if (edits.isEmpty()) return AutoValuesApplied(TransactionResult(true, null, version), emptyMap())
+        val intent = ChangeIntent(
+            "自動の値を設定: " + plans.entries.joinToString("、") { (id, plan) -> "${id.value}（${plan.describe()}）" },
+        )
+        val result = apply(WorkspaceTransaction(version, intent, edits))
+        return AutoValuesApplied(result, if (result.ok) plans else emptyMap())
+    }
 
     /**
      * 文書1件を新しい内容で置き換える（Phase A-2a の併存期経路: UI（EditBuffer）の編集内容の反映）。

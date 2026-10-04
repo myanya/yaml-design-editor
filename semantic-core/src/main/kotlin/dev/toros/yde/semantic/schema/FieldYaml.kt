@@ -32,6 +32,7 @@ object FieldYaml {
         else if (f.ref == null) m["type"] = f.type.id
         if (f.required) m["required"] = true
         if (f.expression) m["expression"] = true
+        f.auto?.let { m["auto"] = it.id }
         f.requiredFrom?.let { m["requiredFrom"] = it }
         if (f.values.isNotEmpty()) {
             m["values"] = f.enumOptions().map { o ->

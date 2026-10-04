@@ -215,6 +215,14 @@ definitions:
         label: 値の式を受け取る
         type: boolean
         description: "true にすると、この項目の値は値の式でもよくなる（短い書き方＝{パス} を含む文字列・完全な書き方＝{format, with} などの式の object。式が返す値の型が type。基底の種類が string の型でのみ）。どの項目が式かはこの印だけが決め、読み取り・評価・エラーの文面は共通。使う側（例: filePattern はファイル名として）が、いまの要素を決めて評価する"
+      - key: auto
+        label: 保存時に自動で入る値
+        type: enum
+        values:
+          - { value: created, label: 作成日時, description: "要素を新しく作ったときに今の日付・時刻を入れる（値が空のときだけ。以後は触らない）。date / time / datetime 型に書く" }
+          - { value: updated, label: 更新日時, description: "要素の中身が変わって保存されるたびに今の日付・時刻を入れる。date / time / datetime 型に書く" }
+          - { value: revision, label: 版, description: "要素の中身が変わって保存されるたびに、保存済みの値 +1 を入れる（新しい要素は 1）。int 型に書く。見せ方は format（例 \"'rev-'000\" → rev-003）" }
+        description: "保存という出来事を、項目の型に合う値で記録する印。要素＝この項目を持つ object（配列の要素・文書のルート）で、中身が保存済みの内容と違うときに入る（コメントや表記の違いは数えない。要素の対応は type: id の項目があれば ID、無ければ位置）。型に書けば、その型を使う項目に引き継がれる。値の式（expression）とは併用できない"
       - key: role
         label: 表示役割
         type: enum

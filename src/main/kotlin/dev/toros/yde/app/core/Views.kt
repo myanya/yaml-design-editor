@@ -51,6 +51,7 @@ import dev.toros.yde.workspace.ViewDefinitions
 import dev.toros.yde.yaml.YamlIO
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.LocalDateTime
 
 /**
  * ビュー機構（P6 / P14）。宣言的なビュー定義（`_views` 配下のYAML）と、その解決エンジン。
@@ -248,8 +249,12 @@ object Views {
     fun scaffold(pattern: String, id: String, schemas: List<SchemaDef>): DocumentScaffold =
         DocumentScaffolds.scaffold(pattern, id, schemas.map { it.kernel })
 
-    /** スキーマ定義から必須フィールドの初期値ツリーを生成する（default 尊重・cases 対応）。 */
-    fun defaultTree(field: FieldDef, schema: SchemaDef): YNode = SchemaScaffold.defaultTree(schema.tree, field)
+    /**
+     * スキーマ定義から必須フィールドの初期値ツリーを生成する（default 尊重・cases 対応）。
+     * now を渡すと、保存時に自動で入る値（`auto`）の項目を新しい要素の値（今の日付・時刻／版 1）で埋める。
+     */
+    fun defaultTree(field: FieldDef, schema: SchemaDef, now: LocalDateTime? = null): YNode =
+        SchemaScaffold.defaultTree(schema.tree, field, now = now)
 
     // ---------------------------------------------------------------- テキスト表現（エージェント・CLI 共用）
 

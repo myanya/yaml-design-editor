@@ -751,10 +751,7 @@ Core Calculus = 定義を実行する
 
 | 既存機能 | Core Calculus 上の位置付け |
 |---|---|
-| Search | Query |
-| Traverse | Query |
-| Query Core | Query |
-| View rows | Query |
+| Search / Traverse / Query Core / View rows | Query |
 | Matrix view（クロス集計） | Query ＋ Aggregate（列を広げたグリッドへ下ろす） |
 | foreach | Query |
 | Projection | Expression |
@@ -772,13 +769,12 @@ Core Calculus = 定義を実行する
 | Transform（YAML から YAML への変換） | Query + Construct（＋Predicate＝項目を出す条件） |
 | 構造のスキーマの導出 | Construct だけ。**変換定義（YAML）**で書く |
 | Scaffold（新しい文書のひな型）・Import（skill の取り込み） | Expression（`filePattern`）＋ Construct（`scaffold`・`build`）＋ Rewrite（作成・追記と採番） |
-| Bulk edit | Query + Rewrite |
-| Schema Refactoring | Query + Rewrite |
-| Entity operations | Query + Rewrite |
+| Bulk edit / Schema Refactoring / Entity operations | Query + Rewrite |
 | Agent patch | Rewrite / Patch |
 | ChangeSet | Transaction input |
 | Workspace.apply | Transaction |
 | ユーザ定義の型 | 宣言。検証は Term の構造チェックへ導出（連鎖を基底の種類と決まりへ展開） |
+| 自動で入る値（`auto`） | Rewrite（要素 × 保存済みとの違い × SetScalar）。「今」は外からの入力 |
 
 この表を用いて、重複している実装を段階的に発見する。
 

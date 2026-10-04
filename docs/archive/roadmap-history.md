@@ -862,3 +862,19 @@ filePattern:
 | R32-05 | `each` | `{each: 配列の式, value: 式}`。各要素をいまの要素として式を当てる | 完了 |
 
 **結果**: 式の値は項と出どころ（`SemanticCheckSide.node` / `elements`）。読み出しは項を返し `[*]` は配列。`sum` / `min` / `max` / `count` は配列を受け取る関数、集合から配列へは `all`（解の一覧の形と `from` で起点を固定した照合の形。検査の中でも可）、要素ごとの式は `each`。古い書き方は定義エラーで案内。家計簿の試作で、月×費目の金額の表と「期首残高の連続」の検査（絞り方の違う 2 つの合計）が書けることを確かめた。テスト: `SemanticAllTest`・`AllFromCheckTest`・`ViewsTest`。
+
+### P34: 保存時に自動で入る値（更新日・作成日・版） ✅ 完了（2026-10-04）
+
+- **目的**: 文書や要素の更新日・作成日・版を手で書かなくてよくする。「保存という出来事」を、項目の型に合う値で記録する。第一の適用先は labs/user-man の個別ルール（README に「現在の YDE にはこの自動更新機能がない」と書かれていた）。
+- **決めたこと（オーナー 2026-10-04）**: ①入れるのは保存のとき（編集のたびではない）②履歴に載せる（Undo で日付と版が戻る）③取り込みやエージェントが新しい要素に書いた値は尊重する ④キー名は `auto` ⑤版は中身が変わった保存のたびに保存済みの値 +1・新しい要素は 1 ⑥`rev-003` は値でなく見せ方（`format: "'rev-'000"`）。
+- **設計**: 値の式にしない（P31 の「式に非決定的な値を入れない」。更新日は計算で求まる値でなく出来事の記録）。ファイルの更新日時も使わない（要素の単位にならず、Git で変わる。samples/todos の README の判断と同じ）。Core Calculus では Rewrite（印を持つ要素の列挙 × 保存済みとの違い × SetScalar）で、「今」は体系の外から渡す。samples/todos の「更新日はコメントの最大日付」はそのまま残し、両方が共存する。
+
+| ID | 項目 | 内容 | 状態 |
+|---|---|---|---|
+| R34-01 | 印と計画 | `FieldDef.auto`（`AutoValue`。型の連鎖で引き継ぐ）・`SemanticAutoValues`（要素の対応は ID か位置・`dumpPlain` で比較・自動の項目は除く・入れる値が同じなら操作を作らない）・`ValueSemantics.stamp`・ひな型 `defaultTree(now)` | ✅ 2026-10-04 |
+| R34-02 | カーネル | `WorkspaceSession.applyAutoValues`（保存の直前の 1 トランザクション）・`ChangeSetApplier`（検証の前に当てる。`now` 引数）・`SchemaDefinitionChecks`（型との適合・式との併用）・メタスキーマの `auto` | ✅ 2026-10-04 |
+| R34-03 | アプリ | `AppState.save` / `saveAll`（全文書で 1 件）/ `createDocumentFile` / 一括変更・保存の状態表示・フォームの案内文・設計 UI の選択（型に合う印だけ） | ✅ 2026-10-04 |
+| R34-04 | labs と文書 | labs/user-man の rule-detail（作成日・更新日に印・版を追加。CLI 出力は前後で一致）・manual/schema.md「保存時に自動で入る値」・manual/README・architecture/schema.md・editing-history.md・workspace.md・FEATURES E-14・CORE-CALCULUS の分類表・CLAUDE.md | ✅ 2026-10-04 |
+
+**確かめ方**: `SemanticAutoValuesTest`（変わった要素だけ・コメントや表記は数えない・同じ日は増えない・手の版より保存済み +1・ID と位置の対応・新しい文書・読めない版・ひな型）・`AutoValuesKernelTest`（セッションの 1 トランザクションと Undo・変更セットの適用・定義の点検）・`AppStateAutoValuesTest`（保存で画面の木に映る・Undo・新規作成・一括変更）。labs とサンプルの CLI `validate` / `checks` の出力は前後で一致。
+**残り**: BACKLOG UX-140（レビューの差分に自動の値の予告）・UX-141（一括変更の履歴を 1 件に）。

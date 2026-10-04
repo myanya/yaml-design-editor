@@ -13,6 +13,7 @@ import dev.toros.yde.app.schema.SchemaLoader
 import dev.toros.yde.yaml.YamlIO
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.LocalDateTime
 
 /**
  * 文書キャッシュ層の中核（R9-02）。
@@ -133,6 +134,7 @@ object WorkspaceRecords {
         ids: Collection<DocumentId>,
         key: String,
         value: String,
+        now: LocalDateTime = LocalDateTime.now(),
     ): Int {
         val documents = session.snapshot.documents
         val targets = ids.filter { id ->
@@ -151,6 +153,9 @@ object WorkspaceRecords {
             )
         )
         require(applied.ok) { applied.message ?: "一括変更を適用できません" }
+        // 一括変更も内容の更新: 保存時に自動で入る値（更新日・版）を保存の直前に当てる（履歴 1 件。無ければ増えない）
+        val stamped = session.applyAutoValues(targets, now)
+        require(stamped.result.ok) { stamped.result.message ?: "自動の値を設定できません" }
         val saved = session.save(targets.toSet())
         require(saved.ok) {
             saved.failures.entries.firstOrNull()?.let { (id, msg) -> "${id.value}: $msg" } ?: "書込に失敗しました"

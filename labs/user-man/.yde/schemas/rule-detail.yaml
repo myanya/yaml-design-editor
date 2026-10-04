@@ -46,12 +46,20 @@ root:
             label: 作成日
             type: date
             required: true
-            description: 個別ルールを作成した日。内容を変更しても維持する。
+            auto: created
+            description: 個別ルールを作成した日。新しく追加したときに自動で入り、内容を変更しても維持する。
           - key: updated_on
             label: 更新日
             type: date
             required: true
-            description: 個別ルールを最後に修正した日。現在は自動更新されないため、修正時に当日の日付を設定する。
+            auto: updated
+            description: 個別ルールを最後に修正した日。内容が変わって保存されるたびに自動で当日の日付になる。
+          - key: revision
+            label: 版
+            type: int
+            auto: revision
+            format: "'rev-'000"
+            description: 個別ルールの版。内容が変わって保存されるたびに自動で +1 される（画面では rev-001 のように見える）。
           - { key: title, label: 見出し, type: line, role: title, required: true }
           - { key: summary, label: 概要, type: text, role: subtitle, rows: 2, required: true }
           - { key: content, label: 自由記述, type: text, rows: 6, required: true }

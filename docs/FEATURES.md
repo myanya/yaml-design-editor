@@ -40,6 +40,7 @@
 | E-11 | 畳み込みサマリ（畳んだ要素の 1 行要約・既定はルートから 2 階層まで展開） | `ui/FormView.kt`, `schema/Display.kt` | 単体 `DisplayTest`, `DefaultExpandTest` | [ui](architecture/ui.md) |
 | E-12 | 閲覧専用モード（`FormCtx.readOnly`・入力欄はテキスト表示・書込は拒否・横ぐしとグリッドへ波及） | `ui/FormView.kt`（`FormCtx`）, `app/AppState.readOnlyMode` | 単体 `ReadOnlyTest` | [ui](architecture/ui.md) |
 | E-13 | 配列と map のテーブル表示（適否の自動判定と `display: table / list`・セル編集・展開フォーム・列幅） | `ui/FormView.kt`（`ObjectTable` ほか）, `schema/Display.kt`（`tableColumns`） | 単体 `DisplayTest`, `ArrayTableTest` | [ui](architecture/ui.md) |
+| E-14 | 保存時に自動で入る値（印 `auto`＝更新日・作成日・版。保存の直前の 1 トランザクション・変更セットの適用にも） | `semantic-core/semantic/AutoValues.kt`, `workspace-core/workspace/WorkspaceSession.kt` | 単体 `SemanticAutoValuesTest`, `AutoValuesKernelTest`, `AppStateAutoValuesTest` | [auto-values](architecture/auto-values.md) |
 
 ## 3. スキーマ
 

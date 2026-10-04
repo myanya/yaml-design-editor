@@ -59,6 +59,7 @@ import dev.toros.yde.yaml.model.pretty
 import dev.toros.yde.app.schema.Display
 import dev.toros.yde.yaml.validate.Severity
 import dev.toros.yde.app.validate.Validator
+import dev.toros.yde.semantic.schema.AutoValue
 import dev.toros.yde.semantic.schema.FieldDef
 import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.app.schema.effectiveFields
@@ -169,6 +170,13 @@ class FormCtx(
 }
 
 /** スキーマ定義に基づく新規ノードの初期値を作る。 */
+/** 保存時に自動で入る値（auto）の案内文（項目の説明の下に出す）。 */
+internal fun autoValueHint(auto: AutoValue): String = when (auto) {
+    AutoValue.CREATED -> "作成時に自動で入ります（空のときだけ）"
+    AutoValue.UPDATED -> "保存のときに自動で今の日付・時刻になります（中身が変わっていたとき）"
+    AutoValue.REVISION -> "保存のたびに自動で +1 されます（中身が変わっていたとき）"
+}
+
 fun defaultNode(field: FieldDef?, schema: SchemaDef? = null, depth: Int = 0): YNode {
     if (depth > 24) return YNode.Map()
     val resolved = schema?.resolve(field) ?: field
@@ -658,6 +666,8 @@ private fun FieldRow(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
                 }
                 if (!ctx.readOnly) {
                     effective.description?.let { Text(it, fontSize = 10.sp, color = Palette.SubText, maxLines = 2) }
+                    // 保存時に自動で入る値（auto）: 手で直せるが、保存のときに機械が入れることを知らせる
+                    effective.auto?.let { Text(autoValueHint(it), fontSize = 10.sp, color = Palette.SubText) }
                 }
             }
             // 検証指摘のあるフィールドは入力枠を色づけする（UX-14: エラー=赤・警告=オレンジ）

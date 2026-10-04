@@ -37,6 +37,7 @@ import dev.toros.yde.yaml.model.deepCopy
 import dev.toros.yde.app.schema.SchemaLoader
 import dev.toros.yde.semantic.RefactoringPlan
 import dev.toros.yde.semantic.RefactoringRequest
+import dev.toros.yde.semantic.SemanticAutoValues
 import dev.toros.yde.workspace.ChangeIntent
 import dev.toros.yde.workspace.ChangeRecord
 import dev.toros.yde.workspace.FileSystemDocumentStore
@@ -48,6 +49,7 @@ import dev.toros.yde.workspace.WorkspaceTransaction
 import dev.toros.yde.yaml.YamlIO
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.LocalDateTime
 import java.util.prefs.Preferences
 
 /**
@@ -934,7 +936,32 @@ class AppState {
     }
 
     fun saveAll() {
-        docCache.values.filter { it.dirty }.forEach { save(it) }
+        val dirty = docCache.values.filter { it.dirty }
+        // 自動の値（更新日・版）は全部の文書で 1 つのトランザクション＝Undo 1 回で戻る。その後に 1 文書ずつ書き出す
+        val stamped = stampAutoValues(dirty)
+        dirty.forEach { save(it, stampedBefore = stamped) }
+    }
+
+    /**
+     * 保存時に自動で入る値（architecture/schema.md「保存時に自動で入る値」）: UI の編集内容をセッションへ写してから、
+     * 保存済みの内容との違いで更新日・版を入れる（セッションの 1 トランザクション）。入った文書は UI の木をセッションから写し直す。
+     * 戻り値は文書ごとの入れた値の説明（空＝何も入らなかった）。
+     */
+    private fun stampAutoValues(docs: List<OpenDocument>): Map<DocumentId, String> {
+        val s = session ?: return emptyMap()
+        val ids = docs.mapNotNull { doc ->
+            val root = doc.root ?: return@mapNotNull null
+            val id = DocumentId(relPath(doc.file))
+            if (!s.hasDocument(id)) return@mapNotNull null
+            val replaced = s.replaceDocument(id, YDocument(id, listOf(root) + doc.extraDocs))
+            if (!replaced.ok) return@mapNotNull null
+            id
+        }
+        if (ids.isEmpty()) return emptyMap()
+        val applied = s.applyAutoValues(ids, LocalDateTime.now())
+        if (!applied.result.ok || applied.isEmpty) return emptyMap()
+        refreshDocsFromSession(applied.plans.keys)
+        return applied.plans.mapValues { (_, plan) -> plan.describe() }
     }
 
     /**
@@ -1100,7 +1127,12 @@ class AppState {
     /** 外部変更と競合中の文書（受信箱の表示用。R12-02。データの正は各 OpenDocument）。 */
     fun conflictedDocs(): List<OpenDocument> = docCache.values.filter { it.externalConflict }
 
-    private fun save(doc: OpenDocument) {
+    /**
+     * 1 文書の保存。stampedBefore は「すべて保存」が先にまとめて入れた自動の値の説明（null なら、ここで 1 文書分を入れる）。
+     * 自動の値が入るのは保存の直前で、履歴 1 件（Undo で日付と版が戻る）。入った項目は状態表示で知らせる。
+     */
+    private fun save(doc: OpenDocument, stampedBefore: Map<DocumentId, String>? = null) {
+        val stamped = stampedBefore ?: stampAutoValues(listOf(doc))
         runCatching {
             val s = session
             val root = doc.root
@@ -1134,7 +1166,9 @@ class AppState {
                 docCache.values.forEach { it.schema = schemaFor(it.file) }
                 indexVersion++
             }
-            status = "保存しました: ${relPath(doc.file)}"
+            val auto = stamped[DocumentId(relPath(doc.file))]
+            status = if (auto == null) "保存しました: ${relPath(doc.file)}"
+            else "保存しました: ${relPath(doc.file)}（自動の値を設定 → $auto。Ctrl+Z で戻せます）"
             historyNotice = null  // 保存で確定＝Undo/Redo 通知は役目を終える（UX-86）
         }.onFailure {
             status = "保存に失敗しました: ${it.message}"
@@ -1245,8 +1279,8 @@ class AppState {
         val file = parent.resolve(fileName)
         require(!Files.exists(file)) { "同名のファイルが存在します" }
         val schema = schemaFor(file)
-        // スキーマ初期値の生成は core.Views.defaultTree に一本化する（R9-02 で重複実装を解消）
-        val initial = schema?.let { dev.toros.yde.app.core.Views.defaultTree(it.root, it) } ?: YNode.Map()
+        // スキーマ初期値の生成は core.Views.defaultTree に一本化する（R9-02 で重複実装を解消）。自動の値は今の日付・版 1
+        val initial = schema?.let { dev.toros.yde.app.core.Views.defaultTree(it.root, it, LocalDateTime.now()) } ?: YNode.Map()
         createDocumentFile(file, initial, "新規作成: ${relPath(file)}")
     }
 
@@ -1320,6 +1354,8 @@ class AppState {
         require(target.startsWith(ws)) { "ワークスペース外には作成できません: $target" }
         require(!Files.exists(target)) { "既に同名のファイルが存在します: ${relPath(target)}" }
         val id = DocumentId(relPath(target))
+        // 保存時に自動で入る値（auto）: 新しい文書は全部が新しい要素＝空の作成日・更新日・版を今の値で埋める（作成と同じ 1 件の履歴）
+        schemaFor(target)?.let { SemanticAutoValues.stamp(it.tree, null, root, LocalDateTime.now()) }
         val s = session
         if (s != null && !s.hasDocument(id) && !WorkspaceReader.hiddenPath(id.value, s.layout)) {
             val applied = s.apply(
@@ -1371,7 +1407,8 @@ class AppState {
         val schema = schemaFor(file)
         val itemDef = schema?.let { dev.toros.yde.app.core.Views.fieldAt(it, root, def.path)?.item }
         seq.items.add(
-            if (schema != null && itemDef != null) dev.toros.yde.app.core.Views.defaultTree(itemDef, schema) else YNode.Map()
+            if (schema != null && itemDef != null) dev.toros.yde.app.core.Views.defaultTree(itemDef, schema, LocalDateTime.now())
+            else YNode.Map()
         )
         doc.markEdited()
         def.path + (seq.items.size - 1)

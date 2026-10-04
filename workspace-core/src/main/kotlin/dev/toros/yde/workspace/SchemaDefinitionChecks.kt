@@ -1,5 +1,6 @@
 package dev.toros.yde.workspace
 
+import dev.toros.yde.semantic.schema.AutoValue
 import dev.toros.yde.semantic.schema.DefinitionKey
 import dev.toros.yde.semantic.schema.FieldDef
 import dev.toros.yde.semantic.schema.FieldRole
@@ -213,6 +214,18 @@ object SchemaDefinitionChecks {
             }
             if (f.expression && !stringy) {
                 issues += SchemaIssue("expression（値の式を受け取る印）は string / text 型でのみ使用できます", path)
+            }
+            // 保存時に自動で入る値（印 auto）: 日付・時刻・日時には created / updated、int には revision。式とは併用できない
+            f.auto?.let { auto ->
+                val fits = if (auto == AutoValue.REVISION) f.type == FieldType.INT else f.type.value != null
+                if (!fits) {
+                    issues += SchemaIssue(
+                        if (auto == AutoValue.REVISION) "auto: revision（保存のたびに +1）は int 型でのみ使用できます"
+                        else "auto: ${auto.id}（保存時に入る日付・時刻）は date / time / datetime 型でのみ使用できます",
+                        path,
+                    )
+                }
+                if (f.expression) issues += SchemaIssue("auto（保存時に自動で入る値）と expression（値の式）は同じ項目に書けません", path)
             }
             // pattern は文字列として直列化される種類（string と、意味の基底型 id / ref / date / time / datetime）に書ける（ID の形式の強制 UX-79 を含む）
             if (f.pattern != null && !f.type.isTextual) {

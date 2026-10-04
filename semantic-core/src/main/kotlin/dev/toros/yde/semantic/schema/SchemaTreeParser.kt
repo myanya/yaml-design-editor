@@ -128,6 +128,9 @@ object SchemaTreeParser {
             required = (m["required"] as? Boolean) ?: false,
             requiredFrom = m["requiredFrom"]?.toString(),
             expression = (m["expression"] as? Boolean) ?: false,
+            auto = m["auto"]?.toString()?.let { raw ->
+                AutoValue.parse(raw) ?: error("auto（保存時に自動で入る値）は created / updated / revision のいずれかである必要があります: $raw")
+            },
             values = options.map { it.value },
             role = FieldRole.parse(m["role"]?.toString()),
             cases = cases,

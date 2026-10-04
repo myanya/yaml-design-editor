@@ -44,6 +44,16 @@ enum class ValueSemantics(
     /** 正準の形か（形式の検証と同じ規則）。 */
     fun isCanonical(text: String): Boolean = regex.matches(text.trim())
 
+    /**
+     * 「今」をこの種類の正準の形の文字にする（保存時に自動で入る値 `auto: created / updated`。SemanticAutoValues が使う）。
+     * 日付は yyyy-MM-dd・時刻は HH:mm:ss・日時は yyyy-MM-dd HH:mm:ss（直列化は文字列のまま。表示の形は ValueFormat）。
+     */
+    fun stamp(now: LocalDateTime): String = when (this) {
+        DATE -> now.toLocalDate().format(DateTimeFormatter.ISO_LOCAL_DATE)
+        TIME -> now.toLocalTime().format(STAMP_TIME)
+        DATETIME -> now.format(STAMP_DATETIME)
+    }
+
     /** 値として読む（存在しない日付・時刻は null）。正準の形であることは前提にしない。表示の形（ValueFormat）はこの値を整形する。 */
     abstract fun parse(text: String): TemporalAccessor?
 
@@ -66,5 +76,8 @@ enum class ValueSemantics(
 
     companion object {
         fun of(id: String?): ValueSemantics? = entries.firstOrNull { it.id == id }
+
+        private val STAMP_TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
+        private val STAMP_DATETIME: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
     }
 }

@@ -253,6 +253,25 @@ data class FieldHints(
 }
 
 /**
+ * 保存時に自動で入る値（印 `auto`。architecture/schema.md「保存時に自動で入る値」）: 保存という出来事を、項目の型に合う値で記録する。
+ * - created / updated は日付・時刻・日時の型（ValueSemantics を持つ型）に書き、値は「今」
+ * - revision は int 型に書き、値は「保存済みの値 +1」（新しい要素は 1）
+ * どの項目が自動かはこの印だけが知り、計画は semantic.SemanticAutoValues・型との適合は定義の点検（SchemaDefinitionChecks）。
+ */
+enum class AutoValue(val id: String, val label: String) {
+    /** 要素を新しく作ったときに入る（値が空のときだけ。以後は触らない）。 */
+    CREATED("created", "作成日時"),
+    /** 要素の中身が変わって保存されるたびに入る。 */
+    UPDATED("updated", "更新日時"),
+    /** 要素の中身が変わって保存されるたびに +1（保存済みの値から数える。新しい要素は 1）。 */
+    REVISION("revision", "版");
+
+    companion object {
+        fun parse(raw: String?): AutoValue? = raw?.let { r -> entries.firstOrNull { it.id == r } }
+    }
+}
+
+/**
  * スキーマ内の 1 フィールド定義。表示と編集のためのヒントは hints にまとめてある（label などの読み出しは、今までどおり項目から直接できる）。
  */
 data class FieldDef(
@@ -301,6 +320,11 @@ data class FieldDef(
      * 式が返す値の型が type。どの項目が式かはこの印だけが知り、読み取りは schema.ExpressionFields・評価は semantic.SemanticValues。
      */
     val expression: Boolean = false,
+    /**
+     * 保存時に自動で入る値の印（`auto: created / updated / revision`）。型の連鎖で引き継ぐ（使う側に書けば優先）。
+     * 読むのは計画（semantic.SemanticAutoValues）・ひな型の初期値・フォームの案内・定義の点検だけで、検証・走査・検査は読まない。
+     */
+    val auto: AutoValue? = null,
     /** 表示と編集のためのヒント（検証・走査・検査は読まない）。 */
     val hints: FieldHints = FieldHints(),
     /**

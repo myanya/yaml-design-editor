@@ -1,5 +1,6 @@
 package dev.toros.yde.workspace
 
+import dev.toros.yde.semantic.SemanticAutoValues
 import dev.toros.yde.workspace.changeset.ChangeSet
 import dev.toros.yde.workspace.changeset.ChangeSets
 import dev.toros.yde.workspace.changeset.FileChange
@@ -11,6 +12,7 @@ import dev.toros.yde.workspace.layout.WorkspaceLayout
 import dev.toros.yde.workspace.validate.CheckIssue
 import dev.toros.yde.yaml.validate.Severity
 import dev.toros.yde.yaml.YamlIO
+import java.time.LocalDateTime
 
 /** 変更セットの適用の、文書1つ分の結果。 */
 data class DocumentChangeResult(
@@ -44,10 +46,13 @@ data class ChangeSetApplication(
  * - requireValid = true では、適用後に検証のエラーが残る場合も書き込まない。
  * - 書き込みは、セッションの1つのトランザクション（CreateDocument / ReplaceDocument）＋保存（ストアの atomic な書き込み）。
  *   Undo 1回で全部の文書が戻る。
+ * - 保存時に自動で入る値（印 `auto`。SemanticAutoValues）は、操作を当てた後・検証の前に、適用後の木へ入れる
+ *   （必須の更新日が無い新しい要素も通る。同じトランザクションに含まれ、Undo 1回で一緒に戻る）。「今」は now で渡す。
  */
 object ChangeSetApplier {
 
-    private class Staged(val change: FileChange, val id: DocumentId, val newRoot: YNode)
+    /** 適用後の木と、保存済みの内容の木（新しい文書は null。保存時に自動で入る値の比較の元）。 */
+    private class Staged(val change: FileChange, val id: DocumentId, val newRoot: YNode, val baseRoot: YNode?)
 
     /**
      * base は、競合の判定と検証の基準にするセッション（ストアの内容を映したもの）。target は、書き込み先のセッション
@@ -59,17 +64,19 @@ object ChangeSetApplier {
         dryRun: Boolean = false,
         requireValid: Boolean = false,
         target: WorkspaceSession = base,
+        now: LocalDateTime = LocalDateTime.now(),
     ): ChangeSetApplication {
         val results = mutableListOf<DocumentChangeResult>()
         val staged = mutableListOf<Staged>()
         var failed = false
+        val layout = base.layout
 
         for (change in changeSet.changes) {
             val outcome = runCatching {
                 val id = DocumentId(normalize(change.file))
-                if (change.create) {
+                val stagedChange = if (change.create) {
                     require(base.storedText(id) == null) { "競合: 既に同名のファイルが存在します: ${change.file}" }
-                    Staged(change, id, change.content ?: error("createにはcontentが必要です"))
+                    Staged(change, id, change.content ?: error("createにはcontentが必要です"), baseRoot = null)
                 } else {
                     val stored = base.storedText(id) ?: error("ファイルが存在しません: ${change.file}")
                     if (change.baseHash != null && ChangeSets.contentHash(stored) != change.baseHash) {
@@ -77,8 +84,13 @@ object ChangeSetApplier {
                     }
                     val tree = YamlIO.parse(stored)
                     change.ops.forEach { Patcher.apply(tree, it) }
-                    Staged(change, id, tree)
+                    Staged(change, id, tree, baseRoot = YamlIO.parse(stored))
                 }
+                // 保存時に自動で入る値: 適用後の木に、保存済みの内容との違いから入れる（検証の前）
+                schemaIdFor(id.value, YDocument(id, listOf(stagedChange.newRoot)), base.schemas, layout)
+                    ?.let { sid -> base.schemas.firstOrNull { it.id == sid }?.tree }
+                    ?.let { tree -> SemanticAutoValues.stamp(tree, stagedChange.baseRoot, stagedChange.newRoot, now) }
+                stagedChange
             }
             outcome.onSuccess { staged += it }.onFailure {
                 failed = true
@@ -89,7 +101,6 @@ object ChangeSetApplier {
         // 適用後の姿を重ねた走査結果の上で検証する（書き込みの前）。他の文書の中身も、適用後の姿で読む（索引と同じ基準を保つ。R16-03a）
         val overlays = staged.associate { it.id to YDocument(it.id, listOf(it.newRoot)) }
         val derived = base.derivedWith(overlays)
-        val layout = base.layout
         val documents = LinkedHashMap(base.snapshot.documents)
         for ((id, document) in overlays) {
             documents[id] = WorkspaceDocument(

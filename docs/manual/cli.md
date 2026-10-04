@@ -20,7 +20,7 @@ GUIを起動せずに、ワークスペースの探索・検索・部分変更�
 ./gradlew runCli -q --args="bench --modules 2,4,8,16"                    # 規模の計測（合成ワークスペースを作り、開く・全体の検証・準備完了レポートの時間と、規模に対する伸び方を出す。--keep <dir> で作ったものを残す）
 ./gradlew runCli -q --args="checks sample-workspace --definitions"        # 展開後の検査の表示（語彙・定義の使用が、どんな基本の検査へ展開されたか。--definitions で定義と語彙の一覧も）
 ./gradlew runCli -q --args="hash sample-workspace path/to/doc.yaml"       # 変更セットの base に使う内容ハッシュ
-./gradlew runCli -q --args="apply sample-workspace changeset.yaml --dry-run"  # 変更セットの適用（ドライラン）
+./gradlew runCli -q --args="apply sample-workspace changeset.yaml --dry-run"  # 変更セットの適用（ドライラン。適用のときは保存時に自動で入る値＝更新日・版も入る）
 ./gradlew runCli -q --args="entity my-ws show SCR-001"                    # エンティティ全体像（アスペクト合成・関係・被参照。エンティティページ・read_entity と同じ合成）
 
 # 変更系リファクタリング（エンティティ改名・統合・削除／ファイル移動／スキーマ・リファクタリング）は

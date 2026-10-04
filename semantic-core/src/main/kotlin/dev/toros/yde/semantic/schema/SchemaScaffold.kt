@@ -1,7 +1,9 @@
 package dev.toros.yde.semantic.schema
 
+import dev.toros.yde.semantic.SemanticAutoValues
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.YamlIO
+import java.time.LocalDateTime
 
 /**
  * 利用者が書いたスキーマの木から、文書の中身を作る（P27 段D の D-c で、root の core/Views と schema/Schema から移した）。
@@ -11,8 +13,12 @@ import dev.toros.yde.yaml.YamlIO
  */
 object SchemaScaffold {
 
-    /** スキーマ定義から必須フィールドの初期値ツリーを生成する（default 尊重・cases 対応）。 */
-    fun defaultTree(schema: SchemaTree, field: FieldDef = schema.root, depth: Int = 0): YNode {
+    /**
+     * スキーマ定義から必須フィールドの初期値ツリーを生成する（default 尊重・cases 対応）。
+     * now を渡すと、保存時に自動で入る値（印 `auto`）の項目を、新しい要素の値（今の日付・時刻／版 1）で埋める
+     * （「追加」「作成」の直後から必須の検証に通り、保存の計画と同じ値になる）。渡さなければ今までどおり。
+     */
+    fun defaultTree(schema: SchemaTree, field: FieldDef = schema.root, depth: Int = 0, now: LocalDateTime? = null): YNode {
         if (depth > 24) return YNode.Map()
         val f = schema.resolve(field) ?: field
         if (f.default != null) return YamlIO.fromAny(f.default)
@@ -20,12 +26,16 @@ object SchemaScaffold {
             FieldType.OBJECT -> {
                 val entries = LinkedHashMap<String, YNode>().apply {
                     f.fields.filter { it.required && it.key != null }
-                        .forEach { put(it.key!!, defaultTree(schema, it, depth + 1)) }
+                        .forEach { put(it.key!!, defaultTree(schema, it, depth + 1, now)) }
                 }
                 val map = YNode.Map(entries)
                 schema.effectiveFields(f.fields, map).fields.forEach { child ->
                     val key = child.key ?: return@forEach
-                    if (child.required && key !in entries) entries[key] = defaultTree(schema, child, depth + 1)
+                    if (child.required && key !in entries) entries[key] = defaultTree(schema, child, depth + 1, now)
+                    if (now != null) {
+                        val resolved = schema.resolve(child) ?: child
+                        SemanticAutoValues.initialValue(resolved, now)?.let { entries[key] = YNode.Scalar(it) }
+                    }
                 }
                 map
             }

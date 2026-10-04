@@ -144,6 +144,7 @@ data class SchemaTree(
             cases = def.cases.ifEmpty { use.cases },
             role = use.role ?: def.role,
             expression = use.expression || def.expression,
+            auto = use.auto ?: def.auto,
             hints = hints,
             minLength = maxOfNullable(use.minLength, def.minLength),
             maxLength = minOfNullable(use.maxLength, def.maxLength),

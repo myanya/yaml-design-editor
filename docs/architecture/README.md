@@ -11,6 +11,7 @@
 | [editing-history.md](editing-history.md) | 編集の経路・履歴と dirty・履歴の合体・ソースとの同期・文書の作成と削除 |
 | [index-references.md](index-references.md) | 索引の二層・オーバーレイ・ID と参照の意味・場所は文書ID・表示解決 |
 | [schema.md](schema.md) | スキーマの読み込み・`$ref` と実効フィールド・フェーズ・推測とメタスキーマと派生・構造スキーマの導出・値の式・リファクタリング・ひな型 |
+| [auto-values.md](auto-values.md) | 保存時に自動で入る値（印 `auto`＝更新日・作成日・版）: 計画は Rewrite・当てる場所は保存の直前と変更セットの適用と新しい要素 |
 | [graph-query.md](graph-query.md) | エンティティ型と関係レジストリ・導出グラフ・クエリコア・線の意味・エンティティ操作・エンティティページ |
 | [checks.md](checks.md) | 定義層の 3 段・検査の書き方・専用チェッカー・4 つの結果・指摘の出どころ・評価は 1 回・配り方・文書 1 つの検証 |
 | [transform.md](transform.md) | YAML から YAML への変換・計算列と決定論的射影 |
