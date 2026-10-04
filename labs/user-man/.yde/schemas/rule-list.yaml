@@ -1,0 +1,27 @@
+id: rule-list
+name: ルール一覧
+match: 10_specs/20_rules/0000-rule-lists.yaml
+description: ルールのID・タイトル・概要を管理する。本文は同じIDの詳細文書に記述する。
+entity:
+  type: rule
+  idPattern: RULE-*
+  defines: true
+coverage:
+  - description: 一覧のルールに同じIDの詳細文書が存在すること。
+    detailIn:
+      schemaIds: [rule-detail]
+    level: warning
+root:
+  type: object
+  fields:
+    - key: rules
+      label: ルール一覧
+      type: array
+      display: list
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: id, label: ルールID, type: id, pattern: 'RULE-[0-9]{4}', required: true }
+          - { key: title, label: タイトル, type: line, role: title, required: true }
+          - { key: summary, label: 概要, type: text, role: subtitle, rows: 3, required: true }

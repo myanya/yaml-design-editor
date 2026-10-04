@@ -1,0 +1,11 @@
+id: rule-relations
+kind: relations
+entities:
+  - { type: rule, label: ルール }
+relations:
+  - name: derived-from
+    label: 導出元
+    inverseLabel: 導出先
+    source: [rule]
+    target: [rule]
+    description: 新しいルールから、その導出元となるルールを参照する。親子関係とは区別する。

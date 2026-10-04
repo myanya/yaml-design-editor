@@ -1,0 +1,82 @@
+id: system-overview
+name: システム概要
+match: 10_specs/10_overview/overview.yaml
+description: システムの位置付け、提供範囲、技術構成、重要な前提を段階的に記述する。
+
+root:
+  type: object
+  fields:
+    - key: name
+      label: システム名
+      type: line
+      role: title
+      required: true
+    - key: overview
+      label: 概要
+      type: text
+      rows: 6
+      required: true
+      description: 対象とするシステム、本システムの位置付け、提供・利用の形態を記述する。
+    - key: purpose
+      label: システム化の目的
+      type: text
+      rows: 4
+      description: 解決したい課題や達成したい目的が具体化した段階で記入する。
+    - key: provided_features
+      label: 提供機能一覧
+      type: array
+      display: list
+      description: 各機能の名称と、概要段階での役割・提供内容を記述する。
+      item:
+        type: object
+        fields:
+          - { key: name, label: 機能名, type: line, role: title, required: true }
+          - { key: description, label: 機能説明, type: text, rows: 5, required: true }
+    - key: excluded_features
+      label: 提供外機能
+      type: array
+      item: { type: line }
+    - key: architecture
+      label: アーキテクチャ
+      type: object
+      fields:
+        - { key: framework, label: フレームワーク, type: line }
+        - { key: language, label: 開発言語, type: line }
+        - { key: persistence, label: データアクセス, type: line }
+        - { key: authentication_authorization, label: 認証・認可, type: line }
+        - { key: frontend, label: フロントエンド, type: line }
+        - { key: development_database, label: 開発用データベース, type: line }
+        - key: verification_production_databases
+          label: 検証・商用データベースの選択肢
+          type: array
+          description: 採用可能な候補を列挙するもので、同時使用を意味しない。
+          item: { type: line }
+        - key: deployment_environments
+          label: 対応する稼働環境
+          type: array
+          item: { type: line }
+        - key: database_policy
+          label: データベースの方針
+          type: text
+          rows: 3
+        - { key: session_store, label: セッション管理, type: line }
+    - key: important_points
+      label: 重要事項
+      type: array
+      display: list
+      description: 概要段階の前提を記述する。詳細な条件や権限範囲はルール側で定義する。
+      item:
+        type: object
+        fields:
+          - { key: title, label: 見出し, type: line, role: title, required: true }
+          - { key: description, label: 内容, type: text, rows: 5, required: true }
+    - key: principal_entities
+      label: 想定する主要エンティティ
+      type: array
+      display: list
+      description: 概要段階の候補。エンティティ定義やIDの採番は詳細化の際に行う。
+      item:
+        type: object
+        fields:
+          - { key: name, label: エンティティ名, type: line, role: title, required: true }
+          - { key: description, label: エンティティの説明, type: text, rows: 5, required: true }

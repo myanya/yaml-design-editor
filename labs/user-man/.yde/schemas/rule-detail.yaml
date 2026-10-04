@@ -1,0 +1,43 @@
+id: rule-detail
+name: ルール詳細
+match: 10_specs/20_rules/RULE-*.yaml
+description: 1トピックを1文書に記述する。タイトルと文書全体の概要は一覧で管理する。
+entity:
+  type: rule
+  idPattern: RULE-*
+  aspect: detail
+root:
+  type: object
+  fields:
+    - key: id
+      label: ルールID
+      type: id
+      pattern: 'RULE-[0-9]{4}'
+      required: true
+      description: 一覧と同じIDを指定する。親子関係をIDの階層で表現しない。
+    - key: derived_from
+      label: 導出元ルール
+      type: array
+      description: 導出元を複数指定できる。導出元側には逆方向の参照を記録しない。
+      item:
+        type: ref
+        idPatterns: [RULE-*]
+        scope:
+          schemaIds: [rule-list]
+        relation: derived-from
+    - key: sections
+      label: 本文
+      type: array
+      display: list
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: title, label: 見出し, type: line, role: title, required: true }
+          - { key: summary, label: 概要, type: text, role: subtitle, rows: 2, required: true }
+          - { key: content, label: 自由記述, type: text, rows: 6, required: true }
+          - key: decision_reason
+            label: 決定理由
+            type: text
+            rows: 3
+            description: この本文項目の決定に対応する理由を記述する。
