@@ -6,16 +6,24 @@ derived_from:
 
 sections:
   - id: RITM-0140
+    rule_type: system
+    category: notification
+    tags: [メール, 画面内表示]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 通知手段
     summary: 本システムの通知手段は、メールと画面内表示とする。
     content: |
       利用者への通知は、この2つの手段で提供する。
 
   - id: RITM-0141
+    rule_type: system
+    category: notification
+    tags: [本人情報, 変更通知, テナント設定]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 本人情報の変更通知
     summary: 本人の情報が変更された場合に、原則としてメールで本人へ通知できるようにする。
     content: |
@@ -23,8 +31,12 @@ sections:
       自動通知の基本的な対象は、本人情報の変更とする。
 
   - id: RITM-0142
+    rule_type: ui_design
+    category: notification
+    tags: [一時通知, ログイン中, 画面内表示]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: ログイン中の一時的な通知
     summary: ワーニング等の一時的な通知は、ユーザがログイン中であれば画面内で表示する。
     content: |
@@ -32,16 +44,24 @@ sections:
       テナント全員への周知は、「トップページのお知らせ」に従う。
 
   - id: RITM-0143
+    rule_type: architecture
+    category: notification
+    tags: [SMTP, 差出人, 共通設定]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: メールの接続設定と差出人
     summary: メールサーバの接続設定と差出人のドメインはシステム共通とし、差出人アドレスは原則テナントごとに払い出す。
     content: |
       差出人の表示名は、テナントごとに設定できるようにする。
 
   - id: RITM-0144
+    rule_type: operation
+    category: notification
+    tags: [変更通知, 送信失敗, 再送]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 本人情報の変更通知の送信失敗
     summary: 本人情報の変更通知メールは、送信に失敗しても再送しない。
     content: |
@@ -50,16 +70,24 @@ sections:
       あくまで情報変更の通知であり、届かなかったことによる不利益は大きくないと想定する。
 
   - id: RITM-0145
+    rule_type: operation
+    category: notification
+    tags: [ジョブ, 実行結果, 管理画面]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: ジョブの実行結果の確認
     summary: 一般的なジョブの実行成否は個別に通知せず、管理画面で確認する。
     content: |
       予約便などのジョブの実行結果は、管理者等が管理画面を開いて確認する運用とする。
 
   - id: RITM-0146
+    rule_type: business
+    category: notification
+    tags: [お知らせ, テナント全員]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: トップページのお知らせ
     summary: テナント管理者がアナウンスを追加できるお知らせ枠をトップページに設ける。
     content: |
@@ -69,8 +97,12 @@ sections:
       本システムはポータルサイトではないため、お知らせは最低限の機能とする。
 
   - id: RITM-0147
+    rule_type: system
+    category: notification
+    tags: [お知らせ, 掲載期間, 既読管理]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: お知らせの掲載期間と閲覧状態
     summary: お知らせの掲載開始・終了日時を設定できるようにし、既読管理は行わない。
     content: |
@@ -79,16 +111,24 @@ sections:
       お知らせの機能をシンプルに保つ。
 
   - id: RITM-0148
+    rule_type: system
+    category: notification
+    tags: [多言語, 本人設定, 既定言語]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 自動通知の言語
     summary: 自動通知には本人の表示言語を使い、未設定の場合はテナントの既定言語を使う。
     content: |
       本人が保存した表示言語設定を優先する。
 
   - id: RITM-0149
+    rule_type: system
+    category: notification
+    tags: [テンプレート, テナント設定]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 自動通知の文面
     summary: 自動通知の文面はテナント側で編集できるようにする。
     content: |

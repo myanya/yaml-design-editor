@@ -6,8 +6,12 @@ derived_from:
 
 sections:
   - id: RITM-0101
+    rule_type: ui_design
+    category: ui
+    tags: [PC, 対象端末]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 対象端末
     summary: 本システムの画面はPCを対象とする。
     content: |
@@ -15,8 +19,12 @@ sections:
       スマートフォン・タブレット向けの画面対応は不要とする。
 
   - id: RITM-0102
+    rule_type: ui_design
+    category: ui
+    tags: [デジタル庁, デザインシステム, アクセシビリティ]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: デザインの基準
     summary: デジタル庁デザインシステムを採用する。
     content: |
@@ -27,8 +35,12 @@ sections:
       デジタル庁デザインシステムを、よくできたデザインシステムとして評価しているため。
 
   - id: RITM-0103
+    rule_type: ui_design
+    category: ui
+    tags: [共通デザイン, カスタマイズ, CSS]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 共通デザインと利用側のカスタマイズ
     summary: 共通デザインを基本とし、ヘッダ・フッタ等の表示コンテンツとCSSをカスタマイズ可能にする。
     content: |
@@ -38,8 +50,12 @@ sections:
       設定ファイルによる変更も許容するが、基本的には開発ベンダが直接カスタマイズすることを想定する。
 
   - id: RITM-0104
+    rule_type: ui_design
+    category: ui
+    tags: [カスタマイズ, 開発ベンダ, ガイドライン]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: カスタマイズガイドライン
     summary: 導入先システムの開発ベンダ向けに、画面のカスタマイズガイドラインを整備する。
     content: |
@@ -48,8 +64,12 @@ sections:
       導入先の開発ベンダが直接カスタマイズする運用を想定しているため。
 
   - id: RITM-0105
+    rule_type: ui_design
+    category: ui
+    tags: [テナント設定, ロゴ, テーマカラー]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: テナント別の表示設定
     summary: テナント名の表示、ロゴ、テーマカラーをテナントごとに設定できるようにする。
     content: |
@@ -58,16 +78,24 @@ sections:
       これらを超えるカスタマイズは、「共通デザインと利用側のカスタマイズ」の仕組みで対応する。
 
   - id: RITM-0106
+    rule_type: ui_design
+    category: ui
+    tags: [多言語, 対応言語]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 表示言語
     summary: 日本語・英語・中国語（簡体字・繁体字）・韓国語に対応する。
     content: |
       その他の言語は、必要に応じて対応する。
 
   - id: RITM-0107
+    rule_type: ui_design
+    category: ui
+    tags: [表示言語, 本人設定, 既定言語]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 表示言語の選択と保存
     summary: ユーザ本人が表示言語を選択し、その設定を保存できるようにする。
     content: |
@@ -75,8 +103,12 @@ sections:
       ログイン前は、ブラウザの言語設定よりもテナントの既定言語を優先する。
 
   - id: RITM-0108
+    rule_type: ui_design
+    category: ui
+    tags: [ブラウザ, 対応環境]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 対応ブラウザ
     summary: PCの対応ブラウザは特定の製品に限定せず、基本的に最新版を対象とする。
     content: |

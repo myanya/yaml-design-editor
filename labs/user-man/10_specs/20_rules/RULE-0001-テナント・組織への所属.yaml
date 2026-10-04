@@ -5,8 +5,12 @@ derived_from:
 
 sections:
   - id: RITM-0001
+    rule_type: business
+    category: tenant
+    tags: [組織, テナント分離]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 組織のテナント所属
     summary: 組織は必ず1つのテナントに所属する。
     content: |
@@ -14,8 +18,12 @@ sections:
       テナントに所属しない組織は認めない。
 
   - id: RITM-0002
+    rule_type: business
+    category: tenant
+    tags: [ユーザ, テナント分離, メールアドレス]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: テナントごとのユーザ
     summary: 同一メールアドレスであっても、別テナントでは独立したユーザとして管理する。
     content: |
@@ -23,8 +31,12 @@ sections:
       これは疑似的な複数テナントへの所属であり、各テナントのユーザはそれぞれ独立して扱う。
 
   - id: RITM-0003
+    rule_type: business
+    category: organization
+    tags: [所属, 本務, 兼務]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 所属組織と本務・兼務
     summary: 本務は必ず1組織とし、兼務は0組織以上とする。
     content: |
@@ -35,8 +47,12 @@ sections:
       例えば、組織長が上位の組織に直接所属できるが、そのような所属を組織長だけに限定しない。
 
   - id: RITM-0004
+    rule_type: business
+    category: authorization
+    tags: [所属, ロール]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 所属組織ごとの権限
     summary: 権限の違いは、所属先組織ごとに設定するロールで管理する。
     content: |
@@ -44,8 +60,12 @@ sections:
       本務と兼務の区別自体には、権限上の違いを設けない。
 
   - id: RITM-0005
+    rule_type: business
+    category: user_management
+    tags: [システム管理者, テナント管理者, 所属]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 管理者の所属
     summary: システム管理者はテナント外の存在とし、テナント管理者には通常の所属ルールを適用する。
     content: |
@@ -54,8 +74,12 @@ sections:
       テナント管理者と他のテナント内ユーザとの違いは権限であり、組織所属と本務・兼務のルールに例外を設けない。
 
   - id: RITM-0006
+    rule_type: business
+    category: user_management
+    tags: [組織異動, テナント分離]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 所属先の変更
     summary: 同一テナント内の組織異動を提供し、テナントをまたぐ異動は認めない。
     content: |
@@ -63,8 +87,12 @@ sections:
       別テナントへのユーザの異動はできない。
 
   - id: RITM-0007
+    rule_type: system
+    category: authentication
+    tags: [テナント切替, ログイン, ログアウト]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: テナントの切替とログイン
     summary: テナントごとにログイン画面のURLを分け、別テナントの利用にはログアウト後の再ログインを行う。
     content: |

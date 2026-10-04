@@ -2,8 +2,12 @@ id: RULE-0002
 
 sections:
   - id: RITM-0008
+    rule_type: business
+    category: tenant
+    tags: [テナント分離, 不可侵]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: テナント相互の不可侵
     summary: テナント分離をシステムの原理原則とする。
     content: |

@@ -42,6 +42,54 @@ root:
             pattern: 'RITM-[0-9]{4}'
             required: true
             description: 全ての本文項目に文書をまたいで一意のIDを付与する。文書IDや項目の位置をIDに含めない。
+          - key: rule_type
+            label: ルール区分
+            type: enum
+            required: true
+            description: ルールの性質を1つ選ぶ。複数の性質を持つ場合は主となるものを選ぶ。
+            values:
+              - { value: business, label: 業務, description: 業務上の原則・制約・役割を定める。 }
+              - { value: system, label: システム, description: システムの振る舞い・入力制約・処理条件を定める。 }
+              - { value: architecture, label: アーキテクチャ, description: 技術構成・分割・連携方式を定める。 }
+              - { value: operation, label: 運用, description: 運用手順・保管・点検・障害対応を定める。 }
+              - { value: ui_design, label: 画面デザイン, description: 画面の表現・操作・利用環境を定める。 }
+          - key: category
+            label: 分類
+            type: enum
+            required: true
+            description: 個別ルールが主に扱う主題を1つ選ぶ。補足する主題はタグで表す。
+            values:
+              - { value: tenant, label: テナント }
+              - { value: organization, label: 組織・グループ }
+              - { value: user_management, label: ユーザ管理 }
+              - { value: authorization, label: 認可 }
+              - { value: architecture, label: アーキテクチャ }
+              - { value: authentication, label: 認証 }
+              - { value: session, label: セッション }
+              - { value: audit, label: 監査 }
+              - { value: reservation, label: 変更予約 }
+              - { value: ui, label: 画面 }
+              - { value: identifier, label: ID体系 }
+              - { value: password, label: パスワード }
+              - { value: notification, label: 通知 }
+              - { value: log, label: ログ・履歴 }
+          - key: tags
+            label: タグ
+            type: array
+            description: 横断検索に使う補足キーワードを自由入力する。複数指定でき、該当がなければ空にする。
+            item:
+              type: line
+              minLength: 1
+          - key: status
+            label: ステータス
+            type: enum
+            required: true
+            default: draft
+            description: 本文の方針についての合意状態。確定は詳細設計や実装の完了を意味しない。
+            values:
+              - { value: draft, label: 草案, description: 内容を検討中の項目。 }
+              - { value: confirmed, label: 確定, description: 本文に記した方針に合意した項目。 }
+              - { value: deprecated, label: 廃止, description: 適用を終了し、参照のために残す項目。 }
           - key: created_on
             label: 作成日
             type: date

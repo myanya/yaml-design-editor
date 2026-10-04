@@ -6,8 +6,12 @@ derived_from:
 
 sections:
   - id: RITM-0013
+    rule_type: business
+    category: authorization
+    tags: [テナント設定, 下部組織, 管理範囲]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 組織の管理範囲を決めるテナント設定
     summary: 組織管理者・担当者が下部組織も変更できるかは、テナントごとに設定する。
     content: |
@@ -17,8 +21,12 @@ sections:
       テナントの運用方針に合わせて設定できるようにする。
 
   - id: RITM-0014
+    rule_type: business
+    category: authorization
+    tags: [グループ, 管理範囲]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: グループによる管理範囲
     summary: グループの対象組織のいずれかに所属するユーザを管理対象とする。
     content: |
@@ -27,8 +35,12 @@ sections:
       組織の管理範囲に関するテナント設定によって、グループ管理者として与えられた下部組織の管理範囲まで否定するものではない。
 
   - id: RITM-0015
+    rule_type: business
+    category: user_management
+    tags: [本務, 兼務, 管理範囲]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 本務・兼務と管理対象の判定
     summary: 管理対象ユーザに含めるかの判定では、本務と兼務を同じように扱う。
     content: |
@@ -36,16 +48,24 @@ sections:
       管理対象に含まれることと、そのユーザのどの情報を変更できるかは区別する。
 
   - id: RITM-0016
+    rule_type: business
+    category: user_management
+    tags: [共通情報, 本務, 管理範囲]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 個人に紐づく共通情報
     summary: 個人に紐づく共通情報は、原則として本務側だけが変更できる。
     content: |
       兼務先組織の管理者であることだけでは、そのユーザの共通情報を変更できない。
 
   - id: RITM-0017
+    rule_type: business
+    category: authorization
+    tags: [所属, 権限変更, 管理範囲]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 組織に紐づく権限情報
     summary: 組織に紐づく権限情報は、その組織について変更権限を持つ範囲でのみ変更できる。
     content: |
@@ -54,8 +74,12 @@ sections:
       本務側の管理者であることだけで、兼務先組織に紐づく権限まで変更できるものではない。
 
   - id: RITM-0018
+    rule_type: business
+    category: user_management
+    tags: [本務, 兼務, 運用例]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 本務と兼務があるユーザの例
     summary: 営業部が本務で開発部が兼務のユーザについて、各組織の管理者が変更できる情報を区別する。
     content: |

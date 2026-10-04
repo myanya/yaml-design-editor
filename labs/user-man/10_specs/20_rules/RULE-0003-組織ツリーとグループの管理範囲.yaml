@@ -2,8 +2,12 @@ id: RULE-0003
 
 sections:
   - id: RITM-0009
+    rule_type: business
+    category: organization
+    tags: [組織ツリー, 最上位組織]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 組織ツリーの構造
     summary: 自由な階層構造を認め、最上位組織は複数置ける。
     content: |
@@ -12,8 +16,12 @@ sections:
       実装上、疑似的な最上位組織を1つだけ置く方式を否定するものではない。
 
   - id: RITM-0010
+    rule_type: system
+    category: organization
+    tags: [組織ツリー, 階層制限, 性能]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 組織の最大階層
     summary: 組織の最大階層は10段とする。
     content: |
@@ -22,8 +30,12 @@ sections:
       階層の深さが性能に与える影響を考慮して、上限を設ける。
 
   - id: RITM-0011
+    rule_type: business
+    category: organization
+    tags: [グループ, 管理範囲]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: グループの位置付けと構成要素
     summary: グループは、組織を管理上の目的で仮想的にまとめるものである。
     content: |
@@ -33,8 +45,12 @@ sections:
       複数組織を一括で管理できるように、複数組織の管理権限をまとめて扱うための簡易的な考え方である。
 
   - id: RITM-0012
+    rule_type: business
+    category: organization
+    tags: [グループ, 下部組織, 管理範囲]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 下部組織を含める設定
     summary: 下部組織を含めるかどうかは、グループ全体で一律に指定する。
     content: |

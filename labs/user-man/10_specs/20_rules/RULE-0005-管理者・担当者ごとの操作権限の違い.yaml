@@ -6,8 +6,12 @@ derived_from:
 
 sections:
   - id: RITM-0019
+    rule_type: business
+    category: authorization
+    tags: [管理者, 担当者, 権限付与]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 管理者・担当者の任命と権限付与
     summary: 管理者は管理者・担当者を任命でき、担当者は担当者の権限だけを他のユーザに付与できる。
     content: |
@@ -15,8 +19,12 @@ sections:
       任命と権限付与には、管理対象の範囲とロールによる制約を適用する。
 
   - id: RITM-0020
+    rule_type: business
+    category: authorization
+    tags: [管理者, 権限付与, 権限設定]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 付与操作を管理者に限定する設定
     summary: 各権限について、付与操作を行う側を管理者に限定するかどうかを設定できる。
     content: |
@@ -24,8 +32,12 @@ sections:
       例えば、ユーザ管理者が他ユーザをユーザ管理者にする際、任命される側が事前に持つべきロールや設定の制限はない。
 
   - id: RITM-0021
+    rule_type: business
+    category: authorization
+    tags: [利用権限, 付与権限]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 利用権限と付与権限
     summary: 自分が利用できる権限と、他者に付与できる権限は別のものとして扱う。
     content: |
@@ -33,16 +45,24 @@ sections:
       一部の権限については、設定を行うユーザ自身がその利用権限を持つことを条件とする。
 
   - id: RITM-0022
+    rule_type: business
+    category: authorization
+    tags: [個人情報, 閲覧権限, 権限付与]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 個人情報閲覧権限の設定条件
     summary: 個人情報閲覧権限は、その権限を持つ管理者だけが設定できる。
     content: |
       設定を行うユーザは、管理者であり、かつ個人情報閲覧権限を持つ必要がある。
 
   - id: RITM-0023
+    rule_type: business
+    category: authorization
+    tags: [ロール, 権限設定, 管理範囲]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: ロールと権限の設定範囲
     summary: 組織・グループで設定可能なロールと、各ロールで設定可能な権限の両方を満たす必要がある。
     content: |
@@ -52,8 +72,12 @@ sections:
       操作者が変更できる範囲は、原則として操作者自身のロールに依存する。
 
   - id: RITM-0024
+    rule_type: business
+    category: authorization
+    tags: [テナントユーザ管理者, 管理範囲]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: テナントユーザ管理者
     summary: テナントユーザ管理者は、自テナントの全ユーザのユーザ情報と、ユーザ管理に関わる権限を管理できる。
     content: |
@@ -62,16 +86,24 @@ sections:
       さらに、ユーザ管理に関わる権限の各種設定を変更できる。
 
   - id: RITM-0025
+    rule_type: business
+    category: authorization
+    tags: [組織異動, 操作権限]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 組織異動の実施権限
     summary: 組織異動は、異動元・異動先の両組織の権限を持つユーザ管理者・担当者が実施できる。
     content: |
       異動を実施するユーザは、異動元と異動先の双方の組織に対する権限を持つ必要がある。
 
   - id: RITM-0026
+    rule_type: business
+    category: authorization
+    tags: [兼務, 追加, 解除]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 兼務の追加・解除の実施権限
     summary: 兼務の追加には本務側と兼務側の両組織の権限を必要とし、解除は兼務側の権限だけで実施できる。
     content: |

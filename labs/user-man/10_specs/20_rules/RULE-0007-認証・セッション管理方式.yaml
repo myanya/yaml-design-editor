@@ -6,16 +6,24 @@ derived_from:
 
 sections:
   - id: RITM-0033
+    rule_type: system
+    category: authentication
+    tags: [パスワード, 多要素認証, 対象範囲]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 認証方式の対象範囲
     summary: ID・パスワード認証を採用し、多要素認証を提供対象とする。
     content: |
       外部の認証基盤との連携は対象としない。
 
   - id: RITM-0034
+    rule_type: system
+    category: authentication
+    tags: [試行制限, 失敗回数]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 認証失敗回数による試行制限
     summary: パスワード認証と多要素認証のコード入力に、直近の一定期間の失敗回数による試行制限を設ける。
     content: |
@@ -26,8 +34,12 @@ sections:
       多要素認証のコード入力失敗にも同じ判定方法を適用する。
 
   - id: RITM-0035
+    rule_type: system
+    category: authentication
+    tags: [試行制限, 集計単位]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 認証失敗回数の集計単位と対象
     summary: テナント内の同一ユーザへの認証試行を集計し、パスワード認証と多要素認証の失敗回数を別々に管理する。
     content: |
@@ -36,8 +48,12 @@ sections:
       試行制限によって照合せずに拒否したアクセスは、新たな認証失敗回数として加算しない。
 
   - id: RITM-0036
+    rule_type: system
+    category: authentication
+    tags: [試行制限, テナント設定, 共通制約]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 認証試行制限の設定
     summary: パスワード認証と多要素認証の試行制限は、テナントごとに別々に設定できるようにする。
     content: |
@@ -46,8 +62,12 @@ sections:
       これらの設定可能範囲はシステム共通の制約とする。
 
   - id: RITM-0037
+    rule_type: system
+    category: authentication
+    tags: [多要素認証, テナント設定, 方式選択]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 多要素認証の方式とテナント設定
     summary: 認証アプリのワンタイムコードとメールでのコード送信を提供する。
     content: |
@@ -56,8 +76,12 @@ sections:
       テナントで多要素認証を必須としていない場合でも、ユーザ本人の希望で有効にできる。
 
   - id: RITM-0038
+    rule_type: system
+    category: authentication
+    tags: [多要素認証, 認証アプリ, メール]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 多要素認証の方式選択
     summary: テナントで有効な方式のうち、利用可能な方式をユーザがログイン時に選択できる。
     content: |
@@ -65,8 +89,12 @@ sections:
       認証アプリの初期設定が済んでいない場合、メール認証が有効なテナントではメール方式のみを選択できる。
 
   - id: RITM-0039
+    rule_type: system
+    category: authentication
+    tags: [多要素認証, 初期設定, 任意利用]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 任意の多要素認証の初期設定案内
     summary: 多要素認証が任意の場合、初回ログイン時に初期設定を行うかを確認し、スキップを認める。
     content: |
@@ -74,8 +102,12 @@ sections:
       初回の案内をスキップした場合、その後は自身の管理画面から初期設定を選択するまで設定フローに入らない。
 
   - id: RITM-0040
+    rule_type: system
+    category: authentication
+    tags: [多要素認証, 初期設定, テナント設定]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: テナントの多要素認証設定変更後の案内
     summary: テナントの設定が任意から必須、または無効から任意・必須へ変わった場合、次回ログイン時に初回と同様のフローを適用する。
     content: |
@@ -83,8 +115,12 @@ sections:
       その時点のテナントの必須設定とユーザの初期設定状況に従ってフローを進める。
 
   - id: RITM-0041
+    rule_type: system
+    category: authentication
+    tags: [多要素認証, 認証アプリ, 初期設定]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 認証アプリの初期設定フロー
     summary: 多要素認証を利用する必要があり、認証アプリのみ利用可能で初期設定が未完了の場合は、設定完了後に通常機能を利用できるようにする。
     content: |
@@ -96,8 +132,12 @@ sections:
       多要素認証が任意の場合の案内とスキップは、「任意の多要素認証の初期設定案内」に従う。
 
   - id: RITM-0042
+    rule_type: ui_design
+    category: authentication
+    tags: [認証アプリ, PC, QRコード]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: PC画面からの認証アプリ設定
     summary: PCの設定画面に表示するQRコードを、スマートフォン等の認証アプリで読み取る方式を想定する。
     content: |
@@ -105,8 +145,12 @@ sections:
       QRコードによる設定情報の読み取りにより、PC画面から認証アプリの初期設定を行う構成を想定する。
 
   - id: RITM-0043
+    rule_type: operation
+    category: authentication
+    tags: [多要素認証, 紛失, 初期化]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 多要素認証の手段を紛失した場合の復旧
     summary: 多要素認証の設定を初期化する機能を提供し、その権限を持つロールのユーザが実施できる。
     content: |
@@ -114,16 +158,24 @@ sections:
       基本的には、対象ユーザを操作可能なユーザ管理者やユーザ管理担当者が該当する。
 
   - id: RITM-0044
+    rule_type: system
+    category: password
+    tags: [紛失, 再設定]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: パスワードを忘れた場合の復旧
     summary: パスワードを忘れたユーザ向けに、パスワード再設定の手続きを提供する。
     content: |
       パスワードの失念には、本人がパスワードを忘れた場合の手続きから復旧する形で対応する。
 
   - id: RITM-0045
+    rule_type: architecture
+    category: tenant
+    tags: [ログインURL, パス, プロキシ]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: URLによるテナント識別
     summary: 本システムではURLのパスでテナントを識別する。
     content: |
@@ -131,24 +183,36 @@ sections:
       サブドメイン化する場合の方式検討は、利用側の責務とする。
 
   - id: RITM-0046
+    rule_type: architecture
+    category: session
+    tags: [セッションID, テナント分離, 方式検討]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: テナントごとのセッションIDの方式検討
     summary: 利用側がサブドメイン化する場合に、テナントごとにセッションIDを払い出せる方式を検討する。
     content: |
       利用側によるサブドメイン化を踏まえ、テナントごとのセッションIDの払い出しを方式検討の対象とする。
 
   - id: RITM-0047
+    rule_type: architecture
+    category: session
+    tags: [Redis, Spring Security, 共有]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: サービス間のセッション共有
     summary: マイクロサービス構成では、Redis上のセッションを共有する方式を基本とする。
     content: |
       Spring Securityの機能で他方式を採用できる場合、その方式もオプションとして利用できる構成を検討する。
 
   - id: RITM-0048
+    rule_type: system
+    category: session
+    tags: [無操作タイムアウト, テナント設定]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 無操作時のタイムアウト
     summary: 無操作時のタイムアウトの初期値は30分とする。
     content: |
@@ -157,8 +221,12 @@ sections:
       重要な情報を管理するため、無操作時のタイムアウトを短めに設定する。
 
   - id: RITM-0049
+    rule_type: system
+    category: session
+    tags: [再ログイン, 上限時間, テナント設定]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 再ログインまでの上限時間
     summary: 操作を継続している場合でも再ログインを要求する上限時間を設け、初期値は12時間とする。
     content: |
@@ -168,8 +236,12 @@ sections:
       業務での使用を想定した時間とする。
 
   - id: RITM-0050
+    rule_type: system
+    category: session
+    tags: [複数ログイン, 端末, ブラウザ]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 同一テナント内の複数ログイン
     summary: 同じユーザの複数端末・ブラウザからのログインについて、特別な制御を行わない。
     content: |
@@ -177,16 +249,24 @@ sections:
       実際に複数ログインできるかは端末やブラウザの仕様にも依存するため、すべての環境で複数ログインできることを必須とはしない。
 
   - id: RITM-0051
+    rule_type: system
+    category: session
+    tags: [ログアウト, 失効範囲]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 通常のログアウト
     summary: ログアウト操作は、当該セッションに紐づくログインだけをログアウトさせる。
     content: |
       同じユーザの別セッションを、通常のログアウト操作で一律にログアウトさせるものではない。
 
   - id: RITM-0052
+    rule_type: system
+    category: session
+    tags: [パスワード変更, ログイン継続, 再ログイン]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: パスワード変更後のログイン継続
     summary: パスワードを変更しても既存のログインは継続でき、変更した本人は再ログインを選択できる。
     content: |
@@ -194,8 +274,12 @@ sections:
       ブラウザに変更後のパスワードを覚えさせたい場合などに備え、ユーザ自身が変更後の再ログインを選択できるオプションを用意する。
 
   - id: RITM-0053
+    rule_type: system
+    category: session
+    tags: [利用停止, 強制ログアウト, 次アクセス]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 利用停止・強制ログアウトの反映
     summary: 利用停止や管理者による強制ログアウトは、次のアクセス時にDB上の情報を確認し、ログアウトフローへ移行する。
     content: |
@@ -205,8 +289,12 @@ sections:
       特定セッションを選択して強制ログアウトする機能は設けない。
 
   - id: RITM-0054
+    rule_type: system
+    category: session
+    tags: [強制ログアウト, 再ログイン禁止, テナント設定]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 強制ログアウト後の再ログイン禁止
     summary: 強制ログアウト後は一定期間の再ログインを禁止し、禁止期間の初期値は1時間とする。
     content: |
@@ -214,8 +302,12 @@ sections:
       再ログインを禁止している期間に、必要な調査や作業を行い、場合によっては利用停止などの対処を行う。
 
   - id: RITM-0055
+    rule_type: business
+    category: user_management
+    tags: [強制ログアウト, 利用停止, 緊急対応]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 強制ログアウトと利用停止の区別
     summary: 強制ログアウトではユーザを無効化せず、緊急時にそのユーザによる操作を防ぐ。
     content: |

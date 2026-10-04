@@ -7,8 +7,12 @@ derived_from:
 
 sections:
   - id: RITM-0150
+    rule_type: system
+    category: log
+    tags: [ログインログ, 成否, ログアウト]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: ログインログの記録対象
     summary: パスワード認証・多要素認証の成否、試行制限による拒否、通常のログアウトと強制ログアウトを記録する。
     content: |
@@ -16,16 +20,24 @@ sections:
       試行制限による拒否も、ログの記録対象とする。
 
   - id: RITM-0151
+    rule_type: system
+    category: log
+    tags: [ログインログ, 記録項目, 存在しないID]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: ログインログの記録項目
     summary: 日時・テナント・ユーザ内部ID・認証方式・成否・失敗理由・取得できた接続元IPを記録する。
     content: |
       存在しないログインIDへの試行は、入力されたログインIDを記録する。
 
   - id: RITM-0152
+    rule_type: architecture
+    category: log
+    tags: [ログインログ, データベース, オンライン検索]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: ログインログのDB保持
     summary: 直近1か月分のログインログをDBに保持する。
     content: |
@@ -34,8 +46,12 @@ sections:
       ログインログの検索を必要とするため。
 
   - id: RITM-0153
+    rule_type: system
+    category: log
+    tags: [ログイン履歴, 本人閲覧, ファイル保管]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: ログイン履歴の保管と本人による閲覧
     summary: ログイン履歴は直近1か月分を保管し、本人が過去1か月分の自身の履歴を確認できるようにする。
     content: |
@@ -44,32 +60,48 @@ sections:
       全履歴のデータ量が多くなることを考慮し、直近の履歴と長期保管を分ける。
 
   - id: RITM-0154
+    rule_type: operation
+    category: log
+    tags: [ログインログ, 保管期間, 共通設定]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: ログインログの長期保管期間
     summary: ファイル保管分を含めたログインログの保管期間は7年間とする。
     content: |
       この保管期間はシステム共通とする。
 
   - id: RITM-0155
+    rule_type: business
+    category: authorization
+    tags: [ログインログ, 閲覧権限, 管理範囲]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 管理者によるログインログの閲覧
     summary: テナント管理者・監査権限を持つユーザは自テナント全体、組織・グループのユーザ管理者は自身の管理範囲内を確認できる。
     content: |
       存在しないログインIDへの試行記録は、テナント全体を確認できる権限で扱う。
 
   - id: RITM-0156
+    rule_type: system
+    category: log
+    tags: [最終ログイン日時, 画面表示]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 最終ログイン日時
     summary: 最後にログインした日時を画面に表示できるようにする。
     content: |
       最終ログイン日時を、ログイン履歴とは別に管理する方式を検討する。
 
   - id: RITM-0157
+    rule_type: operation
+    category: log
+    tags: [業務履歴, 保管期間, オンライン検索]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 業務履歴の検索と保管
     summary: 業務履歴のオンライン検索期間は1年、その1年を含めた合計保管期間は7年とする。
     content: |
@@ -77,16 +109,24 @@ sections:
       オンライン検索の期間を超える履歴は、ダウンロードで対応する。
 
   - id: RITM-0158
+    rule_type: business
+    category: authorization
+    tags: [業務履歴, 閲覧権限, 管理範囲]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 業務履歴の利用権限
     summary: 業務履歴の利用権限は、監査ログと同じ扱いとする。
     content: |
       RULE-0009「監査ログと保管期間」の利用権限、管理者ごとの参照可能期間、閲覧範囲の判定時点に従う。
 
   - id: RITM-0159
+    rule_type: architecture
+    category: log
+    tags: [ファイル保管, テナント分離, 月単位]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: 長期保管ファイルの単位と取得
     summary: ログインログと業務履歴は、それぞれテナントごと・月ごとに1ファイルとして長期保管する。
     content: |
@@ -95,16 +135,24 @@ sections:
       ファイルでの長期保管へ移る期間は、本ルールのログインログ・業務履歴それぞれの規定に従う。
 
   - id: RITM-0160
+    rule_type: operation
+    category: log
+    tags: [運行ログ, 保管期間, ログレベル]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: システム運行ログの管理
     summary: エラーやバッチ処理等の運行ログは、導入先のログ収集・監視基盤で扱う。
     content: |
       保存先・保管期間・ログレベルは、システム運用者が設定する。
 
   - id: RITM-0161
+    rule_type: business
+    category: authorization
+    tags: [運行ログ, テナント管理者, 閲覧権限]
+    status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-04
+    updated_on: 2026-10-05
     title: テナント管理者による運行ログの確認
     summary: テナント処理に関わるエラーや正常終了等の運行ログは、そのテナントの管理者も確認できるようにする。
     content: |
