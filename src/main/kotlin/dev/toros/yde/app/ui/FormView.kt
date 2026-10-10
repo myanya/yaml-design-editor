@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -919,15 +920,24 @@ private fun EnumEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
  * ID入力エディタ。既存IDの補完ピッカー（UX-06。写像行・別文書での詳細化の入力向け）と
  * 次の連番の提案（UX-64）を持つ。候補・採番の形式の源は field の pattern（UX-79）＞
  * entity 宣言の idPattern（R20-01）＝検証と同じ宣言を読む。
+ * ID 欄は定義位置そのものなので、ジャンプの行き先は横ぐし（エンティティページ）だけに絞り、
+ * 右端の Hub ボタンと「出現／被参照」の注記から 1 クリックで直行する（閲覧専用でも残す）。
  */
 @Composable
 private fun IdEditor(ctx: FormCtx, field: FieldDef?, slot: Slot) {
     val text = (slot.get() as? YNode.Scalar)?.value?.toString() ?: ""
     val otherOccurrences = if (text.isBlank()) 0 else
         ctx.state.overlayIndex().entries[text].orEmpty().count { it.document != ctx.state.documentOf(ctx.doc.file) }
+    // 横ぐしへ飛べるのは、上書き索引（未保存の編集を含む）に出現がある ID だけ（エンティティページの表示条件と同じ）
+    val inIndex = text.isNotBlank() && ctx.state.overlayIndex().occurrences(text).isNotEmpty()
     Column {
         if (ctx.readOnly) {
-            ReadOnlyValueText(text)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ReadOnlyValueText(text, modifier = Modifier.weight(1f, fill = false))
+                if (inIndex) {
+                    EntityPageButton(ctx, text, iconButtonSize = 28.dp, iconSize = 16.dp)
+                }
+            }
         } else {
             var menuOpen by remember { mutableStateOf(false) }
             val schemaDef = ctx.doc.schema
@@ -957,7 +967,8 @@ private fun IdEditor(ctx: FormCtx, field: FieldDef?, slot: Slot) {
                     preferred = ctx.localIds.map { it.id },
                 )?.takeIf { it !in ctx.state.overlayIndex().entries }
             }
-            Box {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.weight(1f)) {
                 CompactTextField(
                     value = text,
                     onValueChange = { ctx.setScalar(slot, it, FieldType.ID) },
@@ -1004,15 +1015,46 @@ private fun IdEditor(ctx: FormCtx, field: FieldDef?, slot: Slot) {
                     }
                 }
             }
-        }
-        if (otherOccurrences > 0) {
-            Text("同一論理IDの別文書での出現: $otherOccurrences 件", fontSize = 11.sp, color = Palette.SubText)
-        } else if (text.isNotBlank()) {
-            val backlinks = ctx.state.overlayIndex().backlinksTo(setOf(text)).size
-            if (backlinks > 0) {
-                Text("被参照: $backlinks 箇所", fontSize = 11.sp, color = Palette.SubText)
+            EntityPageButton(ctx, text, enabled = inIndex, iconButtonSize = 38.dp)
             }
         }
+        // 注記（他文書での出現・被参照）は横ぐしへのリンクを兼ねる（出現一覧と関係パネルは同じページにある）
+        val note = when {
+            otherOccurrences > 0 -> "同一論理IDの別文書での出現: $otherOccurrences 件"
+            text.isNotBlank() -> ctx.state.overlayIndex().backlinksTo(setOf(text)).size
+                .takeIf { it > 0 }?.let { "被参照: $it 箇所" }
+            else -> null
+        }
+        if (note != null) {
+            Text(
+                if (inIndex) "$note（横ぐしで見る）" else note,
+                fontSize = 11.sp,
+                color = if (inIndex) Palette.Primary else Palette.SubText,
+                modifier = if (inIndex) Modifier.clickable { ctx.state.openCrossView(text) } else Modifier,
+            )
+        }
+    }
+}
+
+/**
+ * 横ぐし（エンティティページ）への直行ボタン。ビューグリッドの ID セルと同じ Hub アイコンで、
+ * 押すと `openCrossView(id)`（移動として履歴に積まれる）。ID 欄と閲覧専用のテーブルセルで共用する。
+ */
+@Composable
+private fun EntityPageButton(
+    ctx: FormCtx,
+    id: String,
+    enabled: Boolean = true,
+    iconButtonSize: Dp = 38.dp,
+    iconSize: Dp = 20.dp,
+) {
+    IconButton(enabled = enabled, onClick = { ctx.state.openCrossView(id) }, modifier = Modifier.size(iconButtonSize)) {
+        Icon(
+            Icons.Default.Hub,
+            contentDescription = "横ぐしビューで表示",
+            tint = if (enabled) Palette.Primary else Palette.Border,
+            modifier = Modifier.size(iconSize),
+        )
     }
 }
 
@@ -1429,7 +1471,7 @@ private fun tableCellWidth(column: FieldDef): Dp = when {
         FieldType.TIME -> 90.dp
         FieldType.DATETIME -> 160.dp
         FieldType.ENUM -> 140.dp
-        FieldType.ID -> 150.dp
+        FieldType.ID -> 180.dp                 // 候補の▼と横ぐしの Hub の 2 つのボタン分を含む
         FieldType.REF -> 200.dp
         else -> 170.dp
     }
@@ -1626,6 +1668,8 @@ private fun ObjectTableCell(ctx: FormCtx, col: FieldDef, map: YNode.Map, itemPat
         when {
             // スキーマとずれた複合値はセルで編集せず要約表示に留める（編集は行の展開フォーム）
             value != null && value !is YNode.Scalar -> TableCellText(Display.inline(value, ctx.doc.schema, col))
+            // 閲覧専用の ID セルも横ぐしへ直行できる（編集時は IdEditor の Hub ボタンが同じ役を担う）
+            ctx.readOnly && col.type == FieldType.ID -> ReadOnlyIdCell(ctx, value as? YNode.Scalar)
             ctx.readOnly || col.multiline -> TableCellText(readOnlyCellText(col, value as? YNode.Scalar))
             else -> ValueEditor(ctx, col, slot, itemPath + key)
         }
@@ -1640,6 +1684,19 @@ private fun readOnlyCellText(col: FieldDef, node: YNode.Scalar?): String? {
         FieldType.ENUM -> col.optionFor(raw.toString())?.displayLabel ?: raw.toString()
         else -> raw.toString()
     }.replace("\n", " ").ifBlank { null }
+}
+
+/** 閲覧専用のテーブルの ID セル。値の右に横ぐしへの Hub ボタンを出す（上書き索引に出現がある ID だけ）。 */
+@Composable
+private fun ReadOnlyIdCell(ctx: FormCtx, node: YNode.Scalar?) {
+    val id = node?.value?.toString().orEmpty()
+    val inIndex = id.isNotBlank() && ctx.state.overlayIndex().occurrences(id).isNotEmpty()
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.weight(1f, fill = false)) { TableCellText(id.ifBlank { null }) }
+        if (inIndex) {
+            EntityPageButton(ctx, id, iconButtonSize = 24.dp, iconSize = 14.dp)
+        }
+    }
 }
 
 @Composable

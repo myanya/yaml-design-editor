@@ -27,7 +27,7 @@
 
 | ID | 機能 | 主な実装 | テスト | 設計 |
 |---|---|---|---|---|
-| E-01 | スキーマ駆動フォーム（基底の種類別の編集欄・型から引き継ぐヒント＝複数行と入力欄の案内と表示の形 `format`・必須マーク・説明・折りたたみ・id 型は既存 ID の補完と連番の提案・int / number の桁区切り表示 `display: grouped`・残留値の修復 UI） | `ui/FormView.kt`, `schema/IdSuggest.kt` | 単体 `IdSuggestTest` | [ui](architecture/ui.md) |
+| E-01 | スキーマ駆動フォーム（基底の種類別の編集欄・型から引き継ぐヒント＝複数行と入力欄の案内と表示の形 `format`・必須マーク・説明・折りたたみ・id 型は既存 ID の補完と連番の提案と横ぐしへの直行・int / number の桁区切り表示 `display: grouped`・残留値の修復 UI） | `ui/FormView.kt`（`IdEditor`）, `schema/IdSuggest.kt` | 単体 `IdSuggestTest` | [ui](architecture/ui.md) |
 | E-02 | 汎用ツリーエディタ（スキーマなし文書・スキーマ外キー・順序とコメントを保ったキー改名） | `ui/FormView.kt`（`GenericEditor`） | 単体 `RenameKeyTest` | [ui](architecture/ui.md) |
 | E-03 | ソース編集（入力のたびにパースし成功時だけツリーへ反映・パース不能中は最後の解析結果が正・検索置換・ハイライト） | `ui/SourcePane.kt`, `ui/SourceHighlight.kt` | 単体 `SourceHighlightTest` | [editing-history](architecture/editing-history.md) |
 | E-04 | 差分表示（保存済みと編集中の行整列・文字単位の強調） | `ui/DiffPane.kt` | 単体 `DiffPaneTest` | [ui](architecture/ui.md) |
@@ -106,7 +106,7 @@
 | I-04 | 参照候補の補完（`idPatterns` / `scope` で絞り込み・解決先タイトルの併記・行き先の選択メニュー） | `ui/FormView.kt`（`RefEditor`） | 手動 | [ui](architecture/ui.md) |
 | I-05 | バックリンク（被参照一覧・参照元の ID とタイトル） | `IdIndex.backlinksTo`, `ui/SidePanel.kt` | 手動 | [index-references](architecture/index-references.md) |
 | I-06 | ID 検索（コマンドパレット・ID とタイトルの部分一致・オーバーレイ索引） | `Main.kt`（`CommandPalette`） | 手動 | [ui](architecture/ui.md) |
-| I-07 | エンティティページ（合成全体像・関係パネル・カバレッジ・改名／統合／削除・グラフレンズへ） | `ui/IdCrossView.kt`, `core/Aspects.kt` | 手動（合成は `AspectTest`） | [graph-query](architecture/graph-query.md) |
+| I-07 | エンティティページ（合成全体像・関係パネル・カバレッジ・改名／統合／削除・グラフレンズへ。入口は `openCrossView` の 1 経路＝ID 欄の Hub ボタン・参照の→メニュー・ストリップ・出現タブ・ビューグリッド・レンズ） | `ui/IdCrossView.kt`, `core/Aspects.kt`, `AppState.openCrossView` | 手動（合成は `AspectTest`） | [graph-query](architecture/graph-query.md) |
 | I-08 | ナビゲーション履歴（戻る・進む・スペースとタブと ID とビューとハイライトを復元・ショートカットはウィンドウで受ける） | `AppState.goBack` / `goForward`, `Main.kt`（`handleShortcut`） | 単体 `NavigationHistoryTest` | [ui](architecture/ui.md) |
 | I-09 | ID インスペクタ（右パネルの検証・関係・出現の 3 タブ） | `ui/SidePanel.kt` | 手動 | [ui](architecture/ui.md) |
 | I-10 | 導出グラフ（走査結果から導出する読み取り専用のエンティティグラフ・索引の更新で無効化） | `semantic-core/semantic/`（`SemanticEntityGraph`）, `index/IdIndex.kt`（`graph`） | 単体 `EntityGraphTest` | [graph-query](architecture/graph-query.md) |
