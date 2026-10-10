@@ -9,4 +9,8 @@ ownership: |
   ユーザ情報・利用状態はユーザ管理、ロールの定義・付与関係は権限管理が管理する。
 model_translation: |
   ユーザ管理の管理対象ユーザを、権限管理ではロールの付与先として扱う。
+agreements:
+  - name: 登録時の成立単位
+    description: 登録時に指定されたロールの付与とユーザ登録を一体として成立させ、付与失敗時は登録も成立させない。
+    rule_refs: [RITM-0209]
 rule_refs: [RITM-0195, RITM-0197, RITM-0206]

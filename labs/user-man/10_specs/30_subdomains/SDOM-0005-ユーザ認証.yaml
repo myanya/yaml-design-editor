@@ -7,25 +7,73 @@ responsibility: |
   ユーザの認証と、認証に必要なパスワード・多要素認証の初期設定・再設定を担う。
   初期設定の完了を、ユーザ管理の利用開始条件に結び付ける。
 concepts:
-  - name: 認証設定
+  - kind: concept
+    name: 認証設定
+    context: BCTX-0005
+    status: draft
+    rule_refs: [RITM-0033, RITM-0037, RITM-0184]
     description: |
       ユーザのパスワードと、テナント設定に応じた多要素認証の設定。
       初期設定では本人情報の再入力を求めない。
-  - name: 設定用URL
+    attributes:
+      - name: 認証対象
+        description: テナントごとに独立したユーザを認証の対象とする。
+        rule_refs: [RITM-0002, RITM-0033]
+      - name: パスワード設定
+        description: 本人が設定するパスワード。共通の長さと、テナントの文字種・記号の条件に従う。
+        rule_refs: [RITM-0128, RITM-0129, RITM-0130, RITM-0131, RITM-0132]
+      - name: 多要素認証設定
+        description: テナントで利用可能な方式と、必須・任意の条件に応じて設定する。
+        rule_refs: [RITM-0037, RITM-0038, RITM-0039, RITM-0041]
+    constraints:
+      - name: 初期設定の完了条件
+        description: パスワードと当該ユーザに必要な多要素認証が設定済みであることを完了条件とする。
+        rule_refs: [RITM-0184]
+      - name: 利用状態との区別
+        description: 認証設定の完了だけで通常機能の利用を許可せず、停止中に完了しても停止を解除しない。
+        rule_refs: [RITM-0165, RITM-0170, RITM-0171]
+  - kind: concept
+    name: 設定用URL
+    context: BCTX-0005
+    status: draft
+    rule_refs: [RITM-0132, RITM-0133, RITM-0134, RITM-0135]
     description: |
       本人が初回設定・再設定を行う入口。
       有効期間と、使用済み・再発行時の無効化はパスワードのルールに従う。
+    attributes:
+      - name: 設定の対象
+        description: 初回設定または再設定を行う対象ユーザのために発行する。
+        rule_refs: [RITM-0132, RITM-0133]
+      - name: 初期設定用URLの発行時点
+        description: 実際のメール送信処理時に発行し、同じ時点を有効期限の起算点とする。
+        rule_refs: [RITM-0210]
+      - name: 有効期間
+        description: 初回設定用と再設定用は、それぞれテナント設定の期間を適用する。
+        rule_refs: [RITM-0134]
+    constraints:
+      - name: 送信待ち時間
+        description: 初期設定用URLの有効期間に送信待ち時間を含めない。
+        rule_refs: [RITM-0210]
+      - name: 使用済み・再発行
+        description: 設定完了に使用したURLと、再発行した場合の以前のURLを無効化する。
+        rule_refs: [RITM-0135]
+      - name: 停止・削除
+        description: 一時停止・利用停止だけでは発行済みURLを無効化せず、論理削除時には無効化する。
+        rule_refs: [RITM-0178]
 operations:
   - name: 初期設定の案内と実施
+    rule_refs: [RITM-0132, RITM-0184, RITM-0207]
     description: |
       ユーザ管理で「初期設定中」へ移ったことを契機に、登録メールアドレスへ初期設定用URLを案内する。
       大量処理等では予約バッチを優先してメール送信を遅らせることを許容する。
       本人がパスワードと必要な多要素認証を設定する。
   - name: 再設定と初期設定の再開
+    rule_refs: [RITM-0133, RITM-0163, RITM-0166]
     description: |
       パスワードを忘れた場合の手続きから設定用URLを案内する。
       初期設定を許可されている未完了ユーザも、この経路から初期設定を再開できる。
   - name: ユーザの認証
+    rule_refs: [RITM-0033, RITM-0037, RITM-0039, RITM-0041]
     description: |
       ID・パスワードと、テナント設定に応じた多要素認証によってユーザを認証する。
 boundary: |

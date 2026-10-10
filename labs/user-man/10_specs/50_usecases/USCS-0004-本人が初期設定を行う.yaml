@@ -1,0 +1,173 @@
+id: "USCS-0004"
+status: "draft"
+context: "BCTX-0005"
+purpose: "本人がパスワードと必要な多要素認証を設定する。認証設定の完了と、ユーザ管理での通常機能の利用許可を区別する。"
+actors:
+  - name: "本人"
+    description: "有効な設定用URLから、必要な認証設定を行う。"
+    rule_refs:
+      - "RITM-0132"
+      - "RITM-0166"
+      - "RITM-0184"
+  - name: "本システム"
+    description: "URLと設定内容の条件を確認し、設定完了をユーザ管理へ結び付ける。"
+    rule_refs:
+      - "RITM-0134"
+      - "RITM-0135"
+      - "RITM-0165"
+      - "RITM-0184"
+models:
+  - name: "認証設定"
+    description: "パスワードと、テナント設定に応じて必要な多要素認証の設定を扱う。"
+    rule_refs:
+      - "RITM-0033"
+      - "RITM-0184"
+    context: "BCTX-0005"
+  - name: "設定用URL"
+    description: "設定経路の入口と、期限・使用済み・再発行による無効化を確認する。"
+    rule_refs:
+      - "RITM-0134"
+      - "RITM-0135"
+    context: "BCTX-0005"
+  - name: "ユーザ"
+    description: "初期設定を行える利用状態かを参照する。"
+    rule_refs:
+      - "RITM-0163"
+      - "RITM-0171"
+    context: "BCTX-0002"
+    entity: "ENTY-0001"
+triggers:
+  - name: "案内されたURLを利用"
+    description: "本人が案内された初期設定用URLから設定を始める。"
+    rule_refs:
+      - "RITM-0132"
+  - name: "未完了の設定を再開"
+    description: "初期設定が許可される未完了ユーザが、パスワードを忘れた場合のURLから設定を再開する。"
+    rule_refs:
+      - "RITM-0166"
+preconditions:
+  - name: "設定が許可される状態"
+    description: "利用開始前ではない、初期設定未完了のユーザである。停止中も設定経路を利用できる。"
+    rule_refs:
+      - "RITM-0163"
+      - "RITM-0166"
+      - "RITM-0171"
+  - name: "URLの有効性"
+    description: "有効期限内で、使用済み・再発行による無効化・削除時の無効化に該当しないURLである。"
+    rule_refs:
+      - "RITM-0134"
+      - "RITM-0135"
+      - "RITM-0178"
+basic_flow:
+  - name: "設定経路の条件を確認する"
+    description: "対象ユーザの利用状態とURLの有効性を確認する。"
+    rule_refs:
+      - "RITM-0163"
+      - "RITM-0134"
+      - "RITM-0135"
+      - "RITM-0178"
+    actor: "本システム"
+  - name: "パスワードを設定する"
+    description: "本人が入力したパスワードに、共通の長さとテナントの文字種・記号の条件を適用する。"
+    rule_refs:
+      - "RITM-0128"
+      - "RITM-0129"
+      - "RITM-0130"
+      - "RITM-0131"
+      - "RITM-0132"
+    actor: "本人／本システム"
+  - name: "多要素認証を設定する"
+    description: "テナント設定に応じて必要な方式の設定を行う。任意の場合の省略は、既存の初回設定の条件に従う。"
+    rule_refs:
+      - "RITM-0037"
+      - "RITM-0039"
+      - "RITM-0041"
+      - "RITM-0184"
+    actor: "本人／本システム"
+  - name: "必要な設定の完了を確認する"
+    description: "パスワードと必要な多要素認証が設定済みであることを確認する。本人情報の入力を追加しない。"
+    rule_refs:
+      - "RITM-0184"
+    actor: "本システム"
+    results:
+      - name: "認証側の完了"
+        description: "必要な認証設定が済んだ状態となる。通常機能の利用許可はユーザ管理の利用状態と合わせて判定する。"
+        rule_refs:
+          - "RITM-0165"
+          - "RITM-0171"
+          - "RITM-0184"
+  - name: "利用状態への反映につなぐ"
+    description: "設定が完了した対象ユーザについて、ユーザ管理の利用開始条件と結び付ける。"
+    rule_refs:
+      - "RITM-0165"
+      - "RITM-0184"
+    actor: "本システム"
+    invokes: "USCS-0005"
+alternatives:
+  - name: "URLが無効"
+    description: "無効なURLによる設定を成立させない。"
+    rule_refs:
+      - "RITM-0134"
+      - "RITM-0135"
+      - "RITM-0178"
+    condition:
+      name: "期限切れ等"
+      description: "URLが期限切れ・使用済み・再発行による無効化・削除による無効化のいずれかに該当する。"
+      rule_refs:
+        - "RITM-0134"
+        - "RITM-0135"
+        - "RITM-0178"
+    outcomes:
+      - name: "設定を進めない"
+        description: "当該URLで設定を成立させない。初期設定が許可される未完了ユーザには、パスワードを忘れた場合の手続きから再開する経路がある。"
+        rule_refs:
+          - "RITM-0135"
+          - "RITM-0166"
+  - name: "利用開始前からの設定要求"
+    description: "再設定の経路でも利用開始前の制限を適用する。"
+    rule_refs:
+      - "RITM-0163"
+      - "RITM-0166"
+    condition:
+      name: "事前登録中"
+      description: "対象ユーザが利用開始前である。"
+      rule_refs:
+        - "RITM-0163"
+    outcomes:
+      - name: "設定開始を認めない"
+        description: "本人の操作だけでは初期設定中へ進めない。"
+        rule_refs:
+          - "RITM-0163"
+  - name: "一時停止・利用停止中の初期設定"
+    description: "停止中も認証設定を行える。"
+    rule_refs:
+      - "RITM-0171"
+    condition:
+      name: "停止中"
+      description: "対象ユーザが一時停止または利用停止である。"
+      rule_refs:
+        - "RITM-0171"
+    outcomes:
+      - name: "通常機能の利用と分離"
+        description: "認証設定の完了だけで停止を解除せず、通常機能は利用不可のままとする。"
+        rule_refs:
+          - "RITM-0170"
+          - "RITM-0171"
+postconditions:
+  - name: "初期設定の完了"
+    description: "パスワードと、当該ユーザに必要な多要素認証が設定されている。"
+    rule_refs:
+      - "RITM-0184"
+guarantees:
+  - name: "本人情報の再入力不要"
+    description: "初期設定に本人情報の入力を含めない。"
+    rule_refs:
+      - "RITM-0184"
+  - name: "使用済みURL"
+    description: "設定完了に使用したURLは再利用できない。"
+    rule_refs:
+      - "RITM-0135"
+  - name: "長期未完了"
+    description: "初期設定を長期間完了しなくても自動取消・自動削除は行わない。"
+    rule_refs:
+      - "RITM-0167"

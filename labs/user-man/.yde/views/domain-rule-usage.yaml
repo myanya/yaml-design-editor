@@ -1,0 +1,13 @@
+id: domain-rule-usage
+name: 個別ルールのモデル・操作への展開
+rows:
+  idPattern: RITM-*
+columns:
+  - { label: ルール名, schemaId: rule-detail, path: title }
+  - { label: 内容, schemaId: rule-detail, path: summary }
+  - label: モデル・操作の参照元
+    backlinks:
+      relation: grounded-in-rule
+      schemaIds: [subdomain-detail, usecase-detail, context-map-detail]
+detail:
+  schemaId: rule-detail

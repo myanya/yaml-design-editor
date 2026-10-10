@@ -1,0 +1,121 @@
+id: "USCS-0002"
+status: "draft"
+context: "BCTX-0002"
+purpose: "利用開始前のユーザを初期設定中へ移す。状態変更と案内メールの実送信を別の時点として扱う。"
+actors:
+  - name: "管理者等"
+    description: "テナント全体に対する利用状態変更の権限を持つ操作者。"
+    rule_refs:
+      - "RITM-0175"
+      - "RITM-0176"
+  - name: "予約処理"
+    description: "予約に指定された実行権限者の権限で利用開始の操作を実行する。"
+    rule_refs:
+      - "RITM-0180"
+      - "RITM-0182"
+  - name: "本システム"
+    description: "利用状態を変更し、初期設定の案内に結び付ける。"
+    rule_refs:
+      - "RITM-0165"
+      - "RITM-0207"
+models:
+  - name: "ユーザ"
+    description: "利用状態を利用開始前から初期設定中へ変更する。"
+    rule_refs:
+      - "RITM-0165"
+      - "RITM-0176"
+    context: "BCTX-0002"
+    entity: "ENTY-0001"
+triggers:
+  - name: "管理者等の操作"
+    description: "管理者等が対象ユーザの利用開始を操作する。"
+    rule_refs:
+      - "RITM-0165"
+  - name: "予約の実行"
+    description: "予約により利用開始の操作が実行される。"
+    rule_refs:
+      - "RITM-0165"
+      - "RITM-0180"
+preconditions:
+  - name: "対象の状態"
+    description: "登録済みユーザの利用状態が「利用開始前」である。"
+    rule_refs:
+      - "RITM-0163"
+      - "RITM-0165"
+  - name: "実行権限"
+    description: "対象テナント全体の状態変更権限と、利用開始操作の許可を満たす。"
+    rule_refs:
+      - "RITM-0175"
+      - "RITM-0176"
+basic_flow:
+  - name: "対象ユーザを指定する"
+    description: "利用開始前のユーザに利用開始操作を要求する。"
+    rule_refs:
+      - "RITM-0165"
+      - "RITM-0180"
+    actor: "管理者等、または予約処理"
+  - name: "操作権限と対象範囲を確認する"
+    description: "実行する操作者の権限で判定し、予約では実行権限者を使う。"
+    rule_refs:
+      - "RITM-0175"
+      - "RITM-0176"
+      - "RITM-0182"
+    actor: "本システム"
+    conditions:
+      - name: "名称に依存しない"
+        description: "管理者・担当者というロール名ではなく、現在設定されている権限で判定する。"
+        rule_refs:
+          - "RITM-0197"
+      - name: "予約の権限者"
+        description: "予約の登録者であるだけのユーザの状態と、実行権限者の状態を区別する。"
+        rule_refs:
+          - "RITM-0182"
+  - name: "利用状態を変更する"
+    description: "利用開始前から初期設定中へ移す。"
+    rule_refs:
+      - "RITM-0165"
+    actor: "本システム"
+    results:
+      - name: "通常機能はまだ利用不可"
+        description: "初期設定中への遷移だけでは、通常機能の利用開始条件を満たさない。"
+        rule_refs:
+          - "RITM-0165"
+  - name: "初期設定の案内につなぐ"
+    description: "初期設定中への遷移を契機に、対象ユーザへの案内処理へつなぐ。実送信は遅らせてよい。"
+    rule_refs:
+      - "RITM-0207"
+    actor: "本システム"
+    invokes: "USCS-0003"
+alternatives:
+  - name: "実行権限者が停止・削除済みの予約"
+    description: "実行可能な権限者による予約として扱わない。"
+    rule_refs:
+      - "RITM-0182"
+      - "RITM-0187"
+    condition:
+      name: "実行権限者の状態"
+      description: "実行権限者が一時停止・利用停止・削除済みである。"
+      rule_refs:
+        - "RITM-0182"
+        - "RITM-0187"
+    outcomes:
+      - name: "実行不可"
+        description: "利用開始操作を実行しない。登録者だけが停止・削除済みの場合には、別の実行権限者の条件で判定する。"
+        rule_refs:
+          - "RITM-0182"
+          - "RITM-0187"
+postconditions:
+  - name: "初期設定開始の許可"
+    description: "利用状態が初期設定中となり、案内の契機が発生している。メールの実送信完了はこの操作の完了条件にしない。"
+    rule_refs:
+      - "RITM-0165"
+      - "RITM-0207"
+guarantees:
+  - name: "本人による開始の禁止"
+    description: "本人が利用開始前から初期設定中へ移す操作は提供しない。"
+    rule_refs:
+      - "RITM-0163"
+  - name: "予約バッチを優先"
+    description: "メールの送信数制限等によって実送信を遅らせることを許容する。"
+    rule_refs:
+      - "RITM-0207"

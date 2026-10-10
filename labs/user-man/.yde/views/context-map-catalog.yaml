@@ -10,6 +10,7 @@ columns:
   - { label: 境界A, schemaId: context-map-detail, path: context_a }
   - { label: 境界B, schemaId: context-map-detail, path: context_b }
   - { label: 情報の提供・利用, schemaId: context-map-detail, path: information_flow }
+  - { label: 個別の連携上の約束, schemaId: context-map-detail, path: agreements }
   - { label: チーム間の関係, schemaId: context-map-detail, path: collaboration }
   - { label: 技術的な連携方式, schemaId: context-map-detail, path: integration }
 detail:

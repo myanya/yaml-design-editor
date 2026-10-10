@@ -7,41 +7,84 @@ responsibility: |
   ユーザ管理と利用側の他機能に共通する権限管理を担う。
   機能・権限マスタ、機能ごとのロール、ユーザへのロール付与を管理し、機能単位の管理の委譲を支える。
 concepts:
-  - name: 機能
+  - kind: concept
+    name: 機能
+    context: BCTX-0001
+    status: draft
+    rule_refs: [RITM-0189, RITM-0190]
     description: |
       機能ID・表示名・説明を持つ、権限とロールの管理単位。
       ユーザ管理も、この単位で登録・管理される機能の一つである。
-  - name: 権限マスタ
+  - kind: concept
+    name: 権限マスタ
+    context: BCTX-0001
+    status: draft
+    rule_refs: [RITM-0190, RITM-0196]
     description: |
       機能に紐づく権限の一覧。各権限は権限識別ID・表示名・説明を持つ。
       機能・権限の定義は各テナントに初期登録し、以後はテナントごとに独立して管理する。
-  - name: ロール
+  - kind: concept
+    name: ロール
+    context: BCTX-0001
+    status: draft
+    rule_refs: [RITM-0192, RITM-0193, RITM-0197, RITM-0203, RITM-0204, RITM-0205]
     description: |
       テナント・機能ごとに定義し、権限マスタをもとに権限とその値を設定する。
       ユーザ管理の標準ロールは初期設定であり、独自ロールも追加できる。
       ロール名は運用上の呼称であり、管理者・担当者の区分ではなく、設定された権限によって操作の可否を決める。
       全機能のロールは組織またはグループを実行範囲の基準とすることを原則とし、テナント全域管理の特例とシステム管理者の除外を適用する。
-  - name: ロール付与
+  - kind: relationship
+    name: ロール付与
+    context: BCTX-0001
+    status: draft
+    rule_refs: [RITM-0056, RITM-0203, RITM-0204, RITM-0205]
     description: |
       ユーザ、機能とロールの対応。付与数・付与単位はRITM-0056に従う。
       実行範囲の基準は付与単位と区別し、RITM-0203の原則とRITM-0204・0205の特例・除外に従う。
+    attributes:
+      - name: 付与先ユーザ
+        description: テナント内でロールの付与対象となるユーザ。
+        rule_refs: [RITM-0002, RITM-0056]
+      - name: 機能別ロールの付与単位
+        description: 機能別ロールでは、組織・グループ・テナント全体のいずれかの付与単位を用いる。
+        rule_refs: [RITM-0056]
+      - name: 機能とロール
+        description: 機能別ロールの付与では、機能とその機能に定義されたロールを指定する。
+        rule_refs: [RITM-0056, RITM-0192]
+    constraints:
+      - name: 機能別ロールの付与数
+        description: 同じユーザ・付与単位・機能につき1ロールとする。組織所属からテナント全体の付与単位を決めない。
+        rule_refs: [RITM-0056]
+      - name: テナント管理者との区別
+        description: テナント管理者は全機能に及ぶ管理権限として、機能別ロールとは別に扱う。
+        rule_refs: [RITM-0056]
+      - name: 付与操作の権限
+        description: 利用権限と付与権限を区別し、操作者の付与権限と管理対象範囲に従う。
+        rule_refs: [RITM-0019, RITM-0020, RITM-0021, RITM-0023]
+      - name: 登録時の成立単位
+        description: ユーザ登録時に指定されたロールの付与は登録と一体として成立させ、付与失敗時は登録も成立させない。
+        rule_refs: [RITM-0209]
 operations:
   - name: 機能・権限の登録と管理
+    rule_refs: [RITM-0190, RITM-0191, RITM-0196]
     description: |
       開発者が用意した定義に加え、テナント側でも機能と権限を登録・管理する。
       機能に紐づく権限の追加・削除を可能にする。
       定義の変更はテナント内で管理し、共通定義への参照によって他テナントへ自動的に波及させない。
   - name: ロールの作成と権限設定
+    rule_refs: [RITM-0192, RITM-0194]
     description: |
       機能ごとにロールを作成し、既存ロールの権限設定を変更する。
       システム管理者・テナント管理者が機能の管理者ロールを作成し、権限設定を委譲する。
       委譲された管理者は、当該機能のロール等を作成・管理する。
   - name: ユーザへのロール付与
+    rule_refs: [RITM-0019, RITM-0021, RITM-0023, RITM-0056, RITM-0206]
     description: |
       ユーザに対象範囲・機能別のロールを付与する。
       登録時の任意のロール付与と、登録済みユーザへのロール変更を扱う。
       利用権限と付与権限を区別し、管理対象範囲とロールに応じた制約を適用する。
   - name: ロールと権限の参照
+    rule_refs: [RITM-0195]
     description: |
       利用側がユーザと機能IDに対応するロール、権限識別IDと権限の値を取得できるようにする。
 boundary: |

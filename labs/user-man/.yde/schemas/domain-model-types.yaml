@@ -1,0 +1,33 @@
+id: domain-model-types
+kind: library
+name: モデル・ユースケースの根拠付き共通項目
+definitions:
+  rule-refs:
+    type: array
+    description: 直近の記述の根拠となる個別ルール。親項目の参照で子項目の根拠を代用しない。
+    item:
+      type: ref
+      idPatterns: [RITM-*]
+      scope:
+        schemaIds: [rule-detail]
+      relation: grounded-in-rule
+  context-ref:
+    type: ref
+    idPatterns: [BCTX-*]
+    scope:
+      schemaIds: [bounded-context-list]
+  model-ref:
+    type: ref
+    idPatterns: [ENTY-*]
+    scope:
+      schemaIds: [subdomain-detail]
+  statement:
+    type: object
+    fields:
+      - { key: name, label: 項目名, type: line, role: title, required: true }
+      - { key: description, label: 内容, type: text, required: true }
+      - { key: rule_refs, label: この項目の根拠, type: rule-refs, required: true }
+  statements:
+    type: array
+    display: list
+    item: { type: statement }

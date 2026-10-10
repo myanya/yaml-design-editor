@@ -42,6 +42,15 @@ root:
       item:
         type: object
         fields:
+          - key: usecases
+            label: 対応する詳細ユースケース
+            type: array
+            item:
+              type: ref
+              idPatterns: [USCS-*]
+              scope:
+                schemaIds: [usecase-list]
+              relation: elaborates-with
           - { key: title, label: 手順名, type: line, role: title, required: true }
           - { key: actor, label: 実施主体, type: line, required: true }
           - { key: content, label: 内容, type: text, required: true }
@@ -79,6 +88,15 @@ root:
       item:
         type: object
         fields:
+          - key: usecases
+            label: 対応する詳細ユースケース
+            type: array
+            item:
+              type: ref
+              idPatterns: [USCS-*]
+              scope:
+                schemaIds: [usecase-list]
+              relation: elaborates-with
           - { key: title, label: 分岐名, type: line, role: title, required: true }
           - { key: condition, label: 条件, type: text, required: true }
           - { key: content, label: 内容, type: text, required: true }

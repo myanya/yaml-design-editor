@@ -1,0 +1,19 @@
+id: usecase-catalog
+name: 詳細ユースケース一覧
+rows:
+  idPattern: USCS-*
+order:
+  schemaId: usecase-list
+columns:
+  - { label: ユースケース, schemaId: usecase-list, path: title }
+  - { label: 概要, schemaId: usecase-list, path: summary }
+  - { label: 所属コンテキスト, schemaId: usecase-detail, path: context }
+  - { label: 状態, schemaId: usecase-detail, path: status }
+  - { label: 使用するモデル, schemaId: usecase-detail, path: models }
+  - { label: 基本フロー, schemaId: usecase-detail, path: basic_flow }
+  - label: 対応する業務フロー
+    backlinks:
+      relation: elaborates-with
+      schemaIds: [business-flow-detail]
+detail:
+  schemaId: usecase-detail

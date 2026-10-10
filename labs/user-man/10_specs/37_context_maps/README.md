@@ -19,11 +19,13 @@
 | `collaboration` | チーム間の協調・上流下流の関係 |
 | `integration` | 技術的な連携・翻訳の方式 |
 | `timing_and_failure` | 同期・遅延・失敗時の約束 |
+| `agreements` | 個別の連携上の約束と、各項目の根拠RITM |
 | `rule_refs` | 根拠の個別ルール |
 
 スキーマは [context-map-list.yaml](../../.yde/schemas/context-map-list.yaml) と [context-map-detail.yaml](../../.yde/schemas/context-map-detail.yaml) です。
 必須項目はスキーマに従い、任意項目の未決定の内容は省略します。未解決の論点は [TODO](../../TODO.md) で管理します。
 作成済みの連携が全連携を網羅しているとは限りません。
+具体化した約束は `agreements` の名称・内容・`rule_refs` に分け、個々の成立条件の根拠を文書単位の参照で代用しません。
 
 ## 関係の記述
 

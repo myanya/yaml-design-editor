@@ -4,7 +4,39 @@ entities:
   - { type: subdomain, label: サブドメイン }
   - { type: bounded-context, label: 境界づけられたコンテキスト }
   - { type: context-map, label: コンテキスト間の連携 }
+  - { type: domain-entity, label: 業務エンティティ }
+  - { type: usecase, label: 詳細ユースケース }
 relations:
+  - name: elaborates-with
+    label: 詳細化するユースケース
+    inverseLabel: 対応する業務フロー
+    source: [business-flow]
+    target: [usecase]
+    description: 業務フローの手順・分岐から詳細ユースケースへ対応付ける。
+  - name: usecase-in-context
+    label: ユースケースの所属
+    inverseLabel: 所属するユースケース
+    source: [usecase]
+    target: [bounded-context]
+    description: ユースケースを主に管理する一つのコンテキスト。
+  - name: interacts-with
+    label: 連携するユースケース
+    inverseLabel: 連携元のユースケース
+    source: [usecase]
+    target: [usecase]
+    description: 手順から連携先の操作を参照する。同期呼び出しや単一トランザクションを指定しない。
+  - name: grounded-in-rule
+    label: 根拠の個別ルール
+    inverseLabel: 根拠を用いる記述
+    source: [subdomain, domain-entity, usecase, context-map]
+    target: [rule-item]
+    description: 記述から根拠のRITMへ参照する。参照元の項目位置で属性・関連・制約・操作を区別する。
+  - name: model-in-context
+    label: 概念・モデルの所属
+    inverseLabel: 所属する概念・モデル
+    source: [subdomain, domain-entity]
+    target: [bounded-context]
+    description: サブドメイン内に記述した概念・モデルが意味を持つ境界。文書の配置からは決定しない。
   - name: covers-subdomain
     label: 担当する業務領域
     inverseLabel: 担当するコンテキスト

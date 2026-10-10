@@ -32,6 +32,9 @@ GUIをコマンドで開く場合は、同じキャッシュ指定の後に `.\g
 .\gradlew.bat runCli -q --no-daemon --console=plain --args="view labs/user-man subdomain-context-matrix"
 .\gradlew.bat runCli -q --no-daemon --console=plain --args="view labs/user-man bounded-context-catalog"
 .\gradlew.bat runCli -q --no-daemon --console=plain --args="view labs/user-man context-map-catalog"
+.\gradlew.bat runCli -q --no-daemon --console=plain --args="view labs/user-man domain-entity-catalog"
+.\gradlew.bat runCli -q --no-daemon --console=plain --args="view labs/user-man domain-rule-usage"
+.\gradlew.bat runCli -q --no-daemon --console=plain --args="view labs/user-man usecase-catalog"
 ```
 
 Markdownの変更では、リンク、行長、サイズ、改行とGit差分を確認します。
@@ -59,7 +62,24 @@ Markdownの変更では、リンク、行長、サイズ、改行とGit差分を
 4. コンテキストのエンティティページからグラフレンズへ移動し、「担当する業務領域」「連携の当事者」の関係を辿ります。
 5. BZFL-0001の各手順で、業務上の領域と、処理に関与するモデルの境界を区別できることを確認します。
 
+## サブドメイン内のモデルと根拠の試し方
+
+1. 台帳のビュー「業務エンティティ一覧」でENTY-0001を開き、サブドメイン内の定義へ移動できることを確認します。
+2. ユーザの属性「ユーザコード」を開き、必須・一意性はRITM-0116、文字と長さはRITM-0122、照合はRITM-0119に対応することを確認します。
+3. 本務と兼務の関連先が組織であり、多重度がそれぞれ1と0件以上、所属先のコンテキストが組織・グループ管理であることを確認します。
+4. 同じ文書内の「所属」「利用状態」は個別のエンティティIDを持たず、それぞれの制約から根拠のRITMへ移動できることを確認します。
+5. 「個別ルールのモデル・操作への展開」でRITM-0116を開き、関係パネルから参照元の属性の制約へ辿ります。
+6. CLIでは `search labs/user-man --ref-to RITM-0116` で属性ごとの参照位置を、`entity labs/user-man show ENTY-0001` でモデルの定義と関係を確認できます。
+7. ルール一覧の参照元が空でも、仕様への展開が不要または完了したとは解釈しないことを確認します。
+
 ## 業務フロー草案の試し方
+
+モデルと根拠の確認は、前節の「サブドメイン内のモデルと根拠の試し方」も併せて行います。
+
+詳細ユースケースは、台帳の「詳細ユースケース一覧」からUSCS-0001〜0005を開きます。
+所属コンテキスト・使用するモデル・業務フローからの逆参照が表示されることを確認します。
+USCS-0001の登録と指定ロール付与の成立単位からRITM-0209へ、USCS-0003のURL発行・期限の起算からRITM-0210へ辿れることを確認します。
+CLIの `search labs/user-man --ref-to RITM-0209` と `search labs/user-man --ref-to RITM-0210` では、モデル・連携・ユースケースの項目位置を確認できます。
 
 1. YDEで `10_specs/40_business_flows/0000-business-flow-lists.yaml` を開き、登録から利用開始までの詳細へ移動します。
 2. 基本フローで、実行主体・状態変化・サブドメイン・根拠のルールを順に確認します。

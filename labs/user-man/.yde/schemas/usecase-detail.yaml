@@ -1,0 +1,69 @@
+id: usecase-detail
+name: 詳細ユースケース
+match: 10_specs/50_usecases/USCS-*.yaml
+entity:
+  type: usecase
+  idPattern: USCS-*
+  aspect: detail
+definitions:
+  usecase-ref:
+    type: ref
+    idPatterns: [USCS-*]
+    scope:
+      schemaIds: [usecase-list]
+    relation: interacts-with
+root:
+  type: object
+  fields:
+    - { key: id, label: ユースケースID, type: id, pattern: 'USCS-[0-9]{4}', required: true }
+    - key: status
+      label: 状態
+      type: enum
+      required: true
+      values:
+        - { value: draft, label: 草案 }
+        - { value: confirmed, label: 確定 }
+    - key: context
+      label: 所属コンテキスト
+      type: domain-model-types#context-ref
+      required: true
+      relation: usecase-in-context
+    - { key: purpose, label: 目的と対象範囲, type: text, required: true }
+    - { key: actors, label: 実行主体と役割, type: domain-model-types#statements, required: true }
+    - key: models
+      label: 使用するモデル・概念
+      type: array
+      display: list
+      required: true
+      item:
+        type: domain-model-types#statement
+        fields:
+          - { key: context, label: 概念の所属, type: domain-model-types#context-ref, required: true }
+          - { key: entity, label: 定義済みのエンティティ, type: domain-model-types#model-ref }
+    - { key: triggers, label: 開始契機, type: domain-model-types#statements, required: true }
+    - { key: preconditions, label: 事前条件, type: domain-model-types#statements, required: true }
+    - key: basic_flow
+      label: 基本フロー
+      description: 配列順に操作と応答を記述する。連携先の参照は実装上の呼び出し方式を指定しない。
+      type: array
+      display: list
+      required: true
+      item:
+        type: domain-model-types#statement
+        fields:
+          - { key: actor, label: 実施主体, type: line, required: true }
+          - { key: conditions, label: 手順の条件, type: domain-model-types#statements }
+          - { key: results, label: 手順の結果, type: domain-model-types#statements }
+          - { key: invokes, label: 連携先の操作, type: usecase-ref }
+    - key: alternatives
+      label: 代替・例外
+      type: array
+      display: list
+      item:
+        type: domain-model-types#statement
+        fields:
+          - { key: condition, label: 分岐条件, type: domain-model-types#statement, required: true }
+          - { key: outcomes, label: 分岐の結果, type: domain-model-types#statements, required: true }
+          - { key: invokes, label: 連携先の操作, type: usecase-ref }
+    - { key: postconditions, label: 成功時の事後条件, type: domain-model-types#statements, required: true }
+    - { key: guarantees, label: 全経路で守る条件, type: domain-model-types#statements }

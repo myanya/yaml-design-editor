@@ -8,24 +8,35 @@ responsibility: |
   ユーザ管理を含む全機能に対し、ロールの実行範囲を規定する基盤を提供する。
   組織・グループ管理の用途はこの権限範囲の基盤に限定し、他の用途への拡張は想定しない。
 concepts:
-  - name: 組織
+  - kind: concept
+    name: 組織
+    context: BCTX-0004
+    status: draft
+    rule_refs: [RITM-0001, RITM-0009, RITM-0203]
     description: |
       テナントに所属し、親子関係によるツリー構造を持つ管理単位。
       組織に関するロールの実行範囲の基準となる。
-  - name: グループ
+  - kind: concept
+    name: グループ
+    context: BCTX-0004
+    status: draft
+    rule_refs: [RITM-0011, RITM-0012, RITM-0203]
     description: |
       組織を管理上の目的で仮想的にまとめる単位。
       対象組織と、下部組織を含めるかどうかの定義によって、グループに関するロールの実行範囲の基準となる。
 operations:
   - name: 組織構造の管理
+    rule_refs: [RITM-0009, RITM-0010, RITM-0197, RITM-0202]
     description: |
       組織と親子関係を管理し、組織ツリーを定義する。
       組織・グループ管理機能のロールに設定された操作権限と実行範囲に従う。
   - name: グループの管理
+    rule_refs: [RITM-0011, RITM-0012]
     description: |
       対象となる組織の集合と、下部組織を含めるかどうかを管理する。
       グループには組織だけを指定し、ユーザや別のグループは指定しない。
   - name: 実行範囲の基準となる定義の提供
+    rule_refs: [RITM-0203, RITM-0208]
     description: |
       権限管理と各機能が実行範囲を扱うために、組織構造とグループの定義を提供する。
 boundary: |

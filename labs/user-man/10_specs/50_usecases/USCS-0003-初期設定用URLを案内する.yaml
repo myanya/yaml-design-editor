@@ -1,0 +1,102 @@
+id: "USCS-0003"
+status: "draft"
+context: "BCTX-0005"
+purpose: "利用開始の許可を契機として、本人が初期設定を行うURLを登録メールアドレスへ案内する。"
+actors:
+  - name: "本システム"
+    description: "案内の契機を受け取り、メールの送信処理時にURLを発行して送信する。"
+    rule_refs:
+      - "RITM-0132"
+      - "RITM-0207"
+      - "RITM-0210"
+models:
+  - name: "ユーザ"
+    description: "案内対象と登録メールアドレスを参照する。"
+    rule_refs:
+      - "RITM-0132"
+    context: "BCTX-0002"
+    entity: "ENTY-0001"
+  - name: "設定用URL"
+    description: "本人が初期設定を行うための入口と、有効期間・使用済みの条件を扱う。"
+    rule_refs:
+      - "RITM-0132"
+      - "RITM-0134"
+      - "RITM-0135"
+      - "RITM-0210"
+    context: "BCTX-0005"
+triggers:
+  - name: "案内の契機"
+    description: "対象ユーザが利用開始前から初期設定中へ遷移する。"
+    rule_refs:
+      - "RITM-0207"
+preconditions:
+  - name: "対象"
+    description: "初期設定案内の契機が発生したユーザであり、登録メールアドレスがある。"
+    rule_refs:
+      - "RITM-0116"
+      - "RITM-0132"
+      - "RITM-0207"
+basic_flow:
+  - name: "案内の契機を受け取る"
+    description: "対象ユーザへの初期設定案内につなげる。大量処理等では実送信を遅らせてよい。"
+    rule_refs:
+      - "RITM-0207"
+    actor: "本システム"
+  - name: "送信処理時にURLを発行する"
+    description: "実際のメール送信処理時に初期設定用URLを発行する。"
+    rule_refs:
+      - "RITM-0210"
+    actor: "本システム"
+    results:
+      - name: "期限の起算"
+        description: "発行した時点から、テナント設定の初回設定用URLの有効期間を数える。初期値は7日間とする。"
+        rule_refs:
+          - "RITM-0134"
+          - "RITM-0210"
+  - name: "登録アドレスへ送信する"
+    description: "発行した初期設定用URLを登録メールアドレスへ送信する。"
+    rule_refs:
+      - "RITM-0132"
+    actor: "本システム"
+    results:
+      - name: "本人への案内"
+        description: "メール中のURLを、本人が初期設定を始める入口として案内する。"
+        rule_refs:
+          - "RITM-0132"
+alternatives:
+  - name: "実送信を遅らせる"
+    description: "予約バッチを優先し、メールの送信処理を遅らせる。"
+    rule_refs:
+      - "RITM-0207"
+    condition:
+      name: "送信待ち"
+      description: "一括バッチの大量処理やメールプロバイダの送信数制限等がある。"
+      rule_refs:
+        - "RITM-0207"
+    outcomes:
+      - name: "送信待ちとURLの期限"
+        description: "待機中にURLの有効期間を消費させず、実際の送信処理時に発行・起算する。"
+        rule_refs:
+          - "RITM-0210"
+postconditions:
+  - name: "送信処理の完了"
+    description: "初期設定用URLを登録メールアドレスへ送信する処理が成功している。"
+    rule_refs:
+      - "RITM-0132"
+  - name: "URLの期限"
+    description: "期限は実際の送信処理時の発行から起算しており、メール到達・開封を起算点にはしない。"
+    rule_refs:
+      - "RITM-0210"
+guarantees:
+  - name: "状態と送信の区別"
+    description: "案内の契機となる状態変更とメールの実送信を、同時に完了する前提にしない。"
+    rule_refs:
+      - "RITM-0207"
+  - name: "再発行"
+    description: "再発行の場合、以前のURLを無効化する。"
+    rule_refs:
+      - "RITM-0135"
+  - name: "停止・削除"
+    description: "停止だけを理由に発行済みURLを無効化せず、論理削除時には無効化する。"
+    rule_refs:
+      - "RITM-0178"

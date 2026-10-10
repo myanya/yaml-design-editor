@@ -40,6 +40,9 @@ root:
     - { key: collaboration, label: チーム間の協調・上流下流の関係, type: text }
     - { key: integration, label: 技術的な連携・翻訳の方式, type: text }
     - { key: timing_and_failure, label: 同期・遅延・失敗時の約束, type: text }
+    - key: agreements
+      label: 個別の連携上の約束
+      type: domain-model-types#statements
     - key: rule_refs
       label: 根拠の個別ルール
       type: array

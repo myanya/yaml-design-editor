@@ -12,12 +12,13 @@
 |---|---|---|
 | [概要](10_overview/README.md) | 目的・提供範囲・システム全体像 | [システム概要](10_overview/overview.yaml) |
 | [ルール](20_rules/README.md) | 業務・システムの判断基準 | [ルール一覧](20_rules/0000-rule-lists.yaml) |
-| [サブドメイン](30_subdomains/README.md) | 業務領域と戦略的な分類 | [サブドメイン一覧](30_subdomains/0000-subdomain-lists.yaml) |
+| [サブドメイン](30_subdomains/README.md) | 業務領域・戦略的な分類と、その中で育てるモデル | [サブドメイン一覧](30_subdomains/0000-subdomain-lists.yaml) |
 | [コンテキスト](35_bounded_contexts/README.md) | 用語・モデル・管理責任の境界 | [コンテキスト一覧](35_bounded_contexts/0000-bounded-context-lists.yaml) |
 | [コンテキスト間の連携](37_context_maps/README.md) | 境界間で受け渡す情報と責任 | [連携一覧](37_context_maps/0000-context-map-lists.yaml) |
 | [業務フロー](40_business_flows/README.md) | 複数の境界を横断する業務の流れ | [業務フロー一覧](40_business_flows/0000-business-flow-lists.yaml) |
+| [詳細ユースケース](50_usecases/README.md) | 操作・応答・成立条件とモデルの変化 | [詳細ユースケース一覧](50_usecases/0000-usecase-lists.yaml) |
 
-詳細ユースケースは `50_usecases/` で具体化する対象です。画面・API・エンティティ定義とあわせて、作成状況・未決事項は [TODO](../TODO.md) で管理します。
+モデルは[サブドメイン内の作成ガイド](30_subdomains/MODELING.md)に従い、画面・API等を含む作成状況・未決事項は [TODO](../TODO.md) で管理します。
 ルールから業務フロー・詳細ユースケースへ展開し、具体化で分かった不足を関連ルールに戻して検討します。
 
 ## 作成・更新時の参照先

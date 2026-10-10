@@ -1,0 +1,26 @@
+id: usecase-list
+name: 詳細ユースケース一覧
+match: 10_specs/50_usecases/0000-usecase-lists.yaml
+entity:
+  type: usecase
+  idPattern: USCS-*
+  defines: true
+coverage:
+  - description: 一覧のユースケースに同じIDの詳細文書が存在すること。
+    detailIn:
+      schemaIds: [usecase-detail]
+    level: warning
+root:
+  type: object
+  fields:
+    - key: usecases
+      label: 詳細ユースケース一覧
+      type: array
+      display: list
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: id, label: ユースケースID, type: id, pattern: 'USCS-[0-9]{4}', required: true }
+          - { key: title, label: タイトル, type: line, role: title, required: true }
+          - { key: summary, label: 概要, type: text, role: subtitle, required: true }

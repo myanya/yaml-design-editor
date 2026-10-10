@@ -1,0 +1,105 @@
+id: "USCS-0005"
+status: "draft"
+context: "BCTX-0002"
+purpose: "認証設定の完了を利用開始の条件と結び付ける。本人の設定完了を理由とする停止解除は行わない。"
+actors:
+  - name: "本システム"
+    description: "認証側で必要な設定が完了したことと、ユーザの利用状態を合わせて扱う。"
+    rule_refs:
+      - "RITM-0165"
+      - "RITM-0171"
+      - "RITM-0184"
+models:
+  - name: "ユーザ"
+    description: "利用状態を確認し、条件を満たす場合に利用中へ移す。"
+    rule_refs:
+      - "RITM-0165"
+      - "RITM-0176"
+    context: "BCTX-0002"
+    entity: "ENTY-0001"
+  - name: "認証設定"
+    description: "パスワードと必要な多要素認証の設定完了を参照する。"
+    rule_refs:
+      - "RITM-0184"
+    context: "BCTX-0005"
+triggers:
+  - name: "初期設定の完了"
+    description: "本人がパスワードと必要な多要素認証の設定を完了する。"
+    rule_refs:
+      - "RITM-0165"
+      - "RITM-0184"
+preconditions:
+  - name: "必要な設定済み"
+    description: "認証側で当該ユーザに必要な初期設定が完了している。"
+    rule_refs:
+      - "RITM-0184"
+basic_flow:
+  - name: "対象と設定完了を対応付ける"
+    description: "設定が完了したユーザを、対象テナントと内部IDで識別して扱う。"
+    rule_refs:
+      - "RITM-0002"
+      - "RITM-0111"
+      - "RITM-0165"
+    actor: "本システム"
+  - name: "利用開始の条件を確認する"
+    description: "利用してよい状態と初期設定済みの両方を確認する。"
+    rule_refs:
+      - "RITM-0165"
+    actor: "本システム"
+    conditions:
+      - name: "基本経路の状態"
+        description: "基本経路では対象ユーザの状態が初期設定中である。"
+        rule_refs:
+          - "RITM-0165"
+  - name: "利用中へ移す"
+    description: "初期設定中の対象ユーザを利用中へ移す。"
+    rule_refs:
+      - "RITM-0165"
+    actor: "本システム"
+    results:
+      - name: "権限との区別"
+        description: "利用中になっても、各機能で行える操作は現在のロール・権限値と実行範囲によって決まる。"
+        rule_refs:
+          - "RITM-0195"
+          - "RITM-0197"
+          - "RITM-0203"
+          - "RITM-0204"
+          - "RITM-0205"
+alternatives:
+  - name: "停止中の設定完了"
+    description: "設定完了だけでは停止を解除しない。"
+    rule_refs:
+      - "RITM-0170"
+      - "RITM-0171"
+    condition:
+      name: "停止状態"
+      description: "対象ユーザの状態が一時停止または利用停止である。"
+      rule_refs:
+        - "RITM-0171"
+    outcomes:
+      - name: "停止を維持"
+        description: "認証設定は保持し、通常機能は利用不可のままとする。再開は管理者等の別操作で行う。"
+        rule_refs:
+          - "RITM-0170"
+          - "RITM-0171"
+          - "RITM-0172"
+postconditions:
+  - name: "基本経路の利用開始"
+    description: "初期設定中だった対象ユーザは、必要な初期設定を完了して利用中となる。"
+    rule_refs:
+      - "RITM-0165"
+  - name: "停止中の経路"
+    description: "停止中に設定を完了したユーザは、停止状態を維持する。"
+    rule_refs:
+      - "RITM-0170"
+      - "RITM-0171"
+guarantees:
+  - name: "権限を新設しない"
+    description: "利用中への遷移だけで新たなロールや権限を付与しない。"
+    rule_refs:
+      - "RITM-0195"
+      - "RITM-0206"
+  - name: "状態変更後の認証"
+    description: "状態が変わった場合の再ログインは、既存の状態変更・認可の方針に従う。"
+    rule_refs:
+      - "RITM-0179"

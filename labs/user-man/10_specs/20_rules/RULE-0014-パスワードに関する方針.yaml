@@ -98,6 +98,24 @@ sections:
     content: |
       初回設定用と再設定用の有効期間は、それぞれテナントごとに設定できるようにする。
 
+  - id: RITM-0210
+    rule_type: system
+    category: authentication
+    tags: [初期設定, 設定用URL, メール, 有効期限]
+    status: confirmed
+    created_on: 2026-10-10
+    updated_on: 2026-10-10
+    revision: 1
+    title: 初期設定用URLの発行時点と有効期限の起算
+    summary: 初期設定用URLは実際のメール送信処理時に発行し、その時点から有効期限を起算する。
+    content: |
+      「初期設定中」への遷移は案内の契機とし、実際の送信処理までURLの発行を遅らせる。
+      送信待ち時間は、発行後のURLの有効期間に含めない。
+      初回設定用URLの有効期間には「設定用URLの有効期限」のテナント設定を適用する。
+      宛先への到達や本人によるメール開封を起算点にはしない。
+    decision_reason: |
+      送信数制限等による送信待ちによって、本人が利用できる有効期間が減ることを避けるため。
+
   - id: RITM-0135
     rule_type: system
     category: password

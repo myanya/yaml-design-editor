@@ -8,31 +8,280 @@ responsibility: |
   権限管理の対象となる機能の一つとして、管理操作に必要なロール・権限を利用する。
   管理者・担当者というロール名を認可条件にせず、設定された管理・付与の権限と対象範囲に従う。
 concepts:
-  - name: ユーザ
+  - kind: entity
+    id: ENTY-0001
+    name: ユーザ
     description: |
-      管理者・担当者が登録するサービスの利用者。本人による新規登録は提供しない。
-  - name: ユーザ情報
-    description: |
-      個人に紐づく共通情報など、登録・更新の対象となる情報。
-      管理対象ユーザに含まれることと、そのユーザのどの情報を変更できるかを区別する。
-  - name: 利用状態
-    description: |
-      ユーザ単位で持つ利用開始前・初期設定中・利用中・一時停止・利用停止・削除済みの状態。
-      本務・兼務という所属の区別とは独立して扱う。
+      テナントごとに独立して登録・管理するサービスの利用者。
+      システム管理者はこのモデルの対象外とし、テナント管理者には通常の所属ルールを適用する。
+    context: BCTX-0002
+    status: draft
+    rule_refs: [RITM-0002, RITM-0005, RITM-0162]
+    identity:
+      - name: 同じユーザを識別する範囲
+        description: ユーザというデータ種別では、テナントと内部IDの組で識別する。他テナントの同じ内部IDは別のユーザである。
+        rule_refs: [RITM-0002, RITM-0111]
+      - name: 識別の継続
+        description: 属性の変更や停止・再開でも内部IDを変えず、削除した内部IDは別のユーザへ再利用しない。
+        rule_refs: [RITM-0112, RITM-0172]
+    attributes:
+      - name: 内部ID
+        description: システムが採番する、ユーザを識別するための値。
+        rule_refs: [RITM-0109]
+        constraints:
+          - name: 採番方式
+            description: 数値連番とし、テナント内のユーザ間で一意に採番する。
+            rule_refs: [RITM-0110, RITM-0111]
+          - name: 変更・再利用
+            description: 作成後の変更と削除後の再利用を認めない。
+            rule_refs: [RITM-0112]
+      - name: ユーザコード
+        description: 社員番号など、テナント側がユーザに採番する業務上の識別子。内部IDとは分けて扱う。
+        rule_refs: [RITM-0109, RITM-0115]
+        constraints:
+          - name: 必須・一意性
+            description: ログインIDの方式にかかわらず必須かつテナント内で一意とする。
+            rule_refs: [RITM-0116]
+          - name: 文字と長さ
+            description: 3桁以上16桁以下の半角英数字とする。
+            rule_refs: [RITM-0122]
+          - name: 照合
+            description: 大文字・小文字を区別せず照合し、保存値では入力された表記を保持する。
+            rule_refs: [RITM-0119]
+      - name: メールアドレス
+        description: ユーザへの連絡に用いるアドレスであり、テナント設定によりログインIDとしても使用する。
+        rule_refs: [RITM-0115, RITM-0132]
+        constraints:
+          - name: 必須・一意性
+            description: ログインIDの方式にかかわらず必須かつテナント内で一意とする。他テナントでは同じ値を登録できる。
+            rule_refs: [RITM-0002, RITM-0116]
+          - name: 照合
+            description: 大文字・小文字を区別せず照合し、保存値では入力された表記を保持する。
+            rule_refs: [RITM-0120]
+          - name: 変更の確定
+            description: テナント設定で確認を必要とする場合は、新しいアドレスの確認完了後に変更を確定する。
+            rule_refs: [RITM-0126]
+      - name: ユーザ名
+        description: テナント設定によりログインIDとして使用する値。
+        rule_refs: [RITM-0115]
+        constraints:
+          - name: 必須・一意性
+            description: ログインIDとして使う場合は必須、使わない場合は未設定を許容する。設定された値はテナント内で一意とする。
+            rule_refs: [RITM-0117]
+          - name: 文字と長さ
+            description: 3文字以上32文字以下とし、半角英数字とピリオド・アンダースコア・ハイフン・プラスを許可する。
+            rule_refs: [RITM-0123]
+          - name: 照合
+            description: 大文字・小文字を区別せず照合し、保存値では入力された表記を保持する。
+            rule_refs: [RITM-0119]
+      - name: 利用状態
+        description: 同じサブドメイン内の「利用状態」に定義する値をユーザ単位で1つ持つ。
+        rule_refs: [RITM-0164, RITM-0176]
+      - name: 状態変更の理由
+        description: 状態を変更した理由。操作に応じた必須条件と入力方法を適用する。
+        rule_refs: [RITM-0164, RITM-0185]
+        constraints:
+          - name: 必須となる操作
+            description: 一時停止・利用停止・再開・削除では理由を必須とする。
+            rule_refs: [RITM-0185]
+          - name: 理由の表現
+            description: 操作ごとのテナント設定の選択肢と「その他」の自由記述を用いる。選択肢が未設定なら自由記述のみとする。
+            rule_refs: [RITM-0185]
+    relationships:
+      - name: 管理対象のテナント
+        target_name: テナント
+        target_context: BCTX-0003
+        multiplicity: '1'
+        description: ユーザはテナントごとに独立して管理する。
+        rule_refs: [RITM-0002]
+      - name: 本務の所属先
+        target_name: 組織
+        target_context: BCTX-0004
+        multiplicity: '1'
+        description: 同じテナント内の組織を必ず1つ指定する。所属関係はユーザ管理が扱い、組織構造とは区別する。
+        rule_refs: [RITM-0003, RITM-0183]
+      - name: 兼務の所属先
+        target_name: 組織
+        target_context: BCTX-0004
+        multiplicity: '0..*'
+        description: 同じテナント内の組織を0件以上指定できる。
+        rule_refs: [RITM-0003]
+      - name: 付与されたロール
+        target_name: ロール付与
+        target_context: BCTX-0001
+        multiplicity: '0..*'
+        description: 未付与で登録できる。付与先の単位・機能ごとの付与数は権限管理の制約に従う。
+        rule_refs: [RITM-0056, RITM-0206]
+    constraints:
+      - name: 所属のテナント境界
+        description: 他テナントの組織への所属と、別テナントへの異動を認めない。
+        rule_refs: [RITM-0003, RITM-0006]
+      - name: 停止中の継続性
+        description: 停止によって所属・ロール・認証設定を初期化せず、権限のある管理者等による情報更新を認める。
+        rule_refs: [RITM-0172]
+      - name: 長期未設定
+        description: 初期設定が長期間未完了であることによる自動取消・自動削除は行わない。
+        rule_refs: [RITM-0167]
+      - name: 削除済みデータの保持と参照
+        description: 論理削除後は一定期間保持するが、テナント管理者等による検索・閲覧の対象にはしない。
+        rule_refs: [RITM-0173, RITM-0186]
+  - kind: relationship
+    name: 所属
+    description: ユーザと同じテナント内の組織を結ぶ関係。本務と兼務を区別する。
+    context: BCTX-0002
+    status: draft
+    rule_refs: [RITM-0003]
+    attributes:
+      - name: 本務・兼務の区分
+        description: 本務はユーザごとに必ず1組織、兼務は0組織以上とする。
+        rule_refs: [RITM-0003]
+    constraints:
+      - name: 所属先の階層
+        description: 子組織を持つ組織にも直接所属でき、組織長だけに限定しない。
+        rule_refs: [RITM-0003]
+      - name: 権限との区別
+        description: 本務と兼務の区分自体に権限上の違いを設けない。
+        rule_refs: [RITM-0004]
+      - name: 利用状態との区別
+        description: 所属ごとの利用状態は持たせない。
+        rule_refs: [RITM-0176]
+      - name: 変更・解除
+        description: 本務を削除する操作は設けず、異動では所属先を変更する。兼務は解除できる。
+        rule_refs: [RITM-0183]
+  - kind: value_object
+    name: 利用状態
+    description: ユーザの通常機能の利用可否と運用上の状況を表す値。人事上の休職・退職情報は持たない。
+    context: BCTX-0002
+    status: draft
+    rule_refs: [RITM-0164, RITM-0176]
+    attributes:
+      - name: 状態の区分
+        description: 利用開始前・初期設定中・利用中・一時停止・利用停止・削除済みの6区分。
+        rule_refs: [RITM-0164]
+    constraints:
+      - name: 利用開始前
+        description: 事前登録中の状態。本人の初期設定と、一時停止・利用停止への変更を認めない。
+        rule_refs: [RITM-0163]
+      - name: 通常機能の利用開始
+        description: 利用してよい状態と初期設定済みの両方を必要とする。「初期設定中」への変更だけでは満たさない。
+        rule_refs: [RITM-0165]
+      - name: 二つの停止状態
+        description: 一時停止は再開、利用停止は削除を主に想定するが、どちらも再開できる。一時停止を期間だけで自動解除しない。
+        rule_refs: [RITM-0170]
+      - name: 停止中の本人設定
+        description: 初期設定とパスワード再設定・変更は可能だが、通常機能の利用は許可しない。
+        rule_refs: [RITM-0171]
+      - name: 状態変更の反映
+        description: 状態が変わった場合は再ログインを必須とし、停止解除後も以前のログイン状態をそのまま再利用しない。
+        rule_refs: [RITM-0179]
+    transitions:
+      - name: 利用開始の操作
+        from: [利用開始前]
+        to: 初期設定中
+        description: 管理者等の操作または予約の実行により遷移する。
+        rule_refs: [RITM-0165, RITM-0180]
+        conditions:
+          - name: 操作権限と範囲
+            description: テナント全体を対象とする権限により操作する。本人からの開始は認めない。
+            rule_refs: [RITM-0163, RITM-0175, RITM-0176]
+      - name: 初期設定の完了
+        from: [初期設定中]
+        to: 利用中
+        description: 認証側で本人の初期設定が完了したことを受けて遷移する。
+        rule_refs: [RITM-0165, RITM-0184]
+        conditions:
+          - name: 完了条件
+            description: パスワードと、テナント設定に応じて必要な多要素認証が設定済みであること。本人情報の入力は求めない。
+            rule_refs: [RITM-0184]
+      - name: 論理削除
+        from: [利用開始前, 初期設定中, 利用中, 一時停止, 利用停止]
+        to: 削除済み
+        description: 利用停止を経ることを必須とせず、削除操作によって遷移する。
+        rule_refs: [RITM-0173]
+        conditions:
+          - name: 削除理由
+            description: 削除理由を必須とし、誤登録等の取消も通常の削除理由で表す。
+            rule_refs: [RITM-0169, RITM-0185]
+  - kind: concept
+    name: ユーザ情報
+    description: 登録・更新の対象となる情報。初期設定時に本人による再入力を求めず、項目ごとに変更権限を扱う。
+    context: BCTX-0002
+    status: draft
+    rule_refs: [RITM-0124, RITM-0125, RITM-0184]
 operations:
-  - name: ユーザの登録と情報更新
-    description: |
-      管理者・担当者がユーザを登録し、権限の範囲内で情報を更新する。
-      登録時はロールを指定しても未指定でもよく、後から登録済みユーザへのロール変更で設定できる。
-      本人による一部の情報の変更は、対象項目に設定された方針に従う。
-  - name: 利用開始・停止・再開
-    description: |
-      利用開始の操作・予約と本人の初期設定完了を区別して利用状態を管理する。
-      一時停止・利用停止・再開を、設定された操作権限と管理範囲に従って行う。
+  - name: ユーザの登録
+    target_models: [ENTY-0001]
+    description: 管理者・担当者が、ユーザの情報と所属を登録する。
+    rule_refs: [RITM-0003, RITM-0162]
+    conditions:
+      - name: 登録主体
+        description: 登録を許可された管理者・担当者が操作し、本人による新規登録は認めない。
+        rule_refs: [RITM-0162, RITM-0175]
+      - name: 本務の指定
+        description: 同じテナント内の本務組織を必ず1つ指定する。
+        rule_refs: [RITM-0003]
+    effects:
+      - name: 事前登録
+        description: 利用開始の操作まで「利用開始前」として保持する。
+        rule_refs: [RITM-0163]
+      - name: 任意のロール付与
+        description: ロールを指定した場合は権限管理と連携して付与し、未指定でも登録できる。
+        rule_refs: [RITM-0206]
+      - name: 指定ロールを含む成立単位
+        description: ロールを指定した登録は、ユーザ登録と指定ロールの付与を一体で成立させる。付与に失敗した場合は登録も成立させない。
+        rule_refs: [RITM-0209]
+  - name: ユーザ情報の更新
+    target_models: [ENTY-0001]
+    description: 管理範囲と項目ごとの変更権限に従って、登録済みユーザの情報を変更する。
+    rule_refs: [RITM-0124, RITM-0125]
+    conditions:
+      - name: 停止中の更新
+        description: 対象ユーザが一時停止・利用停止中でも、必要な権限を持つ管理者等は情報を変更できる。
+        rule_refs: [RITM-0172]
+      - name: 本人の更新範囲
+        description: 本人による変更は、当該項目のテナント設定で許可された範囲に従う。
+        rule_refs: [RITM-0124, RITM-0177]
+  - name: 所属の変更・解除
+    target_models: [ENTY-0001]
+    description: 本務の所属先の変更と兼務の追加・解除を、ユーザの利用状態の変更と区別して扱う。
+    rule_refs: [RITM-0176, RITM-0183]
+    conditions:
+      - name: 異動の範囲
+        description: 同じテナント内の組織への異動に限る。
+        rule_refs: [RITM-0006]
+      - name: 本務の維持
+        description: 本務は必ず1組織とし、本務の所属だけを削除する操作は設けない。
+        rule_refs: [RITM-0003, RITM-0183]
+  - name: 利用開始
+    target_models: [ENTY-0001]
+    description: 管理者等の操作または予約で「利用開始前」から「初期設定中」へ移す。
+    rule_refs: [RITM-0165, RITM-0180]
+    effects:
+      - name: 初期設定の案内契機
+        description: 状態変更を契機に初期設定用URLを案内する。大量処理等では予約バッチを優先して実送信を遅らせてよい。
+        rule_refs: [RITM-0207]
+  - name: 停止・再開
+    target_models: [ENTY-0001]
+    description: 一時停止・利用停止・再開を、設定された操作権限と管理範囲に従って行う。
+    rule_refs: [RITM-0170, RITM-0175, RITM-0176]
+    conditions:
+      - name: 利用開始前からの停止禁止
+        description: 利用開始前から一時停止・利用停止へは移さず、開始操作を行わないか削除する。
+        rule_refs: [RITM-0163]
+      - name: 理由の入力
+        description: 一時停止・利用停止・再開では理由を必須とする。
+        rule_refs: [RITM-0185]
   - name: ユーザの削除
-    description: |
-      論理削除と一定期間経過後の物理削除を行う。
-      削除済みからの復活は、システムの操作機能ではなく直接DB操作による特殊な運用として扱う。
+    target_models: [ENTY-0001]
+    description: 論理削除し、1か月経過後の次の月次バッチで物理削除する。
+    rule_refs: [RITM-0173]
+    effects:
+      - name: 設定用URLの無効化
+        description: 論理削除の時点で、発行済みの初期設定・パスワード再設定・メール変更確認のURLを無効化する。
+        rule_refs: [RITM-0178]
+      - name: 特殊な復旧
+        description: 削除済みからの復活機能は提供せず、システム管理者による直接DB操作の特殊な運用に限る。
+        rule_refs: [RITM-0174]
 boundary: |
   機能・権限マスタ、ロールの定義と付与は権限管理で扱い、ユーザ管理はその情報を利用して管理操作を制御する。
   登録時に指定されたロールは権限管理と連携して付与し、未指定の場合も登録できる。

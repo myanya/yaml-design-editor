@@ -1,7 +1,7 @@
 id: subdomain-detail
 name: サブドメイン詳細
 match: 10_specs/30_subdomains/SDOM-*.yaml
-description: 責務・扱う概念・操作と境界を、根拠の個別ルールに対応付ける。
+description: サブドメイン内で概念・モデル・操作を育て、属性・関連・制約ごとに根拠の個別ルールを参照する。
 entity:
   type: subdomain
   idPattern: SDOM-*
@@ -37,9 +37,72 @@ root:
       required: true
       item:
         type: object
+        entity:
+          type: domain-entity
+          defines: true
         fields:
+          - key: kind
+            label: モデルの種類
+            type: enum
+            required: true
+            values:
+              - { value: concept, label: 概念 }
+              - { value: entity, label: エンティティ }
+              - { value: value_object, label: 値オブジェクト }
+              - { value: relationship, label: 関連 }
+            cases:
+              entity:
+                - { key: id, label: エンティティ定義ID, type: id, pattern: 'ENTY-[0-9]{4}', required: true }
           - { key: name, label: 名称, type: line, role: title, required: true }
-          - { key: description, label: 説明, type: text, required: true }
+          - { key: description, label: 意味, type: text, required: true }
+          - key: context
+            label: 所属コンテキスト
+            type: domain-model-types#context-ref
+            required: true
+            relation: model-in-context
+          - key: status
+            label: モデルの状態
+            type: enum
+            required: true
+            values:
+              - { value: draft, label: 草案 }
+              - { value: confirmed, label: 確定 }
+          - { key: rule_refs, label: 意味の根拠, type: domain-model-types#rule-refs, required: true }
+          - { key: identity, label: 識別の条件, type: domain-model-types#statements }
+          - key: attributes
+            label: 主要属性
+            type: array
+            display: list
+            item:
+              type: domain-model-types#statement
+              fields:
+                - { key: constraints, label: 属性の制約, type: domain-model-types#statements }
+          - key: relationships
+            label: 他のモデルとの関連
+            type: array
+            display: list
+            item:
+              type: domain-model-types#statement
+              fields:
+                - { key: target_name, label: 関連先の概念名, type: line, required: true }
+                - { key: target_context, label: 関連先のコンテキスト, type: domain-model-types#context-ref, required: true }
+                - { key: target_model, label: 関連先の定義ID, type: domain-model-types#model-ref }
+                - { key: multiplicity, label: 当該モデル1件から見た関連先の数, type: line, required: true }
+          - { key: constraints, label: モデルの制約, type: domain-model-types#statements }
+          - key: transitions
+            label: 状態遷移
+            type: array
+            display: list
+            item:
+              type: domain-model-types#statement
+              fields:
+                - key: from
+                  label: 遷移前の状態
+                  type: array
+                  required: true
+                  item: { type: line }
+                - { key: to, label: 遷移後の状態, type: line, required: true }
+                - { key: conditions, label: 遷移条件, type: domain-model-types#statements }
     - key: operations
       label: 操作の概要
       type: array
@@ -50,6 +113,13 @@ root:
         fields:
           - { key: name, label: 操作名, type: line, role: title, required: true }
           - { key: description, label: 説明, type: text, required: true }
+          - { key: rule_refs, label: 操作の根拠, type: domain-model-types#rule-refs, required: true }
+          - key: target_models
+            label: 操作対象のモデル
+            type: array
+            item: { type: domain-model-types#model-ref }
+          - { key: conditions, label: 操作の条件, type: domain-model-types#statements }
+          - { key: effects, label: 操作の結果, type: domain-model-types#statements }
     - { key: boundary, label: 他の機能との分担, type: text, required: true }
     - key: related_subdomains
       label: 関連サブドメイン
@@ -60,11 +130,6 @@ root:
         scope:
           schemaIds: [subdomain-list]
     - key: rule_refs
-      label: 根拠の個別ルール
-      type: array
-      required: true
-      item:
-        type: ref
-        idPatterns: [RITM-*]
-        scope:
-          schemaIds: [rule-detail]
+      label: 責務・境界の根拠
+      description: 文書全体の責務・境界の根拠。概念・属性・関連・制約・操作の根拠は各項目に記述する。
+      type: domain-model-types#rule-refs

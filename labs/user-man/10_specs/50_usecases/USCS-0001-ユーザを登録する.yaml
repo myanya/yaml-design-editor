@@ -1,0 +1,199 @@
+id: "USCS-0001"
+status: "draft"
+context: "BCTX-0002"
+purpose: "管理者等がユーザ情報と所属を登録する。指定されたロールの付与を含む場合の成立単位を定め、利用開始の許可は別の操作として扱う。"
+actors:
+  - name: "管理者等"
+    description: "登録と、指定する場合のロール付与について、必要な権限と対象範囲を持つ操作者。ロール名だけでは判定しない。"
+    rule_refs:
+      - "RITM-0162"
+      - "RITM-0175"
+      - "RITM-0197"
+      - "RITM-0206"
+  - name: "本システム"
+    description: "ユーザ情報と所属を管理し、指定ロールの付与を権限管理と連携して行う。"
+    rule_refs:
+      - "RITM-0003"
+      - "RITM-0206"
+      - "RITM-0209"
+models:
+  - name: "ユーザ"
+    description: "登録する情報・識別・利用状態を扱う。"
+    rule_refs:
+      - "RITM-0002"
+      - "RITM-0163"
+    context: "BCTX-0002"
+    entity: "ENTY-0001"
+  - name: "所属"
+    description: "同じテナント内の本務1組織と任意の兼務を設定する。"
+    rule_refs:
+      - "RITM-0003"
+    context: "BCTX-0002"
+  - name: "ロール付与"
+    description: "指定時だけ、権限管理の付与単位と付与数の制約に従って設定する。"
+    rule_refs:
+      - "RITM-0056"
+      - "RITM-0206"
+    context: "BCTX-0001"
+triggers:
+  - name: "登録要求"
+    description: "権限を持つ管理者等が、対象テナントへユーザを登録する。"
+    rule_refs:
+      - "RITM-0162"
+preconditions:
+  - name: "登録先と所属先"
+    description: "対象テナントと、そのテナント内の所属先組織を指定できる。"
+    rule_refs:
+      - "RITM-0002"
+      - "RITM-0003"
+  - name: "登録権限"
+    description: "操作者が対象に対する登録操作を許可されている。"
+    rule_refs:
+      - "RITM-0175"
+      - "RITM-0197"
+basic_flow:
+  - name: "ユーザ情報と所属を指定する"
+    description: "ユーザコード・メールアドレス・必要なユーザ名と、本務・任意の兼務を指定する。登録時に付与するロールは任意で指定する。"
+    rule_refs:
+      - "RITM-0003"
+      - "RITM-0116"
+      - "RITM-0117"
+      - "RITM-0206"
+    actor: "管理者等"
+  - name: "登録情報を検査する"
+    description: "ENTY-0001の属性・関連の制約を適用する。"
+    rule_refs:
+      - "RITM-0003"
+      - "RITM-0116"
+      - "RITM-0117"
+    actor: "本システム"
+    conditions:
+      - name: "本務とテナント"
+        description: "本務が1組織であり、本務・兼務とも同じテナント内の組織である。"
+        rule_refs:
+          - "RITM-0003"
+      - name: "必須・一意性"
+        description: "メールアドレスとユーザコードは必須かつテナント内で一意とし、ユーザ名にはログイン方式に応じた条件を適用する。"
+        rule_refs:
+          - "RITM-0116"
+          - "RITM-0117"
+      - name: "文字・照合"
+        description: "ユーザコード・ユーザ名の文字と長さ、大文字小文字を区別しない照合を適用する。メールアドレスも大文字小文字を区別せず照合する。"
+        rule_refs:
+          - "RITM-0119"
+          - "RITM-0120"
+          - "RITM-0122"
+          - "RITM-0123"
+  - name: "指定ロールの付与条件を検査する"
+    description: "ロールが指定されている場合だけ、付与権限と付与対象の条件を検査する。"
+    rule_refs:
+      - "RITM-0206"
+    actor: "本システム／権限管理"
+    conditions:
+      - name: "付与権限"
+        description: "操作者の利用権限とは別に、指定ロールを付与する権限と対象範囲を満たす。"
+        rule_refs:
+          - "RITM-0019"
+          - "RITM-0020"
+          - "RITM-0021"
+          - "RITM-0023"
+      - name: "付与数"
+        description: "同じユーザ・付与単位・機能につき1ロールとする。テナント管理者は機能別ロールと区別する。"
+        rule_refs:
+          - "RITM-0056"
+  - name: "登録を成立させる"
+    description: "ユーザと所属を登録し、ロールを指定した場合はその付与も一体として成立させる。"
+    rule_refs:
+      - "RITM-0003"
+      - "RITM-0206"
+      - "RITM-0209"
+    actor: "本システム／権限管理"
+    results:
+      - name: "事前登録の状態"
+        description: "利用開始の操作まで、ユーザを「利用開始前」として保持する。"
+        rule_refs:
+          - "RITM-0163"
+      - name: "指定ロール"
+        description: "指定されたロールの付与まで成功して登録が成立する。ロール未指定の場合はユーザ登録だけで成立する。"
+        rule_refs:
+          - "RITM-0206"
+          - "RITM-0209"
+alternatives:
+  - name: "ロール未指定"
+    description: "ロール付与を省略して登録する。"
+    rule_refs:
+      - "RITM-0206"
+    condition:
+      name: "指定なし"
+      description: "登録時にロールが指定されていない。"
+      rule_refs:
+        - "RITM-0206"
+    outcomes:
+      - name: "後から付与可能"
+        description: "ロール未付与で登録し、後から登録済みユーザにロールを設定できる。"
+        rule_refs:
+          - "RITM-0206"
+  - name: "登録情報が制約を満たさない"
+    description: "制約に違反する情報では登録を成立させない。"
+    rule_refs:
+      - "RITM-0003"
+      - "RITM-0116"
+      - "RITM-0117"
+      - "RITM-0122"
+      - "RITM-0123"
+    condition:
+      name: "入力制約違反"
+      description: "必須・一意性・所属・入力形式のいずれかを満たさない。"
+      rule_refs:
+        - "RITM-0003"
+        - "RITM-0116"
+        - "RITM-0117"
+        - "RITM-0122"
+        - "RITM-0123"
+    outcomes:
+      - name: "登録不成立"
+        description: "違反するユーザ情報や所属を登録結果として残さない。"
+        rule_refs:
+          - "RITM-0003"
+          - "RITM-0116"
+          - "RITM-0117"
+  - name: "指定ロールの付与に失敗する"
+    description: "ユーザ登録と指定ロールの付与の両方を不成立とする。"
+    rule_refs:
+      - "RITM-0209"
+    condition:
+      name: "付与失敗"
+      description: "指定されたロールを付与できない。"
+      rule_refs:
+        - "RITM-0209"
+    outcomes:
+      - name: "部分成立を残さない"
+        description: "ユーザだけの登録や、一部の指定ロールだけが付与された結果を残さない。"
+        rule_refs:
+          - "RITM-0209"
+postconditions:
+  - name: "登録済みユーザ"
+    description: "対象テナント内に、識別と所属の条件を満たす「利用開始前」のユーザが存在する。"
+    rule_refs:
+      - "RITM-0003"
+      - "RITM-0111"
+      - "RITM-0163"
+  - name: "指定どおりの付与"
+    description: "ロール指定時はその付与も成立し、未指定時はロール付与を成立条件にしない。"
+    rule_refs:
+      - "RITM-0206"
+      - "RITM-0209"
+guarantees:
+  - name: "本人による新規登録の禁止"
+    description: "本人の自己登録として実行しない。"
+    rule_refs:
+      - "RITM-0162"
+  - name: "登録と利用開始の区別"
+    description: "登録の成立だけでは本人の初期設定や通常機能の利用を認めない。"
+    rule_refs:
+      - "RITM-0163"
+      - "RITM-0165"
+  - name: "成立単位"
+    description: "指定ロールを含む登録は一体として成立させ、実装上のトランザクション構成は後続設計で決める。"
+    rule_refs:
+      - "RITM-0209"
