@@ -28,6 +28,9 @@ triggers:
     rule_refs:
       - "RITM-0165"
       - "RITM-0184"
+  - name: "失敗した状態反映の再試行"
+    description: "認証設定を保持したまま、失敗した利用状態への反映だけを再試行する。"
+    rule_refs: [RITM-0212]
 preconditions:
   - name: "必要な設定済み"
     description: "認証側で当該ユーザに必要な初期設定が完了している。"
@@ -42,9 +45,10 @@ basic_flow:
       - "RITM-0165"
     actor: "本システム"
   - name: "利用開始の条件を確認する"
-    description: "利用してよい状態と初期設定済みの両方を確認する。"
+    description: "再試行時も含め、現在の利用状態と初期設定済みの両方を確認する。"
     rule_refs:
       - "RITM-0165"
+      - "RITM-0212"
     actor: "本システム"
     conditions:
       - name: "基本経路の状態"
@@ -66,6 +70,23 @@ basic_flow:
           - "RITM-0204"
           - "RITM-0205"
 alternatives:
+  - name: "利用状態の反映失敗"
+    description: "認証設定を取り消さず、状態反映だけを再試行する。"
+    rule_refs: [RITM-0212]
+    condition:
+      name: "利用中への変更失敗"
+      description: "必要な認証設定の保存後、利用中への変更に失敗した。"
+      rule_refs: [RITM-0212]
+    outcomes:
+      - name: "認証設定の保持"
+        description: "保存済みのパスワード・MFA設定を保持し、本人に再設定を求めない。"
+        rule_refs: [RITM-0212]
+      - name: "通常機能の制限と案内"
+        description: "反映完了まで通常機能を許可せず、本人には利用開始の処理が未完了であることを案内する。"
+        rule_refs: [RITM-0212]
+      - name: "現在の条件で再試行"
+        description: "利用状態への反映だけを再試行する。毎回、現在の利用状態と設定完了の条件を確認する。"
+        rule_refs: [RITM-0212]
   - name: "停止中の設定完了"
     description: "設定完了だけでは停止を解除しない。"
     rule_refs:
@@ -94,6 +115,9 @@ postconditions:
       - "RITM-0170"
       - "RITM-0171"
 guarantees:
+  - name: "失敗時に設定を戻さない"
+    description: "利用状態の反映失敗によって認証設定を取り消さず、再試行時も停止を設定完了だけで解除しない。"
+    rule_refs: [RITM-0212, RITM-0171]
   - name: "権限を新設しない"
     description: "利用中への遷移だけで新たなロールや権限を付与しない。"
     rule_refs:

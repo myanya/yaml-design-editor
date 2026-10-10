@@ -32,6 +32,12 @@ concepts:
       - name: 利用状態との区別
         description: 認証設定の完了だけで通常機能の利用を許可せず、停止中に完了しても停止を解除しない。
         rule_refs: [RITM-0165, RITM-0170, RITM-0171]
+      - name: 設定の途中保存
+        description: 設定したパスワードは保存し、必須MFAの設定を中断しても保持する。次回のパスワード認証後に未完了の設定へ進む。
+        rule_refs: [RITM-0211]
+      - name: 利用状態の反映失敗
+        description: 利用状態への反映に失敗しても設定を保持し、状態反映だけを再試行する。反映完了まで通常機能は利用できない。
+        rule_refs: [RITM-0212]
   - kind: concept
     name: 設定用URL
     context: BCTX-0005
@@ -55,11 +61,37 @@ concepts:
         description: 初期設定用URLの有効期間に送信待ち時間を含めない。
         rule_refs: [RITM-0210]
       - name: 使用済み・再発行
-        description: 設定完了に使用したURLと、再発行した場合の以前のURLを無効化する。
+        description: 必須MFAの完了を待たず、パスワードの保存時に使用したURLを無効化する。再発行した場合も以前のURLを無効化する。
         rule_refs: [RITM-0135]
+      - name: 同じ送信の再試行
+        description: 初期設定メールの再試行では、有効な同じURLを使用して期限を延長しない。別の案内要求による再発行とは区別する。
+        rule_refs: [RITM-0213, RITM-0135]
       - name: 停止・削除
         description: 一時停止・利用停止だけでは発行済みURLを無効化せず、論理削除時には無効化する。
         rule_refs: [RITM-0178]
+  - kind: concept
+    name: 初期設定案内
+    context: BCTX-0005
+    status: draft
+    description: 利用開始の許可を契機とするメール案内。送信待ちと送信の再試行を、ユーザの利用状態とは分けて扱う。
+    rule_refs: [RITM-0207, RITM-0213, RITM-0215]
+    attributes:
+      - name: 対象と宛先
+        description: 対象ユーザを参照し、送信時点で有効な登録メールアドレスを宛先とする。
+        rule_refs: [RITM-0132, RITM-0215]
+      - name: 再試行回数の上限
+        description: 対象テナントに設定された、初期設定メールの再試行回数の上限を適用する。
+        rule_refs: [RITM-0214]
+      - name: 再試行間隔
+        description: 対象テナントに設定された間隔で、初期設定メールの自動再試行を行う。
+        rule_refs: [RITM-0214]
+    constraints:
+      - name: 送信対象の再確認
+        description: 送信時に初期設定が完了済みまたは削除済みなら案内を取りやめる。停止だけでは取りやめない。
+        rule_refs: [RITM-0215]
+      - name: 再試行と復旧
+        description: 一時的な送信エラーを期限・回数の上限内で再試行し、解消しない場合は本人・管理者からの既存の再設定案内で対応する。
+        rule_refs: [RITM-0213, RITM-0133]
 operations:
   - name: 初期設定の案内と実施
     rule_refs: [RITM-0132, RITM-0184, RITM-0207]
@@ -67,11 +99,23 @@ operations:
       ユーザ管理で「初期設定中」へ移ったことを契機に、登録メールアドレスへ初期設定用URLを案内する。
       大量処理等では予約バッチを優先してメール送信を遅らせることを許容する。
       本人がパスワードと必要な多要素認証を設定する。
+    conditions:
+      - name: 送信時の対象と宛先
+        description: 実送信時に有効な登録アドレスと初期設定の要否を確認し、設定完了済み・削除済みなら案内を取りやめる。
+        rule_refs: [RITM-0215]
+    effects:
+      - name: パスワードの確定
+        description: パスワードを保存し、使用したURLを使用済みにする。必須MFAの完了までは通常機能を利用できない。
+        rule_refs: [RITM-0135, RITM-0211]
+      - name: 案内送信の再試行
+        description: 一時的な送信エラーには、テナント設定の回数・間隔と期限の上限内で有効な同じURLの送信を再試行する。
+        rule_refs: [RITM-0213, RITM-0214]
   - name: 再設定と初期設定の再開
-    rule_refs: [RITM-0133, RITM-0163, RITM-0166]
+    rule_refs: [RITM-0133, RITM-0163, RITM-0166, RITM-0211]
     description: |
       パスワードを忘れた場合の手続きから設定用URLを案内する。
       初期設定を許可されている未完了ユーザも、この経路から初期設定を再開できる。
+      パスワード設定済みで必須MFAが未完了の場合は、パスワード認証から未完了の設定へ進む経路も利用できる。
   - name: ユーザの認証
     rule_refs: [RITM-0033, RITM-0037, RITM-0039, RITM-0041]
     description: |

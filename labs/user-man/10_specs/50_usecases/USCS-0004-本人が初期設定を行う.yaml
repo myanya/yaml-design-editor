@@ -4,11 +4,12 @@ context: "BCTX-0005"
 purpose: "本人がパスワードと必要な多要素認証を設定する。認証設定の完了と、ユーザ管理での通常機能の利用許可を区別する。"
 actors:
   - name: "本人"
-    description: "有効な設定用URLから、必要な認証設定を行う。"
+    description: "有効な設定用URLから必要な認証設定を行う。パスワード設定後に中断した場合は、パスワード認証から未完了のMFA設定を再開できる。"
     rule_refs:
       - "RITM-0132"
       - "RITM-0166"
       - "RITM-0184"
+      - "RITM-0211"
   - name: "本システム"
     description: "URLと設定内容の条件を確認し、設定完了をユーザ管理へ結び付ける。"
     rule_refs:
@@ -45,19 +46,24 @@ triggers:
     description: "初期設定が許可される未完了ユーザが、パスワードを忘れた場合のURLから設定を再開する。"
     rule_refs:
       - "RITM-0166"
+  - name: "パスワード認証から再開"
+    description: "パスワードを設定済みで必須MFAの設定を中断した本人が、設定済みのパスワードで認証する。"
+    rule_refs: [RITM-0211]
 preconditions:
   - name: "設定が許可される状態"
-    description: "利用開始前ではない、初期設定未完了のユーザである。停止中も設定経路を利用できる。"
+    description: "利用開始前・削除済みではなく初期設定が許可される、初期設定未完了のユーザである。停止中も設定経路を利用できる。"
     rule_refs:
       - "RITM-0163"
       - "RITM-0166"
       - "RITM-0171"
-  - name: "URLの有効性"
-    description: "有効期限内で、使用済み・再発行による無効化・削除時の無効化に該当しないURLである。"
+      - "RITM-0173"
+  - name: "経路に応じた本人確認"
+    description: "URLから設定する場合は、期限内かつ使用済み・再発行・削除で無効になっていないURLを必要とする。設定済みパスワードからMFA設定を再開する場合は、パスワード認証を必要とする。"
     rule_refs:
       - "RITM-0134"
       - "RITM-0135"
       - "RITM-0178"
+      - "RITM-0211"
 basic_flow:
   - name: "設定経路の条件を確認する"
     description: "対象ユーザの利用状態とURLの有効性を確認する。"
@@ -76,6 +82,13 @@ basic_flow:
       - "RITM-0131"
       - "RITM-0132"
     actor: "本人／本システム"
+    results:
+      - name: "パスワードの保存"
+        description: "パスワードを保存する。続く必須MFAの設定を中断しても、保存済みのパスワードは保持する。"
+        rule_refs: [RITM-0211]
+      - name: "URLを使用済みにする"
+        description: "パスワードの保存時に使用したURLを使用済みとして無効化し、MFA設定の完了を待たない。"
+        rule_refs: [RITM-0135]
   - name: "多要素認証を設定する"
     description: "テナント設定に応じて必要な方式の設定を行う。任意の場合の省略は、既存の初回設定の条件に従う。"
     rule_refs:
@@ -104,6 +117,35 @@ basic_flow:
     actor: "本システム"
     invokes: "USCS-0005"
 alternatives:
+  - name: "パスワード設定後の中断と再開"
+    description: "保存済みのパスワードを保持し、未完了の必須MFA設定から再開する。"
+    rule_refs: [RITM-0211]
+    condition:
+      name: "パスワード設定済み・必須MFA未完了"
+      description: "パスワードを保存した後、必要なMFAの設定が完了する前に中断した。"
+      rule_refs: [RITM-0211]
+    outcomes:
+      - name: "再開する経路"
+        description: "本人が設定済みパスワードで認証した後、URL確認とパスワード設定の手順を経ず、未完了のMFA設定へ進む。"
+        rule_refs: [RITM-0211]
+      - name: "中断時の利用制限"
+        description: "必要なMFA設定が完了するまで通常機能は利用できず、初期設定全体の完了として扱わない。"
+        rule_refs: [RITM-0211, RITM-0184]
+  - name: "利用状態への反映に失敗"
+    description: "認証設定の完了は保持し、利用状態への反映だけを再試行する。"
+    rule_refs: [RITM-0212]
+    condition:
+      name: "必要な設定の保存後の失敗"
+      description: "必要なパスワード・MFAの設定は保存済みだが、利用中への反映が失敗した。"
+      rule_refs: [RITM-0212]
+    outcomes:
+      - name: "設定の保持と案内"
+        description: "本人に同じ認証設定をやり直させず、利用開始の処理が未完了であることを案内する。"
+        rule_refs: [RITM-0212]
+      - name: "状態反映の再試行"
+        description: "利用状態への反映を再試行し、反映が完了するまで通常機能を許可しない。"
+        rule_refs: [RITM-0212]
+    invokes: "USCS-0005"
   - name: "URLが無効"
     description: "無効なURLによる設定を成立させない。"
     rule_refs:
@@ -164,7 +206,7 @@ guarantees:
     rule_refs:
       - "RITM-0184"
   - name: "使用済みURL"
-    description: "設定完了に使用したURLは再利用できない。"
+    description: "パスワードの保存に使用したURLは、MFAの設定が未完了でも再利用できない。"
     rule_refs:
       - "RITM-0135"
   - name: "長期未完了"

@@ -11,9 +11,10 @@ actors:
       - "RITM-0210"
 models:
   - name: "ユーザ"
-    description: "案内対象と登録メールアドレスを参照する。"
+    description: "送信時点で有効な登録メールアドレスと、削除済みかどうかを参照する。"
     rule_refs:
       - "RITM-0132"
+      - "RITM-0215"
     context: "BCTX-0002"
     entity: "ENTY-0001"
   - name: "設定用URL"
@@ -24,11 +25,22 @@ models:
       - "RITM-0135"
       - "RITM-0210"
     context: "BCTX-0005"
+  - name: "認証設定"
+    description: "送信時点で既に初期設定が完了していないか確認する。"
+    rule_refs: [RITM-0215]
+    context: "BCTX-0005"
+  - name: "初期設定案内"
+    description: "送信待ち、送信対象の再確認と、テナント設定に従った再試行を扱う。"
+    rule_refs: [RITM-0207, RITM-0213, RITM-0214, RITM-0215]
+    context: "BCTX-0005"
 triggers:
   - name: "案内の契機"
     description: "対象ユーザが利用開始前から初期設定中へ遷移する。"
     rule_refs:
       - "RITM-0207"
+  - name: "一時的な送信エラーの再試行"
+    description: "一時的な送信エラーの後、テナント設定の間隔に従って送信を再試行する。"
+    rule_refs: [RITM-0213, RITM-0214]
 preconditions:
   - name: "対象"
     description: "初期設定案内の契機が発生したユーザであり、登録メールアドレスがある。"
@@ -42,6 +54,17 @@ basic_flow:
     rule_refs:
       - "RITM-0207"
     actor: "本システム"
+  - name: "送信対象と宛先を確認する"
+    description: "送信時点の対象ユーザと認証設定を確認し、その時点で有効な登録メールアドレスを使用する。"
+    rule_refs: [RITM-0215]
+    actor: "本システム"
+    conditions:
+      - name: "案内が必要な対象"
+        description: "初期設定が未完了で、削除済みではない。一時停止・利用停止だけでは送信対象から除かない。"
+        rule_refs: [RITM-0215]
+      - name: "宛先の確定"
+        description: "アドレス変更の確認が必要な場合は、変更が確定した登録アドレスを使用する。"
+        rule_refs: [RITM-0126, RITM-0215]
   - name: "送信処理時にURLを発行する"
     description: "実際のメール送信処理時に初期設定用URLを発行する。"
     rule_refs:
@@ -64,6 +87,42 @@ basic_flow:
         rule_refs:
           - "RITM-0132"
 alternatives:
+  - name: "送信前に初期設定完了または削除"
+    description: "不要になった未送信の初期設定案内を取りやめる。"
+    rule_refs: [RITM-0215]
+    condition:
+      name: "送信時点で案内不要"
+      description: "初回送信または再試行の時点で、既に初期設定が完了しているか、対象ユーザが削除済みである。"
+      rule_refs: [RITM-0215]
+    outcomes:
+      - name: "案内を取りやめる"
+        description: "未送信の案内を送信せず、当該案内の送信処理を終える。"
+        rule_refs: [RITM-0215]
+  - name: "一時的な送信エラー"
+    description: "期限とテナント設定の回数・間隔に従って、自動再試行する。"
+    rule_refs: [RITM-0213, RITM-0214]
+    condition:
+      name: "再試行できる送信失敗"
+      description: "一時的な送信エラーが発生し、再試行の期限・回数の上限内であり、送信するURLが有効である。"
+      rule_refs: [RITM-0213, RITM-0214]
+    outcomes:
+      - name: "テナント設定の適用"
+        description: "対象テナントの再試行回数の上限・間隔を適用して送信を再試行する。"
+        rule_refs: [RITM-0214]
+      - name: "送信条件の再確認"
+        description: "基本フローの送信対象と宛先の確認へ戻る。確認後はURLを新規発行せず、有効な同じURLの送信を再試行し、有効期限を延長しない。"
+        rule_refs: [RITM-0213, RITM-0215]
+  - name: "自動再試行で解消しない"
+    description: "本人・管理者が既存の再設定案内を利用して対応する。"
+    rule_refs: [RITM-0133, RITM-0213]
+    condition:
+      name: "送信未解消"
+      description: "送信に成功しないまま再試行の期限・回数の上限に達するなど、自動再試行で解消しない。"
+      rule_refs: [RITM-0213]
+    outcomes:
+      - name: "既存の再設定案内で対応"
+        description: "本人または管理者から既存の再設定案内を要求する運用とする。別の案内要求によりURLを再発行した場合は、旧URLを無効化する。"
+        rule_refs: [RITM-0133, RITM-0135, RITM-0213]
   - name: "実送信を遅らせる"
     description: "予約バッチを優先し、メールの送信処理を遅らせる。"
     rule_refs:
@@ -80,14 +139,22 @@ alternatives:
           - "RITM-0210"
 postconditions:
   - name: "送信処理の完了"
-    description: "初期設定用URLを登録メールアドレスへ送信する処理が成功している。"
+    description: "送信する経路では、初期設定用URLを送信時点で有効な登録メールアドレスへ送信する処理が成功している。"
     rule_refs:
       - "RITM-0132"
+      - "RITM-0215"
+  - name: "不要な案内の終了"
+    description: "設定完了済み・削除済みの経路では、未送信の案内を取りやめている。"
+    rule_refs: [RITM-0215]
   - name: "URLの期限"
-    description: "期限は実際の送信処理時の発行から起算しており、メール到達・開封を起算点にはしない。"
+    description: "送信する経路のURLの期限は、実際の送信処理時の発行から起算する。再試行で延長せず、メール到達・開封を起算点にはしない。"
     rule_refs:
       - "RITM-0210"
+      - "RITM-0213"
 guarantees:
+  - name: "再試行時のURL"
+    description: "同じ送信の再試行では有効な同じURLを使用し、期限を延長しない。無効になったURLは送信しない。"
+    rule_refs: [RITM-0213]
   - name: "状態と送信の区別"
     description: "案内の契機となる状態変更とメールの実送信を、同時に完了する前提にしない。"
     rule_refs:
