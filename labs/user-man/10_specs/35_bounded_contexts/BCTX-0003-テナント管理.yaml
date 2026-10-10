@@ -1,0 +1,20 @@
+id: BCTX-0003
+status: draft
+purpose: テナント開設と利用側連携の責務を明確にする。
+responsibility: |
+  利用側からの呼び出しと、システム管理者の操作によるテナント開設を提供する。
+out_of_scope: |
+  利用側システム固有のテナント情報は利用側が管理する。各管理対象機能の情報の意味はその境界で定める。
+concepts:
+  - name: テナント
+    meaning: 管理情報を分離する単位。開設時に対象機能のテナント作成を行う。
+  - name: 開設用コンポーネント
+    meaning: 利用側が注入する、利用側固有の登録処理を呼ぶための拡張。
+information_ownership: |
+  本機能側のテナント開設を管理し、利用側固有情報の登録は利用側へ委ねる。
+public_contract: |
+  開設API・サービス呼び出し、システム管理者向け開設操作、注入コンポーネントを介した連携を提供する。
+subdomains:
+  - to: SDOM-0003
+    responsibility: テナント開設と利用側連携
+rule_refs: [RITM-0198, RITM-0199, RITM-0200, RITM-0201, RITM-0205]

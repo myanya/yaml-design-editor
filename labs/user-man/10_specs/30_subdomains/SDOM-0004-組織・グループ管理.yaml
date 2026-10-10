@@ -1,8 +1,12 @@
 id: SDOM-0004
 status: draft
+classification: supporting
+classification_reason: |
+  各機能の権限範囲を支える領域であり、用途をその基盤に限定する。機能の追加時にも同じ定義を用い、組織管理自体を拡張することは想定しない。
 responsibility: |
   組織構造とグループの定義を、ユーザ管理から独立した機能ID・ロールで管理する。
   ユーザ管理を含む全機能に対し、ロールの実行範囲を規定する基盤を提供する。
+  組織・グループ管理の用途はこの権限範囲の基盤に限定し、他の用途への拡張は想定しない。
 concepts:
   - name: 組織
     description: |
@@ -48,3 +52,4 @@ rule_refs:
   - RITM-0203
   - RITM-0204
   - RITM-0205
+  - RITM-0208

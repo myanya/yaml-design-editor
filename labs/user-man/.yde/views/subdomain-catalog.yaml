@@ -1,0 +1,18 @@
+id: subdomain-catalog
+name: サブドメイン分類一覧
+rows:
+  idPattern: SDOM-*
+order:
+  schemaId: subdomain-list
+columns:
+  - { label: サブドメイン, schemaId: subdomain-list, path: title }
+  - { label: 分類, schemaId: subdomain-detail, path: classification, editable: true }
+  - { label: 分類の根拠, schemaId: subdomain-detail, path: classification_reason }
+  - { label: 文書の状態, schemaId: subdomain-detail, path: status }
+  - label: 担当するコンテキスト
+    backlinks:
+      relation: covers-subdomain
+      schemaIds: [bounded-context-detail]
+  - { label: 責務, schemaId: subdomain-detail, path: responsibility }
+detail:
+  schemaId: subdomain-detail

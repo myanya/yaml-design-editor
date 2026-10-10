@@ -1,5 +1,8 @@
 id: SDOM-0003
 status: draft
+classification: supporting
+classification_reason: |
+  ユーザ管理と権限管理を支える、本システム固有のテナント開設と利用側連携を担う。
 responsibility: |
   テナント開設の処理を提供し、本機能内の管理対象機能と利用側システムの開設処理をつなぐ。
   利用側から呼び出す経路と、システム管理者が本機能を操作する経路を扱う。

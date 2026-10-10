@@ -46,6 +46,14 @@ root:
           - { key: actor, label: 実施主体, type: line, required: true }
           - { key: content, label: 内容, type: text, required: true }
           - { key: state_change, label: 利用状態の変化, type: text }
+          - key: contexts
+            label: 関与するコンテキスト
+            type: array
+            item:
+              type: ref
+              idPatterns: [BCTX-*]
+              scope:
+                schemaIds: [bounded-context-list]
           - key: subdomains
             label: 関与するサブドメイン
             type: array

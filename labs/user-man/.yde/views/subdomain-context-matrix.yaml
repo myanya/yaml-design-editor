@@ -1,0 +1,18 @@
+id: subdomain-context-matrix
+name: サブドメインとコンテキストの対応
+rows:
+  idPattern: SDOM-*
+order:
+  schemaId: subdomain-list
+columns:
+  - { label: サブドメイン, schemaId: subdomain-list, path: title }
+  - { label: 分類, schemaId: subdomain-detail, path: classification }
+  - each: { idPattern: 'BCTX-*', bind: ctx, order: { schemaId: bounded-context-list } }
+    value:
+      count:
+        all:
+          match:
+            - node: { entity: subdomain, bind: sd }
+            - edge: { relation: covers-subdomain, dir: in }
+            - node: { entity: bounded-context, id: '$ctx', bind: bc }
+          of: bc

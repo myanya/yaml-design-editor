@@ -17,6 +17,18 @@ root:
       values:
         - { value: draft, label: 草案 }
         - { value: confirmed, label: 確定 }
+    - key: classification
+      label: サブドメイン分類
+      description: 事業・製品にとっての位置付け。未検討の場合は未設定とし、文書の確定状態とは区別する。
+      type: enum
+      values:
+        - { value: core, label: 中核サブドメイン }
+        - { value: supporting, label: 支援サブドメイン }
+        - { value: generic, label: 汎用サブドメイン }
+    - key: classification_reason
+      label: 分類の根拠
+      description: どの事業・製品の立場で、どの価値・独自性を基準に分類したかを記述する。
+      type: text
     - { key: responsibility, label: 責務, type: text, required: true }
     - key: concepts
       label: 扱う概念

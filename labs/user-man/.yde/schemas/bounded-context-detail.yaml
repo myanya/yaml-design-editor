@@ -1,0 +1,54 @@
+id: bounded-context-detail
+name: 境界づけられたコンテキスト詳細
+match: 10_specs/35_bounded_contexts/BCTX-*.yaml
+entity:
+  type: bounded-context
+  idPattern: BCTX-*
+  aspect: detail
+root:
+  type: object
+  fields:
+    - { key: id, label: コンテキストID, type: id, pattern: 'BCTX-[0-9]{4}', required: true }
+    - key: status
+      label: 状態
+      type: enum
+      required: true
+      values:
+        - { value: draft, label: 草案 }
+        - { value: confirmed, label: 確定 }
+    - { key: purpose, label: 目的, type: text, required: true }
+    - { key: responsibility, label: 責務, type: text, required: true }
+    - { key: out_of_scope, label: 他の境界に委ねること, type: text, required: true }
+    - key: concepts
+      label: この境界での用語・モデル
+      type: array
+      display: list
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: name, label: 用語, type: line, role: title, required: true }
+          - { key: meaning, label: 意味, type: text, required: true }
+    - { key: information_ownership, label: 情報の管理責任, type: text, required: true }
+    - { key: public_contract, label: 公開する操作・情報, type: text, required: true }
+    - key: subdomains
+      label: 担当するサブドメイン
+      type: array
+      required: true
+      item:
+        type: ref
+        idPatterns: [SDOM-*]
+        relation: covers-subdomain
+        scope:
+          schemaIds: [subdomain-list]
+        fields:
+          - { key: responsibility, label: 担当範囲, type: text, required: true }
+    - key: rule_refs
+      label: 根拠の個別ルール
+      type: array
+      required: true
+      item:
+        type: ref
+        idPatterns: [RITM-*]
+        scope:
+          schemaIds: [rule-detail]

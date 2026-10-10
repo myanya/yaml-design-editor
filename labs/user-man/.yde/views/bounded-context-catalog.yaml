@@ -1,0 +1,17 @@
+id: bounded-context-catalog
+name: コンテキスト一覧
+rows:
+  idPattern: BCTX-*
+order:
+  schemaId: bounded-context-list
+columns:
+  - { label: コンテキスト, schemaId: bounded-context-list, path: title }
+  - { label: 状態, schemaId: bounded-context-detail, path: status }
+  - { label: 担当領域と範囲, schemaId: bounded-context-detail, path: subdomains }
+  - { label: 情報の管理責任, schemaId: bounded-context-detail, path: information_ownership }
+  - label: 関与する連携
+    backlinks:
+      relation: connects-context
+      schemaIds: [context-map-detail]
+detail:
+  schemaId: bounded-context-detail

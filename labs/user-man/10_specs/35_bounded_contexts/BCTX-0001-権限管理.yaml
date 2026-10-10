@@ -1,0 +1,20 @@
+id: BCTX-0001
+status: draft
+purpose: 各機能の権限とロール付与を、一貫したモデルで扱う。
+responsibility: |
+  機能・権限マスタ、ロール、付与関係を管理する。
+out_of_scope: |
+  組織構造の定義、ユーザの利用状態、本人の認証はそれぞれの境界に委ねる。
+concepts:
+  - name: ロール
+    meaning: 機能別の権限値の集合。名称から権限を推測しない。
+  - name: 付与先ユーザ
+    meaning: 組織・グループ・テナントの付与単位においてロールと結び付ける主体。
+information_ownership: |
+  機能・権限・ロールの定義とユーザへの付与関係を管理する。
+public_contract: |
+  機能IDに関するロールと権限識別ID・権限値を利用側へ提供する。
+subdomains:
+  - to: SDOM-0001
+    responsibility: 機能・権限定義、ロール定義と付与
+rule_refs: [RITM-0189, RITM-0190, RITM-0195, RITM-0197, RITM-0203, RITM-0204, RITM-0205]

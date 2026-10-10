@@ -1,0 +1,20 @@
+id: BCTX-0005
+status: draft
+purpose: 本人の認証と認証設定の完了を一貫して扱う。
+responsibility: |
+  パスワード・多要素認証の初期設定・再設定と本人の認証を担う。
+out_of_scope: |
+  ユーザの利用状態はユーザ管理、利用できる操作は各機能の権限制御で扱う。本人情報の再入力は求めない。
+concepts:
+  - name: 認証主体
+    meaning: パスワード・多要素認証によって本人であることを確かめる対象ユーザ。
+  - name: 初期設定の完了
+    meaning: パスワードと必要な多要素認証の設定が済んでいること。
+information_ownership: |
+  認証情報とその設定完了を管理する。利用状態そのものはユーザ管理の責務とする。
+public_contract: |
+  初期設定案内、初期設定・再設定の手続き、本人の認証を提供する。初期設定の完了を利用開始条件に結び付ける。
+subdomains:
+  - to: SDOM-0005
+    responsibility: 認証と認証設定の初期設定・再設定
+rule_refs: [RITM-0132, RITM-0134, RITM-0135, RITM-0165, RITM-0184, RITM-0207]

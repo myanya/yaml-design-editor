@@ -1,5 +1,8 @@
 id: SDOM-0002
 status: draft
+classification: core
+classification_reason: |
+  本ユーザ管理機能を提供する立場で、ユーザの登録・情報更新・利用状態の管理を主要な提供価値として扱う。
 responsibility: |
   テナントに所属するユーザの登録・情報更新・利用状態を管理する。
   権限管理の対象となる機能の一つとして、管理操作に必要なロール・権限を利用する。

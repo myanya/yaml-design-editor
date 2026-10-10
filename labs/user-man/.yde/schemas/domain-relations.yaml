@@ -1,0 +1,19 @@
+id: domain-relations
+kind: relations
+entities:
+  - { type: subdomain, label: サブドメイン }
+  - { type: bounded-context, label: 境界づけられたコンテキスト }
+  - { type: context-map, label: コンテキスト間の連携 }
+relations:
+  - name: covers-subdomain
+    label: 担当する業務領域
+    inverseLabel: 担当するコンテキスト
+    source: [bounded-context]
+    target: [subdomain]
+    description: コンテキストが担当する業務領域と範囲。利用するだけの領域は含めない。
+  - name: connects-context
+    label: 連携の当事者
+    inverseLabel: 関与する連携
+    source: [context-map]
+    target: [bounded-context]
+    description: 連携を構成する二つの境界。参照の向き自体は上流下流を表さない。

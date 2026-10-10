@@ -1,5 +1,8 @@
 id: SDOM-0005
 status: draft
+classification: generic
+classification_reason: |
+  パスワード・多要素認証など、広く共通する本人認証の課題を担う。業務上の重要性と戦略的な分類は区別する。
 responsibility: |
   ユーザの認証と、認証に必要なパスワード・多要素認証の初期設定・再設定を担う。
   初期設定の完了を、ユーザ管理の利用開始条件に結び付ける。

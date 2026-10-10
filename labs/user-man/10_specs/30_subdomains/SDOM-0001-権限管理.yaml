@@ -1,5 +1,8 @@
 id: SDOM-0001
 status: draft
+classification: core
+classification_reason: |
+  本ユーザ管理機能を提供する立場で、各機能に共通する権限定義・ロール付与・管理範囲の制御を価値の中心として扱う。
 responsibility: |
   ユーザ管理と利用側の他機能に共通する権限管理を担う。
   機能・権限マスタ、機能ごとのロール、ユーザへのロール付与を管理し、機能単位の管理の委譲を支える。

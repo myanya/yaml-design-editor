@@ -1,0 +1,12 @@
+id: CMAP-0001
+status: draft
+context_a: BCTX-0002
+context_b: BCTX-0001
+purpose: ユーザ管理の操作権限と登録時・登録後のロール付与を連携する。
+information_flow: |
+  ユーザ管理は権限管理のロール・権限情報を用いて操作を制御する。登録時に指定されたロールと、登録後のロール変更を権限管理に結び付ける。
+ownership: |
+  ユーザ情報・利用状態はユーザ管理、ロールの定義・付与関係は権限管理が管理する。
+model_translation: |
+  ユーザ管理の管理対象ユーザを、権限管理ではロールの付与先として扱う。
+rule_refs: [RITM-0195, RITM-0197, RITM-0206]

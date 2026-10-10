@@ -1,0 +1,20 @@
+id: BCTX-0002
+status: draft
+purpose: ユーザの登録と利用状態の変化を一貫して管理する。
+responsibility: |
+  ユーザ情報・所属の登録と更新、利用開始・停止・再開・削除を扱う。
+out_of_scope: |
+  ロール定義・付与は権限管理、組織構造は組織・グループ管理、パスワード・多要素認証はユーザ認証が扱う。
+concepts:
+  - name: ユーザ
+    meaning: 情報と所属、利用状態を持つ管理対象。本務・兼務ごとに別の利用状態は持たない。
+  - name: 利用状態
+    meaning: 利用開始前・初期設定中・利用中・一時停止・利用停止・削除済みの状態。
+information_ownership: |
+  ユーザ情報・所属情報と利用状態の変更を管理する。
+public_contract: |
+  権限と対象範囲に従った登録・情報変更・状態変更を提供する。登録時の任意のロール付与は権限管理と連携する。
+subdomains:
+  - to: SDOM-0002
+    responsibility: ユーザ情報・所属情報・利用状態
+rule_refs: [RITM-0162, RITM-0164, RITM-0165, RITM-0176, RITM-0184, RITM-0206]
