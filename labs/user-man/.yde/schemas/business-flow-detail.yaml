@@ -1,0 +1,95 @@
+id: business-flow-detail
+name: 業務フロー詳細
+match: 10_specs/40_business_flows/BZFL-*.yaml
+description: 複数サブドメインをまたぐ業務の流れを、関与する主体と個別ルールに対応付ける。
+entity:
+  type: business-flow
+  idPattern: BZFL-*
+  aspect: detail
+root:
+  type: object
+  fields:
+    - { key: id, label: 業務フローID, type: id, pattern: 'BZFL-[0-9]{4}', required: true }
+    - key: status
+      label: ステータス
+      type: enum
+      required: true
+      values:
+        - { value: draft, label: 草案 }
+        - { value: confirmed, label: 確定 }
+    - { key: purpose, label: 目的と対象, type: text, required: true }
+    - key: actors
+      label: 関与する主体
+      type: array
+      display: list
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: name, label: 名称, type: line, role: title, required: true }
+          - { key: description, label: 役割, type: text, required: true }
+    - key: preconditions
+      label: 前提条件
+      type: array
+      required: true
+      item: { type: line }
+    - key: basic_flow
+      label: 基本フロー
+      description: 配列の順に業務の流れを記述する。処理全体の同期実行や単一トランザクションを意味しない。
+      type: array
+      display: list
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: title, label: 手順名, type: line, role: title, required: true }
+          - { key: actor, label: 実施主体, type: line, required: true }
+          - { key: content, label: 内容, type: text, required: true }
+          - { key: state_change, label: 利用状態の変化, type: text }
+          - key: subdomains
+            label: 関与するサブドメイン
+            type: array
+            required: true
+            item:
+              type: ref
+              idPatterns: [SDOM-*]
+              scope:
+                schemaIds: [subdomain-list]
+          - key: rule_refs
+            label: 根拠の個別ルール
+            type: array
+            required: true
+            item:
+              type: ref
+              idPatterns: [RITM-*]
+              scope:
+                schemaIds: [rule-detail]
+    - key: variations
+      label: 代替・例外フロー
+      type: array
+      display: list
+      item:
+        type: object
+        fields:
+          - { key: title, label: 分岐名, type: line, role: title, required: true }
+          - { key: condition, label: 条件, type: text, required: true }
+          - { key: content, label: 内容, type: text, required: true }
+          - key: rule_refs
+            label: 根拠の個別ルール
+            type: array
+            required: true
+            item:
+              type: ref
+              idPatterns: [RITM-*]
+              scope:
+                schemaIds: [rule-detail]
+    - { key: outcome, label: 完了時の状態, type: text, required: true }
+    - key: rule_refs
+      label: フロー全体の根拠
+      type: array
+      required: true
+      item:
+        type: ref
+        idPatterns: [RITM-*]
+        scope:
+          schemaIds: [rule-detail]

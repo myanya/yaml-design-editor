@@ -1,0 +1,27 @@
+id: business-flow-list
+name: 業務フロー一覧
+match: 10_specs/40_business_flows/0000-business-flow-lists.yaml
+description: 概要ユースケースのID・タイトル・概要を管理する。
+entity:
+  type: business-flow
+  idPattern: BZFL-*
+  defines: true
+coverage:
+  - description: 一覧の業務フローに同じIDの詳細文書が存在すること。
+    detailIn:
+      schemaIds: [business-flow-detail]
+    level: warning
+root:
+  type: object
+  fields:
+    - key: business_flows
+      label: 業務フロー一覧
+      type: array
+      display: list
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: id, label: 業務フローID, type: id, pattern: 'BZFL-[0-9]{4}', required: true }
+          - { key: title, label: タイトル, type: line, role: title, required: true }
+          - { key: summary, label: 概要, type: text, role: subtitle, required: true }

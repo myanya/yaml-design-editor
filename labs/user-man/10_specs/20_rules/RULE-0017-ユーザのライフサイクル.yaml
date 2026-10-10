@@ -1,0 +1,463 @@
+id: RULE-0017
+
+derived_from:
+  - RULE-0001
+  - RULE-0004
+  - RULE-0005
+  - RULE-0007
+  - RULE-0008
+  - RULE-0010
+  - RULE-0012
+  - RULE-0014
+
+sections:
+  - id: RITM-0162
+    rule_type: business
+    category: user_management
+    tags: [ユーザ登録, 管理者, 担当者]
+    status: confirmed
+    created_on: 2026-10-05
+    updated_on: 2026-10-05
+    revision: 1
+    title: ユーザの登録主体
+    summary: ユーザは管理者・担当者が登録し、本人による新規登録は提供しない。
+    content: |
+      管理者や担当者がユーザを登録する運用を基本とする。
+      本人が新規登録する機能は設けない。
+    decision_reason: |
+      本システムには本人からの新規登録を審査する機構がないため。
+
+  - id: RITM-0206
+    rule_type: business
+    category: authorization
+    tags: [ユーザ登録, ロール付与, 任意]
+    status: confirmed
+    created_on: 2026-10-10
+    updated_on: 2026-10-10
+    revision: 1
+    title: ユーザ登録時の任意のロール付与
+    summary: ユーザ登録時のロール付与は任意とし、ロールを指定して登録することも、未指定で登録することもできる。
+    content: |
+      ロールを指定した場合は、ユーザ登録に併せてロールを付与する。
+      ロール未指定でもユーザを登録でき、後から登録済みユーザに対するロール変更で設定できる。
+      ロールを付与・変更する場合は、既存の付与権限・対象範囲・付与数の制約を適用する。
+
+  - id: RITM-0163
+    rule_type: business
+    category: user_management
+    tags: [事前登録, 利用開始前, 変更予約]
+    status: confirmed
+    created_on: 2026-10-05
+    updated_on: 2026-10-06
+    revision: 3
+    title: 事前登録と利用開始前の状態
+    summary: 「利用開始前」は事前登録中の状態とし、この状態では本人による初期設定を認めない。
+    content: |
+      事前にユーザを登録し、特定日から利用可能にする運用は、予約機能で対応する。
+      ユーザの登録と利用開始を区別し、事前登録中は「利用開始前」として保持する。
+      「利用開始前」のユーザ本人が初期設定を始め、「初期設定中」へ進むことは認めない。
+      「利用開始前」から一時停止・利用停止へは移さない。
+      利用開始を防ぐ場合は、利用開始の操作を行わず「利用開始前」のままとする。
+      不要と判断した場合は削除する。
+    decision_reason: |
+      大量のユーザをあらかじめ確実に登録しておき、利用開始に備える運用に対応するため。
+
+  - id: RITM-0164
+    rule_type: business
+    category: user_management
+    tags: [状態管理, 理由]
+    status: confirmed
+    created_on: 2026-10-05
+    updated_on: 2026-10-05
+    revision: 1
+    title: ユーザの状態と理由
+    summary: 利用開始前・初期設定中・利用中・一時停止・利用停止・削除済みの状態と、その理由を管理する。
+    content: |
+      ユーザの状態は、次の区分で把握できるようにする。
+      - 利用開始前
+      - 初期設定中
+      - 利用中
+      - 一時停止
+      - 利用停止
+      - 削除済み
+      状態とその理由が分かるようにする。
+      休職・退職などの人事情報は管理しない。
+    decision_reason: |
+      本システムは人事DBではなく、ユーザの利用状態と理由を把握できれば十分なため。
+
+  - id: RITM-0165
+    rule_type: system
+    category: user_management
+    tags: [利用開始, 有効化, 初期設定]
+    status: confirmed
+    created_on: 2026-10-05
+    updated_on: 2026-10-06
+    revision: 2
+    title: 利用開始の条件
+    summary: 管理者等の操作・予約で「利用開始前」から「初期設定中」へ移し、本人の初期設定完了により「利用中」へ移す。
+    content: |
+      「利用開始前」から「初期設定中」への遷移は、管理者等の操作、または予約の実行によって行う。
+      「初期設定中」から「利用中」への遷移は、本人が初期設定を完了したときに行う。
+      利用してよい状態であることと、初期設定済みであることの両方を満たす必要がある。
+      「初期設定中」への遷移だけでは、通常機能の利用開始の条件を満たさない。
+
+  - id: RITM-0207
+    rule_type: system
+    category: notification
+    tags: [初期設定, メール, 送信契機, 予約, バッチ]
+    status: confirmed
+    created_on: 2026-10-10
+    updated_on: 2026-10-10
+    revision: 1
+    title: 初期設定用URLの案内契機と送信の遅延
+    summary: 「利用開始前」から「初期設定中」への遷移を契機に初期設定用URLをメールで案内し、大量処理等では実際の送信を遅らせることを許容する。
+    content: |
+      管理者の利用開始操作、または予約の実行によって「初期設定中」へ移った時点を、案内メールの送信契機とする。
+      予約等の一括バッチで多数のユーザが変更された場合など、処理の都合によって実際のメール送信を遅らせてよい。
+      メールプロバイダの一定時間当たりの送信数制限等に対応するため、予約バッチの処理を優先できるようにする。
+      状態を変更して案内の契機が発生することと、実際にメールを送信することを区別する。
+    decision_reason: |
+      メールプロバイダの送信数制限等によって、予約バッチの処理が妨げられることを避けるため。
+
+  - id: RITM-0166
+    rule_type: system
+    category: authentication
+    tags: [初期設定, パスワード, 再設定]
+    status: confirmed
+    created_on: 2026-10-05
+    updated_on: 2026-10-05
+    revision: 2
+    title: 初期設定未完了のユーザの再開
+    summary: 初期設定が許可される状態の未完了ユーザは、パスワードを忘れた場合の手続きで案内されるURLから初期設定フローへ進めるようにする。
+    content: |
+      初期設定未完了のユーザに対しても、パスワードを忘れた場合の手続きを利用して初期設定を再開できる経路を提供する。
+      この経路でも、「事前登録と利用開始前の状態」に定める初期設定の制限を適用する。
+      パスワード再設定の手続きは、RULE-0014「パスワードに関する方針」に従う。
+    decision_reason: |
+      テナントのパスワード条件が複数回変更され、保持対象より古い条件のパスワードを使うユーザも、再設定用URLから設定を行う。
+      初期設定未完了の場合も、同様の入口から必要な設定に進めるようにするため。
+
+  - id: RITM-0167
+    rule_type: operation
+    category: user_management
+    tags: [初期設定, 未完了, 削除]
+    status: confirmed
+    created_on: 2026-10-05
+    updated_on: 2026-10-05
+    revision: 1
+    title: 長期間初期設定を完了しないユーザ
+    summary: 長期間初期設定が未完了でも、自動取消・自動削除は行わない。
+    content: |
+      初期設定未完了のユーザを継続して保持するか、削除するかは、管理者等の運用で対応する。
+
+  - id: RITM-0168
+    rule_type: ui_design
+    category: user_management
+    tags: [管理画面, 状態管理, 初期設定]
+    status: confirmed
+    created_on: 2026-10-05
+    updated_on: 2026-10-06
+    revision: 2
+    title: 管理者等向け画面での状態表示
+    summary: 管理者等向けの画面にユーザの状態を表示し、初期設定未完了などの状況を確認できるようにする。
+    content: |
+      管理者や担当者が、ユーザの状態を確認して運用上の対応を判断できるようにする。
+      削除済みユーザは表示対象に含めず、「削除済みユーザの参照」に従う。
+
+  - id: RITM-0169
+    rule_type: business
+    category: user_management
+    tags: [削除, 取消, 理由]
+    status: confirmed
+    created_on: 2026-10-05
+    updated_on: 2026-10-05
+    revision: 1
+    title: 誤登録等による取消
+    summary: 誤登録や入社取消などによるユーザ登録の取消は、通常の削除操作で行い、削除理由で取消と分かるようにする。
+    content: |
+      取消専用の操作は設けず、削除操作を用いる。
+      削除理由によって、登録の取消であることを把握できるようにする。
+
+  - id: RITM-0170
+    rule_type: business
+    category: user_management
+    tags: [一時停止, 利用停止, 再開, 削除]
+    status: confirmed
+    created_on: 2026-10-05
+    updated_on: 2026-10-05
+    revision: 1
+    title: 一時停止と利用停止の使い分け
+    summary: 一時停止は再開、利用停止は削除を主に想定するが、どちらからも再開できる。
+    content: |
+      一時停止は再開する可能性が高い場合、利用停止は削除する可能性が高い場合に用いる。
+      利用停止は再開を禁止する状態ではない。
+      再開・削除は、管理者等による操作で行い、予約による操作も含める。
+      一時停止を期間の経過だけで自動解除する機能は設けない。
+      利用停止後に削除するまでの期間と削除運用のタイミングは、各テナントの利用者に委ねる。
+    decision_reason: |
+      運用時に再開予定と削除予定を見分けやすくし、削除前に利用停止として置くことで誤削除を防ぐため。
+
+  - id: RITM-0171
+    rule_type: system
+    category: authentication
+    tags: [一時停止, 利用停止, 初期設定, パスワード]
+    status: confirmed
+    created_on: 2026-10-05
+    updated_on: 2026-10-05
+    revision: 1
+    title: 停止中の本人による設定
+    summary: 停止中でも初期設定やパスワード再設定・変更は可能とするが、本システムの通常機能は利用できない。
+    content: |
+      一時停止・利用停止中も、初期設定とパスワード再設定・変更のための経路を利用できるようにする。
+      これらの設定が可能であることを、通常機能の利用許可とは扱わない。
+
+  - id: RITM-0172
+    rule_type: business
+    category: user_management
+    tags: [停止, 再開, 所属, ロール]
+    status: confirmed
+    created_on: 2026-10-05
+    updated_on: 2026-10-05
+    revision: 1
+    title: 停止中の情報保持と変更
+    summary: 停止中も所属・ロール・認証設定を保持し、管理者等による情報変更を認める。
+    content: |
+      一時停止・利用停止を理由に、所属・ロール・パスワード・MFA設定を解除・初期化しない。
+      停止中でも、必要な権限を持つ管理者等はユーザの情報を変更できる。
+      再開時は同じユーザを引き続き使い、その時点の設定を引き継ぐ。
+    decision_reason: |
+      利用停止からも再開し得るため、停止中の情報更新を認め、再開時のデータ間の矛盾を防ぐ。
+
+  - id: RITM-0173
+    rule_type: system
+    category: user_management
+    tags: [削除, 論理削除, 物理削除, 月次バッチ]
+    status: confirmed
+    created_on: 2026-10-05
+    updated_on: 2026-10-05
+    revision: 1
+    title: 論理削除と物理削除
+    summary: ユーザは利用停止を経ずに各状態から論理削除でき、論理削除から1か月経過後の次の月次バッチで物理削除する。
+    content: |
+      利用開始前・初期設定中・利用中・一時停止・利用停止のいずれからも削除できる。
+      削除操作は基本的に論理削除とする。
+      論理削除から1か月が経過した後、次の月次バッチで物理削除する。
+    decision_reason: |
+      万が一のトラブルなどで解析が必要になった場合に備え、論理削除後も一定期間データを保持するため。
+
+  - id: RITM-0174
+    rule_type: operation
+    category: user_management
+    tags: [削除, 復旧, システム管理者]
+    status: confirmed
+    created_on: 2026-10-05
+    updated_on: 2026-10-05
+    revision: 1
+    title: 削除済みユーザの復活
+    summary: 削除済みからの復活はシステム機能として提供せず、システム管理者だけが直接DBを操作する特殊な運用対処とする。
+    content: |
+      障害対応などの特殊な措置として扱い、通常のユーザ管理操作として提供しない。
+      テナントの管理者・担当者が利用する復活機能は設けない。
+
+  - id: RITM-0175
+    rule_type: business
+    category: authorization
+    tags: [状態管理, ロール, テナント設定]
+    status: confirmed
+    created_on: 2026-10-05
+    updated_on: 2026-10-05
+    revision: 2
+    title: 状態変更操作の許可
+    summary: 登録・有効化・一時停止・利用停止・解除・削除は、テナントごとにロール別・操作別に許可を設定できるようにする。
+    content: |
+      既定では、管理者・担当者のどちらも各操作を実施できるようにする。
+      実施可能な対象範囲には「ユーザの状態の単位と変更権限」を適用する。
+      削除済みからの復活は、このロール設定による操作の対象とせず、「削除済みユーザの復活」に従う。
+
+  - id: RITM-0176
+    rule_type: business
+    category: authorization
+    tags: [状態管理, 本務, 兼務, 管理範囲]
+    status: confirmed
+    created_on: 2026-10-05
+    updated_on: 2026-10-06
+    revision: 3
+    title: ユーザの状態の単位と変更権限
+    summary: 利用状態はユーザ単位で1つとし、その変更はテナント全体の管理者・担当者が行う。
+    content: |
+      本務・兼務は所属を表し、所属ごとに利用中・一時停止・利用停止などの利用状態を持たせない。
+      本務だけ停止して兼務だけ利用中、またはその逆という状態はない。
+      本務側を管理する権限だけでユーザ全体の状態を変更できるものではない。
+      所属の変更・解除と、ユーザの利用状態の変更は別の操作として扱う。
+      テナント全体を対象とする担当者には、RULE-0005「管理者・担当者ごとの操作権限の違い」の「テナントユーザ管理担当者」を設ける。
+
+  - id: RITM-0177
+    rule_type: business
+    category: authorization
+    tags: [本人操作, 状態管理]
+    status: confirmed
+    created_on: 2026-10-05
+    updated_on: 2026-10-06
+    revision: 2
+    title: 本人による状態変更の禁止
+    summary: ユーザ本人に利用停止等の状態変更操作は認めない。
+    content: |
+      本人が行える操作は、パスワード変更や自身の情報の一部の変更などに限定する。
+      本人情報の項目別の変更可否には、該当するルールを適用する。
+      本人による初期設定の完了に伴う「利用中」への遷移は、「利用開始の条件」に従う。
+
+  - id: RITM-0178
+    rule_type: system
+    category: authentication
+    tags: [設定用URL, 停止, 削除, 無効化]
+    status: confirmed
+    created_on: 2026-10-05
+    updated_on: 2026-10-05
+    revision: 1
+    title: 停止・削除時の設定用URL
+    summary: 停止を理由に発行済みの設定用URLを無効化せず、削除時には無効化する。
+    content: |
+      初期設定・パスワード再設定・メール変更確認の発行済みURLを対象とする。
+      一時停止・利用停止を理由とする無効化は行わず、それぞれの有効期限や使用済み・再発行時の扱いは維持する。
+      削除操作による論理削除の時点で無効化する。
+
+  - id: RITM-0179
+    rule_type: system
+    category: session
+    tags: [状態管理, 再ログイン]
+    status: confirmed
+    created_on: 2026-10-05
+    updated_on: 2026-10-05
+    revision: 1
+    title: 状態変更後の再ログイン
+    summary: 状態が変わった場合は再ログインを必須とし、停止解除後も以前のログイン状態をそのまま再利用させない。
+    content: |
+      再ログインを求めて変更を反映する方針は、RULE-0008「認可方式」とそろえる。
+      停止中にアクセスしていなかったセッションも、停止解除後の再ログインを必要とする。
+      停止の反映は、RULE-0007「認証・セッション管理方式」の「利用停止・強制ログアウトの反映」に従う。
+
+  - id: RITM-0180
+    rule_type: business
+    category: reservation
+    tags: [有効化, 停止, 解除, 削除]
+    status: confirmed
+    created_on: 2026-10-05
+    updated_on: 2026-10-05
+    revision: 1
+    title: 状態変更の予約
+    summary: 有効化・一時停止・利用停止・解除・削除を予約できるようにする。
+    content: |
+      予約の登録・実行には、対象となる操作の権限と管理範囲の制約を適用する。
+      予約便の運用は、RULE-0010「変更の予約の考え方」に従う。
+
+  - id: RITM-0181
+    rule_type: system
+    category: reservation
+    tags: [停止, 情報変更, 予約対象]
+    status: confirmed
+    created_on: 2026-10-05
+    updated_on: 2026-10-05
+    revision: 1
+    title: 停止中のユーザを対象とする予約
+    summary: 停止中のユーザを対象とする所属・ロール等の情報変更は、予約でも引き続き実行できる。
+    content: |
+      対象ユーザが一時停止・利用停止中であることだけを理由に、情報変更の予約を実行不可としない。
+      対象ユーザの状態と、実行権限者の状態を区別して判定する。
+
+  - id: RITM-0182
+    rule_type: system
+    category: reservation
+    tags: [停止, 登録者, 実行権限者]
+    status: confirmed
+    created_on: 2026-10-05
+    updated_on: 2026-10-05
+    revision: 1
+    title: 停止した登録者と実行権限者の扱い
+    summary: 停止したユーザの実行権限による予約は実行不可とし、登録者であるだけならその停止は実行可否に影響しない。
+    content: |
+      一時停止・利用停止中のユーザは通常機能を利用できないため、そのユーザを実行権限者とする予約は実行できない。
+      登録者が停止していても、別の実行権限者の権限で動く予約は、登録者の停止を理由に実行不可としない。
+      登録者自身を実行権限者に指定している場合は、実行権限者としての状態の制約を受ける。
+
+  - id: RITM-0183
+    rule_type: business
+    category: user_management
+    tags: [本務, 兼務, 組織異動, 削除]
+    status: confirmed
+    created_on: 2026-10-05
+    updated_on: 2026-10-05
+    revision: 1
+    title: 所属の変更・解除とユーザの削除
+    summary: 本務の所属を削除する操作は設けず、異動では本務の所属先を変更する。兼務の所属は解除できる。
+    content: |
+      ユーザの削除と、所属の変更・解除を区別する。
+      本務の所属は、RULE-0001「テナント・組織への所属」に従って必ず1組織とする。
+      本務の異動は、所属本務の変更として扱う。
+      兼務の所属の削除は、兼務の解除として扱う。
+      異動と兼務の追加・解除に必要な権限は、RULE-0005「管理者・担当者ごとの操作権限の違い」に従う。
+
+  - id: RITM-0184
+    rule_type: system
+    category: authentication
+    tags: [初期設定, パスワード, 多要素認証, 本人情報]
+    status: confirmed
+    created_on: 2026-10-06
+    updated_on: 2026-10-06
+    revision: 1
+    title: 初期設定の範囲と完了条件
+    summary: 初期設定はパスワード設定とテナント設定に応じて必要な多要素認証の設定とし、本人情報の入力は求めない。
+    content: |
+      パスワード設定と、そのユーザに必要な多要素認証の設定が済めば、初期設定の完了とする。
+      パスワード設定は、RULE-0014「パスワードに関する方針」に従う。
+      多要素認証の方式・必須条件・設定を省略できる条件は、RULE-0007「認証・セッション管理方式」に従う。
+      初期設定フローに本人情報の入力は含めない。
+    decision_reason: |
+      個人情報は、基本的にユーザ登録時に会社や組織が既に登録しているため。
+
+  - id: RITM-0185
+    rule_type: system
+    category: user_management
+    tags: [状態管理, 理由, 入力制約, テナント設定]
+    status: confirmed
+    created_on: 2026-10-06
+    updated_on: 2026-10-06
+    revision: 2
+    title: 状態変更の理由の入力
+    summary: 理由は選択式と「その他」の自由記述とし、選択肢が未設定なら自由記述のみとする。一時停止・利用停止・再開・削除では理由を必須とする。
+    content: |
+      理由の選択肢はテナント側で、操作ごとに個別に設定できるようにする。
+      選択肢の既定値は設けない。
+      選択肢を設定している場合は、設定した選択肢と「その他」を表示し、「その他」を選んだ場合に自由記述で理由を入力する。
+      選択肢が設定されていない操作は、自由記述のみで理由を入力する。
+      一時停止・利用停止・再開・削除の操作では、理由の入力を必須とする。
+      理由が必須の操作で「その他」を選んだ場合、または自由記述のみの場合は、自由記述の入力を必要とする。
+
+  - id: RITM-0186
+    rule_type: operation
+    category: user_management
+    tags: [削除, 参照, 障害対応]
+    status: confirmed
+    created_on: 2026-10-06
+    updated_on: 2026-10-06
+    revision: 1
+    title: 削除済みユーザの参照
+    summary: 削除済みユーザの参照機能は提供せず、障害対応時にデータベースを直接確認する運用だけとする。
+    content: |
+      論理削除後、物理削除までデータを保持している間も、テナント管理者等は削除済みユーザを検索・閲覧できない。
+      保持したデータの確認は、システム運用上の障害対応における直接のデータベース確認で行う。
+      削除済みユーザを参照する画面は設けない。
+
+  - id: RITM-0187
+    rule_type: system
+    category: reservation
+    tags: [削除, 予約対象, 登録者, 実行権限者]
+    status: confirmed
+    created_on: 2026-10-06
+    updated_on: 2026-10-06
+    revision: 1
+    title: 削除済みユーザに関わる予約
+    summary: 変更対象または実行権限者が削除済みの予約は実行エラーとし、登録者だけが削除済みなら別の実行権限者で実行できる。
+    content: |
+      変更対象のユーザ、または実行権限者が削除済みの場合、その予約は実行エラーとする。
+      登録者だけが削除済みで、別の実行権限者を指定している場合は、登録者の削除を理由に実行不可としない。
+      その場合も、指定された実行権限者に必要な権限があることなど、通常の実行条件を満たす必要がある。

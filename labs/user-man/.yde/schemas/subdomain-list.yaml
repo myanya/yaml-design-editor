@@ -1,0 +1,27 @@
+id: subdomain-list
+name: サブドメイン一覧
+match: 10_specs/30_subdomains/0000-subdomain-lists.yaml
+description: サブドメインのID・タイトル・概要を管理する。
+entity:
+  type: subdomain
+  idPattern: SDOM-*
+  defines: true
+coverage:
+  - description: 一覧のサブドメインに同じIDの詳細文書が存在すること。
+    detailIn:
+      schemaIds: [subdomain-detail]
+    level: warning
+root:
+  type: object
+  fields:
+    - key: subdomains
+      label: サブドメイン一覧
+      type: array
+      display: list
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: id, label: サブドメインID, type: id, pattern: 'SDOM-[0-9]{4}', required: true }
+          - { key: title, label: タイトル, type: line, role: title, required: true }
+          - { key: summary, label: 概要, type: text, role: subtitle, required: true }

@@ -65,11 +65,13 @@ sections:
     tags: [初回設定, 設定用URL]
     status: confirmed
     created_on: 2026-10-04
-    updated_on: 2026-10-05
+    updated_on: 2026-10-10
+    revision: 2
     title: 初回のパスワード設定
     summary: 登録メールアドレスへ設定用URLを送り、ユーザ本人がパスワードを設定する。
     content: |
       ユーザ本人が、受信したURLから初回のパスワード設定を行う。
+      初期設定用URLの案内契機と送信の遅延は、RULE-0017の「初期設定用URLの案内契機と送信の遅延」に従う。
 
   - id: RITM-0133
     rule_type: system

@@ -1,0 +1,58 @@
+id: subdomain-detail
+name: サブドメイン詳細
+match: 10_specs/30_subdomains/SDOM-*.yaml
+description: 責務・扱う概念・操作と境界を、根拠の個別ルールに対応付ける。
+entity:
+  type: subdomain
+  idPattern: SDOM-*
+  aspect: detail
+root:
+  type: object
+  fields:
+    - { key: id, label: サブドメインID, type: id, pattern: 'SDOM-[0-9]{4}', required: true }
+    - key: status
+      label: ステータス
+      type: enum
+      required: true
+      values:
+        - { value: draft, label: 草案 }
+        - { value: confirmed, label: 確定 }
+    - { key: responsibility, label: 責務, type: text, required: true }
+    - key: concepts
+      label: 扱う概念
+      type: array
+      display: list
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: name, label: 名称, type: line, role: title, required: true }
+          - { key: description, label: 説明, type: text, required: true }
+    - key: operations
+      label: 操作の概要
+      type: array
+      display: list
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: name, label: 操作名, type: line, role: title, required: true }
+          - { key: description, label: 説明, type: text, required: true }
+    - { key: boundary, label: 他の機能との分担, type: text, required: true }
+    - key: related_subdomains
+      label: 関連サブドメイン
+      type: array
+      item:
+        type: ref
+        idPatterns: [SDOM-*]
+        scope:
+          schemaIds: [subdomain-list]
+    - key: rule_refs
+      label: 根拠の個別ルール
+      type: array
+      required: true
+      item:
+        type: ref
+        idPatterns: [RITM-*]
+        scope:
+          schemaIds: [rule-detail]
