@@ -28,6 +28,8 @@ import dev.toros.yde.semantic.VirtualDocSection
 import dev.toros.yde.semantic.VirtualDocViewDef
 import dev.toros.yde.semantic.VirtualEachDef
 import dev.toros.yde.semantic.VirtualGridDef
+import dev.toros.yde.semantic.VirtualFlowDef
+import dev.toros.yde.semantic.schema.TransformDef
 import dev.toros.yde.semantic.VirtualMatrixCells
 import dev.toros.yde.semantic.VirtualMatrixDef
 import dev.toros.yde.semantic.VirtualMatrixKey
@@ -40,10 +42,17 @@ import dev.toros.yde.semantic.VirtualViewSource
 import dev.toros.yde.yaml.YamlIO
 
 /** 読み込んだビュー定義の一式（エラー収集つき）。 */
-data class ViewCatalog(val views: List<VirtualGridDef>, val docViews: List<VirtualDocViewDef>, val errors: List<String>) {
+data class ViewCatalog(
+    val views: List<VirtualGridDef>,
+    val docViews: List<VirtualDocViewDef>,
+    val errors: List<String>,
+    val flowViews: List<VirtualFlowDef> = emptyList(),
+) {
     fun view(id: String): VirtualGridDef? = views.firstOrNull { it.id == id }
 
     fun docView(id: String): VirtualDocViewDef? = docViews.firstOrNull { it.id == id }
+
+    fun flowView(id: String): VirtualFlowDef? = flowViews.firstOrNull { it.id == id }
 
     /** 文書に適用する文書ビュー。スキーマの match と同じ「定義ファイル名順の先勝ち」。 */
     fun docViewFor(relPath: String, schemaId: String?): VirtualDocViewDef? =
@@ -80,8 +89,18 @@ object ViewDefinitions {
         }
         val views = all.filterIsInstance<VirtualGridDef>()
         val docViews = all.filterIsInstance<VirtualDocViewDef>()
+        val flowViews = all.filterIsInstance<VirtualFlowDef>()
         if (schemas.isNotEmpty()) errors += lint(views, docViews, schemas)
-        return ViewCatalog(views = views, docViews = docViews, errors = errors)
+        if (schemas.isNotEmpty()) errors += lintFlows(flowViews, schemas)
+        docViews.forEach { doc -> doc.sections.forEachIndexed { i, section ->
+            section.flowView?.let { target ->
+                val matches = all.filter { it.id == target }
+                if (matches.size != 1 || matches.singleOrNull() !is VirtualFlowDef) {
+                    errors += "${fileName(doc.source)}: sections[$i].flow.view「$target」は一意なflowビューを参照してください"
+                }
+            }
+        } }
+        return ViewCatalog(views = views, docViews = docViews, errors = errors, flowViews = flowViews)
     }
 
     /**
@@ -98,6 +117,7 @@ object ViewDefinitions {
         return when (def) {
             is VirtualGridDef -> lint(listOf(def), emptyList(), schemas)
             is VirtualDocViewDef -> lint(emptyList(), listOf(def), schemas)
+            is VirtualFlowDef -> lintFlows(listOf(def), schemas)
         }
     }
 
@@ -110,8 +130,34 @@ object ViewDefinitions {
             null, "grid" -> parseGridView(raw, source, schemas)
             "document" -> parseDocView(raw, source, schemas)
             "matrix" -> parseMatrixView(raw, source)
-            else -> error("kind は grid / document / matrix のいずれかである必要があります: $kind")
+            "flow" -> parseFlowView(raw, source)
+            else -> error("kind は grid / document / matrix / flow のいずれかである必要があります: $kind")
         }
+
+    private fun parseFlowView(raw: Map<*, *>, source: DocumentId): VirtualFlowDef {
+        val keys = setOf("id", "name", "description", "kind", "match", "schemaId", "layout", "projection")
+        raw.keys.firstOrNull { it !in keys }?.let { error("kind: flow では使えないキーです: $it") }
+        fun text(key: String): String? = if (!raw.containsKey(key)) null else
+            (raw[key] as? String)?.takeIf { it.isNotBlank() } ?: error("$key は空でない文字列で書きます")
+        val id = text("id") ?: error("id が必要です")
+        val match = text("match")
+        val schemaId = text("schemaId")
+        require(match != null || schemaId != null) { "フロービューには match か schemaId が必要です" }
+        match?.let(::globToRegex)
+        val layout = if (raw.containsKey("layout")) raw["layout"] as? Map<*, *> ?: error("layout はobjectで書きます") else emptyMap<Any, Any>()
+        require(layout.keys.all { it == "direction" }) { "layout に書けるキーは direction だけです" }
+        val direction = if (layout.containsKey("direction")) layout["direction"] as? String else "down"
+        require(direction in listOf("down", "right")) { "layout.direction は down / right で書きます" }
+        val projection = TransformDef.parse(raw["projection"], "projection")
+        require(projection.from == null && projection.params.isEmpty()) { "フローのprojectionには from・外部paramsを指定できません" }
+        return VirtualFlowDef(id, text("name") ?: id, text("description"), source, match, schemaId, direction!!, projection)
+    }
+
+    private fun lintFlows(views: List<VirtualFlowDef>, schemas: List<WorkspaceSchema>): List<String> = views.mapNotNull { view ->
+        view.schemaId?.takeIf { id -> schemas.none { it.id == id } }?.let {
+            "${fileName(view.source)}: 適用先スキーマ「$it」が見つかりません"
+        }
+    }
 
     private val MATRIX_KEYS = listOf("cells", "totals", "unclassified")
 
@@ -420,8 +466,9 @@ object ViewDefinitions {
             val label = m["label"]?.toString()?.takeIf { it.isNotBlank() }
             val fieldsRaw = m["fields"]
             val backlinksRaw = m["backlinks"]
-            if ((fieldsRaw != null) == (backlinksRaw != null)) {
-                error("sections[$i]: fields か backlinks のどちらか一方が必要です")
+            val flowRaw = m["flow"]
+            if (listOf(fieldsRaw, backlinksRaw, flowRaw).count { it != null } != 1) {
+                error("sections[$i]: fields / backlinks / flow のいずれか一方が必要です")
             }
             if (fieldsRaw != null) {
                 val fm = fieldsRaw as? Map<*, *> ?: error("sections[$i].fields はobjectである必要があります（空なら {}）")
@@ -449,8 +496,16 @@ object ViewDefinitions {
                     fieldsExclude = exclude,
                 )
             } else {
-                val bm = backlinksRaw as? Map<*, *> ?: error("sections[$i].backlinks はobjectである必要があります")
-                VirtualDocSection(label = label, backlinks = parseDocBacklinks(bm, "sections[$i].backlinks"))
+                if (flowRaw != null) {
+                    val fm = flowRaw as? Map<*, *> ?: error("sections[$i].flow はobjectである必要があります")
+                    require(fm.keys.all { it == "view" }) { "sections[$i].flowにはviewだけを指定できます" }
+                    val target = (fm["view"] as? String)?.takeIf { it.isNotBlank() }
+                        ?: error("sections[$i].flow.viewが必要です")
+                    VirtualDocSection(label = label, flowView = target)
+                } else {
+                    val bm = backlinksRaw as? Map<*, *> ?: error("sections[$i].backlinks はobjectである必要があります")
+                    VirtualDocSection(label = label, backlinks = parseDocBacklinks(bm, "sections[$i].backlinks"))
+                }
             }
         }
         val attachments = (raw["attachments"] as? List<*>)?.mapIndexed { i, entry ->

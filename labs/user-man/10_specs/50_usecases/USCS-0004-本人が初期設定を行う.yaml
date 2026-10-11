@@ -1,6 +1,7 @@
 id: "USCS-0004"
 status: "draft"
-context: "BCTX-0005"
+subdomain: "SDOM-0005"
+operations: [DOPR-0019, DOPR-0020]
 purpose: "本人がパスワードと必要な多要素認証を設定する。認証設定の完了と、ユーザ管理での通常機能の利用許可を区別する。"
 actors:
   - name: "本人"
@@ -23,19 +24,19 @@ models:
     rule_refs:
       - "RITM-0033"
       - "RITM-0184"
-    context: "BCTX-0005"
+    subdomain: "SDOM-0005"
   - name: "設定用URL"
     description: "設定経路の入口と、期限・使用済み・再発行による無効化を確認する。"
     rule_refs:
       - "RITM-0134"
       - "RITM-0135"
-    context: "BCTX-0005"
+    subdomain: "SDOM-0005"
   - name: "ユーザ"
     description: "初期設定を行える利用状態かを参照する。"
     rule_refs:
       - "RITM-0163"
       - "RITM-0171"
-    context: "BCTX-0002"
+    subdomain: "SDOM-0002"
     entity: "ENTY-0001"
 triggers:
   - name: "案内されたURLを利用"

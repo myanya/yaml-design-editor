@@ -7,11 +7,12 @@ order:
 columns:
   - { label: ユースケース, schemaId: usecase-list, path: title }
   - { label: 概要, schemaId: usecase-list, path: summary }
-  - { label: 所属コンテキスト, schemaId: usecase-detail, path: context }
+  - { label: 主担当サブドメイン, schemaId: usecase-detail, path: subdomain }
+  - { label: 具体化する操作, schemaId: usecase-detail, path: operations }
   - { label: 状態, schemaId: usecase-detail, path: status }
   - { label: 使用するモデル, schemaId: usecase-detail, path: models }
   - { label: 基本フロー, schemaId: usecase-detail, path: basic_flow }
-  - label: 対応する業務フロー
+  - label: 対応する業務活動・フロー
     backlinks:
       relation: elaborates-with
       schemaIds: [business-flow-detail]

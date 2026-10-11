@@ -96,6 +96,7 @@ private fun RailItem(
 private val ledgerTabs = listOf(
     1 to "一覧",
     4 to "ビュー",
+    5 to "フロー",
     2 to "レンズ",
     3 to "エンティティ",
 )
@@ -110,6 +111,7 @@ fun LedgerSpace(state: AppState) {
                     when (view) {
                         3 -> state.openCrossView()
                         4 -> state.openViewGrid()
+                        5 -> state.openFlowView()
                         else -> state.showWorkspaceView(view)
                     }
                 }, text = { Text(label, fontSize = 13.sp) })
@@ -120,6 +122,7 @@ fun LedgerSpace(state: AppState) {
                 2 -> GraphLensView(state)
                 3 -> IdCrossView(state)
                 4 -> ViewGridView(state)
+                5 -> FlowViewPane(state)
                 else -> WorkspaceTableView(state)
             }
         }

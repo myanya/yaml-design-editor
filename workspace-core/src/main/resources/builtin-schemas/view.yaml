@@ -61,7 +61,24 @@ root:
         - value: matrix
           label: クロス集計
           description: 行（rows の論理ID）×列（cells.columns＝参照先か値）のセルに、行から集めた要素の集計を出す。合計の行と列つき
+        - value: flow
+          label: フロービュー
+          description: 文書をprojectionでノード・辺・レーンへ変換する
       default: grid
+    - key: layout
+      label: フローの配置
+      type: object
+      fields:
+        - {key: direction, label: 方向, type: enum, values: [down, right], default: down}
+    - key: projection
+      label: フローへの変換
+      type: object
+      fields:
+        - {key: id, label: 変換ID, type: string, required: true}
+        - {key: name, label: 名前, type: string}
+        - {key: description, label: 説明, type: text}
+        - {key: build, label: 出力のひな型, type: any, required: true}
+        - {key: rules, label: 子に当てる規則, type: array, item: {type: any}}
     - key: cells
       label: セルの集計（matrix）
       type: object
@@ -148,7 +165,7 @@ root:
     - key: sections
       label: セクションの定義
       type: array
-      description: "文書ビューのみ: 上から順に描画するセクション（fields か backlinks のどちらか一方を持つ）"
+      description: "文書ビューのみ: 上から順に描画するセクション（fields / backlinks / flowのいずれか1つを持つ）"
       item:
         type: object
         fields:
@@ -184,6 +201,17 @@ root:
             label: 被参照表セクション
             description: 文書内のIDへの被参照（参照元）を一覧表示する（fields とは併用不可）
             $ref: docBacklinks
+          - key: flow
+            label: フローセクション
+            type: object
+            description: fields / backlinksとは併用不可
+            fields:
+              - key: view
+                label: フロービューID
+                type: ref
+                scope:
+                  schemaIds: [builtin-view]
+                required: true
     - key: attachments
       label: 要素単位アタッチ
       type: array

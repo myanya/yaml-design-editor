@@ -23,11 +23,12 @@ root:
       values:
         - { value: draft, label: 草案 }
         - { value: confirmed, label: 確定 }
-    - key: context
-      label: 所属コンテキスト
-      type: domain-model-types#context-ref
+    - key: subdomain
+      label: 主担当サブドメイン
+      type: domain-model-types#subdomain-ref
       required: true
-      relation: usecase-in-context
+      relation: usecase-in-subdomain
+    - { key: operations, label: 具体化する操作, type: domain-model-types#operation-refs, required: true }
     - { key: purpose, label: 目的と対象範囲, type: text, required: true }
     - { key: actors, label: 実行主体と役割, type: domain-model-types#statements, required: true }
     - key: models
@@ -38,7 +39,7 @@ root:
       item:
         type: domain-model-types#statement
         fields:
-          - { key: context, label: 概念の所属, type: domain-model-types#context-ref, required: true }
+          - { key: subdomain, label: 概念の所属, type: domain-model-types#subdomain-ref, required: true }
           - { key: entity, label: 定義済みのエンティティ, type: domain-model-types#model-ref }
     - { key: triggers, label: 開始契機, type: domain-model-types#statements, required: true }
     - { key: preconditions, label: 事前条件, type: domain-model-types#statements, required: true }

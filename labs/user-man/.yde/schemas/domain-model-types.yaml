@@ -11,11 +11,20 @@ definitions:
       scope:
         schemaIds: [rule-detail]
       relation: grounded-in-rule
-  context-ref:
+  subdomain-ref:
     type: ref
-    idPatterns: [BCTX-*]
+    idPatterns: [SDOM-*]
     scope:
-      schemaIds: [bounded-context-list]
+      schemaIds: [subdomain-list]
+  operation-refs:
+    type: array
+    description: 利用・具体化する操作。参照の併記は、常に同時実行することを意味しない。
+    item:
+      type: ref
+      idPatterns: [DOPR-*]
+      scope:
+        schemaIds: [subdomain-detail]
+      relation: uses-operation
   model-ref:
     type: ref
     idPatterns: [ENTY-*]

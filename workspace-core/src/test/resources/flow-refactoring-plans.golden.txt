@@ -1,0 +1,68 @@
+### RenameEntity(oldId=diagram, newId=renamed)
+  change: _views/doc.yaml
+    SetScalar sections[0].flow.view = renamed（String）
+  change: _views/flow.yaml
+    SetScalar id = renamed（String）
+  summary: ID「diagram」→「renamed」
+  summary: 出現 1 件（1 文書）のIDフィールドを書き換え
+  summary: 参照 1 件を書き換え
+
+### RenameEntity(oldId=ACT-1, newId=ACT-9)
+  change: flows/a.yaml
+    SetScalar activities[0].id = ACT-9（String）
+    SetScalar transitions[0].from = ACT-9（String）
+  warning: _views/flow.yaml: projection.rules[2].when[1].equals に「ACT-1」の言及があります（自動書換の対象外・要確認）
+  warning: _views/flow.yaml: projection.rules[2].build.$using.ACT-1 に「ACT-1」の言及があります（自動書換の対象外・要確認）
+  summary: ID「ACT-1」→「ACT-9」
+  summary: 出現 1 件（1 文書）のIDフィールドを書き換え
+  summary: 参照 1 件を書き換え
+
+### RenameField(schemaId=process, fieldPath=activities.title, newName=name)
+  change: _schemas/process.yaml
+    SetScalar root.fields[1].item.fields[1].key = name（String）
+  change: flows/a.yaml
+    RenameKey activities[1].title -> name
+    RenameKey activities[0].title -> name
+  warning: flow.yaml: projection.build.nodes.$build.label.$format に「title」の言及があります（自動書換の対象外・要確認）
+  warning: flow.yaml: projection.rules[1].build.$copy に「title」の言及があります（自動書換の対象外・要確認）
+  summary: スキーマ「process」のフィールド「title」→「name」
+  summary: 文書 1 ファイル・2 箇所のキーを改名（順序・コメント保持）
+  summary: スキーマ定義 1 箇所を追随
+
+### RenameField(schemaId=process, fieldPath=activities, newName=steps)
+  change: _schemas/process.yaml
+    SetScalar root.fields[1].key = steps（String）
+  change: flows/a.yaml
+    RenameKey activities -> steps
+  warning: flow.yaml: projection.build.nodes.$each に「activities」の言及があります（自動書換の対象外・要確認）
+  summary: スキーマ「process」のフィールド「activities」→「steps」
+  summary: 文書 1 ファイル・1 箇所のキーを改名（順序・コメント保持）
+  summary: スキーマ定義 1 箇所を追随
+
+### RenameRelation(oldName=next, newName=follows)
+  change: _schemas/process.yaml
+    SetScalar root.fields[2].item.fields[1].relation = follows（String）
+    SetScalar root.fields[2].item.fields[2].relation = follows（String）
+  change: _schemas/relations.yaml
+    SetScalar relations[0].name = follows（String）
+  warning: ビュー定義・アクティビティ等の「next」への言及は追随しません（6E 仮想文書の設計後に対応。該当があれば手動で更新してください）
+  warning: _views/flow.yaml: projection.rules[2].build.$map に「next」の言及があります（自動書換の対象外・要確認）
+  summary: 関係「next」→「follows」
+  summary: レジストリ・スキーマの 3 箇所を書き換え（文書は変わりません）
+
+### RenameSchemaId(oldId=process, newId=procedure)
+  change: _schemas/process.yaml
+    SetScalar id = procedure（String）
+  warning: ビュー定義・アクティビティ等の「process」への言及は追随しません（6E 仮想文書の設計後に対応。該当があれば手動で更新してください）
+  warning: _views/flow.yaml: projection.rules[2].build.$using.ACT-1 に「process」の言及があります（自動書換の対象外・要確認）
+  warning: _views/flow.yaml: schemaId に「process」の言及があります（自動書換の対象外・要確認）
+  summary: スキーマID「process」→「procedure」
+  summary: スキーマの参照 0 箇所を書き換え（文書と match は変わりません）
+
+### MoveDocument(from=flows/a.yaml, to=elsewhere/a.yaml)
+  move: flows/a.yaml -> elsewhere/a.yaml
+  warning: スキーマの適用が変わります: process → （なし）
+  warning: 文書ビュー「document」の match がこのファイルを対象にしなくなります
+  warning: フロービュー「diagram」の match がこのファイルを対象にしなくなります
+  summary: 文書「flows/a.yaml」→「elsewhere/a.yaml」
+

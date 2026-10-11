@@ -55,11 +55,6 @@ root:
                 - { key: id, label: エンティティ定義ID, type: id, pattern: 'ENTY-[0-9]{4}', required: true }
           - { key: name, label: 名称, type: line, role: title, required: true }
           - { key: description, label: 意味, type: text, required: true }
-          - key: context
-            label: 所属コンテキスト
-            type: domain-model-types#context-ref
-            required: true
-            relation: model-in-context
           - key: status
             label: モデルの状態
             type: enum
@@ -85,7 +80,7 @@ root:
               type: domain-model-types#statement
               fields:
                 - { key: target_name, label: 関連先の概念名, type: line, required: true }
-                - { key: target_context, label: 関連先のコンテキスト, type: domain-model-types#context-ref, required: true }
+                - { key: target_subdomain, label: 関連先のサブドメイン, type: domain-model-types#subdomain-ref, required: true }
                 - { key: target_model, label: 関連先の定義ID, type: domain-model-types#model-ref }
                 - { key: multiplicity, label: 当該モデル1件から見た関連先の数, type: line, required: true }
           - { key: constraints, label: モデルの制約, type: domain-model-types#statements }
@@ -104,13 +99,15 @@ root:
                 - { key: to, label: 遷移後の状態, type: line, required: true }
                 - { key: conditions, label: 遷移条件, type: domain-model-types#statements }
     - key: operations
-      label: 操作の概要
+      label: 提供する操作
       type: array
       display: list
       required: true
       item:
         type: object
+        entity: {type: domain-operation, defines: true}
         fields:
+          - { key: id, label: 操作ID, type: id, pattern: 'DOPR-[0-9]{4}', required: true }
           - { key: name, label: 操作名, type: line, role: title, required: true }
           - { key: description, label: 説明, type: text, required: true }
           - { key: rule_refs, label: 操作の根拠, type: domain-model-types#rule-refs, required: true }

@@ -3,6 +3,8 @@
 
 GUIを起動せずに、ワークスペースの探索・検索・部分変更・検証を実行できます。出力は機械可読なYAML（UTF-8）で、AIエージェントや自動化スクリプトからの利用を想定しています。
 
+`kind: flow`のモデル・原本座標・診断を取得する例は [フロービュー](flow-views.md)を参照してください。
+
 ```bash
 ./gradlew runCli -q --args="catalog sample-workspace"                     # 文書カタログ（_document要約・スキーマ・ID数）
 ./gradlew runCli -q --args="outline sample-workspace path/to/doc.yaml"    # 骨子（キー構造・配列件数。長文は文字数表示）

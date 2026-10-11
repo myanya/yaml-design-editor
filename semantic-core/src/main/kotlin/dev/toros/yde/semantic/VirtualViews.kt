@@ -215,6 +215,7 @@ data class VirtualDocSection(
     val fieldsInclude: List<String> = emptyList(),
     val fieldsExclude: List<String> = emptyList(),
     val backlinks: VirtualDocBacklinksDef? = null,
+    val flowView: String? = null,
 )
 
 /** 要素単位アタッチ。at パターンに一致する要素の展開フォーム内へ、その要素のIDの被参照表を差し込む。 */
@@ -938,8 +939,12 @@ object VirtualViews {
                 if (section.fieldsExclude.isNotEmpty()) append("（除外: ${section.fieldsExclude.joinToString(", ")}）")
                 appendLine()
             } else {
-                appendLine("セクション${i + 1}: ${section.label ?: "被参照"}（被参照表）")
-                appendBacklinkRows(rel, section.backlinks, resolved.rows.orEmpty(), relOf)
+                if (section.flowView != null) {
+                    appendLine("セクション${i + 1}: ${section.label ?: "フロー"}（フロー: ${section.flowView}） [$rel]")
+                } else {
+                    appendLine("セクション${i + 1}: ${section.label ?: "被参照"}（被参照表）")
+                    appendBacklinkRows(rel, section.backlinks, resolved.rows.orEmpty(), relOf)
+                }
             }
         }
         attachments.forEach { resolved ->

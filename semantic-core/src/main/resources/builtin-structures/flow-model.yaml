@@ -1,0 +1,37 @@
+id: flow-model
+root:
+  type: object
+  unknownFields: error
+  fields:
+    - key: nodes
+      type: array
+      required: true
+      item:
+        type: object
+        unknownFields: error
+        fields:
+          - {key: key, type: string, required: true, minLength: 1, pattern: '.*\S.*'}
+          - {key: label, type: string, required: true}
+          - {key: shape, type: enum, values: [box, diamond, rounded]}
+          - {key: lane, type: string, minLength: 1, pattern: '.*\S.*'}
+          - {key: detail, type: any, required: true}
+    - key: edges
+      type: array
+      required: true
+      item:
+        type: object
+        unknownFields: error
+        fields:
+          - {key: key, type: string, minLength: 1, pattern: '.*\S.*'}
+          - {key: from, type: string, required: true, minLength: 1, pattern: '.*\S.*'}
+          - {key: to, type: string, required: true, minLength: 1, pattern: '.*\S.*'}
+          - {key: label, type: string}
+          - {key: detail, type: any, required: true}
+    - key: lanes
+      type: array
+      item:
+        type: object
+        unknownFields: error
+        fields:
+          - {key: key, type: string, required: true, minLength: 1, pattern: '.*\S.*'}
+          - {key: label, type: string, required: true}

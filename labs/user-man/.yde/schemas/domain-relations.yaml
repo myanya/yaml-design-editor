@@ -2,23 +2,48 @@ id: domain-relations
 kind: relations
 entities:
   - { type: subdomain, label: サブドメイン }
-  - { type: bounded-context, label: 境界づけられたコンテキスト }
-  - { type: context-map, label: コンテキスト間の連携 }
+  - { type: domain-operation, label: サブドメインの操作 }
   - { type: domain-entity, label: 業務エンティティ }
   - { type: usecase, label: 詳細ユースケース }
+  - { type: business-flow, label: 業務フロー }
+  - { type: business-actor, label: 業務フローの主体 }
+  - { type: business-activity, label: 業務フローの主活動 }
+  - { type: business-supporting-activity, label: 業務フローの任意活動 }
+  - { type: business-transition, label: 業務フローの遷移 }
 relations:
+  - name: performed-by
+    label: 実施する主体
+    inverseLabel: 実施する活動
+    source: [business-activity, business-supporting-activity]
+    target: [business-actor]
+  - name: transition-from
+    label: 遷移元の主活動
+    inverseLabel: 後続への遷移
+    source: [business-transition]
+    target: [business-activity]
+  - name: transition-to
+    label: 遷移先の主活動
+    inverseLabel: 先行からの遷移
+    source: [business-transition]
+    target: [business-activity]
   - name: elaborates-with
     label: 詳細化するユースケース
-    inverseLabel: 対応する業務フロー
-    source: [business-flow]
+    inverseLabel: 対応する業務活動・フロー
+    source: [business-flow, business-activity, business-supporting-activity]
     target: [usecase]
     description: 業務フローの手順・分岐から詳細ユースケースへ対応付ける。
-  - name: usecase-in-context
+  - name: usecase-in-subdomain
     label: ユースケースの所属
     inverseLabel: 所属するユースケース
     source: [usecase]
-    target: [bounded-context]
-    description: ユースケースを主に管理する一つのコンテキスト。
+    target: [subdomain]
+    description: ユースケースを主に担当する一つの業務領域。他領域の操作も利用できる。
+  - name: uses-operation
+    label: 利用・具体化する操作
+    inverseLabel: 対応する業務活動・ユースケース
+    source: [business-flow, business-activity, business-supporting-activity, usecase]
+    target: [domain-operation]
+    description: 活動で利用する操作、またはユースケースで具体化する操作。対応は多対多を許容する。
   - name: interacts-with
     label: 連携するユースケース
     inverseLabel: 連携元のユースケース
@@ -28,24 +53,6 @@ relations:
   - name: grounded-in-rule
     label: 根拠の個別ルール
     inverseLabel: 根拠を用いる記述
-    source: [subdomain, domain-entity, usecase, context-map]
+    source: [subdomain, domain-entity, domain-operation, usecase, business-flow, business-activity, business-supporting-activity, business-transition]
     target: [rule-item]
     description: 記述から根拠のRITMへ参照する。参照元の項目位置で属性・関連・制約・操作を区別する。
-  - name: model-in-context
-    label: 概念・モデルの所属
-    inverseLabel: 所属する概念・モデル
-    source: [subdomain, domain-entity]
-    target: [bounded-context]
-    description: サブドメイン内に記述した概念・モデルが意味を持つ境界。文書の配置からは決定しない。
-  - name: covers-subdomain
-    label: 担当する業務領域
-    inverseLabel: 担当するコンテキスト
-    source: [bounded-context]
-    target: [subdomain]
-    description: コンテキストが担当する業務領域と範囲。利用するだけの領域は含めない。
-  - name: connects-context
-    label: 連携の当事者
-    inverseLabel: 関与する連携
-    source: [context-map]
-    target: [bounded-context]
-    description: 連携を構成する二つの境界。参照の向き自体は上流下流を表さない。

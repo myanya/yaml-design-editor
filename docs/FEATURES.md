@@ -208,6 +208,8 @@
 | C-14 | スキーマ・リファクタリング（12 操作・スキーマと文書とビューを 1 つの計画で追随・カーネルが計画を作る） | `semantic-core/semantic/SchemaRefactor.kt`, `semantic-core/semantic/Rewrite.kt` | 単体 `RefactoringTest`, `RefactoringPlanGoldenTest` | [schema](architecture/schema.md) |
 | C-15 | YAML から YAML への変換（選ぶ × 組み立てる × 規則を子に当てる・値をそろえる `$date` `$number` `$trim`・出どころつき・保存しない・CLI `transform`） | `semantic-core/schema/Transform.kt`, `semantic-core/semantic/Transform.kt` | 単体 `SemanticTransformTest`, `StructuralDerivationTransformTest` | [transform](architecture/transform.md) |
 | C-16 | バージョン表示（外部 `appVersion`・内部 `yyyymmdd.ビルド番号`・コミット・CLI `version` とスタート画面） | `app/BuildInfo.kt`, `build.gradle.kts` | 単体 `BuildInfoTest` | [workspace](architecture/workspace.md) |
+| C-17 | フロービューの解決・CLI・read_view | `semantic-core/semantic/FlowViews.kt`, `core/FlowReports.kt` | `FlowViewsTest`, `FlowViewDefinitionsTest`, `FlowViewsIntegrationTest` | [views](architecture/views.md) |
+| C-18 | フローの配置・文書埋め込み・原本フォームと履歴・改名影響の開示 | `semantic-core/semantic/FlowLayout.kt`, `ui/FlowViewPane.kt`, `workspace-core/workspace/RefactoringImpact.kt` | `FlowLayoutTest`, `NavigationHistoryTest`, `FlowRefactoringTest` | [views](architecture/views.md) |
 
 ## 10. skill・テンプレート（フォーマット適合）
 

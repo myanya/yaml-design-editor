@@ -1,0 +1,14 @@
+id: business-flow-document
+name: 業務フローの確認
+kind: document
+schemaId: business-flow-detail
+match: 10_specs/40_business_flows/BZFL-0002-*.yaml
+sections:
+  - label: 目的と前提
+    fields: {include: [id, status, purpose, actors, preconditions]}
+  - label: 業務の流れ
+    flow: {view: business-flow-diagram}
+  - label: 主活動・遷移の原本
+    fields: {include: [activities, transitions]}
+  - label: 任意の関連活動と補足
+    fields: {include: [supporting_activities, variations, outcome, rule_refs]}

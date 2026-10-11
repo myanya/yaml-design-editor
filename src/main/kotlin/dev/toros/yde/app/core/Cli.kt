@@ -316,10 +316,31 @@ internal fun runCli(args: Array<String>): String {
                                 "id" to v.id, "name" to v.name, "kind" to "document",
                                 "match" to v.match, "schemaId" to v.schemaId,
                             ).filterValues { it != null }
+                        } + loaded.flowViews.map { v ->
+                            linkedMapOf(
+                                "id" to v.id, "name" to v.name, "kind" to "flow",
+                                "match" to v.match, "schemaId" to v.schemaId,
+                            ).filterValues { it != null }
                         }),
                         "errors" to loaded.errors,
                     )
                 )
+            loaded.flowView(viewId)?.let { flow ->
+                val fileArg = rest.getOrNull(2)?.takeIf { !it.startsWith("--") }
+                val candidates = ws.files.map { ws.relPath(it) }.filter {
+                    flow.appliesTo(DocumentId(it), ws.schemaFor(ws.resolve(it))?.id)
+                }.sorted()
+                val rel = fileArg?.let {
+                    val path = ws.resolve(it).toAbsolutePath().normalize()
+                    require(path.startsWith(ws.root.toAbsolutePath().normalize())) { "フローの原本はワークスペース内で指定してください" }
+                    ws.relPath(path).replace('\\', '/')
+                } ?: candidates.singleOrNull() ?: return dumpYaml(linkedMapOf(
+                    "view" to flow.id, "kind" to "flow", "files" to candidates,
+                    "hint" to "view <workspace> ${flow.id} <file> で対象文書を指定してください",
+                ))
+                val result = Views.resolveFlow(flow, DocumentId(rel), ws.index, ws::schemaFor, ws::treeOf)
+                return dumpYaml(FlowReports.toMap(flow, DocumentId(rel), result, loaded.errors))
+            }
             // 文書ビュー（R14-01）: view <workspace> <view-id> [file] で対象文書を解決する
             loaded.docView(viewId)?.let { dv ->
                 val fileArg = rest.getOrNull(2)?.takeIf { !it.startsWith("--") }?.replace('\\', '/')
@@ -370,6 +391,9 @@ internal fun runCli(args: Array<String>): String {
                                 "include" to section.fieldsInclude.takeIf { it.isNotEmpty() },
                                 "exclude" to section.fieldsExclude.takeIf { it.isNotEmpty() },
                                 "rows" to rowMaps(resolved.rows, section.backlinks),
+                                "flow" to section.flowView?.let {
+                                    FlowReports.embedded(it, DocumentId(rel), loaded, ws.index, ws::schemaFor, ws::treeOf)
+                                },
                             ).filterValues { it != null }
                         },
                         "attachments" to attachments.map { resolved ->

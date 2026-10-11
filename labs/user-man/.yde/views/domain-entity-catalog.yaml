@@ -1,11 +1,15 @@
 id: domain-entity-catalog
 name: 業務エンティティ一覧
 rows:
-  idPattern: ENTY-*
+  match:
+    - node: {entity: domain-entity, bind: model}
+    - edge: {contains: true, dir: in}
+    - node: {entity: subdomain, bind: domain}
+  rowKey: model
 columns:
   - { label: エンティティ名, schemaId: subdomain-detail, path: name }
   - { label: 意味, schemaId: subdomain-detail, path: description }
-  - { label: 所属コンテキスト, schemaId: subdomain-detail, path: context }
+  - { label: 所属サブドメイン, of: domain, schemaId: subdomain-list, path: title }
   - { label: 状態, schemaId: subdomain-detail, path: status }
   - { label: 識別, schemaId: subdomain-detail, path: identity }
   - { label: 属性と制約, schemaId: subdomain-detail, path: attributes }

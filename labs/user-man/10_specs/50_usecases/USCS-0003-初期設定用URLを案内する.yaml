@@ -1,6 +1,7 @@
 id: "USCS-0003"
 status: "draft"
-context: "BCTX-0005"
+subdomain: "SDOM-0005"
+operations: [DOPR-0018]
 purpose: "利用開始の許可を契機として、本人が初期設定を行うURLを登録メールアドレスへ案内する。"
 actors:
   - name: "本システム"
@@ -15,7 +16,7 @@ models:
     rule_refs:
       - "RITM-0132"
       - "RITM-0215"
-    context: "BCTX-0002"
+    subdomain: "SDOM-0002"
     entity: "ENTY-0001"
   - name: "設定用URL"
     description: "本人が初期設定を行うための入口と、有効期間・使用済みの条件を扱う。"
@@ -24,15 +25,15 @@ models:
       - "RITM-0134"
       - "RITM-0135"
       - "RITM-0210"
-    context: "BCTX-0005"
+    subdomain: "SDOM-0005"
   - name: "認証設定"
     description: "送信時点で既に初期設定が完了していないか確認する。"
     rule_refs: [RITM-0215]
-    context: "BCTX-0005"
+    subdomain: "SDOM-0005"
   - name: "初期設定案内"
     description: "送信待ち、送信対象の再確認と、テナント設定に従った再試行を扱う。"
     rule_refs: [RITM-0207, RITM-0213, RITM-0214, RITM-0215]
-    context: "BCTX-0005"
+    subdomain: "SDOM-0005"
 triggers:
   - name: "案内の契機"
     description: "対象ユーザが利用開始前から初期設定中へ遷移する。"

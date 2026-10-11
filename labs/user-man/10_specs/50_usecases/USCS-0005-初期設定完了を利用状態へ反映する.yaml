@@ -1,6 +1,7 @@
 id: "USCS-0005"
 status: "draft"
-context: "BCTX-0002"
+subdomain: "SDOM-0002"
+operations: [DOPR-0012]
 purpose: "認証設定の完了を利用開始の条件と結び付ける。本人の設定完了を理由とする停止解除は行わない。"
 actors:
   - name: "本システム"
@@ -15,13 +16,13 @@ models:
     rule_refs:
       - "RITM-0165"
       - "RITM-0176"
-    context: "BCTX-0002"
+    subdomain: "SDOM-0002"
     entity: "ENTY-0001"
   - name: "認証設定"
     description: "パスワードと必要な多要素認証の設定完了を参照する。"
     rule_refs:
       - "RITM-0184"
-    context: "BCTX-0005"
+    subdomain: "SDOM-0005"
 triggers:
   - name: "初期設定の完了"
     description: "本人がパスワードと必要な多要素認証の設定を完了する。"

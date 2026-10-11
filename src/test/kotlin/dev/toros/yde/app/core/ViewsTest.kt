@@ -1343,10 +1343,10 @@ class ViewsTest {
     }
 
     @Test
-    fun `document view definition errors are collected`() {
+    fun `文書ビュー定義のエラーを収集する`() {
         // match / schemaId なし
         write("_views/doc-bad1.yaml", "id: d1\nkind: document\nsections:\n  - fields: {}")
-        // fields も backlinks もないセクション
+        // fields・backlinks・flowのどれもないセクション
         write("_views/doc-bad2.yaml", "id: d2\nkind: document\nmatch: \"a.yaml\"\nsections:\n  - label: A")
         // グリッド専用キーの混入
         write("_views/doc-bad3.yaml", "id: d3\nkind: document\nmatch: \"a.yaml\"\nrows: { idPattern: \"*\" }\nsections:\n  - fields: {}")
@@ -1356,7 +1356,7 @@ class ViewsTest {
         write("_views/doc-bad5.yaml", "id: d5\nrows: { idPattern: \"*\" }\ncolumns:\n  - { label: A, path: name }\nsections: []")
         val loaded = Views.load(ws)
         assertTrue(loaded.errors.any { "doc-bad1.yaml" in it && "match" in it }, loaded.errors.toString())
-        assertTrue(loaded.errors.any { "doc-bad2.yaml" in it && "fields か backlinks" in it }, loaded.errors.toString())
+        assertTrue(loaded.errors.any { "doc-bad2.yaml" in it && "fields / backlinks / flow" in it }, loaded.errors.toString())
         assertTrue(loaded.errors.any { "doc-bad3.yaml" in it && "rows" in it }, loaded.errors.toString())
         assertTrue(loaded.errors.any { "doc-bad4.yaml" in it && "kind" in it }, loaded.errors.toString())
         assertTrue(loaded.errors.any { "doc-bad5.yaml" in it && "sections" in it }, loaded.errors.toString())

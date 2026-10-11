@@ -5,9 +5,9 @@ rows:
 columns:
   - { label: ルール名, schemaId: rule-detail, path: title }
   - { label: 内容, schemaId: rule-detail, path: summary }
-  - label: モデル・操作の参照元
+  - label: モデル・操作・業務フローの参照元
     backlinks:
       relation: grounded-in-rule
-      schemaIds: [subdomain-detail, usecase-detail, context-map-detail]
+      schemaIds: [subdomain-detail, usecase-detail, business-flow-detail]
 detail:
   schemaId: rule-detail

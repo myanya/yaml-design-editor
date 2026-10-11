@@ -1,6 +1,7 @@
 id: "USCS-0001"
 status: "draft"
-context: "BCTX-0002"
+subdomain: "SDOM-0002"
+operations: [DOPR-0005, DOPR-0003]
 purpose: "管理者等がユーザ情報と所属を登録する。指定されたロールの付与を含む場合の成立単位を定め、利用開始の許可は別の操作として扱う。"
 actors:
   - name: "管理者等"
@@ -22,19 +23,19 @@ models:
     rule_refs:
       - "RITM-0002"
       - "RITM-0163"
-    context: "BCTX-0002"
+    subdomain: "SDOM-0002"
     entity: "ENTY-0001"
   - name: "所属"
     description: "同じテナント内の本務1組織と任意の兼務を設定する。"
     rule_refs:
       - "RITM-0003"
-    context: "BCTX-0002"
+    subdomain: "SDOM-0002"
   - name: "ロール付与"
     description: "指定時だけ、権限管理の付与単位と付与数の制約に従って設定する。"
     rule_refs:
       - "RITM-0056"
       - "RITM-0206"
-    context: "BCTX-0001"
+    subdomain: "SDOM-0001"
 triggers:
   - name: "登録要求"
     description: "権限を持つ管理者等が、対象テナントへユーザを登録する。"

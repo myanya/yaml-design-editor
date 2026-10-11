@@ -9,7 +9,6 @@ responsibility: |
 concepts:
   - kind: concept
     name: 機能
-    context: BCTX-0001
     status: draft
     rule_refs: [RITM-0189, RITM-0190]
     description: |
@@ -17,7 +16,6 @@ concepts:
       ユーザ管理も、この単位で登録・管理される機能の一つである。
   - kind: concept
     name: 権限マスタ
-    context: BCTX-0001
     status: draft
     rule_refs: [RITM-0190, RITM-0196]
     description: |
@@ -25,7 +23,6 @@ concepts:
       機能・権限の定義は各テナントに初期登録し、以後はテナントごとに独立して管理する。
   - kind: concept
     name: ロール
-    context: BCTX-0001
     status: draft
     rule_refs: [RITM-0192, RITM-0193, RITM-0197, RITM-0203, RITM-0204, RITM-0205]
     description: |
@@ -35,7 +32,6 @@ concepts:
       全機能のロールは組織またはグループを実行範囲の基準とすることを原則とし、テナント全域管理の特例とシステム管理者の除外を適用する。
   - kind: relationship
     name: ロール付与
-    context: BCTX-0001
     status: draft
     rule_refs: [RITM-0056, RITM-0203, RITM-0204, RITM-0205]
     description: |
@@ -65,28 +61,33 @@ concepts:
         description: ユーザ登録時に指定されたロールの付与は登録と一体として成立させ、付与失敗時は登録も成立させない。
         rule_refs: [RITM-0209]
 operations:
-  - name: 機能・権限の登録と管理
+  - id: DOPR-0001
+    name: 機能・権限の登録と管理
     rule_refs: [RITM-0190, RITM-0191, RITM-0196]
     description: |
       開発者が用意した定義に加え、テナント側でも機能と権限を登録・管理する。
       機能に紐づく権限の追加・削除を可能にする。
       定義の変更はテナント内で管理し、共通定義への参照によって他テナントへ自動的に波及させない。
-  - name: ロールの作成と権限設定
+  - id: DOPR-0002
+    name: ロールの作成と権限設定
     rule_refs: [RITM-0192, RITM-0194]
     description: |
       機能ごとにロールを作成し、既存ロールの権限設定を変更する。
       システム管理者・テナント管理者が機能の管理者ロールを作成し、権限設定を委譲する。
       委譲された管理者は、当該機能のロール等を作成・管理する。
-  - name: ユーザへのロール付与
+  - id: DOPR-0003
+    name: ユーザへのロール付与
     rule_refs: [RITM-0019, RITM-0021, RITM-0023, RITM-0056, RITM-0206]
     description: |
       ユーザに対象範囲・機能別のロールを付与する。
       登録時の任意のロール付与と、登録済みユーザへのロール変更を扱う。
       利用権限と付与権限を区別し、管理対象範囲とロールに応じた制約を適用する。
-  - name: ロールと権限の参照
+  - id: DOPR-0004
+    name: ロールと権限の参照
     rule_refs: [RITM-0195]
     description: |
       利用側がユーザと機能IDに対応するロール、権限識別IDと権限の値を取得できるようにする。
+
 boundary: |
   ユーザの登録・情報更新・利用状態の変更は、ユーザ管理の操作として扱う。
   組織・グループの定義は組織・グループ管理が担い、権限管理はその定義をロールの実行範囲の基準として用いる。

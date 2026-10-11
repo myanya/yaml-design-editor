@@ -5,6 +5,7 @@
 
 | 文書 | 内容 | 期間 |
 |---|---|---|
+| [flow-view.md](flow-view.md)・[flow-view-validation.md](flow-view-validation.md) | 汎用フロービューの初期実装・BZFL-0002移行・改名影響調査と検証 | 2026-10 |
 | [three-layer-core-migration-plan.md](three-layer-core-migration-plan.md) | 3層コア移行の計画（フェーズ・完了条件・移行先対応表） | 2026-08 |
 | [migration-ledger.md](migration-ledger.md) | 3層コア移行の台帳（ベースライン・作業単位の状態） | 2026-08〜09 |
 | [post-migration-refactoring-plan.md](post-migration-refactoring-plan.md) | 移行後リファクタリング（root 5 パッケージの解体）の計画 | 2026-08〜09 |

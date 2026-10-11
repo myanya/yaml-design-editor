@@ -1,6 +1,7 @@
 id: "USCS-0002"
 status: "draft"
-context: "BCTX-0002"
+subdomain: "SDOM-0002"
+operations: [DOPR-0008]
 purpose: "利用開始前のユーザを初期設定中へ移す。状態変更と案内メールの実送信を別の時点として扱う。"
 actors:
   - name: "管理者等"
@@ -24,7 +25,7 @@ models:
     rule_refs:
       - "RITM-0165"
       - "RITM-0176"
-    context: "BCTX-0002"
+    subdomain: "SDOM-0002"
     entity: "ENTY-0001"
 triggers:
   - name: "管理者等の操作"

@@ -1,0 +1,82 @@
+id: business-flow-types
+kind: library
+name: 業務フローの主体・活動・遷移
+definitions:
+  actor:
+    type: object
+    entity: {type: business-actor, defines: true}
+    fields:
+      - {key: id, label: 主体ID, type: id, pattern: 'BATR-[0-9]{4}', required: true}
+      - {key: name, label: 名称, type: line, role: title, required: true}
+      - {key: description, label: 役割, type: text, required: true}
+  activity-content:
+    type: object
+    fields:
+      - {key: id, label: 活動ID, type: id, pattern: 'BACT-[0-9]{4}', required: true}
+      - {key: title, label: 活動名, type: line, role: title, required: true}
+      - key: actor
+        label: 実施主体
+        type: ref
+        idPatterns: [BATR-*]
+        scope: {schemaIds: [business-flow-detail]}
+        required: true
+        relation: performed-by
+      - {key: content, label: 内容, type: text, required: true}
+      - {key: state_change, label: 利用状態の変化, type: text}
+      - {key: operations, label: 利用する操作, type: domain-model-types#operation-refs}
+      - key: subdomains
+        label: 関与するサブドメイン
+        type: array
+        required: true
+        item:
+          type: ref
+          idPatterns: [SDOM-*]
+          scope: {schemaIds: [subdomain-list]}
+      - {key: rule_refs, label: この活動の根拠, type: domain-model-types#rule-refs, required: true}
+      - key: usecases
+        label: 対応する詳細ユースケース
+        type: array
+        item:
+          type: ref
+          idPatterns: [USCS-*]
+          scope: {schemaIds: [usecase-list]}
+          relation: elaborates-with
+  activity:
+    type: activity-content
+    entity: {type: business-activity, defines: true}
+    fields:
+      - key: kind
+        label: 活動の区分
+        type: enum
+        required: true
+        values:
+          - {value: action, label: 活動}
+          - {value: decision, label: 判断}
+          - {value: outcome, label: 到達点}
+          - {value: handoff, label: 引渡し}
+  supporting-activity:
+    type: activity-content
+    entity: {type: business-supporting-activity, defines: true}
+    fields:
+      - {key: condition, label: 実施できる状況, type: text, required: true}
+  transition:
+    type: object
+    entity: {type: business-transition, defines: true}
+    fields:
+      - {key: id, label: 遷移ID, type: id, pattern: 'BTRN-[0-9]{4}', required: true}
+      - key: from
+        label: 遷移元
+        type: ref
+        idPatterns: [BACT-*]
+        scope: {schemaIds: [business-flow-detail]}
+        required: true
+        relation: transition-from
+      - key: to
+        label: 遷移先
+        type: ref
+        idPatterns: [BACT-*]
+        scope: {schemaIds: [business-flow-detail]}
+        required: true
+        relation: transition-to
+      - {key: condition, label: 進む条件, type: text, role: title, required: true}
+      - {key: rule_refs, label: この遷移の根拠, type: domain-model-types#rule-refs, required: true}

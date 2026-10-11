@@ -9,10 +9,11 @@ columns:
   - { label: 分類, schemaId: subdomain-detail, path: classification, editable: true }
   - { label: 分類の根拠, schemaId: subdomain-detail, path: classification_reason }
   - { label: 文書の状態, schemaId: subdomain-detail, path: status }
-  - label: 担当するコンテキスト
+  - { label: 提供する操作, schemaId: subdomain-detail, path: operations }
+  - label: 主担当のユースケース
     backlinks:
-      relation: covers-subdomain
-      schemaIds: [bounded-context-detail]
+      relation: usecase-in-subdomain
+      schemaIds: [usecase-detail]
   - { label: 責務, schemaId: subdomain-detail, path: responsibility }
 detail:
   schemaId: subdomain-detail

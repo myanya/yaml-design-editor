@@ -1,0 +1,26 @@
+id: domain-operation-catalog
+name: サブドメインの操作と利用箇所
+description: 全操作を起点に、所属領域・利用する活動・具体化するユースケースを表示する。対応が未記載の操作も残す。
+rows:
+  match:
+    - node: {entity: domain-operation, bind: operation}
+    - edge: {contains: true, dir: in}
+    - node: {entity: subdomain, bind: domain}
+  rowKey: operation
+columns:
+  - {label: 操作ID, of: operation, schemaId: subdomain-detail, path: id}
+  - {label: 操作, of: operation, schemaId: subdomain-detail, path: name}
+  - {label: 所属サブドメイン, of: domain, schemaId: subdomain-list, path: title}
+  - {label: 条件, of: operation, schemaId: subdomain-detail, path: conditions}
+  - {label: 結果, of: operation, schemaId: subdomain-detail, path: effects}
+  - label: 利用する業務活動・フロー
+    backlinks:
+      relation: uses-operation
+      schemaIds: [business-flow-detail]
+  - label: 具体化するユースケース
+    backlinks:
+      relation: uses-operation
+      schemaIds: [usecase-detail]
+  - {label: 根拠, of: operation, schemaId: subdomain-detail, path: rule_refs}
+detail:
+  schemaId: subdomain-detail

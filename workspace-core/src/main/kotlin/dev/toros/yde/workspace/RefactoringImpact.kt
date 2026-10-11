@@ -86,7 +86,45 @@ object RefactoringImpact {
         for (docView in viewDefs.docViews) {
             if (leaves(docView.match)) warnings += "文書ビュー「${docView.id}」の match がこのファイルを対象にしなくなります"
         }
+        for (flowView in viewDefs.flowViews) {
+            if (leaves(flowView.match)) warnings += "フロービュー「${flowView.id}」の match がこのファイルを対象にしなくなります"
+        }
         return warnings
+    }
+
+    /**
+     * 投影内の固定ID・関係名等は参照型の裏付けがないため、自動置換せず場所付きで開示する。
+     * これは意味の評価ではなく保守的な言及の列挙。規則・条件・辞書キー・未知の指示も漏らさない。
+     */
+    internal fun flowDefinitionWarnings(session: WorkspaceSession, token: String): List<String> =
+        viewDocuments(session).flatMap { file ->
+            val raw = runCatching { YamlIO.parseToRaw(session.storedText(file) ?: "") }.getOrNull() as? Map<*, *>
+                ?: return@flatMap emptyList()
+            if (raw["kind"] != "flow") return@flatMap emptyList()
+            val sites = literalMentions(raw["projection"], token, "projection") +
+                listOf("schemaId", "match").filter { key ->
+                    raw[key]?.toString()?.let { tokenRegex(token).containsMatchIn(it) } == true
+                }
+            sites.map { "${file.value}: $it に「$token」の言及があります（自動書換の対象外・要確認）" }
+        }
+
+    private fun literalMentions(raw: Any?, token: String, crumb: String): List<String> {
+        val pattern = tokenRegex(token)
+        val out = linkedSetOf<String>()
+        fun walk(node: Any?, at: String) {
+            when (node) {
+                is Map<*, *> -> node.forEach { (key, value) ->
+                    val here = "$at.$key"
+                    if (pattern.containsMatchIn(key.toString())) out += here
+                    walk(value, here)
+                }
+                is List<*> -> node.forEachIndexed { i, value -> walk(value, "$at[${i + 1}]") }
+                is String -> if (pattern.containsMatchIn(node)) out += at
+                else -> Unit
+            }
+        }
+        walk(raw, crumb)
+        return out.toList()
     }
 
     // ================================================================ スキーマ側の解決（読み取り専用の簡約版）
@@ -505,6 +543,8 @@ object RefactoringImpact {
                     val key = k.toString()
                     val here = if (crumb.isEmpty()) key else "$crumb.$key"
                     when {
+                        // Transformの相対パス・規則・条件を静的な列パスとして扱わない。
+                        key == "projection" -> out += literalMentions(v, oldName, here)
                         key in setOf("path", "via", "at") && v != null && v !is Map<*, *> && v !is List<*> ->
                             if (containsOld(v.toString())) out += here
                         key in setOf("value", "format") && v is String ->

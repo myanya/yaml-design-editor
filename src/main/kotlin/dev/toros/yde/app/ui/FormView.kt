@@ -231,11 +231,11 @@ fun FormView(state: AppState, doc: OpenDocument) {
         DocScanner.scan(root, state.documentOf(doc.file), doc.schema, documentId).first
     }
     // 文書ビュー（R14-01）: マッチする定義があれば表示合成をビューに委ねる。ビューは台帳層の機構のため台帳の文書に限る
-    val docView = remember(state.indexVersion, doc.file, doc.schema) {
+    val docView = remember(state.indexVersion, state.editVersion, doc.file, doc.schema) {
         val ws = state.workspace
         val rel = state.relPath(doc.file)
         if (ws == null || !state.layout.inLedger(rel)) null
-        else Views.load(ws, state.schemas).docViewFor(rel, doc.schema?.id)
+        else Views.load(ws, state.schemas, state.unsavedFirstTree()).docViewFor(rel, doc.schema?.id)
     }
     // 要素単位アタッチ（R14-03）: 要素パス → 被参照 に解決して FormCtx へ載せる（描画は ObjectFields）
     val attachments = remember(doc, doc.version, state.indexVersion, docView) {
@@ -487,7 +487,9 @@ private fun DocViewSections(ctx: FormCtx, view: DocViewDef, root: YNode.Map, loc
                 }
             }
         } else {
-            BacklinkSectionTable(state, sectionResolved)
+            val flowView = section.flowView
+            if (flowView != null) EmbeddedFlowPane(state, doc, flowView)
+            else BacklinkSectionTable(state, sectionResolved)
         }
     }
 }
@@ -637,7 +639,7 @@ fun ObjectFields(
 }
 
 @Composable
-private fun FieldRow(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
+internal fun FieldRow(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
     val effective = ctx.doc.schema?.resolve(field) ?: field
     // 閲覧専用モード（R10-04）はパディングを圧縮して表示密度を上げる
     val labelTop = if (ctx.readOnly) 2.dp else 8.dp

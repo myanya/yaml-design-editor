@@ -68,6 +68,12 @@ class OpenDocument(
     parseError: String?,
     extraDocs: List<YNode> = emptyList(),
 ) {
+    companion object {
+        private val instances = java.util.concurrent.atomic.AtomicLong()
+    }
+    private val instance = instances.incrementAndGet()
+    /** 文書の再生成でも古い無key辺の選択を引き継がない。 */
+    val flowRevision: Long get() = (instance shl 32) + version
     private val buffer = dev.toros.yde.app.core.EditBuffer(file, root, extraDocs, initialText, parseError)
 
     var schema by mutableStateOf(schema)
@@ -329,7 +335,7 @@ class AppState {
     /** workspaceView の変更後に呼び、スペースを文書世界（編集／台帳）へ同期する。 */
     private fun syncSpaceFromView() {
         uiSpace = if (workspaceView == 0) UiSpace.EDIT else UiSpace.LEDGER
-        if (workspaceView in 1..4) lastLedgerView = workspaceView
+        if (workspaceView in 1..5) lastLedgerView = workspaceView
     }
 
     /**
@@ -387,6 +393,28 @@ class AppState {
 
     /** ビューグリッドで選択中のビューID。 */
     var viewGridId by mutableStateOf<String?>(null)
+
+    var flowViewId by mutableStateOf<String?>(null)
+    var flowDocument by mutableStateOf<DocumentId?>(null)
+    var flowSelections by mutableStateOf<Map<Pair<String, DocumentId>, dev.toros.yde.semantic.FlowSelection>>(emptyMap())
+
+    fun selectFlow(view: String, document: DocumentId, selection: dev.toros.yde.semantic.FlowSelection?) {
+        val key = view to document
+        flowSelections = if (selection == null) flowSelections - key else flowSelections + (key to selection)
+    }
+
+    fun openFlowView(id: String? = null, document: DocumentId? = null) {
+        if (uiSpace != UiSpace.LEDGER || workspaceView != 5 || flowViewId != id || flowDocument != document) {
+            pushBack(currentLocation())
+        }
+        if (id != null) {
+            if (flowViewId != id) flowDocument = null
+            flowViewId = id
+        }
+        if (document != null) flowDocument = document
+        workspaceView = 5
+        syncSpaceFromView()
+    }
 
     /** ビューグリッドを開く（id 指定時はそのビューを選択し、ジャンプとして履歴に積む）。 */
     fun openViewGrid(id: String? = null) {
@@ -467,6 +495,9 @@ class AppState {
         coreWs = null
         session = null
         docCache.clear()
+        flowSelections = emptyMap()
+        flowViewId = null
+        flowDocument = null
         openDoc = null
         highlightPath = null
         backStack = emptyList()
@@ -1501,6 +1532,9 @@ class AppState {
         val path: YPath?,
         val crossId: String?,
         val gridId: String?,
+        val flowId: String? = null,
+        val flowDocument: DocumentId? = null,
+        val flowSelections: Map<Pair<String, DocumentId>, dev.toros.yde.semantic.FlowSelection> = emptyMap(),
     )
 
     private var backStack by mutableStateOf<List<NavLocation>>(emptyList())
@@ -1511,7 +1545,8 @@ class AppState {
 
     /** 現在の表示位置。 */
     private fun currentLocation(): NavLocation =
-        NavLocation(uiSpace, workspaceView, openDoc?.file, highlightPath, crossViewId, viewGridId)
+        NavLocation(uiSpace, workspaceView, openDoc?.file, highlightPath, crossViewId, viewGridId,
+            flowViewId, flowDocument, flowSelections)
 
     /** 何も開いていない編集スペースは履歴に積む価値がない（台帳・実行・設計はそれ自体が場所）。 */
     private fun isEmptyLocation(loc: NavLocation): Boolean = loc.space == UiSpace.EDIT && loc.file == null
@@ -1528,6 +1563,9 @@ class AppState {
 
     /** 履歴地点を画面へ復元する（履歴には積まない）。 */
     private fun restore(loc: NavLocation) {
+        flowViewId = loc.flowId
+        flowDocument = loc.flowDocument
+        flowSelections = loc.flowSelections
         when (loc.space) {
             UiSpace.EDIT -> loc.file?.let { showFile(it, loc.path) }
             UiSpace.LEDGER -> {

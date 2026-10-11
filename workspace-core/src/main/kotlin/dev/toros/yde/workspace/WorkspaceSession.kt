@@ -402,6 +402,16 @@ class WorkspaceSession private constructor(
             // 定型の警告（追随しません）は、実測の言及の走査（該当するビュー・宣言の列挙）で置き換える
             is RefactoringRequest.DeleteField ->
                 plan.copy(warnings = RefactoringImpact.fieldDeleteWarnings(this, request.fieldPath))
+            is RefactoringRequest.RenameEntity ->
+                plan.copy(warnings = plan.warnings + RefactoringImpact.flowDefinitionWarnings(this, request.oldId))
+            is RefactoringRequest.RenameRelation ->
+                plan.copy(warnings = plan.warnings + RefactoringImpact.flowDefinitionWarnings(this, request.oldName))
+            is RefactoringRequest.RenameSchemaId ->
+                plan.copy(warnings = plan.warnings + RefactoringImpact.flowDefinitionWarnings(this, request.oldId))
+            is RefactoringRequest.MoveField ->
+                plan.copy(warnings = plan.warnings + RefactoringImpact.flowDefinitionWarnings(
+                    this, request.fieldPath.substringAfterLast('.'),
+                ))
             else -> plan
         }
     }

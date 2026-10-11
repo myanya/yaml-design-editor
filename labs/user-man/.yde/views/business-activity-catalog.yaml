@@ -1,0 +1,17 @@
+id: business-activity-catalog
+name: 業務活動と親フロー
+description: 原本の包含関係から親フローを導出する。親IDを活動へ重複記入しない。
+rows:
+  match:
+    - node: {id: 'BACT-*', bind: activity}
+    - edge: {contains: true, dir: in}
+    - node: {entity: business-flow, bind: flow}
+  rowKey: activity
+columns:
+  - {label: 活動, of: activity, schemaId: business-flow-detail, path: title}
+  - {label: 実施主体, of: activity, schemaId: business-flow-detail, path: actor}
+  - {label: 利用する操作, of: activity, schemaId: business-flow-detail, path: operations}
+  - {label: 親フローID, of: flow, schemaId: business-flow-list, path: id}
+  - {label: 親フロー名, of: flow, schemaId: business-flow-list, path: title}
+  - {label: 根拠, of: activity, schemaId: business-flow-detail, path: rule_refs}
+  - {label: 対応ユースケース, of: activity, schemaId: business-flow-detail, path: usecases}

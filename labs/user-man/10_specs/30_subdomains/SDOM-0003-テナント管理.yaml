@@ -9,7 +9,6 @@ responsibility: |
 concepts:
   - kind: concept
     name: テナント
-    context: BCTX-0003
     status: draft
     rule_refs: [RITM-0008, RITM-0200]
     description: |
@@ -17,23 +16,25 @@ concepts:
       開設時には、本機能の管理対象機能で必要となるテナント作成を行う。
   - kind: concept
     name: 利用側の開設用コンポーネント
-    context: BCTX-0003
     status: draft
     rule_refs: [RITM-0200]
     description: |
       本機能を主体とする開設で、利用側のテナント情報の登録処理などを呼び出すための拡張。
       利用側システムがSpring Bootの機能を用いて注入する。
 operations:
-  - name: 利用側からのテナント開設
+  - id: DOPR-0013
+    name: 利用側からのテナント開設
     rule_refs: [RITM-0198, RITM-0199]
     description: |
       APIまたは通常のサービスクラス呼び出しを通じて、利用側システムに開設処理を提供する。
       呼び出しを組み込む利用側システムの業務・運用は、利用側に委ねる。
-  - name: システム管理者によるテナント開設
+  - id: DOPR-0014
+    name: システム管理者によるテナント開設
     rule_refs: [RITM-0198, RITM-0200]
     description: |
       システム管理者が、運用作業として本機能のテナント開設機能を操作する。
       本機能の管理対象機能向けにテナントを作成し、注入されたコンポーネントを介して利用側の登録処理などを呼び出せるようにする。
+
 boundary: |
   ユーザ管理・権限管理・組織管理などの管理情報について、本機能の範囲のテナント作成を担う。
   利用側システム固有のテナント情報の登録処理は、利用側システムが担う。

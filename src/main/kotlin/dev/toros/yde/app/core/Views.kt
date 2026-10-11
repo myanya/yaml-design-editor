@@ -19,6 +19,10 @@ import dev.toros.yde.semantic.VirtualDocSection
 import dev.toros.yde.semantic.VirtualDocSectionResolved
 import dev.toros.yde.semantic.VirtualDocViewDef
 import dev.toros.yde.semantic.VirtualGridDef
+import dev.toros.yde.semantic.VirtualFlowDef
+import dev.toros.yde.semantic.FlowViews
+import dev.toros.yde.semantic.FlowResolution
+import dev.toros.yde.semantic.FlowConnectionState
 import dev.toros.yde.semantic.VirtualNewRowDef
 import dev.toros.yde.semantic.VirtualRow
 import dev.toros.yde.semantic.VirtualRowsDef
@@ -98,10 +102,16 @@ typealias DocAttachmentResolved = VirtualDocAttachmentResolved
 
 object Views {
 
-    data class LoadResult(val views: List<ViewDef>, val docViews: List<DocViewDef>, val errors: List<String>) {
+    data class LoadResult(
+        val views: List<ViewDef>, val docViews: List<DocViewDef>, val errors: List<String>,
+        val flowViews: List<VirtualFlowDef> = emptyList(),
+    ) {
         fun view(id: String): ViewDef? = views.firstOrNull { it.id == id }
 
         fun docView(id: String): DocViewDef? = docViews.firstOrNull { it.id == id }
+
+        fun flowView(id: String): VirtualFlowDef? =
+            (views + docViews + flowViews).singleOrNull { it.id == id } as? VirtualFlowDef
 
         /** 文書に適用する文書ビュー。スキーマの match と同じ「定義ファイル名順の先勝ち」。 */
         fun docViewFor(relPath: String, schemaId: String?): DocViewDef? =
@@ -113,7 +123,10 @@ object Views {
      * schemas を渡すと、definition 参照の列展開（R14-02）と、ビュー→スキーマの整合検査（リント）が有効になる。
      * 読み取りとリントの実体は、カーネルの workspace.ViewDefinitions（P27 段D の D-c）。ここは、ファイルを読んで渡す窓口。
      */
-    fun load(workspace: Path, schemas: List<SchemaDef> = emptyList()): LoadResult {
+    fun load(
+        workspace: Path, schemas: List<SchemaDef> = emptyList(),
+        loader: ((DocumentId) -> YNode?)? = null,
+    ): LoadResult {
         val dir = workspace.resolve(WorkspaceLayout.of(workspace).viewsDir)
         if (!Files.isDirectory(dir)) return LoadResult(emptyList(), emptyList(), emptyList())
         val files = Files.list(dir).use { stream ->
@@ -122,9 +135,12 @@ object Views {
                 Files.isRegularFile(p) && (n.endsWith(".yaml") || n.endsWith(".yml"))
             }.toList()
         }.sortedBy { it.fileName.toString() }
-        val sources = files.map { file -> documentIdOf(workspace, file) to Files.readString(file) }
+        val sources = files.map { file ->
+            val document = documentIdOf(workspace, file)
+            document to if (loader == null) Files.readString(file) else loader(document)?.let(YamlIO::dumpPlain).orEmpty()
+        }
         val catalog = ViewDefinitions.load(sources, schemas.map { it.kernel })
-        return LoadResult(catalog.views, catalog.docViews, catalog.errors)
+        return LoadResult(catalog.views, catalog.docViews, catalog.errors, catalog.flowViews)
     }
 
     /** ビュー定義文書の座標（ワークスペース相対の文書ID。ワークスペースの外のパスは、そのままの文字列）。 */
@@ -151,6 +167,26 @@ object Views {
 
     // ---------------------------------------------------------------- 解決
     // 解決の本体はカーネル（semantic.VirtualViews。RC-01・RC-02）。索引も結果もカーネルの型そのものなので、ここは呼ぶだけの窓口
+
+    /** 未保存編集を扱う呼び出し側は、同じスナップショットの索引・原本loader・スキーマを渡す。 */
+    fun resolveFlow(
+        view: VirtualFlowDef,
+        document: DocumentId,
+        index: IdIndex,
+        schemaFor: (DocumentId) -> SchemaDef?,
+        loader: (DocumentId) -> YNode?,
+    ): FlowResolution {
+        val input = loader(document)
+        val schema = schemaFor(document)
+        val refs = index.refs.filter { it.document == document }.groupBy { it.path }
+        return FlowViews.resolve(view, document, schema?.id, input) { location, key ->
+            val field = if (location.document == document && input != null) schema?.fieldAt(input, location.path) else null
+            val ref = refs[location.path]?.singleOrNull { it.targetId == key }
+            if (field?.type != FieldType.REF || ref == null || ref.targetKind != dev.toros.yde.semantic.schema.RefTarget.ENTITY) {
+                FlowConnectionState.UNKNOWN
+            } else if (index.resolve(ref).isEmpty()) FlowConnectionState.UNRESOLVED else FlowConnectionState.OUTSIDE
+        }
+    }
 
     /**
      * ビューを行×セルに解決する。

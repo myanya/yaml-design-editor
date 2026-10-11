@@ -1,0 +1,46 @@
+id: business-flow-diagram
+name: 業務フロー図
+kind: flow
+schemaId: business-flow-detail
+match: 10_specs/40_business_flows/BZFL-0002-*.yaml
+layout:
+  direction: down
+projection:
+  id: business-flow-projection
+  build:
+    lanes:
+      $each: actors
+      $build:
+        key: {$copy: id}
+        label: {$copy: name}
+    nodes:
+      $concat:
+        - $each: activities
+          $build:
+            key: {$copy: id}
+            label:
+              $format: '{category}：{title}'
+              $with:
+                category:
+                  $map: {$copy: kind}
+                  $using: {action: 活動, decision: 判断, outcome: 到達点, handoff: 引渡し}
+            lane: {$copy: actor}
+            shape:
+              $map: {$copy: kind}
+              $using: {action: box, decision: diamond, outcome: rounded, handoff: box}
+            detail: {$copy: .}
+        - $each: supporting_activities
+          $build:
+            key: {$copy: id}
+            label: {$format: '任意：{title}'}
+            lane: {$copy: actor}
+            shape: box
+            detail: {$copy: .}
+    edges:
+      $each: transitions
+      $build:
+        key: {$copy: id}
+        from: {$copy: from}
+        to: {$copy: to}
+        label: {$copy: condition}
+        detail: {$copy: .}

@@ -24,7 +24,7 @@ user-man/
 ├── .yde/
 │   ├── workspace.yaml   # 台帳の対象は 10_specs
 │   ├── schemas/         # 文書のスキーマ
-│   └── views/           # 原本文書を結合する一覧ビュー
+│   └── views/           # 一覧・フロー図・文書表示の定義
 ├── 10_specs/
 │   ├── README.md        # 文書体系と参照先の入口
 │   └── WRITING.md       # 共通の記述規約

@@ -21,7 +21,7 @@ YAML Design Editor（以下 YDE）は、当初の汎用 YAML エディタから�
 - Schema Refactoring による複数文書・定義の決定論的変更
 - `yaml-core` / `semantic-core` / `workspace-core` の3層コア
 
-Query Core はすでに、それまで複数箇所で個別実装されていたグラフパターン照合を単一エンジンへ統合する方向で設計されている。
+Query Core は、グラフパターン照合を単一エンジンに統合する設計とする。
 
 また、決定論的射影では、評価器を一元化し、任意式やコード実行を導入せず、1段評価・判定保留・provenance を重視する設計が採用されている。
 
@@ -747,12 +747,13 @@ Core Calculus = 定義を実行する
 
 既存機能を直ちに全面改修する必要はない。
 
-まず概念上、次のように分類する。
+概念上の分類：
 
 | 既存機能 | Core Calculus 上の位置付け |
 |---|---|
 | Search / Traverse / Query Core / View rows | Query |
 | Matrix view（クロス集計） | Query ＋ Aggregate（列を広げたグリッドへ下ろす） |
+| Flow view | Construct＋構造検査・接続解決 |
 | foreach | Query |
 | Projection | Expression |
 | Derivation（ビューの派生列。専用の語彙は廃止） | Expression（`via`＝1 段の参照）＋ Aggregate |

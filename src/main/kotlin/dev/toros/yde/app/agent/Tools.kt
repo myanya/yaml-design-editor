@@ -461,15 +461,18 @@ class AgentToolbox(
      * rowsPattern（行IDの絞り込み）・columns（列ラベルの選別）は横断グリッドのみ（R19-02）。
      */
     fun viewText(viewId: String?, fileRel: String? = null, rowsPattern: String? = null, columns: List<String>? = null): String {
-        val loaded = Views.load(ws.root, ws.schemas)
+        val loaded = Views.load(ws.root, ws.schemas) { staging.tree(it.value) }
         if (viewId.isNullOrBlank()) {
-            if (loaded.views.isEmpty() && loaded.docViews.isEmpty()) return "（ビュー定義がありません）"
+            if (loaded.views.isEmpty() && loaded.docViews.isEmpty() && loaded.flowViews.isEmpty()) return "（ビュー定義がありません）"
             val lines = loaded.views.map { v ->
                 val rowsLabel = v.rows?.let { "idPattern=${it.idPattern}" } ?: "matchクエリ（行キー: ${v.rowKey}）"
                 val columnsLabel = if (v.matrix != null) "クロス集計（列は cells.columns から）" else v.columns.joinToString("/") { it.label }
                 "- ${v.id}（${v.name}）: $rowsLabel, 列=$columnsLabel"
             } + loaded.docViews.map { v ->
                 "- ${v.id}（${v.name}）: 文書ビュー 適用先=" +
+                    listOfNotNull(v.match, v.schemaId?.let { "schema:$it" }).joinToString(" & ")
+            } + loaded.flowViews.map { v ->
+                "- ${v.id}（${v.name}）: フロービュー 適用先=" +
                     listOfNotNull(v.match, v.schemaId?.let { "schema:$it" }).joinToString(" & ")
             }
             return lines.joinToString("\n") +
@@ -479,10 +482,23 @@ class AgentToolbox(
             require(rowsPattern == null && columns == null) { "rows / columns の絞り込みは横断グリッドのビューでのみ使えます" }
             return docViewText(it, fileRel)
         }
+        loaded.flowView(viewId)?.let { flow ->
+            require(rowsPattern == null && columns == null) { "rows / columns の絞り込みは横断グリッドのビューでのみ使えます" }
+            val candidates = ws.files.map { ws.relPath(it) }
+                .filter { flow.appliesTo(DocumentId(it), ws.schemaFor(ws.resolve(it))?.id) }.sorted()
+            val rel = fileRel?.let {
+                val path = ws.resolve(it).toAbsolutePath().normalize()
+                require(path.startsWith(ws.root.toAbsolutePath().normalize())) { "フローの原本はワークスペース内で指定してください" }
+                ws.relPath(path).replace('\\', '/')
+            } ?: candidates.singleOrNull() ?: return "file で対象文書を指定してください:\n" + candidates.joinToString("\n")
+            val document = DocumentId(rel)
+            val result = Views.resolveFlow(flow, document, staging.index(), ws::schemaFor) { staging.tree(it.value) }
+            return YamlIO.dump(YamlIO.fromAny(dev.toros.yde.app.core.FlowReports.toMap(flow, document, result, loaded.errors)))
+        }
         val view = loaded.view(viewId)
             ?: error(
                 "ビュー「$viewId」が見つかりません" +
-                    "（利用可能: ${(loaded.views + loaded.docViews).joinToString(", ") { it.id }.ifEmpty { "なし" }}）"
+                    "（利用可能: ${(loaded.views + loaded.docViews + loaded.flowViews).joinToString(", ") { it.id }.ifEmpty { "なし" }}）"
             )
         val index = staging.index()
         val rows = Views.resolve(view, index, { d -> staging.tree(d.value) }, ws::schemaFor)
@@ -514,7 +530,13 @@ class AgentToolbox(
         val loader = { d: DocumentId -> staging.tree(d.value) }
         val sections = Views.resolveDocument(view, document, index, loader = loader)
         val attachments = Views.resolveAttachments(view, document, index, loader = loader)
-        return Views.renderDocText(view, rel, sections, attachments)
+        val catalog = Views.load(ws.root, ws.schemas, loader)
+        val flows = sections.mapNotNull { it.section.flowView }.map { id ->
+            YamlIO.dump(YamlIO.fromAny(dev.toros.yde.app.core.FlowReports.embedded(
+                id, document, catalog, index, ws::schemaFor, loader,
+            )))
+        }
+        return (listOf(Views.renderDocText(view, rel, sections, attachments)) + flows).joinToString("\n")
     }
 
     // ---------------------------------------------------------------- コンテキストレシピ（R19-02）

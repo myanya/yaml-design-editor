@@ -14,7 +14,6 @@ concepts:
     description: |
       テナントごとに独立して登録・管理するサービスの利用者。
       システム管理者はこのモデルの対象外とし、テナント管理者には通常の所属ルールを適用する。
-    context: BCTX-0002
     status: draft
     rule_refs: [RITM-0002, RITM-0005, RITM-0162]
     identity:
@@ -90,25 +89,25 @@ concepts:
     relationships:
       - name: 管理対象のテナント
         target_name: テナント
-        target_context: BCTX-0003
+        target_subdomain: SDOM-0003
         multiplicity: '1'
         description: ユーザはテナントごとに独立して管理する。
         rule_refs: [RITM-0002]
       - name: 本務の所属先
         target_name: 組織
-        target_context: BCTX-0004
+        target_subdomain: SDOM-0004
         multiplicity: '1'
         description: 同じテナント内の組織を必ず1つ指定する。所属関係はユーザ管理が扱い、組織構造とは区別する。
         rule_refs: [RITM-0003, RITM-0183]
       - name: 兼務の所属先
         target_name: 組織
-        target_context: BCTX-0004
+        target_subdomain: SDOM-0004
         multiplicity: '0..*'
         description: 同じテナント内の組織を0件以上指定できる。
         rule_refs: [RITM-0003]
       - name: 付与されたロール
         target_name: ロール付与
-        target_context: BCTX-0001
+        target_subdomain: SDOM-0001
         multiplicity: '0..*'
         description: 未付与で登録できる。付与先の単位・機能ごとの付与数は権限管理の制約に従う。
         rule_refs: [RITM-0056, RITM-0206]
@@ -128,7 +127,6 @@ concepts:
   - kind: relationship
     name: 所属
     description: ユーザと同じテナント内の組織を結ぶ関係。本務と兼務を区別する。
-    context: BCTX-0002
     status: draft
     rule_refs: [RITM-0003]
     attributes:
@@ -151,7 +149,6 @@ concepts:
   - kind: value_object
     name: 利用状態
     description: ユーザの通常機能の利用可否と運用上の状況を表す値。人事上の休職・退職情報は持たない。
-    context: BCTX-0002
     status: draft
     rule_refs: [RITM-0164, RITM-0176]
     attributes:
@@ -211,11 +208,11 @@ concepts:
   - kind: concept
     name: ユーザ情報
     description: 登録・更新の対象となる情報。初期設定時に本人による再入力を求めず、項目ごとに変更権限を扱う。
-    context: BCTX-0002
     status: draft
     rule_refs: [RITM-0124, RITM-0125, RITM-0184]
 operations:
-  - name: ユーザの登録
+  - id: DOPR-0005
+    name: ユーザの登録
     target_models: [ENTY-0001]
     description: 管理者・担当者が、ユーザの情報と所属を登録する。
     rule_refs: [RITM-0003, RITM-0162]
@@ -236,7 +233,8 @@ operations:
       - name: 指定ロールを含む成立単位
         description: ロールを指定した登録は、ユーザ登録と指定ロールの付与を一体で成立させる。付与に失敗した場合は登録も成立させない。
         rule_refs: [RITM-0209]
-  - name: ユーザ情報の更新
+  - id: DOPR-0006
+    name: ユーザ情報の更新
     target_models: [ENTY-0001]
     description: 管理範囲と項目ごとの変更権限に従って、登録済みユーザの情報を変更する。
     rule_refs: [RITM-0124, RITM-0125]
@@ -247,7 +245,8 @@ operations:
       - name: 本人の更新範囲
         description: 本人による変更は、当該項目のテナント設定で許可された範囲に従う。
         rule_refs: [RITM-0124, RITM-0177]
-  - name: 所属の変更・解除
+  - id: DOPR-0007
+    name: 所属の変更・解除
     target_models: [ENTY-0001]
     description: 本務の所属先の変更と兼務の追加・解除を、ユーザの利用状態の変更と区別して扱う。
     rule_refs: [RITM-0176, RITM-0183]
@@ -258,7 +257,8 @@ operations:
       - name: 本務の維持
         description: 本務は必ず1組織とし、本務の所属だけを削除する操作は設けない。
         rule_refs: [RITM-0003, RITM-0183]
-  - name: 利用開始
+  - id: DOPR-0008
+    name: 利用開始
     target_models: [ENTY-0001]
     description: 管理者等の操作または予約で「利用開始前」から「初期設定中」へ移す。
     rule_refs: [RITM-0165, RITM-0180]
@@ -266,18 +266,33 @@ operations:
       - name: 初期設定の案内契機
         description: 状態変更を契機に初期設定用URLを案内する。大量処理等では予約バッチを優先して実送信を遅らせてよい。
         rule_refs: [RITM-0207]
-  - name: 停止・再開
+  - id: DOPR-0009
+    name: ユーザの停止
     target_models: [ENTY-0001]
-    description: 一時停止・利用停止・再開を、設定された操作権限と管理範囲に従って行う。
+    description: 一時停止・利用停止を、設定された操作権限と管理範囲に従って行う。
     rule_refs: [RITM-0170, RITM-0175, RITM-0176]
     conditions:
       - name: 利用開始前からの停止禁止
         description: 利用開始前から一時停止・利用停止へは移さず、開始操作を行わないか削除する。
         rule_refs: [RITM-0163]
       - name: 理由の入力
-        description: 一時停止・利用停止・再開では理由を必須とする。
+        description: 一時停止・利用停止では理由を必須とする。
         rule_refs: [RITM-0185]
-  - name: ユーザの削除
+  - id: DOPR-0010
+    name: ユーザの再開
+    target_models: [ENTY-0001]
+    description: 一時停止・利用停止のユーザを、該当操作の権限と管理範囲に従って再開する。設定は引き継ぐ。
+    rule_refs: [RITM-0170, RITM-0175, RITM-0176]
+    conditions:
+      - name: 理由の入力
+        description: 再開では理由を必須とする。
+        rule_refs: [RITM-0185]
+    effects:
+      - name: 再ログイン
+        description: 停止解除後も再ログインを必須とする。
+        rule_refs: [RITM-0179]
+  - id: DOPR-0011
+    name: ユーザの削除
     target_models: [ENTY-0001]
     description: 論理削除し、1か月経過後の次の月次バッチで物理削除する。
     rule_refs: [RITM-0173]
@@ -288,7 +303,18 @@ operations:
       - name: 特殊な復旧
         description: 削除済みからの復活機能は提供せず、システム管理者による直接DB操作の特殊な運用に限る。
         rule_refs: [RITM-0174]
+  - id: DOPR-0012
+    name: 初期設定完了の利用状態への反映
+    target_models: [ENTY-0001]
+    description: 利用してよい状態と必要な初期設定の完了を確認して利用中へ移す。設定完了だけでは停止を解除しない。
+    rule_refs: [RITM-0165, RITM-0170, RITM-0171, RITM-0184]
+    effects:
+      - name: 反映失敗時の扱い
+        description: 認証設定を保持し、状態反映だけを再試行する。反映完了まで通常機能を許可せず、本人には利用開始処理の未完了を案内する。
+        rule_refs: [RITM-0212]
+
 boundary: |
+  ユーザ情報・所属情報・利用状態は本サブドメインが管理する。
   機能・権限マスタ、ロールの定義と付与は権限管理で扱い、ユーザ管理はその情報を利用して管理操作を制御する。
   登録時に指定されたロールは権限管理と連携して付与し、未指定の場合も登録できる。
   初期設定で扱うパスワード・多要素認証の設定は、認証機能との連携として扱う。

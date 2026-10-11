@@ -8,6 +8,11 @@
 | 部品 | ファイル | 責務 |
 |---|---|---|
 | `VirtualGridDef` / `VirtualDocViewDef` / `VirtualViewDefinition`（root の `ViewDef` / `DocViewDef` は別名） | semantic-core/semantic/VirtualViews.kt | ビュー定義の宣言の型と解決（仮想文書・テキスト表現） |
+| `VirtualFlowDef` / `FlowViews` / `FlowResolution` | semantic-core/semantic/FlowViews.kt | Constructによる文書の射影、原本対応、表示契約と接続先の診断 |
+| フロー表示契約 | semantic-core資源 `builtin-structures/flow-model.yaml` | 表示モデルの型・必須項目・形状をStructureValidatorで検査 |
+| `FlowReports` | core/FlowReports.kt | CLI・read_viewへ同じ表示モデルと座標・診断を開示 |
+| `FlowLayout` / `FlowSelection` | semantic-core/semantic/FlowLayout.kt・FlowSelection.kt | 計測寸法からの決定的配置と文書・版を考慮した選択の再解決 |
+| `FlowViewPane` | ui/FlowViewPane.kt | 単独表示・文書埋め込み・Canvas描画と既存の原本フォームへの委譲 |
 | `ViewDefinitions` / `ViewCatalog` | workspace-core/workspace/ViewDefinitions.kt | 読み取り（`parseView`＝definition 参照の列展開を含む）とリント（`lint` / `lintDocument`＝ビュー → スキーマの整合・`staticFieldAt` / `idElements`） |
 | `Views` | core/Views.kt | root の窓口（views ゾーンのファイルを読んで渡す `load`・行 × セルの解決 `resolve`・文書ビューの解決 `resolveDocument` / `resolveAttachments`・`renderText` / `renderDocText`・`fieldAt`＝`SchemaDef.fieldAt` へ委譲） |
 | `ViewRow`（＝`VirtualRow`）/ `ViewCell` | core/Views.kt | 解決の結果（別名） |
@@ -47,6 +52,34 @@
 - **要素単位アタッチ（`attachments`）**: `at` パターン（YPath ＋ `[*]`）に一致する要素の展開フォーム内に、その要素の ID への被参照表を差し込む。解決結果を `FormCtx.attachments` で運び、`ObjectFields` の末尾で描画する（全描画経路に効く。専用の分岐を作らない）。
 - **人間と AI が同じ面を見る**: `read_view`（`file` 引数）・CLI `view <id> [file]` が同じ解決（`resolveDocument` / `resolveAttachments` / `renderDocText`）を返す。エクスポートはグリッドのみ。
 
+## フローの解決
+
+`kind: flow`は文書の項目を、ノード・辺・任意のレーンへ射影する。GUI・CLI・read_viewは同じコア解決を使う。
+`match`と`schemaId`をANDで適用し、`projection`は既存のTransformDefを読む。入力は呼び出し側が渡す1文書で、fromと外部paramsは認めない。
+
+- 値の導出はSemanticTransformに委譲し、FlowResolutionに表示モデル・TransformOrigin・診断を分けて返す。
+- 型・必須・列挙値は組込みの構造スキーマで検査し、重複key・図内の接続・レーン対応は意味側で解決する。
+- 不完全な配列要素も出力位置で保持し、未知の形状はboxへ代替する。診断の位置は値の来歴、detailの来歴、定義の順で補う。
+- 図内に接続先がなくても、単なる文字列からワークスペース内の不存在を断定しない。
+  原本のref型と索引が裏付ける場合だけ、既存の参照解決で「表示対象外」と「未解決」を区別する。
+- detailの編集適格性は、配列eachの通常マップ直下のcopy（パス`.`、of・inなし）と、そのeach同士のconcatに限定する。
+  出力番号・原本位置・来歴を照合し、条件付き・規則経由などは原本座標があっても編集不可とする。
+- editableは射影上の適格性を表し、利用者の権限や閲覧専用状態を解除するものではない。
+- 解決は原本を書き換えず、図の派生データを保存しない。相対DocumentIdと、同じスナップショットの索引・原本loader・スキーマを渡す。
+
+## フローの画面と配置
+
+- FlowLayoutは計測寸法を受け取り、矩形と折れ線を返す純粋関数。SCCをまとめたDAGの順位と原本の順で配置する。
+  主軸に直交する方向へレーンを並べ、未割当ノードはレーン外へ置く。隣接順位間の辺には段間を、閉路・自己ループ・長い辺には外周を使う。
+  各辺のラベル領域を確保し、接続不明の辺も領域を残す。選択は配置の入力に含めない。
+- FlowViewPaneは台帳のフロータブと文書内埋め込みで共用。Canvasのパン・ズームは画面内の状態であり、原本へ保存しない。
+- 原本と定義の読取は同じ未保存優先loader、索引はoverlayIndexを使う。再解決はdoc.version・indexVersion・editVersionを購読する。
+- detailは編集用の木ではない。適格な単一原本座標をensureDoc・slotAt・FormCtx・FieldRowへ渡し、通常のUndo・保存・閲覧専用を適用する。
+- 選択はビューID・文書ID・種別・keyで現在のモデルへ再解決する。keyなしの辺だけ出力座標と原本・定義の版を使い、どちらかの変更で解除する。
+  OpenDocumentの生成番号も版に含め、文書が再生成されても誤復元しない。NavLocationは図の対象文書と選択を保持する。
+- sections[].flow.viewは一意なflowビューを参照する。静的リントは存在・種別を確認し、globの包含は判定しない。
+  適用条件は現在の文書に対する通常のフロー解決で診断する。CLI・read_viewも同じ文書を渡す。
+
 ## definition 参照とリント
 
 - **named definition がビューの一級語彙**: ビューからスキーマ構造を指す単位は named definition（`module#name`。非修飾名は `schemaId` から補完）。グリッド列の `definition:` は定義のセル型フィールド（`Display.tableColumns` と同じ規則。ID 型は除外）を列へ展開し、ラベル・パスをスキーマから導出する。展開はパース時で、展開後は通常の列と同一。
@@ -62,6 +95,9 @@
 - 値の式の列のリントは、式が読む項目（穴・読み出し・集計のパス）が出現のスキーマの ID 要素から解決できるか、`via` が参照型の項目か、`in` のスキーマがあるか、相手から読む `path` が相手のスキーマから解決できるか、集計の順序の種類と項目の型（date）が食い違っていないかを見る。
 - `[*]` を含むパス（アタッチ先・集計のパス）の読み取りは `PathPattern`。`-1` への置き換えを機能側に書かない。
 - リファクタリングのビュー定義の追随（フィールド改名）と言及の警告は、カーネルの `RefactoringImpact` が作り `planRefactoring` が計画に含める（[workspace.md「リファクタリングの影響」](workspace.md)）。
+- `flow.view`は組込みスキーマのref型で、ビューIDの改名・被参照の削除拒否は既存の意味的リファクタリングを使う。
+- projectionの相対パス・規則・固定値は自動改名せず、`RefactoringImpact`がキーと値の言及を場所付きで計画へ開示する。
+- 原本文書の移動でflowのmatchから外れる場合も計画で警告する。
 - 宣言的レンズ定義（`kind: lens`）は需要待ちで導入しない。
 
 ## 規律

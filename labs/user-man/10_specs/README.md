@@ -6,16 +6,14 @@
 ## 文書体系
 
 概要で提供範囲を把握し、ルールで判断の根拠を確認します。
-サブドメインで業務領域を、コンテキストでモデルの境界を整理し、連携と業務フローを具体化します。
+サブドメインでモデルと操作を整理し、業務フローの活動から操作を参照して、利用者の目的ごとにユースケースを具体化します。
 
 | 種類・作成ガイド | 役割 | 原本への入口 |
 |---|---|---|
 | [概要](10_overview/README.md) | 目的・提供範囲・システム全体像 | [システム概要](10_overview/overview.yaml) |
 | [ルール](20_rules/README.md) | 業務・システムの判断基準 | [ルール一覧](20_rules/0000-rule-lists.yaml) |
 | [サブドメイン](30_subdomains/README.md) | 業務領域・戦略的な分類と、その中で育てるモデル | [サブドメイン一覧](30_subdomains/0000-subdomain-lists.yaml) |
-| [コンテキスト](35_bounded_contexts/README.md) | 用語・モデル・管理責任の境界 | [コンテキスト一覧](35_bounded_contexts/0000-bounded-context-lists.yaml) |
-| [コンテキスト間の連携](37_context_maps/README.md) | 境界間で受け渡す情報と責任 | [連携一覧](37_context_maps/0000-context-map-lists.yaml) |
-| [業務フロー](40_business_flows/README.md) | 複数の境界を横断する業務の流れ | [業務フロー一覧](40_business_flows/0000-business-flow-lists.yaml) |
+| [業務フロー](40_business_flows/README.md) | 主体の活動・判断・進行と利用する操作 | [業務フロー一覧](40_business_flows/0000-business-flow-lists.yaml) |
 | [詳細ユースケース](50_usecases/README.md) | 操作・応答・成立条件とモデルの変化 | [詳細ユースケース一覧](50_usecases/0000-usecase-lists.yaml) |
 
 モデルは[サブドメイン内の作成ガイド](30_subdomains/MODELING.md)に従い、画面・API等を含む作成状況・未決事項は [TODO](../TODO.md) で管理します。

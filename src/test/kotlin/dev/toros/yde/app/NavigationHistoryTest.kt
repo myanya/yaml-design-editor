@@ -15,6 +15,26 @@ import kotlin.test.assertTrue
  * 履歴の積み降ろし・位置復元は AppState の純ロジックとして検証する。
  */
 class NavigationHistoryTest {
+    @Test
+    fun `フローから参照先へ移動して戻ると文書と選択が復元される`() {
+        val state = AppState()
+        val doc = dev.toros.yde.yaml.model.DocumentId("a.yaml")
+        val selection = dev.toros.yde.semantic.FlowSelection("diagram", doc,
+            dev.toros.yde.semantic.FlowElementKind.NODE, "A", listOf("nodes", 0), 1, 2)
+        state.openFlowView("diagram", doc)
+        state.selectFlow("diagram", doc, selection)
+        state.openFile(newFile("target.yaml"))
+        state.goBack()
+        assertEquals(5, state.workspaceView)
+        assertEquals("diagram", state.flowViewId)
+        assertEquals(doc, state.flowDocument)
+        assertEquals(selection, state.flowSelections["diagram" to doc])
+        state.openFlowView("diagram", dev.toros.yde.yaml.model.DocumentId("b.yaml"))
+        assertEquals(null, state.flowSelections["diagram" to state.flowDocument])
+        state.goBack()
+        assertEquals(doc, state.flowDocument)
+    }
+
 
     private val dir: Path = Files.createTempDirectory("nav-test")
 
