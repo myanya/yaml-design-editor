@@ -6,6 +6,7 @@ classification_reason: |
 responsibility: |
   ユーザの認証と、認証に必要なパスワード・多要素認証の初期設定・再設定を担う。
   初期設定の完了を、ユーザ管理の利用開始条件に結び付ける。
+  テナント外のシステム管理者の認証は、テナント内ユーザとは別の認証情報と共通設定で扱う。
 concepts:
   - kind: concept
     name: 認証設定
@@ -21,6 +22,9 @@ concepts:
       - name: パスワード設定
         description: 本人が設定するパスワード。共通の長さと、テナントの文字種・記号の条件に従う。
         rule_refs: [RITM-0128, RITM-0129, RITM-0130, RITM-0131, RITM-0132]
+      - name: 初回設定の完了状況
+        description: 初回設定を完了した事実を保持し、後から認証条件が変わっても取り消さない。停止からの再開先を決める際は、現在の条件への適合と区別してユーザ管理へ提供する。
+        rule_refs: [RITM-0216, RITM-0040]
       - name: 多要素認証設定
         description: テナントで利用可能な方式と、必須・任意の条件に応じて設定する。
         rule_refs: [RITM-0037, RITM-0038, RITM-0039, RITM-0041]
@@ -28,6 +32,9 @@ concepts:
       - name: 初期設定の完了条件
         description: パスワードと当該ユーザに必要な多要素認証が設定済みであることを完了条件とする。
         rule_refs: [RITM-0184]
+      - name: 現在の認証条件との照合
+        description: 保存された認証設定と、その時点で適用されるテナントの必須条件を照合する。過去の設定完了だけでは、設定変更後も条件を満たすとは扱わない。
+        rule_refs: [RITM-0040, RITM-0041]
       - name: 利用状態との区別
         description: 認証設定の完了だけで通常機能の利用を許可せず、停止中に完了しても停止を解除しない。
         rule_refs: [RITM-0165, RITM-0170, RITM-0171]
@@ -89,12 +96,34 @@ concepts:
       - name: 再試行と復旧
         description: 一時的な送信エラーを期限・回数の上限内で再試行し、解消しない場合は本人・管理者からの既存の再設定案内で対応する。
         rule_refs: [RITM-0213, RITM-0133]
+  - kind: concept
+    name: システム管理者の認証情報
+    status: draft
+    description: テナント内ユーザとは別の、システム管理者IDとパスワード・MFA設定。初回作成とログイン不能時の復旧はシステム運用で行う。
+    rule_refs: [RITM-0005, RITM-0222]
+    attributes:
+      - name: システム管理者ID
+        description: テナントを必要とせず、認証対象と試行制限の集計対象を識別する。
+        rule_refs: [RITM-0222, RITM-0223]
+    constraints:
+      - name: 認証設定の分離
+        description: MFAは認証アプリとメールを用い、初期値は任意とする。必須条件・利用方式はシステム管理者用の共通設定に従う。
+        rule_refs: [RITM-0222]
+      - name: 試行制限とセッション
+        description: 管理者IDごとにパスワードとMFAの失敗を別集計する。初期値は3回／1分・無操作30分・ログイン成功から12時間とし、専用の共通設定で管理する。
+        rule_refs: [RITM-0223]
+      - name: 認証の監査記録
+        description: 認証の記録は、テナント別とは別のシステム用保管先へ月単位で保存する。
+        rule_refs: [RITM-0224]
 operations:
   - id: DOPR-0018
     name: 初期設定の案内
-    description: 初期設定中への変更を契機に、登録メールアドレスへ設定用URLを案内する。大量処理や送信数制限では予約バッチを優先して送信を遅らせられる。
-    rule_refs: [RITM-0132, RITM-0207]
+    description: 利用開始前から初期設定中への変更、またはテナント開設完了時の最初の管理者への案内を契機に、設定用URLを送る。大量処理や送信数制限では予約バッチを優先して送信を遅らせられる。
+    rule_refs: [RITM-0132, RITM-0207, RITM-0218]
     conditions:
+      - name: 再開との区別
+        description: 停止から初期設定中への再開だけでは新しい案内を発生させない。
+        rule_refs: [RITM-0207]
       - name: 送信時の対象と宛先
         description: 実送信時に有効な登録アドレスと初期設定の要否を確認し、設定完了済み・削除済みなら案内を取りやめる。停止だけでは取りやめない。
         rule_refs: [RITM-0215]
@@ -132,12 +161,31 @@ operations:
     rule_refs: [RITM-0033, RITM-0037, RITM-0039, RITM-0041]
     description: |
       ID・パスワードと、テナント設定に応じた多要素認証によってユーザを認証する。
+    conditions:
+      - name: 設定変更後の案内と利用制限
+        description: MFA条件の変更は次回ログイン時に適用する。必要な認証アプリ設定が未完了なら設定経路へ進め、完了まで通常機能を許可しない。メール方式が利用可能な場合の省略は既存ルールに従う。
+        rule_refs: [RITM-0040, RITM-0041]
+      - name: 利用状態との組合せ
+        description: 認証に必要な設定を終えても、停止中や利用中への反映未完了では通常機能を許可しない。
+        rule_refs: [RITM-0165, RITM-0171, RITM-0212]
+  - id: DOPR-0022
+    name: システム管理者の認証
+    description: テナント外のID・パスワードと、専用の共通設定に応じたMFAで認証する。
+    rule_refs: [RITM-0222]
+    conditions:
+      - name: 試行制限とセッション期限
+        description: テナント内のユーザ・設定とは分離し、管理者IDごとの試行制限とシステム管理者用のセッション期限を適用する。
+        rule_refs: [RITM-0223]
+    effects:
+      - name: 監査記録
+        description: 認証の監査記録をシステム用保管先に保存する。
+        rule_refs: [RITM-0224]
 
 boundary: |
   認証情報と設定完了は本サブドメインが管理し、利用状態そのものの変更はユーザ管理へ委ねる。
   ユーザの登録・利用状態の管理はユーザ管理が担い、認証設定の完了を利用開始の条件として用いる。
   何を操作できるかは、権限管理で管理される権限と実行範囲に従う。
-  本草案では、登録から利用開始までの連携を中心に責務を記述する。
+  テナント外のシステム管理者には専用の認証情報・共通設定を用い、テナント内ユーザの所属や設定に依存させない。
 related_subdomains:
   - SDOM-0001
   - SDOM-0002
@@ -154,3 +202,6 @@ rule_refs:
   - RITM-0166
   - RITM-0184
   - RITM-0207
+  - RITM-0222
+  - RITM-0223
+  - RITM-0224

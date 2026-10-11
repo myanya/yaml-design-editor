@@ -29,6 +29,10 @@ operations:
     description: |
       組織と親子関係を管理し、組織ツリーを定義する。
       組織・グループ管理機能のロールに設定された操作権限と実行範囲に従う。
+    conditions:
+      - name: 開設時の初期構築との区別
+        description: 通常の組織管理には同機能の操作権限を用いる。最初の組織は、既存のテナント内ロールを前提にしない開設処理の権限で作成する。
+        rule_refs: [RITM-0202, RITM-0218, RITM-0219]
   - id: DOPR-0016
     name: グループの管理
     rule_refs: [RITM-0011, RITM-0012]

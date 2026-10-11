@@ -36,6 +36,7 @@ GUIをコマンドで開く場合は、同じキャッシュ指定の後に `.\g
 .\gradlew.bat runCli -q --no-daemon --console=plain --args="view labs/user-man business-flow-document 10_specs/40_business_flows/BZFL-0001-ユーザ登録から利用開始.yaml"
 .\gradlew.bat runCli -q --no-daemon --console=plain --args="view labs/user-man business-flow-diagram 10_specs/40_business_flows/BZFL-0002-ユーザの停止と再開.yaml"
 .\gradlew.bat runCli -q --no-daemon --console=plain --args="view labs/user-man business-flow-document 10_specs/40_business_flows/BZFL-0002-ユーザの停止と再開.yaml"
+.\gradlew.bat runCli -q --no-daemon --console=plain --args="view labs/user-man business-flow-diagram 10_specs/40_business_flows/BZFL-0003-テナント開設と利用準備.yaml"
 .\gradlew.bat runCli -q --no-daemon --console=plain --args="view labs/user-man business-activity-catalog"
 .\gradlew.bat runCli -q --no-daemon --console=plain --args="view labs/user-man business-traceability"
 .\gradlew.bat runCli -q --no-daemon --console=plain --args="view labs/user-man business-flow-catalog"
@@ -91,9 +92,12 @@ BACT-0002の停止操作はUSCSが未設定、BACT-0001の運用判断は操作�
 ## 業務フロー草案の試し方
 
 モデルと根拠の確認は、前節の「サブドメイン内のモデルと根拠の試し方」も併せて行います。
+BZFL-0001では「登録を行う操作者」と「利用開始を行う操作者」を別レーンで表示します。同じ人が両方を担う場合も、各活動の操作権限と対象範囲は別に確認します。
+SDOM-0002の「利用状態」で設定完了状況との組合せと停止の遷移を、DOPR-0008〜0011で操作権限とテナント全体の範囲を確認できます。
+BZFL-0002の代替経路では初期設定中の停止を扱い、設定完了だけで停止を解除しない条件を確認します。初回設定完了済みなら利用中、未完了なら初期設定中への再開となり、後者でも案内は新規送信しません。
 
 「台帳」→「ビュー」→「業務フローの全体一覧」で、洗い出したフロー全体を確認します。
-BZFL-0001・0002は詳細「作成済み」かつ「草案」、残りは「未作成」と表示します。未作成のフローは一覧の概要・根拠を確認できます。
+BZFL-0001〜0003は詳細「作成済み」かつ「草案」、残りは「未作成」と表示します。未作成のフローは一覧の概要・根拠を確認できます。
 BZFL-0016の直接DBによる復旧を通常機能と読み違えないこと、照合する既存操作が空でも業務を対象外と解釈しないことを確認してください。
 一覧項目のRITM参照は「個別ルールのモデル・操作への展開」の参照元にも表示します。詳細化済みかは全体一覧で確認します。
 CLI検証では詳細未作成分のカバレッジ警告が出ます。これは一覧の欠落ではなく詳細化の残件であり、未解決参照や構造エラーとは区別します。
@@ -112,10 +116,14 @@ CLI検証では詳細未作成分のカバレッジ警告が出ます。これ�
 「個別ルールのモデル・操作への展開」では、RITM-0170の参照元に活動・遷移が現れ、該当項目へ移動できます。
 CLIでは `entity labs/user-man show BACT-0003` と `search labs/user-man --ref-to RITM-0170` でも確認できます。
 BZFL-0001「ユーザ登録から利用開始」も同じ文書ビューとフロー図で開けます。
-管理者等・本人・予約処理・本システムのレーンを確認し、登録から管理者等の操作または予約処理へ分かれ、初期設定案内へ合流することを確認します。
+登録操作者・利用開始操作者・本人・予約処理・本システムのレーンを確認し、登録から管理者等の操作または予約処理へ分かれ、初期設定案内へ合流することを確認します。
 利用開始の2活動は同じDOPR-0008・USCS-0002を参照します。両方を順に実行する手順ではありません。
 活動からUSCS-0001〜0005とRITMへ移動し、案内の遅延・再試行などは図の下の補足で確認します。
 「業務活動と親フロー」でBACT-0012の親がBZFL-0001になること、詳細ユースケース一覧でUSCS-0002に両活動の逆参照が現れることも確認してください。
+
+BZFL-0003「テナント開設と利用準備」では、利用側システムとシステム管理者の開始経路が初期構築へ合流することを確認します。
+必要な利用側処理の成功後に開設を完了して案内し、失敗時は開設未完了として再試行へ引き継ぎます。初期構築自体の失敗は補足で確認できます。
+BZFL-0002の再開からは、初回設定完了済みなら利用中、未完了なら設定経路への引き渡しに分かれることを確認してください。
 
 詳細ユースケースは、台帳の「詳細ユースケース一覧」からUSCS-0001〜0005を開きます。
 主担当サブドメイン・具体化する操作・使用するモデル・業務フローからの逆参照が表示されることを確認します。

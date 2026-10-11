@@ -11,7 +11,7 @@ business_flows:
       RITM-0002, RITM-0003, RITM-0132, RITM-0135, RITM-0162, RITM-0163, RITM-0165, RITM-0166,
       RITM-0167, RITM-0168, RITM-0175, RITM-0176, RITM-0180, RITM-0184, RITM-0195, RITM-0197,
       RITM-0203, RITM-0204, RITM-0205, RITM-0206, RITM-0207, RITM-0209, RITM-0210, RITM-0211,
-      RITM-0212, RITM-0213, RITM-0214, RITM-0215
+      RITM-0212, RITM-0213, RITM-0214, RITM-0215, RITM-0217
     ]
   - id: BZFL-0002
     title: ユーザの停止と再開
@@ -19,23 +19,26 @@ business_flows:
     scope: product
     summary: |
       管理者等が停止の種類を判断し、ユーザを一時停止・利用停止にした後、必要に応じて再開する業務の流れを記述する。
-      基本経路は初期設定完了済みの利用中ユーザを対象とし、停止の維持・削除への分岐と予約による操作も扱う。
+      基本経路は初回設定完了済みの利用中ユーザを対象とし、初期設定中の停止・未完了での再開、停止の維持・削除への分岐と予約による操作も扱う。
     related_operations: [DOPR-0009, DOPR-0010, DOPR-0006, DOPR-0019, DOPR-0020, DOPR-0021]
     rule_refs: [
       RITM-0002, RITM-0053, RITM-0081, RITM-0087, RITM-0088, RITM-0089, RITM-0145, RITM-0163,
       RITM-0165, RITM-0168, RITM-0170, RITM-0171, RITM-0172, RITM-0173, RITM-0174, RITM-0175,
       RITM-0176, RITM-0177, RITM-0178, RITM-0179, RITM-0180, RITM-0181, RITM-0182, RITM-0185,
-      RITM-0195, RITM-0197, RITM-0203, RITM-0204
+      RITM-0195, RITM-0197, RITM-0203, RITM-0204, RITM-0216, RITM-0207
     ]
   - id: BZFL-0003
     title: テナント開設と利用準備
     area: tenant
     scope: product
     summary: |
-      利用側システムのAPI・サービス呼び出し、またはシステム管理者の操作から、本機能の管理対象機能向けにテナントを作成し、機能・権限の初期定義を用意する。
-      本機能を主体とする場合は注入された利用側コンポーネントの登録処理と連携する。最初の組織・管理者の準備、利用開始条件と途中失敗時の扱いは検討-002・021で具体化する。
-    related_operations: [DOPR-0013, DOPR-0014]
-    rule_refs: [RITM-0005, RITM-0008, RITM-0193, RITM-0196, RITM-0198, RITM-0199, RITM-0200, RITM-0201, RITM-0205]
+      開設権限を確認した利用側の呼出し、またはシステム管理者の操作から、初期定義・組織・最初のテナント管理者と権限を用意する。
+      必要な利用側処理も成功した後、管理者へ初期設定を案内する。本機能内の初期構築失敗は全体不成立、利用側処理の失敗は開設未完了として同じ対象で再試行する。
+    related_operations: [DOPR-0013, DOPR-0014, DOPR-0022, DOPR-0018, DOPR-0019, DOPR-0012]
+    rule_refs: [
+      RITM-0005, RITM-0008, RITM-0193, RITM-0196, RITM-0198, RITM-0199, RITM-0200, RITM-0201,
+      RITM-0205, RITM-0218, RITM-0219, RITM-0220, RITM-0221, RITM-0222, RITM-0223, RITM-0224
+    ]
   - id: BZFL-0004
     title: テナントのユーザ管理設定変更
     area: tenant
@@ -185,7 +188,10 @@ business_flows:
       該当機能の管理権限を持つ操作者が、権限マスタを用いて独自ロールを作成し、既存ロールや初期ロールの権限値を変更する。
       組織・グループの実行範囲と設定可能な権限を守り、名称だけで操作を許可しない。変更可能範囲・削除条件は検討-006で具体化する。
     related_operations: [DOPR-0002]
-    rule_refs: [RITM-0019, RITM-0020, RITM-0021, RITM-0022, RITM-0023, RITM-0024, RITM-0189, RITM-0192, RITM-0193, RITM-0197, RITM-0203, RITM-0204, RITM-0205]
+    rule_refs: [
+      RITM-0019, RITM-0020, RITM-0021, RITM-0022, RITM-0023, RITM-0024, RITM-0189, RITM-0192,
+      RITM-0193, RITM-0197, RITM-0203, RITM-0204, RITM-0205, RITM-0217
+    ]
   - id: BZFL-0021
     title: ロール付与・変更と機能管理の委譲
     area: authorization
@@ -237,7 +243,7 @@ business_flows:
       RITM-0007, RITM-0033, RITM-0034, RITM-0035, RITM-0037, RITM-0038, RITM-0039, RITM-0040,
       RITM-0041, RITM-0042, RITM-0045, RITM-0046, RITM-0047, RITM-0048, RITM-0049, RITM-0050,
       RITM-0051, RITM-0114, RITM-0115, RITM-0119, RITM-0120, RITM-0137, RITM-0138, RITM-0150,
-      RITM-0151, RITM-0156, RITM-0165, RITM-0171
+      RITM-0151, RITM-0156, RITM-0165, RITM-0171, RITM-0222, RITM-0223
     ]
   - id: BZFL-0026
     title: パスワードの変更・再設定
@@ -362,7 +368,7 @@ business_flows:
     rule_refs: [
       RITM-0063, RITM-0064, RITM-0065, RITM-0066, RITM-0067, RITM-0068, RITM-0069, RITM-0070,
       RITM-0071, RITM-0075, RITM-0077, RITM-0150, RITM-0151, RITM-0152, RITM-0153, RITM-0154,
-      RITM-0157, RITM-0159
+      RITM-0157, RITM-0159, RITM-0224
     ]
   - id: BZFL-0040
     title: ジョブ・運行結果の確認

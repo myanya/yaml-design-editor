@@ -1,0 +1,185 @@
+id: BZFL-0003
+status: draft
+purpose: |
+  利用側システムまたはシステム管理者がテナントを開設し、最初のテナント管理者が初期設定を終えて利用を始める。
+  既存のテナント内ロールを必要としない初期構築と、通常のユーザ登録を区別する。
+actors:
+  - id: BATR-0009
+    name: 利用側システム
+    description: 呼出主体の認証と開設権限を確認したうえで、APIまたはサービスクラスから開設を要求する。
+  - id: BATR-0010
+    name: システム管理者
+    description: テナント外の認証と開設権限の確認を受け、本機能の画面から開設を操作する。
+  - id: BATR-0011
+    name: 本システム
+    description: 初期構築、必要な利用側コンポーネントの呼出し、開設完了と初期設定案内を担当する。
+  - id: BATR-0012
+    name: 最初のテナント管理者
+    description: 開設処理で作られた組織に本務所属し、本人の認証設定を行って管理機能の利用を始める。
+preconditions:
+  - 利用側経路では利用側が呼出主体の認証・開設権限を確認し、画面経路では本機能がシステム管理者の認証・開設権限を確認する。
+  - 本機能が必要とする初期の機能・権限定義と、最初の組織・管理者の情報を開設処理へ与える。
+  - 利用側の登録処理をコンポーネントで呼び出す場合、その処理は同じ開設対象への重複実行に対応する。
+activities:
+  - id: BACT-0019
+    kind: action
+    title: 利用側から開設を要求する
+    actor: BATR-0009
+    operations: [DOPR-0013]
+    content: |
+      利用側で認証と開設権限を確認し、APIまたはサービスクラスへ開設を要求する。
+      利用側固有の前後の業務・運用は利用側で行う。
+    subdomains: [SDOM-0003]
+    rule_refs: [RITM-0198, RITM-0199, RITM-0219]
+  - id: BACT-0020
+    kind: action
+    title: システム管理者が開設を要求する
+    actor: BATR-0010
+    operations: [DOPR-0022, DOPR-0014]
+    content: |
+      テナント外のID・パスワードとシステム管理者用のMFA条件で認証し、本機能が開設権限を確認する。
+      初回のシステム管理者作成とログイン不能時の復旧はシステム運用で行う。
+      認証・開設操作は、テナントがまだ存在しない場合や開設失敗時もシステム用の監査記録に残す。
+    subdomains: [SDOM-0003, SDOM-0005]
+    rule_refs: [RITM-0219, RITM-0222, RITM-0223, RITM-0224]
+  - id: BACT-0021
+    kind: action
+    title: 初期定義・組織・最初の管理者を用意する
+    actor: BATR-0011
+    operations: [DOPR-0013, DOPR-0014]
+    content: |
+      開設権限に基づく初期構築として、機能・権限定義、最初の組織、本務所属する最初のテナント管理者と管理権限を用意する。
+      本機能内の初期データ作成が途中で失敗した場合は、初期構築全体を成立させない。
+      この段階だけでは初期設定案内や通常利用を開始せず、必要な利用側処理を含む開設の完了を待つ。
+    subdomains: [SDOM-0003, SDOM-0001, SDOM-0004, SDOM-0002]
+    rule_refs: [RITM-0218, RITM-0220, RITM-0221, RITM-0196]
+  - id: BACT-0022
+    kind: action
+    title: 利用側コンポーネントの登録処理を呼び出す
+    actor: BATR-0011
+    operations: [DOPR-0014]
+    content: |
+      本機能を主体とする開設で利用側の登録が必要な場合、注入されたコンポーネントを介して登録処理を呼ぶ。
+      成功すれば開設の完了へ進み、失敗すれば開設未完了を維持する。
+    subdomains: [SDOM-0003]
+    rule_refs: [RITM-0200, RITM-0221]
+  - id: BACT-0023
+    kind: action
+    title: 開設を完了する
+    actor: BATR-0011
+    operations: [DOPR-0013, DOPR-0014]
+    content: |
+      本機能の初期構築と、必要な利用側コンポーネントによる登録の成功を確認する。
+      最初のテナント管理者を初期設定中として、初期設定案内の契機を発生させる。
+      ここで認証設定を完了したものとは扱わない。
+    state_change: 開設が完了し、最初の管理者は初期設定中となる。
+    subdomains: [SDOM-0003, SDOM-0002]
+    rule_refs: [RITM-0218, RITM-0220, RITM-0221]
+  - id: BACT-0024
+    kind: action
+    title: 最初の管理者へ初期設定を案内する
+    actor: BATR-0011
+    operations: [DOPR-0018]
+    usecases: [USCS-0003]
+    content: |
+      開設完了を契機に案内する。URLは実際の送信処理時に発行して期限を起算する。
+      送信対象の確認、送信の遅延・再試行は既存の初期設定案内の条件を用いる。
+    subdomains: [SDOM-0005]
+    rule_refs: [RITM-0218, RITM-0207, RITM-0210, RITM-0213, RITM-0214, RITM-0215]
+  - id: BACT-0025
+    kind: action
+    title: 最初の管理者が初期設定を行う
+    actor: BATR-0012
+    operations: [DOPR-0019]
+    usecases: [USCS-0004]
+    content: |
+      パスワードと必要なMFAを設定する。登録済みの本人情報は再入力しない。
+      初期設定の中断・再開や、設定保存後の状態反映失敗には既存の条件を適用する。
+    subdomains: [SDOM-0005]
+    rule_refs: [RITM-0218, RITM-0184, RITM-0211, RITM-0212]
+  - id: BACT-0026
+    kind: outcome
+    title: 最初の管理者が利用中となる
+    actor: BATR-0011
+    operations: [DOPR-0012]
+    usecases: [USCS-0005]
+    content: |
+      現在の利用状態と必要な設定の完了を確認して利用中へ反映する。
+      行える操作は付与された権限と範囲に従い、管理者という名称だけでは決めない。
+    state_change: 初期設定中から利用中へ移る。
+    subdomains: [SDOM-0002, SDOM-0001, SDOM-0005]
+    rule_refs: [RITM-0218, RITM-0165, RITM-0197, RITM-0212]
+  - id: BACT-0027
+    kind: handoff
+    title: 開設未完了のまま再試行へ引き継ぐ
+    actor: BATR-0011
+    operations: [DOPR-0014]
+    content: |
+      通常利用と初期設定案内を開始せず、同じ開設対象への再試行で利用側処理を完了させる。
+      再試行時に別のテナントを作らない。利用側の登録処理は重複実行に対応する。
+    subdomains: [SDOM-0003]
+    rule_refs: [RITM-0221]
+transitions:
+  - id: BTRN-0016
+    from: BACT-0019
+    to: BACT-0021
+    condition: 利用側が呼出主体の認証・開設権限を確認した要求を受け付けた場合。
+    rule_refs: [RITM-0219]
+  - id: BTRN-0017
+    from: BACT-0020
+    to: BACT-0021
+    condition: 本機能がシステム管理者の認証・開設権限を確認した場合。
+    rule_refs: [RITM-0219]
+  - id: BTRN-0018
+    from: BACT-0021
+    to: BACT-0022
+    condition: 初期構築が成立し、本機能を主体とする開設で利用側コンポーネントの登録が必要な場合。
+    rule_refs: [RITM-0200, RITM-0220, RITM-0221]
+  - id: BTRN-0019
+    from: BACT-0021
+    to: BACT-0023
+    condition: 初期構築が成立し、本機能から呼び出す利用側コンポーネントの登録が不要な場合。
+    rule_refs: [RITM-0199, RITM-0200, RITM-0218, RITM-0220]
+  - id: BTRN-0020
+    from: BACT-0022
+    to: BACT-0023
+    condition: 利用側コンポーネントの登録処理が成功した場合。
+    rule_refs: [RITM-0221]
+  - id: BTRN-0021
+    from: BACT-0022
+    to: BACT-0027
+    condition: 利用側コンポーネントの登録処理が失敗した場合。
+    rule_refs: [RITM-0221]
+  - id: BTRN-0022
+    from: BACT-0023
+    to: BACT-0024
+    condition: 開設が完了し、最初の管理者への案内契機が発生した場合。
+    rule_refs: [RITM-0218]
+  - id: BTRN-0023
+    from: BACT-0024
+    to: BACT-0025
+    condition: 本人が案内された有効なURLから設定を行う場合。
+    rule_refs: [RITM-0132, RITM-0218]
+  - id: BTRN-0024
+    from: BACT-0025
+    to: BACT-0026
+    condition: 必要な設定を完了し、現在の利用状態が初期設定中である場合。
+    rule_refs: [RITM-0165, RITM-0212]
+variations:
+  - title: 本機能内の初期データ作成に失敗する
+    condition: 初期構築の途中で失敗した場合。
+    content: |
+      初期構築全体を成立させず、部分的な登録結果を開設済みとして扱わない。
+      通常利用や初期設定案内を開始しない。
+    rule_refs: [RITM-0220]
+  - title: 利用側処理を同じ対象で再試行する
+    condition: 利用側コンポーネントの失敗による開設未完了から再試行する場合。
+    content: |
+      同じ開設対象の利用側登録を再試行する。必要な登録が成功した後に開設を完了し、最初の管理者へ案内する。
+      本機能内の初期構築失敗に対する全体不成立と、利用側処理失敗に対する未完了を区別する。
+    rule_refs: [RITM-0220, RITM-0221, RITM-0218]
+outcome: |
+  開設処理が初期構築を成立させ、必要な利用側登録の成功後に最初の管理者を案内する。
+  最初の管理者は本務所属と管理権限を持ち、本人の認証設定を終えて利用を始める。
+  開設処理の完了と、案内の送信・本人の設定完了は別の到達点として扱う。
+rule_refs: [RITM-0198, RITM-0199, RITM-0200, RITM-0218, RITM-0219, RITM-0220, RITM-0221]

@@ -35,6 +35,9 @@ models:
     rule_refs: [RITM-0207, RITM-0213, RITM-0214, RITM-0215]
     subdomain: "SDOM-0005"
 triggers:
+  - name: テナント開設の完了
+    description: 開設処理が完了し、最初のテナント管理者が初期設定中として案内の対象となる。
+    rule_refs: [RITM-0218, RITM-0221]
   - name: "案内の契機"
     description: "対象ユーザが利用開始前から初期設定中へ遷移する。"
     rule_refs:
@@ -43,6 +46,9 @@ triggers:
     description: "一時的な送信エラーの後、テナント設定の間隔に従って送信を再試行する。"
     rule_refs: [RITM-0213, RITM-0214]
 preconditions:
+  - name: 最初の管理者への案内
+    description: テナント開設に伴う案内の場合は、必要な利用側処理も含めて開設が完了している。未完了の間は送信を開始しない。
+    rule_refs: [RITM-0218, RITM-0221]
   - name: "対象"
     description: "初期設定案内の契機が発生したユーザであり、登録メールアドレスがある。"
     rule_refs:
