@@ -33,6 +33,7 @@
 | 工程が進んだら必須になる項目 | `requiredFrom: フェーズ名` ＋ `phases:` | フェーズ累積必須（記入進捗は phaseProgress に出る） |
 | 値の型・選択肢の統制 | `type:`（int / date / enum 等）・`values:` | enum の選択肢はリッチ形 `{value, label, description}` も可 |
 | ID の命名規約 | `type: id` ＋ `idPattern:`（例 `"SCR-*"`） | 参照側にも `idPattern:` で受け入れ規約を書ける |
+| 図・資料のファイルが指す先が正しいこと | `type: file`（＋`extensions:`）と `.yde/workspace.yaml` の `files:` | 書き方・拡張子は違反、ワークスペースの外と無いファイルは `files:` で許可／警告／違反（manual/files.md） |
 | 区分値によって変わる必須項目 | enum の `cases:` | 例: 由来が「論理項目由来」なら対応参照が必須・「技術項目」なら理由が必須（screen-design） |
 
 ## 2. トレーサビリティ（参照・関係・多重度）

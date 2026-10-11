@@ -342,8 +342,15 @@ class Workspace private constructor(val root: Path) {
             relations = relations, enforcement = enforcement,
             // ディスクの索引とディスクの内容: 検査の評価を、他の文書の検証と共有する（全体の検証が文書数に比例する。P27 段B）
             shareEvaluations = true,
+            files = layout.files, fileExists = ::fileExists,
         )
     }
+
+    /** ファイル（YAML 以外も）があるか（file 型の値の存在の検査）。相対パスはルートから、絶対パスはそのまま。 */
+    fun fileExists(path: String): Boolean = runCatching {
+        val p = Path.of(path.replace('\\', '/'))
+        Files.isRegularFile(if (p.isAbsolute) p else root.resolve(p).normalize())
+    }.getOrDefault(false)
 
     /**
      * 変更セットを適用する（R1-02 / R2-05）。適用の本体は、カーネルの workspace.ChangeSetApplier（P27 段D の D-b・意図的差分 D-35。

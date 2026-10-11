@@ -83,6 +83,8 @@ object SchemaScaffold {
                 // 意味の基底型のサンプル値は型の既定（上の sample のヒントで拾われるが、網羅のため）
                 FieldType.DATE, FieldType.TIME, FieldType.DATETIME -> YNode.Scalar(field.type.value?.sample ?: "")
                 FieldType.ID -> YNode.Scalar("SAMPLE-001")
+                // ファイルの場所はルートからの相対パスの例（必須のときだけ。空は必須エラーになるため）
+                FieldType.FILE -> YNode.Scalar(if (field.required || field.requiredFrom != null) "path/to/file" else "")
                 // 必須スカラーは空文字にせず型別の例値を入れる（UX-28。空文字は必須エラーになりプレビューが赤くなる）
                 FieldType.REF -> YNode.Scalar(if (field.required || field.requiredFrom != null) "SAMPLE-001" else "")
                 FieldType.STRING ->

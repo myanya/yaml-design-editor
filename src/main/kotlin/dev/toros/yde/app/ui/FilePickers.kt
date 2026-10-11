@@ -24,7 +24,7 @@ val LocalDialogParentWindow = compositionLocalOf<java.awt.Window?> { null }
  */
 object FilePickers {
     /** 用途。覚える場所はこの単位で分ける（ワークスペースの選択と取り込みファイルは行き先が違う）。 */
-    enum class Purpose(val key: String) { WORKSPACE("workspace"), IMPORT("import") }
+    enum class Purpose(val key: String) { WORKSPACE("workspace"), IMPORT("import"), FILE_FIELD("file") }
 
     private val prefs = Preferences.userRoot().node("yaml-design-editor/pickers")
     // 覚えた場所。Compose の状態にして、選んだ直後の再コンポーズで次回の開始位置が更新されるようにする

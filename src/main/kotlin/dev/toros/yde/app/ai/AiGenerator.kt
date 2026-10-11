@@ -117,6 +117,12 @@ internal fun fieldToJsonSchema(original: FieldDef, schema: SchemaDef, depth: Int
                 field.pattern?.let { put("pattern", it) }
             }
             FieldType.ID -> put("type", "string")
+            // ファイルの場所: 文字列。拡張子の制限があれば形式として伝える（書き方の案内は項目の説明が担う）
+            FieldType.FILE -> {
+                put("type", "string")
+                if (field.extensions.isNotEmpty()) put("pattern", "\\.(" + field.extensions.joinToString("|") + ")$")
+                else field.pattern?.let { put("pattern", it) }
+            }
             FieldType.REF -> {
                 if (field.fields.isNotEmpty()) {
                     // 属性付き参照（R20-03。architecture/graph-query.md「エンティティ型と関係レジストリ」）: {to: enum制約, 属性...} の object へ変換する

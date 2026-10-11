@@ -1,7 +1,7 @@
 # スキーマ
 
 利用者が書くスキーマは意味のスキーマ（ID・参照・関係・フェーズ・表示のヒントを持つ項目の木）で、semantic-core が持つ。読むのはカーネルの経路だけで、root の `SchemaDef` はカーネルの `WorkspaceSchema` にファイルの場所を足す薄い型。
-構造の検証は、この木から導出した最小の構造のスキーマ（yaml-core）で行う。フェーズ・派生・推測・値の式・リファクタリング・ひな型もここに置く。
+フェーズ・派生・推測・値の式・リファクタリング・ひな型もここに置く。
 
 ## 部品
 
@@ -43,9 +43,9 @@
 
 ## `$ref` と実効フィールド
 
-- `SchemaDef.resolve()` は参照先定義に呼び出し側の `key` / `label` / `required` などを合成して返す。フィールドを使う側は必ず `schema.resolve(field)` を通す（`FormView`・`Validator`・`DocScanner`・`ai` すべて同じ）。
+- `SchemaDef.resolve()` は参照先定義に呼び出し側の `key` / `label` / `required` などを合成して返す。フィールドを使う側は必ず `schema.resolve(field)` を通す。
 - ローカル参照は `$ref: definition`、横断参照は `$ref: moduleId#definition`。各 `FieldDef` は宣言元モジュールを保持するため、library から解決した定義の子の非修飾 `$ref` はその library を基準に解決する。definitions を利用側へマージしない。
-- enum の `cases`（値ごとの追加フィールド）を持ちうる object の子フィールドを列挙する側は、必ず `schema.effectiveFields(fields, node)` を通す。データノードの enum 値に応じて case フィールドが判別フィールドの直後に合成され、再帰的に展開される。素の `field.fields` を直接列挙すると case フィールドが漏れる。
+- enum の `cases`（値ごとの追加フィールド）を持ちうる object の子フィールドを列挙する側は、必ず `schema.effectiveFields(fields, node)` を通す。データノードの enum 値に応じて case フィールドが判別フィールドの直後に合成され、再帰的に展開される。
 - `ai.fieldToJsonSchema` だけはデータノードが無いため `effectiveFields` を使わず、判別 enum が 1 つなら値ごとの `anyOf`、複数なら全 case の和集合に変換する。
 - `resolve` は浅いコピーで、`fields` / `item` / `value` / `cases` のインスタンスを再生成しない。リファクタリングがフィールドをインスタンス同一性で同定する前提なので、deep copy にするならそこを見直す。
 - 型の名前（`type: 名前`）は `$ref` と同じ解決（パーサが `FieldDef.ref` に同じ名前を入れ、`typeName` に書かれた名前を残す）。合成の規則は次の「型の連鎖と狭める規則」。
@@ -65,6 +65,7 @@
 - 表示のヒントと `default` は使う側が優先。緩める書き方は `SchemaDefinitionChecks.checkNarrowing` が定義エラーにし、合成は誤りがあっても広がらない向きに倒す。
 - **構造への写し**: 導出（`DerivedStructures`）はスカラーの連鎖を導出の前に解決し、基底の種類と合成した決まりを写す。入れ物の定義への参照は、追加の無い使い方なら `$ref` のまま（再帰のため）、追加のある使い方なら合成した中身を展開して写す。yaml-core は型の名前を知らず、足したのは形式の一覧（`StructureField.patterns`）だけ。
 - **意味の基底型の直列化**: `id` / `ref` は `word`（空白なし）で、導出が同じ形式を足す。`date` / `time` / `datetime` は正準の形（`ValueSemantics.canonicalPattern`）を足した `string`。存在の検証はコードの検査 `value`（`CodedDocumentChecks.valueIssues`）が行う。
+- **ファイルの場所（`file`）**も `string` のままで、書き方の判別と正規化は `FilePath`、許す拡張子は `FieldDef.extensions`（狭める制約）、存在と許可はコードの検査 `fileIssues`。
 - **メタスキーマ**: `builtin-schema` の `type` は基底の種類の選択肢だけを持ち、`MetaSchemaTypes` が読み込み時に型の名前（入れ物の定義を含む）を選択肢と `cases` へ足す。`$ref` ＋決まりのキーの警告は残る（型は `type:` で書くのが正）。
 - **道具**: `extract-definition` はスカラーなら `type: 名前` を書き、`rename-definition` / `rename-schema-id` は `type` の言及も書き換える。設計 UI の型の選択肢は `TypeChoices`（ui/SchemaEditor.kt）。
 - **ヒントは型から引き継ぐ**: 表示のヒントは `FieldHints.over` で使う側が優先し、無ければ型のもの。UI は型の名前でなくヒントで判定する（`FieldDef.multiline` / `placeholder`）。
@@ -101,7 +102,7 @@
 ```
 
 - 最小の構造のスキーマが持つのは、値の形（string / int / number / boolean / enum / date / array / map / object / any）・必須・値の形式的なチェック（選択肢・範囲・文字数・形式＝複数なら全てに一致）・`cases`・未定義の項目の扱い・`$ref`・値の形ごとの決まり（`shapes`）・指摘の文面のための表示名だけ。書けないキーは読み取りの段階で誤りになる。
-- 型の連鎖（`type: 名前` と、スカラーの定義への `$ref`）は導出の前に解決して、基底の種類と合成した決まりを写す（「型の連鎖と狭める規則」）。`$ref` のまま写すのは、追加の無い入れ物の定義への参照だけ（項目を足した使い方は展開する）。組込みの定義体 `text` / `line` / `word` と意味の基底型 `date` / `time` / `datetime`・`id` / `ref` は構造のスキーマでは `string`（＋形式）。
+- 型の連鎖（`type: 名前` と、スカラーの定義への `$ref`）は導出の前に解決して、基底の種類と合成した決まりを写す（「型の連鎖と狭める規則」）。`$ref` のまま写すのは、追加の無い入れ物の定義への参照だけ（項目を足した使い方は展開する）。組込みの定義体 `text` / `line` / `word` と意味の基底型 `date` / `time` / `datetime`・`id` / `ref`・`file` は構造のスキーマでは `string`（＋形式）。
 - 分け方の基準: その値 1 つとその項目の決まりだけで決まるチェックは yaml-core。他の値・要素・文書・索引・フェーズを見るチェックは semantic-core。`cases` だけは選択肢の一部として yaml-core に残す。ID の形式（`pattern`）と日付の形式は yaml-core、参照先の絞り込み（`idPatterns`・`scope`）とエンティティ型の ID のパターンからの逸脱は semantic-core。
 - 導出の規則（組込みの変換定義）: ID と参照は文字列にする。属性付き参照は値の形ごとの決まりにする。フェーズに達したら必須は素の必須へ畳む。意味と表示の語彙（`role`・`display`・`description`・`default`・`relation`・`scope`・`idPatterns`・`target`・選択肢のラベル）は落とす。`$ref` は写すだけで辿らない。式を受け取る項目は「文字列か object」の形として通す。
 - 導出の入口は `DerivedStructures` の 1 つ。アプリ（root の `Validator`）とカーネル（`WorkspaceReader.validateOne`・セッションの増分導出・cli）が同じ `validate(root)` を通る。派生スキーマや語彙のキーを足したメタスキーマのように、読み込みの後で組み立てたスキーマも同じ経路。
@@ -112,7 +113,7 @@
 
 - `any` 型は「検証しない」の明示。検証は必須チェックだけ、フォームは汎用エディタ、AI 生成は構造化出力を無効化、索引は未知キーと同じ走査境界。業務スキーマで安易に `any` へ逃げない。
 - スキーマ推測は純ロジック（`SchemaInference`。相対パス × ルートの木のリストから `_schemas` 文書の木を構築）。型推測・参照認識（`RefNaming` を流用）・enum 候補・required 候補は複数文書の合議。生成物は必ず `SchemaLoader.parseSchemaText` → `validateDefinition` を通る形で出す。入口は CLI `infer-schema` とファイルツリーの推測ダイアログ。
-- メタスキーマ `builtin-schema` は `FieldDef` の再帰を再帰 `$ref`、「`type` の値ごとに持てる属性」を `cases` で表現する。型の名前（組込みの型・利用者の型）は読み込み時に `MetaSchemaTypes` が `type` の選択肢と `cases` へ足す。組込みスキーマ全件と実用形スキーマの検証エラー 0 を `MetaSchemaTest` が確かめる。
+- メタスキーマ `builtin-schema` は `FieldDef` の再帰を再帰 `$ref`、「`type` の値ごとに持てる属性」を `cases` で表現する。型の名前（組込みの型・利用者の型）は読み込み時に `MetaSchemaTypes` が `type` の選択肢と `cases` へ足す。
 - 派生スキーマは「ロード時にコンパイルされる読み取り専用の成果物」。スキーマ文書の `derive:`（from / each / id / match / fields の写像。語彙は skill の列マッピングと共通）が導出元文書 → 検証スキーマの写像を定義し、読み込みの第 3 段階でコンパイルされる。導出されたスキーマはファイルとして存在しない。
 - 宣言側スキーマは文書にマッチしない（自身の `match` を持てず、`root` は導出スキーマの共通フィールド）。導出の失敗（プレースホルダ欠落・キー欠落・ID 重複・未知の型）は理由付きでスキーマ読込エラーになる。
 - 導出元文書の保存・外部変更・変更セット適用は、スキーマ変更と同じ扱いで全再構築（`Workspace.noteDiskChanges`）。自動適用（`approval: auto`）だけは導出元文書への書込で承認待ちへ降格する（検証ルールが無人で変わる経路を塞ぐ）。
@@ -168,6 +169,7 @@
 - スキーマを読むのはカーネルの経路（`WorkspaceReader`）だけ。スキーマに持たせる情報を足すときは `WorkspaceSchema`（と `SchemaDocuments`）へ足し、`SchemaDef` には読み出しの窓口だけを足す。`SchemaDef` は data class ではない（`copy` は無い）。
 - スキーマ文書に新しいキーを足すときは、`SchemaDocuments` とメタスキーマ `builtin-schemas/schema.yaml` を直す。
 - 表示のヒントは `FieldHints` に置き、検証・走査・検査から読まない。
+- file 型の値の書き方は `FilePath` で判定し、機能側に直書きしない。
 - 型は解決した項目の連鎖で判定する（`isA`）。`FieldType` は基底の種類だけで、`text` のような組込みの型の分岐を足さない。組込みの型を足すなら semantic-core の資源 `builtin-types/` に YAML で書く。
 - 使う側の決まりの合成は `SchemaTree.narrow` の 1 実装（狭めるだけ）。緩める書き方の検出は `SchemaDefinitionChecks.checkNarrowing`。参照の絞り込みは `idPatternLayers` で見る（`idPatterns` だけを見ると型の層が抜ける）。
 - 値の形式的なチェックを変えるなら yaml-core の `structure/StructureValidator.kt`、利用者の語彙から構造への写し方を変えるなら `builtin-transforms/structural-schema.yaml` を直す。利用者の語彙を足しただけでは構造の検証に現れない。

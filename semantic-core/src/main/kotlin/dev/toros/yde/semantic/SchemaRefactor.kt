@@ -395,7 +395,7 @@ object SemanticSchemaRefactor {
         val (real, _) = derefChain(schemas, entry, res.site)
         val fillable = setOf(
             FieldType.STRING, FieldType.INT, FieldType.NUMBER, FieldType.BOOLEAN, FieldType.ENUM,
-            FieldType.DATE, FieldType.TIME, FieldType.DATETIME, FieldType.REF,
+            FieldType.DATE, FieldType.TIME, FieldType.DATETIME, FieldType.FILE, FieldType.REF,
         )
         require(real.def.type in fillable) { "型 ${real.def.type.id} は一括充填の対象外です（スカラー型のみ）" }
         fun defaultValue(): Any = when (real.def.type) {
@@ -483,7 +483,7 @@ object SemanticSchemaRefactor {
         val curTypeId = target.typeName ?: curType.id
         val scalarTypes = setOf(
             FieldType.STRING, FieldType.INT, FieldType.NUMBER, FieldType.BOOLEAN, FieldType.ENUM,
-            FieldType.DATE, FieldType.TIME, FieldType.DATETIME,
+            FieldType.DATE, FieldType.TIME, FieldType.DATETIME, FieldType.FILE,
         )
         // 文字列の型の名前（string と、基底が string の組込みの型）。この間の変換は型の名前の書き換えだけ
         val stringTypeIds = setOf(FieldType.STRING.id) + BUILTIN_STRING_TYPES
@@ -595,7 +595,7 @@ object SemanticSchemaRefactor {
             }
             // int / number / boolean / date / time / datetime → string / text など（文字列化。日付などは値がもともと文字なので変わらない）
             targetTypeId in stringTypeIds &&
-                curType in setOf(FieldType.INT, FieldType.NUMBER, FieldType.BOOLEAN, FieldType.DATE, FieldType.TIME, FieldType.DATETIME) -> {
+                curType in setOf(FieldType.INT, FieldType.NUMBER, FieldType.BOOLEAN, FieldType.DATE, FieldType.TIME, FieldType.DATETIME, FieldType.FILE) -> {
                 convertDocs { value, hit, _ ->
                     val text = scalarText(value) ?: return@convertDocs null
                     YamlOperation.SetScalar(hit, text)

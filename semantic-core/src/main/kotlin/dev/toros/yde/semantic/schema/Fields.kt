@@ -32,6 +32,7 @@ enum class FieldType(val id: String, val value: ValueSemantics? = null) {
     DATE("date", ValueSemantics.DATE),             // 年月日（YYYY-MM-DD）
     TIME("time", ValueSemantics.TIME),             // 時刻（HH:MM か HH:MM:SS）
     DATETIME("datetime", ValueSemantics.DATETIME), // 日時（YYYY-MM-DD HH:MM。区切りは空白か T）
+    FILE("file"),       // ファイルの場所（ルートからの相対・./ で文書から・絶対。文字の決まりは FilePath、存在と許可は検査）
     ID("id"),           // 論理要素の ID（異なる文書での同一 ID を許容）
     REF("ref"),         // 他要素の ID への参照（リンク化される）
     ARRAY("array"),     // 配列（item 必須）
@@ -43,7 +44,7 @@ enum class FieldType(val id: String, val value: ValueSemantics? = null) {
     val isContainer: Boolean get() = this == ARRAY || this == MAP || this == OBJECT
 
     /** 文字列として直列化される種類（string と、意味の基底型 id / ref / date / time / datetime）。形式（pattern）を書けるのはこれら。 */
-    val isTextual: Boolean get() = this == STRING || this == ID || this == REF || value != null
+    val isTextual: Boolean get() = this == STRING || this == ID || this == REF || this == FILE || value != null
 
     companion object {
         fun of(s: String?): FieldType = entries.firstOrNull { it.id == s } ?: STRING
@@ -294,6 +295,7 @@ data class FieldDef(
     val pattern: String? = null,             // STRING / TEXT / ID: 正規表現（完全一致。R16-01 / UX-79）
     val min: Double? = null,                 // INT / NUMBER: 最小値（R16-01）
     val max: Double? = null,                 // INT / NUMBER: 最大値（R16-01）
+    val extensions: List<String> = emptyList(), // FILE: 許す拡張子（小文字・ドットなし。空 = 制限なし。使う側が書けば狭める）
     val ref: String? = null,                 // definitions 内の名前付き定義への参照
     val unknownFields: UnknownFieldsPolicy? = null, // object の未定義キー。null は warning
     /** 非修飾 `$ref` の解決元。パーサーが設定し、横断参照した定義の子でも元モジュールを保つ（スキーマ層専用）。 */

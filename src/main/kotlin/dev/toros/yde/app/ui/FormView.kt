@@ -252,6 +252,7 @@ fun FormView(state: AppState, doc: OpenDocument) {
             indexed = state.isIndexed(doc.file), allSchemas = state.schemas,
             loader = state.unsavedFirstTree(),
             relations = state.relations, enforcement = state.enforcement,
+            files = state.filePolicy, fileExists = state::fileExists,
         )
             .filter { it.path.isNotEmpty() && it.severity != Severity.INFO }
             .groupBy({ it.path }) { it.severity }
@@ -711,6 +712,8 @@ fun ValueEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
         FieldType.DATE, FieldType.TIME, FieldType.DATETIME ->
             ScalarTextEditor(ctx, effective, slot, singleLine = true, trailing = { TemporalPickerButton(ctx, effective, slot) })
         FieldType.INT, FieldType.NUMBER -> ScalarTextEditor(ctx, effective, slot, singleLine = true)
+        // ファイルの場所: 入力欄＋選択＋OS で開く。画像なら下に表示（ui/FileEditor.kt）
+        FieldType.FILE -> FileEditor(ctx, effective, slot, path)
         FieldType.BOOLEAN -> BooleanEditor(ctx, slot)
         FieldType.ENUM -> EnumEditor(ctx, effective, slot)
         FieldType.ID -> IdEditor(ctx, effective, slot)
@@ -1484,6 +1487,7 @@ private fun tableCellWidth(column: FieldDef): Dp = when {
         FieldType.DATE -> 140.dp                 // ピッカーのボタン分を含む
         FieldType.TIME -> 120.dp
         FieldType.DATETIME -> 190.dp
+        FieldType.FILE -> 240.dp                 // 選択と OS で開くの 2 つのボタン分を含む
         FieldType.ENUM -> 140.dp
         FieldType.ID -> 180.dp                 // 候補の▼と横ぐしの Hub の 2 つのボタン分を含む
         FieldType.REF -> 200.dp
@@ -1699,6 +1703,8 @@ private fun ObjectTableCell(ctx: FormCtx, col: FieldDef, map: YNode.Map, itemPat
             // 閲覧専用の ID セルも横ぐしへ直行できる（編集時は IdEditor の Hub ボタンが同じ役を担う）
             ctx.readOnly && col.type == FieldType.ID -> ReadOnlyIdCell(ctx, value as? YNode.Scalar)
             ctx.readOnly || col.multiline -> TableCellText(readOnlyCellText(col, value as? YNode.Scalar))
+            // ファイルの場所はセルでは画像を出さない（編集は行の展開フォームで画像つき）
+            col.type == FieldType.FILE -> FileEditor(ctx, col, slot, itemPath + key, preview = false)
             else -> ValueEditor(ctx, col, slot, itemPath + key)
         }
     }

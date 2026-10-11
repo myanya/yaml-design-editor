@@ -37,6 +37,12 @@ interface DocumentStore {
 
     /** 文書を移動する。移動元がない・移動先が既に存在する場合はエラー。 */
     fun move(from: DocumentId, to: DocumentId)
+
+    /**
+     * 任意のファイル（YAML 以外も）があるか（file 型の値の存在の検査）。相対パスはルートから、絶対パスはそのまま。
+     * 既定は「分からない」として false（メモリ実装などは必要なら上書きする）。
+     */
+    fun exists(path: String): Boolean = false
 }
 
 /** テスト・単文書利用向けのメモリ実装。 */
@@ -76,6 +82,9 @@ class InMemoryDocumentStore(
         texts[to.value] = text
         writeCount++
     }
+
+    /** メモリ上のキー（YAML 以外も置ける）があれば存在する扱い（file 型の検査のテスト用）。 */
+    override fun exists(path: String): Boolean = texts.containsKey(path.replace('\\', '/'))
 }
 
 /**
@@ -107,6 +116,12 @@ class FileSystemDocumentStore(private val root: Path) : DocumentStore {
         val file = resolve(id)
         return if (Files.isRegularFile(file)) StoredContent(Files.readString(file)) else null
     }
+
+    /** 相対パスはルートから、絶対パスはそのまま（file 型の値はワークスペースの外も指せるため、ここは拒否しない）。 */
+    override fun exists(path: String): Boolean = runCatching {
+        val p = Path.of(path.replace('\\', '/'))
+        Files.isRegularFile(if (p.isAbsolute) p else root.resolve(p).normalize())
+    }.getOrDefault(false)
 
     override fun write(id: DocumentId, text: String) {
         val file = resolve(id)

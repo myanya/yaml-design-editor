@@ -26,7 +26,8 @@ object WorkspaceCheckRunner {
      * 指摘も保留も無い文書は含めない。中身が空の文書は、アプリと同じく、空のマップとして検証する（意図的差分 D-34）。
      */
     fun validateAll(loaded: LoadedWorkspace): Map<DocumentId, DocumentValidation> =
-        validateAll(loaded.schemas, loaded.declarations, loaded.layout, loaded.snapshot.documents, loaded.derived)
+        validateAll(loaded.schemas, loaded.declarations, loaded.layout, loaded.snapshot.documents, loaded.derived,
+            fileExists = loaded.fileExists)
 
     fun validateAll(
         schemas: List<WorkspaceSchema>,
@@ -38,6 +39,8 @@ object WorkspaceCheckRunner {
         only: Set<DocumentId>? = null,
         /** 索引（台帳）に載る文書か。既定は、アプリの走査対象と同じ決め方（台帳の文書と、予約領域の文書）。 */
         indexedOf: (DocumentId) -> Boolean = { layout.inLedger(it.value) || layout.isReserved(it.value) },
+        /** ファイルがあるか（file 型の値の存在の検査）。null なら存在は見ない。許可の決まりは layout.files。 */
+        fileExists: ((String) -> Boolean)? = null,
     ): Map<DocumentId, DocumentValidation> {
         val snapshot = derived.semantic
         val schemaById = schemas.associateBy { it.id }
@@ -50,6 +53,7 @@ object WorkspaceCheckRunner {
             integrity = { integrity },
             rel = { it.value },
             tree = { d -> documents[d]?.let(::rootOf) },
+            files = layout.files, fileExists = fileExists,
         )
         val out = LinkedHashMap<DocumentId, DocumentValidation>()
         for ((id, document) in documents.entries.sortedBy { it.key.value }) {

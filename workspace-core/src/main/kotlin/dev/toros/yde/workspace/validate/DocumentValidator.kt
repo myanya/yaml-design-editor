@@ -14,6 +14,7 @@ import dev.toros.yde.semantic.SemanticEntityGraph
 import dev.toros.yde.semantic.SemanticIssue
 import dev.toros.yde.semantic.SemanticScanner
 import dev.toros.yde.workspace.WorkspaceSchema
+import dev.toros.yde.workspace.layout.FilePolicy
 import dev.toros.yde.yaml.validate.Severity
 
 /** 文書1つの検証の結果（カーネルの座標）: 指摘と、判定を保留した検査。 */
@@ -46,6 +47,9 @@ class DocumentValidator(
     /** 文書のワークスペース相対パス。 */
     private val rel: (DocumentId) -> String,
     private val tree: (DocumentId) -> YNode?,
+    /** file 型の値の許可（`.yde/workspace.yaml` の `files:`）と、ファイルの存在（null なら存在は見ない）。 */
+    private val files: FilePolicy = FilePolicy.DEFAULT,
+    private val fileExists: ((String) -> Boolean)? = null,
 ) {
     /**
      * document はこの文書、schema はこの文書のスキーマ、root はいまの内容（パースできなかったときは null と parseError）。
@@ -106,6 +110,7 @@ class DocumentValidator(
             val checks = WorkspaceChecks(
                 schemas, relations, enforcement, ids, refs, graph, session, rel,
                 tree = { d -> if (d == document) root else trees.getOrPut(d) { tree(d) } },
+                files = files, fileExists = fileExists,
             )
             val delivery = checks.deliver(document, schema, root, docScan.ids, docScan.refs)
             val (entityLints, rest) = delivery.issues.partition { it.source.coded && it.source.rule?.at == CodedChecks.ENTITY }

@@ -153,6 +153,8 @@ object SchemaTreeParser {
             pattern = m["pattern"]?.toString(),
             min = (m["min"] as? Number)?.toDouble(),
             max = (m["max"] as? Number)?.toDouble(),
+            extensions = (m["extensions"] as? List<*>)?.map { it.toString().trim().removePrefix(".").lowercase() }
+                ?.filter { it.isNotEmpty() }.orEmpty(),
             ref = explicitRef ?: namedType,
             unknownFields = m["unknownFields"]?.toString()?.let { raw ->
                 UnknownFieldsPolicy.parse(raw) ?: error("unknownFields は allow / warning / error のいずれかである必要があります: $raw")

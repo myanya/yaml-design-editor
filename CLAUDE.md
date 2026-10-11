@@ -46,6 +46,7 @@ scripts/docs-lint.sh                        # 文書の形の機械チェック
 - `YNode` は Compose の State ではない。ビューは `doc.version` / `state.indexVersion` を読んで購読する → architecture/ui.md「UI シェル」
 - 等幅の文字は `AppFonts.Mono`（同梱の Cica）。`FontFamily.Monospace` を書かない（OS 任せで日本語の幅が揃わない） → architecture/ui.md「規律」
 - 外部の UI ライブラリは ui/ の 1 ファイルで包む（FileKit＝`FilePickers`・Reorderable＝`ReorderableList`・Markdown＝`MarkdownView`・Vico＝`BarChart`）。表は `VirtualTable`。ライブラリの型を他のファイルへ出さず、`JFileChooser` を使わない → architecture/ui.md「規律」
+- file 型の値（ファイルの場所）の書き方は `FilePath` で判定する（`./` や拡張子や `\` の判定を直書きしない）。存在と許可は `CodedDocumentChecks.fileIssues` と `.yde/workspace.yaml` の `files:`（`FilePolicy`）で、機能側で `Files.exists` を直接見ない → architecture/schema.md「規律」・architecture/checks.md「文書 1 つの検証」
 - UI は `state.index` でなく `state.overlayIndex()` を読み、`remember` のキーに `state.editVersion` を含める → architecture/index-references.md「索引の二層」
 - ディスク変更の取り込みの振り分けは `Workspace.noteDiskChanges` だけ。ディスクを映すセッションと編集用セッションは 1 つにまとめない → architecture/index-references.md「索引の二層」
 - 場所はワークスペース相対の `DocumentId`。`DocumentId == Path` は常に偽。`Validator` の `loader` を省くと他の文書を読まない → architecture/index-references.md「場所は文書ID」

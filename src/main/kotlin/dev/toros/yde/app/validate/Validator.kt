@@ -7,6 +7,7 @@ import dev.toros.yde.semantic.SemanticDeclarations
 import dev.toros.yde.workspace.validate.CheckIssue
 import dev.toros.yde.workspace.validate.CheckResponse
 import dev.toros.yde.workspace.validate.DocumentValidation
+import dev.toros.yde.workspace.layout.FilePolicy
 import dev.toros.yde.workspace.validate.DocumentValidator
 import dev.toros.yde.workspace.validate.RuleStatus
 import dev.toros.yde.workspace.validate.WorkspaceChecks
@@ -57,8 +58,11 @@ object Validator {
         relations: Map<String, RelationDef> = emptyMap(),
         enforcement: EnforcementDef = EnforcementDef(),
         shareEvaluations: Boolean = false,
+        files: FilePolicy = FilePolicy.DEFAULT,
+        fileExists: ((String) -> Boolean)? = null,
     ): List<Issue> = validateDetailed(
         root, parseError, document, schema, indexObj, indexed, loader, allSchemas, relations, enforcement, shareEvaluations,
+        files, fileExists,
     ).issues
 
     fun validateDetailed(
@@ -92,6 +96,9 @@ object Validator {
          * ステージングの索引とステージングの内容）。索引に重ねていない内容（提案のプレビューなど）を検証するときは false のままにする。
          */
         shareEvaluations: Boolean = false,
+        /** file 型の値の許可（`.yde/workspace.yaml` の `files:`）と、ファイルの存在（null なら存在は見ない）。 */
+        files: FilePolicy = FilePolicy.DEFAULT,
+        fileExists: ((String) -> Boolean)? = null,
     ): ValidationResult {
         // 検証の組み立て（構造の検証 → ID と参照 → エンティティ型の点検 → 宣言のない関係名 → 定義体の検査 → テンプレートの健全性 →
         // 直せる場所への案内・台帳の外の文書での降格・同じ指摘の重複の除去）は、カーネルの validate.DocumentValidator が持つ
@@ -109,6 +116,7 @@ object Validator {
             integrity = { indexObj.integrityIssues(SemanticDeclarations(relations = relations, enforcement = enforcement)) },
             rel = { d -> d.value },
             tree = loader,
+            files = files, fileExists = fileExists,
         )
         return validator.validate(
             document = document,

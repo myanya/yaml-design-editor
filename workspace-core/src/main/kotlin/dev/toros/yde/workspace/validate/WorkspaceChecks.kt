@@ -36,6 +36,7 @@ import dev.toros.yde.workspace.CheckCatalog
 import dev.toros.yde.workspace.DocumentScaffolds
 import dev.toros.yde.workspace.ScaffoldSource
 import dev.toros.yde.workspace.WorkspaceSchema
+import dev.toros.yde.workspace.layout.FilePolicy
 import dev.toros.yde.yaml.validate.Severity
 
 /** 指摘の配り方（P27 段A）: 同じ違反が、どの立場でこの場所に出ているか。 */
@@ -215,11 +216,14 @@ class WorkspaceChecks(
     /** 特定のスキーマに属さない検査のうち、組込み定義体に直接書かれたもの。 */
     private val builtinRules: List<ConstraintRule> = CheckCatalog.builtinRules,
     private val builtinCheckers: List<CheckerRule> = CheckCatalog.builtinCheckers,
+    /** file 型の値の許可と、ファイルの存在（CodedDocumentChecks.fileIssues）。 */
+    private val files: FilePolicy = FilePolicy.DEFAULT,
+    private val fileExists: ((String) -> Boolean)? = null,
 ) {
     private class RuleGroup<R>(val key: String, val owner: WorkspaceSchema?, val rules: List<R>)
 
     /** コードで実装された検査のうち、ワークスペースの他の文書も見るもの。 */
-    private val coded = CodedDocumentChecks(schemas, ids, rel, tree)
+    private val coded = CodedDocumentChecks(schemas, ids, rel, tree, files, fileExists)
 
     /**
      * 値を読んだ場所の項目の定義（順序の比較・集計の種類を項目の型から決める。SemanticValues.Environment.fieldAt）。
@@ -281,6 +285,8 @@ class WorkspaceChecks(
         issues += coded.expressionIssues(document, schema, root, localIds)
         // 意味の基底型（date / time / datetime）の値の存在（形式は構造の検証、存在はここ。P33）
         issues += coded.valueIssues(document, schema, root, localIds)
+        // file 型の値（ファイルの場所）: 書き方・拡張子・ワークスペースの外・存在（P37）
+        issues += coded.fileIssues(document, schema, root, localIds)
         // 型の検査（オブジェクト型の要素ごとの検査。P33 第三弾）: 違反は要素の場所へ、保留はこの文書で集める
         coded.elementChecks(document, schema, root, localIds).let { (found, held) ->
             issues += found

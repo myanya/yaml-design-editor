@@ -149,6 +149,7 @@ data class SchemaTree(
             minLength = maxOfNullable(use.minLength, def.minLength),
             maxLength = minOfNullable(use.maxLength, def.maxLength),
             pattern = use.pattern ?: def.pattern,
+            extensions = use.extensions.ifEmpty { def.extensions },
             inheritedPatterns = (def.patterns + use.inheritedPatterns).distinct(),
             min = maxOfNullable(use.min, def.min),
             max = minOfNullable(use.max, def.max),

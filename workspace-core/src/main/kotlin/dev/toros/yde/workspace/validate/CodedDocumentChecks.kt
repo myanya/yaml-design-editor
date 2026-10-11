@@ -21,7 +21,10 @@ import dev.toros.yde.semantic.SemanticCheckSide
 import dev.toros.yde.semantic.SemanticElementChecks
 import dev.toros.yde.semantic.schema.RuleOrigin
 import dev.toros.yde.yaml.model.pretty
+import dev.toros.yde.semantic.schema.FilePath
 import dev.toros.yde.workspace.WorkspaceSchema
+import dev.toros.yde.workspace.layout.FilePolicy
+import dev.toros.yde.workspace.layout.FilePolicyLevel
 import dev.toros.yde.yaml.validate.Severity
 
 /**
@@ -39,7 +42,88 @@ internal class CodedDocumentChecks(
     /** 文書のワークスペース相対パス。 */
     private val rel: (DocumentId) -> String,
     private val tree: (DocumentId) -> YNode?,
+    /** file 型の値の許可（`.yde/workspace.yaml` の `files:`）。 */
+    private val files: FilePolicy = FilePolicy.DEFAULT,
+    /** ファイルがあるか（ワークスペース相対か絶対のパスの文字）。null なら存在は見ない。 */
+    private val fileExists: ((String) -> Boolean)? = null,
 ) {
+    /**
+     * file 型の値（ファイルの場所）の検査。書き方は FilePath（接頭辞なし＝ルートから・`./` か `../`＝文書から・絶対）。
+     * - 場所として読めない → 違反
+     * - 拡張子が項目の `extensions` に無い → 違反
+     * - ワークスペースの外（絶対パス・`..` でルートの外へ出る）→ `files.outside`（許す場所 `allowedRoots` に入れば外ではない）
+     * - その場所にファイルが無い → `files.missing`（fileExists が無ければ見ない）
+     * 形式（pattern）と必須は構造の検証が見る。
+     */
+    fun fileIssues(document: DocumentId, schema: WorkspaceSchema?, root: YNode, localIds: List<ScannedId>): List<CheckIssue> {
+        if (schema == null) return emptyList()
+        val tree = schema.tree
+        val issues = mutableListOf<CheckIssue>()
+        fun severity(level: FilePolicyLevel): Severity? = when (level) {
+            FilePolicyLevel.ALLOW -> null
+            FilePolicyLevel.WARNING -> Severity.WARNING
+            FilePolicyLevel.ERROR -> Severity.ERROR
+        }
+        fun report(severity: Severity, rule: String, message: String, path: YPath) {
+            issues += CheckIssue(severity, message, path, source = CodedChecks.source(CodedChecks.VALUE, rule, IssueDelivery.VALUE, localIds, path))
+        }
+        fun check(eff: FieldDef, text: String, path: YPath, label: String) {
+            if (!FilePath.isWellFormed(text)) {
+                report(Severity.ERROR, "file-form", "「$label」のファイルの場所が読めません（現在値: $text）", path)
+                return
+            }
+            if (eff.extensions.isNotEmpty() && FilePath.extensionOf(text) !in eff.extensions) {
+                report(Severity.ERROR, "file-extension",
+                    "「$label」は ${eff.extensions.joinToString(" / ")} のファイルを指定します（現在値: $text）", path)
+            }
+            val location = FilePath.toWorkspaceRelative(text, document) ?: run {
+                val outside = FilePath.normalize(text)
+                if (!FilePath.underAny(outside, files.allowedRoots)) {
+                    severity(files.outside)?.let { sev ->
+                        report(sev, "file-outside", "「$label」はワークスペースの外のファイルです（現在値: $text）", path)
+                    }
+                    if (files.outside == FilePolicyLevel.ERROR) return
+                }
+                outside
+            }
+            val exists = fileExists ?: return
+            if (!exists(location)) {
+                severity(files.missing)?.let { sev ->
+                    report(sev, "file-missing", "「$label」のファイルがありません（現在値: $text）", path)
+                }
+            }
+        }
+        fun walk(def: FieldDef, node: YNode, path: YPath, label: String) {
+            val eff = tree.resolve(def) ?: def
+            when (eff.type) {
+                FieldType.OBJECT -> {
+                    val m = node as? YNode.Map ?: return
+                    tree.effectiveFields(eff.fields, m).fields.forEach { f ->
+                        val k = f.key ?: return@forEach
+                        m.entries[k]?.let { walk(f, it, path + k, (tree.resolve(f) ?: f).displayLabel) }
+                    }
+                }
+                FieldType.ARRAY -> {
+                    val seq = node as? YNode.Seq ?: return
+                    val item = eff.item ?: return
+                    seq.items.forEachIndexed { i, child -> walk(item, child, path + i, "$label[$i]") }
+                }
+                FieldType.MAP -> {
+                    val m = node as? YNode.Map ?: return
+                    val value = eff.value ?: return
+                    m.entries.forEach { (k, child) -> walk(value, child, path + k, "$label.$k") }
+                }
+                FieldType.FILE -> {
+                    val text = scalarText(node)?.trim()?.takeIf { it.isNotEmpty() } ?: return
+                    check(eff, text, path, label)
+                }
+                else -> {}
+            }
+        }
+        walk(tree.root, root, emptyList(), tree.root.displayLabel)
+        return issues
+    }
+
     /**
      * エンティティ整合 lint のうち、スキーマの構造に依存するもの: idPattern 逸脱（このスキーマのエンティティ型の宣言の一式）と
      * 重複所有（所有するフィールド）。entity 宣言のあるスキーマの ID だけを判定する（宣言のないスキーマは挙動不変＝非破壊）。

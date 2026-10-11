@@ -19,6 +19,8 @@ data class WorkspaceLayout(
     val configDir: String?,
     /** 台帳ディレクトリ（相対・'/'区切り）。空 = ワークスペース全体が台帳。 */
     val ledger: List<String>,
+    /** file 型の値（ファイルの場所）の許可（`files:`。外・許す場所・無いファイル）。 */
+    val files: FilePolicy = FilePolicy.DEFAULT,
 ) {
 
     /**
@@ -107,14 +109,15 @@ data class WorkspaceLayout(
         fun of(root: Path): WorkspaceLayout {
             val config = root.resolve(CONFIG_DIR)
             if (!Files.isDirectory(config)) return LEGACY
-            val ledger = runCatching { parseLedger(config.resolve(CONFIG_FILE)) }.getOrDefault(emptyList())
-            return WorkspaceLayout(configDir = CONFIG_DIR, ledger = ledger)
+            val text = config.resolve(CONFIG_FILE).takeIf { Files.isRegularFile(it) }
+                ?.let { runCatching { Files.readString(it) }.getOrNull() }
+            val ledger = text?.let { runCatching { parseLedgerText(it) }.getOrDefault(emptyList()) }.orEmpty()
+            val files = text?.let { runCatching { parseFilesText(it) }.getOrDefault(FilePolicy.DEFAULT) } ?: FilePolicy.DEFAULT
+            return WorkspaceLayout(configDir = CONFIG_DIR, ledger = ledger, files = files)
         }
 
-        private fun parseLedger(configFile: Path): List<String> {
-            if (!Files.isRegularFile(configFile)) return emptyList()
-            return parseLedgerText(Files.readString(configFile))
-        }
+        /** 構成ファイル本文から file 型の値の許可（`files:`）を読む。無ければ既定。 */
+        fun parseFilesText(text: String): FilePolicy = FilePolicy.parse(YamlIO.parseFirst(text) as? YNode.Map)
 
         /** 構成ファイル本文から `ledger:` 宣言を読む（DocumentStore 経由のロード＝WS-002 と共有）。 */
         fun parseLedgerText(text: String): List<String> {

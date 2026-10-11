@@ -25,6 +25,7 @@
 - 配置の判定は `WorkspaceLayout` の 1 つのポリシーオブジェクト。「どこが定義・記録ディレクトリか」「どこが台帳か」「索引から除外するか」の述語群に分解されている。機能側でプレフィックスやディレクトリ名の直書き判定を書かない。
 - **2 つの構成モード**: `.yde/` が無ければレガシー構成（ルート直下の `_schemas` 等 7 予約ディレクトリ・台帳＝ワークスペース全体）。あれば `.yde` 構成（定義・記録は `.yde/schemas` 等のサブディレクトリ・`.yde/workspace.yaml` の `ledger:` で台帳ディレクトリを宣言。未宣言なら全体）。判定は `WorkspaceLayout.of(root)` で、`Workspace` が保持し `refresh()` で再評価する。
 - `.yde/workspace.yaml` の変更は走査規則が変わるためスキーマ変更と同じ扱い（全再構築）。レガシー → `.yde` の移行は CLI `migrate`（ディレクトリ移動と構成ファイル作成だけ）。
+- `.yde/workspace.yaml` の `files:`（`FilePolicy`＝`WorkspaceLayout.files`）は file 型の値の許可: `outside`（ワークスペースの外）・`allowedRoots`（外でも許す場所）・`missing`（無いファイル）。読めない値は既定（外は警告・無いファイルは違反）。ファイルの存在は `DocumentStore.exists`（YAML 以外も）が答え、`LoadedWorkspace.fileExists` と `WorkspaceSession.fileExists` が検証へ渡す。
 - 構成ファイル（`workspace.yaml`）にはスキーマを当てない（`schemaFor` は null）。`_runs/`（runs ゾーン）は索引対象外。
 
 ## エディタ層と台帳層

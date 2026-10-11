@@ -224,6 +224,7 @@ fun AiGenerationHost(state: AppState) {
                 indexed = state.isIndexed(doc.file),
                 allSchemas = state.schemas, loader = state.unsavedFirstTree(),
                 relations = state.relations, enforcement = state.enforcement,
+                files = state.filePolicy, fileExists = state::fileExists,
             )
         }.orEmpty()
     }

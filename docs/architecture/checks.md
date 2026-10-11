@@ -122,6 +122,7 @@
 - 指摘の並び: 構造の検証 → ID の重複 → 参照の解決 → エンティティ型の点検 → 宣言のない関係名 → 定義体の検査（報告先・値と参照の場所・他の出現への案内）→ テンプレートの健全性 → 直せる場所への案内。同じ指摘の重複は除く。
 - **型の検査**（オブジェクト型の `constraints`。[schema.md「型の連鎖と狭める規則」](schema.md)）は要素ごと: `WorkspaceChecks.deliver` が `CodedDocumentChecks.elementChecks` → `SemanticElementChecks.run` で、その文書の要素を解決した型の検査で評価する。
 - 型の検査の出どころは検査を書いたスキーマ（`RuleOrigin(schemaId, 書かれた場所)`・kind は `element`）、指摘は要素の場所（VALUE）、保留はその文書で集める。グラフ・索引を使わないので ID の無い要素でも評価でき、他の要素へ線を辿る検査は型には書けない（スキーマの `constraints` へ）。
+- **file 型の値の検査**（`CodedDocumentChecks.fileIssues`）: 書き方（`FilePath`）・拡張子（`FieldDef.extensions`）・ワークスペースの外・存在。外と無いファイルの扱いは `WorkspaceLayout.files`（`.yde/workspace.yaml` の `files:`＝`FilePolicy`）で、存在は `fileExists`（ストアに聞く。CLI は読み込んだストア、アプリはワークスペースのルート）に聞く。`fileExists` が無ければ存在は見ない。
 - 台帳の外の文書（`indexed = false`）では、相手の見つからない参照を情報レベルへ降格し、ワークスペースの他の文書も見る検査を行わない（[workspace.md「エディタ層と台帳層」](workspace.md)）。中身が空の文書は空のマップとして検証する。
 - 構造の検証は導出した最小の構造のスキーマで行う（[schema.md「構造スキーマの導出」](schema.md)）。参照の解決はエンティティと文書の名前空間を分ける。ID の重複は同一文書内だけ。
 - root の `Validator` は索引とスキーマを渡して呼ぶ窓口。カーネル側の CLI `workspace validate` は `WorkspaceCheckRunner.validateAll` で全文書を同じ部品で検証する（出力の区分＝構造・意味・検査は出どころで分ける）。変更セットの適用も適用後の姿の上で同じ組み立てを使う。`KernelCheckLoadingTest` が文書ごとの指摘（並び順まで）と保留がアプリとカーネルで一致することを確かめる。

@@ -17,8 +17,18 @@ definitions:
         label: 型
         type: enum
         description: "基底の種類（この選択肢）か、型の名前（組込みの型 text・definitions に定義した型 金額 / common#金額）。型の名前を書くと定義の決まりを引き継ぎ、ここに書く決まりは狭めるだけ（P33）。型の名前の選択肢は読み込み時に足される"
-        values: [string, int, number, boolean, enum, date, time, datetime, id, ref, array, map, object, any]
+        values: [string, int, number, boolean, enum, date, time, datetime, file, id, ref, array, map, object, any]
         cases:
+          file:
+            - key: extensions
+              label: 許す拡張子
+              type: array
+              item: { type: string }
+              description: "ファイルの拡張子の一覧（例 [png, svg]。ドットなし・大文字小文字は区別しない）。空なら制限しない。型に書けば使う側に引き継がれ、使う側が書けば狭める"
+            - key: pattern
+              label: 形式（正規表現）
+              type: string
+              description: "場所の文字が一致すべき形式（例 ^docs/images/）"
           date:
             - key: pattern
               label: 形式（正規表現）

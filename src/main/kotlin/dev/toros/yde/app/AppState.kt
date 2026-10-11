@@ -316,6 +316,9 @@ class AppState {
     /** 開いている内蔵ヘルプの題目（help/ の資源名）。openDoc・openMarkdown と排他。 */
     var openHelp by mutableStateOf<String?>(null)
         private set
+    /** 開いている画像（file 型の値の拡大表示。表示のみ）。openDoc・openMarkdown・openHelp と排他。 */
+    var openImage by mutableStateOf<Path?>(null)
+        private set
     /** ワークスペース内の Markdown（表示用。索引・検証の対象ではない）。 */
     var markdownFiles by mutableStateOf<List<Path>>(emptyList())
         private set
@@ -346,6 +349,13 @@ class AppState {
         uiSpace = if (workspaceView == 0) UiSpace.EDIT else UiSpace.LEDGER
         if (workspaceView in 1..6) lastLedgerView = workspaceView
     }
+
+    /** file 型の値の許可（`.yde/workspace.yaml` の `files:`）。検証の呼び出しに渡す。 */
+    val filePolicy: dev.toros.yde.workspace.layout.FilePolicy
+        get() = coreWs?.layout?.files ?: dev.toros.yde.workspace.layout.FilePolicy.DEFAULT
+
+    /** ファイル（YAML 以外も）があるか（file 型の値の存在の検査。相対はワークスペースのルートから）。 */
+    fun fileExists(path: String): Boolean = coreWs?.fileExists(path) ?: false
 
     /** 準備完了レポート（CLI `readiness` と同じ計算＝保存済みの内容で判定）。台帳の「準備」タブが読む。 */
     fun readinessReport(): dev.toros.yde.app.validate.Readiness.Report? =
@@ -546,6 +556,7 @@ class AppState {
         }
         openDoc?.let { if (it.file !in existing && !it.dirty) openDoc = null }
         openMarkdown?.let { if (!Files.exists(it)) openMarkdown = null }
+        openImage?.let { if (!Files.exists(it)) openImage = null }
         indexVersion++
         workspaceStamp = snapshotFiles(ws)
         status = "ワークスペース: $ws ／ YAML ${yamlFiles.size} 件・スキーマ ${schemas.size} 件・ID ${index.entries.size} 件"
@@ -775,8 +786,10 @@ class AppState {
     /** 履歴に積まずに文書を表示する（openFile の本体。「戻る」「進む」の復元にも使う）。 */
     private fun showFile(file: Path, focus: YPath?) {
         if (isMarkdown(file)) { showMarkdown(file); return }
+        if (isImage(file)) { showImage(file); return }
         openMarkdown = null
         openHelp = null
+        openImage = null
         val doc = docCache.getOrPut(file) { loadDocument(file) }
         openDoc = doc
         workspaceView = 0
@@ -789,11 +802,25 @@ class AppState {
     }
 
     private fun isMarkdown(file: Path): Boolean = file.fileName.toString().endsWith(".md", ignoreCase = true)
+    private fun isImage(file: Path): Boolean = dev.toros.yde.semantic.schema.FilePath.isImage(file.fileName.toString())
+
+    /** 画像を表示する（file 型の値の拡大表示。表示のみ）。 */
+    private fun showImage(file: Path) {
+        openDoc = null
+        openHelp = null
+        openMarkdown = null
+        openImage = file
+        workspaceView = 0
+        syncSpaceFromView()
+        highlightPath = null
+        status = "画像: ${relPath(file)}"
+    }
 
     /** Markdown 文書を表示する（表示のみ。YAML の文書キャッシュには入れない）。 */
     private fun showMarkdown(file: Path) {
         openDoc = null
         openHelp = null
+        openImage = null
         openMarkdown = file
         workspaceView = 0
         syncSpaceFromView()
@@ -813,6 +840,7 @@ class AppState {
     private fun showHelp(topic: String) {
         openDoc = null
         openMarkdown = null
+        openImage = null
         openHelp = topic
         workspaceView = 0
         syncSpaceFromView()
@@ -853,6 +881,7 @@ class AppState {
                 indexed = true, allSchemas = schemas,
                 loader = unsavedFirstTree(), relations = relations, enforcement = enforcement,
                 shareEvaluations = true,  // 未保存の編集を重ねた索引と、未保存を優先する loader
+                files = filePolicy, fileExists = ::fileExists,
             )
             if (issues.isEmpty()) null else file to issues
         }
@@ -1597,7 +1626,7 @@ class AppState {
 
     /** 現在の表示位置。 */
     private fun currentLocation(): NavLocation =
-        NavLocation(uiSpace, workspaceView, openDoc?.file ?: openMarkdown, highlightPath, crossViewId, viewGridId,
+        NavLocation(uiSpace, workspaceView, openDoc?.file ?: openMarkdown ?: openImage, highlightPath, crossViewId, viewGridId,
             flowViewId, flowDocument, flowSelections, help = openHelp)
 
     /** 何も開いていない編集スペースは履歴に積む価値がない（台帳・実行・設計はそれ自体が場所）。 */

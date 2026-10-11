@@ -137,6 +137,7 @@ class Staging(val ws: Workspace) {
                 // グラフ整合検証（R21-01）も提出ゲートに乗せる（循環を作る変更セットの拒否。architecture/graph-query.md「エンティティ操作」）
                 relations = ws.relations, enforcement = ws.enforcement,
                 shareEvaluations = true,  // ステージングを重ねた索引と、ステージングの内容を読む loader
+                files = ws.layout.files, fileExists = ws::fileExists,
             )
         }.toMutableMap()
         // メタアクティビティ（R4-03）: ステージされた定義文書は実際のローダでパースできることもゲート条件にする

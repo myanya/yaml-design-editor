@@ -78,6 +78,7 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                 indexed = state.isIndexed(doc.file), allSchemas = state.schemas,
                 loader = state.unsavedFirstTree(),
                 relations = state.relations, enforcement = state.enforcement,
+                files = state.filePolicy, fileExists = state::fileExists,
             )
         }
         // ビュー定義文書はリント（ビュー→スキーマの整合検査）もここに出す。編集中ツリーで判定するため

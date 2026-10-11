@@ -142,6 +142,9 @@ class WorkspaceSession private constructor(
 
     val layout: WorkspaceLayout
 
+    /** ファイル（YAML 以外も）があるか（file 型の値の存在の検査。ストアに聞く）。 */
+    fun fileExists(path: String): Boolean = store.exists(path)
+
     /** スキーマ束（スキーマ文書の変更を含むトランザクションで再構築される。WS-006）。 */
     var schemas: List<WorkspaceSchema>
         private set

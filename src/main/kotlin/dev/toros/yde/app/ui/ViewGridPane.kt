@@ -58,7 +58,7 @@ private val STATUS_WIDTH = 90.dp
 /** セルとして直接編集できる型（複合型はジャンプで個別フォームへ）。 */
 private val EDITABLE_TYPES = setOf(
     FieldType.STRING, FieldType.INT, FieldType.NUMBER, FieldType.BOOLEAN, FieldType.ENUM,
-    FieldType.DATE, FieldType.TIME, FieldType.DATETIME, FieldType.ID, FieldType.REF,
+    FieldType.DATE, FieldType.TIME, FieldType.DATETIME, FieldType.FILE, FieldType.ID, FieldType.REF,
 )
 
 /**

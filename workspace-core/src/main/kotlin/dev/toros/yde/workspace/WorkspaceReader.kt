@@ -19,6 +19,7 @@ import dev.toros.yde.semantic.schema.SchemaDerivation
 import dev.toros.yde.semantic.schema.SchemaKind
 import dev.toros.yde.semantic.schema.SchemaTree
 import dev.toros.yde.semantic.schema.TransformDef
+import dev.toros.yde.workspace.layout.FilePolicy
 import dev.toros.yde.workspace.layout.WorkspaceLayout
 import dev.toros.yde.semantic.schema.globToRegex
 import dev.toros.yde.semantic.DocumentMeta
@@ -178,6 +179,8 @@ class LoadedWorkspace(
     val parseErrors: Map<DocumentId, String>,
     val snapshot: WorkspaceSnapshot,
     val derived: WorkspaceDerivedState,
+    /** ファイル（YAML 以外も）があるか（file 型の値の存在の検査。読み込んだストアに聞く）。 */
+    val fileExists: (String) -> Boolean = { false },
 )
 
 /** スキーマ読込の結果（load と、セッション内のスキーマ再構築＝WS-006 が共有する）。 */
@@ -410,6 +413,7 @@ object WorkspaceReader {
             parseErrors = parseErrors,
             snapshot = WorkspaceSnapshot(version, documents),
             derived = derived,
+            fileExists = store::exists,
         )
     }
 
@@ -500,6 +504,7 @@ object WorkspaceReader {
             store.list().any { it.id.value.startsWith("${WorkspaceLayout.CONFIG_DIR}/") }
         if (!hasConfigDir) return WorkspaceLayout.LEGACY
         val ledger = configFile?.let { runCatching { WorkspaceLayout.parseLedgerText(it.text) }.getOrDefault(emptyList()) }.orEmpty()
-        return WorkspaceLayout(configDir = WorkspaceLayout.CONFIG_DIR, ledger = ledger)
+        val files = configFile?.let { runCatching { WorkspaceLayout.parseFilesText(it.text) }.getOrDefault(FilePolicy.DEFAULT) } ?: FilePolicy.DEFAULT
+        return WorkspaceLayout(configDir = WorkspaceLayout.CONFIG_DIR, ledger = ledger, files = files)
     }
 }

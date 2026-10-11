@@ -114,6 +114,8 @@ class DerivedStructures(private val schema: SchemaTree) {
         val inlined = when {
             resolvedOrSelf.type == FieldType.ID || resolvedOrSelf.type == FieldType.REF ->
                 resolvedOrSelf.copy(inheritedPatterns = (resolvedOrSelf.inheritedPatterns + BuiltinTypes.WORD_PATTERN).distinct())
+            // ファイルの場所（file）は構造の上では文字列。書き方・存在・許可はコードで実装された検査（CodedDocumentChecks.fileIssues）
+            resolvedOrSelf.type == FieldType.FILE -> resolvedOrSelf.copy(type = FieldType.STRING)
             value != null ->
                 resolvedOrSelf.copy(type = FieldType.STRING, inheritedPatterns = (listOf(value.canonicalPattern) + resolvedOrSelf.inheritedPatterns).distinct())
             else -> resolvedOrSelf

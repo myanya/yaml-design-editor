@@ -625,7 +625,11 @@ private fun EntityRenameDialog(state: AppState, onDismiss: () -> Unit) {
 fun EditorArea(state: AppState) {
     val doc = state.openDoc
     if (doc == null) {
-        // Markdown 文書・内蔵ヘルプは表示だけの画面（ui/MarkdownPane.kt）
+        // Markdown 文書・内蔵ヘルプ・画像は表示だけの画面（ui/MarkdownPane.kt・ui/ImagePane.kt）
+        if (state.openImage != null) {
+            ImagePane(state)
+            return
+        }
         if (state.openMarkdown != null || state.openHelp != null) {
             MarkdownPane(state)
             return
@@ -848,6 +852,7 @@ fun StatusBar(state: AppState, engine: AutomationEngine?, inboxCount: Int, onOpe
                     indexed = state.isIndexed(doc.file), allSchemas = state.schemas,
                     loader = state.unsavedFirstTree(),
                     relations = state.relations, enforcement = state.enforcement,
+                    files = state.filePolicy, fileExists = state::fileExists,
                 )
             }
             val errors = issues.count { it.severity == Severity.ERROR } + state.schemaErrors.size

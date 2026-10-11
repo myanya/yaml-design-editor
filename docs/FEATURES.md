@@ -33,6 +33,7 @@
 | E-01 | スキーマ駆動フォーム（基底の種類別の編集欄・型から引き継ぐヒント＝複数行と入力欄の案内と表示の形 `format`・必須マーク・説明は Markdown・折りたたみ・id 型は既存 ID の補完と連番の提案と横ぐしへの直行・int / number の桁区切り表示 `display: grouped`・残留値の修復 UI） | `ui/FormView.kt`（`IdEditor`）, `schema/IdSuggest.kt` | 単体 `IdSuggestTest` | [ui](architecture/ui.md) |
 | E-15 | 日付・時刻・日時のピッカー（入力欄の右のボタンからポップアップにカレンダーと時刻入力・日付はクリックで即反映・値は正準の文字列のまま） | `ui/TemporalEditor.kt`（`TemporalPick`, `TemporalPickerButton`） | 単体 `TemporalPickTest` | [ui](architecture/ui.md) |
 | E-16 | 配列要素のドラッグ並べ替え（取っ手 ⋮⋮ からだけ掴める・ドロップで 1 回だけ木を動かす＝Undo 1 回・縦リスト／テーブル／汎用エディタ共通・上下ボタンも残す） | `ui/Reorder.kt`（`ReorderableList`）, `ui/FormView.kt`（`moveSeqItem`） | 単体 `MoveSeqItemTest` | [ui](architecture/ui.md) |
+| E-17 | file 型の入力欄と画像の表示（文字で書く 3 通りの書き方・「選ぶ」は OS 標準のダイアログでルート相対に書き込む・解決した場所と有無の 1 行・画像は欄の下に幅に合わせて表示し拡大率とドラッグで操作・「拡大表示」で全面） | `ui/FileEditor.kt`, `ui/ImagePane.kt`, `AppState.openImage` | 単体 `FileEditorTest` | [ui](architecture/ui.md) |
 | E-02 | 汎用ツリーエディタ（スキーマなし文書・スキーマ外キー・順序とコメントを保ったキー改名） | `ui/FormView.kt`（`GenericEditor`） | 単体 `RenameKeyTest` | [ui](architecture/ui.md) |
 | E-03 | ソース編集（入力のたびにパースし成功時だけツリーへ反映・パース不能中は最後の解析結果が正・検索置換・ハイライト） | `ui/SourcePane.kt`, `ui/SourceHighlight.kt` | 単体 `SourceHighlightTest` | [editing-history](architecture/editing-history.md) |
 | E-04 | 差分表示（保存済みと編集中の行整列・文字単位の強調） | `ui/DiffPane.kt` | 単体 `DiffPaneTest` | [ui](architecture/ui.md) |
@@ -75,6 +76,7 @@
 | S-22 | アスペクト宣言とエンティティ型レジストリ（`aspect` / `owns`・レジストリの `entities:` 節） | `semantic-core/schema/Relations.kt`（`EntityTypeDef`, `ownedFieldKeys`） | 単体 `AspectTest` | [graph-query](architecture/graph-query.md) |
 | S-23 | スキーマの値に式（項目の印 `expression: true`・共通の読み取りと評価と文面・`filePattern` と `scaffold`） | `semantic-core/schema/ExpressionFields.kt`, `semantic-core/semantic/Values.kt` | 単体 `ExpressionFieldsTest`, `SemanticValuesTest` | [schema](architecture/schema.md) |
 | S-24 | ユーザ定義の型（`type: 名前`・型の連鎖・狭める規則・メタスキーマへの型名の合成・オブジェクト型＝object の `entity`・項目を足す／狭める・要素ごとの型の検査） | `semantic-core/schema/SchemaTree.kt`, `semantic/ElementChecks.kt`, `workspace-core/workspace/MetaSchemaTypes.kt` | 単体 `TypeDefinitionsTest`, `ObjectTypesTest` | [schema](architecture/schema.md) |
+| S-25 | ファイルの場所の型（`type: file`・接頭辞なし＝ルートから・`./` `../`＝文書から・絶対の 3 通り・`extensions` で拡張子を絞る・値は文字列のまま） | `semantic-core/schema/FilePath.kt`, `schema/Fields.kt`（`FieldType.FILE`, `extensions`）, `builtin-schemas/schema.yaml` | 単体 `FilePathTest` | [schema](architecture/schema.md) |
 
 ## 4. 検証
 
@@ -101,6 +103,7 @@
 | V-18 | 検査の評価の共有（同じ索引の上では検査 × 要素を 1 回だけ評価・全体の検証が文書数に比例） | `semantic-core/semantic/CheckSession.kt`, `workspace-core/workspace/WorkspaceCheckRunner.kt` | 単体 `KernelCheckLoadingTest`, `BenchTest` | [checks](architecture/checks.md) |
 | V-19 | コードで実装された検査（ID パターンからの逸脱・重複所有・テンプレートの健全性・カーネルが配る） | `workspace-core/validate/CodedDocumentChecks.kt`, `workspace-core/workspace/SchemaDefinitionChecks.kt` | 単体 `KernelOnlyChecksTest` | [checks](architecture/checks.md) |
 | V-20 | 文書 1 つの検証の組み立て（構造 → ID と参照 → エンティティ型 → 関係名 → 定義体 → テンプレート → 案内・台帳外の降格と重複除去） | `workspace-core/validate/DocumentValidator.kt` | 単体 `KernelCheckLoadingTest`, `KernelOnlyChecksTest` | [checks](architecture/checks.md) |
+| V-22 | file 型の値の検査（書き方・拡張子・ワークスペースの外・無いファイル／外と無いファイルの扱いは `.yde/workspace.yaml` の `files:`＝許可／警告／違反と許す場所／存在はストアに聞く） | `workspace-core/validate/CodedDocumentChecks.kt`（`fileIssues`）, `workspace-core/layout/FilePolicy.kt` | 単体 `FileChecksTest` | [checks](architecture/checks.md) |
 
 ## 5. ID・参照
 

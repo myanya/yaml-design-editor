@@ -677,7 +677,7 @@ private fun AutoValueChooser(map: YNode.Map, choices: List<AutoValue>, hint: Str
 /** 入力欄の案内・サンプル値を書ける基底の種類（文字で値を打つもの）。 */
 private val HINT_KINDS = setOf(
     FieldType.STRING.id, FieldType.INT.id, FieldType.NUMBER.id, FieldType.DATE.id, FieldType.TIME.id, FieldType.DATETIME.id,
-    FieldType.ID.id, FieldType.REF.id,
+    FieldType.FILE.id, FieldType.ID.id, FieldType.REF.id,
 )
 
 /** 一覧表示形式のヒント（R12-06）。array / map で共有。省略時はフォーム側が列構成から自動判定する。 */

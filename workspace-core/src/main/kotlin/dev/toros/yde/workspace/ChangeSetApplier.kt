@@ -113,6 +113,7 @@ object ChangeSetApplier {
             only = overlays.keys,
             // 変更セットの適用の検証は、今までどおり、どの文書も索引に載る文書として扱う
             indexedOf = { true },
+            fileExists = base::fileExists,
         )
         val validated = staged.map { it to validations[it.id]?.issues.orEmpty() }
         if (requireValid && validated.any { (_, issues) -> issues.any { it.severity == Severity.ERROR } }) failed = true

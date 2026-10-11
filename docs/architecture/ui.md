@@ -23,6 +23,8 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 | `MarkdownView` / `openExternally` | ui/MarkdownView.kt | Markdown の描画（ライブラリ multiplatform-markdown-renderer を包む。色と文字は Palette） |
 | `MarkdownPane` / `resolveMarkdownLink` | ui/MarkdownPane.kt | Markdown 文書と内蔵ヘルプの表示（表示とソースの 2 タブ・リンクの行き先の判定は純ロジック） |
 | `Help` | app/Help.kt | 内蔵ヘルプの題目と本文（ビルド時に資源 `help/` へ入れた利用者マニュアル） |
+| `FileEditor` / `resolveFilePath` / `fileValueFor` | ui/FileEditor.kt | file 型の入力欄（選ぶ・OS で開く・解決した場所と有無の 1 行・画像なら下に表示）。場所の解決と選んだファイルの書き方は純ロジック |
+| `ImagePane` / `EmbeddedImagePane` / `ImageCanvas` / `fitZoom` | ui/ImagePane.kt | 画像の表示（幅に合わせる・100%・±・Ctrl＋ホイール・ドラッグ＝フロービューと同じ操作）の埋め込みと全面表示で、更新時刻で読み直す |
 | `BarChart` / `ChartSeries` | ui/Charts.kt | 縦棒グラフ（積み上げ・並べ・凡例・マウスで値。ライブラリ Vico を包み、系列の色は Palette の `ChartReady` / `ChartPending` など意味で決める） |
 | `ReadinessPane` / `readinessChartData` | ui/ReadinessPane.kt | 準備完了レポート（台帳の「準備」タブ: タイル・型別とフェーズ別の図・エンティティの表、図のデータ整形は純ロジック） |
 | `SidePanel` | ui/SidePanel.kt | ID インスペクタ（検証・関係・出現の 3 タブ） |
@@ -40,6 +42,7 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 - **アプリ全体のショートカットはウィンドウで受ける**: 戻る／進む（`Alt+←` / `→`）・保存・Undo/Redo・コマンドパレットは `Window(onKeyEvent = …)`（`Main.kt` の `handleShortcut`）。部品の `Modifier.onKeyEvent` は焦点のある子がいるときにしか呼ばれず、ジャンプの直後のように焦点が無いときはキーが届かない。テキスト入力が自分で消費するキーは入力側が先に受ける。
 - **コマンドパレット**（Ctrl+K）: ID・タイトル移動・ファイル検索・本文検索（構造検索を未保存優先の loader で「見たまま」実行）・台帳ビュー切替・スペース切替・保存・ワークスペース切替。
 - **永続化**: UI レイアウト（ペイン幅・開閉）・テーマ・最近開いたファイルとワークスペース・閲覧専用モード・ファイル選択で最後に選んだ場所（用途ごと）は `Preferences`。
+- **画像の全面表示も「表示だけの文書」**: `AppState.openImage` は `openFile` が拡張子（`FilePath.isImage`）で振り分け、`NavLocation` の file に載る（戻る・進むの対象）。拡大率と位置は `ImageCanvas` の中の状態で、YAML には書かない。
 - **Markdown 文書と内蔵ヘルプは編集スペースの「表示だけの文書」**: `AppState.openMarkdown`（ワークスペース内の `.md`）と `openHelp`（資源 `help/` の題目）は `openDoc` と排他で、`openFile` が拡張子で振り分け、`NavLocation` に載るので戻る・進むの対象。Markdown は文書キャッシュに入れず、編集・Undo の対象にしない（編集は外部のエディタ。案 B＝アプリ内編集は需要待ち）。
 - **ファイル選択は OS ネイティブ**: `rememberDirectoryChooser` / `rememberFileChooser` が返す関数をボタンから呼ぶ。親ウィンドウは `Main.kt` の Window が `LocalDialogParentWindow` で渡す。Swing の `JFileChooser` は使わない。
 
