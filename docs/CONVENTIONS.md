@@ -16,6 +16,7 @@
 - **`Dispatchers.Main` は使わない**（本プロジェクトの classpath には Main dispatcher の提供モジュールがなく、実行時例外になる）。バックグラウンド処理からUIへ反映するときは、スナップショット状態（`mutableStateOf` / `mutableStateListOf`）を直接更新する——スナップショット状態はスレッド安全で、変更は次フレームの再コンポーズに反映される。
 - ツリーの変更は必ず `ctx.markEdited()`（または `doc.markEdited()`）とセットで行う。
 - 入力欄は `CompactTextField`、色は `Palette.*`、角丸は `PanelShape` を使う。生の `Color(0x...)` や Material 既定色をビューに直接書かない（テーマ切替が壊れるため）。
+- 等幅で見せる文字（YAML ソース・差分・ログ・サンプル）は `AppFonts.Mono`（同梱の Cica。ビルド時に取得して資源 `fonts/cica/` に入る）。`FontFamily.Monospace` を書かない（OS 任せで日本語と英数の幅が揃わず、OS ごとに見た目が変わる）。
 - 入力欄のプレースホルダーは呼び出し側で装飾しない（`Text("...")` のみ）。`CompactTextField` が「入力テキストと同サイズ・`Palette.SubText` 色」を一律に与える（画面ごとの濃さ・大きさのばらつき防止）。
 - 文字サイズの目安: 見出し 13–16sp、本文 12–13sp、補足 10–11sp。
 - 破壊的操作（削除・破棄・一括変更）は `AlertDialog` で確認し、確定ボタンの文言に `Palette.ErrorRed` を使う。

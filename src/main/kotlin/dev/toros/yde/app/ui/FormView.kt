@@ -14,7 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -395,7 +395,7 @@ private fun SameIdOccurrencesStrip(ctx: FormCtx, localIds: List<IdEntry>) {
                     .padding(vertical = 3.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Default.ArrowForward, contentDescription = null, Modifier.size(13.dp), tint = Palette.Primary)
+                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, Modifier.size(13.dp), tint = Palette.Primary)
                 Spacer(Modifier.width(6.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
@@ -534,7 +534,7 @@ private fun BacklinkItems(state: AppState, def: DocBacklinksDef, row: DocBacklin
                 .padding(vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Default.ArrowForward, contentDescription = null, Modifier.size(12.dp), tint = Palette.Primary)
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, Modifier.size(12.dp), tint = Palette.Primary)
             Spacer(Modifier.width(6.dp))
             Column(Modifier.weight(1f)) {
                 Text(
@@ -1222,7 +1222,7 @@ private fun RefJumpButton(
     Box {
         IconButton(enabled = enabled, onClick = { open = true }, modifier = Modifier.size(iconButtonSize)) {
             Icon(
-                Icons.Default.ArrowForward,
+                Icons.AutoMirrored.Filled.ArrowForward,
                 contentDescription = "参照先へ移動",
                 tint = if (enabled) Palette.Primary else Palette.Border,
                 modifier = Modifier.size(iconSize),
@@ -1271,7 +1271,7 @@ private fun DocRefScalarEditor(ctx: FormCtx, slot: Slot) {
             )
             if (resolved && documents.containsKey(current)) {
                 IconButton(onClick = { open(current) }, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.Default.ArrowForward, contentDescription = "文書を開く",
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "文書を開く",
                         tint = Palette.Primary, modifier = Modifier.size(16.dp))
                 }
             }
@@ -1344,7 +1344,7 @@ private fun DocRefScalarEditor(ctx: FormCtx, slot: Slot) {
             modifier = Modifier.size(38.dp),
         ) {
             Icon(
-                Icons.Default.ArrowForward,
+                Icons.AutoMirrored.Filled.ArrowForward,
                 contentDescription = "文書を開く",
                 tint = if (resolved) Palette.Primary else Palette.Border,
             )
@@ -1550,7 +1550,7 @@ private fun ObjectTable(
                     }
                 }
             }
-            Divider(color = Palette.Border, modifier = Modifier.width(rowWidth))
+            HorizontalDivider(color = Palette.Border, modifier = Modifier.width(rowWidth))
             rows.forEachIndexed { i, (segment, element) ->
                 var rowExpanded by remember(path, segment) { mutableStateOf(false) }
                 val rowPath = path + segment
@@ -1590,7 +1590,7 @@ private fun ObjectTable(
                         }
                     }
                 }
-                Divider(color = Palette.Border.copy(alpha = .4f), modifier = Modifier.width(rowWidth))
+                HorizontalDivider(color = Palette.Border.copy(alpha = .4f), modifier = Modifier.width(rowWidth))
             }
         }
         HorizontalScrollbar(
@@ -1865,7 +1865,7 @@ fun GenericEditor(ctx: FormCtx, slot: Slot, path: YPath, refHint: Boolean) {
                     // ジャンプは閲覧行為として残す（R10-04）
                     if (refHint && ctx.resolvable(text)) {
                         IconButton(onClick = { ctx.state.navigateToId(text) }, modifier = Modifier.size(28.dp)) {
-                            Icon(Icons.Default.ArrowForward, contentDescription = "定義へ移動",
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "定義へ移動",
                                 tint = Palette.Primary, modifier = Modifier.size(16.dp))
                         }
                     }
@@ -1892,7 +1892,7 @@ fun GenericEditor(ctx: FormCtx, slot: Slot, path: YPath, refHint: Boolean) {
                     if (refHint && ctx.resolvable(text)) {
                         IconButton(onClick = { ctx.state.navigateToId(text) }) {
                             Icon(
-                                Icons.Default.ArrowForward,
+                                Icons.AutoMirrored.Filled.ArrowForward,
                                 contentDescription = "定義へ移動",
                                 tint = Palette.Primary,
                             )

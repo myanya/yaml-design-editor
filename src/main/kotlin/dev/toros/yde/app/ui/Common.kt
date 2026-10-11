@@ -35,6 +35,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.platform.Font
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.Alignment
 import androidx.compose.material3.LocalTextStyle
@@ -90,6 +94,29 @@ object Palette {
     val Text get() = active.text
     val Folder get() = active.folder
     val ConflictBg get() = active.conflict
+}
+
+// ---------------------------------------------------------------- フォント
+
+/**
+ * アプリが同梱するフォント。等幅は Cica（OFL 1.1。ビルド時に取得して資源 fonts/cica/ に入れる＝build.gradle.kts の downloadFonts）。
+ * YAML ソース・差分・ログなど等幅で見せる文字は `FontFamily.Monospace`（OS 任せで日本語の幅が揃わない）でなく、ここを使う。
+ */
+object AppFonts {
+    /** 等幅。Regular と Bold を同梱し、斜体は描画時の合成に任せる。資源が無ければ OS の等幅に戻す（開発時に取得を飛ばした場合） */
+    val Mono: FontFamily by lazy {
+        val faces = listOf(
+            "fonts/cica/Cica-Regular.ttf" to FontWeight.Normal,
+            "fonts/cica/Cica-Bold.ttf" to FontWeight.Bold,
+        )
+        val loader = Thread.currentThread().contextClassLoader ?: AppFonts::class.java.classLoader
+        if (faces.all { (path, _) -> loader.getResource(path) != null }) {
+            FontFamily(faces.map { (path, weight) -> Font(resource = path, weight = weight, style = FontStyle.Normal) })
+        } else {
+            System.err.println("同梱フォント（fonts/cica/）が見つからないため OS の等幅フォントを使います。./gradlew processResources で取得できます")
+            FontFamily.Monospace
+        }
+    }
 }
 
 @Composable

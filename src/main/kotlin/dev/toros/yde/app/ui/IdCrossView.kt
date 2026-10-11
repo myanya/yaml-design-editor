@@ -12,7 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
@@ -360,7 +360,7 @@ private fun AspectCard(state: AppState, section: AspectSection) {
                 }
             }
             IconButton(onClick = { state.navigateToOccurrence(section.entry) }, modifier = Modifier.size(30.dp)) {
-                Icon(Icons.Default.ArrowForward, contentDescription = "開く", Modifier.size(16.dp), tint = Palette.Primary)
+                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "開く", Modifier.size(16.dp), tint = Palette.Primary)
             }
         }
         Spacer(Modifier.height(6.dp))
@@ -480,7 +480,7 @@ private fun RelationRow(main: String, sub: String, onClick: () -> Unit, onJump: 
             Text(sub, fontSize = 10.sp, color = Palette.SubText, maxLines = 1)
         }
         IconButton(onClick = onJump, modifier = Modifier.size(26.dp)) {
-            Icon(Icons.Default.ArrowForward, contentDescription = "参照箇所へ", Modifier.size(13.dp), tint = Palette.SubText)
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "参照箇所へ", Modifier.size(13.dp), tint = Palette.SubText)
         }
     }
 }
@@ -648,7 +648,7 @@ private fun OccurrenceCard(state: AppState, entry: IdEntry) {
                 }
             }
             IconButton(onClick = { state.navigateToOccurrence(entry) }, modifier = Modifier.size(30.dp)) {
-                Icon(Icons.Default.ArrowForward, contentDescription = "開く", Modifier.size(16.dp), tint = Palette.Primary)
+                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "開く", Modifier.size(16.dp), tint = Palette.Primary)
             }
         }
         Spacer(Modifier.height(6.dp))
@@ -668,7 +668,7 @@ private fun OccurrenceCard(state: AppState, entry: IdEntry) {
                     Modifier.fillMaxWidth().clickable { state.navigateToId(ref.targetId) }.padding(vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Icons.Default.ArrowForward, contentDescription = null, Modifier.size(12.dp), tint = Palette.Primary)
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, Modifier.size(12.dp), tint = Palette.Primary)
                     Spacer(Modifier.width(4.dp))
                     Text(
                         // 参照方向は label（R20-02）＋属性注記（R20-03）

@@ -15,7 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.OffsetMapping
@@ -161,7 +160,7 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
                     onValueChange = {},
                     readOnly = true,
                     textStyle = TextStyle(
-                        fontFamily = FontFamily.Monospace,
+                        fontFamily = AppFonts.Mono,
                         fontSize = 13.sp,
                         lineHeight = 19.sp,
                         textAlign = TextAlign.End,
@@ -176,7 +175,7 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
                     onValueChange = { updateText(it) },
                     visualTransformation = YamlSyntaxTransformation,
                     textStyle = TextStyle(
-                        fontFamily = FontFamily.Monospace,
+                        fontFamily = AppFonts.Mono,
                         fontSize = 13.sp,
                         lineHeight = 19.sp,
                         color = Palette.Text,

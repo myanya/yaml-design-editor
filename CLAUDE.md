@@ -8,13 +8,14 @@ Kotlin + Compose for Desktop 製のスキーマ駆動 YAML エディタ。ワー
 ./gradlew test                              # 単体テスト（コミット前に必ず実行）
 ./gradlew run                               # スタート画面で起動（履歴からワークスペース選択）
 ./gradlew run --args="/path/to/workspace"   # ワークスペース指定で起動
+./gradlew hotRun                            # 開発時: Compose Hot Reload 付きで起動（保存で画面に反映。JBR 21 は自動取得）
 ./gradlew runCli -q --args="help"           # ヘッドレス CLI（docs/manual/cli.md）
 ./gradlew runCli -q --args="version"        # バージョン表示（外部＝appVersion・内部＝yyyymmdd.ビルド番号）
 ./gradlew packageDistributionForCurrentOS   # 配布物作成
 scripts/docs-lint.sh                        # 文書の形の機械チェック
 ```
 
-要件: JDK 17+。GUI アプリのため `run` は対話的に閉じる必要がある（検証はテスト・ビルド・`runCli` で行う）。
+要件: JDK 17+。初回ビルドは等幅フォント Cica の取得でネットワークが要る。GUI アプリのため `run` / `hotRun` は対話的に閉じる必要がある（検証はテスト・ビルド・`runCli` で行い、画面の確認は `.mcp.json` の Hot Reload MCP サーバ＝スクリーンショット・クリック・入力で行える）。
 
 ## 文書
 
@@ -43,6 +44,7 @@ scripts/docs-lint.sh                        # 文書の形の機械チェック
 説明は docs/architecture/ の各ファイルの「規律」にある。
 
 - `YNode` は Compose の State ではない。ビューは `doc.version` / `state.indexVersion` を読んで購読する → architecture/ui.md「UI シェル」
+- 等幅の文字は `AppFonts.Mono`（同梱の Cica）。`FontFamily.Monospace` を書かない（OS 任せで日本語の幅が揃わない） → architecture/ui.md「規律」
 - UI は `state.index` でなく `state.overlayIndex()` を読み、`remember` のキーに `state.editVersion` を含める → architecture/index-references.md「索引の二層」
 - ディスク変更の取り込みの振り分けは `Workspace.noteDiskChanges` だけ。ディスクを映すセッションと編集用セッションは 1 つにまとめない → architecture/index-references.md「索引の二層」
 - 場所はワークスペース相対の `DocumentId`。`DocumentId == Path` は常に偽。`Validator` の `loader` を省くと他の文書を読まない → architecture/index-references.md「場所は文書ID」

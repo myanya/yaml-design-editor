@@ -15,10 +15,10 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.CreateNewFolder
-import androidx.compose.material.icons.filled.NoteAdd
+import androidx.compose.material.icons.automirrored.filled.NoteAdd
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.runtime.*
@@ -54,7 +54,7 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp) {
             Text("ファイル", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Palette.SubText,
                 modifier = Modifier.weight(1f))
             IconButton(onClick = { dialog = TreeDialog.NewFile }) {
-                Icon(Icons.Default.NoteAdd, "新規 YAML", Modifier.size(17.dp))
+                Icon(Icons.AutoMirrored.Filled.NoteAdd, "新規 YAML", Modifier.size(17.dp))
             }
             IconButton(onClick = { dialog = TreeDialog.NewDirectory }) {
                 Icon(Icons.Default.CreateNewFolder, "新規フォルダー", Modifier.size(17.dp))
@@ -170,7 +170,7 @@ private fun TreeRowItem(state: AppState, row: TreeRow, isExpanded: Boolean, tree
     ) {
         if (row.isDir) {
             Icon(
-                if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight,
+                if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
                 Modifier.size(16.dp),
                 tint = Palette.SubText,

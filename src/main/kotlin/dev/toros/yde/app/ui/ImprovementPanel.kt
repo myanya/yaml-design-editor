@@ -15,7 +15,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -163,7 +162,7 @@ fun ImprovementSection(state: AppState) {
                     .verticalScroll(rememberScrollState()),
             ) {
                 evalLog.forEach { line ->
-                    Text(line, fontFamily = FontFamily.Monospace, fontSize = 10.sp, color = Palette.SubText)
+                    Text(line, fontFamily = AppFonts.Mono, fontSize = 10.sp, color = Palette.SubText)
                 }
             }
         }

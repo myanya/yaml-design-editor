@@ -15,8 +15,8 @@ import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Undo
-import androidx.compose.material.icons.filled.Redo
+import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.History
@@ -268,7 +268,7 @@ fun AppRoot(
             },
             toggleLeft = { leftOpen = !leftOpen; uiPreferences.putBoolean("leftOpen", leftOpen) },
             toggleRight = { rightOpen = !rightOpen; uiPreferences.putBoolean("rightOpen", rightOpen) })
-        Divider(color = Palette.Border)
+        HorizontalDivider(color = Palette.Border)
         Row(Modifier.weight(1f).fillMaxWidth()) {
             // 実行スペースは定義が空でも常時表示する（UX-20。定義ゼロのときは RunsSpace の空状態が導線を案内する）
             ActivityRail(state, inboxCount, automation?.enabled == true)
@@ -301,7 +301,7 @@ fun AppRoot(
                 }
             }
         }
-        Divider(color = Palette.Border)
+        HorizontalDivider(color = Palette.Border)
         StatusBar(state, automation, inboxCount) { state.showSpace(UiSpace.RUNS) }
     }
     if (commandOpen) CommandPalette(
@@ -696,12 +696,12 @@ fun EditorArea(state: AppState) {
             // 開いていない文書も戻るため、ホバーで「次に何が戻るか」を操作前に予告する（UX-86）
             HistoryTooltip("元に戻す (Ctrl+Z)", state.undoPreview()) {
                 IconButton(enabled = state.canUndo(), onClick = state::undo, modifier = Modifier.size(34.dp)) {
-                    Icon(Icons.Default.Undo, "元に戻す (Ctrl+Z)", Modifier.size(17.dp))
+                    Icon(Icons.AutoMirrored.Filled.Undo, "元に戻す (Ctrl+Z)", Modifier.size(17.dp))
                 }
             }
             HistoryTooltip("やり直す (Ctrl+Y)", state.redoPreview()) {
                 IconButton(enabled = state.canRedo(), onClick = state::redo, modifier = Modifier.size(34.dp)) {
-                    Icon(Icons.Default.Redo, "やり直す (Ctrl+Y)", Modifier.size(17.dp))
+                    Icon(Icons.AutoMirrored.Filled.Redo, "やり直す (Ctrl+Y)", Modifier.size(17.dp))
                 }
             }
             Spacer(Modifier.width(4.dp))

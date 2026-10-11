@@ -16,7 +16,7 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Warning
@@ -269,7 +269,7 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(
-                            Icons.Default.ArrowForward, contentDescription = null,
+                            Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null,
                             Modifier.size(13.dp),
                             tint = if (resolvable) Palette.Primary else Palette.ErrorRed,
                         )
@@ -311,7 +311,7 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(
-                            Icons.Default.ArrowForward, contentDescription = null,
+                            Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null,
                             Modifier.size(13.dp), tint = Palette.SubText,
                         )
                         Spacer(Modifier.width(6.dp))
@@ -348,7 +348,7 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Icon(
-                                Icons.Default.ArrowForward, contentDescription = null,
+                                Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null,
                                 Modifier.size(13.dp), tint = Palette.SubText,
                             )
                             Spacer(Modifier.width(6.dp))
@@ -398,7 +398,7 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Icon(
-                                Icons.Default.ArrowForward, contentDescription = null,
+                                Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null,
                                 Modifier.size(13.dp),
                                 tint = if (isHere) Palette.SubText else Palette.Primary,
                             )

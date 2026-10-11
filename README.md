@@ -13,16 +13,18 @@ Kotlin + Compose for Desktop 製の、スキーマ駆動の YAML エディタで
 
 ## クイックスタート
 
-要件: JDK 17 以上。Gradle Wrapper を同梱しています。
+要件: JDK 17 以上。Gradle Wrapper を同梱しています。初回ビルドは等幅フォント Cica（約 23 MB）を GitHub から取得するためネットワーク接続が要ります（取得物は Gradle のユーザーホームに保存され、2 回目からは不要）。
 
 ```bash
 ./gradlew run                                    # スタート画面から開く
 ./gradlew run --args="path/to/workspace"         # ワークスペースを指定して開く
+./gradlew hotRun                                 # 開発時: Compose Hot Reload 付きで起動（コードを保存すると画面に反映）
 ./gradlew runCli -q --args="help"                # ヘッドレス CLI のコマンド一覧
 ./gradlew runCli -q --args="init my-ws --template ledger"   # テンプレートからワークスペースを作る
 ./gradlew packageDistributionForCurrentOS        # 配布物（msi / dmg / deb）
 ```
 
+- `hotRun` は JetBrains Runtime 21 を Gradle が自動で取得して使います（初回は時間がかかります）。起動中の画面を AI エージェントから操作する MCP サーバ（スクリーンショット・クリック・入力・再読込）は `.mcp.json` に Windows 向けの設定があり、mac / Linux では `cmd /c gradlew.bat` を `./gradlew` に読み替えてください
 - `samples/`: 公開用のサンプル（テーマ別に整備中）
 - `labs/`: 開発用の実験場。試作はここで作り、ある程度良いものができたら `samples/` へ置き直す。`labs/sysdev-template` は、会議室予約システムを題材に設計の機械的な検証を試せるワークスペース。`labs/kakeibo` は家計簿を題材に集計と残高の検査を試す試作
 

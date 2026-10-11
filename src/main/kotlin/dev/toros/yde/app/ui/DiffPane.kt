@@ -14,7 +14,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.toros.yde.app.OpenDocument
@@ -156,7 +155,7 @@ internal fun DiffLineRow(line: DiffLine) {
 @Composable
 private fun DiffCell(number: Int?, text: String?, blankOnlyChange: Boolean, emphasis: IntRange?, modifier: Modifier) {
     Row(modifier.padding(vertical = 1.dp)) {
-        Text(number?.toString().orEmpty(), fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = Palette.SubText,
+        Text(number?.toString().orEmpty(), fontFamily = AppFonts.Mono, fontSize = 11.sp, color = Palette.SubText,
             modifier = Modifier.width(36.dp).padding(end = 6.dp))
         val displayedText = if (blankOnlyChange && text != null && text.isBlank()) "· 空行" else text.orEmpty()
         val annotated = if (emphasis != null && !emphasis.isEmpty() && displayedText == text) {
@@ -169,7 +168,7 @@ private fun DiffCell(number: Int?, text: String?, blankOnlyChange: Boolean, emph
                 )
             }
         } else AnnotatedString(displayedText)
-        Text(annotated, fontFamily = FontFamily.Monospace, fontSize = 11.sp,
+        Text(annotated, fontFamily = AppFonts.Mono, fontSize = 11.sp,
             color = if (blankOnlyChange) Palette.SubText.copy(alpha = .75f) else Palette.Text,
             modifier = Modifier.weight(1f))
     }

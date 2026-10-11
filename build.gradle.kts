@@ -1,11 +1,14 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import java.net.URI
+import java.security.MessageDigest
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.util.zip.ZipInputStream
 
 plugins {
-    kotlin("jvm") version "2.0.21"
-    id("org.jetbrains.kotlin.plugin.compose") version "2.0.21"
-    id("org.jetbrains.compose") version "1.7.3"
+    kotlin("jvm") version "2.4.21"
+    id("org.jetbrains.kotlin.plugin.compose") version "2.4.21"
+    id("org.jetbrains.compose") version "1.12.1"
 }
 
 group = "dev.toros"
@@ -46,8 +49,10 @@ dependencies {
     implementation(project(":yaml-core"))
 
     implementation(compose.desktop.currentOs)
-    implementation(compose.material3)
-    implementation(compose.materialIconsExtended)
+    // Material3 は CMP 1.9 から本体と別の版（別名 compose.material3 は非推奨）。安定版を直接指定する
+    implementation("org.jetbrains.compose.material3:material3:1.9.0")
+    // Material Icons（拡張）は 1.7.3 で凍結された配布物（更新されない。移行先は Material Symbols＝BACKLOG）
+    implementation("org.jetbrains.compose.material:material-icons-extended:1.7.3")
     implementation("org.yaml:snakeyaml:2.3")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("org.apache.poi:poi-ooxml:5.3.0")   // Excel(xlsx)のインポート・エクスポート（skill機構）
@@ -77,6 +82,54 @@ val generateBuildInfo by tasks.registering {
 }
 sourceSets["main"].resources.srcDir(buildInfoDir)
 tasks.named("processResources") { dependsOn(generateBuildInfo) }
+
+// 等幅フォント Cica の同梱（ui/Common.kt の AppFonts.Mono）。TTF は git に入れない（.gitignore の *.ttf）ので、
+// ビルド時に配布物を取得して検証し、資源（fonts/cica/）へ入れる。取得した zip は Gradle のユーザーホームに置き、clean でも消えない
+val cicaVersion = "5.0.3"
+val cicaZipUrl = "https://github.com/miiton/Cica/releases/download/v$cicaVersion/Cica_v$cicaVersion.zip"
+val cicaSha256 = "cbd1bcf1f3fd1ddbffe444369c76e42529add8538b25aeb75ab682d398b0506f"
+val cicaFiles = listOf("Cica-Regular.ttf", "Cica-Bold.ttf", "LICENSE.txt", "COPYRIGHT.txt")
+val fontsDir = layout.buildDirectory.dir("generated/fonts")
+val downloadFonts by tasks.registering {
+    description = "等幅フォント Cica を取得して資源（fonts/cica/）に入れる"
+    val cache = File(gradle.gradleUserHomeDir, "caches/yaml-design-editor/Cica_v$cicaVersion.zip")
+    val url = cicaZipUrl
+    val sha = cicaSha256
+    val files = cicaFiles
+    val outDir = fontsDir.map { it.dir("fonts/cica").asFile }
+    inputs.property("url", url)
+    inputs.property("sha256", sha)
+    inputs.property("files", files)
+    outputs.dir(fontsDir)
+    doLast {
+        fun sha256(f: File): String =
+            MessageDigest.getInstance("SHA-256").digest(f.readBytes()).joinToString("") { "%02x".format(it) }
+        if (!cache.exists() || sha256(cache) != sha) {
+            cache.parentFile.mkdirs()
+            runCatching {
+                URI(url).toURL().openStream().use { input -> cache.outputStream().use { input.copyTo(it) } }
+            }.getOrElse { throw GradleException("フォント Cica の取得に失敗しました（$url）。ネットワーク接続を確認してください", it) }
+            val actual = sha256(cache)
+            if (actual != sha) {
+                cache.delete()
+                throw GradleException("フォント Cica の検証に失敗しました（sha256 が一致しません: $actual）")
+            }
+        }
+        val out = outDir.get()
+        out.deleteRecursively()
+        out.mkdirs()
+        ZipInputStream(cache.inputStream()).use { zin ->
+            generateSequence { zin.nextEntry }.forEach { entry ->
+                val name = entry.name.substringAfterLast('/')
+                if (!entry.isDirectory && name in files) out.resolve(name).outputStream().use { zin.copyTo(it) }
+            }
+        }
+        val missing = files.filter { !out.resolve(it).exists() }
+        if (missing.isNotEmpty()) throw GradleException("フォント Cica の配布物に $missing がありません")
+    }
+}
+sourceSets["main"].resources.srcDir(fontsDir)
+tasks.named("processResources") { dependsOn(downloadFonts) }
 
 // ヘッドレスCLI（UIなしでカタログ・検索・パッチ・検証を実行する）
 // 例: ./gradlew runCli --args="catalog samples/sample-workspace" -q

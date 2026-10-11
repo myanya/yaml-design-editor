@@ -15,7 +15,7 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 | `FormView` / `FormCtx` / `ObjectFields` / `FieldRow` | ui/FormView.kt | スキーマ駆動フォームと汎用エディタ（中核 UI） |
 | `FlowViewPane` / `EmbeddedFlowPane` | ui/FlowViewPane.kt | 図と原本フォームを併記する単独・埋め込み表示（[views](views.md)） |
 | `ObjectTable` / `ArrayTable` / `MapTable` / `tableColumnWidths` | ui/FormView.kt | 配列と map のテーブル表示 |
-| `Highlightable` / `slotAt` / `CompactTextField` / `Palette` / `PanelShape` | ui/Common.kt | ハイライトとスクロール・Slot の解決・共通の入力欄と色と角丸 |
+| `Highlightable` / `slotAt` / `CompactTextField` / `Palette` / `PanelShape` / `AppFonts` | ui/Common.kt | ハイライトとスクロール・Slot の解決・共通の入力欄と色と角丸・同梱フォント（等幅 Cica。資源が無ければ OS の等幅へ戻す） |
 | `SidePanel` | ui/SidePanel.kt | ID インスペクタ（検証・関係・出現の 3 タブ） |
 | `FileTreePane` / `SourcePane` / `DiffPane` / `SchemaEditor` / `IdCrossView` / `ViewGridPane` / `WorkspaceViews` / `AiGenerationDialog` / `AutomationPanel` / `ImprovementPanel` / `SkillsPanel` | ui/ | 各ペイン |
 | `SourceHighlight` / `GraphLayout` / `DiffPane.calculateDiff` | ui/ | テスト可能な純ロジック（YAML トークナイザと置換・力学レイアウト・差分） |
@@ -73,6 +73,7 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 - 新しく畳みを持つ UI は `FormCtx.highlightInside` の判定を入れる。
 - `Dispatchers.Main` は使わない。バックグラウンドから UI へ反映するときはスナップショット状態を直接更新する（CONVENTIONS「Compose UI の書き方」）。
 - 入力欄は `CompactTextField`、色は `Palette.*`、角丸は `PanelShape`。生の色や Material 既定色をビューに直接書かない。
+- 等幅の文字は `AppFonts.Mono`（同梱の Cica。TTF は git に入れず、build.gradle.kts の `downloadFonts` がビルド時に取得して資源 `fonts/cica/` に入れる）。`FontFamily.Monospace` を書かない。
 - テストしたいロジックはコンポーザブルから純粋関数へ切り出して `internal` にする。
 
 ## 拡張ポイント

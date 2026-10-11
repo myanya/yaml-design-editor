@@ -37,12 +37,13 @@ YAML で設計項目（要求・設計・課題など）を管理するための
 
 ## ビルドと起動
 
-要件: **JDK 17以上**。Gradle Wrapper（Gradle 9.3.0）を同梱しています。
+要件: **JDK 17以上**。Gradle Wrapper（Gradle 9.3.0）を同梱しています。初回のビルドは、ソース・差分などに使う等幅フォント Cica（約 23 MB）を GitHub から取得するためネットワーク接続が要ります（2 回目からは不要）。
 
 ```bash
 cd yaml-design-editor
 ./gradlew run                                  # スタート画面から履歴・選択でワークスペースを開く
 ./gradlew run --args="/path/to/your/workspace" # 任意のワークスペースを指定して起動
+./gradlew hotRun                               # 開発者向け: Compose Hot Reload 付きで起動（JetBrains Runtime 21 を自動取得）
 ```
 
 配布物の作成:

@@ -14,7 +14,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.toros.yde.app.OpenDocument
@@ -278,7 +277,7 @@ private fun SchemaPreview(state: AppState, sourceDoc: OpenDocument, schema: Sche
         }
         if (source) {
             val scroll = rememberScrollState()
-            Text(sampleText, fontFamily = FontFamily.Monospace, fontSize = 12.sp, color = Palette.Text,
+            Text(sampleText, fontFamily = AppFonts.Mono, fontSize = 12.sp, color = Palette.Text,
                 modifier = Modifier.fillMaxSize().verticalScroll(scroll).background(Palette.EditorBg).padding(12.dp))
         } else Box(Modifier.weight(1f).fillMaxWidth()) { FormView(state, previewDoc) }
     }

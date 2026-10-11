@@ -100,6 +100,7 @@
 | P33 | ユーザ定義の型（値型 → オブジェクト型） | 第一弾〜第三弾 完了（2026-10-03）。残りは BACKLOG の個別項目 |
 | P34 | 保存時に自動で入る値（更新日・作成日・版） | 完了（2026-10-04）。残りは BACKLOG の個別項目 |
 | P35 | 汎用フロービュー | 初期範囲完了、検証と制約は [記録](archive/flow-view.md) |
+| P36 | GUI のリッチ化（Compose Multiplatform のライブラリ活用） | 段階 0（土台の更新）完了（2026-10-11）。段階 1〜2 はオーナー判断（下記） |
 
 ## 未完のテーマ
 
@@ -284,6 +285,15 @@ definitions:
 - **E1** 第一弾で `text` を組込みの定義体へ移す。**決定（2026-10-01 オーナー「OK」。同日着手）**。
   - `text` の拡張の形: `text: { type: string, description: 複数行の文字列 }`。検証は `string` と同じ（今も改行を含む値はエラーにならない。「1 行」は編集のヒントであって決まりではない）。違いは「複数行で編集する」印だけで、第一弾は印を名前で持つ（UI は連鎖に `text` があれば複数行の欄）、第二弾で印を型に書くヒントの語にし、UI は名前でなくヒントで判定する。
 - **E2** ref の狭め方は「`idPatterns` は重ね合わせ・`scope` は共通部分」。**決定（2026-10-01 オーナー）**。`業務データ型参照` を使う側で `idPattern: "DT-MAIL-*"` とさらに絞れる。
+
+### P36: GUI のリッチ化（Compose Multiplatform のライブラリ活用）
+
+- **目的**: 標準部品だけで組んだ UI を、Compose Multiplatform 向けのライブラリと、使っていない標準機能で、より豊かな操作体験へ移す。設計の決まり（モーダル禁止・書込は Slot 経路・履歴の単一所有・コアに重い依存を入れない）は変えない。
+- **完了（段階 0・土台）**: Compose Multiplatform 1.7.3 → 1.12.1、Kotlin 2.0.21 → 2.4.21（Material3 1.9.0 と Material Icons 1.7.3 は直接指定）。Compose Hot Reload 1.2.0 と MCP サーバ（`hotRun`・`.mcp.json`）。等幅フォント Cica の同梱（`AppFonts.Mono`。ビルド時に取得）。非推奨 API の機械的な置換（`HorizontalDivider`・AutoMirrored アイコン）。
+- **残り（段階 1・ライブラリ）**: ビューグリッドとクロス集計の固定列と 2 次元の仮想化（LazyTable）、説明文・エージェントの質問とレビュー・内蔵ヘルプの Markdown 表示（multiplatform-markdown-renderer）、OS ネイティブのファイル選択（FileKit）、配列要素のドラッグ並べ替え（Reorderable）、日付項目のカレンダー（Material3 DatePicker）、準備完了レポートと検証集計のグラフ（Koala Plot。BACKLOG UX-102）。
+- **残り（段階 2・標準機能）**: 右クリックメニュー、全アイコンボタンのツールチップ、MenuBar、Tray と OS 通知、畳みとハイライトのアニメーション、ウィンドウの位置・大きさの記憶（Window API v2）、ドラッグ＆ドロップ。
+- **見送り・条件付き**: Jewel（IDE 風への全面移行。テーマの二重化）、ELK（フロー図の配置。`FlowLayout` は semantic-core で CLI と座標を共有）、コードエディタ系ライブラリ（YAML 対応なし。自前の `BasicTextField` を `TextFieldState` 版へ）、SplitPane とツリー部品（自前で十分）、Haze（beta）。
+- **残る判断**: 段階 1 の最初の一手（LazyTable か Markdown）、見た目の方向（Material3 ＋独自パレットのまま磨く＝推奨）、UI 用の可変幅フォントの同梱（BACKLOG UX-148）。
 
 ## リスクと未解決課題
 

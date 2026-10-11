@@ -11,6 +11,10 @@ UX試験・レビュー・開発中に見つかった「今のタスクとは本
 
 | ID | 起点 | 指摘 | 技術メモ（対応の当たり） | 状態 | 対応先 |
 |---|---|---|---|---|---|
+| UX-148 | 2026-10-11 P36 段階 0 | **UI 用の可変幅フォントを同梱するか**（等幅は Cica を同梱済み。見出し・本文は OS 任せのままで、Windows と mac で見た目が揃わない） | 候補は Noto Sans JP / BIZ UDPGothic。同梱するなら `downloadFonts` と同じ経路で取得し `AppTheme` の `Typography` に当てる。オーナーの好みで決める | 💬 | — |
+| UX-147 | 2026-10-11 P36 段階 0 | **Material Icons（拡張）が 1.7.3 で凍結**され更新されない（CMP 1.8 以降の案内は Material Symbols＝ベクタ資源への移行） | `Icons.Default.*` の約 55 箇所が対象。Material Symbols へ移すか、必要なアイコンだけ SVG 資源にする。P36 段階 2（標準機能の活用）と合わせて | 📋 | — |
+| UX-146 | 2026-10-11 P36 段階 0 | **`TabRow` が非推奨**（`PrimaryTabRow` / `SecondaryTabRow` へ。台帳・実行・スキーマ設計・右パネル・エディタの 5 箇所）と **`LocalClipboardManager` が非推奨**（`LocalClipboard`＝suspend 版へ。スキーマ設計のコピー） | 置き換えるとタブの下線の描き方が変わるため見た目を確かめて進める。クリップボードは `rememberCoroutineScope` 経由に | 📋 | — |
+| UX-145 | 2026-10-11 P36 段階 0 | **Hot Reload の MCP 設定（`.mcp.json`）が Windows 向け**（`cmd /c gradlew.bat`）で、mac / Linux では `./gradlew` に読み替えが要る | Claude Code の `.mcp.json` は OS ごとの切替を持たない。利用者側の設定で上書きするか、OS を判定する起動スクリプトを 1 枚挟む | 📋 | — |
 | UX-144 | 2026-10-11 関係一覧の作成 | 値の式で導出した配列のグリッドセルは件数だけが表示される | `ComputedCellLink`が`cellText`を使うため、通常の参照配列のように内容を要約しない。来歴の遷移を保ちつつ値の要約表示を検討する | 📋 | — |
 | UX-143 | 2026-10-11 フロー改名検証 | `type: line`等を含むスキーマの項目改名で組込み型の解決に失敗する | `lookupChild`の兄弟走査から`derefChain`へ入りbuiltin-typesが見つからないため、BZFLのactivities改名でも再現 | 📋 | — |
 | UX-142 | 2026-10-11 フロー設計レビュー | `transform --input`の来歴が相対DocumentIdでない | `Cli.kt`で解決したPathをそのまま渡すため、WS内は絶対パスになる。WS内の相対化とWS外入力の扱いを分けて検討する | 📋 | — |

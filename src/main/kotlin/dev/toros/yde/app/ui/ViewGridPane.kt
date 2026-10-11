@@ -14,7 +14,7 @@ import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Hub
@@ -287,7 +287,7 @@ private fun GridBody(state: AppState, view: ViewDef) {
         if (view.detail != null) GridHeaderCell("詳細", DETAIL_WIDTH)
         GridHeaderCell("状態", STATUS_WIDTH)
     }
-    Divider(color = Palette.Border)
+    HorizontalDivider(color = Palette.Border)
     Box(Modifier.fillMaxSize()) {
         val listState = rememberLazyListState()
         LazyColumn(
@@ -307,7 +307,7 @@ private fun GridBody(state: AppState, view: ViewDef) {
                     if (view.detail != null) DetailCell(state, view, row)
                     StatusCell(state, row)
                 }
-                Divider(color = Palette.Border.copy(alpha = .4f))
+                HorizontalDivider(color = Palette.Border.copy(alpha = .4f))
             }
         }
         VerticalScrollbar(rememberScrollbarAdapter(listState), Modifier.align(Alignment.CenterEnd).fillMaxHeight())
@@ -579,7 +579,7 @@ private fun DetailCell(state: AppState, view: ViewDef, row: ViewRow) {
                     state.workspace?.let { state.openFile(it.resolve(detailRel), row.detailPath) }
                 },
             ) {
-                Icon(Icons.Default.ArrowForward, contentDescription = null, Modifier.size(13.dp), tint = Palette.Primary)
+                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, Modifier.size(13.dp), tint = Palette.Primary)
                 Spacer(Modifier.width(4.dp))
                 Text(detailRel.substringAfterLast('/'), fontSize = 11.sp, color = Palette.Primary, maxLines = 1)
             }
