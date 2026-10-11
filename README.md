@@ -13,7 +13,7 @@ Kotlin + Compose for Desktop 製の、スキーマ駆動の YAML エディタで
 
 ## クイックスタート
 
-要件: JDK 17 以上。Gradle Wrapper を同梱しています。初回ビルドは等幅フォント Cica（約 23 MB）を GitHub から取得するためネットワーク接続が要ります（取得物は Gradle のユーザーホームに保存され、2 回目からは不要）。
+要件: JDK 21（`./gradlew` を動かす JDK は 17 以上で構いません。ビルドと実行に使う JDK 21 は無ければ Gradle が自動で取得します）。Gradle Wrapper を同梱しています。初回ビルドは等幅フォント Cica（約 23 MB）を GitHub から取得するためネットワーク接続が要ります（取得物は Gradle のユーザーホームに保存され、2 回目からは不要）。
 
 ```bash
 ./gradlew run                                    # スタート画面から開く

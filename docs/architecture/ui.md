@@ -23,13 +23,15 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 | `MarkdownView` / `openExternally` | ui/MarkdownView.kt | Markdown の描画（ライブラリ multiplatform-markdown-renderer を包む。色と文字は Palette） |
 | `MarkdownPane` / `resolveMarkdownLink` | ui/MarkdownPane.kt | Markdown 文書と内蔵ヘルプの表示（表示とソースの 2 タブ・リンクの行き先の判定は純ロジック） |
 | `Help` | app/Help.kt | 内蔵ヘルプの題目と本文（ビルド時に資源 `help/` へ入れた利用者マニュアル） |
+| `BarChart` / `ChartSeries` | ui/Charts.kt | 縦棒グラフ（積み上げ・並べ・凡例・マウスで値。ライブラリ Vico を包み、系列の色は Palette の `ChartReady` / `ChartPending` など意味で決める） |
+| `ReadinessPane` / `readinessChartData` | ui/ReadinessPane.kt | 準備完了レポート（台帳の「準備」タブ: タイル・型別とフェーズ別の図・エンティティの表、図のデータ整形は純ロジック） |
 | `SidePanel` | ui/SidePanel.kt | ID インスペクタ（検証・関係・出現の 3 タブ） |
 | `FileTreePane` / `SourcePane` / `DiffPane` / `SchemaEditor` / `IdCrossView` / `ViewGridPane` / `WorkspaceViews` / `AiGenerationDialog` / `AutomationPanel` / `ImprovementPanel` / `SkillsPanel` | ui/ | 各ペイン |
 | `SourceHighlight` / `GraphLayout` / `DiffPane.calculateDiff` | ui/ | テスト可能な純ロジック（YAML トークナイザと置換・力学レイアウト・差分） |
 
 ## UI シェル
 
-- **スペースは `app.UiSpace`（EDIT / LEDGER / RUNS / DESIGN）**。`workspaceView`（0=文書, 1=一覧, 2=グラフ, 3=エンティティ, 4=ビューグリッド, 5=フロー）は文書世界の下位ビュー。両者の同期は AppState のナビゲーション系メソッドが担い、ジャンプは常に EDIT（view 0）／LEDGER（view 1〜5）へ着地する。レール以外から `uiSpace` を直接書き換えない。
+- **スペースは `app.UiSpace`（EDIT / LEDGER / RUNS / DESIGN）**。`workspaceView`（0=文書, 1=一覧, 2=グラフ, 3=エンティティ, 4=ビューグリッド, 5=フロー, 6=準備完了レポート）は文書世界の下位ビュー。両者の同期は AppState のナビゲーション系メソッドが担い、ジャンプは常に EDIT（view 0）／LEDGER（view 1〜5）へ着地する。レール以外から `uiSpace` を直接書き換えない。
 - **スペースの移動も「戻る・進む」の対象**: `NavLocation` はスペースを含み、`showSpace` / `showWorkspaceView` / `openCrossView` / `openViewGrid` も履歴に積む。復元は EDIT＝ファイル＋ハイライト、LEDGER＝下位ビュー＋選択 ID、RUNS / DESIGN＝スペースのみ。同じ場所の再選択は積まない。新しい移動で「進む」履歴は破棄。削除済みファイルは読み飛ばし、ワークスペース切替でクリア（`NavigationHistoryTest`）。
 - **モーダルの新設禁止（確認ダイアログを除く）**: エージェント実行・自動化・計測評価・skill 操作は実行／設計スペースの常設画面。AlertDialog は破壊的操作と承認の確認だけ。エージェントの質問もモーダルにせず非モーダルカード。気づきはレールとステータスバーのバッジ。
 - **エージェント実行の状態は `RunController`**（AppRoot 生存期間・ワークスペース単位）。スペースを切り替えて実行画面がコンポジションから外れても状態が失われない。
@@ -87,7 +89,8 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 - 入力欄は `CompactTextField`、色は `Palette.*`、角丸は `PanelShape`。生の色や Material 既定色をビューに直接書かない。
 - 等幅の文字は `AppFonts.Mono`（同梱の Cica。TTF は git に入れず、build.gradle.kts の `downloadFonts` がビルド時に取得して資源 `fonts/cica/` に入れる）。`FontFamily.Monospace` を書かない。
 - 外部の UI ライブラリは ui/ の 1 ファイルで包み、その型を他のファイルへ出さない（FileKit＝FilePickers.kt・Reorderable＝Reorder.kt・Markdown＝MarkdownView.kt）。差し替えるときはその 1 ファイルだけを書き換える。
-- 表は `VirtualTable`、Markdown は `MarkdownView`、ファイル選択は `rememberDirectoryChooser` / `rememberFileChooser`、並べ替えは `ReorderableList` を使い、画面ごとに作り直さない。
+- 表は `VirtualTable`、Markdown は `MarkdownView`、ファイル選択は `rememberDirectoryChooser` / `rememberFileChooser`、並べ替えは `ReorderableList`、グラフは `BarChart`（Vico を包む）を使い、画面ごとに作り直さない。
+- 図の色は意味で決め、色だけに頼らない（凡例・アイコン・表を添える）。系列の色の組は色覚の差も含めて見分けられるかを確かめてから Palette に足す（準備完了＝`ChartReady`・未完＝`ChartPending`）。
 - テストしたいロジックはコンポーザブルから純粋関数へ切り出して `internal` にする。
 
 ## 拡張ポイント

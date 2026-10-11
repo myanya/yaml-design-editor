@@ -100,7 +100,7 @@
 | P33 | ユーザ定義の型（値型 → オブジェクト型） | 第一弾〜第三弾 完了（2026-10-03）。残りは BACKLOG の個別項目 |
 | P34 | 保存時に自動で入る値（更新日・作成日・版） | 完了（2026-10-04）。残りは BACKLOG の個別項目 |
 | P35 | 汎用フロービュー | 初期範囲完了、検証と制約は [記録](archive/flow-view.md) |
-| P36 | GUI のリッチ化（Compose Multiplatform のライブラリ活用） | 段階 0（土台）と段階 1 の 5 項目（表・Markdown 表示・ファイル選択・並べ替え・日付）完了（2026-10-11）。グラフの選定と段階 2 は残り（下記） |
+| P36 | GUI のリッチ化（Compose Multiplatform のライブラリ活用） | 段階 0（土台）と段階 1 の 6 項目（表・Markdown 表示・ファイル選択・並べ替え・日付・グラフ）完了（2026-10-11）。段階 2 は残り（下記） |
 
 ## 未完のテーマ
 
@@ -292,10 +292,10 @@ definitions:
 - **完了（段階 0・土台）**: Compose Multiplatform 1.7.3 → 1.12.1、Kotlin 2.0.21 → 2.4.21（Material3 1.9.0 と Material Icons 1.7.3 は直接指定）。Compose Hot Reload 1.2.0 と MCP サーバ（`hotRun`・`.mcp.json`）。等幅フォント Cica の同梱（`AppFonts.Mono`。ビルド時に取得）。非推奨 API の機械的な置換（`HorizontalDivider`・AutoMirrored アイコン）。
 - **完了（段階 1・表と Markdown）**: 共通の表 `VirtualTable`（自前。ID 列と見出しの固定・見える列だけ組み立てる。ビューグリッドと一覧ビュー）、Markdown の表示（ワークスペース内の `.md` をツリーに出して表示・項目と文書の説明・内蔵ヘルプ＝利用者マニュアルの同梱。ライブラリは `MarkdownView` に閉じる）。
 - **完了（段階 1・入力）**: OS ネイティブのファイル選択と最後に選んだ場所の記憶（FileKit を `FilePickers` に閉じる）、配列のドラッグ並べ替え（取っ手方式。Reorderable を `ReorderableList` に閉じる）、日付・時刻のピッカー（Material3 の DatePicker / TimeInput をポップアップで）。
-- **残り（グラフ）**: 準備完了レポートと検証集計の図。候補の比較は済み（第一候補 Vico 3、次点 Koala Plot。Lets-Plot は規模が大きくなったら。自前 Canvas は棒だけなら）。ビュー機能の充実と合わせてオーナーが判断する。
+- **完了（段階 1・グラフ）**: Vico 3 を `BarChart` に閉じ、準備完了レポートの画面（台帳の「準備」タブ）を作った（タイル・型別とフェーズ別の積み上げ棒・エンティティの表）。候補の比較は Koala Plot・Lets-Plot・Compose Charts・自前 Canvas と行い、保守の活発さと軽さで Vico を選んだ。
 - **残り（段階 2・標準機能）**: 右クリックメニュー、全アイコンボタンのツールチップ、MenuBar、Tray と OS 通知、畳みとハイライトのアニメーション、ウィンドウの位置・大きさの記憶（Window API v2）、ドラッグ＆ドロップ。
 - **見送り・条件付き**: Jewel（IDE 風への全面移行。テーマの二重化）、ELK（フロー図の配置。`FlowLayout` は semantic-core で CLI と座標を共有）、コードエディタ系ライブラリ（YAML 対応なし。自前の `BasicTextField` を `TextFieldState` 版へ）、SplitPane とツリー部品（自前で十分）、Haze（beta）。
-- **残る判断**: グラフのライブラリ（上記）、見た目の方向（Material3 ＋独自パレットのまま磨く＝推奨）、UI 用の可変幅フォントの同梱（BACKLOG UX-148）、Markdown のアプリ内編集（案 B。BACKLOG UX-149）。
+- **残る判断**: 見た目の方向（Material3 ＋独自パレットのまま磨く＝推奨）、UI 用の可変幅フォントの同梱（BACKLOG UX-148）、Markdown のアプリ内編集（案 B。BACKLOG UX-149）、図を足す場所（検証集計・計測評価・bench）。
 
 ## リスクと未解決課題
 

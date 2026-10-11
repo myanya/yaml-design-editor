@@ -60,6 +60,8 @@ private data class AppPalette(
     val surface: Color, val border: Color, val selected: Color, val highlight: Color,
     val error: Color, val warning: Color, val success: Color, val subText: Color,
     val text: Color, val folder: Color, val conflict: Color,
+    /** グラフの系列色（準備完了＝青・未完＝橙）。色覚の差も含めて見分けられる組を検証して選んだ（明暗で別の値） */
+    val chartReady: Color, val chartPending: Color,
 )
 
 object Palette {
@@ -69,6 +71,7 @@ object Palette {
         selected = Color(0xFFD6F2F5), highlight = Color(0x5544D7E8), error = Color(0xFFBA1A1A),
         warning = Color(0xFF9A6700), success = Color(0xFF237A4B), subText = Color(0xFF52656B),
         text = Color(0xFF172124), folder = Color(0xFF8B6F3D), conflict = Color(0xFFFFF2CC),
+        chartReady = Color(0xFF1B6F9E), chartPending = Color(0xFFB36B00),
     )
     private val dark = AppPalette(
         primary = Color(0xFF56D6E7), secondary = Color(0xFFCAB7FF), panel = Color(0xFF101A20),
@@ -76,6 +79,7 @@ object Palette {
         selected = Color(0xFF173B44), highlight = Color(0x5544D7E8), error = Color(0xFFFFB4AB),
         warning = Color(0xFFFFD166), success = Color(0xFF72D5A3), subText = Color(0xFF9DB0B7),
         text = Color(0xFFE0F0F4), folder = Color(0xFFD2B36C), conflict = Color(0xFF3B3218),
+        chartReady = Color(0xFF3A86C8), chartPending = Color(0xFFB07A1A),
     )
     private var active = light
     fun useDark(enabled: Boolean) { active = if (enabled) dark else light }
@@ -94,6 +98,8 @@ object Palette {
     val Text get() = active.text
     val Folder get() = active.folder
     val ConflictBg get() = active.conflict
+    val ChartReady get() = active.chartReady
+    val ChartPending get() = active.chartPending
 }
 
 // ---------------------------------------------------------------- フォント

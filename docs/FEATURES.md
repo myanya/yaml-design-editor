@@ -93,6 +93,7 @@
 | V-11 | 網羅マトリクス（`matrix`・行 × 列の全組合せに証人があること・組込み定義体で `forAll` へ展開） | `builtin-definitions/matrix.yaml` | 単体 `MatrixTest` | [checks](architecture/checks.md) |
 | V-12 | 遷移検証（`flow`・到達不能・行き止まり・宣言外遷移・到達の計算は専用チェッカーで文面と重大度は定義体） | `semantic-core/semantic/Flow.kt`, `builtin-definitions/flow.yaml` | 単体 `FlowTest` | [checks](architecture/checks.md) |
 | V-13 | 準備完了レポート（CLI `readiness`・指摘をエンティティへ帰属しエラー 0 で準備完了・型別とフェーズ別の集計） | `validate/Readiness.kt`, `core/Cli.kt` | 単体 `ReadinessTest` | [checks](architecture/checks.md) |
+| V-21 | 準備完了レポートの画面（台帳の「準備」タブ・件数のタイル・型別とフェーズ別の積み上げ棒・エンティティの表から横ぐしへ・保存済みの内容で判定） | `ui/ReadinessPane.kt`, `ui/Charts.kt`（`BarChart`）, `AppState.readinessReport` | 単体 `ReadinessChartTest` | [ui](architecture/ui.md) |
 | V-14 | 検査の定義と語彙の定義（`constraints` の `use` ＋ `with`・`functions`・`vocabulary`・組込みは特権を持たない・CLI `checks`） | `semantic-core/schema/CheckDefinitions.kt`, `workspace-core/workspace/CheckCatalog.kt` | 単体 `CheckDefinitionsTest`, `CheckDefinitionTest` | [checks](architecture/checks.md) |
 | V-15 | 検査の結果の 4 つと指摘の出どころ（違反・充足・保留・対象外・`IssueSource`・保留は `withheld`・CLI `validate --sources`） | `semantic-core/semantic/CheckResults.kt`, `workspace-core/validate/CodedChecks.kt` | 単体 `SemanticRulesTest`, `CheckOutcomeTest` | [checks](architecture/checks.md) |
 | V-16 | クエリの線の意味（参照を書いた要素は最も内側の ID を持つ要素・入れ子の線 `contains`・`via`） | `semantic-core/semantic/Graph.kt`（`ownRefs`）, `semantic-core/schema/Query.kt`（`viaMatches`） | 単体 `QueryNestingTest`, `PreviewValidationTest` | [graph-query](architecture/graph-query.md) |

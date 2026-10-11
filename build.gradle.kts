@@ -57,6 +57,7 @@ dependencies {
     implementation("io.github.vinceglb:filekit-dialogs-compose:0.16.0")        // OS ネイティブのファイル・フォルダ選択（ui/FilePickers.kt）
     implementation("sh.calvin.reorderable:reorderable:3.1.0")                   // ドラッグで並べ替え（ui/Reorder.kt）
     implementation("com.mikepenz:multiplatform-markdown-renderer-m3:0.45.0")   // Markdown の描画（ui/MarkdownView.kt）
+    implementation("com.patrykandpatrick.vico:compose-m3:3.3.1")              // グラフ（ui/Charts.kt）
     implementation("org.yaml:snakeyaml:2.3")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("org.apache.poi:poi-ooxml:5.3.0")   // Excel(xlsx)のインポート・エクスポート（skill機構）
@@ -64,7 +65,7 @@ dependencies {
 }
 
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(21)   // 外部ライブラリ（Markdown の描画）が Java 21 の class を要求する。無ければ Gradle（foojay）が自動で取得する
 }
 
 // バージョン情報を資源（build-info.properties）として jar に入れる。アプリは app/BuildInfo.kt で読む
@@ -163,6 +164,10 @@ tasks.register<JavaExec>("runCli") {
 compose.desktop {
     application {
         mainClass = "dev.toros.yde.app.MainKt"
+        // run と packageDistributionForCurrentOS が使う JDK を toolchain（21）に合わせる。
+        // 既定は Gradle を動かしている JDK で、それが 17 だと Java 21 向けのライブラリが読めずに起動に失敗する
+        javaHome = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) }
+            .get().metadata.installationPath.asFile.absolutePath
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "yaml-design-editor"

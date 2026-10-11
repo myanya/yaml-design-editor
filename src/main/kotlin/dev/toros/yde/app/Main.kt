@@ -531,6 +531,7 @@ private fun CommandPalette(
                 CommandItem("台帳: ビューグリッドを表示") { state.openViewGrid(); onDismiss() }
                 CommandItem("台帳: グラフレンズを表示") { state.openGraphLens(); onDismiss() }
                 CommandItem("台帳: エンティティページを表示") { state.openCrossView(); onDismiss() }
+                CommandItem("台帳: 準備完了レポートを表示") { state.showWorkspaceView(6); onDismiss() }
                 CommandItem("実行スペースを表示（受信箱）") { onShowRuns(); onDismiss() }
                 CommandItem("設計スペースを表示") { state.showSpace(UiSpace.DESIGN); onDismiss() }
                 helpTopics.forEach { topic -> CommandItem("ヘルプ: ${topic.title}") { state.openHelp(topic.file); onDismiss() } }

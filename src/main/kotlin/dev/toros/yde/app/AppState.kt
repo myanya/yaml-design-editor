@@ -344,8 +344,12 @@ class AppState {
     /** workspaceView の変更後に呼び、スペースを文書世界（編集／台帳）へ同期する。 */
     private fun syncSpaceFromView() {
         uiSpace = if (workspaceView == 0) UiSpace.EDIT else UiSpace.LEDGER
-        if (workspaceView in 1..5) lastLedgerView = workspaceView
+        if (workspaceView in 1..6) lastLedgerView = workspaceView
     }
+
+    /** 準備完了レポート（CLI `readiness` と同じ計算＝保存済みの内容で判定）。台帳の「準備」タブが読む。 */
+    fun readinessReport(): dev.toros.yde.app.validate.Readiness.Report? =
+        coreWs?.let { dev.toros.yde.app.validate.Readiness.report(it) }
 
     /**
      * レールからのスペース切替。文書世界の位置（workspaceView）は保存・復元する。

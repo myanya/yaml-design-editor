@@ -99,6 +99,7 @@ private val ledgerTabs = listOf(
     5 to "フロー",
     2 to "レンズ",
     3 to "エンティティ",
+    6 to "準備",
 )
 
 @Composable
@@ -123,6 +124,7 @@ fun LedgerSpace(state: AppState) {
                 3 -> IdCrossView(state)
                 4 -> ViewGridView(state)
                 5 -> FlowViewPane(state)
+                6 -> ReadinessPane(state)
                 else -> WorkspaceTableView(state)
             }
         }
