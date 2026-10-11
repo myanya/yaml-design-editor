@@ -311,7 +311,7 @@ private fun DocumentMetadataEditor(ctx: FormCtx, root: YNode.Map) {
                 .border(1.dp, Palette.Border, PanelShape).padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
             if (name.isNotBlank()) Text(name, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-            if (description.isNotBlank()) Text(description, fontSize = 11.sp, color = Palette.SubText)
+            if (description.isNotBlank()) MarkdownView(description, compact = true)
         }
         return
     }
@@ -668,7 +668,8 @@ internal fun FieldRow(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
                     }
                 }
                 if (!ctx.readOnly) {
-                    effective.description?.let { Text(it, fontSize = 10.sp, color = Palette.SubText, maxLines = 2) }
+                    // 項目の説明は Markdown（箇条書き・コード・リンクが書ける。ui/MarkdownView.kt）
+                    effective.description?.let { MarkdownView(it, compact = true) }
                     // 保存時に自動で入る値（auto）: 手で直せるが、保存のときに機械が入れることを知らせる
                     effective.auto?.let { Text(autoValueHint(it), fontSize = 10.sp, color = Palette.SubText) }
                 }
@@ -706,8 +707,9 @@ fun ValueEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
     }
     when (effective.type) {
         FieldType.STRING -> ScalarTextEditor(ctx, effective, slot, singleLine = true)
-        // 意味の基底型（日付・時刻・日時）は正準の形の文字で編集する（案内はヒント→型の既定）
-        FieldType.DATE, FieldType.TIME, FieldType.DATETIME -> ScalarTextEditor(ctx, effective, slot, singleLine = true)
+        // 意味の基底型（日付・時刻・日時）は正準の形の文字で編集する（案内はヒント→型の既定）。右端のボタンでピッカー
+        FieldType.DATE, FieldType.TIME, FieldType.DATETIME ->
+            ScalarTextEditor(ctx, effective, slot, singleLine = true, trailing = { TemporalPickerButton(ctx, effective, slot) })
         FieldType.INT, FieldType.NUMBER -> ScalarTextEditor(ctx, effective, slot, singleLine = true)
         FieldType.BOOLEAN -> BooleanEditor(ctx, slot)
         FieldType.ENUM -> EnumEditor(ctx, effective, slot)
@@ -785,7 +787,10 @@ private fun ReadOnlyValueText(text: String?, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun ScalarTextEditor(ctx: FormCtx, field: FieldDef, slot: Slot, singleLine: Boolean) {
+private fun ScalarTextEditor(
+    ctx: FormCtx, field: FieldDef, slot: Slot, singleLine: Boolean,
+    trailing: (@Composable () -> Unit)? = null,   // 入力欄の右端（日付のピッカーなど。閲覧専用では出ない）
+) {
     val node = slot.get()
     val text = (node as? YNode.Scalar)?.value?.toString() ?: ""
     // string は自由な文字列: 欄は 1 行で始まり、改行が入れば縦に伸びる（複数行を保証するのは text＝display: multiline）
@@ -813,6 +818,7 @@ private fun ScalarTextEditor(ctx: FormCtx, field: FieldDef, slot: Slot, singleLi
         isError = typeError,
         textStyle = fieldTextStyle,
         unfocusedText = formatted,
+        trailingIcon = trailing,
         placeholder = {
             // 入力欄の案内は型から引き継いだヒント（例 組込みの型 date の YYYY-MM-DD）。無ければ数の種類だけ案内する
             val hint = field.placeholder ?: when (field.type) {
@@ -889,7 +895,7 @@ private fun EnumEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
                             if (option.label != null && option.label != option.value) {
                                 Text(option.value, fontSize = 10.sp, color = Palette.SubText)
                             }
-                            option.description?.let { Text(it, fontSize = 11.sp, color = Palette.SubText) }
+                            option.description?.let { MarkdownView(it, compact = true) }
                         }
                     }, trailingIcon = {
                         if (selected) {
@@ -1400,9 +1406,15 @@ private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) 
         if (tabular) {
             ArrayTable(ctx, field, columns.orEmpty(), node, path)
         } else {
-        node.items.forEachIndexed { i, _ ->
+        // 取っ手（⋮⋮）からのドラッグで並べ替え。ドロップで 1 回だけ木を動かす（Undo 1 回分）。上下ボタンも残す
+        ReorderableList(items = node.items, onMove = { from, to -> moveSeqItem(node, from, to); ctx.markEdited() }) { i, _, dragging ->
             Highlightable(ctx.state, path + i) {
-                Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.Top) {
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 2.dp)
+                        .background(if (dragging) Palette.Selected else Color.Transparent, PanelShape),
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    if (!ctx.readOnly) Handle(Modifier.padding(top = 12.dp, end = 2.dp))
                     Text(
                         "${i + 1}.",
                         fontSize = 12.sp, color = Palette.SubText,
@@ -1469,9 +1481,9 @@ private fun tableCellWidth(column: FieldDef): Dp = when {
     else -> when (column.type) {
         FieldType.BOOLEAN -> 90.dp
         FieldType.INT, FieldType.NUMBER -> 90.dp
-        FieldType.DATE -> 110.dp
-        FieldType.TIME -> 90.dp
-        FieldType.DATETIME -> 160.dp
+        FieldType.DATE -> 140.dp                 // ピッカーのボタン分を含む
+        FieldType.TIME -> 120.dp
+        FieldType.DATETIME -> 190.dp
         FieldType.ENUM -> 140.dp
         FieldType.ID -> 180.dp                 // 候補の▼と横ぐしの Hub の 2 つのボタン分を含む
         FieldType.REF -> 200.dp
@@ -1480,7 +1492,14 @@ private fun tableCellWidth(column: FieldDef): Dp = when {
 }
 
 private val TABLE_EXPAND_WIDTH = 28.dp
-private val TABLE_OPS_WIDTH = 76.dp        // 配列の行操作（上へ・下へ・削除）
+private val TABLE_OPS_WIDTH = 96.dp        // 配列の行操作（取っ手・上へ・下へ・削除）
+
+/** 配列の要素を from から to へ動かす（ドラッグの並べ替え。木の変異だけで、markEdited は呼び出し側）。 */
+internal fun moveSeqItem(node: YNode.Seq, from: Int, to: Int) {
+    if (from == to || from !in node.items.indices || to !in node.items.indices) return
+    val item = node.items.removeAt(from)
+    node.items.add(to, item)
+}
 private val TABLE_KEY_OPS_WIDTH = 28.dp    // map の行操作（キー削除のみ）
 private val TABLE_KEY_WIDTH = 150.dp       // map のキー列
 
@@ -1519,6 +1538,7 @@ private fun ObjectTable(
     keyHeader: String? = null,           // 非 null なら先頭にキー列を出す（map）
     opsWidth: Dp = 0.dp,                 // 編集モードの行操作列の幅（ops とセットで指定）
     ops: (@Composable (Int) -> Unit)? = null,
+    onMove: ((from: Int, to: Int) -> Unit)? = null,   // 非 null なら行をドラッグで並べ替えられる（配列）
 ) {
     val hScroll = rememberScrollState()
     // 利用可能幅を測り、余白は文字系の列へ配って表を右端まで使う
@@ -1551,13 +1571,14 @@ private fun ObjectTable(
                 }
             }
             HorizontalDivider(color = Palette.Border, modifier = Modifier.width(rowWidth))
-            rows.forEachIndexed { i, (segment, element) ->
+            // 配列の行は取っ手からのドラッグで並べ替えられる（onMove がある表だけ取っ手を出す。map の表は出さない）
+            ReorderableList(items = rows, onMove = { from, to -> onMove?.invoke(from, to) }, key = { it.second }) { i, (segment, element), dragging ->
                 var rowExpanded by remember(path, segment) { mutableStateOf(false) }
                 val rowPath = path + segment
                 // ジャンプ先が行の中（列にならない項目＝展開フォーム側）なら行を自動展開する（UX-10）
                 if (ctx.highlightInside(rowPath)) rowExpanded = true
                 Highlightable(ctx.state, rowPath) {
-                    Column(Modifier.width(rowWidth)) {
+                    Column(Modifier.width(rowWidth).background(if (dragging) Palette.Selected else Color.Transparent)) {
                         Row(verticalAlignment = Alignment.Top) {
                             Box(Modifier.width(TABLE_EXPAND_WIDTH).padding(top = if (ctx.readOnly) 0.dp else 7.dp)) {
                                 IconButton(onClick = { rowExpanded = !rowExpanded }, modifier = Modifier.size(24.dp)) {
@@ -1580,7 +1601,10 @@ private fun ObjectTable(
                                 ) { ObjectTableCell(ctx, col, element, rowPath) }
                             }
                             if (!ctx.readOnly && ops != null) {
-                                Row(Modifier.width(opsWidth).padding(top = 7.dp)) { ops(i) }
+                                Row(Modifier.width(opsWidth).padding(top = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    if (onMove != null) Handle(Modifier.padding(end = 2.dp))
+                                    ops(i)
+                                }
                             }
                         }
                         if (rowExpanded) {
@@ -1606,7 +1630,9 @@ private fun ObjectTable(
 private fun ArrayTable(ctx: FormCtx, field: FieldDef, columns: List<FieldDef>, node: YNode.Seq, path: YPath) {
     val itemDef = ctx.doc.schema?.resolve(field.item) ?: field.item
     val rows = node.items.mapIndexedNotNull { i, item -> (item as? YNode.Map)?.let { i to it } }
-    ObjectTable(ctx, itemDef, columns, rows, path, opsWidth = TABLE_OPS_WIDTH, ops = { i ->
+    ObjectTable(ctx, itemDef, columns, rows, path, opsWidth = TABLE_OPS_WIDTH,
+        onMove = { from, to -> moveSeqItem(node, from, to); ctx.markEdited() },
+        ops = { i ->
         IconButton(
             onClick = {
                 if (i > 0) {
@@ -1907,9 +1933,14 @@ fun GenericEditor(ctx: FormCtx, slot: Slot, path: YPath, refHint: Boolean) {
                     .border(1.dp, Palette.Border, PanelShape)
                     .padding(6.dp)
             ) {
-                node.items.forEachIndexed { i, _ ->
+                ReorderableList(items = node.items, onMove = { from, to -> moveSeqItem(node, from, to); ctx.markEdited() }) { i, _, dragging ->
                     Highlightable(ctx.state, path + i) {
-                        Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.Top) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(vertical = 2.dp)
+                                .background(if (dragging) Palette.Selected else Color.Transparent, PanelShape),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            if (!ctx.readOnly) Handle(Modifier.padding(top = 12.dp, end = 2.dp))
                             Text(
                                 "${i + 1}.",
                                 fontSize = 12.sp, color = Palette.SubText,

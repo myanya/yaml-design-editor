@@ -22,7 +22,6 @@ import dev.toros.yde.app.skill.SkillKind
 import dev.toros.yde.app.skill.Skills
 import dev.toros.yde.app.skill.Exporter
 import java.nio.file.Path
-import javax.swing.JFileChooser
 
 /**
  * 連携（skill）セクション（R5のUI）。設計スペースに常設表示する（R12-01。モーダルにしない）。
@@ -38,6 +37,11 @@ fun SkillsSection(state: AppState) {
     var importTarget by remember { mutableStateOf<SkillDef?>(null) }
     var importSource by remember { mutableStateOf("") }
     var preview by remember { mutableStateOf<Importer.Preview?>(null) }
+    // 取り込むファイルの選択（OS ネイティブ。最後に選んだ場所から開き、無ければワークスペースから）
+    val chooseImportFile = rememberFileChooser(
+        FilePickers.Purpose.IMPORT, "取り込むファイルを選択",
+        fallback = wsDir, onError = { state.status = it },
+    ) { importSource = it.toString() }
     var runTarget by remember { mutableStateOf<SkillDef?>(null) }  // コード実行skillの承認待ち（R9-06）
     val scope = rememberCoroutineScope()
 
@@ -177,7 +181,7 @@ fun SkillsSection(state: AppState) {
                             onClick = {
                                 importTarget = def
                                 preview = null
-                                chooseImportFile()?.let { importSource = it.toString() }
+                                chooseImportFile()
                             },
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
                         ) { Text("取り込み…", fontSize = 12.sp) }
@@ -281,13 +285,4 @@ fun SkillsSection(state: AppState) {
             dismissButton = { TextButton(onClick = { runTarget = null }) { Text("キャンセル") } },
         )
     }
-}
-
-/** Swing のファイル選択ダイアログ。 */
-private fun chooseImportFile(): Path? {
-    val chooser = JFileChooser().apply {
-        fileSelectionMode = JFileChooser.FILES_ONLY
-        dialogTitle = "取り込むファイルを選択"
-    }
-    return if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) chooser.selectedFile.toPath() else null
 }

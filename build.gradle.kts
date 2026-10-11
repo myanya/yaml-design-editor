@@ -53,6 +53,10 @@ dependencies {
     implementation("org.jetbrains.compose.material3:material3:1.9.0")
     // Material Icons（拡張）は 1.7.3 で凍結された配布物（更新されない。移行先は Material Symbols＝BACKLOG）
     implementation("org.jetbrains.compose.material:material-icons-extended:1.7.3")
+    // 外部の UI ライブラリは ui/ の 1 ファイルで包んで使う（差し替えられるように。CONVENTIONS「Compose UI の書き方」）
+    implementation("io.github.vinceglb:filekit-dialogs-compose:0.16.0")        // OS ネイティブのファイル・フォルダ選択（ui/FilePickers.kt）
+    implementation("sh.calvin.reorderable:reorderable:3.1.0")                   // ドラッグで並べ替え（ui/Reorder.kt）
+    implementation("com.mikepenz:multiplatform-markdown-renderer-m3:0.45.0")   // Markdown の描画（ui/MarkdownView.kt）
     implementation("org.yaml:snakeyaml:2.3")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("org.apache.poi:poi-ooxml:5.3.0")   // Excel(xlsx)のインポート・エクスポート（skill機構）
@@ -130,6 +134,22 @@ val downloadFonts by tasks.registering {
 }
 sourceSets["main"].resources.srcDir(fontsDir)
 tasks.named("processResources") { dependsOn(downloadFonts) }
+
+// 内蔵ヘルプ: 利用者マニュアル（docs/manual/*.md）をそのまま資源 help/ に入れる（アプリは app/Help.kt で読む）。
+// 一覧は index.txt（資源はディレクトリを列挙できないため、ビルド時に作る）
+val helpDir = layout.buildDirectory.dir("generated/help")
+val copyHelp by tasks.registering(Copy::class) {
+    description = "利用者マニュアル（docs/manual/*.md）を内蔵ヘルプの資源に入れる"
+    from(layout.projectDirectory.dir("docs/manual")) { include("*.md") }
+    into(helpDir.map { it.dir("help") })
+    doLast {
+        val dir = helpDir.get().dir("help").asFile
+        val names = dir.listFiles { f -> f.extension == "md" }.orEmpty().map { it.name }.sorted()
+        dir.resolve("index.txt").writeText(names.joinToString("\n"))
+    }
+}
+sourceSets["main"].resources.srcDir(helpDir)
+tasks.named("processResources") { dependsOn(copyHelp) }
 
 // ヘッドレスCLI（UIなしでカタログ・検索・パッチ・検証を実行する）
 // 例: ./gradlew runCli --args="catalog samples/sample-workspace" -q

@@ -12,6 +12,7 @@ import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -33,7 +34,11 @@ import dev.toros.yde.app.AppState
 import java.nio.file.Files
 import java.nio.file.Path
 
-private data class TreeRow(val path: Path, val depth: Int, val isDir: Boolean, val editorOnly: Boolean = false)
+private data class TreeRow(
+    val path: Path, val depth: Int, val isDir: Boolean,
+    val editorOnly: Boolean = false,   // 台帳外（薄色）
+    val markdown: Boolean = false,     // Markdown 文書（表示のみ。薄色・別アイコン）
+)
 
 /**
  * ワークスペース内の YAML ファイルをツリー表示する左ペイン。
@@ -84,7 +89,7 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp) {
             return@Column
         }
         val expanded = remember(ws) { mutableStateMapOf<Path, Boolean>() }
-        val rows = buildRows(ws, state.yamlFiles, state.editorOnlyFiles, state.directories, expanded)
+        val rows = buildRows(ws, state.yamlFiles, state.editorOnlyFiles, state.markdownFiles, state.directories, expanded)
 
         // 行以外の空白クリックで選択を解除できるようにする（未選択＝ルート直下が作成先になる。UX-40）
         Box(
@@ -158,7 +163,7 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp) {
 
 @Composable
 private fun TreeRowItem(state: AppState, row: TreeRow, isExpanded: Boolean, treeSelected: Boolean, onClick: () -> Unit) {
-    val selected = !row.isDir && state.openDoc?.file == row.path
+    val selected = !row.isDir && (state.openDoc?.file == row.path || state.openMarkdown == row.path)
     val dirty = !row.isDir && state.docFor(row.path)?.dirty == true
     Row(
         Modifier
@@ -184,8 +189,8 @@ private fun TreeRowItem(state: AppState, row: TreeRow, isExpanded: Boolean, tree
         } else {
             Spacer(Modifier.width(16.dp))
             Icon(
-                Icons.Default.Description,
-                contentDescription = null,
+                if (row.markdown) Icons.AutoMirrored.Filled.Article else Icons.Default.Description,
+                contentDescription = if (row.markdown) "Markdown" else null,
                 Modifier.size(16.dp),
                 tint = if (row.editorOnly) Palette.SubText else Palette.Primary,
             )
@@ -217,11 +222,14 @@ private fun buildRows(
     ws: Path,
     files: List<Path>,
     editorFiles: List<Path>,
+    markdownFiles: List<Path>,
     workspaceDirs: List<Path>,
     expanded: Map<Path, Boolean>,
 ): List<TreeRow> {
-    val allFiles = (files + editorFiles).distinct()
-    val editorOnlySet = editorFiles.toSet()
+    val allFiles = (files + editorFiles + markdownFiles).distinct()
+    val markdownSet = markdownFiles.toSet()
+    // Markdown は台帳外と同じ扱い（薄色・畳む）。索引・検証の対象ではないため
+    val editorOnlySet = editorFiles.toSet() + markdownSet
     val filesByParent = allFiles.groupBy { it.parent }
     val dirs = workspaceDirs.toMutableSet()
     // 走査対象ファイルの祖先ディレクトリ＝台帳側のディレクトリ（それ以外は editorOnly 表示）
@@ -241,14 +249,14 @@ private fun buildRows(
         dirsByParent[dir].orEmpty()
             .sortedBy { it.fileName.toString().lowercase() }
             .forEach { d ->
-                val editorOnly = editorFiles.isNotEmpty() && d !in ledgerDirs
+                val editorOnly = editorOnlySet.isNotEmpty() && d !in ledgerDirs
                 out.add(TreeRow(d, depth, isDir = true, editorOnly = editorOnly))
                 // 台帳外のディレクトリは既定で畳む（明示的に開けば展開される）
                 if (expanded[d] ?: !editorOnly) rec(d, depth + 1)
             }
         filesByParent[dir].orEmpty()
             .sortedBy { it.fileName.toString().lowercase() }
-            .forEach { f -> out.add(TreeRow(f, depth, isDir = false, editorOnly = f in editorOnlySet)) }
+            .forEach { f -> out.add(TreeRow(f, depth, isDir = false, editorOnly = f in editorOnlySet, markdown = f in markdownSet)) }
     }
     rec(ws, 0)
     return out

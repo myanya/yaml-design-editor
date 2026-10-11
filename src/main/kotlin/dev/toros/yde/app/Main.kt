@@ -11,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
@@ -52,7 +53,6 @@ import dev.toros.yde.yaml.validate.Severity
 import dev.toros.yde.app.validate.Validator
 import java.nio.file.Files
 import java.nio.file.Path
-import javax.swing.JFileChooser
 import java.util.prefs.Preferences
 
 private val uiPreferences: Preferences = Preferences.userRoot().node("yaml-design-editor/ui")
@@ -78,12 +78,15 @@ fun main(args: Array<String>) = application {
         onKeyEvent = { event -> state.workspace != null && handleShortcut(event, state) { commandOpen = true } },
     ) {
         AppTheme(darkMode) {
-            Surface(Modifier.fillMaxSize(), color = Palette.EditorBg) {
-                if (state.workspace == null) {
-                    StartScreen(state)
-                } else AppRoot(state, darkMode, commandOpen, { commandOpen = it }) {
-                    darkMode = !darkMode
-                    uiPreferences.putBoolean("darkMode", darkMode)
+            // ネイティブのファイル・フォルダ選択（ui/FilePickers.kt）の親ウィンドウを提供する
+            CompositionLocalProvider(LocalDialogParentWindow provides window) {
+                Surface(Modifier.fillMaxSize(), color = Palette.EditorBg) {
+                    if (state.workspace == null) {
+                        StartScreen(state)
+                    } else AppRoot(state, darkMode, commandOpen, { commandOpen = it }) {
+                        darkMode = !darkMode
+                        uiPreferences.putBoolean("darkMode", darkMode)
+                    }
                 }
             }
             if (confirmExit) AlertDialog(
@@ -138,7 +141,12 @@ fun StartScreen(state: AppState) {
             fontSize = 12.sp, color = Palette.SubText,
         )
         Spacer(Modifier.height(20.dp))
-        Button(onClick = { chooseDirectory()?.let { state.openWorkspace(it) } }) {
+        val chooseWorkspace = rememberDirectoryChooser(
+            FilePickers.Purpose.WORKSPACE, "ワークスペース（ディレクトリ）を選択",
+            fallback = state.recentWorkspaces.firstOrNull()?.parent,
+            onError = { state.status = it },
+        ) { state.openWorkspace(it) }
+        Button(onClick = chooseWorkspace) {
             Icon(Icons.Default.FolderOpen, contentDescription = null, Modifier.size(16.dp))
             Spacer(Modifier.width(6.dp))
             Text("ワークスペースを開く…", fontSize = 13.sp)
@@ -202,6 +210,13 @@ fun AppRoot(
     val switchWorkspace: (Path) -> Unit = { dir ->
         if (state.hasDirtyDocs()) pendingWorkspace = dir else state.openWorkspace(dir)
     }
+    // ワークスペースを開くダイアログ（ツールバー・コマンドパレット共通）。最後に選んだ場所から開く
+    val openWorkspaceDialog = rememberDirectoryChooser(
+        FilePickers.Purpose.WORKSPACE, "ワークスペース（ディレクトリ）を選択",
+        fallback = state.workspace?.parent ?: state.recentWorkspaces.firstOrNull()?.parent,
+        onError = { state.status = it },
+        onChosen = switchWorkspace,
+    )
     var automationVersion by remember { mutableStateOf(0) }
     // 自動化エンジン（ワークスペースごとに生成。既定は停止状態で、パネルから有効化する）
     val automation = remember(state.workspace) {
@@ -261,7 +276,7 @@ fun AppRoot(
             state.conflictedDocs().size +
             (if (runController?.pendingQuestion != null) 1 else 0)
         Toolbar(state, leftOpen, rightOpen, darkMode, toggleDarkMode, { setCommandOpen(true) },
-            switchWorkspace = switchWorkspace,
+            openWorkspaceDialog = openWorkspaceDialog,
             toggleReadOnly = {
                 state.readOnlyMode = !state.readOnlyMode
                 uiPreferences.putBoolean("readOnly", state.readOnlyMode)
@@ -305,7 +320,7 @@ fun AppRoot(
         StatusBar(state, automation, inboxCount) { state.showSpace(UiSpace.RUNS) }
     }
     if (commandOpen) CommandPalette(
-        state, switchWorkspace,
+        state, switchWorkspace, openWorkspaceDialog,
         onShowRuns = { state.showSpace(UiSpace.RUNS) },
         onRenameEntity = { entityRenameOpen = true },
     ) { setCommandOpen(false) }
@@ -377,16 +392,14 @@ private fun ResizeHandle(onDrag: (androidx.compose.ui.unit.Dp) -> Unit) {
 @Composable
 fun Toolbar(state: AppState, leftOpen: Boolean, rightOpen: Boolean, darkMode: Boolean, toggleDarkMode: () -> Unit,
             openCommands: () -> Unit,
-            switchWorkspace: (Path) -> Unit, toggleReadOnly: () -> Unit,
+            openWorkspaceDialog: () -> Unit, toggleReadOnly: () -> Unit,
             toggleLeft: () -> Unit, toggleRight: () -> Unit) {
     var recentOpen by remember { mutableStateOf(false) }
     Row(
         Modifier.fillMaxWidth().height(44.dp).background(Palette.PanelBg).padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Button(onClick = {
-            chooseDirectory()?.let(switchWorkspace)
-        }) {
+        Button(onClick = openWorkspaceDialog) {
             Icon(Icons.Default.FolderOpen, contentDescription = null, Modifier.size(16.dp))
             Spacer(Modifier.width(6.dp))
             Text("開く", fontSize = 13.sp)
@@ -440,6 +453,10 @@ fun Toolbar(state: AppState, leftOpen: Boolean, rightOpen: Boolean, darkMode: Bo
                 tint = if (state.readOnlyMode) Palette.WarnOrange else Palette.SubText,
             )
         }
+        // 内蔵ヘルプ（利用者マニュアル）: 編集スペースに文書として開く
+        IconButton(onClick = { state.openHelp(Help.INDEX) }) {
+            Icon(Icons.AutoMirrored.Filled.HelpOutline, "ヘルプ（利用者マニュアル）", Modifier.size(18.dp))
+        }
         IconButton(onClick = toggleDarkMode) {
             Icon(if (darkMode) Icons.Default.LightMode else Icons.Default.DarkMode,
                 if (darkMode) "ライトモード" else "ダークモード", Modifier.size(18.dp))
@@ -453,13 +470,19 @@ fun Toolbar(state: AppState, leftOpen: Boolean, rightOpen: Boolean, darkMode: Bo
 private fun CommandPalette(
     state: AppState,
     switchWorkspace: (Path) -> Unit,
+    openWorkspaceDialog: () -> Unit,
     onShowRuns: () -> Unit,
     onRenameEntity: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
-    val files = remember(query, state.yamlFiles) {
-        state.yamlFiles.filter { state.relPath(it).contains(query, true) }.take(10)
+    val files = remember(query, state.yamlFiles, state.markdownFiles) {
+        (state.yamlFiles + state.markdownFiles).filter { state.relPath(it).contains(query, true) }.take(10)
+    }
+    // 内蔵ヘルプ: 入力が無ければ目次だけ、あれば題名で絞る
+    val helpTopics = remember(query) {
+        val all = Help.topics()
+        if (query.isBlank()) all.take(1) else all.filter { it.title.contains(query, true) || it.file.contains(query, true) }
     }
     // ID検索（R12-04）: 旧ツールバーのID検索ボックスを統合。ID・タイトル（表示解決 S-13）の部分一致。
     // 未保存で追加したIDも候補に出すためオーバーレイ索引で引く（UX-18。「見たまま判定」）
@@ -510,9 +533,10 @@ private fun CommandPalette(
                 CommandItem("台帳: エンティティページを表示") { state.openCrossView(); onDismiss() }
                 CommandItem("実行スペースを表示（受信箱）") { onShowRuns(); onDismiss() }
                 CommandItem("設計スペースを表示") { state.showSpace(UiSpace.DESIGN); onDismiss() }
+                helpTopics.forEach { topic -> CommandItem("ヘルプ: ${topic.title}") { state.openHelp(topic.file); onDismiss() } }
                 CommandItem("エンティティを改名…") { onDismiss(); onRenameEntity() }
                 CommandItem("すべて保存") { state.saveAll(); onDismiss() }
-                CommandItem("ワークスペースを開く…") { onDismiss(); chooseDirectory()?.let(switchWorkspace) }
+                CommandItem("ワークスペースを開く…") { onDismiss(); openWorkspaceDialog() }
                 workspaces.forEach { ws ->
                     CommandItem("ワークスペースを切替: $ws") { onDismiss(); switchWorkspace(ws) }
                 }
@@ -594,29 +618,23 @@ private fun EntityRenameDialog(state: AppState, onDismiss: () -> Unit) {
     )
 }
 
-/** Swing のディレクトリ選択ダイアログ。 */
-private fun chooseDirectory(): Path? {
-    val chooser = JFileChooser().apply {
-        fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
-        dialogTitle = "ワークスペース（ディレクトリ）を選択"
-    }
-    return if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-        chooser.selectedFile.toPath()
-    } else null
-}
-
 // ================================================================ エディタ領域
 
 @Composable
 fun EditorArea(state: AppState) {
     val doc = state.openDoc
     if (doc == null) {
+        // Markdown 文書・内蔵ヘルプは表示だけの画面（ui/MarkdownPane.kt）
+        if (state.openMarkdown != null || state.openHelp != null) {
+            MarkdownPane(state)
+            return
+        }
         Column(
             Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            Text("ファイルツリーから YAML を選択してください", color = Palette.SubText, fontSize = 14.sp)
+            Text("ファイルツリーから YAML か Markdown を選択してください", color = Palette.SubText, fontSize = 14.sp)
             Spacer(Modifier.height(6.dp))
             Text(
                 "スキーマ（_schemas/*.yaml）にマッチするファイルはフォームで、それ以外は汎用ビューで編集できます",

@@ -16,6 +16,13 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 | `FlowViewPane` / `EmbeddedFlowPane` | ui/FlowViewPane.kt | 図と原本フォームを併記する単独・埋め込み表示（[views](views.md)） |
 | `ObjectTable` / `ArrayTable` / `MapTable` / `tableColumnWidths` | ui/FormView.kt | 配列と map のテーブル表示 |
 | `Highlightable` / `slotAt` / `CompactTextField` / `Palette` / `PanelShape` / `AppFonts` | ui/Common.kt | ハイライトとスクロール・Slot の解決・共通の入力欄と色と角丸・同梱フォント（等幅 Cica。資源が無ければ OS の等幅へ戻す） |
+| `VirtualTable` / `TableColumn` / `visibleColumnRange` | ui/VirtualTable.kt | 共通の表。見出し行と左の固定列は動かず、行は遅延描画、列は見える範囲だけ組み立てる（ビューグリッド・一覧ビューが使う） |
+| `ReorderableList` / `ReorderRowScope` | ui/Reorder.kt | ドラッグで並べ替える縦リスト（取っ手からだけ掴める。ライブラリ Reorderable を包む） |
+| `TemporalPickerButton` / `TemporalPick` | ui/TemporalEditor.kt | 日付・時刻・日時のピッカー（ポップアップ）と、正準の文字列との変換（純ロジック） |
+| `FilePickers` / `rememberDirectoryChooser` / `rememberFileChooser` / `LocalDialogParentWindow` | ui/FilePickers.kt | OS ネイティブのファイル・フォルダ選択と最後に選んだ場所の記憶（ライブラリ FileKit を包む） |
+| `MarkdownView` / `openExternally` | ui/MarkdownView.kt | Markdown の描画（ライブラリ multiplatform-markdown-renderer を包む。色と文字は Palette） |
+| `MarkdownPane` / `resolveMarkdownLink` | ui/MarkdownPane.kt | Markdown 文書と内蔵ヘルプの表示（表示とソースの 2 タブ・リンクの行き先の判定は純ロジック） |
+| `Help` | app/Help.kt | 内蔵ヘルプの題目と本文（ビルド時に資源 `help/` へ入れた利用者マニュアル） |
 | `SidePanel` | ui/SidePanel.kt | ID インスペクタ（検証・関係・出現の 3 タブ） |
 | `FileTreePane` / `SourcePane` / `DiffPane` / `SchemaEditor` / `IdCrossView` / `ViewGridPane` / `WorkspaceViews` / `AiGenerationDialog` / `AutomationPanel` / `ImprovementPanel` / `SkillsPanel` | ui/ | 各ペイン |
 | `SourceHighlight` / `GraphLayout` / `DiffPane.calculateDiff` | ui/ | テスト可能な純ロジック（YAML トークナイザと置換・力学レイアウト・差分） |
@@ -30,7 +37,9 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 - **設計スペースは「定義も YAML 文書」の入口**: 種類別カタログはファイル一覧から導出し、編集は編集スペースの既存エディタへジャンプする。定義専用の編集経路を新設しない。
 - **アプリ全体のショートカットはウィンドウで受ける**: 戻る／進む（`Alt+←` / `→`）・保存・Undo/Redo・コマンドパレットは `Window(onKeyEvent = …)`（`Main.kt` の `handleShortcut`）。部品の `Modifier.onKeyEvent` は焦点のある子がいるときにしか呼ばれず、ジャンプの直後のように焦点が無いときはキーが届かない。テキスト入力が自分で消費するキーは入力側が先に受ける。
 - **コマンドパレット**（Ctrl+K）: ID・タイトル移動・ファイル検索・本文検索（構造検索を未保存優先の loader で「見たまま」実行）・台帳ビュー切替・スペース切替・保存・ワークスペース切替。
-- **永続化**: UI レイアウト（ペイン幅・開閉）・テーマ・最近開いたファイルとワークスペース・閲覧専用モードは `Preferences`。
+- **永続化**: UI レイアウト（ペイン幅・開閉）・テーマ・最近開いたファイルとワークスペース・閲覧専用モード・ファイル選択で最後に選んだ場所（用途ごと）は `Preferences`。
+- **Markdown 文書と内蔵ヘルプは編集スペースの「表示だけの文書」**: `AppState.openMarkdown`（ワークスペース内の `.md`）と `openHelp`（資源 `help/` の題目）は `openDoc` と排他で、`openFile` が拡張子で振り分け、`NavLocation` に載るので戻る・進むの対象。Markdown は文書キャッシュに入れず、編集・Undo の対象にしない（編集は外部のエディタ。案 B＝アプリ内編集は需要待ち）。
+- **ファイル選択は OS ネイティブ**: `rememberDirectoryChooser` / `rememberFileChooser` が返す関数をボタンから呼ぶ。親ウィンドウは `Main.kt` の Window が `LocalDialogParentWindow` で渡す。Swing の `JFileChooser` は使わない。
 
 ## フォームと FormCtx
 
@@ -51,6 +60,9 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 - フォーム内の配列（object 要素）と map（object 値）をテーブルにするかの適否と列集合は `Display.tableColumns`（自動判定「列 2〜8 かつ宣言フィールドの過半がセル型」＋スキーマの `display: table / list`）だけが決める。
 - 列は要素 object の宣言フィールドのうちセル型のもの。enum `cases` による行ごとの追加フィールドは列にしない（列集合を全行で安定させる）。列にならないフィールドは行の展開フォームで編集する。map のキー列は `MapTable` が先頭に足す表示専用の列。
 - セル編集は通常の `Slot` 経路を再利用し、テーブル専用の書込経路を作らない。列幅は型別の最小幅を保証しつつ余白を文字系の列へ等分し、収まらなければ横スクロール。閲覧専用モードはテキストセル。
+- 配列の行とフォーム内の配列要素は取っ手（⋮⋮）からのドラッグで並べ替える（`ReorderableList`）。ドロップで 1 回だけ `moveSeqItem` ＋ `markEdited`（Undo 1 回分）。取っ手を置かなければ並べ替えられない（map の表・閲覧専用）。
+- ビューグリッドと一覧ビューの表は共通部品 `VirtualTable`（ID などの固定列・見出し行の固定・見える列だけ組み立てる）。セルの中身と編集経路はそれぞれの画面のまま。
+- 日付・時刻・日時の欄は右端のボタンでピッカー（ポップアップ。モーダルではない）。書込は `FormCtx.setScalar` の同じ経路で、値は正準の文字列のまま。
 
 ## 畳みとハイライト
 
@@ -74,6 +86,8 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 - `Dispatchers.Main` は使わない。バックグラウンドから UI へ反映するときはスナップショット状態を直接更新する（CONVENTIONS「Compose UI の書き方」）。
 - 入力欄は `CompactTextField`、色は `Palette.*`、角丸は `PanelShape`。生の色や Material 既定色をビューに直接書かない。
 - 等幅の文字は `AppFonts.Mono`（同梱の Cica。TTF は git に入れず、build.gradle.kts の `downloadFonts` がビルド時に取得して資源 `fonts/cica/` に入れる）。`FontFamily.Monospace` を書かない。
+- 外部の UI ライブラリは ui/ の 1 ファイルで包み、その型を他のファイルへ出さない（FileKit＝FilePickers.kt・Reorderable＝Reorder.kt・Markdown＝MarkdownView.kt）。差し替えるときはその 1 ファイルだけを書き換える。
+- 表は `VirtualTable`、Markdown は `MarkdownView`、ファイル選択は `rememberDirectoryChooser` / `rememberFileChooser`、並べ替えは `ReorderableList` を使い、画面ごとに作り直さない。
 - テストしたいロジックはコンポーザブルから純粋関数へ切り出して `internal` にする。
 
 ## 拡張ポイント

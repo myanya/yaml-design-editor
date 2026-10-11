@@ -71,26 +71,29 @@ fun WorkspaceTableView(state: AppState) {
             Button(enabled = selected.any { it.value } && bulkValue.isNotBlank(), onClick = { confirmBulk = true },
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)) { Text("一括変更", fontSize = 11.sp) }
         }
-        TableHeader()
-        Box(Modifier.weight(1f).fillMaxWidth()) {
-            val listState = rememberLazyListState()
-            LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(end = 8.dp)) {
-                items(filtered, key = { it.file.toString() }) { record ->
-                    Row(Modifier.fillMaxWidth().clickable { state.openFile(record.file) }
-                        .background(if (selected[record.file] == true) Palette.Selected else Color.Transparent)
-                        .padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(selected[record.file] == true, { selected[record.file] = it }, modifier = Modifier.size(30.dp))
-                        Cell(record.id ?: "—", 120)
-                        Cell(record.title ?: "—", 220)
-                        Cell(record.status ?: "—", 100)
-                        Cell(record.owner ?: "—", 120)
-                        Cell(record.kind ?: "—", 110)
-                        Text(state.relPath(record.file), fontSize = 11.sp, color = Palette.SubText, modifier = Modifier.weight(1f))
-                    }
+        // 表は共通部品（VirtualTable）: チェックと ID の列を左に固定し、横に長くても ID が見える
+        VirtualTable(
+            columns = LIST_COLUMNS, rows = filtered, rowKey = { it.file.toString() },
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            rowPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+            rowModifier = { record ->
+                Modifier.clickable { state.openFile(record.file) }
+                    .background(if (selected[record.file] == true) Palette.Selected else Color.Transparent)
+            },
+            header = { col -> HeaderCell(col.key.label) },
+            cell = { record, col ->
+                when (col.key) {
+                    ListColumn.CHECK -> Checkbox(selected[record.file] == true, { selected[record.file] = it }, modifier = Modifier.size(30.dp))
+                    ListColumn.ID -> Cell(record.id ?: "—")
+                    ListColumn.TITLE -> Cell(record.title ?: "—")
+                    ListColumn.STATUS -> Cell(record.status ?: "—")
+                    ListColumn.OWNER -> Cell(record.owner ?: "—")
+                    ListColumn.KIND -> Cell(record.kind ?: "—")
+                    ListColumn.FILE -> Text(state.relPath(record.file), fontSize = 11.sp, color = Palette.SubText, maxLines = 1,
+                        modifier = Modifier.padding(top = 7.dp))
                 }
-            }
-            VerticalScrollbar(rememberScrollbarAdapter(listState), Modifier.align(Alignment.CenterEnd).fillMaxHeight())
-        }
+            },
+        )
     }
     if (confirmBulk) AlertDialog(
         onDismissRequest = { confirmBulk = false },
@@ -106,12 +109,18 @@ fun WorkspaceTableView(state: AppState) {
     )
 }
 
-@Composable private fun TableHeader() = Row(Modifier.fillMaxWidth().background(Palette.PanelBg).padding(horizontal = 8.dp, vertical = 5.dp)) {
-    Spacer(Modifier.width(30.dp)); HeaderCell("ID", 120); HeaderCell("タイトル", 220); HeaderCell("状態", 100)
-    HeaderCell("担当", 120); HeaderCell("種別", 110); Text("ファイル", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+/** 一覧の列（VirtualTable の列キー）。チェックと ID は左に固定。 */
+private enum class ListColumn(val label: String) {
+    CHECK(""), ID("ID"), TITLE("タイトル"), STATUS("状態"), OWNER("担当"), KIND("種別"), FILE("ファイル")
 }
-@Composable private fun RowScope.Cell(text: String, width: Int) = Text(text, fontSize = 11.sp, maxLines = 1, modifier = Modifier.width(width.dp))
-@Composable private fun RowScope.HeaderCell(text: String, width: Int) = Text(text, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(width.dp))
+private val LIST_COLUMNS = listOf(
+    TableColumn(ListColumn.CHECK, 30.dp, pinned = true), TableColumn(ListColumn.ID, 120.dp, pinned = true),
+    TableColumn(ListColumn.TITLE, 220.dp), TableColumn(ListColumn.STATUS, 100.dp), TableColumn(ListColumn.OWNER, 120.dp),
+    TableColumn(ListColumn.KIND, 110.dp), TableColumn(ListColumn.FILE, 420.dp),
+)
+@Composable private fun Cell(text: String) =
+    Text(text, fontSize = 11.sp, maxLines = 1, modifier = Modifier.padding(end = 6.dp, top = 7.dp))
+@Composable private fun HeaderCell(text: String) = Text(text, fontSize = 10.sp, fontWeight = FontWeight.Bold)
 
 @Composable
 private fun FilterMenu(label: String, value: String, values: List<String>, onChange: (String) -> Unit) {

@@ -57,6 +57,20 @@ object WorkspaceScan {
         return result.sortedBy { it.toString() }
     }
 
+    /**
+     * ワークスペース内の Markdown（*.md）を列挙する（表示用。索引・検証・エージェントの対象ではない）。
+     * 隠しディレクトリは除く。README や設計メモを YAML と並べてツリーに出すため。
+     */
+    fun markdownFiles(ws: Path): List<Path> {
+        val result = mutableListOf<Path>()
+        walk(ws, WorkspaceLayout.LEGACY) { p ->
+            if (!Files.isRegularFile(p)) return@walk
+            if (p.fileName.toString().startsWith(".")) return@walk
+            if (p.extension.lowercase() == "md") result.add(p)
+        }
+        return result.sortedBy { it.toString() }
+    }
+
     /** 隠しディレクトリの配下を枝刈りしながら歩く（構成ディレクトリ `.yde` だけ降りる）。 */
     private fun walk(ws: Path, layout: WorkspaceLayout, visit: (Path) -> Unit) {
         Files.walkFileTree(ws, object : java.nio.file.SimpleFileVisitor<Path>() {

@@ -11,6 +11,9 @@ UX試験・レビュー・開発中に見つかった「今のタスクとは本
 
 | ID | 起点 | 指摘 | 技術メモ（対応の当たり） | 状態 | 対応先 |
 |---|---|---|---|---|---|
+| UX-151 | 2026-10-11 P36 段階 1 | **ビューグリッドのセルに日付ピッカーが出ない**（フォームの欄だけ。セルは `GridCell` の独自の入力欄） | `TemporalPickerButton` をセルの入力欄の右にも置く。列幅（CELL_WIDTH）との兼ね合いを見る | 📋 | — |
+| UX-150 | 2026-10-11 P36 段階 1 | **Markdown の画像が描かれない**（画像の読み込みは別モジュール Coil が要るため見送った） | 需要が出たら `multiplatform-markdown-renderer-coil3` を足し、`MarkdownView` の中だけで画像の読み込みを有効にする | ⏳ | — |
+| UX-149 | 2026-10-11 P36 段階 1 | **Markdown をアプリ内で編集したい**（案 B。今は表示だけで、編集は「外部のエディタで開く」） | Undo の履歴は YAML 文書前提（workspace-core の単一所有）。テキスト文書の履歴を足すか、保存までの簡単な取り消しに留めるかの設計判断が要る | 💬 | — |
 | UX-148 | 2026-10-11 P36 段階 0 | **UI 用の可変幅フォントを同梱するか**（等幅は Cica を同梱済み。見出し・本文は OS 任せのままで、Windows と mac で見た目が揃わない） | 候補は Noto Sans JP / BIZ UDPGothic。同梱するなら `downloadFonts` と同じ経路で取得し `AppTheme` の `Typography` に当てる。オーナーの好みで決める | 💬 | — |
 | UX-147 | 2026-10-11 P36 段階 0 | **Material Icons（拡張）が 1.7.3 で凍結**され更新されない（CMP 1.8 以降の案内は Material Symbols＝ベクタ資源への移行） | `Icons.Default.*` の約 55 箇所が対象。Material Symbols へ移すか、必要なアイコンだけ SVG 資源にする。P36 段階 2（標準機能の活用）と合わせて | 📋 | — |
 | UX-146 | 2026-10-11 P36 段階 0 | **`TabRow` が非推奨**（`PrimaryTabRow` / `SecondaryTabRow` へ。台帳・実行・スキーマ設計・右パネル・エディタの 5 箇所）と **`LocalClipboardManager` が非推奨**（`LocalClipboard`＝suspend 版へ。スキーマ設計のコピー） | 置き換えるとタブの下線の描き方が変わるため見た目を確かめて進める。クリップボードは `rememberCoroutineScope` 経由に | 📋 | — |

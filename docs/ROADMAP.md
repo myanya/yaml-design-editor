@@ -100,7 +100,7 @@
 | P33 | ユーザ定義の型（値型 → オブジェクト型） | 第一弾〜第三弾 完了（2026-10-03）。残りは BACKLOG の個別項目 |
 | P34 | 保存時に自動で入る値（更新日・作成日・版） | 完了（2026-10-04）。残りは BACKLOG の個別項目 |
 | P35 | 汎用フロービュー | 初期範囲完了、検証と制約は [記録](archive/flow-view.md) |
-| P36 | GUI のリッチ化（Compose Multiplatform のライブラリ活用） | 段階 0（土台の更新）完了（2026-10-11）。段階 1〜2 はオーナー判断（下記） |
+| P36 | GUI のリッチ化（Compose Multiplatform のライブラリ活用） | 段階 0（土台）と段階 1 の 5 項目（表・Markdown 表示・ファイル選択・並べ替え・日付）完了（2026-10-11）。グラフの選定と段階 2 は残り（下記） |
 
 ## 未完のテーマ
 
@@ -290,10 +290,12 @@ definitions:
 
 - **目的**: 標準部品だけで組んだ UI を、Compose Multiplatform 向けのライブラリと、使っていない標準機能で、より豊かな操作体験へ移す。設計の決まり（モーダル禁止・書込は Slot 経路・履歴の単一所有・コアに重い依存を入れない）は変えない。
 - **完了（段階 0・土台）**: Compose Multiplatform 1.7.3 → 1.12.1、Kotlin 2.0.21 → 2.4.21（Material3 1.9.0 と Material Icons 1.7.3 は直接指定）。Compose Hot Reload 1.2.0 と MCP サーバ（`hotRun`・`.mcp.json`）。等幅フォント Cica の同梱（`AppFonts.Mono`。ビルド時に取得）。非推奨 API の機械的な置換（`HorizontalDivider`・AutoMirrored アイコン）。
-- **残り（段階 1・ライブラリ）**: ビューグリッドとクロス集計の固定列と 2 次元の仮想化（LazyTable）、説明文・エージェントの質問とレビュー・内蔵ヘルプの Markdown 表示（multiplatform-markdown-renderer）、OS ネイティブのファイル選択（FileKit）、配列要素のドラッグ並べ替え（Reorderable）、日付項目のカレンダー（Material3 DatePicker）、準備完了レポートと検証集計のグラフ（Koala Plot。BACKLOG UX-102）。
+- **完了（段階 1・表と Markdown）**: 共通の表 `VirtualTable`（自前。ID 列と見出しの固定・見える列だけ組み立てる。ビューグリッドと一覧ビュー）、Markdown の表示（ワークスペース内の `.md` をツリーに出して表示・項目と文書の説明・内蔵ヘルプ＝利用者マニュアルの同梱。ライブラリは `MarkdownView` に閉じる）。
+- **完了（段階 1・入力）**: OS ネイティブのファイル選択と最後に選んだ場所の記憶（FileKit を `FilePickers` に閉じる）、配列のドラッグ並べ替え（取っ手方式。Reorderable を `ReorderableList` に閉じる）、日付・時刻のピッカー（Material3 の DatePicker / TimeInput をポップアップで）。
+- **残り（グラフ）**: 準備完了レポートと検証集計の図。候補の比較は済み（第一候補 Vico 3、次点 Koala Plot。Lets-Plot は規模が大きくなったら。自前 Canvas は棒だけなら）。ビュー機能の充実と合わせてオーナーが判断する。
 - **残り（段階 2・標準機能）**: 右クリックメニュー、全アイコンボタンのツールチップ、MenuBar、Tray と OS 通知、畳みとハイライトのアニメーション、ウィンドウの位置・大きさの記憶（Window API v2）、ドラッグ＆ドロップ。
 - **見送り・条件付き**: Jewel（IDE 風への全面移行。テーマの二重化）、ELK（フロー図の配置。`FlowLayout` は semantic-core で CLI と座標を共有）、コードエディタ系ライブラリ（YAML 対応なし。自前の `BasicTextField` を `TextFieldState` 版へ）、SplitPane とツリー部品（自前で十分）、Haze（beta）。
-- **残る判断**: 段階 1 の最初の一手（LazyTable か Markdown）、見た目の方向（Material3 ＋独自パレットのまま磨く＝推奨）、UI 用の可変幅フォントの同梱（BACKLOG UX-148）。
+- **残る判断**: グラフのライブラリ（上記）、見た目の方向（Material3 ＋独自パレットのまま磨く＝推奨）、UI 用の可変幅フォントの同梱（BACKLOG UX-148）、Markdown のアプリ内編集（案 B。BACKLOG UX-149）。
 
 ## リスクと未解決課題
 

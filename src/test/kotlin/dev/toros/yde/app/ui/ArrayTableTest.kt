@@ -37,9 +37,9 @@ class ArrayTableTest {
 
     @Test
     fun `文字系の列がなければ伸ばさない（数値だけの表を間延びさせない）`() {
-        // 日付の列（意味の基底型 date）は 110 の固定幅で、余白の配分先にはならない
+        // 日付の列（意味の基底型 date）は 140 の固定幅（ピッカーのボタン分を含む）で、余白の配分先にはならない
         val types = cols(FieldType.INT, FieldType.BOOLEAN) + dateColumn
-        assertEquals(listOf(90.dp, 90.dp, 110.dp), tableColumnWidths(types, available = 1000.dp, fixed = 28.dp))
+        assertEquals(listOf(90.dp, 90.dp, 140.dp), tableColumnWidths(types, available = 1000.dp, fixed = 28.dp))
     }
 
     @Test

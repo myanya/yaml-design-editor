@@ -270,55 +270,47 @@ private fun GridBody(state: AppState, view: ViewDef) {
         Spacer(Modifier.weight(1f))
         Text("${filtered.size} / ${rows.size} 行", fontSize = 11.sp, color = Palette.SubText)
     }
-    val hScroll = rememberScrollState()
-    // ヘッダ行
     // クロス集計（kind: matrix）は列を索引から広げるので、ヘッダは解決と同じ索引で決めた列を使う
     val effectiveView = remember(view, state.indexVersion, state.editVersion) { Views.effective(view, state.overlayIndex()) }
-    Row(Modifier.fillMaxWidth().background(Palette.PanelBg).horizontalScroll(hScroll).padding(horizontal = 8.dp, vertical = 5.dp)) {
-        GridHeaderCell("ID", ID_WIDTH)
-        effectiveView.columns.forEach { column ->
-            val suffix = when {
-                column.backlinks != null -> "（被参照）"
-                column.editable -> ""
-                else -> "（参照）"
-            }
-            GridHeaderCell(column.label + suffix, CELL_WIDTH)
-        }
-        if (view.detail != null) GridHeaderCell("詳細", DETAIL_WIDTH)
-        GridHeaderCell("状態", STATUS_WIDTH)
-    }
-    HorizontalDivider(color = Palette.Border)
-    Box(Modifier.fillMaxSize()) {
-        val listState = rememberLazyListState()
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize().padding(end = 8.dp),
-            contentPadding = PaddingValues(bottom = 14.dp),  // 最終行が横スクロールバーに隠れないように
-        ) {
-            // 行キーは ViewRow.key（クエリ行の結合ではIDが行間で重複しうるため。R22-02）
-            items(filtered, key = { it.key }) { row ->
-                Row(
-                    Modifier.fillMaxWidth().horizontalScroll(hScroll)
-                        .padding(horizontal = 8.dp, vertical = 3.dp),
-                    verticalAlignment = Alignment.Top,
-                ) {
-                    IdCell(state, row)
-                    row.cells.forEach { cell -> GridCell(state, cell) }
-                    if (view.detail != null) DetailCell(state, view, row)
-                    StatusCell(state, row)
+    // 表は共通部品（VirtualTable）: ID 列と見出し行を固定し、列は見える範囲だけ組み立てる（クロス集計で列が広がっても軽い）
+    val columns = remember(effectiveView, view.detail) {
+        buildList<TableColumn<GridColumn>> {
+            add(TableColumn<GridColumn>(GridColumn.Id, ID_WIDTH, pinned = true))
+            effectiveView.columns.forEachIndexed { i, column ->
+                val suffix = when {
+                    column.backlinks != null -> "（被参照）"
+                    column.editable -> ""
+                    else -> "（参照）"
                 }
-                HorizontalDivider(color = Palette.Border.copy(alpha = .4f))
+                add(TableColumn(GridColumn.Cell(i, column.label + suffix), CELL_WIDTH))
             }
-        }
-        VerticalScrollbar(rememberScrollbarAdapter(listState), Modifier.align(Alignment.CenterEnd).fillMaxHeight())
-        // 列の合計幅が画面に収まっているときは表示しない（maxValue の初期値 Int.MAX_VALUE は測定前なので除外）
-        if (hScroll.maxValue in 1 until Int.MAX_VALUE) {
-            HorizontalScrollbar(
-                rememberScrollbarAdapter(hScroll),
-                Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(start = 8.dp, end = 14.dp),
-            )
+            if (view.detail != null) add(TableColumn<GridColumn>(GridColumn.Detail, DETAIL_WIDTH))
+            add(TableColumn<GridColumn>(GridColumn.Status, STATUS_WIDTH))
         }
     }
+    // 行キーは ViewRow.key（クエリ行の結合ではIDが行間で重複しうるため。R22-02）
+    VirtualTable<ViewRow, GridColumn>(
+        columns = columns, rows = filtered, rowKey = { it.key },
+        modifier = Modifier.fillMaxSize(),
+        rowPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
+        header = { col -> GridHeaderCell(col.key.label, col.width) },
+        cell = { row, col ->
+            when (val k = col.key) {
+                GridColumn.Id -> IdCell(state, row)
+                is GridColumn.Cell -> row.cells.getOrNull(k.index)?.let { GridCell(state, it) }
+                GridColumn.Detail -> DetailCell(state, view, row)
+                GridColumn.Status -> StatusCell(state, row)
+            }
+        },
+    )
+}
+
+/** グリッドの列の種類（VirtualTable の列キー）。セルの列はビューの列の位置で引く。 */
+private sealed class GridColumn(val label: String) {
+    object Id : GridColumn("ID")
+    class Cell(val index: Int, label: String) : GridColumn(label)
+    object Detail : GridColumn("詳細")
+    object Status : GridColumn("状態")
 }
 
 @Composable

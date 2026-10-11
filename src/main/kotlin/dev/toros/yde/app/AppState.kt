@@ -310,6 +310,15 @@ class AppState {
 
     var openDoc by mutableStateOf<OpenDocument?>(null)
         private set
+    /** 開いている Markdown 文書（ワークスペース内の .md。表示のみ）。openDoc・openHelp と排他。 */
+    var openMarkdown by mutableStateOf<Path?>(null)
+        private set
+    /** 開いている内蔵ヘルプの題目（help/ の資源名）。openDoc・openMarkdown と排他。 */
+    var openHelp by mutableStateOf<String?>(null)
+        private set
+    /** ワークスペース内の Markdown（表示用。索引・検証の対象ではない）。 */
+    var markdownFiles by mutableStateOf<List<Path>>(emptyList())
+        private set
     var recentFiles by mutableStateOf<List<Path>>(emptyList())
         private set
 
@@ -532,6 +541,7 @@ class AppState {
             reloadDocumentFromDisk(doc, force = false)
         }
         openDoc?.let { if (it.file !in existing && !it.dirty) openDoc = null }
+        openMarkdown?.let { if (!Files.exists(it)) openMarkdown = null }
         indexVersion++
         workspaceStamp = snapshotFiles(ws)
         status = "ワークスペース: $ws ／ YAML ${yamlFiles.size} 件・スキーマ ${schemas.size} 件・ID ${index.entries.size} 件"
@@ -545,6 +555,7 @@ class AppState {
         enforcement = cw.enforcement
         entityTypes = cw.entityTypes
         yamlFiles = cw.files
+        markdownFiles = dev.toros.yde.app.core.WorkspaceScan.markdownFiles(cw.root)
         // 台帳外のエディタ層ファイル（R13-04）。ledger 宣言が無ければ走査対象と一致するため空になる
         editorOnlyFiles = if (cw.layout.ledger.isEmpty()) emptyList()
         else dev.toros.yde.app.core.WorkspaceScan.editorYamlFiles(cw.root).filter { it !in cw.files.toSet() }
@@ -759,6 +770,9 @@ class AppState {
 
     /** 履歴に積まずに文書を表示する（openFile の本体。「戻る」「進む」の復元にも使う）。 */
     private fun showFile(file: Path, focus: YPath?) {
+        if (isMarkdown(file)) { showMarkdown(file); return }
+        openMarkdown = null
+        openHelp = null
         val doc = docCache.getOrPut(file) { loadDocument(file) }
         openDoc = doc
         workspaceView = 0
@@ -768,6 +782,38 @@ class AppState {
         editorTab = if (doc.root == null) 1 else 0
         highlightPath = focus
         status = "開いています: ${relPath(file)}" + (doc.schema?.let { "（スキーマ: ${it.name}）" } ?: "（スキーマなし・汎用ビュー）")
+    }
+
+    private fun isMarkdown(file: Path): Boolean = file.fileName.toString().endsWith(".md", ignoreCase = true)
+
+    /** Markdown 文書を表示する（表示のみ。YAML の文書キャッシュには入れない）。 */
+    private fun showMarkdown(file: Path) {
+        openDoc = null
+        openHelp = null
+        openMarkdown = file
+        workspaceView = 0
+        syncSpaceFromView()
+        recentFiles = (listOf(file) + recentFiles.filter { it != file }).take(12)
+        recentPrefs.put(workspaceKey(), recentFiles.joinToString("\n") { relPath(it) })
+        highlightPath = null
+        status = "開いています: ${relPath(file)}（Markdown）"
+    }
+
+    /** 内蔵ヘルプの題目を開く（編集スペースの文書として表示。移動として履歴に積む）。 */
+    fun openHelp(topic: String) {
+        val cur = currentLocation()
+        if (!(cur.space == UiSpace.EDIT && cur.help == topic)) pushBack(cur)
+        showHelp(topic)
+    }
+
+    private fun showHelp(topic: String) {
+        openDoc = null
+        openMarkdown = null
+        openHelp = topic
+        workspaceView = 0
+        syncSpaceFromView()
+        highlightPath = null
+        status = "ヘルプ: ${Help.titleOf(topic)}"
     }
 
     private fun workspaceKey(): String = "ws-${workspace?.toString()?.hashCode() ?: 0}"
@@ -1535,6 +1581,8 @@ class AppState {
         val flowId: String? = null,
         val flowDocument: DocumentId? = null,
         val flowSelections: Map<Pair<String, DocumentId>, dev.toros.yde.semantic.FlowSelection> = emptyMap(),
+        /** 内蔵ヘルプの題目（編集スペースにヘルプを出しているとき。file は null）。 */
+        val help: String? = null,
     )
 
     private var backStack by mutableStateOf<List<NavLocation>>(emptyList())
@@ -1545,11 +1593,12 @@ class AppState {
 
     /** 現在の表示位置。 */
     private fun currentLocation(): NavLocation =
-        NavLocation(uiSpace, workspaceView, openDoc?.file, highlightPath, crossViewId, viewGridId,
-            flowViewId, flowDocument, flowSelections)
+        NavLocation(uiSpace, workspaceView, openDoc?.file ?: openMarkdown, highlightPath, crossViewId, viewGridId,
+            flowViewId, flowDocument, flowSelections, help = openHelp)
 
     /** 何も開いていない編集スペースは履歴に積む価値がない（台帳・実行・設計はそれ自体が場所）。 */
-    private fun isEmptyLocation(loc: NavLocation): Boolean = loc.space == UiSpace.EDIT && loc.file == null
+    private fun isEmptyLocation(loc: NavLocation): Boolean =
+        loc.space == UiSpace.EDIT && loc.file == null && loc.help == null
 
     /**
      * 現在位置を「戻る」履歴へ積む。新しい移動が起きた時点で「進む」履歴は破棄する
@@ -1567,7 +1616,7 @@ class AppState {
         flowDocument = loc.flowDocument
         flowSelections = loc.flowSelections
         when (loc.space) {
-            UiSpace.EDIT -> loc.file?.let { showFile(it, loc.path) }
+            UiSpace.EDIT -> loc.help?.let { showHelp(it) } ?: loc.file?.let { showFile(it, loc.path) }
             UiSpace.LEDGER -> {
                 loc.crossId?.let { crossViewId = it }
                 loc.gridId?.let { viewGridId = it }
@@ -1581,7 +1630,7 @@ class AppState {
 
     /** 編集スペースの地点で対象ファイルが削除済みなら復元できない。 */
     private fun isStale(loc: NavLocation): Boolean =
-        loc.space == UiSpace.EDIT && (loc.file == null || !Files.exists(loc.file))
+        loc.space == UiSpace.EDIT && loc.help == null && (loc.file == null || !Files.exists(loc.file))
 
     /** 参照ジャンプ・ファイル切替・ビュー間ジャンプの履歴を1つ戻る（削除済みファイルは読み飛ばす）。 */
     fun goBack() {

@@ -2,7 +2,8 @@
   "mcpServers": {
     "compose-hot-reload": {
       "command": "cmd",
-      "args": ["/c", ".\\gradlew.bat", "--no-daemon", "--quiet", "--console=plain", "hotMcpServer"]
+      "args": ["/c", ".\\gradlew.bat", "--no-daemon", "--quiet", "--console=plain", "hotMcpServer"],
+      "env": { "GRADLE_OPTS": "-Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8" }
     }
   }
 }
