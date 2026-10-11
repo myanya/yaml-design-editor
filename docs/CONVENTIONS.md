@@ -17,7 +17,7 @@
 - ツリーの変更は必ず `ctx.markEdited()`（または `doc.markEdited()`）とセットで行う。
 - 入力欄は `CompactTextField`、色は `Palette.*`、角丸は `PanelShape` を使う。生の `Color(0x...)` や Material 既定色をビューに直接書かない（テーマ切替が壊れるため）。
 - 等幅で見せる文字（YAML ソース・差分・ログ・サンプル）は `AppFonts.Mono`（同梱の Cica。ビルド時に取得して資源 `fonts/cica/` に入る）。`FontFamily.Monospace` を書かない（OS 任せで日本語と英数の幅が揃わず、OS ごとに見た目が変わる）。
-- 外部の UI ライブラリ（FileKit・Reorderable・Markdown の描画）は ui/ の 1 ファイルで包み、ライブラリの型やimport をその外へ出さない。より良いライブラリが見つかったとき、その 1 ファイルだけ書き換えれば済むようにするため。共通の部品（表＝`VirtualTable`・Markdown＝`MarkdownView`・ファイル選択＝`FilePickers`・並べ替え＝`ReorderableList`）を画面ごとに作り直さない。
+- 外部の UI ライブラリ（FileKit・Reorderable・Markdown の描画・Vico・ELK）は ui/ の 1 ファイルで包み、ライブラリの型やimport をその外へ出さない。より良いライブラリが見つかったとき、その 1 ファイルだけ書き換えれば済むようにするため。共通の部品（表＝`VirtualTable`・Markdown＝`MarkdownView`・ファイル選択＝`FilePickers`・並べ替え＝`ReorderableList`・グラフ＝`BarChart`・節点と辺の配置＝`GraphLayouts`）を画面ごとに作り直さない。
 - 入力欄のプレースホルダーは呼び出し側で装飾しない（`Text("...")` のみ）。`CompactTextField` が「入力テキストと同サイズ・`Palette.SubText` 色」を一律に与える（画面ごとの濃さ・大きさのばらつき防止）。
 - 文字サイズの目安: 見出し 13–16sp、本文 12–13sp、補足 10–11sp。
 - 破壊的操作（削除・破棄・一括変更）は `AlertDialog` で確認し、確定ボタンの文言に `Palette.ErrorRed` を使う。

@@ -102,6 +102,7 @@
 | P35 | 汎用フロービュー | 初期範囲完了、検証と制約は [記録](archive/flow-view.md) |
 | P36 | GUI のリッチ化（Compose Multiplatform のライブラリ活用） | 段階 0（土台）と段階 1 の 6 項目（表・Markdown 表示・ファイル選択・並べ替え・日付・グラフ）完了（2026-10-11）。段階 2 は残り（下記） |
 | P37 | ファイルの場所の型（`file`）と画像の表示 | 第一弾完了（2026-10-11）。残りは BACKLOG の個別項目（下記） |
+| P38 | グラフレンズの配置と描画の改善（ELK） | 完了（2026-10-12） |
 
 ## 未完のテーマ
 
@@ -295,7 +296,7 @@ definitions:
 - **完了（段階 1・入力）**: OS ネイティブのファイル選択と最後に選んだ場所の記憶（FileKit を `FilePickers` に閉じる）、配列のドラッグ並べ替え（取っ手方式。Reorderable を `ReorderableList` に閉じる）、日付・時刻のピッカー（Material3 の DatePicker / TimeInput をポップアップで）。
 - **完了（段階 1・グラフ）**: Vico 3 を `BarChart` に閉じ、準備完了レポートの画面（台帳の「準備」タブ）を作った（タイル・型別とフェーズ別の積み上げ棒・エンティティの表）。候補の比較は Koala Plot・Lets-Plot・Compose Charts・自前 Canvas と行い、保守の活発さと軽さで Vico を選んだ。
 - **残り（段階 2・標準機能）**: 右クリックメニュー、全アイコンボタンのツールチップ、MenuBar、Tray と OS 通知、畳みとハイライトのアニメーション、ウィンドウの位置・大きさの記憶（Window API v2）、ドラッグ＆ドロップ。
-- **見送り・条件付き**: Jewel（IDE 風への全面移行。テーマの二重化）、ELK（フロー図の配置。`FlowLayout` は semantic-core で CLI と座標を共有）、コードエディタ系ライブラリ（YAML 対応なし。自前の `BasicTextField` を `TextFieldState` 版へ）、SplitPane とツリー部品（自前で十分）、Haze（beta）。
+- **見送り・条件付き**: Jewel（IDE 風への全面移行。テーマの二重化）、ELK のフロー図への適用（`FlowLayout` は semantic-core で CLI と座標を共有。レンズには P38 で採用）、コードエディタ系ライブラリ（YAML 対応なし。自前の `BasicTextField` を `TextFieldState` 版へ）、SplitPane とツリー部品（自前で十分）、Haze（beta）。
 - **残る判断**: 見た目の方向（Material3 ＋独自パレットのまま磨く＝推奨）、UI 用の可変幅フォントの同梱（BACKLOG UX-148）、Markdown のアプリ内編集（案 B。BACKLOG UX-149）、図を足す場所（検証集計・計測評価・bench）。
 
 ### P37: ファイルの場所の型（`file`）と画像の表示

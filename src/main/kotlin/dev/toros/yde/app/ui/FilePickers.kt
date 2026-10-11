@@ -9,6 +9,7 @@ import io.github.vinceglb.filekit.dialogs.FileKitDialogSettings
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.compose.rememberDirectoryPickerLauncher
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
+import io.github.vinceglb.filekit.dialogs.compose.rememberFileSaverLauncher
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.prefs.Preferences
@@ -24,7 +25,7 @@ val LocalDialogParentWindow = compositionLocalOf<java.awt.Window?> { null }
  */
 object FilePickers {
     /** 用途。覚える場所はこの単位で分ける（ワークスペースの選択と取り込みファイルは行き先が違う）。 */
-    enum class Purpose(val key: String) { WORKSPACE("workspace"), IMPORT("import"), FILE_FIELD("file") }
+    enum class Purpose(val key: String) { WORKSPACE("workspace"), IMPORT("import"), FILE_FIELD("file"), EXPORT("export") }
 
     private val prefs = Preferences.userRoot().node("yaml-design-editor/pickers")
     // 覚えた場所。Compose の状態にして、選んだ直後の再コンポーズで次回の開始位置が更新されるようにする
@@ -100,6 +101,30 @@ fun rememberFileChooser(
         picked?.file?.toPath()?.let { FilePickers.rememberChoice(purpose, it); onChosen(it) }
     }
     return { launcher.launch() }
+}
+
+/**
+ * 保存先を選ぶダイアログを開く関数を返す（引数は拡張子を除いた既定のファイル名）。
+ * `extension` は拡張子（例 "png"）。選んだ場所は `purpose` ごとに覚える。ファイルは呼び出し側が書く。
+ */
+@Composable
+fun rememberFileSaver(
+    purpose: FilePickers.Purpose,
+    title: String,
+    extension: String,
+    fallback: Path? = null,
+    onError: (String) -> Unit = {},
+    onChosen: (Path) -> Unit,
+): (String) -> Unit {
+    val start = FilePickers.initialDirectory(FilePickers.lastDirectory(purpose), fallback, FilePickers.userHome())
+    val parent = LocalDialogParentWindow.current
+    val launcher = rememberFileSaverLauncher(
+        dialogSettings = dialogSettings(title, parent),
+        onError = { e -> onError("保存先の選択を開けません: ${e.message ?: e::class.simpleName}") },
+    ) { picked ->
+        picked?.file?.toPath()?.let { FilePickers.rememberChoice(purpose, it); onChosen(it) }
+    }
+    return { suggestedName -> launcher.launch(suggestedName, extension, start?.let { PlatformFile(it.toFile()) }) }
 }
 
 private fun dialogSettings(title: String, parent: java.awt.Window?): FileKitDialogSettings =

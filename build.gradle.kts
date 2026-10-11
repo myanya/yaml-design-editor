@@ -58,6 +58,18 @@ dependencies {
     implementation("sh.calvin.reorderable:reorderable:3.1.0")                   // ドラッグで並べ替え（ui/Reorder.kt）
     implementation("com.mikepenz:multiplatform-markdown-renderer-m3:0.45.0")   // Markdown の描画（ui/MarkdownView.kt）
     implementation("com.patrykandpatrick.vico:compose-m3:3.3.1")              // グラフ（ui/Charts.kt）
+    // 節点と辺の配置（ELK＝Eclipse Layout Kernel。ui/GraphLayouts.kt に閉じる。応力配置は alg.force に同梱・spore は重なり除去）
+    val elk = "0.12.0"
+    implementation("org.eclipse.elk:org.eclipse.elk.core:$elk")
+    implementation("org.eclipse.elk:org.eclipse.elk.alg.layered:$elk")
+    implementation("org.eclipse.elk:org.eclipse.elk.alg.force:$elk")
+    implementation("org.eclipse.elk:org.eclipse.elk.alg.radial:$elk")
+    implementation("org.eclipse.elk:org.eclipse.elk.alg.spore:$elk")
+    implementation("org.eclipse.xtext:org.eclipse.xtext.xbase.lib:2.36.0")   // ELK の POM に書かれていない実行時依存（配置の目録を作るときに要る）
+    constraints {
+        // ELK は Guava を「15.0 以上」の幅で要求する。ビルドのたびに版が動かないよう固定する
+        implementation("com.google.guava:guava") { version { strictly("33.7.2-jre") } }
+    }
     implementation("org.yaml:snakeyaml:2.3")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("org.apache.poi:poi-ooxml:5.3.0")   // Excel(xlsx)のインポート・エクスポート（skill機構）

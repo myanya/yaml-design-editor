@@ -19,7 +19,7 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 | `VirtualTable` / `TableColumn` / `visibleColumnRange` | ui/VirtualTable.kt | 共通の表。見出し行と左の固定列は動かず、行は遅延描画、列は見える範囲だけ組み立てる（ビューグリッド・一覧ビューが使う） |
 | `ReorderableList` / `ReorderRowScope` | ui/Reorder.kt | ドラッグで並べ替える縦リスト（取っ手からだけ掴める。ライブラリ Reorderable を包む） |
 | `TemporalPickerButton` / `TemporalPick` | ui/TemporalEditor.kt | 日付・時刻・日時のピッカー（ポップアップ）と、正準の文字列との変換（純ロジック） |
-| `FilePickers` / `rememberDirectoryChooser` / `rememberFileChooser` / `LocalDialogParentWindow` | ui/FilePickers.kt | OS ネイティブのファイル・フォルダ選択と最後に選んだ場所の記憶（ライブラリ FileKit を包む） |
+| `FilePickers` / `rememberDirectoryChooser` / `rememberFileChooser` / `rememberFileSaver` / `LocalDialogParentWindow` | ui/FilePickers.kt | OS ネイティブのファイル・フォルダ選択と保存先の選択、最後に選んだ場所の記憶（ライブラリ FileKit を包む） |
 | `MarkdownView` / `openExternally` | ui/MarkdownView.kt | Markdown の描画（ライブラリ multiplatform-markdown-renderer を包む。色と文字は Palette） |
 | `MarkdownPane` / `resolveMarkdownLink` | ui/MarkdownPane.kt | Markdown 文書と内蔵ヘルプの表示（表示とソースの 2 タブ・リンクの行き先の判定は純ロジック） |
 | `Help` | app/Help.kt | 内蔵ヘルプの題目と本文（ビルド時に資源 `help/` へ入れた利用者マニュアル） |
@@ -29,7 +29,9 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 | `ReadinessPane` / `readinessChartData` | ui/ReadinessPane.kt | 準備完了レポート（台帳の「準備」タブ: タイル・型別とフェーズ別の図・エンティティの表、図のデータ整形は純ロジック） |
 | `SidePanel` | ui/SidePanel.kt | ID インスペクタ（検証・関係・出現の 3 タブ） |
 | `FileTreePane` / `SourcePane` / `DiffPane` / `SchemaEditor` / `IdCrossView` / `ViewGridPane` / `WorkspaceViews` / `AiGenerationDialog` / `AutomationPanel` / `ImprovementPanel` / `SkillsPanel` | ui/ | 各ペイン |
-| `SourceHighlight` / `GraphLayout` / `DiffPane.calculateDiff` | ui/ | テスト可能な純ロジック（YAML トークナイザと置換・力学レイアウト・差分） |
+| `GraphLensView` | ui/GraphLensView.kt | グラフレンズ（配置の切替・箱と矢印の描画・クリックでエンティティページへ着地し、配置は背景で計算し、できるまで前の絵を出す）と操作（ホイール拡縮・節点のドラッグ＝`withMovedBoxes`・ホバー強調・右クリック・PNG 保存・ミニマップ） |
+| `GraphLayouts` / `LensLayoutKind` / `LensArrangement` / `fitViewport` | ui/GraphLayouts.kt | 節点と辺の配置（放射・階層・応力はライブラリ ELK を包み、力学は `GraphLayout`）と画面に収める倍率の計算（Compose に依存しない純ロジック） |
+| `SourceHighlight` / `GraphLayout` / `DiffPane.calculateDiff` | ui/ | テスト可能な純ロジック（YAML トークナイザと置換・軽い力学レイアウト・差分） |
 
 ## UI シェル
 
@@ -91,8 +93,10 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 - `Dispatchers.Main` は使わない。バックグラウンドから UI へ反映するときはスナップショット状態を直接更新する（CONVENTIONS「Compose UI の書き方」）。
 - 入力欄は `CompactTextField`、色は `Palette.*`、角丸は `PanelShape`。生の色や Material 既定色をビューに直接書かない。
 - 等幅の文字は `AppFonts.Mono`（同梱の Cica。TTF は git に入れず、build.gradle.kts の `downloadFonts` がビルド時に取得して資源 `fonts/cica/` に入れる）。`FontFamily.Monospace` を書かない。
-- 外部の UI ライブラリは ui/ の 1 ファイルで包み、その型を他のファイルへ出さない（FileKit＝FilePickers.kt・Reorderable＝Reorder.kt・Markdown＝MarkdownView.kt）。差し替えるときはその 1 ファイルだけを書き換える。
-- 表は `VirtualTable`、Markdown は `MarkdownView`、ファイル選択は `rememberDirectoryChooser` / `rememberFileChooser`、並べ替えは `ReorderableList`、グラフは `BarChart`（Vico を包む）を使い、画面ごとに作り直さない。
+- 外部の UI ライブラリは ui/ の 1 ファイルで包み、その型を他のファイルへ出さない（FileKit＝FilePickers.kt・Reorderable＝Reorder.kt・Markdown＝MarkdownView.kt・Vico＝Charts.kt・ELK＝GraphLayouts.kt）。差し替えるときはその 1 ファイルだけを書き換える。
+- 表は `VirtualTable`、Markdown は `MarkdownView`、ファイル選択は `rememberDirectoryChooser` / `rememberFileChooser`、並べ替えは `ReorderableList`、グラフは `BarChart`（Vico を包む）、節点と辺の配置は `GraphLayouts`（ELK を包む）を使い、画面ごとに作り直さない。
+- 節点と辺の図は、配置（純ロジック。大きさは px で渡す）と描画（Canvas）を分け、配置は背景で計算してスナップショット状態へ入れる。ラベルは件数でなく倍率で出し分ける（縮小すると省く）。
+- 図の描画は `DrawScope` の関数に切り出し、画面の Canvas と画像の書き出し（`CanvasDrawScope` で `ImageBitmap` に描く）で同じものを使う。ホイール・ホバー・右クリックは `PointerEventPass.Initial` で先に受け、右クリックは消費してタップにしない。
 - 図の色は意味で決め、色だけに頼らない（凡例・アイコン・表を添える）。系列の色の組は色覚の差も含めて見分けられるかを確かめてから Palette に足す（準備完了＝`ChartReady`・未完＝`ChartPending`）。
 - テストしたいロジックはコンポーザブルから純粋関数へ切り出して `internal` にする。
 
