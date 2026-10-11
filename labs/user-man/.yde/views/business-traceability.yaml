@@ -1,0 +1,18 @@
+id: business-traceability
+name: 操作・業務フロー・ユースケース対応
+description: 主活動・任意活動を1行として、利用する操作、親フロー、活動に対応するUSCSと関与領域を表示する。操作・USCSが未設定の活動も残す。
+rows:
+  match:
+    - node: {id: 'BACT-*', bind: activity}
+    - edge: {contains: true, dir: in}
+    - node: {entity: business-flow, bind: flow}
+  rowKey: activity
+columns:
+  - {label: 利用するドメイン操作, of: activity, schemaId: business-flow-detail, path: operations}
+  - {label: 業務フローID, of: flow, schemaId: business-flow-list, path: id}
+  - {label: 業務フロー, of: flow, schemaId: business-flow-list, path: title}
+  - {label: 業務活動, of: activity, schemaId: business-flow-detail, path: title}
+  - {label: 活動に対応するユースケース, of: activity, schemaId: business-flow-detail, path: usecases}
+  - {label: 活動に関与するサブドメイン, of: activity, schemaId: business-flow-detail, path: subdomains}
+detail:
+  schemaId: business-flow-detail

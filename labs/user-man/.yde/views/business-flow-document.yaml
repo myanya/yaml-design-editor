@@ -2,7 +2,6 @@ id: business-flow-document
 name: 業務フローの確認
 kind: document
 schemaId: business-flow-detail
-match: 10_specs/40_business_flows/BZFL-0002-*.yaml
 sections:
   - label: 目的と前提
     fields: {include: [id, status, purpose, actors, preconditions]}

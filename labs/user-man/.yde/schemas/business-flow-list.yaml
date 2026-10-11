@@ -1,7 +1,7 @@
 id: business-flow-list
 name: 業務フロー一覧
 match: 10_specs/40_business_flows/0000-business-flow-lists.yaml
-description: 概要ユースケースのID・タイトル・概要を管理する。
+description: 業務の目的単位で洗い出したフローの範囲・根拠と、既存操作との照合先を管理する。詳細の作成有無は同じIDの文書から導出する。
 entity:
   type: business-flow
   idPattern: BZFL-*
@@ -24,4 +24,34 @@ root:
         fields:
           - { key: id, label: 業務フローID, type: id, pattern: 'BZFL-[0-9]{4}', required: true }
           - { key: title, label: タイトル, type: line, role: title, required: true }
+          - key: area
+            label: 業務の分類
+            type: enum
+            required: true
+            values:
+              - {value: tenant, label: テナント開設・設定}
+              - {value: user, label: ユーザの管理・所属}
+              - {value: organization, label: 組織・グループ}
+              - {value: authorization, label: 権限管理・認可連携}
+              - {value: authentication, label: 認証・再ログイン}
+              - {value: reservation, label: 変更予約}
+              - {value: communication, label: 通知・お知らせ}
+              - {value: audit, label: 監査・履歴}
+              - {value: operations, label: 障害対応・システム運用}
+          - key: scope
+            label: 実施範囲
+            type: enum
+            required: true
+            values:
+              - {value: product, label: 提供機能・自動処理}
+              - {value: operation, label: システム運用作業}
           - { key: summary, label: 概要, type: text, role: subtitle, required: true }
+          - key: related_operations
+            label: 照合する既存操作
+            description: 一覧段階の照合先。活動やUSCSで実際に使う操作は詳細化時に定め、uses-operationとは区別する。省略は操作定義の不要を意味しない。
+            type: array
+            item:
+              type: ref
+              idPatterns: [DOPR-*]
+              scope: {schemaIds: [subdomain-detail]}
+          - {key: rule_refs, label: このフローを洗い出した根拠, type: domain-model-types#rule-refs, required: true}

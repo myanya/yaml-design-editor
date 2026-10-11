@@ -2,7 +2,6 @@ id: business-flow-diagram
 name: 業務フロー図
 kind: flow
 schemaId: business-flow-detail
-match: 10_specs/40_business_flows/BZFL-0002-*.yaml
 layout:
   direction: down
 projection:

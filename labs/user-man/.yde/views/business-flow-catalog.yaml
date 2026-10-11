@@ -1,0 +1,21 @@
+id: business-flow-catalog
+name: 業務フローの全体一覧
+description: 詳細未作成のフローも含む全量を表示する。作成有無は実際の詳細文書から導出し、草案・確定の状態と区別する。
+rows:
+  idPattern: BZFL-*
+order:
+  schemaId: business-flow-list
+columns:
+  - {label: 業務フロー, schemaId: business-flow-list, path: title}
+  - {label: 業務の分類, schemaId: business-flow-list, path: area}
+  - {label: 実施範囲, schemaId: business-flow-list, path: scope}
+  - label: 詳細文書
+    value:
+      map: {occurrenceCount: {schema: business-flow-detail}}
+      using: {'0': 未作成, '1': 作成済み}
+  - {label: 詳細の状態, schemaId: business-flow-detail, path: status}
+  - {label: 目的と範囲, schemaId: business-flow-list, path: summary}
+  - {label: 照合する既存操作, schemaId: business-flow-list, path: related_operations}
+  - {label: 洗い出しの根拠, schemaId: business-flow-list, path: rule_refs}
+detail:
+  schemaId: business-flow-detail

@@ -32,9 +32,13 @@ GUIをコマンドで開く場合は、同じキャッシュ指定の後に `.\g
 .\gradlew.bat runCli -q --no-daemon --console=plain --args="view labs/user-man domain-operation-catalog"
 .\gradlew.bat runCli -q --no-daemon --console=plain --args="view labs/user-man domain-entity-catalog"
 .\gradlew.bat runCli -q --no-daemon --console=plain --args="view labs/user-man domain-rule-usage"
-.\gradlew.bat runCli -q --no-daemon --console=plain --args="view labs/user-man business-flow-diagram"
-.\gradlew.bat runCli -q --no-daemon --console=plain --args="view labs/user-man business-flow-document"
+.\gradlew.bat runCli -q --no-daemon --console=plain --args="view labs/user-man business-flow-diagram 10_specs/40_business_flows/BZFL-0001-ユーザ登録から利用開始.yaml"
+.\gradlew.bat runCli -q --no-daemon --console=plain --args="view labs/user-man business-flow-document 10_specs/40_business_flows/BZFL-0001-ユーザ登録から利用開始.yaml"
+.\gradlew.bat runCli -q --no-daemon --console=plain --args="view labs/user-man business-flow-diagram 10_specs/40_business_flows/BZFL-0002-ユーザの停止と再開.yaml"
+.\gradlew.bat runCli -q --no-daemon --console=plain --args="view labs/user-man business-flow-document 10_specs/40_business_flows/BZFL-0002-ユーザの停止と再開.yaml"
 .\gradlew.bat runCli -q --no-daemon --console=plain --args="view labs/user-man business-activity-catalog"
+.\gradlew.bat runCli -q --no-daemon --console=plain --args="view labs/user-man business-traceability"
+.\gradlew.bat runCli -q --no-daemon --console=plain --args="view labs/user-man business-flow-catalog"
 .\gradlew.bat runCli -q --no-daemon --console=plain --args="checks labs/user-man"
 .\gradlew.bat runCli -q --no-daemon --console=plain --args="view labs/user-man usecase-catalog"
 ```
@@ -48,6 +52,8 @@ Markdownの変更では、リンク、行長、サイズ、改行とGit差分を
 |---|---|
 | サブドメイン分類一覧 | 領域の責務・分類・操作と主担当のUSCS |
 | サブドメインの操作と利用箇所 | 全操作の所属・条件・結果と、活動・USCSからの逆参照 |
+| 業務フローの全体一覧 | 詳細未作成も含む全フローの目的・分類・実施範囲・根拠と、詳細の作成有無 |
+| 操作・業務フロー・ユースケース対応 | 活動ごとの操作・親フロー・対応USCS・関与領域 |
 | 業務活動と親フロー | 活動の主体・利用操作・対応USCSと親フロー |
 | 詳細ユースケース一覧 | 主担当の領域・具体化する操作・使用モデルと業務活動からの逆参照 |
 
@@ -56,8 +62,18 @@ Markdownの変更では、リンク、行長、サイズ、改行とGit差分を
 
 ## 活動・操作・ユースケースの試し方
 
+「台帳」→「ビュー」から「操作・業務フロー・ユースケース対応」を選びます。
+1行は主活動または任意活動です。親フローは活動の包含関係から導出し、その他の対応は原本の参照を表示します。
+「活動に関与するサブドメイン」は活動全体の関与領域です。各操作の所属は「サブドメインの操作と利用箇所」で確認します。
+BACT-0012の行で、登録DOPR-0005・任意のロール付与DOPR-0003、BZFL-0001、USCS-0001の対応を確認してください。
+BACT-0013とBACT-0017は別の活動ですが、同じDOPR-0008・USCS-0002へ対応します。
+BACT-0002の停止操作はUSCSが未設定、BACT-0001の運用判断は操作・USCSが未設定のまま表示します。空欄は検討完了を意味しません。
+セルから原本の操作・フロー・活動・USCSを辿れます。複数の操作とUSCSがある行は活動単位の対応であり、各操作と各USCSの全組み合わせを意味しません。
+活動のない操作はこのビューの行にはならないため、全操作の確認には「サブドメインの操作と利用箇所」を使います。
+活動に展開していないvariationsからのUSCS参照は「詳細ユースケース一覧」の逆参照で確認します。
+
 1. 台帳で「サブドメインの操作と利用箇所」を開き、DOPR-0005「ユーザの登録」の所属がユーザ管理であることを確認します。
-2. 同じ行の逆参照からBZFL-0001の登録手順とUSCS-0001へ移動します。ロール付与DOPR-0003もUSCS-0001から参照されます。
+2. 同じ行の逆参照からBZFL-0001の登録活動BACT-0012とUSCS-0001へ移動します。ロール付与DOPR-0003もUSCS-0001から参照されます。
 3. DOPR-0009「ユーザの停止」にはBACT-0002とBACT-0003が対応し、USCSは未作成のため空であることを確認します。
 4. BACT-0001の運用判断やBACT-0009の削除への引き渡しには、実行する操作を割り当てていないことを確認します。
 5. 操作の詳細から条件・結果とRITMを辿り、各業務判断の根拠を確認します。
@@ -76,6 +92,13 @@ Markdownの変更では、リンク、行長、サイズ、改行とGit差分を
 
 モデルと根拠の確認は、前節の「サブドメイン内のモデルと根拠の試し方」も併せて行います。
 
+「台帳」→「ビュー」→「業務フローの全体一覧」で、洗い出したフロー全体を確認します。
+BZFL-0001・0002は詳細「作成済み」かつ「草案」、残りは「未作成」と表示します。未作成のフローは一覧の概要・根拠を確認できます。
+BZFL-0016の直接DBによる復旧を通常機能と読み違えないこと、照合する既存操作が空でも業務を対象外と解釈しないことを確認してください。
+一覧項目のRITM参照は「個別ルールのモデル・操作への展開」の参照元にも表示します。詳細化済みかは全体一覧で確認します。
+CLI検証では詳細未作成分のカバレッジ警告が出ます。これは一覧の欠落ではなく詳細化の残件であり、未解決参照や構造エラーとは区別します。
+図と「操作・業務フロー・ユースケース対応」は活動を記述した詳細が対象なので、全体一覧のすべてがまだ表示されるわけではありません。
+
 業務フロー一覧からBZFL-0002「ユーザの停止と再開」を開くと、目的と前提の後にフロー図を表示します。
 「拡大表示」または「台帳」→「フロー」→「業務フロー図」で単独の図を開けます。
 管理者等・本人・本システムのレーン、停止後の再開・維持・削除への引き渡し、接続線を持たない任意活動を確認してください。
@@ -88,7 +111,11 @@ Markdownの変更では、リンク、行長、サイズ、改行とGit差分を
 「業務活動と親フロー」でBACT-0003の親がBZFL-0002と表示されることを確認します。親IDは原本の包含関係から導出しています。
 「個別ルールのモデル・操作への展開」では、RITM-0170の参照元に活動・遷移が現れ、該当項目へ移動できます。
 CLIでは `entity labs/user-man show BACT-0003` と `search labs/user-man --ref-to RITM-0170` でも確認できます。
-BZFL-0001は旧形式の基本フローと既存のUSCS対応を従来のフォームで確認します。現段階ではフロー図の対象にしません。
+BZFL-0001「ユーザ登録から利用開始」も同じ文書ビューとフロー図で開けます。
+管理者等・本人・予約処理・本システムのレーンを確認し、登録から管理者等の操作または予約処理へ分かれ、初期設定案内へ合流することを確認します。
+利用開始の2活動は同じDOPR-0008・USCS-0002を参照します。両方を順に実行する手順ではありません。
+活動からUSCS-0001〜0005とRITMへ移動し、案内の遅延・再試行などは図の下の補足で確認します。
+「業務活動と親フロー」でBACT-0012の親がBZFL-0001になること、詳細ユースケース一覧でUSCS-0002に両活動の逆参照が現れることも確認してください。
 
 詳細ユースケースは、台帳の「詳細ユースケース一覧」からUSCS-0001〜0005を開きます。
 主担当サブドメイン・具体化する操作・使用するモデル・業務フローからの逆参照が表示されることを確認します。
@@ -100,7 +127,7 @@ CLIの `search labs/user-man --ref-to RITM-0209` と `search labs/user-man --ref
 パスワード保存時にURLが使用済みになること、状態反映の再試行では設定を保持すること、メールの再試行回数・間隔がテナント設定であることに注目してください。
 
 1. YDEで `10_specs/40_business_flows/0000-business-flow-lists.yaml` を開き、登録から利用開始までの詳細へ移動します。
-2. 基本フローで、実行主体・状態変化・サブドメイン・根拠のルールを順に確認します。
+2. フロー図と活動・遷移の原本で、実行主体・状態変化・サブドメイン・根拠のルールを順に確認します。
 3. 登録時のロール指定が任意であり、登録後にも設定できることを確認します。
 4. 「初期設定中」への遷移が案内の契機であり、予約バッチを優先して実際のメール送信を遅らせられることを確認します。
 5. 参照先のサブドメインとルールをたどり、本人の初期設定や未完了からの再開について、根拠と業務手順が対応していることを確認します。

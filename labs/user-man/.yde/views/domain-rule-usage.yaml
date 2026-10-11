@@ -8,6 +8,6 @@ columns:
   - label: モデル・操作・業務フローの参照元
     backlinks:
       relation: grounded-in-rule
-      schemaIds: [subdomain-detail, usecase-detail, business-flow-detail]
+      schemaIds: [subdomain-detail, usecase-detail, business-flow-list, business-flow-detail]
 detail:
   schemaId: rule-detail

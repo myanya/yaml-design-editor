@@ -30,51 +30,11 @@ root:
       type: array
       required: true
       item: { type: line }
-    - key: basic_flow
-      label: 基本フロー
-      description: 配列の順に業務の流れを記述する。処理全体の同期実行や単一トランザクションを意味しない。
-      type: array
-      display: list
-      item:
-        type: object
-        fields:
-          - key: usecases
-            label: 対応する詳細ユースケース
-            type: array
-            item:
-              type: ref
-              idPatterns: [USCS-*]
-              scope:
-                schemaIds: [usecase-list]
-              relation: elaborates-with
-          - { key: title, label: 手順名, type: line, role: title, required: true }
-          - { key: actor, label: 実施主体, type: line, required: true }
-          - { key: content, label: 内容, type: text, required: true }
-          - { key: state_change, label: 利用状態の変化, type: text }
-          - {key: operations, label: 利用する操作, type: domain-model-types#operation-refs}
-          - key: subdomains
-            label: 関与するサブドメイン
-            type: array
-            required: true
-            item:
-              type: ref
-              idPatterns: [SDOM-*]
-              scope:
-                schemaIds: [subdomain-list]
-          - key: rule_refs
-            label: 根拠の個別ルール
-            type: array
-            required: true
-            item:
-              type: ref
-              idPatterns: [RITM-*]
-              relation: grounded-in-rule
-              scope:
-                schemaIds: [rule-detail]
     - key: activities
       label: 主活動
       description: 業務上の活動・判断・到達点・引き渡し。進行順序はtransitionsで指定する。
       type: array
+      required: true
       display: list
       item: {type: business-flow-types#activity}
     - key: supporting_activities
@@ -87,6 +47,7 @@ root:
       label: 主活動間の遷移
       description: 業務上の進行条件。同期呼び出しや自動実行を指定しない。
       type: array
+      required: true
       display: list
       item: {type: business-flow-types#transition}
     - key: variations
@@ -176,36 +137,8 @@ constraints:
     message: 遷移先は、同じ業務フローのactivitiesから指定してください。
   - match: [{node: {entity: business-flow, bind: f}}]
     where:
-      - {of: f, path: basic_flow, exists: true}
-      - {of: f, path: activities, exists: true}
-    expect: absent
-    level: error
-    message: basic_flowとactivitiesは併記できません。
-  - match: [{node: {entity: business-flow, bind: f}}]
-    where:
-      - {of: f, path: basic_flow, exists: false}
-      - {of: f, path: activities, exists: false}
-    expect: absent
-    level: error
-    message: basic_flowまたはactivitiesのどちらかが必要です。
-  - match: [{node: {entity: business-flow, bind: f}}]
-    where:
-      - {of: f, path: basic_flow, exists: true}
-      - {of: f, path: basic_flow, empty: true}
-    expect: absent
-    level: error
-    message: basic_flowには1件以上の手順が必要です。
-  - match: [{node: {entity: business-flow, bind: f}}]
-    where:
       - {of: f, path: activities, exists: true}
       - {of: f, path: activities, empty: true}
     expect: absent
     level: error
     message: activitiesには1件以上の主活動が必要です。
-  - match: [{node: {entity: business-flow, bind: f}}]
-    where:
-      - {of: f, path: activities, exists: true}
-      - {of: f, path: transitions, exists: false}
-    expect: absent
-    level: error
-    message: 新形式ではtransitionsが必要です。接続がなければ空配列にしてください。

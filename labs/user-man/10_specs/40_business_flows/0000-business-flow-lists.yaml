@@ -1,11 +1,374 @@
 business_flows:
   - id: BZFL-0001
     title: ユーザ登録から利用開始
+    area: user
+    scope: product
     summary: |
       任意のロール付与を伴う事前登録、利用開始の操作・予約、初期設定の案内と本人による設定を経て利用中となる流れを記述する。
       大量処理時のメール送信の遅延と、初期設定未完了からの再開も扱う。
+    related_operations: [DOPR-0005, DOPR-0003, DOPR-0008, DOPR-0018, DOPR-0019, DOPR-0012, DOPR-0020]
+    rule_refs: [
+      RITM-0002, RITM-0003, RITM-0132, RITM-0135, RITM-0162, RITM-0163, RITM-0165, RITM-0166,
+      RITM-0167, RITM-0168, RITM-0175, RITM-0176, RITM-0180, RITM-0184, RITM-0195, RITM-0197,
+      RITM-0203, RITM-0204, RITM-0205, RITM-0206, RITM-0207, RITM-0209, RITM-0210, RITM-0211,
+      RITM-0212, RITM-0213, RITM-0214, RITM-0215
+    ]
   - id: BZFL-0002
     title: ユーザの停止と再開
+    area: user
+    scope: product
     summary: |
       管理者等が停止の種類を判断し、ユーザを一時停止・利用停止にした後、必要に応じて再開する業務の流れを記述する。
       基本経路は初期設定完了済みの利用中ユーザを対象とし、停止の維持・削除への分岐と予約による操作も扱う。
+    related_operations: [DOPR-0009, DOPR-0010, DOPR-0006, DOPR-0019, DOPR-0020, DOPR-0021]
+    rule_refs: [
+      RITM-0002, RITM-0053, RITM-0081, RITM-0087, RITM-0088, RITM-0089, RITM-0145, RITM-0163,
+      RITM-0165, RITM-0168, RITM-0170, RITM-0171, RITM-0172, RITM-0173, RITM-0174, RITM-0175,
+      RITM-0176, RITM-0177, RITM-0178, RITM-0179, RITM-0180, RITM-0181, RITM-0182, RITM-0185,
+      RITM-0195, RITM-0197, RITM-0203, RITM-0204
+    ]
+  - id: BZFL-0003
+    title: テナント開設と利用準備
+    area: tenant
+    scope: product
+    summary: |
+      利用側システムのAPI・サービス呼び出し、またはシステム管理者の操作から、本機能の管理対象機能向けにテナントを作成し、機能・権限の初期定義を用意する。
+      本機能を主体とする場合は注入された利用側コンポーネントの登録処理と連携する。最初の組織・管理者の準備、利用開始条件と途中失敗時の扱いは検討-002・021で具体化する。
+    related_operations: [DOPR-0013, DOPR-0014]
+    rule_refs: [RITM-0005, RITM-0008, RITM-0193, RITM-0196, RITM-0198, RITM-0199, RITM-0200, RITM-0201, RITM-0205]
+  - id: BZFL-0004
+    title: テナントのユーザ管理設定変更
+    area: tenant
+    scope: product
+    summary: |
+      権限を持つ操作者が、組織配下の管理範囲、本人・管理者による情報変更可否、状態変更の操作権限と理由の選択肢をテナント単位で設定する。
+      ロールそのものの定義はBZFL-0020で扱い、設定の変更権限・適用時点は検討-018で具体化する。
+    rule_refs: [RITM-0013, RITM-0024, RITM-0124, RITM-0125, RITM-0175, RITM-0185, RITM-0188]
+  - id: BZFL-0005
+    title: テナントの認証・セッション条件変更
+    area: tenant
+    scope: product
+    summary: |
+      権限を持つ操作者が、試行制限、MFAの方式・必須条件、パスワード条件、設定用URLの期限、セッション期限、再ログインの猶予・禁止期間を変更する。
+      変更後のログインで必要な認証設定やパスワード変更へ案内し、条件変更を周知する。設定変更の適用時点の違いは各ルールに従う。
+    rule_refs: [RITM-0036, RITM-0037, RITM-0040, RITM-0048, RITM-0049, RITM-0054, RITM-0060, RITM-0129, RITM-0131, RITM-0134, RITM-0137, RITM-0138, RITM-0139]
+  - id: BZFL-0006
+    title: ログインID方式の切替
+    area: tenant
+    scope: product
+    summary: |
+      権限を持つ操作者がテナントのログインID方式を選択・変更する。ユーザ名方式への切替前に、登録情報の必須・一意条件を確認する。
+      不備があれば情報を補正してから切替を行う。切替時の周知・既存セッションへの影響は検討-018で具体化する。
+    rule_refs: [RITM-0115, RITM-0116, RITM-0117, RITM-0118]
+  - id: BZFL-0007
+    title: テナントの表示・通知設定変更
+    area: tenant
+    scope: product
+    summary: |
+      テナント管理者等の権限を持つ操作者が、テナント名の表示・ロゴ・テーマカラー・既定言語と、通知対象事象・差出人表示名・言語別文面を設定する。
+      初期設定メールの再試行回数・間隔も扱う。システム共通のメール接続設定とは区別し、設定権限や未設定時の扱いは検討-018・019で具体化する。
+    rule_refs: [RITM-0105, RITM-0106, RITM-0107, RITM-0141, RITM-0143, RITM-0148, RITM-0149, RITM-0214]
+  - id: BZFL-0008
+    title: 管理対象ユーザの確認と対応判断
+    area: user
+    scope: product
+    summary: |
+      管理者等が管理範囲内のユーザ情報・利用状態・最終ログイン日時を確認し、初期設定の未完了、情報の補正、停止・再開・削除などの対応を判断する。
+      長期未設定を自動取消せず、削除済みユーザは表示しない。項目別の公開範囲や検索条件は検討-005で具体化する。
+    rule_refs: [RITM-0013, RITM-0014, RITM-0015, RITM-0016, RITM-0017, RITM-0018, RITM-0022, RITM-0156, RITM-0164, RITM-0167, RITM-0168, RITM-0186]
+  - id: BZFL-0009
+    title: 管理者等によるユーザ情報変更
+    area: user
+    scope: product
+    summary: |
+      必要な操作権限と管理範囲を持つ管理者等が、ユーザの共通情報・業務コード等を確認して変更する。停止中も必要な情報を更新できる。
+      本務側と兼務側の変更可能範囲を守り、メール変更はBZFL-0011、変更通知はBZFL-0033、ログインID変更後の反映はBZFL-0023につなぐ。
+    related_operations: [DOPR-0006]
+    rule_refs: [
+      RITM-0016, RITM-0018, RITM-0024, RITM-0109, RITM-0112, RITM-0113, RITM-0116, RITM-0117,
+      RITM-0118, RITM-0119, RITM-0120, RITM-0121, RITM-0122, RITM-0123, RITM-0124, RITM-0125,
+      RITM-0126, RITM-0127, RITM-0141, RITM-0144, RITM-0172
+    ]
+  - id: BZFL-0010
+    title: 本人によるユーザ情報・表示言語変更
+    area: user
+    scope: product
+    summary: |
+      本人がテナント設定で許可された自身の情報を変更し、表示言語を選択・保存する。本人による停止等の状態変更は含めない。
+      メール変更はBZFL-0011、ログインID変更後の再ログインはBZFL-0023につなぐ。項目別の変更可否と利用状態による制限は検討-005・015で具体化する。
+    related_operations: [DOPR-0006]
+    rule_refs: [RITM-0106, RITM-0107, RITM-0116, RITM-0117, RITM-0118, RITM-0119, RITM-0120, RITM-0121, RITM-0122, RITM-0123, RITM-0124, RITM-0127, RITM-0148, RITM-0177]
+  - id: BZFL-0011
+    title: メールアドレス変更と確認
+    area: user
+    scope: product
+    summary: |
+      本人または管理者等が変更を開始し、テナント設定に応じて新しいメールアドレスの確認後、または確認を待たずに変更を確定する。
+      確認待ち中の利用・再変更・失敗時の扱いは検討-016で具体化する。削除時の確認URL無効化と、初期設定案内で使う確定済みの宛先も扱う。
+    related_operations: [DOPR-0006]
+    rule_refs: [RITM-0116, RITM-0120, RITM-0124, RITM-0125, RITM-0126, RITM-0127, RITM-0178, RITM-0215]
+  - id: BZFL-0012
+    title: 本務の異動
+    area: user
+    scope: product
+    summary: |
+      異動元・異動先双方の操作権限を持つ管理者等が、同じテナント内で本務の所属先を変更する。本務の削除やテナント間異動は行わない。
+      本務を必ず1組織とし、ロールの引継ぎ・既存兼務先との調整は検討-004で具体化する。即時操作と変更予約の双方を対象とする。
+    related_operations: [DOPR-0007, DOPR-0003]
+    rule_refs: [RITM-0003, RITM-0004, RITM-0006, RITM-0025, RITM-0056, RITM-0059, RITM-0172, RITM-0176, RITM-0183]
+  - id: BZFL-0013
+    title: 兼務の追加・解除
+    area: user
+    scope: product
+    summary: |
+      管理者等が兼務先を追加し、または不要になった兼務を解除する。追加には本務側・兼務側双方、解除には兼務側の権限を必要とする。
+      所属先の重複や解除時のロールの扱いは検討-004で具体化し、ユーザ全体の停止・削除とは区別する。
+    related_operations: [DOPR-0007, DOPR-0003]
+    rule_refs: [RITM-0003, RITM-0004, RITM-0026, RITM-0056, RITM-0059, RITM-0172, RITM-0176, RITM-0183]
+  - id: BZFL-0014
+    title: ユーザの論理削除
+    area: user
+    scope: product
+    summary: |
+      テナント全体を対象とする該当権限を持つ管理者等が、理由を付けてユーザを論理削除する。利用停止を経ない削除と、誤登録・入社取消の削除も含める。
+      設定用URLを無効化し、通常の管理画面から除外する。関連予約への影響を扱い、保持後の物理削除はBZFL-0015へ引き継ぐ。
+    related_operations: [DOPR-0011]
+    rule_refs: [RITM-0112, RITM-0163, RITM-0169, RITM-0170, RITM-0173, RITM-0175, RITM-0176, RITM-0177, RITM-0178, RITM-0179, RITM-0180, RITM-0185, RITM-0186, RITM-0187]
+  - id: BZFL-0015
+    title: 削除済みユーザの保持と物理削除
+    area: user
+    scope: product
+    summary: |
+      論理削除済みのユーザを障害解析に備えて保持し、論理削除から1か月経過後の次の月次バッチで物理削除する。
+      保持中もテナント管理者等には表示しない。関連データ・業務履歴との削除範囲、期間計算と失敗時の対処は検討-017・023で具体化する。
+    rule_refs: [RITM-0068, RITM-0173, RITM-0186]
+  - id: BZFL-0016
+    title: 削除済みユーザの障害調査・復旧
+    area: operations
+    scope: operation
+    summary: |
+      障害対応時にシステム管理者がデータベースを直接確認し、必要な場合だけ特殊措置として削除済みユーザを復旧する。
+      通常の検索画面・復活API・テナント管理者向け機能は設けない。実施条件・整合性確認・記録は検討-008・017・022で具体化する。
+    rule_refs: [RITM-0174, RITM-0186, RITM-0205]
+  - id: BZFL-0017
+    title: 組織の新設・改編・廃止
+    area: organization
+    scope: product
+    summary: |
+      組織・グループ管理機能の権限を持つ操作者が、組織と親子関係を管理し、所属や各機能の実行範囲に反映する。新組織への異動予約前には組織を用意する。
+      最大階層等の制約を守り、所属ユーザ・子組織・グループ・ロール・予約が残る場合の扱い、統合・分割等の提供範囲は検討-003で具体化する。
+    related_operations: [DOPR-0015, DOPR-0017]
+    rule_refs: [RITM-0001, RITM-0009, RITM-0010, RITM-0059, RITM-0080, RITM-0094, RITM-0095, RITM-0197, RITM-0202, RITM-0203, RITM-0204, RITM-0208]
+  - id: BZFL-0018
+    title: グループの作成と対象範囲の管理
+    area: organization
+    scope: product
+    summary: |
+      権限を持つ操作者がグループを作成し、対象組織の集合と下部組織を含める設定を変更する。変更による管理範囲の重複警告と権限範囲への反映も扱う。
+      ユーザや他グループを構成要素にせず、空のグループの可否・廃止時の条件は検討-003で具体化する。
+    related_operations: [DOPR-0016, DOPR-0017]
+    rule_refs: [RITM-0011, RITM-0012, RITM-0013, RITM-0014, RITM-0058, RITM-0059, RITM-0080, RITM-0197, RITM-0202, RITM-0203, RITM-0208]
+  - id: BZFL-0019
+    title: 機能・権限マスタの登録と管理
+    area: authorization
+    scope: product
+    summary: |
+      開発者が用意した初期定義と、テナント側で追加する機能・権限をテナント単位で管理する。機能に紐づく権限の追加・変更・削除を扱う。
+      ID・表示名・説明を管理し、他テナントへ自動波及させない。利用中の定義の変更・廃止条件や権限値の型は検討-006で具体化する。
+    related_operations: [DOPR-0001]
+    rule_refs: [RITM-0189, RITM-0190, RITM-0191, RITM-0196]
+  - id: BZFL-0020
+    title: 機能別ロールの定義と権限設定
+    area: authorization
+    scope: product
+    summary: |
+      該当機能の管理権限を持つ操作者が、権限マスタを用いて独自ロールを作成し、既存ロールや初期ロールの権限値を変更する。
+      組織・グループの実行範囲と設定可能な権限を守り、名称だけで操作を許可しない。変更可能範囲・削除条件は検討-006で具体化する。
+    related_operations: [DOPR-0002]
+    rule_refs: [RITM-0019, RITM-0020, RITM-0021, RITM-0022, RITM-0023, RITM-0024, RITM-0189, RITM-0192, RITM-0193, RITM-0197, RITM-0203, RITM-0204, RITM-0205]
+  - id: BZFL-0021
+    title: ロール付与・変更と機能管理の委譲
+    area: authorization
+    scope: product
+    summary: |
+      付与権限を持つ操作者が、登録済みユーザへ組織・グループ・テナント単位の機能別ロールを付与・変更する。管理用ロールを通じた機能内の権限管理の委譲も扱う。
+      付与数・実行範囲・個人情報閲覧権限の条件を守る。登録時の任意付与はBZFL-0001、異動に伴う引継ぎはBZFL-0012・0013と連携する。
+    related_operations: [DOPR-0002, DOPR-0003]
+    rule_refs: [
+      RITM-0004, RITM-0017, RITM-0018, RITM-0019, RITM-0020, RITM-0021, RITM-0022, RITM-0023,
+      RITM-0056, RITM-0058, RITM-0059, RITM-0188, RITM-0192, RITM-0193, RITM-0194, RITM-0197,
+      RITM-0206
+    ]
+  - id: BZFL-0022
+    title: 権限範囲の棚卸と警告への対応
+    area: authorization
+    scope: product
+    summary: |
+      システムが保存時・定期棚卸時に管理範囲の重複を確認し、権限を持つ操作者が警告を確認して必要な設定を見直す。
+      重複を一律の操作禁止とはしない。棚卸周期はシステム共通設定とし、テナントごとに順番に処理する。
+    rule_refs: [RITM-0057, RITM-0058]
+  - id: BZFL-0023
+    title: 権限等の変更後の再ログイン
+    area: authentication
+    scope: product
+    summary: |
+      ロール・権限・組織・グループ・ログインID等の変更後、対象ユーザへ原因を示して再ログインを求め、変更を利用へ反映する。
+      テナント設定の猶予・警告と、状態変更後の再ログイン必須条件を適用する。猶予中の操作成功を保証せず、複数変更の組合せは検討-009・015で具体化する。
+    related_operations: [DOPR-0021]
+    rule_refs: [RITM-0059, RITM-0060, RITM-0061, RITM-0062, RITM-0127, RITM-0179]
+  - id: BZFL-0024
+    title: 利用側機能への権限・実行範囲の提供
+    area: authorization
+    scope: product
+    summary: |
+      利用側の機能がユーザの機能別ロール、権限識別ID・権限値、組織・グループによる実行範囲を取得し、その機能の利用を制御する。
+      テナント分離、複数管理範囲の許可の合成、テナント全域・システム管理者の特例を守る。API契約と変更の反映責務は検討-010・021で具体化する。
+    related_operations: [DOPR-0004, DOPR-0017]
+    rule_refs: [RITM-0008, RITM-0013, RITM-0014, RITM-0015, RITM-0016, RITM-0017, RITM-0020, RITM-0023, RITM-0057, RITM-0195, RITM-0197, RITM-0203, RITM-0204, RITM-0205, RITM-0208]
+  - id: BZFL-0025
+    title: ログイン・再認証・ログアウト
+    area: authentication
+    scope: product
+    summary: |
+      本人が利用先テナントの画面からID・パスワードと必要なMFAでログインし、通常機能を利用した後にログアウトする。期限到来時の再認証と別テナントへの切替も扱う。
+      試行制限・失敗記録・認証設定が未完了の場合の案内を含め、停止中に許可された設定経路と通常機能の利用を区別する。
+    related_operations: [DOPR-0021]
+    rule_refs: [
+      RITM-0007, RITM-0033, RITM-0034, RITM-0035, RITM-0037, RITM-0038, RITM-0039, RITM-0040,
+      RITM-0041, RITM-0042, RITM-0045, RITM-0046, RITM-0047, RITM-0048, RITM-0049, RITM-0050,
+      RITM-0051, RITM-0114, RITM-0115, RITM-0119, RITM-0120, RITM-0137, RITM-0138, RITM-0150,
+      RITM-0151, RITM-0156, RITM-0165, RITM-0171
+    ]
+  - id: BZFL-0026
+    title: パスワードの変更・再設定
+    area: authentication
+    scope: product
+    summary: |
+      本人による変更、失念時の再設定、管理者からの再設定案内を起点に、テナント条件を満たすパスワードを保存する。古い条件のパスワードからの復旧も含める。
+      設定用URLの期限・使用済み・再発行時の無効化を適用し、初期設定未完了ならBZFL-0001の未完了設定へ進める。停止中も許可された設定経路を利用できる。
+    related_operations: [DOPR-0020]
+    rule_refs: [
+      RITM-0044, RITM-0052, RITM-0128, RITM-0129, RITM-0130, RITM-0131, RITM-0132, RITM-0133,
+      RITM-0134, RITM-0135, RITM-0136, RITM-0137, RITM-0138, RITM-0166, RITM-0171, RITM-0178
+    ]
+  - id: BZFL-0027
+    title: 多要素認証の有効化と紛失時の復旧
+    area: authentication
+    scope: product
+    summary: |
+      本人が必要または任意のMFAを設定し、手段を紛失した場合は対象を操作できる権限者が設定を初期化して本人の再設定へつなぐ。
+      初回・テナント条件変更後・初期化後の案内とスキップ条件を扱う。本人確認や再設定の詳細条件は検討-014・015で具体化する。
+    related_operations: [DOPR-0019]
+    rule_refs: [RITM-0037, RITM-0038, RITM-0039, RITM-0040, RITM-0041, RITM-0042, RITM-0043, RITM-0171, RITM-0184, RITM-0211]
+  - id: BZFL-0028
+    title: 強制ログアウトによる緊急対処
+    area: authentication
+    scope: product
+    summary: |
+      権限を持つ管理者等が対象ユーザの全セッションへ強制ログアウトを要求し、次回アクセスで反映する。一定期間の再ログイン禁止中に調査・対処する。
+      ユーザの利用停止とは区別し、必要ならBZFL-0002へつなぐ。特定セッションだけを選択する機能は設けない。
+    rule_refs: [RITM-0053, RITM-0054, RITM-0055, RITM-0150]
+  - id: BZFL-0029
+    title: 変更予約の登録・変更・取消と引継ぎ
+    area: reservation
+    scope: product
+    summary: |
+      管理者等がテナント・適用日ごとの予約便を用意し、変更内容と実行権限者を登録する。競合を調整し、締め切り前の修正・取消と実行権限者の交代を扱う。
+      登録時点で存在する組織だけを指定し、登録者と実行権限者、変更対象のユーザ状態を区別する。
+    rule_refs: [RITM-0080, RITM-0081, RITM-0082, RITM-0083, RITM-0087, RITM-0088, RITM-0090, RITM-0091, RITM-0095, RITM-0096, RITM-0097, RITM-0180, RITM-0181, RITM-0182, RITM-0187]
+  - id: BZFL-0030
+    title: 予約便のシミュレーションと補正
+    area: reservation
+    scope: product
+    summary: |
+      締め切り後の予約内容をシミュレーションし、全体管理者が結果を確認して現場と調整・補正する。補正後の再実行は任意とする。
+      組織・グループ側も管理範囲内の結果を確認できる。業務日と暦日時、二段階の締め切りを対応付け、本適用前の確認結果を得る。
+    rule_refs: [RITM-0084, RITM-0085, RITM-0086, RITM-0096, RITM-0097, RITM-0098, RITM-0099, RITM-0100]
+  - id: BZFL-0031
+    title: 予約便の本適用と失敗分への対処
+    area: reservation
+    scope: product
+    summary: |
+      適用日早朝に向け、便開始時点の実行権限を基準として定められた操作種別順に予約を実行する。一部失敗でも他の予約は続行する。
+      管理者等が自らの範囲の結果を確認し、失敗原因を解消して即時変更または再予約で対処する。部分成功の整合性は検討-011で具体化する。
+    rule_refs: [
+      RITM-0084, RITM-0085, RITM-0086, RITM-0087, RITM-0088, RITM-0089, RITM-0092, RITM-0093,
+      RITM-0094, RITM-0096, RITM-0098, RITM-0100, RITM-0145, RITM-0180, RITM-0181, RITM-0182,
+      RITM-0187
+    ]
+  - id: BZFL-0032
+    title: システム共通設定とテナント別ジョブの運用
+    area: operations
+    scope: operation
+    summary: |
+      システム運用者が棚卸周期、テナント別シミュレーションの並列度、メール接続・差出人ドメイン、ログ保存・監視等の共通設定を管理する。
+      導入先の運用基盤と連携し、テナント分離を保って調整する。専用の設定画面の新設を意味せず、操作経路や障害対応は検討-008・022で具体化する。
+    rule_refs: [RITM-0008, RITM-0058, RITM-0071, RITM-0099, RITM-0143, RITM-0160]
+  - id: BZFL-0033
+    title: 本人情報変更の通知
+    area: communication
+    scope: product
+    summary: |
+      ユーザ情報の変更を契機に、テナントで指定した事象についてメール等で本人へ通知する。文面と言語にはテナント設定・本人設定を適用する。
+      本人情報の変更通知メールは失敗しても再送しない。初期設定メールの再試行とは区別し、通知事象・送信先・予約適用時の単位は検討-019で具体化する。
+    rule_refs: [RITM-0140, RITM-0141, RITM-0142, RITM-0143, RITM-0144, RITM-0148, RITM-0149]
+  - id: BZFL-0034
+    title: お知らせの掲載と閲覧
+    area: communication
+    scope: product
+    summary: |
+      テナント管理者が掲載開始・終了日時を指定してお知らせを追加し、テナントの全利用者がトップページで確認する。パスワード条件変更の周知にも利用する。
+      組織等による対象限定や既読管理は設けない。編集形式・表示言語・掲載日時の境界は検討-019で具体化する。
+    rule_refs: [RITM-0139, RITM-0142, RITM-0146, RITM-0147]
+  - id: BZFL-0035
+    title: 監査ログの検索・取得
+    area: audit
+    scope: product
+    summary: |
+      権限を持つ利用者が現在の管理範囲と参照可能期間に従って監査ログを確認し、CSVまたは月単位のCSV・ZIPを取得する。
+      操作の成否と当時の認可根拠・内部IDを追跡し、個人情報や変更前後の値は含めない。改ざん検知済みファイルも警告付きで取得できる。
+    rule_refs: [RITM-0063, RITM-0065, RITM-0066, RITM-0067, RITM-0069, RITM-0070, RITM-0071, RITM-0072, RITM-0073, RITM-0074, RITM-0075, RITM-0078, RITM-0079]
+  - id: BZFL-0036
+    title: 監査ログの改ざん検査と結果確認
+    area: audit
+    scope: product
+    summary: |
+      システムの定期処理または必要時の実行によって監査ログの改ざんを検査し、結果を記録して画面で確認する。
+      保管中のログは編集・任意削除させない。検査の実行権限と検知後の対処手順は検討-013・022で具体化する。
+    rule_refs: [RITM-0075, RITM-0076, RITM-0078]
+  - id: BZFL-0037
+    title: ログイン履歴の確認・取得
+    area: audit
+    scope: product
+    summary: |
+      本人が過去1か月の自身のログイン履歴を確認し、管理者・監査権限者が許可された範囲のログを調査する。長期保管分は年月を指定して取得する。
+      認証の成否・試行制限・ログアウトの記録と最終ログイン日時を扱い、存在しないログインIDへの試行はテナント全域の閲覧権限で扱う。
+    rule_refs: [RITM-0150, RITM-0151, RITM-0152, RITM-0153, RITM-0154, RITM-0155, RITM-0156, RITM-0159]
+  - id: BZFL-0038
+    title: 業務履歴の検索・取得
+    area: audit
+    scope: product
+    summary: |
+      権限を持つ利用者が業務上の変更前後の値を含む履歴を検索し、オンライン検索期間を超える分をダウンロードして確認する。
+      監査ログと同じ利用権限・現在の管理範囲を適用する。削除対象情報の消去と長期保管の整合性は検討-013・017で具体化する。
+    rule_refs: [RITM-0068, RITM-0157, RITM-0158, RITM-0159]
+  - id: BZFL-0039
+    title: ログ・履歴の記録と保管期限管理
+    area: audit
+    scope: product
+    summary: |
+      各操作・認証・バッチを契機として監査ログ・ログインログ・業務履歴を記録し、各々の期間に従ってDBとテナント別・月別ファイルで保管する。
+      監査ログ10年、ログインログ・業務履歴7年の保管方針を適用する。監査ログの期限後自動削除、その他の消去・障害時の整合性は個別ルールと検討-017・022で具体化する。
+    rule_refs: [
+      RITM-0063, RITM-0064, RITM-0065, RITM-0066, RITM-0067, RITM-0068, RITM-0069, RITM-0070,
+      RITM-0071, RITM-0075, RITM-0077, RITM-0150, RITM-0151, RITM-0152, RITM-0153, RITM-0154,
+      RITM-0157, RITM-0159
+    ]
+  - id: BZFL-0040
+    title: ジョブ・運行結果の確認
+    area: operations
+    scope: product
+    summary: |
+      テナント管理者等が自テナントの予約便・各種ジョブの成否やエラーを画面で確認し、システム運用者が導入先の監視基盤で運行状況を調べる。
+      ジョブ成否の個別通知は行わない。予約の業務補正はBZFL-0031、システム運用上の設定・調整はBZFL-0032につなぐ。
+    rule_refs: [RITM-0064, RITM-0100, RITM-0145, RITM-0160, RITM-0161]
