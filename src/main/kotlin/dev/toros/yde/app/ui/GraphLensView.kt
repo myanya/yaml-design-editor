@@ -298,28 +298,23 @@ fun GraphLensView(state: AppState) {
             Spacer(Modifier.weight(1f))
             Text("${nodes.size} ノード / ${visibleEdges.size} エッジ", fontSize = 11.sp, color = Palette.SubText)
         }
-        // 型・relation のチェックボックス（アドホックなレンズ。宣言的レンズ定義は需要待ち。architecture/graph-query.md「エンティティページ」）
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
-                .padding(horizontal = 12.dp, vertical = 2.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("型:", fontSize = 10.sp, color = Palette.SubText)
+        // 型・relation のチェックボックス（多ければ折り返す。アドホックなレンズ。宣言的レンズ定義は需要待ち。architecture/graph-query.md「エンティティページ」）
+        LensFilterRow("型:") {
             types.forEach { t ->
-                Checkbox(typeChecked[t] != false, { typeChecked[t] = it }, modifier = Modifier.size(26.dp))
-                Box(Modifier.size(8.dp).background(typeColors[t] ?: Palette.Primary, PanelShape))
-                Text(" " + (state.entityTypes[t]?.displayLabel ?: t), fontSize = 10.sp, color = Palette.SubText)
-                Spacer(Modifier.width(6.dp))
+                LensFilterItem(typeChecked[t] != false, { typeChecked[t] = it }) {
+                    Box(Modifier.size(8.dp).background(typeColors[t] ?: Palette.Primary, PanelShape))
+                    Text(" " + (state.entityTypes[t]?.displayLabel ?: t), fontSize = 10.sp, color = Palette.SubText)
+                }
             }
-            Spacer(Modifier.width(10.dp))
-            Text("関係:", fontSize = 10.sp, color = Palette.SubText)
+        }
+        LensFilterRow("関係:") {
             relations.forEach { rel ->
-                Checkbox(relationChecked[rel] != false, { relationChecked[rel] = it }, modifier = Modifier.size(26.dp))
-                Text(
-                    Relations.labelOf(state.relations, rel.takeIf { it != "（未宣言）" }) ?: rel,
-                    fontSize = 10.sp, color = Palette.SubText,
-                )
-                Spacer(Modifier.width(6.dp))
+                LensFilterItem(relationChecked[rel] != false, { relationChecked[rel] = it }) {
+                    Text(
+                        Relations.labelOf(state.relations, rel.takeIf { it != "（未宣言）" }) ?: rel,
+                        fontSize = 10.sp, color = Palette.SubText,
+                    )
+                }
             }
         }
         // 配置の切替（放射は起点があるときだけ）。代替した理由と計算中はここに出す
@@ -516,6 +511,32 @@ fun GraphLensView(state: AppState) {
             }
             VerticalScrollbar(rememberScrollbarAdapter(scroll), Modifier.align(Alignment.CenterEnd).fillMaxHeight())
         }
+    }
+}
+
+// ================================================================ 絞り込みのチェックボックス
+
+/**
+ * 絞り込みの 1 行（「型:」「関係:」）。項目が多ければ折り返す。
+ * 横スクロールにしない: 見えていない項目があることに気づけず、右端が切れたように見える。
+ */
+@Composable
+private fun LensFilterRow(caption: String, items: @Composable FlowRowScope.() -> Unit) {
+    FlowRow(
+        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(caption, fontSize = 10.sp, color = Palette.SubText, modifier = Modifier.align(Alignment.CenterVertically))
+        items()
+    }
+}
+
+/** 絞り込みの 1 項目（チェックボックスとラベル。折り返しで分かれないように 1 つにまとめる）。 */
+@Composable
+private fun LensFilterItem(checked: Boolean, onChange: (Boolean) -> Unit, label: @Composable RowScope.() -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Checkbox(checked, onChange, modifier = Modifier.size(26.dp))
+        label()
     }
 }
 
