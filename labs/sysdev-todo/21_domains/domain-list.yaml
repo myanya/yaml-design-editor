@@ -1,7 +1,7 @@
 domains:
   - id: DOM-IDENTITY
     name: 利用者・認証
-    summary: 利用者の登録とメールアドレス・パスワードによる認証を提供し、操作する利用者を識別する。
+    summary: 登録・認証・ログイン履歴の確認・アカウント情報の変更・パスワード再設定・退会を提供する。
     kind: generic # 定型的な認証機能で、既存の認証基盤を活用できる領域。
     status: draft
   - id: DOM-TODO

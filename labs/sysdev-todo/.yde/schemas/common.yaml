@@ -48,11 +48,40 @@ definitions:
         scope: { schemaIds: [todo-value-type-list, todo-model-type-list] }
         description: 業務データ型一覧から選択する。複数値の場合も、1件分の型を指定する。
       - { key: required, label: 必須, type: boolean, required: true, description: 値の指定が必要かを表す。複数値では一覧自体の指定が必要かを表し、空の一覧も許可する。 }
-      - { key: multiple, label: 複数値, type: boolean, default: false, description: 複数の値を持つ場合はtrue。省略時は単一値。 }
+      - { key: multiple, label: 複数値, type: boolean, default: false, description: trueはリスト、falseまたは未指定は単独の値。未指定は値そのものが未設定という意味ではない。 }
       - { key: constraints, label: この項目での追加条件, type: text, description: 型の制約を補う条件。型そのものの制約は型定義書に記述する。 }
   business-data-items:
     type: array
     item: { type: business-data-item }
+  condition-assertion:
+    type: object
+    fields:
+      - { key: subject, label: 検証対象, type: line, required: true }
+      - key: operator
+        label: 判定
+        type: enum
+        required: true
+        values:
+          - { value: equals, label: 等しい }
+          - { value: not_equals, label: 等しくない }
+          - { value: less_than, label: 未満 }
+          - { value: greater_or_equal, label: 以上 }
+          - { value: satisfies, label: 条件を満たす }
+      - { key: expected, label: 比較値・満たす条件, type: line, required: true }
+  operation-preconditions:
+    type: object
+    fields:
+      - key: all
+        label: すべて満たす条件（AND）
+        type: array
+        required: true
+        item: { type: condition-assertion }
+        description: 1要素に1性質を記述する。空の配列は追加のAND条件なし。
+      - key: any
+        label: いずれかを満たす条件（OR）
+        type: array
+        item: { type: condition-assertion }
+        description: 指定時は1件以上の条件を記述する。allもある場合は、all全件とanyの少なくとも1件を満たす。
   result-attribute:
     type: business-data-item
     fields:

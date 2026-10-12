@@ -1,0 +1,8 @@
+id: "DT-CONFIRMATION-PURPOSE"
+rules:
+  - "定義された選択肢のいずれか1つを取る。"
+values:
+  - value: "パスワード再設定"
+    description: "新しいパスワードを設定する。"
+  - value: "メールアドレス変更"
+    description: "変更先メールアドレスへの変更を確定する。"

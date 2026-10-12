@@ -15,4 +15,4 @@ fields:
     description: "認証状態を次の操作に引き継ぐための情報。"
     data_type: DT-AUTH-CREDENTIAL
     required: true
-notes: "認証情報を本文・ヘッダー・Cookieなどのどこで受け渡すかは後続設計で決める。"
+notes: "認証情報を本文・ヘッダー・Cookieなどのどこで受け渡すかは後続設計で決める。★"

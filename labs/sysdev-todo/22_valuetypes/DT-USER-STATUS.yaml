@@ -1,0 +1,8 @@
+id: "DT-USER-STATUS"
+rules:
+  - "定義された選択肢のいずれか1つを取る。"
+values:
+  - value: "利用中"
+    description: "利用を継続している。"
+  - value: "退会済み"
+    description: "退会処理を完了している。"

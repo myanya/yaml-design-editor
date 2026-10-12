@@ -1,0 +1,10 @@
+id: "DT-CONFIRMATION-STATUS"
+rules:
+  - "定義された選択肢のいずれか1つを取る。"
+values:
+  - value: "未使用"
+    description: "まだ使用していない。期限の判定は別に行う。"
+  - value: "使用済み"
+    description: "確認を完了し、目的の操作へ使用した。"
+  - value: "無効"
+    description: "利用を取り消した。"

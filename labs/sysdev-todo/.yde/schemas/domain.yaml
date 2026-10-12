@@ -33,6 +33,7 @@ root:
           - { key: id, label: エンティティID, type: id, required: true, pattern: '^ENT-[A-Z0-9]+(-[A-Z0-9]+)*$', sample: ENT-TODO }
           - { key: name, label: 名称, type: line, role: title, required: true }
           - { key: summary, label: 意味・管理する理由, type: text, role: subtitle, required: true }
+          - { key: availability, label: 利用可能条件, type: todo-design-common#operation-preconditions }
           - { key: information, label: 管理する情報, type: todo-design-common#business-data-items }
           - { key: rules, label: 情報に関する業務ルール, type: todo-design-common#descriptions }
     - key: operations
@@ -50,14 +51,29 @@ root:
           - key: entities
             label: 操作対象のエンティティ
             type: array
-            item: { type: ref, idPattern: 'ENT-*', relation: uses-entity, scope: { schemaIds: [todo-domain] } }
+            item:
+              type: object
+              fields:
+                - { key: entity, label: エンティティ, type: ref, required: true, idPattern: 'ENT-*', relation: uses-entity, scope: { schemaIds: [todo-domain] } }
+                - key: crud
+                  label: CRUD
+                  type: array
+                  required: true
+                  item:
+                    type: enum
+                    values:
+                      - { value: C, label: 作成 }
+                      - { value: R, label: 参照 }
+                      - { value: U, label: 更新 }
+                      - { value: D, label: 削除 }
+                - { key: description, label: 対象・実施条件, type: text }
           - { key: inputs, label: 入力情報, type: todo-design-common#business-data-items }
           - key: result
             label: 操作の結果
             type: todo-design-common#operation-result
             required: true
             description: 成功時に返す値と件数を定義する。複合値は属性をここに列挙し、失敗の条件はerrorsに記述する。
-          - { key: preconditions, label: 事前条件, type: todo-design-common#descriptions }
+          - { key: preconditions, label: 事前条件, type: todo-design-common#operation-preconditions, required: true }
           - { key: postconditions, label: 操作後に保証すること, type: todo-design-common#descriptions }
           - { key: errors, label: 操作を実行できない条件・業務エラー, type: todo-design-common#descriptions }
     - { key: notes, label: 未決事項・補足, type: text }

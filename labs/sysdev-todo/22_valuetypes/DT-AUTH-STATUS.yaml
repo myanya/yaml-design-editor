@@ -1,10 +1,9 @@
-id: DT-AUTH-STATUS
+id: "DT-AUTH-STATUS"
 rules:
-  - "定義した選択肢のいずれか1つを指定する。"
-  - "有効の場合でも、認証有効期限を別途確認する。"
-  - "ログアウト時には無効にする。"
+  - "定義された選択肢のいずれか1つを取る。"
 values:
   - value: "有効"
-    description: "認証状態が無効化されていない。"
+    description: "明示的に無効化されていない。"
   - value: "無効"
-    description: "認証状態が無効化されている。"
+    description: "明示的に無効化されている。"
+notes: "有効期限と利用者の状態を含む利用可否の判定は、DOM-IDENTITYのENT-AUTH-SESSIONで定義する。"

@@ -15,7 +15,7 @@ rules:
   - 状態と登録時の初期値はTODO状態の業務データ型に従う。完了から未完了へ戻せる。
   - 説明と期限は任意とする。期限は日付で扱い、通知や自動的な状態変更は行わない。
   - 自身の分類・タグだけを割り当てられる。割当ての変更はTODO管理の責務とする。
-  - 初期案では、1件のTODOに分類を0または1件、タグを0件以上割り当てる。同じタグを重複して割り当てない。
+  - 1件のTODOに分類を0または1件、タグを0件以上割り当てる。同じタグを重複して割り当てない。
   - 操作が成功した場合は変更内容が保存され、画面の再読み込みや再ログイン後も確認できる。
   - 操作の条件を満たさない場合や保存に失敗した場合は、操作の失敗を返し、変更の一部だけを保存しない。
 entities:
@@ -27,44 +27,53 @@ entities:
         description: "TODOの識別子。"
         data_type: DT-TODO-ID
         required: true
+        multiple: false
       - name: "所有者ID"
         description: "TODOを所有する利用者の識別子。"
         data_type: DT-USER-ID
         required: true
+        multiple: false
       - name: "タイトル"
         description: "作業の名前。"
         data_type: DT-TODO-TITLE
         required: true
+        multiple: false
       - name: "説明"
         description: "作業の補足説明。"
         data_type: DT-TODO-DESCRIPTION
         required: false
+        multiple: false
       - name: "期限"
         description: "任意の期限日。"
         data_type: DT-DUE-DATE
         required: false
+        multiple: false
       - name: "分類"
         description: "割り当てる分類の識別子。"
         data_type: DT-CATEGORY-ID
         required: false
+        multiple: false
       - name: "タグ"
-        description: "割り当てるタグの識別子。"
+        description: "割り当てるタグの識別子。タグなしは空のリスト。"
         data_type: DT-TAG-ID
-        required: false
+        required: true
         multiple: true
         constraints: "同じタグIDを重複させない。"
       - name: "状態"
         description: "作業の完了状態。"
         data_type: DT-TODO-STATUS
         required: true
+        multiple: false
       - name: "作成日時"
         description: "TODOを登録した日時。"
         data_type: DT-RECORDED-AT
         required: true
+        multiple: false
       - name: "最終更新日時"
         description: "TODOを最後に更新した日時。"
         data_type: DT-RECORDED-AT
         required: true
+        multiple: false
     rules:
       - 所有者は登録時に認証されている利用者とし、通常の編集では変更できない。
       - 完了状態を変更しても、内容・期限・分類・タグは保持する。
@@ -73,11 +82,16 @@ operations:
     name: TODOの一覧を取得する
     summary: 自身のTODOを取得し、指定条件に一致する作業を確認する。
     actor: 認証済みの利用者
-    entities: [ENT-TODO, ENT-USER, ENT-CATEGORY, ENT-TAG]
+    entities:
+      - { entity: ENT-TODO, crud: [R] }
+      - { entity: ENT-USER, crud: [R] }
+      - { entity: ENT-AUTH-SESSION, crud: [R, U] }
+      - { entity: ENT-CATEGORY, crud: [R] }
+      - { entity: ENT-TAG, crud: [R] }
     inputs:
-      - { name: 状態による絞り込み条件, description: 未完了・完了・すべてのいずれかを指定する。省略時はすべてを対象とする。, data_type: DT-TODO-STATUS-FILTER, required: false }
-      - { name: 分類による絞り込み条件, description: 自身の分類を1件指定する。省略時は分類で絞り込まない。, data_type: DT-CATEGORY-ID, required: false }
-      - { name: タグによる絞り込み条件, description: 自身のタグを1件指定する。省略時はタグで絞り込まない。, data_type: DT-TAG-ID, required: false }
+      - { name: 状態による絞り込み条件, description: 未完了・完了・すべてのいずれかを指定する。省略時はすべてを対象とする。, data_type: DT-TODO-STATUS-FILTER, required: false, multiple: false }
+      - { name: 分類による絞り込み条件, description: 自身の分類を1件指定する。省略時は分類で絞り込まない。, data_type: DT-CATEGORY-ID, required: false, multiple: false }
+      - { name: タグによる絞り込み条件, description: 自身のタグを1件指定する。省略時はタグで絞り込まない。, data_type: DT-TAG-ID, required: false, multiple: false }
     result:
       kind: record
       multiple: true
@@ -87,43 +101,57 @@ operations:
           description: "TODOの識別子。"
           data_type: DT-TODO-ID
           required: true
+          multiple: false
         - name: "タイトル"
           description: "作業の名前。"
           data_type: DT-TODO-TITLE
           required: true
+          multiple: false
         - name: "説明"
           description: "作業の補足説明。"
           data_type: DT-TODO-DESCRIPTION
           required: false
+          multiple: false
         - name: "期限"
           description: "任意の期限日。"
           data_type: DT-DUE-DATE
           required: false
+          multiple: false
         - name: "分類"
           description: "割り当てる分類の識別子。"
           data_type: DT-CATEGORY-ID
           required: false
+          multiple: false
         - name: "タグ"
-          description: "割り当てるタグの識別子。"
+          description: "割り当てるタグの識別子。タグなしは空のリスト。"
           data_type: DT-TAG-ID
-          required: false
+          required: true
           multiple: true
           constraints: "同じタグIDを重複させない。"
         - name: "状態"
           description: "作業の完了状態。"
           data_type: DT-TODO-STATUS
           required: true
+          multiple: false
         - name: "作成日時"
           description: "TODOを登録した日時。"
           data_type: DT-RECORDED-AT
           required: true
+          multiple: false
         - name: "最終更新日時"
           description: "TODOを最後に更新した日時。"
           data_type: DT-RECORDED-AT
           required: true
+          multiple: false
       constraints: 自身が所有し、指定条件をすべて満たすTODOの識別子・内容・状態・期限・分類・タグ。
     preconditions:
-      - 認証が有効であり、絞り込み条件に指定した値が許可されている。
+      all:
+        - { subject: "現在の認証状態", operator: "satisfies", expected: "ENT-AUTH-SESSIONの利用可能条件" }
+        - { subject: "状態による絞り込み条件", operator: "satisfies", expected: "DT-TODO-STATUS-FILTERの値域（省略時はすべて）" }
+        - { subject: "指定された分類のうち存在しない件数", operator: "equals", expected: "0" }
+        - { subject: "指定された分類のうち他の利用者が所有する件数", operator: "equals", expected: "0" }
+        - { subject: "指定されたタグのうち存在しない件数", operator: "equals", expected: "0" }
+        - { subject: "指定されたタグのうち他の利用者が所有する件数", operator: "equals", expected: "0" }
     postconditions:
       - 他の利用者のTODOを含まない結果を返す。
       - 該当するTODOがない場合も処理は成功とし、空の一覧を返す。
@@ -134,9 +162,12 @@ operations:
     name: TODOの内容を確認する
     summary: 自身のTODOを1件指定し、編集や確認に必要な情報を取得する。
     actor: 認証済みの利用者
-    entities: [ENT-TODO]
+    entities:
+      - { entity: ENT-TODO, crud: [R] }
+      - { entity: ENT-USER, crud: [R] }
+      - { entity: ENT-AUTH-SESSION, crud: [R, U] }
     inputs:
-      - { name: TODO ID, description: 取得するTODOの識別子。, required: true, data_type: DT-TODO-ID }
+      - { name: TODO ID, description: 取得するTODOの識別子。, required: true, data_type: DT-TODO-ID, multiple: false }
     result:
       kind: record
       multiple: false
@@ -146,43 +177,54 @@ operations:
           description: "TODOの識別子。"
           data_type: DT-TODO-ID
           required: true
+          multiple: false
         - name: "タイトル"
           description: "作業の名前。"
           data_type: DT-TODO-TITLE
           required: true
+          multiple: false
         - name: "説明"
           description: "作業の補足説明。"
           data_type: DT-TODO-DESCRIPTION
           required: false
+          multiple: false
         - name: "期限"
           description: "任意の期限日。"
           data_type: DT-DUE-DATE
           required: false
+          multiple: false
         - name: "分類"
           description: "割り当てる分類の識別子。"
           data_type: DT-CATEGORY-ID
           required: false
+          multiple: false
         - name: "タグ"
-          description: "割り当てるタグの識別子。"
+          description: "割り当てるタグの識別子。タグなしは空のリスト。"
           data_type: DT-TAG-ID
-          required: false
+          required: true
           multiple: true
           constraints: "同じタグIDを重複させない。"
         - name: "状態"
           description: "作業の完了状態。"
           data_type: DT-TODO-STATUS
           required: true
+          multiple: false
         - name: "作成日時"
           description: "TODOを登録した日時。"
           data_type: DT-RECORDED-AT
           required: true
+          multiple: false
         - name: "最終更新日時"
           description: "TODOを最後に更新した日時。"
           data_type: DT-RECORDED-AT
           required: true
+          multiple: false
       constraints: 内容・状態・期限・分類・タグと更新日時。
     preconditions:
-      - 対象のTODOが自身に属する。
+      all:
+        - { subject: "現在の認証状態", operator: "satisfies", expected: "ENT-AUTH-SESSIONの利用可能条件" }
+        - { subject: "対象TODOの件数", operator: "equals", expected: "1" }
+        - { subject: "対象TODOの所有者ID", operator: "equals", expected: "認証中の利用者ID" }
     postconditions:
       - 対象の保存済みの情報を返し、内容は変更しない。
     errors:
@@ -192,12 +234,17 @@ operations:
     name: TODOを登録する
     summary: 新しい作業を、自身が所有する未完了のTODOとして登録する。
     actor: 認証済みの利用者
-    entities: [ENT-TODO, ENT-CATEGORY, ENT-TAG]
+    entities:
+      - { entity: ENT-TODO, crud: [C] }
+      - { entity: ENT-USER, crud: [R] }
+      - { entity: ENT-AUTH-SESSION, crud: [R, U] }
+      - { entity: ENT-CATEGORY, crud: [R] }
+      - { entity: ENT-TAG, crud: [R] }
     inputs:
-      - { name: タイトル, description: 登録する作業の名前。, required: true, data_type: DT-TODO-TITLE }
-      - { name: 説明, description: 作業の補足説明。, data_type: DT-TODO-DESCRIPTION, required: false }
-      - { name: 期限, description: 任意の期限日。, data_type: DT-DUE-DATE, required: false }
-      - { name: 分類, description: 自身の分類の識別子。未指定なら未分類。, data_type: DT-CATEGORY-ID, required: false }
+      - { name: タイトル, description: 登録する作業の名前。, required: true, data_type: DT-TODO-TITLE, multiple: false }
+      - { name: 説明, description: 作業の補足説明。, data_type: DT-TODO-DESCRIPTION, required: false, multiple: false }
+      - { name: 期限, description: 任意の期限日。, data_type: DT-DUE-DATE, required: false, multiple: false }
+      - { name: 分類, description: 自身の分類の識別子。未指定なら未分類。, data_type: DT-CATEGORY-ID, required: false, multiple: false }
       - { name: タグ, description: 自身のタグの識別子の集合。未指定ならタグなし。, data_type: DT-TAG-ID, required: false, multiple: true }
     result:
       kind: record
@@ -208,43 +255,60 @@ operations:
           description: "TODOの識別子。"
           data_type: DT-TODO-ID
           required: true
+          multiple: false
         - name: "タイトル"
           description: "作業の名前。"
           data_type: DT-TODO-TITLE
           required: true
+          multiple: false
         - name: "説明"
           description: "作業の補足説明。"
           data_type: DT-TODO-DESCRIPTION
           required: false
+          multiple: false
         - name: "期限"
           description: "任意の期限日。"
           data_type: DT-DUE-DATE
           required: false
+          multiple: false
         - name: "分類"
           description: "割り当てる分類の識別子。"
           data_type: DT-CATEGORY-ID
           required: false
+          multiple: false
         - name: "タグ"
-          description: "割り当てるタグの識別子。"
+          description: "割り当てるタグの識別子。タグなしは空のリスト。"
           data_type: DT-TAG-ID
-          required: false
+          required: true
           multiple: true
           constraints: "同じタグIDを重複させない。"
         - name: "状態"
           description: "作業の完了状態。"
           data_type: DT-TODO-STATUS
           required: true
+          multiple: false
         - name: "作成日時"
           description: "TODOを登録した日時。"
           data_type: DT-RECORDED-AT
           required: true
+          multiple: false
         - name: "最終更新日時"
           description: "TODOを最後に更新した日時。"
           data_type: DT-RECORDED-AT
           required: true
+          multiple: false
       constraints: 一意なTODO IDと保存された内容。
     preconditions:
-      - タイトルと任意項目が入力条件を満たし、指定した分類・タグが自身に属する。
+      all:
+        - { subject: "現在の認証状態", operator: "satisfies", expected: "ENT-AUTH-SESSIONの利用可能条件" }
+        - { subject: "タイトル", operator: "satisfies", expected: "DT-TODO-TITLEの入力条件★" }
+        - { subject: "指定された説明", operator: "satisfies", expected: "DT-TODO-DESCRIPTIONの入力条件★" }
+        - { subject: "指定された期限", operator: "satisfies", expected: "DT-DUE-DATEの入力条件★" }
+        - { subject: "指定された分類のうち存在しない件数", operator: "equals", expected: "0" }
+        - { subject: "指定された分類のうち他の利用者が所有する件数", operator: "equals", expected: "0" }
+        - { subject: "指定されたタグのうち存在しない件数", operator: "equals", expected: "0" }
+        - { subject: "指定されたタグのうち他の利用者が所有する件数", operator: "equals", expected: "0" }
+        - { subject: "タグIDの重複件数", operator: "equals", expected: "0" }
     postconditions:
       - 認証された利用者を所有者として、未完了のTODOが保存される。
     errors:
@@ -254,10 +318,15 @@ operations:
     name: TODOの内容を編集する
     summary: 自身のTODOのタイトル・説明・期限・分類・タグを変更する。
     actor: 認証済みの利用者
-    entities: [ENT-TODO, ENT-CATEGORY, ENT-TAG]
+    entities:
+      - { entity: ENT-TODO, crud: [R, U] }
+      - { entity: ENT-USER, crud: [R] }
+      - { entity: ENT-AUTH-SESSION, crud: [R, U] }
+      - { entity: ENT-CATEGORY, crud: [R] }
+      - { entity: ENT-TAG, crud: [R] }
     inputs:
-      - { name: TODO ID, description: 編集対象の識別子。, required: true, data_type: DT-TODO-ID }
-      - { name: 変更後の内容, description: タイトル・説明・期限・分類・タグ。任意項目を未設定に戻すこともできる。, required: true, data_type: DT-TODO-CONTENT }
+      - { name: TODO ID, description: 編集対象の識別子。, required: true, data_type: DT-TODO-ID, multiple: false }
+      - { name: 変更後の内容, description: タイトル・説明・期限・分類・タグ。任意項目を未設定に戻すこともできる。, required: true, data_type: DT-TODO-CONTENT, multiple: false }
     result:
       kind: record
       multiple: false
@@ -267,43 +336,62 @@ operations:
           description: "TODOの識別子。"
           data_type: DT-TODO-ID
           required: true
+          multiple: false
         - name: "タイトル"
           description: "作業の名前。"
           data_type: DT-TODO-TITLE
           required: true
+          multiple: false
         - name: "説明"
           description: "作業の補足説明。"
           data_type: DT-TODO-DESCRIPTION
           required: false
+          multiple: false
         - name: "期限"
           description: "任意の期限日。"
           data_type: DT-DUE-DATE
           required: false
+          multiple: false
         - name: "分類"
           description: "割り当てる分類の識別子。"
           data_type: DT-CATEGORY-ID
           required: false
+          multiple: false
         - name: "タグ"
-          description: "割り当てるタグの識別子。"
+          description: "割り当てるタグの識別子。タグなしは空のリスト。"
           data_type: DT-TAG-ID
-          required: false
+          required: true
           multiple: true
           constraints: "同じタグIDを重複させない。"
         - name: "状態"
           description: "作業の完了状態。"
           data_type: DT-TODO-STATUS
           required: true
+          multiple: false
         - name: "作成日時"
           description: "TODOを登録した日時。"
           data_type: DT-RECORDED-AT
           required: true
+          multiple: false
         - name: "最終更新日時"
           description: "TODOを最後に更新した日時。"
           data_type: DT-RECORDED-AT
           required: true
+          multiple: false
       constraints: 更新後の保存済みの情報。
     preconditions:
-      - 対象のTODOが自身に属し、変更後の内容が登録時と同じ入力条件を満たす。
+      all:
+        - { subject: "現在の認証状態", operator: "satisfies", expected: "ENT-AUTH-SESSIONの利用可能条件" }
+        - { subject: "対象TODOの件数", operator: "equals", expected: "1" }
+        - { subject: "対象TODOの所有者ID", operator: "equals", expected: "認証中の利用者ID" }
+        - { subject: "タイトル", operator: "satisfies", expected: "DT-TODO-TITLEの入力条件★" }
+        - { subject: "指定された説明", operator: "satisfies", expected: "DT-TODO-DESCRIPTIONの入力条件★" }
+        - { subject: "指定された期限", operator: "satisfies", expected: "DT-DUE-DATEの入力条件★" }
+        - { subject: "指定された分類のうち存在しない件数", operator: "equals", expected: "0" }
+        - { subject: "指定された分類のうち他の利用者が所有する件数", operator: "equals", expected: "0" }
+        - { subject: "指定されたタグのうち存在しない件数", operator: "equals", expected: "0" }
+        - { subject: "指定されたタグのうち他の利用者が所有する件数", operator: "equals", expected: "0" }
+        - { subject: "タグIDの重複件数", operator: "equals", expected: "0" }
     postconditions:
       - 指定した内容が保存され、所有者と完了状態は維持される。
     errors:
@@ -312,10 +400,13 @@ operations:
     name: TODOの完了状態を変更する
     summary: 自身のTODOを完了または未完了にする。
     actor: 認証済みの利用者
-    entities: [ENT-TODO]
+    entities:
+      - { entity: ENT-TODO, crud: [R, U] }
+      - { entity: ENT-USER, crud: [R] }
+      - { entity: ENT-AUTH-SESSION, crud: [R, U] }
     inputs:
-      - { name: TODO ID, description: 状態を変更する対象。, required: true, data_type: DT-TODO-ID }
-      - { name: 変更後の状態, description: 未完了または完了のいずれかを指定する。, required: true, data_type: DT-TODO-STATUS }
+      - { name: TODO ID, description: 状態を変更する対象。, required: true, data_type: DT-TODO-ID, multiple: false }
+      - { name: 変更後の状態, description: 未完了または完了のいずれかを指定する。, required: true, data_type: DT-TODO-STATUS, multiple: false }
     result:
       kind: record
       multiple: false
@@ -325,43 +416,55 @@ operations:
           description: "TODOの識別子。"
           data_type: DT-TODO-ID
           required: true
+          multiple: false
         - name: "タイトル"
           description: "作業の名前。"
           data_type: DT-TODO-TITLE
           required: true
+          multiple: false
         - name: "説明"
           description: "作業の補足説明。"
           data_type: DT-TODO-DESCRIPTION
           required: false
+          multiple: false
         - name: "期限"
           description: "任意の期限日。"
           data_type: DT-DUE-DATE
           required: false
+          multiple: false
         - name: "分類"
           description: "割り当てる分類の識別子。"
           data_type: DT-CATEGORY-ID
           required: false
+          multiple: false
         - name: "タグ"
-          description: "割り当てるタグの識別子。"
+          description: "割り当てるタグの識別子。タグなしは空のリスト。"
           data_type: DT-TAG-ID
-          required: false
+          required: true
           multiple: true
           constraints: "同じタグIDを重複させない。"
         - name: "状態"
           description: "作業の完了状態。"
           data_type: DT-TODO-STATUS
           required: true
+          multiple: false
         - name: "作成日時"
           description: "TODOを登録した日時。"
           data_type: DT-RECORDED-AT
           required: true
+          multiple: false
         - name: "最終更新日時"
           description: "TODOを最後に更新した日時。"
           data_type: DT-RECORDED-AT
           required: true
+          multiple: false
       constraints: 保存された完了状態を含むTODO。
     preconditions:
-      - 対象のTODOが自身に属し、指定した状態が許可されている。
+      all:
+        - { subject: "現在の認証状態", operator: "satisfies", expected: "ENT-AUTH-SESSIONの利用可能条件" }
+        - { subject: "対象TODOの件数", operator: "equals", expected: "1" }
+        - { subject: "対象TODOの所有者ID", operator: "equals", expected: "認証中の利用者ID" }
+        - { subject: "変更後の状態", operator: "satisfies", expected: "DT-TODO-STATUSの値域" }
     postconditions:
       - 状態が指定した値になる。同じ値を再度指定しても状態は変わらない。
     errors:
@@ -370,9 +473,12 @@ operations:
     name: TODOを削除する
     summary: 自身のTODOを管理対象から除く。
     actor: 認証済みの利用者
-    entities: [ENT-TODO]
+    entities:
+      - { entity: ENT-TODO, crud: [R, D] }
+      - { entity: ENT-USER, crud: [R] }
+      - { entity: ENT-AUTH-SESSION, crud: [R, U] }
     inputs:
-      - { name: TODO ID, description: 削除する対象の識別子。, required: true, data_type: DT-TODO-ID }
+      - { name: TODO ID, description: 削除する対象の識別子。, required: true, data_type: DT-TODO-ID, multiple: false }
     result:
       kind: value
       multiple: false
@@ -380,17 +486,20 @@ operations:
       data_type: DT-OPERATION-RESULT
       constraints: 対象が管理対象から除かれたこと。 成功を返す。失敗時はerrorsに記述した条件に従う。
     preconditions:
-      - 対象のTODOが自身に属する。
+      all:
+        - { subject: "現在の認証状態", operator: "satisfies", expected: "ENT-AUTH-SESSIONの利用可能条件" }
+        - { subject: "対象TODOの件数", operator: "equals", expected: "1" }
+        - { subject: "対象TODOの所有者ID", operator: "equals", expected: "認証中の利用者ID" }
     postconditions:
-      - 削除したTODOは一覧に表示されず、詳細の取得や編集もできなくなる。
+      - 対象TODOは管理対象に含まれない。
       - 割り当てていた分類・タグ自体や、他のTODOは削除しない。
     errors:
       - 認証されていない場合、対象が存在しない場合、他の利用者が所有する場合は削除しない。
 notes: |
   利用者ごとの管理と共有しない方針は確定。
-  状態を未完了と完了の2種類とすること、期限を任意とすること、分類は最大1件・タグは複数とすることは初期案。
-  状態・分類・タグの絞り込み条件をすべて満たすTODOを取得する方針も初期案。
-  一覧の初期表示の並び順・ページ分割、同時更新の扱いは未決定。値の制約に関する未決事項は各業務データ型の定義書に記載する。
+  状態は未完了と完了の2種類とする。期限は任意とする。分類は最大1件、タグは複数とする。
+  状態・分類・タグの絞り込み条件をすべて満たすTODOを取得する方針とする。
+  一覧の初期表示の並び順・ページ分割、同時更新の扱いは未決定。値の制約に関する未決事項は各業務データ型の定義書に記載する。★
   分類・タグを削除できるか判断するため、使用状況を分類・タグ管理へ提供する。
-  使用状況の確認から削除までの間にドメイン間の整合性を保つ方法は、後続設計で具体化する。
-  TODO削除後の復元は初期範囲に含めない。物理削除か論理削除かはテーブル・リポジトリ設計で決める。
+  使用状況の確認から削除までの間にドメイン間の整合性を保つ方法は、後続設計で具体化する。★
+  TODO削除後の復元は対象外とする。物理削除か論理削除かはテーブル・リポジトリ設計で決める。★

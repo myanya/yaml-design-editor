@@ -1,0 +1,4 @@
+id: "DT-CONFIRMATION-EXPIRES-AT"
+rules:
+  - "実在する日時で終了時点を一意に表す。"
+notes: "目的別の有効期間、時刻の精度と表現は未決定。★"
