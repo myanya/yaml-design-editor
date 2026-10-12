@@ -99,7 +99,10 @@ object DisplayCore {
         return "${seq.items.size} 件: $head$more"
     }
 
-    /** 任意ノードの1行要約（スカラー=値、オブジェクト=タイトル解決、配列=件数）。タイトルがなければ subtitle で補う（UX-77）。 */
+    /**
+     * 任意ノードの1行要約（スカラー=値、オブジェクト=タイトル解決、配列=件数）。タイトルがなければ subtitle で補う（UX-77）。
+     * エンティティ参照の値（field が `type: ref`）は titleLookup で参照先の名前を添える（畳んだ参照の配列の要約「n 件: ID 名前, …」）。
+     */
     fun inline(
         node: YNode?,
         schema: SchemaTree? = null,
@@ -109,7 +112,13 @@ object DisplayCore {
     ): String =
         when (node) {
             null -> "（未設定）"
-            is YNode.Scalar -> clip(node.value?.toString() ?: "null", maxLength)
+            is YNode.Scalar -> {
+                val raw = node.value?.toString() ?: "null"
+                val title = (schema?.resolve(field) ?: field)
+                    ?.takeIf { it.type == FieldType.REF && it.refTarget != RefTarget.DOCUMENT }
+                    ?.let { titleLookup?.invoke(raw)?.takeIf { t -> t.isNotBlank() && t != raw } }
+                clip(listOfNotNull(raw, title).joinToString(" "), maxLength)
+            }
             is YNode.Seq -> "（配列 ${node.items.size} 件）"
             is YNode.Map -> {
                 val summary = summarize(node, schema, field, titleLookup)

@@ -14,7 +14,7 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 | `DesignSpace` | ui/DesignSpace.kt | 設計スペース（定義文書の種類別カタログ・新規作成・スキーマ推測・skill） |
 | `FormView` / `FormCtx` / `ObjectFields` / `FieldRow` | ui/FormView.kt | スキーマ駆動フォームと汎用エディタ（中核 UI） |
 | `FlowViewPane` / `EmbeddedFlowPane` | ui/FlowViewPane.kt | 図と原本フォームを併記する単独・埋め込み表示（[views](views.md)） |
-| `ObjectTable` / `ArrayTable` / `MapTable` / `tableColumnWidths` | ui/FormView.kt | 配列と map のテーブル表示 |
+| `ObjectTable` / `ArrayTable` / `MapTable` / `RefCell` / `tableColumnWidths` | ui/FormView.kt | 配列と map のテーブル表示（参照セルは ID・参照先の名前・横ぐしへの Hub） |
 | `Highlightable` / `slotAt` / `CompactTextField` / `Palette` / `PanelShape` / `AppFonts` | ui/Common.kt | ハイライトとスクロール・Slot の解決・共通の入力欄と色と角丸・同梱フォント（等幅 Cica。資源が無ければ OS の等幅へ戻す） |
 | `VirtualTable` / `TableColumn` / `visibleColumnRange` | ui/VirtualTable.kt | 共通の表。見出し行と左の固定列は動かず、行は遅延描画、列は見える範囲だけ組み立てる（ビューグリッド・一覧ビューが使う） |
 | `ReorderableList` / `ReorderRowScope` | ui/Reorder.kt | ドラッグで並べ替える縦リスト（取っ手からだけ掴める。ライブラリ Reorderable を包む） |
@@ -55,7 +55,8 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 - 基底の種類別のエディタ（複数行と入力欄の案内は型から引き継ぐヒント）・必須マーク（`requiredFrom` はフェーズ名つき）・説明・折りたたみ。id 型は既存 ID の補完ピッカーと連番の提案（`IdSuggest`）。`format` と `display: grouped` は見せ方（`ValueFormat.display`。`CompactTextField` の `unfocusedText`＝フォーカス中は素の値）。スキーマの型と値の構造が合わない残留値は修復 UI（値を消す・配列やスカラーに変換）。
 - 指摘のあるフィールドは入力枠が色づく（エラー＝赤・警告＝オレンジ。`FormCtx.issues` 経由で全指摘種別に効く）。
 - 同一 ID の他文書出現ストリップ（`SameIdOccurrencesStrip`）が相手側の情報の表示とジャンプを提供する。
-- id 型の欄は定義位置そのものなので、ジャンプの行き先は横ぐし（エンティティページ）だけ。右端の Hub ボタン（`EntityPageButton`。ビューグリッドの ID セルと同じ印）と「出現 n 件／被参照 n 箇所」の注記が `openCrossView(id)` へ直行し、閲覧専用のテーブルの ID セルにも同じボタンを出す。参照欄の→は「定義へ／横ぐしへ」の 2 択のまま（行き先が 2 つある）。
+- id 型の欄は定義位置そのものなので、ジャンプの行き先は横ぐし（エンティティページ）だけ。右端の Hub ボタン（`EntityPageButton`。ビューグリッドの ID セルと同じ印）と「出現 n 件／被参照 n 箇所」の注記が `openCrossView(id)` へ直行し、閲覧専用のテーブルの ID セルにも同じボタンを出す。参照欄の→は「定義へ／横ぐしへ」の 2 択のまま（行き先が 2 つある）。テーブルの参照セルは → に加えて Hub を並べ、横ぐしへは 1 クリックで行ける。
+- 参照先の名前の解決は `FormCtx.refTargetTitle`（未保存の編集を含む自文書の ID を優先し、idPatterns と scope で絞る）に一元化し、参照欄（欄の中の右端）とテーブルの参照セル（欄の下）が共用する。
 
 ## 閲覧専用
 
@@ -67,6 +68,7 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 - フォーム内の配列（object 要素）と map（object 値）をテーブルにするかの適否と列集合は `Display.tableColumns`（自動判定「列 2〜8 かつ宣言フィールドの過半がセル型」＋スキーマの `display: table / list`）だけが決める。
 - 列は要素 object の宣言フィールドのうちセル型のもの。enum `cases` による行ごとの追加フィールドは列にしない（列集合を全行で安定させる）。列にならないフィールドは行の展開フォームで編集する。map のキー列は `MapTable` が先頭に足す表示専用の列。
 - セル編集は通常の `Slot` 経路を再利用し、テーブル専用の書込経路を作らない。列幅は型別の最小幅を保証しつつ余白を文字系の列へ等分し、収まらなければ横スクロール。閲覧専用モードはテキストセル。
+- エンティティ参照のセルは `RefCell`: 上段に ID、下段に参照先の名前、右端に横ぐしへの Hub（ID セルと同じ印・上書き索引に出現がある ID だけ）。編集モードも通常の参照欄（候補・→ の 2 択）のまま、名前だけ欄の下に出す（欄の中の右端はセル幅で ID を押しのける。ビューグリッドと同じ流儀）。属性付き参照は to の表示だけで、編集は行の展開フォーム。文書参照（`target: document`）は対象外。
 - 配列の行とフォーム内の配列要素は取っ手（⋮⋮）からのドラッグで並べ替える（`ReorderableList`）。ドロップで 1 回だけ `moveSeqItem` ＋ `markEdited`（Undo 1 回分）。取っ手を置かなければ並べ替えられない（map の表・閲覧専用）。
 - ビューグリッドと一覧ビューの表は共通部品 `VirtualTable`（ID などの固定列・見出し行の固定・見える列だけ組み立てる）。セルの中身と編集経路はそれぞれの画面のまま。
 - 日付・時刻・日時の欄は右端のボタンでピッカー（ポップアップ。モーダルではない）。書込は `FormCtx.setScalar` の同じ経路で、値は正準の文字列のまま。

@@ -131,6 +131,23 @@ class FormCtx(
     fun resolvable(id: String): Boolean =
         resolvable(RefEntry(id, state.documentOf(doc.file), emptyList(), "ref"))
 
+    /** 項目の宣言（idPatterns・scope）から参照の制約を組み立てる。参照欄とテーブルの参照セルが共用する。 */
+    fun refConstraint(field: FieldDef, id: String): RefEntry =
+        RefEntry(id, state.documentOf(doc.file), emptyList(), field.key ?: "ref", field.idPatterns, field.scope)
+
+    /**
+     * 参照先の名前（表示解決の結果＝`IdEntry.title`）。未保存の編集を含む自文書の ID（localIds）を優先し、
+     * 次に上書き索引の出現を見る。どちらも idPatterns と scope で許される出現だけ
+     * （architecture/index-references.md「索引の二層」）。解決できない・名前が無い・名前が ID と同じなら null。
+     */
+    fun refTargetTitle(field: FieldDef, id: String): String? {
+        val ref = refConstraint(field, id)
+        if (!resolvable(ref)) return null
+        val title = localIds.firstOrNull { it.id == id && it.isAllowedBy(ref) }?.title
+            ?: state.overlayIndex().occurrences(id).firstNotNullOfOrNull { e -> if (e.isAllowedBy(ref)) e.title else null }
+        return title?.takeIf { it.isNotBlank() && it != id }
+    }
+
     /** スキーマ型に応じてスカラー値を変換して書き込む。 */
     fun setScalar(slot: Slot, raw: String, type: FieldType) {
         val v: Any? = when (type) {
@@ -1096,16 +1113,19 @@ fun RefEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath = emptyList
     RefScalarEditor(ctx, field, slot)
 }
 
-/** 参照値（スカラー）1つ分のエディタ本体。属性付き参照では to 値の Slot を受け取る（R20-03）。 */
+/**
+ * 参照値（スカラー）1つ分のエディタ本体。属性付き参照では to 値の Slot を受け取る（R20-03）。
+ * titleInField=false は参照先の名前を欄の中に出さない（テーブルの参照セルが欄の下に出す）。
+ */
 @Composable
-private fun RefScalarEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
+private fun RefScalarEditor(ctx: FormCtx, field: FieldDef, slot: Slot, titleInField: Boolean = true) {
     if (field.refTarget == RefTarget.DOCUMENT) {
         DocRefScalarEditor(ctx, slot)
         return
     }
     val current = (slot.get() as? YNode.Scalar)?.value?.toString() ?: ""
     var menuOpen by remember { mutableStateOf(false) }
-    val refConstraint = RefEntry(current, ctx.state.documentOf(ctx.doc.file), emptyList(), field.key ?: "ref", field.idPatterns, field.scope)
+    val refConstraint = ctx.refConstraint(field, current)
     val resolved = ctx.resolvable(refConstraint)
     if (ctx.readOnly) {
         // 閲覧専用モードでもジャンプは閲覧行為として残す（R10-04）
@@ -1134,11 +1154,8 @@ private fun RefScalarEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
             .toList()
     }
 
-    // 解決先タイトル（表示解決は IdEntry.title に一元化済み・R10-01）。未保存編集を含むローカルIDを優先する（architecture/index-references.md「索引の二層」）。
-    val targetTitle = if (!resolved) null else
-        (ctx.localIds.firstOrNull { it.id == current && it.isAllowedBy(refConstraint) }
-            ?: ctx.state.overlayIndex().occurrences(current).firstOrNull { it.isAllowedBy(refConstraint) })
-            ?.title?.takeIf { it.isNotBlank() && it != current }
+    // 解決先の名前（表示解決は IdEntry.title に一元化済み・R10-01。解決は FormCtx.refTargetTitle に一元化）
+    val targetTitle = if (titleInField) ctx.refTargetTitle(field, current) else null
     Row(verticalAlignment = Alignment.CenterVertically) {
         // 解決済みの参照先タイトルは入力欄の枠内（右端）に併記する（ID＋表示名を1つの領域で見せる。UX-31）
         Box(Modifier.weight(1f)) {
@@ -1490,7 +1507,7 @@ private fun tableCellWidth(column: FieldDef): Dp = when {
         FieldType.FILE -> 240.dp                 // 選択と OS で開くの 2 つのボタン分を含む
         FieldType.ENUM -> 140.dp
         FieldType.ID -> 180.dp                 // 候補の▼と横ぐしの Hub の 2 つのボタン分を含む
-        FieldType.REF -> 200.dp
+        FieldType.REF -> 240.dp                // 候補の▼・→・横ぐしの Hub の 3 つのボタン分を含む（名前は欄の下）
         else -> 170.dp
     }
 }
@@ -1698,6 +1715,9 @@ private fun ObjectTableCell(ctx: FormCtx, col: FieldDef, map: YNode.Map, itemPat
         )
     ) {
         when {
+            // エンティティ参照のセルは ID・参照先の名前・横ぐしへの Hub（属性付き参照の {to, 属性} も to を見せる）
+            col.type == FieldType.REF && col.refTarget != RefTarget.DOCUMENT &&
+                (value == null || !structureMismatch(col, value)) -> RefCell(ctx, col, slot)
             // スキーマとずれた複合値はセルで編集せず要約表示に留める（編集は行の展開フォーム）
             value != null && value !is YNode.Scalar -> TableCellText(Display.inline(value, ctx.doc.schema, col))
             // 閲覧専用の ID セルも横ぐしへ直行できる（編集時は IdEditor の Hub ボタンが同じ役を担う）
@@ -1729,6 +1749,40 @@ private fun ReadOnlyIdCell(ctx: FormCtx, node: YNode.Scalar?) {
         Box(Modifier.weight(1f, fill = false)) { TableCellText(id.ifBlank { null }) }
         if (inIndex) {
             EntityPageButton(ctx, id, iconButtonSize = 24.dp, iconSize = 14.dp)
+        }
+    }
+}
+
+/**
+ * テーブルの参照セル（エンティティ参照）。上段に ID、下段に参照先の名前（表示解決の結果）、右端に横ぐしへの Hub ボタン
+ * （ID セルと同じ印。上書き索引に出現がある ID だけ）。編集モードも通常の参照欄（候補の▼・→ の 2 択メニュー）のまま、
+ * 名前だけ欄の中でなく欄の下に出す（欄の中の右端はセル幅で ID を押しのける。ビューグリッドと同じ流儀）。
+ * 属性付き参照（{to, 属性}）は to を表示だけにし、編集は行の展開フォームで行う。
+ */
+@Composable
+private fun RefCell(ctx: FormCtx, col: FieldDef, slot: Slot) {
+    val node = slot.get()
+    val attributed = node is YNode.Map
+    val idSlot = if (node is YNode.Map) MapSlot(node, "to") else slot
+    val id = (idSlot.get() as? YNode.Scalar)?.value?.toString().orEmpty()
+    val title = ctx.refTargetTitle(col, id)
+    val inIndex = id.isNotBlank() && ctx.state.overlayIndex().occurrences(id).isNotEmpty()
+    val displayOnly = ctx.readOnly || attributed
+    Column(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (displayOnly) {
+                Box(Modifier.weight(1f, fill = false)) { TableCellText(id.ifBlank { null }) }
+                if (inIndex) EntityPageButton(ctx, id, iconButtonSize = 24.dp, iconSize = 14.dp)
+            } else {
+                Box(Modifier.weight(1f)) { RefScalarEditor(ctx, col, idSlot, titleInField = false) }
+                EntityPageButton(ctx, id, enabled = inIndex)
+            }
+        }
+        if (title != null) {
+            Text(title, fontSize = 10.sp, color = Palette.SubText, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        } else if (displayOnly && id.isNotBlank() && !ctx.resolvable(ctx.refConstraint(col, id))) {
+            // 編集モードでは参照欄が同じ注記を出す
+            Text("未解決の参照です", fontSize = 11.sp, color = Palette.ErrorRed)
         }
     }
 }

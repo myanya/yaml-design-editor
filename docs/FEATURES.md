@@ -43,9 +43,9 @@
 | E-08 | 文書キャッシュ（ファイル切替時も未保存編集を保持） | `AppState.docCache` | 手動 | [editing-history](architecture/editing-history.md) |
 | E-09 | 同一 ID の他文書出現ストリップ（相手側の情報の表示とジャンプ） | `ui/FormView.kt`（`SameIdOccurrencesStrip`） | 手動 | [ui](architecture/ui.md) |
 | E-10 | 複数ドキュメント YAML（フォームは先頭・後続は保持して再出力・ソースは全体を編集可） | `yaml-core/yaml/YamlIO.kt`（`parseAll` / `dumpAll`）, `app/OpenDocument` | 単体 `OpenDocumentTest` | [yaml-model](architecture/yaml-model.md) |
-| E-11 | 畳み込みサマリ（畳んだ要素の 1 行要約・既定はルートから 2 階層まで展開） | `ui/FormView.kt`, `schema/Display.kt` | 単体 `DisplayTest`, `DefaultExpandTest` | [ui](architecture/ui.md) |
+| E-11 | 畳み込みサマリ（畳んだ要素の 1 行要約・参照の値は参照先の名前を添える・既定はルートから 2 階層まで展開） | `ui/FormView.kt`, `schema/Display.kt` | 単体 `DisplayTest`, `DefaultExpandTest` | [ui](architecture/ui.md) |
 | E-12 | 閲覧専用モード（`FormCtx.readOnly`・入力欄はテキスト表示・書込は拒否・横ぐしとグリッドへ波及） | `ui/FormView.kt`（`FormCtx`）, `app/AppState.readOnlyMode` | 単体 `ReadOnlyTest` | [ui](architecture/ui.md) |
-| E-13 | 配列と map のテーブル表示（適否の自動判定と `display: table / list`・セル編集・展開フォーム・列幅） | `ui/FormView.kt`（`ObjectTable` ほか）, `schema/Display.kt`（`tableColumns`） | 単体 `DisplayTest`, `ArrayTableTest` | [ui](architecture/ui.md) |
+| E-13 | 配列と map のテーブル表示（適否の自動判定と `display: table / list`・セル編集・展開フォーム・列幅・参照セルは ID と参照先の名前と横ぐしへの Hub） | `ui/FormView.kt`（`ObjectTable`・`RefCell`）, `schema/Display.kt`（`tableColumns`） | 単体 `DisplayTest`, `ArrayTableTest`, `RefTargetTitleTest` | [ui](architecture/ui.md) |
 | E-14 | 保存時に自動で入る値（印 `auto`＝更新日・作成日・版。保存の直前の 1 トランザクション・変更セットの適用にも） | `semantic-core/semantic/AutoValues.kt`, `workspace-core/workspace/WorkspaceSession.kt` | 単体 `SemanticAutoValuesTest`, `AutoValuesKernelTest`, `AppStateAutoValuesTest` | [auto-values](architecture/auto-values.md) |
 
 ## 3. スキーマ

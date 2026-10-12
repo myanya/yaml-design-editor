@@ -58,7 +58,7 @@ ID 索引はディスク基準（正）で、UI は未保存の編集を重ね�
 ## 表示解決
 
 - 要素の 1 行要約（タイトル・サブタイトル・ID・畳み込みヘッダ）は `schema/Display` だけが解決する。優先順位はスキーマの `FieldDef.role: title / subtitle`（`$ref` 合成・library 共有に乗る）＞ 予約語（title / name / label、description / summary）＞ id ＞ キー数。
-- タイトルの索引借用: `titleLookup` 注入で、要素自身にタイトルがないとき同一論理 ID の他出現から借りる（UI はオーバーレイ索引を渡す）。`headerText` はサブタイトルを併記し、`inline` はタイトルがなければ subtitle で補う。
+- タイトルの索引借用: `titleLookup` 注入で、要素自身にタイトルがないとき同一論理 ID の他出現から借りる（UI はオーバーレイ索引を渡す）。`headerText` はサブタイトルを併記し、`inline` はタイトルがなければ subtitle で補う。`inline` はエンティティ参照の値（`type: ref`。文書参照は除く）にも `titleLookup` で参照先の名前を添える（畳んだ参照の配列の要約「n 件: ID 名前, …」）。
 - 配置は schema パッケージ。索引のタイトル抽出（`DocScanner` → `IdEntry.title`）が使うため、依存方向上 core に置けない。`IdEntry.title` は表示解決の結果で、参照候補・ID 検索・ビュー行タイトル・エージェントの要約が自動で追随する（人間と AI が同じ要約を見る共有契約）。
 - バックリンクの表示は「参照を書いた要素」。参照値の位置を含む最内の ID 出現を `sourceEntryOf` で解決し、その ID とタイトルを主表示にする。
 - enum のリッチ選択肢（`{value, label, description}`）の label / description は表示専用。検証・`cases` のキー・AI 生成の制約・保存されるデータは常に `value`。

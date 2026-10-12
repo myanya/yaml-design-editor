@@ -2,6 +2,8 @@ package dev.toros.yde.app.schema
 
 import dev.toros.yde.app.index.DocScanner
 import dev.toros.yde.semantic.schema.FieldDef
+import dev.toros.yde.semantic.schema.FieldType
+import dev.toros.yde.semantic.schema.RefTarget
 import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.YamlIO
@@ -219,6 +221,21 @@ class DisplayTest {
         assertEquals("（配列 2 件）", Display.inline(parse("- 1\n- 2")))
         assertEquals("T-1 タイトル", Display.inline(parse("id: T-1\ntitle: タイトル")))
         assertEquals("（2項目）", Display.inline(parse("a: 1\nb: 2")))
+    }
+
+    @Test
+    fun `参照の値は titleLookup で参照先の名前を添える`() {
+        val ref = FieldDef(type = FieldType.REF)
+        val lookup: (String) -> String? = { id -> if (id == "SCR-001") "ログイン画面" else null }
+        assertEquals("SCR-001 ログイン画面", Display.inline(YNode.Scalar("SCR-001"), null, ref, titleLookup = lookup))
+        // 名前が引けなければ ID のまま。参照でない値・文書参照・titleLookup なしには添えない
+        assertEquals("SCR-002", Display.inline(YNode.Scalar("SCR-002"), null, ref, titleLookup = lookup))
+        assertEquals("SCR-001", Display.inline(YNode.Scalar("SCR-001"), null, FieldDef(type = FieldType.STRING), titleLookup = lookup))
+        assertEquals("SCR-001", Display.inline(YNode.Scalar("SCR-001"), null, ref.copy(refTarget = RefTarget.DOCUMENT), titleLookup = lookup))
+        assertEquals("SCR-001", Display.inline(YNode.Scalar("SCR-001"), null, ref))
+        // 畳んだ参照の配列の要約にも効く
+        val seq = parse("- SCR-001\n- SCR-002") as YNode.Seq
+        assertEquals("2 件: SCR-001 ログイン画面, SCR-002", Display.seqHeaderText(seq, null, ref, titleLookup = lookup))
     }
 
     // ---------------------------------------------------------------- role のメタ検証
