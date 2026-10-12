@@ -62,6 +62,9 @@ import kotlin.math.sqrt
 /** レンズの 1 エッジ（エンティティ → エンティティの型付き参照）。 */
 private data class LensEdge(val from: String, val to: String, val relation: String?)
 
+/** 絞り込みの結果（表示する節点の ID と、その間の辺）。 */
+private data class LensSelection(val nodes: List<String>, val edges: List<LensEdge>)
+
 /** 配置に渡した節点・辺と、その結果。節点の集合が変わって計算し直している間も、前の絵を描き続けるために一緒に持つ。 */
 private data class LensArranged(val nodes: List<String>, val edges: List<Triple<Int, Int, String?>>, val result: LensArrangement)
 
@@ -88,7 +91,8 @@ private class LensScene(
 /**
  * グラフレンズ: エンティティグラフの導出表示。
  * ①エンティティ起点の近傍（深さ1〜2。エンティティページの「グラフで見る」から遷移）
- * ②エンティティ型・relation のチェックボックスで絞った部分グラフ、を配置（`GraphLayouts`＝放射・階層・応力・力学）して描く。
+ * ②チェックした型のエンティティ（ID 一覧から。参照の有無を問わない）と、その間の参照（relation のチェックで絞る）、
+ * を配置（`GraphLayouts`＝放射・階層・応力・力学）して描く。
  * 節点は「ID＋タイトル」の箱（型で色分け）・辺は矢印と関係のラベル。クリックはエンティティページへ着地する（ナビゲーション履歴に乗る）。
  * 操作: ホイールでカーソル中心の拡縮・節点のドラッグ（位置を固定）・ホバーで隣接の強調・右クリックのメニュー・PNG の書き出し・ミニマップ。
  */
@@ -110,8 +114,9 @@ fun GraphLensView(state: AppState) {
             .toList()
     }
     fun typeOf(id: String): String = graph.entities[id]?.entityType ?: "（型なし）"
-    val types = remember(allEdges) {
-        allEdges.flatMap { listOf(typeOf(it.from), typeOf(it.to)) }.distinct().sorted()
+    // 型の一覧は ID 一覧から（参照を持たない型も出す）。関係の一覧は辺から
+    val types = remember(state.indexVersion, state.editVersion) {
+        graph.entities.keys.map(::typeOf).distinct().sorted()
     }
     val relations = remember(allEdges) { allEdges.map { it.relation ?: "（未宣言）" }.distinct().sorted() }
     // 型・関係のチェックと深さは画面の覚え（ScreenMemory）。隠した名前だけ持つので、再読込で増えた型は見える側で始まり、無くなった型は読まれない
@@ -120,15 +125,14 @@ fun GraphLensView(state: AppState) {
     val depth = state.memory.lensDepth
     val origin = state.lensOriginId?.takeIf { graph.entities.containsKey(it) }
 
-    // 絞り込み: relation → 型 → （起点があれば）近傍のBFS
-    val visibleEdges = remember(allEdges, hiddenTypes.toMap(), hiddenRelations.toMap(), origin, depth) {
+    // 絞り込み: 節点は型で（起点が無ければ、チェックした型のエンティティを ID 一覧から全部。参照を持たない節点も出す）、
+    // 辺は relation と両端の型で。起点があれば、そこから辿れる近傍（幅優先）だけに絞る
+    val selection = remember(state.indexVersion, state.editVersion, hiddenTypes.toMap(), hiddenRelations.toMap(), origin, depth) {
+        // 起点は型フィルタの対象外（起点近傍を見たいのに起点自身が消えると意味を失う）
+        fun shown(id: String) = id == origin || typeOf(id) !in hiddenTypes
         val byRelation = allEdges.filter { (it.relation ?: "（未宣言）") !in hiddenRelations }
-        val byType = byRelation.filter { e ->
-            // 起点は型フィルタの対象外（起点近傍を見たいのに起点自身が消えると意味を失う）
-            (e.from == origin || typeOf(e.from) !in hiddenTypes) &&
-                (e.to == origin || typeOf(e.to) !in hiddenTypes)
-        }
-        if (origin == null) byType
+        val byType = byRelation.filter { shown(it.from) && shown(it.to) }
+        if (origin == null) LensSelection(graph.entities.keys.filter(::shown).sorted(), byType)
         else {
             val adjacency = mutableMapOf<String, MutableList<String>>()
             byType.forEach { e ->
@@ -140,12 +144,11 @@ fun GraphLensView(state: AppState) {
             repeat(depth) {
                 frontier = frontier.flatMap { adjacency[it].orEmpty() }.filter(reached::add).sorted()
             }
-            byType.filter { it.from in reached && it.to in reached }
+            LensSelection(reached.sorted(), byType.filter { it.from in reached && it.to in reached })
         }
     }
-    val nodes = remember(visibleEdges, origin) {
-        (listOfNotNull(origin) + visibleEdges.flatMap { listOf(it.from, it.to) }).distinct().sorted()
-    }
+    val nodes = selection.nodes
+    val visibleEdges = selection.edges
     val edgeIndices = remember(nodes, visibleEdges) {
         val indexOf = nodes.withIndex().associate { (i, n) -> n to i }
         visibleEdges.mapNotNull { e ->
@@ -420,7 +423,7 @@ fun GraphLensView(state: AppState) {
                 }
             }
             if (nodes.isEmpty()) {
-                Text("表示する参照がありません（絞り込みを緩めるか、起点を解除してください）",
+                Text("表示するエンティティがありません（型のチェックを増やすか、起点を解除してください）",
                     fontSize = 12.sp, color = Palette.SubText, modifier = Modifier.align(Alignment.Center))
             }
             // ミニマップ: 全体が画面に収まっていないときだけ右下に出す。押した・なぞった場所を画面の中央にする

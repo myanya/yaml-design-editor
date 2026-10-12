@@ -84,14 +84,30 @@ class GraphLayoutsTest {
         assertWellFormed(big, GraphLayouts.STRESS_MAX_NODES + 1, GraphLayouts.STRESS_MAX_NODES)
     }
 
-    @Test
-    fun `stress keeps boxes apart`() {
-        val result = GraphLayouts.arrange(nodes(10), chain(10) + star(10), LensLayoutKind.STRESS)
+    private fun assertApart(result: LensArrangement, label: String) {
         val boxes = result.boxes
         for (i in boxes.indices) for (j in i + 1 until boxes.size) {
             val a = boxes[i]; val b = boxes[j]
             val overlap = a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height
-            assertTrue(!overlap, "箱が重ならない: $a / $b")
+            assertTrue(!overlap, "$label: 箱が重ならない: $a / $b")
+        }
+    }
+
+    @Test
+    fun `stress keeps boxes apart`() {
+        assertApart(GraphLayouts.arrange(nodes(10), chain(10) + star(10), LensLayoutKind.STRESS), "応力")
+    }
+
+    @Test
+    fun `isolated nodes are placed apart in every kind`() {
+        // 型だけで絞ると、参照を持たない節点だけ（辺なし）や、つながりと孤立の混在になる
+        LensLayoutKind.entries.forEach { kind ->
+            val alone = GraphLayouts.arrange(nodes(8), emptyList(), kind, origin = 0)
+            assertWellFormed(alone, 8, 0)
+            assertApart(alone, "$kind（辺なし）")
+            val mixed = GraphLayouts.arrange(nodes(9), chain(4), kind, origin = 0)
+            assertWellFormed(mixed, 9, 3)
+            assertApart(mixed, "$kind（孤立の混在）")
         }
     }
 
