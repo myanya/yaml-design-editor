@@ -1,0 +1,32 @@
+id: "BF-003"
+trigger: "会議室の新設、名称・収容人数の変更、改装等が決まる。"
+outcome: "会議室情報と新規予約の可否が更新される。"
+participants:
+  - actor: "ACT-002"
+    role: "総務部（会議室管理担当）"
+start:
+  - "BFN-003-START"
+terminal:
+  - "BFN-003-DONE"
+nodes:
+  - id: "BFN-003-START"
+    name: "会議室の新設・変更・利用停止が決まる"
+    kind: "event"
+  - id: "BFN-003-MAINTAIN"
+    name: "会議室マスタを管理する"
+    kind: "usecase"
+    usecase: "UC-005"
+    actor: "ACT-002"
+  - id: "BFN-003-DONE"
+    name: "会議室情報と新規予約の可否が整う"
+    kind: "state"
+transitions:
+  - id: "BFT-003-01"
+    from: "BFN-003-START"
+    to: "BFN-003-MAINTAIN"
+    condition: "決まった運用条件を反映する"
+  - id: "BFT-003-02"
+    from: "BFN-003-MAINTAIN"
+    to: "BFN-003-DONE"
+    condition: "更新完了"
+notes: "利用停止により影響を受ける既存予約の扱いは未決。自動取消・自動変更はこのフローで規定しない。"

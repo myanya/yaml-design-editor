@@ -8,12 +8,61 @@
 担保していた品質チェックを、スキーマ・関係レジストリ・パターン制約として宣言し、
 編集のたび／AIエージェントの提出のたびに自動で判定させます。
 
+## 要件一覧の整備範囲
+
+[ユースケース一覧](10_requirements/usecase-list.yaml)が対象業務と機能概要の原本です。
+社員による予約操作、総務部によるマスタ管理・代理操作・集計、外部連携、開始前通知を対象とします。
+アクター一覧（`actors`）と対象外の業務は[システム概要](10_requirements/system-overview.yaml)に記載します。
+アクターは `ACT-*` のIDを持ち、ユースケース一覧の `actors` から実行できるアクターを参照します。
+本人操作と総務部の代理操作は同じユースケースとし、権限・期限の違いを概要と詳細定義書に記述します。
+照会・確認だけで完了する目的は独立したユースケースとし、予約操作中の照会・確認は各ユースケースの内部手順に含めます。
+開始前通知は独立したユースケースに分けず、予約に付随する補助フローとして定義します。
+
+ユースケースの詳細定義は `10_requirements/usecases/` にあります。
+追加要件のドメインへの割当て、画面・API・処理への導出、試験への展開には未整備の部分があります。
+検証では、この未整備による関係・導出・試験の不足も警告されます。
+外部連携・自動通知には画面を必須としないため、詳細化時に画面導出チェックの適用範囲も見直す必要があります。
+
+## 業務フロー
+
+[業務フロー一覧](10_requirements/business-flow-list.yaml)が目的と概要の原本で、
+同じ `BF-*` のIDを持つ[業務フロー定義](10_requirements/business-flows/)に契機・完了結果・工程・遷移を記述します。
+予約と利用、代理対応、会議室管理、休日管理、実績集計、外部連携を業務フローとし、リマインドを補助フローにしています。
+
+- 四角はユースケース単位の工程です。工程の `usecase` と `actor` で実行する業務と実行者を参照します。
+- ひし形は判断・分岐、丸い枠は契機・完了状態・システム外の行為・付随的な自動処理です。
+- レーンは登場アクターの業務上の役割です。自動処理と主体のない状態はレーン外に置きます。
+- システム外の電話連絡や実際の会議室利用を、システムのユースケースへ分解しません。
+- 工程間の遷移と開始・完了点は同じフロー内のノードを参照します。IDはワークスペース内で一意にします。
+- 利用停止・休日追加で影響を受ける既存予約の扱いは、該当フローの補足に未決事項として記載します。
+
+フロー表示は既存の `kind: flow` と `projection`（Construct）で原本を射影します。
+アクターの適合はQuery＋Predicate、到達性・行き止まりは既存のflow検査で判定します。
+専用コードや派生図ファイルは持たず、図の詳細編集は原本へ対応付けます。
+
+### フローの確認
+
+1. `labs/sysdev-template` を開き、「台帳」→「フロー」→「業務フロー図」を選びます。
+2. 対象文書で `10_requirements/business-flows/BF-001.yaml` を選びます。
+3. 予約後の確認・変更・取消の分岐、期限後の総務部への引継ぎ、実行者のレーンを確認します。
+4. 工程または矢印をクリックし、右側でユースケース・アクターの参照や遷移条件を確認します。
+5. 文書を直接開いた場合は「業務フロー定義書」の図でも確認できます。補助フローは `BF-007.yaml` を選びます。
+
+一覧は「台帳」の「業務フロー一覧」ビューで確認できます。
+CLIでの確認例:
+
+```powershell
+$env:GRADLE_USER_HOME = Join-Path $env:USERPROFILE '.gradle'
+.\gradlew.bat runCli -q --args="view labs/sysdev-template business-flow 10_requirements/business-flows/BF-001.yaml"
+.\gradlew.bat runCli -q --args="view labs/sysdev-template business-flow-list"
+```
+
 ## 1. ディレクトリ構成と工程
 
 | ディレクトリ | 工程 | 文書（スキーマ） | ID体系 |
 |---|---|---|---|
 | `00_input/` | インプット | ビジネスルール台帳（business-rule）——フリーフォーマット原文をルール単位に最小構造化 | BR-* |
-| `10_requirements/` | 要件定義 | システム概要（system-overview）／ユースケース一覧（usecase-list）／ユースケース定義書（usecase-detail） | UC-* |
+| `10_requirements/` | 要件定義 | システム概要・アクター一覧／ユースケース一覧・定義書／業務フロー一覧・定義書 | ACT-* / UC-* / BF-* / BFN-* / BFT-* |
 | `20_architecture/` | アーキテクチャ設計 | 方式設計書（arch-policy。オンライン／バッチ／ログを kind の cases で切替） | POL-* |
 | `30_basic-design/` | 基本設計 | ドメイン一覧／定義書（domain-list / domain-detail。**UCをグルーピング**し、エンティティ・ユーザアクション・システムイベントを定義）／エンティティ定義書（entity-detail＝論理ER。**属性 EA-\* を定義**）／**業務データ型一覧（data-type-list）**／画面一覧・**画面遷移（screen-transition＝原本）**・画面定義（screen-list / screen-def。**画面項目 SI-\* を定義**）／外部・内部API一覧・定義（ext/int-api-list / -def） | DOM-* / ENT-* / EA-* / UA-* / EV-* / SCR-* / SI-* / DT-* / EAPI-* / IAPI-* |
 | `40_detail-design/` | 詳細設計 | 画面設計書（screen-design。**物理項目 SPI-\* を定義**）／外部・内部API設計書（ext/int-api-design）／テーブル定義書（table-design＝物理ER。**カラム COL-\* を定義**）／**物理型マッピング表（type-mapping）**／処理設計書（process-design） | TBL-* / COL-* / SPI-* / MAP-* / PROC-* |
@@ -61,6 +110,8 @@ cases で変わる（文字列→最大桁・形式／整数→範囲／区分�
 ### 参照・型・多重度（関係レジストリ `_schemas/relations.yaml`）
 
 - 未解決参照・ID重複・未宣言 relation の使用禁止・定義出現の一意性（enforcement）
+- 全ユースケースはシステム概要のアクター一覧から実行アクターを参照する（performed-by outMin 1）
+- 業務フローは詳細定義を持ち、工程の実行アクター・到達性・行き止まりを検査する
 - 全ユースケースはちょうど1つのドメイン定義書に取り込まれる（groups inMin/inMax 1。参照方向は基本設計→要件）
 - 画面・APIは導出元（ユーザアクション／UC）を必ず持つ（derived-from outMin 1）＝「導出」規約の宣言化
 - 処理はユーザアクション／システムイベントに紐づく（realizes outMin 1）
@@ -106,20 +157,20 @@ cases で変わる（文字列→最大桁・形式／整数→範囲／区分�
 
 検証がどう見えるかのデモとして、以下を意図的に残しています:
 
-1. **BR-004（予約は14日先まで）がどこからも参照されていない** → br-referenced の警告。
-   後から追加されたルールの取りこぼしを機械が拾う例。UC-001 の based_on に加えれば解消
-2. **UC-003（空き状況照会）の総合テスト項目がない** → uc-tested の警告。
+1. **UC-003（空き状況照会）の総合テスト項目がない** → uc-tested の警告。
    `80_e2e-test/test-items.yaml` に UC-003 の項目を足し、ケースの手順で消化すれば解消
-3. **SCR-RESERVE-DETAIL の画面設計書が空**（項目未記入） → 論理項目 SI-RESERVE-DETAIL-CONTENT /
+2. **SCR-RESERVE-DETAIL の画面設計書が空**（項目未記入） → 論理項目 SI-RESERVE-DETAIL-CONTENT /
    -CANCEL の2件に「物理化されていない」警告（field-basic inMin 1）。
    警告クリックのメニュー**「参照の追加先を開く: 40_detail-design/screens/SCR-RESERVE-DETAIL.yaml」**で
    設計書を開き、SPI-\* 項目を書けば解消（マッピング漏れ警告→マッピング表も同じ導線が出る）
 
-（現在の `validate` 基準: **エラー0・警告6** ＝ 上記4件＋VP-004（異常値）観点追加の実験による
-単体テストの不足セル2件（PROC-001/002））
+上記のほか、VP-004（異常値）観点に対する単体テストの不足（PROC-001/002）と、
+「要件一覧の整備範囲」に記載した追加ユースケースの未整備が検証対象です。
 
 壊すデモ:
 
+- `10_requirements/usecases/UC-001.yaml` と `UC-009.yaml` の `based_on` から BR-004 を外す →
+  承認済みルールの取りこぼしとして br-referenced の警告
 - `30_basic-design/ext-apis/EAPI-001.yaml` の `auth: api-key` を消す → 個人情報テーブル
   （TBL-MEMBER: pii）使用×認可なしで **エラー**（eapi-auth-for-pii）
 - `60_unit-test/test-items.yaml` の TI-107（excluded の除外行）を消す →

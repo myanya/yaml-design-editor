@@ -7,6 +7,10 @@ enforcement:
   undeclaredRelation: error
   definingUniqueness: error
 entities:
+  - { type: business-flow, label: 業務フロー }
+  - { type: business-flow-node, label: 業務フローの工程・状態 }
+  - { type: business-flow-transition, label: 業務フローの遷移 }
+  - { type: actor, label: アクター }
   - { type: business-rule, label: ビジネスルール }
   - { type: usecase, label: ユースケース }
   - { type: domain, label: ドメイン }
@@ -30,6 +34,59 @@ entities:
   - { type: data-type, label: 業務データ型 }
   - { type: type-mapping, label: 物理型マッピング }
 relations:
+  - name: executes-usecase
+    label: 実行するユースケース
+    inverseLabel: 業務フローの工程
+    source: [business-flow-node]
+    target: [usecase]
+    cardinality: { outMax: 1 }
+  - name: step-actor
+    label: 工程の実行者
+    inverseLabel: 担当する工程
+    source: [business-flow-node]
+    target: [actor]
+    cardinality: { outMax: 1 }
+  - name: flow-participant
+    label: 登場アクター
+    inverseLabel: 登場する業務フロー
+    source: [business-flow]
+    target: [actor]
+  - name: supports-usecase
+    label: 付随するユースケース
+    inverseLabel: 補助フロー
+    source: [business-flow]
+    target: [usecase]
+  - name: business-flow-from
+    label: 遷移元の工程・状態
+    inverseLabel: 出ていく遷移
+    source: [business-flow-transition]
+    target: [business-flow-node]
+    cardinality: { outMin: 1, outMax: 1 }
+  - name: business-flow-to
+    label: 遷移先の工程・状態
+    inverseLabel: 入ってくる遷移
+    source: [business-flow-transition]
+    target: [business-flow-node]
+    cardinality: { outMin: 1, outMax: 1 }
+  - name: business-flow-start
+    label: 業務フローの開始点
+    inverseLabel: 開始する業務フロー
+    source: [business-flow]
+    target: [business-flow-node]
+    cardinality: { outMin: 1 }
+  - name: business-flow-terminal
+    label: 業務フローの完了点
+    inverseLabel: 完了する業務フロー
+    source: [business-flow]
+    target: [business-flow-node]
+    cardinality: { outMin: 1 }
+  - name: performed-by
+    label: 実行アクター
+    inverseLabel: 担当するユースケース
+    source: [usecase]
+    target: [actor]
+    cardinality: { outMin: 1 }
+    description: ユースケースを実行できるアクター。本人操作と代理操作を同じユースケースで扱う。
   - name: based-on
     label: 根拠とする
     inverseLabel: 根拠として参照される

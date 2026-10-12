@@ -1,0 +1,142 @@
+id: business-flow-detail
+name: 業務フロー
+match: 10_requirements/business-flows/*.{yaml,yml}
+description: 四角の工程はユースケース単位とし、契機・判断・システム外行為・自動処理を区別する。
+entity: { type: business-flow, idPattern: "BF-*", aspect: detail }
+flow:
+  - id: business-flow-reachability
+    description: 開始点から全ノードへ到達でき、行き止まりは完了点として宣言されていること
+    nodes: { entity: business-flow-node }
+    edges: { from: { relation: business-flow-from }, to: { relation: business-flow-to } }
+    start: { relation: business-flow-start }
+    terminal: { relation: business-flow-terminal }
+    level: error
+constraints:
+  - id: business-step-actor
+    description: ユースケース工程の実行者は、そのユースケースの実行アクターであること
+    match:
+      - node: { entity: business-flow-node, bind: step }
+      - edge: { relation: executes-usecase }
+      - node: { entity: usecase }
+      - edge: { relation: performed-by }
+      - node: { entity: actor, bind: actor }
+    also:
+      from: step
+      steps:
+        - edge: { relation: step-actor }
+        - node: { same: actor }
+    where:
+      - { of: step, path: kind, equals: usecase }
+    expect: exists
+    level: error
+root:
+  type: object
+  fields:
+    - { key: id, label: 業務フローID, type: id, required: true }
+    - { key: trigger, label: 開始の契機, type: text, required: true }
+    - { key: outcome, label: 完了結果, type: text, required: true }
+    - key: participants
+      label: 登場アクター
+      type: array
+      description: レーンはこの業務での役割名を表示する。自動処理と主体のない状態はレーン外に置く。
+      item:
+        type: object
+        fields:
+          - key: actor
+            label: アクター
+            type: ref
+            required: true
+            idPattern: "ACT-*"
+            relation: flow-participant
+            scope: { schemaIds: [system-overview] }
+          - { key: role, label: この業務での役割, type: string, required: true }
+    - key: related_usecases
+      label: 関連ユースケース
+      type: array
+      description: 補助フローが付随するユースケース。通常の工程の参照はnodes内に書く。
+      item:
+        type: ref
+        idPattern: "UC-*"
+        relation: supports-usecase
+        scope: { schemaIds: [usecase-list] }
+    - key: start
+      label: 開始点
+      type: array
+      required: true
+      item:
+        type: ref
+        idPattern: "BFN-*"
+        relation: business-flow-start
+        scope: { schemaIds: [business-flow-detail] }
+    - key: terminal
+      label: 完了点
+      type: array
+      required: true
+      item:
+        type: ref
+        idPattern: "BFN-*"
+        relation: business-flow-terminal
+        scope: { schemaIds: [business-flow-detail] }
+    - key: nodes
+      label: 工程・契機・状態
+      type: array
+      required: true
+      item:
+        type: object
+        entity: { type: business-flow-node, defines: true }
+        fields:
+          - { key: id, label: ノードID, type: id, required: true, description: フローをまたいで一意なBFN-*。 }
+          - { key: name, label: 業務上の工程・状態名, type: string, required: true }
+          - key: kind
+            label: 種別
+            type: enum
+            required: true
+            values:
+              - { value: usecase, label: ユースケース工程 }
+              - { value: event, label: 開始契機 }
+              - { value: decision, label: 判断・分岐 }
+              - { value: state, label: 完了・待機状態 }
+              - { value: external, label: システム外の行為 }
+              - { value: automatic, label: 付随的な自動処理 }
+            cases:
+              usecase:
+                - key: usecase
+                  label: ユースケース
+                  type: ref
+                  required: true
+                  idPattern: "UC-*"
+                  relation: executes-usecase
+                  scope: { schemaIds: [usecase-list] }
+                - key: actor
+                  label: 実行アクター
+                  type: ref
+                  required: true
+                  idPattern: "ACT-*"
+                  relation: step-actor
+                  scope: { schemaIds: [system-overview] }
+          - { key: description, label: 条件・業務上の意味, type: text }
+    - key: transitions
+      label: 工程間の遷移
+      type: array
+      required: true
+      item:
+        type: object
+        entity: { type: business-flow-transition, defines: true }
+        fields:
+          - { key: id, label: 遷移ID, type: id, required: true, description: フローをまたいで一意なBFT-*。 }
+          - key: from
+            label: 遷移元
+            type: ref
+            required: true
+            idPattern: "BFN-*"
+            relation: business-flow-from
+            scope: { schemaIds: [business-flow-detail] }
+          - key: to
+            label: 遷移先
+            type: ref
+            required: true
+            idPattern: "BFN-*"
+            relation: business-flow-to
+            scope: { schemaIds: [business-flow-detail] }
+          - { key: condition, label: 進む条件・契機, type: string, required: true }
+    - { key: notes, label: 補足・未決事項, type: text }

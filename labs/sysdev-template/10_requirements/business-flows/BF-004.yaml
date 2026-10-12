@@ -1,0 +1,32 @@
+id: "BF-004"
+trigger: "会社の休日が決まる、または休日の予定が変更される。"
+outcome: "休日カレンダーが更新され、予約受付可否の判定に使える。"
+participants:
+  - actor: "ACT-002"
+    role: "総務部（休日管理担当）"
+start:
+  - "BFN-004-START"
+terminal:
+  - "BFN-004-DONE"
+nodes:
+  - id: "BFN-004-START"
+    name: "休日の設定・変更が決まる"
+    kind: "event"
+  - id: "BFN-004-MAINTAIN"
+    name: "休日カレンダーを管理する"
+    kind: "usecase"
+    usecase: "UC-006"
+    actor: "ACT-002"
+  - id: "BFN-004-DONE"
+    name: "休日が空き照会・予約受付に反映される"
+    kind: "state"
+transitions:
+  - id: "BFT-004-01"
+    from: "BFN-004-START"
+    to: "BFN-004-MAINTAIN"
+    condition: "決まった休日を反映する"
+  - id: "BFT-004-02"
+    from: "BFN-004-MAINTAIN"
+    to: "BFN-004-DONE"
+    condition: "更新完了"
+notes: "休日追加時に既存予約をどう扱うかは未決。登録・変更・解除は一つのユースケース内で扱う。"

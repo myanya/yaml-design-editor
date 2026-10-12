@@ -1,6 +1,6 @@
 apis:
   - id: EAPI-001
     name: 予約情報参照API
-    derived_from: [UC-003]
+    derived_from: [UC-007]
     consumer: 座席管理システム
     summary: 予約情報（会議室・時間帯・予約者）を外部システムへ提供する

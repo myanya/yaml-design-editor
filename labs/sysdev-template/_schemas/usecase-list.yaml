@@ -6,7 +6,7 @@ id: usecase-list
 name: ユースケース一覧
 match: 10_requirements/usecase-list.yaml
 description: |
-  システムの機能をユースケース（UC-*）として一覧化する。機能概要はここに書き、
+  業務上の目的が完了する単位をユースケース（UC-*）として一覧化する。アクターと機能概要はここに書き、
   フロー等の詳細はユースケース定義書（同一ID）で詳細化する。
 entity:
   type: usecase
@@ -58,6 +58,17 @@ root:
             type: string
             required: true
             description: 「（アクターが）〜する」の形（例 会議室を予約する）。
+          - key: actors
+            label: 実行アクター
+            type: array
+            required: true
+            item:
+              type: ref
+              idPattern: "ACT-*"
+              relation: performed-by
+              scope:
+                schemaIds: [system-overview]
+            description: システム概要のアクター一覧を参照する。本人操作と代理操作の権限・条件は概要と詳細に記載する。
           - key: summary
             label: 機能概要
             type: text

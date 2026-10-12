@@ -1,6 +1,6 @@
 # ユースケース定義書のスキーマ（1ファイル1ユースケース。UC-* の詳細化出現）
 #
-# 名前・概要は一覧側（定義出現）が持つ。ここではフロー・条件・根拠ルールを詳細化する。
+# 名前・実行アクター・概要は一覧側（定義出現）が持つ。ここではフロー・条件・根拠ルールを詳細化する。
 id: usecase-detail
 name: ユースケース定義書
 match: 10_requirements/usecases/*.{yaml,yml}
@@ -16,12 +16,7 @@ root:
       label: ユースケースID
       type: id
       required: true
-      description: 一覧（usecase-list）と同じID。名前・概要は一覧側に書く。
-    - key: actor
-      label: 主アクター
-      type: string
-      required: true
-      description: システム概要の利用者区分の名前（例 一般社員）。
+      description: 一覧（usecase-list）と同じID。名前・実行アクター・概要は一覧側に書く。
     - key: based_on
       label: 根拠ルール
       type: array
