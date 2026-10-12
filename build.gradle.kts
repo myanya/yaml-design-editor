@@ -87,12 +87,13 @@ val generateBuildInfo by tasks.registering {
     val app = version.toString()
     val build = buildVersion
     val commit = gitCommit
+    val outDir = buildInfoDir  // 実行時の処理からスクリプトの値を直接参照しない（構成キャッシュの再利用で復元できないため）
     inputs.property("appVersion", app)
     inputs.property("buildVersion", build)
     inputs.property("commit", commit)
-    outputs.dir(buildInfoDir)
+    outputs.dir(outDir)
     doLast {
-        val f = buildInfoDir.get().file("build-info.properties").asFile
+        val f = outDir.get().file("build-info.properties").asFile
         f.parentFile.mkdirs()
         f.writeText("appVersion=$app\nbuildVersion=$build\ncommit=$commit\n")
     }
@@ -153,10 +154,11 @@ tasks.named("processResources") { dependsOn(downloadFonts) }
 val helpDir = layout.buildDirectory.dir("generated/help")
 val copyHelp by tasks.registering(Copy::class) {
     description = "利用者マニュアル（docs/manual/*.md）を内蔵ヘルプの資源に入れる"
+    val outDir = helpDir.map { it.dir("help") }  // 実行時の処理からスクリプトの値を直接参照しない（構成キャッシュの再利用で復元できないため）
     from(layout.projectDirectory.dir("docs/manual")) { include("*.md") }
-    into(helpDir.map { it.dir("help") })
+    into(outDir)
     doLast {
-        val dir = helpDir.get().dir("help").asFile
+        val dir = outDir.get().asFile
         val names = dir.listFiles { f -> f.extension == "md" }.orEmpty().map { it.name }.sorted()
         dir.resolve("index.txt").writeText(names.joinToString("\n"))
     }
