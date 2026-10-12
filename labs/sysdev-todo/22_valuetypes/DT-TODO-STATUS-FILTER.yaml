@@ -1,0 +1,11 @@
+id: DT-TODO-STATUS-FILTER
+rules:
+  - "定義した選択肢のいずれか1つを指定する。"
+  - "検索条件の省略時はすべてとして扱う。すべてはTODO自体の状態には使用しない。"
+values:
+  - value: "すべて"
+    description: "完了状態で絞り込まない。"
+  - value: "未完了"
+    description: "未完了のTODOだけを対象とする。"
+  - value: "完了"
+    description: "完了したTODOだけを対象とする。"

@@ -1,0 +1,186 @@
+id: DOM-IDENTITY
+responsibility: |
+  利用者のアカウントと認証状態を管理し、他のドメインが操作する利用者を識別できるようにする。
+  メールアドレスとパスワードによる認証、ログアウト、現在の認証状態の確認を提供する。
+  利用者が自分でアカウントを登録する方式を初期案とする。
+out_of_scope: |
+  TODO・分類・タグの内容の管理と、所有者に基づくアクセス権限の判定は、それぞれを管理するドメインが担当する。
+  外部アカウント連携、組織・チーム、管理者権限、多要素認証は初期範囲に含めない。
+dependencies: []
+rules:
+  - 利用者は固有の利用者IDで識別し、メールアドレスが変更されても同じ利用者として扱う。
+  - 同一メールアドレスを複数の有効なアカウントへ登録しない。
+  - パスワードは認証のためにのみ扱い、保存済みの値を利用者向けの応答・ログ・他ドメインへ出力しない。
+  - パスワードそのものを復元可能な形で保存しない。具体的な保存方式は詳細設計で決める。
+  - 他ドメインへ渡す利用者IDは有効な認証情報から特定し、リクエストで指定された利用者IDだけを信用しない。
+  - 認証に失敗した場合は、メールアドレスが未登録なのか、パスワードが間違っているのかを区別できないエラーメッセージを返す。
+  - 認証状態が無効化されている場合や、有効期限が切れている場合は、認証が必要な操作を実行できない。
+entities:
+  - id: ENT-USER
+    name: 利用者
+    summary: TODOアプリを利用し、自身のTODO・分類・タグを所有する主体。
+    information:
+      - name: "利用者ID"
+        description: "利用者の識別子。"
+        data_type: DT-USER-ID
+        required: true
+      - name: "メールアドレス"
+        description: "ログインに使用するメールアドレス。"
+        data_type: DT-EMAIL-ADDRESS
+        required: true
+      - name: "パスワード検証用情報"
+        description: "パスワードが正しいか確認するために保持する情報。"
+        data_type: DT-PASSWORD-VERIFIER
+        required: true
+      - name: "作成日時"
+        description: "アカウントを作成した日時。"
+        data_type: DT-RECORDED-AT
+        required: true
+    rules:
+      - メールアドレスとパスワードは登録時に必須とする。
+      - パスワード検証用情報は、利用者情報の取得結果に含めない。
+  - id: ENT-AUTH-SESSION
+    name: 認証状態
+    summary: 認証に成功した利用者と、その認証が有効な期間を表す情報。
+    information:
+      - name: "認証状態ID"
+        description: "認証状態の識別子。"
+        data_type: DT-AUTH-SESSION-ID
+        required: true
+      - name: "利用者ID"
+        description: "認証された利用者の識別子。"
+        data_type: DT-USER-ID
+        required: true
+      - name: "認証日時"
+        description: "認証に成功した日時。"
+        data_type: DT-RECORDED-AT
+        required: true
+      - name: "有効期限"
+        description: "認証状態の有効期間が終了する時点。"
+        data_type: DT-AUTH-EXPIRES-AT
+        required: true
+      - name: "有効状態"
+        description: "認証状態が有効か無効かを表す区分。"
+        data_type: DT-AUTH-STATUS
+        required: true
+    rules:
+      - 1つの認証状態は1人の利用者に対応する。
+      - ログアウトすると、その操作に使った認証状態を無効にする。
+      - Cookie・トークン・サーバー側セッションなどの実現方式は詳細設計で決める。
+operations:
+  - id: OP-IDENTITY-REGISTER
+    name: 利用者アカウントを登録する
+    summary: メールアドレスとパスワードを受け付け、新しい利用者アカウントを作成する。
+    actor: アカウントの登録を希望する未ログインの利用者
+    entities: [ENT-USER]
+    inputs:
+      - { name: メールアドレス, description: ログインに使うメールアドレス。, required: true, data_type: DT-EMAIL-ADDRESS }
+      - { name: パスワード, description: 本人確認に使う秘密情報。, required: true, data_type: DT-PASSWORD }
+    result:
+      kind: record
+      multiple: false
+      required: true
+      attributes:
+        - name: "利用者ID"
+          description: "登録された利用者の識別子。"
+          data_type: DT-USER-ID
+          required: true
+        - name: "操作結果"
+          description: "登録が完了したこと。"
+          data_type: DT-OPERATION-RESULT
+          constraints: 成功を返す。
+          required: true
+      constraints: 登録された利用者IDと登録が完了したこと。パスワードに関する情報は返さない。
+    preconditions:
+      - メールアドレスが所定の形式で入力され、同じアドレスの有効なアカウントが存在しない。
+      - パスワードが別途定める入力条件を満たす。
+    postconditions:
+      - 一意な利用者IDを持つアカウントが作成される。
+      - 初期案では登録後に別途ログインする。アカウントを登録しただけではログイン状態にしない。
+    errors:
+      - 必須項目が未入力の場合、入力形式が不正な場合、メールアドレスが登録済みの場合はアカウントを作成しない。
+      - 保存に失敗した場合は登録の失敗を返し、不完全なアカウントを残さない。
+  - id: OP-IDENTITY-LOGIN
+    name: ログインする
+    summary: メールアドレスとパスワードを照合し、認証に成功した利用者をログイン状態にする。
+    actor: 登録済みの利用者
+    entities: [ENT-USER, ENT-AUTH-SESSION]
+    inputs:
+      - { name: メールアドレス, description: 登録済みのログイン用アドレス。, required: true, data_type: DT-EMAIL-ADDRESS }
+      - { name: パスワード, description: 登録済みアカウントの認証に用いる値。, required: true, data_type: DT-PASSWORD }
+    result:
+      kind: record
+      multiple: false
+      required: true
+      attributes:
+        - name: "利用者ID"
+          description: "認証された利用者の識別子。"
+          data_type: DT-USER-ID
+          required: true
+        - name: "操作結果"
+          description: "認証に成功したこと。"
+          data_type: DT-OPERATION-RESULT
+          constraints: 成功を返す。
+          required: true
+        - name: "認証情報"
+          description: "認証状態を次の操作に引き継ぐための情報。"
+          data_type: DT-AUTH-CREDENTIAL
+          required: true
+      constraints: 認証の成功と利用者ID。認証情報の受け渡し方法は後続設計で決める。 パスワードやパスワード検証用情報は含めない。認証情報を本文・ヘッダー・Cookieなどのどこで受け渡すかは後続設計で決める。
+    preconditions:
+      - 入力された認証情報が有効なアカウントと一致する。
+    postconditions:
+      - 認証された利用者としてTODO・分類・タグの操作が可能になる。
+      - 有効期限を設定した認証状態が作成される。
+    errors:
+      - 認証できない場合はログイン状態にせず、認証の失敗を返す。
+  - id: OP-IDENTITY-LOGOUT
+    name: ログアウトする
+    summary: 現在使用している認証状態を無効にする。
+    actor: 利用者
+    entities: [ENT-AUTH-SESSION]
+    inputs:
+      - { name: 現在の認証情報, description: 無効化の対象となる認証状態。認証情報が既に無効な場合も含む。, data_type: DT-AUTH-CREDENTIAL, required: false }
+    result:
+      kind: value
+      multiple: false
+      required: true
+      data_type: DT-OPERATION-RESULT
+      constraints: 同じ認証情報では、以後、認証が必要な操作を実行できないこと。 成功を返す。失敗時はerrorsに記述した条件に従う。
+    postconditions:
+      - 対象の認証状態が無効になり、同じ認証情報で操作を続行できない。
+      - 既に無効な認証状態に対してログアウトを再度実行した場合は、ログアウト済みとして扱う。
+    errors:
+      - 無効化を完了できない場合はログアウトの失敗を返し、再試行できるようにする。
+  - id: OP-IDENTITY-CURRENT
+    name: ログイン中の利用者を確認する
+    summary: 現在の認証状態から、ログイン中の利用者の情報を取得する。
+    actor: 利用者、または利用者を識別する他ドメイン
+    entities: [ENT-USER, ENT-AUTH-SESSION]
+    inputs:
+      - { name: 現在の認証情報, description: 有効性を確認する認証状態。, required: true, data_type: DT-AUTH-CREDENTIAL }
+    result:
+      kind: record
+      multiple: false
+      required: true
+      attributes:
+        - name: "利用者ID"
+          description: "認証された利用者の識別子。"
+          data_type: DT-USER-ID
+          required: true
+        - name: "メールアドレス"
+          description: "利用者のログイン用メールアドレス。"
+          data_type: DT-EMAIL-ADDRESS
+          required: true
+      constraints: 認証された利用者のIDと表示に必要なメールアドレス。秘密情報は含めない。
+    preconditions:
+      - 認証状態が存在し、有効期限内かつ無効化されていない。
+    postconditions:
+      - 呼出し元が信頼できる利用者IDを取得できる。
+    errors:
+      - 認証情報がない場合、無効な場合、有効期限が切れている場合は、認証されていないものとして扱う。
+notes: |
+  複数の利用者が利用し、メールアドレスとパスワードで認証する方針は確定。
+  利用者自身によるアカウント登録と、登録後に別途ログインする方式は初期案。
+  メールアドレスの確認方法・正規化、パスワードの入力条件、再設定・変更、退会に関する機能の範囲は未決定。
+  認証の有効期間、複数端末からの利用、認証に失敗した回数に応じた制限、認証情報の保護方式は後続設計で具体化する。

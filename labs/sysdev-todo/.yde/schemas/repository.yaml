@@ -1,0 +1,22 @@
+id: todo-repository
+name: リポジトリ設計
+kind: document
+description: 永続化の操作・検索条件・データ変換を定義する。
+match: "45_repositories/*.{yaml,yml}"
+filePattern: "45_repositories/{id}.yaml"
+root:
+  type: todo-design-common#design-document
+  entity: { type: repository, defines: true }
+  fields:
+    - { key: id, type: id, pattern: '^REP-[A-Z0-9]+(-[A-Z0-9]+)*$', sample: REP-TODO }
+    - { key: operations, label: 保存・取得・削除操作, type: todo-design-common#descriptions }
+    - { key: queries, label: 検索条件・並び順, type: todo-design-common#descriptions }
+    - { key: mapping, label: データ変換・対象が存在しない場合の扱い, type: text }
+    - key: entities
+      label: 扱うエンティティ
+      type: array
+      item: { type: ref, idPattern: 'ENT-*', relation: uses-entity, scope: { schemaIds: [todo-domain] } }
+    - key: tables
+      label: 読み書きするテーブル
+      type: array
+      item: { type: ref, relation: uses-table, scope: { schemaIds: [todo-table] } }

@@ -1,0 +1,18 @@
+id: todo-controller
+name: コントローラー設計
+kind: document
+description: HTTP入力の検証・サービス呼出し・応答への変換を定義する。
+match: "43_controllers/*.{yaml,yml}"
+filePattern: "43_controllers/{id}.yaml"
+root:
+  type: todo-design-common#design-document
+  entity: { type: controller, defines: true }
+  fields:
+    - { key: id, type: id, pattern: '^CTL-[A-Z0-9]+(-[A-Z0-9]+)*$', sample: CTL-TODO }
+    - { key: handlers, label: 受付処理, type: todo-design-common#descriptions }
+    - { key: validation, label: 入力検証, type: todo-design-common#descriptions }
+    - { key: error_mapping, label: 例外とHTTP応答の対応, type: text }
+    - key: services
+      label: 利用サービス
+      type: array
+      item: { type: ref, relation: uses-service, scope: { schemaIds: [todo-service] } }

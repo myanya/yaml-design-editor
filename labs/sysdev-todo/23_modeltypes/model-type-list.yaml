@@ -1,0 +1,36 @@
+types:
+  - id: DT-REGISTRATION-RESULT
+    name: "利用者登録結果"
+    summary: "アカウント登録の結果と登録された利用者の識別情報。"
+    kind: record
+    status: draft
+  - id: DT-LOGIN-RESULT
+    name: "ログイン結果"
+    summary: "認証に成功した利用者と、以後の認証に使用する情報。"
+    kind: record
+    status: draft
+  - id: DT-USER-INFO
+    name: "利用者情報"
+    summary: "ログイン中の利用者を表示・識別するための情報。"
+    kind: record
+    status: draft
+  - id: DT-TODO-CONTENT
+    name: "TODOの内容"
+    summary: "TODOの登録・編集で指定する作業内容と整理用の情報。"
+    kind: record
+    status: draft
+  - id: DT-TODO-INFO
+    name: "TODO情報"
+    summary: "TODOの一覧・個別取得・更新結果で返す1件分の情報。"
+    kind: record
+    status: draft
+  - id: DT-CATEGORY-INFO
+    name: "分類情報"
+    summary: "分類の一覧・登録・名称変更で返す1件分の情報。"
+    kind: record
+    status: draft
+  - id: DT-TAG-INFO
+    name: "タグ情報"
+    summary: "タグの一覧・登録・名称変更で返す1件分の情報。"
+    kind: record
+    status: draft

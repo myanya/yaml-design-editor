@@ -1,0 +1,24 @@
+id: todo-view
+name: 画面詳細設計
+kind: document
+description: TODOアプリの画面構成と状態・イベント処理を定義する。
+match: "41_views/*.{yaml,yml}"
+filePattern: "41_views/{id}.yaml"
+root:
+  type: todo-design-common#design-document
+  entity: { type: view, defines: true }
+  fields:
+    - { key: id, type: id, pattern: '^VIW-[A-Z0-9]+(-[A-Z0-9]+)*$', sample: VIW-TODO-LIST }
+    - key: screen
+      label: 対応する画面
+      type: ref
+      relation: implements-screen
+      scope: { schemaIds: [todo-screen] }
+    - { key: route, label: 画面URL, type: line }
+    - { key: components, label: 構成部品・配置, type: todo-design-common#descriptions }
+    - { key: states, label: 表示状態, type: todo-design-common#descriptions, description: 読み込み中・一覧にデータがない場合・通信に失敗した場合・入力エラー時などの表示を記述する。 }
+    - { key: events, label: イベント処理, type: todo-design-common#descriptions }
+    - key: apis
+      label: 呼び出すAPI
+      type: array
+      item: { type: ref, relation: uses-api, scope: { schemaIds: [todo-api] } }

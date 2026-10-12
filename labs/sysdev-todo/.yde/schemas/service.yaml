@@ -1,0 +1,32 @@
+id: todo-service
+name: サービス設計
+kind: document
+description: 業務操作の処理手順・業務ルール・トランザクション境界を定義する。
+match: "44_services/*.{yaml,yml}"
+filePattern: "44_services/{id}.yaml"
+root:
+  type: todo-design-common#design-document
+  entity: { type: service, defines: true }
+  fields:
+    - { key: id, type: id, pattern: '^SVC-[A-Z0-9]+(-[A-Z0-9]+)*$', sample: SVC-TODO }
+    - key: domain
+      label: 対象ドメイン
+      type: ref
+      idPattern: 'DOM-*'
+      relation: belongs-to-domain
+      scope: { schemaIds: [todo-domain-list] }
+    - key: domain_operations
+      label: 導出元の提供操作
+      type: array
+      item: { type: ref, idPattern: 'OP-*', relation: realizes-operation, scope: { schemaIds: [todo-domain] } }
+    - { key: operations, label: 操作・処理手順, type: todo-design-common#descriptions }
+    - { key: transaction, label: トランザクション境界, type: text }
+    - { key: errors, label: 業務例外, type: todo-design-common#descriptions }
+    - key: entities
+      label: 扱うエンティティ
+      type: array
+      item: { type: ref, idPattern: 'ENT-*', relation: uses-entity, scope: { schemaIds: [todo-domain] } }
+    - key: repositories
+      label: 利用リポジトリ
+      type: array
+      item: { type: ref, relation: uses-repository, scope: { schemaIds: [todo-repository] } }

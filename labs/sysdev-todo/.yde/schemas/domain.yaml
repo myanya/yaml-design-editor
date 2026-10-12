@@ -1,0 +1,63 @@
+id: todo-domain
+name: ドメイン定義書
+kind: document
+description: サブドメイン相当の境界・管理対象の情報・提供操作を定義し、後続の定義・設計の導出元とする。
+match: "21_domains/DOM-*.{yaml,yml}"
+filePattern: "21_domains/{id}.yaml"
+entity: { type: domain, idPattern: 'DOM-*', aspect: detail }
+coverage:
+  - idPattern: 'DOM-*'
+    description: ドメイン定義書のIDがドメイン一覧に登録されていること。
+    detailIn: { schemaIds: [todo-domain-list] }
+    level: warning
+root:
+  type: object
+  entity: { type: domain, defines: false }
+  fields:
+    - { key: id, label: ドメインID, type: id, required: true, pattern: '^DOM-[A-Z0-9]+(-[A-Z0-9]+)*$', sample: DOM-TODO }
+    - { key: responsibility, label: 責務・対象範囲, type: text }
+    - { key: out_of_scope, label: 対象外・他ドメインとの境界, type: text }
+    - key: dependencies
+      label: 依存するドメイン
+      type: array
+      item: { type: ref, idPattern: 'DOM-*', relation: depends-on-domain, scope: { schemaIds: [todo-domain-list] } }
+    - { key: rules, label: 業務ルール, type: todo-design-common#descriptions }
+    - key: entities
+      label: 管理対象の情報（エンティティ）
+      type: array
+      description: エンティティの定義元。論理属性は33_entitiesで同じIDを使って詳細化する。
+      item:
+        type: object
+        entity: { type: entity-model, defines: true }
+        fields:
+          - { key: id, label: エンティティID, type: id, required: true, pattern: '^ENT-[A-Z0-9]+(-[A-Z0-9]+)*$', sample: ENT-TODO }
+          - { key: name, label: 名称, type: line, role: title, required: true }
+          - { key: summary, label: 意味・管理する理由, type: text, role: subtitle, required: true }
+          - { key: information, label: 管理する情報, type: todo-design-common#business-data-items }
+          - { key: rules, label: 情報に関する業務ルール, type: todo-design-common#descriptions }
+    - key: operations
+      label: 提供操作
+      type: array
+      description: 業務として提供する操作の定義元。画面・API・サービスは操作IDを参照して具体化する。
+      item:
+        type: object
+        entity: { type: domain-operation, defines: true }
+        fields:
+          - { key: id, label: 操作ID, type: id, required: true, pattern: '^OP-[A-Z0-9]+(-[A-Z0-9]+)*$', sample: OP-TODO-CREATE }
+          - { key: name, label: 操作名, type: line, role: title, required: true }
+          - { key: summary, label: 目的・業務上の意味, type: text, role: subtitle, required: true }
+          - { key: actor, label: 操作主体, type: line }
+          - key: entities
+            label: 操作対象のエンティティ
+            type: array
+            item: { type: ref, idPattern: 'ENT-*', relation: uses-entity, scope: { schemaIds: [todo-domain] } }
+          - { key: inputs, label: 入力情報, type: todo-design-common#business-data-items }
+          - key: result
+            label: 操作の結果
+            type: todo-design-common#operation-result
+            required: true
+            description: 成功時に返す値と件数を定義する。複合値は属性をここに列挙し、失敗の条件はerrorsに記述する。
+          - { key: preconditions, label: 事前条件, type: todo-design-common#descriptions }
+          - { key: postconditions, label: 操作後に保証すること, type: todo-design-common#descriptions }
+          - { key: errors, label: 操作を実行できない条件・業務エラー, type: todo-design-common#descriptions }
+    - { key: notes, label: 未決事項・補足, type: text }

@@ -1,0 +1,9 @@
+id: DT-TODO-STATUS
+rules:
+  - "定義した選択肢のいずれか1つを指定する。"
+  - "新規登録時の初期値は未完了とする。"
+values:
+  - value: "未完了"
+    description: "まだ完了していない作業。"
+  - value: "完了"
+    description: "完了した作業。"

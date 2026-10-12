@@ -1,0 +1,25 @@
+id: DT-TODO-INFO
+rules:
+  - "構成項目はそれぞれの業務データ型の制約を満たすこと。"
+fields:
+  - name: "TODO ID"
+    description: "TODOの識別子。"
+    data_type: DT-TODO-ID
+    required: true
+  - name: "内容"
+    description: "作業内容と整理用の情報。"
+    data_type: DT-TODO-CONTENT
+    required: true
+  - name: "状態"
+    description: "作業の完了状態。"
+    data_type: DT-TODO-STATUS
+    required: true
+  - name: "作成日時"
+    description: "TODOを登録した日時。"
+    data_type: DT-RECORDED-AT
+    required: true
+  - name: "最終更新日時"
+    description: "TODOを最後に更新した日時。"
+    data_type: DT-RECORDED-AT
+    required: true
+notes: "構成項目は業務上の情報構造を示す。JSONの入れ子構造やDBのカラム構成をそのまま指定するものではない。"

@@ -1,0 +1,13 @@
+id: DT-REGISTRATION-RESULT
+rules:
+  - "構成項目はそれぞれの業務データ型の制約を満たすこと。"
+  - "パスワードやパスワード検証用情報は含めない。"
+fields:
+  - name: "利用者ID"
+    description: "登録された利用者の識別子。"
+    data_type: DT-USER-ID
+    required: true
+  - name: "操作結果"
+    description: "登録が完了したこと。"
+    data_type: DT-OPERATION-RESULT
+    required: true

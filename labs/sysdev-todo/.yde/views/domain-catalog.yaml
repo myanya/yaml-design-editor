@@ -1,0 +1,18 @@
+id: domain-catalog
+name: ドメイン一覧と定義書
+kind: grid
+rows:
+  idPattern: 'DOM-*'
+order:
+  fileGlob: 21_domains/domain-list.yaml
+columns:
+  - { label: タイトル, schemaId: todo-domain-list, path: name, editable: true }
+  - { label: 概要, schemaId: todo-domain-list, path: summary, editable: true }
+  - { label: サブドメイン分類（DDD）, schemaId: todo-domain-list, path: kind, editable: true }
+  - { label: 設計状態, schemaId: todo-domain-list, path: status, editable: true }
+detail:
+  fileGlob: '21_domains/DOM-*.yaml'
+  filePattern: '21_domains/{id}.yaml'
+newRow:
+  file: 21_domains/domain-list.yaml
+  path: domains

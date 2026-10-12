@@ -1,0 +1,28 @@
+id: todo-value-type
+name: 値型定義書
+kind: document
+description: 値型の制約・選択肢を定義する。名称・意味・種別は一覧で管理する。
+match: '22_valuetypes/DT-*.{yaml,yml}'
+filePattern: '22_valuetypes/{id}.yaml'
+entity: { type: business-data-type, idPattern: 'DT-*', aspect: detail }
+coverage:
+  - idPattern: 'DT-*'
+    description: 型定義書のIDが値型一覧に登録されていること。
+    detailIn: { schemaIds: [todo-value-type-list] }
+    level: warning
+root:
+  type: object
+  entity: { type: business-data-type, defines: false }
+  fields:
+    - { key: id, label: 型ID, type: id, required: true, pattern: '^DT-[A-Z0-9]+(-[A-Z0-9]+)*$' }
+    - { key: rules, label: 値の制約・取扱い, type: todo-design-common#descriptions, required: true }
+    - key: values
+      label: 区分の選択肢
+      type: array
+      description: 種別が区分のときに記述する。業務上の値であり、通信やDBでの表現は後続設計で対応付ける。
+      item:
+        type: object
+        fields:
+          - { key: value, label: 業務上の値, type: line, required: true }
+          - { key: description, label: 意味, type: text, required: true }
+    - { key: notes, label: 未決事項・補足, type: text }

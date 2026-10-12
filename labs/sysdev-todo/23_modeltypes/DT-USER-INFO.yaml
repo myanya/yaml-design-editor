@@ -1,0 +1,13 @@
+id: DT-USER-INFO
+rules:
+  - "構成項目はそれぞれの業務データ型の制約を満たすこと。"
+  - "パスワードやパスワード検証用情報は含めない。"
+fields:
+  - name: "利用者ID"
+    description: "認証された利用者の識別子。"
+    data_type: DT-USER-ID
+    required: true
+  - name: "メールアドレス"
+    description: "利用者のログイン用メールアドレス。"
+    data_type: DT-EMAIL-ADDRESS
+    required: true

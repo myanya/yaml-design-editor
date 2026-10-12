@@ -1,0 +1,12 @@
+id: DT-TAG-INFO
+rules:
+  - "構成項目はそれぞれの業務データ型の制約を満たすこと。"
+fields:
+  - name: "タグID"
+    description: "タグの識別子。"
+    data_type: DT-TAG-ID
+    required: true
+  - name: "名称"
+    description: "タグの表示名。"
+    data_type: DT-TAG-NAME
+    required: true

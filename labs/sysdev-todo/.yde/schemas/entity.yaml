@@ -1,0 +1,21 @@
+id: todo-entity
+name: 論理エンティティ設計
+kind: document
+description: ドメイン定義書で定義されたエンティティを、同じIDで論理属性・型・制約へ詳細化する。
+match: "33_entities/*.{yaml,yml}"
+filePattern: "33_entities/{id}.yaml"
+root:
+  type: object
+  entity: { type: entity-model, defines: false }
+  fields:
+    - key: id
+      label: エンティティID
+      type: id
+      required: true
+      pattern: '^ENT-[A-Z0-9]+(-[A-Z0-9]+)*$'
+      sample: ENT-TODO
+      description: ドメイン定義書のentitiesに定義したID。名称・意味・所属は定義元で管理する。
+    - { key: status, label: 設計状態, type: todo-design-common#design-status }
+    - { key: attributes, label: 属性, type: todo-design-common#business-data-items }
+    - { key: invariants, label: 不変条件, type: todo-design-common#descriptions }
+    - { key: notes, label: 未決事項・補足, type: text }

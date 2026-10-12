@@ -1,0 +1,84 @@
+id: todo-design-relations
+kind: relations
+enforcement:
+  undeclaredRelation: error
+  definingUniqueness: error
+entities:
+  - { type: domain, label: ドメイン }
+  - { type: domain-operation, label: ドメインの提供操作 }
+  - { type: screen, label: 画面 }
+  - { type: api, label: API基本設計 }
+  - { type: entity-model, label: 論理エンティティ }
+  - { type: business-data-type, label: 業務データ型 }
+  - { type: view, label: 画面詳細設計 }
+  - { type: api-detail, label: API詳細設計 }
+  - { type: controller, label: コントローラー }
+  - { type: service, label: サービス }
+  - { type: repository, label: リポジトリ }
+  - { type: db-table, label: テーブル }
+relations:
+  - name: uses-data-type
+    label: 使用する業務データ型
+    inverseLabel: 型を使用する設計
+    source: [entity-model, domain-operation, business-data-type]
+    target: [business-data-type]
+  - name: depends-on-domain
+    label: 依存するドメイン
+    inverseLabel: 利用するドメイン
+    source: [domain]
+    target: [domain]
+  - name: belongs-to-domain
+    label: 所属ドメイン
+    inverseLabel: 所属する設計
+    source: [screen, api, service]
+    target: [domain]
+  - name: realizes-operation
+    label: 導出元の提供操作
+    inverseLabel: 操作を具体化する設計
+    source: [screen, api, service]
+    target: [domain-operation]
+  - name: uses-api
+    label: 利用API
+    inverseLabel: 利用する画面
+    source: [screen, view]
+    target: [api]
+  - name: uses-entity
+    label: 扱うエンティティ
+    inverseLabel: 利用する設計
+    source: [domain-operation, api, service, repository]
+    target: [entity-model]
+  - name: implements-screen
+    label: 対応する画面
+    inverseLabel: 画面詳細設計
+    source: [view]
+    target: [screen]
+  - name: implements-api
+    label: 対応するAPI
+    inverseLabel: API詳細設計
+    source: [api-detail]
+    target: [api]
+  - name: handled-by
+    label: 担当コントローラー
+    inverseLabel: 受け付けるAPI詳細設計
+    source: [api-detail]
+    target: [controller]
+  - name: uses-service
+    label: 利用サービス
+    inverseLabel: 呼出し元コントローラー
+    source: [controller]
+    target: [service]
+  - name: uses-repository
+    label: 利用リポジトリ
+    inverseLabel: 呼出し元サービス
+    source: [service]
+    target: [repository]
+  - name: uses-table
+    label: 使用テーブル
+    inverseLabel: 利用リポジトリ
+    source: [repository]
+    target: [db-table]
+  - name: persists-entity
+    label: 永続化するエンティティ
+    inverseLabel: 永続化先テーブル
+    source: [db-table]
+    target: [entity-model]

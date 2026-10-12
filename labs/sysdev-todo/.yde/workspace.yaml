@@ -1,0 +1,14 @@
+# 設計文書の索引・参照解決・検証の対象。
+ledger:
+  - 21_domains
+  - 22_valuetypes
+  - 23_modeltypes
+  - 31_screens
+  - 32_apis
+  - 33_entities
+  - 41_views
+  - 42_apis
+  - 43_controllers
+  - 44_services
+  - 45_repositories
+  - 46_tables

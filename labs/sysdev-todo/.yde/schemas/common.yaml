@@ -1,0 +1,94 @@
+id: todo-design-common
+name: TODOアプリ設計の共通項目
+kind: library
+description: 設計文書の基本項目と、入出力・属性を記述する最小の型。
+definitions:
+  design-status:
+    type: enum
+    default: draft
+    values:
+      - { value: draft, label: 作成中 }
+      - { value: review, label: レビュー中 }
+      - { value: approved, label: 承認済み }
+  design-document:
+    type: object
+    fields:
+      - { key: id, label: 設計ID, type: id, required: true }
+      - { key: name, label: 名称, type: line, role: title, required: true }
+      - { key: summary, label: 概要, type: text, role: subtitle, required: true }
+      - key: status
+        label: 設計状態
+        type: design-status
+      - { key: notes, label: 未決事項・補足, type: text }
+  descriptions:
+    type: array
+    item: { type: text }
+  data-item:
+    type: object
+    fields:
+      - { key: name, label: 項目名, type: line, required: true }
+      - { key: description, label: 意味, type: text, required: true }
+      - { key: data_type, label: データ型, type: line, description: 論理設計では意味上の型、詳細設計では通信形式やDBの型を記述する。 }
+      - { key: required, label: 必須, type: boolean }
+      - { key: constraints, label: 制約・初期値, type: text }
+  data-items:
+    type: array
+    item: { type: data-item }
+  business-data-item:
+    type: object
+    fields:
+      - { key: name, label: 項目名, type: line, required: true }
+      - { key: description, label: 意味・用途, type: text, required: true }
+      - key: data_type
+        label: 業務データ型
+        type: ref
+        required: true
+        idPattern: 'DT-*'
+        relation: uses-data-type
+        scope: { schemaIds: [todo-value-type-list, todo-model-type-list] }
+        description: 業務データ型一覧から選択する。複数値の場合も、1件分の型を指定する。
+      - { key: required, label: 必須, type: boolean, required: true, description: 値の指定が必要かを表す。複数値では一覧自体の指定が必要かを表し、空の一覧も許可する。 }
+      - { key: multiple, label: 複数値, type: boolean, default: false, description: 複数の値を持つ場合はtrue。省略時は単一値。 }
+      - { key: constraints, label: この項目での追加条件, type: text, description: 型の制約を補う条件。型そのものの制約は型定義書に記述する。 }
+  business-data-items:
+    type: array
+    item: { type: business-data-item }
+  result-attribute:
+    type: business-data-item
+    fields:
+      - key: data_type
+        type: ref
+        scope: { schemaIds: [todo-value-type-list] }
+        description: この属性の値型。複数値の場合も1件分の型を指定する。
+  operation-result:
+    type: object
+    fields:
+      - key: kind
+        label: 1件の内容
+        type: enum
+        required: true
+        values:
+          - { value: value, label: 単独の値 }
+          - { value: record, label: 複数属性を持つ複合値 }
+          - { value: none, label: 戻り値なし }
+        cases:
+          value:
+            - { key: multiple, label: リストで返す, type: boolean, required: true }
+            - { key: required, label: 結果を必ず返す, type: boolean, required: true, description: リストの場合は空のリストも許可する。 }
+            - key: data_type
+              label: 値の業務データ型
+              type: ref
+              required: true
+              idPattern: 'DT-*'
+              relation: uses-data-type
+              scope: { schemaIds: [todo-value-type-list] }
+          record:
+            - { key: multiple, label: リストで返す, type: boolean, required: true }
+            - { key: required, label: 結果を必ず返す, type: boolean, required: true, description: リストの場合は空のリストも許可する。 }
+            - key: attributes
+              label: 1件分の返却属性
+              type: array
+              required: true
+              item: { type: result-attribute }
+          none: []
+      - { key: constraints, label: 結果の条件・補足, type: text }

@@ -1,0 +1,26 @@
+id: todo-api-detail
+name: API詳細設計
+kind: document
+description: API基本設計に対応するHTTPの入出力仕様と、リクエストの受付処理を定義する。
+match: "42_apis/*.{yaml,yml}"
+filePattern: "42_apis/{id}.yaml"
+root:
+  type: todo-design-common#design-document
+  entity: { type: api-detail, defines: true }
+  fields:
+    - { key: id, type: id, pattern: '^APD-[A-Z0-9]+(-[A-Z0-9]+)*$', sample: APD-TODO-CREATE }
+    - key: api
+      label: 対応するAPI基本設計
+      type: ref
+      relation: implements-api
+      scope: { schemaIds: [todo-api] }
+    - { key: method, label: HTTPメソッド, type: enum, values: [GET, POST, PUT, PATCH, DELETE] }
+    - { key: path, label: エンドポイント, type: line, placeholder: /api/todos }
+    - { key: request, label: リクエスト形式, type: text, description: パス・クエリ・ヘッダー・本文の形式と必須条件を記述する。 }
+    - { key: response, label: 正常応答, type: text, description: HTTPステータス・ヘッダー・本文の形式を記述する。 }
+    - { key: errors, label: エラー応答, type: todo-design-common#descriptions }
+    - key: controller
+      label: 担当コントローラー
+      type: ref
+      relation: handled-by
+      scope: { schemaIds: [todo-controller] }

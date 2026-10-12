@@ -1,0 +1,101 @@
+types:
+  - id: DT-USER-ID
+    name: "利用者ID"
+    summary: "利用者を一意に識別する値。"
+    kind: identifier
+    status: draft
+  - id: DT-TODO-ID
+    name: "TODO ID"
+    summary: "TODOを一意に識別する値。"
+    kind: identifier
+    status: draft
+  - id: DT-CATEGORY-ID
+    name: "分類ID"
+    summary: "分類を一意に識別する値。"
+    kind: identifier
+    status: draft
+  - id: DT-TAG-ID
+    name: "タグID"
+    summary: "タグを一意に識別する値。"
+    kind: identifier
+    status: draft
+  - id: DT-AUTH-SESSION-ID
+    name: "認証状態ID"
+    summary: "認証状態を一意に識別する値。"
+    kind: identifier
+    status: draft
+  - id: DT-EMAIL-ADDRESS
+    name: "メールアドレス"
+    summary: "利用者のログインに使用するメールアドレス。"
+    kind: text
+    status: draft
+  - id: DT-PASSWORD
+    name: "パスワード"
+    summary: "利用者が認証のために入力する秘密の文字列。"
+    kind: text
+    status: draft
+  - id: DT-PASSWORD-VERIFIER
+    name: "パスワード検証用情報"
+    summary: "入力されたパスワードが正しいか確認するために保持する情報。"
+    kind: text
+    status: draft
+  - id: DT-AUTH-CREDENTIAL
+    name: "認証情報"
+    summary: "認証状態を提示し、現在の利用者を確認するための情報。"
+    kind: text
+    status: draft
+  - id: DT-RECORDED-AT
+    name: "記録日時"
+    summary: "作成・更新・認証成功など、出来事が発生した時点を表す日時。"
+    kind: datetime
+    status: draft
+  - id: DT-AUTH-EXPIRES-AT
+    name: "認証有効期限"
+    summary: "認証状態を有効とみなす期間の終了時点。"
+    kind: datetime
+    status: draft
+  - id: DT-DUE-DATE
+    name: "期限日"
+    summary: "TODOの完了を予定する日。"
+    kind: date
+    status: draft
+  - id: DT-TODO-TITLE
+    name: "TODOタイトル"
+    summary: "作業の内容を短く表す名前。"
+    kind: text
+    status: draft
+  - id: DT-TODO-DESCRIPTION
+    name: "TODO説明"
+    summary: "作業の内容を補足する文章。"
+    kind: text
+    status: draft
+  - id: DT-CATEGORY-NAME
+    name: "分類名"
+    summary: "TODOを大きく分ける区分の名前。"
+    kind: text
+    status: draft
+  - id: DT-TAG-NAME
+    name: "タグ名"
+    summary: "TODOに付ける目印の名前。"
+    kind: text
+    status: draft
+  - id: DT-TODO-STATUS
+    name: "TODO状態"
+    summary: "TODOが未完了か完了かを表す区分。"
+    kind: enum
+    status: draft
+  - id: DT-TODO-STATUS-FILTER
+    name: "TODO状態の検索条件"
+    summary: "一覧の取得時に対象とするTODOの状態を指定する区分。"
+    kind: enum
+    status: draft
+  - id: DT-AUTH-STATUS
+    name: "認証の有効状態"
+    summary: "認証状態が有効か無効かを表す区分。"
+    kind: enum
+    status: draft
+  - id: DT-OPERATION-RESULT
+    name: "操作結果"
+    summary: "要求した操作が成功したか失敗したかを表す区分。"
+    kind: enum
+    status: draft

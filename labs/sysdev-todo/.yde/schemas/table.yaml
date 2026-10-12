@@ -1,0 +1,19 @@
+id: todo-table
+name: テーブル設計
+kind: document
+description: 論理エンティティの永続化先となる物理テーブルを定義する。
+match: "46_tables/*.{yaml,yml}"
+filePattern: "46_tables/{id}.yaml"
+root:
+  type: todo-design-common#design-document
+  entity: { type: db-table, defines: true }
+  fields:
+    - { key: id, type: id, pattern: '^TBL-[A-Z0-9]+(-[A-Z0-9]+)*$', sample: TBL-TODO }
+    - { key: table_name, label: 物理テーブル名, type: word }
+    - { key: columns, label: カラム, type: todo-design-common#data-items, description: data_typeは物理型、requiredはNOT NULLの有無を表す。 }
+    - { key: primary_key, label: 主キーのカラム名, type: array, item: { type: word } }
+    - { key: indexes, label: 索引・一意制約, type: todo-design-common#descriptions }
+    - key: entities
+      label: 永続化するエンティティ
+      type: array
+      item: { type: ref, idPattern: 'ENT-*', relation: persists-entity, scope: { schemaIds: [todo-domain] } }

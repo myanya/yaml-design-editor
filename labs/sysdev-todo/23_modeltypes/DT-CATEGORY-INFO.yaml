@@ -1,0 +1,12 @@
+id: DT-CATEGORY-INFO
+rules:
+  - "構成項目はそれぞれの業務データ型の制約を満たすこと。"
+fields:
+  - name: "分類ID"
+    description: "分類の識別子。"
+    data_type: DT-CATEGORY-ID
+    required: true
+  - name: "名称"
+    description: "分類の表示名。"
+    data_type: DT-CATEGORY-NAME
+    required: true

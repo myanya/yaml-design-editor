@@ -1,0 +1,29 @@
+id: todo-api
+name: API基本設計
+kind: document
+description: APIが提供する機能と、入出力の業務上の意味を定義する。
+match: "32_apis/*.{yaml,yml}"
+filePattern: "32_apis/{id}.yaml"
+root:
+  type: todo-design-common#design-document
+  entity: { type: api, defines: true }
+  fields:
+    - { key: id, type: id, pattern: '^API-[A-Z0-9]+(-[A-Z0-9]+)*$', sample: API-TODO-CREATE }
+    - key: domain
+      label: 所属ドメイン
+      type: ref
+      idPattern: 'DOM-*'
+      relation: belongs-to-domain
+      scope: { schemaIds: [todo-domain-list] }
+    - key: domain_operations
+      label: 導出元の提供操作
+      type: array
+      item: { type: ref, idPattern: 'OP-*', relation: realizes-operation, scope: { schemaIds: [todo-domain] } }
+    - { key: inputs, label: 入力, type: todo-design-common#data-items }
+    - { key: outputs, label: 出力, type: todo-design-common#data-items }
+    - { key: rules, label: 事前条件・業務ルール, type: todo-design-common#descriptions }
+    - { key: errors, label: 業務エラー, type: todo-design-common#descriptions }
+    - key: entities
+      label: 関連エンティティ
+      type: array
+      item: { type: ref, idPattern: 'ENT-*', relation: uses-entity, scope: { schemaIds: [todo-domain] } }

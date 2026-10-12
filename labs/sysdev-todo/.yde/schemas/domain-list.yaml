@@ -1,0 +1,34 @@
+id: todo-domain-list
+name: ドメイン一覧
+kind: document
+description: ドメインのID・タイトル・概要・種別を管理する一覧。詳細は同じIDのドメイン定義書に記述する。
+match: "21_domains/domain-list.yaml"
+coverage:
+  - idPattern: 'DOM-*'
+    description: 一覧の各ドメインに個別のドメイン定義書があること。
+    detailIn: { schemaIds: [todo-domain] }
+    level: warning
+root:
+  type: object
+  fields:
+    - key: domains
+      label: ドメイン一覧
+      type: array
+      required: true
+      display: table
+      item:
+        type: object
+        entity: { type: domain, defines: true }
+        fields:
+          - { key: id, label: ドメインID, type: id, required: true, pattern: '^DOM-[A-Z0-9]+(-[A-Z0-9]+)*$' }
+          - { key: name, label: タイトル, type: line, role: title, required: true }
+          - { key: summary, label: 概要, type: text, role: subtitle, required: true }
+          - key: kind
+            label: サブドメイン分類（DDD）
+            type: enum
+            description: 事業上の役割に基づく分類。差別化の中心はコア、固有の補助業務は支援、既存の解決策を活用できる領域は汎用とする。
+            values:
+              - { value: core, label: コアサブドメイン }
+              - { value: supporting, label: 支援サブドメイン }
+              - { value: generic, label: 汎用サブドメイン }
+          - { key: status, label: 設計状態, type: todo-design-common#design-status }

@@ -1,0 +1,18 @@
+id: DT-LOGIN-RESULT
+rules:
+  - "構成項目はそれぞれの業務データ型の制約を満たすこと。"
+  - "パスワードやパスワード検証用情報は含めない。"
+fields:
+  - name: "利用者ID"
+    description: "認証された利用者の識別子。"
+    data_type: DT-USER-ID
+    required: true
+  - name: "操作結果"
+    description: "認証に成功したこと。"
+    data_type: DT-OPERATION-RESULT
+    required: true
+  - name: "認証情報"
+    description: "認証状態を次の操作に引き継ぐための情報。"
+    data_type: DT-AUTH-CREDENTIAL
+    required: true
+notes: "認証情報を本文・ヘッダー・Cookieなどのどこで受け渡すかは後続設計で決める。"

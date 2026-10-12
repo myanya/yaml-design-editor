@@ -1,0 +1,29 @@
+id: DT-TODO-CONTENT
+rules:
+  - "構成項目はそれぞれの業務データ型の制約を満たすこと。"
+  - "所有者や完了状態は含めない。"
+  - "任意項目は未設定に戻せる。"
+fields:
+  - name: "タイトル"
+    description: "作業の名前。"
+    data_type: DT-TODO-TITLE
+    required: true
+  - name: "説明"
+    description: "作業の補足説明。"
+    data_type: DT-TODO-DESCRIPTION
+    required: false
+  - name: "期限"
+    description: "任意の期限日。"
+    data_type: DT-DUE-DATE
+    required: false
+  - name: "分類"
+    description: "割り当てる分類の識別子。"
+    data_type: DT-CATEGORY-ID
+    required: false
+  - name: "タグ"
+    description: "割り当てるタグの識別子。"
+    data_type: DT-TAG-ID
+    required: false
+    multiple: true
+    constraints: "同じタグIDを重複させない。"
+notes: "項目の省略・空文字・nullを通信上どう表すかは後続設計で定義する。分類・タグの所有者や存在は操作側で確認する。"

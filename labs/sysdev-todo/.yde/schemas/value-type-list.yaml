@@ -1,0 +1,36 @@
+id: todo-value-type-list
+name: 値型一覧
+kind: document
+description: 値型のID・名称・概要・種別を管理する。制約・選択肢は同じIDの型定義書に記述する。
+match: '22_valuetypes/value-type-list.yaml'
+coverage:
+  - idPattern: 'DT-*'
+    description: 値型一覧の各型に個別の型定義書があること。
+    detailIn: { schemaIds: [todo-value-type] }
+    level: warning
+root:
+  type: object
+  fields:
+    - key: types
+      label: 値型一覧
+      type: array
+      required: true
+      display: table
+      item:
+        type: object
+        entity: { type: business-data-type, defines: true }
+        fields:
+          - { key: id, label: 型ID, type: id, required: true, pattern: '^DT-[A-Z0-9]+(-[A-Z0-9]+)*$' }
+          - { key: name, label: 型名, type: line, role: title, required: true }
+          - { key: summary, label: 業務上の意味, type: text, role: subtitle, required: true }
+          - key: kind
+            label: 種別
+            type: enum
+            required: true
+            values:
+              - { value: identifier, label: 識別子 }
+              - { value: text, label: 文字情報 }
+              - { value: date, label: 日付 }
+              - { value: datetime, label: 日時 }
+              - { value: enum, label: 区分 }
+          - { key: status, label: 設計状態, type: todo-design-common#design-status }

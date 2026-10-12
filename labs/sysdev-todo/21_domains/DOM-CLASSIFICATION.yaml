@@ -1,0 +1,278 @@
+id: DOM-CLASSIFICATION
+responsibility: |
+  認証された利用者自身の分類とタグを管理し、TODOを整理するための選択肢を提供する。
+  分類はTODOを大きく分けるための区分、タグは複数付けられる目印として扱う。
+  分類・タグの登録・一覧の取得・名称変更・削除を行い、TODOに割り当てられるか判断するための情報を提供する。
+out_of_scope: |
+  認証と利用者の登録は利用者・認証ドメインが担当する。
+  TODOへの割当て・解除と絞り込み結果の取得はTODO管理ドメインが担当する。
+  分類の階層化、タグの色・表示順、他の利用者との共有は初期範囲に含めない。
+dependencies: [DOM-IDENTITY, DOM-TODO]
+rules:
+  - すべての操作で認証を必須とし、操作する利用者を認証情報に基づいて特定する。
+  - 分類・タグは作成した利用者に属し、他の利用者は参照・変更・削除できない。
+  - 名称は必須とし、値の条件は分類名・タグ名の業務データ型に従う。
+  - 初期案では、同じ利用者の分類同士、タグ同士で名称を重複させない。別の利用者は同じ名称を使える。
+  - 分類とタグは別の種類として扱い、両者に同じ名称を使うことは許可する。
+  - 名称を変更しても識別子は変えず、既存のTODOへの割当てを維持する。
+  - 初期案では、TODOから参照されている分類・タグの削除を拒否する。先にTODO側で割当てを解除・変更する。
+  - 他の利用者が所有する分類・タグへの操作では、その内容や存在を開示しない。
+  - 保存に失敗した場合は操作の失敗を返し、変更の一部だけを保存しない。
+entities:
+  - id: ENT-CATEGORY
+    name: 分類
+    summary: 利用者自身のTODOを大きな区分で整理するための選択肢。
+    information:
+      - name: "分類ID"
+        description: "分類の識別子。"
+        data_type: DT-CATEGORY-ID
+        required: true
+      - name: "所有者ID"
+        description: "分類を所有する利用者の識別子。"
+        data_type: DT-USER-ID
+        required: true
+      - name: "名称"
+        description: "分類の表示名。"
+        data_type: DT-CATEGORY-NAME
+        required: true
+      - name: "作成日時"
+        description: "分類を登録した日時。"
+        data_type: DT-RECORDED-AT
+        required: true
+      - name: "最終更新日時"
+        description: "分類を最後に更新した日時。"
+        data_type: DT-RECORDED-AT
+        required: true
+    rules:
+      - 分類が指定されていないTODOは未分類として扱う。「未分類」という特別な分類データを登録する必要はない。
+      - 名称を変更しても所有者は変更できない。
+  - id: ENT-TAG
+    name: タグ
+    summary: 利用者自身のTODOに、分類をまたいで共通の目印を付けるための選択肢。
+    information:
+      - name: "タグID"
+        description: "タグの識別子。"
+        data_type: DT-TAG-ID
+        required: true
+      - name: "所有者ID"
+        description: "タグを所有する利用者の識別子。"
+        data_type: DT-USER-ID
+        required: true
+      - name: "名称"
+        description: "タグの表示名。"
+        data_type: DT-TAG-NAME
+        required: true
+      - name: "作成日時"
+        description: "タグを登録した日時。"
+        data_type: DT-RECORDED-AT
+        required: true
+      - name: "最終更新日時"
+        description: "タグを最後に更新した日時。"
+        data_type: DT-RECORDED-AT
+        required: true
+    rules:
+      - TODOにタグを付けなくてもよい。「未設定」を表す特別なタグは作成しない。
+      - 名称を変更しても所有者は変更できない。
+operations:
+  - id: OP-CATEGORY-LIST
+    name: 分類の一覧を取得する
+    summary: 自身の分類を取得し、管理やTODOへの割当てに使用する。
+    actor: 認証済みの利用者
+    entities: [ENT-CATEGORY]
+    result:
+      kind: record
+      multiple: true
+      required: true
+      attributes:
+        - name: "分類ID"
+          description: "分類の識別子。"
+          data_type: DT-CATEGORY-ID
+          required: true
+        - name: "名称"
+          description: "分類の表示名。"
+          data_type: DT-CATEGORY-NAME
+          required: true
+      constraints: 自身が所有する分類のIDと名称。
+    postconditions:
+      - 他の利用者の分類を含まない結果を返す。未登録なら空の一覧を返す。
+    errors:
+      - 未認証の場合は取得しない。
+  - id: OP-CATEGORY-CREATE
+    name: 分類を登録する
+    summary: 自身のTODOに使用できる分類を作成する。
+    actor: 認証済みの利用者
+    entities: [ENT-CATEGORY, ENT-USER]
+    inputs:
+      - { name: 名称, description: 分類を表示するときの名前。, required: true, data_type: DT-CATEGORY-NAME }
+    result:
+      kind: record
+      multiple: false
+      required: true
+      attributes:
+        - name: "分類ID"
+          description: "分類の識別子。"
+          data_type: DT-CATEGORY-ID
+          required: true
+        - name: "名称"
+          description: "分類の表示名。"
+          data_type: DT-CATEGORY-NAME
+          required: true
+      constraints: 一意な分類IDと名称。
+    preconditions:
+      - 名称が入力条件を満たし、自身の分類の中で重複しない。
+    postconditions:
+      - 認証された利用者を所有者とする分類が保存される。
+    errors:
+      - 認証されていない場合、入力内容が不正な場合、名称が重複する場合は登録しない。
+  - id: OP-CATEGORY-RENAME
+    name: 分類の名称を変更する
+    summary: 自身の分類の名称を変更する。
+    actor: 認証済みの利用者
+    entities: [ENT-CATEGORY]
+    inputs:
+      - { name: 分類ID, description: 名称を変更する分類。, required: true, data_type: DT-CATEGORY-ID }
+      - { name: 変更後の名称, description: 新しい分類名。, required: true, data_type: DT-CATEGORY-NAME }
+    result:
+      kind: record
+      multiple: false
+      required: true
+      attributes:
+        - name: "分類ID"
+          description: "分類の識別子。"
+          data_type: DT-CATEGORY-ID
+          required: true
+        - name: "名称"
+          description: "分類の表示名。"
+          data_type: DT-CATEGORY-NAME
+          required: true
+      constraints: 同じ分類IDと変更後の名称。
+    preconditions:
+      - 分類が自身に属し、変更後の名称が入力条件と重複禁止の条件を満たす。
+    postconditions:
+      - 名称だけを変更し、TODOからの参照は維持される。
+    errors:
+      - 認証されていない場合、対象を利用できない場合、入力内容が不正な場合、他の分類と名称が重複する場合は変更しない。
+  - id: OP-CATEGORY-DELETE
+    name: 分類を削除する
+    summary: 自身の未使用の分類を管理対象から除く。
+    actor: 認証済みの利用者
+    entities: [ENT-CATEGORY, ENT-TODO]
+    inputs:
+      - { name: 分類ID, description: 削除する分類。, required: true, data_type: DT-CATEGORY-ID }
+    result:
+      kind: value
+      multiple: false
+      required: true
+      data_type: DT-OPERATION-RESULT
+      constraints: 対象の分類が一覧に表示されず、TODOに新しく割り当てられなくなったこと。 成功を返す。失敗時はerrorsに記述した条件に従う。
+    preconditions:
+      - 分類が自身に属し、未完了・完了を問わず管理対象のTODOから参照されていない。
+    postconditions:
+      - 分類を削除する。TODO自体の削除や割当ての自動解除は行わない。
+    errors:
+      - 認証されていない場合、対象を利用できない場合、TODOで使用中の場合は削除しない。
+  - id: OP-TAG-LIST
+    name: タグの一覧を取得する
+    summary: 自身のタグを取得し、管理やTODOへの割当てに使用する。
+    actor: 認証済みの利用者
+    entities: [ENT-TAG]
+    result:
+      kind: record
+      multiple: true
+      required: true
+      attributes:
+        - name: "タグID"
+          description: "タグの識別子。"
+          data_type: DT-TAG-ID
+          required: true
+        - name: "名称"
+          description: "タグの表示名。"
+          data_type: DT-TAG-NAME
+          required: true
+      constraints: 自身が所有するタグのIDと名称。
+    postconditions:
+      - 他の利用者のタグを含まない結果を返す。未登録なら空の一覧を返す。
+    errors:
+      - 未認証の場合は取得しない。
+  - id: OP-TAG-CREATE
+    name: タグを登録する
+    summary: 自身のTODOに使用できるタグを作成する。
+    actor: 認証済みの利用者
+    entities: [ENT-TAG, ENT-USER]
+    inputs:
+      - { name: 名称, description: タグを表示するときの名前。, required: true, data_type: DT-TAG-NAME }
+    result:
+      kind: record
+      multiple: false
+      required: true
+      attributes:
+        - name: "タグID"
+          description: "タグの識別子。"
+          data_type: DT-TAG-ID
+          required: true
+        - name: "名称"
+          description: "タグの表示名。"
+          data_type: DT-TAG-NAME
+          required: true
+      constraints: 一意なタグIDと名称。
+    preconditions:
+      - 名称が入力条件を満たし、自身のタグの中で重複しない。
+    postconditions:
+      - 認証された利用者を所有者とするタグが保存される。
+    errors:
+      - 認証されていない場合、入力内容が不正な場合、名称が重複する場合は登録しない。
+  - id: OP-TAG-RENAME
+    name: タグの名称を変更する
+    summary: 自身のタグの名称を変更する。
+    actor: 認証済みの利用者
+    entities: [ENT-TAG]
+    inputs:
+      - { name: タグID, description: 名称を変更するタグ。, required: true, data_type: DT-TAG-ID }
+      - { name: 変更後の名称, description: 新しいタグ名。, required: true, data_type: DT-TAG-NAME }
+    result:
+      kind: record
+      multiple: false
+      required: true
+      attributes:
+        - name: "タグID"
+          description: "タグの識別子。"
+          data_type: DT-TAG-ID
+          required: true
+        - name: "名称"
+          description: "タグの表示名。"
+          data_type: DT-TAG-NAME
+          required: true
+      constraints: 同じタグIDと変更後の名称。
+    preconditions:
+      - タグが自身に属し、変更後の名称が入力条件と重複禁止の条件を満たす。
+    postconditions:
+      - 名称だけを変更し、TODOからの参照は維持される。
+    errors:
+      - 認証されていない場合、対象を利用できない場合、入力内容が不正な場合、他のタグと名称が重複する場合は変更しない。
+  - id: OP-TAG-DELETE
+    name: タグを削除する
+    summary: 自身の未使用のタグを管理対象から除く。
+    actor: 認証済みの利用者
+    entities: [ENT-TAG, ENT-TODO]
+    inputs:
+      - { name: タグID, description: 削除するタグ。, required: true, data_type: DT-TAG-ID }
+    result:
+      kind: value
+      multiple: false
+      required: true
+      data_type: DT-OPERATION-RESULT
+      constraints: 対象のタグが一覧に表示されず、TODOに新しく割り当てられなくなったこと。 成功を返す。失敗時はerrorsに記述した条件に従う。
+    preconditions:
+      - タグが自身に属し、未完了・完了を問わず管理対象のTODOから参照されていない。
+    postconditions:
+      - タグを削除する。TODO自体の削除や割当ての自動解除は行わない。
+    errors:
+      - 認証されていない場合、対象を利用できない場合、TODOで使用中の場合は削除しない。
+notes: |
+  分類・タグ管理をTODO管理から独立させる方針と、利用者間で共有しない方針は確定。
+  TODOに割り当てる分類は最大1件、タグは複数とする方針は初期案。
+  同じ利用者の分類同士・タグ同士で名称を重複させないこと、使用中の分類・タグを削除できないことも初期案。
+  一覧の並び順は未決定。名称の文字数上限や正規化など、値の条件に関する未決事項は各業務データ型の定義書に記載する。
+  削除前の使用状況の確認にはTODO管理を利用する。TODO管理は、割り当てる分類・タグの確認にこのドメインを利用する。
+  この業務上の相互依存は、コードも相互に呼び出すことを求めるものではない。
+  削除と割当てが同時に行われたときに整合性を保つ方法は、サービス・テーブル設計で具体化する。

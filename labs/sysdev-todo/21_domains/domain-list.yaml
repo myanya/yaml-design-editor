@@ -1,0 +1,16 @@
+domains:
+  - id: DOM-IDENTITY
+    name: 利用者・認証
+    summary: 利用者の登録とメールアドレス・パスワードによる認証を提供し、操作する利用者を識別する。
+    kind: generic # 定型的な認証機能で、既存の認証基盤を活用できる領域。
+    status: draft
+  - id: DOM-TODO
+    name: TODO管理
+    summary: 利用者自身のTODOの登録・参照・編集・完了状態の変更・削除を行い、状態や分類・タグで整理できるようにする。
+    kind: core # このアプリではTODO管理の体験を差別化の中心に据える。
+    status: draft
+  - id: DOM-CLASSIFICATION
+    name: 分類・タグ管理
+    summary: 利用者自身の分類とタグを管理し、TODOを整理するための選択肢と、その割当て条件を定める。
+    kind: supporting # TODO固有の整理・割当てルールを担い、中心の業務を支える。
+    status: draft

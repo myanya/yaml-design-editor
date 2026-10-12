@@ -1,0 +1,20 @@
+id: todo-model-type
+name: モデル型定義書
+kind: document
+description: モデル型の制約・構成項目を定義する。名称・意味・種別は一覧で管理する。
+match: '23_modeltypes/DT-*.{yaml,yml}'
+filePattern: '23_modeltypes/{id}.yaml'
+entity: { type: business-data-type, idPattern: 'DT-*', aspect: detail }
+coverage:
+  - idPattern: 'DT-*'
+    description: 型定義書のIDがモデル型一覧に登録されていること。
+    detailIn: { schemaIds: [todo-model-type-list] }
+    level: warning
+root:
+  type: object
+  entity: { type: business-data-type, defines: false }
+  fields:
+    - { key: id, label: 型ID, type: id, required: true, pattern: '^DT-[A-Z0-9]+(-[A-Z0-9]+)*$' }
+    - { key: rules, label: 値の制約・取扱い, type: todo-design-common#descriptions, required: true }
+    - { key: fields, label: 複合情報の構成項目, type: todo-design-common#business-data-items, required: true, description: 各項目は値型またはモデル型を参照する。 }
+    - { key: notes, label: 未決事項・補足, type: text }

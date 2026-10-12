@@ -1,0 +1,19 @@
+id: model-type-catalog
+name: モデル型一覧と定義書
+kind: grid
+rows:
+  idPattern: 'DT-*'
+  schemaIds: [todo-model-type-list]
+order:
+  fileGlob: 23_modeltypes/model-type-list.yaml
+columns:
+  - { label: 型名, schemaId: todo-model-type-list, path: name, editable: true }
+  - { label: 業務上の意味, schemaId: todo-model-type-list, path: summary, editable: true }
+  - { label: 種別, schemaId: todo-model-type-list, path: kind, editable: true }
+  - { label: 設計状態, schemaId: todo-model-type-list, path: status, editable: true }
+detail:
+  fileGlob: '23_modeltypes/DT-*.yaml'
+  filePattern: '23_modeltypes/{id}.yaml'
+newRow:
+  file: 23_modeltypes/model-type-list.yaml
+  path: types
