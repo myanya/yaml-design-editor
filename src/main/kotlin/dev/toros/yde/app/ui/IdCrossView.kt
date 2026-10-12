@@ -435,13 +435,13 @@ private fun RelationsPanel(state: AppState, id: String) {
             )
         }
     }
-    // 所属（この要素を中に書いている外側の要素）: inverseLabel でグループ化。どの文書（側面）の中に書かれているかを添える
+    // 所属（この要素を中に書いている外側の要素）: inverseLabel でグループ化。親のどの側面の中に書かれているかを添える
     holders.groupBy { Relations.inverseLabelOf(state.relations, it.relation) ?: it.relation }.forEach { (label, lines) ->
         RelationGroupHeader("◇ 所属: $label（${lines.size}）")
         lines.forEach { h ->
             RelationRow(
                 main = h.parent.id + (h.parent.title?.let { " — $it" } ?: ""),
-                sub = "${h.parent.schemaId ?: "スキーマなし"} ／ ${h.child.document.value} ／ ${h.child.path.pretty()}",
+                sub = "${Aspects.aspectLabelOf(h.parent, state.schemas, state.entityTypes)} ／ ${h.child.document.value} ／ ${h.child.path.pretty()}",
                 onClick = { state.openCrossView(h.parent.id) },
                 onJump = { state.openFile(h.child.document, h.child.path) },
             )

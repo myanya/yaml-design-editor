@@ -93,6 +93,47 @@ class GraphLayoutsTest {
         }
     }
 
+    private fun inside(outer: LensBox, inner: LensBox): Boolean =
+        inner.x >= outer.x - 0.5f && inner.y >= outer.y - 0.5f &&
+            inner.x + inner.width <= outer.x + outer.width + 0.5f && inner.y + inner.height <= outer.y + outer.height + 0.5f
+
+    @Test
+    fun `nested boxes contain their children and the layout is deterministic`() {
+        // 0 の中に 1・2、2 の中に 3。4 と 5 は外側。辺: 1→4（段をまたぐ）・2→1（同じ段）・4→5・3→5
+        val nodes = listOf(
+            LensNestedNode("P", 140f, 30f),
+            LensNestedNode("C1", 100f, 40f, parent = 0),
+            LensNestedNode("C2", 100f, 30f, parent = 0),
+            LensNestedNode("G", 90f, 40f, parent = 2),
+            LensNestedNode("X", 120f, 40f),
+            LensNestedNode("Y", 120f, 40f),
+        )
+        val edges = listOf(LensEdgeSpec(1, 4, 30f, 12f), LensEdgeSpec(2, 1), LensEdgeSpec(4, 5), LensEdgeSpec(3, 5))
+        LensLayoutKind.entries.forEach { kind ->
+            val a = GraphLayouts.arrangeNested(nodes, edges, kind, origin = 4)
+            assertWellFormed(a, 6, 4)
+            assertTrue(inside(a.boxes[0], a.boxes[1]) && inside(a.boxes[0], a.boxes[2]), "$kind: 子は親の箱の中: ${a.boxes}")
+            assertTrue(inside(a.boxes[2], a.boxes[3]), "$kind: 孫は子の箱の中")
+            assertTrue(a.boxes[1].y >= a.boxes[0].y + 30f - 0.5f, "$kind: 子は親の見出しの下")
+            assertTrue(a.boxes[0].height > 30f + 40f, "$kind: 親の箱は見出しと子を収める")
+            assertTrue(a.routes.all { it.points.size >= 2 }, "$kind: 辺はすべて経路を持つ")
+            assertEquals(a, GraphLayouts.arrangeNested(nodes, edges, kind, origin = 4), "$kind は同じ入力で同じ結果")
+        }
+    }
+
+    @Test
+    fun `moving a parent box moves the boxes inside it`() {
+        val nodes = listOf(LensNestedNode("P", 140f, 30f), LensNestedNode("C", 100f, 40f, parent = 0), LensNestedNode("X", 120f, 40f))
+        val edges = listOf(LensEdgeSpec(1, 2))
+        val a = GraphLayouts.arrangeNested(nodes, edges, LensLayoutKind.LAYERED)
+        val moved = GraphLayouts.withMovedNested(a, nodes, edges, mapOf(0 to LensPoint(a.boxes[0].x + 300f, a.boxes[0].y + 50f)))
+        assertEquals(a.boxes[1].x + 300f, moved.boxes[1].x, 0.01f, "中の箱も同じだけ動く")
+        assertEquals(a.boxes[1].y + 50f, moved.boxes[1].y, 0.01f)
+        assertEquals(a.boxes[2], moved.boxes[2], "外の箱は動かない")
+        assertEquals(2, moved.routes[0].points.size, "動いた箱につながる辺は直線")
+        assertTrue(moved.width >= moved.boxes[0].x + moved.boxes[0].width, "全体の大きさが広がる")
+    }
+
     @Test
     fun `stress keeps boxes apart`() {
         assertApart(GraphLayouts.arrange(nodes(10), chain(10) + star(10), LensLayoutKind.STRESS), "応力")

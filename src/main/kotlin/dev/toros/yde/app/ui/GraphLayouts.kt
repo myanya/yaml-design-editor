@@ -47,6 +47,12 @@ data class LensNodeSize(val id: String, val width: Float, val height: Float)
 /** 配置に渡す辺（節点の添字）。ラベルの大きさは px（無ければ 0）。 */
 data class LensEdgeSpec(val from: Int, val to: Int, val labelWidth: Float = 0f, val labelHeight: Float = 0f)
 
+/**
+ * 入れ子の配置に渡す節点。width / height は箱の見出し（子を持たない箱なら箱そのもの）の大きさ、parent は入れ子の親の添字。
+ * 子を持つ箱の大きさは、見出しの下に子の配置を収めた大きさになる。
+ */
+data class LensNestedNode(val id: String, val width: Float, val height: Float, val parent: Int? = null)
+
 data class LensPoint(val x: Float, val y: Float)
 
 /** 節点の箱（左上と大きさ）。 */
@@ -265,6 +271,162 @@ object GraphLayouts {
         if (moved.isEmpty()) return arrangement
         val boxes = arrangement.boxes.mapIndexed { i, b -> moved[i]?.let { b.copy(x = it.x, y = it.y) } ?: b }
         val touched = edges.map { e -> e.takeIf { (it.from in moved || it.to in moved) && it.from in boxes.indices && it.to in boxes.indices && it.from != it.to } }
+        val rerouted = straightRoutes(boxes, touched)
+        val routes = arrangement.routes.mapIndexed { i, r -> if (touched.getOrNull(i) != null) rerouted[i] else r }
+        val points = routes.flatMap { it.points } + routes.mapNotNull { it.label }
+        val width = maxOf(arrangement.width, boxes.maxOf { it.x + it.width } + MARGIN, (points.maxOfOrNull { it.x } ?: 0f) + MARGIN)
+        val height = maxOf(arrangement.height, boxes.maxOf { it.y + it.height } + MARGIN, (points.maxOfOrNull { it.y } ?: 0f) + MARGIN)
+        return arrangement.copy(boxes = boxes, routes = routes, width = width, height = height)
+    }
+
+    /**
+     * 箱の入れ子を含む配置（グラフレンズの保有の箱）。段ごとに配置する: 子を持つ箱は先に中（子）を配置してその大きさを決め、
+     * 外側の段ではその大きさの 1 つの節点として置く。段をまたぐ辺（箱の中の箱と外の箱を結ぶ辺）は、外側の段では
+     * それぞれを含む箱の間の辺として配置に効かせ、描くときは実際の箱の縁から縁への直線にする。
+     * 返す boxes の座標は全体の中の絶対位置（子の箱は親の箱の中）。起点は放射配置の中心（その段では起点を含む箱）。
+     */
+    fun arrangeNested(
+        nodes: List<LensNestedNode>,
+        edges: List<LensEdgeSpec>,
+        kind: LensLayoutKind,
+        origin: Int? = null,
+    ): LensArrangement {
+        if (nodes.isEmpty()) return LensArrangement(kind, emptyList(), emptyList(), 0f, 0f)
+        // 親の添字（範囲外・自分自身・循環は無視して外側の箱にする）
+        val parent = IntArray(nodes.size) { -1 }
+        nodes.forEachIndexed { i, n ->
+            val p = n.parent ?: return@forEachIndexed
+            if (p !in nodes.indices || p == i) return@forEachIndexed
+            var cursor = p
+            var cyclic = false
+            while (cursor >= 0) { if (cursor == i) { cyclic = true; break }; cursor = parent[cursor] }
+            if (!cyclic) parent[i] = p
+        }
+        if (parent.all { it < 0 }) {
+            return arrange(nodes.map { LensNodeSize(it.id, it.width, it.height) }, edges, kind, origin)
+        }
+        val children = List(nodes.size) { mutableListOf<Int>() }
+        nodes.indices.forEach { i -> if (parent[i] >= 0) children[parent[i]] += i }
+        // 外側から順の先祖の並び（自分を含む）
+        val chain = List(nodes.size) { i ->
+            generateSequence(i) { parent[it].takeIf { p -> p >= 0 } }.toList().reversed()
+        }
+        /** 段 level（親の添字。-1 = いちばん外側）の中で、節点 i を含む直下の箱。その段に無ければ null。 */
+        fun memberAt(level: Int, i: Int): Int? {
+            val c = chain[i]
+            val at = if (level < 0) 0 else c.indexOf(level) + 1
+            return if (level >= 0 && c.indexOf(level) < 0) null else c.getOrNull(at)
+        }
+        val valid = edges.map { e -> e.takeIf { it.from in nodes.indices && it.to in nodes.indices && it.from != it.to } }
+        // 各辺の段: 2 つの端が分かれる段（いちばん深い共通の先祖。片方がもう片方を含むなら段に渡さず直線）
+        val levelOf = IntArray(valid.size) { Int.MIN_VALUE }
+        valid.forEachIndexed { i, e ->
+            if (e == null) return@forEachIndexed
+            val a = chain[e.from]
+            val b = chain[e.to]
+            var common = -1
+            var k = 0
+            while (k < a.size && k < b.size && a[k] == b[k]) { common = a[k]; k++ }
+            levelOf[i] = if (common == e.from || common == e.to) Int.MIN_VALUE else common
+        }
+        val size = Array(nodes.size) { i -> nodes[i].width to nodes[i].height }
+        val inner = HashMap<Int, LensArrangement>()   // 箱 → その中（子）の配置
+        val innerMembers = HashMap<Int, List<Int>>()
+        /** 段を配置する。子を持つ箱は先に中を配置して大きさを決める。 */
+        fun layoutLevel(level: Int, members: List<Int>): LensArrangement {
+            members.forEach { m -> if (children[m].isNotEmpty()) layoutLevel(m, children[m]).also { inner[m] = it } }
+            innerMembers[level] = members
+            val localIndex = members.withIndex().associate { (i, m) -> m to i }
+            val localEdges = valid.mapIndexedNotNull { i, e ->
+                if (e == null || levelOf[i] != level) null
+                else memberAt(level, e.from)?.let { f -> memberAt(level, e.to)?.let { t -> LensEdgeSpec(localIndex.getValue(f), localIndex.getValue(t), e.labelWidth, e.labelHeight) } }
+            }
+            val localOrigin = origin?.let { memberAt(level, it) }?.let { localIndex[it] }
+            return arrange(members.map { m -> LensNodeSize(nodes[m].id, size[m].first, size[m].second) }, localEdges, kind, localOrigin)
+                .also { a ->
+                    if (level >= 0) {
+                        // 箱の大きさ = 見出しと、中の配置（余白込み）を収める大きさ
+                        size[level] = maxOf(nodes[level].width, a.width) to (nodes[level].height + a.height)
+                    }
+                }
+        }
+        val roots = nodes.indices.filter { parent[it] < 0 }
+        val top = layoutLevel(-1, roots)
+        // 絶対位置: 外側から順に、中の配置を親の箱の見出しの下へずらす
+        val boxes = arrayOfNulls<LensBox>(nodes.size)
+        fun place(level: Int, arrangement: LensArrangement, offsetX: Float, offsetY: Float) {
+            val members = innerMembers.getValue(level)
+            members.forEachIndexed { i, m ->
+                val b = arrangement.boxes[i]
+                boxes[m] = LensBox(b.x + offsetX, b.y + offsetY, b.width, b.height)
+                inner[m]?.let { a ->
+                    val box = boxes[m]!!
+                    place(m, a, box.x + (box.width - a.width) / 2, box.y + nodes[m].height)
+                }
+            }
+        }
+        place(-1, top, 0f, 0f)
+        val placed = boxes.map { it!! }
+        // 経路: 段の中の辺（両端がその段の箱）はその段の経路をずらして使い、段をまたぐ辺と箱と中の箱を結ぶ辺は直線
+        val levelRoutes = HashMap<Int, Pair<LensArrangement, Pair<Float, Float>>>()
+        fun collect(level: Int, arrangement: LensArrangement, offsetX: Float, offsetY: Float) {
+            levelRoutes[level] = arrangement to (offsetX to offsetY)
+            innerMembers.getValue(level).forEachIndexed { i, m ->
+                inner[m]?.let { a ->
+                    val b = arrangement.boxes[i]
+                    val box = LensBox(b.x + offsetX, b.y + offsetY, b.width, b.height)
+                    collect(m, a, box.x + (box.width - a.width) / 2, box.y + nodes[m].height)
+                }
+            }
+        }
+        collect(-1, top, 0f, 0f)
+        val straight = straightRoutes(placed, valid)
+        val routes = valid.mapIndexed { i, e ->
+            if (e == null) LensRoute(emptyList(), null) else {
+                val level = levelOf[i]
+                val direct = level != Int.MIN_VALUE && memberAt(level, e.from) == e.from && memberAt(level, e.to) == e.to
+                if (!direct) straight[i] else {
+                    val (arrangement, offset) = levelRoutes.getValue(level)
+                    val members = innerMembers.getValue(level)
+                    val localIndex = members.withIndex().associate { (k, m) -> m to k }
+                    // その段の辺の並び（levelOf が一致する辺の順）の中での位置
+                    val position = valid.indices.filter { k -> valid[k] != null && levelOf[k] == level && memberAt(level, valid[k]!!.from) != null && memberAt(level, valid[k]!!.to) != null }.indexOf(i)
+                    val r = arrangement.routes.getOrNull(position)
+                    if (r == null || localIndex[e.from] == null) straight[i]
+                    else LensRoute(r.points.map { LensPoint(it.x + offset.first, it.y + offset.second) }, r.label?.let { LensPoint(it.x + offset.first, it.y + offset.second) })
+                }
+            }
+        }
+        val points = routes.flatMap { it.points } + routes.mapNotNull { it.label }
+        val width = maxOf(top.width, placed.maxOf { it.x + it.width } + MARGIN, (points.maxOfOrNull { it.x } ?: 0f) + MARGIN)
+        val height = maxOf(top.height, placed.maxOf { it.y + it.height } + MARGIN, (points.maxOfOrNull { it.y } ?: 0f) + MARGIN)
+        return LensArrangement(top.kind, placed, routes, width, height, top.note)
+    }
+
+    /**
+     * 利用者が動かした箱を反映した入れ子の配置。動かした箱の中の箱も一緒に動く（中の箱を別に動かしていればそちらが勝つ）。
+     * 動いた箱につながる辺は直線に引き直し、他の辺は元の経路のまま。全体の大きさも広げる。
+     */
+    fun withMovedNested(
+        arrangement: LensArrangement,
+        nodes: List<LensNestedNode>,
+        edges: List<LensEdgeSpec>,
+        moved: Map<Int, LensPoint>,
+    ): LensArrangement {
+        if (moved.isEmpty()) return arrangement
+        val old = arrangement.boxes
+        fun delta(i: Int): Pair<Float, Float> {
+            var cursor: Int? = i
+            while (cursor != null && cursor in old.indices) {
+                moved[cursor]?.let { return (it.x - old[cursor!!].x) to (it.y - old[cursor!!].y) }
+                cursor = nodes.getOrNull(cursor)?.parent
+            }
+            return 0f to 0f
+        }
+        val deltas = old.indices.map(::delta)
+        val boxes = old.mapIndexed { i, b -> b.copy(x = b.x + deltas[i].first, y = b.y + deltas[i].second) }
+        fun movedIndex(i: Int) = deltas.getOrNull(i)?.let { it.first != 0f || it.second != 0f } ?: false
+        val touched = edges.map { e -> e.takeIf { (movedIndex(it.from) || movedIndex(it.to)) && it.from in boxes.indices && it.to in boxes.indices && it.from != it.to } }
         val rerouted = straightRoutes(boxes, touched)
         val routes = arrangement.routes.mapIndexed { i, r -> if (touched.getOrNull(i) != null) rerouted[i] else r }
         val points = routes.flatMap { it.points } + routes.mapNotNull { it.label }

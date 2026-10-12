@@ -8,8 +8,10 @@ import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.semantic.schema.EntityTypeDef
 import dev.toros.yde.app.schema.SchemaDef
+import dev.toros.yde.semantic.ScannedId
 import dev.toros.yde.semantic.SchemaSemantics
 import dev.toros.yde.semantic.SemanticAspects
+import dev.toros.yde.semantic.schema.entityFor
 
 /**
  * エンティティ合成（R23-01。architecture/graph-query.md「エンティティページ」）を、索引（IdIndex）とアプリ側のスキーマの型（SchemaDef）から呼ぶ窓口。
@@ -49,4 +51,14 @@ object Aspects {
      */
     fun ownerSection(composite: EntityComposite, key: String): AspectSection? =
         composite.sections.firstOrNull { key in it.ownedKeys }
+
+    /**
+     * 出現 1 つの側面の表示名（レジストリの aspects の label ＞ スキーマの entity.aspect ＞ スキーマ ID）。
+     * 合成の見出しと同じ決まりで、関係パネルの「所属」とレンズの出現の箱が使う。
+     */
+    fun aspectLabelOf(entry: ScannedId, schemas: List<SchemaDef>, entityTypes: Map<String, EntityTypeDef>): String {
+        val schema = schemas.firstOrNull { it.id == entry.schemaId }
+        val aspect = schema?.let { sc -> entityFor(sc.entities, entry.id)?.aspect ?: sc.id } ?: (entry.schemaId ?: "スキーマなし")
+        return entry.entityType?.let { entityTypes[it]?.aspectLabel(aspect) } ?: aspect
+    }
 }

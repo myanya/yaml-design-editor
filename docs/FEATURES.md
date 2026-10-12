@@ -130,7 +130,7 @@
 |---|---|---|---|---|
 | X-01 | 一覧ビュー（ID・タイトル・状態・担当・種別・絞り込み・未保存編集に追随・チェックと ID の列を左に固定） | `ui/WorkspaceViews.kt`, `ui/VirtualTable.kt`, `AppState.workspaceRecords` | 単体 `VirtualTableTest` | [views](architecture/views.md) |
 | X-02 | 一括編集（ルート直下の任意スカラーキー・セッション 1 トランザクション＝Undo 1 回） | `AppState.bulkUpdate`, `core/Documents.kt` | 単体 `AppStateRefactorTest`, `SessionWriteParityTest` | [editing-history](architecture/editing-history.md) |
-| X-03 | グラフレンズ（起点の近傍・型と関係の絞り込み・配置の切替・箱と矢印・保有の線は親の側にひし形・ホイール／ドラッグ／ホバー／右クリック／PNG／ミニマップ） | `ui/GraphLensView.kt`, `ui/GraphLayouts.kt`（ELK を包む） | 単体 `GraphLayoutsTest`, `GraphLayoutTest` | [graph-query](architecture/graph-query.md) |
+| X-03 | グラフレンズ（起点の近傍・型と関係の絞り込み・配置の切替・保有は箱の入れ子で畳める・一体と「側面で分ける」（箱＝出現。点線）・ホイール／ドラッグ／ホバー／右クリック／PNG／ミニマップ） | `ui/GraphLensView.kt`, `ui/LensGraph.kt`, `ui/GraphLayouts.kt`（ELK を包む） | 単体 `LensGraphTest`, `GraphLayoutsTest` | [graph-query](architecture/graph-query.md) |
 | X-04 | コマンドパレット（Ctrl+K・ID・ファイル・本文検索・ビュー切替・スペース切替・保存） | `Main.kt`（`CommandPalette`）, `app/AppState.kt`（`searchContent`） | 手動 | [ui](architecture/ui.md) |
 | X-05 | ビュー定義 `_views`（`kind: grid` の行・列・並び〔出現順か `order.path` の値の順〕・詳細文書・新規行・バックリンク列・`kind: document`） | `core/Views.kt`, `workspace-core/workspace/ViewDefinitions.kt` | 単体 `ViewsTest` | [views](architecture/views.md) |
 | X-06 | ビューグリッド（セルの直接編集・要約とジャンプ・enum と参照の併記・詳細文書の作成・新規行・バックリンク列・カバレッジ表示・絞り込み・列の桁区切り `display: grouped` と表示の形 `format`・ID 列と見出しの固定） | `ui/ViewGridPane.kt`, `ui/VirtualTable.kt`, `AppState.createViewDetail` / `addViewRow` | 単体 `ViewsTest`, `VirtualTableTest` | [views](architecture/views.md) |

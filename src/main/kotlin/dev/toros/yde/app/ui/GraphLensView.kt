@@ -25,6 +25,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -48,7 +49,9 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.toros.yde.app.AppState
-import dev.toros.yde.semantic.schema.RefTarget
+import dev.toros.yde.app.core.Aspects
+import dev.toros.yde.semantic.ScannedId
+import dev.toros.yde.semantic.schema.EntityRole
 import dev.toros.yde.semantic.schema.Relations
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -59,110 +62,98 @@ import kotlin.math.sqrt
 
 // ================================================================ グラフレンズ（architecture/graph-query.md「エンティティページ」）
 
-/** レンズの 1 エッジ（エンティティ → エンティティの型付き参照）。 */
-/** レンズの辺 1 本。holding＝保有の線（親 → 子。入れ子で書かれた要素。P40）、そうでなければ参照。 */
-private data class LensEdge(val from: String, val to: String, val relation: String?, val holding: Boolean = false)
+/** 配置に渡した辺（箱の添字）。描画は kind で矢じり（参照）・ひし形（保有）・点線（同じエンティティ）を描き分ける。 */
+private data class LensArrangedEdge(val from: Int, val to: Int, val relation: String?, val kind: LensEdgeKind)
 
-/** 配置に渡した辺（節点の添字）。描画は holding でひし形（保有）と矢じり（参照）を描き分ける。 */
-private data class LensArrangedEdge(val from: Int, val to: Int, val relation: String?, val holding: Boolean)
-
-/** 絞り込みの結果（表示する節点の ID と、その間の辺）。 */
-private data class LensSelection(val nodes: List<String>, val edges: List<LensEdge>)
-
-/** 配置に渡した節点・辺と、その結果。節点の集合が変わって計算し直している間も、前の絵を描き続けるために一緒に持つ。 */
-private data class LensArranged(val nodes: List<String>, val edges: List<LensArrangedEdge>, val result: LensArrangement)
+/**
+ * 配置に渡した箱・辺と、その結果。箱の集合が変わって計算し直している間も、前の絵を描き続けるために一緒に持つ。
+ * nested は配置に渡した箱（見出しの大きさと親）で、描画が見出しの高さと入れ子に使う。
+ */
+private data class LensArranged(
+    val nodes: List<LensVisibleNode>,
+    val nested: List<LensNestedNode>,
+    val edges: List<LensArrangedEdge>,
+    val result: LensArrangement,
+)
 
 /** 配置の入力（文字を計測した大きさ込み）。変わったときだけ配置を計算し直す。 */
-private data class LensInput(val nodes: List<LensNodeSize>, val edges: List<LensEdgeSpec>, val origin: Int?)
+private data class LensInput(val nodes: List<LensNestedNode>, val edges: List<LensEdgeSpec>, val origin: Int?)
 
-/** 節点ごとの隣（節点の添字）とつながる辺（辺の添字）。ホバーの強調に使う。 */
+/** 箱ごとの隣（箱の添字）とつながる辺（辺の添字）。ホバーの強調に使う。 */
 private data class LensAdjacency(val neighbors: List<Set<Int>>, val incident: List<Set<Int>>)
 
 /** 描画に使う色（Palette から 1 度だけ読む。DrawScope の中で Palette を読まない）。 */
 private data class LensPaint(val border: Color, val surface: Color, val primary: Color, val subText: Color)
 
-/** 描く材料の一式（画面の Canvas と PNG の書き出しで同じ描き方をする）。 */
+/** 描く材料の一式（画面の Canvas と PNG の書き出しで同じ描き方をする）。文字は箱の鍵で引く。 */
 private class LensScene(
     val arranged: LensArranged,
-    val origin: String?,
+    val originKeys: Set<String>,
     val typeColorOf: (String) -> Color,
     val idTexts: Map<String, TextLayoutResult>,
     val titleTexts: Map<String, TextLayoutResult>,
+    val subTexts: Map<String, TextLayoutResult>,
     val labelTexts: Map<String, TextLayoutResult>,
     val paint: LensPaint,
 )
 
+/** 未宣言の参照（relation なし）を絞り込みの行に並べるときの名前。 */
+private const val UNDECLARED = "（未宣言）"
+
+/** 箱の見出しの左にある開閉の印の幅（この中を押すと開く・畳む。それ以外はエンティティページへ）。 */
+private const val TOGGLE_ZONE = 22f
+
 /**
  * グラフレンズ: エンティティグラフの導出表示。
  * ①エンティティ起点の近傍（深さ1〜2。エンティティページの「グラフで見る」から遷移）
- * ②チェックした型のエンティティ（ID 一覧から。参照の有無を問わない）と、その間の参照（relation のチェックで絞る）、
+ * ②チェックした型のエンティティ（ID 一覧から。参照の有無を問わない）と、その間の参照と保有（relation のチェックで絞る）、
  * を配置（`GraphLayouts`＝放射・階層・応力・力学）して描く。
- * 節点は「ID＋タイトル」の箱（型で色分け）・辺は矢印と関係のラベル。クリックはエンティティページへ着地する（ナビゲーション履歴に乗る）。
- * 操作: ホイールでカーソル中心の拡縮・節点のドラッグ（位置を固定）・ホバーで隣接の強調・右クリックのメニュー・PNG の書き出し・ミニマップ。
+ * 節点は「ID＋タイトル」の箱（型で色分け）・辺は矢印と関係のラベル。保有は箱の入れ子（`LensGraphs`。一体＝箱はエンティティ、
+ * 側面で分ける＝箱は出現で同じエンティティの箱を点線で結ぶ）。入れ子の箱は畳めて、畳んだ箱の中につながる辺は箱に付く。
+ * クリックはエンティティページへ着地する（ナビゲーション履歴に乗る）。見出しの左の印を押すと開く・畳む。
+ * 操作: ホイールでカーソル中心の拡縮・箱のドラッグ（位置を固定。中の箱も一緒に動く）・ホバーで隣接の強調・右クリックのメニュー・PNG の書き出し・ミニマップ。
  */
 @Composable
 fun GraphLensView(state: AppState) {
     state.indexVersion
     val overlay = state.overlayIndex()
     val graph = overlay.graph
-    // 全エッジ: 解決済みのエンティティ参照（参照を書いた最内のID要素 → 参照先）と、保有の線（外側の要素 → 入れ子で書かれた要素。P40）。
-    // 自己参照は除く
-    val allEdges = remember(state.indexVersion, state.editVersion) {
-        val refs = overlay.refs.asSequence()
-            .filter { it.targetKind == RefTarget.ENTITY }
-            .mapNotNull { r ->
-                val src = graph.sourceEntryOf(r)?.id ?: return@mapNotNull null
-                if (src == r.targetId || !graph.entities.containsKey(r.targetId)) return@mapNotNull null
-                LensEdge(src, r.targetId, r.relation)
-            }
-        val holdings = graph.holdings.asSequence()
-            .filter { it.parent.id != it.child.id }
-            .map { LensEdge(it.parent.id, it.child.id, it.relation, holding = true) }
-        (refs + holdings).distinct().toList()
-    }
     fun typeOf(id: String): String = graph.entities[id]?.entityType ?: "（型なし）"
-    // 型の一覧は ID 一覧から（参照を持たない型も出す）。関係の一覧は辺から（保有の線の名前も並ぶ）
-    val types = remember(state.indexVersion, state.editVersion) {
-        graph.entities.keys.map(::typeOf).distinct().sorted()
+    val mode = if (state.memory.lensSplitOccurrences) LensMode.OCCURRENCE else LensMode.ENTITY
+    // 節点と辺（見え方ごと）。箱の入れ子は保有の線
+    val lensGraph = remember(state.indexVersion, state.editVersion, mode) { LensGraphs.build(graph, overlay.refs, mode) }
+    // 型の一覧は ID 一覧から（参照を持たない型も出す）。関係の一覧は辺と入れ子から（保有の名前には印を付ける）
+    val types = remember(state.indexVersion, state.editVersion) { graph.entities.keys.map(::typeOf).distinct().sorted() }
+    val holdingNames = remember(lensGraph) {
+        (lensGraph.nodes.mapNotNull { it.relation } + lensGraph.edges.filter { it.kind == LensEdgeKind.HOLDING }.mapNotNull { it.relation }).toSet()
     }
-    val relations = remember(allEdges) { allEdges.map { it.relation ?: "（未宣言）" }.distinct().sorted() }
-    val holdingNames = remember(allEdges) { allEdges.filter { it.holding }.map { it.relation }.toSet() }
-    // 型・関係のチェックと深さは画面の覚え（ScreenMemory）。隠した名前だけ持つので、再読込で増えた型は見える側で始まり、無くなった型は読まれない
+    val relations = remember(lensGraph) {
+        (lensGraph.edges.filter { it.kind != LensEdgeKind.TIE }.map { it.relation ?: UNDECLARED } + holdingNames).distinct().sorted()
+    }
+    // 型・関係のチェック・深さ・見え方・開いた箱は画面の覚え（ScreenMemory）。隠した名前だけ持つので、再読込で増えた型は見える側で始まる
     val hiddenTypes = state.memory.lensHiddenTypes
     val hiddenRelations = state.memory.lensHiddenRelations
+    val expandedBoxes = state.memory.lensExpanded
     val depth = state.memory.lensDepth
     val origin = state.lensOriginId?.takeIf { graph.entities.containsKey(it) }
 
-    // 絞り込み: 節点は型で（起点が無ければ、チェックした型のエンティティを ID 一覧から全部。参照を持たない節点も出す）、
-    // 辺は relation と両端の型で。起点があれば、そこから辿れる近傍（幅優先）だけに絞る
-    val selection = remember(state.indexVersion, state.editVersion, hiddenTypes.toMap(), hiddenRelations.toMap(), origin, depth) {
-        // 起点は型フィルタの対象外（起点近傍を見たいのに起点自身が消えると意味を失う）
-        fun shown(id: String) = id == origin || typeOf(id) !in hiddenTypes
-        val byRelation = allEdges.filter { (it.relation ?: "（未宣言）") !in hiddenRelations }
-        val byType = byRelation.filter { shown(it.from) && shown(it.to) }
-        if (origin == null) LensSelection(graph.entities.keys.filter(::shown).sorted(), byType)
-        else {
-            val adjacency = mutableMapOf<String, MutableList<String>>()
-            byType.forEach { e ->
-                adjacency.getOrPut(e.from) { mutableListOf() }.add(e.to)
-                adjacency.getOrPut(e.to) { mutableListOf() }.add(e.from)
-            }
-            val reached = mutableSetOf(origin)
-            var frontier = listOf(origin)
-            repeat(depth) {
-                frontier = frontier.flatMap { adjacency[it].orEmpty() }.filter(reached::add).sorted()
-            }
-            LensSelection(reached.sorted(), byType.filter { it.from in reached && it.to in reached })
-        }
+    // 絞り込み: 型・関係・起点の近傍・畳み（LensGraphs.select）。起点は型フィルタの対象外（起点自身が消えると意味を失う）
+    val selection = remember(lensGraph, hiddenTypes.toMap(), hiddenRelations.toMap(), expandedBoxes.toMap(), origin, depth) {
+        LensGraphs.select(
+            lensGraph,
+            LensSelectParams(::typeOf, hiddenTypes.keys.toSet(), hiddenRelations.keys.toSet(), origin, depth, expandedBoxes.toMap()),
+        )
     }
     val nodes = selection.nodes
-    val visibleEdges = selection.edges
-    val edgeIndices = remember(nodes, visibleEdges) {
-        val indexOf = nodes.withIndex().associate { (i, n) -> n to i }
+    val visibleEdges = remember(selection, hiddenRelations.toMap()) {
+        selection.edges.filter { !(it.kind == LensEdgeKind.REF && it.relation == null && UNDECLARED in hiddenRelations) }
+    }
+    val keyIndex = remember(nodes) { nodes.withIndex().associate { (i, n) -> n.node.key to i } }
+    val edgeIndices = remember(visibleEdges, keyIndex) {
         visibleEdges.mapNotNull { e ->
-            val s = indexOf[e.from] ?: return@mapNotNull null
-            val t = indexOf[e.to] ?: return@mapNotNull null
-            LensArrangedEdge(s, t, e.relation, e.holding)
+            val s = keyIndex[e.from] ?: return@mapNotNull null
+            val t = keyIndex[e.to] ?: return@mapNotNull null
+            LensArrangedEdge(s, t, e.relation, e.kind)
         }
     }
     // 型 → 色（凡例つき）。起点は強調色
@@ -180,53 +171,80 @@ fun GraphLensView(state: AppState) {
         ?.takeIf { it != LensLayoutKind.RADIAL || origin != null }
         ?: if (origin != null) LensLayoutKind.RADIAL else LensLayoutKind.STRESS
 
-    // 節点の文字（ID とタイトル）と辺のラベルを計測し、箱の大きさを配置に渡す
+    // 出現の箱の添え書き（側面で分けるとき）: 側面の表示名（合成の見出しと同じ決まり）と「定義」
+    fun aspectLabelOf(e: ScannedId): String {
+        val label = Aspects.aspectLabelOf(e, state.schemas, state.entityTypes)
+        return if (e.role == EntityRole.DEFINING) "〔$label・定義〕" else "〔$label〕"
+    }
+
+    // 箱の文字（開閉の印・ID・タイトル・添え書き）と辺のラベルを計測し、箱の大きさを配置に渡す
     val textMeasurer = rememberTextMeasurer()
     val idStyle = TextStyle(fontSize = 11.sp, color = Palette.Text, fontWeight = FontWeight.SemiBold)
     val titleStyle = TextStyle(fontSize = 10.sp, color = Palette.SubText)
     val edgeLabelStyle = TextStyle(fontSize = 9.sp, color = Palette.SubText)
-    val idTexts: Map<String, TextLayoutResult> = remember(nodes, idStyle) { nodes.associateWith { textMeasurer.measure(it, idStyle) } }
+    val idTexts: Map<String, TextLayoutResult> = remember(nodes, idStyle) {
+        nodes.associate { n ->
+            val glyph = when {
+                n.expanded -> "▾ "
+                n.hiddenChildren > 0 -> "▸ ${n.hiddenChildren}  "
+                else -> ""
+            }
+            n.node.key to textMeasurer.measure(glyph + n.node.id, idStyle)
+        }
+    }
     val titleTexts: Map<String, TextLayoutResult> = remember(nodes, titleStyle, state.indexVersion, state.editVersion) {
-        nodes.mapNotNull { id ->
-            graph.entities[id]?.title?.takeIf { it.isNotBlank() && it != id }?.let { id to textMeasurer.measure(it.take(30), titleStyle) }
+        nodes.mapNotNull { n ->
+            val title = n.node.occurrence?.title ?: graph.entities[n.node.id]?.title
+            title?.takeIf { it.isNotBlank() && it != n.node.id }?.let { n.node.key to textMeasurer.measure(it.take(30), titleStyle) }
         }.toMap()
+    }
+    val subTexts: Map<String, TextLayoutResult> = remember(nodes, titleStyle, state.schemas, state.entityTypes) {
+        nodes.mapNotNull { n -> n.node.occurrence?.let { n.node.key to textMeasurer.measure(aspectLabelOf(it), titleStyle) } }.toMap()
     }
     val labelTexts: Map<String, TextLayoutResult> = remember(edgeIndices, edgeLabelStyle, state.relations) {
         edgeIndices.mapNotNull { it.relation }.distinct()
             .mapNotNull { rel -> Relations.labelOf(state.relations, rel)?.let { rel to textMeasurer.measure(it, edgeLabelStyle) } }
             .toMap()
     }
-    val input = remember(nodes, edgeIndices, idTexts, titleTexts, labelTexts, origin) {
-        val sizes = nodes.map { id ->
-            val idText = idTexts.getValue(id)
-            val title = titleTexts[id]
-            LensNodeSize(
-                id,
-                maxOf(idText.size.width, title?.size?.width ?: 0) + 20f,
-                idText.size.height + (title?.size?.height ?: 0) + 12f,
+    val input = remember(nodes, edgeIndices, idTexts, titleTexts, subTexts, labelTexts, origin, keyIndex) {
+        val sizes = nodes.map { n ->
+            val key = n.node.key
+            val idText = idTexts.getValue(key)
+            val title = titleTexts[key]
+            val sub = subTexts[key]
+            LensNestedNode(
+                key,
+                maxOf(idText.size.width, title?.size?.width ?: 0, sub?.size?.width ?: 0) + 20f,
+                idText.size.height + (title?.size?.height ?: 0) + (sub?.size?.height ?: 0) + 12f,
+                n.parent?.let { keyIndex[it] },
             )
         }
         val specs = edgeIndices.map { e ->
             val label = e.relation?.let { labelTexts[it] }
             LensEdgeSpec(e.from, e.to, label?.let { it.size.width + 6f } ?: 0f, label?.size?.height?.toFloat() ?: 0f)
         }
-        LensInput(sizes, specs, origin?.let { nodes.indexOf(it) }?.takeIf { it >= 0 })
+        // 起点の箱（側面で分けるときは定義出現の箱、見えていなければその ID の最初の箱）
+        val originIndex = origin?.let { o ->
+            nodes.indexOfFirst { it.node.id == o && it.node.occurrence?.role == EntityRole.DEFINING }.takeIf { it >= 0 }
+                ?: nodes.indexOfFirst { it.node.id == o }.takeIf { it >= 0 }
+        }
+        LensInput(sizes, specs, originIndex)
     }
     // 配置はバックグラウンドで計算し、できるまでは前の絵を出す（スナップショット状態の直接更新。Dispatchers.Main は使わない）
     var arranged by remember { mutableStateOf<LensArranged?>(null) }
     var arrangedFor by remember { mutableStateOf<Pair<LensInput, LensLayoutKind>?>(null) }
     val computing = nodes.isNotEmpty() && arrangedFor != (input to layoutKind)
     LaunchedEffect(input, layoutKind) {
-        val result = withContext(Dispatchers.Default) { GraphLayouts.arrange(input.nodes, input.edges, layoutKind, input.origin) }
-        arranged = LensArranged(nodes, edgeIndices, result)
+        val result = withContext(Dispatchers.Default) { GraphLayouts.arrangeNested(input.nodes, input.edges, layoutKind, input.origin) }
+        arranged = LensArranged(nodes, input.nodes, edgeIndices, result)
         arrangedFor = input to layoutKind
     }
-    // 利用者が動かした節点（添字 → 左上）。配置が変わったら忘れる
+    // 利用者が動かした箱（添字 → 左上）。配置が変わったら忘れる。中の箱も一緒に動く
     val pins = remember(arranged) { mutableStateMapOf<Int, LensPoint>() }
     val effective: LensArranged? = remember(arranged, pins.toMap()) {
         arranged?.let { a ->
             if (pins.isEmpty()) a
-            else a.copy(result = GraphLayouts.withMovedBoxes(a.result, a.edges.map { LensEdgeSpec(it.from, it.to) }, pins.toMap()))
+            else a.copy(result = GraphLayouts.withMovedNested(a.result, a.nested, a.edges.map { LensEdgeSpec(it.from, it.to) }, pins.toMap()))
         }
     }
     val adjacency = remember(effective) {
@@ -240,8 +258,12 @@ fun GraphLensView(state: AppState) {
         }
         LensAdjacency(neighbors, incident)
     }
-    val scene = remember(effective, origin, typeColors, idTexts, titleTexts, labelTexts, paint) {
-        effective?.let { LensScene(it, origin, { id -> typeColors[typeOf(id)] ?: paint.primary }, idTexts, titleTexts, labelTexts, paint) }
+    val originKeys = remember(nodes, origin) { nodes.filter { it.node.id == origin }.map { it.node.key }.toSet() }
+    val scene = remember(effective, originKeys, typeColors, idTexts, titleTexts, subTexts, labelTexts, paint) {
+        effective?.let { a ->
+            val typeOfKey = a.nodes.associate { it.node.key to typeOf(it.node.id) }
+            LensScene(a, originKeys, { key -> typeColors[typeOfKey[key]] ?: paint.primary }, idTexts, titleTexts, subTexts, labelTexts, paint)
+        }
     }
 
     // パン・ズーム（ドラッグで移動、ホイールと＋/−で拡縮、「全体」で収める。新しい配置は全体を収める）
@@ -263,11 +285,19 @@ fun GraphLensView(state: AppState) {
     var dragging by remember { mutableStateOf<Int?>(null) }
     var menu by remember { mutableStateOf<Pair<Int, Offset>?>(null) }
     val latest by rememberUpdatedState(effective)
+    /** 画面の点を配置の座標に戻す。 */
+    fun toContent(p: Offset): Offset = Offset((p.x - pan.x) / zoom, (p.y - pan.y) / zoom)
+    /** 押した箱（いちばん内側。箱の並びは親が先なので、最後に当たったものが内側）。 */
     fun hitNode(p: Offset): Int? {
         val a = latest ?: return null
-        val x = (p.x - pan.x) / zoom
-        val y = (p.y - pan.y) / zoom
-        return a.result.boxes.indexOfLast { it.contains(x, y) }.takeIf { it >= 0 && it < a.nodes.size }
+        val c = toContent(p)
+        return a.result.boxes.indexOfLast { it.contains(c.x, c.y) }.takeIf { it >= 0 && it < a.nodes.size }
+    }
+    /** 箱に中の箱があるか（開いている・畳んでいる）。 */
+    fun hasChildren(n: LensVisibleNode) = n.expanded || n.hiddenChildren > 0
+    fun toggle(n: LensVisibleNode) {
+        val next = !n.expanded
+        expandedBoxes[n.node.key] = next
     }
 
     // PNG の書き出し（配置の全体を等倍で描く。保存先は OS のダイアログで選ぶ）
@@ -302,6 +332,16 @@ fun GraphLensView(state: AppState) {
                     fontSize = 11.sp, color = Palette.SubText)
             }
             Spacer(Modifier.width(12.dp))
+            // 見え方: 一体（箱＝エンティティ）か、側面で分ける（箱＝出現）
+            LensFilterItem(mode == LensMode.OCCURRENCE, { state.memory.lensSplitOccurrences = it }) {
+                Text(LensMode.OCCURRENCE.label, fontSize = 11.sp)
+            }
+            if (expandedBoxes.isNotEmpty()) {
+                TextButton(onClick = { expandedBoxes.clear() }, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
+                    Text("開いた箱を戻す", fontSize = 11.sp)
+                }
+            }
+            Spacer(Modifier.width(12.dp))
             TextButton(onClick = { zoomAt(Offset(canvasSize.width / 2, canvasSize.height / 2), 1.25f) }) { Text("＋", fontSize = 13.sp) }
             TextButton(onClick = { zoomAt(Offset(canvasSize.width / 2, canvasSize.height / 2), 1 / 1.25f) }) { Text("－", fontSize = 13.sp) }
             TextButton(onClick = { fitAll() }) { Text("全体", fontSize = 11.sp) }
@@ -310,7 +350,7 @@ fun GraphLensView(state: AppState) {
             }
             TextButton(onClick = { saveImage("lens-" + (origin ?: "all")) }, enabled = scene != null) { Text("PNG に保存", fontSize = 11.sp) }
             Spacer(Modifier.weight(1f))
-            Text("${nodes.size} ノード / ${visibleEdges.size} エッジ", fontSize = 11.sp, color = Palette.SubText)
+            Text("${nodes.size} 箱 / ${visibleEdges.count { it.kind != LensEdgeKind.TIE }} 辺", fontSize = 11.sp, color = Palette.SubText)
         }
         // 型・relation のチェックボックス（多ければ折り返す。アドホックなレンズ。宣言的レンズ定義は需要待ち。architecture/graph-query.md「エンティティページ」）
         LensFilterRow("型:") {
@@ -325,7 +365,7 @@ fun GraphLensView(state: AppState) {
             relations.forEach { rel ->
                 LensFilterItem(rel !in hiddenRelations, { checked -> if (checked) hiddenRelations.remove(rel) else hiddenRelations.put(rel, true) }) {
                     Text(
-                        (Relations.labelOf(state.relations, rel.takeIf { it != "（未宣言）" }) ?: rel) +
+                        (Relations.labelOf(state.relations, rel.takeIf { it != UNDECLARED }) ?: rel) +
                             (if (rel in holdingNames) "（保有）" else ""),
                         fontSize = 10.sp, color = Palette.SubText,
                     )
@@ -367,8 +407,7 @@ fun GraphLensView(state: AppState) {
             val widthPx = constraints.maxWidth.toFloat().coerceAtLeast(1f)
             val heightPx = constraints.maxHeight.toFloat().coerceAtLeast(1f)
             val current = arranged
-            // 新しい配置ができたら全体を収めて見せる（画面の大きさが変わったときも）
-            LaunchedEffect(current, widthPx, heightPx) {
+            LaunchedEffect(current) {
                 current?.let {
                     val fit = fitViewport(it.result.width, it.result.height, widthPx, heightPx)
                     zoom = fit.zoom
@@ -402,7 +441,7 @@ fun GraphLensView(state: AppState) {
                             }
                         }
                     }
-                    // ドラッグ: 節点の上なら節点を動かす（位置を固定）、それ以外は全体を動かす
+                    // ドラッグ: 箱の上なら箱を動かす（位置を固定。中の箱も一緒）、それ以外は全体を動かす
                     .pointerInput(Unit) {
                         detectDragGestures(
                             onDragStart = { start -> dragging = hitNode(start) },
@@ -418,9 +457,15 @@ fun GraphLensView(state: AppState) {
                     }
                     .pointerInput(Unit) {
                         detectTapGestures { tap ->
-                            // ズーム・パンを逆変換して箱の中を拾い、エンティティページへ着地する
+                            // ズーム・パンを逆変換して箱の中を拾う。見出しの左の印なら開く・畳む、それ以外はエンティティページへ着地する
                             val a = latest ?: return@detectTapGestures
-                            hitNode(tap)?.let { state.openCrossView(a.nodes[it]) }
+                            val index = hitNode(tap) ?: return@detectTapGestures
+                            val node = a.nodes.getOrNull(index) ?: return@detectTapGestures
+                            val box = a.result.boxes.getOrNull(index) ?: return@detectTapGestures
+                            val header = a.nested.getOrNull(index)?.height ?: box.height
+                            val c = toContent(tap)
+                            if (hasChildren(node) && c.x <= box.x + TOGGLE_ZONE && c.y <= box.y + header) toggle(node)
+                            else state.openCrossView(node.node.id)
                         }
                     }
             ) {
@@ -457,9 +502,9 @@ fun GraphLensView(state: AppState) {
                         .pointerInput(a) { detectDragGestures { change, _ -> change.consume(); centerOn(change.position) } }
                 ) {
                     a.result.boxes.forEachIndexed { i, b ->
-                        val id = a.nodes.getOrNull(i) ?: return@forEachIndexed
+                        val n = a.nodes.getOrNull(i) ?: return@forEachIndexed
                         drawRect(
-                            (typeColors[typeOf(id)] ?: mapPaint.primary).copy(alpha = 0.8f),
+                            (typeColors[typeOf(n.node.id)] ?: mapPaint.primary).copy(alpha = if (n.expanded) 0.3f else 0.8f),
                             Offset(mapOx + b.x * mapScale, mapOy + b.y * mapScale),
                             Size(maxOf(2f, b.width * mapScale), maxOf(2f, b.height * mapScale)),
                         )
@@ -474,22 +519,30 @@ fun GraphLensView(state: AppState) {
                     )
                 }
             }
-            // 右クリックのメニュー（節点の上で開く）
+            // 右クリックのメニュー（箱の上で開く）
             menu?.let { (index, at) ->
-                val id = effective?.nodes?.getOrNull(index)
-                if (id == null) menu = null
+                val node = effective?.nodes?.getOrNull(index)
+                if (node == null) menu = null
                 else {
+                    val id = node.node.id
                     val entity = graph.entities[id]
-                    val origin0 = entity?.defining ?: entity?.occurrences?.firstOrNull()
+                    val origin0 = node.node.occurrence ?: entity?.defining ?: entity?.occurrences?.firstOrNull()
                     val type = typeOf(id)
                     Box(Modifier.offset { IntOffset(at.x.roundToInt(), at.y.roundToInt()) }) {
                         DropdownMenu(expanded = true, onDismissRequest = { menu = null }) {
                             Text(
-                                id + (entity?.title?.takeIf { it.isNotBlank() && it != id }?.let { "  $it" } ?: ""),
+                                id + (entity?.title?.takeIf { it.isNotBlank() && it != id }?.let { "  $it" } ?: "") +
+                                    (node.node.occurrence?.let { " " + aspectLabelOf(it) } ?: ""),
                                 fontSize = 11.sp, color = Palette.SubText, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                             )
                             DropdownMenuItem(text = { Text("エンティティページを開く", fontSize = 12.sp) },
                                 onClick = { menu = null; state.openCrossView(id) })
+                            if (hasChildren(node)) {
+                                DropdownMenuItem(
+                                    text = { Text(if (node.expanded) "中の箱を畳む" else "中の箱を開く（${node.hiddenChildren}）", fontSize = 12.sp) },
+                                    onClick = { menu = null; toggle(node) },
+                                )
+                            }
                             DropdownMenuItem(text = { Text("起点にする", fontSize = 12.sp) }, enabled = id != origin,
                                 onClick = { menu = null; state.lensOriginId = id })
                             if (origin0 != null) {
@@ -512,13 +565,16 @@ fun GraphLensView(state: AppState) {
         Text("エッジ一覧（クリックでエンティティページへ）", fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 12.dp))
         Box(Modifier.weight(0.42f).fillMaxWidth()) {
             val scroll = rememberLazyListState()
+            val listed = visibleEdges.filter { it.kind != LensEdgeKind.TIE }
+            fun idOf(key: String) = nodes.getOrNull(keyIndex[key] ?: -1)?.node?.id ?: key
             LazyColumn(state = scroll, modifier = Modifier.fillMaxSize().padding(end = 8.dp)) {
-                items(visibleEdges) { edge ->
-                    Row(Modifier.fillMaxWidth().clickable { state.openCrossView(edge.to) }.padding(horizontal = 12.dp, vertical = 4.dp)) {
-                        Text(edge.from, fontSize = 11.sp, color = Palette.Primary, modifier = Modifier.width(150.dp))
+                items(listed) { edge ->
+                    val toId = idOf(edge.to)
+                    Row(Modifier.fillMaxWidth().clickable { state.openCrossView(toId) }.padding(horizontal = 12.dp, vertical = 4.dp)) {
+                        Text(idOf(edge.from), fontSize = 11.sp, color = Palette.Primary, modifier = Modifier.width(150.dp))
                         Text(
-                            if (edge.holding) "◆ ${edge.to}（保有: ${Relations.labelOf(state.relations, edge.relation) ?: edge.relation}）"
-                            else "→ ${edge.to}" + (Relations.labelOf(state.relations, edge.relation)?.let { "（関係: $it）" } ?: ""),
+                            if (edge.kind == LensEdgeKind.HOLDING) "◆ $toId（保有: ${Relations.labelOf(state.relations, edge.relation) ?: edge.relation}）"
+                            else "→ $toId" + (Relations.labelOf(state.relations, edge.relation)?.let { "（関係: $it）" } ?: ""),
                             fontSize = 11.sp, color = Palette.SubText,
                         )
                     }
@@ -559,7 +615,8 @@ private fun LensFilterItem(checked: Boolean, onChange: (Boolean) -> Unit, label:
 
 /**
  * 配置を描く。`zoom` は文字を出すかの判定に使う（縮小すると省く）。
- * `hovered` があれば、その節点と隣だけを濃く、他を薄くする。
+ * `hovered` があれば、その箱と隣だけを濃く、他を薄くする。
+ * 箱は親が先に並ぶので、そのまま順に描けば中の箱が上に乗る。開いた箱は見出しの下に薄い区画を持つ。
  */
 private fun DrawScope.drawLens(scene: LensScene, zoom: Float, hovered: Int?, adjacency: LensAdjacency) {
     val a = scene.arranged
@@ -569,10 +626,39 @@ private fun DrawScope.drawLens(scene: LensScene, zoom: Float, hovered: Int?, adj
     val incident = hovered?.let { adjacency.incident.getOrNull(it) }
     fun edgeAlpha(i: Int) = if (incident == null) 1f else if (i in incident) 1f else 0.15f
     fun nodeAlpha(i: Int) = if (hovered == null) 1f else if (i == hovered || neighbors?.contains(i) == true) 1f else 0.25f
-    // 辺: 折れ線と矢印。ラベルは読める倍率のときだけ
+    // 箱: 型の色で縁取った箱に ID とタイトル。起点は太い縁、ホバー中は太く。開いた箱は塗りを薄くして中の箱を目立たせる
+    result.boxes.forEachIndexed { i, b ->
+        val node = a.nodes.getOrNull(i) ?: return@forEachIndexed
+        val key = node.node.key
+        val color = scene.typeColorOf(key)
+        val alpha = nodeAlpha(i)
+        val topLeft = Offset(b.x, b.y)
+        val size = Size(b.width, b.height)
+        val isOrigin = key in scene.originKeys
+        drawRoundRect(color.copy(alpha = if (i == hovered) 0.3f else if (node.expanded) 0.05f else 0.12f), topLeft, size, CornerRadius(8f), alpha = alpha)
+        drawRoundRect(
+            if (isOrigin) paint.primary else color, topLeft, size, CornerRadius(8f), alpha = alpha,
+            style = Stroke(if (isOrigin || i == hovered) 3.5f else 1.5f),
+        )
+        if (node.expanded) {
+            val header = a.nested.getOrNull(i)?.height ?: 0f
+            drawLine(color, Offset(b.x, b.y + header), Offset(b.x + b.width, b.y + header), strokeWidth = 1f, alpha = alpha * 0.6f)
+        }
+        if (zoom >= 0.4f) {
+            val idText = scene.idTexts[key] ?: return@forEachIndexed
+            var y = b.y + 6f
+            drawText(idText, topLeft = Offset(b.x + 10f, y), alpha = alpha)
+            y += idText.size.height
+            scene.titleTexts[key]?.let { drawText(it, topLeft = Offset(b.x + 10f, y), alpha = alpha); y += it.size.height }
+            scene.subTexts[key]?.let { drawText(it, topLeft = Offset(b.x + 10f, y), alpha = alpha) }
+        }
+    }
+    // 辺: 折れ線に、参照は矢じり・保有は親の側のひし形・同じエンティティは点線。ラベルは読める倍率のときだけ
+    val dashed = PathEffect.dashPathEffect(floatArrayOf(6f, 5f))
     result.routes.forEachIndexed { i, route ->
         val pts = route.points
         if (pts.size < 2) return@forEachIndexed
+        val edge = a.edges.getOrNull(i)
         val emphasized = incident != null && i in incident
         val alpha = edgeAlpha(i)
         val lineColor = if (emphasized) paint.primary else paint.border
@@ -580,37 +666,44 @@ private fun DrawScope.drawLens(scene: LensScene, zoom: Float, hovered: Int?, adj
             moveTo(pts[0].x, pts[0].y)
             pts.drop(1).forEach { lineTo(it.x, it.y) }
         }
-        drawPath(path, lineColor, alpha = alpha, style = Stroke((if (emphasized) 2.2f else 1.2f) / zoom.coerceIn(0.3f, 1f)))
-        val edge = a.edges.getOrNull(i)
+        val strokeWidth = (if (emphasized) 2.2f else 1.2f) / zoom.coerceIn(0.3f, 1f)
+        drawPath(
+            path, lineColor, alpha = alpha,
+            style = if (edge?.kind == LensEdgeKind.TIE) Stroke(strokeWidth, pathEffect = dashed) else Stroke(strokeWidth),
+        )
         val markColor = if (emphasized) paint.primary else paint.subText
-        if (edge?.holding == true) {
-            // 保有の線（P40）: 親の側（出発点）に塗りつぶしのひし形（UML の合成と同じ印）。矢じりは付けない
-            val p0 = pts[0]
-            val p1 = pts[1]
-            val len0 = sqrt((p1.x - p0.x) * (p1.x - p0.x) + (p1.y - p0.y) * (p1.y - p0.y)).coerceAtLeast(1f)
-            val ux = (p1.x - p0.x) / len0
-            val uy = (p1.y - p0.y) / len0
-            val diamond = Path().apply {
-                moveTo(p0.x, p0.y)
-                lineTo(p0.x + ux * 7 + uy * 4, p0.y + uy * 7 - ux * 4)
-                lineTo(p0.x + ux * 14, p0.y + uy * 14)
-                lineTo(p0.x + ux * 7 - uy * 4, p0.y + uy * 7 + ux * 4)
-                close()
+        when (edge?.kind) {
+            LensEdgeKind.HOLDING -> {
+                // 保有の線: 親の側（出発点）に塗りつぶしのひし形（UML の合成と同じ印）。矢じりは付けない
+                val p0 = pts[0]
+                val p1 = pts[1]
+                val len0 = sqrt((p1.x - p0.x) * (p1.x - p0.x) + (p1.y - p0.y) * (p1.y - p0.y)).coerceAtLeast(1f)
+                val ux = (p1.x - p0.x) / len0
+                val uy = (p1.y - p0.y) / len0
+                val diamond = Path().apply {
+                    moveTo(p0.x, p0.y)
+                    lineTo(p0.x + ux * 7 + uy * 4, p0.y + uy * 7 - ux * 4)
+                    lineTo(p0.x + ux * 14, p0.y + uy * 14)
+                    lineTo(p0.x + ux * 7 - uy * 4, p0.y + uy * 7 + ux * 4)
+                    close()
+                }
+                drawPath(diamond, markColor, alpha = alpha)
             }
-            drawPath(diamond, markColor, alpha = alpha)
-        } else {
-            val p = pts[pts.size - 2]
-            val q = pts.last()
-            val length = sqrt((q.x - p.x) * (q.x - p.x) + (q.y - p.y) * (q.y - p.y)).coerceAtLeast(1f)
-            val dx = (q.x - p.x) / length
-            val dy = (q.y - p.y) / length
-            val arrow = Path().apply {
-                moveTo(q.x, q.y)
-                lineTo(q.x - dx * 9 + dy * 4, q.y - dy * 9 - dx * 4)
-                lineTo(q.x - dx * 9 - dy * 4, q.y - dy * 9 + dx * 4)
-                close()
+            LensEdgeKind.TIE -> Unit
+            else -> {
+                val p = pts[pts.size - 2]
+                val q = pts.last()
+                val length = sqrt((q.x - p.x) * (q.x - p.x) + (q.y - p.y) * (q.y - p.y)).coerceAtLeast(1f)
+                val dx = (q.x - p.x) / length
+                val dy = (q.y - p.y) / length
+                val arrow = Path().apply {
+                    moveTo(q.x, q.y)
+                    lineTo(q.x - dx * 9 + dy * 4, q.y - dy * 9 - dx * 4)
+                    lineTo(q.x - dx * 9 - dy * 4, q.y - dy * 9 + dx * 4)
+                    close()
+                }
+                drawPath(arrow, markColor, alpha = alpha)
             }
-            drawPath(arrow, markColor, alpha = alpha)
         }
         if (zoom >= 0.5f) {
             val rel = edge?.relation ?: return@forEachIndexed
@@ -622,31 +715,12 @@ private fun DrawScope.drawLens(scene: LensScene, zoom: Float, hovered: Int?, adj
             drawText(text, topLeft = Offset(c.x - w / 2, c.y - h / 2), alpha = alpha)
         }
     }
-    // 節点: 型の色で縁取った箱に ID とタイトル。起点は太い縁、ホバー中は太く
-    result.boxes.forEachIndexed { i, b ->
-        val id = a.nodes.getOrNull(i) ?: return@forEachIndexed
-        val color = scene.typeColorOf(id)
-        val alpha = nodeAlpha(i)
-        val topLeft = Offset(b.x, b.y)
-        val size = Size(b.width, b.height)
-        val isOrigin = id == scene.origin
-        drawRoundRect(color.copy(alpha = if (i == hovered) 0.3f else 0.12f), topLeft, size, CornerRadius(8f), alpha = alpha)
-        drawRoundRect(
-            if (isOrigin) paint.primary else color, topLeft, size, CornerRadius(8f), alpha = alpha,
-            style = Stroke(if (isOrigin || i == hovered) 3.5f else 1.5f),
-        )
-        if (zoom >= 0.4f) {
-            val idText = scene.idTexts[id] ?: return@forEachIndexed
-            drawText(idText, topLeft = Offset(b.x + 10f, b.y + 6f), alpha = alpha)
-            scene.titleTexts[id]?.let { drawText(it, topLeft = Offset(b.x + 10f, b.y + 6f + idText.size.height), alpha = alpha) }
-        }
-    }
 }
 
 /** 配置の全体を等倍で PNG に書き出す（長辺は 8,000 px まで縮める）。 */
 private fun exportLensPng(path: FilePath, scene: LensScene, background: Color, density: Density) {
     val result = scene.arranged.result
-    // 動かした節点が左上の外に出ていれば、その分だけ寄せて全部を入れる
+    // 動かした箱が左上の外に出ていれば、その分だけ寄せて全部を入れる
     val points = result.routes.flatMap { it.points }
     val minX = minOf(0f, result.boxes.minOfOrNull { it.x } ?: 0f, points.minOfOrNull { it.x } ?: 0f)
     val minY = minOf(0f, result.boxes.minOfOrNull { it.y } ?: 0f, points.minOfOrNull { it.y } ?: 0f)

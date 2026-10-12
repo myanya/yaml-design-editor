@@ -80,6 +80,12 @@ class ScreenMemory {
     /** レンズの配置の種類（`LensLayoutKind` の名前）。起点の有無ごとに、利用者が選んだときだけ覚える。無ければ画面の既定。 */
     val lensLayoutKind = mutableStateMapOf<Boolean, String>()
 
+    /** レンズの「側面で分ける」（箱＝出現）。既定は一体（箱＝エンティティ）。 */
+    var lensSplitOccurrences by mutableStateOf(false)
+
+    /** レンズで利用者が開いた・畳んだ入れ子の箱（鍵は箱の key）。無ければ既定（起点の近傍だけ開く）。 */
+    val lensExpanded = mutableStateMapOf<String, Boolean>()
+
     var readinessPendingOnly by mutableStateOf(false)
     var readinessQuery by mutableStateOf("")
 
@@ -120,6 +126,8 @@ class ScreenMemory {
         lensHiddenRelations.clear()
         lensDepth = 2
         lensLayoutKind.clear()
+        lensSplitOccurrences = false
+        lensExpanded.clear()
         readinessPendingOnly = false
         readinessQuery = ""
         runsTab = 0
