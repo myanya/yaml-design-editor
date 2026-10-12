@@ -12,6 +12,15 @@ flow:
     terminal: { relation: business-flow-terminal }
     level: error
 constraints:
+  - id: business-step-actor-required
+    description: ユースケース工程には実行アクターを指定すること
+    match:
+      - node: { entity: business-flow-node, bind: step }
+    where:
+      - { of: step, path: kind, equals: usecase }
+      - { of: step, path: actor, empty: true }
+    expect: absent
+    level: error
   - id: business-step-actor
     description: ユースケース工程の実行者は、そのユースケースの実行アクターであること
     match:
@@ -107,13 +116,13 @@ root:
                   idPattern: "UC-*"
                   relation: executes-usecase
                   scope: { schemaIds: [usecase-list] }
-                - key: actor
-                  label: 実行アクター
-                  type: ref
-                  required: true
-                  idPattern: "ACT-*"
-                  relation: step-actor
-                  scope: { schemaIds: [system-overview] }
+          - key: actor
+            label: 担当アクター
+            type: ref
+            idPattern: "ACT-*"
+            relation: step-actor
+            scope: { schemaIds: [system-overview] }
+            description: 工程の実行者、または判断・状態を受け持つ主体。表示レーンにも使用する。
           - { key: description, label: 条件・業務上の意味, type: text }
     - key: transitions
       label: 工程間の遷移

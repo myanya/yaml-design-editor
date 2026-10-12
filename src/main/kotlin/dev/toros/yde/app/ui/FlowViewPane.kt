@@ -7,6 +7,7 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,6 +22,7 @@ import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -30,12 +32,16 @@ import androidx.compose.ui.unit.sp
 import dev.toros.yde.app.AppState
 import dev.toros.yde.app.OpenDocument
 import dev.toros.yde.app.core.Views
+import dev.toros.yde.app.core.FlowDisplayOptions
+import dev.toros.yde.app.core.FlowLayoutMode
 import dev.toros.yde.app.index.DocScanner
 import dev.toros.yde.semantic.*
 import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.yaml.model.*
 import kotlin.math.sqrt
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** 定義と原本を同じ未保存優先loaderで解決する。 */
 @Composable
@@ -129,6 +135,8 @@ private fun FlowPane(state: AppState, doc: OpenDocument, view: VirtualFlowDef, m
     }
     val selection = state.flowSelections[view.id to document]
     val model = resolution.model
+    val displayKey = view.id to document
+    val display = state.flowDisplayOptions[displayKey] ?: FlowDisplayOptions()
     val selected = model?.let { selection?.resolve(view.id, document, it, doc.flowRevision, definition.flowRevision) }
     LaunchedEffect(selection, selected) {
         if (selection != null && selected == null) state.selectFlow(view.id, document, null)
@@ -148,8 +156,24 @@ private fun FlowPane(state: AppState, doc: OpenDocument, view: VirtualFlowDef, m
                 Text("すべて保存", fontSize = 11.sp)
             }
         }
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
+            FlowChooser("レイアウト", "レイアウト: ${display.mode.label}", FlowLayoutMode.entries.map { it.name to it.label }) {
+                state.flowDisplayOptions = state.flowDisplayOptions + (displayKey to display.copy(mode = FlowLayoutMode.valueOf(it)))
+            }
+            Spacer(Modifier.width(8.dp))
+            val directions = listOf("default" to "ビュー定義に従う", "down" to "上から下", "right" to "左から右")
+            FlowChooser("方向", "方向: ${directions.first { it.first == (display.direction ?: "default") }.second}", directions) {
+                state.flowDisplayOptions = state.flowDisplayOptions + (displayKey to display.copy(direction = it.takeUnless { it == "default" }))
+            }
+        }
+        if (display.mode == FlowLayoutMode.SWIMLANES && model != null) {
+            Text(if (model.lanes.isEmpty()) "レーンの定義がないため、担当別の帯は表示されません。"
+                else "レーンは定義順に表示します。担当未設定の工程はレーン外に配置します。",
+                fontSize = 11.sp, color = Palette.SubText)
+        }
         Row(Modifier.weight(1f).fillMaxWidth()) {
-            if (model != null) FlowCanvas(model, view.direction, selected, Modifier.weight(1f).fillMaxHeight(), choose)
+            if (model != null) FlowCanvas(model, display.directionOrDefault(view.direction), display.mode,
+                selected, Modifier.weight(1f).fillMaxHeight(), choose)
             else Text("フローを表示できません", color = Palette.ErrorRed, modifier = Modifier.weight(1f))
             Column(Modifier.width(360.dp).fillMaxHeight().verticalScroll(rememberScrollState()).padding(8.dp)) {
                 val detail = when (selection?.kind) {
@@ -212,7 +236,7 @@ private fun FlowDetailForm(state: AppState, detail: FlowDetail) {
 
 @Composable
 private fun FlowCanvas(
-    model: FlowModel, direction: String, selected: YPath?, modifier: Modifier,
+    model: FlowModel, direction: String, mode: FlowLayoutMode, selected: YPath?, modifier: Modifier,
     choose: (FlowElementKind, YPath) -> Unit,
 ) {
     val measurer = rememberTextMeasurer()
@@ -223,17 +247,36 @@ private fun FlowCanvas(
             model.lanes.map { it.output to (it.label ?: "（レーン名なし）") })
             .associate { (p, text) -> p to measurer.measure(text, style, constraints = Constraints(maxWidth = 220)) }
     }
-    val arrangement = remember(model, direction, texts) {
-        FlowLayout.arrange(model, texts.mapValues { FlowSize(it.value.size.width.toFloat(), it.value.size.height.toFloat()) }, direction)
+    var layout by remember(model, direction, mode, texts) { mutableStateOf<Result<FlowArrangement>?>(null) }
+    LaunchedEffect(model, direction, mode, texts) {
+        layout = withContext(Dispatchers.Default) {
+            runCatching { GraphLayouts.arrangeFlow(model,
+                texts.mapValues { FlowSize(it.value.size.width.toFloat(), it.value.size.height.toFloat()) }, direction, mode) }
+        }
+    }
+    val arrangement = layout?.getOrNull()
+    if (arrangement == null) {
+        Text(layout?.exceptionOrNull()?.let { "配置を計算できません: ${it.message}" } ?: "フローを配置しています…",
+            modifier = modifier.padding(16.dp), color = if (layout == null) Palette.SubText else Palette.ErrorRed)
+        return
     }
     var zoom by remember { mutableStateOf(1f) }
     var pan by remember { mutableStateOf(Offset.Zero) }
+    var canvasSize by remember { mutableStateOf(Size.Zero) }
+    fun fit() {
+        if (canvasSize.width <= 0 || canvasSize.height <= 0) return
+        val viewport = fitViewport(arrangement.size.width, arrangement.size.height, canvasSize.width, canvasSize.height)
+        zoom = viewport.zoom
+        pan = Offset(viewport.panX, viewport.panY)
+    }
+    LaunchedEffect(arrangement, canvasSize) { fit() }
     val latestChoose by rememberUpdatedState(choose)
     Column(modifier) {
         Row {
-            TextButton(onClick = { zoom = (zoom / 1.25f).coerceAtLeast(0.2f) }) { Text("−") }
+            TextButton(onClick = { zoom = (zoom / 1.25f).coerceAtLeast(0.02f) }) { Text("−") }
             TextButton(onClick = { zoom = (zoom * 1.25f).coerceAtMost(3f) }) { Text("＋") }
             TextButton(onClick = { zoom = 1f; pan = Offset.Zero }) { Text("表示をリセット") }
+            TextButton(onClick = { fit() }) { Text("全体") }
             Text("${(zoom * 100).toInt()}%", fontSize = 11.sp, modifier = Modifier.align(Alignment.CenterVertically))
         }
         val border = Palette.Border
@@ -242,6 +285,7 @@ private fun FlowCanvas(
         val selectedColor = Palette.Selected
         val subtext = Palette.SubText
         Canvas(Modifier.weight(1f).fillMaxWidth().clipToBounds().background(Palette.PanelBg)
+            .onSizeChanged { canvasSize = Size(it.width.toFloat(), it.height.toFloat()) }
             .pointerInput(Unit) { detectDragGestures { change, drag -> change.consume(); pan += drag } }
             .pointerInput(arrangement, zoom, pan) { detectTapGestures { at ->
                 val p = FlowPoint((at.x - pan.x) / zoom, (at.y - pan.y) / zoom)
@@ -254,7 +298,8 @@ private fun FlowCanvas(
             translate(pan.x, pan.y) { scale(zoom, pivot = Offset.Zero) {
                 arrangement.lanes.forEach { (path, r) ->
                     drawRect(border, Offset(r.x, r.y), Size(r.width, r.height), style = Stroke(1f))
-                    texts[path]?.let { drawText(it, topLeft = Offset(r.x + 8f, r.y + 8f)) }
+                    val header = arrangement.laneHeaders[path]
+                    texts[path]?.let { drawText(it, topLeft = Offset(header?.x ?: (r.x + 8f), header?.y ?: (r.y + 8f))) }
                 }
                 arrangement.edges.forEach { route ->
                     val color = if (route.output == selected) primary else subtext
@@ -266,6 +311,9 @@ private fun FlowCanvas(
                         drawLine(color, Offset(b.x, b.y), Offset(b.x - dx * 10 + dy * 5, b.y - dy * 10 - dx * 5), 2f)
                         drawLine(color, Offset(b.x, b.y), Offset(b.x - dx * 10 - dy * 5, b.y - dy * 10 + dx * 5), 2f)
                     }
+                }
+                // 後続の接続線で条件の文字を上書きしないよう、ラベルは線の後にまとめて描く。
+                arrangement.edges.forEach { route ->
                     val r = route.label
                     drawRect(if (route.output == selected) selectedColor else surface, Offset(r.x, r.y), Size(r.width, r.height))
                     texts[route.output]?.let { drawText(it, topLeft = Offset(r.x + 6, r.y + 6)) }

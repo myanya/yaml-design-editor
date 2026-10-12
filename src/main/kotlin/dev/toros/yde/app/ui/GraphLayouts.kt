@@ -1,10 +1,14 @@
 package dev.toros.yde.app.ui
 
+import dev.toros.yde.semantic.*
+import dev.toros.yde.app.core.FlowLayoutMode
+import dev.toros.yde.yaml.model.YPath
 import org.eclipse.elk.alg.force.options.ForceMetaDataProvider
 import org.eclipse.elk.alg.force.options.StressMetaDataProvider
 import org.eclipse.elk.alg.force.options.StressOptions
 import org.eclipse.elk.alg.layered.options.LayeredMetaDataProvider
 import org.eclipse.elk.alg.layered.options.LayeredOptions
+import org.eclipse.elk.alg.layered.options.CycleBreakingStrategy
 import org.eclipse.elk.alg.radial.options.RadialMetaDataProvider
 import org.eclipse.elk.alg.radial.options.RadialOptions
 import org.eclipse.elk.alg.spore.options.SporeMetaDataProvider
@@ -14,6 +18,8 @@ import org.eclipse.elk.core.options.CoreOptions
 import org.eclipse.elk.core.options.Direction
 import org.eclipse.elk.core.options.EdgeLabelPlacement
 import org.eclipse.elk.core.options.EdgeRouting
+import org.eclipse.elk.core.options.HierarchyHandling
+import org.eclipse.elk.core.math.ElkPadding
 import org.eclipse.elk.core.util.BasicProgressMonitor
 import org.eclipse.elk.graph.ElkEdge
 import org.eclipse.elk.graph.ElkNode
@@ -22,7 +28,7 @@ import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.sqrt
 
-// ================================================================ グラフレンズの配置（ELK を包む。architecture/graph-query.md「エンティティページ」）
+// ================================================================ グラフレンズとフローの配置（ELK を包む）
 //
 // ライブラリ ELK（Eclipse Layout Kernel）はこのファイルの中だけで使い、型を外へ出さない。
 // Compose に依存しない純ロジック（GraphLayoutsTest）。大きさは呼び手が計測した px で受け取り、座標も px で返す。
@@ -90,6 +96,126 @@ object GraphLayouts {
             RadialMetaDataProvider(), SporeMetaDataProvider(),
         )
         true
+    }
+
+    /** フローの循環・レーン・条件ラベルを同じ配置問題として解く。ELKの型はこの窓口の外へ出さない。 */
+    @JvmOverloads
+    fun arrangeFlow(model: FlowModel, labels: Map<YPath, FlowSize>, direction: String = "down",
+                    mode: FlowLayoutMode = FlowLayoutMode.GROUPED): FlowArrangement {
+        if (mode == FlowLayoutMode.SWIMLANES) {
+            val seed = arrangeFlow(model, labels, direction, FlowLayoutMode.PLAIN)
+            return FlowSwimlanes.arrange(model, labels, seed, direction)
+        }
+        return synchronized(lock) {
+            val graph = newGraph()
+            graph.setProperty(CoreOptions.ALGORITHM, "org.eclipse.elk.layered")
+            graph.setProperty(CoreOptions.DIRECTION, if (direction == "right") Direction.RIGHT else Direction.DOWN)
+            graph.setProperty(CoreOptions.HIERARCHY_HANDLING, HierarchyHandling.INCLUDE_CHILDREN)
+            graph.setProperty(CoreOptions.EDGE_ROUTING, EdgeRouting.ORTHOGONAL)
+            graph.setProperty(LayeredOptions.SPACING_NODE_NODE_BETWEEN_LAYERS, 64.0)
+            graph.setProperty(LayeredOptions.SPACING_EDGE_NODE_BETWEEN_LAYERS, 24.0)
+            graph.setProperty(CoreOptions.SPACING_EDGE_LABEL, 8.0)
+            graph.setProperty(CoreOptions.SPACING_EDGE_NODE, 24.0)
+            graph.setProperty(LayeredOptions.THOROUGHNESS, 10)
+            graph.setProperty(LayeredOptions.CYCLE_BREAKING_STRATEGY, CycleBreakingStrategy.DEPTH_FIRST)
+            graph.setProperty(CoreOptions.RANDOM_SEED, 1)
+            fun size(path: YPath) = labels[path] ?: FlowSize(100f, 24f)
+            fun dimensions(node: FlowNode): FlowSize {
+                val text = size(node.output)
+                val factor = if (node.shape == "diamond") 2f else 1f
+                return FlowSize(maxOf(140f, (text.width + 32f) * factor), maxOf(60f, (text.height + 24f) * factor))
+            }
+            val lanes = (if (mode == FlowLayoutMode.GROUPED) model.lanes else emptyList()).associate { lane ->
+                val childWidth = model.nodes.filter { it.lane?.target == lane.output }.maxOfOrNull { dimensions(it).width } ?: 0f
+                lane.output to ElkGraphUtil.createNode(graph).apply {
+                    identifier = lane.key
+                    // 子が細いレーンでも見出しが収まる余白を確保する。空レーンにも寸法を残す。
+                    width = size(lane.output).width + 16.0
+                    height = size(lane.output).height + 48.0
+                    val rightPadding = maxOf(24.0, size(lane.output).width + 16.0 - childWidth - 24.0)
+                    setProperty(CoreOptions.PADDING, ElkPadding(size(lane.output).height + 24.0, rightPadding, 24.0, 24.0))
+                    setProperty(CoreOptions.ALGORITHM, "org.eclipse.elk.layered")
+                    setProperty(LayeredOptions.CYCLE_BREAKING_STRATEGY, CycleBreakingStrategy.DEPTH_FIRST)
+                }
+            }
+            val nodes = model.nodes.associate { node ->
+                val dimensions = dimensions(node)
+                node.output to ElkGraphUtil.createNode(lanes[node.lane?.target] ?: graph).apply {
+                    identifier = node.key
+                    width = dimensions.width.toDouble()
+                    height = dimensions.height.toDouble()
+                }
+            }
+            val edges = model.edges.associate { edge ->
+                val from = nodes[edge.from.target]
+                val to = nodes[edge.to.target]
+                edge.output to if (from == null || to == null) null else {
+                    ElkGraphUtil.createSimpleEdge(from, to).apply {
+                        identifier = edge.key
+                        val text = size(edge.output)
+                        ElkGraphUtil.createLabel(edge.label ?: "", this).apply {
+                            width = text.width + 12.0
+                            height = text.height + 12.0
+                            setProperty(CoreOptions.EDGE_LABELS_PLACEMENT, EdgeLabelPlacement.CENTER)
+                        }
+                    }
+                }
+            }
+            run(graph)
+            fun offset(node: ElkNode?): FlowPoint {
+                var x = MARGIN; var y = MARGIN
+                var current = node
+                while (current != null && current != graph) {
+                    x += current.x.toFloat(); y += current.y.toFloat(); current = current.parent
+                }
+                return FlowPoint(x, y)
+            }
+            fun box(node: ElkNode): FlowRect {
+                val p = offset(node)
+                return FlowRect(p.x, p.y, node.width.toFloat(), node.height.toFloat())
+            }
+            var unresolvedY = graph.height.toFloat() + MARGIN * 2
+            val diamonds = model.nodes.filter { it.shape == "diamond" }.map { it.output }.toSet()
+            // ELKの接続点は外接矩形上。直交線の向きを保ったまま菱形の輪郭まで延ばす。
+            fun outline(path: YPath?, point: FlowPoint): FlowPoint {
+                if (path !in diamonds) return point
+                val r = nodes[path]?.let(::box) ?: return point
+                val dx = point.x - r.center.x; val dy = point.y - r.center.y
+                return if (abs(abs(dx) - r.width / 2) < .1f)
+                    FlowPoint(r.center.x + (if (dx < 0) -1 else 1) * r.width / 2 * (1 - abs(dy) / (r.height / 2)), point.y)
+                else FlowPoint(point.x, r.center.y + (if (dy < 0) -1 else 1) * r.height / 2 * (1 - abs(dx) / (r.width / 2)))
+            }
+            val routes = model.edges.map { source ->
+                val edge = edges[source.output]
+                if (edge == null) {
+                    val text = size(source.output)
+                    val label = FlowRect(MARGIN, unresolvedY, text.width + 12f, text.height + 12f)
+                    unresolvedY = label.bottom + 12f
+                    FlowRoute(source.output, emptyList(), label)
+                } else {
+                    val origin = offset(edge.containingNode)
+                    val points = edge.sections.flatMap { section ->
+                        listOf(FlowPoint(section.startX.toFloat(), section.startY.toFloat())) +
+                            section.bendPoints.map { FlowPoint(it.x.toFloat(), it.y.toFloat()) } +
+                            FlowPoint(section.endX.toFloat(), section.endY.toFloat())
+                    }.map { FlowPoint(it.x + origin.x, it.y + origin.y) }.toMutableList()
+                    if (points.size >= 2) {
+                        points[0] = outline(source.from.target, points.first())
+                        points[points.lastIndex] = outline(source.to.target, points.last())
+                    }
+                    val label = edge.labels.single()
+                    FlowRoute(source.output, points, FlowRect(origin.x + label.x.toFloat(), origin.y + label.y.toFloat(),
+                        label.width.toFloat(), label.height.toFloat()))
+                }
+            }
+            val boxes = nodes.mapValues { box(it.value) }
+            val laneBoxes = lanes.mapValues { box(it.value) }
+            val rectangles = boxes.values + laneBoxes.values + routes.map { it.label }
+            val points = routes.flatMap { it.points }
+            FlowArrangement(boxes, laneBoxes, routes, FlowSize(
+                maxOf(rectangles.maxOfOrNull { it.right } ?: 0f, points.maxOfOrNull { it.x } ?: 0f) + MARGIN,
+                maxOf(rectangles.maxOfOrNull { it.bottom } ?: 0f, points.maxOfOrNull { it.y } ?: 0f) + MARGIN))
+        }
     }
 
     /**

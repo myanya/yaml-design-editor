@@ -420,6 +420,8 @@ class AppState {
     var flowViewId by mutableStateOf<String?>(null)
     var flowDocument by mutableStateOf<DocumentId?>(null)
     var flowSelections by mutableStateOf<Map<Pair<String, DocumentId>, dev.toros.yde.semantic.FlowSelection>>(emptyMap())
+    /** ビューと文書ごとに保持し、単独表示と文書埋め込みで共有する。履歴・Undoには含めない。 */
+    var flowDisplayOptions by mutableStateOf<Map<Pair<String, DocumentId>, dev.toros.yde.app.core.FlowDisplayOptions>>(emptyMap())
 
     fun selectFlow(view: String, document: DocumentId, selection: dev.toros.yde.semantic.FlowSelection?) {
         val key = view to document
@@ -519,6 +521,7 @@ class AppState {
         session = null
         docCache.clear()
         flowSelections = emptyMap()
+        flowDisplayOptions = emptyMap()
         flowViewId = null
         flowDocument = null
         openDoc = null

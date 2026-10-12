@@ -22,6 +22,8 @@ class NavigationHistoryTest {
         val selection = dev.toros.yde.semantic.FlowSelection("diagram", doc,
             dev.toros.yde.semantic.FlowElementKind.NODE, "A", listOf("nodes", 0), 1, 2)
         state.openFlowView("diagram", doc)
+        val display = dev.toros.yde.app.core.FlowDisplayOptions(dev.toros.yde.app.core.FlowLayoutMode.SWIMLANES, "right")
+        state.flowDisplayOptions = mapOf(("diagram" to doc) to display)
         state.selectFlow("diagram", doc, selection)
         state.openFile(newFile("target.yaml"))
         state.goBack()
@@ -29,10 +31,13 @@ class NavigationHistoryTest {
         assertEquals("diagram", state.flowViewId)
         assertEquals(doc, state.flowDocument)
         assertEquals(selection, state.flowSelections["diagram" to doc])
+        assertEquals(display, state.flowDisplayOptions["diagram" to doc])
         state.openFlowView("diagram", dev.toros.yde.yaml.model.DocumentId("b.yaml"))
         assertEquals(null, state.flowSelections["diagram" to state.flowDocument])
+        assertEquals(null, state.flowDisplayOptions["diagram" to state.flowDocument])
         state.goBack()
         assertEquals(doc, state.flowDocument)
+        assertEquals(display, state.flowDisplayOptions["diagram" to doc])
     }
 
 

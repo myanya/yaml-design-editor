@@ -11,7 +11,7 @@
 | `VirtualFlowDef` / `FlowViews` / `FlowResolution` | semantic-core/semantic/FlowViews.kt | Constructによる文書の射影、原本対応、表示契約と接続先の診断 |
 | フロー表示契約 | semantic-core資源 `builtin-structures/flow-model.yaml` | 表示モデルの型・必須項目・形状をStructureValidatorで検査 |
 | `FlowReports` | core/FlowReports.kt | CLI・read_viewへ同じ表示モデルと座標・診断を開示 |
-| `FlowLayout` / `FlowSelection` | semantic-core/semantic/FlowLayout.kt・FlowSelection.kt | 計測寸法からの決定的配置と文書・版を考慮した選択の再解決 |
+| `GraphLayouts.arrangeFlow` / `FlowSelection` | ui/GraphLayouts.kt・semantic-core/semantic/FlowSelection.kt | 計測寸法からの決定的配置と文書・版を考慮した選択の再解決 |
 | `FlowViewPane` | ui/FlowViewPane.kt | 単独表示・文書埋め込み・Canvas描画と既存の原本フォームへの委譲 |
 | `ViewDefinitions` / `ViewCatalog` | workspace-core/workspace/ViewDefinitions.kt | 読み取り（`parseView`＝definition 参照の列展開を含む）とリント（`lint` / `lintDocument`＝ビュー → スキーマの整合・`staticFieldAt` / `idElements`） |
 | `Views` | core/Views.kt | root の窓口（views ゾーンのファイルを読んで渡す `load`・行 × セルの解決 `resolve`・文書ビューの解決 `resolveDocument` / `resolveAttachments`・`renderText` / `renderDocText`・`fieldAt`＝`SchemaDef.fieldAt` へ委譲） |
@@ -69,10 +69,16 @@
 
 ## フローの画面と配置
 
-- FlowLayoutは計測寸法を受け取り、矩形と折れ線を返す純粋関数。SCCをまとめたDAGの順位と原本の順で配置する。
-  主軸に直交する方向へレーンを並べ、未割当ノードはレーン外へ置く。隣接順位間の辺には段間を、閉路・自己ループ・長い辺には外周を使う。
-  各辺のラベル領域を確保し、接続不明の辺も領域を残す。選択は配置の入力に含めない。
-- FlowViewPaneは台帳のフロータブと文書内埋め込みで共用。Canvasのパン・ズームは画面内の状態であり、原本へ保存しない。
+- GraphLayouts.arrangeFlowは計測寸法を受け取り、FlowGeometryの矩形と折れ線を返す。ELKの階層配置で閉路・自己ループ・条件ラベルをまとめて配置する。
+  深さ優先の閉路処理で入力順の流れを保ち、循環する工程も複数段に置く。グループ表示は所属ノードを枠で包み、レーンなし表示は全体を一括配置する。
+  接続不明の辺もラベル領域を残し、菱形への接続は輪郭まで延ばす。乱数種を固定し、選択は配置の入力に含めない。
+- スイムレーン表示はFlowSwimlanesで、ELKの段を保ちつつ定義順の帯へ配置する。下向きでは縦帯、右向きでは横帯とし、全レーンの開始・終了位置を揃える。
+  空レーンも残し、未割当ノードは帯の外へ置く。条件ラベルは段間に、長い辺・戻り線は工程を避けてレーン境界に配置する。
+- FlowDisplayOptionsはAppStateがビューID・文書IDごとに保持する。レイアウトと方向の変更は再配置と全体表示を行い、選択や原本を変更しない。
+  台帳と文書埋め込みで共有し、画面の往復でも維持する。ワークスペース切替時に解除し、ファイルへの保存やUndo履歴には含めない。
+- FlowViewPaneは台帳のフロータブと文書内埋め込みで共用。配置計算はUIスレッド外で行い、初期表示とサイズ変更時は全体を画面に収める。
+  Canvasのパン・ズームと「全体」操作は画面内の状態であり、原本へ保存しない。
+- Constructによる表示モデルと来歴は変更せず、配置だけをUI層で処理する。新しい評価語彙・書込経路は増やさない。
 - 原本と定義の読取は同じ未保存優先loader、索引はoverlayIndexを使う。再解決はdoc.version・indexVersion・editVersionを購読する。
 - detailは編集用の木ではない。適格な単一原本座標をensureDoc・slotAt・FormCtx・FieldRowへ渡し、通常のUndo・保存・閲覧専用を適用する。
 - 選択はビューID・文書ID・種別・keyで現在のモデルへ再解決する。keyなしの辺だけ出力座標と原本・定義の版を使い、どちらかの変更で解除する。
