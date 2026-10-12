@@ -45,6 +45,16 @@ object SemanticGraphIntegrity {
                     SemanticIssueKind.UNDECLARED_RELATION, ref.targetId,
                 )
             }
+            // 保有の線（P40）: 項目に宣言した名前（relation）だけを見る。キー名の既定は宣言ではないので指摘しない
+            for (h in graph.holdings) {
+                if (!h.declared || h.relation in relations) continue
+                issues += SemanticIssue(
+                    severityOf(level),
+                    "要素「${h.child.id}」を保有する関係「${h.relation}」は関係レジストリに宣言されていません",
+                    h.child.document, h.child.path,
+                    SemanticIssueKind.UNDECLARED_RELATION, h.child.id,
+                )
+            }
         }
 
         // 2) 多重度と対象型は、組込み定義体（builtin-definitions/relations.yaml）が作る検査になった

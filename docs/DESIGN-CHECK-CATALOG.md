@@ -50,6 +50,7 @@
 | 未宣言の関係語彙・定義の重複の禁止 | `enforcement: {undeclaredRelation: error, definingUniqueness: error}` | sysdev-relations |
 | 循環の禁止 | レジストリの `acyclic: true` | （テンプレ未使用。変更セット提出時も循環を拒否） |
 | 詳細文書の存在（同一IDの詳細化） | スキーマの `coverage: - detailIn:` | 画面定義・画面設計書の存在（screen-list。作成スキャフォールドつき） |
+| 入れ子で書かれた要素の所属（親の型・子の型・子の数） | 保有の線（子を書く項目の `relation` で名前を付け、レジストリの `source` / `target` / `cardinality` がそのまま効く。`edge: {relation: 名前}` で辿れる） | has-item（画面→画面項目）・flow-node（業務フロー→工程）・has-column（テーブル→カラム） |
 
 多重度（`cardinality`）と対象型（`source` / `target`）は、**組込みの定義体（YAML）が作る語彙**で、検証の前に基本の検査へ展開される
 （P29 Phase 6 第2段。展開結果は CLI `checks <workspace> <レジストリのID>`）。同じ仕組みで、関係の宣言に効く自分の語彙を足せる（§6b）。
@@ -88,6 +89,7 @@
 **線の読み方（規範。architecture/graph-query.md「線の意味」）**: 参照の線は「その参照を含む最も内側の ID を持つ要素」が書いたものとして辿る（`dir: out` と `dir: in` は対になる）。
 入れ子の要素（画面の中の画面項目など）が書いた参照を外側の要素から辿りたいときは、入れ子の線 `edge: {contains: true}`（`repeat` で何段でも）を先に辿る。
 「内側の要素と、それを含む外側の要素の関係」（例: 物理の画面項目の画面と、論理の画面項目の画面が同じ画面であること）も、`contains` の `dir: in` で書ける。
+名前を付けた保有の線（子を書く項目の `relation`、無ければキー名）は `edge: {relation: has-item}` でも辿れる（`contains` は名前を問わない構造の線。名前を書かない線は参照だけ）。
 
 ## 4. 網羅（matrix: 行×列の全組合せ）
 

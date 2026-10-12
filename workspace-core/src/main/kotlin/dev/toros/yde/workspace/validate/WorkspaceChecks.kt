@@ -307,7 +307,7 @@ class WorkspaceChecks(
                 if (!phaseActive(rule.activeFrom, phaseOrder, phaseIndex)) continue
                 if (rule.reportAt?.ref != null) {
                     // 参照の場所へ出す検査（対象型の不一致など）: 見つかった解ごとに、この文書に書かれた参照の場所へ指摘する
-                    issues += refIssues(rule, document, localIds.map { it.id }, localRefs.map { it.targetId })
+                    issues += refIssues(rule, document, localIds, localRefs)
                     // 保留は、対象の要素の報告先の文書で集める（参照が書かれた文書ごとに重ねて数えない。意図的差分 D-29 ③）
                     for (entry in entries) {
                         result(rule, entry.id).takeIf { it.outcome == CheckOutcome.WITHHELD }?.reason?.let { reason ->
@@ -613,15 +613,16 @@ class WorkspaceChecks(
      * 参照の場所へ指摘を出す検査（SP-08。rule.reportAt.ref を宣言した検査。対象型の不一致など）: 見つかった解
      * （expect: absent）または条件を満たさなかった組（check）ごとに、束縛した参照が**この文書に書かれている**ものを、
      * その参照の場所へ指摘する。起点は全エンティティから探すが、参照が最初の edge で束縛されているときは、
-     * この文書に関わる起点だけを調べる（出ていく参照ならこの文書に書かれた要素・入ってくる参照ならこの文書の参照の相手）。
+     * この文書に関わる起点だけを調べる（出ていく参照ならこの文書に書かれた要素・入ってくる参照ならこの文書の参照の相手と、
+     * この文書の中に入れ子で書かれた要素＝保有の線の子。P40）。
      */
-    private fun refIssues(rule: ConstraintRule, document: DocumentId, localIds: List<String>, localTargets: List<String>): List<CheckIssue> {
+    private fun refIssues(rule: ConstraintRule, document: DocumentId, localIds: List<ScannedId>, localRefs: List<ScannedRef>): List<CheckIssue> {
         val refBind = rule.reportAt?.ref ?: return emptyList()
         val firstEdge = rule.spec.hops.firstOrNull()?.edge
         val starts = when {
             firstEdge?.bind != refBind -> graph.entities.keys.sorted()
-            firstEdge.dir == QueryDir.OUT -> localIds.distinct().sorted()
-            else -> localTargets.distinct().sorted()
+            firstEdge.dir == QueryDir.OUT -> localIds.map { it.id }.distinct().sorted()
+            else -> (localRefs.map { it.targetId } + localIds.filter { it.holderKey != null }.map { it.id }).distinct().sorted()
         }
         val suffix = (rule.description ?: rule.id)?.let { " — $it" } ?: ""
         val issues = mutableListOf<CheckIssue>()

@@ -132,6 +132,10 @@ definitions:
               type: enum
               values: [table, list]
               description: table は表形式に固定、list は縦並びに固定（省略時は列構成から自動判定）
+            - key: relation
+              label: 保有の関係名
+              type: string
+              description: "この項目に書いた ID を持つ要素を、外側の ID を持つ要素が保有する関係の名前（例 has-item。省略時はキー名）。関係レジストリに同じ名前で label / inverseLabel を書ける"
           map:
             - key: value
               label: 値定義
@@ -141,7 +145,15 @@ definitions:
               type: enum
               values: [table, list]
               description: table は表形式（キー列つき）に固定、list は縦並びに固定（省略時は列構成から自動判定）
+            - key: relation
+              label: 保有の関係名
+              type: string
+              description: "この項目に書いた ID を持つ要素を、外側の ID を持つ要素が保有する関係の名前（省略時はキー名）"
           object:
+            - key: relation
+              label: 保有の関係名
+              type: string
+              description: "この項目に書いた ID を持つ要素を、外側の ID を持つ要素が保有する関係の名前（省略時はキー名）"
             - key: fields
               label: 子フィールド
               type: array

@@ -710,6 +710,24 @@ internal fun runCli(args: Array<String>): String {
                             ).filterValues { it != null }
                         },
                         "unassigned" to composite.unassigned.map { "${it.document.value} :: ${it.path.pretty()}" }.ifEmpty { null },
+                        // 保有と所属（入れ子で書かれた要素。P40）: 関係パネル・read_entity と同じ 2 節
+                        "holdings" to idx.graph.holdingsOf(id).map { h ->
+                            linkedMapOf(
+                                "child" to h.child.id,
+                                "relation" to h.relation,
+                                "defining" to (h.child.role == EntityRole.DEFINING).takeIf { it },
+                                "file" to h.child.document.value,
+                                "path" to h.child.path.pretty(),
+                            ).filterValues { it != null }
+                        }.ifEmpty { null },
+                        "holders" to idx.graph.holdersOf(id).map { h ->
+                            linkedMapOf(
+                                "parent" to h.parent.id,
+                                "relation" to h.relation,
+                                "file" to h.child.document.value,
+                                "path" to h.child.path.pretty(),
+                            )
+                        }.ifEmpty { null },
                         "refs" to idx.outgoingRefs(id).map { r ->
                             linkedMapOf(
                                 "to" to r.targetId,
@@ -967,29 +985,40 @@ internal fun runCli(args: Array<String>): String {
  */
 internal fun inferRelationsDraft(ws: Workspace, registryId: String = "workspace-relations"): String {
     val byRelation = ws.index.refs.filter { it.relation != null }.groupBy { it.relation!! }
-    require(byRelation.isNotEmpty()) {
-        "relation を宣言した参照が索引にありません（スキーマの ref フィールドに relation を宣言してから実行してください）"
+    // 保有の線（入れ子で書かれた要素。P40）も名前ごとに集計する（名前は項目の relation か、書いている項目のキー名）
+    val byHolding = ws.index.graph.holdings.groupBy { it.relation }
+    require(byRelation.isNotEmpty() || byHolding.isNotEmpty()) {
+        "relation を宣言した参照も、入れ子で書かれた要素（保有）も索引にありません（スキーマの ref フィールドに relation を宣言してから実行してください）"
     }
     fun quote(s: String): String = "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
     val text = buildString {
-        appendLine("# 関係レジストリのドラフト（infer-relations が参照実績から生成。R20-02）")
+        appendLine("# 関係レジストリのドラフト（infer-relations が参照と保有の実績から生成。R20-02）")
         appendLine("# inverseLabel（被参照方向の表示ラベル）は TODO を実際の語彙に書き換えてください。")
+        appendLine("# 保有（入れ子で書かれた要素）の名前は、スキーマの項目（array / object / map）に relation を書くと変えられます（既定はキー名）。")
         appendLine("id: $registryId")
         appendLine("kind: relations")
         appendLine("relations:")
-        byRelation.keys.sorted().forEach { name ->
-            val refs = byRelation.getValue(name)
-            val viaKeys = refs.map { it.viaKey }.distinct().sorted()
-            val sources = refs.mapNotNull { ws.index.sourceEntryOf(it)?.entityType }.distinct().sorted()
-            val targets = refs.flatMap { r -> ws.index.occurrences(r.targetId).mapNotNull { it.entityType } }
+        (byRelation.keys + byHolding.keys).toSortedSet().forEach { name ->
+            val refs = byRelation[name].orEmpty()
+            val held = byHolding[name].orEmpty()
+            val viaKeys = (refs.map { it.viaKey } + held.map { it.viaKey }).distinct().sorted()
+            val sources = (refs.mapNotNull { ws.index.sourceEntryOf(it)?.entityType } + held.mapNotNull { it.parent.entityType })
                 .distinct().sorted()
+            val targets = (
+                refs.flatMap { r -> ws.index.occurrences(r.targetId).mapNotNull { it.entityType } } +
+                    held.mapNotNull { it.child.entityType }
+                ).distinct().sorted()
             appendLine("  - name: ${quote(name)}")
             appendLine("    label: ${quote(name)}")
             appendLine("    # TODO: inverseLabel を被参照方向の語彙に書き換える（例: 〜される）")
             appendLine("    inverseLabel: ${quote("$name（被参照）")}")
             if (sources.isNotEmpty()) appendLine("    source: [${sources.joinToString(", ") { quote(it) }}]")
             if (targets.isNotEmpty()) appendLine("    target: [${targets.joinToString(", ") { quote(it) }}]")
-            appendLine("    description: ${quote("実績: 参照 ${refs.size} 件・キー: ${viaKeys.joinToString(", ")}")}")
+            val counts = listOfNotNull(
+                refs.takeIf { it.isNotEmpty() }?.let { "参照 ${it.size} 件" },
+                held.takeIf { it.isNotEmpty() }?.let { "保有 ${it.size} 件" },
+            ).joinToString("・")
+            appendLine("    description: ${quote("実績: $counts・キー: ${viaKeys.joinToString(", ")}")}")
         }
     }
     // 入口保証: 生成物がメタスキーマ検証（レジストリの定義検証）を通ることを生成段階で確認する

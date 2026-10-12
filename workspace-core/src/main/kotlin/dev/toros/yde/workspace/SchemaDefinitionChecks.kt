@@ -23,6 +23,9 @@ data class SchemaIssue(val message: String, val path: String)
  */
 object SchemaDefinitionChecks {
 
+    /** relation（関係名）を書ける項目の種類: 参照と、ID を持つ要素を書く項目（保有の名前。P40）。 */
+    private val RELATION_TYPES = setOf(FieldType.REF, FieldType.ARRAY, FieldType.OBJECT, FieldType.MAP)
+
     /** スキーマ置き場に書かれたスキーマの点検の結果を、読み込みエラーの文面にする（文面は、root にあったときと同じ）。 */
     fun loadErrors(written: List<WorkspaceSchema>, registry: Map<String, RelationDef>): List<String> {
         val errors = mutableListOf<String>()
@@ -45,7 +48,7 @@ object SchemaDefinitionChecks {
     fun undeclaredRelations(schema: WorkspaceSchema, registry: Map<String, RelationDef>): List<String> =
         relationNames(schema).filter { it !in registry }.sorted()
 
-    /** スキーマの ref フィールドが宣言する関係種別（relation）を収集する。 */
+    /** スキーマの項目が宣言する関係名（relation）を収集する（参照の項目と、ID を持つ要素を書く項目の保有の名前。P40）。 */
     private fun relationNames(schema: WorkspaceSchema): Set<String> {
         val tree = schema.tree
         val names = mutableSetOf<String>()
@@ -53,7 +56,7 @@ object SchemaDefinitionChecks {
         fun walk(f0: FieldDef) {
             tree.definitionTarget(f0)?.let { (key, _) -> if (!seen.add(key)) return }
             val f = tree.resolve(f0) ?: f0
-            if (f.type == FieldType.REF) f.relation?.let(names::add)
+            if (f.type in RELATION_TYPES) f.relation?.let(names::add)
             f.fields.forEach(::walk)
             f.item?.let(::walk)
             f.value?.let(::walk)
@@ -233,6 +236,10 @@ object SchemaDefinitionChecks {
             }
             if ((f.min != null || f.max != null) && f.type != FieldType.INT && f.type != FieldType.NUMBER) {
                 issues += SchemaIssue("min / max は int / number 型でのみ使用できます", path)
+            }
+            // relation は参照の関係名（ref）か、ID を持つ要素を書く項目の保有の関係名（array / object / map）
+            if (f.relation != null && f.type !in RELATION_TYPES) {
+                issues += SchemaIssue("relation は ref か、ID を持つ要素を書く項目（array / object / map）でのみ使用できます", path)
             }
             if (f.hints.textDisplay != null && !stringy) {
                 issues += SchemaIssue("display: multiline は基底の種類が string の型でのみ使用できます", path)

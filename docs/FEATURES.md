@@ -99,7 +99,7 @@
 | V-21 | 準備完了レポートの画面（台帳の「準備」タブ・件数のタイル・型別とフェーズ別の積み上げ棒・エンティティの表から横ぐしへ・保存済みの内容で判定） | `ui/ReadinessPane.kt`, `ui/Charts.kt`（`BarChart`）, `AppState.readinessReport` | 単体 `ReadinessChartTest` | [ui](architecture/ui.md) |
 | V-14 | 検査の定義と語彙の定義（`constraints` の `use` ＋ `with`・`functions`・`vocabulary`・組込みは特権を持たない・CLI `checks`） | `semantic-core/schema/CheckDefinitions.kt`, `workspace-core/workspace/CheckCatalog.kt` | 単体 `CheckDefinitionsTest`, `CheckDefinitionTest` | [checks](architecture/checks.md) |
 | V-15 | 検査の結果の 4 つと指摘の出どころ（違反・充足・保留・対象外・`IssueSource`・保留は `withheld`・CLI `validate --sources`） | `semantic-core/semantic/CheckResults.kt`, `workspace-core/validate/CodedChecks.kt` | 単体 `SemanticRulesTest`, `CheckOutcomeTest` | [checks](architecture/checks.md) |
-| V-16 | クエリの線の意味（参照を書いた要素は最も内側の ID を持つ要素・入れ子の線 `contains`・`via`） | `semantic-core/semantic/Graph.kt`（`ownRefs`）, `semantic-core/schema/Query.kt`（`viaMatches`） | 単体 `QueryNestingTest`, `PreviewValidationTest` | [graph-query](architecture/graph-query.md) |
+| V-16 | クエリの線の意味（参照を書いた要素は最も内側の ID を持つ要素・入れ子の線 `contains`・`via`・名前を書いた線は保有の線も辿る） | `semantic-core/semantic/Graph.kt`（`ownRefs`）, `semantic-core/semantic/Query.kt`（`holdingSteps`） | 単体 `QueryNestingTest`, `PreviewValidationTest` | [graph-query](architecture/graph-query.md) |
 | V-17 | 規模の計測（CLI `bench`・合成ワークスペースで開く・検証・レポートの時間と伸び方を出す） | `core/Bench.kt`, `core/Cli.kt` | 単体 `BenchTest` | [checks](architecture/checks.md) |
 | V-18 | 検査の評価の共有（同じ索引の上では検査 × 要素を 1 回だけ評価・全体の検証が文書数に比例） | `semantic-core/semantic/CheckSession.kt`, `workspace-core/workspace/WorkspaceCheckRunner.kt` | 単体 `KernelCheckLoadingTest`, `BenchTest` | [checks](architecture/checks.md) |
 | V-19 | コードで実装された検査（ID パターンからの逸脱・重複所有・テンプレートの健全性・カーネルが配る） | `workspace-core/validate/CodedDocumentChecks.kt`, `workspace-core/workspace/SchemaDefinitionChecks.kt` | 単体 `KernelOnlyChecksTest` | [checks](architecture/checks.md) |
@@ -122,6 +122,7 @@
 | I-10 | 導出グラフ（走査結果から導出する読み取り専用のエンティティグラフ・索引の更新で無効化） | `semantic-core/semantic/`（`SemanticEntityGraph`）, `index/IdIndex.kt`（`graph`） | 単体 `EntityGraphTest` | [graph-query](architecture/graph-query.md) |
 | I-11 | 文書参照（`target: document`・文書ノードへの参照・エンティティ参照とは混ぜない） | `index/IdIndex.kt`（`RefEntry.targetKind`）, `ui/FormView.kt`（`DocRefScalarEditor`） | 単体 `DocRefTest` | [graph-query](architecture/graph-query.md) |
 | I-12 | 場所は文書 ID（索引・検証・ビュー・クエリの場所はワークスペース相対の `DocumentId`・root の型はカーネルの別名・編集用セッションは `fork`） | `index/IdIndex.kt`, `workspace-core/workspace/WorkspaceSession.kt`（`fork`） | 単体 `SessionForkTest`, `EditingSessionForkTest` | [index-references](architecture/index-references.md) |
+| I-13 | 保有と所属（入れ子で決まる関係に名前＝子を書く項目の `relation` かキー名・レジストリの宣言が効く・関係パネルと related・削除の注意事項） | `semantic-core/semantic/Graph.kt`（`SemanticHolding`）, `semantic-core/semantic/Refactor.kt` | 単体 `HoldingDeleteTest`, `SemanticEntityGraphTest` | [graph-query](architecture/graph-query.md) |
 
 ## 6. ワークスペース横断ビュー
 
@@ -129,7 +130,7 @@
 |---|---|---|---|---|
 | X-01 | 一覧ビュー（ID・タイトル・状態・担当・種別・絞り込み・未保存編集に追随・チェックと ID の列を左に固定） | `ui/WorkspaceViews.kt`, `ui/VirtualTable.kt`, `AppState.workspaceRecords` | 単体 `VirtualTableTest` | [views](architecture/views.md) |
 | X-02 | 一括編集（ルート直下の任意スカラーキー・セッション 1 トランザクション＝Undo 1 回） | `AppState.bulkUpdate`, `core/Documents.kt` | 単体 `AppStateRefactorTest`, `SessionWriteParityTest` | [editing-history](architecture/editing-history.md) |
-| X-03 | グラフレンズ（起点の近傍・型と関係の絞り込み・配置の切替・箱と矢印・ホイール／ドラッグ／ホバー／右クリック／PNG／ミニマップ） | `ui/GraphLensView.kt`, `ui/GraphLayouts.kt`（ELK を包む） | 単体 `GraphLayoutsTest`, `GraphLayoutTest` | [graph-query](architecture/graph-query.md) |
+| X-03 | グラフレンズ（起点の近傍・型と関係の絞り込み・配置の切替・箱と矢印・保有の線は親の側にひし形・ホイール／ドラッグ／ホバー／右クリック／PNG／ミニマップ） | `ui/GraphLensView.kt`, `ui/GraphLayouts.kt`（ELK を包む） | 単体 `GraphLayoutsTest`, `GraphLayoutTest` | [graph-query](architecture/graph-query.md) |
 | X-04 | コマンドパレット（Ctrl+K・ID・ファイル・本文検索・ビュー切替・スペース切替・保存） | `Main.kt`（`CommandPalette`）, `app/AppState.kt`（`searchContent`） | 手動 | [ui](architecture/ui.md) |
 | X-05 | ビュー定義 `_views`（`kind: grid` の行・列・並び〔出現順か `order.path` の値の順〕・詳細文書・新規行・バックリンク列・`kind: document`） | `core/Views.kt`, `workspace-core/workspace/ViewDefinitions.kt` | 単体 `ViewsTest` | [views](architecture/views.md) |
 | X-06 | ビューグリッド（セルの直接編集・要約とジャンプ・enum と参照の併記・詳細文書の作成・新規行・バックリンク列・カバレッジ表示・絞り込み・列の桁区切り `display: grouped` と表示の形 `format`・ID 列と見出しの固定） | `ui/ViewGridPane.kt`, `ui/VirtualTable.kt`, `AppState.createViewDetail` / `addViewRow` | 単体 `ViewsTest`, `VirtualTableTest` | [views](architecture/views.md) |

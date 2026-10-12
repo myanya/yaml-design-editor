@@ -198,4 +198,65 @@ class RelationRegistryTest {
         assertTrue("derives" in ws.relations)
         assertEquals(emptyList(), ws.schemaErrors, ws.schemaErrors.toString())
     }
+
+    @Test
+    fun `infer-relationsのドラフトに保有の線も載る`() {
+        write("_schemas/screen.yaml", """
+            id: screen
+            match: "screens/*.yaml"
+            entity:
+              - { type: screen, idPattern: "SCR-*", defines: true }
+              - { type: screen-item, idPattern: "SI-*", defines: true }
+            root:
+              type: object
+              fields:
+                - { key: id, type: id }
+                - key: items
+                  type: array
+                  relation: has-item
+                  item:
+                    type: object
+                    fields:
+                      - { key: id, type: id }
+                - key: extras
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: id, type: id }
+        """)
+        write("screens/SCR-1.yaml", "id: SCR-1\nitems:\n  - id: SI-1\n  - id: SI-2\nextras:\n  - id: SI-9")
+        val ws = Workspace.open(dir)
+        val draft = inferRelationsDraft(ws)
+        assertTrue("name: \"has-item\"" in draft, draft)
+        assertTrue("name: \"extras\"" in draft, "宣言の無い保有はキー名で載る: $draft")
+        assertTrue("保有 2 件" in draft, draft)
+        assertTrue("source: [\"screen\"]" in draft && "target: [\"screen-item\"]" in draft, draft)
+        write("_schemas/workspace-relations.yaml", draft)
+        ws.refresh()
+        assertEquals(emptyList(), ws.schemaErrors, ws.schemaErrors.toString())
+    }
+
+    @Test
+    fun `relationはrefと要素を書く項目にだけ書ける`() {
+        val parsed = SchemaLoader.parseSchemaText(
+            """
+            id: bad
+            match: "x/*.yaml"
+            root:
+              type: object
+              fields:
+                - { key: id, type: id }
+                - { key: name, type: string, relation: oops }
+                - key: parts
+                  type: array
+                  relation: has-part
+                  item: { type: object, fields: [{ key: id, type: id }] }
+            """.trimIndent(),
+            Path.of("_schemas/bad.yaml"),
+        )
+        val issues = parsed.validateDefinition()
+        assertEquals(1, issues.size, issues.toString())
+        assertTrue("relation は ref か" in issues.single().message, issues.single().message)
+    }
 }

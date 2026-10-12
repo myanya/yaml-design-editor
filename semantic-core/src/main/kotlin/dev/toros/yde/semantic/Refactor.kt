@@ -8,6 +8,7 @@ import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.model.getAt
 import dev.toros.yde.yaml.model.pretty
 import dev.toros.yde.yaml.model.scalarText
+import dev.toros.yde.semantic.schema.EntityRole
 import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.semantic.schema.entityFor
 
@@ -318,12 +319,20 @@ object SemanticRefactor {
         )
     }
 
-    /** 削除: 入次数が 0 でなければ参照元一覧つきで拒否する（黙って壊さない）。出現要素を削除する。 */
+    /**
+     * 削除: 入次数が 0 でなければ参照元一覧つきで拒否する（黙って壊さない）。出現要素を削除する。
+     * 保有する要素（削除する出現の中に入れ子で書かれた ID を持つ要素。P40）は要素ごと一緒に消える——消える要素と、
+     * それへの参照（壊れる参照）を注意事項に並べ、続けるか止めるかは人が決める（計画は止めない。
+     * 削除する出現の中に書かれた参照は、そこごと消えるので数えない）。
+     */
     private fun delete(snapshot: SemanticSnapshot, request: RefactoringRequest.DeleteEntity): RefactoringPlan {
         val id = request.id
         val occurrences = snapshot.occurrences(id)
         require(occurrences.isNotEmpty()) { "ID「$id」の出現が見つかりません" }
-        val inbound = snapshot.backlinksTo(setOf(id))
+        // 削除する出現の中（入れ子）に書かれた場所か。保有する要素と、中に書かれた参照はそこごと消える
+        fun removedWith(document: DocumentId, path: YPath): Boolean =
+            occurrences.any { e -> e.document == document && path.size >= e.path.size && path.subList(0, e.path.size) == e.path }
+        val inbound = snapshot.backlinksTo(setOf(id)).filter { !removedWith(it.document, it.path) }
         if (inbound.isNotEmpty()) {
             val shown = SemanticRewrite.listTop(inbound.map { r -> "${r.document.value} の ${r.path.pretty()}" })
             error("ID「$id」への参照が ${inbound.size} 件あるため削除できません（先に参照を編集するか merge を使ってください）: $shown")
@@ -331,14 +340,38 @@ object SemanticRefactor {
         occurrences.firstOrNull { it.path.isEmpty() }?.let { e ->
             error("出現が文書ルートのため要素削除できません（ファイルの削除は手動で行ってください）: ${e.document.value}")
         }
+        // 保有する要素: 削除する出現の中に書かれた ID を持つ要素。定義出現か全部の出現が消える要素は要素ごと消える
+        // （残る出現は浮遊詳細化になる）。詳細化の出現だけが消える要素は、その側面だけが消える
+        val nested = snapshot.ids.values.asSequence().flatten()
+            .filter { it.id != id && removedWith(it.document, it.path) }
+            .map { it.id }.distinct().sorted().toList()
+        val vanishing = nested.filter { child ->
+            val occs = snapshot.occurrences(child)
+            occs.all { removedWith(it.document, it.path) } ||
+                occs.any { it.role == EntityRole.DEFINING && removedWith(it.document, it.path) }
+        }
+        val warnings = mutableListOf<String>()
+        vanishing.forEach { child ->
+            val broken = snapshot.backlinksTo(setOf(child)).filter { !removedWith(it.document, it.path) }
+            if (broken.isNotEmpty()) {
+                val shown = SemanticRewrite.listTop(broken.map { r -> "${r.document.value} の ${r.path.pretty()}" })
+                warnings += "保有する要素「$child」も消えるため、それへの参照 ${broken.size} 件が壊れます: $shown"
+            }
+        }
+        (nested - vanishing.toSet()).forEach { child ->
+            warnings += "要素「$child」のこの中の出現（側面）が消えます（他の出現は残ります）"
+        }
         val builder = SemanticRewrite.PlanOps(removesLast = true)
         occurrences.sortedWith(occurrenceDescending).forEach { e -> builder.add(e.document, YamlOperation.Remove(e.path)) }
         return RefactoringPlan(
             sourceVersion = snapshot.sourceVersion,
             request = request,
             changes = builder.toChanges(),
-            warnings = emptyList(),
-            summary = listOf("ID「$id」の出現 ${occurrences.size} 件（${occurrences.map { it.document }.distinct().size} 文書）を削除"),
+            warnings = warnings,
+            summary = listOfNotNull(
+                "ID「$id」の出現 ${occurrences.size} 件（${occurrences.map { it.document }.distinct().size} 文書）を削除",
+                vanishing.takeIf { it.isNotEmpty() }?.let { "保有する要素 ${it.size} 件も一緒に削除: ${SemanticRewrite.listTop(it)}" },
+            ),
         )
     }
 

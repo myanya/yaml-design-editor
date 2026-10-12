@@ -370,22 +370,36 @@ object SemanticQuery {
         via: String? = null,
         schemaId: String? = null,
     ): List<String> = when (follow) {
-        "out" -> frontier.flatMap { id -> graph.outgoingRefs(id) }
-            .asSequence()
-            .filter { relation == null || it.relation == relation }
-            .filter { via == null || QueryEdgeStep.viaMatches(via, it.viaKey, it.path) }
-            .map { it.targetId }
+        "out" -> (
+            frontier.flatMap { id -> graph.outgoingRefs(id) }
+                .asSequence()
+                .filter { relation == null || it.relation == relation }
+                .filter { via == null || QueryEdgeStep.viaMatches(via, it.viaKey, it.path) }
+                .map { it.targetId } +
+                // 名前を書いたときは、その名前の保有の線（保有する要素）も辿る（P40）
+                frontier.asSequence().flatMap { id -> graph.holdingsOf(id).asSequence() }
+                    .filter { relation != null && it.relation == relation }
+                    .filter { via == null || QueryEdgeStep.viaMatches(via, it.viaKey, it.child.path) }
+                    .map { it.child.id }
+            )
             .distinct()
             .filter { schemaId == null || ids[it].orEmpty().any { e -> e.schemaId == schemaId } }
             .sorted()
             .toList()
         "in" -> {
             val targets = frontier.toSet()
-            refs.filter { it.targetKind == RefTarget.ENTITY && it.targetId in targets }
-                .asSequence()
-                .filter { relation == null || it.relation == relation }
-                .filter { via == null || QueryEdgeStep.viaMatches(via, it.viaKey, it.path) }
-                .mapNotNull { graph.sourceEntryOf(it)?.id }
+            (
+                refs.filter { it.targetKind == RefTarget.ENTITY && it.targetId in targets }
+                    .asSequence()
+                    .filter { relation == null || it.relation == relation }
+                    .filter { via == null || QueryEdgeStep.viaMatches(via, it.viaKey, it.path) }
+                    .mapNotNull { graph.sourceEntryOf(it)?.id } +
+                    // 名前を書いたときは、その名前の保有の線（所属先）も辿る（P40）
+                    frontier.asSequence().flatMap { id -> graph.holdersOf(id).asSequence() }
+                        .filter { relation != null && it.relation == relation }
+                        .filter { via == null || QueryEdgeStep.viaMatches(via, it.viaKey, it.child.path) }
+                        .map { it.parent.id }
+                )
                 .distinct()
                 .filter { schemaId == null || ids[it].orEmpty().any { e -> e.schemaId == schemaId } }
                 .sorted()
@@ -393,6 +407,16 @@ object SemanticQuery {
         }
         else -> error("follow は out / in のいずれかです: $follow")
     }
+
+    /**
+     * 保有の線を参照の形に写す（線の束縛 bind・指摘の場所 reportAt・道すじの並びのため。P40）。
+     * 相手は子、場所は子の要素、キーは子を書いている項目、関係名は線の名前。索引の参照の並びには混ぜない
+     * （改名・統合・削除は索引の参照だけを書き換える）。
+     */
+    fun holdingRef(h: SemanticHolding): ScannedRef = ScannedRef(
+        targetId = h.child.id, document = h.child.document, path = h.child.path, viaKey = h.viaKey,
+        relation = h.relation, sourceSchemaId = h.child.schemaId,
+    )
 
     // ---------------------------------------------------------------- 評価
 
@@ -730,7 +754,37 @@ object SemanticQuery {
                             ?: run { unknownDropped = true; null }
                     }
                 }
-            }.toList()
+            }.toList() + holdingSteps(from, edge, targetKind)
+        }
+
+        /**
+         * 保有の線（P40。architecture/graph-query.md「線の意味」）: 名前を書いた線（relation）は、参照に加えて、その名前の保有の線
+         * （入れ子で書かれた要素。名前は宣言した relation か、書いている項目のキー名）も辿る。
+         * out → 保有する要素（子）、in → 所属先（親）。名前を書かない線は今までどおり参照だけ（既存のクエリの意味を変えない）。
+         * 線を束縛する bind のために、保有の線を参照の形（相手＝子・場所＝子の要素）に写す（指摘は子の要素の場所に出る）。
+         */
+        private fun holdingSteps(from: NodeKey, edge: QueryEdgeStep, targetKind: QueryNodeKind): List<Pair<NodeKey, ScannedRef?>> {
+            val relation = edge.relation ?: return emptyList()
+            fun matches(h: SemanticHolding): Boolean =
+                h.relation == relation && edge.viaMatches(h.viaKey, h.child.path) &&
+                    (edge.inDoc?.matches(h.child.schemaId, rel(h.child.document)) ?: true)
+            fun child(h: SemanticHolding) = NodeKey(QueryNodeKind.ENTITY, h.child.id) to holdingRef(h)
+            // 文書ノードとの間は参照と同じ捉え方: out は「その文書に書かれた保有の線」、in は「その保有が書かれた文書」
+            return when (edge.dir) {
+                QueryDir.OUT -> when {
+                    targetKind != QueryNodeKind.ENTITY -> emptyList()
+                    from.kind == QueryNodeKind.ENTITY -> graph.holdingsOf(from.id).filter(::matches).map(::child)
+                    else -> graph.documents[from.id]?.let { d -> graph.holdingsIn(d.document) }.orEmpty().filter(::matches).map(::child)
+                }
+                QueryDir.IN -> when {
+                    from.kind != QueryNodeKind.ENTITY -> emptyList()
+                    targetKind == QueryNodeKind.ENTITY ->
+                        graph.holdersOf(from.id).filter(::matches).map { h -> NodeKey(QueryNodeKind.ENTITY, h.parent.id) to holdingRef(h) }
+                    else -> graph.holdersOf(from.id).filter(::matches).mapNotNull { h ->
+                        documentIdByDoc[h.child.document]?.let { NodeKey(QueryNodeKind.DOCUMENT, it) to holdingRef(h) }
+                    }
+                }
+            }
         }
 
         /** 束縛が確定したノードに、その束縛のプロパティ述語をすべて適用する（1件の中の「または」は、どれかが成立すればよい）。 */

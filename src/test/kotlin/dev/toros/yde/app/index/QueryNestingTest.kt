@@ -45,6 +45,7 @@ class QueryNestingTest {
                   item: { type: ref, relation: uses }
                 - key: items
                   type: array
+                  relation: has-item
                   item:
                     type: object
                     fields:
@@ -61,6 +62,12 @@ class QueryNestingTest {
                         type: object
                         fields:
                           - { key: ref, type: ref, relation: link }
+                - key: extras
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: id, type: id, required: true }
             """,
         )
         write(
@@ -90,6 +97,8 @@ class QueryNestingTest {
                 other: { ref: EA-3 }
               - id: SI-2
                 source: EA-2
+            extras:
+              - id: SX-1
             """,
         )
         listOf("EA-1", "EA-2", "EA-3", "UC-1").forEach { write("attrs/$it.yaml", "id: $it") }
@@ -139,7 +148,7 @@ class QueryNestingTest {
     fun `入れ子の線で 外側の要素と内側の要素と文書を行き来できる`() {
         val ws = Workspace.open(dir)
         assertEquals(
-            listOf("SI-1", "SI-2"),
+            listOf("SI-1", "SI-2", "SX-1"),
             ids(ws, "match: [{node: {id: SCR-1, bind: a}}, {edge: {contains: true}}, {node: {bind: c}}]", "c"),
         )
         assertEquals(
@@ -234,5 +243,65 @@ class QueryNestingTest {
             spec("match: [{node: {bind: a}}, {edge: {contains: true, relation: uses}}, {node: {bind: b}}]")
         }
         assertTrue("contains" in e.message.orEmpty(), e.message)
+    }
+
+    @Test
+    fun `名前を書いた線は 参照に加えて その名前の保有の線も辿る`() {
+        val ws = Workspace.open(dir)
+        // 宣言した名前（項目の relation）で、外側の要素から保有する要素へ
+        assertEquals(
+            listOf("SI-1", "SI-2"),
+            ids(ws, "match: [{node: {id: SCR-1, bind: a}}, {edge: {relation: has-item}}, {node: {bind: c}}]", "c"),
+        )
+        // 逆向きは所属先へ
+        assertEquals(
+            listOf("SCR-1"),
+            ids(ws, "match: [{node: {id: SI-2, bind: c}}, {edge: {relation: has-item, dir: in}}, {node: {bind: a}}]", "a"),
+        )
+        // 宣言が無ければ、書いている項目のキー名が名前
+        assertEquals(
+            listOf("SX-1"),
+            ids(ws, "match: [{node: {id: SCR-1, bind: a}}, {edge: {relation: extras}}, {node: {bind: c}}]", "c"),
+        )
+        // 文書ノードとの間: 所属先の文書（in）と、文書に書かれた保有（out）
+        assertEquals(
+            listOf("screens/SCR-1.yaml"),
+            ids(ws, "match: [{node: {id: SI-1, bind: c}}, {edge: {relation: has-item, dir: in}}, {node: {kind: document, bind: d}}]", "d"),
+        )
+        // 名前を書かない線は今までどおり参照だけ（保有の線は含めない）
+        assertEquals(
+            listOf("UC-1"),
+            ids(ws, "match: [{node: {id: SCR-1, bind: a}}, {edge: {}}, {node: {bind: t}}]", "t"),
+        )
+    }
+
+    @Test
+    fun `参照の本数は名前の保有の線も数え レジストリの宣言が保有にも効く`() {
+        write(
+            "_schemas/relations.yaml",
+            """
+            id: ws-relations
+            kind: relations
+            relations:
+              - name: has-item
+                label: 画面項目
+                inverseLabel: 所属する画面
+                source: [screen]
+                target: [usecase]
+                cardinality: { outMin: 3 }
+              - { name: uses }
+              - { name: source }
+              - { name: link }
+            """,
+        )
+        val ws = Workspace.open(dir)
+        assertTrue(ws.schemaErrors.isEmpty(), ws.schemaErrors.toString())
+        val issues = ws.validate("screens/SCR-1.yaml")
+        // 多重度: 画面が保有する項目は 2 件で、下限 3 に足りない（保有の線を参照の本数として数える）
+        assertTrue(issues.any { "has-item" in it.message && "不足" in it.message }, issues.toString())
+        // 対象型: 保有する要素の型（screen-item）が宣言（usecase）に合わない。指摘は子の要素の場所
+        val typeIssues = issues.filter { "has-item" in it.message && "参照先エンティティ型" in it.message }
+        assertEquals(2, typeIssues.size, issues.toString())
+        assertTrue(typeIssues.any { it.path == listOf<Any>("items", 0) }, typeIssues.toString())
     }
 }

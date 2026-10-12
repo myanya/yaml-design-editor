@@ -414,10 +414,38 @@ private fun RelationsPanel(state: AppState, id: String) {
     val overlay = state.overlayIndex()
     val refsOut = remember(id, state.indexVersion, state.editVersion) { overlay.outgoingRefs(id) }
     val backlinks = remember(id, state.indexVersion, state.editVersion) { overlay.backlinksTo(setOf(id)) }
-    CrossSection("関係（参照 ${refsOut.size}・被参照 ${backlinks.size}）")
-    if (refsOut.isEmpty() && backlinks.isEmpty()) {
-        Text("この要素の参照・被参照はありません", fontSize = 11.sp, color = Palette.SubText)
+    // 保有と所属（入れ子で書かれた要素。P40）: 名前は項目の relation か、書いている項目のキー名
+    val holdings = remember(id, state.indexVersion, state.editVersion) { overlay.graph.holdingsOf(id) }
+    val holders = remember(id, state.indexVersion, state.editVersion) { overlay.graph.holdersOf(id) }
+    CrossSection("関係（参照 ${refsOut.size}・被参照 ${backlinks.size}・保有 ${holdings.size}・所属 ${holders.size}）")
+    if (refsOut.isEmpty() && backlinks.isEmpty() && holdings.isEmpty() && holders.isEmpty()) {
+        Text("この要素の参照・被参照・保有・所属はありません", fontSize = 11.sp, color = Palette.SubText)
         return
+    }
+    // 保有（この要素の中に書かれた要素）: 関係名の label でグループ化。子の役割（定義／詳細化）と書かれた場所を添える
+    holdings.groupBy { Relations.labelOf(state.relations, it.relation) ?: it.relation }.forEach { (label, lines) ->
+        RelationGroupHeader("◆ 保有: $label（${lines.size}）")
+        lines.forEach { h ->
+            RelationRow(
+                main = h.child.id + (h.child.title?.let { " — $it" } ?: ""),
+                sub = (if (h.child.role == EntityRole.DEFINING) "定義" else "詳細化") +
+                    " ／ ${h.child.document.value} ／ ${h.child.path.pretty()}",
+                onClick = { state.openCrossView(h.child.id) },
+                onJump = { state.openFile(h.child.document, h.child.path) },
+            )
+        }
+    }
+    // 所属（この要素を中に書いている外側の要素）: inverseLabel でグループ化。どの文書（側面）の中に書かれているかを添える
+    holders.groupBy { Relations.inverseLabelOf(state.relations, it.relation) ?: it.relation }.forEach { (label, lines) ->
+        RelationGroupHeader("◇ 所属: $label（${lines.size}）")
+        lines.forEach { h ->
+            RelationRow(
+                main = h.parent.id + (h.parent.title?.let { " — $it" } ?: ""),
+                sub = "${h.parent.schemaId ?: "スキーマなし"} ／ ${h.child.document.value} ／ ${h.child.path.pretty()}",
+                onClick = { state.openCrossView(h.parent.id) },
+                onJump = { state.openFile(h.child.document, h.child.path) },
+            )
+        }
     }
     // 参照方向（この要素から）: relation の label でグループ化。文書参照（R21-03）は別グループ
     val outGroups = refsOut.groupBy { r ->

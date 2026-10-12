@@ -45,7 +45,7 @@ GUIを起動せずに、ワークスペースの探索・検索・部分変更�
 ./gradlew runCli -q --args="run-skill my-ws normalize --yes"              # コード実行skill（--yes なしは内容表示のみ）
 ./gradlew runCli -q --args="init new-ws --template ledger"                # テンプレートで初期化
 ./gradlew runCli -q --args="infer-schema my-ws 'issues/**/*.yaml' --apply"  # 既存文書からスキーマ推測（--apply なしはプレビュー）
-./gradlew runCli -q --args="infer-relations my-ws --apply"                # 参照実績から関係レジストリのドラフト生成（[schema.md](schema.md)）
+./gradlew runCli -q --args="infer-relations my-ws --apply"                # 参照と保有（入れ子で書かれた要素）の実績から関係レジストリのドラフト生成（[schema.md](schema.md)）
 ./gradlew :cli:run -q --args="workspace validate my-ws"                    # 新CLI の検証（スキーマの定義の点検・構造・意味・定義体の検査・エンティティ型の点検・テンプレートの健全性。アプリと同じ実装で評価する。検査のエラーは終了コード 3。--format yaml / json で機械可読）
 ./gradlew :cli:run -q --args="workspace apply my-ws changeset.yaml --dry-run --require-valid"  # 新CLI の変更セットの適用（apply と同じ部品。--dry-run は検証だけ。終了コード 0 / 2＝競合など / 3＝検証のエラーが残る）
 ./gradlew :cli:run -q --args="workspace bench my-ws --iterations 3"       # 意味解析の性能計測（新CLI。全再構築 vs 増分更新）

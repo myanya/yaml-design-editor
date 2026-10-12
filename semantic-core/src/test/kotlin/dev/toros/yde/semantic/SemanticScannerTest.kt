@@ -151,4 +151,48 @@ class SemanticScannerTest {
         assertEquals(listOf("IT-001"), ids.map { it.id })
         assertTrue(refs.isEmpty())
     }
+
+    @Test
+    fun `入れ子の要素は 書いている項目のキーと保有の関係名を持つ`() {
+        val holding = SchemaTreeParser.parse(
+            """
+            id: holding
+            root:
+              type: object
+              fields:
+                - key: id
+                  type: id
+                - key: parts
+                  type: array
+                  relation: has-part
+                  item:
+                    type: object
+                    fields:
+                      - key: id
+                        type: id
+                - key: detail
+                  type: object
+                  fields:
+                    - key: id
+                      type: id
+            """.trimIndent(),
+            fallbackId = "holding",
+        )
+        val (ids, _) = SemanticScanner.scan(
+            SemanticDocument(
+                id = DocumentId("docs/h.yaml"),
+                root = YamlIO.parse("id: IT-001\nparts:\n  - id: PT-001\ndetail:\n  id: DT-001"),
+                schema = holding,
+                schemaId = "holding",
+            )
+        )
+        val root = ids.first { it.id == "IT-001" }
+        assertEquals(null, root.holderKey, "文書ルートの要素はどの項目にも書かれていない")
+        val part = ids.first { it.id == "PT-001" }
+        assertEquals("parts", part.holderKey)
+        assertEquals("has-part", part.holderRelation, "配列の項目に宣言した relation")
+        val detail = ids.first { it.id == "DT-001" }
+        assertEquals("detail", detail.holderKey)
+        assertEquals(null, detail.holderRelation, "宣言が無ければ null（線の名前はキー名になる）")
+    }
 }

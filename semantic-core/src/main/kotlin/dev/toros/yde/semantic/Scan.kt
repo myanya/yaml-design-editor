@@ -44,6 +44,13 @@ data class ScannedId(
     val entityType: String? = null,
     /** この出現の役割（定義／詳細化。R20-01。null = 宣言なし）。 */
     val role: EntityRole? = null,
+    /**
+     * この要素を書いている項目のキー（例: 画面項目なら `items`。文書ルートの要素は null）。
+     * 外側の ID を持つ要素との「保有」の線の名前の既定になる（P40。architecture/graph-query.md「線の意味」）。
+     */
+    val holderKey: String? = null,
+    /** この要素を書いている項目に宣言した保有の関係名（`relation`。無ければ null＝キー名が名前になる）。 */
+    val holderRelation: String? = null,
 )
 
 /** 走査で見つかった参照1件（属性付き参照では path は to 値の座標。R20-03）。 */
@@ -85,7 +92,14 @@ object SemanticScanner {
         val refs = mutableListOf<ScannedRef>()
         val schema = doc.schema
 
-        fun walk(node: YNode, path: YPath, def: FieldDef?, keyLabel: String?) {
+        /** 項目に宣言した保有の関係名（使う側の宣言、無ければ型の定義の宣言）。 */
+        fun relationOf(def: FieldDef?): String? = def?.relation ?: (schema?.resolve(def))?.relation
+
+        /**
+         * holderKey / holderRelation は、この node（要素）を書いている項目のキーと、その項目に宣言した保有の関係名
+         * （配列の要素なら配列の項目、object の値ならその項目、map の値なら map の項目）。ID を持つ要素の出現に写す。
+         */
+        fun walk(node: YNode, path: YPath, def: FieldDef?, keyLabel: String?, holderKey: String?, holderRelation: String?) {
             val effective = schema?.resolve(def) ?: def
             // スキーマ上 ref と定義された位置のスカラー値は参照として記録
             if (effective?.type == FieldType.REF && node is YNode.Scalar) {
@@ -120,8 +134,9 @@ object SemanticScanner {
                 is YNode.Scalar -> Unit
                 is YNode.Seq -> {
                     val itemDef = if (effective?.type == FieldType.ARRAY) effective.item else null
+                    // 配列の要素を書いている項目は、この配列の項目（保有の関係名はその項目の relation）
                     node.items.forEachIndexed { i, child ->
-                        walk(child, path + i, itemDef, keyLabel)
+                        walk(child, path + i, itemDef, keyLabel, keyLabel, relationOf(def))
                     }
                 }
                 is YNode.Map -> {
@@ -145,6 +160,8 @@ object SemanticScanner {
                             idText, doc.id, path, title, doc.schemaId, doc.documentId,
                             entityType = decl?.type,
                             role = decl?.let { if (it.defines) EntityRole.DEFINING else EntityRole.DETAIL },
+                            holderKey = holderKey?.takeIf { path.isNotEmpty() },
+                            holderRelation = holderRelation?.takeIf { path.isNotEmpty() },
                         )
                         break
                     }
@@ -172,13 +189,15 @@ object SemanticScanner {
                                 }
                             }
                         }
-                        walk(child, childPath, childDef, k)
+                        // 子の要素を書いている項目: map の値なら map の項目（キーは map 自身のキー）、それ以外はその項目
+                        if (effective?.type == FieldType.MAP) walk(child, childPath, childDef, k, keyLabel, effective.relation)
+                        else walk(child, childPath, childDef, k, k, relationOf(childDef))
                     }
                 }
             }
         }
 
-        walk(doc.root, emptyList(), schema?.root, null)
+        walk(doc.root, emptyList(), schema?.root, null, null, null)
         return ids to refs
     }
 }

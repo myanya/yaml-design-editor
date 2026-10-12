@@ -28,6 +28,25 @@ data class SemanticEntityNode(
     val title: String?,
 )
 
+/**
+ * 保有の線 1 本（P40。architecture/graph-query.md「線の意味」）: 外側の ID を持つ要素の出現（親）と、その直下に入れ子で
+ * 書かれた ID を持つ要素の出現（子）。YAML の構造（同じ文書の中のパスの包含）だけで決まり、原本には書かない。
+ * 親から見れば「保有」、子から見れば「所属」。名前は、子を書いている項目に宣言した `relation`、無ければその項目のキー名。
+ */
+data class SemanticHolding(
+    val parent: ScannedId,
+    val child: ScannedId,
+) {
+    /** 線の名前（宣言した relation、無ければ子を書いている項目のキー名）。クエリの `relation:` と関係レジストリの名前と突き合わせる。 */
+    val relation: String get() = child.holderRelation ?: child.holderKey ?: "contains"
+
+    /** 名前が宣言（`relation`）によるか（false＝キー名の既定）。宣言のない関係名の検査は宣言したものだけを見る。 */
+    val declared: Boolean get() = child.holderRelation != null
+
+    /** 子を書いている項目のキー（`via` の突き合わせに使う）。 */
+    val viaKey: String get() = child.holderKey ?: ""
+}
+
 /** 文書ノード（容れ物の仮想ノード）。包含（contains）は entityIds として導出する（原本には書かない）。 */
 data class SemanticDocumentNode(
     val documentId: String,
@@ -99,6 +118,29 @@ class SemanticEntityGraph private constructor(
     private val childrenById: Map<String, List<String>> by lazy {
         parentByEntry.entries.groupBy({ it.value.id }, { it.key.id }).mapValues { it.value.distinct().sorted() }
     }
+
+    /**
+     * 保有の線の全部（P40）: 入れ子の線 1 本ごとに、親の出現・子の出現・名前。並びは子の ID → 文書 → パス（決定的）。
+     * 入れ子の線（childIds / parentIds）と同じ事実の、名前と出現つきの見え方。
+     */
+    val holdings: List<SemanticHolding> by lazy {
+        parentByEntry.entries.map { (child, parent) -> SemanticHolding(parent, child) }
+            .sortedWith(compareBy({ it.child.id }, { it.child.document.value }, { it.child.path.toString() }))
+    }
+
+    private val holdingsByParent: Map<String, List<SemanticHolding>> by lazy { holdings.groupBy { it.parent.id } }
+    private val holdingsByChild: Map<String, List<SemanticHolding>> by lazy { holdings.groupBy { it.child.id } }
+    private val holdingsByDocument: Map<DocumentId, List<SemanticHolding>> by lazy { holdings.groupBy { it.child.document } }
+
+    /** その文書に書かれた保有の線（文書ノードから出ていく保有。子の ID 昇順）。 */
+    fun holdingsIn(document: DocumentId): List<SemanticHolding> = holdingsByDocument[document].orEmpty()
+
+    /** この要素が保有する線（この要素のどの出現の中に書かれた要素でも。子の ID 昇順）。 */
+    fun holdingsOf(id: String): List<SemanticHolding> = holdingsByParent[id].orEmpty()
+
+    /** この要素の所属（この要素の出現を直下に書いている外側の要素。親の ID 昇順）。 */
+    fun holdersOf(id: String): List<SemanticHolding> =
+        holdingsByChild[id].orEmpty().sortedWith(compareBy({ it.parent.id }, { it.child.document.value }, { it.child.path.toString() }))
 
     private val topLevelByDocument: Map<DocumentId, List<String>> by lazy {
         entities.values.flatMap { it.occurrences }.filter { it !in parentByEntry }

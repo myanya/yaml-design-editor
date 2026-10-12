@@ -125,4 +125,51 @@ class SemanticGraphIntegrityTest {
         )
         assertTrue(snapshot.issues.isEmpty(), "${snapshot.issues}")
     }
+
+    @Test
+    fun `宣言した保有の関係名もenforcementで指摘され キー名の既定は指摘しない`() {
+        val holding = SchemaTreeParser.parse(
+            """
+            id: holding
+            root:
+              type: object
+              fields:
+                - key: id
+                  type: id
+                - key: parts
+                  type: array
+                  relation: holds-part
+                  item:
+                    type: object
+                    fields:
+                      - key: id
+                        type: id
+                - key: notes
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - key: id
+                        type: id
+            """.trimIndent(),
+            fallbackId = "holding",
+        )
+        val snapshot = build(
+            SemanticDeclarations(
+                relations = mapOf("uses" to RelationDef(name = "uses")),
+                enforcement = EnforcementDef(undeclaredRelation = CoverageLevel.ERROR),
+            ),
+            SemanticDocument(
+                id = DocumentId("h.yaml"),
+                root = YamlIO.parse("id: C-1\nparts:\n  - id: C-2\nnotes:\n  - id: C-3"),
+                schema = holding,
+                schemaId = "holding",
+                entities = compEntities,
+            ),
+        )
+        val issue = snapshot.issues.single { "holds-part" in it.message }
+        assertEquals(Severity.ERROR, issue.severity)
+        assertEquals(listOf<Any>("parts", 0), issue.path, "指摘は子の要素の場所")
+        assertTrue(snapshot.issues.none { "notes" in it.message }, "キー名の既定は宣言ではない: ${snapshot.issues}")
+    }
 }

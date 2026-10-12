@@ -690,6 +690,27 @@ class AgentToolbox(
                     appendLine("）")
                 }
             }
+            // 保有と所属（この要素の中に書かれた要素と、この要素を中に書いている外側の要素。P40）
+            val holdings = idx.graph.holdingsOf(id)
+            if (holdings.isNotEmpty()) {
+                appendLine("保有する要素（${holdings.size}件）:")
+                holdings.forEach { h ->
+                    append("- ").append(h.child.id)
+                    h.child.title?.let { append(" = ").append(it) }
+                    append("（").append(Relations.labelOf(ws.relations, h.relation) ?: h.relation)
+                    if (h.child.role == EntityRole.DEFINING) append("・定義")
+                    appendLine("）")
+                }
+            }
+            val holders = idx.graph.holdersOf(id)
+            if (holders.isNotEmpty()) {
+                appendLine("所属（${holders.size}件）:")
+                holders.forEach { h ->
+                    append("- ").append(h.parent.id)
+                    h.parent.title?.let { append(" = ").append(it) }
+                    appendLine("（${Relations.inverseLabelOf(ws.relations, h.relation) ?: h.relation}・${h.child.document.value}）")
+                }
+            }
             appendLine("被参照（${backlinks.size}件）:")
             backlinks.take(backlinkLimit).forEach { b ->
                 append("- ").append(b.document.value).append(" :: ").append(b.path.pretty())
@@ -779,6 +800,28 @@ class AgentToolbox(
                 appendLine("）[${b.document.value} :: ${b.path.pretty()}]")
             }
             if (backlinks.size > relationLimit) appendLine("…他 ${backlinks.size - relationLimit} 件（limit 引数で拡張できます）")
+            // ---- 保有と所属（入れ子で書かれた要素。P40。名前は項目の relation か、書いている項目のキー名）
+            val holdings = idx.graph.holdingsOf(id)
+            if (holdings.isNotEmpty()) {
+                appendLine("## 保有する要素（この要素の中に書かれた要素 ${holdings.size} 件）")
+                holdings.take(relationLimit).forEach { h ->
+                    append("- ◆ ").append(h.child.id)
+                    h.child.title?.let { append(" = ").append(it) }
+                    append("（").append(Relations.labelOf(ws.relations, h.relation) ?: h.relation)
+                    if (h.child.role == EntityRole.DEFINING) append("・定義")
+                    appendLine("）[${h.child.document.value} :: ${h.child.path.pretty()}]")
+                }
+                if (holdings.size > relationLimit) appendLine("…他 ${holdings.size - relationLimit} 件")
+            }
+            val holders = idx.graph.holdersOf(id)
+            if (holders.isNotEmpty()) {
+                appendLine("## 所属（この要素を中に書いている外側の要素 ${holders.size} 件）")
+                holders.forEach { h ->
+                    append("- ◇ ").append(h.parent.id)
+                    h.parent.title?.let { append(" = ").append(it) }
+                    appendLine("（${Relations.inverseLabelOf(ws.relations, h.relation) ?: h.relation}）[${h.child.document.value} :: ${h.child.path.pretty()}]")
+                }
+            }
             // ---- 検査の状況（status を宣言した検査＝詳細文書の存在など。判定は Validator と共有）
             val statuses = idx.occurrences(id)
                 .mapNotNull { e -> ws.schemas.firstOrNull { it.id == e.schemaId }?.let { it to e } }

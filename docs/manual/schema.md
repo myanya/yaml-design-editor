@@ -58,7 +58,7 @@ root:                                 # ルートのフィールド定義（通�
 | `idPattern` / `idPatterns` | `ref` の参照先IDをglob（`*`, `?`）で限定。複数指定はOR |
 | `scope.schemaIds` | 参照先を特定スキーマIDに限定。配列内はOR |
 | `scope.documentIds` | 参照先を特定ドキュメントIDに限定。配列内はOR |
-| `relation` | `ref` の関係種別（例 `implements` / `depends`）。解決可否には影響せず、表示とカバレッジ判定に使う |
+| `relation` | `ref` の関係種別（例 `implements`。解決に影響しない）、または保有の関係名（[ids.md](ids.md)） |
 | `minLength` / `maxLength` | `string` / `text` の文字数制約。違反は検証エラーで、AI生成の JSON Schema にも伝搬する |
 | `pattern` | `string` / `text` / `id` の形式制約（正規表現＝値の全体が一致すること・例 `"^[a-z][a-z0-9_]*$"`）。`id` に書くとIDフォーマットの強制になり（例 `TASK-\d{3}`）、自動採番の提案（フォームのID入力メニュー）のパターン源にもなる |
 | `min` / `max` | `int` / `number` の範囲制約。違反は検証エラー |

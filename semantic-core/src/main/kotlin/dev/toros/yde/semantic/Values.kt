@@ -234,7 +234,16 @@ object SemanticValues {
                     (expr.relation == null || ref.relation == expr.relation) &&
                         (expr.via == null || QueryEdgeStep.viaMatches(expr.via, ref.viaKey, ref.path))
                 }
-                SemanticCheckSide(text = n.toString(), id = node.id, raw = n.toString(), kind = ValueExpr.OrderKind.NUMBER)
+                // 名前を書いたときは、その名前の保有の線（out＝保有する要素・in＝所属先）も数える（P40。クエリの線と同じ捉え方）
+                val held = if (expr.relation == null) 0 else when (expr.dir) {
+                    QueryDir.OUT -> graph.holdingsOf(node.id)
+                    QueryDir.IN -> graph.holdersOf(node.id)
+                }.count { h ->
+                    h.relation == expr.relation &&
+                        (expr.via == null || QueryEdgeStep.viaMatches(expr.via, h.viaKey, h.child.path))
+                }
+                val total = n + held
+                SemanticCheckSide(text = total.toString(), id = node.id, raw = total.toString(), kind = ValueExpr.OrderKind.NUMBER)
             }
             // 書かれた場所の数（SP-05）: その ID が書かれている場所のうち、指定（スキーマ・ファイル・役割）に合うものを数える。
             // distinct: type は、合う場所で宣言されているエンティティ型の種類を数える（元の値に、型の並びを添える）

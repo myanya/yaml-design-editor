@@ -113,4 +113,22 @@ class SemanticEntityGraphTest {
         assertEquals(listOf("IT-001", "PT-001"), graph.documents.getValue("items/a.yaml").entityIds)
         assertTrue("items/b.yaml" in graph.documents.keys)
     }
+
+    @Test
+    fun `保有の線は親と子の出現と名前を持つ`() {
+        val graph = build(
+            doc("items/a.yaml", "id: IT-001\nparts:\n  - id: PT-001\n  - id: PT-002"),
+            doc("items/b.yaml", "id: IT-002"),
+        )
+        val held = graph.holdingsOf("IT-001")
+        assertEquals(listOf("PT-001", "PT-002"), held.map { it.child.id })
+        assertEquals("parts", held.first().relation, "宣言が無ければ、書いている項目のキー名が名前")
+        assertEquals(false, held.first().declared)
+        assertEquals("IT-001", held.first().parent.id)
+        assertEquals(listOf("IT-001"), graph.holdersOf("PT-002").map { it.parent.id })
+        assertTrue(graph.holdingsOf("IT-002").isEmpty())
+        assertEquals(2, graph.holdings.size)
+        // 入れ子の線（childIds / parentIds）と同じ事実
+        assertEquals(graph.childIds("IT-001"), held.map { it.child.id })
+    }
 }

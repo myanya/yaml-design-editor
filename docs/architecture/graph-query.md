@@ -9,7 +9,8 @@
 |---|---|---|
 | `EntityDecl` / `EntityRole` / `entityFor` | semantic-core/schema/Relations.kt | スキーマの `entity:` 宣言（型・`idPattern` / `idType`・`defines`・`aspect` / `owns`。ID の判定は `matchesId`） |
 | `RelationDef` / `Relations` / `EntityTypeDef` / `AspectDecl` / `EnforcementDef` | semantic-core/schema/Relations.kt | 関係レジストリ（`kind: relations`）の宣言。`labelOf` / `inverseLabelOf`・`ownedFieldKeys` |
-| `SemanticEntityGraph`（root の `EntityGraph` は別名） | semantic-core/semantic/ | 走査結果から導出する読み取り専用のグラフ。エンティティ表・隣接（`ownRefs` / `outgoingRefs` / 入次）・文書ノード表・入れ子（`childIds` / `parentIds` / `topLevelIds`）・参照の逆引き表（`refIndexFor`） |
+| `SemanticEntityGraph`（root の `EntityGraph` は別名） | semantic-core/semantic/ | 走査結果から導出する読み取り専用のグラフ。エンティティ表・隣接（`ownRefs` / `outgoingRefs` / 入次）・文書ノード表・入れ子（`childIds` / `parentIds` / `topLevelIds`）・保有の線（`holdings` / `holdingsOf` / `holdersOf` / `holdingsIn`）・参照の逆引き表（`refIndexFor`） |
+| `SemanticHolding` | semantic-core/semantic/Graph.kt | 保有の線 1 本（親の出現・子の出現・名前＝子を書く項目の `relation` かキー名・宣言の有無）。走査が `ScannedId.holderKey / holderRelation` に写した事実から作る |
 | `QuerySpec` / `QueryNodeStep` / `QueryEdgeStep` / `QueryWhere` | semantic-core/schema/Query.kt | クエリの宣言モデルとパース（1 実装をビュー・foreach・制約・変換・CLI が共用） |
 | `SemanticQuery` | semantic-core/semantic/Query.kt | パターン照合エンジン（`run`・`neighborIds`・`reach`・`matchesFrom` / `countMatchesFrom` / `checkFrom` / `forAllFrom`） |
 | `Query` | index/Query.kt | 索引と loader を渡してカーネルの評価器を呼ぶ窓口 |
@@ -39,13 +40,15 @@
 - 索引への反映は走査時。`DocScanner` が ID 検出時に型と役割（定義／詳細化）を `IdEntry.entityType` / `role` へ付与し、`IdIndex.resolve` は定義出現を優先する。
 - レジストリの表示への消費: バックリンクを表示する全面（関係タブ・エンティティページ・ビューの backlinks 列・文書ビュー・エージェントの `related`・グラフ・bundle）は relation 名の代わりに `label`（参照方向）／`inverseLabel`（被参照方向）を表示する。未宣言は名前のまま。表示は解決の意味論に関与させない。
 - レジストリの検査への消費: 対象型・多重度・非循環は組込み定義体が関係の宣言から展開する検査（[checks.md](checks.md)）。コードに残るのは宣言のない関係名の判定（`SemanticGraphIntegrity`）だけ。
+- 保有の線: ID を持つ要素の中に ID を持つ要素が書かれていれば、外側が内側を**保有**する（子から見れば**所属**。入れ子の線と同じ事実で、文書には何も書かない）。名前は、子を書く項目（array / object / map）に宣言した `relation`、無ければその項目のキー名。
+- 保有の線の宣言: 関係レジストリには参照の関係と同じ `relations:` に書き、label / inverseLabel・source / target・cardinality がそのまま効く。宣言のない関係名の検査（`undeclaredRelation`）とスキーマの点検は項目に書いた名前だけを見る（キー名の既定は宣言ではない）。`relation` を書ける項目は ref と array / object / map（定義の点検）。
 - 属性付き参照: `type: ref` のフィールドに `fields:` があるときだけ `{to: <ID>, <属性>...}` を許可する。`to` が参照値で、`RefEntry.path` は to 値の座標（ジャンプ・パッチ・バックリンクの意味を保つ）。属性は走査境界で、`RefEntry.attributes` として索引に載り、表示は括弧注記に閉じる。検証は to の解決 ＋ 属性の object 検証。
 - 文書参照: ref フィールドの `target: document`（既定 entity。値から推測しない）で文書ノードへの参照にする。`RefEntry.targetKind` を走査時に付与し、解決は `graph.documents` に対して行う。エンティティ参照の解決・バックリンク・カバレッジには混ぜない。
 - `infer-relations`（CLI）は索引の全参照から relation ごとの viaKey・参照元／先の型を集計してレジストリのドラフトを生成する。生成物は必ず `parseSchemaText` → `validateDefinition` を通る形。
 
 ## 導出グラフ
 
-- `SemanticEntityGraph` はセッションの意味解析が作り、索引がそのまま使う（作り直さない）。エンティティ表（id → 型・定義出現・出現一覧・タイトル）・隣接（出次と入次）・文書ノード表（documentId → file・contains）・入れ子の関係（同じ文書の中の ID 出現のパスの包含）。
+- `SemanticEntityGraph` はセッションの意味解析が作り、索引がそのまま使う（作り直さない）。エンティティ表（id → 型・定義出現・出現一覧・タイトル）・隣接（出次と入次）・文書ノード表（documentId → file・contains）・入れ子の関係（同じ文書の中の ID 出現のパスの包含）・保有の線（入れ子の関係 1 本ごとに親の出現・子の出現・名前。`holdings` は子の ID → 文書 → パスの順で決定的）。
 - 参照の逆引き表（被参照・文書ごとの参照・行ごとの参照）は同じ参照の並びにつき 1 回だけ作る（`refIndexFor`）。「すべての要素について」の相手の集まりも覚える（`entityIdsMatching`）。
 - ディスク・オーバーレイ・ステージングの各索引が自分のグラフを持つ（索引の二層を崩さない）。
 
@@ -53,7 +56,9 @@
 
 - 参照を書いた要素は 1 つ: 参照の線は、向きによらず「その参照を含む最も内側の ID を持つ要素」が書いたものとして辿る。`dir: out` はその要素が直接書いた参照だけ（`ownRefs`）、`dir: in` の相手はその参照を直接書いた要素（`sourceEntryOf`）。値の式 `refCount` も同じ。
 - 入れ子の線（`edge` の `contains: true`）: 参照ではなく要素の入れ子を辿る。`dir: out` は直下に入れ子になった ID を持つ要素、`dir: in` は外側の要素。文書ノードとの間は、その文書にいちばん外側で書かれた要素。`repeat` と組み合わせられる。参照を通らないため `relation` / `via` / `in` / `bind` / `row` とは一緒に書けない。「配下のどの要素が書いた参照でも辿る」は `contains` を `repeat: {min: 0}` で辿ってから参照の線、と部品の組合せで書く。
-- `via` は場所の末尾のキーの並び（`QueryEdgeStep.viaMatches`）。1 語ならキー名、複数語なら参照が書かれた場所のキー（配列の番号を除く）の末尾と比べる。
+- 名前を書いた線（`relation`）は、参照に加えて、その名前の**保有の線**も辿る。`dir: out` は保有する要素（子）、`dir: in` は所属先（親）。文書ノードとの間は参照と同じ捉え方（out は「その文書に書かれた保有」、in は「その保有が書かれた文書」）。名前を書かない線は今までどおり参照だけ（既存のクエリの意味を変えない）。値の式 `refCount` と `Traverse`（`neighborIds`）も同じ。
+- 保有の線の束縛: `bind` と `reportAt` のために、保有の線は参照の形（相手＝子・場所＝子の要素・キー＝子を書く項目）に写す（`SemanticQuery.holdingRef`）。参照の場所へ配る検査（`WorkspaceChecks.refIssues`）は、この文書の参照の相手に加えて、この文書の中に入れ子で書かれた要素も起点にする。
+- `via` は場所の末尾のキーの並び（`QueryEdgeStep.viaMatches`）。1 語ならキー名、複数語なら参照が書かれた場所のキー（配列の番号を除く）の末尾と比べる。保有の線では子を書く項目のキーと子の要素のパスで比べる。
 - 何段でも辿る線（`repeat: true` / `{min: 0}`）は、その線をくり返して辿り着ける要素の集まりを幅優先で求める（`reach`。一度調べた要素は二度調べない・隣は ID 昇順・最短の道すじを覚える→文面の `{path}`）。出発した要素へ戻る循環があれば出発した要素も入る（`node: {same}` で循環を調べられる）。
 - 行を線とみなす指定（`row`）は、同じ行の直下の 2 つの参照を 1 本の線として辿る（遷移の表）。
 - 読むための機能（文脈の開示 `follow: out`・エンティティページの関係の一覧）は入れ子の要素が書いた参照も見せる（`outgoingRefs`）。判定には使わない。
@@ -88,7 +93,8 @@ limit: 100
 - rename / merge / delete を 1 つの計画（`RefactoringPlan`＝文書ごとの型付き操作列）へ束ね、`session.planRefactoring` が作り `session.applyRefactoring` が 1 トランザクション（Undo 1 回）で適用する。計画は working 状態＝見たまま基準。
 - rename(old, new): 全出現の ID フィールドと全参照（スカラー／属性付き参照の `to`）を書き換える。new が既存 ID と衝突したら拒否、`idPattern` / `idType` の逸脱は警告。
 - merge(from, into): from への全参照を into へ張り替え、from の出現は「into の ID へ書き換えて詳細化として残す」か「要素ごと削除」。文書ルート出現の削除は拒否。
-- delete(id): 入次数が 0 でなければ参照元一覧つきで拒否（黙って壊さない）。
+- delete(id): 入次数が 0 でなければ参照元一覧つきで拒否（黙って壊さない。削除する出現の中に書かれた参照はそこごと消えるので数えない）。
+- delete の保有する要素: 削除する出現の中に入れ子で書かれた要素は一緒に消える。定義出現か全部の出現が消える要素と、それへの外からの参照（壊れる参照）を注意事項に並べ、計画は止めない（続けるか止めるかは人が決める）。詳細化の出現だけが消える要素は、その側面が消えることを注意事項にする。
 - 文書の移動（`RefactoringRequest.MoveDocument`）はパス ID の文書参照の書き換えと物理移動を 1 計画にする。`_document.id` 宣言済みなら参照は安定。ビュー定義の対象から外れる警告は `RefactoringImpact`（[workspace.md](workspace.md)）。
 - エージェントツールとしては公開しない（`apply_patch` で実現可能。ツール増はコンテキスト税）。入口は CLI `workspace refactor`・コマンドパレット・エンティティページの操作メニュー。
 
@@ -98,7 +104,9 @@ limit: 100
 - 出現の並びは「定義出現 → レジストリのアスペクト宣言順 → ファイルパス順 → 要素パス → アスペクト名」で決定的。値の読み取りは loader 注入。スキーマなし・object 解決不可の出現は `unassigned` へ落とす。
 - 重複所有は隠さず注記する（`AspectField.duplicateOf`）。是正は検証（[checks.md](checks.md) の重複所有）が促す。
 - 所有フィールドの編集は原本座標への `Slot` ルーティング（`ObjectFields` の include 選別描画）。専用の書込経路を作らない。閲覧専用モードは `FormCtx` 共有で波及する。
-- グラフレンズは `EntityGraph` の導出表示。節点は型で選んだエンティティ（`graph.entities`＝ID 一覧から。参照の有無を問わない）、辺はその間の解決済み参照（relation で絞る）。起点があれば、そこから辿れる近傍（深さ 1〜2）だけにする。配置は `GraphLayouts`（ELK を包む。放射・階層・応力と、軽い力学）で決定的（同じグラフなら同じ絵）。ノードクリックはエンティティページへ。
+- 関係パネル（`RelationsPanel`）は参照・被参照に加えて、保有（◆。関係名の label でグループ化・子の役割と書かれた場所）と所属（◇。inverseLabel・親の出現のスキーマと書かれた場所）を並べる。エージェントの `related` / `read_entity` も同じ 2 節を出す。
+- グラフレンズは `EntityGraph` の導出表示。節点は型で選んだエンティティ（`graph.entities`＝ID 一覧から。参照の有無を問わない）、辺はその間の解決済み参照と保有の線（`graph.holdings`。relation で絞る。関係のチェックには「（保有）」の印）。起点があれば、そこから辿れる近傍（深さ 1〜2。保有の線も辿る）だけにする。
+- レンズの描画: 保有の線は親の側にひし形を描き矢じりは付けない（UML の合成と同じ印）。配置は `GraphLayouts`（ELK を包む。放射・階層・応力と、軽い力学）で決定的（同じグラフなら同じ絵）。ノードクリックはエンティティページへ。
 - 放射配置は起点からの幅優先の木（最短の道すじ）だけを配置に渡し、木に入らない辺は直線で描く。応力配置は節点数に上限があり、超えると階層に代替する（理由を画面に出す）。
 
 ## 規律
@@ -109,6 +117,7 @@ limit: 100
 - グラフの導出項目を増やすときは `SemanticEntityGraph` に閉じ、消費側で走査を書かない。評価のたびに全要素・全参照を総なめする処理を置かない（グラフの一式につき 1 回）。
 - エンティティ合成の項目を増やすときは `Aspects` に閉じ、消費側で合成を書かない。
 - レジストリのラベルなど表示専用の情報を検証・解決の意味論に関与させない。
+- 保有の線を `ScannedRef` として索引の参照の並びに混ぜない（改名・統合・削除は索引の参照だけを書き換える）。クエリの束縛のために写す（`holdingRef`）だけ。名前は走査が決め（`ScannedId.holderKey / holderRelation`）、消費側でスキーマの項目を読み直さない。
 
 ## 拡張ポイント
 

@@ -54,6 +54,39 @@ _document:
 
 sample-workspace の `models/00-data-model.yaml`（エンティティ）と `tables/`（テーブル設計。`entity` 項目で親へ逆リンク）、ビュー定義 `_views/entity-tables.yaml` がこの規約の実例です。
 
+## 保有と所属（入れ子で決まる関係）
+
+ID を持つ要素の中に ID を持つ要素が書かれていれば、外側の要素は内側の要素を**保有**します（内側から見れば**所属**）。
+文書には何も書きません。YAML の構造だけで決まります（検証の入れ子の線 `contains` と同じ事実です。[checks.md](checks.md)）。
+参照で書く関係（`type: ref`）との使い分けは、子が親なしに存在せず、親を消せば子も消えるなら入れ子、独立して存在し組合せが変わりうるなら参照です。
+
+線には名前があります。内側の要素を書く項目（`array` / `object` / `map`）に `relation: has-item` のように書いた名前、無ければその項目のキー名（`items` など）です。
+
+```yaml
+    - key: items
+      type: array
+      relation: has-item          # 画面が項目を保有する関係の名前（省略時はキー名 items）
+      item:
+        type: object
+        entity: { type: screen-item, defines: true }
+```
+
+関係レジストリには参照の関係と同じ `relations:` に書けます。`label` が保有する要素の呼び名、`inverseLabel` が所属先の呼び名で、`source` / `target` / `cardinality` もそのまま効きます。
+
+```yaml
+  - name: has-item
+    label: 画面項目
+    inverseLabel: 所属する画面
+    source: [screen]
+    target: [screen-item]
+```
+
+- **クエリと検査**: 名前を書いた線 `edge: { relation: has-item }` は、参照に加えて、その名前の保有の線も辿ります（`dir: out` は保有する要素、`dir: in` は所属先）。名前を書かない線は今までどおり参照だけです。
+参照の本数（`refCount` に `relation` を書いたとき）も保有の線を数えます。例「画面項目の所属画面を一覧にする」: `match: [{node: {entity: screen-item, bind: item}}, {edge: {relation: has-item, dir: in}}, {node: {entity: screen, bind: scr}}]`。
+- **画面と AI**: エンティティページの関係パネルに「◆ 保有」「◇ 所属」の節、グラフレンズに保有の線（親の側にひし形。[views.md](views.md)）、エージェントの `related` / `read_entity` に保有と所属が出ます。
+- **削除**: エンティティを削除すると保有する要素も一緒に消えます。消える要素と、それへの参照（壊れる参照）を確認してから適用します。
+- **宣言の点検**: `undeclaredRelation` の強制は、項目に書いた名前だけを見ます（キー名の既定は宣言ではありません）。`relation` を書けるのは `ref` と `array` / `object` / `map` です。CLI の `infer-relations` は保有の実績もドラフトに載せます。
+
 スキーマに**エンティティ型宣言**（`entity:`。[checks.md](checks.md)）を書くと、どの出現がそのIDの「定義（誕生）」かを機械が知り、参照ジャンプ・タイトル解決が定義出現に安定します。定義出現の欠落・競合は検証が警告します。
 
 ## 参照候補の絞り込み
