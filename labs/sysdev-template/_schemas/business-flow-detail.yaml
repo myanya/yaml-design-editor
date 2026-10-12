@@ -90,6 +90,7 @@ root:
       label: 工程・契機・状態
       type: array
       required: true
+      relation: flow-node         # 保有の関係名（業務フローが工程・状態を保有する）
       item:
         type: object
         entity: { type: business-flow-node, defines: true }
@@ -128,6 +129,7 @@ root:
       label: 工程間の遷移
       type: array
       required: true
+      relation: flow-transition   # 保有の関係名（業務フローが遷移を保有する）
       item:
         type: object
         entity: { type: business-flow-transition, defines: true }

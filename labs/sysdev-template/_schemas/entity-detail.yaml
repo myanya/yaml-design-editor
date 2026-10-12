@@ -36,6 +36,7 @@ root:
       label: 属性一覧（論理）
       type: array
       required: true
+      relation: has-attribute     # 保有の関係名（エンティティが属性を保有する）
       item:
         type: object
         fields:

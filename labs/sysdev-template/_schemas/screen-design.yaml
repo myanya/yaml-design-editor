@@ -55,6 +55,7 @@ root:
       label: 画面項目（物理）
       type: array
       required: true
+      relation: has-physical-item # 保有の関係名（画面の物理側面が物理項目を保有する）
       item:
         type: object
         fields:

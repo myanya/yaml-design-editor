@@ -42,6 +42,7 @@ root:
       label: エンティティ一覧（概念ER）
       type: array
       required: true
+      relation: has-entity        # 保有の関係名（ドメインがエンティティを保有する）
       item:
         type: object
         entity: { type: entity-model, defines: true }
@@ -53,6 +54,7 @@ root:
       label: ユーザアクション一覧
       type: array
       required: true
+      relation: has-user-action   # 保有の関係名
       item:
         type: object
         entity: { type: user-action, defines: true }
@@ -73,6 +75,7 @@ root:
     - key: system_events
       label: システムイベント一覧
       type: array
+      relation: has-system-event  # 保有の関係名
       item:
         type: object
         entity: { type: system-event, defines: true }

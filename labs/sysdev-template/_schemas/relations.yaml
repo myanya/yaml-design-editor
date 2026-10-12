@@ -237,3 +237,53 @@ relations:
     description: |
       物理型マッピング行が対象とする業務データ型。inMin: 1 = 全業務型はマッピング行を持つこと
       （マッピング漏れの検出）、inMax: 1 = 二重マッピングの禁止（単一DBMS前提）
+  # ---- 保有（入れ子で書かれた要素）の関係。名前はスキーマの項目（array）の relation と一致させる。
+  # 線は YAML の構造（外側の ID を持つ要素の中に書かれていること）から決まり、文書には何も書かない。
+  # 親から見れば label（保有する要素）、子から見れば inverseLabel（所属先）
+  - name: has-item
+    label: 画面項目（論理）
+    inverseLabel: 所属する画面
+    source: [screen]
+    target: [screen-item]
+    description: 画面定義（基本設計）の items に書いた論理項目を画面が保有する
+  - name: has-physical-item
+    label: 画面項目（物理）
+    inverseLabel: 所属する画面
+    source: [screen]
+    target: [screen-item-physical]
+    description: 画面設計書（詳細設計）の items に書いた物理項目を画面（物理の側面）が保有する
+  - name: has-entity
+    label: 定義するエンティティ
+    inverseLabel: 所属ドメイン
+    source: [domain]
+    target: [entity-model]
+  - name: has-user-action
+    label: 定義するユーザアクション
+    inverseLabel: 所属ドメイン
+    source: [domain]
+    target: [user-action]
+  - name: has-system-event
+    label: 定義するシステムイベント
+    inverseLabel: 所属ドメイン
+    source: [domain]
+    target: [system-event]
+  - name: flow-node
+    label: 工程・契機・状態
+    inverseLabel: 所属する業務フロー
+    source: [business-flow]
+    target: [business-flow-node]
+  - name: flow-transition
+    label: 工程間の遷移
+    inverseLabel: 所属する業務フロー
+    source: [business-flow]
+    target: [business-flow-transition]
+  - name: has-attribute
+    label: 属性
+    inverseLabel: 所属するエンティティ
+    source: [entity-model]
+    target: [entity-attr]
+  - name: has-column
+    label: カラム
+    inverseLabel: 所属するテーブル
+    source: [db-table]
+    target: [db-column]

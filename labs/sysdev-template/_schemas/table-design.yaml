@@ -67,6 +67,7 @@ root:
       label: カラム定義
       type: array
       required: true
+      relation: has-column        # 保有の関係名（テーブルがカラムを保有する）
       item:
         type: object
         fields:

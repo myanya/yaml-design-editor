@@ -31,6 +31,7 @@ root:
       label: 画面項目（論理）
       type: array
       required: true
+      relation: has-item          # 保有の関係名（画面が項目を保有する。レジストリの has-item と一致させる）
       item:
         type: object
         entity: { type: screen-item, defines: true }
