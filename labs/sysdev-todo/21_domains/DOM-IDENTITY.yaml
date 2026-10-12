@@ -2,27 +2,34 @@ id: DOM-IDENTITY
 responsibility: 利用者・セッション・ログイン履歴・本人確認要求の管理、認証・アカウント変更・退会を担う。
 out_of_scope: TODO・分類・タグの管理と権限判定は各ドメインが担当する。外部アカウント連携・組織・管理者権限・多要素認証は対象外。
 dependencies: []
-rules:
-  - 同一の正規化済みメールアドレスを複数の利用中アカウントへ登録しない。正規化の具体的な方法は未決定。★
-  - パスワード・パスワード検証用情報・セッションの認証情報・確認用トークンをログに記録しない。
-  - パスワードそのものを復元可能な形で保存しない。保存方式は後続設計で決める。★
-  - 未登録メールアドレスとパスワード不一致を、ログインのエラー応答から区別できないようにする。
-  - 認証を必要とする操作は、認証状態がENT-AUTH-SESSIONの利用可能条件を満たす場合に限って実行する。
-  - 操作する利用者IDは、利用可能な認証状態に関連付く利用者IDから取得する。
-  - ログイン試行は、正規化済みメールアドレスごとに直近60秒で最大10回とする。
-  - 時刻tでの試行受付判定では、t-60秒より後かつt以前に受け付けた照合対象の試行を数える。ちょうど60秒前の試行は対象外とする。
-  - 照合対象の試行には成功・失敗・処理中を含める。未登録のメールアドレスも同じ方法で数える。
-  - 過去の照合対象の試行が10回ある場合、次の試行は認証制限として拒否する。制限で拒否した試行は照合回数に加算しない。
-  - 回数判定と処理中の試行記録の作成は、同時要求を含めて最大10回を超えない単位で確定する。
-  - ログイン履歴には、形式検証を通過したログイン要求の受付日時・対象利用者ID・入力メールアドレス・接続元IPアドレス・結果を記録する。
-  - ログイン履歴は認証の失敗時と認証制限時にも記録する。メールアドレスの形式不正は照合前に拒否し、この履歴には含めない。
-  - ログイン履歴の作成に失敗した場合は認証状態を作成しない。障害時に残る処理中の履歴を確定する方法は後続設計で決める。★
-  - 利用者が確認できるログイン履歴は、試行時に自身の利用者IDへ関連付けられた履歴に限る。
-  - パスワード再設定は、登録済みメールアドレスへ送信した確認用リンクによる本人確認を必要とする。
-  - メールアドレス変更は、変更先メールアドレスへ送信した確認用リンクによる確認を必要とする。
-  - 確認用トークンは要求の目的・対象利用者に結び付け、1回限り使用できる値とする。
-  - パスワードの変更・再設定、メールアドレス変更の確定、退会時は、その利用者のすべての認証状態を無効化する。
-  - 本人確認メールの送信要求にも制限を設ける。対象単位・回数・期間は未決定。★
+rule_groups:
+  - name: 秘密情報の保護
+    rules:
+      - パスワード・パスワード検証用情報・セッションの認証情報・確認用トークンをログに記録しない。
+      - パスワードそのものを復元可能な形で保存しない。保存方式は後続設計で決める。★
+      - 未登録メールアドレスとパスワード不一致を、ログインのエラー応答から区別できないようにする。
+  - name: 認証と利用者の特定
+    rules:
+      - 認証を必要とする操作は、認証状態がENT-AUTH-SESSIONの利用可能条件を満たす場合に限って実行する。
+      - 操作する利用者IDは、利用可能な認証状態に関連付く利用者IDから取得する。
+  - name: 認証回数の制限
+    rules:
+      - ログイン試行は、正規化済みメールアドレスごとに直近60秒で最大10回とする。
+      - 時刻tでの試行受付判定では、t-60秒より後かつt以前に受け付けた照合対象の試行を数える。ちょうど60秒前の試行は対象外とする。
+      - 照合対象の試行には成功・失敗・処理中を含める。未登録のメールアドレスも同じ方法で数える。
+      - 過去の照合対象の試行が10回ある場合、次の試行は認証制限として拒否する。制限で拒否した試行は照合回数に加算しない。
+      - 回数判定と処理中の試行記録の作成は、同時要求を含めて最大10回を超えない単位で確定する。
+  - name: ログイン履歴の記録と公開範囲
+    rules:
+      - ログイン履歴には、形式検証を通過したログイン要求の受付日時・対象利用者ID・入力メールアドレス・接続元IPアドレス・結果を記録する。
+      - ログイン履歴は認証の失敗時と認証制限時にも記録する。メールアドレスの形式不正は照合前に拒否し、この履歴には含めない。
+      - ログイン履歴の作成に失敗した場合は認証状態を作成しない。障害時に残る処理中の履歴を確定する方法は後続設計で決める。★
+      - 利用者が確認できるログイン履歴は、試行時に自身の利用者IDへ関連付けられた履歴に限る。
+  - name: 本人確認
+    rules:
+      - パスワード再設定は、登録済みメールアドレスへ送信した確認用リンクによる本人確認を必要とする。
+      - メールアドレス変更は、変更先メールアドレスへ送信した確認用リンクによる確認を必要とする。
+      - 本人確認メールの送信要求にも制限を設ける。対象単位・回数・期間は未決定。★
 entities:
   - id: ENT-USER
     name: 利用者
@@ -34,20 +41,27 @@ entities:
       - { name: パスワード検証用情報, description: パスワードの照合に使用する情報。, data_type: DT-PASSWORD-VERIFIER, required: true }
       - { name: 利用状態, description: アカウントが利用中か退会済みかを表す区分。, data_type: DT-USER-STATUS, required: true }
       - { name: 作成日時, description: アカウントを作成した日時。, data_type: DT-RECORDED-AT, required: true }
-    rules:
-      - 登録時の利用状態は利用中とする。
-      - ニックネームの重複を許可する。
-      - メールアドレスやニックネームが変わっても利用者IDは変えない。
-      - 退会は利用状態を退会済みに変更する。保管情報の削除・匿名化と保管期間は未決定。★
+    rule_groups:
+      - name: 識別と一意性
+        rules:
+          - 利用者IDは一意とする。
+          - 同一の正規化済みメールアドレスを複数の利用中アカウントへ登録しない。正規化の具体的な方法は未決定。★
+          - ニックネームの重複を許可する。
+          - メールアドレスやニックネームが変わっても利用者IDは変えない。
+      - name: 利用状態
+        rules:
+          - 登録時の利用状態は利用中とする。
+          - 退会は利用状態を退会済みに変更する。保管情報の削除・匿名化と保管期間は未決定。★
   - id: ENT-AUTH-SESSION
     name: 認証状態
     summary: サーバー側で管理する、利用者のログインセッション。
     availability:
-      all:
-        - { subject: 認証情報に対応する認証状態の件数, operator: equals, expected: '1' }
-        - { subject: 認証状態の有効状態, operator: equals, expected: 有効 }
-        - { subject: 現在日時, operator: less_than, expected: 認証状態の有効期限 }
-        - { subject: 対象利用者の利用状態, operator: equals, expected: 利用中 }
+      kind: and
+      conditions:
+        - { kind: predicate, subject: 認証情報に対応する認証状態の件数, operator: equals, expected: "1" }
+        - { kind: predicate, subject: 認証状態の有効状態, operator: equals, expected: 有効 }
+        - { kind: predicate, subject: 現在日時, operator: less_than, expected: 認証状態の有効期限 }
+        - { kind: predicate, subject: 対象利用者の利用状態, operator: equals, expected: 利用中 }
     information:
       - { name: 認証状態ID, description: セッションを識別する値。, data_type: DT-AUTH-SESSION-ID, required: true }
       - { name: 利用者ID, description: 利用者の識別子。, data_type: DT-USER-ID, required: true }
@@ -55,16 +69,25 @@ entities:
       - { name: 最終操作日時, description: セッションの延長対象となる最後の操作を受け付けた日時。, data_type: DT-RECORDED-AT, required: true }
       - { name: 有効期限, description: 最終操作日時に3時間を加えた日時。, data_type: DT-AUTH-EXPIRES-AT, required: true }
       - { name: 有効状態, description: 明示的に無効化されているかを表す区分。, data_type: DT-AUTH-STATUS, required: true }
-    rules:
-      - セッションの有効期限は最終操作日時から3時間後とする。
-      - 現在日時が有効期限と等しい場合は、タイムアウトとして扱う。
-      - 期限判定はサーバー側で行う。
-      - 認証の確認に成功した利用者の操作では、最終操作日時を受付日時へ更新する。
-      - 自動ポーリング・静的資源の取得・無効な認証情報による要求は最終操作日時の更新対象に含めない。
-      - ログアウト・全セッションの無効化を行う操作では、最終操作日時の更新より無効化を優先する。
-      - 操作受付時に期限判定を行い、期限切れセッションを延長しない。
-      - 無操作時間の計測対象となる画面操作とAPIの対応は後続設計で具体化する。★
-      - 認証状態IDの実装上の形式、Cookieの属性、保存先、期限切れデータの回収方法は後続設計で決める。★
+    rule_groups:
+      - name: 生成時の状態
+        rules:
+          - 生成時の有効状態は有効とし、認証日時・最終操作日時はログイン成功日時とする。
+      - name: 有効期間
+        rules:
+          - セッションの有効期限は最終操作日時から3時間後とする。
+          - 現在日時が有効期限と等しい場合は、タイムアウトとして扱う。
+          - 期限判定はサーバー側で行う。
+          - 操作受付時に期限判定を行い、期限切れセッションを延長しない。
+      - name: 操作による延長
+        rules:
+          - 認証の確認に成功した利用者の操作では、最終操作日時を受付日時へ更新する。
+          - 自動ポーリング・静的資源の取得・無効な認証情報による要求は最終操作日時の更新対象に含めない。
+          - ログアウト・全セッションの無効化を行う操作では、最終操作日時の更新より無効化を優先する。
+      - name: 実装上の対応
+        rules:
+          - 無操作時間の計測対象となる画面操作とAPIの対応は後続設計で具体化する。★
+          - 認証状態IDの実装上の形式、Cookieの属性、保存先、期限切れデータの回収方法は後続設計で決める。★
   - id: ENT-LOGIN-HISTORY
     name: ログイン履歴
     summary: 認証制限の判定と本人による状況確認の記録。
@@ -75,12 +98,16 @@ entities:
       - { name: 受付日時, description: 試行の受付日時。, data_type: DT-RECORDED-AT, required: true }
       - { name: 接続元IPアドレス, description: サーバーが確認した接続元。, data_type: DT-IP-ADDRESS, required: true }
       - { name: 結果, description: 処理中・成功・失敗・認証制限の区分。, data_type: DT-LOGIN-OUTCOME, required: true }
-    rules:
-      - 履歴はメールアドレス変更後も同じ利用者IDに関連付く。
-      - 他の利用者へ履歴を付け替えない。
-      - 利用者による履歴の変更・削除は提供しない。
-      - 認証制限の集計期間内の履歴を削除しない。
-      - 履歴の保持期間、退会後の削除・匿名化方針は未決定。★
+    rule_groups:
+      - name: 帰属と変更制限
+        rules:
+          - 履歴はメールアドレス変更後も同じ利用者IDに関連付く。
+          - 他の利用者へ履歴を付け替えない。
+          - 利用者による履歴の変更・削除は提供しない。
+      - name: 保持と削除
+        rules:
+          - 認証制限の集計期間内の履歴を削除しない。
+          - 履歴の保持期間、退会後の削除・匿名化方針は未決定。★
   - id: ENT-IDENTITY-CONFIRMATION
     name: 本人確認要求
     summary: パスワード再設定またはメールアドレス変更の確認用リンクを管理する情報。
@@ -93,19 +120,30 @@ entities:
       - { name: 作成日時, description: 確認要求を作成した日時。, data_type: DT-RECORDED-AT, required: true }
       - { name: 有効期限, description: リンクを利用できる期間の終了日時。, data_type: DT-CONFIRMATION-EXPIRES-AT, required: true }
       - { name: 状態, description: 未使用・使用済み・無効の区分。, data_type: DT-CONFIRMATION-STATUS, required: true }
-    rules:
-      - 確認要求の目的を他の目的へ転用しない。
-      - 確認用トークンの使用済みへの更新と目的の変更処理を同時に確定する。
-      - 使用時に対象利用者の利用状態と送信先の整合を再確認する。
-      - パスワード変更・再設定・メールアドレス変更の確定・退会時は、対象利用者の未使用の確認要求を無効化する。
-      - トークンの有効期間・再送時の旧リンクの扱い・同時要求の上限は未決定。★
+    rule_groups:
+      - name: 目的と利用回数
+        rules:
+          - 確認用トークンは要求の目的・対象利用者に結び付け、1回限り使用できる値とする。
+          - 確認要求の目的を他の目的へ転用しない。
+          - 生成時の状態は未使用とする。
+      - name: 確認と確定
+        rules:
+          - 確認用トークンの使用済みへの更新と目的の変更処理を同時に確定する。
+          - 使用時に対象利用者の利用状態と送信先の整合を再確認する。
+      - name: 有効期間と再送
+        rules:
+          - トークンの有効期間・再送時の旧リンクの扱い・同時要求の上限は未決定。★
 operations:
   - id: OP-IDENTITY-REGISTER
     name: 利用者アカウントを登録する
     summary: メールアドレス・パスワード・ニックネームを受け付け、アカウントを作成する。
     actor: 利用者
     entities:
-      - { entity: ENT-USER, crud: [R, C] }
+      - entity: ENT-USER
+        C: { enabled: true, target: 登録する利用者 }
+        R: { enabled: true, target: 入力メールアドレスを使用する利用中アカウント }
+        U: { enabled: false }
+        D: { enabled: false }
     inputs:
       - { name: メールアドレス, description: ログインに使用するメールアドレス。, data_type: DT-EMAIL-ADDRESS, required: true }
       - { name: パスワード, description: ログインに使用する秘密情報。, data_type: DT-PASSWORD, required: true }
@@ -118,20 +156,10 @@ operations:
         - { name: 利用者ID, description: 利用者の識別子。, data_type: DT-USER-ID, required: true }
         - { name: 操作結果, description: 操作が成功したこと。, data_type: DT-OPERATION-RESULT, required: true, constraints: 成功を返す。 }
       constraints: パスワードとパスワード検証用情報は返さない。
-    preconditions:
-      all:
-        - { subject: メールアドレス, operator: satisfies, expected: DT-EMAIL-ADDRESSの形式・正規化条件★ }
-        - { subject: パスワード, operator: satisfies, expected: DT-PASSWORDの入力条件★ }
-        - { subject: ニックネーム, operator: satisfies, expected: DT-NICKNAMEの入力条件★ }
-        - { subject: 同じメールアドレスを持つ利用中アカウントの件数, operator: equals, expected: "0" }
+    preconditions: { kind: predicate, subject: 同じメールアドレスを持つ利用中アカウントの件数, operator: equals, expected: "0" }
     postconditions:
-      - 利用者アカウントが1件作成される。
-      - 利用者IDは一意である。
-      - 利用状態は利用中である。
-      - ニックネームは入力値と等しい。
       - 新しい認証状態は作成されない。
     errors:
-      - 入力条件を満たさない場合は登録しない。
       - 同じメールアドレスの利用中アカウントが存在する場合は登録しない。
       - 保存に失敗した場合は作成内容を確定しない。
   - id: OP-IDENTITY-LOGIN
@@ -139,9 +167,36 @@ operations:
     summary: 認証制限を確認し、利用中アカウントのメールアドレスとパスワードを照合する。
     actor: 利用者
     entities:
-      - { entity: ENT-USER, crud: [R] }
-      - { entity: ENT-LOGIN-HISTORY, crud: [R, C, U], description: 受付時に履歴を作成し、照合完了時に結果を更新する。認証制限時も履歴を作成する。 }
-      - { entity: ENT-AUTH-SESSION, crud: [C] }
+      - entity: ENT-USER
+        C: { enabled: false }
+        R: { enabled: true, target: 入力メールアドレスに対応する利用者 }
+        U: { enabled: false }
+        D: { enabled: false }
+      - entity: ENT-LOGIN-HISTORY
+        C:
+          enabled: true
+          target: 今回のログイン試行の履歴
+          condition: { kind: predicate, subject: 今回のログイン要求, operator: equals, expected: 受付済み }
+          notes: 照合前に処理中で作成する。認証制限時も作成し、その結果を記録する。
+        R:
+          enabled: true
+          target: 同じメールアドレスの直近60秒の履歴
+          condition: { kind: predicate, subject: 今回のログイン要求, operator: equals, expected: 受付済み }
+          notes: 認証回数の判定に使用する。
+        U:
+          enabled: true
+          target: 今回のログイン試行の履歴
+          condition: { kind: predicate, subject: 今回の試行, operator: equals, expected: 照合対象の試行 }
+          notes: 照合結果を成功または失敗として確定する。
+        D: { enabled: false }
+      - entity: ENT-AUTH-SESSION
+        C:
+          enabled: true
+          target: 対象利用者の新規セッション
+          condition: { kind: predicate, subject: 今回の認証結果, operator: equals, expected: 成功 }
+        R: { enabled: false }
+        U: { enabled: false }
+        D: { enabled: false }
     inputs:
       - { name: メールアドレス, description: ログインに使用するメールアドレス。, data_type: DT-EMAIL-ADDRESS, required: true }
       - { name: パスワード, description: 登録済みアカウントの認証に用いる値。, data_type: DT-PASSWORD, required: true }
@@ -155,19 +210,12 @@ operations:
         - { name: 操作結果, description: 操作が成功したこと。, data_type: DT-OPERATION-RESULT, required: true, constraints: 成功を返す。 }
       constraints: 認証情報のCookie等での受け渡し形式は後続設計で具体化する。★
     preconditions:
-      all:
-        - { subject: メールアドレス, operator: satisfies, expected: DT-EMAIL-ADDRESSの形式・正規化条件★ }
-        - { subject: 今回の受付前の同じメールアドレスの直近60秒の照合対象試行数, operator: less_than, expected: "10" }
-        - { subject: 対象利用者の件数, operator: equals, expected: "1" }
-        - { subject: 対象利用者の利用状態, operator: equals, expected: 利用中 }
-        - { subject: 入力されたパスワード, operator: satisfies, expected: 対象利用者のパスワード検証条件 }
-    postconditions:
-      - 認証状態が1件作成される。
-      - 認証状態の有効状態は有効である。
-      - 認証状態の認証日時はログイン成功日時と等しい。
-      - 認証状態の最終操作日時はログイン成功日時と等しい。
-      - 認証状態の有効期限は最終操作日時の3時間後と等しい。
-      - 今回のログイン履歴の結果は成功である。
+      kind: and
+      conditions:
+        - { kind: predicate, subject: 今回の受付前の同じメールアドレスの直近60秒の照合対象試行数, operator: less_than, expected: "10" }
+        - { kind: predicate, subject: 対象利用者の件数, operator: equals, expected: "1" }
+        - { kind: predicate, subject: 対象利用者の利用状態, operator: equals, expected: 利用中 }
+        - { kind: predicate, subject: 入力されたパスワード, operator: satisfies, expected: 対象利用者のパスワード検証条件 }
     errors:
       - 認証制限に達した場合は照合を行わず、履歴の結果を認証制限とする。
       - 利用者が存在しない場合・利用中でない場合・パスワードが一致しない場合は、履歴の結果を失敗とする。
@@ -178,19 +226,21 @@ operations:
     summary: 現在の認証状態を無効化する。認証情報がない場合や既に無効な場合も受け付ける。
     actor: 利用者
     entities:
-      - { entity: ENT-AUTH-SESSION, crud: [R, U], description: 対象が存在する場合のみ更新する。 }
+      - entity: ENT-AUTH-SESSION
+        C: { enabled: false }
+        R:
+          enabled: true
+          target: 提示された認証情報に対応するセッション
+          condition: { kind: predicate, subject: 現在の認証情報, operator: not_equals, expected: 未指定 }
+        U:
+          enabled: true
+          target: 提示された認証情報に対応するセッション
+          condition: { kind: predicate, subject: 該当する認証状態の件数, operator: equals, expected: "1" }
+          notes: 有効状態を無効にする。
+        D: { enabled: false }
     inputs:
       - { name: 現在の認証情報, description: 無効化対象を示す値。省略時は更新対象なし。, data_type: DT-AUTH-CREDENTIAL, required: false }
     result: { kind: value, multiple: false, required: true, data_type: DT-OPERATION-RESULT, constraints: 成功を返す。 }
-    preconditions:
-      all: []
-      any:
-        - { subject: 現在の認証情報, operator: equals, expected: 未指定 }
-        - { subject: 該当する認証状態の件数, operator: equals, expected: "0" }
-        - { subject: 対象認証状態の有効状態, operator: equals, expected: 有効 }
-        - { subject: 対象認証状態の有効状態, operator: equals, expected: 無効 }
-    postconditions:
-      - 対象の認証状態が存在する場合、その有効状態は無効である。
     errors:
       - 無効化の保存に失敗した場合は失敗を返す。
   - id: OP-IDENTITY-CURRENT
@@ -198,8 +248,20 @@ operations:
     summary: 認証状態に関連付く利用者情報を取得する。
     actor: 利用者
     entities:
-      - { entity: ENT-USER, crud: [R] }
-      - { entity: ENT-AUTH-SESSION, crud: [R, U] }
+      - entity: ENT-USER
+        C: { enabled: false }
+        R: { enabled: true, target: 認証中の利用者 }
+        U: { enabled: false }
+        D: { enabled: false }
+      - entity: ENT-AUTH-SESSION
+        C: { enabled: false }
+        R: { enabled: true, target: 現在のセッション }
+        U:
+          enabled: true
+          target: 現在のセッション
+          condition: { kind: predicate, subject: 今回の要求, operator: satisfies, expected: ENT-AUTH-SESSIONの「操作による延長」の条件 }
+          notes: 最終操作日時と有効期限を更新する。
+        D: { enabled: false }
     inputs:
       - { name: 現在の認証情報, description: 現在のセッションを提示する値。, data_type: DT-AUTH-CREDENTIAL, required: true }
     result:
@@ -209,14 +271,9 @@ operations:
       attributes:
         - { name: 利用者ID, description: 利用者の識別子。, data_type: DT-USER-ID, required: true }
         - { name: メールアドレス, description: ログインに使用するメールアドレス。, data_type: DT-EMAIL-ADDRESS, required: true }
-        - { name: ニックネーム, description: 画面上に表示する利用者の呼び名。, data_type: DT-NICKNAME, required: true, constraints: 秘密情報は含めない。 }
-    preconditions:
-      all:
-        - { subject: 現在の認証状態, operator: satisfies, expected: ENT-AUTH-SESSIONの利用可能条件 }
-    postconditions:
-      - 返却する利用者IDは認証状態に関連付く利用者IDと等しい。
-      - 返却するメールアドレスは対象利用者の現在のメールアドレスと等しい。
-      - 返却するニックネームは対象利用者の現在のニックネームと等しい。
+        - { name: ニックネーム, description: 画面上に表示する利用者の呼び名。, data_type: DT-NICKNAME, required: true }
+      constraints: 秘密情報は含めない。
+    preconditions: { kind: predicate, subject: 現在の認証状態, operator: satisfies, expected: ENT-AUTH-SESSIONの利用可能条件 }
     errors:
       - 認証状態が利用可能条件を満たさない場合は取得しない。
   - id: OP-IDENTITY-LOGIN-HISTORY-LIST
@@ -224,9 +281,25 @@ operations:
     summary: 自身のログイン試行の日時・接続元・結果を確認する。
     actor: 利用者
     entities:
-      - { entity: ENT-USER, crud: [R] }
-      - { entity: ENT-AUTH-SESSION, crud: [R, U] }
-      - { entity: ENT-LOGIN-HISTORY, crud: [R] }
+      - entity: ENT-USER
+        C: { enabled: false }
+        R: { enabled: true, target: 認証中の利用者 }
+        U: { enabled: false }
+        D: { enabled: false }
+      - entity: ENT-AUTH-SESSION
+        C: { enabled: false }
+        R: { enabled: true, target: 現在のセッション }
+        U:
+          enabled: true
+          target: 現在のセッション
+          condition: { kind: predicate, subject: 今回の要求, operator: satisfies, expected: ENT-AUTH-SESSIONの「操作による延長」の条件 }
+          notes: 最終操作日時と有効期限を更新する。
+        D: { enabled: false }
+      - entity: ENT-LOGIN-HISTORY
+        C: { enabled: false }
+        R: { enabled: true, target: 試行時に認証中の利用者IDへ関連付いた履歴 }
+        U: { enabled: false }
+        D: { enabled: false }
     result:
       kind: record
       multiple: true
@@ -235,14 +308,9 @@ operations:
         - { name: ログイン履歴ID, description: 履歴を識別する値。, data_type: DT-LOGIN-HISTORY-ID, required: true }
         - { name: 受付日時, description: 試行を受け付けた日時。, data_type: DT-RECORDED-AT, required: true }
         - { name: 接続元IPアドレス, description: 試行元のIPアドレス。, data_type: DT-IP-ADDRESS, required: true }
-        - { name: 結果, description: 試行の処理状態・結果。, data_type: DT-LOGIN-OUTCOME, required: true, constraints: 取得範囲・ページ分割・保持期間は未決定。★ }
-    preconditions:
-      all:
-        - { subject: 現在の認証状態, operator: satisfies, expected: ENT-AUTH-SESSIONの利用可能条件 }
-    postconditions:
-      - 各履歴の利用者IDは認証中の利用者IDと等しい。
-      - 履歴は受付日時の降順で並ぶ。
-      - 該当する履歴がない場合は空のリストを返す。
+        - { name: 結果, description: 試行の処理状態・結果。, data_type: DT-LOGIN-OUTCOME, required: true }
+      constraints: 受付日時の降順で返す。取得範囲・ページ分割・保持期間は未決定。★
+    preconditions: { kind: predicate, subject: 現在の認証状態, operator: satisfies, expected: ENT-AUTH-SESSIONの利用可能条件 }
     errors:
       - 認証状態が利用可能条件を満たさない場合は取得しない。
   - id: OP-IDENTITY-NICKNAME-CHANGE
@@ -250,68 +318,84 @@ operations:
     summary: ログイン中の利用者の呼び名を変更する。
     actor: 利用者
     entities:
-      - { entity: ENT-AUTH-SESSION, crud: [R, U] }
-      - { entity: ENT-USER, crud: [R, U] }
+      - entity: ENT-AUTH-SESSION
+        C: { enabled: false }
+        R: { enabled: true, target: 現在のセッション }
+        U:
+          enabled: true
+          target: 現在のセッション
+          condition: { kind: predicate, subject: 今回の要求, operator: satisfies, expected: ENT-AUTH-SESSIONの「操作による延長」の条件 }
+          notes: 最終操作日時と有効期限を更新する。
+        D: { enabled: false }
+      - entity: ENT-USER
+        C: { enabled: false }
+        R: { enabled: true, target: 認証中の利用者 }
+        U: { enabled: true, target: 認証中の利用者, notes: ニックネームを変更する。 }
+        D: { enabled: false }
     inputs:
       - { name: ニックネーム, description: 画面上に表示する利用者の呼び名。, data_type: DT-NICKNAME, required: true }
     result: { kind: value, multiple: false, required: true, data_type: DT-OPERATION-RESULT, constraints: 成功を返す。 }
-    preconditions:
-      all:
-        - { subject: 現在の認証状態, operator: satisfies, expected: ENT-AUTH-SESSIONの利用可能条件 }
-        - { subject: ニックネーム, operator: satisfies, expected: DT-NICKNAMEの入力条件★ }
-    postconditions:
-      - 対象利用者のニックネームは入力値と等しい。
+    preconditions: { kind: predicate, subject: 現在の認証状態, operator: satisfies, expected: ENT-AUTH-SESSIONの利用可能条件 }
     errors:
       - 認証状態が利用可能条件を満たさない場合は変更しない。
-      - ニックネームが入力条件を満たさない場合は変更しない。
   - id: OP-IDENTITY-PASSWORD-CHANGE
     name: パスワードを変更する
     summary: ログイン中に現在のパスワードを確認し、新しいパスワードへ変更する。
     actor: 利用者
     entities:
-      - { entity: ENT-USER, crud: [R, U] }
-      - { entity: ENT-AUTH-SESSION, crud: [R, U], description: 対象利用者の全セッションを無効化する。 }
-      - { entity: ENT-IDENTITY-CONFIRMATION, crud: [R, U] }
+      - entity: ENT-USER
+        C: { enabled: false }
+        R: { enabled: true, target: 認証中の利用者 }
+        U: { enabled: true, target: 認証中の利用者, notes: パスワード検証用情報を変更する。 }
+        D: { enabled: false }
+      - entity: ENT-AUTH-SESSION
+        C: { enabled: false }
+        R: { enabled: true, target: 現在のセッションと対象利用者の全セッション }
+        U: { enabled: true, target: 対象利用者の全セッション }
+        D: { enabled: false }
+      - entity: ENT-IDENTITY-CONFIRMATION
+        C: { enabled: false }
+        R: { enabled: true, target: 対象利用者の未使用要求 }
+        U: { enabled: true, target: 対象利用者の未使用要求 }
+        D: { enabled: false }
     inputs:
       - { name: 現在のパスワード, description: 本人であることを再確認する入力。, data_type: DT-PASSWORD, required: true }
       - { name: 新しいパスワード, description: 変更後の認証に使用する秘密の文字列。, data_type: DT-PASSWORD, required: true }
     result: { kind: value, multiple: false, required: true, data_type: DT-OPERATION-RESULT, constraints: 成功を返す。 }
     preconditions:
-      all:
-        - { subject: 現在の認証状態, operator: satisfies, expected: ENT-AUTH-SESSIONの利用可能条件 }
-        - { subject: 現在のパスワード, operator: satisfies, expected: 認証中の利用者のパスワード検証条件 }
-        - { subject: 新しいパスワード, operator: satisfies, expected: DT-PASSWORDの入力条件★ }
+      kind: and
+      conditions:
+        - { kind: predicate, subject: 現在の認証状態, operator: satisfies, expected: ENT-AUTH-SESSIONの利用可能条件 }
+        - { kind: predicate, subject: 現在のパスワード, operator: satisfies, expected: 認証中の利用者のパスワード検証条件 }
     postconditions:
-      - パスワード検証用情報は新しいパスワードに対応する値である。
       - 対象利用者の全認証状態の有効状態は無効である。
       - 対象利用者の未使用の確認要求の状態は無効である。
     errors:
       - 現在のパスワードが一致しない場合は変更しない。
-      - 新しいパスワードが入力条件を満たさない場合は変更しない。
       - 保存に失敗した場合は変更の一部だけを確定しない。
   - id: OP-IDENTITY-PASSWORD-RESET-REQUEST
     name: パスワード再設定のメールを依頼する
     summary: 登録済みメールアドレスへ再設定用リンクを送信する。
     actor: パスワードを忘れた利用者
     entities:
-      - { entity: ENT-USER, crud: [R] }
-      - { entity: ENT-IDENTITY-CONFIRMATION, crud: [C], description: 利用中の対象アカウントが存在する場合のみ作成する。 }
+      - entity: ENT-USER
+        C: { enabled: false }
+        R: { enabled: true, target: 入力メールアドレスに対応する利用者 }
+        U: { enabled: false }
+        D: { enabled: false }
+      - entity: ENT-IDENTITY-CONFIRMATION
+        C:
+          enabled: true
+          target: 対象利用者のパスワード再設定要求
+          condition: { kind: predicate, subject: 入力メールアドレスに対応する利用中アカウントの件数, operator: equals, expected: "1" }
+        R: { enabled: false }
+        U: { enabled: false }
+        D: { enabled: false }
     inputs:
       - { name: メールアドレス, description: ログインに使用するメールアドレス。, data_type: DT-EMAIL-ADDRESS, required: true }
-    result:
-      kind: value
-      multiple: false
-      required: true
-      data_type: DT-OPERATION-RESULT
-      constraints: 要求を受け付けたことを示す。メール配送の成功や利用者の存在を表さない。
-    preconditions:
-      all:
-        - { subject: メールアドレス, operator: satisfies, expected: DT-EMAIL-ADDRESSの形式・正規化条件★ }
-        - { subject: メール送信要求, operator: satisfies, expected: 送信回数の制限条件★ }
+    result: { kind: value, multiple: false, required: true, data_type: DT-OPERATION-RESULT, constraints: 要求を受け付けたことを示す。メール配送の成功や利用者の存在を表さない。 }
+    preconditions: { kind: predicate, subject: メール送信要求, operator: satisfies, expected: 送信回数の制限条件★ }
     postconditions:
-      - 利用中の対象アカウントが存在する場合、パスワード再設定用の確認要求が作成される。
-      - 確認要求を作成した場合、メールの送信先は対象利用者の現在のメールアドレスと等しい。
-      - 利用者のパスワード検証用情報は変更されない。
       - 確認要求を作成した場合、確認メールの送信要求が記録される。
     errors:
       - 送信制限を満たさない場合は送信要求を受け付けない。
@@ -322,92 +406,121 @@ operations:
     summary: メールの確認用リンクを確認し、新しいパスワードを設定する。
     actor: パスワードを忘れた利用者
     entities:
-      - { entity: ENT-USER, crud: [R, U] }
-      - { entity: ENT-IDENTITY-CONFIRMATION, crud: [R, U] }
-      - { entity: ENT-AUTH-SESSION, crud: [R, U] }
+      - entity: ENT-USER
+        C: { enabled: false }
+        R: { enabled: true, target: 確認要求に関連付く利用者 }
+        U: { enabled: true, target: 確認要求に関連付く利用者, notes: パスワード検証用情報を変更する。 }
+        D: { enabled: false }
+      - entity: ENT-IDENTITY-CONFIRMATION
+        C: { enabled: false }
+        R: { enabled: true, target: 今回使用する要求と対象利用者の他の未使用要求 }
+        U: { enabled: true, target: 今回使用する要求と対象利用者の他の未使用要求 }
+        D: { enabled: false }
+      - entity: ENT-AUTH-SESSION
+        C: { enabled: false }
+        R: { enabled: true, target: 対象利用者の全セッション }
+        U: { enabled: true, target: 対象利用者の全セッション }
+        D: { enabled: false }
     inputs:
       - { name: 確認用トークン, description: メールの確認用リンクから取得する使い捨ての値。, data_type: DT-CONFIRMATION-TOKEN, required: true }
       - { name: 新しいパスワード, description: 変更後の認証に使用する秘密の文字列。, data_type: DT-PASSWORD, required: true }
     result: { kind: value, multiple: false, required: true, data_type: DT-OPERATION-RESULT, constraints: 成功を返す。 }
     preconditions:
-      all:
-        - { subject: 確認要求の件数, operator: equals, expected: "1" }
-        - { subject: 確認要求の状態, operator: equals, expected: 未使用 }
-        - { subject: 現在日時, operator: less_than, expected: 確認要求の有効期限 }
-        - { subject: 対象利用者の利用状態, operator: equals, expected: 利用中 }
-        - { subject: 確認要求の目的, operator: equals, expected: パスワード再設定 }
-        - { subject: 確認用トークン, operator: satisfies, expected: 確認要求のトークン検証条件 }
-        - { subject: 確認要求の送信先, operator: equals, expected: 対象利用者の現在のメールアドレス }
-        - { subject: 新しいパスワード, operator: satisfies, expected: DT-PASSWORDの入力条件★ }
+      kind: and
+      conditions:
+        - { kind: predicate, subject: 確認要求の件数, operator: equals, expected: "1" }
+        - { kind: predicate, subject: 確認要求の状態, operator: equals, expected: 未使用 }
+        - { kind: predicate, subject: 現在日時, operator: less_than, expected: 確認要求の有効期限 }
+        - { kind: predicate, subject: 対象利用者の利用状態, operator: equals, expected: 利用中 }
+        - { kind: predicate, subject: 確認要求の目的, operator: equals, expected: パスワード再設定 }
+        - { kind: predicate, subject: 確認用トークン, operator: satisfies, expected: 確認要求のトークン検証条件 }
+        - { kind: predicate, subject: 確認要求の送信先, operator: equals, expected: 対象利用者の現在のメールアドレス }
     postconditions:
-      - パスワード検証用情報は新しいパスワードに対応する値である。
       - 使用した確認要求の状態は使用済みである。
       - 対象利用者の他の未使用の確認要求の状態は無効である。
       - 対象利用者の全認証状態の有効状態は無効である。
       - 新しい認証状態は作成されない。
     errors:
       - トークンが不正・使用済み・期限切れの場合は再設定しない。
-      - 新しいパスワードが入力条件を満たさない場合は再設定しない。
       - 変更と確認要求の消費に失敗した場合は一部だけを確定しない。
   - id: OP-IDENTITY-EMAIL-CHANGE-REQUEST
     name: メールアドレス変更の確認メールを依頼する
     summary: 本人のパスワードを確認し、変更先へ確認用リンクを送信する。
     actor: 利用者
     entities:
-      - { entity: ENT-USER, crud: [R] }
-      - { entity: ENT-AUTH-SESSION, crud: [R, U] }
-      - { entity: ENT-IDENTITY-CONFIRMATION, crud: [C] }
+      - entity: ENT-USER
+        C: { enabled: false }
+        R: { enabled: true, target: 認証中の利用者と変更先メールアドレスを使用する利用中アカウント }
+        U: { enabled: false }
+        D: { enabled: false }
+      - entity: ENT-AUTH-SESSION
+        C: { enabled: false }
+        R: { enabled: true, target: 現在のセッション }
+        U:
+          enabled: true
+          target: 現在のセッション
+          condition: { kind: predicate, subject: 今回の要求, operator: satisfies, expected: ENT-AUTH-SESSIONの「操作による延長」の条件 }
+          notes: 最終操作日時と有効期限を更新する。
+        D: { enabled: false }
+      - entity: ENT-IDENTITY-CONFIRMATION
+        C: { enabled: true, target: 認証中の利用者のメールアドレス変更要求 }
+        R: { enabled: false }
+        U: { enabled: false }
+        D: { enabled: false }
     inputs:
       - { name: 変更先メールアドレス, description: 変更後のログインに使用するメールアドレス。, data_type: DT-EMAIL-ADDRESS, required: true }
       - { name: 現在のパスワード, description: 本人であることを再確認する入力。, data_type: DT-PASSWORD, required: true }
-    result:
-      kind: value
-      multiple: false
-      required: true
-      data_type: DT-OPERATION-RESULT
-      constraints: 確認メールの送信要求を受け付けたことを示す。メールアドレスの変更完了を表さない。
+    result: { kind: value, multiple: false, required: true, data_type: DT-OPERATION-RESULT, constraints: 確認メールの送信要求を受け付けたことを示す。メールアドレスの変更完了を表さない。 }
     preconditions:
-      all:
-        - { subject: 現在の認証状態, operator: satisfies, expected: ENT-AUTH-SESSIONの利用可能条件 }
-        - { subject: 現在のパスワード, operator: satisfies, expected: 認証中の利用者のパスワード検証条件 }
-        - { subject: 変更先メールアドレス, operator: satisfies, expected: DT-EMAIL-ADDRESSの形式・正規化条件★ }
-        - { subject: 変更先メールアドレス, operator: not_equals, expected: 現在のメールアドレス }
-        - { subject: 変更先メールアドレスを使用する利用中アカウントの件数, operator: equals, expected: "0" }
-        - { subject: メール送信要求, operator: satisfies, expected: 送信回数の制限条件★ }
+      kind: and
+      conditions:
+        - { kind: predicate, subject: 現在の認証状態, operator: satisfies, expected: ENT-AUTH-SESSIONの利用可能条件 }
+        - { kind: predicate, subject: 現在のパスワード, operator: satisfies, expected: 認証中の利用者のパスワード検証条件 }
+        - { kind: predicate, subject: 変更先メールアドレス, operator: not_equals, expected: 現在のメールアドレス }
+        - { kind: predicate, subject: 変更先メールアドレスを使用する利用中アカウントの件数, operator: equals, expected: "0" }
+        - { kind: predicate, subject: メール送信要求, operator: satisfies, expected: 送信回数の制限条件★ }
     postconditions:
-      - メールアドレス変更用の確認要求が作成される。
-      - 確認要求の送信先は変更先メールアドレスと等しい。
-      - 利用者のメールアドレスは変更されない。
       - 確認要求を作成した場合、確認メールの送信要求が記録される。
     errors:
-      - 本人確認・入力条件・重複禁止・送信制限のいずれかを満たさない場合は受け付けない。
+      - 本人確認・重複禁止・送信制限のいずれかを満たさない場合は受け付けない。
       - メール配送障害の再試行と案内方法は未決定。★
   - id: OP-IDENTITY-EMAIL-CHANGE
     name: メールアドレスの変更を確定する
     summary: 変更先メールアドレスへ届いた確認用リンクに基づき変更を確定する。
     actor: 利用者
     entities:
-      - { entity: ENT-USER, crud: [R, U] }
-      - { entity: ENT-IDENTITY-CONFIRMATION, crud: [R, U] }
-      - { entity: ENT-AUTH-SESSION, crud: [R, U] }
+      - entity: ENT-USER
+        C: { enabled: false }
+        R: { enabled: true, target: 確認要求に関連付く利用者と変更先メールアドレスを使用する利用中アカウント }
+        U: { enabled: true, target: 確認要求に関連付く利用者, notes: メールアドレスを確認要求の送信先へ変更する。 }
+        D: { enabled: false }
+      - entity: ENT-IDENTITY-CONFIRMATION
+        C: { enabled: false }
+        R: { enabled: true, target: 今回使用する要求と対象利用者の他の未使用要求 }
+        U: { enabled: true, target: 今回使用する要求と対象利用者の他の未使用要求 }
+        D: { enabled: false }
+      - entity: ENT-AUTH-SESSION
+        C: { enabled: false }
+        R: { enabled: true, target: 対象利用者の全セッション }
+        U: { enabled: true, target: 対象利用者の全セッション }
+        D: { enabled: false }
     inputs:
       - { name: 確認用トークン, description: メールの確認用リンクから取得する使い捨ての値。, data_type: DT-CONFIRMATION-TOKEN, required: true }
     result: { kind: value, multiple: false, required: true, data_type: DT-OPERATION-RESULT, constraints: 成功を返す。 }
     preconditions:
-      all:
-        - { subject: 確認要求の件数, operator: equals, expected: "1" }
-        - { subject: 確認要求の状態, operator: equals, expected: 未使用 }
-        - { subject: 現在日時, operator: less_than, expected: 確認要求の有効期限 }
-        - { subject: 対象利用者の利用状態, operator: equals, expected: 利用中 }
-        - { subject: 確認要求の目的, operator: equals, expected: メールアドレス変更 }
-        - { subject: 確認用トークン, operator: satisfies, expected: 確認要求のトークン検証条件 }
-        - { subject: 変更先メールアドレスを使用する他の利用中アカウントの件数, operator: equals, expected: "0" }
+      kind: and
+      conditions:
+        - { kind: predicate, subject: 確認要求の件数, operator: equals, expected: "1" }
+        - { kind: predicate, subject: 確認要求の状態, operator: equals, expected: 未使用 }
+        - { kind: predicate, subject: 現在日時, operator: less_than, expected: 確認要求の有効期限 }
+        - { kind: predicate, subject: 対象利用者の利用状態, operator: equals, expected: 利用中 }
+        - { kind: predicate, subject: 確認要求の目的, operator: equals, expected: メールアドレス変更 }
+        - { kind: predicate, subject: 確認用トークン, operator: satisfies, expected: 確認要求のトークン検証条件 }
+        - { kind: predicate, subject: 変更先メールアドレスを使用する他の利用中アカウントの件数, operator: equals, expected: "0" }
     postconditions:
-      - 対象利用者のメールアドレスは確認要求の送信先と等しい。
       - 使用した確認要求の状態は使用済みである。
       - 対象利用者の他の未使用の確認要求の状態は無効である。
       - 対象利用者の全認証状態の有効状態は無効である。
-      - 利用者IDは変更されない。
     errors:
       - トークンが不正・使用済み・期限切れの場合は変更しない。
       - 確認時点で変更先メールアドレスが他の利用中アカウントに使用されている場合は変更しない。
@@ -417,18 +530,30 @@ operations:
     summary: 現在のパスワードを確認し、アカウントを退会済みにする。
     actor: 利用者
     entities:
-      - { entity: ENT-USER, crud: [R, U], description: 退会済みへの状態変更。物理削除・匿名化は別途設計する。★ }
-      - { entity: ENT-AUTH-SESSION, crud: [R, U] }
-      - { entity: ENT-IDENTITY-CONFIRMATION, crud: [R, U] }
+      - entity: ENT-USER
+        C: { enabled: false }
+        R: { enabled: true, target: 認証中の利用者 }
+        U: { enabled: true, target: 認証中の利用者, notes: 利用状態を退会済みにする。削除・匿名化は未決定。★ }
+        D: { enabled: false }
+      - entity: ENT-AUTH-SESSION
+        C: { enabled: false }
+        R: { enabled: true, target: 現在のセッションと対象利用者の全セッション }
+        U: { enabled: true, target: 対象利用者の全セッション }
+        D: { enabled: false }
+      - entity: ENT-IDENTITY-CONFIRMATION
+        C: { enabled: false }
+        R: { enabled: true, target: 対象利用者の未使用要求 }
+        U: { enabled: true, target: 対象利用者の未使用要求 }
+        D: { enabled: false }
     inputs:
       - { name: 現在のパスワード, description: 本人であることを再確認する入力。, data_type: DT-PASSWORD, required: true }
     result: { kind: value, multiple: false, required: true, data_type: DT-OPERATION-RESULT, constraints: 成功を返す。 }
     preconditions:
-      all:
-        - { subject: 現在の認証状態, operator: satisfies, expected: ENT-AUTH-SESSIONの利用可能条件 }
-        - { subject: 現在のパスワード, operator: satisfies, expected: 認証中の利用者のパスワード検証条件 }
+      kind: and
+      conditions:
+        - { kind: predicate, subject: 現在の認証状態, operator: satisfies, expected: ENT-AUTH-SESSIONの利用可能条件 }
+        - { kind: predicate, subject: 現在のパスワード, operator: satisfies, expected: 認証中の利用者のパスワード検証条件 }
     postconditions:
-      - 利用者の利用状態は退会済みである。
       - 対象利用者の全認証状態の有効状態は無効である。
       - 対象利用者の未使用の確認要求の状態は無効である。
     errors:

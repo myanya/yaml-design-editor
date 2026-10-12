@@ -16,9 +16,7 @@ definitions:
       - { key: id, label: 設計ID, type: id, required: true }
       - { key: name, label: 名称, type: line, role: title, required: true }
       - { key: summary, label: 概要, type: text, role: subtitle, required: true }
-      - key: status
-        label: 設計状態
-        type: design-status
+      - { key: status, label: 設計状態, type: design-status }
       - { key: notes, label: 未決事項・補足, type: text }
   descriptions:
     type: array
@@ -43,9 +41,12 @@ definitions:
         label: 業務データ型
         type: ref
         required: true
-        idPattern: 'DT-*'
+        idPattern: DT-*
         relation: uses-data-type
-        scope: { schemaIds: [todo-value-type-list, todo-model-type-list] }
+        scope:
+          schemaIds:
+            - todo-value-type-list
+            - todo-model-type-list
         description: 業務データ型一覧から選択する。複数値の場合も、1件分の型を指定する。
       - { key: required, label: 必須, type: boolean, required: true, description: 値の指定が必要かを表す。複数値では一覧自体の指定が必要かを表し、空の一覧も許可する。 }
       - { key: multiple, label: 複数値, type: boolean, default: false, description: trueはリスト、falseまたは未指定は単独の値。未指定は値そのものが未設定という意味ではない。 }
@@ -53,41 +54,14 @@ definitions:
   business-data-items:
     type: array
     item: { type: business-data-item }
-  condition-assertion:
-    type: object
-    fields:
-      - { key: subject, label: 検証対象, type: line, required: true }
-      - key: operator
-        label: 判定
-        type: enum
-        required: true
-        values:
-          - { value: equals, label: 等しい }
-          - { value: not_equals, label: 等しくない }
-          - { value: less_than, label: 未満 }
-          - { value: greater_or_equal, label: 以上 }
-          - { value: satisfies, label: 条件を満たす }
-      - { key: expected, label: 比較値・満たす条件, type: line, required: true }
-  operation-preconditions:
-    type: object
-    fields:
-      - key: all
-        label: すべて満たす条件（AND）
-        type: array
-        required: true
-        item: { type: condition-assertion }
-        description: 1要素に1性質を記述する。空の配列は追加のAND条件なし。
-      - key: any
-        label: いずれかを満たす条件（OR）
-        type: array
-        item: { type: condition-assertion }
-        description: 指定時は1件以上の条件を記述する。allもある場合は、all全件とanyの少なくとも1件を満たす。
   result-attribute:
     type: business-data-item
     fields:
       - key: data_type
         type: ref
-        scope: { schemaIds: [todo-value-type-list] }
+        scope:
+          schemaIds:
+            - todo-value-type-list
         description: この属性の値型。複数値の場合も1件分の型を指定する。
   operation-result:
     type: object
@@ -108,9 +82,11 @@ definitions:
               label: 値の業務データ型
               type: ref
               required: true
-              idPattern: 'DT-*'
+              idPattern: DT-*
               relation: uses-data-type
-              scope: { schemaIds: [todo-value-type-list] }
+              scope:
+                schemaIds:
+                  - todo-value-type-list
           record:
             - { key: multiple, label: リストで返す, type: boolean, required: true }
             - { key: required, label: 結果を必ず返す, type: boolean, required: true, description: リストの場合は空のリストも許可する。 }
@@ -121,3 +97,93 @@ definitions:
               item: { type: result-attribute }
           none: []
       - { key: constraints, label: 結果の条件・補足, type: text }
+  condition-tree:
+    type: object
+    unknownFields: error
+    fields:
+      - key: kind
+        label: 条件の種類
+        type: enum
+        required: true
+        values:
+          - { value: predicate, label: 単一の性質 }
+          - { value: and, label: すべて満たす（AND） }
+          - { value: or, label: いずれかを満たす（OR） }
+        cases:
+          predicate:
+            - { key: subject, label: 検証対象, type: line, required: true }
+            - key: operator
+              label: 判定
+              type: enum
+              required: true
+              values:
+                - { value: equals, label: 等しい }
+                - { value: not_equals, label: 等しくない }
+                - { value: less_than, label: 未満 }
+                - { value: greater_or_equal, label: 以上 }
+                - { value: satisfies, label: 条件を満たす }
+            - { key: expected, label: 比較値・満たす条件, type: line, required: true }
+          and:
+            - key: conditions
+              label: 子条件
+              type: array
+              required: true
+              item: { type: condition-tree }
+          or:
+            - key: conditions
+              label: 子条件
+              type: array
+              required: true
+              item: { type: condition-tree }
+    constraints:
+      - id: nonempty-condition-group
+        description: AND・ORには1件以上の子条件を記述する。
+        where:
+          - { path: kind, notEquals: predicate }
+          - { path: conditions, empty: true }
+        expect: absent
+        level: error
+  rule-groups:
+    type: array
+    item:
+      type: object
+      fields:
+        - { key: name, label: グループ名, type: line, required: true }
+        - { key: rules, label: 業務ルール, type: descriptions, required: true }
+  crud-action:
+    type: object
+    unknownFields: error
+    fields:
+      - { key: enabled, label: 実施する, type: boolean, required: true }
+      - { key: target, label: 対象, type: text }
+      - { key: condition, label: 実施条件, type: condition-tree, description: 省略時は追加条件なし。事前条件成立後の処理が基本。失敗時・受付時の処理は条件に明記する。 }
+      - { key: notes, label: 特記事項, type: text }
+    constraints:
+      - id: enabled-crud-needs-target
+        description: 実施するCRUDには対象を記述する。
+        where:
+          - { path: enabled, equals: "true" }
+          - { path: target, empty: true }
+        expect: absent
+        level: error
+      - id: disabled-crud-no-target
+        description: 実施しないCRUDには対象・実施条件・特記事項を記述しない。
+        where:
+          - { path: enabled, equals: "false" }
+          - { path: target, exists: true }
+        expect: absent
+        level: error
+      - id: disabled-crud-no-condition
+        description: 実施しないCRUDには対象・実施条件・特記事項を記述しない。
+        where:
+          - { path: enabled, equals: "false" }
+          - { path: condition, exists: true }
+        expect: absent
+        level: error
+      - id: disabled-crud-no-notes
+        description: 実施しないCRUDには対象・実施条件・特記事項を記述しない。
+        where:
+          - { path: enabled, equals: "false" }
+          - { path: notes, exists: true }
+        expect: absent
+        level: error

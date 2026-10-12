@@ -7,112 +7,91 @@ out_of_scope: |
   認証と利用者の登録は利用者・認証ドメインが担当する。
   TODOへの割当て・解除と絞り込み結果の取得はTODO管理ドメインが担当する。
   分類の階層化、タグの色・表示順、他の利用者との共有は初期範囲に含めない。
-dependencies: [DOM-IDENTITY, DOM-TODO]
-rules:
-  - すべての操作で認証を必須とし、操作する利用者を認証情報に基づいて特定する。
-  - 分類・タグは作成した利用者に属し、他の利用者は参照・変更・削除できない。
-  - 名称は必須とし、値の条件は分類名・タグ名の業務データ型に従う。
-  - 同じ利用者の分類同士、タグ同士で名称を重複させない。別の利用者は同じ名称を使える。
-  - 分類とタグは別の種類として扱い、両者に同じ名称を使うことは許可する。
-  - 名称を変更しても識別子は変えず、既存のTODOへの割当てを維持する。
-  - TODOから参照されている分類・タグの削除を拒否する。先にTODO側で割当てを解除・変更する。
-  - 他の利用者が所有する分類・タグへの操作では、その内容や存在を開示しない。
-  - 保存に失敗した場合は操作の失敗を返し、変更の一部だけを保存しない。
+dependencies:
+  - DOM-IDENTITY
+  - DOM-TODO
+rule_groups:
+  - name: 認証と所有者による制限
+    rules:
+      - すべての操作で認証を必須とし、操作する利用者を認証情報に基づいて特定する。
+      - 分類・タグは作成した利用者に属し、他の利用者は参照・変更・削除できない。
+      - 他の利用者が所有する分類・タグへの操作では、その内容や存在を開示しない。
+  - name: 名称と識別子
+    rules:
+      - 同じ利用者の分類同士、タグ同士で名称を重複させない。別の利用者は同じ名称を使える。
+      - 分類とタグは別の種類として扱い、両者に同じ名称を使うことは許可する。
+      - 名称を変更しても識別子は変えず、既存のTODOへの割当てを維持する。
+  - name: 削除と保存
+    rules:
+      - TODOから参照されている分類・タグの削除を拒否する。先にTODO側で割当てを解除・変更する。
+      - 保存に失敗した場合は操作の失敗を返し、変更の一部だけを保存しない。
 entities:
   - id: ENT-CATEGORY
     name: 分類
     summary: 利用者自身のTODOを大きな区分で整理するための選択肢。
     information:
-      - name: "分類ID"
-        description: "分類の識別子。"
-        data_type: DT-CATEGORY-ID
-        required: true
-        multiple: false
-      - name: "所有者ID"
-        description: "分類を所有する利用者の識別子。"
-        data_type: DT-USER-ID
-        required: true
-        multiple: false
-      - name: "名称"
-        description: "分類の表示名。"
-        data_type: DT-CATEGORY-NAME
-        required: true
-        multiple: false
-      - name: "作成日時"
-        description: "分類を登録した日時。"
-        data_type: DT-RECORDED-AT
-        required: true
-        multiple: false
-      - name: "最終更新日時"
-        description: "分類を最後に更新した日時。"
-        data_type: DT-RECORDED-AT
-        required: true
-        multiple: false
-    rules:
-      - 分類が指定されていないTODOは未分類として扱う。「未分類」という特別な分類データを登録する必要はない。
-      - 名称を変更しても所有者は変更できない。
+      - { name: 分類ID, description: 分類の識別子。, data_type: DT-CATEGORY-ID, required: true }
+      - { name: 所有者ID, description: 分類を所有する利用者の識別子。, data_type: DT-USER-ID, required: true }
+      - { name: 名称, description: 分類の表示名。, data_type: DT-CATEGORY-NAME, required: true }
+      - { name: 作成日時, description: 分類を登録した日時。, data_type: DT-RECORDED-AT, required: true }
+      - { name: 最終更新日時, description: 分類を最後に更新した日時。, data_type: DT-RECORDED-AT, required: true }
+    rule_groups:
+      - name: 所有者
+        rules:
+          - 登録時の所有者は認証中の利用者とし、以後変更しない。
+      - name: 割当てなしの表現
+        rules:
+          - 分類が指定されていないTODOは未分類として扱う。「未分類」という特別な分類データを登録する必要はない。
   - id: ENT-TAG
     name: タグ
     summary: 利用者自身のTODOに、分類をまたいで共通の目印を付けるための選択肢。
     information:
-      - name: "タグID"
-        description: "タグの識別子。"
-        data_type: DT-TAG-ID
-        required: true
-        multiple: false
-      - name: "所有者ID"
-        description: "タグを所有する利用者の識別子。"
-        data_type: DT-USER-ID
-        required: true
-        multiple: false
-      - name: "名称"
-        description: "タグの表示名。"
-        data_type: DT-TAG-NAME
-        required: true
-        multiple: false
-      - name: "作成日時"
-        description: "タグを登録した日時。"
-        data_type: DT-RECORDED-AT
-        required: true
-        multiple: false
-      - name: "最終更新日時"
-        description: "タグを最後に更新した日時。"
-        data_type: DT-RECORDED-AT
-        required: true
-        multiple: false
-    rules:
-      - TODOにタグを付けなくてもよい。「未設定」を表す特別なタグは作成しない。
-      - 名称を変更しても所有者は変更できない。
+      - { name: タグID, description: タグの識別子。, data_type: DT-TAG-ID, required: true }
+      - { name: 所有者ID, description: タグを所有する利用者の識別子。, data_type: DT-USER-ID, required: true }
+      - { name: 名称, description: タグの表示名。, data_type: DT-TAG-NAME, required: true }
+      - { name: 作成日時, description: タグを登録した日時。, data_type: DT-RECORDED-AT, required: true }
+      - { name: 最終更新日時, description: タグを最後に更新した日時。, data_type: DT-RECORDED-AT, required: true }
+    rule_groups:
+      - name: 所有者
+        rules:
+          - 登録時の所有者は認証中の利用者とし、以後変更しない。
+      - name: 割当てなしの表現
+        rules:
+          - TODOにタグを付けなくてもよい。「未設定」を表す特別なタグは作成しない。
 operations:
   - id: OP-CATEGORY-LIST
     name: 分類の一覧を取得する
     summary: 自身の分類を取得し、管理やTODOへの割当てに使用する。
     actor: 認証済みの利用者
     entities:
-      - { entity: ENT-CATEGORY, crud: [R] }
-      - { entity: ENT-USER, crud: [R] }
-      - { entity: ENT-AUTH-SESSION, crud: [R, U] }
+      - entity: ENT-CATEGORY
+        C: { enabled: false }
+        R: { enabled: true, target: 認証中の利用者が所有する分類 }
+        U: { enabled: false }
+        D: { enabled: false }
+      - entity: ENT-USER
+        C: { enabled: false }
+        R: { enabled: true, target: 認証中の利用者 }
+        U: { enabled: false }
+        D: { enabled: false }
+      - entity: ENT-AUTH-SESSION
+        C: { enabled: false }
+        R: { enabled: true, target: 現在のセッション }
+        U:
+          enabled: true
+          target: 現在のセッション
+          condition: { kind: predicate, subject: 今回の要求, operator: satisfies, expected: ENT-AUTH-SESSIONの「操作による延長」の条件 }
+          notes: 最終操作日時と有効期限を更新する。
+        D: { enabled: false }
     result:
       kind: record
       multiple: true
       required: true
       attributes:
-        - name: "分類ID"
-          description: "分類の識別子。"
-          data_type: DT-CATEGORY-ID
-          required: true
-          multiple: false
-        - name: "名称"
-          description: "分類の表示名。"
-          data_type: DT-CATEGORY-NAME
-          required: true
-          multiple: false
+        - { name: 分類ID, description: 分類の識別子。, data_type: DT-CATEGORY-ID, required: true }
+        - { name: 名称, description: 分類の表示名。, data_type: DT-CATEGORY-NAME, required: true }
       constraints: 自身が所有する分類のIDと名称。
-    preconditions:
-      all:
-        - { subject: "現在の認証状態", operator: "satisfies", expected: "ENT-AUTH-SESSIONの利用可能条件" }
-    postconditions:
-      - 他の利用者の分類を含まない結果を返す。未登録なら空の一覧を返す。
+    preconditions: { kind: predicate, subject: 現在の認証状態, operator: satisfies, expected: ENT-AUTH-SESSIONの利用可能条件 }
     errors:
       - 未認証の場合は取得しない。
   - id: OP-CATEGORY-CREATE
@@ -120,99 +99,127 @@ operations:
     summary: 自身のTODOに使用できる分類を作成する。
     actor: 認証済みの利用者
     entities:
-      - { entity: ENT-CATEGORY, crud: [R, C] }
-      - { entity: ENT-USER, crud: [R] }
-      - { entity: ENT-AUTH-SESSION, crud: [R, U] }
+      - entity: ENT-CATEGORY
+        C: { enabled: true, target: 新規分類 }
+        R: { enabled: true, target: 自身の同名の分類 }
+        U: { enabled: false }
+        D: { enabled: false }
+      - entity: ENT-USER
+        C: { enabled: false }
+        R: { enabled: true, target: 認証中の利用者 }
+        U: { enabled: false }
+        D: { enabled: false }
+      - entity: ENT-AUTH-SESSION
+        C: { enabled: false }
+        R: { enabled: true, target: 現在のセッション }
+        U:
+          enabled: true
+          target: 現在のセッション
+          condition: { kind: predicate, subject: 今回の要求, operator: satisfies, expected: ENT-AUTH-SESSIONの「操作による延長」の条件 }
+          notes: 最終操作日時と有効期限を更新する。
+        D: { enabled: false }
     inputs:
-      - { name: 名称, description: 分類を表示するときの名前。, required: true, data_type: DT-CATEGORY-NAME, multiple: false }
+      - { name: 名称, description: 分類を表示するときの名前。, required: true, data_type: DT-CATEGORY-NAME }
     result:
       kind: record
       multiple: false
       required: true
       attributes:
-        - name: "分類ID"
-          description: "分類の識別子。"
-          data_type: DT-CATEGORY-ID
-          required: true
-          multiple: false
-        - name: "名称"
-          description: "分類の表示名。"
-          data_type: DT-CATEGORY-NAME
-          required: true
-          multiple: false
+        - { name: 分類ID, description: 分類の識別子。, data_type: DT-CATEGORY-ID, required: true }
+        - { name: 名称, description: 分類の表示名。, data_type: DT-CATEGORY-NAME, required: true }
       constraints: 一意な分類IDと名称。
     preconditions:
-      all:
-        - { subject: "現在の認証状態", operator: "satisfies", expected: "ENT-AUTH-SESSIONの利用可能条件" }
-        - { subject: "名称", operator: "satisfies", expected: "DT-CATEGORY-NAMEの入力条件★" }
-        - { subject: "同じ名称を持つ自身の他の分類の件数", operator: "equals", expected: "0" }
-    postconditions:
-      - 認証された利用者を所有者とする分類が保存される。
+      kind: and
+      conditions:
+        - { kind: predicate, subject: 現在の認証状態, operator: satisfies, expected: ENT-AUTH-SESSIONの利用可能条件 }
+        - { kind: predicate, subject: 同じ名称を持つ自身の他の分類の件数, operator: equals, expected: "0" }
     errors:
-      - 認証されていない場合、入力内容が不正な場合、名称が重複する場合は登録しない。
+      - 認証されていない場合、名称が重複する場合は登録しない。
   - id: OP-CATEGORY-RENAME
     name: 分類の名称を変更する
     summary: 自身の分類の名称を変更する。
     actor: 認証済みの利用者
     entities:
-      - { entity: ENT-CATEGORY, crud: [R, U] }
-      - { entity: ENT-USER, crud: [R] }
-      - { entity: ENT-AUTH-SESSION, crud: [R, U] }
+      - entity: ENT-CATEGORY
+        C: { enabled: false }
+        R: { enabled: true, target: 指定IDに対応する自身の分類と自身の同名の分類 }
+        U: { enabled: true, target: 指定IDに対応する自身の分類 }
+        D: { enabled: false }
+      - entity: ENT-USER
+        C: { enabled: false }
+        R: { enabled: true, target: 認証中の利用者 }
+        U: { enabled: false }
+        D: { enabled: false }
+      - entity: ENT-AUTH-SESSION
+        C: { enabled: false }
+        R: { enabled: true, target: 現在のセッション }
+        U:
+          enabled: true
+          target: 現在のセッション
+          condition: { kind: predicate, subject: 今回の要求, operator: satisfies, expected: ENT-AUTH-SESSIONの「操作による延長」の条件 }
+          notes: 最終操作日時と有効期限を更新する。
+        D: { enabled: false }
     inputs:
-      - { name: 分類ID, description: 名称を変更する分類。, required: true, data_type: DT-CATEGORY-ID, multiple: false }
-      - { name: 変更後の名称, description: 新しい分類名。, required: true, data_type: DT-CATEGORY-NAME, multiple: false }
+      - { name: 分類ID, description: 名称を変更する分類。, required: true, data_type: DT-CATEGORY-ID }
+      - { name: 変更後の名称, description: 新しい分類名。, required: true, data_type: DT-CATEGORY-NAME }
     result:
       kind: record
       multiple: false
       required: true
       attributes:
-        - name: "分類ID"
-          description: "分類の識別子。"
-          data_type: DT-CATEGORY-ID
-          required: true
-          multiple: false
-        - name: "名称"
-          description: "分類の表示名。"
-          data_type: DT-CATEGORY-NAME
-          required: true
-          multiple: false
+        - { name: 分類ID, description: 分類の識別子。, data_type: DT-CATEGORY-ID, required: true }
+        - { name: 名称, description: 分類の表示名。, data_type: DT-CATEGORY-NAME, required: true }
       constraints: 同じ分類IDと変更後の名称。
     preconditions:
-      all:
-        - { subject: "現在の認証状態", operator: "satisfies", expected: "ENT-AUTH-SESSIONの利用可能条件" }
-        - { subject: "対象分類の件数", operator: "equals", expected: "1" }
-        - { subject: "対象分類の所有者ID", operator: "equals", expected: "認証中の利用者ID" }
-        - { subject: "変更後の名称", operator: "satisfies", expected: "DT-CATEGORY-NAMEの入力条件★" }
-        - { subject: "同じ名称を持つ自身の他の分類の件数", operator: "equals", expected: "0" }
-    postconditions:
-      - 名称だけを変更し、TODOからの参照は維持される。
+      kind: and
+      conditions:
+        - { kind: predicate, subject: 現在の認証状態, operator: satisfies, expected: ENT-AUTH-SESSIONの利用可能条件 }
+        - { kind: predicate, subject: 対象分類の件数, operator: equals, expected: "1" }
+        - { kind: predicate, subject: 対象分類の所有者ID, operator: equals, expected: 認証中の利用者ID }
+        - { kind: predicate, subject: 同じ名称を持つ自身の他の分類の件数, operator: equals, expected: "0" }
     errors:
-      - 認証されていない場合、対象を利用できない場合、入力内容が不正な場合、他の分類と名称が重複する場合は変更しない。
+      - 認証されていない場合、対象を利用できない場合、他の分類と名称が重複する場合は変更しない。
   - id: OP-CATEGORY-DELETE
     name: 分類を削除する
     summary: 自身の未使用の分類を管理対象から除く。
     actor: 認証済みの利用者
     entities:
-      - { entity: ENT-CATEGORY, crud: [R, D] }
-      - { entity: ENT-USER, crud: [R] }
-      - { entity: ENT-AUTH-SESSION, crud: [R, U] }
-      - { entity: ENT-TODO, crud: [R] }
+      - entity: ENT-CATEGORY
+        C: { enabled: false }
+        R: { enabled: true, target: 指定IDに対応する自身の分類 }
+        U: { enabled: false }
+        D: { enabled: true, target: 指定IDに対応する自身の分類 }
+      - entity: ENT-USER
+        C: { enabled: false }
+        R: { enabled: true, target: 認証中の利用者 }
+        U: { enabled: false }
+        D: { enabled: false }
+      - entity: ENT-AUTH-SESSION
+        C: { enabled: false }
+        R: { enabled: true, target: 現在のセッション }
+        U:
+          enabled: true
+          target: 現在のセッション
+          condition: { kind: predicate, subject: 今回の要求, operator: satisfies, expected: ENT-AUTH-SESSIONの「操作による延長」の条件 }
+          notes: 最終操作日時と有効期限を更新する。
+        D: { enabled: false }
+      - entity: ENT-TODO
+        C: { enabled: false }
+        R: { enabled: true, target: 削除対象の分類・タグを参照するTODO }
+        U: { enabled: false }
+        D: { enabled: false }
     inputs:
-      - { name: 分類ID, description: 削除する分類。, required: true, data_type: DT-CATEGORY-ID, multiple: false }
-    result:
-      kind: value
-      multiple: false
-      required: true
-      data_type: DT-OPERATION-RESULT
-      constraints: 対象の分類が一覧に表示されず、TODOに新しく割り当てられなくなったこと。 成功を返す。失敗時はerrorsに記述した条件に従う。
+      - { name: 分類ID, description: 削除する分類。, required: true, data_type: DT-CATEGORY-ID }
+    result: { kind: value, multiple: false, required: true, data_type: DT-OPERATION-RESULT, constraints: 対象の分類が一覧に表示されず、TODOに新しく割り当てられなくなったこと。 成功を返す。失敗時はerrorsに記述した条件に従う。 }
     preconditions:
-      all:
-        - { subject: "現在の認証状態", operator: "satisfies", expected: "ENT-AUTH-SESSIONの利用可能条件" }
-        - { subject: "対象分類の件数", operator: "equals", expected: "1" }
-        - { subject: "対象分類の所有者ID", operator: "equals", expected: "認証中の利用者ID" }
-        - { subject: "対象分類を参照するTODOの件数", operator: "equals", expected: "0" }
+      kind: and
+      conditions:
+        - { kind: predicate, subject: 現在の認証状態, operator: satisfies, expected: ENT-AUTH-SESSIONの利用可能条件 }
+        - { kind: predicate, subject: 対象分類の件数, operator: equals, expected: "1" }
+        - { kind: predicate, subject: 対象分類の所有者ID, operator: equals, expected: 認証中の利用者ID }
+        - { kind: predicate, subject: 対象分類を参照するTODOの件数, operator: equals, expected: "0" }
     postconditions:
-      - 分類を削除する。TODO自体の削除や割当ての自動解除は行わない。
+      - TODO自体の削除や割当ての自動解除は行わない。
     errors:
       - 認証されていない場合、対象を利用できない場合、TODOで使用中の場合は削除しない。
   - id: OP-TAG-LIST
@@ -220,30 +227,34 @@ operations:
     summary: 自身のタグを取得し、管理やTODOへの割当てに使用する。
     actor: 認証済みの利用者
     entities:
-      - { entity: ENT-TAG, crud: [R] }
-      - { entity: ENT-USER, crud: [R] }
-      - { entity: ENT-AUTH-SESSION, crud: [R, U] }
+      - entity: ENT-TAG
+        C: { enabled: false }
+        R: { enabled: true, target: 認証中の利用者が所有するタグ }
+        U: { enabled: false }
+        D: { enabled: false }
+      - entity: ENT-USER
+        C: { enabled: false }
+        R: { enabled: true, target: 認証中の利用者 }
+        U: { enabled: false }
+        D: { enabled: false }
+      - entity: ENT-AUTH-SESSION
+        C: { enabled: false }
+        R: { enabled: true, target: 現在のセッション }
+        U:
+          enabled: true
+          target: 現在のセッション
+          condition: { kind: predicate, subject: 今回の要求, operator: satisfies, expected: ENT-AUTH-SESSIONの「操作による延長」の条件 }
+          notes: 最終操作日時と有効期限を更新する。
+        D: { enabled: false }
     result:
       kind: record
       multiple: true
       required: true
       attributes:
-        - name: "タグID"
-          description: "タグの識別子。"
-          data_type: DT-TAG-ID
-          required: true
-          multiple: false
-        - name: "名称"
-          description: "タグの表示名。"
-          data_type: DT-TAG-NAME
-          required: true
-          multiple: false
+        - { name: タグID, description: タグの識別子。, data_type: DT-TAG-ID, required: true }
+        - { name: 名称, description: タグの表示名。, data_type: DT-TAG-NAME, required: true }
       constraints: 自身が所有するタグのIDと名称。
-    preconditions:
-      all:
-        - { subject: "現在の認証状態", operator: "satisfies", expected: "ENT-AUTH-SESSIONの利用可能条件" }
-    postconditions:
-      - 他の利用者のタグを含まない結果を返す。未登録なら空の一覧を返す。
+    preconditions: { kind: predicate, subject: 現在の認証状態, operator: satisfies, expected: ENT-AUTH-SESSIONの利用可能条件 }
     errors:
       - 未認証の場合は取得しない。
   - id: OP-TAG-CREATE
@@ -251,99 +262,127 @@ operations:
     summary: 自身のTODOに使用できるタグを作成する。
     actor: 認証済みの利用者
     entities:
-      - { entity: ENT-TAG, crud: [R, C] }
-      - { entity: ENT-USER, crud: [R] }
-      - { entity: ENT-AUTH-SESSION, crud: [R, U] }
+      - entity: ENT-TAG
+        C: { enabled: true, target: 新規タグ }
+        R: { enabled: true, target: 自身の同名のタグ }
+        U: { enabled: false }
+        D: { enabled: false }
+      - entity: ENT-USER
+        C: { enabled: false }
+        R: { enabled: true, target: 認証中の利用者 }
+        U: { enabled: false }
+        D: { enabled: false }
+      - entity: ENT-AUTH-SESSION
+        C: { enabled: false }
+        R: { enabled: true, target: 現在のセッション }
+        U:
+          enabled: true
+          target: 現在のセッション
+          condition: { kind: predicate, subject: 今回の要求, operator: satisfies, expected: ENT-AUTH-SESSIONの「操作による延長」の条件 }
+          notes: 最終操作日時と有効期限を更新する。
+        D: { enabled: false }
     inputs:
-      - { name: 名称, description: タグを表示するときの名前。, required: true, data_type: DT-TAG-NAME, multiple: false }
+      - { name: 名称, description: タグを表示するときの名前。, required: true, data_type: DT-TAG-NAME }
     result:
       kind: record
       multiple: false
       required: true
       attributes:
-        - name: "タグID"
-          description: "タグの識別子。"
-          data_type: DT-TAG-ID
-          required: true
-          multiple: false
-        - name: "名称"
-          description: "タグの表示名。"
-          data_type: DT-TAG-NAME
-          required: true
-          multiple: false
+        - { name: タグID, description: タグの識別子。, data_type: DT-TAG-ID, required: true }
+        - { name: 名称, description: タグの表示名。, data_type: DT-TAG-NAME, required: true }
       constraints: 一意なタグIDと名称。
     preconditions:
-      all:
-        - { subject: "現在の認証状態", operator: "satisfies", expected: "ENT-AUTH-SESSIONの利用可能条件" }
-        - { subject: "名称", operator: "satisfies", expected: "DT-TAG-NAMEの入力条件★" }
-        - { subject: "同じ名称を持つ自身の他のタグの件数", operator: "equals", expected: "0" }
-    postconditions:
-      - 認証された利用者を所有者とするタグが保存される。
+      kind: and
+      conditions:
+        - { kind: predicate, subject: 現在の認証状態, operator: satisfies, expected: ENT-AUTH-SESSIONの利用可能条件 }
+        - { kind: predicate, subject: 同じ名称を持つ自身の他のタグの件数, operator: equals, expected: "0" }
     errors:
-      - 認証されていない場合、入力内容が不正な場合、名称が重複する場合は登録しない。
+      - 認証されていない場合、名称が重複する場合は登録しない。
   - id: OP-TAG-RENAME
     name: タグの名称を変更する
     summary: 自身のタグの名称を変更する。
     actor: 認証済みの利用者
     entities:
-      - { entity: ENT-TAG, crud: [R, U] }
-      - { entity: ENT-USER, crud: [R] }
-      - { entity: ENT-AUTH-SESSION, crud: [R, U] }
+      - entity: ENT-TAG
+        C: { enabled: false }
+        R: { enabled: true, target: 指定IDに対応する自身のタグと自身の同名のタグ }
+        U: { enabled: true, target: 指定IDに対応する自身のタグ }
+        D: { enabled: false }
+      - entity: ENT-USER
+        C: { enabled: false }
+        R: { enabled: true, target: 認証中の利用者 }
+        U: { enabled: false }
+        D: { enabled: false }
+      - entity: ENT-AUTH-SESSION
+        C: { enabled: false }
+        R: { enabled: true, target: 現在のセッション }
+        U:
+          enabled: true
+          target: 現在のセッション
+          condition: { kind: predicate, subject: 今回の要求, operator: satisfies, expected: ENT-AUTH-SESSIONの「操作による延長」の条件 }
+          notes: 最終操作日時と有効期限を更新する。
+        D: { enabled: false }
     inputs:
-      - { name: タグID, description: 名称を変更するタグ。, required: true, data_type: DT-TAG-ID, multiple: false }
-      - { name: 変更後の名称, description: 新しいタグ名。, required: true, data_type: DT-TAG-NAME, multiple: false }
+      - { name: タグID, description: 名称を変更するタグ。, required: true, data_type: DT-TAG-ID }
+      - { name: 変更後の名称, description: 新しいタグ名。, required: true, data_type: DT-TAG-NAME }
     result:
       kind: record
       multiple: false
       required: true
       attributes:
-        - name: "タグID"
-          description: "タグの識別子。"
-          data_type: DT-TAG-ID
-          required: true
-          multiple: false
-        - name: "名称"
-          description: "タグの表示名。"
-          data_type: DT-TAG-NAME
-          required: true
-          multiple: false
+        - { name: タグID, description: タグの識別子。, data_type: DT-TAG-ID, required: true }
+        - { name: 名称, description: タグの表示名。, data_type: DT-TAG-NAME, required: true }
       constraints: 同じタグIDと変更後の名称。
     preconditions:
-      all:
-        - { subject: "現在の認証状態", operator: "satisfies", expected: "ENT-AUTH-SESSIONの利用可能条件" }
-        - { subject: "対象タグの件数", operator: "equals", expected: "1" }
-        - { subject: "対象タグの所有者ID", operator: "equals", expected: "認証中の利用者ID" }
-        - { subject: "変更後の名称", operator: "satisfies", expected: "DT-TAG-NAMEの入力条件★" }
-        - { subject: "同じ名称を持つ自身の他のタグの件数", operator: "equals", expected: "0" }
-    postconditions:
-      - 名称だけを変更し、TODOからの参照は維持される。
+      kind: and
+      conditions:
+        - { kind: predicate, subject: 現在の認証状態, operator: satisfies, expected: ENT-AUTH-SESSIONの利用可能条件 }
+        - { kind: predicate, subject: 対象タグの件数, operator: equals, expected: "1" }
+        - { kind: predicate, subject: 対象タグの所有者ID, operator: equals, expected: 認証中の利用者ID }
+        - { kind: predicate, subject: 同じ名称を持つ自身の他のタグの件数, operator: equals, expected: "0" }
     errors:
-      - 認証されていない場合、対象を利用できない場合、入力内容が不正な場合、他のタグと名称が重複する場合は変更しない。
+      - 認証されていない場合、対象を利用できない場合、他のタグと名称が重複する場合は変更しない。
   - id: OP-TAG-DELETE
     name: タグを削除する
     summary: 自身の未使用のタグを管理対象から除く。
     actor: 認証済みの利用者
     entities:
-      - { entity: ENT-TAG, crud: [R, D] }
-      - { entity: ENT-USER, crud: [R] }
-      - { entity: ENT-AUTH-SESSION, crud: [R, U] }
-      - { entity: ENT-TODO, crud: [R] }
+      - entity: ENT-TAG
+        C: { enabled: false }
+        R: { enabled: true, target: 指定IDに対応する自身のタグ }
+        U: { enabled: false }
+        D: { enabled: true, target: 指定IDに対応する自身のタグ }
+      - entity: ENT-USER
+        C: { enabled: false }
+        R: { enabled: true, target: 認証中の利用者 }
+        U: { enabled: false }
+        D: { enabled: false }
+      - entity: ENT-AUTH-SESSION
+        C: { enabled: false }
+        R: { enabled: true, target: 現在のセッション }
+        U:
+          enabled: true
+          target: 現在のセッション
+          condition: { kind: predicate, subject: 今回の要求, operator: satisfies, expected: ENT-AUTH-SESSIONの「操作による延長」の条件 }
+          notes: 最終操作日時と有効期限を更新する。
+        D: { enabled: false }
+      - entity: ENT-TODO
+        C: { enabled: false }
+        R: { enabled: true, target: 削除対象の分類・タグを参照するTODO }
+        U: { enabled: false }
+        D: { enabled: false }
     inputs:
-      - { name: タグID, description: 削除するタグ。, required: true, data_type: DT-TAG-ID, multiple: false }
-    result:
-      kind: value
-      multiple: false
-      required: true
-      data_type: DT-OPERATION-RESULT
-      constraints: 対象のタグが一覧に表示されず、TODOに新しく割り当てられなくなったこと。 成功を返す。失敗時はerrorsに記述した条件に従う。
+      - { name: タグID, description: 削除するタグ。, required: true, data_type: DT-TAG-ID }
+    result: { kind: value, multiple: false, required: true, data_type: DT-OPERATION-RESULT, constraints: 対象のタグが一覧に表示されず、TODOに新しく割り当てられなくなったこと。 成功を返す。失敗時はerrorsに記述した条件に従う。 }
     preconditions:
-      all:
-        - { subject: "現在の認証状態", operator: "satisfies", expected: "ENT-AUTH-SESSIONの利用可能条件" }
-        - { subject: "対象タグの件数", operator: "equals", expected: "1" }
-        - { subject: "対象タグの所有者ID", operator: "equals", expected: "認証中の利用者ID" }
-        - { subject: "対象タグを参照するTODOの件数", operator: "equals", expected: "0" }
+      kind: and
+      conditions:
+        - { kind: predicate, subject: 現在の認証状態, operator: satisfies, expected: ENT-AUTH-SESSIONの利用可能条件 }
+        - { kind: predicate, subject: 対象タグの件数, operator: equals, expected: "1" }
+        - { kind: predicate, subject: 対象タグの所有者ID, operator: equals, expected: 認証中の利用者ID }
+        - { kind: predicate, subject: 対象タグを参照するTODOの件数, operator: equals, expected: "0" }
     postconditions:
-      - タグを削除する。TODO自体の削除や割当ての自動解除は行わない。
+      - TODO自体の削除や割当ての自動解除は行わない。
     errors:
       - 認証されていない場合、対象を利用できない場合、TODOで使用中の場合は削除しない。
 notes: |

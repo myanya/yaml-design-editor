@@ -56,7 +56,7 @@ TODO・分類・タグは利用者ごとに管理し、他の利用者と共有�
 
 - `responsibility`・`out_of_scope`：責務、対象範囲、他ドメインとの境界。
 - `dependencies`：業務上利用するドメイン。コードの依存方向を直接指定するものではありません。
-- `rules`：ドメイン全体の業務ルール。
+- `rule_groups`：ドメイン全体の業務ルールを、主題ごとの `name` と `rules` に分けて記述。
 - `entities`：管理対象の情報。`ENT-*` のID・名称・意味、業務データ型を指定した情報項目、制約。
 - `operations`：提供操作。`OP-*` のID・名称・目的、操作主体、対象エンティティ、入力・結果、事前条件、事後条件、業務エラー。
 - `notes`：未決事項と補足。
@@ -67,38 +67,79 @@ TODO・分類・タグは利用者ごとに管理し、他の利用者と共有�
 
 ## 操作と条件の記述
 
-操作対象は `operations[].entities` に、エンティティへの参照と `crud` を記述します。
-`C` は作成、`R` は参照、`U` は更新、`D` は削除です。1つの操作で複数を指定できます。
-失敗時の履歴記録や、共通の認証処理による参照・更新も含めます。条件付きの処理は `description` に補足します。
-退会はアカウントの利用状態の更新として `U` を指定します。退会後の削除・匿名化は未決定です。★
+操作対象は `operations[].entities` に記述します。エンティティごとに `C`（作成）・`R`（参照）・`U`（更新）・`D`（削除）をすべて明記します。
+各CRUDは `enabled` で有無を示し、実施する場合は `target` に対象、必要に応じて `condition` に実施条件、`notes` に特記事項を記述します。
+実施しないCRUDは `enabled: false` のみとします。例えばログアウトでは、検索と無効化で異なる条件を指定できます。
 
-事前条件は `preconditions` の `all`（AND）と `any`（OR）で組み立てます。
-各行を「対象・判定・比較値または条件」に分け、1行につき1性質を記述します。
+```yaml
+entity: ENT-AUTH-SESSION
+C: { enabled: false }
+R:
+  enabled: true
+  target: 提示された認証情報に対応するセッション
+  condition: { kind: predicate, subject: 現在の認証情報, operator: not_equals, expected: 未指定 }
+U:
+  enabled: true
+  target: 提示された認証情報に対応するセッション
+  condition: { kind: predicate, subject: 該当する認証状態の件数, operator: equals, expected: '1' }
+  notes: 有効状態を無効にする。
+D: { enabled: false }
+```
+
+`condition` の省略は追加の実施条件なしを意味します。通常のCRUDは事前条件が成立した場合に実施します。
+事前条件の照合に必要な参照は、その判定過程で行います。受付時・失敗時にも行う履歴記録などは、その条件をCRUD側に明記します。
+共通認証処理での参照・更新も対象に含めます。CRUDの並びは処理順序を表しません。
+退会は `U` で利用状態を変更します。退会後の削除・匿名化は未決定です。★
+
+事前条件 `preconditions`、CRUDの実施条件 `condition`、エンティティの利用可能条件 `availability` は、同じ再帰的な条件ツリーで記述します。
+
+- `kind: predicate`：`subject`・`operator`・`expected` で1性質を記述する葉。
+- `kind: and`：`conditions` 内の子条件をすべて満たす。
+- `kind: or`：`conditions` 内の子条件を少なくとも1つ満たす。
+- AND・ORの子には葉・AND・ORを任意に入れ子にできる。子条件は1件以上とし、空のグループは使わない。
+- 追加の事前条件がない場合は `preconditions` 自体を省略する。
+- 葉の `operator` は `equals`、`not_equals`、`less_than`、`greater_or_equal`、`satisfies`。
+
+例えばTODOの登録では「認証済み AND（分類なし OR（分類が存在 AND 本人所有））」を次のように表します（他の事前条件は省略）。
 
 ```yaml
 preconditions:
-  all:
-    - { subject: 現在の認証状態, operator: satisfies, expected: ENT-AUTH-SESSIONの利用可能条件 }
-    - { subject: 対象TODOの所有者ID, operator: equals, expected: 認証中の利用者ID }
+  kind: and
+  conditions:
+    - { kind: predicate, subject: 現在の認証状態, operator: satisfies, expected: ENT-AUTH-SESSIONの利用可能条件 }
+    - kind: or
+      conditions:
+        - { kind: predicate, subject: 入力の分類, operator: equals, expected: 指定なし }
+        - kind: and
+          conditions:
+            - { kind: predicate, subject: 指定された分類の件数, operator: equals, expected: '1' }
+            - { kind: predicate, subject: 指定された分類の所有者ID, operator: equals, expected: 認証中の利用者ID }
 ```
 
-- `all`：記述した条件をすべて満たす。`all: []` は追加のAND条件なし。
-- `any`：記述した条件のうち少なくとも1つを満たす。省略時はOR条件なし、空の配列は条件を満たさない。
-- 両方を指定した場合：`all` の全件と、`any` の少なくとも1件を満たす。
-- `operator`：`equals`、`not_equals`、`less_than`、`greater_or_equal`、`satisfies`。
+値が存在しないなどで比較できない葉を真とはみなしません。ORの別の子が真ならORは成立し、ANDに偽の子があればANDは不成立です。
+それ以外で未評価の子が残る場合は未評価とし、条件成立として処理を進めません。記述順は業務処理の順番を指定するものではありません。
+現在のツール検証は条件ツリーの構造・必須項目・判定の種別を検査します。
+`subject`・`expected` の実データへの対応付けと条件の実行は後続設計で具体化します。★
 
-ログアウトでは、認証情報が未指定・対象なし・有効・無効の各条件を `any` に記述しています。
-比較対象が存在しない行は未評価として扱い、OR内の他の行が成立すれば、そのOR条件を満たします。
-複雑なAND・ORの多段の入れ子はまだ導入していません。
+入力は、指定された業務データ型の値域・必須指定・項目固有の制約を満たすことを共通の前提とし、違反する入力は受け付けません。
+これらを各操作の事前条件・業務エラーに列挙しません。事前条件には、所有者確認・参照先の存在・重複確認・パスワード照合などの業務上の判定を記述します。
 
-現在のツール検証は、条件の構造・必須項目・判定の種別を検査します。
-`subject`・`expected` は業務上の名称と条件を記述する欄です。実データへの対応付けと条件の実行は後続設計で具体化します。★
-未評価の条件を真として扱いません。業務ルールを自動実行する機能を追加したものではありません。
+業務ルールはドメインとエンティティの `rule_groups` で主題ごとにまとめます。記述の分担は次のとおりです。
 
-共通の利用可否はエンティティの `availability`、操作が直接確定する状態は `postconditions` に記述します。
-認証状態の利用可能条件は `ENT-AUTH-SESSION.availability` が原本です。各操作の事前条件は、その条件を満たすことを要求します。
-例えばログアウトの事後条件は「対象の認証状態の有効状態は無効である」とし、無効時の操作制限を各事後条件へ繰り返しません。
-`rules` には共通の取扱い・状態更新方針、`errors` には操作を完了できない条件を記述します。
+| 記述先 | 内容 |
+|---|---|
+| 業務データ型・入力項目 | 値域・形式・必須・項目固有の入力制約 |
+| エンティティの `rule_groups` | 一意性・初期値・不変条件・ライフサイクル |
+| エンティティの `availability` | 状態に応じた共通の利用可否 |
+| ドメインの `rule_groups` | 認証制限など、操作を横断する方針 |
+| 操作の `preconditions` | 型や入力制約だけでは決まらない実行可否 |
+| 操作のCRUD | 作成・参照・更新・削除の有無、対象、実施条件、特記事項 |
+| 操作の `postconditions` | 全セッションの無効化など、操作固有の追加効果 |
+| 操作の `errors` | 業務上の失敗と、その際の取扱い |
+
+IDの一意性・登録時の初期値・入力の単純な転記・CRUDから自明な効果は事後条件へ繰り返しません。追加の保証がなければ `postconditions` を省略します。
+例えばログアウトは対象を無効化し、無効な認証状態で操作できないことは `ENT-AUTH-SESSION.availability` と認証方針に集約します。
+事後条件が原本となる操作固有の副作用は、ドメイン全体のルールへ再掲しません。
 
 ## 認証の方針
 
