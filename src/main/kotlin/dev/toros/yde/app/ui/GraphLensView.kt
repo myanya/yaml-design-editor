@@ -114,18 +114,19 @@ fun GraphLensView(state: AppState) {
         allEdges.flatMap { listOf(typeOf(it.from), typeOf(it.to)) }.distinct().sorted()
     }
     val relations = remember(allEdges) { allEdges.map { it.relation ?: "（未宣言）" }.distinct().sorted() }
-    val typeChecked = remember(types) { mutableStateMapOf<String, Boolean>().apply { types.forEach { put(it, true) } } }
-    val relationChecked = remember(relations) { mutableStateMapOf<String, Boolean>().apply { relations.forEach { put(it, true) } } }
-    var depth by remember { mutableStateOf(2) }
+    // 型・関係のチェックと深さは画面の覚え（ScreenMemory）。隠した名前だけ持つので、再読込で増えた型は見える側で始まり、無くなった型は読まれない
+    val hiddenTypes = state.memory.lensHiddenTypes
+    val hiddenRelations = state.memory.lensHiddenRelations
+    val depth = state.memory.lensDepth
     val origin = state.lensOriginId?.takeIf { graph.entities.containsKey(it) }
 
     // 絞り込み: relation → 型 → （起点があれば）近傍のBFS
-    val visibleEdges = remember(allEdges, typeChecked.toMap(), relationChecked.toMap(), origin, depth) {
-        val byRelation = allEdges.filter { relationChecked[it.relation ?: "（未宣言）"] != false }
+    val visibleEdges = remember(allEdges, hiddenTypes.toMap(), hiddenRelations.toMap(), origin, depth) {
+        val byRelation = allEdges.filter { (it.relation ?: "（未宣言）") !in hiddenRelations }
         val byType = byRelation.filter { e ->
             // 起点は型フィルタの対象外（起点近傍を見たいのに起点自身が消えると意味を失う）
-            (e.from == origin || typeChecked[typeOf(e.from)] != false) &&
-                (e.to == origin || typeChecked[typeOf(e.to)] != false)
+            (e.from == origin || typeOf(e.from) !in hiddenTypes) &&
+                (e.to == origin || typeOf(e.to) !in hiddenTypes)
         }
         if (origin == null) byType
         else {
@@ -161,10 +162,12 @@ fun GraphLensView(state: AppState) {
     val typeColors = remember(types) { types.mapIndexed { i, t -> t to lensColors[i % lensColors.size] }.toMap() }
     val paint = LensPaint(Palette.Border, Palette.Surface, Palette.Primary, Palette.SubText)
 
-    // 配置の種類: 起点があれば放射、無ければ応力（節点が多ければ GraphLayouts が階層に代替する）
-    var layoutKind by remember(origin != null) {
-        mutableStateOf(if (origin != null) LensLayoutKind.RADIAL else LensLayoutKind.STRESS)
-    }
+    // 配置の種類: 既定は起点があれば放射、無ければ応力（節点が多ければ GraphLayouts が階層に代替する）。
+    // 利用者が選んだ配置は画面の覚えに起点の有無ごとに名前で持つ（覚えが無い・知らない名前・使えない放射は既定に戻す）
+    val layoutKind = state.memory.lensLayoutKind[origin != null]
+        ?.let { name -> LensLayoutKind.entries.firstOrNull { it.name == name } }
+        ?.takeIf { it != LensLayoutKind.RADIAL || origin != null }
+        ?: if (origin != null) LensLayoutKind.RADIAL else LensLayoutKind.STRESS
 
     // 節点の文字（ID とタイトル）と辺のラベルを計測し、箱の大きさを配置に渡す
     val textMeasurer = rememberTextMeasurer()
@@ -275,7 +278,7 @@ fun GraphLensView(state: AppState) {
             Spacer(Modifier.width(12.dp))
             if (origin != null) {
                 Text("起点: $origin", fontSize = 11.sp, color = Palette.Primary, fontWeight = FontWeight.SemiBold)
-                TextButton(onClick = { depth = if (depth == 1) 2 else 1 },
+                TextButton(onClick = { state.memory.lensDepth = if (depth == 1) 2 else 1 },
                     contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
                     Text("深さ $depth", fontSize = 11.sp)
                 }
@@ -301,7 +304,7 @@ fun GraphLensView(state: AppState) {
         // 型・relation のチェックボックス（多ければ折り返す。アドホックなレンズ。宣言的レンズ定義は需要待ち。architecture/graph-query.md「エンティティページ」）
         LensFilterRow("型:") {
             types.forEach { t ->
-                LensFilterItem(typeChecked[t] != false, { typeChecked[t] = it }) {
+                LensFilterItem(t !in hiddenTypes, { checked -> if (checked) hiddenTypes.remove(t) else hiddenTypes.put(t, true) }) {
                     Box(Modifier.size(8.dp).background(typeColors[t] ?: Palette.Primary, PanelShape))
                     Text(" " + (state.entityTypes[t]?.displayLabel ?: t), fontSize = 10.sp, color = Palette.SubText)
                 }
@@ -309,7 +312,7 @@ fun GraphLensView(state: AppState) {
         }
         LensFilterRow("関係:") {
             relations.forEach { rel ->
-                LensFilterItem(relationChecked[rel] != false, { relationChecked[rel] = it }) {
+                LensFilterItem(rel !in hiddenRelations, { checked -> if (checked) hiddenRelations.remove(rel) else hiddenRelations.put(rel, true) }) {
                     Text(
                         Relations.labelOf(state.relations, rel.takeIf { it != "（未宣言）" }) ?: rel,
                         fontSize = 10.sp, color = Palette.SubText,
@@ -327,7 +330,7 @@ fun GraphLensView(state: AppState) {
             LensLayoutKind.entries.forEach { kind ->
                 val enabled = kind != LensLayoutKind.RADIAL || origin != null
                 TextButton(
-                    onClick = { layoutKind = kind }, enabled = enabled,
+                    onClick = { state.memory.lensLayoutKind[origin != null] = kind.name }, enabled = enabled,
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
                 ) {
                     Text(
@@ -483,8 +486,8 @@ fun GraphLensView(state: AppState) {
                             }
                             DropdownMenuItem(
                                 text = { Text("この型を隠す（${state.entityTypes[type]?.displayLabel ?: type}）", fontSize = 12.sp) },
-                                enabled = id != origin && type in typeChecked,
-                                onClick = { menu = null; typeChecked[type] = false },
+                                enabled = id != origin && type !in hiddenTypes,
+                                onClick = { menu = null; hiddenTypes[type] = true },
                             )
                             if (index in pins) {
                                 DropdownMenuItem(text = { Text("動かした位置を戻す", fontSize = 12.sp) }, onClick = { menu = null; pins.remove(index) })

@@ -63,7 +63,7 @@ import java.nio.file.Path
 @Composable
 fun IdCrossView(state: AppState) {
     state.indexVersion
-    var query by remember { mutableStateOf("") }
+    val query = state.memory.entityQuery  // 検索語は画面の覚え（タブを離れても残る）
     val ids = remember(state.indexVersion, state.editVersion, query) {
         state.overlayIndex().entries.keys
             .filter { query.isBlank() || it.contains(query, ignoreCase = true) }
@@ -88,7 +88,7 @@ fun IdCrossView(state: AppState) {
             }
             CompactTextField(
                 value = query,
-                onValueChange = { query = it },
+                onValueChange = { state.memory.entityQuery = it },
                 singleLine = true,
                 placeholder = { Text("IDを検索…") },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp),
@@ -148,7 +148,7 @@ private fun EntityPage(state: AppState, id: String) {
         Aspects.compose(id, state.overlayIndex(), state.schemas, state.entityTypes) { f -> state.ensureDoc(f).root }
     }
     val occurrences = state.overlayIndex().occurrences(id)
-    var showOccurrences by remember(id) { mutableStateOf(false) }
+    val showOccurrences = state.memory.entityOccurrencesOpen[id] == true  // 出現別フォームの切替は画面の覚え（ID ごと）
     var opDialog by remember(id) { mutableStateOf<EntityOp?>(null) }
     val scroll = rememberScrollState()
     Box(Modifier.fillMaxSize()) {
@@ -196,7 +196,7 @@ private fun EntityPage(state: AppState, id: String) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CrossSection("全体像（${composite.sections.size} アスペクト）")
                     Spacer(Modifier.weight(1f))
-                    TextButton(onClick = { showOccurrences = !showOccurrences },
+                    TextButton(onClick = { state.memory.entityOccurrencesOpen[id] = !showOccurrences },
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)) {
                         Text(if (showOccurrences) "合成表示に戻す" else "出現別フォームで表示", fontSize = 11.sp)
                     }

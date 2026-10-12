@@ -46,7 +46,10 @@ private data class TreeRow(
  */
 @Composable
 fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp) {
-    var selectedPath by remember(state.workspace) { mutableStateOf<Path?>(null) }
+    // 選択中の場所は画面の覚え（台帳・実行・設計を経由しても残る）。無くなった場所は読み捨てる
+    val selectedPath = state.memory.treeSelection?.takeIf { p ->
+        p in state.directories || p in state.yamlFiles || p in state.editorOnlyFiles || p in state.markdownFiles
+    }
     var dialog by remember { mutableStateOf<TreeDialog?>(null) }
     var inferTarget by remember(state.workspace) { mutableStateOf<Path?>(null) }
     Column(
@@ -88,7 +91,7 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp) {
             )
             return@Column
         }
-        val expanded = remember(ws) { mutableStateMapOf<Path, Boolean>() }
+        val expanded = state.memory.treeExpanded  // フォルダの展開は画面の覚え（ワークスペース切替で消える）
         val rows = buildRows(ws, state.yamlFiles, state.editorOnlyFiles, state.markdownFiles, state.directories, expanded)
 
         // 行以外の空白クリックで選択を解除できるようにする（未選択＝ルート直下が作成先になる。UX-40）
@@ -96,7 +99,7 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp) {
             Modifier.fillMaxSize().clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
-            ) { selectedPath = null },
+            ) { state.memory.treeSelection = null },
         ) {
             val listState = rememberLazyListState()
             LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
@@ -104,7 +107,7 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp) {
                     // 台帳外（editorOnly）のディレクトリは既定で畳む（buildRows と同じ既定）
                     val isOpen = expanded[row.path] ?: !row.editorOnly
                     TreeRowItem(state, row, isOpen, selectedPath == row.path) {
-                        selectedPath = row.path
+                        state.memory.treeSelection = row.path
                         if (row.isDir) {
                             expanded[row.path] = !isOpen
                         } else {
@@ -152,7 +155,7 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp) {
                         TreeDialog.Delete -> selectedPath?.let { state.deletePath(it) }
                             ?: Result.failure(IllegalStateException("対象がありません"))
                     }
-                    if (result.isSuccess) { dialog = null; if (kind != TreeDialog.NewFile) selectedPath = null }
+                    if (result.isSuccess) { dialog = null; if (kind != TreeDialog.NewFile) state.memory.treeSelection = null }
                     // 失敗はダイアログ内に表示する（ステータスバーだけでは気づけない。UX-41）
                     result.exceptionOrNull()?.let { it.message ?: "操作に失敗しました" }
                 },

@@ -70,8 +70,9 @@ private val READY_COLUMNS = listOf(
 fun ReadinessPane(state: AppState) {
     var refresh by remember { mutableStateOf(0) }
     val report = remember(state.workspace, state.indexVersion, refresh) { state.readinessReport() }
-    var pendingOnly by remember { mutableStateOf(false) }
-    var query by remember { mutableStateOf("") }
+    // 絞り込みは画面の覚え（タブを離れても残る）
+    val pendingOnly = state.memory.readinessPendingOnly
+    val query = state.memory.readinessQuery
     Column(Modifier.fillMaxSize().background(Palette.EditorBg)) {
         Row(
             Modifier.fillMaxWidth().background(Palette.Surface).padding(horizontal = 12.dp, vertical = 8.dp),
@@ -106,10 +107,10 @@ fun ReadinessPane(state: AppState) {
             if (byPhase.categories.isNotEmpty()) ChartCard("フェーズ別", byPhase, Modifier.weight(1f))
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(pendingOnly, { pendingOnly = it }, modifier = Modifier.size(30.dp))
+            Checkbox(pendingOnly, { state.memory.readinessPendingOnly = it }, modifier = Modifier.size(30.dp))
             Text("未完だけ", fontSize = 12.sp)
             Spacer(Modifier.width(12.dp))
-            CompactTextField(query, { query = it }, singleLine = true,
+            CompactTextField(query, { state.memory.readinessQuery = it }, singleLine = true,
                 placeholder = { Text("ID・タイトル・ファイルで絞り込み") }, modifier = Modifier.width(260.dp))
         }
         val rows = remember(report, pendingOnly, query) {

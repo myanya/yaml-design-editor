@@ -286,4 +286,24 @@ class NavigationHistoryTest {
         state.goBack()
         assertEquals(a, state.openDoc?.file)
     }
+
+    @Test
+    fun `エディタのタブも戻る・進むで復元される`() {
+        // タブ（フォーム・ソース・差分）は下位ビューと同じく場所の一部。普通に開くときはフォームのまま
+        val state = AppState()
+        val a = newFile("a.yaml")
+        val b = newFile("b.yaml")
+        state.openFile(a)
+        state.editorTab = 1
+        state.openFile(b)
+        assertEquals(0, state.editorTab)
+
+        state.goBack()
+        assertEquals(a, state.openDoc?.file)
+        assertEquals(1, state.editorTab)
+
+        state.goForward()
+        assertEquals(b, state.openDoc?.file)
+        assertEquals(0, state.editorTab)
+    }
 }

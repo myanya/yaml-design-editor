@@ -19,10 +19,15 @@ fun WorkspaceTableView(state: AppState) {
     state.indexVersion
     // 未保存編集（タイトル・状態変更）も一覧に反映する（UX-18。workspaceRecords は unsavedFirstLoader 済み）
     val records = remember(state.indexVersion, state.editVersion, state.yamlFiles) { state.workspaceRecords() }
-    var query by remember { mutableStateOf("") }
-    var kind by remember { mutableStateOf("") }
-    var status by remember { mutableStateOf("") }
-    val selected = remember { mutableStateMapOf<Path, Boolean>() }
+    // 絞り込みと一括変更の対象は画面の覚え（ScreenMemory）。候補に無くなった種別・状態は「すべて」として扱い、無くなったファイルは数えない
+    val memory = state.memory
+    val query = memory.listQuery
+    val kinds = remember(records) { listOf("") + records.mapNotNull { it.kind }.distinct().sorted() }
+    val statuses = remember(records) { listOf("") + records.mapNotNull { it.status }.distinct().sorted() }
+    val kind = memory.listKind.takeIf { it in kinds } ?: ""
+    val status = memory.listStatus.takeIf { it in statuses } ?: ""
+    val selected = memory.listSelected
+    val selectedFiles = remember(records, selected.toMap()) { records.map { it.file }.filter { selected[it] == true } }
     var bulkKey by remember { mutableStateOf("status") }
     var bulkValue by remember { mutableStateOf("") }
     var confirmBulk by remember { mutableStateOf(false) }
@@ -36,16 +41,16 @@ fun WorkspaceTableView(state: AppState) {
         Row(Modifier.fillMaxWidth().background(Palette.Surface).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("ワークスペース一覧", fontWeight = FontWeight.Bold, fontSize = 14.sp)
             Spacer(Modifier.width(12.dp))
-            CompactTextField(query, { query = it }, singleLine = true,
+            CompactTextField(query, { memory.listQuery = it }, singleLine = true,
                 placeholder = { Text("ID・タイトル・パス") }, modifier = Modifier.width(220.dp))
             Spacer(Modifier.width(6.dp))
-            FilterMenu("種別", kind, listOf("") + records.mapNotNull { it.kind }.distinct().sorted()) { kind = it }
-            FilterMenu("状態", status, listOf("") + records.mapNotNull { it.status }.distinct().sorted()) { status = it }
+            FilterMenu("種別", kind, kinds) { memory.listKind = it }
+            FilterMenu("状態", status, statuses) { memory.listStatus = it }
             Spacer(Modifier.weight(1f))
             Text("${filtered.size} 件", fontSize = 11.sp, color = Palette.SubText)
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("選択: ${selected.count { it.value }}", fontSize = 11.sp, color = Palette.SubText)
+            Text("選択: ${selectedFiles.size}", fontSize = 11.sp, color = Palette.SubText)
             Spacer(Modifier.width(10.dp))
             // 対象キーはワークスペースのルート直下スカラーキーから選ぶ（R8-05: L-07）
             val bulkKeys = remember(records) { state.bulkKeyCandidates() }
@@ -53,7 +58,7 @@ fun WorkspaceTableView(state: AppState) {
             CompactTextField(bulkValue, { bulkValue = it }, singleLine = true,
                 placeholder = { Text("一括設定する値") }, modifier = Modifier.width(180.dp))
             Spacer(Modifier.width(6.dp))
-            Button(enabled = selected.any { it.value } && bulkValue.isNotBlank(), onClick = { confirmBulk = true },
+            Button(enabled = selectedFiles.isNotEmpty() && bulkValue.isNotBlank(), onClick = { confirmBulk = true },
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)) { Text("一括変更", fontSize = 11.sp) }
         }
         // 表は共通部品（VirtualTable）: チェックと ID の列を左に固定し、横に長くても ID が見える
@@ -82,10 +87,10 @@ fun WorkspaceTableView(state: AppState) {
     }
     if (confirmBulk) AlertDialog(
         onDismissRequest = { confirmBulk = false },
-        title = { Text("${selected.count { it.value }} ファイルを一括変更") },
+        title = { Text("${selectedFiles.size} ファイルを一括変更") },
         text = { Text("$bulkKey を「$bulkValue」に変更して保存します。") },
         confirmButton = { TextButton(onClick = {
-            state.bulkUpdate(selected.filterValues { it }.keys, bulkKey, bulkValue)
+            state.bulkUpdate(selectedFiles.toSet(), bulkKey, bulkValue)
                 .onSuccess { state.status = "$it ファイルを一括変更しました" }
                 .onFailure { state.status = it.message ?: "一括変更に失敗しました" }
             selected.clear(); confirmBulk = false

@@ -135,16 +135,17 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
         val currentPhase = remember(doc, doc.version) {
             phases?.let { p -> doc.schema?.currentPhaseValue(doc.root)?.takeIf { it in p.order } ?: p.order.firstOrNull() }
         }
-        var selectedTab by remember { mutableStateOf(0) }
+        // タブと検証スコープは画面の覚え（ScreenMemory。実行・設計スペースを経由しても残る）
+        val selectedTab = state.memory.sidePanelTab
         // 検証スコープ（UX-44）: 0 = この文書 / 1 = 全体（索引対象の全文書を「見たまま」で検証）
-        var validationScope by remember { mutableStateOf(0) }
+        val validationScope = state.memory.validationScope
         val workspaceIssues = remember(state.indexVersion, state.editVersion, validationScope) {
             if (validationScope == 1) state.validateWorkspace() else emptyList()
         }
         TabRow(selectedTabIndex = selectedTab, containerColor = Palette.PanelBg, contentColor = Palette.Primary) {
-            Tab(selectedTab == 0, { selectedTab = 0 }, text = { Text("検証 ${issues.size + state.schemaErrors.size + viewDefErrors.size}", fontSize = 11.sp) })
-            Tab(selectedTab == 1, { selectedTab = 1 }, text = { Text("関係 ${localRefs.size + backlinks.size}", fontSize = 11.sp) })
-            Tab(selectedTab == 2, { selectedTab = 2 }, text = { Text("出現 ${occurrences.size}", fontSize = 11.sp) })
+            Tab(selectedTab == 0, { state.memory.sidePanelTab = 0 }, text = { Text("検証 ${issues.size + state.schemaErrors.size + viewDefErrors.size}", fontSize = 11.sp) })
+            Tab(selectedTab == 1, { state.memory.sidePanelTab = 1 }, text = { Text("関係 ${localRefs.size + backlinks.size}", fontSize = 11.sp) })
+            Tab(selectedTab == 2, { state.memory.sidePanelTab = 2 }, text = { Text("出現 ${occurrences.size}", fontSize = 11.sp) })
         }
 
         Box(Modifier.fillMaxSize()) {
@@ -159,9 +160,9 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                         Modifier.padding(start = 12.dp, top = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        ScopeChip("この文書", validationScope == 0) { validationScope = 0 }
+                        ScopeChip("この文書", validationScope == 0) { state.memory.validationScope = 0 }
                         Spacer(Modifier.width(6.dp))
-                        ScopeChip("全体", validationScope == 1) { validationScope = 1 }
+                        ScopeChip("全体", validationScope == 1) { state.memory.validationScope = 1 }
                     }
                 }
                 if (validationScope == 1) {

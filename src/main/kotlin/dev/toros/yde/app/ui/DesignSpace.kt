@@ -74,7 +74,7 @@ private val defKinds = listOf(
 fun DesignSpace(state: AppState) {
     val ws = state.workspace ?: return
     state.indexVersion  // 再読込・保存での再コンポーズ購読
-    var selectedZone by remember { mutableStateOf(defKinds.first().zone) }
+    val selectedZone = state.memory.designZone ?: defKinds.first().zone  // 選んでいる種類は画面の覚え（スペースを離れても残る）
     var createFor by remember { mutableStateOf<DefKind?>(null) }
     var inferOpen by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
@@ -93,7 +93,7 @@ fun DesignSpace(state: AppState) {
                 Row(
                     Modifier.fillMaxWidth()
                         .background(if (selected) Palette.Selected else Color.Transparent)
-                        .clickable { selectedZone = kind.zone; message = "" }
+                        .clickable { state.memory.designZone = kind.zone; message = "" }
                         .padding(horizontal = 12.dp, vertical = 7.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {

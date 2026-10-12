@@ -15,6 +15,7 @@
 - `YNode` ツリーを表示するコンポーザブルは、先頭で `doc.version` / `state.indexVersion` を読んで再コンポーズを購読する（読み忘れると更新されない）。
 - **`Dispatchers.Main` は使わない**（本プロジェクトの classpath には Main dispatcher の提供モジュールがなく、実行時例外になる）。バックグラウンド処理からUIへ反映するときは、スナップショット状態（`mutableStateOf` / `mutableStateListOf`）を直接更新する——スナップショット状態はスレッド安全で、変更は次フレームの再コンポーズに反映される。
 - ツリーの変更は必ず `ctx.markEdited()`（または `doc.markEdited()`）とセットで行う。
+- 画面を離れても残したい見え方（畳み・タブ・絞り込み・チェック・ツリーの展開）は `remember` に置かず `state.memory`（`ScreenMemory`）へ。覚えは「あれば使う・無ければ既定」で、再読込で無くなった鍵を誤りにしない。操作の途中（ダイアログ・メニュー・入力途中の欄）は `remember` のまま（architecture/ui.md「規律」）。
 - 入力欄は `CompactTextField`、色は `Palette.*`、角丸は `PanelShape` を使う。生の `Color(0x...)` や Material 既定色をビューに直接書かない（テーマ切替が壊れるため）。
 - 等幅で見せる文字（YAML ソース・差分・ログ・サンプル）は `AppFonts.Mono`（同梱の Cica。ビルド時に取得して資源 `fonts/cica/` に入る）。`FontFamily.Monospace` を書かない（OS 任せで日本語と英数の幅が揃わず、OS ごとに見た目が変わる）。
 - 外部の UI ライブラリ（FileKit・Reorderable・Markdown の描画・Vico・ELK）は ui/ の 1 ファイルで包み、ライブラリの型やimport をその外へ出さない。より良いライブラリが見つかったとき、その 1 ファイルだけ書き換えれば済むようにするため。共通の部品（表＝`VirtualTable`・Markdown＝`MarkdownView`・ファイル選択＝`FilePickers`・並べ替え＝`ReorderableList`・グラフ＝`BarChart`・節点と辺の配置＝`GraphLayouts`）を画面ごとに作り直さない。
@@ -91,6 +92,7 @@
 - **移動であって複製ではない**: ファイルをモジュール間で移すときは `git mv` し、旧位置に残さない。各ステップで `./gradlew test` を緑に保つ。
 - **fixture は読み取り専用**: `test-fixtures/` の期待結果は [test-fixtures/README.md](../test-fixtures/README.md) にある。変更を伴うテストは一時ディレクトリへコピーして使う。`labs/` 配下をテストから読まない。
 - **設計の決定を変えるとき**は、既存の ADR を書き換えず、新しい ADR で上書きを宣言する。
+- **Gradle のタスクの実行時の処理（`doLast`）からスクリプトの値を直接参照しない**: 手元の `val` に取ってから使う（`generateBuildInfo` / `copyHelp` の書き方）。Hot Reload の再コンパイルは構成キャッシュを再利用し、スクリプトの参照を持つタスクは復元できずに失敗する。
 
 ## 9. Core Calculus（新しい決定論的機能の設計レビュー）
 

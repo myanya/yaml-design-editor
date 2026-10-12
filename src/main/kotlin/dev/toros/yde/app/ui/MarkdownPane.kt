@@ -85,7 +85,9 @@ internal fun resolveMarkdownLink(
 fun MarkdownPane(state: AppState) {
     val file = state.openMarkdown
     val help = state.openHelp
-    var tab by remember(file, help) { mutableStateOf(0) }
+    // 表示とソースのタブは画面の覚え（文書・題目ごと。離れても残る）
+    val tabKey = file?.toString() ?: "help:$help"
+    val tab = state.memory.markdownTab[tabKey] ?: 0
     var stamp by remember(file) { mutableStateOf(0L) }
     if (file != null) {
         LaunchedEffect(file) {
@@ -126,8 +128,8 @@ fun MarkdownPane(state: AppState) {
             }
         }
         TabRow(selectedTabIndex = tab, containerColor = Palette.Surface, contentColor = Palette.Primary) {
-            Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("表示", fontSize = 13.sp) })
-            Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("ソース", fontSize = 13.sp) })
+            Tab(selected = tab == 0, onClick = { state.memory.markdownTab[tabKey] = 0 }, text = { Text("表示", fontSize = 13.sp) })
+            Tab(selected = tab == 1, onClick = { state.memory.markdownTab[tabKey] = 1 }, text = { Text("ソース", fontSize = 13.sp) })
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             val scroll = rememberScrollState()

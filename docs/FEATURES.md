@@ -25,6 +25,7 @@
 | W-13 | 同梱フォント（等幅 Cica をビルド時に取得して資源へ・`AppFonts.Mono`・資源が無ければ OS の等幅へ戻す） | `build.gradle.kts`（`downloadFonts`）, `ui/Common.kt`（`AppFonts`） | 手動 | [ui](architecture/ui.md) |
 | W-14 | Markdown 文書の表示（ワークスペース内の `.md` をツリーに薄色で出し、描画とソースの 2 タブで表示のみ・相対リンクはアプリ内で開く・外部変更に追随） | `ui/MarkdownPane.kt`, `ui/MarkdownView.kt`, `AppState.openMarkdown`, `core/Workspace.kt`（`WorkspaceScan.markdownFiles`） | 単体 `MarkdownLinkTest` | [ui](architecture/ui.md) |
 | W-15 | 内蔵ヘルプ（利用者マニュアルをビルド時に資源へ入れ、ツールバーの ? とコマンドパレットから文書として開く・題目間のリンクで移動） | `app/Help.kt`, `build.gradle.kts`（`copyHelp`）, `ui/MarkdownPane.kt` | 単体 `MarkdownLinkTest` | [ui](architecture/ui.md) |
+| W-16 | 画面の見え方の保持（フォームの畳み・ツリーの展開と選択・右パネルのタブと検証の範囲・台帳の絞り込みとレンズの設定・実行と設計のタブを、画面を離れても消さずワークスペース切替で消す） | `app/ScreenMemory.kt`, `ui/FormView.kt`（`FormCtx.expanded`） | 単体 `ScreenMemoryTest` | [ui](architecture/ui.md) |
 
 ## 2. 文書編集
 
@@ -116,7 +117,7 @@
 | I-05 | バックリンク（被参照一覧・参照元の ID とタイトル） | `IdIndex.backlinksTo`, `ui/SidePanel.kt` | 手動 | [index-references](architecture/index-references.md) |
 | I-06 | ID 検索（コマンドパレット・ID とタイトルの部分一致・オーバーレイ索引） | `Main.kt`（`CommandPalette`） | 手動 | [ui](architecture/ui.md) |
 | I-07 | エンティティページ（合成全体像・関係パネル・カバレッジ・改名／統合／削除・グラフレンズへ。入口は `openCrossView` の 1 経路＝ID 欄の Hub ボタン・参照の→メニュー・ストリップ・出現タブ・ビューグリッド・レンズ） | `ui/IdCrossView.kt`, `core/Aspects.kt`, `AppState.openCrossView` | 手動（合成は `AspectTest`） | [graph-query](architecture/graph-query.md) |
-| I-08 | ナビゲーション履歴（戻る・進む・スペースとタブと ID とビューとハイライトを復元・ショートカットはウィンドウで受ける） | `AppState.goBack` / `goForward`, `Main.kt`（`handleShortcut`） | 単体 `NavigationHistoryTest` | [ui](architecture/ui.md) |
+| I-08 | ナビゲーション履歴（戻る・進む・スペースとタブと ID とビューとハイライトとエディタのタブを復元・ショートカットはウィンドウで受ける） | `AppState.goBack` / `goForward`, `Main.kt`（`handleShortcut`） | 単体 `NavigationHistoryTest` | [ui](architecture/ui.md) |
 | I-09 | ID インスペクタ（右パネルの検証・関係・出現の 3 タブ） | `ui/SidePanel.kt` | 手動 | [ui](architecture/ui.md) |
 | I-10 | 導出グラフ（走査結果から導出する読み取り専用のエンティティグラフ・索引の更新で無効化） | `semantic-core/semantic/`（`SemanticEntityGraph`）, `index/IdIndex.kt`（`graph`） | 単体 `EntityGraphTest` | [graph-query](architecture/graph-query.md) |
 | I-11 | 文書参照（`target: document`・文書ノードへの参照・エンティティ参照とは混ぜない） | `index/IdIndex.kt`（`RefEntry.targetKind`）, `ui/FormView.kt`（`DocRefScalarEditor`） | 単体 `DocRefTest` | [graph-query](architecture/graph-query.md) |

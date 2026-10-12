@@ -110,6 +110,23 @@ class FormCtx(
     fun highlightInside(path: YPath): Boolean =
         state.highlightPath?.let { it.size > path.size && it.subList(0, path.size) == path } == true
 
+    /** この文書の文書ID（画面の覚えの鍵）。 */
+    private val documentId get() = state.documentOf(doc.file)
+
+    /**
+     * 畳みを開いているか。画面の覚え（`ScreenMemory`）→ 既定の深さの順で決め、ジャンプ先が中なら開いて覚える
+     * （UX-10。展開はジャンプ後も維持）。覚えは画面を離れても残るので、戻ってきたとき同じ見え方になる。
+     */
+    fun expanded(path: YPath, default: Boolean = defaultExpanded(path)): Boolean {
+        if (highlightInside(path)) {
+            setExpanded(path, true)
+            return true
+        }
+        return state.memory.fold(documentId, path) ?: default
+    }
+
+    fun setExpanded(path: YPath, expanded: Boolean) = state.memory.setFold(documentId, path, expanded)
+
     fun markEdited(coalesceWith: Any? = null) {
         check(!readOnly) { "閲覧専用モードでは編集できません" }
         doc.markEdited(coalesceWith)
@@ -1385,9 +1402,8 @@ private fun DocRefScalarEditor(ctx: FormCtx, slot: Slot) {
 private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
     val node = slot.get()
     // 既定は浅い階層のみ展開し、深い階層は畳んで要約を見せる（編集・閲覧共通）。
-    // キーに readOnly を含めないことで、モード切替時も展開状態＝表示の深さを保つ。
-    var expanded by remember(path) { mutableStateOf(ctx.defaultExpanded(path)) }
-    if (ctx.highlightInside(path)) expanded = true  // ジャンプ先が畳みの中なら自動展開（UX-10）
+    // 開閉は画面の覚え（ScreenMemory）が文書とパスで持ち、モード切替や画面の行き来でも保つ。ジャンプ先が中なら開く（UX-10）
+    val expanded = ctx.expanded(path)
     if (node == null) {
         if (ctx.readOnly) {
             ReadOnlyValueText(null)
@@ -1395,7 +1411,7 @@ private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) 
         }
         TextButton(onClick = {
             slot.set(YNode.Seq(mutableListOf(defaultNode(field.item, ctx.doc.schema))))
-            expanded = true
+            ctx.setExpanded(path, true)
             ctx.markEdited()
         }) {
             Icon(Icons.Default.Add, contentDescription = null, Modifier.size(16.dp))
@@ -1419,7 +1435,7 @@ private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) 
             .border(1.dp, Palette.Border, PanelShape)
             .padding(6.dp)
     ) {
-        TextButton(onClick = { expanded = !expanded }, contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp)) {
+        TextButton(onClick = { ctx.setExpanded(path, !expanded) }, contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp)) {
             Text((if (expanded) "▼ " else "▶ ") + header, fontSize = 11.sp, color = Palette.SubText, maxLines = 1)
         }
         if (expanded) {
@@ -1594,15 +1610,14 @@ private fun ObjectTable(
             HorizontalDivider(color = Palette.Border, modifier = Modifier.width(rowWidth))
             // 配列の行は取っ手からのドラッグで並べ替えられる（onMove がある表だけ取っ手を出す。map の表は出さない）
             ReorderableList(items = rows, onMove = { from, to -> onMove?.invoke(from, to) }, key = { it.second }) { i, (segment, element), dragging ->
-                var rowExpanded by remember(path, segment) { mutableStateOf(false) }
                 val rowPath = path + segment
-                // ジャンプ先が行の中（列にならない項目＝展開フォーム側）なら行を自動展開する（UX-10）
-                if (ctx.highlightInside(rowPath)) rowExpanded = true
+                // 行の展開は画面の覚えが持つ（既定は畳む）。ジャンプ先が行の中（列にならない項目＝展開フォーム側）なら開く（UX-10）
+                val rowExpanded = ctx.expanded(rowPath, default = false)
                 Highlightable(ctx.state, rowPath) {
                     Column(Modifier.width(rowWidth).background(if (dragging) Palette.Selected else Color.Transparent)) {
                         Row(verticalAlignment = Alignment.Top) {
                             Box(Modifier.width(TABLE_EXPAND_WIDTH).padding(top = if (ctx.readOnly) 0.dp else 7.dp)) {
-                                IconButton(onClick = { rowExpanded = !rowExpanded }, modifier = Modifier.size(24.dp)) {
+                                IconButton(onClick = { ctx.setExpanded(rowPath, !rowExpanded) }, modifier = Modifier.size(24.dp)) {
                                     Text(if (rowExpanded) "▼" else "▶", fontSize = 10.sp, color = Palette.SubText)
                                 }
                             }
@@ -1803,9 +1818,8 @@ private fun TableCellText(text: String?) {
 private fun NestedObjectEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
     val node = slot.get()
     // 既定は浅い階層のみ展開し、深い階層は畳んで要約を見せる（編集・閲覧共通）。
-    // キーに readOnly を含めないことで、モード切替時も展開状態＝表示の深さを保つ。
-    var expanded by remember(path) { mutableStateOf(ctx.defaultExpanded(path)) }
-    if (ctx.highlightInside(path)) expanded = true  // ジャンプ先が畳みの中なら自動展開（UX-10）
+    // 開閉は画面の覚え（ScreenMemory）が文書とパスで持ち、モード切替や画面の行き来でも保つ。ジャンプ先が中なら開く（UX-10）
+    val expanded = ctx.expanded(path)
     if (node == null) {
         if (ctx.readOnly) {
             ReadOnlyValueText(null)
@@ -1813,7 +1827,7 @@ private fun NestedObjectEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: 
         }
         TextButton(onClick = {
             slot.set(defaultNode(field, ctx.doc.schema))
-            expanded = true
+            ctx.setExpanded(path, true)
             ctx.markEdited()
         }) {
             Icon(Icons.Default.Add, contentDescription = null, Modifier.size(16.dp))
@@ -1833,7 +1847,7 @@ private fun NestedObjectEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: 
             .border(1.dp, Palette.Border, PanelShape)
             .padding(horizontal = 10.dp, vertical = 4.dp)
     ) {
-        TextButton(onClick = { expanded = !expanded }, contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp)) {
+        TextButton(onClick = { ctx.setExpanded(path, !expanded) }, contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp)) {
             Text((if (expanded) "▼ " else "▶ ") + header, fontSize = 11.sp, color = Palette.SubText, maxLines = 1)
         }
         if (expanded) ObjectFields(ctx, field.fields, node, path)
@@ -1843,15 +1857,14 @@ private fun NestedObjectEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: 
 @Composable
 private fun MapEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
     val node = slot.get()
-    // 既定は浅い階層のみ展開（編集・閲覧共通）。モード切替時も展開状態＝表示の深さを保つ
-    var expanded by remember(path) { mutableStateOf(ctx.defaultExpanded(path)) }
-    if (ctx.highlightInside(path)) expanded = true  // ジャンプ先が畳みの中なら自動展開（UX-10）
+    // 既定は浅い階層のみ展開（編集・閲覧共通）。開閉は画面の覚えが持ち、ジャンプ先が中なら開く（UX-10）
+    val expanded = ctx.expanded(path)
     if (node == null) {
         if (ctx.readOnly) {
             ReadOnlyValueText(null)
             return
         }
-        TextButton(onClick = { slot.set(YNode.Map()); expanded = true; ctx.markEdited() }) {
+        TextButton(onClick = { slot.set(YNode.Map()); ctx.setExpanded(path, true); ctx.markEdited() }) {
             Icon(Icons.Default.Add, contentDescription = null, Modifier.size(16.dp))
             Text("Mapを作成", fontSize = 13.sp)
         }
@@ -1866,7 +1879,7 @@ private fun MapEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
     val columns = Display.tableColumns(ctx.doc.schema, field)
     val tabular = columns != null && node.entries.isNotEmpty() && node.entries.values.all { it is YNode.Map }
     Column(Modifier.fillMaxWidth().border(1.dp, Palette.Border, PanelShape).padding(6.dp)) {
-        TextButton(onClick = { expanded = !expanded }, contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp)) {
+        TextButton(onClick = { ctx.setExpanded(path, !expanded) }, contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp)) {
             Text(if (expanded) "▼ ${node.entries.size} 件" else "▶ ${node.entries.size} 件", fontSize = 11.sp, color = Palette.SubText)
         }
         if (expanded) {

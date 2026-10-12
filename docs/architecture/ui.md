@@ -9,6 +9,7 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 |---|---|---|
 | `Main.kt` | app/Main.kt | エントリポイント・ウィンドウ・ショートカット（`handleShortcut`）・スタート画面・コマンドパレット・ステータスバー・`uiPreferences` |
 | `UiSpace` / `showSpace` / `showWorkspaceView` / `navigateToPath` / `openCrossView` / `openViewGrid` / `goBack` / `goForward` | app/AppState.kt | スペースとナビゲーション履歴（`NavLocation`） |
+| `ScreenMemory` | app/ScreenMemory.kt | 画面の覚え（畳み・タブ・絞り込み・チェック・ツリーの展開。画面を離れても消えず、ワークスペース切替で消える） |
 | `ActivityRail` / `LedgerSpace` | ui/Shell.kt | 4 スペースを切り替えるレールと、一覧・ビューグリッド・グラフ・エンティティをタブで束ねる台帳スペース |
 | `RunController` / `RunsSpace` | ui/RunsSpace.kt | 実行スペース（受信箱・手動実行・自動化・計測評価）。実行状態機械（AppRoot 生存期間） |
 | `DesignSpace` | ui/DesignSpace.kt | 設計スペース（定義文書の種類別カタログ・新規作成・スキーマ推測・skill） |
@@ -36,7 +37,10 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 ## UI シェル
 
 - **スペースは `app.UiSpace`（EDIT / LEDGER / RUNS / DESIGN）**。`workspaceView`（0=文書, 1=一覧, 2=グラフ, 3=エンティティ, 4=ビューグリッド, 5=フロー, 6=準備完了レポート）は文書世界の下位ビュー。両者の同期は AppState のナビゲーション系メソッドが担い、ジャンプは常に EDIT（view 0）／LEDGER（view 1〜5）へ着地する。レール以外から `uiSpace` を直接書き換えない。
-- **スペースの移動も「戻る・進む」の対象**: `NavLocation` はスペースを含み、`showSpace` / `showWorkspaceView` / `openCrossView` / `openViewGrid` も履歴に積む。復元は EDIT＝ファイル＋ハイライト、LEDGER＝下位ビュー＋選択 ID、RUNS / DESIGN＝スペースのみ。同じ場所の再選択は積まない。新しい移動で「進む」履歴は破棄。削除済みファイルは読み飛ばし、ワークスペース切替でクリア（`NavigationHistoryTest`）。
+- **スペースの移動も「戻る・進む」の対象**: `NavLocation` はスペースを含み、`showSpace` / `showWorkspaceView` / `openCrossView` / `openViewGrid` も履歴に積む。復元は EDIT＝ファイル＋ハイライト＋エディタのタブ、LEDGER＝下位ビュー＋選択 ID、RUNS / DESIGN＝スペースのみ。同じ場所の再選択は積まない。新しい移動で「進む」履歴は破棄。削除済みファイルは読み飛ばし、ワークスペース切替でクリア（`NavigationHistoryTest`）。
+- **「戻る」が戻すのは場所で、見え方は画面が覚える**: 畳み・タブ・絞り込み・チェック・ツリーの展開のような見え方は `ScreenMemory`（`state.memory`）に置き、画面が描画の木から外れても捨てない。履歴（`NavLocation`）には積まない。
+  - 覚えは「あれば使う・無ければ既定」。再読込で無くなった文書・型・種別の鍵は読まれないだけにし、画面側で今の候補と突き合わせる（一覧の種別と状態・ツリーの選択・レンズの配置）。
+  - 寿命はワークスペース（切替で全部消す）。文書の削除・改名はその文書のぶんだけ消す・移す。操作の途中（ダイアログ・メニュー・入力途中の欄）は `remember` のまま（`ScreenMemoryTest`）。
 - **モーダルの新設禁止（確認ダイアログを除く）**: エージェント実行・自動化・計測評価・skill 操作は実行／設計スペースの常設画面。AlertDialog は破壊的操作と承認の確認だけ。エージェントの質問もモーダルにせず非モーダルカード。気づきはレールとステータスバーのバッジ。
 - **エージェント実行の状態は `RunController`**（AppRoot 生存期間・ワークスペース単位）。スペースを切り替えて実行画面がコンポジションから外れても状態が失われない。
 - **受信箱はデータを持たない射影**: 承認待ち（`AutomationEngine.pendingSnapshot`）・質問（`RunController.pendingQuestion`）・外部変更競合（`AppState.conflictedDocs`）を集約表示するだけ。バッジ数もこの集約から導出する。
@@ -76,7 +80,7 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 ## 畳みとハイライト
 
 - 要素位置は YPath で紐付き、`state.highlightPath` に設定すると `Highlightable` がスクロール＋一時ハイライトする（対象を画面端でなく中央寄りに出す）。
-- ハイライト対象が畳みの中にある場合は自動展開する。畳まれた区画の中は `Highlightable` がコンポーズされないため、畳みを持つエディタ（配列・ネスト object・map・テーブル行展開）は `FormCtx.highlightInside(path)` で展開する。展開はジャンプ後も維持する。
+- ハイライト対象が畳みの中にある場合は自動展開する。畳まれた区画の中は `Highlightable` がコンポーズされないため、畳みを持つエディタ（配列・ネスト object・map・テーブル行展開）は `FormCtx.expanded(path)` で開閉を決める（ジャンプ先が中なら開く）。開閉は `ScreenMemory` が文書とパスで持ち、ジャンプ後も画面を離れても維持する。
 - 畳み込みサマリ: 畳んだ object は「ID タイトル（n 項目）」、array は「n 件: 先頭要素の要約, …」（`Display`）。既定はルートから 2 階層まで展開、以深は畳む（`FormCtx.defaultExpanded`。エンティティページの埋め込みフォームは要素基準の相対深さ）。モード切替でも展開状態を維持する。
 - 移動は必ずナビゲーション系メソッド（`openFile` / `navigateToPath` / `openCrossView` / `openViewGrid`）を通す。`highlightPath` / `crossViewId` / `viewGridId` を直接代入すると履歴に残らない。
 
@@ -91,7 +95,8 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 - フォーム系の新しい編集 UI は `FormCtx` を通し、閲覧専用モードの表示分岐を入れる。
 - `uiSpace` の書き換えは `showSpace` / `showWorkspaceView` / ナビゲーション系メソッド経由に限る。新しい画面をモーダルで作らない（確認ダイアログを除く）。エージェント実行の状態を `remember` へ戻さない。
 - アプリ全体のショートカットは `Main.kt` の `handleShortcut` に足す。
-- 新しく畳みを持つ UI は `FormCtx.highlightInside` の判定を入れる。
+- 新しく畳みを持つ UI は `FormCtx.expanded` / `setExpanded` を通す（ジャンプ先の自動展開と画面の覚えが付いてくる）。
+- 画面を離れても残したい見え方（畳み・タブ・絞り込み・チェック・展開）は `remember` に置かず `state.memory`（`ScreenMemory`）へ。覚えは「あれば使う・無ければ既定」で、古い鍵を誤りにしない。操作の途中は `remember` のまま。
 - `Dispatchers.Main` は使わない。バックグラウンドから UI へ反映するときはスナップショット状態を直接更新する（CONVENTIONS「Compose UI の書き方」）。
 - 入力欄は `CompactTextField`、色は `Palette.*`、角丸は `PanelShape`。生の色や Material 既定色をビューに直接書かない。
 - 等幅の文字は `AppFonts.Mono`（同梱の Cica。TTF は git に入れず、build.gradle.kts の `downloadFonts` がビルド時に取得して資源 `fonts/cica/` に入れる）。`FontFamily.Monospace` を書かない。
@@ -104,7 +109,7 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 
 ## 拡張ポイント
 
-- **新しい画面**: スペース内の常設画面として `ui/` に 1 ファイル。状態はコンポーザブルの外（AppState か専用のコントローラ）に置く。
+- **新しい画面**: スペース内の常設画面として `ui/` に 1 ファイル。状態はコンポーザブルの外に置く（見え方は `ScreenMemory`、実行のような長い処理の状態は専用のコントローラ）。
 - **新しい編集面**: `FormCtx` を通し、書込は `Slot` ＋ `markEdited()`。連続入力なら合体キー（[editing-history.md](editing-history.md)）。
 - **基底の種類の追加**: `FormView.ValueEditor` に分岐を足す（他の変更箇所は [schema.md「拡張ポイント」](schema.md)）。組込みの型に専用の編集欄を付けるときは `FieldType` の分岐でなく、解決した項目の連鎖で判定する（`isA(BuiltinTypes.TEXT)` が複数行の欄を出す例）。
 - **横断ビューの追加**: `LedgerSpace` のタブと `workspaceView` の分岐に足す。

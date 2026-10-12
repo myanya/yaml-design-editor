@@ -51,7 +51,9 @@ fun SchemaEditor(state: AppState, doc: OpenDocument) {
     // 型の選択肢（P33）: 基底の種類のほかに、この文書の definitions のスカラーの定義・組込みの型・他モジュールのスカラーの定義
     val typeChoices = remember(doc.version, state.schemas, schema?.id) { TypeChoices.of(root, state, schema?.id) }
     val library = scalar(root, "kind") == SchemaKind.LIBRARY.id
-    var mode by remember { mutableStateOf(0) }
+    // タブ（設計・プレビュー・適用対象）は画面の覚え（文書ごと。離れても残る）
+    val schemaKey = state.documentOf(doc.file)
+    val mode = state.memory.schemaTab[schemaKey] ?: 0
     // 一括改名・一括削除の対象（スキーマID × ドット区切りフィールドパス。R25-01 / R25-03）と整列（R25-02）
     var renameFieldTarget by remember { mutableStateOf<Pair<String, List<String>>?>(null) }
     renameFieldTarget?.let { (schemaId, path) ->
@@ -77,9 +79,9 @@ fun SchemaEditor(state: AppState, doc: OpenDocument) {
     }
     Column(Modifier.fillMaxSize()) {
         TabRow(selectedTabIndex = mode, containerColor = Palette.Surface, contentColor = Palette.Primary) {
-            Tab(mode == 0, { mode = 0 }, text = { Text("設計", fontSize = 11.sp) })
-            Tab(mode == 1, { mode = 1 }, text = { Text("プレビュー", fontSize = 11.sp) })
-            Tab(mode == 2, { mode = 2 }, text = { Text("適用対象", fontSize = 11.sp) })
+            Tab(mode == 0, { state.memory.schemaTab[schemaKey] = 0 }, text = { Text("設計", fontSize = 11.sp) })
+            Tab(mode == 1, { state.memory.schemaTab[schemaKey] = 1 }, text = { Text("プレビュー", fontSize = 11.sp) })
+            Tab(mode == 2, { state.memory.schemaTab[schemaKey] = 2 }, text = { Text("適用対象", fontSize = 11.sp) })
         }
         CompositionLocalProvider(LocalTypeChoices provides typeChoices) { when (mode) {
             0 -> Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -111,7 +113,7 @@ fun SchemaEditor(state: AppState, doc: OpenDocument) {
                 AddDefinitionButton(definitions, doc)
             }
             definitions.entries.keys.toList().forEach { name ->
-                DefinitionCard(name, definitions, doc, definitionChoices)
+                DefinitionCard(state, name, definitions, doc, definitionChoices)
             }
             if (!library) {
                 Spacer(Modifier.height(12.dp))
@@ -422,13 +424,17 @@ private const val DEFINITION_KIND_TYPE = "値の型（スカラー）"
 private const val DEFINITION_KIND_STRUCTURE = "オブジェクト型（object）"
 
 @Composable
-private fun DefinitionCard(name: String, definitions: YNode.Map, doc: OpenDocument, names: List<String>) {
+private fun DefinitionCard(state: AppState, name: String, definitions: YNode.Map, doc: OpenDocument, names: List<String>) {
     doc.version  // 引数が同一インスタンスでもスキップさせない（構造変更の即時反映。CONVENTIONS §2 / UX-24）
     val map = definitions.entries[name] as? YNode.Map ?: return
-    var expanded by remember(name) { mutableStateOf(true) }
+    // カードの開閉は画面の覚え（文書 × 定義の名前。既定は開く。離れても残る）
+    val cardPath = listOf("definitions", name)
+    val expanded = state.memory.fold(state.documentOf(doc.file), cardPath) ?: true
     Column(Modifier.fillMaxWidth().padding(top = 6.dp).border(1.dp, Palette.Border, PanelShape).padding(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "▼ $name" else "▶ $name", fontSize = 12.sp) }
+            TextButton(onClick = { state.memory.setFold(state.documentOf(doc.file), cardPath, !expanded) }) {
+                Text(if (expanded) "▼ $name" else "▶ $name", fontSize = 12.sp)
+            }
             Spacer(Modifier.weight(1f))
             TextButton(onClick = { definitions.entries.remove(name); doc.markEdited() }) {
                 Text("削除", fontSize = 11.sp, color = Palette.ErrorRed)

@@ -208,31 +208,32 @@ class RunController(private val state: AppState, val wsPath: Path, private val s
 fun RunsSpace(state: AppState, engine: AutomationEngine?, controller: RunController?, version: Int) {
     version  // エンジン更新の購読
     if (engine == null || controller == null) return
-    var tab by remember { mutableStateOf(0) }
-    var reviewTarget by remember { mutableStateOf<AutomationEngine.PendingReview?>(null) }
+    // タブとレビュー対象は画面の覚え（ScreenMemory。スペースを離れても残る。承認待ちから消えたレビュー対象は下で読み捨てる）
+    val tab = state.memory.runsTab
+    val reviewTarget = state.memory.runsReview
     val pending = engine.pendingSnapshot()
     val conflicts = state.conflictedDocs()
     val inboxCount = pending.size + conflicts.size + (if (controller.pendingQuestion != null) 1 else 0)
 
     Column(Modifier.fillMaxSize().background(Palette.EditorBg)) {
         TabRow(selectedTabIndex = tab, containerColor = Palette.Surface, contentColor = Palette.Primary) {
-            Tab(tab == 0, { tab = 0 }, text = { Text(if (inboxCount > 0) "受信箱（$inboxCount）" else "受信箱", fontSize = 13.sp) })
-            Tab(tab == 1, { tab = 1 }, text = { Text("手動実行", fontSize = 13.sp) })
-            Tab(tab == 2, { tab = 2 }, text = { Text("自動化", fontSize = 13.sp) })
-            Tab(tab == 3, { tab = 3 }, text = { Text("計測・評価", fontSize = 13.sp) })
+            Tab(tab == 0, { state.memory.runsTab = 0 }, text = { Text(if (inboxCount > 0) "受信箱（$inboxCount）" else "受信箱", fontSize = 13.sp) })
+            Tab(tab == 1, { state.memory.runsTab = 1 }, text = { Text("手動実行", fontSize = 13.sp) })
+            Tab(tab == 2, { state.memory.runsTab = 2 }, text = { Text("自動化", fontSize = 13.sp) })
+            Tab(tab == 3, { state.memory.runsTab = 3 }, text = { Text("計測・評価", fontSize = 13.sp) })
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when (tab) {
                 0 -> {
                     val review = reviewTarget
                     if (review != null && pending.contains(review)) {
-                        PendingReviewPane(state, engine, review) { reviewTarget = null }
+                        PendingReviewPane(state, engine, review) { state.memory.runsReview = null }
                     } else {
-                        InboxTab(state, engine, controller, onReview = { reviewTarget = it })
+                        InboxTab(state, engine, controller, onReview = { state.memory.runsReview = it })
                     }
                 }
-                1 -> ManualRunTab(state, engine, controller, onGoAutomation = { tab = 2 })
-                2 -> AutomationSection(state, engine, version) { tab = 0 }
+                1 -> ManualRunTab(state, engine, controller, onGoAutomation = { state.memory.runsTab = 2 })
+                2 -> AutomationSection(state, engine, version) { state.memory.runsTab = 0 }
                 3 -> ImprovementSection(state)
             }
         }

@@ -247,7 +247,7 @@ private fun NewRowIdDialog(state: AppState, view: ViewDef, onDismiss: () -> Unit
 @Composable
 private fun GridBody(state: AppState, view: ViewDef) {
     val ws = state.workspace ?: return
-    var query by remember { mutableStateOf("") }
+    val query = state.memory.gridQuery[view.id].orEmpty()  // 絞り込みは画面の覚え（ビューごと。タブを離れても残る）
     // 行の構造（座標）は索引基準で解決し、セル値の表示・編集は編集中ツリーを優先する。
     // editVersion の購読（R16-04 / UX-02）: 計算列が他文書の未保存編集にも追随するための再解決契機
     val rows = remember(view, state.indexVersion, state.editVersion) {
@@ -263,7 +263,7 @@ private fun GridBody(state: AppState, view: ViewDef) {
     }
     Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
         CompactTextField(
-            query, { query = it }, singleLine = true,
+            query, { state.memory.gridQuery[view.id] = it }, singleLine = true,
             placeholder = { Text("ID・タイトル・値で絞り込み") },
             modifier = Modifier.width(260.dp),
         )

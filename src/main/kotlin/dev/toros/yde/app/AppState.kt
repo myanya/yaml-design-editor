@@ -308,6 +308,12 @@ class AppState {
     /** 開いたことのあるドキュメントのキャッシュ（未保存編集をファイル切替時にも保持する）。 */
     private val docCache = LinkedHashMap<Path, OpenDocument>()
 
+    /**
+     * 画面の覚え（畳み・タブ・絞り込みなど。architecture/ui.md「UI シェル」）。
+     * 画面を離れても消えず、ワークスペース切替で消える。「戻る・進む」が戻すのは場所（NavLocation）で、見え方はここが持つ。
+     */
+    val memory = ScreenMemory()
+
     var openDoc by mutableStateOf<OpenDocument?>(null)
         private set
     /** 開いている Markdown 文書（ワークスペース内の .md。表示のみ）。openDoc・openHelp と排他。 */
@@ -520,6 +526,7 @@ class AppState {
         coreWs = null
         session = null
         docCache.clear()
+        memory.clear()
         flowSelections = emptyMap()
         flowDisplayOptions = emptyMap()
         flowViewId = null
@@ -1581,6 +1588,9 @@ class AppState {
         }
         recentPrefs.put(workspaceKey(), recentFiles.joinToString("\n") { relPath(it) })
         docCache.keys.filter { it == path || it.startsWith(path) }.toList().forEach(docCache::remove)
+        // 画面の覚え（畳みなど）は新しい場所へ移し、ツリーの選択と展開は忘れる
+        memory.renameDocument(moveId, DocumentId(relPath(target)))
+        memory.forgetPath(path)
         if (openDoc?.file == path || openDoc?.file?.startsWith(path) == true) openDoc = null
         reload()
         target
@@ -1594,6 +1604,8 @@ class AppState {
             Files.walk(path).use { it.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
         } else Files.delete(path)
         docCache.keys.filter { it == path || it.startsWith(path) }.toList().forEach(docCache::remove)
+        memory.forgetDocument(DocumentId(relPath(path)))
+        memory.forgetPath(path)
         recentFiles = recentFiles.filterNot { it == path || it.startsWith(path) }
         recentPrefs.put(workspaceKey(), recentFiles.joinToString("\n") { relPath(it) })
         if (openDoc?.file == path || openDoc?.file?.startsWith(path) == true) openDoc = null
@@ -1619,6 +1631,8 @@ class AppState {
         val flowSelections: Map<Pair<String, DocumentId>, dev.toros.yde.semantic.FlowSelection> = emptyMap(),
         /** 内蔵ヘルプの題目（編集スペースにヘルプを出しているとき。file は null）。 */
         val help: String? = null,
+        /** エディタのタブ（0=フォーム・1=ソース・2=差分・3=スキーマ文書のフォーム）。下位ビューと同じく場所の一部。 */
+        val tab: Int = 0,
     )
 
     private var backStack by mutableStateOf<List<NavLocation>>(emptyList())
@@ -1630,7 +1644,7 @@ class AppState {
     /** 現在の表示位置。 */
     private fun currentLocation(): NavLocation =
         NavLocation(uiSpace, workspaceView, openDoc?.file ?: openMarkdown ?: openImage, highlightPath, crossViewId, viewGridId,
-            flowViewId, flowDocument, flowSelections, help = openHelp)
+            flowViewId, flowDocument, flowSelections, help = openHelp, tab = editorTab)
 
     /** 何も開いていない編集スペースは履歴に積む価値がない（台帳・実行・設計はそれ自体が場所）。 */
     private fun isEmptyLocation(loc: NavLocation): Boolean =
@@ -1652,7 +1666,11 @@ class AppState {
         flowDocument = loc.flowDocument
         flowSelections = loc.flowSelections
         when (loc.space) {
-            UiSpace.EDIT -> loc.help?.let { showHelp(it) } ?: loc.file?.let { showFile(it, loc.path) }
+            UiSpace.EDIT -> {
+                loc.help?.let { showHelp(it) } ?: loc.file?.let { showFile(it, loc.path) }
+                // エディタのタブも場所の一部（パースできない文書は showFile が選んだソースのまま）
+                if (openDoc?.root != null) editorTab = loc.tab
+            }
             UiSpace.LEDGER -> {
                 loc.crossId?.let { crossViewId = it }
                 loc.gridId?.let { viewGridId = it }
