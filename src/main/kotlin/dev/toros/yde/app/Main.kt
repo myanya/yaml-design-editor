@@ -203,7 +203,10 @@ fun AppRoot(
     var leftWidth by remember { mutableStateOf(uiPreferences.getFloat("leftWidth", 240f).dp) }
     var rightWidth by remember { mutableStateOf(uiPreferences.getFloat("rightWidth", 280f).dp) }
     var leftOpen by remember { mutableStateOf(uiPreferences.getBoolean("leftOpen", true)) }
-    var rightOpen by remember { mutableStateOf(uiPreferences.getBoolean("rightOpen", true)) }
+    // 右ペインの開閉は AppState（レンズの画面からも開ける）。起動時に設定から読み、変わるたびに設定へ写す
+    remember { state.rightPaneOpen = uiPreferences.getBoolean("rightOpen", true); true }
+    val rightOpen = state.rightPaneOpen
+    LaunchedEffect(rightOpen) { uiPreferences.putBoolean("rightOpen", rightOpen) }
     var entityRenameOpen by remember { mutableStateOf(false) }
     // ワークスペース切替（R10-05）: ツールバー・コマンドパレット共通。未保存確認（W-07）を一元化する
     var pendingWorkspace by remember { mutableStateOf<Path?>(null) }
@@ -282,7 +285,7 @@ fun AppRoot(
                 uiPreferences.putBoolean("readOnly", state.readOnlyMode)
             },
             toggleLeft = { leftOpen = !leftOpen; uiPreferences.putBoolean("leftOpen", leftOpen) },
-            toggleRight = { rightOpen = !rightOpen; uiPreferences.putBoolean("rightOpen", rightOpen) })
+            toggleRight = { state.rightPaneOpen = !state.rightPaneOpen })
         HorizontalDivider(color = Palette.Border)
         Row(Modifier.weight(1f).fillMaxWidth()) {
             // 実行スペースは定義が空でも常時表示する（UX-20。定義ゼロのときは RunsSpace の空状態が導線を案内する）
@@ -311,7 +314,9 @@ fun AppRoot(
                             rightWidth = (rightWidth - delta).coerceIn(210.dp, 520.dp)
                             uiPreferences.putFloat("rightWidth", rightWidth.value)
                         }
-                        SidePanel(state, rightWidth)
+                        // 台帳のレンズでは、文書の検証パネルの代わりにレンズの型・関係・辺を出す（描く領域を広く取る）
+                        if (state.uiSpace == UiSpace.LEDGER && state.workspaceView == 2) LensSidePanel(state, rightWidth)
+                        else SidePanel(state, rightWidth)
                     }
                 }
             }

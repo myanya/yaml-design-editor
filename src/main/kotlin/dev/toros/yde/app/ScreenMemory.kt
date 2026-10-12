@@ -86,6 +86,9 @@ class ScreenMemory {
     /** レンズで利用者が開いた・畳んだ入れ子の箱（鍵は箱の key）。無ければ既定（起点の近傍だけ開く）。 */
     val lensExpanded = mutableStateMapOf<String, Boolean>()
 
+    /** レンズの右パネルのタブ（0 = 型、1 = 関係、2 = 辺）。 */
+    var lensPanelTab by mutableStateOf(0)
+
     var readinessPendingOnly by mutableStateOf(false)
     var readinessQuery by mutableStateOf("")
 
@@ -128,6 +131,7 @@ class ScreenMemory {
         lensLayoutKind.clear()
         lensSplitOccurrences = false
         lensExpanded.clear()
+        lensPanelTab = 0
         readinessPendingOnly = false
         readinessQuery = ""
         runsTab = 0

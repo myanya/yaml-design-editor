@@ -44,6 +44,7 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -104,10 +105,75 @@ private const val UNDECLARED = "（未宣言）"
 private const val TOGGLE_ZONE = 22f
 
 /**
+ * レンズの材料（描く画面と右パネルが同じものを見る）: 見え方ごとの節点と辺、型と関係の一覧、絞り込みと畳みを当てた見える部分。
+ * 画面の覚え（型・関係の隠し・開いた箱・深さ・見え方）と索引から作る。
+ */
+private class LensModel(
+    val typeOf: (String) -> String,
+    val types: List<String>,
+    val typeColors: Map<String, Color>,
+    val relations: List<String>,
+    val holdingNames: Set<String>,
+    val origin: String?,
+    val mode: LensMode,
+    val nodes: List<LensVisibleNode>,
+    val keyIndex: Map<String, Int>,
+    val visibleEdges: List<LensGraphEdge>,
+) {
+    /** 辺の端（箱の鍵）のエンティティ ID。 */
+    fun idOf(key: String): String = nodes.getOrNull(keyIndex[key] ?: -1)?.node?.id ?: key
+}
+
+@Composable
+private fun rememberLensModel(state: AppState): LensModel {
+    state.indexVersion
+    val overlay = state.overlayIndex()
+    val graph = overlay.graph
+    val typeOf: (String) -> String = { id -> graph.entities[id]?.entityType ?: "（型なし）" }
+    val mode = if (state.memory.lensSplitOccurrences) LensMode.OCCURRENCE else LensMode.ENTITY
+    // 節点と辺（見え方ごと）。箱の入れ子は保有の線
+    val lensGraph = remember(state.indexVersion, state.editVersion, mode) { LensGraphs.build(graph, overlay.refs, mode) }
+    // 型の一覧は ID 一覧から（参照を持たない型も出す）。関係の一覧は辺と入れ子から（保有の名前には印を付ける）
+    val types = remember(state.indexVersion, state.editVersion) { graph.entities.keys.map(typeOf).distinct().sorted() }
+    val holdingNames = remember(lensGraph) {
+        (lensGraph.nodes.mapNotNull { it.relation } + lensGraph.edges.filter { it.kind == LensEdgeKind.HOLDING }.mapNotNull { it.relation }).toSet()
+    }
+    val relations = remember(lensGraph) {
+        (lensGraph.edges.filter { it.kind != LensEdgeKind.TIE }.map { it.relation ?: UNDECLARED } + holdingNames).distinct().sorted()
+    }
+    // 型 → 色（凡例つき）
+    val lensColors = listOf(
+        Palette.Primary, Palette.OkGreen, Palette.WarnOrange, Palette.Secondary,
+        Color(0xFF9C27B0), Color(0xFF00838F), Color(0xFF6D4C41), Color(0xFF546E7A),
+    )
+    val typeColors = remember(types) { types.mapIndexed { i, t -> t to lensColors[i % lensColors.size] }.toMap() }
+    // 型・関係のチェック・深さ・見え方・開いた箱は画面の覚え（ScreenMemory）。隠した名前だけ持つので、再読込で増えた型は見える側で始まる
+    val hiddenTypes = state.memory.lensHiddenTypes
+    val hiddenRelations = state.memory.lensHiddenRelations
+    val expandedBoxes = state.memory.lensExpanded
+    val depth = state.memory.lensDepth
+    val origin = state.lensOriginId?.takeIf { graph.entities.containsKey(it) }
+    // 絞り込み: 型・関係・起点の近傍・畳み（LensGraphs.select）。起点は型フィルタの対象外（起点自身が消えると意味を失う）
+    val selection = remember(lensGraph, hiddenTypes.toMap(), hiddenRelations.toMap(), expandedBoxes.toMap(), origin, depth) {
+        LensGraphs.select(
+            lensGraph,
+            LensSelectParams(typeOf, hiddenTypes.keys.toSet(), hiddenRelations.keys.toSet(), origin, depth, expandedBoxes.toMap()),
+        )
+    }
+    val visibleEdges = remember(selection, hiddenRelations.toMap()) {
+        selection.edges.filter { !(it.kind == LensEdgeKind.REF && it.relation == null && UNDECLARED in hiddenRelations) }
+    }
+    val keyIndex = remember(selection) { selection.nodes.withIndex().associate { (i, n) -> n.node.key to i } }
+    return remember(selection, visibleEdges, keyIndex, types, typeColors, relations, holdingNames, origin, mode) {
+        LensModel(typeOf, types, typeColors, relations, holdingNames, origin, mode, selection.nodes, keyIndex, visibleEdges)
+    }
+}
+
+/**
  * グラフレンズ: エンティティグラフの導出表示。
  * ①エンティティ起点の近傍（深さ1〜2。エンティティページの「グラフで見る」から遷移）
  * ②チェックした型のエンティティ（ID 一覧から。参照の有無を問わない）と、その間の参照と保有（relation のチェックで絞る）、
- * を配置（`GraphLayouts`＝放射・階層・応力・力学）して描く。
+ * を配置（`GraphLayouts`＝放射・階層・応力・力学）して描く。型・関係の絞り込みと辺の一覧は右パネル（`LensSidePanel`）にある。
  * 節点は「ID＋タイトル」の箱（型で色分け）・辺は矢印と関係のラベル。保有は箱の入れ子（`LensGraphs`。一体＝箱はエンティティ、
  * 側面で分ける＝箱は出現で同じエンティティの箱を点線で結ぶ）。入れ子の箱は畳めて、畳んだ箱の中につながる辺は箱に付く。
  * クリックはエンティティページへ着地する（ナビゲーション履歴に乗る）。見出しの左の印を押すと開く・畳む。
@@ -115,40 +181,18 @@ private const val TOGGLE_ZONE = 22f
  */
 @Composable
 fun GraphLensView(state: AppState) {
-    state.indexVersion
-    val overlay = state.overlayIndex()
-    val graph = overlay.graph
-    fun typeOf(id: String): String = graph.entities[id]?.entityType ?: "（型なし）"
-    val mode = if (state.memory.lensSplitOccurrences) LensMode.OCCURRENCE else LensMode.ENTITY
-    // 節点と辺（見え方ごと）。箱の入れ子は保有の線
-    val lensGraph = remember(state.indexVersion, state.editVersion, mode) { LensGraphs.build(graph, overlay.refs, mode) }
-    // 型の一覧は ID 一覧から（参照を持たない型も出す）。関係の一覧は辺と入れ子から（保有の名前には印を付ける）
-    val types = remember(state.indexVersion, state.editVersion) { graph.entities.keys.map(::typeOf).distinct().sorted() }
-    val holdingNames = remember(lensGraph) {
-        (lensGraph.nodes.mapNotNull { it.relation } + lensGraph.edges.filter { it.kind == LensEdgeKind.HOLDING }.mapNotNull { it.relation }).toSet()
-    }
-    val relations = remember(lensGraph) {
-        (lensGraph.edges.filter { it.kind != LensEdgeKind.TIE }.map { it.relation ?: UNDECLARED } + holdingNames).distinct().sorted()
-    }
-    // 型・関係のチェック・深さ・見え方・開いた箱は画面の覚え（ScreenMemory）。隠した名前だけ持つので、再読込で増えた型は見える側で始まる
+    val model = rememberLensModel(state)
+    val graph = state.overlayIndex().graph
+    val typeOf = model.typeOf
+    val mode = model.mode
+    val origin = model.origin
+    val nodes = model.nodes
+    val keyIndex = model.keyIndex
+    val visibleEdges = model.visibleEdges
+    val typeColors = model.typeColors
     val hiddenTypes = state.memory.lensHiddenTypes
-    val hiddenRelations = state.memory.lensHiddenRelations
     val expandedBoxes = state.memory.lensExpanded
     val depth = state.memory.lensDepth
-    val origin = state.lensOriginId?.takeIf { graph.entities.containsKey(it) }
-
-    // 絞り込み: 型・関係・起点の近傍・畳み（LensGraphs.select）。起点は型フィルタの対象外（起点自身が消えると意味を失う）
-    val selection = remember(lensGraph, hiddenTypes.toMap(), hiddenRelations.toMap(), expandedBoxes.toMap(), origin, depth) {
-        LensGraphs.select(
-            lensGraph,
-            LensSelectParams(::typeOf, hiddenTypes.keys.toSet(), hiddenRelations.keys.toSet(), origin, depth, expandedBoxes.toMap()),
-        )
-    }
-    val nodes = selection.nodes
-    val visibleEdges = remember(selection, hiddenRelations.toMap()) {
-        selection.edges.filter { !(it.kind == LensEdgeKind.REF && it.relation == null && UNDECLARED in hiddenRelations) }
-    }
-    val keyIndex = remember(nodes) { nodes.withIndex().associate { (i, n) -> n.node.key to i } }
     val edgeIndices = remember(visibleEdges, keyIndex) {
         visibleEdges.mapNotNull { e ->
             val s = keyIndex[e.from] ?: return@mapNotNull null
@@ -156,12 +200,6 @@ fun GraphLensView(state: AppState) {
             LensArrangedEdge(s, t, e.relation, e.kind)
         }
     }
-    // 型 → 色（凡例つき）。起点は強調色
-    val lensColors = listOf(
-        Palette.Primary, Palette.OkGreen, Palette.WarnOrange, Palette.Secondary,
-        Color(0xFF9C27B0), Color(0xFF00838F), Color(0xFF6D4C41), Color(0xFF546E7A),
-    )
-    val typeColors = remember(types) { types.mapIndexed { i, t -> t to lensColors[i % lensColors.size] }.toMap() }
     val paint = LensPaint(Palette.Border, Palette.Surface, Palette.Primary, Palette.SubText)
 
     // 配置の種類: 既定は起点があれば放射、無ければ応力（節点が多ければ GraphLayouts が階層に代替する）。
@@ -296,8 +334,7 @@ fun GraphLensView(state: AppState) {
     /** 箱に中の箱があるか（開いている・畳んでいる）。 */
     fun hasChildren(n: LensVisibleNode) = n.expanded || n.hiddenChildren > 0
     fun toggle(n: LensVisibleNode) {
-        val next = !n.expanded
-        expandedBoxes[n.node.key] = next
+        expandedBoxes[n.node.key] = !n.expanded
     }
 
     // PNG の書き出し（配置の全体を等倍で描く。保存先は OS のダイアログで選ぶ）
@@ -314,7 +351,10 @@ fun GraphLensView(state: AppState) {
     }
 
     Column(Modifier.fillMaxSize().background(Palette.EditorBg)) {
-        Row(Modifier.fillMaxWidth().background(Palette.Surface).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.fillMaxWidth().background(Palette.Surface).horizontalScroll(rememberScrollState()).padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Text("グラフレンズ", fontWeight = FontWeight.Bold, fontSize = 14.sp)
             Spacer(Modifier.width(12.dp))
             if (origin != null) {
@@ -349,28 +389,12 @@ fun GraphLensView(state: AppState) {
                 TextButton(onClick = { pins.clear() }) { Text("動かした ${pins.size} 件を戻す", fontSize = 11.sp) }
             }
             TextButton(onClick = { saveImage("lens-" + (origin ?: "all")) }, enabled = scene != null) { Text("PNG に保存", fontSize = 11.sp) }
+            // 型・関係の絞り込みと辺の一覧は右パネル。閉じていればここから開く
+            if (!state.rightPaneOpen) {
+                TextButton(onClick = { state.rightPaneOpen = true }) { Text("型・関係・辺 ▶", fontSize = 11.sp) }
+            }
             Spacer(Modifier.weight(1f))
             Text("${nodes.size} 箱 / ${visibleEdges.count { it.kind != LensEdgeKind.TIE }} 辺", fontSize = 11.sp, color = Palette.SubText)
-        }
-        // 型・relation のチェックボックス（多ければ折り返す。アドホックなレンズ。宣言的レンズ定義は需要待ち。architecture/graph-query.md「エンティティページ」）
-        LensFilterRow("型:") {
-            types.forEach { t ->
-                LensFilterItem(t !in hiddenTypes, { checked -> if (checked) hiddenTypes.remove(t) else hiddenTypes.put(t, true) }) {
-                    Box(Modifier.size(8.dp).background(typeColors[t] ?: Palette.Primary, PanelShape))
-                    Text(" " + (state.entityTypes[t]?.displayLabel ?: t), fontSize = 10.sp, color = Palette.SubText)
-                }
-            }
-        }
-        LensFilterRow("関係:") {
-            relations.forEach { rel ->
-                LensFilterItem(rel !in hiddenRelations, { checked -> if (checked) hiddenRelations.remove(rel) else hiddenRelations.put(rel, true) }) {
-                    Text(
-                        (Relations.labelOf(state.relations, rel.takeIf { it != UNDECLARED }) ?: rel) +
-                            (if (rel in holdingNames) "（保有）" else ""),
-                        fontSize = 10.sp, color = Palette.SubText,
-                    )
-                }
-            }
         }
         // 配置の切替（放射は起点があるときだけ）。代替した理由と計算中はここに出す
         Row(
@@ -403,7 +427,7 @@ fun GraphLensView(state: AppState) {
                 Text("配置を計算中…", fontSize = 10.sp, color = Palette.Primary)
             }
         }
-        BoxWithConstraints(Modifier.fillMaxWidth().weight(0.58f).padding(horizontal = 12.dp)) {
+        BoxWithConstraints(Modifier.fillMaxWidth().weight(1f).padding(horizontal = 12.dp, vertical = 4.dp)) {
             val widthPx = constraints.maxWidth.toFloat().coerceAtLeast(1f)
             val heightPx = constraints.maxHeight.toFloat().coerceAtLeast(1f)
             val current = arranged
@@ -477,7 +501,7 @@ fun GraphLensView(state: AppState) {
                 }
             }
             if (nodes.isEmpty()) {
-                Text("表示するエンティティがありません（型のチェックを増やすか、起点を解除してください）",
+                Text("表示するエンティティがありません（右パネルで型のチェックを増やすか、起点を解除してください）",
                     fontSize = 12.sp, color = Palette.SubText, modifier = Modifier.align(Alignment.Center))
             }
             // ミニマップ: 全体が画面に収まっていないときだけ右下に出す。押した・なぞった場所を画面の中央にする
@@ -562,21 +586,73 @@ fun GraphLensView(state: AppState) {
                 }
             }
         }
-        Text("エッジ一覧（クリックでエンティティページへ）", fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 12.dp))
-        Box(Modifier.weight(0.42f).fillMaxWidth()) {
+    }
+}
+
+// ================================================================ 右パネル（型・関係・辺）
+
+/**
+ * レンズの右パネル: 型と関係の絞り込み（チェックボックス）と辺の一覧を、描く画面と同じ材料（`rememberLensModel`）から出す。
+ * 台帳スペースでレンズを表示しているとき、文書の検証パネルの代わりに右ペインに出す（Main の切替）。タブは画面の覚え。
+ */
+@Composable
+fun LensSidePanel(state: AppState, width: Dp) {
+    val model = rememberLensModel(state)
+    val hiddenTypes = state.memory.lensHiddenTypes
+    val hiddenRelations = state.memory.lensHiddenRelations
+    val tab = state.memory.lensPanelTab
+    val listed = remember(model) { model.visibleEdges.filter { it.kind != LensEdgeKind.TIE } }
+    Column(Modifier.width(width).fillMaxHeight().background(Palette.PanelBg)) {
+        TabRow(selectedTabIndex = tab, containerColor = Palette.PanelBg, contentColor = Palette.Primary) {
+            Tab(tab == 0, { state.memory.lensPanelTab = 0 }, text = { Text("型 ${model.types.size - hiddenTypes.size}/${model.types.size}", fontSize = 11.sp) })
+            Tab(tab == 1, { state.memory.lensPanelTab = 1 }, text = { Text("関係 ${model.relations.size - hiddenRelations.size}/${model.relations.size}", fontSize = 11.sp) })
+            Tab(tab == 2, { state.memory.lensPanelTab = 2 }, text = { Text("辺 ${listed.size}", fontSize = 11.sp) })
+        }
+        Box(Modifier.fillMaxSize()) {
             val scroll = rememberLazyListState()
-            val listed = visibleEdges.filter { it.kind != LensEdgeKind.TIE }
-            fun idOf(key: String) = nodes.getOrNull(keyIndex[key] ?: -1)?.node?.id ?: key
             LazyColumn(state = scroll, modifier = Modifier.fillMaxSize().padding(end = 8.dp)) {
-                items(listed) { edge ->
-                    val toId = idOf(edge.to)
-                    Row(Modifier.fillMaxWidth().clickable { state.openCrossView(toId) }.padding(horizontal = 12.dp, vertical = 4.dp)) {
-                        Text(idOf(edge.from), fontSize = 11.sp, color = Palette.Primary, modifier = Modifier.width(150.dp))
-                        Text(
-                            if (edge.kind == LensEdgeKind.HOLDING) "◆ $toId（保有: ${Relations.labelOf(state.relations, edge.relation) ?: edge.relation}）"
-                            else "→ $toId" + (Relations.labelOf(state.relations, edge.relation)?.let { "（関係: $it）" } ?: ""),
-                            fontSize = 11.sp, color = Palette.SubText,
-                        )
+                when (tab) {
+                    // ---------------- 型（色の凡例つき。隠した型の箱は出ない。起点は隠せない） ----------------
+                    0 -> {
+                        item { PanelActions(
+                            "すべて" to { hiddenTypes.clear() },
+                            "すべて隠す" to { model.types.forEach { t -> if (t != model.typeOf(model.origin ?: "")) hiddenTypes[t] = true } },
+                        ) }
+                        items(model.types) { t ->
+                            PanelCheckRow(t !in hiddenTypes, { checked -> if (checked) hiddenTypes.remove(t) else hiddenTypes.put(t, true) }) {
+                                Box(Modifier.size(10.dp).background(model.typeColors[t] ?: Palette.Primary, PanelShape))
+                                Spacer(Modifier.width(6.dp))
+                                Text(state.entityTypes[t]?.displayLabel ?: t, fontSize = 11.sp)
+                            }
+                        }
+                    }
+                    // ---------------- 関係（保有の名前には印。隠すと辺が消え、保有なら入れ子が解ける） ----------------
+                    1 -> {
+                        item { PanelActions("すべて" to { hiddenRelations.clear() }, "すべて隠す" to { model.relations.forEach { hiddenRelations[it] = true } }) }
+                        items(model.relations) { rel ->
+                            PanelCheckRow(rel !in hiddenRelations, { checked -> if (checked) hiddenRelations.remove(rel) else hiddenRelations.put(rel, true) }) {
+                                Text(
+                                    (Relations.labelOf(state.relations, rel.takeIf { it != UNDECLARED }) ?: rel) +
+                                        (if (rel in model.holdingNames) "（保有）" else ""),
+                                    fontSize = 11.sp,
+                                )
+                            }
+                        }
+                    }
+                    // ---------------- 辺（見えている辺。クリックで相手のエンティティページへ） ----------------
+                    else -> {
+                        if (listed.isEmpty()) item { Text("見えている辺はありません", Modifier.padding(12.dp), fontSize = 11.sp, color = Palette.SubText) }
+                        items(listed) { edge ->
+                            val toId = model.idOf(edge.to)
+                            Column(Modifier.fillMaxWidth().clickable { state.openCrossView(toId) }.padding(horizontal = 12.dp, vertical = 4.dp)) {
+                                Text(model.idOf(edge.from), fontSize = 11.sp, color = Palette.Primary, maxLines = 1)
+                                Text(
+                                    if (edge.kind == LensEdgeKind.HOLDING) "◆ $toId（保有: ${Relations.labelOf(state.relations, edge.relation) ?: edge.relation}）"
+                                    else "→ $toId" + (Relations.labelOf(state.relations, edge.relation)?.let { "（関係: $it）" } ?: ""),
+                                    fontSize = 11.sp, color = Palette.SubText, maxLines = 1,
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -585,24 +661,30 @@ fun GraphLensView(state: AppState) {
     }
 }
 
-// ================================================================ 絞り込みのチェックボックス
-
-/**
- * 絞り込みの 1 行（「型:」「関係:」）。項目が多ければ折り返す。
- * 横スクロールにしない: 見えていない項目があることに気づけず、右端が切れたように見える。
- */
+/** 右パネルの一括操作の行（「すべて」「すべて隠す」）。 */
 @Composable
-private fun LensFilterRow(caption: String, items: @Composable FlowRowScope.() -> Unit) {
-    FlowRow(
-        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Text(caption, fontSize = 10.sp, color = Palette.SubText, modifier = Modifier.align(Alignment.CenterVertically))
-        items()
+private fun PanelActions(vararg actions: Pair<String, () -> Unit>) {
+    Row(Modifier.padding(start = 4.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        actions.forEach { (label, onClick) ->
+            TextButton(onClick = onClick, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) { Text(label, fontSize = 11.sp) }
+        }
     }
 }
 
-/** 絞り込みの 1 項目（チェックボックスとラベル。折り返しで分かれないように 1 つにまとめる）。 */
+/** 右パネルのチェック 1 行。 */
+@Composable
+private fun PanelCheckRow(checked: Boolean, onChange: (Boolean) -> Unit, label: @Composable RowScope.() -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable { onChange(!checked) }.padding(start = 8.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(checked, onChange, modifier = Modifier.size(28.dp))
+        Spacer(Modifier.width(4.dp))
+        label()
+    }
+}
+
+/** ツールバーの 1 項目（チェックボックスとラベル。折り返しで分かれないように 1 つにまとめる）。 */
 @Composable
 private fun LensFilterItem(checked: Boolean, onChange: (Boolean) -> Unit, label: @Composable RowScope.() -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {

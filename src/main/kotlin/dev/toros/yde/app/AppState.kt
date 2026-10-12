@@ -410,6 +410,9 @@ class AppState {
      */
     var lensOriginId by mutableStateOf<String?>(null)
 
+    /** 右ペイン（検証パネル・レンズの型と関係と辺）が開いているか。起動を跨ぐ記憶は Main が設定に写す。 */
+    var rightPaneOpen by mutableStateOf(true)
+
     /** グラフレンズを開く（id 指定時はそのIDの近傍モード。移動として履歴に積む）。 */
     fun openGraphLens(id: String? = null) {
         val arriving = workspaceView != 2 || uiSpace != UiSpace.LEDGER
