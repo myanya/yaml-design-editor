@@ -2,7 +2,7 @@
 
 操作は、計算体系の「書き換え（Rewrite）」の初めての利用者定義体。スキーマに書いた定義から、受け取った値と前提をもとに変更セットを作る。
 二層に分かれる: **型の操作**（`methods`。object の定義に書き、その型の要素 1 つを受け手にする）と、**横断の操作**（`actions`。スキーマ文書に書き、複数の要素や文書にまたがる）。
-結果は常に変更セットで、適用は既存の `ChangeSetApplier`（検証・競合・Undo 1 回）。新しい書込経路は作らない。入口は CLI・画面（右ペインの「操作」タブ）・検査の指摘・エージェントのツール。
+結果は常に変更セットで、適用は既存の `ChangeSetApplier`（検証・競合・Undo 1 回）。新しい書込経路は作らない。入口は CLI・画面（操作メニュー・行の ⋯・右ペインの「操作」タブ → 浮いたパネル）・検査の指摘・エージェントのツール。
 
 ## 部品
 
@@ -14,11 +14,12 @@
 | `FieldDef.methods` / `insertRule` | semantic-core/schema/Fields.kt | object と配列の項目に載せた操作の定義。読み取りは `SchemaTreeParser.parseField`、引き継ぎは `SchemaTree.narrowOnto` |
 | `IdSeries` | semantic-core/schema/IdSeries.kt | 接頭辞を決めた系列の採番（skill の取り込みと共有） |
 | `SemanticTransform.build` / `holds` / `TemplatePlace` | semantic-core/semantic/Transform.kt | ひな型 1 つの組み立てと条件の判定（受け取った値・いまの場所・束縛） |
-| `ActionPlanner` / `ActionRequest` / `ActionPlan` / `ActionEntry` / `ActionFailure` | workspace-core/workspace/ActionPlanner.kt | 計画器（手を順に当てて変更セットを作る）と、使える操作の一覧（`catalog`・受け手ごとの `forEntity` / `forDocument` / `forWorkspace`） |
+| `ActionPlanner` / `ActionRequest` / `ActionPlan` / `ActionEntry` / `ActionFailure` | workspace-core/workspace/ActionPlanner.kt | 計画器（手を順に当てて変更セットを作る）と、使える操作の一覧（`catalog`・受け手ごとの `forEntity` / `forEntityType` / `forDocument` / `forWorkspace`。`ActionEntry.entityType` / `documentSchema` が受け手の種類） |
 | `WorkspaceSchema.actions` | workspace-core/workspace/WorkspaceReader.kt・SchemaDocuments.kt | スキーマ文書の `actions:` の読み込み |
 | CLI `action` | core/Cli.kt | 一覧・計画・適用（`--apply`・`--allow-errors`） |
-| `AppState.ActionWork` / `startAction` / `planAction` / `applyAction` / `actionsForEntity` ほか | app/AppState.kt | 画面からの操作の作業（受け取る値の仮の文書・計画・ドライラン・結果）。入口はどれも `startAction` を呼ぶ |
-| `ActionTabContent` / `ActionCard` | ui/ActionPane.kt | 右ペインの「操作」タブ（使える操作の一覧と、作業中のカード＝受け取る値のフォーム・要約・検証・差分・適用） |
+| `AppState.ActionWork` / `startAction` / `planAction` / `applyAction` / `actionsForEntity` / `actionsForEntityType` / `entityCandidates` ほか | app/AppState.kt | 画面からの操作の作業（対象の欄の木 `targetHolder`・受け取る値の仮の文書・計画・ドライラン・結果）とパネルの開閉（`actionPanelOpen`）。入口はどれも `startAction` を呼ぶ |
+| `ActionTabContent` / `ActionPanelHost` / `TargetPicker` | ui/ActionPane.kt | 右ペインの「操作」タブ（使える操作の一覧と作業中の開き直し）と、浮いたパネル（対象の欄・受け取る値のフォーム・要約・検証・差分・適用） |
+| `ElementOpsButton`（ui/FormView.kt）・`IdCell` の ⋯（ui/ViewGridPane.kt） | ui/ | フォームの配列の行とビューグリッドの行の操作メニュー（その要素を対象にして `startAction`） |
 
 ## 流れ
 
@@ -31,12 +32,15 @@
 - **配列の `insert` の決まり**: `id`（ID の項目が空なら接頭辞＋連番。既存は索引の全 ID と配列の ID とこの計画で付けた ID）・`key`（同じ値の要素があれば足さない）。配列がまだ無ければ要素 1 つの配列を置く 1 つの操作にする。
 - **文書の `create`**: スキーマのルートの型の `create` で中身を作り、置き場所は `DocumentScaffolds.filePatternOf` と `pathFor`（ID だけの元）。既にあれば止める。
 - **適用**: 変更セットは `ChangeSetApplier` をそのまま通る（競合・自動で入る値・適用後の姿の検証・1 トランザクション）。CLI は既定で計画だけを出し、`--apply` で書く。検証エラーが残るなら書かず、`--allow-errors` で書く。
-- **画面**: 入口（エンティティページの操作メニュー・文書ヘッダの「操作 ▾」・コマンドパレット・右ペインの一覧）は `AppState.startAction` を呼ぶだけ。右ペインの「操作」タブにカードが出て、受け取る値は仮の文書の木を `FormCtx` と `FieldRow` で編集する（型・選択肢・参照の候補・ID の提案がそのまま効く）。
-- 「確認」＝`planAction`（計画と、ドライランの検証）→ 差分（`Staging` の適用後の文面）→「適用」＝`applyAction`（`applyViaSession`＝書いて保存まで。Undo 1 回で全部戻る）。検証エラーが残れば書かず、チェックで許す。対象に未保存の編集があれば拒む。
+- **画面**: 入口（エンティティページの操作メニュー・フォームとビューの行の ⋯・文書ヘッダの「操作 ▾」・コマンドパレット・右ペインの「操作」タブ）は `AppState.startAction(entry, target)` を呼ぶだけで、受け手を知らない入口は `target = null` で呼ぶ。`Main` が載せる浮いたパネル（`ActionPanelHost`。「AI で作成」と同じ幅）に、対象の欄と受け取る値の欄が出る。
+- 対象の欄（`TargetPicker`）は要素を受け手にする操作（`ActionEntry.entityType`）だけに出る。候補は上書き索引のうちその型の出現を持つ ID（`entityCandidates`）で、値は `ActionWork.targetHolder` の木に入り、`work.target` で読む。受け取る値は仮の文書の木を `FormCtx` と `FieldRow` で編集する（型・選択肢・参照の候補・ID の提案がそのまま効く）。
+- 右ペインの「操作」タブの一覧は、受け手に固定できる文書（ルートに ID）なら「その ID の操作」、台帳（要素が並ぶ文書）なら走査した ID の型ごとに「要素の操作」（`forEntityType`。対象はパネルで選ぶ）。文書の先頭の ID を受け手にしない。
+- 「確認」＝`planAction`（対象が無ければ案内して止まる → 計画と、ドライランの検証）→ 差分（`Staging` の適用後の文面）→「適用」＝`applyAction`（`applyViaSession`＝書いて保存まで。Undo 1 回で全部戻る）。検証エラーが残れば書かず、チェックで許す。対象に未保存の編集があれば拒む。
+- パネルは外側のクリックで閉じず、Esc と「いったん隠す」は `actionPanelOpen = false`（作業は残り、「操作」タブの「作業中」から `showActionPanel`）。「やめる」＝`dismissAction` で捨てる。
 - **エージェント**: アクティビティの `actions` で許可した操作が `AgentToolbox` のツールになる（`action_` ＋名前。引数は受け取る値の定義から、受け手は `target`）。実行はステージングを重ねたセッションの上で `ActionPlanner.plan` を呼び、変更セットを `Staging` へ積む（原本は提出と承認まで変わらない）。前提に合わなければ理由を返す。`allowedFiles` / `allowedPaths` は見ない（[agents.md](agents.md)）。
-- **作成経路の寄せ**: 配列エディタの追加ボタンとビューの新規行（配列モード）は `AppState.addArrayElement` → `ActionPlanner.newElement`（型の `create` ＋ 配列の `insert` の決まり）で要素を作る。要素の型の `create` に受け取る値があれば右ペインのカード（`ActionWork.insertInto`）で入力し、「追加」で未保存の編集として足す（計画と保存はしない）。
+- **作成経路の寄せ**: 配列エディタの追加ボタンとビューの新規行（配列モード）は `AppState.addArrayElement` → `ActionPlanner.newElement`（型の `create` ＋ 配列の `insert` の決まり）で要素を作る。要素の型の `create` に受け取る値があれば同じパネル（`ActionWork.insertInto`）で入力し、「追加」で未保存の編集として足す（計画と保存はしない）。
 - 受け取る値が無ければその場で足す（採番つき。空の要素どうしは同じ明細と見ない）。文書の作成（`DocumentScaffolds.contents`）はルートの型の `create` の `build` を ID と表示名で重ねる。skill の取り込みとエージェントの `create_document` は寄せていない。
-- **検査からの起動**: 検査の `responses` に `{action, label, with}` を書くと、`WorkspaceChecks.responsesOf` が `CheckResponse.RunAction`（受け手＝起点の ID・渡す値＝文面を指摘と同じひな型で埋めたもの）を作り、検証パネルのメニューから `startAction(name, target, prefill)` でカードが開く。無い操作を指す対応は読み込みの誤り（`WorkspaceReader.buildSchemas`）。
+- **検査からの起動**: 検査の `responses` に `{action, label, with}` を書くと、`WorkspaceChecks.responsesOf` が `CheckResponse.RunAction`（受け手＝起点の ID・渡す値＝文面を指摘と同じひな型で埋めたもの）を作り、検証パネルのメニューから `startAction(name, target, prefill)` で対象の入ったパネルが開く。無い操作を指す対応は読み込みの誤り（`WorkspaceReader.buildSchemas`）。
 
 ## 規律
 
@@ -50,12 +54,13 @@
 - 前提で参照した受け取る値が無い（省かれた任意の値）ときは止める。絞り込みが黙って外れるのを防ぐ。
 - フック（出来事で暗黙に走る手）は入れない。予約名の結び付け（追加ボタンと `insert`、`insert` と `create`）と、明示の `call` だけ。
 - `methods` は解決した項目（`schema.resolve` / `fieldAt`）から読む。生の `FieldDef` から読むと型の引き継ぎが抜ける。
-- 画面の入口は `AppState.startAction` を呼ぶだけで、計画や適用の規則を入口に書かない。作業の状態（受け取る値・計画・結果）は `AppState.actionWork` に置き、`remember` に置かない。
+- 画面の入口は `AppState.startAction` を呼ぶだけで、計画や適用の規則を入口に書かない。受け手を知らない入口は対象を空で渡し、パネルの対象の欄に任せる（文書の先頭の ID を受け手に見立てない）。作業の状態（対象・受け取る値・計画・結果・パネルの開閉）は `AppState.actionWork` / `actionPanelOpen` に置き、`remember` に置かない。
 - 受け取る値の仮の文書はどこにも保存せず、セッションに載せない（編集の記録先が無い）。dirty や履歴に現れない。
 
 ## 拡張ポイント
 
 - **手の種類の追加**: `ActionStep` と `ActionSteps.parse` に足し、`ActionPlanner.run` の分岐と、メタスキーマ `builtin-schemas/schema.yaml` の `actions` / `methods` の説明をそろえる。型の操作で書けるかを `StepScope` で決める。
-- **入口の追加**: 画面なら `AppState.startAction` を呼ぶ（ビューの行の操作メニューなど）。エージェントのツールなら `ActionPlanner.plan` を呼び、返った変更セットをステージングへ渡す。入口ごとの規則を計画器に書かない。
+- **入口の追加**: 画面なら `AppState.startAction` を呼ぶ（受け手を知っていれば渡し、知らなければ null）。エージェントのツールなら `ActionPlanner.plan` を呼び、返った変更セットをステージングへ渡す。入口ごとの規則を計画器に書かない。
+- **対象の選び方の拡張**（複数の対象・いま触っている行を既定に）: 対象は `ActionWork.targetHolder` に閉じているので、欄の部品（`TargetPicker`）と `planAction` の読み出しを変えるだけで、入口と計画器は変えない。
 - **予約の操作の追加**: `MethodDef.CREATE` と同じく名前を定数にし、既定の意味を計画器の 1 か所に持つ。
 - **既存の作成経路の寄せ**: 配列エディタの追加・ビューの新規行・詳細文書を作成・skill の取り込み・エージェントの `create_document` を、型の `create` と配列の `insert` の呼び手に 1 つずつ寄せる。挙動が変わるものはコミットメッセージに書く。

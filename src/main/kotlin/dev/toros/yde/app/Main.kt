@@ -333,6 +333,8 @@ fun AppRoot(
     // AI生成ダイアログはスペース非依存（R24-01）: 対象文書は要求（AiRequest）が持つため、
     // 編集スペースだけでなくエンティティページ等の台帳スペースからの✨でもその場で開く
     AiGenerationHost(state)
+    // 操作のパネルもスペース非依存: 入口（エンティティページ・行のメニュー・検査の指摘・パレット）がどのスペースにあっても、その場で浮く
+    ActionPanelHost(state)
     pendingWorkspace?.let { next ->
         AlertDialog(
             onDismissRequest = { pendingWorkspace = null },

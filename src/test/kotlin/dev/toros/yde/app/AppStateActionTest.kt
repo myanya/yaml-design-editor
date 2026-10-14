@@ -113,17 +113,53 @@ class AppStateActionTest {
     private fun openState(): AppState = AppState().also { it.openWorkspace(dir); assertEquals(emptyList(), it.schemaErrors) }
 
     @Test
-    fun `受け手ごとに使える操作が並び 始めると操作タブが開く`() {
+    fun `受け手ごとに使える操作が並び 始めるとパネルが開く`() {
         val state = openState()
         assertEquals(listOf("add-item"), state.actionsForWorkspace().map { it.name })
         assertEquals(listOf("fix"), state.actionsForDocument(dir.resolve("list.yaml")).map { it.name })
         assertEquals(listOf("item.retitle"), state.actionsForEntity("IT-1").map { it.name })
+        // 台帳の「要素の操作」は型で引く（受け手はあとで選ぶ）
+        assertEquals(listOf("item.retitle"), state.actionsForEntityType("item").map { it.name })
+        assertEquals("item", state.actionsForEntityType("item").single().entityType)
+        assertEquals(emptyList(), state.actionsForEntityType("no-such"))
         state.startAction(state.actionsForEntity("IT-1").single(), "IT-1")
         val work = assertNotNull(state.actionWork)
         assertEquals("名前を変える", work.title)
         assertEquals("IT-1", work.target)
-        assertEquals(3, state.memory.sidePanelTab)
-        assertTrue(state.rightPaneOpen)
+        assertTrue(state.actionPanelOpen)
+        // 隠しても作業は残り、開き直せる。やめると消える
+        state.hideActionPanel()
+        assertFalse(state.actionPanelOpen)
+        assertNotNull(state.actionWork)
+        state.showActionPanel()
+        assertTrue(state.actionPanelOpen)
+        state.dismissAction()
+        assertNull(state.actionWork)
+        assertFalse(state.actionPanelOpen)
+    }
+
+    @Test
+    fun `対象を選ばずに確認すると案内し 対象の欄で選ぶと計画できる`() {
+        val state = openState()
+        // 候補はその型の要素だけ（ID と 1 行要約）
+        assertEquals(listOf("IT-1" to "最初"), state.entityCandidates("item"))
+        assertEquals(emptyList(), state.entityCandidates("no-such"))
+        state.startAction(state.actionsForEntityType("item").single(), null)
+        val work = assertNotNull(state.actionWork)
+        assertNull(work.target)
+        work.values.entries["name"] = YNode.Scalar("長い名前")
+        state.planAction()
+        assertTrue("対象を選んでください" in work.error.orEmpty(), work.error)
+        assertNull(work.plan)
+        work.targetHolder.entries[AppState.ActionWork.TARGET_KEY] = YNode.Scalar("IT-1")
+        assertEquals("IT-1", work.target)
+        state.planAction()
+        assertNull(work.error, work.error)
+        val op = work.plan!!.changeSet.changes.single().ops.single() as PatchOp.Set
+        assertEquals(parseYPath("items[0].name"), op.path)
+        // 空白だけの対象は未選択
+        work.targetHolder.entries[AppState.ActionWork.TARGET_KEY] = YNode.Scalar("  ")
+        assertNull(work.target)
     }
 
     @Test

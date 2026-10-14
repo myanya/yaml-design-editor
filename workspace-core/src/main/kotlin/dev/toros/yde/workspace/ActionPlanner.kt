@@ -65,7 +65,19 @@ data class ActionEntry(
     val target: String?,
     val params: List<FieldDef>,
     val definedIn: String,
-)
+) {
+    /** 受け手の要素の型（要素を受け手にする操作。文書を受け手にする操作や受け手の無い操作では null）。 */
+    val entityType: String?
+        get() = when {
+            kind == "method" || kind == "create" -> target
+            target?.startsWith("entity: ") == true -> target.removePrefix("entity: ")
+            else -> null
+        }
+
+    /** 受け手の文書のスキーマ（文書を受け手にする操作。それ以外は null）。 */
+    val documentSchema: String?
+        get() = target?.takeIf { kind == "action" && it.startsWith("schema: ") }?.removePrefix("schema: ")
+}
 
 /**
  * 操作の計画（P41。計算体系の Rewrite＝「選ぶ × 判定 × 場所ごとの操作 → 変更セット」の、利用者定義体の計画器）。
@@ -120,6 +132,26 @@ object ActionPlanner {
         val methods = def?.methods.orEmpty().filter { !it.isCreate }
             .map { m -> ActionEntry("$type.${m.name}", "method", m.label, m.description, type, m.params, schema?.id ?: "") }
         return actions + methods
+    }
+
+    /**
+     * 型に使える操作（受け手をあとから選ぶ入口＝台帳の「要素の操作」が使う）: その型を受け手にするアクションと、その型の操作
+     * （create を除く）。型の名前の付け方は catalog と同じ（plan の名前の解決と一致する）。
+     */
+    fun forEntityType(session: WorkspaceSession, type: String): List<ActionEntry> {
+        val actions = session.schemas.flatMap { s ->
+            s.actions.filter { a -> a.target?.entity == type }
+                .map { a -> ActionEntry(a.id, "action", a.label, a.description, "entity: $type", a.params, s.id) }
+        }
+        val methods = session.schemas.flatMap { s ->
+            s.tree.objectDeclarations()
+                .filter { (at, f) -> f.methods.isNotEmpty() && typeNameOf(s, f, at) == type }
+                .flatMap { (_, f) ->
+                    f.methods.filter { !it.isCreate }
+                        .map { m -> ActionEntry("$type.${m.name}", "method", m.label, m.description, type, m.params, s.id) }
+                }
+        }
+        return (actions + methods).distinctBy { it.name }
     }
 
     /** 文書に使える操作（文書ヘッダのメニューが使う）: その文書のスキーマを受け手にするアクション。 */

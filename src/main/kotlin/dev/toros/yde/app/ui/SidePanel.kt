@@ -61,9 +61,9 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
     Column(Modifier.width(width).fillMaxHeight().background(Palette.PanelBg)) {
         val doc = state.openDoc
         if (doc == null) {
-            // 文書を開いていなくても、始めた操作（コマンドパレットから）のカードは出す
+            // 文書を開いていなくても、始めた操作（コマンドパレットから）の作業は出す（パネルを隠したあとの開き直し）
             if (state.actionWork != null) {
-                ActionTabContent(state, null, null)
+                ActionTabContent(state, null, null, emptyList())
                 return@Column
             }
             Text(
@@ -156,7 +156,12 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
 
         // ---------------- 操作（型の操作とアクション） ----------------
         if (selectedTab == 3) {
-            ActionTabContent(state, doc, rootId)
+            // 受け手に固定できるのは文書そのものが要素のとき（ルートに ID）だけ。台帳（要素が並ぶ文書）は要素の型ごとに並べ、対象はパネルで選ぶ
+            val actionRootId = remember(doc, doc.version) { localIds.firstOrNull { it.path.isEmpty() }?.id }
+            val elementTypes = remember(doc, doc.version) {
+                localIds.filter { it.path.isNotEmpty() }.mapNotNull { it.entityType }.distinct()
+            }
+            ActionTabContent(state, doc, actionRootId, elementTypes)
             return@Column
         }
 

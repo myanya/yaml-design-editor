@@ -531,24 +531,39 @@ class AppState {
     // ---------------------------------------------------------------- 操作（型の操作とアクション）
 
     /**
-     * 操作の作業（受け取る値の入力 → 計画 → 適用）。右ペインの「操作」タブに出す。入力の途中・計画・結果はコンポーザブルの外
-     * （ここ）に置き、画面を離れても消えない。受け取る値はフォームの部品（FormCtx）で編集するため、値の木を持つ仮の文書を 1 つ持つ
-     * （どこにも保存しない。編集の記録先が無いので、セッションの履歴や dirty には載らない）。
+     * 操作の作業（対象と受け取る値の入力 → 計画 → 適用）。浮いたパネル（ui/ActionPane.kt の ActionPanelHost）に出す。入力の途中・
+     * 計画・結果はコンポーザブルの外（ここ）に置き、パネルを隠しても画面を離れても消えない。受け取る値はフォームの部品（FormCtx）で
+     * 編集するため、値の木を持つ仮の文書を 1 つ持つ（どこにも保存しない。編集の記録先が無いので、セッションの履歴や dirty には載らない）。
      */
-    class ActionWork(val entry: ActionEntry, val target: String?, val form: OpenDocument, val insertInto: InsertTarget? = null) {
+    class ActionWork(val entry: ActionEntry, target: String?, val form: OpenDocument, val insertInto: InsertTarget? = null) {
         val values: YNode.Map get() = form.root as YNode.Map
+        /**
+         * 対象（受け手）の欄の木。要素を受け手にする操作ではパネルの「対象」欄（その型の要素だけが候補）で選び、入口が受け手を
+         * 知っていれば（エンティティページ・行のメニュー・検査の指摘）先に入る。文書を受け手にする操作では相対パスが入り、欄は出ない。
+         */
+        val targetHolder: YNode.Map = YNode.Map().also { m -> target?.let { m.entries[TARGET_KEY] = YNode.Scalar(it) } }
+        /** 受け手（要素の ID か文書の相対パス。空なら未選択）。 */
+        val target: String?
+            get() = (targetHolder.entries[TARGET_KEY] as? YNode.Scalar)?.value?.toString()?.trim()?.takeIf { it.isNotEmpty() }
         var plan by mutableStateOf<ActionPlan?>(null)
         /** 計画の変更セットを適用した後の姿の検証（ドライラン）。 */
         var preview by mutableStateOf<ChangeSetResult?>(null)
         var error by mutableStateOf<String?>(null)
         var applied by mutableStateOf<String?>(null)
         val title: String get() = entry.label ?: entry.name
+
+        companion object {
+            const val TARGET_KEY = "target"
+        }
     }
 
     /** 配列への追加の作業の受け手（配列エディタの追加ボタン・ビューの新規行から。要素の型の create に受け取る値があるとき）。 */
     class InsertTarget(val doc: OpenDocument, val arrayPath: YPath, val arrayDef: FieldDef)
 
     var actionWork by mutableStateOf<ActionWork?>(null)
+
+    /** 操作のパネル（浮いたパネル）を出しているか。隠しても作業（actionWork）は残り、右ペインの「操作」タブから開き直せる。 */
+    var actionPanelOpen by mutableStateOf(false)
 
     private fun newActionWork(entry: ActionEntry, target: String?, insertInto: InsertTarget? = null): ActionWork? {
         val ws = workspace ?: return null
@@ -558,10 +573,21 @@ class AppState {
         val form = OpenDocument(ws.resolve(".yde/action-params.yaml"), values, schema, "", null)
         return ActionWork(entry, target, form, insertInto).also {
             actionWork = it
-            memory.sidePanelTab = 3
-            rightPaneOpen = true
+            actionPanelOpen = true
         }
     }
+
+    /** パネルを隠す（作業は残る）／開き直す。 */
+    fun hideActionPanel() { actionPanelOpen = false }
+    fun showActionPanel() { if (actionWork != null) actionPanelOpen = true }
+
+    /** 型の要素の候補（パネルの「対象」欄）: 上書き索引のうちその型の出現を持つ ID と、その 1 行要約。 */
+    fun entityCandidates(type: String): List<Pair<String, String?>> =
+        overlayIndex().entries.values.asSequence()
+            .filter { occurrences -> occurrences.any { it.entityType == type } }
+            .map { occurrences -> occurrences.first().id to occurrences.firstNotNullOfOrNull { it.title } }
+            .sortedBy { it.first }
+            .toList()
 
     /**
      * 配列へ要素を足す（配列エディタの追加ボタン・ビューの新規行。architecture/actions.md「作成経路の寄せ」）: 要素の型の create に
@@ -586,7 +612,7 @@ class AppState {
         val work = actionWork ?: error("操作が選ばれていません")
         val into = work.insertInto ?: error("追加の作業ではありません")
         val index = insertArrayElement(into.doc, into.arrayPath, into.arrayDef, actionParams(work))
-        actionWork = null
+        dismissAction()
         status = "${into.arrayDef.displayLabel} に要素を足しました（未保存。Ctrl+Z で戻せます）"
         index
     }
@@ -626,6 +652,10 @@ class AppState {
     fun actionsForEntity(id: String): List<ActionEntry> =
         coreWs?.let { cw -> runCatching { ActionPlanner.forEntity(cw.mirror, id) }.getOrDefault(emptyList()) }.orEmpty()
 
+    /** 型に使える操作（台帳の「要素の操作」＝受け手をパネルで選ぶ入口と、未保存の行のメニュー）。 */
+    fun actionsForEntityType(type: String): List<ActionEntry> =
+        coreWs?.let { cw -> runCatching { ActionPlanner.forEntityType(cw.mirror, type) }.getOrDefault(emptyList()) }.orEmpty()
+
     /** 文書に使える操作（文書ヘッダのメニュー）。 */
     fun actionsForDocument(file: Path): List<ActionEntry> =
         coreWs?.let { cw -> runCatching { ActionPlanner.forDocument(cw.mirror, relPath(file)) }.getOrDefault(emptyList()) }.orEmpty()
@@ -633,7 +663,7 @@ class AppState {
     /** 受け手の無い操作（コマンドパレット）。 */
     fun actionsForWorkspace(): List<ActionEntry> = coreWs?.let { ActionPlanner.forWorkspace(it.mirror.schemas) }.orEmpty()
 
-    /** 操作を始める: 受け取る値の入力カードを右ペインの「操作」タブに出す。target は受け手（要素の ID か文書の相対パス）。 */
+    /** 操作を始める: 対象と受け取る値を入れるパネルを出す。target は受け手（要素の ID か文書の相対パス。null ならパネルで選ぶ）。 */
     fun startAction(entry: ActionEntry, target: String?) {
         if (readOnlyMode) {
             status = "閲覧専用モードでは操作を使えません（ツールバーで解除してください）"
@@ -669,6 +699,10 @@ class AppState {
         work.plan = null
         work.preview = null
         work.applied = null
+        if (work.entry.entityType != null && work.target == null) {
+            work.error = "対象を選んでください（${work.entry.entityType} の要素）"
+            return
+        }
         runCatching { ActionPlanner.plan(cw.mirror, ActionRequest(work.entry.name, work.target, actionParams(work)), LocalDateTime.now()) }
             .onSuccess { plan ->
                 work.plan = plan
@@ -718,7 +752,7 @@ class AppState {
         message
     }
 
-    fun dismissAction() { actionWork = null }
+    fun dismissAction() { actionWork = null; actionPanelOpen = false }
 
     // ---------------------------------------------------------------- workspace
 

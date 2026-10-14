@@ -10,46 +10,64 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.PopupProperties
 import dev.toros.yde.app.AppState
 import dev.toros.yde.app.OpenDocument
 import dev.toros.yde.workspace.ActionEntry
+import dev.toros.yde.workspace.ActionPlan
+import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.validate.Severity
 
 /**
- * 右ペインの「操作」タブ（型の操作とアクション。architecture/actions.md）。
- * 作業中（AppState.actionWork）ならそのカード＝受け取る値の入力 → 「確認」で計画と適用後の検証 → 差分 → 「適用」。
- * 作業が無ければ、開いている文書に使える操作の一覧（文書の操作・ルートの要素の操作・ワークスペースの操作）を出し、選ぶと始める。
- * 入口（エンティティページの操作メニュー・文書ヘッダのメニュー・コマンドパレット）はどれも AppState.startAction を呼ぶだけ。
+ * 右ペインの「操作」タブ（型の操作とアクション。architecture/actions.md）: 開いている文書に使える操作の一覧と、作業中の操作の開き直し。
+ * - 受け手に固定するのは文書そのものが要素のとき（rootId＝ルートの ID）だけ。台帳（要素が並ぶ文書）は要素の型（elementTypes）ごとに
+ *   並べ、対象はパネルの「対象」欄で選ぶ。
+ * - 作業（AppState.actionWork）は浮いたパネル（ActionPanelHost）で進める。パネルを隠してもここから開き直せる。
+ * 入口（エンティティページの操作メニュー・行のメニュー・文書ヘッダのメニュー・コマンドパレット）はどれも AppState.startAction を呼ぶだけ。
  */
 @Composable
-fun ActionTabContent(state: AppState, doc: OpenDocument?, rootId: String?) {
-    val work = state.actionWork
-    if (work != null) {
-        ActionCard(state, work)
-        return
-    }
-    if (state.readOnlyMode) {
-        Text("閲覧専用モードでは操作を使えません（ツールバーで解除してください）", Modifier.padding(12.dp), fontSize = 12.sp, color = Palette.SubText)
-        return
-    }
-    state.indexVersion
-    val forDocument = remember(doc, state.indexVersion) { doc?.let { state.actionsForDocument(it.file) }.orEmpty() }
-    val forEntity = remember(rootId, state.indexVersion) { rootId?.let { state.actionsForEntity(it) }.orEmpty() }
-    val forWorkspace = remember(state.indexVersion) { state.actionsForWorkspace() }
+fun ActionTabContent(state: AppState, doc: OpenDocument?, rootId: String?, elementTypes: List<String>) {
     val scroll = rememberScrollState()
     Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(bottom = 12.dp)) {
-        if (forDocument.isEmpty() && forEntity.isEmpty() && forWorkspace.isEmpty()) {
+        val work = state.actionWork
+        if (work != null) WorkInProgress(state, work)
+        if (state.readOnlyMode) {
+            Text("閲覧専用モードでは操作を使えません（ツールバーで解除してください）", Modifier.padding(12.dp), fontSize = 12.sp, color = Palette.SubText)
+            return@Column
+        }
+        state.indexVersion
+        val forDocument = remember(doc, state.indexVersion) { doc?.let { state.actionsForDocument(it.file) }.orEmpty() }
+        val forEntity = remember(rootId, state.indexVersion) { rootId?.let { state.actionsForEntity(it) }.orEmpty() }
+        val forTypes = remember(elementTypes, state.indexVersion) {
+            elementTypes.map { it to state.actionsForEntityType(it) }.filter { it.second.isNotEmpty() }
+        }
+        val forWorkspace = remember(state.indexVersion) { state.actionsForWorkspace() }
+        if (forDocument.isEmpty() && forEntity.isEmpty() && forTypes.isEmpty() && forWorkspace.isEmpty()) {
             Text(
                 "使える操作がありません。スキーマの methods（型の操作）か actions（アクション）に定義します",
                 Modifier.padding(12.dp), fontSize = 12.sp, color = Palette.SubText,
@@ -64,9 +82,34 @@ fun ActionTabContent(state: AppState, doc: OpenDocument?, rootId: String?) {
             ActionSection("$rootId の操作")
             forEntity.forEach { e -> ActionRow(e) { state.startAction(e, rootId) } }
         }
+        if (forTypes.isNotEmpty()) {
+            ActionSection("この文書の要素の操作（対象はパネルで選ぶ）")
+            forTypes.forEach { (type, entries) ->
+                Text(type, Modifier.padding(start = 12.dp, top = 4.dp), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Palette.Primary)
+                entries.forEach { e -> ActionRow(e) { state.startAction(e, null) } }
+            }
+        }
         if (forWorkspace.isNotEmpty()) {
             ActionSection("ワークスペースの操作")
             forWorkspace.forEach { e -> ActionRow(e) { state.startAction(e, null) } }
+        }
+    }
+}
+
+/** 作業中の操作（パネルを隠しているときの開き直し・やめる）。 */
+@Composable
+private fun WorkInProgress(state: AppState, work: AppState.ActionWork) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp).background(Palette.Selected, PanelShape).padding(10.dp)) {
+        Text("作業中: ${work.title}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        work.target?.let { Text("対象: $it", fontSize = 11.sp, color = Palette.SubText) }
+        work.applied?.let { Text(it, fontSize = 11.sp, color = Palette.OkGreen) }
+        Spacer(Modifier.height(4.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Button(onClick = { state.showActionPanel() }, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp)) {
+                Text(if (work.applied != null) "結果を見る" else "パネルを開く", fontSize = 12.sp)
+            }
+            Spacer(Modifier.width(6.dp))
+            TextButton(onClick = { state.dismissAction() }) { Text(if (work.applied != null) "閉じる" else "やめる", fontSize = 12.sp) }
         }
     }
 }
@@ -90,116 +133,223 @@ private fun ActionRow(entry: ActionEntry, onClick: () -> Unit) {
     }
 }
 
-/** 作業中の操作のカード。受け取る値はフォームの部品（FieldRow）で編集する（型・選択肢・参照の候補・ID の提案がそのまま効く）。 */
+// ================================================================ 浮いたパネル
+
+/**
+ * 操作のパネル（浮いたパネル。Main がスペースに関係なく載せる）: 対象と受け取る値を入れる →「確認」で計画と適用後の検証 → 差分 →
+ * 「適用」（書いて保存）。追加ボタンからの作業（insertInto）は値を入れて「追加」。
+ * 「AI で作成」と同じ幅。外側のクリックでは閉じず、Esc と「いったん隠す」は隠すだけ（作業は AppState.actionWork に残り、
+ * 右ペインの「操作」タブから開き直せる）。「やめる」で捨てる。受け取る値はフォームの部品（FieldRow）で編集する
+ * （型・選択肢・参照の候補・ID の提案がそのまま効く）。
+ */
 @Composable
-private fun ActionCard(state: AppState, work: AppState.ActionWork) {
+fun ActionPanelHost(state: AppState) {
+    val work = state.actionWork ?: return
+    if (!state.actionPanelOpen) return
     val form = work.form
     form.version
     state.indexVersion
     val ctx = remember(form, form.version, state.indexVersion) { FormCtx(state, form, emptyList(), readOnly = false) }
     var allowErrors by remember(work) { mutableStateOf(false) }
-    val scroll = rememberScrollState()
-    Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(horizontal = 12.dp, vertical = 10.dp)) {
-            Text(work.title, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-            work.entry.description?.let { Text(it, fontSize = 11.sp, color = Palette.SubText) }
-            work.target?.let { Text("受け手: $it", fontSize = 11.sp, color = Palette.SubText) }
-            Spacer(Modifier.height(6.dp))
-            if (work.entry.params.isEmpty()) {
-                Text("受け取る値はありません", fontSize = 11.sp, color = Palette.SubText)
-            } else {
-                val map = work.values
-                work.entry.params.forEach { p ->
-                    val key = p.key ?: return@forEach
-                    FieldRow(ctx, p, MapSlot(map, key), listOf(key))
-                }
+    // 本文の高さは窓に合わせる（題名とボタンのぶんを除く）。測れていないうちは控えめな既定
+    val windowHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
+    val bodyMax = if (windowHeight <= 0.dp) 640.dp else (windowHeight * 0.85f - 170.dp).coerceAtLeast(360.dp)
+    val plan = work.plan
+    val preview = work.preview
+    val issues = remember(preview) {
+        preview?.results.orEmpty().flatMap { r -> r.issues.map { r.file to it } }.filter { it.second.severity != Severity.INFO }
+    }
+    val errors = issues.count { it.second.severity == Severity.ERROR }
+    val warnings = issues.count { it.second.severity == Severity.WARNING }
+    val insertInto = work.insertInto
+    val done = work.applied != null
+
+    AlertDialog(
+        onDismissRequest = { state.hideActionPanel() },
+        properties = DialogProperties(dismissOnClickOutside = false),
+        modifier = Modifier.widthIn(min = 680.dp, max = 1040.dp),
+        title = {
+            Column {
+                Text(work.title)
+                work.entry.description?.let { Text(it, fontSize = 11.sp, color = Palette.SubText) }
             }
-            Spacer(Modifier.height(8.dp))
-            val insertInto = work.insertInto
-            if (insertInto != null) {
-                // 配列への追加（追加ボタン・新規行から）: 計画はせず、その場で未保存の編集として足す
-                Text("${state.relPath(insertInto.doc.file)} の ${insertInto.arrayDef.displayLabel} へ、未保存の編集として足します（Ctrl+Z で戻せます）", fontSize = 11.sp, color = Palette.SubText)
-                Spacer(Modifier.height(6.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Button(
-                        onClick = { state.applyInsert().onFailure { work.error = it.message ?: "追加できません" } },
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
-                    ) { Text("追加", fontSize = 12.sp) }
-                    Spacer(Modifier.width(6.dp))
-                    TextButton(onClick = { state.dismissAction() }) { Text("やめる", fontSize = 12.sp) }
-                }
-                work.error?.let {
-                    Spacer(Modifier.height(6.dp))
-                    Text(it, fontSize = 12.sp, color = Palette.ErrorRed)
-                }
-                return@Column
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Button(onClick = { state.planAction() }, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp)) { Text("確認", fontSize = 12.sp) }
-                Spacer(Modifier.width(6.dp))
-                TextButton(onClick = { state.dismissAction() }) { Text("やめる", fontSize = 12.sp) }
-            }
-            work.error?.let {
-                Spacer(Modifier.height(6.dp))
-                Text(it, fontSize = 12.sp, color = Palette.ErrorRed)
-            }
-            val plan = work.plan
-            if (plan != null) {
-                Spacer(Modifier.height(8.dp))
-                if (plan.isEmpty) {
-                    Text("変更はありません", fontSize = 12.sp, color = Palette.SubText)
-                }
-                plan.summary.forEach { Text("・$it", fontSize = 11.sp) }
-                val preview = work.preview
-                if (preview != null) {
-                    val issues = remember(preview) {
-                        preview.results.flatMap { r -> r.issues.map { r.file to it } }.filter { it.second.severity != Severity.INFO }
+        },
+        text = {
+            val scroll = rememberScrollState()
+            Box(Modifier.fillMaxWidth().heightIn(max = bodyMax)) {
+                Column(Modifier.fillMaxWidth().verticalScroll(scroll).padding(end = 10.dp)) {
+                    val type = work.entry.entityType
+                    when {
+                        insertInto != null -> Text(
+                            "${state.relPath(insertInto.doc.file)} の ${insertInto.arrayDef.displayLabel} へ、未保存の編集として足します（Ctrl+Z で戻せます）",
+                            fontSize = 11.sp, color = Palette.SubText,
+                        )
+                        type != null -> TargetPicker(state, work, type, enabled = !done)
+                        else -> work.target?.let { Text("受け手: $it", fontSize = 11.sp, color = Palette.SubText) }
                     }
-                    val errors = issues.count { it.second.severity == Severity.ERROR }
-                    val warnings = issues.count { it.second.severity == Severity.WARNING }
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        "適用後の検証: エラー $errors 件・警告 $warnings 件",
-                        fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                        color = if (errors > 0) Palette.ErrorRed else if (warnings > 0) Palette.WarnOrange else Palette.OkGreen,
-                    )
-                    issues.take(8).forEach { (file, issue) ->
+                    Spacer(Modifier.height(4.dp))
+                    if (work.entry.params.isEmpty()) {
+                        Text("受け取る値はありません", fontSize = 11.sp, color = Palette.SubText)
+                    } else {
+                        val map = work.values
+                        work.entry.params.forEach { p ->
+                            val key = p.key ?: return@forEach
+                            FieldRow(ctx, p, MapSlot(map, key), listOf(key))
+                        }
+                    }
+                    work.error?.let {
+                        Spacer(Modifier.height(6.dp))
+                        Text(it, fontSize = 12.sp, color = Palette.ErrorRed)
+                    }
+                    if (plan != null && insertInto == null) {
+                        Spacer(Modifier.height(8.dp))
+                        HorizontalDivider(color = Palette.Border)
+                        Spacer(Modifier.height(6.dp))
+                        if (plan.isEmpty) Text("変更はありません", fontSize = 12.sp, color = Palette.SubText)
+                        plan.summary.forEach { Text("・$it", fontSize = 11.sp) }
+                        if (preview != null) {
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                "適用後の検証: エラー $errors 件・警告 $warnings 件",
+                                fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                                color = if (errors > 0) Palette.ErrorRed else if (warnings > 0) Palette.WarnOrange else Palette.OkGreen,
+                            )
+                            issues.take(12).forEach { (file, issue) ->
+                                Text(
+                                    "・[$file] ${issue.message}", fontSize = 11.sp,
+                                    color = if (issue.severity == Severity.ERROR) Palette.ErrorRed else Palette.WarnOrange,
+                                )
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            ActionDiff(state, plan, height = (bodyMax - 320.dp).coerceIn(220.dp, 560.dp))
+                        }
+                    }
+                    work.applied?.let {
+                        Spacer(Modifier.height(8.dp))
+                        Text(it, fontSize = 12.sp, color = Palette.OkGreen)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                }
+                // 本文の高さは中身で決める（スクロールバーに fillMaxHeight を直接付けると枠が上限いっぱいに伸びる）
+                Box(Modifier.matchParentSize()) {
+                    VerticalScrollbar(rememberScrollbarAdapter(scroll), Modifier.align(Alignment.CenterEnd).fillMaxHeight())
+                }
+            }
+        },
+        confirmButton = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                when {
+                    done -> Unit
+                    insertInto != null -> Button(onClick = { state.applyInsert().onFailure { work.error = it.message ?: "追加できません" } }) { Text("追加") }
+                    else -> {
+                        val canApply = plan != null && preview != null && !plan.isEmpty
+                        if (canApply && errors > 0) {
+                            Checkbox(allowErrors, { allowErrors = it }, Modifier.size(28.dp))
+                            Text("検証エラーがあっても適用する", fontSize = 11.sp)
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        if (canApply) {
+                            OutlinedButton(onClick = { state.planAction() }) { Text("確認し直す") }
+                            Spacer(Modifier.width(8.dp))
+                            Button(
+                                enabled = errors == 0 || allowErrors,
+                                onClick = { state.applyAction(allowErrors).onFailure { work.error = it.message ?: "適用に失敗しました" } },
+                            ) { Text("適用（書いて保存）") }
+                        } else {
+                            Button(onClick = { state.planAction() }) { Text("確認") }
+                        }
+                    }
+                }
+            }
+        },
+        dismissButton = {
+            Row {
+                if (done) {
+                    TextButton(onClick = { state.dismissAction() }) { Text("閉じる") }
+                } else {
+                    TextButton(onClick = { state.dismissAction() }) { Text("やめる") }
+                    TextButton(onClick = { state.hideActionPanel() }) { Text("いったん隠す") }
+                }
+            }
+        },
+    )
+}
+
+/**
+ * 「対象」の欄: 受け手の要素を、その型の要素だけを候補にして選ぶ（候補は上書き索引＝未保存の編集を含む。ID と 1 行要約）。
+ * 入口が受け手を知っていれば先に入っている。打ち込んだ文字で候補を絞り、型の要素でない ID は赤で知らせる。
+ */
+@Composable
+private fun TargetPicker(state: AppState, work: AppState.ActionWork, type: String, enabled: Boolean) {
+    work.form.version
+    val candidates = remember(type, state.indexVersion, state.editVersion) { state.entityCandidates(type) }
+    val current = work.target ?: ""
+    val resolved = candidates.any { it.first == current }
+    val title = candidates.firstOrNull { it.first == current }?.second
+    var menuOpen by remember { mutableStateOf(false) }
+    fun set(id: String) {
+        work.targetHolder.entries[AppState.ActionWork.TARGET_KEY] = YNode.Scalar(id)
+        work.form.version++
+    }
+    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.width(120.dp)) {
+            Text("対象", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text(" *", fontSize = 12.sp, color = Palette.ErrorRed)
+        }
+        if (!enabled) {
+            Text(listOfNotNull(current, title).joinToString(" — "), fontSize = 13.sp)
+            return@Row
+        }
+        Box(Modifier.weight(1f)) {
+            CompactTextField(
+                value = current,
+                onValueChange = { set(it) },
+                singleLine = true,
+                isError = current.isNotBlank() && !resolved,
+                placeholder = { Text("$type の要素の ID") },
+                suffix = title?.let {
+                    {
                         Text(
-                            "・[$file] ${issue.message}", fontSize = 11.sp,
-                            color = if (issue.severity == Severity.ERROR) Palette.ErrorRed else Palette.WarnOrange,
+                            it, fontSize = 12.sp, color = Palette.SubText, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.widthIn(max = 320.dp).padding(start = 8.dp),
                         )
                     }
-                    Spacer(Modifier.height(8.dp))
-                    ActionDiff(state, plan)
-                    Spacer(Modifier.height(8.dp))
-                    if (work.applied == null) {
-                        if (errors > 0) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(allowErrors, { allowErrors = it }, Modifier.size(28.dp))
-                                Text("検証エラーがあっても適用する", fontSize = 11.sp)
-                            }
-                        }
-                        Button(
-                            enabled = errors == 0 || allowErrors,
-                            onClick = { state.applyAction(allowErrors).onFailure { work.error = it.message ?: "適用に失敗しました" } },
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
-                        ) { Text("適用", fontSize = 12.sp) }
+                },
+                trailingIcon = {
+                    IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = "候補を表示", modifier = Modifier.size(18.dp))
                     }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }, properties = PopupProperties(focusable = false)) {
+                val filtered = if (current.isBlank() || resolved) candidates
+                else candidates.filter { (id, t) -> id.contains(current, true) || t?.contains(current, true) == true }
+                if (filtered.isEmpty()) {
+                    DropdownMenuItem(text = { Text("候補なし", fontSize = 12.sp, color = Palette.SubText) }, onClick = { menuOpen = false }, enabled = false)
                 }
-                work.applied?.let {
-                    Spacer(Modifier.height(6.dp))
-                    Text(it, fontSize = 12.sp, color = Palette.OkGreen)
+                filtered.take(80).forEach { (id, t) ->
+                    DropdownMenuItem(
+                        text = {
+                            Column {
+                                Text(id, fontSize = 12.sp, fontWeight = if (id == current) FontWeight.Bold else FontWeight.Normal)
+                                t?.let { Text(it, fontSize = 10.sp, color = Palette.SubText, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                            }
+                        },
+                        onClick = { set(id); menuOpen = false },
+                    )
                 }
             }
-            Spacer(Modifier.height(24.dp))
         }
-        VerticalScrollbar(rememberScrollbarAdapter(scroll), Modifier.align(Alignment.CenterEnd).fillMaxHeight())
+    }
+    if (current.isNotBlank() && !resolved) {
+        Text("$type の要素ではありません（候補から選んでください）", fontSize = 11.sp, color = Palette.ErrorRed, modifier = Modifier.padding(start = 120.dp))
     }
 }
 
 /** 計画の差分: 文書を選んで、いまの内容と適用後の内容を並べる（変更セットの承認と同じ見せ方）。 */
 @Composable
-private fun ActionDiff(state: AppState, plan: dev.toros.yde.workspace.ActionPlan) {
+private fun ActionDiff(state: AppState, plan: ActionPlan, height: Dp) {
     val texts = remember(plan) { state.actionDiffTexts(plan) }
     val files = plan.changeSet.changes.map { it.file }
     var current by remember(plan) { mutableStateOf(files.firstOrNull()) }
@@ -220,8 +370,13 @@ private fun ActionDiff(state: AppState, plan: dev.toros.yde.workspace.ActionPlan
     val file = current ?: return
     val (before, after) = texts[file] ?: return
     val lines = remember(file, before, after) { calculateDiff(before, after) }
-    Box(Modifier.fillMaxWidth().height(220.dp).background(Palette.EditorBg, PanelShape).padding(4.dp)) {
+    Box(Modifier.fillMaxWidth().height(height).background(Palette.EditorBg, PanelShape).padding(4.dp)) {
         val listState = rememberLazyListState()
+        // 最初の変更が見えるところまで送る（長い文書の末尾の変更を探さずに済む）
+        LaunchedEffect(lines) {
+            val first = lines.indexOfFirst { it.changed }
+            if (first > 0) listState.scrollToItem((first - 2).coerceAtLeast(0))
+        }
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(end = 8.dp)) {
             items(lines) { line -> DiffLineRow(line) }
         }

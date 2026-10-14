@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -1487,6 +1488,7 @@ private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) 
                         onClick = { node.items.removeAt(i); ctx.markEdited() },
                         modifier = Modifier.size(32.dp).padding(top = 8.dp),
                     ) { Icon(Icons.Default.Delete, contentDescription = "削除", Modifier.size(16.dp), tint = Palette.SubText) }
+                    ElementOpsButton(ctx, path + i, Modifier.padding(top = 8.dp))
                     }
                 }
             }
@@ -1530,7 +1532,7 @@ private fun tableCellWidth(column: FieldDef): Dp = when {
 }
 
 private val TABLE_EXPAND_WIDTH = 28.dp
-private val TABLE_OPS_WIDTH = 96.dp        // 配列の行操作（取っ手・上へ・下へ・削除）
+private val TABLE_OPS_WIDTH = 120.dp       // 配列の行操作（取っ手・上へ・下へ・削除・操作メニュー）
 
 /** 配列の要素を from から to へ動かす（ドラッグの並べ替え。木の変異だけで、markEdited は呼び出し側）。 */
 internal fun moveSeqItem(node: YNode.Seq, from: Int, to: Int) {
@@ -1694,7 +1696,36 @@ private fun ArrayTable(ctx: FormCtx, field: FieldDef, columns: List<FieldDef>, n
             onClick = { node.items.removeAt(i); ctx.markEdited() },
             modifier = Modifier.size(24.dp),
         ) { Icon(Icons.Default.Delete, contentDescription = "削除", Modifier.size(14.dp), tint = Palette.SubText) }
+        ElementOpsButton(ctx, path + i)
     })
+}
+
+/**
+ * 配列の行の操作メニュー（⋯）: 行の要素に使える操作（型の操作と、その型を受け手にするアクション。architecture/actions.md）。
+ * 選ぶとその要素を対象にしたパネルが開く。ID の無い要素・操作の無い型には出ない。型は走査した ID の型で見るので、未保存の行にも出る。
+ */
+@Composable
+private fun ElementOpsButton(ctx: FormCtx, rowPath: YPath, modifier: Modifier = Modifier) {
+    val entry = ctx.localIds.firstOrNull { it.path == rowPath } ?: return
+    val actions = remember(entry.id, entry.entityType, ctx.state.indexVersion) {
+        entry.entityType?.let { ctx.state.actionsForEntityType(it) } ?: ctx.state.actionsForEntity(entry.id)
+    }
+    if (actions.isEmpty()) return
+    var open by remember { mutableStateOf(false) }
+    Box(modifier) {
+        IconButton(onClick = { open = true }, modifier = Modifier.size(24.dp)) {
+            Icon(Icons.Default.MoreVert, contentDescription = "操作", Modifier.size(16.dp), tint = Palette.SubText)
+        }
+        DropdownMenu(open, { open = false }) {
+            Text("${entry.id} の操作", Modifier.padding(horizontal = 12.dp, vertical = 4.dp), fontSize = 10.sp, color = Palette.SubText)
+            actions.forEach { e ->
+                DropdownMenuItem(
+                    text = { Text(e.label ?: e.name, fontSize = 12.sp) },
+                    onClick = { open = false; ctx.state.startAction(e, entry.id) },
+                )
+            }
+        }
+    }
 }
 
 /** map（キー→object）のテーブル表示。先頭にキー列を出し、行操作はキー削除のみ（キー追加は表の下の共通行）。 */

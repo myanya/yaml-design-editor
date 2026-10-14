@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Hub
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -335,6 +336,26 @@ private fun IdCell(state: AppState, row: ViewRow) {
             if (row.occurrences.isNotEmpty()) {
                 IconButton(onClick = { state.openCrossView(row.id) }, modifier = Modifier.size(22.dp)) {
                     Icon(Icons.Default.Hub, contentDescription = "横ぐしビューで表示", Modifier.size(13.dp), tint = Palette.SubText)
+                }
+                // 行の操作メニュー（⋯）: この要素に使える操作（型の操作と、その型を受け手にするアクション）。選ぶと対象の入ったパネルが開く
+                val actions = remember(row.id, state.indexVersion, state.readOnlyMode) {
+                    if (state.readOnlyMode) emptyList() else state.actionsForEntity(row.id)
+                }
+                if (actions.isNotEmpty()) {
+                    var open by remember { mutableStateOf(false) }
+                    Box {
+                        IconButton(onClick = { open = true }, modifier = Modifier.size(22.dp)) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "操作", Modifier.size(13.dp), tint = Palette.SubText)
+                        }
+                        DropdownMenu(open, { open = false }) {
+                            actions.forEach { e ->
+                                DropdownMenuItem(
+                                    text = { Text(e.label ?: e.name, fontSize = 12.sp) },
+                                    onClick = { open = false; state.startAction(e, row.id) },
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

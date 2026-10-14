@@ -13,6 +13,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -250,6 +251,22 @@ class ActionPlannerTest {
         val scaffold = DocumentScaffolds.scaffold(DocumentScaffolds.filePatternOf(detail)!!, ScaffoldSource.idOnly("SCR-009"), s.schemas)
         assertEquals("screens/SCR-009.yaml", scaffold.rel)
         assertEquals("/screens/SCR-009", scalarText(getAt(scaffold.root, parseYPath("url"))))
+    }
+
+    @Test
+    fun `型に使える操作は 受け手をあとで選ぶ入口のために型名で引ける`() {
+        val s = session()
+        val forRule = ActionPlanner.forEntityType(s, "rule")
+        assertEquals(listOf("deprecate-rule", "drop-rule-everywhere", "rule.deprecate"), forRule.map { it.name })
+        assertTrue(forRule.all { it.entityType == "rule" }, "受け手の型が引ける: ${forRule.map { it.target }}")
+        assertEquals(listOf("screen.create"), ActionPlanner.catalog(s.schemas).filter { it.kind == "create" }.map { it.name })
+        assertTrue(ActionPlanner.forEntityType(s, "screen").none { it.kind == "create" }, "create は直接呼べないので並べない")
+        assertEquals(emptyList(), ActionPlanner.forEntityType(s, "no-such"))
+        // 文書を受け手にする操作は documentSchema で、受け手の無い操作はどちらも null
+        assertEquals("screen-list", ActionPlanner.forDocument(s, "screen-list.yaml").single().documentSchema)
+        val addScreen = ActionPlanner.forWorkspace(s.schemas).first { it.name == "add-screen" }
+        assertNull(addScreen.entityType)
+        assertNull(addScreen.documentSchema)
     }
 
     @Test
