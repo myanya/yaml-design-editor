@@ -1,0 +1,30 @@
+YAML Design Editor — third-party software
+
+YAML Design Editor itself is distributed under the MIT license in LICENSE.
+Third-party libraries retain their own licenses and copyright notices.
+
+The binary distribution includes:
+- licenses/dependencies/THIRD-PARTY-NOTICES.txt: resolved library versions,
+  license declarations and embedded notices, generated from runtimeClasspath.
+- licenses/SOURCES.txt: corresponding source artifact locations by version.
+- licenses/cica/: Cica font license and copyright notices.
+- licenses/upstream/: supplemental notices from the matching upstream releases.
+- runtime/legal/: the bundled Java runtime's license and legal notices.
+
+Eclipse ELK and Xtext are distributed under EPL-2.0; the bundled EMF 2.12
+components are distributed under EPL-1.0. Their library binaries are unmodified.
+Their corresponding source archives are freely available at the versioned
+Maven Central URLs in SOURCES.txt. The original about.html, license and notice
+files remain in each JAR. These libraries are not relicensed under MIT.
+
+JNA offers Apache-2.0 OR LGPL-2.1-or-later. This distribution uses the
+Apache-2.0 option; the original dual-license declaration is retained.
+
+Skiko/Skia includes native image and text libraries; supplemental notices
+for the Windows build are in licenses/upstream/Skia-*.txt.
+This software is based in part on the work of the Independent JPEG Group.
+
+The JDK runtime and native libraries may include additional third-party
+components. Their bundled legal notices remain applicable. When rebuilding
+or redistributing, regenerate the reports for the actual target platform and
+review any missing license information before publishing the distribution.

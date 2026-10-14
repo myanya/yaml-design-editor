@@ -9,6 +9,7 @@ plugins {
     kotlin("jvm") version "2.4.21"
     id("org.jetbrains.kotlin.plugin.compose") version "2.4.21"
     id("org.jetbrains.compose") version "1.12.1"
+    id("com.github.jk1.dependency-license-report") version "3.1.4"
 }
 
 group = "dev.toros"
@@ -69,10 +70,13 @@ dependencies {
     constraints {
         // ELK は Guava を「15.0 以上」の幅で要求する。ビルドのたびに版が動かないよう固定する
         implementation("com.google.guava:guava") { version { strictly("33.7.2-jre") } }
+        implementation("org.apache.logging.log4j:log4j-api:2.25.5") {
+            because("POI の推移依存も非有限値の JSON 化の修正版へ揃える")
+        }
     }
     implementation("org.yaml:snakeyaml:2.3")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
-    implementation("org.apache.poi:poi-ooxml:5.3.0")   // Excel(xlsx)のインポート・エクスポート（skill機構）
+    implementation("org.apache.poi:poi-ooxml:5.5.1")   // Excel(xlsx)のインポート・エクスポート（skill機構）
     testImplementation(kotlin("test"))
 }
 
@@ -166,6 +170,65 @@ val copyHelp by tasks.registering(Copy::class) {
 sourceSets["main"].resources.srcDir(helpDir)
 tasks.named("processResources") { dependsOn(copyHelp) }
 
+// ソース公開時の LICENSE を、本体 JAR にも引き継ぐ。
+tasks.named<ProcessResources>("processResources") {
+    from("LICENSE") { into("META-INF") }
+}
+
+licenseReport {
+    projects = arrayOf(project)
+    configurations = arrayOf("runtimeClasspath")
+    renderers = arrayOf(com.github.jk1.license.render.TextReportRenderer(), com.github.jk1.license.render.JsonReportRenderer())
+}
+
+val distributionResources = layout.buildDirectory.dir("generated/distribution-resources")
+val prepareDistributionLicenses by tasks.registering(Sync::class) {
+    description = "配布物へ本体・依存・フォントのライセンスとソース取得案内を同梱する"
+    dependsOn("generateLicenseReport", downloadFonts)
+    from("LICENSE", "THIRD-PARTY-NOTICES.txt")
+    from("licenses/upstream") { into("upstream") }
+    from(layout.buildDirectory.dir("reports/dependency-license")) { into("dependencies") }
+    from(fontsDir.map { it.dir("fonts/cica") }) { include("LICENSE.txt", "COPYRIGHT.txt"); into("cica") }
+    into(distributionResources.map { it.dir("common/licenses") })
+}
+
+// 対象版を明記したソース取得先。JAR 内の著作権・NOTICE・about 等も元のまま保持する。
+val runtimeCoordinates = configurations.named("runtimeClasspath").map { config ->
+    config.resolvedConfiguration.resolvedArtifacts.map { it.moduleVersion.id }
+        .filter { it.group != "dev.toros" }.map { "${it.group}:${it.name}:${it.version}" }.distinct().sorted()
+}
+val sourceIndex = layout.buildDirectory.file("generated/source-index/SOURCES.txt")
+val generateSourceIndex by tasks.registering {
+    val coordinates = runtimeCoordinates
+    val output = sourceIndex
+    inputs.property("coordinates", coordinates)
+    outputs.file(output)
+    doLast {
+        val lines = coordinates.get().map { id ->
+            val (group, name, version) = id.split(':')
+            val repository = if (group.startsWith("androidx.")) "https://dl.google.com/dl/android/maven2" else "https://repo.maven.apache.org/maven2"
+            "$id\n$repository/${group.replace('.', '/')}/$name/$version/$name-$version-sources.jar"
+        }
+        output.get().asFile.apply { parentFile.mkdirs(); writeText(lines.joinToString("\n\n") + "\n") }
+    }
+}
+prepareDistributionLicenses { dependsOn(generateSourceIndex); from(sourceIndex) }
+tasks.matching { it.name in setOf("prepareAppResources", "prepareReleaseAppResources", "createDistributable", "createReleaseDistributable") }.configureEach {
+    dependsOn(prepareDistributionLicenses)
+    inputs.dir(distributionResources)
+}
+
+tasks.register<Exec>("verifyWindowsDistribution") {
+    description = "Windows 配布ランタイムで HTTP・Office・グラフ・同梱表示を検査する"
+    group = "verification"
+    dependsOn("testClasses", "createDistributable")
+    val jdk = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) }
+    onlyIf { System.getProperty("os.name").startsWith("Windows") }
+    commandLine("powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+        layout.projectDirectory.file("scripts/test-distribution.ps1").asFile.absolutePath,
+        "-JdkHome", jdk.get().metadata.installationPath.asFile.absolutePath)
+}
+
 // ヘッドレスCLI（UIなしでカタログ・検索・パッチ・検証を実行する）
 // 例: ./gradlew runCli --args="catalog samples/sample-workspace" -q
 tasks.register<JavaExec>("runCli") {
@@ -183,6 +246,9 @@ compose.desktop {
         javaHome = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) }
             .get().metadata.installationPath.asFile.absolutePath
         nativeDistributions {
+            modules("java.instrument", "java.net.http", "java.prefs", "java.security.jgss", "java.xml.crypto", "jdk.security.auth", "jdk.unsupported")
+            appResourcesRootDir.set(distributionResources)
+            licenseFile.set(layout.projectDirectory.file("LICENSE"))
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "yaml-design-editor"
             // 配布物のバージョンは外部バージョン（msi・deb）。

@@ -1,0 +1,58 @@
+Supplemental upstream notices (unmodified except line endings)
+
+FileKit 0.16.0:
+https://raw.githubusercontent.com/vinceglb/FileKit/0.16.0/LICENSE
+
+DBus Java 5.2.0:
+https://raw.githubusercontent.com/hypfvieh/dbus-java/dbus-java-parent-5.2.0/LICENSE
+
+Curves API 1.08 (distinct copyright/license headers from Java source files):
+https://repo.maven.apache.org/maven2/com/github/virtuald/curvesapi/1.08/curvesapi-1.08-sources.jar
+
+Skiko 0.150.1:
+https://raw.githubusercontent.com/JetBrains/skiko/v0.150.1/LICENSE
+https://raw.githubusercontent.com/JetBrains/skiko/v0.150.1/NOTICE
+
+Skia m150-1f14f1166a (version specified by Skiko 0.150.1):
+https://raw.githubusercontent.com/JetBrains/skia/m150-1f14f1166a/LICENSE
+https://raw.githubusercontent.com/JetBrains/skiko/v0.150.1/skiko/gradle.properties
+
+When changing these dependency versions, review and update the matching notices.
+
+Skia native dependency: expat
+https://chromium.googlesource.com/external/github.com/libexpat/libexpat.git/+/6154446fccefbf3ca644894f598969113b0c7bcd/COPYING?format=TEXT
+
+Skia native dependency: harfbuzz
+https://chromium.googlesource.com/external/github.com/harfbuzz/harfbuzz.git/+/9cb1fee51069b206effb4736e443b038d230789d/COPYING?format=TEXT
+
+Skia native dependency: icu
+https://chromium.googlesource.com/chromium/deps/icu.git/+/364118a1d9da24bb5b770ac3d762ac144d6da5a4/LICENSE?format=TEXT
+
+Skia native dependency: libjpeg-turbo
+https://chromium.googlesource.com/chromium/deps/libjpeg_turbo.git/+/e14cbfaa85529d47f9f55b0f104a579c1061f9ad/LICENSE.md?format=TEXT
+
+Skia native dependency: libjpeg-turbo
+https://chromium.googlesource.com/chromium/deps/libjpeg_turbo.git/+/e14cbfaa85529d47f9f55b0f104a579c1061f9ad/README.ijg?format=TEXT
+
+Skia native dependency: libwebp
+https://chromium.googlesource.com/webm/libwebp.git/+/845d5476a866141ba35ac133f856fa62f0b7445f/COPYING?format=TEXT
+
+Skia native dependency: libwebp
+https://chromium.googlesource.com/webm/libwebp.git/+/845d5476a866141ba35ac133f856fa62f0b7445f/PATENTS?format=TEXT
+
+Skia native dependency: libwebp
+https://chromium.googlesource.com/webm/libwebp.git/+/845d5476a866141ba35ac133f856fa62f0b7445f/AUTHORS?format=TEXT
+
+Skia native dependency: wuffs
+https://skia.googlesource.com/external/github.com/google/wuffs-mirror-release-c.git/+/e3f919ccfe3ef542cfc983a82146070258fb57f8/LICENSE?format=TEXT
+
+Skia native dependency: d3d12allocator
+https://raw.githubusercontent.com/GPUOpen-LibrariesAndSDKs/D3D12MemoryAllocator/169895d529dfce00390a20e69c2f516066fe7a3b/LICENSE.txt
+
+Skia native dependency: libpng
+https://github.com/JetBrains/skia/releases/download/m150-1f14f1166a/Skia-m150-1f14f1166a-windows-Release-x64.zip
+Entry: third_party/externals/libpng/LICENSE
+
+Skia native dependency: zlib
+https://github.com/JetBrains/skia/releases/download/m150-1f14f1166a/Skia-m150-1f14f1166a-windows-Release-x64.zip
+Entry: third_party/externals/zlib/LICENSE

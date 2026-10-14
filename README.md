@@ -47,3 +47,9 @@ Kotlin + Compose for Desktop 製の、スキーマ駆動の YAML エディタで
 ## ライセンス
 
 MIT License（[LICENSE](LICENSE)）。Copyright (c) 2026 myanya, toros
+
+第三者ライブラリ・フォント・Java ランタイムには各々のライセンスが適用されます。[同梱物の案内](THIRD-PARTY-NOTICES.txt)を参照してください。
+配布ビルドは解決済み依存の表示とソース取得先を生成し、アプリの資源ディレクトリ内 `licenses/` へ同梱します。
+配布前は `./gradlew test createDistributable --no-parallel` を実行し、生成した表示と同梱ランタイムでの起動を確認してください。
+Windows では `./gradlew verifyWindowsDistribution --no-parallel` で、同梱ランタイムによる通信クライアント生成・Office 往復・グラフ配置・表示同梱を検査できます（外部 API への接続なし）。
+0.1 の利用条件と既知の制約は[利用者マニュアル](docs/manual/limits.md)に記載しています。

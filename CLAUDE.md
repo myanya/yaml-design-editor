@@ -12,6 +12,7 @@ Kotlin + Compose for Desktop 製のスキーマ駆動 YAML エディタ。ワー
 ./gradlew runCli -q --args="help"           # ヘッドレス CLI（docs/manual/cli.md）
 ./gradlew runCli -q --args="version"        # バージョン表示（外部＝appVersion・内部＝yyyymmdd.ビルド番号）
 ./gradlew packageDistributionForCurrentOS   # 配布物作成
+./gradlew verifyWindowsDistribution --no-parallel # Windows同梱ランタイム・主要機能・ライセンスの検査
 scripts/docs-lint.sh                        # 文書の形の機械チェック
 ```
 

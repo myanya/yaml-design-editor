@@ -10,6 +10,10 @@ trim_trailing_whitespace = true
 [*.{bat,cmd}]
 end_of_line = crlf
 
+[*.ps1]
+# Windows PowerShell 5.1 でも日本語を正しく読むため
+charset = utf-8-bom
+
 [*.md]
 # 行末の 2 つの空白は Markdown の改行なので消さない
 trim_trailing_whitespace = false
