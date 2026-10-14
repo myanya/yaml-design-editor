@@ -20,6 +20,8 @@
 | [DESIGN-CHECK-CATALOG.md](DESIGN-CHECK-CATALOG.md) | 設計チェックのパターン台帳 | 検査を足す前 | 検証機構の追加・変更 |
 | [decisions/](decisions/README.md) | ADR（設計決定） | 設計の決定を確かめるとき | 決定の追加。既存は書き換えず新しい ADR で上書き |
 
+配布担当者向けの [releasing.md](releasing.md) は、Windows ZIP の作成・検査・公開手順を管理する。配布工程を変更したときに更新する。
+
 ## 記録
 
 | 文書 | 役割 |

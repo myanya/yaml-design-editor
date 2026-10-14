@@ -26,6 +26,7 @@
 | W-14 | Markdown 文書の表示（ワークスペース内の `.md` をツリーに薄色で出し、描画とソースの 2 タブで表示のみ・相対リンクはアプリ内で開く・外部変更に追随） | `ui/MarkdownPane.kt`, `ui/MarkdownView.kt`, `AppState.openMarkdown`, `core/Workspace.kt`（`WorkspaceScan.markdownFiles`） | 単体 `MarkdownLinkTest` | [ui](architecture/ui.md) |
 | W-15 | 内蔵ヘルプ（利用者マニュアルをビルド時に資源へ入れ、ツールバーの ? とコマンドパレットから文書として開く・題目間のリンクで移動） | `app/Help.kt`, `build.gradle.kts`（`copyHelp`）, `ui/MarkdownPane.kt` | 単体 `MarkdownLinkTest` | [ui](architecture/ui.md) |
 | W-16 | 画面の見え方の保持（フォームの畳み・ツリーの展開と選択・右パネルのタブと検証の範囲・台帳の絞り込みとレンズの設定・実行と設計のタブを、画面を離れても消さずワークスペース切替で消す） | `app/ScreenMemory.kt`, `ui/FormView.kt`（`FormCtx.expanded`） | 単体 `ScreenMemoryTest` | [ui](architecture/ui.md) |
+| W-17 | Windows ZIP 配布（起動案内・サンプル・ビルド情報・SHA-256） | `build.gradle.kts`（`windowsRelease`） | `test-windows-zip.ps1`, `DistributionSmoke` | [配布](releasing.md) |
 
 ## 2. 文書編集
 

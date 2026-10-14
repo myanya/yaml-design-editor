@@ -229,6 +229,100 @@ tasks.register<Exec>("verifyWindowsDistribution") {
         "-JdkHome", jdk.get().metadata.installationPath.asFile.absolutePath)
 }
 
+// ZIP 配布は通常ビルドを使い、公開前に展開後のランタイムと版の一致も検査する。
+val distributionPreview = providers.gradleProperty("distributionPreview").map { it.toBoolean() }.getOrElse(false)
+val windowsZipName = "yaml-design-editor-$version-windows-x64" + if (distributionPreview) "-preview" else ""
+val windowsReleaseDir = layout.buildDirectory.dir("release/$windowsZipName")
+val windowsImage = layout.buildDirectory.dir("compose/binaries/main/app/yaml-design-editor")
+val windowsReleaseInfo = layout.buildDirectory.dir("generated/windows-release")
+val releaseCommit = git("rev-parse", "HEAD") ?: "unknown"
+val releaseStatus = git("status", "--porcelain")
+val checkWindowsRelease by tasks.registering {
+    doLast {
+        require(System.getProperty("os.name").startsWith("Windows") && System.getProperty("os.arch") in setOf("amd64", "x86_64")) {
+            "Windows x64 の JDK でビルドしてください"
+        }
+        require(releaseCommit.matches(Regex("[0-9a-f]{40}")) && releaseStatus != null) { "Git のコミット情報を取得できません" }
+        require(distributionPreview || (releaseStatus.isEmpty() && !buildVersion.endsWith("-dirty"))) {
+            "公開用 ZIP は変更をコミットしてから作成してください。検証用は -PdistributionPreview=true を指定します"
+        }
+        // 再生成が途中で失敗したとき、以前の合格結果を新しい ZIP に添えない。
+        windowsReleaseDir.get().asFile.resolve("SHA256SUMS.txt").delete()
+        windowsReleaseDir.get().asFile.resolve("RELEASE-NOTES.md").delete()
+    }
+}
+val prepareWindowsReleaseInfo by tasks.registering {
+    dependsOn(checkWindowsRelease)
+    val jdk = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) }
+    inputs.properties(mapOf("appVersion" to version, "buildVersion" to buildVersion, "commit" to releaseCommit,
+        "dirty" to !releaseStatus.isNullOrEmpty(), "preview" to distributionPreview))
+    inputs.file(jdk.map { it.metadata.installationPath.file("release") })
+    outputs.dir(windowsReleaseInfo)
+    doLast {
+        val out = windowsReleaseInfo.get().asFile.apply { mkdirs() }
+        out.resolve("BUILD-INFO.txt").writeText(
+            "appVersion=$version\nbuildVersion=$buildVersion\ncommit=$releaseCommit\n" +
+                "dirty=${!releaseStatus.isNullOrEmpty()}\npreview=$distributionPreview\nplatform=windows-x64\n")
+        // 同梱 JDK の供給元・対象版も残す。ローカルの絶対パスは記録しない。
+        jdk.get().metadata.installationPath.file("release").asFile.copyTo(out.resolve("RUNTIME-RELEASE.txt"), overwrite = true)
+    }
+}
+val packageWindowsZip by tasks.registering(Zip::class) {
+    group = "distribution"
+    description = "起動案内と TODO サンプルを含む Windows x64 ZIP を作成する"
+    dependsOn("verifyWindowsDistribution", prepareWindowsReleaseInfo)
+    archiveFileName.set("$windowsZipName.zip")
+    destinationDirectory.set(windowsReleaseDir)
+    isPreserveFileTimestamps = false
+    isReproducibleFileOrder = true
+    duplicatesStrategy = DuplicatesStrategy.FAIL
+    into("yaml-design-editor") {
+        from(windowsImage)
+        from(windowsReleaseInfo)
+        from("distribution/windows/README.txt")
+        into("examples/todos") {
+            from("samples/todos") {
+                include("README.md", ".yde/workspace.yaml", ".yde/schemas/*.yaml", ".yde/views/*.yaml",
+                    "todos/*.yaml", "todos/details/*.yaml")
+            }
+        }
+    }
+}
+val verifyWindowsZip by tasks.registering(Exec::class) {
+    group = "verification"
+    description = "配布 ZIP を展開し、内容の一致と同梱ランタイムを検査する"
+    dependsOn(packageWindowsZip)
+    val jdk = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) }
+    commandLine("powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+        layout.projectDirectory.file("scripts/test-windows-zip.ps1").asFile.absolutePath,
+        "-ArchivePath", packageWindowsZip.get().archiveFile.get().asFile.absolutePath,
+        "-JdkHome", jdk.get().metadata.installationPath.asFile.absolutePath,
+        "-AppVersion", version.toString(), "-BuildVersion", buildVersion, "-Commit", releaseCommit)
+}
+tasks.register("windowsRelease") {
+    group = "distribution"
+    description = "全テスト・ZIP 検査後にチェックサムと GitHub Releases 用の説明を生成する"
+    dependsOn(verifyWindowsZip, "test", ":yaml-core:test", ":semantic-core:test", ":workspace-core:test", ":cli:test")
+    inputs.file("distribution/windows/release-notes.md")
+    doLast {
+        require(distributionPreview || (git("rev-parse", "HEAD") == releaseCommit && git("status", "--porcelain") == "")) {
+            "ビルド中にソースが変更されています。コミットを確定して再実行してください"
+        }
+        val zip = packageWindowsZip.get().archiveFile.get().asFile
+        val digest = MessageDigest.getInstance("SHA-256")
+        zip.inputStream().buffered().use { input ->
+            val buffer = ByteArray(65536)
+            while (true) { val n = input.read(buffer); if (n < 0) break; digest.update(buffer, 0, n) }
+        }
+        zip.resolveSibling("SHA256SUMS.txt").writeText(digest.digest().joinToString("") { "%02x".format(it) } + "  ${zip.name}\n")
+        zip.resolveSibling("RELEASE-NOTES.md").writeText(file("distribution/windows/release-notes.md").readText()
+            .replace("@VERSION@", version.toString()).replace("@ZIP@", zip.name)
+            .replace("@COMMIT@", releaseCommit).replace("@BUILD@", buildVersion)
+            .replace("@MODE@", if (distributionPreview) "開発中の検証用プレビュー" else "Windows ZIP 配布"))
+        logger.lifecycle("配布成果物: ${zip.parentFile}")
+    }
+}
+
 // ヘッドレスCLI（UIなしでカタログ・検索・パッチ・検証を実行する）
 // 例: ./gradlew runCli --args="catalog samples/sample-workspace" -q
 tasks.register<JavaExec>("runCli") {

@@ -1,9 +1,15 @@
-﻿param([Parameter(Mandatory = $true)][string]$JdkHome)
+﻿param(
+    [Parameter(Mandatory = $true)][string]$JdkHome,
+    [string]$Distribution,
+    [string]$AppVersion,
+    [string]$BuildVersion,
+    [string]$Commit
+)
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $OutputEncoding = [Console]::OutputEncoding
 $repoRoot = Split-Path $PSScriptRoot -Parent
-$distribution = Join-Path $repoRoot 'build/compose/binaries/main/app/yaml-design-editor'
+if (-not $Distribution) { $Distribution = Join-Path $repoRoot 'build/compose/binaries/main/app/yaml-design-editor' }
 $runtime = Join-Path $distribution 'runtime'
 $testClasses = Join-Path $repoRoot 'build/classes/kotlin/test'
 if (-not (Test-Path "$runtime/lib/modules")) { throw '先に createDistributable を実行してください' }
@@ -30,5 +36,7 @@ if ((Get-ModuleHash "$runtime/lib/modules") -ne (Get-ModuleHash "$stage/runtime/
 foreach ($relative in @('LICENSE', 'THIRD-PARTY-NOTICES.txt', 'SOURCES.txt', 'dependencies/THIRD-PARTY-NOTICES.txt', 'upstream/SOURCES.txt', 'cica/LICENSE.txt')) {
     if (-not (Test-Path "$distribution/app/resources/licenses/$relative")) { throw "配布物の表示が不足しています: $relative" }
 }
-& "$stage/runtime/bin/java.exe" '-Djava.awt.headless=true' '-cp' "$testClasses;$distribution/app/*" 'dev.toros.yde.app.DistributionSmoke'
+$expected = @()
+if ($AppVersion) { $expected = @($AppVersion, $BuildVersion, $Commit) }
+& "$stage/runtime/bin/java.exe" '-Djava.awt.headless=true' '-cp' "$testClasses;$distribution/app/*" 'dev.toros.yde.app.DistributionSmoke' @expected
 if ($LASTEXITCODE -ne 0) { throw "同梱ランタイムの検査に失敗しました: $LASTEXITCODE" }

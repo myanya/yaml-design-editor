@@ -13,6 +13,12 @@ import java.io.ByteArrayOutputStream
 /** 同梱ランタイムと配布 JAR だけで実行するスモーク検査。外部 API には接続しない。 */
 object DistributionSmoke {
     @JvmStatic fun main(args: Array<String>) {
+        if (args.isNotEmpty()) {
+            check(args.size == 3)
+            check(BuildInfo.appVersion == args[0]) { "配布物の外部バージョンが一致しません" }
+            check(BuildInfo.buildVersion == args[1]) { "配布物の内部バージョンが一致しません" }
+            check(args[2].startsWith(BuildInfo.commit) && BuildInfo.commit != "unknown") { "配布物のコミットが一致しません" }
+        }
         AiHttp.client().close()
         val xlsx = ByteArrayOutputStream()
         XSSFWorkbook().use { book ->

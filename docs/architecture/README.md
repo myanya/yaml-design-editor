@@ -23,6 +23,8 @@
 
 ## 技術スタック
 
+Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にまとめる。アプリ本体と専用 Java ランタイムを一式として扱う。
+
 - Kotlin (JVM 17) + Compose for Desktop + Material 3
 - YAML 入出力: SnakeYAML（Node API でコメント・表記を保持）
 - AI 連携: Java 11 HttpClient + kotlinx-serialization-json（外部 SDK 不使用）。HttpClient の生成は `ai/Http.kt` の単一ファクトリ

@@ -13,6 +13,10 @@ Kotlin + Compose for Desktop 製の、スキーマ駆動の YAML エディタで
 
 ## クイックスタート
 
+Windows ZIP 版は、ZIP をすべて展開し `yaml-design-editor.exe` を起動します。Java の追加インストールは不要です。
+同梱の `examples/todos` を作業用フォルダへコピーして開くと試せます。起動・更新の案内は ZIP 内の `README.txt` を参照してください。
+以下はソースから起動する開発者向けの手順です。
+
 要件: JDK 21（`./gradlew` を動かす JDK は 17 以上で構いません。ビルドと実行に使う JDK 21 は無ければ Gradle が自動で取得します）。Gradle Wrapper を同梱しています。初回ビルドは等幅フォント Cica（約 23 MB）を GitHub から取得するためネットワーク接続が要ります（取得物は Gradle のユーザーホームに保存され、2 回目からは不要）。
 
 ```bash
@@ -37,6 +41,7 @@ Kotlin + Compose for Desktop 製の、スキーマ駆動の YAML エディタで
 | [docs/FEATURES.md](docs/FEATURES.md) | 機能一覧と実装状況 |
 | [docs/architecture/](docs/architecture/README.md) | 設計（主題ごとに 1 ファイル。部品・流れ・規律・拡張ポイント） |
 | [docs/CONVENTIONS.md](docs/CONVENTIONS.md) | 開発規約 |
+| [docs/releasing.md](docs/releasing.md) | Windows ZIP の作成・検査・公開手順 |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | 将来構想とロードマップ |
 | [CLAUDE.md](CLAUDE.md) | AI コーディングエージェント向けの作業ガイド |
 
