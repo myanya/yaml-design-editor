@@ -233,3 +233,12 @@
 | SK-05 | テンプレートパック（`init --template ledger`・既存ファイルは上書きしない） | `skill/TemplatePacks.kt` | 単体 `ImportExportTest` | [agents](architecture/agents.md) |
 | SK-06 | skill UI（設計スペースの連携: 一覧・エクスポート・インポートのプレビューと適用・実行の承認） | `ui/SkillsPanel.kt` | 手動 | [agents](architecture/agents.md) |
 | SK-07 | コード実行 skill（kind: run・人間の事前承認・定義変更で失効・エージェントからは起動不可） | `skill/Runner.kt` | 単体 `RunSkillTest` | [agents](architecture/agents.md) |
+
+## 11. 操作（型の操作とアクション）
+
+| ID | 機能 | 実装 | テスト | 設計 |
+|---|---|---|---|---|
+| OP-01 | 型の操作の定義（object の `methods`＝予約名 `create` と名前付きの操作・配列の `methods.insert`＝採番と同じ明細・型を使う側への引き継ぎ） | `semantic-core/schema/Action.kt`, `semantic-core/schema/SchemaTreeParser.kt`, `semantic-core/schema/SchemaTree.kt` | 単体 `ActionPlannerTest` | [actions](architecture/actions.md) |
+| OP-02 | アクションの定義（スキーマ文書の `actions`＝受け手 `target`・受け取る値・前提 `require`・手 `do`。形の点検は読み込み時） | `semantic-core/schema/Action.kt`, `workspace-core/workspace/SchemaDocuments.kt`, `builtin-schemas/schema.yaml` | 単体 `ActionPlannerTest` | [actions](architecture/actions.md) |
+| OP-03 | 操作の計画（受け手の解決・受け取った値の検証・前提の 4 つの結果・set / insert / delete / create / call / each・変更セットの生成） | `workspace-core/workspace/ActionPlanner.kt`, `semantic-core/semantic/Transform.kt`（`build` / `holds`） | 単体 `ActionPlannerTest` | [actions](architecture/actions.md) |
+| OP-04 | CLI `action`（使える操作の一覧・計画＝変更セットと適用後の検証・`--apply`・`--allow-errors`） | `core/Cli.kt` | 単体 `ActionCliTest` | [actions](architecture/actions.md) |

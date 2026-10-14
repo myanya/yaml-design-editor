@@ -340,6 +340,13 @@ data class FieldDef(
      */
     val checks: List<ElementRule> = emptyList(),
     /**
+     * 型の操作（P41）: この object の要素 1 つを受け手にする操作（`methods`。予約の名前は create）。使う側は引き継ぎ、
+     * 同じ名前を書けば置き換える（create は重ねる。合成は SchemaTree.narrowOnto）。計画は workspace-core の ActionPlanner。
+     */
+    val methods: List<MethodDef> = emptyList(),
+    /** 配列の追加の決まり（配列の項目の `methods.insert`＝採番と同じ明細の見分け。P41）。 */
+    val insertRule: InsertRule? = null,
+    /**
      * `type`（または `$ref`）が書かれていたか（パーサが設定する）。型を使う側が同じキーの項目を書き直すとき、
      * 型を省いた（＝定義の型のまま狭める）のか、型を書いた（＝定義の型を狭めた型であること）のかを見分けるために持つ。
      */

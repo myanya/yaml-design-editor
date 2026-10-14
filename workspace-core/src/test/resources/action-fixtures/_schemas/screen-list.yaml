@@ -1,0 +1,66 @@
+# テスト用: 画面一覧（配列の insert の決まり・要素の create・横断の操作）
+id: screen-list
+match: screen-list.yaml
+entity: { type: screen, idPattern: "SCR-*", defines: true }
+root:
+  type: object
+  fields:
+    - { key: phase, type: enum, values: [基本設計, 詳細設計], default: 基本設計 }
+    - key: screens
+      type: array
+      required: true
+      methods:
+        insert:
+          id: { path: id, prefix: "SCR-", digits: 3 }
+          key: [name]
+      item:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: name, type: string, required: true, role: title }
+          - key: derived_from
+            type: array
+            item: { type: ref, relation: derived-from }
+          - { key: summary, type: string }
+        methods:
+          create:
+            params:
+              - { key: id, type: id }
+              - { key: name, type: string, required: true }
+              - { key: derived_from, type: array, item: { type: ref } }
+            build: { id: $id, name: $name, derived_from: $derived_from, summary: "" }
+          retitle:
+            label: 名前を変える
+            params:
+              - { key: name, type: string, required: true }
+            do:
+              - set: { path: name, value: $name }
+actions:
+  - id: add-screen
+    label: 画面を追加する
+    params:
+      - { key: id, type: id, required: true }
+      - { key: name, type: string, required: true }
+      - { key: derived_from, type: array, item: { type: ref } }
+      - { key: from, type: ref }
+      - { key: trigger, type: string }
+    require:
+      - match: [ { node: { id: $id } } ]
+        expect: absent
+        message: "$id は既にあります"
+    do:
+      - insert: { in: { schemaId: screen-list }, path: screens, params: { id: $id, name: $name, derived_from: $derived_from } }
+      - create: { schema: screen-def, params: { id: $id } }
+      - when: { path: from, exists: true }
+        insert: { in: { schemaId: transitions }, path: transitions, params: { from: $from, to: $id, trigger: $trigger } }
+  - id: add-numbered
+    label: 画面を採番して追加する
+    params:
+      - { key: name, type: string, required: true }
+    do:
+      - insert: { in: { schemaId: screen-list }, path: screens, params: { name: $name } }
+  - id: advance
+    label: 詳細設計へ進める
+    target: { schema: screen-list }
+    do:
+      - set: { path: phase, value: 詳細設計 }

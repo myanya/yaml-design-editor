@@ -1,5 +1,6 @@
 package dev.toros.yde.workspace
 
+import dev.toros.yde.semantic.schema.ActionDef
 import dev.toros.yde.semantic.schema.CheckLibrary
 import dev.toros.yde.semantic.schema.CheckerRule
 import dev.toros.yde.semantic.schema.ConstraintRule
@@ -83,6 +84,8 @@ class WorkspaceSchema(
     val expressions: Map<YPath, ExpressionValue> = emptyMap(),
     /** 新しい文書のひな型（変換のひな型。いまの場所＝元の要素。P31・R31-03）。 */
     val scaffold: TransformDef? = null,
+    /** 横断の操作（actions。P41）。型の操作（methods）は木の object の定義が持つ。計画は ActionPlanner。 */
+    val actions: List<ActionDef> = emptyList(),
 ) {
     /**
      * エンティティ型の宣言（ID の型 idType を、このスキーマの木（定義の目録を含む）で解決したもの。P33）。
@@ -96,7 +99,7 @@ class WorkspaceSchema(
         tree: SchemaTree = this.tree,
     ): WorkspaceSchema = WorkspaceSchema(
         id, kind, match, tree, declaredEntities, isTemplate, source, derive, constraints, checkers, expandedChecks, vocabularySource,
-        name, description, relations, entityTypes, enforcement, checkLibrary, expressions, scaffold,
+        name, description, relations, entityTypes, enforcement, checkLibrary, expressions, scaffold, actions,
     )
 
     /** 式を受け取る項目の値（ルートからのキーの並びで指す。例: expressionAt("filePattern")）。 */
@@ -125,6 +128,7 @@ class WorkspaceSchema(
             checkLibrary = parsed.ownLibrary,
             expressions = parsed.expressions,
             scaffold = parsed.scaffold,
+            actions = parsed.actions,
         )
     }
 

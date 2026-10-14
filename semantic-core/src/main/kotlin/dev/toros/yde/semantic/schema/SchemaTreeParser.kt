@@ -122,6 +122,17 @@ object SchemaTreeParser {
             val at = definitionName?.let { "definitions.$it" } ?: key ?: "object"
             list.mapIndexed { i, e -> ElementRule.parse(e, "$at.constraints[$i]") }
         } ?: emptyList()
+        // 型の操作（P41）: object には methods（create と名前付きの操作）、配列の項目には methods.insert（採番と同じ明細の見分け）
+        var methods: List<MethodDef> = emptyList()
+        var insertRule: InsertRule? = null
+        m["methods"]?.let { raw ->
+            val at = definitionName?.let { "definitions.$it" } ?: key ?: "object"
+            when {
+                type == FieldType.ARRAY -> insertRule = MethodDef.parseArrayMethods(raw, "$at.methods")
+                type == FieldType.OBJECT || namedType != null -> methods = MethodDef.parseObjectMethods(raw, "$at.methods", definitionScope)
+                else -> error("methods（型の操作）は type: object か array の項目でのみ定義できます")
+            }
+        }
         return FieldDef(
             key = key,
             type = type,
@@ -164,6 +175,8 @@ object SchemaTreeParser {
             hints = displayHints(m, type, namedType, options),
             entity = entity,
             checks = checks,
+            methods = methods,
+            insertRule = insertRule,
             typeGiven = typeText != null || explicitRef != null,
         )
     }

@@ -1,0 +1,54 @@
+# テスト用: ビジネスルール（型の操作 deprecate と、受け手を持つアクション）
+id: rule
+match: rules.yaml
+entity: { type: rule, idPattern: "BR-*", defines: true }
+root:
+  type: object
+  fields:
+    - key: rules
+      type: array
+      item:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: name, type: string, role: title }
+          - { key: status, type: enum, values: [draft, approved, deprecated], default: draft }
+          - { key: note, type: string }
+        methods:
+          deprecate:
+            label: 廃止にする
+            params:
+              - { key: reason, type: string, required: true }
+            do:
+              - set: { path: status, value: deprecated }
+              - set: { path: note, value: { $format: "廃止: {reason}" } }
+actions:
+  - id: deprecate-rule
+    label: ビジネスルールを廃止する
+    target: { entity: rule, bind: br }
+    params:
+      - { key: reason, type: string, required: true }
+    require:
+      - match:
+          - node: { entity: rule }
+          - edge: { dir: in, relation: based-on }
+          - node: { bind: x }
+        expect: absent
+        message: "{id} はまだ {x.id} から参照されています"
+    do:
+      - call: { of: br, method: deprecate, params: { reason: $reason } }
+  - id: drop-rule-everywhere
+    label: ルールの参照を外して廃止する
+    target: { entity: rule, bind: br }
+    params:
+      - { key: reason, type: string, required: true }
+    do:
+      - each:
+          from: br
+          match:
+            - node: { entity: rule }
+            - edge: { dir: in, relation: based-on }
+            - node: { entity: usecase, bind: uc }
+          do:
+            - call: { of: uc, method: drop-basis, params: { rule: { $copy: id, $of: br } } }
+      - call: { of: br, method: deprecate, params: { reason: $reason } }

@@ -136,6 +136,12 @@ definitions:
               label: 保有の関係名
               type: string
               description: "この項目に書いた ID を持つ要素を、外側の ID を持つ要素が保有する関係の名前（例 has-item。省略時はキー名）。関係レジストリに同じ名前で label / inverseLabel を書ける"
+            - key: methods
+              label: 配列の操作（insert）
+              type: map
+              value:
+                type: any
+              description: "配列へ要素を足すときの決まり（P41）。書けるのは insert だけ: {id: {path, prefix, digits}, key: [パス]}。id は、要素の ID の項目が空なら接頭辞（要素で埋めるひな型。例 \"SCR-\" や {$format: \"TX-{date}-\"}）＋連番を付ける採番。key は、同じ値の要素が既にあれば足さない見分け（skill の取り込みの target.id / target.key と同じ綴り）。追加ボタン・新規行・アクションの insert が通る"
           map:
             - key: value
               label: 値定義
@@ -170,6 +176,12 @@ definitions:
               item:
                 type: any
               description: "この object の要素ごとに評価する検査（オブジェクト型。P33 第三弾）。1 件は {id, description, where, check | expect: absent, level, message}。値の式と条件で of を省くと、その要素の値（例 {eq: [{path: amount}, {multiply: [{path: price}, {path: qty}]}]}）。ID の無い型にも書ける。他の要素へ線を辿る検査（match）はスキーマの constraints に書く"
+            - key: methods
+              label: 型の操作
+              type: map
+              value:
+                type: any
+              description: "この object の要素 1 つを受け手にする操作（P41。操作の名前 → 定義）。予約の名前 create は新しい要素の中身で {label, params, build}（省けば必須の初期値＋受け取った値）。他の操作は {label, description, params, do}。params は項目の定義（受け取る値。$名前 で参照）、do は手の並び（set / insert / delete / each: {path, do}。パスは受け手からの相対で、受け手の外には触れない）。値は変換のひな型（受け取った値の一式が「いまの場所」。受け手は $of: self）。型を使う側は引き継ぎ、同じ名前を書けば置き換える（create は重ねる）。呼び出しは CLI action <ws> 型名.操作名 --on ID と、アクションの call"
             - key: entity
               label: 同一性（エンティティ型）
               type: object
@@ -302,6 +314,12 @@ root:
       label: 新しい文書のひな型
       type: any
       description: "このスキーマの文書を元の要素（一覧側の定義出現）から作るときに、必須の項目の初期値の上へ重ねる中身。変換のひな型（$copy / $format / $map / $first / $each / $when。いまの場所＝元の要素）で書く。例 {name: {$copy: name}, summary: {$copy: summary}, source: {$format: \"{id}（一覧から作成）\"}}。ルート直下の ID の項目には、今までどおり ID が入る"
+    - key: actions
+      label: 操作（横断）
+      type: array
+      item:
+        type: any
+      description: "複数の要素や文書にまたがる操作の定義（P41）。1 件は {id, label, description, target, params, require, do}。target は受け手（{entity: 型, bind: 名前} か {schema: スキーマID}。省けばワークスペースの操作。on は YAML が真偽値に読むため使わない）。params は項目の定義（受け取る値）。require は前提（検査と同じ match ＋ expect / count / check ＋ message。起点は受け手。違反か判定保留なら実行しない）。do は手の並び: set / insert / delete / create: {schema, params} / call: {of, method, params} / each: {from, match, do}。値は変換のひな型（受け取った値の一式が「いまの場所」・要素は $of: 束縛名）。結果は変更セットになり、検証・競合・Undo は今までどおり。呼び出しは CLI action <ws> <id> [--on ID] [--param 名前=値]"
     - key: root
       label: ルート定義
       $ref: field

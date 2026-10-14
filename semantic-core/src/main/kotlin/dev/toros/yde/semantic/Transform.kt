@@ -43,7 +43,7 @@ object SemanticTransform {
     ): TransformResult {
         require(def.from == null) { "変換「${def.id}」はクエリで入力を選ぶ定義です（from.match）。索引を渡して実行してください" }
         val run = Run(def, params, bindings = emptyMap())
-        val term = run.build(def.build, Place(input, document, emptyList()), emptyList(), emptyMap())
+        val term = run.build(def.build, TemplatePlace(input, document, emptyList()), emptyList(), emptyMap())
         return TransformResult(term, run.origins)
     }
 
@@ -86,24 +86,50 @@ object SemanticTransform {
         graph: SemanticEntityGraph,
         rel: (DocumentId) -> String,
         tree: (DocumentId) -> YNode?,
-    ): Place? = when (ref.kind) {
+    ): TemplatePlace? = when (ref.kind) {
         QueryNodeKind.ENTITY -> SemanticExpression.preferDefining(graph.entities[ref.id]?.occurrences.orEmpty())
             .firstOrNull { selector == null || selector.matches(it.schemaId, rel(it.document)) }
-            ?.let { occ -> tree(occ.document)?.let { getAt(it, occ.path) }?.let { Place(it, occ.document, occ.path) } }
-        QueryNodeKind.DOCUMENT -> graph.documents[ref.id]?.let { doc -> tree(doc.document)?.let { Place(it, doc.document, emptyList()) } }
+            ?.let { occ -> tree(occ.document)?.let { getAt(it, occ.path) }?.let { TemplatePlace(it, occ.document, occ.path) } }
+        QueryNodeKind.DOCUMENT -> graph.documents[ref.id]?.let { doc -> tree(doc.document)?.let { TemplatePlace(it, doc.document, emptyList()) } }
+    }
+
+    /**
+     * ひな型 1 つを、受け取った値（params）・いまの場所（here）・束縛（名前 → 文書の指定に合う場所）で組み立てる
+     * （操作の計画＝workspace-core の ActionPlanner が使う。変換定義の rules は無いので `$apply` は「無い」になる）。
+     */
+    fun build(
+        template: Template,
+        params: Map<String, Any?>,
+        here: TemplatePlace?,
+        bindings: Map<String, (DerivationSelector?) -> TemplatePlace?> = emptyMap(),
+    ): TransformResult {
+        val run = Run(TransformDef("template", null, params.keys.toList(), null, template, emptyList()), params, bindings)
+        return TransformResult(run.build(template, here, emptyList(), emptyMap()), run.origins)
+    }
+
+    /** 条件（並べて「かつ」）が、受け取った値・いまの場所・束縛の上で成り立つか（値が得られず決められない条件は成り立たない）。 */
+    fun holds(
+        conditions: List<TemplateCondition>,
+        params: Map<String, Any?>,
+        here: TemplatePlace?,
+        bindings: Map<String, (DerivationSelector?) -> TemplatePlace?> = emptyMap(),
+    ): Boolean {
+        if (conditions.isEmpty()) return true
+        val run = Run(TransformDef("template", null, params.keys.toList(), null, Template.Literal(null), emptyList()), params, bindings)
+        return conditions.all { run.holds(it, here, emptyMap()) }
     }
 
     /** 入力の中の場所1つ（項と、その座標）。 */
-    private class Place(val node: YNode, val document: DocumentId?, val path: YPath) {
-        fun at(relative: YPath): Place? =
-            if (relative.isEmpty()) this else getAt(node, relative)?.let { Place(it, document, path + relative) }
+    class TemplatePlace(val node: YNode, val document: DocumentId?, val path: YPath) {
+        fun at(relative: YPath): TemplatePlace? =
+            if (relative.isEmpty()) this else getAt(node, relative)?.let { TemplatePlace(it, document, path + relative) }
     }
 
     /** 1回の組み立て（1つの入力、またはクエリの1行）。 */
     private class Run(
         val def: TransformDef,
         val params: Map<String, Any?>,
-        val bindings: Map<String, (DerivationSelector?) -> Place?>,
+        val bindings: Map<String, (DerivationSelector?) -> TemplatePlace?>,
     ) {
         val origins = mutableListOf<TransformOrigin>()
 
@@ -115,13 +141,13 @@ object SemanticTransform {
                 ?.let { error("変換「${def.id}」は「$it」を受け取りません（受け取る値: ${def.params.joinToString(", ").ifEmpty { "なし" }}）") }
         }
 
-        private fun place(site: TemplateSite, here: Place?): Place? {
+        private fun place(site: TemplateSite, here: TemplatePlace?): TemplatePlace? {
             val base = if (site.of == null) here else bindings[site.of]?.invoke(site.inDoc)
             return base?.at(site.path)
         }
 
         /** ひな型を、いまの場所（here）で組み立てる。out は出力の中の場所（出どころの記録用）。loop は繰り返しの中の `$key` / `$index`。 */
-        fun build(t: Template, here: Place?, out: YPath, loop: Map<String, Any?>): YNode? = when (t) {
+        fun build(t: Template, here: TemplatePlace?, out: YPath, loop: Map<String, Any?>): YNode? = when (t) {
             is Template.Literal -> YNode.Scalar(t.value)
             is Template.Param -> (if (t.name in loop) loop[t.name] else params[t.name])?.let { YamlIO.fromAny(it) }
             is Template.MapOf -> {
@@ -218,18 +244,18 @@ object SemanticTransform {
             }
         }
 
-        private fun each(t: Template.Each, found: Place, out: YPath, loop: Map<String, Any?>): YNode? = when (val node = found.node) {
+        private fun each(t: Template.Each, found: TemplatePlace, out: YPath, loop: Map<String, Any?>): YNode? = when (val node = found.node) {
             is YNode.Seq -> if (t.entries) null else {
                 val items = mutableListOf<YNode>()
                 node.items.forEachIndexed { i, child ->
-                    build(t.body, Place(child, found.document, found.path + i), out + items.size, loop + ("index" to i))?.let { items += it }
+                    build(t.body, TemplatePlace(child, found.document, found.path + i), out + items.size, loop + ("index" to i))?.let { items += it }
                 }
                 YNode.Seq(items)
             }
             is YNode.Map -> if (!t.entries) null else {
                 val entries = LinkedHashMap<String, YNode>()
                 for ((key, child) in node.entries) {
-                    build(t.body, Place(child, found.document, found.path + key), out + key, loop + ("key" to key))?.let { entries[key] = it }
+                    build(t.body, TemplatePlace(child, found.document, found.path + key), out + key, loop + ("key" to key))?.let { entries[key] = it }
                 }
                 YNode.Map(entries)
             }
@@ -238,7 +264,7 @@ object SemanticTransform {
         }
 
         /** 名前の規則を、その場所に当てる。同じ名前の規則は上から順に条件を調べ、最初に合ったものを使う（どれも合わなければ「無い」）。 */
-        private fun apply(ruleId: String, found: Place, out: YPath, loop: Map<String, Any?>): YNode? {
+        private fun apply(ruleId: String, found: TemplatePlace, out: YPath, loop: Map<String, Any?>): YNode? {
             val entered = active.getOrPut(found.node) { mutableSetOf() }
             if (!entered.add(ruleId)) {
                 error("変換「${def.id}」: 規則「$ruleId」を、同じ場所（${found.path.pretty()}）へ当てている最中に、もう一度当てています。規則は、入力の木の子へ向かって当ててください（\$at・\$each・\$eachEntry）")
@@ -252,13 +278,13 @@ object SemanticTransform {
         }
 
         /** 条件（「または」）が成り立つか。値が得られず決められない条件は、成り立たない（否定でも成り立たない）。 */
-        private fun holds(condition: TemplateCondition, here: Place?, loop: Map<String, Any?>): Boolean =
+        fun holds(condition: TemplateCondition, here: TemplatePlace?, loop: Map<String, Any?>): Boolean =
             condition.alternatives.any { test ->
                 val result = evaluate(test, here, loop)
                 if (test.negated) result == false else result == true
             }
 
-        private fun evaluate(test: TemplateTest, here: Place?, loop: Map<String, Any?>): Boolean? {
+        private fun evaluate(test: TemplateTest, here: TemplatePlace?, loop: Map<String, Any?>): Boolean? {
             val node = place(test.site, here)?.node
             fun operands(): List<String?> = test.operands.flatMap { operand ->
                 when (operand) {

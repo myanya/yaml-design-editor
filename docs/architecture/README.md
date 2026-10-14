@@ -17,6 +17,7 @@
 | [transform.md](transform.md) | YAML から YAML への変換・計算列と決定論的射影 |
 | [views.md](views.md) | ビュー機構・文書ビュー・definition 参照とリント・ビュー定義の読み取り |
 | [workspace.md](workspace.md) | ワークスペース構造と layout・文書キャッシュと Workspace・外部変更の取り込み・変更セットの適用・セッションの fork |
+| [actions.md](actions.md) | 操作（型の操作 `methods` とアクション `actions`。受け手・受け取った値・前提・手・変更セットへの計画・CLI） |
 | [agents.md](agents.md) | 安全性・エージェント実行と Staging・自動実行・自己改善・AI 生成・AI 接続・コンテキスト・一括実行・skill |
 | [ui.md](ui.md) | UI シェル・フォームと FormCtx・閲覧専用・テーブル表示・畳みとハイライト・エラー処理 |
 
@@ -81,6 +82,7 @@
 - **保存**: `canonicalText()` をファイルへ → `Workspace.noteDiskChanges`（増分か全再構築かの振り分け）→ `indexVersion` が進む。→ [workspace.md](workspace.md)
 - **検証**: 構造の検証 → ID と参照 → エンティティ型 → 関係名 → 定義体の検査 → テンプレート → 案内、をカーネルの `DocumentValidator` が組み立てる。→ [checks.md](checks.md)
 - **エージェント**: アクティビティ起動 → ツール使用ループ（探索 → パッチ → 検証）→ 変更セットの提出 → レビュー → `Workspace.apply`。→ [agents.md](agents.md)
+- **操作**: 名前と受け取った値 → 受け手の解決 → 前提の判定 → 手を順に当てる → 変更セット → `ChangeSetApplier`（CLI `action`）。→ [actions.md](actions.md)
 
 ## 規模の計測
 

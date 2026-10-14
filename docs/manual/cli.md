@@ -23,6 +23,8 @@ GUIを起動せずに、ワークスペースの探索・検索・部分変更�
 ./gradlew runCli -q --args="checks sample-workspace --definitions"        # 展開後の検査の表示（語彙・定義の使用が、どんな基本の検査へ展開されたか。--definitions で定義と語彙の一覧も）
 ./gradlew runCli -q --args="hash sample-workspace path/to/doc.yaml"       # 変更セットの base に使う内容ハッシュ
 ./gradlew runCli -q --args="apply sample-workspace changeset.yaml --dry-run"  # 変更セットの適用（ドライラン。適用のときは保存時に自動で入る値＝更新日・版も入る）
+./gradlew runCli -q --args="action labs/sysdev-template"                     # 操作の一覧（スキーマに定義したアクションと型の操作。manual/actions.md）
+./gradlew runCli -q --args="action labs/sysdev-template add-screen --param id=SCR-X --param name=新画面 --param derived_from=[UA-003]"  # 操作の計画（変更セットと適用後の検証。--apply で書く。検証エラーが残れば書かず --allow-errors で書く。--on は受け手）
 ./gradlew runCli -q --args="entity my-ws show SCR-001"                    # エンティティ全体像（アスペクト合成・関係・被参照。エンティティページ・read_entity と同じ合成）
 
 # 変更系リファクタリング（エンティティ改名・統合・削除／ファイル移動／スキーマ・リファクタリング）は

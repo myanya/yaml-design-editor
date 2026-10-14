@@ -57,6 +57,9 @@ root:
       label: 画面一覧
       type: array
       required: true
+      methods:
+        insert:
+          key: [name]                      # 同じ画面名の行は足さない（画面 ID は名前で付けるため採番はしない）
       item:
         type: object
         fields:
@@ -73,3 +76,42 @@ root:
               scope:
                 schemaIds: [domain-detail, usecase-list]
           - { key: summary, label: 概要, type: string }
+        # 型の操作（P41）: 画面の行の作り方。追加ボタン・新規行・アクションの insert が通る
+        methods:
+          create:
+            label: 画面を作る
+            params:
+              - { key: id, label: 画面ID, type: id, required: true, pattern: "^SCR-[A-Z0-9-]+$" }
+              - { key: name, label: 画面名, type: string, required: true }
+              - key: derived_from
+                label: 導出元
+                type: array
+                required: true
+                item: { type: ref, relation: derived-from, scope: { schemaIds: [domain-detail, usecase-list] } }
+              - { key: summary, label: 概要, type: string }
+            build: { id: $id, name: $name, derived_from: $derived_from, summary: { $copy: summary } }
+# 横断の操作（P41 の最初の利用例）: 画面一覧へ行を足し、同じ ID の画面定義を作り、遷移元を指定したときはそこからの遷移を 1 本足す。
+# 新しい画面から出る遷移が無いと、到達性の検査（flow）が「行き止まり」をエラーにするので、適用前の検証で気づける。
+actions:
+  - id: add-screen
+    label: 画面を追加する
+    description: 画面一覧の行・画面定義（同じ ID）・遷移元からの遷移を 1 回で足す
+    params:
+      - { key: id, label: 画面ID, type: id, required: true, pattern: "^SCR-[A-Z0-9-]+$" }
+      - { key: name, label: 画面名, type: string, required: true }
+      - key: derived_from
+        label: 導出元
+        type: array
+        required: true
+        item: { type: ref, relation: derived-from, scope: { schemaIds: [domain-detail, usecase-list] } }
+      - { key: from, label: 遷移元画面, type: ref, idPattern: "SCR-*", scope: { schemaIds: [screen-list] } }
+      - { key: trigger, label: 遷移の契機, type: string }
+    require:
+      - match: [ { node: { id: $id } } ]
+        expect: absent
+        message: "$id は既にあります"
+    do:
+      - insert: { in: { schemaId: screen-list }, path: screens, params: { id: $id, name: $name, derived_from: $derived_from } }
+      - create: { schema: screen-def, params: { id: $id } }
+      - when: { path: from, exists: true }
+        insert: { in: { schemaId: screen-transition }, path: transitions, params: { from: $from, to: $id, trigger: $trigger } }

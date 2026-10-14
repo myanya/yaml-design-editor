@@ -31,6 +31,9 @@ import dev.toros.yde.semantic.schema.QuerySpec
 import dev.toros.yde.semantic.schema.SchemaKind
 import dev.toros.yde.semantic.schema.TransformDef
 import dev.toros.yde.semantic.schema.globToRegex
+import dev.toros.yde.workspace.ActionFailure
+import dev.toros.yde.workspace.ActionPlanner
+import dev.toros.yde.workspace.ActionRequest
 import dev.toros.yde.workspace.DocumentScaffolds
 import dev.toros.yde.workspace.ScaffoldSource
 import dev.toros.yde.workspace.BuiltinTransforms
@@ -105,6 +108,11 @@ internal const val CLI_USAGE = """コマンド:
            定義の使用（constraints の use）が、検証の前にどんな基本の検査へ展開されたかを由来つきで表示する。
            --definitions は使える検査の定義（functions）と語彙（vocabulary）の一覧も出す
   apply    <workspace> <changeset.yaml> [--dry-run] [--require-valid]   変更セットの適用
+  action   <workspace> [<id> | <型名.操作名>] [--on <ID | file>] [--param 名前=値]... [--apply] [--allow-errors]
+           操作（P41）: スキーマに定義した操作（actions＝横断の操作・methods＝型の操作）を実行する。引数なしで使える操作の一覧。
+           既定は計画だけ（変更セットと、適用後の姿の検証の結果を表示。原本は変わらない）。--apply で原本へ書き込む
+           （検証エラーが残るなら書かない。--allow-errors で書く）。--on は受け手（エンティティの ID か、文書の相対パス）。
+           --param の値は YAML として読む（例: --param "derived_from=[UA-003]"）。前提（require）に合わなければ理由を出して止まる
   entity   <workspace> show <id>                エンティティ全体像（R23-04）: アスペクト合成（所有フィールド
            と原本座標）・関係・被参照をYAMLで返す（エンティティページ・read_entity と同じ合成）
            ※ 変更系（rename / merge / delete）・move・refactor・bench は新CLIへ移動した（B-1）:
@@ -645,6 +653,63 @@ internal fun runCli(args: Array<String>): String {
                 )
             }
             dumpYaml(out)
+        }
+        "action" -> {
+            val ws = workspace()
+            val name = rest.getOrNull(1)?.takeIf { !it.startsWith("--") }
+            if (name == null) {
+                // 使える操作の一覧（横断の操作と、型の操作）
+                dumpYaml(
+                    linkedMapOf(
+                        "schemaErrors" to ws.schemaErrors,
+                        "actions" to ActionPlanner.catalog(ws.mirror.schemas).map { e ->
+                            pruneNulls(
+                                linkedMapOf(
+                                    "name" to e.name,
+                                    "kind" to e.kind,
+                                    "label" to e.label,
+                                    "description" to e.description,
+                                    "target" to e.target,
+                                    "params" to e.params.map { p ->
+                                        pruneNulls(linkedMapOf("key" to p.key, "label" to p.label, "type" to (p.typeName ?: p.type.id), "required" to p.required.takeIf { it }))
+                                    },
+                                    "definedIn" to e.definedIn,
+                                )
+                            )
+                        },
+                    )
+                )
+            } else {
+                val params = stringFlags(rest, "--param").associate { raw ->
+                    val at = raw.indexOf('=').takeIf { it > 0 } ?: error("--param は 名前=値 で書きます: $raw")
+                    raw.substring(0, at) to YamlIO.parseToRaw(raw.substring(at + 1))
+                }
+                val plan = try {
+                    ActionPlanner.plan(ws.mirror, ActionRequest(name, stringFlag(rest, "--on"), params), java.time.LocalDateTime.now())
+                } catch (e: ActionFailure) {
+                    error(e.message ?: "操作を計画できません")
+                }
+                val apply = "--apply" in rest
+                val result = if (plan.isEmpty) null
+                else ws.apply(plan.changeSet, dryRun = !apply, requireValid = apply && "--allow-errors" !in rest)
+                dumpYaml(
+                    linkedMapOf<String, Any?>(
+                        "action" to plan.title,
+                        "summary" to plan.summary,
+                        "changes" to (YamlIO.parseToRaw(changeSetToYaml(plan.changeSet)) as? Map<*, *>)?.get("changes"),
+                        "ok" to (result?.ok ?: true),
+                        "applied" to (result?.let { apply && it.ok } ?: false),
+                        "results" to result?.results?.map { r ->
+                            linkedMapOf<String, Any?>(
+                                "file" to r.file,
+                                "applied" to r.applied,
+                                "message" to r.message,
+                                "issues" to r.issues.map { issueMap(it) },
+                            ).filterValues { it != null }
+                        }.orEmpty(),
+                    )
+                )
+            }
         }
         "apply" -> {
             val ws = workspace()

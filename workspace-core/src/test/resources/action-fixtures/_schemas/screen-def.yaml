@@ -1,0 +1,17 @@
+# テスト用: 画面定義（同じ ID の詳細文書。アクションの create が、ルートの型の create で中身を作る）
+id: screen-def
+match: "screens/*.yaml"
+entity: { type: screen, idPattern: "SCR-*" }
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+    - { key: url, type: string, required: true }
+    - key: items
+      type: array
+      item: { type: string }
+  methods:
+    create:
+      params:
+        - { key: id, type: id, required: true }
+      build: { id: $id, url: { $format: "/screens/{id}" } }

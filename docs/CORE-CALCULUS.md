@@ -767,15 +767,16 @@ Core Calculus = 定義を実行する
 | flow（遷移検証） | Query（母集団選択）＋専用高水準演算（到達閉包。§20 通過）。**専用チェッカー（SP-13）を組込み定義体から使う形になった**——演算はコードに残し、語彙への結び付け・文面・重大度は定義の宣言 |
 | relation acyclic（非循環） | Query（何段でも辿る線 `repeat` ＋ノード一致 `same`）＋ Predicate（**組込み定義体**。辿る計算だけが専用アルゴリズムで、判定は YAML。専用チェッカー `cycle` は廃止） |
 | Validator | Constraint executor |
-| Transform（YAML から YAML への変換） | Query + Construct（＋Predicate＝項目を出す条件） |
-| 構造のスキーマの導出 | Construct だけ。**変換定義（YAML）**で書く |
-| Scaffold（新しい文書のひな型）・Import（skill の取り込み） | Expression（`filePattern`）＋ Construct（`scaffold`・`build`）＋ Rewrite（作成・追記と採番） |
+| Transform（YAML → YAML） | Query + Construct（＋Predicate＝項目を出す条件） |
+| 構造のスキーマの導出 | Construct（変換定義） |
+| Scaffold・Import | Expression ＋ Construct（`scaffold` / `build`）＋ Rewrite（作成・追記・採番） |
 | Bulk edit / Schema Refactoring / Entity operations | Query + Rewrite |
 | Agent patch | Rewrite / Patch |
 | ChangeSet | Transaction input |
 | Workspace.apply | Transaction |
-| ユーザ定義の型 | 宣言。検証は Term の構造チェックへ導出（連鎖を基底の種類と決まりへ展開） |
-| 自動で入る値（`auto`） | Rewrite（要素 × 保存済みとの違い × SetScalar）。「今」は外からの入力 |
+| ユーザ定義の型 | 宣言。検証は構造チェックへ導出 |
+| 自動で入る値（`auto`） | Rewrite（要素 × 保存済みとの違い × SetScalar） |
+| 操作（`methods` / `actions`） | Rewrite の利用者定義体（受け取った値 × Query × Predicate × 操作 ＋ Construct） |
 
 この表を用いて、重複している実装を段階的に発見する。
 

@@ -80,3 +80,35 @@ root:
             label: 出典
             type: string
             description: 原文の所在（資料名・ヒアリング日など）。
+          - key: deprecated_reason
+            label: 廃止の理由
+            type: string
+            description: 廃止にしたときの理由（型の操作 deprecate が入れる）。
+        # 型の操作（P41）: 自分の項目だけを変える。参照元の整合は前提（アクション deprecate-rule）と検査 br-unapproved-referenced が守る
+        methods:
+          deprecate:
+            label: 廃止にする
+            description: 状態を廃止にし、理由を残す
+            params:
+              - { key: reason, label: 廃止の理由, type: string, required: true }
+            do:
+              - set: { path: status, value: deprecated }
+              - set: { path: deprecated_reason, value: $reason }
+# 横断の操作（P41 の最初の利用例）: 根拠として参照されていないビジネスルールだけを廃止にできる
+# （参照が残っていれば前提で止まる＝検査 br-unapproved-referenced と同じ不変条件を、変える前に確かめる）
+actions:
+  - id: deprecate-rule
+    label: ビジネスルールを廃止する
+    description: 参照が残っていないことを確かめてから、型の操作 deprecate を呼ぶ
+    target: { entity: business-rule, bind: br }
+    params:
+      - { key: reason, label: 廃止の理由, type: string, required: true }
+    require:
+      - match:
+          - node: { entity: business-rule }
+          - edge: { dir: in, relation: based-on }
+          - node: { bind: x }
+        expect: absent
+        message: "{id} はまだ {x.id} から根拠として参照されています。先に参照を外してください"
+    do:
+      - call: { of: br, method: deprecate, params: { reason: $reason } }

@@ -1,0 +1,14 @@
+# テスト用: 画面遷移（要素の型に create を書かない配列。既定の create＝必須の初期値＋受け取った値）
+id: transitions
+match: transitions.yaml
+root:
+  type: object
+  fields:
+    - key: transitions
+      type: array
+      item:
+        type: object
+        fields:
+          - { key: from, type: ref, required: true, relation: transition-from }
+          - { key: to, type: ref, required: true, relation: transitions-to }
+          - { key: trigger, type: string }

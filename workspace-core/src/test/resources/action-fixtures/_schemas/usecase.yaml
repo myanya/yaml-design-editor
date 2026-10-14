@@ -1,0 +1,43 @@
+# テスト用: ユースケース（型の操作 drop-basis＝自分の配列を回って参照を外す・前提の判定保留）
+id: usecase
+match: "usecases/*.yaml"
+entity: { type: usecase, idPattern: "UC-*", defines: true }
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+    - { key: name, type: string, role: title }
+    - key: based_on
+      type: array
+      item: { type: ref, relation: based-on }
+    - key: comments
+      type: array
+      item:
+        type: object
+        fields:
+          - { key: text, type: string }
+  methods:
+    drop-basis:
+      label: 根拠を外す
+      params:
+        - { key: rule, type: string, required: true }
+      do:
+        - each:
+            path: based_on
+            do:
+              - when: { of: self, equals: $rule }
+                delete: {}
+        - insert: { path: comments, value: { text: { $format: "根拠 {rule} を外した" } } }
+actions:
+  - id: needs-basis
+    label: 根拠が要る
+    target: { entity: usecase }
+    require:
+      - match:
+          - node: { entity: usecase }
+          - edge: { relation: based-on }
+          - node: { entity: rule }
+        expect: exists
+        message: "{id} には根拠がありません"
+    do:
+      - set: { path: name, value: 確認済み }

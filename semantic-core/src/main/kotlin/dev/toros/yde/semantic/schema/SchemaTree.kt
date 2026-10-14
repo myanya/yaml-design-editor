@@ -47,7 +47,7 @@ data class SchemaTree(
     fun objectDeclarations(): List<Pair<String, FieldDef>> {
         val out = mutableListOf<Pair<String, FieldDef>>()
         fun walk(f: FieldDef, at: String) {
-            if (f.entity != null || f.checks.isNotEmpty()) out += at to f
+            if (f.entity != null || f.checks.isNotEmpty() || f.methods.isNotEmpty()) out += at to f
             f.fields.forEach { c -> walk(c, "$at.${c.key ?: "?"}") }
             f.item?.let { walk(it, "$at.item") }
             f.value?.let { walk(it, "$at.value") }
@@ -161,6 +161,9 @@ data class SchemaTree(
             entity = use.entity ?: def.entity,
             // 型の検査は引き継ぎ、使う側の検査を足す
             checks = def.checks + use.checks,
+            // 型の操作は引き継ぎ、同じ名前は使う側が置き換える（create は重ねる。P41）
+            methods = MethodDef.merge(def.methods, use.methods),
+            insertRule = use.insertRule ?: def.insertRule,
             typeGiven = true,
         )
     }

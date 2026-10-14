@@ -1,5 +1,6 @@
 package dev.toros.yde.workspace
 
+import dev.toros.yde.semantic.schema.ActionDef
 import dev.toros.yde.semantic.schema.CheckLibrary
 import dev.toros.yde.semantic.schema.DeriveDef
 import dev.toros.yde.semantic.schema.EnforcementDef
@@ -48,6 +49,8 @@ class ParsedSchemaDocument(
     val expressions: Map<YPath, ExpressionValue> = emptyMap(),
     /** 新しい文書のひな型（変換のひな型。いまの場所＝元の要素。P31・R31-03）。 */
     val scaffold: TransformDef? = null,
+    /** 横断の操作（actions。P41）。 */
+    val actions: List<ActionDef> = emptyList(),
 )
 
 /**
@@ -96,6 +99,14 @@ object SchemaDocuments {
             definitions = SchemaTreeParser.parseDefinitions(raw["definitions"], id),
             phases = SchemaTreeParser.parsePhases(raw["phases"]),
         )
+        // 横断の操作（P41）: 文書のスキーマと library に書ける（関係レジストリには書けない）。同じ ID は誤り
+        val actions = when (val a = raw["actions"]) {
+            null -> emptyList()
+            is List<*> -> a.mapIndexed { i, e -> ActionDef.parse(e, "actions[$i]", id) }
+            else -> error("actions は操作の配列である必要があります")
+        }
+        require(actions.isEmpty() || kind != SchemaKind.RELATIONS) { "actions は kind: relations の文書には書けません" }
+        actions.groupBy { it.id }.filterValues { it.size > 1 }.keys.firstOrNull()?.let { error("actions: 操作の ID「$it」が重複しています") }
         // 検査: constraints に書いた検査と語彙を、基本の検査へ展開してからパースする（CheckCatalog）
         val ownLibrary = CheckLibrary.parse(raw, sourceName)
         val effectiveLibrary = library ?: (CheckCatalog.builtinLibrary + ownLibrary)
@@ -116,6 +127,7 @@ object SchemaDocuments {
             vocabularySource = VocabularySource(raw, effectiveLibrary),
             expressions = expressions,
             scaffold = scaffold,
+            actions = actions,
         )
     }
 
