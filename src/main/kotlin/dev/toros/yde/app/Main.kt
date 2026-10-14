@@ -537,6 +537,17 @@ private fun CommandPalette(
                 CommandItem("台帳: グラフレンズを表示") { state.openGraphLens(); onDismiss() }
                 CommandItem("台帳: エンティティページを表示") { state.openCrossView(); onDismiss() }
                 CommandItem("台帳: 準備完了レポートを表示") { state.showWorkspaceView(6); onDismiss() }
+                // 操作（architecture/actions.md）: 受け手の無いアクションと、開いている文書を受け手にするアクション（閲覧専用では出さない）
+                if (!state.readOnlyMode) {
+                    state.actionsForWorkspace().forEach { e ->
+                        CommandItem("操作: ${e.label ?: e.name}") { state.startAction(e, null); onDismiss() }
+                    }
+                    state.openDoc?.let { d ->
+                        state.actionsForDocument(d.file).forEach { e ->
+                            CommandItem("操作: ${e.label ?: e.name}（${state.relPath(d.file)}）") { state.startAction(e, state.relPath(d.file)); onDismiss() }
+                        }
+                    }
+                }
                 CommandItem("実行スペースを表示（受信箱）") { onShowRuns(); onDismiss() }
                 CommandItem("設計スペースを表示") { state.showSpace(UiSpace.DESIGN); onDismiss() }
                 helpTopics.forEach { topic -> CommandItem("ヘルプ: ${topic.title}") { state.openHelp(topic.file); onDismiss() } }
@@ -707,6 +718,25 @@ fun EditorArea(state: AppState) {
                     fontSize = 11.sp, color = Palette.WarnOrange,
                     modifier = Modifier.background(Palette.ConflictBg, PanelShape).padding(horizontal = 8.dp, vertical = 2.dp),
                 )
+                Spacer(Modifier.width(6.dp))
+            }
+            // この文書を受け手にする操作（スキーマの actions で target: {schema}。architecture/actions.md）
+            val docActions = remember(doc, state.indexVersion) { state.actionsForDocument(doc.file) }
+            if (docActions.isNotEmpty() && !state.readOnlyMode) {
+                Box {
+                    var actionsOpen by remember { mutableStateOf(false) }
+                    OutlinedButton(onClick = { actionsOpen = true }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)) {
+                        Text("操作 ▾", fontSize = 12.sp)
+                    }
+                    androidx.compose.material3.DropdownMenu(actionsOpen, { actionsOpen = false }) {
+                        docActions.forEach { entry ->
+                            androidx.compose.material3.DropdownMenuItem(
+                                text = { Text(entry.label ?: entry.name, fontSize = 12.sp) },
+                                onClick = { actionsOpen = false; state.startAction(entry, state.relPath(doc.file)) },
+                            )
+                        }
+                    }
+                }
                 Spacer(Modifier.width(6.dp))
             }
             if (doc.schema != null && doc.root != null && !state.readOnlyMode) {

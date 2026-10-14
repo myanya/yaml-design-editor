@@ -185,6 +185,12 @@ class ActionPlannerTest {
         val names = ActionPlanner.catalog(s.schemas).map { it.name }
         assertTrue("add-screen" in names && "screen.retitle" in names && "rule.deprecate" in names && "usecase.drop-basis" in names, names.toString())
         assertEquals("create", ActionPlanner.catalog(s.schemas).first { it.name == "screen.create" }.kind)
+        // 受け手ごとの一覧（画面の操作メニュー）: 要素はその型のアクションと型の操作（create 以外）、文書はそのスキーマのアクション、ワークスペースは受け手の無いもの
+        assertEquals(listOf("deprecate-rule", "drop-rule-everywhere", "rule.deprecate"), ActionPlanner.forEntity(s, "BR-001").map { it.name })
+        assertEquals(listOf("screen.retitle"), ActionPlanner.forEntity(s, "SCR-001").map { it.name })
+        assertEquals(listOf("advance"), ActionPlanner.forDocument(s, "screen-list.yaml").map { it.name })
+        assertEquals(listOf("add-screen", "add-numbered"), ActionPlanner.forWorkspace(s.schemas).map { it.name })
+        assertEquals(emptyList(), ActionPlanner.forEntity(s, "NO-SUCH").map { it.name })
     }
 
     @Test

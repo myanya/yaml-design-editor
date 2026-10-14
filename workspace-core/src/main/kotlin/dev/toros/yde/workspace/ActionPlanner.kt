@@ -102,6 +102,40 @@ object ActionPlanner {
         Planning(session, now).plan(request)
 
     /**
+     * 要素に使える操作（画面の操作メニューが使う）: その型を受け手にするアクションと、要素の型の操作（create を除く）。
+     * 型の操作の名前は `型名.操作名`（型名は要素のエンティティ型。plan の名前の解決と同じ）。
+     */
+    fun forEntity(session: WorkspaceSession, id: String): List<ActionEntry> {
+        val node = session.derived.semantic.graph.entities[id] ?: return emptyList()
+        val occ = SemanticExpression.preferDefining(node.occurrences).firstOrNull() ?: return emptyList()
+        val document = session.snapshot.documents[occ.document]
+        val schema = document?.schemaId?.let { sid -> session.schemas.firstOrNull { it.id == sid } }
+        val root = document?.document?.documents?.firstOrNull()
+        val def = if (schema != null && root != null) schema.tree.fieldAt(root, occ.path) else null
+        val type = node.entityType ?: def?.entity?.type ?: return emptyList()
+        val actions = session.schemas.flatMap { s ->
+            s.actions.filter { a -> a.target?.entity == type }
+                .map { a -> ActionEntry(a.id, "action", a.label, a.description, "entity: $type", a.params, s.id) }
+        }
+        val methods = def?.methods.orEmpty().filter { !it.isCreate }
+            .map { m -> ActionEntry("$type.${m.name}", "method", m.label, m.description, type, m.params, schema?.id ?: "") }
+        return actions + methods
+    }
+
+    /** 文書に使える操作（文書ヘッダのメニューが使う）: その文書のスキーマを受け手にするアクション。 */
+    fun forDocument(session: WorkspaceSession, rel: String): List<ActionEntry> {
+        val sid = session.snapshot.documents[DocumentId(rel.replace('\\', '/'))]?.schemaId ?: return emptyList()
+        return session.schemas.flatMap { s ->
+            s.actions.filter { a -> a.target?.schema == sid }
+                .map { a -> ActionEntry(a.id, "action", a.label, a.description, "schema: $sid", a.params, s.id) }
+        }
+    }
+
+    /** 受け手の無い操作（コマンドパレットが使う）。 */
+    fun forWorkspace(schemas: List<WorkspaceSchema>): List<ActionEntry> =
+        schemas.flatMap { s -> s.actions.filter { it.target == null }.map { a -> ActionEntry(a.id, "action", a.label, a.description, null, a.params, s.id) } }
+
+    /**
      * 型の呼び名: object の同一性（entity.type）→ 定義名 → スキーマの entity 宣言が 1 つで、その object が ID の項目を持つなら
      * その型（ID の形で判別する従来のスキーマ）→ 書かれた場所。
      */

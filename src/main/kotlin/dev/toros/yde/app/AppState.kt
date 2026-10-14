@@ -38,6 +38,11 @@ import dev.toros.yde.app.schema.SchemaLoader
 import dev.toros.yde.semantic.RefactoringPlan
 import dev.toros.yde.semantic.RefactoringRequest
 import dev.toros.yde.semantic.SemanticAutoValues
+import dev.toros.yde.app.agent.Staging
+import dev.toros.yde.workspace.ActionEntry
+import dev.toros.yde.workspace.ActionPlan
+import dev.toros.yde.workspace.ActionPlanner
+import dev.toros.yde.workspace.ActionRequest
 import dev.toros.yde.workspace.ChangeIntent
 import dev.toros.yde.workspace.ChangeRecord
 import dev.toros.yde.workspace.FileSystemDocumentStore
@@ -521,6 +526,116 @@ class AppState {
     }
 
     fun dismissAi() { aiRequest = null }
+
+    // ---------------------------------------------------------------- 操作（型の操作とアクション）
+
+    /**
+     * 操作の作業（受け取る値の入力 → 計画 → 適用）。右ペインの「操作」タブに出す。入力の途中・計画・結果はコンポーザブルの外
+     * （ここ）に置き、画面を離れても消えない。受け取る値はフォームの部品（FormCtx）で編集するため、値の木を持つ仮の文書を 1 つ持つ
+     * （どこにも保存しない。編集の記録先が無いので、セッションの履歴や dirty には載らない）。
+     */
+    class ActionWork(val entry: ActionEntry, val target: String?, val form: OpenDocument) {
+        val values: YNode.Map get() = form.root as YNode.Map
+        var plan by mutableStateOf<ActionPlan?>(null)
+        /** 計画の変更セットを適用した後の姿の検証（ドライラン）。 */
+        var preview by mutableStateOf<ChangeSetResult?>(null)
+        var error by mutableStateOf<String?>(null)
+        var applied by mutableStateOf<String?>(null)
+        val title: String get() = entry.label ?: entry.name
+    }
+
+    var actionWork by mutableStateOf<ActionWork?>(null)
+
+    /** 要素に使える操作（エンティティページの操作メニュー）。 */
+    fun actionsForEntity(id: String): List<ActionEntry> =
+        coreWs?.let { cw -> runCatching { ActionPlanner.forEntity(cw.mirror, id) }.getOrDefault(emptyList()) }.orEmpty()
+
+    /** 文書に使える操作（文書ヘッダのメニュー）。 */
+    fun actionsForDocument(file: Path): List<ActionEntry> =
+        coreWs?.let { cw -> runCatching { ActionPlanner.forDocument(cw.mirror, relPath(file)) }.getOrDefault(emptyList()) }.orEmpty()
+
+    /** 受け手の無い操作（コマンドパレット）。 */
+    fun actionsForWorkspace(): List<ActionEntry> = coreWs?.let { ActionPlanner.forWorkspace(it.mirror.schemas) }.orEmpty()
+
+    /** 操作を始める: 受け取る値の入力カードを右ペインの「操作」タブに出す。target は受け手（要素の ID か文書の相対パス）。 */
+    fun startAction(entry: ActionEntry, target: String?) {
+        val ws = workspace ?: return
+        if (readOnlyMode) {
+            status = "閲覧専用モードでは操作を使えません（ツールバーで解除してください）"
+            return
+        }
+        val schema = schemas.firstOrNull { it.id == entry.definedIn }
+        val values = YNode.Map()
+        entry.params.forEach { p -> p.key?.let { key -> p.default?.let { values.entries[key] = YamlIO.fromAny(it) } } }
+        val form = OpenDocument(ws.resolve(".yde/action-params.yaml"), values, schema, "", null)
+        actionWork = ActionWork(entry, target, form)
+        memory.sidePanelTab = 3
+        rightPaneOpen = true
+    }
+
+    /** 受け取った値（空のままの欄は渡さない＝省いた値）。 */
+    private fun actionParams(work: ActionWork): Map<String, Any?> = work.values.entries.entries
+        .filterNot { (_, v) -> v is YNode.Scalar && v.value?.toString().isNullOrBlank() }
+        .associate { (k, v) -> k to YamlIO.toAny(v) }
+
+    /** 計画を作り、適用後の姿を検証する（原本は変えない）。計画できない理由は作業の error に出す。 */
+    fun planAction() {
+        val work = actionWork ?: return
+        val cw = coreWs ?: return
+        work.error = null
+        work.plan = null
+        work.preview = null
+        work.applied = null
+        runCatching { ActionPlanner.plan(cw.mirror, ActionRequest(work.entry.name, work.target, actionParams(work)), LocalDateTime.now()) }
+            .onSuccess { plan ->
+                work.plan = plan
+                work.preview = if (plan.isEmpty) null else cw.apply(plan.changeSet, dryRun = true)
+            }
+            .onFailure { work.error = it.message ?: "計画できません" }
+    }
+
+    /** 計画した変更セットの文書ごとの、いまの内容と適用後の内容（差分の表示用）。 */
+    fun actionDiffTexts(plan: ActionPlan): Map<String, Pair<String, String>> = runCatching {
+        val cw = coreWs ?: return emptyMap()
+        val staging = Staging(cw)
+        plan.changeSet.changes.forEach { c -> if (c.create) staging.createDocument(c.file, c.content!!) else staging.applyOps(c.file, c.ops) }
+        plan.changeSet.changes.associate { c ->
+            c.file to ((staging.touchedFiles().firstOrNull { it.rel == c.file }?.baseText ?: "") to (staging.proposedText(c.file) ?: ""))
+        }
+    }.getOrDefault(emptyMap())
+
+    /**
+     * 計画を適用して保存する（変更セットの承認と同じ経路。検証・競合の基準はディスクの内容、書込は編集用のセッションの
+     * 1 トランザクション＋保存＝Undo 1 回で全部戻る）。検証エラーが残るなら書かない（allowErrors で書く）。
+     * 対象に未保存の編集があれば拒否する（適用→保存が未保存の編集まで書いてしまうのを防ぐ）。
+     */
+    fun applyAction(allowErrors: Boolean = false): Result<String> = runCatching {
+        val work = actionWork ?: error("操作が選ばれていません")
+        val plan = work.plan ?: error("先に「確認」で計画を作ってください")
+        require(!plan.isEmpty) { "変更はありません" }
+        val cw = coreWs ?: error("ワークスペースが開かれていません")
+        val ws = workspace ?: error("ワークスペースが開かれていません")
+        val s = session ?: error("セッションが開かれていません")
+        val files = plan.changeSet.changes.map { ws.resolve(it.file).normalize() }
+        files.filter { docCache[it]?.dirty == true }.takeIf { it.isNotEmpty() }
+            ?.let { error("エディタに未保存の変更があるため適用できません: ${it.joinToString(", ") { f -> relPath(f) }}") }
+        val result = cw.applyViaSession(s, plan.changeSet, requireValid = !allowErrors)
+        if (!result.ok) {
+            val reasons = result.results.filter { it.message != null }.joinToString("\n") { "${it.file}: ${it.message}" }
+            error(
+                reasons.ifBlank {
+                    if (result.errorIssueCount > 0) "検証エラーが残るため適用しませんでした（エラー ${result.errorIssueCount} 件）" else "適用に失敗しました"
+                }
+            )
+        }
+        refreshAfterSessionWrite(plan.changeSet.changes.map { DocumentId(it.file) })
+        val message = "${work.title} を適用して保存しました（${plan.changeSet.changes.size} ファイル。Ctrl+Z で 1 回で戻せます）"
+        work.applied = message
+        status = message
+        message
+    }
+
+    fun dismissAction() { actionWork = null }
 
     // ---------------------------------------------------------------- workspace
 

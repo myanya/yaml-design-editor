@@ -28,7 +28,8 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 | `ImagePane` / `EmbeddedImagePane` / `ImageCanvas` / `fitZoom` | ui/ImagePane.kt | 画像の表示（幅に合わせる・100%・±・Ctrl＋ホイール・ドラッグ＝フロービューと同じ操作）の埋め込みと全面表示で、更新時刻で読み直す |
 | `BarChart` / `ChartSeries` | ui/Charts.kt | 縦棒グラフ（積み上げ・並べ・凡例・マウスで値。ライブラリ Vico を包み、系列の色は Palette の `ChartReady` / `ChartPending` など意味で決める） |
 | `ReadinessPane` / `readinessChartData` | ui/ReadinessPane.kt | 準備完了レポート（台帳の「準備」タブ: タイル・型別とフェーズ別の図・エンティティの表、図のデータ整形は純ロジック） |
-| `SidePanel` | ui/SidePanel.kt | ID インスペクタ（検証・関係・出現の 3 タブ。台帳スペースでレンズを表示しているときは Main が右ペインに `LensSidePanel`＝ui/GraphLensView.kt の型・関係・辺の 3 タブを出し、右ペインの開閉は `AppState.rightPaneOpen`） |
+| `SidePanel` | ui/SidePanel.kt | ID インスペクタ（検証・関係・出現・操作の 4 タブ。台帳スペースでレンズを表示しているときは Main が右ペインに `LensSidePanel`＝ui/GraphLensView.kt の型・関係・辺の 3 タブを出し、右ペインの開閉は `AppState.rightPaneOpen`） |
+| `ActionTabContent` / `ActionCard` | ui/ActionPane.kt | 右ペインの「操作」タブ（使える操作の一覧と、作業中の操作のカード。[actions](actions.md)） |
 | `FileTreePane` / `SourcePane` / `DiffPane` / `SchemaEditor` / `IdCrossView` / `ViewGridPane` / `WorkspaceViews` / `AiGenerationDialog` / `AutomationPanel` / `ImprovementPanel` / `SkillsPanel` | ui/ | 各ペイン |
 | `GraphLensView` | ui/GraphLensView.kt | グラフレンズ（配置の切替・箱の入れ子と矢印・ひし形・点線の描画・クリックでエンティティページへ着地し、配置は背景で計算し、できるまで前の絵を出す）と操作（ホイール拡縮・箱のドラッグ＝`withMovedNested`・見出しの印で開く・畳む・ホバー強調・右クリック・PNG 保存・ミニマップ）。節点と辺の決め方は ui/LensGraph.kt（[graph-query](graph-query.md)） |
 | `GraphLayouts` / `LensLayoutKind` / `LensArrangement` / `fitViewport` | ui/GraphLayouts.kt | 節点と辺の配置（放射・階層・応力はライブラリ ELK を包み、力学は `GraphLayout`）と画面に収める倍率の計算（Compose に依存しない純ロジック） |
@@ -43,6 +44,7 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
   - 寿命はワークスペース（切替で全部消す）。文書の削除・改名はその文書のぶんだけ消す・移す。操作の途中（ダイアログ・メニュー・入力途中の欄）は `remember` のまま（`ScreenMemoryTest`）。
 - **モーダルの新設禁止（確認ダイアログを除く）**: エージェント実行・自動化・計測評価・skill 操作は実行／設計スペースの常設画面。AlertDialog は破壊的操作と承認の確認だけ。エージェントの質問もモーダルにせず非モーダルカード。気づきはレールとステータスバーのバッジ。
 - **エージェント実行の状態は `RunController`**（AppRoot 生存期間・ワークスペース単位）。スペースを切り替えて実行画面がコンポジションから外れても状態が失われない。
+- **操作は右ペインの「操作」タブ**: 入口（エンティティページの操作メニュー・文書ヘッダの「操作 ▾」・コマンドパレット）はどこでも `AppState.startAction` を呼び、カードの状態は `AppState.actionWork`（進行中の作業。`remember` に置かない）。受け取る値はフォームの部品で編集する（[actions](actions.md)）。
 - **受信箱はデータを持たない射影**: 承認待ち（`AutomationEngine.pendingSnapshot`）・質問（`RunController.pendingQuestion`）・外部変更競合（`AppState.conflictedDocs`）を集約表示するだけ。バッジ数もこの集約から導出する。
 - **設計スペースは「定義も YAML 文書」の入口**: 種類別カタログはファイル一覧から導出し、編集は編集スペースの既存エディタへジャンプする。定義専用の編集経路を新設しない。
 - **アプリ全体のショートカットはウィンドウで受ける**: 戻る／進む（`Alt+←` / `→`）・保存・Undo/Redo・コマンドパレットは `Window(onKeyEvent = …)`（`Main.kt` の `handleShortcut`）。部品の `Modifier.onKeyEvent` は焦点のある子がいるときにしか呼ばれず、ジャンプの直後のように焦点が無いときはキーが届かない。テキスト入力が自分で消費するキーは入力側が先に受ける。

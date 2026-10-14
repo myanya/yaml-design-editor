@@ -22,6 +22,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -178,7 +179,14 @@ private fun EntityPage(state: AppState, id: String) {
                         IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(30.dp)) {
                             Icon(Icons.Default.MoreVert, contentDescription = "操作", Modifier.size(16.dp))
                         }
+                        // スキーマに定義した操作（型の操作と、この型を受け手にするアクション。architecture/actions.md）
+                        val actions = remember(id, state.indexVersion) { state.actionsForEntity(id) }
                         DropdownMenu(menuOpen, { menuOpen = false }) {
+                            actions.forEach { entry ->
+                                DropdownMenuItem(text = { Text(entry.label ?: entry.name, fontSize = 12.sp) },
+                                    onClick = { menuOpen = false; state.startAction(entry, id) })
+                            }
+                            if (actions.isNotEmpty()) HorizontalDivider()
                             DropdownMenuItem(text = { Text("改名…", fontSize = 12.sp) },
                                 onClick = { menuOpen = false; opDialog = EntityOp.RENAME })
                             DropdownMenuItem(text = { Text("別IDへ統合…", fontSize = 12.sp) },

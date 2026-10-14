@@ -61,6 +61,11 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
     Column(Modifier.width(width).fillMaxHeight().background(Palette.PanelBg)) {
         val doc = state.openDoc
         if (doc == null) {
+            // 文書を開いていなくても、始めた操作（コマンドパレットから）のカードは出す
+            if (state.actionWork != null) {
+                ActionTabContent(state, null, null)
+                return@Column
+            }
             Text(
                 "ファイルを開くと検証結果・参照・同一IDの出現が表示されます",
                 Modifier.padding(16.dp),
@@ -146,6 +151,13 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
             Tab(selectedTab == 0, { state.memory.sidePanelTab = 0 }, text = { Text("検証 ${issues.size + state.schemaErrors.size + viewDefErrors.size}", fontSize = 11.sp) })
             Tab(selectedTab == 1, { state.memory.sidePanelTab = 1 }, text = { Text("関係 ${localRefs.size + backlinks.size}", fontSize = 11.sp) })
             Tab(selectedTab == 2, { state.memory.sidePanelTab = 2 }, text = { Text("出現 ${occurrences.size}", fontSize = 11.sp) })
+            Tab(selectedTab == 3, { state.memory.sidePanelTab = 3 }, text = { Text(if (state.actionWork != null) "操作 ●" else "操作", fontSize = 11.sp) })
+        }
+
+        // ---------------- 操作（型の操作とアクション） ----------------
+        if (selectedTab == 3) {
+            ActionTabContent(state, doc, rootId)
+            return@Column
         }
 
         Box(Modifier.fillMaxSize()) {

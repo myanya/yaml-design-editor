@@ -242,3 +242,4 @@
 | OP-02 | アクションの定義（スキーマ文書の `actions`＝受け手 `target`・受け取る値・前提 `require`・手 `do`。形の点検は読み込み時） | `semantic-core/schema/Action.kt`, `workspace-core/workspace/SchemaDocuments.kt`, `builtin-schemas/schema.yaml` | 単体 `ActionPlannerTest` | [actions](architecture/actions.md) |
 | OP-03 | 操作の計画（受け手の解決・受け取った値の検証・前提の 4 つの結果・set / insert / delete / create / call / each・変更セットの生成） | `workspace-core/workspace/ActionPlanner.kt`, `semantic-core/semantic/Transform.kt`（`build` / `holds`） | 単体 `ActionPlannerTest` | [actions](architecture/actions.md) |
 | OP-04 | CLI `action`（使える操作の一覧・計画＝変更セットと適用後の検証・`--apply`・`--allow-errors`） | `core/Cli.kt` | 単体 `ActionCliTest` | [actions](architecture/actions.md) |
+| OP-05 | 画面の入口（操作メニュー・文書ヘッダ・パレット → 右ペインの「操作」タブのカード＝値の入力・確認・差分・適用は書いて保存） | `app/AppState.kt`（`ActionWork` / `startAction` / `applyAction`）, `ui/ActionPane.kt`, `ui/SidePanel.kt`, `ui/IdCrossView.kt`, `Main.kt` | 単体 `AppStateActionTest`・画面は手動 | [actions](architecture/actions.md) |
