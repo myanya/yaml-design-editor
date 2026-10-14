@@ -273,7 +273,8 @@ val packageWindowsZip by tasks.registering(Zip::class) {
     dependsOn("verifyWindowsDistribution", prepareWindowsReleaseInfo)
     archiveFileName.set("$windowsZipName.zip")
     destinationDirectory.set(windowsReleaseDir)
-    isPreserveFileTimestamps = false
+    // 展開後に固定の過去日時が表示されないよう、配布元の更新日時を保持する。
+    isPreserveFileTimestamps = true
     isReproducibleFileOrder = true
     duplicatesStrategy = DuplicatesStrategy.FAIL
     into("yaml-design-editor") {

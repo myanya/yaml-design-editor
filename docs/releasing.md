@@ -40,7 +40,8 @@ $env:GRADLE_USER_HOME = Join-Path $env:USERPROFILE '.gradle'
 - 検証用の写しは `build/zv/` と `build/distribution-smoke/` に残る（Windows のパス長を考慮して展開先を短くする）。
 
 通常の配布には `createDistributable` 系の成果物を使う。ProGuard を使う `createReleaseDistributable` 系は、この検査経路の対象外。
-ZIP のエントリ順・日時は固定するが、JDK・ネイティブ依存・ビルド環境を含むバイト単位の再現性までは保証しない。
+ZIP のエントリ順は固定し、更新日時は元ファイルの値を保持する（すべてがビルド日時になるわけではない）。
+JDK・ネイティブ依存・ビルド環境を含むバイト単位の再現性は保証しない。
 
 ## 公開前の実機確認
 
