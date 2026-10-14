@@ -14,6 +14,32 @@ import kotlin.test.assertNull
 /** 永続化ポート（DocumentStore）の契約テスト（Phase 7・WS-001）。メモリ実装とファイル実装で同じ契約を固定する。 */
 class DocumentStoreTest {
 
+    @Test
+    fun `外部へのディレクトリリンクは読取と新規書込と移動を拒否する`() {
+        val root = Files.createDirectory(dir.resolve("workspace"))
+        val outside = Files.createDirectory(dir.resolve("outside"))
+        val marker = Files.writeString(outside.resolve("marker.yaml"), "original")
+        val link = root.resolve("linked")
+        if (System.getProperty("os.name").startsWith("Windows")) {
+            val process = ProcessBuilder("cmd", "/c", "mklink", "/J", link.toString(), outside.toString())
+                .redirectErrorStream(true).start()
+            val output = process.inputStream.bufferedReader().readText()
+            assertEquals(0, process.waitFor(), output)
+        } else Files.createSymbolicLink(link, outside)
+        try {
+            val store = FileSystemDocumentStore(root)
+            assertFailsWith<IllegalArgumentException> { store.read(DocumentId("linked/marker.yaml")) }
+            assertFailsWith<IllegalArgumentException> { store.write(DocumentId("linked/new/deep.yaml"), "changed") }
+            assertFailsWith<IllegalArgumentException> { store.delete(DocumentId("linked/marker.yaml")) }
+            store.write(DocumentId("inside.yaml"), "inside")
+            assertFailsWith<IllegalArgumentException> { store.move(DocumentId("inside.yaml"), DocumentId("linked/moved.yaml")) }
+            assertEquals("original", Files.readString(marker))
+            assertEquals(listOf("inside.yaml"), store.list().map { it.id.value })
+        } finally {
+            Files.delete(link)
+        }
+    }
+
     private lateinit var dir: Path
 
     @BeforeTest

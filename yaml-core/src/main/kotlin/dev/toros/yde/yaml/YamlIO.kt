@@ -102,6 +102,8 @@ object YamlIO {
 
     /** テキストを SnakeYAML の生オブジェクト（Map / List / スカラー）にパースする（コメントなし）。 */
     fun parseToRaw(text: String): Any? {
+        // 生オブジェクトを使う定義ローダにも同じ展開上限を適用する。load のキー型などの互換性は維持する。
+        newComposer().compose(StringReader(text))?.let { convertDocument(it) }
         val loader = LoaderOptions().apply { isAllowDuplicateKeys = false }
         val dumper = newDumperOptions()
         val v: Any? = Yaml(SafeConstructor(loader), Representer(dumper), dumper, loader, PlainDateResolver()).load(text)
@@ -115,8 +117,10 @@ object YamlIO {
     }
 
     /** `---` 区切りの複数ドキュメントをすべて YNode にパースする（R8-05）。空テキストは空リスト。 */
-    fun parseAll(text: String): List<YNode> =
-        newComposer().composeAll(StringReader(text)).mapNotNull { it }.map { convertDocument(it) }
+    fun parseAll(text: String): List<YNode> {
+        val budget = ExpansionBudget()
+        return newComposer().composeAll(StringReader(text)).mapNotNull { it }.map { convertDocument(it, budget) }
+    }
 
     /**
      * 先頭ドキュメントだけを読む寛容なパース（索引・検索など読み取り専用の用途向け）。
@@ -124,9 +128,9 @@ object YamlIO {
      */
     fun parseFirst(text: String): YNode? = parseAll(text).firstOrNull()
 
-    private fun convertDocument(node: Node): YNode {
+    private fun convertDocument(node: Node, budget: ExpansionBudget = ExpansionBudget()): YNode {
         val values = ScalarValues(newLoaderOptions())
-        val converted = fromNode(node, values, HashSet())
+        val converted = fromNode(node, values, HashSet(), budget)
         // 文書先頭のコメントと文書末尾のコメントはルートノードに保持する
         readBlockComments(node)?.let { converted.ensureComments().before += it }
         readComments(node.endComments)?.let { converted.ensureComments().after += it }
@@ -166,65 +170,84 @@ object YamlIO {
 
     // ---------------------------------------------------------------- Node -> YNode
 
-    private fun fromNode(node: Node, values: ScalarValues, visiting: MutableSet<Node>): YNode = when (node) {
-        is AnchorNode -> fromNode(node.realNode, values, visiting)
-        is ScalarNode -> YNode.Scalar(values.value(node)).also { scalar ->
-            // 引用・ブロック表記は保存時に再現する（プレーンはヒントなし）
-            if (node.tag == Tag.STR || node.tag == Tag.NULL) scalar.styleHint = styleChar(node.scalarStyle)
+    // エイリアスの参照回数ではなく、実体化する木全体の量を制限する。複数文書も予算を共有する。
+    private class ExpansionBudget {
+        private var nodes = 0
+        private var characters = 0L
+        fun visit(node: Node, depth: Int) {
+            require(++nodes <= 100_000) { "YAML の展開後のノード数が上限（100000）を超えています" }
+            require(depth <= 100) { "YAML の深さが上限（100）を超えています" }
+            characters += (node as? ScalarNode)?.value?.length ?: 0
+            characters += listOf(node.blockComments, node.inLineComments, node.endComments)
+                .sumOf { lines -> lines.orEmpty().sumOf { it.value.length.toLong() } }
+            require(characters <= 8_000_000) { "YAML の展開後の文字数が上限（8000000）を超えています" }
         }
-        is SequenceNode -> {
-            require(visiting.add(node)) { "再帰的なアンカー参照は扱えません" }
-            val seq = YNode.Seq(node.value.map { child ->
-                fromNode(child, values, visiting).also { attachOwnComments(it, child) }
-            }.toMutableList())
-            visiting.remove(node)
-            // 空のコレクションは記法の選択余地がなく [] と書くしかないため、ヒントを記録しない
-            // （要素を追加したときは従来どおりブロック表記へ移行する）
-            if (node.flowStyle == DumperOptions.FlowStyle.FLOW && seq.items.isNotEmpty()) seq.flowHint = true
-            seq
-        }
-        is MappingNode -> {
-            require(visiting.add(node)) { "再帰的なアンカー参照は扱えません" }
-            val map = YNode.Map()
-            for (tuple in node.value) {
-                val keyNode = unwrap(tuple.keyNode)
-                if (keyNode is ScalarNode && keyNode.tag == Tag.MERGE) {
-                    // マージキー（<<）は load() と同様に展開する（明示キーが優先）
-                    val explicitKeys = node.value.mapNotNull { t ->
-                        (unwrap(t.keyNode) as? ScalarNode)?.takeIf { it.tag != Tag.MERGE }?.value
-                    }.toSet()
-                    for (merged in mergeSources(tuple.valueNode)) {
-                        for (mt in merged.value) {
-                            val mk = (unwrap(mt.keyNode) as? ScalarNode)?.value ?: continue
-                            if (mk in explicitKeys || mk in map.entries) continue
-                            map.entries[mk] = fromNode(mt.valueNode, values, visiting)
-                        }
-                    }
-                    continue
-                }
-                val key = when (keyNode) {
-                    is ScalarNode -> values.value(keyNode)?.toString() ?: "null"
-                    else -> error("マップのキーはスカラーである必要があります（${keyNode.startMark.line + 1} 行目）")
-                }
-                if (key in map.entries) {
-                    error("キーが重複しています: $key（${keyNode.startMark.line + 1} 行目）")
-                }
-                val value = fromNode(tuple.valueNode, values, visiting)
-                // キー行の前のコメントと、値または「キー:」行末のコメントを値ノードへ保持する
-                val before = readBlockComments(tuple.keyNode)
-                val inline = readInline(tuple.valueNode) ?: readInline(tuple.keyNode)
-                if (before != null || inline != null) {
-                    val c = value.ensureComments()
-                    before?.let { c.before += it }
-                    c.inline = c.inline ?: inline
-                }
-                map.entries[key] = value
+    }
+
+    private fun fromNode(node: Node, values: ScalarValues, visiting: MutableSet<Node>, budget: ExpansionBudget): YNode {
+        budget.visit(node, visiting.size)
+        return when (node) {
+            is AnchorNode -> fromNode(node.realNode, values, visiting, budget)
+            is ScalarNode -> YNode.Scalar(values.value(node)).also { scalar ->
+                // 引用・ブロック表記は保存時に再現する（プレーンはヒントなし）
+                if (node.tag == Tag.STR || node.tag == Tag.NULL) scalar.styleHint = styleChar(node.scalarStyle)
             }
-            visiting.remove(node)
-            if (node.flowStyle == DumperOptions.FlowStyle.FLOW && map.entries.isNotEmpty()) map.flowHint = true
-            map
+            is SequenceNode -> {
+                require(visiting.add(node)) { "再帰的なアンカー参照は扱えません" }
+                val seq = YNode.Seq(node.value.map { child ->
+                    fromNode(child, values, visiting, budget).also { attachOwnComments(it, child) }
+                }.toMutableList())
+                visiting.remove(node)
+                // 空のコレクションは記法の選択余地がなく [] と書くしかないため、ヒントを記録しない
+                // （要素を追加したときは従来どおりブロック表記へ移行する）
+                if (node.flowStyle == DumperOptions.FlowStyle.FLOW && seq.items.isNotEmpty()) seq.flowHint = true
+                seq
+            }
+            is MappingNode -> {
+                require(visiting.add(node)) { "再帰的なアンカー参照は扱えません" }
+                val map = YNode.Map()
+                for (tuple in node.value) {
+                    val keyNode = unwrap(tuple.keyNode)
+                    budget.visit(keyNode, visiting.size)
+                    if (keyNode is ScalarNode && keyNode.tag == Tag.MERGE) {
+                        // マージキー（<<）は load() と同様に展開する（明示キーが優先）
+                        val explicitKeys = node.value.mapNotNull { t ->
+                            (unwrap(t.keyNode) as? ScalarNode)?.takeIf { it.tag != Tag.MERGE }?.value
+                        }.toSet()
+                        for (merged in mergeSources(tuple.valueNode)) {
+                            for (mt in merged.value) {
+                                val mk = (unwrap(mt.keyNode) as? ScalarNode)?.value ?: continue
+                                if (mk in explicitKeys || mk in map.entries) continue
+                                budget.visit(unwrap(mt.keyNode), visiting.size)
+                                map.entries[mk] = fromNode(mt.valueNode, values, visiting, budget)
+                            }
+                        }
+                        continue
+                    }
+                    val key = when (keyNode) {
+                        is ScalarNode -> values.value(keyNode)?.toString() ?: "null"
+                        else -> error("マップのキーはスカラーである必要があります（${keyNode.startMark.line + 1} 行目）")
+                    }
+                    if (key in map.entries) {
+                        error("キーが重複しています: $key（${keyNode.startMark.line + 1} 行目）")
+                    }
+                    val value = fromNode(tuple.valueNode, values, visiting, budget)
+                    // キー行の前のコメントと、値または「キー:」行末のコメントを値ノードへ保持する
+                    val before = readBlockComments(tuple.keyNode)
+                    val inline = readInline(tuple.valueNode) ?: readInline(tuple.keyNode)
+                    if (before != null || inline != null) {
+                        val c = value.ensureComments()
+                        before?.let { c.before += it }
+                        c.inline = c.inline ?: inline
+                    }
+                    map.entries[key] = value
+                }
+                visiting.remove(node)
+                if (node.flowStyle == DumperOptions.FlowStyle.FLOW && map.entries.isNotEmpty()) map.flowHint = true
+                map
+            }
+            else -> YNode.Scalar(null)
         }
-        else -> YNode.Scalar(null)
     }
 
     private fun unwrap(node: Node): Node = if (node is AnchorNode) node.realNode else node

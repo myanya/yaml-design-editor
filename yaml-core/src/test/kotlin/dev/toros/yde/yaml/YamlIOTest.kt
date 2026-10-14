@@ -9,6 +9,37 @@ import kotlin.test.assertTrue
 class YamlIOTest {
 
     @Test
+    fun `非循環エイリアスの指数展開をメモリ枯渇より前に拒否する`() {
+        val text = buildString {
+            append("a0: &a0 [x, x, x, x, x, x]\n")
+            for (i in 1..7) append("a$i: &a$i [" + List(6) { "*a${i - 1}" }.joinToString(", ") + "]\n")
+        }
+        val error = assertFailsWith<IllegalArgumentException> { YamlIO.parse(text) }
+        assertTrue("ノード数" in error.message.orEmpty())
+        assertFailsWith<IllegalArgumentException> { YamlIO.parseToRaw(text) }
+    }
+
+    @Test
+    fun `スカラーの反復展開にも文字数上限が働く`() {
+        val text = "value: &v " + "x".repeat(100_000) + "\nitems: [" + List(90) { "*v" }.joinToString(", ") + "]"
+        val error = assertFailsWith<IllegalArgumentException> { YamlIO.parse(text) }
+        assertTrue("文字数" in error.message.orEmpty())
+    }
+
+    @Test
+    fun `通常のエイリアスは独立した木として編集できる`() {
+        val root = YamlIO.parse("a: &a {value: original}\nb: *a") as YNode.Map
+        (root.entries.getValue("a") as YNode.Map).entries["value"] = YNode.Scalar("changed")
+        assertTrue("original" in YamlIO.dump(root.entries.getValue("b")))
+    }
+
+    @Test
+    fun `複数文書をまたいでも展開予算を共有する`() {
+        val document = "[" + List(60_000) { "x" }.joinToString(",") + "]\n"
+        assertFailsWith<IllegalArgumentException> { YamlIO.parseAll(document + "---\n" + document) }
+    }
+
+    @Test
     fun `block sequences are indented below their parent property`() {
         val node = YamlIO.parse(
             """

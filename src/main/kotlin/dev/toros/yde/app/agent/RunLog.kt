@@ -6,6 +6,9 @@ import dev.toros.yde.yaml.validate.Severity
 import dev.toros.yde.yaml.YamlIO
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption
+import java.nio.file.StandardOpenOption
+import java.nio.channels.FileChannel
 import java.time.LocalDateTime
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -17,6 +20,12 @@ import java.time.format.DateTimeFormatter
  */
 object RunLog {
 
+    /** 定義の ID が保存先の階層を変えないようにし、既存のリンクも検査する。 */
+    internal fun destination(dir: Path, name: String): Path {
+        require('/' !in name && '\\' !in name) { "実行記録の名前にパスは指定できません: $name" }
+        return dev.toros.yde.workspace.WorkspacePaths.resolve(dir, name)
+    }
+
     private val fileStamp = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")
 
     /** 会話記録（transcript）1件あたりの保存上限。巨大なツール結果（全文読取り等）による記録の肥大を防ぐ。 */
@@ -24,12 +33,12 @@ object RunLog {
 
     /** extras は末尾に追記する追加セクション（例: 生成実行の入出力メッセージ `exchange`）。 */
     fun write(ws: Workspace, request: AgentRunRequest, result: AgentRunResult, extras: Map<String, Any?> = emptyMap()): Path {
-        val dir = ws.root.resolve(ws.layout.runsDir)
+        val dir = ws.resolve(ws.layout.runsDir)
         Files.createDirectories(dir)
-        var file = dir.resolve("${LocalDateTime.now().format(fileStamp)}-${request.activity.id}.yaml")
+        var file = destination(dir, "${LocalDateTime.now().format(fileStamp)}-${request.activity.id}.yaml")
         var seq = 1
         while (Files.exists(file)) {
-            file = dir.resolve("${LocalDateTime.now().format(fileStamp)}-${request.activity.id}-${seq++}.yaml")
+            file = destination(dir, "${LocalDateTime.now().format(fileStamp)}-${request.activity.id}-${seq++}.yaml")
         }
         val issues = result.issues.flatMap { (rel, list) -> list.map { rel to it } }
         val body = linkedMapOf<String, Any?>(
@@ -105,11 +114,12 @@ object RunLog {
     }
 
     /** 自動適用の結果とバックアップ（適用前の原文）を実行記録へ追記する（R3-04）。 */
-    fun appendAutoApply(runFile: Path, backup: List<Map<String, Any?>>) {
-        appendSection(runFile, "autoApply", linkedMapOf(
-            "appliedAt" to ZonedDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
+    fun appendAutoApply(runFile: Path, backup: List<Map<String, Any?>>, state: String) {
+        writeSection(runFile, "autoApply", linkedMapOf(
+            "state" to state,
+            (if (state == "applied") "appliedAt" else "preparedAt") to ZonedDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
             "backup" to backup,
-        ))
+        ), requireAbsent = state == "prepared")
     }
 
     /** 巻き戻しの実施を実行記録へ追記する。 */
@@ -127,12 +137,27 @@ object RunLog {
     }
 
     private fun appendSection(runFile: Path, key: String, value: Any) {
-        if (!Files.isRegularFile(runFile)) return
-        runCatching {
-            @Suppress("UNCHECKED_CAST")
-            val root = YamlIO.parseToRaw(Files.readString(runFile)) as? MutableMap<Any?, Any?> ?: return
-            root[key] = value
-            Files.writeString(runFile, YamlIO.dump(YamlIO.fromAny(root)))
+        runCatching { writeSection(runFile, key, value) }
+    }
+
+    /** バックアップは失敗を呼出元へ返す。既存ログを直接上書きせず、永続化した一時ファイルと置き換える。 */
+    private fun writeSection(runFile: Path, key: String, value: Any, requireAbsent: Boolean = false) {
+        require(Files.isRegularFile(runFile)) { "実行記録が存在しません: $runFile" }
+        val root = (YamlIO.parseToRaw(Files.readString(runFile)) as? Map<*, *>)?.toMutableMap()
+            ?: error("実行記録がオブジェクトではありません: $runFile")
+        require(!requireAbsent || key !in root) { "既存のバックアップは上書きできません: $runFile" }
+        root[key] = value
+        val temp = Files.createTempFile(runFile.toAbsolutePath().parent, ".run-", ".tmp")
+        try {
+            val text = YamlIO.dump(YamlIO.fromAny(root))
+            // 復元経路の読込上限を超えるバックアップで原本を書き換えない。
+            YamlIO.parseToRaw(text)
+            Files.writeString(temp, text)
+            FileChannel.open(temp, StandardOpenOption.WRITE).use { it.force(true) }
+            // 原子的置換が使えない環境では、バックアップ保証のため適用を中止する。
+            Files.move(temp, runFile, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+        } finally {
+            Files.deleteIfExists(temp)
         }
     }
 

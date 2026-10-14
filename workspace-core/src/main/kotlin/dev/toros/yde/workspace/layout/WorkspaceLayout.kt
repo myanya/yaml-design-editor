@@ -109,7 +109,7 @@ data class WorkspaceLayout(
         fun of(root: Path): WorkspaceLayout {
             val config = root.resolve(CONFIG_DIR)
             if (!Files.isDirectory(config)) return LEGACY
-            val text = config.resolve(CONFIG_FILE).takeIf { Files.isRegularFile(it) }
+            val text = dev.toros.yde.workspace.WorkspacePaths.resolve(root, "$CONFIG_DIR/$CONFIG_FILE").takeIf { Files.isRegularFile(it) }
                 ?.let { runCatching { Files.readString(it) }.getOrNull() }
             val ledger = text?.let { runCatching { parseLedgerText(it) }.getOrDefault(emptyList()) }.orEmpty()
             val files = text?.let { runCatching { parseFilesText(it) }.getOrDefault(FilePolicy.DEFAULT) } ?: FilePolicy.DEFAULT

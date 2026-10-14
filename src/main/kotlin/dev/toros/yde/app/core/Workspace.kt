@@ -7,6 +7,7 @@ import dev.toros.yde.semantic.schema.EnforcementDef
 import dev.toros.yde.semantic.schema.EntityTypeDef
 import dev.toros.yde.semantic.schema.SchemaKind
 import dev.toros.yde.workspace.FileSystemDocumentStore
+import dev.toros.yde.workspace.WorkspacePaths
 import dev.toros.yde.workspace.WorkspaceSession
 import dev.toros.yde.workspace.changeset.ChangeSet
 import dev.toros.yde.yaml.model.DocumentId
@@ -75,6 +76,9 @@ object WorkspaceScan {
     private fun walk(ws: Path, layout: WorkspaceLayout, visit: (Path) -> Unit) {
         Files.walkFileTree(ws, object : java.nio.file.SimpleFileVisitor<Path>() {
             override fun preVisitDirectory(dir: Path, attrs: java.nio.file.attribute.BasicFileAttributes): java.nio.file.FileVisitResult {
+                if (dir != ws && runCatching { WorkspacePaths.resolve(ws, ws.relativize(dir).toString()) }.isFailure) {
+                    return java.nio.file.FileVisitResult.SKIP_SUBTREE
+                }
                 if (dir != ws && dir.fileName.toString().startsWith(".")) {
                     val rel = IdIndex.relPathOf(ws, dir)
                     if (rel != layout.configDir) return java.nio.file.FileVisitResult.SKIP_SUBTREE
@@ -83,7 +87,7 @@ object WorkspaceScan {
             }
 
             override fun visitFile(file: Path, attrs: java.nio.file.attribute.BasicFileAttributes): java.nio.file.FileVisitResult {
-                visit(file)
+                if (runCatching { WorkspacePaths.resolve(ws, ws.relativize(file).toString()) }.isSuccess) visit(file)
                 return java.nio.file.FileVisitResult.CONTINUE
             }
 
@@ -214,7 +218,7 @@ class Workspace private constructor(val root: Path) {
     fun documentOf(file: Path): DocumentId = DocumentId(relPath(file))
 
     /** 文書ID のファイル。ファイルを開く・読むなど、Path が要る所でだけ使う。 */
-    fun fileOf(document: DocumentId): Path = root.resolve(document.value).normalize()
+    fun fileOf(document: DocumentId): Path = resolve(document.value)
 
     /** 文書ID の文書の中身（ディスクの内容。読めなければ null）。索引と同じ基準で文書を読む loader として渡す。 */
     fun treeOf(document: DocumentId): YNode? =
@@ -222,9 +226,11 @@ class Workspace private constructor(val root: Path) {
 
     /** 相対パスを検証付きで解決する（ワークスペース外への脱出を拒否）。 */
     fun resolve(rel: String): Path {
-        val resolved = root.resolve(rel).normalize()
-        require(resolved.startsWith(root)) { "ワークスペース外のパスは扱えません: $rel" }
-        return resolved
+        // CLI の内部絶対パスと skill の作業ディレクトリ「.」は既存仕様として受け付ける。
+        val target = root.resolve(rel.replace('\\', '/')).normalize()
+        require(target.startsWith(root)) { "ワークスペース外のパスは扱えません: $rel" }
+        if (target == root) return root
+        return WorkspacePaths.resolve(root, root.relativize(target).toString())
     }
 
     /** 文書ID の文書に当てるスキーマ。 */

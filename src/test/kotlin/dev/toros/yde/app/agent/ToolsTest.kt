@@ -120,13 +120,43 @@ class ToolsTest {
         Files.writeString(file, content.trimIndent() + "\n")
     }
 
-    private fun toolbox(): AgentToolbox {
+    private fun toolbox(groups: Set<ToolGroup> = ToolGroup.entries.toSet(), meta: Boolean = false, allowedFiles: List<String> = emptyList()): AgentToolbox {
         val ws = Workspace.open(dir)
         val activity = ActivityDef(
             id = "a", name = "a", agentId = "editor", instruction = "x",
             source = Path.of("_activities/a.yaml"),
+            meta = meta, allowedFiles = allowedFiles,
         )
-        return AgentToolbox(ws, Staging(ws), activity, ToolGroup.entries.toSet())
+        return AgentToolbox(ws, Staging(ws), activity, groups)
+    }
+
+    @Test
+    fun `探索だけの実行は編集と検証と対話の呼出を拒否する`() = runBlocking {
+        val tools = toolbox(setOf(ToolGroup.EXPLORE))
+        for (name in listOf("apply_patch", "create_document", "validate", "ask_human", "delegate", "action_unknown")) {
+            val error = kotlin.test.assertFailsWith<IllegalArgumentException> {
+                tools.execute(ToolCall("c", name, Json.parseToJsonElement("{}").jsonObject), NoAskHost, mutableListOf())
+            }
+            assertTrue("許可されていない" in error.message.orEmpty())
+        }
+        assertTrue(tools.staging.touchedFiles().isEmpty())
+        assertTrue(tools.execute(ToolCall("c", "list_documents", Json.parseToJsonElement("{}").jsonObject), NoAskHost, mutableListOf()).content.isNotBlank())
+    }
+
+    @Test
+    fun `メタ編集でも親参照で予約領域や許可範囲を迂回できない`() = runBlocking {
+        val tools = toolbox(meta = true, allowedFiles = listOf("_agents/**"))
+        for (file in listOf("_agents/../_schemas/blocked.yaml", "_agents/../_activities/blocked.yaml")) {
+            val args = Json.parseToJsonElement("""{"file":"$file","content_yaml":"id: test"}""").jsonObject
+            val error = kotlin.test.assertFailsWith<IllegalStateException> {
+                tools.execute(ToolCall("c", "create_document", args), NoAskHost, mutableListOf())
+            }
+            assertTrue("予約ディレクトリ" in error.message.orEmpty() || "allowedFiles" in error.message.orEmpty())
+        }
+        assertTrue(tools.staging.touchedFiles().isEmpty())
+        val args = Json.parseToJsonElement("""{"file":"_agents/ok.yaml","content_yaml":"id: test"}""").jsonObject
+        tools.execute(ToolCall("ok", "create_document", args), NoAskHost, mutableListOf())
+        assertTrue(tools.staging.touchedFiles().size == 1)
     }
 
     private object NoAskHost : AgentHost {

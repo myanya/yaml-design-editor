@@ -51,6 +51,7 @@ YAML 文書は可変の木 `YNode` として扱い、位置は `YPath` で表す
 
 ## 規律
 
+- `YamlIO` の Node → YNode 変換は展開予算を持つ。ノード・キー・文字・コメントを参照ごとに数え、非循環エイリアスでも上限を超えたら通常の読込エラーにする。生オブジェクト読込も同じ検査を通す。
 - ノードを置換する経路では `inheritMetaFrom` でコメントと表記を引き継ぐ。
 - 構造の比較・派生成果物の出力は `dump` ではなく `YamlIO.dumpPlain`（コメント・スタイルで揺れるため）。`Importer` の変化なし判定・`Exporter` のセル値・`Evals` の期待結果比較がこれを使う。
 - 複数ドキュメント YAML の書込は `OpenDocument`（`parseAll` / `dumpAll`）に閉じ、読み取り専用経路だけ `parseFirst` を使う。

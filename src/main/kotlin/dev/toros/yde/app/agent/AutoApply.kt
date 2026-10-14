@@ -2,6 +2,7 @@ package dev.toros.yde.app.agent
 
 import dev.toros.yde.workspace.changeset.ChangeSet
 import dev.toros.yde.app.core.ChangeSetResult
+import dev.toros.yde.app.core.FileChangeResult
 import dev.toros.yde.workspace.changeset.ChangeSets
 import dev.toros.yde.app.core.Workspace
 import dev.toros.yde.yaml.YamlIO
@@ -17,25 +18,37 @@ object AutoApply {
 
     data class RevertResult(val ok: Boolean, val messages: List<String>)
 
-    /** バックアップを実行記録に残してから適用する。適用失敗時は何も記録しない（原本も変わらない）。 */
+    /** バックアップの永続化に失敗したら適用しない。途中失敗の記録も復旧用に残す。 */
     fun applyWithBackup(ws: Workspace, changeSet: ChangeSet, runFile: Path?, requireValid: Boolean): ChangeSetResult {
-        val before = changeSet.changes.map { change ->
-            val file = ws.resolve(change.file)
+        fun failure(message: String) = ChangeSetResult(false, false, changeSet.changes.map {
+            FileChangeResult(it.file, false, message, emptyList())
+        })
+        if (runFile == null) return failure("バックアップ先の実行記録がないため、自動適用を中止しました")
+        val before = try { changeSet.changes.map { change ->
+            val file = dev.toros.yde.workspace.WorkspacePaths.resolve(ws.root, change.file, allowLinks = false)
+            require(file.toAbsolutePath().normalize() != runFile.toAbsolutePath().normalize()) { "実行記録自体は変更できません" }
             val existed = Files.isRegularFile(file)
-            Triple(change.file, existed, if (existed) Files.readString(file) else null)
+            linkedMapOf<String, Any?>("file" to change.file, "existed" to existed,
+                "before" to if (existed) Files.readString(file) else null)
+        }.also { RunLog.appendAutoApply(runFile, it, "prepared") }
+        } catch (e: Exception) {
+            return failure("バックアップを保存できないため、自動適用を中止しました: ${e.message}")
         }
-        val result = ws.apply(changeSet, requireValid = requireValid)
-        if (result.ok && runFile != null) {
-            val entries = before.map { (rel, existed, text) ->
-                val afterText = runCatching { Files.readString(ws.resolve(rel)) }.getOrDefault("")
-                linkedMapOf<String, Any?>(
-                    "file" to rel,
-                    "existed" to existed,
-                    "before" to text,
-                    "afterHash" to ChangeSets.contentHash(afterText),
-                )
+        val result = try { ws.apply(changeSet, requireValid = requireValid) } catch (e: Exception) {
+            return failure("適用中に失敗しました。バックアップを確認してください: ${e.message}")
+        }
+        if (result.ok) {
+            try {
+                val entries = before.map { entry ->
+                    val afterText = Files.readString(ws.resolve(entry.getValue("file") as String))
+                    entry + ("afterHash" to ChangeSets.contentHash(afterText))
+                }
+                RunLog.appendAutoApply(runFile, entries, "applied")
+            } catch (e: Exception) {
+                return result.copy(ok = false, results = result.results.map {
+                    it.copy(message = "原本は適用済みですが完了記録を保存できません。バックアップを確認してください: ${e.message}")
+                })
             }
-            RunLog.appendAutoApply(runFile, entries)
         }
         return result
     }
@@ -49,6 +62,9 @@ object AutoApply {
             ?: return RevertResult(false, listOf("実行記録を読めません: $runFile"))
         val backup = ((raw["autoApply"] as? Map<*, *>)?.get("backup") as? List<*>)
             ?: return RevertResult(false, listOf("この実行記録には自動適用のバックアップがありません"))
+        if ((raw["autoApply"] as? Map<*, *>)?.get("state") == "prepared" && !force) {
+            return RevertResult(false, listOf("適用完了を確認できないバックアップです。原本と記録を確認し、復旧する場合は --force を指定してください"))
+        }
 
         data class Entry(val rel: String, val existed: Boolean, val before: String?, val afterHash: String?)
         val entries = backup.mapNotNull { item ->

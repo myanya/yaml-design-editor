@@ -95,11 +95,7 @@ class FileSystemDocumentStore(private val root: Path) : DocumentStore {
 
     /** IDをルート配下の実パスへ解決する（正規化してルート外を拒否）。 */
     private fun resolve(id: DocumentId): Path {
-        val raw = id.value.replace('\\', '/')
-        require(!raw.startsWith("/") && !Path.of(raw).isAbsolute) { "絶対パスは使えません: ${id.value}" }
-        val resolved = root.resolve(raw).normalize()
-        require(resolved.startsWith(root.normalize())) { "ワークスペース外は参照できません: ${id.value}" }
-        return resolved
+        return WorkspacePaths.resolve(root, id.value)
     }
 
     override fun list(): List<StoredDocument> =
@@ -107,6 +103,7 @@ class FileSystemDocumentStore(private val root: Path) : DocumentStore {
             stream.asSequence()
                 .filter { it.isRegularFile() }
                 .filter { val n = it.fileName.toString(); n.endsWith(".yaml") || n.endsWith(".yml") }
+                .filter { runCatching { resolve(DocumentId(root.relativize(it).toString())) }.isSuccess }
                 .map { StoredDocument(DocumentId(root.relativize(it).toString().replace('\\', '/'))) }
                 .sortedBy { it.id.value }
                 .toList()

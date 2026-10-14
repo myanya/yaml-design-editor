@@ -25,6 +25,25 @@ import kotlin.test.assertTrue
  */
 class EvalTest {
 
+    @Test
+    fun `評価の準備は絶対パスと親参照と隠し領域を拒否する`() {
+        for (path in listOf("/tmp/a", "C:/a", "C:a", "\\\\server\\share\\a", "docs/../../a", "docs/../_agents/a", "./_runs/a", "docs/.private/a")) {
+            kotlin.test.assertFailsWith<IllegalArgumentException>(path) { Evals.setupPath(path) }
+        }
+        assertEquals("docs/a.yaml", Evals.setupPath("docs\\a.yaml"))
+    }
+
+    @Test
+    fun `直接構築した評価定義でも外部ファイルを上書きしない`() = runBlocking {
+        val marker = dir.resolve("docs/a.yaml")
+        val original = Files.readString(marker)
+        val definition = EvalDef("unsafe", "unsafe", activityId = "missing", source = dir.resolve("eval.yaml"),
+            cases = listOf(EvalCase("c", "c", setup = listOf(EvalSetupFile(marker.toString(), "overwritten")))))
+        val result = runner(ArrayDeque()).run(dir, definition, writeReport = false)
+        assertFalse(result.results.single().pass)
+        assertEquals(original, Files.readString(marker))
+    }
+
     private lateinit var dir: Path
 
     private class FakeSession(turns: List<ChatTurn>) : ToolChatSession {

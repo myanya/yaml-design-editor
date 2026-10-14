@@ -223,8 +223,8 @@ object Definitions {
     fun load(workspace: Path): LoadResult {
         val layout = WorkspaceLayout.of(workspace)
         val errors = mutableListOf<String>()
-        val agents = loadDir(workspace.resolve(layout.agentsDir), errors, ::parseAgent)
-        val activities = loadDir(workspace.resolve(layout.activitiesDir), errors, ::parseActivity)
+        val agents = loadDir(workspace, layout.agentsDir, errors, ::parseAgent)
+        val activities = loadDir(workspace, layout.activitiesDir, errors, ::parseActivity)
         activities.forEach { activity ->
             if (agents.none { it.id == activity.agentId }) {
                 errors += "${activity.source.fileName}: エージェント「${activity.agentId}」が ${layout.agentsDir} に見つかりません"
@@ -238,7 +238,9 @@ object Definitions {
         return LoadResult(agents, activities, errors)
     }
 
-    private fun <T> loadDir(dir: Path, errors: MutableList<String>, parse: (Map<*, *>, Path) -> T): List<T> {
+    private fun <T> loadDir(workspace: Path, relative: String, errors: MutableList<String>, parse: (Map<*, *>, Path) -> T): List<T> {
+        val dir = runCatching { dev.toros.yde.workspace.WorkspacePaths.resolve(workspace, relative) }
+            .getOrElse { errors += "$relative: ${it.message}"; return emptyList() }
         if (!Files.isDirectory(dir)) return emptyList()
         val files = Files.list(dir).use { stream ->
             stream.filter { p ->
@@ -248,6 +250,7 @@ object Definitions {
         }.sortedBy { it.fileName.toString() }
         return files.mapNotNull { file ->
             runCatching {
+                dev.toros.yde.workspace.WorkspacePaths.resolve(workspace, workspace.toAbsolutePath().relativize(file).toString())
                 val raw = YamlIO.parseToRaw(Files.readString(file)) as? Map<*, *>
                     ?: error("ルートはobjectである必要があります")
                 parse(raw, file)

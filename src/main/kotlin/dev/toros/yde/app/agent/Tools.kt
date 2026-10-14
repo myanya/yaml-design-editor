@@ -288,6 +288,7 @@ class AgentToolbox(
         if (consultMode && call.name !in consultAllowed) {
             error("相談モードでは使えないツールです（読み取り専用）: ${call.name}")
         }
+        require(specs().any { it.name == call.name }) { "この実行では許可されていないツールです: ${call.name}" }
         return when (call.name) {
             in actionTools -> Outcome(runActionTool(actionTools.getValue(call.name), call))
             "delegate" -> {
@@ -454,7 +455,8 @@ class AgentToolbox(
 
     /** 書き込めるゾーンか（台帳内、またはメタアクティビティの定義ゾーン）。allowedFiles は見ない。 */
     private fun checkWritableZone(rel: String) {
-        val normalized = rel.replace('\\', '/')
+        dev.toros.yde.workspace.WorkspacePaths.resolve(ws.root, rel, allowLinks = false)
+        val normalized = dev.toros.yde.workspace.WorkspacePaths.relative(rel).toString().replace('\\', '/')
         val layout = ws.layout
         // 書込可否の統一規則（architecture/workspace.md「ワークスペース構造と layout」）: 台帳内、またはメタアクティビティの定義ゾーンのみ
         if (layout.isReserved(normalized)) {
@@ -467,7 +469,7 @@ class AgentToolbox(
     }
 
     private fun checkWritableFile(rel: String) {
-        val normalized = rel.replace('\\', '/')
+        val normalized = dev.toros.yde.workspace.WorkspacePaths.relative(rel).toString().replace('\\', '/')
         checkWritableZone(normalized)
         if (activity.allowedFiles.isNotEmpty() && activity.allowedFiles.none { globToRegex(it).matches(normalized) }) {
             error("このアクティビティの書込許可（allowedFiles）の対象外です: $rel")

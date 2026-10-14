@@ -131,7 +131,8 @@ object Skills {
     }
 
     fun load(workspace: Path): LoadResult {
-        val dir = workspace.resolve(WorkspaceLayout.of(workspace).skillsDir)
+        val dir = runCatching { dev.toros.yde.workspace.WorkspacePaths.resolve(workspace, WorkspaceLayout.of(workspace).skillsDir) }
+            .getOrElse { return LoadResult(emptyList(), listOf(it.message ?: "skill 定義の場所を解決できません")) }
         if (!Files.isDirectory(dir)) return LoadResult(emptyList(), emptyList())
         val errors = mutableListOf<String>()
         val files = Files.list(dir).use { stream ->
@@ -142,6 +143,7 @@ object Skills {
         }.sortedBy { it.fileName.toString() }
         val skills = files.mapNotNull { file ->
             runCatching {
+                dev.toros.yde.workspace.WorkspacePaths.resolve(workspace, workspace.toAbsolutePath().relativize(file).toString())
                 val raw = YamlIO.parseToRaw(Files.readString(file)) as? Map<*, *>
                     ?: error("ルートはobjectである必要があります")
                 parseSkill(raw, file)

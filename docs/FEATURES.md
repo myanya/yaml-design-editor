@@ -20,8 +20,8 @@
 | W-08 | ワークスペース管理（最近開いた履歴・スタート画面・パレットからの切替） | `Main.kt`（`StartScreen`）, `AppState.recentWorkspaces` | 手動 | [ui](architecture/ui.md) |
 | W-09 | UI シェル（レールで編集・台帳・実行・設計の 4 スペースを切替・実行スペースは定義が空でも表示） | `app/AppState.kt`（`UiSpace`）, `ui/Shell.kt` | 単体 `NavigationHistoryTest` | [ui](architecture/ui.md) |
 | W-10 | 受信箱（承認待ち変更セット・エージェントの質問・外部変更競合を実行スペースの先頭タブに集約・バッジと集計） | `ui/RunsSpace.kt`（`InboxTab`）, `Main.kt`（`StatusBar`） | 手動 | [ui](architecture/ui.md) |
-| W-11 | ワークスペース構造（`.yde/` 構成と `ledger` 宣言・レガシー構成は互換・配置判定は `WorkspaceLayout`・CLI `migrate`） | `workspace-core/layout/WorkspaceLayout.kt`, `core/Workspace.kt` | 単体 `WorkspaceLayoutTest` | [workspace](architecture/workspace.md) |
-| W-12 | エディタ層と台帳層の分離（台帳外の YAML はフォームと単文書検証だけ・索引・集計・エージェントは台帳のみ） | `validate/Validator.kt`, `app/AppState.kt`（`editorOnlyFiles`） | 単体 `WorkspaceLayoutTest` | [workspace](architecture/workspace.md) |
+| W-11 | ワークスペース構造（`.yde/` 構成と `ledger` 宣言・レガシー構成は互換・配置判定は `WorkspaceLayout`・CLI `migrate`） | `workspace-core/layout/WorkspaceLayout.kt`, `core/Workspace.kt` | 単体 `WorkspaceLayoutTest`, `DocumentStoreTest` | [workspace](architecture/workspace.md) |
+| W-12 | エディタ層と台帳層の分離（台帳外の YAML はフォームと単文書検証だけ・索引・集計・エージェントは台帳のみ） | `validate/Validator.kt`, `app/AppState.kt`（`editorOnlyFiles`） | 単体 `WorkspaceLayoutTest`, `DocumentStoreTest` | [workspace](architecture/workspace.md) |
 | W-13 | 同梱フォント（等幅 Cica をビルド時に取得して資源へ・`AppFonts.Mono`・資源が無ければ OS の等幅へ戻す） | `build.gradle.kts`（`downloadFonts`）, `ui/Common.kt`（`AppFonts`） | 手動 | [ui](architecture/ui.md) |
 | W-14 | Markdown 文書の表示（ワークスペース内の `.md` をツリーに薄色で出し、描画とソースの 2 タブで表示のみ・相対リンクはアプリ内で開く・外部変更に追随） | `ui/MarkdownPane.kt`, `ui/MarkdownView.kt`, `AppState.openMarkdown`, `core/Workspace.kt`（`WorkspaceScan.markdownFiles`） | 単体 `MarkdownLinkTest` | [ui](architecture/ui.md) |
 | W-15 | 内蔵ヘルプ（利用者マニュアルをビルド時に資源へ入れ、ツールバーの ? とコマンドパレットから文書として開く・題目間のリンクで移動） | `app/Help.kt`, `build.gradle.kts`（`copyHelp`）, `ui/MarkdownPane.kt` | 単体 `MarkdownLinkTest` | [ui](architecture/ui.md) |
@@ -39,7 +39,7 @@
 | E-03 | ソース編集（入力のたびにパースし成功時だけツリーへ反映・パース不能中は最後の解析結果が正・検索置換・ハイライト） | `ui/SourcePane.kt`, `ui/SourceHighlight.kt` | 単体 `SourceHighlightTest` | [editing-history](architecture/editing-history.md) |
 | E-04 | 差分表示（保存済みと編集中の行整列・文字単位の強調） | `ui/DiffPane.kt` | 単体 `DiffPaneTest` | [ui](architecture/ui.md) |
 | E-05 | Undo/Redo（ワークスペース横断の単一履歴・連続入力は 1 秒以内なら合体・実行後のフィードバックと予告） | `app/AppState.kt`（`undo` / `redo` / `historyNotice`）, `core/Documents.kt` | 単体 `DocumentsTest`, `HistoryNoticeTest` | [editing-history](architecture/editing-history.md) |
-| E-06 | 保存（Ctrl+S・すべて保存・コメントとキー順と表記を保持・日付スカラーは文字列のまま往復） | `AppState.save*`, `yaml-core/yaml/YamlIO.kt` | 単体 `YamlIOTest` | [yaml-model](architecture/yaml-model.md) |
+| E-06 | 保存（Ctrl+S・すべて保存・コメントとキー順と表記を保持・日付は文字列・YAML展開量を制限） | `AppState.save*`, `yaml-core/yaml/YamlIO.kt` | 単体 `YamlIOTest` | [yaml-model](architecture/yaml-model.md) |
 | E-07 | 文書メタデータ `_document`（id・name・description）の編集とヘッダー表示 | `ui/FormView.kt`（`DocumentMetadataEditor`） | 手動 | [ui](architecture/ui.md) |
 | E-08 | 文書キャッシュ（ファイル切替時も未保存編集を保持） | `AppState.docCache` | 手動 | [editing-history](architecture/editing-history.md) |
 | E-09 | 同一 ID の他文書出現ストリップ（相手側の情報の表示とジャンプ） | `ui/FormView.kt`（`SameIdOccurrencesStrip`） | 手動 | [ui](architecture/ui.md) |
@@ -170,18 +170,18 @@
 | AG-02 | アクティビティ定義 `_activities`（対象・指示・文脈・書込許可・上限・提出ゲート `error-free` / `no-new-errors` / `none`） | `agent/Definitions.kt`, `agent/Staging.kt`（`newErrors`） | 単体 `DefinitionsTest`, `KernelTest` | [agents](architecture/agents.md) |
 | AG-03 | ツール使用対応 LLM クライアント（OpenAI・Anthropic の function calling） | `ai/ToolChat.kt` | 単体 `ToolChatParseTest` | [agents](architecture/agents.md) |
 | AG-04 | 実行カーネル（マルチターン・上限・終了手続き・キャンセル・疑似セッション注入） | `agent/Kernel.kt` | 単体 `KernelTest` | [agents](architecture/agents.md) |
-| AG-05 | ツールセット（探索 5・編集 2・検証 1・対話 2・管理 3・書込権限はツール側で強制） | `agent/Tools.kt` | 単体 `KernelTest` | [agents](architecture/agents.md) |
+| AG-05 | ツールセット（探索 5・編集 2・検証 1・対話 2・管理 3・許可ツール名と書込権限を実行時に強制） | `agent/Tools.kt` | 単体 `KernelTest`, `ToolsTest` | [agents](architecture/agents.md) |
 | AG-06 | ステージング（複数文書のオーバーレイ・横断検証・未提出ドラフトの保全） | `agent/Staging.kt` | 単体 `StagingTest` | [agents](architecture/agents.md) |
 | AG-07 | 変更セットレビュー UI（ファイル単位の部分採用・再検証・差分・適用・状態は `RunController`） | `ui/RunsSpace.kt`（`ReviewContent`, `RunController`） | 手動 | [agents](architecture/agents.md) |
 | AG-08 | 実行中の対話（`ask_human` の質問カード・計画とメモの進捗・キャンセル） | `agent/Kernel.kt`, `ui/RunsSpace.kt`（`QuestionCard`） | 単体 `KernelTest` | [agents](architecture/agents.md) |
-| AG-09 | 実行記録 `_runs`（ターン・ツール呼び出し・採否・トークン・会話記録） | `agent/RunLog.kt`, `agent/Kernel.kt` | 単体 `KernelTest` | [agents](architecture/agents.md) |
+| AG-09 | 実行記録 `_runs`（ターン・ツール呼び出し・採否・トークン・会話記録） | `agent/RunLog.kt`, `agent/Kernel.kt` | 単体 `KernelTest`, `AutoApplySafetyTest` | [agents](architecture/agents.md) |
 | AG-10 | CLI からの実行（`agent` / `activities`） | `core/Cli.kt` | 手動 | [agents](architecture/agents.md) |
 | AG-11 | トリガ（manual / on-change / schedule / on-invalid・予約ディレクトリと自己変更では発火しない） | `agent/Automation.kt`（`tick`） | 単体 `AutomationTest` | [agents](architecture/agents.md) |
 | AG-12 | アクティビティ連鎖（`chain` の成功・失敗・規則による分岐・深さ上限と循環検出） | `agent/Automation.kt`（`chainNext`）, `agent/Definitions.kt`（`ChainDef`） | 単体 `AutomationTest` | [agents](architecture/agents.md) |
 | AG-13 | 無人リトライ（`retry.maxAttempts`・同一失敗の繰り返しは打ち切り） | `agent/Automation.kt`（`handleFailure`） | 単体 `AutomationTest` | [agents](architecture/agents.md) |
-| AG-14 | 自動承認 `approval: auto`（条件を欠くと承認待ちへ降格・導出元文書への書込も降格・適用前バックアップ） | `agent/Automation.kt`, `agent/AutoApply.kt` | 単体 `AutomationTest` | [agents](architecture/agents.md) |
+| AG-14 | 自動承認 `approval: auto`（条件を欠くと承認待ちへ降格・導出元文書への書込も降格・適用前バックアップ） | `agent/Automation.kt`, `agent/AutoApply.kt` | 単体 `AutomationTest`, `AutoApplySafetyTest` | [agents](architecture/agents.md) |
 | AG-15 | 実行キューと停止（直列実行・常時停止・承認待ちの耐久性） | `agent/Automation.kt` | 単体 `AutomationTest` | [agents](architecture/agents.md) |
-| AG-16 | 自動適用の巻き戻し（バックアップから復元・競合は拒否し `--force` で上書き） | `agent/AutoApply.kt`（`revert`） | 単体 `AutomationTest` | [agents](architecture/agents.md) |
+| AG-16 | 自動適用の巻き戻し（バックアップから復元・競合は拒否し `--force` で上書き） | `agent/AutoApply.kt`（`revert`） | 単体 `AutoApplySafetyTest` | [agents](architecture/agents.md) |
 | AG-17 | サブエージェント委譲（`delegate`・読み取り専用の相談・深さ 1） | `agent/Kernel.kt`（`consult`） | 単体 `KernelTest` | [agents](architecture/agents.md) |
 | AG-18 | 自動実行 UI（自動化タブ: 監視・キュー・履歴・ログ）と CLI `watch` | `ui/AutomationPanel.kt`, `core/Cli.kt` | 手動 | [agents](architecture/agents.md) |
 | AG-19 | 実行メトリクス（提出率・採用率・却下ファイル率・トークン・CLI `metrics`） | `agent/Metrics.kt` | 単体 `MetricsTest` | [agents](architecture/agents.md) |

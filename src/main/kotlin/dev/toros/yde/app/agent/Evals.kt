@@ -1,5 +1,7 @@
 package dev.toros.yde.app.agent
 
+import dev.toros.yde.workspace.WorkspacePaths
+
 import dev.toros.yde.app.ai.AiProvider
 import dev.toros.yde.app.ai.ChatUsage
 import dev.toros.yde.app.ai.ToolChat
@@ -86,7 +88,8 @@ object Evals {
     }
 
     fun load(workspace: Path): LoadResult {
-        val dir = workspace.resolve(WorkspaceLayout.of(workspace).evalsDir)
+        val dir = runCatching { WorkspacePaths.resolve(workspace, WorkspaceLayout.of(workspace).evalsDir) }
+            .getOrElse { return LoadResult(emptyList(), listOf(it.message ?: "評価定義の場所を解決できません")) }
         if (!Files.isDirectory(dir)) return LoadResult(emptyList(), emptyList())
         val errors = mutableListOf<String>()
         val files = Files.list(dir).use { stream ->
@@ -97,6 +100,7 @@ object Evals {
         }.sortedBy { it.fileName.toString() }
         val evals = files.mapNotNull { file ->
             runCatching {
+                WorkspacePaths.resolve(workspace, workspace.toAbsolutePath().relativize(file).toString())
                 val raw = YamlIO.parseToRaw(Files.readString(file)) as? Map<*, *>
                     ?: error("ルートはobjectである必要があります")
                 parseEval(raw, file)
@@ -134,8 +138,7 @@ object Evals {
             )
         } ?: emptyList()
         setup.forEach {
-            val setupNorm = it.file.replace('\\', '/')
-            require(!setupNorm.startsWith("_") && !setupNorm.startsWith(".")) { "case「$id」: setup で予約ディレクトリ・隠しディレクトリは上書きできません: ${it.file}" }
+            setupPath(it.file)
         }
         return EvalCase(
             id = id,
@@ -144,6 +147,15 @@ object Evals {
             instruction = map["instruction"]?.toString(),
             expect = parseExpect(map["expect"], id),
         )
+    }
+
+    internal fun setupPath(file: String): String {
+        val normalized = WorkspacePaths.relative(file).toString().replace('\\', '/')
+        require(file.replace('\\', '/').split('/').none { it == ".." }) { "setup では親ディレクトリを指定できません: $file" }
+        require(normalized.split('/').none { it.startsWith(".") } && !normalized.startsWith("_")) {
+            "setup で予約ディレクトリ・隠しディレクトリは上書きできません: $file"
+        }
+        return normalized
     }
 
     private fun parseExpect(raw: Any?, caseId: String): EvalExpect {
@@ -269,10 +281,12 @@ class EvalRunner(
     }
 
     private suspend fun runCase(wsRoot: Path, eval: EvalDef, variant: EvalVariant, case: EvalCase): CaseResult {
-        val sandbox = createSandbox(wsRoot)
+        val sandbox = try { createSandbox(wsRoot) } catch (e: Exception) {
+            return failedCase(variant, case, e.message ?: "評価用コピーを作成できません")
+        }
         try {
             case.setup.forEach { setup ->
-                val target = sandbox.resolve(setup.file)
+                val target = WorkspacePaths.resolve(sandbox, Evals.setupPath(setup.file))
                 Files.createDirectories(target.parent)
                 Files.writeString(target, setup.content)
             }
@@ -311,6 +325,10 @@ class EvalRunner(
                 pass = failures.isEmpty(), failures = failures,
                 status = result.status, turns = result.turnsUsed, usage = result.usage,
             )
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return failedCase(variant, case, e.message ?: "評価に失敗しました")
         } finally {
             deleteRecursively(sandbox)
         }
@@ -377,21 +395,27 @@ class EvalRunner(
     private fun createSandbox(wsRoot: Path): Path {
         val layout = WorkspaceLayout.of(wsRoot)
         val sandbox = createTempDirectory("yde-eval")
-        Files.walk(wsRoot).use { stream ->
-            stream.forEach { p ->
-                val rel = wsRoot.relativize(p).toString().replace('\\', '/')
-                if (rel.isEmpty()) return@forEach
-                if (layout.zoneOf(rel) == WorkspaceLayout.Zone.RUNS) return@forEach
-                if (rel.startsWith(".") && !(layout.configDir != null && (rel == layout.configDir || rel.startsWith(layout.configDir + "/")))) return@forEach
-                val target = sandbox.resolve(rel)
-                if (Files.isDirectory(p)) Files.createDirectories(target)
-                else {
-                    Files.createDirectories(target.parent)
-                    Files.copy(p, target)
+        try {
+            Files.walk(wsRoot).use { stream ->
+                stream.forEach { p ->
+                    val rel = wsRoot.relativize(p).toString().replace('\\', '/')
+                    if (rel.isEmpty()) return@forEach
+                    if (layout.zoneOf(rel) == WorkspaceLayout.Zone.RUNS) return@forEach
+                    if (rel.startsWith(".") && !(layout.configDir != null && (rel == layout.configDir || rel.startsWith(layout.configDir + "/")))) return@forEach
+                    WorkspacePaths.resolve(wsRoot, rel)
+                    val target = sandbox.resolve(rel)
+                    if (Files.isDirectory(p)) Files.createDirectories(target)
+                    else {
+                        Files.createDirectories(target.parent)
+                        Files.copy(p, target)
+                    }
                 }
             }
+            return sandbox
+        } catch (e: Exception) {
+            deleteRecursively(sandbox)
+            throw e
         }
-        return sandbox
     }
 
     private fun deleteRecursively(dir: Path) {
@@ -403,12 +427,12 @@ class EvalRunner(
     private val fileStamp = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")
 
     private fun writeReport(wsRoot: Path, eval: EvalDef, results: List<CaseResult>): Path {
-        val dir = wsRoot.resolve(WorkspaceLayout.of(wsRoot).runsDir)
+        val dir = WorkspacePaths.resolve(wsRoot, WorkspaceLayout.of(wsRoot).runsDir)
         Files.createDirectories(dir)
-        var file = dir.resolve("eval-${LocalDateTime.now().format(fileStamp)}-${eval.id}.yaml")
+        var file = RunLog.destination(dir, "eval-${LocalDateTime.now().format(fileStamp)}-${eval.id}.yaml")
         var seq = 1
         while (Files.exists(file)) {
-            file = dir.resolve("eval-${LocalDateTime.now().format(fileStamp)}-${eval.id}-${seq++}.yaml")
+            file = RunLog.destination(dir, "eval-${LocalDateTime.now().format(fileStamp)}-${eval.id}-${seq++}.yaml")
         }
         val report = Report(eval.id, eval.activityId, results, null)
         val body = linkedMapOf<String, Any?>(

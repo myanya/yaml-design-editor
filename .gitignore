@@ -12,6 +12,11 @@ local.properties
 .kotlin/
 /scratchpad/
 
+# AI の実行記録には会話・原文バックアップが含まれる
+_runs/
+**/.yde/runs/
+.claude/settings.local.json
+
 # 旧ディレクトリ（削除予定。削除したらこの行も消す）
 /sample-workspace/
 /system-development-template/

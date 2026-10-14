@@ -150,7 +150,7 @@ object RunMetrics {
             applied = adoption?.get("applied") == true,
             adoptedFiles = (adoption?.get("adoptedFiles") as? List<*>)?.size ?: 0,
             rejectedFiles = (adoption?.get("rejectedFiles") as? List<*>)?.size ?: 0,
-            autoApplied = root["autoApply"] != null,
+            autoApplied = (root["autoApply"] as? Map<*, *>)?.let { it["state"] == null || it["state"] == "applied" } == true,
             reverted = root["reverted"] != null,
         )
     }
