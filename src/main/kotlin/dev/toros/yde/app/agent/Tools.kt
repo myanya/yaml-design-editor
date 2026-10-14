@@ -19,6 +19,7 @@ import dev.toros.yde.app.index.IdIndex
 import dev.toros.yde.app.index.idMatchesPattern
 import kotlinx.serialization.json.*
 import dev.toros.yde.yaml.model.YNode
+import dev.toros.yde.yaml.model.deepCopy
 import dev.toros.yde.yaml.model.getAt
 import dev.toros.yde.yaml.model.parseYPath
 import dev.toros.yde.yaml.model.pretty
@@ -62,6 +63,26 @@ class AgentToolbox(
 
     val plan = mutableListOf<String>()
     val notes = mutableListOf<String>()
+
+    /**
+     * 操作のツール（architecture/actions.md）: アクティビティの actions で許可した操作だけを、1 つずつツールにする（ツール名 → 操作）。
+     * ツール名に使えない文字（日本語の型名・`.`）は `_` に置き換え、本当の名前は説明に出す。無い操作を許可した定義は誤り。
+     */
+    private val actionTools: Map<String, dev.toros.yde.workspace.ActionEntry> = run {
+        if (ToolGroup.ACTIONS !in groups || consultMode || activity.actions.isEmpty()) return@run emptyMap()
+        val catalog = dev.toros.yde.workspace.ActionPlanner.catalog(ws.mirror.schemas).filter { it.kind != "create" }
+        val out = LinkedHashMap<String, dev.toros.yde.workspace.ActionEntry>()
+        for (name in activity.actions) {
+            val entry = catalog.firstOrNull { it.name == name }
+                ?: error("アクティビティ「${activity.id}」の actions の操作「$name」が見つかりません（使える操作: ${catalog.map { it.name }.sorted().joinToString(", ").ifEmpty { "なし" }}）")
+            val base = "action_" + name.map { c -> if ((c.code < 128 && c.isLetterOrDigit()) || c == '_' || c == '-') c else '_' }.joinToString("")
+            var toolName = base
+            var n = 2
+            while (toolName in out) toolName = "${base}_${n++}"
+            out[toolName] = entry
+        }
+        out
+    }
 
     // ---------------------------------------------------------------- ツール定義（モデルに公開するスキーマ）
 
@@ -205,6 +226,40 @@ class AgentToolbox(
                 },
             )
         }
+        // 操作（型の操作とアクション）: 引数のスキーマは受け取る値の定義から作る（AI 生成と同じ変換＝型・選択肢・必須が保証される）
+        for ((toolName, entry) in actionTools) {
+            val schemaDef = ws.schemas.firstOrNull { it.id == entry.definedIn }
+            val target = entry.target
+            val receiver = when {
+                entry.kind == "method" -> "受け手の要素の ID（型 $target）"
+                target != null && target.startsWith("entity:") -> "受け手の要素の ID（${target.removePrefix("entity: ")}）"
+                target != null && target.startsWith("schema:") -> "受け手の文書の相対パス（スキーマ ${target.removePrefix("schema: ")}）"
+                else -> null
+            }
+            val parameters = buildJsonObject {
+                put("type", "object")
+                putJsonObject("properties") {
+                    receiver?.let { putJsonObject("target") { put("type", "string"); put("description", it) } }
+                    entry.params.forEach { p ->
+                        val key = p.key ?: return@forEach
+                        val resolved = schemaDef?.resolve(p) ?: p
+                        val schema = schemaDef?.let { dev.toros.yde.app.ai.fieldToJsonSchema(resolved, it) }
+                            ?: buildJsonObject { put("type", "string") }
+                        put(key, schema)
+                    }
+                }
+                putJsonArray("required") {
+                    if (receiver != null) add("target")
+                    entry.params.filter { it.required }.mapNotNull { it.key }.forEach { add(it) }
+                }
+            }
+            val description = buildString {
+                append("操作「${entry.label ?: entry.name}」（${entry.name}）")
+                entry.description?.let { append(": $it") }
+                append("。スキーマに定義された決まった手順の変更をステージングへ積む（前提に合わなければ理由を返す。原本は提出と承認まで変わらない）")
+            }
+            specs += ToolSpec(toolName, description, parameters)
+        }
         if (consultMode) return specs
         specs += ToolSpec("plan", "作業計画（TODO）を宣言・更新する。人間に進捗として表示される。", buildJsonObject {
             put("type", "object")
@@ -234,6 +289,7 @@ class AgentToolbox(
             error("相談モードでは使えないツールです（読み取り専用）: ${call.name}")
         }
         return when (call.name) {
+            in actionTools -> Outcome(runActionTool(actionTools.getValue(call.name), call))
             "delegate" -> {
                 val fn = delegate ?: error("このアクティビティでは委譲できません")
                 Outcome(fn(requireArg("agent"), requireArg("instruction")))
@@ -358,7 +414,46 @@ class AgentToolbox(
 
     // ---------------------------------------------------------------- 権限チェック
 
-    private fun checkWritableFile(rel: String) {
+    /**
+     * 操作のツールの実行（architecture/actions.md）: ステージングを重ねたセッションの上で計画し、変更セットをステージングへ積む。
+     * 許可した操作は人が許可した検証済みの手順なので、allowedFiles / allowedPaths は見ない（予約ディレクトリと台帳の外は今までどおり不可）。
+     * 前提に合わない・受け取った値に誤りがあるときは、理由をそのまま返す（モデルが直して呼び直せる）。
+     */
+    private fun runActionTool(entry: dev.toros.yde.workspace.ActionEntry, call: ToolCall): String {
+        val target = call.arguments["target"]?.jsonPrimitive?.contentOrNull
+        val params = call.arguments.filterKeys { it != "target" }.mapValues { (_, v) -> YamlIO.toAny(jsonToYNode(v)) }
+        val plan = try {
+            dev.toros.yde.workspace.ActionPlanner.plan(stagedSession(), dev.toros.yde.workspace.ActionRequest(entry.name, target, params))
+        } catch (e: dev.toros.yde.workspace.ActionFailure) {
+            return "操作「${entry.label ?: entry.name}」は実行できません: ${e.message}"
+        }
+        if (plan.isEmpty) return "操作「${plan.title}」: 変更はありません\n" + plan.summary.joinToString("\n") { "・$it" }
+        plan.changeSet.changes.forEach { checkWritableZone(it.file) }
+        plan.changeSet.changes.forEach { change ->
+            if (change.create) staging.createDocument(change.file, change.content!!) else staging.applyOps(change.file, change.ops)
+        }
+        return "操作「${plan.title}」をステージングへ積みました（${plan.changeSet.changes.size} 文書。原本は未変更）:\n" +
+            plan.summary.joinToString("\n") { "・$it" } + "\n提出の前に validate で確かめてください。"
+    }
+
+    /** ステージングの内容を重ねたセッション（ディスクを映すセッションの写しに、ステージ済みの文書を置き換え・作成として当てる）。 */
+    private fun stagedSession(): dev.toros.yde.workspace.WorkspaceSession {
+        val session = ws.mirror.fork()
+        val operations = staging.touchedFiles().map { e ->
+            val id = DocumentId(e.rel)
+            val document = dev.toros.yde.yaml.model.YDocument(id, listOf(e.root.deepCopy()))
+            if (e.created) dev.toros.yde.workspace.WorkspaceOperation.CreateDocument(id, document)
+            else dev.toros.yde.workspace.WorkspaceOperation.ReplaceDocument(id, document)
+        }
+        if (operations.isNotEmpty()) {
+            val applied = session.apply(dev.toros.yde.workspace.WorkspaceTransaction(session.version, dev.toros.yde.workspace.ChangeIntent("ステージング"), operations))
+            require(applied.ok) { applied.message ?: "ステージングの内容をセッションへ重ねられません" }
+        }
+        return session
+    }
+
+    /** 書き込めるゾーンか（台帳内、またはメタアクティビティの定義ゾーン）。allowedFiles は見ない。 */
+    private fun checkWritableZone(rel: String) {
         val normalized = rel.replace('\\', '/')
         val layout = ws.layout
         // 書込可否の統一規則（architecture/workspace.md「ワークスペース構造と layout」）: 台帳内、またはメタアクティビティの定義ゾーンのみ
@@ -369,6 +464,11 @@ class AgentToolbox(
         } else if (!layout.inLedger(normalized)) {
             error("台帳（ledger）外への書き込みはできません: $rel")
         }
+    }
+
+    private fun checkWritableFile(rel: String) {
+        val normalized = rel.replace('\\', '/')
+        checkWritableZone(normalized)
         if (activity.allowedFiles.isNotEmpty() && activity.allowedFiles.none { globToRegex(it).matches(normalized) }) {
             error("このアクティビティの書込許可（allowedFiles）の対象外です: $rel")
         }

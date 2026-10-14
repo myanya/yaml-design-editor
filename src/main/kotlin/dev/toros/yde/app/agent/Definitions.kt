@@ -22,7 +22,8 @@ enum class ToolGroup(val id: String) {
     EDIT("edit"),         // apply_patch / create_document
     VALIDATE("validate"), // validate
     ASK("ask"),           // ask_human
-    DELEGATE("delegate"); // delegate（別エージェントへの読み取り専用の相談）
+    DELEGATE("delegate"), // delegate（別エージェントへの読み取り専用の相談）
+    ACTIONS("actions");   // スキーマに定義した操作（アクティビティの actions で許可したものだけがツールになる。architecture/actions.md）
 
     companion object {
         fun parse(raw: String): ToolGroup =
@@ -183,6 +184,11 @@ data class ActivityDef(
     val allowedFiles: List<String> = emptyList(),  // 書込許可ファイル glob（空 = 制限なし）
     val allowedPaths: List<String> = emptyList(),  // 書込許可 YPath glob（空 = 制限なし）
     val tools: Set<ToolGroup> = ToolGroup.entries.toSet(),
+    /**
+     * エージェントに渡す操作（アクションの id か 型名.操作名。architecture/actions.md）。書いたものだけがツールになる（無指定は無し）。
+     * 許可した操作の書込は allowedFiles / allowedPaths の外でも通す（操作の定義が範囲を決める。定義は人間だけが書ける）。
+     */
+    val actions: List<String> = emptyList(),
     val limits: ActivityLimits = ActivityLimits(),
     val gate: ValidationGate = ValidationGate.ERROR_FREE,
     val approval: ApprovalMode = ApprovalMode.HUMAN,
@@ -307,6 +313,9 @@ object Definitions {
             allowedFiles = stringList(raw["allowedFiles"]),
             allowedPaths = stringList(raw["allowedPaths"]),
             tools = toolGroups(raw["tools"]),
+            actions = stringList(raw["actions"]).also { list ->
+                list.groupBy { it }.filterValues { it.size > 1 }.keys.firstOrNull()?.let { error("actions に「$it」が重複しています") }
+            },
             limits = ActivityLimits(
                 maxTurns = limit("maxTurns")?.toInt() ?: 24,
                 maxTokens = limit("maxTokens") ?: 400_000,

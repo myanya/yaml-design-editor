@@ -168,7 +168,14 @@ root:
       type: array
       item:
         type: enum
-        values: [explore, edit, validate, ask, delegate]
+        values: [explore, edit, validate, ask, delegate, actions]
+      description: "省略時は全部。actions はスキーマに定義した操作のツール（下の actions で許可したものだけ）。edit を外して actions だけにすると、書込を操作に限った活動になる"
+    - key: actions
+      label: 許可する操作
+      type: array
+      item:
+        type: string
+      description: "エージェントがツールとして使える操作（アクションの id か 型名.操作名。例 add-screen, business-rule.deprecate）。書いたものだけがツールになり、無指定は無し。許可した操作の書込は allowedFiles / allowedPaths の外でも通る（操作の定義が範囲を決める）"
     - key: limits
       label: ループ上限
       type: object

@@ -2,7 +2,7 @@
 
 操作は、計算体系の「書き換え（Rewrite）」の初めての利用者定義体。スキーマに書いた定義から、受け取った値と前提をもとに変更セットを作る。
 二層に分かれる: **型の操作**（`methods`。object の定義に書き、その型の要素 1 つを受け手にする）と、**横断の操作**（`actions`。スキーマ文書に書き、複数の要素や文書にまたがる）。
-結果は常に変更セットで、適用は既存の `ChangeSetApplier`（検証・競合・Undo 1 回）。新しい書込経路は作らない。入口は CLI と画面（右ペインの「操作」タブ）で、エージェントの入口は後の段階。
+結果は常に変更セットで、適用は既存の `ChangeSetApplier`（検証・競合・Undo 1 回）。新しい書込経路は作らない。入口は CLI・画面（右ペインの「操作」タブ）・検査の指摘・エージェントのツール。
 
 ## 部品
 
@@ -33,6 +33,7 @@
 - **適用**: 変更セットは `ChangeSetApplier` をそのまま通る（競合・自動で入る値・適用後の姿の検証・1 トランザクション）。CLI は既定で計画だけを出し、`--apply` で書く。検証エラーが残るなら書かず、`--allow-errors` で書く。
 - **画面**: 入口（エンティティページの操作メニュー・文書ヘッダの「操作 ▾」・コマンドパレット・右ペインの一覧）は `AppState.startAction` を呼ぶだけ。右ペインの「操作」タブにカードが出て、受け取る値は仮の文書の木を `FormCtx` と `FieldRow` で編集する（型・選択肢・参照の候補・ID の提案がそのまま効く）。
 - 「確認」＝`planAction`（計画と、ドライランの検証）→ 差分（`Staging` の適用後の文面）→「適用」＝`applyAction`（`applyViaSession`＝書いて保存まで。Undo 1 回で全部戻る）。検証エラーが残れば書かず、チェックで許す。対象に未保存の編集があれば拒む。
+- **エージェント**: アクティビティの `actions` で許可した操作が `AgentToolbox` のツールになる（`action_` ＋名前。引数は受け取る値の定義から、受け手は `target`）。実行はステージングを重ねたセッションの上で `ActionPlanner.plan` を呼び、変更セットを `Staging` へ積む（原本は提出と承認まで変わらない）。前提に合わなければ理由を返す。`allowedFiles` / `allowedPaths` は見ない（[agents.md](agents.md)）。
 - **検査からの起動**: 検査の `responses` に `{action, label, with}` を書くと、`WorkspaceChecks.responsesOf` が `CheckResponse.RunAction`（受け手＝起点の ID・渡す値＝文面を指摘と同じひな型で埋めたもの）を作り、検証パネルのメニューから `startAction(name, target, prefill)` でカードが開く。無い操作を指す対応は読み込みの誤り（`WorkspaceReader.buildSchemas`）。
 
 ## 規律

@@ -44,7 +44,7 @@
 | ディレクトリ | 内容 |
 |---|---|
 | `_agents/*.yaml` | エージェント定義: `id`・`persona`（性格・行動指針）・`rubric`（観点）・`model`（プロバイダ／モデルID）・`tools`（許可ツール分類） |
-| `_activities/*.yaml` | アクティビティ定義: `id`・`agent`・`target.match`（対象glob）・`instruction`・`context.items`（コンテキストレシピ＝本書）・`allowedFiles`／`allowedPaths`（書込許可）・`limits`（maxTurns等）・`gates.validation`・`trigger`／`chain`／`retry`／`approval`（自動実行）・`foreach`（一括実行。本書）・`meta`（本書） |
+| `_activities/*.yaml` | アクティビティ定義: `id`・`agent`・`target.match`（対象glob）・`instruction`・`context.items`（コンテキストレシピ＝本書）・`allowedFiles`／`allowedPaths`（書込許可）・`actions`（[actions.md](actions.md)）・`limits`（上限）・`gates.validation`・`trigger`／`chain`／`retry`／`approval`（自動実行）・`foreach`（一括実行。本書）・`meta`（本書） |
 | `_evals/*.yaml` | 評価セット定義: ゴールデン入力と期待結果によるアクティビティの回帰評価（本書） |
 | `_skills/*.yaml` | skill定義: 宣言型のインポート・エクスポート（本書） |
 | `_views/*.yaml` | ビュー定義: 行×列の横断一覧（[views.md](views.md)）。コンテキストレシピ（`context.items` の `kind: view`）でアクティビティの初期文脈にも開示できる |
