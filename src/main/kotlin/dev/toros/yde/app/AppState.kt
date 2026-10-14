@@ -31,6 +31,7 @@ import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.YDocument
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.YPath
+import dev.toros.yde.yaml.model.pretty
 import dev.toros.yde.app.schema.SchemaDef
 import dev.toros.yde.semantic.schema.FieldDef
 import dev.toros.yde.yaml.model.deepCopy
@@ -534,7 +535,7 @@ class AppState {
      * （ここ）に置き、画面を離れても消えない。受け取る値はフォームの部品（FormCtx）で編集するため、値の木を持つ仮の文書を 1 つ持つ
      * （どこにも保存しない。編集の記録先が無いので、セッションの履歴や dirty には載らない）。
      */
-    class ActionWork(val entry: ActionEntry, val target: String?, val form: OpenDocument) {
+    class ActionWork(val entry: ActionEntry, val target: String?, val form: OpenDocument, val insertInto: InsertTarget? = null) {
         val values: YNode.Map get() = form.root as YNode.Map
         var plan by mutableStateOf<ActionPlan?>(null)
         /** 計画の変更セットを適用した後の姿の検証（ドライラン）。 */
@@ -544,7 +545,82 @@ class AppState {
         val title: String get() = entry.label ?: entry.name
     }
 
+    /** 配列への追加の作業の受け手（配列エディタの追加ボタン・ビューの新規行から。要素の型の create に受け取る値があるとき）。 */
+    class InsertTarget(val doc: OpenDocument, val arrayPath: YPath, val arrayDef: FieldDef)
+
     var actionWork by mutableStateOf<ActionWork?>(null)
+
+    private fun newActionWork(entry: ActionEntry, target: String?, insertInto: InsertTarget? = null): ActionWork? {
+        val ws = workspace ?: return null
+        val schema = schemas.firstOrNull { it.id == entry.definedIn }
+        val values = YNode.Map()
+        entry.params.forEach { p -> p.key?.let { key -> p.default?.let { values.entries[key] = YamlIO.fromAny(it) } } }
+        val form = OpenDocument(ws.resolve(".yde/action-params.yaml"), values, schema, "", null)
+        return ActionWork(entry, target, form, insertInto).also {
+            actionWork = it
+            memory.sidePanelTab = 3
+            rightPaneOpen = true
+        }
+    }
+
+    /**
+     * 配列へ要素を足す（配列エディタの追加ボタン・ビューの新規行。architecture/actions.md「作成経路の寄せ」）: 要素の型の create に
+     * 受け取る値があれば右ペインのカードで入力し（戻り値 null）、無ければその場で足す（配列の insert の決まり＝採番つき。戻り値は番号）。
+     * 足した要素は未保存の編集（Undo 可）。
+     */
+    fun addArrayElement(doc: OpenDocument, arrayPath: YPath, field: FieldDef): Result<Int?> = runCatching {
+        val schema = doc.schema
+        val arrayDef = schema?.resolve(field) ?: field
+        val itemDef = arrayDef.item?.let { schema?.resolve(it) ?: it }
+        val create = itemDef?.methods?.firstOrNull { it.isCreate }
+        if (create != null && create.params.isNotEmpty() && !readOnlyMode) {
+            val entry = ActionEntry("insert", "insert", "${arrayDef.displayLabel} へ追加", create.description, null, create.params, schema?.id ?: "")
+            newActionWork(entry, null, InsertTarget(doc, arrayPath, arrayDef))
+            return@runCatching null
+        }
+        insertArrayElement(doc, arrayPath, arrayDef, emptyMap())
+    }
+
+    /** 追加の作業（カード）の値で、配列へ要素を足す。 */
+    fun applyInsert(): Result<Int> = runCatching {
+        val work = actionWork ?: error("操作が選ばれていません")
+        val into = work.insertInto ?: error("追加の作業ではありません")
+        val index = insertArrayElement(into.doc, into.arrayPath, into.arrayDef, actionParams(work))
+        actionWork = null
+        status = "${into.arrayDef.displayLabel} に要素を足しました（未保存。Ctrl+Z で戻せます）"
+        index
+    }
+
+    /** 配列の末尾へ要素を足す: 要素の中身は型の create と配列の insert の決まり（カーネルの 1 実装）。配列が無ければ作る。 */
+    private fun insertArrayElement(doc: OpenDocument, arrayPath: YPath, arrayDef: FieldDef, params: Map<String, Any?>): Int {
+        check(!readOnlyMode) { "閲覧専用モードでは編集できません" }
+        val root = doc.root as? YNode.Map ?: error("文書をパースできません: ${doc.parseError}")
+        val seq = ensureSeq(root, arrayPath)
+        val tree = doc.schema?.tree
+        val element = if (tree == null) YNode.Map() else {
+            val made = ActionPlanner.newElement(tree, arrayDef, seq, params, overlayIndex().entries.keys, LocalDateTime.now(), dedupe = params.isNotEmpty())
+            made.node ?: error(made.skipped ?: "追加できません")
+        }
+        seq.items.add(element)
+        doc.markEdited()
+        return seq.items.size - 1
+    }
+
+    /** パスの配列を解決する（末端の配列と、途中の無いマップは作る）。 */
+    private fun ensureSeq(root: YNode.Map, path: YPath): YNode.Seq {
+        var container: YNode = root
+        path.forEachIndexed { i, seg ->
+            val current = container
+            container = when {
+                current is YNode.Map && seg is String ->
+                    current.entries.getOrPut(seg) { if (i == path.lastIndex) YNode.Seq() else YNode.Map() }
+                current is YNode.Seq && seg is Int ->
+                    current.items.getOrNull(seg) ?: error("追加先パスが存在しません: ${path.pretty()}")
+                else -> error("追加先パスを解決できません: ${path.pretty()}")
+            }
+        }
+        return container as? YNode.Seq ?: error("追加先が配列ではありません: ${path.pretty()}")
+    }
 
     /** 要素に使える操作（エンティティページの操作メニュー）。 */
     fun actionsForEntity(id: String): List<ActionEntry> =
@@ -559,18 +635,11 @@ class AppState {
 
     /** 操作を始める: 受け取る値の入力カードを右ペインの「操作」タブに出す。target は受け手（要素の ID か文書の相対パス）。 */
     fun startAction(entry: ActionEntry, target: String?) {
-        val ws = workspace ?: return
         if (readOnlyMode) {
             status = "閲覧専用モードでは操作を使えません（ツールバーで解除してください）"
             return
         }
-        val schema = schemas.firstOrNull { it.id == entry.definedIn }
-        val values = YNode.Map()
-        entry.params.forEach { p -> p.key?.let { key -> p.default?.let { values.entries[key] = YamlIO.fromAny(it) } } }
-        val form = OpenDocument(ws.resolve(".yde/action-params.yaml"), values, schema, "", null)
-        actionWork = ActionWork(entry, target, form)
-        memory.sidePanelTab = 3
-        rightPaneOpen = true
+        newActionWork(entry, target)
     }
 
     /**
@@ -1635,7 +1704,7 @@ class AppState {
      * ビューの newRow 定義に従い、一覧文書の配列へ新しい行（要素）を追加する（P6）。
      * 追加は未保存編集としてキャッシュ上の文書に積まれる（保存は通常の操作で行う）。
      */
-    fun addViewRow(view: ViewDef): Result<YPath> = runCatching {
+    fun addViewRow(view: ViewDef): Result<YPath?> = runCatching {
         val def = view.newRow ?: error("このビューには newRow が定義されていません")
         val fileRel = def.file ?: error("このビューの newRow はファイルモードです（addViewRowFile を使う）")
         val ws = workspace ?: error("ワークスペースが開かれていません")
@@ -1657,13 +1726,15 @@ class AppState {
         }
         val seq = container as? YNode.Seq ?: error("追加先が配列ではありません: ${def.path}")
         val schema = schemaFor(file)
-        val itemDef = schema?.let { dev.toros.yde.app.core.Views.fieldAt(it, root, def.path)?.item }
-        seq.items.add(
-            if (schema != null && itemDef != null) dev.toros.yde.app.core.Views.defaultTree(itemDef, schema, LocalDateTime.now())
-            else YNode.Map()
-        )
-        doc.markEdited()
-        def.path + (seq.items.size - 1)
+        val arrayDef = schema?.let { dev.toros.yde.app.core.Views.fieldAt(it, root, def.path) }
+        if (schema == null || arrayDef == null) {
+            seq.items.add(YNode.Map())
+            doc.markEdited()
+            return@runCatching def.path + (seq.items.size - 1)
+        }
+        // 要素の作り方は配列エディタの追加ボタンと同じ（型の create に受け取る値があればカード＝戻り値 null）
+        val index = addArrayElement(doc, def.path, arrayDef).getOrThrow() ?: return@runCatching null
+        def.path + index
     }
 
     /** YAMLファイルとして移動の一級化（R21-03。カーネル MoveDocument）の対象か（台帳内・ディレクトリ以外）。 */

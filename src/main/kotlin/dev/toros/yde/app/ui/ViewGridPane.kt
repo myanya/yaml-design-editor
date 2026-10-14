@@ -150,8 +150,12 @@ private fun HeaderBar(state: AppState, loaded: Views.LoadResult, view: ViewDef?)
                     if (newRow.filePattern != null) newRowDialog = true
                     else state.addViewRow(view!!)
                         .onSuccess { path ->
-                            state.status = "一覧文書に新しい行を追加しました。内容を入力して保存するとグリッドに現れます"
-                            newRow.file?.let { f -> state.workspace?.let { state.openFile(it.resolve(f), path) } }
+                            // null＝要素の型の create に受け取る値があり、右ペインのカードで入力する（architecture/actions.md）
+                            if (path == null) state.status = "右の「操作」タブで、新しい行の値を入力して「追加」を押してください"
+                            else {
+                                state.status = "一覧文書に新しい行を追加しました。内容を入力して保存するとグリッドに現れます"
+                                newRow.file?.let { f -> state.workspace?.let { state.openFile(it.resolve(f), path) } }
+                            }
                         }
                         .onFailure { state.status = it.message ?: "行を追加できませんでした" }
                 },

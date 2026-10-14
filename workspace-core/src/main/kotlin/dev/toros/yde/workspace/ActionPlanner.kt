@@ -135,6 +135,31 @@ object ActionPlanner {
     fun forWorkspace(schemas: List<WorkspaceSchema>): List<ActionEntry> =
         schemas.flatMap { s -> s.actions.filter { it.target == null }.map { a -> ActionEntry(a.id, "action", a.label, a.description, null, a.params, s.id) } }
 
+    /** 配列へ足す新しい要素。node が null なら足さない（skipped にその理由＝同じ明細がある）。 */
+    data class NewElement(val node: YNode?, val skipped: String?)
+
+    /**
+     * 配列へ足す新しい要素を作る（配列エディタの追加ボタン・ビューの新規行が使う。アクションの insert と同じ作り方）:
+     * 要素の型の create（必須の初期値＋受け取った値、または build）→ 配列の insert の決まり（採番 id・同じ明細 key）。
+     * arrayDef は解決済みの配列の項目、existingIds は索引の全 ID（採番の既存）。dedupe を false にすると同じ明細の見分けをしない
+     * （受け取った値の無い追加では、空の要素どうしが「同じ」になってしまうため）。
+     */
+    fun newElement(
+        tree: SchemaTree,
+        arrayDef: FieldDef,
+        array: YNode.Seq,
+        params: Map<String, Any?>,
+        existingIds: Collection<String>,
+        now: LocalDateTime = LocalDateTime.now(),
+        dedupe: Boolean = true,
+    ): NewElement {
+        val itemDef = arrayDef.item?.let { tree.resolve(it) ?: it } ?: throw ActionFailure("配列の要素の定義が見つかりません")
+        val element = buildElement(tree, itemDef, YamlIO.fromAny(params) as? YNode.Map ?: YNode.Map(), "${arrayDef.label ?: arrayDef.key ?: "配列"} の要素", now)
+        val rule = arrayDef.insertRule ?: return NewElement(element, null)
+        val skipped = applyInsertRuleTo(rule, element, array, existingIds, dedupe)
+        return if (skipped == null) NewElement(element, null) else NewElement(null, skipped)
+    }
+
     /**
      * 型の呼び名: object の同一性（entity.type）→ 定義名 → スキーマの entity 宣言が 1 つで、その object が ID の項目を持つなら
      * その型（ID の形で判別する従来のスキーマ）→ 書かれた場所。
@@ -271,30 +296,8 @@ object ActionPlanner {
 
         // ---- 受け取った値 ----
 
-        /**
-         * 受け取った値をそろえる: 宣言に無い名前は誤り・省いた値は default・宣言があれば構造の検証（必須・型・選択肢・形式）。
-         * 返すのは、ひな型へ渡す値と、「いまの場所」にする項。
-         */
-        private fun prepareParams(defs: List<FieldDef>, given: Map<String, Any?>, label: String, tree: SchemaTree?): Pair<Map<String, Any?>, YNode.Map> {
-            val declared = defs.mapNotNull { it.key }
-            given.keys.firstOrNull { it !in declared }
-                ?.let { fail("$label は「$it」を受け取りません（受け取る値: ${declared.joinToString(", ").ifEmpty { "なし" }}）") }
-            val values = LinkedHashMap<String, Any?>()
-            for (def in defs) {
-                val key = def.key ?: continue
-                if (given.containsKey(key)) values[key] = given[key] else def.default?.let { values[key] = it }
-            }
-            val node = YamlIO.fromAny(values) as YNode.Map
-            if (defs.isNotEmpty()) {
-                val root = FieldDef(type = FieldType.OBJECT, fields = defs, definitionScope = tree?.id ?: "params")
-                val paramsTree = tree?.let { SchemaTree("params", root, it.definitions, definitionCatalog = it.definitionCatalog) } ?: SchemaTree("params", root)
-                val issues = DerivedStructures(paramsTree).validate(node).filter { it.severity == Severity.ERROR }
-                if (issues.isNotEmpty()) {
-                    fail("$label の受け取る値に誤りがあります: " + issues.joinToString("・") { "${it.path.pretty().ifEmpty { "（全体）" }}: ${it.message}" })
-                }
-            }
-            return values to node
-        }
+        private fun prepareParams(defs: List<FieldDef>, given: Map<String, Any?>, label: String, tree: SchemaTree?): Pair<Map<String, Any?>, YNode.Map> =
+            prepareActionParams(defs, given, label, tree)
 
         // ---- 前提 ----
 
@@ -449,7 +452,13 @@ object ActionPlanner {
                 build(s.value!!, scope) ?: run { summary += "飛ばした: ${s.origin}（値が得られない）"; return }
             }
             val rule = arrayDef?.insertRule
-            if (rule != null && !applyInsertRule(rule, element, array, s.origin)) return
+            if (rule != null) {
+                val skipped = applyInsertRuleTo(rule, element, array, graph.entities.keys + newIds)
+                if (skipped != null) {
+                    summary += "飛ばした: ${s.origin}（$skipped）"
+                    return
+                }
+            }
             val index = array.items.size
             if (existing == null) record(doc, PatchOp.Set(arrayPath, YNode.Seq(mutableListOf(element))))
             else record(doc, PatchOp.Insert(arrayPath + index, element))
@@ -457,69 +466,7 @@ object ActionPlanner {
             summary += "追加: ${doc.value} ${(arrayPath + index).pretty()} ← ${SemanticExpression.flowText(element)}"
         }
 
-        /** 配列の追加の決まり: 採番（ID の項目が空なら接頭辞＋連番）と、同じ明細の見分け（key が同じ要素があれば足さない）。 */
-        private fun applyInsertRule(rule: InsertRule, element: YNode, array: YNode.Seq, origin: String): Boolean {
-            val map = element as? YNode.Map ?: return true
-            rule.id?.let { numbering ->
-                if (scalarText(getAt(map, numbering.path)).isNullOrBlank()) {
-                    val prefix = SemanticTransform.build(numbering.prefix, emptyMap(), TemplatePlace(map, null, emptyList())).term?.let(::scalarText)
-                        ?: fail("$origin: 採番の接頭辞が得られません（${rule.origin}）")
-                    val existing = graph.entities.keys + newIds + array.items.mapNotNull { scalarText(getAt(it, numbering.path)) }
-                    Patcher.apply(map, PatchOp.Set(numbering.path, YNode.Scalar(IdSeries.next(existing, prefix, numbering.digits))))
-                }
-            }
-            if (rule.key.isNotEmpty()) {
-                val values = rule.key.map { scalarText(getAt(map, it)) }
-                if (array.items.any { e -> rule.key.map { scalarText(getAt(e, it)) } == values }) {
-                    summary += "飛ばした: $origin（同じ明細が既にあります: ${values.joinToString("・")}）"
-                    return false
-                }
-            }
-            return true
-        }
-
-        /** 要素の ID（ID の項目があれば）。 */
-        private fun idOf(element: YNode.Map, def: FieldDef?): String? {
-            val key = def?.fields?.firstOrNull { it.type == FieldType.ID }?.key ?: "id"
-            return scalarText(element.entries[key])
-        }
-
-        /**
-         * 新しい要素の中身（型の create）: 必須の初期値（保存時に自動で入る値を含む）の上に、create の build（定義側から順）を重ねる。
-         * build が無ければ、受け取った値のうち項目のキーに合うものを写す。create に params が宣言されていれば、受け取った値を
-         * 構造で検証する（宣言が無ければ、項目のキーに合うことだけを見る）。
-         */
-        private fun createElement(tree: SchemaTree, def: FieldDef, given: YNode.Map, label: String): YNode {
-            val resolved = tree.resolve(def) ?: def
-            val create = resolved.methods.firstOrNull { it.isCreate }
-            val fieldKeys = if (resolved.type == FieldType.OBJECT) tree.effectiveFields(resolved.fields, given).fields.mapNotNull { it.key }.toSet() else emptySet()
-            @Suppress("UNCHECKED_CAST")
-            val raw = YamlIO.toAny(given) as? Map<String, Any?> ?: emptyMap()
-            val (values, node) = if (create != null && create.params.isNotEmpty()) prepareParams(create.params, raw, label, tree) else {
-                raw.keys.firstOrNull { it !in fieldKeys }?.let { fail("$label: 「$it」は要素の項目ではありません（項目: ${fieldKeys.joinToString(", ")}）") }
-                raw to given
-            }
-            var result = SchemaScaffold.defaultTree(tree, resolved, now = now)
-            if (create != null && create.builds.isNotEmpty()) {
-                val here = TemplatePlace(node, null, emptyList())
-                for (b in create.builds) SemanticTransform.build(b, values, here).term?.let { result = overlay(result, it) }
-            } else {
-                val copy = YNode.Map(LinkedHashMap(node.entries.filterKeys { it in fieldKeys }))
-                result = overlay(result, copy)
-            }
-            return result
-        }
-
-        /** ひな型の出力を初期値の上に重ねる（マップどうしは項目ごとに重ね、それ以外は出力が勝つ）。 */
-        private fun overlay(base: YNode, over: YNode): YNode {
-            if (base !is YNode.Map || over !is YNode.Map) return over
-            val entries = LinkedHashMap(base.entries)
-            for ((key, value) in over.entries) {
-                val existing = entries[key]
-                entries[key] = if (existing != null) overlay(existing, value) else value
-            }
-            return YNode.Map(entries)
-        }
+        private fun createElement(tree: SchemaTree, def: FieldDef, given: YNode.Map, label: String): YNode = buildElement(tree, def, given, label, now)
 
         private fun doCreate(s: ActionStep.Create, scope: Scope) {
             val schema = schemas.firstOrNull { it.id == s.schemaId } ?: fail("${s.origin}: スキーマ「${s.schemaId}」がありません")
@@ -559,6 +506,8 @@ object ActionPlanner {
             run(method.steps, Scope(values, node, receiver, MethodDef.SELF, mapOf(MethodDef.SELF to self)))
         }
 
+        private fun idOf(element: YNode.Map, def: FieldDef?): String? = elementId(element, def)
+
         private fun doEachMatch(s: ActionStep.EachMatch, scope: Scope) {
             val from = s.from ?: scope.receiverName ?: fail("${s.origin}: 起点の要素が決まりません（from に束縛名を書くか、target で受け手を宣言します）")
             val startId = scope.bindings[from]?.id ?: fail("${s.origin}: 束縛「$from」は要素ではありません")
@@ -584,4 +533,100 @@ object ActionPlanner {
             }
         }
     }
+}
+
+// ---------------------------------------------------------------- 要素の作り方（計画と、追加ボタン・新規行が共有する）
+
+private fun actionFail(message: String): Nothing = throw ActionFailure(message)
+
+/**
+ * 受け取った値をそろえる: 宣言に無い名前は誤り・省いた値は default・宣言があれば構造の検証（必須・型・選択肢・形式）。
+ * 返すのは、ひな型へ渡す値と、「いまの場所」にする項。
+ */
+private fun prepareActionParams(defs: List<FieldDef>, given: Map<String, Any?>, label: String, tree: SchemaTree?): Pair<Map<String, Any?>, YNode.Map> {
+    val declared = defs.mapNotNull { it.key }
+    given.keys.firstOrNull { it !in declared }
+        ?.let { actionFail("$label は「$it」を受け取りません（受け取る値: ${declared.joinToString(", ").ifEmpty { "なし" }}）") }
+    val values = LinkedHashMap<String, Any?>()
+    for (def in defs) {
+        val key = def.key ?: continue
+        if (given.containsKey(key)) values[key] = given[key] else def.default?.let { values[key] = it }
+    }
+    val node = YamlIO.fromAny(values) as YNode.Map
+    if (defs.isNotEmpty()) {
+        val root = FieldDef(type = FieldType.OBJECT, fields = defs, definitionScope = tree?.id ?: "params")
+        val paramsTree = tree?.let { SchemaTree("params", root, it.definitions, definitionCatalog = it.definitionCatalog) } ?: SchemaTree("params", root)
+        val issues = DerivedStructures(paramsTree).validate(node).filter { it.severity == Severity.ERROR }
+        if (issues.isNotEmpty()) {
+            actionFail("$label の受け取る値に誤りがあります: " + issues.joinToString("・") { "${it.path.pretty().ifEmpty { "（全体）" }}: ${it.message}" })
+        }
+    }
+    return values to node
+}
+
+/**
+ * 新しい要素の中身（型の create）: 必須の初期値（保存時に自動で入る値を含む）の上に、create の build（定義側から順）を重ねる。
+ * build が無ければ、受け取った値のうち項目のキーに合うものを写す。create に params が宣言されていれば、受け取った値を
+ * 構造で検証する（宣言が無ければ、項目のキーに合うことだけを見る）。
+ */
+private fun buildElement(tree: SchemaTree, def: FieldDef, given: YNode.Map, label: String, now: LocalDateTime): YNode {
+    val resolved = tree.resolve(def) ?: def
+    val create = resolved.methods.firstOrNull { it.isCreate }
+    val fieldKeys = if (resolved.type == FieldType.OBJECT) tree.effectiveFields(resolved.fields, given).fields.mapNotNull { it.key }.toSet() else emptySet()
+    @Suppress("UNCHECKED_CAST")
+    val raw = YamlIO.toAny(given) as? Map<String, Any?> ?: emptyMap()
+    val (values, node) = if (create != null && create.params.isNotEmpty()) prepareActionParams(create.params, raw, label, tree) else {
+        raw.keys.firstOrNull { it !in fieldKeys }?.let { actionFail("$label: 「$it」は要素の項目ではありません（項目: ${fieldKeys.joinToString(", ")}）") }
+        raw to given
+    }
+    var result = SchemaScaffold.defaultTree(tree, resolved, now = now)
+    if (create != null && create.builds.isNotEmpty()) {
+        val here = TemplatePlace(node, null, emptyList())
+        for (b in create.builds) SemanticTransform.build(b, values, here).term?.let { result = overlayElement(result, it) }
+    } else if (resolved.type == FieldType.OBJECT) {
+        // object の要素だけ、受け取った値のうち項目のキーに合うものを写す（スカラーの要素は必須の初期値のまま）
+        val copy = YNode.Map(LinkedHashMap(node.entries.filterKeys { it in fieldKeys }))
+        result = overlayElement(result, copy)
+    }
+    return result
+}
+
+/** ひな型の出力を初期値の上に重ねる（マップどうしは項目ごとに重ね、それ以外は出力が勝つ）。 */
+private fun overlayElement(base: YNode, over: YNode): YNode {
+    if (base !is YNode.Map || over !is YNode.Map) return over
+    val entries = LinkedHashMap(base.entries)
+    for ((key, value) in over.entries) {
+        val existing = entries[key]
+        entries[key] = if (existing != null) overlayElement(existing, value) else value
+    }
+    return YNode.Map(entries)
+}
+
+/**
+ * 配列の追加の決まり: 採番（ID の項目が空なら接頭辞＋連番。既存は existingIds と配列の中）と、同じ明細の見分け
+ * （dedupe のとき、key が同じ要素があれば足さない）。足さない理由を返す（null＝足す）。要素の ID は書き換える。
+ */
+private fun applyInsertRuleTo(rule: InsertRule, element: YNode, array: YNode.Seq, existingIds: Collection<String>, dedupe: Boolean = true): String? {
+    val map = element as? YNode.Map ?: return null
+    rule.id?.let { numbering ->
+        if (scalarText(getAt(map, numbering.path)).isNullOrBlank()) {
+            val prefix = SemanticTransform.build(numbering.prefix, emptyMap(), TemplatePlace(map, null, emptyList())).term?.let(::scalarText)
+                ?: actionFail("採番の接頭辞が得られません（${rule.origin}）")
+            val existing = existingIds + array.items.mapNotNull { scalarText(getAt(it, numbering.path)) }
+            Patcher.apply(map, PatchOp.Set(numbering.path, YNode.Scalar(IdSeries.next(existing, prefix, numbering.digits))))
+        }
+    }
+    if (dedupe && rule.key.isNotEmpty()) {
+        val values = rule.key.map { scalarText(getAt(map, it)) }
+        if (array.items.any { e -> rule.key.map { scalarText(getAt(e, it)) } == values }) {
+            return "同じ明細が既にあります: ${values.joinToString("・")}"
+        }
+    }
+    return null
+}
+
+/** 要素の ID（ID の項目があれば）。 */
+private fun elementId(element: YNode.Map, def: FieldDef?): String? {
+    val key = def?.fields?.firstOrNull { it.type == FieldType.ID }?.key ?: "id"
+    return scalarText(element.entries[key])
 }

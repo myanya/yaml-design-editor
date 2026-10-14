@@ -38,11 +38,13 @@ class AppStateActionTest {
               type: object
               fields:
                 - { key: phase, type: enum, values: [draft, fixed], default: draft }
+                - { key: tags, type: array, item: { type: string } }
                 - key: items
                   type: array
                   required: true
                   methods:
                     insert:
+                      id: { path: id, prefix: "IT-", digits: 1 }
                       key: [name]
                   item:
                     type: object
@@ -175,6 +177,26 @@ class AppStateActionTest {
         state.startAction("no-such", null)
         assertNull(state.actionWork)
         assertTrue("見つかりません" in state.status)
+    }
+
+    @Test
+    fun `配列の追加は 型の create に受け取る値があればカードで入力し 無ければその場で採番して足す`() {
+        val state = openState()
+        val doc = state.ensureDoc(dir.resolve("list.yaml"))
+        val schema = doc.schema!!
+        val itemsField = schema.root.fields.first { it.key == "items" }
+        // 要素の型（item）に create は無い → その場で足す。配列の insert の決まりで ID が採番される
+        val index = state.addArrayElement(doc, parseYPath("items"), itemsField).getOrThrow()
+        assertEquals(1, index)
+        val items = (doc.root as YNode.Map).entries["items"] as YNode.Seq
+        assertEquals("IT-2", ((items.items[1] as YNode.Map).entries["id"] as YNode.Scalar).value)
+        assertTrue(doc.dirty, "未保存の編集として足す")
+        // 文字列の配列: 空の要素
+        assertEquals(0, state.addArrayElement(doc, parseYPath("tags"), schema.root.fields.first { it.key == "tags" }).getOrThrow())
+        assertEquals("", (((doc.root as YNode.Map).entries["tags"] as YNode.Seq).items[0] as YNode.Scalar).value)
+        state.undo()
+        state.undo()
+        assertEquals(1, ((doc.root as YNode.Map).entries["items"] as YNode.Seq).items.size)
     }
 
     @Test

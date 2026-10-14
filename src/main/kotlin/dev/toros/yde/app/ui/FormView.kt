@@ -1410,9 +1410,10 @@ private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) 
             return
         }
         TextButton(onClick = {
-            slot.set(YNode.Seq(mutableListOf(defaultNode(field.item, ctx.doc.schema))))
-            ctx.setExpanded(path, true)
-            ctx.markEdited()
+            // 要素の作り方は型の create と配列の insert の決まり（architecture/actions.md）。受け取る値があればカードが開く
+            ctx.state.addArrayElement(ctx.doc, path, field)
+                .onSuccess { ctx.setExpanded(path, true) }
+                .onFailure { ctx.state.status = "追加できません: ${it.message}" }
         }) {
             Icon(Icons.Default.Add, contentDescription = null, Modifier.size(16.dp))
             Text("配列を作成して要素を追加", fontSize = 13.sp)
@@ -1493,8 +1494,8 @@ private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) 
         }
         if (!ctx.readOnly) {
         TextButton(onClick = {
-            node.items.add(defaultNode(field.item, ctx.doc.schema))
-            ctx.markEdited()
+            // 要素の作り方は型の create と配列の insert の決まり（採番つき。architecture/actions.md）。受け取る値があればカードが開く
+            ctx.state.addArrayElement(ctx.doc, path, field).onFailure { ctx.state.status = "追加できません: ${it.message}" }
         }) {
             Icon(Icons.Default.Add, contentDescription = null, Modifier.size(16.dp))
             Text("追加", fontSize = 13.sp)

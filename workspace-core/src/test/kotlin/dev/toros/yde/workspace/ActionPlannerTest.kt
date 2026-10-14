@@ -224,6 +224,35 @@ class ActionPlannerTest {
     }
 
     @Test
+    fun `追加ボタンと新規行の要素は 型の create と配列の insert の決まりで作る`() {
+        val s = session()
+        val schema = s.schemas.first { it.id == "screen-list" }
+        val tree = schema.tree
+        val arrayDef = (tree.resolve(tree.root) ?: tree.root).fields.first { it.key == "screens" }.let { tree.resolve(it) ?: it }
+        val array = getAt(s.snapshot.documents.getValue(DocumentId("screen-list.yaml")).document.documents.first(), parseYPath("screens")) as YNode.Seq
+        val ids = s.derived.semantic.graph.entities.keys
+        // 受け取った値あり: create の build で組み立て、ID が空なら採番
+        val made = ActionPlanner.newElement(tree, arrayDef, array, mapOf("name" to "確認"), ids, now)
+        assertEquals("SCR-003", scalarText(getAt(made.node!!, parseYPath("id"))))
+        assertEquals("確認", scalarText(getAt(made.node!!, parseYPath("name"))))
+        // 同じ明細（name）は足さない
+        assertNotNull(ActionPlanner.newElement(tree, arrayDef, array, mapOf("name" to "入力"), ids, now).skipped)
+        // 受け取った値なし（create に受け取る値の無い型の追加ボタン）: 必須の初期値だけの要素。空の要素どうしを「同じ」にしない
+        val transitions = s.schemas.first { it.id == "transitions" }
+        val tArray = (transitions.tree.resolve(transitions.tree.root) ?: transitions.tree.root).fields.first { it.key == "transitions" }.let { transitions.tree.resolve(it) ?: it }
+        val existingRows = getAt(s.snapshot.documents.getValue(DocumentId("transitions.yaml")).document.documents.first(), parseYPath("transitions")) as YNode.Seq
+        val blank = ActionPlanner.newElement(transitions.tree, tArray, existingRows, emptyMap(), ids, now, dedupe = false)
+        assertEquals(setOf("from", "to"), (blank.node as YNode.Map).entries.keys)
+        // create が受け取る値を求める型に値を渡さなければ、追加ボタンはカードを開く（ここでは誤り）
+        assertFailsWith<ActionFailure> { ActionPlanner.newElement(tree, arrayDef, array, emptyMap(), ids, now, dedupe = false) }
+        // 文書の作成（詳細文書を作成・新規行のファイルモード）はルートの型の create を通る
+        val detail = s.schemas.first { it.id == "screen-def" }
+        val scaffold = DocumentScaffolds.scaffold(DocumentScaffolds.filePatternOf(detail)!!, ScaffoldSource.idOnly("SCR-009"), s.schemas)
+        assertEquals("screens/SCR-009.yaml", scaffold.rel)
+        assertEquals("/screens/SCR-009", scalarText(getAt(scaffold.root, parseYPath("url"))))
+    }
+
+    @Test
     fun `定義の誤りは読み込みで分かる`() {
         fun errorsOf(schema: String): List<String> = WorkspaceSession(InMemoryDocumentStore(mapOf("_schemas/x.yaml" to schema))).schemaErrors
         // 型の操作に of / in は書けない

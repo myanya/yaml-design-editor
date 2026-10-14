@@ -115,6 +115,25 @@ private fun ActionCard(state: AppState, work: AppState.ActionWork) {
                 }
             }
             Spacer(Modifier.height(8.dp))
+            val insertInto = work.insertInto
+            if (insertInto != null) {
+                // 配列への追加（追加ボタン・新規行から）: 計画はせず、その場で未保存の編集として足す
+                Text("${state.relPath(insertInto.doc.file)} の ${insertInto.arrayDef.displayLabel} へ、未保存の編集として足します（Ctrl+Z で戻せます）", fontSize = 11.sp, color = Palette.SubText)
+                Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Button(
+                        onClick = { state.applyInsert().onFailure { work.error = it.message ?: "追加できません" } },
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
+                    ) { Text("追加", fontSize = 12.sp) }
+                    Spacer(Modifier.width(6.dp))
+                    TextButton(onClick = { state.dismissAction() }) { Text("やめる", fontSize = 12.sp) }
+                }
+                work.error?.let {
+                    Spacer(Modifier.height(6.dp))
+                    Text(it, fontSize = 12.sp, color = Palette.ErrorRed)
+                }
+                return@Column
+            }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Button(onClick = { state.planAction() }, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp)) { Text("確認", fontSize = 12.sp) }
                 Spacer(Modifier.width(6.dp))

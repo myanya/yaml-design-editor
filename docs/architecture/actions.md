@@ -34,6 +34,8 @@
 - **画面**: 入口（エンティティページの操作メニュー・文書ヘッダの「操作 ▾」・コマンドパレット・右ペインの一覧）は `AppState.startAction` を呼ぶだけ。右ペインの「操作」タブにカードが出て、受け取る値は仮の文書の木を `FormCtx` と `FieldRow` で編集する（型・選択肢・参照の候補・ID の提案がそのまま効く）。
 - 「確認」＝`planAction`（計画と、ドライランの検証）→ 差分（`Staging` の適用後の文面）→「適用」＝`applyAction`（`applyViaSession`＝書いて保存まで。Undo 1 回で全部戻る）。検証エラーが残れば書かず、チェックで許す。対象に未保存の編集があれば拒む。
 - **エージェント**: アクティビティの `actions` で許可した操作が `AgentToolbox` のツールになる（`action_` ＋名前。引数は受け取る値の定義から、受け手は `target`）。実行はステージングを重ねたセッションの上で `ActionPlanner.plan` を呼び、変更セットを `Staging` へ積む（原本は提出と承認まで変わらない）。前提に合わなければ理由を返す。`allowedFiles` / `allowedPaths` は見ない（[agents.md](agents.md)）。
+- **作成経路の寄せ**: 配列エディタの追加ボタンとビューの新規行（配列モード）は `AppState.addArrayElement` → `ActionPlanner.newElement`（型の `create` ＋ 配列の `insert` の決まり）で要素を作る。要素の型の `create` に受け取る値があれば右ペインのカード（`ActionWork.insertInto`）で入力し、「追加」で未保存の編集として足す（計画と保存はしない）。
+- 受け取る値が無ければその場で足す（採番つき。空の要素どうしは同じ明細と見ない）。文書の作成（`DocumentScaffolds.contents`）はルートの型の `create` の `build` を ID と表示名で重ねる。skill の取り込みとエージェントの `create_document` は寄せていない。
 - **検査からの起動**: 検査の `responses` に `{action, label, with}` を書くと、`WorkspaceChecks.responsesOf` が `CheckResponse.RunAction`（受け手＝起点の ID・渡す値＝文面を指摘と同じひな型で埋めたもの）を作り、検証パネルのメニューから `startAction(name, target, prefill)` でカードが開く。無い操作を指す対応は読み込みの誤り（`WorkspaceReader.buildSchemas`）。
 
 ## 規律

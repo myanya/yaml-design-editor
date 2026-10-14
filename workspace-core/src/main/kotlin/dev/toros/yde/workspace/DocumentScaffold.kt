@@ -15,6 +15,7 @@ import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.semantic.schema.FileNames
 import dev.toros.yde.semantic.schema.QueryNodeKind
 import dev.toros.yde.semantic.schema.SchemaScaffold
+import dev.toros.yde.yaml.YamlIO
 
 /** 新しく作る文書のひな型: 作り先（ワークスペース相対パス）と、初期の内容。 */
 data class DocumentScaffold(val rel: String, val root: YNode)
@@ -211,7 +212,13 @@ object DocumentScaffolds {
             val input = source.tree(occ.document)?.let { getAt(it, occ.path) } ?: return@let null
             SemanticTransform.run(def, input, occ.document).term
         }
-        val root = if (built != null) overlay(defaults, built) else defaults
+        var root = if (built != null) overlay(defaults, built) else defaults
+        // ルートの型の create（P41）: build があれば、ID と表示名を受け取った値として重ねる（新しい文書の作り方を型に書ける）
+        tree?.let { t -> (t.resolve(t.root) ?: t.root).methods.firstOrNull { it.isCreate } }?.builds?.forEach { b ->
+            val params = buildMap<String, Any?> { put("id", source.id); source.title?.let { put("title", it) } }
+            val here = SemanticTransform.TemplatePlace(YamlIO.fromAny(params), null, emptyList())
+            SemanticTransform.build(b, params, here).term?.let { root = overlay(root, it) }
+        }
         (root as? YNode.Map)?.let { map ->
             val idKey = tree?.let { t ->
                 (t.resolve(t.root) ?: t.root).fields.firstOrNull { (t.resolve(it) ?: it).type == FieldType.ID }?.key
