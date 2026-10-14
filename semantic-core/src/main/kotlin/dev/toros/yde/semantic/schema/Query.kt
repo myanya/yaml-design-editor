@@ -764,8 +764,10 @@ data class ResponseDecl(
     val note: String? = null,
     /** create: detailDocument のときの、作る文書のスキーマ ID。 */
     val schemas: List<String> = emptyList(),
+    /** action のときの、操作へ渡す値（受け取る値の名前 → 文面のひな型。`{id}` `{束縛名.id}` `{left}` などを書ける）。 */
+    val with: Map<String, String> = emptyMap(),
 ) {
-    enum class Kind { JUMP, APPLY, CREATE }
+    enum class Kind { JUMP, APPLY, CREATE, ACTION }
 
     /** 値の比較（check）で条件を満たさなかった組を使う対応か（使わない対応は、どの判定の検査にも書ける）。 */
     val needsCheck: Boolean get() = kind == Kind.APPLY || (kind == Kind.JUMP && target != REFERENCE_SOURCES)
@@ -775,18 +777,31 @@ data class ResponseDecl(
         const val DETAIL_DOCUMENT = "detailDocument"
         private val JUMP_TARGETS = setOf("left.source", "right.source", "left.inputs", "right.inputs", REFERENCE_SOURCES)
         private val APPLY_TARGETS = setOf("left", "right")
+        private val KEYS = setOf("jump", "apply", "create", "action", "label", "relation", "note", "schemas", "with")
 
         fun parse(raw: Any?, where: String): ResponseDecl {
-            val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります（{jump または apply, label}）")
-            m.keys.map { it.toString() }.firstOrNull { it !in setOf("jump", "apply", "create", "label", "relation", "note", "schemas") }
-                ?.let { error("$where: 未知のキーです: $it（使えるキー: jump, apply, create, label, relation, note, schemas）") }
+            val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります（{jump / apply / create / action, label}）")
+            m.keys.map { it.toString() }.firstOrNull { it !in KEYS }
+                ?.let { error("$where: 未知のキーです: $it（使えるキー: ${KEYS.joinToString(", ")}）") }
             val label = m["label"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.label が必要です")
             val note = m["note"]?.toString()?.takeIf { it.isNotBlank() }
             val relation = m["relation"]?.toString()?.takeIf { it.isNotBlank() }
             val jump = m["jump"]?.toString()
             val apply = m["apply"]?.toString()
             val create = m["create"]?.toString()
-            if (listOfNotNull(jump, apply, create).size != 1) error("$where には jump / apply / create のどれか1つが必要です")
+            val action = m["action"]?.toString()?.takeIf { it.isNotBlank() }
+            if (listOfNotNull(jump, apply, create, action).size != 1) error("$where には jump / apply / create / action のどれか1つが必要です")
+            if (action != null) {
+                // 操作を起動する（P41）: 受け手は起点の要素。with は操作へ渡す値（文面のひな型。省けば受け取る値のカードで入力する）
+                require(relation == null && m["schemas"] == null) { "$where: relation / schemas は action には書けません" }
+                val with = when (val w = m["with"]) {
+                    null -> emptyMap()
+                    is Map<*, *> -> w.entries.associate { (k, v) -> k.toString() to (v?.toString() ?: "") }
+                    else -> error("$where.with はobject（受け取る値の名前: 文面）である必要があります")
+                }
+                return ResponseDecl(Kind.ACTION, action, label, note = note, with = with)
+            }
+            require(m["with"] == null) { "$where: with は action のときだけ書けます" }
             if (create != null) {
                 require(create == DETAIL_DOCUMENT) { "$where.create は $DETAIL_DOCUMENT です: $create" }
                 require(relation == null) { "$where: relation は jump: $REFERENCE_SOURCES のときだけ書けます" }

@@ -24,6 +24,9 @@ constraints:
       - { of: br, path: status, equals: approved }
     expect: exists
     level: warning
+    # 指摘から操作を起動する（P41）: 参照されていないルールは、根拠として参照を足すか、廃止にするかのどちらか
+    responses:
+      - { action: deprecate-rule, label: 廃止にする（参照されていないため）, with: { reason: どこからも根拠として参照されていないため廃止 } }
   - id: br-unapproved-referenced
     description: 承認済みでないビジネスルール（起草中・廃止など）が参照され続けていないこと
     match:

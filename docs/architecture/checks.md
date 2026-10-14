@@ -57,6 +57,7 @@
 - **値を読む文書の指定 `in`**（値の読み出しと `edge`）、**参照の束縛**（edge の `bind`）、**指摘の場所 `reportAt`**（値が書かれた場所・`{ref}`＝参照の場所）。
 - **文面のひな型 `message`**: `{id}` `{束縛名.id/type/title}` `{count}` `{missing}` `{path}` `{create.places}`。
 - **エラー時の対応 `responses`**（閉じた一覧）: 移動 `jump`（`referenceSources`＝参照を書き足せそうな文書へ）・値の書き込み `apply`・文書を作る `create: detailDocument`。検証パネルのメニューが宣言の順に並べる（文面と対応の直交性）。
+- **操作の起動 `action`** も対応の 1 つ: 起点の要素を受け手に、スキーマに定義した操作（アクションか型の操作）を開く。渡す値の文面は指摘と同じひな型で埋める（[actions.md](actions.md)）。
 - **検査の状況 `status`**: 満たしている検査も値つきで返す（`ruleStatuses`）。右パネル・エンティティページ・ビューの状態列・エージェントの `related` が共用し、文言は `RuleStatus.text` の 1 箇所。保留は「判定保留（理由）」で充足に数えない。
 - **直せる場所への案内 `fixSite`**: 書き足し先のスキーマの文書の検証へ、指摘が出ている ID の一覧を INFO で出す。
 - **重大度**: `level`（warning / error）と、関係レジストリの強制スイッチのキー名 `levelFrom`。写像は `CoverageLevel.toSeverity()` の 1 箇所。

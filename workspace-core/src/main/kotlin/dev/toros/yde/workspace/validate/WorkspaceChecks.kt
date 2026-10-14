@@ -125,6 +125,18 @@ sealed interface CheckResponse {
 
     /** この ID の詳細文書を、指定のスキーマの置き場所に新しく作って開く。 */
     data class CreateDetail(override val label: String, val schemaId: String, val id: String, val note: String? = null) : CheckResponse
+
+    /**
+     * 操作を起動する（P41。architecture/actions.md）: action はアクションの id か `型名.操作名`、target は受け手（起点の ID）、
+     * params は操作へ渡す値（文面を埋めたもの。足りない値は受け取る値のカードで入力する）。
+     */
+    data class RunAction(
+        override val label: String,
+        val action: String,
+        val target: String,
+        val params: Map<String, String> = emptyMap(),
+        val note: String? = null,
+    ) : CheckResponse
 }
 
 /**
@@ -660,6 +672,15 @@ class WorkspaceChecks(
      */
     private fun responsesOf(rule: ConstraintRule, id: String, v: SemanticCheckViolation?): List<CheckResponse> =
         rule.responses.flatMap { decl ->
+            if (decl.kind == ResponseDecl.Kind.ACTION) {
+                // 操作を起動する: 受け手は起点の要素。渡す値の文面は、指摘の文面と同じひな型で埋める
+                return@flatMap listOf(
+                    CheckResponse.RunAction(
+                        renderTemplate(decl.label, id, rule = rule, v = v), decl.target, id,
+                        decl.with.mapValues { (_, t) -> renderTemplate(t, id, rule = rule, v = v) }, decl.note,
+                    )
+                )
+            }
             if (decl.kind == ResponseDecl.Kind.CREATE) {
                 // 文書を新しく作る: 起点の ID の詳細文書を、スキーマごとに1件（作るスキーマはラベルの {schema} に埋める）
                 return@flatMap decl.schemas.map { sid ->

@@ -573,6 +573,20 @@ class AppState {
         rightPaneOpen = true
     }
 
+    /**
+     * 名前（アクションの id か 型名.操作名）で操作を始める（検査の対応「操作を起動する」から）。prefill は先に入れる値で、
+     * 受け取る値に無い名前は捨てる。見つからなければ status に案内する。
+     */
+    fun startAction(name: String, target: String?, prefill: Map<String, Any?> = emptyMap()) {
+        val cw = coreWs ?: return
+        val entry = ActionPlanner.catalog(cw.mirror.schemas).firstOrNull { it.name == name && it.kind != "create" }
+            ?: run { status = "操作「$name」が見つかりません（スキーマの actions / methods に定義します）"; return }
+        startAction(entry, target)
+        val work = actionWork?.takeIf { it.entry === entry } ?: return
+        prefill.forEach { (k, v) -> if (work.entry.params.any { it.key == k }) work.values.entries[k] = YamlIO.fromAny(v) }
+        work.form.version++
+    }
+
     /** 受け取った値（空のままの欄は渡さない＝省いた値）。 */
     private fun actionParams(work: ActionWork): Map<String, Any?> = work.values.entries.entries
         .filterNot { (_, v) -> v is YNode.Scalar && v.value?.toString().isNullOrBlank() }

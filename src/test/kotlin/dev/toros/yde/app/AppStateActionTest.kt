@@ -1,6 +1,9 @@
 package dev.toros.yde.app
 
+import dev.toros.yde.workspace.validate.CheckResponse
 import dev.toros.yde.yaml.model.YNode
+import dev.toros.yde.yaml.model.parseYPath
+import dev.toros.yde.yaml.patch.PatchOp
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.createTempDirectory
@@ -53,6 +56,13 @@ class AppStateActionTest {
                           - { key: name, type: string, required: true }
                         do:
                           - set: { path: name, value: ${d}name }
+            constraints:
+              - id: item-name-long
+                match: [ { node: { entity: item, bind: it } } ]
+                check: [ { gte: [ { length: { of: it, path: name } }, 3 ] } ]
+                level: warning
+                responses:
+                  - { action: item.retitle, label: 名前を長くする, with: { name: "{id} の名前" } }
             actions:
               - id: add-item
                 label: 項目を追加する
@@ -142,6 +152,29 @@ class AppStateActionTest {
         val items = (listDoc.root as YNode.Map).entries["items"] as YNode.Seq
         assertEquals(1, items.items.size, "書き換えた文書は編集中の木が戻る（未保存の編集として残り、保存で書かれる）")
         assertTrue(listDoc.dirty, "戻した内容は未保存（●）になる")
+    }
+
+    @Test
+    fun `検査の指摘の対応から操作を始めると 受け手と値が先に入る`() {
+        val state = openState()
+        // IT-1 の名前「最初」は 2 文字 → 警告に、型の操作 retitle を起動する対応が付く
+        val issues = state.validateWorkspace().flatMap { it.second }
+        val run = issues.flatMap { it.responses }.filterIsInstance<CheckResponse.RunAction>().single()
+        assertEquals("item.retitle", run.action)
+        assertEquals("IT-1", run.target)
+        state.startAction(run.action, run.target, run.params)
+        val work = assertNotNull(state.actionWork)
+        assertEquals("IT-1", work.target)
+        assertEquals("IT-1 の名前", (work.values.entries["name"] as YNode.Scalar).value)
+        state.planAction()
+        assertNull(work.error, work.error)
+        val op = work.plan!!.changeSet.changes.single().ops.single() as PatchOp.Set
+        assertEquals(parseYPath("items[0].name"), op.path)
+        // 無い操作を指すと案内だけ
+        state.dismissAction()
+        state.startAction("no-such", null)
+        assertNull(state.actionWork)
+        assertTrue("見つかりません" in state.status)
     }
 
     @Test

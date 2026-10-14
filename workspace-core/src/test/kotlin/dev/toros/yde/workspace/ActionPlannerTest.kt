@@ -1,5 +1,6 @@
 package dev.toros.yde.workspace
 
+import dev.toros.yde.workspace.validate.CheckResponse
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.YNode
@@ -203,6 +204,23 @@ class ActionPlannerTest {
         val list = YamlIO.parseFirst(s.storedText(DocumentId("screen-list.yaml"))!!)!!
         assertEquals("SCR-010", scalarText(getAt(list, parseYPath("screens[2].id"))))
         assertEquals("SCR-010", scalarText(getAt(YamlIO.parseFirst(s.storedText(DocumentId("transitions.yaml"))!!)!!, parseYPath("transitions[1].to"))))
+    }
+
+    @Test
+    fun `検査の対応に action を書くと 指摘から操作を起動する対応になる`() {
+        val ws = WorkspaceReader.load(InMemoryDocumentStore(files()))
+        assertEquals(emptyList(), ws.schemaErrors)
+        // BR-002 はどこからも参照されていない → 警告に、受け手と渡す値（文面を埋めたもの）を持つ対応が付く
+        val issues = WorkspaceCheckRunner.validateAll(ws).getValue(DocumentId("rules.yaml")).issues
+        val run = issues.flatMap { it.responses }.filterIsInstance<CheckResponse.RunAction>().single()
+        assertEquals("deprecate-rule", run.action)
+        assertEquals("BR-002", run.target)
+        assertEquals("BR-002 を廃止にする", run.label)
+        assertEquals(mapOf("reason" to "BR-002 は参照されていない"), run.params)
+        // 無い操作を指す対応は、読み込みの誤り
+        val broken = files().also { it["_schemas/rule.yaml"] = it.getValue("_schemas/rule.yaml").replace("action: deprecate-rule", "action: no-such") }
+        val errors = WorkspaceReader.load(InMemoryDocumentStore(broken)).schemaErrors
+        assertTrue(errors.any { "操作「no-such」が見つかりません" in it }, errors.toString())
     }
 
     @Test

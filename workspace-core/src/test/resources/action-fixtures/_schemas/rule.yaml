@@ -2,6 +2,16 @@
 id: rule
 match: rules.yaml
 entity: { type: rule, idPattern: "BR-*", defines: true }
+constraints:
+  - id: rule-referenced
+    match:
+      - node: { entity: rule, bind: br }
+      - edge: { dir: in, relation: based-on }
+      - node: {}
+    expect: exists
+    level: warning
+    responses:
+      - { action: deprecate-rule, label: "{id} を廃止にする", with: { reason: "{id} は参照されていない" } }
 root:
   type: object
   fields:

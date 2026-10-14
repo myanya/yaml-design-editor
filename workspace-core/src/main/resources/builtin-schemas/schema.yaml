@@ -570,7 +570,7 @@ root:
           - key: responses
             label: エラー時の対応
             type: any
-            description: "対応の宣言の配列。{jump: left.source|right.source|left.inputs|right.inputs, label}（値の出どころへ移動。check と組み合わせる）・{jump: referenceSources, relation: 関係名, label}（起点の要素への参照を書き足せそうな文書を開く。候補ごとに1件。label に {file}）・{apply: left|right, label}（値を指摘の場所へ書き込む。値の場所の reportAt が必要）・{create: detailDocument, schemas: [スキーマID], label}（起点の ID の詳細文書を、そのスキーマの置き場所に作って開く。スキーマごとに1件。label に {schema}）。label には {left} {right} {left.raw} {right.raw}、inputs では {input.placeholder} {input.value} を書ける。note はメニューでラベルの下に添える補足"
+            description: "対応の宣言の配列。{jump: left.source|right.source|left.inputs|right.inputs, label}（値の出どころへ移動。check と組み合わせる）・{jump: referenceSources, relation: 関係名, label}（起点の要素への参照を書き足せそうな文書を開く。候補ごとに1件。label に {file}）・{apply: left|right, label}（値を指摘の場所へ書き込む。値の場所の reportAt が必要）・{create: detailDocument, schemas: [スキーマID], label}（起点の ID の詳細文書を、そのスキーマの置き場所に作って開く。スキーマごとに1件。label に {schema}）・{action: 操作の id か 型名.操作名, label, with: {受け取る値: 文面}}（起点の要素を受け手に操作を起動する。with の文面には {id} {束縛名.id} {left} などを書け、足りない値はカードで入力する）。label には {left} {right} {left.raw} {right.raw}、inputs では {input.placeholder} {input.value} を書ける。note はメニューでラベルの下に添える補足"
           - key: level
             label: 重大度
             type: enum

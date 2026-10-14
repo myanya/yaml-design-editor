@@ -10,6 +10,7 @@ import dev.toros.yde.semantic.schema.EntityTypeDef
 import dev.toros.yde.semantic.schema.ExpressionValue
 import dev.toros.yde.semantic.schema.ExpandedCheck
 import dev.toros.yde.semantic.schema.RelationDef
+import dev.toros.yde.semantic.schema.ResponseDecl
 import dev.toros.yde.semantic.schema.VocabularySource
 import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.YPath
@@ -293,6 +294,13 @@ object WorkspaceReader {
         // スキーマ置き場に書かれたスキーマ（組込みスキーマと、derive から導出されたスキーマを除く）の、定義の点検と、
         // 宣言のない関係名の点検（P27 段D の D-a で root から移した。意図的差分 D-33）
         errors += SchemaDefinitionChecks.loadErrors(parsed.schemas, parsed.declarations.relations)
+        // 検査の対応「操作を起動する」（responses の action）が指す操作は、ワークスペースのどこかに定義されていること（P41）
+        val knownActions = ActionPlanner.catalog(expanded).filter { it.kind != "create" }.map { it.name }.toSet()
+        for (schema in parsed.schemas) {
+            schema.constraints.flatMap { it.responses }.filter { it.kind == ResponseDecl.Kind.ACTION }
+                .map { it.target }.distinct().filter { it !in knownActions }
+                .forEach { errors += "${schema.source.value}: responses の操作「$it」が見つかりません（使える操作: ${knownActions.sorted().joinToString(", ").ifEmpty { "なし" }}）" }
+        }
         return SchemaLoadResult(expanded, parsed.declarations, errors, parsed.library)
     }
 
