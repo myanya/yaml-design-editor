@@ -172,27 +172,29 @@ private fun EntityPage(state: AppState, id: String) {
                     composite?.title?.let { Text(it, fontSize = 12.sp, color = Palette.SubText) }
                 }
                 TextButton(onClick = { state.openGraphLens(id) }) { Text("グラフで見る", fontSize = 11.sp) }
-                // 操作メニュー（R21-02 の rename / merge / delete を変更セットプレビュー経由で）
-                if (!state.readOnlyMode) {
+                // 操作メニュー: スキーマに定義した操作（型の操作と、この型を受け手にするアクション。architecture/actions.md）は閲覧専用でも出す。
+                // 組込みの改名・統合・削除（R21-02。変更セットプレビュー経由）は閲覧専用では隠す
+                val actions = remember(id, state.indexVersion) { state.actionsForEntity(id) }
+                if (!state.readOnlyMode || actions.isNotEmpty()) {
                     Box {
                         var menuOpen by remember { mutableStateOf(false) }
                         IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(30.dp)) {
                             Icon(Icons.Default.MoreVert, contentDescription = "操作", Modifier.size(16.dp))
                         }
-                        // スキーマに定義した操作（型の操作と、この型を受け手にするアクション。architecture/actions.md）
-                        val actions = remember(id, state.indexVersion) { state.actionsForEntity(id) }
                         DropdownMenu(menuOpen, { menuOpen = false }) {
                             actions.forEach { entry ->
                                 DropdownMenuItem(text = { Text(entry.label ?: entry.name, fontSize = 12.sp) },
                                     onClick = { menuOpen = false; state.startAction(entry, id) })
                             }
-                            if (actions.isNotEmpty()) HorizontalDivider()
-                            DropdownMenuItem(text = { Text("改名…", fontSize = 12.sp) },
-                                onClick = { menuOpen = false; opDialog = EntityOp.RENAME })
-                            DropdownMenuItem(text = { Text("別IDへ統合…", fontSize = 12.sp) },
-                                onClick = { menuOpen = false; opDialog = EntityOp.MERGE })
-                            DropdownMenuItem(text = { Text("削除…", fontSize = 12.sp) },
-                                onClick = { menuOpen = false; opDialog = EntityOp.DELETE })
+                            if (!state.readOnlyMode) {
+                                if (actions.isNotEmpty()) HorizontalDivider()
+                                DropdownMenuItem(text = { Text("改名…", fontSize = 12.sp) },
+                                    onClick = { menuOpen = false; opDialog = EntityOp.RENAME })
+                                DropdownMenuItem(text = { Text("別IDへ統合…", fontSize = 12.sp) },
+                                    onClick = { menuOpen = false; opDialog = EntityOp.MERGE })
+                                DropdownMenuItem(text = { Text("削除…", fontSize = 12.sp) },
+                                    onClick = { menuOpen = false; opDialog = EntityOp.DELETE })
+                            }
                         }
                     }
                 }

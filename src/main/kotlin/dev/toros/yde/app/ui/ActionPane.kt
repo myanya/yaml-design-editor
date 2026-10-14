@@ -2,6 +2,7 @@ package dev.toros.yde.app.ui
 
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -56,10 +57,12 @@ fun ActionTabContent(state: AppState, doc: OpenDocument?, rootId: String?, eleme
     Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(bottom = 12.dp)) {
         val work = state.actionWork
         if (work != null) WorkInProgress(state, work)
-        if (state.readOnlyMode) {
-            Text("閲覧専用モードでは操作を使えません（ツールバーで解除してください）", Modifier.padding(12.dp), fontSize = 12.sp, color = Palette.SubText)
-            return@Column
-        }
+        // 編集と操作の線引き（architecture/actions.md「規律」）。閲覧専用が封じるのは編集で、操作はここから使える
+        Text(
+            if (state.readOnlyMode) "閲覧専用モードでも操作は使えます（確認してから書いて保存。フォームの編集はできません）"
+            else "操作は確認してから書いて保存します。フォームの追加・削除は編集（未保存）です",
+            Modifier.padding(horizontal = 12.dp, vertical = 8.dp), fontSize = 11.sp, color = Palette.SubText,
+        )
         state.indexVersion
         val forDocument = remember(doc, state.indexVersion) { doc?.let { state.actionsForDocument(it.file) }.orEmpty() }
         val forEntity = remember(rootId, state.indexVersion) { rootId?.let { state.actionsForEntity(it) }.orEmpty() }
@@ -112,6 +115,15 @@ private fun WorkInProgress(state: AppState, work: AppState.ActionWork) {
             TextButton(onClick = { state.dismissAction() }) { Text(if (work.applied != null) "閉じる" else "やめる", fontSize = 12.sp) }
         }
     }
+}
+
+/** 札（編集／操作）。エンティティページの型の札と同じ見た目。 */
+@Composable
+private fun Tag(text: String) {
+    Text(
+        text, fontSize = 10.sp, color = Palette.Primary,
+        modifier = Modifier.border(1.dp, Palette.Primary, PanelShape).padding(horizontal = 6.dp, vertical = 1.dp),
+    )
 }
 
 @Composable
@@ -170,8 +182,22 @@ fun ActionPanelHost(state: AppState) {
         modifier = Modifier.widthIn(min = 680.dp, max = 1040.dp),
         title = {
             Column {
-                Text(work.title)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(work.title)
+                    Spacer(Modifier.width(8.dp))
+                    // 札: 編集（この文書の木を変える。未保存）か 操作（確認してから書いて保存）か
+                    Tag(if (insertInto != null) "編集" else "操作")
+                }
                 work.entry.description?.let { Text(it, fontSize = 11.sp, color = Palette.SubText) }
+                val readOnlyNote = state.readOnlyMode && insertInto == null
+                Text(
+                    when {
+                        insertInto != null -> "この文書の編集です。保存はしません（Ctrl+Z で戻せます）"
+                        readOnlyNote -> "閲覧専用モードです。操作は確認のうえ書いて保存します"
+                        else -> "確認してから書いて保存します"
+                    },
+                    fontSize = 11.sp, color = if (readOnlyNote) Palette.WarnOrange else Palette.SubText,
+                )
             }
         },
         text = {
@@ -180,10 +206,22 @@ fun ActionPanelHost(state: AppState) {
                 Column(Modifier.fillMaxWidth().verticalScroll(scroll).padding(end = 10.dp)) {
                     val type = work.entry.entityType
                     when {
-                        insertInto != null -> Text(
-                            "${state.relPath(insertInto.doc.file)} の ${insertInto.arrayDef.displayLabel} へ、未保存の編集として足します（Ctrl+Z で戻せます）",
-                            fontSize = 11.sp, color = Palette.SubText,
-                        )
+                        insertInto != null -> if (insertInto.alternatives.isNotEmpty()) {
+                            // 橋渡し: この配列へ足すアクション（複数の文書をまとめて変える）があれば案内し、値を持ち越して切り替えられる
+                            Column(Modifier.fillMaxWidth().background(Palette.Selected, PanelShape).padding(8.dp)) {
+                                Text("まとめて足す操作があります（確認してから書いて保存）", fontSize = 11.sp, color = Palette.SubText)
+                                insertInto.alternatives.forEach { alt ->
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text(alt.label ?: alt.name, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                            alt.description?.let { Text(it, fontSize = 11.sp, color = Palette.SubText) }
+                                        }
+                                        TextButton(onClick = { state.switchInsertToAction(alt) }) { Text("操作に切り替える", fontSize = 12.sp) }
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.height(6.dp))
+                        }
                         type != null -> TargetPicker(state, work, type, enabled = !done)
                         else -> work.target?.let { Text("受け手: $it", fontSize = 11.sp, color = Palette.SubText) }
                     }
@@ -240,7 +278,7 @@ fun ActionPanelHost(state: AppState) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 when {
                     done -> Unit
-                    insertInto != null -> Button(onClick = { state.applyInsert().onFailure { work.error = it.message ?: "追加できません" } }) { Text("追加") }
+                    insertInto != null -> Button(onClick = { state.applyInsert().onFailure { work.error = it.message ?: "追加できません" } }) { Text("行を追加") }
                     else -> {
                         val canApply = plan != null && preview != null && !plan.isEmpty
                         if (canApply && errors > 0) {

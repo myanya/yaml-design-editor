@@ -539,15 +539,13 @@ private fun CommandPalette(
                 CommandItem("台帳: グラフレンズを表示") { state.openGraphLens(); onDismiss() }
                 CommandItem("台帳: エンティティページを表示") { state.openCrossView(); onDismiss() }
                 CommandItem("台帳: 準備完了レポートを表示") { state.showWorkspaceView(6); onDismiss() }
-                // 操作（architecture/actions.md）: 受け手の無いアクションと、開いている文書を受け手にするアクション（閲覧専用では出さない）
-                if (!state.readOnlyMode) {
-                    state.actionsForWorkspace().forEach { e ->
-                        CommandItem("操作: ${e.label ?: e.name}") { state.startAction(e, null); onDismiss() }
-                    }
-                    state.openDoc?.let { d ->
-                        state.actionsForDocument(d.file).forEach { e ->
-                            CommandItem("操作: ${e.label ?: e.name}（${state.relPath(d.file)}）") { state.startAction(e, state.relPath(d.file)); onDismiss() }
-                        }
+                // 操作（architecture/actions.md）: 受け手の無いアクションと、開いている文書を受け手にするアクション（閲覧専用でも出す）
+                state.actionsForWorkspace().forEach { e ->
+                    CommandItem("操作: ${e.label ?: e.name}") { state.startAction(e, null); onDismiss() }
+                }
+                state.openDoc?.let { d ->
+                    state.actionsForDocument(d.file).forEach { e ->
+                        CommandItem("操作: ${e.label ?: e.name}（${state.relPath(d.file)}）") { state.startAction(e, state.relPath(d.file)); onDismiss() }
                     }
                 }
                 CommandItem("実行スペースを表示（受信箱）") { onShowRuns(); onDismiss() }
@@ -722,9 +720,9 @@ fun EditorArea(state: AppState) {
                 )
                 Spacer(Modifier.width(6.dp))
             }
-            // この文書を受け手にする操作（スキーマの actions で target: {schema}。architecture/actions.md）
+            // この文書を受け手にする操作（スキーマの actions で target: {schema}。architecture/actions.md）。閲覧専用でも出す
             val docActions = remember(doc, state.indexVersion) { state.actionsForDocument(doc.file) }
-            if (docActions.isNotEmpty() && !state.readOnlyMode) {
+            if (docActions.isNotEmpty()) {
                 Box {
                     var actionsOpen by remember { mutableStateOf(false) }
                     OutlinedButton(onClick = { actionsOpen = true }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)) {

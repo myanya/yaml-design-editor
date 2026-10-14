@@ -270,6 +270,14 @@ class ActionPlannerTest {
     }
 
     @Test
+    fun `配列へ足すアクションは 文書のスキーマと配列のパスで引ける`() {
+        val s = session()
+        assertEquals(listOf("add-screen", "add-numbered"), ActionPlanner.insertingInto(s.schemas, "screen-list", parseYPath("screens")).map { it.name })
+        assertEquals(listOf("add-screen"), ActionPlanner.insertingInto(s.schemas, "transitions", parseYPath("transitions")).map { it.name })
+        assertEquals(emptyList(), ActionPlanner.insertingInto(s.schemas, "screen-list", parseYPath("phases")))
+    }
+
+    @Test
     fun `定義の誤りは読み込みで分かる`() {
         fun errorsOf(schema: String): List<String> = WorkspaceSession(InMemoryDocumentStore(mapOf("_schemas/x.yaml" to schema))).schemaErrors
         // 型の操作に of / in は書けない

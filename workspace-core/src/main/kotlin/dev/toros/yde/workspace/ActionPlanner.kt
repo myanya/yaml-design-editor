@@ -154,6 +154,31 @@ object ActionPlanner {
         return (actions + methods).distinctBy { it.name }
     }
 
+    /**
+     * 配列へ足すアクション（フォームの追加ボタン・新規行からの橋渡し＝「操作に切り替える」が使う）: 手のどこかに、そのスキーマの文書の
+     * その配列への insert があるアクション。`in` でその文書を指す手と、受け手がその文書（target.schema）で `of` / `in` の無い手を数え、
+     * each の中も見る。
+     */
+    fun insertingInto(schemas: List<WorkspaceSchema>, schemaId: String, arrayPath: YPath): List<ActionEntry> {
+        fun hits(steps: List<ActionStep>, receiverSchema: String?): Boolean = steps.any { step ->
+            when (step) {
+                is ActionStep.Insert -> step.site.path == arrayPath && (
+                    step.site.inDoc?.schemaId == schemaId ||
+                        (step.site.of == null && step.site.inDoc == null && receiverSchema == schemaId)
+                    )
+                is ActionStep.EachMatch -> hits(step.steps, receiverSchema)
+                is ActionStep.EachPath -> hits(step.steps, receiverSchema)
+                else -> false
+            }
+        }
+        return schemas.flatMap { s ->
+            s.actions.filter { a -> hits(a.steps, a.target?.schema) }.map { a ->
+                val target = a.target?.let { t -> t.entity?.let { "entity: $it" } ?: "schema: ${t.schema}" }
+                ActionEntry(a.id, "action", a.label, a.description, target, a.params, s.id)
+            }
+        }
+    }
+
     /** 文書に使える操作（文書ヘッダのメニューが使う）: その文書のスキーマを受け手にするアクション。 */
     fun forDocument(session: WorkspaceSession, rel: String): List<ActionEntry> {
         val sid = session.snapshot.documents[DocumentId(rel.replace('\\', '/'))]?.schemaId ?: return emptyList()

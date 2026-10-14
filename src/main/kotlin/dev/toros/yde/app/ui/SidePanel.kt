@@ -575,13 +575,14 @@ private fun IssueRow(state: AppState, file: Path, issue: Issue) {
                                 onClick = { menuOpen = false; applyDerivedValue(state, state.ensureDoc(file), issue, response.value) },
                             )
                         }
-                        // 操作を起動する（architecture/actions.md）: 受け手は起点の要素。渡す値はカードに先に入り、確認 → 適用は利用者が行う
-                        is CheckResponse.RunAction -> if (!state.readOnlyMode) {
+                        // 操作を起動する（architecture/actions.md）: 受け手は起点の要素。渡す値はパネルに先に入り、確認 → 適用は利用者が行う。
+                        // 閲覧専用でも出す（操作は編集ではない）
+                        is CheckResponse.RunAction -> {
                             DropdownMenuItem(
                                 text = {
                                     Column {
                                         Text(response.label, fontSize = 12.sp, color = Palette.Primary)
-                                        Text(response.note ?: "操作のカードを開きます（確認 → 適用）", fontSize = 10.sp, color = Palette.SubText)
+                                        Text(response.note ?: "操作のパネルを開きます（確認 → 適用）", fontSize = 10.sp, color = Palette.SubText)
                                     }
                                 },
                                 onClick = { menuOpen = false; state.startAction(response.action, response.target, response.params) },

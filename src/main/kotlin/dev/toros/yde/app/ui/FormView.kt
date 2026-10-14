@@ -1488,8 +1488,9 @@ private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) 
                         onClick = { node.items.removeAt(i); ctx.markEdited() },
                         modifier = Modifier.size(32.dp).padding(top = 8.dp),
                     ) { Icon(Icons.Default.Delete, contentDescription = "削除", Modifier.size(16.dp), tint = Palette.SubText) }
-                    ElementOpsButton(ctx, path + i, Modifier.padding(top = 8.dp))
                     }
+                    // 操作メニューは閲覧専用でも出す（操作は編集ではない。architecture/actions.md）
+                    ElementOpsButton(ctx, path + i, Modifier.padding(top = if (ctx.readOnly) 0.dp else 8.dp))
                 }
             }
         }
@@ -1533,6 +1534,7 @@ private fun tableCellWidth(column: FieldDef): Dp = when {
 
 private val TABLE_EXPAND_WIDTH = 28.dp
 private val TABLE_OPS_WIDTH = 120.dp       // 配列の行操作（取っ手・上へ・下へ・削除・操作メニュー）
+private val TABLE_MENU_WIDTH = 28.dp       // 閲覧専用のときの行の操作メニュー（⋯）だけの列
 
 /** 配列の要素を from から to へ動かす（ドラッグの並べ替え。木の変異だけで、markEdited は呼び出し側）。 */
 internal fun moveSeqItem(node: YNode.Seq, from: Int, to: Int) {
@@ -1579,12 +1581,13 @@ private fun ObjectTable(
     opsWidth: Dp = 0.dp,                 // 編集モードの行操作列の幅（ops とセットで指定）
     ops: (@Composable (Int) -> Unit)? = null,
     onMove: ((from: Int, to: Int) -> Unit)? = null,   // 非 null なら行をドラッグで並べ替えられる（配列）
+    rowMenu: (@Composable (Int) -> Unit)? = null,     // 行の操作メニュー（⋯）。閲覧専用でも出す（操作は編集ではない）
 ) {
     val hScroll = rememberScrollState()
     // 利用可能幅を測り、余白は文字系の列へ配って表を右端まで使う
     BoxWithConstraints(Modifier.fillMaxWidth()) {
     val keyWidth = if (keyHeader != null) TABLE_KEY_WIDTH else 0.dp
-    val trailing = if (ctx.readOnly || ops == null) 0.dp else opsWidth
+    val trailing = if (!ctx.readOnly && ops != null) opsWidth else if (rowMenu != null) TABLE_MENU_WIDTH else 0.dp
     val fixed = TABLE_EXPAND_WIDTH + keyWidth + trailing
     val widths = tableColumnWidths(columns, maxWidth, fixed)
     val rowWidth = fixed + widths.fold(0.dp) { acc, w -> acc + w }
@@ -1643,7 +1646,10 @@ private fun ObjectTable(
                                 Row(Modifier.width(opsWidth).padding(top = 7.dp), verticalAlignment = Alignment.CenterVertically) {
                                     if (onMove != null) Handle(Modifier.padding(end = 2.dp))
                                     ops(i)
+                                    rowMenu?.invoke(i)
                                 }
+                            } else if (rowMenu != null) {
+                                Box(Modifier.width(TABLE_MENU_WIDTH)) { rowMenu(i) }
                             }
                         }
                         if (rowExpanded) {
@@ -1696,8 +1702,7 @@ private fun ArrayTable(ctx: FormCtx, field: FieldDef, columns: List<FieldDef>, n
             onClick = { node.items.removeAt(i); ctx.markEdited() },
             modifier = Modifier.size(24.dp),
         ) { Icon(Icons.Default.Delete, contentDescription = "削除", Modifier.size(14.dp), tint = Palette.SubText) }
-        ElementOpsButton(ctx, path + i)
-    })
+    }, rowMenu = { i -> ElementOpsButton(ctx, path + i) })
 }
 
 /**

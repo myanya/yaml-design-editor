@@ -39,6 +39,16 @@ class AppStateActionTest {
               fields:
                 - { key: phase, type: enum, values: [draft, fixed], default: draft }
                 - { key: tags, type: array, item: { type: string } }
+                - key: notes
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: text, type: string, required: true }
+                    methods:
+                      create:
+                        params:
+                          - { key: text, type: string, required: true }
                 - key: items
                   type: array
                   required: true
@@ -81,6 +91,12 @@ class AppStateActionTest {
                 target: { schema: item-list }
                 do:
                   - set: { path: phase, value: fixed }
+              - id: add-note
+                label: メモを足す
+                params:
+                  - { key: text, type: string, required: true }
+                do:
+                  - insert: { in: { schemaId: item-list }, path: notes, params: { text: ${d}text } }
         """)
         write("_schemas/item-detail.yaml", """
             id: item-detail
@@ -115,7 +131,7 @@ class AppStateActionTest {
     @Test
     fun `受け手ごとに使える操作が並び 始めるとパネルが開く`() {
         val state = openState()
-        assertEquals(listOf("add-item"), state.actionsForWorkspace().map { it.name })
+        assertEquals(listOf("add-item", "add-note"), state.actionsForWorkspace().map { it.name })
         assertEquals(listOf("fix"), state.actionsForDocument(dir.resolve("list.yaml")).map { it.name })
         assertEquals(listOf("item.retitle"), state.actionsForEntity("IT-1").map { it.name })
         // 台帳の「要素の操作」は型で引く（受け手はあとで選ぶ）
@@ -165,7 +181,7 @@ class AppStateActionTest {
     @Test
     fun `計画して適用すると書いて保存され Undo 1 回で作った文書ごと戻る`() {
         val state = openState()
-        state.startAction(state.actionsForWorkspace().single(), null)
+        state.startAction(state.actionsForWorkspace().first { it.name == "add-item" }, null)
         val work = assertNotNull(state.actionWork)
         work.values.entries["id"] = YNode.Scalar("IT-2")
         work.values.entries["name"] = YNode.Scalar("次の項目")
@@ -236,9 +252,60 @@ class AppStateActionTest {
     }
 
     @Test
+    fun `閲覧専用でも操作は使え 適用は保存まで行い 取り消しとやり直しも保存まで戻す`() {
+        val state = openState()
+        state.readOnlyMode = true
+        val doc = state.ensureDoc(dir.resolve("list.yaml"))
+        // 編集（配列の追加）は閲覧専用では拒む
+        val refused = state.addArrayElement(doc, parseYPath("items"), doc.schema!!.root.fields.first { it.key == "items" })
+        assertTrue(refused.isFailure)
+        assertTrue("閲覧専用" in refused.exceptionOrNull()!!.message!!, refused.exceptionOrNull()!!.message)
+        // 操作は始められ、適用は書いて保存まで
+        state.startAction(state.actionsForWorkspace().first { it.name == "add-item" }, null)
+        val work = assertNotNull(state.actionWork)
+        work.values.entries["id"] = YNode.Scalar("IT-2")
+        work.values.entries["name"] = YNode.Scalar("閲覧専用から")
+        state.planAction()
+        assertNull(work.error, work.error)
+        state.applyAction().getOrThrow()
+        assertTrue("IT-2" in Files.readString(dir.resolve("list.yaml")))
+        assertFalse(state.hasDirtyDocs())
+        // 取り消しも保存まで（閲覧専用では未保存の編集を残さない）
+        state.undo()
+        assertFalse("IT-2" in Files.readString(dir.resolve("list.yaml")), "戻した内容がディスクに書かれる")
+        assertFalse(Files.exists(dir.resolve("details/IT-2.yaml")))
+        assertFalse(state.hasDirtyDocs(), "閲覧専用では未保存の編集を残さない")
+        state.redo()
+        assertTrue("IT-2" in Files.readString(dir.resolve("list.yaml")), "やり直しも保存まで")
+        assertTrue(Files.exists(dir.resolve("details/IT-2.yaml")))
+        assertFalse(state.hasDirtyDocs())
+    }
+
+    @Test
+    fun `追加の作業から その配列へ足すアクションへ値を持ち越して切り替えられる`() {
+        val state = openState()
+        val doc = state.ensureDoc(dir.resolve("list.yaml"))
+        val notesField = doc.schema!!.root.fields.first { it.key == "notes" }
+        assertNull(state.addArrayElement(doc, parseYPath("notes"), notesField).getOrThrow(), "create に受け取る値があるのでパネル")
+        val work = assertNotNull(state.actionWork)
+        assertTrue(work.title.endsWith("に行を追加"), "追加のパネルは編集（行を追加）の題名: ${work.title}")
+        val into = assertNotNull(work.insertInto)
+        assertEquals(listOf("add-note"), into.alternatives.map { it.name }, "notes へ足すアクションが橋渡しの候補になる")
+        work.values.entries["text"] = YNode.Scalar("持ち越す値")
+        state.switchInsertToAction(into.alternatives.single())
+        val next = assertNotNull(state.actionWork)
+        assertEquals("add-note", next.entry.name)
+        assertNull(next.insertInto)
+        assertEquals("持ち越す値", (next.values.entries["text"] as YNode.Scalar).value)
+        state.planAction()
+        assertNull(next.error, next.error)
+        assertEquals(listOf("list.yaml"), next.plan!!.changeSet.changes.map { it.file })
+    }
+
+    @Test
     fun `前提に反する計画は誤りになり 未保存の編集がある対象には適用しない`() {
         val state = openState()
-        state.startAction(state.actionsForWorkspace().single(), null)
+        state.startAction(state.actionsForWorkspace().first { it.name == "add-item" }, null)
         val work = assertNotNull(state.actionWork)
         work.values.entries["id"] = YNode.Scalar("IT-1")
         work.values.entries["name"] = YNode.Scalar("重複")

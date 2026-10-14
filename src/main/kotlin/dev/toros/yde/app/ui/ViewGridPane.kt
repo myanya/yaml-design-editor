@@ -337,10 +337,9 @@ private fun IdCell(state: AppState, row: ViewRow) {
                 IconButton(onClick = { state.openCrossView(row.id) }, modifier = Modifier.size(22.dp)) {
                     Icon(Icons.Default.Hub, contentDescription = "横ぐしビューで表示", Modifier.size(13.dp), tint = Palette.SubText)
                 }
-                // 行の操作メニュー（⋯）: この要素に使える操作（型の操作と、その型を受け手にするアクション）。選ぶと対象の入ったパネルが開く
-                val actions = remember(row.id, state.indexVersion, state.readOnlyMode) {
-                    if (state.readOnlyMode) emptyList() else state.actionsForEntity(row.id)
-                }
+                // 行の操作メニュー（⋯）: この要素に使える操作（型の操作と、その型を受け手にするアクション）。選ぶと対象の入ったパネルが開く。
+                // 閲覧専用でも出す（操作は編集ではない）
+                val actions = remember(row.id, state.indexVersion) { state.actionsForEntity(row.id) }
                 if (actions.isNotEmpty()) {
                     var open by remember { mutableStateOf(false) }
                     Box {

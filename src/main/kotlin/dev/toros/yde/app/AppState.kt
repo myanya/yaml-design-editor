@@ -557,8 +557,14 @@ class AppState {
         }
     }
 
-    /** 配列への追加の作業の受け手（配列エディタの追加ボタン・ビューの新規行から。要素の型の create に受け取る値があるとき）。 */
-    class InsertTarget(val doc: OpenDocument, val arrayPath: YPath, val arrayDef: FieldDef)
+    /**
+     * 配列への追加の作業の受け手（配列エディタの追加ボタン・ビューの新規行から。要素の型の create に受け取る値があるとき）。
+     * alternatives はその配列へ足すアクション（橋渡し。パネルの「操作に切り替える」）。
+     */
+    class InsertTarget(val doc: OpenDocument, val arrayPath: YPath, val arrayDef: FieldDef, val alternatives: List<ActionEntry> = emptyList())
+
+    /** 操作の適用で積んだ履歴の id（閲覧専用のときの取り消し・やり直しは、これらだけ保存まで行う）。 */
+    private val actionRecordIds = mutableSetOf<Long>()
 
     var actionWork by mutableStateOf<ActionWork?>(null)
 
@@ -600,8 +606,10 @@ class AppState {
         val itemDef = arrayDef.item?.let { schema?.resolve(it) ?: it }
         val create = itemDef?.methods?.firstOrNull { it.isCreate }
         if (create != null && create.params.isNotEmpty() && !readOnlyMode) {
-            val entry = ActionEntry("insert", "insert", "${arrayDef.displayLabel} へ追加", create.description, null, create.params, schema?.id ?: "")
-            newActionWork(entry, null, InsertTarget(doc, arrayPath, arrayDef))
+            val entry = ActionEntry("insert", "insert", "${arrayDef.displayLabel} に行を追加", create.description, null, create.params, schema?.id ?: "")
+            // 橋渡し: この配列へ足すアクションがあれば、パネルで「操作に切り替える」を案内する
+            val alternatives = coreWs?.let { cw -> schema?.id?.let { sid -> ActionPlanner.insertingInto(cw.mirror.schemas, sid, arrayPath) } }.orEmpty()
+            newActionWork(entry, null, InsertTarget(doc, arrayPath, arrayDef, alternatives))
             return@runCatching null
         }
         insertArrayElement(doc, arrayPath, arrayDef, emptyMap())
@@ -663,13 +671,24 @@ class AppState {
     /** 受け手の無い操作（コマンドパレット）。 */
     fun actionsForWorkspace(): List<ActionEntry> = coreWs?.let { ActionPlanner.forWorkspace(it.mirror.schemas) }.orEmpty()
 
-    /** 操作を始める: 対象と受け取る値を入れるパネルを出す。target は受け手（要素の ID か文書の相対パス。null ならパネルで選ぶ）。 */
+    /**
+     * 操作を始める: 対象と受け取る値を入れるパネルを出す。target は受け手（要素の ID か文書の相対パス。null ならパネルで選ぶ）。
+     * 閲覧専用モードでも使える（閲覧専用が封じるのは編集＝未保存の木の変更。操作は確認してから書いて保存する）。
+     */
     fun startAction(entry: ActionEntry, target: String?) {
-        if (readOnlyMode) {
-            status = "閲覧専用モードでは操作を使えません（ツールバーで解除してください）"
-            return
-        }
         newActionWork(entry, target)
+    }
+
+    /** 追加の作業から、その配列へ足すアクションへ切り替える（橋渡し）。同じキーの値は持ち越し、受け手が文書ならその文書にする。 */
+    fun switchInsertToAction(entry: ActionEntry) {
+        val work = actionWork ?: return
+        val into = work.insertInto ?: return
+        val carried = actionParams(work)
+        val target = entry.documentSchema?.let { relPath(into.doc.file) }
+        startAction(entry, target)
+        val next = actionWork?.takeIf { it.entry === entry } ?: return
+        carried.forEach { (k, v) -> if (next.entry.params.any { it.key == k }) next.values.entries[k] = YamlIO.fromAny(v) }
+        next.form.version++
     }
 
     /**
@@ -746,6 +765,7 @@ class AppState {
             )
         }
         refreshAfterSessionWrite(plan.changeSet.changes.map { DocumentId(it.file) })
+        s.peekUndo()?.let { actionRecordIds += it.id }
         val message = "${work.title} を適用して保存しました（${plan.changeSet.changes.size} ファイル。Ctrl+Z で 1 回で戻せます）"
         work.applied = message
         status = message
@@ -1382,8 +1402,10 @@ class AppState {
             .flatMap(::operationIds)
             .toSet()
         val s = session
-        if (s != null && fileLevel.isNotEmpty()) {
-            val saved = s.save(fileLevel)
+        // 閲覧専用のときの操作の取り消し・やり直しは、戻した内容を保存まで行う（未保存の編集を残さない。architecture/actions.md）
+        val writeThrough = readOnlyMode && record.id in actionRecordIds
+        if (s != null && (fileLevel.isNotEmpty() || writeThrough)) {
+            val saved = s.save(if (writeThrough) ids.toSet() else fileLevel)
             if (!saved.ok) status = "ファイルの反映に失敗しました: ${saved.failures.entries.first().let { "${it.key.value}: ${it.value}" }}"
             refreshAfterSessionWrite(ids)
         } else {

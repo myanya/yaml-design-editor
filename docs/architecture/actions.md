@@ -17,7 +17,8 @@
 | `ActionPlanner` / `ActionRequest` / `ActionPlan` / `ActionEntry` / `ActionFailure` | workspace-core/workspace/ActionPlanner.kt | 計画器（手を順に当てて変更セットを作る）と、使える操作の一覧（`catalog`・受け手ごとの `forEntity` / `forEntityType` / `forDocument` / `forWorkspace`。`ActionEntry.entityType` / `documentSchema` が受け手の種類） |
 | `WorkspaceSchema.actions` | workspace-core/workspace/WorkspaceReader.kt・SchemaDocuments.kt | スキーマ文書の `actions:` の読み込み |
 | CLI `action` | core/Cli.kt | 一覧・計画・適用（`--apply`・`--allow-errors`） |
-| `AppState.ActionWork` / `startAction` / `planAction` / `applyAction` / `actionsForEntity` / `actionsForEntityType` / `entityCandidates` ほか | app/AppState.kt | 画面からの操作の作業（対象の欄の木 `targetHolder`・受け取る値の仮の文書・計画・ドライラン・結果）とパネルの開閉（`actionPanelOpen`）。入口はどれも `startAction` を呼ぶ |
+| `AppState.ActionWork` / `startAction` / `planAction` / `applyAction` / `switchInsertToAction` ほか | app/AppState.kt | 画面からの操作の作業（対象の欄の木 `targetHolder`・受け取る値の仮の文書・計画・結果・パネルの開閉 `actionPanelOpen`・追加の作業からアクションへの橋渡し。入口はどれも `startAction`） |
+| `ActionPlanner.insertingInto` | workspace-core/workspace/ActionPlanner.kt | その文書のその配列へ足すアクション（手の insert の `in` と `path`、受け手の文書）。追加のパネルの「操作に切り替える」の候補 |
 | `ActionTabContent` / `ActionPanelHost` / `TargetPicker` | ui/ActionPane.kt | 右ペインの「操作」タブ（使える操作の一覧と作業中の開き直し）と、浮いたパネル（対象の欄・受け取る値のフォーム・要約・検証・差分・適用） |
 | `ElementOpsButton`（ui/FormView.kt）・`IdCell` の ⋯（ui/ViewGridPane.kt） | ui/ | フォームの配列の行とビューグリッドの行の操作メニュー（その要素を対象にして `startAction`） |
 
@@ -37,6 +38,8 @@
 - 右ペインの「操作」タブの一覧は、受け手に固定できる文書（ルートに ID）なら「その ID の操作」、台帳（要素が並ぶ文書）なら走査した ID の型ごとに「要素の操作」（`forEntityType`。対象はパネルで選ぶ）。文書の先頭の ID を受け手にしない。
 - 「確認」＝`planAction`（対象が無ければ案内して止まる → 計画と、ドライランの検証）→ 差分（`Staging` の適用後の文面）→「適用」＝`applyAction`（`applyViaSession`＝書いて保存まで。Undo 1 回で全部戻る）。検証エラーが残れば書かず、チェックで許す。対象に未保存の編集があれば拒む。
 - パネルは外側のクリックで閉じず、Esc と「いったん隠す」は `actionPanelOpen = false`（作業は残り、「操作」タブの「作業中」から `showActionPanel`）。「やめる」＝`dismissAction` で捨てる。
+- **編集と操作の札**: パネルの題名の脇に「編集」（追加の作業＝`insertInto`。この文書の木を変える。未保存）か「操作」（確認してから書いて保存）の札と副題を出す。追加の作業では、その配列へ足すアクション（`ActionPlanner.insertingInto`）があれば「まとめて足す操作があります」と案内し、`switchInsertToAction` が同じキーの値を持ち越してアクションの作業に変える。
+- **閲覧専用**: 閲覧専用が封じるのは編集（`FormCtx.readOnly`・`addArrayElement`）で、操作の入口（操作メニュー・行の ⋯・ヘッダ・パレット・検査の指摘・「操作」タブ）は閲覧専用でも出す。組込みの改名・統合・削除は閲覧専用では隠す。閲覧専用で適用した操作の取り消し・やり直しは `afterHistoryStep` が保存まで行う（`actionRecordIds`＝操作の適用で積んだ履歴の id。未保存の編集を残さない）。
 - **エージェント**: アクティビティの `actions` で許可した操作が `AgentToolbox` のツールになる（`action_` ＋名前。引数は受け取る値の定義から、受け手は `target`）。実行はステージングを重ねたセッションの上で `ActionPlanner.plan` を呼び、変更セットを `Staging` へ積む（原本は提出と承認まで変わらない）。前提に合わなければ理由を返す。`allowedFiles` / `allowedPaths` は見ない（[agents.md](agents.md)）。
 - **作成経路の寄せ**: 配列エディタの追加ボタンとビューの新規行（配列モード）は `AppState.addArrayElement` → `ActionPlanner.newElement`（型の `create` ＋ 配列の `insert` の決まり）で要素を作る。要素の型の `create` に受け取る値があれば同じパネル（`ActionWork.insertInto`）で入力し、「追加」で未保存の編集として足す（計画と保存はしない）。
 - 受け取る値が無ければその場で足す（採番つき。空の要素どうしは同じ明細と見ない）。文書の作成（`DocumentScaffolds.contents`）はルートの型の `create` の `build` を ID と表示名で重ねる。skill の取り込みとエージェントの `create_document` は寄せていない。
@@ -56,6 +59,7 @@
 - `methods` は解決した項目（`schema.resolve` / `fieldAt`）から読む。生の `FieldDef` から読むと型の引き継ぎが抜ける。
 - 画面の入口は `AppState.startAction` を呼ぶだけで、計画や適用の規則を入口に書かない。受け手を知らない入口は対象を空で渡し、パネルの対象の欄に任せる（文書の先頭の ID を受け手に見立てない）。作業の状態（対象・受け取る値・計画・結果・パネルの開閉）は `AppState.actionWork` / `actionPanelOpen` に置き、`remember` に置かない。
 - 受け取る値の仮の文書はどこにも保存せず、セッションに載せない（編集の記録先が無い）。dirty や履歴に現れない。
+- 編集と操作を混ぜない。編集（フォームの追加・削除・追加のパネル）は未保存で閲覧専用では封じる。操作は確認してから書いて保存し、閲覧専用でも通す。パネルの「編集」「操作」の札とボタンの語（「行を追加」／「適用（書いて保存）」）でその違いを見せる。
 
 ## 拡張ポイント
 
