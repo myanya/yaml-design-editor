@@ -51,16 +51,6 @@ class SourceHighlightTest {
     }
 
     @Test
-    fun `replace first and replace all ignore case`() {
-        assertEquals("Xbc abc", replaceFirstIgnoreCase("abc abc", "ABC", "Xbc")?.substring(0, 7))
-        assertNull(replaceFirstIgnoreCase("abc", "zzz", "x"))
-        val (replaced, count) = replaceAllIgnoreCase("foo FOO foo", "foo", "bar")
-        assertEquals("bar bar bar", replaced)
-        assertEquals(3, count)
-        assertEquals("abc" to 0, replaceAllIgnoreCase("abc", "", "x"))
-    }
-
-    @Test
     fun `char diff ranges isolate the changed middle`() {
         val (left, right) = charDiffRanges("status: open", "status: closed")
         assertEquals("open", "status: open".substring(left.first, left.last + 1))

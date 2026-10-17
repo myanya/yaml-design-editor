@@ -131,20 +131,3 @@ internal fun findCommentStart(line: String): Int {
     return -1
 }
 
-// ---------------------------------------------------------------- 置換（R8-04）
-
-/** 大文字小文字を無視して最初の一致を置換する。一致がなければ null。 */
-internal fun replaceFirstIgnoreCase(text: String, search: String, replacement: String): String? {
-    if (search.isEmpty()) return null
-    val index = text.indexOf(search, ignoreCase = true)
-    if (index < 0) return null
-    return text.substring(0, index) + replacement + text.substring(index + search.length)
-}
-
-/** 大文字小文字を無視して全一致を置換する。置換後テキストと件数を返す。 */
-internal fun replaceAllIgnoreCase(text: String, search: String, replacement: String): Pair<String, Int> {
-    if (search.isEmpty()) return text to 0
-    val regex = Regex(Regex.escape(search), RegexOption.IGNORE_CASE)
-    val count = regex.findAll(text).count()
-    return regex.replace(text, Regex.escapeReplacement(replacement)) to count
-}

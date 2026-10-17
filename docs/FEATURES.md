@@ -49,6 +49,7 @@
 | E-12 | 閲覧専用モード（`FormCtx.readOnly`・入力欄はテキスト表示・書込は拒否・横ぐしとグリッドへ波及） | `ui/FormView.kt`（`FormCtx`）, `app/AppState.readOnlyMode` | 単体 `ReadOnlyTest` | [ui](architecture/ui.md) |
 | E-13 | 配列と map のテーブル表示（適否の自動判定と `display: table / list`・セル編集・展開フォーム・列幅・参照セルは ID と参照先の名前と横ぐしへの Hub） | `ui/FormView.kt`（`ObjectTable`・`RefCell`）, `schema/Display.kt`（`tableColumns`） | 単体 `DisplayTest`, `ArrayTableTest`, `RefTargetTitleTest` | [ui](architecture/ui.md) |
 | E-14 | 保存時に自動で入る値（印 `auto`＝更新日・作成日・版。保存の直前の 1 トランザクション・変更セットの適用にも） | `semantic-core/semantic/AutoValues.kt`, `workspace-core/workspace/WorkspaceSession.kt` | 単体 `SemanticAutoValuesTest`, `AutoValuesKernelTest`, `AppStateAutoValuesTest` | [auto-values](architecture/auto-values.md) |
+| E-15 | ソースの基本操作（Ctrl+F / H / G の検索・置換・行へ移動、一致の強調と F3 の移動、Aa と .*、Enter の自動インデント、選択行の Tab / Shift+Tab、Ctrl+/ コメント、Alt+↑↓ 行の移動、Ctrl+D 複製、現在行の強調） | `ui/SourceEditing.kt`, `ui/SourcePane.kt` | 単体 `SourceEditingTest` | [editing-history](architecture/editing-history.md) |
 
 ## 3. スキーマ
 

@@ -16,6 +16,7 @@
 | `OpenDocument.source` / `applyParsed` / `syncSourceFromTree` / `discardDraft` / `enterTextOnly` | app/AppState.kt | ソースの下書き（文字列・カーソル・解析エラー）の所有と、木との同期 |
 | `SourcePane` / `SourceDraftBanner` | ui/SourcePane.kt | ソースの表示と入力（入力が止まってから背景で解析）。他のタブに出す書きかけ・壊れたまま保存のバナー |
 | `LineMerge` | ui/SourceMerge.kt | 行の差分（共通部分の切り落とし＋LCS）と 3 者マージ・文字列とカーソルへの適用（純ロジック） |
+| `SourceEditing` | ui/SourceEditing.kt | 基本操作の規則（改行のインデント・インデント・コメント切替・行の移動と複製・検索と置換）。文字列と選択範囲を受けて返す純ロジック |
 | `YamlHighlighter` | ui/SourceHighlight.kt | 行ごとの覚えつきの色分け（純ロジック） |
 | `AppState.saveDraftAsText` / `historyStep` / `ensureAttached` | app/AppState.kt | 壊れたまま保存、下書きを捨てる確認つきの Undo/Redo、テキスト文書を文書集合へ戻す |
 | `WorkspaceSession.saveAsText` / `attachDocument` | workspace-core | テキストのまま保存して文書集合から外す（履歴は残す）。解析できる内容で文書集合へ戻す |
@@ -55,6 +56,8 @@
 - **壊れたまま保存**: `AppState.save` は下書きが解析できなければ止めず `saveDraftAsText` へ。セッションの `saveAsText` がテキストをそのまま書き、文書を文書集合から外す（ディスク上で解析できないファイルと同じ＝索引・検証・派生の対象外。履歴は消さない）。文書は `textOnly`（`root == null`）になり、ヘッダのバナー・ツリーの「解析不可」・検証一覧のパースエラーで見える。`_schemas` の文書だけは `pendingTextSave` で確認してから。
 - **直すと戻る**: 直して解析できたら `ensureAttached` が `attachDocument` で文書集合へ戻し（保存済みとの差で dirty）、保存で木の内容が書かれる。壊す前の木は `restoreLastParsed` で戻せる。テキスト文書に関わる履歴の記録は、戻るまで適用できない（`historyStep` が案内して止める）。
 - **Ctrl+Z の一本化**: 欄の中の取り消しは使わず、`SourcePane` が Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z をセッションの履歴へ回す（フォームと同じ 1 本の履歴。差し込みでカーソルは留まる）。
+- **基本操作**: 欄のキー（Tab・Enter・Ctrl+/・Ctrl+D・Alt+↑↓・Ctrl+F / H / G・F3）は `SourcePane.handleEditorKey` が受け、規則は `SourceEditing` に閉じる（文字列と選択範囲を受けて返す）。日本語入力の変換中（`composition != null`）は Enter と Tab を奪わない。
+- **検索の見せ方**: 一致の強調は色分けと同じ `OutputTransformation`、現在行の背景は欄の `drawBehind`。一致や行へ移動したときのスクロールは `revealRequest` を見た `LaunchedEffect` が配置結果から行の位置を取って行う。検索・置換の入力と現在の一致は操作の途中なので `remember`（`SourceUi`）。
 - **大きな文書**: 解析・出力・色分けは 1 万行で 20ms 程度（行ごとの覚え `YamlHighlighter`・共通部分を落とす `LineMerge.diff`）。Compose の欄は全文を配置し直すので上限がある（manual/limits.md）。
 
 ## 文書の作成と削除
