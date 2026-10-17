@@ -35,8 +35,11 @@ fun <T> ReorderableList(
     key: ((T) -> Any)? = null,
     content: @Composable ReorderRowScope.(index: Int, item: T, dragging: Boolean) -> Unit,
 ) {
+    // ライブラリは remember(list) で要素数・位置を保持する。同じ可変リストを渡すと
+    // 追加・削除・並べ替えを検知できないため、毎回その時点の要素列をコピーする。
+    // remember(items) でコピーを保持すると同じ問題になるので、ここでは保持しない。
     ReorderableColumn(
-        list = items,
+        list = items.toList(),
         onSettle = { from, to -> if (from != to) onMove(from, to) },
         modifier = modifier,
     ) { index, item, isDragging ->
