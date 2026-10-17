@@ -393,8 +393,9 @@ private fun handleEditorKey(
 }
 
 /**
- * 行番号。欄の配置結果（`onTextLayout`）から各論理行の先頭の表示行の上端を取って描くので、折り返した行でもずれない。
- * 見えている行だけ描く（1 万行でも軽い）。カーソルの行は濃く出す。
+ * 行番号。欄の配置結果（`onTextLayout`）から各論理行の先頭の表示行の位置を取って描くので、折り返した行でもずれない。
+ * 揃えるのは上端でなくベースライン: 行の高さ（lineHeight）の余白は先頭行だけ上が削られるので、上端で揃えると
+ * 2 行目から数ピクセル浮く。見えている行だけ描く（1 万行でも軽い）。カーソルの行は濃く出す。
  */
 @Composable
 private fun LineNumberGutter(
@@ -426,7 +427,9 @@ private fun LineNumberGutter(
             val top = layout.getLineTop(visual) + padTop - offsetY
             if (top > size.height) break
             val measured = measurer.measure((logical + 1).toString(), if (logical == currentLine) currentStyle else style)
-            drawText(measured, topLeft = Offset(right - measured.size.width, top))
+            // 本文の行のベースラインに、番号のベースラインを合わせる
+            val y = layout.getLineBaseline(visual) + padTop - offsetY - measured.firstBaseline
+            drawText(measured, topLeft = Offset(right - measured.size.width, y))
             logical++
         }
     }

@@ -120,6 +120,9 @@ class ScreenMemory {
     /** スキーマ設計のタブ（0 = 設計、1 = プレビュー、2 = 適用対象）。文書ごと。 */
     val schemaTab = mutableStateMapOf<DocumentId, Int>()
 
+    /** 編集画面のタブ（0 = フォーム、1 = ソース、2 = 差分、3 = メタスキーマのフォーム）。文書ごとに最後に見ていたもの。 */
+    val editorTab = mutableStateMapOf<DocumentId, Int>()
+
     // ================================================================ 寿命
 
     /** 全部忘れる（ワークスペース切替）。 */

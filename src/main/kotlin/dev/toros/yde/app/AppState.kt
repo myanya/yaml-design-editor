@@ -482,8 +482,19 @@ class AppState {
     var navigationCandidates by mutableStateOf<List<IdEntry>>(emptyList())
         private set
 
-    /** 0 = フォーム（スキーマ文書ではスキーマ設計）, 1 = ソース, 2 = 差分, 3 = スキーマ文書のメタスキーマフォーム（R11-02） */
-    var editorTab by mutableStateOf(0)
+    private val editorTabState = mutableStateOf(0)
+
+    /**
+     * 0 = フォーム（スキーマ文書ではスキーマ設計）, 1 = ソース, 2 = 差分, 3 = スキーマ文書のメタスキーマフォーム（R11-02）。
+     * 文書ごとに最後に見ていたタブを覚え（`memory.editorTab`）、覚えの無い文書は直前のタブで開く（`showFile`）＝
+     * ソースで書いている最中に別の文書へ移ってもソースのまま、戻れば戻った文書も最後に見ていたタブ。
+     */
+    var editorTab: Int
+        get() = editorTabState.value
+        set(value) {
+            editorTabState.value = value
+            openDoc?.let { memory.editorTab[documentOf(it.file)] = value }
+        }
     /** 0 = 文書, 1 = 一覧, 2 = 参照グラフ, 3 = ID横ぐし, 4 = ビューグリッド */
     var workspaceView by mutableStateOf(0)
 
@@ -1213,7 +1224,10 @@ class AppState {
         syncSpaceFromView()
         recentFiles = (listOf(file) + recentFiles.filter { it != file }).take(12)
         recentPrefs.put(workspaceKey(), recentFiles.joinToString("\n") { relPath(it) })
-        editorTab = if (doc.root == null) 1 else 0
+        // 解析できない文書はソース。それ以外は、この文書で最後に見ていたタブ → 無ければ直前の文書のタブ（メタスキーマのフォームは
+        // スキーマ文書にしか無いので、そうでなければフォーム）
+        val previous = if (editorTab == 3 && !isSchemaDocument(file)) 0 else editorTab
+        editorTab = if (doc.root == null) 1 else (memory.editorTab[documentOf(file)] ?: previous)
         highlightPath = focus
         status = "開いています: ${relPath(file)}" + (doc.schema?.let { "（スキーマ: ${it.name}）" } ?: "（スキーマなし・汎用ビュー）")
     }
