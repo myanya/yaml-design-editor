@@ -56,6 +56,9 @@ class ScreenMemory {
     /** ソースタブの長い行を折り返すか（偽なら横スクロール）。 */
     var sourceWrap by mutableStateOf(true)
 
+    /** ソースタブで畳んでいる区画（見出しのパス）。文書ごと。パスで覚えるので行がずれても追随する。 */
+    val sourceFolds = mutableStateMapOf<DocumentId, Set<YPath>>()
+
     // ================================================================ 台帳
 
     var listQuery by mutableStateOf("")

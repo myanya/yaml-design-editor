@@ -147,9 +147,13 @@ class OpenDocument(
      */
     fun markEdited(coalesceWith: Any? = null) {
         version++
+        if (coalesceWith is YNode) lastEditedNode = coalesceWith
         onEdited?.invoke(coalesceWith)
         sync()
     }
+
+    /** フォームで最後に編集したスカラー（ソースタブへ移ったときに同じ行へ行くため。パスは必要になったときに木から引く）。 */
+    var lastEditedNode: YNode? = null
 
     /** ソース編集のテキストをツリーへ取り込む。複数ドキュメントは先頭を編集対象にし、後続を保持する。 */
     fun applySourceText(text: String) {

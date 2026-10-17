@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.input.OutputTransformation
 import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.insert
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
@@ -54,7 +55,6 @@ import dev.toros.yde.app.core.EditBuffer
 import dev.toros.yde.app.schema.fieldAt
 import dev.toros.yde.app.validate.Issue
 import dev.toros.yde.app.validate.Validator
-import dev.toros.yde.semantic.schema.FieldDef
 import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.yaml.SourcePositions
 import dev.toros.yde.yaml.YamlPositions
@@ -76,9 +76,9 @@ import kotlinx.coroutines.withContext
  * 状態のままで、フォームはバナー＋閲覧専用になる。他所で木が変わったら差分だけを下書きへ差し込む。
  * 保存は壊れていても通り、その文書はテキスト文書になる。
  * 欄は Compose 標準の `TextFieldState` 版で、色分けは行ごとの覚え、行番号は欄の配置結果に揃える。
- * 基本操作（検索・置換・行へ移動・自動インデント・インデント・コメント切替・行の移動と複製）の規則は `SourceEditing`、
- * スキーマと索引を使う機能（指摘の印・Ctrl+Space の補完・ホバーの説明・Ctrl+クリックで参照先）は、位置の表
- * （`YamlPositions`＝解析できた文字列）とカーソルの文脈（`SourceContext`＝打っている最中の文字列）で場所を決める。
+ * 基本操作の規則は `SourceEditing`、スキーマと索引を使う機能（指摘の印・補完・ホバー・Ctrl+クリック）は位置の表
+ * （`YamlPositions`）とカーソルの文脈（`SourceContext`）、構造（折り畳み・保存済みとの差分の印・選択範囲の整形）は
+ * `SourceStructure`。折り畳みは表示だけを変える（`OutputTransformation` で隠れた範囲を抜く）ので、文字列は変わらない。
  */
 @Composable
 fun SourcePane(state: AppState, doc: OpenDocument) {
@@ -104,17 +104,51 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
             doc.applyParsed(text, parsed)
         }
     }
-    // タブや文書を離れるときは、入力待ちの分を取り込んでおく（フォームが古いまま見えないように）
-    DisposableEffect(doc) { onDispose { doc.flushDraft() } }
 
     // 検索の一致（文字列・検索語・条件が変わるたびに引き直す。1 万行でも数 ms）
     val text = doc.source.text.toString()
     val matches = remember(text, ui.query, ui.regex, ui.caseSensitive) {
         SourceEditing.matches(text, ui.query, ui.regex, ui.caseSensitive)
     }
+    // 位置の表（最後に解析できた文字列から。指摘の行・ホバーのパス・Ctrl+クリック・折り畳みの鍵に使う）
+    val positions = remember(doc.sourceParsed) { if (doc.sourceParsed.isEmpty()) SourcePositions.EMPTY else YamlPositions.of(doc.sourceParsed) }
+    val latestPositions by rememberUpdatedState(positions)
+
+    // 折り畳み（覚えは見出しのキーのパス＝行がずれても追随。行は位置の表から引く）
+    val documentId = state.documentOf(doc.file)
+    val foldedPaths: Set<YPath> = state.memory.sourceFolds[documentId].orEmpty()
+    val foldedHeaders = remember(foldedPaths, positions) { foldedPaths.mapNotNull { positions.lineOf(it) }.toSet() }
+    val foldView = remember(text, foldedHeaders) { if (foldedHeaders.isEmpty()) null else SourceStructure.foldView(text, foldedHeaders) }
+    fun setFolds(paths: Set<YPath>) {
+        if (paths.isEmpty()) state.memory.sourceFolds.remove(documentId) else state.memory.sourceFolds[documentId] = paths
+    }
+    fun toggleFold(line: Int) {
+        val path = positions.keyAtLine(line) ?: run { state.status = "この行は畳めません（解析できた見出しの行だけ畳めます）"; return }
+        // パスはそれ自体がリストなので、要素として足し引きするには集合に包む
+        setFolds(if (path in foldedPaths) foldedPaths - setOf(path) else foldedPaths + setOf(path))
+    }
+    /** 行が畳まれて隠れていれば、その区画を広げる（検索・ジャンプで行を見せる前に）。 */
+    fun unfoldAt(line: Int) {
+        val view = foldView ?: return
+        val starts = LineMerge.lineStarts(text)
+        val offset = starts.getOrElse(line) { text.length }
+        val hidden = view.hidden.firstOrNull { offset > it.headerEnd && offset < it.to } ?: return
+        val header = SourceEditing.lineOf(starts, hidden.headerEnd)
+        positions.keyAtLine(header)?.let { setFolds(foldedPaths - setOf(it)) }
+    }
+    // 畳んだ区画の中にカーソルが入ってしまったら、見出しの末尾へ寄せる
+    LaunchedEffect(foldView) {
+        val view = foldView ?: return@LaunchedEffect
+        val caret = doc.source.selection.start
+        view.hidden.firstOrNull { caret > it.headerEnd && caret < it.to }?.let { h ->
+            doc.source.edit { selection = TextRange(h.headerEnd) }
+        }
+    }
+
     fun select(index: Int) {
         val m = matches?.getOrNull(index) ?: return
         ui.current = index
+        unfoldAt(SourceEditing.lineOf(LineMerge.lineStarts(text), m.first))
         doc.source.edit { selection = TextRange(m.first, m.last + 1) }
         ui.revealRequest++
     }
@@ -157,13 +191,18 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
     fun gotoLine(line: Int) {
         val starts = LineMerge.lineStarts(text)
         val index = (line - 1).coerceIn(0, maxOf(starts.size - 2, 0))
+        unfoldAt(index)
         doc.source.edit { selection = TextRange(starts[index]) }
         ui.revealRequest++
         ui.editorFocus.requestFocus()
     }
+    fun formatSelection() {
+        val sel = doc.source.selection
+        val r = SourceStructure.formatSelection(text, sel.min, sel.max)
+        if (r == null) { state.status = "選択範囲が YAML の塊になっていません（途中で切れているか、解析できません）"; return }
+        doc.source.edit { replace(0, length, r.text); selection = TextRange(r.start, r.end) }
+    }
 
-    // 位置の表（最後に解析できた文字列から。指摘の行・ホバーのパス・Ctrl+クリックに使う）
-    val positions = remember(doc.sourceParsed) { if (doc.sourceParsed.isEmpty()) SourcePositions.EMPTY else YamlPositions.of(doc.sourceParsed) }
     // この文書の検証の指摘（右パネルと同じ材料。パスのある指摘だけ）
     val issues = remember(doc, doc.version, state.indexVersion, state.editVersion) {
         val root = doc.root ?: return@remember emptyList<Issue>()
@@ -177,16 +216,52 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
     val issueLines = remember(issues, positions) {
         issues.groupBy { positions.lineOf(it.path) ?: -1 }.filterKeys { it >= 0 }
     }
+    // 保存済み（ディスクの内容）との差分の印
+    val diffMarks = remember(text, doc.rawText) { SourceStructure.diffMarks(doc.rawText, text) }
     // 指摘のジャンプ（右パネルの指摘・参照のクリック）: ソースを見ているときは行へ
     LaunchedEffect(state.highlightPath, positions) {
         val path = state.highlightPath ?: return@LaunchedEffect
+        ui.formSyncPending = false
         val line = positions.lineOf(path) ?: return@LaunchedEffect
         val starts = LineMerge.lineStarts(text)
         if (line < starts.size - 1) {
+            unfoldAt(line)
             doc.source.edit { selection = TextRange(starts[line]) }
             ui.revealRequest++
         }
         state.highlightPath = null
+    }
+    // フォームで最後に編集した項目の行へ（タブを移ってきたとき 1 回。木と下書きが揃ってから）
+    LaunchedEffect(positions, doc.version) {
+        if (!ui.formSyncPending || doc.version != doc.sourceSyncedVersion || positions.isEmpty) return@LaunchedEffect
+        ui.formSyncPending = false
+        val node = doc.lastEditedNode ?: return@LaunchedEffect
+        val root = doc.root ?: return@LaunchedEffect
+        val path = SourceStructure.pathOfNode(root, node) ?: return@LaunchedEffect
+        val line = positions.lineOf(path) ?: return@LaunchedEffect
+        val starts = LineMerge.lineStarts(text)
+        if (line < starts.size - 1) {
+            unfoldAt(line)
+            doc.source.edit { selection = TextRange(starts[line]) }
+            ui.revealRequest++
+        }
+        doc.lastEditedNode = null
+    }
+    // タブや文書を離れるときは、入力待ちの分を取り込み、フォームへ移るならカーソルの項目を伝える（フォームがそこへ寄る）
+    DisposableEffect(doc) {
+        onDispose {
+            doc.flushDraft()
+            if (state.openDoc === doc && state.editorTab != 1 && state.highlightPath == null) {
+                val parsed = doc.sourceParsed
+                val caret = doc.source.selection.start
+                if (parsed.isNotEmpty() && caret <= parsed.length) {
+                    val starts = LineMerge.lineStarts(parsed)
+                    val line = SourceEditing.lineOf(starts, caret)
+                    latestPositions.pathAt(line, caret - starts[line])?.let { state.highlightPath = it }
+                }
+                doc.lastEditedNode = null
+            }
+        }
     }
     // 補完の候補（スキーマ・索引・ワークスペースのファイル）
     val workspaceFiles = remember(state.workspace, state.indexVersion) { state.workspace?.let(SourceCompletion::listWorkspaceFiles).orEmpty() }
@@ -230,6 +305,9 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
                     fontSize = 12.sp,
                 )
             }
+            if (!readOnly && !doc.source.selection.collapsed) {
+                TextButton(onClick = ::formatSelection) { Text("選択範囲を整形", fontSize = 12.sp) }
+            }
             Spacer(Modifier.width(12.dp))
             when {
                 doc.textOnly -> Text(
@@ -251,6 +329,9 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
                 )
             }
             Spacer(Modifier.weight(1f))
+            if (foldedPaths.isNotEmpty()) {
+                TextButton(onClick = { setFolds(emptySet()) }) { Text("すべて広げる", fontSize = 11.sp, color = Palette.SubText) }
+            }
             TextButton(onClick = { state.memory.sourceWrap = !wrap }) {
                 Text(if (wrap) "折り返し: あり" else "折り返し: なし", fontSize = 11.sp, color = Palette.SubText)
             }
@@ -263,8 +344,8 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
             Text(it, Modifier.padding(horizontal = 12.dp, vertical = 2.dp), fontSize = 12.sp, color = Palette.ErrorRed)
         }
         SourceEditor(
-            doc, readOnly, wrap, state, ui, vScroll, matches, positions, issueLines,
-            onNext = ::findNext, onPrev = ::findPrev, onComplete = ::openCompletion,
+            doc, readOnly, wrap, state, ui, vScroll, matches, positions, issueLines, diffMarks, foldView, foldedHeaders,
+            onNext = ::findNext, onPrev = ::findPrev, onComplete = ::openCompletion, onToggleFold = ::toggleFold,
             modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp),
         )
         Spacer(Modifier.height(8.dp))
@@ -287,6 +368,8 @@ private class SourceUi {
     var revealRequest by mutableStateOf(0)
     /** 置換の直後: 文字列が変わって一致を引き直したら、次の一致を選ぶ。 */
     var followNext = false
+    /** フォームから移ってきた直後: 最後に編集した項目の行へ寄せる（1 回だけ）。 */
+    var formSyncPending = true
     /** 開いている補完（null = 閉じている）。 */
     var completion by mutableStateOf<CompletionState?>(null)
     val editorFocus = FocusRequester()
@@ -310,7 +393,7 @@ private val editorTextStyle: TextStyle
 /** ホバーで出す項目の説明。 */
 private data class HoverInfo(val path: String, val title: String, val detail: String, val x: Int, val y: Int)
 
-/** 本文の欄（行番号と指摘の印・折り返しと横スクロール・色分けと一致の強調・現在行・キー操作・補完・ホバー・Ctrl+クリック）。 */
+/** 本文の欄（行番号と印・折り返しと横スクロール・色分けと強調・現在行・折り畳み・キー操作・補完・ホバー・Ctrl+クリック）。 */
 @Composable
 private fun SourceEditor(
     doc: OpenDocument,
@@ -322,9 +405,13 @@ private fun SourceEditor(
     matches: List<IntRange>?,
     positions: SourcePositions,
     issueLines: Map<Int, List<Issue>>,
+    diffMarks: Map<Int, SourceStructure.DiffMark>,
+    foldView: SourceStructure.FoldView?,
+    foldedHeaders: Set<Int>,
     onNext: () -> Unit,
     onPrev: () -> Unit,
     onComplete: () -> Unit,
+    onToggleFold: (Int) -> Unit,
     modifier: Modifier,
 ) {
     val hScroll = remember(doc) { ScrollState(0) }
@@ -332,6 +419,9 @@ private fun SourceEditor(
     val textStyle = editorTextStyle
     val highlighter = remember(doc) { YamlHighlighter() }
     val text = doc.source.text.toString()
+    // 折り畳みがあると、欄の配置は「表示の文字列」のもの。元の位置と表示の位置を行き来する
+    val toDisplay: (Int) -> Int = { foldView?.displayOffset(it) ?: it }
+    val toOriginal: (Int) -> Int = { foldView?.originalOffset(it) ?: it }
     // 色分けと一致・指摘の強調: 表示だけを変え、文字列には触らない。色は描画時に読む（テーマ切替でも追随）
     val keyColor = Palette.Primary
     val stringColor = Palette.OkGreen
@@ -356,7 +446,7 @@ private fun SourceEditor(
             }
         }
     }
-    val transformation = remember(doc, keyColor, stringColor, numberColor, keywordColor, subColor, matches, current, issueSpans) {
+    val transformation = remember(doc, keyColor, stringColor, numberColor, keywordColor, subColor, matches, current, issueSpans, foldView) {
         OutputTransformation {
             for (t in highlighter.tokens(asCharSequence())) {
                 val end = t.end.coerceAtMost(length)
@@ -379,6 +469,13 @@ private fun SourceEditor(
                 val end = (m.last + 1).coerceAtMost(length)
                 if (m.first < end) addStyle(SpanStyle(background = if (i == current) currentHitColor else hitColor), m.first, end)
             }
+            // 折り畳み: 隠れた範囲を抜き、見出しの末尾に印を添える（後ろから当てると前の位置がずれない）
+            foldView?.hidden?.asReversed()?.forEach { h ->
+                val to = h.to.coerceAtMost(length)
+                val from = h.from.coerceAtMost(to)
+                replace(from, to, "")
+                insert(h.headerEnd.coerceIn(0, length), h.placeholder)
+            }
         }
     }
     val textPadding = 12.dp
@@ -386,12 +483,15 @@ private fun SourceEditor(
     BoxWithConstraints(modifier.background(Palette.EditorBg)) {
         val lineStarts = remember(doc.source.text) { LineMerge.lineStarts(text) }
         val lineCount = lineStarts.size - 1
+        val displayLineStarts = foldView?.displayLineStarts ?: lineStarts
+        val originalLineOf: (Int) -> Int = { d -> foldView?.originalLine(d) ?: d }
+        val foldable = remember(text) { SourceStructure.foldableRegions(text.split('\n')).map { it.header }.toSet() }
         val measurer = rememberTextMeasurer()
         val density = LocalDensity.current
         val gutterStyle = textStyle.copy(color = Palette.SubText)
         val gutterWidth = remember(lineCount, gutterStyle) {
             val digits = lineCount.toString().length.coerceAtLeast(2)
-            with(density) { (measurer.measure("0".repeat(digits), gutterStyle).size.width.toDp()) } + 24.dp
+            with(density) { (measurer.measure("0".repeat(digits), gutterStyle).size.width.toDp()) } + 34.dp
         }
         val viewportWidth = maxWidth - gutterWidth
         val viewportHeightPx = with(density) { (maxHeight - textPadding * 2).toPx() }
@@ -400,7 +500,7 @@ private fun SourceEditor(
         LaunchedEffect(ui.revealRequest) {
             if (ui.revealRequest == 0) return@LaunchedEffect
             val layout = layoutProvider?.invoke() ?: return@LaunchedEffect
-            val line = layout.getLineForOffset(doc.source.selection.start)
+            val line = layout.getLineForOffset(toDisplay(doc.source.selection.start).coerceAtMost(layout.layoutInput.text.length))
             val top = layout.getLineTop(line)
             val bottom = layout.getLineBottom(line)
             if (top < vScroll.value || bottom > vScroll.value + viewportHeightPx) {
@@ -408,15 +508,16 @@ private fun SourceEditor(
             }
         }
         val currentLine = SourceEditing.lineOf(lineStarts, doc.source.selection.start)
-        // 行番号の上のホバー（指摘の内容を出す）
+        // 行番号の上のホバー（指摘の内容・折り畳みの印）とクリック（折り畳み）
         var gutterHoverY by remember { mutableStateOf<Float?>(null) }
-        val hoveredIssueLine = remember(gutterHoverY, issueLines) {
-            val y = gutterHoverY ?: return@remember null
-            val layout = layoutProvider?.invoke() ?: return@remember null
-            if (layout.lineCount == 0) return@remember null
+        fun originalLineAtY(y: Float): Int? {
+            val layout = layoutProvider?.invoke() ?: return null
+            if (layout.lineCount == 0) return null
             val visual = layout.getLineForVerticalPosition(y - textPaddingPx + vScroll.value)
-            val logical = SourceEditing.lineOf(lineStarts, layout.getLineStart(visual))
-            logical.takeIf { issueLines.containsKey(it) }
+            return originalLineOf(SourceEditing.lineOf(displayLineStarts, layout.getLineStart(visual)))
+        }
+        val hoveredIssueLine = remember(gutterHoverY, issueLines) {
+            gutterHoverY?.let(::originalLineAtY)?.takeIf { issueLines.containsKey(it) }
         }
         // 本文の上のホバー（項目の説明）と Ctrl+クリック（参照先へ）
         var hoverPos by remember { mutableStateOf<Offset?>(null) }
@@ -426,7 +527,7 @@ private fun SourceEditor(
             if (text != doc.sourceParsed || positions.isEmpty) return null
             val local = Offset(pos.x - textPaddingPx + hScroll.value, pos.y - textPaddingPx + vScroll.value)
             if (local.y < 0 || local.y > layout.size.height) return null
-            val offset = layout.getOffsetForPosition(local).coerceIn(0, text.length)
+            val offset = toOriginal(layout.getOffsetForPosition(local)).coerceIn(0, text.length)
             val line = SourceEditing.lineOf(lineStarts, offset)
             return positions.pathAt(line, offset - lineStarts[line])
         }
@@ -453,9 +554,11 @@ private fun SourceEditor(
         }
         Row(Modifier.fillMaxSize()) {
             LineNumberGutter(
-                lineStarts, currentLine, vScroll, layoutProvider, textPadding, gutterStyle,
+                displayLineStarts, originalLineOf, currentLine, vScroll, layoutProvider, textPadding, gutterStyle,
                 issueLines.mapValues { (_, list) -> if (list.any { it.severity == Severity.ERROR }) Severity.ERROR else Severity.WARNING },
+                diffMarks, foldable, foldedHeaders, hovering = gutterHoverY != null,
                 onHover = { gutterHoverY = it },
+                onClick = { y -> originalLineAtY(y)?.let { line -> if (line in foldable || line in foldedHeaders) onToggleFold(line) } },
                 Modifier.width(gutterWidth).fillMaxHeight(),
             )
             Box(
@@ -500,18 +603,22 @@ private fun SourceEditor(
                             val layout = layoutProvider?.invoke() ?: return@drawBehind
                             val sel = doc.source.selection
                             if (!sel.collapsed || layout.lineCount == 0) return@drawBehind
-                            val line = layout.getLineForOffset(sel.start)
+                            val line = layout.getLineForOffset(toDisplay(sel.start).coerceAtMost(layout.layoutInput.text.length))
                             val top = layout.getLineTop(line) - vScroll.value
                             val height = layout.getLineBottom(line) - layout.getLineTop(line)
                             drawRect(currentLineColor, Offset(-textPaddingPx, top), Size(size.width + textPaddingPx * 2, height))
                         }
                         .focusRequester(ui.editorFocus)
-                        .onPreviewKeyEvent { ev -> handleEditorKey(ev, doc, state, readOnly, ui, onNext, onPrev, onComplete) },
+                        .onPreviewKeyEvent { ev ->
+                            handleEditorKey(ev, doc, state, readOnly, ui, onNext, onPrev, onComplete) {
+                                onToggleFold(SourceEditing.lineOf(lineStarts, doc.source.selection.start))
+                            }
+                        },
                 )
                 // 補完の一覧（カーソルの下。焦点は欄に残す）
                 ui.completion?.let { completion ->
                     val layout = layoutProvider?.invoke()
-                    val caret = doc.source.selection.min
+                    val caret = toDisplay(doc.source.selection.min)
                     val rect = layout?.let { runCatching { it.getCursorRect(caret.coerceAtMost(it.layoutInput.text.length)) }.getOrNull() }
                     val x = ((rect?.left ?: 0f) + textPaddingPx - hScroll.value).toInt()
                     val y = ((rect?.bottom ?: 0f) + textPaddingPx - vScroll.value).toInt()
@@ -614,7 +721,7 @@ private fun CompletionPopup(completion: CompletionState, offset: IntOffset, onAc
 /**
  * 欄の中のキー操作。規則は `SourceEditing` にあり、ここは受け取った結果を欄に当てる。
  * - 補完が開いていれば ↑↓ Enter Tab Esc は補完のもの
- * - Ctrl+Space で補完を開く
+ * - Ctrl+Space で補完を開く。Ctrl+Shift+[ でカーソルの行の区画を畳む／広げる
  * - Tab: 複数行の選択ならインデント、それ以外はスペース 2 個（YAML はタブ文字を許さない）。Shift+Tab は戻す
  * - Enter: 前の行に合わせたインデントつきの改行（日本語入力の変換中は触らない＝確定の Enter を奪わない）
  * - Ctrl+/ コメント切替・Ctrl+D 行の複製・Alt+↑↓ 行の移動・Ctrl+F / H / G 検索・置換・行へ移動・F3 次へ（Shift で前へ）
@@ -622,7 +729,7 @@ private fun CompletionPopup(completion: CompletionState, offset: IntOffset, onAc
  */
 private fun handleEditorKey(
     ev: KeyEvent, doc: OpenDocument, state: AppState, readOnly: Boolean, ui: SourceUi,
-    onNext: () -> Unit, onPrev: () -> Unit, onComplete: () -> Unit,
+    onNext: () -> Unit, onPrev: () -> Unit, onComplete: () -> Unit, onToggleFold: () -> Unit,
 ): Boolean {
     if (ev.type != KeyEventType.KeyDown) return false
     val source = doc.source
@@ -649,6 +756,7 @@ private fun handleEditorKey(
     if (ev.isCtrlPressed && !ev.isAltPressed) {
         when (ev.key) {
             Key.Spacebar -> { if (!readOnly) onComplete(); return true }
+            Key.LeftBracket -> { if (ev.isShiftPressed) { onToggleFold(); return true } }
             Key.Z -> { if (ev.isShiftPressed) state.redo() else state.undo(); return true }
             Key.Y -> { state.redo(); return true }
             Key.F -> {
@@ -698,34 +806,46 @@ private fun handleEditorKey(
 }
 
 /**
- * 行番号と指摘の印。欄の配置結果（`onTextLayout`）から各論理行の先頭の表示行の位置を取って描くので、折り返した行でもずれない。
- * 揃えるのは上端でなくベースライン: 行の高さ（lineHeight）の余白は先頭行だけ上が削られるので、上端で揃えると
- * 2 行目から数ピクセル浮く。見えている行だけ描く（1 万行でも軽い）。カーソルの行は濃く出し、指摘のある行は左に印を置く。
+ * 行番号と印（指摘・保存済みとの差分・折り畳み）。欄の配置結果（`onTextLayout`）から各表示行の先頭の表示行の位置を取って描くので、
+ * 折り返した行でもずれない。揃えるのは上端でなくベースライン: 行の高さ（lineHeight）の余白は先頭行だけ上が削られるので、
+ * 上端で揃えると 2 行目から数ピクセル浮く。見えている行だけ描く（1 万行でも軽い）。カーソルの行は濃く出す。
+ * 折り畳みがあるときは「表示の行」を描き、番号は元の行で出す。
  */
 @Composable
 private fun LineNumberGutter(
-    lineStarts: IntArray,
+    displayLineStarts: IntArray,
+    originalLineOf: (Int) -> Int,
     currentLine: Int,
     scroll: ScrollState,
     layoutProvider: (() -> TextLayoutResult?)?,
     textPadding: Dp,
     style: TextStyle,
     issueLines: Map<Int, Severity>,
+    diffMarks: Map<Int, SourceStructure.DiffMark>,
+    foldable: Set<Int>,
+    folded: Set<Int>,
+    hovering: Boolean,
     onHover: (Float?) -> Unit,
+    onClick: (Float) -> Unit,
     modifier: Modifier,
 ) {
     val measurer = rememberTextMeasurer()
     val currentStyle = style.copy(color = Palette.Text, fontWeight = FontWeight.Bold)
+    val markStyle = style.copy(color = Palette.SubText, fontSize = 11.sp)
     val errorColor = Palette.ErrorRed
     val warnColor = Palette.WarnOrange
+    val addedColor = Palette.OkGreen
+    val changedColor = Palette.Primary
     Canvas(
         modifier.background(Palette.PanelBg).pointerInput(Unit) {
             awaitPointerEventScope {
                 while (true) {
                     val event = awaitPointerEvent()
+                    val y = event.changes.firstOrNull()?.position?.y
                     when (event.type) {
-                        PointerEventType.Move, PointerEventType.Enter -> onHover(event.changes.firstOrNull()?.position?.y)
+                        PointerEventType.Move, PointerEventType.Enter -> onHover(y)
                         PointerEventType.Exit -> onHover(null)
+                        PointerEventType.Release -> y?.let(onClick)
                         else -> Unit
                     }
                 }
@@ -735,28 +855,46 @@ private fun LineNumberGutter(
         val layout = layoutProvider?.invoke() ?: return@Canvas
         val padTop = textPadding.toPx()
         val offsetY = scroll.value.toFloat()
-        val lineCount = lineStarts.size - 1
+        val lineCount = displayLineStarts.size - 1
         if (lineCount <= 0 || layout.lineCount == 0) return@Canvas
         // 最初に見える表示行 → その先頭オフセットを含む論理行から始める
         val firstVisual = layout.getLineForVerticalPosition((offsetY - padTop).coerceAtLeast(0f))
         val firstOffset = layout.getLineStart(firstVisual)
-        var logical = lineStarts.binarySearch(firstOffset, 0, lineCount).let { if (it < 0) -it - 2 else it }.coerceIn(0, lineCount - 1)
+        var logical = displayLineStarts.binarySearch(firstOffset, 0, lineCount).let { if (it < 0) -it - 2 else it }.coerceIn(0, lineCount - 1)
         // 同じオフセットの行（空行の連続）は最初のものから
-        while (logical > 0 && lineStarts[logical - 1] == lineStarts[logical]) logical--
-        val right = size.width - 8.dp.toPx()
+        while (logical > 0 && displayLineStarts[logical - 1] == displayLineStarts[logical]) logical--
+        val right = size.width - 18.dp.toPx()
         val markX = 7.dp.toPx()
         val markRadius = 3.dp.toPx()
+        val barWidth = 3.dp.toPx()
         while (logical < lineCount) {
-            val visual = layout.getLineForOffset(lineStarts[logical])
+            val visual = layout.getLineForOffset(displayLineStarts[logical])
             val top = layout.getLineTop(visual) + padTop - offsetY
             if (top > size.height) break
-            val measured = measurer.measure((logical + 1).toString(), if (logical == currentLine) currentStyle else style)
+            val bottom = layout.getLineBottom(visual) + padTop - offsetY
+            val original = originalLineOf(logical)
+            val measured = measurer.measure((original + 1).toString(), if (original == currentLine) currentStyle else style)
             // 本文の行のベースラインに、番号のベースラインを合わせる
-            val y = layout.getLineBaseline(visual) + padTop - offsetY - measured.firstBaseline
-            drawText(measured, topLeft = Offset(right - measured.size.width, y))
-            issueLines[logical]?.let { severity ->
-                val center = (layout.getLineTop(visual) + layout.getLineBottom(visual)) / 2 + padTop - offsetY
-                drawCircle(if (severity == Severity.ERROR) errorColor else warnColor, markRadius, Offset(markX, center))
+            val baseline = layout.getLineBaseline(visual) + padTop - offsetY
+            drawText(measured, topLeft = Offset(right - measured.size.width, baseline - measured.firstBaseline))
+            issueLines[original]?.let { severity ->
+                drawCircle(if (severity == Severity.ERROR) errorColor else warnColor, markRadius, Offset(markX, (top + bottom) / 2))
+            }
+            diffMarks[original]?.let { mark ->
+                when (mark) {
+                    SourceStructure.DiffMark.ADDED -> drawRect(addedColor, Offset(0f, top), Size(barWidth, bottom - top))
+                    SourceStructure.DiffMark.CHANGED -> drawRect(changedColor, Offset(0f, top), Size(barWidth, bottom - top))
+                    SourceStructure.DiffMark.DELETED_AFTER -> drawRect(errorColor, Offset(0f, bottom - barWidth), Size(barWidth * 3, barWidth))
+                }
+            }
+            val foldLabel = when {
+                original in folded -> "▸"
+                hovering && original in foldable -> "▾"
+                else -> null
+            }
+            foldLabel?.let {
+                val m = measurer.measure(it, markStyle)
+                drawText(m, topLeft = Offset(size.width - m.size.width - 4.dp.toPx(), baseline - m.firstBaseline))
             }
             logical++
         }

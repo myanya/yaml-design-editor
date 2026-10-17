@@ -36,6 +36,10 @@ class SourcePositions internal constructor(
         return values.entries.filter { (_, span) -> span.contains(line, column) }.maxByOrNull { it.key.size }?.key
     }
 
+    /** その行に見出しとして書かれているキーのパス（行に複数あれば最も左のもの。無ければ null）。折り畳みの鍵に使う。 */
+    fun keyAtLine(line: Int): YPath? =
+        keys.entries.filter { it.value.startLine == line }.minByOrNull { it.value.startColumn }?.key
+
     val isEmpty: Boolean get() = values.isEmpty() && keys.isEmpty()
 
     companion object {
