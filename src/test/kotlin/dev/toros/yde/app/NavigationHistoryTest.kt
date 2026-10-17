@@ -289,21 +289,27 @@ class NavigationHistoryTest {
 
     @Test
     fun `エディタのタブも戻る・進むで復元される`() {
-        // タブ（フォーム・ソース・差分）は下位ビューと同じく場所の一部。普通に開くときはフォームのまま
+        // タブ（フォーム・ソース・差分）は下位ビューと同じく場所の一部。初めて開く文書は直前の文書のタブで開き
+        // （ソースで書いている最中に別の文書を開いてもソースのまま）、見たことのある文書は最後に見ていたタブで開く
         val state = AppState()
         val a = newFile("a.yaml")
         val b = newFile("b.yaml")
         state.openFile(a)
         state.editorTab = 1
         state.openFile(b)
-        assertEquals(0, state.editorTab)
+        assertEquals(1, state.editorTab, "初めて開く文書は直前のタブ（ソース）のまま")
+        state.editorTab = 0
 
         state.goBack()
         assertEquals(a, state.openDoc?.file)
-        assertEquals(1, state.editorTab)
+        assertEquals(1, state.editorTab, "戻った文書は見ていたタブ")
 
         state.goForward()
         assertEquals(b, state.openDoc?.file)
-        assertEquals(0, state.editorTab)
+        assertEquals(0, state.editorTab, "進んだ文書も見ていたタブ")
+
+        // 履歴を使わずに開き直しても、その文書で最後に見ていたタブ
+        state.openFile(a)
+        assertEquals(1, state.editorTab, "覚えがある文書は最後のタブで開く")
     }
 }
