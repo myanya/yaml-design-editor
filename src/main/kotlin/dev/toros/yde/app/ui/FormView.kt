@@ -358,28 +358,30 @@ private fun DocumentMetadataEditor(ctx: FormCtx, root: YNode.Map) {
     ) {
         Text("文書メタデータ", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Palette.Primary)
         Spacer(Modifier.height(8.dp))
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+        FormFieldLayout(labelWidth = 136.dp, label = {
             Text("文書名", fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.width(136.dp).padding(top = 9.dp))
+                modifier = Modifier.padding(top = 9.dp))
+        }) {
             CompactTextField(
                 value = (nameSlot.get() as? YNode.Scalar)?.value?.toString().orEmpty(),
                 onValueChange = { ctx.setScalar(nameSlot, it, FieldType.STRING) },
                 singleLine = true,
                 placeholder = { Text("この文書を表す名前") },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxWidth(),
             )
         }
         Spacer(Modifier.height(6.dp))
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-            Column(Modifier.width(136.dp).padding(top = 9.dp, end = 8.dp)) {
+        FormFieldLayout(labelWidth = 136.dp, label = {
+            Column(Modifier.padding(top = 9.dp, end = 8.dp)) {
                 Text("概要", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 Text("文書を開かずに内容を判断できる要約", fontSize = 10.sp, color = Palette.SubText)
             }
+        }) {
             CompactTextField(
                 value = (descriptionSlot.get() as? YNode.Scalar)?.value?.toString().orEmpty(),
                 onValueChange = { ctx.setScalar(descriptionSlot, it, FieldType.STRING) },
                 placeholder = { Text("この文書が何を示し、何を含むかを簡潔に記述") },
-                modifier = Modifier.weight(1f).heightIn(min = 84.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 84.dp),
             )
         }
     }
@@ -676,14 +678,37 @@ fun ObjectFields(
 }
 
 @Composable
+private fun FormFieldLayout(
+    modifier: Modifier = Modifier,
+    labelWidth: Dp = 148.dp,
+    label: @Composable () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    // 入れ子ごとの実際の幅で判断し、項目名の固定幅が入力欄を押し潰さないようにする。
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        if (maxWidth < labelWidth + 360.dp) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Box(Modifier.fillMaxWidth()) { label() }
+                Box(Modifier.fillMaxWidth()) { content() }
+            }
+        } else {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                Box(Modifier.width(labelWidth)) { label() }
+                Box(Modifier.weight(1f)) { content() }
+            }
+        }
+    }
+}
+
+@Composable
 internal fun FieldRow(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
     val effective = ctx.doc.schema?.resolve(field) ?: field
     // 閲覧専用モード（R10-04）はパディングを圧縮して表示密度を上げる
     val labelTop = if (ctx.readOnly) 2.dp else 8.dp
     Highlightable(ctx.state, path) {
-        Row(Modifier.fillMaxWidth().padding(vertical = if (ctx.readOnly) 0.dp else 1.dp), verticalAlignment = Alignment.Top) {
-            Column(Modifier.width(148.dp).padding(top = labelTop, end = 8.dp)) {
-                Row {
+        FormFieldLayout(Modifier.padding(vertical = if (ctx.readOnly) 0.dp else 1.dp), label = {
+            Column(Modifier.padding(top = labelTop, end = 8.dp)) {
+                FlowRow {
                     Text(effective.displayLabel, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     if (effective.required) Text(" *", color = Palette.ErrorRed, fontSize = 12.sp)
                     // requiredFrom はフェーズ到達で必須になる項目（無条件必須の * とは区別して注記する）
@@ -711,6 +736,7 @@ internal fun FieldRow(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
                     effective.auto?.let { Text(autoValueHint(it), fontSize = 10.sp, color = Palette.SubText) }
                 }
             }
+        }) {
             // 検証指摘のあるフィールドは入力枠を色づけする（UX-14: エラー=赤・警告=オレンジ）
             val issueColor = when (ctx.issueAt(path)) {
                 Severity.ERROR -> Palette.ErrorRed
@@ -718,7 +744,7 @@ internal fun FieldRow(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
                 else -> null
             }
             Box(
-                Modifier.weight(1f).then(
+                Modifier.fillMaxWidth().then(
                     if (issueColor != null) Modifier.border(1.dp, issueColor, PanelShape) else Modifier
                 )
             ) { ValueEditor(ctx, effective, slot, path) }
@@ -1587,87 +1613,92 @@ private fun ObjectTable(
     val hScroll = rememberScrollState()
     // 利用可能幅を測り、余白は文字系の列へ配って表を右端まで使う
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-    val keyWidth = if (keyHeader != null) TABLE_KEY_WIDTH else 0.dp
-    val trailing = if (!ctx.readOnly && ops != null) opsWidth else if (rowMenu != null) TABLE_MENU_WIDTH else 0.dp
-    val fixed = TABLE_EXPAND_WIDTH + keyWidth + trailing
-    val widths = tableColumnWidths(columns, maxWidth, fixed)
-    val rowWidth = fixed + widths.fold(0.dp) { acc, w -> acc + w }
-    Column(Modifier.fillMaxWidth()) {
-        Column(Modifier.fillMaxWidth().horizontalScroll(hScroll)) {
-            // ヘッダ行（ラベルはスキーマの表示ラベル。必須マーカーはフォームと同じ流儀）
-            Row(Modifier.width(rowWidth).padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                Spacer(Modifier.width(TABLE_EXPAND_WIDTH))
-                if (keyHeader != null) {
-                    Text(
-                        keyHeader, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
-                        color = Palette.SubText, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.width(keyWidth).padding(horizontal = 4.dp),
-                    )
-                }
-                columns.forEachIndexed { c, col ->
-                    Row(Modifier.width(widths[c]).padding(horizontal = 4.dp)) {
+        val keyWidth = if (keyHeader != null) TABLE_KEY_WIDTH else 0.dp
+        val trailing = if (!ctx.readOnly && ops != null) opsWidth else if (rowMenu != null) TABLE_MENU_WIDTH else 0.dp
+        val fixed = TABLE_EXPAND_WIDTH + keyWidth + trailing
+        val widths = tableColumnWidths(columns, maxWidth, fixed)
+        val rowWidth = fixed + widths.fold(0.dp) { acc, w -> acc + w }
+        Column(Modifier.fillMaxWidth()) {
+            // 列だけを横スクロールし、展開フォームには表示領域の幅を渡す。
+            // 見出しと各行は同じ列幅・ScrollState を使い、横位置を揃える。
+            Box(Modifier.fillMaxWidth().horizontalScroll(hScroll)) {
+                // ヘッダ行（ラベルはスキーマの表示ラベル。必須マーカーはフォームと同じ流儀）
+                Row(Modifier.width(rowWidth).padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Spacer(Modifier.width(TABLE_EXPAND_WIDTH))
+                    if (keyHeader != null) {
                         Text(
-                            col.displayLabel, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                            keyHeader, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
                             color = Palette.SubText, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.width(keyWidth).padding(horizontal = 4.dp),
                         )
-                        if (col.required) Text(" *", color = Palette.ErrorRed, fontSize = 11.sp)
+                    }
+                    columns.forEachIndexed { c, col ->
+                        Row(Modifier.width(widths[c]).padding(horizontal = 4.dp)) {
+                            Text(
+                                col.displayLabel, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                                color = Palette.SubText, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            )
+                            if (col.required) Text(" *", color = Palette.ErrorRed, fontSize = 11.sp)
+                        }
                     }
                 }
             }
-            HorizontalDivider(color = Palette.Border, modifier = Modifier.width(rowWidth))
+            HorizontalDivider(color = Palette.Border)
             // 配列の行は取っ手からのドラッグで並べ替えられる（onMove がある表だけ取っ手を出す。map の表は出さない）
-            ReorderableList(items = rows, onMove = { from, to -> onMove?.invoke(from, to) }, key = { it.second }) { i, (segment, element), dragging ->
+            ReorderableList(items = rows, onMove = { from, to -> onMove?.invoke(from, to) },
+                modifier = Modifier.fillMaxWidth(), key = { it.second }) { i, (segment, element), dragging ->
                 val rowPath = path + segment
                 // 行の展開は画面の覚えが持つ（既定は畳む）。ジャンプ先が行の中（列にならない項目＝展開フォーム側）なら開く（UX-10）
                 val rowExpanded = ctx.expanded(rowPath, default = false)
                 Highlightable(ctx.state, rowPath) {
-                    Column(Modifier.width(rowWidth).background(if (dragging) Palette.Selected else Color.Transparent)) {
-                        Row(verticalAlignment = Alignment.Top) {
-                            Box(Modifier.width(TABLE_EXPAND_WIDTH).padding(top = if (ctx.readOnly) 0.dp else 7.dp)) {
-                                IconButton(onClick = { ctx.setExpanded(rowPath, !rowExpanded) }, modifier = Modifier.size(24.dp)) {
-                                    Text(if (rowExpanded) "▼" else "▶", fontSize = 10.sp, color = Palette.SubText)
+                    Column(Modifier.fillMaxWidth().background(if (dragging) Palette.Selected else Color.Transparent)) {
+                        Box(Modifier.fillMaxWidth().horizontalScroll(hScroll)) {
+                            Row(Modifier.width(rowWidth), verticalAlignment = Alignment.Top) {
+                                Box(Modifier.width(TABLE_EXPAND_WIDTH).padding(top = if (ctx.readOnly) 0.dp else 7.dp)) {
+                                    IconButton(onClick = { ctx.setExpanded(rowPath, !rowExpanded) }, modifier = Modifier.size(24.dp)) {
+                                        Text(if (rowExpanded) "▼" else "▶", fontSize = 10.sp, color = Palette.SubText)
+                                    }
                                 }
-                            }
-                            if (keyHeader != null) {
-                                // map のキー列は表示のみ（キーの改名・追加は従来の縦リスト表示や汎用ビューの経路で行う）
-                                Box(Modifier.width(keyWidth).padding(horizontal = 4.dp, vertical = if (ctx.readOnly) 2.dp else 8.dp)) {
-                                    Text(
-                                        segment.toString(), fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
-                                        maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                    )
+                                if (keyHeader != null) {
+                                    // map のキー列は表示のみ（キーの改名・追加は従来の縦リスト表示や汎用ビューの経路で行う）
+                                    Box(Modifier.width(keyWidth).padding(horizontal = 4.dp, vertical = if (ctx.readOnly) 2.dp else 8.dp)) {
+                                        Text(
+                                            segment.toString(), fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
                                 }
-                            }
-                            columns.forEachIndexed { c, col ->
-                                Box(
-                                    Modifier.width(widths[c])
-                                        .padding(horizontal = 4.dp, vertical = if (ctx.readOnly) 2.dp else 1.dp),
-                                ) { ObjectTableCell(ctx, col, element, rowPath) }
-                            }
-                            if (!ctx.readOnly && ops != null) {
-                                Row(Modifier.width(opsWidth).padding(top = 7.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    if (onMove != null) Handle(Modifier.padding(end = 2.dp))
-                                    ops(i)
-                                    rowMenu?.invoke(i)
+                                columns.forEachIndexed { c, col ->
+                                    Box(
+                                        Modifier.width(widths[c])
+                                            .padding(horizontal = 4.dp, vertical = if (ctx.readOnly) 2.dp else 1.dp),
+                                    ) { ObjectTableCell(ctx, col, element, rowPath) }
                                 }
-                            } else if (rowMenu != null) {
-                                Box(Modifier.width(TABLE_MENU_WIDTH)) { rowMenu(i) }
+                                if (!ctx.readOnly && ops != null) {
+                                    Row(Modifier.width(opsWidth).padding(top = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        if (onMove != null) Handle(Modifier.padding(end = 2.dp))
+                                        ops(i)
+                                        rowMenu?.invoke(i)
+                                    }
+                                } else if (rowMenu != null) {
+                                    Box(Modifier.width(TABLE_MENU_WIDTH)) { rowMenu(i) }
+                                }
                             }
                         }
                         if (rowExpanded) {
-                            Column(Modifier.padding(start = TABLE_EXPAND_WIDTH, top = 2.dp, bottom = 6.dp)) {
+                            Column(Modifier.fillMaxWidth().padding(start = TABLE_EXPAND_WIDTH, top = 2.dp, bottom = 6.dp)) {
                                 ObjectFields(ctx, elementDef?.fields.orEmpty(), element, rowPath)
                             }
                         }
                     }
                 }
-                HorizontalDivider(color = Palette.Border.copy(alpha = .4f), modifier = Modifier.width(rowWidth))
+                HorizontalDivider(color = Palette.Border.copy(alpha = .4f))
             }
+            HorizontalScrollbar(
+                adapter = rememberScrollbarAdapter(hScroll),
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
-        HorizontalScrollbar(
-            adapter = rememberScrollbarAdapter(hScroll),
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
     }
 }
 
@@ -1927,16 +1958,19 @@ private fun MapEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
             node.entries.keys.toList().forEach { key ->
                 val childPath = path + key
                 Highlightable(ctx.state, childPath) {
-                    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.Top) {
+                    FormFieldLayout(Modifier.padding(vertical = 1.dp), labelWidth = 150.dp, label = {
                         Text(key, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.width(150.dp).padding(top = if (ctx.readOnly) 2.dp else 10.dp))
-                        Box(Modifier.weight(1f)) {
-                            ValueEditor(ctx, field.value ?: FieldDef(), MapSlot(node, key), childPath)
-                        }
-                        if (!ctx.readOnly) {
-                            IconButton(onClick = { node.entries.remove(key); ctx.markEdited() },
-                                modifier = Modifier.size(32.dp).padding(top = 8.dp)) {
-                                Icon(Icons.Default.Delete, contentDescription = "キーを削除", Modifier.size(16.dp), tint = Palette.SubText)
+                            modifier = Modifier.padding(top = if (ctx.readOnly) 2.dp else 10.dp))
+                    }) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                            Box(Modifier.weight(1f)) {
+                                ValueEditor(ctx, field.value ?: FieldDef(), MapSlot(node, key), childPath)
+                            }
+                            if (!ctx.readOnly) {
+                                IconButton(onClick = { node.entries.remove(key); ctx.markEdited() },
+                                    modifier = Modifier.size(32.dp).padding(top = 8.dp)) {
+                                    Icon(Icons.Default.Delete, contentDescription = "キーを削除", Modifier.size(16.dp), tint = Palette.SubText)
+                                }
                             }
                         }
                     }
@@ -2117,60 +2151,64 @@ fun GenericMapEntryRow(ctx: FormCtx, map: YNode.Map, key: String, mapPath: YPath
     if (ctx.readOnly) {
         // 閲覧専用モード（R10-04）: キー名変更・削除を出さない高密度の表示行
         Highlightable(ctx.state, childPath) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            FormFieldLayout(labelWidth = 150.dp, label = {
                 Text(key, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.width(150.dp).padding(top = 2.dp))
-                Box(Modifier.weight(1f)) {
-                    GenericEditor(ctx, MapSlot(map, key), childPath, refHint = childRefHint)
-                }
+                    modifier = Modifier.padding(top = 2.dp))
+            }) {
+                GenericEditor(ctx, MapSlot(map, key), childPath, refHint = childRefHint)
             }
         }
         return
     }
     Highlightable(ctx.state, childPath) {
-        Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.Top) {
-            if (renaming) {
-                // キー名の変更（R8-05）。順序・値・コメントは保たれる
-                val valid = renameText.trim().let { it.isNotEmpty() && (it == key || it !in map.entries) }
-                CompactTextField(
-                    value = renameText,
-                    onValueChange = { renameText = it },
-                    singleLine = true,
-                    isError = !valid,
-                    textStyle = fieldTextStyle,
-                    modifier = Modifier.width(150.dp),
-                )
-                IconButton(
-                    enabled = valid,
-                    onClick = {
-                        if (renameMapKey(map, key, renameText)) ctx.markEdited()
-                        renaming = false
-                    },
-                    modifier = Modifier.size(32.dp).padding(top = 8.dp),
-                ) { Icon(Icons.Default.Check, contentDescription = "キー名を確定", Modifier.size(16.dp), tint = Palette.Primary) }
-                IconButton(
-                    onClick = { renaming = false; renameText = key },
-                    modifier = Modifier.size(32.dp).padding(top = 8.dp),
-                ) { Icon(Icons.Default.Close, contentDescription = "キー名変更を取消", Modifier.size(16.dp), tint = Palette.SubText) }
-            } else {
-                Text(
-                    key,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.width(126.dp).padding(top = 10.dp),
-                )
-                IconButton(
-                    onClick = { renameText = key; renaming = true },
-                    modifier = Modifier.size(24.dp).padding(top = 8.dp),
-                ) { Icon(Icons.Default.Edit, contentDescription = "キー名を変更", Modifier.size(13.dp), tint = Palette.SubText) }
+        FormFieldLayout(Modifier.padding(vertical = 1.dp), labelWidth = if (renaming) 214.dp else 150.dp, label = {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                if (renaming) {
+                    // キー名の変更（R8-05）。順序・値・コメントは保たれる
+                    val valid = renameText.trim().let { it.isNotEmpty() && (it == key || it !in map.entries) }
+                    CompactTextField(
+                        value = renameText,
+                        onValueChange = { renameText = it },
+                        singleLine = true,
+                        isError = !valid,
+                        textStyle = fieldTextStyle,
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(
+                        enabled = valid,
+                        onClick = {
+                            if (renameMapKey(map, key, renameText)) ctx.markEdited()
+                            renaming = false
+                        },
+                        modifier = Modifier.size(32.dp).padding(top = 8.dp),
+                    ) { Icon(Icons.Default.Check, contentDescription = "キー名を確定", Modifier.size(16.dp), tint = Palette.Primary) }
+                    IconButton(
+                        onClick = { renaming = false; renameText = key },
+                        modifier = Modifier.size(32.dp).padding(top = 8.dp),
+                    ) { Icon(Icons.Default.Close, contentDescription = "キー名変更を取消", Modifier.size(16.dp), tint = Palette.SubText) }
+                } else {
+                    Text(
+                        key,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f).padding(top = 10.dp),
+                    )
+                    IconButton(
+                        onClick = { renameText = key; renaming = true },
+                        modifier = Modifier.size(24.dp).padding(top = 8.dp),
+                    ) { Icon(Icons.Default.Edit, contentDescription = "キー名を変更", Modifier.size(13.dp), tint = Palette.SubText) }
+                }
             }
-            Box(Modifier.weight(1f)) {
-                GenericEditor(ctx, MapSlot(map, key), childPath, refHint = childRefHint)
+        }) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                Box(Modifier.weight(1f)) {
+                    GenericEditor(ctx, MapSlot(map, key), childPath, refHint = childRefHint)
+                }
+                IconButton(
+                    onClick = { map.entries.remove(key); ctx.markEdited() },
+                    modifier = Modifier.size(32.dp).padding(top = 8.dp),
+                ) { Icon(Icons.Default.Delete, contentDescription = "キーを削除", Modifier.size(16.dp), tint = Palette.SubText) }
             }
-            IconButton(
-                onClick = { map.entries.remove(key); ctx.markEdited() },
-                modifier = Modifier.size(32.dp).padding(top = 8.dp),
-            ) { Icon(Icons.Default.Delete, contentDescription = "キーを削除", Modifier.size(16.dp), tint = Palette.SubText) }
         }
     }
 }

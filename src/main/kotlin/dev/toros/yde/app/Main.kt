@@ -714,9 +714,11 @@ fun EditorArea(state: AppState) {
             }
         }
         // ヘッダ: 文書名・ファイル名・スキーマ・ダーティ表示
-        Row(
+        FlowRow(
             Modifier.fillMaxWidth().background(Palette.Surface).padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            itemVerticalAlignment = Alignment.CenterVertically,
         ) {
             if (documentName != null && !isSchemaFile) {
                 Column {
@@ -741,7 +743,6 @@ fun EditorArea(state: AppState) {
                         .padding(horizontal = 8.dp, vertical = 2.dp),
                 )
             } ?: Text("スキーマなし（汎用ビュー）", fontSize = 11.sp, color = Palette.SubText)
-            Spacer(Modifier.weight(1f))
             if (state.readOnlyMode) {
                 Text(
                     "閲覧専用",
