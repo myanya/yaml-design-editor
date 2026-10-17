@@ -50,6 +50,7 @@
 | E-13 | 配列と map のテーブル表示（適否の自動判定と `display: table / list`・セル編集・展開フォーム・列幅・参照セルは ID と参照先の名前と横ぐしへの Hub） | `ui/FormView.kt`（`ObjectTable`・`RefCell`）, `schema/Display.kt`（`tableColumns`） | 単体 `DisplayTest`, `ArrayTableTest`, `RefTargetTitleTest` | [ui](architecture/ui.md) |
 | E-14 | 保存時に自動で入る値（印 `auto`＝更新日・作成日・版。保存の直前の 1 トランザクション・変更セットの適用にも） | `semantic-core/semantic/AutoValues.kt`, `workspace-core/workspace/WorkspaceSession.kt` | 単体 `SemanticAutoValuesTest`, `AutoValuesKernelTest`, `AppStateAutoValuesTest` | [auto-values](architecture/auto-values.md) |
 | E-15 | ソースの基本操作（Ctrl+F / H / G の検索・置換・行へ移動、一致の強調と F3 の移動、Aa と .*、Enter の自動インデント、選択行の Tab / Shift+Tab、Ctrl+/ コメント、Alt+↑↓ 行の移動、Ctrl+D 複製、現在行の強調） | `ui/SourceEditing.kt`, `ui/SourcePane.kt` | 単体 `SourceEditingTest` | [editing-history](architecture/editing-history.md) |
+| E-16 | ソースでスキーマと索引を使う（指摘を左端の印と値の色で出し右パネルの指摘から行へ、Ctrl+Space でキー名・ID・enum・file の補完、ホバーで項目の説明、Ctrl+クリックで参照先へ） | `ui/SourceContext.kt`, `ui/SourceCompletion.kt`, `yaml-core/yaml/YamlPositions.kt` | `SourceCompletionTest` ほか | [editing-history](architecture/editing-history.md) |
 
 ## 3. スキーマ
 

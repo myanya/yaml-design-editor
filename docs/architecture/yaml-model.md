@@ -10,6 +10,7 @@ YAML 文書は可変の木 `YNode` として扱い、位置は `YPath` で表す
 | `YNode`（Scalar / Seq / Map） | yaml-core/model/YNode.kt | 可変の木（位置は `YPath`＝String はキー・Int は索引）。コメント（`YComments`）と表記スタイルのヒントを保持 |
 | `YamlIO` | yaml-core/yaml/YamlIO.kt | テキストと `YNode` の変換。`parse`（単一文書）・`parseAll` / `dumpAll`（複数文書）・`parseFirst`（読み取り専用の寛容パース）・`dumpPlain`（コメント・スタイル抜きの正規化ダンプ） |
 | `PlainDateResolver` | yaml-core/yaml/YamlIO.kt | TIMESTAMP を暗黙解決しない Resolver。引用符なしの日付・日時を文字列のまま往復させる |
+| `YamlPositions` / `SourcePositions` | yaml-core/yaml/YamlPositions.kt | 先頭ドキュメントのノードの位置の表（パス → 値とキーの範囲、位置 → 最も深いパス。文法の事実だけで意味は持たず、ソースエディタが指摘の行・ホバー・参照先へのジャンプに使う） |
 | `YamlOperation` | yaml-core/edit | 変更の基礎命令（Set / Insert / Delete / Move / RenameKey / ReorderKeys）の型付き操作。逆操作を持つ内部の正準 |
 | `PatchOp` / `Patcher` | yaml-core/patch/Patch.kt | 同じ基礎命令の交換形式（YPath パッチ）。エージェント・CLI・skill が使う |
 | `Slot`（Map / Seq / Root） | ui/Common.kt | 「値の置き場所」の抽象（get / set / remove）。`slotAt` が絶対 `YPath` から `Slot` を得る |

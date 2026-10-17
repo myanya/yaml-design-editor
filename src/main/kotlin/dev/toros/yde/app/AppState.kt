@@ -188,6 +188,10 @@ class OpenDocument(
     var sourceBase: String = sourceApplied
         private set
 
+    /** 最後に解析できた下書きの文字列（位置の表＝指摘の行・カーソルのパスの元。解析できない文書では空）。 */
+    var sourceParsed: String = if (root == null) "" else sourceApplied
+        private set
+
     /** 下書きを木と同期した version。version と違えば他所で木が変わった。 */
     var sourceSyncedVersion: Int = 0
         private set
@@ -226,6 +230,7 @@ class OpenDocument(
         buffer.extraDocs = parsed.extraDocs
         buffer.parseError = null
         sourceError = null
+        sourceParsed = text
         // ソースの連続入力は履歴 1 件に合体する（文書単位の固定キー）
         markEdited(coalesceWith = "source")
         textOnly = false
@@ -261,7 +266,8 @@ class OpenDocument(
         }
         sourceBase = theirs
         sourceSyncedVersion = version
-        if (sourceError != null && source.text.toString() == theirs) sourceError = null
+        if (sourceError == null) sourceParsed = source.text.toString()
+        else if (source.text.toString() == theirs) { sourceError = null; sourceParsed = theirs }
         return conflicts
     }
 
@@ -274,6 +280,7 @@ class OpenDocument(
         sourceBase = text
         sourceSyncedVersion = version
         sourceError = if (buffer.root == null) buffer.parseError else null
+        sourceParsed = if (buffer.root == null) "" else text
     }
 
     /** 壊れた下書きをそのまま保存した直後の状態にする＝テキスト文書（R43-04）。最後に解析できた木は戻せるように残す。 */
@@ -286,6 +293,7 @@ class OpenDocument(
         textOnly = true
         sourceApplied = savedText
         sourceBase = savedText
+        sourceParsed = ""
         version++
         sourceSyncedVersion = version
         markSaved()
@@ -2232,7 +2240,7 @@ class AppState {
         if (cur.space != UiSpace.EDIT || cur.path != path) pushBack(cur)
         workspaceView = 0
         syncSpaceFromView()
-        editorTab = 0
+        if (editorTab != 1) editorTab = 0   // ソースで見ている最中の指摘のジャンプは、ソースの行へ（SourcePane が highlightPath を行に写す）
         highlightPath = path
     }
 
@@ -2265,7 +2273,7 @@ class AppState {
     fun navigateToOccurrence(entry: IdEntry) {
         navigationCandidates = emptyList()
         openFile(entry.document, entry.path)
-        editorTab = 0
+        if (editorTab != 1) editorTab = 0   // ソースから飛んだらソースの行へ
     }
 
     fun dismissNavigationCandidates() { navigationCandidates = emptyList() }

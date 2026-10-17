@@ -535,7 +535,7 @@ private fun IssueRow(state: AppState, file: Path, issue: Issue) {
                     onClick = {
                         menuOpen = false
                         if (file == state.openDoc?.file) state.navigateToPath(issue.path)
-                        else { state.openFile(file, issue.path.takeIf { it.isNotEmpty() }); state.editorTab = 0 }
+                        else { state.openFile(file, issue.path.takeIf { it.isNotEmpty() }); if (state.editorTab != 1) state.editorTab = 0 }
                     },
                 )
                 // エラー時の対応（SP-09。P29 Phase 6）: 検査の定義（YAML）が宣言した対応を、宣言の順に並べる。

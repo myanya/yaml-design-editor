@@ -110,6 +110,9 @@ object YamlIO {
         return v
     }
 
+    /** 先頭ドキュメントを SnakeYAML のノードのまま返す（位置の表 `YamlPositions` が使う。空なら null、壊れていれば例外）。 */
+    internal fun composeFirstNode(text: String): Node? = newComposer().compose(StringReader(text))
+
     /** テキストを YNode ツリーにパースする。空ドキュメントは空マップとして扱う。 */
     fun parse(text: String): YNode {
         val node = newComposer().compose(StringReader(text)) ?: return YNode.Map()

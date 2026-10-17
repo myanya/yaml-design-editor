@@ -17,6 +17,9 @@
 | `SourcePane` / `SourceDraftBanner` | ui/SourcePane.kt | ソースの表示と入力（入力が止まってから背景で解析）。他のタブに出す書きかけ・壊れたまま保存のバナー |
 | `LineMerge` | ui/SourceMerge.kt | 行の差分（共通部分の切り落とし＋LCS）と 3 者マージ・文字列とカーソルへの適用（純ロジック） |
 | `SourceEditing` | ui/SourceEditing.kt | 基本操作の規則（改行のインデント・インデント・コメント切替・行の移動と複製・検索と置換）。文字列と選択範囲を受けて返す純ロジック |
+| `SourceContext` | ui/SourceContext.kt | カーソル位置の文脈（親のパス・キーか値か・打ちかけの語）。木でなく文字列のインデントから読むので、解析できない書きかけでも働く（純ロジック） |
+| `SourceCompletion` | ui/SourceCompletion.kt | Ctrl+Space の候補（キー名＝スキーマの実効フィールド・ID＝上書き索引・enum の値・真偽値・file＝ワークスペースのファイル） |
+| `YamlPositions` / `SourcePositions` | yaml-core yaml/YamlPositions.kt | 解析できた文字列のノードの位置の表（パス→行・列、位置→パス）。指摘の行・ホバー・Ctrl+クリックの場所 |
 | `YamlHighlighter` | ui/SourceHighlight.kt | 行ごとの覚えつきの色分け（純ロジック） |
 | `AppState.saveDraftAsText` / `historyStep` / `ensureAttached` | app/AppState.kt | 壊れたまま保存、下書きを捨てる確認つきの Undo/Redo、テキスト文書を文書集合へ戻す |
 | `WorkspaceSession.saveAsText` / `attachDocument` | workspace-core | テキストのまま保存して文書集合から外す（履歴は残す）。解析できる内容で文書集合へ戻す |
@@ -58,6 +61,9 @@
 - **Ctrl+Z の一本化**: 欄の中の取り消しは使わず、`SourcePane` が Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z をセッションの履歴へ回す（フォームと同じ 1 本の履歴。差し込みでカーソルは留まる）。
 - **基本操作**: 欄のキー（Tab・Enter・Ctrl+/・Ctrl+D・Alt+↑↓・Ctrl+F / H / G・F3）は `SourcePane.handleEditorKey` が受け、規則は `SourceEditing` に閉じる（文字列と選択範囲を受けて返す）。日本語入力の変換中（`composition != null`）は Enter と Tab を奪わない。
 - **検索の見せ方**: 一致の強調は色分けと同じ `OutputTransformation`、現在行の背景は欄の `drawBehind`。一致や行へ移動したときのスクロールは `revealRequest` を見た `LaunchedEffect` が配置結果から行の位置を取って行う。検索・置換の入力と現在の一致は操作の途中なので `remember`（`SourceUi`）。
+- **場所の 2 つの読み方**: 解析できた文字列（`OpenDocument.sourceParsed`）の位置の表 `YamlPositions` は正確（フロー表記・引用符つきのキーも）で、指摘のパス→行、ホバーと Ctrl+クリックの位置→パスに使う。今の文字列が解析できた文字列と違う間（打っている最中）は値の色付きを出さず、行の印だけ出す。打っている最中に親のパスを知る補完は `SourceContext` がインデントから読む。
+- **スキーマと索引の使い方**: 指摘は右パネルと同じ `Validator.validate`（文書 1 つ）で、パスの無い指摘は印にしない。補完のキー名は `schema.effectiveFields`（enum の cases も展開）から既にあるキーを除いたもの、ID は `state.overlayIndex()`（未保存を含む）、enum は `values`（label は添えるだけ）。
+- **指摘からソースへ**: 右パネルの指摘・参照のクリックは、ソースを見ている間は `highlightPath` をソースの行に写す（`navigateToPath` / `navigateToOccurrence` はソースのタブを保つ）。
 - **大きな文書**: 解析・出力・色分けは 1 万行で 20ms 程度（行ごとの覚え `YamlHighlighter`・共通部分を落とす `LineMerge.diff`）。Compose の欄は全文を配置し直すので上限がある（manual/limits.md）。
 
 ## 文書の作成と削除
