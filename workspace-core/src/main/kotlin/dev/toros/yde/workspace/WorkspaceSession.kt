@@ -496,6 +496,24 @@ class WorkspaceSession private constructor(
             schemaId = existing?.schemaId ?: WorkspaceReader.assignSchemaId(rel, copied, schemas, layout),
             inLedger = existing?.inLedger ?: layout.inLedger(rel),
         )
+        commitCandidate(candidate, touched = setOf(id), removed = emptySet(), schemaTouched = schemaTouched)
+        return TransactionResult(true, null, version)
+    }
+
+    /** スキーマ文書（または derive の導出元）か。触れたらスキーマ束を組み直す必要がある。 */
+    private fun touchesSchemas(rel: String): Boolean =
+        layout.zoneOf(rel) == WorkspaceLayout.Zone.SCHEMAS || schemas.any { s -> s.derive?.matchesSource(rel) == true }
+
+    /**
+     * 候補の文書集合を working に確定し、派生状態を進める（履歴は積まない）。
+     * スキーマに触れたときは候補の working 内容からスキーマ束を組み直し、全文書の割当を再評価する。
+     */
+    private fun commitCandidate(
+        candidate: LinkedHashMap<DocumentId, WorkspaceDocument>,
+        touched: Set<DocumentId>,
+        removed: Set<DocumentId>,
+        schemaTouched: Boolean,
+    ) {
         if (!incrementalDerive || schemaTouched) {
             if (schemaTouched) {
                 val sources = candidate.entries
@@ -515,10 +533,61 @@ class WorkspaceSession private constructor(
             version += 1
             derived = WorkspaceReader.derive(workingDocuments, schemas, declarations, layout, version)
         } else {
-            derived = deriveIncremental(candidate, setOf(id), emptySet(), version + 1)
+            derived = deriveIncremental(candidate, touched, removed, version + 1)
             workingDocuments = candidate
             version += 1
         }
+    }
+
+    /** セッションが文書として扱う場所か（隠しパスと構成ディレクトリの外）。テキスト文書を戻すときの判定に使う。 */
+    fun acceptsDocument(id: DocumentId): Boolean {
+        val rel = id.value
+        if (WorkspaceReader.hiddenPath(rel, layout)) return false
+        val config = layout.configDir ?: return true
+        return rel != config && !rel.startsWith("$config/") || layout.zoneOf(rel) != null
+    }
+
+    /**
+     * 解析できないテキストをそのまま保存し、文書を文書集合から外す（P43 R43-04「壊れたまま保存」）。
+     * ディスク上で解析できないファイルと同じ扱い＝索引・検証・派生の対象外になる。履歴は消さない（`reload` と違う点）。
+     * その文書に関わる履歴の記録は、文書が戻る（`attachDocument` か、解析できる内容で保存されて `noteStoreChanges` が取り込む）まで
+     * 適用できない。直して解析できるようになれば `attachDocument` で戻す。
+     */
+    fun saveAsText(id: DocumentId, text: String): TransactionResult {
+        resetCoalesce()
+        return runCatching { store.write(id, text) }.fold(
+            onSuccess = {
+                storeTexts[id] = text
+                pendingDeletes.remove(id)
+                val candidate = LinkedHashMap(workingDocuments)
+                val removed = if (candidate.remove(id) != null) setOf(id) else emptySet()
+                commitCandidate(candidate, touched = emptySet(), removed = removed, schemaTouched = touchesSchemas(id.value))
+                TransactionResult(true, null, version)
+            },
+            onFailure = { TransactionResult(false, it.message ?: it.toString(), version) },
+        )
+    }
+
+    /**
+     * 文書集合に無い文書を載せる（履歴は積まない）。テキストのまま保存した文書が再び解析できるようになったとき、
+     * 開いた時点で解析できなかった文書が直ったときに使う。persistedText は保存済みの内容（ストアの今のテキスト）で、
+     * 載せた内容と違えば dirty になる。既に載っていれば `replaceDocument` と同じ。
+     */
+    fun attachDocument(id: DocumentId, document: YDocument, persistedText: String? = store.read(id)?.text): TransactionResult {
+        require(acceptsDocument(id)) { "セッションが文書として扱わない場所です: ${id.value}" }
+        if (id in workingDocuments) return replaceDocument(id, document)
+        resetCoalesce()
+        val rel = id.value
+        val copied = document.copy(documents = document.documents.map { it.deepCopy() })
+        val candidate = LinkedHashMap(workingDocuments)
+        candidate[id] = WorkspaceDocument(
+            document = copied,
+            persistedText = persistedText,
+            schemaId = WorkspaceReader.assignSchemaId(rel, copied, schemas, layout),
+            inLedger = layout.inLedger(rel),
+        )
+        persistedText?.let { storeTexts[id] = it }
+        commitCandidate(candidate, touched = setOf(id), removed = emptySet(), schemaTouched = touchesSchemas(rel))
         return TransactionResult(true, null, version)
     }
 

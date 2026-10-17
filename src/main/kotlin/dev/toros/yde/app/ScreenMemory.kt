@@ -51,6 +51,11 @@ class ScreenMemory {
     /** 検証の範囲。0 = この文書、1 = 全体。 */
     var validationScope by mutableStateOf(0)
 
+    // ================================================================ ソース
+
+    /** ソースタブの長い行を折り返すか（偽なら横スクロール）。 */
+    var sourceWrap by mutableStateOf(true)
+
     // ================================================================ 台帳
 
     var listQuery by mutableStateOf("")

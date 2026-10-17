@@ -96,6 +96,36 @@ fun main(args: Array<String>) = application {
                 confirmButton = { TextButton(onClick = { exitApplication() }) { Text("保存せず終了", color = Palette.ErrorRed) } },
                 dismissButton = { TextButton(onClick = { confirmExit = false }) { Text("キャンセル") } },
             )
+            // 解析できない書きかけを捨てて Undo/Redo するかの確認（P43 R43-02）
+            state.pendingHistory?.let { pending ->
+                AlertDialog(
+                    onDismissRequest = { state.pendingHistory = null },
+                    title = { Text("ソースに解析できない書きかけがあります") },
+                    text = {
+                        Text(
+                            pending.docs.joinToString("・") { state.relPath(it.file) } +
+                                " の書きかけを捨てて、" + (if (pending.undo) "元に戻し" else "やり直し") + "ますか？"
+                        )
+                    },
+                    confirmButton = { TextButton(onClick = state::confirmPendingHistory) { Text("書きかけを捨てて進める", color = Palette.ErrorRed) } },
+                    dismissButton = { TextButton(onClick = { state.pendingHistory = null }) { Text("キャンセル") } },
+                )
+            }
+            // スキーマ文書を壊れたまま保存するかの確認（P43 R43-04。波及が大きい文書だけ止める）
+            state.pendingTextSave?.let { doc ->
+                AlertDialog(
+                    onDismissRequest = { state.pendingTextSave = null },
+                    title = { Text("スキーマ文書を壊れたまま保存しますか") },
+                    text = {
+                        Text(
+                            "${state.relPath(doc.file)} は解析できない状態です。このまま保存すると、直して保存するまで、" +
+                                "このスキーマを使う全文書の検証と索引が止まります。"
+                        )
+                    },
+                    confirmButton = { TextButton(onClick = state::confirmTextSave) { Text("壊れたまま保存", color = Palette.ErrorRed) } },
+                    dismissButton = { TextButton(onClick = { state.pendingTextSave = null }) { Text("キャンセル") } },
+                )
+            }
         }
     }
 }
@@ -696,7 +726,7 @@ fun EditorArea(state: AppState) {
             } else {
                 Text(state.relPath(doc.file), fontSize = 14.sp, fontWeight = FontWeight.Bold)
             }
-            if (doc.dirty) {
+            if (doc.dirty || doc.draftDirty) {
                 Spacer(Modifier.width(6.dp))
                 Text("●未保存", fontSize = 11.sp, color = Palette.WarnOrange)
             }
@@ -777,6 +807,8 @@ fun EditorArea(state: AppState) {
         }
         // スキーマ文書ではタブ3にメタスキーマ（R11-02）のフォーム編集を追加する（設計UIが主要UXのまま）
         val tab = if (!isSchemaFile && state.editorTab == 3) 0 else state.editorTab
+        // ソースの書きかけ・壊れたまま保存の案内（P43 R43-02・04）。ソースタブ自身は欄の上に出すので除く
+        if (tab != 1) SourceDraftBanner(state, doc)
         TabRow(
             selectedTabIndex = tab,
             containerColor = Palette.Surface,

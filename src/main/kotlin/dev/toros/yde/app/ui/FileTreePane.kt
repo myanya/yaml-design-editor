@@ -167,7 +167,9 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp) {
 @Composable
 private fun TreeRowItem(state: AppState, row: TreeRow, isExpanded: Boolean, treeSelected: Boolean, onClick: () -> Unit) {
     val selected = !row.isDir && (state.openDoc?.file == row.path || state.openMarkdown == row.path)
-    val dirty = !row.isDir && state.docFor(row.path)?.dirty == true
+    val cached = if (row.isDir) null else state.docFor(row.path)
+    val dirty = cached?.let { it.dirty || it.draftDirty } == true
+    val textOnly = cached?.textOnly == true   // 壊れたまま保存／解析できない＝索引・検証の対象外（R43-04）
     Row(
         Modifier
             .fillMaxWidth()
@@ -209,6 +211,10 @@ private fun TreeRowItem(state: AppState, row: TreeRow, isExpanded: Boolean, tree
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
             modifier = Modifier.weight(1f, fill = false),
         )
+        if (textOnly) {
+            Spacer(Modifier.width(4.dp))
+            Text("解析不可", fontSize = 9.sp, color = Palette.ErrorRed)
+        }
         if (dirty) {
             Spacer(Modifier.width(4.dp))
             Text("●", fontSize = 9.sp, color = Palette.WarnOrange)

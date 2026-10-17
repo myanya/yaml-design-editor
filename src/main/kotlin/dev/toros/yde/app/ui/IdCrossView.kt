@@ -385,7 +385,7 @@ private fun AspectCard(state: AppState, section: AspectSection) {
             val documentId = IdIndex.documentIdOf(root, state.relPath(doc.file))
             DocScanner.scan(root, state.documentOf(doc.file), doc.schema, documentId).first
         }
-        val ctx = remember(doc, doc.version, state.indexVersion, state.readOnlyMode) {
+        val ctx = remember(doc, doc.version, state.indexVersion, state.readOnlyMode, doc.draftBroken) {
             FormCtx(state, doc, localIds, baseDepth = section.entry.path.size, aiRelatedFiles = relatedFiles)
         }
         when {
@@ -741,7 +741,7 @@ private fun OccurrenceForm(
         DocScanner.scan(root, state.documentOf(doc.file), doc.schema, documentId).first
     }
     // 既定展開の深さは文書ルートではなく表示対象要素（entry.path）を基準に判定する
-    val ctx = remember(doc, doc.version, state.indexVersion, state.readOnlyMode) {
+    val ctx = remember(doc, doc.version, state.indexVersion, state.readOnlyMode, doc.draftBroken) {
         FormCtx(state, doc, localIds, baseDepth = entry.path.size, aiRelatedFiles = relatedFiles)
     }
     val schemaDef = doc.schema

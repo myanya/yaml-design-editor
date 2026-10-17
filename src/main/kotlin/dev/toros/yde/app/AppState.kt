@@ -1,9 +1,12 @@
 package dev.toros.yde.app
 
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import dev.toros.yde.app.core.ChangeSetResult
+import dev.toros.yde.app.core.EditBuffer
+import dev.toros.yde.app.ui.LineMerge
 import dev.toros.yde.app.core.Search
 import dev.toros.yde.app.core.SearchHit
 import dev.toros.yde.app.core.SearchQuery
@@ -168,6 +171,138 @@ class OpenDocument(
 
     /** 保存・ソース表示に使う正規化テキスト。パース不能なら元テキストを返す。 */
     fun canonicalText(): String = buffer.canonicalText()
+
+    // ================================================================ ソースの下書き（P43 R43-01〜04。architecture/editing-history.md「ソースとの同期」）
+
+    /**
+     * ソースタブの文字列とカーソル。画面の部品でなく文書が持つので、タブや文書を移っても残る。
+     * 木が正で、下書きは木の表現の 1 つ。解析できたら木へ反映し（applyParsed）、他所で木が変わったら差分だけを差し込む（syncSourceFromTree）。
+     */
+    val source: TextFieldState = TextFieldState(canonicalText())
+
+    /** 下書きを最後に木へ反映した（または反映を試みた）文字列。これと違えば、まだ反映していない入力がある。 */
+    var sourceApplied: String = source.text.toString()
+        private set
+
+    /** 前回木から作った正規化テキスト（3 者マージの元。「整形」の活性判定にも使う）。 */
+    var sourceBase: String = sourceApplied
+        private set
+
+    /** 下書きを木と同期した version。version と違えば他所で木が変わった。 */
+    var sourceSyncedVersion: Int = 0
+        private set
+
+    /** 下書きが解析できないときの文面（行・列つき）。null なら下書きは木と一致している。 */
+    var sourceError by mutableStateOf<String?>(parseError)
+        private set
+
+    /** 下書きが解析できないか。フォームは閲覧専用になり、保存すると「壊れたまま保存」になる（R43-02・04）。 */
+    val draftBroken: Boolean get() = sourceError != null
+
+    /** 壊れた下書きが、保存した内容と違うか（壊れている間は dirty の代わりにこれが未保存の印）。 */
+    val draftDirty: Boolean get() = sourceError != null && source.text.toString() != rawText
+
+    /** 壊れたまま保存した（または開いた時点で解析できなかった）テキスト文書か。索引・検証の対象外で、直して解析できれば戻る（R43-04）。 */
+    var textOnly by mutableStateOf(root == null)
+
+    /** 最後に解析できた木（壊れたまま保存したあと「解析できた内容に戻す」ために残す）。 */
+    private var lastParsed: Pair<YNode, List<YNode>>? = null
+
+    /** 最後に解析できた木に戻せるか。 */
+    val canRestoreLastParsed: Boolean get() = textOnly && lastParsed != null
+
+    /**
+     * 下書きの解析結果を木へ反映する（UI スレッドで呼ぶ）。成功なら markEdited＝履歴・dirty・検証・索引が追随し、
+     * テキスト文書なら文書集合へ戻る。失敗なら文面を残すだけで木は触らない。
+     */
+    fun applyParsed(text: String, parsed: EditBuffer.Parsed) {
+        sourceApplied = text
+        val newRoot = parsed.root
+        if (newRoot == null) {
+            sourceError = parsed.error ?: "解析できません"
+            return
+        }
+        buffer.root = newRoot
+        buffer.extraDocs = parsed.extraDocs
+        buffer.parseError = null
+        sourceError = null
+        // ソースの連続入力は履歴 1 件に合体する（文書単位の固定キー）
+        markEdited(coalesceWith = "source")
+        textOnly = false
+        sourceBase = canonicalText()
+        sourceSyncedVersion = version
+    }
+
+    /** まだ反映していない入力をいま解析して反映する（保存・Undo・タブを離れるときに呼ぶ）。 */
+    fun flushDraft() {
+        val text = source.text.toString()
+        if (text == sourceApplied) return
+        applyParsed(text, EditBuffer.parse(text))
+    }
+
+    /**
+     * 他所（フォーム・Undo・操作・再読込）で木が変わったとき、下書きへ差分だけを差し込む（R43-03）。
+     * 元＝前回の正規化テキスト・自分＝下書き・相手＝今回の正規化テキストの 3 者マージで、カーソルは同じ場所に留まる。
+     * 戻り値は下書きを優先した食い違いの数（0 が普通）。
+     */
+    fun syncSourceFromTree(): Int {
+        if (version == sourceSyncedVersion) return 0
+        val theirs = canonicalText()
+        val ours = source.text.toString()
+        var conflicts = 0
+        if (ours != theirs) {
+            val m = LineMerge.mergeHunks(LineMerge.splitLines(sourceBase), LineMerge.splitLines(ours), LineMerge.splitLines(theirs))
+            conflicts = m.conflicts
+            if (m.hunks.isNotEmpty()) {
+                val r = LineMerge.applyToText(ours, m.hunks, source.selection.start)
+                source.edit { replace(0, length, r.text); placeCursorBeforeCharAt(r.caret) }
+                sourceApplied = r.text
+            }
+        }
+        sourceBase = theirs
+        sourceSyncedVersion = version
+        if (sourceError != null && source.text.toString() == theirs) sourceError = null
+        return conflicts
+    }
+
+    /** 下書きを捨てて木の正規化テキストに揃える（「編集を破棄」「整形」）。テキスト文書では保存したテキストに戻る。 */
+    fun discardDraft() {
+        val text = canonicalText()
+        val caret = source.selection.start.coerceAtMost(text.length)
+        source.edit { replace(0, length, text); placeCursorBeforeCharAt(caret) }
+        sourceApplied = text
+        sourceBase = text
+        sourceSyncedVersion = version
+        sourceError = if (buffer.root == null) buffer.parseError else null
+    }
+
+    /** 壊れた下書きをそのまま保存した直後の状態にする＝テキスト文書（R43-04）。最後に解析できた木は戻せるように残す。 */
+    fun enterTextOnly(savedText: String) {
+        buffer.root?.let { lastParsed = it to buffer.extraDocs }
+        buffer.root = null
+        buffer.extraDocs = emptyList()
+        buffer.rawText = savedText
+        buffer.parseError = sourceError
+        textOnly = true
+        sourceApplied = savedText
+        sourceBase = savedText
+        version++
+        sourceSyncedVersion = version
+        markSaved()
+    }
+
+    /** テキスト文書を、最後に解析できた木に戻す（未保存になる。保存すれば木の内容が書かれる）。 */
+    fun restoreLastParsed(): Boolean {
+        val (r, extra) = lastParsed ?: return false
+        buffer.root = r
+        buffer.extraDocs = extra
+        buffer.parseError = null
+        sourceError = null
+        markEdited()
+        textOnly = false
+        discardDraft()
+        return true
+    }
 }
 
 /**
@@ -890,8 +1025,21 @@ class AppState {
         val s = session ?: return
         val root = doc.root ?: return
         val id = DocumentId(relPath(doc.file))
-        if (!s.hasDocument(id)) return  // 構成ファイル等、セッションが文書として扱わないパス
+        if (!ensureAttached(doc, s, id, root)) return  // 構成ファイル等、セッションが文書として扱わないパス
         runCatching { s.replaceDocument(id, YDocument(id, listOf(root) + doc.extraDocs)) }
+    }
+
+    /**
+     * セッションに載っていない文書を載せる（R43-04）: テキスト文書（壊れたまま保存／開いた時点で解析不能）が解析できるように
+     * なったとき、文書集合へ戻す（保存済みの内容との差で dirty になる）。セッションが文書として扱わない場所なら false。
+     */
+    private fun ensureAttached(doc: OpenDocument, s: WorkspaceSession, id: DocumentId, root: YNode): Boolean {
+        if (s.hasDocument(id)) return true
+        if (!doc.textOnly || !s.acceptsDocument(id)) return false
+        val attached = runCatching { s.attachDocument(id, YDocument(id, listOf(root) + doc.extraDocs)) }.getOrNull()
+        if (attached?.ok != true) return false
+        doc.textOnly = false
+        return true
     }
 
     /**
@@ -1256,7 +1404,7 @@ class AppState {
         val s = session ?: return
         val root = doc.root ?: return
         val id = DocumentId(relPath(doc.file))
-        if (!s.hasDocument(id)) return
+        if (!ensureAttached(doc, s, id, root)) return
         runCatching {
             s.recordEdit(
                 id, YDocument(id, listOf(root) + doc.extraDocs),
@@ -1272,7 +1420,7 @@ class AppState {
         }
         val modified = runCatching { Files.getLastModifiedTime(doc.file).toMillis() }.getOrDefault(0L)
         if (!force && modified == doc.diskModifiedMillis) return
-        if (doc.dirty && !force) {
+        if ((doc.dirty || doc.draftDirty) && !force) {
             doc.externalConflict = true
             return
         }
@@ -1292,6 +1440,8 @@ class AppState {
         doc.externalConflict = false
         doc.version++
         doc.resetBaseline()  // 保存基準・dirty を取り直す
+        doc.textOnly = doc.root == null
+        doc.discardDraft()   // 下書きはディスクの内容に揃える（未保存の下書きは上で競合にしている）
     }
 
     fun acceptDiskVersion() {
@@ -1315,10 +1465,58 @@ class AppState {
     }
 
     fun saveAll() {
-        val dirty = docCache.values.filter { it.dirty }
+        docCache.values.forEach { it.flushDraft() }   // 入力待ちのソースを取り込んでから
+        val dirty = docCache.values.filter { it.dirty || it.draftDirty }
         // 自動の値（更新日・版）は全部の文書で 1 つのトランザクション＝Undo 1 回で戻る。その後に 1 文書ずつ書き出す
-        val stamped = stampAutoValues(dirty)
+        // （壊れた下書きは木が無いので対象外）
+        val stamped = stampAutoValues(dirty.filter { !it.draftBroken })
         dirty.forEach { save(it, stampedBefore = stamped) }
+    }
+
+    /** 壊れたまま保存の確認待ち（スキーマ文書だけ。波及が大きいので Main.kt が確認を出す。R43-04）。 */
+    var pendingTextSave by mutableStateOf<OpenDocument?>(null)
+
+    fun confirmTextSave() {
+        val doc = pendingTextSave ?: return
+        pendingTextSave = null
+        save(doc, confirmedTextSave = true)
+    }
+
+    /** `_schemas` の文書か（壊れたまま保存すると、そのスキーマを使う全文書に波及する）。 */
+    fun isSchemaDocument(file: Path): Boolean = layout.zoneOf(relPath(file)) == WorkspaceLayout.Zone.SCHEMAS
+
+    /**
+     * 壊れた下書きをそのまま書く（R43-04「壊れたまま保存」）。文書はテキスト文書になり、ディスク上で解析できないファイルと同じ扱い
+     * （索引・検証・ビュー・エージェントの対象外）。セッションの履歴は消さない。直して保存すれば文書集合へ戻る。
+     */
+    private fun saveDraftAsText(doc: OpenDocument) {
+        val text = doc.source.text.toString()
+        val id = DocumentId(relPath(doc.file))
+        runCatching {
+            val s = session
+            if (s != null && s.acceptsDocument(id)) {
+                val r = s.saveAsText(id, text)
+                check(r.ok) { r.message ?: "書込に失敗しました" }
+            } else {
+                Files.writeString(doc.file, text)
+            }
+        }.onSuccess {
+            doc.enterTextOnly(text)
+            doc.diskModifiedMillis = runCatching { Files.getLastModifiedTime(doc.file).toMillis() }.getOrDefault(0L)
+            doc.externalConflict = false
+            workspace?.let { workspaceStamp = snapshotFiles(it) }
+            coreWs?.let { cw ->
+                cw.noteDiskChanges(listOf(doc.file))
+                mirrorCore(cw)
+                docCache.values.forEach { it.schema = schemaFor(it.file) }
+            }
+            editVersion++
+            indexVersion++
+            status = "壊れたまま保存しました: ${relPath(doc.file)}（直して保存するまで索引・検証の対象外です）"
+            historyNotice = null
+        }.onFailure {
+            status = "保存に失敗しました: ${it.message}"
+        }
     }
 
     /**
@@ -1347,16 +1545,45 @@ class AppState {
      * Undo（A-3・RA-06 / D-07）: 履歴はセッション単一所有＝**ワークスペース横断**の1本の履歴。
      * 直前の変更が他の文書のものなら、その文書が戻る（ツリーはセッションから追随更新される）。
      */
-    fun undo() {
+    fun undo() = historyStep(undo = true)
+
+    fun redo() = historyStep(undo = false)
+
+    /** 解析できない下書きを捨てて戻すかの確認待ち（Main.kt が確認を出す。R43-02）。 */
+    var pendingHistory by mutableStateOf<PendingHistory?>(null)
+
+    class PendingHistory(val undo: Boolean, val docs: List<OpenDocument>)
+
+    /**
+     * Undo / Redo の 1 手。対象の文書に解析できない下書きがあれば「捨てて戻すか」を確認し（R43-02）、
+     * 壊れたまま保存された文書が含まれていれば案内して止める（文書集合に無いので戻せない。R43-04）。
+     */
+    private fun historyStep(undo: Boolean, confirmed: Boolean = false) {
         val s = session ?: return
-        val record = s.peekUndo() ?: return
-        if (s.undo().ok) afterHistoryStep(record, undo = true)
+        val record = (if (undo) s.peekUndo() else s.peekRedo()) ?: return
+        val targets = historyTargets(record).map(DocumentId::value).toSet()
+        val docs = docCache.values.filter { relPath(it.file) in targets }
+        docs.forEach { it.flushDraft() }   // 入力待ちの分を取り込んでから戻す
+        val textOnly = docs.filter { it.textOnly }
+        if (textOnly.isNotEmpty()) {
+            status = textOnly.joinToString("・") { relPath(it.file) } +
+                " は壊れたまま保存されているため、この操作は戻せません（ソースで直して保存すると戻せます）"
+            return
+        }
+        val broken = docs.filter { it.draftBroken }
+        if (broken.isNotEmpty() && !confirmed) {
+            pendingHistory = PendingHistory(undo, broken)
+            return
+        }
+        broken.forEach { it.discardDraft() }
+        val ok = if (undo) s.undo().ok else s.redo().ok
+        if (ok) afterHistoryStep(record, undo)
     }
 
-    fun redo() {
-        val s = session ?: return
-        val record = s.peekRedo() ?: return
-        if (s.redo().ok) afterHistoryStep(record, undo = false)
+    fun confirmPendingHistory() {
+        val pending = pendingHistory ?: return
+        pendingHistory = null
+        historyStep(pending.undo, confirmed = true)
     }
 
     /** 次に Ctrl+Z で戻る変更の予告（ツールバーのツールチップ。UX-86）。セッション不在時は null。 */
@@ -1500,10 +1727,10 @@ class AppState {
         editVersion++
     }
 
-    fun hasDirtyDocs(): Boolean = docCache.values.any { it.dirty }
+    fun hasDirtyDocs(): Boolean = docCache.values.any { it.dirty || it.draftDirty }
 
     /** 未保存文書の数（台帳スペースの保存ボタンの件数表示用。UX-34。dirty の読み取りが再コンポーズを購読する）。 */
-    fun dirtyDocCount(): Int = docCache.values.count { it.dirty }
+    fun dirtyDocCount(): Int = docCache.values.count { it.dirty || it.draftDirty }
 
     /** 外部変更と競合中の文書（受信箱の表示用。R12-02。データの正は各 OpenDocument）。 */
     fun conflictedDocs(): List<OpenDocument> = docCache.values.filter { it.externalConflict }
@@ -1512,7 +1739,15 @@ class AppState {
      * 1 文書の保存。stampedBefore は「すべて保存」が先にまとめて入れた自動の値の説明（null なら、ここで 1 文書分を入れる）。
      * 自動の値が入るのは保存の直前で、履歴 1 件（Undo で日付と版が戻る）。入った項目は状態表示で知らせる。
      */
-    private fun save(doc: OpenDocument, stampedBefore: Map<DocumentId, String>? = null) {
+    private fun save(doc: OpenDocument, stampedBefore: Map<DocumentId, String>? = null, confirmedTextSave: Boolean = false) {
+        doc.flushDraft()   // 入力待ちのソースを取り込んでから
+        if (doc.draftBroken) {
+            // 壊れたまま保存（R43-04）。保存で止めず、文書をテキスト文書にして知らせる。スキーマ文書は波及が大きいので確認する
+            if (doc.textOnly && !doc.draftDirty) return
+            if (!confirmedTextSave && isSchemaDocument(doc.file)) { pendingTextSave = doc; return }
+            saveDraftAsText(doc)
+            return
+        }
         val stamped = stampedBefore ?: stampAutoValues(listOf(doc))
         runCatching {
             val s = session

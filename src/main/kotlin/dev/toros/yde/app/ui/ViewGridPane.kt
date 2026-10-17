@@ -440,7 +440,7 @@ private fun GridCell(state: AppState, cell: ViewCell) {
             CellLink(state, cell, "—")
             return@Box
         }
-        val ctx = remember(doc, doc.version, state.indexVersion) {
+        val ctx = remember(doc, doc.version, state.indexVersion, state.readOnlyMode, doc.draftBroken) {
             val localIds = if (fieldDef?.type == FieldType.REF) {
                 val documentId = IdIndex.documentIdOf(root, state.relPath(doc.file))
                 DocScanner.scan(root, state.documentOf(doc.file), doc.schema, documentId).first

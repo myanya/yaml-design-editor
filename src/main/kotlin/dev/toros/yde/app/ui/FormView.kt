@@ -78,6 +78,7 @@ private const val DEFAULT_EXPAND_DEPTH = 2
  * localIds は未保存編集を含む「現在のドキュメント内の ID 集合」で、参照解決の即時判定に使う。
  * readOnly は閲覧専用モード（R10-04）: 編集UIを表示専用に切り替え、markEdited への到達を拒否する。
  * 既定値を state.readOnlyMode から取るため、FormCtx を作る全ビュー（フォーム・グリッド・横ぐし）へ自動波及する。
+ * ソースに解析できない書きかけがある間（doc.draftBroken。P43 R43-02）も閲覧専用＝フォームで触って書きかけを失わない。
  * baseDepth は埋め込みフォーム（ID横ぐし）の基準パス段数。既定展開の深さ判定を
  * 「文書ルートから」ではなく「表示しているフォームのルートから」の相対深さで行うために使う。
  */
@@ -85,7 +86,7 @@ class FormCtx(
     val state: AppState,
     val doc: OpenDocument,
     val localIds: List<IdEntry>,
-    val readOnly: Boolean = state.readOnlyMode,
+    val readOnly: Boolean = state.readOnlyMode || doc.draftBroken,
     val baseDepth: Int = 0,
     /** 文書ビューの要素単位アタッチ（R14-03）: 要素パス → その位置に差し込む被参照。ObjectFields が描画する。 */
     val attachments: Map<YPath, List<Pair<DocViewAttachment, DocBacklinkRow>>> = emptyMap(),
@@ -256,7 +257,7 @@ fun FormView(state: AppState, doc: OpenDocument) {
             Spacer(Modifier.height(8.dp))
             Text(doc.parseError ?: "", fontSize = 13.sp, color = Palette.SubText)
             Spacer(Modifier.height(8.dp))
-            Text("「ソース」タブでテキストを修正して「反映」してください。", fontSize = 13.sp)
+            Text("「ソース」タブでテキストを修正すると自動で反映されます。", fontSize = 13.sp)
         }
         return
     }
@@ -293,7 +294,7 @@ fun FormView(state: AppState, doc: OpenDocument) {
             .groupBy({ it.path }) { it.severity }
             .mapValues { (_, sevs) -> if (Severity.ERROR in sevs) Severity.ERROR else Severity.WARNING }
     }
-    val ctx = remember(doc, doc.version, state.indexVersion, state.readOnlyMode, attachments, fieldIssues) {
+    val ctx = remember(doc, doc.version, state.indexVersion, state.readOnlyMode, doc.draftBroken, attachments, fieldIssues) {
         FormCtx(state, doc, localIds, attachments = attachments, issues = fieldIssues)
     }
 
