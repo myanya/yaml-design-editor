@@ -121,6 +121,49 @@ class WorkspaceCliTest {
         Files.walk(ws).use { it.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
     }
 
+    @Test
+    fun `schema-graph はスキーマとレジストリから型と線と入れ子を出す`() {
+        write(
+            "_schemas/relations.yaml",
+            """
+            id: relations
+            kind: relations
+            entities:
+              - { type: requirement, label: 要求 }
+            relations:
+              - { name: implements, label: 実装する, inverseLabel: 実装される, source: [design], target: [requirement] }
+            """,
+        )
+        write(
+            "_schemas/typed-requirement.yaml",
+            """
+            id: typed-requirement
+            match: "typed/**/*.yaml"
+            entity: { type: requirement, idPattern: "REQ-*", defines: true }
+            root:
+              type: object
+              fields:
+                - { key: id, type: id }
+                - key: items
+                  type: array
+                  relation: has-item
+                  item:
+                    type: object
+                    entity: { type: requirement-item, defines: true }
+                    fields:
+                      - { key: id, type: id }
+                      - { key: refines, type: ref, relation: refines, idPattern: "REQ-*" }
+            """,
+        )
+        val out = runCli(arrayOf("schema-graph", ws.toString()))
+        assertTrue("type: requirement" in out && "label: 要求" in out, out)
+        assertTrue("relation: implements" in out && "宣言" in out, "宣言の線: $out")
+        assertTrue("relation: refines" in out && "導出" in out, "導出の線（requirement-item → requirement）: $out")
+        assertTrue("parent: requirement" in out && "child: requirement-item" in out && "relation: has-item" in out, "入れ子: $out")
+        // entity 宣言の無い設計スキーマの参照（implements）は、書く側の型が決まらないので理由つきで残る
+        assertTrue("schema: design" in out && "型が決まらない" in out, "型の無いスキーマの参照は理由つき: $out")
+    }
+
     private fun write(rel: String, content: String) {
         val file = ws.resolve(rel)
         Files.createDirectories(file.parent)

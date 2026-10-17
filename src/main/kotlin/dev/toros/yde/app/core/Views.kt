@@ -105,8 +105,13 @@ object Views {
     data class LoadResult(
         val views: List<ViewDef>, val docViews: List<DocViewDef>, val errors: List<String>,
         val flowViews: List<VirtualFlowDef> = emptyList(),
+        /** レンズの見え方（kind: lens）。レンズは全部の定義を合わせて読む。 */
+        val lensViews: List<dev.toros.yde.semantic.VirtualLensDef> = emptyList(),
     ) {
         fun view(id: String): ViewDef? = views.firstOrNull { it.id == id }
+
+        /** 矢印を逆向きに描く関係名（全部のレンズの定義の和）。 */
+        val reversedRelations: Set<String> get() = lensViews.flatMap { it.reversedRelations }.toSet()
 
         fun docView(id: String): DocViewDef? = docViews.firstOrNull { it.id == id }
 
@@ -142,7 +147,7 @@ object Views {
             document to if (loader == null) Files.readString(file) else loader(document)?.let(YamlIO::dumpPlain).orEmpty()
         }
         val catalog = ViewDefinitions.load(sources, schemas.map { it.kernel })
-        return LoadResult(catalog.views, catalog.docViews, catalog.errors, catalog.flowViews)
+        return LoadResult(catalog.views, catalog.docViews, catalog.errors, catalog.flowViews, catalog.lensViews)
     }
 
     /** ビュー定義文書の座標（ワークスペース相対の文書ID。ワークスペースの外のパスは、そのままの文字列）。 */

@@ -4,6 +4,7 @@ import dev.toros.yde.semantic.ScannedId
 import dev.toros.yde.semantic.ScannedRef
 import dev.toros.yde.semantic.SemanticEntityGraph
 import dev.toros.yde.semantic.SemanticHolding
+import dev.toros.yde.semantic.SemanticSchemaGraph
 import dev.toros.yde.semantic.schema.EntityRole
 import dev.toros.yde.semantic.schema.RefTarget
 import dev.toros.yde.yaml.model.pretty
@@ -23,6 +24,12 @@ enum class LensMode(val label: String) {
     OCCURRENCE("側面で分ける"),
 }
 
+/** レンズの段: 実体（箱＝エンティティ・線＝参照）か、型（箱＝エンティティ型・線＝関係＝スキーマの図。P42）。 */
+enum class LensLevel(val label: String) {
+    ENTITY("実体"),
+    TYPE("型"),
+}
+
 /** レンズの節点。parent は箱の入れ子の親（保有の線）。 */
 data class LensNode(
     val key: String,
@@ -37,7 +44,11 @@ data class LensNode(
 /** 辺の種類: 参照・箱に入れない保有の線・同じエンティティの箱どうし（点線）。 */
 enum class LensEdgeKind { REF, HOLDING, TIE }
 
-data class LensGraphEdge(val from: String, val to: String, val relation: String?, val kind: LensEdgeKind)
+/**
+ * 辺。reversed は、関係レジストリの `arrow: reverse` で向きを逆にした参照の線（from が相手・to が参照を書いた側。文字は inverseLabel）。
+ * 向きは描く絵と階層配置のためだけで、起点の近傍（向きを問わない）には効かない。
+ */
+data class LensGraphEdge(val from: String, val to: String, val relation: String?, val kind: LensEdgeKind, val reversed: Boolean = false)
 
 data class LensGraph(val mode: LensMode, val nodes: List<LensNode>, val edges: List<LensGraphEdge>)
 
@@ -75,10 +86,45 @@ object LensGraphs {
         graph.entities[id]?.occurrences.orEmpty()
             .sortedWith(compareBy({ it.role != EntityRole.DEFINING }, { it.document.value }, { it.path.toString() }))
 
-    /** エンティティグラフから、見え方ごとの節点と辺を作る。節点は ID 昇順（側面で分けるときは ID → 出現の並び）。 */
-    fun build(graph: SemanticEntityGraph, refs: List<ScannedRef>, mode: LensMode): LensGraph = when (mode) {
-        LensMode.ENTITY -> buildEntities(graph, refs)
-        LensMode.OCCURRENCE -> buildOccurrences(graph, refs)
+    /**
+     * エンティティグラフから、見え方ごとの節点と辺を作る。節点は ID 昇順（側面で分けるときは ID → 出現の並び）。
+     * reversed は矢印を逆向きに描く関係名（レジストリの `arrow: reverse`）。
+     */
+    fun build(graph: SemanticEntityGraph, refs: List<ScannedRef>, mode: LensMode, reversed: Set<String> = emptySet()): LensGraph = when (mode) {
+        LensMode.ENTITY -> buildEntities(graph, refs, reversed)
+        LensMode.OCCURRENCE -> buildOccurrences(graph, refs, reversed)
+    }
+
+    /** 参照の辺（関係が reversed にあれば向きを逆にする）。 */
+    private fun refEdge(from: String, to: String, relation: String?, reversed: Set<String>): LensGraphEdge =
+        if (relation != null && relation in reversed) LensGraphEdge(to, from, relation, LensEdgeKind.REF, reversed = true)
+        else LensGraphEdge(from, to, relation, LensEdgeKind.REF)
+
+    /**
+     * スキーマの図（型の段）: 箱＝エンティティ型・線＝関係（宣言と導出）・箱の入れ子＝保有の宣言のうち子を定義する場所（誕生の場所。
+     * 一体のレンズと同じ決まり）。誕生の場所に選ばれなかった保有は線（ひし形）。親の連鎖が自分へ戻れば切る。節点は型名の昇順。
+     */
+    fun buildTypes(graph: SemanticSchemaGraph, reversed: Set<String> = emptySet()): LensGraph {
+        val types = graph.types.map { it.type }.sorted()
+        val birth = HashMap<String, dev.toros.yde.semantic.SchemaGraphHolding>()
+        graph.holdings.filter { it.childDefines && it.parent != it.child }
+            .sortedWith(compareBy({ it.parent }, { it.relation }))
+            .forEach { h -> birth.putIfAbsent(h.child, h) }
+        types.forEach { t ->
+            val seen = mutableSetOf(t)
+            var cursor = birth[t]?.parent
+            while (cursor != null) {
+                if (!seen.add(cursor)) { birth.remove(t); break }
+                cursor = birth[cursor]?.parent
+            }
+        }
+        val nodes = types.map { t -> LensNode(t, t, null, birth[t]?.parent, birth[t]?.relation) }
+        val edges = LinkedHashSet<LensGraphEdge>()
+        graph.edges.forEach { e -> if (e.from != e.to) edges += refEdge(e.from, e.to, e.relation, reversed) }
+        graph.holdings.forEach { h ->
+            if (h.parent != h.child && birth[h.child] !== h) edges += LensGraphEdge(h.parent, h.child, h.relation, LensEdgeKind.HOLDING)
+        }
+        return LensGraph(LensMode.ENTITY, nodes, edges.toList())
     }
 
     private fun resolvedRefs(graph: SemanticEntityGraph, refs: List<ScannedRef>): List<Pair<ScannedId, ScannedRef>> =
@@ -87,7 +133,7 @@ object LensGraphs {
             .mapNotNull { r -> graph.sourceEntryOf(r)?.let { it to r } }
             .toList()
 
-    private fun buildEntities(graph: SemanticEntityGraph, refs: List<ScannedRef>): LensGraph {
+    private fun buildEntities(graph: SemanticEntityGraph, refs: List<ScannedRef>, reversed: Set<String>): LensGraph {
         val ids = graph.entities.keys.sorted()
         // 誕生の場所: 定義出現を直下に書いている外側の要素（親の ID 昇順の先頭）。親の連鎖が自分へ戻るなら切る
         val birth = HashMap<String, SemanticHolding>()
@@ -105,7 +151,7 @@ object LensGraphs {
         val nodes = ids.map { id -> LensNode(id, id, null, birth[id]?.parent?.id, birth[id]?.relation) }
         val edges = LinkedHashSet<LensGraphEdge>()
         resolvedRefs(graph, refs).forEach { (src, r) ->
-            if (src.id != r.targetId) edges += LensGraphEdge(src.id, r.targetId, r.relation, LensEdgeKind.REF)
+            if (src.id != r.targetId) edges += refEdge(src.id, r.targetId, r.relation, reversed)
         }
         // 箱に入れない保有（詳細化の出現の保有・誕生の場所に選ばれなかった保有）は線
         graph.holdings.forEach { h ->
@@ -116,7 +162,7 @@ object LensGraphs {
         return LensGraph(LensMode.ENTITY, nodes, edges.toList())
     }
 
-    private fun buildOccurrences(graph: SemanticEntityGraph, refs: List<ScannedRef>): LensGraph {
+    private fun buildOccurrences(graph: SemanticEntityGraph, refs: List<ScannedRef>, reversed: Set<String>): LensGraph {
         val ids = graph.entities.keys.sorted()
         val nodes = mutableListOf<LensNode>()
         val edges = LinkedHashSet<LensGraphEdge>()
@@ -138,7 +184,7 @@ object LensGraphs {
             val target = representative(r.targetId) ?: return@forEach
             val from = occurrenceKey(src)
             val to = occurrenceKey(target)
-            if (from != to) edges += LensGraphEdge(from, to, r.relation, LensEdgeKind.REF)
+            if (from != to) edges += refEdge(from, to, r.relation, reversed)
         }
         return LensGraph(LensMode.OCCURRENCE, nodes, edges.toList())
     }
@@ -224,7 +270,7 @@ object LensGraphs {
         edges.forEach { e ->
             val from = shownEnd(e.from) ?: return@forEach
             val to = shownEnd(e.to) ?: return@forEach
-            if (from != to) shownEdges += LensGraphEdge(from, to, e.relation, e.kind)
+            if (from != to) shownEdges += LensGraphEdge(from, to, e.relation, e.kind, e.reversed)
         }
         return LensSelection(visible, shownEdges.toList())
     }

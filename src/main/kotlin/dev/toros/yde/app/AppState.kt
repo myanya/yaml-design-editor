@@ -237,6 +237,9 @@ class AppState {
     /** エンティティ型レジストリ（R23-01。architecture/graph-query.md「エンティティページ」）: 型の表示名・アスペクト順序。エンティティページ・レンズが使う。 */
     var entityTypes by mutableStateOf<Map<String, EntityTypeDef>>(emptyMap())
         private set
+    /** スキーマの図（型の段のレンズ。P42）: スキーマと関係レジストリから導いた型・関係・保有の宣言。スキーマの再読込で作り直す。 */
+    var schemaGraph by mutableStateOf(dev.toros.yde.semantic.SemanticSchemaGraph.EMPTY)
+        private set
     var yamlFiles by mutableStateOf<List<Path>>(emptyList())
         private set
     var directories by mutableStateOf<List<Path>>(emptyList())
@@ -834,6 +837,7 @@ class AppState {
         relations = cw.relations
         enforcement = cw.enforcement
         entityTypes = cw.entityTypes
+        schemaGraph = cw.schemaGraph
         yamlFiles = cw.files
         markdownFiles = dev.toros.yde.app.core.WorkspaceScan.markdownFiles(cw.root)
         // 台帳外のエディタ層ファイル（R13-04）。ledger 宣言が無ければ走査対象と一致するため空になる

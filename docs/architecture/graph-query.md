@@ -19,7 +19,8 @@
 | `Aspects` | core/Aspects.kt | エンティティ合成（`compose` → `EntityComposite`。`ownerSection` は書き先解決） |
 | `Traverse` | core/Traverse.kt | 経路パターンで多段に辿る評価器（`neighborIds` の上の emit レンダラ） |
 | `IdCrossView` / `GraphLensView` | ui/IdCrossView.kt・ui/GraphLensView.kt | エンティティページとグラフレンズ（配置は ui/GraphLayouts.kt） |
-| `LensGraphs` | ui/LensGraph.kt | レンズの節点・辺・箱の入れ子を作る純ロジック（一体＝箱はエンティティ・側面で分ける＝箱は出現。絞り込み・起点の近傍・畳みと辺の付け替え） |
+| `LensGraphs` | ui/LensGraph.kt | レンズの節点・辺・箱の入れ子を作る純ロジック（一体＝箱はエンティティ・側面で分ける＝箱は出現・型の段＝箱は型 `buildTypes`。矢印の反転・絞り込み・起点の近傍・畳みと辺の付け替え） |
+| `SemanticSchemaGraph` / `SchemaGraphSource` | semantic-core/semantic/SchemaGraph.kt | スキーマと関係レジストリから導いた型レベルのグラフ（型・関係の線＝宣言と導出・保有の宣言・線にできなかった参照項目と理由・文書を読まない）。root の `Workspace.schemaGraph` がスキーマの再読込ごとに作り、レンズの「型」の段と CLI `schema-graph` が写す |
 
 ## 融合の原則
 
@@ -34,7 +35,7 @@
 - エンティティ型の決め方は 2 段。要素の object（名前付きの型でも、その場の object でも）の `entity`（`{type, defines, aspect, owns}`。オブジェクト型。[schema.md「型の連鎖と狭める規則」](schema.md)）があればそれ。
 - 無ければスキーマ文書ルートの `entity:`（単一 object または複数型のリスト＝`idPattern`（glob）か `idType`（ID の型の名前。型の形式で判別）で判別。`{type, idPattern, idType, defines, aspect, owns}`）。宣言のないスキーマは挙動不変。
 - `idType` の解決は `WorkspaceSchema.entities`（木の定義の目録で `EntityDecl.resolvedIn`。[schema.md「型の連鎖と狭める規則」](schema.md)）。パーサ（`SemanticDeclParser.parseEntities`）は名前を写すだけで、semantic-core の判定（`matchesId` / `entityFor`）は解決済みの形式を見る。
-- 関係レジストリは `_schemas` の `kind: relations` 文書。`relations:` に `{name, label, inverseLabel, source, target, cardinality, acyclic, level, description}` を列挙する。
+- 関係レジストリは `_schemas` の `kind: relations` 文書。`relations:` に `{name, label, inverseLabel, source, target, cardinality, acyclic, level, description}` を列挙する。図の矢印の向きのような見え方はレジストリに持たせない（`_views` の `kind: lens`。[views.md](views.md)）。
 - 同じ文書の `entities:` に型の表示名とアスペクト順序（`{type, label, description, aspects: [{name, label}]}`）、`enforcement:` に強制スイッチ（`undeclaredRelation` / `definingUniqueness` を warning / error。未宣言は非破壊の既定）。
 - 型の表示名の既定はオブジェクト型の `label`（`WorkspaceReader.objectEntityTypes` が、レジストリに宣言の無い型だけを object の `entity` から足す。レジストリの宣言が常に勝つ）。
 - 集約は `SchemaDocuments`（重複 name・重複 type・重複キーはロードエラー）→ `Workspace.relations` / `entityTypes` / `enforcement` → AppState ミラー。
@@ -111,6 +112,23 @@ limit: 100
 - レンズの絞り込みは型（起点は対象外）・関係（保有の名前には「（保有）」の印。隠すと入れ子が切れて子はいちばん外側へ）・起点の近傍（辺と親子を幅優先。着いた箱の外側の箱も残す）。入れ子の箱は畳める: 既定は全部畳み、起点の外側の箱と起点（深さ 2 なら起点の子も）だけ開く。畳んだ箱の中につながる辺は箱へ付け替える。利用者の開閉は `ScreenMemory.lensExpanded`。
 - レンズの配置は `GraphLayouts.arrangeNested`（ELK を包む。放射・階層・応力と、軽い力学）で決定的（同じグラフなら同じ絵）。段ごとに配置し、子を持つ箱は中を先に配置してその大きさの 1 つの節点として外側に置く。段をまたぐ辺は箱の縁から縁への直線。ノードクリックはエンティティページへ、見出しの左の印は開く・畳む。箱を動かすと中の箱も動く（`withMovedNested`）。
 - 放射配置は起点からの幅優先の木（最短の道すじ）だけを配置に渡し、木に入らない辺は直線で描く。応力配置は節点数に上限があり、超えると階層に代替する（理由を画面に出す）。
+- 矢印の向き: `_views` のレンズの見え方の定義（`kind: lens`。`VirtualLensDef`）で `arrow: reverse` と書いた関係は、`LensGraphs` が辺の from / to を入れ替えて `reversed` の印を付ける（文字は inverseLabel）。
+  レンズは定義を未保存優先で読む（`Views.load` → `reversedRelations`）。向きは絵と階層配置にだけ効き、起点の近傍（向きを問わない）・検証・クエリの `dir`・バックリンクには関与しない。
+
+## スキーマレンズ（型の段）
+
+レンズの「実体／型」の切替（`LensLevel`。画面の覚え `lensSchemaLevel`）で、同じ画面を一段上に上げる: 箱＝エンティティ型・線＝関係・入れ子＝保有の宣言。文書を読まず、スキーマと関係レジストリだけから導く（文書の無いワークスペースでも図が出る）。
+
+- **導出は `SemanticSchemaGraph.build`（semantic-core）の 1 つ**。材料は文書スキーマ（組込みスキーマ・library・レジストリ・derive の宣言側は含めない）と、レジストリの関係・型。root の `Workspace.refresh` が作り `AppState.schemaGraph` に写す。レンズは `LensGraphs.buildTypes` で実体の段と同じ `LensGraph` に写し、絞り込み（`select`）・配置・描画・PNG を共有する。CLI `schema-graph` は同じ材料を YAML で出す。
+- **型**（箱）: レジストリの `entities:`・スキーマの `entity:`・object の `entity`・線の端に現れる型名。表示名はレジストリの label（型の label を含む `entityTypes`）。箱の添え書きは現れるスキーマ。
+- **要素の型の決め方**（スキーマを歩くとき。走査の「ID の形で判別」を文書なしで近似する）: object の `entity` ＞ ID の項目の型が宣言の `idType` に合う ＞ スキーマの宣言が 1 つ ＞ 宣言の並び（外側の要素から順。`inferred`＝推定の印）。推定で足りないスキーマは object に `entity` を書けば決まる。
+- **線の出どころは 2 つ**: 宣言（レジストリの source × target）と導出（参照項目を囲む ID を持つ要素の型 → `scope.schemaIds` のスキーマに現れる型を `idPattern` の層で絞ったもの。
+  ID の形を宣言していない型は scope の中にいるときだけ相手になる）。同じ (from, to, relation) は 1 本にまとめ `SchemaGraphEdgeSource`（宣言／導出／宣言・導出）を持つ。文書への参照（`target: document`）は出さない。
+- 両端の型を宣言した関係では宣言が線を決める。宣言より広い導出（スキーマの `scope` がレジストリより緩い・書く側の型が宣言に無い）は線にせず `beyondDeclaration` に残す（CLI が出す）。
+- 線にできない参照項目は理由つきで `unresolved` に残す（型が決まらない・絞っていない・相手が見つからない）。実績（索引の参照を型で集計した本数）は含めない（`infer-relations` が同じ集計を持つ。重ねるのは次の段階）。
+- **入れ子**: ID を持つ要素の中に ID を持つ要素を書く項目（名前は項目の `relation` かキー名＝走査の保有と同じ決まり）。箱の入れ子にするのは子の型を定義する場所の保有だけ（一体のレンズの「誕生の場所」と同じ）。それ以外の保有は線（ひし形）。
+- **行き先**: 箱を押すと型を定義するスキーマ文書（無ければ最初に現れるスキーマ）を開く。右クリックは、現れるスキーマごとの「スキーマを開く」・「この型の実体を見る」（実体の段へ移り、他の型を隠す）・起点にする・この型を隠す。型の段の起点は画面の覚え（`lensTypeOrigin`。実体の起点 `lensOriginId` は移動の履歴に乗る）。
+- 段階 2 以降（未着手）: 「スキーマで分ける」（箱＝スキーマ文書。同じ型は点線）と線の種類の追加（詳細化 `detailIn`・共通定義 `module#定義`・派生 `derive`・ビュー→スキーマ）・実績の件数・エンティティページの型のバッジからの入口・エージェントへの開示。
 
 ## 規律
 
@@ -121,9 +139,12 @@ limit: 100
 - エンティティ合成の項目を増やすときは `Aspects` に閉じ、消費側で合成を書かない。
 - レジストリのラベルなど表示専用の情報を検証・解決の意味論に関与させない。
 - 保有の線を `ScannedRef` として索引の参照の並びに混ぜない（改名・統合・削除は索引の参照だけを書き換える）。クエリの束縛のために写す（`holdingRef`）だけ。名前は走査が決め（`ScannedId.holderKey / holderRelation`）、消費側でスキーマの項目を読み直さない。
+- スキーマの図の導出は `SemanticSchemaGraph` に閉じる。レンズ・CLI・エージェントでスキーマの木を歩き直して型や線を作らない。要素の型の決め方を変えるときは走査（`entityFor`・object の `entity`）との対応を保つ。
+- 矢印の向きは `_views` のレンズの見え方（`kind: lens`）だけが持つ（スキーマ・レジストリに見え方を足さない）。辺の反転は `LensGraphs` の 1 か所で、検証・クエリの `dir`・バックリンク・エンティティページの関係パネルには関与させない。
 
 ## 拡張ポイント
 
 - **エンティティ・関係語彙の追加**: 宣言モデル（`Relations.kt`）・読み取り（`SchemaDocuments`）・メタスキーマ（`builtin-schema` の entity・`builtin-relations`）・スキーマ設計 UI のエンティティ節をそろえて更新する。
 - **クエリ語彙の追加**: 宣言モデルとパース（`Query.kt`）・評価器（`SemanticQuery`）・メタスキーマ（`builtin-view` の rows・`builtin-activity` の foreach.query・`builtin-schema` の constraints）をそろえて更新する。
 - **エンティティ操作の追加**: `SemanticRefactor` に計画の生成を足し、`SemanticRewrite` の列挙器を使う。
+- **スキーマの図の線の種類の追加**（詳細化・共通定義・派生・ビュー→スキーマ）: `SemanticSchemaGraph.build` に出どころを足し、`LensGraphs.buildTypes` の辺の種類・右パネルの絞り込み・CLI `schema-graph` の出力をそろえる。実績の件数を重ねるなら `infer-relations` の集計を共有する。

@@ -9,6 +9,7 @@
 |---|---|---|
 | `VirtualGridDef` / `VirtualDocViewDef` / `VirtualViewDefinition`（root の `ViewDef` / `DocViewDef` は別名） | semantic-core/semantic/VirtualViews.kt | ビュー定義の宣言の型と解決（仮想文書・テキスト表現） |
 | `VirtualFlowDef` / `FlowViews` / `FlowResolution` | semantic-core/semantic/FlowViews.kt | Constructによる文書の射影、原本対応、表示契約と接続先の診断 |
+| `VirtualLensDef` / `VirtualLensRelation` / `LensArrow` | semantic-core/semantic/LensViews.kt | レンズの見え方の定義（`kind: lens`＝関係ごとの矢印の向き・表示だけ・消費は `Views.LoadResult.reversedRelations` → `LensGraphs`） |
 | フロー表示契約 | semantic-core資源 `builtin-structures/flow-model.yaml` | 表示モデルの型・必須項目・形状をStructureValidatorで検査 |
 | `FlowReports` | core/FlowReports.kt | CLI・read_viewへ同じ表示モデルと座標・診断を開示 |
 | `GraphLayouts.arrangeFlow` / `FlowSelection` | ui/GraphLayouts.kt・semantic-core/semantic/FlowSelection.kt | 計測寸法からの決定的配置と文書・版を考慮した選択の再解決 |
@@ -104,7 +105,9 @@
 - `flow.view`は組込みスキーマのref型で、ビューIDの改名・被参照の削除拒否は既存の意味的リファクタリングを使う。
 - projectionの相対パス・規則・固定値は自動改名せず、`RefactoringImpact`がキーと値の言及を場所付きで計画へ開示する。
 - 原本文書の移動でflowのmatchから外れる場合も計画で警告する。
-- 宣言的レンズ定義（`kind: lens`）は需要待ちで導入しない。
+- レンズの定義（`kind: lens`）が持つのは見え方（関係ごとの矢印の向き）だけ。節点の選択（型・関係の絞り込み・起点・畳み）は画面の操作（`ScreenMemory`）のままで、定義に持たせない。
+  読み取りは `parseView` の 1 経路、リントは関係レジストリがあるときだけ関係名の宣言を見る。関係の改名は言及を警告で開示する（`flowDefinitionWarnings`）。消費はレンズだけ（[graph-query.md](graph-query.md)「スキーマレンズ（型の段）」）。
+- スキーマと関係レジストリに見え方を足さない。レンズの見え方の要望（矢印の向き・色・既定の配置）は `kind: lens` の語彙で受ける。
 
 ## 規律
 

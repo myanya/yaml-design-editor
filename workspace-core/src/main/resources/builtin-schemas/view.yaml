@@ -64,7 +64,24 @@ root:
         - value: flow
           label: フロービュー
           description: 文書をprojectionでノード・辺・レーンへ変換する
+        - value: lens
+          label: レンズの見え方
+          description: グラフレンズ（実体・型の段）の見え方をワークスペースで共有する（関係ごとの矢印の向き）。表示だけの定義
       default: grid
+    - key: relations
+      label: 関係ごとの見え方（lens）
+      type: array
+      description: "グラフレンズで描く関係ごとの見え方（kind: lens）。name は関係レジストリの関係名か、ref 項目の relation"
+      item:
+        type: object
+        fields:
+          - { key: name, label: 関係名, type: string, required: true, role: title }
+          - key: arrow
+            label: 矢印の向き
+            type: enum
+            values: [forward, reverse]
+            default: forward
+            description: forward（既定）は参照を書いた側から相手へ（文字は label）、reverse は相手から参照を書いた側へ（文字は inverseLabel）。表示だけで、検証・クエリの向きは変わらない
     - key: layout
       label: フローの配置
       type: object

@@ -565,7 +565,7 @@ class AgentToolbox(
     fun viewText(viewId: String?, fileRel: String? = null, rowsPattern: String? = null, columns: List<String>? = null): String {
         val loaded = Views.load(ws.root, ws.schemas) { staging.tree(it.value) }
         if (viewId.isNullOrBlank()) {
-            if (loaded.views.isEmpty() && loaded.docViews.isEmpty() && loaded.flowViews.isEmpty()) return "（ビュー定義がありません）"
+            if (loaded.views.isEmpty() && loaded.docViews.isEmpty() && loaded.flowViews.isEmpty() && loaded.lensViews.isEmpty()) return "（ビュー定義がありません）"
             val lines = loaded.views.map { v ->
                 val rowsLabel = v.rows?.let { "idPattern=${it.idPattern}" } ?: "matchクエリ（行キー: ${v.rowKey}）"
                 val columnsLabel = if (v.matrix != null) "クロス集計（列は cells.columns から）" else v.columns.joinToString("/") { it.label }
@@ -576,6 +576,9 @@ class AgentToolbox(
             } + loaded.flowViews.map { v ->
                 "- ${v.id}（${v.name}）: フロービュー 適用先=" +
                     listOfNotNull(v.match, v.schemaId?.let { "schema:$it" }).joinToString(" & ")
+            } + loaded.lensViews.map { v ->
+                "- ${v.id}（${v.name}）: レンズの見え方（表示だけ。読めるデータは無い） 関係=" +
+                    v.relations.joinToString(", ") { "${it.name}:${it.arrow.id}" }.ifEmpty { "なし" }
             }
             return lines.joinToString("\n") +
                 (if (loaded.errors.isEmpty()) "" else "\n定義エラー:\n" + loaded.errors.joinToString("\n") { "- $it" })

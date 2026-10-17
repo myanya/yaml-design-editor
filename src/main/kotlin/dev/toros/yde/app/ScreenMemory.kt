@@ -89,6 +89,12 @@ class ScreenMemory {
     /** レンズの右パネルのタブ（0 = 型、1 = 関係、2 = 辺）。 */
     var lensPanelTab by mutableStateOf(0)
 
+    /** レンズの段: 型（箱＝エンティティ型＝スキーマの図。P42）。既定は実体（箱＝エンティティ）。 */
+    var lensSchemaLevel by mutableStateOf(false)
+
+    /** 型の図の起点（型名）。無ければ全体。実体の起点は AppState.lensOriginId（移動の履歴に乗る）。 */
+    var lensTypeOrigin by mutableStateOf<String?>(null)
+
     var readinessPendingOnly by mutableStateOf(false)
     var readinessQuery by mutableStateOf("")
 
@@ -132,6 +138,8 @@ class ScreenMemory {
         lensSplitOccurrences = false
         lensExpanded.clear()
         lensPanelTab = 0
+        lensSchemaLevel = false
+        lensTypeOrigin = null
         readinessPendingOnly = false
         readinessQuery = ""
         runsTab = 0

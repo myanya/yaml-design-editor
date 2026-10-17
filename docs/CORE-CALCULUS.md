@@ -757,9 +757,9 @@ Core Calculus = 定義を実行する
 | foreach | Query |
 | Projection | Expression |
 | Derivation（ビューの派生列。専用の語彙は廃止） | Expression（`via`＝1 段の参照）＋ Aggregate |
-| consistency | Query + Predicate（**組込み定義体**。`check`＝クエリ＋値の比較へ展開される語彙になった。専用の検査プログラムは無い） |
+| consistency | Query + Predicate（**組込み定義体**。`check`＝クエリ＋値の比較へ展開される語彙になった） |
 | query constraint | Query + Predicate |
-| relation cardinality（多重度） | Query + Aggregate（参照の本数）+ Predicate（**組込み定義体**。専用の検査プログラムは無い） |
+| relation cardinality（多重度） | Query + Aggregate（参照の本数）+ Predicate（**組込み定義体**） |
 | relation source / target（対象型） | Query（ノードの条件の否定・参照の束縛）+ Predicate（**組込み定義体**） |
 | coverage（detailIn） | 出現集合の Aggregate ＋ Predicate（CALC-21。**組込み定義体**。書かれた場所の数 `occurrenceCount` の比較へ展開される語彙になった） |
 | entity lint（浮遊詳細化・定義競合・型競合） | 出現集合の Aggregate ＋ Predicate（**組込み定義体**に直接書いた検査。idPattern 逸脱と重複所有は専用の lint として残す） |
@@ -768,7 +768,7 @@ Core Calculus = 定義を実行する
 | relation acyclic（非循環） | Query（何段でも辿る線 `repeat` ＋ノード一致 `same`）＋ Predicate（**組込み定義体**。辿る計算だけが専用アルゴリズムで、判定は YAML。専用チェッカー `cycle` は廃止） |
 | Validator | Constraint executor |
 | Transform（YAML → YAML） | Query + Construct（＋Predicate＝項目を出す条件） |
-| 構造のスキーマの導出 | Construct（変換定義） |
+| 構造のスキーマの導出・スキーマの図 | Construct（変換定義・宣言からの導出） |
 | Scaffold・Import | Expression ＋ Construct（`scaffold` / `build`）＋ Rewrite（作成・追記・採番） |
 | Bulk edit / Schema Refactoring / Entity operations | Query + Rewrite |
 | Agent patch | Rewrite / Patch |

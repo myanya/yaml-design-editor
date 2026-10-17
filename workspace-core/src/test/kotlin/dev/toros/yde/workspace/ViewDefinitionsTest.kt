@@ -108,4 +108,28 @@ class ViewDefinitionsTest {
         val lint = ViewDefinitions.lintDocument(YamlIO.parse(broken), DocumentId("_views/z-broken.yaml"), schemas())
         assertEquals(3, lint.size, lint.toString())
     }
+
+    @Test
+    fun `レンズの見え方は関係ごとの矢印の向きを持ち レジストリに無い関係名はリントが指摘する`() {
+        val lens = "id: lens\nkind: lens\nrelations:\n  - { name: uses, arrow: reverse }\n  - { name: owns }\n"
+        val withRegistry = WorkspaceReader.load(
+            InMemoryDocumentStore(
+                mapOf(
+                    "_schemas/screen.yaml" to screenSchema,
+                    "_schemas/relations.yaml" to "id: relations\nkind: relations\nrelations:\n  - { name: uses, label: 利用する, inverseLabel: 利用される }\n",
+                )
+            )
+        ).schemas
+        val catalog = ViewDefinitions.load(listOf(DocumentId("_views/lens.yaml") to lens), withRegistry)
+        val def = catalog.lensViews.single()
+        assertEquals(setOf("uses"), def.reversedRelations)
+        assertEquals(dev.toros.yde.semantic.LensArrow.FORWARD, def.relations.last().arrow, "既定は参照を書いた側から相手へ")
+        assertEquals(listOf("lens.yaml: 関係「owns」は関係レジストリに宣言されていません"), catalog.errors)
+        // レジストリが無ければ関係名は判定しない。知らない向き・知らないキーは読み取りの誤り
+        assertTrue(ViewDefinitions.load(listOf(DocumentId("_views/lens.yaml") to lens), schemas()).errors.isEmpty())
+        val bad = ViewDefinitions.load(listOf(DocumentId("_views/lens.yaml") to lens.replace("reverse", "both")), schemas()).errors
+        assertTrue(bad.any { "arrow" in it }, bad.toString())
+        val badKey = ViewDefinitions.load(listOf(DocumentId("_views/lens.yaml") to "id: lens\nkind: lens\ncolumns: []\n"), schemas()).errors
+        assertTrue(badKey.any { "kind: lens では使えないキー" in it }, badKey.toString())
+    }
 }

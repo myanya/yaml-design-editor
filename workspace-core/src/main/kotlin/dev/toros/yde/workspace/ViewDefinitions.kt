@@ -28,6 +28,9 @@ import dev.toros.yde.semantic.VirtualDocSection
 import dev.toros.yde.semantic.VirtualDocViewDef
 import dev.toros.yde.semantic.VirtualEachDef
 import dev.toros.yde.semantic.VirtualGridDef
+import dev.toros.yde.semantic.LensArrow
+import dev.toros.yde.semantic.VirtualLensDef
+import dev.toros.yde.semantic.VirtualLensRelation
 import dev.toros.yde.semantic.VirtualFlowDef
 import dev.toros.yde.semantic.schema.TransformDef
 import dev.toros.yde.semantic.VirtualMatrixCells
@@ -47,6 +50,8 @@ data class ViewCatalog(
     val docViews: List<VirtualDocViewDef>,
     val errors: List<String>,
     val flowViews: List<VirtualFlowDef> = emptyList(),
+    /** レンズの見え方（kind: lens）。レンズは全部の定義を合わせて読む。 */
+    val lensViews: List<VirtualLensDef> = emptyList(),
 ) {
     fun view(id: String): VirtualGridDef? = views.firstOrNull { it.id == id }
 
@@ -90,8 +95,10 @@ object ViewDefinitions {
         val views = all.filterIsInstance<VirtualGridDef>()
         val docViews = all.filterIsInstance<VirtualDocViewDef>()
         val flowViews = all.filterIsInstance<VirtualFlowDef>()
+        val lensViews = all.filterIsInstance<VirtualLensDef>()
         if (schemas.isNotEmpty()) errors += lint(views, docViews, schemas)
         if (schemas.isNotEmpty()) errors += lintFlows(flowViews, schemas)
+        if (schemas.isNotEmpty()) errors += lintLens(lensViews, schemas)
         docViews.forEach { doc -> doc.sections.forEachIndexed { i, section ->
             section.flowView?.let { target ->
                 val matches = all.filter { it.id == target }
@@ -100,7 +107,7 @@ object ViewDefinitions {
                 }
             }
         } }
-        return ViewCatalog(views = views, docViews = docViews, errors = errors, flowViews = flowViews)
+        return ViewCatalog(views = views, docViews = docViews, errors = errors, flowViews = flowViews, lensViews = lensViews)
     }
 
     /**
@@ -118,6 +125,7 @@ object ViewDefinitions {
             is VirtualGridDef -> lint(listOf(def), emptyList(), schemas)
             is VirtualDocViewDef -> lint(emptyList(), listOf(def), schemas)
             is VirtualFlowDef -> lintFlows(listOf(def), schemas)
+            is VirtualLensDef -> lintLens(listOf(def), schemas)
         }
     }
 
@@ -131,8 +139,42 @@ object ViewDefinitions {
             "document" -> parseDocView(raw, source, schemas)
             "matrix" -> parseMatrixView(raw, source)
             "flow" -> parseFlowView(raw, source)
-            else -> error("kind は grid / document / matrix / flow のいずれかである必要があります: $kind")
+            "lens" -> parseLensView(raw, source)
+            else -> error("kind は grid / document / matrix / flow / lens のいずれかである必要があります: $kind")
         }
+
+    /**
+     * レンズの見え方（kind: lens）のパース: 関係ごとの矢印の向き（architecture/views.md「レンズの見え方」）。
+     * 表示だけの定義なので、ここで読むのは関係名と向きだけ。節点の選択は画面の操作のまま。
+     */
+    private fun parseLensView(raw: Map<*, *>, source: DocumentId): VirtualLensDef {
+        val keys = setOf("id", "name", "description", "kind", "relations")
+        raw.keys.firstOrNull { it !in keys }?.let { error("kind: lens では使えないキーです: $it") }
+        fun text(key: String): String? = if (!raw.containsKey(key)) null else
+            (raw[key] as? String)?.takeIf { it.isNotBlank() } ?: error("$key は空でない文字列で書きます")
+        val id = text("id") ?: error("id が必要です")
+        val list = if (!raw.containsKey("relations")) emptyList<Any?>() else raw["relations"] as? List<*> ?: error("relations はリストで書きます")
+        val relations = list.mapIndexed { i, e ->
+            val m = e as? Map<*, *> ?: error("relations[$i] は object で書きます")
+            m.keys.firstOrNull { it != "name" && it != "arrow" }?.let { error("relations[$i] で使えないキーです: $it") }
+            val name = (m["name"] as? String)?.takeIf { it.isNotBlank() } ?: error("relations[$i].name（関係名）が必要です")
+            val arrow = m["arrow"]?.let { v -> LensArrow.parse(v.toString()) ?: error("relations[$i].arrow は forward / reverse で書きます: $v") }
+                ?: LensArrow.FORWARD
+            VirtualLensRelation(name, arrow)
+        }
+        relations.groupBy { it.name }.filterValues { it.size > 1 }.keys.firstOrNull()?.let { error("relations に関係「$it」が重複しています") }
+        return VirtualLensDef(id, text("name") ?: id, text("description"), source, relations)
+    }
+
+    /** レンズの定義のリント: 関係レジストリがあれば、関係名が宣言されているか（レジストリが無ければ判定しない）。 */
+    private fun lintLens(views: List<VirtualLensDef>, schemas: List<WorkspaceSchema>): List<String> {
+        val declared = schemas.filter { it.kind == dev.toros.yde.semantic.schema.SchemaKind.RELATIONS }
+            .flatMap { s -> s.relations.map { it.name } }.toSet()
+        if (declared.isEmpty()) return emptyList()
+        return views.flatMap { view ->
+            view.relations.filter { it.name !in declared }.map { "${fileName(view.source)}: 関係「${it.name}」は関係レジストリに宣言されていません" }
+        }
+    }
 
     private fun parseFlowView(raw: Map<*, *>, source: DocumentId): VirtualFlowDef {
         val keys = setOf("id", "name", "description", "kind", "match", "schemaId", "layout", "projection")

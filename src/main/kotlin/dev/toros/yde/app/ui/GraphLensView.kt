@@ -51,8 +51,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.toros.yde.app.AppState
 import dev.toros.yde.app.core.Aspects
+import dev.toros.yde.app.core.Views
 import dev.toros.yde.semantic.ScannedId
+import dev.toros.yde.semantic.SemanticSchemaGraph
 import dev.toros.yde.semantic.schema.EntityRole
+import dev.toros.yde.semantic.schema.RelationDef
 import dev.toros.yde.semantic.schema.Relations
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -63,8 +66,11 @@ import kotlin.math.sqrt
 
 // ================================================================ グラフレンズ（architecture/graph-query.md「エンティティページ」）
 
-/** 配置に渡した辺（箱の添字）。描画は kind で矢じり（参照）・ひし形（保有）・点線（同じエンティティ）を描き分ける。 */
-private data class LensArrangedEdge(val from: Int, val to: Int, val relation: String?, val kind: LensEdgeKind)
+/**
+ * 配置に渡した辺（箱の添字）。描画は kind で矢じり（参照）・ひし形（保有）・点線（同じエンティティ）を描き分ける。
+ * label は辺に添える文字（関係の label。逆向きに描く辺は inverseLabel）。
+ */
+private data class LensArrangedEdge(val from: Int, val to: Int, val relation: String?, val kind: LensEdgeKind, val label: String?)
 
 /**
  * 配置に渡した箱・辺と、その結果。箱の集合が変わって計算し直している間も、前の絵を描き続けるために一緒に持つ。
@@ -104,11 +110,36 @@ private const val UNDECLARED = "（未宣言）"
 /** 箱の見出しの左にある開閉の印の幅（この中を押すと開く・畳む。それ以外はエンティティページへ）。 */
 private const val TOGGLE_ZONE = 22f
 
+/** 辺に添える文字: 関係の label。逆向きに描く辺（レジストリの `arrow: reverse`）は、矢印の読む向きに合わせて inverseLabel。 */
+private fun lensEdgeLabel(relations: Map<String, RelationDef>, edge: LensGraphEdge): String? =
+    edge.relation?.let { if (edge.reversed) Relations.inverseLabelOf(relations, it) else Relations.labelOf(relations, it) }
+
+/** 型の箱の添え書き: 現れるスキーマ（2 つまでは ID、それより多ければ数）。どこにも現れない型は「宣言だけ」。 */
+private fun typeSubtitle(graph: SemanticSchemaGraph, type: String): String? {
+    val ids = graph.typeMap[type]?.appearances?.map { it.schemaId }?.distinct() ?: return null
+    return when {
+        ids.isEmpty() -> "〔宣言だけ〕"
+        ids.size <= 2 -> "〔${ids.joinToString("・")}〕"
+        else -> "〔${ids.size} スキーマ〕"
+    }
+}
+
+/** 型を定義するスキーマ文書を開く（無ければ最初に現れるスキーマ。どこにも現れなければ状態欄に案内）。 */
+private fun openTypeSchema(state: AppState, type: String) {
+    val schemaId = state.schemaGraph.typeMap[type]?.definingSchemaId
+    val schema = schemaId?.let { id -> state.schemas.firstOrNull { it.id == id } }
+    if (schema == null) state.status = "型「$type」はどのスキーマにも現れません（関係レジストリの宣言だけ）"
+    else state.openFile(schema.source)
+}
+
 /**
  * レンズの材料（描く画面と右パネルが同じものを見る）: 見え方ごとの節点と辺、型と関係の一覧、絞り込みと畳みを当てた見える部分。
  * 画面の覚え（型・関係の隠し・開いた箱・深さ・見え方）と索引から作る。
  */
 private class LensModel(
+    val level: LensLevel,
+    /** 矢印を逆向きに描く関係名（_views の kind: lens の定義）。 */
+    val reversed: Set<String>,
     val typeOf: (String) -> String,
     val types: List<String>,
     val typeColors: Map<String, Color>,
@@ -129,12 +160,25 @@ private fun rememberLensModel(state: AppState): LensModel {
     state.indexVersion
     val overlay = state.overlayIndex()
     val graph = overlay.graph
-    val typeOf: (String) -> String = { id -> graph.entities[id]?.entityType ?: "（型なし）" }
-    val mode = if (state.memory.lensSplitOccurrences) LensMode.OCCURRENCE else LensMode.ENTITY
-    // 節点と辺（見え方ごと）。箱の入れ子は保有の線
-    val lensGraph = remember(state.indexVersion, state.editVersion, mode) { LensGraphs.build(graph, overlay.refs, mode) }
-    // 型の一覧は ID 一覧から（参照を持たない型も出す）。関係の一覧は辺と入れ子から（保有の名前には印を付ける）
-    val types = remember(state.indexVersion, state.editVersion) { graph.entities.keys.map(typeOf).distinct().sorted() }
+    // 段: 実体（箱＝エンティティ）か型（箱＝エンティティ型＝スキーマの図）。型の段では「型」はその箱自身
+    val level = if (state.memory.lensSchemaLevel) LensLevel.TYPE else LensLevel.ENTITY
+    val schemaGraph = state.schemaGraph
+    val typeOf: (String) -> String =
+        if (level == LensLevel.TYPE) { t -> t } else { id -> graph.entities[id]?.entityType ?: "（型なし）" }
+    val mode = if (level == LensLevel.ENTITY && state.memory.lensSplitOccurrences) LensMode.OCCURRENCE else LensMode.ENTITY
+    // 矢印を逆向きに描く関係（_views の kind: lens の定義。表示だけ）。定義は未保存優先で読む
+    val ws = state.workspace
+    val reversed: Set<String> = remember(ws, state.indexVersion, state.editVersion) {
+        if (ws == null) emptySet() else Views.load(ws, state.schemas, state.unsavedFirstTree()).reversedRelations
+    }
+    // 節点と辺（段と見え方ごと）。箱の入れ子は保有の線（型の段では保有の宣言）
+    val lensGraph = remember(state.indexVersion, state.editVersion, mode, level, schemaGraph, reversed) {
+        if (level == LensLevel.TYPE) LensGraphs.buildTypes(schemaGraph, reversed) else LensGraphs.build(graph, overlay.refs, mode, reversed)
+    }
+    // 型の一覧は ID 一覧から（参照を持たない型も出す。型の段ではスキーマの図の型）。関係の一覧は辺と入れ子から（保有の名前には印を付ける）
+    val types = remember(state.indexVersion, state.editVersion, level, schemaGraph) {
+        if (level == LensLevel.TYPE) schemaGraph.types.map { it.type } else graph.entities.keys.map(typeOf).distinct().sorted()
+    }
     val holdingNames = remember(lensGraph) {
         (lensGraph.nodes.mapNotNull { it.relation } + lensGraph.edges.filter { it.kind == LensEdgeKind.HOLDING }.mapNotNull { it.relation }).toSet()
     }
@@ -152,7 +196,9 @@ private fun rememberLensModel(state: AppState): LensModel {
     val hiddenRelations = state.memory.lensHiddenRelations
     val expandedBoxes = state.memory.lensExpanded
     val depth = state.memory.lensDepth
-    val origin = state.lensOriginId?.takeIf { graph.entities.containsKey(it) }
+    val origin =
+        if (level == LensLevel.TYPE) state.memory.lensTypeOrigin?.takeIf { schemaGraph.typeMap.containsKey(it) }
+        else state.lensOriginId?.takeIf { graph.entities.containsKey(it) }
     // 絞り込み: 型・関係・起点の近傍・畳み（LensGraphs.select）。起点は型フィルタの対象外（起点自身が消えると意味を失う）
     val selection = remember(lensGraph, hiddenTypes.toMap(), hiddenRelations.toMap(), expandedBoxes.toMap(), origin, depth) {
         LensGraphs.select(
@@ -164,8 +210,8 @@ private fun rememberLensModel(state: AppState): LensModel {
         selection.edges.filter { !(it.kind == LensEdgeKind.REF && it.relation == null && UNDECLARED in hiddenRelations) }
     }
     val keyIndex = remember(selection) { selection.nodes.withIndex().associate { (i, n) -> n.node.key to i } }
-    return remember(selection, visibleEdges, keyIndex, types, typeColors, relations, holdingNames, origin, mode) {
-        LensModel(typeOf, types, typeColors, relations, holdingNames, origin, mode, selection.nodes, keyIndex, visibleEdges)
+    return remember(selection, visibleEdges, keyIndex, types, typeColors, relations, holdingNames, origin, mode, level, reversed) {
+        LensModel(level, reversed, typeOf, types, typeColors, relations, holdingNames, origin, mode, selection.nodes, keyIndex, visibleEdges)
     }
 }
 
@@ -183,6 +229,8 @@ private fun rememberLensModel(state: AppState): LensModel {
 fun GraphLensView(state: AppState) {
     val model = rememberLensModel(state)
     val graph = state.overlayIndex().graph
+    val level = model.level
+    val schemaGraph = state.schemaGraph
     val typeOf = model.typeOf
     val mode = model.mode
     val origin = model.origin
@@ -193,11 +241,11 @@ fun GraphLensView(state: AppState) {
     val hiddenTypes = state.memory.lensHiddenTypes
     val expandedBoxes = state.memory.lensExpanded
     val depth = state.memory.lensDepth
-    val edgeIndices = remember(visibleEdges, keyIndex) {
+    val edgeIndices = remember(visibleEdges, keyIndex, state.relations) {
         visibleEdges.mapNotNull { e ->
             val s = keyIndex[e.from] ?: return@mapNotNull null
             val t = keyIndex[e.to] ?: return@mapNotNull null
-            LensArrangedEdge(s, t, e.relation, e.kind)
+            LensArrangedEdge(s, t, e.relation, e.kind, lensEdgeLabel(state.relations, e))
         }
     }
     val paint = LensPaint(Palette.Border, Palette.Surface, Palette.Primary, Palette.SubText)
@@ -230,19 +278,23 @@ fun GraphLensView(state: AppState) {
             n.node.key to textMeasurer.measure(glyph + n.node.id, idStyle)
         }
     }
-    val titleTexts: Map<String, TextLayoutResult> = remember(nodes, titleStyle, state.indexVersion, state.editVersion) {
+    // タイトル: 実体はエンティティのタイトル、型は表示名（レジストリの label）。添え書き: 出現の側面、型は現れるスキーマ
+    val titleTexts: Map<String, TextLayoutResult> = remember(nodes, titleStyle, state.indexVersion, state.editVersion, level, schemaGraph) {
         nodes.mapNotNull { n ->
-            val title = n.node.occurrence?.title ?: graph.entities[n.node.id]?.title
+            val title =
+                if (level == LensLevel.TYPE) schemaGraph.typeMap[n.node.id]?.label
+                else n.node.occurrence?.title ?: graph.entities[n.node.id]?.title
             title?.takeIf { it.isNotBlank() && it != n.node.id }?.let { n.node.key to textMeasurer.measure(it.take(30), titleStyle) }
         }.toMap()
     }
-    val subTexts: Map<String, TextLayoutResult> = remember(nodes, titleStyle, state.schemas, state.entityTypes) {
-        nodes.mapNotNull { n -> n.node.occurrence?.let { n.node.key to textMeasurer.measure(aspectLabelOf(it), titleStyle) } }.toMap()
+    val subTexts: Map<String, TextLayoutResult> = remember(nodes, titleStyle, state.schemas, state.entityTypes, level, schemaGraph) {
+        nodes.mapNotNull { n ->
+            val text = if (level == LensLevel.TYPE) typeSubtitle(schemaGraph, n.node.id) else n.node.occurrence?.let { aspectLabelOf(it) }
+            text?.let { n.node.key to textMeasurer.measure(it, titleStyle) }
+        }.toMap()
     }
-    val labelTexts: Map<String, TextLayoutResult> = remember(edgeIndices, edgeLabelStyle, state.relations) {
-        edgeIndices.mapNotNull { it.relation }.distinct()
-            .mapNotNull { rel -> Relations.labelOf(state.relations, rel)?.let { rel to textMeasurer.measure(it, edgeLabelStyle) } }
-            .toMap()
+    val labelTexts: Map<String, TextLayoutResult> = remember(edgeIndices, edgeLabelStyle) {
+        edgeIndices.mapNotNull { it.label }.distinct().associateWith { textMeasurer.measure(it, edgeLabelStyle) }
     }
     val input = remember(nodes, edgeIndices, idTexts, titleTexts, subTexts, labelTexts, origin, keyIndex) {
         val sizes = nodes.map { n ->
@@ -258,7 +310,7 @@ fun GraphLensView(state: AppState) {
             )
         }
         val specs = edgeIndices.map { e ->
-            val label = e.relation?.let { labelTexts[it] }
+            val label = e.label?.let { labelTexts[it] }
             LensEdgeSpec(e.from, e.to, label?.let { it.size.width + 6f } ?: 0f, label?.size?.height?.toFloat() ?: 0f)
         }
         // 起点の箱（側面で分けるときは定義出現の箱、見えていなければその ID の最初の箱）
@@ -356,25 +408,44 @@ fun GraphLensView(state: AppState) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("グラフレンズ", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(8.dp))
+            // 段: 実体（箱＝エンティティ・線＝参照）か型（箱＝エンティティ型・線＝関係＝スキーマの図）。型・関係の絞り込みは両方で同じ覚え
+            LensLevel.entries.forEach { lv ->
+                TextButton(
+                    onClick = { state.memory.lensSchemaLevel = lv == LensLevel.TYPE },
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                ) {
+                    Text(
+                        lv.label, fontSize = 11.sp,
+                        fontWeight = if (level == lv) FontWeight.Bold else FontWeight.Normal,
+                        color = if (level == lv) Palette.Primary else Palette.Text,
+                    )
+                }
+            }
+            Spacer(Modifier.width(8.dp))
             if (origin != null) {
                 Text("起点: $origin", fontSize = 11.sp, color = Palette.Primary, fontWeight = FontWeight.SemiBold)
                 TextButton(onClick = { state.memory.lensDepth = if (depth == 1) 2 else 1 },
                     contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
                     Text("深さ $depth", fontSize = 11.sp)
                 }
-                TextButton(onClick = { state.lensOriginId = null },
+                TextButton(onClick = { if (level == LensLevel.TYPE) state.memory.lensTypeOrigin = null else state.lensOriginId = null },
                     contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
                     Text("起点を解除", fontSize = 11.sp)
                 }
             } else {
-                Text("起点なし（全体をフィルタ表示。エンティティページの「グラフで見る」か右クリックで起点に）",
-                    fontSize = 11.sp, color = Palette.SubText)
+                Text(
+                    if (level == LensLevel.TYPE) "型の図（スキーマと関係レジストリから。右クリックで起点に・箱を押すとスキーマへ）"
+                    else "起点なし（全体をフィルタ表示。エンティティページの「グラフで見る」か右クリックで起点に）",
+                    fontSize = 11.sp, color = Palette.SubText,
+                )
             }
             Spacer(Modifier.width(12.dp))
-            // 見え方: 一体（箱＝エンティティ）か、側面で分ける（箱＝出現）
-            LensFilterItem(mode == LensMode.OCCURRENCE, { state.memory.lensSplitOccurrences = it }) {
-                Text(LensMode.OCCURRENCE.label, fontSize = 11.sp)
+            // 見え方（実体の段だけ）: 一体（箱＝エンティティ）か、側面で分ける（箱＝出現）
+            if (level == LensLevel.ENTITY) {
+                LensFilterItem(mode == LensMode.OCCURRENCE, { state.memory.lensSplitOccurrences = it }) {
+                    Text(LensMode.OCCURRENCE.label, fontSize = 11.sp)
+                }
             }
             if (expandedBoxes.isNotEmpty()) {
                 TextButton(onClick = { expandedBoxes.clear() }, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
@@ -388,7 +459,9 @@ fun GraphLensView(state: AppState) {
             if (pins.isNotEmpty()) {
                 TextButton(onClick = { pins.clear() }) { Text("動かした ${pins.size} 件を戻す", fontSize = 11.sp) }
             }
-            TextButton(onClick = { saveImage("lens-" + (origin ?: "all")) }, enabled = scene != null) { Text("PNG に保存", fontSize = 11.sp) }
+            TextButton(onClick = { saveImage((if (level == LensLevel.TYPE) "schema-lens-" else "lens-") + (origin ?: "all")) }, enabled = scene != null) {
+                Text("PNG に保存", fontSize = 11.sp)
+            }
             // 型・関係の絞り込みと辺の一覧は右パネル。閉じていればここから開く
             if (!state.rightPaneOpen) {
                 TextButton(onClick = { state.rightPaneOpen = true }) { Text("型・関係・辺 ▶", fontSize = 11.sp) }
@@ -489,6 +562,7 @@ fun GraphLensView(state: AppState) {
                             val header = a.nested.getOrNull(index)?.height ?: box.height
                             val c = toContent(tap)
                             if (hasChildren(node) && c.x <= box.x + TOGGLE_ZONE && c.y <= box.y + header) toggle(node)
+                            else if (level == LensLevel.TYPE) openTypeSchema(state, node.node.id)
                             else state.openCrossView(node.node.id)
                         }
                     }
@@ -501,8 +575,11 @@ fun GraphLensView(state: AppState) {
                 }
             }
             if (nodes.isEmpty()) {
-                Text("表示するエンティティがありません（右パネルで型のチェックを増やすか、起点を解除してください）",
-                    fontSize = 12.sp, color = Palette.SubText, modifier = Modifier.align(Alignment.Center))
+                Text(
+                    if (level == LensLevel.TYPE) "表示する型がありません（スキーマの entity 宣言か関係レジストリが要ります。右パネルで型のチェックを増やすか、起点を解除してください）"
+                    else "表示するエンティティがありません（右パネルで型のチェックを増やすか、起点を解除してください）",
+                    fontSize = 12.sp, color = Palette.SubText, modifier = Modifier.align(Alignment.Center),
+                )
             }
             // ミニマップ: 全体が画面に収まっていないときだけ右下に出す。押した・なぞった場所を画面の中央にする
             val a = effective
@@ -552,15 +629,36 @@ fun GraphLensView(state: AppState) {
                     val entity = graph.entities[id]
                     val origin0 = node.node.occurrence ?: entity?.defining ?: entity?.occurrences?.firstOrNull()
                     val type = typeOf(id)
+                    val typeInfo = schemaGraph.typeMap[id]
                     Box(Modifier.offset { IntOffset(at.x.roundToInt(), at.y.roundToInt()) }) {
                         DropdownMenu(expanded = true, onDismissRequest = { menu = null }) {
-                            Text(
-                                id + (entity?.title?.takeIf { it.isNotBlank() && it != id }?.let { "  $it" } ?: "") +
-                                    (node.node.occurrence?.let { " " + aspectLabelOf(it) } ?: ""),
-                                fontSize = 11.sp, color = Palette.SubText, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                            )
-                            DropdownMenuItem(text = { Text("エンティティページを開く", fontSize = 12.sp) },
-                                onClick = { menu = null; state.openCrossView(id) })
+                            if (level == LensLevel.TYPE) {
+                                // 型の箱: 現れるスキーマを開く・実体の段へ（この型だけを見せる）・起点にする
+                                Text(
+                                    id + (typeInfo?.label?.let { "  $it" } ?: ""),
+                                    fontSize = 11.sp, color = Palette.SubText, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                                )
+                                typeInfo?.appearances?.map { it.schemaId }?.distinct()?.forEach { sid ->
+                                    DropdownMenuItem(text = { Text("スキーマを開く: $sid", fontSize = 12.sp) },
+                                        onClick = { menu = null; state.schemas.firstOrNull { it.id == sid }?.let { state.openFile(it.source) } })
+                                }
+                                DropdownMenuItem(text = { Text("この型の実体を見る", fontSize = 12.sp) }, onClick = {
+                                    menu = null
+                                    // 実体の段へ移り、この型だけを見せる（他の型を隠す。起点は解除）
+                                    hiddenTypes.clear()
+                                    graph.entities.values.map { it.entityType ?: "（型なし）" }.distinct().forEach { t -> if (t != id) hiddenTypes[t] = true }
+                                    state.lensOriginId = null
+                                    state.memory.lensSchemaLevel = false
+                                })
+                            } else {
+                                Text(
+                                    id + (entity?.title?.takeIf { it.isNotBlank() && it != id }?.let { "  $it" } ?: "") +
+                                        (node.node.occurrence?.let { " " + aspectLabelOf(it) } ?: ""),
+                                    fontSize = 11.sp, color = Palette.SubText, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                                )
+                                DropdownMenuItem(text = { Text("エンティティページを開く", fontSize = 12.sp) },
+                                    onClick = { menu = null; state.openCrossView(id) })
+                            }
                             if (hasChildren(node)) {
                                 DropdownMenuItem(
                                     text = { Text(if (node.expanded) "中の箱を畳む" else "中の箱を開く（${node.hiddenChildren}）", fontSize = 12.sp) },
@@ -568,8 +666,8 @@ fun GraphLensView(state: AppState) {
                                 )
                             }
                             DropdownMenuItem(text = { Text("起点にする", fontSize = 12.sp) }, enabled = id != origin,
-                                onClick = { menu = null; state.lensOriginId = id })
-                            if (origin0 != null) {
+                                onClick = { menu = null; if (level == LensLevel.TYPE) state.memory.lensTypeOrigin = id else state.lensOriginId = id })
+                            if (level == LensLevel.ENTITY && origin0 != null) {
                                 DropdownMenuItem(text = { Text("原本へ（${origin0.document.value}）", fontSize = 12.sp) },
                                     onClick = { menu = null; state.openFile(origin0.document, origin0.path) })
                             }
@@ -633,7 +731,8 @@ fun LensSidePanel(state: AppState, width: Dp) {
                             PanelCheckRow(rel !in hiddenRelations, { checked -> if (checked) hiddenRelations.remove(rel) else hiddenRelations.put(rel, true) }) {
                                 Text(
                                     (Relations.labelOf(state.relations, rel.takeIf { it != UNDECLARED }) ?: rel) +
-                                        (if (rel in model.holdingNames) "（保有）" else ""),
+                                        (if (rel in model.holdingNames) "（保有）" else "") +
+                                        (if (rel in model.reversed) "（矢印は逆向き）" else ""),
                                     fontSize = 11.sp,
                                 )
                             }
@@ -644,11 +743,12 @@ fun LensSidePanel(state: AppState, width: Dp) {
                         if (listed.isEmpty()) item { Text("見えている辺はありません", Modifier.padding(12.dp), fontSize = 11.sp, color = Palette.SubText) }
                         items(listed) { edge ->
                             val toId = model.idOf(edge.to)
-                            Column(Modifier.fillMaxWidth().clickable { state.openCrossView(toId) }.padding(horizontal = 12.dp, vertical = 4.dp)) {
+                            val open: () -> Unit = { if (model.level == LensLevel.TYPE) openTypeSchema(state, toId) else state.openCrossView(toId) }
+                            Column(Modifier.fillMaxWidth().clickable(onClick = open).padding(horizontal = 12.dp, vertical = 4.dp)) {
                                 Text(model.idOf(edge.from), fontSize = 11.sp, color = Palette.Primary, maxLines = 1)
                                 Text(
                                     if (edge.kind == LensEdgeKind.HOLDING) "◆ $toId（保有: ${Relations.labelOf(state.relations, edge.relation) ?: edge.relation}）"
-                                    else "→ $toId" + (Relations.labelOf(state.relations, edge.relation)?.let { "（関係: $it）" } ?: ""),
+                                    else "→ $toId" + (lensEdgeLabel(state.relations, edge)?.let { "（関係: $it）" } ?: ""),
                                     fontSize = 11.sp, color = Palette.SubText, maxLines = 1,
                                 )
                             }
@@ -788,8 +888,7 @@ private fun DrawScope.drawLens(scene: LensScene, zoom: Float, hovered: Int?, adj
             }
         }
         if (zoom >= 0.5f) {
-            val rel = edge?.relation ?: return@forEachIndexed
-            val text = scene.labelTexts[rel] ?: return@forEachIndexed
+            val text = edge?.label?.let { scene.labelTexts[it] } ?: return@forEachIndexed
             val c = route.label ?: return@forEachIndexed
             val w = text.size.width.toFloat()
             val h = text.size.height.toFloat()

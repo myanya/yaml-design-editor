@@ -149,6 +149,9 @@ internal const val CLI_USAGE = """コマンド:
            索引の全参照から relation・viaKey・参照元／先のエンティティ型の実績を集計し、
            関係レジストリ（kind: relations）文書のドラフトを生成する（R20-02）。
            既定は標準出力へ表示。--apply で _schemas/<id>.yaml へ保存する（既存は上書きしない）
+  schema-graph <workspace>
+           スキーマと関係レジストリから、型（箱）・関係（線）・保有の宣言（入れ子）を導いて表示する
+           （スキーマの図＝レンズの「型」の段と同じ材料。線の出どころ＝宣言／導出と、線にできなかった参照項目の理由も出す）
   migrate  <workspace> [--ledger dir]           レガシー構成（ルートの _schemas 等）を .yde 構成へ移行する（R13-01）。
            予約ディレクトリを .yde/ 配下へ移動し .yde/workspace.yaml を作成する。
            --ledger で台帳ディレクトリを宣言（未指定なら全体が台帳＝従来と同じ検証範囲）
@@ -329,6 +332,11 @@ internal fun runCli(args: Array<String>): String {
                                 "id" to v.id, "name" to v.name, "kind" to "flow",
                                 "match" to v.match, "schemaId" to v.schemaId,
                             ).filterValues { it != null }
+                        } + loaded.lensViews.map { v ->
+                            linkedMapOf(
+                                "id" to v.id, "name" to v.name, "kind" to "lens",
+                                "relations" to v.relations.map { "${it.name}: ${it.arrow.id}" },
+                            )
                         }),
                         "errors" to loaded.errors,
                     )
@@ -1031,6 +1039,42 @@ internal fun runCli(args: Array<String>): String {
                     )
                 )
             }
+        }
+        "schema-graph" -> {
+            // スキーマの図（レンズの「型」の段と同じ材料。P42。architecture/graph-query.md「スキーマレンズ」）: 文書を読まず、
+            // スキーマと関係レジストリから型・関係・保有の宣言を導く。空の値は出さない
+            val g = workspace().schemaGraph
+            fun site(s: dev.toros.yde.semantic.SchemaGraphSite) = "${s.schemaId}:${s.path}"
+            fun compact(vararg pairs: Pair<String, Any?>): LinkedHashMap<String, Any?> =
+                linkedMapOf(*pairs.filter { (_, v) -> v != null && (v !is Collection<*> || v.isNotEmpty()) }.toTypedArray())
+            dumpYaml(
+                linkedMapOf(
+                    "types" to g.types.map { t ->
+                        compact(
+                            "type" to t.type, "label" to t.label,
+                            "schemas" to t.appearances.map { a ->
+                                compact(
+                                    "schema" to a.schemaId, "path" to a.path, "role" to (if (a.defines) "defines" else "detail"),
+                                    "aspect" to a.aspect, "idPattern" to a.idPattern, "inferred" to a.inferred.takeIf { it },
+                                )
+                            },
+                        )
+                    },
+                    "relations" to g.edges.map { e ->
+                        compact("from" to e.from, "to" to e.to, "relation" to e.relation, "source" to e.source.label, "sites" to e.sites.map(::site))
+                    },
+                    "holdings" to g.holdings.map { h ->
+                        compact("parent" to h.parent, "child" to h.child, "relation" to h.relation, "defines" to h.childDefines, "sites" to h.sites.map(::site))
+                    },
+                    "unresolved" to g.unresolved.map { u ->
+                        compact("schema" to u.site.schemaId, "path" to u.site.path, "relation" to u.relation, "reason" to u.reason)
+                    },
+                    // 宣言より広い導出（両端を宣言した関係で、スキーマの scope がレジストリより緩いぶん。線にはしない）
+                    "beyondDeclaration" to g.beyondDeclaration.map { e ->
+                        compact("from" to e.from, "to" to e.to, "relation" to e.relation, "sites" to e.sites.map(::site))
+                    },
+                )
+            )
         }
         "revert" -> {
             val ws = workspace()

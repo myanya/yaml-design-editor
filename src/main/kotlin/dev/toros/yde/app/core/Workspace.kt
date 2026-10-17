@@ -3,6 +3,8 @@ package dev.toros.yde.app.core
 import dev.toros.yde.app.index.IdIndex
 import dev.toros.yde.app.schema.BuiltinSchemas
 import dev.toros.yde.app.validate.ValidationResult
+import dev.toros.yde.semantic.SchemaGraphSource
+import dev.toros.yde.semantic.SemanticSchemaGraph
 import dev.toros.yde.semantic.schema.EnforcementDef
 import dev.toros.yde.semantic.schema.EntityTypeDef
 import dev.toros.yde.semantic.schema.SchemaKind
@@ -160,6 +162,9 @@ class Workspace private constructor(val root: Path) {
         private set
     /** エンティティ型レジストリ（R23-01。architecture/graph-query.md「エンティティページ」）: `entities:` 節の集約。表示名・アスペクト順序の解決に使う。 */
     var entityTypes: Map<String, EntityTypeDef> = emptyMap()
+
+    /** スキーマの図（型の段のレンズ。P42。architecture/graph-query.md「スキーマレンズ」）: スキーマと関係レジストリから導いた型・関係・保有の宣言。 */
+    var schemaGraph: SemanticSchemaGraph = SemanticSchemaGraph.EMPTY
         private set
     var files: List<Path> = emptyList()
         private set
@@ -202,6 +207,12 @@ class Workspace private constructor(val root: Path) {
         relations = loaded.relations
         enforcement = loaded.enforcement
         entityTypes = loaded.entityTypes
+        // スキーマの図は文書を読まず、文書スキーマとレジストリだけから導く（組込みスキーマ・library・レジストリ・derive の宣言側は材料にしない）
+        schemaGraph = SemanticSchemaGraph.build(
+            schemas.filter { it.kind == SchemaKind.DOCUMENT && !it.kernel.isTemplate && !it.kernel.source.value.startsWith("(builtin)/") }
+                .map { SchemaGraphSource(it.id, it.name, it.tree, it.entities) },
+            relations.values, entityTypes.values,
+        )
         files = WorkspaceScan.yamlFiles(root, layout)
         repopulateIndex()
     }
