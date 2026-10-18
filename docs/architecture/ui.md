@@ -99,6 +99,7 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 ## 規律
 
 - `YNode` は Compose の State ではない。木を表示するコンポーザブルは `doc.version` / `state.indexVersion` を読んで購読する。
+- 可変の木を読む入力部品は、親だけでなく部品自身でも編集通知を購読する。`SchemaEditor` は `key(doc)` で入力途中の文字・ダイアログ・解析キャッシュを文書に閉じ、タブと畳みは `ScreenMemory` から復元する。
 - フォーム系の新しい編集 UI は `FormCtx` を通し、閲覧専用モードの表示分岐を入れる。
 - `uiSpace` の書き換えは `showSpace` / `showWorkspaceView` / ナビゲーション系メソッド経由に限る。新しい画面をモーダルで作らない（確認ダイアログと、値を集めて 1 回で適用する短い作業の浮いたパネルを除く）。エージェント実行の状態を `remember` へ戻さない。
 - アプリ全体のショートカットは `Main.kt` の `handleShortcut` に足す。

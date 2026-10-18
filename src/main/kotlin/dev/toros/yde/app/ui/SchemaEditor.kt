@@ -36,6 +36,15 @@ import dev.toros.yde.yaml.YamlIO
 /** `_schemas` 用の構造化エディタ。YAML の表現を意識せずフィールド定義を編集できる。 */
 @Composable
 fun SchemaEditor(state: AppState, doc: OpenDocument) {
+    // 入力途中の文字・ダイアログ・解析キャッシュは文書に閉じる。
+    // version を鍵にすると入力のたびにフォーカスまで失うため、文書の同一性だけで区切る。
+    key(doc) {
+        SchemaEditorContent(state, doc)
+    }
+}
+
+@Composable
+private fun SchemaEditorContent(state: AppState, doc: OpenDocument) {
     doc.version
     val root = doc.root as? YNode.Map
     if (root == null) {
@@ -323,6 +332,7 @@ private fun SchemaTargets(state: AppState, schema: SchemaDef?) {
 
 @Composable
 private fun CompactScalar(map: YNode.Map, key: String, label: String, doc: OpenDocument) {
+    doc.version  // 可変の木を読む子自身でも購読し、入力欄へ最新値を渡す。
     val value = (map.entries[key] as? YNode.Scalar)?.value?.toString().orEmpty()
     Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, fontSize = 12.sp, modifier = Modifier.width(140.dp))
@@ -339,6 +349,7 @@ private fun CompactScalar(map: YNode.Map, key: String, label: String, doc: OpenD
  */
 @Composable
 private fun CompactNumberScalar(map: YNode.Map, key: String, label: String, doc: OpenDocument, integer: Boolean) {
+    doc.version
     val value = (map.entries[key] as? YNode.Scalar)?.value?.toString().orEmpty()
     Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, fontSize = 12.sp, modifier = Modifier.width(140.dp))
@@ -357,6 +368,7 @@ private fun CompactNumberScalar(map: YNode.Map, key: String, label: String, doc:
 /** 空欄で項目自体を削除する任意スカラー入力（pattern 等、空文字を残すと意味が変わるキー用）。 */
 @Composable
 private fun CompactOptionalScalar(map: YNode.Map, key: String, label: String, hint: String, doc: OpenDocument) {
+    doc.version
     val value = (map.entries[key] as? YNode.Scalar)?.value?.toString().orEmpty()
     Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, fontSize = 12.sp, modifier = Modifier.width(140.dp))
@@ -371,6 +383,7 @@ private fun CompactOptionalScalar(map: YNode.Map, key: String, label: String, hi
 
 @Composable
 private fun CompactMultilineScalar(map: YNode.Map, key: String, label: String, doc: OpenDocument) {
+    doc.version
     val value = (map.entries[key] as? YNode.Scalar)?.value?.toString().orEmpty()
     Row(
         Modifier.fillMaxWidth().padding(vertical = 1.dp),
@@ -450,6 +463,7 @@ private fun DefinitionCard(state: AppState, name: String, definitions: YNode.Map
  */
 @Composable
 private fun ObjectEntityEditor(map: YNode.Map, doc: OpenDocument, definitionName: String?) {
+    doc.version
     val entity = map.entries["entity"] as? YNode.Map
     Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("同一性（entity）", fontSize = 12.sp, modifier = Modifier.width(140.dp))
@@ -666,6 +680,7 @@ private fun FieldDefinitionEditor(
 /** 保存時に自動で入る値（auto）の選択（型に合う印だけを選べる。「（なし）」で外す）。 */
 @Composable
 private fun AutoValueChooser(map: YNode.Map, choices: List<AutoValue>, hint: String, doc: OpenDocument) {
+    doc.version
     val none = "（なし）"
     val current = scalar(map, "auto")?.let { raw -> AutoValue.parse(raw)?.let { "${it.id}（${it.label}）" } ?: raw } ?: none
     Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -689,6 +704,7 @@ private val HINT_KINDS = setOf(
 /** 一覧表示形式のヒント（R12-06）。array / map で共有。省略時はフォーム側が列構成から自動判定する。 */
 @Composable
 private fun DisplayHintRow(map: YNode.Map, doc: OpenDocument) {
+    doc.version
     Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("一覧の表示形式", fontSize = 12.sp, modifier = Modifier.width(140.dp))
         ChoiceButton(scalar(map, "display") ?: "（自動）", listOf("（自動）", "table", "list")) {
@@ -910,6 +926,7 @@ private fun CoverageEditor(root: YNode.Map, doc: OpenDocument) {
 /** minCount は数値型で書き込む（文字列だとパース時に既定値へ落ちるため）。 */
 @Composable
 private fun CoverageMinCount(map: YNode.Map, doc: OpenDocument) {
+    doc.version
     val value = (map.entries["minCount"] as? YNode.Scalar)?.value?.toString().orEmpty()
     Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("必要数（minCount）", fontSize = 12.sp, modifier = Modifier.width(140.dp))
@@ -1077,6 +1094,7 @@ private fun FieldMoveButtons(items: MutableList<YNode>, index: Int, doc: OpenDoc
 
 @Composable
 private fun StringListEditor(map: YNode.Map, key: String, label: String, hint: String, doc: OpenDocument) {
+    doc.version
     val seq = map.entries[key] as? YNode.Seq
     val value = seq?.items?.mapNotNull { (it as? YNode.Scalar)?.value?.toString() }?.joinToString(", ").orEmpty()
     Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1090,6 +1108,7 @@ private fun StringListEditor(map: YNode.Map, key: String, label: String, hint: S
 
 @Composable
 private fun DefaultValueEditor(map: YNode.Map, type: String, doc: OpenDocument) {
+    doc.version
     val value = (map.entries["default"] as? YNode.Scalar)?.value?.toString().orEmpty()
     Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("初期値", fontSize = 12.sp, modifier = Modifier.width(140.dp))
