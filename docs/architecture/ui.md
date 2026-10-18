@@ -14,6 +14,8 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 | `RunController` / `RunsSpace` | ui/RunsSpace.kt | 実行スペース（受信箱・手動実行・自動化・計測評価）。実行状態機械（AppRoot 生存期間） |
 | `DesignSpace` | ui/DesignSpace.kt | 設計スペース（定義文書の種類別カタログ・新規作成・スキーマ推測・skill） |
 | `FormView` / `FormCtx` / `ObjectFields` / `FieldRow` | ui/FormView.kt | スキーマ駆動フォームと汎用エディタ（中核 UI） |
+| `isStructuredFormValue` / `stackFormField` | ui/FormLayout.kt | 解決済みの型・実際の値と利用可能幅によるフォーム配置の判定（純ロジック） |
+| `FieldHelp` / `FieldHelpPosition` | ui/FieldHelp.kt | 説明の短い表示とホバー・固定表示、画面内への位置調整 |
 | `FlowViewPane` / `EmbeddedFlowPane` | ui/FlowViewPane.kt | 図と原本フォームを併記する単独・埋め込み表示（[views](views.md)） |
 | `ObjectTable` / `ArrayTable` / `MapTable` / `RefCell` / `tableColumnWidths` | ui/FormView.kt | 配列と map のテーブル表示（参照セルは ID・参照先の名前・横ぐしへの Hub） |
 | `Highlightable` / `slotAt` / `CompactTextField` / `Palette` / `PanelShape` / `AppFonts` | ui/Common.kt | ハイライトとスクロール・Slot の解決・共通の入力欄と色と角丸・同梱フォント（等幅 Cica。資源が無ければ OS の等幅へ戻す） |
@@ -58,7 +60,10 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 
 - `FormCtx` が編集操作（`writeScalar`・`markEdited`）と参照解決（`resolvable`）・対象文書（`doc`）・既定の展開（`defaultExpanded`）・ハイライト（`highlightInside`）・指摘（`issues`）・アタッチ（`attachments`）・AI の関連文書（`aiRelatedFiles`）を仲介する。フォームを再利用する画面（エンティティページ・ビューグリッド・文書ビュー）へ自動で波及する。
 - object の子フィールドは `ObjectFields`（`effectiveFields` 経由）で描く。列挙を複製しない。
-- 項目名と入力欄は `FormFieldLayout` で配置し、入れ子ごとの利用可能幅が狭ければ縦に並べる。文書メタデータ・スキーマの項目・型付き map・汎用 map で共用する。
+- 項目名と入力欄は `FormFieldLayout` で配置する。解決済みの型が object・map・array、または実値が Map・Seq なら項目名の下へ全幅で並べ、単一値は幅が狭いときだけ縦に並べる。
+- 配置判定は `FormLayout` に集約し、文書メタデータ・スキーマの項目・型付き map・汎用 map で共用する。未作成の複合型も縦配置とし、属性付き参照・any・型不一致の残留値は実値の構造も見る。
+- 項目の説明は `FieldHelp` が `MarkdownView` で描く。編集時の短い表示と、編集・閲覧共通のホバーによる全文表示を持ち、説明ボタンで固定するとスクロールとリンク操作ができる。
+- 説明のホバーは入力の焦点を奪わず、固定時だけポップアップに焦点を渡す。開閉は操作途中の状態として `remember` に置き、文書の編集や畳みの覚えには記録しない。
 - 配列の追加ボタンは `AppState.addArrayElement` を呼ぶ（要素の中身は型の `create` と配列の `insert` の決まり。受け取る値があれば右ペインのカード。[actions](actions.md)）。フォーム側で初期値を組まない。
 - 基底の種類別のエディタ（複数行と入力欄の案内は型から引き継ぐヒント）・必須マーク（`requiredFrom` はフェーズ名つき）・説明・折りたたみ。id 型は既存 ID の補完ピッカーと連番の提案（`IdSuggest`）。`format` と `display: grouped` は見せ方（`ValueFormat.display`。`CompactTextField` の `unfocusedText`＝フォーカス中は素の値）。スキーマの型と値の構造が合わない残留値は修復 UI（値を消す・配列やスカラーに変換）。
 - 指摘のあるフィールドは入力枠が色づく（エラー＝赤・警告＝オレンジ。`FormCtx.issues` 経由で全指摘種別に効く）。

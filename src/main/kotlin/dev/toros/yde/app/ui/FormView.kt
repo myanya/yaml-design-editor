@@ -681,12 +681,13 @@ fun ObjectFields(
 private fun FormFieldLayout(
     modifier: Modifier = Modifier,
     labelWidth: Dp = 148.dp,
+    structured: Boolean = false,
     label: @Composable () -> Unit,
     content: @Composable () -> Unit,
 ) {
     // 入れ子ごとの実際の幅で判断し、項目名の固定幅が入力欄を押し潰さないようにする。
     BoxWithConstraints(modifier.fillMaxWidth()) {
-        if (maxWidth < labelWidth + 360.dp) {
+        if (stackFormField(structured, maxWidth.value, labelWidth.value)) {
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Box(Modifier.fillMaxWidth()) { label() }
                 Box(Modifier.fillMaxWidth()) { content() }
@@ -702,41 +703,47 @@ private fun FormFieldLayout(
 
 @Composable
 internal fun FieldRow(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
+    @Suppress("UNUSED_VARIABLE") val version = ctx.doc.version
     val effective = ctx.doc.schema?.resolve(field) ?: field
     // 閲覧専用モード（R10-04）はパディングを圧縮して表示密度を上げる
     val labelTop = if (ctx.readOnly) 2.dp else 8.dp
     Highlightable(ctx.state, path) {
-        FormFieldLayout(Modifier.padding(vertical = if (ctx.readOnly) 0.dp else 1.dp), label = {
-            Column(Modifier.padding(top = labelTop, end = 8.dp)) {
-                FlowRow {
-                    Text(effective.displayLabel, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    if (effective.required) Text(" *", color = Palette.ErrorRed, fontSize = 12.sp)
-                    // requiredFrom はフェーズ到達で必須になる項目（無条件必須の * とは区別して注記する）
-                    effective.requiredFrom?.let {
-                        Text(" *$it〜", color = Palette.WarnOrange, fontSize = 10.sp)
-                    }
-                    if (effective.type != FieldType.ARRAY && !ctx.readOnly) {
-                        IconButton(
-                            onClick = { ctx.state.requestAi(ctx.doc, effective, path, relatedFiles = ctx.aiRelatedFiles) },
-                            modifier = Modifier.size(22.dp),
-                        ) {
-                            Icon(
-                                Icons.Default.AutoAwesome,
-                                contentDescription = "${effective.displayLabel}をAIで作成",
-                                modifier = Modifier.size(13.dp),
-                                tint = Palette.Primary,
-                            )
+        FormFieldLayout(
+            Modifier.padding(vertical = if (ctx.readOnly) 0.dp else 1.dp),
+            structured = isStructuredFormValue(effective, slot.get()),
+            label = {
+                Column(Modifier.padding(top = labelTop, end = 8.dp)) {
+                    FieldHelp(effective.displayLabel, effective.description, showPreview = !ctx.readOnly) { helpButton ->
+                        FlowRow {
+                            Text(effective.displayLabel, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            if (effective.required) Text(" *", color = Palette.ErrorRed, fontSize = 12.sp)
+                            // requiredFrom はフェーズ到達で必須になる項目（無条件必須の * とは区別して注記する）
+                            effective.requiredFrom?.let {
+                                Text(" *$it〜", color = Palette.WarnOrange, fontSize = 10.sp)
+                            }
+                            helpButton()
+                            if (effective.type != FieldType.ARRAY && !ctx.readOnly) {
+                                IconButton(
+                                    onClick = { ctx.state.requestAi(ctx.doc, effective, path, relatedFiles = ctx.aiRelatedFiles) },
+                                    modifier = Modifier.size(22.dp),
+                                ) {
+                                    Icon(
+                                        Icons.Default.AutoAwesome,
+                                        contentDescription = "${effective.displayLabel}をAIで作成",
+                                        modifier = Modifier.size(13.dp),
+                                        tint = Palette.Primary,
+                                    )
+                                }
+                            }
                         }
                     }
+                    if (!ctx.readOnly) {
+                        // 保存時に自動で入る値（auto）: 手で直せるが、保存のときに機械が入れることを知らせる
+                        effective.auto?.let { Text(autoValueHint(it), fontSize = 10.sp, color = Palette.SubText) }
+                    }
                 }
-                if (!ctx.readOnly) {
-                    // 項目の説明は Markdown（箇条書き・コード・リンクが書ける。ui/MarkdownView.kt）
-                    effective.description?.let { MarkdownView(it, compact = true) }
-                    // 保存時に自動で入る値（auto）: 手で直せるが、保存のときに機械が入れることを知らせる
-                    effective.auto?.let { Text(autoValueHint(it), fontSize = 10.sp, color = Palette.SubText) }
-                }
-            }
-        }) {
+            },
+        ) {
             // 検証指摘のあるフィールドは入力枠を色づけする（UX-14: エラー=赤・警告=オレンジ）
             val issueColor = when (ctx.issueAt(path)) {
                 Severity.ERROR -> Palette.ErrorRed
@@ -1925,6 +1932,7 @@ private fun NestedObjectEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: 
 
 @Composable
 private fun MapEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
+    @Suppress("UNUSED_VARIABLE") val version = ctx.doc.version
     val node = slot.get()
     // 既定は浅い階層のみ展開（編集・閲覧共通）。開閉は画面の覚えが持ち、ジャンプ先が中なら開く（UX-10）
     val expanded = ctx.expanded(path)
@@ -1958,10 +1966,16 @@ private fun MapEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
             node.entries.keys.toList().forEach { key ->
                 val childPath = path + key
                 Highlightable(ctx.state, childPath) {
-                    FormFieldLayout(Modifier.padding(vertical = 1.dp), labelWidth = 150.dp, label = {
-                        Text(key, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(top = if (ctx.readOnly) 2.dp else 10.dp))
-                    }) {
+                    FormFieldLayout(
+                        Modifier.padding(vertical = 1.dp), labelWidth = 150.dp,
+                        structured = isStructuredFormValue(
+                            field.value?.let { ctx.doc.schema?.resolve(it) ?: it }, node.entries[key],
+                        ),
+                        label = {
+                            Text(key, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(top = if (ctx.readOnly) 2.dp else 10.dp))
+                        },
+                    ) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                             Box(Modifier.weight(1f)) {
                                 ValueEditor(ctx, field.value ?: FieldDef(), MapSlot(node, key), childPath)
@@ -2144,6 +2158,7 @@ internal fun renameMapKey(map: YNode.Map, oldKey: String, newKey: String): Boole
 
 @Composable
 fun GenericMapEntryRow(ctx: FormCtx, map: YNode.Map, key: String, mapPath: YPath) {
+    @Suppress("UNUSED_VARIABLE") val version = ctx.doc.version
     val childPath = mapPath + key
     val childRefHint = DocScanner.isGenericRefKey(key) || DocScanner.isGenericRefListKey(key)
     var renaming by remember(key) { mutableStateOf(false) }
@@ -2151,7 +2166,7 @@ fun GenericMapEntryRow(ctx: FormCtx, map: YNode.Map, key: String, mapPath: YPath
     if (ctx.readOnly) {
         // 閲覧専用モード（R10-04）: キー名変更・削除を出さない高密度の表示行
         Highlightable(ctx.state, childPath) {
-            FormFieldLayout(labelWidth = 150.dp, label = {
+            FormFieldLayout(labelWidth = 150.dp, structured = isStructuredFormValue(null, map.entries[key]), label = {
                 Text(key, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(top = 2.dp))
             }) {
@@ -2161,7 +2176,9 @@ fun GenericMapEntryRow(ctx: FormCtx, map: YNode.Map, key: String, mapPath: YPath
         return
     }
     Highlightable(ctx.state, childPath) {
-        FormFieldLayout(Modifier.padding(vertical = 1.dp), labelWidth = if (renaming) 214.dp else 150.dp, label = {
+        FormFieldLayout(
+            Modifier.padding(vertical = 1.dp), labelWidth = if (renaming) 214.dp else 150.dp,
+            structured = isStructuredFormValue(null, map.entries[key]), label = {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                 if (renaming) {
                     // キー名の変更（R8-05）。順序・値・コメントは保たれる
