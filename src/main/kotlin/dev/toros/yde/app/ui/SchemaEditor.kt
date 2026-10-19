@@ -92,75 +92,15 @@ private fun SchemaEditorContent(state: AppState, doc: OpenDocument) {
             Tab(mode == 1, { state.memory.schemaTab[schemaKey] = 1 }, text = { Text("プレビュー", fontSize = 11.sp) })
             Tab(mode == 2, { state.memory.schemaTab[schemaKey] = 2 }, text = { Text("適用対象", fontSize = 11.sp) })
         }
-        CompositionLocalProvider(LocalTypeChoices provides typeChoices) { when (mode) {
-            0 -> Box(Modifier.weight(1f).fillMaxWidth()) {
-                val scroll = rememberScrollState()
-                Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(12.dp)) {
-            Text("スキーマ設計", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            Text("適用条件とフィールド構造を編集します。再帰構造は \$ref で名前付き定義を参照し、スカラーの定義（型）は項目の型に名前で選びます。",
-                fontSize = 11.sp, color = Palette.SubText)
-            Spacer(Modifier.height(10.dp))
-            CompactScalar(root, "id", "スキーマID", doc)
-            CompactScalar(root, "name", "スキーマ名", doc)
-            SchemaKindEditor(root, doc, library)
-            CompactMultilineScalar(root, "description", "スキーマの説明", doc)
-            if (!library) CompactScalar(root, "match", "適用パターン", doc)
-            if (schemaResult.isFailure) {
-                SchemaProblem("スキーマを解析できません: ${schemaResult.exceptionOrNull()?.message}")
-            }
-            issues.forEach { SchemaProblem("${it.path}: ${it.message}") }
-            Spacer(Modifier.height(12.dp))
-
-            val definitions = ensureMap(root, "definitions", doc, mark = false)
-            val externalDefinitions = state.schemas.asSequence()
-                .filter { it.id != schema?.id }
-                .flatMap { module -> module.definitions.keys.asSequence().map { "${module.id}#$it" } }
-                .toList()
-            val definitionChoices = (definitions.entries.keys + externalDefinitions).distinct().sorted()
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("名前付き定義", fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                AddDefinitionButton(definitions, doc)
-            }
-            definitions.entries.keys.toList().forEach { name ->
-                DefinitionCard(state, name, definitions, doc, definitionChoices)
-            }
-            if (!library) {
-                Spacer(Modifier.height(12.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("ルート定義", fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                    // 整列（R25-02）: 該当文書のキー順をスキーマ順へ正規化する（スキーマは変更しない）
-                    schema?.takeIf { it.kind == SchemaKind.DOCUMENT && it.derive == null }?.let { s ->
-                        TextButton(onClick = { alignOrderTarget = s.id }) { Text("文書をスキーマ順へ整列…", fontSize = 10.sp) }
-                    }
-                }
-                val rootDef = ensureMap(root, "root", doc, mark = false)
-                // 一括改名・一括削除（R25-01 / R25-03）: 解析できるスキーマの、保存済み状態を基準に文書・ビューを追随させる
-                FieldDefinitionEditor(
-                    rootDef, doc, definitionChoices, allowKey = false, depth = 0,
-                    fieldPath = emptyList(),
-                    onRenameField = schema?.let { s -> { path -> renameFieldTarget = s.id to path } },
-                    onDeleteField = schema?.let { s -> { path -> deleteFieldTarget = s.id to path } },
-                )
-                // スキーマ全体設定（R9-03）: フェーズ宣言とカバレッジルールの構造化編集
-                Spacer(Modifier.height(12.dp))
-                PhasesEditor(root, doc)
-                Spacer(Modifier.height(12.dp))
-                CoverageEditor(root, doc)
-                // エンティティ型の宣言（R20-01。builtin-schema の entity と対更新 architecture/graph-query.md「エンティティ型と関係レジストリ」）
-                Spacer(Modifier.height(12.dp))
-                EntityEditor(root, doc)
-            } else {
-                Text(
-                    "library は業務文書へ適用されず、definitions だけを他スキーマへ公開します。",
-                    fontSize = 11.sp,
-                    color = Palette.SubText,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-            }
-            Spacer(Modifier.height(48.dp))
-                }
-                VerticalScrollbar(rememberScrollbarAdapter(scroll), Modifier.align(Alignment.CenterEnd).fillMaxHeight())
-            }
+        CompositionLocalProvider(LocalTypeChoices provides typeChoices, LocalSchemaReadOnly provides (state.readOnlyMode || doc.draftBroken)) { when (mode) {
+            0 -> SchemaDesignWorkspace(
+                state, doc, root, library, schema, typeChoices,
+                problems = listOfNotNull(schemaResult.exceptionOrNull()?.let { "スキーマを解析できません: ${it.message}" }) +
+                    issues.map { "${it.path}: ${it.message}" },
+                onRename = schema?.let { s -> { path -> renameFieldTarget = s.id to path } },
+                onDelete = schema?.let { s -> { path -> deleteFieldTarget = s.id to path } },
+                onAlign = { schema?.let { alignOrderTarget = it.id } },
+            )
             1 -> SchemaPreview(state, doc, schema, issues)
             else -> SchemaTargets(state, schema)
         } }
@@ -219,7 +159,7 @@ private fun SchemaProblem(message: String) {
 }
 
 @Composable
-private fun SchemaKindEditor(map: YNode.Map, doc: OpenDocument, library: Boolean) {
+internal fun SchemaKindEditor(map: YNode.Map, doc: OpenDocument, library: Boolean) {
     var confirmLibrary by remember { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("スキーマ種別", fontSize = 12.sp, modifier = Modifier.width(140.dp))
@@ -331,15 +271,16 @@ private fun SchemaTargets(state: AppState, schema: SchemaDef?) {
 }
 
 @Composable
-private fun CompactScalar(map: YNode.Map, key: String, label: String, doc: OpenDocument) {
+internal fun CompactScalar(map: YNode.Map, key: String, label: String, doc: OpenDocument) {
     doc.version  // 可変の木を読む子自身でも購読し、入力欄へ最新値を渡す。
     val value = (map.entries[key] as? YNode.Scalar)?.value?.toString().orEmpty()
-    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, fontSize = 12.sp, modifier = Modifier.width(140.dp))
+    FormFieldLayout(modifier = Modifier.padding(vertical = FormSpacing.FieldGap), label = {
+        Text(label, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+    }) {
         // 連続入力は履歴1エントリへ合体（UX-11。キー=対象Map×キー名）
-        CompactTextField(value, { map.entries[key] = YNode.Scalar(it); doc.markEdited(coalesceWith = map to key) },
+        SchemaTextField(value, { map.entries[key] = YNode.Scalar(it); doc.markEdited(coalesceWith = map to key) },
             singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
-            modifier = Modifier.weight(1f))
+            modifier = Modifier.fillMaxWidth())
     }
 }
 
@@ -351,9 +292,10 @@ private fun CompactScalar(map: YNode.Map, key: String, label: String, doc: OpenD
 private fun CompactNumberScalar(map: YNode.Map, key: String, label: String, doc: OpenDocument, integer: Boolean) {
     doc.version
     val value = (map.entries[key] as? YNode.Scalar)?.value?.toString().orEmpty()
-    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, fontSize = 12.sp, modifier = Modifier.width(140.dp))
-        CompactTextField(value, { raw ->
+    FormFieldLayout(modifier = Modifier.padding(vertical = FormSpacing.FieldGap), label = {
+        Text(label, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+    }) {
+        SchemaTextField(value, { raw ->
             if (raw.isBlank()) map.entries.remove(key) else {
                 val typed: Any = if (integer) raw.toLongOrNull() ?: raw else raw.toDoubleOrNull() ?: raw
                 map.entries[key] = YNode.Scalar(typed)
@@ -361,7 +303,7 @@ private fun CompactNumberScalar(map: YNode.Map, key: String, label: String, doc:
             doc.markEdited(coalesceWith = map to key)
         }, singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
             placeholder = { Text("未設定") },
-            modifier = Modifier.weight(1f))
+            modifier = Modifier.fillMaxWidth())
     }
 }
 
@@ -370,49 +312,48 @@ private fun CompactNumberScalar(map: YNode.Map, key: String, label: String, doc:
 private fun CompactOptionalScalar(map: YNode.Map, key: String, label: String, hint: String, doc: OpenDocument) {
     doc.version
     val value = (map.entries[key] as? YNode.Scalar)?.value?.toString().orEmpty()
-    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, fontSize = 12.sp, modifier = Modifier.width(140.dp))
-        CompactTextField(value, {
+    FormFieldLayout(modifier = Modifier.padding(vertical = FormSpacing.FieldGap), label = {
+        Text(label, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+    }) {
+        SchemaTextField(value, {
             if (it.isBlank()) map.entries.remove(key) else map.entries[key] = YNode.Scalar(it)
             doc.markEdited(coalesceWith = map to key)
         }, singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
             placeholder = { Text(hint) },
-            modifier = Modifier.weight(1f))
+            modifier = Modifier.fillMaxWidth())
     }
 }
 
 @Composable
-private fun CompactMultilineScalar(map: YNode.Map, key: String, label: String, doc: OpenDocument) {
+internal fun CompactMultilineScalar(map: YNode.Map, key: String, label: String, doc: OpenDocument) {
     doc.version
     val value = (map.entries[key] as? YNode.Scalar)?.value?.toString().orEmpty()
-    Row(
-        Modifier.fillMaxWidth().padding(vertical = 1.dp),
-        verticalAlignment = Alignment.Top,
-    ) {
-        Text(label, fontSize = 12.sp, modifier = Modifier.width(140.dp).padding(top = 8.dp))
-        CompactTextField(
+    FormFieldLayout(modifier = Modifier.padding(vertical = FormSpacing.FieldGap), label = {
+        Text(label, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+    }) {
+        SchemaTextField(
             value = value,
             onValueChange = { map.entries[key] = YNode.Scalar(it); doc.markEdited(coalesceWith = map to key) },
             singleLine = false,
             textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
-            modifier = Modifier.weight(1f).heightIn(min = 72.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp),
         )
     }
 }
 
 @Composable
-private fun AddDefinitionButton(definitions: YNode.Map, doc: OpenDocument) {
+internal fun AddDefinitionButton(definitions: YNode.Map, doc: OpenDocument, onAdded: (String) -> Unit = {}) {
     var open by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
     // 定義の種類（P33）: 構造（object。$ref で使う）か、型（スカラーの決まりの束。項目の type に名前で使う）
     var kind by remember { mutableStateOf(DEFINITION_KIND_TYPE) }
-    TextButton(onClick = { open = true }) { Text("＋ 定義を追加", fontSize = 12.sp) }
+    SchemaEditButton(onClick = { open = true }) { Text("＋ 定義を追加", fontSize = 12.sp) }
     if (open) AlertDialog(
         onDismissRequest = { open = false },
         title = { Text("名前付き定義を追加") },
         text = {
             Column {
-                OutlinedTextField(name, { name = it }, singleLine = true, label = { Text("定義名") })
+                SchemaTextField(name, { name = it }, singleLine = true, placeholder = { Text("定義名") })
                 Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("種類", fontSize = 12.sp, modifier = Modifier.width(60.dp))
@@ -425,37 +366,16 @@ private fun AddDefinitionButton(definitions: YNode.Map, doc: OpenDocument) {
                 )
             }
         },
-        confirmButton = { TextButton(enabled = name.isNotBlank() && name !in definitions.entries, onClick = {
+        confirmButton = { SchemaEditButton(enabled = name.isNotBlank() && name.trim() !in definitions.entries, onClick = {
             definitions.entries[name.trim()] = newFieldMap(if (kind == DEFINITION_KIND_STRUCTURE) "object" else "string")
-            doc.markEdited(); open = false; name = ""
+            onAdded(name.trim()); doc.markEdited(); open = false; name = ""
         }) { Text("追加") } },
-        dismissButton = { TextButton(onClick = { open = false }) { Text("キャンセル") } },
+        dismissButton = { SchemaEditButton(onClick = { open = false }) { Text("キャンセル") } },
     )
 }
 
 private const val DEFINITION_KIND_TYPE = "値の型（スカラー）"
 private const val DEFINITION_KIND_STRUCTURE = "オブジェクト型（object）"
-
-@Composable
-private fun DefinitionCard(state: AppState, name: String, definitions: YNode.Map, doc: OpenDocument, names: List<String>) {
-    doc.version  // 引数が同一インスタンスでもスキップさせない（構造変更の即時反映。CONVENTIONS §2 / UX-24）
-    val map = definitions.entries[name] as? YNode.Map ?: return
-    // カードの開閉は画面の覚え（文書 × 定義の名前。既定は開く。離れても残る）
-    val cardPath = listOf("definitions", name)
-    val expanded = state.memory.fold(state.documentOf(doc.file), cardPath) ?: true
-    Column(Modifier.fillMaxWidth().padding(top = 6.dp).border(1.dp, Palette.Border, PanelShape).padding(8.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { state.memory.setFold(state.documentOf(doc.file), cardPath, !expanded) }) {
-                Text(if (expanded) "▼ $name" else "▶ $name", fontSize = 12.sp)
-            }
-            Spacer(Modifier.weight(1f))
-            TextButton(onClick = { definitions.entries.remove(name); doc.markEdited() }) {
-                Text("削除", fontSize = 11.sp, color = Palette.ErrorRed)
-            }
-        }
-        if (expanded) FieldDefinitionEditor(map, doc, names, allowKey = false, depth = 0, definitionName = name)
-    }
-}
 
 /**
  * object の同一性（entity。オブジェクト型。P33 第三弾）の編集: この object の要素がどのエンティティ型か。
@@ -467,7 +387,7 @@ private fun ObjectEntityEditor(map: YNode.Map, doc: OpenDocument, definitionName
     val entity = map.entries["entity"] as? YNode.Map
     Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("同一性（entity）", fontSize = 12.sp, modifier = Modifier.width(140.dp))
-        Checkbox(entity != null, { on ->
+        SchemaCheckbox(entity != null, { on ->
             if (on) map.entries["entity"] = YNode.Map() else map.entries.remove("entity")
             doc.markEdited()
         })
@@ -485,7 +405,7 @@ private fun ObjectEntityEditor(map: YNode.Map, doc: OpenDocument, definitionName
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val defines = (entity.entries["defines"] as? YNode.Scalar)?.value == true
-                Checkbox(defines, { if (it) entity.entries["defines"] = YNode.Scalar(true) else entity.entries.remove("defines"); doc.markEdited() })
+                SchemaCheckbox(defines, { if (it) entity.entries["defines"] = YNode.Scalar(true) else entity.entries.remove("defines"); doc.markEdited() })
                 Text("この要素の出現が定義（誕生）", fontSize = 11.sp)
             }
             CompactOptionalScalar(entity, "aspect", "側面名（省略時はスキーマID）", "例 detail", doc)
@@ -495,26 +415,58 @@ private fun ObjectEntityEditor(map: YNode.Map, doc: OpenDocument, definitionName
 }
 
 @Composable
-private fun FieldDefinitionEditor(
+internal fun FieldDefinitionEditor(
     map: YNode.Map,
     doc: OpenDocument,
     definitions: List<String>,
     allowKey: Boolean,
-    depth: Int,
-    // 一括改名・一括削除（R25-01 / R25-03）: このフィールド自身のデータパス（ドット区切りの元）。null = 導線なし
-    // （definitions 内・cases 内は使用側パスの多義があるため CLI `refactor` で行う）
-    fieldPath: List<String>? = null,
-    onRenameField: ((List<String>) -> Unit)? = null,
-    onDeleteField: ((List<String>) -> Unit)? = null,
+    ctx: FormCtx,
+    path: dev.toros.yde.yaml.model.YPath,
     /** 名前付きの定義の最上位なら定義名（object の entity.type の既定の案内に使う）。 */
     definitionName: String? = null,
 ) {
     doc.version  // CONVENTIONS §2 / UX-24
-    if (depth > 12) { Text("表示可能な深さを超えました", color = Palette.WarnOrange); return }
     val ref = scalar(map, "\$ref")
     if (allowKey) CompactScalar(map, "key", "キー", doc)
-    CompactScalar(map, "label", "ラベル", doc)
-    CompactScalar(map, "description", "説明", doc)
+    if (allowKey) CompactScalar(map, "label", "ラベル", doc)
+    // 型の選択肢は基底の種類＋型の名前（P33）。書ける決まりの入力欄は、型の名前ならその基底の種類で出す
+    val types = LocalTypeChoices.current
+    val currentTypeId = scalar(map, "type") ?: FieldType.STRING.id
+    var pendingType by remember(map) { mutableStateOf<String?>(null) }
+    fun removedByType(type: String): List<String> {
+        val base = types.baseKindOf(type)
+        return listOfNotNull(
+            "fields".takeIf { base != "object" }, "unknownFields".takeIf { base != "object" },
+            "item".takeIf { base != "array" }, "display".takeIf { base != "array" && base != "map" },
+            "value".takeIf { base != "map" }, "cases".takeIf { base != "enum" },
+        ).filter { it in map.entries }
+    }
+    fun changeType(type: String) {
+        removedByType(type).forEach(map.entries::remove)
+        MapSlot(map, "type").set(YNode.Scalar(type))
+        ctx.markEdited()
+    }
+    pendingType?.let { type ->
+        AlertDialog(onDismissRequest = { pendingType = null }, title = { Text("型を $type に変更") },
+            text = { Text("この型で使用しない設定（${removedByType(type).joinToString()}）を削除します。") },
+            confirmButton = { SchemaEditButton(onClick = { changeType(type); pendingType = null }) {
+                Text("型を変更", color = Palette.ErrorRed)
+            } }, dismissButton = { TextButton(onClick = { pendingType = null }) { Text("キャンセル") } })
+    }
+    if (ref == null) {
+        Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("型", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+            ChoiceButton(currentTypeId, FieldType.entries.map { it.id } + types.names) {
+                if (it != currentTypeId) {
+                    if (removedByType(it).isEmpty()) changeType(it) else pendingType = it
+                }
+            }
+            if (!FieldType.isBaseKind(currentTypeId)) {
+                Spacer(Modifier.width(8.dp))
+                Text("型の名前（基底の種類: ${types.baseKindOf(currentTypeId)}。ここに書く決まりは狭めるだけ）", fontSize = 10.sp, color = Palette.SubText)
+            }
+        }
+    }
     Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("定義参照", fontSize = 12.sp, modifier = Modifier.width(140.dp))
         ChoiceButton(ref?.let { "\$$it" } ?: "使用しない",
@@ -526,44 +478,25 @@ private fun FieldDefinitionEditor(
         if (allowKey) {
             Spacer(Modifier.width(8.dp))
             val required = (map.entries["required"] as? YNode.Scalar)?.value == true
-            Checkbox(required, { map.entries["required"] = YNode.Scalar(it); doc.markEdited() })
+            SchemaCheckbox(required, { map.entries["required"] = YNode.Scalar(it); doc.markEdited() })
             Text("必須", fontSize = 11.sp)
         }
     }
-    // requiredFrom: フェーズ機構（P7）。「必須」チェックとの併用は不可（メタ検証でエラーになる）
-    if (allowKey) CompactScalar(map, "requiredFrom", "必須になるフェーズ（requiredFrom）", doc)
-    // role: 表示役割（R10-01）。畳み込みヘッダ・参照候補・一覧などの表示解決でこのフィールドの値が使われる
-    if (allowKey) {
-        Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("表示役割（role）", fontSize = 12.sp, modifier = Modifier.width(140.dp))
-            ChoiceButton(scalar(map, "role") ?: "（なし）", listOf("（なし）", "title", "subtitle")) {
-                if (it == "（なし）") map.entries.remove("role") else map.entries["role"] = YNode.Scalar(it)
-                doc.markEdited()
-            }
-            Spacer(Modifier.width(8.dp))
-            Text("要約表示のタイトル／サブタイトルに使う", fontSize = 10.sp, color = Palette.SubText)
-        }
-    }
-    // 型の選択肢は基底の種類＋型の名前（P33）。書ける決まりの入力欄は、型の名前ならその基底の種類で出す
-    val types = LocalTypeChoices.current
-    val currentTypeId = scalar(map, "type") ?: FieldType.STRING.id
-    if (ref == null) {
-        Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("型", fontSize = 12.sp, modifier = Modifier.width(140.dp))
-            ChoiceButton(currentTypeId, FieldType.entries.map { it.id } + types.names) {
-                map.entries["type"] = YNode.Scalar(it)
-                val base = types.baseKindOf(it)
-                if (base != "object") map.entries.remove("fields")
-                if (base != "object") map.entries.remove("unknownFields")
-                if (base != "array") map.entries.remove("item")
-                if (base != "array" && base != "map") map.entries.remove("display")
-                if (base != "map") map.entries.remove("value")
-                if (base != "enum") map.entries.remove("cases")
-                doc.markEdited()
-            }
-            if (!FieldType.isBaseKind(currentTypeId)) {
+    SchemaPropertyGroup(ctx, path + "@presentation", if (allowKey) "説明・表示・必須条件" else "説明・表示") {
+        if (!allowKey) CompactScalar(map, "label", "ラベル", doc)
+        CompactMultilineScalar(map, "description", "説明", doc)
+        // requiredFrom: フェーズ機構（P7）。「必須」チェックとの併用は不可（メタ検証でエラーになる）
+        if (allowKey) CompactScalar(map, "requiredFrom", "必須になるフェーズ（requiredFrom）", doc)
+        // role: 表示役割（R10-01）。畳み込みヘッダ・参照候補・一覧などの表示解決でこのフィールドの値が使われる
+        if (allowKey) {
+            Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("表示役割（role）", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+                ChoiceButton(scalar(map, "role") ?: "（なし）", listOf("（なし）", "title", "subtitle")) {
+                    if (it == "（なし）") map.entries.remove("role") else map.entries["role"] = YNode.Scalar(it)
+                    doc.markEdited()
+                }
                 Spacer(Modifier.width(8.dp))
-                Text("型の名前（基底の種類: ${types.baseKindOf(currentTypeId)}。ここに書く決まりは狭めるだけ）", fontSize = 10.sp, color = Palette.SubText)
+                Text("要約表示のタイトル／サブタイトルに使う", fontSize = 10.sp, color = Palette.SubText)
             }
         }
     }
@@ -579,50 +512,17 @@ private fun FieldDefinitionEditor(
                 }
             }
             ObjectEntityEditor(map, doc, definitionName)
-            val fields = ensureSeq(map, "fields", doc, mark = false)
-            fields.items.forEachIndexed { index, node ->
-                val child = node as? YNode.Map ?: return@forEachIndexed
-                val childKey = scalar(child, "key")?.takeIf { it.isNotBlank() }
-                val childPath = if (fieldPath != null && childKey != null) fieldPath + childKey else null
-                Column(Modifier.padding(start = 12.dp, top = 5.dp).border(1.dp, Palette.Border, PanelShape).padding(6.dp)) {
-                    Row { Text("フィールド ${index + 1}", fontSize = 11.sp, fontWeight = FontWeight.Bold); Spacer(Modifier.weight(1f))
-                        // 一括改名・一括削除（R25-01 / R25-03）: スキーマ定義・全該当文書・ビューを1変更セットで追随
-                        if (onRenameField != null && childPath != null) {
-                            TextButton(onClick = { onRenameField(childPath) }) { Text("一括改名…", fontSize = 10.sp) }
-                        }
-                        if (onDeleteField != null && childPath != null) {
-                            TextButton(onClick = { onDeleteField(childPath) }) { Text("一括削除…", color = Palette.ErrorRed, fontSize = 10.sp) }
-                        }
-                        FieldMoveButtons(fields.items, index, doc)
-                        TextButton(onClick = { fields.items.removeAt(index); doc.markEdited() }) { Text("削除", color = Palette.ErrorRed, fontSize = 10.sp) } }
-                    FieldDefinitionEditor(child, doc, definitions, allowKey = true, depth = depth + 1,
-                        fieldPath = childPath, onRenameField = onRenameField, onDeleteField = onDeleteField)
-                }
-            }
-            TextButton(onClick = { fields.items.add(newFieldMap("string")); doc.markEdited() }) { Text("＋ フィールドを追加", fontSize = 11.sp) }
         }
-        "array" -> {
-            DisplayHintRow(map, doc)
-            Text("要素定義", fontSize = 11.sp, color = Palette.SubText)
-            // 配列・map はデータパス上は暗黙に降りる（ドット区切りにセグメントを足さない）
-            FieldDefinitionEditor(ensureMap(map, "item", doc, mark = false), doc, definitions, allowKey = false, depth = depth + 1,
-                fieldPath = fieldPath, onRenameField = onRenameField, onDeleteField = onDeleteField)
-        }
-        "map" -> {
-            DisplayHintRow(map, doc)
-            Text("値定義", fontSize = 11.sp, color = Palette.SubText)
-            FieldDefinitionEditor(ensureMap(map, "value", doc, mark = false), doc, definitions, allowKey = false, depth = depth + 1,
-                fieldPath = fieldPath, onRenameField = onRenameField, onDeleteField = onDeleteField)
-        }
-        "enum" -> EnumValuesEditor(map, doc, definitions, depth)
+        "array", "map" -> DisplayHintRow(map, doc)
+        "enum" -> EnumValuesEditor(map, doc)
         "ref" -> {
             StringListEditor(map, "idPatterns", "IDパターン", "ACTOR-*, ROLE-*", doc)
             CompactScalar(map, "relation", "関係種別", doc)
             // 参照対象種別（R21-03）: document = 文書ノード（_document.id ＞ 相対パス）への参照
             CompactScalar(map, "target", "参照対象（entity / document）", doc)
-            val scope = ensureMap(map, "scope", doc, mark = false)
-            StringListEditor(scope, "schemaIds", "対象スキーマID", "system-concepts, actor-detail", doc)
-            StringListEditor(scope, "documentIds", "対象文書ID", "system-overview, actor-design", doc)
+            val scope = map.entries["scope"] as? YNode.Map ?: remember(map) { YNode.Map() }
+            StringListEditor(scope, "schemaIds", "対象スキーマID", "system-concepts, actor-detail", doc) { map.entries["scope"] = scope }
+            StringListEditor(scope, "documentIds", "対象文書ID", "system-overview, actor-design", doc) { map.entries["scope"] = scope }
         }
         // IDフォーマットの強制（UX-79）: pattern 制約（R16-01）を id 型でも宣言できる（検証・採番の共通パターン源）
         "id" -> CompactOptionalScalar(map, "pattern", "形式（正規表現）", "例 TASK-\\d{3}（IDの形式を強制）", doc)
@@ -642,7 +542,7 @@ private fun FieldDefinitionEditor(
             val multiline = scalar(map, "display") == "multiline"
             Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("複数行で編集", fontSize = 12.sp, modifier = Modifier.width(140.dp))
-                Checkbox(multiline, {
+                SchemaCheckbox(multiline, {
                     if (it) map.entries["display"] = YNode.Scalar("multiline") else { map.entries.remove("display"); map.entries.remove("rows") }
                     doc.markEdited()
                 })
@@ -720,13 +620,13 @@ private fun DisplayHintRow(map: YNode.Map, doc: OpenDocument) {
 
 /** 文書ルートの `phases` 宣言（リスト省略形も読み、編集時は key / order の object 形へ正規化する）。 */
 @Composable
-private fun PhasesEditor(root: YNode.Map, doc: OpenDocument) {
+internal fun PhasesEditor(root: YNode.Map, doc: OpenDocument) {
     doc.version  // CONVENTIONS §2 / UX-24
     val node = root.entries["phases"]
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text("フェーズ（工程）", fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
         if (node == null) {
-            TextButton(onClick = {
+            SchemaEditButton(onClick = {
                 root.entries["phases"] = YNode.Map(linkedMapOf(
                     "key" to YNode.Scalar("phase"),
                     "order" to YNode.Seq(),
@@ -734,9 +634,7 @@ private fun PhasesEditor(root: YNode.Map, doc: OpenDocument) {
                 doc.markEdited()
             }) { Text("＋ フェーズを宣言", fontSize = 12.sp) }
         } else {
-            TextButton(onClick = { root.entries.remove("phases"); doc.markEdited() }) {
-                Text("削除", fontSize = 11.sp, color = Palette.ErrorRed)
-            }
+            SchemaDeleteButton("フェーズを削除") { root.entries.remove("phases"); doc.markEdited() }
         }
     }
     if (node == null) {
@@ -760,14 +658,14 @@ private fun PhasesEditor(root: YNode.Map, doc: OpenDocument) {
         )).also { root.entries["phases"] = it }
     Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("申告キー", fontSize = 12.sp, modifier = Modifier.width(140.dp))
-        CompactTextField(currentKey, { raw ->
+        SchemaTextField(currentKey, { raw ->
             normalized().entries["key"] = YNode.Scalar(raw)
             doc.markEdited()
         }, singleLine = true, modifier = Modifier.weight(1f))
     }
     Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("フェーズ順序", fontSize = 12.sp, modifier = Modifier.width(140.dp))
-        CompactTextField(currentOrder.joinToString(", "), { raw ->
+        SchemaTextField(currentOrder.joinToString(", "), { raw ->
             normalized().entries["order"] = YNode.Seq(
                 raw.split(',').map { YNode.Scalar(it.trim()) }.filter { it.value.toString().isNotBlank() }.toMutableList()
             )
@@ -779,13 +677,13 @@ private fun PhasesEditor(root: YNode.Map, doc: OpenDocument) {
 
 /** スキーマの `entity`（エンティティ型宣言。R20-01）の構造化編集。builtin-schema の entity と対更新（architecture/graph-query.md「エンティティ型と関係レジストリ」）。 */
 @Composable
-private fun EntityEditor(root: YNode.Map, doc: OpenDocument) {
+internal fun EntityEditor(root: YNode.Map, doc: OpenDocument) {
     doc.version  // CONVENTIONS §2 / UX-24
     fun newDecl() = YNode.Map(linkedMapOf<String, YNode>("type" to YNode.Scalar(""), "defines" to YNode.Scalar(true)))
     val node = root.entries["entity"]
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text("エンティティ型", fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-        TextButton(onClick = {
+        SchemaEditButton(onClick = {
             when (val current = root.entries["entity"]) {
                 null -> root.entries["entity"] = newDecl()
                 is YNode.Seq -> current.items.add(newDecl())
@@ -811,7 +709,7 @@ private fun EntityEditor(root: YNode.Map, doc: OpenDocument) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("型 ${index + 1}", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
-                TextButton(onClick = {
+                SchemaDeleteButton("エンティティ宣言を削除") {
                     when (val current = root.entries["entity"]) {
                         is YNode.Seq -> {
                             current.items.remove(decl)
@@ -820,7 +718,7 @@ private fun EntityEditor(root: YNode.Map, doc: OpenDocument) {
                         else -> root.entries.remove("entity")
                     }
                     doc.markEdited()
-                }) { Text("削除", fontSize = 10.sp, color = Palette.ErrorRed) }
+                }
             }
             CompactScalar(decl, "type", "型名", doc)
             CompactScalar(decl, "idPattern", "IDパターン（例 SCR-*）", doc)
@@ -843,7 +741,7 @@ private fun EntityEditor(root: YNode.Map, doc: OpenDocument) {
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val defines = (decl.entries["defines"] as? YNode.Scalar)?.value == true
-                Checkbox(defines, { decl.entries["defines"] = YNode.Scalar(it); doc.markEdited() })
+                SchemaCheckbox(defines, { decl.entries["defines"] = YNode.Scalar(it); doc.markEdited() })
                 Text("この文書群の出現が定義（誕生）", fontSize = 11.sp)
             }
             // アスペクト宣言（R23-01。architecture/graph-query.md「エンティティページ」）: この出現が所有する側面名と所有フィールドの限定
@@ -860,12 +758,12 @@ private fun EntityEditor(root: YNode.Map, doc: OpenDocument) {
 
 /** スキーマの `coverage`（カバレッジルール）の構造化編集。 */
 @Composable
-private fun CoverageEditor(root: YNode.Map, doc: OpenDocument) {
+internal fun CoverageEditor(root: YNode.Map, doc: OpenDocument) {
     doc.version  // CONVENTIONS §2 / UX-24
     val coverage = root.entries["coverage"] as? YNode.Seq
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text("カバレッジルール", fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-        TextButton(onClick = {
+        SchemaEditButton(onClick = {
             val seq = ensureSeq(root, "coverage", doc, mark = false)
             seq.items.add(YNode.Map(linkedMapOf(
                 "idPattern" to YNode.Scalar("*"),
@@ -891,18 +789,18 @@ private fun CoverageEditor(root: YNode.Map, doc: OpenDocument) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("ルール ${index + 1}", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
-                TextButton(onClick = {
+                SchemaDeleteButton("カバレッジルールを削除") {
                     coverage.items.removeAt(index)
                     if (coverage.items.isEmpty()) root.entries.remove("coverage")
                     doc.markEdited()
-                }) { Text("削除", fontSize = 10.sp, color = Palette.ErrorRed) }
+                }
             }
             CompactScalar(rule, "id", "ルールID（任意）", doc)
             CompactScalar(rule, "description", "説明", doc)
             CompactScalar(rule, "idPattern", "対象IDパターン", doc)
-            val detail = ensureMap(rule, "detailIn", doc, mark = false)
-            StringListEditor(detail, "schemaIds", "出現先スキーマID", "screen-detail", doc)
-            CoverageMinCount(detail, doc)
+            val detail = rule.entries["detailIn"] as? YNode.Map ?: remember(rule) { YNode.Map() }
+            StringListEditor(detail, "schemaIds", "出現先スキーマID", "screen-detail", doc) { rule.entries["detailIn"] = detail }
+            CoverageMinCount(detail, doc) { rule.entries["detailIn"] = detail }
             Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("重大度", fontSize = 12.sp, modifier = Modifier.width(140.dp))
                 ChoiceButton(scalar(rule, "level") ?: "warning", listOf("warning", "error")) {
@@ -925,12 +823,13 @@ private fun CoverageEditor(root: YNode.Map, doc: OpenDocument) {
 
 /** minCount は数値型で書き込む（文字列だとパース時に既定値へ落ちるため）。 */
 @Composable
-private fun CoverageMinCount(map: YNode.Map, doc: OpenDocument) {
+private fun CoverageMinCount(map: YNode.Map, doc: OpenDocument, attach: () -> Unit) {
     doc.version
     val value = (map.entries["minCount"] as? YNode.Scalar)?.value?.toString().orEmpty()
     Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("必要数（minCount）", fontSize = 12.sp, modifier = Modifier.width(140.dp))
-        CompactTextField(value, { raw ->
+        SchemaTextField(value, { raw ->
+            attach()
             val n = raw.trim().toLongOrNull()
             if (raw.isBlank()) map.entries.remove("minCount")
             else if (n != null) map.entries["minCount"] = YNode.Scalar(n)
@@ -940,10 +839,10 @@ private fun CoverageMinCount(map: YNode.Map, doc: OpenDocument) {
 }
 
 @Composable
-private fun ChoiceButton(value: String, choices: List<String>, onSelect: (String) -> Unit) {
+internal fun ChoiceButton(value: String, choices: List<String>, onSelect: (String) -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
-        OutlinedButton(onClick = { open = true }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)) { Text(value, fontSize = 11.sp) }
+        OutlinedButton(enabled = !LocalSchemaReadOnly.current, shape = PanelShape, onClick = { open = true }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)) { Text(value, fontSize = 12.sp); Text(" ▾", color = Palette.SubText) }
         DropdownMenu(open, { open = false }) {
             choices.forEach { choice ->
                 DropdownMenuItem(text = { Text(choice) }, onClick = { onSelect(choice); open = false })
@@ -971,7 +870,7 @@ private fun EnumOptionListEditor(map: YNode.Map, doc: OpenDocument) {
     doc.version  // 選択肢の追加・削除の即時反映（CONVENTIONS §2 / UX-24）
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text("選択肢", fontSize = 12.sp, modifier = Modifier.width(140.dp))
-        TextButton(onClick = {
+        SchemaEditButton(onClick = {
             ensureSeq(map, "values", doc, mark = false).items.add(YNode.Scalar(""))
             doc.markEdited()
         }) { Text("＋ 選択肢を追加", fontSize = 11.sp) }
@@ -995,30 +894,29 @@ private fun EnumOptionListEditor(map: YNode.Map, doc: OpenDocument) {
             })
             doc.markEdited(coalesceWith = seq to index)
         }
-        Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-            CompactTextField(value, { update(newValue = it) }, singleLine = true,
-                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
-                placeholder = { Text("値") },
-                modifier = Modifier.width(130.dp))
-            Spacer(Modifier.width(4.dp))
-            CompactTextField(label, { update(newLabel = it) }, singleLine = true,
-                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
-                placeholder = { Text("表示ラベル（任意）") },
-                modifier = Modifier.width(160.dp))
-            Spacer(Modifier.width(4.dp))
-            CompactTextField(description, { update(newDescription = it) }, singleLine = true,
-                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
-                placeholder = { Text("説明（任意）") },
-                modifier = Modifier.weight(1f))
-            TextButton(onClick = { seq.items.removeAt(index); doc.markEdited() }) {
-                Text("削除", fontSize = 10.sp, color = Palette.ErrorRed)
+        Column(Modifier.fillMaxWidth().padding(top = 8.dp).border(1.dp, Palette.Border, PanelShape).padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(FormSpacing.FieldGap)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("選択肢 ${index + 1}", fontSize = 12.sp, modifier = Modifier.weight(1f))
+                SchemaDeleteButton("選択肢を削除", { seq.items.removeAt(index); doc.markEdited() })
+            }
+            FormFieldLayout(label = { Text("保存する値", fontSize = 13.sp) }) {
+                SchemaTextField(value, { update(newValue = it) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            }
+            FormFieldLayout(label = { Text("表示ラベル", fontSize = 13.sp) }) {
+                SchemaTextField(label, { update(newLabel = it) }, singleLine = true,
+                    placeholder = { Text("任意") }, modifier = Modifier.fillMaxWidth())
+            }
+            FormFieldLayout(label = { Text("説明", fontSize = 13.sp) }) {
+                SchemaTextField(description, { update(newDescription = it) }, singleLine = true,
+                    placeholder = { Text("任意") }, modifier = Modifier.fillMaxWidth())
             }
         }
     }
 }
 
 @Composable
-private fun EnumValuesEditor(map: YNode.Map, doc: OpenDocument, definitions: List<String>, depth: Int) {
+private fun EnumValuesEditor(map: YNode.Map, doc: OpenDocument) {
     doc.version  // CONVENTIONS §2 / UX-24
     EnumOptionListEditor(map, doc)
     val values = enumValueStrings(map)
@@ -1034,18 +932,18 @@ private fun EnumValuesEditor(map: YNode.Map, doc: OpenDocument, definitions: Lis
     (map.entries["cases"] as? YNode.Map)?.entries?.keys?.filter { it !in values }?.toList()?.forEach { stale ->
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("cases「$stale」は選択肢にありません", fontSize = 11.sp, color = Palette.WarnOrange)
-            TextButton(onClick = {
-                val cases = map.entries["cases"] as? YNode.Map ?: return@TextButton
+            SchemaDeleteButton("条件付き項目を削除") {
+                val cases = map.entries["cases"] as? YNode.Map ?: return@SchemaDeleteButton
                 cases.entries.remove(stale)
                 if (cases.entries.isEmpty()) map.entries.remove("cases")
                 doc.markEdited()
-            }) { Text("削除", fontSize = 10.sp, color = Palette.ErrorRed) }
+            }
         }
     }
     values.distinct().forEach { value ->
         val caseSeq = (map.entries["cases"] as? YNode.Map)?.entries?.get(value) as? YNode.Seq
         if (caseSeq == null) {
-            TextButton(onClick = {
+            SchemaEditButton(onClick = {
                 ensureMap(map, "cases", doc, mark = false).entries[value] = YNode.Seq()
                 doc.markEdited()
             }) { Text("＋ 「$value」専用のフィールドを定義", fontSize = 11.sp) }
@@ -1054,55 +952,32 @@ private fun EnumValuesEditor(map: YNode.Map, doc: OpenDocument, definitions: Lis
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("「$value」のときのフィールド", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.weight(1f))
-                    TextButton(onClick = {
-                        val cases = map.entries["cases"] as? YNode.Map ?: return@TextButton
+                    SchemaDeleteButton("条件付き項目を削除") {
+                        val cases = map.entries["cases"] as? YNode.Map ?: return@SchemaDeleteButton
                         cases.entries.remove(value)
                         if (cases.entries.isEmpty()) map.entries.remove("cases")
                         doc.markEdited()
-                    }) { Text("削除", fontSize = 10.sp, color = Palette.ErrorRed) }
-                }
-                caseSeq.items.forEachIndexed { index, node ->
-                    val child = node as? YNode.Map ?: return@forEachIndexed
-                    Column(Modifier.padding(start = 12.dp, top = 5.dp).border(1.dp, Palette.Border, PanelShape).padding(6.dp)) {
-                        Row {
-                            Text("フィールド ${index + 1}", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            Spacer(Modifier.weight(1f))
-                            FieldMoveButtons(caseSeq.items, index, doc)
-                            TextButton(onClick = { caseSeq.items.removeAt(index); doc.markEdited() }) { Text("削除", color = Palette.ErrorRed, fontSize = 10.sp) }
-                        }
-                        FieldDefinitionEditor(child, doc, definitions, allowKey = true, depth = depth + 1)
                     }
                 }
-                TextButton(onClick = { caseSeq.items.add(newFieldMap("string")); doc.markEdited() }) { Text("＋ フィールドを追加", fontSize = 11.sp) }
+                Text("${caseSeq.items.size} 項目 · 構成一覧で条件を選ぶと項目を追加・編集できます", fontSize = 11.sp, color = Palette.SubText)
             }
         }
     }
 }
 
-/** フィールド定義の並び替え（UX-78）: fields / cases 配列内の要素を上下へ移動する。並びはフォームの表示順そのもの。 */
 @Composable
-private fun FieldMoveButtons(items: MutableList<YNode>, index: Int, doc: OpenDocument) {
-    TextButton(enabled = index > 0, onClick = {
-        items.add(index - 1, items.removeAt(index))
-        doc.markEdited()
-    }) { Text("↑", fontSize = 10.sp) }
-    TextButton(enabled = index < items.size - 1, onClick = {
-        items.add(index + 1, items.removeAt(index))
-        doc.markEdited()
-    }) { Text("↓", fontSize = 10.sp) }
-}
-
-@Composable
-private fun StringListEditor(map: YNode.Map, key: String, label: String, hint: String, doc: OpenDocument) {
+private fun StringListEditor(map: YNode.Map, key: String, label: String, hint: String, doc: OpenDocument, attach: () -> Unit = {}) {
     doc.version
     val seq = map.entries[key] as? YNode.Seq
     val value = seq?.items?.mapNotNull { (it as? YNode.Scalar)?.value?.toString() }?.joinToString(", ").orEmpty()
-    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, fontSize = 12.sp, modifier = Modifier.width(140.dp))
-        CompactTextField(value, { raw ->
+    FormFieldLayout(modifier = Modifier.padding(vertical = FormSpacing.FieldGap), label = {
+        Text(label, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+    }) {
+        SchemaTextField(value, { raw ->
+            attach()
             map.entries[key] = YNode.Seq(raw.split(',').map { YNode.Scalar(it.trim()) }.filter { it.value.toString().isNotBlank() }.toMutableList())
             doc.markEdited(coalesceWith = map to key)
-        }, singleLine = true, placeholder = { Text(hint) }, modifier = Modifier.weight(1f))
+        }, singleLine = true, placeholder = { Text(hint) }, modifier = Modifier.fillMaxWidth())
     }
 }
 
@@ -1112,7 +987,7 @@ private fun DefaultValueEditor(map: YNode.Map, type: String, doc: OpenDocument) 
     val value = (map.entries["default"] as? YNode.Scalar)?.value?.toString().orEmpty()
     Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("初期値", fontSize = 12.sp, modifier = Modifier.width(140.dp))
-        CompactTextField(value, { raw ->
+        SchemaTextField(value, { raw ->
             if (raw.isEmpty()) map.entries.remove("default") else {
                 val typed: Any = when (type) {
                     "boolean" -> raw.toBooleanStrictOrNull() ?: raw
@@ -1275,9 +1150,9 @@ private fun SchemaRefactorConfirmDialog(
     )
 }
 
-private fun scalar(map: YNode.Map, key: String): String? = (map.entries[key] as? YNode.Scalar)?.value?.toString()?.takeIf { it.isNotBlank() }
+internal fun scalar(map: YNode.Map, key: String): String? = (map.entries[key] as? YNode.Scalar)?.value?.toString()?.takeIf { it.isNotBlank() }
 private fun ensureMap(parent: YNode.Map, key: String, doc: OpenDocument, mark: Boolean): YNode.Map =
     (parent.entries[key] as? YNode.Map) ?: YNode.Map().also { parent.entries[key] = it; if (mark) doc.markEdited() }
 private fun ensureSeq(parent: YNode.Map, key: String, doc: OpenDocument, mark: Boolean): YNode.Seq =
     (parent.entries[key] as? YNode.Seq) ?: YNode.Seq().also { parent.entries[key] = it; if (mark) doc.markEdited() }
-private fun newFieldMap(type: String) = YNode.Map(linkedMapOf<String, YNode>("key" to YNode.Scalar(""), "type" to YNode.Scalar(type)))
+internal fun newFieldMap(type: String) = YNode.Map(linkedMapOf<String, YNode>("key" to YNode.Scalar(""), "type" to YNode.Scalar(type)))

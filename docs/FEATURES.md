@@ -63,7 +63,7 @@
 | S-02 | 型システム: 基底の種類 14 種（表現の基底 9＋意味の基底型 `id` / `ref` / `date` / `time` / `datetime`。存在の検証）＋組込みの定義体 `text` / `line` / `word` | `semantic-core/schema/Fields.kt`・`ValueSemantics.kt`・`BuiltinTypes.kt` | 単体 `MetaSchemaTest`, `TypeDefinitionsTest` | [schema](architecture/schema.md) |
 | S-03 | 名前付き定義と再帰参照（`definitions` / `$ref`・狭める規則の合成） | `semantic-core/schema/SchemaTree.kt`（`resolve`） | 単体 `TypeDefinitionsTest` | [schema](architecture/schema.md) |
 | S-04 | メタスキーマ検証と宣言のない関係名の点検（実体はカーネル・読み込みエラーへ足す） | `workspace-core/workspace/SchemaDefinitionChecks.kt` | 単体 `SchemaLoaderTest`, `KernelOnlyChecksTest` | [schema](architecture/schema.md) |
-| S-05 | スキーマ設計 UI（説明・document／library・`$ref`・プレビュー・適用対象・`requiredFrom`・`role`・enum 選択肢・制約・ヒント＝案内／サンプル値／複数行・`phases`・`coverage`・エンティティ節＝ID の型・object の同一性） | `ui/SchemaEditor.kt` | 手動 | [ui](architecture/ui.md) |
+| S-05 | スキーマ設計 UI（構成一覧＋選択項目の詳細・document／library・`$ref`・プレビュー・適用対象・`requiredFrom`・`role`・enum 選択肢・制約・ヒント＝案内／サンプル値／複数行・`phases`・`coverage`・エンティティ節＝ID の型・object の同一性） | `ui/SchemaEditor.kt`・`ui/SchemaDesignWorkspace.kt` | `SchemaOutlineTest`・手動 | [ui](architecture/ui.md) |
 | S-06 | サンプル YAML 生成（プレビュー・コピー・新規ファイルの初期値・必須スカラーに型別の例値） | `semantic-core/schema/SchemaScaffold.kt` | 単体 `SchemaLoaderTest`, `DocumentScaffoldTest` | [schema](architecture/schema.md) |
 | S-07 | スキーマ外キーの検証ポリシー（`unknownFields: allow / warning / error`） | `validate/Validator.kt`, `index/IdIndex.kt` | 手動 | [schema](architecture/schema.md) |
 | S-08 | 参照の関係種別（`type: ref` の `relation`） | `schema/Schema.kt`, `index/IdIndex.kt` | 単体 `WorkspaceCliTest` | [graph-query](architecture/graph-query.md) |

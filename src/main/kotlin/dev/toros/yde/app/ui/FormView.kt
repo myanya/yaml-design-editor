@@ -703,7 +703,7 @@ private fun FormGroup(nested: Boolean, content: @Composable ColumnScope.() -> Un
 }
 
 @Composable
-private fun FormFieldLayout(
+internal fun FormFieldLayout(
     modifier: Modifier = Modifier,
     labelWidth: Dp = 148.dp,
     structured: Boolean = false,

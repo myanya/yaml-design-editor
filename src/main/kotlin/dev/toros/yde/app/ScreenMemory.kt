@@ -126,6 +126,11 @@ class ScreenMemory {
     /** スキーマ設計のタブ（0 = 設計、1 = プレビュー、2 = 適用対象）。文書ごと。 */
     val schemaTab = mutableStateMapOf<DocumentId, Int>()
 
+    /** 設計の区画と、定義ごとの構造一覧の選択位置。 */
+    val schemaSection = mutableStateMapOf<DocumentId, Int>()
+    val schemaDefinition = mutableStateMapOf<DocumentId, String>()
+    val schemaSelection = mutableStateMapOf<Pair<DocumentId, YPath>, YPath>()
+
     /** 編集画面のタブ（0 = フォーム、1 = ソース、2 = 差分、3 = メタスキーマのフォーム）。文書ごとに最後に見ていたもの。 */
     val editorTab = mutableStateMapOf<DocumentId, Int>()
 
@@ -162,6 +167,9 @@ class ScreenMemory {
         designZone = null
         markdownTab.clear()
         schemaTab.clear()
+        schemaSection.clear()
+        schemaDefinition.clear()
+        schemaSelection.clear()
     }
 
     /** 文書（ディレクトリならその下の文書すべて）の覚えを忘れる（削除）。 */
@@ -169,10 +177,22 @@ class ScreenMemory {
         documentOccurrencesOpen.keys.filter { it.isUnder(document) }.forEach(documentOccurrencesOpen::remove)
         folds.keys.filter { it.first.isUnder(document) }.forEach(folds::remove)
         schemaTab.keys.filter { it.isUnder(document) }.forEach(schemaTab::remove)
+        schemaSection.keys.filter { it.isUnder(document) }.forEach(schemaSection::remove)
+        schemaDefinition.keys.filter { it.isUnder(document) }.forEach(schemaDefinition::remove)
+        schemaSelection.keys.filter { it.first.isUnder(document) }.forEach(schemaSelection::remove)
     }
 
     /** 文書（ディレクトリならその下の文書すべて）の覚えを新しい場所へ移す（改名）。 */
     fun renameDocument(from: DocumentId, to: DocumentId) {
+        schemaSection.keys.filter { it.isUnder(from) }.forEach { key ->
+            schemaSection[key.moved(from, to)] = schemaSection.remove(key) ?: return@forEach
+        }
+        schemaDefinition.keys.filter { it.isUnder(from) }.forEach { key ->
+            schemaDefinition[key.moved(from, to)] = schemaDefinition.remove(key) ?: return@forEach
+        }
+        schemaSelection.keys.filter { it.first.isUnder(from) }.forEach { key ->
+            schemaSelection[key.first.moved(from, to) to key.second] = schemaSelection.remove(key) ?: return@forEach
+        }
         documentOccurrencesOpen.keys.filter { it.isUnder(from) }.forEach { key ->
             val value = documentOccurrencesOpen.remove(key) ?: return@forEach
             documentOccurrencesOpen[key.moved(from, to)] = value

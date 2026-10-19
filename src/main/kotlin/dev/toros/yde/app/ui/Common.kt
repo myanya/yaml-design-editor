@@ -192,6 +192,7 @@ fun CompactTextField(
     suffix: (@Composable () -> Unit)? = null,
     /** フォーカスが無いときの見せ方（桁区切りなど）。編集中は元の文字のまま。 */
     unfocusedText: ((String) -> String)? = null,
+    readOnly: Boolean = false,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
@@ -207,6 +208,7 @@ fun CompactTextField(
     }
     BasicTextField(
         value = shown,
+        readOnly = readOnly,
         onValueChange = {
             localValue = it
             onValueChange(it)

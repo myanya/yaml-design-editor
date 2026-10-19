@@ -38,6 +38,34 @@ class ScreenMemoryTest {
     }
 
     @Test
+    fun `スキーマの区画と選択は文書の改名と削除と切替に追随する`() {
+        val memory = ScreenMemory()
+        val old = DocumentId("sub/a.yaml")
+        val moved = DocumentId("moved/a.yaml")
+        val root = listOf("root")
+        val selection = listOf("root", "fields", 1)
+        memory.schemaSection[old] = 1
+        memory.schemaDefinition[old] = "Task"
+        memory.schemaSelection[old to root] = selection
+        memory.renameDocument(DocumentId("sub"), DocumentId("moved"))
+        assertNull(memory.schemaSection[old])
+        assertEquals(1, memory.schemaSection[moved])
+        assertEquals("Task", memory.schemaDefinition[moved])
+        assertEquals(selection, memory.schemaSelection[moved to root])
+        memory.forgetDocument(DocumentId("moved"))
+        assertTrue(memory.schemaSection.isEmpty())
+        assertTrue(memory.schemaDefinition.isEmpty())
+        assertTrue(memory.schemaSelection.isEmpty())
+        memory.schemaSection[old] = 2
+        memory.schemaDefinition[old] = "Task"
+        memory.schemaSelection[old to root] = selection
+        memory.clear()
+        assertTrue(memory.schemaSection.isEmpty())
+        assertTrue(memory.schemaDefinition.isEmpty())
+        assertTrue(memory.schemaSelection.isEmpty())
+    }
+
+    @Test
     fun `他文書の定義の開閉は文書ごとに覚え改名と削除と切替に追随する`() {
         val memory = ScreenMemory()
         val a = DocumentId("sub/a.yaml")

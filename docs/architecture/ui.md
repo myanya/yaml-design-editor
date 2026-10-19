@@ -105,6 +105,15 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 - 畳み込みサマリ: 畳んだ object は「ID タイトル（n 項目）」、array は「n 件: 先頭要素の要約, …」（`Display`）。既定はルートから 2 階層まで展開、以深は畳む（`FormCtx.defaultExpanded`。エンティティページの埋め込みフォームは要素基準の相対深さ）。モード切替でも展開状態を維持する。
 - 移動は必ずナビゲーション系メソッド（`openFile` / `navigateToPath` / `openCrossView` / `openViewGrid`）を通す。`highlightPath` / `crossViewId` / `viewGridId` を直接代入すると履歴に残らない。
 
+## スキーマ設計
+
+- `SchemaDesignWorkspace` は項目構成・名前付き定義・基本設定を分け、構成一覧と選択項目の詳細を横並び、狭い領域では上下に配置する。
+- `SchemaOutline` は生の宣言を表示用に射影する。意味解決や参照の展開は行わず、名前付き型の基底は既存の `TypeChoices` を利用する。
+- ルート・配列要素・マップ値・条件付き項目を同じ選択モデルで扱う。選択は YAML パスで保持し、移動操作では追随、ソース編集等で消えた場合は存在する親へ戻す。
+- 区画・定義・選択位置は `ScreenMemory` に置き、文書の改名・削除・ワークスペース切替に追随する。開閉は `FormCtx` を通す。
+- 構造編集は `FormCtx`・既存の `Slot` と編集通知を使い、一括変更は既存のリファクタリング計画へ渡す。新しい評価器・保存経路・スキーマ語彙は持たない。
+- 設定入力は共通の `CompactTextField`・`FormFieldLayout`・`Palette`・`FormSpacing` を利用し、閲覧専用状態を入力欄と編集操作へ伝える。
+
 ## エラー処理
 
 - ファイル I/O・パースは `runCatching` で受け、ユーザー操作の結果は `Result` を返して呼び出し側が `state.status` に反映する。
