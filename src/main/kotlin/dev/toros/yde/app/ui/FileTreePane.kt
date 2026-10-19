@@ -45,7 +45,7 @@ private data class TreeRow(
  * ディレクトリは展開／折りたたみ可能（初期状態は展開）。
  */
 @Composable
-fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp) {
+fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp, onClose: () -> Unit = {}) {
     // 選択中の場所は画面の覚え（台帳・実行・設計を経由しても残る）。無くなった場所は読み捨てる
     val selectedPath = state.memory.treeSelection?.takeIf { p ->
         p in state.directories || p in state.yamlFiles || p in state.editorOnlyFiles || p in state.markdownFiles
@@ -55,29 +55,28 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp) {
     Column(
         Modifier.width(width).fillMaxHeight().background(Palette.PanelBg)
     ) {
+        PaneHeader("ファイル", onClose)
         Row(
             Modifier.fillMaxWidth().height(36.dp).padding(start = 10.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("ファイル", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Palette.SubText,
-                modifier = Modifier.weight(1f))
-            IconButton(onClick = { dialog = TreeDialog.NewFile }) {
+            IconButton(modifier = Modifier.size(30.dp), onClick = { dialog = TreeDialog.NewFile }) {
                 Icon(Icons.AutoMirrored.Filled.NoteAdd, "新規 YAML", Modifier.size(17.dp))
             }
-            IconButton(onClick = { dialog = TreeDialog.NewDirectory }) {
+            IconButton(modifier = Modifier.size(30.dp), onClick = { dialog = TreeDialog.NewDirectory }) {
                 Icon(Icons.Default.CreateNewFolder, "新規フォルダー", Modifier.size(17.dp))
             }
             // スキーマ推測（R11-01）: 選択した業務文書を起点に、同種の文書群からスキーマドラフトを作る
             val canInfer = selectedPath?.let { p ->
                 !Files.isDirectory(p) && state.layout.inLedger(state.relPath(p))
             } == true
-            IconButton(enabled = canInfer, onClick = { inferTarget = selectedPath }) {
+            IconButton(modifier = Modifier.size(30.dp), enabled = canInfer, onClick = { inferTarget = selectedPath }) {
                 Icon(Icons.Default.AutoFixHigh, "スキーマ推測（既存文書からドラフト作成）", Modifier.size(16.dp))
             }
-            IconButton(enabled = selectedPath != null, onClick = { dialog = TreeDialog.Rename }) {
+            IconButton(modifier = Modifier.size(30.dp), enabled = selectedPath != null, onClick = { dialog = TreeDialog.Rename }) {
                 Icon(Icons.Default.Edit, "名前を変更", Modifier.size(16.dp))
             }
-            IconButton(enabled = selectedPath != null, onClick = { dialog = TreeDialog.Delete }) {
+            IconButton(modifier = Modifier.size(30.dp), enabled = selectedPath != null, onClick = { dialog = TreeDialog.Delete }) {
                 Icon(Icons.Default.Delete, "削除", Modifier.size(16.dp))
             }
         }

@@ -66,22 +66,22 @@ private data class AppPalette(
 
 object Palette {
     private val light = AppPalette(
-        primary = Color(0xFF006C7A), secondary = Color(0xFF6650A4), panel = Color(0xFFF1F6F8),
-        editor = Color(0xFFF9FCFD), surface = Color(0xFFFFFFFF), border = Color(0xFFCAD8DD),
-        selected = Color(0xFFD6F2F5), highlight = Color(0x5544D7E8), error = Color(0xFFBA1A1A),
-        warning = Color(0xFF9A6700), success = Color(0xFF237A4B), subText = Color(0xFF52656B),
-        text = Color(0xFF172124), folder = Color(0xFF8B6F3D), conflict = Color(0xFFFFF2CC),
+        primary = Color(0xFF475F68), secondary = Color(0xFF626959), panel = Color(0xFFF5F4F0),
+        editor = Color(0xFFFCFBF8), surface = Color(0xFFFFFEFB), border = Color(0xFFDCDCD4),
+        selected = Color(0xFFE2E7E6), highlight = Color(0x556F939B), error = Color(0xFFAE3530),
+        warning = Color(0xFF906000), success = Color(0xFF37734E), subText = Color(0xFF696A64),
+        text = Color(0xFF30312F), folder = Color(0xFF897044), conflict = Color(0xFFF3EACF),
         chartReady = Color(0xFF1B6F9E), chartPending = Color(0xFFB36B00),
     )
     private val dark = AppPalette(
-        primary = Color(0xFF56D6E7), secondary = Color(0xFFCAB7FF), panel = Color(0xFF101A20),
-        editor = Color(0xFF0B1217), surface = Color(0xFF152229), border = Color(0xFF30464F),
-        selected = Color(0xFF173B44), highlight = Color(0x5544D7E8), error = Color(0xFFFFB4AB),
-        warning = Color(0xFFFFD166), success = Color(0xFF72D5A3), subText = Color(0xFF9DB0B7),
-        text = Color(0xFFE0F0F4), folder = Color(0xFFD2B36C), conflict = Color(0xFF3B3218),
+        primary = Color(0xFFA6B6BA), secondary = Color(0xFFB4BBA8), panel = Color(0xFF292A2C),
+        editor = Color(0xFF252627), surface = Color(0xFF2E3031), border = Color(0xFF454647),
+        selected = Color(0xFF3B4548), highlight = Color(0x556F939B), error = Color(0xFFE5A09A),
+        warning = Color(0xFFD6B673), success = Color(0xFF92B9A0), subText = Color(0xFFAAA9A3),
+        text = Color(0xFFDDDCD7), folder = Color(0xFFBBA477), conflict = Color(0xFF443E30),
         chartReady = Color(0xFF3A86C8), chartPending = Color(0xFFB07A1A),
     )
-    private var active = light
+    private var active by mutableStateOf(light)
     fun useDark(enabled: Boolean) { active = if (enabled) dark else light }
     val Primary get() = active.primary
     val Secondary get() = active.secondary
@@ -131,7 +131,7 @@ fun AppTheme(dark: Boolean, content: @Composable () -> Unit) {
     val scheme = if (dark) darkColorScheme(
         primary = Palette.Primary, secondary = Palette.Secondary, background = Palette.EditorBg,
         surface = Palette.Surface, surfaceVariant = Palette.PanelBg, outline = Palette.Border,
-        onPrimary = Color(0xFF00363D), onSecondary = Color(0xFF35275D),
+        onPrimary = Palette.EditorBg, onSecondary = Palette.EditorBg,
         onBackground = Palette.Text, onSurface = Palette.Text, onSurfaceVariant = Palette.SubText,
         outlineVariant = Palette.Border.copy(alpha = .65f), error = Palette.ErrorRed,
     ) else lightColorScheme(
@@ -142,16 +142,37 @@ fun AppTheme(dark: Boolean, content: @Composable () -> Unit) {
         outlineVariant = Palette.Border.copy(alpha = .65f), error = Palette.ErrorRed,
     )
     MaterialTheme(
-        colorScheme = scheme,
+        colorScheme = scheme.copy(
+            primaryContainer = Palette.Selected, onPrimaryContainer = Palette.Text,
+            secondaryContainer = Palette.Selected, onSecondaryContainer = Palette.Text,
+            surfaceTint = Color.Transparent, surfaceDim = Palette.PanelBg, surfaceBright = Palette.Surface,
+            surfaceContainerLowest = Palette.EditorBg, surfaceContainerLow = Palette.PanelBg,
+            surfaceContainer = Palette.PanelBg, surfaceContainerHigh = Palette.Surface,
+            surfaceContainerHighest = Palette.Selected,
+        ),
+        typography = androidx.compose.material3.Typography(
+            bodyLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 14.sp, lineHeight = 22.sp),
+            bodyMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 13.sp, lineHeight = 20.sp),
+            bodySmall = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 11.sp, lineHeight = 16.sp),
+            labelLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 13.sp, fontWeight = FontWeight.Medium),
+        ),
         shapes = Shapes(
             extraSmall = RoundedCornerShape(4.dp), small = RoundedCornerShape(6.dp),
-            medium = RoundedCornerShape(8.dp), large = RoundedCornerShape(12.dp),
+            medium = RoundedCornerShape(8.dp), large = RoundedCornerShape(12.dp), extraLarge = RoundedCornerShape(8.dp),
         ),
         content = content,
     )
 }
 
 val PanelShape = RoundedCornerShape(6.dp)
+
+/** フォームのまとまりを、枠の入れ子ではなく余白と字下げで表す。 */
+object FormSpacing {
+    val FieldGap = 4.dp
+    val GroupGap = 16.dp
+    val Indent = 16.dp
+    val MaxIndent = 48.dp
+}
 
 /**
  * Material 標準より内部余白を抑えた、フォーム向け入力欄。suffix は枠内の右端（trailingIcon の左）に表示される。
@@ -196,7 +217,8 @@ fun CompactTextField(
         modifier = modifier.defaultMinSize(minHeight = if (singleLine) 38.dp else 68.dp),
         decorationBox = { inner ->
             Row(
-                Modifier.fillMaxWidth().border(if (focused || isError) 2.dp else 1.dp, borderColor, PanelShape)
+                Modifier.fillMaxWidth().background(Palette.Surface, PanelShape)
+                    .border(if (focused || isError) 2.dp else 1.dp, borderColor, PanelShape)
                     .padding(PaddingValues(start = 10.dp, end = if (trailingIcon == null) 10.dp else 2.dp,
                         top = 6.dp, bottom = 6.dp)),
                 verticalAlignment = if (singleLine) Alignment.CenterVertically else Alignment.Top,

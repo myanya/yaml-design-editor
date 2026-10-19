@@ -15,16 +15,16 @@
 | W-03 | ファイルとディレクトリの作成・改名・削除（新規 YAML はスキーマの初期値で生成し、作成は Undo できる・台帳内の改名は参照の書き換えと移動を 1 トランザクションで行う） | `AppState.createDocumentFile` / `renamePath`, `ui/FileTreePane.kt` | 単体 `AppStateCreateDocumentTest`, `DocRefTest` | [editing-history](architecture/editing-history.md) |
 | W-04 | 外部変更検出（OS ネイティブ監視・使えない環境は 1 秒ポーリング・未編集は自動再読込・未保存は競合バナー） | `core/FileWatcher.kt`, `AppState.pollExternalChanges` | 単体 `FileWatcherTest` | [workspace](architecture/workspace.md) |
 | W-05 | 最近開いたファイル履歴（12 件・ワークスペース単位で永続化） | `AppState.recentFiles` | 手動 | [ui](architecture/ui.md) |
-| W-06 | UI レイアウトの永続化（ペイン幅・開閉・テーマ） | `Main.kt`（`uiPreferences`） | 手動 | [ui](architecture/ui.md) |
+| W-06 | UI レイアウトとテーマ（左右の領域アイコン・ペイン内の閉じる操作・幅と開閉とテーマの永続化） | `Main.kt`, `ui/AppToolbar.kt`, `ui/Common.kt` | 手動 | [ui](architecture/ui.md) |
 | W-07 | 未保存確認（終了時・ワークスペース切替時） | `Main.kt` | 手動 | [ui](architecture/ui.md) |
 | W-08 | ワークスペース管理（最近開いた履歴・スタート画面・パレットからの切替） | `Main.kt`（`StartScreen`）, `AppState.recentWorkspaces` | 手動 | [ui](architecture/ui.md) |
-| W-09 | UI シェル（レールで編集・台帳・実行・設計の 4 スペースを切替・実行スペースは定義が空でも表示） | `app/AppState.kt`（`UiSpace`）, `ui/Shell.kt` | 単体 `NavigationHistoryTest` | [ui](architecture/ui.md) |
+| W-09 | UI シェル（標準メニュー・移動と検索・タイトルのワークスペース絶対パス・レールで4スペースを切替） | `Main.kt`, `ui/AppToolbar.kt`, `ui/Shell.kt` | 単体 `NavigationHistoryTest`・画面は手動 | [ui](architecture/ui.md) |
 | W-10 | 受信箱（承認待ち変更セット・エージェントの質問・外部変更競合を実行スペースの先頭タブに集約・バッジと集計） | `ui/RunsSpace.kt`（`InboxTab`）, `Main.kt`（`StatusBar`） | 手動 | [ui](architecture/ui.md) |
 | W-11 | ワークスペース構造（`.yde/` 構成と `ledger` 宣言・レガシー構成は互換・配置判定は `WorkspaceLayout`・CLI `migrate`） | `workspace-core/layout/WorkspaceLayout.kt`, `core/Workspace.kt` | 単体 `WorkspaceLayoutTest`, `DocumentStoreTest` | [workspace](architecture/workspace.md) |
 | W-12 | エディタ層と台帳層の分離（台帳外の YAML はフォームと単文書検証だけ・索引・集計・エージェントは台帳のみ） | `validate/Validator.kt`, `app/AppState.kt`（`editorOnlyFiles`） | 単体 `WorkspaceLayoutTest`, `DocumentStoreTest` | [workspace](architecture/workspace.md) |
 | W-13 | 同梱フォント（等幅 Cica をビルド時に取得して資源へ・`AppFonts.Mono`・資源が無ければ OS の等幅へ戻す） | `build.gradle.kts`（`downloadFonts`）, `ui/Common.kt`（`AppFonts`） | 手動 | [ui](architecture/ui.md) |
 | W-14 | Markdown 文書の表示（ワークスペース内の `.md` をツリーに薄色で出し、描画とソースの 2 タブで表示のみ・相対リンクはアプリ内で開く・外部変更に追随） | `ui/MarkdownPane.kt`, `ui/MarkdownView.kt`, `AppState.openMarkdown`, `core/Workspace.kt`（`WorkspaceScan.markdownFiles`） | 単体 `MarkdownLinkTest` | [ui](architecture/ui.md) |
-| W-15 | 内蔵ヘルプ（利用者マニュアルをビルド時に資源へ入れ、ツールバーの ? とコマンドパレットから文書として開く・題目間のリンクで移動） | `app/Help.kt`, `build.gradle.kts`（`copyHelp`）, `ui/MarkdownPane.kt` | 単体 `MarkdownLinkTest` | [ui](architecture/ui.md) |
+| W-15 | 内蔵ヘルプ（利用者マニュアルをビルド時に資源へ入れ、ヘルプメニューとコマンドパレットから文書として開く・題目間のリンクで移動） | `app/Help.kt`, `build.gradle.kts`（`copyHelp`）, `ui/MarkdownPane.kt` | 単体 `MarkdownLinkTest` | [ui](architecture/ui.md) |
 | W-16 | 画面の見え方の保持（編集画面のタブは文書ごとに覚え無ければ直前のタブ・フォームの畳み・ツリーの展開と選択・右パネルのタブと検証の範囲・台帳の絞り込みとレンズの設定・実行と設計のタブを、画面を離れても消さずワークスペース切替で消す） | `app/ScreenMemory.kt`, `ui/FormView.kt`（`FormCtx.expanded`） | 単体 `ScreenMemoryTest` | [ui](architecture/ui.md) |
 | W-17 | Windows ZIP 配布（起動案内・サンプル・ビルド情報・SHA-256） | `build.gradle.kts`（`windowsRelease`） | `test-windows-zip.ps1`, `DistributionSmoke` | [配布](releasing.md) |
 
@@ -32,7 +32,7 @@
 
 | ID | 機能 | 主な実装 | テスト | 設計 |
 |---|---|---|---|---|
-| E-18 | フォームの複合値は項目名の下へ全幅配置・単一値は幅に応じた配置 | `ui/FormLayout.kt`, `ui/FormView.kt` | 単体 `FormLayoutTest` | [ui](architecture/ui.md) |
+| E-18 | フォームの複合値は全幅配置と上限付き字下げ・単一値は幅に応じた配置・文書情報と他文書の定義は開閉可能 | `ui/FormLayout.kt`, `ui/FormView.kt` | 単体 `FormLayoutTest`, `ScreenMemoryTest`・画面は手動 | [ui](architecture/ui.md) |
 | E-19 | 項目説明の短い表示・ホバーで全文・説明ボタンで固定（編集・閲覧共通） | `ui/FieldHelp.kt` | 単体 `FieldHelpPositionTest`・画面は手動 | [ui](architecture/ui.md) |
 | E-01 | スキーマ駆動フォーム（基底の種類別の編集欄・型から引き継ぐヒント＝複数行と入力欄の案内と表示の形 `format`・必須マーク・説明は Markdown・折りたたみ・id 型は既存 ID の補完と連番の提案と横ぐしへの直行・int / number の桁区切り表示 `display: grouped`・残留値の修復 UI） | `ui/FormView.kt`（`IdEditor`）, `schema/IdSuggest.kt` | 単体 `IdSuggestTest` | [ui](architecture/ui.md) |
 | E-15 | 日付・時刻・日時のピッカー（入力欄の右のボタンからポップアップにカレンダーと時刻入力・日付はクリックで即反映・値は正準の文字列のまま） | `ui/TemporalEditor.kt`（`TemporalPick`, `TemporalPickerButton`） | 単体 `TemporalPickTest` | [ui](architecture/ui.md) |
@@ -123,7 +123,7 @@
 | I-05 | バックリンク（被参照一覧・参照元の ID とタイトル） | `IdIndex.backlinksTo`, `ui/SidePanel.kt` | 手動 | [index-references](architecture/index-references.md) |
 | I-06 | ID 検索（コマンドパレット・ID とタイトルの部分一致・オーバーレイ索引） | `Main.kt`（`CommandPalette`） | 手動 | [ui](architecture/ui.md) |
 | I-07 | エンティティページ（合成全体像・関係パネル・カバレッジ・改名／統合／削除・グラフレンズへ。入口は `openCrossView` の 1 経路＝ID 欄の Hub ボタン・参照の→メニュー・ストリップ・出現タブ・ビューグリッド・レンズ） | `ui/IdCrossView.kt`, `core/Aspects.kt`, `AppState.openCrossView` | 手動（合成は `AspectTest`） | [graph-query](architecture/graph-query.md) |
-| I-08 | ナビゲーション履歴（戻る・進む・スペースとタブと ID とビューとハイライトとエディタのタブを復元・ショートカットはウィンドウで受ける） | `AppState.goBack` / `goForward`, `Main.kt`（`handleShortcut`） | 単体 `NavigationHistoryTest` | [ui](architecture/ui.md) |
+| I-08 | ナビゲーション履歴（戻る・進む・スペースとタブと ID とビューとハイライトとエディタのタブを復元・ショートカットはウィンドウで受ける） | `AppState.goBack` / `goForward`, `Main.kt`（`handleShortcut`） | 単体 `NavigationHistoryTest`・画面は手動 | [ui](architecture/ui.md) |
 | I-09 | ID インスペクタ（右パネルの検証・関係・出現の 3 タブ） | `ui/SidePanel.kt` | 手動 | [ui](architecture/ui.md) |
 | I-10 | 導出グラフ（走査結果から導出する読み取り専用のエンティティグラフ・索引の更新で無効化） | `semantic-core/semantic/`（`SemanticEntityGraph`）, `index/IdIndex.kt`（`graph`） | 単体 `EntityGraphTest` | [graph-query](architecture/graph-query.md) |
 | I-11 | 文書参照（`target: document`・文書ノードへの参照・エンティティ参照とは混ぜない） | `index/IdIndex.kt`（`RefEntry.targetKind`）, `ui/FormView.kt`（`DocRefScalarEditor`） | 単体 `DocRefTest` | [graph-query](architecture/graph-query.md) |

@@ -38,6 +38,26 @@ class ScreenMemoryTest {
     }
 
     @Test
+    fun `他文書の定義の開閉は文書ごとに覚え改名と削除と切替に追随する`() {
+        val memory = ScreenMemory()
+        val a = DocumentId("sub/a.yaml")
+        val b = DocumentId("other/b.yaml")
+        assertNull(memory.documentOccurrencesOpen[a])
+        memory.documentOccurrencesOpen[a] = true
+        memory.documentOccurrencesOpen[b] = false
+
+        memory.renameDocument(DocumentId("sub"), DocumentId("moved"))
+        assertNull(memory.documentOccurrencesOpen[a])
+        assertEquals(true, memory.documentOccurrencesOpen[DocumentId("moved/a.yaml")])
+        assertEquals(false, memory.documentOccurrencesOpen[b])
+
+        memory.forgetDocument(DocumentId("moved"))
+        assertEquals(mapOf(b to false), memory.documentOccurrencesOpen.toMap())
+        memory.clear()
+        assertTrue(memory.documentOccurrencesOpen.isEmpty())
+    }
+
+    @Test
     fun `畳みは文書とパスごとに覚え、無ければ既定の深さで決める`() {
         val state = AppState().also { it.openWorkspace(dir) }
         val a = newFile("a.yaml")

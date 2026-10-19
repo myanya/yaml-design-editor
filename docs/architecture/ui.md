@@ -18,6 +18,7 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 | `FieldHelp` / `FieldHelpPosition` | ui/FieldHelp.kt | 説明の短い表示とホバー・固定表示、画面内への位置調整 |
 | `FlowViewPane` / `EmbeddedFlowPane` | ui/FlowViewPane.kt | 図と原本フォームを併記する単独・埋め込み表示（[views](views.md)） |
 | `ObjectTable` / `ArrayTable` / `MapTable` / `RefCell` / `tableColumnWidths` | ui/FormView.kt | 配列と map のテーブル表示（参照セルは ID・参照先の名前・横ぐしへの Hub） |
+| `AppToolbar` / `PaneHeader` / `UiTooltip` | ui/AppToolbar.kt | 全体メニュー・移動と検索・左右ペインの開閉・操作名の補足 |
 | `Highlightable` / `slotAt` / `CompactTextField` / `Palette` / `PanelShape` / `AppFonts` | ui/Common.kt | ハイライトとスクロール・Slot の解決・共通の入力欄と色と角丸・同梱フォント（等幅 Cica。資源が無ければ OS の等幅へ戻す） |
 | `VirtualTable` / `TableColumn` / `visibleColumnRange` | ui/VirtualTable.kt | 共通の表。見出し行と左の固定列は動かず、行は遅延描画、列は見える範囲だけ組み立てる（ビューグリッド・一覧ビューが使う） |
 | `ReorderableList` / `ReorderRowScope` | ui/Reorder.kt | ドラッグで並べ替える縦リスト（取っ手からだけ掴める。ライブラリ Reorderable を包む） |
@@ -38,6 +39,12 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 | `SourceHighlight` / `SourceMerge` / `SourceEditing` / `GraphLayout` / `DiffPane.calculateDiff` | ui/ | テスト可能な純ロジック（YAML トークナイザ・行差分と 3 者マージ・ソースの基本操作と検索・軽い力学レイアウト・差分） |
 
 ## UI シェル
+
+- 全体操作は `AppToolbar` の標準メニュー（ファイル・編集・表示・ヘルプ）に集め、移動・検索・ペイン操作を上部の操作列に常設する。
+- 左右ペインの開閉ボタンは対応する側に置き、領域アイコンと文字、表示状態、ツールチップを併用する。ペイン内の `PaneHeader` にも閉じる操作を置く。
+- ネイティブのウィンドウタイトルはワークスペースの絶対パス・アプリ名・未保存の印で構成する。文書名と相対パスは編集領域の見出しに表示する。
+- `AppTheme` は暖色寄りのライトと濃灰色のダークを共通パレットで提供する。`Palette` の選択は Compose の状態で、切替時は直接参照する部品も再描画する。
+
 
 - **スペースは `app.UiSpace`（EDIT / LEDGER / RUNS / DESIGN）**。`workspaceView`（0=文書, 1=一覧, 2=グラフ, 3=エンティティ, 4=ビューグリッド, 5=フロー, 6=準備完了レポート）は文書世界の下位ビュー。両者の同期は AppState のナビゲーション系メソッドが担い、ジャンプは常に EDIT（view 0）／LEDGER（view 1〜5）へ着地する。レール以外から `uiSpace` を直接書き換えない。
 - **スペースの移動も「戻る・進む」の対象**: `NavLocation` はスペースを含み、`showSpace` / `showWorkspaceView` / `openCrossView` / `openViewGrid` も履歴に積む。復元は EDIT＝ファイル＋ハイライト＋エディタのタブ、LEDGER＝下位ビュー＋選択 ID、RUNS / DESIGN＝スペースのみ。同じ場所の再選択は積まない。新しい移動で「進む」履歴は破棄。削除済みファイルは読み飛ばし、ワークスペース切替でクリア（`NavigationHistoryTest`）。
@@ -62,6 +69,8 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 - object の子フィールドは `ObjectFields`（`effectiveFields` 経由）で描く。列挙を複製しない。
 - 項目名と入力欄は `FormFieldLayout` で配置する。解決済みの型が object・map・array、または実値が Map・Seq なら項目名の下へ全幅で並べ、単一値は幅が狭いときだけ縦に並べる。
 - 配置判定は `FormLayout` に集約し、文書メタデータ・スキーマの項目・型付き map・汎用 map で共用する。未作成の複合型も縦配置とし、属性付き参照・any・型不一致の残留値は実値の構造も見る。
+- `FormSpacing` の余白と `FormGroup` の縦線・字下げで複合値を区切る。字下げは枝ごとに累計の上限を持ち、深い構造でも入力幅を奪い続けない。
+- 編集時の文書情報は `_document` の畳み、他文書での定義は `ScreenMemory.documentOccurrencesOpen` で開閉を覚える。いずれも既定は畳む。
 - 項目の説明は `FieldHelp` が `MarkdownView` で描く。編集時の短い表示と、編集・閲覧共通のホバーによる全文表示を持ち、説明ボタンで固定するとスクロールとリンク操作ができる。
 - 説明のホバーは入力の焦点を奪わず、固定時だけポップアップに焦点を渡す。開閉は操作途中の状態として `remember` に置き、文書の編集や畳みの覚えには記録しない。
 - 配列の追加ボタンは `AppState.addArrayElement` を呼ぶ（要素の中身は型の `create` と配列の `insert` の決まり。受け取る値があれば右ペインのカード。[actions](actions.md)）。フォーム側で初期値を組まない。
@@ -74,7 +83,7 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 ## 閲覧専用
 
 - `FormCtx.readOnly`（既定値は `AppState.readOnlyMode`）が編集 UI の表示分岐と `markEdited` / スカラー書込のガード（木の変異前に `check` で拒否）を担う。
-- FormCtx を共有する全ビューへ自動波及させ、ビューごとの読み取り専用分岐を別実装しない。ジャンプ・バックリンクは閲覧行為として残す。トグルはツールバーで、永続化する。
+- FormCtx を共有する全ビューへ自動波及させ、ビューごとの読み取り専用分岐を別実装しない。ジャンプ・バックリンクは閲覧行為として残す。切替は「表示」メニューで、永続化する。
 - 閲覧専用が封じるのは編集（未保存の木の変更）だけ。スキーマに定義した操作は確認してから書いて保存するので閲覧専用でも通し、入口（操作メニュー・行の ⋯・ヘッダ・パレット・検査の指摘）を閲覧専用で隠さない。組込みの改名・統合・削除は隠す（[actions](actions.md)「規律」）。
 
 ## テーブル表示

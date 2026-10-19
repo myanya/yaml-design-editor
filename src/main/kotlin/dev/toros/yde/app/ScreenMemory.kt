@@ -35,6 +35,9 @@ class ScreenMemory {
         if (folds[key] != expanded) folds[key] = expanded
     }
 
+    /** フォーム上部の他文書での定義。初期状態は畳む。 */
+    val documentOccurrencesOpen = mutableStateMapOf<DocumentId, Boolean>()
+
     // ================================================================ ファイルツリー
 
     /** ディレクトリの展開。無ければ画面の既定（台帳内は開く・台帳外は畳む）。 */
@@ -131,6 +134,7 @@ class ScreenMemory {
     /** 全部忘れる（ワークスペース切替）。 */
     fun clear() {
         folds.clear()
+        documentOccurrencesOpen.clear()
         treeExpanded.clear()
         treeSelection = null
         sidePanelTab = 0
@@ -162,12 +166,17 @@ class ScreenMemory {
 
     /** 文書（ディレクトリならその下の文書すべて）の覚えを忘れる（削除）。 */
     fun forgetDocument(document: DocumentId) {
+        documentOccurrencesOpen.keys.filter { it.isUnder(document) }.forEach(documentOccurrencesOpen::remove)
         folds.keys.filter { it.first.isUnder(document) }.forEach(folds::remove)
         schemaTab.keys.filter { it.isUnder(document) }.forEach(schemaTab::remove)
     }
 
     /** 文書（ディレクトリならその下の文書すべて）の覚えを新しい場所へ移す（改名）。 */
     fun renameDocument(from: DocumentId, to: DocumentId) {
+        documentOccurrencesOpen.keys.filter { it.isUnder(from) }.forEach { key ->
+            val value = documentOccurrencesOpen.remove(key) ?: return@forEach
+            documentOccurrencesOpen[key.moved(from, to)] = value
+        }
         folds.keys.filter { it.first.isUnder(from) }.forEach { key ->
             val value = folds.remove(key) ?: return@forEach
             folds[key.first.moved(from, to) to key.second] = value

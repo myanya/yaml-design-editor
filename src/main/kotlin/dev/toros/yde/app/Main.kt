@@ -9,23 +9,14 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.automirrored.filled.Redo
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.LightMode
-import androidx.compose.material.icons.filled.History
 import dev.toros.yde.app.agent.AutomationEngine
 import dev.toros.yde.app.ai.AiProvider
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.EditOff
-import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,7 +62,8 @@ fun main(args: Array<String>) = application {
 
     Window(
         onCloseRequest = { if (state.hasDirtyDocs()) confirmExit = true else exitApplication() },
-        title = "YAML Design Editor" + if (state.hasDirtyDocs()) " ●" else "",
+        title = (state.workspace?.toAbsolutePath()?.normalize()?.let { "$it — " } ?: "") +
+            "YAML Design Editor" + if (state.hasDirtyDocs()) " ●" else "",
         state = rememberWindowState(width = 1440.dp, height = 920.dp),
         // ショートカットはウィンドウで受ける（UX-120）: 焦点のある部品が消費しなかったキーが、画面のどこにも焦点が無い
         // とき（ジャンプの直後など）でも届く。画面の部品の Modifier.onKeyEvent は、焦点のある子がいるときにしか呼ばれない
@@ -308,8 +300,9 @@ fun AppRoot(
         val inboxCount = (automation?.pendingSnapshot()?.size ?: 0) +
             state.conflictedDocs().size +
             (if (runController?.pendingQuestion != null) 1 else 0)
-        Toolbar(state, leftOpen, rightOpen, darkMode, toggleDarkMode, { setCommandOpen(true) },
+        AppToolbar(state, leftOpen, rightOpen, darkMode, toggleDarkMode, { setCommandOpen(true) },
             openWorkspaceDialog = openWorkspaceDialog,
+            switchWorkspace = switchWorkspace,
             toggleReadOnly = {
                 state.readOnlyMode = !state.readOnlyMode
                 uiPreferences.putBoolean("readOnly", state.readOnlyMode)
@@ -330,7 +323,7 @@ fun AppRoot(
                 }
                 else -> {
                     if (leftOpen && state.uiSpace == UiSpace.EDIT) {
-                        FileTreePane(state, leftWidth)
+                        FileTreePane(state, leftWidth, onClose = { leftOpen = false; uiPreferences.putBoolean("leftOpen", false) })
                         ResizeHandle { delta ->
                             leftWidth = (leftWidth + delta).coerceIn(170.dp, 480.dp)
                             uiPreferences.putFloat("leftWidth", leftWidth.value)
@@ -345,8 +338,13 @@ fun AppRoot(
                             uiPreferences.putFloat("rightWidth", rightWidth.value)
                         }
                         // 台帳のレンズでは、文書の検証パネルの代わりにレンズの型・関係・辺を出す（描く領域を広く取る）
-                        if (state.uiSpace == UiSpace.LEDGER && state.workspaceView == 2) LensSidePanel(state, rightWidth)
-                        else SidePanel(state, rightWidth)
+                        Column(Modifier.width(rightWidth).fillMaxHeight()) {
+                            val lens = state.uiSpace == UiSpace.LEDGER && state.workspaceView == 2
+                            PaneHeader(if (lens) "レンズ" else "検証・関係") { state.rightPaneOpen = false }
+                            Box(Modifier.weight(1f)) {
+                                if (lens) LensSidePanel(state, rightWidth) else SidePanel(state, rightWidth)
+                            }
+                        }
                     }
                 }
             }
@@ -422,85 +420,6 @@ private fun ResizeHandle(onDrag: (androidx.compose.ui.unit.Dp) -> Unit) {
                 onDrag(with(density) { amount.x.toDp() })
             }
         })
-}
-
-// ================================================================ ツールバー
-
-@Composable
-fun Toolbar(state: AppState, leftOpen: Boolean, rightOpen: Boolean, darkMode: Boolean, toggleDarkMode: () -> Unit,
-            openCommands: () -> Unit,
-            openWorkspaceDialog: () -> Unit, toggleReadOnly: () -> Unit,
-            toggleLeft: () -> Unit, toggleRight: () -> Unit) {
-    var recentOpen by remember { mutableStateOf(false) }
-    Row(
-        Modifier.fillMaxWidth().height(44.dp).background(Palette.PanelBg).padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Button(onClick = openWorkspaceDialog) {
-            Icon(Icons.Default.FolderOpen, contentDescription = null, Modifier.size(16.dp))
-            Spacer(Modifier.width(6.dp))
-            Text("開く", fontSize = 13.sp)
-        }
-        Spacer(Modifier.width(8.dp))
-        OutlinedButton(
-            enabled = state.workspace != null,
-            onClick = { state.reload() },
-        ) {
-            Icon(Icons.Default.Refresh, contentDescription = null, Modifier.size(16.dp))
-            Spacer(Modifier.width(6.dp))
-            Text("再読込", fontSize = 13.sp)
-        }
-        Spacer(Modifier.width(4.dp))
-        // ナビゲーション履歴: 参照ジャンプ・ファイル切替の移動を戻る／進む
-        IconButton(enabled = state.canGoBack, onClick = state::goBack) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, "戻る (Alt+←)", Modifier.size(18.dp),
-                tint = if (state.canGoBack) Palette.SubText else Palette.SubText.copy(alpha = .35f))
-        }
-        IconButton(enabled = state.canGoForward, onClick = state::goForward) {
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, "進む (Alt+→)", Modifier.size(18.dp),
-                tint = if (state.canGoForward) Palette.SubText else Palette.SubText.copy(alpha = .35f))
-        }
-        Box {
-            IconButton(onClick = { recentOpen = true }) { Icon(Icons.Default.History, "最近開いたファイル", Modifier.size(18.dp)) }
-            DropdownMenu(recentOpen, { recentOpen = false }) {
-                if (state.recentFiles.isEmpty()) DropdownMenuItem(text = { Text("履歴なし") }, onClick = {}, enabled = false)
-                state.recentFiles.forEach { file -> DropdownMenuItem(text = { Text(state.relPath(file), fontSize = 11.sp) }, onClick = {
-                    state.openFile(file); recentOpen = false
-                }) }
-            }
-        }
-        Spacer(Modifier.weight(1f))
-        // 統合検索（R12-04）: ID・ファイル・コマンド・ワークスペース切替を1つのパレットに集約
-        OutlinedButton(
-            enabled = state.workspace != null,
-            onClick = openCommands,
-            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
-        ) {
-            Icon(Icons.Default.Search, contentDescription = null, Modifier.size(15.dp))
-            Spacer(Modifier.width(6.dp))
-            Text("検索・コマンド (Ctrl+K)", fontSize = 12.sp)
-        }
-        Spacer(Modifier.width(4.dp))
-        // 閲覧専用モード（R10-04）: フォーム・グリッドの編集UIを表示専用に切り替える
-        IconButton(onClick = toggleReadOnly) {
-            Icon(
-                if (state.readOnlyMode) Icons.Default.EditOff else Icons.Default.Visibility,
-                if (state.readOnlyMode) "閲覧専用モードを解除" else "閲覧専用モード",
-                Modifier.size(18.dp),
-                tint = if (state.readOnlyMode) Palette.WarnOrange else Palette.SubText,
-            )
-        }
-        // 内蔵ヘルプ（利用者マニュアル）: 編集スペースに文書として開く
-        IconButton(onClick = { state.openHelp(Help.INDEX) }) {
-            Icon(Icons.AutoMirrored.Filled.HelpOutline, "ヘルプ（利用者マニュアル）", Modifier.size(18.dp))
-        }
-        IconButton(onClick = toggleDarkMode) {
-            Icon(if (darkMode) Icons.Default.LightMode else Icons.Default.DarkMode,
-                if (darkMode) "ライトモード" else "ダークモード", Modifier.size(18.dp))
-        }
-        IconButton(onClick = toggleLeft) { Text(if (leftOpen) "◀" else "▶", fontSize = 11.sp) }
-        IconButton(onClick = toggleRight) { Text(if (rightOpen) "▶" else "◀", fontSize = 11.sp) }
-    }
 }
 
 @Composable
@@ -713,26 +632,30 @@ fun EditorArea(state: AppState) {
                 TextButton(onClick = { state.keepLocalVersion() }) { Text("編集内容を維持", fontSize = 12.sp) }
             }
         }
-        // ヘッダ: 文書名・ファイル名・スキーマ・ダーティ表示
+        Row(Modifier.fillMaxWidth().background(Palette.Surface).padding(horizontal = 20.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(if (!isSchemaFile) documentName ?: doc.file.fileName.toString() else doc.file.fileName.toString(),
+                    fontSize = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                Text(state.relPath(doc.file), fontSize = 11.sp, color = Palette.SubText, maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            }
+            if (doc.dirty || doc.draftDirty) Text("● 未保存", fontSize = 11.sp, color = Palette.WarnOrange)
+            Spacer(Modifier.width(12.dp))
+            OutlinedButton(enabled = doc.dirty || doc.draftDirty, onClick = state::saveCurrent,
+                shape = PanelShape, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)) {
+                Icon(Icons.Default.Save, contentDescription = null, Modifier.size(15.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("保存", fontSize = 12.sp)
+            }
+        }
         FlowRow(
-            Modifier.fillMaxWidth().background(Palette.Surface).padding(horizontal = 16.dp, vertical = 8.dp),
+            Modifier.fillMaxWidth().background(Palette.Surface).padding(horizontal = 20.dp, vertical = 2.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
             itemVerticalAlignment = Alignment.CenterVertically,
         ) {
-            if (documentName != null && !isSchemaFile) {
-                Column {
-                    Text(documentName, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Text(state.relPath(doc.file), fontSize = 10.sp, color = Palette.SubText)
-                }
-            } else {
-                Text(state.relPath(doc.file), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-            }
-            if (doc.dirty || doc.draftDirty) {
-                Spacer(Modifier.width(6.dp))
-                Text("●未保存", fontSize = 11.sp, color = Palette.WarnOrange)
-            }
-            Spacer(Modifier.width(12.dp))
             doc.schema?.let {
                 Text(
                     "スキーマ: ${it.name}",
@@ -756,7 +679,7 @@ fun EditorArea(state: AppState) {
             if (docActions.isNotEmpty()) {
                 Box {
                     var actionsOpen by remember { mutableStateOf(false) }
-                    OutlinedButton(onClick = { actionsOpen = true }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)) {
+                    OutlinedButton(shape = PanelShape, onClick = { actionsOpen = true }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)) {
                         Text("操作 ▾", fontSize = 12.sp)
                     }
                     androidx.compose.material3.DropdownMenu(actionsOpen, { actionsOpen = false }) {
@@ -772,6 +695,7 @@ fun EditorArea(state: AppState) {
             }
             if (doc.schema != null && doc.root != null && !state.readOnlyMode) {
                 OutlinedButton(
+                    shape = PanelShape,
                     onClick = { state.requestAi(doc, doc.schema!!.root, emptyList(), wholeDocument = true) },
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
                 ) {
@@ -792,18 +716,6 @@ fun EditorArea(state: AppState) {
                 IconButton(enabled = state.canRedo(), onClick = state::redo, modifier = Modifier.size(34.dp)) {
                     Icon(Icons.AutoMirrored.Filled.Redo, "やり直す (Ctrl+Y)", Modifier.size(17.dp))
                 }
-            }
-            Spacer(Modifier.width(4.dp))
-            OutlinedButton(enabled = doc.dirty, onClick = state::saveCurrent,
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)) {
-                Icon(Icons.Default.Save, contentDescription = null, Modifier.size(15.dp))
-                Spacer(Modifier.width(4.dp))
-                Text("保存", fontSize = 12.sp)
-            }
-            Spacer(Modifier.width(6.dp))
-            TextButton(enabled = state.hasDirtyDocs(), onClick = state::saveAll,
-                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)) {
-                Text("すべて保存", fontSize = 11.sp)
             }
         }
         // スキーマ文書ではタブ3にメタスキーマ（R11-02）のフォーム編集を追加する（設計UIが主要UXのまま）

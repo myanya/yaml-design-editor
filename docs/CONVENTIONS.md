@@ -20,7 +20,9 @@
 - 等幅で見せる文字（YAML ソース・差分・ログ・サンプル）は `AppFonts.Mono`（同梱の Cica。ビルド時に取得して資源 `fonts/cica/` に入る）。`FontFamily.Monospace` を書かない（OS 任せで日本語と英数の幅が揃わず、OS ごとに見た目が変わる）。
 - 外部の UI ライブラリ（FileKit・Reorderable・Markdown の描画・Vico・ELK）は ui/ の 1 ファイルで包み、ライブラリの型やimport をその外へ出さない。より良いライブラリが見つかったとき、その 1 ファイルだけ書き換えれば済むようにするため。共通の部品（表＝`VirtualTable`・Markdown＝`MarkdownView`・ファイル選択＝`FilePickers`・並べ替え＝`ReorderableList`・グラフ＝`BarChart`・節点と辺の配置＝`GraphLayouts`）を画面ごとに作り直さない。
 - 入力欄のプレースホルダーは呼び出し側で装飾しない（`Text("...")` のみ）。`CompactTextField` が「入力テキストと同サイズ・`Palette.SubText` 色」を一律に与える（画面ごとの濃さ・大きさのばらつき防止）。
-- 文字サイズの目安: 見出し 13–16sp、本文 12–13sp、補足 10–11sp。
+- 文字サイズの目安: 文書見出し 18–20sp、節見出し 14sp、本文・項目名 13sp、操作ラベル 12sp、補足 11sp。
+- フォームの余白は `FormSpacing` を基準にする。複合項目は単一項目より大きく区切り、入れ子は縦線と上限付きの字下げで示す。
+- ペインの開閉は領域を示すアイコン・文字・表示状態を併用し、ペイン見出しにも閉じる操作を置く。
 - 破壊的操作（削除・破棄・一括変更）は `AlertDialog` で確認し、確定ボタンの文言に `Palette.ErrorRed` を使う。
 
 ## 3. エラー処理・検証
