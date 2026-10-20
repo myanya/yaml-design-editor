@@ -3,6 +3,17 @@ package dev.toros.yde.app.ui
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.YPath
 
+/** ナビゲーションは既存の区画・定義・項目選択へ変換するだけで、編集内容に影響しない。 */
+internal data class SchemaNavigationTarget(val section: Int, val definition: String? = null, val base: YPath? = null)
+
+internal fun schemaNavigationTarget(path: YPath): SchemaNavigationTarget = when (path.firstOrNull()) {
+    "root" -> SchemaNavigationTarget(0, base = listOf("root"))
+    "definitions" -> (path.getOrNull(1) as? String)?.let {
+        SchemaNavigationTarget(1, it, listOf("definitions", it))
+    } ?: SchemaNavigationTarget(1)
+    else -> SchemaNavigationTarget(2)
+}
+
 /** 宣言した構造だけの表示用射影。参照先の展開や型の意味解釈は既存の型解決に任せる。 */
 internal data class SchemaOutlineEntry(
     val path: YPath,

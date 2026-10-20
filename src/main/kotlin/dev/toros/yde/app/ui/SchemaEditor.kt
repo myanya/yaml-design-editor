@@ -87,11 +87,6 @@ private fun SchemaEditorContent(state: AppState, doc: OpenDocument) {
         ) { alignOrderTarget = null }
     }
     Column(Modifier.fillMaxSize()) {
-        TabRow(selectedTabIndex = mode, containerColor = Palette.Surface, contentColor = Palette.Primary) {
-            Tab(mode == 0, { state.memory.schemaTab[schemaKey] = 0 }, text = { Text("設計", fontSize = 11.sp) })
-            Tab(mode == 1, { state.memory.schemaTab[schemaKey] = 1 }, text = { Text("プレビュー", fontSize = 11.sp) })
-            Tab(mode == 2, { state.memory.schemaTab[schemaKey] = 2 }, text = { Text("適用対象", fontSize = 11.sp) })
-        }
         CompositionLocalProvider(LocalTypeChoices provides typeChoices, LocalSchemaReadOnly provides (state.readOnlyMode || doc.draftBroken)) { when (mode) {
             0 -> SchemaDesignWorkspace(
                 state, doc, root, library, schema, typeChoices,
@@ -342,12 +337,12 @@ internal fun CompactMultilineScalar(map: YNode.Map, key: String, label: String, 
 }
 
 @Composable
-internal fun AddDefinitionButton(definitions: YNode.Map, doc: OpenDocument, onAdded: (String) -> Unit = {}) {
+internal fun AddDefinitionButton(definitions: YNode.Map, doc: OpenDocument, compact: Boolean = false, onAdded: (String) -> Unit = {}) {
     var open by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
     // 定義の種類（P33）: 構造（object。$ref で使う）か、型（スカラーの決まりの束。項目の type に名前で使う）
     var kind by remember { mutableStateOf(DEFINITION_KIND_TYPE) }
-    SchemaEditButton(onClick = { open = true }) { Text("＋ 定義を追加", fontSize = 12.sp) }
+    SchemaEditButton(onClick = { open = true }) { Text(if (compact) "＋ 追加" else "＋ 定義を追加", fontSize = 12.sp) }
     if (open) AlertDialog(
         onDismissRequest = { open = false },
         title = { Text("名前付き定義を追加") },

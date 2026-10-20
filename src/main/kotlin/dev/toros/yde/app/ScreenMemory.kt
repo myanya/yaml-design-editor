@@ -131,6 +131,9 @@ class ScreenMemory {
     val schemaDefinition = mutableStateMapOf<DocumentId, String>()
     val schemaSelection = mutableStateMapOf<Pair<DocumentId, YPath>, YPath>()
 
+    /** 狭いスキーマ編集領域で構成一覧を表示するか。既定は詳細編集。 */
+    val schemaNavigationOpen = mutableStateMapOf<DocumentId, Boolean>()
+
     /** 編集画面のタブ（0 = フォーム、1 = ソース、2 = 差分、3 = メタスキーマのフォーム）。文書ごとに最後に見ていたもの。 */
     val editorTab = mutableStateMapOf<DocumentId, Int>()
 
@@ -170,6 +173,7 @@ class ScreenMemory {
         schemaSection.clear()
         schemaDefinition.clear()
         schemaSelection.clear()
+        schemaNavigationOpen.clear()
     }
 
     /** 文書（ディレクトリならその下の文書すべて）の覚えを忘れる（削除）。 */
@@ -180,10 +184,14 @@ class ScreenMemory {
         schemaSection.keys.filter { it.isUnder(document) }.forEach(schemaSection::remove)
         schemaDefinition.keys.filter { it.isUnder(document) }.forEach(schemaDefinition::remove)
         schemaSelection.keys.filter { it.first.isUnder(document) }.forEach(schemaSelection::remove)
+        schemaNavigationOpen.keys.filter { it.isUnder(document) }.forEach(schemaNavigationOpen::remove)
     }
 
     /** 文書（ディレクトリならその下の文書すべて）の覚えを新しい場所へ移す（改名）。 */
     fun renameDocument(from: DocumentId, to: DocumentId) {
+        schemaNavigationOpen.keys.filter { it.isUnder(from) }.forEach { key ->
+            schemaNavigationOpen[key.moved(from, to)] = schemaNavigationOpen.remove(key) ?: return@forEach
+        }
         schemaSection.keys.filter { it.isUnder(from) }.forEach { key ->
             schemaSection[key.moved(from, to)] = schemaSection.remove(key) ?: return@forEach
         }

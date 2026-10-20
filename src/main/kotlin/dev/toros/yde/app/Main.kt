@@ -632,124 +632,13 @@ fun EditorArea(state: AppState) {
                 TextButton(onClick = { state.keepLocalVersion() }) { Text("編集内容を維持", fontSize = 12.sp) }
             }
         }
-        Row(Modifier.fillMaxWidth().background(Palette.Surface).padding(horizontal = 20.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(if (!isSchemaFile) documentName ?: doc.file.fileName.toString() else doc.file.fileName.toString(),
-                    fontSize = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                Text(state.relPath(doc.file), fontSize = 11.sp, color = Palette.SubText, maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-            }
-            if (doc.dirty || doc.draftDirty) Text("● 未保存", fontSize = 11.sp, color = Palette.WarnOrange)
-            Spacer(Modifier.width(12.dp))
-            OutlinedButton(enabled = doc.dirty || doc.draftDirty, onClick = state::saveCurrent,
-                shape = PanelShape, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)) {
-                Icon(Icons.Default.Save, contentDescription = null, Modifier.size(15.dp))
-                Spacer(Modifier.width(4.dp))
-                Text("保存", fontSize = 12.sp)
-            }
-        }
-        FlowRow(
-            Modifier.fillMaxWidth().background(Palette.Surface).padding(horizontal = 20.dp, vertical = 2.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-            itemVerticalAlignment = Alignment.CenterVertically,
-        ) {
-            doc.schema?.let {
-                Text(
-                    "スキーマ: ${it.name}",
-                    fontSize = 11.sp,
-                    color = Palette.Primary,
-                    modifier = Modifier
-                        .background(Palette.Selected, PanelShape)
-                        .padding(horizontal = 8.dp, vertical = 2.dp),
-                )
-            } ?: Text("スキーマなし（汎用ビュー）", fontSize = 11.sp, color = Palette.SubText)
-            if (state.readOnlyMode) {
-                Text(
-                    "閲覧専用",
-                    fontSize = 11.sp, color = Palette.WarnOrange,
-                    modifier = Modifier.background(Palette.ConflictBg, PanelShape).padding(horizontal = 8.dp, vertical = 2.dp),
-                )
-                Spacer(Modifier.width(6.dp))
-            }
-            // この文書を受け手にする操作（スキーマの actions で target: {schema}。architecture/actions.md）。閲覧専用でも出す
-            val docActions = remember(doc, state.indexVersion) { state.actionsForDocument(doc.file) }
-            if (docActions.isNotEmpty()) {
-                Box {
-                    var actionsOpen by remember { mutableStateOf(false) }
-                    OutlinedButton(shape = PanelShape, onClick = { actionsOpen = true }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)) {
-                        Text("操作 ▾", fontSize = 12.sp)
-                    }
-                    androidx.compose.material3.DropdownMenu(actionsOpen, { actionsOpen = false }) {
-                        docActions.forEach { entry ->
-                            androidx.compose.material3.DropdownMenuItem(
-                                text = { Text(entry.label ?: entry.name, fontSize = 12.sp) },
-                                onClick = { actionsOpen = false; state.startAction(entry, state.relPath(doc.file)) },
-                            )
-                        }
-                    }
-                }
-                Spacer(Modifier.width(6.dp))
-            }
-            if (doc.schema != null && doc.root != null && !state.readOnlyMode) {
-                OutlinedButton(
-                    shape = PanelShape,
-                    onClick = { state.requestAi(doc, doc.schema!!.root, emptyList(), wholeDocument = true) },
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
-                ) {
-                    Icon(Icons.Default.AutoAwesome, contentDescription = null, Modifier.size(15.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("AIで作成", fontSize = 12.sp)
-                }
-                Spacer(Modifier.width(6.dp))
-            }
-            // Undo/Redo はワークスペース横断の単一履歴（A-3・D-07）——活性判定もセッション基準。
-            // 開いていない文書も戻るため、ホバーで「次に何が戻るか」を操作前に予告する（UX-86）
-            HistoryTooltip("元に戻す (Ctrl+Z)", state.undoPreview()) {
-                IconButton(enabled = state.canUndo(), onClick = state::undo, modifier = Modifier.size(34.dp)) {
-                    Icon(Icons.AutoMirrored.Filled.Undo, "元に戻す (Ctrl+Z)", Modifier.size(17.dp))
-                }
-            }
-            HistoryTooltip("やり直す (Ctrl+Y)", state.redoPreview()) {
-                IconButton(enabled = state.canRedo(), onClick = state::redo, modifier = Modifier.size(34.dp)) {
-                    Icon(Icons.AutoMirrored.Filled.Redo, "やり直す (Ctrl+Y)", Modifier.size(17.dp))
-                }
-            }
-        }
+        EditorDocumentHeader(state, doc,
+            if (isSchemaFile) doc.file.fileName.toString() else documentName ?: doc.file.fileName.toString())
         // スキーマ文書ではタブ3にメタスキーマ（R11-02）のフォーム編集を追加する（設計UIが主要UXのまま）
         val tab = if (!isSchemaFile && state.editorTab == 3) 0 else state.editorTab
         // ソースの書きかけ・壊れたまま保存の案内（P43 R43-02・04）。ソースタブ自身は欄の上に出すので除く
         if (tab != 1) SourceDraftBanner(state, doc)
-        TabRow(
-            selectedTabIndex = tab,
-            containerColor = Palette.Surface,
-            contentColor = Palette.Primary,
-        ) {
-            Tab(
-                selected = tab == 0,
-                onClick = { state.editorTab = 0 },
-                text = { Text(if (isSchemaFile) "スキーマ設計" else "フォーム", fontSize = 13.sp) },
-            )
-            Tab(
-                selected = tab == 1,
-                onClick = { state.editorTab = 1 },
-                text = { Text("ソース", fontSize = 13.sp) },
-            )
-            Tab(
-                selected = tab == 2,
-                onClick = { state.editorTab = 2 },
-                text = { Text("差分", fontSize = 13.sp) },
-            )
-            if (isSchemaFile) {
-                Tab(
-                    selected = tab == 3,
-                    onClick = { state.editorTab = 3 },
-                    text = { Text("フォーム", fontSize = 13.sp) },
-                )
-            }
-        }
+        EditorModeBar(state, doc, isSchemaFile, tab)
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when (tab) {
                 0 -> if (isSchemaFile) SchemaEditor(state, doc) else FormView(state, doc)

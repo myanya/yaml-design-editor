@@ -43,7 +43,7 @@
 | E-04 | 差分表示（保存済みと編集中の行整列・文字単位の強調） | `ui/DiffPane.kt` | 単体 `DiffPaneTest` | [ui](architecture/ui.md) |
 | E-05 | Undo/Redo（ワークスペース横断の単一履歴・連続入力は 1 秒以内なら合体・実行後のフィードバックと予告） | `app/AppState.kt`（`undo` / `redo` / `historyNotice`）, `core/Documents.kt` | 単体 `DocumentsTest`, `HistoryNoticeTest` | [editing-history](architecture/editing-history.md) |
 | E-06 | 保存（Ctrl+S・すべて保存・コメントとキー順と表記を保持・日付は文字列・YAML展開量を制限） | `AppState.save*`, `yaml-core/yaml/YamlIO.kt` | 単体 `YamlIOTest` | [yaml-model](architecture/yaml-model.md) |
-| E-07 | 文書メタデータ `_document`（id・name・description）の編集とヘッダー表示 | `ui/FormView.kt`（`DocumentMetadataEditor`） | 手動 | [ui](architecture/ui.md) |
+| E-07 | 文書メタデータ `_document`（id・name・description）の編集とコンパクトな文書ヘッダー | `ui/FormView.kt`・`ui/EditorChrome.kt` | 手動 | [ui](architecture/ui.md) |
 | E-08 | 文書キャッシュ（ファイル切替時も未保存編集を保持） | `AppState.docCache` | 手動 | [editing-history](architecture/editing-history.md) |
 | E-09 | 同一 ID の他文書出現ストリップ（相手側の情報の表示とジャンプ） | `ui/FormView.kt`（`SameIdOccurrencesStrip`） | 手動 | [ui](architecture/ui.md) |
 | E-10 | 複数ドキュメント YAML（フォームは先頭・後続は保持して再出力・ソースは全体を編集可） | `yaml-core/yaml/YamlIO.kt`（`parseAll` / `dumpAll`）, `app/OpenDocument` | 単体 `OpenDocumentTest` | [yaml-model](architecture/yaml-model.md) |
@@ -63,7 +63,7 @@
 | S-02 | 型システム: 基底の種類 14 種（表現の基底 9＋意味の基底型 `id` / `ref` / `date` / `time` / `datetime`。存在の検証）＋組込みの定義体 `text` / `line` / `word` | `semantic-core/schema/Fields.kt`・`ValueSemantics.kt`・`BuiltinTypes.kt` | 単体 `MetaSchemaTest`, `TypeDefinitionsTest` | [schema](architecture/schema.md) |
 | S-03 | 名前付き定義と再帰参照（`definitions` / `$ref`・狭める規則の合成） | `semantic-core/schema/SchemaTree.kt`（`resolve`） | 単体 `TypeDefinitionsTest` | [schema](architecture/schema.md) |
 | S-04 | メタスキーマ検証と宣言のない関係名の点検（実体はカーネル・読み込みエラーへ足す） | `workspace-core/workspace/SchemaDefinitionChecks.kt` | 単体 `SchemaLoaderTest`, `KernelOnlyChecksTest` | [schema](architecture/schema.md) |
-| S-05 | スキーマ設計 UI（構成一覧＋選択項目の詳細・document／library・`$ref`・プレビュー・適用対象・`requiredFrom`・`role`・enum 選択肢・制約・ヒント＝案内／サンプル値／複数行・`phases`・`coverage`・エンティティ節＝ID の型・object の同一性） | `ui/SchemaEditor.kt`・`ui/SchemaDesignWorkspace.kt` | `SchemaOutlineTest`・手動 | [ui](architecture/ui.md) |
+| S-05 | スキーマ設計 UI（統合ナビゲーション＋詳細・狭幅で切替・document／library・`$ref`・プレビュー・適用対象・`requiredFrom`・`role`・enum 選択肢・制約・ヒント＝案内／サンプル値／複数行・`phases`・`coverage`・エンティティ節＝ID の型・object の同一性） | `ui/SchemaEditor.kt`・`ui/SchemaDesignWorkspace.kt` | `SchemaOutlineTest`・手動 | [ui](architecture/ui.md) |
 | S-06 | サンプル YAML 生成（プレビュー・コピー・新規ファイルの初期値・必須スカラーに型別の例値） | `semantic-core/schema/SchemaScaffold.kt` | 単体 `SchemaLoaderTest`, `DocumentScaffoldTest` | [schema](architecture/schema.md) |
 | S-07 | スキーマ外キーの検証ポリシー（`unknownFields: allow / warning / error`） | `validate/Validator.kt`, `index/IdIndex.kt` | 手動 | [schema](architecture/schema.md) |
 | S-08 | 参照の関係種別（`type: ref` の `relation`） | `schema/Schema.kt`, `index/IdIndex.kt` | 単体 `WorkspaceCliTest` | [graph-query](architecture/graph-query.md) |

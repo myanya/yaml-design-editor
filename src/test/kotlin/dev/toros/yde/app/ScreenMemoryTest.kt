@@ -45,21 +45,27 @@ class ScreenMemoryTest {
         val root = listOf("root")
         val selection = listOf("root", "fields", 1)
         memory.schemaSection[old] = 1
+        memory.schemaNavigationOpen[old] = true
         memory.schemaDefinition[old] = "Task"
         memory.schemaSelection[old to root] = selection
         memory.renameDocument(DocumentId("sub"), DocumentId("moved"))
         assertNull(memory.schemaSection[old])
         assertEquals(1, memory.schemaSection[moved])
+        assertNull(memory.schemaNavigationOpen[old])
+        assertEquals(true, memory.schemaNavigationOpen[moved])
         assertEquals("Task", memory.schemaDefinition[moved])
         assertEquals(selection, memory.schemaSelection[moved to root])
         memory.forgetDocument(DocumentId("moved"))
         assertTrue(memory.schemaSection.isEmpty())
+        assertTrue(memory.schemaNavigationOpen.isEmpty())
         assertTrue(memory.schemaDefinition.isEmpty())
         assertTrue(memory.schemaSelection.isEmpty())
         memory.schemaSection[old] = 2
+        memory.schemaNavigationOpen[old] = false
         memory.schemaDefinition[old] = "Task"
         memory.schemaSelection[old to root] = selection
         memory.clear()
+        assertTrue(memory.schemaNavigationOpen.isEmpty())
         assertTrue(memory.schemaSection.isEmpty())
         assertTrue(memory.schemaDefinition.isEmpty())
         assertTrue(memory.schemaSelection.isEmpty())

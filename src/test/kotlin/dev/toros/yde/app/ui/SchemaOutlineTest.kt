@@ -8,6 +8,17 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class SchemaOutlineTest {
+    @Test
+    fun `構成の選択と検証ジャンプはルートと名前付き定義と基本設定へ振り分ける`() {
+        assertEquals(SchemaNavigationTarget(0, base = listOf("root")),
+            schemaNavigationTarget(listOf("root", "fields", 1, "type")))
+        assertEquals(SchemaNavigationTarget(1, "Task", listOf("definitions", "Task")),
+            schemaNavigationTarget(listOf("definitions", "Task", "fields", 0)))
+        assertEquals(SchemaNavigationTarget(2), schemaNavigationTarget(listOf("phases", "key")))
+        assertEquals(SchemaNavigationTarget(2), schemaNavigationTarget(listOf("@settings")))
+        assertEquals(SchemaNavigationTarget(1), schemaNavigationTarget(listOf("definitions")))
+    }
+
     private fun outline(text: String, base: (String) -> String = { it }) =
         schemaOutline(YamlIO.parse(text), listOf("root"), "ルート", base, emptyList())
 

@@ -14,6 +14,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
@@ -76,86 +78,27 @@ internal fun SchemaDesignWorkspace(
 ) {
     doc.version
     val ctx = FormCtx(state, doc, emptyList())
-    val document = state.documentOf(doc.file)
-    val section = (state.memory.schemaSection[document] ?: if (library) 1 else 0).let {
-        if (library && it == 0) 1 else it
-    }
-    val definitions = root.entries["definitions"] as? YNode.Map ?: remember(root) { YNode.Map() }
-    val choices = (definitions.entries.keys + state.schemas.filter { it.id != schema?.id }.flatMap { module ->
+    val definitions = root.entries["definitions"] as? YNode.Map
+    val choices = (definitions?.entries?.keys.orEmpty() + state.schemas.filter { it.id != schema?.id }.flatMap { module ->
         module.definitions.keys.map { "${module.id}#$it" }
     }).distinct().sorted()
-    // 検証からの移動では、該当する区画と定義を選んでから一覧の選択へ引き渡す。
-    LaunchedEffect(state.highlightPath) {
-        val target = state.highlightPath ?: return@LaunchedEffect
-        when (target.firstOrNull()) {
-            "root" -> if (!library) state.memory.schemaSection[document] = 0
-            "definitions" -> {
-                state.memory.schemaSection[document] = 1
-                (target.getOrNull(1) as? String)?.let { state.memory.schemaDefinition[document] = it }
-            }
-            else -> state.memory.schemaSection[document] = 2
-        }
-    }
-    val problemsPath = listOf("@schema-problems")
-    val problemsOpen = ctx.expanded(problemsPath, false)
-    Column(Modifier.fillMaxSize().background(Palette.EditorBg).padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf("項目構成", "名前付き定義", "基本設定").forEachIndexed { index, label ->
-                if (index != 0 || !library) FilterChip(selected = section == index,
-                    onClick = { state.memory.schemaSection[document] = index }, label = { Text(label, fontSize = 12.sp) },
-                    shape = PanelShape)
-            }
-            Spacer(Modifier.weight(1f))
-            if (problems.isNotEmpty()) TextButton(onClick = { ctx.setExpanded(problemsPath, !problemsOpen) }) {
-                Text("${if (problemsOpen) "▾" else "▸"} 確認 ${problems.size} 件", color = Palette.ErrorRed, fontSize = 12.sp)
-            }
-        }
-        if (problems.isNotEmpty() && problemsOpen) Column(
-            Modifier.fillMaxWidth().heightIn(max = 130.dp).verticalScroll(rememberScrollState()),
-        ) { problems.forEach { Text(it, fontSize = 11.sp, color = Palette.ErrorRed) } }
-        when (section) {
-            0 -> {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("ルートの項目構成", fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                    if (schema?.kind == SchemaKind.DOCUMENT && schema.derive == null) {
-                        SchemaEditButton(onAlign) { Text("文書を定義順へ整列…", fontSize = 12.sp) }
-                    }
-                }
-                SchemaStructureEditor(ctx, listOf("root"), "ルート", types, choices, onRename, onDelete)
-            }
-            1 -> {
-                val name = state.memory.schemaDefinition[document]?.takeIf { it in definitions.entries }
-                    ?: definitions.entries.keys.firstOrNull()
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // 定義の切替は閲覧専用でも許可する。
-                    if (name != null) CompositionLocalProvider(LocalSchemaReadOnly provides false) {
-                        ChoiceButton(name, definitions.entries.keys.toList()) { state.memory.schemaDefinition[document] = it }
-                    }
-                    Spacer(Modifier.weight(1f))
-                    AddDefinitionButton(definitions, doc) {
-                        root.entries["definitions"] = definitions
-                        state.memory.schemaDefinition[document] = it
-                    }
-                }
-                if (name == null) Text("再利用する型や構造を追加できます。項目の「型」または「定義参照」で選んで使います。",
-                    fontSize = 13.sp, color = Palette.SubText)
-                else SchemaStructureEditor(ctx, listOf("definitions", name), name, types, choices, null, null)
-            }
-            else -> SchemaScroll(Modifier.weight(1f).fillMaxWidth()) {
-                Text("基本設定", fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                CompactScalar(root, "id", "スキーマID", doc)
-                CompactScalar(root, "name", "スキーマ名", doc)
-                SchemaKindEditor(root, doc, library)
-                CompactMultilineScalar(root, "description", "説明", doc)
-                if (!library) {
-                    CompactScalar(root, "match", "適用パターン", doc)
-                    SchemaSettingsGroup(ctx, "phases", "フェーズ") { PhasesEditor(root, doc) }
-                    SchemaSettingsGroup(ctx, "coverage", "カバレッジ") { CoverageEditor(root, doc) }
-                    SchemaSettingsGroup(ctx, "entity", "エンティティ") { EntityEditor(root, doc) }
-                }
-            }
-        }
+    SchemaStructureEditor(ctx, root, library, schema, types, choices, problems, onRename, onDelete, onAlign)
+}
+
+@Composable
+private fun SchemaBasicSettings(ctx: FormCtx, root: YNode.Map, library: Boolean) {
+    val doc = ctx.doc
+    doc.version
+    Text("基本設定", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+    CompactScalar(root, "id", "スキーマID", doc)
+    CompactScalar(root, "name", "スキーマ名", doc)
+    SchemaKindEditor(root, doc, library)
+    CompactMultilineScalar(root, "description", "説明", doc)
+    if (!library) {
+        CompactScalar(root, "match", "適用パターン", doc)
+        SchemaSettingsGroup(ctx, "phases", "フェーズ") { PhasesEditor(root, doc) }
+        SchemaSettingsGroup(ctx, "coverage", "カバレッジ") { CoverageEditor(root, doc) }
+        SchemaSettingsGroup(ctx, "entity", "エンティティ") { EntityEditor(root, doc) }
     }
 }
 
@@ -176,31 +119,57 @@ internal fun SchemaPropertyGroup(ctx: FormCtx, path: YPath, title: String, conte
 
 @Composable
 private fun SchemaStructureEditor(
-    ctx: FormCtx, base: YPath, title: String, types: TypeChoices, definitions: List<String>,
-    onRename: ((List<String>) -> Unit)?, onDelete: ((List<String>) -> Unit)?,
+    ctx: FormCtx, root: YNode.Map, library: Boolean, schema: SchemaDef?, types: TypeChoices,
+    definitions: List<String>, problems: List<String>,
+    onRename: ((List<String>) -> Unit)?, onDelete: ((List<String>) -> Unit)?, onAlign: () -> Unit,
 ) {
     val doc = ctx.doc
     doc.version
     val memory = ctx.state.memory
-    val memoryKey = ctx.state.documentOf(doc.file) to base
-    val entries = schemaOutline(doc.root?.let { getAt(it, base) }, base, title, types::baseKindOf,
-        if (base == listOf("root")) emptyList() else null)
+    val document = ctx.state.documentOf(doc.file)
+    val named = root.entries["definitions"] as? YNode.Map ?: remember(root) { YNode.Map() }
+    val section = (memory.schemaSection[document] ?: if (library) 1 else 0).let { if (library && it == 0) 1 else it }
+    val name = memory.schemaDefinition[document]?.takeIf { it in named.entries } ?: named.entries.keys.firstOrNull()
+    val base: YPath = when (section) {
+        2 -> listOf("@settings")
+        1 -> listOf("definitions", name.orEmpty())
+        else -> listOf("root")
+    }
+    val groups = linkedMapOf<YPath, List<SchemaOutlineEntry>>()
+    if (!library) groups[listOf("root")] = schemaOutline(root.entries["root"], listOf("root"), "ルート", types::baseKindOf, emptyList())
+        .mapIndexed { i, entry -> if (i == 0) entry.copy(title = "ルート") else entry }
+    named.entries.forEach { (definition, node) ->
+        val path = listOf("definitions", definition)
+        groups[path] = schemaOutline(node, path, definition, types::baseKindOf)
+            .mapIndexed { i, entry -> if (i == 0) entry.copy(title = definition) else entry }
+    }
+    val entries = groups[base].orEmpty()
+    val memoryKey = document to base
     var previous by remember(base) { mutableStateOf<Pair<YPath, String?>?>(null) }
     val stored = memory.schemaSelection[memoryKey]
-    val selected = schemaSelectionAfterEdit(entries, stored, previous?.takeIf { it.first == stored }?.second)
+    val selected = entries.takeIf { it.isNotEmpty() }?.let {
+        schemaSelectionAfterEdit(it, stored, previous?.takeIf { it.first == stored }?.second)
+    }
     SideEffect {
-        memory.schemaSelection[memoryKey] = selected.path
-        previous = selected.path to (selected.node as? YNode.Map)?.let { scalar(it, "key") }
+        if (selected != null) {
+            memory.schemaSelection[memoryKey] = selected.path
+            previous = selected.path to (selected.node as? YNode.Map)?.let { scalar(it, "key") }
+        }
     }
     fun select(path: YPath) {
         previous = null
-        memory.schemaSelection[memoryKey] = path
-        entries.filter { it.path.size < path.size && path.take(it.path.size) == it.path }
-            .forEach { ctx.setExpanded(it.path, true) }
+        val target = schemaNavigationTarget(path)
+        memory.schemaSection[document] = target.section
+        target.definition?.let { memory.schemaDefinition[document] = it }
+        target.base?.let { selectedBase ->
+            memory.schemaSelection[document to selectedBase] = path
+            groups[selectedBase].orEmpty().filter { it.path.size < path.size && path.take(it.path.size) == it.path }
+                .forEach { ctx.setExpanded(it.path, true) }
+        }
+        memory.schemaNavigationOpen[document] = false
     }
-    LaunchedEffect(ctx.state.highlightPath, base) {
-        val target = ctx.state.highlightPath
-        if (target != null && target.take(base.size) == base) select(schemaOutlineSelection(entries, target).path)
+    LaunchedEffect(ctx.state.highlightPath) {
+        ctx.state.highlightPath?.let(::select)
     }
     var deleteTarget by remember(base) { mutableStateOf<SchemaOutlineEntry?>(null) }
     deleteTarget?.let { target ->
@@ -224,43 +193,78 @@ private fun SchemaStructureEditor(
         select(path + seq.items.lastIndex)
         ctx.markEdited()
     }
-    val outline: @Composable (Modifier) -> Unit = { modifier ->
+    val outline: @Composable (Modifier, Boolean) -> Unit = { modifier, narrow ->
         Column(modifier.background(Palette.PanelBg, PanelShape).border(1.dp, Palette.Border, PanelShape)) {
-            Text("構成 · ${entries.count { it.allowKey }} 項目", fontSize = 12.sp, color = Palette.SubText,
-                modifier = Modifier.padding(12.dp))
+            Row(Modifier.fillMaxWidth().height(40.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("構成", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                SchemaProblems(problems)
+                if (narrow) SchemaIconAction("構成を閉じる", Icons.Default.Close, true) {
+                    memory.schemaNavigationOpen[document] = false
+                }
+            }
             SchemaScroll(Modifier.weight(1f).fillMaxWidth(), padding = false) {
-                val visible = mutableSetOf<YPath>()
-                entries.forEach { entry ->
-                    val parent = entries.firstOrNull { it.path == entry.parent }
-                    if (parent == null || parent.path in visible && ctx.expanded(parent.path, parent.depth < 2)) {
-                        visible.add(entry.path)
-                        val children = entries.any { it.parent == entry.path }
-                        val requester = remember(entry.path) { BringIntoViewRequester() }
-                        LaunchedEffect(selected.path, entry.path) {
-                            if (selected.path == entry.path) requester.bringIntoView()
+                Text("基本設定", fontSize = 13.sp,
+                    modifier = Modifier.fillMaxWidth().background(if (section == 2) Palette.Selected else Palette.PanelBg)
+                        .selectable(section == 2, role = Role.RadioButton, onClick = { select(listOf("@settings")) })
+                        .padding(horizontal = 12.dp, vertical = 10.dp))
+                groups.forEach { (group, rows) ->
+                    if (group.firstOrNull() == "definitions" && group == groups.keys.firstOrNull { it.firstOrNull() == "definitions" }) {
+                        SchemaDefinitionsHeader(named, doc) { definition ->
+                            root.entries["definitions"] = named
+                            select(listOf("definitions", definition))
                         }
-                        Row(Modifier.fillMaxWidth().bringIntoViewRequester(requester).background(if (selected.path == entry.path) Palette.Selected else Palette.PanelBg)
-                            .selectable(selected.path == entry.path, role = Role.RadioButton, onClick = { select(entry.path) })
-                            .padding(start = (entry.depth * 12).coerceAtMost(48).dp, end = 8.dp).heightIn(min = 48.dp),
-                            verticalAlignment = Alignment.CenterVertically) {
-                            if (children) IconButton(onClick = { ctx.setExpanded(entry.path, !ctx.expanded(entry.path, entry.depth < 2)) },
-                                modifier = Modifier.size(32.dp)) {
-                                Icon(if (ctx.expanded(entry.path, entry.depth < 2)) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                    "${entry.title}の子項目を開閉", modifier = Modifier.size(18.dp))
-                            } else Spacer(Modifier.width(32.dp))
-                            Column(Modifier.weight(1f).padding(vertical = 6.dp)) {
-                                val key = (entry.node as? YNode.Map)?.let { scalar(it, "key") }
-                                Text(entry.title, fontSize = 13.sp, fontWeight = if (selected.path == entry.path) FontWeight.SemiBold else FontWeight.Normal,
-                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text(listOfNotNull(key?.takeIf { it != entry.title }, entry.type).joinToString(" · "),
-                                    fontSize = 11.sp, color = Palette.SubText, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    val visible = mutableSetOf<YPath>()
+                    rows.forEach { entry ->
+                        val parent = rows.firstOrNull { it.path == entry.parent }
+                        if (parent == null || parent.path in visible && ctx.expanded(parent.path, parent.path.firstOrNull() == "root" && parent.depth < 2 || parent.path == base)) {
+                            visible.add(entry.path)
+                            val children = rows.any { it.parent == entry.path }
+                            val requester = remember(entry.path) { BringIntoViewRequester() }
+                            LaunchedEffect(selected?.path, entry.path) {
+                                if (selected?.path == entry.path) requester.bringIntoView()
                             }
-                            val map = entry.node as? YNode.Map
-                            if ((map?.entries?.get("required") as? YNode.Scalar)?.value == true) {
-                                Text("必須", fontSize = 11.sp, color = Palette.Primary)
-                            } else if (map?.let { scalar(it, "requiredFrom") } != null) {
-                                Text("条件付", fontSize = 11.sp, color = Palette.SubText)
+                            Row(Modifier.fillMaxWidth().bringIntoViewRequester(requester).background(if (selected?.path == entry.path) Palette.Selected else Palette.PanelBg)
+                                .selectable(selected?.path == entry.path, role = Role.RadioButton, onClick = { select(entry.path) })
+                                .padding(start = (entry.depth * 12).coerceAtMost(48).dp, end = 8.dp).heightIn(min = 48.dp),
+                                verticalAlignment = Alignment.CenterVertically) {
+                                if (children) IconButton(onClick = { ctx.setExpanded(entry.path, !ctx.expanded(entry.path, entry.path.firstOrNull() == "root" && entry.depth < 2 || entry.path == base)) },
+                                    modifier = Modifier.size(32.dp)) {
+                                    Icon(if (ctx.expanded(entry.path, entry.path.firstOrNull() == "root" && entry.depth < 2 || entry.path == base)) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                        "${entry.title}の子項目を開閉", modifier = Modifier.size(18.dp))
+                                } else Spacer(Modifier.width(32.dp))
+                                Column(Modifier.weight(1f).padding(vertical = 6.dp)) {
+                                    val key = (entry.node as? YNode.Map)?.let { scalar(it, "key") }
+                                    Text(entry.title, fontSize = 13.sp, fontWeight = if (selected?.path == entry.path) FontWeight.SemiBold else FontWeight.Normal,
+                                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(listOfNotNull(key?.takeIf { it != entry.title }, entry.type).joinToString(" · "),
+                                        fontSize = 11.sp, color = Palette.SubText, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                                val map = entry.node as? YNode.Map
+                                if ((map?.entries?.get("required") as? YNode.Scalar)?.value == true) {
+                                    Text("必須", fontSize = 11.sp, color = Palette.Primary)
+                                } else if (map?.let { scalar(it, "requiredFrom") } != null) {
+                                    Text("条件付", fontSize = 11.sp, color = Palette.SubText)
+                                }
                             }
+                        }
+                    }
+                }
+                if (named.entries.isEmpty()) {
+                    SchemaDefinitionsHeader(named, doc) { definition ->
+                        root.entries["definitions"] = named
+                        select(listOf("definitions", definition))
+                    }
+                    Text("再利用する型や構造を追加できます", fontSize = 11.sp, color = Palette.SubText,
+                        modifier = Modifier.padding(12.dp))
+                }
+                if (schema?.kind == SchemaKind.DOCUMENT && schema.derive == null) {
+                    var menu by remember { mutableStateOf(false) }
+                    Box {
+                        TextButton(onClick = { menu = true }) { Text("スキーマ操作 ▾", fontSize = 12.sp) }
+                        DropdownMenu(menu, { menu = false }) {
+                            DropdownMenuItem(text = { Text("文書を定義順へ整列…") }, enabled = !ctx.readOnly,
+                                onClick = { menu = false; onAlign() })
                         }
                     }
                 }
@@ -269,18 +273,27 @@ private fun SchemaStructureEditor(
     }
     val detail: @Composable (Modifier) -> Unit = { modifier ->
         Column(modifier.background(Palette.Surface, PanelShape).border(1.dp, Palette.Border, PanelShape)) {
-            Column(Modifier.fillMaxWidth().padding(12.dp)) {
-                Text(selected.title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                Text(selected.path.pretty(), fontSize = 11.sp, color = Palette.SubText)
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            if (selected == null) {
+                SchemaScroll(Modifier.fillMaxSize()) {
+                    if (section == 2) SchemaBasicSettings(ctx, root, library)
+                    else Text("構成から名前付き定義を追加してください。", fontSize = 13.sp, color = Palette.SubText)
+                }
+            } else {
+                Row(Modifier.fillMaxWidth().heightIn(min = 44.dp).padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.weight(1f)) {
+                        UiTooltip(selected.path.pretty()) {
+                            Text(selected.title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
                     val map = selected.node as? YNode.Map
                     val canAdd = selected.caseGroup && selected.node is YNode.Seq ||
                         map != null && scalar(map, "\$ref") == null && types.baseKindOf(scalar(map, "type") ?: "string") == "object"
                     val fieldsValid = map?.entries?.get("fields").let { it == null || it is YNode.Seq }
                     if (canAdd && fieldsValid) SchemaEditButton(onClick = { addField(selected) }) {
-                        Icon(Icons.Default.Add, null, Modifier.size(16.dp)); Text("項目を追加", fontSize = 12.sp)
+                        Icon(Icons.Default.Add, null, Modifier.size(16.dp)); Text("追加", fontSize = 12.sp)
                     }
-                    Spacer(Modifier.weight(1f))
                     val seqPath = selected.path.dropLast(1)
                     val seq = doc.root?.let { getAt(it, seqPath) } as? YNode.Seq
                     val index = selected.path.lastOrNull() as? Int
@@ -309,40 +322,72 @@ private fun SchemaStructureEditor(
                         }
                     }
                 }
-            }
-            HorizontalDivider(color = Palette.Border)
-            key(selected.path) {
-                SchemaScroll(Modifier.weight(1f).fillMaxWidth()) {
-                    when {
-                        selected.node == null -> {
-                            Text("定義を追加すると、型と設定を編集できます。", fontSize = 13.sp, color = Palette.SubText)
-                            SchemaEditButton(onClick = {
-                                schemaSlot(doc.root, selected.path)?.set(YNode.Map(linkedMapOf("type" to YNode.Scalar(if (base == selected.path) "object" else "string"))))
-                                ctx.markEdited()
-                            }) { Text("定義を作成") }
+                HorizontalDivider(color = Palette.Border)
+                key(selected.path) {
+                    SchemaScroll(Modifier.weight(1f).fillMaxWidth()) {
+                        when {
+                            selected.node == null -> {
+                                Text("定義を追加すると、型と設定を編集できます。", fontSize = 13.sp, color = Palette.SubText)
+                                SchemaEditButton(onClick = {
+                                    schemaSlot(doc.root, selected.path)?.set(YNode.Map(linkedMapOf("type" to YNode.Scalar(if (base == selected.path) "object" else "string"))))
+                                    ctx.markEdited()
+                                }) { Text("定義を作成") }
+                            }
+                            selected.caseGroup -> Text("条件に合うときだけ使う項目です。上の「追加」から作成し、構成一覧で選んで編集します。", fontSize = 13.sp)
+                            selected.node is YNode.Map -> {
+                                FieldDefinitionEditor(selected.node, doc, definitions, selected.allowKey, ctx, selected.path,
+                                    definitionName = if (selected.path == base && base.firstOrNull() == "definitions") base.last() as? String else null)
+                                if (entries.any { it.parent == selected.path }) Text("子項目の設定は構成一覧で選択してください。",
+                                    fontSize = 11.sp, color = Palette.SubText, modifier = Modifier.padding(top = FormSpacing.GroupGap))
+                            }
+                            else -> Text("定義の形式を確認してください。「汎用フォーム」または「ソース」で修正できます。", color = Palette.ErrorRed, fontSize = 13.sp)
                         }
-                        selected.caseGroup -> Text("条件に合うときだけ使う項目です。上の「項目を追加」から作成し、構成一覧で選んで編集します。", fontSize = 13.sp)
-                        selected.node is YNode.Map -> {
-                            FieldDefinitionEditor(selected.node, doc, definitions, selected.allowKey, ctx, selected.path,
-                                definitionName = if (selected.path == base && base.firstOrNull() == "definitions") base.last() as? String else null)
-                            if (entries.any { it.parent == selected.path }) Text("子項目の設定は構成一覧で選択してください。",
-                                fontSize = 11.sp, color = Palette.SubText, modifier = Modifier.padding(top = FormSpacing.GroupGap))
-                        }
-                        else -> Text("定義の形式を確認してください。「フォーム」または「ソース」で修正できます。", color = Palette.ErrorRed, fontSize = 13.sp)
                     }
                 }
             }
         }
     }
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        val outlineWidth = (maxWidth * .34f).coerceAtMost(340.dp)
-        val outlineHeight = (maxHeight * .36f).coerceAtMost(240.dp)
-        if (maxWidth >= 680.dp) Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            outline(Modifier.width(outlineWidth).fillMaxHeight())
+    BoxWithConstraints(Modifier.fillMaxSize().padding(8.dp)) {
+        val outlineWidth = (maxWidth * .34f).coerceAtMost(320.dp)
+        if (maxWidth >= 680.dp) Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            outline(Modifier.width(outlineWidth).fillMaxHeight(), false)
             detail(Modifier.weight(1f).fillMaxHeight())
-        } else Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            outline(Modifier.fillMaxWidth().height(outlineHeight))
-            detail(Modifier.fillMaxWidth().weight(1f))
+        } else Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            val navigationOpen = memory.schemaNavigationOpen[document] ?: false
+            Row(Modifier.fillMaxWidth().height(36.dp), verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = { memory.schemaNavigationOpen[document] = !navigationOpen }, shape = PanelShape) {
+                    Icon(Icons.Default.AccountTree, null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(if (navigationOpen) "編集に戻る" else "構成を開く", fontSize = 12.sp)
+                }
+                Text(if (section == 2) "基本設定" else selected?.title ?: "名前付き定義", fontSize = 12.sp,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                if (!navigationOpen) SchemaProblems(problems)
+            }
+            if (navigationOpen) outline(Modifier.fillMaxWidth().weight(1f), true)
+            else detail(Modifier.fillMaxWidth().weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun SchemaDefinitionsHeader(named: YNode.Map, doc: OpenDocument, onAdded: (String) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("名前付き定義", fontSize = 11.sp, color = Palette.SubText, modifier = Modifier.weight(1f))
+        AddDefinitionButton(named, doc, compact = true, onAdded = onAdded)
+    }
+}
+
+@Composable
+private fun SchemaProblems(problems: List<String>) {
+    if (problems.isEmpty()) return
+    var open by remember { mutableStateOf(false) }
+    Box {
+        TextButton(onClick = { open = true }) { Text("確認 ${problems.size} 件", fontSize = 11.sp, color = Palette.ErrorRed) }
+        DropdownMenu(open, { open = false }) {
+            Column(Modifier.widthIn(max = 440.dp).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                problems.forEach { Text(it, fontSize = 12.sp, color = Palette.ErrorRed) }
+            }
         }
     }
 }
