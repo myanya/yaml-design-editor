@@ -106,12 +106,24 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 - 畳み込みサマリ: 畳んだ object は「ID タイトル（n 項目）」、array は「n 件: 先頭要素の要約, …」（`Display`）。既定はルートから 2 階層まで展開、以深は畳む（`FormCtx.defaultExpanded`。エンティティページの埋め込みフォームは要素基準の相対深さ）。モード切替でも展開状態を維持する。
 - 移動は必ずナビゲーション系メソッド（`openFile` / `navigateToPath` / `openCrossView` / `openViewGrid`）を通す。`highlightPath` / `crossViewId` / `viewGridId` を直接代入すると履歴に残らない。
 
+## 構成ツリーとフォーム表示
+
+- `StructuredForm` が選択項目・全体とツリー連動・全体のみの配置を共有する。`EditorChrome` の表示メニューは既存の編集方式の行に置き、縦の領域を増やさない。
+- 通常文書は `DocumentFormWorkspace`、スキーマ設計は `SchemaDesignWorkspace` が内容を渡す。幅が足りなければツリーと編集を切り替える。
+- `FormOutline` は原本パスの表示用射影で、型・条件付き項目・要約・ID は既存の `resolve`・`effectiveFields`・`Display` に委ねる。未作成値を表示のために作らない。
+- 文書ビューの順序・選別を反映し、同じ原本パスはツリーに一度だけ載せる。配列の選択はノード同一性で追随し、Undo による置換時は一意な解決済み ID を使う。
+- 表示方式・選択・ツリーの畳みは `ScreenMemory.formNavigation` に文書と設計／通常フォームの組で保持する。フォームの畳みとは独立し、改名・削除・ワークスペース切替に追随する。
+- `FormAnchor` と `FormPositions` の座標は表示中だけ保持する。ツリー選択は祖先と行詳細を開いて見出しへ移動し、手動スクロールは上端付近の最も深い項目を選ぶ。
+- 移動要求によるスクロール中は逆方向の追従を止める。ツリーの追従では選択対象の祖先を開き、選択行を可視範囲へ入れる。
+- `FormFoldHeader`・`FormFold` が折り畳みの見出しと字下げを揃える。入力は既存の `FieldRow`・`Slot`・`FormCtx` を再利用する。
+- Calculus 上は既存 Term の表示射影と位置選択に限る。Query・Expression・Predicate・Aggregate の意味、Rewrite の書込経路、Construct の生成規則は追加しない。
+
 ## スキーマ設計
 
 - `SchemaDesignWorkspace` は基本設定・ルート・名前付き定義を一つの構成ペインに集め、詳細と横並びにする。狭い領域では構成と詳細を切り替え、項目選択時に詳細へ戻す。
 - `SchemaOutline` は生の宣言を表示用に射影する。意味解決や参照の展開は行わず、名前付き型の基底は既存の `TypeChoices` を利用する。
 - ルート・配列要素・マップ値・条件付き項目を同じ選択モデルで扱う。選択は YAML パスで保持し、移動操作では追随、ソース編集等で消えた場合は存在する親へ戻す。
-- 区画・定義・選択位置・狭い幅での構成の開閉は `ScreenMemory` に置き、文書の改名・削除・ワークスペース切替に追随する。開閉は `FormCtx` を通す。
+- 区画・定義・選択位置は `ScreenMemory` に置く。構成の開閉は共通のナビゲーション状態、設定群の折り畳みは `FormCtx` を通す。
 - 構造編集は `FormCtx`・既存の `Slot` と編集通知を使い、一括変更は既存のリファクタリング計画へ渡す。新しい評価器・保存経路・スキーマ語彙は持たない。
 - 設定入力は共通の `CompactTextField`・`FormFieldLayout`・`Palette`・`FormSpacing` を利用し、閲覧専用状態を入力欄と編集操作へ伝える。
 

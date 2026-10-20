@@ -156,8 +156,7 @@ private fun SchemaProblem(message: String) {
 @Composable
 internal fun SchemaKindEditor(map: YNode.Map, doc: OpenDocument, library: Boolean) {
     var confirmLibrary by remember { mutableStateOf(false) }
-    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text("スキーマ種別", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+    SchemaSettingRow("スキーマ種別") {
         ChoiceButton(if (library) "library" else "document", listOf("document", "library")) { selected ->
             when {
                 selected == "library" && !library -> confirmLibrary = true
@@ -270,11 +269,11 @@ internal fun CompactScalar(map: YNode.Map, key: String, label: String, doc: Open
     doc.version  // 可変の木を読む子自身でも購読し、入力欄へ最新値を渡す。
     val value = (map.entries[key] as? YNode.Scalar)?.value?.toString().orEmpty()
     FormFieldLayout(modifier = Modifier.padding(vertical = FormSpacing.FieldGap), label = {
-        Text(label, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+        Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 8.dp))
     }) {
         // 連続入力は履歴1エントリへ合体（UX-11。キー=対象Map×キー名）
         SchemaTextField(value, { map.entries[key] = YNode.Scalar(it); doc.markEdited(coalesceWith = map to key) },
-            singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
+            singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp),
             modifier = Modifier.fillMaxWidth())
     }
 }
@@ -288,7 +287,7 @@ private fun CompactNumberScalar(map: YNode.Map, key: String, label: String, doc:
     doc.version
     val value = (map.entries[key] as? YNode.Scalar)?.value?.toString().orEmpty()
     FormFieldLayout(modifier = Modifier.padding(vertical = FormSpacing.FieldGap), label = {
-        Text(label, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+        Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 8.dp))
     }) {
         SchemaTextField(value, { raw ->
             if (raw.isBlank()) map.entries.remove(key) else {
@@ -296,7 +295,7 @@ private fun CompactNumberScalar(map: YNode.Map, key: String, label: String, doc:
                 map.entries[key] = YNode.Scalar(typed)
             }
             doc.markEdited(coalesceWith = map to key)
-        }, singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
+        }, singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp),
             placeholder = { Text("未設定") },
             modifier = Modifier.fillMaxWidth())
     }
@@ -308,12 +307,12 @@ private fun CompactOptionalScalar(map: YNode.Map, key: String, label: String, hi
     doc.version
     val value = (map.entries[key] as? YNode.Scalar)?.value?.toString().orEmpty()
     FormFieldLayout(modifier = Modifier.padding(vertical = FormSpacing.FieldGap), label = {
-        Text(label, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+        Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 8.dp))
     }) {
         SchemaTextField(value, {
             if (it.isBlank()) map.entries.remove(key) else map.entries[key] = YNode.Scalar(it)
             doc.markEdited(coalesceWith = map to key)
-        }, singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
+        }, singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp),
             placeholder = { Text(hint) },
             modifier = Modifier.fillMaxWidth())
     }
@@ -324,13 +323,13 @@ internal fun CompactMultilineScalar(map: YNode.Map, key: String, label: String, 
     doc.version
     val value = (map.entries[key] as? YNode.Scalar)?.value?.toString().orEmpty()
     FormFieldLayout(modifier = Modifier.padding(vertical = FormSpacing.FieldGap), label = {
-        Text(label, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+        Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 8.dp))
     }) {
         SchemaTextField(
             value = value,
             onValueChange = { map.entries[key] = YNode.Scalar(it); doc.markEdited(coalesceWith = map to key) },
             singleLine = false,
-            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
+            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp),
             modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp),
         )
     }
@@ -380,8 +379,7 @@ private const val DEFINITION_KIND_STRUCTURE = "オブジェクト型（object）
 private fun ObjectEntityEditor(map: YNode.Map, doc: OpenDocument, definitionName: String?) {
     doc.version
     val entity = map.entries["entity"] as? YNode.Map
-    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text("同一性（entity）", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+    SchemaSettingRow("同一性（entity）") {
         SchemaCheckbox(entity != null, { on ->
             if (on) map.entries["entity"] = YNode.Map() else map.entries.remove("entity")
             doc.markEdited()
@@ -449,8 +447,7 @@ internal fun FieldDefinitionEditor(
             } }, dismissButton = { TextButton(onClick = { pendingType = null }) { Text("キャンセル") } })
     }
     if (ref == null) {
-        Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("型", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+        SchemaSettingRow("型") {
             ChoiceButton(currentTypeId, FieldType.entries.map { it.id } + types.names) {
                 if (it != currentTypeId) {
                     if (removedByType(it).isEmpty()) changeType(it) else pendingType = it
@@ -462,8 +459,7 @@ internal fun FieldDefinitionEditor(
             }
         }
     }
-    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text("定義参照", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+    SchemaSettingRow("定義参照") {
         ChoiceButton(ref?.let { "\$$it" } ?: "使用しない",
             listOf("使用しない") + definitions.map { "\$$it" }) { choice ->
             if (choice == "使用しない") map.entries.remove("\$ref")
@@ -484,8 +480,7 @@ internal fun FieldDefinitionEditor(
         if (allowKey) CompactScalar(map, "requiredFrom", "必須になるフェーズ（requiredFrom）", doc)
         // role: 表示役割（R10-01）。畳み込みヘッダ・参照候補・一覧などの表示解決でこのフィールドの値が使われる
         if (allowKey) {
-            Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("表示役割（role）", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+            SchemaSettingRow("表示役割（role）") {
                 ChoiceButton(scalar(map, "role") ?: "（なし）", listOf("（なし）", "title", "subtitle")) {
                     if (it == "（なし）") map.entries.remove("role") else map.entries["role"] = YNode.Scalar(it)
                     doc.markEdited()
@@ -498,8 +493,7 @@ internal fun FieldDefinitionEditor(
     if (ref != null) return
     when (types.baseKindOf(currentTypeId)) {
         "object" -> {
-            Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("スキーマ外項目", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+            SchemaSettingRow("スキーマ外項目") {
                 ChoiceButton(scalar(map, "unknownFields") ?: "warning", listOf("allow", "warning", "error")) {
                     if (it == "warning") map.entries.remove("unknownFields")
                     else map.entries["unknownFields"] = YNode.Scalar(it)
@@ -535,8 +529,7 @@ internal fun FieldDefinitionEditor(
             CompactNumberScalar(map, "maxLength", "最大文字数", doc, integer = true)
             // 複数行の編集（display: multiline）と行数（rows）。組込みの型 text は既にこれを持つ（型から引き継ぐ）
             val multiline = scalar(map, "display") == "multiline"
-            Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("複数行で編集", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+            SchemaSettingRow("複数行で編集") {
                 SchemaCheckbox(multiline, {
                     if (it) map.entries["display"] = YNode.Scalar("multiline") else { map.entries.remove("display"); map.entries.remove("rows") }
                     doc.markEdited()
@@ -578,8 +571,7 @@ private fun AutoValueChooser(map: YNode.Map, choices: List<AutoValue>, hint: Str
     doc.version
     val none = "（なし）"
     val current = scalar(map, "auto")?.let { raw -> AutoValue.parse(raw)?.let { "${it.id}（${it.label}）" } ?: raw } ?: none
-    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text("自動で入る値（auto）", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+    SchemaSettingRow("自動で入る値（auto）") {
         ChoiceButton(current, listOf(none) + choices.map { "${it.id}（${it.label}）" }) { picked ->
             val chosen = choices.firstOrNull { picked.startsWith(it.id) }
             if (chosen == null) map.entries.remove("auto") else map.entries["auto"] = YNode.Scalar(chosen.id)
@@ -600,8 +592,7 @@ private val HINT_KINDS = setOf(
 @Composable
 private fun DisplayHintRow(map: YNode.Map, doc: OpenDocument) {
     doc.version
-    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text("一覧の表示形式", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+    SchemaSettingRow("一覧の表示形式") {
         ChoiceButton(scalar(map, "display") ?: "（自動）", listOf("（自動）", "table", "list")) {
             if (it == "（自動）") map.entries.remove("display") else map.entries["display"] = YNode.Scalar(it)
             doc.markEdited()
@@ -651,15 +642,13 @@ internal fun PhasesEditor(root: YNode.Map, doc: OpenDocument) {
             "key" to YNode.Scalar(currentKey),
             "order" to YNode.Seq(currentOrder.map { YNode.Scalar(it) }.toMutableList()),
         )).also { root.entries["phases"] = it }
-    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text("申告キー", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+    SchemaSettingRow("申告キー") {
         SchemaTextField(currentKey, { raw ->
             normalized().entries["key"] = YNode.Scalar(raw)
             doc.markEdited()
         }, singleLine = true, modifier = Modifier.weight(1f))
     }
-    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text("フェーズ順序", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+    SchemaSettingRow("フェーズ順序") {
         SchemaTextField(currentOrder.joinToString(", "), { raw ->
             normalized().entries["order"] = YNode.Seq(
                 raw.split(',').map { YNode.Scalar(it.trim()) }.filter { it.value.toString().isNotBlank() }.toMutableList()
@@ -720,8 +709,7 @@ internal fun EntityEditor(root: YNode.Map, doc: OpenDocument) {
             // ID の型（P33）: definitions の id を狭めた型の名前で ID を判別する（idPattern と併用すれば両方に合う ID）
             val types = LocalTypeChoices.current
             val idTypes = types.names.filter { types.baseKindOf(it) == FieldType.ID.id }
-            Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("IDの型（idType）", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+            SchemaSettingRow("IDの型（idType）") {
                 val current = scalar(decl, "idType") ?: "（なし）"
                 ChoiceButton(current, listOf("（なし）") + (idTypes + listOfNotNull(scalar(decl, "idType"))).distinct()) {
                     if (it == "（なし）") decl.entries.remove("idType") else decl.entries["idType"] = YNode.Scalar(it)
@@ -796,8 +784,7 @@ internal fun CoverageEditor(root: YNode.Map, doc: OpenDocument) {
             val detail = rule.entries["detailIn"] as? YNode.Map ?: remember(rule) { YNode.Map() }
             StringListEditor(detail, "schemaIds", "出現先スキーマID", "screen-detail", doc) { rule.entries["detailIn"] = detail }
             CoverageMinCount(detail, doc) { rule.entries["detailIn"] = detail }
-            Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("重大度", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+            SchemaSettingRow("重大度") {
                 ChoiceButton(scalar(rule, "level") ?: "warning", listOf("warning", "error")) {
                     if (it == "warning") rule.entries.remove("level") else rule.entries["level"] = YNode.Scalar(it)
                     doc.markEdited()
@@ -821,8 +808,7 @@ internal fun CoverageEditor(root: YNode.Map, doc: OpenDocument) {
 private fun CoverageMinCount(map: YNode.Map, doc: OpenDocument, attach: () -> Unit) {
     doc.version
     val value = (map.entries["minCount"] as? YNode.Scalar)?.value?.toString().orEmpty()
-    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text("必要数（minCount）", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+    SchemaSettingRow("必要数（minCount）") {
         SchemaTextField(value, { raw ->
             attach()
             val n = raw.trim().toLongOrNull()
@@ -863,8 +849,7 @@ private fun enumValueStrings(map: YNode.Map): List<String> =
 @Composable
 private fun EnumOptionListEditor(map: YNode.Map, doc: OpenDocument) {
     doc.version  // 選択肢の追加・削除の即時反映（CONVENTIONS §2 / UX-24）
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("選択肢", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+    SchemaSettingRow("選択肢") {
         SchemaEditButton(onClick = {
             ensureSeq(map, "values", doc, mark = false).items.add(YNode.Scalar(""))
             doc.markEdited()
@@ -916,8 +901,7 @@ private fun EnumValuesEditor(map: YNode.Map, doc: OpenDocument) {
     EnumOptionListEditor(map, doc)
     val values = enumValueStrings(map)
     // 初期値は選択肢のすぐ下に置き、宣言済みの値から選ぶ（UX-84。cases の下だと遠く、自由入力だと選択肢とずれる）
-    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text("初期値", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+    SchemaSettingRow("初期値") {
         ChoiceButton(scalar(map, "default") ?: "（未設定）", listOf("（未設定）") + values) {
             if (it == "（未設定）") map.entries.remove("default") else map.entries["default"] = YNode.Scalar(it)
             doc.markEdited()
@@ -966,7 +950,7 @@ private fun StringListEditor(map: YNode.Map, key: String, label: String, hint: S
     val seq = map.entries[key] as? YNode.Seq
     val value = seq?.items?.mapNotNull { (it as? YNode.Scalar)?.value?.toString() }?.joinToString(", ").orEmpty()
     FormFieldLayout(modifier = Modifier.padding(vertical = FormSpacing.FieldGap), label = {
-        Text(label, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+        Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 8.dp))
     }) {
         SchemaTextField(value, { raw ->
             attach()
@@ -980,8 +964,7 @@ private fun StringListEditor(map: YNode.Map, key: String, label: String, hint: S
 private fun DefaultValueEditor(map: YNode.Map, type: String, doc: OpenDocument) {
     doc.version
     val value = (map.entries["default"] as? YNode.Scalar)?.value?.toString().orEmpty()
-    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text("初期値", fontSize = 12.sp, modifier = Modifier.width(140.dp))
+    SchemaSettingRow("初期値") {
         SchemaTextField(value, { raw ->
             if (raw.isEmpty()) map.entries.remove("default") else {
                 val typed: Any = when (type) {
@@ -1151,3 +1134,15 @@ private fun ensureMap(parent: YNode.Map, key: String, doc: OpenDocument, mark: B
 private fun ensureSeq(parent: YNode.Map, key: String, doc: OpenDocument, mark: Boolean): YNode.Seq =
     (parent.entries[key] as? YNode.Seq) ?: YNode.Seq().also { parent.entries[key] = it; if (mark) doc.markEdited() }
 internal fun newFieldMap(type: String) = YNode.Map(linkedMapOf<String, YNode>("key" to YNode.Scalar(""), "type" to YNode.Scalar(type)))
+
+/** 選択欄・チェックボックスも文字入力と同じラベル列と縦配置の境界を使う。 */
+@Composable
+private fun SchemaSettingRow(label: String, content: @Composable FlowRowScope.() -> Unit) {
+    FormFieldLayout(Modifier.padding(vertical = FormSpacing.FieldGap), label = {
+        Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 8.dp))
+    }) {
+        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp), itemVerticalAlignment = Alignment.CenterVertically,
+            content = content)
+    }
+}

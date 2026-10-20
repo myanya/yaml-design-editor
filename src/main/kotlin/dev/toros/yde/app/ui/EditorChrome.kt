@@ -112,6 +112,9 @@ internal fun EditorModeBar(state: AppState, doc: OpenDocument, schemaDocument: B
         EditorModeButton("ソース", tab == 1) { state.editorTab = 1 }
         EditorModeButton("差分", tab == 2) { state.editorTab = 2 }
         Spacer(Modifier.weight(1f))
+        if (tab == 0 && (!schemaDocument || schemaMode == 0) || tab == 3) {
+            FormDisplayMenu(state.memory.navigation(document, schemaDocument && tab == 0))
+        }
         if (schemaDocument) {
             val auxiliary = when {
                 tab == 3 -> "汎用フォーム"

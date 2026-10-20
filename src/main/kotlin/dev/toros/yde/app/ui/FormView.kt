@@ -300,28 +300,7 @@ fun FormView(state: AppState, doc: OpenDocument) {
         FormCtx(state, doc, localIds, attachments = attachments, issues = fieldIssues)
     }
 
-    Box(Modifier.fillMaxSize()) {
-        val scroll = rememberScrollState()
-        Column(
-            Modifier.fillMaxSize().verticalScroll(scroll).padding(horizontal = 24.dp, vertical = 16.dp)
-        ) {
-            if (!state.relPath(doc.file).startsWith("_schemas/") && root is YNode.Map) {
-                DocumentMetadataEditor(ctx, root)
-                SameIdOccurrencesStrip(ctx, localIds)
-                Spacer(Modifier.height(FormSpacing.GroupGap))
-            }
-            if (docView != null && root is YNode.Map) {
-                DocViewSections(ctx, docView, root, localIds)
-            } else {
-                SchemaRootForm(ctx, root)
-            }
-            Spacer(Modifier.height(80.dp))
-        }
-        VerticalScrollbar(
-            adapter = rememberScrollbarAdapter(scroll),
-            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
-        )
-    }
+    DocumentFormWorkspace(ctx, root, docView, localIds)
 }
 
 /** `_document` のうち、人とLLMが文書を把握するための表示メタデータを編集する。 */
@@ -336,7 +315,7 @@ private class DocumentMetadataSlot(private val root: YNode.Map, private val key:
 }
 
 @Composable
-private fun DocumentMetadataEditor(ctx: FormCtx, root: YNode.Map) {
+internal fun DocumentMetadataEditor(ctx: FormCtx, root: YNode.Map) {
     val nameSlot = DocumentMetadataSlot(root, "name")
     val descriptionSlot = DocumentMetadataSlot(root, "description")
     if (ctx.readOnly) {
@@ -347,48 +326,46 @@ private fun DocumentMetadataEditor(ctx: FormCtx, root: YNode.Map) {
         Column(
             Modifier.fillMaxWidth().padding(bottom = 12.dp),
         ) {
-            if (name.isNotBlank()) Text(name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-            if (description.isNotBlank()) MarkdownView(description, compact = true)
+            if (name.isNotBlank()) FormAnchor(listOf("_document", "name")) { Text(name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold) }
+            if (description.isNotBlank()) FormAnchor(listOf("_document", "description")) { MarkdownView(description, compact = true) }
         }
         return
     }
     val path = listOf("_document")
     val expanded = ctx.expanded(path, default = false)
     Column(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-        TextButton(shape = PanelShape, onClick = { ctx.setExpanded(path, !expanded) },
-            contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp)) {
-            Icon(if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                contentDescription = null, Modifier.size(18.dp))
-            Spacer(Modifier.width(6.dp))
-            Text("文書情報 · 名前と概要", fontSize = 12.sp, color = Palette.SubText)
-        }
+        FormFoldHeader("文書情報 · 名前と概要", expanded) { ctx.setExpanded(path, !expanded) }
         if (!expanded) return@Column
         Spacer(Modifier.height(8.dp))
-        FormFieldLayout(labelWidth = 136.dp, label = {
-            Text("文書名", fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 9.dp))
-        }) {
-            CompactTextField(
-                value = (nameSlot.get() as? YNode.Scalar)?.value?.toString().orEmpty(),
-                onValueChange = { ctx.setScalar(nameSlot, it, FieldType.STRING) },
-                singleLine = true,
-                placeholder = { Text("この文書を表す名前") },
-                modifier = Modifier.fillMaxWidth(),
-            )
+        FormAnchor(path + "name") {
+            FormFieldLayout(label = {
+                Text("文書名", fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 9.dp))
+            }) {
+                CompactTextField(
+                    value = (nameSlot.get() as? YNode.Scalar)?.value?.toString().orEmpty(),
+                    onValueChange = { ctx.setScalar(nameSlot, it, FieldType.STRING) },
+                    singleLine = true,
+                    placeholder = { Text("この文書を表す名前") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
         Spacer(Modifier.height(6.dp))
-        FormFieldLayout(labelWidth = 136.dp, label = {
-            Column(Modifier.padding(top = 9.dp, end = 8.dp)) {
-                Text("概要", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                Text("文書を開かずに内容を判断できる要約", fontSize = 11.sp, color = Palette.SubText)
+        FormAnchor(path + "description") {
+            FormFieldLayout(label = {
+                Column(Modifier.padding(top = 9.dp, end = 8.dp)) {
+                    Text("概要", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text("文書を開かずに内容を判断できる要約", fontSize = 11.sp, color = Palette.SubText)
+                }
+            }) {
+                CompactTextField(
+                    value = (descriptionSlot.get() as? YNode.Scalar)?.value?.toString().orEmpty(),
+                    onValueChange = { ctx.setScalar(descriptionSlot, it, FieldType.STRING) },
+                    placeholder = { Text("この文書が何を示し、何を含むかを簡潔に記述") },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 84.dp),
+                )
             }
-        }) {
-            CompactTextField(
-                value = (descriptionSlot.get() as? YNode.Scalar)?.value?.toString().orEmpty(),
-                onValueChange = { ctx.setScalar(descriptionSlot, it, FieldType.STRING) },
-                placeholder = { Text("この文書が何を示し、何を含むかを簡潔に記述") },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 84.dp),
-            )
         }
     }
 }
@@ -400,7 +377,7 @@ private fun DocumentMetadataEditor(ctx: FormCtx, root: YNode.Map) {
  * 重複記載しなくても、編集中に文脈を参照できるようにする。
  */
 @Composable
-private fun SameIdOccurrencesStrip(ctx: FormCtx, localIds: List<IdEntry>) {
+internal fun SameIdOccurrencesStrip(ctx: FormCtx, localIds: List<IdEntry>) {
     val state = ctx.state
     state.indexVersion
     val rootId = localIds.firstOrNull { it.path.isEmpty() }?.id ?: return
@@ -464,7 +441,7 @@ private fun SameIdOccurrencesStrip(ctx: FormCtx, localIds: List<IdEntry>) {
 
 /** スキーマ駆動フォームのルート描画。文書ビューがない文書の既定表示＝暗黙の既定ビュー。 */
 @Composable
-private fun SchemaRootForm(
+internal fun SchemaRootForm(
     ctx: FormCtx,
     root: YNode,
     include: List<String>? = null,
@@ -494,7 +471,7 @@ private fun SchemaRootForm(
  * backlinks セクションは読み取り専用の被参照表を出す——ビュー専用の書込経路は作らない（architecture/views.md「ビュー機構」）。
  */
 @Composable
-private fun DocViewSections(ctx: FormCtx, view: DocViewDef, root: YNode.Map, localIds: List<IdEntry>) {
+internal fun DocViewSections(ctx: FormCtx, view: DocViewDef, root: YNode.Map, localIds: List<IdEntry>) {
     val state = ctx.state
     val doc = ctx.doc
     // 行（文書内ID）は未保存編集を反映（localIds）、被参照は索引＝保存済み状態基準（SidePanel と同じ）
@@ -507,39 +484,41 @@ private fun DocViewSections(ctx: FormCtx, view: DocViewDef, root: YNode.Map, loc
     }
     resolved.forEachIndexed { i, sectionResolved ->
         val section = sectionResolved.section
-        if (i > 0) Spacer(Modifier.height(12.dp))
-        section.label?.let {
-            Text(it, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Palette.Primary)
-            Spacer(Modifier.height(4.dp))
-        }
-        val fieldsPath = section.fieldsPath
-        if (fieldsPath != null) {
-            val include = section.fieldsInclude.ifEmpty { null }
-            val exclude = section.fieldsExclude.toSet()
-            if (fieldsPath.isEmpty()) {
-                SchemaRootForm(ctx, root, include, exclude)
-            } else {
-                val field = doc.schema?.let { Views.fieldAt(it, root, fieldsPath) }
-                val slot = slotAt(root, fieldsPath)
-                val node = getAt(root, fieldsPath)
-                when {
-                    slot == null -> Text(
-                        "パス「${fieldsPath.pretty()}」は文書内に存在しません",
-                        fontSize = 11.sp, color = Palette.WarnOrange,
-                    )
-                    // 選別指定つきの object パスは、そのオブジェクトの子フィールドを直接（選別して）描画する
-                    (include != null || exclude.isNotEmpty()) &&
-                        field?.type == FieldType.OBJECT && node is YNode.Map ->
-                        ObjectFields(ctx, field.fields, node, fieldsPath, include, exclude)
-                    field != null -> FieldRow(ctx, field, slot, fieldsPath)
-                    else -> GenericEditor(ctx, slot, fieldsPath, refHint = false)
-                }
+        FormAnchor(section.fieldsPath ?: listOf("@view", i)) { Column(Modifier.fillMaxWidth()) {
+            if (i > 0) Spacer(Modifier.height(12.dp))
+            section.label?.let {
+                Text(it, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Palette.Primary)
+                Spacer(Modifier.height(4.dp))
             }
-        } else {
-            val flowView = section.flowView
-            if (flowView != null) EmbeddedFlowPane(state, doc, flowView)
-            else BacklinkSectionTable(state, sectionResolved)
-        }
+            val fieldsPath = section.fieldsPath
+            if (fieldsPath != null) {
+                val include = section.fieldsInclude.ifEmpty { null }
+                val exclude = section.fieldsExclude.toSet()
+                if (fieldsPath.isEmpty()) {
+                    SchemaRootForm(ctx, root, include, exclude)
+                } else {
+                    val field = doc.schema?.let { Views.fieldAt(it, root, fieldsPath) }
+                    val slot = slotAt(root, fieldsPath)
+                    val node = getAt(root, fieldsPath)
+                    when {
+                        slot == null -> Text(
+                            "パス「${fieldsPath.pretty()}」は文書内に存在しません",
+                            fontSize = 11.sp, color = Palette.WarnOrange,
+                        )
+                        // 選別指定つきの object パスは、そのオブジェクトの子フィールドを直接（選別して）描画する
+                        (include != null || exclude.isNotEmpty()) &&
+                            field?.type == FieldType.OBJECT && node is YNode.Map ->
+                            ObjectFields(ctx, field.fields, node, fieldsPath, include, exclude)
+                        field != null -> FieldRow(ctx, field, slot, fieldsPath)
+                        else -> GenericEditor(ctx, slot, fieldsPath, refHint = false)
+                    }
+                }
+            } else {
+                val flowView = section.flowView
+                if (flowView != null) EmbeddedFlowPane(state, doc, flowView)
+                else BacklinkSectionTable(state, sectionResolved)
+            }
+        } }
     }
 }
 
@@ -691,7 +670,7 @@ private val LocalFormIndent = staticCompositionLocalOf { 0.dp }
 
 /** 深い構造でも入力幅を残し、境界は控えめな縦線で示す。 */
 @Composable
-private fun FormGroup(nested: Boolean, content: @Composable ColumnScope.() -> Unit) {
+internal fun FormGroup(nested: Boolean, content: @Composable ColumnScope.() -> Unit) {
     val used = LocalFormIndent.current
     val indent = if (nested) (FormSpacing.MaxIndent - used).coerceIn(0.dp, FormSpacing.Indent) else 0.dp
     val guide = Palette.Border
@@ -1494,9 +1473,7 @@ private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) 
     val columns = Display.tableColumns(ctx.doc.schema, field)
     val tabular = columns != null && node.items.isNotEmpty() && node.items.all { it is YNode.Map }
     FormGroup(nested = path.isNotEmpty()) {
-        TextButton(shape = PanelShape, onClick = { ctx.setExpanded(path, !expanded) }, contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp)) {
-            Text((if (expanded) "▼ " else "▶ ") + header, fontSize = 12.sp, color = Palette.SubText, maxLines = 1)
-        }
+        FormFoldHeader(header, expanded) { ctx.setExpanded(path, !expanded) }
         if (expanded) {
         if (tabular) {
             ArrayTable(ctx, field, columns.orEmpty(), node, path)
@@ -1942,9 +1919,7 @@ private fun NestedObjectEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: 
     // 畳み込みサマリ（R10-02 / UX-71）: 「ID タイトル — サブタイトル（n項目）」。タイトルは索引から借用
     val header = Display.headerText(node, ctx.doc.schema, field, titleLookup = ctx.indexTitleLookup())
     FormGroup(nested = path.isNotEmpty()) {
-        TextButton(shape = PanelShape, onClick = { ctx.setExpanded(path, !expanded) }, contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp)) {
-            Text((if (expanded) "▼ " else "▶ ") + header, fontSize = 12.sp, color = Palette.SubText, maxLines = 1)
-        }
+        FormFoldHeader(header, expanded) { ctx.setExpanded(path, !expanded) }
         if (expanded) ObjectFields(ctx, field.fields, node, path)
     }
 }
@@ -1975,9 +1950,7 @@ private fun MapEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
     val columns = Display.tableColumns(ctx.doc.schema, field)
     val tabular = columns != null && node.entries.isNotEmpty() && node.entries.values.all { it is YNode.Map }
     FormGroup(nested = path.isNotEmpty()) {
-        TextButton(shape = PanelShape, onClick = { ctx.setExpanded(path, !expanded) }, contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp)) {
-            Text(if (expanded) "▼ ${node.entries.size} 件" else "▶ ${node.entries.size} 件", fontSize = 11.sp, color = Palette.SubText)
-        }
+        FormFoldHeader("${node.entries.size} 件", expanded) { ctx.setExpanded(path, !expanded) }
         if (expanded) {
             if (tabular) {
                 MapTable(ctx, field, columns.orEmpty(), node, path)

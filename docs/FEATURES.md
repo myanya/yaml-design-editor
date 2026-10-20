@@ -33,6 +33,7 @@
 | ID | 機能 | 主な実装 | テスト | 設計 |
 |---|---|---|---|---|
 | E-18 | フォームの複合値は全幅配置と上限付き字下げ・単一値は幅に応じた配置・文書情報と他文書の定義は開閉可能 | `ui/FormLayout.kt`, `ui/FormView.kt` | 単体 `FormLayoutTest`, `ScreenMemoryTest`・画面は手動 | [ui](architecture/ui.md) |
+| E-20 | フォームの構成ツリーと三つの表示方式（選択項目・全体連動・全体のみ） | `ui/StructuredForm.kt`, `ui/DocumentFormWorkspace.kt` | `FormOutlineTest`, `ScreenMemoryTest`・画面は手動 | [ui](architecture/ui.md) |
 | E-19 | 項目説明の短い表示・ホバーで全文・説明ボタンで固定（編集・閲覧共通） | `ui/FieldHelp.kt` | 単体 `FieldHelpPositionTest`・画面は手動 | [ui](architecture/ui.md) |
 | E-01 | スキーマ駆動フォーム（基底の種類別の編集欄・型から引き継ぐヒント＝複数行と入力欄の案内と表示の形 `format`・必須マーク・説明は Markdown・折りたたみ・id 型は既存 ID の補完と連番の提案と横ぐしへの直行・int / number の桁区切り表示 `display: grouped`・残留値の修復 UI） | `ui/FormView.kt`（`IdEditor`）, `schema/IdSuggest.kt` | 単体 `IdSuggestTest` | [ui](architecture/ui.md) |
 | E-15 | 日付・時刻・日時のピッカー（入力欄の右のボタンからポップアップにカレンダーと時刻入力・日付はクリックで即反映・値は正準の文字列のまま） | `ui/TemporalEditor.kt`（`TemporalPick`, `TemporalPickerButton`） | 単体 `TemporalPickTest` | [ui](architecture/ui.md) |
@@ -63,7 +64,7 @@
 | S-02 | 型システム: 基底の種類 14 種（表現の基底 9＋意味の基底型 `id` / `ref` / `date` / `time` / `datetime`。存在の検証）＋組込みの定義体 `text` / `line` / `word` | `semantic-core/schema/Fields.kt`・`ValueSemantics.kt`・`BuiltinTypes.kt` | 単体 `MetaSchemaTest`, `TypeDefinitionsTest` | [schema](architecture/schema.md) |
 | S-03 | 名前付き定義と再帰参照（`definitions` / `$ref`・狭める規則の合成） | `semantic-core/schema/SchemaTree.kt`（`resolve`） | 単体 `TypeDefinitionsTest` | [schema](architecture/schema.md) |
 | S-04 | メタスキーマ検証と宣言のない関係名の点検（実体はカーネル・読み込みエラーへ足す） | `workspace-core/workspace/SchemaDefinitionChecks.kt` | 単体 `SchemaLoaderTest`, `KernelOnlyChecksTest` | [schema](architecture/schema.md) |
-| S-05 | スキーマ設計 UI（統合ナビゲーション＋詳細・狭幅で切替・document／library・`$ref`・プレビュー・適用対象・`requiredFrom`・`role`・enum 選択肢・制約・ヒント＝案内／サンプル値／複数行・`phases`・`coverage`・エンティティ節＝ID の型・object の同一性） | `ui/SchemaEditor.kt`・`ui/SchemaDesignWorkspace.kt` | `SchemaOutlineTest`・手動 | [ui](architecture/ui.md) |
+| S-05 | スキーマ設計 UI（三つの表示方式・共通の入力配置と折り畳み・狭幅で切替・document／library・`$ref`・プレビュー・適用対象・`requiredFrom`・`role`・enum 選択肢・制約・ヒント＝案内／サンプル値／複数行・`phases`・`coverage`・エンティティ節＝ID の型・object の同一性） | `ui/SchemaEditor.kt`・`ui/SchemaDesignWorkspace.kt` | `SchemaOutlineTest`・手動 | [ui](architecture/ui.md) |
 | S-06 | サンプル YAML 生成（プレビュー・コピー・新規ファイルの初期値・必須スカラーに型別の例値） | `semantic-core/schema/SchemaScaffold.kt` | 単体 `SchemaLoaderTest`, `DocumentScaffoldTest` | [schema](architecture/schema.md) |
 | S-07 | スキーマ外キーの検証ポリシー（`unknownFields: allow / warning / error`） | `validate/Validator.kt`, `index/IdIndex.kt` | 手動 | [schema](architecture/schema.md) |
 | S-08 | 参照の関係種別（`type: ref` の `relation`） | `schema/Schema.kt`, `index/IdIndex.kt` | 単体 `WorkspaceCliTest` | [graph-query](architecture/graph-query.md) |

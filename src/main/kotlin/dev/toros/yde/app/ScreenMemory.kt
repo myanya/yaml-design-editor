@@ -10,6 +10,18 @@ import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.YPath
 import java.nio.file.Path
 
+enum class FormDisplayMode(val label: String) {
+    SELECTED("選択項目"), LINKED("全体・ツリー連動"), WHOLE("全体のみ")
+}
+
+/** 文書内容とは独立した編集画面の見え方。ツリーの開閉はフォームの畳みと分ける。 */
+class FormNavigationMemory {
+    var mode by mutableStateOf(FormDisplayMode.SELECTED)
+    var selected: YPath? by mutableStateOf(null)
+    var navigationOpen by mutableStateOf(false)
+    val expanded = mutableStateMapOf<YPath, Boolean>()
+}
+
 /**
  * 画面の覚え: 各画面の見え方（畳み・タブ・絞り込み・チェック・ツリーの展開）を、画面が描画の木から外れても捨てないための置き場。
  * 「戻る・進む」が戻すのは場所（NavLocation）で、見え方は画面が自分でここへ覚える（architecture/ui.md「UI シェル」）。
@@ -22,6 +34,11 @@ import java.nio.file.Path
  * - 値は Compose の状態で、画面は読むだけで購読できる。
  */
 class ScreenMemory {
+    /** 文書 × スキーマ設計か。汎用フォームとは覚えを分ける。 */
+    val formNavigation = mutableStateMapOf<Pair<DocumentId, Boolean>, FormNavigationMemory>()
+    fun navigation(document: DocumentId, schema: Boolean): FormNavigationMemory =
+        formNavigation.getOrPut(document to schema) { FormNavigationMemory() }
+
     // ================================================================ フォームの畳み（文書 × パス）
 
     private val folds = mutableStateMapOf<Pair<DocumentId, YPath>, Boolean>()
@@ -131,9 +148,6 @@ class ScreenMemory {
     val schemaDefinition = mutableStateMapOf<DocumentId, String>()
     val schemaSelection = mutableStateMapOf<Pair<DocumentId, YPath>, YPath>()
 
-    /** 狭いスキーマ編集領域で構成一覧を表示するか。既定は詳細編集。 */
-    val schemaNavigationOpen = mutableStateMapOf<DocumentId, Boolean>()
-
     /** 編集画面のタブ（0 = フォーム、1 = ソース、2 = 差分、3 = メタスキーマのフォーム）。文書ごとに最後に見ていたもの。 */
     val editorTab = mutableStateMapOf<DocumentId, Int>()
 
@@ -141,6 +155,7 @@ class ScreenMemory {
 
     /** 全部忘れる（ワークスペース切替）。 */
     fun clear() {
+        formNavigation.clear()
         folds.clear()
         documentOccurrencesOpen.clear()
         treeExpanded.clear()
@@ -173,24 +188,23 @@ class ScreenMemory {
         schemaSection.clear()
         schemaDefinition.clear()
         schemaSelection.clear()
-        schemaNavigationOpen.clear()
     }
 
     /** 文書（ディレクトリならその下の文書すべて）の覚えを忘れる（削除）。 */
     fun forgetDocument(document: DocumentId) {
+        formNavigation.keys.filter { it.first.isUnder(document) }.forEach(formNavigation::remove)
         documentOccurrencesOpen.keys.filter { it.isUnder(document) }.forEach(documentOccurrencesOpen::remove)
         folds.keys.filter { it.first.isUnder(document) }.forEach(folds::remove)
         schemaTab.keys.filter { it.isUnder(document) }.forEach(schemaTab::remove)
         schemaSection.keys.filter { it.isUnder(document) }.forEach(schemaSection::remove)
         schemaDefinition.keys.filter { it.isUnder(document) }.forEach(schemaDefinition::remove)
         schemaSelection.keys.filter { it.first.isUnder(document) }.forEach(schemaSelection::remove)
-        schemaNavigationOpen.keys.filter { it.isUnder(document) }.forEach(schemaNavigationOpen::remove)
     }
 
     /** 文書（ディレクトリならその下の文書すべて）の覚えを新しい場所へ移す（改名）。 */
     fun renameDocument(from: DocumentId, to: DocumentId) {
-        schemaNavigationOpen.keys.filter { it.isUnder(from) }.forEach { key ->
-            schemaNavigationOpen[key.moved(from, to)] = schemaNavigationOpen.remove(key) ?: return@forEach
+        formNavigation.keys.filter { it.first.isUnder(from) }.forEach { key ->
+            formNavigation[key.first.moved(from, to) to key.second] = formNavigation.remove(key) ?: return@forEach
         }
         schemaSection.keys.filter { it.isUnder(from) }.forEach { key ->
             schemaSection[key.moved(from, to)] = schemaSection.remove(key) ?: return@forEach

@@ -38,6 +38,33 @@ class ScreenMemoryTest {
     }
 
     @Test
+    fun `フォーム方式と選択とツリーの開閉は文書ごとに保持し改名と削除に追随する`() {
+        val memory = ScreenMemory()
+        val old = DocumentId("sub/a.yaml")
+        val moved = DocumentId("moved/a.yaml")
+        val form = memory.navigation(old, false)
+        assertEquals(FormDisplayMode.SELECTED, form.mode)
+        form.mode = FormDisplayMode.LINKED
+        form.selected = listOf("rows", 1)
+        form.expanded[listOf("rows")] = false
+        form.navigationOpen = true
+        assertEquals(FormDisplayMode.SELECTED, memory.navigation(old, true).mode)
+        assertNull(memory.fold(old, listOf("rows")))
+        memory.renameDocument(DocumentId("sub"), DocumentId("moved"))
+        assertTrue(memory.formNavigation.keys.none { it.first == old })
+        val restored = memory.navigation(moved, false)
+        assertEquals(FormDisplayMode.LINKED, restored.mode)
+        assertEquals(listOf("rows", 1), restored.selected)
+        assertEquals(false, restored.expanded[listOf("rows")])
+        assertTrue(restored.navigationOpen)
+        memory.forgetDocument(DocumentId("moved"))
+        assertTrue(memory.formNavigation.isEmpty())
+        memory.navigation(old, false)
+        memory.clear()
+        assertTrue(memory.formNavigation.isEmpty())
+    }
+
+    @Test
     fun `スキーマの区画と選択は文書の改名と削除と切替に追随する`() {
         val memory = ScreenMemory()
         val old = DocumentId("sub/a.yaml")
@@ -45,27 +72,21 @@ class ScreenMemoryTest {
         val root = listOf("root")
         val selection = listOf("root", "fields", 1)
         memory.schemaSection[old] = 1
-        memory.schemaNavigationOpen[old] = true
         memory.schemaDefinition[old] = "Task"
         memory.schemaSelection[old to root] = selection
         memory.renameDocument(DocumentId("sub"), DocumentId("moved"))
         assertNull(memory.schemaSection[old])
         assertEquals(1, memory.schemaSection[moved])
-        assertNull(memory.schemaNavigationOpen[old])
-        assertEquals(true, memory.schemaNavigationOpen[moved])
         assertEquals("Task", memory.schemaDefinition[moved])
         assertEquals(selection, memory.schemaSelection[moved to root])
         memory.forgetDocument(DocumentId("moved"))
         assertTrue(memory.schemaSection.isEmpty())
-        assertTrue(memory.schemaNavigationOpen.isEmpty())
         assertTrue(memory.schemaDefinition.isEmpty())
         assertTrue(memory.schemaSelection.isEmpty())
         memory.schemaSection[old] = 2
-        memory.schemaNavigationOpen[old] = false
         memory.schemaDefinition[old] = "Task"
         memory.schemaSelection[old to root] = selection
         memory.clear()
-        assertTrue(memory.schemaNavigationOpen.isEmpty())
         assertTrue(memory.schemaSection.isEmpty())
         assertTrue(memory.schemaDefinition.isEmpty())
         assertTrue(memory.schemaSelection.isEmpty())

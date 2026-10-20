@@ -322,22 +322,23 @@ fun Highlightable(
     // ため、素の呼び出しだと対象が画面の上下端に張り付く。要素の上下に余白を含めた矩形を可視化要求することで、
     // どちら向きのスクロールでも対象が端から余白ぶん内側（≒中央寄り）に収まる
     val centerMargin = with(LocalDensity.current) { 280.dp.toPx() }
+    val formPositions = LocalFormPositions.current
     LaunchedEffect(highlighted) {
         if (highlighted) {
-            requester.bringIntoView(
+            if (formPositions == null) requester.bringIntoView(
                 Rect(0f, -centerMargin, size.width.toFloat().coerceAtLeast(1f), size.height + centerMargin)
             )
             delay(2500)
             if (state.highlightPath == path) state.highlightPath = null
         }
     }
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .bringIntoViewRequester(requester)
-            .onSizeChanged { size = it }
-            .background(if (highlighted) Palette.Highlight else Color.Transparent, PanelShape)
-    ) {
-        content()
+    FormAnchor(path) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .bringIntoViewRequester(requester)
+                .onSizeChanged { size = it }
+                .background(if (highlighted) Palette.Highlight else Color.Transparent, PanelShape)
+        ) { content() }
     }
 }
