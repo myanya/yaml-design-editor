@@ -16,7 +16,6 @@ enum class FormDisplayMode(val label: String) {
 
 /** 文書内容とは独立した編集画面の見え方。ツリーの開閉はフォームの畳みと分ける。 */
 class FormNavigationMemory {
-    var mode by mutableStateOf(FormDisplayMode.SELECTED)
     var selected: YPath? by mutableStateOf(null)
     var navigationOpen by mutableStateOf(false)
     val expanded = mutableStateMapOf<YPath, Boolean>()
@@ -34,6 +33,8 @@ class FormNavigationMemory {
  * - 値は Compose の状態で、画面は読むだけで購読できる。
  */
 class ScreenMemory {
+    /** 表示方式の固定・引き継ぎと、ファイル単位の明示指定。 */
+    val formDisplay = FormDisplayMemory()
     /** 文書 × スキーマ設計か。汎用フォームとは覚えを分ける。 */
     val formNavigation = mutableStateMapOf<Pair<DocumentId, Boolean>, FormNavigationMemory>()
     fun navigation(document: DocumentId, schema: Boolean): FormNavigationMemory =
@@ -155,6 +156,7 @@ class ScreenMemory {
 
     /** 全部忘れる（ワークスペース切替）。 */
     fun clear() {
+        formDisplay.clear()
         formNavigation.clear()
         folds.clear()
         documentOccurrencesOpen.clear()
@@ -192,6 +194,7 @@ class ScreenMemory {
 
     /** 文書（ディレクトリならその下の文書すべて）の覚えを忘れる（削除）。 */
     fun forgetDocument(document: DocumentId) {
+        formDisplay.specifiedModes.keys.filter { it.isUnder(document) }.forEach(formDisplay.specifiedModes::remove)
         formNavigation.keys.filter { it.first.isUnder(document) }.forEach(formNavigation::remove)
         documentOccurrencesOpen.keys.filter { it.isUnder(document) }.forEach(documentOccurrencesOpen::remove)
         folds.keys.filter { it.first.isUnder(document) }.forEach(folds::remove)
@@ -203,6 +206,9 @@ class ScreenMemory {
 
     /** 文書（ディレクトリならその下の文書すべて）の覚えを新しい場所へ移す（改名）。 */
     fun renameDocument(from: DocumentId, to: DocumentId) {
+        formDisplay.specifiedModes.keys.filter { it.isUnder(from) }.forEach { key ->
+            formDisplay.specifiedModes[key.moved(from, to)] = formDisplay.specifiedModes.remove(key) ?: return@forEach
+        }
         formNavigation.keys.filter { it.first.isUnder(from) }.forEach { key ->
             formNavigation[key.first.moved(from, to) to key.second] = formNavigation.remove(key) ?: return@forEach
         }

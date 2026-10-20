@@ -113,7 +113,7 @@ internal fun EditorModeBar(state: AppState, doc: OpenDocument, schemaDocument: B
         EditorModeButton("差分", tab == 2) { state.editorTab = 2 }
         Spacer(Modifier.weight(1f))
         if (tab == 0 && (!schemaDocument || schemaMode == 0) || tab == 3) {
-            FormDisplayMenu(state.memory.navigation(document, schemaDocument && tab == 0))
+            FormDisplayControls(state.memory.formDisplay, document, state.memory.navigation(document, schemaDocument && tab == 0))
         }
         if (schemaDocument) {
             val auxiliary = when {

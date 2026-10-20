@@ -295,7 +295,7 @@ private fun SchemaStructureEditor(
             }
         },
         wholeContent = {
-            if (memory.navigation(document, true).mode == dev.toros.yde.app.FormDisplayMode.WHOLE) {
+            if (memory.formDisplay.modeFor(document) == dev.toros.yde.app.FormDisplayMode.WHOLE) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     schemaActions()
                     Spacer(Modifier.weight(1f))

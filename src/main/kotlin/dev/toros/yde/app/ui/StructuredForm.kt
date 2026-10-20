@@ -22,7 +22,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.toros.yde.app.FormDisplayMode
-import dev.toros.yde.app.FormNavigationMemory
 import dev.toros.yde.yaml.model.YPath
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.drop
@@ -58,22 +57,6 @@ internal fun FormAnchor(path: YPath, content: @Composable () -> Unit) {
     }) { content() }
 }
 
-@Composable
-internal fun FormDisplayMenu(memory: FormNavigationMemory) {
-    var open by remember { mutableStateOf(false) }
-    Box {
-        TextButton(onClick = { open = true }, shape = PanelShape, contentPadding = PaddingValues(horizontal = 8.dp)) {
-            Text("表示: ${memory.mode.label} ▾", fontSize = 12.sp, maxLines = 1)
-        }
-        DropdownMenu(open, { open = false }) {
-            FormDisplayMode.entries.forEach { mode ->
-                DropdownMenuItem(text = { Text((if (memory.mode == mode) "✓ " else "") + mode.label) },
-                    onClick = { memory.mode = mode; memory.navigationOpen = false; open = false })
-            }
-        }
-    }
-}
-
 /** スキーマと通常文書が共有する構成一覧・狭幅切替・全体フォームのスクロール連動。 */
 @Composable
 internal fun StructuredForm(
@@ -85,8 +68,10 @@ internal fun StructuredForm(
     selectedContent: @Composable (Modifier) -> Unit,
     wholeContent: @Composable () -> Unit,
 ) {
-    val memory = ctx.state.memory.navigation(ctx.state.documentOf(ctx.doc.file), schema)
-    val mode = memory.mode
+    val document = ctx.state.documentOf(ctx.doc.file)
+    val memory = ctx.state.memory.navigation(document, schema)
+    val display = ctx.state.memory.formDisplay
+    val mode = display.modeFor(document)
     val scroll = remember(ctx.doc) { ScrollState(0) }
     val positions = remember(ctx.doc) { FormPositions(scroll) }
     var request by remember(ctx.doc) { mutableStateOf<Pair<Int, YPath>?>(null) }
@@ -144,13 +129,18 @@ internal fun StructuredForm(
             }
         }
     }
-    val tree: @Composable (Modifier, Boolean) -> Unit = { modifier, narrow ->
+    val tree: @Composable (Modifier) -> Unit = { modifier ->
         Column(modifier.background(Palette.PanelBg, PanelShape).border(1.dp, Palette.Border, PanelShape)) {
             Row(Modifier.fillMaxWidth().height(40.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("構成", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                 treeActions()
-                if (narrow) IconButton(onClick = { memory.navigationOpen = false }, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.Close, "構成を閉じる", Modifier.size(18.dp))
+                UiTooltip("構成を閉じて全体のみ表示") {
+                    IconButton(onClick = {
+                        display.choose(document, FormDisplayMode.WHOLE)
+                        memory.navigationOpen = false
+                    }, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.Close, "構成を閉じて全体のみ表示", Modifier.size(18.dp))
+                    }
                 }
             }
             val treeScroll = remember(ctx.doc) { ScrollState(0) }
@@ -217,7 +207,7 @@ internal fun StructuredForm(
         val treeWidth = (maxWidth * .32f).coerceAtMost(300.dp)
         if (mode == FormDisplayMode.WHOLE) detail(Modifier.fillMaxSize())
         else if (maxWidth >= 680.dp) Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            tree(Modifier.width(treeWidth).fillMaxHeight(), false)
+            tree(Modifier.width(treeWidth).fillMaxHeight())
             detail(Modifier.weight(1f).fillMaxHeight())
         } else Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             TextButton(onClick = { memory.navigationOpen = !memory.navigationOpen }, modifier = Modifier.height(36.dp), shape = PanelShape) {
@@ -225,7 +215,7 @@ internal fun StructuredForm(
                 Text(if (memory.navigationOpen) " 編集に戻る" else " 構成を開く", fontSize = 12.sp)
                 Text(" · " + items.firstOrNull { it.path == selected }?.title.orEmpty(), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            if (memory.navigationOpen) tree(Modifier.fillMaxWidth().weight(1f), true)
+            if (memory.navigationOpen) tree(Modifier.fillMaxWidth().weight(1f))
             else detail(Modifier.fillMaxWidth().weight(1f))
         }
     }

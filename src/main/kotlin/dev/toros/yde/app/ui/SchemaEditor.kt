@@ -215,6 +215,10 @@ private fun SchemaPreview(state: AppState, sourceDoc: OpenDocument, schema: Sche
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("サンプルデータ", fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            if (!source) {
+                val document = state.documentOf(sourceDoc.file)
+                FormDisplayControls(state.memory.formDisplay, document, state.memory.navigation(document, false))
+            }
             TextButton(onClick = { source = false }) { Text("フォーム", fontSize = 11.sp) }
             TextButton(onClick = { source = true }) { Text("YAML", fontSize = 11.sp) }
             OutlinedButton(onClick = { clipboard.setText(AnnotatedString(sampleText)) },
