@@ -719,9 +719,10 @@ internal fun FieldRow(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
             structured = structured,
             label = {
                 Column(Modifier.padding(top = labelTop, end = 8.dp)) {
-                    FieldHelp(effective.displayLabel, effective.description, showPreview = !ctx.readOnly) { helpButton ->
+                    FieldHelp(effective.displayLabel, effective.description, showPreview = !ctx.readOnly) { labelModifier, helpButton ->
                         FlowRow {
-                            Text(effective.displayLabel, fontSize = if (structured) 14.sp else 13.sp, fontWeight = FontWeight.SemiBold)
+                            Text(effective.displayLabel, labelModifier, fontSize = if (structured) 14.sp else 13.sp,
+                                fontWeight = FontWeight.SemiBold)
                             if (effective.required) Text(" *", color = Palette.ErrorRed, fontSize = 12.sp)
                             // requiredFrom はフェーズ到達で必須になる項目（無条件必須の * とは区別して注記する）
                             effective.requiredFrom?.let {
