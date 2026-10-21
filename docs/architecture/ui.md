@@ -16,6 +16,7 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 | `FormView` / `FormCtx` / `ObjectFields` / `FieldRow` | ui/FormView.kt | スキーマ駆動フォームと汎用エディタ（中核 UI） |
 | `isStructuredFormValue` / `stackFormField` | ui/FormLayout.kt | 解決済みの型・実際の値と利用可能幅によるフォーム配置の判定（純ロジック） |
 | `FieldHelp` / `FieldHelpPosition` | ui/FieldHelp.kt | 説明の短い表示とホバー・固定表示、画面内への位置調整 |
+| `TextFieldEscape` | ui/TextFieldEscape.kt | Esc の一押しと変換状態を追跡し、候補の閉鎖とフォーカス解除を分ける |
 | `FlowViewPane` / `EmbeddedFlowPane` | ui/FlowViewPane.kt | 図と原本フォームを併記する単独・埋め込み表示（[views](views.md)） |
 | `ObjectTable` / `ArrayTable` / `MapTable` / `RefCell` / `tableColumnWidths` | ui/FormView.kt | 配列と map のテーブル表示（参照セルは ID・参照先の名前・横ぐしへの Hub） |
 | `AppToolbar` / `PaneHeader` / `UiTooltip` | ui/AppToolbar.kt | 全体メニュー・移動と検索・左右ペインの開閉・操作名の補足 |
@@ -72,15 +73,21 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 - 配置判定は `FormLayout` に集約し、文書メタデータ・スキーマの項目・型付き map・汎用 map で共用する。未作成の複合型も縦配置とし、属性付き参照・any・型不一致の残留値は実値の構造も見る。
 - `FormSpacing` の余白と `FormGroup` の縦線・字下げで複合値を区切る。字下げは枝ごとに累計の上限を持ち、深い構造でも入力幅を奪い続けない。
 - 編集時の文書情報は `_document` の畳み、他文書での定義は `ScreenMemory.documentOccurrencesOpen` で開閉を覚える。いずれも既定は畳む。
-- 項目の説明は `FieldHelp` が `MarkdownView` で描く。編集時の短い表示と、編集・閲覧共通のホバー予告を持ち、説明ボタンで全文を固定するとスクロールとリンク操作ができる。
-- ホバー判定は項目名（周囲2dpを含む）と説明ボタンに限定し、配置は項目名を基準にする。予告は幅上限320dp・本文高さ上限84dp・余白8dpで、省略時は全文への案内を添える。
-- 説明のホバーは入力の焦点を奪わず、固定時だけポップアップに焦点を渡す。開閉は操作途中の状態として `remember` に置き、文書の編集や畳みの覚えには記録しない。
+- 項目の説明は `FieldHelp` が `MarkdownView` で描く。判定範囲・表示・固定の操作は [UI 操作規則「項目説明の予告と全文」](ui-interactions.md#項目説明の予告と全文) に従い、開閉状態は `remember` に置く。
 - 配列の追加ボタンは `AppState.addArrayElement` を呼ぶ（要素の中身は型の `create` と配列の `insert` の決まり。受け取る値があれば右ペインのカード。[actions](actions.md)）。フォーム側で初期値を組まない。
 - 基底の種類別のエディタ（複数行と入力欄の案内は型から引き継ぐヒント）・必須マーク（`requiredFrom` はフェーズ名つき）・説明・折りたたみ。id 型は既存 ID の補完ピッカーと連番の提案（`IdSuggest`）。`format` と `display: grouped` は見せ方（`ValueFormat.display`。`CompactTextField` の `unfocusedText`＝フォーカス中は素の値）。スキーマの型と値の構造が合わない残留値は修復 UI（値を消す・配列やスカラーに変換）。
 - 指摘のあるフィールドは入力枠が色づく（エラー＝赤・警告＝オレンジ。`FormCtx.issues` 経由で全指摘種別に効く）。
 - 同一 ID の他文書出現ストリップ（`SameIdOccurrencesStrip`）が相手側の情報の表示とジャンプを提供する。
 - id 型の欄は定義位置そのものなので、ジャンプの行き先は横ぐし（エンティティページ）だけ。右端の Hub ボタン（`EntityPageButton`。ビューグリッドの ID セルと同じ印）と「出現 n 件／被参照 n 箇所」の注記が `openCrossView(id)` へ直行し、閲覧専用のテーブルの ID セルにも同じボタンを出す。参照欄の→は「定義へ／横ぐしへ」の 2 択のまま（行き先が 2 つある）。テーブルの参照セルは → に加えて Hub を並べ、横ぐしへは 1 クリックで行ける。
 - 参照先の名前の解決は `FormCtx.refTargetTitle`（未保存の編集を含む自文書の ID を優先し、idPatterns と scope で絞る）に一元化し、参照欄（欄の中の右端）とテーブルの参照セル（欄の下）が共用する。
+
+## 入力と Esc
+
+- 操作の意味と例外は [UI 操作規則「フォーム入力からの退出」](ui-interactions.md#フォーム入力からの退出) が定める。
+- `CompactTextField` は `TextFieldValue` で選択と変換状態を保持し、文字列が変わったときだけ呼び出し元へ通知する。表示形式による文字列の切替は値の変更として通知しない。
+- フォームの呼び出し元は `clearFocusOnEscape = true` を指定する。`SchemaTextField` も共用し、定義追加ダイアログでは無効にする。
+- `TextFieldEscape` は preview で変換状態を覚え、子が消費しなかった KeyDown で操作を決める。キーリピートは次の層へ進めず、KeyUp またはフォーカス離脱で一押しの状態を解放する。
+- ID・参照・文書参照の候補はフォーカスを奪わないため、開いている間だけ `onDismissPopup` を渡す。日付・時刻ピッカーは自身のフォーカスと既存の閉鎖処理を使う。
 
 ## 閲覧専用
 

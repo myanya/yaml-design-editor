@@ -74,6 +74,7 @@ internal fun FileEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath, 
                 onError = { ctx.state.status = it },
             ) { chosen -> workspace?.let { ctx.setScalar(slot, fileValueFor(chosen, it), FieldType.FILE) } }
             CompactTextField(
+                clearFocusOnEscape = true,
                 value = text,
                 onValueChange = { ctx.setScalar(slot, it, FieldType.FILE) },
                 singleLine = true,

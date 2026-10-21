@@ -471,6 +471,7 @@ private fun GridCell(state: AppState, cell: ViewCell) {
             CompactTextField(
                 value = text,
                 onValueChange = { ctx.setGenericScalar(slot, it) },
+                clearFocusOnEscape = true,
                 singleLine = !text.contains('\n'),
                 textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
                 modifier = Modifier.fillMaxWidth(),

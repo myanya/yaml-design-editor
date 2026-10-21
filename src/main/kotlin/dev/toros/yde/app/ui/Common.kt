@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -23,18 +24,27 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -193,6 +203,10 @@ fun CompactTextField(
     /** フォーカスが無いときの見せ方（桁区切りなど）。編集中は元の文字のまま。 */
     unfocusedText: ((String) -> String)? = null,
     readOnly: Boolean = false,
+    /** フォーム入力で有効にする。検索欄やダイアログは既存の Esc 操作を持つ。 */
+    clearFocusOnEscape: Boolean = false,
+    /** フォーカスを残す候補が開いている間だけ渡す。Esc は候補を閉じるだけで消費する。 */
+    onDismissPopup: (() -> Unit)? = null,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
@@ -201,22 +215,68 @@ fun CompactTextField(
         if (value != localValue) localValue = value
     }
     val shown = if (!focused && unfocusedText != null) unfocusedText(localValue) else localValue
+    // String 版 BasicTextField と同じく選択・変換状態を保持し、文字が変わったときだけ外へ通知する。
+    var editingValue by remember { mutableStateOf(TextFieldValue(value)) }
+    val shownValue = editingValue.copy(text = shown)
+    SideEffect {
+        if (shownValue.selection != editingValue.selection || shownValue.composition != editingValue.composition) {
+            editingValue = shownValue
+        }
+    }
+    var lastText by remember(shown) { mutableStateOf(shown) }
+    val focusManager = LocalFocusManager.current
+    val focusRequester = remember { FocusRequester() }
+    val escape = remember { TextFieldEscape() }
+    LaunchedEffect(focused) { if (!focused) escape.reset() }
     val borderColor = when {
         isError -> Palette.ErrorRed
         focused -> Palette.Primary
         else -> Palette.Border
     }
     BasicTextField(
-        value = shown,
+        value = shownValue,
         readOnly = readOnly,
         onValueChange = {
-            localValue = it
-            onValueChange(it)
+            editingValue = it
+            if (lastText != it.text) {
+                lastText = it.text
+                localValue = it.text
+                onValueChange(it.text)
+            }
         },
         singleLine = singleLine,
         textStyle = textStyle.merge(TextStyle(color = Palette.Text)),
         interactionSource = interaction,
-        modifier = modifier.defaultMinSize(minHeight = if (singleLine) 38.dp else 68.dp),
+        modifier = modifier.defaultMinSize(minHeight = if (singleLine) 38.dp else 68.dp)
+            .focusRequester(focusRequester)
+            .onPreviewKeyEvent { event ->
+                if (event.key == Key.Escape) {
+                    escape.preview(event.type == KeyEventType.KeyDown, editingValue.composition != null)
+                }
+                false
+            }
+            .onKeyEvent { event ->
+                // 子と IME が扱ったキーはここへ来ない。KeyUp や修飾キー付き Esc は操作しない。
+                if (event.key != Key.Escape || event.type != KeyEventType.KeyDown || event.isCtrlPressed ||
+                    event.isAltPressed || event.isMetaPressed || event.isShiftPressed) return@onKeyEvent false
+                when (escape.action(
+                    enabled = clearFocusOnEscape && !readOnly && (focused || onDismissPopup != null),
+                    composing = editingValue.composition != null,
+                    popupOpen = onDismissPopup != null,
+                )) {
+                    TextFieldEscapeAction.PASS -> false
+                    TextFieldEscapeAction.CONSUME -> true
+                    TextFieldEscapeAction.CLOSE_POPUP -> {
+                        onDismissPopup?.invoke()
+                        focusRequester.requestFocus()
+                        true
+                    }
+                    TextFieldEscapeAction.CLEAR_FOCUS -> {
+                        focusManager.clearFocus()
+                        true
+                    }
+                }
+            },
         decorationBox = { inner ->
             Row(
                 Modifier.fillMaxWidth().background(Palette.Surface, PanelShape)

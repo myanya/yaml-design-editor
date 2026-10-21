@@ -343,6 +343,7 @@ internal fun DocumentMetadataEditor(ctx: FormCtx, root: YNode.Map) {
                     modifier = Modifier.padding(top = 9.dp))
             }) {
                 CompactTextField(
+                    clearFocusOnEscape = true,
                     value = (nameSlot.get() as? YNode.Scalar)?.value?.toString().orEmpty(),
                     onValueChange = { ctx.setScalar(nameSlot, it, FieldType.STRING) },
                     singleLine = true,
@@ -360,6 +361,7 @@ internal fun DocumentMetadataEditor(ctx: FormCtx, root: YNode.Map) {
                 }
             }) {
                 CompactTextField(
+                    clearFocusOnEscape = true,
                     value = (descriptionSlot.get() as? YNode.Scalar)?.value?.toString().orEmpty(),
                     onValueChange = { ctx.setScalar(descriptionSlot, it, FieldType.STRING) },
                     placeholder = { Text("この文書が何を示し、何を含むかを簡潔に記述") },
@@ -891,6 +893,7 @@ private fun ScalarTextEditor(
         else -> false
     }
     CompactTextField(
+        clearFocusOnEscape = true,
         value = text,
         onValueChange = { ctx.setScalar(slot, if (numeric && formatted != null) it.replace(",", "") else it, field.type) },
         singleLine = oneLine,
@@ -1057,8 +1060,10 @@ private fun IdEditor(ctx: FormCtx, field: FieldDef?, slot: Slot) {
             Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(1f)) {
                 CompactTextField(
+                    clearFocusOnEscape = true,
                     value = text,
                     onValueChange = { ctx.setScalar(slot, it, FieldType.ID) },
+                    onDismissPopup = if (menuOpen) ({ menuOpen = false }) else null,
                     singleLine = true,
                     textStyle = fieldTextStyle,
                     trailingIcon = {
@@ -1219,8 +1224,10 @@ private fun RefScalarEditor(ctx: FormCtx, field: FieldDef, slot: Slot, titleInFi
         // 解決済みの参照先タイトルは入力欄の枠内（右端）に併記する（ID＋表示名を1つの領域で見せる。UX-31）
         Box(Modifier.weight(1f)) {
             CompactTextField(
+                clearFocusOnEscape = true,
                 value = current,
                 onValueChange = { ctx.setScalar(slot, it, FieldType.REF) },
+                onDismissPopup = if (menuOpen) ({ menuOpen = false }) else null,
                 singleLine = true,
                 isError = current.isNotBlank() && !resolved,
                 textStyle = fieldTextStyle,
@@ -1369,8 +1376,10 @@ private fun DocRefScalarEditor(ctx: FormCtx, slot: Slot) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.weight(1f)) {
             CompactTextField(
+                clearFocusOnEscape = true,
                 value = current,
                 onValueChange = { ctx.setScalar(slot, it, FieldType.REF) },
+                onDismissPopup = if (menuOpen) ({ menuOpen = false }) else null,
                 singleLine = true,
                 isError = current.isNotBlank() && !resolved,
                 textStyle = fieldTextStyle,
@@ -1994,7 +2003,7 @@ private fun AddTypedMapKeyRow(ctx: FormCtx, map: YNode.Map, valueDef: FieldDef?)
     var newKey by remember { mutableStateOf("") }
     val trimmed = newKey.trim()
     Row(verticalAlignment = Alignment.CenterVertically) {
-        CompactTextField(value = newKey, onValueChange = { newKey = it }, singleLine = true,
+        CompactTextField(clearFocusOnEscape = true, value = newKey, onValueChange = { newKey = it }, singleLine = true,
             textStyle = fieldTextStyle, placeholder = { Text("新しいキー") },
             modifier = Modifier.width(200.dp))
         TextButton(enabled = trimmed.isNotEmpty() && trimmed !in map.entries, onClick = {
@@ -2023,6 +2032,7 @@ fun GenericEditor(ctx: FormCtx, slot: Slot, path: YPath, refHint: Boolean) {
                 return
             }
             CompactTextField(
+                clearFocusOnEscape = true,
                 value = "",
                 onValueChange = { ctx.setGenericScalar(slot, it) },
                 singleLine = true,
@@ -2060,6 +2070,7 @@ fun GenericEditor(ctx: FormCtx, slot: Slot, path: YPath, refHint: Boolean) {
                 val multiline = text.contains('\n')
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CompactTextField(
+                        clearFocusOnEscape = true,
                         value = text,
                         onValueChange = { ctx.setGenericScalar(slot, it) },
                         singleLine = !multiline,
@@ -2169,6 +2180,7 @@ fun GenericMapEntryRow(ctx: FormCtx, map: YNode.Map, key: String, mapPath: YPath
                     // キー名の変更（R8-05）。順序・値・コメントは保たれる
                     val valid = renameText.trim().let { it.isNotEmpty() && (it == key || it !in map.entries) }
                     CompactTextField(
+                        clearFocusOnEscape = true,
                         value = renameText,
                         onValueChange = { renameText = it },
                         singleLine = true,
@@ -2220,6 +2232,7 @@ private fun AddKeyRow(ctx: FormCtx, map: YNode.Map) {
     var newKey by remember { mutableStateOf("") }
     Row(verticalAlignment = Alignment.CenterVertically) {
         CompactTextField(
+            clearFocusOnEscape = true,
             value = newKey,
             onValueChange = { newKey = it },
             singleLine = true,

@@ -351,7 +351,8 @@ internal fun AddDefinitionButton(definitions: YNode.Map, doc: OpenDocument, comp
         title = { Text("名前付き定義を追加") },
         text = {
             Column {
-                SchemaTextField(name, { name = it }, singleLine = true, placeholder = { Text("定義名") })
+                SchemaTextField(name, { name = it }, singleLine = true, placeholder = { Text("定義名") },
+                    clearFocusOnEscape = false)
                 Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("種類", fontSize = 12.sp, modifier = Modifier.width(60.dp))

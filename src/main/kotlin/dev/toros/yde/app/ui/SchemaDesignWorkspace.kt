@@ -40,8 +40,10 @@ internal fun SchemaTextField(
     value: String, onValueChange: (String) -> Unit, modifier: Modifier = Modifier,
     singleLine: Boolean = false, textStyle: TextStyle = TextStyle(fontSize = 13.sp),
     placeholder: (@Composable () -> Unit)? = null,
+    clearFocusOnEscape: Boolean = true,
 ) = CompactTextField(value, onValueChange, modifier, singleLine = singleLine,
-    textStyle = textStyle, placeholder = placeholder, readOnly = LocalSchemaReadOnly.current)
+    textStyle = textStyle, placeholder = placeholder, readOnly = LocalSchemaReadOnly.current,
+    clearFocusOnEscape = clearFocusOnEscape)
 
 @Composable
 internal fun SchemaEditButton(

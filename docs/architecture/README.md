@@ -20,6 +20,7 @@
 | [actions.md](actions.md) | 操作（型の操作 `methods` とアクション `actions`。受け手・受け取った値・前提・手・変更セットへの計画・CLI） |
 | [agents.md](agents.md) | 安全性・エージェント実行と Staging・自動実行・自己改善・AI 生成・AI 接続・コンテキスト・一括実行・skill |
 | [ui.md](ui.md) | UI シェル・フォームと FormCtx・閲覧専用・テーブル表示・畳みとハイライト・エラー処理 |
+| [ui-interactions.md](ui-interactions.md) | UI 操作規則の適用範囲・例外・入力からの退出・項目説明 |
 
 ## 技術スタック
 

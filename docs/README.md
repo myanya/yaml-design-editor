@@ -22,6 +22,10 @@
 
 配布担当者向けの [releasing.md](releasing.md) は、Windows ZIP の作成・検査・公開手順を管理する。配布工程を変更したときに更新する。
 
+共通の UI 操作規則は [architecture/ui-interactions.md](architecture/ui-interactions.md) に集約し、適用範囲と例外も管理する。
+操作の意味はこの設計文書、実装への接続は `architecture/ui.md`、利用者への案内は manual、再現・確認手順は UX-SCENARIOS が持つ。
+未解決の指摘は BACKLOG、実施計画が必要なテーマは ROADMAP、アーキテクチャ上の決定の変更は ADR で扱い、完了した細かな調整を未完台帳に残さない。
+
 ## 記録
 
 | 文書 | 役割 |
