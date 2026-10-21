@@ -134,14 +134,11 @@ internal fun EditorModeBar(state: AppState, doc: OpenDocument, schemaDocument: B
                         Icon(Icons.Default.MoreVert, "表示する画面", Modifier.size(18.dp))
                     }
                 }
-                DropdownMenu(menu, { menu = false }) {
-                    ChoiceMenuItem(selected = tab == 0 && schemaMode == 1,
-                        text = { Text("プレビュー") }, onClick = { openSchema(1); menu = false })
-                    ChoiceMenuItem(selected = tab == 0 && schemaMode == 2,
-                        text = { Text("適用対象") }, onClick = { openSchema(2); menu = false })
-                    ChoiceMenuItem(selected = tab == 3,
-                        text = { Text("汎用フォーム") }, onClick = { state.editorTab = 3; menu = false })
-                }
+                ChoiceMenu(menu, { menu = false }, listOf(
+                    ChoiceOption(1, "プレビュー", selected = tab == 0 && schemaMode == 1),
+                    ChoiceOption(2, "適用対象", selected = tab == 0 && schemaMode == 2),
+                    ChoiceOption(3, "汎用フォーム", selected = tab == 3),
+                ), onSelect = { if (it == 3) state.editorTab = 3 else openSchema(it) })
             }
         }
     }

@@ -99,13 +99,9 @@ private fun FlowChooser(
         OutlinedButton(onClick = { expanded = true }) {
             Text(buttonText ?: items.firstOrNull { it.first == selected }?.second ?: selected ?: "$label を選択", fontSize = 12.sp)
         }
-        DropdownMenu(expanded, { expanded = false }) {
-            items.forEach { (id, name) -> ChoiceMenuItem(
-                selected = id == selected,
-                text = { Text(name, fontSize = 12.sp) },
-                onClick = { expanded = false; onSelect(id) },
-            ) }
-        }
+        ChoiceMenu(expanded, { expanded = false }, items.map { (id, name) ->
+            ChoiceOption(id, name, subtitle = id.takeIf { it != name }.orEmpty(), selected = id == selected)
+        }, onSelect)
     }
 }
 

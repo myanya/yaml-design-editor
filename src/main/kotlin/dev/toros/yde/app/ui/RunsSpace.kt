@@ -621,20 +621,11 @@ private fun SelectContent(
                 OutlinedButton(onClick = { open = true }) {
                     Text(selected?.let { "${it.name}（${it.id}）" } ?: "選択してください", fontSize = 13.sp)
                 }
-                DropdownMenu(open, { open = false }) {
-                    defs.activities.forEach { activity ->
-                        ChoiceMenuItem(selected = activity.id == selected?.id, text = {
-                            Column {
-                                Text(activity.name, fontSize = 13.sp)
-                                Text(
-                                    listOfNotNull(activity.id, "agent: ${activity.agentId}", activity.targetMatch)
-                                        .joinToString(" ／ "),
-                                    fontSize = 11.sp, color = Palette.SubText,
-                                )
-                            }
-                        }, onClick = { onSelect(activity); open = false })
-                    }
-                }
+                ChoiceMenu(open, { open = false }, defs.activities.map { activity ->
+                    ChoiceOption(activity, activity.name,
+                        listOfNotNull(activity.id, "agent: ${activity.agentId}", activity.targetMatch).joinToString(" ／ "),
+                        description = activity.description, selected = activity.id == selected?.id)
+                }, onSelect)
             }
             selected?.let { activity ->
                 Spacer(Modifier.height(6.dp))

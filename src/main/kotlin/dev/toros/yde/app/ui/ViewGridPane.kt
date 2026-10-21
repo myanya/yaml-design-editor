@@ -120,23 +120,11 @@ private fun HeaderBar(state: AppState, loaded: Views.LoadResult, view: ViewDef?)
                 Text(view?.name ?: "（ビューなし）", fontSize = 12.sp)
                 Icon(Icons.Default.ArrowDropDown, contentDescription = null)
             }
-            DropdownMenu(selectorOpen, { selectorOpen = false }) {
-                loaded.views.forEach { v ->
-                    ChoiceMenuItem(
-                        selected = v.id == view?.id,
-                        text = {
-                            Column {
-                                Text(v.name, fontSize = 13.sp)
-                                Text(
-                                    "${v.id} — " + (v.rows?.let { "idPattern: ${it.idPattern}" } ?: "matchクエリ（行キー: ${v.rowKey}）"),
-                                    fontSize = 10.sp, color = Palette.SubText,
-                                )
-                            }
-                        },
-                        onClick = { state.openViewGrid(v.id); selectorOpen = false },
-                    )
-                }
-            }
+            ChoiceMenu(selectorOpen, { selectorOpen = false }, loaded.views.map { v ->
+                ChoiceOption(v.id, v.name,
+                    "${v.id} — " + (v.rows?.let { "idPattern: ${it.idPattern}" } ?: "matchクエリ（行キー: ${v.rowKey}）"),
+                    description = v.description, selected = v.id == view?.id)
+            }, onSelect = { state.openViewGrid(it) })
         }
         view?.description?.let {
             Spacer(Modifier.width(10.dp))

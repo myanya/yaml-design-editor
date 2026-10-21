@@ -81,33 +81,13 @@ internal fun FormDisplayControls(display: FormDisplayMemory, document: DocumentI
                     }
                 }
             }
-            DropdownMenu(expanded = open, onDismissRequest = { open = false }, modifier = Modifier.width(340.dp)) {
-                val source = when {
-                    display.fixed -> "固定"
-                    specified != null -> "ファイル指定"
-                    else -> "引き継ぎ・未指定"
-                }
-                Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                    Text("現在の表示：${mode.label}", fontSize = 13.sp)
-                    Text(source, fontSize = 12.sp, color = Palette.SubText)
-                    Spacer(Modifier.height(8.dp))
-                    Text("このファイルの指定：${specified?.label ?: "未指定"}", fontSize = 13.sp)
-                }
-                HorizontalDivider(color = Palette.Border)
-                (listOf<FormDisplayMode?>(null) + FormDisplayMode.entries).forEach { option ->
-                    ChoiceMenuItem(
-                        selected = specified == option,
-                        text = { Text(option?.label ?: "未指定（直前の表示に従う）", fontSize = 13.sp) },
-                        onClick = {
-                            display.setSpecified(document, option)
-                            navigation.navigationOpen = false
-                        },
-                    )
-                }
-                Text(if (display.fixed) "固定中はファイルの指定だけを変更します。"
-                    else "未指定に戻しても、現在の表示は維持します。",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), fontSize = 12.sp, color = Palette.SubText)
-            }
+            ChoiceMenu(open, { open = false }, (listOf<FormDisplayMode?>(null) + FormDisplayMode.entries).map { option ->
+                ChoiceOption(option, option?.label ?: "未指定（直前の表示に従う）", selected = specified == option)
+            }, onSelect = { option ->
+                display.setSpecified(document, option)
+                navigation.navigationOpen = false
+            }, note = "現在の表示：${mode.label}\n" + if (display.fixed) "固定中はファイルの指定だけを変更します。"
+                else "未指定に戻しても、現在の表示は維持します。")
         }
     }
 }

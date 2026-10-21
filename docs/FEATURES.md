@@ -34,7 +34,7 @@
 |---|---|---|---|---|
 | E-18 | フォームの複合値は全幅配置と上限付き字下げ・単一値は幅に応じた配置・文書情報と他文書の定義は開閉可能 | `ui/FormLayout.kt`, `ui/FormView.kt` | 単体 `FormLayoutTest`, `ScreenMemoryTest`・画面は手動 | [ui](architecture/ui.md) |
 | E-22 | フォーム入力の Esc で内容を保持してフォーカス解除（IME・候補を優先） | `ui/Common.kt`, `ui/TextFieldEscape.kt` | `TextFieldEscapeTest`・画面は手動 | [UI 操作規則](architecture/ui-interactions.md) |
-| E-23 | 選択一覧で現在値をチェックと背景色で表示 | `ui/ChoiceMenuItem.kt` | 手動（選択一覧の現在値） | [UI 操作規則](architecture/ui-interactions.md) |
+| E-23 | 選択一覧の現在値・高さ制限・説明全文・検索 | `ui/ChoiceMenu.kt`・`ChoiceOptions.kt` | ChoiceOptionsTest・手動（長い選択一覧） | [UI 操作規則](architecture/ui-interactions.md) |
 | E-21 | 表示方式のアイコン操作・固定／可変・ファイルの明示指定と確認・構成ペインの× | `app/FormDisplayMemory.kt`, `ui/FormDisplayControls.kt` | `FormDisplayMemoryTest`・画面は手動 | [ui](architecture/ui.md) |
 | E-20 | フォームの構成ツリーと三つの表示方式（選択項目・全体連動・全体のみ） | `ui/StructuredForm.kt`, `ui/DocumentFormWorkspace.kt` | `FormOutlineTest`, `FormPositionsTest`, `ScreenMemoryTest`・画面は手動 | [ui](architecture/ui.md) |
 | E-19 | 項目説明の短い表示・項目名とⓘのホバーで小さな予告・説明ボタンで全文固定（編集・閲覧共通） | `ui/FieldHelp.kt` | 単体 `FieldHelpPositionTest`・画面は手動 | [ui](architecture/ui.md) |

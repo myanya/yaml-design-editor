@@ -18,6 +18,7 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 | `FieldHelp` / `FieldHelpPosition` | ui/FieldHelp.kt | 説明の短い表示とホバー・固定表示、画面内への位置調整 |
 | `TextFieldEscape` | ui/TextFieldEscape.kt | Esc の一押しと変換状態を追跡し、候補の閉鎖とフォーカス解除を分ける |
 | `ChoiceMenuItem` | ui/ChoiceMenuItem.kt | 選択一覧の現在値をチェック・背景色・selected で示す共通行 |
+| `ChoiceMenu`・`ChoiceOption` | ui/ChoiceMenu.kt・ChoiceOptions.kt | 高さ制限・遅延描画・現在値への初期スクロール・検索・説明全文を共有 |
 | `FlowViewPane` / `EmbeddedFlowPane` | ui/FlowViewPane.kt | 図と原本フォームを併記する単独・埋め込み表示（[views](views.md)） |
 | `ObjectTable` / `ArrayTable` / `MapTable` / `RefCell` / `tableColumnWidths` | ui/FormView.kt | 配列と map のテーブル表示（参照セルは ID・参照先の名前・横ぐしへの Hub） |
 | `AppToolbar` / `PaneHeader` / `UiTooltip` | ui/AppToolbar.kt | 全体メニュー・移動と検索・左右ペインの開閉・操作名の補足 |
@@ -88,7 +89,8 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 - `CompactTextField` は `TextFieldValue` で選択と変換状態を保持し、文字列が変わったときだけ呼び出し元へ通知する。表示形式による文字列の切替は値の変更として通知しない。
 - フォームの呼び出し元は `clearFocusOnEscape = true` を指定する。`SchemaTextField` も共用し、定義追加ダイアログでは無効にする。
 - `TextFieldEscape` は preview で変換状態を覚え、子が消費しなかった KeyDown で操作を決める。キーリピートは次の層へ進めず、KeyUp またはフォーカス離脱で一押しの状態を解放する。
-- ID・参照・文書参照の候補はフォーカスを奪わないため、開いている間だけ `onDismissPopup` を渡す。日付・時刻ピッカーは自身のフォーカスと既存の閉鎖処理を使う。
+- ID・参照・文書参照を含む選択一覧は `ChoiceMenu` が自身のフォーカスを持つ。検索欄の `onCompositionChange` を使って IME の Enter・Esc を優先し、`ChoiceKeyPress` がキー解放まで操作を保留する。
+- 日付・時刻ピッカーは自身のフォーカスと既存の閉鎖処理を使う。フォーカスを残す補助画面を追加する場合は、開いている間だけ `CompactTextField.onDismissPopup` を渡す。
 
 ## 閲覧専用
 

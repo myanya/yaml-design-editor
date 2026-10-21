@@ -207,6 +207,8 @@ fun CompactTextField(
     clearFocusOnEscape: Boolean = false,
     /** フォーカスを残す候補が開いている間だけ渡す。Esc は候補を閉じるだけで消費する。 */
     onDismissPopup: (() -> Unit)? = null,
+    /** 検索を持つ選択一覧が、IME の確定・取消を先取りしないための通知。 */
+    onCompositionChange: ((Boolean) -> Unit)? = null,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
@@ -238,6 +240,7 @@ fun CompactTextField(
         readOnly = readOnly,
         onValueChange = {
             editingValue = it
+            onCompositionChange?.invoke(it.composition != null)
             if (lastText != it.text) {
                 lastText = it.text
                 localValue = it.text

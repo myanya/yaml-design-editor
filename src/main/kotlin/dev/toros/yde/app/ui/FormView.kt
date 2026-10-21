@@ -36,7 +36,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.PopupProperties
 import dev.toros.yde.app.AppState
 import dev.toros.yde.app.OpenDocument
 import dev.toros.yde.app.core.DocBacklinkRow
@@ -944,7 +943,7 @@ private fun BooleanEditor(ctx: FormCtx, slot: Slot) {
 private fun EnumEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
     val current = (slot.get() as? YNode.Scalar)?.value?.toString()
     val currentOption = field.optionFor(current)
-    // 説明はボタンの右に1行（省略）で出し、縦に表示領域を広げない（UX-76。全文は選択肢メニューで読める）
+    // 説明はボタンの右に1行で出す。全文は選択一覧の説明ボタンから読める。
     if (ctx.readOnly) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             ReadOnlyValueText(currentOption?.displayLabel ?: current)
@@ -963,35 +962,18 @@ private fun EnumEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
                 Text(currentOption?.displayLabel ?: current ?: "（未設定）", fontSize = 13.sp)
                 Icon(Icons.Default.ArrowDropDown, contentDescription = null)
             }
-            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-                field.enumOptions().forEach { option ->
-                    val selected = option.value == current
-                    ChoiceMenuItem(selected = selected, text = {
-                        Column {
-                            Text(
-                                option.displayLabel, fontSize = 13.sp,
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (selected) Palette.Primary else Palette.Text,
-                            )
-                            // 表示ラベルと保存される値が異なる場合は値も添える（データの正体を隠さない）
-                            if (option.label != null && option.label != option.value) {
-                                Text(option.value, fontSize = 10.sp, color = Palette.SubText)
-                            }
-                            option.description?.let { MarkdownView(it, compact = true) }
-                        }
-                    }, onClick = {
-                        slot.set(YNode.Scalar(option.value))
-                        ctx.markEdited()
-                        open = false
-                    })
-                }
-                ChoiceMenuItem(selected = current == null,
-                    text = { Text("（未設定にする）", fontSize = 13.sp, color = Palette.SubText) }, onClick = {
-                    slot.remove()
+            ChoiceMenu(
+                expanded = open, onDismissRequest = { open = false },
+                options = field.enumOptions().map { option ->
+                    ChoiceOption<String?>(option.value, option.displayLabel,
+                        subtitle = option.value.takeIf { it != option.displayLabel }.orEmpty(),
+                        description = option.description, selected = option.value == current, searchText = option.value)
+                } + ChoiceOption(null, "（未設定にする）", selected = current == null),
+                onSelect = { value ->
+                    if (value == null) slot.remove() else slot.set(YNode.Scalar(value))
                     ctx.markEdited()
-                    open = false
-                })
-            }
+                },
+            )
         }
         // 現在選択値の説明（選択肢を開かなくても意味が分かるようにする）
         currentOption?.description?.let {
@@ -1029,7 +1011,7 @@ private fun IdEditor(ctx: FormCtx, field: FieldDef?, slot: Slot) {
             val schemaDef = ctx.doc.schema
             val entityGlobs = schemaDef?.entities?.mapNotNull { it.idPattern }.orEmpty()
             val patternRegex = field?.pattern?.let { p -> runCatching { Regex(p) }.getOrNull() }
-            val candidates: List<IdEntry> = remember(ctx.state.indexVersion, ctx.state.editVersion, text, field?.pattern) {
+            val candidates: List<IdEntry> = remember(ctx.state.indexVersion, ctx.state.editVersion, field?.pattern) {
                 ctx.state.overlayIndex().entries.values.asSequence()
                     .mapNotNull { it.firstOrNull() }
                     .filter { e ->
@@ -1039,9 +1021,7 @@ private fun IdEditor(ctx: FormCtx, field: FieldDef?, slot: Slot) {
                             else -> true
                         }
                     }
-                    .filter { text.isBlank() || it.id.contains(text, true) || (it.title?.contains(text, true) == true) }
                     .sortedBy { it.id }
-                    .take(50)
                     .toList()
             }
             // 次の連番（UX-64）: 系列は現在文書のIDを優先し、提案が既存IDと衝突する場合は出さない
@@ -1059,7 +1039,6 @@ private fun IdEditor(ctx: FormCtx, field: FieldDef?, slot: Slot) {
                     clearFocusOnEscape = true,
                     value = text,
                     onValueChange = { ctx.setScalar(slot, it, FieldType.ID) },
-                    onDismissPopup = if (menuOpen) ({ menuOpen = false }) else null,
                     singleLine = true,
                     textStyle = fieldTextStyle,
                     trailingIcon = {
@@ -1069,39 +1048,15 @@ private fun IdEditor(ctx: FormCtx, field: FieldDef?, slot: Slot) {
                     },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                DropdownMenu(
+                if (menuOpen) ChoiceMenu(
                     expanded = menuOpen,
                     onDismissRequest = { menuOpen = false },
-                    properties = PopupProperties(focusable = false),
-                ) {
-                    suggestion?.let { s ->
-                        DropdownMenuItem(
-                            text = { Text("採番: $s（次の連番）", fontSize = 12.sp, fontWeight = FontWeight.SemiBold) },
-                            onClick = { ctx.setScalar(slot, s, FieldType.ID); menuOpen = false },
-                        )
-                    }
-                    if (candidates.isNotEmpty()) {
-                        DropdownMenuItem(
-                            text = { Text("既存ID（選ぶと同一IDの出現＝詳細化・写像行になる）", fontSize = 10.sp, color = Palette.SubText) },
-                            onClick = {}, enabled = false,
-                        )
-                        candidates.forEach { e ->
-                            ChoiceMenuItem(selected = e.id == text, text = {
-                                Column {
-                                    Text(e.id, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                                    Text(
-                                        listOfNotNull(e.title, e.document.value).joinToString(" — "),
-                                        fontSize = 11.sp, color = Palette.SubText,
-                                    )
-                                }
-                            }, onClick = { ctx.setScalar(slot, e.id, FieldType.ID); menuOpen = false })
-                        }
-                    }
-                    if (suggestion == null && candidates.isEmpty()) {
-                        DropdownMenuItem(text = { Text("候補なし", fontSize = 12.sp, color = Palette.SubText) },
-                            onClick = { menuOpen = false }, enabled = false)
-                    }
-                }
+                    options = listOfNotNull(suggestion?.let { ChoiceOption(it, "採番: $it", "次の連番", searchText = it) }) +
+                        candidates.map { e -> ChoiceOption(e.id, e.id,
+                            listOfNotNull(e.title, e.document.value).joinToString(" — "), selected = e.id == text) },
+                    note = "既存IDを選ぶと同一IDの出現（詳細化・写像行）になります。",
+                    onSelect = { ctx.setScalar(slot, it, FieldType.ID) },
+                )
             }
             EntityPageButton(ctx, text, enabled = inIndex, iconButtonSize = 38.dp)
             }
@@ -1206,7 +1161,7 @@ private fun RefScalarEditor(ctx: FormCtx, field: FieldDef, slot: Slot, titleInFi
     }
 
     // 候補: ID パターンとスコープで絞り込み、同一論理 ID は1候補にまとめる。
-    val candidates: List<IdEntry> = remember(ctx.state.indexVersion, field.idPatterns, field.scope) {
+    val candidates: List<IdEntry> = remember(ctx.state.indexVersion, ctx.state.editVersion, field.idPatterns, field.scope) {
         ctx.state.overlayIndex().entries.values.asSequence()
             .filter { occurrences -> occurrences.any { it.isAllowedBy(refConstraint) } }
             .mapNotNull { occurrences -> occurrences.firstOrNull { it.isAllowedBy(refConstraint) } }
@@ -1223,7 +1178,6 @@ private fun RefScalarEditor(ctx: FormCtx, field: FieldDef, slot: Slot, titleInFi
                 clearFocusOnEscape = true,
                 value = current,
                 onValueChange = { ctx.setScalar(slot, it, FieldType.REF) },
-                onDismissPopup = if (menuOpen) ({ menuOpen = false }) else null,
                 singleLine = true,
                 isError = current.isNotBlank() && !resolved,
                 textStyle = fieldTextStyle,
@@ -1247,36 +1201,13 @@ private fun RefScalarEditor(ctx: FormCtx, field: FieldDef, slot: Slot, titleInFi
                 },
                 modifier = Modifier.fillMaxWidth(),
             )
-            DropdownMenu(
+            if (menuOpen) ChoiceMenu(
                 expanded = menuOpen,
                 onDismissRequest = { menuOpen = false },
-                properties = PopupProperties(focusable = false),
-            ) {
-                if (candidates.isEmpty()) {
-                    DropdownMenuItem(text = { Text("候補なし", fontSize = 12.sp, color = Palette.SubText) },
-                        onClick = { menuOpen = false }, enabled = false)
-                }
-                candidates.forEach { e ->
-                    val selected = e.id == current
-                    ChoiceMenuItem(selected = selected, text = {
-                        Column {
-                            Text(
-                                e.id,
-                                fontSize = 13.sp,
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
-                                color = if (selected) Palette.Primary else Palette.Text,
-                            )
-                            Text(
-                                listOfNotNull(e.title, e.document.value).joinToString(" — "),
-                                fontSize = 11.sp, color = Palette.SubText,
-                            )
-                        }
-                    }, onClick = {
-                        ctx.setScalar(slot, e.id, FieldType.REF)
-                        menuOpen = false
-                    })
-                }
-            }
+                options = candidates.map { e -> ChoiceOption(e.id, e.id,
+                    listOfNotNull(e.title, e.document.value).joinToString(" — "), selected = e.id == current) },
+                onSelect = { ctx.setScalar(slot, it, FieldType.REF) },
+            )
         }
         RefJumpButton(ctx, current, enabled = resolved, iconButtonSize = 38.dp)
     }
@@ -1366,7 +1297,6 @@ private fun DocRefScalarEditor(ctx: FormCtx, slot: Slot) {
                 clearFocusOnEscape = true,
                 value = current,
                 onValueChange = { ctx.setScalar(slot, it, FieldType.REF) },
-                onDismissPopup = if (menuOpen) ({ menuOpen = false }) else null,
                 singleLine = true,
                 isError = current.isNotBlank() && !resolved,
                 textStyle = fieldTextStyle,
@@ -1387,37 +1317,16 @@ private fun DocRefScalarEditor(ctx: FormCtx, slot: Slot) {
                 },
                 modifier = Modifier.fillMaxWidth(),
             )
-            DropdownMenu(
+            if (menuOpen) ChoiceMenu(
                 expanded = menuOpen,
                 onDismissRequest = { menuOpen = false },
-                properties = PopupProperties(focusable = false),
-            ) {
-                if (documents.isEmpty()) {
-                    DropdownMenuItem(text = { Text("候補なし", fontSize = 12.sp, color = Palette.SubText) },
-                        onClick = { menuOpen = false }, enabled = false)
-                }
-                documents.values.sortedBy { it.documentId }.forEach { node ->
-                    val selected = node.documentId == current
-                    ChoiceMenuItem(selected = selected, text = {
-                        Column {
-                            Text(
-                                node.documentId,
-                                fontSize = 13.sp,
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
-                                color = if (selected) Palette.Primary else Palette.Text,
-                            )
-                            val name = loader(node.document)?.let { IdIndex.documentNameOf(it) }
-                            Text(
-                                listOfNotNull(name, node.document.value).joinToString(" — "),
-                                fontSize = 11.sp, color = Palette.SubText,
-                            )
-                        }
-                    }, onClick = {
-                        ctx.setScalar(slot, node.documentId, FieldType.REF)
-                        menuOpen = false
-                    })
-                }
-            }
+                options = documents.values.sortedBy { it.documentId }.map { node ->
+                    val name = loader(node.document)?.let { IdIndex.documentNameOf(it) }
+                    ChoiceOption(node.documentId, node.documentId,
+                        listOfNotNull(name, node.document.value).joinToString(" — "), selected = node.documentId == current)
+                },
+                onSelect = { ctx.setScalar(slot, it, FieldType.REF) },
+            )
         }
         IconButton(
             enabled = resolved && documents.containsKey(current),

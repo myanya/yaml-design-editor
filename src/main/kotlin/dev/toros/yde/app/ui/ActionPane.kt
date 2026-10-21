@@ -36,7 +36,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.PopupProperties
 import dev.toros.yde.app.AppState
 import dev.toros.yde.app.OpenDocument
 import dev.toros.yde.workspace.ActionEntry
@@ -360,25 +359,9 @@ private fun TargetPicker(state: AppState, work: AppState.ActionWork, type: Strin
                 },
                 modifier = Modifier.fillMaxWidth(),
             )
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }, properties = PopupProperties(focusable = false)) {
-                val filtered = if (current.isBlank() || resolved) candidates
-                else candidates.filter { (id, t) -> id.contains(current, true) || t?.contains(current, true) == true }
-                if (filtered.isEmpty()) {
-                    DropdownMenuItem(text = { Text("候補なし", fontSize = 12.sp, color = Palette.SubText) }, onClick = { menuOpen = false }, enabled = false)
-                }
-                filtered.take(80).forEach { (id, t) ->
-                    ChoiceMenuItem(
-                        selected = id == current,
-                        text = {
-                            Column {
-                                Text(id, fontSize = 12.sp, fontWeight = if (id == current) FontWeight.Bold else FontWeight.Normal)
-                                t?.let { Text(it, fontSize = 10.sp, color = Palette.SubText, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                            }
-                        },
-                        onClick = { set(id); menuOpen = false },
-                    )
-                }
-            }
+            ChoiceMenu(menuOpen, { menuOpen = false }, candidates.map { (id, title) ->
+                ChoiceOption(id, id, title.orEmpty(), selected = id == current)
+            }, onSelect = { set(it) })
         }
     }
     if (current.isNotBlank() && !resolved) {

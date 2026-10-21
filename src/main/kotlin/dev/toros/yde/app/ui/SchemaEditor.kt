@@ -829,12 +829,7 @@ internal fun ChoiceButton(value: String, choices: List<String>, onSelect: (Strin
     var open by remember { mutableStateOf(false) }
     Box {
         OutlinedButton(enabled = !LocalSchemaReadOnly.current, shape = PanelShape, onClick = { open = true }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)) { Text(value, fontSize = 12.sp); Text(" ▾", color = Palette.SubText) }
-        DropdownMenu(open, { open = false }) {
-            choices.forEach { choice ->
-                ChoiceMenuItem(selected = choice == value, text = { Text(choice) },
-                    onClick = { onSelect(choice); open = false })
-            }
-        }
+        ChoiceMenu(open, { open = false }, choices.map { ChoiceOption(it, it, selected = it == value) }, onSelect)
     }
 }
 
