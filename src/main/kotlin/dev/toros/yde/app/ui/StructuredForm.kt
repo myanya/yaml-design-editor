@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.sp
 import dev.toros.yde.app.FormDisplayMode
 import dev.toros.yde.yaml.model.YPath
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.withTimeoutOrNull
 
 /** 一時的なレイアウト座標は画面の寿命だけに閉じ、文書や履歴に書かない。 */
@@ -42,6 +42,14 @@ internal class FormPositions(val scroll: ScrollState) {
     }
     fun remove(path: YPath, owner: Any) {
         if (owners[path] === owner) { owners.remove(path); bounds.remove(path) }
+    }
+
+    fun activePath(paths: Set<YPath>): YPath? =
+        activeFormPath(bounds.filterKeys { it in paths }, scroll.value + 24f)
+
+    /** 移動の終了・折り畳みの再配置でも、現在位置から選び直す。 */
+    fun observeActivePath(paths: () -> Set<YPath>, paused: () -> Boolean) = snapshotFlow {
+        if (paused()) null else activePath(paths())
     }
 }
 
@@ -76,10 +84,11 @@ internal fun StructuredForm(
     val positions = remember(ctx.doc) { FormPositions(scroll) }
     var request by remember(ctx.doc) { mutableStateOf<Pair<Int, YPath>?>(null) }
     var serial by remember(ctx.doc) { mutableIntStateOf(0) }
-    var moving by remember { mutableStateOf(false) }
+    var moving by remember(ctx.doc) { mutableStateOf(false) }
     var viewportWidth by remember(ctx.doc) { mutableIntStateOf(0) }
     var followed: YPath? by remember(ctx.doc) { mutableStateOf(null) }
     val currentSelect by rememberUpdatedState(onSelect)
+    val currentSelected by rememberUpdatedState(selected)
     val currentItems by rememberUpdatedState(items)
     fun select(path: YPath) {
         followed = null
@@ -113,20 +122,19 @@ internal fun StructuredForm(
         } finally { moving = false }
     }
     LaunchedEffect(ctx.doc, mode) {
-        snapshotFlow { scroll.value }.drop(1).collect { offset ->
-            if (mode != FormDisplayMode.SELECTED && !moving) {
-                withFrameNanos { }
-                if (!moving) {
-                    val allowed = currentItems.map { it.path }.toSet()
-                    activeFormPath(positions.bounds.filterKeys { it in allowed }, offset + 24f)?.let { path ->
-                        followed = path
-                        currentSelect(path)
-                        if (mode == FormDisplayMode.LINKED) currentItems.filter {
-                            it.path.size < path.size && path.take(it.path.size) == it.path
-                        }.forEach { memory.expanded[it.path] = true }
-                    }
-                }
-            }
+        if (mode == FormDisplayMode.SELECTED) return@LaunchedEffect
+        val paths = { currentItems.map { it.path }.toSet() }
+        val paused = { moving || memory.navigationOpen }
+        positions.observeActivePath(paths, paused).collectLatest { path ->
+            if (path == null) return@collectLatest
+            // スクロールと再配置が揃った最新の位置だけを反映する。
+            withFrameNanos { }
+            if (paused() || positions.activePath(paths()) != path) return@collectLatest
+            followed = path
+            if (currentSelected != path) currentSelect(path)
+            if (mode == FormDisplayMode.LINKED) currentItems.filter {
+                it.path.size < path.size && path.take(it.path.size) == it.path
+            }.forEach { memory.expanded[it.path] = true }
         }
     }
     val tree: @Composable (Modifier) -> Unit = { modifier ->
