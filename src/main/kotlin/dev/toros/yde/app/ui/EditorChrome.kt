@@ -135,9 +135,12 @@ internal fun EditorModeBar(state: AppState, doc: OpenDocument, schemaDocument: B
                     }
                 }
                 DropdownMenu(menu, { menu = false }) {
-                    DropdownMenuItem(text = { Text("プレビュー") }, onClick = { openSchema(1); menu = false })
-                    DropdownMenuItem(text = { Text("適用対象") }, onClick = { openSchema(2); menu = false })
-                    DropdownMenuItem(text = { Text("汎用フォーム") }, onClick = { state.editorTab = 3; menu = false })
+                    ChoiceMenuItem(selected = tab == 0 && schemaMode == 1,
+                        text = { Text("プレビュー") }, onClick = { openSchema(1); menu = false })
+                    ChoiceMenuItem(selected = tab == 0 && schemaMode == 2,
+                        text = { Text("適用対象") }, onClick = { openSchema(2); menu = false })
+                    ChoiceMenuItem(selected = tab == 3,
+                        text = { Text("汎用フォーム") }, onClick = { state.editorTab = 3; menu = false })
                 }
             }
         }

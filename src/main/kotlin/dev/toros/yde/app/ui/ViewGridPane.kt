@@ -122,7 +122,8 @@ private fun HeaderBar(state: AppState, loaded: Views.LoadResult, view: ViewDef?)
             }
             DropdownMenu(selectorOpen, { selectorOpen = false }) {
                 loaded.views.forEach { v ->
-                    DropdownMenuItem(
+                    ChoiceMenuItem(
+                        selected = v.id == view?.id,
                         text = {
                             Column {
                                 Text(v.name, fontSize = 13.sp)

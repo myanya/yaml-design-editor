@@ -831,7 +831,8 @@ internal fun ChoiceButton(value: String, choices: List<String>, onSelect: (Strin
         OutlinedButton(enabled = !LocalSchemaReadOnly.current, shape = PanelShape, onClick = { open = true }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)) { Text(value, fontSize = 12.sp); Text(" ▾", color = Palette.SubText) }
         DropdownMenu(open, { open = false }) {
             choices.forEach { choice ->
-                DropdownMenuItem(text = { Text(choice) }, onClick = { onSelect(choice); open = false })
+                ChoiceMenuItem(selected = choice == value, text = { Text(choice) },
+                    onClick = { onSelect(choice); open = false })
             }
         }
     }

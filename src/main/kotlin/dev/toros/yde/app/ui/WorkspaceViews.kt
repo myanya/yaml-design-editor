@@ -118,7 +118,8 @@ private fun FilterMenu(label: String, value: String, values: List<String>, onCha
     Box {
         TextButton(onClick = { open = true }) { Text("$label: ${value.ifBlank { "すべて" }}", fontSize = 11.sp) }
         DropdownMenu(open, { open = false }) { values.forEach { option ->
-            DropdownMenuItem(text = { Text(option.ifBlank { "すべて" }) }, onClick = { onChange(option); open = false })
+            ChoiceMenuItem(selected = option == value, text = { Text(option.ifBlank { "すべて" }) },
+                onClick = { onChange(option); open = false })
         } }
     }
 }

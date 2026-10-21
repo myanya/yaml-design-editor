@@ -5,8 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PushPin
-import androidx.compose.material.icons.filled.RadioButtonChecked
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.automirrored.outlined.Article
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Tune
@@ -97,13 +95,9 @@ internal fun FormDisplayControls(display: FormDisplayMemory, document: DocumentI
                 }
                 HorizontalDivider(color = Palette.Border)
                 (listOf<FormDisplayMode?>(null) + FormDisplayMode.entries).forEach { option ->
-                    DropdownMenuItem(
+                    ChoiceMenuItem(
+                        selected = specified == option,
                         text = { Text(option?.label ?: "未指定（直前の表示に従う）", fontSize = 13.sp) },
-                        leadingIcon = {
-                            Icon(if (specified == option) Icons.Filled.RadioButtonChecked else Icons.Filled.RadioButtonUnchecked,
-                                null, Modifier.size(18.dp), tint = if (specified == option) Palette.Primary else Palette.SubText)
-                        },
-                        modifier = Modifier.semantics { selected = specified == option },
                         onClick = {
                             display.setSpecified(document, option)
                             navigation.navigationOpen = false

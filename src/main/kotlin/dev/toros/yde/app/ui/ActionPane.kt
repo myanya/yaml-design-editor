@@ -367,7 +367,8 @@ private fun TargetPicker(state: AppState, work: AppState.ActionWork, type: Strin
                     DropdownMenuItem(text = { Text("候補なし", fontSize = 12.sp, color = Palette.SubText) }, onClick = { menuOpen = false }, enabled = false)
                 }
                 filtered.take(80).forEach { (id, t) ->
-                    DropdownMenuItem(
+                    ChoiceMenuItem(
+                        selected = id == current,
                         text = {
                             Column {
                                 Text(id, fontSize = 12.sp, fontWeight = if (id == current) FontWeight.Bold else FontWeight.Normal)

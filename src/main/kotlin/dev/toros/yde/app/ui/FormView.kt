@@ -966,7 +966,7 @@ private fun EnumEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
             DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
                 field.enumOptions().forEach { option ->
                     val selected = option.value == current
-                    DropdownMenuItem(text = {
+                    ChoiceMenuItem(selected = selected, text = {
                         Column {
                             Text(
                                 option.displayLabel, fontSize = 13.sp,
@@ -979,18 +979,14 @@ private fun EnumEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
                             }
                             option.description?.let { MarkdownView(it, compact = true) }
                         }
-                    }, trailingIcon = {
-                        if (selected) {
-                            Icon(Icons.Default.Check, contentDescription = "選択中",
-                                tint = Palette.Primary, modifier = Modifier.size(18.dp))
-                        }
                     }, onClick = {
                         slot.set(YNode.Scalar(option.value))
                         ctx.markEdited()
                         open = false
-                    }, modifier = Modifier.background(if (selected) Palette.Selected else Color.Transparent))
+                    })
                 }
-                DropdownMenuItem(text = { Text("（未設定にする）", fontSize = 13.sp, color = Palette.SubText) }, onClick = {
+                ChoiceMenuItem(selected = current == null,
+                    text = { Text("（未設定にする）", fontSize = 13.sp, color = Palette.SubText) }, onClick = {
                     slot.remove()
                     ctx.markEdited()
                     open = false
@@ -1090,7 +1086,7 @@ private fun IdEditor(ctx: FormCtx, field: FieldDef?, slot: Slot) {
                             onClick = {}, enabled = false,
                         )
                         candidates.forEach { e ->
-                            DropdownMenuItem(text = {
+                            ChoiceMenuItem(selected = e.id == text, text = {
                                 Column {
                                     Text(e.id, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                                     Text(
@@ -1262,7 +1258,7 @@ private fun RefScalarEditor(ctx: FormCtx, field: FieldDef, slot: Slot, titleInFi
                 }
                 candidates.forEach { e ->
                     val selected = e.id == current
-                    DropdownMenuItem(text = {
+                    ChoiceMenuItem(selected = selected, text = {
                         Column {
                             Text(
                                 e.id,
@@ -1275,19 +1271,10 @@ private fun RefScalarEditor(ctx: FormCtx, field: FieldDef, slot: Slot, titleInFi
                                 fontSize = 11.sp, color = Palette.SubText,
                             )
                         }
-                    }, trailingIcon = {
-                        if (selected) {
-                            Icon(
-                                Icons.Default.Check,
-                                contentDescription = "選択中",
-                                tint = Palette.Primary,
-                                modifier = Modifier.size(18.dp),
-                            )
-                        }
                     }, onClick = {
                         ctx.setScalar(slot, e.id, FieldType.REF)
                         menuOpen = false
-                    }, modifier = Modifier.background(if (selected) Palette.Selected else Color.Transparent))
+                    })
                 }
             }
         }
@@ -1411,7 +1398,7 @@ private fun DocRefScalarEditor(ctx: FormCtx, slot: Slot) {
                 }
                 documents.values.sortedBy { it.documentId }.forEach { node ->
                     val selected = node.documentId == current
-                    DropdownMenuItem(text = {
+                    ChoiceMenuItem(selected = selected, text = {
                         Column {
                             Text(
                                 node.documentId,
@@ -1428,7 +1415,7 @@ private fun DocRefScalarEditor(ctx: FormCtx, slot: Slot) {
                     }, onClick = {
                         ctx.setScalar(slot, node.documentId, FieldType.REF)
                         menuOpen = false
-                    }, modifier = Modifier.background(if (selected) Palette.Selected else Color.Transparent))
+                    })
                 }
             }
         }

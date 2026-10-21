@@ -59,7 +59,7 @@ fun FlowViewPane(state: AppState) {
     val view = state.flowViewId?.let(catalog::flowView)
     Column(Modifier.fillMaxSize().background(Palette.EditorBg).padding(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            FlowChooser("フロービュー", view?.name, catalog.flowViews.map { it.id to it.name }) {
+            FlowChooser("フロービュー", view?.id, catalog.flowViews.map { it.id to it.name }) {
                 state.openFlowView(it)
             }
             if (view != null) {
@@ -90,12 +90,18 @@ fun FlowViewPane(state: AppState) {
 }
 
 @Composable
-private fun FlowChooser(label: String, selected: String?, items: List<Pair<String, String>>, onSelect: (String) -> Unit) {
+private fun FlowChooser(
+    label: String, selected: String?, items: List<Pair<String, String>>,
+    buttonText: String? = null, onSelect: (String) -> Unit,
+) {
     var expanded by remember { mutableStateOf(false) }
     Box {
-        OutlinedButton(onClick = { expanded = true }) { Text(selected ?: "$label を選択", fontSize = 12.sp) }
+        OutlinedButton(onClick = { expanded = true }) {
+            Text(buttonText ?: items.firstOrNull { it.first == selected }?.second ?: selected ?: "$label を選択", fontSize = 12.sp)
+        }
         DropdownMenu(expanded, { expanded = false }) {
-            items.forEach { (id, name) -> DropdownMenuItem(
+            items.forEach { (id, name) -> ChoiceMenuItem(
+                selected = id == selected,
                 text = { Text(name, fontSize = 12.sp) },
                 onClick = { expanded = false; onSelect(id) },
             ) }
@@ -157,12 +163,14 @@ private fun FlowPane(state: AppState, doc: OpenDocument, view: VirtualFlowDef, m
             }
         }
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
-            FlowChooser("レイアウト", "レイアウト: ${display.mode.label}", FlowLayoutMode.entries.map { it.name to it.label }) {
+            FlowChooser("レイアウト", display.mode.name, FlowLayoutMode.entries.map { it.name to it.label },
+                buttonText = "レイアウト: ${display.mode.label}") {
                 state.flowDisplayOptions = state.flowDisplayOptions + (displayKey to display.copy(mode = FlowLayoutMode.valueOf(it)))
             }
             Spacer(Modifier.width(8.dp))
             val directions = listOf("default" to "ビュー定義に従う", "down" to "上から下", "right" to "左から右")
-            FlowChooser("方向", "方向: ${directions.first { it.first == (display.direction ?: "default") }.second}", directions) {
+            FlowChooser("方向", display.direction ?: "default", directions,
+                buttonText = "方向: ${directions.first { it.first == (display.direction ?: "default") }.second}") {
                 state.flowDisplayOptions = state.flowDisplayOptions + (displayKey to display.copy(direction = it.takeUnless { it == "default" }))
             }
         }

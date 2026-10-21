@@ -623,7 +623,7 @@ private fun SelectContent(
                 }
                 DropdownMenu(open, { open = false }) {
                     defs.activities.forEach { activity ->
-                        DropdownMenuItem(text = {
+                        ChoiceMenuItem(selected = activity.id == selected?.id, text = {
                             Column {
                                 Text(activity.name, fontSize = 13.sp)
                                 Text(

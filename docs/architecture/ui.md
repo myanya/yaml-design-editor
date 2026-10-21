@@ -17,6 +17,7 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 | `isStructuredFormValue` / `stackFormField` | ui/FormLayout.kt | 解決済みの型・実際の値と利用可能幅によるフォーム配置の判定（純ロジック） |
 | `FieldHelp` / `FieldHelpPosition` | ui/FieldHelp.kt | 説明の短い表示とホバー・固定表示、画面内への位置調整 |
 | `TextFieldEscape` | ui/TextFieldEscape.kt | Esc の一押しと変換状態を追跡し、候補の閉鎖とフォーカス解除を分ける |
+| `ChoiceMenuItem` | ui/ChoiceMenuItem.kt | 選択一覧の現在値をチェック・背景色・selected で示す共通行 |
 | `FlowViewPane` / `EmbeddedFlowPane` | ui/FlowViewPane.kt | 図と原本フォームを併記する単独・埋め込み表示（[views](views.md)） |
 | `ObjectTable` / `ArrayTable` / `MapTable` / `RefCell` / `tableColumnWidths` | ui/FormView.kt | 配列と map のテーブル表示（参照セルは ID・参照先の名前・横ぐしへの Hub） |
 | `AppToolbar` / `PaneHeader` / `UiTooltip` | ui/AppToolbar.kt | 全体メニュー・移動と検索・左右ペインの開閉・操作名の補足 |
