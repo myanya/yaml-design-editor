@@ -15,6 +15,7 @@
 | `FormCtx.writeScalar` | ui/FormView.kt | スカラー入力の書込。合体キーを渡す |
 | `OpenDocument.source` / `applyParsed` / `syncSourceFromTree` / `discardDraft` / `enterTextOnly` | app/AppState.kt | ソースの下書き（文字列・カーソル・解析エラー）の所有と、木との同期 |
 | `SourcePane` / `SourceDraftBanner` | ui/SourcePane.kt | ソースの表示と入力（入力が止まってから背景で解析）。他のタブに出す書きかけ・壊れたまま保存のバナー |
+| `SourceSyntaxBar` / `sourceErrorLocation` | ui/SourceSyntaxBar.kt | 本文の位置を変えない構文状態と詳細の表示、解析エラー文面からの問題位置の取得 |
 | `LineMerge` | ui/SourceMerge.kt | 行の差分（共通部分の切り落とし＋LCS）と 3 者マージ・文字列とカーソルへの適用（純ロジック） |
 | `SourceEditing` | ui/SourceEditing.kt | 基本操作の規則（改行のインデント・インデント・コメント切替・行の移動と複製・検索と置換）。文字列と選択範囲を受けて返す純ロジック |
 | `SourceContext` | ui/SourceContext.kt | カーソル位置の文脈（親のパス・キーか値か・打ちかけの語）。木でなく文字列のインデントから読むので、解析できない書きかけでも働く（純ロジック） |
@@ -50,6 +51,10 @@
 - undo / redo / restore / resetHistory は合体キーをリセットする。
 
 ## ソースとの同期
+
+- ソースの構文状態は `SourceSyntaxBar` の固定高の行に表示する。詳細は本文を押し下げないポップアップで、構文の正常と検証の充足は区別する。
+- `sourceApplied` は観測可能な状態で、入力との差がある間は確認中とする。同じエラー文面が続く場合も解析完了を通知し、古い結果の位置へジャンプさせない。
+- この表示は既存の解析結果の射影に限る。Core Calculus の Predicate・Rewrite などの演算や保存経路は追加しない。
 
 木が常に正で、ソースの下書きは木の表現の 1 つ。
 

@@ -291,7 +291,8 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
 
     Column(Modifier.fillMaxSize()) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+            Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 12.dp)
+                .horizontalScroll(remember(doc) { ScrollState(0) }),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             val differs = text != doc.sourceBase
@@ -303,29 +304,18 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
                         else -> "整形（正規化テキストに揃える）"
                     },
                     fontSize = 12.sp,
+                    maxLines = 1,
                 )
             }
             if (!readOnly && !doc.source.selection.collapsed) {
                 TextButton(onClick = ::formatSelection) { Text("選択範囲を整形", fontSize = 12.sp) }
             }
             Spacer(Modifier.width(12.dp))
-            when {
-                doc.textOnly -> Text(
-                    "壊れたまま保存されています: 直して保存するまで索引・検証の対象外です",
-                    fontSize = 12.sp, color = Palette.ErrorRed,
-                )
-                doc.draftBroken -> Text(
-                    "解析できない書きかけ: フォームは最後に解析できた内容のままです（このまま保存すると壊れたまま保存されます）",
-                    fontSize = 12.sp, color = Palette.ErrorRed,
-                )
-                doc.dirty -> Text("反映済み・未保存：Ctrl+Sでファイルへ保存できます", fontSize = 12.sp, color = Palette.WarnOrange)
-                else -> Text("保存済み", fontSize = 12.sp, color = Palette.OkGreen)
-            }
             if (issues.isNotEmpty()) {
                 val errors = issues.count { it.severity == Severity.ERROR }
                 Text(
-                    "  指摘: エラー $errors・警告 ${issues.size - errors}（左端の印にマウスを載せると内容）",
-                    fontSize = 11.sp, color = Palette.SubText,
+                    "指摘: エラー $errors・警告 ${issues.size - errors}（左端の印で確認）",
+                    fontSize = 11.sp, color = Palette.SubText, maxLines = 1,
                 )
             }
             Spacer(Modifier.weight(1f))
@@ -340,8 +330,8 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
             ui, matches, readOnly,
             onNext = ::findNext, onPrev = ::findPrev, onReplace = ::replaceCurrent, onReplaceAll = ::replaceAll, onGoto = ::gotoLine,
         )
-        doc.sourceError?.let {
-            Text(it, Modifier.padding(horizontal = 12.dp, vertical = 2.dp), fontSize = 12.sp, color = Palette.ErrorRed)
+        key(doc) {
+            SourceSyntaxBar(doc, onGotoLine = ::gotoLine, onReturnToEditor = { ui.editorFocus.requestFocus() })
         }
         SourceEditor(
             doc, readOnly, wrap, state, ui, vScroll, matches, positions, issueLines, diffMarks, foldView, foldedHeaders,

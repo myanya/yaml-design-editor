@@ -185,7 +185,7 @@ class OpenDocument(
     val source: TextFieldState = TextFieldState(canonicalText())
 
     /** 下書きを最後に木へ反映した（または反映を試みた）文字列。これと違えば、まだ反映していない入力がある。 */
-    var sourceApplied: String = source.text.toString()
+    var sourceApplied by mutableStateOf(source.text.toString())
         private set
 
     /** 前回木から作った正規化テキスト（3 者マージの元。「整形」の活性判定にも使う）。 */
