@@ -6,6 +6,7 @@ Kotlin + Compose for Desktop 製のスキーマ駆動 YAML エディタ。ワー
 
 ```bash
 ./gradlew test                              # 単体テスト（コミット前に必ず実行）
+./gradlew fileTreeBenchmark                 # 任意: 一時領域で1000・10万ファイルの一覧・検索を計測
 ./gradlew run                               # スタート画面で起動（履歴からワークスペース選択）
 ./gradlew run --args="/path/to/workspace"   # ワークスペース指定で起動
 ./gradlew hotRun                            # 開発時: Compose Hot Reload 付きで起動（保存で画面に反映。JBR 21 は自動取得）

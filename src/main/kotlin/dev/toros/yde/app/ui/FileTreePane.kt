@@ -39,17 +39,33 @@ import androidx.compose.foundation.ContextMenuItem
 import androidx.compose.foundation.border
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.*
+import androidx.compose.ui.input.pointer.*
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private data class TreeRow(
     val path: Path, val depth: Int, val isDir: Boolean,
     val editorOnly: Boolean = false,   // 台帳外（薄色）
     val markdown: Boolean = false,     // Markdown 文書（表示のみ。薄色・別アイコン）
+    val line: Int? = null,
+    val excerpt: String? = null,
 )
 
 /**
- * ワークスペース内の YAML ファイルをツリー表示する左ペイン。
- * ディレクトリは展開／折りたたみ可能（初期状態は展開）。
+ * ワークスペースのファイル一覧。ディレクトリは必要な枝だけ読み、展開を永続化する。
  */
+@OptIn(ExperimentalComposeUiApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp, onClose: () -> Unit = {}) {
     // 選択中の場所は画面の覚え（台帳・実行・設計を経由しても残る）。無くなった場所は読み捨てる
@@ -59,11 +75,28 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp, o
     var settings by remember { mutableStateOf(false) }
     var moveTargets by remember { mutableStateOf<List<Path>>(emptyList()) }
     var renameMove by remember { mutableStateOf(false) }
+    var moveDestination by remember { mutableStateOf<Path?>(null) }
+    val focus = remember { FocusRequester() }
+    val rowBounds = remember { mutableMapOf<Path, Rect>() }
+    var paneBounds by remember { mutableStateOf(Rect.Zero) }
+    var dragPosition by remember { mutableStateOf<Offset?>(null) }
+    var dragSources by remember { mutableStateOf<List<Path>>(emptyList()) }
+    val scope = rememberCoroutineScope()
     val prefs = remember(state.workspace) { state.workspace?.let(FileTreePreferences::forWorkspace) }
     val (browserRows, listingStatus) = browserRows(state)
     val clipboard = LocalClipboardManager.current
     val listState = rememberLazyListState(state.memory.treeScrollIndex, state.memory.treeScrollOffset)
     var reveal by remember { mutableStateOf<Path?>(null) }
+    val selected = state.memory.treeSelectedPaths.ifEmpty { setOfNotNull(selectedPath) }
+    fun targets(path: Path? = selectedPath): List<Path> = FileTreeSelection.roots(if (path in selected) selected else listOfNotNull(path))
+    fun select(path: Path, toggle: Boolean = false, range: Boolean = false, line: Int? = null) {
+        state.memory.treeFocusedLine = line
+        state.memory.treeSelectedPaths = FileTreeSelection.select(selected, path, state.memory.treeAnchor,
+            browserRows.map { it.entry.path }.distinct(), toggle, range)
+        state.memory.treeSelection = path.takeIf { it in state.memory.treeSelectedPaths }
+            ?: state.memory.treeSelectedPaths.lastOrNull()
+        if (!range) state.memory.treeAnchor = path
+    }
     fun expand(path: Path, value: Boolean) {
         state.memory.treeExpanded[path] = value
         prefs?.expand(state.relPath(path), value)
@@ -80,11 +113,11 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp, o
         Modifier.width(width).fillMaxHeight().background(Palette.PanelBg)
     ) {
         PaneHeader("ファイル", onClose)
-        CompactTextField(state.memory.treeQuery, { state.memory.treeQuery = it }, singleLine = true,
-            placeholder = { Text("名前・パスで絞り込み") }, modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp))
-        Row {
+        CompactTextField(state.memory.treeQuery, { state.memory.treeSearchStop = false; state.memory.treeQuery = it }, singleLine = true,
+            placeholder = { Text(if (state.memory.treeContentSearch) "本文を検索（全語一致）" else "名前・パスで絞り込み") }, modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp))
+        FlowRow {
             TextButton(onClick = { settings = !settings }) { Text("表示") }
-            TextButton(enabled = selectedPath != null, onClick = { renameMove = false; moveTargets = listOfNotNull(selectedPath) }) { Text("移動") }
+            TextButton(enabled = selectedPath != null, onClick = { renameMove = false; moveDestination = null; moveTargets = targets() }) { Text("移動") }
             TextButton(onClick = {
                 state.memory.treeExpanded.clear(); prefs?.clearExpansion(); state.memory.treeQuery = ""
             }) { Text("畳む") }
@@ -93,15 +126,39 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp, o
                 state.activeFile?.let { file ->
                     var parent = file.parent
                     while (parent != null && parent != state.workspace) { expand(parent, true); parent = parent.parent }
-                    state.memory.treeSelection = file; reveal = file
+                    select(file); reveal = file
                 }
             }) { Text("現在地") }
         }
         if (settings) {
             fun options(value: dev.toros.yde.app.core.FileCatalog.Options) {
+                state.memory.treeSearchStop = false
                 state.memory.treeOptions = value; prefs?.options(value)
             }
             val opt = state.memory.treeOptions
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(state.memory.treeContentSearch, { state.memory.treeContentSearch = it; state.memory.treeSearchStop = false })
+                Text("本文を検索", fontSize = 12.sp)
+            }
+            if (state.memory.treeContentSearch) {
+                Text("範囲: ${state.memory.treeSearchScope?.let(state::relPath) ?: "ワークスペース全体"}", fontSize = 11.sp)
+                FlowRow {
+                    TextButton(enabled = selectedPath != null, onClick = {
+                        state.memory.treeSearchScope = selectedPath?.let { if (Files.isDirectory(it)) it else it.parent }
+                        state.memory.treeSearchStop = false
+                    }) { Text("選択先の配下") }
+                    TextButton(onClick = { state.memory.treeSearchScope = null; state.memory.treeSearchStop = false }) { Text("全体") }
+                    TextButton(onClick = {
+                        state.memory.treeSearchBudgetMiB = when (state.memory.treeSearchBudgetMiB) { 16 -> 64; 64 -> 256; else -> 16 }
+                        state.memory.treeSearchStop = false
+                    }) { Text("上限 ${state.memory.treeSearchBudgetMiB} MiB") }
+                    TextButton(onClick = {
+                        state.memory.treeSearchSeconds = when (state.memory.treeSearchSeconds) { 30 -> 120; 120 -> 0; else -> 30 }
+                        state.memory.treeSearchStop = false
+                    }) { Text(if (state.memory.treeSearchSeconds == 0) "時間制限なし" else "時間 ${state.memory.treeSearchSeconds} 秒") }
+                }
+                Text("UTF-8・1ファイル2 MiBまで。上限・中止時は一部の結果です", fontSize = 10.sp, color = Palette.SubText)
+            }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(opt.allFiles, { options(opt.copy(allFiles = it)) }); Text("すべての形式", fontSize = 12.sp)
             }
@@ -124,7 +181,7 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp, o
             }
             // スキーマ推測（R11-01）: 選択した業務文書を起点に、同種の文書群からスキーマドラフトを作る
             val canInfer = selectedPath?.let { p ->
-                !Files.isDirectory(p) && state.layout.inLedger(state.relPath(p))
+                p in state.yamlFiles && state.layout.inLedger(state.relPath(p))
             } == true
             IconButton(modifier = Modifier.size(30.dp), enabled = canInfer, onClick = { inferTarget = selectedPath }) {
                 Icon(Icons.Default.AutoFixHigh, "スキーマ推測（既存文書からドラフト作成）", Modifier.size(16.dp))
@@ -146,35 +203,79 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp, o
             )
             return@Column
         }
-        val expanded = state.memory.treeExpanded  // フォルダの展開は画面の覚え（ワークスペース切替で消える）
+        val expanded = state.memory.treeExpanded  // ワークスペースを開くと永続化した展開を復元する
         val rows = browserRows.map { b -> TreeRow(b.entry.path, b.depth, b.entry.directory,
             editorOnly = !state.layout.inLedger(state.relPath(b.entry.path)),
-            markdown = b.entry.path.fileName.toString().endsWith(".md", true)) }
+            markdown = b.entry.path.fileName.toString().endsWith(".md", true), line = b.line, excerpt = b.excerpt) }
         Text(listingStatus, Modifier.padding(horizontal = 8.dp), fontSize = 10.sp, color = Palette.SubText)
+        if (state.memory.treeQuery.isNotBlank()) Row {
+            TextButton(onClick = { state.memory.treeSearchStop = true }) { Text("検索を中止") }
+            TextButton(onClick = { state.memory.treeQuery = ""; state.memory.treeSearchStop = false }) { Text("解除") }
+        }
+        if (selected.size > 1) Text("${selected.size} 件選択（Ctrl / Shift で複数選択）", fontSize = 11.sp)
+        if (dragSources.isNotEmpty()) Text("フォルダーまたは一覧の空白へドロップ → 移動の確認", fontSize = 11.sp, color = Palette.Primary)
 
         // 行以外の空白クリックで選択を解除できるようにする（未選択＝ルート直下が作成先になる。UX-40）
         Box(
-            Modifier.weight(1f).fillMaxWidth().clickable(
+            Modifier.weight(1f).fillMaxWidth().onGloballyPositioned { paneBounds = it.boundsInWindow() }.clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
-            ) { state.memory.treeSelection = null },
+            ) { state.memory.treeSelection = null; state.memory.treeSelectedPaths = emptySet() },
         ) {
-            LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                items(rows, key = { it.path.toString() }) { row ->
+            LazyColumn(state = listState, modifier = Modifier.fillMaxSize().focusRequester(focus).onKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                val index = rows.indexOfFirst { it.path == selectedPath && it.line == state.memory.treeFocusedLine }
+                when (event.key) {
+                    Key.DirectionUp, Key.DirectionDown -> {
+                        val next = (index + if (event.key == Key.DirectionUp) -1 else 1).coerceIn(0, (rows.size - 1).coerceAtLeast(0))
+                        rows.getOrNull(next)?.let { select(it.path, range = event.isShiftPressed, line = it.line); scope.launch { listState.animateScrollToItem(next) } }; true
+                    }
+                    Key.DirectionRight -> { rows.getOrNull(index)?.takeIf { it.isDir }?.let { expand(it.path, true) }; true }
+                    Key.DirectionLeft -> { rows.getOrNull(index)?.let { if (it.isDir && expanded[it.path] == true) expand(it.path, false) else if (it.path.parent != ws) select(it.path.parent) }; true }
+                    Key.Enter -> { rows.getOrNull(index)?.let { if (it.isDir) expand(it.path, expanded[it.path] != true) else if (it.line != null) state.openReference(it.path, it.line) else state.openFile(it.path) }; true }
+                    Key.F2 -> { renameMove = true; moveTargets = listOfNotNull(selectedPath); true }
+                    Key.Delete -> { if (selectedPath != null) dialog = TreeDialog.Delete; true }
+                    Key.C -> if (event.isCtrlPressed) { clipboard.setText(AnnotatedString(targets().joinToString("\n", transform = state::relPath))); true } else false
+                    else -> false
+                }
+            }.focusable()) {
+                items(rows, key = { it.path.toString() + ":" + it.line }) { row ->
+                    var toggle by remember { mutableStateOf(false) }
+                    var range by remember { mutableStateOf(false) }
+                    DisposableEffect(row.path) { onDispose { rowBounds.remove(row.path) } }
                     // 台帳外（editorOnly）のディレクトリは既定で畳む（buildRows と同じ既定）
                     val isOpen = expanded[row.path] == true
                     ContextMenuArea(items = { listOf(
-                        ContextMenuItem("開く") { if (row.isDir) expand(row.path, !isOpen) else state.openFile(row.path) },
+                        ContextMenuItem("開く") { if (row.isDir) expand(row.path, !isOpen) else if (row.line != null) state.openReference(row.path, row.line) else state.openFile(row.path) },
                         ContextMenuItem("名前を変更…") { state.memory.treeSelection = row.path; renameMove = true; moveTargets = listOf(row.path) },
-                        ContextMenuItem("移動…") { state.memory.treeSelection = row.path; renameMove = false; moveTargets = listOf(row.path) },
+                        ContextMenuItem("移動…") { state.memory.treeSelection = row.path; renameMove = false; moveDestination = null; moveTargets = targets(row.path) },
                         ContextMenuItem("削除…") { state.memory.treeSelection = row.path; dialog = TreeDialog.Delete },
                         ContextMenuItem("相対パスをコピー") { clipboard.setText(AnnotatedString(state.relPath(row.path))) },
                         ContextMenuItem("フォルダーを外部で開く") { openExternally((if (row.isDir) row.path else row.path.parent).toUri().toString()) },
                     ) }) {
-                        TreeRowItem(state, row, isOpen, selectedPath == row.path,
+                        TreeRowItem(state, row, isOpen, row.path in selected,
+                            modifier = Modifier.onGloballyPositioned { rowBounds[row.path] = it.boundsInWindow() }
+                                .onPointerEvent(PointerEventType.Press) { event -> toggle = event.keyboardModifiers.isCtrlPressed; range = event.keyboardModifiers.isShiftPressed }
+                                .pointerInput(row.path, selected) {
+                                    detectDragGestures(onDragStart = { position ->
+                                        dragSources = targets(row.path); dragPosition = rowBounds[row.path]?.topLeft?.plus(position)
+                                    }, onDragCancel = { dragSources = emptyList(); dragPosition = null }, onDragEnd = {
+                                        val position = dragPosition
+                                        if (position != null && paneBounds.contains(position)) {
+                                            val hit = rowBounds.entries.firstOrNull { it.value.contains(position) }?.key
+                                            val target = if (hit == null) ws else rows.firstOrNull { it.path == hit && it.isDir }?.path
+                                            if (target != null && dragSources.none { target == it || target.startsWith(it) }) {
+                                                renameMove = false; moveDestination = target; moveTargets = dragSources
+                                            }
+                                        }
+                                        dragSources = emptyList(); dragPosition = null
+                                    }) { change, _ -> change.consume(); dragPosition = rowBounds[row.path]?.topLeft?.plus(change.position) }
+                                },
                             onExpand = { expand(row.path, !isOpen) }) {
-                            state.memory.treeSelection = row.path
-                            if (!row.isDir) state.openFile(row.path)
+                            select(row.path, toggle, range, row.line); focus.requestFocus()
+                            if (!row.isDir && !toggle && !range) {
+                                if (row.line != null) state.openReference(row.path, row.line) else state.openFile(row.path)
+                            }
                         }
                     }
                 }
@@ -187,14 +288,14 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp, o
         inferTarget?.let { target ->
             InferSchemaDialog(state, target, onDismiss = { inferTarget = null })
         }
-        if (moveTargets.isNotEmpty()) FileMoveDialog(state, moveTargets, rename = renameMove) { moveTargets = emptyList() }
+        if (moveTargets.isNotEmpty()) FileMoveDialog(state, moveTargets, rename = renameMove, initialDestination = moveDestination) { moveTargets = emptyList() }
         dialog?.let { kind ->
             // 作成先は「選択中の場所の配下」。どこに作られるかをダイアログに明示し、直下への切替も出す（UX-22 / UX-40）
             val selectedParent = selectedPath?.let { if (Files.isDirectory(it)) it else it.parent } ?: ws
             val creating = kind == TreeDialog.NewFile || kind == TreeDialog.NewDirectory
             TreeOperationDialog(
                 kind = kind,
-                initial = if (kind == TreeDialog.Rename) selectedPath?.fileName?.toString().orEmpty() else if (kind == TreeDialog.Delete) selectedPath?.let(state::relPath).orEmpty() else "",
+                initial = if (kind == TreeDialog.Rename) selectedPath?.fileName?.toString().orEmpty() else if (kind == TreeDialog.Delete) targets().joinToString("\n", transform = state::relPath) else "",
                 destination = if (creating) {
                     state.relPath(selectedParent).takeIf { it.isNotEmpty() } ?: "（ワークスペース直下）"
                 } else null,
@@ -205,6 +306,8 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp, o
                 } else null,
                 onDismiss = { dialog = null },
                 onConfirm = { value, atRoot, withAi ->
+                    state.fileOperationBusy = true
+                    try {
                     val parent = if (atRoot) ws else selectedParent
                     val result = when (kind) {
                         TreeDialog.NewFile -> state.createYaml(parent, value).onSuccess { file ->
@@ -216,12 +319,13 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp, o
                         TreeDialog.NewDirectory -> state.createDirectory(parent, value).map { Unit }
                         TreeDialog.Rename -> selectedPath?.let { state.renamePath(it, value).map { Unit } }
                             ?: Result.failure(IllegalStateException("対象がありません"))
-                        TreeDialog.Delete -> selectedPath?.let { state.deletePath(it) }
+                        TreeDialog.Delete -> selectedPath?.let { state.deletePaths(targets()) }
                             ?: Result.failure(IllegalStateException("対象がありません"))
                     }
                     if (result.isSuccess) { dialog = null; if (kind != TreeDialog.NewFile) state.memory.treeSelection = null }
                     // 失敗はダイアログ内に表示する（ステータスバーだけでは気づけない。UX-41）
                     result.exceptionOrNull()?.let { it.message ?: "操作に失敗しました" }
+                    } finally { state.fileOperationBusy = false }
                 },
             )
         }
@@ -229,13 +333,13 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp, o
 }
 
 @Composable
-private fun TreeRowItem(state: AppState, row: TreeRow, isExpanded: Boolean, treeSelected: Boolean, onExpand: () -> Unit, onClick: () -> Unit) {
+private fun TreeRowItem(state: AppState, row: TreeRow, isExpanded: Boolean, treeSelected: Boolean, modifier: Modifier = Modifier, onExpand: () -> Unit, onClick: () -> Unit) {
     val selected = !row.isDir && state.activeFile == row.path
     val cached = if (row.isDir) null else state.docFor(row.path)
     val dirty = cached?.let { it.dirty || it.draftDirty } == true
     val textOnly = cached?.textOnly == true   // 壊れたまま保存／解析できない＝索引・検証の対象外（R43-04）
     Row(
-        Modifier
+        modifier
             .fillMaxWidth()
             .background(if (treeSelected) Palette.Selected else Color.Transparent)
             .then(if (selected) Modifier.border(1.dp, Palette.Primary) else Modifier)
@@ -266,16 +370,19 @@ private fun TreeRowItem(state: AppState, row: TreeRow, isExpanded: Boolean, tree
             )
         }
         Spacer(Modifier.width(6.dp))
-        Text(
-            if (state.memory.treeQuery.isNotBlank()) state.relPath(row.path) else row.path.fileName.toString(),
+        Column(Modifier.weight(1f)) {
+        UiTooltip(state.relPath(row.path)) { Text(
+            (if (state.memory.treeQuery.isNotBlank()) state.relPath(row.path) else row.path.fileName.toString()) + (row.line?.let { ":$it" } ?: ""),
             fontSize = 13.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             // 台帳外（索引・検証・エージェントの対象外）は薄色で区別する（R13-04）
             color = if (row.editorOnly) Palette.SubText else Color.Unspecified,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            modifier = Modifier.weight(1f, fill = false),
-        )
+            modifier = Modifier.fillMaxWidth(),
+        ) }
+        row.excerpt?.let { Text(it, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = Palette.SubText) }
+        }
         if (textOnly) {
             Spacer(Modifier.width(4.dp))
             Text("解析不可", fontSize = 9.sp, color = Palette.ErrorRed)
@@ -348,7 +455,16 @@ private fun TreeOperationDialog(
     var atRoot by remember(kind) { mutableStateOf(false) }
     var withAi by remember(kind) { mutableStateOf(false) }
     var error by remember(kind) { mutableStateOf<String?>(null) }
-    fun confirm() { error = onConfirm(value, atRoot, withAi) }
+    var busy by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    fun confirm() {
+        if (busy) return
+        busy = true
+        scope.launch {
+            try { error = withContext(Dispatchers.IO) { onConfirm(value, atRoot, withAi) } }
+            finally { busy = false }
+        }
+    }
     val title = when (kind) {
         TreeDialog.NewFile -> "YAML ファイルを作成"
         TreeDialog.NewDirectory -> "フォルダーを作成"
@@ -356,14 +472,17 @@ private fun TreeOperationDialog(
         TreeDialog.Delete -> "削除の確認"
     }
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!busy) onDismiss() },
         title = { Text(title, fontSize = 16.sp) },
         text = {
             Column {
-                if (kind == TreeDialog.Delete) Text("削除対象: $initial\nフォルダー内の非表示ファイルも含め、.yde-trash に退避します。Ctrl+Z で復元できます。")
+                if (kind == TreeDialog.Delete) {
+                    LazyColumn(Modifier.fillMaxWidth().heightIn(max = 160.dp)) { items(initial.lines()) { Text(it) } }
+                    Text("フォルダー内の非表示ファイルも含め、.yde-trash に退避します。Ctrl+Z で復元できます。")
+                }
                 else {
                     OutlinedTextField(
-                        value, { value = it; error = null }, singleLine = true, label = { Text("名前") },
+                        value, { value = it; error = null }, enabled = !busy, singleLine = true, label = { Text("名前") },
                         modifier = Modifier.confirmOnEnter(enabled = { value.isNotBlank() }) { confirm() },
                     )
                     destination?.let {
@@ -375,14 +494,14 @@ private fun TreeOperationDialog(
                     }
                     if (allowRootSwitch) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(atRoot, { atRoot = it })
+                            Checkbox(atRoot, { atRoot = it }, enabled = !busy)
                             Text("ワークスペース直下に作成する", fontSize = 12.sp)
                         }
                     }
                     // 作成→たたき台生成の連結（R24-03）。スキーマが当たるファイル名のときだけ意味を持つ
                     if (kind == TreeDialog.NewFile) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(withAi, { withAi = it })
+                            Checkbox(withAi, { withAi = it }, enabled = !busy)
                             Text("作成後にAIでたたき台を生成する（スキーマが適用される場合）", fontSize = 12.sp)
                         }
                     }
@@ -402,11 +521,11 @@ private fun TreeOperationDialog(
             }
         },
         confirmButton = {
-            TextButton(enabled = kind == TreeDialog.Delete || value.isNotBlank(), onClick = { confirm() }) {
-                Text(if (kind == TreeDialog.Delete) "削除" else "実行",
+            TextButton(enabled = !busy && (kind == TreeDialog.Delete || value.isNotBlank()), onClick = { confirm() }) {
+                Text(if (busy) "処理中…" else if (kind == TreeDialog.Delete) "削除" else "実行",
                     color = if (kind == TreeDialog.Delete) Palette.ErrorRed else Palette.Primary)
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("キャンセル") } },
+        dismissButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text("キャンセル") } },
     )
 }

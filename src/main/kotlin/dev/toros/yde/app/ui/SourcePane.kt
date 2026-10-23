@@ -747,8 +747,8 @@ private fun handleEditorKey(
         when (ev.key) {
             Key.Spacebar -> { if (!readOnly) onComplete(); return true }
             Key.LeftBracket -> { if (ev.isShiftPressed) { onToggleFold(); return true } }
-            Key.Z -> { if (ev.isShiftPressed) state.redo() else state.undo(); return true }
-            Key.Y -> { state.redo(); return true }
+            Key.Z -> { if (ev.isShiftPressed) state.redoFromUi() else state.undoFromUi(); return true }
+            Key.Y -> { state.redoFromUi(); return true }
             Key.F -> {
                 // 1 行の選択があればそれを検索語にする
                 if (!sel.collapsed) {

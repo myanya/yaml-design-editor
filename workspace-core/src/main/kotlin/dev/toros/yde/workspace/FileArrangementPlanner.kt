@@ -26,6 +26,10 @@ object FileArrangementPlanner {
             require(Files.exists(from)) { "移動元がありません: ${move.from}" }
             require(!Files.exists(to)) { "移動先が既に存在します: ${move.to}" }
             require(!to.startsWith(from)) { "自分の配下へは移動できません" }
+            if (!deleting && session.layout.zoneOf(move.from) != session.layout.zoneOf(move.to))
+                warnings += "${move.from} → ${move.to}: 定義領域の種類が変わります。配置で決まる役割は自動移設できません"
+            if (!deleting && session.layout.inLedger(move.from) != session.layout.inLedger(move.to))
+                warnings += "${move.from} → ${move.to}: 台帳対象の範囲が変わります（範囲の追随を採用した場合はその修正後の範囲に従います）"
             require(move.from != session.layout.configDir && move.from != "${session.layout.configDir}/workspace.yaml") {
                 "ワークスペースの構成自体は移動できません"
             }
@@ -38,7 +42,7 @@ object FileArrangementPlanner {
             require(!b.to.startsWith(a.from + "/") && b.to != a.from) { "移動元と移動先が重複しています" }
         }
         val documents = session.snapshot.documents
-        val knownFiles = documents.keys.map { it.value }
+        val knownFiles = (documents.keys.map { it.value } + if (deleting) emptyList() else movedFiles(root, moves)).distinct()
         val moved = documents.keys.filter { PathRewrite.relocated(it.value, mapping) != it.value }
         val operations = mutableListOf<WorkspaceOperation>()
         val edits = linkedMapOf<Pair<DocumentId, YPath>, PathEdit>()
@@ -101,9 +105,7 @@ object FileArrangementPlanner {
                 }
             }
             // Markdown の通常のインラインリンク。参照形式・HTML・コード内の言及は警告に留める。
-            Files.walk(root).use { paths -> paths.filter { Files.isRegularFile(it) && it.fileName.toString().endsWith(".md", true) }
-                .filter { root.relativize(it).none { part -> part.toString().startsWith(".") } }
-                .forEach { file ->
+            markdownFiles(root).forEach { file ->
                     val id = DocumentId(root.relativize(file).toString().replace('\\', '/'))
                     if (Files.size(file) > 2 * 1024 * 1024) { warnings += "${id.value}: 大きな Markdown のリンクは未検査です"; return@forEach }
                     val before = runCatching { Files.readString(file) }.getOrNull() ?: return@forEach
@@ -130,7 +132,7 @@ object FileArrangementPlanner {
                     val after = if ("\r\n" in before) normalized.replace("\n", "\r\n") else normalized
                     if (after != before) texts += FileTextEdit(id, before, after, destination)
                     if (mapping.any { before.contains(it.from) }) warnings += "${id.value}: Markdown の参照形式・HTML・コード内のパスは手動確認してください"
-                } }
+                }
         }
         // 移動対象外にまで新しく適用されるパターンを知らせる。将来の対象範囲も差分で確認できる。
         edits.values.filter { it.path.lastOrNull() in setOf("match", "fileGlob", "allowedFiles") }.forEach { edit ->
@@ -150,6 +152,46 @@ object FileArrangementPlanner {
             ChangeIntent(if (createDirectory != null) "フォルダー作成: $createDirectory" else if (deleting) "削除: ${moves.joinToString { it.from }}" else "移動: ${moves.joinToString { "${it.from} → ${it.to}" }}"), operations)
         val preliminary = FileArrangementPlan(root, transaction, moves, edits.values.toList(), warnings.distinct(), emptyMap(), createDirectory, texts)
         val locations = moves.flatMap { listOf(it.from, it.to) } + preliminary.documentIds.map { it.value } + texts.flatMap { listOf(it.document.value, it.destination.value) } + listOfNotNull(createDirectory)
-        return preliminary.copy(signature = FileArrangementJournal.signature(root, locations))
+        val signature = FileArrangementJournal.signature(root, locations)
+        require(session.externalChanges(touched.filter { it in documents }).isEmpty() &&
+            texts.all { session.storedText(it.document) == it.before }) {
+            "対象または参照元が外部で変更されています。再読込してから再確認してください"
+        }
+        return preliminary.copy(signature = signature)
+    }
+
+    private fun markdownFiles(root: Path): List<Path> {
+        val result = mutableListOf<Path>()
+        Files.walkFileTree(root, object : java.nio.file.SimpleFileVisitor<Path>() {
+            override fun preVisitDirectory(dir: Path, attrs: java.nio.file.attribute.BasicFileAttributes): java.nio.file.FileVisitResult {
+                if (dir != root && (dir.fileName.toString().startsWith(".") ||
+                    runCatching { WorkspacePaths.resolve(root, root.relativize(dir).toString(), allowLinks = false) }.isFailure))
+                    return java.nio.file.FileVisitResult.SKIP_SUBTREE
+                return java.nio.file.FileVisitResult.CONTINUE
+            }
+            override fun visitFile(file: Path, attrs: java.nio.file.attribute.BasicFileAttributes): java.nio.file.FileVisitResult {
+                if (attrs.isRegularFile && !file.fileName.toString().startsWith(".") && file.fileName.toString().endsWith(".md", true) &&
+                    runCatching { WorkspacePaths.resolve(root, root.relativize(file).toString(), allowLinks = false) }.isSuccess) result.add(file)
+                return java.nio.file.FileVisitResult.CONTINUE
+            }
+        })
+        return result
+    }
+
+    /** 一般ファイルの部分移動も glob に追随させる。本文は読まない。 */
+    private fun movedFiles(root: Path, moves: List<PathMove>): List<String> {
+        val result = mutableListOf<String>()
+        moves.forEach { move -> Files.walkFileTree(WorkspacePaths.resolve(root, move.from, allowLinks = false),
+            object : java.nio.file.SimpleFileVisitor<Path>() {
+                override fun preVisitDirectory(dir: Path, attrs: java.nio.file.attribute.BasicFileAttributes): java.nio.file.FileVisitResult {
+                    WorkspacePaths.resolve(root, root.relativize(dir).toString(), allowLinks = false)
+                    return java.nio.file.FileVisitResult.CONTINUE
+                }
+                override fun visitFile(file: Path, attrs: java.nio.file.attribute.BasicFileAttributes): java.nio.file.FileVisitResult {
+                    if (attrs.isRegularFile) result.add(root.relativize(file).toString().replace('\\', '/'))
+                    return java.nio.file.FileVisitResult.CONTINUE
+                }
+            }) }
+        return result
     }
 }

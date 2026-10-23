@@ -96,3 +96,5 @@
 `FileArrangementPlanner` は配置対応・文書参照・型付き file 値・定義のパス指定を計画する。`PathRewrite` の glob はフォルダー全体なら接頭辞を移し、部分移動なら元の対象も残す選択を作る。未対応の言及は警告として開示する。
 適用は `WorkspaceSession.applyFileArrangement`。`FileArrangementJournal` が一般ファイルを移動し、文書は既存のトランザクションと保存を通す。履歴と失敗時の復元はカーネルが所有する（[ADR-0011](../decisions/0011-file-arrangement-history.md)）。
 計画・適用時の未保存、内容ハッシュの不一致、移動先の衝突、リンクを拒否する。定義修正は Rewrite の組合せで、AI には依存しない。
+一般ファイルの部分移動も実際の移動対象を列挙して glob の追加候補に含める。計画時は読み込んだ原文と現在のストアも照合し、監視通知が届く前の変更を上書きしない。
+`FileSystemDocumentStore` は隠し領域を列挙の段階で枝刈りする（`.yde` は例外）。UI の補助走査は拡張子を絞ってから実パスを確認し、参考ソース全件への不要なパス解決を避ける。

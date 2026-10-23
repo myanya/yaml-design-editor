@@ -23,7 +23,7 @@ data class StoredDocument(val id: DocumentId)
 data class StoredContent(val text: String)
 
 interface DocumentStore {
-    /** 全YAML文書（*.yaml / *.yml）を列挙する（相対パス順。台帳・ゾーンの絞り込みは呼び出し側の責務）。 */
+    /** 可視のYAML文書（*.yaml / *.yml、隠し領域は .yde のみ）を列挙する（相対パス順。台帳・ゾーンは呼び出し側で絞る）。 */
     fun list(): List<StoredDocument>
 
     /** 文書を読む。存在しなければ null。 */
@@ -98,16 +98,29 @@ class FileSystemDocumentStore(private val root: Path) : DocumentStore {
         return WorkspacePaths.resolve(root, id.value)
     }
 
-    override fun list(): List<StoredDocument> =
-        Files.walk(root).use { stream ->
-            stream.asSequence()
-                .filter { it.isRegularFile() }
-                .filter { val n = it.fileName.toString(); n.endsWith(".yaml") || n.endsWith(".yml") }
-                .filter { runCatching { resolve(DocumentId(root.relativize(it).toString())) }.isSuccess }
-                .map { StoredDocument(DocumentId(root.relativize(it).toString().replace('\\', '/'))) }
-                .sortedBy { it.id.value }
-                .toList()
-        }
+    override fun list(): List<StoredDocument> {
+        val result = mutableListOf<StoredDocument>()
+        Files.walkFileTree(root, object : java.nio.file.SimpleFileVisitor<Path>() {
+            override fun preVisitDirectory(dir: Path, attrs: java.nio.file.attribute.BasicFileAttributes): java.nio.file.FileVisitResult {
+                if (dir != root) {
+                    val relative = root.relativize(dir).toString().replace('\\', '/')
+                    if (dir.fileName.toString().startsWith(".") && relative != ".yde") return java.nio.file.FileVisitResult.SKIP_SUBTREE
+                    if (runCatching { resolve(DocumentId(relative)) }.isFailure) return java.nio.file.FileVisitResult.SKIP_SUBTREE
+                }
+                return java.nio.file.FileVisitResult.CONTINUE
+            }
+            override fun visitFile(file: Path, attrs: java.nio.file.attribute.BasicFileAttributes): java.nio.file.FileVisitResult {
+                val name = file.fileName.toString()
+                if (!name.startsWith(".") && (name.endsWith(".yaml") || name.endsWith(".yml"))) {
+                    val id = DocumentId(root.relativize(file).toString().replace('\\', '/'))
+                    if (runCatching { resolve(id) }.isSuccess) result.add(StoredDocument(id))
+                }
+                return java.nio.file.FileVisitResult.CONTINUE
+            }
+            override fun visitFileFailed(file: Path, exc: java.io.IOException) = java.nio.file.FileVisitResult.CONTINUE
+        })
+        return result.sortedBy { it.id.value }
+    }
 
     override fun read(id: DocumentId): StoredContent? {
         val file = resolve(id)

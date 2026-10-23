@@ -36,7 +36,7 @@ object WorkspaceScan {
      */
     fun yamlFiles(ws: Path, layout: WorkspaceLayout = WorkspaceLayout.of(ws)): List<Path> {
         val result = mutableListOf<Path>()
-        walk(ws, layout) { p ->
+        walk(ws, layout, includeFile = { it.extension == "yaml" || it.extension == "yml" }) { p ->
             if (!Files.isRegularFile(p)) return@walk
             if (p.fileName.toString().startsWith(".")) return@walk
             if (p.extension != "yaml" && p.extension != "yml") return@walk
@@ -52,7 +52,7 @@ object WorkspaceScan {
      */
     fun editorYamlFiles(ws: Path): List<Path> {
         val result = mutableListOf<Path>()
-        walk(ws, WorkspaceLayout.LEGACY) { p ->
+        walk(ws, WorkspaceLayout.LEGACY, includeFile = { it.extension == "yaml" || it.extension == "yml" }) { p ->
             if (!Files.isRegularFile(p)) return@walk
             if (p.fileName.toString().startsWith(".")) return@walk
             if (p.extension == "yaml" || p.extension == "yml") result.add(p)
@@ -66,7 +66,7 @@ object WorkspaceScan {
      */
     fun markdownFiles(ws: Path): List<Path> {
         val result = mutableListOf<Path>()
-        walk(ws, WorkspaceLayout.LEGACY) { p ->
+        walk(ws, WorkspaceLayout.LEGACY, includeFile = { it.extension.equals("md", true) }) { p ->
             if (!Files.isRegularFile(p)) return@walk
             if (p.fileName.toString().startsWith(".")) return@walk
             if (p.extension.lowercase() == "md") result.add(p)
@@ -75,7 +75,7 @@ object WorkspaceScan {
     }
 
     /** 隠しディレクトリの配下を枝刈りしながら歩く（構成ディレクトリ `.yde` だけ降りる）。 */
-    private fun walk(ws: Path, layout: WorkspaceLayout, visit: (Path) -> Unit) {
+    private fun walk(ws: Path, layout: WorkspaceLayout, includeFile: (Path) -> Boolean, visit: (Path) -> Unit) {
         Files.walkFileTree(ws, object : java.nio.file.SimpleFileVisitor<Path>() {
             override fun preVisitDirectory(dir: Path, attrs: java.nio.file.attribute.BasicFileAttributes): java.nio.file.FileVisitResult {
                 if (dir != ws && runCatching { WorkspacePaths.resolve(ws, ws.relativize(dir).toString()) }.isFailure) {
@@ -85,11 +85,12 @@ object WorkspaceScan {
                     val rel = IdIndex.relPathOf(ws, dir)
                     if (rel != layout.configDir) return java.nio.file.FileVisitResult.SKIP_SUBTREE
                 }
+                if (dir != ws) visit(dir)
                 return java.nio.file.FileVisitResult.CONTINUE
             }
 
             override fun visitFile(file: Path, attrs: java.nio.file.attribute.BasicFileAttributes): java.nio.file.FileVisitResult {
-                if (runCatching { WorkspacePaths.resolve(ws, ws.relativize(file).toString()) }.isSuccess) visit(file)
+                if (includeFile(file) && runCatching { WorkspacePaths.resolve(ws, ws.relativize(file).toString()) }.isSuccess) visit(file)
                 return java.nio.file.FileVisitResult.CONTINUE
             }
 
@@ -101,12 +102,7 @@ object WorkspaceScan {
     /** 隠しディレクトリを除くサブディレクトリを列挙する。 */
     fun directories(ws: Path): List<Path> {
         val result = mutableListOf<Path>()
-        Files.walk(ws).use { stream ->
-            stream.filter { it != ws && Files.isDirectory(it) }.forEach { p ->
-                val rel = IdIndex.relPathOf(ws, p)
-                if (rel.split('/').none { it.startsWith(".") }) result.add(p)
-            }
-        }
+        walk(ws, WorkspaceLayout.LEGACY, includeFile = { false }) { p -> result.add(p) }
         return result.sortedBy { it.toString() }
     }
 

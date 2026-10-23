@@ -23,10 +23,13 @@
 | W-11 | ワークスペース構造（`.yde/` 構成と `ledger` 宣言・レガシー構成は互換・配置判定は `WorkspaceLayout`・CLI `migrate`） | `workspace-core/layout/WorkspaceLayout.kt`, `core/Workspace.kt` | 単体 `WorkspaceLayoutTest`, `DocumentStoreTest` | [workspace](architecture/workspace.md) |
 | W-12 | エディタ層と台帳層の分離（台帳外の YAML はフォームと単文書検証だけ・索引・集計・エージェントは台帳のみ） | `validate/Validator.kt`, `app/AppState.kt`（`editorOnlyFiles`） | 単体 `WorkspaceLayoutTest`, `DocumentStoreTest` | [workspace](architecture/workspace.md) |
 | W-13 | 同梱フォント（等幅 Cica をビルド時に取得して資源へ・`AppFonts.Mono`・資源が無ければ OS の等幅へ戻す） | `build.gradle.kts`（`downloadFonts`）, `ui/Common.kt`（`AppFonts`） | 手動 | [ui](architecture/ui.md) |
-| W-14 | Markdown 文書の表示（ワークスペース内の `.md` をツリーに薄色で出し、描画とソースの 2 タブで表示のみ・相対リンクはアプリ内で開く・外部変更に追随） | `ui/MarkdownPane.kt`, `ui/MarkdownView.kt`, `AppState.openMarkdown`, `core/Workspace.kt`（`WorkspaceScan.markdownFiles`） | 単体 `MarkdownLinkTest` | [ui](architecture/ui.md) |
+| W-14 | Markdown の読取専用表示・相対リンク・外部変更の反映 | `ui/MarkdownPane.kt`, `ui/MarkdownView.kt` | `MarkdownLinkTest` | [ui](architecture/ui.md) |
 | W-15 | 内蔵ヘルプ（利用者マニュアルをビルド時に資源へ入れ、ヘルプメニューとコマンドパレットから文書として開く・題目間のリンクで移動） | `app/Help.kt`, `build.gradle.kts`（`copyHelp`）, `ui/MarkdownPane.kt` | 単体 `MarkdownLinkTest` | [ui](architecture/ui.md) |
-| W-16 | 画面の見え方の保持（編集画面のタブは文書ごとに覚え無ければ直前のタブ・フォームの畳み・ツリーの展開と選択・右パネルのタブと検証の範囲・台帳の絞り込みとレンズの設定・実行と設計のタブを、画面を離れても消さずワークスペース切替で消す） | `app/ScreenMemory.kt`, `ui/FormView.kt`（`FormCtx.expanded`） | 単体 `ScreenMemoryTest` | [ui](architecture/ui.md) |
+| W-16 | 画面の見え方の保持（タブ・畳み・選択・絞り込みは画面を離れても保持、ツリーの展開は永続化） | `app/ScreenMemory.kt` | `ScreenMemoryTest` | [ui](architecture/ui.md) |
 | W-17 | Windows ZIP 配布（起動案内・サンプル・ビルド情報・SHA-256） | `build.gradle.kts`（`windowsRelease`） | `test-windows-zip.ps1`, `DistributionSmoke` | [配布](releasing.md) |
+| W-18 | 複数選択・キーボード・ドラッグによる移動先指定 | `ui/FileTreeSelection.kt`, `ui/FileTreePane.kt` | `FileTreeSelectionTest`・画面は手動 | [ui](architecture/ui.md) |
+| W-19 | 参考資料の本文検索（範囲・容量上限・中止・行へ移動） | `core/ReferenceSearch.kt` | `ReferenceToolsTest`, `FileTreeBenchmark` | [ui](architecture/ui.md) |
+| W-20 | ソースの宣言候補の表示と YAML 保存 | `core/SourceOutline.kt`, `ui/FilePreviewPane.kt` | `ReferenceToolsTest`, `AppStateFileArrangementTest` | [ui](architecture/ui.md) |
 
 ## 2. 文書編集
 

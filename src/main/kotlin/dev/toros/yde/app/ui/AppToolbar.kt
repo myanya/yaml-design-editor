@@ -71,8 +71,8 @@ fun AppToolbar(
                                 action("ワークスペースを再読込", run = state::reload)
                             }
                             "編集" -> {
-                                action("元に戻す    Ctrl+Z", state.canUndo(), state::undo)
-                                action("やり直す    Ctrl+Shift+Z", state.canRedo(), state::redo)
+                                action("元に戻す    Ctrl+Z", state.canUndo(), state::undoFromUi)
+                                action("やり直す    Ctrl+Shift+Z", state.canRedo(), state::redoFromUi)
                                 HorizontalDivider(color = Palette.Border)
                                 action("検索・コマンド    Ctrl+K", run = openCommands)
                             }

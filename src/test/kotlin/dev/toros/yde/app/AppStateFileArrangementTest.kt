@@ -43,4 +43,36 @@ class AppStateFileArrangementTest {
         assertFalse(Files.exists(root.resolve("new")))
         assertTrue(state.canUndo())
     }
+
+    @Test fun `複数削除は一回で戻せて参考資料の構造保存は原文を変えない`() {
+        val state = state()
+        val source = root.resolve("Example.kt")
+        val text = "class Example {\n fun work() {}\n}\n"
+        Files.writeString(source, text)
+        val outline = dev.toros.yde.app.core.SourceOutline.extract("Example.kt", text)
+        val exported = state.saveSourceOutline(source, outline, "references/example.yaml").getOrThrow()
+        assertEquals(text, Files.readString(source))
+        assertContains(Files.readString(exported), "work")
+        assertFalse(state.saveSourceOutline(source, outline, "references/example.yaml").isSuccess)
+        assertTrue(state.deletePaths(listOf(source, exported)).isSuccess)
+        assertFalse(Files.exists(source))
+        state.undo()
+        assertEquals(text, Files.readString(source))
+        assertTrue(Files.exists(exported))
+        state.openReference(source, 2)
+        state.openFile(root.resolve("a.yaml"))
+        state.goBack()
+        assertEquals(source, state.openPreview)
+        assertEquals(2, state.previewLine)
+    }
+
+    @Test fun `台帳外で開いているYAMLも外部変更通知で更新する`() {
+        Files.createDirectories(root.resolve(".yde"))
+        Files.writeString(root.resolve(".yde/workspace.yaml"), "ledger: [docs]\n")
+        val state = state()
+        val file = root.resolve("a.yaml")
+        Files.writeString(file, "name: outside\n")
+        state.noteFileEvents(setOf(file))
+        assertContains(state.openDoc!!.source.text.toString(), "outside")
+    }
 }

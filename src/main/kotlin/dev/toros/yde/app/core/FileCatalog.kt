@@ -16,10 +16,10 @@ object FileCatalog {
     data class Preview(val text: String?, val size: Long, val message: String)
 
     fun supported(path: Path): Boolean = path.fileName.toString().substringAfterLast('.', "").lowercase() in
-        setOf("yaml", "yml", "md", "png", "jpg", "jpeg", "gif", "webp", "bmp")
+        setOf("yaml", "yml", "md") || dev.toros.yde.semantic.schema.FilePath.isImage(path.fileName.toString())
 
     fun children(root: Path, directory: Path, options: Options): List<Entry> {
-        if (directory != root) WorkspacePaths.resolve(root, root.relativize(directory).toString())
+        if (directory != root) WorkspacePaths.resolve(root, root.relativize(directory).toString(), allowLinks = false)
         val excludes = exclusions(options)
         return Files.newDirectoryStream(directory).use { stream ->
             stream.mapNotNull { path ->
@@ -66,7 +66,9 @@ object FileCatalog {
     fun preview(file: Path, maxBytes: Int = 2 * 1024 * 1024): Preview {
         val size = Files.size(file)
         if (size > maxBytes) return Preview(null, size, "大きなファイルです。外部のアプリで開いてください")
-        val bytes = Files.newInputStream(file).use { it.readNBytes(maxBytes + 1) }
+        // ChannelInputStream は要求した長さで確保するため、小ファイルごとに上限分を確保しない。
+        val bytes = Files.newInputStream(file).use { it.readNBytes((size + 1).toInt()) }
+        if (bytes.size > size) return Preview(null, size, "読込中にファイルが変わりました。再読込してください")
         if (bytes.size > maxBytes) return Preview(null, size, "読込上限を超えました")
         if (bytes.any { it == 0.toByte() }) return Preview(null, size, "バイナリファイルです")
         val text = runCatching { Charsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)

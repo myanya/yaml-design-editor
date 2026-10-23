@@ -60,6 +60,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.time.LocalDateTime
 import java.util.prefs.Preferences
+import kotlinx.coroutines.launch
 
 /**
  * 開いている 1 ドキュメント。
@@ -337,7 +338,43 @@ class AppState {
     private val appPrefs = Preferences.userRoot().node("yaml-design-editor/app")
 
     var openPreview by mutableStateOf<Path?>(null)
+    var previewLine by mutableStateOf(1)
+    fun openReference(file: Path, line: Int = 1) {
+        pushBack(currentLocation())
+        showReference(file, line)
+    }
+    private fun showReference(file: Path, line: Int = 1) {
+        openDoc = null; openMarkdown = null; openHelp = null; openImage = null
+        openPreview = file; previewLine = line
+        workspaceView = 0; syncSpaceFromView()
+    }
+    fun saveSourceOutline(source: Path, outline: dev.toros.yde.app.core.SourceOutline.Outline, destination: String): Result<Path> = runCatching {
+        val ws = workspace ?: error("ワークスペース未選択")
+        val target = dev.toros.yde.workspace.WorkspacePaths.resolve(ws, destination)
+        require(target.fileName.toString().let { it.endsWith(".yaml") || it.endsWith(".yml") }) { "保存先は YAML にしてください" }
+        val root = YNode.Map(linkedMapOf(
+            "source" to YNode.Scalar(relPath(source)), "language" to YNode.Scalar(outline.language),
+            "symbols" to YNode.Seq(outline.symbols.map { symbol -> YNode.Map(linkedMapOf(
+                "kind" to YNode.Scalar(symbol.kind), "name" to YNode.Scalar(symbol.name),
+                "line" to YNode.Scalar(symbol.line), "owner" to YNode.Scalar(symbol.owner),
+            )) }.toMutableList()),
+        ))
+        createDocumentFile(target, root, "ソースの構造情報を保存: ${relPath(source)}")
+    }
     var fileOperationBusy by mutableStateOf(false)
+    var fileHistoryBusy by mutableStateOf(false)
+    fun undoFromUi() = historyFromUi(true)
+    fun redoFromUi() = historyFromUi(false)
+    private fun historyFromUi(undoing: Boolean) {
+        if (fileOperationBusy) return
+        val record = if (undoing) session?.peekUndo() else session?.peekRedo()
+        if (record == null || session?.fileArrangement(record.id) == null) { if (undoing) undo() else redo(); return }
+        fileOperationBusy = true; fileHistoryBusy = true
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            try { if (undoing) undo() else redo() }
+            finally { fileOperationBusy = false; fileHistoryBusy = false }
+        }
+    }
     private var deferredFileEvents = false
     var fileTreeRevision by mutableStateOf(0)
     val activeFile: Path? get() = openDoc?.file ?: openMarkdown ?: openImage ?: openPreview
@@ -348,10 +385,8 @@ class AppState {
         if (paths != null && paths.isEmpty()) return
         fileTreeRevision++
         val relevant = paths == null || paths.any { p ->
-            val rel = relPath(p)
-            (Files.isDirectory(p) || yamlFiles.any { it.startsWith(p) } ||
-                p.fileName.toString().let { it.endsWith(".yaml") || it.endsWith(".yml") }) &&
-                (layout.inLedger(rel) || layout.isReserved(rel))
+            Files.isDirectory(p) || (yamlFiles + editorOnlyFiles).any { it.startsWith(p) } ||
+                p.fileName.toString().let { it.endsWith(".yaml") || it.endsWith(".yml") }
         }
         if (relevant) pollExternalChanges(eventHint = true)
     }
@@ -1256,6 +1291,7 @@ class AppState {
 
     /** 履歴に積まずに文書を表示する（openFile の本体。「戻る」「進む」の復元にも使う）。 */
     private fun showFile(file: Path, focus: YPath?) {
+        previewLine = 1
         openPreview = null
         val ext = file.fileName.toString().substringAfterLast('.', "").lowercase()
         if (ext !in setOf("yaml", "yml", "md") && !isImage(file)) {
@@ -2175,7 +2211,12 @@ class AppState {
             return ws.resolve(move.to).resolve(ws.resolve(move.from).relativize(path))
         }
         val active = activeFile?.let(::moved)?.takeUnless { relPath(it).startsWith(".yde-trash/") }
+        val wasReference = openPreview != null
+        val referenceLine = previewLine
         val expansion = memory.treeExpanded.toMap()
+        memory.treeSearchScope = memory.treeSearchScope?.let(::moved)?.takeUnless { relPath(it).startsWith(".yde-trash/") }
+        memory.treeSelectedPaths = memory.treeSelectedPaths.map(::moved).filterNot { relPath(it).startsWith(".yde-trash/") }.toSet()
+        memory.treeAnchor = memory.treeAnchor?.let(::moved)
         moves.forEach { memory.renameDocument(DocumentId(it.from), DocumentId(it.to)) }
         memory.treeExpanded.clear()
         expansion.forEach { (path, value) -> memory.treeExpanded[moved(path)] = value }
@@ -2190,7 +2231,9 @@ class AppState {
         docCache.keys.filter { moved(it) != it }.toList().forEach(docCache::remove)
         openDoc = null; openPreview = null; openMarkdown = null; openImage = null
         refreshAfterSessionWrite(plan.documentIds + plan.texts.filter { it.document.value.endsWith(".yaml") || it.document.value.endsWith(".yml") }.map { it.document })
-        if (active != null && Files.isRegularFile(active)) showFile(active, highlightPath)
+        if (active != null && Files.isRegularFile(active)) {
+            if (wasReference) showReference(active, referenceLine) else showFile(active, highlightPath)
+        }
         fileTreeRevision++
     }
 
@@ -2205,15 +2248,17 @@ class AppState {
         target
     }
 
-    fun deletePath(path: Path): Result<Unit> = runCatching {
+    fun deletePath(path: Path): Result<Unit> = deletePaths(listOf(path))
+
+    fun deletePaths(paths: List<Path>): Result<Unit> = runCatching {
         val ws = workspace ?: error("ワークスペース未選択")
         val s = session ?: error("セッション未選択")
-        val trash = ".yde-trash/" + java.util.UUID.randomUUID().toString() + "/" + path.fileName
-        val plan = dev.toros.yde.workspace.FileArrangementPlanner.plan(s, ws,
-            listOf(dev.toros.yde.workspace.PathMove(relPath(path), trash)), deleting = true)
+        val trash = ".yde-trash/" + java.util.UUID.randomUUID().toString()
+        val moves = paths.mapIndexed { index, path -> dev.toros.yde.workspace.PathMove(relPath(path), "$trash/$index/" + path.fileName) }
+        val plan = dev.toros.yde.workspace.FileArrangementPlanner.plan(s, ws, moves, deleting = true)
         applyFileArrangement(plan).getOrThrow()
-        memory.forgetDocument(DocumentId(relPath(path)))
-        memory.forgetPath(path)
+        paths.forEach { path -> memory.forgetDocument(DocumentId(relPath(path))); memory.forgetPath(path) }
+        memory.treeSelectedPaths = emptySet()
     }
 
     // ---------------------------------------------------------------- navigation
@@ -2237,6 +2282,8 @@ class AppState {
         val help: String? = null,
         /** エディタのタブ（0=フォーム・1=ソース・2=差分・3=スキーマ文書のフォーム）。下位ビューと同じく場所の一部。 */
         val tab: Int = 0,
+        val reference: Boolean = false,
+        val referenceLine: Int = 1,
     )
 
     private var backStack by mutableStateOf<List<NavLocation>>(emptyList())
@@ -2248,7 +2295,8 @@ class AppState {
     /** 現在の表示位置。 */
     private fun currentLocation(): NavLocation =
         NavLocation(uiSpace, workspaceView, activeFile, highlightPath, crossViewId, viewGridId,
-            flowViewId, flowDocument, flowSelections, help = openHelp, tab = editorTab)
+            flowViewId, flowDocument, flowSelections, help = openHelp, tab = editorTab,
+            reference = openPreview != null, referenceLine = previewLine)
 
     /** 何も開いていない編集スペースは履歴に積む価値がない（台帳・実行・設計はそれ自体が場所）。 */
     private fun isEmptyLocation(loc: NavLocation): Boolean =
@@ -2271,7 +2319,7 @@ class AppState {
         flowSelections = loc.flowSelections
         when (loc.space) {
             UiSpace.EDIT -> {
-                loc.help?.let { showHelp(it) } ?: loc.file?.let { showFile(it, loc.path) }
+                loc.help?.let { showHelp(it) } ?: loc.file?.let { if (loc.reference) showReference(it, loc.referenceLine) else showFile(it, loc.path) }
                 // エディタのタブも場所の一部（パースできない文書は showFile が選んだソースのまま）
                 if (openDoc?.root != null) editorTab = loc.tab
             }

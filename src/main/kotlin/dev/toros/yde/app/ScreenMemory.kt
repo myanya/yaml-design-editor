@@ -58,11 +58,19 @@ class ScreenMemory {
 
     // ================================================================ ファイルツリー
 
-    /** ディレクトリの展開。無ければ画面の既定（台帳内は開く・台帳外は畳む）。 */
+    /** ファイル一覧の見え方。展開の既定は折り畳み。 */
     var treeOptions by mutableStateOf(dev.toros.yde.app.core.FileCatalog.Options())
     var treeQuery by mutableStateOf("")
     var treeScrollIndex by mutableStateOf(0)
     var treeScrollOffset by mutableStateOf(0)
+    var treeContentSearch by mutableStateOf(false)
+    var treeSearchStop by mutableStateOf(false)
+    var treeSearchScope by mutableStateOf<Path?>(null)
+    var treeSearchBudgetMiB by mutableStateOf(64)
+    var treeSearchSeconds by mutableStateOf(30)
+    var treeFocusedLine by mutableStateOf<Int?>(null)
+    var treeSelectedPaths by mutableStateOf<Set<Path>>(emptySet())
+    var treeAnchor by mutableStateOf<Path?>(null)
     val treeExpanded = mutableStateMapOf<Path, Boolean>()
 
     /** ツリーで選択中の場所（作成先・改名・削除の対象）。無くなった場所は画面が読み捨てる。 */
@@ -169,6 +177,14 @@ class ScreenMemory {
         treeQuery = ""
         treeScrollIndex = 0
         treeScrollOffset = 0
+        treeContentSearch = false
+        treeSearchStop = false
+        treeSearchBudgetMiB = 64
+        treeSearchSeconds = 30
+        treeFocusedLine = null
+        treeSearchScope = null
+        treeSelectedPaths = emptySet()
+        treeAnchor = null
         treeSelection = null
         sidePanelTab = 0
         validationScope = 0

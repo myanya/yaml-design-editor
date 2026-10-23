@@ -49,7 +49,7 @@ object PathRewrite {
                         if (key in globKeys) pattern(before, moves, knownFiles) else relocated(before, moves)
                     }.getOrElse { warnings += "${path.pretty()}: ${it.message}"; before }
                     if (before != after) edits += Edit(path, before, after, key == "allowedFiles" || key == "ledger")
-                    else if (moves.any { before.contains(it.from) } && before != relocated(before, moves)) {
+                    else if (moves.any { before.contains(it.from) }) {
                         warnings += "${path.pretty()}: 式を含むパスは手動確認が必要です"
                     }
                 }
@@ -66,6 +66,7 @@ object PathRewrite {
                 val value = scalarText(getAt(root, path)) ?: return@mapNotNull null
                 val rel = FilePath.toWorkspaceRelative(value, document) ?: return@mapNotNull null
                 val target = relocated(rel, moves)
+                if (target == rel && destination == document) return@mapNotNull null
                 val after = if (FilePath.kindOf(value) == FilePathKind.DOCUMENT) relative(destination.value, target) else target
                 if (value == after) null else Edit(path, value, after)
             }

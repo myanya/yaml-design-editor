@@ -128,6 +128,7 @@ fun main(args: Array<String>) = application {
  */
 private fun handleShortcut(event: KeyEvent, state: AppState, openPalette: () -> Unit): Boolean {
     if (event.type != KeyEventType.KeyDown) return false
+    if (state.fileOperationBusy) return true
     if (event.isAltPressed) {
         return when (event.key) {
             Key.DirectionLeft -> { state.goBack(); true }
@@ -139,9 +140,9 @@ private fun handleShortcut(event: KeyEvent, state: AppState, openPalette: () -> 
     return when {
         event.key == Key.S && event.isShiftPressed -> { state.saveAll(); true }
         event.key == Key.S -> { state.saveCurrent(); true }
-        event.key == Key.Z && event.isShiftPressed -> { state.redo(); true }
-        event.key == Key.Z -> { state.undo(); true }
-        event.key == Key.Y -> { state.redo(); true }
+        event.key == Key.Z && event.isShiftPressed -> { state.redoFromUi(); true }
+        event.key == Key.Z -> { state.undoFromUi(); true }
+        event.key == Key.Y -> { state.redoFromUi(); true }
         event.key == Key.K -> { openPalette(); true }
         else -> false
     }
@@ -352,6 +353,8 @@ fun AppRoot(
         HorizontalDivider(color = Palette.Border)
         StatusBar(state, automation, inboxCount) { state.showSpace(UiSpace.RUNS) }
     }
+    if (state.fileHistoryBusy) AlertDialog(onDismissRequest = {}, title = { Text("ファイルを復元しています") },
+        text = { Text("外部変更の確認と配置の復元を行っています…") }, confirmButton = {})
     if (commandOpen) CommandPalette(
         state, switchWorkspace, openWorkspaceDialog,
         onShowRuns = { state.showSpace(UiSpace.RUNS) },

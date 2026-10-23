@@ -502,8 +502,8 @@ class WorkspaceSession private constructor(
      * イベント駆動の watch＝FileWatcher の移行は計画書 Phase 7 のとおり最終段階）。
      * 変更・削除された既知の文書を返す（新規ファイルは reload で取り込まれる）。
      */
-    fun externalChanges(): List<DocumentId> =
-        workingDocuments.keys.filter { id ->
+    fun externalChanges(ids: Collection<DocumentId> = workingDocuments.keys): List<DocumentId> =
+        ids.filter { id ->
             val known = storeTexts[id]
             known != null && store.read(id)?.text != known
         }

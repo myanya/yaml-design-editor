@@ -333,6 +333,14 @@ tasks.register<JavaExec>("runCli") {
     mainClass.set("dev.toros.yde.app.core.CliKt")
 }
 
+tasks.register<JavaExec>("fileTreeBenchmark") {
+    description = "1000件と10万件の実ファイルで一覧と検索を計測する"
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("dev.toros.yde.app.core.FileTreeBenchmark")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) })
+}
+
 compose.desktop {
     application {
         mainClass = "dev.toros.yde.app.MainKt"

@@ -36,7 +36,9 @@ internal fun FileMoveDialog(state: AppState, paths: List<Path>, rename: Boolean 
         title = { Text(if (rename) "名前を変更" else "ファイル・フォルダーを移動") },
         text = {
             Column(Modifier.width(680.dp)) {
-                Text(paths.joinToString("\n") { state.relPath(it) })
+                LazyColumn(Modifier.fillMaxWidth().heightIn(max = 100.dp)) {
+                    items(paths) { Text(state.relPath(it)) }
+                }
                 CompactTextField(destination, { if (!busy) { destination = it; changed() } }, singleLine = true,
                     placeholder = { Text(if (rename) "新しい名前" else "移動先フォルダー（相対パス・空欄は直下）") }, modifier = Modifier.fillMaxWidth())
                 if (!rename) TextButton(enabled = !busy, onClick = chooseDirectory) { Text("移動先を選ぶ…") }

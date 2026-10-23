@@ -63,6 +63,19 @@ class FileArrangementTest {
         assertTrue(s.redo().ok)
     }
 
+    @Test fun `確認前の外部変更も保存済みの原文と照合して拒否する`() {
+        write("_schemas/doc.yaml", "id: doc\nmatch: docs/**/*.yaml\nroot: {type: object}\n")
+        write("docs/a.yaml", "name: A\n")
+        val s = session()
+        write("_schemas/doc.yaml", "id: doc\nmatch: docs/**/*.yaml\nroot: {type: object}\n# 外部編集\n")
+        assertFailsWith<IllegalArgumentException> {
+            FileArrangementPlanner.plan(s, root, listOf(PathMove("docs", "specs")))
+        }
+        assertContains(read("_schemas/doc.yaml"), "# 外部編集")
+        assertTrue(Files.exists(root.resolve("docs/a.yaml")))
+        assertFalse(s.canUndo())
+    }
+
     @Test fun `フォルダー作成も履歴に入り空でなければ取り消さない`() {
         val s = session()
         assertTrue(s.applyFileArrangement(FileArrangementPlanner.plan(s, root, emptyList(), createDirectory = "new")).ok)
@@ -93,6 +106,19 @@ class FileArrangementTest {
         assertFails { FileArrangementPlanner.plan(s, root, listOf(PathMove("a", "a/nested"))) }
         assertFails { FileArrangementPlanner.plan(s, root, listOf(PathMove("a/x.txt", "b.txt"))) }
         assertFails { FileArrangementPlanner.plan(s, root, listOf(PathMove("a/x.txt", "../outside"))) }
+    }
+
+    @Test fun `一般ファイルの部分移動でもfileGlobの元の対象範囲を残して追随する`() {
+        write("_views/source.yaml", "id: source\nkind: document\nfileGlob: sources/**/*.kt\n")
+        write("sources/part/A.kt", "class A")
+        write("sources/keep.kt", "class Keep")
+        val s = session()
+        val plan = FileArrangementPlanner.plan(s, root, listOf(PathMove("sources/part", "reference")))
+        assertTrue(plan.edits.any { it.after == "{sources/**/*.kt,reference/A.kt}" })
+        assertTrue(s.applyFileArrangement(plan).ok)
+        assertTrue(Files.exists(root.resolve("sources/keep.kt")))
+        assertTrue(s.undo().ok)
+        assertContains(read("_views/source.yaml"), "sources/**/*.kt")
     }
 
     @Test fun `物理移動後に保存が失敗しても配置と文面と履歴を復元する`() {

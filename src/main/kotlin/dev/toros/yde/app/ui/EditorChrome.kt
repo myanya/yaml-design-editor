@@ -56,12 +56,12 @@ internal fun EditorDocumentHeader(state: AppState, doc: OpenDocument, title: Str
         if (state.readOnlyMode || doc.draftBroken) Text("閲覧専用", fontSize = 11.sp, color = Palette.WarnOrange,
             modifier = Modifier.background(Palette.ConflictBg, PanelShape).padding(horizontal = 6.dp, vertical = 3.dp))
         HistoryTooltip("元に戻す (Ctrl+Z)", state.undoPreview()) {
-            IconButton(state::undo, enabled = state.canUndo(), modifier = Modifier.size(32.dp)) {
+            IconButton(state::undoFromUi, enabled = state.canUndo(), modifier = Modifier.size(32.dp)) {
                 Icon(Icons.AutoMirrored.Filled.Undo, "元に戻す (Ctrl+Z)", Modifier.size(17.dp))
             }
         }
         HistoryTooltip("やり直す (Ctrl+Y)", state.redoPreview()) {
-            IconButton(state::redo, enabled = state.canRedo(), modifier = Modifier.size(32.dp)) {
+            IconButton(state::redoFromUi, enabled = state.canRedo(), modifier = Modifier.size(32.dp)) {
                 Icon(Icons.AutoMirrored.Filled.Redo, "やり直す (Ctrl+Y)", Modifier.size(17.dp))
             }
         }
