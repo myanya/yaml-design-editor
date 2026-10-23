@@ -336,6 +336,22 @@ class AppState {
     private val recentPrefs = Preferences.userRoot().node("yaml-design-editor/recent")
     private val appPrefs = Preferences.userRoot().node("yaml-design-editor/app")
 
+    var openPreview by mutableStateOf<Path?>(null)
+    var fileTreeRevision by mutableStateOf(0)
+    val activeFile: Path? get() = openDoc?.file ?: openMarkdown ?: openImage ?: openPreview
+    fun refreshFileTree() { fileTreeRevision++ }
+    fun noteFileEvents(paths: Set<Path>?) {
+        if (paths != null && paths.isEmpty()) return
+        fileTreeRevision++
+        val relevant = paths == null || paths.any { p ->
+            val rel = relPath(p)
+            (Files.isDirectory(p) || yamlFiles.any { it.startsWith(p) } ||
+                p.fileName.toString().let { it.endsWith(".yaml") || it.endsWith(".yml") }) &&
+                (layout.inLedger(rel) || layout.isReserved(rel))
+        }
+        if (relevant) pollExternalChanges(eventHint = true)
+    }
+
     var workspace by mutableStateOf<Path?>(null)
         private set
 
@@ -943,6 +959,15 @@ class AppState {
         session = null
         docCache.clear()
         memory.clear()
+        openPreview = null
+        openMarkdown = null
+        openImage = null
+        val treePrefs = dev.toros.yde.app.core.FileTreePreferences.forWorkspace(workspace!!)
+        runCatching {
+            treePrefs.expanded().forEach { (path, expanded) -> memory.treeExpanded[workspace!!.resolve(path)] = expanded }
+            memory.treeOptions = treePrefs.options()
+        }
+        fileTreeRevision++
         flowSelections = emptyMap()
         flowDisplayOptions = emptyMap()
         flowViewId = null
@@ -971,7 +996,8 @@ class AppState {
         // 開き直し後は編集中文書を再反映する（RA-05）。ディスクを映すセッションを読み直した直後なので、
         // その読み込み済みの状態から起こす（同じワークスペースを2回読まない。P27 段D の D-d・D-e）
         reopenSession(ws, fromMirror = true)
-        directories = scanDirectories(ws)
+        directories = emptyList()
+        fileTreeRevision++
         val existing = yamlFiles.toSet() + editorOnlyFiles
         docCache.keys.filter { it !in existing }.toList().forEach { removed ->
             if (docCache[removed]?.dirty != true) docCache.remove(removed)
@@ -1141,7 +1167,8 @@ class AppState {
             changed = changed.filter { it in next.keys },
             removed = changed.filter { it !in next.keys },
         )
-        directories = scanDirectories(ws)
+        directories = emptyList()
+        fileTreeRevision++
         docCache.values.forEach { it.schema = schemaFor(it.file) }
         indexVersion++
         workspaceStamp = next
@@ -1225,6 +1252,16 @@ class AppState {
 
     /** 履歴に積まずに文書を表示する（openFile の本体。「戻る」「進む」の復元にも使う）。 */
     private fun showFile(file: Path, focus: YPath?) {
+        openPreview = null
+        val ext = file.fileName.toString().substringAfterLast('.', "").lowercase()
+        if (ext !in setOf("yaml", "yml", "md") && !isImage(file)) {
+            openDoc = null; openMarkdown = null; openHelp = null; openImage = null
+            openPreview = file
+            workspaceView = 0
+            syncSpaceFromView()
+            status = "閲覧: ${relPath(file)}"
+            return
+        }
         if (isMarkdown(file)) { showMarkdown(file); return }
         if (isImage(file)) { showImage(file); return }
         openMarkdown = null
@@ -1281,6 +1318,7 @@ class AppState {
     }
 
     private fun showHelp(topic: String) {
+        openPreview = null
         openDoc = null
         openMarkdown = null
         openImage = null
@@ -1747,7 +1785,8 @@ class AppState {
             docCache.values.forEach { it.schema = schemaFor(it.file) }
         }
         // 文書の作成・削除（D-18）でディレクトリ構成が変わり得るため、ツリーの供給も更新する
-        directories = scanDirectories(ws)
+        directories = emptyList()
+        fileTreeRevision++
         workspaceStamp = snapshotFiles(ws)
         indexVersion++
         editVersion++
@@ -2167,7 +2206,7 @@ class AppState {
 
     /** 現在の表示位置。 */
     private fun currentLocation(): NavLocation =
-        NavLocation(uiSpace, workspaceView, openDoc?.file ?: openMarkdown ?: openImage, highlightPath, crossViewId, viewGridId,
+        NavLocation(uiSpace, workspaceView, activeFile, highlightPath, crossViewId, viewGridId,
             flowViewId, flowDocument, flowSelections, help = openHelp, tab = editorTab)
 
     /** 何も開いていない編集スペースは履歴に積む価値がない（台帳・実行・設計はそれ自体が場所）。 */

@@ -22,6 +22,14 @@ import java.util.concurrent.atomic.AtomicBoolean
 class FileWatcher private constructor(private val root: Path, private val service: WatchService) : AutoCloseable {
 
     private val changed = AtomicBoolean(false)
+    private val paths = linkedSetOf<Path>()
+    private var overflow = false
+    /** null は取りこぼし・大量変更。呼び出し元が全体と照合する。 */
+    fun consumePaths(): Set<Path>? = synchronized(paths) {
+        val result = if (overflow) null else paths.toSet()
+        paths.clear(); overflow = false; changed.set(false)
+        result
+    }
     private val closed = AtomicBoolean(false)
     private val thread: Thread = Thread({ watchLoop() }, "yde-file-watcher").apply { isDaemon = true }
 
@@ -37,7 +45,9 @@ class FileWatcher private constructor(private val root: Path, private val servic
     }
 
     /** 前回の呼び出し以降に変更イベントがあったか（フラグは消費される）。 */
-    fun consumeChanged(): Boolean = changed.getAndSet(false)
+    fun consumeChanged(): Boolean = synchronized(paths) {
+        paths.clear(); overflow = false; changed.getAndSet(false)
+    }
 
     override fun close() {
         if (closed.compareAndSet(false, true)) {
@@ -72,6 +82,11 @@ class FileWatcher private constructor(private val root: Path, private val servic
                 val dir = key.watchable() as? Path
                 for (event in key.pollEvents()) {
                     changed.set(true)
+                    synchronized(paths) {
+                        val path = (event.context() as? Path)?.let { dir?.resolve(it) }
+                        if (path == null || paths.size >= 4096) overflow = true
+                        else paths.add(path)
+                    }
                     // 新しく作られたディレクトリは監視対象へ追加する
                     if (event.kind() == StandardWatchEventKinds.ENTRY_CREATE && dir != null) {
                         val created = (event.context() as? Path)?.let(dir::resolve)

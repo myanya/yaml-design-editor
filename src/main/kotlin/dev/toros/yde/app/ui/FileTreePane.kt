@@ -33,6 +33,12 @@ import androidx.compose.ui.unit.sp
 import dev.toros.yde.app.AppState
 import java.nio.file.Files
 import java.nio.file.Path
+import dev.toros.yde.app.core.FileTreePreferences
+import androidx.compose.foundation.ContextMenuArea
+import androidx.compose.foundation.ContextMenuItem
+import androidx.compose.foundation.border
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 
 private data class TreeRow(
     val path: Path, val depth: Int, val isDir: Boolean,
@@ -47,15 +53,62 @@ private data class TreeRow(
 @Composable
 fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp, onClose: () -> Unit = {}) {
     // 選択中の場所は画面の覚え（台帳・実行・設計を経由しても残る）。無くなった場所は読み捨てる
-    val selectedPath = state.memory.treeSelection?.takeIf { p ->
-        p in state.directories || p in state.yamlFiles || p in state.editorOnlyFiles || p in state.markdownFiles
-    }
+    val selectedPath = state.memory.treeSelection
     var dialog by remember { mutableStateOf<TreeDialog?>(null) }
     var inferTarget by remember(state.workspace) { mutableStateOf<Path?>(null) }
+    var settings by remember { mutableStateOf(false) }
+    val prefs = remember(state.workspace) { state.workspace?.let(FileTreePreferences::forWorkspace) }
+    val (browserRows, listingStatus) = browserRows(state)
+    val clipboard = LocalClipboardManager.current
+    val listState = rememberLazyListState(state.memory.treeScrollIndex, state.memory.treeScrollOffset)
+    var reveal by remember { mutableStateOf<Path?>(null) }
+    fun expand(path: Path, value: Boolean) {
+        state.memory.treeExpanded[path] = value
+        prefs?.expand(state.relPath(path), value)
+    }
+    LaunchedEffect(browserRows, reveal) {
+        reveal?.let { path -> browserRows.indexOfFirst { it.entry.path == path }.takeIf { it >= 0 }?.let {
+            listState.scrollToItem(it); reveal = null
+        } }
+    }
+    DisposableEffect(state.workspace, listState) {
+        onDispose { state.memory.treeScrollIndex = listState.firstVisibleItemIndex; state.memory.treeScrollOffset = listState.firstVisibleItemScrollOffset }
+    }
     Column(
         Modifier.width(width).fillMaxHeight().background(Palette.PanelBg)
     ) {
         PaneHeader("ファイル", onClose)
+        CompactTextField(state.memory.treeQuery, { state.memory.treeQuery = it }, singleLine = true,
+            placeholder = { Text("名前・パスで絞り込み") }, modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp))
+        Row {
+            TextButton(onClick = { settings = !settings }) { Text("表示") }
+            TextButton(onClick = {
+                state.memory.treeExpanded.clear(); prefs?.clearExpansion(); state.memory.treeQuery = ""
+            }) { Text("畳む") }
+            TextButton(enabled = state.activeFile != null, onClick = {
+                state.memory.treeQuery = ""
+                state.activeFile?.let { file ->
+                    var parent = file.parent
+                    while (parent != null && parent != state.workspace) { expand(parent, true); parent = parent.parent }
+                    state.memory.treeSelection = file; reveal = file
+                }
+            }) { Text("現在地") }
+        }
+        if (settings) {
+            fun options(value: dev.toros.yde.app.core.FileCatalog.Options) {
+                state.memory.treeOptions = value; prefs?.options(value)
+            }
+            val opt = state.memory.treeOptions
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(opt.allFiles, { options(opt.copy(allFiles = it)) }); Text("すべての形式", fontSize = 12.sp)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(opt.hidden, { options(opt.copy(hidden = it)) }); Text("隠し項目も表示", fontSize = 12.sp)
+            }
+            CompactTextField(opt.excludes, { options(opt.copy(excludes = it)) }, singleLine = true,
+                placeholder = { Text("除外 glob（; 区切り）") }, modifier = Modifier.fillMaxWidth().padding(6.dp))
+            TextButton(onClick = { state.refreshFileTree() }) { Text("一覧を更新") }
+        }
         Row(
             Modifier.fillMaxWidth().height(36.dp).padding(start = 10.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -91,26 +144,33 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp, o
             return@Column
         }
         val expanded = state.memory.treeExpanded  // フォルダの展開は画面の覚え（ワークスペース切替で消える）
-        val rows = buildRows(ws, state.yamlFiles, state.editorOnlyFiles, state.markdownFiles, state.directories, expanded)
+        val rows = browserRows.map { b -> TreeRow(b.entry.path, b.depth, b.entry.directory,
+            editorOnly = !state.layout.inLedger(state.relPath(b.entry.path)),
+            markdown = b.entry.path.fileName.toString().endsWith(".md", true)) }
+        Text(listingStatus, Modifier.padding(horizontal = 8.dp), fontSize = 10.sp, color = Palette.SubText)
 
         // 行以外の空白クリックで選択を解除できるようにする（未選択＝ルート直下が作成先になる。UX-40）
         Box(
-            Modifier.fillMaxSize().clickable(
+            Modifier.weight(1f).fillMaxWidth().clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
             ) { state.memory.treeSelection = null },
         ) {
-            val listState = rememberLazyListState()
             LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                 items(rows, key = { it.path.toString() }) { row ->
                     // 台帳外（editorOnly）のディレクトリは既定で畳む（buildRows と同じ既定）
-                    val isOpen = expanded[row.path] ?: !row.editorOnly
-                    TreeRowItem(state, row, isOpen, selectedPath == row.path) {
-                        state.memory.treeSelection = row.path
-                        if (row.isDir) {
-                            expanded[row.path] = !isOpen
-                        } else {
-                            state.openFile(row.path)
+                    val isOpen = expanded[row.path] == true
+                    ContextMenuArea(items = { listOf(
+                        ContextMenuItem("開く") { if (row.isDir) expand(row.path, !isOpen) else state.openFile(row.path) },
+                        ContextMenuItem("名前を変更…") { state.memory.treeSelection = row.path; dialog = TreeDialog.Rename },
+                        ContextMenuItem("削除…") { state.memory.treeSelection = row.path; dialog = TreeDialog.Delete },
+                        ContextMenuItem("相対パスをコピー") { clipboard.setText(AnnotatedString(state.relPath(row.path))) },
+                        ContextMenuItem("フォルダーを外部で開く") { openExternally((if (row.isDir) row.path else row.path.parent).toUri().toString()) },
+                    ) }) {
+                        TreeRowItem(state, row, isOpen, selectedPath == row.path,
+                            onExpand = { expand(row.path, !isOpen) }) {
+                            state.memory.treeSelection = row.path
+                            if (!row.isDir) state.openFile(row.path)
                         }
                     }
                 }
@@ -164,15 +224,16 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp, o
 }
 
 @Composable
-private fun TreeRowItem(state: AppState, row: TreeRow, isExpanded: Boolean, treeSelected: Boolean, onClick: () -> Unit) {
-    val selected = !row.isDir && (state.openDoc?.file == row.path || state.openMarkdown == row.path)
+private fun TreeRowItem(state: AppState, row: TreeRow, isExpanded: Boolean, treeSelected: Boolean, onExpand: () -> Unit, onClick: () -> Unit) {
+    val selected = !row.isDir && state.activeFile == row.path
     val cached = if (row.isDir) null else state.docFor(row.path)
     val dirty = cached?.let { it.dirty || it.draftDirty } == true
     val textOnly = cached?.textOnly == true   // 壊れたまま保存／解析できない＝索引・検証の対象外（R43-04）
     Row(
         Modifier
             .fillMaxWidth()
-            .background(if (selected || treeSelected) Palette.Selected else Color.Transparent)
+            .background(if (treeSelected) Palette.Selected else Color.Transparent)
+            .then(if (selected) Modifier.border(1.dp, Palette.Primary) else Modifier)
             .clickable(onClick = onClick)
             .padding(start = (8 + row.depth * 16).dp, top = 4.dp, bottom = 4.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -180,8 +241,8 @@ private fun TreeRowItem(state: AppState, row: TreeRow, isExpanded: Boolean, tree
         if (row.isDir) {
             Icon(
                 if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                Modifier.size(16.dp),
+                contentDescription = if (isExpanded) "折り畳む" else "展開する",
+                Modifier.size(20.dp).clickable(onClick = onExpand),
                 tint = Palette.SubText,
             )
             Icon(
@@ -201,7 +262,7 @@ private fun TreeRowItem(state: AppState, row: TreeRow, isExpanded: Boolean, tree
         }
         Spacer(Modifier.width(6.dp))
         Text(
-            row.path.fileName.toString(),
+            if (state.memory.treeQuery.isNotBlank()) state.relPath(row.path) else row.path.fileName.toString(),
             fontSize = 13.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -219,55 +280,6 @@ private fun TreeRowItem(state: AppState, row: TreeRow, isExpanded: Boolean, tree
             Text("●", fontSize = 9.sp, color = Palette.WarnOrange)
         }
     }
-}
-
-/**
- * yamlFiles（走査対象）と editorFiles（台帳外。R13-04）から表示行を組み立てる
- * （コンポーズ中にディスク I/O を行わない）。台帳外のファイル・配下に走査対象を持たないディレクトリは
- * editorOnly として薄色表示し、既定で畳む。
- */
-private fun buildRows(
-    ws: Path,
-    files: List<Path>,
-    editorFiles: List<Path>,
-    markdownFiles: List<Path>,
-    workspaceDirs: List<Path>,
-    expanded: Map<Path, Boolean>,
-): List<TreeRow> {
-    val allFiles = (files + editorFiles + markdownFiles).distinct()
-    val markdownSet = markdownFiles.toSet()
-    // Markdown は台帳外と同じ扱い（薄色・畳む）。索引・検証の対象ではないため
-    val editorOnlySet = editorFiles.toSet() + markdownSet
-    val filesByParent = allFiles.groupBy { it.parent }
-    val dirs = workspaceDirs.toMutableSet()
-    // 走査対象ファイルの祖先ディレクトリ＝台帳側のディレクトリ（それ以外は editorOnly 表示）
-    val ledgerDirs = mutableSetOf<Path>()
-    for (f in allFiles) {
-        var p: Path? = f.parent
-        while (p != null && p != ws && p.startsWith(ws)) {
-            dirs.add(p)
-            if (f !in editorOnlySet) ledgerDirs.add(p)
-            p = p.parent
-        }
-    }
-    val dirsByParent = dirs.groupBy { it.parent }
-    val out = mutableListOf<TreeRow>()
-
-    fun rec(dir: Path, depth: Int) {
-        dirsByParent[dir].orEmpty()
-            .sortedBy { it.fileName.toString().lowercase() }
-            .forEach { d ->
-                val editorOnly = editorOnlySet.isNotEmpty() && d !in ledgerDirs
-                out.add(TreeRow(d, depth, isDir = true, editorOnly = editorOnly))
-                // 台帳外のディレクトリは既定で畳む（明示的に開けば展開される）
-                if (expanded[d] ?: !editorOnly) rec(d, depth + 1)
-            }
-        filesByParent[dir].orEmpty()
-            .sortedBy { it.fileName.toString().lowercase() }
-            .forEach { f -> out.add(TreeRow(f, depth, isDir = false, editorOnly = f in editorOnlySet, markdown = f in markdownSet)) }
-    }
-    rec(ws, 0)
-    return out
 }
 
 /**

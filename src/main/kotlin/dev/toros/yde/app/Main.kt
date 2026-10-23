@@ -278,12 +278,12 @@ fun AppRoot(
     LaunchedEffect(state.workspace) {
         // 外部変更検出: WatchService によるOSネイティブ監視を優先し、
         // 使えない環境（ネットワークドライブ等）では従来の1秒ポーリングへフォールバックする（R8-03）
-        val watcher = state.workspace?.let { FileWatcher.open(it) }
+        val watcher = state.workspace?.let { root -> kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { FileWatcher.open(root) } }
         try {
             while (true) {
                 if (watcher != null) {
                     delay(250)
-                    if (watcher.consumeChanged()) state.pollExternalChanges(eventHint = true)
+                    state.noteFileEvents(watcher.consumePaths())
                 } else {
                     delay(1000)
                     state.pollExternalChanges()
@@ -591,6 +591,7 @@ fun EditorArea(state: AppState) {
     val doc = state.openDoc
     if (doc == null) {
         // Markdown 文書・内蔵ヘルプ・画像は表示だけの画面（ui/MarkdownPane.kt・ui/ImagePane.kt）
+        if (state.openPreview != null) { FilePreviewPane(state); return }
         if (state.openImage != null) {
             ImagePane(state)
             return
