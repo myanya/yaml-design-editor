@@ -90,3 +90,9 @@
 - **ゾーンや台帳の決まりの追加**: `WorkspaceLayout` の述語に足し、消費側（走査・書込権限・スキーマ適用・監視）はそれを読む。
 - **セッションの操作の追加**: `WorkspaceOperation` / `YamlOperation` として表し、トランザクションと履歴に載せる。
 - **変更セットの形式の拡張**: `ChangeSets` の読み取りと `ChangeSetApplier` に足し、CLI `workspace apply` と root の `apply` の両方で同じ結果になることを `ChangeSetApplierTest` で確かめる。
+
+## ファイル配置の変更
+
+`FileArrangementPlanner` は配置対応・文書参照・型付き file 値・定義のパス指定を計画する。`PathRewrite` の glob はフォルダー全体なら接頭辞を移し、部分移動なら元の対象も残す選択を作る。未対応の言及は警告として開示する。
+適用は `WorkspaceSession.applyFileArrangement`。`FileArrangementJournal` が一般ファイルを移動し、文書は既存のトランザクションと保存を通す。履歴と失敗時の復元はカーネルが所有する（[ADR-0011](../decisions/0011-file-arrangement-history.md)）。
+計画・適用時の未保存、内容ハッシュの不一致、移動先の衝突、リンクを拒否する。定義修正は Rewrite の組合せで、AI には依存しない。

@@ -184,10 +184,10 @@ class ScreenMemoryTest {
         assertEquals(false, state.memory.fold(DocumentId("sub/b.yaml"), listOf("items")))
         assertNull(state.memory.treeSelection)
 
-        // ディレクトリの改名: 下の文書の覚えは新しい場所へ移り、ツリーの展開は忘れる
+        // ディレクトリの改名: 下の文書とツリーの展開を新しい場所へ移す
         assertTrue(state.renamePath(dir.resolve("sub"), "moved").isSuccess)
         assertNull(state.memory.fold(DocumentId("sub/b.yaml"), listOf("items")))
         assertEquals(false, state.memory.fold(DocumentId("moved/b.yaml"), listOf("items")))
-        assertTrue(state.memory.treeExpanded.isEmpty())
+        assertEquals(false, state.memory.treeExpanded[dir.resolve("moved")])
     }
 }

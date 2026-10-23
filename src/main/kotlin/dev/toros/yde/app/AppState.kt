@@ -337,10 +337,14 @@ class AppState {
     private val appPrefs = Preferences.userRoot().node("yaml-design-editor/app")
 
     var openPreview by mutableStateOf<Path?>(null)
+    var fileOperationBusy by mutableStateOf(false)
+    private var deferredFileEvents = false
     var fileTreeRevision by mutableStateOf(0)
     val activeFile: Path? get() = openDoc?.file ?: openMarkdown ?: openImage ?: openPreview
     fun refreshFileTree() { fileTreeRevision++ }
     fun noteFileEvents(paths: Set<Path>?) {
+        if (fileOperationBusy) { if (paths == null || paths.isNotEmpty()) deferredFileEvents = true; return }
+        if (deferredFileEvents) { deferredFileEvents = false; noteFileEvents(null); return }
         if (paths != null && paths.isEmpty()) return
         fileTreeRevision++
         val relevant = paths == null || paths.any { p ->
@@ -1640,8 +1644,8 @@ class AppState {
             return
         }
         broken.forEach { it.discardDraft() }
-        val ok = if (undo) s.undo().ok else s.redo().ok
-        if (ok) afterHistoryStep(record, undo)
+        val result = if (undo) s.undo() else s.redo()
+        if (result.ok) afterHistoryStep(record, undo) else status = result.message ?: "履歴を適用できません"
     }
 
     fun confirmPendingHistory() {
@@ -1691,6 +1695,11 @@ class AppState {
      * 削除予約のままではディスクとセッションが食い違うため。
      */
     private fun afterHistoryStep(record: ChangeRecord, undo: Boolean) {
+        session?.fileArrangement(record.id)?.let { plan ->
+            followFileArrangement(plan, reverse = undo)
+            noteHistoryStep(record, historyTargets(record), undo)
+            return
+        }
         val ids = historyTargets(record)
         val fileLevel = (record.forward.operations + record.inverse.operations)
             .filter { it is WorkspaceOperation.CreateDocument || it is WorkspaceOperation.DeleteDocument }
@@ -1950,8 +1959,13 @@ class AppState {
     }
 
     fun createDirectory(parent: Path, name: String): Result<Path> = runCatching {
-        require(name.isNotBlank() && '/' !in name && '\\' !in name) { "使用できない名前です" }
-        Files.createDirectory(parent.resolve(name.trim())).also { reload() }
+        require(name.isNotBlank() && '/' !in name && '\\' !in name && name.trim() !in setOf(".", "..")) { "使用できない名前です" }
+        val target = parent.resolve(name.trim()).normalize()
+        val ws = workspace ?: error("ワークスペース未選択")
+        val s = session ?: error("セッション未選択")
+        val plan = dev.toros.yde.workspace.FileArrangementPlanner.plan(s, ws, emptyList(), createDirectory = relPath(target))
+        applyFileArrangement(plan).getOrThrow()
+        target
     }
 
     fun createYaml(parent: Path, name: String): Result<Path> = runCatching {
@@ -2123,56 +2137,83 @@ class AppState {
         }.getOrDefault(emptyList())
     }
 
-    fun renamePath(path: Path, newName: String): Result<Path> = runCatching {
-        require(newName.isNotBlank() && '/' !in newName && '\\' !in newName) { "使用できない名前です" }
-        require(docCache.filterKeys { it == path || it.startsWith(path) }.values.none { it.dirty }) {
-            "未保存の変更があるため名前を変更できません"
+    fun planFileMoves(paths: List<Path>, destination: Path, definitions: Boolean = true, permissions: Boolean = false): dev.toros.yde.workspace.FileArrangementPlan {
+        val ws = workspace ?: error("ワークスペース未選択")
+        val s = session ?: error("セッション未選択")
+        require(Files.isDirectory(destination) && destination.normalize().startsWith(ws)) { "移動先フォルダーがありません" }
+        val moves = paths.map { dev.toros.yde.workspace.PathMove(relPath(it), relPath(destination.resolve(it.fileName))) }
+        return dev.toros.yde.workspace.FileArrangementPlanner.plan(s, ws, moves, definitions, permissions)
+    }
+
+    fun planFileRename(path: Path, name: String, definitions: Boolean = true, permissions: Boolean = false): dev.toros.yde.workspace.FileArrangementPlan {
+        require(name.isNotBlank() && name.trim() !in setOf(".", "..") && '/' !in name && '\\' !in name) { "使用できない名前です" }
+        val ws = workspace ?: error("ワークスペース未選択")
+        val s = session ?: error("セッション未選択")
+        return dev.toros.yde.workspace.FileArrangementPlanner.plan(s, ws,
+            listOf(dev.toros.yde.workspace.PathMove(relPath(path), relPath(path.resolveSibling(name.trim())))), definitions, permissions)
+    }
+
+    fun applyFileArrangement(plan: dev.toros.yde.workspace.FileArrangementPlan): Result<Unit> = runCatching {
+        val s = session ?: error("セッション未選択")
+        require(plan.root == workspace) { "ワークスペースが変わりました" }
+        val roots = plan.moves.flatMap { listOf(plan.root.resolve(it.from), plan.root.resolve(it.to)) } +
+            plan.documentIds.map { plan.root.resolve(it.value) } + plan.texts.map { plan.root.resolve(it.document.value) }
+        val docs = docCache.filterKeys { file -> roots.any { file == it || file.startsWith(it) } }.values
+        docs.forEach { it.flushDraft() }
+        require(docs.none { it.dirty || it.draftDirty }) { "対象または参照元に未保存の変更があります。先に保存してください" }
+        val result = s.applyFileArrangement(plan)
+        require(result.ok) { result.message ?: "ファイル操作に失敗しました" }
+        followFileArrangement(plan, reverse = false)
+        status = plan.transaction.intent.description + "（Ctrl+Z で戻せます）"
+    }
+
+    private fun followFileArrangement(plan: dev.toros.yde.workspace.FileArrangementPlan, reverse: Boolean) {
+        val ws = workspace ?: return
+        val moves = if (reverse) plan.moves.map { dev.toros.yde.workspace.PathMove(it.to, it.from) } else plan.moves
+        fun moved(path: Path): Path {
+            val move = moves.firstOrNull { path == ws.resolve(it.from) || path.startsWith(ws.resolve(it.from)) } ?: return path
+            return ws.resolve(move.to).resolve(ws.resolve(move.from).relativize(path))
         }
-        val target = path.resolveSibling(newName.trim())
-        require(!Files.exists(target)) { "同名の項目が存在します" }
-        val s = session
-        val moveId = DocumentId(relPath(path))
-        if (s != null && isMovableYaml(path) && s.hasDocument(moveId)) {
-            // ファイル移動の一級化（R21-03 → B-1）: パスID文書参照の書き換えと移動を
-            // カーネルの1トランザクションで適用する（旧 DocMove の「移動成功→書き換え失敗」の継ぎ目を解消）
-            val plan = s.planRefactoring(RefactoringRequest.MoveDocument(moveId, DocumentId(relPath(target))))
-            val applied = s.applyRefactoring(plan)
-            require(applied.ok) { applied.message ?: "移動を適用できませんでした" }
-            val ids = (plan.changes.map { it.document } + listOf(moveId, DocumentId(relPath(target)))).toSet()
-            val saved = s.save(ids)
-            require(saved.ok) {
-                saved.failures.entries.firstOrNull()?.let { "${it.key.value}: ${it.value}" } ?: "移動の保存に失敗しました"
-            }
-        } else {
-            Files.move(path, target)
-        }
-        recentFiles = recentFiles.map { recent ->
-            if (recent == path) target else if (recent.startsWith(path)) target.resolve(path.relativize(recent)) else recent
-        }
+        val active = activeFile?.let(::moved)?.takeUnless { relPath(it).startsWith(".yde-trash/") }
+        val expansion = memory.treeExpanded.toMap()
+        moves.forEach { memory.renameDocument(DocumentId(it.from), DocumentId(it.to)) }
+        memory.treeExpanded.clear()
+        expansion.forEach { (path, value) -> memory.treeExpanded[moved(path)] = value }
+        memory.treeSelection = memory.treeSelection?.let(::moved)?.takeUnless { relPath(it).startsWith(".yde-trash/") }
+        val prefs = dev.toros.yde.app.core.FileTreePreferences.forWorkspace(ws)
+        prefs.clearExpansion()
+        memory.treeExpanded.forEach { (path, value) -> prefs.expand(relPath(path), value) }
+        recentFiles = recentFiles.map(::moved).filterNot { relPath(it).startsWith(".yde-trash/") }
         recentPrefs.put(workspaceKey(), recentFiles.joinToString("\n") { relPath(it) })
-        docCache.keys.filter { it == path || it.startsWith(path) }.toList().forEach(docCache::remove)
-        // 画面の覚え（畳みなど）は新しい場所へ移し、ツリーの選択と展開は忘れる
-        memory.renameDocument(moveId, DocumentId(relPath(target)))
-        memory.forgetPath(path)
-        if (openDoc?.file == path || openDoc?.file?.startsWith(path) == true) openDoc = null
-        reload()
+        backStack = backStack.map { it.copy(file = it.file?.let(::moved)) }
+        forwardStack = forwardStack.map { it.copy(file = it.file?.let(::moved)) }
+        docCache.keys.filter { moved(it) != it }.toList().forEach(docCache::remove)
+        openDoc = null; openPreview = null; openMarkdown = null; openImage = null
+        refreshAfterSessionWrite(plan.documentIds + plan.texts.filter { it.document.value.endsWith(".yaml") || it.document.value.endsWith(".yml") }.map { it.document })
+        if (active != null && Files.isRegularFile(active)) showFile(active, highlightPath)
+        fileTreeRevision++
+    }
+
+    fun renamePath(path: Path, newName: String): Result<Path> = runCatching {
+        require(newName.isNotBlank() && '/' !in newName && '\\' !in newName && newName.trim() !in setOf(".", "..")) { "使用できない名前です" }
+        val target = path.resolveSibling(newName.trim())
+        val ws = workspace ?: error("ワークスペース未選択")
+        val s = session ?: error("セッション未選択")
+        val plan = dev.toros.yde.workspace.FileArrangementPlanner.plan(s, ws,
+            listOf(dev.toros.yde.workspace.PathMove(relPath(path), relPath(target))))
+        applyFileArrangement(plan).getOrThrow()
         target
     }
 
     fun deletePath(path: Path): Result<Unit> = runCatching {
-        require(docCache.filterKeys { it == path || it.startsWith(path) }.values.none { it.dirty }) {
-            "未保存の変更があるため削除できません"
-        }
-        if (Files.isDirectory(path)) {
-            Files.walk(path).use { it.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
-        } else Files.delete(path)
-        docCache.keys.filter { it == path || it.startsWith(path) }.toList().forEach(docCache::remove)
+        val ws = workspace ?: error("ワークスペース未選択")
+        val s = session ?: error("セッション未選択")
+        val trash = ".yde-trash/" + java.util.UUID.randomUUID().toString() + "/" + path.fileName
+        val plan = dev.toros.yde.workspace.FileArrangementPlanner.plan(s, ws,
+            listOf(dev.toros.yde.workspace.PathMove(relPath(path), trash)), deleting = true)
+        applyFileArrangement(plan).getOrThrow()
         memory.forgetDocument(DocumentId(relPath(path)))
         memory.forgetPath(path)
-        recentFiles = recentFiles.filterNot { it == path || it.startsWith(path) }
-        recentPrefs.put(workspaceKey(), recentFiles.joinToString("\n") { relPath(it) })
-        if (openDoc?.file == path || openDoc?.file?.startsWith(path) == true) openDoc = null
-        reload()
     }
 
     // ---------------------------------------------------------------- navigation

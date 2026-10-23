@@ -57,6 +57,8 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp, o
     var dialog by remember { mutableStateOf<TreeDialog?>(null) }
     var inferTarget by remember(state.workspace) { mutableStateOf<Path?>(null) }
     var settings by remember { mutableStateOf(false) }
+    var moveTargets by remember { mutableStateOf<List<Path>>(emptyList()) }
+    var renameMove by remember { mutableStateOf(false) }
     val prefs = remember(state.workspace) { state.workspace?.let(FileTreePreferences::forWorkspace) }
     val (browserRows, listingStatus) = browserRows(state)
     val clipboard = LocalClipboardManager.current
@@ -82,6 +84,7 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp, o
             placeholder = { Text("名前・パスで絞り込み") }, modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp))
         Row {
             TextButton(onClick = { settings = !settings }) { Text("表示") }
+            TextButton(enabled = selectedPath != null, onClick = { renameMove = false; moveTargets = listOfNotNull(selectedPath) }) { Text("移動") }
             TextButton(onClick = {
                 state.memory.treeExpanded.clear(); prefs?.clearExpansion(); state.memory.treeQuery = ""
             }) { Text("畳む") }
@@ -126,7 +129,7 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp, o
             IconButton(modifier = Modifier.size(30.dp), enabled = canInfer, onClick = { inferTarget = selectedPath }) {
                 Icon(Icons.Default.AutoFixHigh, "スキーマ推測（既存文書からドラフト作成）", Modifier.size(16.dp))
             }
-            IconButton(modifier = Modifier.size(30.dp), enabled = selectedPath != null, onClick = { dialog = TreeDialog.Rename }) {
+            IconButton(modifier = Modifier.size(30.dp), enabled = selectedPath != null, onClick = { renameMove = true; moveTargets = listOfNotNull(selectedPath) }) {
                 Icon(Icons.Default.Edit, "名前を変更", Modifier.size(16.dp))
             }
             IconButton(modifier = Modifier.size(30.dp), enabled = selectedPath != null, onClick = { dialog = TreeDialog.Delete }) {
@@ -162,7 +165,8 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp, o
                     val isOpen = expanded[row.path] == true
                     ContextMenuArea(items = { listOf(
                         ContextMenuItem("開く") { if (row.isDir) expand(row.path, !isOpen) else state.openFile(row.path) },
-                        ContextMenuItem("名前を変更…") { state.memory.treeSelection = row.path; dialog = TreeDialog.Rename },
+                        ContextMenuItem("名前を変更…") { state.memory.treeSelection = row.path; renameMove = true; moveTargets = listOf(row.path) },
+                        ContextMenuItem("移動…") { state.memory.treeSelection = row.path; renameMove = false; moveTargets = listOf(row.path) },
                         ContextMenuItem("削除…") { state.memory.treeSelection = row.path; dialog = TreeDialog.Delete },
                         ContextMenuItem("相対パスをコピー") { clipboard.setText(AnnotatedString(state.relPath(row.path))) },
                         ContextMenuItem("フォルダーを外部で開く") { openExternally((if (row.isDir) row.path else row.path.parent).toUri().toString()) },
@@ -183,13 +187,14 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp, o
         inferTarget?.let { target ->
             InferSchemaDialog(state, target, onDismiss = { inferTarget = null })
         }
+        if (moveTargets.isNotEmpty()) FileMoveDialog(state, moveTargets, rename = renameMove) { moveTargets = emptyList() }
         dialog?.let { kind ->
             // 作成先は「選択中の場所の配下」。どこに作られるかをダイアログに明示し、直下への切替も出す（UX-22 / UX-40）
             val selectedParent = selectedPath?.let { if (Files.isDirectory(it)) it else it.parent } ?: ws
             val creating = kind == TreeDialog.NewFile || kind == TreeDialog.NewDirectory
             TreeOperationDialog(
                 kind = kind,
-                initial = if (kind == TreeDialog.Rename) selectedPath?.fileName?.toString().orEmpty() else "",
+                initial = if (kind == TreeDialog.Rename) selectedPath?.fileName?.toString().orEmpty() else if (kind == TreeDialog.Delete) selectedPath?.let(state::relPath).orEmpty() else "",
                 destination = if (creating) {
                     state.relPath(selectedParent).takeIf { it.isNotEmpty() } ?: "（ワークスペース直下）"
                 } else null,
@@ -355,7 +360,7 @@ private fun TreeOperationDialog(
         title = { Text(title, fontSize = 16.sp) },
         text = {
             Column {
-                if (kind == TreeDialog.Delete) Text("選択した項目を削除します。この操作は取り消せません。")
+                if (kind == TreeDialog.Delete) Text("削除対象: $initial\nフォルダー内の非表示ファイルも含め、.yde-trash に退避します。Ctrl+Z で復元できます。")
                 else {
                     OutlinedTextField(
                         value, { value = it; error = null }, singleLine = true, label = { Text("名前") },

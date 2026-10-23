@@ -140,7 +140,8 @@ class WorkspaceSession private constructor(
     /** fork が渡す、読み込み済みの状態（読み取り専用の写し）。 */
     private class Seed(val loaded: LoadedWorkspace, val storeTexts: Map<DocumentId, String>)
 
-    val layout: WorkspaceLayout
+    var layout: WorkspaceLayout
+        private set
 
     /** ファイル（YAML 以外も）があるか（file 型の値の存在の検査。ストアに聞く）。 */
     fun fileExists(path: String): Boolean = store.exists(path)
@@ -174,6 +175,66 @@ class WorkspaceSession private constructor(
     private val undoStack = ArrayDeque<ChangeRecord>()
     private val redoStack = ArrayDeque<ChangeRecord>()
     private var recordCounter = 0L
+    private val fileArrangements = mutableMapOf<Long, FileArrangementJournal>()
+    fun fileArrangement(recordId: Long): FileArrangementPlan? = fileArrangements[recordId]?.plan
+
+    /** 一般ファイルも含む移動は明示的に適用＋保存する。通常の apply は従来どおりメモリだけ。 */
+    fun applyFileArrangement(plan: FileArrangementPlan): TransactionResult {
+        if (plan.transaction.baseVersion != version) return TransactionResult(false, "計画が古いため再確認してください", version, true)
+        val journal = FileArrangementJournal(plan)
+        return withFileRollback {
+            val applied = apply(plan.transaction)
+            require(applied.ok) { applied.message ?: "適用できません" }
+            journal.run(false) {
+                val saved = save(plan.documentIds, force = true)
+                require(saved.ok) { saved.failures.toString() }
+                refreshArrangementLayout(plan.root)
+            }
+            fileArrangements[undoStack.last().id] = journal
+            applied
+        }
+    }
+
+    private fun fileHistoryStep(record: ChangeRecord, journal: FileArrangementJournal, undo: Boolean): TransactionResult = withFileRollback {
+        val tx = if (undo) record.inverse else record.forward
+        val result = applyOperations(tx.operations, requireValid = false) { }
+        require(result.ok) { result.message ?: "履歴を適用できません" }
+        journal.run(undo) {
+            val saved = save(journal.plan.documentIds, force = true)
+            require(saved.ok) { saved.failures.toString() }
+            refreshArrangementLayout(journal.plan.root)
+        }
+        result
+    }
+
+    /** 保存失敗でも、メモリ・履歴とディスクの復元が対応するようにする。 */
+    private fun withFileRollback(action: () -> TransactionResult): TransactionResult {
+        val documents = LinkedHashMap(workingDocuments)
+        val texts = storeTexts.toMap()
+        val deletes = pendingDeletes.toSet()
+        val oldSchemas = schemas; val oldDeclarations = declarations; val oldErrors = schemaErrors
+        val oldDerived = derived; val oldVersion = version; val oldLayout = layout
+        val undo = undoStack.toList(); val redo = redoStack.toList()
+        return try { action() } catch (e: Exception) {
+            workingDocuments = documents
+            storeTexts.clear(); storeTexts.putAll(texts)
+            pendingDeletes.clear(); pendingDeletes.addAll(deletes)
+            schemas = oldSchemas; declarations = oldDeclarations; schemaErrors = oldErrors
+            derived = oldDerived; version = oldVersion; layout = oldLayout
+            undoStack.clear(); undoStack.addAll(undo); redoStack.clear(); redoStack.addAll(redo)
+            TransactionResult(false, e.message ?: "ファイル操作に失敗しました", version)
+        }
+    }
+
+    private fun refreshArrangementLayout(root: java.nio.file.Path) {
+        val next = WorkspaceLayout.of(root)
+        if (next == layout) return
+        layout = next
+        workingDocuments = workingDocuments.mapValues { (id, d) ->
+            d.copy(inLedger = layout.inLedger(id.value), schemaId = WorkspaceReader.assignSchemaId(id.value, d.document, schemas, layout))
+        }.toMutableMap()
+        derived = WorkspaceReader.derive(workingDocuments, schemas, declarations, layout, version)
+    }
 
     // 編集記録の合体（UX-11 のセッション版。RA-06）: 直前の記録と同じキー・時間窓内なら記録を置き換える
     private var lastCoalesceKey: Any? = null
@@ -294,7 +355,8 @@ class WorkspaceSession private constructor(
         resetCoalesce()
         val record = undoStack.removeLastOrNull()
             ?: return TransactionResult(false, "戻す変更がありません", version)
-        val result = applyOperations(record.inverse.operations, requireValid = false) { }
+        val result = fileArrangements[record.id]?.let { fileHistoryStep(record, it, undo = true) }
+            ?: applyOperations(record.inverse.operations, requireValid = false) { }
         if (result.ok) redoStack.addLast(record) else undoStack.addLast(record)
         return result
     }
@@ -304,7 +366,8 @@ class WorkspaceSession private constructor(
         resetCoalesce()
         val record = redoStack.removeLastOrNull()
             ?: return TransactionResult(false, "やり直す変更がありません", version)
-        val result = applyOperations(record.forward.operations, requireValid = false) { }
+        val result = fileArrangements[record.id]?.let { fileHistoryStep(record, it, undo = false) }
+            ?: applyOperations(record.forward.operations, requireValid = false) { }
         if (result.ok) undoStack.addLast(record) else redoStack.addLast(record)
         return result
     }
@@ -313,13 +376,13 @@ class WorkspaceSession private constructor(
      * dirty な文書と削除予約をストアへ書く。履歴・version には触れない（保存は履歴項目ではない。§5）。
      * selection を渡すとその文書だけ保存する。
      */
-    fun save(selection: Set<DocumentId>? = null): SaveResult {
+    fun save(selection: Set<DocumentId>? = null, force: Boolean = false): SaveResult {
         val written = mutableListOf<DocumentId>()
         val deleted = mutableListOf<DocumentId>()
         val failures = linkedMapOf<DocumentId, String>()
         for (id in pendingDeletes.toList()) {
             if (selection != null && id !in selection) continue
-            runCatching { store.delete(id) }
+            runCatching { if (!force || store.exists(id.value)) store.delete(id) }
                 .onSuccess {
                     pendingDeletes.remove(id)
                     storeTexts.remove(id)
@@ -330,7 +393,7 @@ class WorkspaceSession private constructor(
         for ((id, d) in workingDocuments) {
             if (selection != null && id !in selection) continue
             val text = DefaultYamlCodec.dump(d.document)
-            if (text == d.persistedText) continue
+            if (!force && text == d.persistedText) continue
             runCatching { store.write(id, text) }
                 .onSuccess {
                     workingDocuments[id] = d.copy(persistedText = text)
