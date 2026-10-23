@@ -12,4 +12,11 @@ internal object FileTreeSelection {
         return if (toggle) { if (target in current) current - target else current + target } else setOf(target)
     }
     fun roots(paths: Collection<Path>): List<Path> = paths.distinct().filter { path -> paths.none { it != path && path.startsWith(it) } }
+
+    /** 表示中のフォルダー候補に対する判定。衝突や定義への影響は移動確認で検査する。 */
+    fun dropDestination(root: Path, sources: List<Path>, candidate: Path?): Path? = candidate?.takeIf { target ->
+        sources.isNotEmpty() && target.startsWith(root) && sources.none {
+            target == it || target.startsWith(it) || target == it.parent
+        }
+    }
 }

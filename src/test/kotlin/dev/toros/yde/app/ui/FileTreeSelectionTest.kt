@@ -11,4 +11,20 @@ class FileTreeSelectionTest {
         assertEquals(listOf(paths[0], paths[3]), FileTreeSelection.roots(paths))
         assertEquals(emptySet(), FileTreeSelection.select(setOf(paths[0]), paths[0], null, paths, true, false))
     }
+
+    @Test fun `移動候補は直下と別フォルダーだけを許し複数選択でも同じ条件を使う`() {
+        val root = Path.of("workspace")
+        val source = root.resolve("docs/a.yaml")
+        val folder = root.resolve("docs")
+        val target = root.resolve("other")
+        assertEquals(target, FileTreeSelection.dropDestination(root, listOf(source), target))
+        assertEquals(root, FileTreeSelection.dropDestination(root, listOf(source), root))
+        assertNull(FileTreeSelection.dropDestination(root, listOf(source), source.parent))
+        assertNull(FileTreeSelection.dropDestination(root, listOf(folder), folder))
+        assertNull(FileTreeSelection.dropDestination(root, listOf(folder), folder.resolve("child")))
+        assertNull(FileTreeSelection.dropDestination(root, listOf(source), null))
+        assertNull(FileTreeSelection.dropDestination(root, listOf(source), Path.of("outside")))
+        assertNull(FileTreeSelection.dropDestination(root, listOf(source, target.resolve("b.yaml")), target))
+        assertNull(FileTreeSelection.dropDestination(root, emptyList(), target))
+    }
 }

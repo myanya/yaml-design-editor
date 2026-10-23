@@ -27,7 +27,7 @@
 | W-15 | 内蔵ヘルプ（利用者マニュアルをビルド時に資源へ入れ、ヘルプメニューとコマンドパレットから文書として開く・題目間のリンクで移動） | `app/Help.kt`, `build.gradle.kts`（`copyHelp`）, `ui/MarkdownPane.kt` | 単体 `MarkdownLinkTest` | [ui](architecture/ui.md) |
 | W-16 | 画面の見え方の保持（タブ・畳み・選択・絞り込みは画面を離れても保持、ツリーの展開は永続化） | `app/ScreenMemory.kt` | `ScreenMemoryTest` | [ui](architecture/ui.md) |
 | W-17 | Windows ZIP 配布（起動案内・サンプル・ビルド情報・SHA-256） | `build.gradle.kts`（`windowsRelease`） | `test-windows-zip.ps1`, `DistributionSmoke` | [配布](releasing.md) |
-| W-18 | 複数選択・キーボード・ドラッグによる移動先指定 | `ui/FileTreeSelection.kt`, `ui/FileTreePane.kt` | `FileTreeSelectionTest`・画面は手動 | [ui](architecture/ui.md) |
+| W-18 | 複数選択・キー操作・ドラッグ（固定案内・移動先強調） | `ui/FileTreeSelection.kt`, `ui/FileTreePane.kt` | `FileTreeSelectionTest`・画面は手動 | [ui](architecture/ui.md) |
 | W-19 | 参考資料の本文検索（範囲・容量上限・中止・行へ移動） | `core/ReferenceSearch.kt` | `ReferenceToolsTest`, `FileTreeBenchmark` | [ui](architecture/ui.md) |
 | W-20 | ソースの宣言候補の表示と YAML 保存 | `core/SourceOutline.kt`, `ui/FilePreviewPane.kt` | `ReferenceToolsTest`, `AppStateFileArrangementTest` | [ui](architecture/ui.md) |
 

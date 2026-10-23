@@ -77,7 +77,7 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp, o
     var renameMove by remember { mutableStateOf(false) }
     var moveDestination by remember { mutableStateOf<Path?>(null) }
     val focus = remember { FocusRequester() }
-    val rowBounds = remember { mutableMapOf<Path, Rect>() }
+    val rowBounds = remember(state.workspace) { mutableStateMapOf<Pair<Path, Int?>, Rect>() }
     var paneBounds by remember { mutableStateOf(Rect.Zero) }
     var dragPosition by remember { mutableStateOf<Offset?>(null) }
     var dragSources by remember { mutableStateOf<List<Path>>(emptyList()) }
@@ -207,17 +207,38 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp, o
         val rows = browserRows.map { b -> TreeRow(b.entry.path, b.depth, b.entry.directory,
             editorOnly = !state.layout.inLedger(state.relPath(b.entry.path)),
             markdown = b.entry.path.fileName.toString().endsWith(".md", true), line = b.line, excerpt = b.excerpt) }
-        Text(listingStatus, Modifier.padding(horizontal = 8.dp), fontSize = 10.sp, color = Palette.SubText)
+        val resolveDrop: (Offset?, List<Path>) -> Path? = { position, sources ->
+            val candidate = if (position != null && paneBounds.contains(position)) {
+                val hit = rowBounds.entries.firstOrNull { it.value.contains(position) }?.key
+                if (hit == null) ws else rows.firstOrNull { it.path == hit.first && it.isDir }?.path
+            } else null
+            FileTreeSelection.dropDestination(ws, sources, candidate)
+        }
+        // pointerInput を再起動せず、スクロールや一覧更新後も最新の候補で判定する。
+        val latestResolveDrop by rememberUpdatedState(resolveDrop)
+        val dropTarget = resolveDrop(dragPosition, dragSources)
+        val dragging = dragSources.isNotEmpty()
+        val statusText = when {
+            dragging && dropTarget != null -> "${dragSources.size} 件 → ${if (dropTarget == ws) "ワークスペース直下" else state.relPath(dropTarget)}"
+            dragging -> "${dragSources.size} 件：ここには移動できません"
+            selected.size > 1 -> "${selected.size} 件選択・$listingStatus"
+            else -> listingStatus
+        }
+        // 選択件数・ドラッグ案内・検索進捗を同じ高さに収め、操作中の行位置を固定する。
+        Box(Modifier.fillMaxWidth().height(24.dp).padding(horizontal = 8.dp), contentAlignment = Alignment.CenterStart) {
+            Text(statusText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                color = if (!dragging) Palette.SubText else if (dropTarget != null) Palette.Primary else Palette.WarnOrange)
+        }
         if (state.memory.treeQuery.isNotBlank()) Row {
             TextButton(onClick = { state.memory.treeSearchStop = true }) { Text("検索を中止") }
             TextButton(onClick = { state.memory.treeQuery = ""; state.memory.treeSearchStop = false }) { Text("解除") }
         }
-        if (selected.size > 1) Text("${selected.size} 件選択（Ctrl / Shift で複数選択）", fontSize = 11.sp)
-        if (dragSources.isNotEmpty()) Text("フォルダーまたは一覧の空白へドロップ → 移動の確認", fontSize = 11.sp, color = Palette.Primary)
 
         // 行以外の空白クリックで選択を解除できるようにする（未選択＝ルート直下が作成先になる。UX-40）
         Box(
-            Modifier.weight(1f).fillMaxWidth().onGloballyPositioned { paneBounds = it.boundsInWindow() }.clickable(
+            Modifier.weight(1f).fillMaxWidth()
+                .then(if (dropTarget == ws) Modifier.border(2.dp, Palette.Primary) else Modifier)
+                .onGloballyPositioned { paneBounds = it.boundsInWindow() }.clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
             ) { state.memory.treeSelection = null; state.memory.treeSelectedPaths = emptySet() },
@@ -240,9 +261,10 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp, o
                 }
             }.focusable()) {
                 items(rows, key = { it.path.toString() + ":" + it.line }) { row ->
+                    val rowKey = row.path to row.line
                     var toggle by remember { mutableStateOf(false) }
                     var range by remember { mutableStateOf(false) }
-                    DisposableEffect(row.path) { onDispose { rowBounds.remove(row.path) } }
+                    DisposableEffect(rowKey) { onDispose { rowBounds.remove(rowKey) } }
                     // 台帳外（editorOnly）のディレクトリは既定で畳む（buildRows と同じ既定）
                     val isOpen = expanded[row.path] == true
                     ContextMenuArea(items = { listOf(
@@ -253,23 +275,18 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp, o
                         ContextMenuItem("相対パスをコピー") { clipboard.setText(AnnotatedString(state.relPath(row.path))) },
                         ContextMenuItem("フォルダーを外部で開く") { openExternally((if (row.isDir) row.path else row.path.parent).toUri().toString()) },
                     ) }) {
-                        TreeRowItem(state, row, isOpen, row.path in selected,
-                            modifier = Modifier.onGloballyPositioned { rowBounds[row.path] = it.boundsInWindow() }
+                        TreeRowItem(state, row, isOpen, row.path in selected, dropTarget = row.path == dropTarget,
+                            modifier = Modifier.onGloballyPositioned { rowBounds[rowKey] = it.boundsInWindow() }
                                 .onPointerEvent(PointerEventType.Press) { event -> toggle = event.keyboardModifiers.isCtrlPressed; range = event.keyboardModifiers.isShiftPressed }
-                                .pointerInput(row.path, selected) {
+                                .pointerInput(rowKey, selected) {
                                     detectDragGestures(onDragStart = { position ->
-                                        dragSources = targets(row.path); dragPosition = rowBounds[row.path]?.topLeft?.plus(position)
+                                        dragSources = targets(row.path); dragPosition = rowBounds[rowKey]?.topLeft?.plus(position)
                                     }, onDragCancel = { dragSources = emptyList(); dragPosition = null }, onDragEnd = {
-                                        val position = dragPosition
-                                        if (position != null && paneBounds.contains(position)) {
-                                            val hit = rowBounds.entries.firstOrNull { it.value.contains(position) }?.key
-                                            val target = if (hit == null) ws else rows.firstOrNull { it.path == hit && it.isDir }?.path
-                                            if (target != null && dragSources.none { target == it || target.startsWith(it) }) {
-                                                renameMove = false; moveDestination = target; moveTargets = dragSources
-                                            }
+                                        latestResolveDrop(dragPosition, dragSources)?.let { target ->
+                                            renameMove = false; moveDestination = target; moveTargets = dragSources
                                         }
                                         dragSources = emptyList(); dragPosition = null
-                                    }) { change, _ -> change.consume(); dragPosition = rowBounds[row.path]?.topLeft?.plus(change.position) }
+                                    }) { change, _ -> change.consume(); dragPosition = rowBounds[rowKey]?.topLeft?.plus(change.position) }
                                 },
                             onExpand = { expand(row.path, !isOpen) }) {
                             select(row.path, toggle, range, row.line); focus.requestFocus()
@@ -333,7 +350,7 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp, o
 }
 
 @Composable
-private fun TreeRowItem(state: AppState, row: TreeRow, isExpanded: Boolean, treeSelected: Boolean, modifier: Modifier = Modifier, onExpand: () -> Unit, onClick: () -> Unit) {
+private fun TreeRowItem(state: AppState, row: TreeRow, isExpanded: Boolean, treeSelected: Boolean, dropTarget: Boolean = false, modifier: Modifier = Modifier, onExpand: () -> Unit, onClick: () -> Unit) {
     val selected = !row.isDir && state.activeFile == row.path
     val cached = if (row.isDir) null else state.docFor(row.path)
     val dirty = cached?.let { it.dirty || it.draftDirty } == true
@@ -341,8 +358,8 @@ private fun TreeRowItem(state: AppState, row: TreeRow, isExpanded: Boolean, tree
     Row(
         modifier
             .fillMaxWidth()
-            .background(if (treeSelected) Palette.Selected else Color.Transparent)
-            .then(if (selected) Modifier.border(1.dp, Palette.Primary) else Modifier)
+            .background(if (dropTarget) Palette.Primary.copy(alpha = 0.12f) else if (treeSelected) Palette.Selected else Color.Transparent)
+            .then(if (dropTarget) Modifier.border(2.dp, Palette.Primary) else if (selected) Modifier.border(1.dp, Palette.Primary) else Modifier)
             .clickable(onClick = onClick)
             .padding(start = (8 + row.depth * 16).dp, top = 4.dp, bottom = 4.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
