@@ -15,6 +15,11 @@ internal val LocalSchemaAuthoring = compositionLocalOf { false }
 
 @Composable
 internal fun SchemaValueEditor(ctx: FormCtx, slot: Slot, path: YPath) {
+    FormAnchor(path) { SchemaValueContent(ctx, slot, path) }
+}
+
+@Composable
+private fun SchemaValueContent(ctx: FormCtx, slot: Slot, path: YPath) {
     ctx.doc.version
     val node = slot.get()
     var replacement by remember(path) { mutableStateOf<SchemaValuePreset?>(null) }

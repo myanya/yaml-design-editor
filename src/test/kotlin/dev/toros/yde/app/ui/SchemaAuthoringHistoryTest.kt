@@ -44,6 +44,16 @@ class SchemaAuthoringHistoryTest {
             assertFalse("actions" in (doc.root as YNode.Map).entries)
             state.redo()
             assertTrue("actions" in (doc.root as YNode.Map).entries)
+            val valuePath = listOf("actions", 0, "do", 0, "set", "value")
+            val items = schemaAdditionalOutline(doc.root as YNode.Map, doc.schema, false)
+            val selected = items.single { it.path == valuePath }
+            assertEquals(valuePath, schemaAdditionalSelection(items, valuePath, emptyList()))
+            ctx.setScalar(schemaSlot(doc.root, selected.path)!!, "OPEN", selected.field!!.type)
+            assertEquals("OPEN", (schemaSlot(doc.root, valuePath)!!.get() as YNode.Scalar).value)
+            state.undo()
+            assertEquals("IN_PROGRESS", (schemaSlot(doc.root, valuePath)!!.get() as YNode.Scalar).value)
+            assertEquals(valuePath, schemaAdditionalSelection(
+                schemaAdditionalOutline(doc.root as YNode.Map, doc.schema, false), valuePath, items))
             state.saveAll()
             assertFalse(doc.dirty, state.status)
             assertEquals(emptyList(), state.schemaErrors)

@@ -122,11 +122,13 @@ private fun SchemaStructureEditor(
     val document = ctx.state.documentOf(doc.file)
     val named = root.entries["definitions"] as? YNode.Map ?: remember(root) { YNode.Map() }
     val additional = schemaAdditionalFields(doc.schema?.tree, root, library)
+    val additionalItems = schemaAdditionalOutline(root, doc.schema, library)
     val section = (memory.schemaSection[document] ?: if (library) 1 else 0).let { if (library && it == 0) 1 else it }
     val name = memory.schemaDefinition[document]?.takeIf { it in named.entries } ?: named.entries.keys.firstOrNull()
     val base: YPath = when (section) {
         2 -> listOf("@settings")
-        3 -> listOf(memory.schemaDefinition[document].orEmpty())
+        3 -> listOf(memory.schemaDefinition[document]?.takeIf { key -> additional.any { it.key == key } }
+            ?: additional.firstOrNull()?.key.orEmpty())
         1 -> listOf("definitions", name.orEmpty())
         else -> listOf("root")
     }
@@ -142,6 +144,12 @@ private fun SchemaStructureEditor(
     val memoryKey = document to base
     var previous by remember(doc, base) { mutableStateOf<Pair<YPath, String?>?>(null) }
     val stored = memory.schemaSelection[memoryKey]
+    var previousAdditional by remember(doc, base) { mutableStateOf<List<FormOutlineItem>>(emptyList()) }
+    var previousAdditionalPath by remember(doc, base) { mutableStateOf<YPath?>(null) }
+    val extraItems = additionalItems.filter { it.path.take(1) == base }
+    val extraPath = schemaAdditionalSelection(extraItems, stored,
+        previousAdditional.takeIf { previousAdditionalPath == stored }.orEmpty())
+    val extraSelected = extraItems.firstOrNull { it.path == extraPath }
     val selected = entries.takeIf { it.isNotEmpty() }?.let {
         schemaSelectionAfterEdit(it, stored, previous?.takeIf { it.first == stored }?.second)
     }
@@ -150,9 +158,15 @@ private fun SchemaStructureEditor(
             memory.schemaSelection[memoryKey] = selected.path
             previous = selected.path to (selected.node as? YNode.Map)?.let { scalar(it, "key") }
         }
+        if (extraSelected != null) {
+            memory.schemaSelection[memoryKey] = extraSelected.path
+            previousAdditional = extraItems
+            previousAdditionalPath = extraSelected.path
+        }
     }
     fun select(path: YPath) {
         previous = null
+        previousAdditional = emptyList()
         val target = schemaNavigationTarget(path)
         memory.schemaSection[document] = target.section
         target.definition?.let { memory.schemaDefinition[document] = it }
@@ -264,12 +278,8 @@ private fun SchemaStructureEditor(
                 else -> null
             }, entry.node)
     }
-    val extra = additional.firstOrNull { it.key == base.firstOrNull() }
-    val allOutlineItems = outlineItems + additional.map { field ->
-        FormOutlineItem(listOf(field.key!!), null, field.displayLabel,
-            field.key!!, node = root.entries[field.key])
-    }
-    val selectedPath = if (section == 2) listOf("@settings") else extra?.key?.let { listOf(it) } ?: selected?.path
+    val allOutlineItems = outlineItems + additionalItems
+    val selectedPath = if (section == 2) listOf("@settings") else extraSelected?.path ?: selected?.path
     val schemaActions: @Composable () -> Unit = {
         if (schema?.kind == SchemaKind.DOCUMENT && schema.derive == null) {
             var menu by remember { mutableStateOf(false) }
@@ -282,7 +292,10 @@ private fun SchemaStructureEditor(
             }
         }
     }
-    StructuredForm(ctx, true, allOutlineItems, selectedPath, ::select, reveal = {},
+    StructuredForm(ctx, true, allOutlineItems, selectedPath, ::select, reveal = { path ->
+        if (schemaNavigationTarget(path).section == 3)
+            for (size in 1..path.size) ctx.setExpanded(path.take(size), true)
+    },
         beforeItem = { item ->
             if (item.path == rows.firstOrNull { it.path.firstOrNull() == "definitions" }?.path) {
                 SchemaDefinitionsHeader(named, doc) { definition ->
@@ -301,11 +314,19 @@ private fun SchemaStructureEditor(
         },
         selectedContent = { modifier ->
             if (selected != null) itemDetail(selected, modifier.border(1.dp, Palette.Border, PanelShape), false)
-            else SchemaScroll(modifier) {
-                if (extra != null) FieldRow(ctx, extra, MapSlot(root, extra.key!!), listOf(extra.key!!))
+            else key(extraSelected?.path) { SchemaScroll(modifier) {
+                if (extraSelected != null) {
+                    LaunchedEffect(doc, extraSelected.path) { ctx.setExpanded(extraSelected.path, true) }
+                    UiTooltip(extraSelected.path.pretty()) {
+                        Text(extraSelected.title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                    schemaSlot(root, extraSelected.path)?.let { slot ->
+                        FieldRow(ctx, extraSelected.field!!, slot, extraSelected.path)
+                    }
+                }
                 else if (section == 2) SchemaBasicSettings(ctx, root, library)
                 else Text("構成から名前付き定義を追加してください。", fontSize = 13.sp)
-            }
+            } }
         },
         wholeContent = {
             if (memory.formDisplay.modeFor(document) == dev.toros.yde.app.FormDisplayMode.WHOLE) {
@@ -359,7 +380,7 @@ private fun SchemaProblems(problems: List<String>) {
     }
 }
 
-private fun schemaSlot(root: YNode?, path: YPath): Slot? = when (val parent = root?.let { getAt(it, path.dropLast(1)) }) {
+internal fun schemaSlot(root: YNode?, path: YPath): Slot? = when (val parent = root?.let { getAt(it, path.dropLast(1)) }) {
     is YNode.Map -> (path.lastOrNull() as? String)?.let { MapSlot(parent, it) }
     is YNode.Seq -> (path.lastOrNull() as? Int)?.let { SeqSlot(parent, it) }
     else -> null

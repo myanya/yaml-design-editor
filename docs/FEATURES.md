@@ -92,7 +92,7 @@
 | S-23 | スキーマの値に式（項目の印 `expression: true`・共通の読み取りと評価と文面・`filePattern` と `scaffold`） | `semantic-core/schema/ExpressionFields.kt`, `semantic-core/semantic/Values.kt` | 単体 `ExpressionFieldsTest`, `SemanticValuesTest` | [schema](architecture/schema.md) |
 | S-24 | ユーザ定義の型（`type: 名前`・型の連鎖・狭める規則・メタスキーマへの型名の合成・オブジェクト型＝object の `entity`・項目を足す／狭める・要素ごとの型の検査） | `semantic-core/schema/SchemaTree.kt`, `semantic/ElementChecks.kt`, `workspace-core/workspace/MetaSchemaTypes.kt` | 単体 `TypeDefinitionsTest`, `ObjectTypesTest` | [schema](architecture/schema.md) |
 | S-25 | ファイルの場所の型（`type: file`・接頭辞なし＝ルートから・`./` `../`＝文書から・絶対の 3 通り・`extensions` で拡張子を絞る・値は文字列のまま） | `semantic-core/schema/FilePath.kt`, `schema/Fields.kt`（`FieldType.FILE`, `extensions`）, `builtin-schemas/schema.yaml` | 単体 `FilePathTest` | [schema](architecture/schema.md) |
-| S-26 | 設計画面の補完・操作入力・採番 | `ui/SchemaDesignFields.kt`, `builtin-schemas/schema.yaml` | `SchemaDesignFieldsTest`, `SchemaAuthoringTest` | [設計画面](manual/schema-editor.md) |
+| S-26 | 設計画面の補完・操作入力・採番・子項目の構成 | `ui/SchemaAdditionalOutline.kt` | `SchemaAdditionalOutlineTest`・`SchemaAuthoringTest` | [設計画面](manual/schema-editor.md) |
 | S-27 | 条件・手順・式の構造編集と追従検査 | `ui/SchemaValueEditor.kt` | `SchemaValueFormsTest`・`SchemaDefinitionCoverageTest`・`SchemaAuthoringHistoryTest` | [設計画面](manual/schema-editor.md) |
 
 ## 4. 検証

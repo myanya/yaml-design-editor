@@ -15,7 +15,13 @@ internal data class FormOutlineItem(
     val field: FieldDef? = null, val identity: String? = null,
 )
 
-internal fun documentOutline(root: YNode, schema: SchemaDef?): List<FormOutlineItem> = buildList {
+internal fun documentOutline(root: YNode, schema: SchemaDef?): List<FormOutlineItem> =
+    formValueOutline(root, schema, schema?.root, emptyList(), "文書全体")
+
+/** 部分木も文書全体と同じ型解決・実データの走査で表示する。 */
+internal fun formValueOutline(
+    root: YNode?, schema: SchemaDef?, field: FieldDef?, path: YPath, title: String,
+): List<FormOutlineItem> = buildList {
     fun visit(node: YNode?, field: FieldDef?, path: YPath, parent: YPath?, title: String, depth: Int) {
         val effective = field?.let { schema?.resolve(it) ?: it }
         add(FormOutlineItem(path, parent, title, Display.inline(node, schema, effective), depth,
@@ -42,7 +48,7 @@ internal fun documentOutline(root: YNode, schema: SchemaDef?): List<FormOutlineI
             else -> Unit // 未作成の複合値を表示のために生成・再帰展開しない。
         }
     }
-    visit(root, schema?.root, emptyList(), null, "文書全体", 0)
+    visit(root, field, path, null, title, 0)
 }
 
 internal fun nearestFormPath(paths: Collection<YPath>, target: YPath?): YPath? =
