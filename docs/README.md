@@ -30,6 +30,7 @@
 
 | 文書 | 役割 |
 |---|---|
+| [archive/changelog.md](archive/changelog.md) | リリースごとの追加・変更・修正の記録。リリース時に追記する |
 | [archive/](archive/README.md) | 完了した計画・台帳・経緯。追記だけで書き換えず、経緯を調べるときだけ読む |
 
 ## 読む順

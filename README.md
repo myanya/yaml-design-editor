@@ -42,6 +42,7 @@ Windows ZIP 版は、ZIP をすべて展開し `yaml-design-editor.exe` を起�
 | [docs/architecture/](docs/architecture/README.md) | 設計（主題ごとに 1 ファイル。部品・流れ・規律・拡張ポイント） |
 | [docs/CONVENTIONS.md](docs/CONVENTIONS.md) | 開発規約 |
 | [docs/releasing.md](docs/releasing.md) | Windows ZIP の作成・検査・公開手順 |
+| [チェンジログ](docs/archive/changelog.md) | リリースごとの追加・変更・修正 |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | 将来構想とロードマップ |
 | [CLAUDE.md](CLAUDE.md) | AI コーディングエージェント向けの作業ガイド |
 

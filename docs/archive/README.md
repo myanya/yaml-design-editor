@@ -5,6 +5,7 @@
 
 | 文書 | 内容 | 期間 |
 |---|---|---|
+| [changelog.md](changelog.md) | 初期リリースからの版ごとの追加・変更・修正 | 2026-10〜 |
 | [file-tree-improvements.md](file-tree-improvements.md) | ファイル一覧・配置変更・参考ソース検索の3段階開発と判断・検証 | 2026-10 |
 | [flow-view.md](flow-view.md)・[flow-view-validation.md](flow-view-validation.md) | 汎用フロービューの初期実装・BZFL-0002移行・改名影響調査と検証 | 2026-10 |
 | [three-layer-core-migration-plan.md](three-layer-core-migration-plan.md) | 3層コア移行の計画（フェーズ・完了条件・移行先対応表） | 2026-08 |
