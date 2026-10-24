@@ -96,6 +96,7 @@ data class TransactionResult(
     val version: Long,
     /** baseVersion 不一致による拒否か（CLI の exit code 4 の型付き判定。計画書 Phase 10）。 */
     val staleBase: Boolean = false,
+    val externalConflict: Boolean = false,
 )
 
 /** 保存時に自動で入る値を当てた結果: トランザクションの結果と、文書ごとに入れた値の計画（空＝何も入れなかった）。 */
@@ -111,6 +112,7 @@ data class SaveResult(
     val written: List<DocumentId>,
     val deleted: List<DocumentId>,
     val failures: Map<DocumentId, String>,
+    val conflicts: Set<DocumentId> = emptySet(),
 ) {
     val ok: Boolean get() = failures.isEmpty()
 }
@@ -185,7 +187,8 @@ class WorkspaceSession private constructor(
         return withFileRollback {
             val applied = apply(plan.transaction)
             require(applied.ok) { applied.message ?: "適用できません" }
-            journal.run(false) {
+            journal.run(false) { expected ->
+                expected.forEach { (id, text) -> acknowledgeStoreText(id, text) }
                 val saved = save(plan.documentIds, force = true)
                 require(saved.ok) { saved.failures.toString() }
                 refreshArrangementLayout(plan.root)
@@ -199,7 +202,8 @@ class WorkspaceSession private constructor(
         val tx = if (undo) record.inverse else record.forward
         val result = applyOperations(tx.operations, requireValid = false) { }
         require(result.ok) { result.message ?: "履歴を適用できません" }
-        journal.run(undo) {
+        journal.run(undo) { expected ->
+            expected.forEach { (id, text) -> acknowledgeStoreText(id, text) }
             val saved = save(journal.plan.documentIds, force = true)
             require(saved.ok) { saved.failures.toString() }
             refreshArrangementLayout(journal.plan.root)
@@ -285,7 +289,7 @@ class WorkspaceSession private constructor(
     /** ストア生テキストの追跡を読み直す（外部変更検出の基準を今のストア内容に合わせる）。 */
     private fun refreshStoreTexts() {
         storeTexts.clear()
-        for (id in workingDocuments.keys) {
+        for (id in store.list().map { it.id }) {
             store.read(id)?.let { storeTexts[id] = it.text }
         }
     }
@@ -303,6 +307,28 @@ class WorkspaceSession private constructor(
 
     /** ストアにいま保存されている内容（無ければ null）。変更セットの適用が、競合の判定と、操作を当てる元の内容に使う。 */
     fun storedText(id: DocumentId): String? = store.read(id)?.text
+
+    /** 保存直前の検査。dirty や履歴、保存済みの意味内容は変えない。 */
+    fun checkSave(id: DocumentId) = store.checkUnchanged(id, storeTexts[id])
+
+    /** 利用者が上書きを許可したディスク版だけを次回保存の比較基準にする。 */
+    fun acknowledgeStoreText(id: DocumentId, text: String?) {
+        if (text == null) storeTexts.remove(id) else storeTexts[id] = text
+    }
+
+    /** 明示的に選んだディスク版を取り込む。Undo/Redo は保持する。 */
+    fun acceptStoreText(id: DocumentId, text: String?) {
+        val candidate = LinkedHashMap(workingDocuments)
+        val parsed = text?.let { runCatching { DefaultYamlCodec.parse(id, it) }.getOrNull() }
+        if (parsed == null) candidate.remove(id)
+        else candidate[id] = WorkspaceDocument(parsed, DefaultYamlCodec.dump(parsed),
+            WorkspaceReader.assignSchemaId(id.value, parsed, schemas, layout), layout.inLedger(id.value))
+        acknowledgeStoreText(id, text)
+        pendingDeletes.remove(id)
+        resetCoalesce()
+        commitCandidate(candidate, touched = if (parsed != null) setOf(id) else emptySet(),
+            removed = if (parsed == null) setOf(id) else emptySet(), schemaTouched = touchesSchemas(id.value))
+    }
 
     /** ストアにいま保存されている YAML 文書の一覧（パースできない文書も含む。定義文書の言及の走査などが使う）。 */
     fun storedDocuments(): List<DocumentId> = store.list().map { it.id }
@@ -385,29 +411,30 @@ class WorkspaceSession private constructor(
         val written = mutableListOf<DocumentId>()
         val deleted = mutableListOf<DocumentId>()
         val failures = linkedMapOf<DocumentId, String>()
+        val conflicts = linkedSetOf<DocumentId>()
         for (id in pendingDeletes.toList()) {
             if (selection != null && id !in selection) continue
-            runCatching { if (!force || store.exists(id.value)) store.delete(id) }
+            runCatching { checkSave(id); if (storeTexts[id] != null) store.delete(id) }
                 .onSuccess {
                     pendingDeletes.remove(id)
                     storeTexts.remove(id)
                     deleted += id
                 }
-                .onFailure { failures[id] = it.message ?: it.toString() }
+                .onFailure { failures[id] = it.message ?: it.toString(); if (it is StoreConflictException) conflicts += id }
         }
         for ((id, d) in workingDocuments) {
             if (selection != null && id !in selection) continue
             val text = DefaultYamlCodec.dump(d.document)
             if (!force && text == d.persistedText) continue
-            runCatching { store.write(id, text) }
+            runCatching { checkSave(id); store.write(id, text) }
                 .onSuccess {
                     workingDocuments[id] = d.copy(persistedText = text)
                     storeTexts[id] = text
                     written += id
                 }
-                .onFailure { failures[id] = it.message ?: it.toString() }
+                .onFailure { failures[id] = it.message ?: it.toString(); if (it is StoreConflictException) conflicts += id }
         }
-        return SaveResult(written, deleted, failures)
+        return SaveResult(written, deleted, failures, conflicts)
     }
 
     // ---------------------------------------------------------------- リファクタリング（Phase 9: plan は semantic-core・apply はここ）
@@ -503,8 +530,7 @@ class WorkspaceSession private constructor(
         )
 
     /**
-     * ストア側の外部変更を検出する（保存済みテキストとストア内容の比較。ADR-0007: 検出・通知・reload まで。
-     * イベント駆動の watch＝FileWatcher の移行は計画書 Phase 7 のとおり最終段階）。
+     * ストア側の外部変更を検出する（保存済みの生テキストとストア内容の比較）。
      * 変更・削除された既知の文書を返す（新規ファイルは reload で取り込まれる）。
      */
     fun externalChanges(ids: Collection<DocumentId> = workingDocuments.keys): List<DocumentId> =
@@ -621,9 +647,9 @@ class WorkspaceSession private constructor(
      * その文書に関わる履歴の記録は、文書が戻る（`attachDocument` か、解析できる内容で保存されて `noteStoreChanges` が取り込む）まで
      * 適用できない。直して解析できるようになれば `attachDocument` で戻す。
      */
-    fun saveAsText(id: DocumentId, text: String): TransactionResult {
+    fun saveAsText(id: DocumentId, text: String, expectedText: String? = storeTexts[id]): TransactionResult {
         resetCoalesce()
-        return runCatching { store.write(id, text) }.fold(
+        return runCatching { store.checkUnchanged(id, expectedText); store.write(id, text) }.fold(
             onSuccess = {
                 storeTexts[id] = text
                 pendingDeletes.remove(id)
@@ -632,7 +658,7 @@ class WorkspaceSession private constructor(
                 commitCandidate(candidate, touched = emptySet(), removed = removed, schemaTouched = touchesSchemas(id.value))
                 TransactionResult(true, null, version)
             },
-            onFailure = { TransactionResult(false, it.message ?: it.toString(), version) },
+            onFailure = { TransactionResult(false, it.message ?: it.toString(), version, externalConflict = it is StoreConflictException) },
         )
     }
 

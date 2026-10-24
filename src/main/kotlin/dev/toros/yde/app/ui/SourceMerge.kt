@@ -79,9 +79,18 @@ internal object LineMerge {
     }
 
     /** `merge3` の、当てる hunk（ours の行番号）だけを返す版。文字列とカーソルへの適用は `applyToText` で行う。 */
-    fun mergeHunks(base: List<String>, ours: List<String>, theirs: List<String>): MergeHunks {
+    fun mergeHunks(
+        base: List<String>, ours: List<String>, theirs: List<String>,
+        splitIncomingReplacements: Boolean = false,
+    ): MergeHunks {
         val oursHunks = diff(base, ours)
-        val theirsHunks = diff(base, theirs)
+        // 履歴への書式の重ね戻しでは、隣接するだけの変更まで競合として捨てない。
+        // 行数が同じ置換だけ分ける。構造として安全かの検査は呼び出し元が行う。
+        val theirsHunks = diff(base, theirs).flatMap { h ->
+            if (splitIncomingReplacements && h.end - h.start == h.lines.size) {
+                h.lines.mapIndexed { i, line -> Hunk(h.start + i, h.start + i + 1, listOf(line)) }
+            } else listOf(h)
+        }
         if (theirsHunks.isEmpty()) return MergeHunks(emptyList(), 0)
         val applicable = mutableListOf<Hunk>()   // ours の行番号に写した hunk
         var conflicts = 0

@@ -14,6 +14,7 @@
 | `AppState.createDocumentFile` / `afterHistoryStep` | app/AppState.kt | 文書の新規作成の単一経路と、作成・削除を含む履歴の確定 |
 | `FormCtx.writeScalar` | ui/FormView.kt | スカラー入力の書込。合体キーを渡す |
 | `OpenDocument.source` / `applyParsed` / `syncSourceFromTree` / `discardDraft` / `enterTextOnly` | app/AppState.kt | ソースの下書き（文字列・カーソル・解析エラー）の所有と、木との同期 |
+| `SourceHistorySync` | ui/SourceHistorySync.kt | 履歴の値を優先した書式の差し込みと、全 YAML 文書の再解析による内容一致の確認 |
 | `SourcePane` / `SourceDraftBanner` | ui/SourcePane.kt | ソースの表示と入力（入力が止まってから背景で解析）。他のタブに出す書きかけ・壊れたまま保存のバナー |
 | `SourceSyntaxBar` / `sourceErrorLocation` | ui/SourceSyntaxBar.kt | 本文の位置を変えない構文状態と詳細の表示、解析エラー文面からの問題位置の取得 |
 | `LineMerge` | ui/SourceMerge.kt | 行の差分（共通部分の切り落とし＋LCS）と 3 者マージ・文字列とカーソルへの適用（純ロジック） |
@@ -37,9 +38,15 @@
 
 ## 履歴と dirty
 
+保存の外部競合検査は [workspace.md「保存時の競合」](workspace.md#保存時の競合) を参照。
+
 - 履歴はセッション（workspace-core）のワークスペース横断の単一履歴。開いていない文書も戻す。
 - フォームの直接入力も同じ履歴へ接続する。対象と例外は [UI 操作規則「フォーム入力の Undo と Redo」](ui-interactions.md#フォーム入力の-undo-と-redo)、接続は [ui.md「入力と Undo」](ui.md#入力と-undo) を参照。
-- 横断 Undo は開いていない文書も変えるため、`AppState` は実行後に「何が戻ったか」の通知（`historyNotice`＝変更の意図・対象ファイルへのジャンプ導線・未保存●の明示。次の編集・保存・✕で消える）と、Undo/Redo ボタンのホバー予告（`undoPreview` / `redoPreview`）を組み立てる。
+- `AppState` は実行後の通知（`historyNotice`）とホバー予告（`undoPreview` / `redoPreview`）を組み立てる。通知の強さと寿命は [UI 操作規則「横断履歴の通知」](ui-interactions.md#横断履歴の通知) に従う。
+- `HistoryStep` は実行前の表示文書を保持し、実際に実行した記録の全対象と比較する。`HistoryNotice.targets` は消えたファイルも含み、`historyNoticeTargets` が現在の未保存状態と開けるかを返す。
+- `historyLocations` はセッションの記録 ID に `NavLocation` を添え、成功後に `returnToHistoryLocation` が編集元へ戻す。内容の履歴は複製せず、セッションの開き直しで画面情報を破棄する。
+- 通常編集は記録時、ソースは解析完了時の画面に関係なく対象文書のソースタブを記憶する。一括変更・リファクタリング・操作・作成・配置変更・自動値も既存の記録に画面情報を添える。
+- 移動は既存のナビゲーション経路を使い、Alt+←で移動前の場所へ戻れる。ビュー内の絞り込み・スクロール等の覚えは `ScreenMemory` を使い、編集履歴に複製しない。
 - `OpenDocument.dirty` はセッションの正の写し。`EditBuffer` の文字列比較は、セッションが文書として扱わないパスのためだけ。
 - 未表示文書を開くときも本文はセッションの現在値からコピーし、未保存件数・終了確認・すべて保存にはセッション内の未表示文書を含める。
 - 保存済みテキストと編集中の木を分けて保持する。内容だけの Undo/Redo では保存済みの比較基準を変えず、ソースの差分印も保存内容との差を示す。
@@ -50,6 +57,7 @@
 
 - **規則**: 直前の記録と同じキー（`==`）かつ 1000ms 以内かつ履歴の先端（Undo 後でない）なら、新しいエントリを積まずに先端を置換する。キーが null・キー不一致・時間超過・Undo/Redo 直後は新規エントリ＝境界。
 - **キー**: フォーム・グリッドのスカラー入力は `FormCtx.writeScalar` が変異対象の `YNode.Scalar` インスタンス（同一フィールドの連続タイプだけが合体）。スキーマ設計 UI のテキスト入力は `Pair(対象 Map, キー名)`。ソース編集は文書単位の固定キー。構造操作（追加・削除・移動・enum 選択・変換）はキーなし＝常に境界。
+- アプリは文書・編集元の画面も合体キーに含める。同じ文書の同じ項目でも、フォームとビューなど異なる画面の編集は別の記録になる。
 - **決定性**: 時刻は `nowMillis` 引数で注入する（`DocumentsTest`。タイマー・sleep を使わない）。
 - undo / redo / restore / resetHistory は合体キーをリセットする。
 
@@ -61,6 +69,9 @@
 - 入力待ちも Undo ボタンと予告の対象になる。Redo は入力の反映待ちの間は無効で、新しい編集が反映されると以前の Redo 履歴は失われる。
 - 下書きを捨てる確認はセッション・履歴・版・下書きに結び付ける。確認中に変わった場合は中止し、再操作を案内する。
 - 実行した履歴を使って通知と画面を更新し、ソースへの差し込みも次の入力より前に行う。履歴の所有者や連続入力の合体条件は変えない。
+- Undo/Redo 後は `syncSourceFromTree(preferHistory = true)` が履歴の値を優先する。入力待ちや構文エラーがある下書きは通常の保護経路を使う。
+- `SourceHistorySync` は履歴の正規化テキストへ干渉しない書式を重ね、全 YAML 文書を再解析して `dumpPlain` で内容を照合する。隣接する同じ行数の書式変更は行ごとに扱う。
+- マージ後に構文や値が一致しなければ履歴の正規化テキストに揃えて通知する。コメントと表記は履歴の木から出力し、カーソルは差分に沿って写す。生の書式を過去と完全に同じ形へ復元する履歴は持たない。
 
 - ソースの構文状態は `SourceSyntaxBar` の固定高の行に表示する。詳細は本文を押し下げないポップアップで、構文の正常と検証の充足は区別する。
 - `sourceApplied` は観測可能な状態で、入力との差がある間は確認中とする。同じエラー文面が続く場合も解析完了を通知し、古い結果の位置へジャンプさせない。
@@ -72,7 +83,8 @@
 - **入力が止まってから反映**: `SourcePane` は文字列の変化を `snapshotFlow` で見て、300ms 止まったら背景で解析し（`EditBuffer.parse`）、UI 側で `applyParsed` が木を更新する。経路は `markEdited`＝履歴・dirty・editVersion・オーバーレイ索引・検証がフォーム編集と同じに追随する（合体キーは文書単位の固定キー）。
   保存・タブを離れるときは `flushDraft`、Undo/Redo・すべて保存では `flushSourceDrafts` で入力待ちの分を先に取り込む。反映しても下書きの文字列は書き換えない（カーソル・書式を保つ）。
 - **解析できない間**: 最後に解析できた木が正。`draftBroken` で `FormCtx.readOnly` が真になり、フォーム・グリッド・横ぐしが閲覧専用になる（書きかけをフォームで上書きしない）。他のタブには `SourceDraftBanner`（「ソースで直す」「書きかけを捨てる」）。その文書に関わる Undo/Redo は `prepareHistoryStep` が「下書きを捨てて戻すか」を確認してから進める（`pendingHistory`）。
-- **他所の変更の差し込み**: 自分の反映で進んだ `doc.version` は同期済み（`sourceSyncedVersion`）。他所（フォーム・Undo/Redo・操作・外部変更の再読込）で進んだら `syncSourceFromTree` が 3 者マージ（`LineMerge`）で変わった行だけを差し込み、カーソルを写す。元は前回の正規化テキスト（`sourceBase`）・自分は下書き・相手は今回の正規化テキスト。重なる変更は下書きを優先して件数をステータスで知らせる。丸ごと置き換えるのは「整形」「編集を破棄」（`discardDraft`）だけ。
+- **他所の変更の差し込み**: 自分の反映で進んだ `doc.version` は同期済み（`sourceSyncedVersion`）。フォーム・操作・外部変更の再読込では `syncSourceFromTree` が 3 者マージ（`LineMerge`）で変わった行を差し込み、カーソルを写す。
+  元は前回の正規化テキスト（`sourceBase`）・自分は下書き・相手は今回の正規化テキスト。重なる変更は下書きを優先して件数を知らせる。Undo/Redo は上記の履歴優先の経路を使う。
 - **壊れたまま保存**: `AppState.save` は下書きが解析できなければ止めず `saveDraftAsText` へ。セッションの `saveAsText` がテキストをそのまま書き、文書を文書集合から外す（ディスク上で解析できないファイルと同じ＝索引・検証・派生の対象外。履歴は消さない）。文書は `textOnly`（`root == null`）になり、ヘッダのバナー・ツリーの「解析不可」・検証一覧のパースエラーで見える。`_schemas` の文書だけは `pendingTextSave` で確認してから。
 - **直すと戻る**: 直して解析できたら `ensureAttached` が `attachDocument` で文書集合へ戻し（保存済みとの差で dirty）、保存で木の内容が書かれる。壊す前の木は `restoreLastParsed` で戻せる。テキスト文書に関わる履歴の記録は、戻るまで適用できない（`prepareHistoryStep` が案内して止める）。
 - **Ctrl+Z の一本化**: 欄の中の取り消しは使わず、`SourcePane` が Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z をセッションの履歴へ回す（フォームと同じ 1 本の履歴。差し込みでカーソルは留まる）。

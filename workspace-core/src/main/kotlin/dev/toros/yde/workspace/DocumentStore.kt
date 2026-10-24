@@ -11,8 +11,8 @@ import kotlin.streams.asSequence
 /**
  * 文書の永続化ポート（3層コア移行 Phase 7・WS-001。計画書§4.3）。
  * DocumentId の値は「ワークスペース相対パス（区切りは '/'）」とする。
- * coreの書込はこのポートへ集約する（ADR-0005）。楽観ロックは持たない（ADR-0007: 最終書込み優先。
- * 外部変更の検出・通知は上位の watch が担う）。
+ * coreの書込はこのポートへ集約する。セッションは書込直前に生テキストを比較する。
+ * 比較と書込の間を排他する OS レベルのロックは持たない。
  * 一時ファイル経由の atomic 書込は Phase 8（保存の安全性）で加える。
  */
 
@@ -21,6 +21,15 @@ data class StoredDocument(val id: DocumentId)
 
 /** 読み出した内容。 */
 data class StoredContent(val text: String)
+
+/** 保存基準と現在のストア内容が異なる。読み取り失敗とは区別して画面へ知らせる。 */
+class StoreConflictException(val documentId: DocumentId) : IllegalStateException(
+    "外部で変更されています: ${documentId.value}（ディスク版を読み込むか、編集内容での上書きを許可してください）",
+)
+
+fun DocumentStore.checkUnchanged(id: DocumentId, expectedText: String?) {
+    if (read(id)?.text != expectedText) throw StoreConflictException(id)
+}
 
 interface DocumentStore {
     /** 可視のYAML文書（*.yaml / *.yml、隠し領域は .yde のみ）を列挙する（相対パス順。台帳・ゾーンは呼び出し側で絞る）。 */
@@ -124,7 +133,8 @@ class FileSystemDocumentStore(private val root: Path) : DocumentStore {
 
     override fun read(id: DocumentId): StoredContent? {
         val file = resolve(id)
-        return if (Files.isRegularFile(file)) StoredContent(Files.readString(file)) else null
+        return try { StoredContent(Files.readString(file)) }
+        catch (_: java.nio.file.NoSuchFileException) { null }
     }
 
     /** 相対パスはルートから、絶対パスはそのまま（file 型の値はワークスペースの外も指せるため、ここは拒否しない）。 */

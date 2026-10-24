@@ -313,6 +313,7 @@ fun AppRoot(
             toggleLeft = { leftOpen = !leftOpen; uiPreferences.putBoolean("leftOpen", leftOpen) },
             toggleRight = { state.rightPaneOpen = !state.rightPaneOpen })
         HorizontalDivider(color = Palette.Border)
+        HistoryNoticeBanner(state)
         Row(Modifier.weight(1f).fillMaxWidth()) {
             // 実行スペースは定義が空でも常時表示する（UX-20。定義ゼロのときは RunsSpace の空状態が導線を案内する）
             ActivityRail(state, inboxCount, automation?.enabled == true)
@@ -635,7 +636,7 @@ fun EditorArea(state: AppState) {
                 Text("このファイルは外部で変更されました。未保存の編集内容を保持しています。", fontSize = 12.sp,
                     color = Palette.WarnOrange, modifier = Modifier.weight(1f))
                 TextButton(onClick = { state.acceptDiskVersion() }) { Text("ディスク版を読み込む", fontSize = 12.sp) }
-                TextButton(onClick = { state.keepLocalVersion() }) { Text("編集内容を維持", fontSize = 12.sp) }
+                TextButton(onClick = { state.keepLocalVersion() }) { Text("次回保存で上書きを許可", fontSize = 12.sp) }
             }
         }
         EditorDocumentHeader(state, doc,
@@ -686,7 +687,7 @@ fun StatusBar(state: AppState, engine: AutomationEngine?, inboxCount: Int, onOpe
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Undo/Redo の通知（UX-86）: 何が戻ったかの明示と戻った文書へのジャンプ導線。編集・保存・✕で消える
-        state.historyNotice?.let { notice ->
+        state.historyNotice?.takeUnless { it.crossDocument }?.let { notice ->
             Row(
                 Modifier.weight(2f, fill = false).background(Palette.Selected, PanelShape).padding(horizontal = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,

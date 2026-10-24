@@ -95,6 +95,10 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 
 ## 入力と Undo
 
+- `HistoryNoticeBanner` は `AppRoot` のツールバー直下で横断履歴を通知する。`AppState.historyNotice` を読み、対象一覧のリンクは `openHistoryTarget` を通す。
+- 成功した Undo/Redo は `AppState.returnToHistoryLocation` が編集元の文書・タブまたはビューを復元する。画面情報の保持は [editing-history.md「履歴と dirty」](editing-history.md#履歴と-dirty) を参照。
+- 同一文書の通知は `StatusBar`、別文書を含む通知は上部に表示する。規則と寿命は [UI 操作規則「横断履歴の通知」](ui-interactions.md#横断履歴の通知) を参照。
+
 - 操作の意味と例外は [UI 操作規則「フォーム入力の Undo と Redo」](ui-interactions.md#フォーム入力の-undo-と-redo) が定める。
 - `CompactTextField.onHistory` に接続した欄は preview で文書履歴を呼ぶ。変換中は子へ渡し、未消費のキーは欄で止める。`TextFieldHistory` が一押しの状態を保持する。
 - `FormCtx.historyHandler` は `AppState.ownsDocument` でキャッシュの同一文書か確認し、一時フォームを除外する。直接入力だけに渡し、追加・改名前の欄には渡さない。

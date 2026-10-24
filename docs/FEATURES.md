@@ -46,10 +46,10 @@
 | E-16 | 配列要素のドラッグ並べ替え（取っ手 ⋮⋮ からだけ掴める・ドロップで 1 回だけ木を動かす＝Undo 1 回・縦リスト／テーブル／汎用エディタ共通・上下ボタンも残す） | `ui/Reorder.kt`（`ReorderableList`）, `ui/FormView.kt`（`moveSeqItem`） | 単体 `MoveSeqItemTest` | [ui](architecture/ui.md) |
 | E-17 | file 型の入力欄と画像の表示（文字で書く 3 通りの書き方・「選ぶ」は OS 標準のダイアログでルート相対に書き込む・解決した場所と有無の 1 行・画像は欄の下に幅に合わせて表示し拡大率とドラッグで操作・「拡大表示」で全面） | `ui/FileEditor.kt`, `ui/ImagePane.kt`, `AppState.openImage` | 単体 `FileEditorTest` | [ui](architecture/ui.md) |
 | E-02 | 汎用ツリーエディタ（スキーマなし文書・スキーマ外キー・順序とコメントを保ったキー改名） | `ui/FormView.kt`（`GenericEditor`） | 単体 `RenameKeyTest` | [ui](architecture/ui.md) |
-| E-03 | ソース編集（下書きは文書が持ちタブを移っても残る・入力が止まると背景で解析し成功時だけ木へ反映・解析不能中はフォーム閲覧専用・他所の変更は 3 者マージで差し込む・壊れたまま保存はテキスト文書で直せば戻る・行番号と折り返し切替・検索置換・色分け） | `ui/SourcePane.kt`, `ui/SourceHighlight.kt`, `ui/SourceMerge.kt` | `LineMergeTest`・`TextOnlySaveTest` | [editing-history](architecture/editing-history.md) |
+| E-03 | ソース編集（下書き・書式保持・履歴との同期） | `SourcePane`・`SourceHistorySync` | `LineMergeTest`・`SourceHistorySyncTest`・`TextOnlySaveTest` | [editing-history](architecture/editing-history.md) |
 | E-04 | 差分表示（保存済みと編集中の行整列・文字単位の強調） | `ui/DiffPane.kt` | 単体 `DiffPaneTest` | [ui](architecture/ui.md) |
-| E-05 | Undo/Redo（入力欄・横断履歴） | `AppState` | `HistoryNoticeTest`・`HistoryConsistencyTest`・`SourceHistoryTest`・`TextFieldHistoryTest` | [editing-history](architecture/editing-history.md) |
-| E-06 | 保存（Ctrl+S・すべて保存・コメントとキー順と表記を保持・日付は文字列・YAML展開量を制限） | `AppState.save*`, `yaml-core/yaml/YamlIO.kt` | 単体 `YamlIOTest` | [yaml-model](architecture/yaml-model.md) |
+| E-05 | Undo/Redo（横断履歴・編集元の画面への復帰・通知） | `AppState`, `HistoryNoticeBanner` | `HistoryLocationTest`・`HistoryNoticeTest`・`SourceHistoryTest`・`TextFieldHistoryTest` | [editing-history](architecture/editing-history.md) |
+| E-06 | 保存（Ctrl+S・すべて保存・外部変更の直前検査と明示上書き） | `AppState.save*`, `WorkspaceSession.save*` | アプリ・コアの `SaveConflictTest`, `YamlIOTest` | [editing-history](architecture/editing-history.md) |
 | E-07 | 文書メタデータ `_document`（id・name・description）の編集とコンパクトな文書ヘッダー | `ui/FormView.kt`・`ui/EditorChrome.kt` | 手動 | [ui](architecture/ui.md) |
 | E-08 | 文書キャッシュ（ファイル切替時も未保存編集を保持） | `AppState.docCache` | 手動 | [editing-history](architecture/editing-history.md) |
 | E-09 | 同一 ID の他文書出現ストリップ（相手側の情報の表示とジャンプ） | `ui/FormView.kt`（`SameIdOccurrencesStrip`） | 手動 | [ui](architecture/ui.md) |

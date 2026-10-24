@@ -16,6 +16,7 @@
 | [ADR-0009](0009-core-calculus.md) | YDE Core Calculus を最上位の設計方針とする | 承認済み |
 | [ADR-0010](0010-expression-values-are-terms.md) | 式の値は項とし、集合から値への入口を all に限る | 承認済み |
 | [ADR-0011](0011-file-arrangement-history.md) | 一般ファイルの配置変更と文書修正を単一履歴で扱う | 承認済み |
+| [ADR-0012](0012-save-conflict-check.md) | 保存直前に既知のディスク内容と比較する | 承認済み |
 
 関連文書:
 

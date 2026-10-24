@@ -2,6 +2,7 @@ package dev.toros.yde.app
 
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.app.core.EditBuffer
+import dev.toros.yde.yaml.YamlIO
 import java.nio.file.Files
 import kotlin.io.path.createTempDirectory
 import kotlin.test.*
@@ -48,15 +49,104 @@ class SourceHistoryTest {
     }
 
     @Test
-    fun `Undoの即時同期でも下書き優先の競合を通知する`() {
+    fun `同じ行の空白と値を変更してもUndoとRedoでソースの値が一致する`() {
         val state = state()
         val doc = state.openDoc!!
         input(doc, "title:    入力\n")
         state.undo()
         assertEquals("A", title(doc))
-        assertEquals("title:    入力\n", doc.source.text.toString())
-        assertTrue(state.status.contains("下書きを優先しました"))
+        assertEquals("A", (YamlIO.parseFirst(doc.source.text.toString()) as YNode.Map)
+            .entries["title"].let { (it as YNode.Scalar).value })
         assertTrue(state.canRedo())
+        repeat(3) {
+            state.redo()
+            assertSourceMatchesTree(doc)
+            assertEquals("入力", title(doc))
+            state.undo()
+            assertSourceMatchesTree(doc)
+            assertEquals("A", title(doc))
+        }
+    }
+
+    private fun assertSourceMatchesTree(doc: OpenDocument) {
+        assertEquals(YamlIO.parseAll(doc.canonicalText()).map(YamlIO::dumpPlain),
+            YamlIO.parseAll(doc.source.text.toString()).map(YamlIO::dumpPlain))
+        assertEquals(doc.source.text.toString(), doc.sourceApplied)
+        assertEquals(doc.source.text.toString(), doc.sourceParsed)
+        assertFalse(doc.hasPendingSourceInput)
+    }
+
+    @Test
+    fun `複数行の意味を守るために書式を揃えた場合は通知する`() {
+        Files.writeString(first, "title: |\n  C\n  B\n")
+        val state = state()
+        val doc = state.openDoc!!
+        input(doc, "title: |\n    A\n    B\n")
+        state.undo()
+        assertSourceMatchesTree(doc)
+        assertEquals("C\nB\n", title(doc))
+        assertTrue(state.status.contains("書式調整"))
+        assertTrue(state.status.contains("a.yaml"))
+        assertTrue(state.canRedo())
+    }
+
+    @Test
+    fun `履歴の準備後に増えた入力や壊れた下書きを書式として捨てない`() {
+        val state = state()
+        val doc = state.openDoc!!
+        input(doc, "title: 入力中\n")
+        edit(doc, "木の変更")
+        assertEquals(1, doc.syncSourceFromTree(preferHistory = true).conflicts)
+        assertEquals("title: 入力中\n", doc.source.text.toString())
+        input(doc, "title: [\n")
+        doc.flushDraft()
+        edit(doc, "別の変更")
+        assertEquals(1, doc.syncSourceFromTree(preferHistory = true).conflicts)
+        assertTrue(doc.draftBroken)
+        assertEquals("title: [\n", doc.source.text.toString())
+    }
+
+    @Test
+    fun `Undoは隣接する変更のない行の空白とコメントとカーソルを保つ`() {
+        Files.writeString(first, "title: A\nnote: 維持 # コメント\n")
+        val state = state()
+        val doc = state.openDoc!!
+        input(doc, "title:    入力\nnote:    維持 # コメント\n")
+        val caret = doc.source.text.toString().indexOf("維持")
+        doc.editSource { placeCursorBeforeCharAt(caret) }
+        state.undo()
+        assertSourceMatchesTree(doc)
+        assertTrue(doc.source.text.toString().contains("note:    維持 # コメント"))
+        assertEquals(doc.source.text.toString().indexOf("維持"), doc.source.selection.start)
+        state.redo()
+        assertSourceMatchesTree(doc)
+        assertTrue(doc.source.text.toString().contains("note:    維持 # コメント"))
+    }
+
+    @Test
+    fun `引用符と複数行と複数文書でも繰り返すUndoとRedoの値が一致する`() {
+        val state = state()
+        val doc = state.openDoc!!
+        val inputs = listOf(
+            "title:    '入力' # 引用符\n",
+            "title: |-\n    一行目\n    二行目\n",
+            "title:    入力\n---\nitems: [1, 2, 3]\n",
+            "title:    入力",
+        )
+        for (text in inputs) {
+            input(doc, text)
+            doc.flushDraft()
+            val expected = doc.canonicalText()
+            repeat(2) {
+                state.undo()
+                assertSourceMatchesTree(doc)
+                assertEquals("A", title(doc))
+                state.redo()
+                assertSourceMatchesTree(doc)
+                assertEquals(expected, doc.canonicalText())
+            }
+            state.undo()
+        }
     }
 
     @Test

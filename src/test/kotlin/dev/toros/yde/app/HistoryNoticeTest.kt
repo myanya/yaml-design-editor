@@ -151,4 +151,128 @@ class HistoryNoticeTest {
         state.saveCurrent()
         assertNull(state.historyNotice)
     }
+
+    @Test
+    fun `別文書のUndoは編集元を直接開いて通知する`() {
+        val state = openState()
+        val first = dir.resolve("tasks/t1.yaml")
+        val second = dir.resolve("tasks/t2.yaml")
+        state.openFile(second)
+        editTitle(state.openDoc!!, "変更後")
+        state.openFile(first)
+        state.undo()
+        val notice = state.historyNotice!!
+        assertTrue(notice.crossDocument)
+        assertTrue(notice.undo)
+        assertEquals(second, state.openDoc!!.file)
+        assertTrue(notice.returnedToOrigin)
+        assertEquals(listOf(state.documentOf(second)), notice.targets)
+        val redo = state.redoPreview()
+        state.openHistoryTarget(notice.targets.single())
+        assertEquals(second, state.openDoc!!.file)
+        assertEquals(redo, state.redoPreview(), "通知から開いても履歴は変わらない")
+        assertEquals(notice, state.historyNotice, "対象を開いただけでは通知は消えない")
+    }
+
+    @Test
+    fun `同じ文書の操作は控えめな通知で別文書のRedoは強い通知になる`() {
+        val state = openState()
+        state.openFile(dir.resolve("tasks/t1.yaml"))
+        editTitle(state.openDoc!!, "変更後")
+        state.undo()
+        assertFalse(state.historyNotice!!.crossDocument)
+        state.openFile(dir.resolve("tasks/t2.yaml"))
+        state.redo()
+        assertTrue(state.historyNotice!!.crossDocument)
+        assertFalse(state.historyNotice!!.undo)
+        assertTrue(state.historyNoticeTargets().single().dirty)
+    }
+
+    @Test
+    fun `横断通知は編集と保存で消えず現在の未保存状態に追随する`() {
+        val state = openState()
+        val first = dir.resolve("tasks/t1.yaml")
+        val second = dir.resolve("tasks/t2.yaml")
+        state.bulkUpdate(setOf(first, second), "title", "変更後").getOrThrow()
+        state.openFile(first)
+        state.undo()
+        val notice = state.historyNotice!!
+        assertTrue(notice.crossDocument)
+        assertEquals(2, state.historyNoticeTargets().count { it.dirty })
+        editTitle(state.openDoc!!, "続けて編集")
+        assertEquals(notice, state.historyNotice)
+        state.saveCurrent()
+        assertEquals(notice, state.historyNotice)
+        assertEquals(1, state.historyNoticeTargets().count { it.dirty })
+        state.saveAll()
+        assertEquals(notice, state.historyNotice)
+        assertEquals(0, state.historyNoticeTargets().count { it.dirty })
+        state.dismissHistoryNotice()
+        assertNull(state.historyNotice)
+    }
+
+    @Test
+    fun `対象一覧は同名ファイルや四件以上でも省略せず未表示文書を開ける`() {
+        val state = openState()
+        val paths = (1..5).map { index ->
+            val rel = "more/$index/same.yaml"
+            write(rel, "title: 元の値")
+            dir.resolve(rel)
+        }
+        state.reload()
+        state.bulkUpdate(paths.toSet(), "title", "変更後").getOrThrow()
+        state.undo()
+        assertTrue(state.historyNotice!!.crossDocument)
+        val targets = state.historyNoticeTargets()
+        assertEquals(paths.map(state::documentOf).toSet(), targets.map { it.document }.toSet())
+        assertTrue(targets.all { it.canOpen && it.dirty })
+        state.openHistoryTarget(targets.last().document)
+        assertEquals("元の値", ((state.openDoc!!.root as YNode.Map).entries["title"] as YNode.Scalar).value)
+    }
+
+    @Test
+    fun `作成を取り消して消えた対象も通知に残し開く操作は行わない`() {
+        val state = openState()
+        val created = state.createYaml(dir.resolve("tasks"), "new.yaml").getOrThrow()
+        state.openFile(dir.resolve("tasks/t1.yaml"))
+        state.undo()
+        assertTrue(state.historyNotice!!.crossDocument)
+        val target = state.historyNoticeTargets().single()
+        assertEquals(state.documentOf(created), target.document)
+        assertFalse(target.canOpen)
+        state.openHistoryTarget(target.document)
+        assertEquals(dir.resolve("tasks/t1.yaml"), state.openDoc!!.file)
+        assertFalse(Files.exists(created))
+    }
+
+    @Test
+    fun `反映待ち入力を含むUndoは実際に戻した対象で通知を判断する`() {
+        val state = openState()
+        editTitle(state.ensureDoc(dir.resolve("tasks/t2.yaml")), "別文書の変更")
+        state.openFile(dir.resolve("tasks/t1.yaml"))
+        val doc = state.openDoc!!
+        doc.source.edit { replace(0, length, "id: TASK-001\ntitle: 入力中\n") }
+        state.undo()
+        assertFalse(state.historyNotice!!.crossDocument)
+        assertEquals(listOf(state.documentOf(doc.file)), state.historyNotice!!.targets)
+        state.undo()
+        assertTrue(state.historyNotice!!.crossDocument)
+    }
+
+    @Test
+    fun `編集画面以外のUndoも強い通知を出し次の操作とワークスペース切替で更新する`() {
+        val state = openState()
+        state.openFile(dir.resolve("tasks/t1.yaml"))
+        editTitle(state.openDoc!!, "変更後")
+        state.showSpace(UiSpace.LEDGER)
+        state.undo()
+        assertTrue(state.historyNotice!!.crossDocument)
+        state.showSpace(UiSpace.EDIT)
+        state.redo()
+        assertFalse(state.historyNotice!!.crossDocument)
+        state.showSpace(UiSpace.LEDGER)
+        state.undo()
+        state.openWorkspace(dir)
+        assertNull(state.historyNotice)
+    }
 }

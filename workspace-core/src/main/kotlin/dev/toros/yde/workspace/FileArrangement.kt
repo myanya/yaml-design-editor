@@ -41,10 +41,15 @@ internal class FileArrangementJournal(val plan: FileArrangementPlan) {
     private fun locations() = (plan.moves.flatMap { listOf(it.from, it.to) } +
         plan.documentIds.map { it.value } + plan.texts.flatMap { listOf(it.document.value, it.destination.value) } + listOfNotNull(plan.createDirectory)).distinct()
 
-    fun run(reverse: Boolean, save: () -> Unit) {
+    fun run(reverse: Boolean, save: (Map<DocumentId, String?>) -> Unit) {
         require(signature(plan.root, locations()) == expected) { "確認後にファイルが変わりました。再確認してください（上書きしません）" }
         val backups = Files.createTempDirectory("yde-file-transaction-")
-        val backupIds = (plan.documentIds + plan.texts.flatMap { listOf(it.document, it.destination) }).toList()
+        val moves = if (reverse) plan.moves.asReversed().map { PathMove(it.to, it.from) } else plan.moves
+        val incomingSources = plan.documentIds.mapNotNull { id ->
+            moves.firstOrNull { id.value == it.to || id.value.startsWith("${it.to}/") }
+                ?.let { DocumentId(it.from + id.value.removePrefix(it.to)) }
+        }
+        val backupIds = (plan.documentIds + plan.texts.flatMap { listOf(it.document, it.destination) } + incomingSources).toList()
         val originals = backupIds.associate { id ->
             val source = path(id.value)
             id.value to if (Files.isRegularFile(source)) {
@@ -62,7 +67,6 @@ internal class FileArrangementJournal(val plan: FileArrangementPlan) {
                 if (reverse) { Files.delete(dir); removedDirectory = dir }
                 else { Files.createDirectory(dir); created.add(dir) }
             }
-            val moves = if (reverse) plan.moves.asReversed().map { PathMove(it.to, it.from) } else plan.moves
             for (move in moves) {
                 val from = path(move.from); val to = path(move.to)
                 require(Files.exists(from, NOFOLLOW_LINKS)) { "移動元がありません: ${move.from}" }
@@ -74,7 +78,20 @@ internal class FileArrangementJournal(val plan: FileArrangementPlan) {
                 Files.move(from, to); moved.add(from to to)
             }
             plan.texts.forEach { text -> FileSystemDocumentStore(plan.root).write(if (reverse) text.document else text.destination, if (reverse) text.before else text.after) }
-            save()
+            // 検査済みの控えに移動・文面変更を適用した期待値。ここで現物を読み直して外部編集を承認しない。
+            val expectedTexts = plan.documentIds.associateWith { id ->
+                val destination = id.value
+                val incoming = moves.firstOrNull { destination == it.to || destination.startsWith("${it.to}/") }
+                val source = if (incoming != null) incoming.from + destination.removePrefix(incoming.to) else destination
+                val movedAway = incoming == null && moves.any { source == it.from || source.startsWith("${it.from}/") }
+                val edit = plan.texts.lastOrNull { (if (reverse) it.document else it.destination) == id }
+                when {
+                    edit != null -> if (reverse) edit.before else edit.after
+                    movedAway -> null
+                    else -> originals[source]?.let(Files::readString)
+                }
+            }
+            save(expectedTexts)
             expected = signature(plan.root, locations())
         } catch (failure: Exception) {
             try {

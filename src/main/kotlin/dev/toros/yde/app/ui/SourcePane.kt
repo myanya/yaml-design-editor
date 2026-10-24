@@ -92,7 +92,7 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
     // 他所（フォーム・Undo・操作・再読込）の変更を下書きへ差し込む。自分の反映は syncedVersion を進めているので対象外
     LaunchedEffect(doc, doc.version) {
         if (doc.version != doc.sourceSyncedVersion) {
-            val conflicts = doc.syncSourceFromTree()
+            val conflicts = doc.syncSourceFromTree().conflicts
             if (conflicts > 0) state.status = "下書きと食い違う変更が $conflicts か所あり、下書きを優先しました（「整形」で木に揃えられます）"
         }
     }

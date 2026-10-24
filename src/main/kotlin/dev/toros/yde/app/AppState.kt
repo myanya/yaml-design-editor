@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import dev.toros.yde.app.core.ChangeSetResult
 import dev.toros.yde.app.core.EditBuffer
 import dev.toros.yde.app.ui.LineMerge
+import dev.toros.yde.app.ui.SourceHistorySync
 import dev.toros.yde.app.core.Search
 import dev.toros.yde.app.core.SearchHit
 import dev.toros.yde.app.core.SearchQuery
@@ -51,6 +52,8 @@ import dev.toros.yde.workspace.ActionRequest
 import dev.toros.yde.workspace.ChangeIntent
 import dev.toros.yde.workspace.ChangeRecord
 import dev.toros.yde.workspace.FileSystemDocumentStore
+import dev.toros.yde.workspace.StoreConflictException
+import dev.toros.yde.workspace.checkUnchanged
 import dev.toros.yde.workspace.WorkspaceDerivedState
 import dev.toros.yde.workspace.WorkspaceOperation
 import dev.toros.yde.workspace.WorkspaceReader
@@ -105,6 +108,9 @@ class OpenDocument(
     var rawText: String
         get() = buffer.rawText
         set(value) { buffer.rawText = value }
+
+    /** テキスト文書・構成ファイルの保存検査用。上書き許可で dirty の基準は動かさない。 */
+    internal var expectedStoreText: String? = initialText
 
     // parseError / dirty は buffer が正で、Compose ミラーを同期する（購読の必要があるため）
     private val parseErrorState = mutableStateOf(parseError)
@@ -292,18 +298,29 @@ class OpenDocument(
         applyParsed(request, EditBuffer.parse(request.text))
     }
 
+    data class SourceSync(val conflicts: Int = 0, val normalized: Boolean = false)
+
     /**
      * 他所（フォーム・Undo・操作・再読込）で木が変わったとき、下書きへ差分だけを差し込む（R43-03）。
      * 元＝前回の正規化テキスト・自分＝下書き・相手＝今回の正規化テキストの 3 者マージで、カーソルは同じ場所に留まる。
-     * 戻り値は下書きを優先した食い違いの数（0 が普通）。
+     * 履歴の直後は取り込んだ入力の値を残さず、履歴の値と一致する書式だけを保つ。
      */
-    fun syncSourceFromTree(): Int {
-        if (version == sourceSyncedVersion) return 0
+    fun syncSourceFromTree(preferHistory: Boolean = false): SourceSync {
+        if (version == sourceSyncedVersion && !preferHistory) return SourceSync()
         sourceEpoch++
         val theirs = canonicalText()
         val ours = source.text.toString()
         var conflicts = 0
-        if (ours != theirs) {
+        var normalized = false
+        if (preferHistory && !hasPendingSourceInput && !draftBroken) {
+            val result = SourceHistorySync.sync(sourceBase, ours, theirs, source.selection.start)
+            normalized = result.normalized
+            if (ours != result.text) source.edit {
+                replace(0, length, result.text)
+                placeCursorBeforeCharAt(result.caret)
+            }
+            sourceApplied = result.text
+        } else if (ours != theirs) {
             val m = LineMerge.mergeHunks(LineMerge.splitLines(sourceBase), LineMerge.splitLines(ours), LineMerge.splitLines(theirs))
             conflicts = m.conflicts
             if (m.hunks.isNotEmpty()) {
@@ -317,7 +334,7 @@ class OpenDocument(
         sourceSyncedVersion = version
         if (sourceError == null) sourceParsed = source.text.toString()
         else if (source.text.toString() == theirs) { sourceError = null; sourceParsed = theirs }
-        return conflicts
+        return SourceSync(conflicts, normalized)
     }
 
     /** 下書きを捨てて木の正規化テキストに揃える（「編集を破棄」「整形」）。テキスト文書では保存したテキストに戻る。 */
@@ -738,15 +755,45 @@ class AppState {
 
     /**
      * Undo/Redo 実行後の通知（UX-86）: 横断履歴（D-07）は開いていない文書も戻すため、
-     * 「何が戻ったか」とジャンプ導線をステータスバーに常設で出す。次の編集・保存・✕で消える。
+     * 別文書を含む操作は上部にも表示し、編集・保存では消さない。
      * files はジャンプ可能な影響文書（ディスクに存在するもののみ）。
      */
-    data class HistoryNotice(val message: String, val files: List<Path>)
+    data class HistoryNotice(
+        val message: String,
+        val files: List<Path>,
+        val summary: String,
+        val targets: List<DocumentId>,
+        val crossDocument: Boolean,
+        val undo: Boolean,
+        val returnedToOrigin: Boolean = false,
+    )
+
+    data class HistoryNoticeTarget(val document: DocumentId, val canOpen: Boolean, val dirty: Boolean)
 
     var historyNotice by mutableStateOf<HistoryNotice?>(null)
         private set
 
     fun dismissHistoryNotice() { historyNotice = null }
+
+    private fun dismissLocalHistoryNotice() {
+        if (historyNotice?.crossDocument != true) historyNotice = null
+    }
+
+    /** 通知の操作対象は固定し、保存状態と開けるかは現在の状態から読む。 */
+    fun historyNoticeTargets(): List<HistoryNoticeTarget> {
+        editVersion
+        indexVersion
+        return historyNotice?.targets.orEmpty().map { id ->
+            val doc = docCache[fileOf(id)]
+            HistoryNoticeTarget(id, session?.hasDocument(id) == true || Files.isRegularFile(fileOf(id)),
+                session?.isDirty(id) == true || doc?.dirty == true || doc?.draftDirty == true || doc?.hasPendingSourceInput == true)
+        }
+    }
+
+    fun openHistoryTarget(id: DocumentId) {
+        val target = historyNoticeTargets().find { it.document == id } ?: return
+        if (target.canOpen) openFile(id) else status = "現在このファイルはありません: ${id.value}"
+    }
 
     var aiRequest by mutableStateOf<AiRequest?>(null)
         private set
@@ -1022,7 +1069,7 @@ class AppState {
         val files = plan.changeSet.changes.map { ws.resolve(it.file).normalize() }
         files.filter { docCache[it]?.dirty == true }.takeIf { it.isNotEmpty() }
             ?.let { error("エディタに未保存の変更があるため適用できません: ${it.joinToString(", ") { f -> relPath(f) }}") }
-        val result = cw.applyViaSession(s, plan.changeSet, requireValid = !allowErrors)
+        val result = withHistoryLocation(s) { cw.applyViaSession(s, plan.changeSet, requireValid = !allowErrors) }
         if (!result.ok) {
             val reasons = result.results.filter { it.message != null }.joinToString("\n") { "${it.file}: ${it.message}" }
             error(
@@ -1044,6 +1091,7 @@ class AppState {
     // ---------------------------------------------------------------- workspace
 
     fun openWorkspace(dir: Path) {
+        dismissHistoryNotice()
         workspace = dir.toAbsolutePath().normalize()
         coreWs = null
         session = null
@@ -1151,6 +1199,7 @@ class AppState {
      */
     private fun reopenSession(ws: Path, fromMirror: Boolean = false) {
         session = openSession(ws, fromMirror)
+        historyLocations.clear()
         docCache.values.filter { it.dirty }.forEach(::pushEditToSession)
     }
 
@@ -1175,7 +1224,10 @@ class AppState {
     private fun ensureAttached(doc: OpenDocument, s: WorkspaceSession, id: DocumentId, root: YNode): Boolean {
         if (s.hasDocument(id)) return true
         if (!doc.textOnly || !s.acceptsDocument(id)) return false
-        val attached = runCatching { s.attachDocument(id, YDocument(id, listOf(root) + doc.extraDocs)) }.getOrNull()
+        val attached = runCatching {
+            s.attachDocument(id, YDocument(id, listOf(root) + doc.extraDocs), persistedText = doc.rawText)
+                .also { if (it.ok) s.acknowledgeStoreText(id, doc.expectedStoreText) }
+        }.getOrNull()
         if (attached?.ok != true) return false
         doc.textOnly = false
         return true
@@ -1194,9 +1246,19 @@ class AppState {
             return
         }
         runCatching {
+            val protected = s.dirtyDocuments().toSet() + docCache.values
+                .filter { it.dirty || it.draftDirty || it.hasPendingSourceInput || it.externalConflict }.map { documentOf(it.file) }
+            val changedIds = changed.map(::documentOf).filterNot { it in protected }
+            val removedIds = removed.map(::documentOf).filterNot { it in protected }
+            if (changedIds.isEmpty() && removedIds.isEmpty()) return
+            if (protected.isNotEmpty()) {
+                // 他文書の通知を契機とする全再読込でも、未表示の Undo と保存基準を消さない。
+                (changedIds + removedIds).distinct().forEach { s.acceptStoreText(it, s.storedText(it)) }
+                return
+            }
             s.noteStoreChanges(
-                changed = changed.map { DocumentId(relPath(it)) },
-                removed = removed.map { DocumentId(relPath(it)) },
+                changed = changedIds,
+                removed = removedIds,
             )
             // スキーマ変更などで全再読込へ降格した場合に備え、編集中文書を再反映する（RA-05。
             // dirty 文書の変更はセッション側が取り込まないため、通常の増分では no-op に近い）
@@ -1277,7 +1339,7 @@ class AppState {
         files.forEach { file ->
             docCache[file]?.let { doc ->
                 // mtime 不変のため force で取り直す。未保存編集がある場合は上書きせず競合として提示する
-                if (doc.dirty) doc.externalConflict = true
+                if (doc.dirty || doc.draftDirty || doc.hasPendingSourceInput) doc.externalConflict = true
                 else reloadDocumentFromDisk(doc, force = true)
             }
         }
@@ -1513,7 +1575,7 @@ class AppState {
     private fun sessionBulkUpdate(files: Set<Path>, key: String, value: String): Int? {
         val s = session ?: return null
         val ids = files.sortedBy { it.toString() }.map { DocumentId(relPath(it)) }
-        return dev.toros.yde.app.core.WorkspaceRecords.bulkUpdateViaSession(s, ids, key, value)
+        return withHistoryLocation(s) { dev.toros.yde.app.core.WorkspaceRecords.bulkUpdateViaSession(s, ids, key, value) }
     }
 
     /**
@@ -1541,7 +1603,7 @@ class AppState {
                 // 編集通知: 全文書横断カウンタを進め、セッション履歴へ記録する（RA-05 → RA-06 で記録つきに）
                 doc.onEdited = { coalesceWith ->
                     editVersion++
-                    historyNotice = null  // 編集を再開したら Undo/Redo 通知は役目を終える（UX-86）
+                    dismissLocalHistoryNotice()
                     recordEditToSession(doc, coalesceWith)
                 }
                 // dirty の判定はセッション（単一所有）を正とする（RA-06）
@@ -1565,26 +1627,34 @@ class AppState {
         val root = doc.root ?: return
         val id = DocumentId(relPath(doc.file))
         if (!ensureAttached(doc, s, id, root)) return
+        // ソースの解析完了が画面切替より遅れても、編集元はその文書のソースタブ。
+        val location = if (coalesceWith == "source") documentHistoryLocation(doc.file, tab = 1)
+            else if (uiSpace == UiSpace.LEDGER) historyLocation()
+            else documentHistoryLocation(doc.file, if (openDoc === doc) editorTab else memory.editorTab[id] ?: 0)
         runCatching {
-            s.recordEdit(
+            val result = s.recordEdit(
                 id, YDocument(id, listOf(root) + doc.extraDocs),
-                coalesceKey = coalesceWith?.let { listOf(id.value, it) },
+                coalesceKey = coalesceWith?.let { listOf(id.value, location, it) },
             )
+            if (result.ok) s.peekUndo()?.let { historyLocations.putIfAbsent(it.id, location) }
         }
     }
 
-    private fun reloadDocumentFromDisk(doc: OpenDocument, force: Boolean) {
-        if (!Files.exists(doc.file)) {
+    private fun reloadDocumentFromDisk(doc: OpenDocument, force: Boolean, knownText: String? = null) {
+        if (knownText == null && !Files.exists(doc.file)) {
             if (doc.dirty) doc.externalConflict = true
             return
         }
         val modified = runCatching { Files.getLastModifiedTime(doc.file).toMillis() }.getOrDefault(0L)
         if (!force && modified == doc.diskModifiedMillis) return
-        if ((doc.dirty || doc.draftDirty) && !force) {
+        if ((doc.dirty || doc.draftDirty || doc.hasPendingSourceInput) && !force) {
             doc.externalConflict = true
             return
         }
-        val text = runCatching { Files.readString(doc.file) }.getOrDefault("")
+        val text = knownText ?: runCatching { Files.readString(doc.file) }.getOrElse {
+            status = "読み込みに失敗しました: ${it.message}"
+            return
+        }
         runCatching { YamlIO.parseAll(text) }.onSuccess { docs ->
             doc.root = docs.firstOrNull() ?: YNode.Map()
             doc.extraDocs = docs.drop(1)
@@ -1597,6 +1667,7 @@ class AppState {
             doc.parseError = it.message
         }
         doc.diskModifiedMillis = modified
+        doc.expectedStoreText = text
         doc.externalConflict = false
         doc.version++
         doc.resetBaseline()  // 保存基準・dirty を取り直す
@@ -1605,19 +1676,49 @@ class AppState {
     }
 
     fun acceptDiskVersion() {
-        openDoc?.let {
-            reloadDocumentFromDisk(it, force = true)
-            // 競合解決でツリーがディスク内容に戻ったので、セッションの working も揃える（RA-05）
-            pushEditToSession(it)
+        val doc = openDoc ?: return
+        runCatching {
+            val text = readStoreText(doc)
+            session?.takeIf { it.acceptsDocument(documentOf(doc.file)) }?.acceptStoreText(documentOf(doc.file), text)
+            if (text == null) {
+                docCache.remove(doc.file)
+                openDoc = null
+            } else reloadDocumentFromDisk(doc, force = true, knownText = text)
             editVersion++
-        }
+            indexVersion++
+            status = "ディスク版を読み込みました: ${relPath(doc.file)}"
+        }.onFailure { status = "読み込みに失敗しました: ${it.message}" }
     }
     fun keepLocalVersion() {
-        openDoc?.let {
-            it.externalConflict = false
-            it.diskModifiedMillis = runCatching { Files.getLastModifiedTime(it.file).toMillis() }.getOrDefault(0L)
-        }
+        val doc = openDoc ?: return
+        runCatching {
+            val text = readStoreText(doc)
+            session?.acknowledgeStoreText(documentOf(doc.file), text)
+            doc.expectedStoreText = text
+            doc.externalConflict = false
+            doc.diskModifiedMillis = runCatching { Files.getLastModifiedTime(doc.file).toMillis() }.getOrDefault(0L)
+            status = "次回保存で編集内容を上書きします: ${relPath(doc.file)}（再度外部で変更された場合は停止します）"
+        }.onFailure { status = "上書きの許可に失敗しました: ${it.message}" }
     }
+
+    private fun readStoreText(doc: OpenDocument): String? =
+        FileSystemDocumentStore(workspace ?: error("ワークスペース未選択")).read(documentOf(doc.file))?.text
+
+    private fun checkSave(doc: OpenDocument) {
+        val id = documentOf(doc.file)
+        val s = session
+        if (s != null && s.hasDocument(id)) s.checkSave(id)
+        else FileSystemDocumentStore(workspace ?: error("ワークスペース未選択")).checkUnchanged(id, doc.expectedStoreText)
+    }
+
+    private fun prepareSave(doc: OpenDocument): Boolean = runCatching { checkSave(doc) }.fold(
+        onSuccess = { true },
+        onFailure = {
+            if (it is StoreConflictException) doc.externalConflict = true
+            status = "保存に失敗しました: ${it.message}"
+            false
+        },
+    )
 
     fun saveCurrent() {
         val doc = openDoc ?: return
@@ -1632,13 +1733,16 @@ class AppState {
         val dirty = dirtyFiles().filterNot { documentOf(it) in pendingDeletes }.map(::ensureDoc)
         // 自動の値（更新日・版）は全部の文書で 1 つのトランザクション＝Undo 1 回で戻る。その後に 1 文書ずつ書き出す
         // （壊れた下書きは木が無いので対象外）
-        val stamped = stampAutoValues(dirty.filter { !it.draftBroken })
-        dirty.forEach { save(it, stampedBefore = stamped) }
+        val failures = mutableListOf<String>()
+        val ready = dirty.filter { doc -> prepareSave(doc).also { if (!it) failures += status.orEmpty() } }
+        val stamped = stampAutoValues(ready.filter { !it.draftBroken })
+        ready.forEach { if (!save(it, stampedBefore = stamped)) failures += status.orEmpty() }
         if (s != null && pendingDeletes.isNotEmpty()) {
             val saved = s.save(pendingDeletes)
             refreshAfterSessionWrite(saved.deleted)
-            if (!saved.ok) status = "ファイルの反映に失敗しました: ${saved.failures.values.first()}"
+            if (!saved.ok) failures += saved.failures.map { (id, message) -> "${id.value}: $message" }
         }
+        if (failures.isNotEmpty()) status = "保存できなかった文書があります: ${failures.joinToString(" / ")}"
     }
 
     /** 壊れたまま保存の確認待ち（スキーマ文書だけ。波及が大きいので Main.kt が確認を出す。R43-04）。 */
@@ -1657,19 +1761,22 @@ class AppState {
      * 壊れた下書きをそのまま書く（R43-04「壊れたまま保存」）。文書はテキスト文書になり、ディスク上で解析できないファイルと同じ扱い
      * （索引・検証・ビュー・エージェントの対象外）。セッションの履歴は消さない。直して保存すれば文書集合へ戻る。
      */
-    private fun saveDraftAsText(doc: OpenDocument) {
+    private fun saveDraftAsText(doc: OpenDocument): Boolean {
         val text = doc.source.text.toString()
         val id = DocumentId(relPath(doc.file))
-        runCatching {
+        return runCatching {
             val s = session
             if (s != null && s.acceptsDocument(id)) {
-                val r = s.saveAsText(id, text)
+                val r = if (s.hasDocument(id)) s.saveAsText(id, text) else s.saveAsText(id, text, doc.expectedStoreText)
+                if (r.externalConflict) throw StoreConflictException(id)
                 check(r.ok) { r.message ?: "書込に失敗しました" }
             } else {
+                checkSave(doc)
                 Files.writeString(doc.file, text)
             }
         }.onSuccess {
             doc.enterTextOnly(text)
+            doc.expectedStoreText = text
             doc.diskModifiedMillis = runCatching { Files.getLastModifiedTime(doc.file).toMillis() }.getOrDefault(0L)
             doc.externalConflict = false
             workspace?.let { workspaceStamp = snapshotFiles(it) }
@@ -1681,10 +1788,11 @@ class AppState {
             editVersion++
             indexVersion++
             status = "壊れたまま保存しました: ${relPath(doc.file)}（直して保存するまで索引・検証の対象外です）"
-            historyNotice = null
+            dismissLocalHistoryNotice()
         }.onFailure {
+            if (it is StoreConflictException) doc.externalConflict = true
             status = "保存に失敗しました: ${it.message}"
-        }
+        }.isSuccess
     }
 
     /**
@@ -1703,7 +1811,7 @@ class AppState {
             id
         }
         if (ids.isEmpty()) return emptyMap()
-        val applied = s.applyAutoValues(ids, LocalDateTime.now())
+        val applied = withHistoryLocation(s) { s.applyAutoValues(ids, LocalDateTime.now()) }
         if (!applied.result.ok || applied.isEmpty) return emptyMap()
         refreshDocsFromSession(applied.plans.keys)
         return applied.plans.mapValues { (_, plan) -> plan.describe() }
@@ -1733,7 +1841,7 @@ class AppState {
         }
     }
 
-    private class HistoryStep(val session: WorkspaceSession, val record: ChangeRecord, val undo: Boolean) {
+    private class HistoryStep(val session: WorkspaceSession, val record: ChangeRecord, val undo: Boolean, val visibleDocument: DocumentId?) {
         val version = session.version
     }
 
@@ -1774,7 +1882,7 @@ class AppState {
         }
         pendingHistory = null
         broken.forEach { it.discardDraft() }
-        return HistoryStep(s, record, undo)
+        return HistoryStep(s, record, undo, openDoc?.takeIf { uiSpace == UiSpace.EDIT }?.let { documentOf(it.file) })
     }
 
     private fun executeHistoryStep(step: HistoryStep) {
@@ -1786,10 +1894,19 @@ class AppState {
         }
         val result = if (step.undo) s.undo() else s.redo()
         if (result.ok) {
-            afterHistoryStep(step.record, step.undo)
+            afterHistoryStep(step.record, step.undo, step.visibleDocument)
             // 次のキー入力や反映待ちの解析が来る前に、戻した木とソースを揃える。
-            val conflicts = historyTargets(step.record).sumOf { id -> docCache[fileOf(id)]?.syncSourceFromTree() ?: 0 }
-            if (conflicts > 0) status = "下書きと食い違う変更が $conflicts か所あり、下書きを優先しました（「整形」で木に揃えられます）"
+            val synced = historyTargets(step.record).mapNotNull { id ->
+                docCache[fileOf(id)]?.let { id to it.syncSourceFromTree(preferHistory = true) }
+            }
+            val conflicts = synced.sumOf { it.second.conflicts }
+            val normalized = synced.filter { it.second.normalized }.map { it.first.value }
+            val notices = mutableListOf<String>()
+            if (conflicts > 0) notices += "下書きと食い違う変更が $conflicts か所あり、下書きを優先しました（「整形」で木に揃えられます）"
+            if (normalized.isNotEmpty()) notices += "履歴の内容に揃えるためソースを書式調整しました: ${normalized.joinToString("・")}"
+            if (notices.isNotEmpty()) status = notices.joinToString(" / ")
+            val returned = returnToHistoryLocation(step.record)
+            historyNotice = historyNotice?.copy(returnedToOrigin = returned)
         } else status = result.message ?: "履歴を適用できません"
     }
 
@@ -1847,10 +1964,10 @@ class AppState {
      * 「未保存●」に留めて保存で確定できるが、作成の取り消し（＝文書が消える）には保存の手段が無く、
      * 削除予約のままではディスクとセッションが食い違うため。
      */
-    private fun afterHistoryStep(record: ChangeRecord, undo: Boolean) {
+    private fun afterHistoryStep(record: ChangeRecord, undo: Boolean, visibleDocument: DocumentId?) {
         session?.fileArrangement(record.id)?.let { plan ->
             followFileArrangement(plan, reverse = undo)
-            noteHistoryStep(record, historyTargets(record), undo)
+            noteHistoryStep(record, historyTargets(record), undo, visibleDocument)
             return
         }
         val ids = historyTargets(record)
@@ -1864,19 +1981,21 @@ class AppState {
         if (s != null && (fileLevel.isNotEmpty() || writeThrough)) {
             val saved = s.save(if (writeThrough) ids.toSet() else fileLevel)
             if (!saved.ok) status = "ファイルの反映に失敗しました: ${saved.failures.entries.first().let { "${it.key.value}: ${it.value}" }}"
-            refreshAfterSessionWrite(ids)
+            refreshDocsFromSession(ids)
+            refreshAfterSessionWrite(saved.written + saved.deleted)
+            saved.conflicts.forEach { id -> workspace?.resolve(id.value)?.let { docCache[it]?.externalConflict = true } }
         } else {
             refreshDocsFromSession(ids)
             editVersion++
         }
-        noteHistoryStep(record, ids, undo)
+        noteHistoryStep(record, ids, undo, visibleDocument)
     }
 
     /**
      * 「何が戻ったか」の通知を組み立てる（UX-86）。未保存化（●）の明示は、
      * 適用=保存済み・Undo=未保存という非対称（D-12）の説明（UX-93）を兼ねる。
      */
-    private fun noteHistoryStep(record: ChangeRecord, ids: List<DocumentId>, undo: Boolean) {
+    private fun noteHistoryStep(record: ChangeRecord, ids: List<DocumentId>, undo: Boolean, visibleDocument: DocumentId?) {
         val ws = workspace ?: return
         val s = session ?: return
         val summary = historySummary(record) ?: return
@@ -1884,7 +2003,8 @@ class AppState {
         val dirtied = ids.any { s.hasDocument(it) && s.isDirty(it) }
         val suffix = if (dirtied) "——未保存（●）の状態です。保存で確定します" else ""
         val files = ids.map { ws.resolve(it.value).normalize() }.distinct().filter { Files.exists(it) }
-        historyNotice = HistoryNotice("$verb: $summary$suffix", files)
+        historyNotice = HistoryNotice("$verb: $summary$suffix", files, summary, ids,
+            ids.any { it != visibleDocument }, undo)
     }
 
     private fun operationIds(op: WorkspaceOperation): List<DocumentId> = when (op) {
@@ -1934,6 +2054,7 @@ class AppState {
             docCache[f]?.let { d ->
                 // 保存を伴う経路だけで比較基準を更新する。通常のUndoは保存済み内容を変えない。
                 session?.storedText(documentOf(f))?.let { d.rawText = it }
+                d.expectedStoreText = session?.storedText(documentOf(f))
                 d.diskModifiedMillis = runCatching { Files.getLastModifiedTime(f).toMillis() }.getOrDefault(0L)
                 d.externalConflict = false
             }
@@ -1975,17 +2096,17 @@ class AppState {
      * 1 文書の保存。stampedBefore は「すべて保存」が先にまとめて入れた自動の値の説明（null なら、ここで 1 文書分を入れる）。
      * 自動の値が入るのは保存の直前で、履歴 1 件（Undo で日付と版が戻る）。入った項目は状態表示で知らせる。
      */
-    private fun save(doc: OpenDocument, stampedBefore: Map<DocumentId, String>? = null, confirmedTextSave: Boolean = false) {
+    private fun save(doc: OpenDocument, stampedBefore: Map<DocumentId, String>? = null, confirmedTextSave: Boolean = false): Boolean {
         doc.flushDraft()   // 入力待ちのソースを取り込んでから
+        if (!prepareSave(doc)) return false
         if (doc.draftBroken) {
             // 壊れたまま保存（R43-04）。保存で止めず、文書をテキスト文書にして知らせる。スキーマ文書は波及が大きいので確認する
-            if (doc.textOnly && !doc.draftDirty) return
-            if (!confirmedTextSave && isSchemaDocument(doc.file)) { pendingTextSave = doc; return }
-            saveDraftAsText(doc)
-            return
+            if (doc.textOnly && !doc.draftDirty) return true
+            if (!confirmedTextSave && isSchemaDocument(doc.file)) { pendingTextSave = doc; return true }
+            return saveDraftAsText(doc)
         }
         val stamped = stampedBefore ?: stampAutoValues(listOf(doc))
-        runCatching {
+        return runCatching {
             val s = session
             val root = doc.root
             val id = DocumentId(relPath(doc.file))
@@ -1997,14 +2118,17 @@ class AppState {
                 val replaced = s!!.replaceDocument(id, YDocument(id, listOf(root!!) + doc.extraDocs))
                 check(replaced.ok) { replaced.message ?: "セッションへの反映に失敗しました" }
                 val saved = s.save(setOf(id))
+                if (id in saved.conflicts) throw StoreConflictException(id)
                 check(saved.ok) { saved.failures[id] ?: "書込に失敗しました" }
             } else {
+                checkSave(doc)
                 Files.writeString(doc.file, doc.canonicalText())
             }
             viaSession
         }.onSuccess { viaSession ->
             doc.markSaved()
             doc.rawText = doc.canonicalText()
+            doc.expectedStoreText = doc.rawText
             doc.diskModifiedMillis = Files.getLastModifiedTime(doc.file).toMillis()
             doc.externalConflict = false
             workspace?.let { workspaceStamp = snapshotFiles(it) }
@@ -2021,10 +2145,11 @@ class AppState {
             val auto = stamped[DocumentId(relPath(doc.file))]
             status = if (auto == null) "保存しました: ${relPath(doc.file)}"
             else "保存しました: ${relPath(doc.file)}（自動の値を設定 → $auto。Ctrl+Z で戻せます）"
-            historyNotice = null  // 保存で確定＝Undo/Redo 通知は役目を終える（UX-86）
+            dismissLocalHistoryNotice()
         }.onFailure {
+            if (it is StoreConflictException) doc.externalConflict = true
             status = "保存に失敗しました: ${it.message}"
-        }
+        }.isSuccess
     }
 
     /**
@@ -2109,7 +2234,7 @@ class AppState {
         val ws = workspace ?: error("ワークスペースが開かれていません")
         val files = ids.map { ws.resolve(it.value).normalize() }
         require(files.none { docCache[it]?.dirty == true }) { "対象に未保存の変更があります。先に保存してください" }
-        val applied = s.applyRefactoring(plan)
+        val applied = withHistoryLocation(s) { s.applyRefactoring(plan) }
         require(applied.ok) { applied.message ?: "適用に失敗しました" }
         val saved = s.save(ids.toSet())
         require(saved.ok) {
@@ -2215,13 +2340,13 @@ class AppState {
         schemaFor(target)?.let { SemanticAutoValues.stamp(it.tree, null, root, LocalDateTime.now()) }
         val s = session
         if (s != null && !s.hasDocument(id) && !WorkspaceReader.hiddenPath(id.value, s.layout)) {
-            val applied = s.apply(
+            val applied = withHistoryLocation(s) { s.apply(
                 WorkspaceTransaction(
                     baseVersion = s.version,
                     intent = ChangeIntent(intent),
                     operations = listOf(WorkspaceOperation.CreateDocument(id, YDocument(id, listOf(root)))),
                 )
-            )
+            ) }
             require(applied.ok) { applied.message ?: "文書を作成できませんでした" }
             val saved = s.save(setOf(id))
             require(saved.ok) { saved.failures[id] ?: "書込に失敗しました" }
@@ -2323,7 +2448,7 @@ class AppState {
         val docs = docCache.filterKeys { file -> roots.any { file == it || file.startsWith(it) } }.values
         docs.forEach { it.flushDraft() }
         require(docs.none { it.dirty || it.draftDirty }) { "対象または参照元に未保存の変更があります。先に保存してください" }
-        val result = s.applyFileArrangement(plan)
+        val result = withHistoryLocation(s) { s.applyFileArrangement(plan) }
         require(result.ok) { result.message ?: "ファイル操作に失敗しました" }
         followFileArrangement(plan, reverse = false)
         status = plan.transaction.intent.description + "（Ctrl+Z で戻せます）"
@@ -2414,6 +2539,64 @@ class AppState {
 
     private var backStack by mutableStateOf<List<NavLocation>>(emptyList())
     private var forwardStack by mutableStateOf<List<NavLocation>>(emptyList())
+
+    /** 履歴の所有者はセッションのまま。記録 ID に編集元の画面だけを添える。 */
+    private val historyLocations = mutableMapOf<Long, NavLocation>()
+
+    private fun documentHistoryLocation(file: Path, tab: Int = 0) =
+        NavLocation(UiSpace.EDIT, 0, file, null, null, null, tab = tab)
+
+    private fun historyLocation(): NavLocation {
+        val loc = currentLocation()
+        return when (loc.space) {
+            UiSpace.EDIT -> loc.copy(crossId = null, gridId = null, flowId = null, flowDocument = null, flowSelections = emptyMap())
+            UiSpace.LEDGER -> {
+                val catalog = if ((loc.view == 4 && loc.gridId == null) || (loc.view == 5 && loc.flowId == null)) historyViewCatalog() else null
+                val grid = if (loc.view == 4) loc.gridId ?: catalog?.views?.firstOrNull()?.id else null
+                loc.copy(file = null, path = null, help = null, tab = 0, reference = false, referenceLine = 1,
+                    crossId = loc.crossId.takeIf { loc.view == 3 }, gridId = grid,
+                    flowId = if (loc.view == 5) loc.flowId ?: catalog?.flowViews?.firstOrNull()?.id else null,
+                    flowDocument = loc.flowDocument.takeIf { loc.view == 5 },
+                    flowSelections = if (loc.view == 5) loc.flowSelections.toMap() else emptyMap())
+            }
+            else -> NavLocation(loc.space, 0, null, null, null, null)
+        }
+    }
+
+    /** 一括変更や保存時の自動値で増えた記録にも同じ編集元を添える。保存失敗でも残った履歴には添える。 */
+    private inline fun <T> withHistoryLocation(s: WorkspaceSession, block: () -> T): T {
+        val before = s.peekUndo()?.id ?: -1L
+        val location = historyLocation()
+        try { return block() } finally {
+            if (session === s) s.history.filter { it.id > before }.forEach { historyLocations.putIfAbsent(it.id, location) }
+        }
+    }
+
+    private fun historyViewCatalog() = workspace?.let { ws -> runCatching { dev.toros.yde.app.core.Views.load(ws, schemas) }.getOrNull() }
+
+    private fun canRestoreHistoryLocation(loc: NavLocation): Boolean = when {
+        loc.space == UiSpace.EDIT -> loc.help == null && !loc.reference && loc.file != null &&
+            (session?.hasDocument(documentOf(loc.file)) == true || Files.isRegularFile(loc.file))
+        loc.space == UiSpace.LEDGER && loc.view == 4 -> historyViewCatalog()?.view(loc.gridId.orEmpty()) != null
+        loc.space == UiSpace.LEDGER && loc.view == 3 -> loc.crossId != null && overlayIndex().occurrences(loc.crossId).isNotEmpty()
+        loc.space == UiSpace.LEDGER && loc.view == 5 -> historyViewCatalog()?.flowViews?.any { it.id == loc.flowId } == true
+        else -> true
+    }
+
+    /** 成功した履歴の編集元へ戻る。元のビューが消えていれば、開ける対象文書を使う。 */
+    private fun returnToHistoryLocation(record: ChangeRecord): Boolean {
+        val origin = historyLocations[record.id]?.takeIf(::canRestoreHistoryLocation)
+        val target = origin ?: historyTargets(record).singleOrNull()?.let { documentHistoryLocation(fileOf(it)) }
+            ?.takeIf(::canRestoreHistoryLocation) ?: return false
+        val current = historyLocation()
+        // 同じ画面では再表示しない。入力欄の焦点や選択を余計に動かさない。
+        if (current.copy(path = null, flowSelections = emptyMap()) == target.copy(path = null, flowSelections = emptyMap())) return false
+        val previousStatus = status
+        pushBack(currentLocation())
+        restore(target)
+        status = previousStatus
+        return true
+    }
 
     val canGoBack: Boolean get() = backStack.isNotEmpty()
     val canGoForward: Boolean get() = forwardStack.isNotEmpty()
