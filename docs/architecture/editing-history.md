@@ -9,7 +9,7 @@
 |---|---|---|
 | `OpenDocument` | app/AppState.kt | 開いている 1 文書の Compose シェル（`version` / `dirty` / `parseError` の購読）。複数ドキュメントの再出力と保存内容との比較は `EditBuffer` へ委譲し、外部競合を管理する |
 | `EditBuffer` | core/Documents.kt | 複数ドキュメントの再出力と、保存した内容との比較（履歴は持たない）。ここの dirty はセッションが文書として扱わないパス用で、聞かれたときにだけ計算する |
-| `WorkspaceSession.recordEdit` | workspace-core | 編集の記録（合体キーと時刻つき）。Undo / Redo の実体 |
+| `WorkspaceSession.recordEdit` / `endEditGroup` | workspace-core | 編集の記録（合体キーと時刻つき）と連続入力の区切り。Undo / Redo の実体 |
 | `AppState.undo` / `redo` / `historyNotice` / `undoPreview` | app/AppState.kt | 横断 Undo の実行と、戻った内容の通知・予告 |
 | `AppState.createDocumentFile` / `afterHistoryStep` | app/AppState.kt | 文書の新規作成の単一経路と、作成・削除を含む履歴の確定 |
 | `FormCtx.writeScalar` | ui/FormView.kt | スカラー入力の書込。合体キーを渡す |
@@ -58,8 +58,14 @@
 - **規則**: 直前の記録と同じキー（`==`）かつ 1000ms 以内かつ履歴の先端（Undo 後でない）なら、新しいエントリを積まずに先端を置換する。キーが null・キー不一致・時間超過・Undo/Redo 直後は新規エントリ＝境界。
 - **キー**: フォーム・グリッドのスカラー入力は `FormCtx.writeScalar` が変異対象の `YNode.Scalar` インスタンス（同一フィールドの連続タイプだけが合体）。スキーマ設計 UI のテキスト入力は `Pair(対象 Map, キー名)`。ソース編集は文書単位の固定キー。構造操作（追加・削除・移動・enum 選択・変換）はキーなし＝常に境界。
 - アプリは文書・編集元の画面も合体キーに含める。同じ文書の同じ項目でも、フォームとビューなど異なる画面の編集は別の記録になる。
-- **決定性**: 時刻は `nowMillis` 引数で注入する（`DocumentsTest`。タイマー・sleep を使わない）。
+- **明示的な区切り**: `endEditGroup` は合体の覚えだけをリセットする。保存は成功・失敗にかかわらず区切りになり、保存前の履歴も残る。
+- アプリの `finishEditGroup` は解析待ちのソースを入力順に反映してから区切る。タブ変更・ナビゲーションの `pushBack`・戻る／進む・すべて保存で使い、単一保存も下書きの反映後に区切る。
+- 画面の往復中に編集しなくても、戻ってからの入力は別記録になる。同じ場所やタブの再選択は区切らず、区切りだけでは履歴・dirty・Redo を変えない。
+- **決定性**: 時刻は `recordEdit` の `nowMillis` と `AppState` の `editClock` で注入する（両層の `HistoryCoalescingTest`・`WorkspaceSessionTest`。タイマー・sleep を使わない）。
 - undo / redo / restore / resetHistory は合体キーをリセットする。
+
+区切りの操作規則は [UI 操作規則「Undo のまとまり」](ui-interactions.md#undo-のまとまり) を参照。
+Core Calculus 上は既存の変更記録のまとめ方に限り、Rewrite の意味・書込経路・YAML 語彙は追加しない。
 
 ## ソースとの同期
 
@@ -68,7 +74,7 @@
 - Undo/Redo は `flushSourceDrafts` で入力待ちを入力順に反映してから、対象の履歴と文書を決める。保存済みのファイル配置を戻す処理の振り分けも、その対象で行う。
 - 入力待ちも Undo ボタンと予告の対象になる。Redo は入力の反映待ちの間は無効で、新しい編集が反映されると以前の Redo 履歴は失われる。
 - 下書きを捨てる確認はセッション・履歴・版・下書きに結び付ける。確認中に変わった場合は中止し、再操作を案内する。
-- 実行した履歴を使って通知と画面を更新し、ソースへの差し込みも次の入力より前に行う。履歴の所有者や連続入力の合体条件は変えない。
+- 実行した履歴を使って通知と画面を更新し、ソースへの差し込みも次の入力より前に行う。履歴の所有者はセッションに保つ。
 - Undo/Redo 後は `syncSourceFromTree(preferHistory = true)` が履歴の値を優先する。入力待ちや構文エラーがある下書きは通常の保護経路を使う。
 - `SourceHistorySync` は履歴の正規化テキストへ干渉しない書式を重ね、全 YAML 文書を再解析して `dumpPlain` で内容を照合する。隣接する同じ行数の書式変更は行ごとに扱う。
 - マージ後に構文や値が一致しなければ履歴の正規化テキストに揃えて通知する。コメントと表記は履歴の木から出力し、カーソルは差分に沿って写す。生の書式を過去と完全に同じ形へ復元する履歴は持たない。

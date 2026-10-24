@@ -258,6 +258,9 @@ class WorkspaceSession private constructor(
         lastCoalesceRecordId = -1L
     }
 
+    /** 連続入力のまとまりを閉じる。画面移動などに使い、内容・履歴・Redo・dirty は変更しない。 */
+    fun endEditGroup() = resetCoalesce()
+
     init {
         val loaded = seed?.loaded ?: WorkspaceReader.load(store, version = 0, builtins = builtins)
         layout = loaded.layout
@@ -408,6 +411,8 @@ class WorkspaceSession private constructor(
      * selection を渡すとその文書だけ保存する。
      */
     fun save(selection: Set<DocumentId>? = null, force: Boolean = false): SaveResult {
+        // 保存の成否にかかわらず、保存操作の前後の入力を別の Undo にする。
+        endEditGroup()
         val written = mutableListOf<DocumentId>()
         val deleted = mutableListOf<DocumentId>()
         val failures = linkedMapOf<DocumentId, String>()

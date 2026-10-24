@@ -392,7 +392,7 @@ enum class UiSpace { EDIT, LEDGER, RUNS, DESIGN }
 /**
  * アプリケーション状態。
  */
-class AppState {
+class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     private companion object {
         /** ナビゲーション履歴（戻る／進む）の保持上限。 */
         const val HISTORY_LIMIT = 50
@@ -627,6 +627,7 @@ class AppState {
     var editorTab: Int
         get() = editorTabState.value
         set(value) {
+            if (editorTabState.value != value) finishEditGroup()
             editorTabState.value = value
             openDoc?.let { memory.editorTab[documentOf(it.file)] = value }
         }
@@ -1635,6 +1636,7 @@ class AppState {
             val result = s.recordEdit(
                 id, YDocument(id, listOf(root) + doc.extraDocs),
                 coalesceKey = coalesceWith?.let { listOf(id.value, location, it) },
+                nowMillis = editClock(),
             )
             if (result.ok) s.peekUndo()?.let { historyLocations.putIfAbsent(it.id, location) }
         }
@@ -1726,7 +1728,7 @@ class AppState {
     }
 
     fun saveAll() {
-        flushSourceDrafts()
+        finishEditGroup()
         // 未表示のままUndoされた文書も、通常の保存経路（自動値・表示追随）を通す。
         val s = session
         val pendingDeletes = s?.let { it.dirtyDocuments().filterNot(it::hasDocument).toSet() }.orEmpty()
@@ -1850,6 +1852,12 @@ class AppState {
         docCache.values.mapNotNull { it.sourceParseRequest() }
             .sortedBy { it.inputOrder }
             .forEach { it.document.applyParsed(it, EditBuffer.parse(it.text)) }
+    }
+
+    /** 解析待ちを移動前の入力へ含めてから区切る。遅れて届く解析結果は採用検査で無効になる。 */
+    private fun finishEditGroup() {
+        flushSourceDrafts()
+        session?.endEditGroup()
     }
 
     /**
@@ -2098,6 +2106,7 @@ class AppState {
      */
     private fun save(doc: OpenDocument, stampedBefore: Map<DocumentId, String>? = null, confirmedTextSave: Boolean = false): Boolean {
         doc.flushDraft()   // 入力待ちのソースを取り込んでから
+        session?.endEditGroup()
         if (!prepareSave(doc)) return false
         if (doc.draftBroken) {
             // 壊れたまま保存（R43-04）。保存で止めず、文書をテキスト文書にして知らせる。スキーマ文書は波及が大きいので確認する
@@ -2616,6 +2625,7 @@ class AppState {
      * （ブラウザと同じ振る舞い）。
      */
     private fun pushBack(loc: NavLocation) {
+        finishEditGroup()
         if (isEmptyLocation(loc)) return
         backStack = (backStack + loc).takeLast(HISTORY_LIMIT)
         forwardStack = emptyList()
@@ -2653,6 +2663,7 @@ class AppState {
             val target = backStack.lastOrNull() ?: return
             backStack = backStack.dropLast(1)
             if (isStale(target)) continue
+            finishEditGroup()
             currentLocation().takeUnless(::isEmptyLocation)?.let {
                 forwardStack = (forwardStack + it).takeLast(HISTORY_LIMIT)
             }
@@ -2667,6 +2678,7 @@ class AppState {
             val target = forwardStack.lastOrNull() ?: return
             forwardStack = forwardStack.dropLast(1)
             if (isStale(target)) continue
+            finishEditGroup()
             currentLocation().takeUnless(::isEmptyLocation)?.let {
                 backStack = (backStack + it).takeLast(HISTORY_LIMIT)
             }

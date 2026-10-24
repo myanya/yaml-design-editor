@@ -48,7 +48,7 @@
 | E-02 | 汎用ツリーエディタ（スキーマなし文書・スキーマ外キー・順序とコメントを保ったキー改名） | `ui/FormView.kt`（`GenericEditor`） | 単体 `RenameKeyTest` | [ui](architecture/ui.md) |
 | E-03 | ソース編集（下書き・書式保持・履歴との同期） | `SourcePane`・`SourceHistorySync` | `LineMergeTest`・`SourceHistorySyncTest`・`TextOnlySaveTest` | [editing-history](architecture/editing-history.md) |
 | E-04 | 差分表示（保存済みと編集中の行整列・文字単位の強調） | `ui/DiffPane.kt` | 単体 `DiffPaneTest` | [ui](architecture/ui.md) |
-| E-05 | Undo/Redo（横断履歴・編集元の画面への復帰・通知） | `AppState`, `HistoryNoticeBanner` | `HistoryLocationTest`・`HistoryNoticeTest`・`SourceHistoryTest`・`TextFieldHistoryTest` | [editing-history](architecture/editing-history.md) |
+| E-05 | Undo/Redo（横断履歴・編集元への復帰・通知・入力の区切り） | `AppState`, `HistoryNoticeBanner` | `HistoryLocationTest`・`HistoryNoticeTest`・`HistoryCoalescingTest` ほか | [editing-history](architecture/editing-history.md) |
 | E-06 | 保存（Ctrl+S・すべて保存・外部変更の直前検査と明示上書き） | `AppState.save*`, `WorkspaceSession.save*` | アプリ・コアの `SaveConflictTest`, `YamlIOTest` | [editing-history](architecture/editing-history.md) |
 | E-07 | 文書メタデータ `_document`（id・name・description）の編集とコンパクトな文書ヘッダー | `ui/FormView.kt`・`ui/EditorChrome.kt` | 手動 | [ui](architecture/ui.md) |
 | E-08 | 文書キャッシュ（ファイル切替時も未保存編集を保持） | `AppState.docCache` | 手動 | [editing-history](architecture/editing-history.md) |
