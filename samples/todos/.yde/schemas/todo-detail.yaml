@@ -3,5 +3,6 @@ name: TODO個票
 kind: document
 description: 一覧のTODOを同じIDで詳細化し、進捗とコメントを記録します。
 match: "todos/details/*.yaml"
+filePattern: "todos/details/{id}.yaml"
 # 文書のルートがオブジェクト型 TODO個票（同一性＝エンティティ todo の詳細化・日付の検査つき）。スキーマの entity と constraints は型が持ちます
 root: { type: common#TODO個票 }

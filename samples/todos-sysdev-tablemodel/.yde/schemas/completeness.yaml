@@ -1,0 +1,16 @@
+id: tm-completeness
+name: 段階間の対応検査
+kind: library
+constraints:
+  - id: concept-has-logical
+    match:
+      - node:
+          entity: todo-concept
+          bind: e
+    where:
+      - of: e
+        path: attributes
+        exists: false
+    expect: absent
+    level: error
+    message: "{id} に論理属性がありません"

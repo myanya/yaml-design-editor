@@ -1,0 +1,52 @@
+id: tm-types
+name: 業務データ型
+match: model/20_logical/types.yaml
+root:
+  type: object
+  fields:
+    - key: types
+      type: array
+      required: true
+      item:
+        type: object
+        entity:
+          type: todo-datatype
+          defines: true
+        fields:
+          - key: id
+            type: id
+            required: true
+            label: 設計ID
+          - key: name
+            type: line
+            required: true
+            role: title
+            label: 名称
+          - key: base
+            type: enum
+            required: true
+            values:
+              - text
+              - date
+              - integer
+            label: 基底型
+          - key: max_length
+            type: int
+            min: 1
+            label: 最大文字数
+          - key: pattern
+            type: line
+            label: 形式
+          - key: single_line
+            type: boolean
+            label: 改行を禁止
+          - key: min
+            type: int
+            label: 最小値
+          - key: values
+            type: array
+            required: false
+            item:
+              type: line
+            label: 選択肢
+      label: 業務データ型

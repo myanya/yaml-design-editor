@@ -1,0 +1,8 @@
+id: tm-lens
+name: 導出元から読む
+kind: lens
+relations:
+  - name: implements-entity
+    arrow: reverse
+  - name: implements-attribute
+    arrow: reverse

@@ -1,9 +1,7 @@
 id: todo-by-due
 name: 期限順
 rows:
-  idPattern: "TODO-*"
-# 個票の期限の順。due_on は日付の項目なので、日付として並びます（type を書く必要はありません）。
-# 期限の無い TODO（個票が無い・期限が未定）は後ろ、同じ期限は ID の順です。
+  idPattern: TODO-*
 order:
   schemaId: todo-detail
   path: due_on
@@ -14,7 +12,6 @@ columns:
   - label: ステータス
     schemaId: todo-detail
     path: status
-    editable: true
   - label: 期限
     schemaId: todo-detail
     path: due_on
@@ -22,7 +19,6 @@ columns:
   - label: 完了日
     schemaId: todo-detail
     path: completed_on
-    editable: true
 detail:
-  fileGlob: "todos/details/*.yaml"
-  filePattern: "todos/details/{id}.yaml"
+  fileGlob: todos/details/*.yaml
+  filePattern: todos/details/{id}.yaml

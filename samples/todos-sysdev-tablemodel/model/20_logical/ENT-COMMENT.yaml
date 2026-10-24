@@ -1,0 +1,27 @@
+id: ENT-COMMENT
+attributes:
+  - id: ATTR-COMMENT-TODO
+    name: 対象TODO
+    dtype: DT-TODO-ID
+    required: true
+    source: 個票.id
+    references: ENT-TODO
+  - id: ATTR-COMMENT-NUMBER
+    name: コメント番号
+    dtype: DT-NUMBER
+    required: true
+    source: コメントの配列位置から採番する
+  - id: ATTR-COMMENT-DATE
+    name: 記録日
+    dtype: DT-DATE
+    required: true
+    source: 個票.comments[*].date
+  - id: ATTR-COMMENT-BODY
+    name: 本文
+    dtype: DT-TEXT
+    required: true
+    source: 個票.comments[*].body
+key:
+  - ATTR-COMMENT-TODO
+  - ATTR-COMMENT-NUMBER
+notes: コメント番号はTODO内で一意。日付・本文の重複を許すため複合キーにする。配列順は番号として保存する。

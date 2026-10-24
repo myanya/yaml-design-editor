@@ -1,0 +1,27 @@
+id: tm-columns
+name: 属性とカラムの対応
+rows:
+  match:
+    - node:
+        entity: todo-column
+        bind: c
+    - edge:
+        relation: implements-attribute
+    - node:
+        entity: todo-attribute
+        bind: a
+  rowKey: c
+columns:
+  - label: 物理名
+    of: c
+    path: physical_name
+    editable: true
+  - label: 論理属性
+    of: a
+    path: name
+  - label: 業務型
+    of: a
+    path: dtype
+  - label: 必須
+    of: a
+    path: required

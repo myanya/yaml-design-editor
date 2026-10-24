@@ -97,7 +97,8 @@ definitions:
         label: 作成日
         type: 年月日
         required: true
-        description: TODOを登録した日。
+        auto: created
+        description: 個票を作成した日を自動で記録します。登録操作ではTODOの登録日になります。過去分は「TODOを編集する」でも修正できます。
       - key: due_on
         label: 期限
         type: 年月日
@@ -139,5 +140,15 @@ definitions:
           - { path: status, equals: CLOSED }
           - { path: completed_on, exists: false }
         expect: absent
-        level: warning
+        level: error
         message: "完了した TODO「{id}」に完了日がありません"
+      - id: closed-has-result
+        description: 完了したTODOには結果を記録すること
+        where: [{ path: status, equals: CLOSED }, { path: result, empty: true }]
+        expect: absent
+        level: error
+      - id: unfinished-has-no-completed-on
+        description: 完了以外のTODOには完了日を残さないこと
+        where: [{ path: status, notEquals: CLOSED }, { path: completed_on, exists: true }]
+        expect: absent
+        level: error

@@ -1,0 +1,133 @@
+id: tm-relations
+kind: relations
+entities:
+  - type: todo-concept
+    label: 業務エンティティ
+    aspects:
+      - name: conceptual
+        label: 概念
+      - name: logical
+        label: 論理
+relations:
+  - name: association-source
+    label: association-source
+    inverseLabel: "被参照: association-source"
+    source:
+      - todo-association
+    target:
+      - todo-concept
+  - name: association-target
+    label: association-target
+    inverseLabel: "被参照: association-target"
+    source:
+      - todo-association
+    target:
+      - todo-concept
+  - name: operates-on
+    label: operates-on
+    inverseLabel: "被参照: operates-on"
+    source:
+      - todo-operation
+    target:
+      - todo-concept
+  - name: has-attribute
+    label: has-attribute
+    inverseLabel: "被参照: has-attribute"
+    source:
+      - todo-concept
+    target:
+      - todo-attribute
+  - name: attribute-type
+    label: attribute-type
+    inverseLabel: "被参照: attribute-type"
+    source:
+      - todo-attribute
+    target:
+      - todo-datatype
+  - name: attribute-reference
+    label: attribute-reference
+    inverseLabel: "被参照: attribute-reference"
+    source:
+      - todo-attribute
+    target:
+      - todo-concept
+  - name: logical-key
+    label: logical-key
+    inverseLabel: "被参照: logical-key"
+    source:
+      - todo-concept
+    target:
+      - todo-attribute
+  - name: maps-type
+    label: maps-type
+    inverseLabel: "被参照: maps-type"
+    source:
+      - todo-type-mapping
+    target:
+      - todo-datatype
+    cardinality:
+      outMin: 1
+      outMax: 1
+      inMin: 1
+      inMax: 1
+    level: error
+  - name: implements-entity
+    label: implements-entity
+    inverseLabel: "被参照: implements-entity"
+    source:
+      - todo-table
+    target:
+      - todo-concept
+    cardinality:
+      outMin: 1
+      outMax: 1
+      inMin: 1
+    level: error
+  - name: implements-attribute
+    label: implements-attribute
+    inverseLabel: "被参照: implements-attribute"
+    source:
+      - todo-column
+    target:
+      - todo-attribute
+    cardinality:
+      outMin: 1
+      outMax: 1
+      inMin: 1
+      inMax: 1
+    level: error
+  - name: has-column
+    label: has-column
+    inverseLabel: "被参照: has-column"
+    source:
+      - todo-table
+    target:
+      - todo-column
+  - name: primary-key
+    label: primary-key
+    inverseLabel: "被参照: primary-key"
+    source:
+      - todo-table
+    target:
+      - todo-column
+  - name: column-use
+    label: column-use
+    inverseLabel: "被参照: column-use"
+    source:
+      - todo-table
+    target:
+      - todo-column
+  - name: foreign-key-target
+    label: foreign-key-target
+    inverseLabel: "被参照: foreign-key-target"
+    source:
+      - todo-table
+    target:
+      - todo-column
+  - name: index-column
+    label: index-column
+    inverseLabel: "被参照: index-column"
+    source:
+      - todo-table
+    target:
+      - todo-column

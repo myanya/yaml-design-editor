@@ -1,0 +1,32 @@
+types:
+  - id: DT-TODO-ID
+    name: TODO番号
+    base: text
+    pattern: ^TODO-[0-9]{3,}$
+  - id: DT-CATEGORY-ID
+    name: カテゴリ番号
+    base: text
+    pattern: ^CAT-[0-9]{3,}$
+  - id: DT-LINE
+    name: 一行の文
+    base: text
+    max_length: 100
+    single_line: true
+  - id: DT-TEXT
+    name: 文章
+    base: text
+  - id: DT-DATE
+    name: 年月日
+    base: date
+  - id: DT-STATUS
+    name: ステータス
+    base: text
+    values:
+      - OPEN
+      - IN_PROGRESS
+      - CLOSED
+      - CANCELED
+  - id: DT-NUMBER
+    name: コメント番号
+    base: integer
+    min: 1

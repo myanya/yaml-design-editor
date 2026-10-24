@@ -16,6 +16,9 @@ root:
       type: array
       default: []
       display: table
+      methods:
+        insert:
+          id: { path: id, prefix: "CAT-", digits: 3 }
       item:
         type: object
         fields:
@@ -23,9 +26,24 @@ root:
             label: ID
             type: common#カテゴリ番号
             required: true
-            description: 一覧内で一意のID。例：CAT-001。TODOからこのIDを参照します。
+            description: 追加時にCAT-001形式で自動採番します。TODOからこのIDを参照します。
           - key: name
             label: カテゴリ名
             type: common#一行の文
             role: title
             required: true
+actions:
+  - id: add-category
+    label: カテゴリを追加する
+    description: TODOを分類するカテゴリを作ります。IDは一覧の追加規則で自動採番します。
+    params:
+      - key: name
+        label: カテゴリ名
+        type: common#一行の文
+        minLength: 1
+        required: true
+    do:
+      - insert:
+          in: { schemaId: category-list }
+          path: categories
+          params: { name: $name }

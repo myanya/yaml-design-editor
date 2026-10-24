@@ -29,7 +29,7 @@ Windows ZIP 版は、ZIP をすべて展開し `yaml-design-editor.exe` を起�
 ```
 
 - `hotRun` は JetBrains Runtime 21 を Gradle が自動で取得して使います（初回は時間がかかります）。起動中の画面を AI エージェントから操作する MCP サーバ（スクリーンショット・クリック・入力・再読込）は `.mcp.json` に Windows 向けの設定があり、mac / Linux では `cmd /c gradlew.bat` を `./gradlew` に読み替えてください
-- `samples/`: 公開用のサンプル（テーマ別に整備中）
+- `samples/`: 公開用のサンプル。[todos](samples/todos/README.md)は操作できるTODO管理、[todos-sysdev-tablemodel](samples/todos-sysdev-tablemodel/README.md)はその概念・論理・物理モデルとSQL生成の検討
 - `labs/`: 開発用の実験場。試作はここで作り、ある程度良いものができたら `samples/` へ置き直す。`labs/sysdev-template` は、会議室予約システムを題材に設計の機械的な検証を試せるワークスペース。`labs/kakeibo` は家計簿を題材に集計と残高の検査を試す試作
 
 ## ドキュメント

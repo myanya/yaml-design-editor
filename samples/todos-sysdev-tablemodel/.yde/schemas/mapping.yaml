@@ -1,0 +1,40 @@
+id: tm-mapping
+name: SQLite型対応
+match: model/30_physical/type-mapping.yaml
+root:
+  type: object
+  fields:
+    - key: dialect
+      type: enum
+      required: true
+      values:
+        - sqlite
+      label: DB方言
+    - { key: policy, label: 型対応の方針, type: text, required: true }
+    - key: mappings
+      type: array
+      required: true
+      item:
+        type: object
+        entity:
+          type: todo-type-mapping
+          defines: true
+        fields:
+          - key: id
+            type: id
+            required: true
+            label: 設計ID
+          - key: dtype
+            type: ref
+            required: true
+            idPattern: DT-*
+            relation: maps-type
+            label: 業務データ型
+          - key: sql_type
+            type: enum
+            required: true
+            values:
+              - TEXT
+              - INTEGER
+            label: SQLの型
+      label: 型の対応

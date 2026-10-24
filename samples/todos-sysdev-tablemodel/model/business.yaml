@@ -1,0 +1,114 @@
+entities:
+  - id: ENT-TODO
+    name: TODO
+    meaning: 個人が実施する作業。タイトル・概要・進捗・期限・完了結果を管理する。
+  - id: ENT-CATEGORY
+    name: カテゴリ
+    meaning: TODOを分類するための区分。未分類のTODOを許す。
+  - id: ENT-COMMENT
+    name: コメント
+    meaning: 一つのTODOに添える日付と本文の記録。再開時には前回の完了結果を残す。
+relationships:
+  - id: REL-TODO-CATEGORY
+    name: TODOの分類
+    source: ENT-TODO
+    target: ENT-CATEGORY
+    target_min: 0
+    target_max: "1"
+    source_min: 0
+    source_max: many
+    meaning: TODOは0または1カテゴリに属し、カテゴリは0件以上のTODOを分類する。
+  - id: REL-TODO-COMMENT
+    name: TODOの記録
+    source: ENT-TODO
+    target: ENT-COMMENT
+    target_min: 0
+    target_max: many
+    source_min: 1
+    source_max: "1"
+    meaning: TODOは0件以上のコメントを持ち、コメントは必ず一つのTODOに属する。
+operations:
+  - id: OP-CATEGORY-ADD
+    name: カテゴリを追加する
+    target: ENT-CATEGORY
+    action: add-category
+    purpose: TODOの分類に使う区分を増やす。
+    inputs:
+      - カテゴリ名
+    conditions: カテゴリ名は空でなく、100文字以内の一行の文であること。
+    effect: 未使用のカテゴリ番号を自動採番し、カテゴリ一覧へ追加する。同名のカテゴリは許容する。
+  - id: OP-TODO-REGISTER
+    name: TODOを登録する
+    target: ENT-TODO
+    action: register-todo
+    purpose: 新しい作業を管理対象にする。
+    inputs:
+      - 未使用のTODO番号
+      - タイトル
+      - 概要
+      - カテゴリ・期限・詳細（任意）
+    conditions: 番号が未使用で、指定したカテゴリが存在すること。期限は登録日以降。
+    effect: 一覧と個票を同時に作り、状態をOPENにする。作成日は本日を自動記入し、過去分は編集で修正できる。
+  - id: OP-TODO-COMMENT
+    name: TODOにコメントを追加する
+    target: ENT-TODO
+    action: add-todo-comment
+    purpose: 作業に関する記録を既存コメントを残して追記する。
+    inputs:
+      - TODO番号
+      - 記録日
+      - 空でないコメント本文
+    conditions: 個票があること。状態は問わない。
+    effect: コメントを末尾に追加する。TODOの状態は変えない。
+  - id: OP-TODO-EDIT
+    name: TODOを編集する
+    target: ENT-TODO
+    action: edit-todo
+    purpose: 一覧と個票の情報を、整合性を確認して訂正する。
+    inputs:
+      - TODO番号
+      - 変更するタイトル・概要・カテゴリ・状態・日付・詳細・結果・コメント一覧
+      - 消去する任意項目の指定
+    conditions: 一覧の定義があり、更新後の型・参照・日付・状態の検査を満たすこと。
+    effect: 番号を固定して指定項目だけを更新する。消去指定を優先し、コメント一覧は指定時に全体を置き換える。個票がなければ作成する。
+  - id: OP-TODO-START
+    name: TODOに着手する
+    target: ENT-TODO
+    action: start-todo
+    purpose: 作業を開始したことを状態に反映する。
+    inputs:
+      - TODO番号
+    conditions: OPENの個票があること。
+    effect: 状態をIN_PROGRESSにする。着手日は記録しない。
+  - id: OP-TODO-CANCEL
+    name: TODOを中止する
+    target: ENT-TODO
+    action: cancel-todo
+    purpose: 作業を行わない判断と理由を記録する。
+    inputs:
+      - TODO番号
+      - 中止理由
+    conditions: OPENまたはIN_PROGRESSの個票があり、中止理由は空でないこと。
+    effect: 状態をCANCELEDにし、結果欄を中止理由で置き換える。中止日は記録しない。
+  - id: OP-TODO-COMPLETE
+    name: TODOを完了する
+    target: ENT-TODO
+    action: complete-todo
+    purpose: 作業を終えた日と成果を確定する。
+    inputs:
+      - TODO番号
+      - 完了日
+      - 完了結果
+    conditions: OPENまたはIN_PROGRESSの個票があり、完了日は登録日以降。結果は空にしない。
+    effect: CLOSEDへ変更し、完了日と結果を保存する。
+  - id: OP-TODO-REOPEN
+    name: TODOを再開する
+    target: ENT-TODO
+    action: reopen-todo
+    purpose: 完了した作業に追加対応を行う。
+    inputs:
+      - TODO番号
+      - 再開日
+      - 再開理由
+    conditions: CLOSEDであり、再開日は前回の完了日以降。
+    effect: 前回の結果と再開理由をコメントに残し、IN_PROGRESSにする。完了日と結果を外す。

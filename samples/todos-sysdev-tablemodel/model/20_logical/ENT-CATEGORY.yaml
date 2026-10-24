@@ -1,0 +1,15 @@
+id: ENT-CATEGORY
+attributes:
+  - id: ATTR-CATEGORY-ID
+    name: カテゴリ番号
+    dtype: DT-CATEGORY-ID
+    required: true
+    source: categories[*].id
+  - id: ATTR-CATEGORY-NAME
+    name: カテゴリ名
+    dtype: DT-LINE
+    required: true
+    source: categories[*].name
+key:
+  - ATTR-CATEGORY-ID
+notes: カテゴリ一覧の1行を1レコードとして識別する。

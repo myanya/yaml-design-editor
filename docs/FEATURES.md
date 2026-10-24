@@ -262,3 +262,8 @@
 | OP-06 | 検査からの起動（`responses` の `{action, label, with}` → 指摘のメニューから受け手と値の入ったカードを開く） | `semantic-core/schema/Query.kt`（`ResponseDecl`）, `workspace-core/validate/WorkspaceChecks.kt`（`RunAction`）, `ui/SidePanel.kt` | 単体 `ActionPlannerTest`, `AppStateActionTest` | [actions](architecture/actions.md) |
 | OP-07 | エージェントのツール（アクティビティの `actions` で許可した操作が `action_名前` のツールに・引数は受け取る値の定義・ステージングを重ねて計画し積む・`allowedFiles` の外でも通る） | `agent/Tools.kt`（`actionTools` / `runActionTool`）, `agent/Definitions.kt`, `builtin-schemas/activity.yaml` | 単体 `ActionToolTest` | [actions](architecture/actions.md) |
 | OP-08 | 作成経路の寄せ（追加ボタン・新規行・文書の作成を型の `create` と配列の `insert` で。追加のパネルからアクションへ橋渡し） | `workspace-core/workspace/ActionPlanner.kt`, `workspace-core/workspace/DocumentScaffold.kt`, `app/AppState.kt`（`addArrayElement`） | 単体 `ActionPlannerTest`, `AppStateActionTest` | [actions](architecture/actions.md) |
+
+## 公開サンプル
+
+[todos](../samples/todos/README.md)と[テーブルモデル](../samples/todos-sysdev-tablemodel/README.md): 操作・詳細化・SQL生成の検討。
+確認: YDEの検証と各READMEの試用手順。

@@ -1,0 +1,132 @@
+id: todos-business
+name: TODOの業務モデル
+kind: document
+match: model/business.yaml
+root:
+  type: object
+  fields:
+    - key: entities
+      type: array
+      required: true
+      item:
+        type: object
+        entity:
+          type: todo-concept
+          defines: true
+          aspect: conceptual
+          owns:
+            - name
+            - meaning
+        fields:
+          - key: id
+            type: id
+            required: true
+            label: 設計ID
+          - key: name
+            type: line
+            required: true
+            role: title
+            label: 名称
+          - key: meaning
+            type: text
+            required: true
+            label: 業務上の意味
+      label: 業務エンティティ
+    - key: relationships
+      type: array
+      required: true
+      item:
+        type: object
+        entity:
+          type: todo-association
+          defines: true
+        fields:
+          - key: id
+            type: id
+            required: true
+            label: 設計ID
+          - key: name
+            type: line
+            required: true
+            role: title
+            label: 名称
+          - key: source
+            type: ref
+            required: true
+            idPattern: ENT-*
+            relation: association-source
+            label: 元となる情報
+          - key: target
+            type: ref
+            required: true
+            idPattern: ENT-*
+            relation: association-target
+            label: 対象
+          - key: target_min
+            type: int
+            required: true
+            label: 元1件に対する先の最小件数
+          - key: target_max
+            type: word
+            required: true
+            label: 元1件に対する先の最大件数
+          - key: source_min
+            type: int
+            required: true
+            label: 先1件に対する元の最小件数
+          - key: source_max
+            type: word
+            required: true
+            label: 先1件に対する元の最大件数
+          - key: meaning
+            type: text
+            required: true
+            label: 業務上の意味
+      label: 関連
+    - key: operations
+      type: array
+      required: true
+      item:
+        type: object
+        entity:
+          type: todo-operation
+          defines: true
+        fields:
+          - key: id
+            type: id
+            required: true
+            label: 設計ID
+          - key: name
+            type: line
+            required: true
+            role: title
+            label: 名称
+          - key: target
+            type: ref
+            required: true
+            idPattern: ENT-*
+            relation: operates-on
+            label: 対象
+          - key: action
+            type: word
+            required: true
+            label: 実行するアクション
+          - key: purpose
+            type: text
+            required: true
+            label: 目的
+          - key: inputs
+            type: array
+            required: true
+            item:
+              type: line
+            label: 入力
+          - key: conditions
+            type: text
+            required: true
+            label: 事前条件
+          - key: effect
+            type: text
+            required: true
+            label: 操作後の状態
+      label: 業務オペレーション

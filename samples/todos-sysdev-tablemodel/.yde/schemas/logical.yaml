@@ -1,0 +1,76 @@
+id: tm-logical
+name: 論理エンティティ
+match: model/20_logical/ENT-*.yaml
+entity:
+  type: todo-concept
+  idPattern: ENT-*
+  defines: false
+  aspect: logical
+  owns:
+    - attributes
+    - key
+    - notes
+coverage:
+  - idPattern: ENT-*
+    detailIn:
+      schemaIds:
+        - todos-business
+    level: error
+root:
+  type: object
+  fields:
+    - key: id
+      type: id
+      required: true
+      label: 設計ID
+    - key: attributes
+      type: array
+      required: true
+      item:
+        type: object
+        entity:
+          type: todo-attribute
+          defines: true
+        fields:
+          - key: id
+            type: id
+            required: true
+            label: 設計ID
+          - key: name
+            type: line
+            required: true
+            role: title
+            label: 名称
+          - key: dtype
+            type: ref
+            required: true
+            idPattern: DT-*
+            relation: attribute-type
+            label: 業務データ型
+          - key: required
+            type: boolean
+            required: true
+            label: 必須
+          - key: source
+            type: line
+            required: true
+            label: 元となる情報
+          - key: references
+            type: ref
+            idPattern: ENT-*
+            relation: attribute-reference
+            label: 参照先エンティティ
+      relation: has-attribute
+      label: 属性
+    - key: key
+      type: array
+      required: true
+      item:
+        type: ref
+        idPattern: ATTR-*
+        relation: logical-key
+      label: 識別子
+    - key: notes
+      type: text
+      required: true
+      label: 設計判断

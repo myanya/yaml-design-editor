@@ -1,11 +1,10 @@
 id: todo-management
 name: TODO管理
 rows:
-  idPattern: "TODO-*"
+  idPattern: TODO-*
 order:
   fileGlob: todos/todo-list.yaml
 columns:
-  # ID列と個票へのリンク／作成列はYDEが表示します。
   - label: カテゴリ
     schemaId: todo-list
     path: category
@@ -13,7 +12,6 @@ columns:
   - label: ステータス
     schemaId: todo-detail
     path: status
-    editable: true
   - label: 期限
     schemaId: todo-detail
     path: due_on
@@ -25,19 +23,17 @@ columns:
   - label: 作成日
     schemaId: todo-detail
     path: created_on
-    editable: true
-  # 更新日: コメントの日付のいちばん新しいもの。date の項目なので日付として比べます（並び順によりません）。
-  # 計算した値には項目の型が無いので、画面の見せ方（format）は列に書きます。
   - label: 更新日
     schemaId: todo-detail
-    format: "yyyy年M月d日"
+    format: yyyy年M月d日
     value:
       first:
-        - max: { path: "comments[*].date" }
+        - max:
+            path: comments[*].date
         - 未更新
 detail:
-  fileGlob: "todos/details/*.yaml"
-  filePattern: "todos/details/{id}.yaml"
+  fileGlob: todos/details/*.yaml
+  filePattern: todos/details/{id}.yaml
 newRow:
   file: todos/todo-list.yaml
   path: todos

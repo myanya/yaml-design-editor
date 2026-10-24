@@ -1,0 +1,56 @@
+id: ENT-TODO
+attributes:
+  - id: ATTR-TODO-ID
+    name: TODO番号
+    dtype: DT-TODO-ID
+    required: true
+    source: todos[*].id / 個票.id
+  - id: ATTR-TODO-TITLE
+    name: タイトル
+    dtype: DT-LINE
+    required: true
+    source: todos[*].title
+  - id: ATTR-TODO-SUMMARY
+    name: 概要
+    dtype: DT-LINE
+    required: true
+    source: todos[*].summary
+  - id: ATTR-TODO-CATEGORY
+    name: カテゴリ
+    dtype: DT-CATEGORY-ID
+    required: false
+    source: todos[*].category
+    references: ENT-CATEGORY
+  - id: ATTR-TODO-STATUS
+    name: 状態
+    dtype: DT-STATUS
+    required: true
+    source: 個票.status
+  - id: ATTR-TODO-CREATED
+    name: 作成日
+    dtype: DT-DATE
+    required: true
+    source: 個票.created_on
+  - id: ATTR-TODO-DUE
+    name: 期限
+    dtype: DT-DATE
+    required: false
+    source: 個票.due_on
+  - id: ATTR-TODO-COMPLETED
+    name: 完了日
+    dtype: DT-DATE
+    required: false
+    source: 個票.completed_on
+  - id: ATTR-TODO-DETAILS
+    name: 詳細
+    dtype: DT-TEXT
+    required: false
+    source: 個票.details
+  - id: ATTR-TODO-RESULT
+    name: 結果
+    dtype: DT-TEXT
+    required: false
+    source: 個票.result
+key:
+  - ATTR-TODO-ID
+notes: 一覧と個票は同じTODOの側面。DBでは一つのレコードにまとめる。個票未作成のTODOはDBへの登録がまだ完了していない状態として扱う。

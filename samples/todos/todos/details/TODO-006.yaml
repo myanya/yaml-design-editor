@@ -1,0 +1,14 @@
+id: TODO-006
+status: IN_PROGRESS
+created_on: 2026-10-24
+due_on: 2026-10-24
+details: |-
+  以下の作業を行う。
+  - TODO登録（本登録）
+  - TODO完了（本TODOに対して行う）
+  - TODO再開（本TODOに対して行う）
+comments:
+  - date: 2026-10-24
+    body: |-
+      再開: テスト用操作
+      前回の完了結果: テスト用操作
