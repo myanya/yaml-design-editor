@@ -143,19 +143,17 @@ object WorkspaceRecords {
             existing == null || existing is YNode.Scalar
         }
         if (targets.isEmpty()) return 0
-        val applied = session.apply(
+        val applied = session.applyWithAutoValues(
             WorkspaceTransaction(
                 baseVersion = session.version,
                 intent = ChangeIntent("一括変更: $key"),
                 operations = targets.map {
                     WorkspaceOperation.EditDocument(it, listOf(YamlOperation.SetScalar(listOf(key), value)))
                 },
-            )
+            ),
+            targets, now,
         )
-        require(applied.ok) { applied.message ?: "一括変更を適用できません" }
-        // 一括変更も内容の更新: 保存時に自動で入る値（更新日・版）を保存の直前に当てる（履歴 1 件。無ければ増えない）
-        val stamped = session.applyAutoValues(targets, now)
-        require(stamped.result.ok) { stamped.result.message ?: "自動の値を設定できません" }
+        require(applied.result.ok) { applied.result.message ?: "一括変更を適用できません" }
         val saved = session.save(targets.toSet())
         require(saved.ok) {
             saved.failures.entries.firstOrNull()?.let { (id, msg) -> "${id.value}: $msg" } ?: "書込に失敗しました"

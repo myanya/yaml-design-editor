@@ -109,4 +109,34 @@ class AppStateAutoValuesTest {
         val bulk = Files.readString(r1)
         assertTrue("title: 一括" in bulk && "updated_on: $today" in bulk && "revision: 3" in bulk, bulk)
     }
+
+    @Test
+    fun `複数文書の一括変更は自動値と共に一回で戻り元の一覧を表示する`() {
+        write("rules/r2.yaml", "id: RULE-2\ntitle: 二番目\ncreated_on: 2026-01-01\nupdated_on: 2026-01-03\nrevision: 7\n")
+        val state = openState()
+        val files = listOf(dir.resolve("rules/r1.yaml"), dir.resolve("rules/r2.yaml"))
+        state.showWorkspaceView(1)
+        assertEquals(2, state.bulkUpdate(files.toSet(), "title", "一括").getOrThrow())
+        val saved = files.map(Files::readString)
+        state.openFile(files.first())
+        state.undo()
+        assertEquals(UiSpace.LEDGER, state.uiSpace)
+        assertEquals(1, state.workspaceView)
+        files.forEachIndexed { i, file ->
+            val doc = state.ensureDoc(file)
+            assertEquals(if (i == 0) "最初" else "二番目", scalar(doc, "title"))
+            assertEquals(if (i == 0) "2026-01-02" else "2026-01-03", scalar(doc, "updated_on"))
+            assertEquals(if (i == 0) 2 else 7, scalar(doc, "revision"))
+            assertTrue(doc.dirty)
+            assertEquals(saved[i], Files.readString(file), "内容の Undo はまだ保存しない")
+        }
+        state.redo()
+        files.forEachIndexed { i, file ->
+            val doc = state.ensureDoc(file)
+            assertEquals("一括", scalar(doc, "title"))
+            assertEquals(today, scalar(doc, "updated_on"))
+            assertEquals(if (i == 0) 3L else 8L, scalar(doc, "revision"))
+            assertFalse(doc.dirty)
+        }
+    }
 }

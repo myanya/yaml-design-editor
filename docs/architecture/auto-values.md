@@ -13,11 +13,12 @@ samples/todos の「更新日はコメントの最大日付」（ビューの列
 | `ValueSemantics.stamp` | semantic-core/schema/ValueSemantics.kt | 「今」を日付・時刻・日時の正準の形の文字にする（`2026-10-05`・`14:30:15`・`2026-10-05 14:30:15`） |
 | `SchemaScaffold.defaultTree(now)` | semantic-core/schema/SchemaScaffold.kt | now を渡すと、新しい要素の自動の項目を初期値（今の日付・時刻／版 1）で埋める |
 | `WorkspaceSession.applyAutoValues` | workspace-core/workspace/WorkspaceSession.kt | 保存の直前に、対象の文書の計画をまとめて 1 つのトランザクション（履歴 1 件）として当てる |
+| `WorkspaceSession.applyWithAutoValues` | workspace-core/workspace/WorkspaceSession.kt | 変更後の木から自動値を計画し、本文の変更と同じトランザクションに同梱する |
 | `ChangeSetApplier` | workspace-core/workspace/ChangeSetApplier.kt | 操作を当てた木へ、検証の前に `stamp`（`now` 引数） |
 | `SchemaDefinitionChecks` | workspace-core/workspace/SchemaDefinitionChecks.kt | 型との適合（created / updated は日付・時刻・日時、revision は int）と `expression` との併用の誤り |
 | メタスキーマ `auto` | workspace-core/resources/builtin-schemas/schema.yaml | 項目のキー `auto` の選択肢と説明 |
 | `AppState.save` / `saveAll` / `createDocumentFile` | app/AppState.kt | 保存の直前に当てて UI の木を写し直す・新しい文書を新しい要素の値で埋める・状態表示 |
-| `WorkspaceRecords.bulkUpdateViaSession` | core/Documents.kt | 一括変更も内容の更新として、保存の前に当てる |
+| `WorkspaceRecords.bulkUpdateViaSession` | core/Documents.kt | 一括変更と自動値を一つのトランザクションにまとめてから保存する |
 | `FormView` / `SchemaEditor` | ui/FormView.kt・ui/SchemaEditor.kt | 項目の説明の下の案内文（`autoValueHint`）・設計 UI の選択（型に合う印だけ） |
 
 ## 流れ
@@ -27,11 +28,14 @@ samples/todos の「更新日はコメントの最大日付」（ビューの列
 - **「変わった」**: 値と構造の比較で、コメントや表記の違いは数えない。自動の項目（入れ子の要素のものも）は比較から外す。
 - **値**: created / updated は `ValueSemantics.stamp(now)`、revision は保存済みの値 +1（読めなければ 1）。新しい要素（base に無い）は値が空の項目だけ埋める（取り込みやエージェントが書いた値は残る）。入れる値が今の値と同じなら操作を作らない（同じ日に何度保存しても履歴は増えない）。
 - **当てる場所は 3 つ**:
-  - ①セッションの `applyAutoValues(ids, now)`＝保存の直前の 1 トランザクション。`AppState.save` / `saveAll`・一括変更が呼び、入った文書の UI の木は `refreshDocsFromSession` で写し直す。
+  - ①セッションの `applyAutoValues(ids, now)`＝通常保存の直前の 1 トランザクション。`AppState.save` / `saveAll` が呼び、入った文書の UI の木は `refreshDocsFromSession` で写し直す。
+    一括変更は `applyWithAutoValues` で本文と自動値を同梱する。両 API は同じ `autoValuePlans` を使う。
   - ②`ChangeSetApplier`＝操作を当てた木へ検証の前に `stamp`。必須の更新日が無い新しい要素も通り、同じトランザクションで Undo 1 回。
   - ③新しい文書（`AppState.createDocumentFile`）と配列の「追加」（`defaultTree(now)`）＝新しい要素の値で埋める。
 - **当てない場所**: リファクタリング（内容の更新ではない）・Undo / Redo・外部変更の取り込み。
 - **履歴**: 保存の直前の分は「自動の値を設定: 文書（場所: 項目…）」の意図を持つ履歴 1 件。保存直後の Undo は日付と版だけ戻す。
+- **一括変更の履歴**: 計画専用のセッションの写しで変更後の木とスキーマを得て、自動値の操作を元のトランザクションに追加し、通常の `apply` で一度だけ反映する。
+  計画の写しは未保存の木と保存基準も引き継ぎ、保存は行わない。途中の失敗では本文・自動値・履歴を反映せず、Redo は記録した値をそのまま戻す。
 
 ## 規律
 
@@ -43,4 +47,9 @@ samples/todos の「更新日はコメントの最大日付」（ビューの列
 ## 拡張ポイント
 
 - **印の種類の追加**: `AutoValue` に足し、`SemanticAutoValues.plan` の値の決め方と `initialValue`・`SchemaDefinitionChecks` の型の適合・メタスキーマの選択肢・`autoValueHint` を対で更新する。新しい当てる場所を作らない。
-- **当てる経路の追加**（内容の更新と見なす操作が増えたとき）: セッションのトランザクションの後・保存の前に `applyAutoValues` を呼ぶ。操作だけを受け取って同じトランザクションに同梱する形が要るなら、`applyAutoValues` に操作を返す口を足す（BACKLOG）。
+- **当てる経路の追加**（内容の更新と見なす操作が増えたとき）: 保存前の独立した履歴なら `applyAutoValues`、内容の変更と一回で戻す操作なら `applyWithAutoValues` を使う。
+
+## 設計レビュー
+
+一括変更への同梱は既存の Rewrite の合成。対象・変化の判定・値の計画は `SemanticAutoValues` を再利用し、新しい評価器・集計・YAML 語彙は増やさない。
+計画は文書と項目の来歴を持ち、時刻は引数で固定する。操作や検証の失敗は候補を破棄し、保存の外部競合は既存の `save` で扱う。書込経路は `apply` と `save` に保つ。

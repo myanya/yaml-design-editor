@@ -32,7 +32,7 @@
 
 - フォーム操作 → `Slot.set` または木の直接変更 → `markEdited()`（`AppState.recordEditToSession` が履歴と dirty をセッションへ記録）→ `version` が進み再コンポーズ。
 - ビューグリッド・エンティティページ・スキーマ設計 UI も同じ経路（文書キャッシュ `AppState.ensureDoc` の木を `Slot` で変えて `markEdited()`）。専用の書込経路を作らない。
-- 一括編集（ルート直下のスカラーキー）はセッションの 1 トランザクションで、Undo 1 回で全ファイルが戻る。
+- 一括編集（ルート直下のスカラーキー）は自動値も含めてセッションの 1 トランザクションで、Undo 1 回で全ファイルが戻る。同梱の計画は [auto-values.md](auto-values.md) を参照。
 - 内部で変更を生成するコードは `edit.YamlOperation` を使い、`PatchOp` と変更セットはエージェント・CLI・skill との交換形式に限る（[yaml-model.md「変更の基礎命令と 2 層」](yaml-model.md)）。
 - 保存（`AppState.save` / `saveAll`）は、UI の木をセッションへ写した後・書き出す前に、保存時に自動で入る値（更新日・版。[auto-values.md](auto-values.md)）をセッションの `applyAutoValues` で 1 トランザクション（履歴 1 件）として当て、入った文書の木をセッションから写し直す。保存自体は今までどおり履歴項目ではない。
 

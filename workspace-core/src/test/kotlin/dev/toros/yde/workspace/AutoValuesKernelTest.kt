@@ -46,6 +46,105 @@ class AutoValuesKernelTest {
 
     private fun scalar(map: YNode.Map, key: String) = (map.entries[key] as? YNode.Scalar)?.value
 
+    private fun titleChange(session: WorkspaceSession, value: String) = WorkspaceTransaction(
+        session.version, ChangeIntent("一括変更: title"),
+        listOf(WorkspaceOperation.EditDocument(a, listOf(YamlOperation.SetScalar(listOf("title"), value)))),
+    )
+
+    @Test
+    fun `内容と自動値を一つの履歴へ同梱しUndoとRedoでまとめて復元する`() {
+        val store = store()
+        val session = WorkspaceSession(store)
+        val before = session.copyDocument(a)!!
+        val result = session.applyWithAutoValues(titleChange(session, "変更後"), listOf(a), now)
+        assertTrue(result.result.ok)
+        assertEquals(1, session.history.size)
+        assertEquals(1L, session.version)
+        assertEquals("一括変更: title", session.peekUndo()!!.intent.description)
+        assertEquals("2026-10-05", scalar(root(session, a), "updated_on"))
+        assertEquals(4L, scalar(root(session, a), "revision"))
+        assertEquals("A", scalar(before.documents.first() as YNode.Map, "title"), "計画は元の木を変更しない")
+        assertEquals(0, store.writeCount, "適用だけでは書き込まない")
+        assertTrue(session.save().ok)
+        assertTrue(session.undo().ok)
+        assertEquals("A", scalar(root(session, a), "title"))
+        assertEquals("2026-01-01", scalar(root(session, a), "updated_on"))
+        assertEquals(3, scalar(root(session, a), "revision"))
+        assertTrue(session.isDirty(a))
+        assertTrue(session.redo().ok)
+        assertEquals("変更後", scalar(root(session, a), "title"))
+        assertEquals("2026-10-05", scalar(root(session, a), "updated_on"))
+        assertEquals(4L, scalar(root(session, a), "revision"), "Redo は版を再加算しない")
+        assertFalse(session.isDirty(a))
+    }
+
+    @Test
+    fun `同梱の計画は未保存の編集と以前の履歴を保つ`() {
+        val session = WorkspaceSession(store())
+        assertTrue(session.apply(titleChange(session, "未保存")).ok)
+        assertTrue(session.applyWithAutoValues(titleChange(session, "一括"), listOf(a), now).result.ok)
+        assertEquals(2, session.history.size)
+        assertTrue(session.undo().ok)
+        assertEquals("未保存", scalar(root(session, a), "title"))
+        assertEquals(3, scalar(root(session, a), "revision"))
+        assertTrue(session.undo().ok)
+        assertEquals("A", scalar(root(session, a), "title"))
+    }
+
+    @Test
+    fun `同梱の準備に失敗しても内容や履歴やRedoを変更しない`() {
+        val store = store()
+        val session = WorkspaceSession(store)
+        assertTrue(session.apply(titleChange(session, "やり直せる変更")).ok)
+        assertTrue(session.undo().ok)
+        val version = session.version
+        val redo = session.peekRedo()
+        val tx = titleChange(session, "反映してはいけない")
+        val invalid = tx.copy(operations = tx.operations + WorkspaceOperation.EditDocument(
+            DocumentId("missing.yaml"), listOf(YamlOperation.SetScalar(listOf("title"), "失敗")),
+        ))
+        assertFalse(session.applyWithAutoValues(invalid, listOf(a), now).result.ok)
+        assertEquals(version, session.version)
+        assertEquals(redo, session.peekRedo())
+        assertTrue(session.history.isEmpty())
+        assertEquals("A", scalar(root(session, a), "title"))
+        assertEquals(3, scalar(root(session, a), "revision"))
+        assertEquals(0, store.writeCount)
+        val stale = session.applyWithAutoValues(tx.copy(baseVersion = version - 1), listOf(a), now)
+        assertTrue(stale.result.staleBase)
+        assertEquals(version, session.version)
+    }
+
+    @Test
+    fun `同梱した必須の自動値を含めて検証し新規文書も一回で戻せる`() {
+        val session = WorkspaceSession(store())
+        val b = DocumentId("rules/b.yaml")
+        val tx = WorkspaceTransaction(session.version, ChangeIntent("作成"), listOf(
+            WorkspaceOperation.CreateDocument(b, dev.toros.yde.yaml.DefaultYamlCodec.parse(b, "id: RULE-2\ntitle: B\n")),
+        ))
+        assertTrue(session.applyWithAutoValues(tx, listOf(b), now, requireValid = true).result.ok)
+        assertEquals(1L, scalar(root(session, b), "revision"))
+        assertEquals("2026-10-05", scalar(root(session, b), "updated_on"))
+        assertEquals(1, session.history.size)
+        assertTrue(session.undo().ok)
+        assertFalse(session.hasDocument(b))
+    }
+
+    @Test
+    fun `自動値以外の検証に失敗すれば本文も自動値も履歴も反映しない`() {
+        val session = WorkspaceSession(store())
+        val b = DocumentId("rules/b.yaml")
+        val tx = titleChange(session, "変更後").let { original -> original.copy(operations = original.operations +
+            WorkspaceOperation.CreateDocument(b, dev.toros.yde.yaml.DefaultYamlCodec.parse(b, "id: RULE-2\n"))) }
+        val result = session.applyWithAutoValues(tx, listOf(a, b), now, requireValid = true)
+        assertFalse(result.result.ok)
+        assertEquals(0L, session.version)
+        assertTrue(session.history.isEmpty())
+        assertFalse(session.hasDocument(b))
+        assertEquals("A", scalar(root(session, a), "title"))
+        assertEquals(3, scalar(root(session, a), "revision"))
+    }
+
     @Test
     fun `保存の直前の 1 トランザクションで更新日と版が入り Undo で戻る 何も変わっていなければ履歴は増えない`() {
         val store = store()

@@ -552,7 +552,44 @@ class WorkspaceSession private constructor(
      * 「今」は呼ぶ側が渡す（テストは固定の時刻を渡す）。
      */
     fun applyAutoValues(ids: Collection<DocumentId>, now: LocalDateTime): AutoValuesApplied {
-        val edits = mutableListOf<WorkspaceOperation>()
+        val plans = autoValuePlans(ids, now)
+        if (plans.isEmpty()) return AutoValuesApplied(TransactionResult(true, null, version), emptyMap())
+        val intent = ChangeIntent(
+            "自動の値を設定: " + plans.entries.joinToString("、") { (id, plan) -> "${id.value}（${plan.describe()}）" },
+        )
+        val result = apply(WorkspaceTransaction(version, intent, autoValueOperations(plans)))
+        return AutoValuesApplied(result, if (result.ok) plans else emptyMap())
+    }
+
+    /**
+     * 内容の変更と、それに伴う自動値を一つの履歴として適用する（ストアには書かない）。
+     * 計画専用の写しで変更後の木・スキーマを求め、既存の計画器で作った操作を元のトランザクションへ同梱する。
+     * 途中状態は公開せず、Redo は確定した操作を再適用するため日時や版を再計算しない。
+     */
+    fun applyWithAutoValues(
+        tx: WorkspaceTransaction,
+        ids: Collection<DocumentId>,
+        now: LocalDateTime,
+        requireValid: Boolean = false,
+    ): AutoValuesApplied {
+        val plans = try {
+            // 保存を行わない計画専用の写し。公開の fork と違い、未保存の木と保存基準をそのまま使う。
+            val loaded = LoadedWorkspace(layout, schemas, declarations, schemaErrors, emptyMap(), snapshot, derived)
+            val candidate = WorkspaceSession(store, incrementalDerive, builtins, Seed(loaded, storeTexts.toMap()), clock)
+            val prepared = candidate.apply(tx)
+            if (!prepared.ok) return AutoValuesApplied(prepared, emptyMap())
+            candidate.autoValuePlans(ids, now)
+        } catch (e: Exception) {
+            return AutoValuesApplied(TransactionResult(false, e.message ?: "自動値を計画できません", version), emptyMap())
+        }
+        val result = apply(tx.copy(operations = tx.operations + autoValueOperations(plans)), requireValid)
+        return AutoValuesApplied(result, if (result.ok) plans else emptyMap())
+    }
+
+    private fun autoValueOperations(plans: Map<DocumentId, SemanticAutoValues.Plan>): List<WorkspaceOperation> =
+        plans.map { (id, plan) -> WorkspaceOperation.EditDocument(id, plan.operations) }
+
+    private fun autoValuePlans(ids: Collection<DocumentId>, now: LocalDateTime): Map<DocumentId, SemanticAutoValues.Plan> {
         val plans = LinkedHashMap<DocumentId, SemanticAutoValues.Plan>()
         for (id in ids.distinct()) {
             val d = workingDocuments[id] ?: continue
@@ -563,15 +600,9 @@ class WorkspaceSession private constructor(
             }
             val plan = SemanticAutoValues.plan(tree, base, working, now)
             if (plan.isEmpty) continue
-            edits += WorkspaceOperation.EditDocument(id, plan.operations)
             plans[id] = plan
         }
-        if (edits.isEmpty()) return AutoValuesApplied(TransactionResult(true, null, version), emptyMap())
-        val intent = ChangeIntent(
-            "自動の値を設定: " + plans.entries.joinToString("、") { (id, plan) -> "${id.value}（${plan.describe()}）" },
-        )
-        val result = apply(WorkspaceTransaction(version, intent, edits))
-        return AutoValuesApplied(result, if (result.ok) plans else emptyMap())
+        return plans
     }
 
     /**

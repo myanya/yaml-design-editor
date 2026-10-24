@@ -83,6 +83,10 @@ class SessionWriteParityTest {
         assertTrue(Files.readString(newWs.resolve("items/a.yaml")).contains("# 進行中"), "コメントが維持される")
         assertTrue(Files.readString(newWs.resolve("items/a.yaml")).contains("status: done"), "値が更新される")
         assertTrue(Files.readString(newWs.resolve("items/b.yaml")).contains("- x"), "複合値はスキップされる")
+        assertEquals(1, s.history.size, "自動値の無い一括変更も履歴は一つ")
+        assertTrue(s.undo().ok)
+        val root = s.copyDocument(DocumentId("items/a.yaml"))!!.documents.first() as YNode.Map
+        assertEquals("open", (root.entries["status"] as YNode.Scalar).value)
     }
 
     @Test
