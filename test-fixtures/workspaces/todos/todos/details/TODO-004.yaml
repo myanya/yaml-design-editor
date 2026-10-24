@@ -1,0 +1,12 @@
+id: TODO-004
+status: IN_PROGRESS
+created_on: 2026-10-01
+due_on: 2026-10-15
+details: |-
+  ID・日付・文字列・ステータスの型を .yde/schemas/common.yaml に定義する。
+  一覧と個票のスキーマは type: common#名前 で型を使い、形式や見せ方を 1 か所で持つ。
+comments:
+  - date: 2026-10-02
+    body: 共通の型を定義し、一覧と個票のスキーマを型の名前に書き換えた。
+  - date: 2026-10-01
+    body: 共通化する型の候補を整理した。

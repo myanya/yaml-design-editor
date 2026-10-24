@@ -1,0 +1,5 @@
+categories:
+  - id: CAT-001
+    name: 環境整備
+  - id: CAT-002
+    name: データ登録

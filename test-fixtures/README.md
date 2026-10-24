@@ -60,9 +60,23 @@
 - `validate` → errors: 0 / warnings: 0
 - `entity <ws> rename REQ-001 REQ-100`（プレビュー）→ 変更セットは**3ファイル**: `one.yaml` の `id`、`two.yaml`・`three.yaml` の `relates_to[0]` をそれぞれ REQ-100 へ set。適用は1つの変更セット（オール・オア・ナッシング）
 
+### todos（共通型・詳細化・検証・ビューの回帰テスト）
+
+[`TodosSampleTest`](../src/test/kotlin/dev/toros/yde/app/core/TodosSampleTest.kt) が使う専用データ。
+公開サンプルから検証に必要なスキーマ・ビュー・TODO データだけを切り出して固定しており、`samples/todos` とは同期しない。
+サンプルの業務モデルや操作定義の完成度を保証するものではなく、複数の本体機能を組み合わせた挙動を検証する。
+テストは一時ディレクトリへコピーしてから読み込み、不正データもコピー先にだけ書く。
+
+期待結果:
+
+- 初期データの検証は指摘なし。共通型の制約と日付の表示形式が解決され、一覧と個票の同じ ID は同一要素として参照できる。
+- 期限順ビューは `TODO-001` ～ `TODO-005` の順（個票のない `TODO-005` は末尾）。更新日はコメントの順序によらず最新の日付。
+- コピー先に不正データを入れると、期限と作成日の前後関係・完了日の欠落・ID の形式・タイトルの改行を指摘する。
+
 ## 確認コマンド
 
 ```bash
+./gradlew :test --tests dev.toros.yde.app.core.TodosSampleTest
 ./gradlew runCli -q --args="validate test-fixtures/workspaces/legacy-basic"
 ./gradlew runCli -q --args="transform test-fixtures/workspaces/rename-target test-fixtures/transforms/req-list.yaml --origins"
 ./gradlew runCli -q --args="transform test-fixtures/workspaces/legacy-basic builtin:structural-schema --input _schemas/task.yaml"   # 構造のスキーマの導出（組込みの変換定義）

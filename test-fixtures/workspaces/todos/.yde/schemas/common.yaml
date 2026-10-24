@@ -1,0 +1,153 @@
+id: common
+name: 共通の型
+kind: library
+description: TODO 管理で使う型を 1 か所にまとめます。値の型（ID の形式・日付の見せ方・文字の長さ・ステータスの選択肢）と、オブジェクト型（一覧の行・個票・コメントの形と、その検査）です。
+definitions:
+  # ---- 値の型 ----
+  # ID の型: 形式（pattern）は一覧・個票の id 項目と、スキーマの entity の idType（どの ID がどの型か）の両方で使います
+  TODO番号:
+    type: id
+    pattern: "^TODO-[0-9]{3,}$"
+    placeholder: TODO-001
+    sample: TODO-001
+    description: 「TODO-」と 3 桁以上の数字。一覧と個票で同じ番号を使い、個票のファイル名にもなります。
+  カテゴリ番号:
+    type: id
+    pattern: "^CAT-[0-9]{3,}$"
+    placeholder: CAT-001
+    sample: CAT-001
+    description: 「CAT-」と 3 桁以上の数字。
+  # 参照の型: 候補と検証の対象をカテゴリ一覧に限定します
+  カテゴリ参照:
+    type: ref
+    idPattern: "CAT-*"
+    scope:
+      schemaIds: [category-list]
+    description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+  # 日付の型: ファイルには YYYY-MM-DD で書き、画面では「2026年9月22日」の形で見せます（値は変わりません）
+  年月日:
+    type: date
+    format: "yyyy年M月d日"
+    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+  # 文字列の型: 一行の文は改行を入れられない（line）短い文、文章は複数行の欄（text）で 4 行の高さ
+  一行の文:
+    type: line
+    maxLength: 100
+    placeholder: 1 行で簡潔に
+  文章:
+    type: text
+    rows: 4
+  # ステータス: 保存する値は英語、画面の表示は日本語
+  ステータス:
+    type: enum
+    values:
+      - { value: OPEN, label: 未着手 }
+      - { value: IN_PROGRESS, label: 対応中 }
+      - { value: CLOSED, label: 完了 }
+      - { value: CANCELED, label: 中止 }
+
+  # ---- オブジェクト型 ----
+  # 一覧の行: この形の要素はエンティティ todo の定義（誕生）。ID の形で見分けなくても、要素の形で型が決まります
+  TODO一覧の行:
+    type: object
+    label: TODO
+    entity: { type: todo, defines: true }
+    fields:
+      - key: id
+        label: ID
+        type: TODO番号
+        required: true
+        description: 一覧内で一意のID。例：TODO-001。個票のIDとファイル名にも使用します。
+      - key: title
+        label: タイトル
+        type: 一行の文
+        role: title
+        required: true
+      - key: summary
+        label: 概要
+        type: 一行の文
+        role: subtitle
+        required: true
+      - key: category
+        label: カテゴリ
+        type: カテゴリ参照
+  # コメント: ID を持たない部品。日付と本文
+  コメント:
+    type: object
+    fields:
+      - { key: date, label: 日付, type: 年月日, required: true }
+      - { key: body, label: コメント本文, type: text, required: true }
+  # 個票: 同じエンティティ todo の詳細化（defines: false）。日付の検査は型に書く（要素ごとに評価される）
+  TODO個票:
+    type: object
+    label: TODO個票
+    entity: { type: todo, defines: false }
+    fields:
+      - key: id
+        label: ID
+        type: TODO番号
+        required: true
+        description: 一覧のIDと一致させ、todos/details/<ID>.yaml に保存します。
+      - key: status
+        label: ステータス
+        type: ステータス
+        required: true
+        default: OPEN
+      - key: created_on
+        label: 作成日
+        type: 年月日
+        required: true
+        description: TODOを登録した日。
+      - key: due_on
+        label: 期限
+        type: 年月日
+        description: 未定の場合は省略します。作成日より前の日付は検査が指摘します。
+      - key: completed_on
+        label: 完了日
+        type: 年月日
+        description: 完了時に入力します。未完了・中止の場合は省略します。
+      - key: details
+        label: 詳細
+        type: 文章
+        description: 作業内容や完了条件を記載します。
+      - key: result
+        label: 結果
+        type: 文章
+        description: 対応結果や中止理由を記載します。
+      - key: comments
+        label: コメント一覧
+        type: array
+        default: []
+        display: list
+        description: 並び順は任意です。ビューの「更新日」は、コメントの日付のいちばん新しいものです。
+        item: { type: コメント }
+    # 型の検査: 個票の要素ごとに評価する。日付の項目どうしの比較は日付として比べる（of を省くとこの要素の値）
+    constraints:
+      - id: due-not-before-created
+        description: 期限は作成日以降であること
+        where: [ { path: due_on, exists: true } ]            # 期限を書いた個票だけが対象（書いていない個票は対象外）
+        check: [ { gte: [ { path: due_on }, { path: created_on } ] } ]
+        level: error
+      - id: completed-not-before-created
+        description: 完了日は作成日以降であること
+        where: [ { path: completed_on, exists: true } ]
+        check: [ { gte: [ { path: completed_on }, { path: created_on } ] } ]
+        level: error
+      - id: closed-has-completed-on
+        description: 完了した TODO には完了日があること
+        where:
+          - { path: status, equals: CLOSED }
+          - { path: completed_on, exists: false }
+        expect: absent
+        level: error
+        message: "完了した TODO「{id}」に完了日がありません"
+      - id: closed-has-result
+        description: 完了したTODOには結果を記録すること
+        where: [{ path: status, equals: CLOSED }, { path: result, empty: true }]
+        expect: absent
+        level: error
+      - id: unfinished-has-no-completed-on
+        description: 完了以外のTODOには完了日を残さないこと
+        where: [{ path: status, notEquals: CLOSED }, { path: completed_on, exists: true }]
+        expect: absent
+        level: error

@@ -1,0 +1,21 @@
+todos:
+  - id: TODO-001
+    title: サンプルTODO一覧の作成
+    category: CAT-001
+    summary: YDE(Yaml Design Editor)用のTODO管理サンプルワークスペースを作成する。
+  - id: TODO-002
+    title: ３つのTODOの追加
+    category: CAT-002
+    summary: サンプルTODO一覧に対して、３つのサンプルTODOを追加する。
+  - id: TODO-003
+    title: 各TODOに対する個票の作成
+    category: CAT-002
+    summary: ３つのサンプルTODOに対して、３つの個票を作成し、内容を埋める。
+  - id: TODO-004
+    title: 型の定義を共通化する
+    category: CAT-001
+    summary: ID・日付・文字列・ステータスの型を common.yaml にまとめ、一覧と個票のスキーマから使う。
+  - id: TODO-005
+    title: 期限順ビューで予定を確認する
+    category: CAT-002
+    summary: 期限順ビューを開き、期限の近い TODO から順に並ぶことを確認する。

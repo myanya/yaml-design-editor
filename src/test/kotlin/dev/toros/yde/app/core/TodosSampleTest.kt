@@ -11,10 +11,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * 公開用サンプル（samples/todos）の基準を守るテスト。共通の型（common.yaml）で ID の形式・日付・文字列・ステータスを定義し、
- * スキーマの entity は idType で型を判別する。検証は指摘なし、ビューは 3 つ読め、期限順ビューは日付の項目の順に並ぶ。
+ * TODO を題材に、共通型・同一要素の詳細化・検証・ビューを組み合わせた本体機能の回帰テスト。
+ * 専用 fixture の common.yaml で ID の形式・日付・文字列・ステータスを定義し、期限順は日付の順に並ぶ。
  * 個票の日付の検査（期限 ≧ 作成日など）は、項目の型が日付なので type: date を書かずに日付として比べる。
- * samples は読み取り専用に扱い、一時ディレクトリへ写してから開く。
+ * fixture は読み取り専用に扱い、一時ディレクトリへ写してから開く。公開サンプルとは同期しない。
  */
 class TodosSampleTest {
 
@@ -22,8 +22,8 @@ class TodosSampleTest {
 
     @BeforeTest
     fun setup() {
-        dir = createTempDirectory("yde-todos-sample")
-        val source = Path.of("samples/todos")
+        dir = createTempDirectory("yde-todos-fixture")
+        val source = Path.of("test-fixtures/workspaces/todos")
         Files.walk(source).use { stream ->
             stream.forEach { p ->
                 val target = dir.resolve(source.relativize(p).toString())
@@ -44,7 +44,7 @@ class TodosSampleTest {
     }
 
     @Test
-    fun `サンプルは指摘なしで読め 型は共通の型から解決され 期限順ビューは日付の順に並ぶ`() {
+    fun `fixture は指摘なしで読め 型は共通の型から解決され 期限順ビューは日付の順に並ぶ`() {
         val ws = Workspace.open(dir)
         val issues = ws.files.flatMap { ws.validate(ws.relPath(it)) }
         assertTrue(issues.isEmpty(), issues.toString())
@@ -53,7 +53,7 @@ class TodosSampleTest {
         // 個票の root はオブジェクト型 TODO個票（同一性と日付の検査を型が持つ）
         val detailRoot = detail.tree.resolve(detail.root)!!
         assertEquals("todo", detailRoot.entity?.type)
-        assertEquals(3, detailRoot.checks.size)
+        assertEquals(5, detailRoot.checks.size)
         val created = detail.tree.resolve(detailRoot.fields.first { it.key == "created_on" })!!
         assertEquals("common#年月日", created.lineage.first())
         assertEquals("yyyy年M月d日", created.format)
@@ -64,7 +64,7 @@ class TodosSampleTest {
         // entity の idType: 走査が ID の型の形式で型を付ける
         assertEquals("todo", ws.index.graph.entities.getValue("TODO-001").entityType)
         assertEquals("category", ws.index.graph.entities.getValue("CAT-001").entityType)
-        // ビュー: 3 つとも誤りなく読め、期限順は due_on（日付の項目）の順。個票の無い TODO-005 は後ろ
+        // ビューは誤りなく読め、期限順は due_on（日付の項目）の順。個票の無い TODO-005 は後ろ
         val views = Views.load(dir, ws.schemas)
         assertTrue(views.errors.isEmpty(), views.errors.toString())
         assertEquals(setOf("todo-management", "todo-by-due", "category-status-matrix"), views.views.map { it.id }.toSet())
@@ -85,13 +85,13 @@ class TodosSampleTest {
         )
         val ws = Workspace.open(dir)
         val detailIssues = ws.validate("todos/details/TODO-004.yaml")
-        // 期限 2026-09-20 < 作成日 2026-10-01（文字や数ではなく日付として比べた反例）。完了なのに完了日が無いのは警告
+        // 期限 2026-09-20 < 作成日 2026-10-01。完了日の欠落も、型に定義した検査でエラー
         val late = detailIssues.first { it.source.ruleId == "due-not-before-created" }
         assertEquals(Severity.ERROR, late.severity)
         // 型の検査: 要素（個票）ごとに評価され、指摘は個票に出る
         assertEquals("common#TODO個票 の要素「TODO-004」が検査を満たしません。反例: due_on: 2026-09-20 < created_on: 2026-10-01 — 期限は作成日以降であること", late.message)
         val closed = detailIssues.first { it.source.ruleId == "closed-has-completed-on" }
-        assertEquals(Severity.WARNING, closed.severity)
+        assertEquals(Severity.ERROR, closed.severity)
         assertEquals("完了した TODO「TODO-004」に完了日がありません — 完了した TODO には完了日があること", closed.message)
         val listIssues = ws.validate("todos/todo-list.yaml").map { it.message }
         assertTrue(listIssues.any { "「ID」は形式（^TODO-[0-9]{3,}$）に一致していません（現在値: TODO-6）" in it }, listIssues.toString())

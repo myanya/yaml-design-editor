@@ -1,0 +1,14 @@
+id: TODO-002
+status: CLOSED
+created_on: '2026-09-22'
+due_on: 2026-09-24
+completed_on: 2026-09-23
+details: |-
+  サンプルTODOとして、以下の３つのTODO個票を作成する。
+  - サンプルTODO一覧の作成
+  - ３つのTODOの追加
+  - 各TODOに関する個票の作成
+result: TODO一覧に対して、３つのTODOを起票。
+comments:
+  - date: 2026-09-23
+    body: ３つのTODOを起票した。

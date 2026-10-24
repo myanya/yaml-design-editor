@@ -1,0 +1,24 @@
+id: todo-by-due
+name: 期限順
+rows:
+  idPattern: TODO-*
+order:
+  schemaId: todo-detail
+  path: due_on
+columns:
+  - label: タイトル
+    schemaId: todo-list
+    path: title
+  - label: ステータス
+    schemaId: todo-detail
+    path: status
+  - label: 期限
+    schemaId: todo-detail
+    path: due_on
+    editable: true
+  - label: 完了日
+    schemaId: todo-detail
+    path: completed_on
+detail:
+  fileGlob: todos/details/*.yaml
+  filePattern: todos/details/{id}.yaml

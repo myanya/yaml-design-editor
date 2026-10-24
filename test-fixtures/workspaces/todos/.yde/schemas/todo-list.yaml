@@ -1,0 +1,15 @@
+id: todo-list
+name: TODO一覧
+kind: document
+description: ID・タイトル・概要・カテゴリを管理する一覧。個票と同じIDを使用します。
+match: todos/todo-list.yaml
+# 行の形（オブジェクト型 TODO一覧の行）が同一性（エンティティ todo の定義）を持つので、スキーマの entity は要りません
+root:
+  type: object
+  fields:
+    - key: todos
+      label: TODO一覧
+      type: array
+      default: []
+      display: table
+      item: { type: common#TODO一覧の行 }
