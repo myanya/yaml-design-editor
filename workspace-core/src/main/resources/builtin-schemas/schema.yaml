@@ -3,6 +3,56 @@ name: スキーマ定義
 description: _schemas 配下のスキーマ文書を検証・フォーム編集するためのメタスキーマ
 match: "_schemas/**/*.{yaml,yml}"
 definitions:
+  action:
+    type: object
+    fields:
+      - { key: id, label: 操作ID, type: string, required: true, role: title }
+      - { key: label, label: 表示名, type: string }
+      - { key: description, label: 説明, type: text }
+      - key: target
+        label: 対象（省略時はワークスペース）
+        type: object
+        fields:
+          - { key: entity, label: エンティティ型, type: string, description: "entity と schema のどちらか一方を指定します。" }
+          - { key: schema, label: 文書スキーマID, type: string }
+          - { key: bind, label: 対象を指す名前, type: string, placeholder: self }
+      - key: params
+        label: 入力項目
+        type: array
+        display: list
+        item: { $ref: field }
+      - { key: require, label: 前提条件, type: any }
+      - key: do
+        label: 処理手順
+        type: array
+        required: true
+        display: list
+        item: { type: any }
+  method:
+    type: object
+    fields:
+      - { key: label, label: 表示名, type: string, role: title }
+      - { key: description, label: 説明, type: text }
+      - key: params
+        label: 入力項目
+        type: array
+        display: list
+        item: { $ref: field }
+      - { key: build, label: 作成内容（create のみ）, type: any }
+      - { key: do, label: 処理手順（create 以外）, type: array, display: list, item: { type: any } }
+  insert-rule:
+    type: object
+    fields:
+      - { key: label, label: 表示名, type: string }
+      - { key: description, label: 説明, type: text }
+      - key: id
+        label: ID採番
+        type: object
+        fields:
+          - { key: path, label: ID項目のパス, type: string, placeholder: id }
+          - { key: prefix, label: 接頭辞, type: any }
+          - { key: digits, label: 桁数, type: int, min: 1, max: 9, default: 3 }
+      - { key: key, label: 重複を見分ける項目, type: any, description: "項目のパス、またはパスの配列。同じ値があれば追加しません。" }
   field:
     type: object
     fields:
@@ -138,9 +188,9 @@ definitions:
               description: "この項目に書いた ID を持つ要素を、外側の ID を持つ要素が保有する関係の名前（例 has-item。省略時はキー名）。関係レジストリに同じ名前で label / inverseLabel を書ける"
             - key: methods
               label: 配列の操作（insert）
-              type: map
-              value:
-                type: any
+              type: object
+              fields:
+                - { key: insert, label: 追加の決まり, $ref: insert-rule }
               description: "配列へ要素を足すときの決まり（P41）。書けるのは insert だけ: {id: {path, prefix, digits}, key: [パス]}。id は、要素の ID の項目が空なら接頭辞（要素で埋めるひな型。例 \"SCR-\" や {$format: \"TX-{date}-\"}）＋連番を付ける採番。key は、同じ値の要素が既にあれば足さない見分け（skill の取り込みの target.id / target.key と同じ綴り）。追加ボタン・新規行・アクションの insert が通る"
           map:
             - key: value
@@ -180,7 +230,7 @@ definitions:
               label: 型の操作
               type: map
               value:
-                type: any
+                $ref: method
               description: "この object の要素 1 つを受け手にする操作（P41。操作の名前 → 定義）。予約の名前 create は新しい要素の中身で {label, params, build}（省けば必須の初期値＋受け取った値）。他の操作は {label, description, params, do}。params は項目の定義（受け取る値。$名前 で参照）、do は手の並び（set / insert / delete / each: {path, do}。パスは受け手からの相対で、受け手の外には触れない）。値は変換のひな型（受け取った値の一式が「いまの場所」。受け手は $of: self）。型を使う側は引き継ぎ、同じ名前を書けば置き換える（create は重ねる）。呼び出しは CLI action <ws> 型名.操作名 --on ID と、アクションの call"
             - key: entity
               label: 同一性（エンティティ型）
@@ -317,8 +367,9 @@ root:
     - key: actions
       label: 操作（横断）
       type: array
+      display: list
       item:
-        type: any
+        $ref: action
       description: "複数の要素や文書にまたがる操作の定義（P41）。1 件は {id, label, description, target, params, require, do}。target は受け手（{entity: 型, bind: 名前} か {schema: スキーマID}。省けばワークスペースの操作。on は YAML が真偽値に読むため使わない）。params は項目の定義（受け取る値）。require は前提（検査と同じ match ＋ expect / count / check ＋ message。起点は受け手。違反か判定保留なら実行しない）。do は手の並び: set / insert / delete / create: {schema, params} / call: {of, method, params} / each: {from, match, do}。値は変換のひな型（受け取った値の一式が「いまの場所」・要素は $of: 束縛名）。結果は変更セットになり、検証・競合・Undo は今までどおり。呼び出しは CLI action <ws> <id> [--on ID] [--param 名前=値]"
     - key: root
       label: ルート定義

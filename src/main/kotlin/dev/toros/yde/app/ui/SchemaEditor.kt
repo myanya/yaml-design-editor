@@ -426,7 +426,7 @@ internal fun FieldDefinitionEditor(
     definitionName: String? = null,
 ) {
     doc.version  // CONVENTIONS §2 / UX-24
-    val ref = scalar(map, "\$ref")
+    val ref = scalar(map, "\$ref") ?: scalar(map, "ref")
     if (allowKey) CompactScalar(map, "key", "キー", doc)
     if (allowKey) CompactScalar(map, "label", "ラベル", doc)
     // 型の選択肢は基底の種類＋型の名前（P33）。書ける決まりの入力欄は、型の名前ならその基底の種類で出す
@@ -469,6 +469,7 @@ internal fun FieldDefinitionEditor(
     SchemaSettingRow("定義参照") {
         ChoiceButton(ref?.let { "\$$it" } ?: "使用しない",
             listOf("使用しない") + definitions.map { "\$$it" }) { choice ->
+            map.entries.remove("ref")
             if (choice == "使用しない") map.entries.remove("\$ref")
             else map.entries["\$ref"] = YNode.Scalar(choice.removePrefix("\$"))
             doc.markEdited()
@@ -497,6 +498,10 @@ internal fun FieldDefinitionEditor(
             }
         }
     }
+    val additional = schemaFieldAdditionalFields(doc.schema?.tree, map, types.baseKindOf(currentTypeId), allowKey, ref != null)
+    if (additional.isNotEmpty()) SchemaPropertyGroup(ctx, path + "@additional", "追加設定・操作・検査") {
+        additional.forEach { field -> FieldRow(ctx, field, MapSlot(map, field.key!!), path + field.key!!) }
+    }
     if (ref != null) return
     when (types.baseKindOf(currentTypeId)) {
         "object" -> {
@@ -512,7 +517,7 @@ internal fun FieldDefinitionEditor(
         "array", "map" -> DisplayHintRow(map, doc)
         "enum" -> EnumValuesEditor(map, doc)
         "ref" -> {
-            StringListEditor(map, "idPatterns", "IDパターン", "ACTOR-*, ROLE-*", doc)
+            StringListEditor(map, if ("idPattern" in map.entries && "idPatterns" !in map.entries) "idPattern" else "idPatterns", "IDパターン", "ACTOR-*, ROLE-*", doc)
             CompactScalar(map, "relation", "関係種別", doc)
             // 参照対象種別（R21-03）: document = 文書ノード（_document.id ＞ 相対パス）への参照
             CompactScalar(map, "target", "参照対象（entity / document）", doc)
@@ -566,10 +571,11 @@ internal fun FieldDefinitionEditor(
     // 入力欄の案内とサンプル値（P33 のヒント。型から引き継ぎ、ここに書けば上書き）: 値を文字で打つ基底の種類だけ
     if (currentType in HINT_KINDS) {
         CompactOptionalScalar(map, "placeholder", "入力欄の案内", "空欄のときに薄く出す文（例 YYYY-MM-DD）。型の案内を上書き", doc)
-        CompactOptionalScalar(map, "sample", "サンプル値", "例として示す値（サンプル YAML・AI 生成の例）。型のサンプルを上書き", doc)
+        if (map.entries["sample"] !is YNode.Map && map.entries["sample"] !is YNode.Seq)
+            CompactOptionalScalar(map, "sample", "サンプル値", "例として示す値（サンプル YAML・AI 生成の例）。型のサンプルを上書き", doc)
     }
     // enum の初期値は選択肢の直下（EnumValuesEditor 内）で選択式にしている（UX-84）
-    if (currentType !in setOf("object", "array", "map", "enum")) DefaultValueEditor(map, currentType, doc)
+    if (currentType !in setOf("object", "array", "map", "enum") && map.entries["default"] !is YNode.Map && map.entries["default"] !is YNode.Seq) DefaultValueEditor(map, currentType, doc)
 }
 
 /** 保存時に自動で入る値（auto）の選択（型に合う印だけを選べる。「（なし）」で外す）。 */
@@ -951,7 +957,7 @@ private fun EnumValuesEditor(map: YNode.Map, doc: OpenDocument) {
 private fun StringListEditor(map: YNode.Map, key: String, label: String, hint: String, doc: OpenDocument, attach: () -> Unit = {}) {
     doc.version
     val seq = map.entries[key] as? YNode.Seq
-    val value = seq?.items?.mapNotNull { (it as? YNode.Scalar)?.value?.toString() }?.joinToString(", ").orEmpty()
+    val value = seq?.items?.mapNotNull { (it as? YNode.Scalar)?.value?.toString() }?.joinToString(", ") ?: scalar(map, key).orEmpty()
     FormFieldLayout(modifier = Modifier.padding(vertical = FormSpacing.FieldGap), label = {
         Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 8.dp))
     }) {

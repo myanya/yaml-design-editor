@@ -256,7 +256,7 @@
 |---|---|---|---|---|
 | OP-01 | 型の操作の定義（object の `methods`＝予約名 `create` と名前付きの操作・配列の `methods.insert`＝採番と同じ明細・型を使う側への引き継ぎ） | `semantic-core/schema/Action.kt`, `semantic-core/schema/SchemaTreeParser.kt`, `semantic-core/schema/SchemaTree.kt` | 単体 `ActionPlannerTest` | [actions](architecture/actions.md) |
 | OP-02 | アクションの定義（`actions`＝対象・入力・前提・手順。読み込み時に点検） | `semantic-core/schema/Action.kt`, `workspace-core/workspace/SchemaDocuments.kt`, `builtin-schemas/schema.yaml` | `ActionPlannerTest` | [actions](architecture/actions.md) |
-| S-26 | メタスキーマによる設計画面の追加区画（操作・検査・文書作成・派生・未知キー） | `ui/SchemaDesignFields.kt`, `ui/SchemaDesignWorkspace.kt` | `SchemaDesignFieldsTest` | [設計画面](manual/schema-editor.md) |
+| S-26 | 設計画面の補完・操作入力・採番 | `ui/SchemaDesignFields.kt`, `builtin-schemas/schema.yaml` | `SchemaDesignFieldsTest`, `SchemaAuthoringTest` | [設計画面](manual/schema-editor.md) |
 | OP-03 | 操作の計画（受け手の解決・受け取った値の検証・前提の 4 つの結果・set / insert / delete / create / call / each・変更セットの生成） | `workspace-core/workspace/ActionPlanner.kt`, `semantic-core/semantic/Transform.kt`（`build` / `holds`） | 単体 `ActionPlannerTest` | [actions](architecture/actions.md) |
 | OP-04 | CLI `action`（使える操作の一覧・計画＝変更セットと適用後の検証・`--apply`・`--allow-errors`） | `core/Cli.kt` | 単体 `ActionCliTest` | [actions](architecture/actions.md) |
 | OP-05 | 画面の入口（操作メニュー・行の ⋯・ヘッダ・パレット・「操作」タブ → 浮いたパネル＝対象・値・確認・差分・適用は書いて保存。閲覧専用でも可） | `app/AppState.kt`（`ActionWork` / `startAction`）, `ui/ActionPane.kt`, `ui/SidePanel.kt`, `ui/FormView.kt`, `ui/ViewGridPane.kt`, `Main.kt` | 単体 `AppStateActionTest`・画面は手動 | [actions](architecture/actions.md) |

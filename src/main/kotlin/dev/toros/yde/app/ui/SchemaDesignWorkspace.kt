@@ -195,7 +195,7 @@ private fun SchemaStructureEditor(
                 }
                 val map = selected.node as? YNode.Map
                 val canAdd = selected.caseGroup && selected.node is YNode.Seq ||
-                    map != null && scalar(map, "\$ref") == null && types.baseKindOf(scalar(map, "type") ?: "string") == "object"
+                    map != null && types.baseKindOf(scalar(map, "\$ref") ?: scalar(map, "ref") ?: scalar(map, "type") ?: "string") in setOf("object", "ref")
                 val fieldsValid = map?.entries?.get("fields").let { it == null || it is YNode.Seq }
                 if (canAdd && fieldsValid) SchemaEditButton(onClick = { addField(selected) }) {
                     Icon(Icons.Default.Add, null, Modifier.size(16.dp)); Text("追加", fontSize = 12.sp)

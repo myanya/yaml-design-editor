@@ -21,3 +21,35 @@ internal fun schemaRemainingFields(fields: List<FieldDef>, node: YNode.Map, hand
     }
 }
 
+/** 型別の専用欄が担当するキー。残りは型の cases を含むメタ定義から編集する。 */
+internal fun schemaFieldHandledKeys(type: String, allowKey: Boolean, referenced: Boolean): Set<String> {
+    val common = setOf("key", "label", "type", "\$ref", "ref", "description") +
+        if (allowKey) setOf("required", "requiredFrom", "role") else emptySet()
+    if (referenced) return common
+    val specific = when (type) {
+        "object" -> setOf("fields", "entity", "unknownFields")
+        "array" -> setOf("item", "display")
+        "map" -> setOf("value", "display")
+        "enum" -> setOf("values", "cases", "default")
+        "ref" -> setOf("idPattern", "idPatterns", "scope", "relation", "target", "fields")
+        "id" -> setOf("pattern")
+        "date", "time", "datetime" -> setOf("pattern", "format", "auto")
+        "string" -> setOf("pattern", "minLength", "maxLength", "display", "rows")
+        "int" -> setOf("min", "max", "format", "auto")
+        "number" -> setOf("min", "max", "format")
+        else -> emptySet()
+    }
+    val scalar = if (type !in setOf("object", "array", "map", "enum")) setOf("default") else emptySet()
+    val hints = if (type in setOf("string", "int", "number", "date", "time", "datetime", "id", "ref", "file"))
+        setOf("placeholder", "sample") else emptySet()
+    return common + specific + scalar + hints
+}
+
+internal fun schemaFieldAdditionalFields(tree: SchemaTree?, node: YNode.Map, type: String, allowKey: Boolean, referenced: Boolean): List<FieldDef> {
+    val definition = tree?.definitions?.get("field")?.let { tree.resolve(it) }
+    val fields = definition?.let { tree.effectiveFields(it.fields, node).fields }.orEmpty()
+    val handled = schemaFieldHandledKeys(type, allowKey, referenced).toMutableSet()
+    // 複合値はスカラー専用の欄では表せないため、共通フォームへ回す。
+    listOf("default", "sample").forEach { if (node.entries[it] is YNode.Map || node.entries[it] is YNode.Seq) handled.remove(it) }
+    return schemaRemainingFields(fields, node, handled)
+}

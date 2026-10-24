@@ -39,7 +39,7 @@ internal fun schemaOutline(
               dataPath: List<String>?, allowKey: Boolean = false, group: Boolean = false) {
         val map = value as? YNode.Map
         fun text(key: String) = (map?.entries?.get(key) as? YNode.Scalar)?.value?.toString()?.takeIf { it.isNotBlank() }
-        val ref = text("\$ref")
+        val ref = text("\$ref") ?: text("ref")
         val type = text("type") ?: "string"
         add(SchemaOutlineEntry(at, parent, value, text("label") ?: text("key") ?: name,
             if (group) "条件付き項目" else if (value == null) "未定義" else if (map == null) "形式を確認" else ref?.let { "参照: $it" } ?: type,
@@ -54,9 +54,9 @@ internal fun schemaOutline(
         }
         if (group) {
             fields(value as? YNode.Seq, at, at, depth, null)
-        } else if (map != null && ref == null) {
-            when (baseKind(type)) {
-                "object" -> fields(map.entries["fields"] as? YNode.Seq, at + "fields", at, depth, dataPath)
+        } else if (map != null) {
+            when (baseKind(ref ?: type)) {
+                "object", "ref" -> fields(map.entries["fields"] as? YNode.Seq, at + "fields", at, depth, dataPath)
                 "array" -> visit(map.entries["item"], at + "item", at, "配列の要素", depth + 1, dataPath)
                 "map" -> visit(map.entries["value"], at + "value", at, "マップの値", depth + 1, dataPath)
                 "enum" -> (map.entries["cases"] as? YNode.Map)?.entries?.forEach { (key, seq) ->
