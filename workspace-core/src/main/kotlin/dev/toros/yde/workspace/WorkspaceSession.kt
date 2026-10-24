@@ -296,6 +296,11 @@ class WorkspaceSession private constructor(
     /** 文書としてセッションに載っているか（snapshot の全コピーを避ける軽量版。編集ごとの直結＝RA-05 が使う）。 */
     fun hasDocument(id: DocumentId): Boolean = id in workingDocuments
 
+    /** 現在の文書を画面・読み出し用にコピーする。可変の木を履歴や working と共有しない。 */
+    fun copyDocument(id: DocumentId): YDocument? = workingDocuments[id]?.document?.let { document ->
+        document.copy(documents = document.documents.map { it.deepCopy() })
+    }
+
     /** ストアにいま保存されている内容（無ければ null）。変更セットの適用が、競合の判定と、操作を当てる元の内容に使う。 */
     fun storedText(id: DocumentId): String? = store.read(id)?.text
 

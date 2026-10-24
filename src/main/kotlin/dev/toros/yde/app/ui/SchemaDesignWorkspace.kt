@@ -33,6 +33,7 @@ import dev.toros.yde.yaml.model.getAt
 import dev.toros.yde.yaml.model.pretty
 
 internal val LocalSchemaReadOnly = compositionLocalOf { false }
+internal val LocalSchemaHistory = compositionLocalOf<((HistoryShortcut) -> Unit)?> { null }
 
 /** 既存の設定入力も、新しい構造編集と同じ閲覧専用状態・共通部品を使う。 */
 @Composable
@@ -41,9 +42,11 @@ internal fun SchemaTextField(
     singleLine: Boolean = false, textStyle: TextStyle = TextStyle(fontSize = 13.sp),
     placeholder: (@Composable () -> Unit)? = null,
     clearFocusOnEscape: Boolean = true,
+    workspaceHistory: Boolean = true,
 ) = CompactTextField(value, onValueChange, modifier, singleLine = singleLine,
     textStyle = textStyle, placeholder = placeholder, readOnly = LocalSchemaReadOnly.current,
-    clearFocusOnEscape = clearFocusOnEscape)
+    clearFocusOnEscape = clearFocusOnEscape,
+    onHistory = if (workspaceHistory) LocalSchemaHistory.current else null)
 
 @Composable
 internal fun SchemaEditButton(

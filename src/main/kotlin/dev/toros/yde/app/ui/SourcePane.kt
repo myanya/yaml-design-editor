@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.input.OutputTransformation
+import androidx.compose.foundation.text.input.InputTransformation
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.insert
 import androidx.compose.material3.Text
@@ -97,11 +98,11 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
     }
     // 入力が止まってから解析して反映: 解析は背景、木の更新は UI 側（スナップショット状態の更新）
     LaunchedEffect(doc) {
-        snapshotFlow { doc.source.text.toString() }.collectLatest { text ->
-            if (text == doc.sourceApplied) return@collectLatest
+        snapshotFlow { Triple(doc.source.text.toString(), doc.version, doc.sourceEpoch) }.collectLatest {
+            val request = doc.sourceParseRequest() ?: return@collectLatest
             delay(APPLY_DELAY_MS)
-            val parsed = withContext(Dispatchers.Default) { EditBuffer.parse(text) }
-            doc.applyParsed(text, parsed)
+            val parsed = withContext(Dispatchers.Default) { EditBuffer.parse(request.text) }
+            doc.applyParsed(request, parsed)
         }
     }
 
@@ -141,7 +142,7 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
         val view = foldView ?: return@LaunchedEffect
         val caret = doc.source.selection.start
         view.hidden.firstOrNull { caret > it.headerEnd && caret < it.to }?.let { h ->
-            doc.source.edit { selection = TextRange(h.headerEnd) }
+            doc.editSource { selection = TextRange(h.headerEnd) }
         }
     }
 
@@ -149,7 +150,7 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
         val m = matches?.getOrNull(index) ?: return
         ui.current = index
         unfoldAt(SourceEditing.lineOf(LineMerge.lineStarts(text), m.first))
-        doc.source.edit { selection = TextRange(m.first, m.last + 1) }
+        doc.editSource { selection = TextRange(m.first, m.last + 1) }
         ui.revealRequest++
     }
     fun findNext() {
@@ -178,13 +179,13 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
         val m = ms.getOrNull(ui.current) ?: return
         val r = SourceEditing.replaceMatch(text, m, ui.query, ui.replaceWith, ui.regex, ui.caseSensitive)
         ui.followNext = true
-        doc.source.edit { replace(m.first, m.last + 1, r.text.substring(r.start, r.end)); selection = TextRange(r.end) }
+        doc.editSource { replace(m.first, m.last + 1, r.text.substring(r.start, r.end)); selection = TextRange(r.end) }
     }
     fun replaceAll() {
         val (replaced, count) = SourceEditing.replaceAll(text, ui.query, ui.replaceWith, ui.regex, ui.caseSensitive)
         if (count > 0) {
             val caret = doc.source.selection.start.coerceAtMost(replaced.length)
-            doc.source.edit { replace(0, length, replaced); placeCursorBeforeCharAt(caret) }
+            doc.editSource { replace(0, length, replaced); placeCursorBeforeCharAt(caret) }
         }
         state.status = if (count > 0) "$count 件置換しました（自動で反映されます）" else "「${ui.query}」は見つかりません"
     }
@@ -192,7 +193,7 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
         val starts = LineMerge.lineStarts(text)
         val index = (line - 1).coerceIn(0, maxOf(starts.size - 2, 0))
         unfoldAt(index)
-        doc.source.edit { selection = TextRange(starts[index]) }
+        doc.editSource { selection = TextRange(starts[index]) }
         ui.revealRequest++
         ui.editorFocus.requestFocus()
     }
@@ -200,7 +201,7 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
         val sel = doc.source.selection
         val r = SourceStructure.formatSelection(text, sel.min, sel.max)
         if (r == null) { state.status = "選択範囲が YAML の塊になっていません（途中で切れているか、解析できません）"; return }
-        doc.source.edit { replace(0, length, r.text); selection = TextRange(r.start, r.end) }
+        doc.editSource { replace(0, length, r.text); selection = TextRange(r.start, r.end) }
     }
 
     // この文書の検証の指摘（右パネルと同じ材料。パスのある指摘だけ）
@@ -226,7 +227,7 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
         val starts = LineMerge.lineStarts(text)
         if (line < starts.size - 1) {
             unfoldAt(line)
-            doc.source.edit { selection = TextRange(starts[line]) }
+            doc.editSource { selection = TextRange(starts[line]) }
             ui.revealRequest++
         }
         state.highlightPath = null
@@ -242,7 +243,7 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
         val starts = LineMerge.lineStarts(text)
         if (line < starts.size - 1) {
             unfoldAt(line)
-            doc.source.edit { selection = TextRange(starts[line]) }
+            doc.editSource { selection = TextRange(starts[line]) }
             ui.revealRequest++
         }
         doc.lastEditedNode = null
@@ -577,6 +578,8 @@ private fun SourceEditor(
             ) {
                 BasicTextField(
                     state = doc.source,
+                    // 本文や履歴は変更せず、貼付・IMEを含む入力の順序だけを採番する。
+                    inputTransformation = InputTransformation { doc.noteSourceInput(asCharSequence().toString()) },
                     readOnly = readOnly,
                     textStyle = textStyle,
                     lineLimits = TextFieldLineLimits.MultiLine(),
@@ -658,7 +661,7 @@ private fun acceptCompletion(doc: OpenDocument, ui: SourceUi, candidate: Candida
     val c = ui.completion ?: return
     val caret = doc.source.selection.min
     if (caret < c.replaceStart) { ui.completion = null; return }
-    doc.source.edit {
+    doc.editSource {
         replace(c.replaceStart, caret, candidate.insert)
         placeCursorBeforeCharAt(c.replaceStart + candidate.insert.length)
     }
@@ -724,7 +727,7 @@ private fun handleEditorKey(
     if (ev.type != KeyEventType.KeyDown) return false
     val source = doc.source
     fun apply(r: SourceEditing.Result) {
-        source.edit { replace(0, length, r.text); selection = TextRange(r.start, r.end) }
+        doc.editSource { replace(0, length, r.text); selection = TextRange(r.start, r.end) }
     }
     val text = { source.text.toString() }
     val sel = source.selection
@@ -781,14 +784,14 @@ private fun handleEditorKey(
             when {
                 ev.isShiftPressed -> apply(SourceEditing.indent(t, sel.min, sel.max, outdent = true))
                 lines.first != lines.last -> apply(SourceEditing.indent(t, sel.min, sel.max, outdent = false))
-                else -> source.edit { replace(sel.min, sel.max, SourceEditing.INDENT); placeCursorBeforeCharAt(sel.min + SourceEditing.INDENT.length) }
+                else -> doc.editSource { replace(sel.min, sel.max, SourceEditing.INDENT); placeCursorBeforeCharAt(sel.min + SourceEditing.INDENT.length) }
             }
             return true
         }
         Key.Enter, Key.NumPadEnter -> {
             if (readOnly || ev.isShiftPressed || source.composition != null) return false
             val insertion = SourceEditing.newlineInsertion(text(), sel.min)
-            source.edit { replace(sel.min, sel.max, insertion); placeCursorBeforeCharAt(sel.min + insertion.length) }
+            doc.editSource { replace(sel.min, sel.max, insertion); placeCursorBeforeCharAt(sel.min + insertion.length) }
             return true
         }
     }

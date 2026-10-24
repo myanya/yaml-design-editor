@@ -461,6 +461,7 @@ private fun GridCell(state: AppState, cell: ViewCell) {
                 value = text,
                 onValueChange = { ctx.setGenericScalar(slot, it) },
                 clearFocusOnEscape = true,
+                onHistory = ctx.historyHandler,
                 singleLine = !text.contains('\n'),
                 textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
                 modifier = Modifier.fillMaxWidth(),

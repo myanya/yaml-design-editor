@@ -137,12 +137,14 @@ private fun handleShortcut(event: KeyEvent, state: AppState, openPalette: () -> 
         }
     }
     if (!event.isCtrlPressed) return false
+    when (event.historyShortcut()) {
+        HistoryShortcut.UNDO -> { state.undoFromUi(); return true }
+        HistoryShortcut.REDO -> { state.redoFromUi(); return true }
+        null -> Unit
+    }
     return when {
         event.key == Key.S && event.isShiftPressed -> { state.saveAll(); true }
         event.key == Key.S -> { state.saveCurrent(); true }
-        event.key == Key.Z && event.isShiftPressed -> { state.redoFromUi(); true }
-        event.key == Key.Z -> { state.undoFromUi(); true }
-        event.key == Key.Y -> { state.redoFromUi(); true }
         event.key == Key.K -> { openPalette(); true }
         else -> false
     }

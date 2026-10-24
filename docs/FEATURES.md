@@ -48,7 +48,7 @@
 | E-02 | 汎用ツリーエディタ（スキーマなし文書・スキーマ外キー・順序とコメントを保ったキー改名） | `ui/FormView.kt`（`GenericEditor`） | 単体 `RenameKeyTest` | [ui](architecture/ui.md) |
 | E-03 | ソース編集（下書きは文書が持ちタブを移っても残る・入力が止まると背景で解析し成功時だけ木へ反映・解析不能中はフォーム閲覧専用・他所の変更は 3 者マージで差し込む・壊れたまま保存はテキスト文書で直せば戻る・行番号と折り返し切替・検索置換・色分け） | `ui/SourcePane.kt`, `ui/SourceHighlight.kt`, `ui/SourceMerge.kt` | `LineMergeTest`・`TextOnlySaveTest` | [editing-history](architecture/editing-history.md) |
 | E-04 | 差分表示（保存済みと編集中の行整列・文字単位の強調） | `ui/DiffPane.kt` | 単体 `DiffPaneTest` | [ui](architecture/ui.md) |
-| E-05 | Undo/Redo（ワークスペース横断の単一履歴・連続入力は 1 秒以内なら合体・実行後のフィードバックと予告） | `app/AppState.kt`（`undo` / `redo` / `historyNotice`）, `core/Documents.kt` | 単体 `DocumentsTest`, `HistoryNoticeTest` | [editing-history](architecture/editing-history.md) |
+| E-05 | Undo/Redo（入力欄・横断履歴） | `AppState` | `HistoryNoticeTest`・`HistoryConsistencyTest`・`SourceHistoryTest`・`TextFieldHistoryTest` | [editing-history](architecture/editing-history.md) |
 | E-06 | 保存（Ctrl+S・すべて保存・コメントとキー順と表記を保持・日付は文字列・YAML展開量を制限） | `AppState.save*`, `yaml-core/yaml/YamlIO.kt` | 単体 `YamlIOTest` | [yaml-model](architecture/yaml-model.md) |
 | E-07 | 文書メタデータ `_document`（id・name・description）の編集とコンパクトな文書ヘッダー | `ui/FormView.kt`・`ui/EditorChrome.kt` | 手動 | [ui](architecture/ui.md) |
 | E-08 | 文書キャッシュ（ファイル切替時も未保存編集を保持） | `AppState.docCache` | 手動 | [editing-history](architecture/editing-history.md) |

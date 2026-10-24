@@ -87,7 +87,9 @@ private fun SchemaEditorContent(state: AppState, doc: OpenDocument) {
         ) { alignOrderTarget = null }
     }
     Column(Modifier.fillMaxSize()) {
-        CompositionLocalProvider(LocalTypeChoices provides typeChoices, LocalSchemaReadOnly provides (state.readOnlyMode || doc.draftBroken)) { when (mode) {
+        CompositionLocalProvider(LocalTypeChoices provides typeChoices,
+            LocalSchemaReadOnly provides (state.readOnlyMode || doc.draftBroken),
+            LocalSchemaHistory provides state.historyHandler(doc)) { when (mode) {
             0 -> SchemaDesignWorkspace(
                 state, doc, root, library, schema, typeChoices,
                 problems = listOfNotNull(schemaResult.exceptionOrNull()?.let { "スキーマを解析できません: ${it.message}" }) +
@@ -352,7 +354,7 @@ internal fun AddDefinitionButton(definitions: YNode.Map, doc: OpenDocument, comp
         text = {
             Column {
                 SchemaTextField(name, { name = it }, singleLine = true, placeholder = { Text("定義名") },
-                    clearFocusOnEscape = false)
+                    clearFocusOnEscape = false, workspaceHistory = false)
                 Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("種類", fontSize = 12.sp, modifier = Modifier.width(60.dp))

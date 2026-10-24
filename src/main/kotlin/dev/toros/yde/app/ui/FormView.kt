@@ -99,6 +99,8 @@ class FormCtx(
     /** このパスの検証指摘の重大度（UX-14）。エラー=赤・警告=オレンジの枠色に使う。 */
     fun issueAt(path: YPath): Severity? = issues[path]
 
+    val historyHandler: ((HistoryShortcut) -> Unit)? get() = state.historyHandler(doc)
+
     /**
      * ネスト構造の既定展開判定。フォームのルートから DEFAULT_EXPAND_DEPTH 階層までは開き、
      * より深い階層は畳んで畳み込みサマリ（E-11）に任せる。編集・閲覧専用モード共通。
@@ -343,6 +345,7 @@ internal fun DocumentMetadataEditor(ctx: FormCtx, root: YNode.Map) {
             }) {
                 CompactTextField(
                     clearFocusOnEscape = true,
+                    onHistory = ctx.historyHandler,
                     value = (nameSlot.get() as? YNode.Scalar)?.value?.toString().orEmpty(),
                     onValueChange = { ctx.setScalar(nameSlot, it, FieldType.STRING) },
                     singleLine = true,
@@ -361,6 +364,7 @@ internal fun DocumentMetadataEditor(ctx: FormCtx, root: YNode.Map) {
             }) {
                 CompactTextField(
                     clearFocusOnEscape = true,
+                    onHistory = ctx.historyHandler,
                     value = (descriptionSlot.get() as? YNode.Scalar)?.value?.toString().orEmpty(),
                     onValueChange = { ctx.setScalar(descriptionSlot, it, FieldType.STRING) },
                     placeholder = { Text("この文書が何を示し、何を含むかを簡潔に記述") },
@@ -893,6 +897,7 @@ private fun ScalarTextEditor(
     }
     CompactTextField(
         clearFocusOnEscape = true,
+        onHistory = ctx.historyHandler,
         value = text,
         onValueChange = { ctx.setScalar(slot, if (numeric && formatted != null) it.replace(",", "") else it, field.type) },
         singleLine = oneLine,
@@ -1037,6 +1042,7 @@ private fun IdEditor(ctx: FormCtx, field: FieldDef?, slot: Slot) {
             Box(Modifier.weight(1f)) {
                 CompactTextField(
                     clearFocusOnEscape = true,
+                    onHistory = ctx.historyHandler,
                     value = text,
                     onValueChange = { ctx.setScalar(slot, it, FieldType.ID) },
                     singleLine = true,
@@ -1176,6 +1182,7 @@ private fun RefScalarEditor(ctx: FormCtx, field: FieldDef, slot: Slot, titleInFi
         Box(Modifier.weight(1f)) {
             CompactTextField(
                 clearFocusOnEscape = true,
+                onHistory = ctx.historyHandler,
                 value = current,
                 onValueChange = { ctx.setScalar(slot, it, FieldType.REF) },
                 singleLine = true,
@@ -1295,6 +1302,7 @@ private fun DocRefScalarEditor(ctx: FormCtx, slot: Slot) {
         Box(Modifier.weight(1f)) {
             CompactTextField(
                 clearFocusOnEscape = true,
+                onHistory = ctx.historyHandler,
                 value = current,
                 onValueChange = { ctx.setScalar(slot, it, FieldType.REF) },
                 singleLine = true,
@@ -1929,6 +1937,7 @@ fun GenericEditor(ctx: FormCtx, slot: Slot, path: YPath, refHint: Boolean) {
             }
             CompactTextField(
                 clearFocusOnEscape = true,
+                onHistory = ctx.historyHandler,
                 value = "",
                 onValueChange = { ctx.setGenericScalar(slot, it) },
                 singleLine = true,
@@ -1967,6 +1976,7 @@ fun GenericEditor(ctx: FormCtx, slot: Slot, path: YPath, refHint: Boolean) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CompactTextField(
                         clearFocusOnEscape = true,
+                        onHistory = ctx.historyHandler,
                         value = text,
                         onValueChange = { ctx.setGenericScalar(slot, it) },
                         singleLine = !multiline,

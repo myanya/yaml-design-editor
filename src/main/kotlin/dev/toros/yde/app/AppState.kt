@@ -1,6 +1,7 @@
 package dev.toros.yde.app
 
 import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.TextFieldBuffer
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -80,6 +81,7 @@ class OpenDocument(
 ) {
     companion object {
         private val instances = java.util.concurrent.atomic.AtomicLong()
+        private val sourceInputs = java.util.concurrent.atomic.AtomicLong()
     }
     private val instance = instances.incrementAndGet()
     /** 文書の再生成でも古い無key辺の選択を引き継がない。 */
@@ -189,6 +191,42 @@ class OpenDocument(
     var sourceApplied by mutableStateOf(source.text.toString())
         private set
 
+    /** 解析の世代。木との同期や下書きの破棄をまたいだ解析結果を採用しない。 */
+    internal var sourceEpoch by mutableStateOf(0L)
+        private set
+    private var observedSourceText = sourceApplied
+    internal var sourceInputOrder: Long = 0
+        private set
+    val hasPendingSourceInput: Boolean get() = source.text.toString() != sourceApplied
+
+    /** 入力順だけを記録する。入力変換から呼んでも木・履歴・Compose の状態を変更しない。 */
+    internal fun noteSourceInput(text: String) {
+        if (text == observedSourceText) return
+        observedSourceText = text
+        sourceInputOrder = sourceInputs.incrementAndGet()
+    }
+
+    /** 補完・置換・行操作も、通常入力と同じ順序で取り込む。選択範囲だけの変更は数えない。 */
+    fun editSource(block: TextFieldBuffer.() -> Unit) {
+        source.edit(block)
+        noteSourceInput(source.text.toString())
+    }
+
+    internal class SourceParseRequest(
+        val text: String,
+        val document: OpenDocument,
+        val version: Int,
+        val epoch: Long,
+        val inputOrder: Long,
+    )
+
+    internal fun sourceParseRequest(): SourceParseRequest? {
+        if (!hasPendingSourceInput) return null
+        val text = source.text.toString()
+        noteSourceInput(text)
+        return SourceParseRequest(text, this, version, sourceEpoch, sourceInputOrder)
+    }
+
     /** 前回木から作った正規化テキスト（3 者マージの元。「整形」の活性判定にも使う）。 */
     var sourceBase: String = sourceApplied
         private set
@@ -224,12 +262,16 @@ class OpenDocument(
      * 下書きの解析結果を木へ反映する（UI スレッドで呼ぶ）。成功なら markEdited＝履歴・dirty・検証・索引が追随し、
      * テキスト文書なら文書集合へ戻る。失敗なら文面を残すだけで木は触らない。
      */
-    fun applyParsed(text: String, parsed: EditBuffer.Parsed) {
+    internal fun applyParsed(request: SourceParseRequest, parsed: EditBuffer.Parsed): Boolean {
+        val text = request.text
+        if (request.document !== this || request.version != version || request.epoch != sourceEpoch ||
+            request.inputOrder != sourceInputOrder || text != source.text.toString() || text == sourceApplied) return false
+        sourceEpoch++
         sourceApplied = text
         val newRoot = parsed.root
         if (newRoot == null) {
             sourceError = parsed.error ?: "解析できません"
-            return
+            return true
         }
         buffer.root = newRoot
         buffer.extraDocs = parsed.extraDocs
@@ -241,13 +283,13 @@ class OpenDocument(
         textOnly = false
         sourceBase = canonicalText()
         sourceSyncedVersion = version
+        return true
     }
 
     /** まだ反映していない入力をいま解析して反映する（保存・Undo・タブを離れるときに呼ぶ）。 */
     fun flushDraft() {
-        val text = source.text.toString()
-        if (text == sourceApplied) return
-        applyParsed(text, EditBuffer.parse(text))
+        val request = sourceParseRequest() ?: return
+        applyParsed(request, EditBuffer.parse(request.text))
     }
 
     /**
@@ -257,6 +299,7 @@ class OpenDocument(
      */
     fun syncSourceFromTree(): Int {
         if (version == sourceSyncedVersion) return 0
+        sourceEpoch++
         val theirs = canonicalText()
         val ours = source.text.toString()
         var conflicts = 0
@@ -270,6 +313,7 @@ class OpenDocument(
             }
         }
         sourceBase = theirs
+        observedSourceText = source.text.toString()
         sourceSyncedVersion = version
         if (sourceError == null) sourceParsed = source.text.toString()
         else if (source.text.toString() == theirs) { sourceError = null; sourceParsed = theirs }
@@ -278,10 +322,12 @@ class OpenDocument(
 
     /** 下書きを捨てて木の正規化テキストに揃える（「編集を破棄」「整形」）。テキスト文書では保存したテキストに戻る。 */
     fun discardDraft() {
+        sourceEpoch++
         val text = canonicalText()
         val caret = source.selection.start.coerceAtMost(text.length)
         source.edit { replace(0, length, text); placeCursorBeforeCharAt(caret) }
         sourceApplied = text
+        observedSourceText = text
         sourceBase = text
         sourceSyncedVersion = version
         sourceError = if (buffer.root == null) buffer.parseError else null
@@ -290,6 +336,7 @@ class OpenDocument(
 
     /** 壊れた下書きをそのまま保存した直後の状態にする＝テキスト文書（R43-04）。最後に解析できた木は戻せるように残す。 */
     fun enterTextOnly(savedText: String) {
+        sourceEpoch++
         buffer.root?.let { lastParsed = it to buffer.extraDocs }
         buffer.root = null
         buffer.extraDocs = emptyList()
@@ -365,13 +412,13 @@ class AppState {
     var fileHistoryBusy by mutableStateOf(false)
     fun undoFromUi() = historyFromUi(true)
     fun redoFromUi() = historyFromUi(false)
-    private fun historyFromUi(undoing: Boolean) {
+    private fun historyFromUi(undoing: Boolean, confirmation: PendingHistory? = null) {
         if (fileOperationBusy) return
-        val record = if (undoing) session?.peekUndo() else session?.peekRedo()
-        if (record == null || session?.fileArrangement(record.id) == null) { if (undoing) undo() else redo(); return }
+        val step = prepareHistoryStep(undoing, confirmation) ?: return
+        if (step.session.fileArrangement(step.record.id) == null) { executeHistoryStep(step); return }
         fileOperationBusy = true; fileHistoryBusy = true
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-            try { if (undoing) undo() else redo() }
+            try { executeHistoryStep(step) }
             finally { fileOperationBusy = false; fileHistoryBusy = false }
         }
     }
@@ -518,6 +565,10 @@ class AppState {
 
     /** 開いたことのあるドキュメントのキャッシュ（未保存編集をファイル切替時にも保持する）。 */
     private val docCache = LinkedHashMap<Path, OpenDocument>()
+
+    /** 編集欄をセッションの履歴へ接続できる文書か。一時フォームは含めない。 */
+    internal fun ownsDocument(doc: OpenDocument): Boolean =
+        docCache[doc.file] === doc && session?.hasDocument(documentOf(doc.file)) == true
 
     /**
      * 画面の覚え（畳み・タブ・絞り込みなど。architecture/ui.md「UI シェル」）。
@@ -1372,11 +1423,14 @@ class AppState {
     private fun workspaceKey(): String = "ws-${workspace?.toString()?.hashCode() ?: 0}"
 
     /**
-     * 未保存編集を優先するツリー取得（docCache → ディスク。architecture/index-references.md「索引の二層」 の二層構造）。
+     * 未保存編集を優先するツリー取得（文書キャッシュ → セッション → ディスク）。
      * core への loader 注入と、UIの検証（整合検証の材料読み）に使う（UX-03）。
      */
     fun unsavedFirstLoader(): (Path) -> YNode? = { file ->
-        docCache[file]?.root ?: runCatching { YamlIO.parseFirst(Files.readString(file)) }.getOrNull()
+        val cached = docCache[file]
+        if (cached != null) cached.root
+        else session?.copyDocument(documentOf(file))?.documents?.firstOrNull()
+            ?: runCatching { YamlIO.parseFirst(Files.readString(file)) }.getOrNull()
     }
 
     /** 未保存編集を優先するツリー取得の、文書ID 版（索引・検証・ビューの解決へ渡す loader）。 */
@@ -1474,7 +1528,8 @@ class AppState {
         var error: String? = null
         var extra: List<YNode> = emptyList()
         val root = try {
-            val docs = YamlIO.parseAll(text)  // `---` 区切りの複数ドキュメントに対応（R8-05）
+            // 横断Undoは未表示の文書も変える。本文はworking、保存済みの比較用テキストはディスクから取る。
+            val docs = session?.copyDocument(documentOf(file))?.documents ?: YamlIO.parseAll(text)
             extra = docs.drop(1)
             docs.firstOrNull() ?: YNode.Map()
         } catch (e: Exception) {
@@ -1496,6 +1551,7 @@ class AppState {
                         if (s.hasDocument(id)) s.isDirty(id) else null
                     }
                 }
+                doc.refreshDirty()
             }
     }
 
@@ -1569,12 +1625,20 @@ class AppState {
     }
 
     fun saveAll() {
-        docCache.values.forEach { it.flushDraft() }   // 入力待ちのソースを取り込んでから
-        val dirty = docCache.values.filter { it.dirty || it.draftDirty }
+        flushSourceDrafts()
+        // 未表示のままUndoされた文書も、通常の保存経路（自動値・表示追随）を通す。
+        val s = session
+        val pendingDeletes = s?.let { it.dirtyDocuments().filterNot(it::hasDocument).toSet() }.orEmpty()
+        val dirty = dirtyFiles().filterNot { documentOf(it) in pendingDeletes }.map(::ensureDoc)
         // 自動の値（更新日・版）は全部の文書で 1 つのトランザクション＝Undo 1 回で戻る。その後に 1 文書ずつ書き出す
         // （壊れた下書きは木が無いので対象外）
         val stamped = stampAutoValues(dirty.filter { !it.draftBroken })
         dirty.forEach { save(it, stampedBefore = stamped) }
+        if (s != null && pendingDeletes.isNotEmpty()) {
+            val saved = s.save(pendingDeletes)
+            refreshAfterSessionWrite(saved.deleted)
+            if (!saved.ok) status = "ファイルの反映に失敗しました: ${saved.failures.values.first()}"
+        }
     }
 
     /** 壊れたまま保存の確認待ち（スキーマ文書だけ。波及が大きいので Main.kt が確認を出す。R43-04）。 */
@@ -1649,55 +1713,104 @@ class AppState {
      * Undo（A-3・RA-06 / D-07）: 履歴はセッション単一所有＝**ワークスペース横断**の1本の履歴。
      * 直前の変更が他の文書のものなら、その文書が戻る（ツリーはセッションから追随更新される）。
      */
-    fun undo() = historyStep(undo = true)
+    fun undo() { prepareHistoryStep(undo = true)?.let(::executeHistoryStep) }
 
-    fun redo() = historyStep(undo = false)
+    fun redo() { prepareHistoryStep(undo = false)?.let(::executeHistoryStep) }
 
     /** 解析できない下書きを捨てて戻すかの確認待ち（Main.kt が確認を出す。R43-02）。 */
     var pendingHistory by mutableStateOf<PendingHistory?>(null)
 
-    class PendingHistory(val undo: Boolean, val docs: List<OpenDocument>)
+    class PendingHistory internal constructor(
+        val undo: Boolean,
+        val docs: List<OpenDocument>,
+        internal val session: WorkspaceSession,
+        internal val recordId: Long,
+        internal val version: Long,
+    ) {
+        private val drafts = docs.associateWith { Triple(it.source.text.toString(), it.sourceEpoch, it.sourceInputOrder) }
+        internal fun matchesDrafts(): Boolean = drafts.all { (doc, stamp) ->
+            stamp == Triple(doc.source.text.toString(), doc.sourceEpoch, doc.sourceInputOrder)
+        }
+    }
+
+    private class HistoryStep(val session: WorkspaceSession, val record: ChangeRecord, val undo: Boolean) {
+        val version = session.version
+    }
+
+    /** キャッシュ順ではなく入力順に反映する。解析待ちの背景処理は採用時の世代検査で無効になる。 */
+    private fun flushSourceDrafts() {
+        docCache.values.mapNotNull { it.sourceParseRequest() }
+            .sortedBy { it.inputOrder }
+            .forEach { it.document.applyParsed(it, EditBuffer.parse(it.text)) }
+    }
 
     /**
      * Undo / Redo の 1 手。対象の文書に解析できない下書きがあれば「捨てて戻すか」を確認し（R43-02）、
      * 壊れたまま保存された文書が含まれていれば案内して止める（文書集合に無いので戻せない。R43-04）。
      */
-    private fun historyStep(undo: Boolean, confirmed: Boolean = false) {
-        val s = session ?: return
-        val record = (if (undo) s.peekUndo() else s.peekRedo()) ?: return
+    private fun prepareHistoryStep(undo: Boolean, confirmation: PendingHistory? = null): HistoryStep? {
+        if (fileOperationBusy) return null
+        val s = session ?: return null
+        flushSourceDrafts()
+        val record = if (undo) s.peekUndo() else s.peekRedo()
+        if (confirmation != null && (confirmation.session !== s || confirmation.version != s.version ||
+                confirmation.recordId != record?.id || !confirmation.matchesDrafts())) {
+            status = "履歴または下書きが変わったため中止しました。もう一度操作してください"
+            return null
+        }
+        record ?: return null
         val targets = historyTargets(record).map(DocumentId::value).toSet()
         val docs = docCache.values.filter { relPath(it.file) in targets }
-        docs.forEach { it.flushDraft() }   // 入力待ちの分を取り込んでから戻す
         val textOnly = docs.filter { it.textOnly }
         if (textOnly.isNotEmpty()) {
             status = textOnly.joinToString("・") { relPath(it.file) } +
                 " は壊れたまま保存されているため、この操作は戻せません（ソースで直して保存すると戻せます）"
-            return
+            return null
         }
         val broken = docs.filter { it.draftBroken }
-        if (broken.isNotEmpty() && !confirmed) {
-            pendingHistory = PendingHistory(undo, broken)
+        if (broken.isNotEmpty() && confirmation == null) {
+            pendingHistory = PendingHistory(undo, broken, s, record.id, s.version)
+            return null
+        }
+        pendingHistory = null
+        broken.forEach { it.discardDraft() }
+        return HistoryStep(s, record, undo)
+    }
+
+    private fun executeHistoryStep(step: HistoryStep) {
+        val s = step.session
+        val top = if (step.undo) s.peekUndo() else s.peekRedo()
+        if (session !== s || step.version != s.version || step.record.id != top?.id) {
+            status = "履歴が変わったため中止しました。もう一度操作してください"
             return
         }
-        broken.forEach { it.discardDraft() }
-        val result = if (undo) s.undo() else s.redo()
-        if (result.ok) afterHistoryStep(record, undo) else status = result.message ?: "履歴を適用できません"
+        val result = if (step.undo) s.undo() else s.redo()
+        if (result.ok) {
+            afterHistoryStep(step.record, step.undo)
+            // 次のキー入力や反映待ちの解析が来る前に、戻した木とソースを揃える。
+            val conflicts = historyTargets(step.record).sumOf { id -> docCache[fileOf(id)]?.syncSourceFromTree() ?: 0 }
+            if (conflicts > 0) status = "下書きと食い違う変更が $conflicts か所あり、下書きを優先しました（「整形」で木に揃えられます）"
+        } else status = result.message ?: "履歴を適用できません"
     }
 
     fun confirmPendingHistory() {
         val pending = pendingHistory ?: return
         pendingHistory = null
-        historyStep(pending.undo, confirmed = true)
+        historyFromUi(pending.undo, pending)
     }
 
     /** 次に Ctrl+Z で戻る変更の予告（ツールバーのツールチップ。UX-86）。セッション不在時は null。 */
     fun undoPreview(): String? {
         editVersion
+        pendingSourceDocuments().maxByOrNull { it.sourceInputOrder }?.let {
+            return "ソース入力を反映して元に戻す: ${relPath(it.file)}"
+        }
         return historySummary(session?.peekUndo())
     }
 
     fun redoPreview(): String? {
         editVersion
+        if (pendingSourceDocuments().isNotEmpty()) return "ソース入力の反映待ちです（新しい編集でやり直しは破棄されます）"
         return historySummary(session?.peekRedo())
     }
 
@@ -1716,12 +1829,16 @@ class AppState {
     /** Undo可能か（ツールバー活性用。editVersion を読むことで再コンポーズを購読する）。 */
     fun canUndo(): Boolean {
         editVersion
-        return session?.canUndo() ?: false
+        return session?.canUndo() == true || pendingSourceDocuments().isNotEmpty()
     }
 
     fun canRedo(): Boolean {
         editVersion
-        return session?.canRedo() ?: false
+        return session?.canRedo() == true && pendingSourceDocuments().isEmpty()
+    }
+
+    private fun pendingSourceDocuments(): List<OpenDocument> = docCache.values.filter {
+        it.hasPendingSourceInput && session?.acceptsDocument(documentOf(it.file)) == true
     }
 
     /**
@@ -1800,7 +1917,6 @@ class AppState {
             doc.root = roots.firstOrNull() ?: YNode.Map()
             doc.extraDocs = roots.drop(1)
             doc.parseError = null
-            doc.rawText = doc.canonicalText()
             doc.version++
             doc.refreshDirty()
         }
@@ -1816,6 +1932,8 @@ class AppState {
         val files = ids.map { ws.resolve(it.value).normalize() }
         files.forEach { f ->
             docCache[f]?.let { d ->
+                // 保存を伴う経路だけで比較基準を更新する。通常のUndoは保存済み内容を変えない。
+                session?.storedText(documentOf(f))?.let { d.rawText = it }
                 d.diskModifiedMillis = runCatching { Files.getLastModifiedTime(f).toMillis() }.getOrDefault(0L)
                 d.externalConflict = false
             }
@@ -1837,10 +1955,18 @@ class AppState {
         editVersion++
     }
 
-    fun hasDirtyDocs(): Boolean = docCache.values.any { it.dirty || it.draftDirty }
+    private fun dirtyFiles(): Set<Path> {
+        editVersion
+        indexVersion
+        return session?.dirtyDocuments().orEmpty().mapTo(linkedSetOf(), ::fileOf).also { files ->
+            docCache.values.filter { it.dirty || it.draftDirty }.forEach { files.add(it.file) }
+        }
+    }
+
+    fun hasDirtyDocs(): Boolean = dirtyFiles().isNotEmpty()
 
     /** 未保存文書の数（台帳スペースの保存ボタンの件数表示用。UX-34。dirty の読み取りが再コンポーズを購読する）。 */
-    fun dirtyDocCount(): Int = docCache.values.count { it.dirty || it.draftDirty }
+    fun dirtyDocCount(): Int = dirtyFiles().size
 
     /** 外部変更と競合中の文書（受信箱の表示用。R12-02。データの正は各 OpenDocument）。 */
     fun conflictedDocs(): List<OpenDocument> = docCache.values.filter { it.externalConflict }

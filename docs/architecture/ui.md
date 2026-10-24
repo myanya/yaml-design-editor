@@ -17,6 +17,7 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 | `isStructuredFormValue` / `stackFormField` | ui/FormLayout.kt | 解決済みの型・実際の値と利用可能幅によるフォーム配置の判定（純ロジック） |
 | `FieldHelp` / `FieldHelpPosition` | ui/FieldHelp.kt | 説明の短い表示とホバー・固定表示、画面内への位置調整 |
 | `TextFieldEscape` | ui/TextFieldEscape.kt | Esc の一押しと変換状態を追跡し、候補の閉鎖とフォーカス解除を分ける |
+| `TextFieldHistory` / `HistoryShortcut` | ui/TextFieldHistory.kt | 文書入力の Undo/Redo を接続し、IME 変換中の一押しが全体履歴へ伝わるのを防ぐ |
 | `ChoiceMenuItem` | ui/ChoiceMenuItem.kt | 選択一覧の現在値をチェック・背景色・selected で示す共通行 |
 | `ChoiceMenu`・`ChoiceOption` | ui/ChoiceMenu.kt・ChoiceOptions.kt | 高さ制限・遅延描画・現在値への初期スクロール・検索・説明全文を共有 |
 | `FlowViewPane` / `EmbeddedFlowPane` | ui/FlowViewPane.kt | 図と原本フォームを併記する単独・埋め込み表示（[views](views.md)） |
@@ -91,6 +92,14 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 - `TextFieldEscape` は preview で変換状態を覚え、子が消費しなかった KeyDown で操作を決める。キーリピートは次の層へ進めず、KeyUp またはフォーカス離脱で一押しの状態を解放する。
 - ID・参照・文書参照を含む選択一覧は `ChoiceMenu` が自身のフォーカスを持つ。検索欄の `onCompositionChange` を使って IME の Enter・Esc を優先し、`ChoiceKeyPress` がキー解放まで操作を保留する。
 - 日付・時刻ピッカーは自身のフォーカスと既存の閉鎖処理を使う。フォーカスを残す補助画面を追加する場合は、開いている間だけ `CompactTextField.onDismissPopup` を渡す。
+
+## 入力と Undo
+
+- 操作の意味と例外は [UI 操作規則「フォーム入力の Undo と Redo」](ui-interactions.md#フォーム入力の-undo-と-redo) が定める。
+- `CompactTextField.onHistory` に接続した欄は preview で文書履歴を呼ぶ。変換中は子へ渡し、未消費のキーは欄で止める。`TextFieldHistory` が一押しの状態を保持する。
+- `FormCtx.historyHandler` は `AppState.ownsDocument` でキャッシュの同一文書か確認し、一時フォームを除外する。直接入力だけに渡し、追加・改名前の欄には渡さない。
+- スキーマ設計は `LocalSchemaHistory` と `SchemaTextField` を通す。定義追加の入力は `workspaceHistory = false` で除外する。
+- キー判定は `historyShortcut` をウィンドウと共有し、実行は `undoFromUi`／`redoFromUi` を通す。履歴や保存の新しい経路は作らない。
 
 ## 閲覧専用
 

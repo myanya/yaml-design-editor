@@ -209,6 +209,8 @@ fun CompactTextField(
     onDismissPopup: (() -> Unit)? = null,
     /** 検索を持つ選択一覧が、IME の確定・取消を先取りしないための通知。 */
     onCompositionChange: ((Boolean) -> Unit)? = null,
+    /** 文書へ直接反映する欄だけ指定する。検索・追加前の値などは欄の文字列履歴を使う。 */
+    onHistory: ((HistoryShortcut) -> Unit)? = null,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
@@ -229,7 +231,8 @@ fun CompactTextField(
     val focusManager = LocalFocusManager.current
     val focusRequester = remember { FocusRequester() }
     val escape = remember { TextFieldEscape() }
-    LaunchedEffect(focused) { if (!focused) escape.reset() }
+    val history = remember { TextFieldHistory() }
+    LaunchedEffect(focused) { if (!focused) { escape.reset(); history.reset() } }
     val borderColor = when {
         isError -> Palette.ErrorRed
         focused -> Palette.Primary
@@ -256,9 +259,13 @@ fun CompactTextField(
                 if (event.key == Key.Escape) {
                     escape.preview(event.type == KeyEventType.KeyDown, editingValue.composition != null)
                 }
-                false
+                history.preview(event.historyShortcut(), event.type == KeyEventType.KeyDown,
+                    editingValue.composition != null, onHistory)
             }
             .onKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown && event.historyShortcut() != null && history.blocksFallback) {
+                    return@onKeyEvent true
+                }
                 // 子と IME が扱ったキーはここへ来ない。KeyUp や修飾キー付き Esc は操作しない。
                 if (event.key != Key.Escape || event.type != KeyEventType.KeyDown || event.isCtrlPressed ||
                     event.isAltPressed || event.isMetaPressed || event.isShiftPressed) return@onKeyEvent false
