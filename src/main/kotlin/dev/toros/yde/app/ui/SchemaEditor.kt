@@ -88,6 +88,7 @@ private fun SchemaEditorContent(state: AppState, doc: OpenDocument) {
     }
     Column(Modifier.fillMaxSize()) {
         CompositionLocalProvider(LocalTypeChoices provides typeChoices,
+            LocalSchemaAuthoring provides (mode == 0),
             LocalSchemaReadOnly provides (state.readOnlyMode || doc.draftBroken),
             LocalSchemaHistory provides state.historyHandler(doc)) { when (mode) {
             0 -> SchemaDesignWorkspace(

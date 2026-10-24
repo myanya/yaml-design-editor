@@ -92,6 +92,8 @@
 | S-23 | スキーマの値に式（項目の印 `expression: true`・共通の読み取りと評価と文面・`filePattern` と `scaffold`） | `semantic-core/schema/ExpressionFields.kt`, `semantic-core/semantic/Values.kt` | 単体 `ExpressionFieldsTest`, `SemanticValuesTest` | [schema](architecture/schema.md) |
 | S-24 | ユーザ定義の型（`type: 名前`・型の連鎖・狭める規則・メタスキーマへの型名の合成・オブジェクト型＝object の `entity`・項目を足す／狭める・要素ごとの型の検査） | `semantic-core/schema/SchemaTree.kt`, `semantic/ElementChecks.kt`, `workspace-core/workspace/MetaSchemaTypes.kt` | 単体 `TypeDefinitionsTest`, `ObjectTypesTest` | [schema](architecture/schema.md) |
 | S-25 | ファイルの場所の型（`type: file`・接頭辞なし＝ルートから・`./` `../`＝文書から・絶対の 3 通り・`extensions` で拡張子を絞る・値は文字列のまま） | `semantic-core/schema/FilePath.kt`, `schema/Fields.kt`（`FieldType.FILE`, `extensions`）, `builtin-schemas/schema.yaml` | 単体 `FilePathTest` | [schema](architecture/schema.md) |
+| S-26 | 設計画面の補完・操作入力・採番 | `ui/SchemaDesignFields.kt`, `builtin-schemas/schema.yaml` | `SchemaDesignFieldsTest`, `SchemaAuthoringTest` | [設計画面](manual/schema-editor.md) |
+| S-27 | 条件・手順・式の構造編集と追従検査 | `ui/SchemaValueEditor.kt` | `SchemaValueFormsTest`・`SchemaDefinitionCoverageTest`・`SchemaAuthoringHistoryTest` | [設計画面](manual/schema-editor.md) |
 
 ## 4. 検証
 
@@ -254,9 +256,8 @@
 
 | ID | 機能 | 実装 | テスト | 設計 |
 |---|---|---|---|---|
-| OP-01 | 型の操作の定義（object の `methods`＝予約名 `create` と名前付きの操作・配列の `methods.insert`＝採番と同じ明細・型を使う側への引き継ぎ） | `semantic-core/schema/Action.kt`, `semantic-core/schema/SchemaTreeParser.kt`, `semantic-core/schema/SchemaTree.kt` | 単体 `ActionPlannerTest` | [actions](architecture/actions.md) |
-| OP-02 | アクションの定義（`actions`＝対象・入力・前提・手順。読み込み時に点検） | `semantic-core/schema/Action.kt`, `workspace-core/workspace/SchemaDocuments.kt`, `builtin-schemas/schema.yaml` | `ActionPlannerTest` | [actions](architecture/actions.md) |
-| S-26 | 設計画面の補完・操作入力・採番 | `ui/SchemaDesignFields.kt`, `builtin-schemas/schema.yaml` | `SchemaDesignFieldsTest`, `SchemaAuthoringTest` | [設計画面](manual/schema-editor.md) |
+| OP-01 | 型の操作（`methods`・作成・採番・引き継ぎ） | `semantic-core/schema/Action.kt`, `schema/SchemaTree.kt` | `ActionPlannerTest` | [actions](architecture/actions.md) |
+| OP-02 | アクションの定義と点検 | `semantic-core/schema/Action.kt`, `workspace-core/workspace/SchemaDocuments.kt` | `ActionPlannerTest` | [actions](architecture/actions.md) |
 | OP-03 | 操作の計画（受け手の解決・受け取った値の検証・前提の 4 つの結果・set / insert / delete / create / call / each・変更セットの生成） | `workspace-core/workspace/ActionPlanner.kt`, `semantic-core/semantic/Transform.kt`（`build` / `holds`） | 単体 `ActionPlannerTest` | [actions](architecture/actions.md) |
 | OP-04 | CLI `action`（使える操作の一覧・計画＝変更セットと適用後の検証・`--apply`・`--allow-errors`） | `core/Cli.kt` | 単体 `ActionCliTest` | [actions](architecture/actions.md) |
 | OP-05 | 画面の入口（操作メニュー・行の ⋯・ヘッダ・パレット・「操作」タブ → 浮いたパネル＝対象・値・確認・差分・適用は書いて保存。閲覧専用でも可） | `app/AppState.kt`（`ActionWork` / `startAction`）, `ui/ActionPane.kt`, `ui/SidePanel.kt`, `ui/FormView.kt`, `ui/ViewGridPane.kt`, `Main.kt` | 単体 `AppStateActionTest`・画面は手動 | [actions](architecture/actions.md) |

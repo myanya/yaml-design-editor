@@ -47,7 +47,9 @@ internal fun schemaFieldHandledKeys(type: String, allowKey: Boolean, referenced:
 
 internal fun schemaFieldAdditionalFields(tree: SchemaTree?, node: YNode.Map, type: String, allowKey: Boolean, referenced: Boolean): List<FieldDef> {
     val definition = tree?.definitions?.get("field")?.let { tree.resolve(it) }
-    val fields = definition?.let { tree.effectiveFields(it.fields, node).fields }.orEmpty()
+    // 未保存の名前付き型にも基底の入力欄を出す。表示用の写しだけを使い、原本の type は変えない。
+    val shape = YNode.Map(LinkedHashMap(node.entries).apply { put("type", YNode.Scalar(type)) })
+    val fields = definition?.let { tree.effectiveFields(it.fields, shape).fields }.orEmpty()
     val handled = schemaFieldHandledKeys(type, allowKey, referenced).toMutableSet()
     // 複合値はスカラー専用の欄では表せないため、共通フォームへ回す。
     listOf("default", "sample").forEach { if (node.entries[it] is YNode.Map || node.entries[it] is YNode.Seq) handled.remove(it) }

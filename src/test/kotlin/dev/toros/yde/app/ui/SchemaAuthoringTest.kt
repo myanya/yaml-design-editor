@@ -53,4 +53,12 @@ class SchemaAuthoringTest {
         val rows = schemaOutline(YamlIO.parse("type: ref\nfields: [{key: weight, type: int}]"), listOf("root"), "参照", { it })
         assertEquals(listOf("root", "fields", 0), rows.last().path)
     }
+
+    @Test
+    fun `未保存の名前付き型にも基底の操作と検査を表示する`() {
+        val node = YamlIO.parse("type: UnsavedType") as YNode.Map
+        val keys = schemaFieldAdditionalFields(tree, node, "object", true, false).map { it.key }
+        assertTrue(keys.containsAll(listOf("methods", "constraints")))
+        assertEquals("UnsavedType", (node.entries["type"] as YNode.Scalar).value)
+    }
 }

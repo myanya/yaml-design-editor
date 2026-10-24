@@ -734,6 +734,11 @@ internal fun FieldRow(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
                                 Text(" *$it〜", color = Palette.WarnOrange, fontSize = 10.sp)
                             }
                             helpButton()
+                            if (LocalSchemaAuthoring.current && !ctx.readOnly && slot.get() != null) {
+                                SchemaDeleteButton("設定「${effective.displayLabel}」を削除") {
+                                    slot.remove(); ctx.markEdited()
+                                }
+                            }
                             if (effective.type != FieldType.ARRAY && !ctx.readOnly) {
                                 IconButton(
                                     onClick = { ctx.state.requestAi(ctx.doc, effective, path, relatedFiles = ctx.aiRelatedFiles) },
@@ -775,6 +780,10 @@ internal fun FieldRow(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
 @Composable
 fun ValueEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
     val effective = ctx.doc.schema?.resolve(field) ?: field
+    if (LocalSchemaAuthoring.current && effective.expression) {
+        SchemaValueEditor(ctx, slot, path)
+        return
+    }
     // 型変更後の残留値（UX-70）: スキーマの型と現在値の構造が合わないと各エディタが編集不能になる
     // （例 string→array 変更後の文字列値）。ここで検知して「消す／変換」つきの修復表示へ切り替える
     val node = slot.get()
@@ -803,7 +812,8 @@ fun ValueEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
         FieldType.MAP -> MapEditor(ctx, effective, slot, path)
         FieldType.OBJECT -> NestedObjectEditor(ctx, effective, slot, path)
         // any は型を定めないため汎用エディタで編集する（R11-02）
-        FieldType.ANY -> GenericEditor(ctx, slot, path, refHint = false)
+        FieldType.ANY -> if (LocalSchemaAuthoring.current) SchemaValueEditor(ctx, slot, path)
+            else GenericEditor(ctx, slot, path, refHint = false)
     }
 }
 
