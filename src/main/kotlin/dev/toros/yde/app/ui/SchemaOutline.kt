@@ -11,7 +11,8 @@ internal fun schemaNavigationTarget(path: YPath): SchemaNavigationTarget = when 
     "definitions" -> (path.getOrNull(1) as? String)?.let {
         SchemaNavigationTarget(1, it, listOf("definitions", it))
     } ?: SchemaNavigationTarget(1)
-    else -> SchemaNavigationTarget(2)
+    "@settings", "id", "name", "kind", "description", "match", "phases", "coverage", "entity" -> SchemaNavigationTarget(2)
+    else -> SchemaNavigationTarget(3, definition = path.firstOrNull() as? String, base = path.take(1))
 }
 
 /** 宣言した構造だけの表示用射影。参照先の展開や型の意味解釈は既存の型解決に任せる。 */

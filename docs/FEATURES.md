@@ -71,7 +71,7 @@
 | S-02 | 型システム: 基底の種類 14 種（表現の基底 9＋意味の基底型 `id` / `ref` / `date` / `time` / `datetime`。存在の検証）＋組込みの定義体 `text` / `line` / `word` | `semantic-core/schema/Fields.kt`・`ValueSemantics.kt`・`BuiltinTypes.kt` | 単体 `MetaSchemaTest`, `TypeDefinitionsTest` | [schema](architecture/schema.md) |
 | S-03 | 名前付き定義と再帰参照（`definitions` / `$ref`・狭める規則の合成） | `semantic-core/schema/SchemaTree.kt`（`resolve`） | 単体 `TypeDefinitionsTest` | [schema](architecture/schema.md) |
 | S-04 | メタスキーマ検証と宣言のない関係名の点検（実体はカーネル・読み込みエラーへ足す） | `workspace-core/workspace/SchemaDefinitionChecks.kt` | 単体 `SchemaLoaderTest`, `KernelOnlyChecksTest` | [schema](architecture/schema.md) |
-| S-05 | スキーマ設計 UI（三つの表示方式・共通の入力配置と折り畳み・狭幅で切替・document／library・`$ref`・プレビュー・適用対象・`requiredFrom`・`role`・enum 選択肢・制約・ヒント＝案内／サンプル値／複数行・`phases`・`coverage`・エンティティ節＝ID の型・object の同一性） | `ui/SchemaEditor.kt`・`ui/SchemaDesignWorkspace.kt` | `SchemaOutlineTest`・手動 | [ui](architecture/ui.md) |
+| S-05 | スキーマ設計（三方式・型・必須・表示・フェーズ・同一性・プレビュー） | `ui/SchemaEditor.kt`, `ui/SchemaDesignWorkspace.kt` | `SchemaOutlineTest`・手動 | [ui](architecture/ui.md) |
 | S-06 | サンプル YAML 生成（プレビュー・コピー・新規ファイルの初期値・必須スカラーに型別の例値） | `semantic-core/schema/SchemaScaffold.kt` | 単体 `SchemaLoaderTest`, `DocumentScaffoldTest` | [schema](architecture/schema.md) |
 | S-07 | スキーマ外キーの検証ポリシー（`unknownFields: allow / warning / error`） | `validate/Validator.kt`, `index/IdIndex.kt` | 手動 | [schema](architecture/schema.md) |
 | S-08 | 参照の関係種別（`type: ref` の `relation`） | `schema/Schema.kt`, `index/IdIndex.kt` | 単体 `WorkspaceCliTest` | [graph-query](architecture/graph-query.md) |
@@ -255,7 +255,8 @@
 | ID | 機能 | 実装 | テスト | 設計 |
 |---|---|---|---|---|
 | OP-01 | 型の操作の定義（object の `methods`＝予約名 `create` と名前付きの操作・配列の `methods.insert`＝採番と同じ明細・型を使う側への引き継ぎ） | `semantic-core/schema/Action.kt`, `semantic-core/schema/SchemaTreeParser.kt`, `semantic-core/schema/SchemaTree.kt` | 単体 `ActionPlannerTest` | [actions](architecture/actions.md) |
-| OP-02 | アクションの定義（スキーマ文書の `actions`＝受け手 `target`・受け取る値・前提 `require`・手 `do`。形の点検は読み込み時） | `semantic-core/schema/Action.kt`, `workspace-core/workspace/SchemaDocuments.kt`, `builtin-schemas/schema.yaml` | 単体 `ActionPlannerTest` | [actions](architecture/actions.md) |
+| OP-02 | アクションの定義（`actions`＝対象・入力・前提・手順。読み込み時に点検） | `semantic-core/schema/Action.kt`, `workspace-core/workspace/SchemaDocuments.kt`, `builtin-schemas/schema.yaml` | `ActionPlannerTest` | [actions](architecture/actions.md) |
+| S-26 | メタスキーマによる設計画面の追加区画（操作・検査・文書作成・派生・未知キー） | `ui/SchemaDesignFields.kt`, `ui/SchemaDesignWorkspace.kt` | `SchemaDesignFieldsTest` | [設計画面](manual/schema-editor.md) |
 | OP-03 | 操作の計画（受け手の解決・受け取った値の検証・前提の 4 つの結果・set / insert / delete / create / call / each・変更セットの生成） | `workspace-core/workspace/ActionPlanner.kt`, `semantic-core/semantic/Transform.kt`（`build` / `holds`） | 単体 `ActionPlannerTest` | [actions](architecture/actions.md) |
 | OP-04 | CLI `action`（使える操作の一覧・計画＝変更セットと適用後の検証・`--apply`・`--allow-errors`） | `core/Cli.kt` | 単体 `ActionCliTest` | [actions](architecture/actions.md) |
 | OP-05 | 画面の入口（操作メニュー・行の ⋯・ヘッダ・パレット・「操作」タブ → 浮いたパネル＝対象・値・確認・差分・適用は書いて保存。閲覧専用でも可） | `app/AppState.kt`（`ActionWork` / `startAction`）, `ui/ActionPane.kt`, `ui/SidePanel.kt`, `ui/FormView.kt`, `ui/ViewGridPane.kt`, `Main.kt` | 単体 `AppStateActionTest`・画面は手動 | [actions](architecture/actions.md) |

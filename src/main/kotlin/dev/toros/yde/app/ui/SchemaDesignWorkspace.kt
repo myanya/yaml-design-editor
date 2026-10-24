@@ -121,10 +121,12 @@ private fun SchemaStructureEditor(
     val memory = ctx.state.memory
     val document = ctx.state.documentOf(doc.file)
     val named = root.entries["definitions"] as? YNode.Map ?: remember(root) { YNode.Map() }
+    val additional = schemaAdditionalFields(doc.schema?.tree, root, library)
     val section = (memory.schemaSection[document] ?: if (library) 1 else 0).let { if (library && it == 0) 1 else it }
     val name = memory.schemaDefinition[document]?.takeIf { it in named.entries } ?: named.entries.keys.firstOrNull()
     val base: YPath = when (section) {
         2 -> listOf("@settings")
+        3 -> listOf(memory.schemaDefinition[document].orEmpty())
         1 -> listOf("definitions", name.orEmpty())
         else -> listOf("root")
     }
@@ -262,7 +264,12 @@ private fun SchemaStructureEditor(
                 else -> null
             }, entry.node)
     }
-    val selectedPath = if (section == 2) listOf("@settings") else selected?.path
+    val extra = additional.firstOrNull { it.key == base.firstOrNull() }
+    val allOutlineItems = outlineItems + additional.map { field ->
+        FormOutlineItem(listOf(field.key!!), null, field.displayLabel,
+            field.key!!, node = root.entries[field.key])
+    }
+    val selectedPath = if (section == 2) listOf("@settings") else extra?.key?.let { listOf(it) } ?: selected?.path
     val schemaActions: @Composable () -> Unit = {
         if (schema?.kind == SchemaKind.DOCUMENT && schema.derive == null) {
             var menu by remember { mutableStateOf(false) }
@@ -275,7 +282,7 @@ private fun SchemaStructureEditor(
             }
         }
     }
-    StructuredForm(ctx, true, outlineItems, selectedPath, ::select, reveal = {},
+    StructuredForm(ctx, true, allOutlineItems, selectedPath, ::select, reveal = {},
         beforeItem = { item ->
             if (item.path == rows.firstOrNull { it.path.firstOrNull() == "definitions" }?.path) {
                 SchemaDefinitionsHeader(named, doc) { definition ->
@@ -295,7 +302,8 @@ private fun SchemaStructureEditor(
         selectedContent = { modifier ->
             if (selected != null) itemDetail(selected, modifier.border(1.dp, Palette.Border, PanelShape), false)
             else SchemaScroll(modifier) {
-                if (section == 2) SchemaBasicSettings(ctx, root, library)
+                if (extra != null) FieldRow(ctx, extra, MapSlot(root, extra.key!!), listOf(extra.key!!))
+                else if (section == 2) SchemaBasicSettings(ctx, root, library)
                 else Text("構成から名前付き定義を追加してください。", fontSize = 13.sp)
             }
         },
@@ -316,6 +324,11 @@ private fun SchemaStructureEditor(
                     }
                 }
             } }
+            additional.forEach { field ->
+                FormAnchor(listOf(field.key!!)) {
+                    FieldRow(ctx, field, MapSlot(root, field.key!!), listOf(field.key!!))
+                }
+            }
             SchemaDefinitionsHeader(named, doc) { definition ->
                 root.entries["definitions"] = named
                 select(listOf("definitions", definition))
