@@ -26,9 +26,11 @@ class SaveConflictTest {
         assertEquals(history, s.history)
         assertEquals(version, s.version)
         assertTrue(s.isDirty(a))
+        assertFalse(s.undo().ok, "未解決の外部変更を古い履歴で上書きしない")
+        assertFalse(s.save(force = true).ok, "force は競合回避の指定ではない")
+        s.acknowledgeStoreText(a, store.read(a)?.text)
         assertTrue(s.undo().ok)
         assertTrue(s.redo().ok)
-        assertFalse(s.save(force = true).ok, "force は競合回避の指定ではない")
     }
 
     @Test
@@ -112,15 +114,16 @@ class SaveConflictTest {
     }
 
     @Test
-    fun `ディスク版の採用は保存基準を揃え履歴を消さない`() {
+    fun `ディスク版の採用は保存基準を揃え履歴を残すが古い値には戻さない`() {
         val store = store()
         val s = WorkspaceSession(store)
         edit(s)
         store.write(a, "title: external\n")
         s.acceptStoreText(a, store.read(a)?.text)
         assertFalse(s.isDirty(a))
-        assertTrue(s.undo().ok)
+        assertTrue(s.canUndo())
+        assertFalse(s.undo().ok)
         assertTrue(s.save().ok)
-        assertEquals("title: A\n", store.read(a)?.text)
+        assertEquals("title: external\n", store.read(a)?.text)
     }
 }

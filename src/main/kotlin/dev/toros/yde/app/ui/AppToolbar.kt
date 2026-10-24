@@ -69,6 +69,7 @@ fun AppToolbar(
                                 action("保存    Ctrl+S", state.openDoc != null, state::saveCurrent)
                                 action("すべて保存    Ctrl+Shift+S", state.hasDirtyDocs(), state::saveAll)
                                 action("ワークスペースを再読込", run = state::reload)
+                                action("編集と履歴を破棄して開き直す…", !state.fileOperationBusy, state::requestDiscardAndReload)
                             }
                             "編集" -> {
                                 action("元に戻す    Ctrl+Z", state.canUndo(), state::undoFromUi)

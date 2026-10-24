@@ -45,6 +45,9 @@
 - `AppState` は実行後の通知（`historyNotice`）とホバー予告（`undoPreview` / `redoPreview`）を組み立てる。通知の強さと寿命は [UI 操作規則「横断履歴の通知」](ui-interactions.md#横断履歴の通知) に従う。
 - `HistoryStep` は実行前の表示文書を保持し、実際に実行した記録の全対象と比較する。`HistoryNotice.targets` は消えたファイルも含み、`historyNoticeTargets` が現在の未保存状態と開けるかを返す。
 - `historyLocations` はセッションの記録 ID に `NavLocation` を添え、成功後に `returnToHistoryLocation` が編集元へ戻す。内容の履歴は複製せず、セッションの開き直しで画面情報を破棄する。
+- 通常の再読込ではセッションと画面情報を保持する。取り込める外部変更と中止条件は [workspace.md「再読込と履歴の保持」](workspace.md#再読込と履歴の保持) を参照。
+- `checkHistory` は適用前に全対象の外部変更と採用済み外部版との衝突を確認する。アプリの下書き破棄確認の前と、カーネルでスタックを進める直前に検査し、競合時は履歴の一手全体を残して停止する。
+- 外部版の採用後に衝突する古い記録は飛ばさない。その記録より手前まで戻すことはできないが、新しい編集の Undo/Redo は使える。上書き許可だけの場合は採用と区別し、既存履歴を無効化しない。
 - 通常編集は記録時、ソースは解析完了時の画面に関係なく対象文書のソースタブを記憶する。一括変更・リファクタリング・操作・作成・配置変更・自動値も既存の記録に画面情報を添える。
 - 移動は既存のナビゲーション経路を使い、Alt+←で移動前の場所へ戻れる。ビュー内の絞り込み・スクロール等の覚えは `ScreenMemory` を使い、編集履歴に複製しない。
 - `OpenDocument.dirty` はセッションの正の写し。`EditBuffer` の文字列比較は、セッションが文書として扱わないパスのためだけ。
@@ -116,11 +119,11 @@ Core Calculus 上は既存の変更記録のまとめ方に限り、Rewrite の�
 
 - `YNode` は Compose の State ではない。木を表示するコンポーザブルは `doc.version` / `state.indexVersion` を読んで購読する。
 - ツリーの変更は必ず `markEdited()` とセットで行う。
-- 文書を作る機能は `AppState.createDocumentFile` を通す。`Files.writeString` ＋ `reload()` で作らない。`reload()` はセッションを開き直すため Undo 履歴が全て失われ、作成自体も Undo できなくなる。
+- 文書を作る機能は `AppState.createDocumentFile` を通す。`Files.writeString` ＋ `AppState.reload()` は外部変更の取り込みとなり、作成自体の Undo が記録されない。
 - 内部で変更を生成するコードは `edit.YamlOperation` を使う。`patch.PatchOp` と変更セットは交換形式に限る。
 - 連続入力になり得る新しい編集面は、合体キーを渡す。構造操作はキーなし。
 - ソースの下書きは `OpenDocument` が持つ。木が変わったとき下書きを正規化テキストで置き換えない（`syncSourceFromTree` の差し込み）。解析できない下書きを無視してフォームを編集可能にしない（`FormCtx.readOnly` の既定に `draftBroken` が入っている）。
-- 解析できないテキストを書くときは `WorkspaceSession.saveAsText`（文書集合から外す）。`reload()` は履歴を消すので、壊れた保存の取り込みに使わない。
+- 解析できないテキストを書くときは `WorkspaceSession.saveAsText`（文書集合から外す）。カーネルの `WorkspaceSession.reload()` は履歴を消すので、壊れた保存の取り込みに使わない。
 
 ## 拡張ポイント
 

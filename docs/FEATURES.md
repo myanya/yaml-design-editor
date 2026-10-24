@@ -13,7 +13,7 @@
 | W-01 | ワークスペース選択（起動引数・OS ネイティブのフォルダ選択・スタート画面・最後に選んだ場所を用途ごとに記憶） | `Main.kt`, `ui/FilePickers.kt`, `AppState.openWorkspace` | 手動 | [ui](architecture/ui.md) |
 | W-02 | ファイルツリー（全形式・隠し項目・除外・パス検索・展開の永続化・現在地） | `ui/FileTreePane.kt`, `core/FileCatalog.kt` | `FileCatalogTest`・画面は手動 | [ui](architecture/ui.md) |
 | W-03 | ファイル・フォルダーの配置変更と Undo | `FileArrangementPlanner`, `FileArrangementJournal`, `FileMoveDialog` | `AppStateFileArrangementTest`・`DocumentCacheSnapshotTest` ほか | [workspace](architecture/workspace.md) |
-| W-04 | 外部変更検出（OS ネイティブ監視・使えない環境は 1 秒ポーリング・未編集は自動再読込・未保存は競合バナー） | `core/FileWatcher.kt`, `AppState.pollExternalChanges` | 単体 `FileWatcherTest` | [workspace](architecture/workspace.md) |
+| W-04 | 外部監視と再読込（履歴保持・競合保護・確認付き破棄） | `AppState.reload`, `WorkspaceSession.refreshFrom`, `ReloadConfirmationDialog` | `ReloadHistoryTest`・`SessionRefreshTest` | [workspace](architecture/workspace.md) |
 | W-05 | 最近開いたファイル履歴（12 件・ワークスペース単位で永続化） | `AppState.recentFiles` | 手動 | [ui](architecture/ui.md) |
 | W-06 | UI レイアウトとテーマ（左右の領域アイコン・ペイン内の閉じる操作・幅と開閉とテーマの永続化） | `Main.kt`, `ui/AppToolbar.kt`, `ui/Common.kt` | 手動 | [ui](architecture/ui.md) |
 | W-07 | 未保存確認（終了時・ワークスペース切替時） | `Main.kt` | 手動 | [ui](architecture/ui.md) |

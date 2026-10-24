@@ -76,7 +76,7 @@ class EditingSessionForkTest {
         assertEquals(1, state.index.backlinksTo(setOf("TASK-001")).size)
         assertTrue(state.index.refs.all { state.index.resolve(it).isNotEmpty() })
 
-        // 再読込（ディスクを映すセッションを読み直し、編集用をそこから起こし直す）でも、未保存の編集は保たれる
+        // 再読込でディスク版だけを更新しても、編集用セッションと未保存の編集は保たれる
         state.reload()
         assertTrue(t1.dirty)
         assertTrue("TASK-100" in state.overlayIndex().entries)

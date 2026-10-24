@@ -67,7 +67,7 @@ scripts/docs-lint.sh                        # 文書の形の機械チェック
 - 全体を回す検証は `shareEvaluations = true` を渡す。ただし索引に重ねていない内容の検証では渡さない → architecture/checks.md「評価は 1 回」
 - クエリの線は `graph.ownRefs`（直接書いた参照）で辿る。判定に `graph.outgoingRefs` を使わない → architecture/graph-query.md「線の意味」
 - 保有（入れ子で書かれた要素）の線は `graph.holdingsOf / holdersOf`。名前は走査が決める（`ScannedId.holderKey / holderRelation`）。`ScannedRef` として索引の参照に混ぜない → architecture/graph-query.md「線の意味」
-- 文書の新規作成は `AppState.createDocumentFile` の単一経路。`Files.writeString` ＋ `reload()` は Undo 履歴を全て失う → architecture/schema.md「リファクタリング」
+- 文書の新規作成は `AppState.createDocumentFile` の単一経路。`Files.writeString` ＋ `reload()` では作成の Undo を記録できない → architecture/editing-history.md「文書の作成と削除」
 - 配置判定は `WorkspaceLayout` に一元化。`_schemas/` にはメタスキーマだけ。定義文書への書込は `meta: true` のアクティビティのみ → architecture/workspace.md「ワークスペース構造と layout」・architecture/schema.md「推測・メタスキーマ・派生」・architecture/agents.md「エージェント実行と Staging」
 - ビューは射影で、専用の書込経路を作らない。AI の HTTP は `AiHttp.post` に一元化 → architecture/views.md「ビュー機構」・architecture/agents.md「AI 接続」
 - カーネルのテストは疑似セッション注入、自動化のテストは `tick(now)` を直接呼ぶ。実 API を叩かない → architecture/agents.md「エージェント実行と Staging」・architecture/agents.md「自動実行」

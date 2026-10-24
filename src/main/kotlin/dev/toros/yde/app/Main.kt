@@ -88,6 +88,7 @@ fun main(args: Array<String>) = application {
                 confirmButton = { TextButton(onClick = { exitApplication() }) { Text("保存せず終了", color = Palette.ErrorRed) } },
                 dismissButton = { TextButton(onClick = { confirmExit = false }) { Text("キャンセル") } },
             )
+            ReloadConfirmationDialog(state)
             // 解析できない書きかけを捨てて Undo/Redo するかの確認（P43 R43-02）
             state.pendingHistory?.let { pending ->
                 AlertDialog(

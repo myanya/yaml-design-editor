@@ -1102,6 +1102,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
 
     fun openWorkspace(dir: Path) {
         dismissHistoryNotice()
+        pendingReload = null
         workspace = dir.toAbsolutePath().normalize()
         coreWs = null
         session = null
@@ -1135,35 +1136,148 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         reload()
     }
 
-    /** ファイル一覧・スキーマ・索引をディスクから再読込する（未保存編集は保持）。 */
+    /** ディスク版を候補として読み、編集・下書き・履歴を保持できる場合だけ取り込む。 */
     fun reload() {
+        if (fileOperationBusy) return
         val ws = workspace ?: return
-        val cw = coreWs?.also { it.refresh() } ?: dev.toros.yde.app.core.Workspace.open(ws).also { coreWs = it }
-        mirrorCore(cw)
-        // A-1: 新経路セッションもディスク再読込と同じタイミングで開き直す（レイアウト変化も追随する）。
-        // 開き直し後は編集中文書を再反映する（RA-05）。ディスクを映すセッションを読み直した直後なので、
-        // その読み込み済みの状態から起こす（同じワークスペースを2回読まない。P27 段D の D-d・D-e）
-        reopenSession(ws, fromMirror = true)
+        val candidate = runCatching { prepareReload(ws) }.getOrElse {
+            status = "再読込に失敗しました: ${it.message}"
+            return
+        }
+        val cw = candidate.workspace
+        val current = session
+        val protected = protectedDocumentIds() + current?.dirtyDocuments().orEmpty()
+        var notice: String? = null
+        if (current != null) {
+            val result = current.refreshFrom(cw.mirror, protected)
+            if (!result.ok) {
+                docCache.values.filter { it.dirty || it.draftDirty || it.hasPendingSourceInput }.forEach { doc ->
+                    if (runCatching { readStoreText(doc) != doc.expectedStoreText }.getOrDefault(false)) doc.externalConflict = true
+                }
+                status = result.message ?: "再読込に失敗しました"
+                return
+            }
+            notice = result.message
+        }
+        coreWs = cw
+        mirrorCore(cw, candidate.markdown, candidate.editorOnly)
+        if (current == null) reopenSession(ws, fromMirror = true)
         directories = emptyList()
         fileTreeRevision++
         val existing = yamlFiles.toSet() + editorOnlyFiles
         docCache.keys.filter { it !in existing }.toList().forEach { removed ->
-            if (docCache[removed]?.dirty != true) docCache.remove(removed)
+            if (documentOf(removed) !in protected) docCache.remove(removed)
         }
         docCache.values.forEach { doc ->
             doc.schema = schemaFor(doc.file)
-            reloadDocumentFromDisk(doc, force = false)
+            // 時刻だけでなく本文を比較する。変更のない下書き・カーソルはそのまま残す。
+            val text = cw.mirror.expectedStoreText(documentOf(doc.file))
+            if (text != doc.expectedStoreText) {
+                if (documentOf(doc.file) in protected) doc.externalConflict = true
+                else reloadDocumentFromDisk(doc, force = true, knownText = text)
+            }
         }
-        openDoc?.let { if (it.file !in existing && !it.dirty) openDoc = null }
+        openDoc?.let { if (it.file !in existing && documentOf(it.file) !in protected) openDoc = null }
         openMarkdown?.let { if (!Files.exists(it)) openMarkdown = null }
         openImage?.let { if (!Files.exists(it)) openImage = null }
         indexVersion++
-        workspaceStamp = snapshotFiles(ws)
-        status = "ワークスペース: $ws ／ YAML ${yamlFiles.size} 件・スキーマ ${schemas.size} 件・ID ${index.entries.size} 件"
+        workspaceStamp = candidate.stamps
+        status = notice ?: "ワークスペース: $ws ／ YAML ${yamlFiles.size} 件・スキーマ ${schemas.size} 件・ID ${index.entries.size} 件"
     }
 
-    /** core.Workspace の状態を Compose 購読用ミラーへ反映する。 */
-    private fun mirrorCore(cw: dev.toros.yde.app.core.Workspace) {
+    class PendingReload internal constructor(
+        val files: List<String>, val historyCount: Int, internal val stamp: List<Any?>,
+    )
+    var pendingReload by mutableStateOf<PendingReload?>(null)
+        private set
+
+    private fun reloadConfirmationStamp(): List<Any?> = listOf(
+        workspace, session, session?.version, session?.historySize, dirtyFiles().toSet(),
+        docCache.mapValues { (_, doc) -> listOf(doc.version, doc.source.text.toString(), doc.sourceEpoch, doc.dirty, doc.expectedStoreText) },
+    )
+
+    fun requestDiscardAndReload() {
+        if (workspace == null || fileOperationBusy) return
+        val files = dirtyFiles() + docCache.values.filter { it.hasPendingSourceInput }.map { it.file }
+        pendingReload = PendingReload(files.map(::relPath).sorted(), session?.historySize ?: 0, reloadConfirmationStamp())
+    }
+
+    fun cancelDiscardAndReload() { pendingReload = null }
+
+    /** 確認対象が変わっていない場合だけ、読込済みの候補へ交換する。ディスクへの書込は行わない。 */
+    fun confirmDiscardAndReload() {
+        val pending = pendingReload ?: return
+        pendingReload = null
+        if (fileOperationBusy || pending.stamp != reloadConfirmationStamp()) {
+            status = "確認中に編集や履歴が変わったため中止しました。もう一度操作してください"
+            return
+        }
+        val ws = workspace ?: return
+        val prepared = runCatching {
+            val candidate = prepareReload(ws)
+            candidate to candidate.workspace.mirror.fork()
+        }.getOrElse {
+            status = "再読込に失敗したため、編集と履歴を残しました: ${it.message}"
+            return
+        }
+        if (pending.stamp != reloadConfirmationStamp()) {
+            status = "読込中に編集や履歴が変わったため中止しました"
+            return
+        }
+        val location = currentLocation()
+        coreWs = prepared.first.workspace
+        session = prepared.second
+        docCache.clear()
+        historyLocations.clear()
+        dismissHistoryNotice()
+        pendingHistory = null
+        pendingTextSave = null
+        openDoc = null
+        openMarkdown = null
+        openImage = null
+        openPreview = null
+        derivedCache = null
+        mirrorCore(prepared.first.workspace, prepared.first.markdown, prepared.first.editorOnly)
+        directories = emptyList()
+        fileTreeRevision++
+        editVersion++
+        indexVersion++
+        workspaceStamp = prepared.first.stamps
+        if (!isStale(location)) restore(location)
+        status = "未保存編集と Undo/Redo 履歴を破棄し、ディスクから開き直しました（ファイルは変更していません）"
+    }
+
+    private fun protectedDocumentIds(): Set<DocumentId> = docCache.values
+        .filter { it.dirty || it.draftDirty || it.hasPendingSourceInput || it.externalConflict }
+        .map { documentOf(it.file) }.toSet()
+
+    private fun hasRetainedEdits(): Boolean = session?.let {
+        it.canUndo() || it.canRedo() || it.dirtyDocuments().isNotEmpty()
+    } == true || protectedDocumentIds().isNotEmpty()
+
+    private class ReloadCandidate(
+        val workspace: dev.toros.yde.app.core.Workspace,
+        val markdown: List<Path>, val editorOnly: List<Path>, val stamps: Map<Path, Long>,
+    )
+
+    /** 一覧の走査も交換前に済ませ、読込失敗で編集や履歴を半分だけ破棄しない。 */
+    private fun prepareReload(ws: Path): ReloadCandidate {
+        require(Files.isDirectory(ws)) { "ワークスペースのフォルダーがありません: $ws" }
+        val cw = dev.toros.yde.app.core.Workspace.open(ws)
+        return ReloadCandidate(cw, dev.toros.yde.app.core.WorkspaceScan.markdownFiles(ws),
+            editorOnlyFiles(cw), snapshotFiles(ws))
+    }
+
+    private fun editorOnlyFiles(cw: dev.toros.yde.app.core.Workspace): List<Path> =
+        if (cw.layout.ledger.isEmpty()) emptyList()
+        else dev.toros.yde.app.core.WorkspaceScan.editorYamlFiles(cw.root).filter { it !in cw.files.toSet() }
+
+    /** core.Workspace の状態を Compose 購読用ミラーへ反映する。走査は状態反映より先に行う。 */
+    private fun mirrorCore(
+        cw: dev.toros.yde.app.core.Workspace,
+        markdown: List<Path> = dev.toros.yde.app.core.WorkspaceScan.markdownFiles(cw.root),
+        editorOnly: List<Path> = editorOnlyFiles(cw),
+    ) {
         schemas = cw.schemas
         schemaErrors = cw.schemaErrors
         relations = cw.relations
@@ -1171,10 +1285,9 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         entityTypes = cw.entityTypes
         schemaGraph = cw.schemaGraph
         yamlFiles = cw.files
-        markdownFiles = dev.toros.yde.app.core.WorkspaceScan.markdownFiles(cw.root)
+        markdownFiles = markdown
         // 台帳外のエディタ層ファイル（R13-04）。ledger 宣言が無ければ走査対象と一致するため空になる
-        editorOnlyFiles = if (cw.layout.ledger.isEmpty()) emptyList()
-        else dev.toros.yde.app.core.WorkspaceScan.editorYamlFiles(cw.root).filter { it !in cw.files.toSet() }
+        editorOnlyFiles = editorOnly
     }
 
     fun rebuildIndex() {
@@ -1243,36 +1356,25 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         return true
     }
 
-    /**
-     * ディスク変更をセッションへ同期する（保存・外部変更検出から呼ぶ）。構成変更でレイアウトが
-     * 変わったときは開き直し、それ以外は増分取り込み（noteStoreChanges。スキーマ変更の
-     * 全再読込への降格はセッション側の責務＝R9-02 の振り分けと同型）。
-     */
+    /** 編集や履歴があれば候補から保護して取り込み、状態のないセッションだけ従来の増分経路を使う。 */
     private fun syncSessionWithDisk(changed: List<Path>, removed: List<Path> = emptyList()) {
         val ws = workspace ?: return
         val s = session ?: run { reopenSession(ws); return }
-        if (coreWs?.layout != s.layout) {
-            reopenSession(ws)
+        if (hasRetainedEdits()) {
+            val disk = coreWs?.mirror ?: return
+            val result = s.refreshFrom(disk, protectedDocumentIds())
+            if (!result.ok) status = result.message ?: "再読込に失敗しました"
             return
         }
+        if (coreWs?.layout != s.layout) { reopenSession(ws); return }
         runCatching {
-            val protected = s.dirtyDocuments().toSet() + docCache.values
-                .filter { it.dirty || it.draftDirty || it.hasPendingSourceInput || it.externalConflict }.map { documentOf(it.file) }
-            val changedIds = changed.map(::documentOf).filterNot { it in protected }
-            val removedIds = removed.map(::documentOf).filterNot { it in protected }
+            val changedIds = changed.map(::documentOf)
+            val removedIds = removed.map(::documentOf)
             if (changedIds.isEmpty() && removedIds.isEmpty()) return
-            if (protected.isNotEmpty()) {
-                // 他文書の通知を契機とする全再読込でも、未表示の Undo と保存基準を消さない。
-                (changedIds + removedIds).distinct().forEach { s.acceptStoreText(it, s.storedText(it)) }
-                return
-            }
             s.noteStoreChanges(
                 changed = changedIds,
                 removed = removedIds,
             )
-            // スキーマ変更などで全再読込へ降格した場合に備え、編集中文書を再反映する（RA-05。
-            // dirty 文書の変更はセッション側が取り込まないため、通常の増分では no-op に近い）
-            docCache.values.filter { it.dirty }.forEach(::pushEditToSession)
         }.onFailure { reopenSession(ws) }
     }
 
@@ -1318,6 +1420,11 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
             return
         }
         val changed = (next.keys + workspaceStamp.keys).filter { next[it] != workspaceStamp[it] }
+        if (hasRetainedEdits()) {
+            reload()
+            workspaceStamp = next
+            return
+        }
         changed.forEach { file -> docCache[file]?.let { reloadDocumentFromDisk(it, force = false) } }
         // 増分か全再構築か（スキーマ変更時のみ全再構築）の振り分けは core に一元化されている（R9-02）
         cw.noteDiskChanges(
@@ -1345,6 +1452,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         val s = session ?: return
         val changedDocs = runCatching { s.externalChanges() }.getOrNull().orEmpty()
         if (changedDocs.isEmpty()) return
+        if (hasRetainedEdits()) { reload(); return }
         val files = changedDocs.map { ws.resolve(it.value).normalize() }
         files.forEach { file ->
             docCache[file]?.let { doc ->
@@ -1884,6 +1992,11 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
             return null
         }
         record ?: return null
+        val checked = s.checkHistory(undo)
+        if (!checked.ok) {
+            status = checked.message ?: "履歴を適用できません"
+            return null
+        }
         val targets = historyTargets(record).map(DocumentId::value).toSet()
         val docs = docCache.values.filter { relPath(it.file) in targets }
         val textOnly = docs.filter { it.textOnly }

@@ -125,7 +125,7 @@ class WorkspaceSession private constructor(
      */
     private val incrementalDerive: Boolean,
     /** 組込スキーマの注入口（C-2。メタスキーマ等。reload・スキーマ再構築でも維持される）。 */
-    private val builtins: List<WorkspaceSchema>,
+    private var builtins: List<WorkspaceSchema>,
     /** 読み込み済みの状態（fork 用）。null なら、ストアから読み込む。 */
     seed: Seed?,
     /** 時刻は注入し、テストで固定する（計画書§5）。 */
@@ -176,6 +176,9 @@ class WorkspaceSession private constructor(
 
     private val undoStack = ArrayDeque<ChangeRecord>()
     private val redoStack = ArrayDeque<ChangeRecord>()
+    /** 採用した外部版と両立しない履歴。記録を消さず、対象の一手全体を拒否する。 */
+    private val invalidatedHistory = mutableMapOf<Long, Set<DocumentId>>()
+    val historySize: Int get() = undoStack.size + redoStack.size
     private var recordCounter = 0L
     private val fileArrangements = mutableMapOf<Long, FileArrangementJournal>()
     fun fileArrangement(recordId: Long): FileArrangementPlan? = fileArrangements[recordId]?.plan
@@ -289,6 +292,84 @@ class WorkspaceSession private constructor(
         return WorkspaceSession(store, incrementalDerive, builtins, Seed(loaded, storeTexts.toMap()), clock)
     }
 
+    /**
+     * 読み込み済みのディスク版を取り込み、未保存文書と下書きは保存基準ごと保持する。
+     * 採用した外部版と衝突する履歴は無効化し、構成を継承できない場合は全体を拒否する。
+     * 候補の導出が成功するまで現在値・保存基準・履歴を変更せず、ストアへの書込も行わない。
+     */
+    fun refreshFrom(disk: WorkspaceSession, protectedDocuments: Set<DocumentId> = emptySet()): TransactionResult = try {
+        require(disk.dirtyDocuments().isEmpty() && disk.pendingDeletes.isEmpty()) { "再読込元に未保存の変更があります" }
+        val changed = (storeTexts.keys + disk.storeTexts.keys).filter { storeTexts[it] != disk.storeTexts[it] }.toSet()
+        val protected = dirtyDocuments().toSet() + pendingDeletes + protectedDocuments
+        val historyDocuments = (undoStack + redoStack).flatMap(::historyDocuments).toSet()
+        val conflicts = changed.intersect(protected)
+        val imported = changed - protected
+        val definitionsChanged = layout != disk.layout || changed.any {
+            touchesSchemas(it.value) || disk.touchesSchemas(it.value) ||
+                (layout.configDir != null && it.value.startsWith("${layout.configDir}/")) ||
+                (disk.layout.configDir != null && it.value.startsWith("${disk.layout.configDir}/"))
+        }
+        val excluded = (protected + historyDocuments).filter { !disk.acceptsDocument(it) && acceptsDocument(it) }
+        require(excluded.isEmpty()) {
+            "新しい構成では編集・履歴の対象を扱えないため再読込を中止しました: ${excluded.joinToString { it.value }}"
+        }
+        if (definitionsChanged) {
+            require(disk.schemaErrors.isEmpty()) { "スキーマに読込エラーがあるため再読込を中止しました: ${disk.schemaErrors.joinToString("・")}" }
+            val config = DocumentId("${WorkspaceLayout.CONFIG_DIR}/${WorkspaceLayout.CONFIG_FILE}")
+            if (config in changed) disk.storeTexts[config]?.let { DefaultYamlCodec.parse(config, it) }
+        }
+        if (changed.isEmpty() && !definitionsChanged) {
+            resetCoalesce()
+            TransactionResult(true, null, version)
+        } else {
+            val candidate = LinkedHashMap(workingDocuments)
+            candidate.keys.filterNot(disk::acceptsDocument).forEach(candidate::remove)
+            imported.forEach { id ->
+                val document = disk.workingDocuments[id]
+                if (document == null) candidate.remove(id) else candidate[id] = document
+            }
+            disk.workingDocuments.forEach { (id, doc) ->
+                if (id !in candidate && id !in protected && !acceptsDocument(id)) candidate[id] = doc
+            }
+            val nextLayout = disk.layout
+            val built = if (definitionsChanged) WorkspaceReader.buildSchemas(
+                candidate.filterKeys { nextLayout.zoneOf(it.value) == WorkspaceLayout.Zone.SCHEMAS }
+                    .map { (id, doc) -> id to DefaultYamlCodec.dump(doc.document) }.sortedBy { it.first.value },
+                disk.builtins, candidate.map { (id, doc) -> id to doc.document }, nextLayout,
+            ) else null
+            require(built == null || built.errors.isEmpty()) {
+                "編集中の定義と新しい構成を組み合わせられないため再読込を中止しました: ${built?.errors?.joinToString("・")}"
+            }
+            val nextSchemas = built?.schemas ?: schemas
+            val nextDeclarations = built?.declarations ?: declarations
+            if (definitionsChanged) candidate.replaceAll { id, doc -> doc.copy(
+                schemaId = WorkspaceReader.assignSchemaId(id.value, doc.document, nextSchemas, nextLayout),
+                inLedger = nextLayout.inLedger(id.value),
+            ) }
+            val nextDerived = WorkspaceReader.derive(candidate, nextSchemas, nextDeclarations, nextLayout, version + 1)
+            workingDocuments = candidate
+            schemas = nextSchemas
+            declarations = nextDeclarations
+            layout = nextLayout
+            if (definitionsChanged) { schemaErrors = built!!.errors; builtins = disk.builtins }
+            invalidateHistory(imported)
+            imported.forEach { id -> acknowledgeStoreText(id, disk.storeTexts[id]) }
+            derived = nextDerived
+            version += 1
+            resetCoalesce()
+            val notices = listOfNotNull(
+                conflicts.takeIf { it.isNotEmpty() }?.let { "未保存の競合を保持: ${it.sortedBy { id -> id.value }.joinToString { id -> id.value }}" },
+                imported.intersect(historyDocuments).takeIf { it.isNotEmpty() }?.let {
+                    "外部版を取り込んだため以前の履歴は適用できません: ${it.sortedBy { id -> id.value }.joinToString { id -> id.value }}"
+                },
+            )
+            TransactionResult(true, notices.takeIf { it.isNotEmpty() }?.joinToString(" ／ "), version,
+                externalConflict = conflicts.isNotEmpty())
+        }
+    } catch (e: Exception) {
+        TransactionResult(false, e.message ?: "再読込に失敗しました", version)
+    }
+
     /** ストア生テキストの追跡を読み直す（外部変更検出の基準を今のストア内容に合わせる）。 */
     private fun refreshStoreTexts() {
         storeTexts.clear()
@@ -311,6 +392,9 @@ class WorkspaceSession private constructor(
     /** ストアにいま保存されている内容（無ければ null）。変更セットの適用が、競合の判定と、操作を当てる元の内容に使う。 */
     fun storedText(id: DocumentId): String? = store.read(id)?.text
 
+    /** 読み込み済みの生テキスト。再読込候補を画面へ反映する際にストアを読み直さない。 */
+    fun expectedStoreText(id: DocumentId): String? = storeTexts[id]
+
     /** 保存直前の検査。dirty や履歴、保存済みの意味内容は変えない。 */
     fun checkSave(id: DocumentId) = store.checkUnchanged(id, storeTexts[id])
 
@@ -326,12 +410,45 @@ class WorkspaceSession private constructor(
         if (parsed == null) candidate.remove(id)
         else candidate[id] = WorkspaceDocument(parsed, DefaultYamlCodec.dump(parsed),
             WorkspaceReader.assignSchemaId(id.value, parsed, schemas, layout), layout.inLedger(id.value))
+        commitCandidate(candidate, touched = if (parsed != null) setOf(id) else emptySet(),
+            removed = if (parsed == null) setOf(id) else emptySet(), schemaTouched = touchesSchemas(id.value))
         acknowledgeStoreText(id, text)
         pendingDeletes.remove(id)
         resetCoalesce()
-        commitCandidate(candidate, touched = if (parsed != null) setOf(id) else emptySet(),
-            removed = if (parsed == null) setOf(id) else emptySet(), schemaTouched = touchesSchemas(id.value))
+        invalidateHistory(setOf(id))
     }
+
+    private fun historyDocuments(record: ChangeRecord): Set<DocumentId> =
+        (record.forward.operations + record.inverse.operations).flatMap { op -> when (op) {
+            is WorkspaceOperation.EditDocument -> listOf(op.documentId)
+            is WorkspaceOperation.CreateDocument -> listOf(op.documentId)
+            is WorkspaceOperation.ReplaceDocument -> listOf(op.documentId)
+            is WorkspaceOperation.DeleteDocument -> listOf(op.documentId)
+            is WorkspaceOperation.MoveDocument -> listOf(op.from, op.to)
+        } }.toSet()
+
+    private fun invalidateHistory(ids: Set<DocumentId>) {
+        (undoStack + redoStack).forEach { record ->
+            val affected = historyDocuments(record).intersect(ids)
+            if (affected.isNotEmpty()) invalidatedHistory[record.id] = invalidatedHistory[record.id].orEmpty() + affected
+        }
+    }
+
+    /** 確認前と適用直前の両方で使用する。未監視の外部変更も、生テキストで検出する。 */
+    fun checkHistory(undoing: Boolean): TransactionResult = try {
+        val record = (if (undoing) undoStack.lastOrNull() else redoStack.lastOrNull())
+        if (record == null) TransactionResult(false, "対象の履歴がありません", version)
+        else {
+            val conflicts = invalidatedHistory[record.id].orEmpty() + historyDocuments(record).filter {
+                store.read(it)?.text != storeTexts[it]
+            }
+            if (conflicts.isEmpty()) TransactionResult(true, null, version)
+            else TransactionResult(false,
+                "外部変更と競合するため、この履歴全体を適用できません: ${conflicts.sortedBy { it.value }.joinToString { it.value }}" +
+                    "（未保存の競合はディスク版の採用か上書き許可で解決できます。採用済み外部版と衝突する古い履歴は戻せません）",
+                version, externalConflict = true)
+        }
+    } catch (e: Exception) { TransactionResult(false, "履歴の競合確認に失敗しました: ${e.message}", version) }
 
     /** ストアにいま保存されている YAML 文書の一覧（パースできない文書も含む。定義文書の言及の走査などが使う）。 */
     fun storedDocuments(): List<DocumentId> = store.list().map { it.id }
@@ -386,6 +503,8 @@ class WorkspaceSession private constructor(
 
     /** 1手戻す（履歴の逆トランザクションを適用する）。 */
     fun undo(): TransactionResult {
+        val checked = checkHistory(true)
+        if (!checked.ok) return checked
         resetCoalesce()
         val record = undoStack.removeLastOrNull()
             ?: return TransactionResult(false, "戻す変更がありません", version)
@@ -397,6 +516,8 @@ class WorkspaceSession private constructor(
 
     /** 1手進める（forward トランザクションを再適用する）。 */
     fun redo(): TransactionResult {
+        val checked = checkHistory(false)
+        if (!checked.ok) return checked
         resetCoalesce()
         val record = redoStack.removeLastOrNull()
             ?: return TransactionResult(false, "やり直す変更がありません", version)
@@ -645,23 +766,30 @@ class WorkspaceSession private constructor(
         schemaTouched: Boolean,
     ) {
         if (!incrementalDerive || schemaTouched) {
+            var nextSchemas = schemas
+            var nextDeclarations = declarations
+            var nextSchemaErrors = schemaErrors
             if (schemaTouched) {
                 val sources = candidate.entries
                     .filter { layout.zoneOf(it.key.value) == WorkspaceLayout.Zone.SCHEMAS }
                     .sortedBy { it.key.value }
                     .map { (docId, d) -> docId to DefaultYamlCodec.dump(d.document) }
                 val built = WorkspaceReader.buildSchemas(sources, builtins, candidate.map { (docId, d) -> docId to d.document }, layout)
-                schemas = built.schemas
-                declarations = built.declarations
-                schemaErrors = built.errors
+                nextSchemas = built.schemas
+                nextDeclarations = built.declarations
+                nextSchemaErrors = built.errors
                 for ((docId, d) in candidate) {
-                    val newId = WorkspaceReader.assignSchemaId(docId.value, d.document, schemas, layout)
+                    val newId = WorkspaceReader.assignSchemaId(docId.value, d.document, nextSchemas, layout)
                     if (newId != d.schemaId) candidate[docId] = d.copy(schemaId = newId)
                 }
             }
+            val nextDerived = WorkspaceReader.derive(candidate, nextSchemas, nextDeclarations, layout, version + 1)
             workingDocuments = candidate
+            schemas = nextSchemas
+            declarations = nextDeclarations
+            schemaErrors = nextSchemaErrors
             version += 1
-            derived = WorkspaceReader.derive(workingDocuments, schemas, declarations, layout, version)
+            derived = nextDerived
         } else {
             derived = deriveIncremental(candidate, touched, removed, version + 1)
             workingDocuments = candidate
@@ -876,6 +1004,8 @@ class WorkspaceSession private constructor(
         pendingDeletes.clear()
         undoStack.clear()
         redoStack.clear()
+        invalidatedHistory.clear()
+        fileArrangements.clear()
         version += 1
         derived = loaded.derived
         refreshStoreTexts()

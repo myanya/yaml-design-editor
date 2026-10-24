@@ -55,8 +55,9 @@ class AppStateFileArrangementTest {
         val doc = assertNotNull(state.openDoc)
         Files.writeString(moved, "name: external\n")
 
-        val job = withContext(DesktopUiDispatcher) { assertNotNull(state.historyFromUi(true)) }
-        job.join()
+        val job = withContext(DesktopUiDispatcher) { state.historyFromUi(true) }
+        job?.join()
+        assertContains(state.status, "外部変更と競合")
 
         assertFalse(state.fileOperationBusy)
         assertFalse(state.fileHistoryBusy)
@@ -89,6 +90,32 @@ class AppStateFileArrangementTest {
         state.goBack()
         assertEquals(source, state.openPreview)
         assertEquals(2, state.previewLine)
+    }
+
+    @Test fun `再読込とスキーマ更新後も一般ファイルを含むフォルダー移動をUndoとRedoできる`() {
+        val state = state()
+        val folder = Files.createDirectory(root.resolve("docs"))
+        Files.writeString(folder.resolve("item.yaml"), "title: A\n")
+        Files.writeString(folder.resolve("notes.txt"), "note")
+        state.reload()
+        state.openFile(folder.resolve("item.yaml"))
+        state.applyFileArrangement(state.planFileRename(folder, "moved")).getOrThrow()
+        val schemas = Files.createDirectory(root.resolve("_schemas"))
+        Files.writeString(schemas.resolve("task.yaml"), "id: task\nmatch: '**/*.yaml'\nroot: {type: object}\n")
+        state.reload()
+        state.undo()
+        assertTrue(Files.exists(folder.resolve("notes.txt")))
+        assertEquals(folder.resolve("item.yaml"), state.openDoc?.file)
+        state.reload()
+        state.redo()
+        assertEquals("note", Files.readString(root.resolve("moved/notes.txt")))
+        assertEquals(root.resolve("moved/item.yaml"), state.openDoc?.file)
+        Files.writeString(root.resolve("moved/notes.txt"), "external note")
+        state.reload()
+        state.undo()
+        assertEquals("external note", Files.readString(root.resolve("moved/notes.txt")))
+        assertFalse(Files.exists(folder))
+        assertTrue(state.canUndo())
     }
 
     @Test fun `台帳外で開いているYAMLも外部変更通知で更新する`() {
