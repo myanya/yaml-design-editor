@@ -91,7 +91,7 @@ internal fun FileMoveDialog(state: AppState, paths: List<Path>, rename: Boolean 
                 busy = true; state.fileOperationBusy = true
                 scope.launch {
                     try {
-                        val result = withContext(Dispatchers.IO) { state.applyFileArrangement(confirmed) }
+                        val result = state.applyFileArrangementFromUi(confirmed)
                         if (result.isSuccess) onDismiss() else { error = result.exceptionOrNull()?.message; plan = null }
                     } finally { busy = false; state.fileOperationBusy = false }
                 }

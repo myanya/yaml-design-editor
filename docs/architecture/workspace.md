@@ -39,6 +39,7 @@
 
 - `AppState` は走査・スキーマ・索引・更新方針を保持する `core.Workspace` へ委譲し、Compose 購読用のミラー（`schemas` / `yamlFiles` / `indexVersion`）・文書キャッシュ（`docCache`）・ナビゲーション・ファイル操作を担う。ミラーは読み取り専用の写しで、core 側を更新したら `mirrorCore` で写し直し `indexVersion` を進める。
 - `OpenDocument` は `EditBuffer` のシェル（[editing-history.md](editing-history.md)）。編集 API の意味を変えるときは `EditBuffer` を直す。
+- `docCache` は `mutableStateMapOf` で、文書と内部の State を同じスナップショットから参照する。描画開始後に生成した文書は次の描画から見え、破棄したスナップショットの文書は公開しない。
 - 一覧・一括編集（`WorkspaceRecords`）は「未保存編集を優先する木の取得」を注入で受ける。UI は docCache を、ヘッドレス経路はディスクを渡す。
 - `Workspace.refresh` は、開いたセッションが読んだ結果を `SchemaLoader.fromKernel` でアプリの形にする。root でファイルからスキーマを読み直さない。
 
@@ -106,6 +107,7 @@
 
 `FileArrangementPlanner` は配置対応・文書参照・型付き file 値・定義のパス指定を計画する。`PathRewrite` の glob はフォルダー全体なら接頭辞を移し、部分移動なら元の対象も残す選択を作る。未対応の言及は警告として開示する。
 適用は `WorkspaceSession.applyFileArrangement`。`FileArrangementJournal` が一般ファイルを移動し、文書は既存のトランザクションと保存を通す。履歴と失敗時の復元はカーネルが所有する（[ADR-0011](../decisions/0011-file-arrangement-history.md)）。
+UI は `AppState.applyFileArrangementFromUi` で準備と結果反映を EDT、カーネルの操作を IO に分ける。配置変更の Undo/Redo も同じ境界を使い、文書の再生成・キャッシュ更新・画面移動を IO で行わない。
 計画・適用時の未保存、内容ハッシュの不一致、移動先の衝突、リンクを拒否する。定義修正は Rewrite の組合せで、AI には依存しない。
 一般ファイルの部分移動も実際の移動対象を列挙して glob の追加候補に含める。計画時は読み込んだ原文と現在のストアも照合し、監視通知が届く前の変更を上書きしない。
 `FileSystemDocumentStore` は隠し領域を列挙の段階で枝刈りする（`.yde` は例外）。UI の補助走査は拡張子を絞ってから実パスを確認し、参考ソース全件への不要なパス解決を避ける。

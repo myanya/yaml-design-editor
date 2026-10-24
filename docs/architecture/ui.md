@@ -171,7 +171,7 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 - アプリ全体のショートカットは `Main.kt` の `handleShortcut` に足す。
 - 新しく畳みを持つ UI は `FormCtx.expanded` / `setExpanded` を通す（ジャンプ先の自動展開と画面の覚えが付いてくる）。
 - 画面を離れても残したい見え方（畳み・タブ・絞り込み・チェック・展開）は `remember` に置かず `state.memory`（`ScreenMemory`）へ。覚えは「あれば使う・無ければ既定」で、古い鍵を誤りにしない。操作の途中は `remember` のまま。
-- `Dispatchers.Main` は使わない。バックグラウンドから UI へ反映するときはスナップショット状態を直接更新する（CONVENTIONS「Compose UI の書き方」）。
+- `Dispatchers.Main` は使わない。背景処理からの文書生成・公開・画面遷移は `DesktopUiDispatcher` で EDT へ戻す（CONVENTIONS「Compose UI の書き方」）。
 - 入力欄は `CompactTextField`、色は `Palette.*`、角丸は `PanelShape`。生の色や Material 既定色をビューに直接書かない。
 - 等幅の文字は `AppFonts.Mono`（同梱の Cica。TTF は git に入れず、build.gradle.kts の `downloadFonts` がビルド時に取得して資源 `fonts/cica/` に入れる）。`FontFamily.Monospace` を書かない。
 - 外部の UI ライブラリは ui/ の 1 ファイルで包み、その型を他のファイルへ出さない（FileKit＝FilePickers.kt・Reorderable＝Reorder.kt・Markdown＝MarkdownView.kt・Vico＝Charts.kt・ELK＝GraphLayouts.kt）。差し替えるときはその 1 ファイルだけを書き換える。
@@ -198,7 +198,7 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 複数選択は `FileTreeSelection` が範囲・切替・親子の重複除去を計算する。ドラッグは移動先指定だけで、書込は共通の影響確認へ渡す。
 件数・選択・ドラッグの案内は高さ固定の1行を共有する。移動先は行の背景と枠で強調し、直下なら一覧の枠で示す。案内や強調では行の配置を変えない。
 移動先の表示とドロップは同じ `dropDestination` 判定を使う。自分自身・配下・現在の親・領域外を拒否し、衝突や定義の変更は影響確認で検査する。
-ファイル操作の Undo/Redo は `AppState.historyFromUi` が背景で実行し、実行中は別の書込を抑止する。履歴の所有者は引き続きセッションだけ。
+ファイル操作の Undo/Redo は `AppState.historyFromUi` がカーネルの操作を背景で実行し、結果を EDT で画面へ反映する。実行中は別の書込を抑止し、履歴の所有者はセッションだけ。
 
 `ReferenceSearch` は表示設定に従う UTF-8 本文の都度検索。ファイル単位と合計読込量・結果数・経過時間を制限し、中止・上限・読めない対象を結果に含める。結果は走査中も一定件数ごとに表示する。
 本文の常設索引を持たず、内容が変わると検索をやり直す。参考資料の検索はディスク基準で、未保存 YAML の検索は従来のコマンドパレットを使う。

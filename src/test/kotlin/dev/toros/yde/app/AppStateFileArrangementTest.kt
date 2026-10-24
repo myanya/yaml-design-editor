@@ -1,6 +1,9 @@
 package dev.toros.yde.app
 
 import java.nio.file.Files
+import dev.toros.yde.app.ui.DesktopUiDispatcher
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlin.test.*
 
 class AppStateFileArrangementTest {
@@ -42,6 +45,28 @@ class AppStateFileArrangementTest {
         state.undo()
         assertFalse(Files.exists(root.resolve("new")))
         assertTrue(state.canUndo())
+    }
+
+    @Test fun `外部変更で非同期Undoを拒否しても文書と履歴を保ち処理中表示を解除する`() = runBlocking {
+        val state = state()
+        val original = root.resolve("a.yaml")
+        val moved = root.resolve("b.yaml")
+        state.applyFileArrangementFromUi(state.planFileRename(original, "b.yaml")).getOrThrow()
+        val doc = assertNotNull(state.openDoc)
+        Files.writeString(moved, "name: external\n")
+
+        val job = withContext(DesktopUiDispatcher) { assertNotNull(state.historyFromUi(true)) }
+        job.join()
+
+        assertFalse(state.fileOperationBusy)
+        assertFalse(state.fileHistoryBusy)
+        assertFalse(Files.exists(original))
+        assertEquals("name: external\n", Files.readString(moved))
+        assertSame(doc, state.openDoc)
+        assertSame(doc, state.docFor(moved))
+        assertTrue(state.canUndo())
+        assertFalse(state.canRedo())
+        assertFalse(state.hasDirtyDocs())
     }
 
     @Test fun `複数削除は一回で戻せて参考資料の構造保存は原文を変えない`() {

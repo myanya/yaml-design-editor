@@ -4,10 +4,12 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.TextFieldBuffer
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.setValue
 import dev.toros.yde.app.core.ChangeSetResult
 import dev.toros.yde.app.core.EditBuffer
 import dev.toros.yde.app.ui.LineMerge
+import dev.toros.yde.app.ui.DesktopUiDispatcher
 import dev.toros.yde.app.ui.SourceHistorySync
 import dev.toros.yde.app.core.Search
 import dev.toros.yde.app.core.SearchHit
@@ -65,6 +67,9 @@ import java.nio.file.Path
 import java.time.LocalDateTime
 import java.util.prefs.Preferences
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 
 /**
  * 開いている 1 ドキュメント。
@@ -427,15 +432,18 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     }
     var fileOperationBusy by mutableStateOf(false)
     var fileHistoryBusy by mutableStateOf(false)
-    fun undoFromUi() = historyFromUi(true)
-    fun redoFromUi() = historyFromUi(false)
-    private fun historyFromUi(undoing: Boolean, confirmation: PendingHistory? = null) {
-        if (fileOperationBusy) return
-        val step = prepareHistoryStep(undoing, confirmation) ?: return
-        if (step.session.fileArrangement(step.record.id) == null) { executeHistoryStep(step); return }
+    fun undoFromUi() { historyFromUi(true) }
+    fun redoFromUi() { historyFromUi(false) }
+    internal fun historyFromUi(undoing: Boolean, confirmation: PendingHistory? = null): Job? {
+        if (fileOperationBusy) return null
+        val step = prepareHistoryStep(undoing, confirmation) ?: return null
+        if (step.session.fileArrangement(step.record.id) == null) { executeHistoryStep(step); return null }
         fileOperationBusy = true; fileHistoryBusy = true
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-            try { executeHistoryStep(step) }
+        return kotlinx.coroutines.CoroutineScope(DesktopUiDispatcher).launch {
+            try {
+                val result = withContext(Dispatchers.IO) { applyHistoryStep(step) }
+                completeHistoryStep(step, result)
+            }
             finally { fileOperationBusy = false; fileHistoryBusy = false }
         }
     }
@@ -581,7 +589,8 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     }
 
     /** 開いたことのあるドキュメントのキャッシュ（未保存編集をファイル切替時にも保持する）。 */
-    private val docCache = LinkedHashMap<Path, OpenDocument>()
+    // 文書と、その中の State を同じ描画世代で公開する。通常の Map では古い描画にも新しい文書が漏れる。
+    private val docCache = mutableStateMapOf<Path, OpenDocument>()
 
     /** 編集欄をセッションの履歴へ接続できる文書か。一時フォームは含めない。 */
     internal fun ownsDocument(doc: OpenDocument): Boolean =
@@ -1894,13 +1903,27 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     }
 
     private fun executeHistoryStep(step: HistoryStep) {
+        completeHistoryStep(step, applyHistoryStep(step))
+    }
+
+    /** カーネルの操作だけを行う。ファイル配置の履歴では IO スレッドから呼び、UI の状態は変更しない。 */
+    private fun applyHistoryStep(step: HistoryStep): dev.toros.yde.workspace.TransactionResult {
         val s = step.session
         val top = if (step.undo) s.peekUndo() else s.peekRedo()
         if (session !== s || step.version != s.version || step.record.id != top?.id) {
-            status = "履歴が変わったため中止しました。もう一度操作してください"
+            return dev.toros.yde.workspace.TransactionResult(false,
+                "履歴が変わったため中止しました。もう一度操作してください", s.version)
+        }
+        return runCatching { if (step.undo) s.undo() else s.redo() }.getOrElse {
+            dev.toros.yde.workspace.TransactionResult(false, it.message ?: "履歴を適用できません", s.version)
+        }
+    }
+
+    /** 文書の再生成・ソース同期・画面移動は、背景の IO が完了してから UI スレッドへ戻って行う。 */
+    private fun completeHistoryStep(step: HistoryStep, result: dev.toros.yde.workspace.TransactionResult) {
+        if (session !== step.session) {
             return
         }
-        val result = if (step.undo) s.undo() else s.redo()
         if (result.ok) {
             afterHistoryStep(step.record, step.undo, step.visibleDocument)
             // 次のキー入力や反映待ちの解析が来る前に、戻した木とソースを揃える。
@@ -2449,7 +2472,19 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
             listOf(dev.toros.yde.workspace.PathMove(relPath(path), relPath(path.resolveSibling(name.trim())))), definitions, permissions)
     }
 
-    fun applyFileArrangement(plan: dev.toros.yde.workspace.FileArrangementPlan): Result<Unit> = runCatching {
+    fun applyFileArrangement(plan: dev.toros.yde.workspace.FileArrangementPlan): Result<Unit> =
+        applyFileArrangement(plan) { it.applyFileArrangement(plan) }
+
+    /** UI の準備と反映は EDT、カーネルのファイル操作だけを IO へ送る。 */
+    suspend fun applyFileArrangementFromUi(plan: dev.toros.yde.workspace.FileArrangementPlan): Result<Unit> =
+        withContext(DesktopUiDispatcher) {
+            applyFileArrangement(plan) { s -> withContext(Dispatchers.IO) { s.applyFileArrangement(plan) } }
+        }
+
+    private inline fun applyFileArrangement(
+        plan: dev.toros.yde.workspace.FileArrangementPlan,
+        apply: (WorkspaceSession) -> dev.toros.yde.workspace.TransactionResult,
+    ): Result<Unit> = runCatching {
         val s = session ?: error("セッション未選択")
         require(plan.root == workspace) { "ワークスペースが変わりました" }
         val roots = plan.moves.flatMap { listOf(plan.root.resolve(it.from), plan.root.resolve(it.to)) } +
@@ -2457,8 +2492,9 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         val docs = docCache.filterKeys { file -> roots.any { file == it || file.startsWith(it) } }.values
         docs.forEach { it.flushDraft() }
         require(docs.none { it.dirty || it.draftDirty }) { "対象または参照元に未保存の変更があります。先に保存してください" }
-        val result = withHistoryLocation(s) { s.applyFileArrangement(plan) }
+        val result = withHistoryLocation(s) { apply(s) }
         require(result.ok) { result.message ?: "ファイル操作に失敗しました" }
+        require(session === s) { "ワークスペースが変わったため画面への反映を中止しました" }
         followFileArrangement(plan, reverse = false)
         status = plan.transaction.intent.description + "（Ctrl+Z で戻せます）"
     }

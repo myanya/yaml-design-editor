@@ -13,7 +13,8 @@
 
 - 画面単位で `ui/` に1ファイル。ファイル内の大区分は `// ================ 見出し` 形式のセクションコメントで区切る。
 - `YNode` ツリーを表示するコンポーザブルは、先頭で `doc.version` / `state.indexVersion` を読んで再コンポーズを購読する（読み忘れると更新されない）。
-- **`Dispatchers.Main` は使わない**（本プロジェクトの classpath には Main dispatcher の提供モジュールがなく、実行時例外になる）。バックグラウンド処理からUIへ反映するときは、スナップショット状態（`mutableStateOf` / `mutableStateListOf`）を直接更新する——スナップショット状態はスレッド安全で、変更は次フレームの再コンポーズに反映される。
+- **`Dispatchers.Main` は使わない**（提供モジュールがなく実行時例外になる）。単独の計算結果は既存のスナップショット状態へ渡せるが、文書の生成・キャッシュ公開・画面遷移を伴う処理は `ui.DesktopUiDispatcher` で EDT へ戻す。
+- State を含む文書キャッシュも `mutableStateMapOf` 等で管理し、古い描画へ新しい文書を漏らさない。ファイル IO と UI 状態の反映は分離する（[workspace.md「文書キャッシュと Workspace」](architecture/workspace.md#文書キャッシュと-workspace)）。
 - ツリーの変更は必ず `ctx.markEdited()`（または `doc.markEdited()`）とセットで行う。
 - 画面を離れても残したい見え方（畳み・タブ・絞り込み・チェック・ツリーの展開）は `remember` に置かず `state.memory`（`ScreenMemory`）へ。覚えは「あれば使う・無ければ既定」で、再読込で無くなった鍵を誤りにしない。操作の途中（ダイアログ・メニュー・入力途中の欄）は `remember` のまま（architecture/ui.md「規律」）。
 - 入力欄は `CompactTextField`、色は `Palette.*`、角丸は `PanelShape` を使う。生の `Color(0x...)` や Material 既定色をビューに直接書かない（テーマ切替が壊れるため）。
