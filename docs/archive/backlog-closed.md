@@ -5,6 +5,8 @@
 
 | ID | 起点 | 指摘 | 技術メモ（対応の当たり） | 状態 | 対応先 |
 |---|---|---|---|---|---|
+| UX-179 | 2026-10-24 スキーマフォルダー改名中のクラッシュ | 描画中の未保存判定で Snapshot の読取例外 | 文書キャッシュを Snapshot 対応にし、改名・移動・Undo/Redo の UI 更新を EDT へ分離 | ✅ 2026-10-24 | `DocumentCacheSnapshotTest`・`AppStateFileArrangementTest` |
+| UX-141 | 2026-10-04 P34 の実装中 | 一括変更と自動値が別の履歴になり Undo が 2 回必要 | `applyWithAutoValues` で変更後の自動値を本文の操作に同梱し、通常保存の独立した履歴は維持 | ✅ 2026-10-24 | `AutoValuesKernelTest`・`AppStateAutoValuesTest` |
 | UX-174 | 2026-10-21 選択一覧の改善相談 | 選択一覧が縦に長くなり、候補や現在値を見つけにくい | 高さ制限・補足1行と全文表示・現在値への初期スクロール・多数候補の検索を共通化 | ✅ | `ChoiceMenu`・`ChoiceOptionsTest` |
 | UX-87 | 2026-10-20 スキーマUI改善 | スキーマ設計が閲覧専用に追随しない | 設計の入力・追加・削除・移動を閲覧専用状態に揃え、構成選択と開閉は維持 | ✅ | `SchemaDesignWorkspace`・実画面確認 |
 | UX-172 | 2026-10-20 スキーマUI改善 | 項目追加・削除後の移動ボタンの活性状態 | 再帰カードを構成一覧と詳細に置換し、詳細が `doc.version` を購読；追加・移動後の両端の活性を実画面で確認 | ✅ | `SchemaOutlineTest`・実画面確認 |

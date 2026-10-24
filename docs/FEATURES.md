@@ -12,7 +12,7 @@
 |---|---|---|---|---|
 | W-01 | ワークスペース選択（起動引数・OS ネイティブのフォルダ選択・スタート画面・最後に選んだ場所を用途ごとに記憶） | `Main.kt`, `ui/FilePickers.kt`, `AppState.openWorkspace` | 手動 | [ui](architecture/ui.md) |
 | W-02 | ファイルツリー（全形式・隠し項目・除外・パス検索・展開の永続化・現在地） | `ui/FileTreePane.kt`, `core/FileCatalog.kt` | `FileCatalogTest`・画面は手動 | [ui](architecture/ui.md) |
-| W-03 | ファイル・フォルダーの作成・改名・移動・削除と Undo（定義のパス追随・影響確認・競合保護） | `FileArrangementPlanner`, `FileArrangementJournal`, `ui/FileMoveDialog.kt` | `FileArrangementTest`, `AppStateFileArrangementTest` | [workspace](architecture/workspace.md) |
+| W-03 | ファイル・フォルダーの配置変更と Undo | `FileArrangementPlanner`, `FileArrangementJournal`, `FileMoveDialog` | `AppStateFileArrangementTest`・`DocumentCacheSnapshotTest` ほか | [workspace](architecture/workspace.md) |
 | W-04 | 外部変更検出（OS ネイティブ監視・使えない環境は 1 秒ポーリング・未編集は自動再読込・未保存は競合バナー） | `core/FileWatcher.kt`, `AppState.pollExternalChanges` | 単体 `FileWatcherTest` | [workspace](architecture/workspace.md) |
 | W-05 | 最近開いたファイル履歴（12 件・ワークスペース単位で永続化） | `AppState.recentFiles` | 手動 | [ui](architecture/ui.md) |
 | W-06 | UI レイアウトとテーマ（左右の領域アイコン・ペイン内の閉じる操作・幅と開閉とテーマの永続化） | `Main.kt`, `ui/AppToolbar.kt`, `ui/Common.kt` | 手動 | [ui](architecture/ui.md) |
@@ -143,7 +143,7 @@
 | ID | 機能 | 主な実装 | テスト | 設計 |
 |---|---|---|---|---|
 | X-01 | 一覧ビュー（ID・タイトル・状態・担当・種別・絞り込み・未保存編集に追随・チェックと ID の列を左に固定） | `ui/WorkspaceViews.kt`, `ui/VirtualTable.kt`, `AppState.workspaceRecords` | 単体 `VirtualTableTest` | [views](architecture/views.md) |
-| X-02 | 一括編集（ルート直下の任意スカラーキー・セッション 1 トランザクション＝Undo 1 回） | `AppState.bulkUpdate`, `core/Documents.kt` | 単体 `AppStateRefactorTest`, `SessionWriteParityTest` | [editing-history](architecture/editing-history.md) |
+| X-02 | 一括編集（自動値も含め Undo 1 回） | `AppState.bulkUpdate`, `WorkspaceSession.applyWithAutoValues` | `AppStateAutoValuesTest`・`AutoValuesKernelTest`・`SessionWriteParityTest` | [editing-history](architecture/editing-history.md) |
 | X-03 | グラフレンズ（起点の近傍・型と関係の絞り込みと辺の一覧は右パネル・配置の切替・保有は箱の入れ子で畳める・一体と「側面で分ける」（箱＝出現。点線）・ホイール／ドラッグ／ホバー／右クリック／PNG／ミニマップ） | `ui/GraphLensView.kt`（`LensSidePanel`）, `ui/LensGraph.kt`, `ui/GraphLayouts.kt`（ELK を包む） | 単体 `LensGraphTest`, `GraphLayoutsTest` | [graph-query](architecture/graph-query.md) |
 | X-11 | スキーマレンズ（「型」の段＝箱は型・線は関係の宣言と導出・入れ子は保有の宣言。箱を押すとスキーマへ・CLI `schema-graph`） | `semantic-core/semantic/SchemaGraph.kt`, `ui/LensGraph.kt`（`buildTypes`）, `core/Cli.kt` | 単体 `SemanticSchemaGraphTest`, `LensGraphTest`, `WorkspaceCliTest` | [graph-query](architecture/graph-query.md) |
 | X-12 | レンズの見え方の定義（`_views` の `kind: lens`＝関係ごとの矢印の向き。表示だけ・レジストリに無い関係名はリント・関係の改名は警告で開示） | `semantic-core/semantic/LensViews.kt`, `workspace-core/workspace/ViewDefinitions.kt`（`parseLensView`）, `ui/LensGraph.kt` | 単体 `ViewDefinitionsTest`, `LensGraphTest` | [views](architecture/views.md) |
