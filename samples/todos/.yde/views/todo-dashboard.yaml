@@ -1,0 +1,42 @@
+id: todo-dashboard
+name: TODOダッシュボード
+kind: dashboard
+default: true
+description: 気になる状況の件数を選び、一覧のIDから詳細と操作へ進みます。期限超過は未完了で期限が基準日より前のTODOです。
+actions: [register-todo, add-category]
+sections:
+  - id: overdue
+    label: 期限超過
+    view: todo-by-due
+    filter:
+      match:
+        - node: {entity: todo, bind: t}
+      where:
+        - {of: t, path: status, oneOf: [OPEN, IN_PROGRESS]}
+        - {of: t, path: due_on, exists: true}
+      check:
+        - lt: [{of: t, in: {schemaId: todo-detail}, path: due_on}, $today]
+          type: date
+  - id: in-progress
+    label: 対応中
+    view: todo-management
+    filter:
+      match:
+        - node: {entity: todo, bind: t}
+      where:
+        - {of: t, path: status, equals: IN_PROGRESS}
+      expect: exists
+  - id: missing-detail
+    label: 個票未作成
+    view: todo-management
+    filter:
+      match:
+        - node: {entity: todo, bind: t}
+      check:
+        - eq: [{occurrenceCount: {of: t, schema: todo-detail}}, 0]
+  - id: all
+    label: すべてのTODO
+    view: todo-management
+  - id: categories
+    label: カテゴリ別の状況
+    view: category-status-matrix

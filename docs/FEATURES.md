@@ -18,7 +18,7 @@
 | W-06 | UI レイアウトとテーマ（左右の領域アイコン・ペイン内の閉じる操作・幅と開閉とテーマの永続化） | `Main.kt`, `ui/AppToolbar.kt`, `ui/Common.kt` | 手動 | [ui](architecture/ui.md) |
 | W-07 | 未保存確認（終了時・ワークスペース切替時） | `Main.kt` | 手動 | [ui](architecture/ui.md) |
 | W-08 | ワークスペース管理（最近開いた履歴・スタート画面・パレットからの切替） | `Main.kt`（`StartScreen`）, `AppState.recentWorkspaces` | 手動 | [ui](architecture/ui.md) |
-| W-09 | UI シェル（標準メニュー・移動と検索・タイトルのワークスペース絶対パス・レールで4スペースを切替） | `Main.kt`, `ui/AppToolbar.kt`, `ui/Shell.kt` | 単体 `NavigationHistoryTest`・画面は手動 | [ui](architecture/ui.md) |
+| W-09 | UI シェル（標準メニュー・移動と検索・タイトルのワークスペース絶対パス・レールで5スペースを切替） | `Main.kt`, `ui/AppToolbar.kt`, `ui/Shell.kt` | 単体 `NavigationHistoryTest`・画面は手動 | [ui](architecture/ui.md) |
 | W-10 | 受信箱（承認待ち変更セット・エージェントの質問・外部変更競合を実行スペースの先頭タブに集約・バッジと集計） | `ui/RunsSpace.kt`（`InboxTab`）, `Main.kt`（`StatusBar`） | 手動 | [ui](architecture/ui.md) |
 | W-11 | ワークスペース構造（`.yde/` 構成と `ledger` 宣言・レガシー構成は互換・配置判定は `WorkspaceLayout`・CLI `migrate`） | `workspace-core/layout/WorkspaceLayout.kt`, `core/Workspace.kt` | 単体 `WorkspaceLayoutTest`, `DocumentStoreTest` | [workspace](architecture/workspace.md) |
 | W-12 | エディタ層と台帳層の分離（台帳外の YAML はフォームと単文書検証だけ・索引・集計・エージェントは台帳のみ） | `validate/Validator.kt`, `app/AppState.kt`（`editorOnlyFiles`） | 単体 `WorkspaceLayoutTest`, `DocumentStoreTest` | [workspace](architecture/workspace.md) |
@@ -145,14 +145,15 @@
 
 | ID | 機能 | 主な実装 | テスト | 設計 |
 |---|---|---|---|---|
+| X-13 | ダッシュボード（開始画面・業務詳細と参照・共通基準日・CLIとread_view） | `semantic/DashboardViews.kt`, `core/Dashboards.kt`, `ui/DashboardPane.kt` | `DashboardDefinitionsTest`, `DashboardsTest` | [dashboards](architecture/dashboards.md) |
 | X-01 | 一覧ビュー（ID・タイトル・状態・担当・種別・絞り込み・未保存編集に追随・チェックと ID の列を左に固定） | `ui/WorkspaceViews.kt`, `ui/VirtualTable.kt`, `AppState.workspaceRecords` | 単体 `VirtualTableTest` | [views](architecture/views.md) |
 | X-02 | 一括編集（自動値も含め Undo 1 回） | `AppState.bulkUpdate`, `WorkspaceSession.applyWithAutoValues` | `AppStateAutoValuesTest`・`AutoValuesKernelTest`・`SessionWriteParityTest` | [editing-history](architecture/editing-history.md) |
-| X-03 | グラフレンズ（起点の近傍・型と関係の絞り込みと辺の一覧は右パネル・配置の切替・保有は箱の入れ子で畳める・一体と「側面で分ける」（箱＝出現。点線）・ホイール／ドラッグ／ホバー／右クリック／PNG／ミニマップ） | `ui/GraphLensView.kt`（`LensSidePanel`）, `ui/LensGraph.kt`, `ui/GraphLayouts.kt`（ELK を包む） | 単体 `LensGraphTest`, `GraphLayoutsTest` | [graph-query](architecture/graph-query.md) |
+| X-03 | グラフレンズ（近傍・型と関係の絞り込み・配置・保有・側面・PNG・ミニマップ） | `ui/GraphLensView.kt`, `ui/LensGraph.kt`, `ui/GraphLayouts.kt` | `LensGraphTest`, `GraphLayoutsTest` | [graph-query](architecture/graph-query.md) |
 | X-11 | スキーマレンズ（「型」の段＝箱は型・線は関係の宣言と導出・入れ子は保有の宣言。箱を押すとスキーマへ・CLI `schema-graph`） | `semantic-core/semantic/SchemaGraph.kt`, `ui/LensGraph.kt`（`buildTypes`）, `core/Cli.kt` | 単体 `SemanticSchemaGraphTest`, `LensGraphTest`, `WorkspaceCliTest` | [graph-query](architecture/graph-query.md) |
 | X-12 | レンズの見え方の定義（`_views` の `kind: lens`＝関係ごとの矢印の向き。表示だけ・レジストリに無い関係名はリント・関係の改名は警告で開示） | `semantic-core/semantic/LensViews.kt`, `workspace-core/workspace/ViewDefinitions.kt`（`parseLensView`）, `ui/LensGraph.kt` | 単体 `ViewDefinitionsTest`, `LensGraphTest` | [views](architecture/views.md) |
 | X-04 | コマンドパレット（Ctrl+K・ID・ファイル・本文検索・ビュー切替・スペース切替・保存） | `Main.kt`（`CommandPalette`）, `app/AppState.kt`（`searchContent`） | 手動 | [ui](architecture/ui.md) |
 | X-05 | ビュー定義 `_views`（`kind: grid` の行・列・並び〔出現順か `order.path` の値の順〕・詳細文書・新規行・バックリンク列・`kind: document`） | `core/Views.kt`, `workspace-core/workspace/ViewDefinitions.kt` | 単体 `ViewsTest` | [views](architecture/views.md) |
-| X-06 | ビューグリッド（セルの直接編集・要約とジャンプ・enum と参照の併記・詳細文書の作成・新規行・バックリンク列・カバレッジ表示・絞り込み・列の桁区切り `display: grouped` と表示の形 `format`・ID 列と見出しの固定） | `ui/ViewGridPane.kt`, `ui/VirtualTable.kt`, `AppState.createViewDetail` / `addViewRow` | 単体 `ViewsTest`, `VirtualTableTest` | [views](architecture/views.md) |
+| X-06 | ビューグリッド（セル編集・原本へ移動・詳細文書と新規行の作成・バックリンク・要約と整形・固定列） | `ui/ViewGridPane.kt`, `ui/VirtualTable.kt`, `AppState.createViewDetail` / `addViewRow` | `ViewsTest`, `VirtualTableTest` | [views](architecture/views.md) |
 | X-07 | 文書ビュー（`kind: document`・`sections` の fields と backlinks・`attachments`・マッチしない文書は既定フォーム） | `core/Views.kt`（`resolveDocument`）, `ui/FormView.kt`（`DocViewSections`） | 単体 `ViewsTest` | [views](architecture/views.md) |
 | X-08 | ビュー定義のスキーマ参照とリント（`definition:` 列の展開・スキーマとの整合を検査し定義エラーとして表示） | `workspace-core/workspace/ViewDefinitions.kt`（`lint`） | 単体 `ViewsTest`, `ViewDefinitionsTest` | [views](architecture/views.md) |
 | X-10 | クロス集計ビュー（`kind: matrix`・行の論理ID × 列の参照先か値・セルは行から集めた要素の集計・未分類と合計・列を広げたグリッドへ下ろす）と、グリッドの要素ごとに列を広げる列 `each`（`$名前` で列の要素の ID を指す） | `semantic-core/semantic/VirtualViews.kt`（`lower`）, `workspace-core/workspace/ViewDefinitions.kt` | 単体 `ViewsTest` | [views](architecture/views.md) |

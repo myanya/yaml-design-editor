@@ -142,23 +142,26 @@ fun IdCrossView(state: AppState) {
 // ================================================================ ページ本体
 
 @Composable
-private fun EntityPage(state: AppState, id: String) {
+internal fun EntityPage(state: AppState, id: String, business: Boolean = false) {
     // 合成は core.Aspects（read_entity / CLI と同一実装）。loader は文書キャッシュのツリー
     // ＝未保存編集に追随し、編集はそのツリーへの Slot ルーティングで dirty・Undo・保存が効く（architecture/graph-query.md「エンティティページ」）
     val composite = remember(id, state.indexVersion, state.editVersion) {
         Aspects.compose(id, state.overlayIndex(), state.schemas, state.entityTypes) { f -> state.ensureDoc(f).root }
     }
     val occurrences = state.overlayIndex().occurrences(id)
-    val showOccurrences = state.memory.entityOccurrencesOpen[id] == true  // 出現別フォームの切替は画面の覚え（ID ごと）
+    val showOccurrences = !business && state.memory.entityOccurrencesOpen[id] == true
     var opDialog by remember(id) { mutableStateOf<EntityOp?>(null) }
-    val scroll = rememberScrollState()
+    val scroll = rememberScrollState(if (business) state.memory.dashboardEntityScroll[id] ?: 0 else 0)
+    LaunchedEffect(id, business, scroll) {
+        if (business) snapshotFlow { scroll.value }.collect { state.memory.dashboardEntityScroll[id] = it }
+    }
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(16.dp)) {
             // ---------------- ヘッダ（ID・型・タイトル・操作） ----------------
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(id, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                        Text(if (business) composite?.title ?: id else id, fontSize = 19.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f, fill = false))
                         composite?.typeLabel?.let { label ->
                             Spacer(Modifier.width(8.dp))
                             Text(
@@ -169,16 +172,17 @@ private fun EntityPage(state: AppState, id: String) {
                             )
                         }
                     }
-                    composite?.title?.let { Text(it, fontSize = 12.sp, color = Palette.SubText) }
+                    (if (business) id else composite?.title)?.let { Text(it, fontSize = 12.sp, color = Palette.SubText) }
                 }
-                TextButton(onClick = { state.openGraphLens(id) }) { Text("グラフで見る", fontSize = 11.sp) }
+                if (!business) TextButton(onClick = { state.openGraphLens(id) }) { Text("グラフで見る", fontSize = 11.sp) }
                 // 操作メニュー: スキーマに定義した操作（型の操作と、この型を受け手にするアクション。architecture/actions.md）は閲覧専用でも出す。
                 // 組込みの改名・統合・削除（R21-02。変更セットプレビュー経由）は閲覧専用では隠す
                 val actions = remember(id, state.indexVersion) { state.actionsForEntity(id) }
-                if (!state.readOnlyMode || actions.isNotEmpty()) {
+                if ((!business && !state.readOnlyMode) || actions.isNotEmpty()) {
                     Box {
                         var menuOpen by remember { mutableStateOf(false) }
-                        IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(30.dp)) {
+                        if (business) TextButton(onClick = { menuOpen = true }) { Text("この対象の操作") }
+                        else IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(30.dp)) {
                             Icon(Icons.Default.MoreVert, contentDescription = "操作", Modifier.size(16.dp))
                         }
                         DropdownMenu(menuOpen, { menuOpen = false }) {
@@ -186,7 +190,7 @@ private fun EntityPage(state: AppState, id: String) {
                                 ActionMenuItem(state, entry, id,
                                     onClick = { menuOpen = false; state.startAction(entry, id) })
                             }
-                            if (!state.readOnlyMode) {
+                            if (!business && !state.readOnlyMode) {
                                 if (actions.isNotEmpty()) HorizontalDivider()
                                 DropdownMenuItem(text = { Text("改名…", fontSize = 12.sp) },
                                     onClick = { menuOpen = false; opDialog = EntityOp.RENAME })
@@ -203,7 +207,7 @@ private fun EntityPage(state: AppState, id: String) {
 
             // ---------------- 合成全体像（アスペクト見出しつき） ----------------
             if (composite != null && composite.sections.isNotEmpty()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                if (!business) Row(verticalAlignment = Alignment.CenterVertically) {
                     CrossSection("全体像（${composite.sections.size} アスペクト）")
                     Spacer(Modifier.weight(1f))
                     TextButton(onClick = { state.memory.entityOccurrencesOpen[id] = !showOccurrences },
@@ -214,17 +218,17 @@ private fun EntityPage(state: AppState, id: String) {
                 if (showOccurrences) {
                     occurrences.forEach { entry -> OccurrenceCard(state, entry) }
                 } else {
-                    composite.sections.forEach { section -> AspectCard(state, section) }
+                    composite.sections.forEach { section -> AspectCard(state, section, business) }
                     if (composite.unassigned.isNotEmpty()) {
                         Spacer(Modifier.height(8.dp))
-                        CrossSection("その他の出現（スキーマなし・${composite.unassigned.size}）")
-                        composite.unassigned.forEach { entry -> OccurrenceCard(state, entry) }
+                        CrossSection(if (business) "その他の情報" else "その他の出現（スキーマなし・${composite.unassigned.size}）")
+                        composite.unassigned.forEach { entry -> OccurrenceCard(state, entry, business) }
                     }
                 }
             } else {
                 // 合成できる出現がない（スキーマなし文書など）: 従来の出現カード表示のまま（退行させない）
-                CrossSection("出現（${occurrences.size}）")
-                occurrences.forEach { entry -> OccurrenceCard(state, entry) }
+                CrossSection(if (business) "詳細" else "出現（${occurrences.size}）")
+                occurrences.forEach { entry -> OccurrenceCard(state, entry, business) }
             }
 
             // ---------------- カバレッジ ----------------
@@ -243,7 +247,7 @@ private fun EntityPage(state: AppState, id: String) {
                 Spacer(Modifier.height(12.dp))
                 val pending = statuses.count { !it.active }
                 CrossSection(
-                    "カバレッジ（${statuses.count { it.active && it.satisfied }}/${statuses.count { it.active }} 充足" +
+                    (if (business) "確認事項（" else "カバレッジ（") + "${statuses.count { it.active && it.satisfied }}/${statuses.count { it.active }} 充足" +
                         (if (pending > 0) "、$pending 件はフェーズ未到達" else "") + "）"
                 )
                 statuses.forEach { status ->
@@ -318,7 +322,7 @@ private fun parentSummary(doc: OpenDocument, path: YPath): String? {
 }
 
 @Composable
-private fun AspectCard(state: AppState, section: AspectSection) {
+private fun AspectCard(state: AppState, section: AspectSection, business: Boolean = false) {
     val doc = state.ensureDoc(section.entry.document)
     doc.version
     state.indexVersion
@@ -345,10 +349,11 @@ private fun AspectCard(state: AppState, section: AspectSection) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    section.label + (if (section.entry.role == EntityRole.DEFINING) "（定義）" else ""),
+                    (if (business && section.label == section.schemaId) doc.schema?.name ?: "詳細" else section.label) +
+                        (if (!business && section.entry.role == EntityRole.DEFINING) "（定義）" else ""),
                     fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                 )
-                Text(
+                if (!business) Text(
                     listOfNotNull(
                         section.entry.document.value,
                         section.schemaId?.let { "スキーマ: $it" },
@@ -359,7 +364,7 @@ private fun AspectCard(state: AppState, section: AspectSection) {
                     fontSize = 10.sp, color = Palette.SubText,
                 )
             }
-            if (!state.readOnlyMode && genField != null && map != null) {
+            if (!business && !state.readOnlyMode && genField != null && map != null) {
                 IconButton(
                     onClick = {
                         state.requestAi(doc, genField, section.entry.path, relatedFiles = relatedFiles, mergeObjectKeys = true)
@@ -369,7 +374,8 @@ private fun AspectCard(state: AppState, section: AspectSection) {
                     Icon(Icons.Default.AutoAwesome, contentDescription = "この出現をAIで作成", Modifier.size(15.dp), tint = Palette.Primary)
                 }
             }
-            IconButton(onClick = { state.navigateToOccurrence(section.entry) }, modifier = Modifier.size(30.dp)) {
+            if (business) TextButton(onClick = { state.navigateToOccurrence(section.entry) }) { Text("原本を開く", fontSize = 11.sp) }
+            else IconButton(onClick = { state.navigateToOccurrence(section.entry) }, modifier = Modifier.size(30.dp)) {
                 Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "開く", Modifier.size(16.dp), tint = Palette.Primary)
             }
         }
@@ -421,13 +427,14 @@ private fun AspectCard(state: AppState, section: AspectSection) {
  */
 @Composable
 private fun RelationsPanel(state: AppState, id: String) {
+    val business = state.uiSpace == dev.toros.yde.app.UiSpace.DASHBOARD
     val overlay = state.overlayIndex()
     val refsOut = remember(id, state.indexVersion, state.editVersion) { overlay.outgoingRefs(id) }
     val backlinks = remember(id, state.indexVersion, state.editVersion) { overlay.backlinksTo(setOf(id)) }
     // 保有と所属（入れ子で書かれた要素。P40）: 名前は項目の relation か、書いている項目のキー名
     val holdings = remember(id, state.indexVersion, state.editVersion) { overlay.graph.holdingsOf(id) }
     val holders = remember(id, state.indexVersion, state.editVersion) { overlay.graph.holdersOf(id) }
-    CrossSection("関係（参照 ${refsOut.size}・被参照 ${backlinks.size}・保有 ${holdings.size}・所属 ${holders.size}）")
+    CrossSection(if (business) "関連する対象" else "関係（参照 ${refsOut.size}・被参照 ${backlinks.size}・保有 ${holdings.size}・所属 ${holders.size}）")
     if (refsOut.isEmpty() && backlinks.isEmpty() && holdings.isEmpty() && holders.isEmpty()) {
         Text("この要素の参照・被参照・保有・所属はありません", fontSize = 11.sp, color = Palette.SubText)
         return
@@ -437,6 +444,7 @@ private fun RelationsPanel(state: AppState, id: String) {
         RelationGroupHeader("◆ 保有: $label（${lines.size}）")
         lines.forEach { h ->
             RelationRow(
+                business = business,
                 main = h.child.id + (h.child.title?.let { " — $it" } ?: ""),
                 sub = (if (h.child.role == EntityRole.DEFINING) "定義" else "詳細化") +
                     " ／ ${h.child.document.value} ／ ${h.child.path.pretty()}",
@@ -450,6 +458,7 @@ private fun RelationsPanel(state: AppState, id: String) {
         RelationGroupHeader("◇ 所属: $label（${lines.size}）")
         lines.forEach { h ->
             RelationRow(
+                business = business,
                 main = h.parent.id + (h.parent.title?.let { " — $it" } ?: ""),
                 sub = "${Aspects.aspectLabelOf(h.parent, state.schemas, state.entityTypes)} ／ ${h.child.document.value} ／ ${h.child.path.pretty()}",
                 onClick = { state.openCrossView(h.parent.id) },
@@ -467,7 +476,8 @@ private fun RelationsPanel(state: AppState, id: String) {
         refs.forEach { r ->
             val title = overlay.occurrences(r.targetId).firstNotNullOfOrNull { it.title }
             RelationRow(
-                main = r.targetId + (title?.let { " — $it" } ?: "") +
+                business = business,
+                main = (if (business && r.targetKind == RefTarget.DOCUMENT) "原本文書: " else "") + r.targetId + (title?.let { " — $it" } ?: "") +
                     (r.attributeSummary()?.let { "（$it）" } ?: ""),
                 sub = "${r.viaKey} ／ ${r.document.value} ／ ${r.path.pretty()}",
                 onClick = {
@@ -488,7 +498,8 @@ private fun RelationsPanel(state: AppState, id: String) {
         refs.forEach { bl ->
             val source = overlay.sourceEntryOf(bl)
             RelationRow(
-                main = (source?.let { listOfNotNull(it.id, it.title).joinToString(" — ") }
+                business = business,
+                main = (if (business && source == null) "原本文書: " else "") + (source?.let { listOfNotNull(it.id, it.title).joinToString(" — ") }
                     ?: bl.document.value) +
                     (bl.attributeSummary()?.let { "（$it）" } ?: ""),
                 sub = "${bl.viaKey} ／ ${bl.document.value} ／ ${bl.path.pretty()}",
@@ -508,16 +519,17 @@ private fun RelationGroupHeader(text: String) {
 }
 
 @Composable
-private fun RelationRow(main: String, sub: String, onClick: () -> Unit, onJump: () -> Unit) {
+private fun RelationRow(main: String, sub: String, business: Boolean = false, onClick: () -> Unit, onJump: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
             Text(main, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-            Text(sub, fontSize = 10.sp, color = Palette.SubText, maxLines = 1)
+            if (!business) Text(sub, fontSize = 10.sp, color = Palette.SubText, maxLines = 1)
         }
-        IconButton(onClick = onJump, modifier = Modifier.size(26.dp)) {
+        if (business) TextButton(onClick = onJump) { Text("原本を開く", fontSize = 11.sp) }
+        else IconButton(onClick = onJump, modifier = Modifier.size(26.dp)) {
             Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "参照箇所へ", Modifier.size(13.dp), tint = Palette.SubText)
         }
     }
@@ -628,7 +640,7 @@ private fun EntityOpDialog(state: AppState, id: String, op: EntityOp, onDismiss:
  * （`_views` のようなビュー定義は不要。ビュー専用の書込経路は作らない。architecture/views.md「ビュー機構」 の原則をここにも適用）。
  */
 @Composable
-private fun OccurrenceCard(state: AppState, entry: IdEntry) {
+private fun OccurrenceCard(state: AppState, entry: IdEntry, business: Boolean = false) {
     val doc = state.ensureDoc(entry.document)
     doc.version
     state.indexVersion
@@ -663,10 +675,10 @@ private fun OccurrenceCard(state: AppState, entry: IdEntry) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    listOfNotNull(entry.title, entry.document.value).joinToString(" — "),
+                    if (business) entry.title ?: entry.id else listOfNotNull(entry.title, entry.document.value).joinToString(" — "),
                     fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                 )
-                Text(
+                if (!business) Text(
                     listOfNotNull(
                         "文書: ${entry.documentId}",
                         entry.schemaId?.let { "スキーマ: $it" },
@@ -677,7 +689,7 @@ private fun OccurrenceCard(state: AppState, entry: IdEntry) {
                     fontSize = 10.sp, color = Palette.SubText,
                 )
             }
-            if (!state.readOnlyMode && genField != null && occurrenceMap != null) {
+            if (!business && !state.readOnlyMode && genField != null && occurrenceMap != null) {
                 IconButton(
                     onClick = { state.requestAi(doc, genField, entry.path, relatedFiles = relatedFiles, mergeObjectKeys = true) },
                     modifier = Modifier.size(30.dp),
@@ -685,7 +697,8 @@ private fun OccurrenceCard(state: AppState, entry: IdEntry) {
                     Icon(Icons.Default.AutoAwesome, contentDescription = "この出現をAIで作成", Modifier.size(15.dp), tint = Palette.Primary)
                 }
             }
-            IconButton(onClick = { state.navigateToOccurrence(entry) }, modifier = Modifier.size(30.dp)) {
+            if (business) TextButton(onClick = { state.navigateToOccurrence(entry) }) { Text("原本を開く", fontSize = 11.sp) }
+            else IconButton(onClick = { state.navigateToOccurrence(entry) }, modifier = Modifier.size(30.dp)) {
                 Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "開く", Modifier.size(16.dp), tint = Palette.Primary)
             }
         }

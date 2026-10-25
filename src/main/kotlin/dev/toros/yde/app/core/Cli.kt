@@ -95,6 +95,7 @@ internal const val CLI_USAGE = """コマンド:
            （例: transform <workspace> builtin:structural-schema --input _schemas/x.yaml＝そのスキーマから導出される、最小の構造のスキーマ）
   view     <workspace> [view-id] [file]         ビュー（_views）を解決する。横断グリッドは行×列、
            文書ビュー（kind: document）は file で対象文書を指定（適用対象1件なら省略可）。
+           ダッシュボード（kind: dashboard）は --date YYYY-MM-DD で基準日を指定（省略時は本日）。
            view-id 省略時は定義の一覧を表示する。各セルに原本上の座標（file / path）が付く
   validate <workspace> [file] [--sources]       検証（スキーマ・参照・重複・カバレッジ・グラフ整合）。判定を保留した検査があれば
            withheld に内訳と件数を出す。--sources は指摘の出どころ（どの検査の・どの要素についての指摘か）も出す
@@ -332,6 +333,8 @@ internal fun runCli(args: Array<String>): String {
                                 "id" to v.id, "name" to v.name, "kind" to "flow",
                                 "match" to v.match, "schemaId" to v.schemaId,
                             ).filterValues { it != null }
+                        } + loaded.dashboards.map { v ->
+                            linkedMapOf("id" to v.id, "name" to v.name, "kind" to "dashboard")
                         } + loaded.lensViews.map { v ->
                             linkedMapOf(
                                 "id" to v.id, "name" to v.name, "kind" to "lens",
@@ -341,6 +344,15 @@ internal fun runCli(args: Array<String>): String {
                         "errors" to loaded.errors,
                     )
                 )
+            loaded.dashboard(viewId)?.let { dashboard ->
+                val dateIndex = rest.indexOf("--date")
+                val date = if (dateIndex < 0) java.time.LocalDate.now() else {
+                    val value = rest.getOrNull(dateIndex + 1) ?: error("--date に YYYY-MM-DD を指定してください")
+                    runCatching { java.time.LocalDate.parse(value) }.getOrElse { error("--date は YYYY-MM-DD で指定してください") }
+                }
+                val result = Dashboards.resolve(dashboard, date, loaded, ws.index, ws::schemaFor, ws::treeOf)
+                return dumpYaml(Dashboards.report(dashboard, result, loaded.errors))
+            }
             loaded.flowView(viewId)?.let { flow ->
                 val fileArg = rest.getOrNull(2)?.takeIf { !it.startsWith("--") }
                 val candidates = ws.files.map { ws.relPath(it) }.filter {

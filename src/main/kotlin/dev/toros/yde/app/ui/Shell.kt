@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.TableRows
@@ -25,7 +26,7 @@ import dev.toros.yde.app.UiSpace
 
 /**
  * UIシェル（R12-01）: アクティビティレールと台帳スペース。
- * レールが「編集・台帳・実行・設計」の4スペースを切り替える（architecture/ui.md「UI シェル」）。
+ * レールが「ダッシュボード・編集・台帳・実行・設計」の5スペースを切り替える（architecture/ui.md「UI シェル」）。
  * 実行スペースは定義が空でも常時表示する（何が行える場所かを最初から見せる。UX-20 で R12-05 の
  * プロファイル判定を撤廃）。
  */
@@ -43,6 +44,7 @@ fun ActivityRail(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(Modifier.height(6.dp))
+        RailItem(Icons.Default.Dashboard, "ダッシュボード", state.uiSpace == UiSpace.DASHBOARD) { state.openDashboard() }
         RailItem(Icons.Default.Description, "編集", state.uiSpace == UiSpace.EDIT) { state.showSpace(UiSpace.EDIT) }
         RailItem(Icons.Default.TableRows, "台帳", state.uiSpace == UiSpace.LEDGER) { state.showSpace(UiSpace.LEDGER) }
         RailItem(
@@ -92,7 +94,7 @@ private fun RailItem(
 
 // ================================================================ 台帳スペース（R12-04: 一覧系の空間統合）
 
-/** workspaceView（1〜4）とタブ位置の対応。一覧 → ビュー → レンズ → エンティティ の順に並べる。 */
+/** workspaceView（1〜6）とタブ位置の対応。一覧 → ビュー → レンズ → エンティティ の順に並べる。 */
 private val ledgerTabs = listOf(
     1 to "一覧",
     4 to "ビュー",

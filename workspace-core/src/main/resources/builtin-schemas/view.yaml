@@ -38,6 +38,10 @@ definitions:
 root:
   type: object
   fields:
+    - key: default
+      label: 開始時に表示（dashboard）
+      type: boolean
+      description: ワークスペースの開始画面にするダッシュボードを1件指定する（未指定なら定義ファイル名順）
     - key: id
       label: ビューID
       type: id
@@ -67,7 +71,15 @@ root:
         - value: lens
           label: レンズの見え方
           description: グラフレンズ（実体・型の段）の見え方をワークスペースで共有する（関係ごとの矢印の向き）。表示だけの定義
+        - value: dashboard
+          label: ダッシュボード
+          description: 既存ビューの件数・一覧・対象の詳細・操作を業務の入口として合成する
       default: grid
+    - key: actions
+      label: 主な操作（dashboard）
+      type: array
+      item: {type: string}
+      description: 対象を持たないアクションのIDを表示順に指定する
     - key: relations
       label: 関係ごとの見え方（lens）
       type: array
@@ -182,10 +194,37 @@ root:
     - key: sections
       label: セクションの定義
       type: array
-      description: "文書ビューのみ: 上から順に描画するセクション（fields / backlinks / flowのいずれか1つを持つ）"
+      description: "documentはfields / backlinks / flowのいずれか、dashboardはid・view・任意のfilterを持つ区画"
       item:
         type: object
         fields:
+          - {key: id, label: 区画ID（dashboard）, type: string}
+          - key: view
+            label: 参照するビュー（dashboard）
+            type: ref
+            scope: {schemaIds: [builtin-view]}
+            description: 一意なgridまたはmatrixのID
+          - key: filter
+            label: 対象の条件（dashboard）
+            type: object
+            description: 行のエンティティを起点に既存の検査を評価し、充足した行を表示する。$todayは基準日のYYYY-MM-DD
+            fields:
+              - {key: id, label: 条件ID, type: string}
+              - {key: description, label: 説明, type: text}
+              - {key: match, label: 照合, type: array, item: {type: any}, required: true}
+              - {key: where, label: 対象の絞り込み, type: array, item: {type: any}}
+              - {key: also, label: 合流の照合, type: any}
+              - {key: expect, label: 存在の判定, type: enum, values: [exists, absent]}
+              - key: count
+                label: 件数の判定
+                type: object
+                fields:
+                  - {key: min, label: 最小, type: int}
+                  - {key: max, label: 最大, type: int}
+              - {key: check, label: 値の比較, type: array, item: {type: any}}
+              - {key: forAll, label: すべての要素の判定, type: any}
+              - {key: message, label: 説明のひな型, type: string}
+              - {key: limit, label: 解の上限, type: int}
           - key: label
             label: 見出し
             type: string

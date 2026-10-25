@@ -389,10 +389,10 @@ class OpenDocument(
 
 /**
  * UIシェルのスペース（ROADMAP P12 / architecture/ui.md「UI シェル」）。
- * EDIT / LEDGER は文書世界（workspaceView 0 / 1〜4）と同期し、RUNS / DESIGN は文書状態を保ったまま重なる。
+ * EDIT / LEDGER は文書世界（workspaceView 0 / 1〜6）と同期し、RUNS / DESIGN は文書状態を保ったまま重なる。
  * 同期はナビゲーション系メソッドとレール（showSpace / showWorkspaceView）だけが行い、直接書き換えない。
  */
-enum class UiSpace { EDIT, LEDGER, RUNS, DESIGN }
+enum class UiSpace { DASHBOARD, EDIT, LEDGER, RUNS, DESIGN }
 
 /**
  * アプリケーション状態。
@@ -647,7 +647,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     var uiSpace by mutableStateOf(UiSpace.EDIT)
         private set
 
-    /** 台帳スペースで最後に見ていた下位ビュー（1〜4）。レールで台帳へ戻ったときに復元する。 */
+    /** 台帳スペースで最後に見ていた下位ビュー（1〜6）。レールで台帳へ戻ったときに復元する。 */
     private var lastLedgerView = 1
 
     /** workspaceView の変更後に呼び、スペースを文書世界（編集／台帳）へ同期する。 */
@@ -677,7 +677,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         when (space) {
             UiSpace.EDIT -> { workspaceView = 0; uiSpace = UiSpace.EDIT }
             UiSpace.LEDGER -> { workspaceView = lastLedgerView; uiSpace = UiSpace.LEDGER }
-            UiSpace.RUNS, UiSpace.DESIGN -> uiSpace = space
+            UiSpace.DASHBOARD, UiSpace.RUNS, UiSpace.DESIGN -> uiSpace = space
         }
     }
 
@@ -695,6 +695,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
 
     /** ID横ぐしビューを開く（id 指定時はそのIDを選択し、ジャンプとして履歴に積む）。 */
     fun openCrossView(id: String? = null) {
+        if (uiSpace == UiSpace.DASHBOARD && id != null) { openDashboardEntity(id); return }
         // 横ぐしビューへの到着（他ビュー・他スペースから）と、ビュー内でのID切替の両方を移動として履歴に積む
         val arriving = workspaceView != 3 || uiSpace != UiSpace.LEDGER
         val idChanges = id != null && crossViewId != id
@@ -725,6 +726,36 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
 
     /** ビューグリッドで選択中のビューID。 */
     var viewGridId by mutableStateOf<String?>(null)
+
+    var dashboardId by mutableStateOf<String?>(null)
+    /** 一覧条件とは独立した場所。完了で行が消えても同じ対象を表示する。 */
+    var dashboardEntityId by mutableStateOf<String?>(null)
+
+    fun openDashboard(id: String? = null) {
+        if (uiSpace != UiSpace.DASHBOARD || (id != null && dashboardId != id)) {
+            pushBack(currentLocation())
+        }
+        if (id != null && dashboardId != id) { dashboardId = id; dashboardEntityId = null }
+        uiSpace = UiSpace.DASHBOARD
+    }
+
+    fun openDashboardEntity(id: String) {
+        if (overlayIndex().occurrences(id).isEmpty()) {
+            status = "対象「$id」が見つかりません"
+            return
+        }
+        if (uiSpace == UiSpace.DASHBOARD && dashboardEntityId == id) return
+        pushBack(currentLocation())
+        dashboardEntityId = id
+        uiSpace = UiSpace.DASHBOARD
+    }
+
+    fun showDashboardOverview() {
+        if (dashboardEntityId == null && uiSpace == UiSpace.DASHBOARD) return
+        pushBack(currentLocation())
+        dashboardEntityId = null
+        uiSpace = UiSpace.DASHBOARD
+    }
 
     var flowViewId by mutableStateOf<String?>(null)
     var flowDocument by mutableStateOf<DocumentId?>(null)
@@ -1234,6 +1265,8 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         flowSelections = emptyMap()
         flowDisplayOptions = emptyMap()
         flowViewId = null
+        dashboardId = null
+        dashboardEntityId = null
         flowDocument = null
         openDoc = null
         highlightPath = null
@@ -1248,6 +1281,12 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         recentFiles = recentPrefs.get(workspaceKey(), "").lineSequence().filter { it.isNotBlank() }
             .map { workspace!!.resolve(it).normalize() }.filter(Files::exists).take(12).toList()
         reload()
+        historyViewCatalog()?.let { catalog ->
+            catalog.defaultDashboard()?.let { dashboard ->
+                dashboardId = dashboard.id
+                uiSpace = UiSpace.DASHBOARD
+            }
+        }
     }
 
     /** ディスク版を候補として読み、編集・下書き・履歴を保持できる場合だけ取り込む。 */
@@ -1861,7 +1900,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         if (!ensureAttached(doc, s, id, root)) return
         // ソースの解析完了が画面切替より遅れても、編集元はその文書のソースタブ。
         val location = if (coalesceWith == "source") documentHistoryLocation(doc.file, tab = 1)
-            else if (uiSpace == UiSpace.LEDGER) historyLocation()
+            else if (uiSpace == UiSpace.LEDGER || uiSpace == UiSpace.DASHBOARD) historyLocation()
             else documentHistoryLocation(doc.file, if (openDoc === doc) editorTab else memory.editorTab[id] ?: 0)
         runCatching {
             val result = s.recordEdit(
@@ -1954,6 +1993,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     )
 
     fun saveCurrent() {
+        if (uiSpace == UiSpace.DASHBOARD) { saveAll(); return }
         val doc = openDoc ?: return
         save(doc)
     }
@@ -2807,6 +2847,8 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         val tab: Int = 0,
         val reference: Boolean = false,
         val referenceLine: Int = 1,
+        val dashboardId: String? = null,
+        val dashboardEntityId: String? = null,
     )
 
     private var backStack by mutableStateOf<List<NavLocation>>(emptyList())
@@ -2821,7 +2863,10 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     private fun historyLocation(): NavLocation {
         val loc = currentLocation()
         return when (loc.space) {
-            UiSpace.EDIT -> loc.copy(crossId = null, gridId = null, flowId = null, flowDocument = null, flowSelections = emptyMap())
+            UiSpace.EDIT -> loc.copy(crossId = null, gridId = null, flowId = null, flowDocument = null, flowSelections = emptyMap(), dashboardId = null, dashboardEntityId = null)
+            UiSpace.DASHBOARD -> NavLocation(UiSpace.DASHBOARD, 0, null, null, null, null,
+                dashboardId = loc.dashboardId ?: historyViewCatalog()?.defaultDashboard()?.id,
+                dashboardEntityId = loc.dashboardEntityId)
             UiSpace.LEDGER -> {
                 val catalog = if ((loc.view == 4 && loc.gridId == null) || (loc.view == 5 && loc.flowId == null)) historyViewCatalog() else null
                 val grid = if (loc.view == 4) loc.gridId ?: catalog?.views?.firstOrNull()?.id else null
@@ -2829,7 +2874,8 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
                     crossId = loc.crossId.takeIf { loc.view == 3 }, gridId = grid,
                     flowId = if (loc.view == 5) loc.flowId ?: catalog?.flowViews?.firstOrNull()?.id else null,
                     flowDocument = loc.flowDocument.takeIf { loc.view == 5 },
-                    flowSelections = if (loc.view == 5) loc.flowSelections.toMap() else emptyMap())
+                    flowSelections = if (loc.view == 5) loc.flowSelections.toMap() else emptyMap(),
+                    dashboardId = null, dashboardEntityId = null)
             }
             else -> NavLocation(loc.space, 0, null, null, null, null)
         }
@@ -2852,6 +2898,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         loc.space == UiSpace.LEDGER && loc.view == 4 -> historyViewCatalog()?.view(loc.gridId.orEmpty()) != null
         loc.space == UiSpace.LEDGER && loc.view == 3 -> loc.crossId != null && overlayIndex().occurrences(loc.crossId).isNotEmpty()
         loc.space == UiSpace.LEDGER && loc.view == 5 -> historyViewCatalog()?.flowViews?.any { it.id == loc.flowId } == true
+        loc.space == UiSpace.DASHBOARD -> historyViewCatalog()?.dashboard(loc.dashboardId.orEmpty()) != null
         else -> true
     }
 
@@ -2877,7 +2924,8 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     private fun currentLocation(): NavLocation =
         NavLocation(uiSpace, workspaceView, activeFile, highlightPath, crossViewId, viewGridId,
             flowViewId, flowDocument, flowSelections, help = openHelp, tab = editorTab,
-            reference = openPreview != null, referenceLine = previewLine)
+            reference = openPreview != null, referenceLine = previewLine, dashboardId = dashboardId,
+            dashboardEntityId = dashboardEntityId)
 
     /** 何も開いていない編集スペースは履歴に積む価値がない（台帳・実行・設計はそれ自体が場所）。 */
     private fun isEmptyLocation(loc: NavLocation): Boolean =
@@ -2912,6 +2960,11 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
                 syncSpaceFromView()
             }
             // 実行・設計はスペース自体が場所。下の文書世界（開いている文書・台帳ビュー）はそのまま重なる
+            UiSpace.DASHBOARD -> {
+                dashboardId = loc.dashboardId
+                dashboardEntityId = loc.dashboardEntityId
+                uiSpace = UiSpace.DASHBOARD
+            }
             UiSpace.RUNS, UiSpace.DESIGN -> uiSpace = loc.space
         }
     }
@@ -2965,6 +3018,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
      * 索引（保存済みの状態）を優先し、見つからなければ現在のドキュメント内の未保存 ID を探す。
      */
     fun navigateToId(id: String) {
+        if (uiSpace == UiSpace.DASHBOARD) { openDashboardEntity(id); return }
         // 未保存の出現へもジャンプできるようオーバーレイ索引で解決する（UX-03。座標は docCache ツリーに対して有効）
         val entries = overlayIndex().occurrences(id)
         if (entries.size > 1) {

@@ -1247,7 +1247,10 @@ private fun RefJumpButton(
 ) {
     var open by remember { mutableStateOf(false) }
     Box {
-        IconButton(enabled = enabled, onClick = { open = true }, modifier = Modifier.size(iconButtonSize)) {
+        IconButton(enabled = enabled, onClick = {
+            if (ctx.state.uiSpace == dev.toros.yde.app.UiSpace.DASHBOARD) ctx.state.openDashboardEntity(id)
+            else open = true
+        }, modifier = Modifier.size(iconButtonSize)) {
             Icon(
                 Icons.AutoMirrored.Filled.ArrowForward,
                 contentDescription = "参照先へ移動",
@@ -1297,7 +1300,9 @@ private fun DocRefScalarEditor(ctx: FormCtx, slot: Slot) {
                 modifier = Modifier.weight(1f, fill = false),
             )
             if (resolved && documents.containsKey(current)) {
-                IconButton(onClick = { open(current) }, modifier = Modifier.size(28.dp)) {
+                if (ctx.state.uiSpace == dev.toros.yde.app.UiSpace.DASHBOARD) {
+                    TextButton(onClick = { open(current) }) { Text("原本を開く", fontSize = 11.sp) }
+                } else IconButton(onClick = { open(current) }, modifier = Modifier.size(28.dp)) {
                     Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "文書を開く",
                         tint = Palette.Primary, modifier = Modifier.size(16.dp))
                 }
@@ -1346,7 +1351,9 @@ private fun DocRefScalarEditor(ctx: FormCtx, slot: Slot) {
                 onSelect = { ctx.setScalar(slot, it, FieldType.REF) },
             )
         }
-        IconButton(
+        if (ctx.state.uiSpace == dev.toros.yde.app.UiSpace.DASHBOARD) {
+            TextButton(enabled = resolved && documents.containsKey(current), onClick = { open(current) }) { Text("原本を開く", fontSize = 11.sp) }
+        } else IconButton(
             enabled = resolved && documents.containsKey(current),
             onClick = { open(current) },
             modifier = Modifier.size(38.dp),

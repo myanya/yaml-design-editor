@@ -49,6 +49,9 @@ internal data class ActionPanelContext(val document: OpenDocument?, val targetId
 
 /** 表示中の画面の選択を入口の対象にする。開始済みの ActionWork は書き換えない。 */
 internal fun actionPanelContext(state: AppState, doc: OpenDocument?, localIds: List<IdEntry>): ActionPanelContext {
+    if (state.uiSpace == UiSpace.DASHBOARD) {
+        return ActionPanelContext(null, dashboardActionTarget(state), emptyList())
+    }
     if (state.uiSpace == UiSpace.LEDGER && state.workspaceView == 3) {
         val selected = state.crossViewId?.takeIf { state.overlayIndex().occurrences(it).isNotEmpty() }
         // 横ぐしは文書をまたぐ画面。背後で開いている文書や、その行選択へはフォールバックしない。

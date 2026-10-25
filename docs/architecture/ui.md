@@ -1,6 +1,6 @@
 # UI
 
-UI シェルは「編集・台帳・実行・設計」の 4 スペースと左端のアクティビティレール。画面はモーダルでなくスペース内の常設画面で、エージェント実行の状態はコンポーザブルの外（`RunController`）に置く。
+UI シェルは「ダッシュボード・編集・台帳・実行・設計」の 5 スペースと左端のアクティビティレール。画面はモーダルでなくスペース内の常設画面で、エージェント実行の状態はコンポーザブルの外（`RunController`）に置く。
 フォームは `FormCtx` が編集操作と参照解決を仲介し、閲覧専用モードは `FormCtx` の共有で全ビューへ波及する。
 
 ## 部品
@@ -10,7 +10,7 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 | `Main.kt` | app/Main.kt | エントリポイント・ウィンドウ・ショートカット（`handleShortcut`）・スタート画面・コマンドパレット・ステータスバー・`uiPreferences` |
 | `UiSpace` / `showSpace` / `showWorkspaceView` / `navigateToPath` / `openCrossView` / `openViewGrid` / `goBack` / `goForward` | app/AppState.kt | スペースとナビゲーション履歴（`NavLocation`） |
 | `ScreenMemory` | app/ScreenMemory.kt | 画面の覚え（畳み・タブ・絞り込み・チェック・ツリーの展開。画面を離れても保持し、切替時は初期化してツリーの展開を復元する） |
-| `ActivityRail` / `LedgerSpace` | ui/Shell.kt | 4 スペースを切り替えるレールと、一覧・ビューグリッド・グラフ・エンティティをタブで束ねる台帳スペース |
+| `ActivityRail` / `LedgerSpace` | ui/Shell.kt | 5 スペースを切り替えるレールと、一覧・ビューグリッド・グラフ・エンティティをタブで束ねる台帳スペース |
 | `RunController` / `RunsSpace` | ui/RunsSpace.kt | 実行スペース（受信箱・手動実行・自動化・計測評価）。実行状態機械（AppRoot 生存期間） |
 | `DesignSpace` | ui/DesignSpace.kt | 設計スペース（定義文書の種類別カタログ・新規作成・スキーマ推測・skill） |
 | `FormView` / `FormCtx` / `ObjectFields` / `FieldRow` | ui/FormView.kt | スキーマ駆動フォームと汎用エディタ（中核 UI） |
@@ -51,8 +51,9 @@ UI シェルは「編集・台帳・実行・設計」の 4 スペースと左�
 - `AppTheme` は暖色寄りのライトと濃灰色のダークを共通パレットで提供する。`Palette` の選択は Compose の状態で、切替時は直接参照する部品も再描画する。
 
 
-- **スペースは `app.UiSpace`（EDIT / LEDGER / RUNS / DESIGN）**。`workspaceView`（0=文書, 1=一覧, 2=グラフ, 3=エンティティ, 4=ビューグリッド, 5=フロー, 6=準備完了レポート）は文書世界の下位ビュー。両者の同期は AppState のナビゲーション系メソッドが担い、ジャンプは常に EDIT（view 0）／LEDGER（view 1〜5）へ着地する。レール以外から `uiSpace` を直接書き換えない。
-- **スペースの移動も「戻る・進む」の対象**: `NavLocation` はスペースを含み、`showSpace` / `showWorkspaceView` / `openCrossView` / `openViewGrid` も履歴に積む。復元は EDIT＝ファイル＋ハイライト＋エディタのタブ、LEDGER＝下位ビュー＋選択 ID、RUNS / DESIGN＝スペースのみ。同じ場所の再選択は積まない。新しい移動で「進む」履歴は破棄。削除済みファイルは読み飛ばし、ワークスペース切替でクリア（`NavigationHistoryTest`）。
+- **スペースは `app.UiSpace`（DASHBOARD / EDIT / LEDGER / RUNS / DESIGN）**。`workspaceView` は0=文書、1=一覧、2=グラフ、3=エンティティ、4=ビューグリッド、5=フロー、6=準備。
+  AppStateのナビゲーションがEDIT／LEDGERとの同期と履歴を担う。業務スペースの遷移と画面の覚えは [dashboards.md](dashboards.md) を参照。
+- **スペースの移動も「戻る・進む」の対象**: `NavLocation` はスペースを含み、`showSpace` / `showWorkspaceView` / `openCrossView` / `openViewGrid` も履歴に積む。復元は EDIT＝ファイル＋ハイライト＋エディタのタブ、LEDGER＝下位ビュー＋選択 ID、DASHBOARD＝ダッシュボード＋対象ID、RUNS / DESIGN＝スペースのみ。同じ場所の再選択は積まない。新しい移動で「進む」履歴は破棄。削除済みファイルは読み飛ばし、ワークスペース切替でクリア（`NavigationHistoryTest`）。
 - **「戻る」が戻すのは場所で、見え方は画面が覚える**: 畳み・タブ・絞り込み・チェック・ツリーの展開のような見え方は `ScreenMemory`（`state.memory`）に置き、画面が描画の木から外れても捨てない。履歴（`NavLocation`）には積まない。編集画面のタブ（フォーム・ソース・差分）は文書ごとに最後に見ていたものを覚え、覚えの無い文書は直前の文書のタブで開く（`AppState.showFile`。ソースで書いている最中に別の文書を開いてもソースのまま）。
   - 覚えは「あれば使う・無ければ既定」。再読込で無くなった文書・型・種別の鍵は読まれないだけにし、画面側で今の候補と突き合わせる（一覧の種別と状態・ツリーの選択・レンズの配置）。
   - 寿命はワークスペース（切替で初期化し、ツリーの展開と表示設定は永続化した覚えから復元する）。文書の削除・改名はその文書のぶんだけ消す・移す。操作の途中（ダイアログ・メニュー・入力途中の欄）は `remember` のまま（`ScreenMemoryTest`）。

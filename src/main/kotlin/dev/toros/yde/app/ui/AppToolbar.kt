@@ -66,7 +66,8 @@ fun AppToolbar(
                                     }
                                 }
                                 HorizontalDivider(color = Palette.Border)
-                                action("保存    Ctrl+S", state.openDoc != null, state::saveCurrent)
+                                action(if (state.uiSpace == UiSpace.DASHBOARD) "すべて保存    Ctrl+S" else "保存    Ctrl+S",
+                                    state.openDoc != null || state.uiSpace == UiSpace.DASHBOARD, state::saveCurrent)
                                 action("すべて保存    Ctrl+Shift+S", state.hasDirtyDocs(), state::saveAll)
                                 action("ワークスペースを再読込", run = state::reload)
                                 action("編集と履歴を破棄して開き直す…", !state.fileOperationBusy, state::requestDiscardAndReload)

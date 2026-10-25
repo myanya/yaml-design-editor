@@ -106,6 +106,12 @@ object RefactoringImpact {
                     if ((e as? Map<*, *>)?.get("name") == token) "${file.value}: relations[${i + 1}].name に「$token」の言及があります（自動書換の対象外・要確認）" else null
                 }
             }
+            if (raw["kind"] == "dashboard") {
+                val sites = (raw["sections"] as? List<*>).orEmpty().flatMapIndexed { i, section ->
+                    literalMentions((section as? Map<*, *>)?.get("filter"), token, "sections[${i + 1}].filter")
+                } + literalMentions(raw["actions"], token, "actions")
+                return@flatMap sites.map { "${file.value}: $it に「$token」の言及があります（自動書換の対象外・要確認）" }
+            }
             if (raw["kind"] != "flow") return@flatMap emptyList()
             val sites = literalMentions(raw["projection"], token, "projection") +
                 listOf("schemaId", "match").filter { key ->

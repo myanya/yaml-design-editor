@@ -21,6 +21,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
+import dev.toros.yde.app.TableScrollPosition
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -74,12 +77,21 @@ fun <R, K> VirtualTable(
     rowPadding: PaddingValues = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
     rowDivider: Boolean = true,
     rowModifier: @Composable (R) -> Modifier = { Modifier },
+    position: TableScrollPosition? = null,
     header: @Composable (TableColumn<K>) -> Unit,
     cell: @Composable (row: R, column: TableColumn<K>) -> Unit,
 ) {
     val pinned = remember(columns) { columns.filter { it.pinned } }
     val scrolling = remember(columns) { columns.filter { !it.pinned } }
-    val hScroll = rememberScrollState()
+    val hScroll = rememberScrollState(position?.horizontal ?: 0)
+    val listState = rememberLazyListState(position?.index ?: 0, position?.offset ?: 0)
+    LaunchedEffect(position, listState, hScroll) {
+        if (position != null) snapshotFlow {
+            Triple(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset, hScroll.value)
+        }.collect { (index, offset, horizontal) ->
+            position.index = index; position.offset = offset; position.horizontal = horizontal
+        }
+    }
     val density = LocalDensity.current
     val widthsPx = remember(scrolling, density) { scrolling.map { with(density) { it.width.roundToPx() } } }
     var viewportPx by remember { mutableStateOf(0) }
@@ -103,7 +115,6 @@ fun <R, K> VirtualTable(
         }
         HorizontalDivider(color = Palette.Border)
         Box(Modifier.weight(1f).fillMaxWidth()) {
-            val listState = rememberLazyListState()
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize().padding(end = 8.dp),

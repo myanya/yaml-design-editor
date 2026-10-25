@@ -10,6 +10,13 @@ import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.YPath
 import java.nio.file.Path
 
+/** 一覧を離れても保持する縦横の表示位置。 */
+class TableScrollPosition {
+    var index by mutableStateOf(0)
+    var offset by mutableStateOf(0)
+    var horizontal by mutableStateOf(0)
+}
+
 enum class FormDisplayMode(val label: String) {
     SELECTED("選択項目"), LINKED("全体・ツリー連動"), WHOLE("全体のみ")
 }
@@ -108,6 +115,14 @@ class ScreenMemory {
     /** ビューグリッドの絞り込み（ビュー ID ごと）。 */
     val gridQuery = mutableStateMapOf<String, String>()
 
+    val dashboardSection = mutableStateMapOf<String, String>()
+    val dashboardRow = mutableStateMapOf<Pair<String, String>, String>()
+    /** 未指定なら本日。指定日は画面の覚えで、原本や履歴へ書かない。 */
+    val dashboardDate = mutableStateMapOf<String, java.time.LocalDate>()
+    val dashboardSplit = mutableStateMapOf<String, Boolean>()
+    val dashboardScroll = mutableStateMapOf<Pair<String, String>, TableScrollPosition>()
+    val dashboardEntityScroll = mutableStateMapOf<String, Int>()
+
     var entityQuery by mutableStateOf("")
 
     /** エンティティページで「出現別フォーム」にしている ID。 */
@@ -195,6 +210,12 @@ class ScreenMemory {
         listStatus = ""
         listSelected.clear()
         gridQuery.clear()
+        dashboardSection.clear()
+        dashboardRow.clear()
+        dashboardDate.clear()
+        dashboardSplit.clear()
+        dashboardScroll.clear()
+        dashboardEntityScroll.clear()
         entityQuery = ""
         entityOccurrencesOpen.clear()
         lensHiddenTypes.clear()

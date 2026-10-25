@@ -107,7 +107,19 @@ object Views {
         val flowViews: List<VirtualFlowDef> = emptyList(),
         /** レンズの見え方（kind: lens）。レンズは全部の定義を合わせて読む。 */
         val lensViews: List<dev.toros.yde.semantic.VirtualLensDef> = emptyList(),
+        val dashboards: List<dev.toros.yde.semantic.VirtualDashboardDef> = emptyList(),
     ) {
+        fun dashboard(id: String): dev.toros.yde.semantic.VirtualDashboardDef? =
+            (views + docViews + flowViews + lensViews + dashboards).singleOrNull { it.id == id } as? dev.toros.yde.semantic.VirtualDashboardDef
+
+        /** 既定指定が重複したときは勝手に選ばず、先頭の一意な定義と診断を表示する。 */
+        fun defaultDashboard(): dev.toros.yde.semantic.VirtualDashboardDef? =
+            dashboards.singleOrNull { it.default }?.let { dashboard(it.id) }
+                ?: dashboards.firstNotNullOfOrNull { dashboard(it.id) }
+
+        fun dashboardGrid(id: String): ViewDef? =
+            (views + docViews + flowViews + lensViews + dashboards).singleOrNull { it.id == id } as? ViewDef
+
         fun view(id: String): ViewDef? = views.firstOrNull { it.id == id }
 
         /** 矢印を逆向きに描く関係名（全部のレンズの定義の和）。 */
@@ -147,7 +159,7 @@ object Views {
             document to if (loader == null) Files.readString(file) else loader(document)?.let(YamlIO::dumpPlain).orEmpty()
         }
         val catalog = ViewDefinitions.load(sources, schemas.map { it.kernel })
-        return LoadResult(catalog.views, catalog.docViews, catalog.errors, catalog.flowViews, catalog.lensViews)
+        return LoadResult(catalog.views, catalog.docViews, catalog.errors, catalog.flowViews, catalog.lensViews, catalog.dashboards)
     }
 
     /** ビュー定義文書の座標（ワークスペース相対の文書ID。ワークスペースの外のパスは、そのままの文字列）。 */

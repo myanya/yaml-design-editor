@@ -320,6 +320,9 @@ fun AppRoot(
             ActivityRail(state, inboxCount, automation?.enabled == true)
             Box(Modifier.width(1.dp).fillMaxHeight().background(Palette.Border))
             when (state.uiSpace) {
+                UiSpace.DASHBOARD -> Box(Modifier.weight(1f).fillMaxHeight()) {
+                    DashboardPane(state)
+                }
                 UiSpace.RUNS -> Box(Modifier.weight(1f).fillMaxHeight()) {
                     RunsSpace(state, automation, runController, automationVersion)
                 }
@@ -491,6 +494,7 @@ private fun CommandPalette(
                     }
                 }
                 CommandItem("台帳: 一覧を表示") { state.showWorkspaceView(1); onDismiss() }
+                CommandItem("ダッシュボードを表示") { state.openDashboard(); onDismiss() }
                 CommandItem("台帳: ビューグリッドを表示") { state.openViewGrid(); onDismiss() }
                 CommandItem("台帳: グラフレンズを表示") { state.openGraphLens(); onDismiss() }
                 CommandItem("台帳: エンティティページを表示") { state.openCrossView(); onDismiss() }

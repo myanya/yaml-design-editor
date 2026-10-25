@@ -172,6 +172,7 @@ class AgentToolbox(
                     optional("view", "ビューID（省略時は一覧）")
                     optional("file", "対象文書のワークスペース相対パス（文書ビューのみ。適用対象が1件ならば省略可）")
                     optional("rows", "行IDの絞り込みパターン（例 USC-011-*。横断グリッドのみ）")
+                    optional("date", "ダッシュボードの基準日（YYYY-MM-DD。省略時は本日）")
                     optionalStringArray("columns", "表示する列ラベルの列挙（省略時は全列。横断グリッドのみ）")
                 },
             )
@@ -345,7 +346,7 @@ class AgentToolbox(
                 val columns = (call.arguments["columns"] as? JsonArray)
                     ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
                     ?.takeIf { it.isNotEmpty() }
-                Outcome(viewText(arg("view"), arg("file"), rowsPattern = arg("rows"), columns = columns))
+                Outcome(viewText(arg("view"), arg("file"), rowsPattern = arg("rows"), columns = columns, date = arg("date")))
             }
             "apply_patch" -> {
                 val rel = requireArg("file")
@@ -562,10 +563,11 @@ class AgentToolbox(
      * 行・出現はステージングのオーバーレイ索引、セル値はステージング済みツリーから読む。
      * rowsPattern（行IDの絞り込み）・columns（列ラベルの選別）は横断グリッドのみ（R19-02）。
      */
-    fun viewText(viewId: String?, fileRel: String? = null, rowsPattern: String? = null, columns: List<String>? = null): String {
+    fun viewText(viewId: String?, fileRel: String? = null, rowsPattern: String? = null, columns: List<String>? = null, date: String? = null): String {
         val loaded = Views.load(ws.root, ws.schemas) { staging.tree(it.value) }
+        require(date == null || viewId?.let(loaded::dashboard) != null) { "dateはダッシュボードを指定したときだけ使えます" }
         if (viewId.isNullOrBlank()) {
-            if (loaded.views.isEmpty() && loaded.docViews.isEmpty() && loaded.flowViews.isEmpty() && loaded.lensViews.isEmpty()) return "（ビュー定義がありません）"
+            if (loaded.views.isEmpty() && loaded.docViews.isEmpty() && loaded.flowViews.isEmpty() && loaded.lensViews.isEmpty() && loaded.dashboards.isEmpty()) return "（ビュー定義がありません）"
             val lines = loaded.views.map { v ->
                 val rowsLabel = v.rows?.let { "idPattern=${it.idPattern}" } ?: "matchクエリ（行キー: ${v.rowKey}）"
                 val columnsLabel = if (v.matrix != null) "クロス集計（列は cells.columns から）" else v.columns.joinToString("/") { it.label }
@@ -576,12 +578,22 @@ class AgentToolbox(
             } + loaded.flowViews.map { v ->
                 "- ${v.id}（${v.name}）: フロービュー 適用先=" +
                     listOfNotNull(v.match, v.schemaId?.let { "schema:$it" }).joinToString(" & ")
+            } + loaded.dashboards.map { v ->
+                "- ${v.id}（${v.name}）: ダッシュボード 区画=" + v.sections.joinToString(" / ") { it.label }
             } + loaded.lensViews.map { v ->
                 "- ${v.id}（${v.name}）: レンズの見え方（表示だけ。読めるデータは無い） 関係=" +
                     v.relations.joinToString(", ") { "${it.name}:${it.arrow.id}" }.ifEmpty { "なし" }
             }
             return lines.joinToString("\n") +
                 (if (loaded.errors.isEmpty()) "" else "\n定義エラー:\n" + loaded.errors.joinToString("\n") { "- $it" })
+        }
+        loaded.dashboard(viewId)?.let { dashboard ->
+            require(fileRel == null && rowsPattern == null && columns == null) { "ダッシュボードではfile / rows / columnsを指定しません" }
+            val at = date?.let { runCatching { java.time.LocalDate.parse(it) }.getOrElse { error("dateはYYYY-MM-DDで指定してください") } }
+                ?: java.time.LocalDate.now()
+            val result = dev.toros.yde.app.core.Dashboards.resolve(dashboard, at, loaded,
+                staging.index(), ws::schemaFor) { staging.tree(it.value) }
+            return YamlIO.dump(YamlIO.fromAny(dev.toros.yde.app.core.Dashboards.report(dashboard, result, loaded.errors)))
         }
         loaded.docView(viewId)?.let {
             require(rowsPattern == null && columns == null) { "rows / columns の絞り込みは横断グリッドのビューでのみ使えます" }

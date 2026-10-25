@@ -745,15 +745,14 @@ Core Calculus = 定義を実行する
 
 ## 21. 既存機能の再分類
 
-既存機能を直ちに全面改修する必要はない。
-
-概念上の分類：
+既存機能の分類（全面改修は不要）：
 
 | 既存機能 | Core Calculus 上の位置付け |
 |---|---|
 | Search / Traverse / Query Core / View rows | Query |
 | Matrix view（クロス集計） | Query ＋ Aggregate（列を広げたグリッドへ下ろす） |
 | Flow view | Construct＋構造検査・接続解決 |
+| Dashboard view | 既存ビュー＋Predicate＋Aggregate、Termの射影と選択 |
 | foreach | Query |
 | Projection | Expression |
 | Derivation（ビューの派生列。専用の語彙は廃止） | Expression（`via`＝1 段の参照）＋ Aggregate |
@@ -761,7 +760,7 @@ Core Calculus = 定義を実行する
 | query constraint | Query + Predicate |
 | relation cardinality（多重度） | Query + Aggregate（参照の本数）+ Predicate（**組込み定義体**） |
 | relation source / target（対象型） | Query（ノードの条件の否定・参照の束縛）+ Predicate（**組込み定義体**） |
-| coverage（detailIn） | 出現集合の Aggregate ＋ Predicate（CALC-21。**組込み定義体**。書かれた場所の数 `occurrenceCount` の比較へ展開される語彙になった） |
+| coverage（detailIn） | 出現集合のAggregate＋Predicate（組込み定義体で`occurrenceCount`の比較へ展開） |
 | entity lint（浮遊詳細化・定義競合・型競合） | 出現集合の Aggregate ＋ Predicate（**組込み定義体**に直接書いた検査。idPattern 逸脱と重複所有は専用の lint として残す） |
 | matrix | Query ＋「すべての要素について」の判定（**組込み定義体**。検査の基本の書き方 `forAll` へ展開される語彙になった。専用の検査プログラムは無い） |
 | flow（遷移検証） | Query（母集団選択）＋専用高水準演算（到達閉包。§20 通過）。**専用チェッカー（SP-13）を組込み定義体から使う形になった**——演算はコードに残し、語彙への結び付け・文面・重大度は定義の宣言 |
@@ -779,7 +778,7 @@ Core Calculus = 定義を実行する
 | 操作 | Rewrite ＋ Query / Predicate ＋ Construct |
 | `actions.input` | Construct（現在値・日時）＋ Term（差分） |
 
-この表を用いて、重複している実装を段階的に発見する。
+この分類で実装の重複を点検する。
 
 ---
 

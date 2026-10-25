@@ -264,6 +264,16 @@ private fun GridBody(state: AppState, view: ViewDef) {
         Spacer(Modifier.weight(1f))
         Text("${filtered.size} / ${rows.size} 行", fontSize = 11.sp, color = Palette.SubText)
     }
+    ResolvedViewGrid(state, view, filtered)
+}
+
+/** 解決済みの行の描画をダッシュボードと共有する。編集・操作は従来の入口へ渡す。 */
+@Composable
+internal fun ResolvedViewGrid(
+    state: AppState, view: ViewDef, rows: List<ViewRow>, selectedKey: String? = null,
+    position: dev.toros.yde.app.TableScrollPosition? = null,
+    onSelect: ((ViewRow) -> Unit)? = null,
+) {
     // クロス集計（kind: matrix）は列を索引から広げるので、ヘッダは解決と同じ索引で決めた列を使う
     val effectiveView = remember(view, state.indexVersion, state.editVersion) { Views.effective(view, state.overlayIndex()) }
     // 表は共通部品（VirtualTable）: ID 列と見出し行を固定し、列は見える範囲だけ組み立てる（クロス集計で列が広がっても軽い）
@@ -284,15 +294,18 @@ private fun GridBody(state: AppState, view: ViewDef) {
     }
     // 行キーは ViewRow.key（クエリ行の結合ではIDが行間で重複しうるため。R22-02）
     VirtualTable<ViewRow, GridColumn>(
-        columns = columns, rows = filtered, rowKey = { it.key },
+        columns = columns, rows = rows, rowKey = { it.key },
+        position = position,
         modifier = Modifier.fillMaxSize(),
         rowPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
         header = { col -> GridHeaderCell(col.key.label, col.width) },
         cell = { row, col ->
             when (val k = col.key) {
-                GridColumn.Id -> IdCell(state, row)
-                is GridColumn.Cell -> row.cells.getOrNull(k.index)?.let { GridCell(state, it) }
-                GridColumn.Detail -> DetailCell(state, view, row)
+                GridColumn.Id -> IdCell(state, row, selectedKey == row.key, onSelect?.let { { it(row) } })
+                is GridColumn.Cell -> row.cells.getOrNull(k.index)?.let { GridCell(state, it, onSelect?.let { { it(row) } }) }
+                GridColumn.Detail -> if (onSelect != null) {
+                    TextButton(enabled = row.occurrences.isNotEmpty(), onClick = { onSelect(row) }) { Text("詳細を開く", fontSize = 12.sp) }
+                } else DetailCell(state, view, row)
                 GridColumn.Status -> StatusCell(state, row)
             }
         },
@@ -312,19 +325,20 @@ private fun GridHeaderCell(text: String, width: androidx.compose.ui.unit.Dp) =
     Text(text, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(width).padding(end = 8.dp))
 
 @Composable
-private fun IdCell(state: AppState, row: ViewRow) {
-    Column(Modifier.width(ID_WIDTH).padding(end = 8.dp, top = 6.dp)) {
+private fun IdCell(state: AppState, row: ViewRow, selected: Boolean = false, onSelect: (() -> Unit)? = null) {
+    Column(Modifier.width(ID_WIDTH).background(if (selected) Palette.Selected else Palette.EditorBg).padding(end = 8.dp, top = 6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 row.id, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.weight(1f).clickable {
-                    row.occurrences.firstOrNull()?.let { state.navigateToOccurrence(it) }
+                    if (onSelect != null && row.occurrences.isNotEmpty()) onSelect()
+                    else row.occurrences.firstOrNull()?.let { state.navigateToOccurrence(it) }
                 },
             )
             // 出現の無い行（クロス集計の合計の行）には横ぐしビューは無い
             if (row.occurrences.isNotEmpty()) {
-                IconButton(onClick = { state.openCrossView(row.id) }, modifier = Modifier.size(22.dp)) {
-                    Icon(Icons.Default.Hub, contentDescription = "横ぐしビューで表示", Modifier.size(13.dp), tint = Palette.SubText)
+                IconButton(onClick = { onSelect?.invoke() ?: state.openCrossView(row.id) }, modifier = Modifier.size(22.dp)) {
+                    Icon(Icons.Default.Hub, contentDescription = if (onSelect != null) "詳細を開く" else "横ぐしビューで表示", Modifier.size(13.dp), tint = Palette.SubText)
                 }
                 // 行の操作メニュー（⋯）: この要素に使える操作（型の操作と、その型を受け手にするアクション）。選ぶと対象の入ったパネルが開く。
                 // 閲覧専用でも出す（操作は編集ではない）
@@ -352,7 +366,7 @@ private fun IdCell(state: AppState, row: ViewRow) {
 
 /** 1セル。出現があり、スカラー系フィールドで editable 宣言されていれば直接編集できる。 */
 @Composable
-private fun GridCell(state: AppState, cell: ViewCell) {
+private fun GridCell(state: AppState, cell: ViewCell, onOpen: (() -> Unit)? = null) {
     Box(Modifier.width(CELL_WIDTH).padding(end = 8.dp)) {
         val backlinks = cell.backlinks
         if (backlinks != null) {
@@ -364,7 +378,8 @@ private fun GridCell(state: AppState, cell: ViewCell) {
             // 文書キャッシュから再読すると元値（テンプレート）が見えてしまうため、評価結果をそのまま出す。
             // クリックは直接ジャンプではなく、導出の説明と行き先の選択（規則・入力値）を提示する。
             // 値の出どころが特定の 1 か所に無いセル（座標なし）も、値と来歴は出す
-            ComputedCellLink(state, cell)
+            if (onOpen != null) CellLink(state, cell, Views.cellText(cell.value), onOpen)
+            else ComputedCellLink(state, cell)
             return@Box
         }
         val file = cell.document
@@ -378,7 +393,7 @@ private fun GridCell(state: AppState, cell: ViewCell) {
         doc.version
         val root = doc.root
         if (root == null) {
-            CellLink(state, cell, "（パース不能）")
+            CellLink(state, cell, "（パース不能）", onOpen)
             return@Box
         }
         val value = getAt(root, path)
@@ -419,13 +434,17 @@ private fun GridCell(state: AppState, cell: ViewCell) {
                     }
                 }
             }
-            CellLink(state, cell, text)
+            CellLink(state, cell, text, onOpen?.let { open -> {
+                if (fieldDef?.type == FieldType.REF && fieldDef.refTarget != dev.toros.yde.semantic.schema.RefTarget.DOCUMENT && value is YNode.Scalar)
+                    state.openDashboardEntity(Views.cellText(value))
+                else open()
+            } })
             return@Box
         }
         val slot = slotAt(root, path)
         if (slot == null) {
             // 途中のオブジェクト・配列が未作成（座標に書き込めない）
-            CellLink(state, cell, "—")
+            CellLink(state, cell, "—", onOpen)
             return@Box
         }
         val ctx = remember(doc, doc.version, state.indexVersion, state.readOnlyMode, doc.draftBroken) {
@@ -482,7 +501,11 @@ private fun BacklinkCell(state: AppState, backlinks: List<ViewBacklink>) {
     val shown = backlinks.take(5)
     Column(Modifier.padding(top = 8.dp)) {
         shown.forEach { b ->
-            Column(Modifier.clickable { state.openFile(b.document, b.path) }) {
+            Column(Modifier.clickable {
+                if (state.uiSpace == dev.toros.yde.app.UiSpace.DASHBOARD) {
+                    b.sourceId?.let(state::openDashboardEntity) ?: run { state.status = "参照元の業務対象を特定できません" }
+                } else state.openFile(b.document, b.path)
+            }) {
                 Text(
                     b.sourceId ?: b.document.value.substringAfterLast('/'),
                     fontSize = 12.sp, color = Palette.Primary, maxLines = 1,
@@ -565,12 +588,12 @@ private fun ComputedCellLink(state: AppState, cell: ViewCell) {
 
 /** 読み取り専用セル。クリックで原本の該当位置へジャンプする。 */
 @Composable
-private fun CellLink(state: AppState, cell: ViewCell, text: String) {
+private fun CellLink(state: AppState, cell: ViewCell, text: String, onOpen: (() -> Unit)? = null) {
     Text(
         text, fontSize = 12.sp, maxLines = 2,
         color = if (text == "—" || text == "（未設定）") Palette.SubText else Palette.Text,
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-            .clickable { cell.document?.let { state.openFile(it, cell.path) } },
+            .clickable { if (onOpen != null) onOpen() else cell.document?.let { state.openFile(it, cell.path) } },
     )
 }
 

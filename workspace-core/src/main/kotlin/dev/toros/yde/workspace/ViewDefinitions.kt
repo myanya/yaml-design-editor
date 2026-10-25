@@ -32,6 +32,9 @@ import dev.toros.yde.semantic.LensArrow
 import dev.toros.yde.semantic.VirtualLensDef
 import dev.toros.yde.semantic.VirtualLensRelation
 import dev.toros.yde.semantic.VirtualFlowDef
+import dev.toros.yde.semantic.VirtualDashboardDef
+import dev.toros.yde.semantic.DashboardSection
+import dev.toros.yde.semantic.schema.ActionRequire
 import dev.toros.yde.semantic.schema.TransformDef
 import dev.toros.yde.semantic.VirtualMatrixCells
 import dev.toros.yde.semantic.VirtualMatrixDef
@@ -52,6 +55,7 @@ data class ViewCatalog(
     val flowViews: List<VirtualFlowDef> = emptyList(),
     /** レンズの見え方（kind: lens）。レンズは全部の定義を合わせて読む。 */
     val lensViews: List<VirtualLensDef> = emptyList(),
+    val dashboards: List<VirtualDashboardDef> = emptyList(),
 ) {
     fun view(id: String): VirtualGridDef? = views.firstOrNull { it.id == id }
 
@@ -96,6 +100,19 @@ object ViewDefinitions {
         val docViews = all.filterIsInstance<VirtualDocViewDef>()
         val flowViews = all.filterIsInstance<VirtualFlowDef>()
         val lensViews = all.filterIsInstance<VirtualLensDef>()
+        val dashboards = all.filterIsInstance<VirtualDashboardDef>()
+        if (dashboards.count { it.default } > 1) errors += "既定のダッシュボード（default: true）は1件だけ指定してください"
+        dashboards.forEach { dashboard ->
+            dashboard.sections.forEach { section ->
+                val target = all.filter { it.id == section.view }
+                if (target.size != 1 || target.singleOrNull() !is VirtualGridDef) {
+                    errors += "${fileName(dashboard.source)}: sections.${section.id}.view「${section.view}」は一意なグリッドまたはクロス集計を参照してください"
+                } else if ((target.single() as VirtualGridDef).matrix != null && section.filter != null) {
+                    errors += "${fileName(dashboard.source)}: クロス集計の区画にはfilterを指定できません（合計との不一致を防ぐため）"
+                }
+            }
+            if (schemas.isNotEmpty()) errors += lintDashboard(dashboard, schemas)
+        }
         if (schemas.isNotEmpty()) errors += lint(views, docViews, schemas)
         if (schemas.isNotEmpty()) errors += lintFlows(flowViews, schemas)
         if (schemas.isNotEmpty()) errors += lintLens(lensViews, schemas)
@@ -107,7 +124,7 @@ object ViewDefinitions {
                 }
             }
         } }
-        return ViewCatalog(views = views, docViews = docViews, errors = errors, flowViews = flowViews, lensViews = lensViews)
+        return ViewCatalog(views = views, docViews = docViews, errors = errors, flowViews = flowViews, lensViews = lensViews, dashboards = dashboards)
     }
 
     /**
@@ -126,6 +143,7 @@ object ViewDefinitions {
             is VirtualDocViewDef -> lint(emptyList(), listOf(def), schemas)
             is VirtualFlowDef -> lintFlows(listOf(def), schemas)
             is VirtualLensDef -> lintLens(listOf(def), schemas)
+            is VirtualDashboardDef -> lintDashboard(def, schemas)
         }
     }
 
@@ -140,7 +158,45 @@ object ViewDefinitions {
             "matrix" -> parseMatrixView(raw, source)
             "flow" -> parseFlowView(raw, source)
             "lens" -> parseLensView(raw, source)
-            else -> error("kind は grid / document / matrix / flow / lens のいずれかである必要があります: $kind")
+            "dashboard" -> parseDashboard(raw, source)
+            else -> error("kind は grid / document / matrix / flow / lens / dashboard のいずれかである必要があります: $kind")
+        }
+
+    private fun parseDashboard(raw: Map<*, *>, source: DocumentId): VirtualDashboardDef {
+        fun keys(map: Map<*, *>, allowed: Set<String>, at: String) {
+            map.keys.firstOrNull { it !in allowed }?.let { error("$at: 未知のキーです: $it") }
+        }
+        fun text(map: Map<*, *>, key: String, at: String): String =
+            (map[key] as? String)?.takeIf { it.isNotBlank() } ?: error("$at.$key は空でない文字列で指定してください")
+        keys(raw, setOf("id", "name", "description", "kind", "sections", "actions", "default"), "dashboard")
+        require(!raw.containsKey("default") || raw["default"] is Boolean) { "dashboard.default は真偽値で指定してください" }
+        val id = text(raw, "id", "dashboard")
+        val sections = (raw["sections"] as? List<*>)?.takeIf { it.isNotEmpty() }
+            ?: error("dashboard.sections は1件以上の配列で指定してください")
+        val parsed = sections.mapIndexed { i, item ->
+            val at = "dashboard.sections[$i]"
+            val map = item as? Map<*, *> ?: error("$at はobjectで指定してください")
+            keys(map, setOf("id", "label", "view", "filter"), at)
+            val key = text(map, "id", at)
+            DashboardSection(key, map["label"]?.let { text(map, "label", at) } ?: key, text(map, "view", at),
+                map["filter"]?.let { ActionRequire.parse(it, "$at.filter", setOf("today"), hasStart = true) })
+        }
+        require(parsed.map { it.id }.distinct().size == parsed.size) { "dashboard.sections のidが重複しています" }
+        val actions = when (val value = raw["actions"]) {
+            null -> emptyList()
+            is List<*> -> value.map { (it as? String)?.takeIf(String::isNotBlank) ?: error("dashboard.actions は操作IDの配列です") }
+            else -> error("dashboard.actions は操作IDの配列です")
+        }
+        require(actions.distinct().size == actions.size) { "dashboard.actions の操作IDが重複しています" }
+        return VirtualDashboardDef(id, raw["name"]?.let { text(raw, "name", "dashboard") } ?: id,
+            raw["description"]?.let { text(raw, "description", "dashboard") }, source, parsed, actions, raw["default"] == true)
+    }
+
+    private fun lintDashboard(view: VirtualDashboardDef, schemas: List<WorkspaceSchema>): List<String> =
+        view.actions.mapNotNull { id ->
+            val actions = schemas.flatMap { it.actions }.filter { it.id == id }
+            if (actions.size == 1 && actions.single().target == null) null
+            else "${fileName(view.source)}: actions「$id」は対象を持たない一意なアクションを参照してください"
         }
 
     /**

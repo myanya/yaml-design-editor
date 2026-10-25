@@ -16,6 +16,7 @@
 | [checks.md](checks.md) | 定義層の 3 段・検査の書き方・専用チェッカー・4 つの結果・指摘の出どころ・評価は 1 回・配り方・文書 1 つの検証 |
 | [transform.md](transform.md) | YAML から YAML への変換・計算列と決定論的射影 |
 | [views.md](views.md) | ビュー機構・文書ビュー・definition 参照とリント・ビュー定義の読み取り |
+| [dashboards.md](dashboards.md) | 業務の入口・区画の件数と一覧・対象の詳細と操作・基準日と選択の保持 |
 | [workspace.md](workspace.md) | ワークスペース構造と layout・文書キャッシュと Workspace・外部変更の取り込み・変更セットの適用・セッションの fork |
 | [actions.md](actions.md) | 操作（型の操作 `methods` とアクション `actions`。受け手・受け取った値・前提・手・変更セットへの計画・CLI） |
 | [agents.md](agents.md) | 安全性・エージェント実行と Staging・自動実行・自己改善・AI 生成・AI 接続・コンテキスト・一括実行・skill |
