@@ -37,7 +37,7 @@
 - **適用**: 変更セットは `ChangeSetApplier` をそのまま通る（競合・自動で入る値・適用後の姿の検証・1 トランザクション）。CLI は既定で計画だけを出し、`--apply` で書く。検証エラーが残るなら書かず、`--allow-errors` で書く。
 - **画面**: 入口（エンティティページの操作メニュー・フォームとビューの行の ⋯・文書ヘッダーの「文書操作」メニュー・コマンドパレット・右ペインの「操作」タブ）は `AppState.startAction(entry, target)` を呼ぶだけで、受け手を知らない入口は `target = null` で呼ぶ。`Main` が載せる浮いたパネル（`ActionPanelHost`。「AI で作成」と同じ幅）に、対象の欄と受け取る値の欄が出る。
 - 対象の欄（`TargetPicker`）は要素を受け手にする操作（`ActionEntry.entityType`）だけに出る。候補は上書き索引のうちその型の出現を持つ ID（`entityCandidates`）で、値は `ActionWork.targetHolder` の木に入り、`work.target` で読む。受け取る値は仮の文書の木を `FormCtx` と `FieldRow` で編集する（型・選択肢・参照の候補・ID の提案がそのまま効く）。
-- 右ペインはフォームで明示選択した要素、なければ文書ルートのIDを対象にする。台帳は型ごとの入口も残す。対象IDは文書別の `FormNavigationMemory.actionTarget` に保持し、スクロール追従では変えない。
+- 右ペインの `actionPanelContext` は表示中の横ぐしの選択IDを優先し、未選択・削除済みなら対象を空にする（背後の文書を使わない）。文書画面ではフォームで明示選択した要素、なければ文書ルートのIDを対象にする。台帳は型ごとの入口も残す。対象IDは文書別の `FormNavigationMemory.actionTarget` に保持し、スクロール追従では変えない。
 - 項目の所有者は選択パスの最も近いID出現で決める（Termの位置選択）。削除されたIDを使わず、文書の先頭も推測しない。開始済みの操作対象は背後の選択に追随しない。
 - 「確認」＝`planAction`（対象が無ければ案内して止まる → 計画と、ドライランの検証）→ 差分（`Staging` の適用後の文面）→「適用」＝`applyAction`（`applyViaSession`＝書いて保存まで。Undo 1 回で全部戻る）。検証エラーが残れば書かず、チェックで許す。対象に未保存の編集があれば拒む。
 - パネルは外側のクリックで閉じず、Esc と「いったん隠す」は `actionPanelOpen = false`（作業は残り、「操作」タブの「作業中」から `showActionPanel`）。「やめる」＝`dismissAction` で捨てる。

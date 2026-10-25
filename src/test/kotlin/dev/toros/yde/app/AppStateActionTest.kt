@@ -4,6 +4,7 @@ import dev.toros.yde.workspace.validate.CheckResponse
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.parseYPath
 import dev.toros.yde.yaml.patch.PatchOp
+import dev.toros.yde.app.ui.actionPanelContext
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.createTempDirectory
@@ -127,6 +128,41 @@ class AppStateActionTest {
     }
 
     private fun openState(): AppState = AppState().also { it.openWorkspace(dir); assertEquals(emptyList(), it.schemaErrors) }
+
+    @Test
+    fun `横ぐしの選択が操作ペインへ追随し背後の文書や開始済み操作とは混ざらない`() {
+        write("list.yaml", "items: [{id: IT-1, name: 最初}, {id: IT-2, name: 次の項目}]")
+        val state = openState()
+        state.openCrossView("IT-1")
+        assertNull(state.openDoc)
+        assertEquals("IT-1", actionPanelContext(state, null, emptyList()).targetId)
+
+        state.openFile(dir.resolve("list.yaml"))
+        val doc = state.openDoc!!
+        val ids = listOf("IT-1", "IT-2").flatMap { state.overlayIndex().occurrences(it) }
+        state.memory.navigation(state.documentOf(doc.file), false).actionTarget = "IT-1"
+        state.openCrossView("IT-2")
+        val selected = actionPanelContext(state, doc, ids)
+        assertEquals("IT-2", selected.targetId)
+        assertNull(selected.document, "背後の文書の操作を混ぜない")
+        assertTrue(selected.elementTypes.isEmpty())
+        state.startAction(state.actionsForEntity(selected.targetId!!).single(), selected.targetId)
+        state.openCrossView("IT-1")
+        assertEquals("IT-1", actionPanelContext(state, doc, ids).targetId)
+        assertEquals("IT-2", state.actionWork!!.target, "開始済みの操作対象は保持する")
+        state.goBack()
+        assertEquals("IT-2", actionPanelContext(state, doc, ids).targetId)
+
+        state.crossViewId = "削除済みID"
+        assertNull(actionPanelContext(state, doc, ids).targetId, "無効な選択から文書のIDを推測しない")
+        state.crossViewId = null
+        assertNull(actionPanelContext(state, doc, ids).targetId)
+        state.crossViewId = "IT-2"
+        state.showSpace(UiSpace.EDIT)
+        val editing = actionPanelContext(state, doc, ids)
+        assertEquals("IT-1", editing.targetId, "横ぐしを離れたら文書の選択へ戻る")
+        assertEquals(doc, editing.document)
+    }
 
     @Test
     fun `入力後の前提も未保存の編集を含めて判定する`() {

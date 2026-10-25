@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.toros.yde.app.AppState
 import dev.toros.yde.app.OpenDocument
+import dev.toros.yde.app.UiSpace
 import dev.toros.yde.app.core.Views
 import dev.toros.yde.app.index.DocScanner
 import dev.toros.yde.app.index.IdEntry
@@ -61,9 +62,12 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
     Column(Modifier.width(width).fillMaxHeight().background(Palette.PanelBg)) {
         val doc = state.openDoc
         if (doc == null) {
-            // 文書を開いていなくても、始めた操作（コマンドパレットから）の作業は出す（パネルを隠したあとの開き直し）
-            if (state.actionWork != null) {
-                ActionTabContent(state, null, null, emptyList())
+            // 横ぐしの選択と作業中の操作は、文書を開いていなくても利用できる。
+            if (state.actionWork != null || (state.uiSpace == UiSpace.LEDGER && state.workspaceView == 3)) {
+                state.indexVersion
+                state.editVersion
+                val context = actionPanelContext(state, null, emptyList())
+                ActionTabContent(state, context.document, context.targetId, context.elementTypes)
                 return@Column
             }
             Text(
@@ -156,13 +160,9 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
 
         // ---------------- 操作（型の操作とアクション） ----------------
         if (selectedTab == 3) {
-            // 受け手に固定できるのは文書そのものが要素のとき（ルートに ID）だけ。台帳（要素が並ぶ文書）は要素の型ごとに並べ、対象はパネルで選ぶ
-            val chosen = state.memory.navigation(state.documentOf(doc.file), false).actionTarget
-            val actionRootId = activeActionTarget(localIds, chosen)
-            val elementTypes = remember(doc, doc.version) {
-                localIds.filter { it.path.isNotEmpty() }.mapNotNull { it.entityType }.distinct()
-            }
-            ActionTabContent(state, doc, actionRootId, elementTypes)
+            state.editVersion
+            val context = actionPanelContext(state, doc, localIds)
+            ActionTabContent(state, context.document, context.targetId, context.elementTypes)
             return@Column
         }
 

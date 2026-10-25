@@ -38,15 +38,31 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import dev.toros.yde.app.AppState
 import dev.toros.yde.app.OpenDocument
+import dev.toros.yde.app.UiSpace
+import dev.toros.yde.app.index.IdEntry
 import dev.toros.yde.workspace.ActionEntry
 import dev.toros.yde.workspace.ActionPlan
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.validate.Severity
 
+internal data class ActionPanelContext(val document: OpenDocument?, val targetId: String?, val elementTypes: List<String>)
+
+/** 表示中の画面の選択を入口の対象にする。開始済みの ActionWork は書き換えない。 */
+internal fun actionPanelContext(state: AppState, doc: OpenDocument?, localIds: List<IdEntry>): ActionPanelContext {
+    if (state.uiSpace == UiSpace.LEDGER && state.workspaceView == 3) {
+        val selected = state.crossViewId?.takeIf { state.overlayIndex().occurrences(it).isNotEmpty() }
+        // 横ぐしは文書をまたぐ画面。背後で開いている文書や、その行選択へはフォールバックしない。
+        return ActionPanelContext(null, selected, emptyList())
+    }
+    val chosen = doc?.let { state.memory.navigation(state.documentOf(it.file), false).actionTarget }
+    return ActionPanelContext(doc, activeActionTarget(localIds, chosen),
+        localIds.filter { it.path.isNotEmpty() }.mapNotNull { it.entityType }.distinct())
+}
+
 /**
  * 右ペインの「操作」タブ（型の操作とアクション。architecture/actions.md）: 開いている文書に使える操作の一覧と、作業中の操作の開き直し。
- * - 受け手に固定するのは文書そのものが要素のとき（rootId＝ルートの ID）だけ。台帳（要素が並ぶ文書）は要素の型（elementTypes）ごとに
- *   並べ、対象はパネルの「対象」欄で選ぶ。
+ * - rootId は表示中の画面で選んだ要素（フォームの明示選択・文書ルート・横ぐしの選択ID）。
+ *   台帳では要素の型（elementTypes）から対象を選ぶ入口も並べる。
  * - 作業（AppState.actionWork）は浮いたパネル（ActionPanelHost）で進める。パネルを隠してもここから開き直せる。
  * 入口（エンティティページの操作メニュー・行のメニュー・文書ヘッダのメニュー・コマンドパレット）はどれも AppState.startAction を呼ぶだけ。
  */
@@ -69,7 +85,7 @@ fun ActionTabContent(state: AppState, doc: OpenDocument?, rootId: String?, eleme
             elementTypes.map { it to state.actionsForEntityType(it) }.filter { it.second.isNotEmpty() }
         }
         val forWorkspace = remember(state.indexVersion) { state.actionsForWorkspace() }
-        if (forDocument.isEmpty() && forEntity.isEmpty() && forTypes.isEmpty() && forWorkspace.isEmpty()) {
+        if (rootId == null && forDocument.isEmpty() && forEntity.isEmpty() && forTypes.isEmpty() && forWorkspace.isEmpty()) {
             Text(
                 "使える操作がありません。スキーマの methods（型の操作）か actions（アクション）に定義します",
                 Modifier.padding(12.dp), fontSize = 12.sp, color = Palette.SubText,
@@ -80,9 +96,11 @@ fun ActionTabContent(state: AppState, doc: OpenDocument?, rootId: String?, eleme
             ActionSection("この文書の操作")
             forDocument.forEach { e -> ActionRow(state, e, state.relPath(doc.file)) { state.startAction(e, state.relPath(doc.file)) } }
         }
-        if (forEntity.isNotEmpty() && rootId != null) {
+        if (rootId != null) {
             val title = state.overlayIndex().occurrences(rootId).firstNotNullOfOrNull { it.title }
             ActionSection("選択中: " + listOfNotNull(rootId, title).joinToString(" · "))
+            if (forEntity.isEmpty()) Text("この要素に使える操作はありません", Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                fontSize = 12.sp, color = Palette.SubText)
             forEntity.forEach { e -> ActionRow(state, e, rootId) { state.startAction(e, rootId) } }
         }
         if (forTypes.isNotEmpty()) {
