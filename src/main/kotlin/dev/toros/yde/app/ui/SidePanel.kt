@@ -157,7 +157,8 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
         // ---------------- 操作（型の操作とアクション） ----------------
         if (selectedTab == 3) {
             // 受け手に固定できるのは文書そのものが要素のとき（ルートに ID）だけ。台帳（要素が並ぶ文書）は要素の型ごとに並べ、対象はパネルで選ぶ
-            val actionRootId = remember(doc, doc.version) { localIds.firstOrNull { it.path.isEmpty() }?.id }
+            val chosen = state.memory.navigation(state.documentOf(doc.file), false).actionTarget
+            val actionRootId = activeActionTarget(localIds, chosen)
             val elementTypes = remember(doc, doc.version) {
                 localIds.filter { it.path.isNotEmpty() }.mapNotNull { it.entityType }.distinct()
             }

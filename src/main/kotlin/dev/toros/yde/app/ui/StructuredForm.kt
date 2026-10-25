@@ -70,6 +70,7 @@ internal fun FormAnchor(path: YPath, content: @Composable () -> Unit) {
 internal fun StructuredForm(
     ctx: FormCtx, schema: Boolean, items: List<FormOutlineItem>, selected: YPath?, onSelect: (YPath) -> Unit,
     reveal: (YPath) -> Unit,
+    onActivate: (YPath) -> Unit = {},
     beforeItem: @Composable (FormOutlineItem) -> Unit = {},
     treeFooter: @Composable () -> Unit = {},
     treeActions: @Composable () -> Unit = {},
@@ -93,6 +94,7 @@ internal fun StructuredForm(
     fun select(path: YPath) {
         followed = null
         onSelect(path)
+        onActivate(path)
         memory.navigationOpen = false
         items.filter { it.path.size < path.size && path.take(it.path.size) == it.path }
             .forEach { memory.expanded[it.path] = true }

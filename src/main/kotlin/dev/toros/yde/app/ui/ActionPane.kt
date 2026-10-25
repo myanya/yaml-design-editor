@@ -81,7 +81,8 @@ fun ActionTabContent(state: AppState, doc: OpenDocument?, rootId: String?, eleme
             forDocument.forEach { e -> ActionRow(e) { state.startAction(e, state.relPath(doc.file)) } }
         }
         if (forEntity.isNotEmpty() && rootId != null) {
-            ActionSection("$rootId の操作")
+            val title = state.overlayIndex().occurrences(rootId).firstNotNullOfOrNull { it.title }
+            ActionSection("選択中: " + listOfNotNull(rootId, title).joinToString(" · "))
             forEntity.forEach { e -> ActionRow(e) { state.startAction(e, rootId) } }
         }
         if (forTypes.isNotEmpty()) {

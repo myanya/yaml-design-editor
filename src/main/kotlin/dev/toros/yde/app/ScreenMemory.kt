@@ -16,6 +16,8 @@ enum class FormDisplayMode(val label: String) {
 
 /** 文書内容とは独立した編集画面の見え方。ツリーの開閉はフォームの畳みと分ける。 */
 class FormNavigationMemory {
+    /** 操作の対象は明示選択だけで更新し、スクロールの追従とは分ける。 */
+    var actionTarget by mutableStateOf<String?>(null)
     var selected: YPath? by mutableStateOf(null)
     var navigationOpen by mutableStateOf(false)
     val expanded = mutableStateMapOf<YPath, Boolean>()

@@ -18,6 +18,10 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
@@ -402,9 +406,18 @@ fun Highlightable(
             if (state.highlightPath == path) state.highlightPath = null
         }
     }
+    val selectTarget by rememberUpdatedState(LocalActionTargetSelection.current)
     FormAnchor(path) {
         Box(
             Modifier
+                .pointerInput(path) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            if (event.type == PointerEventType.Press) selectTarget?.invoke(path)
+                        }
+                    }
+                }
                 .fillMaxWidth()
                 .bringIntoViewRequester(requester)
                 .onSizeChanged { size = it }

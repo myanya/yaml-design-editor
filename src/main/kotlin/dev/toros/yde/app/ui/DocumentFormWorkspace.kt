@@ -15,6 +15,15 @@ import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.model.pretty
 
+internal val LocalActionTargetSelection = compositionLocalOf<((YPath) -> Unit)?> { null }
+
+/** 参照セルではなく、その項目を保有する最も近い要素を対象とする。 */
+internal fun actionTargetAt(ids: List<IdEntry>, path: YPath): String? =
+    ids.filter { path.take(it.path.size) == it.path }.maxByOrNull { it.path.size }?.id
+
+internal fun activeActionTarget(ids: List<IdEntry>, chosen: String?): String? =
+    chosen?.takeIf { id -> ids.any { it.id == id } } ?: ids.firstOrNull { it.path.isEmpty() }?.id
+
 /** 文書ビューの表示順・選別を反映し、隠された原本項目へスクロールさせない。 */
 internal fun documentViewOutline(items: List<FormOutlineItem>, view: DocViewDef?): List<FormOutlineItem> {
     if (view == null) return items
@@ -64,6 +73,7 @@ internal fun DocumentFormWorkspace(ctx: FormCtx, root: YNode, view: DocViewDef?,
     val selected = items.firstOrNull { it.path == selectedPath }
     SideEffect { memory.selected = selectedPath; previous = items }
     fun select(path: YPath) { previous = emptyList(); memory.selected = path }
+    fun activate(path: YPath) { memory.actionTarget = actionTargetAt(localIds, path) }
     fun reveal(path: YPath) {
         // 表の行詳細も同じ畳みを使うので、セルの選択は行詳細を開いて到達する。
         for (size in 0..path.size) ctx.setExpanded(path.take(size), true)
@@ -81,7 +91,8 @@ internal fun DocumentFormWorkspace(ctx: FormCtx, root: YNode, view: DocViewDef?,
             }
         }
     }
-    StructuredForm(ctx, false, items, selectedPath, ::select, ::reveal,
+    CompositionLocalProvider(LocalActionTargetSelection provides ::activate) {
+    StructuredForm(ctx, false, items, selectedPath, ::select, ::reveal, onActivate = ::activate,
         selectedContent = { modifier ->
             val scroll = remember(doc, selectedPath) { ScrollState(0) }
             Box(modifier.background(Palette.Surface, PanelShape).border(1.dp, Palette.Border, PanelShape)) {
@@ -112,4 +123,5 @@ internal fun DocumentFormWorkspace(ctx: FormCtx, root: YNode, view: DocViewDef?,
                 VerticalScrollbar(rememberScrollbarAdapter(scroll), Modifier.align(Alignment.CenterEnd).fillMaxHeight())
             }
         }, wholeContent = whole)
+    }
 }

@@ -3,6 +3,7 @@ package dev.toros.yde.app.ui
 import dev.toros.yde.app.core.DocViewDef
 import dev.toros.yde.app.core.DocViewSection
 import dev.toros.yde.app.schema.SchemaLoader
+import dev.toros.yde.app.index.DocScanner
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.YNode
@@ -11,6 +12,16 @@ import java.nio.file.Path
 import kotlin.test.*
 
 class FormOutlineTest {
+    @Test
+    fun `操作対象は明示選択した項目の所有者で一覧の先頭を推測しない`() {
+        val root = YamlIO.parse("rows: [{code: A, title: 一}, {code: B, title: 二}]")
+        val ids = DocScanner.scan(root, DocumentId("test.yaml"), schema).first
+        assertEquals("B", actionTargetAt(ids, listOf("rows", 1, "title")))
+        assertNull(actionTargetAt(ids, listOf("rows")))
+        assertNull(activeActionTarget(ids, null))
+        assertEquals("B", activeActionTarget(ids.reversed(), "B"))
+        assertNull(activeActionTarget(ids.filter { it.id != "B" }, "B"))
+    }
     private val schema = SchemaLoader.parseSchemaText("""
         id: test
         name: テスト
