@@ -860,6 +860,22 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
      * 編集するため、値の木を持つ仮の文書を 1 つ持つ（どこにも保存しない。編集の記録先が無いので、セッションの履歴や dirty には載らない）。
      */
     class ActionWork(val entry: ActionEntry, target: String?, val form: OpenDocument, val insertInto: InsertTarget? = null) {
+        var preparedAt: LocalDateTime = LocalDateTime.now()
+        var baseline: Map<String, Any?> = emptyMap()
+        var sourceStamp: String = ""
+        var explicit: Map<String, Any?> = emptyMap()
+        var preparedTarget: String? = target
+        var targetDraft by mutableStateOf(target.orEmpty())
+        var targetEditing by mutableStateOf(false)
+        var planSignature: String? = null
+        var planWorkspaceVersion: Long? = null
+        var planEditVersion: Long? = null
+        var plannedAt: LocalDateTime? = null
+        fun invalidate() {
+            plan = null; preview = null; error = null; applied = null
+            planSignature = null; planWorkspaceVersion = null
+            planEditVersion = null
+        }
         val values: YNode.Map get() = form.root as YNode.Map
         /**
          * 対象（受け手）の欄の木。要素を受け手にする操作ではパネルの「対象」欄（その型の要素だけが候補）で選び、入口が受け手を
@@ -895,15 +911,20 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     /** 操作のパネル（浮いたパネル）を出しているか。隠しても作業（actionWork）は残り、右ペインの「操作」タブから開き直せる。 */
     var actionPanelOpen by mutableStateOf(false)
 
-    private fun newActionWork(entry: ActionEntry, target: String?, insertInto: InsertTarget? = null): ActionWork? {
+    private fun newActionWork(entry: ActionEntry, target: String?, insertInto: InsertTarget? = null,
+                              now: LocalDateTime = LocalDateTime.now()): ActionWork? {
         val ws = workspace ?: return null
         val schema = schemas.firstOrNull { it.id == entry.definedIn }
         val values = YNode.Map()
         entry.params.forEach { p -> p.key?.let { key -> p.default?.let { values.entries[key] = YamlIO.fromAny(it) } } }
         val form = OpenDocument(ws.resolve(".yde/action-params.yaml"), values, schema, "", null)
         return ActionWork(entry, target, form, insertInto).also {
+            it.preparedAt = now
+            it.baseline = values.entries.mapValues { (_, node) -> YamlIO.toAny(node) }
+            form.onEdited = { _ -> it.invalidate() }
             actionWork = it
             actionPanelOpen = true
+            if (entry.input != null) resetActionInput(it, target, emptyMap()).onFailure { e -> it.error = e.message }
         }
     }
 
@@ -995,13 +1016,57 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     /** 受け手の無い操作（コマンドパレット）。 */
     fun actionsForWorkspace(): List<ActionEntry> = coreWs?.let { ActionPlanner.forWorkspace(it.mirror.schemas) }.orEmpty()
 
+    fun actionAvailability(entry: ActionEntry, target: String?): dev.toros.yde.workspace.ActionAvailability =
+        (session ?: coreWs?.mirror)?.let { ActionPlanner.availability(it, ActionRequest(entry.name, target)) }
+            ?: dev.toros.yde.workspace.ActionAvailability(false, "ワークスペースが開かれていません")
+
     /**
      * 操作を始める: 対象と受け取る値を入れるパネルを出す。target は受け手（要素の ID か文書の相対パス。null ならパネルで選ぶ）。
      * 閲覧専用モードでも使える（閲覧専用が封じるのは編集＝未保存の木の変更。操作は確認してから書いて保存する）。
      */
-    fun startAction(entry: ActionEntry, target: String?) {
-        newActionWork(entry, target)
+    fun startAction(entry: ActionEntry, target: String?, now: LocalDateTime = LocalDateTime.now()) {
+        newActionWork(entry, target, now = now)
     }
+
+    private fun resetActionInput(work: ActionWork, target: String?, explicit: Map<String, Any?>): Result<Unit> = runCatching {
+        val current = session ?: coreWs?.mirror ?: error("ワークスペースが開かれていません")
+        val prepared = ActionPlanner.prepareInput(current, ActionRequest(work.entry.name, target, explicit), work.preparedAt)
+        work.values.entries.clear()
+        prepared.values.forEach { (key, value) -> work.values.entries[key] = YamlIO.fromAny(value) }
+        work.baseline = prepared.values
+        work.sourceStamp = prepared.sourceStamp
+        work.preparedTarget = target
+        work.explicit = explicit
+        work.targetHolder.entries.clear()
+        target?.let { work.targetHolder.entries[ActionWork.TARGET_KEY] = YNode.Scalar(it) }
+        work.targetDraft = target.orEmpty(); work.targetEditing = false
+        work.invalidate(); work.form.version++
+    }
+
+    fun actionInputModified(): Boolean = actionWork?.let { work ->
+        YamlIO.dumpPlain(work.values) != YamlIO.dumpPlain(YamlIO.fromAny(work.baseline))
+    } ?: false
+
+    fun changeActionTarget(target: String?): Result<Unit> {
+        val work = actionWork ?: return Result.failure(IllegalStateException("操作が選ばれていません"))
+        return resetActionInput(work, target?.trim()?.takeIf { it.isNotEmpty() }, emptyMap())
+    }
+
+    fun reloadActionInput(): Result<Unit> {
+        val work = actionWork ?: return Result.failure(IllegalStateException("操作が選ばれていません"))
+        return resetActionInput(work, work.target, work.explicit)
+    }
+
+    private fun checkActionSource(work: ActionWork) {
+        require(!work.targetEditing) { "対象の変更を確定してください" }
+        if (work.entry.input == null) return
+        require(work.preparedTarget == work.target) { "対象を変更したため、初期値を読み直してください" }
+        val current = session ?: coreWs?.mirror ?: error("ワークスペースが開かれていません")
+        val prepared = ActionPlanner.prepareInput(current, ActionRequest(work.entry.name, work.target, work.explicit), work.preparedAt)
+        require(prepared.sourceStamp == work.sourceStamp) { "入力元が変更されています。初期値を読み直してください" }
+    }
+
+    private fun actionSignature(work: ActionWork): String = "${work.target}\n${YamlIO.dumpPlain(work.values)}"
 
     /** 追加の作業から、その配列へ足すアクションへ切り替える（橋渡し）。同じキーの値は持ち越し、受け手が文書ならその文書にする。 */
     fun switchInsertToAction(entry: ActionEntry) {
@@ -1011,6 +1076,11 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         val target = entry.documentSchema?.let { relPath(into.doc.file) }
         startAction(entry, target)
         val next = actionWork?.takeIf { it.entry === entry } ?: return
+        if (entry.input != null) {
+            resetActionInput(next, target, carried.filterKeys { key -> entry.params.any { it.key == key } })
+                .onFailure { next.error = it.message }
+            return
+        }
         carried.forEach { (k, v) -> if (next.entry.params.any { it.key == k }) next.values.entries[k] = YamlIO.fromAny(v) }
         next.form.version++
     }
@@ -1025,14 +1095,27 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
             ?: run { status = "操作「$name」が見つかりません（スキーマの actions / methods に定義します）"; return }
         startAction(entry, target)
         val work = actionWork?.takeIf { it.entry === entry } ?: return
+        if (entry.input != null) {
+            resetActionInput(work, target, prefill.filterKeys { key -> entry.params.any { it.key == key } })
+                .onFailure { work.error = it.message }
+            return
+        }
         prefill.forEach { (k, v) -> if (work.entry.params.any { it.key == k }) work.values.entries[k] = YamlIO.fromAny(v) }
         work.form.version++
     }
 
-    /** 受け取った値（空のままの欄は渡さない＝省いた値）。 */
-    private fun actionParams(work: ActionWork): Map<String, Any?> = work.values.entries.entries
-        .filterNot { (_, v) -> v is YNode.Scalar && v.value?.toString().isNullOrBlank() }
-        .associate { (k, v) -> k to YamlIO.toAny(v) }
+    /** input のない従来の操作は空欄を省略する。changed は初期値との差分と必須・明示指定を渡す。 */
+    private fun actionParams(work: ActionWork): Map<String, Any?> {
+        val tree = work.form.schema?.tree
+        val required = work.entry.params.filter { p ->
+            tree?.requiredAt(tree.resolve(p) ?: p, null) ?: p.required
+        }.mapNotNull { it.key }.toSet()
+        return work.values.entries.entries
+            .filterNot { (_, v) -> work.entry.input == null && v is YNode.Scalar && v.value?.toString().isNullOrBlank() }
+            .filter { (key, value) -> work.entry.input?.submit != "changed" || key in work.explicit || key !in work.baseline ||
+                key in required || YamlIO.dumpPlain(value) != YamlIO.dumpPlain(YamlIO.fromAny(work.baseline[key])) }
+            .associate { (k, v) -> k to YamlIO.toAny(v) }
+    }
 
     /** 計画を作り、適用後の姿を検証する（原本は変えない）。計画できない理由は作業の error に出す。 */
     fun planAction() {
@@ -1046,12 +1129,33 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
             work.error = "対象を選んでください（${work.entry.entityType} の要素）"
             return
         }
-        runCatching { ActionPlanner.plan(cw.mirror, ActionRequest(work.entry.name, work.target, actionParams(work)), LocalDateTime.now()) }
+        val planTime = LocalDateTime.now()
+        runCatching {
+            checkActionSource(work)
+            val request = ActionRequest(work.entry.name, work.target, actionParams(work))
+            ActionPlanner.checkPreconditions(session ?: cw.mirror, request)
+            ActionPlanner.plan(cw.mirror, request, planTime)
+        }
             .onSuccess { plan ->
                 work.plan = plan
+                work.planSignature = actionSignature(work)
+                work.planWorkspaceVersion = cw.mirror.version
+                work.planEditVersion = session?.version
+                work.plannedAt = planTime
                 work.preview = if (plan.isEmpty) null else cw.apply(plan.changeSet, dryRun = true)
             }
             .onFailure { work.error = it.message ?: "計画できません" }
+    }
+
+    /** 確認後の入力・ワークスペース変更を検知し、表示中の古い差分を取り下げる。 */
+    fun refreshActionPlan() {
+        val work = actionWork ?: return
+        if (work.plan == null || work.applied != null) return
+        if (work.planSignature != actionSignature(work) || work.planWorkspaceVersion != coreWs?.mirror?.version ||
+            work.planEditVersion != session?.version) {
+            work.invalidate()
+            work.error = "入力またはワークスペースが変更されています。確認し直してください"
+        }
     }
 
     /** 計画した変更セットの文書ごとの、いまの内容と適用後の内容（差分の表示用）。 */
@@ -1079,6 +1183,16 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         val files = plan.changeSet.changes.map { ws.resolve(it.file).normalize() }
         files.filter { docCache[it]?.dirty == true }.takeIf { it.isNotEmpty() }
             ?.let { error("エディタに未保存の変更があるため適用できません: ${it.joinToString(", ") { f -> relPath(f) }}") }
+        checkActionSource(work)
+        require(work.planSignature == actionSignature(work) && work.planWorkspaceVersion == cw.mirror.version &&
+            work.planEditVersion == s.version) {
+            work.invalidate()
+            "入力またはワークスペースが変更されています。確認し直してください"
+        }
+        // 読み取りだけの前提も、適用の直前に同じ計画器で再検査する。
+        val request = ActionRequest(work.entry.name, work.target, actionParams(work))
+        ActionPlanner.checkPreconditions(s, request)
+        ActionPlanner.plan(cw.mirror, request, work.plannedAt!!)
         val result = withHistoryLocation(s) { cw.applyViaSession(s, plan.changeSet, requireValid = !allowErrors) }
         if (!result.ok) {
             val reasons = result.results.filter { it.message != null }.joinToString("\n") { "${it.file}: ${it.message}" }

@@ -11,6 +11,17 @@ import java.nio.file.Path
 import kotlin.test.*
 
 class SchemaAdditionalOutlineTest {
+    @Test
+    fun `操作の初期設定と送信方式を子まで選んで編集できる`() {
+        val root = root("actions: [{id: edit, input: {submit: changed, initial: {title: {${'$'}copy: title, ${'$'}of: self}}}}]")
+        val items = outline(root)
+        val submit = items.single { it.path == listOf("actions", 0, "input", "submit") }
+        assertEquals(FieldType.ENUM, submit.field?.type)
+        val copy = items.single { it.path == listOf("actions", 0, "input", "initial", "title", "${'$'}copy") }
+        schemaSlot(root, copy.path)!!.set(YNode.Scalar("summary"))
+        assertEquals("summary", (getAt(root, copy.path) as YNode.Scalar).value)
+        assertEquals("ひな型", SchemaValueForms.groupFor(copy.path.dropLast(1)))
+    }
     private val meta = BuiltinSchemas.all.first { it.id == BuiltinSchemas.META_SCHEMA_ID }
     private fun outline(root: YNode.Map) = schemaAdditionalOutline(root, meta, false)
     private fun root(text: String) = YamlIO.parse(text) as YNode.Map

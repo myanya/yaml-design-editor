@@ -87,7 +87,7 @@ internal fun EditorDocumentHeader(state: AppState, doc: OpenDocument, title: Str
                 if (actions.isNotEmpty()) HorizontalDivider(color = Palette.Border)
                 // 型の操作は閲覧専用でも実行できる。
                 actions.forEach { entry ->
-                    DropdownMenuItem(text = { Text("操作: ${entry.label ?: entry.name}") }, onClick = {
+                    ActionMenuItem(state, entry, state.relPath(doc.file), onClick = {
                         actionsOpen = false
                         state.startAction(entry, state.relPath(doc.file))
                     })

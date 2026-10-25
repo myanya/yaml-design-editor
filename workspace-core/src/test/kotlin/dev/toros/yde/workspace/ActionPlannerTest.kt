@@ -25,6 +25,29 @@ import kotlin.test.assertTrue
  * - 計画の変更セットは既存の適用器（ChangeSetApplier）をそのまま通る
  */
 class ActionPlannerTest {
+    @Test
+    fun `メニューの前提評価は入力不足と違反を分け原本と履歴を変えない`() {
+        val s = session()
+        fun contents() = s.snapshot.documents.mapValues { (_, d) -> d.document.documents.map(YamlIO::dumpPlain) }
+        val before = contents()
+        val blocked = ActionPlanner.availability(s, ActionRequest("deprecate-rule", "BR-001"))
+        assertEquals(false, blocked.enabled)
+        assertTrue(blocked.reason!!.contains("参照"))
+        assertEquals(true, ActionPlanner.availability(s, ActionRequest("deprecate-rule", "BR-002")).enabled)
+        assertEquals(true, ActionPlanner.availability(s, ActionRequest("deprecate-rule")).needsInput)
+        assertEquals(false, ActionPlanner.availability(s, ActionRequest("deprecate-rule", "SCR-001")).enabled)
+        assertEquals(before, contents())
+        assertNull(s.peekUndo())
+    }
+
+    @Test
+    fun `パラメータ依存の前提はメニューで無効化せず計画では検査する`() {
+        val s = session()
+        val result = ActionPlanner.availability(s, ActionRequest("add-screen"))
+        assertTrue(result.enabled)
+        assertTrue(result.needsInput)
+        assertFailsWith<ActionFailure> { plan(s, "add-screen") }
+    }
 
     private fun fixture(name: String): String =
         checkNotNull(javaClass.getResourceAsStream("/action-fixtures/$name")) { "fixture not found: $name" }.bufferedReader().readText()

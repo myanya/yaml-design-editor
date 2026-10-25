@@ -258,12 +258,13 @@
 |---|---|---|---|---|
 | OP-01 | 型の操作（`methods`・作成・採番・引き継ぎ） | `semantic-core/schema/Action.kt`, `schema/SchemaTree.kt` | `ActionPlannerTest` | [actions](architecture/actions.md) |
 | OP-02 | アクションの定義と点検 | `semantic-core/schema/Action.kt`, `workspace-core/workspace/SchemaDocuments.kt` | `ActionPlannerTest` | [actions](architecture/actions.md) |
-| OP-03 | 操作の計画（受け手の解決・受け取った値の検証・前提の 4 つの結果・set / insert / delete / create / call / each・変更セットの生成） | `workspace-core/workspace/ActionPlanner.kt`, `semantic-core/semantic/Transform.kt`（`build` / `holds`） | 単体 `ActionPlannerTest` | [actions](architecture/actions.md) |
+| OP-03 | 操作の計画・前提評価・変更セット生成 | `workspace-core/workspace/ActionPlanner.kt` | `ActionPlannerTest` | [actions](architecture/actions.md) |
 | OP-04 | CLI `action`（使える操作の一覧・計画＝変更セットと適用後の検証・`--apply`・`--allow-errors`） | `core/Cli.kt` | 単体 `ActionCliTest` | [actions](architecture/actions.md) |
-| OP-05 | 操作の入口・明示選択した対象の引継ぎ・確認と適用 | `ui/ActionPane.kt`, `ui/DocumentFormWorkspace.kt`, `AppState.kt` | `AppStateActionTest`・`FormOutlineTest` | [actions](architecture/actions.md) |
-| OP-06 | 検査からの起動（`responses` の `{action, label, with}` → 指摘のメニューから受け手と値の入ったカードを開く） | `semantic-core/schema/Query.kt`（`ResponseDecl`）, `workspace-core/validate/WorkspaceChecks.kt`（`RunAction`）, `ui/SidePanel.kt` | 単体 `ActionPlannerTest`, `AppStateActionTest` | [actions](architecture/actions.md) |
+| OP-05 | 操作の入口・対象引継ぎ・前提違反の無効化・確認と適用 | `ui/ActionPane.kt`, `ui/DocumentFormWorkspace.kt`, `AppState.kt` | `AppStateActionTest`・`FormOutlineTest` | [actions](architecture/actions.md) |
+| OP-06 | 検査の指摘から対象・値を指定して起動 | `workspace-core/validate/WorkspaceChecks.kt`, `ui/SidePanel.kt` | `ActionPlannerTest`, `AppStateActionTest` | [actions](architecture/actions.md) |
 | OP-07 | エージェントのツール（アクティビティの `actions` で許可した操作が `action_名前` のツールに・引数は受け取る値の定義・ステージングを重ねて計画し積む・`allowedFiles` の外でも通る） | `agent/Tools.kt`（`actionTools` / `runActionTool`）, `agent/Definitions.kt`, `builtin-schemas/activity.yaml` | 単体 `ActionToolTest` | [actions](architecture/actions.md) |
 | OP-08 | 作成経路の寄せ（追加ボタン・新規行・文書の作成を型の `create` と配列の `insert` で。追加のパネルからアクションへ橋渡し） | `workspace-core/workspace/ActionPlanner.kt`, `workspace-core/workspace/DocumentScaffold.kt`, `app/AppState.kt`（`addArrayElement`） | 単体 `ActionPlannerTest`, `AppStateActionTest` | [actions](architecture/actions.md) |
+| OP-09 | 現在値・本日の入力準備と変更分の送信 | `semantic-core/schema/ActionInput.kt`, `AppState.kt` | `ActionInputTest`, `AppStateActionInputTest` | [actions](architecture/actions.md) |
 
 ## 公開サンプル
 

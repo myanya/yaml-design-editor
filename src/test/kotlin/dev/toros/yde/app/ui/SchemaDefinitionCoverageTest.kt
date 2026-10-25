@@ -32,6 +32,7 @@ class SchemaDefinitionCoverageTest {
             assertTrue(missing.isEmpty(), "$definition のメタ定義と入力UIが不足: $missing")
         }
         check(ActionDef::class.java, "action", mapOf("steps" to "do"))
+        check(ActionInput::class.java, "action-input")
         check(MethodDef::class.java, "method", mapOf("steps" to "do", "builds" to "build"))
         check(InsertRule::class.java, "insert-rule")
         val numbering = tree.definitions.getValue("insert-rule").fields.first { it.key == "id" }.fields.map { it.key }

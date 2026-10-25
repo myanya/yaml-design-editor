@@ -3,6 +3,21 @@ name: スキーマ定義
 description: _schemas 配下のスキーマ文書を検証・フォーム編集するためのメタスキーマ
 match: "_schemas/**/*.{yaml,yml}"
 definitions:
+  action-input:
+    type: object
+    fields:
+      - key: initial
+        label: 入力の初期値（ひな型）
+        type: map
+        value: { type: any }
+        description: '対象の値は $copy と $of、開始日の値は {$copy: today, $of: context} で読みます。'
+      - key: submit
+        label: 入力値の送信
+        type: enum
+        default: all
+        values:
+          - { value: all, label: 全入力 }
+          - { value: changed, label: 変更した項目（必須・明示指定は常に送信） }
   action:
     type: object
     fields:
@@ -21,6 +36,7 @@ definitions:
         type: array
         display: list
         item: { $ref: field }
+      - { key: input, label: フォームの初期設定, $ref: action-input }
       - { key: require, label: 前提条件, type: any }
       - key: do
         label: 処理手順

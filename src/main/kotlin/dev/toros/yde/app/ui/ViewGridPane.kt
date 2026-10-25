@@ -337,8 +337,7 @@ private fun IdCell(state: AppState, row: ViewRow) {
                         }
                         DropdownMenu(open, { open = false }) {
                             actions.forEach { e ->
-                                DropdownMenuItem(
-                                    text = { Text(e.label ?: e.name, fontSize = 12.sp) },
+                                ActionMenuItem(state, e, row.id,
                                     onClick = { open = false; state.startAction(e, row.id) },
                                 )
                             }

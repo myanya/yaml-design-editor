@@ -183,7 +183,7 @@ private fun EntityPage(state: AppState, id: String) {
                         }
                         DropdownMenu(menuOpen, { menuOpen = false }) {
                             actions.forEach { entry ->
-                                DropdownMenuItem(text = { Text(entry.label ?: entry.name, fontSize = 12.sp) },
+                                ActionMenuItem(state, entry, id,
                                     onClick = { menuOpen = false; state.startAction(entry, id) })
                             }
                             if (!state.readOnlyMode) {

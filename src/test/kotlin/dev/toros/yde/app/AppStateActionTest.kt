@@ -129,6 +129,19 @@ class AppStateActionTest {
     private fun openState(): AppState = AppState().also { it.openWorkspace(dir); assertEquals(emptyList(), it.schemaErrors) }
 
     @Test
+    fun `入力後の前提も未保存の編集を含めて判定する`() {
+        val state = openState()
+        val doc = state.ensureDoc(dir.resolve("list.yaml"))
+        state.addArrayElement(doc, parseYPath("items"), doc.schema!!.root.fields.first { it.key == "items" }).getOrThrow()
+        state.startAction(state.actionsForWorkspace().first { it.name == "add-item" }, null)
+        state.actionWork!!.values.entries["id"] = YNode.Scalar("IT-2")
+        state.actionWork!!.values.entries["name"] = YNode.Scalar("重複する名前")
+        state.planAction()
+        assertEquals("IT-2 は既にあります", state.actionWork!!.error)
+        assertNull(state.actionWork!!.plan)
+    }
+
+    @Test
     fun `受け手ごとに使える操作が並び 始めるとパネルが開く`() {
         val state = openState()
         assertEquals(listOf("add-item", "add-note"), state.actionsForWorkspace().map { it.name })

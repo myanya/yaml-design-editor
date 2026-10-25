@@ -776,7 +776,8 @@ Core Calculus = 定義を実行する
 | Workspace.apply | Transaction |
 | ユーザ定義の型 | 宣言。検証は構造チェックへ導出 |
 | 自動で入る値（`auto`） | Rewrite（要素 × 保存済みとの違い × SetScalar） |
-| 操作（`methods` / `actions`） | Rewrite の利用者定義体（受け取った値 × Query × Predicate × 操作 ＋ Construct） |
+| 操作 | Rewrite ＋ Query / Predicate ＋ Construct |
+| `actions.input` | Construct（現在値・日時）＋ Term（差分） |
 
 この表を用いて、重複している実装を段階的に発見する。
 

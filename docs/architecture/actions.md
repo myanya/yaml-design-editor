@@ -9,6 +9,8 @@
 | 部品 | ファイル | 責務 |
 |---|---|---|
 | `ActionDef` / `ActionTarget` / `ActionRequire` | semantic-core/schema/Action.kt | 横断の操作の宣言（受け手 `target`・受け取る値 `params`・前提 `require`・手 `do`）と読み取り |
+| `ActionInput` | semantic-core/schema/ActionInput.kt | フォーム用の `initial` と `submit` の宣言と点検 |
+| `ActionAvailability` / `PreparedActionInput` | workspace-core/workspace/ActionPlanner.kt | 前提だけの利用可否と、初期値・入力元の比較値 |
 | `ActionStep` / `ActionSteps` / `StepSite` / `StepScope` | semantic-core/schema/Action.kt | 手（set / insert / delete / create / call / each）の宣言と読み取り。型の操作の範囲の制限 |
 | `MethodDef` / `InsertRule` / `IdNumbering` / `ActionParams` | semantic-core/schema/Action.kt | 型の操作（予約名 `create`）・配列の追加の決まり（採番 `id`・同じ明細 `key`）・受け取る値の宣言 |
 | `FieldDef.methods` / `insertRule` | semantic-core/schema/Fields.kt | object と配列の項目に載せた操作の定義。読み取りは `SchemaTreeParser.parseField`、引き継ぎは `SchemaTree.narrowOnto` |
@@ -47,6 +49,18 @@
 - **検査からの起動**: 検査の `responses` に `{action, label, with}` を書くと、`WorkspaceChecks.responsesOf` が `CheckResponse.RunAction`（受け手＝起点の ID・渡す値＝文面を指摘と同じひな型で埋めたもの）を作り、検証パネルのメニューから `startAction(name, target, prefill)` で対象の入ったパネルが開く。無い操作を指す対応は読み込みの誤り（`WorkspaceReader.buildSchemas`）。
 
 ## 規律
+
+### 入力準備と確認の有効期間
+
+- `ActionPlanner.availability` は実行と同じ `actionScope` / `checkRequire` を使う。入力参照のある前提だけを入力待ちとし、それ以外の違反・保留は理由付きで無効にする。手は実行せず履歴も作らない。UIは編集用セッションで判定し、索引と編集の版を購読する。入力後も `checkPreconditions` で未保存の変更を含めて検査する。
+- `prepareInput(session, request, now)` は `params.default`、`input.initial`、明示指定の順で値を重ねる。`SemanticTransform.build` を使い、受け手の束縛と日時の `context` を渡す。出現は既存の `entityPlace`（定義出現優先・`$in` 絞り込み）に従い、無い値は補完しない。
+- 入力準備は Construct、対象選択と差分比較は Term、利用可否は Query / Predicate。時計は呼出側が採取した引数で、評価器内では読まない。出どころは対象の出現・文書・パスと内容の比較値に保持する。新しい評価器・書込経路・検査語彙は追加しない。
+- `ActionWork` が開始日時・初期値・明示指定・対象・入力元の比較値を保持する。対象変更は候補の確定後に再設定し、入力破棄は画面で確認する。初期値の読み直しでも開始日時は変えない。
+- `submit: changed` は初期値との差だけを送る（必須項目と明示指定は含める）。未変更・空文字・空配列を区別し、項目の削除は操作の入力と手で明示する。実行の省略値、CLI・AI、保存時の自動値は変えない。
+- 確認時に入力元を照合する。確認済みの入力・対象・ディスク側と編集側セッションの版を保存し、フォーム編集や版の変更で古い差分を取り下げる。適用直前にも照合し、同じ計画時刻で前提を再検査してから確認済みの変更セットを適用する。
+- `input` の語彙はメタスキーマ、追加区画の共通ツリー、ひな型入力例にも載せる。`ActionInputTest` / `AppStateActionInputTest` が準備と適用の境界、`SchemaDefinitionCoverageTest` / `SchemaAdditionalOutlineTest` が定義UIの追従を検査する。
+
+### 操作の共通規則
 
 - 新しい書込経路を作らない。操作の結果は常に変更セットで、適用は `ChangeSetApplier`。計画器はファイルにもセッションにも書かない。
 - 型の操作は受け手の部分木（保有する子を含む）に閉じる。`of` / `in` / `create` / `call` / 照合の `each` は宣言の段階で誤りにする。他の要素や文書を変えるのはアクション。

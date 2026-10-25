@@ -497,11 +497,14 @@ private fun CommandPalette(
                 CommandItem("台帳: 準備完了レポートを表示") { state.showWorkspaceView(6); onDismiss() }
                 // 操作（architecture/actions.md）: 受け手の無いアクションと、開いている文書を受け手にするアクション（閲覧専用でも出す）
                 state.actionsForWorkspace().forEach { e ->
-                    CommandItem("操作: ${e.label ?: e.name}") { state.startAction(e, null); onDismiss() }
+                    val available = remember(e, state.indexVersion, state.editVersion) { state.actionAvailability(e, null) }
+                    CommandItem("操作: ${e.label ?: e.name}", available.enabled, available.reason) { state.startAction(e, null); onDismiss() }
                 }
                 state.openDoc?.let { d ->
                     state.actionsForDocument(d.file).forEach { e ->
-                        CommandItem("操作: ${e.label ?: e.name}（${state.relPath(d.file)}）") { state.startAction(e, state.relPath(d.file)); onDismiss() }
+                        val target = state.relPath(d.file)
+                        val available = remember(e, target, state.indexVersion, state.editVersion) { state.actionAvailability(e, target) }
+                        CommandItem("操作: ${e.label ?: e.name}（$target）", available.enabled, available.reason) { state.startAction(e, target); onDismiss() }
                     }
                 }
                 CommandItem("実行スペースを表示（受信箱）") { onShowRuns(); onDismiss() }
@@ -521,8 +524,11 @@ private fun CommandPalette(
 }
 
 @Composable
-private fun CommandItem(text: String, onClick: () -> Unit) {
-    Text(text, fontSize = 12.sp, modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 7.dp))
+private fun CommandItem(text: String, enabled: Boolean = true, reason: String? = null, onClick: () -> Unit) {
+    Column(Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick).padding(horizontal = 8.dp, vertical = 7.dp)) {
+        Text(text, fontSize = 12.sp, color = if (enabled) Palette.Text else Palette.SubText)
+        reason?.let { Text(it, fontSize = 11.sp, color = Palette.SubText) }
+    }
 }
 
 /**

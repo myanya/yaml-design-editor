@@ -60,6 +60,8 @@ internal object SchemaValueForms {
         preset("照合", "参照を辿る（edge）", "edge" to obj("relation" to "category", "dir" to "out")),
         preset("照合", "保有する要素を辿る", "edge" to obj("contains" to true)),
         preset("ひな型", "値をコピー", "\$copy" to "title"),
+        preset("ひな型", "対象の現在値（初期設定）", "\$copy" to "title", "\$of" to "self"),
+        preset("ひな型", "操作開始日（初期設定）", "\$copy" to "today", "\$of" to "context"),
         SchemaValuePreset("ひな型", "入力値を使う", "\$value"),
         preset("ひな型", "文字列を組み立てる", "\$format" to "{title}"),
         preset("ひな型", "辞書で置き換える", "\$map" to "OPEN", "\$using" to obj("OPEN" to "未着手")),
@@ -85,6 +87,7 @@ internal object SchemaValueForms {
     }
 
     fun groupFor(path: YPath): String {
+        if ("initial" in path && path.lastOrNull() !in setOf("\$when", "where", "when")) return "ひな型"
         val key = path.lastOrNull { it is String }
         return when (key) {
             "do" -> "手順"
@@ -100,7 +103,7 @@ internal object SchemaValueForms {
     }
 
     fun choices(group: String, path: YPath): List<SchemaValuePreset> = presets.filter { preset ->
-        preset.group == group && ("methods" !in path || group != "手順" ||
+        preset.group == group && (!preset.label.endsWith("（初期設定）") || "initial" in path) && ("methods" !in path || group != "手順" ||
             (preset.value as? Map<*, *>)?.let { m -> "create" !in m && "call" !in m && ((m["each"] as? Map<*, *>)?.containsKey("match") != true) } == true)
     }
 

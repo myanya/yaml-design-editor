@@ -11,6 +11,7 @@ import dev.toros.yde.semantic.SemanticRules
 import dev.toros.yde.semantic.SemanticTransform
 import dev.toros.yde.semantic.SemanticTransform.TemplatePlace
 import dev.toros.yde.semantic.schema.ActionDef
+import dev.toros.yde.semantic.schema.ActionInput
 import dev.toros.yde.semantic.schema.ActionStep
 import dev.toros.yde.semantic.schema.ConstraintExpect
 import dev.toros.yde.semantic.schema.ConstraintRule
@@ -49,6 +50,12 @@ data class ActionRequest(val name: String, val target: String? = null, val param
 /** 計画できなかった理由（前提を満たさない・判定保留・受け手が見つからない・受け取る値の誤り・定義の不備）。 */
 class ActionFailure(message: String) : IllegalArgumentException(message)
 
+/** 入力待ちは前提違反と分ける。メニューから入力を始めることは許す。 */
+data class ActionAvailability(val enabled: Boolean, val reason: String? = null, val needsInput: Boolean = false)
+
+/** 初期値と、その入力元を再確認するための比較値。ワークスペースへは書かない。 */
+data class PreparedActionInput(val values: Map<String, Any?>, val sourceStamp: String)
+
 /** 操作の計画: 変更セット（既存の適用器 ChangeSetApplier へそのまま渡す）と、人が読む要約。 */
 data class ActionPlan(val title: String, val changeSet: ChangeSet, val summary: List<String>) {
     val isEmpty: Boolean get() = changeSet.changes.isEmpty()
@@ -65,6 +72,7 @@ data class ActionEntry(
     val target: String?,
     val params: List<FieldDef>,
     val definedIn: String,
+    val input: ActionInput? = null,
 ) {
     /** 受け手の要素の型（要素を受け手にする操作。文書を受け手にする操作や受け手の無い操作では null）。 */
     val entityType: String?
@@ -96,7 +104,7 @@ object ActionPlanner {
         for (s in schemas) {
             s.actions.forEach { a ->
                 val target = a.target?.let { t -> t.entity?.let { "entity: $it" } ?: "schema: ${t.schema}" }
-                out += ActionEntry(a.id, "action", a.label, a.description, target, a.params, s.id)
+                out += ActionEntry(a.id, "action", a.label, a.description, target, a.params, s.id, a.input)
             }
             for ((at, f) in s.tree.objectDeclarations()) {
                 if (f.methods.isEmpty()) continue
@@ -113,6 +121,18 @@ object ActionPlanner {
     fun plan(session: WorkspaceSession, request: ActionRequest, now: LocalDateTime = LocalDateTime.now()): ActionPlan =
         Planning(session, now).plan(request)
 
+    /** 手を実行せず対象と前提だけを確認する。入力を参照する前提はメニューでは保留する。 */
+    fun availability(session: WorkspaceSession, request: ActionRequest): ActionAvailability =
+        Planning(session, LocalDateTime.MIN).availability(request)
+
+    /** 入力後の前提検査。編集用セッションでも同じ判定を使い、手は実行しない。 */
+    fun checkPreconditions(session: WorkspaceSession, request: ActionRequest) {
+        Planning(session, LocalDateTime.MIN).checkPreconditions(request)
+    }
+
+    fun prepareInput(session: WorkspaceSession, request: ActionRequest, now: LocalDateTime): PreparedActionInput =
+        Planning(session, now).prepareInput(request)
+
     /**
      * 要素に使える操作（画面の操作メニューが使う）: その型を受け手にするアクションと、要素の型の操作（create を除く）。
      * 型の操作の名前は `型名.操作名`（型名は要素のエンティティ型。plan の名前の解決と同じ）。
@@ -127,7 +147,7 @@ object ActionPlanner {
         val type = node.entityType ?: def?.entity?.type ?: return emptyList()
         val actions = session.schemas.flatMap { s ->
             s.actions.filter { a -> a.target?.entity == type }
-                .map { a -> ActionEntry(a.id, "action", a.label, a.description, "entity: $type", a.params, s.id) }
+                .map { a -> ActionEntry(a.id, "action", a.label, a.description, "entity: $type", a.params, s.id, a.input) }
         }
         val methods = def?.methods.orEmpty().filter { !it.isCreate }
             .map { m -> ActionEntry("$type.${m.name}", "method", m.label, m.description, type, m.params, schema?.id ?: "") }
@@ -141,7 +161,7 @@ object ActionPlanner {
     fun forEntityType(session: WorkspaceSession, type: String): List<ActionEntry> {
         val actions = session.schemas.flatMap { s ->
             s.actions.filter { a -> a.target?.entity == type }
-                .map { a -> ActionEntry(a.id, "action", a.label, a.description, "entity: $type", a.params, s.id) }
+                .map { a -> ActionEntry(a.id, "action", a.label, a.description, "entity: $type", a.params, s.id, a.input) }
         }
         val methods = session.schemas.flatMap { s ->
             s.tree.objectDeclarations()
@@ -174,7 +194,7 @@ object ActionPlanner {
         return schemas.flatMap { s ->
             s.actions.filter { a -> hits(a.steps, a.target?.schema) }.map { a ->
                 val target = a.target?.let { t -> t.entity?.let { "entity: $it" } ?: "schema: ${t.schema}" }
-                ActionEntry(a.id, "action", a.label, a.description, target, a.params, s.id)
+                ActionEntry(a.id, "action", a.label, a.description, target, a.params, s.id, a.input)
             }
         }
     }
@@ -184,13 +204,13 @@ object ActionPlanner {
         val sid = session.snapshot.documents[DocumentId(rel.replace('\\', '/'))]?.schemaId ?: return emptyList()
         return session.schemas.flatMap { s ->
             s.actions.filter { a -> a.target?.schema == sid }
-                .map { a -> ActionEntry(a.id, "action", a.label, a.description, "schema: $sid", a.params, s.id) }
+                .map { a -> ActionEntry(a.id, "action", a.label, a.description, "schema: $sid", a.params, s.id, a.input) }
         }
     }
 
     /** 受け手の無い操作（コマンドパレットが使う）。 */
     fun forWorkspace(schemas: List<WorkspaceSchema>): List<ActionEntry> =
-        schemas.flatMap { s -> s.actions.filter { it.target == null }.map { a -> ActionEntry(a.id, "action", a.label, a.description, null, a.params, s.id) } }
+        schemas.flatMap { s -> s.actions.filter { it.target == null }.map { a -> ActionEntry(a.id, "action", a.label, a.description, null, a.params, s.id, a.input) } }
 
     /** 配列へ足す新しい要素。node が null なら足さない（skipped にその理由＝同じ明細がある）。 */
     data class NewElement(val node: YNode?, val skipped: String?)
@@ -300,9 +320,80 @@ object ActionPlanner {
 
         // ---- 入口 ----
 
+        fun prepareInput(request: ActionRequest): PreparedActionInput {
+            val entry = catalog(schemas).firstOrNull { it.name == request.name } ?: fail("操作が見つかりません")
+            val action = schemas.flatMap { it.actions }.firstOrNull { it.id == request.name }
+            val defaults = entry.params.mapNotNull { p -> p.default?.let { p.key!! to it } }.toMap()
+            val supplied = defaults + request.params
+            val bindings = linkedMapOf<String, (DerivationSelector?) -> TemplatePlace?>()
+            val clock = TemplatePlace(YamlIO.fromAny(mapOf("today" to now.toLocalDate().toString(), "now" to now.toString())), null, emptyList())
+            bindings[ActionInput.CONTEXT] = { clock }
+            val stamp = mutableListOf<String>()
+            val target = action?.target
+            if (request.target != null) {
+                if (entry.entityType != null) {
+                    val entity = graph.entities[request.target] ?: fail("対象「${request.target}」がありません")
+                    if (forEntity(session, request.target).none { it.name == request.name }) fail("対象にこの操作はありません")
+                    bindings[target?.bind ?: MethodDef.SELF] = { selector -> entityPlace(request.target, selector) }
+                    entity.occurrences.sortedWith(compareBy({ it.document.value }, { it.path.toString() })).forEach { occ ->
+                        stamp += "${occ.document}:${occ.path}:" + stored(occ.document)?.let { getAt(it, occ.path) }?.let(YamlIO::dumpPlain)
+                    }
+                } else if (entry.documentSchema != null) {
+                    val id = DocumentId(request.target)
+                    if (schemaOf(id)?.id != entry.documentSchema) fail("対象文書のスキーマが一致しません")
+                    val node = stored(id) ?: fail("対象文書がありません")
+                    bindings[target?.bind ?: MethodDef.SELF] = { TemplatePlace(node, id, emptyList()) }
+                    stamp += YamlIO.dumpPlain(node)
+                }
+            }
+            val initial = entry.input?.initial.orEmpty().mapNotNull { (key, template) ->
+                SemanticTransform.build(template, supplied, TemplatePlace(YamlIO.fromAny(supplied), null, emptyList()), bindings).term
+                    ?.let { key to YamlIO.toAny(it) }
+            }.toMap()
+            return PreparedActionInput(defaults + initial + request.params, stamp.joinToString("\n"))
+        }
+
+        fun availability(request: ActionRequest): ActionAvailability = try {
+            val entry = catalog(schemas).firstOrNull { it.name == request.name && it.kind != "create" }
+                ?: fail("操作「${request.name}」が見つかりません")
+            if (entry.entityType != null && request.target == null) ActionAvailability(true, "対象を選択して確認します", true)
+            else {
+                val found = schemas.flatMap { s -> s.actions.map { s to it } }.firstOrNull { it.second.id == request.name }
+                if (found == null) {
+                    if (request.target == null || forEntity(session, request.target).none { it.name == request.name })
+                        fail("対象にこの操作はありません")
+                    ActionAvailability(true)
+                } else {
+                    val (scope, startId) = actionScope(found.first, found.second, request, validate = false)
+                    val waiting = checkRequire(found.second, scope, startId, targetOnly = true)
+                    ActionAvailability(true, if (waiting) "入力後に前提を確認します" else null, waiting)
+                }
+            }
+        } catch (e: IllegalArgumentException) {
+            ActionAvailability(false, e.message ?: "前提を確認できません")
+        } catch (e: IllegalStateException) {
+            ActionAvailability(false, e.message ?: "前提を確認できません")
+        }
+
         private fun runAction(schema: WorkspaceSchema, action: ActionDef, request: ActionRequest): String {
+            val (scope, startId) = actionScope(schema, action, request)
+            checkRequire(action, scope, startId)
+            run(action.steps, scope)
+            return action.displayName + (request.target?.let { "（$it）" } ?: "")
+        }
+
+        fun checkPreconditions(request: ActionRequest) {
+            val found = schemas.flatMap { s -> s.actions.map { s to it } }.firstOrNull { it.second.id == request.name }
+                ?: return // 型の操作には require がない。対象と値は plan で検証する。
+            val (scope, startId) = actionScope(found.first, found.second, request)
+            checkRequire(found.second, scope, startId)
+        }
+
+        private fun actionScope(
+            schema: WorkspaceSchema, action: ActionDef, request: ActionRequest, validate: Boolean = true,
+        ): Pair<Scope, String?> {
             val label = "操作「${action.displayName}」"
-            val (values, node) = prepareParams(action.params, request.params, label, schema.tree)
+            val (values, node) = prepareActionParams(action.params, request.params, label, schema.tree, validate)
             var startId: String? = null
             val on = action.target
             val scope = when {
@@ -327,9 +418,7 @@ object ActionPlanner {
                 }
                 else -> Scope(values, node, null, null, emptyMap())
             }
-            checkRequire(action, scope, startId)
-            run(action.steps, scope)
-            return action.displayName + (request.target?.let { "（$it）" } ?: "")
+            return scope to startId
         }
 
         private fun runMethod(typeName: String, methodName: String, request: ActionRequest): String {
@@ -358,8 +447,10 @@ object ActionPlanner {
 
         // ---- 前提 ----
 
-        private fun checkRequire(action: ActionDef, scope: Scope, startId: String?) {
+        private fun checkRequire(action: ActionDef, scope: Scope, startId: String?, targetOnly: Boolean = false): Boolean {
+            var waiting = false
             for (req in action.require) {
+                if (targetOnly && req.referenced.isNotEmpty()) { waiting = true; continue }
                 val rule = try { req.rule(scope.params) } catch (e: IllegalStateException) { fail(e.message ?: req.origin) } catch (e: IllegalArgumentException) { fail(e.message ?: req.origin) }
                 val name = rule.description ?: rule.id ?: req.origin
                 if (startId != null) {
@@ -368,7 +459,10 @@ object ActionPlanner {
                         CheckOutcome.VIOLATED -> fail(message(rule, r.matches, startId))
                         CheckOutcome.WITHHELD -> fail("前提「$name」を確かめられません: ${r.reason?.text ?: "判定保留"}")
                         CheckOutcome.NOT_APPLICABLE ->
-                            if (r.reason == CheckReason.NOT_IN_SCOPE) fail("前提「$name」: 「$startId」はこの前提の対象の要素ではありません")
+                            if (r.reason == CheckReason.NOT_IN_SCOPE) fail(
+                                if (rule.message != null) message(rule, r.matches, startId)
+                                else "前提「$name」: 「$startId」はこの前提の対象の要素ではありません"
+                            )
                         CheckOutcome.SATISFIED -> Unit
                     }
                 } else {
@@ -380,6 +474,7 @@ object ActionPlanner {
                     if (below || above) fail(message(rule, result, null))
                 }
             }
+            return waiting
         }
 
         /** 前提の文面: message のひな型（{id} {count} {束縛.id} {束縛.title} {束縛.type}）か、既定の文。 */
@@ -600,7 +695,7 @@ private fun actionFail(message: String): Nothing = throw ActionFailure(message)
  * 受け取った値をそろえる: 宣言に無い名前は誤り・省いた値は default・宣言があれば構造の検証（必須・型・選択肢・形式）。
  * 返すのは、ひな型へ渡す値と、「いまの場所」にする項。
  */
-private fun prepareActionParams(defs: List<FieldDef>, given: Map<String, Any?>, label: String, tree: SchemaTree?): Pair<Map<String, Any?>, YNode.Map> {
+private fun prepareActionParams(defs: List<FieldDef>, given: Map<String, Any?>, label: String, tree: SchemaTree?, validate: Boolean = true): Pair<Map<String, Any?>, YNode.Map> {
     val declared = defs.mapNotNull { it.key }
     given.keys.firstOrNull { it !in declared }
         ?.let { actionFail("$label は「$it」を受け取りません（受け取る値: ${declared.joinToString(", ").ifEmpty { "なし" }}）") }
@@ -610,7 +705,7 @@ private fun prepareActionParams(defs: List<FieldDef>, given: Map<String, Any?>, 
         if (given.containsKey(key)) values[key] = given[key] else def.default?.let { values[key] = it }
     }
     val node = YamlIO.fromAny(values) as YNode.Map
-    if (defs.isNotEmpty()) {
+    if (validate && defs.isNotEmpty()) {
         val root = FieldDef(type = FieldType.OBJECT, fields = defs, definitionScope = tree?.id ?: "params")
         val paramsTree = tree?.let { SchemaTree("params", root, it.definitions, definitionCatalog = it.definitionCatalog) } ?: SchemaTree("params", root)
         val issues = DerivedStructures(paramsTree).validate(node).filter { it.severity == Severity.ERROR }

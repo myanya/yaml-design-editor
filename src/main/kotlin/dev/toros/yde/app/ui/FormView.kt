@@ -1687,8 +1687,7 @@ private fun ElementOpsButton(ctx: FormCtx, rowPath: YPath, modifier: Modifier = 
         DropdownMenu(open, { open = false }) {
             Text("${entry.id} の操作", Modifier.padding(horizontal = 12.dp, vertical = 4.dp), fontSize = 10.sp, color = Palette.SubText)
             actions.forEach { e ->
-                DropdownMenuItem(
-                    text = { Text(e.label ?: e.name, fontSize = 12.sp) },
+                ActionMenuItem(ctx.state, e, entry.id,
                     onClick = { open = false; ctx.state.startAction(e, entry.id) },
                 )
             }

@@ -78,23 +78,23 @@ fun ActionTabContent(state: AppState, doc: OpenDocument?, rootId: String?, eleme
         }
         if (forDocument.isNotEmpty() && doc != null) {
             ActionSection("この文書の操作")
-            forDocument.forEach { e -> ActionRow(e) { state.startAction(e, state.relPath(doc.file)) } }
+            forDocument.forEach { e -> ActionRow(state, e, state.relPath(doc.file)) { state.startAction(e, state.relPath(doc.file)) } }
         }
         if (forEntity.isNotEmpty() && rootId != null) {
             val title = state.overlayIndex().occurrences(rootId).firstNotNullOfOrNull { it.title }
             ActionSection("選択中: " + listOfNotNull(rootId, title).joinToString(" · "))
-            forEntity.forEach { e -> ActionRow(e) { state.startAction(e, rootId) } }
+            forEntity.forEach { e -> ActionRow(state, e, rootId) { state.startAction(e, rootId) } }
         }
         if (forTypes.isNotEmpty()) {
             ActionSection("この文書の要素の操作（対象はパネルで選ぶ）")
             forTypes.forEach { (type, entries) ->
                 Text(type, Modifier.padding(start = 12.dp, top = 4.dp), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Palette.Primary)
-                entries.forEach { e -> ActionRow(e) { state.startAction(e, null) } }
+                entries.forEach { e -> ActionRow(state, e, null) { state.startAction(e, null) } }
             }
         }
         if (forWorkspace.isNotEmpty()) {
             ActionSection("ワークスペースの操作")
-            forWorkspace.forEach { e -> ActionRow(e) { state.startAction(e, null) } }
+            forWorkspace.forEach { e -> ActionRow(state, e, null) { state.startAction(e, null) } }
         }
     }
 }
@@ -132,17 +132,32 @@ private fun ActionSection(title: String) {
 }
 
 @Composable
-private fun ActionRow(entry: ActionEntry, onClick: () -> Unit) {
-    Column(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 5.dp)) {
+private fun ActionRow(state: AppState, entry: ActionEntry, target: String?, onClick: () -> Unit) {
+    val available = remember(entry, target, state.indexVersion, state.editVersion) { state.actionAvailability(entry, target) }
+    Column(Modifier.fillMaxWidth().clickable(enabled = available.enabled, onClick = onClick).padding(horizontal = 12.dp, vertical = 5.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(entry.label ?: entry.name, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text(entry.label ?: entry.name, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                color = if (available.enabled) Palette.Text else Palette.SubText)
             if (entry.kind == "method") {
                 Spacer(Modifier.width(6.dp))
                 Text("型の操作", fontSize = 10.sp, color = Palette.Primary)
             }
         }
         entry.description?.let { Text(it, fontSize = 11.sp, color = Palette.SubText) }
+        available.reason?.let { Text(it, fontSize = 11.sp, color = Palette.SubText) }
     }
+}
+
+/** 行・個票・文書ヘッダーで同じ前提と理由を表示する。 */
+@Composable
+internal fun ActionMenuItem(state: AppState, entry: ActionEntry, target: String?, onClick: () -> Unit) {
+    val available = remember(entry, target, state.indexVersion, state.editVersion) { state.actionAvailability(entry, target) }
+    DropdownMenuItem(enabled = available.enabled, text = {
+        Column {
+            Text(entry.label ?: entry.name, fontSize = 12.sp)
+            available.reason?.let { Text(it, fontSize = 11.sp, color = Palette.SubText) }
+        }
+    }, onClick = onClick)
 }
 
 // ================================================================ 浮いたパネル
@@ -161,7 +176,15 @@ fun ActionPanelHost(state: AppState) {
     val form = work.form
     form.version
     state.indexVersion
-    val ctx = remember(form, form.version, state.indexVersion) { FormCtx(state, form, emptyList(), readOnly = false) }
+    LaunchedEffect(work, form.version, state.indexVersion, state.editVersion) { state.refreshActionPlan() }
+    val ctx = remember(form, form.version, state.indexVersion, work.applied) { FormCtx(state, form, emptyList(), readOnly = work.applied != null) }
+    var reload by remember(work) { mutableStateOf(false) }
+    if (reload) AlertDialog(onDismissRequest = { reload = false }, title = { Text("初期値を読み直す") },
+        text = { Text("入力中の変更を破棄して、対象の現在値を読み直します。") },
+        confirmButton = { TextButton(onClick = {
+            state.reloadActionInput().onFailure { work.error = it.message }; reload = false
+        }) { Text("破棄して読み直す", color = Palette.ErrorRed) } },
+        dismissButton = { TextButton(onClick = { reload = false }) { Text("キャンセル") } })
     var allowErrors by remember(work) { mutableStateOf(false) }
     // 本文の高さは窓に合わせる（題名とボタンのぶんを除く）。測れていないうちは控えめな既定
     val windowHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
@@ -226,6 +249,13 @@ fun ActionPanelHost(state: AppState) {
                         else -> work.target?.let { Text("受け手: $it", fontSize = 11.sp, color = Palette.SubText) }
                     }
                     Spacer(Modifier.height(4.dp))
+                    if (work.entry.input != null && !done) {
+                        if (work.entry.input?.submit == "changed") Text("変更した項目を送ります。項目の削除は操作で用意された消去欄を使ってください。", fontSize = 11.sp, color = Palette.SubText)
+                        TextButton(onClick = {
+                            if (state.actionInputModified()) reload = true
+                            else state.reloadActionInput().onFailure { work.error = it.message }
+                        }) { Text("初期値を読み直す") }
+                    }
                     if (work.entry.params.isEmpty()) {
                         Text("受け取る値はありません", fontSize = 11.sp, color = Palette.SubText)
                     } else {
@@ -294,7 +324,7 @@ fun ActionPanelHost(state: AppState) {
                                 onClick = { state.applyAction(allowErrors).onFailure { work.error = it.message ?: "適用に失敗しました" } },
                             ) { Text("適用（書いて保存）") }
                         } else {
-                            Button(onClick = { state.planAction() }) { Text("確認") }
+                            Button(enabled = !work.targetEditing, onClick = { state.planAction() }) { Text("確認") }
                         }
                     }
                 }
@@ -321,13 +351,23 @@ fun ActionPanelHost(state: AppState) {
 private fun TargetPicker(state: AppState, work: AppState.ActionWork, type: String, enabled: Boolean) {
     work.form.version
     val candidates = remember(type, state.indexVersion, state.editVersion) { state.entityCandidates(type) }
-    val current = work.target ?: ""
+    val current = if (work.targetEditing) work.targetDraft else work.target.orEmpty()
     val resolved = candidates.any { it.first == current }
     val title = candidates.firstOrNull { it.first == current }?.second
     var menuOpen by remember { mutableStateOf(false) }
+    var proposed by remember(work) { mutableStateOf<String?>(null) }
     fun set(id: String) {
-        work.targetHolder.entries[AppState.ActionWork.TARGET_KEY] = YNode.Scalar(id)
-        work.form.version++
+        if (state.actionInputModified()) proposed = id
+        else state.changeActionTarget(id).onFailure { work.error = it.message }
+    }
+    proposed?.let { target ->
+        fun cancel() { proposed = null; work.targetDraft = work.target.orEmpty(); work.targetEditing = false }
+        AlertDialog(onDismissRequest = ::cancel, title = { Text("操作対象を変更する") },
+            text = { Text("入力中の変更を破棄して、新しい対象の初期値を読み込みます。") },
+            confirmButton = { TextButton(onClick = {
+                state.changeActionTarget(target).onFailure { work.error = it.message }; proposed = null
+            }) { Text("破棄して変更する", color = Palette.ErrorRed) } },
+            dismissButton = { TextButton(onClick = ::cancel) { Text("キャンセル") } })
     }
     Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(Modifier.width(120.dp)) {
@@ -341,7 +381,7 @@ private fun TargetPicker(state: AppState, work: AppState.ActionWork, type: Strin
         Box(Modifier.weight(1f)) {
             CompactTextField(
                 value = current,
-                onValueChange = { set(it) },
+                onValueChange = { work.targetDraft = it; work.targetEditing = it != work.target.orEmpty(); work.invalidate() },
                 singleLine = true,
                 isError = current.isNotBlank() && !resolved,
                 placeholder = { Text("$type の要素の ID") },
@@ -364,6 +404,9 @@ private fun TargetPicker(state: AppState, work: AppState.ActionWork, type: Strin
                 ChoiceOption(id, id, title.orEmpty(), selected = id == current)
             }, onSelect = { set(it) })
         }
+    }
+    if (work.targetEditing) TextButton(enabled = current.isBlank() || resolved, onClick = { set(current) }) {
+        Text("対象の変更を確定")
     }
     if (current.isNotBlank() && !resolved) {
         Text("$type の要素ではありません（候補から選んでください）", fontSize = 11.sp, color = Palette.ErrorRed, modifier = Modifier.padding(start = 120.dp))

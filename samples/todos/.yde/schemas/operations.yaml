@@ -62,6 +62,9 @@ actions:
             comments: []
   - id: add-todo-comment
     label: TODOにコメントを追加する
+    input:
+      initial:
+        date: { $copy: today, $of: context }
     description: 個票のあるTODOへ、状態に関係なく日付と本文を記録します。
     target: { entity: todo }
     params:
@@ -79,7 +82,20 @@ actions:
           of: self
   - id: edit-todo
     label: TODOを編集する
-    description: 入力した項目だけを変更します。空欄は保持、消去は「値を消す」で指定します。個票がなければ作成します。
+    description: 現在値を表示し、変更した項目だけを更新します。空文字への変更と消去は別で、消去は「値を消す」で指定します。個票がなければ作成します。
+    input:
+      submit: changed
+      initial:
+        title: { $copy: title, $of: self, $in: { schemaId: todo-list } }
+        summary: { $copy: summary, $of: self, $in: { schemaId: todo-list } }
+        category: { $copy: category, $of: self, $in: { schemaId: todo-list } }
+        status: { $copy: status, $of: self, $in: { schemaId: todo-detail } }
+        created_on: { $copy: created_on, $of: self, $in: { schemaId: todo-detail } }
+        due_on: { $copy: due_on, $of: self, $in: { schemaId: todo-detail } }
+        completed_on: { $copy: completed_on, $of: self, $in: { schemaId: todo-detail } }
+        details: { $copy: details, $of: self, $in: { schemaId: todo-detail } }
+        result: { $copy: result, $of: self, $in: { schemaId: todo-detail } }
+        comments: { $copy: comments, $of: self, $in: { schemaId: todo-detail } }
     target: { entity: todo }
     params:
       - key: title
@@ -346,6 +362,9 @@ actions:
           of: self
   - id: complete-todo
     label: TODOを完了する
+    input:
+      initial:
+        date: { $copy: today, $of: context }
     description: 未着手または対応中の作業を完了にし、完了日と成果を記録します。
     target:
       entity: todo
@@ -392,6 +411,9 @@ actions:
           of: self
   - id: reopen-todo
     label: TODOを再開する
+    input:
+      initial:
+        date: { $copy: today, $of: context }
     description: 完了した作業を対応中に戻します。前回の結果と再開理由をコメントに残し、完了日と結果を外します。
     target:
       entity: todo

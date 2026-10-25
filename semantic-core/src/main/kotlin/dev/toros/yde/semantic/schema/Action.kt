@@ -490,11 +490,12 @@ data class ActionDef(
     val require: List<ActionRequire>,
     val steps: List<ActionStep>,
     val origin: String,
+    val input: ActionInput? = null,
 ) {
     val displayName: String get() = label ?: id
 
     companion object {
-        private val KEYS = setOf("id", "label", "description", "target", "params", "require", "do")
+        private val KEYS = setOf("id", "label", "description", "target", "params", "require", "do", "input")
         private val ID = Regex("""[A-Za-z][A-Za-z0-9_-]*""")
 
         fun parse(raw: Any?, where: String, definitionScope: String): ActionDef {
@@ -526,6 +527,7 @@ data class ActionDef(
                 require = require,
                 steps = steps,
                 origin = where,
+                input = ActionInput.parse(m["input"], params, target?.bind, "$where.input"),
             )
         }
     }
