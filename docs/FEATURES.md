@@ -10,14 +10,13 @@
 
 | ID | 機能 | 主な実装 | テスト | 設計 |
 |---|---|---|---|---|
-| W-01 | ワークスペース選択（起動引数・OS ネイティブのフォルダ選択・スタート画面・最後に選んだ場所を用途ごとに記憶） | `Main.kt`, `ui/FilePickers.kt`, `AppState.openWorkspace` | 手動 | [ui](architecture/ui.md) |
+| W-01 | ワークスペースの選択と管理（起動引数・OS ネイティブのフォルダ選択・スタート画面・最近開いた履歴・パレットからの切替・選んだ場所の記憶） | `Main.kt`（`StartScreen`）, `ui/FilePickers.kt`, `AppState.openWorkspace` | 手動 | [ui](architecture/ui.md) |
 | W-02 | ファイルツリー（全形式・隠し項目・除外・パス検索・展開の永続化・現在地） | `ui/FileTreePane.kt`, `core/FileCatalog.kt` | `FileCatalogTest`・画面は手動 | [ui](architecture/ui.md) |
 | W-03 | ファイル・フォルダーの配置変更と Undo | `FileArrangementPlanner`, `FileArrangementJournal`, `FileMoveDialog` | `AppStateFileArrangementTest`・`DocumentCacheSnapshotTest` ほか | [workspace](architecture/workspace.md) |
 | W-04 | 外部監視と再読込（履歴保持・競合保護・確認付き破棄） | `AppState.reload`, `WorkspaceSession.refreshFrom`, `ReloadConfirmationDialog` | `ReloadHistoryTest`・`SessionRefreshTest` | [workspace](architecture/workspace.md) |
 | W-05 | 最近開いたファイル履歴（12 件・ワークスペース単位で永続化） | `AppState.recentFiles` | 手動 | [ui](architecture/ui.md) |
 | W-06 | UI レイアウトとテーマ（左右の領域アイコン・ペイン内の閉じる操作・幅と開閉とテーマの永続化） | `Main.kt`, `ui/AppToolbar.kt`, `ui/Common.kt` | 手動 | [ui](architecture/ui.md) |
 | W-07 | 未保存確認（終了時・ワークスペース切替時） | `Main.kt` | 手動 | [ui](architecture/ui.md) |
-| W-08 | ワークスペース管理（最近開いた履歴・スタート画面・パレットからの切替） | `Main.kt`（`StartScreen`）, `AppState.recentWorkspaces` | 手動 | [ui](architecture/ui.md) |
 | W-09 | UI シェル（標準メニュー・移動と検索・タイトルのワークスペース絶対パス・レールで5スペースを切替） | `Main.kt`, `ui/AppToolbar.kt`, `ui/Shell.kt` | 単体 `NavigationHistoryTest`・画面は手動 | [ui](architecture/ui.md) |
 | W-10 | 受信箱（承認待ち変更セット・エージェントの質問・外部変更競合を実行スペースの先頭タブに集約・バッジと集計） | `ui/RunsSpace.kt`（`InboxTab`）, `Main.kt`（`StatusBar`） | 手動 | [ui](architecture/ui.md) |
 | W-11 | ワークスペース構造（`.yde/` 構成と `ledger` 宣言・レガシー構成は互換・配置判定は `WorkspaceLayout`・CLI `migrate`） | `workspace-core/layout/WorkspaceLayout.kt`, `core/Workspace.kt` | 単体 `WorkspaceLayoutTest`, `DocumentStoreTest` | [workspace](architecture/workspace.md) |
@@ -30,6 +29,8 @@
 | W-18 | 複数選択・キー操作・ドラッグ（固定案内・移動先強調） | `ui/FileTreeSelection.kt`, `ui/FileTreePane.kt` | `FileTreeSelectionTest`・画面は手動 | [ui](architecture/ui.md) |
 | W-19 | 参考資料の本文検索（範囲・容量上限・中止・行へ移動） | `core/ReferenceSearch.kt` | `ReferenceToolsTest`, `FileTreeBenchmark` | [ui](architecture/ui.md) |
 | W-20 | ソースの宣言候補の表示と YAML 保存 | `core/SourceOutline.kt`, `ui/FilePreviewPane.kt` | `ReferenceToolsTest`, `AppStateFileArrangementTest` | [ui](architecture/ui.md) |
+| W-21 | ワークスペースの初期化（ウィザード 4 歩・テンプレートから／自分の項目で／既存フォルダに後入れ・未初期化フォルダの案内・CLI `init`） | `ui/InitWizard.kt`, `workspace-core/WorkspaceInit.kt`, `core/Cli.kt` | 単体 `WorkspaceInitTest`, `WorkspaceTemplatesTest`・画面は手動 | [workspace](architecture/workspace.md) |
+| W-22 | テンプレート（`templates/` をビルド時に資源へ写し `WorkspaceTemplates` が読む・問いを持つテンプレートは答えを変換定義のひな型で組み立てる・全テンプレートの検証エラー 0 をテストで固定） | `templates/`, `workspace-core/WorkspaceTemplates.kt` | 単体 `WorkspaceInitTest`, `WorkspaceTemplatesTest` | [workspace](architecture/workspace.md) |
 
 ## 2. 文書編集
 
@@ -242,15 +243,15 @@
 | C-17 | フロービューの解決・CLI・read_view | `semantic-core/semantic/FlowViews.kt`, `core/FlowReports.kt` | `FlowViewsTest`, `FlowViewDefinitionsTest`, `FlowViewsIntegrationTest` | [views](architecture/views.md) |
 | C-18 | フローの配置切替・スイムレーン・文書埋め込み・原本フォームと履歴・改名影響 | `ui/GraphLayouts.kt`, `ui/FlowSwimlanes.kt`, `ui/FlowViewPane.kt` | `FlowLayoutsTest`, `FlowSelectionTest`, `NavigationHistoryTest`, `FlowRefactoringTest` | [views](architecture/views.md) |
 
-## 10. skill・テンプレート（フォーマット適合）
+## 10. skill（フォーマット適合）
 
 | ID | 機能 | 主な実装 | テスト | 設計 |
 |---|---|---|---|---|
 | SK-01 | skill 定義 `_skills`（import / export の宣言型と run） | `skill/Skills.kt` | 単体 `ImportExportTest`, `RunSkillTest` | [agents](architecture/agents.md) |
 | SK-02 | インポート（xlsx / csv / json / markdown / docx → 変更セット。`mapping`・`build`・配列へ追記 `target.path`・採番 `target.id`・重複の `target.key`・文字コード・見出しの無い csv の `input.columns`） | `skill/Importer.kt`, `skill/Tables.kt` | 単体 `ImportExportTest`, `ArrayImportTest`, `TablesTest` | [agents](architecture/agents.md) |
 | SK-03 | エクスポート（glob × 行 × 列 → xlsx / csv / markdown / json / html・`source.view`・YAML 出力は拒否） | `skill/Exporter.kt`, `skill/Tables.kt` | 単体 `ImportExportTest` | [agents](architecture/agents.md) |
-| SK-04 | CLI（`skills` / `import` / `export` / `run-skill` / `init`） | `core/Cli.kt` | 単体 `RunSkillTest` | [agents](architecture/agents.md) |
-| SK-05 | テンプレートパック（`init --template ledger`・既存ファイルは上書きしない） | `skill/TemplatePacks.kt` | 単体 `ImportExportTest` | [agents](architecture/agents.md) |
+| SK-04 | CLI（`skills` / `import` / `export` / `run-skill`） | `core/Cli.kt` | 単体 `RunSkillTest` | [agents](architecture/agents.md) |
+| SK-05 | テンプレート「課題管理」（Excel 往復と棚卸しのエージェント・評価を含む出発点。展開の仕組みは W-21） | `templates/issues/` | 単体 `ImportExportTest` | [workspace](architecture/workspace.md) |
 | SK-06 | skill UI（設計スペースの連携: 一覧・エクスポート・インポートのプレビューと適用・実行の承認） | `ui/SkillsPanel.kt` | 手動 | [agents](architecture/agents.md) |
 | SK-07 | コード実行 skill（kind: run・人間の事前承認・定義変更で失効・エージェントからは起動不可） | `skill/Runner.kt` | 単体 `RunSkillTest` | [agents](architecture/agents.md) |
 

@@ -1,0 +1,18 @@
+id: triage-eval
+name: 棚卸しの回帰評価
+activity: triage-issues
+cases:
+- id: missing-owner-is-flagged
+  name: 担当未設定の課題に指摘が付く
+  setup:
+  - file: issues/ISSUE-900.yaml
+    content: |
+      id: ISSUE-900
+      title: 担当者が決まっていないタスク
+      status: open
+      description: 評価用のゴールデン入力。owner と priority が未設定。
+  expect:
+    status: submitted
+    errorFree: true
+    content:
+    - { file: issues/ISSUE-900.yaml, path: triage_notes, exists: true }

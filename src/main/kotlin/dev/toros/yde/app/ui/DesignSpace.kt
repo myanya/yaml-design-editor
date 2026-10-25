@@ -78,6 +78,13 @@ fun DesignSpace(state: AppState) {
     var createFor by remember { mutableStateOf<DefKind?>(null) }
     var inferOpen by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
+    // 後入れの初期化の直後は「既存文書から推測」を開いて迎える（印は AppState が立て、ここで消す）
+    LaunchedEffect(state.pendingDesignInfer) {
+        if (state.pendingDesignInfer) {
+            inferOpen = true
+            state.pendingDesignInfer = false
+        }
+    }
 
     fun filesOf(kind: DefKind): List<Path> =
         state.yamlFiles.filter { state.layout.zoneOf(state.relPath(it)) == kind.zone }

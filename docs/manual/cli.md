@@ -48,7 +48,10 @@ GUIを起動せずに、ワークスペースの探索・検索・部分変更�
 ./gradlew runCli -q --args="import my-ws import-issues ledger.xlsx --apply"  # 表形式の取り込み（既定はプレビュー）
 ./gradlew runCli -q --args="export sample-workspace export-actors"        # 派生成果物の再生成
 ./gradlew runCli -q --args="run-skill my-ws normalize --yes"              # コード実行skill（--yes なしは内容表示のみ）
-./gradlew runCli -q --args="init new-ws --template ledger"                # テンプレートで初期化
+./gradlew runCli -q --args="init new-ws"                                  # 新しいワークスペースを作る（引数なしはテンプレートの一覧。[README.md](README.md)「新しいワークスペースを作る」）
+./gradlew runCli -q --args="init new-ws --template issues --no-sample-data"  # テンプレート「課題管理」を展開（--no-sample-data で台帳の中を写さない。--dry-run で計画だけ）
+./gradlew runCli -q --args="init new-ws --template basic-list --answers answers.yaml --param prefix=CUS"  # 「自分の項目で」。答えは YAML（{問いの名前: 答え}）か --param で渡す
+./gradlew runCli -q --args="init existing --adopt --ledger doc"           # 既存のフォルダに後入れ（.yde/workspace.yaml の台帳の宣言だけ）
 ./gradlew runCli -q --args="infer-schema my-ws 'issues/**/*.yaml' --apply"  # 既存文書からスキーマ推測（--apply なしはプレビュー）
 ./gradlew runCli -q --args="infer-relations my-ws --apply"                # 参照と保有（入れ子で書かれた要素）の実績から関係レジストリのドラフト生成（[schema.md](schema.md)）
 ./gradlew runCli -q --args="schema-graph my-ws"                           # スキーマの図（型・関係の線＝宣言／導出・保有の宣言・線にできない参照項目の理由。レンズの「型」の段と同じ材料。[views.md](views.md)）

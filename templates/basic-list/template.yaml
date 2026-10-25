@@ -1,0 +1,75 @@
+id: basic-list
+name: 基本の一覧
+description: 管理するもの 1 種類の一覧です。名前・ID の接頭辞・項目を答えると、スキーマ・空の一覧・一覧ビュー・ダッシュボード・登録の操作ができます。
+# 問い（操作の params と同じ書き方）。答えを「いまの場所」として、このフォルダの YAML を変換定義のひな型で組み立てる
+params:
+  - key: label
+    label: 管理するものの名前
+    type: line
+    required: true
+    placeholder: 顧客
+    description: 画面に出る名前です。スキーマの名前と、ビューやダッシュボードの題にも使います。
+  - key: code
+    label: 英語名
+    type: word
+    required: true
+    pattern: "^[a-z][a-z0-9-]*$"
+    placeholder: customer
+    description: スキーマ ID・エンティティ型・フォルダとファイルの名前に使います。小文字の英数字とハイフンです。
+  - key: prefix
+    label: ID の接頭辞
+    type: word
+    required: true
+    pattern: "^[A-Z][A-Z0-9]{1,9}$"
+    placeholder: CUS
+    description: ID は「接頭辞-001」のように付きます。大文字の英数字です。
+  - key: titleLabel
+    label: 名前の項目の表示名
+    type: line
+    required: true
+    default: 名前
+    description: 1 件を代表する 1 行の項目です。一覧と詳細の見出しになります。
+  - key: statusValues
+    label: 状態の選択肢
+    type: array
+    description: 書くと「状態」の項目ができ、ダッシュボードに選択肢ごとの区画が並びます。最初の選択肢が登録時の状態です。空なら状態の項目は作りません。
+    item:
+      type: object
+      fields:
+        - { key: value, label: 保存する値, type: word, required: true, placeholder: OPEN }
+        - { key: label, label: 表示, type: line, required: true, placeholder: 未着手 }
+  - key: fields
+    label: そのほかの項目
+    type: array
+    description: ID と名前のほかに持つ項目です。あとから設計スペースで足したり直したりできます。
+    item:
+      type: object
+      fields:
+        - { key: key, label: キー, type: word, required: true, pattern: "^[a-z][a-z0-9_]*$", placeholder: email }
+        - { key: label, label: 表示名, type: line, required: true, placeholder: メール }
+        - key: type
+          label: 種類
+          type: enum
+          required: true
+          default: line
+          values:
+            - { value: line, label: 1 行の文字 }
+            - { value: text, label: 文章 }
+            - { value: int, label: 数値 }
+            - { value: date, label: 日付 }
+            - { value: enum, label: 選択肢 }
+            - { value: boolean, label: はい／いいえ }
+        - { key: required, label: 必須, type: boolean }
+        - key: values
+          label: 選択肢
+          type: array
+          item: { type: word }
+          description: 種類が「選択肢」のときの値です。
+  - key: layout
+    label: 置き方
+    type: enum
+    required: true
+    default: list
+    values:
+      - { value: list, label: 一覧 1 ファイル（表で編集します） }
+      - { value: files, label: 1 件 1 ファイル（ID がファイル名になります） }

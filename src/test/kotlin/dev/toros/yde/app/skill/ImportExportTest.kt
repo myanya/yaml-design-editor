@@ -3,6 +3,9 @@ package dev.toros.yde.app.skill
 import dev.toros.yde.app.agent.Definitions
 import dev.toros.yde.app.agent.Evals
 import dev.toros.yde.app.core.Workspace
+import dev.toros.yde.workspace.InitRequest
+import dev.toros.yde.workspace.WorkspaceInit
+import dev.toros.yde.workspace.WorkspaceTemplates
 import dev.toros.yde.yaml.validate.Severity
 import java.nio.file.Files
 import java.nio.file.Path
@@ -26,7 +29,9 @@ class ImportExportTest {
     @BeforeTest
     fun setup() {
         dir = createTempDirectory("yde-skill")
-        val result = TemplatePacks.apply(dir, TemplatePacks.pack("ledger")!!)
+        // テンプレート「課題管理」（templates/issues）を展開した状態から始める
+        val template = WorkspaceTemplates.get("issues") ?: error("テンプレート issues が資源にありません")
+        val result = WorkspaceInit.apply(dir, WorkspaceInit.plan(dir, InitRequest.FromTemplate(template)))
         assertTrue(result.skipped.isEmpty())
     }
 
@@ -161,7 +166,7 @@ class ImportExportTest {
 
     @Test
     fun `json export preserves cell types and round trips through readJson`() {
-        Files.writeString(dir.resolve("_skills/export-json.yaml"), """
+        Files.writeString(dir.resolve(".yde/skills/export-json.yaml"), """
             id: export-json
             name: JSON出力
             kind: export
@@ -185,7 +190,7 @@ class ImportExportTest {
             id: ISSUE-009
             title: <b>タグを含む</b> & 記号
         """.trimIndent() + "\n")
-        Files.writeString(dir.resolve("_skills/export-html.yaml"), """
+        Files.writeString(dir.resolve(".yde/skills/export-html.yaml"), """
             id: export-html
             name: HTML出力
             kind: export
@@ -236,8 +241,8 @@ class ImportExportTest {
 
     @Test
     fun `view referenced export writes the view rows and columns as a table`() {
-        Files.createDirectories(dir.resolve("_views"))
-        Files.writeString(dir.resolve("_views/issues-board.yaml"), """
+        Files.createDirectories(dir.resolve(".yde/views"))
+        Files.writeString(dir.resolve(".yde/views/issues-board.yaml"), """
             id: issues-board
             name: 課題ボード
             rows: { idPattern: "ISSUE-*" }
@@ -245,7 +250,7 @@ class ImportExportTest {
               - { label: 件名, path: title }
               - { label: 状態, path: status }
         """.trimIndent())
-        Files.writeString(dir.resolve("_skills/export-board.yaml"), """
+        Files.writeString(dir.resolve(".yde/skills/export-board.yaml"), """
             id: export-board
             name: ビューをそのまま帳票へ
             kind: export
@@ -261,7 +266,7 @@ class ImportExportTest {
 
     @Test
     fun `view referenced export rejects columns in the definition`() {
-        Files.writeString(dir.resolve("_skills/export-bad.yaml"), """
+        Files.writeString(dir.resolve(".yde/skills/export-bad.yaml"), """
             id: export-bad
             kind: export
             source: { view: issues-board }

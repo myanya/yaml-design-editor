@@ -19,6 +19,9 @@
 | `Disclosure` | core/Disclosure.kt | 段階的開示（カタログ → 骨子 → ノード全文・文字数予算つきバンドル） |
 | `Bench` | core/Bench.kt | 合成ワークスペースの生成と計測（[README.md「規模の計測」](README.md)） |
 | `BuildInfo` | app/BuildInfo.kt | ビルド時に生成される `build-info.properties`（外部バージョン・内部バージョン・コミット）を読む |
+| `WorkspaceTemplate` / `WorkspaceTemplates` | workspace-core/WorkspaceTemplates.kt | 出発点のテンプレート（資源 `templates/`。台帳 `template.yaml` の名前・説明・問い `params` と、写すファイル） |
+| `WorkspaceInit` / `InitRequest` / `InitPlan` | workspace-core/WorkspaceInit.kt | ワークスペースの初期化の計画と書き込み（テンプレートの展開・後入れ・答えの整形と点検・初期化済みの判定・後入れの候補） |
+| `InitWizardHost` | ui/InitWizard.kt | 初期化ウィザード（浮いたパネル。場所 → 始め方 → 内容 → 確認 → 作成して開く） |
 
 ## ワークスペース構造と layout
 
@@ -27,6 +30,20 @@
 - `.yde/workspace.yaml` の変更は走査規則が変わるためスキーマ変更と同じ扱い（全再構築）。レガシー → `.yde` の移行は CLI `migrate`（ディレクトリ移動と構成ファイル作成だけ）。
 - `.yde/workspace.yaml` の `files:`（`FilePolicy`＝`WorkspaceLayout.files`）は file 型の値の許可: `outside`（ワークスペースの外）・`allowedRoots`（外でも許す場所）・`missing`（無いファイル）。読めない値は既定（外は警告・無いファイルは違反）。ファイルの存在は `DocumentStore.exists`（YAML 以外も）が答え、`LoadedWorkspace.fileExists` と `WorkspaceSession.fileExists` が検証へ渡す。
 - 構成ファイル（`workspace.yaml`）にはスキーマを当てない（`schemaFor` は null）。`_runs/`（runs ゾーン）は索引対象外。
+
+## ワークスペースの初期化
+
+新しいワークスペースを作る入口。1 つのワークスペースに 1 度だけ動く前提で、初期化済みかどうかは `.yde/` かレガシーの `_schemas/` の有無で決め、印やフラグを残さない。
+
+- **計画は 1 つ**: `WorkspaceInit.plan(root, request)` が「どの相対パスにどんな中身を書くか」（`InitPlan`）を作り、画面（`InitWizardHost`）と CLI `init` はそれを見せて `WorkspaceInit.apply` で書く。入口に組み立てや書き込みの規則を書かない。
+- **求めは 2 つ**: テンプレートの展開（`InitRequest.FromTemplate`＝テンプレート・答え・サンプルデータの有無）と、既存のフォルダへの後入れ（`InitRequest.Adopt`＝`.yde/workspace.yaml` の `ledger:` の宣言だけ）。どちらも `.yde` 構成で書く。
+- **テンプレートはファイル**: リポジトリの `templates/<id>/` を workspace-core のビルドが資源 `templates/` へ写し（一覧は `index.txt`、各テンプレートのファイルは `files.txt`）、`WorkspaceTemplates` が読む。Kotlin に埋め込まない。
+  `template.yaml` の `params`（操作の `params` と同じ、項目の定義の配列）を持つテンプレートは「問いを持つ」テンプレートで、「自分の項目で」の実体（`WorkspaceTemplates.CUSTOM`）。持たないものが「テンプレートから」に並ぶ。
+- **答えからの組み立ては Construct**: 問いを持つテンプレートの YAML は、答えを「いまの場所」とし答えを `params` に渡して、変換定義のひな型（`TransformDef` ＋ `SemanticTransform.run`）で組み立てる。ファイル名と Markdown の `{名前}` は `Projection` で埋める。組み立てた結果が無い・空のファイルは作らない。
+  答えは `normalizeAnswers`（前後の空白・空の答え・既定値）で整えてから `checkAnswers`（必須・形式・選択肢・数）で点検する。問いの名前に繰り返しの予約語（`key` / `index`）は使えない。
+- **サンプルデータの有無**: 台帳（組み立てた `.yde/workspace.yaml` の `ledger:`。未宣言なら `.yde/` と Markdown 以外）の中のファイルがサンプルデータ。含めないときは写さず、`match` が 1 つのファイルを指す文書スキーマのぶんだけ、スキーマの初期値（必須の項目と既定値を持つ root 直下の項目）で空の文書を作る。台帳のフォルダは中身が無くても作る。
+- **開く前に書く**: ワークスペースを開く前に直接書くので履歴（Undo）は無く、既存のファイルは上書きしない（`InitPlan.skipped`）。確認の画面が作られるファイルを全部見せる。開いたあとの着地は `openWorkspace` の決まり（ダッシュボードがあればダッシュボード）で、後入れだけは設計スペースの「既存文書から推測」を開いて迎える（`AppState.pendingDesignInfer`）。
+- **画面の入口**: スタート画面・「ファイル」メニュー・コマンドパレットの「新しいワークスペースを作る…」と、未初期化のフォルダを開いたときの編集スペースの案内（`AppState.isUninitializedWorkspace`。案内はモーダルにせず、閉じたことは `ScreenMemory.initBannerDismissed`）。どれも `AppState.startInitWizard` を呼び、Main がスペースに関係なく載せる。
 
 ## エディタ層と台帳層
 
@@ -110,8 +127,12 @@
 - root でスキーマをファイルから読む処理を書き足さない。
 - リファクタリングの計画をアプリ側で補強しない。
 - 破壊的操作（削除・一括編集・ワークスペース切替・終了）は未保存文書があれば拒否または確認ダイアログを挟む。
+- 初期化の計画は `WorkspaceInit` だけが作る。テンプレートの中身を Kotlin の文字列で組み立てない。初期化済みの判定に印を使わない。
 
 ## 拡張ポイント
+
+- **テンプレートの追加**: `templates/<id>/` にフォルダを作り `template.yaml` と写すファイルを置く（書き方は templates/README.md）。`WorkspaceTemplatesTest` が自動で拾い、サンプルデータの有無の両方で検証エラー 0 とダッシュボードの解決を確かめる。
+- **問いの種類の追加**: 問いは項目の定義なので、入力欄は `ui/InitWizard.kt` の `ParamEditor`（文字・選択肢・はい／いいえ・数・一覧・項目の組の一覧）に足し、点検は `WorkspaceInit.checkAnswers` に足す。
 
 - **ゾーンや台帳の決まりの追加**: `WorkspaceLayout` の述語に足し、消費側（走査・書込権限・スキーマ適用・監視）はそれを読む。
 - **セッションの操作の追加**: `WorkspaceOperation` / `YamlOperation` として表し、トランザクションと履歴に載せる。

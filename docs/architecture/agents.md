@@ -20,7 +20,7 @@
 | `ToolChat` / `ToolChatSession` | ai/ToolChat.kt | ツール使用対応のチャット抽象と OpenAI Responses / Anthropic Messages 実装（prompt caching の印つけ） |
 | `AiConnection` / `AiHttp` | ai/Connection.kt・Http.kt | OpenAI 互換の接続先の解決と、HttpClient の単一ファクトリ（プロキシ・Basic 認証・リトライ） |
 | `Traverse` | core/Traverse.kt | 経路パターンの多段トラバース（`neighborIds` の上の emit レンダラ） |
-| `SkillDef` / `Skills` / `Runner` / `Tables` / `Importer` / `Exporter` / `TemplatePacks` | skill/ | skill 定義・コード実行 skill・表形式の読み書き・インポート・エクスポート・テンプレートパック |
+| `SkillDef` / `Skills` / `Runner` / `Tables` / `Importer` / `Exporter` | skill/ | skill 定義・コード実行 skill・表形式の読み書き・インポート・エクスポート |
 | `RunController` / `RunsSpace` | ui/RunsSpace.kt | 実行スペース（受信箱・手動実行・自動化・計測評価）。実行状態機械は `RunController` が持つ |
 | `AiGenerationHost` | ui/AiGenerationDialog.kt | AI 生成ダイアログの状態機械（入力 → 生成 → プレビュー → 適用）と提案合成 |
 
@@ -133,4 +133,4 @@
 - **ツールの追加**: `AgentToolbox` に足し、書込権限の強制と実行記録への載せ方を揃える。
 - **レシピ項目の追加**: `ContextItemDef` のパース・`contextItemSection` の解決・`builtin-activity` メタスキーマをそろえて更新する。
 - **入出力形式の追加**: `TableFormat` に enum を足し、`Tables.kt` の read / write に分岐を実装する。
-- **テンプレートパックの追加**: `TemplatePacks.all` に `Pack` を登録し、展開後の検証エラー 0 をテストで保証する。
+- **出発点のテンプレートの追加**: `templates/` に置く（[workspace.md「ワークスペースの初期化」](workspace.md)）。skill を含むテンプレートも、展開後の検証エラー 0 を `WorkspaceTemplatesTest` が保証する。

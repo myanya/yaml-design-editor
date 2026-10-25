@@ -167,6 +167,9 @@ class ScreenMemory {
     /** 設計スペースで選んでいる定義の種類。null = 先頭。 */
     var designZone by mutableStateOf<WorkspaceLayout.Zone?>(null)
 
+    /** 未初期化のワークスペースの案内（編集スペース）を閉じたか。 */
+    var initBannerDismissed by mutableStateOf(false)
+
     /** Markdown・ヘルプの表示とソースのタブ。鍵はファイルの場所か「help:題目」。 */
     val markdownTab = mutableStateMapOf<String, Int>()
 
@@ -232,6 +235,7 @@ class ScreenMemory {
         runsTab = 0
         runsReview = null
         designZone = null
+        initBannerDismissed = false
         markdownTab.clear()
         schemaTab.clear()
         schemaSection.clear()

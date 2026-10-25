@@ -20,7 +20,9 @@ import dev.toros.yde.app.skill.Exporter
 import dev.toros.yde.app.skill.Importer
 import dev.toros.yde.app.skill.Runner
 import dev.toros.yde.app.skill.Skills
-import dev.toros.yde.app.skill.TemplatePacks
+import dev.toros.yde.workspace.InitRequest
+import dev.toros.yde.workspace.WorkspaceInit
+import dev.toros.yde.workspace.WorkspaceTemplates
 import dev.toros.yde.app.validate.Issue
 import dev.toros.yde.app.validate.Readiness
 import dev.toros.yde.app.validate.Validator
@@ -141,8 +143,10 @@ internal const val CLI_USAGE = """コマンド:
   export   <workspace> <skill-id>               YAML原本から派生成果物（xlsx/csv/md/json/html）を再生成する
   run-skill <workspace> <skill-id> [--yes]      コード実行skill（kind: run）。--yes なしでは
            コマンド内容の表示のみ。人間が内容を確認し --yes を付けたときだけ実行する（明示許可制）
-  init     <dir> [--template name]              テンプレートパックでワークスペースを初期化
-           （--template 省略時は利用可能なテンプレートを一覧表示）
+  init     <dir> [--template name] [--answers file.yaml] [--param 名前=値]... [--no-sample-data] [--adopt] [--ledger dir]... [--dry-run]
+           新しいワークスペースを作る（1 つのフォルダに 1 度だけ）。--template でテンプレート（templates/）を展開し、
+           問いを持つテンプレート（basic-list＝自分の項目で）には --answers か --param で答えを渡す。--adopt は既存の
+           フォルダへの後入れ（.yde/workspace.yaml の台帳の宣言だけ）。省略時はテンプレートの一覧。既存のファイルは上書きしない
   infer-schema <workspace> <glob> [--id schema-id] [--apply]
            既存YAML文書（glob。複数文書はマージ）からスキーマのドラフトを推測する（R11-01）。
            既定は標準出力へドラフトを表示。--apply で _schemas/<id>.yaml へ保存する（既存は上書きしない）
@@ -936,25 +940,72 @@ internal fun runCli(args: Array<String>): String {
             }
         }
         "init" -> {
-            val dir = Path.of(rest.firstOrNull() ?: error("ディレクトリを指定してください"))
+            // ワークスペースの初期化（architecture/workspace.md「ワークスペースの初期化」）: 計画はカーネルの WorkspaceInit が作り、ここは見せて書くだけ
+            val dir = Path.of(rest.firstOrNull()?.takeIf { !it.startsWith("--") } ?: error("フォルダを指定してください"))
             val name = stringFlag(rest, "--template")
-                ?: return dumpYaml(
+            val adopt = "--adopt" in rest
+            if (name == null && !adopt) {
+                return dumpYaml(
                     linkedMapOf(
-                        "templates" to TemplatePacks.all.map {
-                            linkedMapOf("name" to it.name, "description" to it.description, "files" to it.files.size)
-                        }
+                        "templates" to WorkspaceTemplates.all.map { t ->
+                            linkedMapOf(
+                                "name" to t.id,
+                                "label" to t.name,
+                                "description" to t.description,
+                                "params" to t.params.map { p ->
+                                    pruneNulls(linkedMapOf("key" to p.key, "label" to p.label, "type" to (p.typeName ?: p.type.id), "required" to p.required.takeIf { it }))
+                                }.ifEmpty { null },
+                                "files" to t.files.size,
+                            ).filterValues { it != null }
+                        },
+                        "usage" to listOf(
+                            "init <dir> --template issues [--no-sample-data]",
+                            "init <dir> --template ${WorkspaceTemplates.CUSTOM} --answers answers.yaml [--param 名前=値]...",
+                            "init <dir> --adopt [--ledger dir]...",
+                        ),
                     )
                 )
-            val pack = TemplatePacks.pack(name)
-                ?: error("テンプレート「$name」が見つかりません（利用可能: ${TemplatePacks.all.joinToString(", ") { it.name }}）")
-            val result = TemplatePacks.apply(dir, pack)
-            dumpYaml(
-                linkedMapOf(
-                    "template" to pack.name,
-                    "written" to result.written,
-                    "skipped" to result.skipped.ifEmpty { null },
-                ).filterValues { it != null }
-            )
+            }
+            require(!WorkspaceInit.isInitialized(dir)) { "初期化済みです（.yde/ か _schemas/ があります）: $dir" }
+            val request: InitRequest = if (adopt) {
+                require(name == null) { "--adopt と --template は一緒に書けません" }
+                InitRequest.Adopt(stringFlags(rest, "--ledger"))
+            } else {
+                val template = WorkspaceTemplates.get(name!!)
+                    ?: error("テンプレート「$name」が見つかりません（利用可能: ${WorkspaceTemplates.all.joinToString(", ") { it.id }}）")
+                val fromFile = stringFlag(rest, "--answers")?.let { file ->
+                    (YamlIO.parseToRaw(Files.readString(Path.of(file))) as? Map<*, *> ?: error("--answers の YAML は {問いの名前: 答え} のobjectで書きます"))
+                        .entries.associate { (k, v) -> k.toString() to v }
+                }.orEmpty()
+                val fromFlags = stringFlags(rest, "--param").associate { raw ->
+                    val at = raw.indexOf('=').takeIf { it > 0 } ?: error("--param は 名前=値 で書きます: $raw")
+                    raw.substring(0, at) to YamlIO.parseToRaw(raw.substring(at + 1))
+                }
+                InitRequest.FromTemplate(template, fromFile + fromFlags, includeSampleData = "--no-sample-data" !in rest)
+            }
+            val plan = WorkspaceInit.plan(dir, request)
+            if ("--dry-run" in rest) {
+                dumpYaml(
+                    linkedMapOf(
+                        "dir" to dir.toString(),
+                        "files" to plan.files.map { f -> linkedMapOf("path" to f.path, "exists" to f.exists.takeIf { it }, "sample" to f.sample.takeIf { it }).filterValues { it != null } },
+                        "directories" to plan.directories.ifEmpty { null },
+                        "notes" to plan.notes.ifEmpty { null },
+                    ).filterValues { it != null }
+                )
+            } else {
+                val result = WorkspaceInit.apply(dir, plan)
+                dumpYaml(
+                    linkedMapOf(
+                        "template" to (request as? InitRequest.FromTemplate)?.template?.id,
+                        "dir" to dir.toString(),
+                        "written" to result.written,
+                        "skipped" to result.skipped.ifEmpty { null },
+                        "directories" to plan.directories.ifEmpty { null },
+                        "notes" to plan.notes.ifEmpty { null },
+                    ).filterValues { it != null }
+                )
+            }
         }
         "bench" -> error(
             // 索引計測は新CLI（カーネルの意味解析計測）へ移動した（B-1・RB-01: 旧 Bench の削除）

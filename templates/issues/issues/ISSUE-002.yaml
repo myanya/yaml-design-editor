@@ -1,0 +1,8 @@
+id: ISSUE-002
+title: 一覧画面の表示が遅い
+status: in-progress
+priority: 1
+owner: sato
+tags: [performance]
+description: |
+  1000件を超えると一覧の初期表示に10秒以上かかる。ページングか仮想化を検討する。

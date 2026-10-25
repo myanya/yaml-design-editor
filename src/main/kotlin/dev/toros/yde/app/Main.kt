@@ -9,6 +9,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
@@ -81,6 +82,8 @@ fun main(args: Array<String>) = application {
                     }
                 }
             }
+            // 初期化ウィザード（新しいワークスペースを作る）はスタート画面からも、開いている画面からも浮く
+            InitWizardHost(state)
             if (confirmExit) AlertDialog(
                 onDismissRequest = { confirmExit = false },
                 title = { Text("未保存の変更があります") },
@@ -172,19 +175,25 @@ fun StartScreen(state: AppState) {
             fallback = state.recentWorkspaces.firstOrNull()?.parent,
             onError = { state.status = it },
         ) { state.openWorkspace(it) }
-        Button(onClick = chooseWorkspace) {
-            Icon(Icons.Default.FolderOpen, contentDescription = null, Modifier.size(16.dp))
-            Spacer(Modifier.width(6.dp))
-            Text("ワークスペースを開く…", fontSize = 13.sp)
-        }
-        // 同梱サンプル（samples/ 配下。公開用のサンプル定義を置く場所）
-        val sample = Path.of("samples", "sample-workspace")
-        if (Files.isDirectory(sample) && state.recentWorkspaces.none { it.fileName?.toString() == "sample-workspace" }) {
-            Spacer(Modifier.height(6.dp))
-            TextButton(onClick = { state.openWorkspace(sample) }) {
-                Text("samples/sample-workspace を開く", fontSize = 12.sp)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // 新しいワークスペースを作る（初期化ウィザード。ui/InitWizard.kt）: 1 つのフォルダに 1 度だけ
+            Button(onClick = { state.startInitWizard() }) {
+                Icon(Icons.Default.CreateNewFolder, contentDescription = null, Modifier.size(16.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("新しいワークスペースを作る…", fontSize = 13.sp)
+            }
+            Spacer(Modifier.width(10.dp))
+            OutlinedButton(onClick = chooseWorkspace) {
+                Icon(Icons.Default.FolderOpen, contentDescription = null, Modifier.size(16.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("ワークスペースを開く…", fontSize = 13.sp)
             }
         }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            "初めてなら「新しいワークスペースを作る…」から、テンプレートか自分の項目で始められます",
+            fontSize = 11.sp, color = Palette.SubText,
+        )
         if (state.recentWorkspaces.isNotEmpty()) {
             Spacer(Modifier.height(24.dp))
             Text("最近開いたワークスペース", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Palette.SubText)
@@ -517,6 +526,7 @@ private fun CommandPalette(
                 CommandItem("エンティティを改名…") { onDismiss(); onRenameEntity() }
                 CommandItem("すべて保存") { state.saveAll(); onDismiss() }
                 CommandItem("ワークスペースを開く…") { onDismiss(); openWorkspaceDialog() }
+                CommandItem("新しいワークスペースを作る…") { onDismiss(); state.startInitWizard() }
                 workspaces.forEach { ws ->
                     CommandItem("ワークスペースを切替: $ws") { onDismiss(); switchWorkspace(ws) }
                 }
@@ -622,6 +632,29 @@ fun EditorArea(state: AppState) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
+            // 未初期化（定義が何もない）フォルダを開いたときの案内。モーダルにせず、ここから初期化ウィザードへ誘導する
+            state.indexVersion
+            if (state.isUninitializedWorkspace() && !state.memory.initBannerDismissed) {
+                Column(
+                    Modifier.width(560.dp).background(Palette.PanelBg, PanelShape).border(1.dp, Palette.Border, PanelShape).padding(16.dp),
+                ) {
+                    Text("このフォルダにはまだ定義がありません", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "「新しいワークスペースを作る…」で、テンプレートか自分の項目から始められます。" +
+                            "既に YAML があるなら、台帳の宣言だけを後入れしてスキーマを推測する道もあります。" +
+                            "このまま手で作るなら、設計スペースの「スキーマ」からです。",
+                        fontSize = 12.sp, color = Palette.SubText,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Row {
+                        Button(onClick = { state.workspace?.let { state.startInitWizard(it) } }) { Text("新しいワークスペースを作る…", fontSize = 12.sp) }
+                        Spacer(Modifier.width(8.dp))
+                        TextButton(onClick = { state.memory.initBannerDismissed = true }) { Text("このまま使う", fontSize = 12.sp) }
+                    }
+                }
+                Spacer(Modifier.height(20.dp))
+            }
             Text("ファイルツリーから YAML か Markdown を選択してください", color = Palette.SubText, fontSize = 14.sp)
             Spacer(Modifier.height(6.dp))
             Text(

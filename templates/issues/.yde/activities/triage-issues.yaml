@@ -1,0 +1,19 @@
+id: triage-issues
+name: 課題の棚卸し
+description: 担当・優先度の欠落や、状態と内容の矛盾を点検し、棚卸しメモを追記する。
+agent: curator
+target:
+  match: "issues/**/*.{yaml,yml}"
+context:
+  items:
+    - kind: catalog
+      match: "issues/**"
+instruction: |
+  各課題を点検し、次に当てはまるものへ triage_notes 配列に指摘（comment / suggestion）を追記してください。
+  - owner または priority が未設定
+  - status が done なのに内容が未完了を示唆している
+  - 同じ内容と思われる課題の重複
+  問題がない課題には何も書かないでください。
+allowedFiles: ["issues/**"]
+allowedPaths: ["triage_notes*"]
+limits: { maxTurns: 16 }

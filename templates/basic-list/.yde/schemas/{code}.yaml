@@ -1,0 +1,122 @@
+id: $code
+name: $label
+kind: document
+description: { $format: "{label}の台帳です。「新しいワークスペースを作る」の「自分の項目で」から作りました。項目は設計スペースで足したり直したりできます。" }
+match:
+  $first:
+    - { $when: { path: layout, equals: list }, $then: { $format: "{code}/{code}-list.yaml" } }
+    - { $format: "{code}/*.yaml" }
+filePattern: { $when: { path: layout, equals: files }, $then: { $format: "{code}/{id}.yaml", $with: { id: "{id}" } } }
+entity:
+  type: $code
+  idPattern: { $format: "{prefix}-*" }
+  defines: true
+root:
+  $first:
+    - $when: { path: layout, equals: list }
+      $then:
+        type: object
+        fields:
+          - key: items
+            label: { $format: "{label}一覧" }
+            type: array
+            default: []
+            display: table
+            methods:
+              insert:
+                id: { path: id, prefix: { $format: "{prefix}-" }, digits: 3 }
+            item:
+              type: object
+              label: $label
+              fields:
+                $concat:
+                  - - key: id
+                      label: ID
+                      type: id
+                      required: true
+                      pattern: { $format: "^{prefix}-[0-9][0-9][0-9]+$" }
+                      description: { $format: "「{prefix}-」と 3 桁以上の数字です。追加すると自動で付きます。" }
+                    - key: title
+                      label: $titleLabel
+                      type: line
+                      role: title
+                      required: true
+                    - $when: { path: statusValues, empty: false }
+                      key: status
+                      label: 状態
+                      type: enum
+                      required: true
+                      default: { $copy: "statusValues[0].value" }
+                      values: { $each: statusValues, $build: { value: { $copy: value }, label: { $copy: label } } }
+                  - $each: fields
+                    $build:
+                      key: { $copy: key }
+                      label: { $copy: label }
+                      type: { $copy: type }
+                      required: { $when: { path: required, equals: true }, $then: true }
+                      values: { $when: { path: type, equals: enum }, $then: { $copy: values } }
+    - type: object
+      label: $label
+      fields:
+        $concat:
+          - - key: id
+              label: ID
+              type: id
+              required: true
+              pattern: { $format: "^{prefix}-[0-9][0-9][0-9]+$" }
+              description: { $format: "「{prefix}-」と 3 桁以上の数字です。ファイル名にもなります。" }
+            - key: title
+              label: $titleLabel
+              type: line
+              role: title
+              required: true
+            - $when: { path: statusValues, empty: false }
+              key: status
+              label: 状態
+              type: enum
+              required: true
+              default: { $copy: "statusValues[0].value" }
+              values: { $each: statusValues, $build: { value: { $copy: value }, label: { $copy: label } } }
+          - $each: fields
+            $build:
+              key: { $copy: key }
+              label: { $copy: label }
+              type: { $copy: type }
+              required: { $when: { path: required, equals: true }, $then: true }
+              values: { $when: { path: type, equals: enum }, $then: { $copy: values } }
+actions:
+  - id: { $format: "register-{code}" }
+    label: { $format: "{label}を登録する" }
+    description:
+      $first:
+        - { $when: { path: layout, equals: list }, $then: { $format: "{label}を 1 件足します。ID は自動で付きます。" } }
+        - { $format: "{label}を 1 件、新しいファイルとして作ります。ID は未使用の番号を指定します。" }
+    params:
+      $concat:
+        - - $when: { path: layout, equals: files }
+            key: id
+            label: ID
+            type: id
+            required: true
+            pattern: { $format: "^{prefix}-[0-9][0-9][0-9]+$" }
+          - key: title
+            label: $titleLabel
+            type: line
+            required: true
+    require:
+      $when: { path: layout, equals: files }
+      $then:
+        - match: [ { node: { id: $$id } } ]
+          expect: absent
+          message: $$id は既に使われています
+    do:
+      $first:
+        - $when: { path: layout, equals: list }
+          $then:
+            - insert:
+                in: { schemaId: $code }
+                path: items
+                params: { title: $$title }
+        - - create:
+              schema: $code
+              params: { id: $$id, title: $$title }

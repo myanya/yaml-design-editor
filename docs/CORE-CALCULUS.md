@@ -745,7 +745,7 @@ Core Calculus = 定義を実行する
 
 ## 21. 既存機能の再分類
 
-既存機能の分類（全面改修は不要）：
+既存機能の分類：
 
 | 既存機能 | Core Calculus 上の位置付け |
 |---|---|
@@ -755,7 +755,7 @@ Core Calculus = 定義を実行する
 | Dashboard view | 既存ビュー＋Predicate＋Aggregate、Termの射影と選択 |
 | foreach | Query |
 | Projection | Expression |
-| Derivation（ビューの派生列。専用の語彙は廃止） | Expression（`via`＝1 段の参照）＋ Aggregate |
+| Derivation（ビューの派生列） | Expression（`via`＝1 段の参照）＋ Aggregate |
 | consistency | Query + Predicate（**組込み定義体**。`check`＝クエリ＋値の比較へ展開される語彙になった） |
 | query constraint | Query + Predicate |
 | relation cardinality（多重度） | Query + Aggregate（参照の本数）+ Predicate（**組込み定義体**） |
@@ -768,6 +768,7 @@ Core Calculus = 定義を実行する
 | Validator | Constraint executor |
 | Transform（YAML → YAML） | Query + Construct（＋Predicate＝項目を出す条件） |
 | 構造のスキーマの導出・スキーマの図 | Construct（変換定義・宣言からの導出） |
+| ワークスペースの初期化（テンプレートの展開） | Construct（答えを「いまの場所」として変換定義のひな型で YAML を組み立てる。書き込みは開く前の 1 回で、Rewrite も履歴も通らない） |
 | Scaffold・Import | Expression ＋ Construct（`scaffold` / `build`）＋ Rewrite（作成・追記・採番） |
 | Bulk edit / Schema Refactoring / Entity operations | Query + Rewrite |
 | Agent patch | Rewrite / Patch |

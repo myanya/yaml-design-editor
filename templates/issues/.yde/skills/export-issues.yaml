@@ -1,0 +1,13 @@
+id: export-issues
+name: 課題台帳の出力（Excel）
+description: YAML原本からExcel帳票を再生成する（派生成果物。いつでも作り直せる）。
+kind: export
+source: { match: "issues/**/*.{yaml,yml}" }
+output: { file: exports/issues.xlsx, sheet: 課題一覧 }
+columns:
+- { header: ID, path: id }
+- { header: 件名, path: title }
+- { header: 状態, path: status }
+- { header: 優先度, path: priority }
+- { header: 担当, path: owner }
+- { header: タグ, path: tags, join: "," }

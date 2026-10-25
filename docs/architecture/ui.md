@@ -37,6 +37,7 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 | `ReadinessPane` / `readinessChartData` | ui/ReadinessPane.kt | 準備完了レポート（台帳の「準備」タブ: タイル・型別とフェーズ別の図・エンティティの表、図のデータ整形は純ロジック） |
 | `SidePanel` | ui/SidePanel.kt | ID インスペクタ（検証・関係・出現・操作の 4 タブ。台帳スペースでレンズを表示しているときは Main が右ペインに `LensSidePanel`＝ui/GraphLensView.kt の型・関係・辺の 3 タブを出し、右ペインの開閉は `AppState.rightPaneOpen`） |
 | `ActionTabContent` / `ActionPanelHost` / `TargetPicker` | ui/ActionPane.kt | 右ペインの「操作」タブ（使える操作の一覧と作業中の操作の開き直し）と、操作の浮いたパネル（対象の欄・受け取る値・確認・差分・適用。[actions](actions.md)） |
+| `InitWizardHost` | ui/InitWizard.kt | 初期化ウィザード（新しいワークスペースを作る浮いたパネル＝場所・始め方・内容・確認の 4 歩と、問いの素朴な入力欄。計画はカーネルの `WorkspaceInit`、[workspace](workspace.md)） |
 | `FileTreePane` / `SourcePane` / `DiffPane` / `SchemaEditor` / `IdCrossView` / `ViewGridPane` / `WorkspaceViews` / `AiGenerationDialog` / `AutomationPanel` / `ImprovementPanel` / `SkillsPanel` | ui/ | 各ペイン |
 | `GraphLensView` | ui/GraphLensView.kt | グラフレンズ（配置の切替・箱の入れ子と矢印・ひし形・点線の描画・クリックでエンティティページへ着地し、配置は背景で計算し、できるまで前の絵を出す）と操作（ホイール拡縮・箱のドラッグ＝`withMovedNested`・見出しの印で開く・畳む・ホバー強調・右クリック・PNG 保存・ミニマップ）。節点と辺の決め方は ui/LensGraph.kt（[graph-query](graph-query.md)） |
 | `GraphLayouts` / `LensLayoutKind` / `LensArrangement` / `fitViewport` | ui/GraphLayouts.kt | 節点と辺の配置（放射・階層・応力はライブラリ ELK を包み、力学は `GraphLayout`）と画面に収める倍率の計算（Compose に依存しない純ロジック） |
@@ -59,7 +60,8 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
   - 寿命はワークスペース（切替で初期化し、ツリーの展開と表示設定は永続化した覚えから復元する）。文書の削除・改名はその文書のぶんだけ消す・移す。操作の途中（ダイアログ・メニュー・入力途中の欄）は `remember` のまま（`ScreenMemoryTest`）。
 - **常設画面と浮いたパネルの線引き**: エージェント実行・自動化・計測評価・skill 操作のような、実行の状態を持つ・長く続く作業は実行／設計スペースの常設画面。値を集めて 1 回で適用する短い作業（AI 生成・改名・統合・スキーマ推測・操作）は浮いたパネル（AlertDialog）にできる。それ以外の AlertDialog は破壊的操作と承認の確認だけ。エージェントの質問はモーダルにせず非モーダルカード。気づきはレールとステータスバーのバッジ。
 - **エージェント実行の状態は `RunController`**（AppRoot 生存期間・ワークスペース単位）。スペースを切り替えて実行画面がコンポジションから外れても状態が失われない。
-- **操作は浮いたパネル**: 入口（エンティティページの操作メニュー・フォームとビューの行の ⋯・文書ヘッダーの「文書操作」メニュー・コマンドパレット・右ペインの「操作」タブ）はどこでも `AppState.startAction` を呼び、パネルは `Main` が `ActionPanelHost` でスペースに関係なく載せる。作業の状態は `AppState.actionWork`（`remember` に置かない）で、隠しても残り「操作」タブから開き直せる。受け取る値はフォームの部品で編集する（[actions](actions.md)）。
+- **操作は浮いたパネル**: 入口（エンティティページの操作メニュー・フォームとビューの行の ⋯・文書ヘッダーの「文書操作」メニュー・コマンドパレット・右ペインの「操作」タブ）はどこでも `AppState.startAction` を呼び、パネルは `Main` が `ActionPanelHost` でスペースに関係なく載せる。
+- **初期化ウィザードも浮いたパネル**: スタート画面（ワークスペースが無い）からも開いている画面からも `AppState.startInitWizard` で開き、`Main` が `InitWizardHost` を窓の直下に載せる。値を集めて 1 回で書く短い作業なので常設画面にしない。スタート画面の第一のボタンはこれで、「ワークスペースを開く…」が隣に並ぶ。作業の状態は `AppState.actionWork`（`remember` に置かない）で、隠しても残り「操作」タブから開き直せる。受け取る値はフォームの部品で編集する（[actions](actions.md)）。
 - **受信箱はデータを持たない射影**: 承認待ち（`AutomationEngine.pendingSnapshot`）・質問（`RunController.pendingQuestion`）・外部変更競合（`AppState.conflictedDocs`）を集約表示するだけ。バッジ数もこの集約から導出する。
 - **設計スペースは「定義も YAML 文書」の入口**: 種類別カタログはファイル一覧から導出し、編集は編集スペースの既存エディタへジャンプする。定義専用の編集経路を新設しない。
 - **アプリ全体のショートカットはウィンドウで受ける**: 戻る／進む（`Alt+←` / `→`）・保存・Undo/Redo・コマンドパレットは `Window(onKeyEvent = …)`（`Main.kt` の `handleShortcut`）。部品の `Modifier.onKeyEvent` は焦点のある子がいるときにしか呼ばれず、ジャンプの直後のように焦点が無いときはキーが届かない。テキスト入力が自分で消費するキーは入力側が先に受ける。

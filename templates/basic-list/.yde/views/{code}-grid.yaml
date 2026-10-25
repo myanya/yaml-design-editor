@@ -1,0 +1,26 @@
+id: { $format: "{code}-grid" }
+name: { $format: "{label}一覧" }
+rows:
+  idPattern: { $format: "{prefix}-*" }
+columns:
+  $concat:
+    - - label: $titleLabel
+        schemaId: $code
+        path: title
+        editable: true
+      - $when: { path: statusValues, empty: false }
+        label: 状態
+        schemaId: $code
+        path: status
+        editable: true
+    - $each: fields
+      $build:
+        label: { $copy: label }
+        schemaId: $code
+        path: { $copy: key }
+        editable: true
+newRow:
+  $when: { path: layout, equals: list }
+  $then:
+    file: { $format: "{code}/{code}-list.yaml" }
+    path: items

@@ -1,0 +1,21 @@
+id: { $format: "{code}-dashboard" }
+name: { $format: "{label}ダッシュボード" }
+kind: dashboard
+default: true
+description: { $format: "{label}の状況です。件数を押すと一覧に切り替わり、ID を押すと詳細と操作へ進みます。" }
+actions: [ { $format: "register-{code}" } ]
+sections:
+  $concat:
+    - - id: all
+        label: { $format: "すべての{label}" }
+        view: { $format: "{code}-grid" }
+    - $each: statusValues
+      $build:
+        id: { $format: "status-{value}" }
+        label: { $copy: label }
+        # 繰り返しの中の「いまの場所」は選択肢なので、答えの code は $with で穴へ渡す
+        view: { $format: "{code}-grid", $with: { code: $code } }
+        filter:
+          match: [ { node: { entity: $code, bind: x } } ]
+          where: [ { of: x, path: status, equals: { $copy: value } } ]
+          expect: exists

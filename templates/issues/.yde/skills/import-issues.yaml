@@ -1,0 +1,15 @@
+id: import-issues
+name: 課題台帳の取り込み（Excel）
+description: Excel台帳（1行1課題）を issues/ 配下のYAML原本へ取り込む。既存課題はマップした列だけ更新される。
+kind: import
+input: { format: xlsx, headerRow: 1 }
+target: { file: "issues/{ID}.yaml" }
+mapping:
+- { column: ID, path: id, required: true }
+- { column: 件名, path: title, required: true }
+- column: 状態
+  path: status
+  map: { 未着手: open, 対応中: in-progress, 完了: done }
+- { column: 優先度, path: priority, type: int }
+- { column: 担当, path: owner }
+- { column: タグ, path: tags, split: "," }

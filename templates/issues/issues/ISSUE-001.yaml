@@ -1,0 +1,9 @@
+id: ISSUE-001
+title: ログイン画面のエラーメッセージが不親切
+status: open
+priority: 2
+owner: yamada
+tags: [ux, login]
+description: |
+  認証失敗時に「エラーが発生しました」としか表示されず、原因が分からない。
+  パスワード誤り・アカウントロックを区別して表示したい。

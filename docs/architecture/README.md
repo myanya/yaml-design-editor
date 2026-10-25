@@ -17,7 +17,7 @@
 | [transform.md](transform.md) | YAML から YAML への変換・計算列と決定論的射影 |
 | [views.md](views.md) | ビュー機構・文書ビュー・definition 参照とリント・ビュー定義の読み取り |
 | [dashboards.md](dashboards.md) | 業務の入口・区画の件数と一覧・対象の詳細と操作・基準日と選択の保持 |
-| [workspace.md](workspace.md) | ワークスペース構造と layout・文書キャッシュと Workspace・外部変更の取り込み・変更セットの適用・セッションの fork |
+| [workspace.md](workspace.md) | ワークスペース構造と layout・ワークスペースの初期化（テンプレートとウィザード）・文書キャッシュと Workspace・外部変更の取り込み・変更セットの適用・セッションの fork |
 | [actions.md](actions.md) | 操作（型の操作 `methods` とアクション `actions`。受け手・受け取った値・前提・手・変更セットへの計画・CLI） |
 | [agents.md](agents.md) | 安全性・エージェント実行と Staging・自動実行・自己改善・AI 生成・AI 接続・コンテキスト・一括実行・skill |
 | [ui.md](ui.md) | UI シェル・フォームと FormCtx・閲覧専用・テーブル表示・畳みとハイライト・エラー処理 |
@@ -62,7 +62,7 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 | | `app.schema` | `SchemaDef`（カーネルのスキーマにファイルの場所を足す薄い型）・`SchemaLoader`・表示解決 `Display`・ID 候補・スキーマ推測 |
 | | `app.validate` | `Validator`（窓口）・`Readiness` |
 | | `app.ai` | AI 生成・LLM クライアント |
-| | `app.skill` | 入出力変換（skill 定義・表形式の読み書き・インポート・エクスポート・テンプレートパック） |
+| | `app.skill` | 入出力変換（skill 定義・表形式の読み書き・インポート・エクスポート） |
 | | `app.agent` | エージェント実行（定義・ステージング・ツールセット・カーネル・実行記録・自動化・メトリクス・評価） |
 
 アプリの中の依存は `app.core` → `app.skill` → `app.agent` → `app`（AppState）→ `app.ui` の一方向。`app.index` / `app.schema` / `app.validate` は `app.core` より下。

@@ -1,0 +1,30 @@
+id: issue
+name: 課題
+kind: document
+description: 課題を 1 件 1 ファイルで管理します。状態・優先度・担当の欠落は棚卸しの対象です。
+match: "issues/**/*.{yaml,yml}"
+root:
+  type: object
+  fields:
+    - { key: id, label: 課題ID, type: id, required: true }
+    - { key: title, label: 件名, type: string, required: true }
+    - key: status
+      label: 状態
+      type: enum
+      values: [open, in-progress, done]
+      default: open
+    - { key: priority, label: 優先度, type: int }
+    - { key: owner, label: 担当, type: string }
+    - key: tags
+      label: タグ
+      type: array
+      item: { type: string }
+    - { key: description, label: 内容, type: text }
+    - key: triage_notes
+      label: 棚卸しメモ
+      type: array
+      item:
+        type: object
+        fields:
+          - { key: comment, label: 指摘, type: text }
+          - { key: suggestion, label: 提案, type: text }

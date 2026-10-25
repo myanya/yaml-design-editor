@@ -32,7 +32,7 @@ YDE の考え方は、この一行に尽きます。
 | TODO 管理 | TODO、カテゴリ、状態、期限 | 登録、着手、完了、再開、中止の操作と、期限超過を映すダッシュボード | [samples/todos](samples/todos/README.md) |
 | 家計簿 | 月、費目、取引、期首残高 | 銀行の CSV の取り込み、月と費目ごとの集計、残高の検査 | [labs/kakeibo](labs/kakeibo/README.md) |
 | システム開発の設計情報 | 要件、業務フロー、画面、API、テーブル、試験 | 参照の網羅、多重度、状態遷移の到達性の検査と、準備完了レポート | [labs/sysdev-template](labs/sysdev-template/README.md) |
-| 原稿、用語集、顧客台帳、点検記録など | 項目と ID をスキーマに書きます | 検査、ビュー、操作、エージェントを必要な分だけ足します | `init` のテンプレートから始めます |
+| 原稿、用語集、顧客台帳、点検記録など | 項目と ID をスキーマに書きます | 検査、ビュー、操作、エージェントを必要な分だけ足します | 「新しいワークスペースを作る…」の「自分の項目で」から始めます |
 
 YDE が向いているのは、情報をスキーマで構造化でき、成果を差分で確かめられ、少しずつ積み上げていく仕事です。
 一度きりの自由な文書作成や、複数人が同時に編集する用途には向いていません。
@@ -87,8 +87,9 @@ YDE が向いているのは、情報をスキーマで構造化でき、成果�
 Java を別途インストールする必要はありません。
 
 1. [Releases](https://github.com/myanya/yaml-design-editor/releases) から `yaml-design-editor-<版>-windows-x64.zip` をダウンロードし、すべて展開してから `yaml-design-editor.exe` を起動します。
-2. 同梱の `examples/todos` を作業用のフォルダへコピーし、「ワークスペースを開く…」でそのコピーを開きます。
-3. 起動と更新の案内は ZIP 内の `README.txt` に、各版の内容は[チェンジログ](docs/archive/changelog.md)にあります。
+2. サンプルを見るなら、同梱の `examples/todos` を作業用のフォルダへコピーし、「ワークスペースを開く…」でそのコピーを開きます。
+3. 自分の情報を管理するなら、スタート画面の「新しいワークスペースを作る…」から、テンプレートか自分の項目で始めます。4 つの画面に答えると、定義一式ができて開きます。
+4. 起動と更新の案内は ZIP 内の `README.txt` に、各版の内容は[チェンジログ](docs/archive/changelog.md)にあります。
 
 ZIP には署名を付けていないため、Windows が発行元についての警告を表示することがあります。添付の `SHA256SUMS.txt` でチェックサムを照合してください。
 この README はリポジトリの最新の状態に合わせて書いています。ZIP 版で使える機能の範囲は、その版のリリースノートで確かめてください。
@@ -103,7 +104,7 @@ JDK 21 が必要です。無ければ Gradle が自動で取得します（`./gr
 ./gradlew run --args="path/to/workspace"                  # ワークスペースを指定して開く
 ./gradlew runCli -q --args="help"                         # ヘッドレス CLI のコマンド一覧
 ./gradlew runCli -q --args="validate path/to/workspace"   # 全文書の検証を CLI で行う
-./gradlew runCli -q --args="init my-ws --template ledger" # テンプレートからワークスペースを作る
+./gradlew runCli -q --args="init my-ws --template issues" # テンプレートからワークスペースを作る（引数なしで一覧。--adopt で既存フォルダへ後入れ）
 ```
 
 ### 3 分で「定義だけでアプリになる」を確かめる
@@ -120,10 +121,11 @@ JDK 21 が必要です。無ければ Gradle が自動で取得します（`./gr
 
 詳しい手順と、見てほしい観点は [samples/todos/README.md](samples/todos/README.md) にあります。
 
-## サンプルと実験場
+## テンプレート、サンプル、実験場
 
 | 場所 | 内容 |
 |---|---|
+| [templates/](templates/README.md) | 新しいワークスペースの出発点です。「課題管理」と、問いに答えて作る「基本の一覧」があります。業務を限定しない少数の雛形に保ちます |
 | [samples/todos](samples/todos/README.md) | 個人向けの TODO 管理です。型、検査、操作、ビュー、ダッシュボードが一式そろっていて、AI に接続しなくてもそのまま使えます |
 | [samples/todos-sysdev-tablemodel](samples/todos-sysdev-tablemodel/README.md) | 同じ TODO 管理を専用のシステムとして作るときの、概念・論理・物理モデルと、SQL 生成の検討です |
 | [labs/kakeibo](labs/kakeibo/README.md) | 家計簿を題材に、月と費目ごとの集計、残高の検査、銀行の CSV の取り込みを試しています |
@@ -131,7 +133,7 @@ JDK 21 が必要です。無ければ Gradle が自動で取得します（`./gr
 | [labs/sysdev-todo](labs/sysdev-todo/README.md) | TODO Web アプリの設計体系です。ドメインの定義から画面、API、テーブルの設計を導きます |
 | [labs/user-man](labs/user-man/README.md) | 架空のユーザ管理システムを題材に、業務フローから設計情報をどう表すかを試しています |
 
-`samples/` は公開用のサンプルです。新しい試作は `labs/` で作り、形になったら `samples/` へ移します。
+`templates/` は出発点で、`samples/` は特色を紹介する公開用のサンプルです。新しい試作は `labs/` で作り、形になったら `samples/` へ移します。
 
 ## ドキュメント
 

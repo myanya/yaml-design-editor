@@ -32,6 +32,7 @@ import dev.toros.yde.semantic.schema.globToRegex
 import dev.toros.yde.workspace.DocumentScaffold
 import dev.toros.yde.workspace.DocumentScaffolds
 import dev.toros.yde.workspace.ScaffoldSource
+import dev.toros.yde.workspace.WorkspaceInit
 import dev.toros.yde.workspace.changeset.ChangeSet
 import dev.toros.yde.workspace.layout.WorkspaceLayout
 import dev.toros.yde.yaml.model.DocumentId
@@ -936,6 +937,34 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
 
     /** 操作の適用で積んだ履歴の id（閲覧専用のときの取り消し・やり直しは、これらだけ保存まで行う）。 */
     private val actionRecordIds = mutableSetOf<Long>()
+
+    // ---------------------------------------------------------------- 初期化ウィザード（新しいワークスペースを作る。architecture/workspace.md「ワークスペースの初期化」）
+
+    /** 初期化ウィザードの作業。`fixedRoot` は、開いている未初期化のワークスペースから起動したときの場所（変えられない）。 */
+    class InitWizardWork(val fixedRoot: Path?)
+
+    /** 開いているウィザード。null = 閉じている。浮いたパネル（ui/InitWizard.kt）が Main からスペースに関係なく載せる。 */
+    var initWizard by mutableStateOf<InitWizardWork?>(null)
+
+    fun startInitWizard(root: Path? = null) { initWizard = InitWizardWork(root) }
+    fun closeInitWizard() { initWizard = null }
+
+    /** 後入れの直後に設計スペースで「既存文書から推測」を開く印。設計スペースが読んで消す。 */
+    var pendingDesignInfer by mutableStateOf(false)
+
+    /** 初期化したワークスペースを開く。後入れなら設計スペースの推測へ、それ以外は openWorkspace の着地（ダッシュボードか編集）。 */
+    fun openInitialized(root: Path, adopted: Boolean) {
+        initWizard = null
+        openWorkspace(root)
+        if (adopted) {
+            memory.designZone = WorkspaceLayout.Zone.SCHEMAS
+            pendingDesignInfer = true
+            showSpace(UiSpace.DESIGN)
+        }
+    }
+
+    /** 未初期化（`.yde/` も `_schemas/` も無い）ワークスペースか。編集スペースの案内に使う（組込みのスキーマは数えない）。 */
+    fun isUninitializedWorkspace(): Boolean = workspace?.let { !WorkspaceInit.isInitialized(it) } ?: false
 
     var actionWork by mutableStateOf<ActionWork?>(null)
 

@@ -52,6 +52,7 @@ fun AppToolbar(
                         }
                         when (label) {
                             "ファイル" -> {
+                                action("新しいワークスペースを作る…") { state.startInitWizard() }
                                 action("ワークスペースを開く…", run = openWorkspaceDialog)
                                 state.recentWorkspaces.take(5).forEach { path ->
                                     UiTooltip(path.toString()) {

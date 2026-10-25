@@ -1,0 +1,3 @@
+$when: { path: layout, equals: list }
+$then:
+  items: []

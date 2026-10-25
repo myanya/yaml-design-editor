@@ -1,0 +1,10 @@
+id: export-issues-md
+name: 課題一覧の出力（Markdown）
+kind: export
+source: { match: "issues/**/*.{yaml,yml}" }
+output: { file: exports/issues.md }
+columns:
+- { header: ID, path: id }
+- { header: 件名, path: title }
+- { header: 状態, path: status }
+- { header: 担当, path: owner }
