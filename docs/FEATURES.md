@@ -46,6 +46,7 @@
 | E-16 | 配列要素のドラッグ並べ替え（取っ手 ⋮⋮ からだけ掴める・ドロップで 1 回だけ木を動かす＝Undo 1 回・縦リスト／テーブル／汎用エディタ共通・上下ボタンも残す） | `ui/Reorder.kt`（`ReorderableList`）, `ui/FormView.kt`（`moveSeqItem`） | 単体 `MoveSeqItemTest` | [ui](architecture/ui.md) |
 | E-17 | file 型の入力欄と画像の表示（文字で書く 3 通りの書き方・「選ぶ」は OS 標準のダイアログでルート相対に書き込む・解決した場所と有無の 1 行・画像は欄の下に幅に合わせて表示し拡大率とドラッグで操作・「拡大表示」で全面） | `ui/FileEditor.kt`, `ui/ImagePane.kt`, `AppState.openImage` | 単体 `FileEditorTest` | [ui](architecture/ui.md) |
 | E-02 | 汎用ツリーエディタ（スキーマなし文書・スキーマ外キー・順序とコメントを保ったキー改名） | `ui/FormView.kt`（`GenericEditor`） | 単体 `RenameKeyTest` | [ui](architecture/ui.md) |
+| E-25 | 配列行の削除確認・対象変更の拒否（リスト・表・汎用・設計の配列入力） | `ui/ArrayDeleteButton.kt`, `ui/ArrayDeletion.kt` | `ArrayDeletionTest`・画面は手動 | [UI 操作規則](architecture/ui-interactions.md#配列要素の削除) |
 | E-03 | ソース編集（下書き・書式保持・履歴との同期） | `SourcePane`・`SourceHistorySync` | `LineMergeTest`・`SourceHistorySyncTest`・`TextOnlySaveTest` | [editing-history](architecture/editing-history.md) |
 | E-04 | 差分表示（保存済みと編集中の行整列・文字単位の強調） | `ui/DiffPane.kt` | 単体 `DiffPaneTest` | [ui](architecture/ui.md) |
 | E-05 | Undo/Redo（横断履歴・編集元への復帰・通知・入力の区切り） | `AppState`, `HistoryNoticeBanner` | `HistoryLocationTest`・`HistoryNoticeTest`・`HistoryCoalescingTest` ほか | [editing-history](architecture/editing-history.md) |

@@ -1442,10 +1442,10 @@ private fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) 
                             modifier = Modifier.size(24.dp),
                         ) { Icon(Icons.Default.KeyboardArrowDown, contentDescription = "下へ", Modifier.size(16.dp)) }
                     }
-                    IconButton(
-                        onClick = { node.items.removeAt(i); ctx.markEdited() },
+                    ArrayDeleteButton(ctx.doc, node, i, ctx.readOnly,
                         modifier = Modifier.size(32.dp).padding(top = 8.dp),
-                    ) { Icon(Icons.Default.Delete, contentDescription = "削除", Modifier.size(16.dp), tint = Palette.SubText) }
+                        label = field.displayLabel, itemField = field.item, titleLookup = ctx.indexTitleLookup(),
+                        markEdited = { ctx.markEdited() })
                     }
                     // 操作メニューは閲覧専用でも出す（操作は編集ではない。architecture/actions.md）
                     ElementOpsButton(ctx, path + i, Modifier.padding(top = if (ctx.readOnly) 0.dp else 8.dp))
@@ -1661,10 +1661,9 @@ private fun ArrayTable(ctx: FormCtx, field: FieldDef, columns: List<FieldDef>, n
             enabled = i < node.items.size - 1,
             modifier = Modifier.size(24.dp),
         ) { Icon(Icons.Default.KeyboardArrowDown, contentDescription = "下へ", Modifier.size(16.dp)) }
-        IconButton(
-            onClick = { node.items.removeAt(i); ctx.markEdited() },
-            modifier = Modifier.size(24.dp),
-        ) { Icon(Icons.Default.Delete, contentDescription = "削除", Modifier.size(14.dp), tint = Palette.SubText) }
+        ArrayDeleteButton(ctx.doc, node, i, ctx.readOnly, iconSize = 14.dp,
+            label = field.displayLabel, itemField = field.item, titleLookup = ctx.indexTitleLookup(),
+            markEdited = { ctx.markEdited() })
     }, rowMenu = { i -> ElementOpsButton(ctx, path + i) })
 }
 
@@ -2024,10 +2023,9 @@ fun GenericEditor(ctx: FormCtx, slot: Slot, path: YPath, refHint: Boolean) {
                                 GenericEditor(ctx, SeqSlot(node, i), path + i, refHint)
                             }
                             if (!ctx.readOnly) {
-                                IconButton(
-                                    onClick = { node.items.removeAt(i); ctx.markEdited() },
+                                ArrayDeleteButton(ctx.doc, node, i, ctx.readOnly,
                                     modifier = Modifier.size(32.dp).padding(top = 8.dp),
-                                ) { Icon(Icons.Default.Delete, contentDescription = "削除", Modifier.size(16.dp), tint = Palette.SubText) }
+                                    titleLookup = ctx.indexTitleLookup(), markEdited = { ctx.markEdited() })
                             }
                         }
                     }

@@ -786,11 +786,9 @@ internal fun CoverageEditor(root: YNode.Map, doc: OpenDocument) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("ルール ${index + 1}", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
-                SchemaDeleteButton("カバレッジルールを削除") {
-                    coverage.items.removeAt(index)
-                    if (coverage.items.isEmpty()) root.entries.remove("coverage")
-                    doc.markEdited()
-                }
+                ArrayDeleteButton(doc, coverage, index, LocalSchemaReadOnly.current,
+                    label = "カバレッジルール", textButton = true,
+                    afterDelete = { if (coverage.items.isEmpty()) root.entries.remove("coverage") })
             }
             CompactScalar(rule, "id", "ルールID（任意）", doc)
             CompactScalar(rule, "description", "説明", doc)
@@ -888,7 +886,7 @@ private fun EnumOptionListEditor(map: YNode.Map, doc: OpenDocument) {
             verticalArrangement = Arrangement.spacedBy(FormSpacing.FieldGap)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("選択肢 ${index + 1}", fontSize = 12.sp, modifier = Modifier.weight(1f))
-                SchemaDeleteButton("選択肢を削除", { seq.items.removeAt(index); doc.markEdited() })
+                ArrayDeleteButton(doc, seq, index, LocalSchemaReadOnly.current, label = "選択肢", textButton = true)
             }
             FormFieldLayout(label = { Text("保存する値", fontSize = 13.sp) }) {
                 SchemaTextField(value, { update(newValue = it) }, singleLine = true, modifier = Modifier.fillMaxWidth())

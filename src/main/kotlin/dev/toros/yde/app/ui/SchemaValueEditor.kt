@@ -87,9 +87,8 @@ private fun SchemaValueContent(ctx: FormCtx, slot: Slot, path: YPath) {
                                 SchemaEditButton(enabled = index < node.items.lastIndex, onClick = {
                                     node.items.add(index + 1, node.items.removeAt(index)); ctx.markEdited()
                                 }) { Text("下へ") }
-                                SchemaDeleteButton("配列の ${index + 1} 番目を削除") {
-                                    node.items.removeAt(index); ctx.markEdited()
-                                }
+                                ArrayDeleteButton(ctx.doc, node, index, ctx.readOnly, textButton = true,
+                                    markEdited = { ctx.markEdited() })
                             }
                         }
                         SchemaValueEditor(ctx, SeqSlot(node, index), path + index)
