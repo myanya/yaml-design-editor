@@ -6,7 +6,7 @@
 #
 # 失敗にするもの:
 #   TICKET 設計・マニュアル・規約・機能索引・CLAUDE.md にチケット番号（P／R／D／UX 等）がない
-#   LINK   相対リンクの先が存在する（archive を含む全文書）
+#   LINK   相対リンクの先が存在し、大文字小文字も一致する（archive を含む全文書。Linux の CI で切れないため）
 # 目安として報告するもの（長さの上限は良い方法ではないため、別の方法を考えるまでの目安）:
 #   SIZE   1 ファイルの文字数（既定 40,000。機能索引と台帳は 80,000。manual/ と tutorial は 60,000）
 #   LINE   1 行の文字数（300。台帳 BACKLOG の表の行は除く）
@@ -33,6 +33,27 @@ is_state_doc() {
   esac
 }
 
+# 実在のファイルとディレクトリの名前（大文字小文字を区別）。リンクの検査が引く。生成物と履歴に入らない場所は除く
+declare -A existing
+while IFS= read -r e; do existing["${e#./}"]=1; done < <(
+  find . \( -name .git -o -name .gradle -o -name .gradle-user-home -o -name build -o -name .idea -o -name .kotlin -o -name scratchpad \) -prune -o -print
+)
+
+# 相対パスを正規化する（"docs/a/../b.md" → "docs/b.md"）。結果は REPLY に入れる。プロセスを起こさない（リンクは数百あるため）
+normalize() {
+  local IFS=/ part s=''
+  local -a out=()
+  for part in $1; do
+    case "$part" in
+      ''|'.') ;;
+      '..') [ ${#out[@]} -gt 0 ] && unset 'out[${#out[@]}-1]' ;;
+      *) out+=("$part") ;;
+    esac
+  done
+  for part in "${out[@]}"; do s+="${s:+/}$part"; done
+  REPLY=$s
+}
+
 run_checks() {
   local f limit chars
   while IFS= read -r f; do
@@ -55,12 +76,17 @@ run_checks() {
       fi
     ;; esac
     # LINK: archive を含む全文書
+    d=${f%/*}; [ "$d" = "$f" ] && d=.
     grep -noE '\]\([^)]+\)' "$f" | while IFS=: read -r ln m; do
       t=${m#](}; t=${t%)}
       case "$t" in http://*|https://*|mailto:*|\#*) continue ;; esac
       t=${t%%#*}
       [ -z "$t" ] && continue
-      if [ ! -e "$(dirname "$f")/$t" ]; then printf 'LINK   %s:%s: %s が無い\n' "$f" "$ln" "$t"; fi
+      p="$d/$t"
+      if [ ! -e "$p" ]; then printf 'LINK   %s:%s: %s が無い\n' "$f" "$ln" "$t"; continue; fi
+      # 大文字小文字の不一致。Windows の -e は見過ごすが、Linux（CI）では切れたリンクになる
+      normalize "$p"
+      if [ -z "${existing[$REPLY]:-}" ]; then printf 'LINK   %s:%s: %s の大文字小文字が実在のファイル名と違う\n' "$f" "$ln" "$t"; fi
     done
   done < <(find CLAUDE.md README.md docs -name '*.md' | sort)
 }

@@ -603,8 +603,8 @@ limit: 100
 
 狙い: スキーマ（`Schema.kt` ほか）の担当過多を解消するため、非UIコアを `yaml-core`（構文・構造スキーマ・編集操作）／`semantic-core`（意味解釈・意味グラフ・意味検証・リファクタリング計画）／`workspace-core`（版・トランザクション・履歴・永続化）の3層Gradleモジュールへ段階的に**移動**する。最終形は、ユーザ定義スキーマから構造／意味の2層スキーマを導出して各層で検証し、意味スキーマの柔軟性（ユーザ定義を含む）を上げてYAMLエディタを情報管理ツールへ進化させること。
 
-- 計画・フェーズ・完了条件: [THREE-LAYER-CORE-MIGRATION-PLAN.md](THREE-LAYER-CORE-MIGRATION-PLAN.md)
-- 進捗（作業単位）: [MIGRATION-LEDGER.md](MIGRATION-LEDGER.md)
+- 計画・フェーズ・完了条件: [three-layer-core-migration-plan.md](three-layer-core-migration-plan.md)
+- 進捗（作業単位）: [migration-ledger.md](migration-ledger.md)
 - 設計決定: [decisions/](../decisions/README.md)（ADR-0001〜0008・意図的差分一覧）
 
 | 到達点 | 状態 |
