@@ -7,13 +7,14 @@
 
 | 部品 | ファイル | 責務 |
 |---|---|---|
-| `OpenDocument` | app/OpenDocument.kt | 開いている 1 文書の Compose シェル（`version` / `dirty` / `parseError` の購読）。複数ドキュメントの再出力と保存内容との比較は `EditBuffer` へ委譲し、外部競合を管理する |
+| `DocumentState` | session/DocumentState.kt | 開いている 1 文書の論理（Compose 非依存）。木・スキーマ・dirty・版・外部変更の印・下書きの解析と 3 者併合。下書きの文字列とカーソルは殻から引数で受け取り、変化は `onChanged` で殻へ知らせる |
+| `OpenDocument` | app/OpenDocument.kt | 開いている 1 文書の Compose の殻（`version` / `dirty` / `parseError` などを論理から写して購読できるようにする。名前と窓口は論理と同じで UI はこの殻だけを見る）。複数ドキュメントの再出力と保存内容との比較は `EditBuffer` へ委譲し、外部競合を管理する |
 | `EditBuffer` | core/Documents.kt | 複数ドキュメントの再出力と、保存した内容との比較（履歴は持たない）。ここの dirty はセッションが文書として扱わないパス用で、聞かれたときにだけ計算する |
 | `WorkspaceSession.recordEdit` / `endEditGroup` | workspace-core | 編集の記録（合体キーと時刻つき）と連続入力の区切り。Undo / Redo の実体 |
 | `AppState.undo` / `redo` / `historyNotice` / `undoPreview` | app/AppState.kt | 横断 Undo の実行と、戻った内容の通知・予告 |
 | `AppState.createDocumentFile` / `afterHistoryStep` | app/AppState.kt | 文書の新規作成の単一経路と、作成・削除を含む履歴の確定 |
 | `FormCtx.writeScalar` | ui/FormView.kt | スカラー入力の書込。合体キーを渡す |
-| `OpenDocument.source` / `applyParsed` / `syncSourceFromTree` / `discardDraft` / `enterTextOnly` | app/OpenDocument.kt | ソースの下書き（文字列・カーソル・解析エラー）の所有と、木との同期 |
+| `OpenDocument.source`（文字列とカーソル）と `DocumentState.applyParsed` / `syncSourceFromTree` / `discardDraft` / `enterTextOnly`（計算） | app/OpenDocument.kt・session/DocumentState.kt | ソースの下書き（文字列・カーソル・解析エラー）の所有と、木との同期 |
 | `SourceHistorySync` | text/SourceHistorySync.kt | 履歴の値を優先した書式の差し込みと、全 YAML 文書の再解析による内容一致の確認 |
 | `SourcePane` / `SourceDraftBanner` | ui/SourcePane.kt | ソースの表示と入力（入力が止まってから背景で解析）。他のタブに出す書きかけ・壊れたまま保存のバナー |
 | `SourceSyntaxBar` / `sourceErrorLocation` | ui/SourceSyntaxBar.kt | 本文の位置を変えない構文状態と詳細の表示、解析エラー文面からの問題位置の取得 |
@@ -88,7 +89,7 @@ Core Calculus 上は既存の変更記録のまとめ方に限り、Rewrite の�
 
 木が常に正で、ソースの下書きは木の表現の 1 つ。
 
-- **下書きは文書が持つ**: 文字列・カーソルは `OpenDocument.source`（Compose 標準の `TextFieldState`）、解析エラーは `sourceError`。画面の `remember` に置かないので、タブや文書を移っても残る。閉じるときの確認は未保存と同じ（`draftDirty` が `hasDirtyDocs` に入る）。
+- **下書きは文書が持つ**: 文字列・カーソルは殻の `OpenDocument.source`（Compose 標準の `TextFieldState`）、解析エラーは `sourceError`。解析・3 者併合・採用の可否の判定は論理の `DocumentState` で、殻が今の文字列とカーソルを渡して結果を差し込む。画面の `remember` に置かないので、タブや文書を移っても残る。閉じるときの確認は未保存と同じ（`draftDirty` が `hasDirtyDocs` に入る）。
 - **入力が止まってから反映**: `SourcePane` は文字列の変化を `snapshotFlow` で見て、300ms 止まったら背景で解析し（`EditBuffer.parse`）、UI 側で `applyParsed` が木を更新する。経路は `markEdited`＝履歴・dirty・editVersion・オーバーレイ索引・検証がフォーム編集と同じに追随する（合体キーは文書単位の固定キー）。
   保存・タブを離れるときは `flushDraft`、Undo/Redo・すべて保存では `flushSourceDrafts` で入力待ちの分を先に取り込む。反映しても下書きの文字列は書き換えない（カーソル・書式を保つ）。
 - **解析できない間**: 最後に解析できた木が正。`draftBroken` で `FormCtx.readOnly` が真になり、フォーム・グリッド・横ぐしが閲覧専用になる（書きかけをフォームで上書きしない）。他のタブには `SourceDraftBanner`（「ソースで直す」「書きかけを捨てる」）。その文書に関わる Undo/Redo は `prepareHistoryStep` が「下書きを捨てて戻すか」を確認してから進める（`pendingHistory`）。

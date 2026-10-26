@@ -1831,9 +1831,9 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
 
     /** キャッシュ順ではなく入力順に反映する。解析待ちの背景処理は採用時の世代検査で無効になる。 */
     private fun flushSourceDrafts() {
-        docCache.values.mapNotNull { it.sourceParseRequest() }
-            .sortedBy { it.inputOrder }
-            .forEach { it.document.applyParsed(it, EditBuffer.parse(it.text)) }
+        docCache.values.mapNotNull { doc -> doc.sourceParseRequest()?.let { doc to it } }
+            .sortedBy { (_, request) -> request.inputOrder }
+            .forEach { (doc, request) -> doc.applyParsed(request, EditBuffer.parse(request.text)) }
     }
 
     /** 解析待ちを移動前の入力へ含めてから区切る。遅れて届く解析結果は採用検査で無効になる。 */
