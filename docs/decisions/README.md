@@ -17,6 +17,7 @@
 | [ADR-0010](0010-expression-values-are-terms.md) | 式の値は項とし、集合から値への入口を all に限る | 承認済み |
 | [ADR-0011](0011-file-arrangement-history.md) | 一般ファイルの配置変更と文書修正を単一履歴で扱う | 承認済み |
 | [ADR-0012](0012-save-conflict-check.md) | 保存直前に既知のディスク内容と比較する | 承認済み |
+| [ADR-0013](0013-application-layer-and-extensions.md) | 画面を持たない応用層（app-core）と入口・拡張のモジュール構成 | 承認済み |
 
 関連文書:
 
