@@ -1,0 +1,25 @@
+# push ごとに文書の形と全モジュールの単体テストを回す（docs/CONVENTIONS.md「テスト」）。
+# ローカルのコミット前フック（scripts/git-hooks/pre-commit）は速い検査だけで、全テストはここが見張る。
+name: test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 内部バージョン（コミット日とその日の何番目か）を git の履歴から算出するため
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - name: 文書の形（docs-lint）
+        run: bash scripts/docs-lint.sh
+      - name: 単体テスト（全モジュール）
+        run: ./gradlew test --no-daemon --console=plain

@@ -39,7 +39,7 @@
 - **新設するテストのメソッド名は日本語**のバッククォート文で書き、意図を文で表す（例: `` fun `保存後もUndoできる`() ``）。既存の英語名テスト（例: `idPatterns filter candidates`）は無理に改名せず、そのファイルへ手を入れる機会に合わせて直してよい。
 - UIコンポーザブルは自動テスト対象外。**テストしたいロジックはコンポーザブルから純粋関数へ切り出し**、`internal` にしてテストする（例: `calculateDiff`, `combineProposal`, `parseResponse`）。
 - ネットワークは叩かない。APIクライアントはレスポンス解析関数（`parseResponse(statusCode, body)`）を単体テストする。
-- 実行: `./gradlew test`（コミット前に通すこと）。
+- 実行: `./gradlew test`（コミット前に通すこと）。コミット前フック（`scripts/git-hooks/pre-commit`）は docs-lint と規則・参照のテストだけを回し、全テストは GitHub Actions（`.github/workflows/test.yml`）が push ごとに回す。
 
 ### スキーマ語彙と編集UIの同期
 

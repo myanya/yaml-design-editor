@@ -7,6 +7,7 @@ Kotlin + Compose for Desktop 製のスキーマ駆動 YAML エディタ。ワー
 ```bash
 ./gradlew test                              # 単体テスト（コミット前に必ず実行）
 ./gradlew test --tests '*WorkspaceInitTest*'  # 絞って実行（一致しないモジュールは失敗にしない）
+git config core.hooksPath scripts/git-hooks   # コミット前フック（クローンごとに 1 回。docs-lint と規則・参照のテスト。全テストは GitHub Actions）
 ./gradlew fileTreeBenchmark                 # 任意: 一時領域で1000・10万ファイルの一覧・検索を計測
 ./gradlew run                               # スタート画面で起動（履歴からワークスペース選択）
 ./gradlew run --args="/path/to/workspace"   # ワークスペース指定で起動
