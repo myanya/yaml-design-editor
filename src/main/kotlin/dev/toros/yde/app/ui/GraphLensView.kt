@@ -186,10 +186,7 @@ private fun rememberLensModel(state: AppState): LensModel {
         (lensGraph.edges.filter { it.kind != LensEdgeKind.TIE }.map { it.relation ?: UNDECLARED } + holdingNames).distinct().sorted()
     }
     // 型 → 色（凡例つき）
-    val lensColors = listOf(
-        Palette.Primary, Palette.OkGreen, Palette.WarnOrange, Palette.Secondary,
-        Color(0xFF9C27B0), Color(0xFF00838F), Color(0xFF6D4C41), Color(0xFF546E7A),
-    )
+    val lensColors = listOf(Palette.Primary, Palette.OkGreen, Palette.WarnOrange, Palette.Secondary) + Palette.Accents
     val typeColors = remember(types) { types.mapIndexed { i, t -> t to lensColors[i % lensColors.size] }.toMap() }
     // 型・関係のチェック・深さ・見え方・開いた箱は画面の覚え（ScreenMemory）。隠した名前だけ持つので、再読込で増えた型は見える側で始まる
     val hiddenTypes = state.memory.lensHiddenTypes

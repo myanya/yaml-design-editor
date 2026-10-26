@@ -7,7 +7,7 @@
 - Kotlin 公式コードスタイル（`kotlin.code.style=official`）。インデント4スペース、1行はおおむね120桁まで。
 - KDoc・コード内コメント・コミットメッセージ・UI文言・エラーメッセージは**日本語**で書く（識別子は英語）。
 - コメントは「何をするか」の逐語訳ではなく、制約・理由・注意点を書く（例: 「索引はディスク基準のため未保存編集は反映されない」）。
-- パッケージごとの配置は [architecture/README.md](architecture/README.md)「モジュールと依存方向」の依存ルールに従う。コアの3モジュールと、アプリの純粋ロジック層（`app.core`・`app.index`・`app.schema`・`app.validate`・`app.agent`・`app.ai`・`app.skill`）に Compose を import しない。
+- パッケージごとの配置は [architecture/README.md](architecture/README.md)「モジュールと依存方向」の依存ルールに従う。コアの3モジュールと、アプリの純粋ロジック層（`app.core`・`app.index`・`app.schema`・`app.validate`・`app.agent`・`app.ai`・`app.skill`）に Compose を import しない。機械で確かめられる規則は root のテスト `rules/SourceRulesTest` が守る（architecture/README.md「ソース規則テスト」）。
 
 ## 2. Compose UI の書き方
 
@@ -112,6 +112,7 @@
 - **移動であって複製ではない**: ファイルをモジュール間で移すときは `git mv` し、旧位置に残さない。各ステップで `./gradlew test` を緑に保つ。
 - **fixture は読み取り専用**: `test-fixtures/` の期待結果は [test-fixtures/README.md](../test-fixtures/README.md) にある。変更を伴うテストは一時ディレクトリへコピーして使う。`labs/` 配下をテストから読まない。
 - **設計の決定を変えるとき**は、既存の ADR を書き換えず、新しい ADR で上書きを宣言する。
+- **機械で確かめられる規約は規則テストに足す**: 依存の向き・禁止する API・置き場の決まりのような規約は、文章に書くだけでなく `rules/SourceRules` の表に 1 つ足す（architecture/README.md「ソース規則テスト」）。
 - **Gradle のタスクの実行時の処理（`doLast`）からスクリプトの値を直接参照しない**: 手元の `val` に取ってから使う（`generateBuildInfo` / `copyHelp` の書き方）。Hot Reload の再コンパイルは構成キャッシュを再利用し、スクリプトの参照を持つタスクは復元できずに失敗する。
 
 ## 9. Core Calculus（新しい決定論的機能の設計レビュー）

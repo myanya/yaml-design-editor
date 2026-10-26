@@ -1,0 +1,125 @@
+package dev.toros.yde.app.rules
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+
+/**
+ * ソースの規則（SourceRules）を全モジュールの main のソースに当てる。
+ * 落ちたらメッセージの「説明」の見出しを読む。規則を足すときは SourceRules に 1 つと、ここにテストを 1 つ。
+ */
+class SourceRulesTest {
+    private fun check(number: Int) {
+        val rule = SourceRules.all.first { it.number == number }
+        val hits = rule.check(SourceScanner.mainSources)
+        val knownKeys = rule.known.map { it.key }.toSet()
+        val violations = hits.filter { it.key !in knownKeys }
+        val stale = rule.known.filter { k -> hits.none { it.key == k.key } }
+        val message = buildString {
+            if (violations.isNotEmpty()) {
+                appendLine("規則 ${rule.number}「${rule.name}」に違反しています:")
+                violations.forEach { appendLine("  $it") }
+                appendLine("理由: ${rule.why}")
+                appendLine("説明: ${rule.doc}")
+            }
+            if (stale.isNotEmpty()) {
+                appendLine("規則 ${rule.number}「${rule.name}」の既知の違反は解消しています。SourceRules の known から消してください:")
+                stale.forEach { appendLine("  ${it.key}（${it.reason}）") }
+            }
+        }
+        assertTrue(violations.isEmpty() && stale.isEmpty(), message)
+    }
+
+    // ================================================================ 走査そのもの
+
+    @Test
+    fun `全モジュールの main のソースを読める`() {
+        val sources = SourceScanner.mainSources
+        assertEquals(SourceScanner.modules.keys, sources.map { it.module }.toSet())
+        assertTrue(sources.size > 200, "ソースが少なすぎる: ${sources.size}")
+        val appState = sources.first { it.name == "AppState.kt" }
+        assertEquals("dev.toros.yde.app", appState.packageName)
+        assertEquals("src/main/kotlin/dev/toros/yde/app/AppState.kt", appState.path)
+    }
+
+    @Test
+    fun `package と import を行番号つきで読む`() {
+        val text = """
+            package a.b
+
+            import x.y.Z
+            import x.y.W as V // 別名
+            import x.z.*
+        """.trimIndent()
+        val file = SourceScanner.parse("app", "a/b/F.kt", text)
+        assertEquals("a.b", file.packageName)
+        assertEquals(listOf("x.y.Z" to 3, "x.y.W" to 4, "x.z" to 5), file.imports.map { it.name to it.line })
+        assertEquals(listOf(3, 4), file.importsStartingWith("x.y.").map { it.line })
+    }
+
+    @Test
+    fun `コメントを空白に置き換えて行番号を保つ`() {
+        val text = """
+            package a
+            // 行コメント JFileChooser
+            import x.y.Z // 後ろのコメント
+            /* ブロック /* 入れ子 */ まだコメント */ val a = 1
+            val b = 2 /* 行の途中
+            次の行まで */ val c = 3
+        """.trimIndent()
+        val code = SourceScanner.stripComments(text)
+        assertEquals(text.lines().size, code.lines().size)
+        assertFalse(code.contains("コメント"))
+        assertFalse(code.contains("JFileChooser"))
+        assertTrue(code.contains("import x.y.Z"))
+        assertTrue(code.contains("val a = 1"))
+        assertTrue(code.lines()[5].contains("val c = 3"))
+    }
+
+    @Test
+    fun `文字列と文字リテラルの中の記号はコメントにしない`() {
+        val q3 = "\"\"\""
+        val text = "val s = \"http://x // 文字列の中\"\nval c = '\"'; val d = '\\''; // 本当のコメント\nval t = " + q3 + " 生 // そのまま " + q3 + " // 後ろ"
+        val code = SourceScanner.stripComments(text)
+        assertEquals(3, code.lines().size)
+        assertTrue(code.lines()[0].contains("// 文字列の中"))
+        assertTrue(code.lines()[1].contains("val d = '\\''"))
+        assertFalse(code.contains("本当のコメント"))
+        assertTrue(code.lines()[2].contains("生 // そのまま"))
+        assertFalse(code.contains("// 後ろ"))
+    }
+
+    @Test
+    fun `文字列テンプレートの中の文字列とコメントを扱える`() {
+        val text = "val s = \"a \${foo(\"x // y\") /* 中のコメント */} b\" // 外のコメント\nval n = 1"
+        val code = SourceScanner.stripComments(text)
+        assertEquals(2, code.lines().size)
+        assertTrue(code.lines()[0].contains("x // y"))
+        assertFalse(code.contains("中のコメント"))
+        assertFalse(code.contains("外のコメント"))
+        assertTrue(code.lines()[0].endsWith("b\" " + " ".repeat("// 外のコメント".length)))
+        assertEquals("val n = 1", code.lines()[1])
+    }
+
+    // ================================================================ 規則
+
+    @Test fun `規則1 純粋ロジック層に Compose を持ち込まない`() = check(1)
+    @Test fun `規則2 app の層は一方向`() = check(2)
+    @Test fun `規則3 yaml-core と semantic-core にファイルの場所を持ち込まない`() = check(3)
+    @Test fun `規則4 等幅の文字は AppFonts Mono`() = check(4)
+    @Test fun `規則5 外部の UI ライブラリは包む 1 ファイルの外へ出さない`() = check(5)
+    @Test fun `規則6 AI の HTTP は Http kt に一元化`() = check(6)
+    @Test fun `規則7 JFileChooser と Dispatchers Main を使わない`() = check(7)
+    @Test fun `規則8 生の色は Palette だけ`() = check(8)
+    @Test fun `規則9 UI は state index でなく overlayIndex を読む`() = check(9)
+    @Test fun `規則10 FieldType は基底の種類だけ`() = check(10)
+    @Test fun `規則11 機能側で Files exists を直接見ない`() = check(11)
+    @Test fun `規則12 同じ裸の名前のファイルを複数作らない`() = check(12)
+
+    @Test
+    fun `規則の番号は 1 から順で名前が重ならない`() {
+        assertEquals((1..SourceRules.all.size).toList(), SourceRules.all.map { it.number })
+        assertEquals(SourceRules.all.size, SourceRules.all.map { it.name }.toSet().size)
+    }
+}

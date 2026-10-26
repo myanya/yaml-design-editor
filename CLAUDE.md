@@ -45,7 +45,7 @@ scripts/docs-lint.sh                        # 文書の形の機械チェック
 
 ## 落とし穴
 
-説明は docs/architecture/ の各ファイルの「規律」にある。
+説明は docs/architecture/ の各ファイルの「規律」にある。機械で確かめられるものは root のテスト `SourceRulesTest` が守る（落ちたらメッセージの「説明」の見出しを読む。規則を足すなら `SourceRules` の表に 1 つ） → architecture/README.md「ソース規則テスト」
 
 - `YNode` は Compose の State ではない。ビューは `doc.version` / `state.indexVersion` を読んで購読する → architecture/ui.md「UI シェル」
 - 等幅の文字は `AppFonts.Mono`（同梱の Cica）。`FontFamily.Monospace` を書かない（OS 任せで日本語の幅が揃わない） → architecture/ui.md「規律」

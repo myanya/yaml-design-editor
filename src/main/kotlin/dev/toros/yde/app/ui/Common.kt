@@ -114,6 +114,8 @@ object Palette {
     val ConflictBg get() = active.conflict
     val ChartReady get() = active.chartReady
     val ChartPending get() = active.chartPending
+    /** 色分けの追加色（グラフレンズの型。基本色 4 つの後に使う。明暗で共通） */
+    val Accents: List<Color> = listOf(Color(0xFF9C27B0), Color(0xFF00838F), Color(0xFF6D4C41), Color(0xFF546E7A))
 }
 
 // ---------------------------------------------------------------- フォント

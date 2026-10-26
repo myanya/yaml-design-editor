@@ -65,8 +65,15 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 | | `app.skill` | 入出力変換（skill 定義・表形式の読み書き・インポート・エクスポート） |
 | | `app.agent` | エージェント実行（定義・ステージング・ツールセット・カーネル・実行記録・自動化・メトリクス・評価） |
 
-アプリの中の依存は `app.core` → `app.skill` → `app.agent` → `app`（AppState）→ `app.ui` の一方向。`app.index` / `app.schema` / `app.validate` は `app.core` より下。
+アプリの中の依存は `app.core` → `app.ai` → `app.skill` → `app.agent` → `app`（AppState）→ `app.ui` の一方向。`app.index` / `app.schema` / `app.validate` は `app.core` より下。
 `app.core` / `app.index` / `app.schema` / `app.validate` / `app.agent` / `app.ai` / `app.skill` は Compose 非依存の純粋ロジックで、単体テストはこの層に書く。`app`（AppState）は `mutableStateOf` だけに依存する。
+
+## ソース規則テスト
+
+上の依存方向と各主題の「規律」のうち機械で確かめられるものは、root のテスト `rules/SourceRulesTest`（規則の表は `rules/SourceRules`）が全モジュールの main のソースを走査して守る。構文解析はせず、import 行と文字の一致で見る。
+規則は 12 本。純粋ロジック層に Compose を持ち込まない・app の層は一方向・yaml-core と semantic-core にファイルの場所を持ち込まない・等幅は `AppFonts.Mono`・外部の UI ライブラリは包む 1 ファイルだけ・AI の HTTP は `ai/Http.kt` だけ。
+`JFileChooser` と `Dispatchers.Main` を使わない・生の色は `Palette` だけ・UI は `state.index` を読まない・`FieldType` は基底の種類だけ・`Files.exists` は許可リストのファイルだけ・同じ裸の名前のファイルを作らない。
+落ちたらメッセージの「説明」の見出しを読む。規則を足すときは表に 1 つ足し、テストを 1 つ足す。今は直せていない違反は表の `known` に理由つきで書き、直したら消す（残っているとテストが「不要」と知らせる）。
 
 ## 入口のクラス
 
