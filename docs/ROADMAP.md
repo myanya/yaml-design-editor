@@ -416,7 +416,7 @@ definitions:
 
 | ID | 項目 | 内容 | 判断 | 状態 |
 |---|---|---|---|---|
-| R47-01 | テストの絞り込み | 各モジュールの test タスクに「一致するテストが無くても失敗しない」を設定し、`./gradlew test --tests '*WorkspaceInitTest*'` がルートから通るようにする | なし | 未着手 |
+| R47-01 | テストの絞り込み | 各モジュールの test タスクに「一致するテストが無くても失敗しない」を設定し、`./gradlew test --tests '*WorkspaceInitTest*'` がルートから通るようにする | なし | ✅ 2026-10-27 |
 | R47-02 | 環境の知識を文書へ | `py -3`・PowerShell 経由の CLI 出力は文字化けするので java を直接実行・Hot Reload の確認手順（status が connected → reload → get_semantic_tree）・`labs/` の未コミット差分に触れない・scratchpad の場所を AGENTS.md「この Windows 環境」節に集約し、CLAUDE.md からリンクする | なし | 未着手 |
 | R47-03 | コミットの単位 | CONVENTIONS「Git」に「samples／labs のデータ・文書・コードの変更は別コミット。1 コミット 1 関心事」を足す | なし | 未着手 |
 | R47-04 | 旧ディレクトリの削除 | 手元の `sample-workspace/`・`specs/`・`system-development-template/`・`software-template/` を消し、`.gitignore` の「削除予定」4 行と `settings.local.json` の古い許可を消す | 消してよいか（手元のファイル） | 判断待ち |

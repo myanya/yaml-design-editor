@@ -23,4 +23,6 @@ kotlin {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+    // ルートから ./gradlew test --tests '…' で絞ったとき、このモジュールに一致するテストが無くても失敗にしない
+    filter.isFailOnNoMatchingTests = false
 }

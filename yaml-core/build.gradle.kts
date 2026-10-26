@@ -23,6 +23,8 @@ kotlin {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+    // ルートから ./gradlew test --tests '…' で絞ったとき、このモジュールに一致するテストが無くても失敗にしない
+    filter.isFailOnNoMatchingTests = false
     // 共通fixture（test-fixtures/）の場所。テストは読み取り専用で使う（docs/CONVENTIONS.md §8）
     systemProperty("fixtures.root", rootDir.resolve("test-fixtures").absolutePath)
 }

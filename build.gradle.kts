@@ -333,6 +333,11 @@ tasks.register<JavaExec>("runCli") {
     mainClass.set("dev.toros.yde.app.core.CliKt")
 }
 
+tasks.withType<Test>().configureEach {
+    // ./gradlew test --tests '…' で絞ったとき、一致するテストが無いモジュールを失敗にしない（各モジュールの build.gradle.kts も同じ）
+    filter.isFailOnNoMatchingTests = false
+}
+
 tasks.register<JavaExec>("fileTreeBenchmark") {
     description = "1000件と10万件の実ファイルで一覧と検索を計測する"
     dependsOn(tasks.testClasses)
