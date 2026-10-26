@@ -8,7 +8,7 @@
 #   TICKET 設計・マニュアル・規約・機能索引・CLAUDE.md にチケット番号（P／R／D／UX 等）がない
 #   LINK   相対リンクの先が存在する（archive を含む全文書）
 # 目安として報告するもの（長さの上限は良い方法ではないため、別の方法を考えるまでの目安）:
-#   SIZE   1 ファイルの文字数（既定 40,000。機能索引と台帳は 80,000。manual/ は 60,000）
+#   SIZE   1 ファイルの文字数（既定 40,000。機能索引と台帳は 80,000。manual/ と tutorial は 60,000）
 #   LINE   1 行の文字数（300。台帳 BACKLOG の表の行は除く）
 #   CELL   同じ文書群で、表のセルに 2 文以上（「。」が 2 つ以上）
 set -u
@@ -21,7 +21,7 @@ TICKET='\b(P[0-9]{1,2}|R[0-9]{1,2}-[0-9]{2}[a-z]?|D-[0-9]{2}|UX-[0-9]{1,3}|RB-[0
 size_limit() {
   case "$1" in
     docs/FEATURES.md|docs/ROADMAP.md|docs/BACKLOG.md|docs/UX-SCENARIOS.md) echo 80000 ;;
-    docs/manual/*) echo 60000 ;;
+    docs/manual/*|docs/tutorial.md) echo 60000 ;;
     *) echo 40000 ;;
   esac
 }
