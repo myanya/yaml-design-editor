@@ -111,6 +111,7 @@
 | P44 | 業務の入口としてのダッシュボード | 初期版と独立した業務導線が完了（2026-10-25）、試用後の拡張判断は下記 |
 | P45 | ワークスペースの初期化（新しいワークスペースを作るウィザード。テンプレートから・自分の項目で・既存フォルダに後入れ） | 完了（2026-10-25）。本文は [記録](archive/roadmap-history.md) |
 | P46 | チャート（`kind: chart`＝表を図にするビューの部品）と、軸を値の式で広げるクロス集計 | 第一弾完了（2026-10-26）。残りは下記 |
+| P47 | 開発を AI エージェントに向く形にする（規則の機械化・大きいファイルの分割・読む量・入口・UI の確認） | 計画済み（2026-10-26）。段階 0 から順に、各段階の判断待ち |
 
 ## 未完のテーマ
 
@@ -400,6 +401,83 @@ definitions:
 | R46-06 | 押して材料へ | 棒・点・扇形を押すと、そのセルの材料（集めた要素の ID・名前・値）が出て、業務詳細か原本へ進める。出し方は定義の `drill`（popup / below / right / none。オーナー 2026-10-26「定義側で選べるように」） | ✅ 2026-10-26 |
 | R46-07 | 横棒・面・列の見出しと並び | `horizontal-bar` / `stacked-horizontal-bar`（自前描画。名前は左・値は棒の端）・`area` / `stacked-area`（Vico の塗り。積むのは部品の中）・`cells.columns.label`（見出しの式）と `cells.columns.order`（先に並べる値） | ✅ 2026-10-26 |
 | R46-08 | 散布図 | `scatter`＝`x` の数の列を横軸、`series` を縦軸、`label` を点の名前に（点＝行。自前描画で目盛りは 1・2・5 の刻み、マウスで名前と値、押すとその行の材料）。軸の対数は `scale: {x, y}`。見え方の調整はオーナーが実機で随時 | ✅ 2026-10-26 |
+
+### P47: 開発を AI エージェントに向く形にする
+
+- **目的**: 一貫性のある設計を保ったまま、AI エージェントによる開発の効率を上げる。規則を「読んで守る」から「破ると落ちる」へ、1 回に読む量と 1 ファイルの大きさを小さく、入口を 1 つに、画面の確認を自動にする。
+- **既知の技術との対応**: 依存の規則のテストは ArchUnit・Konsist と同じ考え（ここでは新しい依存を足さず自前の走査から始める）。コミット前フックと CI は一般的な pre-commit・GitHub Actions。置き場に近い案内はサブディレクトリの CLAUDE.md／AGENTS.md（Claude Code・Codex が作業中のディレクトリのものを読む）。
+- **調査の結果（2026-10-26）**: CLAUDE.md の落とし穴 36 項目と architecture の規律 144 項目に機械の検査が無い（Konsist・detekt・CI・フックのいずれも無し）。実際の破れは 2 点: `app/core/Cli.kt` が app.agent・app.ai・app.skill を import しており architecture/README.md の「app.core から app.ui への一方向」と矛盾する。`build.gradle.kts` の「移行中は 3 コアへ直接依存してよい」が移行完了後も残り、app から yaml-core へ 72 ファイル・semantic-core へ 55 ファイルが直接依存する。
+  大きいファイルは `AppState.kt` 3,081 行（fun・val・var 611 個）・`FormView.kt` 2,179 行・`core/Cli.kt` 1,584 行。今の姿の文書は約 109 万字で、FEATURES は 6 万字の 1 表から行を引く手段が無い。CLI が 2 つ（同名コマンド 6: validate・apply・refactor・bench・catalog・entity）、同名ファイルが 6 組。UI の自動テストは無く、`./gradlew test --tests` の絞り込みは他モジュールで失敗する。
+  参照の実在はよく保たれている（FEATURES の `.kt` 参照 340 件で古いもの 1 件、テスト名 273 件で 1 件）が、保っているのは手作業で、直近 60 コミットのうち 45 がコードと文書を同時に変えている。
+- **決めたこと（2026-10-26 オーナー）**: 段階 0 から順にやる。各段階の着手前に「判断」の欄を決める。
+- **進め方の決まり**: 各段階は `./gradlew test` を緑に保ち、1 コミット 1 関心事（データ・文書・コードを混ぜない）。規則を機械化したら CLAUDE.md の対応する落とし穴は消し、設計文書の規律に「規則テストが守る」と書く。この計画の文書は本テーマだけで、別の計画書は作らない。
+
+#### 段階 0: 小さく即効（判断は 2 つだけ）
+
+| ID | 項目 | 内容 | 判断 | 状態 |
+|---|---|---|---|---|
+| R47-01 | テストの絞り込み | 各モジュールの test タスクに「一致するテストが無くても失敗しない」を設定し、`./gradlew test --tests '*WorkspaceInitTest*'` がルートから通るようにする | なし | 未着手 |
+| R47-02 | 環境の知識を文書へ | `py -3`・PowerShell 経由の CLI 出力は文字化けするので java を直接実行・Hot Reload の確認手順（status が connected → reload → get_semantic_tree）・`labs/` の未コミット差分に触れない・scratchpad の場所を AGENTS.md「この Windows 環境」節に集約し、CLAUDE.md からリンクする | なし | 未着手 |
+| R47-03 | コミットの単位 | CONVENTIONS「Git」に「samples／labs のデータ・文書・コードの変更は別コミット。1 コミット 1 関心事」を足す | なし | 未着手 |
+| R47-04 | 旧ディレクトリの削除 | 手元の `sample-workspace/`・`specs/`・`system-development-template/`・`software-template/` を消し、`.gitignore` の「削除予定」4 行と `settings.local.json` の古い許可を消す | 消してよいか（手元のファイル） | 判断待ち |
+| R47-05 | tutorial.md の置き場 | ルートの `tutorial.md`（4.3 万字）を docs/README.md の表に載せるか、manual/ へ移すか、archive へ移すか | どれにするか | 判断待ち |
+
+#### 段階 1: 規則の機械化
+
+| ID | 項目 | 内容 | 判断 | 状態 |
+|---|---|---|---|---|
+| R47-10 | ソース規則テスト | 全モジュールのソースを読む 1 つのテスト（新しい依存なし）。規則は表で宣言し、失敗の文に設計文書の見出しを添える。最初の規則は下の 12 本 | 自前の走査か Konsist か | 判断待ち |
+| R47-11 | 文書の参照の実在テスト | FEATURES・architecture の `.kt` 参照とテスト名、「ファイル名＋見出し」参照（バッククォートを外して比べる）が実在することを JVM のテストで確かめ、`./gradlew test` に含める。形の検査（チケット番号・リンク・字数）は docs-lint.sh のまま | なし | 未着手 |
+| R47-12 | 今破れている 2 点の処置 | (a) `core/Cli.kt` を新パッケージ `app.cli`（AppState と同じ最上位の層）へ移す。(b) app の 3 コア直接依存は新しい ADR で「app は yaml.model・yaml.patch・yaml.validate・semantic・semantic.schema の型を直接使ってよい（共通の語彙だから）」と正式化し、規則テストで許す範囲を固定する | (b) 正式化か、workspace-core 経由に寄せるか | 判断待ち |
+| R47-13 | フックと CI | コミット前に docs-lint.sh と規則・参照のテストだけを回すフック（プロジェクトの `.claude/settings.json` を共有して履歴に含める）。GitHub Actions で push ごとに `./gradlew test` | CI を使うか（GitHub 側の設定はオーナー） | 判断待ち |
+| R47-14 | CLAUDE.md を縮める | 機械化した落とし穴を CLAUDE.md から消し、「規則テストが守る」の 1 行と規則表へのリンクに置き換える。残すのは機械化できない規律だけ（目標は 36 項目を 15 項目に） | なし | 未着手 |
+
+R47-10 の最初の規則（今はすべて守られているので、テストは「壊さない」ための錠になる）:
+
+1. 純粋ロジック層（app.core・index・schema・validate・agent・ai・skill）に `androidx.compose` の import が無い。
+2. app の層の順: app.core は app.agent・app.ai・app.skill・app.ui・`AppState` を import しない。app.index・app.schema・app.validate は app.core より下。
+3. yaml-core・semantic-core の main に `java.nio.file.Path` が無い。
+4. `FontFamily.Monospace` は ui/Common.kt だけ。
+5. 外部 UI ライブラリ（FileKit・Reorderable・Markdown・Vico・ELK）の import は包むファイル（FilePickers・Reorder・MarkdownView・Charts・GraphLayouts）だけ。
+6. `java.net.http` は ai/Http.kt だけ。
+7. `JFileChooser`・`Dispatchers.Main` を書かない。
+8. 生の `Color(0x…)` は Palette（ui/Common.kt）だけ。
+9. ui/ で `state.index` を直接読まない（`overlayIndex()`）。
+10. `FieldType.TEXT` のような基底でない型での分岐を書かない。
+11. `Files.exists` は許可リストのファイルだけ（今 33 か所。許可リストから始めて減らす）。
+12. 同じ裸の名前のファイルを複数のモジュール・パッケージに作らない（Main.kt を除く）。
+
+#### 段階 2: 大きいファイルの分割
+
+| ID | 項目 | 内容 | 判断 | 状態 |
+|---|---|---|---|---|
+| R47-20 | AppState.kt の分割 | AppState は窓口のまま、責務ごとのクラスへ委譲して呼び出し側（UI）を変えない。順に ①`OpenDocument` を別ファイルへ ②画面の場所（戻る・進む・開く） ③操作の入力と計画 ④保存・Undo・履歴の段 ⑤文書とファイルの作成・配置 ⑥再読込と競合。1 責務 1 コミットでテストを緑に保つ。終わりの条件は AppState.kt 1,000 行以下・各ファイル 800 行以下 | 委譲の形でよいか | 判断待ち |
+| R47-21 | core/Cli.kt の分割 | コマンドごとのファイルへ（cli モジュールの Commands.kt と同じ形）。R47-41 と一緒に進める | なし | 未着手 |
+| R47-22 | FormView.kt の分割 | 項目の種類ごとのファイルへ。画面確認が要るので段階 5 の後 | なし | 未着手 |
+| R47-23 | 行数の目安を報告 | 規則テストが 800 行を超える main のファイルを報告する（失敗にしない。文書の字数と同じ扱い） | なし | 未着手 |
+
+#### 段階 3: 読む範囲の絞り込み
+
+| ID | 項目 | 内容 | 判断 | 状態 |
+|---|---|---|---|---|
+| R47-30 | FEATURES の分割 | 1 表 6 万字を主題ごとのファイル（docs/features/ に workspace・editing・schema …）と索引に分ける。行の形と ID は変えない。docs-lint の特別扱い（8 万字）を外す | 分ける単位（今の 1 章を 1 ファイルでよいか） | 判断待ち |
+| R47-31 | 置き場に近い案内 | ui/・semantic-core/・workspace-core/ などに、その場所の規律だけを書いた CLAUDE.md を置く（Claude Code は作業中のディレクトリのものを読む。Codex 向けに AGENTS.md を同内容で）。ルートの CLAUDE.md は手順と共通の規律だけにする | 使うか | 判断待ち |
+| R47-32 | 用語の対応表 | 造語（定義体・保有・受け手・手・レンズ・覚え・台帳・変更セット・射影）の 1 行定義と設計文書の見出しへのリンクを docs/GLOSSARY.md に置く | なし | 未着手 |
+| R47-33 | 台帳の分割 | BACKLOG を「指摘」「テーマ管理」「所感」に、UX-SCENARIOS を台本ごとに分ける | 要るか（字数は目安なので急がない） | 判断待ち |
+
+#### 段階 4: 入口の整理
+
+| ID | 項目 | 内容 | 判断 | 状態 |
+|---|---|---|---|---|
+| R47-40 | 同名ファイルの改名 | `git mv` で semantic/schema/Query.kt を QuerySpec.kt、semantic/schema/Transform.kt を TransformDef.kt、semantic/schema/Flow.kt を FlowDef.kt、cli/Shell.kt を CliShell.kt に。app/core/Aspects.kt は中身を見て決める。Main.kt は入口なので残す | 名前 | 未着手 |
+| R47-41 | CLI を 1 つに | 案 A: root の CLI から重なる 6 コマンドを cli モジュールの実装へ委譲し、root は app 固有のコマンドだけ持つ。案 C: app の純粋ロジック層を新モジュール `app-core` に移し、cli がそれに依存して 1 つにする（Compose 非依存をコンパイラが保証できる。段階 2 の後） | A から始めて C を後で判断、でよいか | 判断待ち |
+
+#### 段階 5: UI の自動確認
+
+| ID | 項目 | 内容 | 判断 | 状態 |
+|---|---|---|---|---|
+| R47-50 | Compose の UI テストの試行 | `runComposeUiTest`（ヘッドレス）で FormView に test-fixtures の文書を出し、項目の名前と値・閲覧専用の分岐を semantics で確かめる 3 本。`./gradlew test` で 10 秒以内に収まれば本採用 | 依存を足してよいか | 判断待ち |
+| R47-51 | 画面確認の手順を skill に | Hot Reload MCP の手順（起動 → status が connected → reload → get_semantic_tree で確認 → 触った状態を戻す）を `.claude/skills/ui-check/` に置く | なし | 未着手 |
 
 ## リスクと未解決課題
 
