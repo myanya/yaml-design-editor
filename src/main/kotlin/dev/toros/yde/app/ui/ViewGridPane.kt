@@ -263,8 +263,10 @@ private fun GridBody(state: AppState, view: ViewDef) {
     val query = state.memory.gridQuery[view.id].orEmpty()  // 絞り込みは画面の覚え（ビューごと。タブを離れても残る）
     // 行の構造（座標）は索引基準で解決し、セル値の表示・編集は編集中ツリーを優先する。
     // editVersion の購読（R16-04 / UX-02）: 計算列が他文書の未保存編集にも追随するための再解決契機
-    val resolved = remember(view, state.indexVersion, state.editVersion) {
-        Views.resolveDetailed(view, state.overlayIndex(), state.unsavedFirstTree(), state::schemaFor)
+    // 受け取る値（params）: ビュータブでは上の欄から（空＝絞らない）
+    val params: Map<String, Any?> = view.params.associateWith { state.memory.viewParams[view.id to it].orEmpty() }
+    val resolved = remember(view, state.indexVersion, state.editVersion, params) {
+        Views.resolveDetailed(view, state.overlayIndex(), state.unsavedFirstTree(), state::schemaFor, params)
     }
     val rows = resolved.rows
     val filtered = remember(rows, query) {
@@ -274,6 +276,17 @@ private fun GridBody(state: AppState, view: ViewDef) {
                 row.cells.any { Views.cellText(it.value).contains(query, true) } ||
                 row.cells.any { c -> c.backlinks.orEmpty().any { it.sourceId?.contains(query, true) == true } }
         }
+    }
+    if (view.params.isNotEmpty()) Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("受け取る値", fontSize = 11.sp, color = Palette.SubText)
+        view.params.forEach { name ->
+            Spacer(Modifier.width(8.dp))
+            Text(name, fontSize = 12.sp)
+            Spacer(Modifier.width(4.dp))
+            CompactTextField(state.memory.viewParams[view.id to name].orEmpty(), { state.memory.viewParams[view.id to name] = it }, singleLine = true, modifier = Modifier.width(130.dp))
+        }
+        Spacer(Modifier.width(8.dp))
+        Text("空なら絞りません", fontSize = 10.sp, color = Palette.SubText)
     }
     Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
         CompactTextField(

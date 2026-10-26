@@ -1,10 +1,15 @@
 id: order-grid
 name: 注文一覧
 description: 注文ごとの受付日・状態・顧客・合計金額と、明細の件数。明細番号も ORD- で始まるので、行は ID の形ではなくエンティティ型（order）で選びます。「新規行」で注文番号を入れると orders/<番号>.yaml ができます。
+# 受け取る値: 受付日の範囲（ダッシュボードの入力から。ビュータブでは上の欄。空なら絞らない）
+params: [from, to]
 rows:
   # クエリ行: 行＝エンティティ型 order の要素（ORD-001-01 のような明細は含めない）
   match:
     - node: { entity: order, bind: o }
+  where:
+    - { of: o, path: orderedAt, gte: $from, type: date }
+    - { of: o, path: orderedAt, lte: $to, type: date }
 columns:
   - { label: 注文受付日, path: orderedAt, editable: true }
   # 受付日から年月を導く（月ごとに見るときの鍵。読み取り専用の計算列）

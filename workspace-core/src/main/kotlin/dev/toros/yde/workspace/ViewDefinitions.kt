@@ -34,6 +34,8 @@ import dev.toros.yde.semantic.VirtualLensRelation
 import dev.toros.yde.semantic.VirtualFlowDef
 import dev.toros.yde.semantic.VirtualDashboardDef
 import dev.toros.yde.semantic.DashboardPlacement
+import dev.toros.yde.semantic.DashboardInputType
+import dev.toros.yde.semantic.DashboardInput
 import dev.toros.yde.semantic.DashboardSection
 import dev.toros.yde.semantic.schema.ActionRequire
 import dev.toros.yde.semantic.schema.TransformDef
@@ -253,15 +255,60 @@ object ViewDefinitions {
         )
     }
 
+    private val PARAM_NAME = Regex("""[A-Za-z][A-Za-z0-9_]*""")
+
+    /** 受け取る値（params）の宣言と、原文（rows / cells）で使っている `$名前` の点検。 */
+    private fun parseParams(raw: Map<*, *>, used: Any?, where: String): List<String> {
+        val params = when (val p = raw["params"]) {
+            null -> emptyList()
+            is List<*> -> p.map { it?.toString()?.takeIf { t -> PARAM_NAME.matches(t) } ?: error("$where.params は英字で始まる英数字の名前の配列で書きます") }
+            else -> error("$where.params は名前の配列で書きます")
+        }
+        require(params.distinct().size == params.size) { "$where.params に同じ名前があります" }
+        ActionRequire.referencedNames(used).firstOrNull { it !in params }
+            ?.let { error("$where: 受け取る値「\$$it」が params に宣言されていません（rows / cells の \$名前は params に書いた名前だけ）") }
+        return params
+    }
+
+    /** ダッシュボードの共有の入力（inputs）。 */
+    private fun parseInputs(raw: Any?): List<DashboardInput> {
+        val list = when (raw) {
+            null -> return emptyList()
+            is List<*> -> raw
+            else -> error("dashboard.inputs は配列で書きます")
+        }
+        val inputs = list.mapIndexed { i, item ->
+            val at = "dashboard.inputs[$i]"
+            val m = item as? Map<*, *> ?: error("$at はobjectで指定してください")
+            m.keys.map { it.toString() }.firstOrNull { it !in setOf("key", "label", "type", "values", "default") }?.let { error("$at: 未知のキーです: $it") }
+            val key = m["key"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$at.key（名前）が必要です")
+            require(PARAM_NAME.matches(key)) { "$at.key は英字で始まる英数字で書きます: $key" }
+            require(key != "today") { "$at.key に today は使えません（基準日の名前）" }
+            val type = if (m["type"] == null) DashboardInputType.STRING else DashboardInputType.parse(m["type"]?.toString(), "$at.type")
+            val values = (m["values"] as? List<*>)?.map { v ->
+                when (v) {
+                    is Map<*, *> -> (v["value"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$at.values の各要素は値か {value, label} で書きます")) to v["label"]?.toString()
+                    else -> v.toString() to null
+                }
+            }.orEmpty()
+            if (type == DashboardInputType.ENUM) require(values.isNotEmpty()) { "$at: type: enum には values（選択の候補）が必要です" }
+            if (type != DashboardInputType.ENUM) require(values.isEmpty()) { "$at: values は type: enum のときだけ書きます" }
+            DashboardInput(key, m["label"]?.toString()?.takeIf { it.isNotBlank() } ?: key, type, values, m["default"]?.toString()?.takeIf { it.isNotBlank() })
+        }
+        require(inputs.map { it.key }.distinct().size == inputs.size) { "dashboard.inputs の key が重複しています" }
+        return inputs
+    }
+
     private fun parseDashboard(raw: Map<*, *>, source: DocumentId): VirtualDashboardDef {
         fun keys(map: Map<*, *>, allowed: Set<String>, at: String) {
             map.keys.firstOrNull { it !in allowed }?.let { error("$at: 未知のキーです: $it") }
         }
         fun text(map: Map<*, *>, key: String, at: String): String =
             (map[key] as? String)?.takeIf { it.isNotBlank() } ?: error("$at.$key は空でない文字列で指定してください")
-        keys(raw, setOf("id", "name", "description", "kind", "sections", "actions", "default", "placement"), "dashboard")
+        keys(raw, setOf("id", "name", "description", "kind", "sections", "actions", "default", "placement", "inputs"), "dashboard")
         require(!raw.containsKey("default") || raw["default"] is Boolean) { "dashboard.default は真偽値で指定してください" }
         val id = text(raw, "id", "dashboard")
+        val inputs = parseInputs(raw["inputs"])
         val sections = (raw["sections"] as? List<*>)?.takeIf { it.isNotEmpty() }
             ?: error("dashboard.sections は1件以上の配列で指定してください")
         val parsed = sections.mapIndexed { i, item ->
@@ -270,7 +317,7 @@ object ViewDefinitions {
             keys(map, setOf("id", "label", "view", "filter", "group"), at)
             val key = text(map, "id", at)
             DashboardSection(key, map["label"]?.let { text(map, "label", at) } ?: key, text(map, "view", at),
-                map["filter"]?.let { ActionRequire.parse(it, "$at.filter", setOf("today"), hasStart = true) },
+                map["filter"]?.let { ActionRequire.parse(it, "$at.filter", setOf("today") + inputs.map { i -> i.key }, hasStart = true) },
                 group = map["group"]?.let { text(map, "group", at) })
         }
         require(parsed.map { it.id }.distinct().size == parsed.size) { "dashboard.sections のidが重複しています" }
@@ -282,7 +329,8 @@ object ViewDefinitions {
         require(actions.distinct().size == actions.size) { "dashboard.actions の操作IDが重複しています" }
         return VirtualDashboardDef(id, raw["name"]?.let { text(raw, "name", "dashboard") } ?: id,
             raw["description"]?.let { text(raw, "description", "dashboard") }, source, parsed, actions, raw["default"] == true,
-            placement = raw["placement"]?.let { DashboardPlacement.parse(it as? String, "dashboard.placement") } ?: DashboardPlacement.AUTO)
+            placement = raw["placement"]?.let { DashboardPlacement.parse(it as? String, "dashboard.placement") } ?: DashboardPlacement.AUTO,
+            inputs = inputs)
     }
 
     private fun lintDashboard(view: VirtualDashboardDef, schemas: List<WorkspaceSchema>): List<String> =
@@ -375,6 +423,7 @@ object ViewDefinitions {
         )
         val orderMap = raw["order"] as? Map<*, *>
         val cellsMap = raw["cells"] as? Map<*, *> ?: error("cells（セルの集計）が必要です")
+        val params = parseParams(raw, cellsMap, "matrix")
         val known = listOf("match", "where", "also", "of", "in", "path", "columns", "aggregate", "type")
         cellsMap.keys.map { it.toString() }.firstOrNull { it !in known }
             ?.let { error("cells: 未知のキーです: $it（使えるキー: ${known.joinToString(", ")}）") }
@@ -418,6 +467,7 @@ object ViewDefinitions {
             orderBy = orderMap?.let { parseSource(it) }?.takeIf { !it.isEmpty },
             orderValue = orderMap?.let { parseOrderValue(it) },
             source = source,
+            params = params,
             matrix = VirtualMatrixDef(
                 cells = VirtualMatrixCells(all = all, of = of, aggregate = aggregate, kind = kind, key = key),
                 totals = totals,
@@ -472,6 +522,8 @@ object ViewDefinitions {
         val rowsMap = raw["rows"] as? Map<*, *> ?: error("rows が必要です")
         // 行の定義: 従来（idPattern×schemaIds）とクエリ行（match。R22-02 / architecture/graph-query.md「クエリコア」）の排他
         var rowsDef: VirtualRowsDef? = null
+        // 受け取る値（params）: rows の中の $名前 は宣言した名前だけ（列の値の式の $名前 は each の列の束縛で別物）
+        val params = parseParams(raw, rowsMap, "grid")
         var rowsQuery: QuerySpec? = null
         var rowKey: String? = null
         if (rowsMap.containsKey("match")) {
@@ -615,6 +667,8 @@ object ViewDefinitions {
             detail = detail,
             newRow = newRow,
             source = source,
+            params = params,
+            rowsRaw = if (rowsQuery != null && params.isNotEmpty()) rowsMap.entries.associate { it.key.toString() to it.value } else null,
         )
     }
 

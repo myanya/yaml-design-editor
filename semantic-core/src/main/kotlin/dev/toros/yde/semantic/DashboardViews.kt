@@ -19,6 +19,41 @@ enum class DashboardPlacement(val id: String, val label: String) {
     }
 }
 
+/** 共有の入力の種類。 */
+enum class DashboardInputType(val id: String, val label: String) {
+    DATE("date", "日付"),
+    ENUM("enum", "選択"),
+    STRING("string", "文字"),
+    ;
+
+    companion object {
+        fun parse(text: String?, where: String): DashboardInputType =
+            entries.firstOrNull { it.id == text } ?: error("$where は ${entries.joinToString(" / ") { it.id }} のいずれかです: $text")
+    }
+}
+
+/**
+ * 全区画に共有する入力（`inputs`。P44）。値は区画の filter と、区画が参照する表の params に `$key` で渡る。
+ * 空の値は「絞らない」（その値を使う条件を外す）。default は初期値で、`$today` / `$monthStart` / `$monthEnd` は基準日から決める。
+ */
+data class DashboardInput(
+    val key: String,
+    val label: String,
+    val type: DashboardInputType = DashboardInputType.STRING,
+    /** 選択の候補（値と見出し。enum のとき）。 */
+    val values: List<Pair<String, String?>> = emptyList(),
+    val default: String? = null,
+) {
+    /** 基準日から決めた初期値（無ければ null＝絞らない）。 */
+    fun defaultFor(date: LocalDate): String? = when (default) {
+        null -> null
+        "\$today" -> date.toString()
+        "\$monthStart" -> date.withDayOfMonth(1).toString()
+        "\$monthEnd" -> date.withDayOfMonth(date.lengthOfMonth()).toString()
+        else -> default
+    }
+}
+
 /** 業務の入口。原本を持たず、既存グリッドと操作の参照だけを合成する。 */
 data class VirtualDashboardDef(
     override val id: String,
@@ -30,6 +65,8 @@ data class VirtualDashboardDef(
     val default: Boolean = false,
     /** 区画のタイルの並べ方。 */
     val placement: DashboardPlacement = DashboardPlacement.AUTO,
+    /** 全区画に共有する入力。 */
+    val inputs: List<DashboardInput> = emptyList(),
 ) : VirtualViewDefinition
 
 data class DashboardSection(
@@ -68,7 +105,8 @@ data class DashboardSectionResult(
     fun selected(key: String?): VirtualRow? = rows.singleOrNull { it.key == key && it.occurrences.isNotEmpty() }
 }
 
-data class DashboardResolution(val date: LocalDate, val sections: List<DashboardSectionResult>)
+/** 解決の結果。inputs は効かせた入力の値（鍵＝入力の名前。null＝絞っていない）。 */
+data class DashboardResolution(val date: LocalDate, val sections: List<DashboardSectionResult>, val inputs: Map<String, String?> = emptyMap())
 
 /** 演算は既存評価器へ委譲し、画面・CLI・エージェントに同じ行と判定理由を返す。 */
 object DashboardViews {
@@ -76,7 +114,8 @@ object DashboardViews {
         dashboard: VirtualDashboardDef,
         date: LocalDate,
         view: (String) -> VirtualGridDef?,
-        rows: (VirtualGridDef) -> ResolvedRows,
+        /** 表の行の解決（受け取る値つき。表の params に無い値は渡らない）。 */
+        rows: (VirtualGridDef, Map<String, Any?>) -> ResolvedRows,
         ids: Map<String, List<ScannedId>>,
         refs: List<ScannedRef>,
         graph: SemanticEntityGraph,
@@ -84,14 +123,23 @@ object DashboardViews {
         fieldAt: FieldResolver = NO_FIELDS,
         /** チャートの区画（P46）: ID からチャートの宣言を引く（無ければ null）。 */
         chart: (String) -> VirtualChartDef? = { null },
+        /** 共有の入力の値（鍵＝入力の名前。空か null＝絞らない）。 */
+        inputs: Map<String, String?> = emptyMap(),
     ): DashboardResolution {
-        val cache = mutableMapOf<String, ResolvedRows>()
+        val given: Map<String, Any?> = inputs.filterValues { !it.isNullOrBlank() }
+        val optional = dashboard.inputs.map { it.key }.toSet()
+        // 同じ表は同じ値で一度だけ解決する（表の params に無い値は渡さないので、鍵は表の ID と渡す値）
+        val cache = mutableMapOf<Pair<String, Map<String, Any?>>, ResolvedRows>()
+        fun rowsOf(grid: VirtualGridDef): ResolvedRows {
+            val params = given.filterKeys { it in grid.params }
+            return cache.getOrPut(grid.id to params) { rows(grid, params) }
+        }
         return DashboardResolution(date, dashboard.sections.map { section ->
             chart(section.view)?.let { chartDef ->
                 return@map runCatching {
                     require(section.filter == null) { "チャートの区画にはfilterを指定できません（絞り込みは元の表で）" }
                     val source = view(chartDef.view) ?: error("チャート「${chartDef.id}」の元の表「${chartDef.view}」は一意なグリッドまたはクロス集計を参照してください")
-                    val data = ChartViews.resolve(chartDef, source, cache.getOrPut(source.id) { rows(source) }.rows)
+                    val data = ChartViews.resolve(chartDef, source, rowsOf(source).rows)
                     DashboardSectionResult(section, null, emptyList(), chart = data)
                 }.getOrElse { DashboardSectionResult(section, null, emptyList(), error = it.message ?: "チャートを解決できません") }
             }
@@ -100,9 +148,10 @@ object DashboardViews {
                 error = "ビュー「${section.view}」は一意なグリッド・クロス集計・チャートを参照してください")
             runCatching {
                 require(grid.matrix == null || section.filter == null) { "クロス集計の区画にはfilterを指定できません" }
-                val resolved = cache.getOrPut(grid.id) { rows(grid) }
+                val resolved = rowsOf(grid)
                 val sourceRows = resolved.rows
-                val rule = section.filter?.rule(mapOf("today" to date.toString()))
+                // 区画の条件: 基準日と共有の入力を差し込む。空の入力を使う条件は外れる（空＝絞らない）
+                val rule = section.filter?.ruleOrNull(mapOf("today" to date.toString()) + given, optional)
                 val pending = mutableListOf<DashboardPending>()
                 val outcomes = mutableMapOf<String, SemanticRuleResult>()
                 val selected = if (rule == null) sourceRows else sourceRows.filter { row ->
@@ -117,6 +166,6 @@ object DashboardViews {
                 }
                 DashboardSectionResult(section, grid, selected, pending, truncation = resolved.takeIf { it.truncated })
             }.getOrElse { DashboardSectionResult(section, grid, emptyList(), error = it.message ?: "表示を解決できません") }
-        })
+        }, inputs)
     }
 }

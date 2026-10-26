@@ -126,6 +126,10 @@ class ScreenMemory {
     val dashboardGroupCollapsed = mutableStateMapOf<Pair<String, String>, Boolean>()
     /** レポートの受け取る値の入力（レポート ID × 名前）。 */
     val reportParams = mutableStateMapOf<Pair<String, String>, String>()
+    /** ダッシュボードの共有の入力（ダッシュボード ID × 名前。鍵が無ければ定義の初期値、空文字＝絞らない）。 */
+    val dashboardInputs = mutableStateMapOf<Pair<String, String>, String>()
+    /** ビュータブで表に渡す値（ビュー ID × 名前。空＝絞らない）。 */
+    val viewParams = mutableStateMapOf<Pair<String, String>, String>()
 
     var entityQuery by mutableStateOf("")
 
@@ -225,6 +229,8 @@ class ScreenMemory {
         dashboardEntityScroll.clear()
         dashboardGroupCollapsed.clear()
         reportParams.clear()
+        dashboardInputs.clear()
+        viewParams.clear()
         entityQuery = ""
         entityOccurrencesOpen.clear()
         lensHiddenTypes.clear()

@@ -453,8 +453,38 @@ data class ActionRequire(val raw: Map<String, Any?>, val origin: String, val ref
         return ConstraintRule.parse(substituted, origin)
     }
 
+    /**
+     * ダッシュボードの共有の入力（空＝絞らない）向け: optional の名前のうち値が無い（空の）ものを使う条件（where / check の項目）を
+     * 外してから差し込む。外した結果 expect / count / check / forAll が残らなければ「条件なし」（null）。match などに残った参照は
+     * rule と同じく誤り（黙って外れない）。
+     */
+    fun ruleOrNull(values: Map<String, Any?>, optional: Set<String>): ConstraintRule? {
+        val given = values.filterValues { it != null && it.toString().isNotBlank() }
+        val missing = optional.filter { it !in given }.toSet()
+        val pruned = prune(raw, missing)
+        if (RULE_KEYS.none { pruned.containsKey(it) }) return null
+        return ActionRequire(pruned, origin, referencedNames(pruned)).rule(given)
+    }
+
     companion object {
         private val PARAM = Regex("""\$([A-Za-z][A-Za-z0-9_]*)""")
+        private val RULE_KEYS = setOf("expect", "count", "check", "forAll")
+
+        /** 原文の中で参照している受け取る値の名前（`$$` は文字）。ビューの params の点検にも使う。 */
+        fun referencedNames(raw: Any?): Set<String> = referencedIn(raw)
+
+        /** 値の無い名前（missing）を使う条件（where / check の項目）を外す。項目が無くなった鍵は消す（空＝絞らない）。 */
+        fun prune(raw: Map<String, Any?>, missing: Set<String>): Map<String, Any?> {
+            if (missing.isEmpty()) return raw
+            val out = LinkedHashMap<String, Any?>()
+            for ((k, v) in raw) {
+                if ((k == "where" || k == "check") && v is List<*>) {
+                    val kept = v.filter { item -> referencedIn(item).none { it in missing } }
+                    if (kept.isNotEmpty()) out[k] = kept
+                } else out[k] = v
+            }
+            return out
+        }
 
         /** 原文の中で参照している受け取る値の名前（`$$` は文字）。 */
         private fun referencedIn(raw: Any?): Set<String> = when (raw) {

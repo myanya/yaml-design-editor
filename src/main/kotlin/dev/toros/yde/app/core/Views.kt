@@ -277,7 +277,9 @@ object Views {
         loader: (DocumentId) -> YNode?,
         /** 文書のスキーマ（値の式の順序の種類と行の並びの種類を項目の型から決める。省くと `type` の宣言だけ）。 */
         schemaFor: (DocumentId) -> SchemaDef? = { null },
-    ): List<ViewRow> = resolveDetailed(view, index, loader, schemaFor).rows
+        /** 受け取る値（表の params へ。ダッシュボードの入力やビュータブの欄から）。 */
+        params: Map<String, Any?> = emptyMap(),
+    ): List<ViewRow> = resolveDetailed(view, index, loader, schemaFor, params).rows
 
     /** resolve と同じ。クエリ行に `limit` を書いたときの打ち切り（全行数）も返す。 */
     fun resolveDetailed(
@@ -285,12 +287,14 @@ object Views {
         index: IdIndex,
         loader: (DocumentId) -> YNode?,
         schemaFor: (DocumentId) -> SchemaDef? = { null },
+        params: Map<String, Any?> = emptyMap(),
     ): ResolvedRows {
         val trees = mutableMapOf<DocumentId, YNode?>()
         fun treeOf(d: DocumentId): YNode? = trees.getOrPut(d) { loader(d) }
         return VirtualViews.resolveDetailed(
             view, index.entries, index.refs, index.graph, { it.value }, ::treeOf,
             fieldAt = { d, path -> schemaFor(d)?.let { s -> treeOf(d)?.let { root -> s.fieldAt(root, path) } } },
+            params = params,
         )
     }
 

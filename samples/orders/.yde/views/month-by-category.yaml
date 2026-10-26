@@ -3,6 +3,8 @@ name: 月×商品カテゴリーの売上
 kind: matrix
 description: 行＝注文受付日の年月（受付日から yearMonth で導く）、列＝商品カテゴリー（明細の商品の categoryId。見出しは参照を 2 段辿ったカテゴリー名で、並びはカテゴリー番号の順。列はデータから決まります）、セル＝明細金額の合計。取消済みの注文は除きます。合計の行と列が自動で付きます。
 # 行の軸: 照合の起点（注文）ごとに年月を計算し、同じ年月を 1 行にまとめる
+# 受け取る値: 受付日の範囲（ダッシュボードの入力から。空なら絞らない）
+params: [from, to]
 rows:
   value: { yearMonth: { path: orderedAt } }
 display: grouped
@@ -16,6 +18,8 @@ cells:
     - node: { entity: order-line, bind: l }
   where:
     - { of: o, path: status, notEquals: cancelled }
+    - { of: o, path: orderedAt, gte: $from, type: date }
+    - { of: o, path: orderedAt, lte: $to, type: date }
   of: l
   # 列の軸: 明細ごとに商品の categoryId を読んで列にし（並びはカテゴリー番号の順）、見出しは参照を 2 段辿ったカテゴリー名
   columns:

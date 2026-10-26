@@ -11,6 +11,7 @@ Ctrl+Kの「ダッシュボードを表示」からも移動できます。定�
 3. 一覧のID・「詳細を開く」・通常の表示セルから、全幅の業務詳細へ進みます。参照項目からは参照先の対象へ進みます。
 4. 詳細の「この対象の操作」または一覧の「⋯」から、対象の操作を始めます。
 5. 上部の「操作」から登録等の対象を持たない操作を始められます。
+6. 定義に共有の入力（`inputs`）があれば、基準日の横に欄が並びます。日付と文字は「反映」で、選択はすぐに効き、全区画の件数・一覧・図が揃って絞られます。空は「絞らない」で、「入力を戻す」で初期値に戻ります。
 
 操作は既存の入力・確認・差分・適用の流れを使い、閲覧専用でも実行できます。
 未保存編集が操作の対象にあると適用できません。先に「すべて保存」で保存してください。
@@ -42,6 +43,9 @@ kind: dashboard
 default: true
 actions: [register-task]
 placement: auto
+inputs:
+  - { key: from, label: 期限（から）, type: date, default: $monthStart }
+  - { key: assignee, label: 担当, type: enum, values: [{ value: taro, label: 太郎 }, hanako] }
 sections:
   - id: overdue
     label: 期限超過
@@ -67,6 +71,7 @@ sections:
 | default | trueなら開始時の入口、指定はワークスペース内で1件 |
 | actions | 対象を持たないアクションIDの並び |
 | placement | 区画のタイルの並べ方。auto（既定。幅に応じて判断）・horizontal（横に折り返す）・vertical（左の縦一覧） |
+| inputs | 全区画に共有する入力の配列。`key`（名前）、`label`、`type`（`date` / `enum` / `string`。既定は string）、`values`（enum の候補。値か `{value, label}`）、`default`（初期値。`$today` / `$monthStart` / `$monthEnd` は基準日から） |
 | sections | 表示順に並べる区画の配列 |
 | sections[].id / label | 画面内で一意な区画IDと見出し |
 | sections[].group | 群の名前。同じ名前の区画を見出し付きでまとめ、見出しで畳めます。書かない区画は無名の群として先頭に並びます |
@@ -78,7 +83,11 @@ defaultを省略すると、一意なIDを持つダッシュボードを定義�
 
 filterは既存の検査と同じ `match` ＋ `expect / count / check / forAll` のいずれかです。
 `where` で対象範囲を限定できます。条件を満たした行だけを表示します。
-`$today` は基準日です。それ以外のパラメータ、指摘の重大度や修正応答は指定できません。
+`$today` は基準日です。共有の入力は `$名前` で使えます（例 `{of: t, path: assignee, equals: $assignee}`）。それ以外のパラメータ、指摘の重大度や修正応答は指定できません。
+
+共有の入力の値は、区画の `filter` と、区画が参照する表（グリッド・クロス集計・チャートの元の表）の `params`（[views.md](views.md)）に `$名前` で渡ります。
+空の値は「絞らない」で、その値を使う条件（`where` / `check` の項目）が外れます。`match` の中で使うと空にできません（誤りになります）。
+値の式の列（`all` の集計）には渡りません。集計を絞るなら、クロス集計の `cells.where` に書きます。
 個票がないことを状態の既定値で補完しません。`occurrenceCount` で別の区画として扱えます。
 
 件数は行数です。クエリ行は同じIDでも束縛が違えば別の行になり、matrixの合計行は件数に含めません（行の軸が値のクロス集計では、値の行を数えます）。
@@ -89,9 +98,9 @@ chartの区画は、件数の代わりに横軸の項目の数を出し、一覧
 ## CLIとエージェント
 
 ```text
-view <workspace> <dashboard-id> --date YYYY-MM-DD
+view <workspace> <dashboard-id> --date YYYY-MM-DD --param 名前=値
 ```
 
-基準日を省略すると本日です。区画・件数・行・セルの原本座標・判定できない対象と理由を返します。
+基準日を省略すると本日です。共有の入力は `--param` で渡し、渡さなければ定義の `default`、空文字なら絞りません。出力の `inputs` に効かせた値が出ます。区画・件数・行・セルの原本座標・判定できない対象と理由を返します。
 `read_view` もダッシュボードIDと任意の `date` を指定でき、ステージングを重ねた同じ解決結果を返します。
 ダッシュボードでは `file / rows / columns` は指定しません。

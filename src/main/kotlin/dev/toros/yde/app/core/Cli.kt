@@ -100,7 +100,7 @@ internal const val CLI_USAGE = """コマンド:
            （例: transform <workspace> builtin:structural-schema --input _schemas/x.yaml＝そのスキーマから導出される、最小の構造のスキーマ）
   view     <workspace> [view-id] [file]         ビュー（_views）を解決する。横断グリッドは行×列、
            文書ビュー（kind: document）は file で対象文書を指定（適用対象1件なら省略可）。
-           ダッシュボード（kind: dashboard）は --date YYYY-MM-DD で基準日を指定（省略時は本日）。
+           ダッシュボード（kind: dashboard）は --date YYYY-MM-DD で基準日を指定（省略時は本日）。共有の入力（inputs）は --param 名前=値（省略時は定義の default。空文字で絞らない）。
            view-id 省略時は定義の一覧を表示する。各セルに原本上の座標（file / path）が付く
   validate <workspace> [file] [--sources]       検証（スキーマ・参照・重複・カバレッジ・グラフ整合）。判定を保留した検査があれば
            withheld に内訳と件数を出す。--sources は指摘の出どころ（どの検査の・どの要素についての指摘か）も出す
@@ -404,7 +404,14 @@ internal fun runCli(args: Array<String>): String {
                     val value = rest.getOrNull(dateIndex + 1) ?: error("--date に YYYY-MM-DD を指定してください")
                     runCatching { java.time.LocalDate.parse(value) }.getOrElse { error("--date は YYYY-MM-DD で指定してください") }
                 }
-                val result = Dashboards.resolve(dashboard, date, loaded, ws.index, ws::schemaFor, ws::treeOf)
+                // 共有の入力: --param 名前=値（空文字＝絞らない。渡さなければ定義の default）
+                val inputs = stringFlags(rest, "--param").associate { raw ->
+                    val at = raw.indexOf('=').takeIf { it > 0 } ?: error("--param は 名前=値 で書きます: $raw")
+                    raw.substring(0, at) to raw.substring(at + 1)
+                }
+                inputs.keys.firstOrNull { k -> dashboard.inputs.none { it.key == k } }
+                    ?.let { error("ダッシュボード「${dashboard.id}」に入力「$it」はありません（inputs: ${dashboard.inputs.joinToString(", ") { i -> i.key }.ifEmpty { "なし" }}）") }
+                val result = Dashboards.resolve(dashboard, date, loaded, ws.index, ws::schemaFor, ws::treeOf, inputs)
                 return dumpYaml(Dashboards.report(dashboard, result, loaded.errors))
             }
             loaded.flowView(viewId)?.let { flow ->

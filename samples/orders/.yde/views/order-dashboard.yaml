@@ -6,6 +6,14 @@ description: 注文の状況です。件数を押すと一覧に切り替わり�
 actions: [register-order]
 # 区画のタイルの並べ方: auto（幅が十分で横に 3 段以上になるときだけ縦の一覧）/ horizontal（横に折り返す）/ vertical（左の一覧）
 placement: auto
+# 全区画に共有する入力。空なら絞らない（受付日の範囲は注文一覧と月×商品カテゴリーの params へ、顧客区分は顧客別の filter へ）
+inputs:
+  - { key: from, label: 受付日（から）, type: date }
+  - { key: to, label: 受付日（まで）, type: date }
+  - key: kind
+    label: 顧客区分
+    type: enum
+    values: [{ value: individual, label: 個人 }, { value: corporate, label: 法人 }]
 # 区画は group で 3 つの群に分け、見出し付きで並べる（群は畳める）
 sections:
   - id: pending
@@ -46,6 +54,13 @@ sections:
     label: 顧客別
     group: 内訳
     view: customer-grid
+    # 顧客区分（共有の入力）で絞る。空なら条件が外れて全員
+    filter:
+      match:
+        - node: { entity: customer, bind: c }
+      where:
+        - { of: c, path: kind, equals: $kind }
+      expect: exists
   - id: companies
     label: 会社別
     group: 内訳

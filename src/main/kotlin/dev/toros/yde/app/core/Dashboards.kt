@@ -16,13 +16,18 @@ object Dashboards {
     fun resolve(
         view: VirtualDashboardDef, date: LocalDate, catalog: Views.LoadResult, index: IdIndex,
         schemaFor: (DocumentId) -> SchemaDef?, loader: (DocumentId) -> YNode?,
+        /** 共有の入力の値。鍵があればその値（空＝絞らない）、無ければ定義の default（基準日から）。 */
+        inputs: Map<String, String?> = emptyMap(),
     ): DashboardResolution {
         val trees = mutableMapOf<DocumentId, YNode?>()
         fun tree(d: DocumentId): YNode? = if (trees.containsKey(d)) trees[d] else loader(d).also { trees[d] = it }
+        val values = view.inputs.associate { input ->
+            input.key to (if (inputs.containsKey(input.key)) inputs[input.key]?.takeIf { it.isNotBlank() } else input.defaultFor(date))
+        }
         return DashboardViews.resolve(view, date, catalog::dashboardGrid,
-            { Views.resolveDetailed(it, index, ::tree, schemaFor) }, index.entries, index.refs, index.graph, ::tree,
+            { grid, params -> Views.resolveDetailed(grid, index, ::tree, schemaFor, params) }, index.entries, index.refs, index.graph, ::tree,
             fieldAt = { d, path -> tree(d)?.let { schemaFor(d)?.fieldAt(it, path) } },
-            chart = catalog::chartView)
+            chart = catalog::chartView, inputs = values)
     }
 
     /** CLIとread_viewは同じ解決結果を、原本の座標と判定できなかった対象つきで開示する。 */
@@ -30,6 +35,8 @@ object Dashboards {
         linkedMapOf(
             "view" to view.id, "kind" to "dashboard", "date" to result.date.toString(), "actions" to view.actions,
             "placement" to view.placement.id,
+            // 共有の入力: 定義と、今回効かせた値（null＝絞っていない）
+            "inputs" to view.inputs.map { i -> linkedMapOf("key" to i.key, "label" to i.label, "type" to i.type.id, "value" to result.inputs[i.key], "default" to i.default) },
             "sections" to result.sections.map { section -> linkedMapOf(
                 "id" to section.definition.id, "label" to section.definition.label, "view" to section.definition.view,
                 "group" to section.definition.group,

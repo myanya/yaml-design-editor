@@ -7,6 +7,8 @@ import dev.toros.yde.yaml.model.getAt
 import dev.toros.yde.yaml.model.parseYPath
 import dev.toros.yde.yaml.model.pretty
 import dev.toros.yde.yaml.model.scalarText
+import dev.toros.yde.semantic.schema.ActionRequire
+import dev.toros.yde.semantic.schema.CheckLibrary
 import dev.toros.yde.semantic.schema.DerivationSelector
 import dev.toros.yde.semantic.schema.ExpressionValue
 import dev.toros.yde.semantic.schema.NumberDisplay
@@ -212,6 +214,10 @@ data class VirtualGridDef(
     override val source: DocumentId,
     /** クロス集計（kind: matrix）。非 null なら columns は空で、列は解決のときに索引から広げる（VirtualViews.lower）。 */
     val matrix: VirtualMatrixDef? = null,
+    /** 受け取る値の名前（`params`。クエリ行の rows.where とクロス集計の cells.where に `$名前`。ダッシュボードの入力から渡る）。 */
+    val params: List<String> = emptyList(),
+    /** クエリ行の原文（params を差し込んで読み直すため。params が無ければ null）。 */
+    val rowsRaw: Map<String, Any?>? = null,
 ) : VirtualViewDefinition
 
 // ---------------------------------------------------------------- 文書ビューの宣言（カーネル座標。RC-02）
@@ -386,18 +392,42 @@ object VirtualViews {
         rel: (DocumentId) -> String,
         tree: (DocumentId) -> YNode?,
         fieldAt: FieldResolver = NO_FIELDS,
-    ): List<VirtualRow> = resolveDetailed(viewDef, ids, refs, graph, rel, tree, fieldAt).rows
+        params: Map<String, Any?> = emptyMap(),
+    ): List<VirtualRow> = resolveDetailed(viewDef, ids, refs, graph, rel, tree, fieldAt, params).rows
 
-    /** resolve と同じ。クエリ行に `limit` を書いたときの打ち切り（全行数）も返す（黙って切れないように）。 */
+    /**
+     * 受け取る値（params）を差し込む: クエリ行の原文とクロス集計の cells に書いた `$名前` を値に置き換える。
+     * 値の無い名前を使う条件（where）は外す（空＝絞らない。ダッシュボードの入力と同じ決まり＝ActionRequire.prune）。
+     */
+    fun bindParams(view: VirtualGridDef, params: Map<String, Any?>): VirtualGridDef {
+        if (view.params.isEmpty()) return view
+        val given = params.filterKeys { it in view.params }.filterValues { it != null && it.toString().isNotBlank() }
+        val missing = view.params.filter { it !in given }.toSet()
+        @Suppress("UNCHECKED_CAST")
+        fun bind(raw: Map<String, Any?>): Map<String, Any?> =
+            CheckLibrary.substitute(ActionRequire.prune(raw, missing), given) as Map<String, Any?>
+        val rowsQuery = view.rowsRaw?.let { raw ->
+            QuerySpec.parse(bind(raw), "rows", ignoreKeys = setOf("rowKey")).let { if (raw.containsKey("limit")) it else it.copy(limit = Int.MAX_VALUE) }
+        } ?: view.rowsQuery
+        val matrix = view.matrix?.let { m -> m.copy(cells = m.cells.copy(all = bind(m.cells.all))) }
+        return view.copy(rowsQuery = rowsQuery, matrix = matrix)
+    }
+
+    /**
+     * resolve と同じ。クエリ行に `limit` を書いたときの打ち切り（全行数）も返す（黙って切れないように）。
+     * params は受け取る値（表の `params` に `$名前` で書いた条件へ差し込む。値の無い名前の条件は外れる＝絞らない）。
+     */
     fun resolveDetailed(
-        viewDef: VirtualGridDef,
+        definition: VirtualGridDef,
         ids: Map<String, List<ScannedId>>,
         refs: List<ScannedRef>,
         graph: SemanticEntityGraph,
         rel: (DocumentId) -> String,
         tree: (DocumentId) -> YNode?,
         fieldAt: FieldResolver = NO_FIELDS,
+        params: Map<String, Any?> = emptyMap(),
     ): ResolvedRows {
+        val viewDef = bindParams(definition, params)
         val view = lower(viewDef, ids, rel)  // クロス集計は、列を広げたグリッドとして解決する
         val trees = mutableMapOf<DocumentId, YNode?>()
         fun cachedTree(document: DocumentId): YNode? = trees.getOrPut(document) { tree(document) }
@@ -864,7 +894,8 @@ object VirtualViews {
         }
         val lowered = view.copy(columns = columns)
         val rows: List<VirtualRow> = if (matrix.rowsValue != null) {
-            val keyed = groups.values.filter { it.key != null }
+            // 値の軸の行は、集めた要素が 1 つも無ければ出さない（受け取る値で絞ったときに、空の月の行や棒が並ばないように）
+            val keyed = groups.values.filter { it.key != null && it.items.isNotEmpty() }
             val kind = keyed.firstNotNullOfOrNull { it.kind }
             val unclassifiedRow = groups[null]?.takeIf { it.items.isNotEmpty() && matrix.unclassified != null }
             keyed.sortedWith(comparatorFor(kind) { it.key!! }).map(::rowOf) + listOfNotNull(unclassifiedRow?.let(::rowOf))

@@ -22,7 +22,7 @@
 
 1. 区画の `view` を一意なgrid・matrix・chartへ解決する。chartなら元の表の行を解決して数にし（件数＝横軸の項目の数・filter は不可）、画面は `ChartCard` を描く。
 2. 同じビューの行は一度だけ解決する。セル・原本の読み取りは同じオーバーレイ索引とloaderを使う。
-3. `filter` があれば、行のエンティティを起点に `SemanticRules.evaluate` で判定する。
+3. `filter` があれば、行のエンティティを起点に `SemanticRules.evaluate` で判定する。共有の入力（`inputs`）の値は `$today` と同じく差し込み、空の値を使う条件は外す（`ActionRequire.ruleOrNull`）。表の `params` にも同じ値を渡す（`VirtualViews.bindParams`）。
 4. 充足した行を一覧へ渡す。同じ行から件数を導出し、保留と値不足は理由付きの別の一覧へ渡す。
 5. 行キーの選択から独立した対象IDを場所として開き、既存エンティティページを業務用の表示で使う。
    条件から外れても詳細を維持し、対象が削除された場合は不存在を表示する。
@@ -42,6 +42,7 @@
   matrixへのfilterは合計との不一致を防ぐため拒否する。埋め込みの循環を許さない。
 - 解決失敗とゼロ件を区別する。CLIでは失敗した区画のcountはnull、画面では理由を表示する。
 - 場所は `NavLocation` のダッシュボードIDと対象ID。区画・行・基準日・分割・スクロールは `ScreenMemory` が持つ。
+- 共有の入力は「空＝絞らない」。外すのは `ActionRequire.prune`（where / check の項目）の 1 か所で、ビューの `params` も同じ規則。`match` に書いた入力は空にできない（誤り）。値の式の列（`all`）には渡らない。初期値（`$today` / `$monthStart` / `$monthEnd`）は `DashboardInput.defaultFor` が基準日から決め、画面の覚え（`ScreenMemory.dashboardInputs`）に鍵があればそれを使う。
 - 区画の並べ方（横・縦・auto）と群は定義が決め、群の畳みは `ScreenMemory` が持つ。auto は画面が一覧の幅から折り返しの段数を見積もり、3段以上なら縦にする。分割中は auto を横に決め、vertical は一覧を狭める（表を潰さない）。
   見積もりは画面の都合で、定義・索引・CLIの結果に置かない。
 - 全幅の詳細を既定とし、任意の分割は一覧4:詳細6。狭幅では全幅へ切り替える。背後の文書用インスペクタは出さない。

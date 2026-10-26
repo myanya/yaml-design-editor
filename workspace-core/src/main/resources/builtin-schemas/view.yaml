@@ -146,6 +146,30 @@ root:
         - { value: vertical, label: 縦（左の一覧） }
       default: auto
       description: 区画のタイル（見出しと件数）の並べ方。群（sections[].group）ごとに見出しが付き、畳める
+    - key: inputs
+      label: 共有の入力（dashboard）
+      type: array
+      description: 全区画に共有する入力。値は区画の filter と、区画が参照する表の params に $名前 で渡る。空の値は絞らない
+      item:
+        type: object
+        fields:
+          - { key: key, label: 名前, type: string, required: true }
+          - { key: label, label: 見出し, type: string }
+          - { key: type, label: 種類, type: enum, values: [date, enum, string], default: string }
+          - key: values
+            label: 選択の候補（enum）
+            type: array
+            item: { type: any }
+            description: "値の文字か {value, label}"
+          - key: default
+            label: 初期値
+            type: string
+            description: "値か、$today / $monthStart / $monthEnd（基準日から決める）"
+    - key: params
+      label: 受け取る値（grid / matrix）
+      type: array
+      item: { type: string }
+      description: "名前の並び。クエリ行の rows.where とクロス集計の cells.where に $名前 で書く。ダッシュボードの inputs から渡り、値が無ければその条件は外れる（絞らない）"
     - key: relations
       label: 関係ごとの見え方（lens）
       type: array

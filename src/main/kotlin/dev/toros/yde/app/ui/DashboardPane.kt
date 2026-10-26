@@ -20,6 +20,8 @@ import androidx.compose.ui.unit.sp
 import dev.toros.yde.app.AppState
 import dev.toros.yde.app.core.Dashboards
 import dev.toros.yde.app.core.Views
+import dev.toros.yde.semantic.DashboardInput
+import dev.toros.yde.semantic.DashboardInputType
 import dev.toros.yde.semantic.DashboardPlacement
 import dev.toros.yde.semantic.DashboardResolution
 import dev.toros.yde.semantic.DashboardSection
@@ -52,8 +54,10 @@ fun DashboardPane(state: AppState) {
             return@Column
         }
         val date = state.memory.dashboardDate[view.id] ?: today
-        val result = remember(view, catalog, date, state.indexVersion, state.editVersion) {
-            Dashboards.resolve(view, date, catalog, state.overlayIndex(), state::schemaFor, state.unsavedFirstTree())
+        // 共有の入力: 画面の覚えにある鍵だけ渡す（無い鍵は定義の初期値。空文字＝絞らない）
+        val inputs = view.inputs.mapNotNull { i -> state.memory.dashboardInputs[view.id to i.key]?.let { i.key to it } }.toMap()
+        val result = remember(view, catalog, date, inputs, state.indexVersion, state.editVersion) {
+            Dashboards.resolve(view, date, catalog, state.overlayIndex(), state::schemaFor, state.unsavedFirstTree(), inputs)
         }
         val section = result.sections.firstOrNull { it.definition.id == state.memory.dashboardSection[view.id] }
             ?: result.sections.firstOrNull() ?: return@Column
@@ -228,6 +232,7 @@ private fun DashboardHeader(state: AppState, catalog: Views.LoadResult, view: Vi
             }) { Text("反映") }
             TextButton(onClick = { state.memory.dashboardDate.remove(view.id); input = today.toString(); error = null }) { Text("本日") }
             error?.let { Text(it, fontSize = 11.sp, color = Palette.ErrorRed) }
+            DashboardInputs(state, view, date)
             if (view.actions.isNotEmpty()) Box {
                 OutlinedButton(onClick = { actionsOpen = true }) { Text("操作") }
                 DropdownMenu(actionsOpen, { actionsOpen = false }) {
@@ -245,6 +250,49 @@ private fun DashboardHeader(state: AppState, catalog: Views.LoadResult, view: Vi
             if (state.actionWork != null) TextButton(onClick = { state.showActionPanel() }) { Text("操作の入力・結果を開く") }
         }
     }
+}
+
+/**
+ * 共有の入力（inputs）の欄。文字と日付は「反映」で効かせ、選択はすぐ効く。空は「絞らない」。
+ * 欄の値は画面の覚え（鍵が無ければ定義の初期値を見せる）。「入力を戻す」で初期値に戻す。
+ */
+@Composable
+private fun DashboardInputs(state: AppState, view: VirtualDashboardDef, date: LocalDate) {
+    if (view.inputs.isEmpty()) return
+    val texts = remember(view.id) { mutableStateMapOf<String, String>() }
+    fun effective(input: DashboardInput): String = state.memory.dashboardInputs[view.id to input.key] ?: input.defaultFor(date).orEmpty()
+    view.inputs.forEach { input ->
+        Text(input.label, fontSize = 12.sp)
+        if (input.type == DashboardInputType.ENUM) {
+            var open by remember(view.id, input.key) { mutableStateOf(false) }
+            val current = effective(input)
+            Box {
+                OutlinedButton(onClick = { open = true }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)) {
+                    Text(input.values.firstOrNull { it.first == current }?.let { it.second ?: it.first } ?: current.ifEmpty { "（すべて）" }, fontSize = 12.sp)
+                }
+                DropdownMenu(open, { open = false }) {
+                    DropdownMenuItem(text = { Text("（すべて）") }, onClick = { open = false; state.memory.dashboardInputs[view.id to input.key] = "" })
+                    input.values.forEach { (v, label) ->
+                        DropdownMenuItem(text = { Text(label ?: v) }, onClick = { open = false; state.memory.dashboardInputs[view.id to input.key] = v })
+                    }
+                }
+            }
+        } else {
+            CompactTextField(
+                texts[input.key] ?: effective(input), { texts[input.key] = it }, singleLine = true,
+                modifier = Modifier.width(if (input.type == DashboardInputType.DATE) 110.dp else 150.dp),
+            )
+        }
+    }
+    if (view.inputs.any { it.type != DashboardInputType.ENUM }) TextButton(onClick = {
+        view.inputs.filter { it.type != DashboardInputType.ENUM }.forEach { input ->
+            state.memory.dashboardInputs[view.id to input.key] = texts[input.key] ?: effective(input)
+        }
+    }) { Text("反映") }
+    TextButton(onClick = {
+        view.inputs.forEach { state.memory.dashboardInputs.remove(view.id to it.key) }
+        texts.clear()
+    }) { Text("入力を戻す") }
 }
 
 /** 開いている業務対象だけを使い、削除された対象は使わない。 */

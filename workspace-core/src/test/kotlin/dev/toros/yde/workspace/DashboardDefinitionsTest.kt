@@ -1,5 +1,6 @@
 package dev.toros.yde.workspace
 
+import dev.toros.yde.semantic.DashboardInputType
 import dev.toros.yde.semantic.DashboardPlacement
 import dev.toros.yde.semantic.VirtualDashboardDef
 import dev.toros.yde.semantic.sectionGroups
@@ -50,6 +51,35 @@ class DashboardDefinitionsTest {
         val filter = assertNotNull(parsed.sections.single().filter)
         assertEquals(setOf("today"), filter.referenced)
         assertNotNull(filter.rule(mapOf("today" to "2026-10-25")))
+    }
+
+    @Test
+    fun `共有の入力を読み 区画の条件と表の params で使える名前を点検する`() {
+        val value = "id: home\nkind: dashboard\ninputs:\n" +
+            "  - { key: from, label: から, type: date, default: ${'$'}monthStart }\n" +
+            "  - { key: kind, label: 区分, type: enum, values: [{ value: a, label: A }, b] }\n" +
+            "  - { key: q }\n" +
+            "sections: [{ id: all, label: 全件, view: grid, filter: { match: [{ node: { entity: t, bind: t } }], where: [{ of: t, path: kind, equals: ${'$'}kind }], expect: exists } }]"
+        val parsed = ViewDefinitions.parseView(YamlIO.parseToRaw(value) as Map<*, *>, source) as VirtualDashboardDef
+        assertEquals(listOf("from", "kind", "q"), parsed.inputs.map { it.key })
+        assertEquals(DashboardInputType.DATE, parsed.inputs[0].type)
+        assertEquals("2026-10-01", parsed.inputs[0].defaultFor(java.time.LocalDate.of(2026, 10, 26)))
+        assertEquals(listOf("a" to "A", "b" to null), parsed.inputs[1].values)
+        assertEquals(DashboardInputType.STRING, parsed.inputs[2].type)
+        assertEquals(setOf("kind"), parsed.sections.single().filter!!.referenced)
+        // 空の入力を使う条件は外れ、何も残らなければ条件なし
+        val filter = parsed.sections.single().filter!!
+        assertNotNull(filter.ruleOrNull(mapOf("today" to "2026-10-26"), setOf("from", "kind", "q")))  // expect は残る
+        val dated = ViewDefinitions.parseView(YamlIO.parseToRaw(value.replace("where: [{ of: t, path: kind, equals: ${'$'}kind }], expect: exists", "check: [{ gte: [{ of: t, path: due }, ${'$'}from], type: date }]")) as Map<*, *>, source) as VirtualDashboardDef
+        val check = dated.sections.single().filter!!
+        assertNull(check.ruleOrNull(mapOf("today" to "2026-10-26"), setOf("from", "kind", "q")))
+        assertNotNull(check.ruleOrNull(mapOf("today" to "2026-10-26", "from" to "2026-10-01"), setOf("from", "kind", "q")))
+        // 誤り: 宣言していない名前・today・重複・enum に候補なし
+        fun bad(text: String) = assertTrue(ViewDefinitions.load(listOf(source to text, grid)).dashboards.isEmpty(), text)
+        bad(value.replace("equals: ${'$'}kind", "equals: ${'$'}nothing"))
+        bad(value.replace("key: q", "key: today"))
+        bad(value.replace("key: q", "key: from"))
+        bad(value.replace("values: [{ value: a, label: A }, b]", "values: []"))
     }
 
     @Test

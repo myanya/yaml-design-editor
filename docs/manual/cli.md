@@ -19,6 +19,7 @@ GUIを起動せずに、ワークスペースの探索・検索・部分変更�
 ./gradlew runCli -q --args="traverse my-ws USC-011-108 --steps '[{emit: summary}, {follow: out, via: actor, emit: full}]'"  # グラフの経路トラバース（レシピ graph 項目の試作台）
 ./gradlew runCli -q --args="query my-ws --spec '{match: [{node: {entity: screen, bind: scr}}, {edge: {relation: uses}}, {node: {entity: usecase, bind: uc}}]}'"  # グラフパターン照合（束縛の表。ビューのクエリ行・foreach source: query・constraints の試作台。spec はファイル指定も可）
 ./gradlew runCli -q --args="view sample-workspace screen-catalog"         # ビューの解決（引数なしで一覧。セルに原本座標つき）
+./gradlew runCli -q --args="view samples/orders order-dashboard --date 2026-10-26 --param from=2026-10-01"   # ダッシュボード（基準日と共有の入力。空文字で絞らない）
 ./gradlew runCli -q --args="view my-ws actor-document 00-requirements/01-actors.yaml"  # 文書ビューの解決（適用対象1件なら file 省略可）
 ./gradlew runCli -q --args="validate sample-workspace"                    # 全文書の検証（カバレッジ含む。判定を保留した検査があれば withheld に内訳と件数。--sources で指摘の出どころ＝どの検査の・どの要素についての指摘か。構造の検証・参照の解決などの指摘にも付く）
 ./gradlew runCli -q --args="report samples/orders monthly-report --param month=2026-10 --print"   # レポート（.yde/reports の定義）: 変換で値の一式を作り、ひな形にはめ込む。--out で書く・引数なしで一覧（manual/reports.md）

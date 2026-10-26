@@ -72,6 +72,7 @@ scripts/docs-lint.sh                        # 文書の形の機械チェック
 - 新しいワークスペースの初期化だけは例外で、開く前に `WorkspaceInit` が書く（Undo なし・既存は上書きしない）。計画は `WorkspaceInit` の 1 つで、画面（`InitWizardHost`）と CLI `init` に組み立てを書かない。テンプレートは `templates/` のファイル（Kotlin に埋め込まない）で、答えからの組み立ては変換定義のひな型 → architecture/workspace.md「ワークスペースの初期化」
 - 配置判定は `WorkspaceLayout` に一元化。`_schemas/` にはメタスキーマだけ。定義文書への書込は `meta: true` のアクティビティのみ → architecture/workspace.md「ワークスペース構造と layout」・architecture/schema.md「推測・メタスキーマ・派生」・architecture/agents.md「エージェント実行と Staging」
 - ビューは射影で、専用の書込経路を作らない。AI の HTTP は `AiHttp.post` に一元化 → architecture/views.md「ビュー機構」・architecture/agents.md「AI 接続」
+- ダッシュボードの共有の入力（`inputs`）とビューの `params` は「空＝絞らない」。外すのは `ActionRequire.prune`（where / check の項目）の 1 か所で、`VirtualViews.bindParams` もそれを使う。値の式の列（`all`）には渡らない → architecture/dashboards.md「規律」
 - レポート（YAML から文字へ）は 2 段＝変換（`$view` でビューの行）→ `TextTemplate`（穴・繰り返し・条件だけ）。文字の組み立てを Kotlin に書かず、出力は派生物（`output`。YAML と `.yde/` の下には書かない） → architecture/transform.md「レポート」
 - チャート（`kind: chart`）に集計を書かない（集計は元の表）。軸を値の式で広げたクロス集計は `lower` で列が決まらないので、ヘッダと書き出しの見出しは `view.columns` でなく `columnsOf(view, rows)` から取る。図の部品（Vico）は `ui/Charts.kt` に閉じる → architecture/views.md「ビュー機構」
 - カーネルのテストは疑似セッション注入、自動化のテストは `tick(now)` を直接呼ぶ。実 API を叩かない → architecture/agents.md「エージェント実行と Staging」・architecture/agents.md「自動実行」

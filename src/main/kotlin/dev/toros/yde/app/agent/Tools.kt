@@ -601,8 +601,9 @@ class AgentToolbox(
             require(fileRel == null && rowsPattern == null && columns == null) { "ダッシュボードではfile / rows / columnsを指定しません" }
             val at = date?.let { runCatching { java.time.LocalDate.parse(it) }.getOrElse { error("dateはYYYY-MM-DDで指定してください") } }
                 ?: java.time.LocalDate.now()
+            // 共有の入力（inputs）は定義の default で解決する（エージェントからの指定は今はない）
             val result = dev.toros.yde.app.core.Dashboards.resolve(dashboard, at, loaded,
-                staging.index(), ws::schemaFor) { staging.tree(it.value) }
+                staging.index(), ws::schemaFor, loader = { staging.tree(it.value) })
             return YamlIO.dump(YamlIO.fromAny(dev.toros.yde.app.core.Dashboards.report(dashboard, result, loaded.errors)))
         }
         loaded.docView(viewId)?.let {
