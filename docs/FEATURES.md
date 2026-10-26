@@ -77,7 +77,7 @@
 | S-06 | サンプル YAML 生成（プレビュー・コピー・新規ファイルの初期値・必須スカラーに型別の例値） | `semantic-core/schema/SchemaScaffold.kt` | 単体 `SchemaLoaderTest`, `DocumentScaffoldTest` | [schema](architecture/schema.md) |
 | S-07 | スキーマ外キーの検証ポリシー（`unknownFields: allow / warning / error`） | `validate/Validator.kt`, `index/IdIndex.kt` | 手動 | [schema](architecture/schema.md) |
 | S-08 | 参照の関係種別（`type: ref` の `relation`） | `schema/Schema.kt`, `index/IdIndex.kt` | 単体 `WorkspaceCliTest` | [graph-query](architecture/graph-query.md) |
-| S-09 | カバレッジルール（`coverage` の `detailIn`＝詳細文書の存在・参照ベースは削除済みで書くと移行先を案内する定義エラー） | `semantic-core/schema/Coverage.kt` | 単体 `CoverageTest`, `SemanticCoverageTest` | [checks](architecture/checks.md) |
+| S-09 | カバレッジルール（`coverage` の `detailIn`＝詳細文書の存在。定義体で書き、配り方はカーネル） | `builtin-definitions/coverage.yaml`, `workspace-core/validate/WorkspaceChecks.kt` | 単体 `CoverageTest`, `CoverageMessageTest` | [checks](architecture/checks.md) |
 | S-10 | enum 値ごとの追加フィールド（`cases`・多段展開・フォーム・検証・索引・AI 生成・設計 UI） | `schema/Schema.kt`（`effectiveFields`）, `ui/FormView.kt` | 単体 `SchemaLoaderTest`, `ValidatorTest` | [schema](architecture/schema.md) |
 | S-11 | フェーズ機構（`phases`・`requiredFrom` の累積必須・`activeFrom` の判定保留） | `schema/Schema.kt`（`PhasesDef`, `requiredAt`） | 単体 `PhaseTest` | [schema](architecture/schema.md) |
 | S-12 | スキーマ共通部品（`kind: library` と `moduleId#definition` の修飾 `$ref`・二段階ロード） | `schema/Schema.kt`（`SchemaCatalog`） | 単体 `SchemaLoaderTest` | [schema](architecture/schema.md) |
