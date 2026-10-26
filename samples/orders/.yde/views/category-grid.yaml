@@ -1,0 +1,40 @@
+id: category-grid
+name: 商品カテゴリー一覧
+description: 商品カテゴリー（分野）ごとの説明と商品数、カテゴリー ← 商品 ← 明細 ← 注文 の 3 段で集めた受注金額（取消済みの注文は除きます）。「新規行」でカテゴリー番号を入れると categories/<番号>.yaml ができます。
+rows:
+  idPattern: "CAT-*"
+columns:
+  - { label: カテゴリー名, schemaId: category, path: name, editable: true }
+  - { label: 説明, schemaId: category, path: description, editable: true }
+  # カテゴリーを起点に、このカテゴリーを指す商品（in-category の逆向き）を数える
+  - label: 商品数
+    schemaId: category
+    value:
+      count:
+        all:
+          of: p
+          match:
+            - node: { entity: category, bind: c }
+            - edge: { via: categoryId, dir: in }
+            - node: { entity: product, bind: p }
+  # カテゴリー ← 商品 ← 明細 ← 注文 の 3 段で明細を集め、所属する注文が取消済みでないものの金額を合計する
+  - label: 受注金額（円）
+    schemaId: category
+    display: grouped
+    value:
+      sum:
+        all:
+          of: l
+          path: amount
+          match:
+            - node: { entity: category, bind: c }
+            - edge: { via: categoryId, dir: in }
+            - node: { entity: product, bind: p }
+            - edge: { via: productId, dir: in }
+            - node: { entity: order-line, bind: l }
+            - edge: { relation: has-line, dir: in }
+            - node: { entity: order, bind: o }
+          where:
+            - { of: o, path: status, notEquals: cancelled }
+newRow:
+  filePattern: "categories/{id}.yaml"

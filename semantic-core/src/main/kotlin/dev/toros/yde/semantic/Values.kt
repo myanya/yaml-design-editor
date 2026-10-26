@@ -148,7 +148,7 @@ object SemanticValues {
          */
         private fun occurrence(ref: ValueExpr.ScopeRef): SemanticExpression.Occurrence? {
             if (ref in env.assignment) return env.assignment[ref]
-            if (ref.via != null) return viaOccurrence(ref)
+            if (ref.via.isNotEmpty()) return viaOccurrence(ref)
             if (ref.of == null && ref.inDoc == null) return env.currentOccurrence
             val node = node(ref.of) ?: return null
             return occurrenceOf(node, ref.inDoc)
@@ -163,30 +163,37 @@ object SemanticValues {
         }
 
         /**
-         * 参照を 1 段辿る（via）: 基点（of の束縛か、いまの要素）の出現に書かれた参照のうち、via の場所のもの（検査の edge と
-         * 同じ突き合わせ＝参照の線として辿る。ref 型でない項目の値は辿らない）を辿り、相手の ID の出現から `in` の指定に合うものを
-         * 定義した側を優先して 1 つ選ぶ。参照がちょうど 1 本のときだけ相手が決まる（無い・複数は「得られない」で理由を残す）。
+         * 参照を辿る（via）: 基点（of の束縛か、いまの要素）の出現に書かれた参照のうち、via の場所のもの（検査の edge と
+         * 同じ突き合わせ＝参照の線として辿る。ref 型でない項目の値は辿らない）を辿り、相手の ID の出現を `in` の指定に合うものから
+         * 定義した側を優先して 1 つ選ぶ。via が 2 つ以上なら段を重ねる: 2 段目からは相手の ID に書かれた参照をどの出現からでも辿り
+         * （途中の相手は ID で決まり、出現を 1 つに選ぶのは最後の相手だけ）、`in` は最後の相手に効く。
+         * 各段で参照がちょうど 1 本のときだけ相手が決まる（無い・複数は「得られない」で理由を残す）。
          */
         private fun viaOccurrence(ref: ValueExpr.ScopeRef): SemanticExpression.Occurrence? {
-            val via = ref.via?.pretty() ?: return null
+            if (ref.via.isEmpty()) return null
             val baseNode = node(ref.of) ?: return fail("いまの要素がありません")
-            if (baseNode.kind != QueryNodeKind.ENTITY) return fail("文書からは参照を辿れません（via: $via）")
+            if (baseNode.kind != QueryNodeKind.ENTITY) return fail("文書からは参照を辿れません（via: ${ref.via.first().pretty()}）")
             val base = (if (ref.of == null) env.currentOccurrence else null) ?: occurrenceOf(baseNode, null)
                 ?: return fail("${baseNode.id} の出現がありません")
             val graph = env.graph ?: return fail("参照を辿る材料（グラフ）がありません")
-            val refs = graph.ownRefs(baseNode.id).filter { r ->
-                r.document == base.document && r.path.size > base.path.size && r.path.subList(0, base.path.size) == base.path &&
-                    QueryEdgeStep.viaMatches(via, r.viaKey, r.path)
+            var id = baseNode.id
+            for ((i, hop) in ref.via.withIndex()) {
+                val via = hop.pretty()
+                val refs = graph.ownRefs(id).filter { r ->
+                    QueryEdgeStep.viaMatches(via, r.viaKey, r.path) &&
+                        // 最初の段は基点の出現に書かれた参照だけ。2 段目からは相手（ID）のどの出現に書かれた参照でもよい
+                        (i > 0 || (r.document == base.document && r.path.size > base.path.size && r.path.subList(0, base.path.size) == base.path))
+                }
+                id = when (refs.size) {
+                    0 -> return fail("$via に参照が書かれていません")
+                    1 -> refs.single().targetId
+                    else -> return fail("$via の参照が 1 つに決まりません（${refs.size} 本）")
+                }
             }
-            val target = when (refs.size) {
-                0 -> return fail("$via に参照が書かれていません")
-                1 -> refs.single().targetId
-                else -> return fail("$via の参照が 1 つに決まりません（${refs.size} 本）")
-            }
-            val occs = graph.entities[target]?.occurrences.orEmpty()
+            val occs = graph.entities[id]?.occurrences.orEmpty()
             return SemanticExpression.select(occs, ref.inDoc ?: DerivationSelector(), env.rel)
                 ?.let { SemanticExpression.Occurrence(it.document, it.path) }
-                ?: fail("参照先「$target」の出現がありません" + (ref.inDoc?.let { "（in の指定に合う文書）" } ?: ""))
+                ?: fail("参照先「$id」の出現がありません" + (ref.inDoc?.let { "（in の指定に合う文書）" } ?: ""))
         }
 
         /** 得られない理由を残して null。 */

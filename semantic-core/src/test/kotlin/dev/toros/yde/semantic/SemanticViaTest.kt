@@ -8,6 +8,7 @@ import dev.toros.yde.semantic.schema.SchemaTreeParser
 import dev.toros.yde.semantic.schema.ValueExpr
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFails
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -53,6 +54,7 @@ class SemanticViaTest {
                   - { key: id, type: id }
                   - { key: name, type: string }
                   - { key: maxLength, type: int }
+                  - { key: group, type: ref }
         """,
     )
     private val ddl = schema(
@@ -72,13 +74,31 @@ class SemanticViaTest {
         """,
     )
 
+    private val grp = schema(
+        "grp",
+        """
+        id: grp
+        root:
+          type: object
+          fields:
+            - key: groups
+              type: array
+              item:
+                type: object
+                fields:
+                  - { key: id, type: id }
+                  - { key: label, type: string }
+        """,
+    )
+
     private val attrsDoc = DocumentId("attrs.yaml")
     private val trees = mapOf(
         "attrs.yaml" to YamlIO.parse(
             "attrs:\n  - { id: FLD-TITLE, vtype: VT-TITLE, tags: [VT-TITLE, VT-NOTE] }\n  - { id: FLD-FREE }\n  - { id: FLD-NOTE, vtype: VT-NOTE }",
         ),
-        "types.yaml" to YamlIO.parse("types:\n  - { id: VT-TITLE, name: タイトル, maxLength: 100 }\n  - { id: VT-NOTE, name: メモ }"),
+        "types.yaml" to YamlIO.parse("types:\n  - { id: VT-TITLE, name: タイトル, maxLength: 100, group: GRP-TEXT }\n  - { id: VT-NOTE, name: メモ }"),
         "ddl-mapping.yaml" to YamlIO.parse("mappings:\n  - { id: VT-TITLE, to: \"varchar({maxLength})\" }"),
+        "groups.yaml" to YamlIO.parse("groups:\n  - { id: GRP-TEXT, label: 文字 }"),
     )
     private val snapshot = SemanticEngine.build(
         SemanticInput(
@@ -87,6 +107,7 @@ class SemanticViaTest {
                 SemanticDocument(attrsDoc, trees.getValue("attrs.yaml"), attr, "attr"),
                 SemanticDocument(DocumentId("types.yaml"), trees.getValue("types.yaml"), vt, "vt"),
                 SemanticDocument(DocumentId("ddl-mapping.yaml"), trees.getValue("ddl-mapping.yaml"), ddl, "vt-ddl"),
+                SemanticDocument(DocumentId("groups.yaml"), trees.getValue("groups.yaml"), grp, "grp"),
             ),
         ),
     )
@@ -156,6 +177,30 @@ class SemanticViaTest {
             "x",
         )
         assertEquals("タイトル/VT-TITLE", SemanticValues.evaluate(expr, env("FLD-TITLE", 0))!!.text)
+    }
+
+    @Test
+    fun `via を並べると段を重ねて辿り in は最後の段に効く`() {
+        // 属性 → 値型（vtype）→ 分類（group）と 2 段辿って分類の名前を読む
+        val chained = ValueExpr.parseValue(mapOf("via" to listOf("vtype", "group"), "in" to mapOf("schemaId" to "grp"), "path" to "label"), "x")
+        val detailed = SemanticValues.evaluateDetailed(chained, env("FLD-TITLE", 0))
+        val side = assertNotNull(detailed.side, detailed.reason)
+        assertEquals("文字", side.text)
+        assertEquals(DocumentId("groups.yaml"), side.sourceDocument)
+        // 2 段目の参照が無ければ、その段の理由が残る
+        val none = SemanticValues.evaluateDetailed(chained, env("FLD-NOTE", 2))
+        assertNull(none.side)
+        assertEquals("group に参照が書かれていません", none.reason)
+        // in の指定は最後の段の相手に効く（途中の相手は定義出現で選ぶ）
+        val wrongIn = SemanticValues.evaluateDetailed(
+            ValueExpr.parseValue(mapOf("via" to listOf("vtype", "group"), "in" to mapOf("schemaId" to "vt"), "path" to "label"), "x"),
+            env("FLD-TITLE", 0),
+        )
+        assertNull(wrongIn.side)
+        assertEquals("参照先「GRP-TEXT」の出現がありません（in の指定に合う文書）", wrongIn.reason)
+        // 配列に空の項目は書けない。1 段の文字はこれまでどおり 1 つの並び
+        assertFails { ValueExpr.parseValue(mapOf("via" to listOf("vtype", ""), "path" to "label"), "x") }
+        assertEquals(listOf(parseYPath("vtype")), (ValueExpr.parseValue(mapOf("via" to "vtype", "path" to "name"), "x") as ValueExpr.Get).via)
     }
 
     @Test

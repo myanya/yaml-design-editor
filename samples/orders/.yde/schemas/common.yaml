@@ -29,6 +29,12 @@ definitions:
     placeholder: PRD-001
     sample: PRD-001
     description: 「PRD-」と 3 桁以上の数字。商品のファイル名にもなります。
+  商品カテゴリー番号:
+    type: id
+    pattern: "^CAT-[0-9]{3,}$"
+    placeholder: CAT-001
+    sample: CAT-001
+    description: 「CAT-」と 3 桁以上の数字。商品カテゴリーのファイル名にもなります。
   会社番号:
     type: id
     pattern: "^COM-[0-9]{3,}$"
@@ -55,6 +61,13 @@ definitions:
       schemaIds: [product]
     relation: of-product
     description: 商品番号を 1 件。
+  カテゴリー参照:
+    type: ref
+    idPattern: "CAT-*"
+    scope:
+      schemaIds: [category]
+    relation: in-category
+    description: 商品カテゴリー番号を 1 件。
   会社参照:
     type: ref
     idPattern: "COM-*"
@@ -260,6 +273,25 @@ definitions:
         expect: absent
         level: error
         message: "個人の顧客「{id}」に所属会社が書かれています（法人なら区分を直します）"
+  # 商品カテゴリー: 1 件 1 ファイル。商品が参照する（分野の名前は商品にも明細にも書かず、ここだけが持つ）
+  商品カテゴリー:
+    type: object
+    label: 商品カテゴリー
+    entity: { type: category, defines: true }
+    fields:
+      - key: categoryId
+        label: 商品カテゴリー番号
+        type: 商品カテゴリー番号
+        required: true
+      - key: name
+        label: カテゴリー名
+        type: 一行の文
+        role: title
+        required: true
+      - key: description
+        label: 説明
+        type: 一行の文
+        description: どんな商品を含めるか。
   # 商品: 1 件 1 ファイル
   商品:
     type: object
@@ -275,6 +307,11 @@ definitions:
         type: 一行の文
         role: title
         required: true
+      - key: categoryId
+        label: 商品カテゴリー
+        type: カテゴリー参照
+        required: true
+        description: 商品が属する分野。月別売上の棒グラフは、明細 → 商品 → カテゴリーと参照を 2 段辿って分野ごとに積み上げます。
       - key: unitPrice
         label: 現在の販売単価
         type: 金額

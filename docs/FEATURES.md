@@ -158,7 +158,7 @@
 | X-07 | 文書ビュー（`kind: document`・`sections` の fields と backlinks・`attachments`・マッチしない文書は既定フォーム） | `core/Views.kt`（`resolveDocument`）, `ui/FormView.kt`（`DocViewSections`） | 単体 `ViewsTest` | [views](architecture/views.md) |
 | X-08 | ビュー定義のスキーマ参照とリント（`definition:` 列の展開・スキーマとの整合を検査し定義エラーとして表示） | `workspace-core/workspace/ViewDefinitions.kt`（`lint`） | 単体 `ViewsTest`, `ViewDefinitionsTest` | [views](architecture/views.md) |
 | X-10 | クロス集計ビュー（`kind: matrix`・行の論理ID × 列の参照先か値・セルは行から集めた要素の集計・未分類と合計・列を広げたグリッドへ下ろす）と、グリッドの要素ごとに列を広げる列 `each`（`$名前` で列の要素の ID を指す） | `semantic-core/semantic/VirtualViews.kt`（`lower`）, `workspace-core/workspace/ViewDefinitions.kt` | 単体 `ViewsTest` | [views](architecture/views.md) |
-| X-09 | 値の式の列（`value:`＝ひな型の展開・`via`・配列を受け取る集計・集合から配列へ `all`・要素ごとの式 `each`・来歴つきで未保存編集に追随） | `semantic/VirtualViews.kt`（`valueCell`）, `semantic/Values.kt` | 単体 `ViewsTest`, `SemanticViaTest`, `SemanticAggregateTest`, `SemanticAllTest`, `AllFromCheckTest` | [transform](architecture/transform.md) |
+| X-09 | 値の式の列（`value:`＝ひな型の展開・`via`（並べて段を重ねる）・配列を受け取る集計・集合から配列へ `all`・要素ごとの式 `each`・来歴つきで未保存編集に追随） | `semantic/VirtualViews.kt`（`valueCell`）, `semantic/Values.kt` | 単体 `ViewsTest`, `SemanticViaTest`, `SemanticAggregateTest`, `SemanticAllTest`, `AllFromCheckTest` | [transform](architecture/transform.md) |
 | X-10 | クエリ行（`rows: match:` の束縛行・結合先ノードの値をセル化・行の同一性は束縛値の組） | `core/Views.kt`（`rowsQuery`）, `index/Query.kt` | 単体 `ViewsTest` | [views](architecture/views.md) |
 | X-13 | 軸を値の式で広げるクロス集計（`rows.value`＝起点の要素ごとに計算した値を行に・`cells.columns.value`＝要素ごとに計算した値を列に。月の文書なしで受付日の年月ごとの集計。値の順序の種類で並ぶ・値の軸の行は原本を持たない・ヘッダは解決した行から `columnsOf`） | `semantic-core/semantic/VirtualViews.kt`（`resolvePivot` / `columnsOf`）, `workspace-core/workspace/ViewDefinitions.kt` | 単体 `PivotAndChartViewsTest` | [views](architecture/views.md) |
 | X-14 | チャート（`kind: chart`＝元の表〔grid / matrix〕の行を横軸の項目・数の列を系列に。棒・積み上げ棒・折れ線・円。台帳のビュータブ・文書ビューの区画 `chart`・ダッシュボードの区画に置ける。押すとセルの材料〔集めた要素〕が出て詳細か原本へ。出し方は `drill`＝popup / below / right / none。項目の並びは `order`＝系列の値の順。CLI `view` と `read_view` は数を返す） | `semantic-core/semantic/ChartViews.kt`, `ui/ChartViewPane.kt`, `ui/Charts.kt`（`LineChart` / `PieChart`）, `semantic-core/semantic/DashboardViews.kt` | 単体 `ChartViewsTest`, `PivotAndChartViewsTest` | [views](architecture/views.md) |
@@ -274,5 +274,5 @@
 ## 公開サンプル
 
 [todos](../samples/todos/README.md)と[テーブルモデル](../samples/todos-sysdev-tablemodel/README.md): 操作・詳細化・SQL生成の検討。
-[orders](../samples/orders/README.md): 複数の種類の参照・入れ子の明細（保有）・金額の整合の検査・参照を辿る集計・出荷と取消の操作。
+[orders](../samples/orders/README.md): 複数の種類の参照・入れ子の明細（保有）・金額の整合の検査・参照を辿る集計・参照を 2 段辿るカテゴリー別の売上・出荷と取消の操作。
 確認: YDEの検証と各READMEの試用手順。

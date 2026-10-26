@@ -879,15 +879,15 @@ object ViewDefinitions {
                     val reserved = setOf(SemanticValues.RESERVED_ID, SemanticValues.RESERVED_TITLE)
                     // いまの要素から読む場所: 短い書き方の穴・of も in も via も無い読み出し（集計の短い書き方を含む）
                     val ownReads = expr.holes() +
-                        expr.reads().filter { it.of == null && it.via == null && it.inDoc == null }.map { PathPattern.pretty(it.path) }
+                        expr.reads().filter { it.of == null && it.via.isEmpty() && it.inDoc == null }.map { PathPattern.pretty(it.path) }
                     ownReads.distinct().filterNot { it in reserved }.forEach { read ->
                         val pattern = runCatching { PathPattern.parse(read) }.getOrNull() ?: return@forEach
                         if (fromSchemas.all { unresolvableFromIdElements(it, pattern) }) {
                             report("列「${col.label}」の値の式が読む「$read」はスキーマ「${names(fromSchemas)}」のID要素から解決できません")
                         }
                     }
-                    // 参照を辿る項目（via）は、行のスキーマの参照（ref）型の項目
-                    expr.sources().filter { it.of == null }.mapNotNull { it.via }.distinct().forEach { via ->
+                    // 参照を辿る項目（via の最初の段）は、行のスキーマの参照（ref）型の項目。2 段目からは相手のスキーマの項目なので、解決のときに確かめる
+                    expr.sources().filter { it.of == null }.mapNotNull { it.via.firstOrNull() }.distinct().forEach { via ->
                         val fields = fromSchemas.flatMap { s -> idElementsOf(s).mapNotNull { staticFieldAt(s, it, via) }.map { s.tree.resolve(it) ?: it } }
                         when {
                             fields.isEmpty() -> report("列「${col.label}」の via「${via.pretty()}」はスキーマ「${names(fromSchemas)}」のID要素から解決できません")
@@ -895,7 +895,7 @@ object ViewDefinitions {
                         }
                     }
                     // 相手を指定した読み出しの path は、相手のスキーマ（in の指定）のID要素から
-                    expr.reads().filter { it.of == null && (it.via != null || it.inDoc != null) }.forEach { get ->
+                    expr.reads().filter { it.of == null && (it.via.isNotEmpty() || it.inDoc != null) }.forEach { get ->
                         val targetSchemas = schemasBy(get.inDoc?.schemaId, get.inDoc?.fileGlob)
                         if (targetSchemas.isNotEmpty() && targetSchemas.all { unresolvableFromIdElements(it, get.path) }) {
                             report("列「${col.label}」の path「${PathPattern.pretty(get.path)}」はスキーマ「${names(targetSchemas)}」のID要素から解決できません")
@@ -907,7 +907,7 @@ object ViewDefinitions {
                         .filter { it.fn != ValueExpr.AggregateFn.COUNT && it.kind != null }
                         .forEach { agg ->
                             val get = agg.input as? ValueExpr.Get ?: return@forEach
-                            if (get.of != null || get.via != null || get.inDoc != null) return@forEach
+                            if (get.of != null || get.via.isNotEmpty() || get.inDoc != null) return@forEach
                             val pattern = get.path
                             val fields = fromSchemas.flatMap { s ->
                                 idElementsOf(s).mapNotNull { staticFieldAt(s, it, pattern) }.map { s.tree.resolve(it) ?: it }

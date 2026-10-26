@@ -2,8 +2,8 @@ id: monthly-sales-chart
 name: 月別売上
 kind: chart
 chart: stacked-bar
-description: 月×状態の売上（クロス集計）を積み上げ棒にします。横軸＝年月、系列＝注文状態、高さ＝注文合計金額。合計と未分類の列は描きません。
+description: 月×商品カテゴリーの売上（クロス集計）を積み上げ棒にします。横軸＝年月、系列＝商品カテゴリー、高さ＝明細金額の合計（取消済みの注文は除きます）。合計と未分類の列は描きません。
 # 元の表の行が横軸の項目、数の列が系列。データは元の表が持ち、ここは見せ方だけ
-view: month-by-status
+view: month-by-category
 y: { label: 売上高（円）, format: "#,##0" }
-drill: below                       # 棒を押すと、その月×状態の注文（材料）が図の下に並ぶ（popup / below / right / none）
+drill: below                       # 棒を押すと、その月×カテゴリーの明細（材料）が図の下に並ぶ（popup / below / right / none）

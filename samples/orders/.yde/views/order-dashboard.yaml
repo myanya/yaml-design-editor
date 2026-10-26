@@ -54,6 +54,10 @@ sections:
     label: 商品別
     group: 内訳
     view: product-grid
+  - id: categories
+    label: カテゴリー別
+    group: 内訳
+    view: category-grid
   # チャートの区画: 件数の代わりに項目の数を出し、一覧の代わりに図を描く
   - id: monthly
     label: 月別売上

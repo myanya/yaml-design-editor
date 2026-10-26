@@ -1,5 +1,5 @@
-# カテゴリー（予定）: 消耗品
 productId: PRD-015
 name: トナーカートリッジ 黒
+categoryId: CAT-004
 unitPrice: 6800
 active: true

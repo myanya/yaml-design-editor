@@ -1,0 +1,22 @@
+id: month-by-category
+name: 月×商品カテゴリーの売上
+kind: matrix
+description: 行＝注文受付日の年月（受付日から yearMonth で導く）、列＝商品カテゴリー（明細の商品から参照を 2 段辿った名前。列はデータから決まります）、セル＝明細金額の合計。取消済みの注文は除きます。合計の行と列が自動で付きます。
+# 行の軸: 照合の起点（注文）ごとに年月を計算し、同じ年月を 1 行にまとめる
+rows:
+  value: { yearMonth: { path: orderedAt } }
+display: grouped
+cells:
+  # 注文を起点に、保有する明細まで辿る（取消済みの注文の明細は数えない）
+  match:
+    - node: { entity: order, bind: o }
+    - edge: { relation: has-line }
+    - node: { entity: order-line, bind: l }
+  where:
+    - { of: o, path: status, notEquals: cancelled }
+  of: l
+  # 列の軸: 明細ごとに、商品（productId）→ カテゴリー（categoryId）と参照を 2 段辿ってカテゴリー名を計算する
+  columns:
+    value: { via: [productId, categoryId], in: { schemaId: category }, path: name }
+  aggregate: sum
+  path: amount

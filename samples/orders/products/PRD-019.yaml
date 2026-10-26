@@ -1,5 +1,6 @@
-# カテゴリー（予定）: 飲料・食品。2026-07-01 に販売終了
+# 2026-07-01 に販売終了
 productId: PRD-019
 name: ティーバッグ 100袋（販売終了）
+categoryId: CAT-005
 unitPrice: 900
 active: false

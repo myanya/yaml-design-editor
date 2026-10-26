@@ -1,5 +1,5 @@
-# カテゴリー（予定）: 飲料・食品
 productId: PRD-017
 name: ドリップコーヒー 50袋
+categoryId: CAT-005
 unitPrice: 1800
 active: true

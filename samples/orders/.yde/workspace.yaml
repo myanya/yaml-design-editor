@@ -1,1 +1,1 @@
-ledger: [orders, customers, companies, products]
+ledger: [orders, customers, companies, categories, products]

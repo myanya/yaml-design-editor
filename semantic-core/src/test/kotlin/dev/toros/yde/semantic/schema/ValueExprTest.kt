@@ -153,14 +153,15 @@ class ValueExprTest {
         val get = assertIs<ValueExpr.Get>(
             ValueExpr.parseValue(mapOf("via" to "vtype", "in" to mapOf("schemaId" to "ddl"), "path" to "to"), "x")
         )
-        assertEquals(listOf("vtype"), get.via)
-        assertEquals(listOf(ValueExpr.ScopeRef(null, DerivationSelector(schemaId = "ddl"), listOf("vtype"))), get.sources())
+        // via は参照を辿る項目の並び（1 段なら 1 つ）
+        assertEquals(listOf(listOf("vtype")), get.via)
+        assertEquals(listOf(ValueExpr.ScopeRef(null, DerivationSelector(schemaId = "ddl"), listOf(listOf("vtype")))), get.sources())
         // いまの要素から読むのは参照の項目（値そのものは相手の要素から読む）
         assertEquals(listOf("vtype"), get.currentReads())
         val format = assertIs<ValueExpr.Format>(
             ValueExpr.parseValue(mapOf("format" to "{maxLength}", "scopes" to listOf(mapOf("via" to "vtype", "in" to mapOf("schemaId" to "vt")))), "x")
         )
-        assertEquals(listOf("vtype"), format.scopes.single().via)
+        assertEquals(listOf(listOf("vtype")), format.scopes.single().via)
         // 参照を辿る入れ物だけなら、穴はいまの要素で埋まる前提にならない（入れ物を書かなければ、いまの要素の穴）
         assertEquals(emptyList(), format.holes())
         assertEquals(listOf("maxLength"), assertIs<ValueExpr.Format>(ValueExpr.parseValue("{maxLength}", "x")).holes())

@@ -1,5 +1,6 @@
-# カテゴリー（予定）: オフィス機器。2026-03-01 に販売終了
+# 2026-03-01 に販売終了
 productId: PRD-004
 name: 旧型マウス（販売終了）
+categoryId: CAT-002
 unitPrice: 1500
 active: false

@@ -7,6 +7,7 @@ entities:
   - { type: customer, label: 顧客 }
   - { type: company, label: 会社 }
   - { type: product, label: 商品 }
+  - { type: category, label: 商品カテゴリー }
 relations:
   - name: belongs-to
     label: 所属会社
@@ -29,6 +30,13 @@ relations:
     target: [product]
     cardinality: { outMin: 1, outMax: 1 }
     description: 明細は商品を 1 件だけ参照します
+  - name: in-category
+    label: 商品カテゴリー
+    inverseLabel: このカテゴリーの商品
+    source: [product]
+    target: [category]
+    cardinality: { outMin: 1, outMax: 1 }
+    description: 商品はカテゴリーを 1 件だけ参照します
   - name: has-line
     label: 注文明細
     inverseLabel: 所属する注文

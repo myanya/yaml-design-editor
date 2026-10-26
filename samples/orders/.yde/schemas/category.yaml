@@ -1,0 +1,8 @@
+id: category
+name: 商品カテゴリー
+kind: document
+description: 商品カテゴリー（分野）1 件を 1 ファイルで管理します。商品が商品カテゴリー番号で参照します。分野の名前はここだけが持ち、商品や明細には書きません。
+match: "categories/*.yaml"
+filePattern: "categories/{id}.yaml"
+# 文書のルートはオブジェクト型 商品カテゴリー（同一性＝エンティティ category の定義）
+root: { type: common#商品カテゴリー }

@@ -11,7 +11,8 @@ import dev.toros.yde.yaml.model.pretty
  * 語彙は 2 種類: 引数を先に評価して値を受け取る関数と、形を受け取って自分の規則で評価する語。
  * YAML の書き方:
  * - 読み出し   `{of: 束縛名, path: 相対パス}`（`in: {schemaId, fileGlob}` で、値を読む文書を指定できる。
- *   `via: 参照の項目` を添えると、その要素に書かれた参照を 1 段辿った相手の要素から読む＝検査の外だけ。参照がちょうど 1 本のとき相手が決まる）
+ *   `via: 参照の項目` を添えると、その要素に書かれた参照を 1 段辿った相手の要素から読む＝検査の外だけ。参照がちょうど 1 本のとき相手が決まる。
+ *   `via: [項目, 項目]` と並べると段を重ねて辿る＝明細 → 商品 → カテゴリーのように。各段で参照がちょうど 1 本のとき相手が決まる）
  *   パスの場所にある項をそのまま返す（配列なら配列）。パスに `[*]`（任意の番号）を書くと、合う場所の値を並べた配列になる
  *   （`comments[*].date`＝各コメントの date。書かれていない要素が 1 つでもあれば「得られない」）
  * - 決まった値 値をそのまま書く（`10`・`approved`）。`{value: 値}` とも書ける（値が無ければ「得られない」扱い——
@@ -51,10 +52,10 @@ sealed interface ValueExpr {
 
     /**
      * 束縛からの値の読み出し（of が null＝いまの要素）。inDoc は値を読む文書の指定（null = 同じ ID が書かれた全文書が候補）。
-     * via は参照を 1 段辿る項目（その要素に書かれた参照の相手の要素から読む。null＝辿らない）。
+     * via は参照を辿る項目の並び（その要素に書かれた参照の相手の要素から読む。2 つ以上なら段を重ねて辿る。空＝辿らない）。
      * path は `[*]`（AnyIndex）を含んでよいパスのパターン。含めば、合う場所の値を並べた配列を返す。
      */
-    data class Get(val of: String?, val inDoc: DerivationSelector?, val path: YPath, val via: YPath? = null) : ValueExpr {
+    data class Get(val of: String?, val inDoc: DerivationSelector?, val path: YPath, val via: List<YPath> = emptyList()) : ValueExpr {
         /** `[*]` を含む（配列を返す）読み出しか。 */
         val spreads: Boolean get() = PathPattern.hasWildcard(path)
     }
@@ -180,9 +181,9 @@ sealed interface ValueExpr {
 
     /**
      * テンプレートの展開で値を探す入れ物1つ（束縛の、指定に合う文書に書かれた要素。of が null＝いまの要素）。
-     * via は参照を 1 段辿る項目（辿った相手の要素が入れ物になる）。
+     * via は参照を辿る項目の並び（辿った相手の要素が入れ物になる。2 つ以上なら段を重ねて辿る。空＝辿らない）。
      */
-    data class ScopeRef(val of: String?, val inDoc: DerivationSelector?, val via: YPath? = null)
+    data class ScopeRef(val of: String?, val inDoc: DerivationSelector?, val via: List<YPath> = emptyList())
 
     /**
      * この式が読む束縛と文書の指定の組（出現の選び方を決める単位。初出順・重複なし）。
@@ -269,7 +270,7 @@ sealed interface ValueExpr {
      */
     fun currentReads(): List<String> = when (this) {
         // 参照を辿る読み出しが、いまの要素から読むのは参照の項目（値そのものは相手の要素から読む）
-        is Get -> if (of != null) emptyList() else listOf(via?.pretty() ?: PathPattern.pretty(path))
+        is Get -> if (of != null) emptyList() else listOf(via.firstOrNull()?.pretty() ?: PathPattern.pretty(path))
         is Literal -> emptyList()
         is Format -> (ownHoles() + template.currentReads() + with.values.flatMap { it.currentReads() }).distinct()
         is MapValue -> input.currentReads()
@@ -299,7 +300,7 @@ sealed interface ValueExpr {
     /** テンプレートの展開の、いまの要素で埋まりうる穴（入れ物を書かないか、参照を辿らない「いまの要素」の入れ物があるとき）。 */
     private fun Format.ownHoles(): List<String> {
         val holes = (template as? Literal)?.value?.let(Projection::placeholders).orEmpty()
-        return if (scopes.isEmpty() || scopes.any { it.of == null && it.via == null }) holes.filter { it !in with } else emptyList()
+        return if (scopes.isEmpty() || scopes.any { it.of == null && it.via.isEmpty() }) holes.filter { it !in with } else emptyList()
     }
 
     /** この式に含まれる集計（入れ子を含む。each の value の中は要素に対するものなので含めない。ビューのリントが順序の種類の食い違いを見るのに使う）。 */
@@ -557,10 +558,16 @@ sealed interface ValueExpr {
          * 参照を辿る項目（via）。検査の外（スキーマの値の式・ビューの列）だけで書ける——検査の中では、辿るのはクエリの edge の
          * 役目で、式は σ を固定した単一値の計算に留める。
          */
-        private fun parseVia(raw: Any?, where: String, current: Boolean): YPath? {
-            val text = raw?.toString()?.takeIf { it.isNotBlank() } ?: return null
+        private fun parseVia(raw: Any?, where: String, current: Boolean): List<YPath> {
+            // 1 段は文字、段を重ねるなら文字の配列（例 [productId, categoryId]＝明細 → 商品 → カテゴリー）
+            val texts: List<String> = when (raw) {
+                null -> return emptyList()
+                is List<*> -> raw.map { it?.toString()?.takeIf { t -> t.isNotBlank() } ?: error("$where.via の配列には参照の項目を並べます") }
+                else -> listOfNotNull(raw.toString().takeIf { it.isNotBlank() })
+            }
+            if (texts.isEmpty()) return emptyList()
             require(current) { "$where.via は検査の中では書けません（参照を辿るのはクエリの edge で書きます）" }
-            return parseYPath(text)
+            return texts.map { parseYPath(it) }
         }
     }
 }

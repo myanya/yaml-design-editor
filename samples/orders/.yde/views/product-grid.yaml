@@ -1,10 +1,13 @@
 id: product-grid
 name: 商品一覧
-description: 商品ごとの現在の販売単価・有効かどうかと、受注した数量の合計（取消済みの注文は除きます）。「新規行」で商品番号を入れると products/<番号>.yaml ができます。
+description: 商品ごとの商品カテゴリー（参照と、参照を辿ったカテゴリー名）・現在の販売単価・有効かどうかと、受注した数量の合計（取消済みの注文は除きます）。「新規行」で商品番号を入れると products/<番号>.yaml ができます。
 rows:
   idPattern: "PRD-*"
 columns:
   - { label: 商品名, schemaId: product, path: name, editable: true }
+  - { label: 商品カテゴリー, schemaId: product, path: categoryId, editable: true }
+  # 参照を 1 段辿ってカテゴリー名を出す（読み取り専用の計算列）
+  - { label: カテゴリー名, schemaId: product, value: { via: categoryId, in: { schemaId: category }, path: name } }
   - { label: 現在の販売単価, schemaId: product, path: unitPrice, editable: true }
   - { label: 有効商品, schemaId: product, path: active, editable: true }
   # 行（商品）を起点に、この商品を指す明細を集め、所属する注文が取消済みでないものの数量を合計する
