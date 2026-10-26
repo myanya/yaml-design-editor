@@ -148,6 +148,18 @@ class DocumentState(
 
     fun hasPendingSourceInput(draft: String): Boolean = draft != sourceApplied
 
+    /**
+     * 今の下書きの写し。殻が入力・補完・差し込み・破棄のたびに知らせる文字列で、殻の TextFieldState と同じ内容になる
+     * （殻は TextFieldState を直接書き換えず、必ず editSource か noteSourceInput を通す）。セッション側の判定はこれを使う。
+     */
+    val draft: String get() = observedSourceText
+
+    /** まだ反映していない入力があるか（セッション側の判定用。殻は TextFieldState の文字列を渡す版を使う）。 */
+    val hasPendingSourceInput: Boolean get() = hasPendingSourceInput(draft)
+
+    /** 壊れた下書きが保存した内容と違うか（セッション側の判定用）。 */
+    val draftDirty: Boolean get() = draftDirty(draft)
+
     /** 入力順だけを記録する。入力変換から呼んでも木・履歴・状態を変更しない。 */
     fun noteSourceInput(text: String) {
         if (text == observedSourceText) return

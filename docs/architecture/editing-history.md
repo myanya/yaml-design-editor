@@ -25,13 +25,13 @@
 | `YamlPositions` / `SourcePositions` | yaml-core yaml/YamlPositions.kt | 解析できた文字列のノードの位置の表（パス→行・列、位置→パス、行→見出しのキー）。指摘の行・ホバー・Ctrl+クリック・折り畳みの鍵 |
 | `SourceStructure` | ui/SourceStructure.kt | 折り畳める区画と畳んだ見え方（隠れる範囲・表示と元の位置の行き来）・保存済みとの差分の印・木のノード→パス・選択範囲の整形（純ロジック） |
 | `YamlHighlighter` | ui/SourceHighlight.kt | 行ごとの覚えつきの色分け（純ロジック） |
-| `AppState.saveDraftAsText` / `prepareHistoryStep` / `executeHistoryStep` / `ensureAttached` | app/AppState.kt | 壊れたまま保存、下書きを捨てる確認つきの Undo/Redo、テキスト文書を文書集合へ戻す |
+| `AppState.saveDraftAsText` / `prepareHistoryStep` / `executeHistoryStep`、`DocumentSession.ensureAttached` | app/AppState.kt・session/DocumentSession.kt | 壊れたまま保存、下書きを捨てる確認つきの Undo/Redo、テキスト文書を文書集合へ戻す |
 | `WorkspaceSession.saveAsText` / `attachDocument` | workspace-core | テキストのまま保存して文書集合から外す（履歴は残す）。解析できる内容で文書集合へ戻す |
 | `DiffPane.calculateDiff` / `charDiffRanges` | ui/DiffPane.kt | 保存済みと編集中の差分（行整列・文字単位の強調。純ロジック） |
 
 ## 編集の経路
 
-- フォーム操作 → `Slot.set` または木の直接変更 → `markEdited()`（`AppState.recordEditToSession` が履歴と dirty をセッションへ記録）→ `version` が進み再コンポーズ。
+- フォーム操作 → `Slot.set` または木の直接変更 → `markEdited()`（`DocumentSession.recordEdit` が履歴と dirty をカーネルのセッションへ記録）→ `version` が進み再コンポーズ。
 - ビューグリッド・エンティティページ・スキーマ設計 UI も同じ経路（文書キャッシュ `AppState.ensureDoc` の木を `Slot` で変えて `markEdited()`）。専用の書込経路を作らない。
 - 一括編集（ルート直下のスカラーキー）は自動値も含めてセッションの 1 トランザクションで、Undo 1 回で全ファイルが戻る。同梱の計画は [auto-values.md](auto-values.md) を参照。
 - 内部で変更を生成するコードは `edit.YamlOperation` を使い、`PatchOp` と変更セットはエージェント・CLI・skill との交換形式に限る（[yaml-model.md「変更の基礎命令と 2 層」](yaml-model.md)）。

@@ -40,6 +40,7 @@ import dev.toros.yde.app.schema.SchemaDef
 import dev.toros.yde.semantic.schema.FieldDef
 import dev.toros.yde.yaml.model.deepCopy
 import dev.toros.yde.app.schema.SchemaLoader
+import dev.toros.yde.app.session.DocumentSession
 import dev.toros.yde.semantic.RefactoringPlan
 import dev.toros.yde.semantic.RefactoringRequest
 import dev.toros.yde.semantic.SemanticAutoValues
@@ -79,6 +80,8 @@ enum class UiSpace { DASHBOARD, EDIT, LEDGER, RUNS, DESIGN }
  * アプリケーション状態。
  */
 class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
+    /** セッション側の状態（Compose 非依存。session.DocumentSession）。画面側はここから Compose の状態へ写し、画面の場所・通知・確認を担う。 */
+    internal val documents = DocumentSession(editClock)
     private companion object {
         /** ナビゲーション履歴（戻る／進む）の保持上限。 */
         const val HISTORY_LIMIT = 50
@@ -144,8 +147,10 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         if (relevant) pollExternalChanges(eventHint = true)
     }
 
-    var workspace by mutableStateOf<Path?>(null)
-        private set
+    private val workspaceState = mutableStateOf<Path?>(null)
+    var workspace: Path?
+        get() = workspaceState.value
+        private set(value) { documents.workspace = value; workspaceState.value = value }
 
     /**
      * 最近開いたワークスペース履歴（R10-05）。ワークスペース単位の recentFiles（W-05）と同じ
@@ -166,18 +171,15 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
      */
     var readOnlyMode by mutableStateOf(false)
 
-    /**
-     * ヘッドレスコア（R9-02）。ファイル走査・スキーマ・索引の実体と更新方針（増分／全再構築の
-     * 振り分け）は core.Workspace が持ち、AppState は Compose 購読用のミラーと文書キャッシュを担う。
-     */
-    private var coreWs: dev.toros.yde.app.core.Workspace? = null
+    /** ヘッドレスコア（セッション側の所有。ファイル走査・スキーマ・索引の実体と更新方針は core.Workspace が持つ）。 */
+    private var coreWs: dev.toros.yde.app.core.Workspace?
+        get() = documents.core
+        set(value) { documents.core = value }
 
-    /**
-     * 新経路のワークスペースセッション（移行後リファクタリング Phase A-1・RA-01 併設）。
-     * ディスク同期（reload・保存・外部変更）で旧経路と同じタイミングで追随する読み経路の供給元で、
-     * 書込には使わない（A-2 以降）。開けない場合も null のままアプリは旧経路で動き続ける。
-     */
-    private var session: WorkspaceSession? = null
+    /** カーネルのセッション（セッション側の所有。編集・履歴・dirty の正）。開けない場合も null のままアプリは旧経路で動き続ける。 */
+    private var session: WorkspaceSession?
+        get() = documents.kernel
+        set(value) { documents.kernel = value }
 
     var schemas by mutableStateOf<List<SchemaDef>>(emptyList())
         private set
@@ -206,76 +208,50 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     var editorOnlyFiles by mutableStateOf<List<Path>>(emptyList())
         private set
 
-    /** ワークスペースの配置ポリシー（R13-02）。コア未オープン時はレガシー相当。 */
-    val layout: WorkspaceLayout get() = coreWs?.layout ?: WorkspaceLayout.LEGACY
+    /** ワークスペースの配置ポリシー。コア未オープン時はレガシー相当。 */
+    val layout: WorkspaceLayout get() = documents.layout
 
-    /** 走査対象（台帳＋予約領域）に載っているファイルか。台帳外は索引前提の検証を降格する（R13-03）。 */
-    fun isIndexed(file: Path): Boolean = coreWs?.let { file in it.files } ?: true
+    /** 走査対象（台帳＋予約領域）に載っているファイルか。台帳外は索引前提の検証を降格する。 */
+    fun isIndexed(file: Path): Boolean = documents.isIndexed(file)
 
-    private val emptyIndex = IdIndex()
-    val index: IdIndex get() = coreWs?.index ?: emptyIndex
-    var indexVersion by mutableStateOf(0)
-        private set
+    val index: IdIndex get() = documents.index
+    private val indexVersionState = mutableStateOf(0)
+    /** 索引の版（セッション側の写し。Compose の購読用）。 */
+    var indexVersion: Int
+        get() = indexVersionState.value
+        private set(value) { documents.indexVersion = value }
 
+    private val editVersionState = mutableStateOf(0)
     /**
-     * 全文書横断の編集カウンタ（R16-04 / UX-02）: docCache のどの文書かの未保存編集・Undo/Redo で進む。
+     * 全文書横断の編集カウンタ（セッション側の写し）: docCache のどの文書かの未保存編集・Undo/Redo で進む。
      * 計算列など「他文書の未保存編集に追随したい」派生表示が再解決の購読に使う（architecture/transform.md「計算列と決定論的射影」）。
      */
-    var editVersion by mutableStateOf(0)
-        private set
-
-    /** overlayIndex() のキャッシュ（(indexVersion, editVersion) が変わるまで再計算しない）。 */
-    private var overlayCache: Pair<Pair<Int, Int>, IdIndex>? = null
+    var editVersion: Int
+        get() = editVersionState.value
+        private set(value) { documents.editVersion = value }
 
     /**
-     * 未保存編集を重ねたオーバーレイ索引（UX-03）。dirty な文書キャッシュの編集中ツリーを
-     * 重ねた「見たまま」の索引を返す（architecture/index-references.md「索引の二層」）。UI層の検証・カバレッジ・ビュー行集合・
+     * 未保存編集を重ねたオーバーレイ索引（architecture/index-references.md「索引の二層」）。UI 層の検証・カバレッジ・ビュー行集合・
      * 参照解決はディスク索引（index）ではなく**こちら**を読む＝「見たままの状態で判定する」。
-     * indexVersion / editVersion（Compose状態）を読むため、コンポジション中の呼び出しは自動で購読される。
-     * `remember` の計算内で使う場合はキーに editVersion を含めること。
-     *
-     * 供給元はセッション派生（derivedState＝カーネルの増分導出。RA-02）で、索引は、その意味解析の結果そのもの
-     * （写しを持たない。P27 段D の D-d・D-e）。セッションを開けていない場合だけ、ディスクを映した索引へ重ねる。
+     * indexVersion / editVersion（Compose 状態）を読むため、コンポジション中の呼び出しは自動で購読される。
+     * `remember` の計算内で使う場合はキーに editVersion を含めること。計算はセッション側（DocumentSession）。
      */
     fun overlayIndex(): IdIndex {
-        val cw = coreWs ?: return index
-        val key = indexVersion to editVersion
-        overlayCache?.let { (k, cached) -> if (k == key) return cached }
-        val result = derivedState()?.let { derived -> IdIndex.of(derived.semantic) }
-            ?: legacyOverlayIndex(cw)
-        overlayCache = key to result
-        return result
+        indexVersion; editVersion
+        return documents.overlayIndex()
     }
 
-    /**
-     * まだ文書に入れていない内容（AI 生成の提案など）を重ねた索引（BACKLOG UX-109）。定義体の検査は索引にある要素だけを
-     * 判定するため、提案の内容で新しく書かれた ID にも検査を効かせるには、提案を重ねた索引が要る。未保存の編集も重ねる。
-     * 台帳の外の文書・セッションを開けない場合は、通常の overlayIndex を返す。
-     */
+    /** まだ文書に入れていない内容（AI 生成の提案など）を重ねた索引。計算はセッション側。 */
     fun overlayIndexWith(file: Path, root: YNode): IdIndex {
-        val cw = coreWs ?: return index
-        if (!isIndexed(file)) return overlayIndex()
-        val overlays: Map<Path, YNode?> = docCache.values
-            .filter { it.dirty && isIndexed(it.file) }
-            .associate { it.file to it.root as YNode? } + (file to root)
-        return runCatching { cw.overlayIndex(overlays) }.getOrElse { overlayIndex() }
+        indexVersion; editVersion
+        return documents.overlayIndexWith(file, root)
     }
-
-    /** 従来の二層オーバーレイ（RA-02 のフォールバック。セッションを開けない場合のみ）。 */
-    private fun legacyOverlayIndex(cw: dev.toros.yde.app.core.Workspace): IdIndex {
-        val overlays = docCache.values
-            .filter { it.dirty && isIndexed(it.file) }
-            .associate { it.file to it.root }
-        return if (overlays.isEmpty()) cw.index else cw.overlayIndex(overlays)
-    }
-
     /** 開いたことのあるドキュメントのキャッシュ（未保存編集をファイル切替時にも保持する）。 */
     // 文書と、その中の State を同じ描画世代で公開する。通常の Map では古い描画にも新しい文書が漏れる。
     private val docCache = mutableStateMapOf<Path, OpenDocument>()
 
     /** 編集欄をセッションの履歴へ接続できる文書か。一時フォームは含めない。 */
-    internal fun ownsDocument(doc: OpenDocument): Boolean =
-        docCache[doc.file] === doc && session?.hasDocument(documentOf(doc.file)) == true
+    internal fun ownsDocument(doc: OpenDocument): Boolean = docCache[doc.file] === doc && documents.ownsDocument(doc.state)
 
     /**
      * 画面の覚え（畳み・タブ・絞り込みなど。architecture/ui.md「UI シェル」）。
@@ -338,15 +314,13 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     }
 
     /** file 型の値の許可（`.yde/workspace.yaml` の `files:`）。検証の呼び出しに渡す。 */
-    val filePolicy: dev.toros.yde.workspace.layout.FilePolicy
-        get() = coreWs?.layout?.files ?: dev.toros.yde.workspace.layout.FilePolicy.DEFAULT
+    val filePolicy: dev.toros.yde.workspace.layout.FilePolicy get() = documents.filePolicy
 
     /** ファイル（YAML 以外も）があるか（file 型の値の存在の検査。相対はワークスペースのルートから）。 */
-    fun fileExists(path: String): Boolean = coreWs?.fileExists(path) ?: false
+    fun fileExists(path: String): Boolean = documents.fileExists(path)
 
     /** 準備完了レポート（CLI `readiness` と同じ計算＝保存済みの内容で判定）。台帳の「準備」タブが読む。 */
-    fun readinessReport(): dev.toros.yde.app.validate.Readiness.Report? =
-        coreWs?.let { dev.toros.yde.app.validate.Readiness.report(it) }
+    fun readinessReport(): dev.toros.yde.app.validate.Readiness.Report? = documents.readinessReport()
 
     /**
      * レールからのスペース切替。文書世界の位置（workspaceView）は保存・復元する。
@@ -962,7 +936,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         workspace = dir.toAbsolutePath().normalize()
         coreWs = null
         session = null
-        docCache.clear()
+        clearDocs()
         memory.clear()
         openPreview = null
         openMarkdown = null
@@ -1030,7 +1004,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         fileTreeRevision++
         val existing = yamlFiles.toSet() + editorOnlyFiles
         docCache.keys.filter { it !in existing }.toList().forEach { removed ->
-            if (documentOf(removed) !in protected) docCache.remove(removed)
+            if (documentOf(removed) !in protected) closeDoc(removed)
         }
         docCache.values.forEach { doc ->
             doc.schema = schemaFor(doc.file)
@@ -1091,7 +1065,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         val location = currentLocation()
         coreWs = prepared.first.workspace
         session = prepared.second
-        docCache.clear()
+        clearDocs()
         historyLocations.clear()
         dismissHistoryNotice()
         pendingHistory = null
@@ -1100,7 +1074,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         openMarkdown = null
         openImage = null
         openPreview = null
-        derivedCache = null
+        documents.invalidateCaches()
         mirrorCore(prepared.first.workspace, prepared.first.markdown, prepared.first.editorOnly)
         directories = emptyList()
         fileTreeRevision++
@@ -1111,13 +1085,9 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         status = "未保存編集と Undo/Redo 履歴を破棄し、ディスクから開き直しました（ファイルは変更していません）"
     }
 
-    private fun protectedDocumentIds(): Set<DocumentId> = docCache.values
-        .filter { it.dirty || it.draftDirty || it.hasPendingSourceInput || it.externalConflict }
-        .map { documentOf(it.file) }.toSet()
+    private fun protectedDocumentIds(): Set<DocumentId> = documents.protectedDocumentIds()
 
-    private fun hasRetainedEdits(): Boolean = session?.let {
-        it.canUndo() || it.canRedo() || it.dirtyDocuments().isNotEmpty()
-    } == true || protectedDocumentIds().isNotEmpty()
+    private fun hasRetainedEdits(): Boolean = documents.hasRetainedEdits()
 
     private class ReloadCandidate(
         val workspace: dev.toros.yde.app.core.Workspace,
@@ -1132,136 +1102,36 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
             editorOnlyFiles(cw), snapshotFiles(ws))
     }
 
-    private fun editorOnlyFiles(cw: dev.toros.yde.app.core.Workspace): List<Path> =
-        if (cw.layout.ledger.isEmpty()) emptyList()
-        else dev.toros.yde.app.core.WorkspaceScan.editorYamlFiles(cw.root).filter { it !in cw.files.toSet() }
+    private fun editorOnlyFiles(cw: dev.toros.yde.app.core.Workspace): List<Path> = documents.editorOnlyFilesOf(cw)
 
-    /** core.Workspace の状態を Compose 購読用ミラーへ反映する。走査は状態反映より先に行う。 */
+    /** core.Workspace の状態をセッション側の写しへ反映する（画面の Compose 状態へはセッションの聞き手で揃う）。 */
     private fun mirrorCore(
         cw: dev.toros.yde.app.core.Workspace,
         markdown: List<Path> = dev.toros.yde.app.core.WorkspaceScan.markdownFiles(cw.root),
         editorOnly: List<Path> = editorOnlyFiles(cw),
-    ) {
-        schemas = cw.schemas
-        schemaErrors = cw.schemaErrors
-        relations = cw.relations
-        enforcement = cw.enforcement
-        entityTypes = cw.entityTypes
-        schemaGraph = cw.schemaGraph
-        yamlFiles = cw.files
-        markdownFiles = markdown
-        // 台帳外のエディタ層ファイル（R13-04）。ledger 宣言が無ければ走査対象と一致するため空になる
-        editorOnlyFiles = editorOnly
-    }
+    ) = documents.mirrorCore(cw, markdown, editorOnly)
 
-    fun rebuildIndex() {
-        val cw = coreWs ?: return
-        // 索引の供給はセッション派生に一本化された（RB-07）ため、全再構築は refresh 経由で行う
-        cw.refresh()
-        mirrorCore(cw)
-        indexVersion++
-    }
+    fun rebuildIndex() = documents.rebuildIndex()
 
     // ---------------------------------------------------------------- 新経路セッション（A-1・RA-01）
 
-    /**
-     * 新経路セッションを開く（失敗してもアプリは旧経路で動き続ける）。
-     * 組込スキーマ（メタスキーマ等）を注入し、`_schemas`・定義ゾーンの検証を旧経路と揃える（C-2）。
-     *
-     * [fromMirror]: ディスクを映すセッション（core.Workspace の内部）を読み直した直後なら、その読み込み済みの状態から
-     * 起こす（`fork`）。2つのセッションは別物のまま——編集用は未保存の編集と作業中のスキーマを持ち、ディスクを映す側は
-     * エージェント・自動実行・CLI の基準（docs/architecture/index-references.md「索引の二層」 の二層）——で、読み込みだけを1回にする。
-     */
-    private fun openSession(ws: Path, fromMirror: Boolean = false): WorkspaceSession? = runCatching {
-        val forked = if (fromMirror) runCatching { coreWs?.mirror?.fork() }.getOrNull() else null
-        forked ?: run {
-            val wsLayout = coreWs?.layout ?: WorkspaceLayout.of(ws)
-            WorkspaceSession(FileSystemDocumentStore(ws), builtins = BuiltinSchemas.kernelSchemas(wsLayout))
-        }
-    }.getOrNull()
+    /** カーネルのセッションを開き直し、編集中の文書を working 状態へ再反映する（セッション側）。 */
+    private fun reopenSession(ws: Path, fromMirror: Boolean = false) = documents.reopenSession(ws, fromMirror)
+
+    /** 編集内容をセッションの working 状態へ直結する（履歴は積まない）。 */
+    private fun pushEditToSession(doc: OpenDocument) = documents.pushEdit(doc.state)
+
+    /** 編集や履歴があれば候補から保護して取り込み、状態のないセッションだけ従来の増分経路を使う（セッション側）。 */
+    private fun syncSessionWithDisk(changed: List<Path>, removed: List<Path> = emptyList()) =
+        documents.syncSessionWithDisk(changed, removed)
 
     /**
-     * セッションを開き直し、編集中（dirty）の文書を working 状態へ再反映する（RA-05）。
-     * 開き直しはディスク基準になるため、UIの「見たまま」を編集直結で回復する。
-     */
-    private fun reopenSession(ws: Path, fromMirror: Boolean = false) {
-        session = openSession(ws, fromMirror)
-        historyLocations.clear()
-        docCache.values.filter { it.dirty }.forEach(::pushEditToSession)
-    }
-
-    /**
-     * 編集内容をセッションの working 状態へ直結する（A-3 前半・RA-05）。markEdited（Undo/Redo 含む）の
-     * たびに呼ばれ、セッションが常に「見たまま」を所有する（UX-03 の構造保証の最終形）。
-     * パース不能（root=null）の編集は反映せず、derivedState() が null オーバーレイで文書集合から外す。
-     * ここでは履歴は積まない（replaceDocument。履歴の記録は recordEditToSession）。
-     */
-    private fun pushEditToSession(doc: OpenDocument) {
-        val s = session ?: return
-        val root = doc.root ?: return
-        val id = DocumentId(relPath(doc.file))
-        if (!ensureAttached(doc, s, id, root)) return  // 構成ファイル等、セッションが文書として扱わないパス
-        runCatching { s.replaceDocument(id, YDocument(id, listOf(root) + doc.extraDocs)) }
-    }
-
-    /**
-     * セッションに載っていない文書を載せる（R43-04）: テキスト文書（壊れたまま保存／開いた時点で解析不能）が解析できるように
-     * なったとき、文書集合へ戻す（保存済みの内容との差で dirty になる）。セッションが文書として扱わない場所なら false。
-     */
-    private fun ensureAttached(doc: OpenDocument, s: WorkspaceSession, id: DocumentId, root: YNode): Boolean {
-        if (s.hasDocument(id)) return true
-        if (!doc.textOnly || !s.acceptsDocument(id)) return false
-        val attached = runCatching {
-            s.attachDocument(id, YDocument(id, listOf(root) + doc.extraDocs), persistedText = doc.rawText)
-                .also { if (it.ok) s.acknowledgeStoreText(id, doc.expectedStoreText) }
-        }.getOrNull()
-        if (attached?.ok != true) return false
-        doc.textOnly = false
-        return true
-    }
-
-    /** 編集や履歴があれば候補から保護して取り込み、状態のないセッションだけ従来の増分経路を使う。 */
-    private fun syncSessionWithDisk(changed: List<Path>, removed: List<Path> = emptyList()) {
-        val ws = workspace ?: return
-        val s = session ?: run { reopenSession(ws); return }
-        if (hasRetainedEdits()) {
-            val disk = coreWs?.mirror ?: return
-            val result = s.refreshFrom(disk, protectedDocumentIds())
-            if (!result.ok) status = result.message ?: "再読込に失敗しました"
-            return
-        }
-        if (coreWs?.layout != s.layout) { reopenSession(ws); return }
-        runCatching {
-            val changedIds = changed.map(::documentOf)
-            val removedIds = removed.map(::documentOf)
-            if (changedIds.isEmpty() && removedIds.isEmpty()) return
-            s.noteStoreChanges(
-                changed = changedIds,
-                removed = removedIds,
-            )
-        }.onFailure { reopenSession(ws) }
-    }
-
-    /** derivedState() のキャッシュ（(indexVersion, editVersion) が変わるまで再計算しない。overlayCache と同じ規律）。 */
-    private var derivedCache: Pair<Pair<Int, Int>, WorkspaceDerivedState>? = null
-
-    /**
-     * 新経路の派生状態（A-1・RA-01）: セッションのworking状態＝「見たまま」の構造・意味派生
-     * （UX-03 のカーネル供給版）。編集はセッション直結（RA-05・pushEditToSession）のため、
-     * オーバーレイはパース不能の編集中文書（文書集合から外す）だけになった。
-     * indexVersion / editVersion を読むため、コンポジション中の呼び出しは自動で購読される。
+     * 派生状態: セッションの working 状態＝「見たまま」の構造・意味派生。
+     * indexVersion / editVersion を読むため、コンポジション中の呼び出しは自動で購読される。計算はセッション側。
      */
     fun derivedState(): WorkspaceDerivedState? {
-        val s = session ?: return null
-        val key = indexVersion to editVersion
-        derivedCache?.let { (k, cached) -> if (k == key) return cached }
-        // パース不能（root=null）の編集中文書は判定から外す（旧オーバーレイと同じ扱い）
-        val overlays = docCache.values
-            .filter { it.dirty && isIndexed(it.file) && it.root == null }
-            .associate { DocumentId(relPath(it.file)) to null as YDocument? }
-        val result = s.derivedWith(overlays)
-        derivedCache = key to result
-        return result
+        indexVersion; editVersion
+        return documents.derivedState()
     }
 
     // ファイル走査は core.WorkspaceScan（ヘッドレス層）と共通の実装を使う。
@@ -1333,20 +1203,13 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         status = "外部での変更を検出しました（${files.size} 件）"
     }
 
-    fun relPath(file: Path): String {
-        val ws = workspace ?: return file.toString()
-        return IdIndex.relPathOf(ws, file)
-    }
+    fun relPath(file: Path): String = documents.relPath(file)
 
-    /**
-     * ファイルの文書ID（ワークスペース相対パス）。索引・検証・ビューの解決は、場所をこの座標で表す（P27 段D の D-d・D-e）。
-     * 画面は、開いている文書をファイル（Path）で持つので、索引へ聞くときに、ここで文書ID へ直す。
-     */
-    fun documentOf(file: Path): DocumentId = DocumentId(relPath(file))
+    /** ファイルの文書ID（ワークスペース相対パス）。索引・検証・ビューの解決は、場所をこの座標で表す。 */
+    fun documentOf(file: Path): DocumentId = documents.documentOf(file)
 
     /** 文書ID のファイル。ファイルを開く・文書キャッシュを引くなど、Path が要る所でだけ使う。 */
-    fun fileOf(document: DocumentId): Path =
-        (workspace?.resolve(document.value) ?: Path.of(document.value)).normalize()
+    fun fileOf(document: DocumentId): Path = documents.fileOf(document)
 
     // 文書ID で呼べる入口（索引・検証・ビューの解決の結果は、場所を文書ID で持つ。ファイルへ直すのは、ここの1か所）
     fun openFile(document: DocumentId, focus: YPath? = null) = openFile(fileOf(document), focus)
@@ -1354,17 +1217,10 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     fun schemaFor(document: DocumentId): SchemaDef? = schemaFor(fileOf(document))
     fun isIndexed(document: DocumentId): Boolean = isIndexed(fileOf(document))
 
-    fun schemaFor(file: Path): SchemaDef? = coreWs?.schemaFor(file)
+    fun schemaFor(file: Path): SchemaDef? = documents.schemaFor(file)
 
-    /**
-     * AI生成の参考文書候補: 同じスキーマが適用される他のYAML文書（更新日時の新しい順）。
-     * ダイアログ側はこの並び順の先頭から既定選択する（新しい文書ほど現在の書き方を反映しているとみなす）。
-     */
-    fun sameSchemaFiles(exclude: Path, schemaId: String): List<Path> =
-        coreWs?.files
-            ?.filter { it != exclude && schemaFor(it)?.id == schemaId }
-            ?.sortedByDescending { file -> runCatching { Files.getLastModifiedTime(file).toMillis() }.getOrDefault(0L) }
-            .orEmpty()
+    /** AI生成の参考文書候補: 同じスキーマが適用される他のYAML文書（更新日時の新しい順）。 */
+    fun sameSchemaFiles(exclude: Path, schemaId: String): List<Path> = documents.sameSchemaFiles(exclude, schemaId)
 
     // ---------------------------------------------------------------- documents
 
@@ -1374,7 +1230,13 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
      * 文書をエディタで開かずにキャッシュへ取り込む（ビューグリッドのセル編集用）。
      * 取り込んだ文書は通常の編集と同じく dirty 管理・保存・外部変更検出の対象になる。
      */
-    fun ensureDoc(file: Path): OpenDocument = docCache.getOrPut(file) { loadDocument(file) }
+    fun ensureDoc(file: Path): OpenDocument =
+        docCache[file] ?: OpenDocument(documents.ensureDocument(file)).also { docCache[file] = it }
+
+    /** 文書を閉じる（画面の殻とセッション側の論理を揃えて外す）。 */
+    private fun closeDoc(file: Path) { docCache.remove(file); documents.closeDocument(file) }
+
+    private fun clearDocs() { docCache.clear(); documents.clearDocuments() }
 
     fun openFile(file: Path, focus: YPath? = null) {
         val cur = currentLocation()
@@ -1402,7 +1264,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         openMarkdown = null
         openHelp = null
         openImage = null
-        val doc = docCache.getOrPut(file) { loadDocument(file) }
+        val doc = ensureDoc(file)
         openDoc = doc
         workspaceView = 0
         syncSpaceFromView()
@@ -1470,18 +1332,12 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
      * 未保存編集を優先するツリー取得（文書キャッシュ → セッション → ディスク）。
      * core への loader 注入と、UIの検証（整合検証の材料読み）に使う（UX-03）。
      */
-    fun unsavedFirstLoader(): (Path) -> YNode? = { file ->
-        val cached = docCache[file]
-        if (cached != null) cached.root
-        else session?.copyDocument(documentOf(file))?.documents?.firstOrNull()
-            ?: runCatching { YamlIO.parseFirst(Files.readString(file)) }.getOrNull()
-    }
+    fun unsavedFirstLoader(): (Path) -> YNode? = documents.unsavedFirstLoader()
 
     /** 未保存編集を優先するツリー取得の、文書ID 版（索引・検証・ビューの解決へ渡す loader）。 */
-    fun unsavedFirstTree(): (DocumentId) -> YNode? = unsavedFirstLoader().let { load -> { d -> load(fileOf(d)) } }
+    fun unsavedFirstTree(): (DocumentId) -> YNode? = documents.unsavedFirstTree()
 
-    fun workspaceRecords(): List<WorkspaceRecord> =
-        coreWs?.let { dev.toros.yde.app.core.WorkspaceRecords.collect(it, unsavedFirstLoader()) }.orEmpty()
+    fun workspaceRecords(): List<WorkspaceRecord> = documents.workspaceRecords()
 
     /**
      * ワークスペース全体の検証（UX-44）: 索引対象の全文書を「見たまま」（未保存編集込みの
@@ -1539,11 +1395,10 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
             // セッション不在時の従来経路（ファイル単位の直接書換→全再読込）
             val reopen = openDoc?.file?.takeIf { it in files }
             val count = dev.toros.yde.app.core.WorkspaceRecords.updateRootScalar(files, key, value)
-            files.forEach(docCache::remove)
+            files.forEach(::closeDoc)
             reload()
             reopen?.let { file ->
-                val refreshed = loadDocument(file)
-                docCache[file] = refreshed
+                val refreshed = ensureDoc(file)
                 openDoc = refreshed
             }
             count
@@ -1567,61 +1422,6 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     fun bulkKeyCandidates(): List<String> =
         coreWs?.let { dev.toros.yde.app.core.WorkspaceRecords.bulkKeyCandidates(it, unsavedFirstLoader()) }.orEmpty()
 
-    private fun loadDocument(file: Path): OpenDocument {
-        val text = runCatching { Files.readString(file) }.getOrDefault("")
-        var error: String? = null
-        var extra: List<YNode> = emptyList()
-        val root = try {
-            // 横断Undoは未表示の文書も変える。本文はworking、保存済みの比較用テキストはディスクから取る。
-            val docs = session?.copyDocument(documentOf(file))?.documents ?: YamlIO.parseAll(text)
-            extra = docs.drop(1)
-            docs.firstOrNull() ?: YNode.Map()
-        } catch (e: Exception) {
-            error = e.message ?: e.toString()
-            null
-        }
-        return OpenDocument(file, root, schemaFor(file), text, error, extra)
-            .also { doc ->
-                // 編集通知: 全文書横断カウンタを進め、セッション履歴へ記録する（RA-05 → RA-06 で記録つきに）
-                doc.onEdited = { coalesceWith ->
-                    editVersion++
-                    dismissLocalHistoryNotice()
-                    recordEditToSession(doc, coalesceWith)
-                }
-                // dirty の判定はセッション（単一所有）を正とする（RA-06）
-                doc.dirtySource = {
-                    session?.let { s ->
-                        val id = DocumentId(relPath(doc.file))
-                        if (s.hasDocument(id)) s.isDirty(id) else null
-                    }
-                }
-                doc.refreshDirty()
-            }
-    }
-
-    /**
-     * 編集1回をセッション履歴へ記録する（A-3・RA-06）。合体キーは文書スコープに閉じる（他文書の
-     * 連続編集と混ざらない）。パース不能（root=null）の編集は記録しない（D-08:
-     * 生テキストの不正状態は core の履歴に持たない。derivedState が null オーバーレイで判定から外す）。
-     */
-    private fun recordEditToSession(doc: OpenDocument, coalesceWith: Any?) {
-        val s = session ?: return
-        val root = doc.root ?: return
-        val id = DocumentId(relPath(doc.file))
-        if (!ensureAttached(doc, s, id, root)) return
-        // ソースの解析完了が画面切替より遅れても、編集元はその文書のソースタブ。
-        val location = if (coalesceWith == "source") documentHistoryLocation(doc.file, tab = 1)
-            else if (uiSpace == UiSpace.LEDGER || uiSpace == UiSpace.DASHBOARD) historyLocation()
-            else documentHistoryLocation(doc.file, if (openDoc === doc) editorTab else memory.editorTab[id] ?: 0)
-        runCatching {
-            val result = s.recordEdit(
-                id, YDocument(id, listOf(root) + doc.extraDocs),
-                coalesceKey = coalesceWith?.let { listOf(id.value, location, it) },
-                nowMillis = editClock(),
-            )
-            if (result.ok) s.peekUndo()?.let { historyLocations.putIfAbsent(it.id, location) }
-        }
-    }
 
     private fun reloadDocumentFromDisk(doc: OpenDocument, force: Boolean, knownText: String? = null) {
         if (knownText == null && !Files.exists(doc.file)) {
@@ -1664,7 +1464,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
             val text = readStoreText(doc)
             session?.takeIf { it.acceptsDocument(documentOf(doc.file)) }?.acceptStoreText(documentOf(doc.file), text)
             if (text == null) {
-                docCache.remove(doc.file)
+                closeDoc(doc.file)
                 openDoc = null
             } else reloadDocumentFromDisk(doc, force = true, knownText = text)
             editVersion++
@@ -2038,7 +1838,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
             val working = documents[id]
             if (working == null) {
                 // undo で作成が巻き戻された等、文書が消えた場合はキャッシュも閉じる
-                docCache.remove(file)
+                closeDoc(file)
                 if (openDoc?.file == file) openDoc = null
                 return@forEach
             }
@@ -2502,7 +2302,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         recentPrefs.put(workspaceKey(), recentFiles.joinToString("\n") { relPath(it) })
         backStack = backStack.map { it.copy(file = it.file?.let(::moved)) }
         forwardStack = forwardStack.map { it.copy(file = it.file?.let(::moved)) }
-        docCache.keys.filter { moved(it) != it }.toList().forEach(docCache::remove)
+        docCache.keys.filter { moved(it) != it }.toList().forEach(::closeDoc)
         openDoc = null; openPreview = null; openMarkdown = null; openImage = null
         refreshAfterSessionWrite(plan.documentIds + plan.texts.filter { it.document.value.endsWith(".yaml") || it.document.value.endsWith(".yml") }.map { it.document })
         if (active != null && Files.isRegularFile(active)) {
@@ -2758,4 +2558,36 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     }
 
     fun dismissNavigationCandidates() { navigationCandidates = emptyList() }
+
+    // ---------------------------------------------------------------- セッション側からの写しと聞き手
+
+    /** セッション側の値を Compose の状態へ写す（DocumentSession.onChanged）。 */
+    private fun mirrorSession() {
+        workspaceState.value = documents.workspace
+        schemas = documents.schemas
+        schemaErrors = documents.schemaErrors
+        relations = documents.relations
+        enforcement = documents.enforcement
+        entityTypes = documents.entityTypes
+        schemaGraph = documents.schemaGraph
+        yamlFiles = documents.yamlFiles
+        markdownFiles = documents.markdownFiles
+        editorOnlyFiles = documents.editorOnlyFiles
+        indexVersionState.value = documents.indexVersion
+        editVersionState.value = documents.editVersion
+    }
+
+    init {
+        documents.onChanged = ::mirrorSession
+        documents.onNotice = { status = it }
+        documents.onEdited = { dismissLocalHistoryNotice() }
+        documents.editOrigin = { doc, coalesceWith ->
+            // ソースの解析完了が画面切替より遅れても、編集元はその文書のソースタブ。
+            if (coalesceWith == "source") documentHistoryLocation(doc.file, tab = 1)
+            else if (uiSpace == UiSpace.LEDGER || uiSpace == UiSpace.DASHBOARD) historyLocation()
+            else documentHistoryLocation(doc.file, if (openDoc?.state === doc) editorTab else memory.editorTab[documentOf(doc.file)] ?: 0)
+        }
+        documents.onEditRecorded = { id, origin -> (origin as? NavLocation)?.let { historyLocations.putIfAbsent(id, it) } }
+        documents.onKernelReplaced = { historyLocations.clear() }
+    }
 }

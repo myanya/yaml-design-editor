@@ -53,7 +53,7 @@
 | E-05 | Undo/Redo（横断履歴・編集元への復帰・通知・入力の区切り） | `AppState`, `HistoryNoticeBanner` | `HistoryLocationTest`・`HistoryNoticeTest`・`HistoryCoalescingTest` ほか | [editing-history](architecture/editing-history.md) |
 | E-06 | 保存（Ctrl+S・すべて保存・外部変更の直前検査と明示上書き） | `AppState.save*`, `WorkspaceSession.save*` | アプリ・コアの `SaveConflictTest`, `YamlIOTest` | [editing-history](architecture/editing-history.md) |
 | E-07 | 文書メタデータ `_document`（id・name・description）の編集とコンパクトな文書ヘッダー | `ui/FormView.kt`・`ui/EditorChrome.kt` | 手動 | [ui](architecture/ui.md) |
-| E-08 | 文書キャッシュ（ファイル切替時も未保存編集を保持） | `AppState.docCache` | 手動 | [editing-history](architecture/editing-history.md) |
+| E-08 | 文書キャッシュ（ファイル切替時も未保存編集を保持） | `AppState.docCache`（殻）, `session/DocumentSession.kt`（論理） | 手動 | [editing-history](architecture/editing-history.md) |
 | E-09 | 同一 ID の他文書出現ストリップ（相手側の情報の表示とジャンプ） | `ui/FormView.kt`（`SameIdOccurrencesStrip`） | 手動 | [ui](architecture/ui.md) |
 | E-10 | 複数ドキュメント YAML（フォームは先頭・後続は保持して再出力・ソースは全体を編集可） | `yaml-core/yaml/YamlIO.kt`（`parseAll` / `dumpAll`）, `app/OpenDocument` | 単体 `OpenDocumentTest` | [yaml-model](architecture/yaml-model.md) |
 | E-11 | 畳み込みサマリ（畳んだ要素の 1 行要約・参照の値は参照先の名前を添える・既定はルートから 2 階層まで展開） | `ui/FormView.kt`, `schema/Display.kt` | 単体 `DisplayTest`, `DefaultExpandTest` | [ui](architecture/ui.md) |

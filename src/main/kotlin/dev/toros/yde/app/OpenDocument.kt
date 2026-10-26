@@ -16,15 +16,18 @@ import java.nio.file.Path
  * root の木が正で、フォーム編集は木を直接書き換え、markEdited() で version を進めて再コンポーズを駆動する。
  */
 class OpenDocument(
-    file: Path,
-    root: YNode?,
-    schema: SchemaDef?,
-    initialText: String,
-    parseError: String?,
-    extraDocs: List<YNode> = emptyList(),
-) {
     /** 論理（Compose 非依存）。セッション側の処理はこちらを使う。 */
-    val state = DocumentState(file, root, schema, initialText, parseError, extraDocs)
+    val state: DocumentState,
+) {
+    /** 単体の文書を作る（一時フォーム・プレビュー・テスト用。セッションに載せるものは DocumentSession が作った論理を包む）。 */
+    constructor(
+        file: Path,
+        root: YNode?,
+        schema: SchemaDef?,
+        initialText: String,
+        parseError: String?,
+        extraDocs: List<YNode> = emptyList(),
+    ) : this(DocumentState(file, root, schema, initialText, parseError, extraDocs))
 
     val file: Path get() = state.file
 

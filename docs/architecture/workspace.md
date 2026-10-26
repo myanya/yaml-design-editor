@@ -54,7 +54,8 @@
 
 ## 文書キャッシュと Workspace
 
-- `AppState` は走査・スキーマ・索引・更新方針を保持する `core.Workspace` へ委譲し、Compose 購読用のミラー（`schemas` / `yamlFiles` / `indexVersion`）・文書キャッシュ（`docCache`）・ナビゲーション・ファイル操作を担う。ミラーは読み取り専用の写しで、core 側を更新したら `mirrorCore` で写し直し `indexVersion` を進める。
+- セッション側の `session.DocumentSession`（Compose 非依存）が、走査・スキーマ・索引・更新方針を保持する `core.Workspace` とカーネルのセッションを持ち、写し（`schemas` / `yamlFiles` / `indexVersion` / `editVersion`）・開いている文書（`DocumentState`）・未保存編集を重ねた索引と派生・編集の記録・セッションの開き直しとディスクとの同期を担う。core 側を更新したら `mirrorCore` で写し直し `indexVersion` を進める。
+- `AppState`（画面側）はセッション側の値を `onChanged` で Compose の状態へ写し、文書の殻（`OpenDocument`）のキャッシュ（`docCache`）・ナビゲーション・通知・確認・ファイル操作を担う。編集元の画面の印（合体キーに入る）と記録 ID の対応も画面側が持つ。
 - `OpenDocument` は `EditBuffer` のシェル（[editing-history.md](editing-history.md)）。編集 API の意味を変えるときは `EditBuffer` を直す。
 - `docCache` は `mutableStateMapOf` で、文書と内部の State を同じスナップショットから参照する。描画開始後に生成した文書は次の描画から見え、破棄したスナップショットの文書は公開しない。
 - 一覧・一括編集（`WorkspaceRecords`）は「未保存編集を優先する木の取得」を注入で受ける。UI は docCache を、ヘッドレス経路はディスクを渡す。
