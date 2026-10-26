@@ -5,6 +5,7 @@ import dev.toros.yde.app.skill.Skills
 import dev.toros.yde.workspace.changeset.ChangeSet
 import dev.toros.yde.workspace.changeset.ChangeSets
 import dev.toros.yde.workspace.changeset.FileChange
+import dev.toros.yde.workspace.ReportDefinitions
 import dev.toros.yde.workspace.layout.WorkspaceLayout
 import dev.toros.yde.workspace.validate.CodedChecks
 import dev.toros.yde.workspace.validate.IssueDelivery
@@ -221,6 +222,7 @@ class Staging(val ws: Workspace) {
             WorkspaceLayout.Zone.EVALS -> { raw -> Evals.parseEval(raw, e.file) }
             WorkspaceLayout.Zone.SKILLS -> { raw -> Skills.parseSkill(raw, e.file) }
             WorkspaceLayout.Zone.VIEWS -> { raw -> Views.parseView(raw, e.file, ws.schemas) }
+            WorkspaceLayout.Zone.REPORTS -> { raw -> ReportDefinitions.parse(raw, dev.toros.yde.yaml.model.DocumentId(rel)) }
             else -> return null
         }
         val raw = YamlIO.toAny(e.root) as? Map<*, *> ?: return "定義のルートはobjectである必要があります"

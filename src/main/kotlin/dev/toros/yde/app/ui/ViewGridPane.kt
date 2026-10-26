@@ -33,6 +33,7 @@ import dev.toros.yde.app.core.ViewBacklink
 import dev.toros.yde.app.core.ViewCell
 import dev.toros.yde.app.core.ViewDef
 import dev.toros.yde.app.core.ViewRow
+import dev.toros.yde.app.core.Reports
 import dev.toros.yde.app.core.Views
 import dev.toros.yde.app.index.DocScanner
 import dev.toros.yde.app.index.IdIndex
@@ -73,20 +74,26 @@ fun ViewGridView(state: AppState) {
     state.indexVersion
     val ws = state.workspace ?: return
     val loaded = remember(state.indexVersion, ws) { Views.load(ws, state.schemas) }
+    // レポート（R30-04）も同じ一覧から選ぶ（ID は表・チャートと共有）
+    val reports = remember(state.indexVersion, ws) { Reports.load(ws) }
+    val report = reports.report(state.viewGridId ?: "")
     // 選んだ ID がチャート（P46）なら、表の代わりに図を描く
-    val chart = loaded.chartView(state.viewGridId ?: "")
-    val view = if (chart != null) null else loaded.view(state.viewGridId ?: "") ?: loaded.views.firstOrNull()
+    val chart = if (report != null) null else loaded.chartView(state.viewGridId ?: "")
+    val view = if (chart != null || report != null) null else loaded.view(state.viewGridId ?: "") ?: loaded.views.firstOrNull()
+    val errors = loaded.errors + reports.errors
 
     Column(Modifier.fillMaxSize().background(Palette.EditorBg)) {
-        HeaderBar(state, loaded, view, chart)
-        if (loaded.errors.isNotEmpty()) {
+        HeaderBar(state, loaded, view, chart, report, reports)
+        if (errors.isNotEmpty()) {
             Text(
-                "定義エラー: " + loaded.errors.joinToString(" ／ "),
+                "定義エラー: " + errors.joinToString(" ／ "),
                 fontSize = 11.sp, color = Palette.WarnOrange,
                 modifier = Modifier.fillMaxWidth().background(Palette.ConflictBg).padding(horizontal = 12.dp, vertical = 4.dp),
             )
         }
-        if (chart != null) {
+        if (report != null) {
+            ReportPane(state, report, loaded)
+        } else if (chart != null) {
             ChartGridView(state, loaded, chart)
         } else if (view == null) {
             Column(
@@ -106,22 +113,25 @@ fun ViewGridView(state: AppState) {
 }
 
 @Composable
-private fun HeaderBar(state: AppState, loaded: Views.LoadResult, view: ViewDef?, chart: dev.toros.yde.semantic.VirtualChartDef? = null) {
+private fun HeaderBar(
+    state: AppState, loaded: Views.LoadResult, view: ViewDef?, chart: dev.toros.yde.semantic.VirtualChartDef? = null,
+    report: Reports.Loaded? = null, reports: Reports.LoadResult = Reports.LoadResult(emptyList(), emptyList()),
+) {
     var selectorOpen by remember { mutableStateOf(false) }
     var newRowDialog by remember { mutableStateOf(false) }
     Row(
         Modifier.fillMaxWidth().background(Palette.Surface).padding(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(if (chart != null) "チャート" else "ビューグリッド", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text(if (report != null) "レポート" else if (chart != null) "チャート" else "ビューグリッド", fontWeight = FontWeight.Bold, fontSize = 14.sp)
         Spacer(Modifier.width(12.dp))
         Box {
             OutlinedButton(
-                enabled = loaded.views.isNotEmpty() || loaded.chartViews.isNotEmpty(),
+                enabled = loaded.views.isNotEmpty() || loaded.chartViews.isNotEmpty() || reports.reports.isNotEmpty(),
                 onClick = { selectorOpen = true },
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
             ) {
-                Text(chart?.name ?: view?.name ?: "（ビューなし）", fontSize = 12.sp)
+                Text(report?.def?.name ?: chart?.name ?: view?.name ?: "（ビューなし）", fontSize = 12.sp)
                 Icon(Icons.Default.ArrowDropDown, contentDescription = null)
             }
             // 表（グリッド・クロス集計）とチャート（P46）を同じ一覧から選ぶ
@@ -131,9 +141,11 @@ private fun HeaderBar(state: AppState, loaded: Views.LoadResult, view: ViewDef?,
                     description = v.description, selected = v.id == view?.id)
             } + loaded.chartViews.map { c ->
                 ChoiceOption(c.id, c.name + "（${c.kind.label}）", "${c.id} — 元の表: ${c.view}", description = c.description, selected = c.id == chart?.id)
+            } + reports.reports.map { r ->
+                ChoiceOption(r.def.id, r.def.name + "（レポート）", reportSubtitle(r), description = r.def.description, selected = r.def.id == report?.def?.id)
             }, onSelect = { state.openViewGrid(it) })
         }
-        (chart?.description ?: view?.description)?.let {
+        (report?.def?.description ?: chart?.description ?: view?.description)?.let {
             Spacer(Modifier.width(10.dp))
             Text(it.replace("\n", " ").take(80), fontSize = 11.sp, color = Palette.SubText, maxLines = 1)
         }
@@ -251,9 +263,10 @@ private fun GridBody(state: AppState, view: ViewDef) {
     val query = state.memory.gridQuery[view.id].orEmpty()  // 絞り込みは画面の覚え（ビューごと。タブを離れても残る）
     // 行の構造（座標）は索引基準で解決し、セル値の表示・編集は編集中ツリーを優先する。
     // editVersion の購読（R16-04 / UX-02）: 計算列が他文書の未保存編集にも追随するための再解決契機
-    val rows = remember(view, state.indexVersion, state.editVersion) {
-        Views.resolve(view, state.overlayIndex(), state.unsavedFirstTree(), state::schemaFor)
+    val resolved = remember(view, state.indexVersion, state.editVersion) {
+        Views.resolveDetailed(view, state.overlayIndex(), state.unsavedFirstTree(), state::schemaFor)
     }
+    val rows = resolved.rows
     val filtered = remember(rows, query) {
         if (query.isBlank()) rows
         else rows.filter { row ->
@@ -269,7 +282,9 @@ private fun GridBody(state: AppState, view: ViewDef) {
             modifier = Modifier.width(260.dp),
         )
         Spacer(Modifier.weight(1f))
-        Text("${filtered.size} / ${rows.size} 行", fontSize = 11.sp, color = Palette.SubText)
+        // クエリ行の limit で切れているときは、黙らずに全行数を添える
+        val truncated = if (resolved.truncated) "（limit ${resolved.limit} で打ち切り。全 ${resolved.total} 行）" else ""
+        Text("${filtered.size} / ${rows.size} 行$truncated", fontSize = 11.sp, color = if (resolved.truncated) Palette.WarnOrange else Palette.SubText)
     }
     ResolvedViewGrid(state, view, filtered)
 }

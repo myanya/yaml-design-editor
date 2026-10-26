@@ -56,6 +56,26 @@ class PivotAndChartViewsTest {
               path: total
             """,
         )
+        write("_views/bad-scatter.yaml", "id: bad-scatter\nkind: chart\nchart: scatter\nview: month-by-status\n")
+        write("_views/bad-label.yaml", "id: bad-label\nkind: chart\nchart: bar\nview: month-by-status\nlabel: 未処理\n")
+        write("_views/bad-scale.yaml", "id: bad-scale\nkind: chart\nchart: bar\nview: month-by-status\nscale: {x: log}\n")
+        write(
+            "_views/order-by-month-labeled.yaml",
+            """
+            id: order-by-month-labeled
+            kind: matrix
+            rows: { idPattern: "ORD-*" }
+            cells:
+              match: [ { node: { entity: order, bind: o } } ]
+              of: o
+              columns:
+                value: { yearMonth: { path: orderedAt } }
+                label: { format: "{y}年{m}月", with: { y: { year: { path: orderedAt } }, m: { month: { path: orderedAt } } } }
+                order: ["2026-10"]
+              aggregate: sum
+              path: total
+            """,
+        )
         write(
             "_views/order-by-month.yaml",
             """
@@ -131,6 +151,11 @@ class PivotAndChartViewsTest {
         assertEquals(listOf("2026-08", "2026-09", "2026-10", "（未分類）"), rows.first().cells.map { it.column.label })
         assertEquals(listOf("5400", "0", "0", "0"), rows[0].cells.map(::text))
         assertEquals(listOf("0", "0", "5500", "0"), rows[3].cells.map(::text))
+        // 見出しの式（label）と先に並べる値（order）: 2026-10 を先頭に、残りは値の順。見出しは年と月の文字
+        val labeled = Views.resolve(loaded.view("order-by-month-labeled")!!, workspace.index, workspace::treeOf, workspace::schemaFor)
+        assertEquals(listOf("2026年10月", "2026年8月", "2026年9月", "（未分類）", "合計"), labeled.first().cells.map { it.column.label })
+        assertEquals(listOf("0", "5400", "0", "0", "5400"), labeled[0].cells.map(::text))
+        assertEquals(listOf("5500", "0", "0", "0", "5500"), labeled[3].cells.map(::text))
     }
 
     @Test
@@ -138,6 +163,10 @@ class PivotAndChartViewsTest {
         val workspace = Workspace.open(ws)
         val loaded = Views.load(ws, workspace.schemas)
         assertTrue(loaded.errors.any { "bad-chart" in it && "nosuch" in it }, loaded.errors.toString())
+        // 散布図は x（横軸の数の列）が必須、label は散布図だけ
+        assertTrue(loaded.errors.any { "bad-scatter" in it && "x" in it }, loaded.errors.toString())
+        assertTrue(loaded.errors.any { "bad-label" in it && "label" in it }, loaded.errors.toString())
+        assertTrue(loaded.errors.any { "bad-scale" in it && "scale" in it }, loaded.errors.toString())
         val chart = loaded.chartView("monthly-chart")!!
         val data = assertNotNull(Views.resolveChart(chart, loaded, workspace.index, workspace::treeOf, workspace::schemaFor))
         assertEquals(listOf("2026-08", "2026-09", "2026-10"), data.categories.map { it.label })

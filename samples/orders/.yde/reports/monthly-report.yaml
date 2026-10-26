@@ -1,0 +1,12 @@
+id: monthly-report
+name: 月次売上レポート
+description: 指定した月の売上をカテゴリー別に集め、その月の注文を一覧にした Markdown を作ります。数はビュー（月×商品カテゴリーの売上・注文一覧）から受け取り、ここでは計算しません。
+params: [month]                       # 例 2026-10
+build:
+  month: $month
+  # 月×商品カテゴリーの売上から、その月の行を 1 つ（cells＝列ごとの金額。合計の列も含む）
+  sales: { $view: month-by-category, $where: [{ path: id, equals: $month }], $one: true }
+  # 注文一覧から、その月の注文（注文月の列＝受付日の年月。取消済みは除く）
+  orders: { $view: order-grid, $where: [{ path: values.注文月, equals: $month }, { path: values.注文状態, notEquals: cancelled }] }
+template: monthly-report.md           # 同じ場所のひな形
+output: "reports/{month}.md"          # 書く場所（ワークスペース相対。穴は build の値）

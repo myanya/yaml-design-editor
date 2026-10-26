@@ -79,10 +79,12 @@ fun DashboardPane(state: AppState) {
                     val vertical = when (view.placement) {
                         DashboardPlacement.VERTICAL -> true
                         DashboardPlacement.HORIZONTAL -> false
-                        DashboardPlacement.AUTO -> estimatedTileRows(result.sections.size, groups.count { it.first != null }, listWidth) >= 3
+                        // 分割中（一覧 4：詳細 6）は、縦にすると表が狭くなるので横に決める
+                        DashboardPlacement.AUTO -> !split && estimatedTileRows(result.sections.size, groups.count { it.first != null }, listWidth) >= 3
                     }
                     if (vertical) Row(Modifier.weight(if (split) .4f else 1f).fillMaxHeight()) {
-                        Column(Modifier.width(220.dp).fillMaxHeight().verticalScroll(rememberScrollState()).padding(8.dp)) {
+                        // 縦の一覧の幅。分割中は表を潰さないように狭める
+                        Column(Modifier.width(if (split) 170.dp else 220.dp).fillMaxHeight().verticalScroll(rememberScrollState()).padding(8.dp)) {
                             SectionTiles(state, view, result, section, vertical = true)
                         }
                         Box(Modifier.width(1.dp).fillMaxHeight().background(Palette.Border))
@@ -172,7 +174,8 @@ private fun SectionTile(state: AppState, view: VirtualDashboardDef, item: Dashbo
         .border(1.dp, if (selected) Palette.Primary else Palette.Border, PanelShape)
         .background(if (selected) Palette.Selected else Palette.Surface, PanelShape)
         .clickable { state.memory.dashboardSection[view.id] = item.definition.id }
-    val count = if (item.error == null) item.count + (if (item.chart != null) " 項目" else " 行") else "表示できません"
+    val count = if (item.error == null) item.count + (if (item.chart != null) " 項目" else " 行") +
+        (item.truncation?.let { "（limit ${it.limit} で打ち切り）" } ?: "") else "表示できません"
     val countColor = if (item.error == null) Palette.Primary else Palette.WarnOrange
     if (line) Column(base.padding(horizontal = 8.dp, vertical = 6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {

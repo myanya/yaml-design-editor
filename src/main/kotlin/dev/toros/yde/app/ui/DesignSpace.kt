@@ -68,6 +68,11 @@ private val defKinds = listOf(
         "Excel・CSV・Word 等との入出力変換と、承認制のコード実行。YAMLが原本、他形式は派生成果物です。",
         "skill定義を置くと、外部フォーマットとの取り込み・帳票再生成をこの画面から実行できます（README §14）。",
     ),
+    DefKind(
+        WorkspaceLayout.Zone.REPORTS, "レポート",
+        "値の一式を作る変換（build）と、Markdown などのひな形（template）。台帳スペースの「ビュー」の一覧から作って保存します。",
+        "レポート定義（build・template・output）を置くと、月次の報告書のような文字の文書を YAML から作れます。",
+    ),
 )
 
 @Composable

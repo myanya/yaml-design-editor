@@ -20,7 +20,7 @@ object Dashboards {
         val trees = mutableMapOf<DocumentId, YNode?>()
         fun tree(d: DocumentId): YNode? = if (trees.containsKey(d)) trees[d] else loader(d).also { trees[d] = it }
         return DashboardViews.resolve(view, date, catalog::dashboardGrid,
-            { Views.resolve(it, index, ::tree, schemaFor) }, index.entries, index.refs, index.graph, ::tree,
+            { Views.resolveDetailed(it, index, ::tree, schemaFor) }, index.entries, index.refs, index.graph, ::tree,
             fieldAt = { d, path -> tree(d)?.let { schemaFor(d)?.fieldAt(it, path) } },
             chart = catalog::chartView)
     }
@@ -34,6 +34,8 @@ object Dashboards {
                 "id" to section.definition.id, "label" to section.definition.label, "view" to section.definition.view,
                 "group" to section.definition.group,
                 "count" to if (section.error == null) section.count.toInt() else null,
+                // 元の表のクエリ行が limit で切れたとき（書かなければ上限なし）
+                "truncated" to section.truncation?.let { linkedMapOf("limit" to it.limit, "total" to it.total) },
                 "rows" to section.rows.map { row -> linkedMapOf(
                     "key" to row.key, "id" to row.id, "title" to row.title,
                     "origins" to row.occurrences.map { linkedMapOf("file" to it.document.value, "path" to it.path.pretty()) },

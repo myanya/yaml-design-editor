@@ -13,7 +13,7 @@
 | `VirtualFlowDef` / `FlowViews` / `FlowResolution` | semantic-core/semantic/FlowViews.kt | Constructによる文書の射影、原本対応、表示契約と接続先の診断 |
 | `VirtualLensDef` / `VirtualLensRelation` / `LensArrow` | semantic-core/semantic/LensViews.kt | レンズの見え方の定義（`kind: lens`＝関係ごとの矢印の向き・表示だけ・消費は `Views.LoadResult.reversedRelations` → `LensGraphs`） |
 | `VirtualChartDef` / `ChartKind` / `ChartViews` / `ChartData` | semantic-core/semantic/ChartViews.kt | チャート（`kind: chart`）の宣言と解決（元の表の解決結果を項目 × 系列の数に。`report` / `renderText` で CLI・read_view へ） |
-| `ChartCard` / `ChartGridView` / `EmbeddedChartPane` | ui/ChartViewPane.kt | チャートの描画（台帳のビュータブ・文書ビューの区画・ダッシュボードの区画で共用）。図の部品は `ui/Charts.kt`（Vico を包む `BarChart` / `LineChart`・自前の `PieChart`） |
+| `ChartCard` / `ChartGridView` / `EmbeddedChartPane` | ui/ChartViewPane.kt | チャートの描画（台帳のビュータブ・文書ビューの区画・ダッシュボードの区画で共用）。図の部品は `ui/Charts.kt`（Vico を包む `BarChart` / `LineChart`〔面・積み上げ面も〕・自前の `PieChart` / `HorizontalBarChart`） |
 | フロー表示契約 | semantic-core資源 `builtin-structures/flow-model.yaml` | 表示モデルの型・必須項目・形状をStructureValidatorで検査 |
 | `FlowReports` | core/FlowReports.kt | CLI・read_viewへ同じ表示モデルと座標・診断を開示 |
 | `GraphLayouts.arrangeFlow` / `FlowSelection` | ui/GraphLayouts.kt・semantic-core/semantic/FlowSelection.kt | 計測寸法からの決定的配置と文書・版を考慮した選択の再解決 |
@@ -40,7 +40,7 @@
   ヘッダを描く側は `Views.effective`（同じ索引で `lower`）を使う。セルの集計の宣言は `all` の中身を書かれたまま（raw）持つ。
 - **軸を値の式で広げるクロス集計**（`rows.value`＝`VirtualMatrixDef.rowsValue`・`cells.columns.value`＝`VirtualMatrixKey.Expr`）は `lower` では列が決まらない（値を読むには原本が要る）ので、`VirtualViews.resolvePivot` が解決のときに軸を決める: 起点（行が値の軸なら照合の最初の node に合う要素すべて・ID の軸なら rows.idPattern の ID）ごとに cells の照合（`all` の形。path を外して要素そのものを集める）を起点を固定して評価し、集めた要素を行の値（起点で計算）× 列の値（参照先・項目の値・要素で計算した式）で振り分けて `SemanticExpression.aggregate` で畳む。値の軸は順序の種類（`comparatorFor`）で並べる。
   値の軸の行は `VirtualRow.valueRow`（原本の出現を持たないが合計の行ではない。ダッシュボードの件数に数える）。ヘッダと書き出しの見出しは `VirtualViews.columnsOf(view, rows)`（解決した行の列。ふつうのビューでは lower の列と同じ）から取る。
-- **チャート**（`kind: chart`＝`VirtualChartDef`）は元の表（grid / matrix）の解決結果を受け取る純粋な変換（`ChartViews.resolve`）: 行＝横軸の項目（クロス集計の合計の行は除く）、系列＝`series` の列か数として読める列すべて（合計・未分類の列は除く）、値は `SemanticExpression.numberOf`、並びは元の表の行の順か `order`（系列の値の順。項目と全系列と材料を同じ置換で並べ替える）。データも評価器も持たず、描画は画面（`ChartCard`）だけで、CLI `view` / `read_view` は `ChartViews.report` / `renderText` の数を返す。
+- **チャート**（`kind: chart`＝`VirtualChartDef`）は元の表（grid / matrix）の解決結果を受け取る純粋な変換（`ChartViews.resolve`）: 行＝横軸の項目（クロス集計の合計の行は除く）、系列＝`series` の列か数として読める列すべて〔散布図は `x` の数の列を項目ごとの横軸の値 `xValues` にして系列から除き、名前は `label` の列〕（合計・未分類の列は除く）、値は `SemanticExpression.numberOf`、並びは元の表の行の順か `order`（系列の値の順。項目と全系列と材料を同じ置換で並べ替える）。データも評価器も持たず、描画は画面（`ChartCard`）だけで、CLI `view` / `read_view` は `ChartViews.report` / `renderText` の数を返す。
   形を押したときの材料は `Views.chartSelection`: 対応するセルの来歴の入力（集めた要素の値と場所）に、その場所を含む最も内側の ID を索引から添える（表のセルの来歴メニューと同じ材料）。押した位置から項目と系列を決めるのは `ui/Charts.kt`（Vico のマーカーの対象を `CartesianMarkerVisibilityListener` で覚え、消費しない押下 `tapWithoutConsuming` で読む。積み上げ棒は高さで系列・円は角度）。一覧の置き方は `VirtualChartDef.drill`（popup / below / right / none）で、`ChartCard` が組む。置き場は台帳のビュータブ（`ViewGridView` がチャートの ID なら `ChartGridView`）・文書ビューの区画（`VirtualDocSection.chartView`）・ダッシュボードの区画（`DashboardSectionResult.chart`）。
 - **要素ごとに列を広げる**（columns の `each`＝`VirtualEachDef`）は、クロス集計と同じ `VirtualViews.lower` で索引の要素ごとの列に広がる。値の式は書かれたまま（raw）を持ち、列ごとに `$bind` の文字をその要素の ID に置き換えて（`substituteColumnRef`）値の式にする。
   置き換え前の式でも `$cat` は決まった ID の文字として読めるので、定義の文書の検証（メタスキーマの式の点検）とリントはそのまま通る（`{same: …}` は「前のステップの束縛」の点検に引っかかるので使わない）。列の集まりの並べ方（`entitiesOf`）はクロス集計と共有。
@@ -49,7 +49,7 @@
   値の順の種類は `type` の宣言か、読む項目の型（`resolve` に渡す `fieldAt` で引く）。数値は `SemanticExpression.numberOf`・日付などは `ValueSemantics.orderKey`・決まらなければ文字の順。読めない行は後ろ、同値は ID 順。
 - **項目の型を知るのは呼び出し側**: `VirtualViews.resolve` の `fieldAt`（文書とパス → 解決済みの項目）はアプリの `Views.resolve` が `schemaFor` から組み立てて渡す（CLI・エクスポート・エージェント・グリッドの全経路）。値の式の列の順序の種類（`SemanticCheckSide.kind`）と合計の行の畳み方（`VirtualCell.kind`）もこれで決まる。
 - **桁区切りと表示の形は見せ方だけ**: 列の `display: grouped` / `format`（`VirtualViewColumn.display` / `format`）か、`path` の列の項目のヒント（`FieldHints.numberDisplay` / `format`）で、グリッドのセルの文字を `ValueFormat.display` に通す（値の式の列は値が数か日付として読めれば整形）。セルの値・`read_view`・CLI `view`・エクスポートは元のまま。編集できる列はエディタに同じヒントを渡す。
-- **クエリ行**（`rows: match:`。`rows: idPattern` と排他）: 行＝クエリの束縛行。行キーは `rowKey:`（省略時は先頭の束縛。kind: entity 限定）。列の `of:` で結合先ノードの値をセル化でき、セルは各束縛ノードの原本座標へ解決される。バックリンク列・値の式の列も `of` の束縛 ID を対象にでき、値の式は行の束縛を式の `of` で読める。行の同一性は `ViewRow.key`（束縛値の組）。`order` は併用不可。
+- **クエリ行**（`rows: match:`。`rows: idPattern` と排他）: 行＝クエリの束縛行（`limit` を書かなければ上限なし。書けば打ち切り、全行数は `ResolvedRows.total` で一覧・ダッシュボード・CLI に示す）。行キーは `rowKey:`（省略時は先頭の束縛。kind: entity 限定）。列の `of:` で結合先ノードの値をセル化でき、セルは各束縛ノードの原本座標へ解決される。バックリンク列・値の式の列も `of` の束縛 ID を対象にでき、値の式は行の束縛を式の `of` で読める。行の同一性は `ViewRow.key`（束縛値の組）。`order` は併用不可。
 - **新規行の入口は 2 モード**: `newRow` は配列モード（`file` ＋ `path`: 一覧文書の配列へ要素追加＝未保存編集として積む）とファイルモード（`filePattern`: 詳細文書をスキャフォールドしてディスクへ書込＝索引更新で行が現れる）の排他。スキャフォールドは `detail.filePattern` の「作成」と共通（[schema.md「ひな型」](schema.md)）。`newRow.filePattern` に書ける穴は `{id}` だけ。ビューが宣言するのは「新しい原本がどこで生まれるか」だけ。
 
 ## 文書ビュー
@@ -130,6 +130,6 @@
 ## 拡張ポイント
 
 - **ビュー定義の項目追加**: 宣言の型・`parseView`・`builtin-view` を対で更新する。
-- **図の種類の追加**: `ChartKind` に種類を足し、`ChartCard` の分岐と `ui/Charts.kt` の部品を足す（宣言・解決・CLI は変わらない。横軸の項目 × 系列の数という形に収まる図だけ）。
+- **図の種類の追加**: `ChartKind` に種類を足し、`ChartCard` の分岐と `ui/Charts.kt` の部品を足す（宣言・解決・CLI は変わらない。横軸の項目 × 系列の数という形に収まる図だけ。散布図は項目ごとの横軸の値 `xValues` を添える）。積み上げ面のように積んだ値で描く図は、積むのを部品の中で行い、解決の数は元の値のまま。横棒のように Vico に無い図は自前で描く（円と同じ）。
 - **横断ビューの追加**: データソースとして `AppState.workspaceRecords()` と `IdIndex` を使い、`ui/Shell.kt` の `LedgerSpace` に足す。1 行要約は `Display` を使う。
 - **セルの型の追加**: `Views.fieldAt` の解決と `ViewGridPane` のセルエディタに足し、書込は `Slot` ＋ `markEdited()` のまま。

@@ -71,3 +71,7 @@ sections:
     label: 会社別の割合
     group: 図
     view: company-share-chart
+  - id: ranking
+    label: 顧客別の順位
+    group: 図
+    view: customer-ranking-chart

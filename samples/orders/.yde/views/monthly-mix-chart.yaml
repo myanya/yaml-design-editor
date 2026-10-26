@@ -1,0 +1,7 @@
+id: monthly-mix-chart
+name: 月別売上の内訳
+kind: chart
+chart: stacked-area
+description: 月×商品カテゴリーの売上を積み上げ面にします。月ごとの合計の推移と、その中のカテゴリーの割合の変化を 1 枚で見ます。帯を押すと、その月×カテゴリーの明細が出ます。
+view: month-by-category
+y: { label: 売上高（円）, format: "#,##0" }

@@ -27,6 +27,8 @@ import java.text.DecimalFormat
  *   {$value: 値の式}                      値の式（検査の check・ビューの列と同じ書き方）をいまの場所で計算する（`of` を省くといまの場所、
  *                                         束縛は `of: 名前`。四則演算・集計・日付の部分・each など。グラフを辿る all・refCount・
  *                                         occurrenceCount は「無い」。数の結果は数の項、配列は配列の項、それ以外は文字）
+ *   {$view: ビューID, $where: [条件], $one: true}  ビューの行を受け取る（レポート。行＝{id, title, key, cells: [{column, value}], values: {列: 値}}。
+ *                                         $where は行の上の条件、$one は最初の 1 行。行は呼び出し側が渡す）
  *   {$trim: ひな型}                       前後の空白を落とし、続く空白を 1 つにまとめる（全角の空白も。空なら「無い」）
  *   {$each: パス, $build: ひな型}         配列の要素ごとに組み立てて、配列を作る（`$apply: 規則名` とも書ける）
  *   {$eachEntry: パス, $build: ひな型}    マップの項目ごとに組み立てて、同じキーのマップを作る（同上）
@@ -76,6 +78,12 @@ sealed interface Template {
 
     /** 値の式をいまの場所で計算する（R30-01。`of` の省略＝いまの場所、束縛は `of: 名前`）。 */
     data class ValueOf(val expr: ValueExpr) : Template
+
+    /**
+     * ビューの行（レポートの `$view`。R30-04）: 行＝{id, title, key, cells: [{column, value}], values: {列: 値}}。
+     * `$where` の条件で行を絞り（条件はその行の上で見る）、`$one` なら最初の 1 行（無ければ「無い」）。行は呼び出し側が渡す。
+     */
+    data class ViewRows(val view: String, val conditions: List<TemplateCondition> = emptyList(), val one: Boolean = false) : Template
 
     /** 繰り返し。entries = true はマップの項目ごと（出力もマップ）・false は配列の要素ごと（出力も配列）。 */
     data class Each(val site: TemplateSite, val entries: Boolean, val body: Template) : Template
@@ -147,8 +155,11 @@ data class TransformDef(
         private const val VALUE = "\$value"
         private const val AS = "\$as"
         private const val WITH = "\$with"
-        private val PRIMARY = listOf(COPY, FORMAT, MAP, FIRST, EACH, EACH_ENTRY, APPLY, CONCAT, THEN, DATE, NUMBER, TRIM, VALUE)
-        private val DIRECTIVE_KEYS = PRIMARY + listOf(OF, IN, USING, BUILD, AT, WHEN, AS, WITH)
+        private const val VIEW = "\$view"
+        private const val WHERE = "\$where"
+        private const val ONE = "\$one"
+        private val PRIMARY = listOf(COPY, FORMAT, MAP, FIRST, EACH, EACH_ENTRY, APPLY, CONCAT, THEN, DATE, NUMBER, TRIM, VALUE, VIEW)
+        private val DIRECTIVE_KEYS = PRIMARY + listOf(OF, IN, USING, BUILD, AT, WHEN, AS, WITH, WHERE, ONE)
 
         /** `$as`（日付の出力の形）に書ける文字: 年 y・月 M・日 d と区切り。 */
         private val DATE_PATTERN = Regex("""[yMd\-/.]+""")
@@ -283,6 +294,19 @@ data class TransformDef(
                     }
                     TRIM -> { allow(); Template.TrimOf(parseTemplate(m[TRIM], "$where.$TRIM")) }
                     VALUE -> { allow(); Template.ValueOf(ValueExpr.parse(m[VALUE], "$where.$VALUE", current = true)) }
+                    VIEW -> {
+                        // ビューの行（レポート）: $where＝行の上の条件、$one＝最初の 1 行
+                        allow(WHERE, ONE)
+                        val one = when (val o = m[ONE]) {
+                            null -> false
+                            is Boolean -> o
+                            else -> error("$where.$ONE は true / false で書きます")
+                        }
+                        Template.ViewRows(
+                            m[VIEW]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.$VIEW にはビューの ID を書きます"),
+                            parseConditions(m[WHERE], "$where.$WHERE"), one,
+                        )
+                    }
                     MAP -> {
                         allow(USING)
                         val using = (m[USING] as? Map<*, *>)?.entries?.associate { (k, v) -> k.toString() to v.toString() }
@@ -406,6 +430,7 @@ data class TransformDef(
                 is Template.ValueOf -> t.expr.binds().forEach { name ->
                     require(name in binds) { "$where: \$value の「of: $name」は、from のクエリで付けた名前ではありません（付けた名前: ${binds.joinToString(", ").ifEmpty { "なし" }}）" }
                 }
+                is Template.ViewRows -> t.conditions.forEach(::condition)
                 is Template.Each -> { site(t.site); walk(t.body) }
                 is Template.Apply -> {
                     site(t.site)

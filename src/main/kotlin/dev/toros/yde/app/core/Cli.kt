@@ -88,6 +88,9 @@ internal const val CLI_USAGE = """コマンド:
            グラフパターン照合（R22-01）: match（node / edge の連鎖）＋ where ＋ also を評価し、
            束縛の表を返す（ビュー rows: match / foreach source: query / constraints の試作台）。
            --spec 例: "{match: [{node: {entity: screen, bind: scr}}, {edge: {relation: uses}}, {node: {entity: usecase, bind: uc}}]}"
+  report   <workspace> [<id>] [--param 名前=値]... [--out <file>] [--print]
+           レポート（.yde/reports の定義）を作る: 変換で値の一式を作り（ビューの行も受け取れる）、ひな形（Markdown など）にはめ込む。
+           引数なしで一覧。--out は出力先（ワークスペース相対。省略時は定義の output）。--print で書かずに表示する
   transform <workspace> <定義.yaml> [--input <file>] [--param 名前=値]... [--origins]
            YAML から YAML への変換（P27 段C。試作台）: 定義（from＝クエリで選ぶ／build＝出力のひな型／rules＝入れ子に当てる規則）を
            評価して、組み立てた YAML を返す。from を書かない定義は --input の文書1つが入力（ワークスペース相対か、ファイルのパス）。
@@ -252,6 +255,42 @@ internal fun runCli(args: Array<String>): String {
                     },
                 )
             )
+        }
+        "report" -> {
+            val ws = workspace()
+            val loaded = Reports.load(ws.root)
+            val id = rest.getOrNull(1)?.takeIf { !it.startsWith("--") }
+            if (id == null) {
+                dumpYaml(
+                    linkedMapOf(
+                        "reports" to loaded.reports.map { r ->
+                            linkedMapOf(
+                                "id" to r.def.id, "name" to r.def.name, "params" to r.def.params, "template" to r.def.template,
+                                "output" to r.def.output, "description" to r.def.description,
+                            )
+                        },
+                        "errors" to loaded.errors,
+                    ),
+                )
+            } else {
+                val report = loaded.report(id) ?: error(
+                    "レポート「$id」が見つかりません（report <workspace> で一覧を確認できます）" +
+                        (if (loaded.errors.isNotEmpty()) "。定義エラー: " + loaded.errors.joinToString(" ／ ") else ""),
+                )
+                val params = stringFlags(rest, "--param").associate { raw ->
+                    val at = raw.indexOf('=').takeIf { it > 0 } ?: error("--param は 名前=値 で書きます: $raw")
+                    raw.substring(0, at) to dev.toros.yde.yaml.YamlIO.parseToRaw(raw.substring(at + 1))
+                }
+                val catalog = Views.load(ws.root, ws.schemas)
+                val result = Reports.run(report, params, catalog, ws.index, ws::treeOf, ws::schemaFor)
+                val out = stringFlag(rest, "--out") ?: result.outputRel
+                if ("--print" in rest || out == null) {
+                    result.text + (if (result.missing.isNotEmpty()) "\n<!-- 埋まらなかった穴: ${result.missing.joinToString("・")} -->\n" else "")
+                } else {
+                    val target = Reports.write(ws.root, out, result.text)
+                    dumpYaml(linkedMapOf("written" to out, "file" to target.toString(), "missing" to result.missing))
+                }
+            }
         }
         "transform" -> {
             val ws = workspace()
@@ -451,11 +490,14 @@ internal fun runCli(args: Array<String>): String {
             }
             val view = loaded.view(viewId)
                 ?: error("ビュー「$viewId」が見つかりません（view コマンドで一覧を確認できます）")
-            val rows = Views.resolve(view, ws.index, ws::treeOf, ws::schemaFor)
+            val resolved = Views.resolveDetailed(view, ws.index, ws::treeOf, ws::schemaFor)
+            val rows = resolved.rows
             dumpYaml(
                 linkedMapOf<String, Any?>(
                     "view" to view.id,
                     "name" to view.name,
+                    // クエリ行の limit で切れたとき（書かなければ上限なし）
+                    "truncated" to resolved.takeIf { it.truncated }?.let { linkedMapOf("limit" to it.limit, "total" to it.total) },
                     // 新規行の入口（配列モード: file+path へ要素追加／ファイルモード: filePattern の {id} 置換先へ文書作成）
                     "newRow" to view.newRow?.let { nr ->
                         if (nr.filePattern != null) linkedMapOf("filePattern" to nr.filePattern!!.text)

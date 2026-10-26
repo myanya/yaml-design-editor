@@ -58,6 +58,8 @@ data class DashboardSectionResult(
     val error: String? = null,
     /** チャートの区画（P46）: 元の表を解決して数にしたもの。view は null。 */
     val chart: ChartData? = null,
+    /** 元の表のクエリ行が `limit` で切れていたとき（件数は切れた後の数。黙らずに示す）。 */
+    val truncation: ResolvedRows? = null,
 ) {
     /** 件数とドリルダウンの母集団は同じ。合計行は原本を持たないため含めない（値の軸の行は数える）。チャートは項目の数。 */
     val count: String get() = chart?.categories?.size?.toString()
@@ -74,7 +76,7 @@ object DashboardViews {
         dashboard: VirtualDashboardDef,
         date: LocalDate,
         view: (String) -> VirtualGridDef?,
-        rows: (VirtualGridDef) -> List<VirtualRow>,
+        rows: (VirtualGridDef) -> ResolvedRows,
         ids: Map<String, List<ScannedId>>,
         refs: List<ScannedRef>,
         graph: SemanticEntityGraph,
@@ -83,13 +85,13 @@ object DashboardViews {
         /** チャートの区画（P46）: ID からチャートの宣言を引く（無ければ null）。 */
         chart: (String) -> VirtualChartDef? = { null },
     ): DashboardResolution {
-        val cache = mutableMapOf<String, List<VirtualRow>>()
+        val cache = mutableMapOf<String, ResolvedRows>()
         return DashboardResolution(date, dashboard.sections.map { section ->
             chart(section.view)?.let { chartDef ->
                 return@map runCatching {
                     require(section.filter == null) { "チャートの区画にはfilterを指定できません（絞り込みは元の表で）" }
                     val source = view(chartDef.view) ?: error("チャート「${chartDef.id}」の元の表「${chartDef.view}」は一意なグリッドまたはクロス集計を参照してください")
-                    val data = ChartViews.resolve(chartDef, source, cache.getOrPut(source.id) { rows(source) })
+                    val data = ChartViews.resolve(chartDef, source, cache.getOrPut(source.id) { rows(source) }.rows)
                     DashboardSectionResult(section, null, emptyList(), chart = data)
                 }.getOrElse { DashboardSectionResult(section, null, emptyList(), error = it.message ?: "チャートを解決できません") }
             }
@@ -98,7 +100,8 @@ object DashboardViews {
                 error = "ビュー「${section.view}」は一意なグリッド・クロス集計・チャートを参照してください")
             runCatching {
                 require(grid.matrix == null || section.filter == null) { "クロス集計の区画にはfilterを指定できません" }
-                val sourceRows = cache.getOrPut(grid.id) { rows(grid) }
+                val resolved = cache.getOrPut(grid.id) { rows(grid) }
+                val sourceRows = resolved.rows
                 val rule = section.filter?.rule(mapOf("today" to date.toString()))
                 val pending = mutableListOf<DashboardPending>()
                 val outcomes = mutableMapOf<String, SemanticRuleResult>()
@@ -112,7 +115,7 @@ object DashboardViews {
                     }
                     result.outcome == CheckOutcome.SATISFIED
                 }
-                DashboardSectionResult(section, grid, selected, pending)
+                DashboardSectionResult(section, grid, selected, pending, truncation = resolved.takeIf { it.truncated })
             }.getOrElse { DashboardSectionResult(section, grid, emptyList(), error = it.message ?: "表示を解決できません") }
         })
     }

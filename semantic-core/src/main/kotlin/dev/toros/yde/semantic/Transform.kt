@@ -45,9 +45,11 @@ object SemanticTransform {
         input: YNode,
         document: DocumentId? = null,
         params: Map<String, Any?> = emptyMap(),
+        /** ビューの行（`$view`。レポート）の供給元: ビュー ID → 行の配列（無ければ null）。 */
+        views: (String) -> YNode? = { null },
     ): TransformResult {
         require(def.from == null) { "変換「${def.id}」はクエリで入力を選ぶ定義です（from.match）。索引を渡して実行してください" }
-        val run = Run(def, params, bindings = emptyMap())
+        val run = Run(def, params, bindings = emptyMap(), views = views)
         val term = run.build(def.build, TemplatePlace(input, document, emptyList()), emptyList(), emptyMap())
         return TransformResult(term, run.origins)
     }
@@ -63,6 +65,8 @@ object SemanticTransform {
         graph: SemanticEntityGraph,
         rel: (DocumentId) -> String = { it.value },
         params: Map<String, Any?> = emptyMap(),
+        /** ビューの行（`$view`。レポート）の供給元。loader より前に置き、末尾のラムダが loader のままになるようにする。 */
+        views: (String) -> YNode? = { null },
         loader: (DocumentId) -> YNode?,
     ): TransformResult {
         val spec = def.from ?: error("変換「${def.id}」は、呼び出し側が入力の項を渡す定義です（from がありません）")
@@ -75,7 +79,7 @@ object SemanticTransform {
             val bindings = row.bindings.mapValues { (_, ref) ->
                 { selector: DerivationSelector? -> placeOf(ref, selector, graph, rel, ::tree) }
             }
-            val run = Run(def, params, bindings)
+            val run = Run(def, params, bindings, views)
             val here = spec.start.bind?.let { bindings[it]?.invoke(null) }
             val built = run.build(def.build, here, listOf(items.size), emptyMap()) ?: continue
             items += built
@@ -138,6 +142,8 @@ object SemanticTransform {
         val def: TransformDef,
         val params: Map<String, Any?>,
         val bindings: Map<String, (DerivationSelector?) -> TemplatePlace?>,
+        /** ビューの行（`$view`）の供給元（レポート以外は無い）。 */
+        val views: (String) -> YNode? = { null },
     ) {
         val origins = mutableListOf<TransformOrigin>()
 
@@ -197,6 +203,12 @@ object SemanticTransform {
                 scalarText(input)?.let { SemanticExpression.squashSpaces(it) }?.takeIf { it.isNotEmpty() }?.let { YNode.Scalar(it) }
             }
             is Template.ValueOf -> valueOf(t.expr, here, out)
+            // ビューの行（レポートの $view）: 呼び出し側が渡した行の配列を、条件で絞って写す（解決した行は派生なので出どころは持たない）
+            is Template.ViewRows -> {
+                val rows = views(t.view) ?: error("変換「${def.id}」: ビュー「${t.view}」の行を受け取れません（ビューが無いか、行の供給元が渡されていません）")
+                val items = (rows as? YNode.Seq)?.items.orEmpty().filter { row -> t.conditions.all { holds(it, TemplatePlace(row, null, emptyList()), loop) } }
+                if (t.one) items.firstOrNull()?.let(::copyOf) else YNode.Seq(items.mapTo(mutableListOf()) { copyOf(it) })
+            }
             is Template.MapValue -> build(t.input, here, out, loop)?.let { input ->
                 val text = scalarText(input)
                 if (text != null && text in t.using) YNode.Scalar(t.using.getValue(text)) else input

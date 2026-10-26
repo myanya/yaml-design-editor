@@ -29,6 +29,44 @@ class ChartViewsTest {
         VirtualChartDef("c", "売上", null, DocumentId("_views/c.yaml"), kind, "src", series, x, order = order)
 
     @Test
+    fun `図の種類は横棒と面を含み 積む種類が分かる`() {
+        assertEquals(ChartKind.HORIZONTAL_BAR, ChartKind.parse("horizontal-bar", "chart"))
+        assertEquals(ChartKind.STACKED_AREA, ChartKind.parse("stacked-area", "chart"))
+        assertEquals(listOf(ChartKind.STACKED_BAR, ChartKind.STACKED_HORIZONTAL_BAR, ChartKind.STACKED_AREA), ChartKind.entries.filter { it.stacked })
+        assertEquals(ChartKind.SCATTER, ChartKind.parse("scatter", "chart"))
+        assertTrue(runCatching { ChartKind.parse("bubble", "chart") }.isFailure)
+    }
+
+    @Test
+    fun `散布図は x の数の列を横軸の値にして系列から除き 点の名前は label の列`() {
+        val columns = listOf(column("名前"), column("売上高"), column("件数"), column("メモ"))
+        val grid = VirtualGridDef(id = "src", name = "表", columns = columns, source = DocumentId("_views/src.yaml"), rows = VirtualRowsDef("C-*"))
+        val rows = listOf(
+            row("C-1", "山田", columns, listOf("山田商店", "12,000", 2, "x")),
+            row("C-2", "鈴木", columns, listOf("鈴木", "3000", null, "y")),
+            row("C-3", "佐藤", columns, listOf("佐藤", "不明", 1, "z")),
+        )
+        val def = VirtualChartDef("c", "散布", null, DocumentId("_views/c.yaml"), ChartKind.SCATTER, "src", x = "売上高", label = "名前")
+        val data = ChartViews.resolve(def, grid, rows)
+        assertEquals(listOf(12000.0, 3000.0, null), data.xValues)
+        assertEquals(listOf("件数"), data.series.map { it.label })
+        assertEquals(listOf(2.0, null, 1.0), data.series.single().values)
+        assertEquals(listOf("山田商店", "鈴木", "佐藤"), data.categories.map { it.label })
+        assertTrue(data.notes.any { "数として読めない" in it }, data.notes.toString())
+        // CLI の出力は項目ごとに横軸の値 x を持つ
+        @Suppress("UNCHECKED_CAST")
+        val categories = ChartViews.report(data)["categories"] as List<Map<String, Any?>>
+        assertEquals(12000L, categories[0]["x"])
+        assertEquals(null, categories[2]["x"])
+        assertTrue(ChartViews.renderText(data).contains("山田商店（C-1）: x=12000・件数=2"))
+        // 対数の軸: 0 以下の値は描けないので注意に出す（数はそのまま）
+        val log = ChartViews.resolve(def.copy(xScale = ChartScale.LOG), grid, rows + row("C-4", "高橋", columns, listOf("高橋", "0", 3, "w")))
+        assertTrue(log.notes.any { "対数" in it && "1 点" in it }, log.notes.toString())
+        assertEquals(listOf(12000.0, 3000.0, null, 0.0), log.xValues)
+        assertEquals("log", (ChartViews.report(log)["scale"] as Map<*, *>)["x"])
+    }
+
+    @Test
     fun `系列を書かなければ数として読める列すべてが系列になり 文字の列は項目の文字に使える`() {
         val columns = listOf(column("名前"), column("売上高"), column("件数"), column("メモ"))
         val grid = VirtualGridDef(id = "src", name = "表", columns = columns, source = DocumentId("_views/src.yaml"), rows = VirtualRowsDef("C-*"))

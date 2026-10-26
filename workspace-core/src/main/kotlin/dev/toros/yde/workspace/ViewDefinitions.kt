@@ -41,6 +41,7 @@ import dev.toros.yde.semantic.VirtualMatrixCells
 import dev.toros.yde.semantic.ChartDrill
 import dev.toros.yde.semantic.ChartKind
 import dev.toros.yde.semantic.ChartOrder
+import dev.toros.yde.semantic.ChartScale
 import dev.toros.yde.semantic.VirtualChartDef
 import dev.toros.yde.semantic.VirtualMatrixDef
 import dev.toros.yde.semantic.VirtualMatrixKey
@@ -134,7 +135,7 @@ object ViewDefinitions {
             if (source == null) {
                 errors += "${fileName(chart.source)}: チャート「${chart.id}」の元の表（view）「${chart.view}」は一意なグリッドまたはクロス集計を参照してください"
             } else if (source.matrix == null && source.columns.none { it.each != null }) {
-                (chart.series + listOfNotNull(chart.x, chart.order?.series)).filterNot { label -> source.columns.any { it.label == label } }.forEach {
+                (chart.series + listOfNotNull(chart.x, chart.label, chart.order?.series)).filterNot { label -> source.columns.any { it.label == label } }.forEach {
                     errors += "${fileName(chart.source)}: チャート「${chart.id}」の列「$it」は元の表「${source.id}」にありません"
                 }
             }
@@ -201,17 +202,29 @@ object ViewDefinitions {
         }
 
     /**
-     * チャート（kind: chart。P46）のパース: 図の種類（chart）・元の表（view）・系列にする列（series）・横軸の列（x）・縦軸の見出しと形（y）。
+     * チャート（kind: chart。P46）のパース: 図の種類（chart）・元の表（view）・系列にする列（series）・横軸の列（x。散布図では数の列）・点の名前の列（label。散布図）・縦軸の見出しと形（y）。
      * 元の表との整合（存在・列の有無）はカタログの読み込みで点検する。
      */
     private fun parseChartView(raw: Map<*, *>, source: DocumentId): VirtualChartDef {
-        val keys = setOf("id", "name", "description", "kind", "chart", "view", "series", "x", "y", "drill", "order")
+        val keys = setOf("id", "name", "description", "kind", "chart", "view", "series", "x", "y", "drill", "order", "label", "scale")
         raw.keys.firstOrNull { it !in keys }?.let { error("kind: chart では使えないキーです: $it（使えるキー: ${keys.joinToString(", ")}）") }
         fun text(key: String): String? = if (!raw.containsKey(key)) null else
             (raw[key] as? String)?.takeIf { it.isNotBlank() } ?: error("$key は空でない文字列で書きます")
         val id = text("id") ?: error("id が必要です")
         val kind = ChartKind.parse(text("chart") ?: error("chart（図の種類: ${ChartKind.entries.joinToString(" / ") { it.id }}）が必要です"), "chart")
         val view = text("view") ?: error("view（元の表＝グリッドかクロス集計のビュー ID）が必要です")
+        val x = text("x")
+        // 散布図: x は横軸の数の列（必須）、label は点の名前の列。他の図では x が項目の文字で、label は書けない
+        val label = text("label")
+        if (kind == ChartKind.SCATTER && x == null) error("chart: scatter には x（横軸にする数の列）が必要です")
+        if (label != null && kind != ChartKind.SCATTER) error("label（点の名前の列）は chart: scatter で使います（他の図では x が項目の文字です）")
+        // 軸の種類（散布図だけ）: {x: linear | log, y: linear | log}
+        val scale = raw["scale"]?.let { s ->
+            val sm = s as? Map<*, *> ?: error("scale は {x: linear | log, y: linear | log} で書きます")
+            if (kind != ChartKind.SCATTER) error("scale（軸の種類）は chart: scatter で使います")
+            sm.keys.firstOrNull { it != "x" && it != "y" }?.let { error("scale に書けるキーは x / y です: $it") }
+            ChartScale.parse(sm["x"]?.toString() ?: "linear", "scale.x") to ChartScale.parse(sm["y"]?.toString() ?: "linear", "scale.y")
+        }
         val series = when (val s = raw["series"]) {
             null -> emptyList()
             is List<*> -> s.map { it?.toString()?.takeIf { t -> t.isNotBlank() } ?: error("series は列の見出しの配列で書きます") }
@@ -234,7 +247,8 @@ object ViewDefinitions {
         }
         return VirtualChartDef(
             id = id, name = text("name") ?: id, description = text("description"), source = source,
-            kind = kind, view = view, series = series, x = text("x"),
+            kind = kind, view = view, series = series, x = x, label = label,
+            xScale = scale?.first ?: ChartScale.LINEAR, yScale = scale?.second ?: ChartScale.LINEAR,
             yLabel = y?.get("label")?.toString()?.takeIf { it.isNotBlank() }, format = format, drill = drill, order = order,
         )
     }
@@ -420,8 +434,15 @@ object ViewDefinitions {
         val pathText = m["path"]?.toString()?.takeIf { it.isNotBlank() }
         // 値の式が列（P46）: 要素ごとに計算した値で列を広げる（列はデータから決まる。他の書き方とは一緒に書けない）
         if (m.containsKey("value")) {
-            m.keys.map { it.toString() }.firstOrNull { it != "value" }?.let { error("cells.columns の value と $it は一緒に書けません（列の軸は値の式だけで決まります）") }
-            return VirtualMatrixKey.Expr(ExpressionValue.of(m["value"], "cells.columns.value", "列"))
+            m.keys.map { it.toString() }.firstOrNull { it !in setOf("value", "label", "order") }
+                ?.let { error("cells.columns の value と $it は一緒に書けません（列の軸は値の式で決まり、添えられるのは label＝見出しの式 と order＝先に並べる値 です）") }
+            val label = m["label"]?.let { ExpressionValue.of(it, "cells.columns.label", "列の見出し") }
+            val order = when (val o = m["order"]) {
+                null -> emptyList()
+                is List<*> -> o.map { it?.toString()?.takeIf { t -> t.isNotBlank() } ?: error("cells.columns.order は先に並べる値の配列で書きます") }
+                else -> error("cells.columns.order は先に並べる値の配列で書きます（value の列の並び。書かない値はその後ろに値の順）")
+            }
+            return VirtualMatrixKey.Expr(ExpressionValue.of(m["value"], "cells.columns.value", "列"), label, order)
         }
         if (via == null && pathText == null) error("cells.columns には via（要素の参照先を列に）か path（要素の値を列に）か value（要素ごとの値の式を列に）が必要です")
         if (via != null && pathText != null) error("cells.columns の via と path は、どちらか一方を書きます")
@@ -457,7 +478,9 @@ object ViewDefinitions {
             listOf("idPattern", "schemaIds").firstOrNull { rowsMap.containsKey(it) }
                 ?.let { error("rows: match と $it は併用できません（従来の行定義とクエリ行は排他）") }
             if (raw.containsKey("order")) error("rows: match のビューに order は使えません（並びはクエリの決定的順序）")
+            // 上限は limit を書いたときだけ（書かなければ上限なし＝値の式の all と同じ。黙って切れないように）
             val spec = QuerySpec.parse(rowsMap, "rows", ignoreKeys = setOf("rowKey"))
+                .let { if (rowsMap.containsKey("limit")) it else it.copy(limit = Int.MAX_VALUE) }
             require(spec.binds.isNotEmpty()) { "rows.match には bind（束縛名）が1つ以上必要です" }
             val keyName = rowsMap["rowKey"]?.toString()?.takeIf { it.isNotBlank() } ?: spec.binds.first()
             require(keyName in spec.binds) { "rows.rowKey の束縛「$keyName」が match に見つかりません" }

@@ -76,7 +76,7 @@ root:
           description: 既存ビューの件数・一覧・対象の詳細・操作を業務の入口として合成する
         - value: chart
           label: チャート
-          description: 元の表（グリッドかクロス集計）の行を横軸の項目、数の列を系列にして描く（棒・積み上げ棒・折れ線・円）。データは元の表が持つ
+          description: 元の表（グリッドかクロス集計）の行を横軸の項目、数の列を系列にして描く（棒・積み上げ棒・横棒・折れ線・面・円・散布図）。データは元の表が持つ
       default: grid
     - key: chart
       label: 図の種類（chart）
@@ -84,7 +84,12 @@ root:
       values:
         - { value: bar, label: 棒 }
         - { value: stacked-bar, label: 積み上げ棒 }
+        - { value: horizontal-bar, label: 横棒（名前は左・値は棒の端） }
+        - { value: stacked-horizontal-bar, label: 積み上げ横棒 }
         - { value: line, label: 折れ線 }
+        - { value: area, label: 面（線の下を塗る） }
+        - { value: stacked-area, label: 積み上げ面（系列を下から積んだ帯） }
+        - { value: scatter, label: 散布図（x は横軸の数の列・点＝行） }
         - { value: pie, label: 円（最初の系列だけ） }
     - key: view
       label: 元の表（chart）
@@ -99,7 +104,11 @@ root:
     - key: x
       label: 横軸の文字にする列（chart）
       type: string
-      description: 省略すると行のタイトル（無ければ ID）
+      description: 省略すると行のタイトル（無ければ ID）。散布図（scatter）では横軸にする数の列（必須）
+    - key: label
+      label: "点の名前の列（chart: scatter）"
+      type: string
+      description: 散布図で点の名前にする列。省略すると行のタイトル（無ければ ID）。他の図では x が項目の文字
     - key: "y"
       label: 縦軸（chart）
       type: object
@@ -116,6 +125,13 @@ root:
         - { value: none, label: 出さない }
       default: popup
       description: 棒・点・扇形を押すと、そのセルの材料（集めた要素と値）が並び、各要素の業務詳細か原本へ進める
+    - key: scale
+      label: "軸の種類（chart: scatter）"
+      type: object
+      description: 散布図の軸を対数にする（値が桁で散るとき）。対数の軸では 0 以下の値は描かない
+      fields:
+        - { key: x, label: 横軸, type: enum, values: [linear, log], default: linear }
+        - { key: "y", label: 縦軸, type: enum, values: [linear, log], default: linear }
     - key: actions
       label: 主な操作（dashboard）
       type: array
@@ -205,7 +221,11 @@ root:
             - key: value
               label: 値の式（計算した値が列）
               type: any
-              description: "要素ごとに計算した値で列を広げる（例 {yearMonth: {path: orderedAt}}＝受付日の年月）。列はデータに現れた値を順序の種類で並べる。via / path とは一緒に書けない"
+              description: "要素ごとに計算した値で列を広げる（例 {yearMonth: {path: orderedAt}}＝受付日の年月）。列はデータに現れた値を順序の種類で並べる（見出しは label の式、先に並べる値は order）。via / path とは一緒に書けない"
+            - key: label
+              label: 列の見出しの式（value）
+              type: any
+              description: "列の値を計算した要素で見出しを計算する式（例 商品の categoryId を列にし、見出しは参照を辿ったカテゴリー名）。無ければ値の文字"
             - { key: via, label: 参照の項目（参照先が列）, type: string }
             - { key: idPattern, label: 列にする ID の形（via）, type: string }
             - key: schemaIds
@@ -213,11 +233,9 @@ root:
               type: array
               item: { type: string }
             - key: order
-              label: 列の並び（via）
-              type: object
-              fields:
-                - { key: schemaId, label: 並び基準の出現スキーマ, type: string }
-                - { key: fileGlob, label: 並び基準の出現ファイル（glob）, type: string }
+              label: 列の並び（via / value）
+              type: any
+              description: "via なら {schemaId, fileGlob}（並び基準の出現）、value なら先に並べる値の配列（書かない値はその後ろに値の順）"
             - { key: path, label: 値の項目（値が列）, type: string }
             - key: values
               label: 列にする値の並び（path）

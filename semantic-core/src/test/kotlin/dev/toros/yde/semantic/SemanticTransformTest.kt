@@ -25,6 +25,38 @@ class SemanticTransformTest {
 
     private fun expected(yaml: String): Any? = YamlIO.parseToRaw(yaml.trimIndent())
 
+    // ---------------------------------------------------------------- ビューの行（レポートの $view）
+
+    @Test
+    fun `view はビューの行を受け取り where で絞り one なら最初の 1 行`() {
+        val transform = def(
+            """
+            id: t
+            params: [month]
+            build:
+              all: { ${'$'}view: sales }
+              one: { ${'$'}view: sales, ${'$'}where: [{ path: id, equals: ${'$'}month }], ${'$'}one: true }
+              none: { ${'$'}view: sales, ${'$'}where: [{ path: id, equals: 2000-01 }], ${'$'}one: true }
+            """
+        )
+        val rows = YamlIO.parse("- { id: 2026-09, values: { 合計: 100 } }\n- { id: 2026-10, values: { 合計: 200 } }")
+        val result = SemanticTransform.run(transform, YamlIO.parse("{}"), params = mapOf("month" to "2026-10"), views = { id -> rows.takeIf { id == "sales" } })
+        assertEquals(
+            expected(
+                """
+                all:
+                  - { id: 2026-09, values: { 合計: 100 } }
+                  - { id: 2026-10, values: { 合計: 200 } }
+                one: { id: 2026-10, values: { 合計: 200 } }
+                """
+            ),
+            plain(result.term),
+        )
+        // 無いビューは誤り、$one の書き方の誤りは定義エラー
+        assertFailsWith<IllegalStateException> { SemanticTransform.run(transform, YamlIO.parse("{}"), params = mapOf("month" to "2026-10")) }
+        assertFailsWith<IllegalStateException> { def("id: t\nbuild: { x: { ${'$'}view: sales, ${'$'}one: 1 } }") }
+    }
+
     // ---------------------------------------------------------------- 呼び出し側が渡した項1つを変換する
 
     @Test

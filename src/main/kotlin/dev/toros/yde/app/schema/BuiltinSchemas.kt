@@ -42,7 +42,7 @@ object BuiltinSchemas {
 
     /** 組込みスキーマの原文（テスト用: すべてがメタスキーマ検証を通ることのドッグフーディングに使う）。 */
     internal val allYamlTexts: List<String>
-        get() = listOf("schema", "relations", "agent", "activity", "eval", "skill", "view").map(::yaml)
+        get() = listOf("schema", "relations", "agent", "activity", "eval", "skill", "view", "report").map(::yaml)
 
     /** 組込みスキーマを、カーネルの reader / session へ注入する形で返す（実体は workspace-core の資源供給）。 */
     fun kernelSchemas(layout: WorkspaceLayout): List<WorkspaceSchema> =

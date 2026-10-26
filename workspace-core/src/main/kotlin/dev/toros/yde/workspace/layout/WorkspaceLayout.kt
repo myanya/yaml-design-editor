@@ -35,6 +35,7 @@ data class WorkspaceLayout(
         EVALS("_evals", "evals"),
         SKILLS("_skills", "skills"),
         VIEWS("_views", "views"),
+        REPORTS("_reports", "reports"),
     }
 
     /** ゾーンの相対ディレクトリ（例: `_schemas` または `.yde/schemas`）。 */
@@ -47,6 +48,7 @@ data class WorkspaceLayout(
     val evalsDir: String get() = dir(Zone.EVALS)
     val skillsDir: String get() = dir(Zone.SKILLS)
     val viewsDir: String get() = dir(Zone.VIEWS)
+    val reportsDir: String get() = dir(Zone.REPORTS)
 
     private fun norm(rel: String): String = rel.replace('\\', '/').trimStart('/')
 
@@ -67,7 +69,7 @@ data class WorkspaceLayout(
 
     /** メタアクティビティ（meta: true）が書込を提案できるゾーンか（schemas / runs・構成ファイルは常に不可）。 */
     fun writableByMeta(rel: String): Boolean =
-        zoneOf(rel) in setOf(Zone.AGENTS, Zone.ACTIVITIES, Zone.EVALS, Zone.SKILLS, Zone.VIEWS)
+        zoneOf(rel) in setOf(Zone.AGENTS, Zone.ACTIVITIES, Zone.EVALS, Zone.SKILLS, Zone.VIEWS, Zone.REPORTS)
 
     /**
      * 台帳の文書か（台帳層＝ID索引・参照・カバレッジ・エージェント・自動化の対象）。

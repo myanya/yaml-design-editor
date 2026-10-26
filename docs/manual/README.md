@@ -35,6 +35,7 @@ YAML で設計項目（要求・設計・課題など）を管理するための
 | [files.md](files.md) | ファイルの場所（`file` 型の書き方・拡張子・外と無いファイルの扱い）と画像の表示 |
 | [views.md](views.md) | ビュー（ビューグリッド・ビュー定義・文書ビュー） |
 | [dashboards.md](dashboards.md) | ダッシュボード（業務の状況・対象の詳細と操作・基準日） |
+| [reports.md](reports.md) | レポート（YAML から Markdown などの文字の文書を作る。変換とひな形） |
 | [ids.md](ids.md) | ID とリンクの仕組み・段階的詳細化・保有と所属 |
 | [actions.md](actions.md) | 操作（型の操作 `methods`・配列の追加の決まり・アクション `actions`・前提・CLI `action`） |
 | [ai.md](ai.md) | AI による作成支援・エージェント・自動実行・自己改善・skill |

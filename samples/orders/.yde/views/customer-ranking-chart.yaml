@@ -1,0 +1,12 @@
+id: customer-ranking-chart
+name: 顧客別の順位
+kind: chart
+chart: horizontal-bar
+description: 顧客一覧の購入合計を多い順の横棒にします。名前は左に、値は棒の端に出るので、項目が多く名前が長くても読めます。
+# 元の表は顧客一覧。系列は購入合計の列、横軸の文字は表示名（法人は会社名つき）
+view: customer-grid
+series: [購入合計（円）]
+x: 表示名
+order: { direction: desc }         # 多い順に上から
+y: { label: 購入合計（円）, format: "#,##0" }
+drill: right                       # 棒を押すと、その顧客の注文（材料）が図の右に並ぶ

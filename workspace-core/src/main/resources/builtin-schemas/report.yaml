@@ -1,0 +1,36 @@
+id: builtin-report
+name: レポート定義（YAML から文字の文書へ）
+description: 値の一式を作る変換（build）と、Markdown などのひな形（template）と、出力先（output）。出力は原本から作り直せる派生物
+match: "_reports/**/*.{yaml,yml}"
+root:
+  type: object
+  fields:
+    - key: id
+      label: レポートID
+      type: id
+      required: true
+    - key: name
+      label: 表示名
+      type: string
+    - key: description
+      label: 説明
+      type: text
+    - key: params
+      label: 受け取る値
+      type: array
+      item: { type: string }
+      description: "名前の並び（英字で始まる英数字）。CLI の --param や画面の欄で渡す。ひな型の中では $名前"
+    - key: build
+      label: 値の一式（変換のひな型）
+      type: any
+      required: true
+      description: "変換のひな型（$copy / $format / $value / $each など）。{$view: ビューID, $where: [条件], $one: true} でビューの行（id・title・key・cells・values）を受け取れる"
+    - key: template
+      label: ひな形のファイル
+      type: string
+      required: true
+      description: "定義と同じ場所からの相対パス（Markdown など）。穴 {パス}・{パス:形}、繰り返し {#each パス}…{/each}、条件 {#if パス}…{/if}"
+    - key: output
+      label: 出力先
+      type: string
+      description: "ワークスペース相対のパス。穴 {名前} は build の値で埋める（例 reports/{month}.md）。YAML には書けない"

@@ -5,8 +5,6 @@ rows:
   # クエリ行: 行＝エンティティ型 order の要素（ORD-001-01 のような明細は含めない）
   match:
     - node: { entity: order, bind: o }
-  # クエリ行の行数の上限は既定で 100。1 年分の注文（109 件）を全部出すために上げる
-  limit: 10000
 columns:
   - { label: 注文受付日, path: orderedAt, editable: true }
   # 受付日から年月を導く（月ごとに見るときの鍵。読み取り専用の計算列）

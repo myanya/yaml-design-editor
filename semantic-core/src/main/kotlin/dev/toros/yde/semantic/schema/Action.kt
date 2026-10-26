@@ -224,6 +224,7 @@ internal fun Template.paramNames(): Set<String> {
             is Template.NumberOf -> walk(t.input)
             is Template.TrimOf -> walk(t.input)
             is Template.ValueOf -> Unit
+            is Template.ViewRows -> Unit
             is Template.Each -> walk(t.body)
             is Template.Apply -> Unit
             is Template.Concat -> t.parts.forEach(::walk)
@@ -254,6 +255,7 @@ internal fun Template.bindNames(): Set<String> {
             is Template.NumberOf -> walk(t.input)
             is Template.TrimOf -> walk(t.input)
             is Template.ValueOf -> out += t.expr.binds()
+            is Template.ViewRows -> Unit
             is Template.Each -> { site(t.site); walk(t.body) }
             is Template.Concat -> t.parts.forEach(::walk)
             is Template.Guarded -> { t.conditions.forEach { c -> c.alternatives.forEach { a -> site(a.site) } }; walk(t.inner) }

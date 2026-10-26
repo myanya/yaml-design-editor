@@ -126,8 +126,11 @@ sealed interface VirtualMatrixKey {
     /** 要素の値が列。values は列にする値の並び（値と見出し）。 */
     data class Value(val path: YPath, val pathText: String, val values: List<Pair<String, String?>>) : VirtualMatrixKey
 
-    /** 要素ごとに値の式で計算した値が列（P46。列は解決のときにデータから広げ、値の順序の種類で並べる）。 */
-    data class Expr(val value: ExpressionValue) : VirtualMatrixKey
+    /**
+     * 要素ごとに値の式で計算した値が列（P46。列は解決のときにデータから広げ、値の順序の種類で並べる）。
+     * label は見出しの式（同じ要素で計算。null＝値の文字）、order は先に並べる値（書かない値はその後ろに値の順）。
+     */
+    data class Expr(val value: ExpressionValue, val label: ExpressionValue? = null, val order: List<String> = emptyList()) : VirtualMatrixKey
 }
 
 /**
@@ -167,6 +170,12 @@ data class VirtualRowsDef(
     val idPattern: String,
     val schemaIds: List<String> = emptyList(),
 )
+
+/** 解決した行と、クエリ行の打ち切り（`limit` を書いたときだけ。total は打ち切り前の全行数、limit は書いた上限）。 */
+data class ResolvedRows(val rows: List<VirtualRow>, val total: Int = rows.size, val limit: Int? = null) {
+    /** 書いた上限で切れたか。 */
+    val truncated: Boolean get() = limit != null && total > rows.size
+}
 
 /** 詳細文書の扱い。source に一致する出現を「詳細」と見なす。 */
 data class VirtualDetailDef(
@@ -377,12 +386,23 @@ object VirtualViews {
         rel: (DocumentId) -> String,
         tree: (DocumentId) -> YNode?,
         fieldAt: FieldResolver = NO_FIELDS,
-    ): List<VirtualRow> {
+    ): List<VirtualRow> = resolveDetailed(viewDef, ids, refs, graph, rel, tree, fieldAt).rows
+
+    /** resolve と同じ。クエリ行に `limit` を書いたときの打ち切り（全行数）も返す（黙って切れないように）。 */
+    fun resolveDetailed(
+        viewDef: VirtualGridDef,
+        ids: Map<String, List<ScannedId>>,
+        refs: List<ScannedRef>,
+        graph: SemanticEntityGraph,
+        rel: (DocumentId) -> String,
+        tree: (DocumentId) -> YNode?,
+        fieldAt: FieldResolver = NO_FIELDS,
+    ): ResolvedRows {
         val view = lower(viewDef, ids, rel)  // クロス集計は、列を広げたグリッドとして解決する
         val trees = mutableMapOf<DocumentId, YNode?>()
         fun cachedTree(document: DocumentId): YNode? = trees.getOrPut(document) { tree(document) }
         // 軸を値の式で広げるクロス集計は、行・列ともデータから決める（P46）
-        viewDef.matrix?.takeIf { it.usesPivot }?.let { return resolvePivot(viewDef, it, ids, refs, graph, rel, ::cachedTree, fieldAt) }
+        viewDef.matrix?.takeIf { it.usesPivot }?.let { return ResolvedRows(resolvePivot(viewDef, it, ids, refs, graph, rel, ::cachedTree, fieldAt)) }
         fun occurrencesOf(id: String): List<ScannedId> = ids[id].orEmpty()
 
         // バックリンク列の「参照元要素のID」解決。参照位置を含む最も長いパスの出現を最内のIDとみなす
@@ -467,7 +487,9 @@ object VirtualViews {
         val query = view.rowsQuery
         if (query != null) {
             val rowKeyName = view.rowKey ?: query.binds.first()
-            return SemanticQuery.run(ids, refs, graph, query, fieldAt, ::cachedTree).rows.map { qr ->
+            val result = SemanticQuery.run(ids, refs, graph, query, fieldAt, ::cachedTree)
+            // limit を書いたときだけ打ち切りがありうる（書かなければ上限なし＝Int.MAX_VALUE）
+            return ResolvedRows(result.rows.map { qr ->
                 val keyNode = qr.bindings.getValue(rowKeyName)
                 val occurrences = occurrencesOf(keyNode.id)
                 val cells = view.columns.map { column ->
@@ -507,7 +529,7 @@ object VirtualViews {
                     key = qr.bindings.entries.joinToString("|") { (k, v) -> "$k=${v.id}" },
                     bindings = qr.bindings.mapValues { it.value.id },
                 )
-            }
+            }, result.total, query.limit.takeIf { it != Int.MAX_VALUE })
         }
 
         val rowsDef = view.rows ?: error("ビュー「${view.id}」に行の定義（rows）がありません")
@@ -546,7 +568,7 @@ object VirtualViews {
                 )
             }
             .toList()
-        return withTotals(view, sortRows(view, rows, rel, ::cachedTree, fieldAt))
+        return ResolvedRows(withTotals(view, sortRows(view, rows, rel, ::cachedTree, fieldAt)))
     }
 
     // ---------------------------------------------------------------- クロス集計（kind: matrix）の展開
@@ -737,6 +759,8 @@ object VirtualViews {
         val measurePath = cells.all["path"]?.toString()?.let { parseYPath(it) }
         val inDoc = ValueExpr.parseSelector(cells.all["in"], "cells.in")
         var exprKind: ValueExpr.OrderKind? = null
+        // 列の見出し（columns.label）: 同じ値の最初の要素で決める
+        val columnLabels = LinkedHashMap<String, String>()
         fun itemsFrom(start: SemanticQueryNodeRef): List<PivotItem> {
             val side = SemanticValues.evaluate(collect, environment(start)) ?: return emptyList()
             return side.elements.orEmpty().mapNotNull { it.ref }.map { node ->
@@ -751,7 +775,12 @@ object VirtualViews {
                             r.path.subList(0, occ.path.size) == occ.path && QueryEdgeStep.viaMatches(key.via, r.viaKey, r.path)
                     }.map { it.targetId }.ifEmpty { listOf(null) }
                     is VirtualMatrixKey.Value -> listOf(element?.let { scalarText(getAt(it, key.path)) })
-                    is VirtualMatrixKey.Expr -> listOf(SemanticValues.evaluate(key.value.expr, environment(node))?.also { exprKind = exprKind ?: it.kind }?.text)
+                    is VirtualMatrixKey.Expr -> listOf(
+                        SemanticValues.evaluate(key.value.expr, environment(node))?.also { exprKind = exprKind ?: it.kind }?.text?.also { k ->
+                            val labelExpr = key.label
+                            if (labelExpr != null && k !in columnLabels) SemanticValues.evaluate(labelExpr.expr, environment(node))?.text?.let { columnLabels[k] = it }
+                        },
+                    )
                 }
                 PivotItem(node, occ, measure, measureKind, keys)
             }
@@ -774,8 +803,10 @@ object VirtualViews {
         val axis: List<Axis> = when (key) {
             is VirtualMatrixKey.Ref -> entitiesOf(ids, key.idPattern, key.schemaIds, key.order, rel).map { (id, label) -> Axis(id, label) }
             is VirtualMatrixKey.Value -> key.values.map { (v, label) -> Axis(v, label ?: v) }
+            // 値の軸: order に書いた値を先に（書いた順）、残りは値の順序の種類で並べる。見出しは label の式（無ければ値）
             is VirtualMatrixKey.Expr -> groups.values.flatMap { g -> g.items.flatMap { it.columnKeys } }.filterNotNull().distinct()
-                .sortedWith(comparatorFor(exprKind) { it }).map { Axis(it, it) }
+                .sortedWith(compareBy<String> { key.order.indexOf(it).let { i -> if (i < 0) key.order.size else i } }.then(comparatorFor(exprKind) { it }))
+                .map { Axis(it, columnLabels[it] ?: it) }
         }
         val columns = buildList {
             axis.forEach { add(VirtualViewColumn(label = it.label, path = emptyList(), display = matrix.display)) }

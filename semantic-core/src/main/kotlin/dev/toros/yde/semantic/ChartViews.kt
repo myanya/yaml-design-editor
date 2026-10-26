@@ -9,13 +9,21 @@ import dev.toros.yde.yaml.model.scalarText
  * 置き場は台帳のビュータブ・文書ビューの区画（`chart: {view}`）・ダッシュボードの区画（`view: チャートID`）。
  */
 
-/** 図の種類（第一弾）。 */
+/** 図の種類。解決（項目 × 系列の数）はどれも同じで、違いは描き方だけ。 */
 enum class ChartKind(val id: String, val label: String) {
     BAR("bar", "棒"),
     STACKED_BAR("stacked-bar", "積み上げ棒"),
+    HORIZONTAL_BAR("horizontal-bar", "横棒"),
+    STACKED_HORIZONTAL_BAR("stacked-horizontal-bar", "積み上げ横棒"),
     LINE("line", "折れ線"),
+    AREA("area", "面"),
+    STACKED_AREA("stacked-area", "積み上げ面"),
     PIE("pie", "円"),
+    SCATTER("scatter", "散布図"),
     ;
+
+    /** 系列を積む図（積み上げ棒・積み上げ横棒・積み上げ面）。積むのは描く部品の中で、解決の数は元の値のまま。 */
+    val stacked: Boolean get() = this == STACKED_BAR || this == STACKED_HORIZONTAL_BAR || this == STACKED_AREA
 
     companion object {
         fun parse(text: String?, where: String): ChartKind =
@@ -37,6 +45,18 @@ enum class ChartDrill(val id: String, val label: String) {
 
     companion object {
         fun parse(text: String?, where: String): ChartDrill =
+            entries.firstOrNull { it.id == text } ?: error("$where は ${entries.joinToString(" / ") { it.id }} のいずれかです: $text")
+    }
+}
+
+/** 散布図の軸の種類（`scale`）。対数は値が桁で散るときに使い、0 以下の値は描けない。 */
+enum class ChartScale(val id: String, val label: String) {
+    LINEAR("linear", "線形"),
+    LOG("log", "対数"),
+    ;
+
+    companion object {
+        fun parse(text: String?, where: String): ChartScale =
             entries.firstOrNull { it.id == text } ?: error("$where は ${entries.joinToString(" / ") { it.id }} のいずれかです: $text")
     }
 }
@@ -65,6 +85,11 @@ data class VirtualChartDef(
     val drill: ChartDrill = ChartDrill.POPUP,
     /** 項目の並び（null＝元の表の行の順）。 */
     val order: ChartOrder? = null,
+    /** 散布図で点の名前にする列の見出し（null＝行のタイトルか ID）。散布図では x が横軸の数の列なので、名前は別の列で指す。 */
+    val label: String? = null,
+    /** 散布図の軸の種類（`scale: {x, y}`）。 */
+    val xScale: ChartScale = ChartScale.LINEAR,
+    val yScale: ChartScale = ChartScale.LINEAR,
 ) : VirtualViewDefinition
 
 /** 横軸の項目 1 つ（元の表の 1 行）。 */
@@ -81,6 +106,8 @@ data class ChartData(
     val series: List<ChartSeriesResolved>,
     /** 描くときの注意（系列の列が無い・円は最初の系列だけ、など。定義エラーではない）。 */
     val notes: List<String>,
+    /** 散布図の横軸の値（項目ごと。数として読めない項目は null。散布図でなければ null）。 */
+    val xValues: List<Double?>? = null,
 )
 
 object ChartViews {
@@ -100,31 +127,41 @@ object ChartViews {
             }
         }
         val notes = mutableListOf<String>()
+        val scatter = def.kind == ChartKind.SCATTER
+        fun columnIndex(label: String, what: String): Int? =
+            columns.indexOfFirst { it.label == label }.takeIf { it >= 0 } ?: run { notes += "${what}の列「$label」が元の表「${source.id}」にありません"; null }
+        // 散布図: x は横軸の数の列（系列には入れない）、点の名前は label の列。他の図: x は項目の文字の列
+        val xIndex = def.x?.let { columnIndex(it, "横軸") }
+        val labelIndex = def.label?.let { columnIndex(it, "名前") }
         val seriesIndexes: List<Int> = if (def.series.isEmpty()) {
             columns.indices.filter { i ->
                 val c = columns[i]
-                c.backlinks == null && c.label !in excluded && dataRows.any { r -> numberOf(r.cells.getOrNull(i)) != null }
+                c.backlinks == null && c.label !in excluded && !(scatter && i == xIndex) && dataRows.any { r -> numberOf(r.cells.getOrNull(i)) != null }
             }
         } else {
-            def.series.mapNotNull { label ->
-                columns.indexOfFirst { it.label == label }.takeIf { it >= 0 } ?: run { notes += "系列の列「$label」が元の表「${source.id}」にありません"; null }
-            }
+            def.series.mapNotNull { columnIndex(it, "系列") }
         }
-        val xIndex = def.x?.let { label ->
-            columns.indexOfFirst { it.label == label }.takeIf { it >= 0 } ?: run { notes += "横軸の列「$label」が元の表「${source.id}」にありません"; null }
-        }
+        val nameIndex = if (scatter) labelIndex else xIndex
         val categories = dataRows.map { r ->
-            val label = xIndex?.let { i -> r.cells.getOrNull(i)?.value?.let { VirtualViews.cellText(it, 40) } } ?: r.title ?: r.id
+            val label = nameIndex?.let { i -> r.cells.getOrNull(i)?.value?.let { VirtualViews.cellText(it, 40) } } ?: r.title ?: r.id
             ChartCategory(r.key, label, r.id, r.occurrences.isNotEmpty())
         }
+        val xValues: List<Double?>? = if (!scatter) null else xIndex?.let { i -> dataRows.map { r -> numberOf(r.cells.getOrNull(i)) } } ?: dataRows.map { null }
+        if (scatter && xIndex != null && xValues != null && xValues.any { it == null }) notes += "横軸の値が数として読めない項目があります（その点は描きません）"
         val series = seriesIndexes.map { i ->
             ChartSeriesResolved(columns[i].label, dataRows.map { r -> numberOf(r.cells.getOrNull(i)) }, dataRows.map { r -> r.cells.getOrNull(i) })
         }
         if (series.isEmpty()) notes += "数の列がありません（系列にする列を series に書きます）"
         if (def.kind == ChartKind.PIE && series.size > 1) notes += "円グラフは最初の系列「${series.first().label}」だけを描きます"
+        // 対数の軸: 0 以下の値は描けない（数はそのまま返し、注意に出す）
+        if (scatter) {
+            val nonPositiveX = if (def.xScale == ChartScale.LOG) xValues.orEmpty().count { it != null && it <= 0.0 } else 0
+            val nonPositiveY = if (def.yScale == ChartScale.LOG) series.sumOf { s -> s.values.count { it != null && it <= 0.0 } } else 0
+            if (nonPositiveX + nonPositiveY > 0) notes += "対数の軸では 0 以下の値は描きません（${nonPositiveX + nonPositiveY} 点）"
+        }
         // 項目の並び（order）: 系列の値の順に項目を並べ替える（系列と材料も同じ順に）。値の無い項目は後ろ
         val order = def.order
-        if (order == null || series.isEmpty()) return ChartData(def, source, categories, series, notes)
+        if (order == null || series.isEmpty() || scatter) return ChartData(def, source, categories, series, notes, xValues)
         val keyIndex = order.series?.let { label -> series.indexOfFirst { it.label == label } }?.also {
             if (it < 0) notes += "並びの系列「${order.series}」はこのチャートの系列にありません（最初の系列で並べます）"
         }?.takeIf { it >= 0 } ?: 0
@@ -158,10 +195,17 @@ object ChartViews {
         "name" to data.def.name,
         "source" to data.sourceView.id,
         "x" to data.def.x,
+        "label" to data.def.label,
+        "scale" to linkedMapOf("x" to data.def.xScale.id, "y" to data.def.yScale.id),
         "y" to data.def.yLabel,
         "drill" to data.def.drill.id,
         "order" to data.def.order?.let { linkedMapOf("series" to it.series, "direction" to if (it.descending) "desc" else "asc") },
-        "categories" to data.categories.map { linkedMapOf("key" to it.key, "label" to it.label, "id" to it.rowId) },
+        "categories" to data.categories.mapIndexed { i, c ->
+            linkedMapOf<String, Any?>("key" to c.key, "label" to c.label, "id" to c.rowId).also { m ->
+                // 散布図: 項目ごとの横軸の値
+                data.xValues?.let { xs -> m["x"] = xs.getOrNull(i)?.let(::plainNumber) }
+            }
+        },
         "series" to data.series.map { s -> linkedMapOf("label" to s.label, "values" to s.values.map { v -> v?.let(::plainNumber) }) },
         "notes" to data.notes,
         "errors" to errors,
@@ -174,6 +218,7 @@ object ChartViews {
         appendLine("項目: ${data.categories.size} 件、系列: ${data.series.joinToString("・") { it.label }.ifEmpty { "なし" }}")
         data.categories.forEachIndexed { i, c ->
             append("- ").append(c.label).append(if (c.label != c.rowId) "（${c.rowId}）" else "").append(": ")
+            data.xValues?.getOrNull(i)?.let { append("x=").append(plainNumber(it)).append("・") }
             appendLine(data.series.joinToString("・") { s -> s.label + "=" + (s.values.getOrNull(i)?.let(::plainNumber)?.toString() ?: "—") })
         }
         data.notes.forEach { appendLine("注意: $it") }

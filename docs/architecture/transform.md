@@ -44,6 +44,22 @@
 - **使いどころ**: CLI `transform <workspace> <定義.yaml> [--input] [--param] [--origins]`（定義に `builtin:structural-schema` と書くと組込みの定義）・構造のスキーマの導出（[schema.md「構造スキーマの導出」](schema.md)）・スキーマの `scaffold`（新しい文書のひな型の中身）・skill の取り込みの `build`（表の行を項にして当てる。取り込み先と採番の接頭辞も同じひな型。[agents.md「skill」](agents.md)）。
 - 拡張と応用（繰り返しの源にクエリ・値の式をひな型の指示として・利用者の変換定義の置き場・Markdown への派生）は ROADMAP の変換のテーマ。
 
+## レポート（YAML から文字へ）
+
+変換で値の一式を作り、文字のひな形にはめ込む 2 段（以前の判断どおり）。集計はビューに任せ、レポートに評価器を足さない。
+
+| 部品 | ファイル | 責務 |
+|---|---|---|
+| `Template.ViewRows` | semantic-core/schema/Transform.kt | `{$view: ID, $where, $one}`。行は呼び出し側が渡し、条件は行の上で `holds` |
+| `ReportRows` | semantic-core/semantic/ReportRows.kt | 解決した行 → 項（`{id, title, key, cells: [{column, value}], values}`） |
+| `TextTemplate` | semantic-core/semantic/TextTemplate.kt | 文字のひな形（穴 `{パス}` / `{パス:形}`・`{#each}`・`{#if}`・`{{`）。タグだけの行は消す。埋まらない穴は名前を返す |
+| `ReportDef` / `ReportDefinitions` | workspace-core/workspace/ReportDefinitions.kt | 定義のパース（`params` と `build` は `TransformDef`。`template` は同じ場所の相対パス、`output` はワークスペース相対で YAML 不可） |
+| `core/Reports` | core/Reports.kt | `.yde/reports` の読み込み（ひな形の点検も）・実行（`$view` は `Views.resolve` の行）・派生物の書き込み |
+| `ReportPane` | ui/ReportPane.kt | ビュータブの一覧から選ぶ。受け取る値の欄・表示（`MarkdownView`）・保存 |
+
+- **流れ**: `Reports.run` → `SemanticTransform.run(def.transform, 空のマップ, params, views)` → `TextTemplate.render(ひな形, 項)` → 文字と埋まらない穴。`output` も同じひな形で埋める。
+- **規律**: 出力は派生物で、YAML と `.yde/` の下には書かない（`Reports.write` が拒む）。ひな形にコードや計算を足さない（並べ替え・集計はビューか `build`）。`$view` の行に出どころは持たせない（解決した行は派生）。レポートの定義は REPORTS ゾーン（メタスキーマ `builtin-report`。エージェントの提出ゲートも同じパース）。
+
 ## 計算列と決定論的射影
 
 段階的詳細化の機械的に置換可能な領域（例: 値型の maxLength → `varchar(100)`）を、ビューの値の式の列（`value`）で参照時に導出する。専用の導出の語彙は無く、「クエリ＋値の式」（CORE-CALCULUS「Expression Calculus」）の形で書く。

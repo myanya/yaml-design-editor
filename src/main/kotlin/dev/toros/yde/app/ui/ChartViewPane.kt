@@ -42,6 +42,7 @@ import dev.toros.yde.app.core.Views
 import dev.toros.yde.semantic.ChartData
 import dev.toros.yde.semantic.ChartDrill
 import dev.toros.yde.semantic.ChartKind
+import dev.toros.yde.semantic.ChartScale
 import dev.toros.yde.semantic.VirtualChartDef
 import dev.toros.yde.yaml.model.pretty
 
@@ -95,7 +96,20 @@ fun ChartCard(
                     labels, data.series.first().values, colors, height = height, title = def.yLabel, valueFormat = def.format,
                     onSelect = select?.let { s -> { ci -> s(ci, 0) } },
                 )
-                def.kind == ChartKind.LINE -> LineChart(labels, series, height = height, title = def.yLabel, valueFormat = def.format, onSelect = select)
+                // 散布図: 横軸は x の数の列（xValues）、縦軸は系列。数として読めない項目は描かないので、値は null のまま渡す
+                def.kind == ChartKind.SCATTER -> ScatterChart(
+                    labels, data.xValues.orEmpty(), data.series.mapIndexed { i, s -> ScatterSeries(s.label, s.values, colors[i % colors.size]) },
+                    height = height, title = def.yLabel, xLabel = def.x, valueFormat = def.format,
+                    xLog = def.xScale == ChartScale.LOG, yLog = def.yScale == ChartScale.LOG, onSelect = select,
+                )
+                def.kind == ChartKind.LINE || def.kind == ChartKind.AREA || def.kind == ChartKind.STACKED_AREA -> LineChart(
+                    labels, series, height = height, title = def.yLabel, valueFormat = def.format,
+                    area = def.kind != ChartKind.LINE, stacked = def.kind == ChartKind.STACKED_AREA, onSelect = select,
+                )
+                def.kind == ChartKind.HORIZONTAL_BAR || def.kind == ChartKind.STACKED_HORIZONTAL_BAR -> HorizontalBarChart(
+                    labels, series, stacked = def.kind == ChartKind.STACKED_HORIZONTAL_BAR, height = height, title = def.yLabel,
+                    valueFormat = def.format, onSelect = select,
+                )
                 else -> BarChart(
                     labels, series, stacked = def.kind == ChartKind.STACKED_BAR, height = height, title = def.yLabel,
                     integerAxis = false, valueFormat = def.format, onSelect = select,
@@ -123,7 +137,7 @@ fun ChartCard(
         }
         data.notes.forEach { Text("注意: $it", fontSize = 11.sp, color = Palette.WarnOrange) }
         if (drill != ChartDrill.NONE && current == null && data.categories.isNotEmpty() && series.isNotEmpty()) {
-            Text("棒や点を押すと、その値の材料（集めた要素）が出ます", fontSize = 10.sp, color = Palette.SubText)
+            Text("棒・点・帯を押すと、その値の材料（集めた要素）が出ます", fontSize = 10.sp, color = Palette.SubText)
         }
     }
 }

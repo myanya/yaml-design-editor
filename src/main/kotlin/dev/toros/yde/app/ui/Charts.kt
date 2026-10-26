@@ -3,13 +3,17 @@ package dev.toros.yde.app.ui
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -32,10 +37,16 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import com.patrykandpatrick.vico.compose.cartesian.marker.CartesianMarkerVisibilityListener
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
@@ -245,7 +256,8 @@ internal fun chartNumberFormatter(integerAxis: Boolean, valueFormat: String?): (
 
 /**
  * 折れ線グラフ（P46）。横軸は項目の並び、系列ごとに 1 本の線。棒グラフと同じ軸・凡例・マウスの文字で、
- * ライブラリ（Vico）の型はこのファイルの外へ出さない。
+ * ライブラリ（Vico）の型はこのファイルの外へ出さない。`area` で線の下を塗り（面）、`stacked` で系列を下から積んだ帯にする
+ * （積み上げ面。描く値は積んだ値だが、マウスの文字と押したときの系列は元の値で決める）。
  */
 @Composable
 fun LineChart(
@@ -255,13 +267,31 @@ fun LineChart(
     height: Dp = 220.dp,
     title: String? = null,
     valueFormat: String? = null,
-    /** 点を押したとき（項目の番号・いちばん近い点の系列の番号）。null なら押せない。 */
+    /** 線の下を塗る（面）。 */
+    area: Boolean = false,
+    /** 系列を下から積んで帯にする（積み上げ面）。 */
+    stacked: Boolean = false,
+    /** 点を押したとき（項目の番号・いちばん近い点の系列の番号。積み上げなら押した高さの帯の系列）。null なら押せない。 */
     onSelect: ((categoryIndex: Int, seriesIndex: Int?) -> Unit)? = null,
 ) {
+    // 描く順: 積み上げは上の帯（積んだ値が大きい系列）から描き、下の帯を後から重ねる（塗りが 0 まで届くため）
+    val drawOrder = remember(series, stacked) { if (stacked) series.indices.reversed().toList() else series.indices.toList() }
+    val drawnValues = remember(series, stacked) {
+        if (!stacked) series.map { it.values } else {
+            val n = series.maxOfOrNull { it.values.size } ?: 0
+            val cumulative = mutableListOf<List<Double>>()
+            var below = List(n) { 0.0 }
+            series.forEach { s ->
+                below = List(n) { i -> below[i] + (s.values.getOrNull(i)?.takeIf { v -> !v.isNaN() && v > 0 } ?: 0.0) }
+                cumulative += below
+            }
+            cumulative
+        }
+    }
     val producer = remember { CartesianChartModelProducer() }
-    LaunchedEffect(categories, series) {
+    LaunchedEffect(categories, series, drawOrder, drawnValues) {
         producer.runTransaction {
-            lineSeries { series.forEach { s -> series(s.values.ifEmpty { listOf(0.0) }) } }
+            lineSeries { drawOrder.forEach { si -> series(drawnValues[si].ifEmpty { listOf(0.0) }) } }
             extras { it[CategoryKey] = categories }
         }
     }
@@ -272,10 +302,17 @@ fun LineChart(
         val current = targets.value
         val x = current.firstOrNull()?.x?.toInt() ?: return@tap
         val points = current.filterIsInstance<LineCartesianLayerMarkerTarget>().flatMap { it.points }
-        val nearest = points.indices.minByOrNull { kotlin.math.abs(points[it].canvasY - position.y) }
-        onSelect(x, nearest)
+        if (points.isEmpty()) return@tap
+        // 点は描いた順（drawOrder）に並ぶ。系列の番号へ戻す
+        fun pointOf(si: Int) = points.getOrNull(drawOrder.indexOf(si))
+        val nearest = series.indices.minByOrNull { si -> pointOf(si)?.let { p -> kotlin.math.abs(p.canvasY - position.y) } ?: Float.MAX_VALUE }
+        // 積み上げなら、押した高さがどの帯（下の帯の上端〜自分の上端）に入るか。値 0 の帯は飛ばす
+        val hit = if (!stacked) nearest else series.indices.firstOrNull { si ->
+            (series[si].values.getOrNull(x) ?: 0.0) > 0.0 && (pointOf(si)?.canvasY ?: Float.MAX_VALUE) <= position.y
+        } ?: nearest
+        onSelect(x, hit)
     }
-    val colors = series.map { it.color }.ifEmpty { listOf(Palette.Primary) }
+    val colors = drawOrder.map { series[it].color }.ifEmpty { listOf(Palette.Primary) }
     val theme = rememberM3VicoTheme(
         columnCartesianLayerColors = colors,
         lineCartesianLayerColors = colors,
@@ -286,18 +323,32 @@ fun LineChart(
     val legendLabel = rememberTextComponent(style = TextStyle(color = Palette.Text, fontSize = 11.sp))
     val legendIcons = series.map { s -> rememberShapeComponent(fill = Fill(SolidColor(s.color)), shape = RoundedCornerShape(2.dp)) }
     val markerLabel = rememberTextComponent(style = TextStyle(color = Palette.Text, fontSize = 11.sp))
-    val markerFormatter = remember(series, categories, numberText) {
+    val markerFormatter = remember(series, categories, numberText, drawOrder, stacked) {
         object : DefaultCartesianMarker.ValueFormatter {
             override fun format(context: CartesianDrawingContext, targets: List<CartesianMarker.Target>): CharSequence {
-                val label = targets.firstOrNull()?.let { categories.getOrNull(it.x.toInt()) }.orEmpty()
+                val x = targets.firstOrNull()?.x?.toInt() ?: 0
+                val label = categories.getOrNull(x).orEmpty()
+                // 点は描いた順（drawOrder）。文字は系列の順に、積み上げなら積んだ値でなく元の値で
                 val parts = targets.filterIsInstance<LineCartesianLayerMarkerTarget>().flatMap { it.points }
-                    .mapIndexed { i, p -> (series.getOrNull(i)?.name ?: "") + " " + numberText(p.entry.y) }
+                    .mapIndexed { k, p ->
+                        val si = drawOrder.getOrNull(k) ?: k
+                        val value = if (stacked) series.getOrNull(si)?.values?.getOrNull(x) ?: p.entry.y else p.entry.y
+                        si to ((series.getOrNull(si)?.name ?: "") + " " + numberText(value))
+                    }
+                    .sortedBy { it.first }.map { it.second }
                 return (if (label.isNotEmpty()) "$label: " else "") + parts.joinToString("・")
             }
         }
     }
     val axisValueFormatter = remember(numberText) { CartesianValueFormatter { _, y, _ -> numberText(y) } }
-    val lines = series.map { s -> LineCartesianLayer.rememberLine(fill = LineCartesianLayer.LineFill.single(Fill(SolidColor(s.color)))) }
+    val lines = drawOrder.map { si ->
+        val color = series[si].color
+        // 面: 線の下を塗る。積み上げは帯が重ならないよう濃く、1 本の面は薄く
+        if (area) LineCartesianLayer.rememberLine(
+            fill = LineCartesianLayer.LineFill.single(Fill(SolidColor(color))),
+            areaFill = LineCartesianLayer.AreaFill.single(Fill(SolidColor(color.copy(alpha = if (stacked) 0.8f else 0.3f)))),
+        ) else LineCartesianLayer.rememberLine(fill = LineCartesianLayer.LineFill.single(Fill(SolidColor(color))))
+    }
     Column(modifier) {
         if (title != null) Text(title, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Palette.SubText)
         ProvideVicoTheme(theme) {
@@ -328,6 +379,268 @@ fun LineChart(
         }
     }
 }
+
+/**
+ * 横棒グラフ（P46 の残り）。Vico に横向きの棒が無いので自前で描く: 項目ごとに 1 行、左に項目名、右へ棒を伸ばし、棒の端に値を出す。
+ * 系列が 2 つ以上なら積み上げ（`stacked`）か、項目の中に系列ごとの細い棒を並べる。行の高さは表示の高さと項目数から決め、
+ * 収まらなければ縦にスクロールする。棒（積み上げなら区間）を押すと項目と系列が決まる。
+ */
+@Composable
+fun HorizontalBarChart(
+    categories: List<String>,
+    series: List<ChartSeries>,
+    modifier: Modifier = Modifier,
+    stacked: Boolean = false,
+    height: Dp = 220.dp,
+    title: String? = null,
+    valueFormat: String? = null,
+    /** 棒を押したとき（項目の番号・系列の番号。1 系列と積み上げでない並べた棒では、押した棒の系列）。null なら押せない。 */
+    onSelect: ((categoryIndex: Int, seriesIndex: Int?) -> Unit)? = null,
+) {
+    val numberText = remember(valueFormat) { chartNumberFormatter(integerAxis = false, valueFormat = valueFormat) }
+    val n = categories.size
+    fun positive(v: Double?): Double = if (v == null || v.isNaN() || v < 0) 0.0 else v
+    // 目盛りの最大: 積み上げなら項目ごとの和の最大、並べるなら値の最大
+    val single = stacked || series.size <= 1
+    val maxValue = remember(series, single) {
+        if (single) categories.indices.maxOfOrNull { i -> series.sumOf { positive(it.values.getOrNull(i)) } } ?: 0.0
+        else series.maxOfOrNull { s -> s.values.maxOfOrNull { positive(it) } ?: 0.0 } ?: 0.0
+    }
+    val rowHeight = if (n == 0) 20.dp else (height / n).coerceIn(18.dp, 30.dp)
+    val barHeight = if (single) rowHeight - 6.dp else ((rowHeight - 6.dp) / series.size).coerceAtLeast(4.dp)
+    val endShape = RoundedCornerShape(topEnd = 3.dp, bottomEnd = 3.dp)
+    Column(modifier) {
+        if (title != null) Text(title, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Palette.SubText)
+        if (series.size >= 2) ChartLegend(series.map { it.name to it.color })
+        Column(Modifier.fillMaxWidth().heightIn(max = height).verticalScroll(rememberScrollState())) {
+            categories.forEachIndexed { i, label ->
+                Row(Modifier.fillMaxWidth().height(rowHeight), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        label, fontSize = 11.sp, color = Palette.Text, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.End, modifier = Modifier.width(150.dp).padding(end = 8.dp),
+                    )
+                    BoxWithConstraints(Modifier.weight(1f).fillMaxHeight()) {
+                        // 値の文字の分（右端）を空けて、最大値が収まる幅に比例させる
+                        val usable = (maxWidth - 72.dp).coerceAtLeast(0.dp)
+                        fun widthOf(v: Double): Dp = if (maxValue <= 0.0) 0.dp else usable * (positive(v) / maxValue).toFloat()
+                        if (single) {
+                            val total = series.sumOf { positive(it.values.getOrNull(i)) }
+                            Row(Modifier.fillMaxWidth().height(barHeight).align(Alignment.CenterStart), verticalAlignment = Alignment.CenterVertically) {
+                                series.forEachIndexed { si, s ->
+                                    val w = widthOf(positive(s.values.getOrNull(i)))
+                                    if (w > 0.dp) {
+                                        Box(
+                                            Modifier.width(w).fillMaxHeight()
+                                                .background(s.color, if (series.size == 1 || si == series.lastIndex) endShape else RoundedCornerShape(0.dp))
+                                                .then(if (onSelect != null) Modifier.clickable { onSelect(i, if (stacked) si else 0) } else Modifier),
+                                        )
+                                        if (si < series.lastIndex) Spacer(Modifier.width(1.dp))
+                                    }
+                                }
+                                Spacer(Modifier.width(4.dp))
+                                Text(numberText(total), fontSize = 10.sp, color = Palette.SubText, maxLines = 1)
+                            }
+                        } else {
+                            Column(Modifier.fillMaxWidth().align(Alignment.CenterStart), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                                series.forEachIndexed { si, s ->
+                                    val v = positive(s.values.getOrNull(i))
+                                    Row(Modifier.fillMaxWidth().height(barHeight), verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            Modifier.width(widthOf(v)).fillMaxHeight().background(s.color, endShape)
+                                                .then(if (onSelect != null) Modifier.clickable { onSelect(i, si) } else Modifier),
+                                        )
+                                        Spacer(Modifier.width(4.dp))
+                                        Text(numberText(v), fontSize = 9.sp, color = Palette.SubText, maxLines = 1)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** 自前で描く図の凡例（色の箱と系列の名前を横に並べる）。 */
+@Composable
+private fun ChartLegend(items: List<Pair<String, Color>>) {
+    Row(
+        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically,
+    ) {
+        items.forEach { (name, color) ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(10.dp).background(color, RoundedCornerShape(2.dp)))
+                Spacer(Modifier.width(4.dp))
+                Text(name, fontSize = 11.sp, color = Palette.Text, maxLines = 1)
+            }
+        }
+    }
+}
+
+/** 散布図の 1 系列。値は項目の並びと同じ長さ（数として読めない項目は null＝描かない）。 */
+class ScatterSeries(val name: String, val values: List<Double?>, val color: Color)
+
+/**
+ * 散布図の目盛り。線形は 1・2・5 の刻みで両端を刻みに揃え、値が全部 0 以上なら 0 から。
+ * 対数（`log`）は 10 の累乗を両端にし、目盛りは累乗（桁が少なければ 2 倍と 5 倍も）。0 以下の値は位置を持たない。
+ */
+private class ScatterAxis(val lo: Double, val hi: Double, val step: Double, val log: Boolean) {
+    /** 軸上の位置（0〜1）。対数なら log10 の等間隔。 */
+    fun fraction(v: Double): Float =
+        if (log) ((Math.log10(v) - Math.log10(lo)) / (Math.log10(hi) - Math.log10(lo))).toFloat() else ((v - lo) / (hi - lo)).toFloat()
+
+    fun ticks(): List<Double> = if (!log) generateSequence(lo) { it + step }.takeWhile { it <= hi + step / 2 }.toList() else {
+        val decades = generateSequence(lo) { it * 10 }.takeWhile { it <= hi * 1.0001 }.toList()
+        if (decades.size > 4) decades else decades.flatMap { d -> listOf(d, d * 2, d * 5) }.filter { it <= hi * 1.0001 }
+    }
+
+    companion object {
+        fun of(values: List<Double>, log: Boolean): ScatterAxis {
+            if (log) {
+                val positive = values.filter { it > 0.0 }
+                val min = positive.minOrNull() ?: 1.0
+                val max = positive.maxOrNull() ?: 10.0
+                val lo = Math.pow(10.0, Math.floor(Math.log10(min)))
+                val hi = Math.pow(10.0, Math.ceil(Math.log10(max))).let { if (it <= lo) lo * 10 else it }
+                return ScatterAxis(lo, hi, 0.0, true)
+            }
+            val min = values.minOrNull() ?: 0.0
+            val max = values.maxOrNull() ?: 1.0
+            val a = if (min >= 0.0) 0.0 else min
+            val b = if (max <= a) a + 1.0 else max
+            val rough = (b - a) / 5
+            val magnitude = Math.pow(10.0, Math.floor(Math.log10(rough)))
+            val ratio = rough / magnitude
+            val step = (if (ratio <= 1.0) 1.0 else if (ratio <= 2.0) 2.0 else if (ratio <= 5.0) 5.0 else 10.0) * magnitude
+            return ScatterAxis(Math.floor(a / step) * step, Math.ceil(b / step) * step, step, false)
+        }
+    }
+}
+
+private data class ScatterPoint(val category: Int, val series: Int, val x: Double, val y: Double)
+
+/**
+ * 散布図（P46 の残り）。元の表の 2 つの数の列を軸にし、行を点にする。Vico の折れ線は横軸が項目の並びなので自前で描く:
+ * 目盛りは 1・2・5 の刻み、点は系列ごとの色、マウスを載せると近い点の名前と値、押すとその点（項目と系列）が決まる。
+ */
+@Composable
+fun ScatterChart(
+    categories: List<String>,
+    /** 項目ごとの横軸の値（数として読めない項目は null）。 */
+    xs: List<Double?>,
+    series: List<ScatterSeries>,
+    modifier: Modifier = Modifier,
+    height: Dp = 220.dp,
+    title: String? = null,
+    /** 横軸の見出し（列の名前）。 */
+    xLabel: String? = null,
+    valueFormat: String? = null,
+    /** 軸を対数にする（値が桁で散るとき）。対数の軸では 0 以下の値は描かない。 */
+    xLog: Boolean = false,
+    yLog: Boolean = false,
+    /** 点を押したとき（項目の番号・系列の番号）。null なら押せない。 */
+    onSelect: ((categoryIndex: Int, seriesIndex: Int?) -> Unit)? = null,
+) {
+    val yText = remember(valueFormat) { chartNumberFormatter(integerAxis = false, valueFormat = valueFormat) }
+    val xText = remember { chartNumberFormatter(integerAxis = false, valueFormat = null) }
+    val points = remember(categories, xs, series, xLog, yLog) {
+        series.flatMapIndexed { si, s ->
+            categories.indices.mapNotNull { i ->
+                val x = xs.getOrNull(i)
+                val y = s.values.getOrNull(i)
+                if (x == null || y == null || x.isNaN() || y.isNaN() || (xLog && x <= 0.0) || (yLog && y <= 0.0)) null else ScatterPoint(i, si, x, y)
+            }
+        }
+    }
+    val xAxis = remember(points, xLog) { ScatterAxis.of(points.map { it.x }, xLog) }
+    val yAxis = remember(points, yLog) { ScatterAxis.of(points.map { it.y }, yLog) }
+    val density = LocalDensity.current.density
+    val textMeasurer = rememberTextMeasurer()
+    val labelStyle = TextStyle(color = Palette.SubText, fontSize = 10.sp)
+    val tipStyle = TextStyle(color = Palette.Text, fontSize = 11.sp)
+    val canvasSize = remember { mutableStateOf(IntSize.Zero) }
+    val hover = remember { mutableStateOf<Offset?>(null) }
+    // 余白（px）: 左＝縦軸の文字、下＝横軸の文字（見出しがあればもう 1 行）
+    fun plotRect(size: IntSize): Rect = Rect(
+        left = 56f * density, top = 8f * density,
+        right = size.width - 12f * density, bottom = size.height - (if (xLabel != null) 40f else 24f) * density,
+    )
+    fun px(plot: Rect, x: Double): Float = plot.left + xAxis.fraction(x) * plot.width
+    fun py(plot: Rect, y: Double): Float = plot.bottom - yAxis.fraction(y) * plot.height
+    fun nearest(position: Offset): ScatterPoint? {
+        val size = canvasSize.value
+        if (size.width <= 0 || size.height <= 0 || points.isEmpty()) return null
+        val plot = plotRect(size)
+        fun distance(p: ScatterPoint) = (Offset(px(plot, p.x), py(plot, p.y)) - position).getDistance()
+        return points.minByOrNull(::distance)?.takeIf { distance(it) <= 14f * density }
+    }
+    val tapModifier = if (onSelect == null) Modifier else Modifier.tapWithoutConsuming { position -> nearest(position)?.let { onSelect(it.category, it.series) } }
+    val colors = series.map { it.color }.ifEmpty { listOf(Palette.Primary) }
+    Column(modifier) {
+        if (title != null) Text(title, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Palette.SubText)
+        if (series.size >= 2) ChartLegend(series.map { it.name to it.color })
+        Canvas(
+            Modifier.fillMaxWidth().height(height).onSizeChanged { canvasSize.value = it }
+                .hoverPosition { hover.value = it }.then(tapModifier),
+        ) {
+            val plot = plotRect(IntSize(size.width.toInt(), size.height.toInt()))
+            val gridColor = Palette.Border.copy(alpha = 0.6f)
+            // 目盛りの線と文字
+            yAxis.ticks().forEach { v ->
+                val y = py(plot, v)
+                drawLine(gridColor, Offset(plot.left, y), Offset(plot.right, y), strokeWidth = 1f)
+                val m = textMeasurer.measure(yText(v), labelStyle)
+                drawText(m, topLeft = Offset(plot.left - 6f * density - m.size.width, y - m.size.height / 2f))
+            }
+            xAxis.ticks().forEach { v ->
+                val x = px(plot, v)
+                drawLine(gridColor, Offset(x, plot.top), Offset(x, plot.bottom), strokeWidth = 1f)
+                val m = textMeasurer.measure(xText(v), labelStyle)
+                drawText(m, topLeft = Offset(x - m.size.width / 2f, plot.bottom + 4f * density))
+            }
+            drawLine(Palette.Border, Offset(plot.left, plot.top), Offset(plot.left, plot.bottom), strokeWidth = 1f)
+            drawLine(Palette.Border, Offset(plot.left, plot.bottom), Offset(plot.right, plot.bottom), strokeWidth = 1f)
+            if (xLabel != null) {
+                val m = textMeasurer.measure(xLabel, labelStyle)
+                drawText(m, topLeft = Offset(plot.right - m.size.width, plot.bottom + 20f * density))
+            }
+            // 点
+            val radius = 4f * density
+            points.forEach { p -> drawCircle(colors[p.series % colors.size], radius, Offset(px(plot, p.x), py(plot, p.y))) }
+            // マウスを載せた点: 輪で強調し、名前と値を添える（右に出ないなら左へ）
+            val near = hover.value?.let(::nearest) ?: return@Canvas
+            val center = Offset(px(plot, near.x), py(plot, near.y))
+            drawCircle(colors[near.series % colors.size], radius + 3f * density, center, style = Stroke(width = 2f * density))
+            val text = categories.getOrNull(near.category).orEmpty() + ": " + series[near.series].name + " " + yText(near.y) +
+                "（" + (xLabel ?: "x") + " " + xText(near.x) + "）"
+            val m = textMeasurer.measure(text, tipStyle)
+            val pad = 4f * density
+            var left = center.x + 10f * density
+            if (left + m.size.width + pad * 2 > size.width) left = (center.x - 10f * density - m.size.width - pad * 2).coerceAtLeast(0f)
+            val top = (center.y - m.size.height - 10f * density).coerceAtLeast(0f)
+            drawRect(Palette.Surface, Offset(left, top), Size(m.size.width + pad * 2, m.size.height + pad * 2))
+            drawRect(Palette.Border, Offset(left, top), Size(m.size.width + pad * 2, m.size.height + pad * 2), style = Stroke(width = 1f))
+            drawText(m, topLeft = Offset(left + pad, top + pad))
+        }
+    }
+}
+
+/** マウスの位置（載せている間）を拾う。イベントは消費しない（押下は tapWithoutConsuming が見る）。 */
+private fun Modifier.hoverPosition(onMove: (Offset?) -> Unit): Modifier = pointerInput(Unit) {
+    awaitPointerEventScope {
+        while (true) {
+            val event = awaitPointerEvent(PointerEventPass.Initial)
+            when (event.type) {
+                PointerEventType.Move, PointerEventType.Enter -> onMove(event.changes.firstOrNull()?.position)
+                PointerEventType.Exit -> onMove(null)
+                else -> Unit
+            }
+        }
+    }
+}
+
 
 /**
  * 円グラフ（P46）。Vico に無いので自前で描く: 値の割合で扇形を並べ、右に凡例（項目・値・割合）を出す。
