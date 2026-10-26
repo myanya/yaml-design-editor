@@ -13,7 +13,7 @@
 | W-01 | ワークスペースの選択と管理（起動引数・OS ネイティブのフォルダ選択・スタート画面・最近開いた履歴・パレットからの切替・選んだ場所の記憶） | `Main.kt`（`StartScreen`）, `ui/FilePickers.kt`, `AppState.openWorkspace` | 手動 | [ui](architecture/ui.md) |
 | W-02 | ファイルツリー（全形式・隠し項目・除外・パス検索・展開の永続化・現在地） | `ui/FileTreePane.kt`, `core/FileCatalog.kt` | `FileCatalogTest`・画面は手動 | [ui](architecture/ui.md) |
 | W-03 | ファイル・フォルダーの配置変更と Undo | `FileArrangementPlanner`, `FileArrangementJournal`, `FileMoveDialog` | `AppStateFileArrangementTest`・`DocumentCacheSnapshotTest` ほか | [workspace](architecture/workspace.md) |
-| W-04 | 外部監視と再読込（履歴保持・競合保護・確認付き破棄） | `AppState.reload`, `WorkspaceSession.refreshFrom`, `ReloadConfirmationDialog` | `ReloadHistoryTest`・`SessionRefreshTest` | [workspace](architecture/workspace.md) |
+| W-04 | 外部監視と再読込（履歴保持・競合保護・確認付き破棄） | `session/DocumentSession.kt`（`reload`）, `WorkspaceSession.refreshFrom`, `ReloadConfirmationDialog` | `ReloadHistoryTest`・`SessionRefreshTest` | [workspace](architecture/workspace.md) |
 | W-05 | 最近開いたファイル履歴（12 件・ワークスペース単位で永続化） | `AppState.recentFiles` | 手動 | [ui](architecture/ui.md) |
 | W-06 | UI レイアウトとテーマ（左右の領域アイコン・ペイン内の閉じる操作・幅と開閉とテーマの永続化） | `Main.kt`, `ui/AppToolbar.kt`, `ui/Common.kt` | 手動 | [ui](architecture/ui.md) |
 | W-07 | 未保存確認（終了時・ワークスペース切替時） | `Main.kt` | 手動 | [ui](architecture/ui.md) |
@@ -51,7 +51,7 @@
 | E-03 | ソース編集（下書き・書式保持・履歴との同期） | `SourcePane`・`SourceHistorySync` | `LineMergeTest`・`SourceHistorySyncTest`・`TextOnlySaveTest` | [editing-history](architecture/editing-history.md) |
 | E-04 | 差分表示（保存済みと編集中の行整列・文字単位の強調） | `ui/DiffPane.kt` | 単体 `DiffPaneTest` | [ui](architecture/ui.md) |
 | E-05 | Undo/Redo（横断履歴・編集元への復帰・通知・入力の区切り） | `AppState`, `HistoryNoticeBanner` | `HistoryLocationTest`・`HistoryNoticeTest`・`HistoryCoalescingTest` ほか | [editing-history](architecture/editing-history.md) |
-| E-06 | 保存（Ctrl+S・すべて保存・外部変更の直前検査と明示上書き） | `AppState.save*`, `WorkspaceSession.save*` | アプリ・コアの `SaveConflictTest`, `YamlIOTest` | [editing-history](architecture/editing-history.md) |
+| E-06 | 保存（Ctrl+S・すべて保存・外部変更の直前検査と明示上書き） | `session/DocumentSession.kt`（`save*`）, `WorkspaceSession.save*` | アプリ・コアの `SaveConflictTest`, `YamlIOTest` | [editing-history](architecture/editing-history.md) |
 | E-07 | 文書メタデータ `_document`（id・name・description）の編集とコンパクトな文書ヘッダー | `ui/FormView.kt`・`ui/EditorChrome.kt` | 手動 | [ui](architecture/ui.md) |
 | E-08 | 文書キャッシュ（ファイル切替時も未保存編集を保持） | `AppState.docCache`（殻）, `session/DocumentSession.kt`（論理） | 手動 | [editing-history](architecture/editing-history.md) |
 | E-09 | 同一 ID の他文書出現ストリップ（相手側の情報の表示とジャンプ） | `ui/FormView.kt`（`SameIdOccurrencesStrip`） | 手動 | [ui](architecture/ui.md) |

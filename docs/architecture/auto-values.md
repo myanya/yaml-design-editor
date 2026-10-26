@@ -17,7 +17,7 @@ samples/todos の「更新日はコメントの最大日付」（ビューの列
 | `ChangeSetApplier` | workspace-core/workspace/ChangeSetApplier.kt | 操作を当てた木へ、検証の前に `stamp`（`now` 引数） |
 | `SchemaDefinitionChecks` | workspace-core/workspace/SchemaDefinitionChecks.kt | 型との適合（created / updated は日付・時刻・日時、revision は int）と `expression` との併用の誤り |
 | メタスキーマ `auto` | workspace-core/resources/builtin-schemas/schema.yaml | 項目のキー `auto` の選択肢と説明 |
-| `AppState.save` / `saveAll` / `createDocumentFile` | app/AppState.kt | 保存の直前に当てて UI の木を写し直す・新しい文書を新しい要素の値で埋める・状態表示 |
+| `DocumentSession.save` / `saveAll`、`AppState.createDocumentFile` | session/DocumentSession.kt・app/AppState.kt | 保存の直前に当てて UI の木を写し直す・新しい文書を新しい要素の値で埋める・状態表示 |
 | `WorkspaceRecords.bulkUpdateViaSession` | core/Documents.kt | 一括変更と自動値を一つのトランザクションにまとめてから保存する |
 | `FormView` / `SchemaEditor` | ui/FormView.kt・ui/SchemaEditor.kt | 項目の説明の下の案内文（`autoValueHint`）・設計 UI の選択（型に合う印だけ） |
 
@@ -28,7 +28,7 @@ samples/todos の「更新日はコメントの最大日付」（ビューの列
 - **「変わった」**: 値と構造の比較で、コメントや表記の違いは数えない。自動の項目（入れ子の要素のものも）は比較から外す。
 - **値**: created / updated は `ValueSemantics.stamp(now)`、revision は保存済みの値 +1（読めなければ 1）。新しい要素（base に無い）は値が空の項目だけ埋める（取り込みやエージェントが書いた値は残る）。入れる値が今の値と同じなら操作を作らない（同じ日に何度保存しても履歴は増えない）。
 - **当てる場所は 3 つ**:
-  - ①セッションの `applyAutoValues(ids, now)`＝通常保存の直前の 1 トランザクション。`AppState.save` / `saveAll` が呼び、入った文書の UI の木は `refreshDocsFromSession` で写し直す。
+  - ①セッションの `applyAutoValues(ids, now)`＝通常保存の直前の 1 トランザクション。`DocumentSession.save` / `saveAll` が呼び、入った文書の UI の木は `refreshDocsFromSession` で写し直す。
     一括変更は `applyWithAutoValues` で本文と自動値を同梱する。両 API は同じ `autoValuePlans` を使う。
   - ②`ChangeSetApplier`＝操作を当てた木へ検証の前に `stamp`。必須の更新日が無い新しい要素も通り、同じトランザクションで Undo 1 回。
   - ③新しい文書（`AppState.createDocumentFile`）と配列の「追加」（`defaultTree(now)`）＝新しい要素の値で埋める。

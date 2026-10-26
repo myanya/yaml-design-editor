@@ -16,7 +16,7 @@ class AppStateFileArrangementTest {
     @Test fun `壊れた未保存ソースがあるファイルを削除改名しない`() {
         val state = state()
         val doc = state.openDoc!!
-        doc.source.edit { replace(0, length, "broken: [") }
+        doc.editSource { replace(0, length, "broken: [") }
         doc.flushDraft()
         assertTrue(doc.draftDirty)
         assertFalse(state.deletePath(doc.file).isSuccess)
@@ -40,7 +40,7 @@ class AppStateFileArrangementTest {
     @Test fun `フォルダー作成で以前の編集履歴を失わない`() {
         val state = state()
         val doc = state.openDoc!!
-        doc.source.edit { replace(0, length, "name: B\n") }; doc.flushDraft()
+        doc.editSource { replace(0, length, "name: B\n") }; doc.flushDraft()
         assertTrue(state.createDirectory(root, "new").isSuccess)
         state.undo()
         assertFalse(Files.exists(root.resolve("new")))

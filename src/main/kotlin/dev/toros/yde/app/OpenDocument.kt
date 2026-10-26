@@ -47,6 +47,8 @@ class OpenDocument(
 
     init {
         state.onChanged = ::mirror
+        state.draftCaret = { source.selection.start }
+        state.onDraftReplaced = { text, caret -> source.edit { replace(0, length, text); placeCursorBeforeCharAt(caret) } }
     }
 
     private fun mirror() {
@@ -200,26 +202,15 @@ class OpenDocument(
         applyParsed(request, EditBuffer.parse(request.text))
     }
 
-    /** 他所で木が変わったとき、下書きへ差分だけを差し込む。カーソルは同じ場所に留まる。 */
-    fun syncSourceFromTree(preferHistory: Boolean = false): DocumentState.SourceSync {
-        val outcome = state.syncSourceFromTree(source.text.toString(), source.selection.start, preferHistory)
-        outcome.text?.let { text -> source.edit { replace(0, length, text); placeCursorBeforeCharAt(outcome.caret) } }
-        return outcome.sync
-    }
+    /** 他所で木が変わったとき、下書きへ差分だけを差し込む。カーソルは同じ場所に留まる（論理が計算し、聞き手で書き込む）。 */
+    fun syncSourceFromTree(preferHistory: Boolean = false): DocumentState.SourceSync = state.syncSourceFromTree(preferHistory)
 
     /** 下書きを捨てて木の正規化テキストに揃える（「編集を破棄」「整形」）。 */
-    fun discardDraft() {
-        val (text, caret) = state.discardDraft(source.selection.start)
-        source.edit { replace(0, length, text); placeCursorBeforeCharAt(caret) }
-    }
+    fun discardDraft() = state.discardDraft()
 
     /** 壊れた下書きをそのまま保存した直後の状態にする＝テキスト文書。 */
     fun enterTextOnly(savedText: String) = state.enterTextOnly(savedText)
 
     /** テキスト文書を、最後に解析できた木に戻す（未保存になる）。 */
-    fun restoreLastParsed(): Boolean {
-        if (!state.restoreLastParsed()) return false
-        discardDraft()
-        return true
-    }
+    fun restoreLastParsed(): Boolean = state.restoreLastParsed()
 }

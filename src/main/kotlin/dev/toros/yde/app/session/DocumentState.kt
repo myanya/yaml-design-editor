@@ -149,8 +149,9 @@ class DocumentState(
     fun hasPendingSourceInput(draft: String): Boolean = draft != sourceApplied
 
     /**
-     * 今の下書きの写し。殻が入力・補完・差し込み・破棄のたびに知らせる文字列で、殻の TextFieldState と同じ内容になる
-     * （殻は TextFieldState を直接書き換えず、必ず editSource か noteSourceInput を通す）。セッション側の判定はこれを使う。
+     * 今の下書きの写し。殻が入力（noteSourceInput）・補完や置換（editSource）のたびに知らせ、差し込みと破棄はここが揃える。
+     * 殻の TextFieldState を論理から読まない（古い描画の中で読むと、描画後に作られた状態として Compose が拒むため）。
+     * セッション側の判定（反映待ち・壊れた下書き・差し込み）はこれを使う。殻は TextFieldState を直接書き換えず、必ず editSource を通す。
      */
     val draft: String get() = observedSourceText
 
@@ -159,6 +160,34 @@ class DocumentState(
 
     /** 壊れた下書きが保存した内容と違うか（セッション側の判定用）。 */
     val draftDirty: Boolean get() = draftDirty(draft)
+
+    /** 下書きのカーソル位置を殻から読む（無ければ 0）。 */
+    var draftCaret: (() -> Int)? = null
+
+    /** 下書きの文字列とカーソルを殻へ書き込む（差し込み・破棄）。殻はこれで TextFieldState を書き換え、observed も揃える。 */
+    var onDraftReplaced: ((text: String, caret: Int) -> Unit)? = null
+
+    private fun caret(): Int = draftCaret?.invoke() ?: 0
+
+    fun sourceParseRequest(): SourceParseRequest? = sourceParseRequest(draft)
+
+    fun applyParsed(request: SourceParseRequest, parsed: EditBuffer.Parsed): Boolean = applyParsed(request, parsed, draft)
+
+    /** まだ反映していない入力をいま解析して反映する（写しの下書きで）。 */
+    fun flushDraft() = flushDraft(draft)
+
+    /** 他所で木が変わったとき、下書きへ差分だけを差し込む（写しの下書きとカーソルで計算し、殻へ書き込む）。 */
+    fun syncSourceFromTree(preferHistory: Boolean = false): SourceSync {
+        val outcome = syncSourceFromTree(draft, caret(), preferHistory)
+        outcome.text?.let { onDraftReplaced?.invoke(it, outcome.caret) }
+        return outcome.sync
+    }
+
+    /** 下書きを捨てて木の正規化テキストに揃え、殻へ書き込む。 */
+    fun discardDraft() {
+        val (text, newCaret) = discardDraft(caret())
+        onDraftReplaced?.invoke(text, newCaret)
+    }
 
     /** 入力順だけを記録する。入力変換から呼んでも木・履歴・状態を変更しない。 */
     fun noteSourceInput(text: String) {
@@ -321,7 +350,7 @@ class DocumentState(
         markSaved()
     }
 
-    /** テキスト文書を、最後に解析できた木に戻す（未保存になる。保存すれば木の内容が書かれる）。殻は続けて下書きを木に揃える。 */
+    /** テキスト文書を、最後に解析できた木に戻す（未保存になる。保存すれば木の内容が書かれる）。下書きは木に揃える。 */
     fun restoreLastParsed(): Boolean {
         val (r, extra) = lastParsed ?: return false
         buffer.root = r
@@ -330,6 +359,7 @@ class DocumentState(
         sourceError = null
         markEdited()
         textOnly = false
+        discardDraft()
         return true
     }
 }

@@ -25,7 +25,7 @@
 | `YamlPositions` / `SourcePositions` | yaml-core yaml/YamlPositions.kt | 解析できた文字列のノードの位置の表（パス→行・列、位置→パス、行→見出しのキー）。指摘の行・ホバー・Ctrl+クリック・折り畳みの鍵 |
 | `SourceStructure` | ui/SourceStructure.kt | 折り畳める区画と畳んだ見え方（隠れる範囲・表示と元の位置の行き来）・保存済みとの差分の印・木のノード→パス・選択範囲の整形（純ロジック） |
 | `YamlHighlighter` | ui/SourceHighlight.kt | 行ごとの覚えつきの色分け（純ロジック） |
-| `AppState.saveDraftAsText` / `prepareHistoryStep` / `executeHistoryStep`、`DocumentSession.ensureAttached` | app/AppState.kt・session/DocumentSession.kt | 壊れたまま保存、下書きを捨てる確認つきの Undo/Redo、テキスト文書を文書集合へ戻す |
+| `DocumentSession.save` / `saveDraftAsText` / `ensureAttached`、`AppState.prepareHistoryStep` / `executeHistoryStep` | session/DocumentSession.kt・app/AppState.kt | 壊れたまま保存、下書きを捨てる確認つきの Undo/Redo、テキスト文書を文書集合へ戻す |
 | `WorkspaceSession.saveAsText` / `attachDocument` | workspace-core | テキストのまま保存して文書集合から外す（履歴は残す）。解析できる内容で文書集合へ戻す |
 | `DiffPane.calculateDiff` / `charDiffRanges` | ui/DiffPane.kt | 保存済みと編集中の差分（行整列・文字単位の強調。純ロジック） |
 
@@ -35,7 +35,7 @@
 - ビューグリッド・エンティティページ・スキーマ設計 UI も同じ経路（文書キャッシュ `AppState.ensureDoc` の木を `Slot` で変えて `markEdited()`）。専用の書込経路を作らない。
 - 一括編集（ルート直下のスカラーキー）は自動値も含めてセッションの 1 トランザクションで、Undo 1 回で全ファイルが戻る。同梱の計画は [auto-values.md](auto-values.md) を参照。
 - 内部で変更を生成するコードは `edit.YamlOperation` を使い、`PatchOp` と変更セットはエージェント・CLI・skill との交換形式に限る（[yaml-model.md「変更の基礎命令と 2 層」](yaml-model.md)）。
-- 保存（`AppState.save` / `saveAll`）は、UI の木をセッションへ写した後・書き出す前に、保存時に自動で入る値（更新日・版。[auto-values.md](auto-values.md)）をセッションの `applyAutoValues` で 1 トランザクション（履歴 1 件）として当て、入った文書の木をセッションから写し直す。保存自体は今までどおり履歴項目ではない。
+- 保存（`DocumentSession.save` / `saveAll`。入口は `AppState.saveCurrent` / `saveAll`）は、UI の木をセッションへ写した後・書き出す前に、保存時に自動で入る値（更新日・版。[auto-values.md](auto-values.md)）をセッションの `applyAutoValues` で 1 トランザクション（履歴 1 件）として当て、入った文書の木をセッションから写し直す。保存自体は今までどおり履歴項目ではない。
 
 ## 履歴と dirty
 
@@ -95,7 +95,7 @@ Core Calculus 上は既存の変更記録のまとめ方に限り、Rewrite の�
 - **解析できない間**: 最後に解析できた木が正。`draftBroken` で `FormCtx.readOnly` が真になり、フォーム・グリッド・横ぐしが閲覧専用になる（書きかけをフォームで上書きしない）。他のタブには `SourceDraftBanner`（「ソースで直す」「書きかけを捨てる」）。その文書に関わる Undo/Redo は `prepareHistoryStep` が「下書きを捨てて戻すか」を確認してから進める（`pendingHistory`）。
 - **他所の変更の差し込み**: 自分の反映で進んだ `doc.version` は同期済み（`sourceSyncedVersion`）。フォーム・操作・外部変更の再読込では `syncSourceFromTree` が 3 者マージ（`LineMerge`）で変わった行を差し込み、カーソルを写す。
   元は前回の正規化テキスト（`sourceBase`）・自分は下書き・相手は今回の正規化テキスト。重なる変更は下書きを優先して件数を知らせる。Undo/Redo は上記の履歴優先の経路を使う。
-- **壊れたまま保存**: `AppState.save` は下書きが解析できなければ止めず `saveDraftAsText` へ。セッションの `saveAsText` がテキストをそのまま書き、文書を文書集合から外す（ディスク上で解析できないファイルと同じ＝索引・検証・派生の対象外。履歴は消さない）。文書は `textOnly`（`root == null`）になり、ヘッダのバナー・ツリーの「解析不可」・検証一覧のパースエラーで見える。`_schemas` の文書だけは `pendingTextSave` で確認してから。
+- **壊れたまま保存**: `DocumentSession.save` は下書きが解析できなければ止めず `saveDraftAsText` へ。セッションの `saveAsText` がテキストをそのまま書き、文書を文書集合から外す（ディスク上で解析できないファイルと同じ＝索引・検証・派生の対象外。履歴は消さない）。文書は `textOnly`（`root == null`）になり、ヘッダのバナー・ツリーの「解析不可」・検証一覧のパースエラーで見える。`_schemas` の文書だけは `pendingTextSave` で確認してから。
 - **直すと戻る**: 直して解析できたら `ensureAttached` が `attachDocument` で文書集合へ戻し（保存済みとの差で dirty）、保存で木の内容が書かれる。壊す前の木は `restoreLastParsed` で戻せる。テキスト文書に関わる履歴の記録は、戻るまで適用できない（`prepareHistoryStep` が案内して止める）。
 - **Ctrl+Z の一本化**: 欄の中の取り消しは使わず、`SourcePane` が Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z をセッションの履歴へ回す（フォームと同じ 1 本の履歴。差し込みでカーソルは留まる）。
 - **基本操作**: 欄のキー（Tab・Enter・Ctrl+/・Ctrl+D・Alt+↑↓・Ctrl+F / H / G・F3）は `SourcePane.handleEditorKey` が受け、規則は `SourceEditing` に閉じる（文字列と選択範囲を受けて返す）。日本語入力の変換中（`composition != null`）は Enter と Tab を奪わない。
@@ -123,7 +123,7 @@ Core Calculus 上は既存の変更記録のまとめ方に限り、Rewrite の�
 - 文書を作る機能は `AppState.createDocumentFile` を通す。`Files.writeString` ＋ `AppState.reload()` は外部変更の取り込みとなり、作成自体の Undo が記録されない。
 - 内部で変更を生成するコードは `edit.YamlOperation` を使う。`patch.PatchOp` と変更セットは交換形式に限る。
 - 連続入力になり得る新しい編集面は、合体キーを渡す。構造操作はキーなし。
-- ソースの下書きは `OpenDocument` が持つ。木が変わったとき下書きを正規化テキストで置き換えない（`syncSourceFromTree` の差し込み）。解析できない下書きを無視してフォームを編集可能にしない（`FormCtx.readOnly` の既定に `draftBroken` が入っている）。
+- ソースの下書きは `OpenDocument` が持つ。木が変わったとき下書きを正規化テキストで置き換えない（`syncSourceFromTree` の差し込み）。殻は `TextFieldState` を直接書き換えず `editSource` か `noteSourceInput` を通す。論理（`DocumentState`）は殻の文字列を読まず、知らされた写し（`draft`）で判定する（古い描画の中で読むと Compose が拒むため）。解析できない下書きを無視してフォームを編集可能にしない（`FormCtx.readOnly` の既定に `draftBroken` が入っている）。
 - 解析できないテキストを書くときは `WorkspaceSession.saveAsText`（文書集合から外す）。カーネルの `WorkspaceSession.reload()` は履歴を消すので、壊れた保存の取り込みに使わない。
 
 ## 拡張ポイント

@@ -56,6 +56,7 @@ object SourceRules {
     /** Files.exists / notExists を直接呼んでよいファイル（ストア・配置・初期化・実行記録など、ファイルそのものを扱う所）。減らす方向。 */
     private val fileExistsAllowed = setOf(
         "src/main/kotlin/dev/toros/yde/app/AppState.kt",
+        "src/main/kotlin/dev/toros/yde/app/session/DocumentSession.kt",
         "src/main/kotlin/dev/toros/yde/app/core/Cli.kt",
         "src/main/kotlin/dev/toros/yde/app/agent/Evals.kt",
         "src/main/kotlin/dev/toros/yde/app/agent/RunLog.kt",

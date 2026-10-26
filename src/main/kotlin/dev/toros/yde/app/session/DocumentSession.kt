@@ -12,14 +12,17 @@ import dev.toros.yde.semantic.schema.EnforcementDef
 import dev.toros.yde.semantic.schema.EntityTypeDef
 import dev.toros.yde.semantic.schema.RelationDef
 import dev.toros.yde.workspace.FileSystemDocumentStore
+import dev.toros.yde.workspace.StoreConflictException
 import dev.toros.yde.workspace.WorkspaceDerivedState
 import dev.toros.yde.workspace.WorkspaceSession
+import dev.toros.yde.workspace.checkUnchanged
 import dev.toros.yde.workspace.layout.FilePolicy
 import dev.toros.yde.workspace.layout.WorkspaceLayout
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.YDocument
 import dev.toros.yde.yaml.model.YNode
+import dev.toros.yde.yaml.model.deepCopy
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -231,9 +234,10 @@ class DocumentSession(private val editClock: () -> Long = System::currentTimeMil
     /** 文書を開く（開いていれば同じもの）。取り込んだ文書は dirty 管理・保存・外部変更検出の対象になる。 */
     fun ensureDocument(file: Path): DocumentState = documentMap.getOrPut(file) { loadDocument(file) }
 
-    fun closeDocument(file: Path): DocumentState? = documentMap.remove(file)
+    /** 文書を閉じる。殻には onDocumentClosed で知らせる。 */
+    fun closeDocument(file: Path): DocumentState? = documentMap.remove(file)?.also { onDocumentClosed?.invoke(file) }
 
-    fun clearDocuments() = documentMap.clear()
+    fun clearDocuments() { documentMap.keys.toList().forEach(::closeDocument) }
 
     /** 編集欄をセッションの履歴へ接続できる文書か。一時フォームは含めない。 */
     fun ownsDocument(doc: DocumentState): Boolean =
@@ -380,5 +384,495 @@ class DocumentSession(private val editClock: () -> Long = System::currentTimeMil
             if (changedIds.isEmpty() && removedIds.isEmpty()) return
             s.noteStoreChanges(changed = changedIds, removed = removedIds)
         }.onFailure { reopenSession(ws) }
+    }
+
+    // ---------------------------------------------------------------- 殻への聞き手（再読込・保存）
+
+    /** 再読込や外部変更の取り込みでファイル一覧が変わったときの聞き手（殻がツリーを描き直す）。 */
+    var onFilesChanged: (() -> Unit)? = null
+
+    /** 文書をセッション側が閉じたときの聞き手（殻が文書の殻を外し、表示中なら表示をやめる）。 */
+    var onDocumentClosed: ((Path) -> Unit)? = null
+
+    /** 再読込を終えたときの聞き手（殻が表示中の文書を見直し、知らせを出す）。 */
+    var onReloaded: ((ReloadOutcome) -> Unit)? = null
+
+    /** 再読込してよいか（殻がファイル操作中なら false を返す）。 */
+    var reloadAllowed: (() -> Boolean)? = null
+
+    /** 一括変更や保存時の自動値で増えた記録に添える編集元の印（殻が今の画面の場所を返す）。 */
+    var historyOrigin: (() -> Any?)? = null
+
+    /** 外部変更の検出に使うファイルの印（更新時刻）。 */
+    var workspaceStamp: Map<Path, Long> = emptyMap()
+        private set
+
+    fun snapshotFiles(ws: Path): Map<Path, Long> = WorkspaceScan.stamps(ws)
+
+    /** 一括変更や保存時の自動値で増えた記録にも同じ編集元を添える。保存失敗でも残った履歴には添える。 */
+    inline fun <T> withHistoryOrigin(s: WorkspaceSession, block: () -> T): T {
+        val before = s.peekUndo()?.id ?: -1L
+        val origin = historyOrigin?.invoke()
+        try { return block() } finally {
+            if (kernel === s) s.history.filter { it.id > before }.forEach { onEditRecorded?.invoke(it.id, origin) }
+        }
+    }
+
+    // ---------------------------------------------------------------- 再読込と競合
+
+    class ReloadCandidate(
+        val workspace: dev.toros.yde.app.core.Workspace,
+        val markdown: List<Path>, val editorOnly: List<Path>, val stamps: Map<Path, Long>,
+    )
+
+    /** 再読込の結果。existing は今あるファイル、protected は未保存の編集などで保護した文書。 */
+    class ReloadOutcome(val ok: Boolean, val message: String?, val existing: Set<Path>, val protected: Set<DocumentId>)
+
+    /** 一覧の走査も交換前に済ませ、読込失敗で編集や履歴を半分だけ破棄しない。 */
+    fun prepareReload(ws: Path): ReloadCandidate {
+        require(Files.isDirectory(ws)) { "ワークスペースのフォルダーがありません: $ws" }
+        val cw = dev.toros.yde.app.core.Workspace.open(ws)
+        return ReloadCandidate(cw, WorkspaceScan.markdownFiles(ws), editorOnlyFilesOf(cw), snapshotFiles(ws))
+    }
+
+    /** ディスク版を候補として読み、編集・下書き・履歴を保持できる場合だけ取り込む。 */
+    fun reload(): ReloadOutcome? {
+        if (reloadAllowed?.invoke() == false) return null
+        val ws = workspace ?: return null
+        val candidate = runCatching { prepareReload(ws) }.getOrElse {
+            return ReloadOutcome(false, "再読込に失敗しました: ${it.message}", emptySet(), emptySet()).also { o -> onReloaded?.invoke(o) }
+        }
+        val cw = candidate.workspace
+        val current = kernel
+        val protected = protectedDocumentIds() + current?.dirtyDocuments().orEmpty()
+        var notice: String? = null
+        if (current != null) {
+            val result = current.refreshFrom(cw.mirror, protected)
+            if (!result.ok) {
+                documentMap.values.filter { it.dirty || it.draftDirty || it.hasPendingSourceInput }.forEach { doc ->
+                    if (runCatching { readStoreText(doc) != doc.expectedStoreText }.getOrDefault(false)) doc.externalConflict = true
+                }
+                return ReloadOutcome(false, result.message ?: "再読込に失敗しました", emptySet(), protected).also { o -> onReloaded?.invoke(o) }
+            }
+            notice = result.message
+        }
+        core = cw
+        mirrorCore(cw, candidate.markdown, candidate.editorOnly)
+        if (current == null) reopenSession(ws, fromMirror = true)
+        onFilesChanged?.invoke()
+        val existing = yamlFiles.toSet() + editorOnlyFiles
+        documentMap.keys.filter { it !in existing }.toList().forEach { removed ->
+            if (documentOf(removed) !in protected) closeDocument(removed)
+        }
+        documentMap.values.forEach { doc ->
+            doc.schema = schemaFor(doc.file)
+            // 時刻だけでなく本文を比較する。変更のない下書き・カーソルはそのまま残す。
+            val text = cw.mirror.expectedStoreText(documentOf(doc.file))
+            if (text != doc.expectedStoreText) {
+                if (documentOf(doc.file) in protected) doc.externalConflict = true
+                else reloadDocumentFromDisk(doc, force = true, knownText = text)
+            }
+        }
+        indexVersion++
+        workspaceStamp = candidate.stamps
+        val message = notice ?: "ワークスペース: $ws ／ YAML ${yamlFiles.size} 件・スキーマ ${schemas.size} 件・ID ${index.entries.size} 件"
+        return ReloadOutcome(true, message, existing, protected).also { o -> onReloaded?.invoke(o) }
+    }
+
+    /** 読込済みの候補とそこから起こしたカーネルへ置き換える（未保存編集と履歴を破棄する再読込）。ディスクへの書込は行わない。 */
+    fun adoptCandidate(candidate: ReloadCandidate, freshKernel: WorkspaceSession) {
+        core = candidate.workspace
+        kernel = freshKernel
+        clearDocuments()
+        onKernelReplaced?.invoke()
+        invalidateCaches()
+        mirrorCore(candidate.workspace, candidate.markdown, candidate.editorOnly)
+        onFilesChanged?.invoke()
+        editVersion++
+        indexVersion++
+        workspaceStamp = candidate.stamps
+    }
+
+    /** 再読込の確認中に編集や履歴が変わっていないかを見る印。 */
+    fun reloadConfirmationStamp(): List<Any?> = listOf(
+        workspace, kernel, kernel?.version, kernel?.historySize, dirtyFiles().toSet(),
+        documentMap.mapValues { (_, doc) -> listOf(doc.version, doc.draft, doc.sourceEpoch, doc.dirty, doc.expectedStoreText) },
+    )
+
+    fun reloadDocumentFromDisk(doc: DocumentState, force: Boolean, knownText: String? = null) {
+        if (knownText == null && !Files.exists(doc.file)) {
+            if (doc.dirty) doc.externalConflict = true
+            return
+        }
+        val modified = runCatching { Files.getLastModifiedTime(doc.file).toMillis() }.getOrDefault(0L)
+        if (!force && modified == doc.diskModifiedMillis) return
+        if ((doc.dirty || doc.draftDirty || doc.hasPendingSourceInput) && !force) {
+            doc.externalConflict = true
+            return
+        }
+        val text = knownText ?: runCatching { Files.readString(doc.file) }.getOrElse {
+            onNotice?.invoke("読み込みに失敗しました: ${it.message}")
+            return
+        }
+        runCatching { YamlIO.parseAll(text) }.onSuccess { docs ->
+            doc.root = docs.firstOrNull() ?: YNode.Map()
+            doc.extraDocs = docs.drop(1)
+            doc.rawText = text
+            doc.parseError = null
+        }.onFailure {
+            doc.root = null
+            doc.extraDocs = emptyList()
+            doc.rawText = text
+            doc.parseError = it.message
+        }
+        doc.diskModifiedMillis = modified
+        doc.expectedStoreText = text
+        doc.externalConflict = false
+        doc.version++
+        doc.resetBaseline()  // 保存基準・dirty を取り直す
+        doc.textOnly = doc.root == null
+        doc.discardDraft()   // 下書きはディスクの内容に揃える（未保存の下書きは上で競合にしている）
+    }
+
+    fun acceptDiskVersion(doc: DocumentState) {
+        runCatching {
+            val text = readStoreText(doc)
+            kernel?.takeIf { it.acceptsDocument(documentOf(doc.file)) }?.acceptStoreText(documentOf(doc.file), text)
+            if (text == null) closeDocument(doc.file)
+            else reloadDocumentFromDisk(doc, force = true, knownText = text)
+            editVersion++
+            indexVersion++
+            onNotice?.invoke("ディスク版を読み込みました: ${relPath(doc.file)}")
+        }.onFailure { onNotice?.invoke("読み込みに失敗しました: ${it.message}") }
+    }
+
+    fun keepLocalVersion(doc: DocumentState) {
+        runCatching {
+            val text = readStoreText(doc)
+            kernel?.acknowledgeStoreText(documentOf(doc.file), text)
+            doc.expectedStoreText = text
+            doc.externalConflict = false
+            doc.diskModifiedMillis = runCatching { Files.getLastModifiedTime(doc.file).toMillis() }.getOrDefault(0L)
+            onNotice?.invoke("次回保存で編集内容を上書きします: ${relPath(doc.file)}（再度外部で変更された場合は停止します）")
+        }.onFailure { onNotice?.invoke("上書きの許可に失敗しました: ${it.message}") }
+    }
+
+    fun readStoreText(doc: DocumentState): String? =
+        FileSystemDocumentStore(workspace ?: error("ワークスペース未選択")).read(documentOf(doc.file))?.text
+
+    /**
+     * 周期処理・ファイル監視から呼び、外部での作成・変更・削除を検出する。
+     * eventHint = true（ファイル監視のイベント起点）では、更新時刻が不変でもセッションの content diff で既知文書の変更を確認する
+     * （同一時刻での上書き等、時刻比較の盲点をカーネル検出で塞ぐ）。
+     */
+    fun pollExternalChanges(eventHint: Boolean = false) {
+        val ws = workspace ?: return
+        val cw = core ?: return
+        val next = snapshotFiles(ws)
+        if (next == workspaceStamp) {
+            if (eventHint) applyContentDetectedChanges(ws, cw)
+            return
+        }
+        val changed = (next.keys + workspaceStamp.keys).filter { next[it] != workspaceStamp[it] }
+        if (hasRetainedEdits()) {
+            reload()
+            workspaceStamp = next
+            return
+        }
+        changed.forEach { file -> documentMap[file]?.let { reloadDocumentFromDisk(it, force = false) } }
+        // 増分か全再構築か（スキーマ変更時のみ全再構築）の振り分けは core に一元化されている
+        cw.noteDiskChanges(
+            changed = changed.filter { it in next.keys },
+            removed = changed.filter { it !in next.keys },
+        )
+        mirrorCore(cw)
+        syncSessionWithDisk(
+            changed = changed.filter { it in next.keys },
+            removed = changed.filter { it !in next.keys },
+        )
+        onFilesChanged?.invoke()
+        documentMap.values.forEach { it.schema = schemaFor(it.file) }
+        indexVersion++
+        workspaceStamp = next
+        onNotice?.invoke("外部での変更を検出しました（${changed.size} 件）")
+    }
+
+    /** 時刻が不変のときのカーネル検出: 既知文書の content diff で変更を取り込む。新規作成・削除は時刻比較の領分のまま。 */
+    private fun applyContentDetectedChanges(ws: Path, cw: dev.toros.yde.app.core.Workspace) {
+        val s = kernel ?: return
+        val changedDocs = runCatching { s.externalChanges() }.getOrNull().orEmpty()
+        if (changedDocs.isEmpty()) return
+        if (hasRetainedEdits()) { reload(); return }
+        val files = changedDocs.map { ws.resolve(it.value).normalize() }
+        files.forEach { file ->
+            documentMap[file]?.let { doc ->
+                // 時刻不変のため force で取り直す。未保存編集がある場合は上書きせず競合として提示する
+                if (doc.dirty || doc.draftDirty || doc.hasPendingSourceInput) doc.externalConflict = true
+                else reloadDocumentFromDisk(doc, force = true)
+            }
+        }
+        cw.noteDiskChanges(changed = files)
+        mirrorCore(cw)
+        syncSessionWithDisk(changed = files)
+        documentMap.values.forEach { it.schema = schemaFor(it.file) }
+        indexVersion++
+        onNotice?.invoke("外部での変更を検出しました（${files.size} 件）")
+    }
+
+    // ---------------------------------------------------------------- カーネルの書き込み後の作り直し
+
+    /** 入力待ちの下書きを、キャッシュ順でなく入力順に反映する。解析待ちの背景処理は採用時の世代検査で無効になる。 */
+    fun flushSourceDrafts() {
+        documentMap.values.mapNotNull { doc -> doc.sourceParseRequest()?.let { doc to it } }
+            .sortedBy { (_, request) -> request.inputOrder }
+            .forEach { (doc, request) -> doc.applyParsed(request, dev.toros.yde.app.core.EditBuffer.parse(request.text)) }
+    }
+
+    /** 解析待ちを移動前の入力へ含めてから、連続入力のまとまりを区切る。 */
+    fun finishEditGroup() {
+        flushSourceDrafts()
+        kernel?.endEditGroup()
+    }
+
+    /**
+     * セッションの working 状態から開いている文書の木を取り直す（Undo/Redo・適用の追随）。
+     * セッションの木は共有せず deep copy で写す（ADR-0003。殻側の編集はセッションを汚さない）。
+     */
+    fun refreshDocsFromSession(ids: Collection<DocumentId>) {
+        val s = kernel ?: return
+        val ws = workspace ?: return
+        val documents = s.snapshot.documents
+        ids.distinct().forEach { id ->
+            val file = ws.resolve(id.value).normalize()
+            val doc = documentMap[file] ?: return@forEach
+            val working = documents[id]
+            if (working == null) {
+                // undo で作成が巻き戻された等、文書が消えた場合は閉じる
+                closeDocument(file)
+                return@forEach
+            }
+            val roots = working.document.documents.map { it.deepCopy() }
+            doc.root = roots.firstOrNull() ?: YNode.Map()
+            doc.extraDocs = roots.drop(1)
+            doc.parseError = null
+            doc.version++
+            doc.refreshDirty()
+        }
+    }
+
+    /**
+     * セッション書込（リファクタリング適用・一括更新）後の追随: reload しない＝履歴を保持したまま、
+     * 開いている文書の木・ディスクの印・索引を更新する。
+     */
+    fun refreshAfterSessionWrite(ids: Collection<DocumentId>) {
+        val ws = workspace ?: return
+        refreshDocsFromSession(ids)
+        val files = ids.map { ws.resolve(it.value).normalize() }
+        files.forEach { f ->
+            documentMap[f]?.let { d ->
+                // 保存を伴う経路だけで比較基準を更新する。通常の Undo は保存済み内容を変えない。
+                kernel?.storedText(documentOf(f))?.let { d.rawText = it }
+                d.expectedStoreText = kernel?.storedText(documentOf(f))
+                d.diskModifiedMillis = runCatching { Files.getLastModifiedTime(f).toMillis() }.getOrDefault(0L)
+                d.externalConflict = false
+            }
+        }
+        core?.let { cw ->
+            // スキーマ変更時の全再構築への振り分けは core に一元化されている
+            cw.noteDiskChanges(
+                changed = files.filter { Files.exists(it) },
+                removed = files.filterNot { Files.exists(it) },
+            )
+            mirrorCore(cw)
+            documentMap.values.forEach { it.schema = schemaFor(it.file) }
+        }
+        // 文書の作成・削除でディレクトリ構成が変わり得るため、ツリーの供給も更新する
+        onFilesChanged?.invoke()
+        workspaceStamp = snapshotFiles(ws)
+        indexVersion++
+        editVersion++
+    }
+
+    // ---------------------------------------------------------------- 保存
+
+    /** 保存の結果。needsTextSaveConfirmation は「壊れたまま保存」の確認が要る（スキーマ文書）。saved は実際に書いた。 */
+    class SaveOutcome(val ok: Boolean, val message: String? = null, val needsTextSaveConfirmation: Boolean = false, val saved: Boolean = false)
+
+    /** すべて保存の結果。messages は文書ごとの知らせ、textSaveConfirmations は確認待ちになった文書。 */
+    class SaveAllOutcome(val messages: List<String>, val failures: List<String>, val textSaveConfirmations: List<DocumentState>)
+
+    fun checkSave(doc: DocumentState) {
+        val id = documentOf(doc.file)
+        val s = kernel
+        if (s != null && s.hasDocument(id)) s.checkSave(id)
+        else FileSystemDocumentStore(workspace ?: error("ワークスペース未選択")).checkUnchanged(id, doc.expectedStoreText)
+    }
+
+    /** 保存前の競合検査。失敗なら理由を返す（競合なら文書に印を付ける）。 */
+    fun prepareSave(doc: DocumentState): String? = runCatching { checkSave(doc) }.fold(
+        onSuccess = { null },
+        onFailure = {
+            if (it is StoreConflictException) doc.externalConflict = true
+            "保存に失敗しました: ${it.message}"
+        },
+    )
+
+    /** `_schemas` の文書か（壊れたまま保存すると、そのスキーマを使う全文書に波及する）。 */
+    fun isSchemaDocument(file: Path): Boolean = layout.zoneOf(relPath(file)) == WorkspaceLayout.Zone.SCHEMAS
+
+    /** 未保存の文書（カーネルの dirty と削除予約、開いている文書の dirty と壊れた下書き）。 */
+    fun dirtyFiles(): Set<Path> =
+        kernel?.dirtyDocuments().orEmpty().mapTo(linkedSetOf(), ::fileOf).also { files ->
+            documentMap.values.filter { it.dirty || it.draftDirty }.forEach { files.add(it.file) }
+        }
+
+    /**
+     * 1 文書の保存。stampedBefore は「すべて保存」が先にまとめて入れた自動の値の説明（null なら、ここで 1 文書分を入れる）。
+     * 自動の値が入るのは保存の直前で、履歴 1 件（Undo で日付と版が戻る）。入った項目は知らせに含める。
+     */
+    fun save(doc: DocumentState, stampedBefore: Map<DocumentId, String>? = null, confirmedTextSave: Boolean = false): SaveOutcome {
+        doc.flushDraft()   // 入力待ちのソースを取り込んでから
+        kernel?.endEditGroup()
+        prepareSave(doc)?.let { return SaveOutcome(false, it) }
+        if (doc.draftBroken) {
+            // 壊れたまま保存。保存で止めず、文書をテキスト文書にして知らせる。スキーマ文書は波及が大きいので確認する
+            if (doc.textOnly && !doc.draftDirty) return SaveOutcome(true)
+            if (!confirmedTextSave && isSchemaDocument(doc.file)) return SaveOutcome(true, needsTextSaveConfirmation = true)
+            return saveDraftAsText(doc)
+        }
+        val stamped = stampedBefore ?: stampAutoValues(listOf(doc))
+        return runCatching {
+            val s = kernel
+            val root = doc.root
+            val id = documentOf(doc.file)
+            // 書込はセッション（DocumentStore ポート）へ集約する（ADR-0005）。working を編集内容で置き換えて保存（replaceDocument は履歴を積まない）。
+            // セッションが文書として扱わないパス（構成ファイル等）・パース不能文書・セッション不在は従来の直接書込。
+            val viaSession = s != null && root != null && s.hasDocument(id)
+            if (viaSession) {
+                val replaced = s!!.replaceDocument(id, YDocument(id, listOf(root!!) + doc.extraDocs))
+                check(replaced.ok) { replaced.message ?: "セッションへの反映に失敗しました" }
+                val saved = s.save(setOf(id))
+                if (id in saved.conflicts) throw StoreConflictException(id)
+                check(saved.ok) { saved.failures[id] ?: "書込に失敗しました" }
+            } else {
+                checkSave(doc)
+                Files.writeString(doc.file, doc.canonicalText())
+            }
+            viaSession
+        }.fold(
+            onSuccess = { viaSession ->
+                doc.markSaved()
+                doc.rawText = doc.canonicalText()
+                doc.expectedStoreText = doc.rawText
+                doc.diskModifiedMillis = Files.getLastModifiedTime(doc.file).toMillis()
+                doc.externalConflict = false
+                workspace?.let { workspaceStamp = snapshotFiles(it) }
+                // 保存したファイルだけ索引を差し替える。スキーマ保存時の全再構築への振り分けは core が行う
+                core?.let { cw ->
+                    cw.noteDiskChanges(listOf(doc.file))
+                    mirrorCore(cw)
+                    // セッション経由の保存では replaceDocument / save が既に反映済み（二重同期しない）
+                    if (!viaSession) syncSessionWithDisk(changed = listOf(doc.file))
+                    // スキーマ本体だけでなく派生スキーマの導出元文書の保存でもスキーマ集合が変わるため、常に割り当て直す
+                    documentMap.values.forEach { it.schema = schemaFor(it.file) }
+                    indexVersion++
+                }
+                val auto = stamped[documentOf(doc.file)]
+                val message = if (auto == null) "保存しました: ${relPath(doc.file)}"
+                else "保存しました: ${relPath(doc.file)}（自動の値を設定 → $auto。Ctrl+Z で戻せます）"
+                SaveOutcome(true, message, saved = true)
+            },
+            onFailure = {
+                if (it is StoreConflictException) doc.externalConflict = true
+                SaveOutcome(false, "保存に失敗しました: ${it.message}")
+            },
+        )
+    }
+
+    /**
+     * 壊れた下書きをそのまま書く（「壊れたまま保存」）。文書はテキスト文書になり、ディスク上で解析できないファイルと同じ扱い
+     * （索引・検証・ビュー・エージェントの対象外）。セッションの履歴は消さない。直して保存すれば文書集合へ戻る。
+     */
+    fun saveDraftAsText(doc: DocumentState): SaveOutcome {
+        val text = doc.draft
+        val id = documentOf(doc.file)
+        return runCatching {
+            val s = kernel
+            if (s != null && s.acceptsDocument(id)) {
+                val r = if (s.hasDocument(id)) s.saveAsText(id, text) else s.saveAsText(id, text, doc.expectedStoreText)
+                if (r.externalConflict) throw StoreConflictException(id)
+                check(r.ok) { r.message ?: "書込に失敗しました" }
+            } else {
+                checkSave(doc)
+                Files.writeString(doc.file, text)
+            }
+        }.fold(
+            onSuccess = {
+                doc.enterTextOnly(text)
+                doc.expectedStoreText = text
+                doc.diskModifiedMillis = runCatching { Files.getLastModifiedTime(doc.file).toMillis() }.getOrDefault(0L)
+                doc.externalConflict = false
+                workspace?.let { workspaceStamp = snapshotFiles(it) }
+                core?.let { cw ->
+                    cw.noteDiskChanges(listOf(doc.file))
+                    mirrorCore(cw)
+                    documentMap.values.forEach { it.schema = schemaFor(it.file) }
+                }
+                editVersion++
+                indexVersion++
+                SaveOutcome(true, "壊れたまま保存しました: ${relPath(doc.file)}（直して保存するまで索引・検証の対象外です）", saved = true)
+            },
+            onFailure = {
+                if (it is StoreConflictException) doc.externalConflict = true
+                SaveOutcome(false, "保存に失敗しました: ${it.message}")
+            },
+        )
+    }
+
+    /**
+     * 保存時に自動で入る値（architecture/auto-values.md）: 編集内容をセッションへ写してから、保存済みの内容との違いで更新日・版を入れる
+     * （セッションの 1 トランザクション）。入った文書は木をセッションから写し直す。戻り値は文書ごとの入れた値の説明（空＝何も入らなかった）。
+     */
+    fun stampAutoValues(docs: List<DocumentState>): Map<DocumentId, String> {
+        val s = kernel ?: return emptyMap()
+        val ids = docs.mapNotNull { doc ->
+            val root = doc.root ?: return@mapNotNull null
+            val id = documentOf(doc.file)
+            if (!s.hasDocument(id)) return@mapNotNull null
+            val replaced = s.replaceDocument(id, YDocument(id, listOf(root) + doc.extraDocs))
+            if (!replaced.ok) return@mapNotNull null
+            id
+        }
+        if (ids.isEmpty()) return emptyMap()
+        val applied = withHistoryOrigin(s) { s.applyAutoValues(ids, java.time.LocalDateTime.now()) }
+        if (!applied.result.ok || applied.isEmpty) return emptyMap()
+        refreshDocsFromSession(applied.plans.keys)
+        return applied.plans.mapValues { (_, plan) -> plan.describe() }
+    }
+
+    /** すべて保存。未表示のまま Undo された文書も通常の保存経路（自動値・表示追随）を通す。 */
+    fun saveAll(): SaveAllOutcome {
+        finishEditGroup()
+        val s = kernel
+        val pendingDeletes = s?.let { it.dirtyDocuments().filterNot(it::hasDocument).toSet() }.orEmpty()
+        val dirty = dirtyFiles().filterNot { documentOf(it) in pendingDeletes }.map(::ensureDocument)
+        // 自動の値（更新日・版）は全部の文書で 1 つのトランザクション＝Undo 1 回で戻る。その後に 1 文書ずつ書き出す（壊れた下書きは木が無いので対象外）
+        val messages = mutableListOf<String>()
+        val failures = mutableListOf<String>()
+        val confirmations = mutableListOf<DocumentState>()
+        val ready = dirty.filter { doc -> prepareSave(doc)?.let { failures += it; false } ?: true }
+        val stamped = stampAutoValues(ready.filter { !it.draftBroken })
+        ready.forEach { doc ->
+            val o = save(doc, stampedBefore = stamped)
+            o.message?.let { messages += it }
+            if (o.needsTextSaveConfirmation) confirmations += doc
+            if (!o.ok) failures += o.message.orEmpty()
+        }
+        if (s != null && pendingDeletes.isNotEmpty()) {
+            val saved = s.save(pendingDeletes)
+            refreshAfterSessionWrite(saved.deleted)
+            if (!saved.ok) failures += saved.failures.map { (id, message) -> "${id.value}: $message" }
+        }
+        return SaveAllOutcome(messages, failures, confirmations)
     }
 }

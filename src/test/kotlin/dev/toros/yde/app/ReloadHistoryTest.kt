@@ -47,7 +47,7 @@ class ReloadHistoryTest {
     @Test fun `反映待ちと壊れたソースとカーソルを再読込で失わない`() {
         val s = state()
         val doc = s.openDoc!!
-        doc.source.edit { replace(0, length, "title: pending\n"); selection = TextRange(8) }
+        doc.editSource { replace(0, length, "title: pending\n"); selection = TextRange(8) }
         val cursor = doc.source.selection
         s.reload()
         assertEquals("title: pending\n", doc.source.text.toString())
@@ -55,7 +55,7 @@ class ReloadHistoryTest {
         assertTrue(doc.hasPendingSourceInput)
         s.undo()
         assertEquals("A", title(doc))
-        doc.source.edit { replace(0, length, "title: [") }
+        doc.editSource { replace(0, length, "title: [") }
         doc.flushDraft()
         val error = doc.sourceError
         s.reload()
@@ -165,7 +165,7 @@ class ReloadHistoryTest {
         assertEquals("local", title(doc))
         assertTrue(s.canUndo())
         s.requestDiscardAndReload()
-        doc.source.edit { replace(0, length, "title: [") }
+        doc.editSource { replace(0, length, "title: [") }
         s.confirmDiscardAndReload()
         assertContains(s.status, "確認中")
         assertEquals("title: [", doc.source.text.toString())
@@ -178,7 +178,7 @@ class ReloadHistoryTest {
         s.saveCurrent()
         s.undo()
         val doc = s.openDoc!!
-        doc.source.edit { replace(0, length, "title: [") }
+        doc.editSource { replace(0, length, "title: [") }
         s.requestDiscardAndReload()
         assertTrue(s.pendingReload!!.historyCount > 0)
         s.confirmDiscardAndReload()
@@ -233,7 +233,7 @@ class ReloadHistoryTest {
         val s = state()
         val doc = s.openDoc!!
         edit(doc, "local")
-        doc.source.edit { replace(0, length, "title: [") }
+        doc.editSource { replace(0, length, "title: [") }
         Files.writeString(a, "title: external\n")
         s.undo()
         assertContains(s.status, "外部変更と競合")
@@ -246,7 +246,7 @@ class ReloadHistoryTest {
     @Test fun `解析待ちだけの文書も破棄確認の対象に含める`() {
         val s = state()
         val doc = s.openDoc!!
-        doc.source.edit { replace(0, length, "title: 入力直後") }
+        doc.editSource { replace(0, length, "title: 入力直後") }
         s.requestDiscardAndReload()
         assertEquals(listOf("a.yaml"), s.pendingReload?.files)
         assertEquals(0, s.pendingReload?.historyCount)

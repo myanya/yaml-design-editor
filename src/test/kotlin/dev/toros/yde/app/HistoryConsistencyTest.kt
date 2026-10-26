@@ -122,7 +122,7 @@ class HistoryConsistencyTest {
         changeBoth(state)
         state.undo()
         val doc = state.ensureDoc(first)
-        doc.source.edit { replace(0, length, "title: [\n") }
+        doc.editSource { replace(0, length, "title: [\n") }
         doc.flushDraft()
         assertTrue(doc.draftBroken)
         assertEquals(2, state.dirtyDocCount())

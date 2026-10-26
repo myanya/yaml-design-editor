@@ -24,7 +24,7 @@ class SaveConflictTest {
 
     private fun state() = AppState().also { it.openWorkspace(dir) }
     private fun edit(doc: OpenDocument, text: String = "title: local\n") {
-        doc.source.edit { replace(0, length, text) }
+        doc.editSource { replace(0, length, text) }
         doc.flushDraft()
     }
     private fun title(text: String) = ((YamlIO.parseFirst(text) as YNode.Map).entries["title"] as YNode.Scalar).value

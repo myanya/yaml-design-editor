@@ -251,7 +251,7 @@ class HistoryNoticeTest {
         editTitle(state.ensureDoc(dir.resolve("tasks/t2.yaml")), "別文書の変更")
         state.openFile(dir.resolve("tasks/t1.yaml"))
         val doc = state.openDoc!!
-        doc.source.edit { replace(0, length, "id: TASK-001\ntitle: 入力中\n") }
+        doc.editSource { replace(0, length, "id: TASK-001\ntitle: 入力中\n") }
         state.undo()
         assertFalse(state.historyNotice!!.crossDocument)
         assertEquals(listOf(state.documentOf(doc.file)), state.historyNotice!!.targets)
