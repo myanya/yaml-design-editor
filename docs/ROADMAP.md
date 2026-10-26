@@ -429,7 +429,7 @@ definitions:
 |---|---|---|---|---|
 | R47-10 | ソース規則テスト | 全モジュールのソースを読む 1 つのテスト（新しい依存なし）。規則は表で宣言し、失敗の文に設計文書の見出しを添える。最初の規則は下の 12 本。root のテスト `rules/SourceRulesTest`（表は `rules/SourceRules`）。今直せていない違反（root の CLI・Readiness・AppState の層違反、同名ファイル 5 組）は `known` に理由つきで登録し、直すと一覧から消すよう促す | 自前の走査（オーナー 2026-10-26） | ✅ 2026-10-26 |
 | R47-11 | 文書の参照の実在テスト | FEATURES・architecture の `.kt` 参照とテスト名、「ファイル名＋見出し」参照（バッククォートを外して比べる）が実在することを JVM のテストで確かめ、`./gradlew test` に含める。形の検査（チケット番号・リンク・字数）は docs-lint.sh のまま。root のテスト `rules/DocReferencesTest`（3 本）。古かった参照 2 件（coverage の行）を直した | なし | ✅ 2026-10-27 |
-| R47-12 | 今破れている 2 点の処置 | (a) `core/Cli.kt` を新パッケージ `app.cli`（AppState と同じ最上位の層）へ移す。(b) app の 3 コア直接依存は新しい ADR で「app は yaml.model・yaml.patch・yaml.validate・semantic・semantic.schema の型を直接使ってよい（共通の語彙だから）」と正式化し、規則テストで許す範囲を固定する | (b) 正式化か、workspace-core 経由に寄せるか | 判断待ち |
+| R47-12 | 今破れている 2 点の処置 | (a) `core/Cli.kt` を新パッケージ `app.cli`（AppState と同じ最上位の層）へ移す。(b) app の 3 コア直接依存は新しい ADR で「app は yaml.model・yaml.patch・yaml.validate・semantic・semantic.schema の型を直接使ってよい（共通の語彙だから）」と正式化し、規則テストで許す範囲を固定する | (b) は ADR-0013 で決着（app-core はカーネルの 3 つに直接依存してよい）。(a) は R47-24 で cli モジュールへ直接移す | ✅ 2026-10-27（(a) は R47-24 へ） |
 | R47-13 | フックと CI | コミット前に docs-lint.sh と規則・参照のテストだけを回すフック。git の hooksPath をリポジトリ内の `scripts/git-hooks/` に向ける形（Claude Code 以外の道具でも効く。クローンごとに 1 回の設定）。GitHub Actions（`.github/workflows/test.yml`）で push ごとに docs-lint と `./gradlew test`。`gradlew` と scripts の実行ビットを index に付けた | CI を使う（オーナー 2026-10-27） | ✅ 2026-10-27 |
 | R47-14 | CLAUDE.md を縮める | 機械化した落とし穴を CLAUDE.md から消し、「規則テストが守る」の 1 行と規則表へのリンクに置き換える。残すのは機械化できない規律だけ（目標は 36 項目を 15 項目に） | なし | 未着手 |
 
