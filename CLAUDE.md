@@ -51,9 +51,7 @@ scripts/docs-lint.sh                        # 文書の形の機械チェック
 説明は docs/architecture/ の各ファイルの「規律」にある。機械で確かめられるものは root のテスト `SourceRulesTest` が守る（落ちたらメッセージの「説明」の見出しを読む。規則を足すなら `SourceRules` の表に 1 つ） → architecture/README.md「ソース規則テスト」
 
 - `YNode` は Compose の State ではない。ビューは `doc.version` / `state.indexVersion` を読んで購読する → architecture/ui.md「UI シェル」
-- 等幅の文字は `AppFonts.Mono`（同梱の Cica）。`FontFamily.Monospace` を書かない（OS 任せで日本語の幅が揃わない） → architecture/ui.md「規律」
-- 外部の UI ライブラリは ui/ の 1 ファイルで包む（FileKit＝`FilePickers`・Reorderable＝`ReorderableList`・Markdown＝`MarkdownView`・Vico＝`BarChart`・ELK＝`GraphLayouts`）。表は `VirtualTable`。ライブラリの型を他のファイルへ出さず、`JFileChooser` を使わない → architecture/ui.md「規律」
-- file 型の値（ファイルの場所）の書き方は `FilePath` で判定する（`./` や拡張子や `\` の判定を直書きしない）。存在と許可は `CodedDocumentChecks.fileIssues` と `.yde/workspace.yaml` の `files:`（`FilePolicy`）で、機能側で `Files.exists` を直接見ない → architecture/schema.md「規律」・architecture/checks.md「文書 1 つの検証」
+- file 型の値（ファイルの場所）の書き方は `FilePath` で判定する（`./` や拡張子や `\` の判定を直書きしない）。存在と許可は `CodedDocumentChecks.fileIssues` と `.yde/workspace.yaml` の `files:`（`FilePolicy`）で判定する → architecture/schema.md「規律」・architecture/checks.md「文書 1 つの検証」
 - UI は `state.index` でなく `state.overlayIndex()` を読み、`remember` のキーに `state.editVersion` を含める → architecture/index-references.md「索引の二層」
 - ディスク変更の取り込みの振り分けは `Workspace.noteDiskChanges` だけ。ディスクを映すセッションと編集用セッションは 1 つにまとめない → architecture/index-references.md「索引の二層」
 - 場所はワークスペース相対の `DocumentId`。`DocumentId == Path` は常に偽。`Validator` の `loader` を省くと他の文書を読まない → architecture/index-references.md「場所は文書ID」
@@ -74,12 +72,12 @@ scripts/docs-lint.sh                        # 文書の形の機械チェック
 - 文書の新規作成は `AppState.createDocumentFile` の単一経路。`Files.writeString` ＋ `reload()` では作成の Undo を記録できない → architecture/editing-history.md「文書の作成と削除」
 - 新しいワークスペースの初期化だけは例外で、開く前に `WorkspaceInit` が書く（Undo なし・既存は上書きしない）。計画は `WorkspaceInit` の 1 つで、画面（`InitWizardHost`）と CLI `init` に組み立てを書かない。テンプレートは `templates/` のファイル（Kotlin に埋め込まない）で、答えからの組み立ては変換定義のひな型 → architecture/workspace.md「ワークスペースの初期化」
 - 配置判定は `WorkspaceLayout` に一元化。`_schemas/` にはメタスキーマだけ。定義文書への書込は `meta: true` のアクティビティのみ → architecture/workspace.md「ワークスペース構造と layout」・architecture/schema.md「推測・メタスキーマ・派生」・architecture/agents.md「エージェント実行と Staging」
-- ビューは射影で、専用の書込経路を作らない。AI の HTTP は `AiHttp.post` に一元化 → architecture/views.md「ビュー機構」・architecture/agents.md「AI 接続」
+- ビューは射影で、専用の書込経路を作らない → architecture/views.md「ビュー機構」
 - ダッシュボードの共有の入力（`inputs`）とビューの `params` は「空＝絞らない」。外すのは `ActionRequire.prune`（where / check の項目）の 1 か所で、`VirtualViews.bindParams` もそれを使う。値の式の列（`all`）には渡らない → architecture/dashboards.md「規律」
 - レポート（YAML から文字へ）は 2 段＝変換（`$view` でビューの行）→ `TextTemplate`（穴・繰り返し・条件だけ）。文字の組み立てを Kotlin に書かず、出力は派生物（`output`。YAML と `.yde/` の下には書かない） → architecture/transform.md「レポート」
 - チャート（`kind: chart`）に集計を書かない（集計は元の表）。軸を値の式で広げたクロス集計は `lower` で列が決まらないので、ヘッダと書き出しの見出しは `view.columns` でなく `columnsOf(view, rows)` から取る。図の部品（Vico）は `ui/Charts.kt` に閉じる → architecture/views.md「ビュー機構」
 - カーネルのテストは疑似セッション注入、自動化のテストは `tick(now)` を直接呼ぶ。実 API を叩かない → architecture/agents.md「エージェント実行と Staging」・architecture/agents.md「自動実行」
-- 型はヒントと基底の種類で判定する（`field.multiline`・`field.placeholder`・`field.type == FieldType.DATE`）。`FieldType` は基底の種類（表現の基底と、値を持つ意味の基底型＝`ValueSemantics`）だけで、組込みの定義体（text / line / word）は `builtin-types/` の YAML。`FieldType.TEXT` のような分岐を足さない。使う側の決まりは狭めるだけ → architecture/schema.md「型の連鎖と狭める規則」
+- 型はヒントと基底の種類で判定する（`field.multiline`・`field.placeholder`・`field.type == FieldType.DATE`）。`FieldType` は基底の種類（表現の基底と、値を持つ意味の基底型＝`ValueSemantics`）だけで、組込みの定義体（text / line / word）は `builtin-types/` の YAML。使う側の決まりは狭めるだけ → architecture/schema.md「型の連鎖と狭める規則」
 - object を使う側の `fields` は同じキーを狭め新しいキーを足す（`SchemaTree.mergeFields`）。エンティティ型は要素の object の `entity` が、文書スキーマの `entity:`（ID の形）より優先。型の `constraints` は要素ごとの検査（`SemanticElementChecks`。グラフを使わない） → architecture/graph-query.md「エンティティ型と関係レジストリ」・architecture/checks.md「文書 1 つの検証」
 - 画面を離れても残したい見え方（畳み・タブ・絞り込み・チェック・展開）は `remember` に置かず `state.memory`（`ScreenMemory`）へ。覚えは「あれば使う・無ければ既定」で、再読込で無くなった鍵を誤りにしない。「戻る」が戻すのは場所（`NavLocation`）だけ → architecture/ui.md「UI シェル」
 - スキーマの図（レンズの「型」の段）の導出は `SemanticSchemaGraph` の 1 つで、レンズ・CLI でスキーマの木を歩き直さない。矢印の向きのような見え方は `_views` の `kind: lens`（`VirtualLensDef`）に置き、スキーマ・レジストリに足さない（反転は `LensGraphs` の 1 か所） → architecture/graph-query.md「スキーマレンズ（型の段）」・architecture/views.md「規律」

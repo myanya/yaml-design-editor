@@ -431,7 +431,7 @@ definitions:
 | R47-11 | 文書の参照の実在テスト | FEATURES・architecture の `.kt` 参照とテスト名、「ファイル名＋見出し」参照（バッククォートを外して比べる）が実在することを JVM のテストで確かめ、`./gradlew test` に含める。形の検査（チケット番号・リンク・字数）は docs-lint.sh のまま。root のテスト `rules/DocReferencesTest`（3 本）。古かった参照 2 件（coverage の行）を直した | なし | ✅ 2026-10-27 |
 | R47-12 | 今破れている 2 点の処置 | (a) `core/Cli.kt` を新パッケージ `app.cli`（AppState と同じ最上位の層）へ移す。(b) app の 3 コア直接依存は新しい ADR で「app は yaml.model・yaml.patch・yaml.validate・semantic・semantic.schema の型を直接使ってよい（共通の語彙だから）」と正式化し、規則テストで許す範囲を固定する | (b) は ADR-0013 で決着（app-core はカーネルの 3 つに直接依存してよい）。(a) は R47-24 で cli モジュールへ直接移す | ✅ 2026-10-27（(a) は R47-24 へ） |
 | R47-13 | フックと CI | コミット前に docs-lint.sh と規則・参照のテストだけを回すフック。git の hooksPath をリポジトリ内の `scripts/git-hooks/` に向ける形（Claude Code 以外の道具でも効く。クローンごとに 1 回の設定）。GitHub Actions（`.github/workflows/test.yml`）で push ごとに docs-lint と `./gradlew test`。`gradlew` と scripts の実行ビットを index に付けた | CI を使う（オーナー 2026-10-27） | ✅ 2026-10-27 |
-| R47-14 | CLAUDE.md を縮める | 機械化した落とし穴を CLAUDE.md から消し、「規則テストが守る」の 1 行と規則表へのリンクに置き換える。残すのは機械化できない規律だけ（目標は 36 項目を 15 項目に） | なし | 未着手 |
+| R47-14 | CLAUDE.md を縮める | 機械化した落とし穴を CLAUDE.md から消し、「規則テストが守る」の 1 行と規則表へのリンクに置き換える。残すのは機械化できない規律だけ（目標は 36 項目を 15 項目に）。規則テストが守る 2 項目（等幅フォント・外部 UI ライブラリと JFileChooser）と 3 つの句（Files.exists・AI の HTTP・FieldType の分岐）を消して 34 項目にした。残りはパッケージ名が変わる段階 2 の後に、置き場に近い案内（R47-31）と合わせて行う | なし | 一部 ✅ 2026-10-27・残りは段階 2 の後 |
 
 R47-10 の最初の規則（既知の違反を除いて守られているので、テストは「壊さない」ための錠になる）:
 
