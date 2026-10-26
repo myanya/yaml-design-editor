@@ -122,6 +122,8 @@ class ScreenMemory {
     val dashboardSplit = mutableStateMapOf<String, Boolean>()
     val dashboardScroll = mutableStateMapOf<Pair<String, String>, TableScrollPosition>()
     val dashboardEntityScroll = mutableStateMapOf<String, Int>()
+    /** ダッシュボードの区画の群の畳み（ダッシュボード ID × 群の名前。true＝畳んでいる）。無い群の鍵は読まれないだけ。 */
+    val dashboardGroupCollapsed = mutableStateMapOf<Pair<String, String>, Boolean>()
 
     var entityQuery by mutableStateOf("")
 
@@ -219,6 +221,7 @@ class ScreenMemory {
         dashboardSplit.clear()
         dashboardScroll.clear()
         dashboardEntityScroll.clear()
+        dashboardGroupCollapsed.clear()
         entityQuery = ""
         entityOccurrencesOpen.clear()
         lensHiddenTypes.clear()

@@ -1,0 +1,184 @@
+package dev.toros.yde.semantic
+
+import dev.toros.yde.yaml.model.DocumentId
+import dev.toros.yde.yaml.model.scalarText
+
+/**
+ * チャート（`kind: chart`。P46）。元の表（グリッドかクロス集計）の解決結果を、項目（行）× 系列（列）の数に直して描く「ビューの部品」。
+ * データを持たず、集計は元の表がする（Excel の「表を作ってからグラフにする」と同じ）。描画は画面だけで、CLI と read_view は数を返す。
+ * 置き場は台帳のビュータブ・文書ビューの区画（`chart: {view}`）・ダッシュボードの区画（`view: チャートID`）。
+ */
+
+/** 図の種類（第一弾）。 */
+enum class ChartKind(val id: String, val label: String) {
+    BAR("bar", "棒"),
+    STACKED_BAR("stacked-bar", "積み上げ棒"),
+    LINE("line", "折れ線"),
+    PIE("pie", "円"),
+    ;
+
+    companion object {
+        fun parse(text: String?, where: String): ChartKind =
+            entries.firstOrNull { it.id == text } ?: error("$where は ${entries.joinToString(" / ") { it.id }} のいずれかです: $text")
+    }
+}
+
+/** 図の形（棒・点・扇形）を押したときの、材料（集めた要素）の一覧の見せ方。 */
+enum class ChartDrill(val id: String, val label: String) {
+    /** 押した場所に浮いた一覧を出す（既定）。 */
+    POPUP("popup", "浮いた一覧"),
+    /** 図の下に一覧を出す。 */
+    BELOW("below", "図の下"),
+    /** 図の右に一覧を出す。 */
+    RIGHT("right", "図の右"),
+    /** 押しても何も出さない。 */
+    NONE("none", "出さない"),
+    ;
+
+    companion object {
+        fun parse(text: String?, where: String): ChartDrill =
+            entries.firstOrNull { it.id == text } ?: error("$where は ${entries.joinToString(" / ") { it.id }} のいずれかです: $text")
+    }
+}
+
+/** 項目の並び: 系列（null＝最初の系列）の値の順（descending＝多い順）。値の無い項目は後ろ。 */
+data class ChartOrder(val series: String? = null, val descending: Boolean = false)
+
+/** チャートの宣言。 */
+data class VirtualChartDef(
+    override val id: String,
+    override val name: String,
+    override val description: String? = null,
+    override val source: DocumentId,
+    val kind: ChartKind,
+    /** 元の表（グリッドかクロス集計のビュー ID）。行＝横軸の項目、列＝系列。 */
+    val view: String,
+    /** 系列にする列の見出し（空＝数の列すべて。クロス集計なら合計と未分類の列を除く）。 */
+    val series: List<String> = emptyList(),
+    /** 横軸の項目の文字にする列の見出し（null＝行のタイトルか ID）。 */
+    val x: String? = null,
+    /** 縦軸（値）の見出し。 */
+    val yLabel: String? = null,
+    /** 値の表示の形（DecimalFormat のパターン。軸とマウスを載せたときの文字。null＝桁区切り）。 */
+    val format: String? = null,
+    /** 図の形を押したときの材料の一覧の見せ方（`drill`）。 */
+    val drill: ChartDrill = ChartDrill.POPUP,
+    /** 項目の並び（null＝元の表の行の順）。 */
+    val order: ChartOrder? = null,
+) : VirtualViewDefinition
+
+/** 横軸の項目 1 つ（元の表の 1 行）。 */
+data class ChartCategory(val key: String, val label: String, val rowId: String, val hasOrigin: Boolean)
+
+/** 系列 1 つ（元の表の 1 列）。values は項目の並びと同じ長さ（数として読めない・無いセルは null）。 */
+data class ChartSeriesResolved(val label: String, val values: List<Double?>, val cells: List<VirtualCell?>)
+
+/** 解決したチャート。 */
+data class ChartData(
+    val def: VirtualChartDef,
+    val sourceView: VirtualGridDef,
+    val categories: List<ChartCategory>,
+    val series: List<ChartSeriesResolved>,
+    /** 描くときの注意（系列の列が無い・円は最初の系列だけ、など。定義エラーではない）。 */
+    val notes: List<String>,
+)
+
+object ChartViews {
+
+    /**
+     * 元の表の解決結果からチャートの数を取り出す。クロス集計の合計の行・合計と未分類の列は既定で除く（series に書けば入る）。
+     * 系列を書かなければ、数として読めるセルを持つ列すべて（被参照の列は除く）。
+     */
+    fun resolve(def: VirtualChartDef, source: VirtualGridDef, rows: List<VirtualRow>): ChartData {
+        val matrix = source.matrix
+        val dataRows = rows.filter { r -> !(matrix != null && matrix.totals && r.id == VirtualViews.TOTAL_LABEL && r.occurrences.isEmpty() && !r.valueRow) }
+        val columns = VirtualViews.columnsOf(source, rows)
+        val excluded = buildSet {
+            if (matrix != null) {
+                if (matrix.totals) add(VirtualViews.TOTAL_LABEL)
+                matrix.unclassified?.let { add(it) }
+            }
+        }
+        val notes = mutableListOf<String>()
+        val seriesIndexes: List<Int> = if (def.series.isEmpty()) {
+            columns.indices.filter { i ->
+                val c = columns[i]
+                c.backlinks == null && c.label !in excluded && dataRows.any { r -> numberOf(r.cells.getOrNull(i)) != null }
+            }
+        } else {
+            def.series.mapNotNull { label ->
+                columns.indexOfFirst { it.label == label }.takeIf { it >= 0 } ?: run { notes += "系列の列「$label」が元の表「${source.id}」にありません"; null }
+            }
+        }
+        val xIndex = def.x?.let { label ->
+            columns.indexOfFirst { it.label == label }.takeIf { it >= 0 } ?: run { notes += "横軸の列「$label」が元の表「${source.id}」にありません"; null }
+        }
+        val categories = dataRows.map { r ->
+            val label = xIndex?.let { i -> r.cells.getOrNull(i)?.value?.let { VirtualViews.cellText(it, 40) } } ?: r.title ?: r.id
+            ChartCategory(r.key, label, r.id, r.occurrences.isNotEmpty())
+        }
+        val series = seriesIndexes.map { i ->
+            ChartSeriesResolved(columns[i].label, dataRows.map { r -> numberOf(r.cells.getOrNull(i)) }, dataRows.map { r -> r.cells.getOrNull(i) })
+        }
+        if (series.isEmpty()) notes += "数の列がありません（系列にする列を series に書きます）"
+        if (def.kind == ChartKind.PIE && series.size > 1) notes += "円グラフは最初の系列「${series.first().label}」だけを描きます"
+        // 項目の並び（order）: 系列の値の順に項目を並べ替える（系列と材料も同じ順に）。値の無い項目は後ろ
+        val order = def.order
+        if (order == null || series.isEmpty()) return ChartData(def, source, categories, series, notes)
+        val keyIndex = order.series?.let { label -> series.indexOfFirst { it.label == label } }?.also {
+            if (it < 0) notes += "並びの系列「${order.series}」はこのチャートの系列にありません（最初の系列で並べます）"
+        }?.takeIf { it >= 0 } ?: 0
+        val key = series[keyIndex].values
+        val permutation = categories.indices.sortedWith(
+            compareBy<Int> { key[it] == null }.thenComparator { a, b ->
+                val x = key[a]
+                val y = key[b]
+                when {
+                    x == null || y == null -> 0
+                    order.descending -> y.compareTo(x)
+                    else -> x.compareTo(y)
+                }
+            },
+        )
+        return ChartData(
+            def, source,
+            permutation.map { categories[it] },
+            series.map { s -> ChartSeriesResolved(s.label, permutation.map { s.values[it] }, permutation.map { s.cells[it] }) },
+            notes,
+        )
+    }
+
+    private fun numberOf(cell: VirtualCell?): Double? = scalarText(cell?.value)?.let { SemanticExpression.numberOf(it) }?.toDouble()
+
+    /** CLI と read_view の出力（数のまま。描画は画面だけ）。 */
+    fun report(data: ChartData, errors: List<String> = emptyList()): Map<String, Any?> = linkedMapOf(
+        "view" to data.def.id,
+        "kind" to "chart",
+        "chart" to data.def.kind.id,
+        "name" to data.def.name,
+        "source" to data.sourceView.id,
+        "x" to data.def.x,
+        "y" to data.def.yLabel,
+        "drill" to data.def.drill.id,
+        "order" to data.def.order?.let { linkedMapOf("series" to it.series, "direction" to if (it.descending) "desc" else "asc") },
+        "categories" to data.categories.map { linkedMapOf("key" to it.key, "label" to it.label, "id" to it.rowId) },
+        "series" to data.series.map { s -> linkedMapOf("label" to s.label, "values" to s.values.map { v -> v?.let(::plainNumber) }) },
+        "notes" to data.notes,
+        "errors" to errors,
+    )
+
+    /** エージェントへの開示テキスト（項目ごとに系列の値を並べる）。 */
+    fun renderText(data: ChartData): String = buildString {
+        appendLine("チャート: ${data.def.name}（${data.def.id}・${data.def.kind.label}・元の表: ${data.sourceView.id}）")
+        data.def.description?.let { appendLine(it.trim()) }
+        appendLine("項目: ${data.categories.size} 件、系列: ${data.series.joinToString("・") { it.label }.ifEmpty { "なし" }}")
+        data.categories.forEachIndexed { i, c ->
+            append("- ").append(c.label).append(if (c.label != c.rowId) "（${c.rowId}）" else "").append(": ")
+            appendLine(data.series.joinToString("・") { s -> s.label + "=" + (s.values.getOrNull(i)?.let(::plainNumber)?.toString() ?: "—") })
+        }
+        data.notes.forEach { appendLine("注意: $it") }
+    }
+
+    /** 整数なら整数で見せる（5400.0 → 5400）。 */
+    private fun plainNumber(v: Double): Any = if (v == Math.floor(v) && !v.isInfinite() && Math.abs(v) < 1e15) v.toLong() else v
+}

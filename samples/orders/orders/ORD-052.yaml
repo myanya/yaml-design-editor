@@ -1,0 +1,16 @@
+orderId: ORD-052
+orderedAt: 2026-04-28
+status: shipped
+customerId: CUS-017
+totalAmount: 22500
+lines:
+  - orderLineId: ORD-052-01  # まとめ買いの値引き（商品の現在の販売単価より安い）
+    productId: PRD-001
+    quantity: 50
+    unitPrice: 270
+    amount: 13500
+  - orderLineId: ORD-052-02  # 注文のときは販売中だった商品（いまは販売終了）
+    productId: PRD-019
+    quantity: 10
+    unitPrice: 900
+    amount: 9000

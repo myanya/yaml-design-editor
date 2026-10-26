@@ -1,0 +1,10 @@
+id: company-share-chart
+name: 会社別の購入割合
+kind: chart
+chart: pie
+description: 会社一覧の購入合計（所属する窓口の注文の合計）を、多い順に円グラフにします。個人の顧客の注文は含みません。
+view: company-grid
+series: [購入合計（円）]
+y: { label: 購入合計（円）, format: "#,##0" }
+order: { direction: desc }
+drill: right                       # 扇形を押すと、その会社の注文（材料）が図の右に並ぶ

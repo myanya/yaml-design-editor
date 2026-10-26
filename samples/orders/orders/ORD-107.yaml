@@ -1,0 +1,11 @@
+orderId: ORD-107
+orderedAt: 2026-10-23
+status: pending
+customerId: CUS-010
+totalAmount: 4800
+lines:
+  - orderLineId: ORD-107-01
+    productId: PRD-003
+    quantity: 1
+    unitPrice: 4800
+    amount: 4800

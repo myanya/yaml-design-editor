@@ -28,9 +28,10 @@
   | `{$map: ひな型, $using: {a: b}}` | スカラーの値を辞書で置き換える |
   | `{$first: [ひな型, …]}` | 最初に得られた値 |
   | `{$date: ひな型, $as: 形}` | 年月日をそろえる（`2021/8/21`・`20210821`・`2021年8月21日` → `yyyy-MM-dd`。`$as` は y・M・d と区切りの形。読めなければ「無い」。`SemanticExpression.readDate` / `formatDate`） |
-  | `{$number: ひな型}` | 数として読む（桁区切り・通貨記号・全角・`▲` の負を許す。値の式の `number` と同じ `SemanticExpression.numberOf`。整数は YAML を読んだときと同じ Int / Long） |
+  | `{$number: ひな型, $as: 形}` | 数として読む（桁区切り・通貨記号・全角・`▲` の負を許す。値の式の `number` と同じ `SemanticExpression.numberOf`。整数は YAML を読んだときと同じ Int / Long）。`$as` は DecimalFormat の形（`00`・`#,##0`）で、その形の文字にする（連番の 0 詰め） |
   | `{$trim: ひな型}` | 前後の空白を落とし、続く空白（全角も）を 1 つに（`SemanticExpression.squashSpaces`。空なら「無い」） |
-  | `{$each: パス, $build: ひな型}` / `{$eachEntry: パス, $build: ひな型}` | 配列の要素ごと／マップの項目ごとに組み立てる（`$apply: 規則名` とも書ける。`$index` / `$key`） |
+  | `{$value: 値の式}` | 値の式（`ValueExpr`。検査の `check`・ビューの列と同じ書き方）をいまの場所で計算する。いまの場所と、式が `of` で指す束縛の要素だけを読める合成の環境（仮の文書名）で `SemanticValues` を呼ぶ。グラフ・項目の型は無いので `all` / `refCount` / `occurrenceCount` は「無い」、順序の種類は `type` で宣言する。数の結果は数の項・配列は配列の項・それ以外は文字 |
+  | `{$each: パス, $build: ひな型}` / `{$eachEntry: パス, $build: ひな型}` | 配列の要素ごと／マップの項目ごとに組み立てる（`$apply: 規則名` とも書ける。`$index`＝0 始まり / `$position`＝1 始まり / `$key`。`no` は YAML が真偽値に読むので名前にしない） |
   | `{$apply: 規則名, $at: パス}` | 名前を付けた規則をその場所に当てる |
   | `{$concat: [ひな型, …]}` | 配列をつなげる |
   | `{$when: 条件, $then: ひな型}`・マップに `$when` を添える | 条件に合うときだけ出す |

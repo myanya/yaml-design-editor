@@ -1,0 +1,54 @@
+id: customer-grid
+name: 顧客一覧
+description: 顧客ごとの連絡先と、注文の件数・購入合計（取消済みの注文は除きます）。「新規行」で顧客番号を入れると customers/<番号>.yaml ができます。
+rows:
+  idPattern: "CUS-*"
+columns:
+  - { label: 区分, schemaId: customer, path: kind, editable: true }
+  - { label: 顧客名, schemaId: customer, path: name, editable: true }
+  # 表示名: 法人なら「会社名 窓口名」、個人なら顧客名（会社名が辿れなければ 2 つ目の式に落ちる）。チャートの横軸の文字に使う
+  - label: 表示名
+    schemaId: customer
+    value:
+      first:
+        - format: "{company} {name}"
+          with:
+            company: { via: companyId, in: { schemaId: company }, path: name }
+        - { path: name }
+  - { label: 所属会社, schemaId: customer, path: companyId, editable: true }
+  # 所属会社の参照を 1 段辿って会社名を添える（読み取り専用。個人は空）
+  - label: 会社名
+    schemaId: customer
+    value: { via: companyId, in: { schemaId: company }, path: name }
+  - { label: 部署, schemaId: customer, path: department, editable: true }
+  - { label: メールアドレス, schemaId: customer, path: email, editable: true }
+  - { label: 電話番号, schemaId: customer, path: phone, editable: true }
+  # 行（顧客）を起点に、この顧客を参照する注文を all で集め、件数と合計にする（読み取り専用の計算列）
+  - label: 注文件数
+    schemaId: customer
+    value:
+      count:
+        all:
+          of: o
+          match:
+            - node: { entity: customer, bind: c }
+            - edge: { via: customerId, dir: in }
+            - node: { entity: order, bind: o }
+          where:
+            - { of: o, path: status, notEquals: cancelled }
+  - label: 購入合計（円）
+    schemaId: customer
+    display: grouped
+    value:
+      sum:
+        all:
+          of: o
+          path: totalAmount
+          match:
+            - node: { entity: customer, bind: c }
+            - edge: { via: customerId, dir: in }
+            - node: { entity: order, bind: o }
+          where:
+            - { of: o, path: status, notEquals: cancelled }
+newRow:
+  filePattern: "customers/{id}.yaml"

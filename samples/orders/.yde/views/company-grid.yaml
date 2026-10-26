@@ -1,0 +1,53 @@
+id: company-grid
+name: 会社一覧
+description: 会社ごとの法人番号・所在地と、所属する窓口（顧客）の数、窓口を経由した注文の件数と購入合計（取消済みは除きます）。「新規行」で会社番号を入れると companies/<番号>.yaml ができます。
+rows:
+  idPattern: "COM-*"
+columns:
+  - { label: 会社名, schemaId: company, path: name, editable: true }
+  - { label: 法人番号, schemaId: company, path: corporateNumber, editable: true }
+  - { label: 所在地, schemaId: company, path: address, editable: true }
+  # 会社を起点に、所属する顧客（belongs-to の逆向き）を集める
+  - label: 窓口の数
+    schemaId: company
+    value:
+      count:
+        all:
+          of: cu
+          match:
+            - node: { entity: company, bind: c }
+            - edge: { via: companyId, dir: in }
+            - node: { entity: customer, bind: cu }
+  # 会社 ← 顧客 ← 注文 の 2 段で注文を集める（注文は会社を書かない）
+  - label: 注文件数
+    schemaId: company
+    value:
+      count:
+        all:
+          of: o
+          match:
+            - node: { entity: company, bind: c }
+            - edge: { via: companyId, dir: in }
+            - node: { entity: customer, bind: cu }
+            - edge: { via: customerId, dir: in }
+            - node: { entity: order, bind: o }
+          where:
+            - { of: o, path: status, notEquals: cancelled }
+  - label: 購入合計（円）
+    schemaId: company
+    display: grouped
+    value:
+      sum:
+        all:
+          of: o
+          path: totalAmount
+          match:
+            - node: { entity: company, bind: c }
+            - edge: { via: companyId, dir: in }
+            - node: { entity: customer, bind: cu }
+            - edge: { via: customerId, dir: in }
+            - node: { entity: order, bind: o }
+          where:
+            - { of: o, path: status, notEquals: cancelled }
+newRow:
+  filePattern: "companies/{id}.yaml"

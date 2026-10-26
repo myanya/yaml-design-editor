@@ -146,7 +146,7 @@
 
 | ID | 機能 | 主な実装 | テスト | 設計 |
 |---|---|---|---|---|
-| X-13 | ダッシュボード（開始画面・業務詳細と参照・共通基準日・CLIとread_view） | `semantic/DashboardViews.kt`, `core/Dashboards.kt`, `ui/DashboardPane.kt` | `DashboardDefinitionsTest`, `DashboardsTest` | [dashboards](architecture/dashboards.md) |
+| X-13 | ダッシュボード（開始画面・業務詳細と参照・共通基準日・区画の群と並べ方・CLIとread_view） | `semantic/DashboardViews.kt`, `core/Dashboards.kt`, `ui/DashboardPane.kt` | `DashboardDefinitionsTest`, `DashboardsTest` | [dashboards](architecture/dashboards.md) |
 | X-01 | 一覧ビュー（ID・タイトル・状態・担当・種別・絞り込み・未保存編集に追随・チェックと ID の列を左に固定） | `ui/WorkspaceViews.kt`, `ui/VirtualTable.kt`, `AppState.workspaceRecords` | 単体 `VirtualTableTest` | [views](architecture/views.md) |
 | X-02 | 一括編集（自動値も含め Undo 1 回） | `AppState.bulkUpdate`, `WorkspaceSession.applyWithAutoValues` | `AppStateAutoValuesTest`・`AutoValuesKernelTest`・`SessionWriteParityTest` | [editing-history](architecture/editing-history.md) |
 | X-03 | グラフレンズ（近傍・型と関係の絞り込み・配置・保有・側面・PNG・ミニマップ） | `ui/GraphLensView.kt`, `ui/LensGraph.kt`, `ui/GraphLayouts.kt` | `LensGraphTest`, `GraphLayoutsTest` | [graph-query](architecture/graph-query.md) |
@@ -160,6 +160,8 @@
 | X-10 | クロス集計ビュー（`kind: matrix`・行の論理ID × 列の参照先か値・セルは行から集めた要素の集計・未分類と合計・列を広げたグリッドへ下ろす）と、グリッドの要素ごとに列を広げる列 `each`（`$名前` で列の要素の ID を指す） | `semantic-core/semantic/VirtualViews.kt`（`lower`）, `workspace-core/workspace/ViewDefinitions.kt` | 単体 `ViewsTest` | [views](architecture/views.md) |
 | X-09 | 値の式の列（`value:`＝ひな型の展開・`via`・配列を受け取る集計・集合から配列へ `all`・要素ごとの式 `each`・来歴つきで未保存編集に追随） | `semantic/VirtualViews.kt`（`valueCell`）, `semantic/Values.kt` | 単体 `ViewsTest`, `SemanticViaTest`, `SemanticAggregateTest`, `SemanticAllTest`, `AllFromCheckTest` | [transform](architecture/transform.md) |
 | X-10 | クエリ行（`rows: match:` の束縛行・結合先ノードの値をセル化・行の同一性は束縛値の組） | `core/Views.kt`（`rowsQuery`）, `index/Query.kt` | 単体 `ViewsTest` | [views](architecture/views.md) |
+| X-13 | 軸を値の式で広げるクロス集計（`rows.value`＝起点の要素ごとに計算した値を行に・`cells.columns.value`＝要素ごとに計算した値を列に。月の文書なしで受付日の年月ごとの集計。値の順序の種類で並ぶ・値の軸の行は原本を持たない・ヘッダは解決した行から `columnsOf`） | `semantic-core/semantic/VirtualViews.kt`（`resolvePivot` / `columnsOf`）, `workspace-core/workspace/ViewDefinitions.kt` | 単体 `PivotAndChartViewsTest` | [views](architecture/views.md) |
+| X-14 | チャート（`kind: chart`＝元の表〔grid / matrix〕の行を横軸の項目・数の列を系列に。棒・積み上げ棒・折れ線・円。台帳のビュータブ・文書ビューの区画 `chart`・ダッシュボードの区画に置ける。押すとセルの材料〔集めた要素〕が出て詳細か原本へ。出し方は `drill`＝popup / below / right / none。項目の並びは `order`＝系列の値の順。CLI `view` と `read_view` は数を返す） | `semantic-core/semantic/ChartViews.kt`, `ui/ChartViewPane.kt`, `ui/Charts.kt`（`LineChart` / `PieChart`）, `semantic-core/semantic/DashboardViews.kt` | 単体 `ChartViewsTest`, `PivotAndChartViewsTest` | [views](architecture/views.md) |
 
 ## 7. AI による作成支援
 
@@ -238,7 +240,7 @@
 | C-12 | パターン照合エンジン（クエリコア・`match` / `also` / `where` / `limit` / `same`・束縛の表・決定的） | `semantic-core/schema/Query.kt`, `semantic-core/semantic/Query.kt` | 単体 `QueryTest`, `TraverseTest` | [graph-query](architecture/graph-query.md) |
 | C-13 | エンティティ合成（全出現を決定的に並べ所有フィールドを原本座標つきでマージ・CLI `entity show`） | `core/Aspects.kt` | 単体 `AspectTest` | [graph-query](architecture/graph-query.md) |
 | C-14 | スキーマ・リファクタリング（12 操作・スキーマと文書とビューを 1 つの計画で追随・カーネルが計画を作る） | `semantic-core/semantic/SchemaRefactor.kt`, `semantic-core/semantic/Rewrite.kt` | 単体 `RefactoringTest`, `RefactoringPlanGoldenTest` | [schema](architecture/schema.md) |
-| C-15 | YAML から YAML への変換（選ぶ × 組み立てる × 規則を子に当てる・値をそろえる `$date` `$number` `$trim`・出どころつき・保存しない・CLI `transform`） | `semantic-core/schema/Transform.kt`, `semantic-core/semantic/Transform.kt` | 単体 `SemanticTransformTest`, `StructuralDerivationTransformTest` | [transform](architecture/transform.md) |
+| C-15 | YAML から YAML への変換（選ぶ × 組み立てる × 規則を子に当てる・値をそろえる `$date` `$number`（`$as` で形）`$trim`・値の式で計算する `$value`・繰り返しの `$index` / `$no`・出どころつき・保存しない・CLI `transform`） | `semantic-core/schema/Transform.kt`, `semantic-core/semantic/Transform.kt` | 単体 `SemanticTransformTest`, `TemplateValueTest`, `StructuralDerivationTransformTest` | [transform](architecture/transform.md) |
 | C-16 | バージョン表示（外部 `appVersion`・内部 `yyyymmdd.ビルド番号`・コミット・CLI `version` とスタート画面） | `app/BuildInfo.kt`, `build.gradle.kts` | 単体 `BuildInfoTest` | [workspace](architecture/workspace.md) |
 | C-17 | フロービューの解決・CLI・read_view | `semantic-core/semantic/FlowViews.kt`, `core/FlowReports.kt` | `FlowViewsTest`, `FlowViewDefinitionsTest`, `FlowViewsIntegrationTest` | [views](architecture/views.md) |
 | C-18 | フローの配置切替・スイムレーン・文書埋め込み・原本フォームと履歴・改名影響 | `ui/GraphLayouts.kt`, `ui/FlowSwimlanes.kt`, `ui/FlowViewPane.kt` | `FlowLayoutsTest`, `FlowSelectionTest`, `NavigationHistoryTest`, `FlowRefactoringTest` | [views](architecture/views.md) |
@@ -272,4 +274,5 @@
 ## 公開サンプル
 
 [todos](../samples/todos/README.md)と[テーブルモデル](../samples/todos-sysdev-tablemodel/README.md): 操作・詳細化・SQL生成の検討。
+[orders](../samples/orders/README.md): 複数の種類の参照・入れ子の明細（保有）・金額の整合の検査・参照を辿る集計・出荷と取消の操作。
 確認: YDEの検証と各READMEの試用手順。

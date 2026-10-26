@@ -14,8 +14,13 @@ import dev.toros.yde.semantic.schema.TemplateCondition
 import dev.toros.yde.semantic.schema.TemplateSite
 import dev.toros.yde.semantic.schema.TemplateTest
 import dev.toros.yde.semantic.schema.TransformDef
+import dev.toros.yde.semantic.schema.ValueExpr
 import dev.toros.yde.yaml.YamlIO
+import java.math.BigDecimal
+import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
 import java.util.IdentityHashMap
+import java.util.Locale
 
 /** 出力の場所（output）の値が、入力のどの文書のどの場所から来たか（TF-06。document が null＝呼び出し側が文書を告げなかった入力）。 */
 data class TransformOrigin(val output: YPath, val document: DocumentId?, val path: YPath)
@@ -119,6 +124,9 @@ object SemanticTransform {
         return conditions.all { run.holds(it, here, emptyMap()) }
     }
 
+    /** `$number` の `$as` の形の記号（小数点は `.`・桁区切りは `,`。表示の整形 ValueFormat と同じ）。 */
+    private val NUMBER_SYMBOLS: DecimalFormatSymbols = DecimalFormatSymbols(Locale.US)
+
     /** 入力の中の場所1つ（項と、その座標）。 */
     class TemplatePlace(val node: YNode, val document: DocumentId?, val path: YPath) {
         fun at(relative: YPath): TemplatePlace? =
@@ -181,20 +189,14 @@ object SemanticTransform {
             }
             is Template.NumberOf -> build(t.input, here, out, loop)?.let { input ->
                 scalarText(input)?.let(SemanticExpression::numberOf)?.let { n ->
-                    // 整数なら整数の値（YAML を読んだときと同じ Int / Long）、そうでなければ小数の値にする
-                    val whole = n.stripTrailingZeros()
-                    YNode.Scalar(
-                        when {
-                            whole.scale() > 0 -> n.toDouble()
-                            whole.toBigInteger().bitLength() < 32 -> whole.toInt()
-                            else -> whole.toBigInteger().toLong()
-                        }
-                    )
+                    // 形（$as）があればその形の文字（連番の 0 詰めなど）、無ければ数の項
+                    if (t.pattern != null) YNode.Scalar(DecimalFormat(t.pattern, NUMBER_SYMBOLS).format(n)) else numberTerm(n)
                 }
             }
             is Template.TrimOf -> build(t.input, here, out, loop)?.let { input ->
                 scalarText(input)?.let { SemanticExpression.squashSpaces(it) }?.takeIf { it.isNotEmpty() }?.let { YNode.Scalar(it) }
             }
+            is Template.ValueOf -> valueOf(t.expr, here, out)
             is Template.MapValue -> build(t.input, here, out, loop)?.let { input ->
                 val text = scalarText(input)
                 if (text != null && text in t.using) YNode.Scalar(t.using.getValue(text)) else input
@@ -248,7 +250,9 @@ object SemanticTransform {
             is YNode.Seq -> if (t.entries) null else {
                 val items = mutableListOf<YNode>()
                 node.items.forEachIndexed { i, child ->
-                    build(t.body, TemplatePlace(child, found.document, found.path + i), out + items.size, loop + ("index" to i))?.let { items += it }
+                    // `$index` は 0 始まり・`$position` は 1 始まり（明細番号のような「何番目か」に）
+                    build(t.body, TemplatePlace(child, found.document, found.path + i), out + items.size, loop + ("index" to i) + ("position" to i + 1))
+                        ?.let { items += it }
                 }
                 YNode.Seq(items)
             }
@@ -303,6 +307,56 @@ object SemanticTransform {
                 TemplateTest.Kind.NOT_EQUALS -> scalarText(node)?.let { text -> operands().firstOrNull()?.let { text != it } }
                 TemplateTest.Kind.TEST -> scalarText(node)?.let { text -> SemanticExpression.test(test.op!!, text, operands()) }
             }
+        }
+
+        /** 数の項: 整数なら整数の値（YAML を読んだときと同じ Int / Long）、そうでなければ小数の値。 */
+        private fun numberTerm(n: BigDecimal): YNode.Scalar {
+            val whole = n.stripTrailingZeros()
+            return YNode.Scalar(
+                when {
+                    whole.scale() > 0 -> n.toDouble()
+                    whole.toBigInteger().bitLength() < 32 -> whole.toInt()
+                    else -> whole.toBigInteger().toLong()
+                }
+            )
+        }
+
+        /**
+         * 値の式をいまの場所で計算する（`$value`。R30-01）。いまの場所と、式が指す束縛の要素だけを読める合成の環境で評価する
+         * （文書は仮の名前で、いまの場所をその根にする。グラフ・解の一覧・項目の型は無いので、all・refCount・occurrenceCount は
+         * 「無い」になり、順序の種類は式の `type` で宣言する）。出どころはいまの場所。
+         */
+        private fun valueOf(expr: ValueExpr, here: TemplatePlace?, out: YPath): YNode? {
+            val base = here ?: return null
+            val docs = HashMap<DocumentId, YNode>()
+            val hereDoc = DocumentId("\$here")
+            docs[hereDoc] = base.node
+            val nodes = HashMap<String, SemanticQueryNodeRef>()
+            val assignment = HashMap<ValueExpr.ScopeRef, SemanticExpression.Occurrence?>()
+            for (name in expr.binds()) {
+                val place = bindings[name]?.invoke(null) ?: continue
+                val doc = DocumentId("\$bind:$name")
+                docs[doc] = place.node
+                nodes[name] = SemanticQueryNodeRef(QueryNodeKind.ENTITY, name, null, null, doc, emptyList())
+                assignment[ValueExpr.ScopeRef(name, null)] = SemanticExpression.Occurrence(doc, emptyList())
+            }
+            val env = SemanticValues.Environment(
+                tree = { docs[it] },
+                current = SemanticQueryNodeRef(QueryNodeKind.ENTITY, "\$here", null, null, hereDoc, emptyList()),
+                currentOccurrence = SemanticExpression.Occurrence(hereDoc, emptyList()),
+                nodes = nodes,
+                assignment = assignment,
+            )
+            val side = SemanticValues.evaluate(expr, env) ?: return null
+            origins += TransformOrigin(out, base.document, base.path)
+            return termOf(side)
+        }
+
+        /** 値の式の結果を項に: 配列・マップはその項の写し、数（順序の種類が数値）は数の項、それ以外は文字。 */
+        private fun termOf(side: SemanticCheckSide): YNode = when {
+            side.node != null -> copyOf(side.node)
+            side.kind == ValueExpr.OrderKind.NUMBER -> SemanticExpression.numberOf(side.text)?.let(::numberTerm) ?: YNode.Scalar(side.text)
+            else -> YNode.Scalar(side.text)
         }
 
         /** 部分木の写し（値と形だけ。コメントと表記は持ち込まない＝出力は派生した成果物）。 */

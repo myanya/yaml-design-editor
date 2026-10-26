@@ -1,0 +1,21 @@
+orderId: ORD-048
+orderedAt: 2026-04-12
+status: shipped
+customerId: CUS-022
+totalAmount: 39300
+lines:
+  - orderLineId: ORD-048-01
+    productId: PRD-002
+    quantity: 5
+    unitPrice: 120
+    amount: 600
+  - orderLineId: ORD-048-02  # 注文のときは販売中だった商品（いまは販売終了）
+    productId: PRD-019
+    quantity: 30
+    unitPrice: 810
+    amount: 24300
+  - orderLineId: ORD-048-03
+    productId: PRD-003
+    quantity: 3
+    unitPrice: 4800
+    amount: 14400

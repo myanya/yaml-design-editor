@@ -1,0 +1,11 @@
+orderId: ORD-090
+orderedAt: 2026-08-27
+status: shipped
+customerId: CUS-001
+totalAmount: 4800
+lines:
+  - orderLineId: ORD-090-01
+    productId: PRD-003
+    quantity: 1
+    unitPrice: 4800
+    amount: 4800

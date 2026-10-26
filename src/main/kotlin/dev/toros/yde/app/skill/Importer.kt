@@ -282,6 +282,8 @@ object Importer {
                 is Template.DateOf -> walk(t.input)
                 is Template.NumberOf -> walk(t.input)
                 is Template.TrimOf -> walk(t.input)
+                // 値の式がいまの場所（行）から読む項目の先頭の名前（列の名前）
+                is Template.ValueOf -> t.expr.reads().filter { it.of == null }.forEach { g -> (g.path.firstOrNull() as? String)?.let(names::add) }
                 is Template.Each -> { site(t.site); walk(t.body) }
                 is Template.Apply -> site(t.site)
                 is Template.Concat -> t.parts.forEach(::walk)

@@ -61,6 +61,25 @@ class ValueOperationsTest {
     }
 
     @Test
+    fun `日付の部分は年月日の数と年月の文字で日時からも読み読めない表記では得られない`() {
+        assertEquals("2026", SemanticExpression.unary(ValueExpr.UnaryFn.YEAR, "2026-10-25"))
+        assertEquals("10", SemanticExpression.unary(ValueExpr.UnaryFn.MONTH, "2026-10-25"))
+        assertEquals("25", SemanticExpression.unary(ValueExpr.UnaryFn.DAY, "2026-10-25"))
+        assertEquals("2026-10", SemanticExpression.unary(ValueExpr.UnaryFn.YEAR_MONTH, "2026-10-25"))
+        // 月の数は 1 桁（先頭の 0 を付けない）。年月は 2 桁の月で、文字の順に並べれば時間の順になる
+        assertEquals("1", SemanticExpression.unary(ValueExpr.UnaryFn.MONTH, "2026-01-05"))
+        assertEquals("2026-01", SemanticExpression.unary(ValueExpr.UnaryFn.YEAR_MONTH, "2026-01-05"))
+        // 日時からも日付の部分を取り出せる（区切りは空白でも T でも）
+        assertEquals("2026-10", SemanticExpression.unary(ValueExpr.UnaryFn.YEAR_MONTH, "2026-10-25 14:30"))
+        assertEquals("25", SemanticExpression.unary(ValueExpr.UnaryFn.DAY, "2026-10-25T14:30:15"))
+        // 正準の形でない表記・存在しない日付・時刻だけの値は読まない（表記から意味を決めない）
+        assertNull(SemanticExpression.unary(ValueExpr.UnaryFn.YEAR, "2026/10/25"))
+        assertNull(SemanticExpression.unary(ValueExpr.UnaryFn.MONTH, "2026-02-30"))
+        assertNull(SemanticExpression.unary(ValueExpr.UnaryFn.YEAR_MONTH, "14:30"))
+        assertNull(SemanticExpression.unary(ValueExpr.UnaryFn.DAY, "昨日"))
+    }
+
+    @Test
     fun `四則演算は数値として読めない値や0での割り算で得られない`() {
         assertEquals("15", SemanticExpression.arith(ValueExpr.ArithOp.ADD, listOf("3", "12")))
         assertEquals("6.5", SemanticExpression.arith(ValueExpr.ArithOp.ADD, listOf("1", "2.5", "3")))

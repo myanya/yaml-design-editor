@@ -520,8 +520,12 @@ internal fun DocViewSections(ctx: FormCtx, view: DocViewDef, root: YNode.Map, lo
                 }
             } else {
                 val flowView = section.flowView
-                if (flowView != null) EmbeddedFlowPane(state, doc, flowView)
-                else BacklinkSectionTable(state, sectionResolved)
+                val chartView = section.chartView
+                when {
+                    flowView != null -> EmbeddedFlowPane(state, doc, flowView)
+                    chartView != null -> EmbeddedChartPane(state, chartView)
+                    else -> BacklinkSectionTable(state, sectionResolved)
+                }
             }
         } }
     }

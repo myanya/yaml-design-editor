@@ -1,0 +1,8 @@
+id: customer
+name: 顧客
+kind: document
+description: 顧客 1 件を 1 ファイルで管理します。注文から顧客番号で参照されます。
+match: "customers/*.yaml"
+filePattern: "customers/{id}.yaml"
+# 文書のルートはオブジェクト型 顧客（同一性＝エンティティ customer の定義）
+root: { type: common#顧客 }

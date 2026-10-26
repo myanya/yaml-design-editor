@@ -1,6 +1,8 @@
 package dev.toros.yde.workspace
 
+import dev.toros.yde.semantic.DashboardPlacement
 import dev.toros.yde.semantic.VirtualDashboardDef
+import dev.toros.yde.semantic.sectionGroups
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.yaml.model.DocumentId
 import kotlin.test.*
@@ -48,5 +50,28 @@ class DashboardDefinitionsTest {
         val filter = assertNotNull(parsed.sections.single().filter)
         assertEquals(setOf("today"), filter.referenced)
         assertNotNull(filter.rule(mapOf("today" to "2026-10-25")))
+    }
+
+    @Test
+    fun `区画の群と並べ方を読み群は無名を先頭に最初に現れた順で分ける`() {
+        val value = "id: home\nkind: dashboard\nplacement: vertical\nsections:\n" +
+            "  - {id: all, label: 全件, view: grid}\n" +
+            "  - {id: a, label: A, view: grid, group: 図}\n" +
+            "  - {id: b, label: B, view: grid, group: 状況}\n" +
+            "  - {id: c, label: C, view: grid, group: 図}\n"
+        val parsed = ViewDefinitions.parseView(YamlIO.parseToRaw(value) as Map<*, *>, source) as VirtualDashboardDef
+        assertEquals(DashboardPlacement.VERTICAL, parsed.placement)
+        assertEquals(listOf(null, "図", "状況"), parsed.sectionGroups().map { it.first })
+        assertEquals(listOf(listOf("all"), listOf("a", "c"), listOf("b")), parsed.sectionGroups().map { group -> group.second.map { it.id } })
+        // 省略時は auto。並べ方の誤記と空の群の名前は読み込み時に拒否する
+        val plain = ViewDefinitions.parseView(YamlIO.parseToRaw(text) as Map<*, *>, source) as VirtualDashboardDef
+        assertEquals(DashboardPlacement.AUTO, plain.placement)
+        assertEquals(listOf(null), plain.sectionGroups().map { it.first })
+        val sideways = ViewDefinitions.load(listOf(source to (text + "\nplacement: sideways"), grid))
+        assertTrue(sideways.dashboards.isEmpty())
+        assertTrue(sideways.errors.any { "placement" in it }, sideways.errors.toString())
+        val empty = ViewDefinitions.load(listOf(source to text.replace("view: grid}", "view: grid, group: ''}"), grid))
+        assertTrue(empty.dashboards.isEmpty())
+        assertTrue(empty.errors.any { "group" in it }, empty.errors.toString())
     }
 }

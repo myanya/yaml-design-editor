@@ -1,0 +1,145 @@
+id: order
+name: 注文
+kind: document
+description: 注文 1 件を 1 ファイルで管理します。顧客と商品は番号で参照し、明細の金額と合計は検査が確かめます。
+match: "orders/*.yaml"
+filePattern: "orders/{id}.yaml"
+# 文書のルートはオブジェクト型 注文（同一性＝エンティティ order の定義・金額の検査つき）。スキーマの entity は型が持ちます
+root: { type: common#注文 }
+# 他の要素へ線を辿る検査は、型ではなくスキーマに書きます（注文 → 明細 → 商品）
+constraints:
+  - id: line-id-starts-with-order-id
+    description: 明細番号は、その注文の番号で始まること（例 ORD-001 の明細は ORD-001-01）
+    match:
+      - node: { entity: order, bind: o }
+      - edge: { relation: has-line }
+      - node: { entity: order-line, bind: l }
+    check:
+      - { startsWith: [ { of: l, path: orderLineId }, { format: "{orderId}-", scopes: [ { of: o } ] } ] }
+    level: error
+    message: "明細番号 {left} は注文番号 {o.id} で始まっていません"
+  - id: pending-order-has-no-inactive-product
+    description: 未処理の注文に、販売を終えた商品が含まれていないこと
+    match:
+      - node: { entity: order, bind: o }
+      - edge: { relation: has-line }
+      - node: { entity: order-line, bind: l }
+      - edge: { via: productId }
+      - node: { entity: product, bind: p }
+    where:
+      - { of: o, path: status, equals: pending }
+      - { of: p, path: active, equals: false }
+    expect: absent
+    level: warning
+    message: "未処理の注文 {o.id} の明細 {l.id} は、販売を終えた商品 {p.title} を注文しています"
+actions:
+  - id: register-order
+    label: 注文を登録する
+    description: 注文を 1 件、明細ごと新しいファイルとして作ります。注文番号は未使用の番号を指定します。明細には商品・数量・単価を入れると、明細番号・明細金額・注文合計金額は自動で入ります。
+    input:
+      initial:
+        orderedAt: { $copy: today, $of: context }
+    params:
+      - key: orderId
+        label: 注文番号
+        type: common#注文番号
+        required: true
+      - key: orderedAt
+        label: 注文受付日
+        type: common#年月日
+        required: true
+      - key: customerId
+        label: 注文顧客
+        type: common#顧客参照
+        required: true
+      - key: lines
+        label: 注文明細
+        type: array
+        default: []
+        display: table
+        description: 商品・数量・単価を入れます。明細番号（注文番号-01、-02 …）と明細金額（単価 × 数量）、注文合計金額は自動で入ります。
+        item:
+          type: object
+          fields:
+            - { key: productId, label: 注文商品, type: common#商品参照, required: true }
+            - { key: quantity, label: 注文数量, type: common#数量, required: true }
+            - { key: unitPrice, label: 単価, type: common#金額, required: true }
+    require:
+      - match: [ { node: { id: $orderId } } ]
+        expect: absent
+        message: $orderId は既に使われています
+    do:
+      - create:
+          schema: order
+          params:
+            orderId: $orderId
+            orderedAt: $orderedAt
+            customerId: $customerId
+            status: pending
+            # 合計は受け取った明細から計算する（値の式）。明細が無ければ 0
+            totalAmount: { $value: { sum: { each: { path: lines }, value: { multiply: [ { path: unitPrice }, { path: quantity } ] } } } }
+            # 明細は受け取った値から組み立てる。番号は「注文番号-」に 1 始まりの番号を 2 桁で、金額は単価 × 数量
+            lines:
+              $each: lines
+              $build:
+                orderLineId: { $format: "{orderId}-{n}", $with: { orderId: $orderId, n: { $number: $position, $as: "00" } } }
+                productId: { $copy: productId }
+                quantity: { $copy: quantity }
+                unitPrice: { $copy: unitPrice }
+                amount: { $value: { multiply: [ { path: unitPrice }, { path: quantity } ] } }
+  - id: add-order-line
+    label: 明細を足す
+    description: 未処理の注文に明細を 1 行足します。明細番号は配列の追加の決まり（注文番号-01、-02 …）で採番し、明細金額と注文合計金額を更新します。
+    target: { entity: order }
+    params:
+      - { key: productId, label: 注文商品, type: common#商品参照, required: true }
+      - { key: quantity, label: 注文数量, type: common#数量, required: true }
+      - { key: unitPrice, label: 単価, type: common#金額, required: true }
+    require:
+      - match: [ { node: { entity: order, bind: o } } ]
+        where: [ { of: o, path: status, equals: pending } ]
+        expect: exists
+        message: "{id} は未処理の注文ではありません（出荷済み・取消済みの注文には明細を足せません）"
+    do:
+      # 明細番号は配列の insert の決まりが付ける（接頭辞は親の注文番号）。金額は受け取った値から計算する
+      - insert:
+          of: self
+          path: lines
+          params:
+            productId: $productId
+            quantity: $quantity
+            unitPrice: $unitPrice
+            amount: { $value: { multiply: [ { path: unitPrice }, { path: quantity } ] } }
+      # 合計は、受け手（self）のいまの合計に足した明細の金額を加える
+      - set:
+          of: self
+          path: totalAmount
+          value: { $value: { add: [ { of: self, path: totalAmount }, { multiply: [ { path: unitPrice }, { path: quantity } ] } ] } }
+  - id: ship-order
+    label: 注文を出荷する
+    description: 未処理の注文を出荷済みにします。明細の無い注文は出荷できません。
+    target: { entity: order }
+    require:
+      - match: [ { node: { entity: order, bind: o } } ]
+        where: [ { of: o, path: status, equals: pending } ]
+        expect: exists
+        message: "{id} は未処理の注文ではありません"
+      - match:
+          - node: { entity: order, bind: o }
+          - edge: { relation: has-line }
+          - node: { entity: order-line }
+        expect: exists
+        message: "{id} には明細がありません"
+    do:
+      - set: { of: self, path: status, value: shipped }
+  - id: cancel-order
+    label: 注文を取り消す
+    description: 未処理の注文を取消済みにします。出荷済みの注文は取り消せません。
+    target: { entity: order }
+    require:
+      - match: [ { node: { entity: order, bind: o } } ]
+        where: [ { of: o, path: status, equals: pending } ]
+        expect: exists
+        message: "{id} は未処理の注文ではありません"
+    do:
+      - set: { of: self, path: status, value: cancelled }

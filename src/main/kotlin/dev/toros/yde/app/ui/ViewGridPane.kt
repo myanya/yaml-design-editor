@@ -73,10 +73,12 @@ fun ViewGridView(state: AppState) {
     state.indexVersion
     val ws = state.workspace ?: return
     val loaded = remember(state.indexVersion, ws) { Views.load(ws, state.schemas) }
-    val view = loaded.view(state.viewGridId ?: "") ?: loaded.views.firstOrNull()
+    // 選んだ ID がチャート（P46）なら、表の代わりに図を描く
+    val chart = loaded.chartView(state.viewGridId ?: "")
+    val view = if (chart != null) null else loaded.view(state.viewGridId ?: "") ?: loaded.views.firstOrNull()
 
     Column(Modifier.fillMaxSize().background(Palette.EditorBg)) {
-        HeaderBar(state, loaded, view)
+        HeaderBar(state, loaded, view, chart)
         if (loaded.errors.isNotEmpty()) {
             Text(
                 "定義エラー: " + loaded.errors.joinToString(" ／ "),
@@ -84,7 +86,9 @@ fun ViewGridView(state: AppState) {
                 modifier = Modifier.fillMaxWidth().background(Palette.ConflictBg).padding(horizontal = 12.dp, vertical = 4.dp),
             )
         }
-        if (view == null) {
+        if (chart != null) {
+            ChartGridView(state, loaded, chart)
+        } else if (view == null) {
             Column(
                 Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
@@ -102,31 +106,34 @@ fun ViewGridView(state: AppState) {
 }
 
 @Composable
-private fun HeaderBar(state: AppState, loaded: Views.LoadResult, view: ViewDef?) {
+private fun HeaderBar(state: AppState, loaded: Views.LoadResult, view: ViewDef?, chart: dev.toros.yde.semantic.VirtualChartDef? = null) {
     var selectorOpen by remember { mutableStateOf(false) }
     var newRowDialog by remember { mutableStateOf(false) }
     Row(
         Modifier.fillMaxWidth().background(Palette.Surface).padding(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("ビューグリッド", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text(if (chart != null) "チャート" else "ビューグリッド", fontWeight = FontWeight.Bold, fontSize = 14.sp)
         Spacer(Modifier.width(12.dp))
         Box {
             OutlinedButton(
-                enabled = loaded.views.isNotEmpty(),
+                enabled = loaded.views.isNotEmpty() || loaded.chartViews.isNotEmpty(),
                 onClick = { selectorOpen = true },
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
             ) {
-                Text(view?.name ?: "（ビューなし）", fontSize = 12.sp)
+                Text(chart?.name ?: view?.name ?: "（ビューなし）", fontSize = 12.sp)
                 Icon(Icons.Default.ArrowDropDown, contentDescription = null)
             }
+            // 表（グリッド・クロス集計）とチャート（P46）を同じ一覧から選ぶ
             ChoiceMenu(selectorOpen, { selectorOpen = false }, loaded.views.map { v ->
                 ChoiceOption(v.id, v.name,
-                    "${v.id} — " + (v.rows?.let { "idPattern: ${it.idPattern}" } ?: "matchクエリ（行キー: ${v.rowKey}）"),
+                    "${v.id} — " + (v.rows?.let { "idPattern: ${it.idPattern}" } ?: v.matrix?.rowsValue?.let { "行は値の軸（${it.text}）" } ?: "matchクエリ（行キー: ${v.rowKey}）"),
                     description = v.description, selected = v.id == view?.id)
+            } + loaded.chartViews.map { c ->
+                ChoiceOption(c.id, c.name + "（${c.kind.label}）", "${c.id} — 元の表: ${c.view}", description = c.description, selected = c.id == chart?.id)
             }, onSelect = { state.openViewGrid(it) })
         }
-        view?.description?.let {
+        (chart?.description ?: view?.description)?.let {
             Spacer(Modifier.width(10.dp))
             Text(it.replace("\n", " ").take(80), fontSize = 11.sp, color = Palette.SubText, maxLines = 1)
         }
@@ -275,12 +282,14 @@ internal fun ResolvedViewGrid(
     onSelect: ((ViewRow) -> Unit)? = null,
 ) {
     // クロス集計（kind: matrix）は列を索引から広げるので、ヘッダは解決と同じ索引で決めた列を使う
+    // （軸を値の式で広げたクロス集計は列が解決のときに決まるので、解決した行の列から取る＝columnsOf）
     val effectiveView = remember(view, state.indexVersion, state.editVersion) { Views.effective(view, state.overlayIndex()) }
+    val headerColumns = remember(effectiveView, rows) { Views.columnsOf(effectiveView, rows) }
     // 表は共通部品（VirtualTable）: ID 列と見出し行を固定し、列は見える範囲だけ組み立てる（クロス集計で列が広がっても軽い）
-    val columns = remember(effectiveView, view.detail) {
+    val columns = remember(headerColumns, view.detail) {
         buildList<TableColumn<GridColumn>> {
             add(TableColumn<GridColumn>(GridColumn.Id, ID_WIDTH, pinned = true))
-            effectiveView.columns.forEachIndexed { i, column ->
+            headerColumns.forEachIndexed { i, column ->
                 val suffix = when {
                     column.backlinks != null -> "（被参照）"
                     column.editable -> ""

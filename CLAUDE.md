@@ -72,6 +72,7 @@ scripts/docs-lint.sh                        # 文書の形の機械チェック
 - 新しいワークスペースの初期化だけは例外で、開く前に `WorkspaceInit` が書く（Undo なし・既存は上書きしない）。計画は `WorkspaceInit` の 1 つで、画面（`InitWizardHost`）と CLI `init` に組み立てを書かない。テンプレートは `templates/` のファイル（Kotlin に埋め込まない）で、答えからの組み立ては変換定義のひな型 → architecture/workspace.md「ワークスペースの初期化」
 - 配置判定は `WorkspaceLayout` に一元化。`_schemas/` にはメタスキーマだけ。定義文書への書込は `meta: true` のアクティビティのみ → architecture/workspace.md「ワークスペース構造と layout」・architecture/schema.md「推測・メタスキーマ・派生」・architecture/agents.md「エージェント実行と Staging」
 - ビューは射影で、専用の書込経路を作らない。AI の HTTP は `AiHttp.post` に一元化 → architecture/views.md「ビュー機構」・architecture/agents.md「AI 接続」
+- チャート（`kind: chart`）に集計を書かない（集計は元の表）。軸を値の式で広げたクロス集計は `lower` で列が決まらないので、ヘッダと書き出しの見出しは `view.columns` でなく `columnsOf(view, rows)` から取る。図の部品（Vico）は `ui/Charts.kt` に閉じる → architecture/views.md「ビュー機構」
 - カーネルのテストは疑似セッション注入、自動化のテストは `tick(now)` を直接呼ぶ。実 API を叩かない → architecture/agents.md「エージェント実行と Staging」・architecture/agents.md「自動実行」
 - 型はヒントと基底の種類で判定する（`field.multiline`・`field.placeholder`・`field.type == FieldType.DATE`）。`FieldType` は基底の種類（表現の基底と、値を持つ意味の基底型＝`ValueSemantics`）だけで、組込みの定義体（text / line / word）は `builtin-types/` の YAML。`FieldType.TEXT` のような分岐を足さない。使う側の決まりは狭めるだけ → architecture/schema.md「型の連鎖と狭める規則」
 - object を使う側の `fields` は同じキーを狭め新しいキーを足す（`SchemaTree.mergeFields`）。エンティティ型は要素の object の `entity` が、文書スキーマの `entity:`（ID の形）より優先。型の `constraints` は要素ごとの検査（`SemanticElementChecks`。グラフを使わない） → architecture/graph-query.md「エンティティ型と関係レジストリ」・architecture/checks.md「文書 1 つの検証」

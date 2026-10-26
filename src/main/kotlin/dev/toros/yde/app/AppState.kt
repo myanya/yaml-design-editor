@@ -1037,7 +1037,9 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         val seq = ensureSeq(root, arrayPath)
         val tree = doc.schema?.tree
         val element = if (tree == null) YNode.Map() else {
-            val made = ActionPlanner.newElement(tree, arrayDef, seq, params, overlayIndex().entries.keys, LocalDateTime.now(), dedupe = params.isNotEmpty())
+            // 配列を持つ要素（親）を渡す: 採番の接頭辞が `$of: self` で親の値（注文番号など）を読める
+            val holder = if (arrayPath.isEmpty()) root else dev.toros.yde.yaml.model.getAt(root, arrayPath.subList(0, arrayPath.size - 1))
+            val made = ActionPlanner.newElement(tree, arrayDef, seq, params, overlayIndex().entries.keys, LocalDateTime.now(), dedupe = params.isNotEmpty(), holder = holder)
             made.node ?: error(made.skipped ?: "追加できません")
         }
         seq.items.add(element)

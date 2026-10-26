@@ -4,6 +4,7 @@ import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.model.getAt
+import dev.toros.yde.yaml.model.parseYPath
 import dev.toros.yde.yaml.model.pretty
 import dev.toros.yde.yaml.model.scalarText
 import dev.toros.yde.semantic.schema.DerivationSelector
@@ -11,6 +12,7 @@ import dev.toros.yde.semantic.schema.ExpressionValue
 import dev.toros.yde.semantic.schema.NumberDisplay
 import dev.toros.yde.semantic.schema.PathPattern
 import dev.toros.yde.semantic.schema.idGlobToRegex
+import dev.toros.yde.semantic.schema.QueryEdgeStep
 import dev.toros.yde.semantic.schema.QueryNodeKind
 import dev.toros.yde.semantic.schema.QuerySpec
 import dev.toros.yde.semantic.schema.ValueExpr
@@ -123,6 +125,9 @@ sealed interface VirtualMatrixKey {
 
     /** 要素の値が列。values は列にする値の並び（値と見出し）。 */
     data class Value(val path: YPath, val pathText: String, val values: List<Pair<String, String?>>) : VirtualMatrixKey
+
+    /** 要素ごとに値の式で計算した値が列（P46。列は解決のときにデータから広げ、値の順序の種類で並べる）。 */
+    data class Expr(val value: ExpressionValue) : VirtualMatrixKey
 }
 
 /**
@@ -147,7 +152,15 @@ data class VirtualMatrixDef(
     val unclassified: String? = "（未分類）",
     /** セルの数の見せ方（桁区切り）。 */
     val display: NumberDisplay? = null,
-)
+    /**
+     * 行の軸を値の式で広げる（P46。`rows: {value: 式}`）: 照合の起点の要素ごとに式を計算し、同じ値を 1 行にまとめる。
+     * null＝行は rows.idPattern の論理 ID。
+     */
+    val rowsValue: ExpressionValue? = null,
+) {
+    /** 行か列の軸を値の式で広げるか（軸は解決のときに値から決まり、ヘッダは解決した行の列から取る＝VirtualViews.columnsOf）。 */
+    val usesPivot: Boolean get() = rowsValue != null || cells.key is VirtualMatrixKey.Expr
+}
 
 /** 行の集合の定義。idPattern に一致する論理IDが行になる。 */
 data class VirtualRowsDef(
@@ -216,6 +229,8 @@ data class VirtualDocSection(
     val fieldsExclude: List<String> = emptyList(),
     val backlinks: VirtualDocBacklinksDef? = null,
     val flowView: String? = null,
+    /** 埋め込むチャート（`chart: {view}`。P46。フロー図と同じ「ビューの部品」）。 */
+    val chartView: String? = null,
 )
 
 /** 要素単位アタッチ。at パターンに一致する要素の展開フォーム内へ、その要素のIDの被参照表を差し込む。 */
@@ -336,6 +351,8 @@ data class VirtualRow(
     val key: String = id,
     /** クエリ行の束縛（束縛名 → ノードID。従来の行では null）。 */
     val bindings: Map<String, String>? = null,
+    /** 値の軸の行（クロス集計の `rows.value`。id は値そのもので、原本の出現を持たない。合計の行ではない）。 */
+    val valueRow: Boolean = false,
 )
 
 // ---------------------------------------------------------------- 解決
@@ -364,6 +381,8 @@ object VirtualViews {
         val view = lower(viewDef, ids, rel)  // クロス集計は、列を広げたグリッドとして解決する
         val trees = mutableMapOf<DocumentId, YNode?>()
         fun cachedTree(document: DocumentId): YNode? = trees.getOrPut(document) { tree(document) }
+        // 軸を値の式で広げるクロス集計は、行・列ともデータから決める（P46）
+        viewDef.matrix?.takeIf { it.usesPivot }?.let { return resolvePivot(viewDef, it, ids, refs, graph, rel, ::cachedTree, fieldAt) }
         fun occurrencesOf(id: String): List<ScannedId> = ids[id].orEmpty()
 
         // バックリンク列の「参照元要素のID」解決。参照位置を含む最も長いパスの出現を最内のIDとみなす
@@ -541,7 +560,8 @@ object VirtualViews {
      * ヘッダを描く側（画面・書き出し）は、同じ索引でこの関数を呼ぶと、解決した行のセルと同じ列が得られる。
      */
     fun lower(view: VirtualGridDef, ids: Map<String, List<ScannedId>>, rel: (DocumentId) -> String): VirtualGridDef {
-        view.matrix?.let { return lowerMatrix(view, it, ids, rel) }
+        // 軸を値の式で広げるクロス集計は、列が解決のときに決まる（ヘッダは columnsOf で解決した行から取る）
+        view.matrix?.let { return if (it.usesPivot) view else lowerMatrix(view, it, ids, rel) }
         if (view.columns.none { it.each != null }) return view
         // 要素ごとに列を広げる（columns の each）: 列の要素を指す $名前 を、その要素の ID に置き換えた値の式の列にする
         val columns = view.columns.flatMap { column ->
@@ -596,8 +616,13 @@ object VirtualViews {
         val axis: List<Axis> = when (key) {
             is VirtualMatrixKey.Ref -> entitiesOf(ids, key.idPattern, key.schemaIds, key.order, rel).map { (id, label) -> Axis(id, label) }
             is VirtualMatrixKey.Value -> key.values.map { (v, label) -> Axis(v, label ?: v) }
+            is VirtualMatrixKey.Expr -> error("列の軸が値の式のクロス集計は、解決のときに列を決めます（resolvePivot）")
         }
-        val keyPath = when (key) { is VirtualMatrixKey.Ref -> key.via; is VirtualMatrixKey.Value -> key.pathText }
+        val keyPath = when (key) {
+            is VirtualMatrixKey.Ref -> key.via
+            is VirtualMatrixKey.Value -> key.pathText
+            is VirtualMatrixKey.Expr -> error("列の軸が値の式のクロス集計は、解決のときに列を決めます（resolvePivot）")
+        }
         fun narrowed(extraMatch: List<Any?>, extraWhere: List<Any?>): Map<String, Any?> {
             val all = LinkedHashMap<String, Any?>(cells.all)
             if (extraMatch.isNotEmpty()) all["match"] = (cells.all["match"] as? List<*>).orEmpty() + extraMatch
@@ -619,6 +644,7 @@ object VirtualViews {
                     narrowed(listOf(mapOf("edge" to mapOf("via" to key.via)), mapOf("node" to mapOf("id" to a.key))), emptyList()),
                 )
                 is VirtualMatrixKey.Value -> column(a.label, narrowed(emptyList(), listOf(mapOf("of" to cells.of, "path" to keyPath, "equals" to a.key))))
+                is VirtualMatrixKey.Expr -> error("列の軸が値の式のクロス集計は、解決のときに列を決めます（resolvePivot）")
             }
         }
         matrix.unclassified?.let { label ->
@@ -633,6 +659,204 @@ object VirtualViews {
         }
         if (matrix.totals) columns += column(TOTAL_LABEL, cells.all)
         return view.copy(columns = columns)
+    }
+
+    // ---------------------------------------------------------------- 軸を値の式で広げるクロス集計（P46）
+
+    /** 照合の起点の要素に束縛名が無いときの仮の名前。 */
+    private const val PIVOT_START = "_start"
+
+    /** 解決した行の列。軸を値の式で広げたクロス集計は lower では列が決まらないので、行のセルの列から取る（ふつうのビューでは同じ列）。 */
+    fun columnsOf(view: VirtualGridDef, rows: List<VirtualRow>): List<VirtualViewColumn> =
+        rows.firstOrNull { it.cells.isNotEmpty() }?.cells?.map { it.column } ?: view.columns
+
+    /** 集めた要素 1 つ: ノード・値を読む出現・集計する値（path）とその順序の種類・列の軸の値（参照先は複数ありうる。null＝未分類）。 */
+    private class PivotItem(
+        val node: SemanticQueryNodeRef,
+        val occurrence: SemanticExpression.Occurrence?,
+        val measure: String?,
+        val measureKind: ValueExpr.OrderKind?,
+        val columnKeys: List<String?>,
+    )
+
+    /**
+     * 軸を値の式で広げるクロス集計の解決。起点の要素（行が値の軸なら照合の最初の node に合う要素すべて・行が ID の軸なら rows.idPattern
+     * に合う ID）ごとに、cells の照合（all の形。path を外して要素そのものを集める）を起点を固定して評価し、集めた要素を
+     * 行の値（rows.value を起点で計算）× 列の値（参照先・項目の値・値の式を要素で計算）で振り分けて畳む。
+     * 列の軸と値の軸の行は、データに現れた値を順序の種類（数値・日付・文字）で並べる。未分類・合計の列と合計の行は従来と同じ。
+     */
+    private fun resolvePivot(
+        view: VirtualGridDef,
+        matrix: VirtualMatrixDef,
+        ids: Map<String, List<ScannedId>>,
+        refs: List<ScannedRef>,
+        graph: SemanticEntityGraph,
+        rel: (DocumentId) -> String,
+        tree: (DocumentId) -> YNode?,
+        fieldAt: FieldResolver,
+    ): List<VirtualRow> {
+        val cells = matrix.cells
+        val key = cells.key
+        fun entityNode(id: String): SemanticQueryNodeRef {
+            val occ = ids[id].orEmpty()
+            return SemanticQueryNodeRef(
+                QueryNodeKind.ENTITY, id, occ.firstNotNullOfOrNull { it.title }, occ.firstNotNullOfOrNull { it.entityType },
+                occ.firstOrNull()?.document, occ.firstOrNull()?.path ?: emptyList(),
+            )
+        }
+        fun occurrenceOf(node: SemanticQueryNodeRef, selector: DerivationSelector?): SemanticExpression.Occurrence? =
+            SemanticExpression.select(ids[node.id].orEmpty(), selector ?: DerivationSelector(), rel)
+                ?.let { SemanticExpression.Occurrence(it.document, it.path) }
+        fun environment(node: SemanticQueryNodeRef): SemanticValues.Environment = SemanticValues.Environment(
+            tree = tree, rel = rel, current = node, currentOccurrence = occurrenceOf(node, null), graph = graph,
+            refsInto = { id -> refs.filter { it.targetId == id } },
+            solveFrom = { origin, spec -> SemanticQuery.matchesFrom(ids, refs, graph, spec, origin.id, fieldAt, tree) },
+            reserved = buildMap {
+                put(SemanticValues.RESERVED_ID, node.id)
+                node.title?.let { put(SemanticValues.RESERVED_TITLE, it) }
+            },
+            fieldAt = fieldAt,
+        )
+        // 起点の要素
+        val starts: List<SemanticQueryNodeRef> = if (matrix.rowsValue != null) {
+            val first = (cells.all["match"] as? List<*>)?.firstOrNull() as? Map<*, *> ?: return emptyList()
+            val node = first["node"] as? Map<*, *> ?: return emptyList()
+            val bind = node["bind"]?.toString()?.takeIf { it.isNotBlank() } ?: PIVOT_START
+            val startNode = LinkedHashMap<Any?, Any?>(node).also { it["bind"] = bind }
+            val spec = QuerySpec.parse(mapOf("match" to listOf(mapOf("node" to startNode))), "cells.match")
+            SemanticQuery.run(ids, refs, graph, spec.copy(limit = Int.MAX_VALUE), fieldAt, tree).rows
+                .mapNotNull { it.bindings[bind] }.distinctBy { it.id }
+        } else {
+            val rowsDef = view.rows ?: return emptyList()
+            ids.entries
+                .filter { (id, occ) -> idMatchesPattern(id, rowsDef.idPattern) && (rowsDef.schemaIds.isEmpty() || occ.any { it.schemaId in rowsDef.schemaIds }) }
+                .map { (id, _) -> entityNode(id) }
+        }
+        // 集める式（path を外して要素そのものを集める）・集計する値・値を読む文書の指定
+        val collect = ValueExpr.parse(mapOf("all" to LinkedHashMap<String, Any?>(cells.all).also { it.remove("path") }), "cells", current = true)
+        val measurePath = cells.all["path"]?.toString()?.let { parseYPath(it) }
+        val inDoc = ValueExpr.parseSelector(cells.all["in"], "cells.in")
+        var exprKind: ValueExpr.OrderKind? = null
+        fun itemsFrom(start: SemanticQueryNodeRef): List<PivotItem> {
+            val side = SemanticValues.evaluate(collect, environment(start)) ?: return emptyList()
+            return side.elements.orEmpty().mapNotNull { it.ref }.map { node ->
+                val occ = occurrenceOf(node, inDoc)
+                val element = occ?.let { SemanticExpression.nodeAt(tree, it, emptyList()) }
+                val measure = measurePath?.let { p -> element?.let { scalarText(getAt(it, p)) } }
+                val measureKind = measurePath?.let { p -> occ?.let { o -> fieldAt(o.document, o.path + p)?.let { f -> ValueExpr.OrderKind.ofType(f.type) } } }
+                val keys: List<String?> = when (key) {
+                    // 参照先が列: その要素に書かれた via の参照の相手（複数なら各列に数える。無ければ未分類）
+                    is VirtualMatrixKey.Ref -> graph.ownRefs(node.id).filter { r ->
+                        occ != null && r.document == occ.document && r.path.size > occ.path.size &&
+                            r.path.subList(0, occ.path.size) == occ.path && QueryEdgeStep.viaMatches(key.via, r.viaKey, r.path)
+                    }.map { it.targetId }.ifEmpty { listOf(null) }
+                    is VirtualMatrixKey.Value -> listOf(element?.let { scalarText(getAt(it, key.path)) })
+                    is VirtualMatrixKey.Expr -> listOf(SemanticValues.evaluate(key.value.expr, environment(node))?.also { exprKind = exprKind ?: it.kind }?.text)
+                }
+                PivotItem(node, occ, measure, measureKind, keys)
+            }
+        }
+        // 行ごとに集める（行が値の軸なら同じ値を 1 行に、ID の軸なら起点ごとに 1 行）
+        class RowGroup(val key: String?, val kind: ValueExpr.OrderKind?, val start: SemanticQueryNodeRef?) {
+            val items = mutableListOf<PivotItem>()
+        }
+        val groups = LinkedHashMap<String?, RowGroup>()
+        for (start in starts) {
+            val rowsValue = matrix.rowsValue
+            val group = if (rowsValue == null) groups.getOrPut(start.id) { RowGroup(start.id, null, start) } else {
+                val side = SemanticValues.evaluate(rowsValue.expr, environment(start))
+                groups.getOrPut(side?.text) { RowGroup(side?.text, side?.kind, null) }
+            }
+            group.items += itemsFrom(start)
+        }
+        // 列の軸
+        data class Axis(val key: String, val label: String)
+        val axis: List<Axis> = when (key) {
+            is VirtualMatrixKey.Ref -> entitiesOf(ids, key.idPattern, key.schemaIds, key.order, rel).map { (id, label) -> Axis(id, label) }
+            is VirtualMatrixKey.Value -> key.values.map { (v, label) -> Axis(v, label ?: v) }
+            is VirtualMatrixKey.Expr -> groups.values.flatMap { g -> g.items.flatMap { it.columnKeys } }.filterNotNull().distinct()
+                .sortedWith(comparatorFor(exprKind) { it }).map { Axis(it, it) }
+        }
+        val columns = buildList {
+            axis.forEach { add(VirtualViewColumn(label = it.label, path = emptyList(), display = matrix.display)) }
+            matrix.unclassified?.let { add(VirtualViewColumn(label = it, path = emptyList(), display = matrix.display)) }
+            if (matrix.totals) add(VirtualViewColumn(label = TOTAL_LABEL, path = emptyList(), display = matrix.display))
+        }
+        val count = cells.aggregate == ValueExpr.AggregateFn.COUNT
+        val aggregateLabel = when (cells.aggregate) {
+            ValueExpr.AggregateFn.COUNT -> "件数"
+            ValueExpr.AggregateFn.SUM -> "合計"
+            ValueExpr.AggregateFn.MIN -> "最小"
+            ValueExpr.AggregateFn.MAX -> "最大"
+        }
+        fun cell(column: VirtualViewColumn, items: List<PivotItem>): VirtualCell {
+            val distinct = items.distinctBy { it.node.id }
+            val kind = if (count) ValueExpr.OrderKind.NUMBER else cells.kind ?: distinct.firstNotNullOfOrNull { it.measureKind } ?: ValueExpr.OrderKind.NUMBER
+            val unreadable = if (count) null else distinct.firstOrNull { it.measure == null }
+            if (unreadable != null) {
+                val name = "${unreadable.node.id} ${measurePath?.pretty()}"
+                return VirtualCell(column, null, null, null, computed = true, trace = VirtualComputedTrace("$name が書かれていません", emptyList()), kind = kind)
+            }
+            val values = distinct.map { if (count) it.node.id else it.measure!! }
+            val inputs = distinct.map { item ->
+                VirtualComputedInput(
+                    item.node.id, if (count) item.node.id else item.measure, item.occurrence?.document,
+                    item.occurrence?.path?.let { p -> if (count || measurePath == null) p else p + measurePath },
+                )
+            }
+            val text = SemanticExpression.aggregate(cells.aggregate, values, kind)
+            return VirtualCell(
+                column, null, null, text?.let { YNode.Scalar(it) }, computed = true,
+                trace = VirtualComputedTrace("$aggregateLabel: " + values.joinToString("・"), inputs), kind = kind,
+            )
+        }
+        fun rowOf(group: RowGroup): VirtualRow {
+            val cellList = buildList {
+                axis.forEachIndexed { i, a -> add(cell(columns[i], group.items.filter { a.key in it.columnKeys })) }
+                var i = axis.size
+                // 未分類: 値が無いか、どの列の値でもない要素
+                if (matrix.unclassified != null) {
+                    add(cell(columns[i], group.items.filter { item -> item.columnKeys.none { k -> k != null && axis.any { a -> a.key == k } } }))
+                    i++
+                }
+                if (matrix.totals) add(cell(columns[i], group.items))
+            }
+            val start = group.start
+            return if (start != null) {
+                VirtualRow(id = start.id, title = start.title, occurrences = ids[start.id].orEmpty(), cells = cellList, detailDocument = null, detailPath = null)
+            } else {
+                VirtualRow(
+                    id = group.key ?: matrix.unclassified ?: "（未分類）", title = null, occurrences = emptyList(), cells = cellList,
+                    detailDocument = null, detailPath = null, valueRow = true,
+                )
+            }
+        }
+        val lowered = view.copy(columns = columns)
+        val rows: List<VirtualRow> = if (matrix.rowsValue != null) {
+            val keyed = groups.values.filter { it.key != null }
+            val kind = keyed.firstNotNullOfOrNull { it.kind }
+            val unclassifiedRow = groups[null]?.takeIf { it.items.isNotEmpty() && matrix.unclassified != null }
+            keyed.sortedWith(comparatorFor(kind) { it.key!! }).map(::rowOf) + listOfNotNull(unclassifiedRow?.let(::rowOf))
+        } else {
+            sortRows(lowered, groups.values.map(::rowOf), rel, tree, fieldAt)
+        }
+        return withTotals(lowered, rows)
+    }
+
+    /** 値の軸の並び: 順序の種類（数値・日付など）が分かればその順、分からなければ文字の順（`2026-10` のような年月は文字の順で時間の順）。 */
+    private fun <T> comparatorFor(kind: ValueExpr.OrderKind?, key: (T) -> String): Comparator<T> = Comparator { a, b ->
+        val x = key(a)
+        val y = key(b)
+        val ordered: Int? = when {
+            kind == ValueExpr.OrderKind.NUMBER -> {
+                val p = SemanticExpression.numberOf(x)
+                val q = SemanticExpression.numberOf(y)
+                if (p != null && q != null) p.compareTo(q) else null
+            }
+            kind?.value != null -> kind.value.compare(x, y)
+            else -> null
+        }
+        ordered ?: x.compareTo(y)
     }
 
     /** クロス集計の合計の行: 各列のセルの値を畳む（件数と合計は足し、最小・最大はその順で選ぶ）。読めないセルがあれば、その列の合計は無い。 */

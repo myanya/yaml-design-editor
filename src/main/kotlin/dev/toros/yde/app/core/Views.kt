@@ -3,9 +3,12 @@ package dev.toros.yde.app.core
 import dev.toros.yde.app.index.IdEntry
 import dev.toros.yde.app.index.IdIndex
 import dev.toros.yde.app.index.RefEntry
+import dev.toros.yde.semantic.ChartData
+import dev.toros.yde.semantic.ChartViews
 import dev.toros.yde.semantic.VirtualBacklink
 import dev.toros.yde.semantic.VirtualBacklinksDef
 import dev.toros.yde.semantic.VirtualCell
+import dev.toros.yde.semantic.VirtualChartDef
 import dev.toros.yde.semantic.VirtualComputedInput
 import dev.toros.yde.semantic.VirtualComputedTrace
 import dev.toros.yde.semantic.VirtualDetailDef
@@ -108,9 +111,14 @@ object Views {
         /** レンズの見え方（kind: lens）。レンズは全部の定義を合わせて読む。 */
         val lensViews: List<dev.toros.yde.semantic.VirtualLensDef> = emptyList(),
         val dashboards: List<dev.toros.yde.semantic.VirtualDashboardDef> = emptyList(),
+        /** チャート（kind: chart。P46）。 */
+        val chartViews: List<VirtualChartDef> = emptyList(),
     ) {
         fun dashboard(id: String): dev.toros.yde.semantic.VirtualDashboardDef? =
             (views + docViews + flowViews + lensViews + dashboards).singleOrNull { it.id == id } as? dev.toros.yde.semantic.VirtualDashboardDef
+
+        fun chartView(id: String): VirtualChartDef? =
+            (views + docViews + flowViews + lensViews + dashboards + chartViews).singleOrNull { it.id == id } as? VirtualChartDef
 
         /** 既定指定が重複したときは勝手に選ばず、先頭の一意な定義と診断を表示する。 */
         fun defaultDashboard(): dev.toros.yde.semantic.VirtualDashboardDef? =
@@ -159,7 +167,57 @@ object Views {
             document to if (loader == null) Files.readString(file) else loader(document)?.let(YamlIO::dumpPlain).orEmpty()
         }
         val catalog = ViewDefinitions.load(sources, schemas.map { it.kernel })
-        return LoadResult(catalog.views, catalog.docViews, catalog.errors, catalog.flowViews, catalog.lensViews, catalog.dashboards)
+        return LoadResult(catalog.views, catalog.docViews, catalog.errors, catalog.flowViews, catalog.lensViews, catalog.dashboards, catalog.chartViews)
+    }
+
+    /**
+     * チャート（P46）を解決する: 元の表（グリッドかクロス集計）を同じ索引・原本で解決し、項目（行）× 系列（列）の数にする。
+     * 元の表が無ければ null。描画は画面だけで、CLI と read_view は数を返す。
+     */
+    fun resolveChart(
+        chart: VirtualChartDef, loaded: LoadResult, index: IdIndex, loader: (DocumentId) -> YNode?,
+        schemaFor: (DocumentId) -> SchemaDef? = { null },
+    ): ChartData? {
+        val source = loaded.view(chart.view) ?: return null
+        return ChartViews.resolve(chart, source, resolve(source, index, loader, schemaFor))
+    }
+
+    /** 解決した行の列（軸を値の式で広げたクロス集計は、列が解決のときに決まる）。ヘッダと書き出しはこれを使う。 */
+    fun columnsOf(view: ViewDef, rows: List<ViewRow>): List<ViewColumn> = VirtualViews.columnsOf(view, rows)
+
+    /** チャートの形（棒・点・扇形）を押したときの材料 1 件: 来歴の入力（集めた要素の値と場所）に、その場所を含む最も内側の ID を添える。 */
+    data class ChartMaterial(val id: String?, val title: String?, val label: String, val value: String?, val document: DocumentId?, val path: YPath?)
+
+    /** 押した項目の、系列 1 つぶんの材料（セルと、その来歴）。 */
+    data class ChartMaterialGroup(val series: dev.toros.yde.semantic.ChartSeriesResolved, val value: Double?, val cell: ViewCell?, val materials: List<ChartMaterial>)
+
+    /** チャートで押した項目（と系列。null＝その項目のすべての系列）。 */
+    data class ChartSelection(val category: dev.toros.yde.semantic.ChartCategory, val seriesIndex: Int?, val groups: List<ChartMaterialGroup>)
+
+    /**
+     * 押した形の材料を集める: 対応するセル（項目 × 系列）の来歴の入力（集めた要素・計算の材料）を並べ、各入力の場所を含む
+     * 最も内側の ID（索引から）を添える。表のセルを押したときと同じ材料で、業務詳細（ID）か原本（場所）へ進める。
+     */
+    fun chartSelection(data: ChartData, categoryIndex: Int, seriesIndex: Int?, index: IdIndex): ChartSelection? {
+        val category = data.categories.getOrNull(categoryIndex) ?: return null
+        val byDocument: Map<DocumentId, List<IdEntry>> by lazy { index.entries.values.flatten().groupBy { it.document } }
+        fun innermost(document: DocumentId?, path: YPath?): IdEntry? {
+            if (document == null || path == null) return null
+            return byDocument[document].orEmpty()
+                .filter { it.path.size <= path.size && path.subList(0, it.path.size) == it.path }
+                .maxByOrNull { it.path.size }
+        }
+        val chosen = if (seriesIndex == null) data.series.indices.toList() else listOfNotNull(seriesIndex.takeIf { it in data.series.indices })
+        val groups = chosen.map { si ->
+            val s = data.series[si]
+            val cell = s.cells.getOrNull(categoryIndex)
+            val materials = cell?.trace?.inputs.orEmpty().map { input ->
+                val entry = innermost(input.document, input.path)
+                ChartMaterial(entry?.id, entry?.title, input.placeholder, input.value, input.document, input.path)
+            }
+            ChartMaterialGroup(s, s.values.getOrNull(categoryIndex), cell, materials)
+        }
+        return ChartSelection(category, seriesIndex, groups)
     }
 
     /** ビュー定義文書の座標（ワークスペース相対の文書ID。ワークスペースの外のパスは、そのままの文字列）。 */

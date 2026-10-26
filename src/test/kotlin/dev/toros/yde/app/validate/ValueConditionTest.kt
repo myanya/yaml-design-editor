@@ -40,7 +40,22 @@ class ValueConditionTest {
                 - { key: qty, type: number }
                 - { key: total, type: number }
                 - { key: note, type: string }
+                - { key: date, type: date }
             constraints:
+              - id: ordered-in-2026
+                description: 明細の日付は 2026 年以降であること
+                match:
+                  - node: { entity: order-line, bind: line }
+                check:
+                  - gte: [{ year: { of: line, path: date } }, 2026]
+                level: error
+              - id: month-key-shape
+                description: 年月の鍵は「YYYY-MM」の形であること
+                match:
+                  - node: { entity: order-line, bind: line }
+                check:
+                  - matches: [{ yearMonth: { of: line, path: date } }, "[0-9]{4}-[0-9]{2}"]
+                level: error
               - id: name-length
                 description: 名称は10文字以内であること
                 match:
@@ -91,6 +106,9 @@ class ValueConditionTest {
         write("lines/OL-NOTE.yaml", "id: OL-NOTE\nname: 備考なし\nstatus: approved\nqty: 120\nnote: \"\"")
         write("lines/OL-SMALL.yaml", "id: OL-SMALL\nname: 少量\nstatus: approved\nqty: 5")
         write("lines/OL-TEXT.yaml", "id: OL-TEXT\nname: 数量が文字\nstatus: approved\nprice: 100\nqty: 多数\ntotal: 300")
+        write("lines/OL-DATE.yaml", "id: OL-DATE\nname: 古い日付\nstatus: draft\ndate: 2025-09-30")
+        write("lines/OL-DATE-OK.yaml", "id: OL-DATE-OK\nname: 今年の日付\nstatus: draft\ndate: 2026-10-25")
+        write("lines/OL-DATE-TEXT.yaml", "id: OL-DATE-TEXT\nname: 日付が文字\nstatus: draft\ndate: 昨日")
     }
 
     @AfterTest
@@ -138,6 +156,23 @@ class ValueConditionTest {
         val issue = errorsOf(Workspace.open(dir), "lines/OL-CODE.yaml").single()
         // AB-1 は「英字-数字3桁」の全体には一致しない（部分一致では判定しない）
         assertTrue("code の大文字: AB-1" in issue.message && "が次の正規表現に一致しない:" in issue.message, issue.message)
+    }
+
+    @Test
+    fun `日付の部分は数として比べ読めない日付は判定保留で黙る`() {
+        val ws = Workspace.open(dir)
+        assertEquals(emptyList(), ws.schemaErrors)
+        // 2025-09-30 の年 2025 は 2026 以上でない（数として比べる）。年月の形の検査は満たす
+        val issue = errorsOf(ws, "lines/OL-DATE.yaml").single()
+        assertTrue("date の年: 2025" in issue.message && "「2026」" in issue.message, issue.message)
+        assertTrue("2026 年以降" in issue.message, issue.message)
+        assertEquals(emptyList(), errorsOf(ws, "lines/OL-DATE-OK.yaml").map { it.message })
+        // 日付として読めない値は、項目の型（date）の形式の指摘だけが出て、日付の部分の検査は判定保留（黙る）
+        val textIssues = errorsOf(ws, "lines/OL-DATE-TEXT.yaml").map { it.message }
+        assertEquals(1, textIssues.size, textIssues.toString())
+        assertTrue("形式" in textIssues.single(), textIssues.single())
+        // 日付を書いていない明細も判定保留
+        assertEquals(emptyList(), errorsOf(ws, "lines/OL-SMALL.yaml").map { it.message })
     }
 
     @Test

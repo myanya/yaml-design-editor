@@ -51,7 +51,7 @@
 - **判定 `check`**: `{演算子: [値の式, 値の式]}` の配列（すべて成立が期待）。演算子は `eq` / `ne`・`lte` / `gte` / `lt` / `gt`・`oneOf`・`matches`・`startsWith` / `endsWith` / `contains`、`{not}` / `{or}`。評価は解ごとに出現割当て σ を反例量化し、条件を満たさない最初の組を反例として返す（決定的）。1 項目内の σ は一貫（同一束縛の両辺は同一出現）。値が読めない組は評価しない。反例は文面の列挙と `relatedIds` のジャンプになる。
 - 順序の比較には `type`（number / date / time / datetime）を添えられ、省けば値を読んだ項目の型で比べる（`CheckTerm.kind`。`where` も同じ）。
 - **すべての要素について `forAll`**: もう 1 つの集まり `node`・辿り始める束縛 `from`・連鎖 `steps`。集まりの要素ごとに連鎖を解き、解がなく候補の喪失も無かった要素が不足（`{count}` `{missing}`）。網羅マトリクス（`matrix`）はこれへ展開される語彙。
-- **値の式と値の計算**: 読み出し・決まった値・`format`・`map`・`first`・`length` / `upper` / `lower` / `number`・四則演算（BigDecimal）・参照の本数 `refCount`（相手が見つからない参照も数える）・書かれた場所の数 `occurrenceCount`（スキーマ・ファイル・役割で絞る。`distinct: type` は型の種類の数）・集計 `sum` / `min` / `max` / `count`（配列を受け取る関数）。
+- **値の式と値の計算**: 読み出し・決まった値・`format`・`map`・`first`・`length` / `upper` / `lower` / `number`・日付の部分 `year` / `month` / `day`（数）/ `yearMonth`（文字。`ValueSemantics` の正準の形で読む）・四則演算（BigDecimal）・参照の本数 `refCount`（相手が見つからない参照も数える）・書かれた場所の数 `occurrenceCount`（スキーマ・ファイル・役割で絞る。`distinct: type` は型の種類の数）・集計 `sum` / `min` / `max` / `count`（配列を受け取る関数）。
   集合から配列へ `all`（同じ起点の全ての解にわたる形と、`from` の束縛を起点に固定した照合の形）・要素ごとの式 `each`。評価できないときは null（判定保留）。
   制約の `count`（解の組の件数の範囲）と `all` の件数は数え方の単位が違うので統合しない（[schema.md「値の式」](schema.md)）。
 - **値を読む文書の指定 `in`**（値の読み出しと `edge`）、**参照の束縛**（edge の `bind`）、**指摘の場所 `reportAt`**（値が書かれた場所・`{ref}`＝参照の場所）。

@@ -583,9 +583,19 @@ class AgentToolbox(
             } + loaded.lensViews.map { v ->
                 "- ${v.id}（${v.name}）: レンズの見え方（表示だけ。読めるデータは無い） 関係=" +
                     v.relations.joinToString(", ") { "${it.name}:${it.arrow.id}" }.ifEmpty { "なし" }
+            } + loaded.chartViews.map { v ->
+                "- ${v.id}（${v.name}）: チャート（${v.kind.label}） 元の表=${v.view}" +
+                    (if (v.series.isEmpty()) "" else " 系列=" + v.series.joinToString("/"))
             }
             return lines.joinToString("\n") +
                 (if (loaded.errors.isEmpty()) "" else "\n定義エラー:\n" + loaded.errors.joinToString("\n") { "- $it" })
+        }
+        // チャート（P46）: 元の表をステージングの索引で解決し、項目×系列の数を返す
+        loaded.chartView(viewId)?.let { chart ->
+            require(fileRel == null && rowsPattern == null && columns == null) { "チャートではfile / rows / columnsを指定しません" }
+            val data = Views.resolveChart(chart, loaded, staging.index(), { d -> staging.tree(d.value) }, ws::schemaFor)
+                ?: error("チャート「${chart.id}」の元の表「${chart.view}」が見つかりません")
+            return dev.toros.yde.semantic.ChartViews.renderText(data)
         }
         loaded.dashboard(viewId)?.let { dashboard ->
             require(fileRel == null && rowsPattern == null && columns == null) { "ダッシュボードではfile / rows / columnsを指定しません" }

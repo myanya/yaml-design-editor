@@ -1,0 +1,11 @@
+orderId: ORD-071
+orderedAt: 2026-07-02
+status: shipped
+customerId: CUS-017
+totalAmount: 1050
+lines:
+  - orderLineId: ORD-071-01
+    productId: PRD-007
+    quantity: 3
+    unitPrice: 350
+    amount: 1050

@@ -344,10 +344,21 @@ internal fun runCli(args: Array<String>): String {
                                 "id" to v.id, "name" to v.name, "kind" to "lens",
                                 "relations" to v.relations.map { "${it.name}: ${it.arrow.id}" },
                             )
+                        } + loaded.chartViews.map { v ->
+                            linkedMapOf(
+                                "id" to v.id, "name" to v.name, "kind" to "chart", "chart" to v.kind.id, "source" to v.view,
+                                "series" to v.series.takeIf { it.isNotEmpty() },
+                            ).filterValues { it != null }
                         }),
                         "errors" to loaded.errors,
                     )
                 )
+            // チャート（P46）: 元の表を解決して、項目×系列の数を返す（描画は画面だけ）
+            loaded.chartView(viewId)?.let { chart ->
+                val data = Views.resolveChart(chart, loaded, ws.index, ws::treeOf, ws::schemaFor)
+                    ?: error("チャート「${chart.id}」の元の表「${chart.view}」が見つかりません")
+                return dumpYaml(dev.toros.yde.semantic.ChartViews.report(data, loaded.errors))
+            }
             loaded.dashboard(viewId)?.let { dashboard ->
                 val dateIndex = rest.indexOf("--date")
                 val date = if (dateIndex < 0) java.time.LocalDate.now() else {

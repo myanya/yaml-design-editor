@@ -33,10 +33,15 @@ import dev.toros.yde.semantic.VirtualLensDef
 import dev.toros.yde.semantic.VirtualLensRelation
 import dev.toros.yde.semantic.VirtualFlowDef
 import dev.toros.yde.semantic.VirtualDashboardDef
+import dev.toros.yde.semantic.DashboardPlacement
 import dev.toros.yde.semantic.DashboardSection
 import dev.toros.yde.semantic.schema.ActionRequire
 import dev.toros.yde.semantic.schema.TransformDef
 import dev.toros.yde.semantic.VirtualMatrixCells
+import dev.toros.yde.semantic.ChartDrill
+import dev.toros.yde.semantic.ChartKind
+import dev.toros.yde.semantic.ChartOrder
+import dev.toros.yde.semantic.VirtualChartDef
 import dev.toros.yde.semantic.VirtualMatrixDef
 import dev.toros.yde.semantic.VirtualMatrixKey
 import dev.toros.yde.semantic.VirtualNewRowDef
@@ -56,12 +61,16 @@ data class ViewCatalog(
     /** レンズの見え方（kind: lens）。レンズは全部の定義を合わせて読む。 */
     val lensViews: List<VirtualLensDef> = emptyList(),
     val dashboards: List<VirtualDashboardDef> = emptyList(),
+    /** チャート（kind: chart。P46）。元の表（グリッドかクロス集計）を数にして描く部品。 */
+    val chartViews: List<VirtualChartDef> = emptyList(),
 ) {
     fun view(id: String): VirtualGridDef? = views.firstOrNull { it.id == id }
 
     fun docView(id: String): VirtualDocViewDef? = docViews.firstOrNull { it.id == id }
 
     fun flowView(id: String): VirtualFlowDef? = flowViews.firstOrNull { it.id == id }
+
+    fun chartView(id: String): VirtualChartDef? = chartViews.firstOrNull { it.id == id }
 
     /** 文書に適用する文書ビュー。スキーマの match と同じ「定義ファイル名順の先勝ち」。 */
     fun docViewFor(relPath: String, schemaId: String?): VirtualDocViewDef? =
@@ -101,17 +110,34 @@ object ViewDefinitions {
         val flowViews = all.filterIsInstance<VirtualFlowDef>()
         val lensViews = all.filterIsInstance<VirtualLensDef>()
         val dashboards = all.filterIsInstance<VirtualDashboardDef>()
+        val chartViews = all.filterIsInstance<VirtualChartDef>()
         if (dashboards.count { it.default } > 1) errors += "既定のダッシュボード（default: true）は1件だけ指定してください"
         dashboards.forEach { dashboard ->
             dashboard.sections.forEach { section ->
                 val target = all.filter { it.id == section.view }
-                if (target.size != 1 || target.singleOrNull() !is VirtualGridDef) {
-                    errors += "${fileName(dashboard.source)}: sections.${section.id}.view「${section.view}」は一意なグリッドまたはクロス集計を参照してください"
-                } else if ((target.single() as VirtualGridDef).matrix != null && section.filter != null) {
-                    errors += "${fileName(dashboard.source)}: クロス集計の区画にはfilterを指定できません（合計との不一致を防ぐため）"
+                val single = target.singleOrNull()
+                when {
+                    single is VirtualChartDef -> if (section.filter != null) {
+                        errors += "${fileName(dashboard.source)}: チャートの区画にはfilterを指定できません（絞り込みは元の表で）"
+                    }
+                    single !is VirtualGridDef ->
+                        errors += "${fileName(dashboard.source)}: sections.${section.id}.view「${section.view}」は一意なグリッド・クロス集計・チャートを参照してください"
+                    single.matrix != null && section.filter != null ->
+                        errors += "${fileName(dashboard.source)}: クロス集計の区画にはfilterを指定できません（合計との不一致を防ぐため）"
                 }
             }
             if (schemas.isNotEmpty()) errors += lintDashboard(dashboard, schemas)
+        }
+        // チャート（P46）: 元の表が一意なグリッドかクロス集計であること。系列と横軸の列は、列が宣言で決まるグリッドだけ点検する
+        chartViews.forEach { chart ->
+            val source = all.filter { it.id == chart.view }.singleOrNull() as? VirtualGridDef
+            if (source == null) {
+                errors += "${fileName(chart.source)}: チャート「${chart.id}」の元の表（view）「${chart.view}」は一意なグリッドまたはクロス集計を参照してください"
+            } else if (source.matrix == null && source.columns.none { it.each != null }) {
+                (chart.series + listOfNotNull(chart.x, chart.order?.series)).filterNot { label -> source.columns.any { it.label == label } }.forEach {
+                    errors += "${fileName(chart.source)}: チャート「${chart.id}」の列「$it」は元の表「${source.id}」にありません"
+                }
+            }
         }
         if (schemas.isNotEmpty()) errors += lint(views, docViews, schemas)
         if (schemas.isNotEmpty()) errors += lintFlows(flowViews, schemas)
@@ -123,8 +149,17 @@ object ViewDefinitions {
                     errors += "${fileName(doc.source)}: sections[$i].flow.view「$target」は一意なflowビューを参照してください"
                 }
             }
+            section.chartView?.let { target ->
+                val matches = all.filter { it.id == target }
+                if (matches.size != 1 || matches.singleOrNull() !is VirtualChartDef) {
+                    errors += "${fileName(doc.source)}: sections[$i].chart.view「$target」は一意なチャート（kind: chart）を参照してください"
+                }
+            }
         } }
-        return ViewCatalog(views = views, docViews = docViews, errors = errors, flowViews = flowViews, lensViews = lensViews, dashboards = dashboards)
+        return ViewCatalog(
+            views = views, docViews = docViews, errors = errors, flowViews = flowViews, lensViews = lensViews, dashboards = dashboards,
+            chartViews = chartViews,
+        )
     }
 
     /**
@@ -144,6 +179,8 @@ object ViewDefinitions {
             is VirtualFlowDef -> lintFlows(listOf(def), schemas)
             is VirtualLensDef -> lintLens(listOf(def), schemas)
             is VirtualDashboardDef -> lintDashboard(def, schemas)
+            // チャートの点検（元の表の有無・列）はカタログ全体でしか決まらない（load で行う）
+            is VirtualChartDef -> emptyList()
         }
     }
 
@@ -159,8 +196,48 @@ object ViewDefinitions {
             "flow" -> parseFlowView(raw, source)
             "lens" -> parseLensView(raw, source)
             "dashboard" -> parseDashboard(raw, source)
-            else -> error("kind は grid / document / matrix / flow / lens / dashboard のいずれかである必要があります: $kind")
+            "chart" -> parseChartView(raw, source)
+            else -> error("kind は grid / document / matrix / flow / lens / dashboard / chart のいずれかである必要があります: $kind")
         }
+
+    /**
+     * チャート（kind: chart。P46）のパース: 図の種類（chart）・元の表（view）・系列にする列（series）・横軸の列（x）・縦軸の見出しと形（y）。
+     * 元の表との整合（存在・列の有無）はカタログの読み込みで点検する。
+     */
+    private fun parseChartView(raw: Map<*, *>, source: DocumentId): VirtualChartDef {
+        val keys = setOf("id", "name", "description", "kind", "chart", "view", "series", "x", "y", "drill", "order")
+        raw.keys.firstOrNull { it !in keys }?.let { error("kind: chart では使えないキーです: $it（使えるキー: ${keys.joinToString(", ")}）") }
+        fun text(key: String): String? = if (!raw.containsKey(key)) null else
+            (raw[key] as? String)?.takeIf { it.isNotBlank() } ?: error("$key は空でない文字列で書きます")
+        val id = text("id") ?: error("id が必要です")
+        val kind = ChartKind.parse(text("chart") ?: error("chart（図の種類: ${ChartKind.entries.joinToString(" / ") { it.id }}）が必要です"), "chart")
+        val view = text("view") ?: error("view（元の表＝グリッドかクロス集計のビュー ID）が必要です")
+        val series = when (val s = raw["series"]) {
+            null -> emptyList()
+            is List<*> -> s.map { it?.toString()?.takeIf { t -> t.isNotBlank() } ?: error("series は列の見出しの配列で書きます") }
+            else -> error("series は列の見出しの配列で書きます")
+        }
+        val y = raw["y"]?.let { it as? Map<*, *> ?: error("y は {label, format} で書きます") }
+        y?.keys?.firstOrNull { it != "label" && it != "format" }?.let { error("y に書けるキーは label / format です: $it") }
+        val format = y?.get("format")?.toString()?.takeIf { it.isNotBlank() }?.also { f ->
+            require(f.any { it == '0' || it == '#' } && runCatching { java.text.DecimalFormat(f) }.isSuccess) { "y.format は数の形（DecimalFormat のパターン。例 #,##0）で書きます: $f" }
+        }
+        // 押したときの材料の見せ方（省略時は浮いた一覧）
+        val drill = if (!raw.containsKey("drill")) ChartDrill.POPUP else ChartDrill.parse(raw["drill"]?.toString(), "drill")
+        // 項目の並び: {series: 列の見出し（省略＝最初の系列）, direction: asc | desc}
+        val order = raw["order"]?.let { o ->
+            val om = o as? Map<*, *> ?: error("order は {series, direction} で書きます（例 {direction: desc}）")
+            om.keys.firstOrNull { it != "series" && it != "direction" }?.let { error("order に書けるキーは series / direction です: $it") }
+            val direction = om["direction"]?.toString() ?: "asc"
+            require(direction == "asc" || direction == "desc") { "order.direction は asc / desc で書きます: $direction" }
+            ChartOrder(series = om["series"]?.toString()?.takeIf { it.isNotBlank() }, descending = direction == "desc")
+        }
+        return VirtualChartDef(
+            id = id, name = text("name") ?: id, description = text("description"), source = source,
+            kind = kind, view = view, series = series, x = text("x"),
+            yLabel = y?.get("label")?.toString()?.takeIf { it.isNotBlank() }, format = format, drill = drill, order = order,
+        )
+    }
 
     private fun parseDashboard(raw: Map<*, *>, source: DocumentId): VirtualDashboardDef {
         fun keys(map: Map<*, *>, allowed: Set<String>, at: String) {
@@ -168,7 +245,7 @@ object ViewDefinitions {
         }
         fun text(map: Map<*, *>, key: String, at: String): String =
             (map[key] as? String)?.takeIf { it.isNotBlank() } ?: error("$at.$key は空でない文字列で指定してください")
-        keys(raw, setOf("id", "name", "description", "kind", "sections", "actions", "default"), "dashboard")
+        keys(raw, setOf("id", "name", "description", "kind", "sections", "actions", "default", "placement"), "dashboard")
         require(!raw.containsKey("default") || raw["default"] is Boolean) { "dashboard.default は真偽値で指定してください" }
         val id = text(raw, "id", "dashboard")
         val sections = (raw["sections"] as? List<*>)?.takeIf { it.isNotEmpty() }
@@ -176,10 +253,11 @@ object ViewDefinitions {
         val parsed = sections.mapIndexed { i, item ->
             val at = "dashboard.sections[$i]"
             val map = item as? Map<*, *> ?: error("$at はobjectで指定してください")
-            keys(map, setOf("id", "label", "view", "filter"), at)
+            keys(map, setOf("id", "label", "view", "filter", "group"), at)
             val key = text(map, "id", at)
             DashboardSection(key, map["label"]?.let { text(map, "label", at) } ?: key, text(map, "view", at),
-                map["filter"]?.let { ActionRequire.parse(it, "$at.filter", setOf("today"), hasStart = true) })
+                map["filter"]?.let { ActionRequire.parse(it, "$at.filter", setOf("today"), hasStart = true) },
+                group = map["group"]?.let { text(map, "group", at) })
         }
         require(parsed.map { it.id }.distinct().size == parsed.size) { "dashboard.sections のidが重複しています" }
         val actions = when (val value = raw["actions"]) {
@@ -189,7 +267,8 @@ object ViewDefinitions {
         }
         require(actions.distinct().size == actions.size) { "dashboard.actions の操作IDが重複しています" }
         return VirtualDashboardDef(id, raw["name"]?.let { text(raw, "name", "dashboard") } ?: id,
-            raw["description"]?.let { text(raw, "description", "dashboard") }, source, parsed, actions, raw["default"] == true)
+            raw["description"]?.let { text(raw, "description", "dashboard") }, source, parsed, actions, raw["default"] == true,
+            placement = raw["placement"]?.let { DashboardPlacement.parse(it as? String, "dashboard.placement") } ?: DashboardPlacement.AUTO)
     }
 
     private fun lintDashboard(view: VirtualDashboardDef, schemas: List<WorkspaceSchema>): List<String> =
@@ -268,9 +347,16 @@ object ViewDefinitions {
         listOf("columns", "detail", "newRow", "sections", "attachments", "match", "schemaId").firstOrNull { raw.containsKey(it) }
             ?.let { error("$it は kind: matrix のビューでは使えません（列は cells.columns で決まります）") }
         val rowsMap = raw["rows"] as? Map<*, *> ?: error("rows が必要です")
-        if (rowsMap.containsKey("match")) error("kind: matrix の rows は idPattern で書きます（クエリ行は使えません）")
-        val rowsDef = VirtualRowsDef(
-            idPattern = rowsMap["idPattern"]?.toString()?.takeIf { it.isNotBlank() } ?: error("rows.idPattern が必要です"),
+        if (rowsMap.containsKey("match")) error("kind: matrix の rows は idPattern か value で書きます（クエリ行は使えません）")
+        // 行の軸: 論理 ID（idPattern）か、起点の要素ごとに計算した値（value。P46。同じ値を 1 行にまとめる）
+        val rowsValue = rowsMap["value"]?.let { v ->
+            rowsMap.keys.map { it.toString() }.firstOrNull { it != "value" }
+                ?.let { error("rows.value と rows.$it は一緒に書けません（行の軸は ID か値のどちらか）") }
+            if (raw.containsKey("order")) error("行の軸が値（rows.value）のクロス集計に order は書けません（値の順に並びます）")
+            ExpressionValue.of(v, "rows.value", "行")
+        }
+        val rowsDef = if (rowsValue != null) null else VirtualRowsDef(
+            idPattern = rowsMap["idPattern"]?.toString()?.takeIf { it.isNotBlank() } ?: error("rows.idPattern か rows.value が必要です"),
             schemaIds = stringList(rowsMap["schemaIds"]),
         )
         val orderMap = raw["order"] as? Map<*, *>
@@ -323,6 +409,7 @@ object ViewDefinitions {
                 totals = totals,
                 unclassified = unclassified,
                 display = display,
+                rowsValue = rowsValue,
             ),
         )
     }
@@ -331,7 +418,12 @@ object ViewDefinitions {
     private fun parseMatrixKey(m: Map<*, *>): VirtualMatrixKey {
         val via = m["via"]?.toString()?.takeIf { it.isNotBlank() }
         val pathText = m["path"]?.toString()?.takeIf { it.isNotBlank() }
-        if (via == null && pathText == null) error("cells.columns には via（要素の参照先を列に）か path（要素の値を列に）が必要です")
+        // 値の式が列（P46）: 要素ごとに計算した値で列を広げる（列はデータから決まる。他の書き方とは一緒に書けない）
+        if (m.containsKey("value")) {
+            m.keys.map { it.toString() }.firstOrNull { it != "value" }?.let { error("cells.columns の value と $it は一緒に書けません（列の軸は値の式だけで決まります）") }
+            return VirtualMatrixKey.Expr(ExpressionValue.of(m["value"], "cells.columns.value", "列"))
+        }
+        if (via == null && pathText == null) error("cells.columns には via（要素の参照先を列に）か path（要素の値を列に）か value（要素ごとの値の式を列に）が必要です")
         if (via != null && pathText != null) error("cells.columns の via と path は、どちらか一方を書きます")
         if (via != null) {
             if (m.containsKey("values")) error("cells.columns の values は path と一緒に書きます")
@@ -565,8 +657,15 @@ object ViewDefinitions {
             val fieldsRaw = m["fields"]
             val backlinksRaw = m["backlinks"]
             val flowRaw = m["flow"]
-            if (listOf(fieldsRaw, backlinksRaw, flowRaw).count { it != null } != 1) {
-                error("sections[$i]: fields / backlinks / flow のいずれか一方が必要です")
+            val chartRaw = m["chart"]
+            if (listOf(fieldsRaw, backlinksRaw, flowRaw, chartRaw).count { it != null } != 1) {
+                error("sections[$i]: fields / backlinks / flow / chart のいずれか一方が必要です")
+            }
+            if (chartRaw != null) {
+                val cm = chartRaw as? Map<*, *> ?: error("sections[$i].chart はobjectである必要があります")
+                require(cm.keys.all { it == "view" }) { "sections[$i].chartにはviewだけを指定できます" }
+                val target = (cm["view"] as? String)?.takeIf { it.isNotBlank() } ?: error("sections[$i].chart.viewが必要です")
+                return@mapIndexed VirtualDocSection(label = label, chartView = target)
             }
             if (fieldsRaw != null) {
                 val fm = fieldsRaw as? Map<*, *> ?: error("sections[$i].fields はobjectである必要があります（空なら {}）")

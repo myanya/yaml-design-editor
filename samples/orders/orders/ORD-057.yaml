@@ -1,0 +1,16 @@
+orderId: ORD-057
+orderedAt: 2026-05-28
+status: shipped
+customerId: CUS-016
+totalAmount: 18700
+lines:
+  - orderLineId: ORD-057-01  # 注文のときは販売中だった商品（いまは販売終了）
+    productId: PRD-019
+    quantity: 20
+    unitPrice: 900
+    amount: 18000
+  - orderLineId: ORD-057-02
+    productId: PRD-007
+    quantity: 2
+    unitPrice: 350
+    amount: 700

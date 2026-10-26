@@ -2,6 +2,7 @@ package dev.toros.yde.semantic.schema
 
 import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.model.parseYPath
+import java.text.DecimalFormat
 
 /*
  * 「YAML から YAML への変換」の宣言モデル（P27 段C。計算体系の6つ目の体系「組み立て」＝CORE-CALCULUS §26）。
@@ -21,7 +22,11 @@ import dev.toros.yde.yaml.model.parseYPath
  *   {$map: ひな型, $using: {a: b}}        スカラーの値を辞書で置き換える（辞書に無い値はそのまま）
  *   {$first: [ひな型, …]}                 最初に得られた値
  *   {$date: ひな型, $as: 形}              年月日をそろえる（2021/8/21・2021-8-21・20210821・2021年8月21日 → yyyy-MM-dd。`$as` で yyyyMMdd・yyyy-MM などの形。読めなければ「無い」）
- *   {$number: ひな型}                     数として読む（¥ と桁区切りと全角、▲ の負を許す。読めなければ「無い」。値の式の number と同じ読み方）
+ *   {$number: ひな型, $as: 形}            数として読む（¥ と桁区切りと全角、▲ の負を許す。読めなければ「無い」。値の式の number と同じ読み方）。
+ *                                         `$as` は DecimalFormat の形（`00`・`#,##0`）で、その形の文字にして出す（連番の 0 詰めなど）
+ *   {$value: 値の式}                      値の式（検査の check・ビューの列と同じ書き方）をいまの場所で計算する（`of` を省くといまの場所、
+ *                                         束縛は `of: 名前`。四則演算・集計・日付の部分・each など。グラフを辿る all・refCount・
+ *                                         occurrenceCount は「無い」。数の結果は数の項、配列は配列の項、それ以外は文字）
  *   {$trim: ひな型}                       前後の空白を落とし、続く空白を 1 つにまとめる（全角の空白も。空なら「無い」）
  *   {$each: パス, $build: ひな型}         配列の要素ごとに組み立てて、配列を作る（`$apply: 規則名` とも書ける）
  *   {$eachEntry: パス, $build: ひな型}    マップの項目ごとに組み立てて、同じキーのマップを作る（同上）
@@ -30,7 +35,7 @@ import dev.toros.yde.yaml.model.parseYPath
  *   {$when: 条件, $then: ひな型}          条件に合うときだけ、その値
  * 場所の指定には、`$of: 束縛名`（クエリで付けた名前。省略＝いまの場所）と `$in: {schemaId, fileGlob}`（どの文書の出現か）を添えられる。
  * 文字列 `$名前` は受け取った値（params）への参照。`$$` は文字 `$`（出力のキーや値を `$` で始めたいとき）。
- * 繰り返しの中では `$key`（マップの項目のキー）と `$index`（配列の番号）が使える。
+ * 繰り返しの中では `$key`（マップの項目のキー）と `$index`（配列の番号。0 始まり）と `$position`（何番目か。1 始まり）が使える。
  *
  * 条件は、クエリの where と同じ書き方（path ＋ equals / notEquals / exists / empty / oneOf / matches / startsWith / endsWith /
  * contains / lt / lte / gt / gte。`{not: 条件}`・`{or: [条件, …]}`。並べて書けば「かつ」）。`of` は省略できる（いまの場所）。
@@ -63,11 +68,14 @@ sealed interface Template {
     /** 年月日をそろえる（pattern は出力の形。null＝yyyy-MM-dd）。 */
     data class DateOf(val input: Template, val pattern: String?) : Template
 
-    /** 数として読む。 */
-    data class NumberOf(val input: Template) : Template
+    /** 数として読む（pattern は出力の形＝DecimalFormat。null＝数の項、あれば その形の文字）。 */
+    data class NumberOf(val input: Template, val pattern: String? = null) : Template
 
     /** 前後の空白を落とし、続く空白を 1 つにまとめる。 */
     data class TrimOf(val input: Template) : Template
+
+    /** 値の式をいまの場所で計算する（R30-01。`of` の省略＝いまの場所、束縛は `of: 名前`）。 */
+    data class ValueOf(val expr: ValueExpr) : Template
 
     /** 繰り返し。entries = true はマップの項目ごと（出力もマップ）・false は配列の要素ごと（出力も配列）。 */
     data class Each(val site: TemplateSite, val entries: Boolean, val body: Template) : Template
@@ -112,8 +120,11 @@ data class TransformDef(
         private val RULE_KEYS = setOf("id", "when", "build")
         private val PARAM_NAME = Regex("""[A-Za-z][A-Za-z0-9_]*""")
 
-        /** 繰り返しの中で使える名前（params に宣言しなくてよい）。 */
-        val LOOP_NAMES = setOf("key", "index")
+        /**
+         * 繰り返しの中で使える名前（params に宣言しなくてよい）: key＝マップのキー・index＝0 始まりの番号・position＝1 始まりの番号
+         * （`no` は YAML が真偽値に読むキーなので使わない）。
+         */
+        val LOOP_NAMES = setOf("key", "index", "position")
 
         private const val COPY = "\$copy"
         private const val FORMAT = "\$format"
@@ -133,9 +144,10 @@ data class TransformDef(
         private const val DATE = "\$date"
         private const val NUMBER = "\$number"
         private const val TRIM = "\$trim"
+        private const val VALUE = "\$value"
         private const val AS = "\$as"
         private const val WITH = "\$with"
-        private val PRIMARY = listOf(COPY, FORMAT, MAP, FIRST, EACH, EACH_ENTRY, APPLY, CONCAT, THEN, DATE, NUMBER, TRIM)
+        private val PRIMARY = listOf(COPY, FORMAT, MAP, FIRST, EACH, EACH_ENTRY, APPLY, CONCAT, THEN, DATE, NUMBER, TRIM, VALUE)
         private val DIRECTIVE_KEYS = PRIMARY + listOf(OF, IN, USING, BUILD, AT, WHEN, AS, WITH)
 
         /** `$as`（日付の出力の形）に書ける文字: 年 y・月 M・日 d と区切り。 */
@@ -260,8 +272,17 @@ data class TransformDef(
                         }
                         Template.DateOf(parseTemplate(m[DATE], "$where.$DATE"), pattern)
                     }
-                    NUMBER -> { allow(); Template.NumberOf(parseTemplate(m[NUMBER], "$where.$NUMBER")) }
+                    NUMBER -> {
+                        allow(AS)
+                        val pattern = m[AS]?.toString()?.also { p ->
+                            // 数の形: 桁の印（0 か #）を含む DecimalFormat のパターン
+                            val readable = p.any { it == '0' || it == '#' } && runCatching { DecimalFormat(p) }.isSuccess
+                            if (!readable) error("$where.$AS は数の形（DecimalFormat のパターン。例 00・#,##0）で書きます: $p")
+                        }
+                        Template.NumberOf(parseTemplate(m[NUMBER], "$where.$NUMBER"), pattern)
+                    }
                     TRIM -> { allow(); Template.TrimOf(parseTemplate(m[TRIM], "$where.$TRIM")) }
+                    VALUE -> { allow(); Template.ValueOf(ValueExpr.parse(m[VALUE], "$where.$VALUE", current = true)) }
                     MAP -> {
                         allow(USING)
                         val using = (m[USING] as? Map<*, *>)?.entries?.associate { (k, v) -> k.toString() to v.toString() }
@@ -382,6 +403,9 @@ data class TransformDef(
                 is Template.DateOf -> walk(t.input)
                 is Template.NumberOf -> walk(t.input)
                 is Template.TrimOf -> walk(t.input)
+                is Template.ValueOf -> t.expr.binds().forEach { name ->
+                    require(name in binds) { "$where: \$value の「of: $name」は、from のクエリで付けた名前ではありません（付けた名前: ${binds.joinToString(", ").ifEmpty { "なし" }}）" }
+                }
                 is Template.Each -> { site(t.site); walk(t.body) }
                 is Template.Apply -> {
                     site(t.site)

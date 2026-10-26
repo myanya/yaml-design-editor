@@ -1,0 +1,8 @@
+id: product
+name: 商品
+kind: document
+description: 商品 1 件を 1 ファイルで管理します。注文明細から商品番号で参照されます。販売単価は現在の値で、注文明細の単価とは別です。
+match: "products/*.yaml"
+filePattern: "products/{id}.yaml"
+# 文書のルートはオブジェクト型 商品（同一性＝エンティティ product の定義）
+root: { type: common#商品 }

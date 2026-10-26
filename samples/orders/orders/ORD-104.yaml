@@ -1,0 +1,11 @@
+orderId: ORD-104
+orderedAt: 2026-10-19
+status: shipped
+customerId: CUS-010
+totalAmount: 1800
+lines:
+  - orderLineId: ORD-104-01
+    productId: PRD-017
+    quantity: 1
+    unitPrice: 1800
+    amount: 1800

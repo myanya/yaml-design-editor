@@ -1,0 +1,37 @@
+# 関係レジストリ: 注文管理の関係の語彙。表示名と、参照の向き・多重度の決まりを 1 か所に書きます
+id: order-relations
+kind: relations
+entities:
+  - { type: order, label: 注文 }
+  - { type: order-line, label: 注文明細 }
+  - { type: customer, label: 顧客 }
+  - { type: company, label: 会社 }
+  - { type: product, label: 商品 }
+relations:
+  - name: belongs-to
+    label: 所属会社
+    inverseLabel: 所属する顧客（窓口）
+    source: [customer]
+    target: [company]
+    cardinality: { outMax: 1, inMin: 1 }
+    description: 法人の顧客は会社を 1 つまで参照します。会社には窓口が 1 つ以上あること（無ければ警告）
+  - name: ordered-by
+    label: 注文顧客
+    inverseLabel: この顧客の注文
+    source: [order]
+    target: [customer]
+    cardinality: { outMin: 1, outMax: 1 }
+    description: 注文は顧客を 1 件だけ参照します
+  - name: of-product
+    label: 注文商品
+    inverseLabel: この商品の注文明細
+    source: [order-line]
+    target: [product]
+    cardinality: { outMin: 1, outMax: 1 }
+    description: 明細は商品を 1 件だけ参照します
+  - name: has-line
+    label: 注文明細
+    inverseLabel: 所属する注文
+    source: [order]
+    target: [order-line]
+    description: 注文が明細を保有します（入れ子で書くので、文書には何も書きません）

@@ -219,7 +219,7 @@ object ActionPlanner {
      * 配列へ足す新しい要素を作る（配列エディタの追加ボタン・ビューの新規行が使う。アクションの insert と同じ作り方）:
      * 要素の型の create（必須の初期値＋受け取った値、または build）→ 配列の insert の決まり（採番 id・同じ明細 key）。
      * arrayDef は解決済みの配列の項目、existingIds は索引の全 ID（採番の既存）。dedupe を false にすると同じ明細の見分けをしない
-     * （受け取った値の無い追加では、空の要素どうしが「同じ」になってしまうため）。
+     * （受け取った値の無い追加では、空の要素どうしが「同じ」になってしまうため）。holder は配列を持つ要素（親。採番の接頭辞が `$of: self` で読む）。
      */
     fun newElement(
         tree: SchemaTree,
@@ -229,11 +229,12 @@ object ActionPlanner {
         existingIds: Collection<String>,
         now: LocalDateTime = LocalDateTime.now(),
         dedupe: Boolean = true,
+        holder: YNode? = null,
     ): NewElement {
         val itemDef = arrayDef.item?.let { tree.resolve(it) ?: it } ?: throw ActionFailure("配列の要素の定義が見つかりません")
         val element = buildElement(tree, itemDef, YamlIO.fromAny(params) as? YNode.Map ?: YNode.Map(), "${arrayDef.label ?: arrayDef.key ?: "配列"} の要素", now)
         val rule = arrayDef.insertRule ?: return NewElement(element, null)
-        val skipped = applyInsertRuleTo(rule, element, array, existingIds, dedupe)
+        val skipped = applyInsertRuleTo(rule, element, array, existingIds, dedupe, holder)
         return if (skipped == null) NewElement(element, null) else NewElement(null, skipped)
     }
 
@@ -605,7 +606,9 @@ object ActionPlanner {
             }
             val rule = arrayDef?.insertRule
             if (rule != null) {
-                val skipped = applyInsertRuleTo(rule, element, array, graph.entities.keys + newIds)
+                // 配列を持つ要素（親）: 採番の接頭辞から `$of: self` で読める
+                val holder = if (arrayPath.isEmpty()) null else getAt(editable(doc), arrayPath.subList(0, arrayPath.size - 1))
+                val skipped = applyInsertRuleTo(rule, element, array, graph.entities.keys + newIds, holder = holder)
                 if (skipped != null) {
                     summary += "飛ばした: ${s.origin}（$skipped）"
                     return
@@ -758,11 +761,21 @@ private fun overlayElement(base: YNode, over: YNode): YNode {
  * 配列の追加の決まり: 採番（ID の項目が空なら接頭辞＋連番。既存は existingIds と配列の中）と、同じ明細の見分け
  * （dedupe のとき、key が同じ要素があれば足さない）。足さない理由を返す（null＝足す）。要素の ID は書き換える。
  */
-private fun applyInsertRuleTo(rule: InsertRule, element: YNode, array: YNode.Seq, existingIds: Collection<String>, dedupe: Boolean = true): String? {
+private fun applyInsertRuleTo(
+    rule: InsertRule,
+    element: YNode,
+    array: YNode.Seq,
+    existingIds: Collection<String>,
+    dedupe: Boolean = true,
+    holder: YNode? = null,
+): String? {
     val map = element as? YNode.Map ?: return null
     rule.id?.let { numbering ->
         if (scalarText(getAt(map, numbering.path)).isNullOrBlank()) {
-            val prefix = SemanticTransform.build(numbering.prefix, emptyMap(), TemplatePlace(map, null, emptyList())).term?.let(::scalarText)
+            // 接頭辞のひな型: いまの場所＝新しい要素。配列を持つ要素（親）は `$of: self` で読める（例 `{$format: "{orderId}-", $of: self}`。UX-199）
+            val bindings: Map<String, (DerivationSelector?) -> TemplatePlace?> =
+                holder?.let { h -> mapOf(MethodDef.SELF to { _: DerivationSelector? -> TemplatePlace(h, null, emptyList()) }) }.orEmpty()
+            val prefix = SemanticTransform.build(numbering.prefix, emptyMap(), TemplatePlace(map, null, emptyList()), bindings).term?.let(::scalarText)
                 ?: actionFail("採番の接頭辞が得られません（${rule.origin}）")
             val existing = existingIds + array.items.mapNotNull { scalarText(getAt(it, numbering.path)) }
             Patcher.apply(map, PatchOp.Set(numbering.path, YNode.Scalar(IdSeries.next(existing, prefix, numbering.digits))))

@@ -1,0 +1,11 @@
+orderId: ORD-106
+orderedAt: 2026-10-21
+status: pending
+customerId: CUS-013
+totalAmount: 13500
+lines:
+  - orderLineId: ORD-106-01  # まとめ買いの値引き（商品の現在の販売単価より安い）
+    productId: PRD-001
+    quantity: 50
+    unitPrice: 270
+    amount: 13500

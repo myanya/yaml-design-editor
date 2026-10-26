@@ -11,16 +11,16 @@
 
 | 部品 | 責務 |
 |---|---|
-| `VirtualDashboardDef`・`DashboardSection` | 区画とビュー・操作の参照 |
-| `DashboardViews` | 既存の行と条件の評価を合成し、選択された行と保留理由を返す |
+| `VirtualDashboardDef`・`DashboardSection` | 区画とビュー・操作の参照、タイルの並べ方（`placement`）と群（`group`。`sectionGroups()` が無名の群を先頭に、名前のある群を最初に現れた順に分ける） |
+| `DashboardViews` | 既存の行と条件の評価を合成し、選択された行と保留理由を返す。チャートの区画は元の表を解決して `ChartViews.resolve` の数を `DashboardSectionResult.chart` に持つ |
 | `ViewDefinitions` | 定義のパース、区画ID・参照先・操作の点検 |
 | `core/Dashboards` | 同じ索引・原本の読み手・基準日を渡し、CLIとread_viewへ開示 |
-| `DashboardPane` | 件数から区画を選び、一覧から詳細を表示 |
+| `DashboardPane` | 件数から区画を選び、一覧から詳細を表示。タイルは群ごとに見出しを付けて横に折り返すか、左の縦一覧に並べる |
 | `ResolvedViewGrid`・`EntityPage` | 既存の表・原本編集・対象付きアクションの共有 |
 
 ## 流れ
 
-1. 区画の `view` を一意なgridまたはmatrixへ解決する。
+1. 区画の `view` を一意なgrid・matrix・chartへ解決する。chartなら元の表の行を解決して数にし（件数＝横軸の項目の数・filter は不可）、画面は `ChartCard` を描く。
 2. 同じビューの行は一度だけ解決する。セル・原本の読み取りは同じオーバーレイ索引とloaderを使う。
 3. `filter` があれば、行のエンティティを起点に `SemanticRules.evaluate` で判定する。
 4. 充足した行を一覧へ渡す。同じ行から件数を導出し、保留と値不足は理由付きの別の一覧へ渡す。
@@ -42,6 +42,8 @@
   matrixへのfilterは合計との不一致を防ぐため拒否する。埋め込みの循環を許さない。
 - 解決失敗とゼロ件を区別する。CLIでは失敗した区画のcountはnull、画面では理由を表示する。
 - 場所は `NavLocation` のダッシュボードIDと対象ID。区画・行・基準日・分割・スクロールは `ScreenMemory` が持つ。
+- 区画の並べ方（横・縦・auto）と群は定義が決め、群の畳みは `ScreenMemory` が持つ。auto は画面が一覧の幅から折り返しの段数を見積もり、3段以上なら縦にする。
+  見積もりは画面の都合で、定義・索引・CLIの結果に置かない。
 - 全幅の詳細を既定とし、任意の分割は一覧4:詳細6。狭幅では全幅へ切り替える。背後の文書用インスペクタは出さない。
 - 対象へのリンクは `openDashboardEntity` へ統一し、参照・被参照も同じスペースでたどる。
   原本への遷移は明示操作に限る。業務用の詳細はタイトル・項目・操作を中心にし、出現座標やスキーマ情報を通常表示しない。

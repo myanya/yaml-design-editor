@@ -2,6 +2,7 @@
 
 ダッシュボードは `view <workspace> <dashboard-id> --date YYYY-MM-DD` で参照できます。
 出力と基準日の規則は [ダッシュボード](dashboards.md#cliとエージェント) を参照してください。
+チャート（`kind: chart`）は `view <workspace> <chart-id>` で、元の表を解決した横軸の項目（`categories`）と系列ごとの数（`series`）を返します。図そのものは画面だけで描きます（[ビュー](views.md#チャートkind-chart-表を図に)）。
 
 
 GUIを起動せずに、ワークスペースの探索・検索・部分変更・検証を実行できます。出力は機械可読なYAML（UTF-8）で、AIエージェントや自動化スクリプトからの利用を想定しています。

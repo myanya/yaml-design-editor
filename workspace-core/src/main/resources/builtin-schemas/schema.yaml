@@ -379,7 +379,7 @@ root:
     - key: scaffold
       label: 新しい文書のひな型
       type: any
-      description: "このスキーマの文書を元の要素（一覧側の定義出現）から作るときに、必須の項目の初期値の上へ重ねる中身。変換のひな型（$copy / $format / $map / $first / $each / $when。いまの場所＝元の要素）で書く。例 {name: {$copy: name}, summary: {$copy: summary}, source: {$format: \"{id}（一覧から作成）\"}}。ルート直下の ID の項目には、今までどおり ID が入る"
+      description: "このスキーマの文書を元の要素（一覧側の定義出現）から作るときに、必須の項目の初期値の上へ重ねる中身。変換のひな型（$copy / $format / $map / $first / $each / $when / $value＝値の式で計算。いまの場所＝元の要素）で書く。例 {name: {$copy: name}, summary: {$copy: summary}, source: {$format: \"{id}（一覧から作成）\"}}。ルート直下の ID の項目には、今までどおり ID が入る"
     - key: actions
       label: 操作（横断）
       type: array
@@ -608,7 +608,7 @@ root:
           - key: check
             label: 判定述語
             type: any
-            description: "値の比較（R28-08）。{演算子: [左, 右]} または {op: 演算子, left: 左, right: 右} の配列（すべて成立が期待。expect / count と排他）。{not: 条件} と {or: [条件, ...]}（どれかが成り立てばよい）も書ける（入れ子は1段まで）。演算子は eq / ne（文字列の等値）・lte / gte / lt / gt（数値）・oneOf（右は選択肢の配列）・matches（正規表現の全体一致）・startsWith / endsWith / contains。左右は値の式——読み出し {of: 束縛, in: {schemaId, fileGlob}, path: 相対パス}（in は値を読む文書の指定。省略可）・決まった値（そのまま書く。値が無いかもしれないときは {value}）・テンプレートの展開 {format: 式, scopes: [{of, in}]}・辞書での置き換え {map: 式, using: {元: 先}}・最初に得られた値 {first: [式]}・文字数 {length: 式}・大文字と小文字 {upper: 式} {lower: 式}・数値の表記を揃える {number: 式}・四則演算 {add / multiply: [式, ...]} {subtract / divide: [式, 式]}・参照の本数 {refCount: {of: 束縛, dir: out | in, relation, via}}（同じ相手への参照が2本あれば2。出ていく参照は相手が見つからないものも数える）・集計 {sum | min | max: 配列を返す式, type: number | date} {count: 配列を返す式}（配列を受け取る関数。count は件数・length は文字数）・集合から配列へ {all: {of: 束縛, in, path}}（同じ起点の全ての解にわたり、その束縛の要素の値を並べる）と {all: {from: 起点の束縛, match: [...], where: [...], of, path}}（起点を固定した照合の解から並べる）・要素ごとの式 {each: 配列を返す式, value: 式}・書かれた場所の数 {occurrenceCount: {of: 束縛, schema: スキーマID または 並び, fileGlob, role: defining | detail, distinct: type}}（その ID が書かれている場所のうち指定に合うものの数。distinct: type は宣言されたエンティティ型の種類の数）。同じ ID が書かれた文書の組をすべて調べ、条件を満たさない組を1つでも見つけたら指摘・評価できる組（値が得られない・数値として読めない）がなければ黙る"
+            description: "値の比較（R28-08）。{演算子: [左, 右]} または {op: 演算子, left: 左, right: 右} の配列（すべて成立が期待。expect / count と排他）。{not: 条件} と {or: [条件, ...]}（どれかが成り立てばよい）も書ける（入れ子は1段まで）。演算子は eq / ne（文字列の等値）・lte / gte / lt / gt（数値）・oneOf（右は選択肢の配列）・matches（正規表現の全体一致）・startsWith / endsWith / contains。左右は値の式——読み出し {of: 束縛, in: {schemaId, fileGlob}, path: 相対パス}（in は値を読む文書の指定。省略可）・決まった値（そのまま書く。値が無いかもしれないときは {value}）・テンプレートの展開 {format: 式, scopes: [{of, in}]}・辞書での置き換え {map: 式, using: {元: 先}}・最初に得られた値 {first: [式]}・文字数 {length: 式}・大文字と小文字 {upper: 式} {lower: 式}・数値の表記を揃える {number: 式}・日付の部分 {year: 式} {month: 式} {day: 式}（年・月・日の数）と {yearMonth: 式}（年月の文字 2026-10。日付か日時として読めなければ得られない）・四則演算 {add / multiply: [式, ...]} {subtract / divide: [式, 式]}・参照の本数 {refCount: {of: 束縛, dir: out | in, relation, via}}（同じ相手への参照が2本あれば2。出ていく参照は相手が見つからないものも数える）・集計 {sum | min | max: 配列を返す式, type: number | date} {count: 配列を返す式}（配列を受け取る関数。count は件数・length は文字数）・集合から配列へ {all: {of: 束縛, in, path}}（同じ起点の全ての解にわたり、その束縛の要素の値を並べる）と {all: {from: 起点の束縛, match: [...], where: [...], of, path}}（起点を固定した照合の解から並べる）・要素ごとの式 {each: 配列を返す式, value: 式}・書かれた場所の数 {occurrenceCount: {of: 束縛, schema: スキーマID または 並び, fileGlob, role: defining | detail, distinct: type}}（その ID が書かれている場所のうち指定に合うものの数。distinct: type は宣言されたエンティティ型の種類の数）。同じ ID が書かれた文書の組をすべて調べ、条件を満たさない組を1つでも見つけたら指摘・評価できる組（値が得られない・数値として読めない）がなければ黙る"
           - key: message
             label: 指摘の文面のひな型
             type: string

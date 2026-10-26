@@ -126,7 +126,7 @@
 - **読み取り（共通）**: `ExpressionFields.read` / `readAll` がスキーマの木に沿って文書を辿り（`SemanticRewrite.walkDocument`）、印のある項目の値を `ExpressionValue`（書かれたままの文字・式・場所・表示名）にする。スキーマ文書・ビュー定義・利用者の文書が同じ関数を通り、結果は `WorkspaceSchema.expressions`（場所 → 式）。使う側は `expressionAt("filePattern")` のように引く。
 - **評価（共通）**: `SemanticValues.evaluate(式, 環境)`。環境は使う側が作る（いまの要素・予約の名前 `{id}` `{title}`・穴の値の直し方・代表値）。クエリの check 判定も、解と割当てを環境に写してこれを呼ぶ。`of` の省略はいまの要素、`format` の `with` は穴の名前 → 式。埋まらなかった穴は `Result.missing`。
 - **文面（共通）**: `ExpressionMessages`＝式として読めない・穴が埋まらない、の 1 つの表。
-- **式の中身**: 読み出し `{of, in, path, via}`（項をそのまま返す。`[*]` は合う場所の値の配列）・決まった値・`format`・`map`・`first`・`length` / `upper` / `lower` / `number`・四則演算・`refCount`・`occurrenceCount`・集計（`sum` / `min` / `max` / `count`＝配列を受け取る関数）・集合から配列へ `all`・要素ごとの式 `each`。
+- **式の中身**: 読み出し `{of, in, path, via}`（項をそのまま返す。`[*]` は合う場所の値の配列）・決まった値・`format`・`map`・`first`・`length` / `upper` / `lower` / `number`・日付の部分 `year` / `month` / `day` / `yearMonth`・四則演算・`refCount`・`occurrenceCount`・集計（`sum` / `min` / `max` / `count`＝配列を受け取る関数）・集合から配列へ `all`・要素ごとの式 `each`。
   条件分岐・利用者の関数・ラムダ・非決定的な値（今日の日付・乱数・連番）は入れない。連番は `IdSuggest` の領分。
 - **参照を辿る（`via`）**: 読み出し `{via: type, in: 指定, path}` と `format` の入れ物 `{via: type, in: 指定}`。行の要素に書かれた参照の線（検査の `edge` と同じ突き合わせ）をちょうど 1 本辿り、相手の出現を `in` で選ぶ（定義出現優先）。検査の中では書けない（辿るのはクエリの `edge`）。`scopes` を書いた式でも、末尾に「いまの要素」が続く。
 - **値は項と出どころ**（ADR-0010）: 式の値はスカラー・配列・マップと、その出どころ（`SemanticCheckSide` の `node` / `elements`）。関数（集計・四則演算・`length` など）は引数を先に評価し、型が合わなければ得られない。比較・穴埋め・四則演算はスカラーだけを受け取る。形を受け取る語は `format` / `first` / `all` / `each`。

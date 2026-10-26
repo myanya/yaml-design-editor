@@ -1,0 +1,16 @@
+orderId: ORD-029
+orderedAt: 2026-02-07
+status: cancelled
+customerId: CUS-003
+totalAmount: 21800
+lines:
+  - orderLineId: ORD-029-01
+    productId: PRD-015
+    quantity: 1
+    unitPrice: 6800
+    amount: 6800
+  - orderLineId: ORD-029-02
+    productId: PRD-001
+    quantity: 50
+    unitPrice: 300
+    amount: 15000

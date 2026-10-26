@@ -6,6 +6,19 @@ import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.YNode
 import java.time.LocalDate
 
+/** 区画のタイルの並べ方（`placement`）。auto は画面の幅と区画の数から画面が決める。 */
+enum class DashboardPlacement(val id: String, val label: String) {
+    AUTO("auto", "自動"),
+    HORIZONTAL("horizontal", "横（折り返し）"),
+    VERTICAL("vertical", "縦（左の一覧）"),
+    ;
+
+    companion object {
+        fun parse(text: String?, where: String): DashboardPlacement =
+            entries.firstOrNull { it.id == text } ?: error("$where は ${entries.joinToString(" / ") { it.id }} のいずれかです: $text")
+    }
+}
+
 /** 業務の入口。原本を持たず、既存グリッドと操作の参照だけを合成する。 */
 data class VirtualDashboardDef(
     override val id: String,
@@ -15,6 +28,8 @@ data class VirtualDashboardDef(
     val sections: List<DashboardSection>,
     val actions: List<String> = emptyList(),
     val default: Boolean = false,
+    /** 区画のタイルの並べ方。 */
+    val placement: DashboardPlacement = DashboardPlacement.AUTO,
 ) : VirtualViewDefinition
 
 data class DashboardSection(
@@ -23,7 +38,15 @@ data class DashboardSection(
     val view: String,
     /** 操作の前提と同じ、パラメータを受け取る Query / Predicate の宣言を再利用する。 */
     val filter: ActionRequire? = null,
+    /** 群の名前（同じ名前の区画を見出し付きでまとめ、畳める。null＝無名の群で先頭に並ぶ）。 */
+    val group: String? = null,
 )
+
+/** 区画を群ごとに分ける。無名の群（group なし）が先頭で、名前のある群は最初に現れた順。区画の順は定義のまま。 */
+fun VirtualDashboardDef.sectionGroups(): List<Pair<String?, List<DashboardSection>>> {
+    val grouped = sections.groupBy { it.group }
+    return listOfNotNull(grouped[null]?.let { null to it }) + grouped.entries.filter { it.key != null }.map { it.key to it.value }
+}
 
 data class DashboardPending(val row: VirtualRow, val reason: String)
 
@@ -33,10 +56,12 @@ data class DashboardSectionResult(
     val rows: List<VirtualRow>,
     val pending: List<DashboardPending> = emptyList(),
     val error: String? = null,
+    /** チャートの区画（P46）: 元の表を解決して数にしたもの。view は null。 */
+    val chart: ChartData? = null,
 ) {
-    /** 件数とドリルダウンの母集団は同じ。合計行は原本を持たないため含めない。 */
-    val count: String get() = SemanticExpression.aggregate(ValueExpr.AggregateFn.COUNT,
-        rows.filter { it.occurrences.isNotEmpty() }.map { it.key })!!
+    /** 件数とドリルダウンの母集団は同じ。合計行は原本を持たないため含めない（値の軸の行は数える）。チャートは項目の数。 */
+    val count: String get() = chart?.categories?.size?.toString()
+        ?: SemanticExpression.aggregate(ValueExpr.AggregateFn.COUNT, rows.filter { it.occurrences.isNotEmpty() || it.valueRow }.map { it.key })!!
 
     fun selected(key: String?): VirtualRow? = rows.singleOrNull { it.key == key && it.occurrences.isNotEmpty() }
 }
@@ -55,12 +80,22 @@ object DashboardViews {
         graph: SemanticEntityGraph,
         loader: (DocumentId) -> YNode?,
         fieldAt: FieldResolver = NO_FIELDS,
+        /** チャートの区画（P46）: ID からチャートの宣言を引く（無ければ null）。 */
+        chart: (String) -> VirtualChartDef? = { null },
     ): DashboardResolution {
         val cache = mutableMapOf<String, List<VirtualRow>>()
         return DashboardResolution(date, dashboard.sections.map { section ->
+            chart(section.view)?.let { chartDef ->
+                return@map runCatching {
+                    require(section.filter == null) { "チャートの区画にはfilterを指定できません（絞り込みは元の表で）" }
+                    val source = view(chartDef.view) ?: error("チャート「${chartDef.id}」の元の表「${chartDef.view}」は一意なグリッドまたはクロス集計を参照してください")
+                    val data = ChartViews.resolve(chartDef, source, cache.getOrPut(source.id) { rows(source) })
+                    DashboardSectionResult(section, null, emptyList(), chart = data)
+                }.getOrElse { DashboardSectionResult(section, null, emptyList(), error = it.message ?: "チャートを解決できません") }
+            }
             val grid = view(section.view)
             if (grid == null) return@map DashboardSectionResult(section, null, emptyList(),
-                error = "ビュー「${section.view}」は一意なグリッドまたはクロス集計を参照してください")
+                error = "ビュー「${section.view}」は一意なグリッド・クロス集計・チャートを参照してください")
             runCatching {
                 require(grid.matrix == null || section.filter == null) { "クロス集計の区画にはfilterを指定できません" }
                 val sourceRows = cache.getOrPut(grid.id) { rows(grid) }

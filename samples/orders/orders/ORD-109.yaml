@@ -1,0 +1,11 @@
+orderId: ORD-109
+orderedAt: 2026-10-24
+status: pending
+customerId: CUS-006
+totalAmount: 2400
+lines:
+  - orderLineId: ORD-109-01
+    productId: PRD-018
+    quantity: 2
+    unitPrice: 1200
+    amount: 2400

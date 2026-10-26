@@ -1,0 +1,11 @@
+orderId: ORD-023
+orderedAt: 2026-01-22
+status: shipped
+customerId: CUS-017
+totalAmount: 249000
+lines:
+  - orderLineId: ORD-023-01
+    productId: PRD-012
+    quantity: 5
+    unitPrice: 49800
+    amount: 249000

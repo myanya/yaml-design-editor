@@ -1,0 +1,11 @@
+orderId: ORD-011
+orderedAt: 2025-12-11
+status: shipped
+customerId: CUS-011
+totalAmount: 9000
+lines:
+  - orderLineId: ORD-011-01  # 注文のときは販売中だった商品（いまは販売終了）
+    productId: PRD-019
+    quantity: 10
+    unitPrice: 900
+    amount: 9000

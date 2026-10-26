@@ -1,0 +1,11 @@
+id: customer-share-chart
+name: 顧客別の購入割合
+kind: chart
+chart: pie
+description: 顧客一覧（グリッド）の購入合計を、多い順に円グラフにします。横軸の項目＝顧客（行のタイトル＝顧客名）、扇形＝購入合計の割合。
+view: customer-grid
+series: [購入合計（円）]
+x: 表示名                          # 横軸の文字＝顧客一覧の「表示名」の列（法人は「会社名 窓口名」、個人は顧客名）
+y: { label: 購入合計（円）, format: "#,##0" }
+order: { direction: desc }         # 項目（顧客）を系列の値の多い順に（series で並びの系列を選べる。省略すると最初の系列）
+drill: right                       # 扇形を押すと、その顧客の注文（材料）が図の右に並ぶ

@@ -1,0 +1,11 @@
+orderId: ORD-077
+orderedAt: 2026-07-25
+status: cancelled
+customerId: CUS-011
+totalAmount: 24800
+lines:
+  - orderLineId: ORD-077-01
+    productId: PRD-011
+    quantity: 1
+    unitPrice: 24800
+    amount: 24800

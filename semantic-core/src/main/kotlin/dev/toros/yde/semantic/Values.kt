@@ -213,10 +213,11 @@ object SemanticValues {
                     !input.isScalar && expr.fn == ValueExpr.UnaryFn.LENGTH -> fail("length は文字数です（配列の件数は count で数えます）: ${input.text}")
                     !input.isScalar -> fail("${expr.fn.id} はスカラーだけを受け取ります: ${input.text}")
                     else -> SemanticExpression.unary(expr.fn, input.text)?.let { text ->
-                        // 文字数と数の読みは数値・大文字と小文字はそのまま文字（順序の種類は決まらない）
+                        // 文字数・数の読み・年月日の数は数値、大文字と小文字・年月（2026-10）はそのまま文字（順序の種類は決まらない＝文字の順）
                         val kind = when (expr.fn) {
-                            ValueExpr.UnaryFn.LENGTH, ValueExpr.UnaryFn.NUMBER -> ValueExpr.OrderKind.NUMBER
-                            ValueExpr.UnaryFn.UPPER, ValueExpr.UnaryFn.LOWER -> null
+                            ValueExpr.UnaryFn.LENGTH, ValueExpr.UnaryFn.NUMBER,
+                            ValueExpr.UnaryFn.YEAR, ValueExpr.UnaryFn.MONTH, ValueExpr.UnaryFn.DAY -> ValueExpr.OrderKind.NUMBER
+                            ValueExpr.UnaryFn.UPPER, ValueExpr.UnaryFn.LOWER, ValueExpr.UnaryFn.YEAR_MONTH -> null
                         }
                         input.copy(text = text, raw = input.raw ?: input.text, note = expr.fn.label ?: input.note, kind = kind)
                     }

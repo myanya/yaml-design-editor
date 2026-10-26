@@ -1,0 +1,28 @@
+id: order-grid
+name: 注文一覧
+description: 注文ごとの受付日・状態・顧客・合計金額と、明細の件数。明細番号も ORD- で始まるので、行は ID の形ではなくエンティティ型（order）で選びます。「新規行」で注文番号を入れると orders/<番号>.yaml ができます。
+rows:
+  # クエリ行: 行＝エンティティ型 order の要素（ORD-001-01 のような明細は含めない）
+  match:
+    - node: { entity: order, bind: o }
+  # クエリ行の行数の上限は既定で 100。1 年分の注文（109 件）を全部出すために上げる
+  limit: 10000
+columns:
+  - { label: 注文受付日, path: orderedAt, editable: true }
+  # 受付日から年月を導く（月ごとに見るときの鍵。読み取り専用の計算列）
+  - { label: 注文月, value: { yearMonth: { path: orderedAt } } }
+  - { label: 注文状態, path: status }
+  - { label: 注文顧客, path: customerId, editable: true }
+  - { label: 注文合計金額（円）, path: totalAmount }
+  # 行（注文）が保有する明細を all で集め、件数にする（読み取り専用の計算列）
+  - label: 明細数
+    value:
+      count:
+        all:
+          of: l
+          match:
+            - node: { entity: order, bind: o }
+            - edge: { relation: has-line }
+            - node: { entity: order-line, bind: l }
+newRow:
+  filePattern: "orders/{id}.yaml"

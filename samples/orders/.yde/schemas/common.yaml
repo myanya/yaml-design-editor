@@ -1,0 +1,287 @@
+id: common
+name: 共通の型
+kind: library
+description: 注文管理で使う型を 1 か所にまとめます。値の型（番号の形式・金額・数量・日付・状態・連絡先）と、オブジェクト型（注文・注文明細・顧客・商品の形と、その検査）です。
+definitions:
+  # ---- 値の型 ----
+  # 番号の型: 形式（pattern）は各文書の番号の項目と、エンティティ型の判別の両方で使います
+  注文番号:
+    type: id
+    pattern: "^ORD-[0-9]{3,}$"
+    placeholder: ORD-001
+    sample: ORD-001
+    description: 「ORD-」と 3 桁以上の数字。注文のファイル名にもなります。
+  注文明細番号:
+    type: id
+    pattern: "^ORD-[0-9]{3,}-[0-9]{2}$"
+    placeholder: ORD-001-01
+    sample: ORD-001-01
+    description: 注文番号に「-」と 2 桁の枝番を付けます（例 ORD-001-01）。注文番号で始まることを検査が確かめます。
+  顧客番号:
+    type: id
+    pattern: "^CUS-[0-9]{3,}$"
+    placeholder: CUS-001
+    sample: CUS-001
+    description: 「CUS-」と 3 桁以上の数字。顧客のファイル名にもなります。
+  商品番号:
+    type: id
+    pattern: "^PRD-[0-9]{3,}$"
+    placeholder: PRD-001
+    sample: PRD-001
+    description: 「PRD-」と 3 桁以上の数字。商品のファイル名にもなります。
+  会社番号:
+    type: id
+    pattern: "^COM-[0-9]{3,}$"
+    placeholder: COM-001
+    sample: COM-001
+    description: 「COM-」と 3 桁以上の数字。会社のファイル名にもなります。
+  法人番号:
+    type: word
+    pattern: "^[0-9]{13}$"
+    placeholder: 1234567890123
+    description: 国税庁の法人番号（13 桁の数字）。
+  # 参照の型: 候補と検証の対象を顧客・商品の文書に限定し、関係に名前を付けます
+  顧客参照:
+    type: ref
+    idPattern: "CUS-*"
+    scope:
+      schemaIds: [customer]
+    relation: ordered-by
+    description: 顧客番号を 1 件。
+  商品参照:
+    type: ref
+    idPattern: "PRD-*"
+    scope:
+      schemaIds: [product]
+    relation: of-product
+    description: 商品番号を 1 件。
+  会社参照:
+    type: ref
+    idPattern: "COM-*"
+    scope:
+      schemaIds: [company]
+    relation: belongs-to
+    description: 会社番号を 1 件。
+  # 数の型: 金額は円単位の整数で、画面では桁区切りで見せます（値は変わりません）
+  金額:
+    type: int
+    min: 0
+    display: grouped
+    description: 円単位の整数です。
+  数量:
+    type: int
+    min: 1
+  # 日付の型: ファイルには YYYY-MM-DD で書き、画面では「2026年10月1日」の形で見せます
+  年月日:
+    type: date
+    format: "yyyy年M月d日"
+    description: YYYY-MM-DD 形式で入力します（例 2026-10-01）。
+  一行の文:
+    type: line
+    maxLength: 100
+    placeholder: 1 行で簡潔に
+  メールアドレス:
+    type: word
+    maxLength: 100
+    pattern: "^[^@]+@[^@]+\\.[^@]+$"
+    placeholder: taro@example.com
+  電話番号:
+    type: word
+    pattern: "^[0-9]{2,4}-[0-9]{2,4}-[0-9]{3,4}$"
+    placeholder: 03-1234-5678
+    description: ハイフン区切りの数字です。
+  # 注文状態: 保存する値は英語、画面の表示は日本語
+  注文状態:
+    type: enum
+    values:
+      - { value: pending, label: 未処理 }
+      - { value: shipped, label: 出荷済み }
+      - { value: cancelled, label: 取消済み }
+
+  # ---- オブジェクト型 ----
+  # 注文明細: 注文の中に入れ子で書く要素。番号を持つので、注文が明細を「保有」する線になります
+  注文明細:
+    type: object
+    label: 注文明細
+    entity: { type: order-line, defines: true }
+    fields:
+      - key: orderLineId
+        label: 明細番号
+        type: 注文明細番号
+        required: true
+      - key: productId
+        label: 注文商品
+        type: 商品参照
+        required: true
+      - key: quantity
+        label: 注文数量
+        type: 数量
+        required: true
+      - key: unitPrice
+        label: 単価
+        type: 金額
+        required: true
+        description: 注文したときの単価です。商品の現在の販売単価が後で変わっても、この値は変わりません。
+      - key: amount
+        label: 明細金額
+        type: 金額
+        required: true
+        description: 単価 × 注文数量。検査が確かめます。
+    # 型の検査: 明細の要素ごとに評価する（of を省くとこの要素の値）
+    constraints:
+      - id: amount-is-unit-price-times-quantity
+        description: 明細金額は単価 × 注文数量であること
+        check: [ { eq: [ { path: amount }, { multiply: [ { path: unitPrice }, { path: quantity } ] } ] } ]
+        level: error
+  # 注文: 1 件 1 ファイルの文書のルート。顧客は参照、明細は入れ子
+  注文:
+    type: object
+    label: 注文
+    entity: { type: order, defines: true }
+    fields:
+      - key: orderId
+        label: 注文番号
+        type: 注文番号
+        required: true
+      - key: orderedAt
+        label: 注文受付日
+        type: 年月日
+        required: true
+      - key: status
+        label: 注文状態
+        type: 注文状態
+        required: true
+        default: pending
+      - key: customerId
+        label: 注文顧客
+        type: 顧客参照
+        required: true
+      - key: totalAmount
+        label: 注文合計金額（円）
+        type: 金額
+        required: true
+        description: 明細金額の合計。検査が確かめます。
+      - key: lines
+        label: 注文明細
+        type: array
+        relation: has-line
+        default: []
+        display: table
+        # 追加の決まり: 明細番号が空なら「注文番号-01」「-02」…と採番する（接頭辞は親の注文の番号を $of: self で読む）
+        methods:
+          insert:
+            id: { path: orderLineId, prefix: { $format: "{orderId}-", $of: self }, digits: 2 }
+        item: { type: 注文明細 }
+    constraints:
+      - id: total-is-sum-of-lines
+        description: 注文合計金額は明細金額の合計であること
+        check: [ { eq: [ { path: totalAmount }, { sum: { path: "lines[*].amount" } } ] } ]
+        level: error
+      - id: has-lines
+        description: 注文には明細が 1 件以上あること
+        where: [ { path: lines, empty: true } ]
+        expect: absent
+        level: warning
+        message: "注文「{id}」に明細がありません"
+  # 会社: 1 件 1 ファイル。法人の顧客（窓口）が所属する
+  会社:
+    type: object
+    label: 会社
+    entity: { type: company, defines: true }
+    fields:
+      - key: companyId
+        label: 会社番号
+        type: 会社番号
+        required: true
+      - key: name
+        label: 会社名
+        type: 一行の文
+        role: title
+        required: true
+      - key: corporateNumber
+        label: 法人番号
+        type: 法人番号
+      - key: address
+        label: 所在地
+        type: 一行の文
+      - key: phone
+        label: 代表電話
+        type: 電話番号
+  # 顧客: 1 件 1 ファイル。注文の窓口（個人、または法人の部署・担当者）
+  顧客:
+    type: object
+    label: 顧客
+    entity: { type: customer, defines: true }
+    fields:
+      - key: customerId
+        label: 顧客番号
+        type: 顧客番号
+        required: true
+      - key: kind
+        label: 区分
+        type: enum
+        required: true
+        default: individual
+        values:
+          - { value: individual, label: 個人 }
+          - { value: corporate, label: 法人 }
+        description: 個人か法人か。法人には所属会社が要り、個人には書きません（検査が確かめます）。
+      - key: name
+        label: 顧客名
+        type: 一行の文
+        role: title
+        required: true
+        description: 窓口の名前です。法人なら部署と担当者（例「総務課 佐々木」）、会社名は所属会社の文書が持ちます。
+      - key: companyId
+        label: 所属会社
+        type: 会社参照
+        description: 法人の顧客が所属する会社。個人は空にします。
+      - key: department
+        label: 部署
+        type: 一行の文
+      - key: email
+        label: メールアドレス
+        type: メールアドレス
+        required: true
+      - key: phone
+        label: 電話番号
+        type: 電話番号
+    # 型の検査: 区分と所属会社の整合（要素ごとに評価）
+    constraints:
+      - id: corporate-has-company
+        description: 法人の顧客には所属会社があること
+        where: [ { path: kind, equals: corporate }, { path: companyId, exists: false } ]
+        expect: absent
+        level: error
+        message: "法人の顧客「{id}」に所属会社がありません"
+      - id: individual-has-no-company
+        description: 個人の顧客には所属会社を書かないこと
+        where: [ { path: kind, equals: individual }, { path: companyId, exists: true } ]
+        expect: absent
+        level: error
+        message: "個人の顧客「{id}」に所属会社が書かれています（法人なら区分を直します）"
+  # 商品: 1 件 1 ファイル
+  商品:
+    type: object
+    label: 商品
+    entity: { type: product, defines: true }
+    fields:
+      - key: productId
+        label: 商品番号
+        type: 商品番号
+        required: true
+      - key: name
+        label: 商品名
+        type: 一行の文
+        role: title
+        required: true
+      - key: unitPrice
+        label: 現在の販売単価
+        type: 金額
+        required: true
+      - key: active
+        label: 有効商品
+        type: boolean
+        required: true
+        default: true
+        description: 販売中なら true。販売を終えたら false にします（過去の注文の明細はそのまま残ります）。

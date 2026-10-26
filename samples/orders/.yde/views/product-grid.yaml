@@ -1,0 +1,27 @@
+id: product-grid
+name: 商品一覧
+description: 商品ごとの現在の販売単価・有効かどうかと、受注した数量の合計（取消済みの注文は除きます）。「新規行」で商品番号を入れると products/<番号>.yaml ができます。
+rows:
+  idPattern: "PRD-*"
+columns:
+  - { label: 商品名, schemaId: product, path: name, editable: true }
+  - { label: 現在の販売単価, schemaId: product, path: unitPrice, editable: true }
+  - { label: 有効商品, schemaId: product, path: active, editable: true }
+  # 行（商品）を起点に、この商品を指す明細を集め、所属する注文が取消済みでないものの数量を合計する
+  - label: 受注数量
+    schemaId: product
+    value:
+      sum:
+        all:
+          of: l
+          path: quantity
+          match:
+            - node: { entity: product, bind: p }
+            - edge: { via: productId, dir: in }
+            - node: { entity: order-line, bind: l }
+            - edge: { relation: has-line, dir: in }
+            - node: { entity: order, bind: o }
+          where:
+            - { of: o, path: status, notEquals: cancelled }
+newRow:
+  filePattern: "products/{id}.yaml"

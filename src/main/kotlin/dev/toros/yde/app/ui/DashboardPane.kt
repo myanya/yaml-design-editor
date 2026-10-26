@@ -8,19 +8,26 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.toros.yde.app.AppState
 import dev.toros.yde.app.core.Dashboards
 import dev.toros.yde.app.core.Views
+import dev.toros.yde.semantic.DashboardPlacement
+import dev.toros.yde.semantic.DashboardResolution
+import dev.toros.yde.semantic.DashboardSection
 import dev.toros.yde.semantic.DashboardSectionResult
 import dev.toros.yde.semantic.VirtualDashboardDef
+import dev.toros.yde.semantic.sectionGroups
 import java.time.LocalDate
+import kotlin.math.ceil
 import kotlinx.coroutines.delay
 
 /** 業務の入口と詳細は同じスペースに置き、原本を開くときだけ編集へ移る。 */
@@ -63,37 +70,27 @@ fun DashboardPane(state: AppState) {
         }
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
             val split = state.memory.dashboardSplit[view.id] == true && maxWidth >= 1000.dp && entity != null
+            // 一覧（タイルと表）に使える幅。分割時は 4:6 の 4
+            val listWidth = if (split) maxWidth * .4f else maxWidth
             Row(Modifier.fillMaxSize()) {
-                if (entity == null || split) Column(Modifier.weight(if (split) .4f else 1f).fillMaxHeight()) {
-                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        result.sections.forEach { item ->
-                            val selected = section.definition.id == item.definition.id
-                            Column(Modifier.widthIn(min = 145.dp)
-                                .border(1.dp, if (selected) Palette.Primary else Palette.Border, PanelShape)
-                                .background(if (selected) Palette.Selected else Palette.Surface, PanelShape)
-                                .clickable { state.memory.dashboardSection[view.id] = item.definition.id }.padding(12.dp)) {
-                                Text(item.definition.label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                                Text(if (item.error == null) item.count + " 行" else "表示できません", fontSize = 19.sp,
-                                    color = if (item.error == null) Palette.Primary else Palette.WarnOrange)
-                                if (item.pending.isNotEmpty()) Text("判定できない対象: " + item.pending.size + " 行", fontSize = 11.sp, color = Palette.WarnOrange)
-                            }
-                        }
+                if (entity == null || split) {
+                    // 区画のタイルの並べ方は定義の placement。auto は、一覧の幅に横へ折り返して 3 段以上になるときだけ縦の一覧にする
+                    val groups = view.sectionGroups()
+                    val vertical = when (view.placement) {
+                        DashboardPlacement.VERTICAL -> true
+                        DashboardPlacement.HORIZONTAL -> false
+                        DashboardPlacement.AUTO -> estimatedTileRows(result.sections.size, groups.count { it.first != null }, listWidth) >= 3
                     }
-                    Text(section.definition.label, Modifier.padding(12.dp), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    section.error?.let { Text(it, Modifier.padding(12.dp), color = Palette.WarnOrange, fontSize = 12.sp) }
-                    PendingRows(state, section)
-                    if (section.error == null && section.rows.isEmpty()) Text("該当する対象はありません", Modifier.padding(16.dp), color = Palette.SubText)
-                    val sectionKey = view.id to section.definition.id
-                    section.view?.let { grid -> key(sectionKey) {
-                        Box(Modifier.weight(1f)) {
-                            ResolvedViewGrid(state, grid, section.rows, section.selected(state.memory.dashboardRow[sectionKey])?.key,
-                                position = state.memory.dashboardScroll.getOrPut(sectionKey) { dev.toros.yde.app.TableScrollPosition() }) { row ->
-                                state.memory.dashboardRow[sectionKey] = row.key
-                                state.openDashboardEntity(row.id)
-                            }
+                    if (vertical) Row(Modifier.weight(if (split) .4f else 1f).fillMaxHeight()) {
+                        Column(Modifier.width(220.dp).fillMaxHeight().verticalScroll(rememberScrollState()).padding(8.dp)) {
+                            SectionTiles(state, view, result, section, vertical = true)
                         }
-                    } }
+                        Box(Modifier.width(1.dp).fillMaxHeight().background(Palette.Border))
+                        Column(Modifier.weight(1f).fillMaxHeight()) { SectionBody(state, view, section) }
+                    } else Column(Modifier.weight(if (split) .4f else 1f).fillMaxHeight()) {
+                        Box(Modifier.fillMaxWidth().padding(8.dp)) { SectionTiles(state, view, result, section, vertical = false) }
+                        SectionBody(state, view, section)
+                    }
                 }
                 if (entity != null) Column(Modifier.weight(if (split) .6f else 1f).fillMaxHeight()) {
                     if (state.overlayIndex().occurrences(entity).isEmpty()) {
@@ -103,6 +100,90 @@ fun DashboardPane(state: AppState) {
                 }
             }
         }
+    }
+}
+
+/** placement: auto の判定に使う、横に折り返して並べたときの段数の見積もり（タイル 1 枚 150dp・群の見出し 80dp）。 */
+private fun estimatedTileRows(tiles: Int, groups: Int, width: Dp): Int =
+    ceil((tiles * 150f + groups * 80f) / width.value.coerceAtLeast(1f)).toInt()
+
+/** 選んだ区画の見出し・判定できない対象・表（またはチャート）。 */
+@Composable
+private fun ColumnScope.SectionBody(state: AppState, view: VirtualDashboardDef, section: DashboardSectionResult) {
+    Text(section.definition.label, Modifier.padding(12.dp), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+    section.error?.let { Text(it, Modifier.padding(12.dp), color = Palette.WarnOrange, fontSize = 12.sp) }
+    PendingRows(state, section)
+    if (section.error == null && section.chart == null && section.rows.isEmpty()) Text("該当する対象はありません", Modifier.padding(16.dp), color = Palette.SubText)
+    val sectionKey = view.id to section.definition.id
+    // チャートの区画（P46）: 表の代わりに図を描く。元の表へは図の下のボタンから
+    section.chart?.let { data -> key(sectionKey) {
+        // 材料の ID は業務詳細へ（表の行と同じ行き先）
+        Box(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(12.dp)) {
+            ChartCard(state, data, onOpenEntity = { state.openDashboardEntity(it) })
+        }
+    } }
+    section.view?.let { grid -> key(sectionKey) {
+        Box(Modifier.weight(1f)) {
+            ResolvedViewGrid(state, grid, section.rows, section.selected(state.memory.dashboardRow[sectionKey])?.key,
+                position = state.memory.dashboardScroll.getOrPut(sectionKey) { dev.toros.yde.app.TableScrollPosition() }) { row ->
+                state.memory.dashboardRow[sectionKey] = row.key
+                state.openDashboardEntity(row.id)
+            }
+        }
+    } }
+}
+
+/**
+ * 区画のタイル。群（sections[].group）ごとに見出しを付け、見出しを押すと畳む（畳みは ScreenMemory の覚え）。
+ * 横＝折り返して並べる（群の見出しもタイルの列に混ぜる）。縦＝左の一覧（1 区画 1 行）。
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SectionTiles(state: AppState, view: VirtualDashboardDef, result: DashboardResolution, selected: DashboardSectionResult, vertical: Boolean) {
+    val byId = result.sections.associateBy { it.definition.id }
+    @Composable fun group(name: String?, items: List<DashboardSection>, headerModifier: Modifier, tileModifier: Modifier) {
+        val collapsed = name != null && state.memory.dashboardGroupCollapsed[view.id to name] == true
+        if (name != null) GroupHeader(name, items.size, collapsed, headerModifier) { state.memory.dashboardGroupCollapsed[view.id to name] = !collapsed }
+        if (!collapsed) items.forEach { def -> byId[def.id]?.let { item ->
+            SectionTile(state, view, item, item.definition.id == selected.definition.id, line = vertical, tileModifier)
+        } }
+    }
+    val groups = view.sectionGroups()
+    if (vertical) Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        groups.forEach { (name, items) -> group(name, items, Modifier.fillMaxWidth(), Modifier.fillMaxWidth()) }
+    } else FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        groups.forEach { (name, items) -> group(name, items, Modifier.heightIn(min = 52.dp), Modifier.widthIn(min = 120.dp)) }
+    }
+}
+
+@Composable
+private fun GroupHeader(name: String, size: Int, collapsed: Boolean, modifier: Modifier, onToggle: () -> Unit) {
+    Row(modifier.then(if (collapsed) Modifier.border(1.dp, Palette.Border, PanelShape) else Modifier)
+        .clickable(onClick = onToggle).padding(horizontal = 6.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text((if (collapsed) "▸ " else "▾ ") + name, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Palette.SubText)
+        if (collapsed) Text("（$size）", fontSize = 11.sp, color = Palette.SubText)
+    }
+}
+
+/** 1 区画のタイル（見出しと件数）。line＝縦の一覧の 1 行、そうでなければ小さな箱。 */
+@Composable
+private fun SectionTile(state: AppState, view: VirtualDashboardDef, item: DashboardSectionResult, selected: Boolean, line: Boolean, modifier: Modifier) {
+    val base = modifier
+        .border(1.dp, if (selected) Palette.Primary else Palette.Border, PanelShape)
+        .background(if (selected) Palette.Selected else Palette.Surface, PanelShape)
+        .clickable { state.memory.dashboardSection[view.id] = item.definition.id }
+    val count = if (item.error == null) item.count + (if (item.chart != null) " 項目" else " 行") else "表示できません"
+    val countColor = if (item.error == null) Palette.Primary else Palette.WarnOrange
+    if (line) Column(base.padding(horizontal = 8.dp, vertical = 6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(item.definition.label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            Text(count, fontSize = 13.sp, color = countColor)
+        }
+        if (item.pending.isNotEmpty()) Text("判定できない対象: " + item.pending.size + " 行", fontSize = 10.sp, color = Palette.WarnOrange)
+    } else Column(base.padding(8.dp)) {
+        Text(item.definition.label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Text(count, fontSize = 16.sp, color = countColor)
+        if (item.pending.isNotEmpty()) Text("判定できない対象: " + item.pending.size + " 行", fontSize = 10.sp, color = Palette.WarnOrange)
     }
 }
 

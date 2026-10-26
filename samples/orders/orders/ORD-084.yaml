@@ -1,0 +1,11 @@
+orderId: ORD-084
+orderedAt: 2026-08-13
+status: shipped
+customerId: CUS-017
+totalAmount: 4800
+lines:
+  - orderLineId: ORD-084-01  # まとめ買いの値引き（商品の現在の販売単価より安い）
+    productId: PRD-006
+    quantity: 30
+    unitPrice: 160
+    amount: 4800

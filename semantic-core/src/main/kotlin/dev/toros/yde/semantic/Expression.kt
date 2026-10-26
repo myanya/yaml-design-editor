@@ -11,9 +11,11 @@ import dev.toros.yde.semantic.schema.DerivationSelector
 import dev.toros.yde.semantic.schema.EntityRole
 import dev.toros.yde.semantic.schema.PathPattern
 import dev.toros.yde.semantic.schema.ValueExpr
+import dev.toros.yde.semantic.schema.ValueSemantics
 import java.math.BigDecimal
 import java.math.MathContext
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.ConcurrentHashMap
 
@@ -102,13 +104,32 @@ object SemanticExpression {
         return if (rights.any { it == null }) null else false
     }
 
-    /** 値を1つ受け取る計算（SP-10）。得られなければ null（number: 数として読めない。読み方は numberOf＝桁区切り・通貨記号・全角を許す）。 */
+    /**
+     * 値を1つ受け取る計算（SP-10）。得られなければ null（number: 数として読めない。読み方は numberOf＝桁区切り・通貨記号・全角を許す。
+     * year / month / day / yearMonth: 日付か日時の正準の形として読めない）。
+     */
     fun unary(fn: ValueExpr.UnaryFn, text: String): String? = when (fn) {
         // 文字数の数え方は、フィールドの maxLength の検証と同じ（String.length）
         ValueExpr.UnaryFn.LENGTH -> text.length.toString()
         ValueExpr.UnaryFn.UPPER -> text.uppercase()
         ValueExpr.UnaryFn.LOWER -> text.lowercase()
         ValueExpr.UnaryFn.NUMBER -> numberOf(text)?.let(::numberText)
+        ValueExpr.UnaryFn.YEAR -> dateOf(text)?.year?.toString()
+        ValueExpr.UnaryFn.MONTH -> dateOf(text)?.monthValue?.toString()
+        ValueExpr.UnaryFn.DAY -> dateOf(text)?.dayOfMonth?.toString()
+        ValueExpr.UnaryFn.YEAR_MONTH -> dateOf(text)?.format(YEAR_MONTH_FORMAT)
+    }
+
+    private val YEAR_MONTH_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM")
+
+    /**
+     * 日付の部分を取り出すための読み（日付 `YYYY-MM-DD` か日時 `YYYY-MM-DD HH:MM[:SS]`。意味の基底型の正準の形と存在の規則を共有する）。
+     * 時刻だけの値や、`2026/10/1` のような表記は読まない（表記から意味を決めない）。
+     */
+    private fun dateOf(text: String): LocalDate? = when {
+        ValueSemantics.DATE.reads(text) -> ValueSemantics.DATE.parse(text) as? LocalDate
+        ValueSemantics.DATETIME.reads(text) -> (ValueSemantics.DATETIME.parse(text) as? LocalDateTime)?.toLocalDate()
+        else -> null
     }
 
     /**

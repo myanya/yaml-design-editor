@@ -1,0 +1,69 @@
+id: order-dashboard
+name: 注文ダッシュボード
+kind: dashboard
+default: true
+description: 注文の状況です。件数を押すと一覧に切り替わり、注文番号を押すと詳細と操作（出荷・取消）へ進みます。顧客別・商品別は、注文から集計した件数と金額です。
+actions: [register-order]
+# 区画のタイルの並べ方: auto（幅が十分で横に 3 段以上になるときだけ縦の一覧）/ horizontal（横に折り返す）/ vertical（左の一覧）
+placement: auto
+# 区画は group で 3 つの群に分け、見出し付きで並べる（群は畳める）
+sections:
+  - id: pending
+    label: 未処理
+    group: 状況
+    view: order-grid
+    filter:
+      match:
+        - node: { entity: order, bind: o }
+      where:
+        - { of: o, path: status, equals: pending }
+      expect: exists
+  - id: shipped
+    label: 出荷済み
+    group: 状況
+    view: order-grid
+    filter:
+      match:
+        - node: { entity: order, bind: o }
+      where:
+        - { of: o, path: status, equals: shipped }
+      expect: exists
+  - id: cancelled
+    label: 取消済み
+    group: 状況
+    view: order-grid
+    filter:
+      match:
+        - node: { entity: order, bind: o }
+      where:
+        - { of: o, path: status, equals: cancelled }
+      expect: exists
+  - id: all
+    label: すべての注文
+    group: 状況
+    view: order-grid
+  - id: customers
+    label: 顧客別
+    group: 内訳
+    view: customer-grid
+  - id: companies
+    label: 会社別
+    group: 内訳
+    view: company-grid
+  - id: products
+    label: 商品別
+    group: 内訳
+    view: product-grid
+  # チャートの区画: 件数の代わりに項目の数を出し、一覧の代わりに図を描く
+  - id: monthly
+    label: 月別売上
+    group: 図
+    view: monthly-sales-chart
+  - id: share
+    label: 顧客別の割合
+    group: 図
+    view: customer-share-chart
+  - id: company-share
+    label: 会社別の割合
+    group: 図
+    view: company-share-chart

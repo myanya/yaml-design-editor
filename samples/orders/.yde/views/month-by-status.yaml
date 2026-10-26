@@ -1,0 +1,20 @@
+id: month-by-status
+name: 月×状態の売上
+kind: matrix
+description: 行＝注文受付日の年月（受付日から yearMonth で導く。月の文書は置かない）、列＝注文状態、セル＝注文合計金額の合計。合計の行と列が自動で付きます。
+# 行の軸を値の式で広げる: 照合の起点（注文）ごとに年月を計算し、同じ年月を 1 行にまとめる
+rows:
+  value: { yearMonth: { path: orderedAt } }
+display: grouped
+cells:
+  match:
+    - node: { entity: order, bind: o }
+  of: o
+  columns:
+    path: status
+    values:
+      - { value: pending, label: 未処理 }
+      - { value: shipped, label: 出荷済み }
+      - { value: cancelled, label: 取消済み }
+  aggregate: sum
+  path: totalAmount

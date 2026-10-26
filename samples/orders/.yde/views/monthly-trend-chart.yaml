@@ -1,0 +1,8 @@
+id: monthly-trend-chart
+name: 売上の推移
+kind: chart
+chart: line
+description: 月×状態の売上（クロス集計）の合計の列を折れ線にします。合計の列は既定では描かないので、series に書いて選びます。
+view: month-by-status
+series: [合計]
+y: { label: 売上高（円）, format: "#,##0" }
