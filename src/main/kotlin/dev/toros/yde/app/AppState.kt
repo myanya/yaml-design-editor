@@ -118,10 +118,10 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     var fileHistoryBusy by mutableStateOf(false)
     fun undoFromUi() { historyFromUi(true) }
     fun redoFromUi() { historyFromUi(false) }
-    internal fun historyFromUi(undoing: Boolean, confirmation: PendingHistory? = null): Job? {
+    internal fun historyFromUi(undoing: Boolean, confirmation: DocumentSession.PendingHistory? = null): Job? {
         if (fileOperationBusy) return null
         val step = prepareHistoryStep(undoing, confirmation) ?: return null
-        if (step.session.fileArrangement(step.record.id) == null) { executeHistoryStep(step); return null }
+        if (step.kernel.fileArrangement(step.record.id) == null) { executeHistoryStep(step); return null }
         fileOperationBusy = true; fileHistoryBusy = true
         return kotlinx.coroutines.CoroutineScope(DesktopUiDispatcher).launch {
             try {
@@ -165,11 +165,14 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
             .map { Path.of(it) }.filter(Files::isDirectory).take(10).toList()
     }
 
+    private val readOnlyState = mutableStateOf(false)
     /**
-     * 閲覧専用モード（R10-04）。フォーム・グリッドの編集UIを表示専用に切り替える
-     * （FormCtx がこのフラグを既定値として拾う。永続化は Main の uiPreferences＝W-06 の流儀）。
+     * 閲覧専用モード。フォーム・グリッドの編集 UI を表示専用に切り替える（FormCtx がこのフラグを既定値として拾う。永続化は Main の uiPreferences）。
+     * セッション側（操作の記録を戻すときに保存まで行う判定）にも写す。
      */
-    var readOnlyMode by mutableStateOf(false)
+    var readOnlyMode: Boolean
+        get() = readOnlyState.value
+        set(value) { documents.readOnlyMode = value; readOnlyState.value = value }
 
     /** ヘッドレスコア（セッション側の所有。ファイル走査・スキーマ・索引の実体と更新方針は core.Workspace が持つ）。 */
     private var coreWs: dev.toros.yde.app.core.Workspace?
@@ -588,8 +591,6 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
      */
     class InsertTarget(val doc: OpenDocument, val arrayPath: YPath, val arrayDef: FieldDef, val alternatives: List<ActionEntry> = emptyList())
 
-    /** 操作の適用で積んだ履歴の id（閲覧専用のときの取り消し・やり直しは、これらだけ保存まで行う）。 */
-    private val actionRecordIds = mutableSetOf<Long>()
 
     // ---------------------------------------------------------------- 初期化ウィザード（新しいワークスペースを作る。architecture/workspace.md「ワークスペースの初期化」）
 
@@ -918,7 +919,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
             )
         }
         refreshAfterSessionWrite(plan.changeSet.changes.map { DocumentId(it.file) })
-        s.peekUndo()?.let { actionRecordIds += it.id }
+        s.peekUndo()?.let { documents.actionRecordIds += it.id }
         val message = "${work.title} を適用して保存しました（${plan.changeSet.changes.size} ファイル。Ctrl+Z で 1 回で戻せます）"
         work.applied = message
         status = message
@@ -1333,24 +1334,9 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     fun redo() { prepareHistoryStep(undo = false)?.let(::executeHistoryStep) }
 
     /** 解析できない下書きを捨てて戻すかの確認待ち（Main.kt が確認を出す。R43-02）。 */
-    var pendingHistory by mutableStateOf<PendingHistory?>(null)
+    var pendingHistory by mutableStateOf<DocumentSession.PendingHistory?>(null)
 
-    class PendingHistory internal constructor(
-        val undo: Boolean,
-        val docs: List<OpenDocument>,
-        internal val session: WorkspaceSession,
-        internal val recordId: Long,
-        internal val version: Long,
-    ) {
-        private val drafts = docs.associateWith { Triple(it.source.text.toString(), it.sourceEpoch, it.sourceInputOrder) }
-        internal fun matchesDrafts(): Boolean = drafts.all { (doc, stamp) ->
-            stamp == Triple(doc.source.text.toString(), doc.sourceEpoch, doc.sourceInputOrder)
-        }
-    }
 
-    private class HistoryStep(val session: WorkspaceSession, val record: ChangeRecord, val undo: Boolean, val visibleDocument: DocumentId?) {
-        val version = session.version
-    }
 
     private fun flushSourceDrafts() = documents.flushSourceDrafts()
 
@@ -1358,76 +1344,36 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     private fun finishEditGroup() = documents.finishEditGroup()
 
     /**
-     * Undo / Redo の 1 手。対象の文書に解析できない下書きがあれば「捨てて戻すか」を確認し（R43-02）、
-     * 壊れたまま保存された文書が含まれていれば案内して止める（文書集合に無いので戻せない。R43-04）。
+     * Undo / Redo の 1 手の準備（判断はセッション側）。拒まれたら理由を状態表示に出し、確認が要れば pendingHistory に積む。
      */
-    private fun prepareHistoryStep(undo: Boolean, confirmation: PendingHistory? = null): HistoryStep? {
+    private fun prepareHistoryStep(undo: Boolean, confirmation: DocumentSession.PendingHistory? = null): DocumentSession.HistoryStep? {
         if (fileOperationBusy) return null
-        val s = session ?: return null
-        flushSourceDrafts()
-        val record = if (undo) s.peekUndo() else s.peekRedo()
-        if (confirmation != null && (confirmation.session !== s || confirmation.version != s.version ||
-                confirmation.recordId != record?.id || !confirmation.matchesDrafts())) {
-            status = "履歴または下書きが変わったため中止しました。もう一度操作してください"
-            return null
+        val visible = openDoc?.takeIf { uiSpace == UiSpace.EDIT }?.let { documentOf(it.file) }
+        return when (val prepared = documents.prepareHistoryStep(undo, confirmation, visible)) {
+            is DocumentSession.HistoryPreparation.None -> null
+            is DocumentSession.HistoryPreparation.Refused -> { status = prepared.message; null }
+            is DocumentSession.HistoryPreparation.Confirm -> { pendingHistory = prepared.pending; null }
+            is DocumentSession.HistoryPreparation.Ready -> { pendingHistory = null; prepared.step }
         }
-        record ?: return null
-        val checked = s.checkHistory(undo)
-        if (!checked.ok) {
-            status = checked.message ?: "履歴を適用できません"
-            return null
-        }
-        val targets = historyTargets(record).map(DocumentId::value).toSet()
-        val docs = docCache.values.filter { relPath(it.file) in targets }
-        val textOnly = docs.filter { it.textOnly }
-        if (textOnly.isNotEmpty()) {
-            status = textOnly.joinToString("・") { relPath(it.file) } +
-                " は壊れたまま保存されているため、この操作は戻せません（ソースで直して保存すると戻せます）"
-            return null
-        }
-        val broken = docs.filter { it.draftBroken }
-        if (broken.isNotEmpty() && confirmation == null) {
-            pendingHistory = PendingHistory(undo, broken, s, record.id, s.version)
-            return null
-        }
-        pendingHistory = null
-        broken.forEach { it.discardDraft() }
-        return HistoryStep(s, record, undo, openDoc?.takeIf { uiSpace == UiSpace.EDIT }?.let { documentOf(it.file) })
     }
 
-    private fun executeHistoryStep(step: HistoryStep) {
+    private fun executeHistoryStep(step: DocumentSession.HistoryStep) {
         completeHistoryStep(step, applyHistoryStep(step))
     }
 
-    /** カーネルの操作だけを行う。ファイル配置の履歴では IO スレッドから呼び、UI の状態は変更しない。 */
-    private fun applyHistoryStep(step: HistoryStep): dev.toros.yde.workspace.TransactionResult {
-        val s = step.session
-        val top = if (step.undo) s.peekUndo() else s.peekRedo()
-        if (session !== s || step.version != s.version || step.record.id != top?.id) {
-            return dev.toros.yde.workspace.TransactionResult(false,
-                "履歴が変わったため中止しました。もう一度操作してください", s.version)
-        }
-        return runCatching { if (step.undo) s.undo() else s.redo() }.getOrElse {
-            dev.toros.yde.workspace.TransactionResult(false, it.message ?: "履歴を適用できません", s.version)
-        }
-    }
+    /** カーネルの操作だけを行う（セッション側）。ファイル配置の履歴では IO スレッドから呼び、UI の状態は変更しない。 */
+    private fun applyHistoryStep(step: DocumentSession.HistoryStep): dev.toros.yde.workspace.TransactionResult = documents.applyHistoryStep(step)
 
-    /** 文書の再生成・ソース同期・画面移動は、背景の IO が完了してから UI スレッドへ戻って行う。 */
-    private fun completeHistoryStep(step: HistoryStep, result: dev.toros.yde.workspace.TransactionResult) {
-        if (session !== step.session) {
-            return
-        }
+    /** 文書の再生成・ソース同期（セッション側）と、ツリーの追随・通知・画面移動（ここ）は、背景の IO が完了してから UI スレッドへ戻って行う。 */
+    private fun completeHistoryStep(step: DocumentSession.HistoryStep, result: dev.toros.yde.workspace.TransactionResult) {
+        if (session !== step.kernel) return
         if (result.ok) {
-            afterHistoryStep(step.record, step.undo, step.visibleDocument)
+            val follow = documents.afterHistoryStep(step.record, step.undo)
+            follow.arrangement?.let { followFileArrangement(it, reverse = step.undo) }
+            follow.message?.let { status = it }
+            noteHistoryStep(step.record, follow.ids, step.undo, step.visibleDocument)
             // 次のキー入力や反映待ちの解析が来る前に、戻した木とソースを揃える。
-            val synced = historyTargets(step.record).mapNotNull { id ->
-                docCache[fileOf(id)]?.let { id to it.syncSourceFromTree(preferHistory = true) }
-            }
-            val conflicts = synced.sumOf { it.second.conflicts }
-            val normalized = synced.filter { it.second.normalized }.map { it.first.value }
-            val notices = mutableListOf<String>()
-            if (conflicts > 0) notices += "下書きと食い違う変更が $conflicts か所あり、下書きを優先しました（「整形」で木に揃えられます）"
-            if (normalized.isNotEmpty()) notices += "履歴の内容に揃えるためソースを書式調整しました: ${normalized.joinToString("・")}"
+            val notices = documents.syncSourcesAfterHistory(step.record)
             if (notices.isNotEmpty()) status = notices.joinToString(" / ")
             val returned = returnToHistoryLocation(step.record)
             historyNotice = historyNotice?.copy(returnedToOrigin = returned)
@@ -1440,80 +1386,31 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         historyFromUi(pending.undo, pending)
     }
 
-    /** 次に Ctrl+Z で戻る変更の予告（ツールバーのツールチップ。UX-86）。セッション不在時は null。 */
+    /** 次に Ctrl+Z で戻る変更の予告（ツールバーのツールチップ。editVersion を読んで購読する）。 */
     fun undoPreview(): String? {
         editVersion
-        pendingSourceDocuments().maxByOrNull { it.sourceInputOrder }?.let {
-            return "ソース入力を反映して元に戻す: ${relPath(it.file)}"
-        }
-        return historySummary(session?.peekUndo())
+        return documents.undoPreview()
     }
 
     fun redoPreview(): String? {
         editVersion
-        if (pendingSourceDocuments().isNotEmpty()) return "ソース入力の反映待ちです（新しい編集でやり直しは破棄されます）"
-        return historySummary(session?.peekRedo())
+        return documents.redoPreview()
     }
 
-    /** 履歴1件の1行要約: 変更の意図＋対象ファイル（意図に含まれていれば列挙を省く）。 */
-    private fun historySummary(record: ChangeRecord?): String? {
-        record ?: return null
-        val names = historyTargets(record).map(DocumentId::value)
-        val desc = record.intent.description.ifBlank { "${names.size} ファイルの変更" }
-        val listed = names.take(3).joinToString("・") + (if (names.size > 3) " ほか${names.size - 3}件" else "")
-        return if (names.all { it in desc }) desc else "$desc（$listed）"
-    }
 
-    private fun historyTargets(record: ChangeRecord): List<DocumentId> =
-        (record.forward.operations + record.inverse.operations).flatMap(::operationIds).distinct()
 
-    /** Undo可能か（ツールバー活性用。editVersion を読むことで再コンポーズを購読する）。 */
+    /** Undo 可能か（ツールバー活性用。editVersion を読むことで再コンポーズを購読する）。 */
     fun canUndo(): Boolean {
         editVersion
-        return session?.canUndo() == true || pendingSourceDocuments().isNotEmpty()
+        return documents.canUndo()
     }
 
     fun canRedo(): Boolean {
         editVersion
-        return session?.canRedo() == true && pendingSourceDocuments().isEmpty()
+        return documents.canRedo()
     }
 
-    private fun pendingSourceDocuments(): List<OpenDocument> = docCache.values.filter {
-        it.hasPendingSourceInput && session?.acceptsDocument(documentOf(it.file)) == true
-    }
 
-    /**
-     * Undo/Redo 適用後の追随: 影響文書のツリーをセッションの working から取り直し、派生を進める。
-     * 文書の作成・削除を含む履歴は、**ファイルの有無までその場で確定する**（D-18）——内容の編集の Undo は
-     * 「未保存●」に留めて保存で確定できるが、作成の取り消し（＝文書が消える）には保存の手段が無く、
-     * 削除予約のままではディスクとセッションが食い違うため。
-     */
-    private fun afterHistoryStep(record: ChangeRecord, undo: Boolean, visibleDocument: DocumentId?) {
-        session?.fileArrangement(record.id)?.let { plan ->
-            followFileArrangement(plan, reverse = undo)
-            noteHistoryStep(record, historyTargets(record), undo, visibleDocument)
-            return
-        }
-        val ids = historyTargets(record)
-        val fileLevel = (record.forward.operations + record.inverse.operations)
-            .filter { it is WorkspaceOperation.CreateDocument || it is WorkspaceOperation.DeleteDocument }
-            .flatMap(::operationIds)
-            .toSet()
-        val s = session
-        // 閲覧専用のときの操作の取り消し・やり直しは、戻した内容を保存まで行う（未保存の編集を残さない。architecture/actions.md）
-        val writeThrough = readOnlyMode && record.id in actionRecordIds
-        if (s != null && (fileLevel.isNotEmpty() || writeThrough)) {
-            val saved = s.save(if (writeThrough) ids.toSet() else fileLevel)
-            if (!saved.ok) status = "ファイルの反映に失敗しました: ${saved.failures.entries.first().let { "${it.key.value}: ${it.value}" }}"
-            refreshDocsFromSession(ids)
-            refreshAfterSessionWrite(saved.written + saved.deleted)
-            saved.conflicts.forEach { id -> workspace?.resolve(id.value)?.let { docCache[it]?.externalConflict = true } }
-        } else {
-            refreshDocsFromSession(ids)
-            editVersion++
-        }
-        noteHistoryStep(record, ids, undo, visibleDocument)
-    }
 
     /**
      * 「何が戻ったか」の通知を組み立てる（UX-86）。未保存化（●）の明示は、
@@ -1522,7 +1419,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     private fun noteHistoryStep(record: ChangeRecord, ids: List<DocumentId>, undo: Boolean, visibleDocument: DocumentId?) {
         val ws = workspace ?: return
         val s = session ?: return
-        val summary = historySummary(record) ?: return
+        val summary = documents.historySummary(record) ?: return
         val verb = if (undo) "元に戻しました" else "やり直しました"
         val dirtied = ids.any { s.hasDocument(it) && s.isDirty(it) }
         val suffix = if (dirtied) "——未保存（●）の状態です。保存で確定します" else ""
@@ -1531,13 +1428,6 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
             ids.any { it != visibleDocument }, undo)
     }
 
-    private fun operationIds(op: WorkspaceOperation): List<DocumentId> = when (op) {
-        is WorkspaceOperation.EditDocument -> listOf(op.documentId)
-        is WorkspaceOperation.CreateDocument -> listOf(op.documentId)
-        is WorkspaceOperation.ReplaceDocument -> listOf(op.documentId)
-        is WorkspaceOperation.DeleteDocument -> listOf(op.documentId)
-        is WorkspaceOperation.MoveDocument -> listOf(op.from, op.to)
-    }
 
     private fun refreshDocsFromSession(ids: Collection<DocumentId>) = documents.refreshDocsFromSession(ids)
 
@@ -2020,7 +1910,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     /** 成功した履歴の編集元へ戻る。元のビューが消えていれば、開ける対象文書を使う。 */
     private fun returnToHistoryLocation(record: ChangeRecord): Boolean {
         val origin = historyLocations[record.id]?.takeIf(::canRestoreHistoryLocation)
-        val target = origin ?: historyTargets(record).singleOrNull()?.let { documentHistoryLocation(fileOf(it)) }
+        val target = origin ?: documents.historyTargets(record).singleOrNull()?.let { documentHistoryLocation(fileOf(it)) }
             ?.takeIf(::canRestoreHistoryLocation) ?: return false
         val current = historyLocation()
         // 同じ画面では再表示しない。入力欄の焦点や選択を余計に動かさない。

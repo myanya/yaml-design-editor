@@ -11,8 +11,9 @@
 | `OpenDocument` | app/OpenDocument.kt | 開いている 1 文書の Compose の殻（`version` / `dirty` / `parseError` などを論理から写して購読できるようにする。名前と窓口は論理と同じで UI はこの殻だけを見る）。複数ドキュメントの再出力と保存内容との比較は `EditBuffer` へ委譲し、外部競合を管理する |
 | `EditBuffer` | core/Documents.kt | 複数ドキュメントの再出力と、保存した内容との比較（履歴は持たない）。ここの dirty はセッションが文書として扱わないパス用で、聞かれたときにだけ計算する |
 | `WorkspaceSession.recordEdit` / `endEditGroup` | workspace-core | 編集の記録（合体キーと時刻つき）と連続入力の区切り。Undo / Redo の実体 |
-| `AppState.undo` / `redo` / `historyNotice` / `undoPreview` | app/AppState.kt | 横断 Undo の実行と、戻った内容の通知・予告 |
-| `AppState.createDocumentFile` / `afterHistoryStep` | app/AppState.kt | 文書の新規作成の単一経路と、作成・削除を含む履歴の確定 |
+| `DocumentSession.prepareHistoryStep` / `applyHistoryStep` / `afterHistoryStep` / `syncSourcesAfterHistory` | session/DocumentSession.kt | 横断 Undo の一手の論理: 下書きの反映・対象の決定・拒否と確認の判定・カーネルの呼び出し・開いている文書の作り直し・ソースの差し込み・予告の文 |
+| `AppState.undo` / `redo` / `historyFromUi` / `historyNotice` | app/AppState.kt | 一手の段取り（確認の表示・ファイル配置の一手を IO へ・通知・編集元へ戻る移動） |
+| `AppState.createDocumentFile`、`DocumentSession.afterHistoryStep` | app/AppState.kt・session/DocumentSession.kt | 文書の新規作成の単一経路と、作成・削除を含む履歴の確定 |
 | `FormCtx.writeScalar` | ui/FormView.kt | スカラー入力の書込。合体キーを渡す |
 | `OpenDocument.source`（文字列とカーソル）と `DocumentState.applyParsed` / `syncSourceFromTree` / `discardDraft` / `enterTextOnly`（計算） | app/OpenDocument.kt・session/DocumentState.kt | ソースの下書き（文字列・カーソル・解析エラー）の所有と、木との同期 |
 | `SourceHistorySync` | text/SourceHistorySync.kt | 履歴の値を優先した書式の差し込みと、全 YAML 文書の再解析による内容一致の確認 |
@@ -25,7 +26,7 @@
 | `YamlPositions` / `SourcePositions` | yaml-core yaml/YamlPositions.kt | 解析できた文字列のノードの位置の表（パス→行・列、位置→パス、行→見出しのキー）。指摘の行・ホバー・Ctrl+クリック・折り畳みの鍵 |
 | `SourceStructure` | ui/SourceStructure.kt | 折り畳める区画と畳んだ見え方（隠れる範囲・表示と元の位置の行き来）・保存済みとの差分の印・木のノード→パス・選択範囲の整形（純ロジック） |
 | `YamlHighlighter` | ui/SourceHighlight.kt | 行ごとの覚えつきの色分け（純ロジック） |
-| `DocumentSession.save` / `saveDraftAsText` / `ensureAttached`、`AppState.prepareHistoryStep` / `executeHistoryStep` | session/DocumentSession.kt・app/AppState.kt | 壊れたまま保存、下書きを捨てる確認つきの Undo/Redo、テキスト文書を文書集合へ戻す |
+| `DocumentSession.save` / `saveDraftAsText` / `ensureAttached` / `prepareHistoryStep` | session/DocumentSession.kt | 壊れたまま保存、下書きを捨てる確認つきの Undo/Redo、テキスト文書を文書集合へ戻す |
 | `WorkspaceSession.saveAsText` / `attachDocument` | workspace-core | テキストのまま保存して文書集合から外す（履歴は残す）。解析できる内容で文書集合へ戻す |
 | `DiffPane.calculateDiff` / `charDiffRanges` | ui/DiffPane.kt | 保存済みと編集中の差分（行整列・文字単位の強調。純ロジック） |
 
@@ -43,7 +44,7 @@
 
 - 履歴はセッション（workspace-core）のワークスペース横断の単一履歴。開いていない文書も戻す。
 - フォームの直接入力も同じ履歴へ接続する。対象と例外は [UI 操作規則「フォーム入力の Undo と Redo」](ui-interactions.md#フォーム入力の-undo-と-redo)、接続は [ui.md「入力と Undo」](ui.md#入力と-undo) を参照。
-- `AppState` は実行後の通知（`historyNotice`）とホバー予告（`undoPreview` / `redoPreview`）を組み立てる。通知の強さと寿命は [UI 操作規則「横断履歴の通知」](ui-interactions.md#横断履歴の通知) に従う。
+- 一手の判断（入力待ちの反映・対象・拒否・確認の要否・鮮度）とホバー予告の文は `DocumentSession` が決め、`AppState` は確認の表示・実行後の通知（`historyNotice`）・編集元へ戻る移動を担う。通知の強さと寿命は [UI 操作規則「横断履歴の通知」](ui-interactions.md#横断履歴の通知) に従う。
 - `HistoryStep` は実行前の表示文書を保持し、実際に実行した記録の全対象と比較する。`HistoryNotice.targets` は消えたファイルも含み、`historyNoticeTargets` が現在の未保存状態と開けるかを返す。
 - `historyLocations` はセッションの記録 ID に `NavLocation` を添え、成功後に `returnToHistoryLocation` が編集元へ戻す。内容の履歴は複製せず、セッションの開き直しで画面情報を破棄する。
 - 通常の再読込ではセッションと画面情報を保持する。取り込める外部変更と中止条件は [workspace.md「再読込と履歴の保持」](workspace.md#再読込と履歴の保持) を参照。

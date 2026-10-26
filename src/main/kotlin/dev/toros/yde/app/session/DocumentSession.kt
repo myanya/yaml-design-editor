@@ -11,9 +11,11 @@ import dev.toros.yde.semantic.SemanticSchemaGraph
 import dev.toros.yde.semantic.schema.EnforcementDef
 import dev.toros.yde.semantic.schema.EntityTypeDef
 import dev.toros.yde.semantic.schema.RelationDef
+import dev.toros.yde.workspace.ChangeRecord
 import dev.toros.yde.workspace.FileSystemDocumentStore
 import dev.toros.yde.workspace.StoreConflictException
 import dev.toros.yde.workspace.WorkspaceDerivedState
+import dev.toros.yde.workspace.WorkspaceOperation
 import dev.toros.yde.workspace.WorkspaceSession
 import dev.toros.yde.workspace.checkUnchanged
 import dev.toros.yde.workspace.layout.FilePolicy
@@ -874,5 +876,166 @@ class DocumentSession(private val editClock: () -> Long = System::currentTimeMil
             if (!saved.ok) failures += saved.failures.map { (id, message) -> "${id.value}: $message" }
         }
         return SaveAllOutcome(messages, failures, confirmations)
+    }
+
+    // ---------------------------------------------------------------- 履歴の一手の論理（段取りの表示・スレッド・画面移動は殻）
+
+    /** 閲覧専用モード（編集の UI を封じるのは殻。ここでは、操作の記録を戻すときに保存まで行う判定に使う）。 */
+    var readOnlyMode: Boolean = false
+
+    /** 操作の適用で積んだ履歴の id（閲覧専用のときの取り消し・やり直しは、これらだけ保存まで行う）。 */
+    val actionRecordIds = mutableSetOf<Long>()
+
+    /** 解析できない下書きを捨てて戻すかの確認待ち（殻が確認を出す）。確認の間に変わっていないかは下書きの印で見る。 */
+    class PendingHistory internal constructor(
+        val undo: Boolean,
+        val docs: List<DocumentState>,
+        internal val kernel: WorkspaceSession,
+        internal val recordId: Long,
+        internal val version: Long,
+    ) {
+        private val drafts = docs.associateWith { Triple(it.draft, it.sourceEpoch, it.sourceInputOrder) }
+        internal fun matchesDrafts(): Boolean = drafts.all { (doc, stamp) -> stamp == Triple(doc.draft, doc.sourceEpoch, doc.sourceInputOrder) }
+    }
+
+    /** 準備できた一手。visibleDocument は実行前に表示していた文書（通知の判断に使う）。 */
+    class HistoryStep internal constructor(val kernel: WorkspaceSession, val record: ChangeRecord, val undo: Boolean, val visibleDocument: DocumentId?) {
+        val version: Long = kernel.version
+    }
+
+    /** 一手の準備の結果。 */
+    sealed class HistoryPreparation {
+        /** 戻す記録が無い。 */
+        object None : HistoryPreparation()
+        /** 拒んだ（理由を利用者へ）。 */
+        class Refused(val message: String) : HistoryPreparation()
+        /** 解析できない下書きを捨ててよいかの確認が要る。 */
+        class Confirm(val pending: PendingHistory) : HistoryPreparation()
+        class Ready(val step: HistoryStep) : HistoryPreparation()
+    }
+
+    /**
+     * Undo / Redo の 1 手の準備。入力待ちの下書きを反映し、対象の文書に解析できない下書きがあれば「捨てて戻すか」の確認を求め、
+     * 壊れたまま保存された文書が含まれていれば拒む（文書集合に無いので戻せない）。確認済みなら壊れた下書きを捨てて進む。
+     */
+    fun prepareHistoryStep(undo: Boolean, confirmation: PendingHistory?, visibleDocument: DocumentId?): HistoryPreparation {
+        val s = kernel ?: return HistoryPreparation.None
+        flushSourceDrafts()
+        val record = if (undo) s.peekUndo() else s.peekRedo()
+        if (confirmation != null && (confirmation.kernel !== s || confirmation.version != s.version ||
+                confirmation.recordId != record?.id || !confirmation.matchesDrafts())) {
+            return HistoryPreparation.Refused("履歴または下書きが変わったため中止しました。もう一度操作してください")
+        }
+        record ?: return HistoryPreparation.None
+        val checked = s.checkHistory(undo)
+        if (!checked.ok) return HistoryPreparation.Refused(checked.message ?: "履歴を適用できません")
+        val targets = historyTargets(record).map(DocumentId::value).toSet()
+        val docs = documentMap.values.filter { relPath(it.file) in targets }
+        val textOnly = docs.filter { it.textOnly }
+        if (textOnly.isNotEmpty()) {
+            return HistoryPreparation.Refused(textOnly.joinToString("・") { relPath(it.file) } +
+                " は壊れたまま保存されているため、この操作は戻せません（ソースで直して保存すると戻せます）")
+        }
+        val broken = docs.filter { it.draftBroken }
+        if (broken.isNotEmpty() && confirmation == null) return HistoryPreparation.Confirm(PendingHistory(undo, broken, s, record.id, s.version))
+        broken.forEach { it.discardDraft() }
+        return HistoryPreparation.Ready(HistoryStep(s, record, undo, visibleDocument))
+    }
+
+    /** カーネルの操作だけを行う（殻はファイル配置の履歴を IO スレッドから呼ぶ）。鮮度が変わっていれば中止する。 */
+    fun applyHistoryStep(step: HistoryStep): dev.toros.yde.workspace.TransactionResult {
+        val s = step.kernel
+        val top = if (step.undo) s.peekUndo() else s.peekRedo()
+        if (kernel !== s || step.version != s.version || step.record.id != top?.id) {
+            return dev.toros.yde.workspace.TransactionResult(false, "履歴が変わったため中止しました。もう一度操作してください", s.version)
+        }
+        return runCatching { if (step.undo) s.undo() else s.redo() }.getOrElse {
+            dev.toros.yde.workspace.TransactionResult(false, it.message ?: "履歴を適用できません", s.version)
+        }
+    }
+
+    /** 一手の適用後の文書側の追随の結果。arrangement があれば殻がツリーと表示の追随を行う。message は保存の失敗。 */
+    class HistoryFollowUp(val ids: List<DocumentId>, val arrangement: dev.toros.yde.workspace.FileArrangementPlan?, val message: String?)
+
+    /**
+     * Undo/Redo 適用後の文書側の追随: 影響文書の木をセッションの working から取り直し、派生を進める。
+     * 文書の作成・削除を含む履歴は、ファイルの有無までその場で確定する（作成の取り消しには保存の手段が無く、
+     * 削除予約のままではディスクとセッションが食い違うため）。ファイル配置の履歴は殻の追随に任せる。
+     */
+    fun afterHistoryStep(record: ChangeRecord, undo: Boolean): HistoryFollowUp {
+        val s = kernel
+        s?.fileArrangement(record.id)?.let { plan -> return HistoryFollowUp(historyTargets(record), plan, null) }
+        val ids = historyTargets(record)
+        val fileLevel = (record.forward.operations + record.inverse.operations)
+            .filter { it is WorkspaceOperation.CreateDocument || it is WorkspaceOperation.DeleteDocument }
+            .flatMap(::operationIds)
+            .toSet()
+        // 閲覧専用のときの操作の取り消し・やり直しは、戻した内容を保存まで行う（未保存の編集を残さない。architecture/actions.md）
+        val writeThrough = readOnlyMode && record.id in actionRecordIds
+        var message: String? = null
+        if (s != null && (fileLevel.isNotEmpty() || writeThrough)) {
+            val saved = s.save(if (writeThrough) ids.toSet() else fileLevel)
+            if (!saved.ok) message = "ファイルの反映に失敗しました: ${saved.failures.entries.first().let { "${it.key.value}: ${it.value}" }}"
+            refreshDocsFromSession(ids)
+            refreshAfterSessionWrite(saved.written + saved.deleted)
+            saved.conflicts.forEach { id -> documentMap[fileOf(id)]?.externalConflict = true }
+        } else {
+            refreshDocsFromSession(ids)
+            editVersion++
+        }
+        return HistoryFollowUp(ids, null, message)
+    }
+
+    /** 戻した木とソースを揃える（次のキー入力や反映待ちの解析が来る前に）。戻り値は利用者への知らせ。 */
+    fun syncSourcesAfterHistory(record: ChangeRecord): List<String> {
+        val synced = historyTargets(record).mapNotNull { id ->
+            documentMap[fileOf(id)]?.let { id to it.syncSourceFromTree(preferHistory = true) }
+        }
+        val conflicts = synced.sumOf { it.second.conflicts }
+        val normalized = synced.filter { it.second.normalized }.map { it.first.value }
+        val notices = mutableListOf<String>()
+        if (conflicts > 0) notices += "下書きと食い違う変更が $conflicts か所あり、下書きを優先しました（「整形」で木に揃えられます）"
+        if (normalized.isNotEmpty()) notices += "履歴の内容に揃えるためソースを書式調整しました: ${normalized.joinToString("・")}"
+        return notices
+    }
+
+    /** 履歴 1 件の 1 行要約: 変更の意図＋対象ファイル（意図に含まれていれば列挙を省く）。 */
+    fun historySummary(record: ChangeRecord?): String? {
+        record ?: return null
+        val names = historyTargets(record).map(DocumentId::value)
+        val desc = record.intent.description.ifBlank { "${names.size} ファイルの変更" }
+        val listed = names.take(3).joinToString("・") + (if (names.size > 3) " ほか${names.size - 3}件" else "")
+        return if (names.all { it in desc }) desc else "$desc（$listed）"
+    }
+
+    fun historyTargets(record: ChangeRecord): List<DocumentId> =
+        (record.forward.operations + record.inverse.operations).flatMap(::operationIds).distinct()
+
+    fun operationIds(op: WorkspaceOperation): List<DocumentId> = when (op) {
+        is WorkspaceOperation.EditDocument -> listOf(op.documentId)
+        is WorkspaceOperation.CreateDocument -> listOf(op.documentId)
+        is WorkspaceOperation.ReplaceDocument -> listOf(op.documentId)
+        is WorkspaceOperation.DeleteDocument -> listOf(op.documentId)
+        is WorkspaceOperation.MoveDocument -> listOf(op.from, op.to)
+    }
+
+    /** 入力の反映待ちがある文書（セッションが文書として扱うものだけ）。 */
+    fun pendingSourceDocuments(): List<DocumentState> = documentMap.values.filter {
+        it.hasPendingSourceInput && kernel?.acceptsDocument(documentOf(it.file)) == true
+    }
+
+    fun canUndo(): Boolean = kernel?.canUndo() == true || pendingSourceDocuments().isNotEmpty()
+
+    fun canRedo(): Boolean = kernel?.canRedo() == true && pendingSourceDocuments().isEmpty()
+
+    /** 次に Ctrl+Z で戻る変更の予告。セッション不在時は null。 */
+    fun undoPreview(): String? {
+        pendingSourceDocuments().maxByOrNull { it.sourceInputOrder }?.let { return "ソース入力を反映して元に戻す: ${relPath(it.file)}" }
+        return historySummary(kernel?.peekUndo())
+    }
+
+    fun redoPreview(): String? {
+        if (pendingSourceDocuments().isNotEmpty()) return "ソース入力の反映待ちです（新しい編集でやり直しは破棄されます）"
+        return historySummary(kernel?.peekRedo())
     }
 }
