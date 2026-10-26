@@ -1,5 +1,6 @@
 package dev.toros.yde.app.ui
 
+import dev.toros.yde.app.text.LineMerge
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.HorizontalScrollbar
 import androidx.compose.foundation.ScrollState

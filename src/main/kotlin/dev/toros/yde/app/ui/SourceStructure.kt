@@ -1,5 +1,6 @@
 package dev.toros.yde.app.ui
 
+import dev.toros.yde.app.text.LineMerge
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.YPath

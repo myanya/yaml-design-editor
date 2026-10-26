@@ -1,4 +1,4 @@
-package dev.toros.yde.app.ui
+package dev.toros.yde.app.text
 
 /**
  * 行の差分と 3 者マージ（純ロジック。P43 段階 0）。

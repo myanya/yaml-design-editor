@@ -1,4 +1,4 @@
-package dev.toros.yde.app.ui
+package dev.toros.yde.app.text
 
 import dev.toros.yde.yaml.YamlIO
 import kotlin.test.*

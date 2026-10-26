@@ -1,5 +1,6 @@
 package dev.toros.yde.app.ui
 
+import dev.toros.yde.app.text.LineMerge
 /**
  * カーソル位置の文脈（純ロジック。P43 段階 2 の補完が使う）。
  * 解析できない書きかけ（打っている最中の行）でも働くよう、木ではなく文字列のインデントから親のパスを読む。

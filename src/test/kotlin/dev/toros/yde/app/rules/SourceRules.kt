@@ -25,8 +25,9 @@ object SourceRules {
 
     /** app の中の層（下から上）。同じ層の中は互いに使ってよく、上の層を import してはいけない。 */
     val appLayers: List<List<String>> = listOf(
-        listOf("$APP.index", "$APP.schema", "$APP.validate"),
+        listOf("$APP.index", "$APP.schema", "$APP.validate", "$APP.text"),
         listOf("$APP.core"),
+        listOf("$APP.session"),
         listOf("$APP.ai"),
         listOf("$APP.skill"),
         listOf("$APP.agent"),
@@ -35,7 +36,7 @@ object SourceRules {
     )
 
     /** Compose 非依存の純粋ロジック層。 */
-    private val purePackages = arrayOf("$APP.core", "$APP.index", "$APP.schema", "$APP.validate", "$APP.agent", "$APP.ai", "$APP.skill")
+    private val purePackages = arrayOf("$APP.core", "$APP.index", "$APP.schema", "$APP.validate", "$APP.text", "$APP.session", "$APP.agent", "$APP.ai", "$APP.skill")
     private val coreModules = setOf("yaml-core", "semantic-core", "workspace-core", "cli")
 
     /** 外部の UI ライブラリの import の接頭辞と、それを包む 1 ファイル。 */
@@ -71,7 +72,7 @@ object SourceRules {
     val all: List<Rule> = listOf(
         Rule(
             1, "純粋ロジック層に Compose を持ち込まない",
-            why = "コアの 3 モジュールと cli、app の core・index・schema・validate・agent・ai・skill は Compose 非依存で、単体テストはこの層に書く",
+            why = "コアの 3 モジュールと cli、app の core・index・schema・validate・text・session・agent・ai・skill は Compose 非依存で、単体テストはこの層に書く",
             doc = "architecture/README.md「モジュールと依存方向」",
         ) { files ->
             files.filter { it.module in coreModules || it.inPackage(*purePackages) }
@@ -79,12 +80,12 @@ object SourceRules {
         },
         Rule(
             2, "app の層は一方向",
-            why = "index・schema・validate、core、ai、skill、agent、根（AppState）、ui の順に下から上へ重なり、上の層を import しない",
+            why = "index・schema・validate・text、core、session、ai、skill、agent、根（AppState）、ui の順に下から上へ重なり、上の層を import しない",
             doc = "architecture/README.md「モジュールと依存方向」",
             known = listOf(
                 Known("src/main/kotlin/dev/toros/yde/app/core/Cli.kt", "root の CLI が app.core にあり agent・ai・skill・BuildInfo を使う。app.cli へ移す（ROADMAP の計画）"),
                 Known("src/main/kotlin/dev/toros/yde/app/validate/Readiness.kt", "core.Workspace を使っていて validate と core が循環している（BACKLOG）"),
-                Known("src/main/kotlin/dev/toros/yde/app/AppState.kt", "ui の DesktopUiDispatcher・LineMerge・SourceHistorySync を使っている（BACKLOG）"),
+                Known("src/main/kotlin/dev/toros/yde/app/AppState.kt", "ui の DesktopUiDispatcher を使っている（BACKLOG）"),
             ),
         ) { files -> layerViolations(files) },
         Rule(

@@ -1,5 +1,6 @@
 package dev.toros.yde.app.ui
 
+import dev.toros.yde.app.text.LineMerge
 /**
  * ソースの基本操作（純ロジック。P43 段階 1）。文字列と選択範囲（文字位置。end は排他）を受け取り、
  * 新しい文字列と選択範囲を返す。行は `\n` で区切り、末尾の改行の有無はそのまま保つ。

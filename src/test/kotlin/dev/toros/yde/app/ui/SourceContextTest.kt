@@ -1,5 +1,6 @@
 package dev.toros.yde.app.ui
 
+import dev.toros.yde.app.text.LineMerge
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

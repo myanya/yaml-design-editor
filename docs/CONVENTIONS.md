@@ -7,7 +7,7 @@
 - Kotlin 公式コードスタイル（`kotlin.code.style=official`）。インデント4スペース、1行はおおむね120桁まで。
 - KDoc・コード内コメント・コミットメッセージ・UI文言・エラーメッセージは**日本語**で書く（識別子は英語）。
 - コメントは「何をするか」の逐語訳ではなく、制約・理由・注意点を書く（例: 「索引はディスク基準のため未保存編集は反映されない」）。
-- パッケージごとの配置は [architecture/README.md](architecture/README.md)「モジュールと依存方向」の依存ルールに従う。コアの3モジュールと、アプリの純粋ロジック層（`app.core`・`app.index`・`app.schema`・`app.validate`・`app.agent`・`app.ai`・`app.skill`）に Compose を import しない。機械で確かめられる規則は root のテスト `rules/SourceRulesTest` が守る（architecture/README.md「ソース規則テスト」）。
+- パッケージごとの配置は [architecture/README.md](architecture/README.md)「モジュールと依存方向」の依存ルールに従う。コアの3モジュールと、アプリの純粋ロジック層（`app.core`・`app.index`・`app.schema`・`app.validate`・`app.text`・`app.agent`・`app.ai`・`app.skill`）に Compose を import しない。機械で確かめられる規則は root のテスト `rules/SourceRulesTest` が守る（architecture/README.md「ソース規則テスト」）。
 
 ## 2. Compose UI の書き方
 

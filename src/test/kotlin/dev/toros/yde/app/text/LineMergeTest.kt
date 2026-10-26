@@ -1,4 +1,4 @@
-package dev.toros.yde.app.ui
+package dev.toros.yde.app.text
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

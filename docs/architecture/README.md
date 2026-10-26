@@ -62,12 +62,13 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 | | `app.index` | 索引のファサード（`IdIndex`。カーネルの型の別名）・クエリの窓口 |
 | | `app.schema` | `SchemaDef`（カーネルのスキーマにファイルの場所を足す薄い型）・`SchemaLoader`・表示解決 `Display`・ID 候補・スキーマ推測 |
 | | `app.validate` | `Validator`（窓口）・`Readiness` |
+| | `app.text` | 純粋な文字の計算（行の差分と 3 者併合 `LineMerge`・履歴の値を優先した書式の差し込み `SourceHistorySync`） |
 | | `app.ai` | AI 生成・LLM クライアント |
 | | `app.skill` | 入出力変換（skill 定義・表形式の読み書き・インポート・エクスポート） |
 | | `app.agent` | エージェント実行（定義・ステージング・ツールセット・カーネル・実行記録・自動化・メトリクス・評価） |
 
-アプリの中の依存は `app.core` → `app.ai` → `app.skill` → `app.agent` → `app`（AppState）→ `app.ui` の一方向。`app.index` / `app.schema` / `app.validate` は `app.core` より下。
-`app.core` / `app.index` / `app.schema` / `app.validate` / `app.agent` / `app.ai` / `app.skill` は Compose 非依存の純粋ロジックで、単体テストはこの層に書く。`app`（AppState）は `mutableStateOf` だけに依存する。
+アプリの中の依存は `app.core` → `app.ai` → `app.skill` → `app.agent` → `app`（AppState）→ `app.ui` の一方向。`app.index` / `app.schema` / `app.validate` / `app.text` は `app.core` より下。
+`app.core` / `app.index` / `app.schema` / `app.validate` / `app.text` / `app.agent` / `app.ai` / `app.skill` は Compose 非依存の純粋ロジックで、単体テストはこの層に書く。`app`（AppState）は `mutableStateOf` だけに依存する。
 
 ## ソース規則テスト
 
