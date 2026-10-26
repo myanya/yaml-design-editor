@@ -419,7 +419,7 @@ definitions:
 | R47-01 | テストの絞り込み | 各モジュールの test タスクに「一致するテストが無くても失敗しない」を設定し、`./gradlew test --tests '*WorkspaceInitTest*'` がルートから通るようにする | なし | ✅ 2026-10-27 |
 | R47-02 | 環境の知識を文書へ | `py -3`・PowerShell 経由の CLI 出力は文字化けするので java を直接実行・Hot Reload の確認手順（status が connected → reload → get_semantic_tree）・`labs/` の未コミット差分に触れない・scratchpad の場所を AGENTS.md「この Windows 環境」節に集約し、CLAUDE.md からリンクする。機械で読むときの呼び方（GRADLE_OPTS で Gradle の出力を UTF-8 に）を実測して書いた | なし | ✅ 2026-10-27 |
 | R47-03 | コミットの単位 | CONVENTIONS「Git」に「1 コミット 1 関心事」を足した。機能の文書更新は同じコミット（ずれを防ぐ）、samples／labs のデータの整備は別コミット、大きな機能は段階ごと | なし | ✅ 2026-10-27 |
-| R47-04 | 旧ディレクトリの削除 | 手元の `sample-workspace/`・`specs/`・`system-development-template/`・`software-template/` を消し、`.gitignore` の「削除予定」4 行と `settings.local.json` の古い許可を消す | 消してよいか（手元のファイル） | 判断待ち |
+| R47-04 | 旧ディレクトリの削除 | 手元の `sample-workspace/`・`specs/`・`system-development-template/`・`software-template/` を消し、`.gitignore` の「削除予定」4 行と `settings.local.json` の古い許可を消す | 消してよい（オーナー 2026-10-27） | ✅ 2026-10-27 |
 | R47-05 | tutorial.md の置き場 | ルートの `tutorial.md`（4.3 万字）を docs/README.md の表に載せるか、manual/ へ移すか、archive へ移すか | どれにするか | 判断待ち |
 
 #### 段階 1: 規則の機械化

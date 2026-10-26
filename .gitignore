@@ -16,9 +16,3 @@ local.properties
 _runs/
 **/.yde/runs/
 .claude/settings.local.json
-
-# 旧ディレクトリ（削除予定。削除したらこの行も消す）
-/sample-workspace/
-/system-development-template/
-/software-template/
-/specs/
