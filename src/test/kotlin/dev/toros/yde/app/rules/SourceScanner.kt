@@ -10,7 +10,7 @@ import kotlin.streams.asSequence
 
 /**
  * 規則テストのためのソースの走査（テスト専用。製品には入らない）。
- * main のソースをモジュールごとに読み、package・import・コメントを除いた本文を持つ。
+ * main のソース（テストの書き方の規則は test のソース）をモジュールごとに読み、package・import・コメントを除いた本文を持つ。
  * 構文解析はしない。import 行と文字の一致で足りる規則だけを扱い、足りなくなったら Konsist のような解析器を検討する。
  */
 class SourceFile(
@@ -62,16 +62,23 @@ object SourceScanner {
         "app" to "src/main/kotlin",
     )
 
+    /** モジュール名と test ソースの場所（scope が TEST の規則が読む）。 */
+    val testModules: Map<String, String> = modules.mapValues { it.value.replace("/main/", "/test/") }
+
     /** 全モジュールの main の Kotlin ソース（1 回だけ読む）。 */
-    val mainSources: List<SourceFile> by lazy {
-        modules.flatMap { (module, dir) ->
+    val mainSources: List<SourceFile> by lazy { collect(modules) }
+
+    /** 全モジュールの test の Kotlin ソース（1 回だけ読む）。 */
+    val testSources: List<SourceFile> by lazy { collect(testModules) }
+
+    private fun collect(dirs: Map<String, String>): List<SourceFile> =
+        dirs.flatMap { (module, dir) ->
             val base = repoRoot.resolve(dir)
             require(Files.isDirectory(base)) { "モジュール $module のソースが無い: $base" }
             Files.walk(base).use { stream ->
                 stream.asSequence().filter { it.isRegularFile() && it.extension == "kt" }.map { parse(module, it) }.toList()
             }
         }.sortedBy { it.path }
-    }
 
     fun parse(module: String, file: Path): SourceFile =
         parse(module, repoRoot.relativize(file).toString().replace('\\', '/'), file.readText())

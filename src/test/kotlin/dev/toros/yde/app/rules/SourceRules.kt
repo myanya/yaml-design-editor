@@ -13,8 +13,12 @@ class Rule(
     /** 説明のある文書の見出し */
     val doc: String,
     val known: List<Known> = emptyList(),
+    /** 当てるソース。テストの書き方の規則だけ TEST */
+    val scope: Scope = Scope.MAIN,
     val check: (List<SourceFile>) -> List<Hit>,
-)
+) {
+    enum class Scope { MAIN, TEST }
+}
 
 /** 既知の違反。key は Hit.key（既定はファイルのパス）と突き合わせる。 */
 class Known(val key: String, val reason: String)
@@ -157,7 +161,16 @@ object SourceRules {
             files.filter { it.name != "Main.kt" }.groupBy { it.name }.filter { it.value.size > 1 }
                 .flatMap { (name, group) -> group.map { Hit(it, 1, "$name が ${group.size} か所", key = name) } }
         },
+        Rule(
+            13, "テストに OS 固有の絶対パスを書かない",
+            why = "全テストは GitHub Actions（Linux）でも回る。ドライブ文字の絶対パスは Linux では相対パスになる。絶対パスは Path.of(\"\").toAbsolutePath().root から組むか一時ディレクトリを使う",
+            doc = "CONVENTIONS「テスト」",
+            scope = Rule.Scope.TEST,
+        ) { files -> files.flatMap { it.find(drivePathLiteral) } },
     )
+
+    /** `Path.of("C:/…")`・`Paths.get("C:\\…")` のようなドライブ文字の絶対パスの直書き。 */
+    private val drivePathLiteral = Regex("""\b(Path\.of|Paths\.get)\(\s*"[A-Za-z]:[/\\]""")
 
     /** 正規表現に当たる行のうち、許したファイル以外のもの。 */
     private fun onlyIn(files: List<SourceFile>, regex: Regex, allowed: Set<String>): List<Hit> =

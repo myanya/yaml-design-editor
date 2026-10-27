@@ -6,13 +6,13 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * ソースの規則（SourceRules）を全モジュールの main のソースに当てる。
+ * ソースの規則（SourceRules）を全モジュールの main のソース（テストの書き方の規則は test のソース）に当てる。
  * 落ちたらメッセージの「説明」の見出しを読む。規則を足すときは SourceRules に 1 つと、ここにテストを 1 つ。
  */
 class SourceRulesTest {
     private fun check(number: Int) {
         val rule = SourceRules.all.first { it.number == number }
-        val hits = rule.check(SourceScanner.mainSources)
+        val hits = rule.check(if (rule.scope == Rule.Scope.TEST) SourceScanner.testSources else SourceScanner.mainSources)
         val knownKeys = rule.known.map { it.key }.toSet()
         val violations = hits.filter { it.key !in knownKeys }
         val stale = rule.known.filter { k -> hits.none { it.key == k.key } }
@@ -41,6 +41,13 @@ class SourceRulesTest {
         val appState = sources.first { it.name == "AppState.kt" }
         assertEquals("dev.toros.yde.app", appState.packageName)
         assertEquals("src/main/kotlin/dev/toros/yde/app/AppState.kt", appState.path)
+    }
+
+    @Test
+    fun `全モジュールの test のソースを読める`() {
+        val sources = SourceScanner.testSources
+        assertEquals(SourceScanner.testModules.keys, sources.map { it.module }.toSet())
+        assertTrue(sources.any { it.path == "src/test/kotlin/dev/toros/yde/app/rules/SourceRulesTest.kt" })
     }
 
     @Test
@@ -116,6 +123,7 @@ class SourceRulesTest {
     @Test fun `規則10 FieldType は基底の種類だけ`() = check(10)
     @Test fun `規則11 機能側で Files exists を直接見ない`() = check(11)
     @Test fun `規則12 同じ裸の名前のファイルを複数作らない`() = check(12)
+    @Test fun `規則13 テストに OS 固有の絶対パスを書かない`() = check(13)
 
     @Test
     fun `規則の番号は 1 から順で名前が重ならない`() {
