@@ -113,9 +113,8 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     }
 
     private val workspaceState = mutableStateOf<Path?>(null)
-    var workspace: Path?
-        get() = workspaceState.value
-        private set(value) { documents.workspace = value; workspaceState.value = value }
+    /** 開いているワークスペース（セッション側の写し。変えるのは openWorkspace）。 */
+    val workspace: Path? get() = workspaceState.value
 
     /**
      * 最近開いたワークスペース履歴（R10-05）。ワークスペース単位の recentFiles（W-05）と同じ
@@ -544,7 +543,6 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
      */
     class InsertTarget(val doc: OpenDocument, val arrayPath: YPath, val arrayDef: FieldDef, val alternatives: List<ActionEntry> = emptyList())
 
-
     // ---------------------------------------------------------------- 初期化ウィザード（新しいワークスペースを作る。architecture/workspace.md「ワークスペースの初期化」）
 
     /** 初期化ウィザードの作業。`fixedRoot` は、開いている未初期化のワークスペースから起動したときの場所（変えられない）。 */
@@ -628,8 +626,6 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         status = "${into.arrayDef.displayLabel} に要素を足しました（未保存。Ctrl+Z で戻せます）"
         index
     }
-
-
 
     /** 要素・型・文書・ワークスペースに使える操作（セッション側）。 */
     fun actionsForEntity(id: String): List<ActionEntry> = documents.actionsForEntity(id)
@@ -806,20 +802,21 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
 
     // ---------------------------------------------------------------- workspace
 
+    /**
+     * ワークスペースを開く。画面の状態（記憶・ツリー・場所・最近）を戻してから、セッション側が場所・コア・カーネル・文書の集合を作り直して
+     * ディスクから読む。既定のダッシュボードがあればそこへ着地する。
+     */
     fun openWorkspace(dir: Path) {
+        val ws = dir.toAbsolutePath().normalize()
         dismissHistoryNotice()
         pendingReload = null
-        workspace = dir.toAbsolutePath().normalize()
-        coreWs = null
-        session = null
-        clearDocs()
         memory.clear()
         openPreview = null
         openMarkdown = null
         openImage = null
-        val treePrefs = dev.toros.yde.app.core.FileTreePreferences.forWorkspace(workspace!!)
+        val treePrefs = dev.toros.yde.app.core.FileTreePreferences.forWorkspace(ws)
         runCatching {
-            treePrefs.expanded().forEach { (path, expanded) -> memory.treeExpanded[workspace!!.resolve(path)] = expanded }
+            treePrefs.expanded().forEach { (path, expanded) -> memory.treeExpanded[ws.resolve(path)] = expanded }
             memory.treeOptions = treePrefs.options()
         }
         fileTreeRevision++
@@ -837,11 +834,11 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         uiSpace = UiSpace.EDIT
         lastLedgerView = 1
         // ワークスペース履歴（R10-05）: アプリグローバルに永続化し、スタート画面・パレットの切替候補にする
-        recentWorkspaces = (listOf(workspace!!) + recentWorkspaces.filter { it != workspace }).take(10)
+        recentWorkspaces = (listOf(ws) + recentWorkspaces.filter { it != ws }).take(10)
         appPrefs.put("recentWorkspaces", recentWorkspaces.joinToString("\n"))
+        documents.openWorkspace(ws)
         recentFiles = recentPrefs.get(workspaceKey(), "").lineSequence().filter { it.isNotBlank() }
-            .map { workspace!!.resolve(it).normalize() }.filter(Files::exists).take(12).toList()
-        reload()
+            .map { ws.resolve(it).normalize() }.filter(Files::exists).take(12).toList()
         historyViewCatalog()?.let { catalog ->
             catalog.defaultDashboard()?.let { dashboard ->
                 dashboardId = dashboard.id
@@ -902,34 +899,9 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         status = "未保存編集と Undo/Redo 履歴を破棄し、ディスクから開き直しました（ファイルは変更していません）"
     }
 
-    private fun protectedDocumentIds(): Set<DocumentId> = documents.protectedDocumentIds()
-
-    private fun hasRetainedEdits(): Boolean = documents.hasRetainedEdits()
-
-
-
-    private fun editorOnlyFiles(cw: dev.toros.yde.app.core.Workspace): List<Path> = documents.editorOnlyFilesOf(cw)
-
-    /** core.Workspace の状態をセッション側の写しへ反映する（画面の Compose 状態へはセッションの聞き手で揃う）。 */
-    private fun mirrorCore(
-        cw: dev.toros.yde.app.core.Workspace,
-        markdown: List<Path> = dev.toros.yde.app.core.WorkspaceScan.markdownFiles(cw.root),
-        editorOnly: List<Path> = editorOnlyFiles(cw),
-    ) = documents.mirrorCore(cw, markdown, editorOnly)
-
     fun rebuildIndex() = documents.rebuildIndex()
 
-    // ---------------------------------------------------------------- 新経路セッション（A-1・RA-01）
-
-    /** カーネルのセッションを開き直し、編集中の文書を working 状態へ再反映する（セッション側）。 */
-    private fun reopenSession(ws: Path, fromMirror: Boolean = false) = documents.reopenSession(ws, fromMirror)
-
-    /** 編集内容をセッションの working 状態へ直結する（履歴は積まない）。 */
-    private fun pushEditToSession(doc: OpenDocument) = documents.pushEdit(doc.state)
-
-    /** 編集や履歴があれば候補から保護して取り込み、状態のないセッションだけ従来の増分経路を使う（セッション側）。 */
-    private fun syncSessionWithDisk(changed: List<Path>, removed: List<Path> = emptyList()) =
-        documents.syncSessionWithDisk(changed, removed)
+    // ---------------------------------------------------------------- セッション側への委譲（派生・外部変更・場所）
 
     /**
      * 派生状態: セッションの working 状態＝「見たまま」の構造・意味派生。
@@ -940,12 +912,8 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         return documents.derivedState()
     }
 
-    // ファイル走査は core.WorkspaceScan（ヘッドレス層）と共通の実装を使う。
-
-
     /** 周期処理・ファイル監視から呼び、外部での作成・変更・削除を検出する（セッション側）。 */
     fun pollExternalChanges(eventHint: Boolean = false) = documents.pollExternalChanges(eventHint)
-
 
     fun relPath(file: Path): String = documents.relPath(file)
 
@@ -976,11 +944,6 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
      */
     fun ensureDoc(file: Path): OpenDocument =
         docCache[file] ?: OpenDocument(documents.ensureDocument(file)).also { docCache[file] = it }
-
-    /** 文書を閉じる（画面の殻とセッション側の論理を揃えて外す）。 */
-    private fun closeDoc(file: Path) { documents.closeDocument(file) }
-
-    private fun clearDocs() { documents.clearDocuments(); docCache.clear() }
 
     fun openFile(file: Path, focus: YPath? = null) {
         val cur = currentLocation()
@@ -1097,17 +1060,11 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         count
     }
 
-
     /** 一括編集の対象にできるキーの候補（セッション側）。 */
     fun bulkKeyCandidates(): List<String> = documents.bulkKeyCandidates()
 
-
-
     fun acceptDiskVersion() { openDoc?.let { documents.acceptDiskVersion(it.state) } }
     fun keepLocalVersion() { openDoc?.let { documents.keepLocalVersion(it.state) } }
-
-
-
 
     fun saveCurrent() {
         if (uiSpace == UiSpace.DASHBOARD) { saveAll(); return }
@@ -1134,8 +1091,6 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     /** `_schemas` の文書か（壊れたまま保存すると、そのスキーマを使う全文書に波及する）。 */
     fun isSchemaDocument(file: Path): Boolean = documents.isSchemaDocument(file)
 
-
-
     /**
      * Undo（A-3・RA-06 / D-07）: 履歴はセッション単一所有＝**ワークスペース横断**の1本の履歴。
      * 直前の変更が他の文書のものなら、その文書が戻る（ツリーはセッションから追随更新される）。
@@ -1146,10 +1101,6 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
 
     /** 解析できない下書きを捨てて戻すかの確認待ち（Main.kt が確認を出す。R43-02）。 */
     var pendingHistory by mutableStateOf<DocumentSession.PendingHistory?>(null)
-
-
-
-    private fun flushSourceDrafts() = documents.flushSourceDrafts()
 
     /** 解析待ちを移動前の入力へ含めてから区切る（セッション側）。 */
     private fun finishEditGroup() = documents.finishEditGroup()
@@ -1208,8 +1159,6 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         return documents.redoPreview()
     }
 
-
-
     /** Undo 可能か（ツールバー活性用。editVersion を読むことで再コンポーズを購読する）。 */
     fun canUndo(): Boolean {
         editVersion
@@ -1220,8 +1169,6 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         editVersion
         return documents.canRedo()
     }
-
-
 
     /**
      * 「何が戻ったか」の通知を組み立てる（UX-86）。未保存化（●）の明示は、
@@ -1238,9 +1185,6 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         historyNotice = HistoryNotice("$verb: $summary$suffix", files, summary, ids,
             ids.any { it != visibleDocument }, undo)
     }
-
-
-    private fun refreshDocsFromSession(ids: Collection<DocumentId>) = documents.refreshDocsFromSession(ids)
 
     private fun refreshAfterSessionWrite(ids: Collection<DocumentId>) = documents.refreshAfterSessionWrite(ids)
 
@@ -1269,7 +1213,6 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
 
     /** スキーマ推測（セッション側）: `_schemas/<id>.yaml` を作って開く。仕上げはスキーマ設計画面（S-05）。 */
     fun inferSchema(glob: String, id: String): Result<Path> = runCatching { documents.inferSchema(glob, id).also { openFile(it) } }
-
 
     /**
      * エンティティ改名のプレビュー（R21-02。architecture/graph-query.md「エンティティ操作」）: 全出現・全参照を書き換える計画を
@@ -1325,15 +1268,12 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     /** ビューグリッドの行から詳細文書を作って開く（P6。セッション側）。 */
     fun createViewDetail(view: ViewDef, id: String): Result<Path> = runCatching { documents.createViewDetail(view, id).also { openFile(it) } }
 
-
     /** ビューの newRow（ファイルモード）: 詳細文書を作って開く（R15-01。セッション側）。 */
     fun addViewRowFile(view: ViewDef, id: String): Result<Path> = runCatching { documents.addViewRowFile(view, id).also { openFile(it) } }
 
     /** カバレッジ不足の指摘から詳細文書を作って開く（R28-05a。セッション側）。 */
     fun createDetailForCoverage(schemaId: String, id: String): Result<Path> =
         runCatching { documents.createDetailForCoverage(schemaId, id).also { openFile(it) } }
-
-
 
     /**
      * ビューの newRow 定義に従い、一覧文書の配列へ新しい行（要素）を追加する（P6）。追加先はセッション側が解決し、要素の作り方は
@@ -1345,7 +1285,6 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         val index = addArrayElement(ensureDoc(target.doc.file), target.path, arrayDef).getOrThrow() ?: return@runCatching null
         target.path + index
     }
-
 
     /** 改名の影響プレビュー（セッション側）。 */
     fun renameImpact(path: Path, newName: String): List<String> = documents.renameImpact(path, newName)
@@ -1480,7 +1419,6 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
             else -> NavLocation(loc.space, 0, null, null, null, null)
         }
     }
-
 
     private fun historyViewCatalog() = workspace?.let { ws -> runCatching { dev.toros.yde.app.core.Views.load(ws, schemas) }.getOrNull() }
 

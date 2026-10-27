@@ -390,6 +390,16 @@ class DocumentSession(private val editClock: () -> Long = System::currentTimeMil
 
     // ---------------------------------------------------------------- カーネルのセッションの開閉と同期
 
+    /** ワークスペースを開く: 場所を変え、コア・カーネル・開いている文書を捨ててから、ディスクから読む。画面の状態を戻すのは殻（先に行う）。 */
+    fun openWorkspace(dir: Path) {
+        workspace = dir.toAbsolutePath().normalize()
+        core = null
+        kernel = null
+        clearDocuments()
+        onChanged?.invoke()
+        reload()
+    }
+
     /**
      * カーネルのセッションを開く（失敗しても null のまま旧経路で動き続ける）。
      * 組込スキーマ（メタスキーマ等）を注入し、`_schemas`・定義ゾーンの検証を旧経路と揃える。
