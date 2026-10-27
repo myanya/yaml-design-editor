@@ -429,7 +429,7 @@ definitions:
 |---|---|---|---|---|
 | R47-10 | ソース規則テスト | 全モジュールのソースを読む 1 つのテスト（新しい依存なし）。規則は表で宣言し、失敗の文に設計文書の見出しを添える。最初の規則は下の 12 本。root のテスト `rules/SourceRulesTest`（表は `rules/SourceRules`）。今直せていない違反（root の CLI・Readiness・AppState の層違反、同名ファイル 5 組）は `known` に理由つきで登録し、直すと一覧から消すよう促す | 自前の走査（オーナー 2026-10-26） | ✅ 2026-10-26 |
 | R47-11 | 文書の参照の実在テスト | FEATURES・architecture の `.kt` 参照とテスト名、「ファイル名＋見出し」参照（バッククォートを外して比べる）が実在することを JVM のテストで確かめ、`./gradlew test` に含める。形の検査（チケット番号・リンク・字数）は docs-lint.sh のまま。root のテスト `rules/DocReferencesTest`（3 本）。古かった参照 2 件（coverage の行）を直した | なし | ✅ 2026-10-27 |
-| R47-12 | 今破れている 2 点の処置 | (a) `core/Cli.kt` を新パッケージ `app.cli`（AppState と同じ最上位の層）へ移す。(b) app の 3 コア直接依存は新しい ADR で「app は yaml.model・yaml.patch・yaml.validate・semantic・semantic.schema の型を直接使ってよい（共通の語彙だから）」と正式化し、規則テストで許す範囲を固定する | (b) は ADR-0013 で決着（app-core はカーネルの 3 つに直接依存してよい）。(a) は R47-24 で cli モジュールへ直接移す | ✅ 2026-10-27（(a) は R47-24 へ） |
+| R47-12 | 今破れている 2 点の処置 | (a) `core/Cli.kt` を新パッケージ `app.cli`（AppState と同じ最上位の層）へ移す。(b) app の 3 コア直接依存は新しい ADR で「app は yaml.model・yaml.patch・yaml.validate・semantic・semantic.schema の型を直接使ってよい（共通の語彙だから）」と正式化し、規則テストで許す範囲を固定する | (b) は ADR-0013 で決着（app-core はカーネルの 3 つに直接依存してよい）。(a) は 2026-10-27 に `app.cli` へ移した（R47-24 の前準備。cli モジュールへは R47-41 で） | ✅ 2026-10-27（(a) は R47-24 へ） |
 | R47-13 | フックと CI | コミット前に docs-lint.sh と規則・参照のテストだけを回すフック。git の hooksPath をリポジトリ内の `scripts/git-hooks/` に向ける形（Claude Code 以外の道具でも効く。クローンごとに 1 回の設定）。GitHub Actions（`.github/workflows/test.yml`）で push ごとに docs-lint と `./gradlew test`。`gradlew` と scripts の実行ビットを index に付けた | CI を使う（オーナー 2026-10-27） | ✅ 2026-10-27 |
 | R47-14 | CLAUDE.md を縮める | 機械化した落とし穴を CLAUDE.md から消し、「規則テストが守る」の 1 行と規則表へのリンクに置き換える。残すのは機械化できない規律だけ（目標は 36 項目を 15 項目に）。規則テストが守る 2 項目（等幅フォント・外部 UI ライブラリと JFileChooser）と 3 つの句（Files.exists・AI の HTTP・FieldType の分岐）を消して 34 項目にした。残りはパッケージ名が変わる段階 2 の後に、置き場に近い案内（R47-31）と合わせて行う | なし | 一部 ✅ 2026-10-27・残りは段階 2 の後 |
 
@@ -456,7 +456,7 @@ R47-10 の最初の規則（既知の違反を除いて守られているので�
 | R47-21 | core/Cli.kt の分割 | CLI の一本化（R47-41）に統合。root の CLI の命令を cli モジュールへ移すときに命令ごとのファイルにする | なし | R47-41 へ |
 | R47-22 | FormView.kt の分割 | 項目の種類ごとのファイルへ。画面確認が要るので段階 5 の後 | なし | 未着手 |
 | R47-23 | 行数の目安を報告 | 規則テストが 800 行を超える main のファイルを報告する（失敗にしない。文書の字数と同じ扱い） | なし | 未着手 |
-| R47-24 | app-core モジュールの切り出し | core・index・schema・validate・skill と `DocumentSession` を新モジュール app-core（パッケージの根は `app`。既存の `app.core` などはそのまま）へ `git mv`。desktop（今の root）は `desktop` を根にし、`app.ui` を `desktop.ui` へ改名。app-core に Compose・`java.util.prefs`・AI・POI を入れない（Gradle で止まる）。`core/FileCatalog` の Preferences は desktop へ出す | 決定（ADR-0013） | 未着手 |
+| R47-24 | app-core モジュールの切り出し | core・index・schema・validate・skill と `DocumentSession` を新モジュール app-core（パッケージの根は `app`。既存の `app.core` などはそのまま）へ `git mv`。desktop（今の root）は `desktop` を根にし、`app.ui` を `desktop.ui` へ改名。app-core に Compose・`java.util.prefs`・AI・POI を入れない（Gradle で止まる）。`core/FileCatalog` の Preferences は desktop へ出す | 決定（ADR-0013） | 前準備 2026-10-27（`core/Cli.kt` → `app.cli`・`FileTreePreferences` → root・POI の読み書きを `app.format.PoiTables` に出し `skill.Tables.binary` に入口が登録・`changeSetToYaml` を `app.core` へ）・続く |
 | R47-25 | agent モジュールの切り出し | 今の ai と agent を新モジュール agent（根は `agent`。llm・run・auto・eval）へ移す。書き込みはステージング → 変更セット → app-core の適用だけ。ツールの一式（AgentToolbox）は中立な `Toolset` として app-core へ置き、agent は LLM のツール宣言に包む。`ask_human` は agent に残す | 決定（ADR-0013） | 未着手 |
 | R47-26 | 共通の Gradle 設定 | convention plugin（buildSrc）で、新しいモジュールの build ファイルを 3 行にする。Compose を使うモジュールと使わないモジュールの 2 種 | なし | 未着手 |
 

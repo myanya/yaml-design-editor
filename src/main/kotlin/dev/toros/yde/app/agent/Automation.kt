@@ -1,11 +1,11 @@
 package dev.toros.yde.app.agent
 
+import dev.toros.yde.app.core.changeSetToYaml
 import dev.toros.yde.app.ai.AiProvider
 import dev.toros.yde.app.ai.ToolChat
 import dev.toros.yde.app.core.FileWatcher
 import dev.toros.yde.app.core.Workspace
 import dev.toros.yde.app.core.WorkspaceScan
-import dev.toros.yde.app.core.changeSetToYaml
 import dev.toros.yde.app.index.IdIndex
 import dev.toros.yde.workspace.layout.WorkspaceLayout
 import kotlinx.coroutines.CoroutineScope

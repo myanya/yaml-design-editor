@@ -5,8 +5,6 @@ import java.nio.file.Files
 import java.nio.file.LinkOption.NOFOLLOW_LINKS
 import java.nio.file.Path
 import java.nio.charset.CodingErrorAction
-import java.security.MessageDigest
-import java.util.prefs.Preferences
 
 /** ファイルの一覧は文書の索引とは独立。本文は要求されたときだけ上限付きで読む。 */
 object FileCatalog {
@@ -74,26 +72,5 @@ object FileCatalog {
         val text = runCatching { Charsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
             .decode(java.nio.ByteBuffer.wrap(bytes)).toString().removePrefix("\uFEFF") }.getOrNull()
         return Preview(text, size, if (text == null) "UTF-8 で読めません。外部のアプリで開いてください" else "読み取り専用・UTF-8")
-    }
-}
-
-/** 長い展開一覧を単一の Preferences 値に詰めず、パスごとの項目で保存する。 */
-class FileTreePreferences(private val preferences: Preferences) {
-    companion object {
-        private fun hash(value: String) = MessageDigest.getInstance("SHA-256").digest(value.toByteArray())
-            .joinToString("") { "%02x".format(it) }
-        fun forWorkspace(root: Path) = FileTreePreferences(Preferences.userRoot()
-            .node("yaml-design-editor/tree/${hash(root.toAbsolutePath().normalize().toString())}"))
-    }
-    fun expanded(): Map<String, Boolean> = preferences.keys().filter { it.startsWith("p-") }.mapNotNull { key ->
-        val value = preferences.get(key, "")
-        if (value.length < 2) null else value.substring(1) to value.startsWith("1")
-    }.toMap()
-    fun expand(path: String, value: Boolean) { preferences.put("p-${hash(path)}", (if (value) "1" else "0") + path) }
-    fun clearExpansion() { preferences.keys().filter { it.startsWith("p-") }.forEach(preferences::remove) }
-    fun options() = FileCatalog.Options(preferences.getBoolean("all", false), preferences.getBoolean("hidden", false), preferences.get("excludes", ""))
-    fun options(value: FileCatalog.Options) {
-        preferences.putBoolean("all", value.allFiles); preferences.putBoolean("hidden", value.hidden)
-        preferences.put("excludes", value.excludes)
     }
 }

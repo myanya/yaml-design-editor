@@ -9,11 +9,6 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.longOrNull
-import org.apache.poi.ss.usermodel.Cell
-import org.apache.poi.ss.usermodel.CellType
-import org.apache.poi.ss.usermodel.DateUtil
-import org.apache.poi.xssf.usermodel.XSSFWorkbook
-import org.apache.poi.xwpf.usermodel.XWPFDocument
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -26,21 +21,28 @@ class Table(val headers: List<String>, val rows: List<List<Any?>>) {
     fun columnIndex(name: String): Int = headers.indexOf(name)
 }
 
+/** xlsx / docx の読み書き。中核（app-core）には POI を入れず、入口（desktop の Main・CLI）が実装を `Tables.binary` に登録する。 */
+interface BinaryTables {
+    fun readXlsx(file: Path, sheet: String?, headerRow: Int): Table
+    fun readDocx(file: Path, tableIndex: Int = 1): Table
+    fun writeXlsx(table: Table, file: Path, sheet: String)
+}
+
 object Tables {
 
-    init {
-        // POI が参照する Log4j2 の実装を同梱していないため、SimpleLogger を明示して起動時のERROR表示を抑止する
-        System.setProperty("log4j2.loggerContextFactory", "org.apache.logging.log4j.simple.SimpleLoggerContextFactory")
-    }
+    /** xlsx / docx の読み書きの実装。入口が起動時に登録する（無ければ読み書きの時点で知らせる）。 */
+    @Volatile var binary: BinaryTables? = null
+
+    private fun binary(): BinaryTables = binary ?: error("xlsx / docx の読み書きが登録されていません（入口が Tables.binary を設定します）")
 
     // ---------------------------------------------------------------- 読み込み
 
     fun read(file: Path, def: ImportDef): Table = when (def.format) {
-        TableFormat.XLSX -> readXlsx(file, def.sheet, def.headerRow)
+        TableFormat.XLSX -> binary().readXlsx(file, def.sheet, def.headerRow)
         TableFormat.CSV -> readCsv(readText(file, def), def.columns.takeIf { it.isNotEmpty() })
         TableFormat.JSON -> readJson(readText(file, def), def.jsonPath)
         TableFormat.MARKDOWN -> readMarkdown(readText(file, def))
-        TableFormat.DOCX -> readDocx(file, def.tableIndex)
+        TableFormat.DOCX -> binary().readDocx(file, def.tableIndex)
         TableFormat.HTML -> error("HTML はエクスポート専用の形式です")
     }
 
@@ -144,61 +146,6 @@ object Tables {
         else -> Json.encodeToString(JsonElement.serializer(), e)  // ネストは文字列として保持
     }
 
-    /** Excel（.xlsx）。シート名省略時は先頭シート。数値は整数なら Long に落とす。 */
-    fun readXlsx(file: Path, sheet: String?, headerRow: Int): Table {
-        Files.newInputStream(file).use { input ->
-            XSSFWorkbook(input).use { book ->
-                val ws = sheet?.let { book.getSheet(it) ?: error("シート「$it」が見つかりません") } ?: book.getSheetAt(0)
-                val headerCells = ws.getRow(headerRow - 1) ?: error("ヘッダ行（$headerRow 行目）がありません")
-                val headers = (0 until headerCells.lastCellNum)
-                    .map { cellValue(headerCells.getCell(it))?.toString()?.trim().orEmpty() }
-                    .toMutableList()
-                while (headers.isNotEmpty() && headers.last().isEmpty()) headers.removeAt(headers.lastIndex)
-                if (headers.isEmpty()) error("ヘッダ行が空です")
-                val rows = (headerRow..ws.lastRowNum).mapNotNull { r ->
-                    val row = ws.getRow(r) ?: return@mapNotNull null
-                    val values = headers.indices.map { c -> cellValue(row.getCell(c)) }
-                    if (values.all { it == null || it.toString().isBlank() }) null else values
-                }
-                return Table(headers, rows)
-            }
-        }
-    }
-
-    private fun cellValue(cell: Cell?): Any? {
-        if (cell == null) return null
-        val type = if (cell.cellType == CellType.FORMULA) cell.cachedFormulaResultType else cell.cellType
-        return when (type) {
-            CellType.STRING -> cell.stringCellValue.takeIf { it.isNotBlank() }
-            CellType.BOOLEAN -> cell.booleanCellValue
-            CellType.NUMERIC ->
-                if (DateUtil.isCellDateFormatted(cell)) cell.localDateTimeCellValue.toLocalDate().toString()
-                else cell.numericCellValue.let { d -> if (d % 1.0 == 0.0) d.toLong() else d }
-            else -> null
-        }
-    }
-
-    /** Word（.docx）文書内の表（R9-05）。tableIndex 番目（1始まり）の表を読み、1行目をヘッダにする。値は文字列。 */
-    fun readDocx(file: Path, tableIndex: Int = 1): Table {
-        Files.newInputStream(file).use { input ->
-            XWPFDocument(input).use { doc ->
-                val tables = doc.tables
-                if (tables.isEmpty()) error("Word文書に表がありません")
-                val table = tables.getOrNull(tableIndex - 1)
-                    ?: error("Word文書の ${tableIndex} 番目の表がありません（表は ${tables.size} 個）")
-                val allRows = table.rows.map { row -> row.tableCells.map { it.text.trim() } }
-                if (allRows.isEmpty()) error("Word文書の表が空です")
-                val headers = allRows.first().toMutableList()
-                while (headers.isNotEmpty() && headers.last().isEmpty()) headers.removeAt(headers.lastIndex)
-                if (headers.isEmpty()) error("Word文書の表のヘッダ行が空です")
-                val rows = allRows.drop(1)
-                    .filter { row -> row.any { it.isNotBlank() } }
-                    .map { row -> headers.indices.map { i -> row.getOrNull(i)?.takeIf { it.isNotEmpty() } } }
-                return Table(headers, rows)
-            }
-        }
-    }
-
     // ---------------------------------------------------------------- 書き出し
 
     fun write(table: Table, file: Path, format: TableFormat, sheet: String) {
@@ -206,7 +153,7 @@ object Tables {
         when (format) {
             TableFormat.CSV -> Files.writeString(file, writeCsv(table))
             TableFormat.MARKDOWN -> Files.writeString(file, writeMarkdown(table))
-            TableFormat.XLSX -> writeXlsx(table, file, sheet)
+            TableFormat.XLSX -> binary().writeXlsx(table, file, sheet)
             TableFormat.JSON -> Files.writeString(file, writeJson(table))
             TableFormat.HTML -> Files.writeString(file, writeHtml(table, sheet))
             TableFormat.DOCX -> error("Wordへのエクスポートは未対応です")
@@ -284,23 +231,4 @@ object Tables {
         table.rows.forEach { row -> appendLine("| " + row.joinToString(" | ") { cell(it) } + " |") }
     }
 
-    private fun writeXlsx(table: Table, file: Path, sheet: String) {
-        XSSFWorkbook().use { book ->
-            val ws = book.createSheet(sheet)
-            val header = ws.createRow(0)
-            table.headers.forEachIndexed { c, name -> header.createCell(c).setCellValue(name) }
-            table.rows.forEachIndexed { r, row ->
-                val xr = ws.createRow(r + 1)
-                row.forEachIndexed { c, value ->
-                    when (value) {
-                        null -> Unit
-                        is Boolean -> xr.createCell(c).setCellValue(value)
-                        is Number -> xr.createCell(c).setCellValue(value.toDouble())
-                        else -> xr.createCell(c).setCellValue(value.toString())
-                    }
-                }
-            }
-            Files.newOutputStream(file).use { book.write(it) }
-        }
-    }
 }

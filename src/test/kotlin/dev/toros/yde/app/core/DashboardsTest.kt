@@ -1,5 +1,6 @@
 package dev.toros.yde.app.core
 
+import dev.toros.yde.app.cli.runCli
 import dev.toros.yde.app.AppState
 import dev.toros.yde.app.UiSpace
 import dev.toros.yde.app.ui.FormCtx

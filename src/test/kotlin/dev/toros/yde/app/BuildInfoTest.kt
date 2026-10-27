@@ -1,6 +1,6 @@
 package dev.toros.yde.app
 
-import dev.toros.yde.app.core.runCli
+import dev.toros.yde.app.cli.runCli
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.Test

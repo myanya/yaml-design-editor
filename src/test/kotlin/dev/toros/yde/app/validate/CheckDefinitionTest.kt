@@ -1,7 +1,7 @@
 package dev.toros.yde.app.validate
 
+import dev.toros.yde.app.cli.runCli
 import dev.toros.yde.app.core.Workspace
-import dev.toros.yde.app.core.runCli
 import dev.toros.yde.semantic.schema.CheckLibrary
 import dev.toros.yde.workspace.BuiltinDefinitionResources
 import dev.toros.yde.yaml.model.parseYPath

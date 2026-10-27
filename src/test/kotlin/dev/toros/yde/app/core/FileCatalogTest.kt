@@ -1,5 +1,6 @@
 package dev.toros.yde.app.core
 
+import dev.toros.yde.app.FileTreePreferences
 import java.nio.file.Files
 import java.util.prefs.Preferences
 import kotlin.test.*

@@ -814,7 +814,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         openPreview = null
         openMarkdown = null
         openImage = null
-        val treePrefs = dev.toros.yde.app.core.FileTreePreferences.forWorkspace(ws)
+        val treePrefs = FileTreePreferences.forWorkspace(ws)
         runCatching {
             treePrefs.expanded().forEach { (path, expanded) -> memory.treeExpanded[ws.resolve(path)] = expanded }
             memory.treeOptions = treePrefs.options()
@@ -1335,7 +1335,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         memory.treeExpanded.clear()
         expansion.forEach { (path, value) -> memory.treeExpanded[moved(path)] = value }
         memory.treeSelection = memory.treeSelection?.let(::moved)?.takeUnless { relPath(it).startsWith(".yde-trash/") }
-        val prefs = dev.toros.yde.app.core.FileTreePreferences.forWorkspace(ws)
+        val prefs = FileTreePreferences.forWorkspace(ws)
         prefs.clearExpansion()
         memory.treeExpanded.forEach { (path, value) -> prefs.expand(relPath(path), value) }
         recentFiles = recentFiles.map(::moved).filterNot { relPath(it).startsWith(".yde-trash/") }

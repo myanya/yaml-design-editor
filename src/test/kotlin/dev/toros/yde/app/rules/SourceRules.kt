@@ -61,7 +61,7 @@ object SourceRules {
     private val fileExistsAllowed = setOf(
         "src/main/kotlin/dev/toros/yde/app/AppState.kt",
         "src/main/kotlin/dev/toros/yde/app/session/DocumentSession.kt",
-        "src/main/kotlin/dev/toros/yde/app/core/Cli.kt",
+        "src/main/kotlin/dev/toros/yde/app/cli/Cli.kt",
         "src/main/kotlin/dev/toros/yde/app/agent/Evals.kt",
         "src/main/kotlin/dev/toros/yde/app/agent/RunLog.kt",
         "src/main/kotlin/dev/toros/yde/app/agent/Staging.kt",
@@ -88,7 +88,6 @@ object SourceRules {
             why = "index・schema・validate・text、core、session、ai、skill、agent、根（AppState）、ui の順に下から上へ重なり、上の層を import しない",
             doc = "architecture/README.md「モジュールと依存方向」",
             known = listOf(
-                Known("src/main/kotlin/dev/toros/yde/app/core/Cli.kt", "root の CLI が app.core にあり agent・ai・skill・BuildInfo を使う。app.cli へ移す（ROADMAP の計画）"),
                 Known("src/main/kotlin/dev/toros/yde/app/validate/Readiness.kt", "core.Workspace を使っていて validate と core が循環している（BACKLOG）"),
                 Known("src/main/kotlin/dev/toros/yde/app/AppState.kt", "ui の DesktopUiDispatcher を使っている（BACKLOG）"),
             ),

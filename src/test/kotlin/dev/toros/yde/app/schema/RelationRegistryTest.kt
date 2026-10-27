@@ -1,7 +1,7 @@
 package dev.toros.yde.app.schema
 
+import dev.toros.yde.app.cli.inferRelationsDraft
 import dev.toros.yde.app.core.Workspace
-import dev.toros.yde.app.core.inferRelationsDraft
 import dev.toros.yde.semantic.schema.Relations
 import dev.toros.yde.semantic.schema.SchemaKind
 import java.nio.file.Files

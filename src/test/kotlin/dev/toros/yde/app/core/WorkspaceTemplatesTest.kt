@@ -1,5 +1,6 @@
 package dev.toros.yde.app.core
 
+import dev.toros.yde.app.cli.runCli
 import dev.toros.yde.app.agent.Definitions
 import dev.toros.yde.app.agent.Evals
 import dev.toros.yde.app.skill.Skills

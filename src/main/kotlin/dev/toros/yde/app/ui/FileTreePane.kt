@@ -33,7 +33,7 @@ import androidx.compose.ui.unit.sp
 import dev.toros.yde.app.AppState
 import java.nio.file.Files
 import java.nio.file.Path
-import dev.toros.yde.app.core.FileTreePreferences
+import dev.toros.yde.app.FileTreePreferences
 import androidx.compose.foundation.ContextMenuArea
 import androidx.compose.foundation.ContextMenuItem
 import androidx.compose.foundation.border

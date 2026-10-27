@@ -1,4 +1,6 @@
-package dev.toros.yde.app.core
+package dev.toros.yde.app.cli
+
+import dev.toros.yde.app.core.*
 
 import dev.toros.yde.app.agent.AgentEvent
 import dev.toros.yde.app.agent.AgentHost
@@ -54,6 +56,8 @@ import java.nio.file.Path
 import kotlin.system.exitProcess
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.app.BuildInfo
+import dev.toros.yde.app.format.PoiTables
+import dev.toros.yde.app.skill.Tables
 
 /**
  * ヘッドレスCLI（R1-01）。UIを起動せずにワークスペースの探索・検索・パッチ・検証を行う。
@@ -61,6 +65,7 @@ import dev.toros.yde.app.BuildInfo
  * 出力は原則 YAML（機械可読）。
  */
 fun main(args: Array<String>) {
+    Tables.binary = PoiTables  // xlsx / docx の読み書き（POI）は入口が登録する（app-core に POI を入れない）
     // プラットフォームの既定文字コードに依存せず、常に UTF-8 で出力する（機械可読性のため）
     System.setOut(java.io.PrintStream(java.io.FileOutputStream(java.io.FileDescriptor.out), true, Charsets.UTF_8))
     System.setErr(java.io.PrintStream(java.io.FileOutputStream(java.io.FileDescriptor.err), true, Charsets.UTF_8))
@@ -1514,31 +1519,6 @@ private fun runAgentCommand(rest: List<String>): String {
             "changes" to result.changeSet.changes.map { linkedMapOf("file" to it.file, "create" to it.create, "ops" to it.ops.size) },
         )
     ) + (if (result.changeSet.changes.isEmpty()) "" else "---\n$changeSetYaml")
-}
-
-/** 変更セットを apply コマンドで再適用できるYAMLへ変換する。 */
-internal fun changeSetToYaml(cs: ChangeSet): String {
-    val changes = cs.changes.map { change ->
-        if (change.create) linkedMapOf(
-            "file" to change.file,
-            "create" to true,
-            "content" to change.content?.let { YamlIO.toAny(it) },
-        ) else linkedMapOf<String, Any?>(
-            "file" to change.file,
-            "base" to change.baseHash,
-            "ops" to change.ops.map { op ->
-                when (op) {
-                    is PatchOp.Set -> linkedMapOf("op" to "set", "path" to op.path.pretty(), "value" to YamlIO.toAny(op.value))
-                    is PatchOp.Insert -> linkedMapOf("op" to "insert", "path" to op.path.pretty(), "value" to YamlIO.toAny(op.value))
-                    is PatchOp.Delete -> linkedMapOf("op" to "delete", "path" to op.path.pretty())
-                    is PatchOp.Move -> linkedMapOf("op" to "move", "from" to op.from.pretty(), "to" to op.to.pretty())
-                    is PatchOp.RenameKey -> linkedMapOf("op" to "rename", "path" to op.path.pretty(), "to" to op.newName)
-                    is PatchOp.ReorderKeys -> linkedMapOf("op" to "reorder", "path" to op.path.pretty(), "order" to op.order)
-                }
-            },
-        ).filterValues { it != null }
-    }
-    return YamlIO.dump(YamlIO.fromAny(linkedMapOf("changes" to changes)))
 }
 
 private fun issueMap(issue: Issue, withSource: Boolean = false): Map<String, Any?> = linkedMapOf(

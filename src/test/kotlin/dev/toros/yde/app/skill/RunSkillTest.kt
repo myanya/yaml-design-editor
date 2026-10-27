@@ -1,7 +1,7 @@
 package dev.toros.yde.app.skill
 
+import dev.toros.yde.app.cli.runCli
 import dev.toros.yde.app.core.Workspace
-import dev.toros.yde.app.core.runCli
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.createTempDirectory

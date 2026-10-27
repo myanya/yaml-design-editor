@@ -58,7 +58,9 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 | cli | `cli` | カーネル側の CLI（`cli.MainKt`。`workspace validate / apply / refactor / bench`） |
 | アプリ（root） | `app` | `Main.kt`（エントリポイント・ウィンドウ・ショートカット・スタート画面）・`AppState` / `OpenDocument` |
 | | `app.ui` | Compose の画面一式（骨格は `ui/Shell.kt`） |
-| | `app.core` | ワークスペースの窓口（`Workspace`）・文書キャッシュ・ファイル監視・読み出しモデル（`Traverse` / `Disclosure` / `Search` / `Aspects` / `Views`）・root の CLI（`core/Cli.kt`）・規模の計測 |
+| | `app.cli` | root の CLI（`cli/Cli.kt`。探索・検索・検証・エージェント・入出力。CLI の一本化で cli モジュールへ寄せる） |
+| | `app.format` | xlsx / docx の読み書き（POI）の実装 `PoiTables`。入口が `skill.Tables.binary` に登録する |
+| | `app.core` | ワークスペースの窓口（`Workspace`）・文書キャッシュ・ファイル監視・読み出しモデル（`Traverse` / `Disclosure` / `Search` / `Aspects` / `Views`）・規模の計測 |
 | | `app.index` | 索引のファサード（`IdIndex`。カーネルの型の別名）・クエリの窓口 |
 | | `app.schema` | `SchemaDef`（カーネルのスキーマにファイルの場所を足す薄い型）・`SchemaLoader`・表示解決 `Display`・ID 候補・スキーマ推測 |
 | | `app.validate` | `Validator`（窓口）・`Readiness` |
@@ -90,7 +92,7 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 | `SemanticEngine` | semantic-core | 意味解析の評価器。走査・グラフ・クエリ・検査の判定 |
 | `Validator` | validate/Validator.kt | 文書の検証の窓口。索引とスキーマを渡してカーネルの `DocumentValidator` を呼ぶ |
 | `AgentKernel` | agent/Kernel.kt | エージェント実行のマルチターンのツール使用ループ |
-| `runCli` / `cli.MainKt` | core/Cli.kt・cli/ | root の CLI（探索・検索・検証・エージェント・入出力）とカーネル側の CLI |
+| `runCli` / `cli.MainKt` | cli/Cli.kt・cli/ | root の CLI（探索・検索・検証・エージェント・入出力）とカーネル側の CLI |
 
 ## 全体の流れ
 

@@ -1,7 +1,7 @@
 package dev.toros.yde.app.schema
 
+import dev.toros.yde.app.cli.runCli
 import dev.toros.yde.app.core.Workspace
-import dev.toros.yde.app.core.runCli
 import dev.toros.yde.app.index.IdIndex
 import dev.toros.yde.app.validate.Validator
 import dev.toros.yde.semantic.schema.FieldDef

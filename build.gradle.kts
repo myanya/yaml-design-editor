@@ -328,9 +328,9 @@ tasks.register("windowsRelease") {
 // 例: ./gradlew runCli --args="catalog samples/sample-workspace" -q
 tasks.register<JavaExec>("runCli") {
     group = "application"
-    description = "ヘッドレスCLIを実行する（dev.toros.yde.app.core.CliKt）"
+    description = "ヘッドレスCLIを実行する（dev.toros.yde.app.cli.CliKt）"
     classpath = sourceSets["main"].runtimeClasspath
-    mainClass.set("dev.toros.yde.app.core.CliKt")
+    mainClass.set("dev.toros.yde.app.cli.CliKt")
 }
 
 tasks.withType<Test>().configureEach {

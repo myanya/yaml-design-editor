@@ -3,6 +3,7 @@ package dev.toros.yde.app.skill
 import dev.toros.yde.app.agent.Definitions
 import dev.toros.yde.app.agent.Evals
 import dev.toros.yde.app.core.Workspace
+import dev.toros.yde.app.format.PoiTables
 import dev.toros.yde.workspace.InitRequest
 import dev.toros.yde.workspace.WorkspaceInit
 import dev.toros.yde.workspace.WorkspaceTemplates
@@ -23,6 +24,7 @@ import kotlin.test.assertTrue
  * ledger テンプレートの上で一気通貫に検証する。
  */
 class ImportExportTest {
+    init { Tables.binary = PoiTables }
 
     private lateinit var dir: Path
 
@@ -117,7 +119,7 @@ class ImportExportTest {
         // 6. Excel帳票を原本から再出力（派生成果物の再生成）
         val reExported = Exporter.run(ws(), exportSkill)
         assertEquals(3, reExported.rows)
-        val table = Tables.readXlsx(reExported.file, "課題一覧", 1)
+        val table = PoiTables.readXlsx(reExported.file, "課題一覧", 1)
         assertTrue(table.rows.any { it[0] == "ISSUE-003" && it[2] == "open" })
     }
 
@@ -224,7 +226,7 @@ class ImportExportTest {
             }
             Files.newOutputStream(docxFile).use { doc.write(it) }
         }
-        val table = Tables.readDocx(docxFile)
+        val table = PoiTables.readDocx(docxFile)
         assertEquals(listOf("ID", "件名", "状態", "優先度", "担当", "タグ"), table.headers)
         assertEquals(2, table.rows.size)
         // 既存のインポート定義（列マッピング・値辞書・split）にそのまま流せる
