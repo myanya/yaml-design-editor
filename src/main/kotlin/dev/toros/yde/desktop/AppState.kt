@@ -27,7 +27,7 @@ import dev.toros.yde.semantic.schema.FieldDef
 import dev.toros.yde.app.session.DocumentSession
 import dev.toros.yde.semantic.RefactoringPlan
 import dev.toros.yde.semantic.RefactoringRequest
-import dev.toros.yde.app.agent.Staging
+import dev.toros.yde.agent.Staging
 import dev.toros.yde.workspace.ActionEntry
 import dev.toros.yde.workspace.ActionPlan
 import dev.toros.yde.workspace.ActionRequest

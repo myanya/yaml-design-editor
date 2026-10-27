@@ -172,12 +172,12 @@ class FlowViewsIntegrationTest {
     @Test
     fun `エージェントとCLIが同じモデルと原本座標を開示する`() {
         val ws = Workspace.open(directory)
-        val activity = dev.toros.yde.app.agent.ActivityDef(
+        val activity = dev.toros.yde.agent.ActivityDef(
             id = "test", name = "テスト", agentId = "a", instruction = "テスト",
             source = directory.resolve(".yde/activities/test.yaml"),
         )
-        val toolbox = dev.toros.yde.app.agent.AgentToolbox(ws, dev.toros.yde.app.agent.Staging(ws), activity,
-            dev.toros.yde.app.agent.ToolGroup.entries.toSet())
+        val toolbox = dev.toros.yde.agent.AgentToolbox(ws, dev.toros.yde.agent.Staging(ws), activity,
+            dev.toros.yde.agent.ToolGroup.entries.toSet())
         assertTrue(toolbox.viewText(null).contains("フロービュー"))
         val agent = toolbox.viewText("diagram", "flows/one.yaml")
         val cli = runCli(arrayOf("view", directory.toString(), "diagram", "flows/one.yaml"))

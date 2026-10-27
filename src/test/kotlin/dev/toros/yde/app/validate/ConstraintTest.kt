@@ -1,6 +1,6 @@
 package dev.toros.yde.app.validate
 
-import dev.toros.yde.app.ai.fieldToJsonSchema
+import dev.toros.yde.agent.llm.fieldToJsonSchema
 import dev.toros.yde.app.schema.SchemaLoader
 import dev.toros.yde.app.schema.validateDefinition
 import java.nio.file.Path

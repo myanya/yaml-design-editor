@@ -1,6 +1,6 @@
 package dev.toros.yde.desktop.ui
 
-import dev.toros.yde.app.agent.AutomationEngine
+import dev.toros.yde.agent.AutomationEngine
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState

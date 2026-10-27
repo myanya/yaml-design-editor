@@ -2,20 +2,20 @@ package dev.toros.yde.app.cli
 
 import dev.toros.yde.app.core.*
 
-import dev.toros.yde.app.agent.AgentEvent
-import dev.toros.yde.app.agent.AgentHost
-import dev.toros.yde.app.agent.AgentKernel
-import dev.toros.yde.app.agent.AgentRunRequest
-import dev.toros.yde.app.agent.AutoApply
-import dev.toros.yde.app.agent.AutomationEngine
-import dev.toros.yde.app.agent.Definitions
-import dev.toros.yde.app.agent.EvalRunner
-import dev.toros.yde.app.agent.Evals
-import dev.toros.yde.app.agent.Foreach
-import dev.toros.yde.app.agent.RunLog
-import dev.toros.yde.app.agent.RunMetrics
-import dev.toros.yde.app.agent.RunStatus
-import dev.toros.yde.app.ai.AiProvider
+import dev.toros.yde.agent.AgentEvent
+import dev.toros.yde.agent.AgentHost
+import dev.toros.yde.agent.AgentKernel
+import dev.toros.yde.agent.AgentRunRequest
+import dev.toros.yde.agent.AutoApply
+import dev.toros.yde.agent.AutomationEngine
+import dev.toros.yde.agent.Definitions
+import dev.toros.yde.agent.EvalRunner
+import dev.toros.yde.agent.Evals
+import dev.toros.yde.agent.Foreach
+import dev.toros.yde.agent.RunLog
+import dev.toros.yde.agent.RunMetrics
+import dev.toros.yde.agent.RunStatus
+import dev.toros.yde.agent.llm.AiProvider
 import dev.toros.yde.app.index.Query
 import dev.toros.yde.app.schema.SchemaInference
 import dev.toros.yde.app.skill.Exporter

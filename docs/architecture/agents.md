@@ -17,8 +17,8 @@
 | `Evals` / `EvalRunner` | agent/Evals.kt | 評価セットと比較実験（サンドボックスコピー上） |
 | `GenerationRun` | agent/Generation.kt | AI 生成のカーネル統合（1 ターンで提出する特殊アクティビティ） |
 | `AiGenerator` / `OpenAiGenerator` / `AnthropicGenerator` | ai/ | スキーマ → JSON Schema・参照候補の enum 制約・プロバイダ振り分け・各 API のリクエスト構築とレスポンス解析 |
-| `ToolChat` / `ToolChatSession` | ai/ToolChat.kt | ツール使用対応のチャット抽象と OpenAI Responses / Anthropic Messages 実装（prompt caching の印つけ） |
-| `AiConnection` / `AiHttp` | ai/Connection.kt・Http.kt | OpenAI 互換の接続先の解決と、HttpClient の単一ファクトリ（プロキシ・Basic 認証・リトライ） |
+| `ToolChat` / `ToolChatSession` | agent/llm/ToolChat.kt | ツール使用対応のチャット抽象と OpenAI Responses / Anthropic Messages 実装（prompt caching の印つけ） |
+| `AiConnection` / `AiHttp` | agent/llm/Connection.kt・Http.kt | OpenAI 互換の接続先の解決と、HttpClient の単一ファクトリ（プロキシ・Basic 認証・リトライ） |
 | `Traverse` | core/Traverse.kt | 経路パターンの多段トラバース（`neighborIds` の上の emit レンダラ） |
 | `SkillDef` / `Skills` / `Runner` / `Tables` / `Importer` / `Exporter` | skill/ | skill 定義・コード実行 skill・表形式の読み書き・インポート・エクスポート |
 | `RunController` / `RunsSpace` | ui/RunsSpace.kt | 実行スペース（受信箱・手動実行・自動化・計測評価）。実行状態機械は `RunController` が持つ |

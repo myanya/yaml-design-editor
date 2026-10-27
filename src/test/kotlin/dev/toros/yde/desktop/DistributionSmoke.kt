@@ -1,6 +1,6 @@
 package dev.toros.yde.desktop
 
-import dev.toros.yde.app.ai.AiHttp
+import dev.toros.yde.agent.llm.AiHttp
 import dev.toros.yde.desktop.ui.GraphLayouts
 import dev.toros.yde.desktop.ui.LensEdgeSpec
 import dev.toros.yde.desktop.ui.LensLayoutKind

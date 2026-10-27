@@ -15,8 +15,8 @@ import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.automirrored.filled.Redo
-import dev.toros.yde.app.agent.AutomationEngine
-import dev.toros.yde.app.ai.AiProvider
+import dev.toros.yde.agent.AutomationEngine
+import dev.toros.yde.agent.llm.AiProvider
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment

@@ -1,6 +1,6 @@
 package dev.toros.yde.app.validate
 
-import dev.toros.yde.app.agent.Staging
+import dev.toros.yde.agent.Staging
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.patch.PatchOp
 import dev.toros.yde.app.core.Workspace

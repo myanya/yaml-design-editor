@@ -171,19 +171,19 @@
 | A-01 | フィールド単位の生成（✨） | `ui/AiGenerationDialog.kt`, `ui/FormView.kt` | 手動 | [agents](architecture/agents.md) |
 | A-02 | 配列への候補追加と全体置き換え | `ui/AiGenerationDialog.kt`（`combineProposal`） | 単体 `AiProposalTest` | [agents](architecture/agents.md) |
 | A-03 | 文書全体の生成（`_document` は保持） | `ui/AiGenerationDialog.kt`（`replaceInClone`） | 単体 `AiProposalTest` | [agents](architecture/agents.md) |
-| A-04 | JSON Schema による Structured Outputs（`map` / `any` を含むとプロンプト指示へ後退） | `ai/AiGenerator.kt`（`fieldToJsonSchema`） | 単体 `OpenAiGeneratorTest`, `MetaSchemaTest` | [agents](architecture/agents.md) |
-| A-05 | 参照候補の enum 制約（200 件超は省略） | `ai/AiGenerator.kt`（`refCandidateIds`） | 単体 `AiGeneratorTest` | [agents](architecture/agents.md) |
+| A-04 | JSON Schema による Structured Outputs（`map` / `any` を含むとプロンプト指示へ後退） | `agent/llm/AiGenerator.kt`（`fieldToJsonSchema`） | 単体 `OpenAiGeneratorTest`, `MetaSchemaTest` | [agents](architecture/agents.md) |
+| A-05 | 参照候補の enum 制約（200 件超は省略） | `agent/llm/AiGenerator.kt`（`refCandidateIds`） | 単体 `AiGeneratorTest` | [agents](architecture/agents.md) |
 | A-06 | 適用前の差分プレビューと適用後検証・Undo できる適用 | `ui/AiGenerationDialog.kt` | 手動 | [agents](architecture/agents.md) |
-| A-07 | プロバイダ切替（OpenAI Responses・Anthropic Messages・Azure）・API キーはメモリのみ | `ai/OpenAiGenerator.kt`, `ai/AnthropicGenerator.kt` | 単体（レスポンス解析） | [agents](architecture/agents.md) |
+| A-07 | プロバイダ切替（OpenAI Responses・Anthropic Messages・Azure）・API キーはメモリのみ | `agent/llm/OpenAiGenerator.kt`, `agent/llm/AnthropicGenerator.kt` | 単体（レスポンス解析） | [agents](architecture/agents.md) |
 | A-08 | 生成のキャンセルとエラー処理 | `ui/AiGenerationDialog.kt`, `ai/*Generator.kt` | 単体（一部） | [agents](architecture/agents.md) |
-| A-09 | OpenAI 互換の接続先とプロキシ（Azure・ベース URL 上書き・Basic 認証） | `ai/Connection.kt`, `ai/Http.kt` | 単体 `ConnectionTest` | [agents](architecture/agents.md) |
+| A-09 | OpenAI 互換の接続先とプロキシ（Azure・ベース URL 上書き・Basic 認証） | `agent/llm/Connection.kt`, `agent/llm/Http.kt` | 単体 `ConnectionTest` | [agents](architecture/agents.md) |
 | A-10 | 生成のカーネル統合（単発生成を 1 ターンで提出する特殊アクティビティとして実行） | `agent/Generation.kt` | 単体 `GenerationRunTest` | [agents](architecture/agents.md) |
-| A-11 | 同一スキーマの参考文書を添付（最大 3 件を自動選択・上限つき） | `ai/AiGenerator.kt`（`ReferenceDoc`）, `desktop/AppState.kt`（`sameSchemaFiles`） | 単体 `AiGeneratorTest` | [agents](architecture/agents.md) |
-| A-12 | 生成の入出力記録（システム指示・プロンプト・応答スキーマ・生出力を実行記録へ） | `ai/AiGenerator.kt`（`AiExchange`）, `agent/RunLog.kt` | 単体 `GenerationRunTest` | [agents](architecture/agents.md) |
-| A-13 | レート制限と一時エラーの自動リトライ（408 / 429 / 5xx・`retry-after` と指数バックオフ） | `ai/Http.kt`（`retryLoop`） | 単体 `HttpTest` | [agents](architecture/agents.md) |
-| A-14 | Anthropic prompt caching（system・ツール定義・最新メッセージの 3 点） | `ai/ToolChat.kt`（`AnthropicToolSession`） | 単体 `ToolChatParseTest` | [agents](architecture/agents.md) |
+| A-11 | 同一スキーマの参考文書を添付（最大 3 件を自動選択・上限つき） | `agent/llm/AiGenerator.kt`（`ReferenceDoc`）, `desktop/AppState.kt`（`sameSchemaFiles`） | 単体 `AiGeneratorTest` | [agents](architecture/agents.md) |
+| A-12 | 生成の入出力記録（システム指示・プロンプト・応答スキーマ・生出力を実行記録へ） | `agent/llm/AiGenerator.kt`（`AiExchange`）, `agent/RunLog.kt` | 単体 `GenerationRunTest` | [agents](architecture/agents.md) |
+| A-13 | レート制限と一時エラーの自動リトライ（408 / 429 / 5xx・`retry-after` と指数バックオフ） | `agent/llm/Http.kt`（`retryLoop`） | 単体 `HttpTest` | [agents](architecture/agents.md) |
+| A-14 | Anthropic prompt caching（system・ツール定義・最新メッセージの 3 点） | `agent/llm/ToolChat.kt`（`AnthropicToolSession`） | 単体 `ToolChatParseTest` | [agents](architecture/agents.md) |
 | A-15 | 入口のスペース非依存化（`AiRequest` が対象文書を持ち・ホストはシェル直下） | `desktop/AppState.kt`（`AiRequest` / `requestAi`）, `ui/AiGenerationDialog.kt` | 手動 | [agents](architecture/agents.md) |
-| A-16 | エンティティ文脈と出現単位の生成（関連文書の注入・所有キー限定の生成・キー単位マージ） | `ai/AiGenerator.kt`（`contextDocs`）, `ui/AiGenerationDialog.kt`（`mergeGenField`） | 単体 `AiGeneratorTest`, `AiProposalTest` | [agents](architecture/agents.md) |
+| A-16 | エンティティ文脈と出現単位の生成（関連文書の注入・所有キー限定の生成・キー単位マージ） | `agent/llm/AiGenerator.kt`（`contextDocs`）, `ui/AiGenerationDialog.kt`（`mergeGenField`） | 単体 `AiGeneratorTest`, `AiProposalTest` | [agents](architecture/agents.md) |
 | A-17 | 新規作成のたたき台生成（作成 → 開く → 生成の連結・ルート object のキー単位マージ） | `ui/AiGenerationDialog.kt`（`requestDocumentDraft`） | 単体 `GenerationRunTest` | [agents](architecture/agents.md) |
 
 ## 8. エージェント実行（アクティビティ）
@@ -192,7 +192,7 @@
 |---|---|---|---|---|
 | AG-01 | エージェント定義 `_agents`（persona・観点・モデル設定・ツール許可） | `agent/Definitions.kt` | 単体 `DefinitionsTest` | [agents](architecture/agents.md) |
 | AG-02 | アクティビティ定義 `_activities`（対象・指示・文脈・書込許可・上限・提出ゲート `error-free` / `no-new-errors` / `none`） | `agent/Definitions.kt`, `agent/Staging.kt`（`newErrors`） | 単体 `DefinitionsTest`, `KernelTest` | [agents](architecture/agents.md) |
-| AG-03 | ツール使用対応 LLM クライアント（OpenAI・Anthropic の function calling） | `ai/ToolChat.kt` | 単体 `ToolChatParseTest` | [agents](architecture/agents.md) |
+| AG-03 | ツール使用対応 LLM クライアント（OpenAI・Anthropic の function calling） | `agent/llm/ToolChat.kt` | 単体 `ToolChatParseTest` | [agents](architecture/agents.md) |
 | AG-04 | 実行カーネル（マルチターン・上限・終了手続き・キャンセル・疑似セッション注入） | `agent/Kernel.kt` | 単体 `KernelTest` | [agents](architecture/agents.md) |
 | AG-05 | ツールセット（探索 5・編集 2・検証 1・対話 2・管理 3・許可ツール名と書込権限を実行時に強制） | `agent/Tools.kt` | 単体 `KernelTest`, `ToolsTest` | [agents](architecture/agents.md) |
 | AG-06 | ステージング（複数文書のオーバーレイ・横断検証・未提出ドラフトの保全） | `agent/Staging.kt` | 単体 `StagingTest` | [agents](architecture/agents.md) |

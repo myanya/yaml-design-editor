@@ -1,7 +1,7 @@
 package dev.toros.yde.app.skill
 
-import dev.toros.yde.app.agent.Definitions
-import dev.toros.yde.app.agent.Evals
+import dev.toros.yde.agent.Definitions
+import dev.toros.yde.agent.Evals
 import dev.toros.yde.app.core.Workspace
 import dev.toros.yde.desktop.format.PoiTables
 import dev.toros.yde.workspace.InitRequest

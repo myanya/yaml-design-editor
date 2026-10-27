@@ -7,7 +7,7 @@
 - Kotlin 公式コードスタイル（`kotlin.code.style=official`）。インデント4スペース、1行はおおむね120桁まで。
 - KDoc・コード内コメント・コミットメッセージ・UI文言・エラーメッセージは**日本語**で書く（識別子は英語）。
 - コメントは「何をするか」の逐語訳ではなく、制約・理由・注意点を書く（例: 「索引はディスク基準のため未保存編集は反映されない」）。
-- パッケージごとの配置は [architecture/README.md](architecture/README.md)「モジュールと依存方向」の依存ルールに従う。コアの3モジュールと、アプリの純粋ロジック層（`app.core`・`app.index`・`app.schema`・`app.validate`・`app.text`・`app.agent`・`app.ai`・`app.skill`）に Compose を import しない。機械で確かめられる規則は root のテスト `rules/SourceRulesTest` が守る（architecture/README.md「ソース規則テスト」）。
+- パッケージごとの配置は [architecture/README.md](architecture/README.md)「モジュールと依存方向」の依存ルールに従う。コアの3モジュールと app-core（`app.core`・`app.index`・`app.schema`・`app.validate`・`app.text`・`app.session`・`app.skill`）と agent（`agent`・`agent.llm`）に Compose を import しない（モジュールの依存にも入れない）。機械で確かめられる規則は root のテスト `rules/SourceRulesTest` が守る（architecture/README.md「ソース規則テスト」）。
 
 ## 2. Compose UI の書き方
 
@@ -105,9 +105,9 @@
 
 [decisions/](decisions/README.md) の ADR は本規約と同格。矛盾があれば ADR を正として規約側を直す。
 
-- **依存方向**（ADR-0002）: `yaml-core ← semantic-core ← workspace-core ← app-core ← アプリ（root）`（cli はカーネルまで）。コアからアプリ・Compose・AI・agent・skill へ依存しない。
+- **依存方向**（ADR-0002）: `yaml-core ← semantic-core ← workspace-core ← app-core ← agent ← アプリ（root）`（cli はカーネルまで）。コアからアプリ・Compose・AI・agent・skill へ依存しない。
 - yaml-core と semantic-core の main ソースへ `java.nio.file.Path` を持ち込まない（テストが fixture 読込に使うのは可）。
-- **パッケージ名**: 接頭辞は `dev.toros.yde`、その下にモジュールの根（yaml-core `yaml` / semantic-core `semantic` / workspace-core `workspace` / cli `cli` / app-core `app` / アプリ（root）`desktop`。`app.agent`・`app.ai`・`app.cli` は agent と cli のモジュールへ出すまで root に置く）。
+- **パッケージ名**: 接頭辞は `dev.toros.yde`、その下にモジュールの根（yaml-core `yaml` / semantic-core `semantic` / workspace-core `workspace` / cli `cli` / app-core `app` / agent `agent` / アプリ（root）`desktop`。`app.cli` は cli モジュールへ出すまで root に置く）。
 - モジュール名と同じ名前のクラス（`YamlIO`・`SemanticEngine`・`WorkspaceSession`・`AppState`）とアプリの `Main.kt` は根に置き、ほかは根の下に置く（`semantic.schema`・`desktop.ui` など。対応表は architecture/README.md「モジュールと依存方向」）。同じ裸の名前を複数のモジュールに作らない。
 - **文書とコメントでは接頭辞を省いた短い形**（`schema.FieldDef`・`validate/Validator.kt`）で書き、同じ短い名前が複数のモジュールにあるとき（`schema`・`validate`・`core`）はモジュール名を添える。
 - **移動であって複製ではない**: ファイルをモジュール間で移すときは `git mv` し、旧位置に残さない。各ステップで `./gradlew test` を緑に保つ。

@@ -1,6 +1,6 @@
 package dev.toros.yde.app.schema
 
-import dev.toros.yde.app.ai.containsMap
+import dev.toros.yde.agent.llm.containsMap
 import dev.toros.yde.app.core.Workspace
 import dev.toros.yde.app.index.IdIndex
 import dev.toros.yde.semantic.schema.SchemaCatalog

@@ -440,7 +440,7 @@ R47-10 の最初の規則（既知の違反を除いて守られているので�
 3. yaml-core・semantic-core の main に `java.nio.file.Path` が無い。
 4. `FontFamily.Monospace` は ui/Common.kt だけ。
 5. 外部 UI ライブラリ（FileKit・Reorderable・Markdown・Vico・ELK）の import は包むファイル（FilePickers・Reorder・MarkdownView・Charts・GraphLayouts）だけ。
-6. `java.net.http` は ai/Http.kt だけ。
+6. `java.net.http` は agent/llm/Http.kt だけ。
 7. `JFileChooser`・`Dispatchers.Main` を書かない。
 8. 生の `Color(0x…)` は Palette（ui/Common.kt）だけ。
 9. ui/ で `state.index` を直接読まない（`overlayIndex()`）。
@@ -457,7 +457,7 @@ R47-10 の最初の規則（既知の違反を除いて守られているので�
 | R47-22 | FormView.kt の分割 | 項目の種類ごとのファイルへ。画面確認が要るので段階 5 の後 | なし | 未着手 |
 | R47-23 | 行数の目安を報告 | 規則テストが 800 行を超える main のファイルを報告する（失敗にしない。文書の字数と同じ扱い） | なし | 未着手 |
 | R47-24 | app-core モジュールの切り出し | core・index・schema・validate・skill と `DocumentSession` を新モジュール app-core（パッケージの根は `app`。既存の `app.core` などはそのまま）へ `git mv`。desktop（今の root）は `desktop` を根にし、`app.ui` を `desktop.ui` へ改名。app-core に Compose・`java.util.prefs`・AI・POI を入れない（Gradle で止まる）。`core/FileCatalog` の Preferences は desktop へ出す | 決定（ADR-0013） | 前準備 2026-10-27（`core/Cli.kt` → `app.cli`・`FileTreePreferences` → root・POI の読み書きを `app.format.PoiTables` に出し `skill.Tables.binary` に入口が登録・`changeSetToYaml` を `app.core` へ）・app-core 新設 2026-10-27（core・index・schema・validate・text・session・skill の main と、root の入口に依存しないテストを移動。Compose・prefs・AI・POI は Gradle の依存で入らない）・desktop への改名 2026-10-27（root の `app` → `desktop`・`app.ui` → `desktop.ui`・`app.format` → `desktop.format`。`app.agent`・`app.ai`・`app.cli` はモジュールへ出すまで root に残す）。完了 |
-| R47-25 | agent モジュールの切り出し | 今の ai と agent を新モジュール agent（根は `agent`。llm・run・auto・eval）へ移す。書き込みはステージング → 変更セット → app-core の適用だけ。ツールの一式（AgentToolbox）は中立な `Toolset` として app-core へ置き、agent は LLM のツール宣言に包む。`ask_human` は agent に残す | 決定（ADR-0013） | 未着手 |
+| R47-25 | agent モジュールの切り出し | 今の ai と agent を新モジュール agent（根は `agent`。llm・run・auto・eval）へ移す。書き込みはステージング → 変更セット → app-core の適用だけ。ツールの一式（AgentToolbox）は中立な `Toolset` として app-core へ置き、agent は LLM のツール宣言に包む。`ask_human` は agent に残す | 決定（ADR-0013） | 第 1 段 2026-10-27（モジュール agent を新設。app.agent → `agent`（根）・app.ai → `agent.llm` へ git mv。run・auto・eval への分割は Kernel⇄Tools⇄Staging⇄Definitions⇄Evals⇄Automation の循環を解いてから。Toolset の app-core への切り出しは第 2 段）・続く |
 | R47-26 | 共通の Gradle 設定 | convention plugin（buildSrc）で、新しいモジュールの build ファイルを 3 行にする。Compose を使うモジュールと使わないモジュールの 2 種 | なし | 未着手 |
 
 #### 段階 3: 読む範囲の絞り込み

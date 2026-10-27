@@ -29,7 +29,7 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 
 - Kotlin (JVM 17) + Compose for Desktop + Material 3
 - YAML 入出力: SnakeYAML（Node API でコメント・表記を保持）
-- AI 連携: Java 11 HttpClient + kotlinx-serialization-json（外部 SDK 不使用）。HttpClient の生成は `ai/Http.kt` の単一ファクトリ
+- AI 連携: Java 11 HttpClient + kotlinx-serialization-json（外部 SDK 不使用）。HttpClient の生成は `agent/llm/Http.kt` の単一ファクトリ
 - Excel・Word 入出力: Apache POI（skill のインポート・エクスポートのみ）
 - 永続化: `java.util.prefs.Preferences`（UI レイアウト・テーマ・履歴・AI モデル設定）
 - ビルド: Gradle（Wrapper 同梱）マルチモジュール。ルート＝Compose アプリ＋ `yaml-core` / `semantic-core` / `workspace-core` / `cli`。テスト: kotlin.test
@@ -37,7 +37,7 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 
 ## モジュールと依存方向
 
-パッケージは `dev.toros.yde.<モジュール>.*`（規則は CONVENTIONS「モジュールの規約」）。依存方向は ADR-0002（app-core は ADR-0013）が正: `yaml-core ← semantic-core ← workspace-core ← app-core ← アプリ（root）`（cli はカーネルまで）。
+パッケージは `dev.toros.yde.<モジュール>.*`（規則は CONVENTIONS「モジュールの規約」）。依存方向は ADR-0002（app-core は ADR-0013）が正: `yaml-core ← semantic-core ← workspace-core ← app-core ← agent ← アプリ（root）`（cli はカーネルまで）。
 目指す構成（画面を持たない応用層 app-core・agent・入口 desktop／cli／mcp・形式とビューの種類の拡張）は ADR-0013 にあり、移行は ROADMAP の計画で進める。下の表は移る前の今の姿。
 文書とコメントでは接頭辞を省いて `schema.FieldDef`・`validate/Validator.kt` のように書き、同じ短い名前が複数のモジュールにあるとき（`schema`・`validate`・`core`）はモジュール名を添える。
 
@@ -64,20 +64,20 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 | | `app.session` | セッション側の状態（Compose 非依存）: `DocumentSession`（コアとカーネルの保持・索引の写し・開いている文書・未保存編集を重ねた索引と派生・編集の記録・開き直しと同期）と 1 文書の論理 `DocumentState`。再読込・保存・履歴の一手・全体検証と検索・一括変更・リファクタリング・文書の作成・配置の計画と前後・操作（アクション）の論理もここ。画面側に残るのは開く手順と場所・通知・パネルの作業 |
 | | `app.text` | 純粋な文字の計算（行の差分と 3 者併合 `LineMerge`・履歴の値を優先した書式の差し込み `SourceHistorySync`） |
 | | `app.skill` | 入出力変換（skill 定義・表形式の読み書き・インポート・エクスポート） |
+| agent | `agent` | エージェント実行（定義・ステージング・ツールセット・カーネル・実行記録・自動化・メトリクス・評価）。書き込みはステージング → 変更セット → app-core の適用だけ。run・auto・eval への分割はファイルの循環を解いてから |
+| | `agent.llm` | LLM との接続（`AiGenerator`・各プロバイダの生成器・`Connection`・`Http`・ツール呼び出しの往復 `ToolChat`） |
 | アプリ（root） | `desktop` | `Main.kt`（エントリポイント・ウィンドウ・ショートカット・スタート画面）・`AppState` / `OpenDocument` |
 | | `desktop.ui` | Compose の画面一式（骨格は `ui/Shell.kt`） |
 | | `app.cli` | root の CLI（`cli/Cli.kt`。探索・検索・検証・エージェント・入出力。CLI の一本化で cli モジュールへ寄せる） |
 | | `desktop.format` | xlsx / docx の読み書き（POI）の実装 `PoiTables`。入口が `skill.Tables.binary` に登録する |
-| | `app.ai` | AI 生成・LLM クライアント（agent モジュールへ出すまで root に残す） |
-| | `app.agent` | エージェント実行（定義・ステージング・ツールセット・カーネル・実行記録・自動化・メトリクス・評価） |
 
-アプリの中の依存は `app.core` → `app.session` → `app.ai` → `app.skill` → `app.agent` → `app`（AppState）→ `app.ui` の一方向。`app.index` / `app.schema` / `app.validate` / `app.text` は `app.core` より下。
-`app.core` / `app.index` / `app.schema` / `app.validate` / `app.text` / `app.agent` / `app.ai` / `app.skill` は Compose 非依存の純粋ロジックで、単体テストはこの層に書く。`app`（AppState）は `mutableStateOf` だけに依存する。
+応用層の中の依存は `app.core` → `app.session` → `app.skill`（app-core）→ `agent.llm` → `agent`（agent）→ `desktop`（AppState・`app.cli`・`desktop.format`）→ `desktop.ui` の一方向。`app.index` / `app.schema` / `app.validate` / `app.text` は `app.core` より下。
+app-core（`app.core` / `app.index` / `app.schema` / `app.validate` / `app.text` / `app.session` / `app.skill`）と agent（`agent` / `agent.llm`）は Compose 非依存の純粋ロジックで、単体テストはこの層に書く。`desktop`（AppState）は `mutableStateOf` だけに依存する。
 
 ## ソース規則テスト
 
 上の依存方向と各主題の「規律」のうち機械で確かめられるものは、root のテスト `rules/SourceRulesTest`（規則の表は `rules/SourceRules`）が全モジュールの main のソース（テストの書き方の規則は test のソース）を走査して守る。構文解析はせず、import 行と文字の一致で見る。
-規則は 13 本。純粋ロジック層に Compose を持ち込まない・app の層は一方向・yaml-core と semantic-core にファイルの場所を持ち込まない・等幅は `AppFonts.Mono`・外部の UI ライブラリは包む 1 ファイルだけ・AI の HTTP は `ai/Http.kt` だけ。
+規則は 13 本。純粋ロジック層に Compose を持ち込まない・app の層は一方向・yaml-core と semantic-core にファイルの場所を持ち込まない・等幅は `AppFonts.Mono`・外部の UI ライブラリは包む 1 ファイルだけ・AI の HTTP は `agent/llm/Http.kt` だけ。
 `JFileChooser` と `Dispatchers.Main` を使わない・生の色は `Palette` だけ・UI は `state.index` を読まない・`FieldType` は基底の種類だけ・`Files.exists` は許可リストのファイルだけ・同じ裸の名前のファイルを作らない・テストに OS 固有の絶対パス（ドライブ文字）を書かない。
 文書の参照（今の姿の文書が指す `.kt` の名前・テスト名・「ファイル名＋見出し」）の実在は同じ場所の `rules/DocReferencesTest` が見る。
 落ちたらメッセージの「説明」の見出しを読む。規則を足すときは表に 1 つ足し、テストを 1 つ足す。今は直せていない違反は表の `known` に理由つきで書き、直したら消す（残っているとテストが「不要」と知らせる）。

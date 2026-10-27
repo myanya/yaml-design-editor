@@ -60,6 +60,7 @@ object SourceScanner {
         "workspace-core" to "workspace-core/src/main/kotlin",
         "cli" to "cli/src/main/kotlin",
         "app-core" to "app-core/src/main/kotlin",
+        "agent" to "agent/src/main/kotlin",
         "app" to "src/main/kotlin",
     )
 

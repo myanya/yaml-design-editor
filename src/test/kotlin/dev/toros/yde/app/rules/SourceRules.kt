@@ -26,6 +26,7 @@ class Known(val key: String, val reason: String)
 object SourceRules {
     private const val APP = "dev.toros.yde.app"
     private const val DESKTOP = "dev.toros.yde.desktop"
+    private const val AGENT = "dev.toros.yde.agent"
     private const val UI = "src/main/kotlin/dev/toros/yde/desktop/ui"
 
     /** app の中の層（下から上）。同じ層の中は互いに使ってよく、上の層を import してはいけない。 */
@@ -33,16 +34,16 @@ object SourceRules {
         listOf("$APP.index", "$APP.schema", "$APP.validate", "$APP.text"),
         listOf("$APP.core"),
         listOf("$APP.session"),
-        listOf("$APP.ai"),
         listOf("$APP.skill"),
-        listOf("$APP.agent"),
+        listOf("$AGENT.llm"),
+        listOf(AGENT),
         listOf(DESKTOP, "$APP.cli", "$DESKTOP.format"), // desktop の根（AppState・Main・ScreenMemory など）と、モジュールへ出すまで root に残す入口
         listOf("$DESKTOP.ui"),
     )
 
     /** Compose 非依存の純粋ロジック層。 */
-    private val purePackages = arrayOf("$APP.core", "$APP.index", "$APP.schema", "$APP.validate", "$APP.text", "$APP.session", "$APP.agent", "$APP.ai", "$APP.skill")
-    private val coreModules = setOf("yaml-core", "semantic-core", "workspace-core", "cli", "app-core")
+    private val purePackages = arrayOf("$APP.core", "$APP.index", "$APP.schema", "$APP.validate", "$APP.text", "$APP.session", "$APP.skill")
+    private val coreModules = setOf("yaml-core", "semantic-core", "workspace-core", "cli", "app-core", "agent")
 
     /** 外部の UI ライブラリの import の接頭辞と、それを包む 1 ファイル。 */
     private val wrappedLibraries = mapOf(
@@ -63,9 +64,9 @@ object SourceRules {
         "src/main/kotlin/dev/toros/yde/desktop/AppState.kt",
         "app-core/src/main/kotlin/dev/toros/yde/app/session/DocumentSession.kt",
         "src/main/kotlin/dev/toros/yde/app/cli/Cli.kt",
-        "src/main/kotlin/dev/toros/yde/app/agent/Evals.kt",
-        "src/main/kotlin/dev/toros/yde/app/agent/RunLog.kt",
-        "src/main/kotlin/dev/toros/yde/app/agent/Staging.kt",
+        "agent/src/main/kotlin/dev/toros/yde/agent/Evals.kt",
+        "agent/src/main/kotlin/dev/toros/yde/agent/RunLog.kt",
+        "agent/src/main/kotlin/dev/toros/yde/agent/Staging.kt",
         "$UI/InitWizard.kt",
         "$UI/MarkdownPane.kt",
         "workspace-core/src/main/kotlin/dev/toros/yde/workspace/DocumentStore.kt",
@@ -78,7 +79,7 @@ object SourceRules {
     val all: List<Rule> = listOf(
         Rule(
             1, "純粋ロジック層に Compose を持ち込まない",
-            why = "コアの 3 モジュールと cli と app-core、root の agent・ai は Compose 非依存で、単体テストはこの層に書く",
+            why = "コアの 3 モジュールと cli・app-core・agent は Compose 非依存で、単体テストはこの層に書く",
             doc = "architecture/README.md「モジュールと依存方向」",
         ) { files ->
             files.filter { it.module in coreModules || it.inPackage(*purePackages) }
@@ -86,7 +87,7 @@ object SourceRules {
         },
         Rule(
             2, "app の層は一方向",
-            why = "index・schema・validate・text、core、session、ai、skill、agent、desktop の根（AppState・cli・format）、desktop.ui の順に下から上へ重なり、上の層を import しない",
+            why = "index・schema・validate・text、core、session、skill、agent.llm、agent、desktop の根（AppState・cli・format）、desktop.ui の順に下から上へ重なり、上の層を import しない",
             doc = "architecture/README.md「モジュールと依存方向」",
             known = listOf(
                 Known("app-core/src/main/kotlin/dev/toros/yde/app/validate/Readiness.kt", "core.Workspace を使っていて validate と core が循環している（BACKLOG）"),
@@ -115,11 +116,11 @@ object SourceRules {
             }
         },
         Rule(
-            6, "AI の HTTP は ai/Http.kt に一元化",
-            why = "HttpClient の生成と送信は 1 か所に置き、プロバイダごとに作らない",
+            6, "AI の HTTP は agent/llm/Http.kt に一元化",
+            why = "HttpClient の生成と送信は 1 か所（agent/llm/Http.kt）に置き、プロバイダごとに作らない",
             doc = "architecture/agents.md「AI 接続」",
         ) { files ->
-            files.filter { it.path != "src/main/kotlin/dev/toros/yde/app/ai/Http.kt" }.flatMap { it.importsStartingWith("java.net.http.") }
+            files.filter { it.path != "agent/src/main/kotlin/dev/toros/yde/agent/llm/Http.kt" }.flatMap { it.importsStartingWith("java.net.http.") }
         },
         Rule(
             7, "JFileChooser と Dispatchers.Main を使わない",

@@ -1,19 +1,19 @@
 package dev.toros.yde.desktop.ui
 
-import dev.toros.yde.app.agent.ActivityDef
-import dev.toros.yde.app.agent.AgentEvent
-import dev.toros.yde.app.agent.AgentHost
-import dev.toros.yde.app.agent.AgentKernel
-import dev.toros.yde.app.agent.AgentRunRequest
-import dev.toros.yde.app.agent.AgentRunResult
-import dev.toros.yde.app.agent.AutomationEngine
-import dev.toros.yde.app.agent.Definitions
-import dev.toros.yde.app.agent.ForeachItem
-import dev.toros.yde.app.agent.RunLog
-import dev.toros.yde.app.agent.RunStatus
-import dev.toros.yde.app.agent.Staging
-import dev.toros.yde.app.agent.ValidationGate
-import dev.toros.yde.app.ai.AiProvider
+import dev.toros.yde.agent.ActivityDef
+import dev.toros.yde.agent.AgentEvent
+import dev.toros.yde.agent.AgentHost
+import dev.toros.yde.agent.AgentKernel
+import dev.toros.yde.agent.AgentRunRequest
+import dev.toros.yde.agent.AgentRunResult
+import dev.toros.yde.agent.AutomationEngine
+import dev.toros.yde.agent.Definitions
+import dev.toros.yde.agent.ForeachItem
+import dev.toros.yde.agent.RunLog
+import dev.toros.yde.agent.RunStatus
+import dev.toros.yde.agent.Staging
+import dev.toros.yde.agent.ValidationGate
+import dev.toros.yde.agent.llm.AiProvider
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -460,7 +460,7 @@ private fun ManualRunTab(
                             scope.launch {
                                 val preview = withContext(Dispatchers.IO) { engine.previewForeach(batchTarget.id) }
                                 when {
-                                    preview.error != null -> controller.errorMessage = preview.error
+                                    preview.error != null -> controller.errorMessage = preview.error.orEmpty()  // 別モジュールの公開プロパティはスマートキャストできない
                                     preview.items.isEmpty() -> {
                                         controller.clearForeachPreview()
                                         controller.errorMessage = "一括実行の対象がありません"
@@ -580,7 +580,7 @@ private fun ForeachPreviewPane(
                     scope.launch {
                         val result = withContext(Dispatchers.IO) { engine.enqueueForeachItems(preview.activityId, items) }
                         controller.clearForeachPreview()
-                        if (result.error != null) controller.errorMessage = result.error else onGoAutomation()
+                        if (result.error != null) controller.errorMessage = result.error.orEmpty() else onGoAutomation()  // 別モジュールの公開プロパティはスマートキャストできない
                     }
                 },
             ) { Text("選択した $selectedCount 件をキューへ投入") }

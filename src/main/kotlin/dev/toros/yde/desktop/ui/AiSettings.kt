@@ -1,8 +1,8 @@
 package dev.toros.yde.desktop.ui
 
-import dev.toros.yde.app.ai.AiConnection
-import dev.toros.yde.app.ai.AiHttp
-import dev.toros.yde.app.ai.AiProvider
+import dev.toros.yde.agent.llm.AiConnection
+import dev.toros.yde.agent.llm.AiHttp
+import dev.toros.yde.agent.llm.AiProvider
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton

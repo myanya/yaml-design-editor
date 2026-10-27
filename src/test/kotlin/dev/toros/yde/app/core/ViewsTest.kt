@@ -2,12 +2,12 @@ package dev.toros.yde.app.core
 
 import dev.toros.yde.app.cli.runCli
 import dev.toros.yde.workspace.ScaffoldSource
-import dev.toros.yde.app.agent.ActivityDef
-import dev.toros.yde.app.agent.AgentHost
-import dev.toros.yde.app.agent.AgentToolbox
-import dev.toros.yde.app.agent.Staging
-import dev.toros.yde.app.agent.ToolGroup
-import dev.toros.yde.app.ai.ToolCall
+import dev.toros.yde.agent.ActivityDef
+import dev.toros.yde.agent.AgentHost
+import dev.toros.yde.agent.AgentToolbox
+import dev.toros.yde.agent.Staging
+import dev.toros.yde.agent.ToolGroup
+import dev.toros.yde.agent.llm.ToolCall
 import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.patch.PatchOp
 import dev.toros.yde.yaml.patch.Patcher
