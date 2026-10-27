@@ -84,7 +84,7 @@
 | S-13 | 表示解決（1 行要約・`role: title / subtitle` ＞ 予約語 ＞ id・同一 ID の他出現からタイトルを借りる） | `schema/Display.kt`, `index/IdIndex.kt`（`DocScanner`） | 単体 `DisplayTest` | [index-references](architecture/index-references.md) |
 | S-14 | enum のリッチ選択肢（`{value, label, description}`・label は表示専用） | `schema/Schema.kt`（`EnumOption`）, `ui/FormView.kt`（`EnumEditor`） | 単体 `DisplayTest` | [schema](architecture/schema.md) |
 | S-15 | 組込みメタスキーマ（`_schemas` 文書に適用・一般スキーマの match は及ばない） | `schema/BuiltinSchemas.kt`, `core/Workspace.kt`（`schemaFor`） | 単体 `MetaSchemaTest` | [schema](architecture/schema.md) |
-| S-16 | スキーマ推測（既存 YAML から型・参照・enum・必須を推測してドラフト生成・CLI `infer-schema`） | `schema/SchemaInference.kt`, `app/AppState.inferSchema` | 単体 `SchemaInferenceTest` | [schema](architecture/schema.md) |
+| S-16 | スキーマ推測（既存 YAML から型・参照・enum・必須を推測してドラフト生成・CLI `infer-schema`） | `schema/SchemaInference.kt`, `session/DocumentSession.kt`（`inferSchema`） | 単体 `SchemaInferenceTest` | [schema](architecture/schema.md) |
 | S-17 | 派生スキーマ（`derive:` で導出元文書から検証スキーマをコンパイル・導出元の変更は全再構築） | `semantic-core/schema/SchemaDerivation.kt`, `core/Workspace.kt` | 単体 `DerivedSchemasTest` | [schema](architecture/schema.md) |
 | S-18 | 制約語彙（`minLength` / `maxLength` / `pattern` / `min` / `max`・AI 生成の JSON Schema へ伝搬） | `schema/Schema.kt`, `yaml-core/structure/StructureValidator.kt` | 単体 `ConstraintTest` | [schema](architecture/schema.md) |
 | S-19 | エンティティ型宣言（`entity:` の `idPattern` / `idType`＝ID の形式で判別・object の `entity`＝要素の形で判別・`defines`・走査が型と役割を付与） | `semantic-core/schema/Relations.kt`（`EntityDecl`）, `index/IdIndex.kt` | 単体 `EntityDeclTest`, `DocScannerTest`, `TypeDefinitionsTest` | [graph-query](architecture/graph-query.md) |
@@ -104,7 +104,7 @@
 | V-01 | 構造の検証（必須・型・enum・date・case キー・利用者のスキーマから導出した最小の構造スキーマで行う） | `yaml-core/structure/StructureValidator.kt`, `workspace-core/workspace/DerivedStructures.kt` | 単体 `StructureValidatorTest`, `ValidatorTest` | [schema](architecture/schema.md) |
 | V-02 | 参照解決の検証（未解決・パターンやスコープの対象外・未保存 ID の考慮） | `validate/Validator.kt` | 手動 | [checks](architecture/checks.md) |
 | V-03 | ID 重複検出（同一文書内のみエラー・文書間は段階的詳細化） | `validate/Validator.kt` | 手動 | [checks](architecture/checks.md) |
-| V-04 | 検証パネル（この文書／全体のスコープ切替・指摘のクリックは行き先の選択メニュー・スキーマ定義エラーとフェーズ進捗も表示） | `ui/SidePanel.kt`, `app/AppState.kt`（`validateWorkspace`） | 手動 | [ui](architecture/ui.md) |
+| V-04 | 検証パネル（この文書／全体のスコープ切替・指摘のクリックは行き先の選択メニュー・スキーマ定義エラーとフェーズ進捗も表示） | `ui/SidePanel.kt`, `session/DocumentSession.kt`（`validateWorkspace`） | 手動 | [ui](architecture/ui.md) |
 | V-05 | カバレッジ検証（詳細文書の存在・組込み定義体・作成場所の併記と「詳細文書を作成」） | `builtin-definitions/coverage.yaml`, `workspace-core/workspace/DocumentScaffold.kt` | 単体 `CoverageTest`, `CoverageMessageTest` | [checks](architecture/checks.md) |
 | V-06 | フェーズ考慮の検証（`requiredFrom` は到達フェーズから・`activeFrom` は到達まで保留・フェーズ別進捗） | `validate/Validator.kt`（`phaseProgress`） | 単体 `PhaseTest` | [schema](architecture/schema.md) |
 | V-07 | 整合検証（`consistency`・導出した期待値と `assert` の関係・組込み定義体・来歴つきの指摘と「導出値を適用」） | `builtin-definitions/consistency.yaml`, `workspace-core/validate/WorkspaceChecks.kt` | 単体 `ConsistencyTest` | [checks](architecture/checks.md) |
@@ -148,11 +148,11 @@
 |---|---|---|---|---|
 | X-13 | ダッシュボード（開始画面・業務詳細と参照・共通基準日・区画の群と並べ方・共有の入力 `inputs`〔区画の filter と表の params へ。空＝絞らない〕・CLIとread_view） | `semantic/DashboardViews.kt`, `core/Dashboards.kt`, `ui/DashboardPane.kt` | `DashboardDefinitionsTest`, `DashboardsTest` | [dashboards](architecture/dashboards.md) |
 | X-01 | 一覧ビュー（ID・タイトル・状態・担当・種別・絞り込み・未保存編集に追随・チェックと ID の列を左に固定） | `ui/WorkspaceViews.kt`, `ui/VirtualTable.kt`, `AppState.workspaceRecords` | 単体 `VirtualTableTest` | [views](architecture/views.md) |
-| X-02 | 一括編集（自動値も含め Undo 1 回） | `AppState.bulkUpdate`, `WorkspaceSession.applyWithAutoValues` | `AppStateAutoValuesTest`・`AutoValuesKernelTest`・`SessionWriteParityTest` | [editing-history](architecture/editing-history.md) |
+| X-02 | 一括編集（自動値も含め Undo 1 回） | `DocumentSession.bulkUpdate`, `WorkspaceSession.applyWithAutoValues` | `AppStateAutoValuesTest`・`AutoValuesKernelTest`・`SessionWriteParityTest` | [editing-history](architecture/editing-history.md) |
 | X-03 | グラフレンズ（近傍・型と関係の絞り込み・配置・保有・側面・PNG・ミニマップ） | `ui/GraphLensView.kt`, `ui/LensGraph.kt`, `ui/GraphLayouts.kt` | `LensGraphTest`, `GraphLayoutsTest` | [graph-query](architecture/graph-query.md) |
 | X-11 | スキーマレンズ（「型」の段＝箱は型・線は関係の宣言と導出・入れ子は保有の宣言。箱を押すとスキーマへ・CLI `schema-graph`） | `semantic-core/semantic/SchemaGraph.kt`, `ui/LensGraph.kt`（`buildTypes`）, `core/Cli.kt` | 単体 `SemanticSchemaGraphTest`, `LensGraphTest`, `WorkspaceCliTest` | [graph-query](architecture/graph-query.md) |
 | X-12 | レンズの見え方の定義（`_views` の `kind: lens`＝関係ごとの矢印の向き。表示だけ・レジストリに無い関係名はリント・関係の改名は警告で開示） | `semantic-core/semantic/LensViews.kt`, `workspace-core/workspace/ViewDefinitions.kt`（`parseLensView`）, `ui/LensGraph.kt` | 単体 `ViewDefinitionsTest`, `LensGraphTest` | [views](architecture/views.md) |
-| X-04 | コマンドパレット（Ctrl+K・ID・ファイル・本文検索・ビュー切替・スペース切替・保存） | `Main.kt`（`CommandPalette`）, `app/AppState.kt`（`searchContent`） | 手動 | [ui](architecture/ui.md) |
+| X-04 | コマンドパレット（Ctrl+K・ID・ファイル・本文検索・ビュー切替・スペース切替・保存） | `Main.kt`（`CommandPalette`）, `session/DocumentSession.kt`（`searchContent`） | 手動 | [ui](architecture/ui.md) |
 | X-05 | ビュー定義 `_views`（`kind: grid` の行・列・並び〔出現順か `order.path` の値の順〕・詳細文書・新規行・バックリンク列・`kind: document`） | `core/Views.kt`, `workspace-core/workspace/ViewDefinitions.kt` | 単体 `ViewsTest` | [views](architecture/views.md) |
 | X-06 | ビューグリッド（セル編集・原本へ移動・詳細文書と新規行の作成・バックリンク・要約と整形・固定列） | `ui/ViewGridPane.kt`, `ui/VirtualTable.kt`, `AppState.createViewDetail` / `addViewRow` | `ViewsTest`, `VirtualTableTest` | [views](architecture/views.md) |
 | X-07 | 文書ビュー（`kind: document`・`sections` の fields と backlinks・`attachments`・マッチしない文書は既定フォーム） | `core/Views.kt`（`resolveDocument`）, `ui/FormView.kt`（`DocViewSections`） | 単体 `ViewsTest` | [views](architecture/views.md) |

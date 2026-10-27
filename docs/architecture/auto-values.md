@@ -17,7 +17,7 @@ samples/todos の「更新日はコメントの最大日付」（ビューの列
 | `ChangeSetApplier` | workspace-core/workspace/ChangeSetApplier.kt | 操作を当てた木へ、検証の前に `stamp`（`now` 引数） |
 | `SchemaDefinitionChecks` | workspace-core/workspace/SchemaDefinitionChecks.kt | 型との適合（created / updated は日付・時刻・日時、revision は int）と `expression` との併用の誤り |
 | メタスキーマ `auto` | workspace-core/resources/builtin-schemas/schema.yaml | 項目のキー `auto` の選択肢と説明 |
-| `DocumentSession.save` / `saveAll`、`AppState.createDocumentFile` | session/DocumentSession.kt・app/AppState.kt | 保存の直前に当てて UI の木を写し直す・新しい文書を新しい要素の値で埋める・状態表示 |
+| `DocumentSession.save` / `saveAll` / `createDocument` | session/DocumentSession.kt | 保存の直前に当てて UI の木を写し直す・新しい文書を新しい要素の値で埋める・状態表示 |
 | `WorkspaceRecords.bulkUpdateViaSession` | core/Documents.kt | 一括変更と自動値を一つのトランザクションにまとめてから保存する |
 | `FormView` / `SchemaEditor` | ui/FormView.kt・ui/SchemaEditor.kt | 項目の説明の下の案内文（`autoValueHint`）・設計 UI の選択（型に合う印だけ） |
 
@@ -31,7 +31,7 @@ samples/todos の「更新日はコメントの最大日付」（ビューの列
   - ①セッションの `applyAutoValues(ids, now)`＝通常保存の直前の 1 トランザクション。`DocumentSession.save` / `saveAll` が呼び、入った文書の UI の木は `refreshDocsFromSession` で写し直す。
     一括変更は `applyWithAutoValues` で本文と自動値を同梱する。両 API は同じ `autoValuePlans` を使う。
   - ②`ChangeSetApplier`＝操作を当てた木へ検証の前に `stamp`。必須の更新日が無い新しい要素も通り、同じトランザクションで Undo 1 回。
-  - ③新しい文書（`AppState.createDocumentFile`）と配列の「追加」（`defaultTree(now)`）＝新しい要素の値で埋める。
+  - ③新しい文書（`DocumentSession.createDocument`）と配列の「追加」（`defaultTree(now)`）＝新しい要素の値で埋める。
 - **当てない場所**: リファクタリング（内容の更新ではない）・Undo / Redo・外部変更の取り込み。
 - **履歴**: 保存の直前の分は「自動の値を設定: 文書（場所: 項目…）」の意図を持つ履歴 1 件。保存直後の Undo は日付と版だけ戻す。
 - **一括変更の履歴**: 計画専用のセッションの写しで変更後の木とスキーマを得て、自動値の操作を元のトランザクションに追加し、通常の `apply` で一度だけ反映する。

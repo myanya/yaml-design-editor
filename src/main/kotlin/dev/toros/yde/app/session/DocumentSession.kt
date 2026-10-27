@@ -1,22 +1,49 @@
 package dev.toros.yde.app.session
 
+import dev.toros.yde.app.core.ChangeSetResult
+import dev.toros.yde.app.core.Search
+import dev.toros.yde.app.core.SearchHit
+import dev.toros.yde.app.core.SearchQuery
+import dev.toros.yde.app.core.SourceOutline
+import dev.toros.yde.app.core.ViewDef
+import dev.toros.yde.app.core.Views
 import dev.toros.yde.app.core.WorkspaceRecord
 import dev.toros.yde.app.core.WorkspaceRecords
 import dev.toros.yde.app.core.WorkspaceScan
 import dev.toros.yde.app.index.IdIndex
+import dev.toros.yde.app.index.idMatchesPattern
 import dev.toros.yde.app.schema.BuiltinSchemas
 import dev.toros.yde.app.schema.SchemaDef
+import dev.toros.yde.app.schema.SchemaInference
+import dev.toros.yde.app.validate.Issue
 import dev.toros.yde.app.validate.Readiness
+import dev.toros.yde.app.validate.Validator
+import dev.toros.yde.semantic.RefactoringPlan
+import dev.toros.yde.semantic.RefactoringRequest
+import dev.toros.yde.semantic.SemanticAutoValues
 import dev.toros.yde.semantic.SemanticSchemaGraph
 import dev.toros.yde.semantic.schema.EnforcementDef
 import dev.toros.yde.semantic.schema.EntityTypeDef
+import dev.toros.yde.semantic.schema.RefTarget
 import dev.toros.yde.semantic.schema.RelationDef
+import dev.toros.yde.semantic.schema.globToRegex
+import dev.toros.yde.workspace.ChangeIntent
 import dev.toros.yde.workspace.ChangeRecord
+import dev.toros.yde.workspace.DocumentScaffold
+import dev.toros.yde.workspace.DocumentScaffolds
+import dev.toros.yde.workspace.FileArrangementPlan
+import dev.toros.yde.workspace.FileArrangementPlanner
 import dev.toros.yde.workspace.FileSystemDocumentStore
+import dev.toros.yde.workspace.PathMove
+import dev.toros.yde.workspace.ScaffoldSource
 import dev.toros.yde.workspace.StoreConflictException
 import dev.toros.yde.workspace.WorkspaceDerivedState
 import dev.toros.yde.workspace.WorkspaceOperation
+import dev.toros.yde.workspace.WorkspacePaths
+import dev.toros.yde.workspace.WorkspaceReader
 import dev.toros.yde.workspace.WorkspaceSession
+import dev.toros.yde.workspace.WorkspaceTransaction
+import dev.toros.yde.workspace.changeset.ChangeSet
 import dev.toros.yde.workspace.checkUnchanged
 import dev.toros.yde.workspace.layout.FilePolicy
 import dev.toros.yde.workspace.layout.WorkspaceLayout
@@ -27,6 +54,8 @@ import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.deepCopy
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.LocalDateTime
+import java.util.UUID
 
 /**
  * 開いているワークスペースのセッション側の状態（Compose を使わない。architecture/workspace.md）。
@@ -1037,5 +1066,325 @@ class DocumentSession(private val editClock: () -> Long = System::currentTimeMil
     fun redoPreview(): String? {
         if (pendingSourceDocuments().isNotEmpty()) return "ソース入力の反映待ちです（新しい編集でやり直しは破棄されます）"
         return historySummary(kernel?.peekRedo())
+    }
+
+    // ---------------------------------------------------------------- 検証・検索・一括変更（未保存の編集を重ねた「見たまま」）
+
+    /**
+     * ワークスペース全体の検証（UX-44）: 索引対象の全文書を「見たまま」（未保存編集込みのオーバーレイ索引＋unsavedFirstLoader）で検証し、
+     * 指摘のあるファイルだけ返す。ヘッドレス経路（CLI `validate`）はディスク基準のまま（architecture/index-references.md「索引の二層」）。
+     */
+    fun validateWorkspace(): List<Pair<Path, List<Issue>>> {
+        val cw = core ?: return emptyList()
+        val loader = unsavedFirstLoader()
+        val overlay = overlayIndex()
+        return cw.files.mapNotNull { file ->
+            val cached = documentMap[file]
+            val issues = Validator.validate(
+                cached?.root ?: loader(file), cached?.parseError, documentOf(file),
+                cached?.schema ?: cw.schemaFor(file), overlay,
+                indexed = true, allSchemas = schemas,
+                loader = unsavedFirstTree(), relations = relations, enforcement = enforcement,
+                shareEvaluations = true,  // 未保存の編集を重ねた索引と、未保存を優先する loader
+                files = filePolicy, fileExists = ::fileExists,
+            )
+            if (issues.isEmpty()) null else file to issues
+        }
+    }
+
+    /** コマンドパレットの本文検索（R17-04）: 構造検索を未保存編集込みの「見たまま」で実行する。 */
+    fun searchContent(text: String, limit: Int = 10): List<SearchHit> {
+        val cw = core ?: return emptyList()
+        if (text.isBlank()) return emptyList()
+        return Search.run(cw, SearchQuery(text = text, limit = limit), index = overlayIndex(), loader = unsavedFirstLoader())
+    }
+
+    /**
+     * 一覧で選んだファイルのルート直下スカラーを一括変更する（R8-05: L-07）。ID・予約キー・複合値は対象外。書換は core.WorkspaceRecords。
+     * セッション経路（D-11）は 1 トランザクション適用→保存（部分適用なし）で、reload しない＝一括変更全体が Undo 1 回で戻る。
+     * セッション不在時はファイル単位の直接書換→全再読込（閉じた文書は onDocumentClosed で殻へ知らせる）。
+     */
+    fun bulkUpdate(files: Set<Path>, key: String, value: String): Int {
+        require(key.isNotBlank() && !key.startsWith("_") && key != "id") { "一括変更できない項目です: $key" }
+        require(files.none { documentMap[it]?.dirty == true }) { "未保存のファイルが含まれています" }
+        val s = kernel
+        if (s != null) {
+            val ids = files.sortedBy { it.toString() }.map(::documentOf)
+            val count = withHistoryOrigin(s) { WorkspaceRecords.bulkUpdateViaSession(s, ids, key, value) }
+            refreshAfterSessionWrite(ids)
+            return count
+        }
+        val count = WorkspaceRecords.updateRootScalar(files, key, value)
+        files.forEach(::closeDocument)
+        reload()
+        return count
+    }
+
+    /** 一括編集の対象にできるキーの候補（ルート直下のスカラーキー。id・予約キーは除く）。 */
+    fun bulkKeyCandidates(): List<String> = core?.let { WorkspaceRecords.bulkKeyCandidates(it, unsavedFirstLoader()) }.orEmpty()
+
+    /**
+     * スキーマ推測（R11-01）: glob に一致する文書（未保存編集を優先）からドラフトを推測し、`_schemas/<id>.yaml` として作る。
+     * 仕上げはスキーマ設計画面。作った文書を開くのは殻。
+     */
+    fun inferSchema(glob: String, id: String): Path {
+        val ws = workspace ?: error("ワークスペースが開かれていません")
+        require(id.isNotBlank() && '/' !in id && '\\' !in id) { "使用できないスキーマIDです: $id" }
+        val regex = globToRegex(glob)
+        val loader = unsavedFirstLoader()
+        val samples = yamlFiles
+            .map { relPath(it) to it }
+            .filter { (rel, _) -> layout.inLedger(rel) && regex.matches(rel) }
+            .map { (rel, file) -> SchemaInference.Sample(rel, loader(file)) }
+        val draft = SchemaInference.infer(samples, schemaId = id, match = glob)
+        val file = ws.resolve(layout.schemasDir).resolve("$id.yaml")
+        require(!Files.exists(file)) { "既にスキーマファイルが存在します: ${relPath(file)}" }
+        return createDocument(file, draft, "スキーマの推測: $id")
+    }
+
+    /**
+     * エンティティの関連文書（R24-02）: 出現ファイル→参照先→参照元の順で重複排除して返す。
+     * AI 生成の「関連文書」候補（内容の文脈）に使う。exclude は生成対象の文書自身。
+     */
+    fun entityRelatedFiles(id: String, exclude: Path): List<Path> {
+        val overlay = overlayIndex()
+        val occurrenceFiles = overlay.occurrences(id).map { it.document }
+        val refTargets = overlay.outgoingRefs(id).mapNotNull { r ->
+            if (r.targetKind == RefTarget.DOCUMENT) overlay.graph.documents[r.targetId]?.document
+            else overlay.occurrences(r.targetId).firstOrNull()?.document
+        }
+        val backlinkSources = overlay.backlinksTo(setOf(id)).map { it.document }
+        return (occurrenceFiles + refTargets + backlinkSources).distinct().map(::fileOf).filter { it != exclude }
+    }
+
+    // ---------------------------------------------------------------- リファクタリングと変更セット（計画も適用もカーネル。1 トランザクション）
+
+    private fun refactorKernel(): WorkspaceSession = kernel ?: error("ワークスペースが開かれていません")
+
+    /** リファクタリングの計画（適用しない）。計画はセッションの working 状態＝「見たまま」が基準（B-1）。 */
+    fun planRefactoring(request: RefactoringRequest): RefactoringPlan = refactorKernel().planRefactoring(request)
+
+    /**
+     * エージェント変更セットの適用（A-2b）: 検証・競合判定は従来（Workspace.apply）と同一で、書込はセッション（1 トランザクション・atomic 書込）へ
+     * 集約する（D-04）。セッション不在時は直接書込へフォールバック。
+     */
+    fun applyAgentChanges(changeSet: ChangeSet, requireValid: Boolean = false): ChangeSetResult {
+        val cw = core ?: error("ワークスペースが開かれていません")
+        val s = kernel
+        return if (s != null) cw.applyViaSession(s, changeSet, requireValid = requireValid) else cw.apply(changeSet, requireValid = requireValid)
+    }
+
+    /**
+     * リファクタリング計画の適用（B-1・RB-01）: 1 トランザクションとして適用→保存する。reload しない＝全体が Undo 1 回で戻る（D-12）。
+     * 対象に未保存編集があれば拒む（適用→保存が未保存編集まで書いてしまうのを防ぐ）。戻り値は書き込んだ文書。
+     */
+    fun applyRefactoring(plan: RefactoringPlan): List<DocumentId> {
+        val s = refactorKernel()
+        val ids = (plan.changes.map { it.document } + plan.moves.flatMap { listOf(it.first, it.second) }).distinct()
+        require(ids.map(::fileOf).none { documentMap[it]?.dirty == true }) { "対象に未保存の変更があります。先に保存してください" }
+        val applied = withHistoryOrigin(s) { s.applyRefactoring(plan) }
+        require(applied.ok) { applied.message ?: "適用に失敗しました" }
+        val saved = s.save(ids.toSet())
+        require(saved.ok) { saved.failures.entries.firstOrNull()?.let { "${it.key.value}: ${it.value}" } ?: "保存に失敗しました" }
+        refreshAfterSessionWrite(ids)
+        // 適用は 1 トランザクションで保存まで完了する（● が付かない理由の明示。UX-93 / D-12）
+        onNotice?.invoke("リファクタリングを適用して保存しました（${ids.size} ファイル。Ctrl+Z で1回で戻せます）")
+        return ids
+    }
+
+    // ---------------------------------------------------------------- 文書の作成（単一経路。作った文書を開くのは殻）
+
+    /**
+     * 文書の新規作成の単一経路（P29 Phase 4・RP-03／意図的差分 D-18）: セッションの 1 トランザクション（CreateDocument）として適用→保存し、
+     * 全体の再読込をしない＝Ctrl+Z で作成を取り消せるうえ、それまでの Undo 履歴も保たれる。
+     * セッションが文書として扱わないパス（隠しパス等）・セッション不在時だけ、直接書込＋再読込へフォールバックする。
+     */
+    fun createDocument(file: Path, root: YNode, intent: String, now: LocalDateTime = LocalDateTime.now()): Path {
+        val ws = workspace ?: error("ワークスペースが開かれていません")
+        val target = file.normalize()
+        require(target.startsWith(ws)) { "ワークスペース外には作成できません: $target" }
+        require(!Files.exists(target)) { "既に同名のファイルが存在します: ${relPath(target)}" }
+        val id = documentOf(target)
+        // 保存時に自動で入る値（auto）: 新しい文書は全部が新しい要素＝空の作成日・更新日・版を今の値で埋める（作成と同じ 1 件の履歴）
+        schemaFor(target)?.let { SemanticAutoValues.stamp(it.tree, null, root, now) }
+        val s = kernel
+        if (s != null && !s.hasDocument(id) && !WorkspaceReader.hiddenPath(id.value, s.layout)) {
+            val applied = withHistoryOrigin(s) {
+                s.apply(WorkspaceTransaction(
+                    baseVersion = s.version,
+                    intent = ChangeIntent(intent),
+                    operations = listOf(WorkspaceOperation.CreateDocument(id, YDocument(id, listOf(root)))),
+                ))
+            }
+            require(applied.ok) { applied.message ?: "文書を作成できませんでした" }
+            val saved = s.save(setOf(id))
+            require(saved.ok) { saved.failures[id] ?: "書込に失敗しました" }
+            refreshAfterSessionWrite(listOf(id))
+            onNotice?.invoke("作成しました: ${id.value}（Ctrl+Z で取り消せます）")
+        } else {
+            Files.createDirectories(target.parent)
+            Files.writeString(target, YamlIO.dump(root))
+            reload()
+        }
+        return target
+    }
+
+    /** 新規 YAML: スキーマの初期値（core.Views.defaultTree。自動の値は今の日付・版 1）で作る。 */
+    fun createYaml(parent: Path, name: String, now: LocalDateTime = LocalDateTime.now()): Path {
+        val fileName = name.trim().let { if (it.endsWith(".yaml") || it.endsWith(".yml")) it else "$it.yaml" }
+        require(fileName.isNotBlank() && '/' !in fileName && '\\' !in fileName) { "使用できない名前です" }
+        val file = parent.resolve(fileName)
+        require(!Files.exists(file)) { "同名のファイルが存在します" }
+        val initial = schemaFor(file)?.let { Views.defaultTree(it.root, it, now) } ?: YNode.Map()
+        return createDocument(file, initial, "新規作成: ${relPath(file)}", now)
+    }
+
+    /** ビューグリッドの行から詳細文書を作る（P6）。作成先とスキーマ初期値は core.Views.detailScaffold が決める。 */
+    fun createViewDetail(view: ViewDef, id: String): Path = createScaffold(Views.detailScaffold(view, scaffoldSource(id), schemas))
+
+    /**
+     * 新しい文書の元になる要素（P31）: ID の定義出現（未保存の編集を優先した「見たまま」の索引から）と、そのタイトル・木の読み手・グラフ。
+     * filePattern の穴（`{name}` など）と scaffold のひな型は、この要素の値で埋まる。
+     */
+    private fun scaffoldSource(id: String): ScaffoldSource {
+        val overlay = overlayIndex()
+        return ScaffoldSource.of(id, overlay.occurrences(id), unsavedFirstTree(), overlay.graph)
+    }
+
+    /**
+     * ビューの newRow（ファイルモード）: 入力された ID で詳細文書そのものを作って行にする（R15-01）。
+     * 行の集合はディスク基準の索引から解決されるため、書き込んだ時点でグリッドに行が現れる。
+     */
+    fun addViewRowFile(view: ViewDef, id: String): Path {
+        val pattern = view.newRow?.filePattern ?: error("このビューの newRow はファイルモードではありません")
+        val trimmed = id.trim()
+        // クエリ行（rows: match。R22-02）では行の成立がパターン照合に依存するため、ID 形式の事前検査は行わない
+        view.rows?.let { rowsDef ->
+            require(idMatchesPattern(trimmed, rowsDef.idPattern)) { "ID「$trimmed」はこのビューの行になりません（idPattern: ${rowsDef.idPattern}）" }
+        }
+        index.entries[trimmed]?.firstOrNull()?.let { error("ID「$trimmed」は既に存在します: ${it.document.value}") }
+        // 行がまだ無いので、元は ID だけ（newRow の filePattern に書ける穴は {id} だけ＝定義の段階で保証）
+        return createScaffold(Views.scaffold(pattern, ScaffoldSource.idOnly(trimmed), schemas))
+    }
+
+    /**
+     * カバレッジ（detailIn）不足の指摘から詳細文書を作る（R28-05a・UX-97 の導線）。作成先は詳細スキーマの filePattern（値の式。P31）、
+     * 無ければ match から導く（単純な glob のみ。導けないスキーマはエラー）。穴は、その ID の定義出現（一覧側の要素）の値で埋まる。
+     */
+    fun createDetailForCoverage(schemaId: String, id: String): Path {
+        val schema = schemas.firstOrNull { it.id == schemaId } ?: error("スキーマが見つかりません: $schemaId")
+        val pattern = DocumentScaffolds.filePatternOf(schema.kernel)
+            ?: error("スキーマ「$schemaId」の match（${schema.match}）から作成先を決められません（スキーマに filePattern を書くと決められます）")
+        return createScaffold(Views.scaffold(pattern, scaffoldSource(id), schemas))
+    }
+
+    /** スキャフォールドを新規文書として作る（詳細作成・新規行ファイルモード共用）。 */
+    private fun createScaffold(scaffold: DocumentScaffold): Path {
+        val ws = workspace ?: error("ワークスペースが開かれていません")
+        val file = ws.resolve(scaffold.rel).normalize()
+        require(!Files.exists(file)) { "既に同名のファイルが存在します: ${scaffold.rel}" }
+        return createDocument(file, scaffold.root, "文書の作成: ${scaffold.rel}")
+    }
+
+    /** 外部ソースの構造情報（core.SourceOutline）を YAML 文書として保存する。保存先はワークスペース相対。 */
+    fun saveSourceOutline(source: Path, outline: SourceOutline.Outline, destination: String): Path {
+        val ws = workspace ?: error("ワークスペース未選択")
+        val target = WorkspacePaths.resolve(ws, destination)
+        require(target.fileName.toString().let { it.endsWith(".yaml") || it.endsWith(".yml") }) { "保存先は YAML にしてください" }
+        val root = YNode.Map(linkedMapOf(
+            "source" to YNode.Scalar(relPath(source)), "language" to YNode.Scalar(outline.language),
+            "symbols" to YNode.Seq(outline.symbols.map { symbol -> YNode.Map(linkedMapOf(
+                "kind" to YNode.Scalar(symbol.kind), "name" to YNode.Scalar(symbol.name),
+                "line" to YNode.Scalar(symbol.line), "owner" to YNode.Scalar(symbol.owner),
+            )) }.toMutableList()),
+        ))
+        return createDocument(target, root, "ソースの構造情報を保存: ${relPath(source)}")
+    }
+
+    // ---------------------------------------------------------------- ファイルの配置（計画はカーネル。適用の前後の文書側。スレッドと画面の追随は殻）
+
+    /** YAML ファイルとして移動の一級化（R21-03。カーネル MoveDocument）の対象か（台帳内・ディレクトリ以外）。 */
+    private fun isMovableYaml(path: Path): Boolean {
+        val name = path.fileName.toString()
+        return !Files.isDirectory(path) && (name.endsWith(".yaml") || name.endsWith(".yml")) && isIndexed(path)
+    }
+
+    /**
+     * 改名の影響プレビュー（R21-03。architecture/graph-query.md「エンティティ操作」）: パス ID 文書参照の書き換え・スキーマ match の変化・
+     * ビュー定義の対象外れを、実行前にダイアログへ出すための 1 行リスト。
+     */
+    fun renameImpact(path: Path, newName: String): List<String> {
+        if (core == null) return emptyList()
+        val s = kernel ?: return emptyList()
+        val trimmed = newName.trim()
+        if (trimmed.isBlank() || '/' in trimmed || '\\' in trimmed || !isMovableYaml(path)) return emptyList()
+        val target = path.resolveSibling(trimmed)
+        if (Files.exists(target)) return emptyList()
+        return runCatching {
+            // 移動計画はカーネル（summary 先頭は見出し・以降が補足。スキーマ適用の変化と、ビュー定義が対象外れになる警告は warnings に入る）
+            val plan = s.planRefactoring(RefactoringRequest.MoveDocument(documentOf(path), documentOf(target)))
+            plan.summary.drop(1) + plan.warnings.map { "注意: $it" }
+        }.getOrDefault(emptyList())
+    }
+
+    fun planFileMoves(paths: List<Path>, destination: Path, definitions: Boolean = true, permissions: Boolean = false): FileArrangementPlan {
+        val ws = workspace ?: error("ワークスペース未選択")
+        val s = kernel ?: error("セッション未選択")
+        require(Files.isDirectory(destination) && destination.normalize().startsWith(ws)) { "移動先フォルダーがありません" }
+        val moves = paths.map { PathMove(relPath(it), relPath(destination.resolve(it.fileName))) }
+        return FileArrangementPlanner.plan(s, ws, moves, definitions, permissions)
+    }
+
+    fun planFileRename(path: Path, name: String, definitions: Boolean = true, permissions: Boolean = false): FileArrangementPlan {
+        requireFileName(name)
+        val ws = workspace ?: error("ワークスペース未選択")
+        val s = kernel ?: error("セッション未選択")
+        return FileArrangementPlanner.plan(s, ws, listOf(PathMove(relPath(path), relPath(path.resolveSibling(name.trim())))), definitions, permissions)
+    }
+
+    /** フォルダー作成の計画。戻り値は作るフォルダーと計画。 */
+    fun planCreateDirectory(parent: Path, name: String): Pair<Path, FileArrangementPlan> {
+        requireFileName(name)
+        val target = parent.resolve(name.trim()).normalize()
+        val ws = workspace ?: error("ワークスペース未選択")
+        val s = kernel ?: error("セッション未選択")
+        return target to FileArrangementPlanner.plan(s, ws, emptyList(), createDirectory = relPath(target))
+    }
+
+    /** 削除の計画（ごみ箱 `.yde-trash/` への移動。Undo で戻る）。 */
+    fun planDelete(paths: List<Path>): FileArrangementPlan {
+        val ws = workspace ?: error("ワークスペース未選択")
+        val s = kernel ?: error("セッション未選択")
+        val trash = ".yde-trash/" + UUID.randomUUID().toString()
+        val moves = paths.mapIndexed { index, path -> PathMove(relPath(path), "$trash/$index/" + path.fileName) }
+        return FileArrangementPlanner.plan(s, ws, moves, deleting = true)
+    }
+
+    private fun requireFileName(name: String) {
+        require(name.isNotBlank() && name.trim() !in setOf(".", "..") && '/' !in name && '\\' !in name) { "使用できない名前です" }
+    }
+
+    /**
+     * 配置変更の適用の前: ワークスペースが変わっていないことを確かめ、対象と参照元の下書きを反映し、未保存があれば拒む。
+     * 戻り値は適用するカーネル（殻は withHistoryOrigin の中で、IO スレッドからでも applyFileArrangement を呼ぶ）。
+     */
+    fun prepareFileArrangement(plan: FileArrangementPlan): WorkspaceSession {
+        val s = kernel ?: error("セッション未選択")
+        require(plan.root == workspace) { "ワークスペースが変わりました" }
+        val roots = plan.moves.flatMap { listOf(plan.root.resolve(it.from), plan.root.resolve(it.to)) } +
+            plan.documentIds.map { plan.root.resolve(it.value) } + plan.texts.map { plan.root.resolve(it.document.value) }
+        val docs = documentMap.filterKeys { file -> roots.any { file == it || file.startsWith(it) } }.values
+        docs.forEach { it.flushDraft() }
+        require(docs.none { it.dirty || it.draftDirty }) { "対象または参照元に未保存の変更があります。先に保存してください" }
+        return s
+    }
+
+    /** 配置変更（適用・Undo・Redo）の後の文書側: 動いた文書を閉じ（殻へ知らせる）、書き込まれた文書と索引を作り直す。 */
+    fun afterFileArrangement(plan: FileArrangementPlan, reverse: Boolean) {
+        val ws = workspace ?: return
+        val moves = if (reverse) plan.moves.map { PathMove(it.to, it.from) } else plan.moves
+        documentMap.keys.filter { file -> moves.any { file == ws.resolve(it.from) || file.startsWith(ws.resolve(it.from)) } }
+            .toList().forEach(::closeDocument)
+        refreshAfterSessionWrite(plan.documentIds + plan.texts.filter { it.document.value.endsWith(".yaml") || it.document.value.endsWith(".yml") }.map { it.document })
     }
 }

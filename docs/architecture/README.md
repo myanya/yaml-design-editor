@@ -62,7 +62,7 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 | | `app.index` | 索引のファサード（`IdIndex`。カーネルの型の別名）・クエリの窓口 |
 | | `app.schema` | `SchemaDef`（カーネルのスキーマにファイルの場所を足す薄い型）・`SchemaLoader`・表示解決 `Display`・ID 候補・スキーマ推測 |
 | | `app.validate` | `Validator`（窓口）・`Readiness` |
-| | `app.session` | セッション側の状態（Compose 非依存）: `DocumentSession`（コアとカーネルの保持・索引の写し・開いている文書・未保存編集を重ねた索引と派生・編集の記録・開き直しと同期）と 1 文書の論理 `DocumentState`。再読込・保存・履歴の段はまだ AppState にあり、順に寄せていく |
+| | `app.session` | セッション側の状態（Compose 非依存）: `DocumentSession`（コアとカーネルの保持・索引の写し・開いている文書・未保存編集を重ねた索引と派生・編集の記録・開き直しと同期）と 1 文書の論理 `DocumentState`。再読込・保存・履歴の一手・全体検証と検索・一括変更・リファクタリング・文書の作成・配置の計画と前後もここ。残りは操作（アクション）の論理 |
 | | `app.text` | 純粋な文字の計算（行の差分と 3 者併合 `LineMerge`・履歴の値を優先した書式の差し込み `SourceHistorySync`） |
 | | `app.ai` | AI 生成・LLM クライアント |
 | | `app.skill` | 入出力変換（skill 定義・表形式の読み書き・インポート・エクスポート） |
@@ -83,8 +83,8 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 
 | クラス | ファイル | 責務 |
 |---|---|---|
-| `AppState` / `OpenDocument` | app/AppState.kt・app/OpenDocument.kt | 画面側の状態。セッション側（`session.DocumentSession`）の値を Compose の状態へ写し、文書の殻のキャッシュ・ナビゲーション・通知・確認・ファイル操作を担う。`OpenDocument` は開いている 1 文書の Compose の殻で、論理は `session.DocumentState` |
-| `DocumentSession` | session/DocumentSession.kt | セッション側の状態（Compose 非依存）。`core.Workspace` とカーネルのセッションを持ち、索引の写し・開いている文書・編集の記録・開き直しと同期を担う |
+| `AppState` / `OpenDocument` | app/AppState.kt・app/OpenDocument.kt | 画面側の状態。セッション側（`session.DocumentSession`）の値を Compose の状態へ写し、文書の殻のキャッシュ・ナビゲーション・通知・確認・スレッド（EDT／IO）と画面の追随を担う。`OpenDocument` は開いている 1 文書の Compose の殻で、論理は `session.DocumentState` |
+| `DocumentSession` | session/DocumentSession.kt | セッション側の状態（Compose 非依存）。`core.Workspace` とカーネルのセッションを持ち、索引の写し・開いている文書・編集の記録・開き直しと同期・再読込と保存・履歴の一手・全体検証と検索・一括変更・リファクタリング・文書の作成・配置の計画と前後を担う |
 | `Workspace` | core/Workspace.kt | ヘッドレスなワークスペース操作の窓口（開く・読む・保存・検証・変更セット適用）。内部にディスクを映すセッションを持つ |
 | `WorkspaceSession` | workspace-core | カーネルのセッション。読み込み・派生状態・履歴（Undo/Redo）・トランザクション・保存・リファクタリングの計画 |
 | `SemanticEngine` | semantic-core | 意味解析の評価器。走査・グラフ・クエリ・検査の判定 |

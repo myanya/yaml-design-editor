@@ -54,8 +54,8 @@
 
 ## 文書キャッシュと Workspace
 
-- セッション側の `session.DocumentSession`（Compose 非依存）が、走査・スキーマ・索引・更新方針を保持する `core.Workspace` とカーネルのセッションを持ち、写し（`schemas` / `yamlFiles` / `indexVersion` / `editVersion`）・開いている文書（`DocumentState`）・未保存編集を重ねた索引と派生・編集の記録・セッションの開き直しとディスクとの同期を担う。core 側を更新したら `mirrorCore` で写し直し `indexVersion` を進める。
-- `AppState`（画面側）はセッション側の値を `onChanged` で Compose の状態へ写し、文書の殻（`OpenDocument`）のキャッシュ（`docCache`）・ナビゲーション・通知・確認・ファイル操作を担う。編集元の画面の印（合体キーに入る）と記録 ID の対応も画面側が持つ。
+- セッション側の `session.DocumentSession`（Compose 非依存）が、走査・スキーマ・索引・更新方針を保持する `core.Workspace` とカーネルのセッションを持ち、写し（`schemas` / `yamlFiles` / `indexVersion` / `editVersion`）・開いている文書（`DocumentState`）・未保存編集を重ねた索引と派生・編集の記録・セッションの開き直しとディスクとの同期・再読込と保存・履歴の一手・全体検証と検索・一括変更・リファクタリングの計画と適用・文書の作成・配置の計画と前後を担う。core 側を更新したら `mirrorCore` で写し直し `indexVersion` を進める。
+- `AppState`（画面側）はセッション側の値を `onChanged` で Compose の状態へ写し、文書の殻（`OpenDocument`）のキャッシュ（`docCache`）・ナビゲーション・通知・確認・スレッド（EDT／IO）と画面の追随を担う。編集元の画面の印（合体キーに入る）と記録 ID の対応も画面側が持つ。
 - `OpenDocument` は `EditBuffer` のシェル（[editing-history.md](editing-history.md)）。編集 API の意味を変えるときは `EditBuffer` を直す。
 - `docCache` は `mutableStateMapOf` で、文書と内部の State を同じスナップショットから参照する。描画開始後に生成した文書は次の描画から見え、破棄したスナップショットの文書は公開しない。
 - 一覧・一括編集（`WorkspaceRecords`）は「未保存編集を優先する木の取得」を注入で受ける。UI は docCache を、ヘッドレス経路はディスクを渡す。
@@ -143,7 +143,7 @@
 
 `FileArrangementPlanner` は配置対応・文書参照・型付き file 値・定義のパス指定を計画する。`PathRewrite` の glob はフォルダー全体なら接頭辞を移し、部分移動なら元の対象も残す選択を作る。未対応の言及は警告として開示する。
 適用は `WorkspaceSession.applyFileArrangement`。`FileArrangementJournal` が一般ファイルを移動し、文書は既存のトランザクションと保存を通す。履歴と失敗時の復元はカーネルが所有する（[ADR-0011](../decisions/0011-file-arrangement-history.md)）。
-UI は `AppState.applyFileArrangementFromUi` で準備と結果反映を EDT、カーネルの操作を IO に分ける。配置変更の Undo/Redo も同じ境界を使い、文書の再生成・キャッシュ更新・画面移動を IO で行わない。
+UI は `AppState.applyFileArrangementFromUi` で準備と結果反映を EDT、カーネルの操作を IO に分ける（準備の判定＝下書きの反映と未保存の拒否と、文書側の追随は `DocumentSession.prepareFileArrangement` / `afterFileArrangement`）。配置変更の Undo/Redo も同じ境界を使い、文書の再生成・キャッシュ更新・画面移動を IO で行わない。
 計画・適用時の未保存、内容ハッシュの不一致、移動先の衝突、リンクを拒否する。定義修正は Rewrite の組合せで、AI には依存しない。
 一般ファイルの部分移動も実際の移動対象を列挙して glob の追加候補に含める。計画時は読み込んだ原文と現在のストアも照合し、監視通知が届く前の変更を上書きしない。
 `FileSystemDocumentStore` は隠し領域を列挙の段階で枝刈りする（`.yde` は例外）。UI の補助走査は拡張子を絞ってから実パスを確認し、参考ソース全件への不要なパス解決を避ける。

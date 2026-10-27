@@ -218,5 +218,5 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 `FileTreeBenchmark` は一時領域に実ファイルを作り、一覧・ワークスペース読込・名前検索・本文検索を計測する任意タスク。通常テストには大量の作成を持ち込まない。
 
 `SourceOutline` は外部ソースから宣言候補を取り込む軽量アダプタ。コメント・文字列を伏せて宣言位置を読み、型解決や呼出関係を推測しない。
-Core Calculus 上は外部入力から Term への変換で、既存 YAML の Construct や意味評価を複製しない。保存は `createDocumentFile` の既存 Rewrite／Transaction 経路を使う。
+Core Calculus 上は外部入力から Term への変換で、既存 YAML の Construct や意味評価を複製しない。保存は `DocumentSession.createDocument` の既存 Rewrite／Transaction 経路を使う。
 保存した構造情報の索引・検証は利用者のスキーマで定義する。言語の型解決が必要になったらこのアダプタを置換し、YAML の意味評価と分離を保つ。

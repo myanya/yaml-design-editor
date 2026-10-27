@@ -13,7 +13,7 @@
 | `WorkspaceSession.recordEdit` / `endEditGroup` | workspace-core | 編集の記録（合体キーと時刻つき）と連続入力の区切り。Undo / Redo の実体 |
 | `DocumentSession.prepareHistoryStep` / `applyHistoryStep` / `afterHistoryStep` / `syncSourcesAfterHistory` | session/DocumentSession.kt | 横断 Undo の一手の論理: 下書きの反映・対象の決定・拒否と確認の判定・カーネルの呼び出し・開いている文書の作り直し・ソースの差し込み・予告の文 |
 | `AppState.undo` / `redo` / `historyFromUi` / `historyNotice` | app/AppState.kt | 一手の段取り（確認の表示・ファイル配置の一手を IO へ・通知・編集元へ戻る移動） |
-| `AppState.createDocumentFile`、`DocumentSession.afterHistoryStep` | app/AppState.kt・session/DocumentSession.kt | 文書の新規作成の単一経路と、作成・削除を含む履歴の確定 |
+| `DocumentSession.createDocument` / `afterHistoryStep` | session/DocumentSession.kt | 文書の新規作成の単一経路（作った文書を開くのは `AppState` の入口）と、作成・削除を含む履歴の確定 |
 | `FormCtx.writeScalar` | ui/FormView.kt | スカラー入力の書込。合体キーを渡す |
 | `OpenDocument.source`（文字列とカーソル）と `DocumentState.applyParsed` / `syncSourceFromTree` / `discardDraft` / `enterTextOnly`（計算） | app/OpenDocument.kt・session/DocumentState.kt | ソースの下書き（文字列・カーソル・解析エラー）の所有と、木との同期 |
 | `SourceHistorySync` | text/SourceHistorySync.kt | 履歴の値を優先した書式の差し込みと、全 YAML 文書の再解析による内容一致の確認 |
@@ -112,7 +112,7 @@ Core Calculus 上は既存の変更記録のまとめ方に限り、Rewrite の�
 
 ## 文書の作成と削除
 
-- 新規 YAML・ビューの詳細文書と新規行ファイル・カバレッジ指摘からの詳細文書・スキーマ推測は、`AppState.createDocumentFile` の単一経路。セッションへ `CreateDocument` 1 件のトランザクションを適用 → 保存 → `refreshAfterSessionWrite`（`reload` しない）。
+- 新規 YAML・ビューの詳細文書と新規行ファイル・カバレッジ指摘からの詳細文書・スキーマ推測は、`DocumentSession.createDocument` の単一経路（作った文書を開くのは `AppState` の入口）。セッションへ `CreateDocument` 1 件のトランザクションを適用 → 保存 → `refreshAfterSessionWrite`（`reload` しない）。
 - 作成は履歴に入り Ctrl+Z で取り消せ、それまでの履歴も保たれる。
 - 文書の作成・削除を含む履歴の Undo / Redo は `afterHistoryStep` がファイルの有無までその場で確定する（対象文書だけ `session.save`）。作成の取り消しには保存の手段が無く、削除予約のままではディスクとセッションが食い違うため。
 - セッションが文書として扱わないパスと、セッション不在時だけ、直接書込＋`reload` へフォールバックする。
@@ -121,7 +121,7 @@ Core Calculus 上は既存の変更記録のまとめ方に限り、Rewrite の�
 
 - `YNode` は Compose の State ではない。木を表示するコンポーザブルは `doc.version` / `state.indexVersion` を読んで購読する。
 - ツリーの変更は必ず `markEdited()` とセットで行う。
-- 文書を作る機能は `AppState.createDocumentFile` を通す。`Files.writeString` ＋ `AppState.reload()` は外部変更の取り込みとなり、作成自体の Undo が記録されない。
+- 文書を作る機能は `DocumentSession.createDocument` を通す。`Files.writeString` ＋ `reload()` は外部変更の取り込みとなり、作成自体の Undo が記録されない。
 - 内部で変更を生成するコードは `edit.YamlOperation` を使う。`patch.PatchOp` と変更セットは交換形式に限る。
 - 連続入力になり得る新しい編集面は、合体キーを渡す。構造操作はキーなし。
 - ソースの下書きは `OpenDocument` が持つ。木が変わったとき下書きを正規化テキストで置き換えない（`syncSourceFromTree` の差し込み）。殻は `TextFieldState` を直接書き換えず `editSource` か `noteSourceInput` を通す。論理（`DocumentState`）は殻の文字列を読まず、知らされた写し（`draft`）で判定する（古い描画の中で読むと Compose が拒むため）。解析できない下書きを無視してフォームを編集可能にしない（`FormCtx.readOnly` の既定に `draftBroken` が入っている）。

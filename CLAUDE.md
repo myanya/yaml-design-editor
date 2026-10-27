@@ -69,7 +69,7 @@ scripts/docs-lint.sh                        # 文書の形の機械チェック
 - 全体を回す検証は `shareEvaluations = true` を渡す。ただし索引に重ねていない内容の検証では渡さない → architecture/checks.md「評価は 1 回」
 - クエリの線は `graph.ownRefs`（直接書いた参照）で辿る。判定に `graph.outgoingRefs` を使わない → architecture/graph-query.md「線の意味」
 - 保有（入れ子で書かれた要素）の線は `graph.holdingsOf / holdersOf`。名前は走査が決める（`ScannedId.holderKey / holderRelation`）。`ScannedRef` として索引の参照に混ぜない → architecture/graph-query.md「線の意味」
-- 文書の新規作成は `AppState.createDocumentFile` の単一経路。`Files.writeString` ＋ `reload()` では作成の Undo を記録できない → architecture/editing-history.md「文書の作成と削除」
+- 文書の新規作成は `DocumentSession.createDocument` の単一経路（作った文書を開くのは `AppState` の入口）。`Files.writeString` ＋ `reload()` では作成の Undo を記録できない → architecture/editing-history.md「文書の作成と削除」
 - 新しいワークスペースの初期化だけは例外で、開く前に `WorkspaceInit` が書く（Undo なし・既存は上書きしない）。計画は `WorkspaceInit` の 1 つで、画面（`InitWizardHost`）と CLI `init` に組み立てを書かない。テンプレートは `templates/` のファイル（Kotlin に埋め込まない）で、答えからの組み立ては変換定義のひな型 → architecture/workspace.md「ワークスペースの初期化」
 - 配置判定は `WorkspaceLayout` に一元化。`_schemas/` にはメタスキーマだけ。定義文書への書込は `meta: true` のアクティビティのみ → architecture/workspace.md「ワークスペース構造と layout」・architecture/schema.md「推測・メタスキーマ・派生」・architecture/agents.md「エージェント実行と Staging」
 - ビューは射影で、専用の書込経路を作らない → architecture/views.md「ビュー機構」
