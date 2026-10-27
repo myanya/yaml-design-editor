@@ -1,5 +1,10 @@
-package dev.toros.yde.agent
+package dev.toros.yde.agent.run
 
+import dev.toros.yde.agent.ActivityDef
+import dev.toros.yde.agent.ActivityLimits
+import dev.toros.yde.agent.AgentDef
+import dev.toros.yde.agent.ToolGroup
+import dev.toros.yde.agent.ValidationGate
 import dev.toros.yde.agent.llm.AiCallException
 import dev.toros.yde.agent.llm.AiExchange
 import dev.toros.yde.agent.llm.AiGenerated
@@ -12,6 +17,13 @@ import dev.toros.yde.agent.llm.ToolCall
 import dev.toros.yde.agent.llm.ToolChatSession
 import dev.toros.yde.agent.llm.ToolResult
 import dev.toros.yde.app.core.Workspace
+import dev.toros.yde.yaml.YamlIO
+import dev.toros.yde.yaml.model.YNode
+import dev.toros.yde.yaml.model.YPath
+import dev.toros.yde.yaml.model.getAt
+import dev.toros.yde.yaml.model.pretty
+import java.nio.file.Files
+import java.nio.file.Path
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -20,13 +32,6 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
-import dev.toros.yde.yaml.model.YNode
-import dev.toros.yde.yaml.model.YPath
-import dev.toros.yde.yaml.model.getAt
-import dev.toros.yde.yaml.model.pretty
-import dev.toros.yde.yaml.YamlIO
-import java.nio.file.Files
-import java.nio.file.Path
 
 /**
  * AI生成ダイアログのカーネル統合（R9-01 / R2-09）。

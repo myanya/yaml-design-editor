@@ -1,5 +1,7 @@
-package dev.toros.yde.agent
+package dev.toros.yde.agent.run
 
+import dev.toros.yde.agent.Definitions
+import dev.toros.yde.agent.Evals
 import dev.toros.yde.app.core.Views
 import dev.toros.yde.app.core.Workspace
 import dev.toros.yde.app.skill.Skills

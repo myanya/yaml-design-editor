@@ -1,5 +1,6 @@
-package dev.toros.yde.agent
+package dev.toros.yde.agent.auto
 
+import dev.toros.yde.agent.run.RunLog
 import dev.toros.yde.app.core.Workspace
 import dev.toros.yde.workspace.changeset.ChangeSets
 import dev.toros.yde.yaml.YamlIO

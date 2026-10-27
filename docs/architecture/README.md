@@ -66,7 +66,10 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 | | `app.session` | セッション側の状態（Compose 非依存）: `DocumentSession`（コアとカーネルの保持・索引の写し・開いている文書・未保存編集を重ねた索引と派生・編集の記録・開き直しと同期）と 1 文書の論理 `DocumentState`。再読込・保存・履歴の一手・全体検証と検索・一括変更・リファクタリング・文書の作成・配置の計画と前後・操作（アクション）の論理もここ。画面側に残るのは開く手順と場所・通知・パネルの作業 |
 | | `app.text` | 純粋な文字の計算（行の差分と 3 者併合 `LineMerge`・履歴の値を優先した書式の差し込み `SourceHistorySync`） |
 | | `app.skill` | 入出力変換（skill 定義・表形式の読み書き・インポート・エクスポート） |
-| agent | `agent` | エージェント実行（定義・ステージング＝作業コピー＋定義文書のゲート・中核のツールを LLM 向けに包む `AgentToolbox`・カーネル・実行記録・自動化・メトリクス・評価）。書き込みはステージング → 変更セット → app-core の適用だけ。run・auto・eval への分割はファイルの循環を解いてから |
+| agent | `agent` | エージェントの定義（`Definitions`＝`_agents` / `_activities`・`Evals`＝`_evals` の読み込み・`ForeachDef`）。書き込みはステージング → 変更セット → app-core の適用だけ。パッケージは llm → 定義 → run → auto → eval の一方向で、規則テストが守る |
+| | `agent.run` | 1 回の実行: カーネル `AgentKernel`・ツールを LLM 向けに包む `AgentToolbox`・ステージング `Staging`（作業コピー＋定義文書のゲート）・実行記録 `RunLog`・AI 生成の実行 `GenerationRun`・土台の型（`AgentHost`・`RunStatus`・`ContextSection`） |
+| | `agent.auto` | 自動実行: `AutomationEngine`（トリガ・キュー・承認・連鎖・リトライ）・`AutoApply`（巻き戻せる自動適用）・`Foreach`（一括実行の対象の列挙） |
+| | `agent.eval` | 評価と指標: `EvalRunner`（評価セット・比較実験）・`RunMetrics`（実行記録の集計） |
 | | `agent.llm` | LLM との接続（`AiGenerator`・各プロバイダの生成器・`Connection`・`Http`・ツール呼び出しの往復 `ToolChat`） |
 | format-text | `format.text` | 拡張: 文字の形式（csv・json・markdown・html）の `FormatCodec`（`TextFormats.kt`） |
 | format-xlsx | `format.xlsx` | 拡張: Excel の表（Apache POI）の `FormatCodec`（`XlsxFormat.kt`） |
@@ -75,8 +78,8 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 | | `desktop.ui` | Compose の画面一式（骨格は `ui/Shell.kt`） |
 | | `desktop.ext` | 拡張の登録の一覧（`DesktopExtensions`。入出力の形式 6 つ）。入口が `Extensions.install` に渡す 1 ファイル |
 
-応用層の中の依存は `app.core` → `app.session` → `app.tools` → `app.ext` → `app.skill`（app-core）→ `agent.llm` → `agent`（agent）→ `desktop`（AppState・`desktop.ext`）→ `desktop.ui` の一方向。`app.index` / `app.schema` / `app.validate` / `app.text` は `app.core` より下。
-app-core（`app.core` / `app.index` / `app.schema` / `app.validate` / `app.text` / `app.session` / `app.tools` / `app.ext` / `app.skill`）と agent（`agent` / `agent.llm`）と拡張（format-*）は Compose 非依存の純粋ロジックで、単体テストはこの層に書く。拡張は app-core とカーネルだけを使い、拡張どうし・agent・入口に依存しない。入口が登録の一覧（`desktop/ext/DesktopExtensions.kt`）で `Extensions.install` に渡す。`desktop`（AppState）は `mutableStateOf` だけに依存する。
+応用層の中の依存は `app.core` → `app.session` → `app.tools` → `app.ext` → `app.skill`（app-core）→ `agent.llm` → `agent` → `agent.run` → `agent.auto` → `agent.eval`（agent）→ `desktop`（AppState・`desktop.ext`）→ `desktop.ui` の一方向。`app.index` / `app.schema` / `app.validate` / `app.text` は `app.core` より下。
+app-core（`app.core` / `app.index` / `app.schema` / `app.validate` / `app.text` / `app.session` / `app.tools` / `app.ext` / `app.skill`）と agent（`agent` / `agent.llm` / `agent.run` / `agent.auto` / `agent.eval`）と拡張（format-*）は Compose 非依存の純粋ロジックで、単体テストはこの層に書く。拡張は app-core とカーネルだけを使い、拡張どうし・agent・入口に依存しない。入口が登録の一覧（`desktop/ext/DesktopExtensions.kt`）で `Extensions.install` に渡す。`desktop`（AppState）は `mutableStateOf` だけに依存する。
 
 ## ソース規則テスト
 
@@ -97,7 +100,7 @@ app-core（`app.core` / `app.index` / `app.schema` / `app.validate` / `app.text`
 | `WorkspaceSession` | workspace-core | カーネルのセッション。読み込み・派生状態・履歴（Undo/Redo）・トランザクション・保存・リファクタリングの計画 |
 | `SemanticEngine` | semantic-core | 意味解析の評価器。走査・グラフ・クエリ・検査の判定 |
 | `Validator` | validate/Validator.kt | 文書の検証の窓口。索引とスキーマを渡してカーネルの `DocumentValidator` を呼ぶ |
-| `AgentKernel` | agent/Kernel.kt | エージェント実行のマルチターンのツール使用ループ |
+| `AgentKernel` | agent/run/Kernel.kt | エージェント実行のマルチターンのツール使用ループ |
 | `cli.MainKt`（`runCli`） | cli/Main.kt・cli/AppCli.kt・cli/commands/ | 1 つの CLI: カーネルの命令（yaml … / workspace …）と応用の命令（命令ごとのファイル） |
 
 ## 全体の流れ

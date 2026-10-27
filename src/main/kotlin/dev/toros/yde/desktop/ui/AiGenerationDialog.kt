@@ -1,6 +1,6 @@
 package dev.toros.yde.desktop.ui
 
-import dev.toros.yde.agent.GenerationRun
+import dev.toros.yde.agent.run.GenerationRun
 import dev.toros.yde.agent.llm.AiGenerationInput
 import dev.toros.yde.agent.llm.AiProvider
 import dev.toros.yde.app.tools.RefCandidate

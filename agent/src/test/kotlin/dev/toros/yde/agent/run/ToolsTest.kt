@@ -1,10 +1,10 @@
-package dev.toros.yde.agent
+package dev.toros.yde.agent.run
 
+import dev.toros.yde.agent.ActivityDef
+import dev.toros.yde.agent.ContextItemDef
+import dev.toros.yde.agent.ToolGroup
 import dev.toros.yde.agent.llm.ToolCall
 import dev.toros.yde.app.core.Workspace
-import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.createTempDirectory
@@ -12,6 +12,9 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 
 /**
  * AgentToolbox の表示テキスト（related / list_documents / context.include の phase）。

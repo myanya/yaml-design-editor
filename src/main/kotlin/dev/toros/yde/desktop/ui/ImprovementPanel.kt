@@ -1,10 +1,10 @@
 package dev.toros.yde.desktop.ui
 
-import dev.toros.yde.agent.AutomationEngine
+import dev.toros.yde.agent.auto.AutomationEngine
 import dev.toros.yde.agent.EvalDef
-import dev.toros.yde.agent.EvalRunner
+import dev.toros.yde.agent.eval.EvalRunner
 import dev.toros.yde.agent.Evals
-import dev.toros.yde.agent.RunMetrics
+import dev.toros.yde.agent.eval.RunMetrics
 import dev.toros.yde.agent.llm.AiProvider
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border

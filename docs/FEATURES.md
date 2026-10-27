@@ -177,9 +177,9 @@
 | A-07 | プロバイダ切替（OpenAI Responses・Anthropic Messages・Azure）・API キーはメモリのみ | `agent/llm/OpenAiGenerator.kt`, `agent/llm/AnthropicGenerator.kt` | 単体（レスポンス解析） | [agents](architecture/agents.md) |
 | A-08 | 生成のキャンセルとエラー処理 | `ui/AiGenerationDialog.kt`, `ai/*Generator.kt` | 単体（一部） | [agents](architecture/agents.md) |
 | A-09 | OpenAI 互換の接続先とプロキシ（Azure・ベース URL 上書き・Basic 認証） | `agent/llm/Connection.kt`, `agent/llm/Http.kt` | 単体 `ConnectionTest` | [agents](architecture/agents.md) |
-| A-10 | 生成のカーネル統合（単発生成を 1 ターンで提出する特殊アクティビティとして実行） | `agent/Generation.kt` | 単体 `GenerationRunTest` | [agents](architecture/agents.md) |
+| A-10 | 生成のカーネル統合（単発生成を 1 ターンで提出する特殊アクティビティとして実行） | `agent/run/Generation.kt` | 単体 `GenerationRunTest` | [agents](architecture/agents.md) |
 | A-11 | 同一スキーマの参考文書を添付（最大 3 件を自動選択・上限つき） | `agent/llm/AiGenerator.kt`（`ReferenceDoc`）, `desktop/AppState.kt`（`sameSchemaFiles`） | 単体 `AiGeneratorTest` | [agents](architecture/agents.md) |
-| A-12 | 生成の入出力記録（システム指示・プロンプト・応答スキーマ・生出力を実行記録へ） | `agent/llm/AiGenerator.kt`（`AiExchange`）, `agent/RunLog.kt` | 単体 `GenerationRunTest` | [agents](architecture/agents.md) |
+| A-12 | 生成の入出力記録（システム指示・プロンプト・応答スキーマ・生出力を実行記録へ） | `agent/llm/AiGenerator.kt`（`AiExchange`）, `agent/run/RunLog.kt` | 単体 `GenerationRunTest` | [agents](architecture/agents.md) |
 | A-13 | レート制限と一時エラーの自動リトライ（408 / 429 / 5xx・`retry-after` と指数バックオフ） | `agent/llm/Http.kt`（`retryLoop`） | 単体 `HttpTest` | [agents](architecture/agents.md) |
 | A-14 | Anthropic prompt caching（system・ツール定義・最新メッセージの 3 点） | `agent/llm/ToolChat.kt`（`AnthropicToolSession`） | 単体 `ToolChatParseTest` | [agents](architecture/agents.md) |
 | A-15 | 入口のスペース非依存化（`AiRequest` が対象文書を持ち・ホストはシェル直下） | `desktop/AppState.kt`（`AiRequest` / `requestAi`）, `ui/AiGenerationDialog.kt` | 手動 | [agents](architecture/agents.md) |
@@ -193,31 +193,31 @@
 | AG-01 | エージェント定義 `_agents`（persona・観点・モデル設定・ツール許可） | `agent/Definitions.kt` | 単体 `DefinitionsTest` | [agents](architecture/agents.md) |
 | AG-02 | アクティビティ定義 `_activities`（対象・指示・文脈・書込許可・上限・提出ゲート `error-free` / `no-new-errors` / `none`） | `agent/Definitions.kt`, `tools/WorkingCopy.kt`（`newErrors`） | 単体 `DefinitionsTest`, `KernelTest` | [agents](architecture/agents.md) |
 | AG-03 | ツール使用対応 LLM クライアント（OpenAI・Anthropic の function calling） | `agent/llm/ToolChat.kt` | 単体 `ToolChatParseTest` | [agents](architecture/agents.md) |
-| AG-04 | 実行カーネル（マルチターン・上限・終了手続き・キャンセル・疑似セッション注入） | `agent/Kernel.kt` | 単体 `KernelTest` | [agents](architecture/agents.md) |
-| AG-05 | ツールの一式（中核＝読む 8・書く 2・検証 1・許可した操作は app-core の `Toolset`。対話 2・管理 4 は agent。許可ツール名と書込権限を実行時に強制） | `tools/Toolset.kt`, `agent/Tools.kt` | 単体 `ToolsetTest`, `KernelTest`, `ToolsTest` | [agents](architecture/agents.md) |
-| AG-06 | ステージング（複数文書のオーバーレイ・横断検証・未提出ドラフトの保全） | `tools/WorkingCopy.kt`, `agent/Staging.kt` | 単体 `StagingTest` | [agents](architecture/agents.md) |
+| AG-04 | 実行カーネル（マルチターン・上限・終了手続き・キャンセル・疑似セッション注入） | `agent/run/Kernel.kt` | 単体 `KernelTest` | [agents](architecture/agents.md) |
+| AG-05 | ツールの一式（中核＝読む 8・書く 2・検証 1・許可した操作は app-core の `Toolset`。対話 2・管理 4 は agent。許可ツール名と書込権限を実行時に強制） | `tools/Toolset.kt`, `agent/run/Tools.kt` | 単体 `ToolsetTest`, `KernelTest`, `ToolsTest` | [agents](architecture/agents.md) |
+| AG-06 | ステージング（複数文書のオーバーレイ・横断検証・未提出ドラフトの保全） | `tools/WorkingCopy.kt`, `agent/run/Staging.kt` | 単体 `StagingTest` | [agents](architecture/agents.md) |
 | AG-07 | 変更セットレビュー UI（ファイル単位の部分採用・再検証・差分・適用・状態は `RunController`） | `ui/RunsSpace.kt`（`ReviewContent`, `RunController`） | 手動 | [agents](architecture/agents.md) |
-| AG-08 | 実行中の対話（`ask_human` の質問カード・計画とメモの進捗・キャンセル） | `agent/Kernel.kt`, `ui/RunsSpace.kt`（`QuestionCard`） | 単体 `KernelTest` | [agents](architecture/agents.md) |
-| AG-09 | 実行記録 `_runs`（ターン・ツール呼び出し・採否・トークン・会話記録） | `agent/RunLog.kt`, `agent/Kernel.kt` | 単体 `KernelTest`, `AutoApplySafetyTest` | [agents](architecture/agents.md) |
+| AG-08 | 実行中の対話（`ask_human` の質問カード・計画とメモの進捗・キャンセル） | `agent/run/Kernel.kt`, `ui/RunsSpace.kt`（`QuestionCard`） | 単体 `KernelTest` | [agents](architecture/agents.md) |
+| AG-09 | 実行記録 `_runs`（ターン・ツール呼び出し・採否・トークン・会話記録） | `agent/run/RunLog.kt`, `agent/run/Kernel.kt` | 単体 `KernelTest`, `AutoApplySafetyTest` | [agents](architecture/agents.md) |
 | AG-10 | CLI からの実行（`agent` / `activities`） | `cli/AgentCommands.kt` | 手動 | [agents](architecture/agents.md) |
-| AG-11 | トリガ（manual / on-change / schedule / on-invalid・予約ディレクトリと自己変更では発火しない） | `agent/Automation.kt`（`tick`） | 単体 `AutomationTest` | [agents](architecture/agents.md) |
-| AG-12 | アクティビティ連鎖（`chain` の成功・失敗・規則による分岐・深さ上限と循環検出） | `agent/Automation.kt`（`chainNext`）, `agent/Definitions.kt`（`ChainDef`） | 単体 `AutomationTest` | [agents](architecture/agents.md) |
-| AG-13 | 無人リトライ（`retry.maxAttempts`・同一失敗の繰り返しは打ち切り） | `agent/Automation.kt`（`handleFailure`） | 単体 `AutomationTest` | [agents](architecture/agents.md) |
-| AG-14 | 自動承認 `approval: auto`（条件を欠くと承認待ちへ降格・導出元文書への書込も降格・適用前バックアップ） | `agent/Automation.kt`, `agent/AutoApply.kt` | 単体 `AutomationTest`, `AutoApplySafetyTest` | [agents](architecture/agents.md) |
-| AG-15 | 実行キューと停止（直列実行・常時停止・承認待ちの耐久性） | `agent/Automation.kt` | 単体 `AutomationTest` | [agents](architecture/agents.md) |
-| AG-16 | 自動適用の巻き戻し（バックアップから復元・競合は拒否し `--force` で上書き） | `agent/AutoApply.kt`（`revert`） | 単体 `AutoApplySafetyTest` | [agents](architecture/agents.md) |
-| AG-17 | サブエージェント委譲（`delegate`・読み取り専用の相談・深さ 1） | `agent/Kernel.kt`（`consult`） | 単体 `KernelTest` | [agents](architecture/agents.md) |
+| AG-11 | トリガ（manual / on-change / schedule / on-invalid・予約ディレクトリと自己変更では発火しない） | `agent/auto/Automation.kt`（`tick`） | 単体 `AutomationTest` | [agents](architecture/agents.md) |
+| AG-12 | アクティビティ連鎖（`chain` の成功・失敗・規則による分岐・深さ上限と循環検出） | `agent/auto/Automation.kt`（`chainNext`）, `agent/Definitions.kt`（`ChainDef`） | 単体 `AutomationTest` | [agents](architecture/agents.md) |
+| AG-13 | 無人リトライ（`retry.maxAttempts`・同一失敗の繰り返しは打ち切り） | `agent/auto/Automation.kt`（`handleFailure`） | 単体 `AutomationTest` | [agents](architecture/agents.md) |
+| AG-14 | 自動承認 `approval: auto`（条件を欠くと承認待ちへ降格・導出元文書への書込も降格・適用前バックアップ） | `agent/auto/Automation.kt`, `agent/auto/AutoApply.kt` | 単体 `AutomationTest`, `AutoApplySafetyTest` | [agents](architecture/agents.md) |
+| AG-15 | 実行キューと停止（直列実行・常時停止・承認待ちの耐久性） | `agent/auto/Automation.kt` | 単体 `AutomationTest` | [agents](architecture/agents.md) |
+| AG-16 | 自動適用の巻き戻し（バックアップから復元・競合は拒否し `--force` で上書き） | `agent/auto/AutoApply.kt`（`revert`） | 単体 `AutoApplySafetyTest` | [agents](architecture/agents.md) |
+| AG-17 | サブエージェント委譲（`delegate`・読み取り専用の相談・深さ 1） | `agent/run/Kernel.kt`（`consult`） | 単体 `KernelTest` | [agents](architecture/agents.md) |
 | AG-18 | 自動実行 UI（自動化タブ: 監視・キュー・履歴・ログ）と CLI `watch` | `ui/AutomationPanel.kt`, `cli/AgentCommands.kt` | 手動 | [agents](architecture/agents.md) |
-| AG-19 | 実行メトリクス（提出率・採用率・却下ファイル率・トークン・CLI `metrics`） | `agent/Metrics.kt` | 単体 `MetricsTest` | [agents](architecture/agents.md) |
-| AG-20 | 評価セット `_evals`（ゴールデン入力と期待結果・サンドボックスコピー上で実行・CLI `eval`） | `agent/Evals.kt` | 単体 `EvalTest` | [agents](architecture/agents.md) |
-| AG-21 | 比較実験（`variants` でモデル・エージェント・指示を差し替えた A/B） | `agent/Evals.kt`（`EvalRunner`） | 単体 `EvalTest` | [agents](architecture/agents.md) |
+| AG-19 | 実行メトリクス（提出率・採用率・却下ファイル率・トークン・CLI `metrics`） | `agent/eval/Metrics.kt` | 単体 `MetricsTest` | [agents](architecture/agents.md) |
+| AG-20 | 評価セット `_evals`（ゴールデン入力と期待結果・サンドボックスコピー上で実行・CLI `eval`） | `agent/Evals.kt`, `eval/EvalRunner.kt` | 単体 `EvalTest` | [agents](architecture/agents.md) |
+| AG-21 | 比較実験（`variants` でモデル・エージェント・指示を差し替えた A/B） | `eval/EvalRunner.kt`（`EvalRunner`） | 単体 `EvalTest` | [agents](architecture/agents.md) |
 | AG-22 | メタアクティビティ（`meta: true` で定義文書への提案・承認は human 固定） | `agent/Definitions.kt`, `tools/Toolset.kt` | 単体 `MetaActivityTest` | [agents](architecture/agents.md) |
 | AG-23 | 自己改善 UI（計測・評価タブ） | `ui/ImprovementPanel.kt` | 手動 | [agents](architecture/agents.md) |
 | AG-24 | ビューの開示（`read_view`・行 × 列を原本座標つきで返し `apply_patch` の対象にできる） | `tools/Readouts.kt`（`viewText`） | 単体 `ViewsTest` | [agents](architecture/agents.md) |
 | AG-25 | 段階的詳細化の導線（`related` が各出現の要約・フェーズ・進捗を 1 回で返す） | `tools/Readouts.kt`（`relatedText`）, `core/Disclosure.kt` | 単体 `ToolsTest`, `KernelTest` | [agents](architecture/agents.md) |
-| AG-26 | 一括実行 `foreach`（source: view / issues / search / files / ids / query・1 件 = 1 実行のキュー展開・GUI と CLI） | `agent/Foreach.kt`, `agent/Automation.kt`（`enqueueForeach`） | 単体 `ForeachTest` | [agents](architecture/agents.md) |
-| AG-27 | コンテキスト会計（初期文脈の区分別トークン・送信別実測・キャッシュ読取の正規化） | `agent/Kernel.kt`（`initialContextSections`）, `agent/RunLog.kt` | 単体 `KernelTest`, `MetricsTest` | [agents](architecture/agents.md) |
-| AG-28 | コンテキストレシピ（`context.items`: catalog / phase / view / doc / related / sample・`when`・`budgetChars`・既定は空） | `agent/Definitions.kt`（`ContextItemDef`）, `agent/Kernel.kt` | 単体 `DefinitionsTest`, `KernelTest` | [agents](architecture/agents.md) |
+| AG-26 | 一括実行 `foreach`（source: view / issues / search / files / ids / query・1 件 = 1 実行のキュー展開・GUI と CLI） | `agent/auto/Foreach.kt`, `agent/auto/Automation.kt`（`enqueueForeach`） | 単体 `ForeachTest` | [agents](architecture/agents.md) |
+| AG-27 | コンテキスト会計（初期文脈の区分別トークン・送信別実測・キャッシュ読取の正規化） | `agent/run/Kernel.kt`（`initialContextSections`）, `agent/run/RunLog.kt` | 単体 `KernelTest`, `MetricsTest` | [agents](architecture/agents.md) |
+| AG-28 | コンテキストレシピ（`context.items`: catalog / phase / view / doc / related / sample・`when`・`budgetChars`・既定は空） | `agent/Definitions.kt`（`ContextItemDef`）, `agent/run/Kernel.kt` | 単体 `DefinitionsTest`, `KernelTest` | [agents](architecture/agents.md) |
 | AG-29 | 参照の名前解決とツール減量（参照の解決フッタ・タイトル注記・`limit` / `rows` / `columns` / `match` 引数） | `tools/Readouts.kt`, `core/Views.kt`（`refAnnotatedCellText`） | 単体 `ToolsTest` | [agents](architecture/agents.md) |
 | AG-30 | グラフトラバース（`start` と `steps` の経路パターン・レシピ `kind: graph`・ツール `traverse`・CLI） | `core/Traverse.kt`, `tools/Readouts.kt`（`traverseText`） | 単体 `TraverseTest` | [agents](architecture/agents.md) |
 | AG-31 | 評価セットの文脈レシピ A/B（`variants.context`・変異別のトークン） | `agent/Evals.kt`（`EvalVariant.contextItems`） | 単体 `EvalTest` | [agents](architecture/agents.md) |

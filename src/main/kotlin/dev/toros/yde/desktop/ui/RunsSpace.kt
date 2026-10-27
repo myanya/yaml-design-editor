@@ -1,17 +1,17 @@
 package dev.toros.yde.desktop.ui
 
 import dev.toros.yde.agent.ActivityDef
-import dev.toros.yde.agent.AgentEvent
-import dev.toros.yde.agent.AgentHost
-import dev.toros.yde.agent.AgentKernel
-import dev.toros.yde.agent.AgentRunRequest
-import dev.toros.yde.agent.AgentRunResult
-import dev.toros.yde.agent.AutomationEngine
+import dev.toros.yde.agent.run.AgentEvent
+import dev.toros.yde.agent.run.AgentHost
+import dev.toros.yde.agent.run.AgentKernel
+import dev.toros.yde.agent.run.AgentRunRequest
+import dev.toros.yde.agent.run.AgentRunResult
+import dev.toros.yde.agent.auto.AutomationEngine
 import dev.toros.yde.agent.Definitions
-import dev.toros.yde.agent.ForeachItem
-import dev.toros.yde.agent.RunLog
-import dev.toros.yde.agent.RunStatus
-import dev.toros.yde.agent.Staging
+import dev.toros.yde.agent.auto.ForeachItem
+import dev.toros.yde.agent.run.RunLog
+import dev.toros.yde.agent.run.RunStatus
+import dev.toros.yde.agent.run.Staging
 import dev.toros.yde.agent.ValidationGate
 import dev.toros.yde.agent.llm.AiProvider
 import androidx.compose.foundation.VerticalScrollbar

@@ -1,4 +1,4 @@
-package dev.toros.yde.agent
+package dev.toros.yde.agent.run
 
 import dev.toros.yde.app.core.Workspace
 import dev.toros.yde.app.schema.SchemaLoader

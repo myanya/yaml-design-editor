@@ -1,4 +1,4 @@
-package dev.toros.yde.agent
+package dev.toros.yde.agent.auto
 
 import dev.toros.yde.agent.llm.AiProvider
 import dev.toros.yde.agent.llm.ChatTurn

@@ -1,25 +1,38 @@
-package dev.toros.yde.agent
+package dev.toros.yde.agent.auto
 
-import dev.toros.yde.app.core.changeSetToYaml
+import dev.toros.yde.agent.ActivityDef
+import dev.toros.yde.agent.ApprovalMode
+import dev.toros.yde.agent.Definitions
+import dev.toros.yde.agent.TriggerType
+import dev.toros.yde.agent.ValidationGate
 import dev.toros.yde.agent.llm.AiProvider
 import dev.toros.yde.agent.llm.ToolChat
+import dev.toros.yde.agent.run.AgentEvent
+import dev.toros.yde.agent.run.AgentHost
+import dev.toros.yde.agent.run.AgentKernel
+import dev.toros.yde.agent.run.AgentRunRequest
+import dev.toros.yde.agent.run.AgentRunResult
+import dev.toros.yde.agent.run.RunLog
+import dev.toros.yde.agent.run.RunStatus
+import dev.toros.yde.agent.run.SessionFactory
 import dev.toros.yde.app.core.FileWatcher
 import dev.toros.yde.app.core.Workspace
 import dev.toros.yde.app.core.WorkspaceScan
+import dev.toros.yde.app.core.changeSetToYaml
 import dev.toros.yde.app.index.IdIndex
-import dev.toros.yde.workspace.layout.WorkspaceLayout
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import dev.toros.yde.app.schema.SchemaLoader
 import dev.toros.yde.semantic.schema.globToRegex
+import dev.toros.yde.workspace.layout.WorkspaceLayout
 import dev.toros.yde.yaml.validate.Severity
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 /**
  * 自動化エンジン（R3-01〜R3-05）。トリガ監視・実行キュー・承認ポリシー・連鎖・リトライ・停止を司る。

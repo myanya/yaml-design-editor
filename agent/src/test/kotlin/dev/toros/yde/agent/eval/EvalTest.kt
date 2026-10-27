@@ -1,14 +1,16 @@
-package dev.toros.yde.agent
+package dev.toros.yde.agent.eval
 
+import dev.toros.yde.agent.EvalCase
+import dev.toros.yde.agent.EvalDef
+import dev.toros.yde.agent.EvalSetupFile
+import dev.toros.yde.agent.Evals
+import dev.toros.yde.agent.auto.AutomationEngine
 import dev.toros.yde.agent.llm.AiProvider
 import dev.toros.yde.agent.llm.ChatTurn
 import dev.toros.yde.agent.llm.ChatUsage
 import dev.toros.yde.agent.llm.ToolCall
 import dev.toros.yde.agent.llm.ToolChatSession
 import dev.toros.yde.agent.llm.ToolResult
-import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.createTempDirectory
@@ -18,6 +20,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 
 /**
  * 評価セット（R4-02）と比較実験（R4-04）のテスト。

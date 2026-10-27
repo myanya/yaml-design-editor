@@ -1,15 +1,20 @@
-package dev.toros.yde.agent
+package dev.toros.yde.agent.run
 
+import dev.toros.yde.agent.ActivityDef
+import dev.toros.yde.agent.AgentDef
+import dev.toros.yde.agent.ContextWhen
+import dev.toros.yde.agent.ToolGroup
+import dev.toros.yde.agent.ValidationGate
 import dev.toros.yde.agent.llm.AiProvider
 import dev.toros.yde.agent.llm.ChatUsage
 import dev.toros.yde.agent.llm.ToolChat
 import dev.toros.yde.agent.llm.ToolChatSession
 import dev.toros.yde.agent.llm.ToolResult
 import dev.toros.yde.agent.llm.ToolSpec
-import dev.toros.yde.workspace.changeset.ChangeSet
 import dev.toros.yde.app.core.Workspace
-import kotlinx.coroutines.CancellationException
 import dev.toros.yde.app.validate.Issue
+import dev.toros.yde.workspace.changeset.ChangeSet
+import kotlinx.coroutines.CancellationException
 
 /**
  * エージェント実行カーネル（R2-03 / ROADMAP architecture/agents.md「安全性」）。
@@ -18,25 +23,6 @@ import dev.toros.yde.app.validate.Issue
  * - 終了: submit_changeset（ゲート通過）/ abort / 上限到達 / キャンセル。上限到達時も未提出ドラフトを保持する
  * - セッション生成は注入可能（テストでは台本を返す疑似セッションを使う）
  */
-
-enum class RunStatus { SUBMITTED, ABORTED, LIMIT, CANCELLED, ERROR }
-
-sealed class AgentEvent {
-    data class TurnStarted(val turn: Int, val maxTurns: Int) : AgentEvent()
-    data class AssistantText(val text: String) : AgentEvent()
-    data class ToolInvoked(val name: String, val summary: String) : AgentEvent()
-    data class ToolFailed(val name: String, val message: String) : AgentEvent()
-    data class QuestionAsked(val question: String) : AgentEvent()
-    data class PlanUpdated(val steps: List<String>) : AgentEvent()
-    data class Finished(val status: RunStatus, val message: String?) : AgentEvent()
-}
-
-/** カーネルと外側（UI・CLI）の接点。質問への回答と進捗表示を提供する。 */
-interface AgentHost {
-    /** ブロッキングな質問。null を返すと「回答なし」としてエージェントに伝わる。 */
-    suspend fun askHuman(question: String): String?
-    suspend fun onEvent(event: AgentEvent) {}
-}
 
 data class AgentRunRequest(
     val activity: ActivityDef,
@@ -62,9 +48,6 @@ class ToolLogEntry(
     val failed: Boolean,
     val resultChars: Int = 0,   // 打切り前のツール結果の全長（コンテキスト会計。R19-01）
 )
-
-/** 初期コンテキストの1区分。label はコンテキスト会計（内訳表示）の区分名になる（R19-01）。 */
-class ContextSection(val label: String, val body: String)
 
 /** コンテキスト会計の1行。tokensEst は estimateTokens による目安（実測はターン別入力で確認する）。 */
 class ContextSectionStat(val section: String, val chars: Int, val tokensEst: Int)

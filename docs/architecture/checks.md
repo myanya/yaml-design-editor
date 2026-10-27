@@ -25,7 +25,7 @@
 | `WorkspaceCheckRunner` | workspace-core/workspace/WorkspaceCheckRunner.kt | カーネル側の CLI の全文書の検証（`validateAll` / `deliverAll`） |
 | `Validator` / `Issue`（＝`CheckIssue`）/ `IssueResponse`（＝`CheckResponse`） | validate/Validator.kt | root の窓口（索引とスキーマを渡して `DocumentValidator` を呼ぶ）。`validateDetailed` は保留も返す |
 | `Readiness` | validate/Readiness.kt | 準備完了レポート（指摘をエンティティへ帰属し、エラー 0 で準備完了） |
-| `Staging.newErrors` | agent/Staging.kt | 提出ゲート `no-new-errors`（出どころの `identity` で見分ける） |
+| `Staging.newErrors` | agent/run/Staging.kt | 提出ゲート `no-new-errors`（出どころの `identity` で見分ける） |
 | `SidePanel`（`IssueRow`） | ui/SidePanel.kt | 検証パネル。指摘のクリックは対応（`responses`）の選択メニュー |
 
 ## 定義層の 3 段

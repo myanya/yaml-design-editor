@@ -8,17 +8,17 @@
 | 部品 | ファイル | 責務 |
 |---|---|---|
 | `AgentDef` / `ActivityDef` / `Definitions` / `ContextItemDef` / `ChainDef` | agent/Definitions.kt | `_agents` / `_activities` の実行時ロード（エラー収集つき）。フォーム編集と検証は組込みスキーマ |
-| `AgentKernel` / `AgentHost` | agent/Kernel.kt | ツール使用ループ。上限（ターン・トークン・時間）・終了手続きの強制・質問の中継・イベント通知・`consult`（委譲）・初期文脈の組み立て（`initialContextSections`） |
+| `AgentKernel` / `AgentHost` | agent/run/Kernel.kt | ツール使用ループ。上限（ターン・トークン・時間）・終了手続きの強制・質問の中継・イベント通知・`consult`（委譲）・初期文脈の組み立て（`initialContextSections`） |
 | `Toolset` / `Tool` / `ToolContext`・`ToolPolicy` | app-core tools/Toolset.kt・Tool.kt・ToolContext.kt | 中核のツール（読む 8・作業コピーへ書く 2・検証 1・許可した操作）と書込権限のツール側での強制。入口（agent・MCP・CLI）に依らず、引数と結果は JSON の値 |
 | `Readouts` | app-core tools/Readouts.kt | 読み出しの文（`catalogText`・`phaseText`・`viewText`・`traverseText`・`relatedText`・`entityText`・`refsFooterText`・`sampleText`・`validationText`）。ツールの結果と初期文脈が共用 |
 | `WorkingCopy` | app-core tools/WorkingCopy.kt | 作業コピー（パッチ記録・新規文書・重ねた索引・影響ファイルを含む横断検証・変更セット化・`newErrors`）。`Staging` の土台 |
-| `AgentToolbox` | agent/Tools.kt | `Toolset` をアクティビティのツール分類で選んで `ToolSpec` に包む。ask_human・delegate・plan・note・submit_changeset・abort はここだけ。`contextItemSection`（レシピ項目 → 読み出しの文） |
-| `Staging` | agent/Staging.kt | `WorkingCopy` に定義文書のゲート（ステージした定義が実際のローダで読めること）を足したもの |
-| `RunLog` / `RunMetrics` | agent/RunLog.kt・Metrics.kt | 実行記録の保存（会話記録・`exchange`・会計）と集計 |
-| `AutomationEngine` / `AutoApply` | agent/Automation.kt・AutoApply.kt | トリガ監視（`tick`）・直列キュー（`processOnce`）・承認・連鎖・リトライ・停止・巻き戻し可能な適用 |
-| `Foreach` | agent/Foreach.kt | 一括実行の対象列挙 |
-| `Evals` / `EvalRunner` | agent/Evals.kt | 評価セットと比較実験（サンドボックスコピー上） |
-| `GenerationRun` | agent/Generation.kt | AI 生成のカーネル統合（1 ターンで提出する特殊アクティビティ） |
+| `AgentToolbox` | agent/run/Tools.kt | `Toolset` をアクティビティのツール分類で選んで `ToolSpec` に包む。ask_human・delegate・plan・note・submit_changeset・abort はここだけ。`contextItemSection`（レシピ項目 → 読み出しの文） |
+| `Staging` | agent/run/Staging.kt | `WorkingCopy` に定義文書のゲート（ステージした定義が実際のローダで読めること）を足したもの |
+| `RunLog` / `RunMetrics` | agent/run/RunLog.kt・agent/eval/Metrics.kt | 実行記録の保存（会話記録・`exchange`・会計）と集計 |
+| `AutomationEngine` / `AutoApply` | agent/auto/Automation.kt・AutoApply.kt | トリガ監視（`tick`）・直列キュー（`processOnce`）・承認・連鎖・リトライ・停止・巻き戻し可能な適用 |
+| `ForeachDef` / `Foreach` | agent/ForeachDef.kt・agent/auto/Foreach.kt | 一括実行の定義（列挙元と条件）と、対象の列挙 |
+| `Evals` / `EvalRunner` | agent/Evals.kt・agent/eval/EvalRunner.kt | 評価セットの定義の読み込みと、比較実験の実行（サンドボックスコピー上） |
+| `GenerationRun` | agent/run/Generation.kt | AI 生成のカーネル統合（1 ターンで提出する特殊アクティビティ） |
 | `AiGenerator` / `OpenAiGenerator` / `AnthropicGenerator` | agent/llm/ | プロバイダ振り分け・各 API のリクエスト構築とレスポンス解析（スキーマ → JSON Schema と参照候補の enum 制約は app-core の tools/JsonSchemas.kt） |
 | `ToolChat` / `ToolChatSession` | agent/llm/ToolChat.kt | ツール使用対応のチャット抽象と OpenAI Responses / Anthropic Messages 実装（prompt caching の印つけ） |
 | `AiConnection` / `AiHttp` | agent/llm/Connection.kt・Http.kt | OpenAI 互換の接続先の解決と、HttpClient の単一ファクトリ（プロキシ・Basic 認証・リトライ） |
@@ -119,7 +119,7 @@
 
 ## 規律
 
-- エージェントの編集は必ず `agent/Staging` 経由。原本への書込は人間の承認（`Workspace.apply`）のみ。
+- エージェントの編集は必ず `agent/run/Staging` 経由。原本への書込は人間の承認（`Workspace.apply`）のみ。
 - 定義文書への書込は `meta: true` のアクティビティのみ。`meta` かつ `approval: auto` は定義エラー。`_schemas` / `_runs` は meta でも書込不可。
 - カーネルのテストは疑似セッション注入で書く。実 API を叩くテストは書かない。自動化のテストは `tick(now)` / `processOnce()` を直接呼ぶ（タイマー・sleep を使わない）。自動適用後はスタンプ基準を更新し、自己変更で on-change を再発火させない。
 - 評価はワークスペースの一時コピー上で実行し、原本に書くのはレポートだけ。実行記録の形式を変えたら `RunLog` と `RunMetrics` の両方を直す。

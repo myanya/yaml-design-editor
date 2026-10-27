@@ -1,5 +1,6 @@
-package dev.toros.yde.agent
+package dev.toros.yde.agent.run
 
+import dev.toros.yde.agent.Definitions
 import dev.toros.yde.agent.llm.AiProvider
 import dev.toros.yde.agent.llm.ChatTurn
 import dev.toros.yde.agent.llm.ChatUsage
@@ -7,9 +8,6 @@ import dev.toros.yde.agent.llm.ToolCall
 import dev.toros.yde.agent.llm.ToolChatSession
 import dev.toros.yde.agent.llm.ToolResult
 import dev.toros.yde.app.core.Workspace
-import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.createTempDirectory
@@ -19,6 +17,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 
 /**
  * メタアクティビティ（R4-03）のテスト。

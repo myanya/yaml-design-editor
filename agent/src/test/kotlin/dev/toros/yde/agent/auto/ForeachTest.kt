@@ -1,5 +1,7 @@
-package dev.toros.yde.agent
+package dev.toros.yde.agent.auto
 
+import dev.toros.yde.agent.ForeachDef
+import dev.toros.yde.agent.ForeachSource
 import dev.toros.yde.app.core.Workspace
 import dev.toros.yde.semantic.schema.QuerySpec
 import dev.toros.yde.yaml.YamlIO

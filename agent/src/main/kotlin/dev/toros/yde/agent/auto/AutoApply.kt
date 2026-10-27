@@ -1,10 +1,11 @@
-package dev.toros.yde.agent
+package dev.toros.yde.agent.auto
 
-import dev.toros.yde.workspace.changeset.ChangeSet
+import dev.toros.yde.agent.run.RunLog
 import dev.toros.yde.app.core.ChangeSetResult
 import dev.toros.yde.app.core.FileChangeResult
-import dev.toros.yde.workspace.changeset.ChangeSets
 import dev.toros.yde.app.core.Workspace
+import dev.toros.yde.workspace.changeset.ChangeSet
+import dev.toros.yde.workspace.changeset.ChangeSets
 import dev.toros.yde.yaml.YamlIO
 import java.nio.file.Files
 import java.nio.file.Path
