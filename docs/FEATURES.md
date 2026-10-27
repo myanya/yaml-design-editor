@@ -36,17 +36,17 @@
 
 | ID | 機能 | 主な実装 | テスト | 設計 |
 |---|---|---|---|---|
-| E-18 | フォームの複合値は全幅配置と上限付き字下げ・単一値は幅に応じた配置・文書情報と他文書の定義は開閉可能 | `ui/FormLayout.kt`, `ui/FormView.kt` | 単体 `FormLayoutTest`, `ScreenMemoryTest`・画面は手動 | [ui](architecture/ui.md) |
+| E-18 | フォームの複合値は全幅配置と上限付き字下げ・単一値は幅に応じた配置・文書情報と他文書の定義は開閉可能 | `ui/FormLayout.kt`, `ui/FormFields.kt` | 単体 `FormLayoutTest`, `ScreenMemoryTest`・画面は手動 | [ui](architecture/ui.md) |
 | E-22 | フォーム入力の Esc で内容を保持してフォーカス解除（IME・候補を優先） | `ui/Common.kt`, `ui/TextFieldEscape.kt` | `TextFieldEscapeTest`・画面は手動 | [UI 操作規則](architecture/ui-interactions.md) |
 | E-23 | 選択一覧の現在値・高さ制限・説明全文・検索 | `ui/ChoiceMenu.kt`・`ChoiceOptions.kt` | ChoiceOptionsTest・手動（長い選択一覧） | [UI 操作規則](architecture/ui-interactions.md) |
 | E-21 | 表示方式のアイコン操作・固定／可変・ファイルの明示指定と確認・構成ペインの× | `desktop/FormDisplayMemory.kt`, `ui/FormDisplayControls.kt` | `FormDisplayMemoryTest`・画面は手動 | [ui](architecture/ui.md) |
 | E-20 | フォームの構成ツリーと三つの表示方式（選択項目・全体連動・全体のみ） | `ui/StructuredForm.kt`, `ui/DocumentFormWorkspace.kt` | `FormOutlineTest`, `FormPositionsTest`, `ScreenMemoryTest`・画面は手動 | [ui](architecture/ui.md) |
 | E-19 | 項目説明の短い表示・項目名とⓘのホバーで小さな予告・説明ボタンで全文固定（編集・閲覧共通） | `ui/FieldHelp.kt` | 単体 `FieldHelpPositionTest`・画面は手動 | [ui](architecture/ui.md) |
-| E-01 | スキーマ駆動フォーム（基底の種類別の編集欄・型から引き継ぐヒント＝複数行と入力欄の案内と表示の形 `format`・必須マーク・説明は Markdown・折りたたみ・id 型は既存 ID の補完と連番の提案と横ぐしへの直行・int / number の桁区切り表示 `display: grouped`・残留値の修復 UI） | `ui/FormView.kt`（`IdEditor`）, `schema/IdSuggest.kt` | 単体 `FormViewUiTest`, `IdSuggestTest` | [ui](architecture/ui.md) |
+| E-01 | スキーマ駆動フォーム（基底の種類別の編集欄・型から引き継ぐヒント＝複数行と入力欄の案内と表示の形 `format`・必須マーク・説明は Markdown・折りたたみ・id 型は既存 ID の補完と連番の提案と横ぐしへの直行・int / number の桁区切り表示 `display: grouped`・残留値の修復 UI） | `ui/FormFields.kt`, `ui/ScalarEditors.kt`（`IdEditor`）, `schema/IdSuggest.kt` | 単体 `FormViewUiTest`, `IdSuggestTest` | [ui](architecture/ui.md) |
 | E-15 | 日付・時刻・日時のピッカー（入力欄の右のボタンからポップアップにカレンダーと時刻入力・日付はクリックで即反映・値は正準の文字列のまま） | `ui/TemporalEditor.kt`（`TemporalPick`, `TemporalPickerButton`） | 単体 `TemporalPickTest` | [ui](architecture/ui.md) |
-| E-16 | 配列要素のドラッグ並べ替え（取っ手 ⋮⋮ からだけ掴める・ドロップで 1 回だけ木を動かす＝Undo 1 回・縦リスト／テーブル／汎用エディタ共通・上下ボタンも残す） | `ui/Reorder.kt`（`ReorderableList`）, `ui/FormView.kt`（`moveSeqItem`） | 単体 `MoveSeqItemTest` | [ui](architecture/ui.md) |
+| E-16 | 配列要素のドラッグ並べ替え（取っ手 ⋮⋮ からだけ掴める・ドロップで 1 回だけ木を動かす＝Undo 1 回・縦リスト／テーブル／汎用エディタ共通・上下ボタンも残す） | `ui/Reorder.kt`（`ReorderableList`）, `ui/FormTables.kt`（`moveSeqItem`） | 単体 `MoveSeqItemTest` | [ui](architecture/ui.md) |
 | E-17 | file 型の入力欄と画像の表示（文字で書く 3 通りの書き方・「選ぶ」は OS 標準のダイアログでルート相対に書き込む・解決した場所と有無の 1 行・画像は欄の下に幅に合わせて表示し拡大率とドラッグで操作・「拡大表示」で全面） | `ui/FileEditor.kt`, `ui/ImagePane.kt`, `AppState.openImage` | 単体 `FileEditorTest` | [ui](architecture/ui.md) |
-| E-02 | 汎用ツリーエディタ（スキーマなし文書・スキーマ外キー・順序とコメントを保ったキー改名） | `ui/FormView.kt`（`GenericEditor`） | 単体 `RenameKeyTest` | [ui](architecture/ui.md) |
+| E-02 | 汎用ツリーエディタ（スキーマなし文書・スキーマ外キー・順序とコメントを保ったキー改名） | `ui/GenericEditor.kt` | 単体 `RenameKeyTest` | [ui](architecture/ui.md) |
 | E-25 | 配列行の削除確認・対象変更の拒否（リスト・表・汎用・設計の配列入力） | `ui/ArrayDeleteButton.kt`, `ui/ArrayDeletion.kt` | `ArrayDeletionTest`・画面は手動 | [UI 操作規則](architecture/ui-interactions.md#配列要素の削除) |
 | E-03 | ソース編集（下書き・書式保持・履歴との同期） | `SourcePane`・`SourceHistorySync` | `LineMergeTest`・`SourceHistorySyncTest`・`TextOnlySaveTest` | [editing-history](architecture/editing-history.md) |
 | E-04 | 差分表示（保存済みと編集中の行整列・文字単位の強調） | `ui/DiffPane.kt` | 単体 `DiffPaneTest` | [ui](architecture/ui.md) |
@@ -56,9 +56,9 @@
 | E-08 | 文書キャッシュ（ファイル切替時も未保存編集を保持） | `AppState.docCache`（殻）, `session/DocumentSession.kt`（論理） | 手動 | [editing-history](architecture/editing-history.md) |
 | E-09 | 同一 ID の他文書出現ストリップ（相手側の情報の表示とジャンプ） | `ui/FormView.kt`（`SameIdOccurrencesStrip`） | 手動 | [ui](architecture/ui.md) |
 | E-10 | 複数ドキュメント YAML（フォームは先頭・後続は保持して再出力・ソースは全体を編集可） | `yaml-core/yaml/YamlIO.kt`（`parseAll` / `dumpAll`）, `app/OpenDocument` | 単体 `OpenDocumentTest` | [yaml-model](architecture/yaml-model.md) |
-| E-11 | 畳み込みサマリ（畳んだ要素の 1 行要約・参照の値は参照先の名前を添える・既定はルートから 2 階層まで展開） | `ui/FormView.kt`, `schema/Display.kt` | 単体 `DisplayTest`, `DefaultExpandTest` | [ui](architecture/ui.md) |
-| E-12 | 閲覧専用モード（`FormCtx.readOnly`・入力欄はテキスト表示・書込は拒否・横ぐしとグリッドへ波及） | `ui/FormView.kt`（`FormCtx`）, `app/AppState.readOnlyMode` | 単体 `ReadOnlyTest` | [ui](architecture/ui.md) |
-| E-13 | 配列と map のテーブル表示（適否の自動判定と `display: table / list`・セル編集・展開フォーム・列幅・参照セルは ID と参照先の名前と横ぐしへの Hub） | `ui/FormView.kt`（`ObjectTable`・`RefCell`）, `schema/Display.kt`（`tableColumns`） | 単体 `DisplayTest`, `ArrayTableTest`, `RefTargetTitleTest` | [ui](architecture/ui.md) |
+| E-11 | 畳み込みサマリ（畳んだ要素の 1 行要約・参照の値は参照先の名前を添える・既定はルートから 2 階層まで展開） | `ui/CollectionEditors.kt`, `schema/Display.kt` | 単体 `DisplayTest`, `DefaultExpandTest` | [ui](architecture/ui.md) |
+| E-12 | 閲覧専用モード（`FormCtx.readOnly`・入力欄はテキスト表示・書込は拒否・横ぐしとグリッドへ波及） | `ui/FormCtx.kt`, `desktop/AppState.readOnlyMode` | 単体 `ReadOnlyTest` | [ui](architecture/ui.md) |
+| E-13 | 配列と map のテーブル表示（適否の自動判定と `display: table / list`・セル編集・展開フォーム・列幅・参照セルは ID と参照先の名前と横ぐしへの Hub） | `ui/FormTables.kt`（`ObjectTable`・`RefCell`）, `schema/Display.kt`（`tableColumns`） | 単体 `DisplayTest`, `ArrayTableTest`, `RefTargetTitleTest` | [ui](architecture/ui.md) |
 | E-14 | 保存時に自動で入る値（印 `auto`＝更新日・作成日・版。保存の直前の 1 トランザクション・変更セットの適用にも） | `semantic-core/semantic/AutoValues.kt`, `workspace-core/workspace/WorkspaceSession.kt` | 単体 `SemanticAutoValuesTest`, `AutoValuesKernelTest`, `AppStateAutoValuesTest` | [auto-values](architecture/auto-values.md) |
 | E-15 | ソースの基本操作（Ctrl+F / H / G の検索・置換・行へ移動、一致の強調と F3 の移動、Aa と .*、Enter の自動インデント、選択行の Tab / Shift+Tab、Ctrl+/ コメント、Alt+↑↓ 行の移動、Ctrl+D 複製、現在行の強調） | `ui/SourceEditing.kt`, `ui/SourcePane.kt` | 単体 `SourceEditingTest` | [editing-history](architecture/editing-history.md) |
 | E-16 | ソースでスキーマと索引を使う（指摘を左端の印と値の色で出し右パネルの指摘から行へ、Ctrl+Space でキー名・ID・enum・file の補完、ホバーで項目の説明、Ctrl+クリックで参照先へ） | `ui/SourceContext.kt`, `ui/SourceCompletion.kt`, `yaml-core/yaml/YamlPositions.kt` | `SourceCompletionTest` ほか | [editing-history](architecture/editing-history.md) |
@@ -78,18 +78,18 @@
 | S-07 | スキーマ外キーの検証ポリシー（`unknownFields: allow / warning / error`） | `validate/Validator.kt`, `index/IdIndex.kt` | 手動 | [schema](architecture/schema.md) |
 | S-08 | 参照の関係種別（`type: ref` の `relation`） | `schema/Schema.kt`, `index/IdIndex.kt` | 単体 `WorkspaceCliTest` | [graph-query](architecture/graph-query.md) |
 | S-09 | カバレッジルール（`coverage` の `detailIn`＝詳細文書の存在。定義体で書き、配り方はカーネル） | `builtin-definitions/coverage.yaml`, `workspace-core/validate/WorkspaceChecks.kt` | 単体 `CoverageTest`, `CoverageMessageTest` | [checks](architecture/checks.md) |
-| S-10 | enum 値ごとの追加フィールド（`cases`・多段展開・フォーム・検証・索引・AI 生成・設計 UI） | `schema/Schema.kt`（`effectiveFields`）, `ui/FormView.kt` | 単体 `SchemaLoaderTest`, `ValidatorTest` | [schema](architecture/schema.md) |
+| S-10 | enum 値ごとの追加フィールド（`cases`・多段展開・フォーム・検証・索引・AI 生成・設計 UI） | `schema/Schema.kt`（`effectiveFields`）, `ui/FormFields.kt` | 単体 `SchemaLoaderTest`, `ValidatorTest` | [schema](architecture/schema.md) |
 | S-11 | フェーズ機構（`phases`・`requiredFrom` の累積必須・`activeFrom` の判定保留） | `schema/Schema.kt`（`PhasesDef`, `requiredAt`） | 単体 `PhaseTest` | [schema](architecture/schema.md) |
 | S-12 | スキーマ共通部品（`kind: library` と `moduleId#definition` の修飾 `$ref`・二段階ロード） | `schema/Schema.kt`（`SchemaCatalog`） | 単体 `SchemaLoaderTest` | [schema](architecture/schema.md) |
 | S-13 | 表示解決（1 行要約・`role: title / subtitle` ＞ 予約語 ＞ id・同一 ID の他出現からタイトルを借りる） | `schema/Display.kt`, `index/IdIndex.kt`（`DocScanner`） | 単体 `DisplayTest` | [index-references](architecture/index-references.md) |
-| S-14 | enum のリッチ選択肢（`{value, label, description}`・label は表示専用） | `schema/Schema.kt`（`EnumOption`）, `ui/FormView.kt`（`EnumEditor`） | 単体 `DisplayTest` | [schema](architecture/schema.md) |
+| S-14 | enum のリッチ選択肢（`{value, label, description}`・label は表示専用） | `schema/Schema.kt`（`EnumOption`）, `ui/ScalarEditors.kt`（`EnumEditor`） | 単体 `DisplayTest` | [schema](architecture/schema.md) |
 | S-15 | 組込みメタスキーマ（`_schemas` 文書に適用・一般スキーマの match は及ばない） | `schema/BuiltinSchemas.kt`, `core/Workspace.kt`（`schemaFor`） | 単体 `MetaSchemaTest` | [schema](architecture/schema.md) |
 | S-16 | スキーマ推測（既存 YAML から型・参照・enum・必須を推測してドラフト生成・CLI `infer-schema`） | `schema/SchemaInference.kt`, `session/DocumentSession.kt`（`inferSchema`） | 単体 `SchemaInferenceTest` | [schema](architecture/schema.md) |
 | S-17 | 派生スキーマ（`derive:` で導出元文書から検証スキーマをコンパイル・導出元の変更は全再構築） | `semantic-core/schema/SchemaDerivation.kt`, `core/Workspace.kt` | 単体 `DerivedSchemasTest` | [schema](architecture/schema.md) |
 | S-18 | 制約語彙（`minLength` / `maxLength` / `pattern` / `min` / `max`・AI 生成の JSON Schema へ伝搬） | `schema/Schema.kt`, `yaml-core/structure/StructureValidator.kt` | 単体 `ConstraintTest` | [schema](architecture/schema.md) |
 | S-19 | エンティティ型宣言（`entity:` の `idPattern` / `idType`＝ID の形式で判別・object の `entity`＝要素の形で判別・`defines`・走査が型と役割を付与） | `semantic-core/schema/Relations.kt`（`EntityDecl`）, `index/IdIndex.kt` | 単体 `EntityDeclTest`, `DocScannerTest`, `TypeDefinitionsTest` | [graph-query](architecture/graph-query.md) |
 | S-20 | 関係レジストリ（`kind: relations` の関係語彙・label／inverseLabel・`enforcement`・CLI `infer-relations`） | `semantic-core/schema/Relations.kt`（`RelationDef`）, `core/Workspace.kt` | 単体 `RelationRegistryTest` | [graph-query](architecture/graph-query.md) |
-| S-21 | 属性付き参照（`type: ref` に `fields:` があるときだけ `{to, 属性...}` を許可・to の座標は従来と同じ） | `index/IdIndex.kt`（`RefEntry.attributes`）, `ui/FormView.kt`（`RefEditor`） | 単体 `DocScannerTest`, `ValidatorTest` | [graph-query](architecture/graph-query.md) |
+| S-21 | 属性付き参照（`type: ref` に `fields:` があるときだけ `{to, 属性...}` を許可・to の座標は従来と同じ） | `index/IdIndex.kt`（`RefEntry.attributes`）, `ui/RefEditors.kt`（`RefEditor`） | 単体 `DocScannerTest`, `ValidatorTest` | [graph-query](architecture/graph-query.md) |
 | S-22 | アスペクト宣言とエンティティ型レジストリ（`aspect` / `owns`・レジストリの `entities:` 節） | `semantic-core/schema/Relations.kt`（`EntityTypeDef`, `ownedFieldKeys`） | 単体 `AspectTest` | [graph-query](architecture/graph-query.md) |
 | S-23 | スキーマの値に式（項目の印 `expression: true`・共通の読み取りと評価と文面・`filePattern` と `scaffold`） | `semantic-core/schema/ExpressionFields.kt`, `semantic-core/semantic/Values.kt` | 単体 `ExpressionFieldsTest`, `SemanticValuesTest` | [schema](architecture/schema.md) |
 | S-24 | ユーザ定義の型（`type: 名前`・型の連鎖・狭める規則・メタスキーマへの型名の合成・オブジェクト型＝object の `entity`・項目を足す／狭める・要素ごとの型の検査） | `semantic-core/schema/SchemaTree.kt`, `semantic/ElementChecks.kt`, `workspace-core/workspace/MetaSchemaTypes.kt` | 単体 `TypeDefinitionsTest`, `ObjectTypesTest` | [schema](architecture/schema.md) |
@@ -131,14 +131,14 @@
 | I-01 | ID 索引（ディスク基準・`type: id` とキー名 `id`・変更ファイルだけの増分更新） | `index/IdIndex.kt`（`DocScanner`, `update`） | 単体 `IdIndexIncrementalTest` | [index-references](architecture/index-references.md) |
 | I-02 | 参照認識（`type: ref` と命名規約） | `index/IdIndex.kt`（`DocScanner`） | 手動 | [index-references](architecture/index-references.md) |
 | I-03 | リンクジャンプ（→ボタン・ハイライト・複数出現の選択） | `AppState.navigateToId`, `ui/Common.kt`（`Highlightable`） | 手動 | [ui](architecture/ui.md) |
-| I-04 | 参照候補の補完（`idPatterns` / `scope` で絞り込み・解決先タイトルの併記・行き先の選択メニュー） | `ui/FormView.kt`（`RefEditor`） | 手動 | [ui](architecture/ui.md) |
+| I-04 | 参照候補の補完（`idPatterns` / `scope` で絞り込み・解決先タイトルの併記・行き先の選択メニュー） | `ui/RefEditors.kt`（`RefEditor`） | 手動 | [ui](architecture/ui.md) |
 | I-05 | バックリンク（被参照一覧・参照元の ID とタイトル） | `IdIndex.backlinksTo`, `ui/SidePanel.kt` | 手動 | [index-references](architecture/index-references.md) |
 | I-06 | ID 検索（コマンドパレット・ID とタイトルの部分一致・オーバーレイ索引） | `Main.kt`（`CommandPalette`） | 手動 | [ui](architecture/ui.md) |
 | I-07 | エンティティページ（合成全体像・関係パネル・カバレッジ・改名／統合／削除・グラフレンズへ。入口は `openCrossView` の 1 経路＝ID 欄の Hub ボタン・参照の→メニュー・ストリップ・出現タブ・ビューグリッド・レンズ） | `ui/IdCrossView.kt`, `core/Aspects.kt`, `AppState.openCrossView` | 手動（合成は `AspectTest`） | [graph-query](architecture/graph-query.md) |
 | I-08 | ナビゲーション履歴（戻る・進む・スペースとタブと ID とビューとハイライトとエディタのタブを復元・ショートカットはウィンドウで受ける） | `AppState.goBack` / `goForward`, `Main.kt`（`handleShortcut`） | 単体 `NavigationHistoryTest`・画面は手動 | [ui](architecture/ui.md) |
 | I-09 | ID インスペクタ（右パネルの検証・関係・出現の 3 タブ） | `ui/SidePanel.kt` | 手動 | [ui](architecture/ui.md) |
 | I-10 | 導出グラフ（走査結果から導出する読み取り専用のエンティティグラフ・索引の更新で無効化） | `semantic-core/semantic/`（`SemanticEntityGraph`）, `index/IdIndex.kt`（`graph`） | 単体 `EntityGraphTest` | [graph-query](architecture/graph-query.md) |
-| I-11 | 文書参照（`target: document`・文書ノードへの参照・エンティティ参照とは混ぜない） | `index/IdIndex.kt`（`RefEntry.targetKind`）, `ui/FormView.kt`（`DocRefScalarEditor`） | 単体 `DocRefTest` | [graph-query](architecture/graph-query.md) |
+| I-11 | 文書参照（`target: document`・文書ノードへの参照・エンティティ参照とは混ぜない） | `index/IdIndex.kt`（`RefEntry.targetKind`）, `ui/RefEditors.kt`（`DocRefScalarEditor`） | 単体 `DocRefTest` | [graph-query](architecture/graph-query.md) |
 | I-12 | 場所は文書 ID（索引・検証・ビュー・クエリの場所はワークスペース相対の `DocumentId`・root の型はカーネルの別名・編集用セッションは `fork`） | `index/IdIndex.kt`, `workspace-core/workspace/WorkspaceSession.kt`（`fork`） | 単体 `SessionForkTest`, `EditingSessionForkTest` | [index-references](architecture/index-references.md) |
 | I-13 | 保有と所属（入れ子で決まる関係に名前＝子を書く項目の `relation` かキー名・レジストリの宣言が効く・関係パネルと related・削除の注意事項） | `semantic-core/semantic/Graph.kt`（`SemanticHolding`）, `semantic-core/semantic/Refactor.kt` | 単体 `HoldingDeleteTest`, `SemanticEntityGraphTest` | [graph-query](architecture/graph-query.md) |
 
@@ -155,7 +155,7 @@
 | X-04 | コマンドパレット（Ctrl+K・ID・ファイル・本文検索・ビュー切替・スペース切替・保存） | `Main.kt`（`CommandPalette`）, `session/DocumentSession.kt`（`searchContent`） | 手動 | [ui](architecture/ui.md) |
 | X-05 | ビュー定義 `_views`（`kind: grid` の行・列・並び〔出現順か `order.path` の値の順〕・詳細文書・新規行・バックリンク列・`kind: document`） | `core/Views.kt`, `workspace-core/workspace/ViewDefinitions.kt` | 単体 `ViewsTest` | [views](architecture/views.md) |
 | X-06 | ビューグリッド（セル編集・原本へ移動・詳細文書と新規行の作成・バックリンク・要約と整形・固定列） | `ui/ViewGridPane.kt`, `ui/VirtualTable.kt`, `session/DocumentSession.kt`（`createViewDetail` / `viewRowTarget`）, `AppState.addViewRow` | `ViewsTest`, `VirtualTableTest` | [views](architecture/views.md) |
-| X-07 | 文書ビュー（`kind: document`・`sections` の fields と backlinks・`attachments`・マッチしない文書は既定フォーム） | `core/Views.kt`（`resolveDocument`）, `ui/FormView.kt`（`DocViewSections`） | 単体 `ViewsTest` | [views](architecture/views.md) |
+| X-07 | 文書ビュー（`kind: document`・`sections` の fields と backlinks・`attachments`・マッチしない文書は既定フォーム） | `core/Views.kt`（`resolveDocument`）, `ui/FormDocView.kt`（`DocViewSections`） | 単体 `ViewsTest` | [views](architecture/views.md) |
 | X-08 | ビュー定義のスキーマ参照とリント（`definition:` 列の展開・スキーマとの整合を検査し定義エラーとして表示） | `workspace-core/workspace/ViewDefinitions.kt`（`lint`） | 単体 `ViewsTest`, `ViewDefinitionsTest` | [views](architecture/views.md) |
 | X-10 | クロス集計ビュー（`kind: matrix`・行の論理ID × 列の参照先か値・セルは行から集めた要素の集計・未分類と合計・列を広げたグリッドへ下ろす）と、グリッドの要素ごとに列を広げる列 `each`（`$名前` で列の要素の ID を指す） | `semantic-core/semantic/VirtualViews.kt`（`lower`）, `workspace-core/workspace/ViewDefinitions.kt` | 単体 `ViewsTest` | [views](architecture/views.md) |
 | X-09 | 値の式の列（`value:`＝ひな型の展開・`via`（並べて段を重ねる）・配列を受け取る集計・集合から配列へ `all`・要素ごとの式 `each`・来歴つきで未保存編集に追随） | `semantic/VirtualViews.kt`（`valueCell`）, `semantic/Values.kt` | 単体 `ViewsTest`, `SemanticViaTest`, `SemanticAggregateTest`, `SemanticAllTest`, `AllFromCheckTest` | [transform](architecture/transform.md) |
@@ -168,7 +168,7 @@
 
 | ID | 機能 | 主な実装 | テスト | 設計 |
 |---|---|---|---|---|
-| A-01 | フィールド単位の生成（✨） | `ui/AiGenerationDialog.kt`, `ui/FormView.kt` | 手動 | [agents](architecture/agents.md) |
+| A-01 | フィールド単位の生成（✨） | `ui/AiGenerationDialog.kt`, `ui/FormFields.kt` | 手動 | [agents](architecture/agents.md) |
 | A-02 | 配列への候補追加と全体置き換え | `ui/AiGenerationDialog.kt`（`combineProposal`） | 単体 `AiProposalTest` | [agents](architecture/agents.md) |
 | A-03 | 文書全体の生成（`_document` は保持） | `ui/AiGenerationDialog.kt`（`replaceInClone`） | 単体 `AiProposalTest` | [agents](architecture/agents.md) |
 | A-04 | JSON Schema による Structured Outputs（`map` / `any` を含むとプロンプト指示へ後退） | `tools/JsonSchemas.kt`（`fieldToJsonSchema`） | 単体 `OpenAiGeneratorTest`, `MetaSchemaTest` | [agents](architecture/agents.md) |

@@ -14,7 +14,7 @@
 | `DocumentSession.prepareHistoryStep` / `applyHistoryStep` / `afterHistoryStep` / `syncSourcesAfterHistory` | session/DocumentSession.kt | 横断 Undo の一手の論理: 下書きの反映・対象の決定・拒否と確認の判定・カーネルの呼び出し・開いている文書の作り直し・ソースの差し込み・予告の文 |
 | `AppState.undo` / `redo` / `historyFromUi` / `historyNotice` | desktop/AppState.kt | 一手の段取り（確認の表示・ファイル配置の一手を IO へ・通知・編集元へ戻る移動） |
 | `DocumentSession.createDocument` / `afterHistoryStep` | session/DocumentSession.kt | 文書の新規作成の単一経路（作った文書を開くのは `AppState` の入口）と、作成・削除を含む履歴の確定 |
-| `FormCtx.writeScalar` | ui/FormView.kt | スカラー入力の書込。合体キーを渡す |
+| `FormCtx.writeScalar` | ui/FormCtx.kt | スカラー入力の書込。合体キーを渡す |
 | `OpenDocument.source`（文字列とカーソル）と `DocumentState.applyParsed` / `syncSourceFromTree` / `discardDraft` / `enterTextOnly`（計算） | desktop/OpenDocument.kt・session/DocumentState.kt | ソースの下書き（文字列・カーソル・解析エラー）の所有と、木との同期 |
 | `SourceHistorySync` | text/SourceHistorySync.kt | 履歴の値を優先した書式の差し込みと、全 YAML 文書の再解析による内容一致の確認 |
 | `SourcePane` / `SourceDraftBanner` | ui/SourcePane.kt | ソースの表示と入力（入力が止まってから背景で解析）。他のタブに出す書きかけ・壊れたまま保存のバナー |

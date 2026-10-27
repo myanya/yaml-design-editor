@@ -26,10 +26,10 @@ import kotlin.test.assertTrue
  * - 文書を開くと、スキーマの項目の名前と値がフォームに出る
  * - 閲覧専用では編集できる欄が 1 つも出ない（FormCtx.readOnly の分岐が画面まで届く）
  * - 欄に入力すると文書の木が変わり、未保存（dirty）になる
+ * - 表示が表の配列は列の見出しと行の値を並べる（FormTables）・スキーマの無い文書は汎用エディタでキーと値を出す（GenericEditor）
  * fixture は test-fixtures/workspaces/todos を一時ディレクトリへ写して使う（読み取り専用の決まり）。
  */
-// 順を名前で固定する: 入力のテストが最初に走ると、描画と入力の初回の準備が重なって 10〜16 秒かかった（名前順なら 3 本で約 7.5 秒）
-@org.junit.FixMethodOrder(org.junit.runners.MethodSorters.NAME_ASCENDING)
+// 時間: 続けて回すと 5 本で約 9 秒。クラスを作り直した直後の 1 回目だけ、最初のテストが 10〜16 秒かかることがある（手元の Windows。順には依らない）
 @OptIn(ExperimentalTestApi::class)
 class FormViewUiTest {
 
@@ -53,13 +53,18 @@ class FormViewUiTest {
     }
 
     /** 個票 TODO-001 を開いた状態。 */
-    private fun openTodo(readOnly: Boolean = false): Pair<AppState, OpenDocument> {
+    private fun openTodo(readOnly: Boolean = false): Pair<AppState, OpenDocument> = open("todos/details/TODO-001.yaml", readOnly)
+
+    private fun open(rel: String, readOnly: Boolean = false): Pair<AppState, OpenDocument> {
         val state = AppState()
         state.openWorkspace(dir)
         state.readOnlyMode = readOnly
-        state.openFile(dir.resolve("todos/details/TODO-001.yaml"))
+        state.openFile(dir.resolve(rel))
         return state to state.openDoc!!
     }
+
+    private fun SemanticsNodeInteractionsProvider.shows(text: String): Boolean =
+        onAllNodes(hasText(text), useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
 
     private fun SemanticsNodeInteractionsProvider.count(text: String): Int =
         onAllNodesWithText(text, useUnmergedTree = true).fetchSemanticsNodes().size
@@ -91,6 +96,25 @@ class FormViewUiTest {
             setContent { FormView(state, doc) }
             assertTrue(editableCount() > 0, "通常のモードで編集できる欄が無い")
         }
+    }
+
+    @Test
+    fun `表示が表の配列は列の見出しと行の値を並べる`() = runComposeUiTest {
+        val (state, doc) = open("todos/todo-list.yaml")
+        setContent { FormView(state, doc) }
+        for (header in listOf("ID", "タイトル", "カテゴリ")) assertTrue(count(header) > 0, "列の見出し「$header」が出ていません")
+        for (value in listOf("TODO-001", "サンプルTODO一覧の作成", "TODO-005", "期限順ビューで予定を確認する")) {
+            assertTrue(shows(value), "行の値「$value」が出ていません")
+        }
+    }
+
+    @Test
+    fun `スキーマの無い文書は汎用エディタでキーと値を出す`() = runComposeUiTest {
+        Files.writeString(dir.resolve("todos/free.yaml"), "memo: 自由に書いた文書\nitems:\n  - 一つ目\n  - 二つ目\n")
+        val (state, doc) = open("todos/free.yaml")
+        assertTrue(doc.schema == null, "この文書にはスキーマが当たらない前提")
+        setContent { FormView(state, doc) }
+        for (text in listOf("memo", "自由に書いた文書", "items", "一つ目", "二つ目")) assertTrue(shows(text), "「$text」が出ていません")
     }
 
     @Test

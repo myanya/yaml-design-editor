@@ -13,7 +13,14 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 | `ActivityRail` / `LedgerSpace` | ui/Shell.kt | 5 スペースを切り替えるレールと、一覧・ビューグリッド・グラフ・エンティティをタブで束ねる台帳スペース |
 | `RunController` / `RunsSpace` | ui/RunsSpace.kt | 実行スペース（受信箱・手動実行・自動化・計測評価）。実行状態機械（AppRoot 生存期間） |
 | `DesignSpace` | ui/DesignSpace.kt | 設計スペース（定義文書の種類別カタログ・新規作成・スキーマ推測・skill） |
-| `FormView` / `FormCtx` / `ObjectFields` / `FieldRow` | ui/FormView.kt | スキーマ駆動フォームと汎用エディタ（中核 UI） |
+| `FormView` / `DocumentMetadataEditor` / `SameIdOccurrencesStrip` | ui/FormView.kt | フォームの入口（文書を開いたときの描画の振り分け）・文書の情報・同じ ID の出現の帯 |
+| `FormCtx` / `defaultNode` / `autoValueHint` | ui/FormCtx.kt | フォームの文脈（編集の入口・閲覧専用の封じ・展開の覚え）と項目の既定値 |
+| `SchemaRootForm` / `DocViewSections` | ui/FormDocView.kt | スキーマ駆動フォームの既定の描画と、文書ビューの節・被参照の表 |
+| `ObjectFields` / `FieldRow` / `FormFieldLayout` / `ValueEditor` | ui/FormFields.kt | フォームの骨組み: 項目の並び・1 行の形・値の種類で編集欄を選ぶ・型の不一致の直し |
+| `ScalarTextEditor` / `BooleanEditor` / `EnumEditor` / `IdEditor` | ui/ScalarEditors.kt | 一つの値の編集欄（文字・真偽・選択肢・ID） |
+| `RefEditor` / `RefScalarEditor` / `DocRefScalarEditor` | ui/RefEditors.kt | 参照の編集欄（エンティティへの参照・文書への参照。参照先の名前と飛び先） |
+| `ArrayEditor` / `NestedObjectEditor` / `MapEditor` | ui/CollectionEditors.kt | 入れ物の編集欄（配列・入れ子のオブジェクト・map。畳みと要約） |
+| `GenericEditor` / `GenericMapEntryRow` | ui/GenericEditor.kt | 汎用エディタ（スキーマの無い文書・スキーマの外のキー。キーの改名は表記と順序を保つ） |
 | `isStructuredFormValue` / `stackFormField` | ui/FormLayout.kt | 解決済みの型・実際の値と利用可能幅によるフォーム配置の判定（純ロジック） |
 | `FieldHelp` / `FieldHelpPosition` | ui/FieldHelp.kt | 説明の短い表示とホバー・固定表示、画面内への位置調整 |
 | `TextFieldEscape` | ui/TextFieldEscape.kt | Esc の一押しと変換状態を追跡し、候補の閉鎖とフォーカス解除を分ける |
@@ -21,7 +28,7 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 | `ChoiceMenuItem` | ui/ChoiceMenuItem.kt | 選択一覧の現在値をチェック・背景色・selected で示す共通行 |
 | `ChoiceMenu`・`ChoiceOption` | ui/ChoiceMenu.kt・ChoiceOptions.kt | 高さ制限・遅延描画・現在値への初期スクロール・検索・説明全文を共有 |
 | `FlowViewPane` / `EmbeddedFlowPane` | ui/FlowViewPane.kt | 図と原本フォームを併記する単独・埋め込み表示（[views](views.md)） |
-| `ObjectTable` / `ArrayTable` / `MapTable` / `RefCell` / `tableColumnWidths` | ui/FormView.kt | 配列と map のテーブル表示（参照セルは ID・参照先の名前・横ぐしへの Hub） |
+| `ObjectTable` / `ArrayTable` / `MapTable` / `RefCell` / `tableColumnWidths` | ui/FormTables.kt | 配列と map のテーブル表示（参照セルは ID・参照先の名前・横ぐしへの Hub） |
 | `AppToolbar` / `PaneHeader` / `UiTooltip` | ui/AppToolbar.kt | 全体メニュー・移動と検索・左右ペインの開閉・操作名の補足 |
 | `Highlightable` / `slotAt` / `CompactTextField` / `Palette` / `PanelShape` / `AppFonts` | ui/Common.kt | ハイライトとスクロール・Slot の解決・共通の入力欄と色と角丸・同梱フォント（等幅 Cica。資源が無ければ OS の等幅へ戻す） |
 | `VirtualTable` / `TableColumn` / `visibleColumnRange` | ui/VirtualTable.kt | 共通の表。見出し行と左の固定列は動かず、行は遅延描画、列は見える範囲だけ組み立てる（ビューグリッド・一覧ビューが使う） |
@@ -74,6 +81,7 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 ## フォームと FormCtx
 
 - `FormCtx` が編集操作（`writeScalar`・`markEdited`）と参照解決（`resolvable`）・対象文書（`doc`）・既定の展開（`defaultExpanded`）・ハイライト（`highlightInside`）・指摘（`issues`）・アタッチ（`attachments`）・AI の関連文書（`aiRelatedFiles`）を仲介する。フォームを再利用する画面（エンティティページ・ビューグリッド・文書ビュー）へ自動で波及する。
+- フォームは 9 つのファイルに分かれる（部品の表の FormView.kt〜GenericEditor.kt）。入口と文脈・骨組み・値の種類ごとの編集欄・表・汎用エディタの順に下へ使う。ファイルの間で使う宣言だけ `internal` にする。
 - object の子フィールドは `ObjectFields`（`effectiveFields` 経由）で描く。列挙を複製しない。
 - 項目名と入力欄は `FormFieldLayout` で配置する。解決済みの型が object・map・array、または実値が Map・Seq なら項目名の下へ全幅で並べ、単一値は幅が狭いときだけ縦に並べる。
 - 配置判定は `FormLayout` に集約し、文書メタデータ・スキーマの項目・型付き map・汎用 map で共用する。未作成の複合型も縦配置とし、属性付き参照・any・型不一致の残留値は実値の構造も見る。
@@ -198,7 +206,7 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 
 - **新しい画面**: スペース内の常設画面として `ui/` に 1 ファイル。状態はコンポーザブルの外に置く（見え方は `ScreenMemory`、実行のような長い処理の状態は専用のコントローラ）。
 - **新しい編集面**: `FormCtx` を通し、書込は `Slot` ＋ `markEdited()`。連続入力なら合体キー（[editing-history.md](editing-history.md)）。
-- **基底の種類の追加**: `FormView.ValueEditor` に分岐を足す（他の変更箇所は [schema.md「拡張ポイント」](schema.md)）。組込みの型に専用の編集欄を付けるときは `FieldType` の分岐でなく、解決した項目の連鎖で判定する（`isA(BuiltinTypes.TEXT)` が複数行の欄を出す例）。
+- **基底の種類の追加**: `ValueEditor`（ui/FormFields.kt）に分岐を足し、編集欄は種類のファイル（ScalarEditors.kt・RefEditors.kt・CollectionEditors.kt）に置く（他の変更箇所は [schema.md「拡張ポイント」](schema.md)）。組込みの型に専用の編集欄を付けるときは `FieldType` の分岐でなく、解決した項目の連鎖で判定する（`isA(BuiltinTypes.TEXT)` が複数行の欄を出す例）。
 - **横断ビューの追加**: `LedgerSpace` のタブと `workspaceView` の分岐に足す。
 
 ## ファイル一覧と参考資料

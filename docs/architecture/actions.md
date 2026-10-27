@@ -23,7 +23,7 @@
 | `AppState.ActionWork` / `startAction` / `planAction` / `applyAction` / `switchInsertToAction` ほか | desktop/AppState.kt | 画面からの操作の作業（対象の欄の木 `targetHolder`・受け取る値の仮の文書・計画・結果・パネルの開閉 `actionPanelOpen`・追加の作業からアクションへの橋渡し。入口はどれも `startAction`） |
 | `ActionPlanner.insertingInto` | workspace-core/workspace/ActionPlanner.kt | その文書のその配列へ足すアクション（手の insert の `in` と `path`、受け手の文書）。追加のパネルの「操作に切り替える」の候補 |
 | `ActionTabContent` / `ActionPanelHost` / `TargetPicker` | ui/ActionPane.kt | 右ペインの「操作」タブ（使える操作の一覧と作業中の開き直し）と、浮いたパネル（対象の欄・受け取る値のフォーム・要約・検証・差分・適用） |
-| `ElementOpsButton`（ui/FormView.kt）・`IdCell` の ⋯（ui/ViewGridPane.kt） | ui/ | フォームの配列の行とビューグリッドの行の操作メニュー（その要素を対象にして `startAction`） |
+| `ElementOpsButton`（ui/FormTables.kt）・`IdCell` の ⋯（ui/ViewGridPane.kt） | ui/ | フォームの配列の行とビューグリッドの行の操作メニュー（その要素を対象にして `startAction`） |
 
 ## 流れ
 
