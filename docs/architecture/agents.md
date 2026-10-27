@@ -9,14 +9,17 @@
 |---|---|---|
 | `AgentDef` / `ActivityDef` / `Definitions` / `ContextItemDef` / `ChainDef` | agent/Definitions.kt | `_agents` / `_activities` の実行時ロード（エラー収集つき）。フォーム編集と検証は組込みスキーマ |
 | `AgentKernel` / `AgentHost` | agent/Kernel.kt | ツール使用ループ。上限（ターン・トークン・時間）・終了手続きの強制・質問の中継・イベント通知・`consult`（委譲）・初期文脈の組み立て（`initialContextSections`） |
-| `AgentToolbox` | agent/Tools.kt | 13 ツール（探索 5・編集 2・検証 1・対話 2・管理 3）と書込権限のツール側での強制。`contextItemSection`・`relatedText`・`entityText`・`viewText`・`traverseText`・`refsFooterText` |
-| `Staging` | agent/Staging.kt | 作業オーバーレイ（パッチ記録・新規文書・オーバーレイ索引・影響ファイルを含む横断検証・変更セット化・`newErrors`） |
+| `Toolset` / `Tool` / `ToolContext`・`ToolPolicy` | app-core tools/Toolset.kt・Tool.kt・ToolContext.kt | 中核のツール（読む 8・作業コピーへ書く 2・検証 1・許可した操作）と書込権限のツール側での強制。入口（agent・MCP・CLI）に依らず、引数と結果は JSON の値 |
+| `Readouts` | app-core tools/Readouts.kt | 読み出しの文（`catalogText`・`phaseText`・`viewText`・`traverseText`・`relatedText`・`entityText`・`refsFooterText`・`sampleText`・`validationText`）。ツールの結果と初期文脈が共用 |
+| `WorkingCopy` | app-core tools/WorkingCopy.kt | 作業コピー（パッチ記録・新規文書・重ねた索引・影響ファイルを含む横断検証・変更セット化・`newErrors`）。`Staging` の土台 |
+| `AgentToolbox` | agent/Tools.kt | `Toolset` をアクティビティのツール分類で選んで `ToolSpec` に包む。ask_human・delegate・plan・note・submit_changeset・abort はここだけ。`contextItemSection`（レシピ項目 → 読み出しの文） |
+| `Staging` | agent/Staging.kt | `WorkingCopy` に定義文書のゲート（ステージした定義が実際のローダで読めること）を足したもの |
 | `RunLog` / `RunMetrics` | agent/RunLog.kt・Metrics.kt | 実行記録の保存（会話記録・`exchange`・会計）と集計 |
 | `AutomationEngine` / `AutoApply` | agent/Automation.kt・AutoApply.kt | トリガ監視（`tick`）・直列キュー（`processOnce`）・承認・連鎖・リトライ・停止・巻き戻し可能な適用 |
 | `Foreach` | agent/Foreach.kt | 一括実行の対象列挙 |
 | `Evals` / `EvalRunner` | agent/Evals.kt | 評価セットと比較実験（サンドボックスコピー上） |
 | `GenerationRun` | agent/Generation.kt | AI 生成のカーネル統合（1 ターンで提出する特殊アクティビティ） |
-| `AiGenerator` / `OpenAiGenerator` / `AnthropicGenerator` | ai/ | スキーマ → JSON Schema・参照候補の enum 制約・プロバイダ振り分け・各 API のリクエスト構築とレスポンス解析 |
+| `AiGenerator` / `OpenAiGenerator` / `AnthropicGenerator` | agent/llm/ | プロバイダ振り分け・各 API のリクエスト構築とレスポンス解析（スキーマ → JSON Schema と参照候補の enum 制約は app-core の tools/JsonSchemas.kt） |
 | `ToolChat` / `ToolChatSession` | agent/llm/ToolChat.kt | ツール使用対応のチャット抽象と OpenAI Responses / Anthropic Messages 実装（prompt caching の印つけ） |
 | `AiConnection` / `AiHttp` | agent/llm/Connection.kt・Http.kt | OpenAI 互換の接続先の解決と、HttpClient の単一ファクトリ（プロキシ・Basic 認証・リトライ） |
 | `Traverse` | core/Traverse.kt | 経路パターンの多段トラバース（`neighborIds` の上の emit レンダラ） |
@@ -33,9 +36,9 @@
 
 ## エージェント実行と Staging
 
-- **編集は必ずステージング経由**。`Staging` がベース内容のスナップショットに対するオーバーレイとしてパッチを記録し、提出物はそのまま変更セットになる。原本はレビュー承認まで変わらない。
+- **編集は必ずステージング経由**。`Staging`（app-core の作業コピー `WorkingCopy`）がベース内容のスナップショットに対するオーバーレイとしてパッチを記録し、提出物はそのまま変更セットになる。原本はレビュー承認まで変わらない。
 - **検証は「ステージ済み＋影響ファイル」**。影響ファイル＝ステージ対象が変更前後に定義する ID の参照元。ID 改名で壊れる参照元をステージング外でも検出しつつ、無関係な既存エラーで提出を塞がない。
-- **権限はツール側で強制**。許可ファイル glob・許可パス glob・予約ディレクトリの書込禁止は `AgentToolbox` が拒否する。定義文書（`_agents` / `_activities` / `_evals` / `_skills` / `_views`）への書込は `meta: true` のアクティビティのみ。`meta` かつ `approval: auto` はロード時に定義エラー。`_schemas` / `_runs` は meta でも書込不可。
+- **権限はツール側で強制**。許可ファイル glob・許可パス glob・予約ディレクトリの書込禁止は app-core の `Toolset`（`ToolPolicy`）が拒否する。`AgentToolbox` はアクティビティの定義を `ToolPolicy` に写し、分類で選んで `ToolSpec` に包むだけ。定義文書（`_agents` / `_activities` / `_evals` / `_skills` / `_views`）への書込は `meta: true` のアクティビティのみ。`meta` かつ `approval: auto` はロード時に定義エラー。`_schemas` / `_runs` は meta でも書込不可。
 - 実行直前にも `specs()` の許可ツール名と照合する。非許可の呼出は、引数の解釈やステージングより前に拒否する。
 - **操作のツール**（[actions.md](actions.md)）: アクティビティの `actions` で許可した操作（アクションの id か `型名.操作名`）が 1 つずつツールになる（ツール名は `action_` ＋名前。`.` と ASCII 以外は `_`）。引数は受け取る値の定義から JSON Schema にし、受け手は `target`。
 - 操作の実行はステージングを重ねたセッション（`ws.mirror.fork()` に置き換え・作成を当てる）で計画し、変更セットをステージングへ積む。許可した操作は人が許可した手順なので `allowedFiles` / `allowedPaths` は見ない（予約ディレクトリと台帳の外は不可）。ツールの分類 `actions` を外すか、許可一覧が無ければツールは出ない。無い操作を許可した定義は実行を始められない。
@@ -130,7 +133,7 @@
 ## 拡張ポイント
 
 - **AI プロバイダの追加**: OpenAI 互換なら `AiConnection` で足りる。独自 API は `AiProvider` に enum を足し、`AiGenerator.generate` の分岐と専用クライアント・`ToolChat.newSession` の分岐を実装する。HTTP 送信は `AiHttp.post`。
-- **ツールの追加**: `AgentToolbox` に足し、書込権限の強制と実行記録への載せ方を揃える。
+- **ツールの追加**: 中核なら app-core の `Toolset`（`coreTools`）に、拡張なら `extra` で足す（引数と結果は JSON の値。書込は作業コピー越し）。会話の相手が要るものだけ `AgentToolbox` に置く。書込権限の強制と実行記録への載せ方を揃える。
 - **レシピ項目の追加**: `ContextItemDef` のパース・`contextItemSection` の解決・`builtin-activity` メタスキーマをそろえて更新する。
 - **入出力形式の追加**: `TableFormat` に enum を足し、`Tables.kt` の read / write に分岐を実装する。
 - **出発点のテンプレートの追加**: `templates/` に置く（[workspace.md「ワークスペースの初期化」](workspace.md)）。skill を含むテンプレートも、展開後の検証エラー 0 を `WorkspaceTemplatesTest` が保証する。

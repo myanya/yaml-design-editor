@@ -112,10 +112,8 @@ class DashboardsTest {
     @Test
     fun `エージェントも指定日の同じ報告を読みステージングだけを重ねる`() {
         val ws = Workspace.open(dir)
-        val staging = dev.toros.yde.agent.Staging(ws)
-        val activity = dev.toros.yde.agent.ActivityDef("inspect", "確認", agentId = "test", instruction = "確認",
-            source = dir.resolve(".yde/activities/inspect.yaml"))
-        val toolbox = dev.toros.yde.agent.AgentToolbox(ws, staging, activity, setOf(dev.toros.yde.agent.ToolGroup.EXPLORE))
+        val staging = dev.toros.yde.app.tools.WorkingCopy(ws)
+        val toolbox = dev.toros.yde.app.tools.Readouts(dev.toros.yde.app.tools.ToolContext(ws, staging))
         val cli = YamlIO.parseToRaw(runCli(arrayOf("view", dir.toString(), "home", "--date", date.toString())))
         assertEquals(cli, YamlIO.parseToRaw(toolbox.viewText("home", date = date.toString())))
         staging.applyOps("data/details/T-A.yaml", listOf(dev.toros.yde.yaml.patch.PatchOp.Set(parseYPath("status"), dev.toros.yde.yaml.model.YNode.Scalar("CLOSED"))))

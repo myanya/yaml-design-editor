@@ -3,7 +3,7 @@ package dev.toros.yde.desktop.ui
 import dev.toros.yde.agent.GenerationRun
 import dev.toros.yde.agent.llm.AiGenerationInput
 import dev.toros.yde.agent.llm.AiProvider
-import dev.toros.yde.agent.llm.RefCandidate
+import dev.toros.yde.app.tools.RefCandidate
 import dev.toros.yde.agent.llm.ReferenceDoc
 import dev.toros.yde.app.schema.SchemaDef
 import dev.toros.yde.semantic.schema.RefTarget

@@ -61,18 +61,19 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 | | `app.index` | 索引のファサード（`IdIndex`。カーネルの型の別名）・クエリの窓口 |
 | | `app.schema` | `SchemaDef`（カーネルのスキーマにファイルの場所を足す薄い型）・`SchemaLoader`・表示解決 `Display`・ID 候補・スキーマ推測 |
 | | `app.validate` | `Validator`（窓口）・`Readiness` |
+| | `app.tools` | ツールの一式（ADR-0013「窓口の形」）: 中核のツール `Toolset`・`Tool`・`ToolContext`／`ToolPolicy`・作業コピー `WorkingCopy`・読み出しの文 `Readouts`・JSON の値と JSON Schema の変換（`JsonValues` / `JsonSchemas`）。入口（agent の LLM 宣言・MCP・CLI）が包む |
 | | `app.session` | セッション側の状態（Compose 非依存）: `DocumentSession`（コアとカーネルの保持・索引の写し・開いている文書・未保存編集を重ねた索引と派生・編集の記録・開き直しと同期）と 1 文書の論理 `DocumentState`。再読込・保存・履歴の一手・全体検証と検索・一括変更・リファクタリング・文書の作成・配置の計画と前後・操作（アクション）の論理もここ。画面側に残るのは開く手順と場所・通知・パネルの作業 |
 | | `app.text` | 純粋な文字の計算（行の差分と 3 者併合 `LineMerge`・履歴の値を優先した書式の差し込み `SourceHistorySync`） |
 | | `app.skill` | 入出力変換（skill 定義・表形式の読み書き・インポート・エクスポート） |
-| agent | `agent` | エージェント実行（定義・ステージング・ツールセット・カーネル・実行記録・自動化・メトリクス・評価）。書き込みはステージング → 変更セット → app-core の適用だけ。run・auto・eval への分割はファイルの循環を解いてから |
+| agent | `agent` | エージェント実行（定義・ステージング＝作業コピー＋定義文書のゲート・中核のツールを LLM 向けに包む `AgentToolbox`・カーネル・実行記録・自動化・メトリクス・評価）。書き込みはステージング → 変更セット → app-core の適用だけ。run・auto・eval への分割はファイルの循環を解いてから |
 | | `agent.llm` | LLM との接続（`AiGenerator`・各プロバイダの生成器・`Connection`・`Http`・ツール呼び出しの往復 `ToolChat`） |
 | アプリ（root） | `desktop` | `Main.kt`（エントリポイント・ウィンドウ・ショートカット・スタート画面）・`AppState` / `OpenDocument` |
 | | `desktop.ui` | Compose の画面一式（骨格は `ui/Shell.kt`） |
 | | `app.cli` | root の CLI（`cli/Cli.kt`。探索・検索・検証・エージェント・入出力。CLI の一本化で cli モジュールへ寄せる） |
 | | `desktop.format` | xlsx / docx の読み書き（POI）の実装 `PoiTables`。入口が `skill.Tables.binary` に登録する |
 
-応用層の中の依存は `app.core` → `app.session` → `app.skill`（app-core）→ `agent.llm` → `agent`（agent）→ `desktop`（AppState・`app.cli`・`desktop.format`）→ `desktop.ui` の一方向。`app.index` / `app.schema` / `app.validate` / `app.text` は `app.core` より下。
-app-core（`app.core` / `app.index` / `app.schema` / `app.validate` / `app.text` / `app.session` / `app.skill`）と agent（`agent` / `agent.llm`）は Compose 非依存の純粋ロジックで、単体テストはこの層に書く。`desktop`（AppState）は `mutableStateOf` だけに依存する。
+応用層の中の依存は `app.core` → `app.session` → `app.tools` → `app.skill`（app-core）→ `agent.llm` → `agent`（agent）→ `desktop`（AppState・`app.cli`・`desktop.format`）→ `desktop.ui` の一方向。`app.index` / `app.schema` / `app.validate` / `app.text` は `app.core` より下。
+app-core（`app.core` / `app.index` / `app.schema` / `app.validate` / `app.text` / `app.session` / `app.tools` / `app.skill`）と agent（`agent` / `agent.llm`）は Compose 非依存の純粋ロジックで、単体テストはこの層に書く。`desktop`（AppState）は `mutableStateOf` だけに依存する。
 
 ## ソース規則テスト
 

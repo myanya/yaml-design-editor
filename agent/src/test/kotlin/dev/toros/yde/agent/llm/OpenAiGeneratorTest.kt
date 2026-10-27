@@ -1,5 +1,6 @@
 package dev.toros.yde.agent.llm
 
+import dev.toros.yde.app.tools.fieldToJsonSchema
 import dev.toros.yde.semantic.schema.FieldHints
 import kotlinx.serialization.json.*
 import dev.toros.yde.yaml.model.YNode

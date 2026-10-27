@@ -63,7 +63,7 @@ scripts/docs-lint.sh                        # 文書の形の機械チェック
 - 値の式は項目の印 `expression: true` だけが決める。読み取り `ExpressionFields`・評価 `SemanticValues`。独自の `{…}` 穴埋めを書かない。`[*]` を含むパスは `PathPattern`（`-1` 置換を書かない）。値は項で、集計は配列を受け取る関数、集合から値へは `all` だけ。順序の種類（数値・日付など）は読んだ項目の型から（環境の `fieldAt`。表記から決めない） → architecture/schema.md「値の式」
 - 要素の 1 行要約は `schema/Display` に一元化。enum の label は表示専用で、検証と AI 制約は `value` → architecture/index-references.md「表示解決」
 - フォームの編集 UI は `FormCtx` を通し `ctx.readOnly` の分岐を入れる。長く続く作業はスペース内の常設画面で、浮いたパネル（AlertDialog）にしてよいのは値を集めて 1 回で適用する短い作業と確認だけ。全体のショートカットは `Main.kt` の `handleShortcut` → architecture/ui.md「UI シェル」
-- エージェントの編集は `agent/Staging` 経由。適用の本体はカーネルの `ChangeSetApplier` で、root に適用規則を書かない → architecture/workspace.md「変更セットの適用」
+- エージェントの編集は `agent/Staging`（app-core の作業コピー `WorkingCopy`）経由。ツールの本体は app-core の `tools/Toolset`（入口は包むだけ）。適用の本体はカーネルの `ChangeSetApplier` で、root に適用規則を書かない → architecture/workspace.md「変更セットの適用」
 - 検査はまず定義体（`builtin-definitions/*.yaml`）とメタスキーマで書く。検証の組み立てと配り方はカーネルにあり、root の `Validator` に検査を書き足さない → architecture/checks.md「定義層の 3 段」・architecture/checks.md「文書 1 つの検証」
 - 検査の結果は 4 つ（違反・充足・保留・対象外）。「指摘が出ない＝充足」と判定しない。同じ指摘かは `IssueSource.identity` で見る → architecture/checks.md「4 つの結果」
 - 全体を回す検証は `shareEvaluations = true` を渡す。ただし索引に重ねていない内容の検証では渡さない → architecture/checks.md「評価は 1 回」

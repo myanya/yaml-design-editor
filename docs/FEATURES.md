@@ -171,8 +171,8 @@
 | A-01 | フィールド単位の生成（✨） | `ui/AiGenerationDialog.kt`, `ui/FormView.kt` | 手動 | [agents](architecture/agents.md) |
 | A-02 | 配列への候補追加と全体置き換え | `ui/AiGenerationDialog.kt`（`combineProposal`） | 単体 `AiProposalTest` | [agents](architecture/agents.md) |
 | A-03 | 文書全体の生成（`_document` は保持） | `ui/AiGenerationDialog.kt`（`replaceInClone`） | 単体 `AiProposalTest` | [agents](architecture/agents.md) |
-| A-04 | JSON Schema による Structured Outputs（`map` / `any` を含むとプロンプト指示へ後退） | `agent/llm/AiGenerator.kt`（`fieldToJsonSchema`） | 単体 `OpenAiGeneratorTest`, `MetaSchemaTest` | [agents](architecture/agents.md) |
-| A-05 | 参照候補の enum 制約（200 件超は省略） | `agent/llm/AiGenerator.kt`（`refCandidateIds`） | 単体 `AiGeneratorTest` | [agents](architecture/agents.md) |
+| A-04 | JSON Schema による Structured Outputs（`map` / `any` を含むとプロンプト指示へ後退） | `tools/JsonSchemas.kt`（`fieldToJsonSchema`） | 単体 `OpenAiGeneratorTest`, `MetaSchemaTest` | [agents](architecture/agents.md) |
+| A-05 | 参照候補の enum 制約（200 件超は省略） | `tools/JsonSchemas.kt`（`refCandidateIds`） | 単体 `AiGeneratorTest` | [agents](architecture/agents.md) |
 | A-06 | 適用前の差分プレビューと適用後検証・Undo できる適用 | `ui/AiGenerationDialog.kt` | 手動 | [agents](architecture/agents.md) |
 | A-07 | プロバイダ切替（OpenAI Responses・Anthropic Messages・Azure）・API キーはメモリのみ | `agent/llm/OpenAiGenerator.kt`, `agent/llm/AnthropicGenerator.kt` | 単体（レスポンス解析） | [agents](architecture/agents.md) |
 | A-08 | 生成のキャンセルとエラー処理 | `ui/AiGenerationDialog.kt`, `ai/*Generator.kt` | 単体（一部） | [agents](architecture/agents.md) |
@@ -191,11 +191,11 @@
 | ID | 機能 | 主な実装 | テスト | 設計 |
 |---|---|---|---|---|
 | AG-01 | エージェント定義 `_agents`（persona・観点・モデル設定・ツール許可） | `agent/Definitions.kt` | 単体 `DefinitionsTest` | [agents](architecture/agents.md) |
-| AG-02 | アクティビティ定義 `_activities`（対象・指示・文脈・書込許可・上限・提出ゲート `error-free` / `no-new-errors` / `none`） | `agent/Definitions.kt`, `agent/Staging.kt`（`newErrors`） | 単体 `DefinitionsTest`, `KernelTest` | [agents](architecture/agents.md) |
+| AG-02 | アクティビティ定義 `_activities`（対象・指示・文脈・書込許可・上限・提出ゲート `error-free` / `no-new-errors` / `none`） | `agent/Definitions.kt`, `tools/WorkingCopy.kt`（`newErrors`） | 単体 `DefinitionsTest`, `KernelTest` | [agents](architecture/agents.md) |
 | AG-03 | ツール使用対応 LLM クライアント（OpenAI・Anthropic の function calling） | `agent/llm/ToolChat.kt` | 単体 `ToolChatParseTest` | [agents](architecture/agents.md) |
 | AG-04 | 実行カーネル（マルチターン・上限・終了手続き・キャンセル・疑似セッション注入） | `agent/Kernel.kt` | 単体 `KernelTest` | [agents](architecture/agents.md) |
-| AG-05 | ツールセット（探索 5・編集 2・検証 1・対話 2・管理 3・許可ツール名と書込権限を実行時に強制） | `agent/Tools.kt` | 単体 `KernelTest`, `ToolsTest` | [agents](architecture/agents.md) |
-| AG-06 | ステージング（複数文書のオーバーレイ・横断検証・未提出ドラフトの保全） | `agent/Staging.kt` | 単体 `StagingTest` | [agents](architecture/agents.md) |
+| AG-05 | ツールの一式（中核＝読む 8・書く 2・検証 1・許可した操作は app-core の `Toolset`。対話 2・管理 4 は agent。許可ツール名と書込権限を実行時に強制） | `tools/Toolset.kt`, `agent/Tools.kt` | 単体 `ToolsetTest`, `KernelTest`, `ToolsTest` | [agents](architecture/agents.md) |
+| AG-06 | ステージング（複数文書のオーバーレイ・横断検証・未提出ドラフトの保全） | `tools/WorkingCopy.kt`, `agent/Staging.kt` | 単体 `StagingTest` | [agents](architecture/agents.md) |
 | AG-07 | 変更セットレビュー UI（ファイル単位の部分採用・再検証・差分・適用・状態は `RunController`） | `ui/RunsSpace.kt`（`ReviewContent`, `RunController`） | 手動 | [agents](architecture/agents.md) |
 | AG-08 | 実行中の対話（`ask_human` の質問カード・計画とメモの進捗・キャンセル） | `agent/Kernel.kt`, `ui/RunsSpace.kt`（`QuestionCard`） | 単体 `KernelTest` | [agents](architecture/agents.md) |
 | AG-09 | 実行記録 `_runs`（ターン・ツール呼び出し・採否・トークン・会話記録） | `agent/RunLog.kt`, `agent/Kernel.kt` | 単体 `KernelTest`, `AutoApplySafetyTest` | [agents](architecture/agents.md) |
@@ -211,17 +211,17 @@
 | AG-19 | 実行メトリクス（提出率・採用率・却下ファイル率・トークン・CLI `metrics`） | `agent/Metrics.kt` | 単体 `MetricsTest` | [agents](architecture/agents.md) |
 | AG-20 | 評価セット `_evals`（ゴールデン入力と期待結果・サンドボックスコピー上で実行・CLI `eval`） | `agent/Evals.kt` | 単体 `EvalTest` | [agents](architecture/agents.md) |
 | AG-21 | 比較実験（`variants` でモデル・エージェント・指示を差し替えた A/B） | `agent/Evals.kt`（`EvalRunner`） | 単体 `EvalTest` | [agents](architecture/agents.md) |
-| AG-22 | メタアクティビティ（`meta: true` で定義文書への提案・承認は human 固定） | `agent/Definitions.kt`, `agent/Tools.kt` | 単体 `MetaActivityTest` | [agents](architecture/agents.md) |
+| AG-22 | メタアクティビティ（`meta: true` で定義文書への提案・承認は human 固定） | `agent/Definitions.kt`, `tools/Toolset.kt` | 単体 `MetaActivityTest` | [agents](architecture/agents.md) |
 | AG-23 | 自己改善 UI（計測・評価タブ） | `ui/ImprovementPanel.kt` | 手動 | [agents](architecture/agents.md) |
-| AG-24 | ビューの開示（`read_view`・行 × 列を原本座標つきで返し `apply_patch` の対象にできる） | `agent/Tools.kt`（`viewText`） | 単体 `ViewsTest` | [agents](architecture/agents.md) |
-| AG-25 | 段階的詳細化の導線（`related` が各出現の要約・フェーズ・進捗を 1 回で返す） | `agent/Tools.kt`（`relatedText`）, `core/Disclosure.kt` | 単体 `ToolsTest`, `KernelTest` | [agents](architecture/agents.md) |
+| AG-24 | ビューの開示（`read_view`・行 × 列を原本座標つきで返し `apply_patch` の対象にできる） | `tools/Readouts.kt`（`viewText`） | 単体 `ViewsTest` | [agents](architecture/agents.md) |
+| AG-25 | 段階的詳細化の導線（`related` が各出現の要約・フェーズ・進捗を 1 回で返す） | `tools/Readouts.kt`（`relatedText`）, `core/Disclosure.kt` | 単体 `ToolsTest`, `KernelTest` | [agents](architecture/agents.md) |
 | AG-26 | 一括実行 `foreach`（source: view / issues / search / files / ids / query・1 件 = 1 実行のキュー展開・GUI と CLI） | `agent/Foreach.kt`, `agent/Automation.kt`（`enqueueForeach`） | 単体 `ForeachTest` | [agents](architecture/agents.md) |
 | AG-27 | コンテキスト会計（初期文脈の区分別トークン・送信別実測・キャッシュ読取の正規化） | `agent/Kernel.kt`（`initialContextSections`）, `agent/RunLog.kt` | 単体 `KernelTest`, `MetricsTest` | [agents](architecture/agents.md) |
 | AG-28 | コンテキストレシピ（`context.items`: catalog / phase / view / doc / related / sample・`when`・`budgetChars`・既定は空） | `agent/Definitions.kt`（`ContextItemDef`）, `agent/Kernel.kt` | 単体 `DefinitionsTest`, `KernelTest` | [agents](architecture/agents.md) |
-| AG-29 | 参照の名前解決とツール減量（参照の解決フッタ・タイトル注記・`limit` / `rows` / `columns` / `match` 引数） | `agent/Tools.kt`, `core/Views.kt`（`refAnnotatedCellText`） | 単体 `ToolsTest` | [agents](architecture/agents.md) |
-| AG-30 | グラフトラバース（`start` と `steps` の経路パターン・レシピ `kind: graph`・ツール `traverse`・CLI） | `core/Traverse.kt`, `agent/Tools.kt`（`traverseText`） | 単体 `TraverseTest` | [agents](architecture/agents.md) |
+| AG-29 | 参照の名前解決とツール減量（参照の解決フッタ・タイトル注記・`limit` / `rows` / `columns` / `match` 引数） | `tools/Readouts.kt`, `core/Views.kt`（`refAnnotatedCellText`） | 単体 `ToolsTest` | [agents](architecture/agents.md) |
+| AG-30 | グラフトラバース（`start` と `steps` の経路パターン・レシピ `kind: graph`・ツール `traverse`・CLI） | `core/Traverse.kt`, `tools/Readouts.kt`（`traverseText`） | 単体 `TraverseTest` | [agents](architecture/agents.md) |
 | AG-31 | 評価セットの文脈レシピ A/B（`variants.context`・変異別のトークン） | `agent/Evals.kt`（`EvalVariant.contextItems`） | 単体 `EvalTest` | [agents](architecture/agents.md) |
-| AG-32 | エンティティ全体像の開示（`read_entity`・合成と両方向の関係と充足を 1 回で返す・レシピ `kind: entity`） | `agent/Tools.kt`（`entityText`）, `core/Aspects.kt` | 単体 `ToolsTest`, `KernelTest` | [agents](architecture/agents.md) |
+| AG-32 | エンティティ全体像の開示（`read_entity`・合成と両方向の関係と充足を 1 回で返す・レシピ `kind: entity`） | `tools/Readouts.kt`（`entityText`）, `core/Aspects.kt` | 単体 `ToolsTest`, `KernelTest` | [agents](architecture/agents.md) |
 
 ## 9. コア API・CLI（エージェント基盤）
 
@@ -268,7 +268,7 @@
 | OP-04 | CLI `action`（使える操作の一覧・計画＝変更セットと適用後の検証・`--apply`・`--allow-errors`） | `cli/Cli.kt` | 単体 `ActionCliTest` | [actions](architecture/actions.md) |
 | OP-05 | 操作の入口・フォームと横ぐしの対象引継ぎ・前提の無効化・確認と適用 | `ui/ActionPane.kt`, `ui/DocumentFormWorkspace.kt`, `AppState.kt` | `AppStateActionTest`・`FormOutlineTest` | [actions](architecture/actions.md) |
 | OP-06 | 検査の指摘から対象・値を指定して起動 | `workspace-core/validate/WorkspaceChecks.kt`, `ui/SidePanel.kt` | `ActionPlannerTest`, `AppStateActionTest` | [actions](architecture/actions.md) |
-| OP-07 | エージェントのツール（アクティビティの `actions` で許可した操作が `action_名前` のツールに・引数は受け取る値の定義・ステージングを重ねて計画し積む・`allowedFiles` の外でも通る） | `agent/Tools.kt`（`actionTools` / `runActionTool`）, `agent/Definitions.kt`, `builtin-schemas/activity.yaml` | 単体 `ActionToolTest` | [actions](architecture/actions.md) |
+| OP-07 | エージェントのツール（アクティビティの `actions` で許可した操作が `action_名前` のツールに・引数は受け取る値の定義・ステージングを重ねて計画し積む・`allowedFiles` の外でも通る） | `tools/Toolset.kt`（`actionTools` / `runActionTool`）, `agent/Definitions.kt`, `builtin-schemas/activity.yaml` | 単体 `ActionToolTest` | [actions](architecture/actions.md) |
 | OP-08 | 作成経路の寄せ（追加ボタン・新規行・文書の作成を型の `create` と配列の `insert` で。追加のパネルからアクションへ橋渡し） | `workspace-core/workspace/ActionPlanner.kt`, `workspace-core/workspace/DocumentScaffold.kt`, `session/DocumentSession.kt`（`arrayInsert` / `insertArrayElement`）, `desktop/AppState.kt`（`addArrayElement`） | 単体 `ActionPlannerTest`, `AppStateActionTest` | [actions](architecture/actions.md) |
 | OP-09 | 現在値・本日の入力準備と変更分の送信 | `semantic-core/schema/ActionInput.kt`, `AppState.kt` | `ActionInputTest`, `AppStateActionInputTest` | [actions](architecture/actions.md) |
 

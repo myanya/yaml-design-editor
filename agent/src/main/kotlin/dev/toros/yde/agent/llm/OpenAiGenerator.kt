@@ -1,5 +1,7 @@
 package dev.toros.yde.agent.llm
 
+import dev.toros.yde.app.tools.fieldToJsonSchema
+import dev.toros.yde.app.tools.containsMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.*
 

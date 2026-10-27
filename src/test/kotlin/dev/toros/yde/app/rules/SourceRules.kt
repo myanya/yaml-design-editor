@@ -34,6 +34,7 @@ object SourceRules {
         listOf("$APP.index", "$APP.schema", "$APP.validate", "$APP.text"),
         listOf("$APP.core"),
         listOf("$APP.session"),
+        listOf("$APP.tools"),
         listOf("$APP.skill"),
         listOf("$AGENT.llm"),
         listOf(AGENT),
@@ -42,7 +43,7 @@ object SourceRules {
     )
 
     /** Compose 非依存の純粋ロジック層。 */
-    private val purePackages = arrayOf("$APP.core", "$APP.index", "$APP.schema", "$APP.validate", "$APP.text", "$APP.session", "$APP.skill")
+    private val purePackages = arrayOf("$APP.core", "$APP.index", "$APP.schema", "$APP.validate", "$APP.text", "$APP.session", "$APP.tools", "$APP.skill")
     private val coreModules = setOf("yaml-core", "semantic-core", "workspace-core", "cli", "app-core", "agent")
 
     /** 外部の UI ライブラリの import の接頭辞と、それを包む 1 ファイル。 */
@@ -66,7 +67,7 @@ object SourceRules {
         "src/main/kotlin/dev/toros/yde/app/cli/Cli.kt",
         "agent/src/main/kotlin/dev/toros/yde/agent/Evals.kt",
         "agent/src/main/kotlin/dev/toros/yde/agent/RunLog.kt",
-        "agent/src/main/kotlin/dev/toros/yde/agent/Staging.kt",
+        "app-core/src/main/kotlin/dev/toros/yde/app/tools/WorkingCopy.kt",
         "$UI/InitWizard.kt",
         "$UI/MarkdownPane.kt",
         "workspace-core/src/main/kotlin/dev/toros/yde/workspace/DocumentStore.kt",
@@ -87,7 +88,7 @@ object SourceRules {
         },
         Rule(
             2, "app の層は一方向",
-            why = "index・schema・validate・text、core、session、skill、agent.llm、agent、desktop の根（AppState・cli・format）、desktop.ui の順に下から上へ重なり、上の層を import しない",
+            why = "index・schema・validate・text、core、session、tools、skill、agent.llm、agent、desktop の根（AppState・cli・format）、desktop.ui の順に下から上へ重なり、上の層を import しない",
             doc = "architecture/README.md「モジュールと依存方向」",
             known = listOf(
                 Known("app-core/src/main/kotlin/dev/toros/yde/app/validate/Readiness.kt", "core.Workspace を使っていて validate と core が循環している（BACKLOG）"),

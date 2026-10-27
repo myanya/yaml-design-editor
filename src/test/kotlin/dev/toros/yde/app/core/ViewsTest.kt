@@ -2,12 +2,10 @@ package dev.toros.yde.app.core
 
 import dev.toros.yde.app.cli.runCli
 import dev.toros.yde.workspace.ScaffoldSource
-import dev.toros.yde.agent.ActivityDef
-import dev.toros.yde.agent.AgentHost
-import dev.toros.yde.agent.AgentToolbox
 import dev.toros.yde.agent.Staging
-import dev.toros.yde.agent.ToolGroup
-import dev.toros.yde.agent.llm.ToolCall
+import dev.toros.yde.app.tools.ToolContext
+import dev.toros.yde.app.tools.Toolset
+import dev.toros.yde.app.tools.toolText
 import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.patch.PatchOp
 import dev.toros.yde.yaml.patch.Patcher
@@ -1409,27 +1407,13 @@ class ViewsTest {
     fun `read_view resolves document view with backlinks`() = kotlinx.coroutines.runBlocking {
         writeDocViewFixtures()
         val workspace = Workspace.open(ws)
-        val staging = Staging(workspace)
-        val activity = ActivityDef(
-            id = "test", name = "テスト", agentId = "a", instruction = "テスト",
-            source = ws.resolve("_activities/test.yaml"),
-        )
-        val toolbox = AgentToolbox(workspace, staging, activity, ToolGroup.entries.toSet())
-        val host = object : AgentHost {
-            override suspend fun askHuman(question: String): String? = null
-        }
+        val tools = Toolset(ToolContext(workspace, Staging(workspace)))
         // 適用対象が1件なので file 省略で解決される
-        val out = toolbox.execute(
-            ToolCall("1", "read_view", buildJsonObject { put("view", JsonPrimitive("screen-index-doc")) }),
-            host, mutableListOf(),
-        ).content
+        val out = tools.run("read_view", buildJsonObject { put("view", JsonPrimitive("screen-index-doc")) }).toolText()
         assertTrue("文書ビュー" in out, out)
         assertTrue("tables/TBL-LIST-M.yaml :: screen" in out, out)
         // 一覧に文書ビューも載る
-        val listOut = toolbox.execute(
-            ToolCall("2", "read_view", buildJsonObject {}),
-            host, mutableListOf(),
-        ).content
+        val listOut = tools.run("read_view", buildJsonObject {}).toolText()
         assertTrue("screen-index-doc" in listOut, listOut)
         assertTrue("文書ビュー" in listOut, listOut)
     }
@@ -1810,35 +1794,22 @@ class ViewsTest {
     fun `read_view reflects staged edits and exposes coordinates`() = kotlinx.coroutines.runBlocking {
         val workspace = Workspace.open(ws)
         val staging = Staging(workspace)
-        val activity = ActivityDef(
-            id = "test", name = "テスト", agentId = "a", instruction = "テスト",
-            source = ws.resolve("_activities/test.yaml"),
-        )
-        val toolbox = AgentToolbox(workspace, staging, activity, ToolGroup.entries.toSet())
-        assertTrue(toolbox.specs().any { it.name == "read_view" })
+        val tools = Toolset(ToolContext(workspace, staging))
+        assertTrue(tools.tools.any { it.name == "read_view" })
 
         // ステージングへの編集がビューに反映される
         staging.applyOps(
             "screens/index.yaml",
             listOf(PatchOp.Set(parseYPath("screens[1].name"), YNode.Scalar("ステージ編集済み"))),
         )
-        val host = object : AgentHost {
-            override suspend fun askHuman(question: String): String? = null
-        }
-        val out = toolbox.execute(
-            ToolCall("1", "read_view", buildJsonObject { put("view", JsonPrimitive("screen-catalog")) }),
-            host, mutableListOf(),
-        ).content
+        val out = tools.run("read_view", buildJsonObject { put("view", JsonPrimitive("screen-catalog")) }).toolText()
         assertTrue("ステージ編集済み" in out, out)
         assertTrue("screens/index.yaml :: screens[1].name" in out, out)
         assertTrue("詳細: 未作成" in out, out)
         assertTrue("screens/detail/SCR-EDIT.yaml" in out, out)
 
         // view 省略時は一覧
-        val listOut = toolbox.execute(
-            ToolCall("2", "read_view", buildJsonObject {}),
-            host, mutableListOf(),
-        ).content
+        val listOut = tools.run("read_view", buildJsonObject {}).toolText()
         assertTrue("screen-catalog" in listOut, listOut)
     }
 
