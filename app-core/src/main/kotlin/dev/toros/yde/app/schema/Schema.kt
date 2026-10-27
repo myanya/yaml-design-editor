@@ -155,7 +155,7 @@ class SchemaDef(
     internal fun definitionTarget(field: FieldDef): Pair<DefinitionKey, FieldDef>? = tree.definitionTarget(field)
 
     /** 他のモジュールの定義もつないだ写し（スキーマ編集画面のプレビューなど、1件だけを読んだ場面用）。 */
-    internal fun withDefinitionCatalog(catalog: SchemaCatalog): SchemaDef =
+    fun withDefinitionCatalog(catalog: SchemaCatalog): SchemaDef =
         SchemaDef(kernel.copy(tree = kernel.tree.copy(definitionCatalog = catalog)), source)
 
     /**

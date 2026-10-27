@@ -45,6 +45,7 @@ repositories {
 
 dependencies {
     // カーネルの 3 モジュール。アプリ（将来の app-core）はカーネルの 3 つすべてに直接依存してよい（ADR-0013。共通の語彙＝文書 ID・YNode・スキーマの宣言を使うため）
+    implementation(project(":app-core"))
     implementation(project(":workspace-core"))
     implementation(project(":semantic-core"))
     implementation(project(":yaml-core"))

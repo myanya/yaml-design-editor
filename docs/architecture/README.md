@@ -37,7 +37,7 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 
 ## モジュールと依存方向
 
-パッケージは `dev.toros.yde.<モジュール>.*`（規則は CONVENTIONS「モジュールの規約」）。依存方向は ADR-0002 が正: `yaml-core ← semantic-core ← workspace-core ← cli／アプリ`。
+パッケージは `dev.toros.yde.<モジュール>.*`（規則は CONVENTIONS「モジュールの規約」）。依存方向は ADR-0002（app-core は ADR-0013）が正: `yaml-core ← semantic-core ← workspace-core ← app-core ← アプリ（root）`（cli はカーネルまで）。
 目指す構成（画面を持たない応用層 app-core・agent・入口 desktop／cli／mcp・形式とビューの種類の拡張）は ADR-0013 にあり、移行は ROADMAP の計画で進める。下の表は移る前の今の姿。
 文書とコメントでは接頭辞を省いて `schema.FieldDef`・`validate/Validator.kt` のように書き、同じ短い名前が複数のモジュールにあるとき（`schema`・`validate`・`core`）はモジュール名を添える。
 
@@ -56,18 +56,19 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 | | `workspace.changeset` | `ChangeSet` / `FileChange` / `ChangeSets` |
 | | `workspace.validate` | 文書の検証の組み立てと検査の配り方（`DocumentValidator`・`WorkspaceChecks`・`CodedChecks`・`IssueSource`） |
 | cli | `cli` | カーネル側の CLI（`cli.MainKt`。`workspace validate / apply / refactor / bench`） |
-| アプリ（root） | `app` | `Main.kt`（エントリポイント・ウィンドウ・ショートカット・スタート画面）・`AppState` / `OpenDocument` |
-| | `app.ui` | Compose の画面一式（骨格は `ui/Shell.kt`） |
-| | `app.cli` | root の CLI（`cli/Cli.kt`。探索・検索・検証・エージェント・入出力。CLI の一本化で cli モジュールへ寄せる） |
-| | `app.format` | xlsx / docx の読み書き（POI）の実装 `PoiTables`。入口が `skill.Tables.binary` に登録する |
+| app-core | `app` | 応用層の中核（画面無し。ADR-0013）: ワークスペースを開き・読み・検証し・変える窓口と、開いている文書の集合、索引とスキーマの窓口、読み出し、入出力変換。Compose・`java.util.prefs`・AI・POI に依存しない（Gradle の依存で止める） |
 | | `app.core` | ワークスペースの窓口（`Workspace`）・文書キャッシュ・ファイル監視・読み出しモデル（`Traverse` / `Disclosure` / `Search` / `Aspects` / `Views`）・規模の計測 |
 | | `app.index` | 索引のファサード（`IdIndex`。カーネルの型の別名）・クエリの窓口 |
 | | `app.schema` | `SchemaDef`（カーネルのスキーマにファイルの場所を足す薄い型）・`SchemaLoader`・表示解決 `Display`・ID 候補・スキーマ推測 |
 | | `app.validate` | `Validator`（窓口）・`Readiness` |
 | | `app.session` | セッション側の状態（Compose 非依存）: `DocumentSession`（コアとカーネルの保持・索引の写し・開いている文書・未保存編集を重ねた索引と派生・編集の記録・開き直しと同期）と 1 文書の論理 `DocumentState`。再読込・保存・履歴の一手・全体検証と検索・一括変更・リファクタリング・文書の作成・配置の計画と前後・操作（アクション）の論理もここ。画面側に残るのは開く手順と場所・通知・パネルの作業 |
 | | `app.text` | 純粋な文字の計算（行の差分と 3 者併合 `LineMerge`・履歴の値を優先した書式の差し込み `SourceHistorySync`） |
-| | `app.ai` | AI 生成・LLM クライアント |
 | | `app.skill` | 入出力変換（skill 定義・表形式の読み書き・インポート・エクスポート） |
+| アプリ（root） | `app` | `Main.kt`（エントリポイント・ウィンドウ・ショートカット・スタート画面）・`AppState` / `OpenDocument` |
+| | `app.ui` | Compose の画面一式（骨格は `ui/Shell.kt`） |
+| | `app.cli` | root の CLI（`cli/Cli.kt`。探索・検索・検証・エージェント・入出力。CLI の一本化で cli モジュールへ寄せる） |
+| | `app.format` | xlsx / docx の読み書き（POI）の実装 `PoiTables`。入口が `skill.Tables.binary` に登録する |
+| | `app.ai` | AI 生成・LLM クライアント |
 | | `app.agent` | エージェント実行（定義・ステージング・ツールセット・カーネル・実行記録・自動化・メトリクス・評価） |
 
 アプリの中の依存は `app.core` → `app.session` → `app.ai` → `app.skill` → `app.agent` → `app`（AppState）→ `app.ui` の一方向。`app.index` / `app.schema` / `app.validate` / `app.text` は `app.core` より下。

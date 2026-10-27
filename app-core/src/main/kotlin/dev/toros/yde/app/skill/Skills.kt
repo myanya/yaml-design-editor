@@ -153,7 +153,7 @@ object Skills {
         return LoadResult(skills, errors)
     }
 
-    internal fun parseSkill(raw: Map<*, *>, source: Path): SkillDef {
+    fun parseSkill(raw: Map<*, *>, source: Path): SkillDef {
         val id = raw["id"]?.toString()?.takeIf { it.isNotBlank() } ?: error("id が必要です")
         val kind = SkillKind.parse(raw["kind"]?.toString() ?: error("kind が必要です"))
         return SkillDef(

@@ -204,7 +204,8 @@ private fun MaterialsPanel(
                     Text(label, fontSize = 11.sp, color = Palette.Text, modifier = Modifier.weight(1f), maxLines = 1)
                     Text(m.value?.let { v -> dev.toros.yde.semantic.SemanticExpression.numberOf(v)?.toDouble()?.let(numberText) ?: v } ?: "—",
                         fontSize = 11.sp, color = Palette.SubText, modifier = Modifier.padding(horizontal = 6.dp))
-                    if (m.id != null) TextButton(onClick = { onOpenEntity(m.id) }) { Text("詳細", fontSize = 11.sp) }
+                    val id = m.id  // 別モジュールの公開プロパティはスマートキャストできない
+                    if (id != null) TextButton(onClick = { onOpenEntity(id) }) { Text("詳細", fontSize = 11.sp) }
                     val document = m.document
                     if (document != null) TextButton(onClick = { state.openFile(document, m.path) }) { Text("原本", fontSize = 11.sp) }
                 }

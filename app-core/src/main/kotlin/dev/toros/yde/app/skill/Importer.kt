@@ -61,7 +61,7 @@ object Importer {
         return build(ws, def, table)
     }
 
-    internal fun build(ws: Workspace, def: ImportDef, table: Table): Preview {
+    fun build(ws: Workspace, def: ImportDef, table: Table): Preview {
         val errors = mutableListOf<String>()
         fun failed() = Preview(ChangeSet(emptyList()), emptyList(), emptyList(), emptyList(), errors)
 

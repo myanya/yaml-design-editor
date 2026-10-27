@@ -6,7 +6,7 @@ package dev.toros.yde.app.text
  * 元＝前回の正規化テキスト、自分＝下書き、相手＝今回の正規化テキスト。Git の 3 者マージと同じ考え方で、
  * 重なる変更は自分（下書き）を優先し、件数だけ返す。
  */
-internal object LineMerge {
+object LineMerge {
     /** 行の編集 1 つ: 元の [start, end) 行（0 始まり）を lines に置き換える。 */
     data class Hunk(val start: Int, val end: Int, val lines: List<String>)
 

@@ -41,7 +41,7 @@ object SourceRules {
 
     /** Compose 非依存の純粋ロジック層。 */
     private val purePackages = arrayOf("$APP.core", "$APP.index", "$APP.schema", "$APP.validate", "$APP.text", "$APP.session", "$APP.agent", "$APP.ai", "$APP.skill")
-    private val coreModules = setOf("yaml-core", "semantic-core", "workspace-core", "cli")
+    private val coreModules = setOf("yaml-core", "semantic-core", "workspace-core", "cli", "app-core")
 
     /** 外部の UI ライブラリの import の接頭辞と、それを包む 1 ファイル。 */
     private val wrappedLibraries = mapOf(
@@ -60,7 +60,7 @@ object SourceRules {
     /** Files.exists / notExists を直接呼んでよいファイル（ストア・配置・初期化・実行記録など、ファイルそのものを扱う所）。減らす方向。 */
     private val fileExistsAllowed = setOf(
         "src/main/kotlin/dev/toros/yde/app/AppState.kt",
-        "src/main/kotlin/dev/toros/yde/app/session/DocumentSession.kt",
+        "app-core/src/main/kotlin/dev/toros/yde/app/session/DocumentSession.kt",
         "src/main/kotlin/dev/toros/yde/app/cli/Cli.kt",
         "src/main/kotlin/dev/toros/yde/app/agent/Evals.kt",
         "src/main/kotlin/dev/toros/yde/app/agent/RunLog.kt",
@@ -77,7 +77,7 @@ object SourceRules {
     val all: List<Rule> = listOf(
         Rule(
             1, "純粋ロジック層に Compose を持ち込まない",
-            why = "コアの 3 モジュールと cli、app の core・index・schema・validate・text・session・agent・ai・skill は Compose 非依存で、単体テストはこの層に書く",
+            why = "コアの 3 モジュールと cli と app-core、root の agent・ai は Compose 非依存で、単体テストはこの層に書く",
             doc = "architecture/README.md「モジュールと依存方向」",
         ) { files ->
             files.filter { it.module in coreModules || it.inPackage(*purePackages) }
@@ -88,7 +88,7 @@ object SourceRules {
             why = "index・schema・validate・text、core、session、ai、skill、agent、根（AppState）、ui の順に下から上へ重なり、上の層を import しない",
             doc = "architecture/README.md「モジュールと依存方向」",
             known = listOf(
-                Known("src/main/kotlin/dev/toros/yde/app/validate/Readiness.kt", "core.Workspace を使っていて validate と core が循環している（BACKLOG）"),
+                Known("app-core/src/main/kotlin/dev/toros/yde/app/validate/Readiness.kt", "core.Workspace を使っていて validate と core が循環している（BACKLOG）"),
                 Known("src/main/kotlin/dev/toros/yde/app/AppState.kt", "ui の DesktopUiDispatcher を使っている（BACKLOG）"),
             ),
         ) { files -> layerViolations(files) },

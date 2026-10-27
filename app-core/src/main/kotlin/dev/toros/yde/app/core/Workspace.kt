@@ -178,7 +178,7 @@ class Workspace private constructor(val root: Path) {
     private var session: WorkspaceSession? = null
 
     /** ディスクを映したカーネルのセッション（索引・変更セットの適用・リファクタリングの影響の解決の供給元）。 */
-    internal val mirror: WorkspaceSession get() = session ?: error("セッションが開かれていません")
+    val mirror: WorkspaceSession get() = session ?: error("セッションが開かれていません")
 
     companion object {
         fun open(dir: Path): Workspace {

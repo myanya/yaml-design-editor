@@ -59,6 +59,7 @@ object SourceScanner {
         "semantic-core" to "semantic-core/src/main/kotlin",
         "workspace-core" to "workspace-core/src/main/kotlin",
         "cli" to "cli/src/main/kotlin",
+        "app-core" to "app-core/src/main/kotlin",
         "app" to "src/main/kotlin",
     )
 

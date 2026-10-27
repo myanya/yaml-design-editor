@@ -163,7 +163,7 @@ JDK 21 が必要です。無ければ Gradle が自動で取得します（`./gr
 ./gradlew packageDistributionForCurrentOS        # 開発用。この OS 向けの msi / dmg / deb を作る（配布として検査しているのは Windows ZIP だけ）
 ```
 
-- モジュールは `yaml-core ← semantic-core ← workspace-core ← cli／アプリ` の順に、一方向だけ依存します。
+- モジュールは `yaml-core ← semantic-core ← workspace-core ← app-core ← アプリ` の順に、一方向だけ依存します（cli はカーネルまで）。
 - 起動中の画面を AI エージェントから操作するための MCP サーバ（スクリーンショット、クリック、入力、再読込）の設定を `.mcp.json` に置いています。Windows 向けの設定なので、mac や Linux では `cmd /c gradlew.bat` を `./gradlew` に読み替えてください。
 - バージョンは、利用者に見せる外部バージョン（`gradle.properties` の `appVersion`）と、開発管理用の内部バージョン（ビルド時に git から算出）の 2 つを持ちます。
 
