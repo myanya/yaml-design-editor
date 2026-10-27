@@ -51,7 +51,7 @@ object SourceRules {
 
     /** Compose 非依存の純粋ロジック層。 */
     private val purePackages = arrayOf("$APP.core", "$APP.index", "$APP.schema", "$APP.validate", "$APP.text", "$APP.session", "$APP.tools", "$APP.ext", "$APP.skill")
-    private val coreModules = setOf("yaml-core", "semantic-core", "workspace-core", "cli", "app-core", "agent", "format-text", "format-xlsx", "format-docx")
+    private val coreModules = setOf("yaml-core", "semantic-core", "workspace-core", "cli", "app-core", "agent")
 
     /** 外部の UI ライブラリの import の接頭辞と、それを包む 1 ファイル。 */
     private val wrappedLibraries = mapOf(
@@ -89,10 +89,10 @@ object SourceRules {
     val all: List<Rule> = listOf(
         Rule(
             1, "純粋ロジック層に Compose を持ち込まない",
-            why = "コアの 3 モジュールと cli・app-core・agent・拡張（format-*）は Compose 非依存で、単体テストはこの層に書く",
+            why = "コアの 3 モジュールと cli・app-core・agent・拡張（format-*・view-*。描画の view-*-ui は除く）は Compose 非依存で、単体テストはこの層に書く",
             doc = "architecture/README.md「モジュールと依存方向」",
         ) { files ->
-            files.filter { it.module in coreModules || it.inPackage(*purePackages) }
+            files.filter { it.module in coreModules || ModuleRules.isExtension(it.module) || it.inPackage(*purePackages) }
                 .flatMap { it.importsStartingWith("androidx.compose.", "org.jetbrains.compose.") }
         },
         Rule(
@@ -178,6 +178,31 @@ object SourceRules {
             doc = "CONVENTIONS「テスト」",
             scope = Rule.Scope.TEST,
         ) { files -> files.flatMap { it.find(drivePathLiteral) } },
+        Rule(
+            14, "settings.gradle.kts の全モジュールを規則テストが走査する",
+            why = "新しいモジュールを走査の一覧（SourceScanner.modules）に足し忘れると、そのモジュールだけ全部の規則の外になる",
+            doc = "architecture/README.md「ソース規則テスト」",
+        ) { _ -> ModuleRules.unscannedModules() },
+        Rule(
+            15, "拡張の実装は入口の登録の一覧に載せる",
+            why = "登録は入口ごとの 1 ファイル（desktop/ext/DesktopExtensions.kt・cli/CliExtensions.kt）で、自動発見はしない。載せ忘れると、その入口でだけ形式が使えない",
+            doc = "architecture/agents.md「拡張ポイント」",
+        ) { files -> ModuleRules.unregisteredExtensions(files) },
+        Rule(
+            16, "拡張は app-core とカーネルだけを使う",
+            why = "拡張は閉じた箱。拡張どうし・agent・入口（desktop・cli）に依存すると、1 つの拡張を読むのに他を読む必要が出る（ADR-0013）",
+            doc = "architecture/README.md「モジュールと依存方向」",
+        ) { files -> ModuleRules.extensionDependencies(files) },
+        Rule(
+            17, "拡張は決まった形にする",
+            why = "README・共通の設定の build・テスト・モジュール名どおりのパッケージ・公開は差し込み口の実装だけ、の同じ形なら、見る範囲が 1 モジュールに絞れる（ADR-0013「モジュールの中の形」）",
+            doc = "architecture/agents.md「拡張ポイント」",
+        ) { files -> ModuleRules.extensionShape(files) },
+        Rule(
+            18, "agent のファイルの間に循環を作らない",
+            why = "パッケージの向き（規則 2）は同じパッケージの中のファイルの循環を見ない。共に使う小さな型は土台のファイル（run/AgentHost.kt）に置き、定義と実行器を分ける",
+            doc = "architecture/agents.md「規律」",
+        ) { files -> ModuleRules.agentFileCycles(files) },
     )
 
     /** `Path.of("C:/…")`・`Paths.get("C:\\…")` のようなドライブ文字の絶対パスの直書き。 */

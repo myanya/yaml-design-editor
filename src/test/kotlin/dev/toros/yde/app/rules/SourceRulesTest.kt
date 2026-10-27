@@ -125,6 +125,31 @@ class SourceRulesTest {
     @Test fun `規則11 機能側で Files exists を直接見ない`() = check(11)
     @Test fun `規則12 同じ裸の名前のファイルを複数作らない`() = check(12)
     @Test fun `規則13 テストに OS 固有の絶対パスを書かない`() = check(13)
+    @Test fun `規則14 settings の全モジュールを規則テストが走査する`() = check(14)
+    @Test fun `規則15 拡張の実装は入口の登録の一覧に載せる`() = check(15)
+    @Test fun `規則16 拡張は app-core とカーネルだけを使う`() = check(16)
+    @Test fun `規則17 拡張は決まった形にする`() = check(17)
+    @Test fun `規則18 agent のファイルの間に循環を作らない`() = check(18)
+
+    @Test
+    fun `規則18 はファイルの相互の参照を循環として見つける`() {
+        val a = SourceScanner.parse("agent", "agent/A.kt", "package p\nclass A { val b: B? = null }\n")
+        val b = SourceScanner.parse("agent", "agent/B.kt", "package p\nclass B { val a: A? = null }\n")
+        val c = SourceScanner.parse("agent", "agent/C.kt", "package p\nclass C { val a: A? = null }\n")
+        val hits = ModuleRules.agentFileCycles(listOf(a, b, c))
+        assertEquals(setOf("agent/A.kt", "agent/B.kt"), hits.map { it.file.path }.toSet())
+        assertTrue(ModuleRules.agentFileCycles(listOf(a, c)).isEmpty(), "一方向なら循環ではない")
+    }
+
+    @Test
+    fun `規則15 は入口の一覧に無い拡張の実装を見つける`() {
+        val codec = SourceScanner.parse("format-x", "format-x/X.kt", "package dev.toros.yde.format.x\nobject XFormat : FormatCodec\nobject YFormat : FormatCodec\n")
+        val desktop = SourceScanner.parse("app", "src/main/kotlin/dev/toros/yde/desktop/ext/DesktopExtensions.kt", "val l = listOf(XFormat, YFormat)\n")
+        val cli = SourceScanner.parse("cli", "cli/src/main/kotlin/dev/toros/yde/cli/CliExtensions.kt", "val l = listOf(XFormat)\n")
+        val hits = ModuleRules.unregisteredExtensions(listOf(codec, desktop, cli))
+        assertEquals(1, hits.size, hits.toString())
+        assertTrue("YFormat" in hits.single().text && "CliExtensions.kt" in hits.single().text, hits.toString())
+    }
 
     @Test
     fun `規則の番号は 1 から順で名前が重ならない`() {

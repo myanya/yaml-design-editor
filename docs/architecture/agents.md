@@ -19,7 +19,7 @@
 | `ForeachDef` / `Foreach` | agent/ForeachDef.kt・agent/auto/Foreach.kt | 一括実行の定義（列挙元と条件）と、対象の列挙 |
 | `Evals` / `EvalRunner` | agent/Evals.kt・agent/eval/EvalRunner.kt | 評価セットの定義の読み込みと、比較実験の実行（サンドボックスコピー上） |
 | `GenerationRun` | agent/run/Generation.kt | AI 生成のカーネル統合（1 ターンで提出する特殊アクティビティ） |
-| `AiGenerator` / `OpenAiGenerator` / `AnthropicGenerator` | agent/llm/ | プロバイダ振り分け・各 API のリクエスト構築とレスポンス解析（スキーマ → JSON Schema と参照候補の enum 制約は app-core の tools/JsonSchemas.kt） |
+| `AiGenerator` / `OpenAiGenerator` / `AnthropicGenerator` | agent/llm/ | プロバイダ振り分け（AiGenerator.kt）・入出力の型と共通の組み立て（AiGeneration.kt）・各 API のリクエスト構築とレスポンス解析（スキーマ → JSON Schema と参照候補の enum 制約は app-core の tools/JsonSchemas.kt） |
 | `ToolChat` / `ToolChatSession` | agent/llm/ToolChat.kt | ツール使用対応のチャット抽象と OpenAI Responses / Anthropic Messages 実装（prompt caching の印つけ） |
 | `AiConnection` / `AiHttp` | agent/llm/Connection.kt・Http.kt | OpenAI 互換の接続先の解決と、HttpClient の単一ファクトリ（プロキシ・Basic 認証・リトライ） |
 | `Traverse` | core/Traverse.kt | 経路パターンの多段トラバース（`neighborIds` の上の emit レンダラ） |
@@ -119,6 +119,8 @@
 
 ## 規律
 
+- agent のファイルの間に循環を作らない（規則テスト 18）。カーネルとツールが共に使う小さな型は run/AgentHost.kt、各プロバイダが使う生成の入出力は llm/AiGeneration.kt、定義（Definitions・Evals・ForeachDef）は実行器と別のファイルに置く。パッケージは llm・定義・run・auto・eval の順に一方向（規則テスト 2）。
+
 - エージェントの編集は必ず `agent/run/Staging` 経由。原本への書込は人間の承認（`Workspace.apply`）のみ。
 - 定義文書への書込は `meta: true` のアクティビティのみ。`meta` かつ `approval: auto` は定義エラー。`_schemas` / `_runs` は meta でも書込不可。
 - カーネルのテストは疑似セッション注入で書く。実 API を叩くテストは書かない。自動化のテストは `tick(now)` / `processOnce()` を直接呼ぶ（タイマー・sleep を使わない）。自動適用後はスタンプ基準を更新し、自己変更で on-change を再発火させない。
@@ -135,5 +137,5 @@
 - **AI プロバイダの追加**: OpenAI 互換なら `AiConnection` で足りる。独自 API は `AiProvider` に enum を足し、`AiGenerator.generate` の分岐と専用クライアント・`ToolChat.newSession` の分岐を実装する。HTTP 送信は `AiHttp.post`。
 - **ツールの追加**: 中核なら app-core の `Toolset`（`coreTools`）に、拡張なら `extra` で足す（引数と結果は JSON の値。書込は作業コピー越し）。会話の相手が要るものだけ `AgentToolbox` に置く。書込権限の強制と実行記録への載せ方を揃える。
 - **レシピ項目の追加**: `ContextItemDef` のパース・`contextItemSection` の解決・`builtin-activity` メタスキーマをそろえて更新する。
-- **入出力形式の追加**: 拡張モジュール（`format-<名前>`。README・3 行の build・`FormatCodec` の実装 1 つ・テスト）を作り、入口の登録の一覧（`desktop/ext/DesktopExtensions.kt`。cli は自分の一覧）に 1 行足す。skill 定義の `format` の値が `id`、出力ファイルの拡張子が `extensions`。中核（app-core）には足さない。
+- **入出力形式の追加**: 拡張モジュール（`format-<名前>`。README・3 行の build・`FormatCodec` の実装 1 つ・テスト）を作り、入口の登録の一覧（`desktop/ext/DesktopExtensions.kt` と `cli/CliExtensions.kt`）に 1 行ずつ足す。形・依存・登録の漏れは規則テスト 15〜17 が見る。skill 定義の `format` の値が `id`、出力ファイルの拡張子が `extensions`。中核（app-core）には足さない。
 - **出発点のテンプレートの追加**: `templates/` に置く（[workspace.md「ワークスペースの初期化」](workspace.md)）。skill を含むテンプレートも、展開後の検証エラー 0 を `WorkspaceTemplatesTest` が保証する。

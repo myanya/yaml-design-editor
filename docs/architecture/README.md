@@ -84,8 +84,9 @@ app-core（`app.core` / `app.index` / `app.schema` / `app.validate` / `app.text`
 ## ソース規則テスト
 
 上の依存方向と各主題の「規律」のうち機械で確かめられるものは、root のテスト `rules/SourceRulesTest`（規則の表は `rules/SourceRules`）が全モジュールの main のソース（テストの書き方の規則は test のソース）を走査して守る。構文解析はせず、import 行と文字の一致で見る。
-規則は 13 本。純粋ロジック層に Compose を持ち込まない・app の層は一方向・yaml-core と semantic-core にファイルの場所を持ち込まない・等幅は `AppFonts.Mono`・外部の UI ライブラリは包む 1 ファイルだけ・AI の HTTP は `agent/llm/Http.kt` だけ。
+規則は 18 本。純粋ロジック層に Compose を持ち込まない・app の層は一方向・yaml-core と semantic-core にファイルの場所を持ち込まない・等幅は `AppFonts.Mono`・外部の UI ライブラリは包む 1 ファイルだけ・AI の HTTP は `agent/llm/Http.kt` だけ。
 `JFileChooser` と `Dispatchers.Main` を使わない・生の色は `Palette` だけ・UI は `state.index` を読まない・`FieldType` は基底の種類だけ・`Files.exists` は許可リストのファイルだけ・同じ裸の名前のファイルを作らない・テストに OS 固有の絶対パス（ドライブ文字）を書かない。
+モジュールの形の規則（`rules/ModuleRules`）: settings.gradle.kts の全モジュールを走査する・拡張の実装は入口の登録の一覧に載せる・拡張は app-core とカーネルだけを使う・拡張は決まった形（README・共通の設定の build・テスト・モジュール名どおりのパッケージ・公開は差し込み口の実装だけ）・agent のファイルの間に循環を作らない。
 文書の参照（今の姿の文書が指す `.kt` の名前・テスト名・「ファイル名＋見出し」）の実在は同じ場所の `rules/DocReferencesTest` が見る。
 落ちたらメッセージの「説明」の見出しを読む。規則を足すときは表に 1 つ足し、テストを 1 つ足す。今は直せていない違反は表の `known` に理由つきで書き、直したら消す（残っているとテストが「不要」と知らせる）。
 800 行を超える main のファイルは目安として報告するだけで失敗にしない（文書の字数と同じ扱い。`build/reports/source-rules/large-files.txt` に書き、pre-commit のフックが表示する）。

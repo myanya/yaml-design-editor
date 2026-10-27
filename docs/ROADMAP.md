@@ -489,7 +489,7 @@ R47-10 の最初の規則（既知の違反を除いて守られているので�
 |---|---|---|---|---|
 | R47-60 | 形式の差し込み口 | app-core に `FormatCodec`（ID・拡張子・読む・書く）と登録簿を置き、skill の形式 enum を置き換える。format-xlsx・format-docx（POI）・format-text（csv・json・markdown）の 3 モジュール。対応づけは skill 定義の YAML のまま。登録は入口の 1 ファイルの一覧 | 決定（形式を先に。ADR-0013） | ✅ 2026-10-27（R47-41 のため前倒し。`app.ext` の `FormatCodec`／`ExtensionRegistry`／`Extensions`、3 モジュール、登録は `desktop/ext/DesktopExtensions.kt`。root の POI は test だけ） |
 | R47-61 | ビューの種類の差し込み口 | app-core に `ViewKind`（種類・定義の形の断片・読み取り・解決）を置き、`ViewDefinitions` の `when(kind)` を登録簿に置き換える。メタスキーマへ断片を kind ごとに合成する仕組みを作る。chart・lens・flow・matrix を view-* モジュールへ出し、grid・document・dashboard は中核に残す。描画は desktop.views の登録簿（`ViewRenderer`）で、大きくなった種類から view-*-ui へ | 決定（ADR-0013） | 未着手 |
-| R47-62 | 拡張の規則テスト | 拡張の全モジュールが入口の一覧に登録されている・拡張どうしが依存しない・Compose を持つのは desktop と view-*-ui だけ、を規則テストに足す。拡張の形（README・3 行の build・実装 1 つ・断片・テスト）も検査する | なし | 未着手 |
+| R47-62 | 拡張の規則テスト | 拡張の全モジュールが入口の一覧に登録されている・拡張どうしが依存しない・Compose を持つのは desktop と view-*-ui だけ、を規則テストに足す。拡張の形（README・3 行の build・実装 1 つ・断片・テスト）も検査する | なし | ✅ 2026-10-27（規則 14〜18＝走査の漏れ・入口の一覧への登録・拡張の依存・拡張の形・agent のファイルの循環。`rules/ModuleRules`。規則 18 が agent.llm の循環を見つけ、生成の入出力を llm/AiGeneration.kt に出して解いた）。Compose を持つのは desktop と view-*-ui だけ、は規則 1 が拡張を含めて見る |
 
 #### 段階 7: MCP の入口
 
