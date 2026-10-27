@@ -82,6 +82,7 @@ app-core（`app.core` / `app.index` / `app.schema` / `app.validate` / `app.text`
 `JFileChooser` と `Dispatchers.Main` を使わない・生の色は `Palette` だけ・UI は `state.index` を読まない・`FieldType` は基底の種類だけ・`Files.exists` は許可リストのファイルだけ・同じ裸の名前のファイルを作らない・テストに OS 固有の絶対パス（ドライブ文字）を書かない。
 文書の参照（今の姿の文書が指す `.kt` の名前・テスト名・「ファイル名＋見出し」）の実在は同じ場所の `rules/DocReferencesTest` が見る。
 落ちたらメッセージの「説明」の見出しを読む。規則を足すときは表に 1 つ足し、テストを 1 つ足す。今は直せていない違反は表の `known` に理由つきで書き、直したら消す（残っているとテストが「不要」と知らせる）。
+800 行を超える main のファイルは目安として報告するだけで失敗にしない（文書の字数と同じ扱い。`build/reports/source-rules/large-files.txt` に書き、pre-commit のフックが表示する）。
 
 ## 入口のクラス
 

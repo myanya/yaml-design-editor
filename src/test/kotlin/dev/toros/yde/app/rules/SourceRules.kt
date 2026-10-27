@@ -29,6 +29,9 @@ object SourceRules {
     private const val AGENT = "dev.toros.yde.agent"
     private const val UI = "src/main/kotlin/dev/toros/yde/desktop/ui"
 
+    /** 大きなファイルの目安（行）。超えても失敗にしない（文書の字数と同じ扱い）。SourceRulesTest が報告し、pre-commit が表示する */
+    const val LARGE_FILE_LINES = 800
+
     /** app の中の層（下から上）。同じ層の中は互いに使ってよく、上の層を import してはいけない。 */
     val appLayers: List<List<String>> = listOf(
         listOf("$APP.index", "$APP.schema", "$APP.validate", "$APP.text"),

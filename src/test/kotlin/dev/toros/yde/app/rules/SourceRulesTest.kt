@@ -1,5 +1,6 @@
 package dev.toros.yde.app.rules
 
+import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -129,5 +130,22 @@ class SourceRulesTest {
     fun `規則の番号は 1 から順で名前が重ならない`() {
         assertEquals((1..SourceRules.all.size).toList(), SourceRules.all.map { it.number })
         assertEquals(SourceRules.all.size, SourceRules.all.map { it.name }.toSet().size)
+    }
+
+    // ================================================================ 目安（失敗にしない）
+
+    /** 800 行を超える main のファイルを報告する。文書の字数と同じく目安で、build/reports/source-rules/large-files.txt にも書く（pre-commit が表示する）。 */
+    @Test
+    fun `大きな main のファイルを目安として報告する`() {
+        val limit = SourceRules.LARGE_FILE_LINES
+        val large = SourceScanner.mainSources.filter { it.lines.size > limit }.sortedByDescending { it.lines.size }
+        val report = buildString {
+            appendLine("目安（失敗にしない）: $limit 行を超える main のファイル ${large.size} 件")
+            large.forEach { appendLine("LINES  ${it.path}: ${it.lines.size} 行") }
+        }
+        val out = SourceScanner.repoRoot.resolve("build/reports/source-rules/large-files.txt")
+        Files.createDirectories(out.parent)
+        Files.writeString(out, report)
+        println(report)
     }
 }
