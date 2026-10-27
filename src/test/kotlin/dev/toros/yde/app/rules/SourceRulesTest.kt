@@ -39,8 +39,8 @@ class SourceRulesTest {
         assertEquals(SourceScanner.modules.keys, sources.map { it.module }.toSet())
         assertTrue(sources.size > 200, "ソースが少なすぎる: ${sources.size}")
         val appState = sources.first { it.name == "AppState.kt" }
-        assertEquals("dev.toros.yde.app", appState.packageName)
-        assertEquals("src/main/kotlin/dev/toros/yde/app/AppState.kt", appState.path)
+        assertEquals("dev.toros.yde.desktop", appState.packageName)
+        assertEquals("src/main/kotlin/dev/toros/yde/desktop/AppState.kt", appState.path)
     }
 
     @Test

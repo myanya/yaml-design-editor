@@ -38,5 +38,5 @@ foreach ($relative in @('LICENSE', 'THIRD-PARTY-NOTICES.txt', 'SOURCES.txt', 'de
 }
 $expected = @()
 if ($AppVersion) { $expected = @($AppVersion, $BuildVersion, $Commit) }
-& "$stage/runtime/bin/java.exe" '-Djava.awt.headless=true' '-cp' "$testClasses;$distribution/app/*" 'dev.toros.yde.app.DistributionSmoke' @expected
+& "$stage/runtime/bin/java.exe" '-Djava.awt.headless=true' '-cp' "$testClasses;$distribution/app/*" 'dev.toros.yde.desktop.DistributionSmoke' @expected
 if ($LASTEXITCODE -ne 0) { throw "同梱ランタイムの検査に失敗しました: $LASTEXITCODE" }

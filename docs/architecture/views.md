@@ -23,7 +23,7 @@
 | `ViewRow`（＝`VirtualRow`）/ `ViewCell` | core/Views.kt | 解決の結果（別名） |
 | `ViewGridPane` | ui/ViewGridPane.kt | ビューグリッド。セル編集は文書キャッシュの木の直接編集、行アクションで詳細文書の作成・新規行 |
 | `DocViewSections` / `AttachedBacklinks` | ui/FormView.kt | 文書ビューの描画（fields セクションは既存フォームへの委譲・backlinks と attachments は読み取り専用の表） |
-| `DocumentSession.createViewDetail` / `addViewRowFile` / `viewRowTarget`、`AppState.addViewRow` | session/DocumentSession.kt・app/AppState.kt | 詳細文書の作成・新規行（配列モード／ファイルモード）。作った文書を開くのは `AppState` |
+| `DocumentSession.createViewDetail` / `addViewRowFile` / `viewRowTarget`、`AppState.addViewRow` | session/DocumentSession.kt・desktop/AppState.kt | 詳細文書の作成・新規行（配列モード／ファイルモード）。作った文書を開くのは `AppState` |
 | `Exporter`（`source.view`） | skill/Exporter.kt | ビューで見えている表をそのまま帳票へ（グリッドのみ） |
 
 ## ビュー機構

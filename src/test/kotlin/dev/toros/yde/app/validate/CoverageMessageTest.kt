@@ -1,6 +1,6 @@
 package dev.toros.yde.app.validate
 
-import dev.toros.yde.app.AppState
+import dev.toros.yde.desktop.AppState
 import dev.toros.yde.app.core.Views
 import dev.toros.yde.app.core.Workspace
 import dev.toros.yde.workspace.validate.CheckResponse

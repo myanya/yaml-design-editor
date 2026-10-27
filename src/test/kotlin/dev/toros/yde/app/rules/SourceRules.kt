@@ -25,7 +25,8 @@ class Known(val key: String, val reason: String)
 
 object SourceRules {
     private const val APP = "dev.toros.yde.app"
-    private const val UI = "src/main/kotlin/dev/toros/yde/app/ui"
+    private const val DESKTOP = "dev.toros.yde.desktop"
+    private const val UI = "src/main/kotlin/dev/toros/yde/desktop/ui"
 
     /** app の中の層（下から上）。同じ層の中は互いに使ってよく、上の層を import してはいけない。 */
     val appLayers: List<List<String>> = listOf(
@@ -35,8 +36,8 @@ object SourceRules {
         listOf("$APP.ai"),
         listOf("$APP.skill"),
         listOf("$APP.agent"),
-        listOf(APP), // 根（AppState・Main・ScreenMemory など）
-        listOf("$APP.ui"),
+        listOf(DESKTOP, "$APP.cli", "$DESKTOP.format"), // desktop の根（AppState・Main・ScreenMemory など）と、モジュールへ出すまで root に残す入口
+        listOf("$DESKTOP.ui"),
     )
 
     /** Compose 非依存の純粋ロジック層。 */
@@ -59,7 +60,7 @@ object SourceRules {
 
     /** Files.exists / notExists を直接呼んでよいファイル（ストア・配置・初期化・実行記録など、ファイルそのものを扱う所）。減らす方向。 */
     private val fileExistsAllowed = setOf(
-        "src/main/kotlin/dev/toros/yde/app/AppState.kt",
+        "src/main/kotlin/dev/toros/yde/desktop/AppState.kt",
         "app-core/src/main/kotlin/dev/toros/yde/app/session/DocumentSession.kt",
         "src/main/kotlin/dev/toros/yde/app/cli/Cli.kt",
         "src/main/kotlin/dev/toros/yde/app/agent/Evals.kt",
@@ -85,11 +86,11 @@ object SourceRules {
         },
         Rule(
             2, "app の層は一方向",
-            why = "index・schema・validate・text、core、session、ai、skill、agent、根（AppState）、ui の順に下から上へ重なり、上の層を import しない",
+            why = "index・schema・validate・text、core、session、ai、skill、agent、desktop の根（AppState・cli・format）、desktop.ui の順に下から上へ重なり、上の層を import しない",
             doc = "architecture/README.md「モジュールと依存方向」",
             known = listOf(
                 Known("app-core/src/main/kotlin/dev/toros/yde/app/validate/Readiness.kt", "core.Workspace を使っていて validate と core が循環している（BACKLOG）"),
-                Known("src/main/kotlin/dev/toros/yde/app/AppState.kt", "ui の DesktopUiDispatcher を使っている（BACKLOG）"),
+                Known("src/main/kotlin/dev/toros/yde/desktop/AppState.kt", "ui の DesktopUiDispatcher を使っている（BACKLOG）"),
             ),
         ) { files -> layerViolations(files) },
         Rule(
@@ -134,7 +135,7 @@ object SourceRules {
             9, "UI は state.index でなく overlayIndex() を読む",
             why = "索引は二層で、未保存の編集を重ねたものを UI が読む",
             doc = "architecture/index-references.md「索引の二層」",
-        ) { files -> files.filter { it.inPackage("$APP.ui") }.flatMap { it.find(Regex("""\bstate\.index\b""")) } },
+        ) { files -> files.filter { it.inPackage("$DESKTOP.ui") }.flatMap { it.find(Regex("""\bstate\.index\b""")) } },
         Rule(
             10, "FieldType は基底の種類だけ",
             why = "text / line / word のような組込みの定義体は builtin-types/ の YAML で、enum に足さない。使う側の決まりは狭めるだけ",

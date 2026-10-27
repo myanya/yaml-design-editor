@@ -8,14 +8,14 @@
 | 部品 | ファイル | 責務 |
 |---|---|---|
 | `DocumentState` | session/DocumentState.kt | 開いている 1 文書の論理（Compose 非依存）。木・スキーマ・dirty・版・外部変更の印・下書きの解析と 3 者併合。下書きの文字列とカーソルは殻から引数で受け取り、変化は `onChanged` で殻へ知らせる |
-| `OpenDocument` | app/OpenDocument.kt | 開いている 1 文書の Compose の殻（`version` / `dirty` / `parseError` などを論理から写して購読できるようにする。名前と窓口は論理と同じで UI はこの殻だけを見る）。複数ドキュメントの再出力と保存内容との比較は `EditBuffer` へ委譲し、外部競合を管理する |
+| `OpenDocument` | desktop/OpenDocument.kt | 開いている 1 文書の Compose の殻（`version` / `dirty` / `parseError` などを論理から写して購読できるようにする。名前と窓口は論理と同じで UI はこの殻だけを見る）。複数ドキュメントの再出力と保存内容との比較は `EditBuffer` へ委譲し、外部競合を管理する |
 | `EditBuffer` | core/Documents.kt | 複数ドキュメントの再出力と、保存した内容との比較（履歴は持たない）。ここの dirty はセッションが文書として扱わないパス用で、聞かれたときにだけ計算する |
 | `WorkspaceSession.recordEdit` / `endEditGroup` | workspace-core | 編集の記録（合体キーと時刻つき）と連続入力の区切り。Undo / Redo の実体 |
 | `DocumentSession.prepareHistoryStep` / `applyHistoryStep` / `afterHistoryStep` / `syncSourcesAfterHistory` | session/DocumentSession.kt | 横断 Undo の一手の論理: 下書きの反映・対象の決定・拒否と確認の判定・カーネルの呼び出し・開いている文書の作り直し・ソースの差し込み・予告の文 |
-| `AppState.undo` / `redo` / `historyFromUi` / `historyNotice` | app/AppState.kt | 一手の段取り（確認の表示・ファイル配置の一手を IO へ・通知・編集元へ戻る移動） |
+| `AppState.undo` / `redo` / `historyFromUi` / `historyNotice` | desktop/AppState.kt | 一手の段取り（確認の表示・ファイル配置の一手を IO へ・通知・編集元へ戻る移動） |
 | `DocumentSession.createDocument` / `afterHistoryStep` | session/DocumentSession.kt | 文書の新規作成の単一経路（作った文書を開くのは `AppState` の入口）と、作成・削除を含む履歴の確定 |
 | `FormCtx.writeScalar` | ui/FormView.kt | スカラー入力の書込。合体キーを渡す |
-| `OpenDocument.source`（文字列とカーソル）と `DocumentState.applyParsed` / `syncSourceFromTree` / `discardDraft` / `enterTextOnly`（計算） | app/OpenDocument.kt・session/DocumentState.kt | ソースの下書き（文字列・カーソル・解析エラー）の所有と、木との同期 |
+| `OpenDocument.source`（文字列とカーソル）と `DocumentState.applyParsed` / `syncSourceFromTree` / `discardDraft` / `enterTextOnly`（計算） | desktop/OpenDocument.kt・session/DocumentState.kt | ソースの下書き（文字列・カーソル・解析エラー）の所有と、木との同期 |
 | `SourceHistorySync` | text/SourceHistorySync.kt | 履歴の値を優先した書式の差し込みと、全 YAML 文書の再解析による内容一致の確認 |
 | `SourcePane` / `SourceDraftBanner` | ui/SourcePane.kt | ソースの表示と入力（入力が止まってから背景で解析）。他のタブに出す書きかけ・壊れたまま保存のバナー |
 | `SourceSyntaxBar` / `sourceErrorLocation` | ui/SourceSyntaxBar.kt | 本文の位置を変えない構文状態と詳細の表示、解析エラー文面からの問題位置の取得 |

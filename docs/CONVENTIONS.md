@@ -62,7 +62,7 @@
 - `samples/` は公開用のサンプル、`labs/` は今後の開発用の実験場で、どちらも履歴に含める。試作は `labs/` で作り、ある程度良いものができたら `samples/` へ置き直す。`scratchpad/` は `.gitignore` 対象（履歴に含めない）。
 - **バージョンは2層**。外部バージョン（利用者に見せる。メジャー.マイナー.パッチ）は `gradle.properties` の `appVersion` で、リリース時に手で上げる。配布物の `packageVersion` もこれで、形式によってはメジャー 1 以上が要る。
 - 内部バージョン（開発管理用。`yyyymmdd.ビルド番号`）はビルド時に git から自動算出する。HEAD のコミット日と、その日の何番目のコミットか。未コミットの変更があれば `-dirty`。`-PbuildVersion=…` で手動指定できる。
-- 両方を `build-info.properties` として jar に入れ、スタート画面と CLI `version` が表示する（`app/BuildInfo.kt`）。
+- 両方を `build-info.properties` として jar に入れ、スタート画面と CLI `version` が表示する（`desktop/BuildInfo.kt`）。
 
 ## 6. ドキュメント更新規約（重要）
 
@@ -107,8 +107,8 @@
 
 - **依存方向**（ADR-0002）: `yaml-core ← semantic-core ← workspace-core ← app-core ← アプリ（root）`（cli はカーネルまで）。コアからアプリ・Compose・AI・agent・skill へ依存しない。
 - yaml-core と semantic-core の main ソースへ `java.nio.file.Path` を持ち込まない（テストが fixture 読込に使うのは可）。
-- **パッケージ名**: 接頭辞は `dev.toros.yde`、その下にモジュールの根（yaml-core `yaml` / semantic-core `semantic` / workspace-core `workspace` / cli `cli` / app-core とアプリ（root）`app`）。
-- モジュール名と同じ名前のクラス（`YamlIO`・`SemanticEngine`・`WorkspaceSession`・`AppState`）とアプリの `Main.kt` は根に置き、ほかは根の下に置く（`semantic.schema`・`app.ui` など。対応表は architecture/README.md「モジュールと依存方向」）。同じ裸の名前を複数のモジュールに作らない。
+- **パッケージ名**: 接頭辞は `dev.toros.yde`、その下にモジュールの根（yaml-core `yaml` / semantic-core `semantic` / workspace-core `workspace` / cli `cli` / app-core `app` / アプリ（root）`desktop`。`app.agent`・`app.ai`・`app.cli` は agent と cli のモジュールへ出すまで root に置く）。
+- モジュール名と同じ名前のクラス（`YamlIO`・`SemanticEngine`・`WorkspaceSession`・`AppState`）とアプリの `Main.kt` は根に置き、ほかは根の下に置く（`semantic.schema`・`desktop.ui` など。対応表は architecture/README.md「モジュールと依存方向」）。同じ裸の名前を複数のモジュールに作らない。
 - **文書とコメントでは接頭辞を省いた短い形**（`schema.FieldDef`・`validate/Validator.kt`）で書き、同じ短い名前が複数のモジュールにあるとき（`schema`・`validate`・`core`）はモジュール名を添える。
 - **移動であって複製ではない**: ファイルをモジュール間で移すときは `git mv` し、旧位置に残さない。各ステップで `./gradlew test` を緑に保つ。
 - **fixture は読み取り専用**: `test-fixtures/` の期待結果は [test-fixtures/README.md](../test-fixtures/README.md) にある。変更を伴うテストは一時ディレクトリへコピーして使う。`labs/` 配下をテストから読まない。

@@ -25,7 +25,7 @@ object FileTreeBenchmark {
                     val result = FileCatalog.search(root, "Class${count - 1}.kt", options)
                     check(result.entries.size == 1 && !result.truncated)
                 }
-                val app = measureTimeMillis { dev.toros.yde.app.AppState().openWorkspace(root) }
+                val app = measureTimeMillis { dev.toros.yde.desktop.AppState().openWorkspace(root) }
                 var contentResult: ReferenceSearch.Result? = null
                 val content = measureTimeMillis {
                     contentResult = ReferenceSearch.search(root, "work() = ${count - 1}", options)

@@ -20,11 +20,11 @@
 | W-09 | UI シェル（標準メニュー・移動と検索・タイトルのワークスペース絶対パス・レールで5スペースを切替） | `Main.kt`, `ui/AppToolbar.kt`, `ui/Shell.kt` | 単体 `NavigationHistoryTest`・画面は手動 | [ui](architecture/ui.md) |
 | W-10 | 受信箱（承認待ち変更セット・エージェントの質問・外部変更競合を実行スペースの先頭タブに集約・バッジと集計） | `ui/RunsSpace.kt`（`InboxTab`）, `Main.kt`（`StatusBar`） | 手動 | [ui](architecture/ui.md) |
 | W-11 | ワークスペース構造（`.yde/` 構成と `ledger` 宣言・レガシー構成は互換・配置判定は `WorkspaceLayout`・CLI `migrate`） | `workspace-core/layout/WorkspaceLayout.kt`, `core/Workspace.kt` | 単体 `WorkspaceLayoutTest`, `DocumentStoreTest` | [workspace](architecture/workspace.md) |
-| W-12 | エディタ層と台帳層の分離（台帳外の YAML はフォームと単文書検証だけ・索引・集計・エージェントは台帳のみ） | `validate/Validator.kt`, `app/AppState.kt`（`editorOnlyFiles`） | 単体 `WorkspaceLayoutTest`, `DocumentStoreTest` | [workspace](architecture/workspace.md) |
+| W-12 | エディタ層と台帳層の分離（台帳外の YAML はフォームと単文書検証だけ・索引・集計・エージェントは台帳のみ） | `validate/Validator.kt`, `desktop/AppState.kt`（`editorOnlyFiles`） | 単体 `WorkspaceLayoutTest`, `DocumentStoreTest` | [workspace](architecture/workspace.md) |
 | W-13 | 同梱フォント（等幅 Cica をビルド時に取得して資源へ・`AppFonts.Mono`・資源が無ければ OS の等幅へ戻す） | `build.gradle.kts`（`downloadFonts`）, `ui/Common.kt`（`AppFonts`） | 手動 | [ui](architecture/ui.md) |
 | W-14 | Markdown の読取専用表示・相対リンク・外部変更の反映 | `ui/MarkdownPane.kt`, `ui/MarkdownView.kt` | `MarkdownLinkTest` | [ui](architecture/ui.md) |
-| W-15 | 内蔵ヘルプ（利用者マニュアルをビルド時に資源へ入れ、ヘルプメニューとコマンドパレットから文書として開く・題目間のリンクで移動） | `app/Help.kt`, `build.gradle.kts`（`copyHelp`）, `ui/MarkdownPane.kt` | 単体 `MarkdownLinkTest` | [ui](architecture/ui.md) |
-| W-16 | 画面の見え方の保持（タブ・畳み・選択・絞り込みは画面を離れても保持、ツリーの展開は永続化） | `app/ScreenMemory.kt` | `ScreenMemoryTest` | [ui](architecture/ui.md) |
+| W-15 | 内蔵ヘルプ（利用者マニュアルをビルド時に資源へ入れ、ヘルプメニューとコマンドパレットから文書として開く・題目間のリンクで移動） | `desktop/Help.kt`, `build.gradle.kts`（`copyHelp`）, `ui/MarkdownPane.kt` | 単体 `MarkdownLinkTest` | [ui](architecture/ui.md) |
+| W-16 | 画面の見え方の保持（タブ・畳み・選択・絞り込みは画面を離れても保持、ツリーの展開は永続化） | `desktop/ScreenMemory.kt` | `ScreenMemoryTest` | [ui](architecture/ui.md) |
 | W-17 | Windows ZIP 配布（起動案内・サンプル・ビルド情報・SHA-256） | `build.gradle.kts`（`windowsRelease`） | `test-windows-zip.ps1`, `DistributionSmoke` | [配布](releasing.md) |
 | W-18 | 複数選択・キー操作・ドラッグ（固定案内・移動先強調） | `ui/FileTreeSelection.kt`, `ui/FileTreePane.kt` | `FileTreeSelectionTest`・画面は手動 | [ui](architecture/ui.md) |
 | W-19 | 参考資料の本文検索（範囲・容量上限・中止・行へ移動） | `core/ReferenceSearch.kt` | `ReferenceToolsTest`, `FileTreeBenchmark` | [ui](architecture/ui.md) |
@@ -39,7 +39,7 @@
 | E-18 | フォームの複合値は全幅配置と上限付き字下げ・単一値は幅に応じた配置・文書情報と他文書の定義は開閉可能 | `ui/FormLayout.kt`, `ui/FormView.kt` | 単体 `FormLayoutTest`, `ScreenMemoryTest`・画面は手動 | [ui](architecture/ui.md) |
 | E-22 | フォーム入力の Esc で内容を保持してフォーカス解除（IME・候補を優先） | `ui/Common.kt`, `ui/TextFieldEscape.kt` | `TextFieldEscapeTest`・画面は手動 | [UI 操作規則](architecture/ui-interactions.md) |
 | E-23 | 選択一覧の現在値・高さ制限・説明全文・検索 | `ui/ChoiceMenu.kt`・`ChoiceOptions.kt` | ChoiceOptionsTest・手動（長い選択一覧） | [UI 操作規則](architecture/ui-interactions.md) |
-| E-21 | 表示方式のアイコン操作・固定／可変・ファイルの明示指定と確認・構成ペインの× | `app/FormDisplayMemory.kt`, `ui/FormDisplayControls.kt` | `FormDisplayMemoryTest`・画面は手動 | [ui](architecture/ui.md) |
+| E-21 | 表示方式のアイコン操作・固定／可変・ファイルの明示指定と確認・構成ペインの× | `desktop/FormDisplayMemory.kt`, `ui/FormDisplayControls.kt` | `FormDisplayMemoryTest`・画面は手動 | [ui](architecture/ui.md) |
 | E-20 | フォームの構成ツリーと三つの表示方式（選択項目・全体連動・全体のみ） | `ui/StructuredForm.kt`, `ui/DocumentFormWorkspace.kt` | `FormOutlineTest`, `FormPositionsTest`, `ScreenMemoryTest`・画面は手動 | [ui](architecture/ui.md) |
 | E-19 | 項目説明の短い表示・項目名とⓘのホバーで小さな予告・説明ボタンで全文固定（編集・閲覧共通） | `ui/FieldHelp.kt` | 単体 `FieldHelpPositionTest`・画面は手動 | [ui](architecture/ui.md) |
 | E-01 | スキーマ駆動フォーム（基底の種類別の編集欄・型から引き継ぐヒント＝複数行と入力欄の案内と表示の形 `format`・必須マーク・説明は Markdown・折りたたみ・id 型は既存 ID の補完と連番の提案と横ぐしへの直行・int / number の桁区切り表示 `display: grouped`・残留値の修復 UI） | `ui/FormView.kt`（`IdEditor`）, `schema/IdSuggest.kt` | 単体 `IdSuggestTest` | [ui](architecture/ui.md) |
@@ -178,11 +178,11 @@
 | A-08 | 生成のキャンセルとエラー処理 | `ui/AiGenerationDialog.kt`, `ai/*Generator.kt` | 単体（一部） | [agents](architecture/agents.md) |
 | A-09 | OpenAI 互換の接続先とプロキシ（Azure・ベース URL 上書き・Basic 認証） | `ai/Connection.kt`, `ai/Http.kt` | 単体 `ConnectionTest` | [agents](architecture/agents.md) |
 | A-10 | 生成のカーネル統合（単発生成を 1 ターンで提出する特殊アクティビティとして実行） | `agent/Generation.kt` | 単体 `GenerationRunTest` | [agents](architecture/agents.md) |
-| A-11 | 同一スキーマの参考文書を添付（最大 3 件を自動選択・上限つき） | `ai/AiGenerator.kt`（`ReferenceDoc`）, `app/AppState.kt`（`sameSchemaFiles`） | 単体 `AiGeneratorTest` | [agents](architecture/agents.md) |
+| A-11 | 同一スキーマの参考文書を添付（最大 3 件を自動選択・上限つき） | `ai/AiGenerator.kt`（`ReferenceDoc`）, `desktop/AppState.kt`（`sameSchemaFiles`） | 単体 `AiGeneratorTest` | [agents](architecture/agents.md) |
 | A-12 | 生成の入出力記録（システム指示・プロンプト・応答スキーマ・生出力を実行記録へ） | `ai/AiGenerator.kt`（`AiExchange`）, `agent/RunLog.kt` | 単体 `GenerationRunTest` | [agents](architecture/agents.md) |
 | A-13 | レート制限と一時エラーの自動リトライ（408 / 429 / 5xx・`retry-after` と指数バックオフ） | `ai/Http.kt`（`retryLoop`） | 単体 `HttpTest` | [agents](architecture/agents.md) |
 | A-14 | Anthropic prompt caching（system・ツール定義・最新メッセージの 3 点） | `ai/ToolChat.kt`（`AnthropicToolSession`） | 単体 `ToolChatParseTest` | [agents](architecture/agents.md) |
-| A-15 | 入口のスペース非依存化（`AiRequest` が対象文書を持ち・ホストはシェル直下） | `app/AppState.kt`（`AiRequest` / `requestAi`）, `ui/AiGenerationDialog.kt` | 手動 | [agents](architecture/agents.md) |
+| A-15 | 入口のスペース非依存化（`AiRequest` が対象文書を持ち・ホストはシェル直下） | `desktop/AppState.kt`（`AiRequest` / `requestAi`）, `ui/AiGenerationDialog.kt` | 手動 | [agents](architecture/agents.md) |
 | A-16 | エンティティ文脈と出現単位の生成（関連文書の注入・所有キー限定の生成・キー単位マージ） | `ai/AiGenerator.kt`（`contextDocs`）, `ui/AiGenerationDialog.kt`（`mergeGenField`） | 単体 `AiGeneratorTest`, `AiProposalTest` | [agents](architecture/agents.md) |
 | A-17 | 新規作成のたたき台生成（作成 → 開く → 生成の連結・ルート object のキー単位マージ） | `ui/AiGenerationDialog.kt`（`requestDocumentDraft`） | 単体 `GenerationRunTest` | [agents](architecture/agents.md) |
 
@@ -242,7 +242,7 @@
 | C-13 | エンティティ合成（全出現を決定的に並べ所有フィールドを原本座標つきでマージ・CLI `entity show`） | `core/Aspects.kt` | 単体 `AspectTest` | [graph-query](architecture/graph-query.md) |
 | C-14 | スキーマ・リファクタリング（12 操作・スキーマと文書とビューを 1 つの計画で追随・カーネルが計画を作る） | `semantic-core/semantic/SchemaRefactor.kt`, `semantic-core/semantic/Rewrite.kt` | 単体 `RefactoringTest`, `RefactoringPlanGoldenTest` | [schema](architecture/schema.md) |
 | C-15 | YAML から YAML への変換（選ぶ × 組み立てる × 規則を子に当てる・値をそろえる `$date` `$number`（`$as` で形）`$trim`・値の式で計算する `$value`・繰り返しの `$index` / `$no`・出どころつき・保存しない・CLI `transform`） | `semantic-core/schema/Transform.kt`, `semantic-core/semantic/Transform.kt` | 単体 `SemanticTransformTest`, `TemplateValueTest`, `StructuralDerivationTransformTest` | [transform](architecture/transform.md) |
-| C-16 | バージョン表示（外部 `appVersion`・内部 `yyyymmdd.ビルド番号`・コミット・CLI `version` とスタート画面） | `app/BuildInfo.kt`, `build.gradle.kts` | 単体 `BuildInfoTest` | [workspace](architecture/workspace.md) |
+| C-16 | バージョン表示（外部 `appVersion`・内部 `yyyymmdd.ビルド番号`・コミット・CLI `version` とスタート画面） | `desktop/BuildInfo.kt`, `build.gradle.kts` | 単体 `BuildInfoTest` | [workspace](architecture/workspace.md) |
 | C-17 | フロービューの解決・CLI・read_view | `semantic-core/semantic/FlowViews.kt`, `core/FlowReports.kt` | `FlowViewsTest`, `FlowViewDefinitionsTest`, `FlowViewsIntegrationTest` | [views](architecture/views.md) |
 | C-18 | フローの配置切替・スイムレーン・文書埋め込み・原本フォームと履歴・改名影響 | `ui/GraphLayouts.kt`, `ui/FlowSwimlanes.kt`, `ui/FlowViewPane.kt` | `FlowLayoutsTest`, `FlowSelectionTest`, `NavigationHistoryTest`, `FlowRefactoringTest` | [views](architecture/views.md) |
 
@@ -269,7 +269,7 @@
 | OP-05 | 操作の入口・フォームと横ぐしの対象引継ぎ・前提の無効化・確認と適用 | `ui/ActionPane.kt`, `ui/DocumentFormWorkspace.kt`, `AppState.kt` | `AppStateActionTest`・`FormOutlineTest` | [actions](architecture/actions.md) |
 | OP-06 | 検査の指摘から対象・値を指定して起動 | `workspace-core/validate/WorkspaceChecks.kt`, `ui/SidePanel.kt` | `ActionPlannerTest`, `AppStateActionTest` | [actions](architecture/actions.md) |
 | OP-07 | エージェントのツール（アクティビティの `actions` で許可した操作が `action_名前` のツールに・引数は受け取る値の定義・ステージングを重ねて計画し積む・`allowedFiles` の外でも通る） | `agent/Tools.kt`（`actionTools` / `runActionTool`）, `agent/Definitions.kt`, `builtin-schemas/activity.yaml` | 単体 `ActionToolTest` | [actions](architecture/actions.md) |
-| OP-08 | 作成経路の寄せ（追加ボタン・新規行・文書の作成を型の `create` と配列の `insert` で。追加のパネルからアクションへ橋渡し） | `workspace-core/workspace/ActionPlanner.kt`, `workspace-core/workspace/DocumentScaffold.kt`, `session/DocumentSession.kt`（`arrayInsert` / `insertArrayElement`）, `app/AppState.kt`（`addArrayElement`） | 単体 `ActionPlannerTest`, `AppStateActionTest` | [actions](architecture/actions.md) |
+| OP-08 | 作成経路の寄せ（追加ボタン・新規行・文書の作成を型の `create` と配列の `insert` で。追加のパネルからアクションへ橋渡し） | `workspace-core/workspace/ActionPlanner.kt`, `workspace-core/workspace/DocumentScaffold.kt`, `session/DocumentSession.kt`（`arrayInsert` / `insertArrayElement`）, `desktop/AppState.kt`（`addArrayElement`） | 単体 `ActionPlannerTest`, `AppStateActionTest` | [actions](architecture/actions.md) |
 | OP-09 | 現在値・本日の入力準備と変更分の送信 | `semantic-core/schema/ActionInput.kt`, `AppState.kt` | `ActionInputTest`, `AppStateActionInputTest` | [actions](architecture/actions.md) |
 
 ## 公開サンプル

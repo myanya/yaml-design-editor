@@ -1,11 +1,11 @@
 package dev.toros.yde.app.core
 
 import dev.toros.yde.app.cli.runCli
-import dev.toros.yde.app.AppState
-import dev.toros.yde.app.UiSpace
-import dev.toros.yde.app.ui.FormCtx
-import dev.toros.yde.app.ui.actionPanelContext
-import dev.toros.yde.app.ui.slotAt
+import dev.toros.yde.desktop.AppState
+import dev.toros.yde.desktop.UiSpace
+import dev.toros.yde.desktop.ui.FormCtx
+import dev.toros.yde.desktop.ui.actionPanelContext
+import dev.toros.yde.desktop.ui.slotAt
 import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.yaml.model.DocumentId
@@ -246,7 +246,7 @@ class DashboardsTest {
     fun `参照先と原本から戻っても業務の場所と一覧の覚えが保たれる`() {
         val state = AppState().also { it.openWorkspace(dir) }
         state.memory.dashboardSection["home"] = "all"
-        val position = dev.toros.yde.app.TableScrollPosition().also { it.index = 1; it.horizontal = 150 }
+        val position = dev.toros.yde.desktop.TableScrollPosition().also { it.index = 1; it.horizontal = 150 }
         state.memory.dashboardScroll["home" to "all"] = position
         state.openDashboardEntity("T-A")
         state.navigateToId("T-B")

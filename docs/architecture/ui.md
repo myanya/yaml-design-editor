@@ -7,9 +7,9 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 
 | 部品 | ファイル | 責務 |
 |---|---|---|
-| `Main.kt` | app/Main.kt | エントリポイント・ウィンドウ・ショートカット（`handleShortcut`）・スタート画面・コマンドパレット・ステータスバー・`uiPreferences` |
-| `UiSpace` / `showSpace` / `showWorkspaceView` / `navigateToPath` / `openCrossView` / `openViewGrid` / `goBack` / `goForward` | app/AppState.kt | スペースとナビゲーション履歴（`NavLocation`） |
-| `ScreenMemory` | app/ScreenMemory.kt | 画面の覚え（畳み・タブ・絞り込み・チェック・ツリーの展開。画面を離れても保持し、切替時は初期化してツリーの展開を復元する） |
+| `Main.kt` | desktop/Main.kt | エントリポイント・ウィンドウ・ショートカット（`handleShortcut`）・スタート画面・コマンドパレット・ステータスバー・`uiPreferences` |
+| `UiSpace` / `showSpace` / `showWorkspaceView` / `navigateToPath` / `openCrossView` / `openViewGrid` / `goBack` / `goForward` | desktop/AppState.kt | スペースとナビゲーション履歴（`NavLocation`） |
+| `ScreenMemory` | desktop/ScreenMemory.kt | 画面の覚え（畳み・タブ・絞り込み・チェック・ツリーの展開。画面を離れても保持し、切替時は初期化してツリーの展開を復元する） |
 | `ActivityRail` / `LedgerSpace` | ui/Shell.kt | 5 スペースを切り替えるレールと、一覧・ビューグリッド・グラフ・エンティティをタブで束ねる台帳スペース |
 | `RunController` / `RunsSpace` | ui/RunsSpace.kt | 実行スペース（受信箱・手動実行・自動化・計測評価）。実行状態機械（AppRoot 生存期間） |
 | `DesignSpace` | ui/DesignSpace.kt | 設計スペース（定義文書の種類別カタログ・新規作成・スキーマ推測・skill） |
@@ -30,7 +30,7 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 | `FilePickers` / `rememberDirectoryChooser` / `rememberFileChooser` / `rememberFileSaver` / `LocalDialogParentWindow` | ui/FilePickers.kt | OS ネイティブのファイル・フォルダ選択と保存先の選択、最後に選んだ場所の記憶（ライブラリ FileKit を包む） |
 | `MarkdownView` / `openExternally` | ui/MarkdownView.kt | Markdown の描画（ライブラリ multiplatform-markdown-renderer を包む。色と文字は Palette） |
 | `MarkdownPane` / `resolveMarkdownLink` | ui/MarkdownPane.kt | Markdown 文書と内蔵ヘルプの表示（表示とソースの 2 タブ・リンクの行き先の判定は純ロジック） |
-| `Help` | app/Help.kt | 内蔵ヘルプの題目と本文（ビルド時に資源 `help/` へ入れた利用者マニュアル） |
+| `Help` | desktop/Help.kt | 内蔵ヘルプの題目と本文（ビルド時に資源 `help/` へ入れた利用者マニュアル） |
 | `FileEditor` / `resolveFilePath` / `fileValueFor` | ui/FileEditor.kt | file 型の入力欄（選ぶ・OS で開く・解決した場所と有無の 1 行・画像なら下に表示）。場所の解決と選んだファイルの書き方は純ロジック |
 | `ImagePane` / `EmbeddedImagePane` / `ImageCanvas` / `fitZoom` | ui/ImagePane.kt | 画像の表示（幅に合わせる・100%・±・Ctrl＋ホイール・ドラッグ＝フロービューと同じ操作）の埋め込みと全面表示で、更新時刻で読み直す |
 | `BarChart` / `ChartSeries` | ui/Charts.kt | 縦棒グラフ（積み上げ・並べ・凡例・マウスで値。ライブラリ Vico を包み、系列の色は Palette の `ChartReady` / `ChartPending` など意味で決める） |

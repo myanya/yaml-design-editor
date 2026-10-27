@@ -46,11 +46,11 @@ class FlowViewsIntegrationTest {
 
     @Test
     fun `原本フォーム経路の編集とUndoと未保存定義を図へ反映する`() {
-        val state = dev.toros.yde.app.AppState().also { it.openWorkspace(directory) }
+        val state = dev.toros.yde.desktop.AppState().also { it.openWorkspace(directory) }
         val document = DocumentId("flows/one.yaml")
         val doc = state.ensureDoc(document)
-        val ctx = dev.toros.yde.app.ui.FormCtx(state, doc, emptyList())
-        val slot = assertNotNull(dev.toros.yde.app.ui.slotAt(assertNotNull(doc.root), parseYPath("items[0].title")))
+        val ctx = dev.toros.yde.desktop.ui.FormCtx(state, doc, emptyList())
+        val slot = assertNotNull(dev.toros.yde.desktop.ui.slotAt(assertNotNull(doc.root), parseYPath("items[0].title")))
         ctx.setScalar(slot, "変更後", dev.toros.yde.semantic.schema.FieldType.STRING)
         fun resolve() = Views.resolveFlow(assertNotNull(Views.load(directory, state.schemas, state.unsavedFirstTree())
             .flowView("diagram")), document, state.overlayIndex(), state::schemaFor, state.unsavedFirstTree())
@@ -63,7 +63,7 @@ class FlowViewsIntegrationTest {
         defRoot.entries["layout"] = YamlIO.parse("direction: right")
         definition.markEdited()
         assertEquals("right", Views.load(directory, state.schemas, state.unsavedFirstTree()).flowView("diagram")?.direction)
-        val readOnly = dev.toros.yde.app.ui.FormCtx(state, doc, emptyList(), readOnly = true)
+        val readOnly = dev.toros.yde.desktop.ui.FormCtx(state, doc, emptyList(), readOnly = true)
         kotlin.test.assertFailsWith<IllegalStateException> { readOnly.markEdited() }
     }
 

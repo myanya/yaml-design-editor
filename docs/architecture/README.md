@@ -64,11 +64,11 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 | | `app.session` | セッション側の状態（Compose 非依存）: `DocumentSession`（コアとカーネルの保持・索引の写し・開いている文書・未保存編集を重ねた索引と派生・編集の記録・開き直しと同期）と 1 文書の論理 `DocumentState`。再読込・保存・履歴の一手・全体検証と検索・一括変更・リファクタリング・文書の作成・配置の計画と前後・操作（アクション）の論理もここ。画面側に残るのは開く手順と場所・通知・パネルの作業 |
 | | `app.text` | 純粋な文字の計算（行の差分と 3 者併合 `LineMerge`・履歴の値を優先した書式の差し込み `SourceHistorySync`） |
 | | `app.skill` | 入出力変換（skill 定義・表形式の読み書き・インポート・エクスポート） |
-| アプリ（root） | `app` | `Main.kt`（エントリポイント・ウィンドウ・ショートカット・スタート画面）・`AppState` / `OpenDocument` |
-| | `app.ui` | Compose の画面一式（骨格は `ui/Shell.kt`） |
+| アプリ（root） | `desktop` | `Main.kt`（エントリポイント・ウィンドウ・ショートカット・スタート画面）・`AppState` / `OpenDocument` |
+| | `desktop.ui` | Compose の画面一式（骨格は `ui/Shell.kt`） |
 | | `app.cli` | root の CLI（`cli/Cli.kt`。探索・検索・検証・エージェント・入出力。CLI の一本化で cli モジュールへ寄せる） |
-| | `app.format` | xlsx / docx の読み書き（POI）の実装 `PoiTables`。入口が `skill.Tables.binary` に登録する |
-| | `app.ai` | AI 生成・LLM クライアント |
+| | `desktop.format` | xlsx / docx の読み書き（POI）の実装 `PoiTables`。入口が `skill.Tables.binary` に登録する |
+| | `app.ai` | AI 生成・LLM クライアント（agent モジュールへ出すまで root に残す） |
 | | `app.agent` | エージェント実行（定義・ステージング・ツールセット・カーネル・実行記録・自動化・メトリクス・評価） |
 
 アプリの中の依存は `app.core` → `app.session` → `app.ai` → `app.skill` → `app.agent` → `app`（AppState）→ `app.ui` の一方向。`app.index` / `app.schema` / `app.validate` / `app.text` は `app.core` より下。
@@ -86,7 +86,7 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 
 | クラス | ファイル | 責務 |
 |---|---|---|
-| `AppState` / `OpenDocument` | app/AppState.kt・app/OpenDocument.kt | 画面側の状態。セッション側（`session.DocumentSession`）の値を Compose の状態へ写し、文書の殻のキャッシュ・ナビゲーション・通知・確認・スレッド（EDT／IO）と画面の追随を担う。`OpenDocument` は開いている 1 文書の Compose の殻で、論理は `session.DocumentState` |
+| `AppState` / `OpenDocument` | desktop/AppState.kt・desktop/OpenDocument.kt | 画面側の状態。セッション側（`session.DocumentSession`）の値を Compose の状態へ写し、文書の殻のキャッシュ・ナビゲーション・通知・確認・スレッド（EDT／IO）と画面の追随を担う。`OpenDocument` は開いている 1 文書の Compose の殻で、論理は `session.DocumentState` |
 | `DocumentSession` | session/DocumentSession.kt | セッション側の状態（Compose 非依存）。`core.Workspace` とカーネルのセッションを持ち、ワークスペースを開く・索引の写し・開いている文書・編集の記録・開き直しと同期・再読込と保存・履歴の一手・全体検証と検索・一括変更・リファクタリング・文書の作成・配置の計画と前後・操作（アクション）の論理を担う |
 | `Workspace` | core/Workspace.kt | ヘッドレスなワークスペース操作の窓口（開く・読む・保存・検証・変更セット適用）。内部にディスクを映すセッションを持つ |
 | `WorkspaceSession` | workspace-core | カーネルのセッション。読み込み・派生状態・履歴（Undo/Redo）・トランザクション・保存・リファクタリングの計画 |

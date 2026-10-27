@@ -20,7 +20,7 @@
 | `WorkspaceSchema.actions` | workspace-core/workspace/WorkspaceReader.kt・SchemaDocuments.kt | スキーマ文書の `actions:` の読み込み |
 | CLI `action` | cli/Cli.kt | 一覧・計画・適用（`--apply`・`--allow-errors`） |
 | `DocumentSession.actionsForEntity` / `actionAvailability` / `prepareActionInput` / `planAction` / `applyAction` / `arrayInsert` / `insertArrayElement` / `viewRowTarget` | session/DocumentSession.kt | 操作の論理（Compose 非依存）: 使える操作の一覧・受け取る値の初期値と入力元の印・計画とドライラン・適用（1 トランザクション＋保存）・配列への追加・一覧の新しい行の追加先 |
-| `AppState.ActionWork` / `startAction` / `planAction` / `applyAction` / `switchInsertToAction` ほか | app/AppState.kt | 画面からの操作の作業（対象の欄の木 `targetHolder`・受け取る値の仮の文書・計画・結果・パネルの開閉 `actionPanelOpen`・追加の作業からアクションへの橋渡し。入口はどれも `startAction`） |
+| `AppState.ActionWork` / `startAction` / `planAction` / `applyAction` / `switchInsertToAction` ほか | desktop/AppState.kt | 画面からの操作の作業（対象の欄の木 `targetHolder`・受け取る値の仮の文書・計画・結果・パネルの開閉 `actionPanelOpen`・追加の作業からアクションへの橋渡し。入口はどれも `startAction`） |
 | `ActionPlanner.insertingInto` | workspace-core/workspace/ActionPlanner.kt | その文書のその配列へ足すアクション（手の insert の `in` と `path`、受け手の文書）。追加のパネルの「操作に切り替える」の候補 |
 | `ActionTabContent` / `ActionPanelHost` / `TargetPicker` | ui/ActionPane.kt | 右ペインの「操作」タブ（使える操作の一覧と作業中の開き直し）と、浮いたパネル（対象の欄・受け取る値のフォーム・要約・検証・差分・適用） |
 | `ElementOpsButton`（ui/FormView.kt）・`IdCell` の ⋯（ui/ViewGridPane.kt） | ui/ | フォームの配列の行とビューグリッドの行の操作メニュー（その要素を対象にして `startAction`） |

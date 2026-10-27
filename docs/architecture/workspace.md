@@ -18,7 +18,7 @@
 | `RefactoringImpact` | workspace-core/workspace/RefactoringImpact.kt | リファクタリングの計画のうち定義文書を見て決まる分 |
 | `Disclosure` | core/Disclosure.kt | 段階的開示（カタログ → 骨子 → ノード全文・文字数予算つきバンドル） |
 | `Bench` | core/Bench.kt | 合成ワークスペースの生成と計測（[README.md「規模の計測」](README.md)） |
-| `BuildInfo` | app/BuildInfo.kt | ビルド時に生成される `build-info.properties`（外部バージョン・内部バージョン・コミット）を読む |
+| `BuildInfo` | desktop/BuildInfo.kt | ビルド時に生成される `build-info.properties`（外部バージョン・内部バージョン・コミット）を読む |
 | `WorkspaceTemplate` / `WorkspaceTemplates` | workspace-core/WorkspaceTemplates.kt | 出発点のテンプレート（資源 `templates/`。台帳 `template.yaml` の名前・説明・問い `params` と、写すファイル） |
 | `WorkspaceInit` / `InitRequest` / `InitPlan` | workspace-core/WorkspaceInit.kt | ワークスペースの初期化の計画と書き込み（テンプレートの展開・後入れ・答えの整形と点検・初期化済みの判定・後入れの候補） |
 | `InitWizardHost` | ui/InitWizard.kt | 初期化ウィザード（浮いたパネル。場所 → 始め方 → 内容 → 確認 → 作成して開く） |

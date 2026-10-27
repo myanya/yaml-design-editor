@@ -111,7 +111,7 @@
 | P44 | 業務の入口としてのダッシュボード | 初期版と独立した業務導線が完了（2026-10-25）、試用後の拡張判断は下記 |
 | P45 | ワークスペースの初期化（新しいワークスペースを作るウィザード。テンプレートから・自分の項目で・既存フォルダに後入れ） | 完了（2026-10-25）。本文は [記録](archive/roadmap-history.md) |
 | P46 | チャート（`kind: chart`＝表を図にするビューの部品）と、軸を値の式で広げるクロス集計 | 第一弾完了（2026-10-26）。残りは下記 |
-| P47 | 開発を AI エージェントに向く形にする（規則の機械化・応用層の切り出し・読む量・入口・UI の確認・拡張の機構・MCP） | 段階 0 完了・段階 1 の R47-10〜13 完了・段階 2 の R47-20（AppState の分割）完了。目指す構成は ADR-0013（承認 2026-10-27）。次は R47-24（app-core の切り出し） |
+| P47 | 開発を AI エージェントに向く形にする（規則の機械化・応用層の切り出し・読む量・入口・UI の確認・拡張の機構・MCP） | 段階 0 完了・段階 1 の R47-10〜13 完了・段階 2 の R47-20（AppState の分割）と R47-24（app-core の切り出しと desktop への改名）完了。目指す構成は ADR-0013（承認 2026-10-27）。次は R47-25（agent モジュールの切り出し） |
 
 ## 未完のテーマ
 
@@ -456,7 +456,7 @@ R47-10 の最初の規則（既知の違反を除いて守られているので�
 | R47-21 | core/Cli.kt の分割 | CLI の一本化（R47-41）に統合。root の CLI の命令を cli モジュールへ移すときに命令ごとのファイルにする | なし | R47-41 へ |
 | R47-22 | FormView.kt の分割 | 項目の種類ごとのファイルへ。画面確認が要るので段階 5 の後 | なし | 未着手 |
 | R47-23 | 行数の目安を報告 | 規則テストが 800 行を超える main のファイルを報告する（失敗にしない。文書の字数と同じ扱い） | なし | 未着手 |
-| R47-24 | app-core モジュールの切り出し | core・index・schema・validate・skill と `DocumentSession` を新モジュール app-core（パッケージの根は `app`。既存の `app.core` などはそのまま）へ `git mv`。desktop（今の root）は `desktop` を根にし、`app.ui` を `desktop.ui` へ改名。app-core に Compose・`java.util.prefs`・AI・POI を入れない（Gradle で止まる）。`core/FileCatalog` の Preferences は desktop へ出す | 決定（ADR-0013） | 前準備 2026-10-27（`core/Cli.kt` → `app.cli`・`FileTreePreferences` → root・POI の読み書きを `app.format.PoiTables` に出し `skill.Tables.binary` に入口が登録・`changeSetToYaml` を `app.core` へ）・app-core 新設 2026-10-27（core・index・schema・validate・text・session・skill の main と、root の入口に依存しないテストを移動。Compose・prefs・AI・POI は Gradle の依存で入らない）・desktop への改名は続く |
+| R47-24 | app-core モジュールの切り出し | core・index・schema・validate・skill と `DocumentSession` を新モジュール app-core（パッケージの根は `app`。既存の `app.core` などはそのまま）へ `git mv`。desktop（今の root）は `desktop` を根にし、`app.ui` を `desktop.ui` へ改名。app-core に Compose・`java.util.prefs`・AI・POI を入れない（Gradle で止まる）。`core/FileCatalog` の Preferences は desktop へ出す | 決定（ADR-0013） | 前準備 2026-10-27（`core/Cli.kt` → `app.cli`・`FileTreePreferences` → root・POI の読み書きを `app.format.PoiTables` に出し `skill.Tables.binary` に入口が登録・`changeSetToYaml` を `app.core` へ）・app-core 新設 2026-10-27（core・index・schema・validate・text・session・skill の main と、root の入口に依存しないテストを移動。Compose・prefs・AI・POI は Gradle の依存で入らない）・desktop への改名 2026-10-27（root の `app` → `desktop`・`app.ui` → `desktop.ui`・`app.format` → `desktop.format`。`app.agent`・`app.ai`・`app.cli` はモジュールへ出すまで root に残す）。完了 |
 | R47-25 | agent モジュールの切り出し | 今の ai と agent を新モジュール agent（根は `agent`。llm・run・auto・eval）へ移す。書き込みはステージング → 変更セット → app-core の適用だけ。ツールの一式（AgentToolbox）は中立な `Toolset` として app-core へ置き、agent は LLM のツール宣言に包む。`ask_human` は agent に残す | 決定（ADR-0013） | 未着手 |
 | R47-26 | 共通の Gradle 設定 | convention plugin（buildSrc）で、新しいモジュールの build ファイルを 3 行にする。Compose を使うモジュールと使わないモジュールの 2 種 | なし | 未着手 |
 

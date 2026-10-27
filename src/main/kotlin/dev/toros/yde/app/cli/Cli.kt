@@ -55,8 +55,8 @@ import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.system.exitProcess
 import dev.toros.yde.yaml.YamlIO
-import dev.toros.yde.app.BuildInfo
-import dev.toros.yde.app.format.PoiTables
+import dev.toros.yde.desktop.BuildInfo
+import dev.toros.yde.desktop.format.PoiTables
 import dev.toros.yde.app.skill.Tables
 
 /**

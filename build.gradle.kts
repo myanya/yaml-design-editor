@@ -349,7 +349,7 @@ tasks.register<JavaExec>("fileTreeBenchmark") {
 
 compose.desktop {
     application {
-        mainClass = "dev.toros.yde.app.MainKt"
+        mainClass = "dev.toros.yde.desktop.MainKt"
         // run と packageDistributionForCurrentOS が使う JDK を toolchain（21）に合わせる。
         // 既定は Gradle を動かしている JDK で、それが 17 だと Java 21 向けのライブラリが読めずに起動に失敗する
         javaHome = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) }
