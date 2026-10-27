@@ -1,9 +1,11 @@
 package dev.toros.yde.cli.commands
 
+import dev.toros.yde.cli.asText
+import dev.toros.yde.cli.asData
+import dev.toros.yde.cli.CliResult
 import dev.toros.yde.app.core.Workspace
 import dev.toros.yde.app.schema.SchemaInference
 import dev.toros.yde.app.schema.validateDefinition
-import dev.toros.yde.cli.dumpYaml
 import dev.toros.yde.cli.stringFlag
 import dev.toros.yde.cli.workspaceOf
 import dev.toros.yde.semantic.schema.SchemaKind
@@ -17,7 +19,7 @@ import java.nio.file.Path
  * 業務ロジックは置かない（引数を窓口の入力へ写し、結果を YAML へ写すだけ）。入口は AppCli.kt の runCli。
  */
 
-internal fun inferSchemaCommand(rest: List<String>): String = run {
+internal fun inferSchemaCommand(rest: List<String>): CliResult = run {
     // スキーマ推測（R11-01）: 既存文書からドラフトを推測し、表示または _schemas へ保存する
     val ws = workspaceOf(rest)
     val glob = rest.getOrNull(1)?.takeIf { !it.startsWith("--") }
@@ -33,7 +35,7 @@ internal fun inferSchemaCommand(rest: List<String>): String = run {
     val draft = SchemaInference.infer(samples, schemaId = id, match = glob)
     val yamlText = YamlIO.dump(draft)
     if ("--apply" !in rest) {
-        yamlText
+        asText(yamlText)
     } else {
         val rel = "${ws.layout.schemasDir}/$id.yaml"
         val file = ws.resolve(rel)
@@ -41,7 +43,7 @@ internal fun inferSchemaCommand(rest: List<String>): String = run {
         Files.createDirectories(file.parent)
         Files.writeString(file, yamlText)
         ws.refresh()
-        dumpYaml(
+        asData(
             linkedMapOf(
                 "file" to rel,
                 "documents" to targets.size,
@@ -51,13 +53,13 @@ internal fun inferSchemaCommand(rest: List<String>): String = run {
     }
 }
 
-internal fun inferRelationsCommand(rest: List<String>): String = run {
+internal fun inferRelationsCommand(rest: List<String>): CliResult = run {
     // 関係レジストリの自動推測（R20-02）: 参照実績からドラフトを生成し、表示または _schemas へ保存する
     val ws = workspaceOf(rest)
     val id = stringFlag(rest, "--id") ?: "workspace-relations"
     val yamlText = inferRelationsDraft(ws, id)
     if ("--apply" !in rest) {
-        yamlText
+        asText(yamlText)
     } else {
         val rel = "${ws.layout.schemasDir}/$id.yaml"
         val file = ws.resolve(rel)
@@ -65,7 +67,7 @@ internal fun inferRelationsCommand(rest: List<String>): String = run {
         Files.createDirectories(file.parent)
         Files.writeString(file, yamlText)
         ws.refresh()
-        dumpYaml(
+        asData(
             linkedMapOf(
                 "file" to rel,
                 "relations" to ws.relations.keys.toList(),
@@ -75,14 +77,14 @@ internal fun inferRelationsCommand(rest: List<String>): String = run {
     }
 }
 
-internal fun schemaGraphCommand(rest: List<String>): String = run {
+internal fun schemaGraphCommand(rest: List<String>): CliResult = run {
     // スキーマの図（レンズの「型」の段と同じ材料。P42。architecture/graph-query.md「スキーマレンズ」）: 文書を読まず、
     // スキーマと関係レジストリから型・関係・保有の宣言を導く。空の値は出さない
     val g = workspaceOf(rest).schemaGraph
     fun site(s: dev.toros.yde.semantic.SchemaGraphSite) = "${s.schemaId}:${s.path}"
     fun compact(vararg pairs: Pair<String, Any?>): LinkedHashMap<String, Any?> =
         linkedMapOf(*pairs.filter { (_, v) -> v != null && (v !is Collection<*> || v.isNotEmpty()) }.toTypedArray())
-    dumpYaml(
+    asData(
         linkedMapOf(
             "types" to g.types.map { t ->
                 compact(

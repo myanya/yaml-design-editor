@@ -1,7 +1,8 @@
 package dev.toros.yde.cli.commands
 
+import dev.toros.yde.cli.asData
+import dev.toros.yde.cli.CliResult
 import dev.toros.yde.app.core.Bench
-import dev.toros.yde.cli.dumpYaml
 import dev.toros.yde.cli.stringFlag
 import java.nio.file.Files
 import java.nio.file.Path
@@ -11,7 +12,7 @@ import java.nio.file.Path
  * 業務ロジックは置かない（引数を窓口の入力へ写し、結果を YAML へ写すだけ）。入口は AppCli.kt の runCli。
  */
 
-internal fun benchCommand(rest: List<String>): String = run {
+internal fun benchCommand(rest: List<String>): CliResult = run {
     val sizes = (stringFlag(rest, "--modules") ?: "2,4,8,16").split(',').map { it.trim().toIntOrNull() ?: error("--modules には整数の並びを指定してください: $it") }
     val keep = stringFlag(rest, "--keep")?.let { Path.of(it) }
     // 1回目は JIT の暖機として捨てる（最小の大きさで1回まわす）
@@ -49,5 +50,5 @@ internal fun benchCommand(rest: List<String>): String = run {
             if (keep == null) dir.toFile().deleteRecursively()
         }
     }
-    dumpYaml(linkedMapOf("bench" to rows))
+    asData(linkedMapOf("bench" to rows))
 }

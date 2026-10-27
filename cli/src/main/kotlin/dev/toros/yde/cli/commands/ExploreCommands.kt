@@ -1,12 +1,14 @@
 package dev.toros.yde.cli.commands
 
+import dev.toros.yde.cli.asText
+import dev.toros.yde.cli.asData
+import dev.toros.yde.cli.CliResult
 import dev.toros.yde.app.core.Disclosure
 import dev.toros.yde.app.core.Search
 import dev.toros.yde.app.core.SearchQuery
 import dev.toros.yde.app.core.Traverse
 import dev.toros.yde.app.core.TraverseSpec
 import dev.toros.yde.app.core.TraverseStep
-import dev.toros.yde.cli.dumpYaml
 import dev.toros.yde.cli.intFlag
 import dev.toros.yde.cli.stringFlag
 import dev.toros.yde.cli.stringFlags
@@ -21,9 +23,9 @@ import java.nio.file.Files
  * 業務ロジックは置かない（引数を窓口の入力へ写し、結果を YAML へ写すだけ）。入口は AppCli.kt の runCli。
  */
 
-internal fun catalogCommand(rest: List<String>): String = run {
+internal fun catalogCommand(rest: List<String>): CliResult = run {
     val ws = workspaceOf(rest)
-    dumpYaml(Disclosure.catalog(ws).map { entry ->
+    asData(Disclosure.catalog(ws).map { entry ->
         linkedMapOf<String, Any?>(
             "file" to entry.file,
             "documentId" to entry.documentId,
@@ -36,33 +38,33 @@ internal fun catalogCommand(rest: List<String>): String = run {
     })
 }
 
-internal fun outlineCommand(rest: List<String>): String = run {
+internal fun outlineCommand(rest: List<String>): CliResult = run {
     val ws = workspaceOf(rest)
     val rel = rest.getOrNull(1) ?: error("ファイルを指定してください")
     val doc = ws.load(rel)
     val root = doc.root ?: error("YAML パースエラー: ${doc.parseError}")
-    Disclosure.outline(root) + "\n"
+    asText(Disclosure.outline(root) + "\n")
 }
 
-internal fun readCommand(rest: List<String>): String = run {
+internal fun readCommand(rest: List<String>): CliResult = run {
     val ws = workspaceOf(rest)
     val rel = rest.getOrNull(1) ?: error("ファイルを指定してください")
     val pathArg = rest.getOrNull(2)?.takeIf { !it.startsWith("--") } ?: ""
     val maxChars = intFlag(rest, "--max-chars") ?: 20_000
     val doc = ws.load(rel)
     val root = doc.root ?: error("YAML パースエラー: ${doc.parseError}")
-    Disclosure.nodeYaml(root, parseYPath(pathArg), maxChars)
+    asText(Disclosure.nodeYaml(root, parseYPath(pathArg), maxChars))
 }
 
-internal fun bundleCommand(rest: List<String>): String = run {
+internal fun bundleCommand(rest: List<String>): CliResult = run {
     val ws = workspaceOf(rest)
     val rel = rest.getOrNull(1) ?: error("ファイルを指定してください")
     val pathArg = rest.getOrNull(2)?.takeIf { !it.startsWith("--") } ?: ""
     val budget = intFlag(rest, "--budget") ?: 8_000
-    Disclosure.bundle(ws, rel, parseYPath(pathArg), budget)
+    asText(Disclosure.bundle(ws, rel, parseYPath(pathArg), budget))
 }
 
-internal fun traverseCommand(rest: List<String>): String = run {
+internal fun traverseCommand(rest: List<String>): CliResult = run {
     val ws = workspaceOf(rest)
     val start = rest.getOrNull(1)?.takeIf { !it.startsWith("--") } ?: error("起点の論理IDを指定してください")
     val steps = stringFlag(rest, "--steps")?.let { raw ->
@@ -70,14 +72,14 @@ internal fun traverseCommand(rest: List<String>): String = run {
         list.mapIndexed { i, e -> TraverseStep.parse(e, "steps[$i]") }
     } ?: TraverseSpec.DEFAULT_STEPS
     val budget = intFlag(rest, "--budget") ?: 8_000
-    Traverse.run(
+    asText(Traverse.run(
         ws.index,
         loader = { d -> runCatching { ws.load(d.value).root }.getOrNull() },
         spec = TraverseSpec(start = start, steps = steps, budgetChars = budget),
-    ) + "\n"
+    ) + "\n")
 }
 
-internal fun searchCommand(rest: List<String>): String = run {
+internal fun searchCommand(rest: List<String>): CliResult = run {
     val ws = workspaceOf(rest)
     val query = SearchQuery(
         text = stringFlag(rest, "--text"),
@@ -88,7 +90,7 @@ internal fun searchCommand(rest: List<String>): String = run {
         unresolvedRefs = "--unresolved" in rest,
         limit = intFlag(rest, "--limit") ?: 50,
     )
-    dumpYaml(Search.run(ws, query).map { hit ->
+    asData(Search.run(ws, query).map { hit ->
         linkedMapOf(
             "file" to hit.file,
             "path" to hit.path,
@@ -98,9 +100,9 @@ internal fun searchCommand(rest: List<String>): String = run {
     })
 }
 
-internal fun hashCommand(rest: List<String>): String = run {
+internal fun hashCommand(rest: List<String>): CliResult = run {
     val ws = workspaceOf(rest)
     val rel = rest.getOrNull(1) ?: error("ファイルを指定してください")
     val text = Files.readString(ws.resolve(rel))
-    dumpYaml(linkedMapOf("file" to rel, "base" to ChangeSets.contentHash(text)))
+    asData(linkedMapOf("file" to rel, "base" to ChangeSets.contentHash(text)))
 }

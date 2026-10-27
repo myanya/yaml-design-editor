@@ -1,7 +1,8 @@
 package dev.toros.yde.cli.commands
 
+import dev.toros.yde.cli.asData
+import dev.toros.yde.cli.CliResult
 import dev.toros.yde.app.core.Aspects
-import dev.toros.yde.cli.dumpYaml
 import dev.toros.yde.cli.workspaceOf
 import dev.toros.yde.semantic.schema.EntityRole
 import dev.toros.yde.yaml.model.YNode
@@ -12,7 +13,7 @@ import dev.toros.yde.yaml.model.pretty
  * 業務ロジックは置かない（引数を窓口の入力へ写し、結果を YAML へ写すだけ）。入口は AppCli.kt の runCli。
  */
 
-internal fun entityCommand(rest: List<String>): String = run {
+internal fun entityCommand(rest: List<String>): CliResult = run {
     val ws = workspaceOf(rest)
     val op = rest.getOrNull(1) ?: error("操作（show / rename / merge / delete）を指定してください")
     // 全体像の表示（R23-04。architecture/graph-query.md「エンティティページ」）: エンティティページ・read_entity と同じ合成を返す
@@ -21,7 +22,7 @@ internal fun entityCommand(rest: List<String>): String = run {
         val composite = Aspects.compose(id, ws.index, ws.schemas, ws.entityTypes, ws::treeOf)
             ?: error("ID「$id」の出現が見つかりません")
         val idx = ws.index
-        return dumpYaml(
+        return asData(
             linkedMapOf(
                 "id" to composite.id,
                 "type" to composite.entityType,
@@ -91,7 +92,7 @@ internal fun entityCommand(rest: List<String>): String = run {
     )
 }
 
-internal fun refactorCommand(rest: List<String>): String = run {
+internal fun refactorCommand(rest: List<String>): CliResult = run {
     error(
     // スキーマ・リファクタリング（P25）はカーネルの命令（Commands.kt）にある（B-1・RB-01: 旧生成器 SchemaRefactor の削除）
     "refactor はカーネルの命令 workspace refactor で行います: ./gradlew runCli --args=\"workspace refactor <workspace> <op> … --apply\"" +
@@ -100,7 +101,7 @@ internal fun refactorCommand(rest: List<String>): String = run {
 )
 }
 
-internal fun moveCommand(rest: List<String>): String = run {
+internal fun moveCommand(rest: List<String>): CliResult = run {
     error(
     // ファイル移動（R21-03）はカーネルの命令（Commands.kt）にある（B-1・RB-01: 旧 DocMove の削除）
     "move はカーネルの命令 workspace refactor move-document で行います: ./gradlew runCli --args=\"workspace refactor <workspace> move-document <old> <new> --apply\""

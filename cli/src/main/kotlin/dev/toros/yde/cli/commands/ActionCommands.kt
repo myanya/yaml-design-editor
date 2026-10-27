@@ -1,7 +1,8 @@
 package dev.toros.yde.cli.commands
 
+import dev.toros.yde.cli.asData
+import dev.toros.yde.cli.CliResult
 import dev.toros.yde.app.core.changeSetToYaml
-import dev.toros.yde.cli.dumpYaml
 import dev.toros.yde.cli.issueMap
 import dev.toros.yde.cli.pruneNulls
 import dev.toros.yde.cli.stringFlag
@@ -20,12 +21,12 @@ import java.nio.file.Path
  * 業務ロジックは置かない（引数を窓口の入力へ写し、結果を YAML へ写すだけ）。入口は AppCli.kt の runCli。
  */
 
-internal fun actionCommand(rest: List<String>): String = run {
+internal fun actionCommand(rest: List<String>): CliResult = run {
     val ws = workspaceOf(rest)
     val name = rest.getOrNull(1)?.takeIf { !it.startsWith("--") }
     if (name == null) {
         // 使える操作の一覧（横断の操作と、型の操作）
-        dumpYaml(
+        asData(
             linkedMapOf(
                 "schemaErrors" to ws.schemaErrors,
                 "actions" to ActionPlanner.catalog(ws.mirror.schemas).map { e ->
@@ -58,7 +59,7 @@ internal fun actionCommand(rest: List<String>): String = run {
         val apply = "--apply" in rest
         val result = if (plan.isEmpty) null
         else ws.apply(plan.changeSet, dryRun = !apply, requireValid = apply && "--allow-errors" !in rest)
-        dumpYaml(
+        asData(
             linkedMapOf<String, Any?>(
                 "action" to plan.title,
                 "summary" to plan.summary,
@@ -78,7 +79,7 @@ internal fun actionCommand(rest: List<String>): String = run {
     }
 }
 
-internal fun applyCommand(rest: List<String>): String = run {
+internal fun applyCommand(rest: List<String>): CliResult = run {
     val ws = workspaceOf(rest)
     val changeSetFile = rest.getOrNull(1)?.takeIf { !it.startsWith("--") }
         ?: error("変更セットのYAMLファイルを指定してください")
@@ -88,7 +89,7 @@ internal fun applyCommand(rest: List<String>): String = run {
         dryRun = "--dry-run" in rest,
         requireValid = "--require-valid" in rest,
     )
-    dumpYaml(
+    asData(
         linkedMapOf(
             "ok" to result.ok,
             "dryRun" to result.dryRun,

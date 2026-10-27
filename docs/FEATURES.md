@@ -232,7 +232,7 @@
 | C-03 | 変更セット（複数ファイルのパッチ束と新規作成・base ハッシュの競合検出・適用後の姿の検証・`--require-valid`・適用の本体はカーネル） | `workspace-core/changeset/ChangeSets.kt`, `workspace-core/workspace/ChangeSetApplier.kt` | 単体 `ChangeSetApplierTest`, `WorkspaceCliTest` | [workspace](architecture/workspace.md) |
 | C-04 | 段階的開示 API（カタログ → 骨子 → ノード全文・文字数予算つきバンドル） | `core/Disclosure.kt` | 単体 `WorkspaceCliTest` | [agents](architecture/agents.md) |
 | C-05 | 構造検索 API（本文とキーの部分一致とスキーマ・glob 条件・参照検索・未解決参照） | `core/Search.kt` | 単体 `WorkspaceCliTest` | [index-references](architecture/index-references.md) |
-| C-06 | CLI は 1 つ（カーネルの命令 `yaml …` / `workspace …` と、応用の命令＝探索・検索・クエリ・ビュー・検証・適用・エンティティ・エージェント・自動化・評価・skill・初期化・推測・移行・検査一覧・準備完了・計測・変換。命令ごとのファイル） | `cli/Main.kt`, `cli/AppCli.kt`, `cli/ExploreCommands.kt` | 単体 `AppCliTest`, `CliTest`, `WorkspaceCliTest` | [workspace](architecture/workspace.md) |
+| C-06 | CLI は 1 つ（カーネルの命令 `yaml …` / `workspace …` と、応用の命令＝探索・検索・クエリ・ビュー・検証・適用・エンティティ・エージェント・自動化・評価・skill・初期化・推測・移行・検査一覧・準備完了・計測・変換。命令ごとのファイル・全命令の `--format yaml|json|text`） | `cli/Main.kt`, `cli/AppCli.kt`, `cli/ExploreCommands.kt` | 単体 `AppCliTest`, `CliTest`, `WorkspaceCliTest` | [workspace](architecture/workspace.md) |
 | C-07 | ビュー解決 API（定義のロード・行 × セルの原本座標化・バックリンク列・文書ビュー・行の並びと集計の種類は項目の型から・CLI `view`） | `core/Views.kt` | 単体 `ViewsTest`, `VirtualViewsTest` | [views](architecture/views.md) |
 | C-08 | 性能ベンチマーク（カーネルの全再構築・増分更新の計測・CLI `workspace bench`） | `cli/Commands.kt` | 単体 `CliTest`, `IdIndexIncrementalTest` | [workspace](architecture/workspace.md) |
 | C-09 | 文書キャッシュの中核（`EditBuffer`・`WorkspaceRecords`・`noteDiskChanges` の振り分け） | `core/Documents.kt`, `core/Workspace.kt` | 単体 `DocumentsTest` | [workspace](architecture/workspace.md) |

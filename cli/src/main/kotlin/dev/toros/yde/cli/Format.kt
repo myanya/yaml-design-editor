@@ -37,7 +37,7 @@ object CliOutput {
         }
     }
 
-    private fun json(v: Any?): String = when (v) {
+    internal fun json(v: Any?): String = when (v) {
         null -> "null"
         is String -> quote(v)
         is Boolean, is Int, is Long, is Double -> v.toString()

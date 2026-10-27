@@ -1,6 +1,7 @@
 package dev.toros.yde.cli.commands
 
-import dev.toros.yde.cli.dumpYaml
+import dev.toros.yde.cli.asData
+import dev.toros.yde.cli.CliResult
 import dev.toros.yde.cli.pruneNulls
 import dev.toros.yde.cli.stringFlag
 import dev.toros.yde.cli.stringFlags
@@ -17,13 +18,13 @@ import java.nio.file.Path
  * 業務ロジックは置かない（引数を窓口の入力へ写し、結果を YAML へ写すだけ）。入口は AppCli.kt の runCli。
  */
 
-internal fun initCommand(rest: List<String>): String = run {
+internal fun initCommand(rest: List<String>): CliResult = run {
     // ワークスペースの初期化（architecture/workspace.md「ワークスペースの初期化」）: 計画はカーネルの WorkspaceInit が作り、ここは見せて書くだけ
     val dir = Path.of(rest.firstOrNull()?.takeIf { !it.startsWith("--") } ?: error("フォルダを指定してください"))
     val name = stringFlag(rest, "--template")
     val adopt = "--adopt" in rest
     if (name == null && !adopt) {
-        return dumpYaml(
+        return asData(
             linkedMapOf(
                 "templates" to WorkspaceTemplates.all.map { t ->
                     linkedMapOf(
@@ -63,7 +64,7 @@ internal fun initCommand(rest: List<String>): String = run {
     }
     val plan = WorkspaceInit.plan(dir, request)
     if ("--dry-run" in rest) {
-        dumpYaml(
+        asData(
             linkedMapOf(
                 "dir" to dir.toString(),
                 "files" to plan.files.map { f -> linkedMapOf("path" to f.path, "exists" to f.exists.takeIf { it }, "sample" to f.sample.takeIf { it }).filterValues { it != null } },
@@ -73,7 +74,7 @@ internal fun initCommand(rest: List<String>): String = run {
         )
     } else {
         val result = WorkspaceInit.apply(dir, plan)
-        dumpYaml(
+        asData(
             linkedMapOf(
                 "template" to (request as? InitRequest.FromTemplate)?.template?.id,
                 "dir" to dir.toString(),
@@ -86,7 +87,7 @@ internal fun initCommand(rest: List<String>): String = run {
     }
 }
 
-internal fun migrateCommand(rest: List<String>): String = run {
+internal fun migrateCommand(rest: List<String>): CliResult = run {
     // レガシー構成 → .yde 構成への移行（R13-01）。ディレクトリ移動と構成ファイル作成のみで、
     // 文書・定義の中身は書き換えない（match 等の glob はワークスペース相対のため影響しない）
     val root = Path.of(rest.firstOrNull() ?: error("ワークスペースのパスを指定してください")).toAbsolutePath().normalize()
@@ -114,7 +115,7 @@ internal fun migrateCommand(rest: List<String>): String = run {
         if (ledger != null) appendLine("ledger: $ledger") else appendLine("# ledger: doc")
     }
     Files.writeString(configDir.resolve(WorkspaceLayout.CONFIG_FILE), configText)
-    dumpYaml(
+    asData(
         linkedMapOf(
             "configDir" to WorkspaceLayout.CONFIG_DIR,
             "moved" to moved,

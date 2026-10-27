@@ -1,6 +1,7 @@
 package dev.toros.yde.cli
 
 import dev.toros.yde.app.core.BuildInfo
+import dev.toros.yde.yaml.YamlIO
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -41,5 +42,27 @@ class AppCliTest {
     fun `不明な命令は使い方を添えて断る`() {
         val e = assertFailsWith<IllegalStateException> { runCli(arrayOf("nope")) }
         assertTrue("不明なコマンドです: nope" in e.message.orEmpty() && "catalog" in e.message.orEmpty(), e.message)
+    }
+
+    @Test
+    fun `--format json で値を JSON にし text は yaml と同じ 文字の結果はそのまま`() {
+        val yaml = runCli(arrayOf("catalog", "samples/todos"))
+        assertEquals(yaml, runCli(arrayOf("catalog", "samples/todos", "--format", "text")))
+        val json = runCli(arrayOf("catalog", "--format", "json", "samples/todos"))
+        assertTrue(json.startsWith("[{\"file\":"), json)
+        assertEquals(YamlIO.parseToRaw(yaml), YamlIO.parseToRaw(json), "JSON は YAML として読んで同じ値")
+        val outline = runCli(arrayOf("outline", "samples/todos", "todos/todo-list.yaml"))
+        assertEquals(outline, runCli(arrayOf("outline", "samples/todos", "todos/todo-list.yaml", "--format", "json")))
+        val e = assertFailsWith<IllegalStateException> { runCli(arrayOf("catalog", "samples/todos", "--format", "xml")) }
+        assertTrue("--format は" in e.message.orEmpty(), e.message)
+    }
+
+    @Test
+    fun `変更セットと注記は yaml では --- とコメント json では項目になる`() {
+        val summary = linkedMapOf<String, Any?>("ok" to true)
+        val data = asData(summary, note = "確認してください")
+        assertEquals("ok: true\n# 確認してください\n", render(data, OutputFormat.YAML))
+        assertEquals("{\"ok\":true,\"note\":\"確認してください\"}\n", render(data, OutputFormat.JSON))
+        assertEquals("骨子", render(asText("骨子"), OutputFormat.JSON))
     }
 }

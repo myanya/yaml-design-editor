@@ -1,12 +1,12 @@
 package dev.toros.yde.cli.commands
 
+import dev.toros.yde.cli.asData
+import dev.toros.yde.cli.CliResult
 import dev.toros.yde.app.core.Workspace
-import dev.toros.yde.app.core.changeSetToYaml
 import dev.toros.yde.app.skill.Exporter
 import dev.toros.yde.app.skill.Importer
 import dev.toros.yde.app.skill.Runner
 import dev.toros.yde.app.skill.Skills
-import dev.toros.yde.cli.dumpYaml
 import dev.toros.yde.cli.workspaceOf
 import dev.toros.yde.yaml.model.pretty
 import java.nio.file.Files
@@ -17,10 +17,10 @@ import java.nio.file.Path
  * 業務ロジックは置かない（引数を窓口の入力へ写し、結果を YAML へ写すだけ）。入口は AppCli.kt の runCli。
  */
 
-internal fun skillsCommand(rest: List<String>): String = run {
+internal fun skillsCommand(rest: List<String>): CliResult = run {
     val ws = workspaceOf(rest)
     val loaded = Skills.load(ws.root)
-    dumpYaml(
+    asData(
         linkedMapOf(
             "skills" to loaded.skills.map { s ->
                 linkedMapOf<String, Any?>(
@@ -34,16 +34,16 @@ internal fun skillsCommand(rest: List<String>): String = run {
     )
 }
 
-internal fun exportCommand(rest: List<String>): String = run {
+internal fun exportCommand(rest: List<String>): CliResult = run {
     val ws = workspaceOf(rest)
     val skillId = rest.getOrNull(1)?.takeIf { !it.startsWith("--") } ?: error("skill IDを指定してください")
     val loaded = Skills.load(ws.root)
     val def = loaded.skill(skillId) ?: error("skill「$skillId」が見つかりません（skills コマンドで確認できます）")
     val result = Exporter.run(ws, def)
-    dumpYaml(linkedMapOf("file" to result.rel, "rows" to result.rows))
+    asData(linkedMapOf("file" to result.rel, "rows" to result.rows))
 }
 
-internal fun runSkillCommand(rest: List<String>): String = run {
+internal fun runSkillCommand(rest: List<String>): CliResult = run {
     // コード実行skill（R9-06）。明示許可制: --yes なしでは内容の表示だけを行い、実行しない
     val ws = workspaceOf(rest)
     val skillId = rest.getOrNull(1)?.takeIf { !it.startsWith("--") } ?: error("skill IDを指定してください")
@@ -58,11 +58,10 @@ internal fun runSkillCommand(rest: List<String>): String = run {
         "writes" to runDef.writes,
     )
     if ("--yes" !in rest) {
-        dumpYaml(summary) +
-            "# 上記のコマンドがワークスペースの外にも作用しうることを確認し、実行するには --yes を付けてください\n"
+        asData(summary, note = "上記のコマンドがワークスペースの外にも作用しうることを確認し、実行するには --yes を付けてください")
     } else {
         val outcome = Runner.run(ws, def, Runner.Approval.approve(runDef))
-        dumpYaml(
+        asData(
             linkedMapOf<String, Any?>(
                 "ok" to outcome.ok,
                 "exitCode" to outcome.exitCode,
@@ -78,7 +77,7 @@ internal fun runSkillCommand(rest: List<String>): String = run {
 }
 
 /** 表形式ファイルを変更セットへ変換し、プレビューまたは適用する（R5-02）。 */
-internal fun importCommand(rest: List<String>): String {
+internal fun importCommand(rest: List<String>): CliResult {
     val ws = Workspace.open(Path.of(rest.firstOrNull() ?: error("ワークスペースのパスを指定してください")))
     val skillId = rest.getOrNull(1)?.takeIf { !it.startsWith("--") } ?: error("skill IDを指定してください")
     val sourceFile = rest.getOrNull(2)?.takeIf { !it.startsWith("--") }
@@ -90,7 +89,7 @@ internal fun importCommand(rest: List<String>): String {
 
     val preview = Importer.build(ws, def, sourceFile)
     if (!preview.ok) {
-        return dumpYaml(linkedMapOf("ok" to false, "errors" to preview.errors))
+        return asData(linkedMapOf("ok" to false, "errors" to preview.errors))
     }
     val summary = linkedMapOf<String, Any?>(
         "ok" to true,
@@ -101,12 +100,11 @@ internal fun importCommand(rest: List<String>): String {
     if (preview.details.isNotEmpty()) summary["details"] = preview.details
     if (preview.skippedRows > 0) summary["skippedRows"] = preview.skippedRows
     if ("--apply" !in rest) {
-        return dumpYaml(summary) +
-            (if (preview.changeSet.changes.isEmpty()) "" else "---\n" + changeSetToYaml(preview.changeSet))
+        return asData(summary, changeSet = preview.changeSet)
     }
     if (preview.changeSet.changes.isEmpty()) {
         summary["applied"] = "変更なし"
-        return dumpYaml(summary)
+        return asData(summary)
     }
     val result = ws.apply(preview.changeSet, requireValid = "--require-valid" in rest)
     summary["applied"] = result.ok
@@ -117,5 +115,5 @@ internal fun importCommand(rest: List<String>): String {
             if (parts.isEmpty()) null else "${r.file}: ${parts.joinToString("; ")}"
         }
     }
-    return dumpYaml(summary)
+    return asData(summary)
 }

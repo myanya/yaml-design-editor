@@ -1,8 +1,9 @@
 package dev.toros.yde.cli.commands
 
+import dev.toros.yde.cli.asData
+import dev.toros.yde.cli.CliResult
 import dev.toros.yde.app.validate.Readiness
 import dev.toros.yde.app.validate.Validator
-import dev.toros.yde.cli.dumpYaml
 import dev.toros.yde.cli.issueMap
 import dev.toros.yde.cli.pruneNulls
 import dev.toros.yde.cli.workspaceOf
@@ -14,7 +15,7 @@ import dev.toros.yde.yaml.validate.Severity
  * 業務ロジックは置かない（引数を窓口の入力へ写し、結果を YAML へ写すだけ）。入口は AppCli.kt の runCli。
  */
 
-internal fun validateCommand(rest: List<String>): String = run {
+internal fun validateCommand(rest: List<String>): CliResult = run {
     val ws = workspaceOf(rest)
     val target = rest.getOrNull(1)?.takeIf { !it.startsWith("--") }
     // `_schemas` 配下もメタスキーマ（R11-02）で検証対象になる（定義のパースエラーは schemaErrors 側）
@@ -47,7 +48,7 @@ internal fun validateCommand(rest: List<String>): String = run {
             },
         ).filterValues { it != null && it != emptyList<Any>() }
     }
-    dumpYaml(
+    asData(
         linkedMapOf(
             "schemaErrors" to ws.schemaErrors,
             "files" to fileResults,
@@ -58,13 +59,13 @@ internal fun validateCommand(rest: List<String>): String = run {
     )
 }
 
-internal fun readinessCommand(rest: List<String>): String = run {
+internal fun readinessCommand(rest: List<String>): CliResult = run {
     val ws = workspaceOf(rest)
     val report = Readiness.report(ws)
     val listed = if ("--pending" in rest) report.entities.filterNot { it.ready } else report.entities
     fun groupMaps(rows: List<Readiness.GroupRow>, key: String) =
         rows.map { linkedMapOf(key to it.key, "total" to it.total, "ready" to it.ready) }
-    dumpYaml(
+    asData(
         linkedMapOf(
             "schemaErrors" to ws.schemaErrors,
             "summary" to linkedMapOf(
@@ -100,7 +101,7 @@ internal fun readinessCommand(rest: List<String>): String = run {
     )
 }
 
-internal fun checksCommand(rest: List<String>): String = run {
+internal fun checksCommand(rest: List<String>): CliResult = run {
     // 展開の透明性（P29 Phase 6・CALC-29）: 語彙（consistency など）と定義の使用（use）が、検証の前に
     // どんな基本の検査へ展開されたかを、由来つきで表示する。--definitions で使える定義と語彙の一覧も出す
     val ws = workspaceOf(rest)
@@ -146,5 +147,5 @@ internal fun checksCommand(rest: List<String>): String = run {
             },
         )
     }
-    dumpYaml(out)
+    asData(out)
 }

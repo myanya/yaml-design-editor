@@ -1,11 +1,12 @@
 package dev.toros.yde.cli.commands
 
+import dev.toros.yde.cli.asData
+import dev.toros.yde.cli.CliResult
 import dev.toros.yde.app.core.Dashboards
 import dev.toros.yde.app.core.DocBacklinkRow
 import dev.toros.yde.app.core.DocBacklinksDef
 import dev.toros.yde.app.core.FlowReports
 import dev.toros.yde.app.core.Views
-import dev.toros.yde.cli.dumpYaml
 import dev.toros.yde.cli.stringFlags
 import dev.toros.yde.cli.workspaceOf
 import dev.toros.yde.workspace.DocumentScaffolds
@@ -20,11 +21,11 @@ import dev.toros.yde.yaml.model.pretty
  * 業務ロジックは置かない（引数を窓口の入力へ写し、結果を YAML へ写すだけ）。入口は AppCli.kt の runCli。
  */
 
-internal fun viewCommand(rest: List<String>): String = run {
+internal fun viewCommand(rest: List<String>): CliResult = run {
     val ws = workspaceOf(rest)
     val loaded = Views.load(ws.root, ws.schemas)
     val viewId = rest.getOrNull(1)?.takeIf { !it.startsWith("--") }
-        ?: return dumpYaml(
+        ?: return asData(
             linkedMapOf(
                 "views" to (loaded.views.map { v ->
                     linkedMapOf(
@@ -64,7 +65,7 @@ internal fun viewCommand(rest: List<String>): String = run {
     loaded.chartView(viewId)?.let { chart ->
         val data = Views.resolveChart(chart, loaded, ws.index, ws::treeOf, ws::schemaFor)
             ?: error("チャート「${chart.id}」の元の表「${chart.view}」が見つかりません")
-        return dumpYaml(dev.toros.yde.semantic.ChartViews.report(data, loaded.errors))
+        return asData(dev.toros.yde.semantic.ChartViews.report(data, loaded.errors))
     }
     loaded.dashboard(viewId)?.let { dashboard ->
         val dateIndex = rest.indexOf("--date")
@@ -80,7 +81,7 @@ internal fun viewCommand(rest: List<String>): String = run {
         inputs.keys.firstOrNull { k -> dashboard.inputs.none { it.key == k } }
             ?.let { error("ダッシュボード「${dashboard.id}」に入力「$it」はありません（inputs: ${dashboard.inputs.joinToString(", ") { i -> i.key }.ifEmpty { "なし" }}）") }
         val result = Dashboards.resolve(dashboard, date, loaded, ws.index, ws::schemaFor, ws::treeOf, inputs)
-        return dumpYaml(Dashboards.report(dashboard, result, loaded.errors))
+        return asData(Dashboards.report(dashboard, result, loaded.errors))
     }
     loaded.flowView(viewId)?.let { flow ->
         val fileArg = rest.getOrNull(2)?.takeIf { !it.startsWith("--") }
@@ -91,12 +92,12 @@ internal fun viewCommand(rest: List<String>): String = run {
             val path = ws.resolve(it).toAbsolutePath().normalize()
             require(path.startsWith(ws.root.toAbsolutePath().normalize())) { "フローの原本はワークスペース内で指定してください" }
             ws.relPath(path).replace('\\', '/')
-        } ?: candidates.singleOrNull() ?: return dumpYaml(linkedMapOf(
+        } ?: candidates.singleOrNull() ?: return asData(linkedMapOf(
             "view" to flow.id, "kind" to "flow", "files" to candidates,
             "hint" to "view <workspace> ${flow.id} <file> で対象文書を指定してください",
         ))
         val result = Views.resolveFlow(flow, DocumentId(rel), ws.index, ws::schemaFor, ws::treeOf)
-        return dumpYaml(FlowReports.toMap(flow, DocumentId(rel), result, loaded.errors))
+        return asData(FlowReports.toMap(flow, DocumentId(rel), result, loaded.errors))
     }
     // 文書ビュー（R14-01）: view <workspace> <view-id> [file] で対象文書を解決する
     loaded.docView(viewId)?.let { dv ->
@@ -104,7 +105,7 @@ internal fun viewCommand(rest: List<String>): String = run {
         val candidates = ws.files.map { ws.relPath(it) }
             .filter { dv.appliesTo(it, ws.schemaFor(ws.resolve(it))?.id) }
             .sorted()
-        val rel = fileArg ?: candidates.singleOrNull() ?: return dumpYaml(
+        val rel = fileArg ?: candidates.singleOrNull() ?: return asData(
             linkedMapOf(
                 "view" to dv.id,
                 "kind" to "document",
@@ -134,7 +135,7 @@ internal fun viewCommand(rest: List<String>): String = run {
                     },
                 ).filterValues { it != null }
             }
-        return dumpYaml(
+        return asData(
             linkedMapOf(
                 "view" to dv.id,
                 "kind" to "document",
@@ -167,7 +168,7 @@ internal fun viewCommand(rest: List<String>): String = run {
         ?: error("ビュー「$viewId」が見つかりません（view コマンドで一覧を確認できます）")
     val resolved = Views.resolveDetailed(view, ws.index, ws::treeOf, ws::schemaFor)
     val rows = resolved.rows
-    dumpYaml(
+    asData(
         linkedMapOf<String, Any?>(
             "view" to view.id,
             "name" to view.name,

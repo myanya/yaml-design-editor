@@ -1,9 +1,12 @@
 package dev.toros.yde.cli.commands
 
+import dev.toros.yde.cli.dumpYaml
+import dev.toros.yde.cli.asText
+import dev.toros.yde.cli.asData
+import dev.toros.yde.cli.CliResult
 import dev.toros.yde.app.core.Reports
 import dev.toros.yde.app.core.Views
 import dev.toros.yde.app.index.Query
-import dev.toros.yde.cli.dumpYaml
 import dev.toros.yde.cli.stringFlag
 import dev.toros.yde.cli.stringFlags
 import dev.toros.yde.cli.workspaceOf
@@ -23,7 +26,7 @@ import java.nio.file.Path
  * 業務ロジックは置かない（引数を窓口の入力へ写し、結果を YAML へ写すだけ）。入口は AppCli.kt の runCli。
  */
 
-internal fun queryCommand(rest: List<String>): String = run {
+internal fun queryCommand(rest: List<String>): CliResult = run {
     val ws = workspaceOf(rest)
     // スペックはファイル（第2引数）かインライン（--spec）のどちらかで与える
     val specText = stringFlag(rest, "--spec")
@@ -32,7 +35,7 @@ internal fun queryCommand(rest: List<String>): String = run {
     val raw = dev.toros.yde.yaml.YamlIO.parseToRaw(specText) as? Map<*, *> ?: error("スペックのルートはobjectである必要があります")
     val spec = QuerySpec.parse(raw, "query")
     val result = Query.run(ws.index, spec, ws::treeOf)
-    dumpYaml(
+    asData(
         linkedMapOf<String, Any?>(
             "columns" to result.columns,
             "total" to result.total,
@@ -52,7 +55,7 @@ internal fun queryCommand(rest: List<String>): String = run {
     )
 }
 
-internal fun transformCommand(rest: List<String>): String = run {
+internal fun transformCommand(rest: List<String>): CliResult = run {
     val ws = workspaceOf(rest)
     val defFile = rest.getOrNull(1)?.takeIf { !it.startsWith("--") }
         ?: error("変換の定義を指定してください（transform <workspace> <定義.yaml> [--input <file>] [--param 名前=値]）")
@@ -79,8 +82,7 @@ internal fun transformCommand(rest: List<String>): String = run {
         )
     }
     val text = result.term?.let { YamlIO.dumpPlain(it) } ?: "# （何も得られませんでした）\n"
-    if ("--origins" !in rest) text
-    else text + "\n" + dumpYaml(
+    asText(if ("--origins" !in rest) text else text + "\n" + dumpYaml(
         linkedMapOf(
             "origins" to result.origins.map { o ->
                 linkedMapOf(
@@ -90,15 +92,15 @@ internal fun transformCommand(rest: List<String>): String = run {
                 ).filterValues { it != null }
             },
         )
-    )
+    ))
 }
 
-internal fun reportCommand(rest: List<String>): String = run {
+internal fun reportCommand(rest: List<String>): CliResult = run {
     val ws = workspaceOf(rest)
     val loaded = Reports.load(ws.root)
     val id = rest.getOrNull(1)?.takeIf { !it.startsWith("--") }
     if (id == null) {
-        dumpYaml(
+        asData(
             linkedMapOf(
                 "reports" to loaded.reports.map { r ->
                     linkedMapOf(
@@ -122,10 +124,10 @@ internal fun reportCommand(rest: List<String>): String = run {
         val result = Reports.run(report, params, catalog, ws.index, ws::treeOf, ws::schemaFor)
         val out = stringFlag(rest, "--out") ?: result.outputRel
         if ("--print" in rest || out == null) {
-            result.text + (if (result.missing.isNotEmpty()) "\n<!-- 埋まらなかった穴: ${result.missing.joinToString("・")} -->\n" else "")
+            asText(result.text + (if (result.missing.isNotEmpty()) "\n<!-- 埋まらなかった穴: ${result.missing.joinToString("・")} -->\n" else ""))
         } else {
             val target = Reports.write(ws.root, out, result.text)
-            dumpYaml(linkedMapOf("written" to out, "file" to target.toString(), "missing" to result.missing))
+            asData(linkedMapOf("written" to out, "file" to target.toString(), "missing" to result.missing))
         }
     }
 }

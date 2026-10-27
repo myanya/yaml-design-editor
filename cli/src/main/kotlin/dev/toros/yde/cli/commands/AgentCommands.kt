@@ -1,5 +1,8 @@
 package dev.toros.yde.cli.commands
 
+import dev.toros.yde.cli.asText
+import dev.toros.yde.cli.asData
+import dev.toros.yde.cli.CliResult
 import dev.toros.yde.agent.AgentEvent
 import dev.toros.yde.agent.AgentHost
 import dev.toros.yde.agent.AgentKernel
@@ -16,7 +19,6 @@ import dev.toros.yde.agent.RunStatus
 import dev.toros.yde.agent.llm.AiProvider
 import dev.toros.yde.app.core.Workspace
 import dev.toros.yde.app.core.changeSetToYaml
-import dev.toros.yde.cli.dumpYaml
 import dev.toros.yde.cli.stringFlag
 import dev.toros.yde.cli.workspaceOf
 import java.nio.file.Files
@@ -27,10 +29,10 @@ import java.nio.file.Path
  * 業務ロジックは置かない（引数を窓口の入力へ写し、結果を YAML へ写すだけ）。入口は AppCli.kt の runCli。
  */
 
-internal fun activitiesCommand(rest: List<String>): String = run {
+internal fun activitiesCommand(rest: List<String>): CliResult = run {
     val ws = workspaceOf(rest)
     val defs = Definitions.load(ws.root)
-    dumpYaml(
+    asData(
         linkedMapOf(
             "agents" to defs.agents.map { linkedMapOf("id" to it.id, "name" to it.name, "tools" to it.tools.map { t -> t.id }) },
             "activities" to defs.activities.map {
@@ -44,21 +46,21 @@ internal fun activitiesCommand(rest: List<String>): String = run {
     )
 }
 
-internal fun metricsCommand(rest: List<String>): String = run {
+internal fun metricsCommand(rest: List<String>): CliResult = run {
     val root = Path.of(rest.firstOrNull() ?: error("ワークスペースのパスを指定してください"))
     val records = RunMetrics.collect(root)
     val filter = stringFlag(rest, "--activity")
     val summaries = RunMetrics.summarize(records)
         .filter { filter == null || it.activityId == filter }
-    dumpYaml(RunMetrics.toYamlMap(summaries))
+    asData(RunMetrics.toYamlMap(summaries))
 }
 
-internal fun revertCommand(rest: List<String>): String = run {
+internal fun revertCommand(rest: List<String>): CliResult = run {
     val ws = workspaceOf(rest)
     val runFile = rest.getOrNull(1)?.takeIf { !it.startsWith("--") }
         ?: error("実行記録（_runs/*.yaml）を指定してください")
     val result = AutoApply.revert(ws, ws.resolve(runFile), force = "--force" in rest)
-    dumpYaml(linkedMapOf("ok" to result.ok, "messages" to result.messages))
+    asData(linkedMapOf("ok" to result.ok, "messages" to result.messages))
 }
 
 /** 環境変数に設定されているAPIキーをプロバイダごとに集める（delegate や watch で使う）。 */
@@ -66,7 +68,7 @@ private fun envApiKeys(): Map<AiProvider, String> =
     AiProvider.entries.associateWith { System.getenv(it.envVar).orEmpty() }.filterValues { it.isNotBlank() }
 
 /** 自動実行エンジンをヘッドレスで起動する（R3-01〜05）。 */
-internal fun watchCommand(rest: List<String>): String {
+internal fun watchCommand(rest: List<String>): CliResult {
     val dir = Path.of(rest.firstOrNull() ?: error("ワークスペースのパスを指定してください"))
     val provider = stringFlag(rest, "--provider")?.let { flag ->
         AiProvider.entries.firstOrNull { it.name.equals(flag, ignoreCase = true) } ?: error("未知のプロバイダです: $flag")
@@ -81,7 +83,7 @@ internal fun watchCommand(rest: List<String>): String {
     return if ("--once" in rest) {
         engine.tick(System.currentTimeMillis())
         kotlinx.coroutines.runBlocking { while (engine.processOnce()) { /* キューを消化 */ } }
-        dumpYaml(
+        asData(
             linkedMapOf(
                 "history" to engine.historySnapshot().map {
                     linkedMapOf("activity" to it.activityId, "status" to it.status, "detail" to it.detail)
@@ -99,17 +101,17 @@ internal fun watchCommand(rest: List<String>): String {
     } else {
         System.err.println("自動実行を開始しました（Ctrl+C で停止）。承認待ちは _runs/ の changeset を apply で適用できます。")
         kotlinx.coroutines.runBlocking { engine.start(this).join() }
-        ""
+        asText("")
     }
 }
 
 /** 評価セットをヘッドレス実行する（R4-02 / R4-04）。 */
-internal fun evalCommand(rest: List<String>): String {
+internal fun evalCommand(rest: List<String>): CliResult {
     val root = Path.of(rest.firstOrNull() ?: error("ワークスペースのパスを指定してください"))
     val loaded = Evals.load(root)
     if (loaded.errors.isNotEmpty()) System.err.println("定義の警告:\n" + loaded.errors.joinToString("\n") { "- $it" })
     val evalId = rest.getOrNull(1)?.takeIf { !it.startsWith("--") }
-        ?: return dumpYaml(
+        ?: return asData(
             linkedMapOf(
                 "evals" to loaded.evals.map {
                     linkedMapOf(
@@ -130,7 +132,7 @@ internal fun evalCommand(rest: List<String>): String {
     val report = kotlinx.coroutines.runBlocking {
         runner.run(root, eval, onLog = { System.err.println(it) })
     }
-    return dumpYaml(
+    return asData(
         linkedMapOf(
             "eval" to report.evalId,
             "activity" to report.activityId,
@@ -153,7 +155,7 @@ internal fun evalCommand(rest: List<String>): String {
 }
 
 /** アクティビティをヘッドレス実行する。非対話のため ask_human には「回答なし」を返す。 */
-internal fun agentCommand(rest: List<String>): String {
+internal fun agentCommand(rest: List<String>): CliResult {
     val ws = Workspace.open(Path.of(rest.firstOrNull() ?: error("ワークスペースのパスを指定してください")))
     val activityId = rest.getOrNull(1)?.takeIf { !it.startsWith("--") } ?: error("アクティビティIDを指定してください")
     val defs = Definitions.load(ws.root)
@@ -198,7 +200,7 @@ internal fun agentCommand(rest: List<String>): String {
         val apply = "--apply" in rest
         val enumeration = Foreach.enumerate(ws, foreachDef)
         if (enumeration.items.isEmpty()) {
-            return dumpYaml(linkedMapOf("total" to enumeration.total, "executed" to 0, "message" to "対象がありません"))
+            return asData(linkedMapOf("total" to enumeration.total, "executed" to 0, "message" to "対象がありません"))
         }
         val itemResults = mutableListOf<Map<String, Any?>>()
         enumeration.items.forEachIndexed { i, item ->
@@ -227,7 +229,7 @@ internal fun agentCommand(rest: List<String>): String {
                 "runLog" to itemWs.relPath(itemRunFile),
             )
         }
-        return dumpYaml(
+        return asData(
             linkedMapOf(
                 "total" to enumeration.total,
                 "executed" to enumeration.items.size,
@@ -252,7 +254,7 @@ internal fun agentCommand(rest: List<String>): String {
     if ("--apply" in rest && result.status == RunStatus.SUBMITTED && result.changeSet.changes.isNotEmpty()) {
         appliedOk = ws.apply(result.changeSet).ok
     }
-    return dumpYaml(
+    return asData(
         linkedMapOf(
             "status" to result.status.name,
             "message" to result.message,
@@ -261,6 +263,7 @@ internal fun agentCommand(rest: List<String>): String {
             "runLog" to ws.relPath(runFile),
             "applied" to appliedOk,
             "changes" to result.changeSet.changes.map { linkedMapOf("file" to it.file, "create" to it.create, "ops" to it.ops.size) },
-        )
-    ) + (if (result.changeSet.changes.isEmpty()) "" else "---\n$changeSetYaml")
+        ),
+        changeSet = result.changeSet,
+    )
 }

@@ -2,6 +2,8 @@ package dev.toros.yde.cli
 
 import dev.toros.yde.app.core.BuildInfo
 import dev.toros.yde.app.core.Workspace
+import dev.toros.yde.app.core.changeSetToYaml
+import dev.toros.yde.workspace.changeset.ChangeSet
 import dev.toros.yde.app.validate.Issue
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.yaml.model.pretty
@@ -120,6 +122,7 @@ internal const val CLI_USAGE = """コマンド:
   workspace bench <root> [--iterations N]       意味解析の全再構築と増分更新を計測する
   workspace shell <root>                        対話 shell（set / refactor / undo / redo / save / reload）
   --- 共通 ---
+  --format text|yaml|json                       出力の形式。応用の命令の既定は yaml（text は yaml と同じ）。骨子・全文・ドラフトのような文字の結果は形式に依らずそのまま
   version                                       バージョン（appVersion＝外部・buildVersion＝内部 yyyymmdd.ビルド番号・commit）
   help                                          このヘルプ
 """
@@ -128,9 +131,10 @@ internal const val CLI_USAGE = """コマンド:
 fun runCli(args: Array<String>): String {
     if (args.isEmpty() || args[0] == "help" || args[0] == "--help") return CLI_USAGE
     val command = args[0]
-    val rest = args.drop(1)
-    return when (command) {
-        "version" -> versionText()
+    val format = CliArgs.format(args.toList())
+    val rest = withoutFormat(args.drop(1))
+    val result: CliResult = when (command) {
+        "version" -> asText(versionText())
         "catalog" -> catalogCommand(rest)
         "outline" -> outlineCommand(rest)
         "read" -> readCommand(rest)
@@ -167,6 +171,48 @@ fun runCli(args: Array<String>): String {
         "schema-graph" -> schemaGraphCommand(rest)
         "revert" -> revertCommand(rest)
         else -> error("不明なコマンドです: $command\n$CLI_USAGE")
+    }
+    return render(result, format)
+}
+
+/**
+ * 応用の命令の結果。値（Data）は --format で書き分け（yaml＝既定・json・text＝yaml と同じ）、
+ * 文字（Text。骨子・全文・ドラフト・レポートの本文）は形式に依らずそのまま。
+ */
+sealed class CliResult {
+    /** 値（連想配列・配列・スカラー）。changeSet は提出された変更セット（YAML では --- の後に続け、JSON では changeSet の項目）、note は添える 1 行（YAML ではコメント、JSON では note の項目）。 */
+    class Data(val value: Any?, val changeSet: ChangeSet? = null, val note: String? = null) : CliResult()
+    class Text(val text: String) : CliResult()
+}
+
+internal fun asData(value: Any?, changeSet: ChangeSet? = null, note: String? = null): CliResult = CliResult.Data(value, changeSet, note)
+internal fun asText(text: String): CliResult = CliResult.Text(text)
+
+/** `--format 値` を引数から外す（命令は位置引数を見るので、どこに書いてもよいように入口で取り除く）。 */
+internal fun withoutFormat(args: List<String>): List<String> {
+    val i = args.indexOf("--format")
+    return if (i < 0) args else args.take(i) + args.drop(i + 2)
+}
+
+/** 結果を書く。YAML はこれまでどおり（YamlIO.dump）、JSON は CliOutput の最小エンコーダ。 */
+internal fun render(result: CliResult, format: OutputFormat): String = when (result) {
+    is CliResult.Text -> result.text
+    is CliResult.Data -> {
+        val changeSet = result.changeSet?.takeIf { it.changes.isNotEmpty() }
+        when (format) {
+            OutputFormat.JSON -> {
+                val extra = LinkedHashMap<String, Any?>()
+                changeSet?.let { extra["changeSet"] = YamlIO.parseToRaw(changeSetToYaml(it)) }
+                result.note?.let { extra["note"] = it }
+                val value = if (extra.isEmpty()) result.value
+                else LinkedHashMap<Any?, Any?>(result.value as? Map<*, *> ?: error("変更セットや注記を添える結果は連想配列です")).apply { putAll(extra) }
+                CliOutput.json(value) + "\n"
+            }
+            OutputFormat.YAML, OutputFormat.TEXT ->
+                dumpYaml(result.value) +
+                    (changeSet?.let { "---\n" + changeSetToYaml(it) } ?: "") +
+                    (result.note?.let { "# $it\n" } ?: "")
+        }
     }
 }
 
