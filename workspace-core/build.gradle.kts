@@ -1,33 +1,15 @@
 // workspace-core: 文書集合の版・更新・永続化・履歴・トランザクション・派生状態の鮮度管理
 // ファイルI/O（Path）はこの層のI/O境界に閉じる（ADR-0002）
 plugins {
-    kotlin("jvm")
-}
-
-group = "dev.toros"
-version = providers.gradleProperty("appVersion").get()
-
-repositories {
-    mavenCentral()
+    id("yde.kotlin-module")   // 共通の設定（buildSrc）: Kotlin・toolchain 21・テストの依存と設定
 }
 
 dependencies {
     api(project(":yaml-core"))
     api(project(":semantic-core"))
-    testImplementation(kotlin("test"))
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.2")
-}
-
-kotlin {
-    jvmToolchain(21)   // 外部ライブラリ（Markdown の描画）が Java 21 の class を要求する。無ければ Gradle（foojay）が自動で取得する
 }
 
 tasks.withType<Test>().configureEach {
-    useJUnitPlatform()
-    // ルートから ./gradlew test --tests '…' で絞ったとき、このモジュールに一致するテストが無くても失敗にしない
-    filter.isFailOnNoMatchingTests = false
-    // 共通fixture（test-fixtures/）の場所。テストは読み取り専用で使う（docs/CONVENTIONS.md §8）
-    systemProperty("fixtures.root", rootDir.resolve("test-fixtures").absolutePath)
     // ゴールデンテスト（RefactoringPlanGoldenTest）の期待値更新スイッチ: ./gradlew :workspace-core:test -DupdateGolden=true
     systemProperty("updateGolden", System.getProperty("updateGolden") ?: "false")
 }

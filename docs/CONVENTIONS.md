@@ -114,6 +114,7 @@
 - **fixture は読み取り専用**: `test-fixtures/` の期待結果は [test-fixtures/README.md](../test-fixtures/README.md) にある。変更を伴うテストは一時ディレクトリへコピーして使う。`labs/` 配下をテストから読まない。
 - **設計の決定を変えるとき**は、既存の ADR を書き換えず、新しい ADR で上書きを宣言する。
 - **機械で確かめられる規約は規則テストに足す**: 依存の向き・禁止する API・置き場の決まりのような規約は、文章に書くだけでなく `rules/SourceRules` の表に 1 つ足す（architecture/README.md「ソース規則テスト」）。
+- **新しいモジュールの build.gradle.kts は 3 行から**: `plugins { id("yde.kotlin-module") }` と dependencies、固有の設定（資源の生成・テストの作業ディレクトリなど）だけを書く。共通の設定（Kotlin の版・toolchain 21・テストの依存・JUnit Platform・`fixtures.root`・絞り込みで失敗にしない）は buildSrc の convention plugin `yde.kotlin-module` が持つ。Kotlin の版は buildSrc/build.gradle.kts が正で、root の compose 用プラグインも同じ版にそろえる。Compose を使うモジュール（root。将来の view-*-ui）は Compose の版と JUnit 4 が絡むので別に書く。
 - **Gradle のタスクの実行時の処理（`doLast`）からスクリプトの値を直接参照しない**: 手元の `val` に取ってから使う（`generateBuildInfo` / `copyHelp` の書き方）。Hot Reload の再コンパイルは構成キャッシュを再利用し、スクリプトの参照を持つタスクは復元できずに失敗する。
 
 ## 9. Core Calculus（新しい決定論的機能の設計レビュー）

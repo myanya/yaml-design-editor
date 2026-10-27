@@ -1,6 +1,6 @@
 // cli: 3層コアの簡易CLI（パースと表示のみ。業務ロジックはcore側に置く）
 plugins {
-    kotlin("jvm")
+    id("yde.kotlin-module")   // 共通の設定（buildSrc）: Kotlin・toolchain 21・テストの依存と設定
     application
 }
 
@@ -19,30 +19,7 @@ tasks.named<JavaExec>("run") {
     standardInput = System.`in`  // shell（対話モード）用
 }
 
-group = "dev.toros"
-version = providers.gradleProperty("appVersion").get()
-
-repositories {
-    mavenCentral()
-}
-
 dependencies {
     implementation(project(":workspace-core"))
-    testImplementation(kotlin("test"))
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.2")
 }
 
-tasks.withType<Test>().configureEach {
-    // ルートから ./gradlew test --tests '…' で絞ったとき、このモジュールに一致するテストが無くても失敗にしない
-    filter.isFailOnNoMatchingTests = false
-}
-
-kotlin {
-    jvmToolchain(21)   // 外部ライブラリ（Markdown の描画）が Java 21 の class を要求する。無ければ Gradle（foojay）が自動で取得する
-}
-
-tasks.withType<Test>().configureEach {
-    useJUnitPlatform()
-    // 共通fixture（test-fixtures/）の場所。テストは読み取り専用で使う（docs/CONVENTIONS.md §8）
-    systemProperty("fixtures.root", rootDir.resolve("test-fixtures").absolutePath)
-}

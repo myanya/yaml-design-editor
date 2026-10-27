@@ -6,8 +6,8 @@ import java.time.format.DateTimeFormatter
 import java.util.zip.ZipInputStream
 
 plugins {
-    kotlin("jvm") version "2.4.21"
-    id("org.jetbrains.kotlin.plugin.compose") version "2.4.21"
+    kotlin("jvm")   // 版は buildSrc/build.gradle.kts（convention plugin と同じ Kotlin。ここに版を書くと Gradle が拒む）
+    id("org.jetbrains.kotlin.plugin.compose") version "2.4.21"   // buildSrc の Kotlin と同じ版にそろえる
     id("org.jetbrains.compose") version "1.12.1"
     id("com.github.jk1.dependency-license-report") version "3.1.4"
 }
