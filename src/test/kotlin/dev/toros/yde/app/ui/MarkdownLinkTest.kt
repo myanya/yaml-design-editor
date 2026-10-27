@@ -6,7 +6,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
 class MarkdownLinkTest {
-    private val ws = Path.of("C:/ws").toAbsolutePath()
+    private val ws = Path.of("").toAbsolutePath().root.resolve("ws")
     private val base = ws.resolve("docs/README.md")
     private val existing = setOf(ws.resolve("docs/guide.md"), ws.resolve("specs/a.yaml"))
     private fun resolve(href: String, help: String? = null) =
