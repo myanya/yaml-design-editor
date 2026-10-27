@@ -161,13 +161,6 @@ object SourceRules {
             12, "同じ裸の名前のファイルを複数作らない",
             why = "検索で複数当たり取り違える。Main.kt（入口）だけは例外",
             doc = "CONVENTIONS「モジュールの規約」",
-            known = listOf(
-                Known("Query.kt", "semantic・semantic.schema・app.index にある。改名は ROADMAP の計画"),
-                Known("Transform.kt", "semantic・semantic.schema にある。同上"),
-                Known("Flow.kt", "semantic・semantic.schema にある。同上"),
-                Known("Aspects.kt", "semantic・app.core にある。同上"),
-                Known("Shell.kt", "cli・app.ui にある。同上"),
-            ),
         ) { files ->
             files.filter { it.name != "Main.kt" }.groupBy { it.name }.filter { it.value.size > 1 }
                 .flatMap { (name, group) -> group.map { Hit(it, 1, "$name が ${group.size} か所", key = name) } }

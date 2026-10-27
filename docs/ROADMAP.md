@@ -473,7 +473,7 @@ R47-10 の最初の規則（既知の違反を除いて守られているので�
 
 | ID | 項目 | 内容 | 判断 | 状態 |
 |---|---|---|---|---|
-| R47-40 | 同名ファイルの改名 | `git mv` で semantic/schema/Query.kt を QuerySpec.kt、semantic/schema/Transform.kt を TransformDef.kt、semantic/schema/Flow.kt を FlowDef.kt、cli/Shell.kt を CliShell.kt に。app/core/Aspects.kt は中身を見て決める。Main.kt は入口なので残す | 名前 | 未着手 |
+| R47-40 | 同名ファイルの改名 | `git mv` で semantic/schema/Query.kt を QuerySpec.kt、semantic/schema/Transform.kt を TransformDef.kt、semantic/schema/Flow.kt を FlowDef.kt、cli/Shell.kt を CliShell.kt に。app/core/Aspects.kt は中身を見て決める。Main.kt は入口なので残す | 名前（ROADMAP の案で着手。オーナー 2026-10-27） | ✅ 2026-10-27（schema/Query.kt → QuerySpec.kt・schema/Transform.kt → TransformDef.kt・schema/Flow.kt → FlowDef.kt・cli/Shell.kt → CliShell.kt。残った重なりは中の object の名前に合わせた: semantic/Query.kt → SemanticQuery.kt・semantic/Aspects.kt → SemanticAspects.kt。規則 12 の既知の違反は 0） |
 | R47-41 | CLI を 1 つに | 案 C で決定。cli モジュールが app-core と agent に依存し、root の CLI の命令（探索・検索・検証・エージェント・入出力など 36）を命令ごとのファイルで移す。全命令で `--format` の text／yaml／json。`runCli` は cli モジュールを起動する | 決定（案 C。ADR-0013） | 第 1 段 2026-10-27（1 つの CLI: root の `app.cli` を cli モジュールへ。応用の命令は `cli.commands` に命令ごとのファイル・`BuildInfo` は app-core・git の助けは buildSrc の `GitInfo`・root の test だけ cli に依存・`runCli` は cli モジュールのタスク。裸の名前は応用の意味、カーネルの命令は `workspace …` / `yaml …` のまま）。第 2 段 2026-10-27（全命令の `--format`: 応用の命令は値 `CliResult.Data` か文字 `Text` を返し、入口 `render` が yaml／json に書き分ける。text は yaml と同じ）。完了 |
 
 #### 段階 5: UI の自動確認

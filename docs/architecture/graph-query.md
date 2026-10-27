@@ -11,8 +11,8 @@
 | `RelationDef` / `Relations` / `EntityTypeDef` / `AspectDecl` / `EnforcementDef` | semantic-core/schema/Relations.kt | 関係レジストリ（`kind: relations`）の宣言。`labelOf` / `inverseLabelOf`・`ownedFieldKeys` |
 | `SemanticEntityGraph`（root の `EntityGraph` は別名） | semantic-core/semantic/ | 走査結果から導出する読み取り専用のグラフ。エンティティ表・隣接（`ownRefs` / `outgoingRefs` / 入次）・文書ノード表・入れ子（`childIds` / `parentIds` / `topLevelIds`）・保有の線（`holdings` / `holdingsOf` / `holdersOf` / `holdingsIn`）・参照の逆引き表（`refIndexFor`） |
 | `SemanticHolding` | semantic-core/semantic/Graph.kt | 保有の線 1 本（親の出現・子の出現・名前＝子を書く項目の `relation` かキー名・宣言の有無）。走査が `ScannedId.holderKey / holderRelation` に写した事実から作る |
-| `QuerySpec` / `QueryNodeStep` / `QueryEdgeStep` / `QueryWhere` | semantic-core/schema/Query.kt | クエリの宣言モデルとパース（1 実装をビュー・foreach・制約・変換・CLI が共用） |
-| `SemanticQuery` | semantic-core/semantic/Query.kt | パターン照合エンジン（`run`・`neighborIds`・`reach`・`matchesFrom` / `countMatchesFrom` / `checkFrom` / `forAllFrom`） |
+| `QuerySpec` / `QueryNodeStep` / `QueryEdgeStep` / `QueryWhere` | semantic-core/schema/QuerySpec.kt | クエリの宣言モデルとパース（1 実装をビュー・foreach・制約・変換・CLI が共用） |
+| `SemanticQuery` | semantic-core/semantic/SemanticQuery.kt | パターン照合エンジン（`run`・`neighborIds`・`reach`・`matchesFrom` / `countMatchesFrom` / `checkFrom` / `forAllFrom`） |
 | `Query` | index/Query.kt | 索引と loader を渡してカーネルの評価器を呼ぶ窓口 |
 | `SemanticGraphIntegrity` | semantic-core/semantic/GraphIntegrity.kt | 宣言のない関係名の判定（走査結果の一式につき 1 回） |
 | `SemanticRefactor` | semantic-core/semantic/Refactor.kt | エンティティ操作（rename / merge / delete）と文書移動の計画 |
@@ -145,6 +145,6 @@ limit: 100
 ## 拡張ポイント
 
 - **エンティティ・関係語彙の追加**: 宣言モデル（`Relations.kt`）・読み取り（`SchemaDocuments`）・メタスキーマ（`builtin-schema` の entity・`builtin-relations`）・スキーマ設計 UI のエンティティ節をそろえて更新する。
-- **クエリ語彙の追加**: 宣言モデルとパース（`Query.kt`）・評価器（`SemanticQuery`）・メタスキーマ（`builtin-view` の rows・`builtin-activity` の foreach.query・`builtin-schema` の constraints）をそろえて更新する。
+- **クエリ語彙の追加**: 宣言モデルとパース（`schema/QuerySpec.kt`）・評価器（`SemanticQuery`）・メタスキーマ（`builtin-view` の rows・`builtin-activity` の foreach.query・`builtin-schema` の constraints）をそろえて更新する。
 - **エンティティ操作の追加**: `SemanticRefactor` に計画の生成を足し、`SemanticRewrite` の列挙器を使う。
 - **スキーマの図の線の種類の追加**（詳細化・共通定義・派生・ビュー→スキーマ）: `SemanticSchemaGraph.build` に出どころを足し、`LensGraphs.buildTypes` の辺の種類・右パネルの絞り込み・CLI `schema-graph` の出力をそろえる。実績の件数を重ねるなら `infer-relations` の集計を共有する。

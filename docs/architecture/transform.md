@@ -7,7 +7,7 @@
 
 | 部品 | ファイル | 責務 |
 |---|---|---|
-| `TransformDef` / `Template` | semantic-core/schema/Transform.kt | 変換定義の宣言とパース（`parse`・`ofTemplate`） |
+| `TransformDef` / `Template` | semantic-core/schema/TransformDef.kt | 変換定義の宣言とパース（`parse`・`ofTemplate`） |
 | `SemanticTransform` / `TransformResult` / `TransformOrigin` | semantic-core/semantic/Transform.kt | 変換の評価器。組み立てた項と、出力の場所 → 入力の文書と場所 |
 | `Projection` | schema/Projection.kt | `{パス}` プレースホルダのテンプレート置換（スコープ連鎖・1 段評価・解決トレース・穴の値の直し方）と値辞書 |
 | `ViewCell.trace` / `ComputedTrace` | core/Views.kt | 計算セルの来歴（元値のテンプレート・プレースホルダごとの解決値と座標。値の式の列では集計の材料と、得られない理由） |
@@ -50,7 +50,7 @@
 
 | 部品 | ファイル | 責務 |
 |---|---|---|
-| `Template.ViewRows` | semantic-core/schema/Transform.kt | `{$view: ID, $where, $one}`。行は呼び出し側が渡し、条件は行の上で `holds` |
+| `Template.ViewRows` | semantic-core/schema/TransformDef.kt | `{$view: ID, $where, $one}`。行は呼び出し側が渡し、条件は行の上で `holds` |
 | `ReportRows` | semantic-core/semantic/ReportRows.kt | 解決した行 → 項（`{id, title, key, cells: [{column, value}], values}`） |
 | `TextTemplate` | semantic-core/semantic/TextTemplate.kt | 文字のひな形（穴 `{パス}` / `{パス:形}`・`{#each}`・`{#if}`・`{{`）。タグだけの行は消す。埋まらない穴は名前を返す |
 | `ReportDef` / `ReportDefinitions` | workspace-core/workspace/ReportDefinitions.kt | 定義のパース（`params` と `build` は `TransformDef`。`template` は同じ場所の相対パス、`output` はワークスペース相対で YAML 不可） |

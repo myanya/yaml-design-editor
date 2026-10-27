@@ -901,7 +901,7 @@ Workspace, Params ⊢ Construct ⇓ Term（＋出どころ）
   今までどおり変更セットと人間の承認を通す。
 - **出どころ（§3.5）**: 出力の各値が、入力のどの文書のどの場所から来たかを、最初から結果の一部にする
   （ビューの「セルは原本の場所に解決される」を、変換一般の性質にする）。
-- **置き場**: semantic-core（`schema/Transform.kt`＝宣言、`semantic/Transform.kt`＝評価器 `SemanticTransform`）。yaml-core には足さない。
+- **置き場**: semantic-core（`schema/TransformDef.kt`＝宣言、`semantic/Transform.kt`＝評価器 `SemanticTransform`）。yaml-core には足さない。
 - **文字の出力（Markdown など）は、土台の外の派生**（検討メモ。いまは実装に影響させない）: 帳票の種類ごとに Markdown のテンプレート
   （値を埋め込む形のひな形）を用意し、YAML から YAML への変換でそのひな形が求める値の一式を作り（表の形への変換もここ）、
   テンプレートエンジンが値の一式からパスで項目を取り出してひな形にはめ込む、という2段。土台に要るのは

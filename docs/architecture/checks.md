@@ -8,11 +8,11 @@
 | 部品 | ファイル | 責務 |
 |---|---|---|
 | `CheckLibrary` | semantic-core/schema/CheckDefinitions.kt | 関数のような定義・語彙の定義・基本の検査への展開（YAML を読んだままの値の上の置き換えだけ。検査の意味を知らない） |
-| `ConstraintRule` / `ConstraintCheck` / `ConstraintForAll` / `CheckOp` / `ReportAt` / `ResponseDecl` / `RuleOrigin` | semantic-core/schema/Query.kt | 検査の宣言（パターン制約・判定・すべての要素について・値の条件・指摘の場所・対応・検査の出どころ） |
+| `ConstraintRule` / `ConstraintCheck` / `ConstraintForAll` / `CheckOp` / `ReportAt` / `ResponseDecl` / `RuleOrigin` | semantic-core/schema/QuerySpec.kt | 検査の宣言（パターン制約・判定・すべての要素について・値の条件・指摘の場所・対応・検査の出どころ） |
 | `CheckerKind` / `CheckerArgs` / `CheckerRule` | semantic-core/schema/Checker.kt | 専用チェッカーを使う検査の宣言 |
 | `ValueExpr` | semantic-core/schema/ValueExpr.kt | 値の式（[schema.md「値の式」](schema.md)） |
 | `SemanticExpression` | semantic-core/semantic/Expression.kt | 共有評価部（値の読み出し・比較 `compare` / `test`・単項と四則・出現の選択 `select` / `preferDefining`・σ 候補 `sigmaCandidates`） |
-| `SemanticQuery.checkFrom` / `forAllFrom` / `countMatchesFrom` | semantic-core/semantic/Query.kt | 判定の評価（値の式の評価・出どころ） |
+| `SemanticQuery.checkFrom` / `forAllFrom` / `countMatchesFrom` | semantic-core/semantic/SemanticQuery.kt | 判定の評価（値の式の評価・出どころ） |
 | `SemanticRules` / `CheckOutcome` / `CheckReason` | semantic-core/semantic/CheckResults.kt | 検査 × 要素の結果を 4 つのどれかに決める 1 箇所 |
 | `SemanticCheckers` / `SemanticFlow` | semantic-core/semantic/Checkers.kt・Flow.kt | 専用チェッカー（遷移検証の到達閉包）の実行 |
 | `SemanticCheckSession` | semantic-core/semantic/CheckSession.kt | 検査の評価の覚え書き（同じ索引の上では 1 回だけ） |

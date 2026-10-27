@@ -55,7 +55,7 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 | | `workspace.layout` | `WorkspaceLayout`（配置の判定） |
 | | `workspace.changeset` | `ChangeSet` / `FileChange` / `ChangeSets` |
 | | `workspace.validate` | 文書の検証の組み立てと検査の配り方（`DocumentValidator`・`WorkspaceChecks`・`CodedChecks`・`IssueSource`） |
-| cli | `cli` | 1 つの CLI（`cli.MainKt`）。カーネルの命令（`yaml …` / `workspace …`。Commands.kt・Shell.kt）と応用の命令（`AppCli.kt` と `cli.commands`＝命令ごとのファイル）。app-core・agent・拡張に依存し、引数の解釈と表示（全命令の `--format`。応用の命令は値か文字の `CliResult` を返し `render` が書き分ける）だけを持つ |
+| cli | `cli` | 1 つの CLI（`cli.MainKt`）。カーネルの命令（`yaml …` / `workspace …`。Commands.kt・CliShell.kt）と応用の命令（`AppCli.kt` と `cli.commands`＝命令ごとのファイル）。app-core・agent・拡張に依存し、引数の解釈と表示（全命令の `--format`。応用の命令は値か文字の `CliResult` を返し `render` が書き分ける）だけを持つ |
 | app-core | `app` | 応用層の中核（画面無し。ADR-0013）: ワークスペースを開き・読み・検証し・変える窓口と、開いている文書の集合、索引とスキーマの窓口、読み出し、入出力変換。Compose・`java.util.prefs`・AI・POI に依存しない（Gradle の依存で止める） |
 | | `app.core` | ワークスペースの窓口（`Workspace`）・文書キャッシュ・ファイル監視・読み出しモデル（`Traverse` / `Disclosure` / `Search` / `Aspects` / `Views`）・規模の計測 |
 | | `app.index` | 索引のファサード（`IdIndex`。カーネルの型の別名）・クエリの窓口 |
