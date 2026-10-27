@@ -19,6 +19,7 @@
 | `ActionPlanner` / `ActionRequest` / `ActionPlan` / `ActionEntry` / `ActionFailure` | workspace-core/workspace/ActionPlanner.kt | 計画器（手を順に当てて変更セットを作る）と、使える操作の一覧（`catalog`・受け手ごとの `forEntity` / `forEntityType` / `forDocument` / `forWorkspace`。`ActionEntry.entityType` / `documentSchema` が受け手の種類） |
 | `WorkspaceSchema.actions` | workspace-core/workspace/WorkspaceReader.kt・SchemaDocuments.kt | スキーマ文書の `actions:` の読み込み |
 | CLI `action` | core/Cli.kt | 一覧・計画・適用（`--apply`・`--allow-errors`） |
+| `DocumentSession.actionsForEntity` / `actionAvailability` / `prepareActionInput` / `planAction` / `applyAction` / `arrayInsert` / `insertArrayElement` / `viewRowTarget` | session/DocumentSession.kt | 操作の論理（Compose 非依存）: 使える操作の一覧・受け取る値の初期値と入力元の印・計画とドライラン・適用（1 トランザクション＋保存）・配列への追加・一覧の新しい行の追加先 |
 | `AppState.ActionWork` / `startAction` / `planAction` / `applyAction` / `switchInsertToAction` ほか | app/AppState.kt | 画面からの操作の作業（対象の欄の木 `targetHolder`・受け取る値の仮の文書・計画・結果・パネルの開閉 `actionPanelOpen`・追加の作業からアクションへの橋渡し。入口はどれも `startAction`） |
 | `ActionPlanner.insertingInto` | workspace-core/workspace/ActionPlanner.kt | その文書のその配列へ足すアクション（手の insert の `in` と `path`、受け手の文書）。追加のパネルの「操作に切り替える」の候補 |
 | `ActionTabContent` / `ActionPanelHost` / `TargetPicker` | ui/ActionPane.kt | 右ペインの「操作」タブ（使える操作の一覧と作業中の開き直し）と、浮いたパネル（対象の欄・受け取る値のフォーム・要約・検証・差分・適用） |
@@ -44,7 +45,7 @@
 - **編集と操作の札**: パネルの題名の脇に「編集」（追加の作業＝`insertInto`。この文書の木を変える。未保存）か「操作」（確認してから書いて保存）の札と副題を出す。追加の作業では、その配列へ足すアクション（`ActionPlanner.insertingInto`）があれば「まとめて足す操作があります」と案内し、`switchInsertToAction` が同じキーの値を持ち越してアクションの作業に変える。
 - **閲覧専用**: 閲覧専用が封じるのは編集（`FormCtx.readOnly`・`addArrayElement`）で、操作の入口（操作メニュー・行の ⋯・ヘッダ・パレット・検査の指摘・「操作」タブ）は閲覧専用でも出す。組込みの改名・統合・削除は閲覧専用では隠す。閲覧専用で適用した操作の取り消し・やり直しは `afterHistoryStep` が保存まで行う（`actionRecordIds`＝操作の適用で積んだ履歴の id。未保存の編集を残さない）。
 - **エージェント**: アクティビティの `actions` で許可した操作が `AgentToolbox` のツールになる（`action_` ＋名前。引数は受け取る値の定義から、受け手は `target`）。実行はステージングを重ねたセッションの上で `ActionPlanner.plan` を呼び、変更セットを `Staging` へ積む（原本は提出と承認まで変わらない）。前提に合わなければ理由を返す。`allowedFiles` / `allowedPaths` は見ない（[agents.md](agents.md)）。
-- **作成経路の寄せ**: 配列エディタの追加ボタンとビューの新規行（配列モード）は `AppState.addArrayElement` → `ActionPlanner.newElement`（型の `create` ＋ 配列の `insert` の決まり）で要素を作る。要素の型の `create` に受け取る値があれば同じパネル（`ActionWork.insertInto`）で入力し、「追加」で未保存の編集として足す（計画と保存はしない）。
+- **作成経路の寄せ**: 配列エディタの追加ボタンとビューの新規行（配列モード）は `AppState.addArrayElement`（カードを出すか決める）→ `DocumentSession.insertArrayElement` → `ActionPlanner.newElement`（型の `create` ＋ 配列の `insert` の決まり）で要素を作る。要素の型の `create` に受け取る値があれば同じパネル（`ActionWork.insertInto`）で入力し、「追加」で未保存の編集として足す（計画と保存はしない）。
 - 受け取る値が無ければその場で足す（採番つき。空の要素どうしは同じ明細と見ない）。文書の作成（`DocumentScaffolds.contents`）はルートの型の `create` の `build` を ID と表示名で重ねる。skill の取り込みとエージェントの `create_document` は寄せていない。
 - **検査からの起動**: 検査の `responses` に `{action, label, with}` を書くと、`WorkspaceChecks.responsesOf` が `CheckResponse.RunAction`（受け手＝起点の ID・渡す値＝文面を指摘と同じひな型で埋めたもの）を作り、検証パネルのメニューから `startAction(name, target, prefill)` で対象の入ったパネルが開く。無い操作を指す対応は読み込みの誤り（`WorkspaceReader.buildSchemas`）。
 

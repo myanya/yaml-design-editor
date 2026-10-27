@@ -54,7 +54,7 @@
 
 ## 文書キャッシュと Workspace
 
-- セッション側の `session.DocumentSession`（Compose 非依存）が、走査・スキーマ・索引・更新方針を保持する `core.Workspace` とカーネルのセッションを持ち、写し（`schemas` / `yamlFiles` / `indexVersion` / `editVersion`）・開いている文書（`DocumentState`）・未保存編集を重ねた索引と派生・編集の記録・セッションの開き直しとディスクとの同期・再読込と保存・履歴の一手・全体検証と検索・一括変更・リファクタリングの計画と適用・文書の作成・配置の計画と前後を担う。core 側を更新したら `mirrorCore` で写し直し `indexVersion` を進める。
+- セッション側の `session.DocumentSession`（Compose 非依存）が、走査・スキーマ・索引・更新方針を保持する `core.Workspace` とカーネルのセッションを持ち、写し（`schemas` / `yamlFiles` / `indexVersion` / `editVersion`）・開いている文書（`DocumentState`）・未保存編集を重ねた索引と派生・編集の記録・セッションの開き直しとディスクとの同期・再読込と保存・履歴の一手・全体検証と検索・一括変更・リファクタリングの計画と適用・文書の作成・配置の計画と前後・操作（アクション）の論理を担う。core 側を更新したら `mirrorCore` で写し直し `indexVersion` を進める。
 - `AppState`（画面側）はセッション側の値を `onChanged` で Compose の状態へ写し、文書の殻（`OpenDocument`）のキャッシュ（`docCache`）・ナビゲーション・通知・確認・スレッド（EDT／IO）と画面の追随を担う。編集元の画面の印（合体キーに入る）と記録 ID の対応も画面側が持つ。
 - `OpenDocument` は `EditBuffer` のシェル（[editing-history.md](editing-history.md)）。編集 API の意味を変えるときは `EditBuffer` を直す。
 - `docCache` は `mutableStateMapOf` で、文書と内部の State を同じスナップショットから参照する。描画開始後に生成した文書は次の描画から見え、破棄したスナップショットの文書は公開しない。

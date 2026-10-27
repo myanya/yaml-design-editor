@@ -24,9 +24,17 @@ import dev.toros.yde.semantic.SemanticAutoValues
 import dev.toros.yde.semantic.SemanticSchemaGraph
 import dev.toros.yde.semantic.schema.EnforcementDef
 import dev.toros.yde.semantic.schema.EntityTypeDef
+import dev.toros.yde.semantic.schema.FieldDef
+import dev.toros.yde.semantic.schema.MethodDef
 import dev.toros.yde.semantic.schema.RefTarget
 import dev.toros.yde.semantic.schema.RelationDef
+import dev.toros.yde.semantic.schema.SchemaTree
 import dev.toros.yde.semantic.schema.globToRegex
+import dev.toros.yde.workspace.ActionAvailability
+import dev.toros.yde.workspace.ActionEntry
+import dev.toros.yde.workspace.ActionPlan
+import dev.toros.yde.workspace.ActionPlanner
+import dev.toros.yde.workspace.ActionRequest
 import dev.toros.yde.workspace.ChangeIntent
 import dev.toros.yde.workspace.ChangeRecord
 import dev.toros.yde.workspace.DocumentScaffold
@@ -35,6 +43,7 @@ import dev.toros.yde.workspace.FileArrangementPlan
 import dev.toros.yde.workspace.FileArrangementPlanner
 import dev.toros.yde.workspace.FileSystemDocumentStore
 import dev.toros.yde.workspace.PathMove
+import dev.toros.yde.workspace.PreparedActionInput
 import dev.toros.yde.workspace.ScaffoldSource
 import dev.toros.yde.workspace.StoreConflictException
 import dev.toros.yde.workspace.WorkspaceDerivedState
@@ -51,7 +60,10 @@ import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.YDocument
 import dev.toros.yde.yaml.model.YNode
+import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.model.deepCopy
+import dev.toros.yde.yaml.model.getAt
+import dev.toros.yde.yaml.model.pretty
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.LocalDateTime
@@ -1386,5 +1398,180 @@ class DocumentSession(private val editClock: () -> Long = System::currentTimeMil
         documentMap.keys.filter { file -> moves.any { file == ws.resolve(it.from) || file.startsWith(ws.resolve(it.from)) } }
             .toList().forEach(::closeDocument)
         refreshAfterSessionWrite(plan.documentIds + plan.texts.filter { it.document.value.endsWith(".yaml") || it.document.value.endsWith(".yml") }.map { it.document })
+    }
+
+    // ---------------------------------------------------------------- 操作（型の操作とアクション）の論理（パネルの作業と表示は殻）
+
+    /** 型の要素の候補（パネルの「対象」欄）: 上書き索引のうちその型の出現を持つ ID と、その 1 行要約。 */
+    fun entityCandidates(type: String): List<Pair<String, String?>> =
+        overlayIndex().entries.values.asSequence()
+            .filter { occurrences -> occurrences.any { it.entityType == type } }
+            .map { occurrences -> occurrences.first().id to occurrences.firstNotNullOfOrNull { it.title } }
+            .sortedBy { it.first }
+            .toList()
+
+    /** 要素に使える操作（エンティティページの操作メニュー）。 */
+    fun actionsForEntity(id: String): List<ActionEntry> =
+        core?.let { cw -> runCatching { ActionPlanner.forEntity(cw.mirror, id) }.getOrDefault(emptyList()) }.orEmpty()
+
+    /** 型に使える操作（台帳の「要素の操作」＝受け手をパネルで選ぶ入口と、未保存の行のメニュー）。 */
+    fun actionsForEntityType(type: String): List<ActionEntry> =
+        core?.let { cw -> runCatching { ActionPlanner.forEntityType(cw.mirror, type) }.getOrDefault(emptyList()) }.orEmpty()
+
+    /** 文書に使える操作（文書ヘッダのメニュー）。 */
+    fun actionsForDocument(file: Path): List<ActionEntry> =
+        core?.let { cw -> runCatching { ActionPlanner.forDocument(cw.mirror, relPath(file)) }.getOrDefault(emptyList()) }.orEmpty()
+
+    /** 受け手の無い操作（コマンドパレット）。 */
+    fun actionsForWorkspace(): List<ActionEntry> = core?.let { ActionPlanner.forWorkspace(it.mirror.schemas) }.orEmpty()
+
+    /** 名前（アクションの id か 型名.操作名）で操作を引く（create は除く）。 */
+    fun actionByName(name: String): ActionEntry? =
+        core?.let { cw -> ActionPlanner.catalog(cw.mirror.schemas).firstOrNull { it.name == name && it.kind != "create" } }
+
+    /** 今の状態（編集用のセッション。無ければディスクの写し）で使えるか。 */
+    fun actionAvailability(entry: ActionEntry, target: String?): ActionAvailability =
+        (kernel ?: core?.mirror)?.let { ActionPlanner.availability(it, ActionRequest(entry.name, target)) }
+            ?: ActionAvailability(false, "ワークスペースが開かれていません")
+
+    /** 受け取る値の初期値と入力元の印（input のある操作）。 */
+    fun prepareActionInput(entry: ActionEntry, target: String?, explicit: Map<String, Any?>, preparedAt: LocalDateTime): PreparedActionInput {
+        val current = kernel ?: core?.mirror ?: error("ワークスペースが開かれていません")
+        return ActionPlanner.prepareInput(current, ActionRequest(entry.name, target, explicit), preparedAt)
+    }
+
+    /** 受け取る値のうち渡すもの: input のない従来の操作は空欄を省略する。submit が changed なら初期値との差分と必須・明示指定だけ。 */
+    fun actionParams(entry: ActionEntry, values: YNode.Map, tree: SchemaTree?, explicit: Map<String, Any?>, baseline: Map<String, Any?>): Map<String, Any?> {
+        val required = entry.params.filter { p -> tree?.requiredAt(tree.resolve(p) ?: p, null) ?: p.required }.mapNotNull { it.key }.toSet()
+        return values.entries.entries
+            .filterNot { (_, v) -> entry.input == null && v is YNode.Scalar && v.value?.toString().isNullOrBlank() }
+            .filter { (key, value) -> entry.input?.submit != "changed" || key in explicit || key !in baseline ||
+                key in required || YamlIO.dumpPlain(value) != YamlIO.dumpPlain(YamlIO.fromAny(baseline[key])) }
+            .associate { (k, v) -> k to YamlIO.toAny(v) }
+    }
+
+    /** 計画を作る（原本は変えない）。読み取りだけの前提は今の状態（編集用のセッション）で検査し、計画はディスクの写しが基準。 */
+    fun planAction(request: ActionRequest, planTime: LocalDateTime): ActionPlan {
+        val cw = core ?: error("ワークスペースが開かれていません")
+        ActionPlanner.checkPreconditions(kernel ?: cw.mirror, request)
+        return ActionPlanner.plan(cw.mirror, request, planTime)
+    }
+
+    /** 計画の変更セットを適用した後の姿の検証（ドライラン）。変更が無ければ null。 */
+    fun previewAction(plan: ActionPlan): ChangeSetResult? = if (plan.isEmpty) null else core?.apply(plan.changeSet, dryRun = true)
+
+    /** 計画の対象に未保存の編集があれば拒む（適用→保存が未保存の編集まで書いてしまうのを防ぐ）。 */
+    fun checkActionTargetsSaved(plan: ActionPlan) {
+        val dirty = plan.changeSet.changes.map { fileOf(DocumentId(it.file)) }.filter { documentMap[it]?.dirty == true }
+        require(dirty.isEmpty()) { "エディタに未保存の変更があるため適用できません: ${dirty.joinToString(", ") { relPath(it) }}" }
+    }
+
+    /**
+     * 計画を適用して保存する（変更セットの承認と同じ経路。検証・競合の基準はディスクの内容、書込は編集用のセッションの
+     * 1 トランザクション＋保存＝Undo 1 回で全部戻る）。検証エラーが残るなら書かない（allowErrors で書く）。
+     * 適用の直前に、読み取りだけの前提も同じ計画器で再検査する。戻り値は書いたファイルの数。
+     */
+    fun applyAction(request: ActionRequest, plan: ActionPlan, plannedAt: LocalDateTime, allowErrors: Boolean): Int {
+        require(!plan.isEmpty) { "変更はありません" }
+        val cw = core ?: error("ワークスペースが開かれていません")
+        val s = kernel ?: error("セッションが開かれていません")
+        checkActionTargetsSaved(plan)
+        ActionPlanner.checkPreconditions(s, request)
+        ActionPlanner.plan(cw.mirror, request, plannedAt)
+        val result = withHistoryOrigin(s) { cw.applyViaSession(s, plan.changeSet, requireValid = !allowErrors) }
+        if (!result.ok) {
+            val reasons = result.results.filter { it.message != null }.joinToString("\n") { "${it.file}: ${it.message}" }
+            error(reasons.ifBlank {
+                if (result.errorIssueCount > 0) "検証エラーが残るため適用しませんでした（エラー ${result.errorIssueCount} 件）" else "適用に失敗しました"
+            })
+        }
+        refreshAfterSessionWrite(plan.changeSet.changes.map { DocumentId(it.file) })
+        s.peekUndo()?.let { actionRecordIds += it.id }
+        return plan.changeSet.changes.size
+    }
+
+    // ---------------------------------------------------------------- 配列への追加と一覧の新しい行（要素の作り方はカーネルの 1 実装）
+
+    /** 配列の追加の下調べ: 実効の配列定義・要素の型の create（受け取る値があるものだけ）・その配列へ足すアクション（橋渡し）。 */
+    class ArrayInsert(val arrayDef: FieldDef, val create: MethodDef?, val alternatives: List<ActionEntry>)
+
+    fun arrayInsert(doc: DocumentState, arrayPath: YPath, field: FieldDef): ArrayInsert {
+        val schema = doc.schema
+        val arrayDef = schema?.resolve(field) ?: field
+        val itemDef = arrayDef.item?.let { schema?.resolve(it) ?: it }
+        val create = itemDef?.methods?.firstOrNull { it.isCreate }?.takeIf { it.params.isNotEmpty() }
+        val alternatives = if (create == null) emptyList()
+            else core?.let { cw -> schema?.id?.let { sid -> ActionPlanner.insertingInto(cw.mirror.schemas, sid, arrayPath) } }.orEmpty()
+        return ArrayInsert(arrayDef, create, alternatives)
+    }
+
+    /**
+     * 配列の末尾へ要素を足す: 要素の中身は型の create と配列の insert の決まり（カーネルの 1 実装）。配列が無ければ作る。
+     * 足した要素は未保存の編集（Undo 可）。戻り値は番号。
+     */
+    fun insertArrayElement(doc: DocumentState, arrayPath: YPath, arrayDef: FieldDef, params: Map<String, Any?>, now: LocalDateTime = LocalDateTime.now()): Int {
+        check(!readOnlyMode) { "閲覧専用モードでは編集できません" }
+        val root = doc.root as? YNode.Map ?: error("文書をパースできません: ${doc.parseError}")
+        val seq = ensureSeq(root, arrayPath)
+        val tree = doc.schema?.tree
+        val element = if (tree == null) YNode.Map() else {
+            // 配列を持つ要素（親）を渡す: 採番の接頭辞が `$of: self` で親の値（注文番号など）を読める
+            val holder = if (arrayPath.isEmpty()) root else getAt(root, arrayPath.subList(0, arrayPath.size - 1))
+            val made = ActionPlanner.newElement(tree, arrayDef, seq, params, overlayIndex().entries.keys, now, dedupe = params.isNotEmpty(), holder = holder)
+            made.node ?: error(made.skipped ?: "追加できません")
+        }
+        seq.items.add(element)
+        doc.markEdited()
+        return seq.items.size - 1
+    }
+
+    /** パスの配列を解決する（末端の配列と、途中の無いマップは作る）。 */
+    private fun ensureSeq(root: YNode.Map, path: YPath): YNode.Seq {
+        var container: YNode = root
+        path.forEachIndexed { i, seg ->
+            val current = container
+            container = when {
+                current is YNode.Map && seg is String ->
+                    current.entries.getOrPut(seg) { if (i == path.lastIndex) YNode.Seq() else YNode.Map() }
+                current is YNode.Seq && seg is Int ->
+                    current.items.getOrNull(seg) ?: error("追加先パスが存在しません: ${path.pretty()}")
+                else -> error("追加先パスを解決できません: ${path.pretty()}")
+            }
+        }
+        return container as? YNode.Seq ?: error("追加先が配列ではありません: ${path.pretty()}")
+    }
+
+    /** ビューの newRow 定義の追加先: 一覧文書・配列（末端だけは無ければ作る）・その配列の定義（スキーマが無ければ null）。 */
+    class ViewRowTarget(val doc: DocumentState, val path: YPath, val seq: YNode.Seq, val arrayDef: FieldDef?)
+
+    fun viewRowTarget(view: ViewDef): ViewRowTarget {
+        val def = view.newRow ?: error("このビューには newRow が定義されていません")
+        val fileRel = def.file ?: error("このビューの newRow はファイルモードです（addViewRowFile を使う）")
+        val ws = workspace ?: error("ワークスペースが開かれていません")
+        val file = ws.resolve(fileRel).normalize()
+        require(Files.isRegularFile(file)) { "一覧文書が存在しません: $fileRel" }
+        val doc = ensureDocument(file)
+        val root = doc.root ?: error("一覧文書をパースできません: ${doc.parseError}")
+        var container: YNode = root
+        def.path.forEachIndexed { i, seg ->
+            val current = container
+            container = when {
+                current is YNode.Map && seg is String ->
+                    current.entries.getOrPut(seg) { if (i == def.path.lastIndex) YNode.Seq() else YNode.Map() }
+                current is YNode.Seq && seg is Int ->
+                    current.items.getOrNull(seg) ?: error("追加先パスが存在しません: ${def.path}")
+                else -> error("追加先パスを解決できません: ${def.path}")
+            }
+        }
+        val seq = container as? YNode.Seq ?: error("追加先が配列ではありません: ${def.path}")
+        val arrayDef = schemaFor(file)?.let { Views.fieldAt(it, root, def.path) }
+        return ViewRowTarget(doc, def.path, seq, arrayDef)
+    }
+
+    /** スキーマの無い一覧へ空の要素を足す（未保存の編集）。戻り値は足した要素のパス。 */
+    fun appendEmptyRow(target: ViewRowTarget): YPath {
+        target.seq.items.add(YNode.Map())
+        target.doc.markEdited()
+        return target.path + (target.seq.items.size - 1)
     }
 }

@@ -154,7 +154,7 @@
 | X-12 | レンズの見え方の定義（`_views` の `kind: lens`＝関係ごとの矢印の向き。表示だけ・レジストリに無い関係名はリント・関係の改名は警告で開示） | `semantic-core/semantic/LensViews.kt`, `workspace-core/workspace/ViewDefinitions.kt`（`parseLensView`）, `ui/LensGraph.kt` | 単体 `ViewDefinitionsTest`, `LensGraphTest` | [views](architecture/views.md) |
 | X-04 | コマンドパレット（Ctrl+K・ID・ファイル・本文検索・ビュー切替・スペース切替・保存） | `Main.kt`（`CommandPalette`）, `session/DocumentSession.kt`（`searchContent`） | 手動 | [ui](architecture/ui.md) |
 | X-05 | ビュー定義 `_views`（`kind: grid` の行・列・並び〔出現順か `order.path` の値の順〕・詳細文書・新規行・バックリンク列・`kind: document`） | `core/Views.kt`, `workspace-core/workspace/ViewDefinitions.kt` | 単体 `ViewsTest` | [views](architecture/views.md) |
-| X-06 | ビューグリッド（セル編集・原本へ移動・詳細文書と新規行の作成・バックリンク・要約と整形・固定列） | `ui/ViewGridPane.kt`, `ui/VirtualTable.kt`, `AppState.createViewDetail` / `addViewRow` | `ViewsTest`, `VirtualTableTest` | [views](architecture/views.md) |
+| X-06 | ビューグリッド（セル編集・原本へ移動・詳細文書と新規行の作成・バックリンク・要約と整形・固定列） | `ui/ViewGridPane.kt`, `ui/VirtualTable.kt`, `session/DocumentSession.kt`（`createViewDetail` / `viewRowTarget`）, `AppState.addViewRow` | `ViewsTest`, `VirtualTableTest` | [views](architecture/views.md) |
 | X-07 | 文書ビュー（`kind: document`・`sections` の fields と backlinks・`attachments`・マッチしない文書は既定フォーム） | `core/Views.kt`（`resolveDocument`）, `ui/FormView.kt`（`DocViewSections`） | 単体 `ViewsTest` | [views](architecture/views.md) |
 | X-08 | ビュー定義のスキーマ参照とリント（`definition:` 列の展開・スキーマとの整合を検査し定義エラーとして表示） | `workspace-core/workspace/ViewDefinitions.kt`（`lint`） | 単体 `ViewsTest`, `ViewDefinitionsTest` | [views](architecture/views.md) |
 | X-10 | クロス集計ビュー（`kind: matrix`・行の論理ID × 列の参照先か値・セルは行から集めた要素の集計・未分類と合計・列を広げたグリッドへ下ろす）と、グリッドの要素ごとに列を広げる列 `each`（`$名前` で列の要素の ID を指す） | `semantic-core/semantic/VirtualViews.kt`（`lower`）, `workspace-core/workspace/ViewDefinitions.kt` | 単体 `ViewsTest` | [views](architecture/views.md) |
@@ -269,7 +269,7 @@
 | OP-05 | 操作の入口・フォームと横ぐしの対象引継ぎ・前提の無効化・確認と適用 | `ui/ActionPane.kt`, `ui/DocumentFormWorkspace.kt`, `AppState.kt` | `AppStateActionTest`・`FormOutlineTest` | [actions](architecture/actions.md) |
 | OP-06 | 検査の指摘から対象・値を指定して起動 | `workspace-core/validate/WorkspaceChecks.kt`, `ui/SidePanel.kt` | `ActionPlannerTest`, `AppStateActionTest` | [actions](architecture/actions.md) |
 | OP-07 | エージェントのツール（アクティビティの `actions` で許可した操作が `action_名前` のツールに・引数は受け取る値の定義・ステージングを重ねて計画し積む・`allowedFiles` の外でも通る） | `agent/Tools.kt`（`actionTools` / `runActionTool`）, `agent/Definitions.kt`, `builtin-schemas/activity.yaml` | 単体 `ActionToolTest` | [actions](architecture/actions.md) |
-| OP-08 | 作成経路の寄せ（追加ボタン・新規行・文書の作成を型の `create` と配列の `insert` で。追加のパネルからアクションへ橋渡し） | `workspace-core/workspace/ActionPlanner.kt`, `workspace-core/workspace/DocumentScaffold.kt`, `app/AppState.kt`（`addArrayElement`） | 単体 `ActionPlannerTest`, `AppStateActionTest` | [actions](architecture/actions.md) |
+| OP-08 | 作成経路の寄せ（追加ボタン・新規行・文書の作成を型の `create` と配列の `insert` で。追加のパネルからアクションへ橋渡し） | `workspace-core/workspace/ActionPlanner.kt`, `workspace-core/workspace/DocumentScaffold.kt`, `session/DocumentSession.kt`（`arrayInsert` / `insertArrayElement`）, `app/AppState.kt`（`addArrayElement`） | 単体 `ActionPlannerTest`, `AppStateActionTest` | [actions](architecture/actions.md) |
 | OP-09 | 現在値・本日の入力準備と変更分の送信 | `semantic-core/schema/ActionInput.kt`, `AppState.kt` | `ActionInputTest`, `AppStateActionInputTest` | [actions](architecture/actions.md) |
 
 ## 公開サンプル

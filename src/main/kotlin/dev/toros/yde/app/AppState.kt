@@ -22,7 +22,6 @@ import dev.toros.yde.workspace.layout.WorkspaceLayout
 import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.YPath
-import dev.toros.yde.yaml.model.pretty
 import dev.toros.yde.app.schema.SchemaDef
 import dev.toros.yde.semantic.schema.FieldDef
 import dev.toros.yde.app.session.DocumentSession
@@ -31,7 +30,6 @@ import dev.toros.yde.semantic.RefactoringRequest
 import dev.toros.yde.app.agent.Staging
 import dev.toros.yde.workspace.ActionEntry
 import dev.toros.yde.workspace.ActionPlan
-import dev.toros.yde.workspace.ActionPlanner
 import dev.toros.yde.workspace.ActionRequest
 import dev.toros.yde.workspace.ChangeRecord
 import dev.toros.yde.workspace.WorkspaceDerivedState
@@ -601,95 +599,49 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     fun hideActionPanel() { actionPanelOpen = false }
     fun showActionPanel() { if (actionWork != null) actionPanelOpen = true }
 
-    /** 型の要素の候補（パネルの「対象」欄）: 上書き索引のうちその型の出現を持つ ID と、その 1 行要約。 */
-    fun entityCandidates(type: String): List<Pair<String, String?>> =
-        overlayIndex().entries.values.asSequence()
-            .filter { occurrences -> occurrences.any { it.entityType == type } }
-            .map { occurrences -> occurrences.first().id to occurrences.firstNotNullOfOrNull { it.title } }
-            .sortedBy { it.first }
-            .toList()
+    /** 型の要素の候補（パネルの「対象」欄。セッション側）。 */
+    fun entityCandidates(type: String): List<Pair<String, String?>> = documents.entityCandidates(type)
 
     /**
      * 配列へ要素を足す（配列エディタの追加ボタン・ビューの新規行。architecture/actions.md「作成経路の寄せ」）: 要素の型の create に
-     * 受け取る値があれば右ペインのカードで入力し（戻り値 null）、無ければその場で足す（配列の insert の決まり＝採番つき。戻り値は番号）。
+     * 受け取る値があれば右ペインのカードで入力し（戻り値 null）、無ければその場で足す（セッション側。戻り値は番号）。
      * 足した要素は未保存の編集（Undo 可）。
      */
     fun addArrayElement(doc: OpenDocument, arrayPath: YPath, field: FieldDef): Result<Int?> = runCatching {
-        val schema = doc.schema
-        val arrayDef = schema?.resolve(field) ?: field
-        val itemDef = arrayDef.item?.let { schema?.resolve(it) ?: it }
-        val create = itemDef?.methods?.firstOrNull { it.isCreate }
-        if (create != null && create.params.isNotEmpty() && !readOnlyMode) {
-            val entry = ActionEntry("insert", "insert", "${arrayDef.displayLabel} に行を追加", create.description, null, create.params, schema?.id ?: "")
+        val insert = documents.arrayInsert(doc.state, arrayPath, field)
+        val create = insert.create
+        if (create != null && !readOnlyMode) {
+            val entry = ActionEntry("insert", "insert", "${insert.arrayDef.displayLabel} に行を追加", create.description, null, create.params, doc.schema?.id ?: "")
             // 橋渡し: この配列へ足すアクションがあれば、パネルで「操作に切り替える」を案内する
-            val alternatives = coreWs?.let { cw -> schema?.id?.let { sid -> ActionPlanner.insertingInto(cw.mirror.schemas, sid, arrayPath) } }.orEmpty()
-            newActionWork(entry, null, InsertTarget(doc, arrayPath, arrayDef, alternatives))
+            newActionWork(entry, null, InsertTarget(doc, arrayPath, insert.arrayDef, insert.alternatives))
             return@runCatching null
         }
-        insertArrayElement(doc, arrayPath, arrayDef, emptyMap())
+        documents.insertArrayElement(doc.state, arrayPath, insert.arrayDef, emptyMap())
     }
 
     /** 追加の作業（カード）の値で、配列へ要素を足す。 */
     fun applyInsert(): Result<Int> = runCatching {
         val work = actionWork ?: error("操作が選ばれていません")
         val into = work.insertInto ?: error("追加の作業ではありません")
-        val index = insertArrayElement(into.doc, into.arrayPath, into.arrayDef, actionParams(work))
+        val index = documents.insertArrayElement(into.doc.state, into.arrayPath, into.arrayDef, actionParams(work))
         dismissAction()
         status = "${into.arrayDef.displayLabel} に要素を足しました（未保存。Ctrl+Z で戻せます）"
         index
     }
 
-    /** 配列の末尾へ要素を足す: 要素の中身は型の create と配列の insert の決まり（カーネルの 1 実装）。配列が無ければ作る。 */
-    private fun insertArrayElement(doc: OpenDocument, arrayPath: YPath, arrayDef: FieldDef, params: Map<String, Any?>): Int {
-        check(!readOnlyMode) { "閲覧専用モードでは編集できません" }
-        val root = doc.root as? YNode.Map ?: error("文書をパースできません: ${doc.parseError}")
-        val seq = ensureSeq(root, arrayPath)
-        val tree = doc.schema?.tree
-        val element = if (tree == null) YNode.Map() else {
-            // 配列を持つ要素（親）を渡す: 採番の接頭辞が `$of: self` で親の値（注文番号など）を読める
-            val holder = if (arrayPath.isEmpty()) root else dev.toros.yde.yaml.model.getAt(root, arrayPath.subList(0, arrayPath.size - 1))
-            val made = ActionPlanner.newElement(tree, arrayDef, seq, params, overlayIndex().entries.keys, LocalDateTime.now(), dedupe = params.isNotEmpty(), holder = holder)
-            made.node ?: error(made.skipped ?: "追加できません")
-        }
-        seq.items.add(element)
-        doc.markEdited()
-        return seq.items.size - 1
-    }
 
-    /** パスの配列を解決する（末端の配列と、途中の無いマップは作る）。 */
-    private fun ensureSeq(root: YNode.Map, path: YPath): YNode.Seq {
-        var container: YNode = root
-        path.forEachIndexed { i, seg ->
-            val current = container
-            container = when {
-                current is YNode.Map && seg is String ->
-                    current.entries.getOrPut(seg) { if (i == path.lastIndex) YNode.Seq() else YNode.Map() }
-                current is YNode.Seq && seg is Int ->
-                    current.items.getOrNull(seg) ?: error("追加先パスが存在しません: ${path.pretty()}")
-                else -> error("追加先パスを解決できません: ${path.pretty()}")
-            }
-        }
-        return container as? YNode.Seq ?: error("追加先が配列ではありません: ${path.pretty()}")
-    }
 
-    /** 要素に使える操作（エンティティページの操作メニュー）。 */
-    fun actionsForEntity(id: String): List<ActionEntry> =
-        coreWs?.let { cw -> runCatching { ActionPlanner.forEntity(cw.mirror, id) }.getOrDefault(emptyList()) }.orEmpty()
+    /** 要素・型・文書・ワークスペースに使える操作（セッション側）。 */
+    fun actionsForEntity(id: String): List<ActionEntry> = documents.actionsForEntity(id)
 
-    /** 型に使える操作（台帳の「要素の操作」＝受け手をパネルで選ぶ入口と、未保存の行のメニュー）。 */
-    fun actionsForEntityType(type: String): List<ActionEntry> =
-        coreWs?.let { cw -> runCatching { ActionPlanner.forEntityType(cw.mirror, type) }.getOrDefault(emptyList()) }.orEmpty()
+    fun actionsForEntityType(type: String): List<ActionEntry> = documents.actionsForEntityType(type)
 
-    /** 文書に使える操作（文書ヘッダのメニュー）。 */
-    fun actionsForDocument(file: Path): List<ActionEntry> =
-        coreWs?.let { cw -> runCatching { ActionPlanner.forDocument(cw.mirror, relPath(file)) }.getOrDefault(emptyList()) }.orEmpty()
+    fun actionsForDocument(file: Path): List<ActionEntry> = documents.actionsForDocument(file)
 
-    /** 受け手の無い操作（コマンドパレット）。 */
-    fun actionsForWorkspace(): List<ActionEntry> = coreWs?.let { ActionPlanner.forWorkspace(it.mirror.schemas) }.orEmpty()
+    fun actionsForWorkspace(): List<ActionEntry> = documents.actionsForWorkspace()
 
     fun actionAvailability(entry: ActionEntry, target: String?): dev.toros.yde.workspace.ActionAvailability =
-        (session ?: coreWs?.mirror)?.let { ActionPlanner.availability(it, ActionRequest(entry.name, target)) }
-            ?: dev.toros.yde.workspace.ActionAvailability(false, "ワークスペースが開かれていません")
+        documents.actionAvailability(entry, target)
 
     /**
      * 操作を始める: 対象と受け取る値を入れるパネルを出す。target は受け手（要素の ID か文書の相対パス。null ならパネルで選ぶ）。
@@ -700,8 +652,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     }
 
     private fun resetActionInput(work: ActionWork, target: String?, explicit: Map<String, Any?>): Result<Unit> = runCatching {
-        val current = session ?: coreWs?.mirror ?: error("ワークスペースが開かれていません")
-        val prepared = ActionPlanner.prepareInput(current, ActionRequest(work.entry.name, target, explicit), work.preparedAt)
+        val prepared = documents.prepareActionInput(work.entry, target, explicit, work.preparedAt)
         work.values.entries.clear()
         prepared.values.forEach { (key, value) -> work.values.entries[key] = YamlIO.fromAny(value) }
         work.baseline = prepared.values
@@ -732,8 +683,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         require(!work.targetEditing) { "対象の変更を確定してください" }
         if (work.entry.input == null) return
         require(work.preparedTarget == work.target) { "対象を変更したため、初期値を読み直してください" }
-        val current = session ?: coreWs?.mirror ?: error("ワークスペースが開かれていません")
-        val prepared = ActionPlanner.prepareInput(current, ActionRequest(work.entry.name, work.target, work.explicit), work.preparedAt)
+        val prepared = documents.prepareActionInput(work.entry, work.target, work.explicit, work.preparedAt)
         require(prepared.sourceStamp == work.sourceStamp) { "入力元が変更されています。初期値を読み直してください" }
     }
 
@@ -761,8 +711,8 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
      * 受け取る値に無い名前は捨てる。見つからなければ status に案内する。
      */
     fun startAction(name: String, target: String?, prefill: Map<String, Any?> = emptyMap()) {
-        val cw = coreWs ?: return
-        val entry = ActionPlanner.catalog(cw.mirror.schemas).firstOrNull { it.name == name && it.kind != "create" }
+        if (coreWs == null) return
+        val entry = documents.actionByName(name)
             ?: run { status = "操作「$name」が見つかりません（スキーマの actions / methods に定義します）"; return }
         startAction(entry, target)
         val work = actionWork?.takeIf { it.entry === entry } ?: return
@@ -775,23 +725,14 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         work.form.version++
     }
 
-    /** input のない従来の操作は空欄を省略する。changed は初期値との差分と必須・明示指定を渡す。 */
-    private fun actionParams(work: ActionWork): Map<String, Any?> {
-        val tree = work.form.schema?.tree
-        val required = work.entry.params.filter { p ->
-            tree?.requiredAt(tree.resolve(p) ?: p, null) ?: p.required
-        }.mapNotNull { it.key }.toSet()
-        return work.values.entries.entries
-            .filterNot { (_, v) -> work.entry.input == null && v is YNode.Scalar && v.value?.toString().isNullOrBlank() }
-            .filter { (key, value) -> work.entry.input?.submit != "changed" || key in work.explicit || key !in work.baseline ||
-                key in required || YamlIO.dumpPlain(value) != YamlIO.dumpPlain(YamlIO.fromAny(work.baseline[key])) }
-            .associate { (k, v) -> k to YamlIO.toAny(v) }
-    }
+    /** 受け取る値のうち渡すもの（セッション側の決まり: input のない操作は空欄を省く・changed は差分と必須・明示指定）。 */
+    private fun actionParams(work: ActionWork): Map<String, Any?> =
+        documents.actionParams(work.entry, work.values, work.form.schema?.tree, work.explicit, work.baseline)
 
-    /** 計画を作り、適用後の姿を検証する（原本は変えない）。計画できない理由は作業の error に出す。 */
+    /** 計画を作り、適用後の姿を検証する（原本は変えない。本体はセッション側）。計画できない理由は作業の error に出す。 */
     fun planAction() {
         val work = actionWork ?: return
-        val cw = coreWs ?: return
+        if (coreWs == null) return
         work.error = null
         work.plan = null
         work.preview = null
@@ -803,17 +744,15 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         val planTime = LocalDateTime.now()
         runCatching {
             checkActionSource(work)
-            val request = ActionRequest(work.entry.name, work.target, actionParams(work))
-            ActionPlanner.checkPreconditions(session ?: cw.mirror, request)
-            ActionPlanner.plan(cw.mirror, request, planTime)
+            documents.planAction(ActionRequest(work.entry.name, work.target, actionParams(work)), planTime)
         }
             .onSuccess { plan ->
                 work.plan = plan
                 work.planSignature = actionSignature(work)
-                work.planWorkspaceVersion = cw.mirror.version
+                work.planWorkspaceVersion = coreWs?.mirror?.version
                 work.planEditVersion = session?.version
                 work.plannedAt = planTime
-                work.preview = if (plan.isEmpty) null else cw.apply(plan.changeSet, dryRun = true)
+                work.preview = documents.previewAction(plan)
             }
             .onFailure { work.error = it.message ?: "計画できません" }
     }
@@ -840,42 +779,24 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     }.getOrDefault(emptyMap())
 
     /**
-     * 計画を適用して保存する（変更セットの承認と同じ経路。検証・競合の基準はディスクの内容、書込は編集用のセッションの
-     * 1 トランザクション＋保存＝Undo 1 回で全部戻る）。検証エラーが残るなら書かない（allowErrors で書く）。
-     * 対象に未保存の編集があれば拒否する（適用→保存が未保存の編集まで書いてしまうのを防ぐ）。
+     * 計画を適用して保存する（本体はセッション側。Undo 1 回で全部戻る）。対象に未保存の編集があれば拒み、確認後に入力やワークスペースが
+     * 変わっていれば確認し直しを求める。
      */
     fun applyAction(allowErrors: Boolean = false): Result<String> = runCatching {
         val work = actionWork ?: error("操作が選ばれていません")
         val plan = work.plan ?: error("先に「確認」で計画を作ってください")
         require(!plan.isEmpty) { "変更はありません" }
         val cw = coreWs ?: error("ワークスペースが開かれていません")
-        val ws = workspace ?: error("ワークスペースが開かれていません")
         val s = session ?: error("セッションが開かれていません")
-        val files = plan.changeSet.changes.map { ws.resolve(it.file).normalize() }
-        files.filter { docCache[it]?.dirty == true }.takeIf { it.isNotEmpty() }
-            ?.let { error("エディタに未保存の変更があるため適用できません: ${it.joinToString(", ") { f -> relPath(f) }}") }
+        documents.checkActionTargetsSaved(plan)
         checkActionSource(work)
         require(work.planSignature == actionSignature(work) && work.planWorkspaceVersion == cw.mirror.version &&
             work.planEditVersion == s.version) {
             work.invalidate()
             "入力またはワークスペースが変更されています。確認し直してください"
         }
-        // 読み取りだけの前提も、適用の直前に同じ計画器で再検査する。
-        val request = ActionRequest(work.entry.name, work.target, actionParams(work))
-        ActionPlanner.checkPreconditions(s, request)
-        ActionPlanner.plan(cw.mirror, request, work.plannedAt!!)
-        val result = documents.withHistoryOrigin(s) { cw.applyViaSession(s, plan.changeSet, requireValid = !allowErrors) }
-        if (!result.ok) {
-            val reasons = result.results.filter { it.message != null }.joinToString("\n") { "${it.file}: ${it.message}" }
-            error(
-                reasons.ifBlank {
-                    if (result.errorIssueCount > 0) "検証エラーが残るため適用しませんでした（エラー ${result.errorIssueCount} 件）" else "適用に失敗しました"
-                }
-            )
-        }
-        refreshAfterSessionWrite(plan.changeSet.changes.map { DocumentId(it.file) })
-        s.peekUndo()?.let { documents.actionRecordIds += it.id }
-        val message = "${work.title} を適用して保存しました（${plan.changeSet.changes.size} ファイル。Ctrl+Z で 1 回で戻せます）"
+        val count = documents.applyAction(ActionRequest(work.entry.name, work.target, actionParams(work)), plan, work.plannedAt!!, allowErrors)
+        val message = "${work.title} を適用して保存しました（$count ファイル。Ctrl+Z で 1 回で戻せます）"
         work.applied = message
         status = message
         message
@@ -1415,40 +1336,14 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
 
 
     /**
-     * ビューの newRow 定義に従い、一覧文書の配列へ新しい行（要素）を追加する（P6）。
-     * 追加は未保存編集としてキャッシュ上の文書に積まれる（保存は通常の操作で行う）。
+     * ビューの newRow 定義に従い、一覧文書の配列へ新しい行（要素）を追加する（P6）。追加先はセッション側が解決し、要素の作り方は
+     * 配列エディタの追加ボタンと同じ（型の create に受け取る値があればカード＝戻り値 null）。追加は未保存編集として積まれる。
      */
     fun addViewRow(view: ViewDef): Result<YPath?> = runCatching {
-        val def = view.newRow ?: error("このビューには newRow が定義されていません")
-        val fileRel = def.file ?: error("このビューの newRow はファイルモードです（addViewRowFile を使う）")
-        val ws = workspace ?: error("ワークスペースが開かれていません")
-        val file = ws.resolve(fileRel).normalize()
-        require(Files.isRegularFile(file)) { "一覧文書が存在しません: $fileRel" }
-        val doc = ensureDoc(file)
-        val root = doc.root ?: error("一覧文書をパースできません: ${doc.parseError}")
-        // 追加先の配列を解決する（末端の配列だけは無ければ作成する）
-        var container: YNode = root
-        def.path.forEachIndexed { i, seg ->
-            val current = container
-            container = when {
-                current is YNode.Map && seg is String ->
-                    current.entries.getOrPut(seg) { if (i == def.path.lastIndex) YNode.Seq() else YNode.Map() }
-                current is YNode.Seq && seg is Int ->
-                    current.items.getOrNull(seg) ?: error("追加先パスが存在しません: ${def.path}")
-                else -> error("追加先パスを解決できません: ${def.path}")
-            }
-        }
-        val seq = container as? YNode.Seq ?: error("追加先が配列ではありません: ${def.path}")
-        val schema = schemaFor(file)
-        val arrayDef = schema?.let { dev.toros.yde.app.core.Views.fieldAt(it, root, def.path) }
-        if (schema == null || arrayDef == null) {
-            seq.items.add(YNode.Map())
-            doc.markEdited()
-            return@runCatching def.path + (seq.items.size - 1)
-        }
-        // 要素の作り方は配列エディタの追加ボタンと同じ（型の create に受け取る値があればカード＝戻り値 null）
-        val index = addArrayElement(doc, def.path, arrayDef).getOrThrow() ?: return@runCatching null
-        def.path + index
+        val target = documents.viewRowTarget(view)
+        val arrayDef = target.arrayDef ?: return@runCatching documents.appendEmptyRow(target)
+        val index = addArrayElement(ensureDoc(target.doc.file), target.path, arrayDef).getOrThrow() ?: return@runCatching null
+        target.path + index
     }
 
 
