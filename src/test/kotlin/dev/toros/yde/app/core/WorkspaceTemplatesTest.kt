@@ -1,5 +1,7 @@
 package dev.toros.yde.app.core
 
+import dev.toros.yde.app.ext.Extensions
+import dev.toros.yde.desktop.ext.DesktopExtensions
 import dev.toros.yde.app.cli.runCli
 import dev.toros.yde.agent.Definitions
 import dev.toros.yde.agent.Evals
@@ -30,6 +32,8 @@ import kotlin.test.assertTrue
  * ダッシュボードが解決でき、登録の操作が計画・適用できる。CLI `init` も同じ計画を使う。
  */
 class WorkspaceTemplatesTest {
+    init { Extensions.install(DesktopExtensions.registry) }   // 形式（csv・xlsx …）は入口の一覧で登録する
+
 
     private lateinit var base: Path
     private var count = 0

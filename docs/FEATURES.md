@@ -251,8 +251,8 @@
 | ID | 機能 | 主な実装 | テスト | 設計 |
 |---|---|---|---|---|
 | SK-01 | skill 定義 `_skills`（import / export の宣言型と run） | `skill/Skills.kt` | 単体 `ImportExportTest`, `RunSkillTest` | [agents](architecture/agents.md) |
-| SK-02 | インポート（xlsx / csv / json / markdown / docx → 変更セット。`mapping`・`build`・配列へ追記 `target.path`・採番 `target.id`・重複の `target.key`・文字コード・見出しの無い csv の `input.columns`） | `skill/Importer.kt`, `skill/Tables.kt` | 単体 `ImportExportTest`, `ArrayImportTest`, `TablesTest` | [agents](architecture/agents.md) |
-| SK-03 | エクスポート（glob × 行 × 列 → xlsx / csv / markdown / json / html・`source.view`・YAML 出力は拒否） | `skill/Exporter.kt`, `skill/Tables.kt` | 単体 `ImportExportTest` | [agents](architecture/agents.md) |
+| SK-02 | インポート（xlsx / csv / json / markdown / docx → 変更セット。`mapping`・`build`・配列へ追記 `target.path`・採番 `target.id`・重複の `target.key`・文字コード・見出しの無い csv の `input.columns`） | `skill/Importer.kt`, `skill/Tables.kt`, `ext/FormatCodec.kt`, `text/TextFormats.kt`, `xlsx/XlsxFormat.kt`, `docx/DocxFormat.kt` | 単体 `ImportExportTest`, `ArrayImportTest`, `TextFormatsTest`, `XlsxFormatTest`, `DocxFormatTest`, `ExtensionsTest` | [agents](architecture/agents.md) |
+| SK-03 | エクスポート（glob × 行 × 列 → xlsx / csv / markdown / json / html・`source.view`・YAML 出力は拒否） | `skill/Exporter.kt`, `skill/Tables.kt`, `ext/Extensions.kt` | 単体 `ImportExportTest` | [agents](architecture/agents.md) |
 | SK-04 | CLI（`skills` / `import` / `export` / `run-skill`） | `cli/Cli.kt` | 単体 `RunSkillTest` | [agents](architecture/agents.md) |
 | SK-05 | テンプレート「課題管理」（Excel 往復と棚卸しのエージェント・評価を含む出発点。展開の仕組みは W-21） | `templates/issues/` | 単体 `ImportExportTest` | [workspace](architecture/workspace.md) |
 | SK-06 | skill UI（設計スペースの連携: 一覧・エクスポート・インポートのプレビューと適用・実行の承認） | `ui/SkillsPanel.kt` | 手動 | [agents](architecture/agents.md) |

@@ -47,6 +47,10 @@ dependencies {
     // カーネルの 3 モジュール。アプリ（将来の app-core）はカーネルの 3 つすべてに直接依存してよい（ADR-0013。共通の語彙＝文書 ID・YNode・スキーマの宣言を使うため）
     implementation(project(":app-core"))
     implementation(project(":agent"))
+    // 拡張（入出力の形式）。登録は desktop/ext/DesktopExtensions.kt の一覧
+    implementation(project(":format-text"))
+    implementation(project(":format-xlsx"))
+    implementation(project(":format-docx"))
     implementation(project(":workspace-core"))
     implementation(project(":semantic-core"))
     implementation(project(":yaml-core"))
@@ -78,8 +82,8 @@ dependencies {
     }
     implementation("org.yaml:snakeyaml:2.3")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
-    implementation("org.apache.poi:poi-ooxml:5.5.1")   // Excel(xlsx)のインポート・エクスポート（skill機構）
     testImplementation(kotlin("test"))
+    testImplementation("org.apache.poi:poi-ooxml:5.5.1")   // DistributionSmoke と ImportExportTest が Office の文書を組み立てる（本体は format-xlsx / format-docx）
 }
 
 kotlin {
@@ -305,7 +309,7 @@ val verifyWindowsZip by tasks.registering(Exec::class) {
 tasks.register("windowsRelease") {
     group = "distribution"
     description = "全テスト・ZIP 検査後にチェックサムと GitHub Releases 用の説明を生成する"
-    dependsOn(verifyWindowsZip, "test", ":yaml-core:test", ":semantic-core:test", ":workspace-core:test", ":cli:test")
+    dependsOn(verifyWindowsZip, "test", ":yaml-core:test", ":semantic-core:test", ":workspace-core:test", ":cli:test", ":app-core:test", ":agent:test", ":format-text:test", ":format-xlsx:test", ":format-docx:test")
     inputs.file("distribution/windows/release-notes.md")
     doLast {
         require(distributionPreview || (git("rev-parse", "HEAD") == releaseCommit && git("status", "--porcelain") == "")) {

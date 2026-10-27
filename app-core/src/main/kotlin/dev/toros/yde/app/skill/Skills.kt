@@ -29,30 +29,6 @@ enum class SkillKind(val id: String) {
     }
 }
 
-enum class TableFormat(val id: String) {
-    XLSX("xlsx"),
-    CSV("csv"),
-    JSON("json"),
-    MARKDOWN("markdown"),
-    DOCX("docx"),    // インポート専用（Word文書内の表。R9-05）
-    HTML("html");    // エクスポート専用（派生成果物。R9-05）
-
-    companion object {
-        fun parse(raw: String): TableFormat =
-            entries.firstOrNull { it.id == raw } ?: error("format は xlsx / csv / json / markdown / docx のいずれかです: $raw")
-
-        /** 出力ファイルの拡張子から書き出し形式を決める。 */
-        fun fromExtension(file: String): TableFormat = when (file.substringAfterLast('.').lowercase()) {
-            "xlsx" -> XLSX
-            "csv" -> CSV
-            "md", "markdown" -> MARKDOWN
-            "json" -> JSON
-            "html", "htm" -> HTML
-            else -> error("出力形式を判定できません（.xlsx / .csv / .md / .json / .html のいずれか）: $file")
-        }
-    }
-}
-
 /** インポートの列→フィールド対応。 */
 data class FieldMapping(
     val column: String,              // 表の列名（ヘッダ）
@@ -71,7 +47,7 @@ data class IdRule(val path: YPath, val prefix: TransformDef, val digits: Int)
  * 取り込み先は 1 行 1 文書（targetPath == null）か、文書の中の配列への追記（targetPath）。
  */
 data class ImportDef(
-    val format: TableFormat,
+    val format: String,              // 形式の id（登録簿の FormatCodec。xlsx / csv / json / markdown / docx …）
     val sheet: String? = null,       // xlsx: シート名（省略時は先頭）
     val headerRow: Int = 1,          // xlsx: ヘッダ行（1始まり）
     val jsonPath: String? = null,    // json: 行配列へのドット区切りパス（省略時はルート配列）
@@ -271,8 +247,9 @@ object Skills {
         require(headerRow >= 1) { "input.headerRow は1以上である必要があります" }
         val tableIndex = (input["table"] as? Number)?.toInt() ?: 1
         require(tableIndex >= 1) { "input.table は1以上である必要があります" }
-        val format = TableFormat.parse(input["format"]?.toString() ?: error("input.format が必要です"))
-        require(format != TableFormat.HTML) { "HTML はエクスポート専用の形式です（インポートには使えません）" }
+        val format = input["format"]?.toString()?.takeIf { it.isNotBlank() } ?: error("input.format が必要です")
+        val codec = Tables.codecFor(format)   // 登録簿に無い形式は誤り（使える形式を添える）
+        require(codec.canRead) { "${codec.id} はエクスポート専用の形式です（インポートには使えません）" }
         val encoding = input["encoding"]?.toString()?.takeIf { it.isNotBlank() }?.let { name ->
             runCatching { Charset.forName(name) }.getOrElse { error("input.encoding の文字コードが分かりません: $name（例 UTF-8・windows-31j）") }
         } ?: Charsets.UTF_8
@@ -281,7 +258,7 @@ object Skills {
             emptyList()
         }
         if (columns.isNotEmpty()) {
-            require(format == TableFormat.CSV) { "input.columns（見出しの無い表に列の名前を与える）は csv で使えます" }
+            require(format == "csv") { "input.columns（見出しの無い表に列の名前を与える）は csv で使えます" }
             require(columns.none { it.isEmpty() }) { "input.columns に空の名前があります" }
             columns.groupBy { it }.filterValues { it.size > 1 }.keys.firstOrNull()?.let { error("input.columns の名前「$it」が重複しています") }
         }
@@ -338,7 +315,7 @@ object Skills {
         }
         val outputNorm = outputFile.replace('\\', '/')
         require(!outputNorm.startsWith("_") && !outputNorm.startsWith(".")) { "予約ディレクトリ・隠しディレクトリへの出力はできません: $outputFile" }
-        TableFormat.fromExtension(outputFile)  // 拡張子の妥当性を先に検査
+        Tables.writerFor(outputFile)  // 拡張子の妥当性（書ける形式が登録されているか）を先に検査
         val viewId = sourceMap["view"]?.toString()?.takeIf { it.isNotBlank() }
         val match = sourceMap["match"]?.toString()?.takeIf { it.isNotBlank() }
         if (viewId != null) {

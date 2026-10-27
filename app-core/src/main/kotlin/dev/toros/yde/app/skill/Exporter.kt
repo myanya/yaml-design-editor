@@ -3,6 +3,7 @@ package dev.toros.yde.app.skill
 import dev.toros.yde.app.core.ViewCell
 import dev.toros.yde.app.core.Views
 import dev.toros.yde.app.core.Workspace
+import dev.toros.yde.app.ext.Table
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.parseYPath
 import dev.toros.yde.yaml.model.getAt
@@ -40,7 +41,7 @@ object Exporter {
         }
         val table = Table(def.columns.map { it.header }, rows)
         val target = ws.resolve(def.outputFile)
-        Tables.write(table, target, TableFormat.fromExtension(def.outputFile), def.sheet)
+        Tables.write(table, target, def.sheet)
         return Result(target, def.outputFile, rows.size)
     }
 
@@ -71,7 +72,7 @@ object Exporter {
         val headers = listOf("id") + Views.columnsOf(Views.effective(view, ws.index), rows).map { it.label }
         val table = Table(headers, rows.map { row -> listOf<Any?>(row.id) + row.cells.map(::viewCellValue) })
         val target = ws.resolve(def.outputFile)
-        Tables.write(table, target, TableFormat.fromExtension(def.outputFile), def.sheet)
+        Tables.write(table, target, def.sheet)
         return Result(target, def.outputFile, rows.size)
     }
 

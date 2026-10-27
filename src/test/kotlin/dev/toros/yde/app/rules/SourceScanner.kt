@@ -61,6 +61,9 @@ object SourceScanner {
         "cli" to "cli/src/main/kotlin",
         "app-core" to "app-core/src/main/kotlin",
         "agent" to "agent/src/main/kotlin",
+        "format-text" to "format-text/src/main/kotlin",
+        "format-xlsx" to "format-xlsx/src/main/kotlin",
+        "format-docx" to "format-docx/src/main/kotlin",
         "app" to "src/main/kotlin",
     )
 

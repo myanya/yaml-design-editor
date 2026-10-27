@@ -113,7 +113,7 @@
 - **行の組み立ては変換定義**: 列の対応表 `mapping` は素朴な形で、複雑な行は `build`（`TransformDef`）に書く。`Importer` は行を項（見出し → セル）にして `SemanticTransform.run` に渡すだけで、組み立ての語彙（`$format` `$first` `$when` `$date` `$number` `$trim`）を Importer に持たない。取り込み先（`target.file`）と採番の接頭辞（`target.id.prefix`）も同じひな型で、組み立てた明細を「いまの場所」として埋める。
 - **配列への取り込みは追記と採番**（`target.path`）: 明細は配列の末尾へ `PatchOp.Insert`。`target.key` が同じ明細は飛ばす（更新しない＝手で直した値を戻さない）。ID の無い明細は `IdSuggest.nextInSeries`（接頭辞を決めた系列の次）で番号を付け、既存の ID は索引と取り込み先の配列から集める。1 行 1 文書の取り込み（`target.file` だけ）の意味は変えていない。
 - **宣言型が既定**: import / export にコード実行はない。宣言型で書けない変換・定型手順だけがコード実行 skill（kind: run）の対象。
-- **形式は Table 抽象に集約**: xlsx / csv / json / markdown / docx / html の差は `skill/Tables.kt` に閉じる。`source.view` は `Views.load` / `Views.resolve` の結果をそのまま表にする。
+- **形式は Table 抽象に集約**: xlsx / csv / json / markdown / docx / html の差は拡張の `FormatCodec`（format-text・format-xlsx・format-docx）に閉じ、中核の `skill/Tables.kt` は skill 定義から形式を選んでファイルと bytes の間を受け持つだけ。`source.view` は `Views.load` / `Views.resolve` の結果をそのまま表にする。
 - **コード実行 skill の明示許可制**: `Runner.run` は `Runner.Approval` を必須引数に取り、`Approval` は `approve(def)` でしか作れない。承認はコマンド・作業ディレクトリ・書込宣言・タイムアウトの指紋に紐づき、定義が変わると失効する。エージェント・自動実行からは起動不可。実行後に `writes` 宣言外の変更を警告し、予約ディレクトリの変更を逸脱として報告する。プロセス起動は注入可能（`RunSkillTest`）。
 - `_skills` も予約ディレクトリ（メタアクティビティのみ提案可・監視対象外）。
 
@@ -126,7 +126,7 @@
 - 実行記録と評価レポートは保存領域の実体を検査し、ファイル名に使う ID で階層を変更させない。
 - AI 呼び出しの HTTP 送信は `AiHttp.post` に一元化する。独自に `HttpClient` を作らない。呼び出し側でリトライを書かない。
 - 新しい AI 生成の入口は対象文書を明示して `requestAi` を呼ぶ。`openDoc` 前提の入口を作らない。
-- skill は宣言型が既定。コード実行 skill は `Runner.Approval` 経由でしか実行できない。入出力形式の追加は `Tables.kt` に閉じる。
+- skill は宣言型が既定。コード実行 skill は `Runner.Approval` 経由でしか実行できない。入出力形式の追加は拡張モジュール（`FormatCodec` の実装 1 つ）と入口の登録の一覧に閉じる。
 - エージェントツールを増やすときはコンテキスト税を考える。既存ツールで実現できる操作を新ツールにしない。
 - レシピ・トラバース・ツール結果の出力は決定的に保つ（prompt caching・再現性・テスト容易性）。
 
@@ -135,5 +135,5 @@
 - **AI プロバイダの追加**: OpenAI 互換なら `AiConnection` で足りる。独自 API は `AiProvider` に enum を足し、`AiGenerator.generate` の分岐と専用クライアント・`ToolChat.newSession` の分岐を実装する。HTTP 送信は `AiHttp.post`。
 - **ツールの追加**: 中核なら app-core の `Toolset`（`coreTools`）に、拡張なら `extra` で足す（引数と結果は JSON の値。書込は作業コピー越し）。会話の相手が要るものだけ `AgentToolbox` に置く。書込権限の強制と実行記録への載せ方を揃える。
 - **レシピ項目の追加**: `ContextItemDef` のパース・`contextItemSection` の解決・`builtin-activity` メタスキーマをそろえて更新する。
-- **入出力形式の追加**: `TableFormat` に enum を足し、`Tables.kt` の read / write に分岐を実装する。
+- **入出力形式の追加**: 拡張モジュール（`format-<名前>`。README・3 行の build・`FormatCodec` の実装 1 つ・テスト）を作り、入口の登録の一覧（`desktop/ext/DesktopExtensions.kt`。cli は自分の一覧）に 1 行足す。skill 定義の `format` の値が `id`、出力ファイルの拡張子が `extensions`。中核（app-core）には足さない。
 - **出発点のテンプレートの追加**: `templates/` に置く（[workspace.md「ワークスペースの初期化」](workspace.md)）。skill を含むテンプレートも、展開後の検証エラー 0 を `WorkspaceTemplatesTest` が保証する。

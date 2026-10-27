@@ -1,5 +1,8 @@
 package dev.toros.yde.app.skill
 
+import dev.toros.yde.app.ext.Extensions
+import dev.toros.yde.app.ext.Table
+import dev.toros.yde.desktop.ext.DesktopExtensions
 import dev.toros.yde.app.core.Workspace
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.yaml.model.parseYPath
@@ -21,6 +24,8 @@ import kotlin.test.assertTrue
  * 題材は銀行の入出金明細の CSV（ID が無い・年月日が別の列・金額に ¥ と桁区切り・摘要が空白で埋められている）。
  */
 class ArrayImportTest {
+    init { Extensions.install(DesktopExtensions.registry) }   // 形式（csv・xlsx …）は入口の一覧で登録する
+
 
     private lateinit var dir: Path
 

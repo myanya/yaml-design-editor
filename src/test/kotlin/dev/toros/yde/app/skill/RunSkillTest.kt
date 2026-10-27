@@ -1,5 +1,7 @@
 package dev.toros.yde.app.skill
 
+import dev.toros.yde.app.ext.Extensions
+import dev.toros.yde.desktop.ext.DesktopExtensions
 import dev.toros.yde.app.cli.runCli
 import dev.toros.yde.app.core.Workspace
 import java.nio.file.Files
@@ -19,6 +21,8 @@ import kotlin.test.assertTrue
  * プロセス起動は launcher 注入で疑似化し、変更検出（宣言外・予約ディレクトリ）は本物のロジックを通す。
  */
 class RunSkillTest {
+    init { Extensions.install(DesktopExtensions.registry) }   // 形式（csv・xlsx …）は入口の一覧で登録する
+
 
     private lateinit var dir: Path
 

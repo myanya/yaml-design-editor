@@ -3,7 +3,14 @@ package dev.toros.yde.app.skill
 import dev.toros.yde.agent.Definitions
 import dev.toros.yde.agent.Evals
 import dev.toros.yde.app.core.Workspace
-import dev.toros.yde.desktop.format.PoiTables
+import dev.toros.yde.app.ext.Extensions
+import dev.toros.yde.app.ext.ReadOptions
+import dev.toros.yde.app.ext.Table
+import dev.toros.yde.desktop.ext.DesktopExtensions
+import dev.toros.yde.format.docx.DocxFormat
+import dev.toros.yde.format.text.CsvFormat
+import dev.toros.yde.format.text.JsonFormat
+import dev.toros.yde.format.xlsx.XlsxFormat
 import dev.toros.yde.workspace.InitRequest
 import dev.toros.yde.workspace.WorkspaceInit
 import dev.toros.yde.workspace.WorkspaceTemplates
@@ -24,7 +31,7 @@ import kotlin.test.assertTrue
  * ledger テンプレートの上で一気通貫に検証する。
  */
 class ImportExportTest {
-    init { Tables.binary = PoiTables }
+    init { Extensions.install(DesktopExtensions.registry) }   // 形式（csv・xlsx …）は入口の一覧で登録する
 
     private lateinit var dir: Path
 
@@ -95,7 +102,7 @@ class ImportExportTest {
             ),
         )
         val editedFile = dir.resolve("edited.xlsx")
-        Tables.write(edited, editedFile, TableFormat.XLSX, "課題一覧")
+        Tables.write(edited, editedFile, "課題一覧")
         val preview = Importer.build(ws(), importSkill, editedFile)
         assertTrue(preview.ok, preview.errors.toString())
         assertEquals(listOf("issues/ISSUE-003.yaml"), preview.created)
@@ -119,7 +126,7 @@ class ImportExportTest {
         // 6. Excel帳票を原本から再出力（派生成果物の再生成）
         val reExported = Exporter.run(ws(), exportSkill)
         assertEquals(3, reExported.rows)
-        val table = PoiTables.readXlsx(reExported.file, "課題一覧", 1)
+        val table = XlsxFormat.read(Files.readAllBytes(reExported.file), ReadOptions(sheet = "課題一覧", headerRow = 1))
         assertTrue(table.rows.any { it[0] == "ISSUE-003" && it[2] == "open" })
     }
 
@@ -180,7 +187,7 @@ class ImportExportTest {
             output: { file: out/issues.json }
         """.trimIndent())
         val result = Exporter.run(ws(), Skills.load(dir).skill("export-json")!!)
-        val table = Tables.readJson(Files.readString(result.file), null)
+        val table = JsonFormat.readJson(Files.readString(result.file), null)
         assertEquals(listOf("ID", "件名", "優先度"), table.headers)
         // 型が保持される（優先度は数値のまま）
         assertTrue(table.rows.any { it[0] == "ISSUE-001" && it[2] is Long }, table.rows.toString())
@@ -226,7 +233,7 @@ class ImportExportTest {
             }
             Files.newOutputStream(docxFile).use { doc.write(it) }
         }
-        val table = PoiTables.readDocx(docxFile)
+        val table = DocxFormat.read(Files.readAllBytes(docxFile), ReadOptions())
         assertEquals(listOf("ID", "件名", "状態", "優先度", "担当", "タグ"), table.headers)
         assertEquals(2, table.rows.size)
         // 既存のインポート定義（列マッピング・値辞書・split）にそのまま流せる
@@ -261,7 +268,7 @@ class ImportExportTest {
         """.trimIndent())
         val result = Exporter.run(ws(), Skills.load(dir).skill("export-board")!!)
         assertEquals(2, result.rows)
-        val table = Tables.readCsv(Files.readString(result.file))
+        val table = CsvFormat.readCsv(Files.readString(result.file))
         assertEquals(listOf("id", "件名", "状態"), table.headers)
         assertTrue(table.rows.any { it[0] == "ISSUE-001" && it[1] == "ログイン画面のエラーメッセージが不親切" })
     }

@@ -38,16 +38,17 @@ object SourceRules {
         listOf("$APP.core"),
         listOf("$APP.session"),
         listOf("$APP.tools"),
+        listOf("$APP.ext"),
         listOf("$APP.skill"),
         listOf("$AGENT.llm"),
         listOf(AGENT),
-        listOf(DESKTOP, "$APP.cli", "$DESKTOP.format"), // desktop の根（AppState・Main・ScreenMemory など）と、モジュールへ出すまで root に残す入口
+        listOf(DESKTOP, "$APP.cli"), // desktop の根（AppState・Main・ScreenMemory・拡張の登録 ext）と、cli モジュールへ出すまで root に残す CLI
         listOf("$DESKTOP.ui"),
     )
 
     /** Compose 非依存の純粋ロジック層。 */
-    private val purePackages = arrayOf("$APP.core", "$APP.index", "$APP.schema", "$APP.validate", "$APP.text", "$APP.session", "$APP.tools", "$APP.skill")
-    private val coreModules = setOf("yaml-core", "semantic-core", "workspace-core", "cli", "app-core", "agent")
+    private val purePackages = arrayOf("$APP.core", "$APP.index", "$APP.schema", "$APP.validate", "$APP.text", "$APP.session", "$APP.tools", "$APP.ext", "$APP.skill")
+    private val coreModules = setOf("yaml-core", "semantic-core", "workspace-core", "cli", "app-core", "agent", "format-text", "format-xlsx", "format-docx")
 
     /** 外部の UI ライブラリの import の接頭辞と、それを包む 1 ファイル。 */
     private val wrappedLibraries = mapOf(
@@ -83,7 +84,7 @@ object SourceRules {
     val all: List<Rule> = listOf(
         Rule(
             1, "純粋ロジック層に Compose を持ち込まない",
-            why = "コアの 3 モジュールと cli・app-core・agent は Compose 非依存で、単体テストはこの層に書く",
+            why = "コアの 3 モジュールと cli・app-core・agent・拡張（format-*）は Compose 非依存で、単体テストはこの層に書く",
             doc = "architecture/README.md「モジュールと依存方向」",
         ) { files ->
             files.filter { it.module in coreModules || it.inPackage(*purePackages) }
@@ -91,7 +92,7 @@ object SourceRules {
         },
         Rule(
             2, "app の層は一方向",
-            why = "index・schema・validate・text、core、session、tools、skill、agent.llm、agent、desktop の根（AppState・cli・format）、desktop.ui の順に下から上へ重なり、上の層を import しない",
+            why = "index・schema・validate・text、core、session、tools、ext、skill、agent.llm、agent、desktop の根（AppState・cli・ext）、desktop.ui の順に下から上へ重なり、上の層を import しない",
             doc = "architecture/README.md「モジュールと依存方向」",
             known = listOf(
                 Known("app-core/src/main/kotlin/dev/toros/yde/app/validate/Readiness.kt", "core.Workspace を使っていて validate と core が循環している（BACKLOG）"),

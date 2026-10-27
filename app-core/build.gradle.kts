@@ -7,7 +7,7 @@ plugins {
 
 dependencies {
     api(project(":workspace-core"))
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")   // skill/Tables.kt の JSON の読み書き（直列化プラグインは使わない）
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")   // tools/ のツールの引数と JSON Schema（直列化プラグインは使わない）
 }
 
 tasks.withType<Test>().configureEach {

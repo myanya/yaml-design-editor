@@ -111,7 +111,7 @@
 | P44 | 業務の入口としてのダッシュボード | 初期版と独立した業務導線が完了（2026-10-25）、試用後の拡張判断は下記 |
 | P45 | ワークスペースの初期化（新しいワークスペースを作るウィザード。テンプレートから・自分の項目で・既存フォルダに後入れ） | 完了（2026-10-25）。本文は [記録](archive/roadmap-history.md) |
 | P46 | チャート（`kind: chart`＝表を図にするビューの部品）と、軸を値の式で広げるクロス集計 | 第一弾完了（2026-10-26）。残りは下記 |
-| P47 | 開発を AI エージェントに向く形にする（規則の機械化・応用層の切り出し・読む量・入口・UI の確認・拡張の機構・MCP） | 段階 0 完了・段階 1 の R47-10〜13 完了・段階 2 の R47-20（AppState の分割）と R47-24（app-core の切り出しと desktop への改名）・R47-25（agent モジュールの切り出し。run・auto・eval への分割だけ保留）・R47-26（共通の Gradle 設定）・R47-23（行数の目安）完了。目指す構成は ADR-0013（承認 2026-10-27）。次は段階 4 の R47-41（CLI を 1 つに） |
+| P47 | 開発を AI エージェントに向く形にする（規則の機械化・応用層の切り出し・読む量・入口・UI の確認・拡張の機構・MCP） | 段階 0 完了・段階 1 の R47-10〜13 完了・段階 2 の R47-20（AppState の分割）と R47-24（app-core の切り出しと desktop への改名）・R47-25（agent モジュールの切り出し。run・auto・eval への分割だけ保留）・R47-26（共通の Gradle 設定）・R47-23（行数の目安）完了。段階 6 の R47-60（形式の差し込み口）は R47-41 のために前倒しで完了。目指す構成は ADR-0013（承認 2026-10-27）。次は段階 4 の R47-41（CLI を 1 つに） |
 
 ## 未完のテーマ
 
@@ -487,7 +487,7 @@ R47-10 の最初の規則（既知の違反を除いて守られているので�
 
 | ID | 項目 | 内容 | 判断 | 状態 |
 |---|---|---|---|---|
-| R47-60 | 形式の差し込み口 | app-core に `FormatCodec`（ID・拡張子・読む・書く）と登録簿を置き、skill の形式 enum を置き換える。format-xlsx・format-docx（POI）・format-text（csv・json・markdown）の 3 モジュール。対応づけは skill 定義の YAML のまま。登録は入口の 1 ファイルの一覧 | 決定（形式を先に。ADR-0013） | 未着手 |
+| R47-60 | 形式の差し込み口 | app-core に `FormatCodec`（ID・拡張子・読む・書く）と登録簿を置き、skill の形式 enum を置き換える。format-xlsx・format-docx（POI）・format-text（csv・json・markdown）の 3 モジュール。対応づけは skill 定義の YAML のまま。登録は入口の 1 ファイルの一覧 | 決定（形式を先に。ADR-0013） | ✅ 2026-10-27（R47-41 のため前倒し。`app.ext` の `FormatCodec`／`ExtensionRegistry`／`Extensions`、3 モジュール、登録は `desktop/ext/DesktopExtensions.kt`。root の POI は test だけ） |
 | R47-61 | ビューの種類の差し込み口 | app-core に `ViewKind`（種類・定義の形の断片・読み取り・解決）を置き、`ViewDefinitions` の `when(kind)` を登録簿に置き換える。メタスキーマへ断片を kind ごとに合成する仕組みを作る。chart・lens・flow・matrix を view-* モジュールへ出し、grid・document・dashboard は中核に残す。描画は desktop.views の登録簿（`ViewRenderer`）で、大きくなった種類から view-*-ui へ | 決定（ADR-0013） | 未着手 |
 | R47-62 | 拡張の規則テスト | 拡張の全モジュールが入口の一覧に登録されている・拡張どうしが依存しない・Compose を持つのは desktop と view-*-ui だけ、を規則テストに足す。拡張の形（README・3 行の build・実装 1 つ・断片・テスト）も検査する | なし | 未着手 |
 

@@ -29,8 +29,8 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.input.key.*
 import dev.toros.yde.app.core.FileWatcher
-import dev.toros.yde.desktop.format.PoiTables
-import dev.toros.yde.app.skill.Tables
+import dev.toros.yde.app.ext.Extensions
+import dev.toros.yde.desktop.ext.DesktopExtensions
 import dev.toros.yde.app.schema.BuiltinSchemas
 import dev.toros.yde.workspace.layout.WorkspaceLayout
 import kotlinx.coroutines.delay
@@ -52,7 +52,7 @@ import java.util.prefs.Preferences
 private val uiPreferences: Preferences = Preferences.userRoot().node("yaml-design-editor/ui")
 
 fun main(args: Array<String>) = application {
-    Tables.binary = PoiTables  // xlsx / docx の読み書き（POI）は入口が登録する（app-core に POI を入れない）
+    Extensions.install(DesktopExtensions.registry)  // 拡張（入出力の形式）の登録は入口の一覧 1 ファイル（app-core に POI を入れない）
     val state = remember { AppState() }
     var confirmExit by remember { mutableStateOf(false) }
     var darkMode by remember { mutableStateOf(uiPreferences.getBoolean("darkMode", false)) }

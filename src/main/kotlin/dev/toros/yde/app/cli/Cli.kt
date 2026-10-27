@@ -56,8 +56,8 @@ import java.nio.file.Path
 import kotlin.system.exitProcess
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.desktop.BuildInfo
-import dev.toros.yde.desktop.format.PoiTables
-import dev.toros.yde.app.skill.Tables
+import dev.toros.yde.app.ext.Extensions
+import dev.toros.yde.desktop.ext.DesktopExtensions
 
 /**
  * ヘッドレスCLI（R1-01）。UIを起動せずにワークスペースの探索・検索・パッチ・検証を行う。
@@ -65,7 +65,7 @@ import dev.toros.yde.app.skill.Tables
  * 出力は原則 YAML（機械可読）。
  */
 fun main(args: Array<String>) {
-    Tables.binary = PoiTables  // xlsx / docx の読み書き（POI）は入口が登録する（app-core に POI を入れない）
+    Extensions.install(DesktopExtensions.registry)  // 拡張（入出力の形式）の登録は入口の一覧 1 ファイル（app-core に POI を入れない）
     // プラットフォームの既定文字コードに依存せず、常に UTF-8 で出力する（機械可読性のため）
     System.setOut(java.io.PrintStream(java.io.FileOutputStream(java.io.FileDescriptor.out), true, Charsets.UTF_8))
     System.setErr(java.io.PrintStream(java.io.FileOutputStream(java.io.FileDescriptor.err), true, Charsets.UTF_8))

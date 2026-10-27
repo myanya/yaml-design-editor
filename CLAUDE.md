@@ -39,7 +39,7 @@ scripts/docs-lint.sh                        # 文書の形の機械チェック
 
 ## 規約の要点
 
-- 依存方向は `yaml-core ← semantic-core ← workspace-core ← app-core ← agent ← アプリ（root）`（cli はカーネルまで）。コアからアプリ・Compose・`Path` へ逆依存しない。ADR（[docs/decisions/](docs/decisions/README.md)）は規約と同格。
+- 依存方向は `yaml-core ← semantic-core ← workspace-core ← app-core ← agent ← アプリ（root）`（cli はカーネルまで・拡張 format-* は app-core まで）。コアからアプリ・Compose・`Path` へ逆依存しない。ADR（[docs/decisions/](docs/decisions/README.md)）は規約と同格。
 - パッケージは `dev.toros.yde.<モジュール>.*`。文書とコメントでは接頭辞を省いた短い形（`schema.FieldDef`・`validate/Validator.kt`）で書く。
 - 可変 `YNode` ＋ copy-on-write の規律。Undo・履歴は workspace-core の単一所有。表記から意味を決めない。
 - 移動であって複製ではない。`test-fixtures/` は読み取り専用で、変更を伴うテストは一時ディレクトリへコピーして使う。
