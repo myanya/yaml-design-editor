@@ -42,7 +42,7 @@ object SourceRules {
         listOf("$APP.skill"),
         listOf("$AGENT.llm"),
         listOf(AGENT),
-        listOf(DESKTOP, "$APP.cli"), // desktop の根（AppState・Main・ScreenMemory・拡張の登録 ext）と、cli モジュールへ出すまで root に残す CLI
+        listOf(DESKTOP), // desktop の根（AppState・Main・ScreenMemory・拡張の登録 ext）
         listOf("$DESKTOP.ui"),
     )
 
@@ -68,7 +68,9 @@ object SourceRules {
     private val fileExistsAllowed = setOf(
         "src/main/kotlin/dev/toros/yde/desktop/AppState.kt",
         "app-core/src/main/kotlin/dev/toros/yde/app/session/DocumentSession.kt",
-        "src/main/kotlin/dev/toros/yde/app/cli/Cli.kt",
+        "cli/src/main/kotlin/dev/toros/yde/cli/commands/QueryCommands.kt",
+        "cli/src/main/kotlin/dev/toros/yde/cli/commands/InitCommands.kt",
+        "cli/src/main/kotlin/dev/toros/yde/cli/commands/SchemaCommands.kt",
         "agent/src/main/kotlin/dev/toros/yde/agent/Evals.kt",
         "agent/src/main/kotlin/dev/toros/yde/agent/RunLog.kt",
         "app-core/src/main/kotlin/dev/toros/yde/app/tools/WorkingCopy.kt",
@@ -92,7 +94,7 @@ object SourceRules {
         },
         Rule(
             2, "app の層は一方向",
-            why = "index・schema・validate・text、core、session、tools、ext、skill、agent.llm、agent、desktop の根（AppState・cli・ext）、desktop.ui の順に下から上へ重なり、上の層を import しない",
+            why = "index・schema・validate・text、core、session、tools、ext、skill、agent.llm、agent、desktop の根（AppState・ext）、desktop.ui の順に下から上へ重なり、上の層を import しない",
             doc = "architecture/README.md「モジュールと依存方向」",
             known = listOf(
                 Known("app-core/src/main/kotlin/dev/toros/yde/app/validate/Readiness.kt", "core.Workspace を使っていて validate と core が循環している（BACKLOG）"),

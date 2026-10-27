@@ -2,7 +2,7 @@ package dev.toros.yde.app.skill
 
 import dev.toros.yde.app.ext.Extensions
 import dev.toros.yde.desktop.ext.DesktopExtensions
-import dev.toros.yde.app.cli.runCli
+import dev.toros.yde.cli.runCli
 import dev.toros.yde.app.core.Workspace
 import java.nio.file.Files
 import java.nio.file.Path

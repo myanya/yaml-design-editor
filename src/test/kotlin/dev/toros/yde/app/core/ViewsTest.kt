@@ -1,6 +1,6 @@
 package dev.toros.yde.app.core
 
-import dev.toros.yde.app.cli.runCli
+import dev.toros.yde.cli.runCli
 import dev.toros.yde.workspace.ScaffoldSource
 import dev.toros.yde.agent.Staging
 import dev.toros.yde.app.tools.ToolContext

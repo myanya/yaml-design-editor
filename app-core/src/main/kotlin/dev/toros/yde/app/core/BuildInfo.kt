@@ -1,9 +1,9 @@
-package dev.toros.yde.desktop
+package dev.toros.yde.app.core
 
 import java.util.Properties
 
 /**
- * ビルド時に生成されるバージョン情報（`build-info.properties`。root の build.gradle.kts の `generateBuildInfo`）。
+ * ビルド時に生成されるバージョン情報（`build-info.properties`。app-core の build.gradle.kts の `generateBuildInfo`。desktop と cli が読む）。
  * - appVersion: 外部バージョン（利用者に見せる。メジャー.マイナー.パッチ。gradle.properties の appVersion）
  * - buildVersion: 内部バージョン（開発管理用。yyyymmdd.ビルド番号。未コミットの変更を含むビルドは -dirty）
  * - commit: ビルド元のコミット（短縮ハッシュ）

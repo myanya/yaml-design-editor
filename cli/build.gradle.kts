@@ -1,4 +1,5 @@
-// cli: 3層コアの簡易CLI（パースと表示のみ。業務ロジックはcore側に置く）
+// cli: 1 つの CLI（ADR-0013。R47-41）。カーネルの命令（yaml… / workspace…）と応用の命令（catalog・view・validate・agent・import …）。
+// 引数の解釈と表示だけを持ち、業務ロジックは app-core・agent・カーネルに置く。登録する拡張は CliExtensions.kt の一覧
 plugins {
     id("yde.kotlin-module")   // 共通の設定（buildSrc）: Kotlin・toolchain 21・テストの依存と設定
     application
@@ -8,18 +9,37 @@ application {
     mainClass.set("dev.toros.yde.cli.MainKt")
 }
 
-// 相対パス引数をリポジトリルート基準で解決する（計画書§14の実行例に合わせる）
+// ./gradlew runCli -q --args="…"（root から打つ。作業ディレクトリはリポジトリの根＝相対パスの引数が文書の例のとおりに解決する）
+tasks.register<JavaExec>("runCli") {
+    group = "application"
+    description = "ヘッドレス CLI を実行する（dev.toros.yde.cli.MainKt）"
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("dev.toros.yde.cli.MainKt")
+    workingDir = rootDir
+    // CLI 出力は UTF-8 固定（Windows の既定は MS932。機械可読出力を文字化けさせない）
+    jvmArgs("-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8")
+    standardInput = System.`in`  // workspace shell（対話モード）用
+}
+
+// :cli:run は runCli と同じ（application プラグインの run）。ルートで ./gradlew run（GUI）と打ったときに走らないよう、:cli:run と明示したときだけ有効
 tasks.named<JavaExec>("run") {
-    // ルートで ./gradlew run（GUI）と打つと、同名のこのタスクまで走って使い方を表示し BUILD FAILED になる。
-    // :cli:run と明示したときだけ実行する（./gradlew run --args=… は GUI だけに渡る）
     enabled = gradle.startParameter.taskNames.any { it.endsWith("cli:run") }
     workingDir = rootDir
-    // CLI出力はUTF-8固定（JDK 17のWindows既定はMS932。機械可読出力を文字化けさせない）
     jvmArgs("-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8")
-    standardInput = System.`in`  // shell（対話モード）用
+    standardInput = System.`in`
 }
 
 dependencies {
-    implementation(project(":workspace-core"))
+    implementation(project(":app-core"))
+    implementation(project(":agent"))
+    // 拡張（入出力の形式）。登録は CliExtensions.kt の一覧
+    implementation(project(":format-text"))
+    implementation(project(":format-xlsx"))
+    implementation(project(":format-docx"))
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")   // agent / watch / eval の runBlocking（agent と同じ版）
 }
 
+tasks.withType<Test>().configureEach {
+    // 応用の命令のテストは samples/ や test-fixtures/ をリポジトリの根からの相対パスで読む
+    workingDir = rootDir
+}

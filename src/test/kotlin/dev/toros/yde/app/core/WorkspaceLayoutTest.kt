@@ -1,6 +1,6 @@
 package dev.toros.yde.app.core
 
-import dev.toros.yde.app.cli.runCli
+import dev.toros.yde.cli.runCli
 import dev.toros.yde.agent.Definitions
 import dev.toros.yde.app.schema.BuiltinSchemas
 import dev.toros.yde.workspace.layout.WorkspaceLayout

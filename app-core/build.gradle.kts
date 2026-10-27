@@ -14,3 +14,25 @@ tasks.withType<Test>().configureEach {
     // root から移したテストは samples/ や test-fixtures/ をリポジトリの根からの相対パスで読む。root のテストと同じ作業ディレクトリにそろえる
     workingDir = rootDir
 }
+
+// バージョン情報を資源（build-info.properties）として jar に入れる。読むのは core/BuildInfo.kt（desktop と cli が使う）。
+// 内部バージョン（yyyymmdd.ビルド番号）とコミットは buildSrc の GitInfo が git から算出する（-PbuildVersion=… で手動指定もできる）
+val buildInfoDir = layout.buildDirectory.dir("generated/build-info")
+val generateBuildInfo by tasks.registering {
+    description = "バージョン情報（build-info.properties）を生成する"
+    val app = version.toString()
+    val build = GitInfo.buildVersion(rootDir, providers.gradleProperty("buildVersion").orNull)
+    val commit = GitInfo.commit(rootDir)
+    val outDir = buildInfoDir  // 実行時の処理からスクリプトの値を直接参照しない（構成キャッシュの再利用で復元できないため）
+    inputs.property("appVersion", app)
+    inputs.property("buildVersion", build)
+    inputs.property("commit", commit)
+    outputs.dir(outDir)
+    doLast {
+        val f = outDir.get().file("build-info.properties").asFile
+        f.parentFile.mkdirs()
+        f.writeText("appVersion=$app\nbuildVersion=$build\ncommit=$commit\n")
+    }
+}
+sourceSets["main"].resources.srcDir(buildInfoDir)
+tasks.named("processResources") { dependsOn(generateBuildInfo) }

@@ -1,6 +1,6 @@
 package dev.toros.yde.app.index
 
-import dev.toros.yde.app.cli.runCli
+import dev.toros.yde.cli.runCli
 import dev.toros.yde.app.core.Workspace
 import dev.toros.yde.semantic.schema.QueryNodeKind
 import dev.toros.yde.semantic.schema.QuerySpec

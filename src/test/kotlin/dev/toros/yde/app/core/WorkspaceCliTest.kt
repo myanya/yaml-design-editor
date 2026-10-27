@@ -1,6 +1,6 @@
 package dev.toros.yde.app.core
 
-import dev.toros.yde.app.cli.runCli
+import dev.toros.yde.cli.runCli
 import dev.toros.yde.app.index.Query
 import dev.toros.yde.workspace.changeset.ChangeSets
 import dev.toros.yde.yaml.model.parseYPath

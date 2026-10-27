@@ -2,7 +2,7 @@ package dev.toros.yde.app.core
 
 import dev.toros.yde.app.ext.Extensions
 import dev.toros.yde.desktop.ext.DesktopExtensions
-import dev.toros.yde.app.cli.runCli
+import dev.toros.yde.cli.runCli
 import dev.toros.yde.agent.Definitions
 import dev.toros.yde.agent.Evals
 import dev.toros.yde.app.skill.Skills

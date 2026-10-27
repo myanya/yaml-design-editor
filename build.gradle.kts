@@ -1,8 +1,6 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import java.net.URI
 import java.security.MessageDigest
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import java.util.zip.ZipInputStream
 
 plugins {
@@ -16,26 +14,9 @@ group = "dev.toros"
 // 外部バージョン（利用者に見せる。メジャー.マイナー.パッチ）。gradle.properties の appVersion をリリース時に手で上げる
 version = providers.gradleProperty("appVersion").get()
 
-// 内部バージョン（開発管理用。yyyymmdd.ビルド番号）。既定は git から算出する:
-// HEAD のコミット日（yyyymmdd）と、その日の何番目のコミットかをビルド番号にする（同じコミットからは同じ値になる）。
-// 未コミットの変更を含むビルドには "-dirty" を付ける。-PbuildVersion=20260923.7 のように手動で指定もできる。
-fun git(vararg args: String): String? = runCatching {
-    val p = ProcessBuilder("git", *args).directory(rootDir).redirectErrorStream(true).start()
-    val out = p.inputStream.bufferedReader().readText().trim()
-    if (p.waitFor() == 0) out else null
-}.getOrNull()
-
-val buildVersion: String = providers.gradleProperty("buildVersion").orNull ?: run {
-    val day = git("log", "-1", "--format=%cd", "--date=format:%Y-%m-%d")
-    if (day == null) {
-        LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE) + ".0"
-    } else {
-        val n = git("rev-list", "--count", "HEAD", "--since=$day 00:00") ?: "0"
-        val dirty = if (git("status", "--porcelain")?.isNotEmpty() == true) "-dirty" else ""
-        day.replace("-", "") + "." + n + dirty
-    }
-}
-val gitCommit: String = git("rev-parse", "--short", "HEAD") ?: "unknown"
+// 内部バージョン（yyyymmdd.ビルド番号）とコミットの算出は buildSrc の GitInfo（app-core の build-info.properties と共用）
+fun git(vararg args: String): String? = GitInfo.git(rootDir, *args)
+val buildVersion: String = GitInfo.buildVersion(rootDir, providers.gradleProperty("buildVersion").orNull)
 
 repositories {
     mavenCentral()
@@ -83,33 +64,13 @@ dependencies {
     implementation("org.yaml:snakeyaml:2.3")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     testImplementation(kotlin("test"))
+    testImplementation(project(":cli"))   // root のテストが CLI の出力と画面側の結果を比べる（CLI は cli モジュール）
     testImplementation("org.apache.poi:poi-ooxml:5.5.1")   // DistributionSmoke と ImportExportTest が Office の文書を組み立てる（本体は format-xlsx / format-docx）
 }
 
 kotlin {
     jvmToolchain(21)   // 外部ライブラリ（Markdown の描画）が Java 21 の class を要求する。無ければ Gradle（foojay）が自動で取得する
 }
-
-// バージョン情報を資源（build-info.properties）として jar に入れる。アプリは app/BuildInfo.kt で読む
-val buildInfoDir = layout.buildDirectory.dir("generated/build-info")
-val generateBuildInfo by tasks.registering {
-    description = "バージョン情報（build-info.properties）を生成する"
-    val app = version.toString()
-    val build = buildVersion
-    val commit = gitCommit
-    val outDir = buildInfoDir  // 実行時の処理からスクリプトの値を直接参照しない（構成キャッシュの再利用で復元できないため）
-    inputs.property("appVersion", app)
-    inputs.property("buildVersion", build)
-    inputs.property("commit", commit)
-    outputs.dir(outDir)
-    doLast {
-        val f = outDir.get().file("build-info.properties").asFile
-        f.parentFile.mkdirs()
-        f.writeText("appVersion=$app\nbuildVersion=$build\ncommit=$commit\n")
-    }
-}
-sourceSets["main"].resources.srcDir(buildInfoDir)
-tasks.named("processResources") { dependsOn(generateBuildInfo) }
 
 // 等幅フォント Cica の同梱（ui/Common.kt の AppFonts.Mono）。TTF は git に入れない（.gitignore の *.ttf）ので、
 // ビルド時に配布物を取得して検証し、資源（fonts/cica/）へ入れる。取得した zip は Gradle のユーザーホームに置き、clean でも消えない
@@ -328,15 +289,6 @@ tasks.register("windowsRelease") {
             .replace("@MODE@", if (distributionPreview) "開発中の検証用プレビュー" else "Windows ZIP 配布"))
         logger.lifecycle("配布成果物: ${zip.parentFile}")
     }
-}
-
-// ヘッドレスCLI（UIなしでカタログ・検索・パッチ・検証を実行する）
-// 例: ./gradlew runCli --args="catalog samples/sample-workspace" -q
-tasks.register<JavaExec>("runCli") {
-    group = "application"
-    description = "ヘッドレスCLIを実行する（dev.toros.yde.app.cli.CliKt）"
-    classpath = sourceSets["main"].runtimeClasspath
-    mainClass.set("dev.toros.yde.app.cli.CliKt")
 }
 
 tasks.withType<Test>().configureEach {

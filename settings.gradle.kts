@@ -6,7 +6,7 @@ plugins {
 rootProject.name = "yaml-design-editor"
 
 // モジュール構成（docs/architecture/README.md「モジュールと依存方向」）。
-// 依存方向: yaml-core ← semantic-core ← workspace-core ← app-core ← agent ← ルート（アプリ）。cli はカーネルまで。拡張（format-*）は app-core まで（ADR-0013）
+// 依存方向: yaml-core ← semantic-core ← workspace-core ← app-core ← agent ← ルート（アプリ）。cli は app-core・agent・拡張まで。拡張（format-*）は app-core まで（ADR-0013）
 include(
     ":yaml-core",
     ":semantic-core",

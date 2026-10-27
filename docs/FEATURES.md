@@ -29,7 +29,7 @@
 | W-18 | 複数選択・キー操作・ドラッグ（固定案内・移動先強調） | `ui/FileTreeSelection.kt`, `ui/FileTreePane.kt` | `FileTreeSelectionTest`・画面は手動 | [ui](architecture/ui.md) |
 | W-19 | 参考資料の本文検索（範囲・容量上限・中止・行へ移動） | `core/ReferenceSearch.kt` | `ReferenceToolsTest`, `FileTreeBenchmark` | [ui](architecture/ui.md) |
 | W-20 | ソースの宣言候補の表示と YAML 保存 | `core/SourceOutline.kt`, `ui/FilePreviewPane.kt` | `ReferenceToolsTest`, `AppStateFileArrangementTest` | [ui](architecture/ui.md) |
-| W-21 | ワークスペースの初期化（ウィザード 4 歩・テンプレートから／自分の項目で／既存フォルダに後入れ・未初期化フォルダの案内・CLI `init`） | `ui/InitWizard.kt`, `workspace-core/WorkspaceInit.kt`, `cli/Cli.kt` | 単体 `WorkspaceInitTest`, `WorkspaceTemplatesTest`・画面は手動 | [workspace](architecture/workspace.md) |
+| W-21 | ワークスペースの初期化（ウィザード 4 歩・テンプレートから／自分の項目で／既存フォルダに後入れ・未初期化フォルダの案内・CLI `init`） | `ui/InitWizard.kt`, `workspace-core/WorkspaceInit.kt`, `cli/InitCommands.kt` | 単体 `WorkspaceInitTest`, `WorkspaceTemplatesTest`・画面は手動 | [workspace](architecture/workspace.md) |
 | W-22 | テンプレート（`templates/` をビルド時に資源へ写し `WorkspaceTemplates` が読む・問いを持つテンプレートは答えを変換定義のひな型で組み立てる・全テンプレートの検証エラー 0 をテストで固定） | `templates/`, `workspace-core/WorkspaceTemplates.kt` | 単体 `WorkspaceInitTest`, `WorkspaceTemplatesTest` | [workspace](architecture/workspace.md) |
 
 ## 2. 文書編集
@@ -113,12 +113,12 @@
 | V-10 | 重複所有の検証（同一エンティティの複数出現が同じフィールドを所有したら警告・双方に entity 宣言と `owns` があるときだけ） | `workspace-core/validate/CodedDocumentChecks.kt` | 単体 `AspectTest`, `KernelOnlyChecksTest` | [checks](architecture/checks.md) |
 | V-11 | 網羅マトリクス（`matrix`・行 × 列の全組合せに証人があること・組込み定義体で `forAll` へ展開） | `builtin-definitions/matrix.yaml` | 単体 `MatrixTest` | [checks](architecture/checks.md) |
 | V-12 | 遷移検証（`flow`・到達不能・行き止まり・宣言外遷移・到達の計算は専用チェッカーで文面と重大度は定義体） | `semantic-core/semantic/Flow.kt`, `builtin-definitions/flow.yaml` | 単体 `FlowTest` | [checks](architecture/checks.md) |
-| V-13 | 準備完了レポート（CLI `readiness`・指摘をエンティティへ帰属しエラー 0 で準備完了・型別とフェーズ別の集計） | `validate/Readiness.kt`, `cli/Cli.kt` | 単体 `ReadinessTest` | [checks](architecture/checks.md) |
+| V-13 | 準備完了レポート（CLI `readiness`・指摘をエンティティへ帰属しエラー 0 で準備完了・型別とフェーズ別の集計） | `validate/Readiness.kt`, `cli/ValidateCommands.kt` | 単体 `ReadinessTest` | [checks](architecture/checks.md) |
 | V-21 | 準備完了レポートの画面（台帳の「準備」タブ・件数のタイル・型別とフェーズ別の積み上げ棒・エンティティの表から横ぐしへ・保存済みの内容で判定） | `ui/ReadinessPane.kt`, `ui/Charts.kt`（`BarChart`）, `AppState.readinessReport` | 単体 `ReadinessChartTest` | [ui](architecture/ui.md) |
 | V-14 | 検査の定義と語彙の定義（`constraints` の `use` ＋ `with`・`functions`・`vocabulary`・組込みは特権を持たない・CLI `checks`） | `semantic-core/schema/CheckDefinitions.kt`, `workspace-core/workspace/CheckCatalog.kt` | 単体 `CheckDefinitionsTest`, `CheckDefinitionTest` | [checks](architecture/checks.md) |
 | V-15 | 検査の結果の 4 つと指摘の出どころ（違反・充足・保留・対象外・`IssueSource`・保留は `withheld`・CLI `validate --sources`） | `semantic-core/semantic/CheckResults.kt`, `workspace-core/validate/CodedChecks.kt` | 単体 `SemanticRulesTest`, `CheckOutcomeTest` | [checks](architecture/checks.md) |
 | V-16 | クエリの線の意味（参照を書いた要素は最も内側の ID を持つ要素・入れ子の線 `contains`・`via`・名前を書いた線は保有の線も辿る） | `semantic-core/semantic/Graph.kt`（`ownRefs`）, `semantic-core/semantic/Query.kt`（`holdingSteps`） | 単体 `QueryNestingTest`, `PreviewValidationTest` | [graph-query](architecture/graph-query.md) |
-| V-17 | 規模の計測（CLI `bench`・合成ワークスペースで開く・検証・レポートの時間と伸び方を出す） | `core/Bench.kt`, `cli/Cli.kt` | 単体 `BenchTest` | [checks](architecture/checks.md) |
+| V-17 | 規模の計測（CLI `bench`・合成ワークスペースで開く・検証・レポートの時間と伸び方を出す） | `core/Bench.kt`, `cli/BenchCommand.kt` | 単体 `BenchTest` | [checks](architecture/checks.md) |
 | V-18 | 検査の評価の共有（同じ索引の上では検査 × 要素を 1 回だけ評価・全体の検証が文書数に比例） | `semantic-core/semantic/CheckSession.kt`, `workspace-core/workspace/WorkspaceCheckRunner.kt` | 単体 `KernelCheckLoadingTest`, `BenchTest` | [checks](architecture/checks.md) |
 | V-19 | コードで実装された検査（ID パターンからの逸脱・重複所有・テンプレートの健全性・カーネルが配る） | `workspace-core/validate/CodedDocumentChecks.kt`, `workspace-core/workspace/SchemaDefinitionChecks.kt` | 単体 `KernelOnlyChecksTest` | [checks](architecture/checks.md) |
 | V-20 | 文書 1 つの検証の組み立て（構造 → ID と参照 → エンティティ型 → 関係名 → 定義体 → テンプレート → 案内・台帳外の降格と重複除去） | `workspace-core/validate/DocumentValidator.kt` | 単体 `KernelCheckLoadingTest`, `KernelOnlyChecksTest` | [checks](architecture/checks.md) |
@@ -150,7 +150,7 @@
 | X-01 | 一覧ビュー（ID・タイトル・状態・担当・種別・絞り込み・未保存編集に追随・チェックと ID の列を左に固定） | `ui/WorkspaceViews.kt`, `ui/VirtualTable.kt`, `AppState.workspaceRecords` | 単体 `VirtualTableTest` | [views](architecture/views.md) |
 | X-02 | 一括編集（自動値も含め Undo 1 回） | `DocumentSession.bulkUpdate`, `WorkspaceSession.applyWithAutoValues` | `AppStateAutoValuesTest`・`AutoValuesKernelTest`・`SessionWriteParityTest` | [editing-history](architecture/editing-history.md) |
 | X-03 | グラフレンズ（近傍・型と関係の絞り込み・配置・保有・側面・PNG・ミニマップ） | `ui/GraphLensView.kt`, `ui/LensGraph.kt`, `ui/GraphLayouts.kt` | `LensGraphTest`, `GraphLayoutsTest` | [graph-query](architecture/graph-query.md) |
-| X-11 | スキーマレンズ（「型」の段＝箱は型・線は関係の宣言と導出・入れ子は保有の宣言。箱を押すとスキーマへ・CLI `schema-graph`） | `semantic-core/semantic/SchemaGraph.kt`, `ui/LensGraph.kt`（`buildTypes`）, `cli/Cli.kt` | 単体 `SemanticSchemaGraphTest`, `LensGraphTest`, `WorkspaceCliTest` | [graph-query](architecture/graph-query.md) |
+| X-11 | スキーマレンズ（「型」の段＝箱は型・線は関係の宣言と導出・入れ子は保有の宣言。箱を押すとスキーマへ・CLI `schema-graph`） | `semantic-core/semantic/SchemaGraph.kt`, `ui/LensGraph.kt`（`buildTypes`）, `cli/SchemaCommands.kt` | 単体 `SemanticSchemaGraphTest`, `LensGraphTest`, `WorkspaceCliTest` | [graph-query](architecture/graph-query.md) |
 | X-12 | レンズの見え方の定義（`_views` の `kind: lens`＝関係ごとの矢印の向き。表示だけ・レジストリに無い関係名はリント・関係の改名は警告で開示） | `semantic-core/semantic/LensViews.kt`, `workspace-core/workspace/ViewDefinitions.kt`（`parseLensView`）, `ui/LensGraph.kt` | 単体 `ViewDefinitionsTest`, `LensGraphTest` | [views](architecture/views.md) |
 | X-04 | コマンドパレット（Ctrl+K・ID・ファイル・本文検索・ビュー切替・スペース切替・保存） | `Main.kt`（`CommandPalette`）, `session/DocumentSession.kt`（`searchContent`） | 手動 | [ui](architecture/ui.md) |
 | X-05 | ビュー定義 `_views`（`kind: grid` の行・列・並び〔出現順か `order.path` の値の順〕・詳細文書・新規行・バックリンク列・`kind: document`） | `core/Views.kt`, `workspace-core/workspace/ViewDefinitions.kt` | 単体 `ViewsTest` | [views](architecture/views.md) |
@@ -199,7 +199,7 @@
 | AG-07 | 変更セットレビュー UI（ファイル単位の部分採用・再検証・差分・適用・状態は `RunController`） | `ui/RunsSpace.kt`（`ReviewContent`, `RunController`） | 手動 | [agents](architecture/agents.md) |
 | AG-08 | 実行中の対話（`ask_human` の質問カード・計画とメモの進捗・キャンセル） | `agent/Kernel.kt`, `ui/RunsSpace.kt`（`QuestionCard`） | 単体 `KernelTest` | [agents](architecture/agents.md) |
 | AG-09 | 実行記録 `_runs`（ターン・ツール呼び出し・採否・トークン・会話記録） | `agent/RunLog.kt`, `agent/Kernel.kt` | 単体 `KernelTest`, `AutoApplySafetyTest` | [agents](architecture/agents.md) |
-| AG-10 | CLI からの実行（`agent` / `activities`） | `cli/Cli.kt` | 手動 | [agents](architecture/agents.md) |
+| AG-10 | CLI からの実行（`agent` / `activities`） | `cli/AgentCommands.kt` | 手動 | [agents](architecture/agents.md) |
 | AG-11 | トリガ（manual / on-change / schedule / on-invalid・予約ディレクトリと自己変更では発火しない） | `agent/Automation.kt`（`tick`） | 単体 `AutomationTest` | [agents](architecture/agents.md) |
 | AG-12 | アクティビティ連鎖（`chain` の成功・失敗・規則による分岐・深さ上限と循環検出） | `agent/Automation.kt`（`chainNext`）, `agent/Definitions.kt`（`ChainDef`） | 単体 `AutomationTest` | [agents](architecture/agents.md) |
 | AG-13 | 無人リトライ（`retry.maxAttempts`・同一失敗の繰り返しは打ち切り） | `agent/Automation.kt`（`handleFailure`） | 単体 `AutomationTest` | [agents](architecture/agents.md) |
@@ -207,7 +207,7 @@
 | AG-15 | 実行キューと停止（直列実行・常時停止・承認待ちの耐久性） | `agent/Automation.kt` | 単体 `AutomationTest` | [agents](architecture/agents.md) |
 | AG-16 | 自動適用の巻き戻し（バックアップから復元・競合は拒否し `--force` で上書き） | `agent/AutoApply.kt`（`revert`） | 単体 `AutoApplySafetyTest` | [agents](architecture/agents.md) |
 | AG-17 | サブエージェント委譲（`delegate`・読み取り専用の相談・深さ 1） | `agent/Kernel.kt`（`consult`） | 単体 `KernelTest` | [agents](architecture/agents.md) |
-| AG-18 | 自動実行 UI（自動化タブ: 監視・キュー・履歴・ログ）と CLI `watch` | `ui/AutomationPanel.kt`, `cli/Cli.kt` | 手動 | [agents](architecture/agents.md) |
+| AG-18 | 自動実行 UI（自動化タブ: 監視・キュー・履歴・ログ）と CLI `watch` | `ui/AutomationPanel.kt`, `cli/AgentCommands.kt` | 手動 | [agents](architecture/agents.md) |
 | AG-19 | 実行メトリクス（提出率・採用率・却下ファイル率・トークン・CLI `metrics`） | `agent/Metrics.kt` | 単体 `MetricsTest` | [agents](architecture/agents.md) |
 | AG-20 | 評価セット `_evals`（ゴールデン入力と期待結果・サンドボックスコピー上で実行・CLI `eval`） | `agent/Evals.kt` | 単体 `EvalTest` | [agents](architecture/agents.md) |
 | AG-21 | 比較実験（`variants` でモデル・エージェント・指示を差し替えた A/B） | `agent/Evals.kt`（`EvalRunner`） | 単体 `EvalTest` | [agents](architecture/agents.md) |
@@ -232,7 +232,7 @@
 | C-03 | 変更セット（複数ファイルのパッチ束と新規作成・base ハッシュの競合検出・適用後の姿の検証・`--require-valid`・適用の本体はカーネル） | `workspace-core/changeset/ChangeSets.kt`, `workspace-core/workspace/ChangeSetApplier.kt` | 単体 `ChangeSetApplierTest`, `WorkspaceCliTest` | [workspace](architecture/workspace.md) |
 | C-04 | 段階的開示 API（カタログ → 骨子 → ノード全文・文字数予算つきバンドル） | `core/Disclosure.kt` | 単体 `WorkspaceCliTest` | [agents](architecture/agents.md) |
 | C-05 | 構造検索 API（本文とキーの部分一致とスキーマ・glob 条件・参照検索・未解決参照） | `core/Search.kt` | 単体 `WorkspaceCliTest` | [index-references](architecture/index-references.md) |
-| C-06 | root の CLI（探索・検索・クエリ・ビュー・検証・適用・エンティティ・エージェント・自動化・評価・skill・初期化・推測・移行・検査一覧・準備完了・計測・変換） | `cli/Cli.kt` | 単体 `WorkspaceCliTest` | [workspace](architecture/workspace.md) |
+| C-06 | CLI は 1 つ（カーネルの命令 `yaml …` / `workspace …` と、応用の命令＝探索・検索・クエリ・ビュー・検証・適用・エンティティ・エージェント・自動化・評価・skill・初期化・推測・移行・検査一覧・準備完了・計測・変換。命令ごとのファイル） | `cli/Main.kt`, `cli/AppCli.kt`, `cli/ExploreCommands.kt` | 単体 `AppCliTest`, `CliTest`, `WorkspaceCliTest` | [workspace](architecture/workspace.md) |
 | C-07 | ビュー解決 API（定義のロード・行 × セルの原本座標化・バックリンク列・文書ビュー・行の並びと集計の種類は項目の型から・CLI `view`） | `core/Views.kt` | 単体 `ViewsTest`, `VirtualViewsTest` | [views](architecture/views.md) |
 | C-08 | 性能ベンチマーク（カーネルの全再構築・増分更新の計測・CLI `workspace bench`） | `cli/Commands.kt` | 単体 `CliTest`, `IdIndexIncrementalTest` | [workspace](architecture/workspace.md) |
 | C-09 | 文書キャッシュの中核（`EditBuffer`・`WorkspaceRecords`・`noteDiskChanges` の振り分け） | `core/Documents.kt`, `core/Workspace.kt` | 単体 `DocumentsTest` | [workspace](architecture/workspace.md) |
@@ -253,7 +253,7 @@
 | SK-01 | skill 定義 `_skills`（import / export の宣言型と run） | `skill/Skills.kt` | 単体 `ImportExportTest`, `RunSkillTest` | [agents](architecture/agents.md) |
 | SK-02 | インポート（xlsx / csv / json / markdown / docx → 変更セット。`mapping`・`build`・配列へ追記 `target.path`・採番 `target.id`・重複の `target.key`・文字コード・見出しの無い csv の `input.columns`） | `skill/Importer.kt`, `skill/Tables.kt`, `ext/FormatCodec.kt`, `text/TextFormats.kt`, `xlsx/XlsxFormat.kt`, `docx/DocxFormat.kt` | 単体 `ImportExportTest`, `ArrayImportTest`, `TextFormatsTest`, `XlsxFormatTest`, `DocxFormatTest`, `ExtensionsTest` | [agents](architecture/agents.md) |
 | SK-03 | エクスポート（glob × 行 × 列 → xlsx / csv / markdown / json / html・`source.view`・YAML 出力は拒否） | `skill/Exporter.kt`, `skill/Tables.kt`, `ext/Extensions.kt` | 単体 `ImportExportTest` | [agents](architecture/agents.md) |
-| SK-04 | CLI（`skills` / `import` / `export` / `run-skill`） | `cli/Cli.kt` | 単体 `RunSkillTest` | [agents](architecture/agents.md) |
+| SK-04 | CLI（`skills` / `import` / `export` / `run-skill`） | `cli/SkillCommands.kt` | 単体 `RunSkillTest` | [agents](architecture/agents.md) |
 | SK-05 | テンプレート「課題管理」（Excel 往復と棚卸しのエージェント・評価を含む出発点。展開の仕組みは W-21） | `templates/issues/` | 単体 `ImportExportTest` | [workspace](architecture/workspace.md) |
 | SK-06 | skill UI（設計スペースの連携: 一覧・エクスポート・インポートのプレビューと適用・実行の承認） | `ui/SkillsPanel.kt` | 手動 | [agents](architecture/agents.md) |
 | SK-07 | コード実行 skill（kind: run・人間の事前承認・定義変更で失効・エージェントからは起動不可） | `skill/Runner.kt` | 単体 `RunSkillTest` | [agents](architecture/agents.md) |
@@ -265,7 +265,7 @@
 | OP-01 | 型の操作（`methods`・作成・採番・引き継ぎ） | `semantic-core/schema/Action.kt`, `schema/SchemaTree.kt` | `ActionPlannerTest` | [actions](architecture/actions.md) |
 | OP-02 | アクションの定義と点検 | `semantic-core/schema/Action.kt`, `workspace-core/workspace/SchemaDocuments.kt` | `ActionPlannerTest` | [actions](architecture/actions.md) |
 | OP-03 | 操作の計画・前提評価・変更セット生成 | `workspace-core/workspace/ActionPlanner.kt` | `ActionPlannerTest` | [actions](architecture/actions.md) |
-| OP-04 | CLI `action`（使える操作の一覧・計画＝変更セットと適用後の検証・`--apply`・`--allow-errors`） | `cli/Cli.kt` | 単体 `ActionCliTest` | [actions](architecture/actions.md) |
+| OP-04 | CLI `action`（使える操作の一覧・計画＝変更セットと適用後の検証・`--apply`・`--allow-errors`） | `cli/ActionCommands.kt` | 単体 `ActionCliTest` | [actions](architecture/actions.md) |
 | OP-05 | 操作の入口・フォームと横ぐしの対象引継ぎ・前提の無効化・確認と適用 | `ui/ActionPane.kt`, `ui/DocumentFormWorkspace.kt`, `AppState.kt` | `AppStateActionTest`・`FormOutlineTest` | [actions](architecture/actions.md) |
 | OP-06 | 検査の指摘から対象・値を指定して起動 | `workspace-core/validate/WorkspaceChecks.kt`, `ui/SidePanel.kt` | `ActionPlannerTest`, `AppStateActionTest` | [actions](architecture/actions.md) |
 | OP-07 | エージェントのツール（アクティビティの `actions` で許可した操作が `action_名前` のツールに・引数は受け取る値の定義・ステージングを重ねて計画し積む・`allowedFiles` の外でも通る） | `tools/Toolset.kt`（`actionTools` / `runActionTool`）, `agent/Definitions.kt`, `builtin-schemas/activity.yaml` | 単体 `ActionToolTest` | [actions](architecture/actions.md) |

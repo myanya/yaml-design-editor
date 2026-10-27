@@ -34,10 +34,10 @@ GUIを起動せずに、ワークスペースの探索・検索・部分変更�
 ./gradlew runCli -q --args="entity my-ws show SCR-001"                    # エンティティ全体像（アスペクト合成・関係・被参照。エンティティページ・read_entity と同じ合成）
 
 # 変更系リファクタリング（エンティティ改名・統合・削除／ファイル移動／スキーマ・リファクタリング）は
-# 新CLI（cli モジュール）へ移動しました（--apply なしは計画のプレビュー出力）:
-./gradlew :cli:run -q --args="workspace refactor my-ws rename-entity SCR-001 SCR-100 --apply"
-./gradlew :cli:run -q --args="workspace refactor my-ws move-document specs/a.yaml archive/a.yaml --apply"
-./gradlew :cli:run -q --args="workspace refactor my-ws rename-field task-schema details.priority urgency"
+# カーネルの命令 workspace refactor で行います（--apply なしは計画のプレビュー出力）:
+./gradlew runCli -q --args="workspace refactor my-ws rename-entity SCR-001 SCR-100 --apply"
+./gradlew runCli -q --args="workspace refactor my-ws move-document specs/a.yaml archive/a.yaml --apply"
+./gradlew runCli -q --args="workspace refactor my-ws rename-field task-schema details.priority urgency"
                                                                           # 他に merge-entity / delete-entity / move-field / align-order / rename-enum-value /
                                                                           # delete-field / require-field / convert-type / rename-definition / extract-definition /
                                                                           # inline-definition / rename-relation / rename-schema-id
@@ -58,9 +58,9 @@ GUIを起動せずに、ワークスペースの探索・検索・部分変更�
 ./gradlew runCli -q --args="infer-schema my-ws 'issues/**/*.yaml' --apply"  # 既存文書からスキーマ推測（--apply なしはプレビュー）
 ./gradlew runCli -q --args="infer-relations my-ws --apply"                # 参照と保有（入れ子で書かれた要素）の実績から関係レジストリのドラフト生成（[schema.md](schema.md)）
 ./gradlew runCli -q --args="schema-graph my-ws"                           # スキーマの図（型・関係の線＝宣言／導出・保有の宣言・線にできない参照項目の理由。レンズの「型」の段と同じ材料。[views.md](views.md)）
-./gradlew :cli:run -q --args="workspace validate my-ws"                    # 新CLI の検証（スキーマの定義の点検・構造・意味・定義体の検査・エンティティ型の点検・テンプレートの健全性。アプリと同じ実装で評価する。検査のエラーは終了コード 3。--format yaml / json で機械可読）
-./gradlew :cli:run -q --args="workspace apply my-ws changeset.yaml --dry-run --require-valid"  # 新CLI の変更セットの適用（apply と同じ部品。--dry-run は検証だけ。終了コード 0 / 2＝競合など / 3＝検証のエラーが残る）
-./gradlew :cli:run -q --args="workspace bench my-ws --iterations 3"       # 意味解析の性能計測（新CLI。全再構築 vs 増分更新）
+./gradlew runCli -q --args="workspace validate my-ws"                    # カーネルの検証（スキーマの定義の点検・構造・意味・定義体の検査・エンティティ型の点検・テンプレートの健全性。アプリと同じ実装で評価する。検査のエラーは終了コード 3。--format yaml / json で機械可読）
+./gradlew runCli -q --args="workspace apply my-ws changeset.yaml --dry-run --require-valid"  # カーネルの変更セットの適用（apply と同じ部品。--dry-run は検証だけ。終了コード 0 / 2＝競合など / 3＝検証のエラーが残る）
+./gradlew runCli -q --args="workspace bench my-ws --iterations 3"       # 意味解析の性能計測（カーネルの命令。全再構築 vs 増分更新）
 ./gradlew runCli -q --args="migrate my-ws --ledger doc"                   # レガシー構成 → .yde 構成へ移行（本書 [README.md](README.md)「ワークスペースの構成」）
 ```
 

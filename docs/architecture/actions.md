@@ -18,7 +18,7 @@
 | `SemanticTransform.build` / `holds` / `TemplatePlace` | semantic-core/semantic/Transform.kt | ひな型 1 つの組み立てと条件の判定（受け取った値・いまの場所・束縛） |
 | `ActionPlanner` / `ActionRequest` / `ActionPlan` / `ActionEntry` / `ActionFailure` | workspace-core/workspace/ActionPlanner.kt | 計画器（手を順に当てて変更セットを作る）と、使える操作の一覧（`catalog`・受け手ごとの `forEntity` / `forEntityType` / `forDocument` / `forWorkspace`。`ActionEntry.entityType` / `documentSchema` が受け手の種類） |
 | `WorkspaceSchema.actions` | workspace-core/workspace/WorkspaceReader.kt・SchemaDocuments.kt | スキーマ文書の `actions:` の読み込み |
-| CLI `action` | cli/Cli.kt | 一覧・計画・適用（`--apply`・`--allow-errors`） |
+| CLI `action` | cli/ActionCommands.kt | 一覧・計画・適用（`--apply`・`--allow-errors`） |
 | `DocumentSession.actionsForEntity` / `actionAvailability` / `prepareActionInput` / `planAction` / `applyAction` / `arrayInsert` / `insertArrayElement` / `viewRowTarget` | session/DocumentSession.kt | 操作の論理（Compose 非依存）: 使える操作の一覧・受け取る値の初期値と入力元の印・計画とドライラン・適用（1 トランザクション＋保存）・配列への追加・一覧の新しい行の追加先 |
 | `AppState.ActionWork` / `startAction` / `planAction` / `applyAction` / `switchInsertToAction` ほか | desktop/AppState.kt | 画面からの操作の作業（対象の欄の木 `targetHolder`・受け取る値の仮の文書・計画・結果・パネルの開閉 `actionPanelOpen`・追加の作業からアクションへの橋渡し。入口はどれも `startAction`） |
 | `ActionPlanner.insertingInto` | workspace-core/workspace/ActionPlanner.kt | その文書のその配列へ足すアクション（手の insert の `in` と `path`、受け手の文書）。追加のパネルの「操作に切り替える」の候補 |

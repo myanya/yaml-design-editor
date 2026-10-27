@@ -28,6 +28,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.input.key.*
+import dev.toros.yde.app.core.BuildInfo
 import dev.toros.yde.app.core.FileWatcher
 import dev.toros.yde.app.ext.Extensions
 import dev.toros.yde.desktop.ext.DesktopExtensions

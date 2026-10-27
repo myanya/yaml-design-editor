@@ -7,7 +7,7 @@ import java.nio.file.Path
 /**
  * 旧索引（IdIndex）増分テスト用のワークスペース生成・計測フィクスチャ。
  * 旧 core/Bench.kt（R8-02）を B-1（RB-01）の本体削除に伴いテスト側へ移設した——
- * 利用者向けの計測は新CLI（workspace bench）が担い、これは IdIndexIncrementalTest 専用（B-2 で本体と共に削除）。
+ * 利用者向けの計測はCLI のカーネルの命令（workspace bench）が担い、これは IdIndexIncrementalTest 専用（B-2 で本体と共に削除）。
  */
 internal object Bench {
 

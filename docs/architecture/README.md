@@ -37,7 +37,7 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 
 ## モジュールと依存方向
 
-パッケージは `dev.toros.yde.<モジュール>.*`（規則は CONVENTIONS「モジュールの規約」）。依存方向は ADR-0002（app-core は ADR-0013）が正: `yaml-core ← semantic-core ← workspace-core ← app-core ← agent ← アプリ（root）`（cli はカーネルまで・拡張 format-* は app-core まで）。
+パッケージは `dev.toros.yde.<モジュール>.*`（規則は CONVENTIONS「モジュールの規約」）。依存方向は ADR-0002（app-core は ADR-0013）が正: `yaml-core ← semantic-core ← workspace-core ← app-core ← agent ← アプリ（root）`（cli は app-core・agent・拡張まで・拡張 format-* は app-core まで）。
 目指す構成（画面を持たない応用層 app-core・agent・入口 desktop／cli／mcp・形式とビューの種類の拡張）は ADR-0013 にあり、移行は ROADMAP の計画で進める。下の表は移る前の今の姿。
 文書とコメントでは接頭辞を省いて `schema.FieldDef`・`validate/Validator.kt` のように書き、同じ短い名前が複数のモジュールにあるとき（`schema`・`validate`・`core`）はモジュール名を添える。
 
@@ -55,7 +55,7 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 | | `workspace.layout` | `WorkspaceLayout`（配置の判定） |
 | | `workspace.changeset` | `ChangeSet` / `FileChange` / `ChangeSets` |
 | | `workspace.validate` | 文書の検証の組み立てと検査の配り方（`DocumentValidator`・`WorkspaceChecks`・`CodedChecks`・`IssueSource`） |
-| cli | `cli` | カーネル側の CLI（`cli.MainKt`。`workspace validate / apply / refactor / bench`） |
+| cli | `cli` | 1 つの CLI（`cli.MainKt`）。カーネルの命令（`yaml …` / `workspace …`。Commands.kt・Shell.kt）と応用の命令（`AppCli.kt` と `cli.commands`＝命令ごとのファイル）。app-core・agent・拡張に依存し、引数の解釈と表示だけを持つ |
 | app-core | `app` | 応用層の中核（画面無し。ADR-0013）: ワークスペースを開き・読み・検証し・変える窓口と、開いている文書の集合、索引とスキーマの窓口、読み出し、入出力変換。Compose・`java.util.prefs`・AI・POI に依存しない（Gradle の依存で止める） |
 | | `app.core` | ワークスペースの窓口（`Workspace`）・文書キャッシュ・ファイル監視・読み出しモデル（`Traverse` / `Disclosure` / `Search` / `Aspects` / `Views`）・規模の計測 |
 | | `app.index` | 索引のファサード（`IdIndex`。カーネルの型の別名）・クエリの窓口 |
@@ -73,10 +73,9 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 | format-docx | `format.docx` | 拡張: Word 文書の中の表（Apache POI。読むだけ）の `FormatCodec`（`DocxFormat.kt`） |
 | アプリ（root） | `desktop` | `Main.kt`（エントリポイント・ウィンドウ・ショートカット・スタート画面）・`AppState` / `OpenDocument` |
 | | `desktop.ui` | Compose の画面一式（骨格は `ui/Shell.kt`） |
-| | `app.cli` | root の CLI（`cli/Cli.kt`。探索・検索・検証・エージェント・入出力。CLI の一本化で cli モジュールへ寄せる） |
 | | `desktop.ext` | 拡張の登録の一覧（`DesktopExtensions`。入出力の形式 6 つ）。入口が `Extensions.install` に渡す 1 ファイル |
 
-応用層の中の依存は `app.core` → `app.session` → `app.tools` → `app.ext` → `app.skill`（app-core）→ `agent.llm` → `agent`（agent）→ `desktop`（AppState・`app.cli`・`desktop.format`）→ `desktop.ui` の一方向。`app.index` / `app.schema` / `app.validate` / `app.text` は `app.core` より下。
+応用層の中の依存は `app.core` → `app.session` → `app.tools` → `app.ext` → `app.skill`（app-core）→ `agent.llm` → `agent`（agent）→ `desktop`（AppState・`desktop.ext`）→ `desktop.ui` の一方向。`app.index` / `app.schema` / `app.validate` / `app.text` は `app.core` より下。
 app-core（`app.core` / `app.index` / `app.schema` / `app.validate` / `app.text` / `app.session` / `app.tools` / `app.ext` / `app.skill`）と agent（`agent` / `agent.llm`）と拡張（format-*）は Compose 非依存の純粋ロジックで、単体テストはこの層に書く。拡張は app-core とカーネルだけを使い、拡張どうし・agent・入口に依存しない。入口が登録の一覧（`desktop/ext/DesktopExtensions.kt`）で `Extensions.install` に渡す。`desktop`（AppState）は `mutableStateOf` だけに依存する。
 
 ## ソース規則テスト
@@ -99,7 +98,7 @@ app-core（`app.core` / `app.index` / `app.schema` / `app.validate` / `app.text`
 | `SemanticEngine` | semantic-core | 意味解析の評価器。走査・グラフ・クエリ・検査の判定 |
 | `Validator` | validate/Validator.kt | 文書の検証の窓口。索引とスキーマを渡してカーネルの `DocumentValidator` を呼ぶ |
 | `AgentKernel` | agent/Kernel.kt | エージェント実行のマルチターンのツール使用ループ |
-| `runCli` / `cli.MainKt` | cli/Cli.kt・cli/ | root の CLI（探索・検索・検証・エージェント・入出力）とカーネル側の CLI |
+| `cli.MainKt`（`runCli`） | cli/Main.kt・cli/AppCli.kt・cli/commands/ | 1 つの CLI: カーネルの命令（yaml … / workspace …）と応用の命令（命令ごとのファイル） |
 
 ## 全体の流れ
 
