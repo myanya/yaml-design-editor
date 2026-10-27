@@ -37,7 +37,8 @@
 
 - テストは `src/test/kotlin` にプロダクトと同じパッケージで置き、`kotlin.test` を使う。
 - **新設するテストのメソッド名は日本語**のバッククォート文で書き、意図を文で表す（例: `` fun `保存後もUndoできる`() ``）。既存の英語名テスト（例: `idPatterns filter candidates`）は無理に改名せず、そのファイルへ手を入れる機会に合わせて直してよい。
-- UIコンポーザブルは自動テスト対象外。**テストしたいロジックはコンポーザブルから純粋関数へ切り出し**、`internal` にしてテストする（例: `calculateDiff`, `combineProposal`, `parseResponse`）。
+- **テストしたいロジックはコンポーザブルから純粋関数へ切り出し**、`internal` にしてテストする（例: `calculateDiff`, `combineProposal`, `parseResponse`）。
+- 画面の振る舞い（項目が出る・閲覧専用の分岐・入力が文書の木に届く）は Compose の UI テスト（`runComposeUiTest`。画面無しで描き、semantics＝部品が持つ文字と操作で確かめる）で確かめてよい。見た目（色・配置）は見ない。fixture は一時ディレクトリへ写して使い、1 本は数秒に収める（例 `FormViewUiTest`）。
 - ネットワークは叩かない。APIクライアントはレスポンス解析関数（`parseResponse(statusCode, body)`）を単体テストする。
 - **OS に依存する絶対パスを書かない**: 全テストは GitHub Actions（Linux）でも回る。`Path.of("C:/ws")` は Linux では相対パスになり、`\` は区切りでなく名前の一部になる。絶対パスが要るテストは `Path.of("").toAbsolutePath().root` から組むか、一時ディレクトリを使う（文字だけを見る検査＝`FilePath` の入力に `C:/` を書くのは可）。
 - 実行: `./gradlew test`（コミット前に通すこと）。コミット前フック（`scripts/git-hooks/pre-commit`）は docs-lint と規則・参照のテストだけを回し、全テストは GitHub Actions（`.github/workflows/test.yml`）が push ごとに回す。
@@ -62,7 +63,7 @@
 - `samples/` は公開用のサンプル、`labs/` は今後の開発用の実験場で、どちらも履歴に含める。試作は `labs/` で作り、ある程度良いものができたら `samples/` へ置き直す。`scratchpad/` は `.gitignore` 対象（履歴に含めない）。
 - **バージョンは2層**。外部バージョン（利用者に見せる。メジャー.マイナー.パッチ）は `gradle.properties` の `appVersion` で、リリース時に手で上げる。配布物の `packageVersion` もこれで、形式によってはメジャー 1 以上が要る。
 - 内部バージョン（開発管理用。`yyyymmdd.ビルド番号`）はビルド時に git から自動算出する。HEAD のコミット日と、その日の何番目のコミットか。未コミットの変更があれば `-dirty`。`-PbuildVersion=…` で手動指定できる。
-- 両方を `build-info.properties` として jar に入れ、スタート画面と CLI `version` が表示する（`desktop/BuildInfo.kt`）。
+- 両方を `build-info.properties` として jar に入れ、スタート画面と CLI `version` が表示する（app-core の `core/BuildInfo.kt`）。
 
 ## 6. ドキュメント更新規約（重要）
 

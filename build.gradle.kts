@@ -64,6 +64,8 @@ dependencies {
     implementation("org.yaml:snakeyaml:2.3")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     testImplementation(kotlin("test"))
+    // Compose の UI テスト（runComposeUiTest。画面無しで描いて semantics で確かめる。R47-50）。版は compose プラグインと同じ
+    testImplementation("org.jetbrains.compose.ui:ui-test-junit4:1.12.1")
     testImplementation(project(":cli"))   // root のテストが CLI の出力と画面側の結果を比べる（CLI は cli モジュール）
     testImplementation("org.apache.poi:poi-ooxml:5.5.1")   // DistributionSmoke と ImportExportTest が Office の文書を組み立てる（本体は format-xlsx / format-docx）
 }
