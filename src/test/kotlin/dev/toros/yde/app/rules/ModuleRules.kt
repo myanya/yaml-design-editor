@@ -98,6 +98,7 @@ internal object ModuleRules {
     /**
      * 拡張の形: README.md・共通の設定（yde.kotlin-module）を当てた build・テスト 1 つ以上・パッケージの根がモジュール名どおり・
      * 公開するトップレベルの宣言は差し込み口の実装（上位の型を持つ class / object）だけ。
+     * ビューの種類の拡張（view-*）は、描画が読む定義と結果の型（class）も公開してよい（ADR-0014。描画は拡張の外にある）。
      */
     fun extensionShape(files: List<SourceFile>): List<Hit> {
         val hits = mutableListOf<Hit>()
@@ -120,7 +121,8 @@ internal object ModuleRules {
                 val m = decl.find(line) ?: return@forEachIndexed
                 val (kind, name, rest) = m.destructured
                 val implementation = (kind == "class" || kind == "object") && rest.substringBefore('{').contains(':')
-                if (!implementation) hits += Hit(f, i + 1, "公開の $kind $name は差し込み口の実装ではない（private か internal にする）")
+                val viewType = f.module.startsWith("view-") && kind == "class"
+                if (!implementation && !viewType) hits += Hit(f, i + 1, "公開の $kind $name は差し込み口の実装ではない（private か internal にする）")
             }
         }
         return hits

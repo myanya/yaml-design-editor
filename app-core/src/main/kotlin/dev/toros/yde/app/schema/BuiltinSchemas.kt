@@ -1,5 +1,6 @@
 package dev.toros.yde.app.schema
 
+import dev.toros.yde.app.ext.Extensions
 import dev.toros.yde.workspace.WorkspaceReader
 import dev.toros.yde.workspace.WorkspaceSchema
 import dev.toros.yde.workspace.layout.WorkspaceLayout
@@ -44,7 +45,10 @@ object BuiltinSchemas {
     val allYamlTexts: List<String>
         get() = listOf("schema", "relations", "agent", "activity", "eval", "skill", "view", "report").map(::yaml)
 
-    /** 組込みスキーマを、カーネルの reader / session へ注入する形で返す（実体は workspace-core の資源供給）。 */
+    /**
+     * 組込みスキーマを、カーネルの reader / session へ注入する形で返す（実体は workspace-core の資源供給）。
+     * ビューのメタスキーマには、入口が登録した拡張の種類（chart など）の断片が足される（ADR-0014）。
+     */
     fun kernelSchemas(layout: WorkspaceLayout): List<WorkspaceSchema> =
-        dev.toros.yde.workspace.BuiltinSchemaResources.kernelSchemas(layout)
+        dev.toros.yde.workspace.BuiltinSchemaResources.kernelSchemas(layout, Extensions.viewKinds)
 }

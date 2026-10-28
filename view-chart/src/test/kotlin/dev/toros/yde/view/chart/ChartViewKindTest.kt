@@ -1,5 +1,15 @@
-package dev.toros.yde.app.core
+package dev.toros.yde.view.chart
 
+import dev.toros.yde.app.core.Dashboards
+import dev.toros.yde.app.core.Views
+import dev.toros.yde.app.core.Workspace
+import dev.toros.yde.app.ext.ExtensionRegistry
+import dev.toros.yde.app.ext.Extensions
+import dev.toros.yde.app.index.IdIndex
+import dev.toros.yde.app.schema.SchemaDef
+import dev.toros.yde.workspace.BuiltinSchemaResources
+import dev.toros.yde.workspace.layout.WorkspaceLayout
+import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.YNode
 import java.nio.file.Files
 import java.nio.file.Path
@@ -12,16 +22,18 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * 軸を値の式で広げるクロス集計（`rows.value` / `cells.columns.value`）とチャート（`kind: chart`）のテスト（P46）。
- * 月の文書を置かずに、注文の受付日から `yearMonth` で月ごとの行（列）を作れること、チャートが元の表の数を項目×系列にすることを固定する。
+ * チャート（`kind: chart`）を拡張の種類として登録して使うテスト（ADR-0014。元は app-core の PivotAndChartViewsTest）。
+ * 元の表（月×状態のクロス集計）の数を項目×系列にすること・定義の誤り・押した形の材料・ダッシュボードの区画・文書ビューの区画、
+ * メタスキーマへの断片の合成と、登録していないときの誤りを固定する。
  */
-class PivotAndChartViewsTest {
+class ChartViewKindTest {
 
     private lateinit var ws: Path
 
     @BeforeTest
     fun setup() {
-        ws = createTempDirectory("yde-pivot-chart")
+        Extensions.install(ExtensionRegistry(views = listOf(ChartViewKind)))
+        ws = createTempDirectory("yde-chart")
         write(
             "_schemas/order.yaml",
             """
@@ -110,6 +122,7 @@ class PivotAndChartViewsTest {
 
     @AfterTest
     fun cleanup() {
+        Extensions.install(ExtensionRegistry())
         Files.walk(ws).use { it.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
     }
 
@@ -119,44 +132,10 @@ class PivotAndChartViewsTest {
         Files.writeString(file, content.trimIndent() + "\n")
     }
 
-    private fun text(cell: ViewCell): String = Views.cellText(cell.value)
+    private fun chart(loaded: Views.LoadResult, id: String): VirtualChartDef = loaded.extensionView(id) as VirtualChartDef
 
-    @Test
-    fun `行の軸を値の式にすると 月の文書が無くても受付日の年月ごとの行になり 値の順に並ぶ`() {
-        val workspace = Workspace.open(ws)
-        val loaded = Views.load(ws, workspace.schemas)
-        assertTrue(loaded.errors.none { "month-by-status" in it }, loaded.errors.toString())
-        val view = loaded.view("month-by-status")!!
-        val rows = Views.resolve(view, workspace.index, workspace::treeOf, workspace::schemaFor)
-        assertEquals(listOf("2026-08", "2026-09", "2026-10", "合計"), rows.map { it.id })
-        assertEquals(listOf("未処理", "出荷済み", "（未分類）", "合計"), Views.columnsOf(view, rows).map { it.label })
-        fun cells(id: String) = rows.single { it.id == id }.cells.map(::text)
-        assertEquals(listOf("0", "5400", "0", "5400"), cells("2026-08"))
-        assertEquals(listOf("11800", "0", "0", "11800"), cells("2026-10"))
-        assertEquals(listOf("11800", "8400", "0", "20200"), cells("合計"))
-        // 値の軸の行は原本の出現を持たないが合計の行ではない。セルの来歴から注文へ辿れる
-        val october = rows.single { it.id == "2026-10" }
-        assertTrue(october.valueRow && october.occurrences.isEmpty())
-        assertEquals(listOf("ORD-003", "ORD-004"), october.cells[0].trace!!.inputs.map { it.placeholder })
-        // ヘッダ用の lower は列を決めない（列は解決した行から）
-        assertTrue(Views.effective(view, workspace.index).columns.isEmpty())
-    }
-
-    @Test
-    fun `列の軸を値の式にすると データに現れた値が列になる`() {
-        val workspace = Workspace.open(ws)
-        val loaded = Views.load(ws, workspace.schemas)
-        val rows = Views.resolve(loaded.view("order-by-month")!!, workspace.index, workspace::treeOf, workspace::schemaFor)
-        assertEquals(listOf("ORD-001", "ORD-002", "ORD-003", "ORD-004"), rows.map { it.id })
-        assertEquals(listOf("2026-08", "2026-09", "2026-10", "（未分類）"), rows.first().cells.map { it.column.label })
-        assertEquals(listOf("5400", "0", "0", "0"), rows[0].cells.map(::text))
-        assertEquals(listOf("0", "0", "5500", "0"), rows[3].cells.map(::text))
-        // 見出しの式（label）と先に並べる値（order）: 2026-10 を先頭に、残りは値の順。見出しは年と月の文字
-        val labeled = Views.resolve(loaded.view("order-by-month-labeled")!!, workspace.index, workspace::treeOf, workspace::schemaFor)
-        assertEquals(listOf("2026年10月", "2026年8月", "2026年9月", "（未分類）", "合計"), labeled.first().cells.map { it.column.label })
-        assertEquals(listOf("0", "5400", "0", "0", "5400"), labeled[0].cells.map(::text))
-        assertEquals(listOf("5500", "0", "0", "0", "5500"), labeled[3].cells.map(::text))
-    }
+    private fun resolve(def: VirtualChartDef, loaded: Views.LoadResult, index: IdIndex, loader: (DocumentId) -> YNode?, schemaFor: (DocumentId) -> SchemaDef?): ChartData =
+        Views.resolveExtension(def, loaded, index, loader, schemaFor) as ChartData
 
     @Test
     fun `チャートは元の表を数にし 定義の誤りは読み込みで分かる`() {
@@ -167,19 +146,19 @@ class PivotAndChartViewsTest {
         assertTrue(loaded.errors.any { "bad-scatter" in it && "x" in it }, loaded.errors.toString())
         assertTrue(loaded.errors.any { "bad-label" in it && "label" in it }, loaded.errors.toString())
         assertTrue(loaded.errors.any { "bad-scale" in it && "scale" in it }, loaded.errors.toString())
-        val chart = loaded.chartView("monthly-chart")!!
-        val data = assertNotNull(Views.resolveChart(chart, loaded, workspace.index, workspace::treeOf, workspace::schemaFor))
+        val chart = chart(loaded, "monthly-chart")
+        val data = assertNotNull(resolve(chart, loaded, workspace.index, workspace::treeOf, workspace::schemaFor))
         assertEquals(listOf("2026-08", "2026-09", "2026-10"), data.categories.map { it.label })
         assertEquals(listOf("未処理", "出荷済み"), data.series.map { it.label })
         assertEquals(listOf(0.0, 0.0, 11800.0), data.series[0].values)
         assertEquals(listOf(5400.0, 3000.0, 0.0), data.series[1].values)
         // order: {direction: desc} で合計の多い順（2026-10 11,800 → 2026-08 5,400 → 2026-09 3,000）
-        val trend = assertNotNull(Views.resolveChart(loaded.chartView("trend-chart")!!, loaded, workspace.index, workspace::treeOf, workspace::schemaFor))
+        val trend = assertNotNull(resolve(chart(loaded, "trend-chart"), loaded, workspace.index, workspace::treeOf, workspace::schemaFor))
         assertEquals(listOf("2026-10", "2026-08", "2026-09"), trend.categories.map { it.label })
         assertEquals(listOf(11800.0, 5400.0, 3000.0), trend.series.single().values)
         // CLI の出力と同じ形（数のまま）
         @Suppress("UNCHECKED_CAST")
-        val series = dev.toros.yde.semantic.ChartViews.report(data)["series"] as List<Map<String, Any?>>
+        val series = data.report()["series"] as List<Map<String, Any?>>
         assertEquals(listOf(0L, 0L, 11800L), series[0]["values"])
     }
 
@@ -188,11 +167,11 @@ class PivotAndChartViewsTest {
         val workspace = Workspace.open(ws)
         val loaded = Views.load(ws, workspace.schemas)
         assertTrue(loaded.errors.any { "bad-drill" in it && "sideways" in it }, loaded.errors.toString())
-        assertEquals(dev.toros.yde.semantic.ChartDrill.BELOW, loaded.chartView("trend-chart")!!.drill)
-        assertEquals(dev.toros.yde.semantic.ChartDrill.POPUP, loaded.chartView("monthly-chart")!!.drill)
-        val data = assertNotNull(Views.resolveChart(loaded.chartView("monthly-chart")!!, loaded, workspace.index, workspace::treeOf, workspace::schemaFor))
+        assertEquals(ChartDrill.BELOW, chart(loaded, "trend-chart").drill)
+        assertEquals(ChartDrill.POPUP, chart(loaded, "monthly-chart").drill)
+        val data = assertNotNull(resolve(chart(loaded, "monthly-chart"), loaded, workspace.index, workspace::treeOf, workspace::schemaFor))
         // 2026-10 × 未処理（11,800）の棒 → 材料は ORD-003（6,300）と ORD-004（5,500）。場所を含む最も内側の ID が添えられる
-        val picked = assertNotNull(Views.chartSelection(data, 2, 0, workspace.index))
+        val picked = assertNotNull(data.selection(2, 0, workspace.index))
         assertEquals("2026-10", picked.category.label)
         val group = picked.groups.single()
         assertEquals("未処理", group.series.label)
@@ -201,7 +180,7 @@ class PivotAndChartViewsTest {
         assertEquals(listOf("6300", "5500"), group.materials.map { it.value })
         assertEquals("orders/ORD-003.yaml", group.materials.first().document?.value)
         // 系列を決めずに押すと、その項目のすべての系列が並ぶ
-        val all = assertNotNull(Views.chartSelection(data, 0, null, workspace.index))
+        val all = assertNotNull(data.selection(0, null, workspace.index))
         assertEquals(listOf("未処理", "出荷済み"), all.groups.map { it.series.label })
         assertEquals(listOf("ORD-001"), all.groups[1].materials.map { it.id })
     }
@@ -223,7 +202,7 @@ class PivotAndChartViewsTest {
         assertTrue(loaded.errors.none { "home" in it }, loaded.errors.toString())
         val result = Dashboards.resolve(loaded.dashboard("home")!!, java.time.LocalDate.of(2026, 10, 26), loaded, workspace.index, workspace::schemaFor, workspace::treeOf)
         val monthly = result.sections.first()
-        assertNotNull(monthly.chart)
+        assertNotNull(monthly.embedded as? ChartData)
         assertEquals("3", monthly.count)
         val table = result.sections[1]
         assertEquals("3", table.count)  // 値の軸の行 3 つ（合計の行は数えない）
@@ -233,6 +212,38 @@ class PivotAndChartViewsTest {
         assertNotNull(sections[0]["chart"])
     }
 
-    @Suppress("unused")
-    private fun scalar(v: Any?): YNode = YNode.Scalar(v)
+    @Test
+    fun `文書ビューの区画にチャートを埋め込める`() {
+        write("_views/order-doc.yaml", "id: order-doc\nkind: document\nschemaId: order\nsections:\n  - { label: 月別, chart: { view: monthly-chart } }\n  - { label: 誤り, chart: { view: month-by-status } }\n")
+        val workspace = Workspace.open(ws)
+        val loaded = Views.load(ws, workspace.schemas)
+        val doc = assertNotNull(loaded.docView("order-doc"), loaded.errors.toString())
+        assertEquals(listOf("chart", "chart"), doc.sections.map { it.embed?.kind })
+        // 埋め込み先はチャートであること（クロス集計は置けない）
+        assertTrue(loaded.errors.any { "order-doc" in it && "sections[1].chart.view" in it && "一意なチャート（kind: chart）" in it }, loaded.errors.toString())
+    }
+
+    @Test
+    fun `メタスキーマに断片が合成され チャートの定義文書がそのまま検証を通る`() {
+        val view = BuiltinSchemaResources.kernelSchemas(WorkspaceLayout.LEGACY, listOf(ChartViewKind)).single { it.id == "builtin-view" }
+        val keys = view.tree.root.fields.map { it.key }
+        assertTrue(listOf("chart", "series", "drill", "scale").all { it in keys }, keys.toString())
+        assertTrue("chart" in view.tree.root.fields.single { it.key == "kind" }.values)
+        // 登録していなければ中核の種類だけ（chart の項目は無い）
+        val core = BuiltinSchemaResources.kernelSchemas(WorkspaceLayout.LEGACY).single { it.id == "builtin-view" }
+        assertTrue(core.tree.root.fields.none { it.key == "drill" })
+        // 定義文書の検証（メタスキーマ）に指摘が出ない
+        val workspace = Workspace.open(ws)
+        assertEquals(emptyList(), workspace.validate("_views/monthly-chart.yaml").map { it.message })
+    }
+
+    @Test
+    fun `登録していないと kind chart は使える種類を並べた誤りになる`() {
+        Extensions.install(ExtensionRegistry())
+        val workspace = Workspace.open(ws)
+        val loaded = Views.load(ws, workspace.schemas)
+        assertTrue(loaded.extensionViews.isEmpty())
+        val error = loaded.errors.first { "monthly-chart" in it }
+        assertTrue("kind は grid / document / matrix / flow / lens / dashboard のいずれか" in error && error.endsWith(": chart"), error)
+    }
 }

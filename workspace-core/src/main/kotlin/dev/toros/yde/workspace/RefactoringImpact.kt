@@ -74,7 +74,7 @@ object RefactoringImpact {
             glob != null && runCatching { globToRegex(glob).matches(rel) }.getOrDefault(false)
         fun leaves(glob: String?): Boolean = globMatches(glob, oldRel) && !globMatches(glob, newRel)
         val warnings = mutableListOf<String>()
-        val viewDefs = ViewDefinitions.load(viewDocuments(session).mapNotNull { id -> session.storedText(id)?.let { id to it } }, session.schemas)
+        val viewDefs = ViewDefinitions.load(viewDocuments(session).mapNotNull { id -> session.storedText(id)?.let { id to it } }, session.schemas, session.viewKinds)
         for (view in viewDefs.views) {
             val hits = mutableListOf<String>()
             if (view.newRow?.file == oldRel) hits += "newRow.file"

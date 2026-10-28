@@ -32,10 +32,11 @@ tasks.named<JavaExec>("run") {
 dependencies {
     implementation(project(":app-core"))
     implementation(project(":agent"))
-    // 拡張（入出力の形式）。登録は CliExtensions.kt の一覧
+    // 拡張（入出力の形式・ビューの種類）。登録は CliExtensions.kt の一覧
     implementation(project(":format-text"))
     implementation(project(":format-xlsx"))
     implementation(project(":format-docx"))
+    implementation(project(":view-chart"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")   // agent / watch / eval の runBlocking（agent と同じ版）
 }
 

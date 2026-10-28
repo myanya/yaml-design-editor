@@ -1,6 +1,9 @@
 package dev.toros.yde.app.ext
 
 import dev.toros.yde.app.skill.Tables
+import dev.toros.yde.semantic.ExtensionViewDef
+import dev.toros.yde.workspace.ViewKind
+import dev.toros.yde.yaml.model.DocumentId
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -54,5 +57,21 @@ class ExtensionsTest {
         val w = assertFailsWith<IllegalStateException> { Tables.writerFor("a.xlsx") }
         assertTrue(".fk / .fake" in w.message.orEmpty(), w.message)
         assertFailsWith<IllegalStateException> { ExtensionRegistry(listOf(FakeFormat, FakeFormat)) }
+    }
+
+    /** 試験用のビューの種類（ID だけを変える。読むことはしない）。 */
+    private class FakeKind(override val id: String) : ViewKind {
+        override val label = id
+        override val schemaFragment = "kind: { value: $id }\n"
+        override fun parse(raw: Map<*, *>, source: DocumentId): ExtensionViewDef = error("読まない")
+    }
+
+    @Test
+    fun `ビューの種類は二重にも中核の種類とも重ねて登録できない`() {
+        Extensions.install(ExtensionRegistry(views = listOf(FakeKind("note"))))
+        assertEquals(listOf("note"), Extensions.viewKinds.map { it.id })
+        assertFailsWith<IllegalStateException> { ExtensionRegistry(views = listOf(FakeKind("note"), FakeKind("note"))) }
+        val e = assertFailsWith<IllegalStateException> { ExtensionRegistry(views = listOf(FakeKind("grid"))) }
+        assertTrue("中核の種類と重なります" in e.message.orEmpty(), e.message)
     }
 }

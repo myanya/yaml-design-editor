@@ -1,5 +1,6 @@
 package dev.toros.yde.app.session
 
+import dev.toros.yde.app.ext.Extensions
 import dev.toros.yde.app.core.ChangeSetResult
 import dev.toros.yde.app.core.Search
 import dev.toros.yde.app.core.SearchHit
@@ -409,7 +410,7 @@ class DocumentSession(private val editClock: () -> Long = System::currentTimeMil
         val forked = if (fromMirror) runCatching { core?.mirror?.fork() }.getOrNull() else null
         forked ?: run {
             val wsLayout = core?.layout ?: WorkspaceLayout.of(ws)
-            WorkspaceSession(FileSystemDocumentStore(ws), builtins = BuiltinSchemas.kernelSchemas(wsLayout))
+            WorkspaceSession(FileSystemDocumentStore(ws), builtins = BuiltinSchemas.kernelSchemas(wsLayout), viewKinds = Extensions.viewKinds)
         }
     }.getOrNull()
 

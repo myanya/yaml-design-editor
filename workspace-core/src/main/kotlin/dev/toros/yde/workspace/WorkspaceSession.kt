@@ -126,6 +126,8 @@ class WorkspaceSession private constructor(
     private val incrementalDerive: Boolean,
     /** 組込スキーマの注入口（C-2。メタスキーマ等。reload・スキーマ再構築でも維持される）。 */
     private var builtins: List<WorkspaceSchema>,
+    /** 入口が登録したビューの種類（chart など。ADR-0014）。ビュー定義を読む所（改名の影響）が使う。 */
+    internal val viewKinds: List<ViewKind>,
     /** 読み込み済みの状態（fork 用）。null なら、ストアから読み込む。 */
     seed: Seed?,
     /** 時刻は注入し、テストで固定する（計画書§5）。 */
@@ -136,8 +138,9 @@ class WorkspaceSession private constructor(
         store: DocumentStore,
         incrementalDerive: Boolean = true,
         builtins: List<WorkspaceSchema> = emptyList(),
+        viewKinds: List<ViewKind> = emptyList(),
         clock: () -> Instant = { Instant.now() },
-    ) : this(store, incrementalDerive, builtins, null, clock)
+    ) : this(store, incrementalDerive, builtins, viewKinds, null, clock)
 
     /** fork が渡す、読み込み済みの状態（読み取り専用の写し）。 */
     private class Seed(val loaded: LoadedWorkspace, val storeTexts: Map<DocumentId, String>)
@@ -289,7 +292,7 @@ class WorkspaceSession private constructor(
             layout = layout, schemas = schemas, declarations = declarations, schemaErrors = schemaErrors,
             parseErrors = emptyMap(), snapshot = WorkspaceSnapshot(version, workingDocuments.toMap()), derived = derived,
         )
-        return WorkspaceSession(store, incrementalDerive, builtins, Seed(loaded, storeTexts.toMap()), clock)
+        return WorkspaceSession(store, incrementalDerive, builtins, viewKinds, Seed(loaded, storeTexts.toMap()), clock)
     }
 
     /**
@@ -696,7 +699,7 @@ class WorkspaceSession private constructor(
         val plans = try {
             // 保存を行わない計画専用の写し。公開の fork と違い、未保存の木と保存基準をそのまま使う。
             val loaded = LoadedWorkspace(layout, schemas, declarations, schemaErrors, emptyMap(), snapshot, derived)
-            val candidate = WorkspaceSession(store, incrementalDerive, builtins, Seed(loaded, storeTexts.toMap()), clock)
+            val candidate = WorkspaceSession(store, incrementalDerive, builtins, viewKinds, Seed(loaded, storeTexts.toMap()), clock)
             val prepared = candidate.apply(tx)
             if (!prepared.ok) return AutoValuesApplied(prepared, emptyMap())
             candidate.autoValuePlans(ids, now)

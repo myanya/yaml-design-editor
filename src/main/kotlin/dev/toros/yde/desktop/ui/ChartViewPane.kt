@@ -38,12 +38,15 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import dev.toros.yde.desktop.AppState
-import dev.toros.yde.app.core.Views
-import dev.toros.yde.semantic.ChartData
-import dev.toros.yde.semantic.ChartDrill
-import dev.toros.yde.semantic.ChartKind
-import dev.toros.yde.semantic.ChartScale
-import dev.toros.yde.semantic.VirtualChartDef
+import dev.toros.yde.semantic.ExtensionViewDef
+import dev.toros.yde.semantic.ExtensionViewResult
+import dev.toros.yde.view.chart.ChartData
+import dev.toros.yde.view.chart.ChartDrill
+import dev.toros.yde.view.chart.ChartKind
+import dev.toros.yde.view.chart.ChartScale
+import dev.toros.yde.view.chart.ChartSelection
+import dev.toros.yde.view.chart.ChartViewKind
+import dev.toros.yde.view.chart.VirtualChartDef
 import dev.toros.yde.yaml.model.pretty
 
 // ================================================================ チャート（kind: chart。P46）
@@ -74,11 +77,11 @@ fun ChartCard(
     val colors = seriesColors
     val labels = data.categories.map { it.label }
     val series = data.series.mapIndexed { i, s -> ChartSeries(s.label, s.values.map { it ?: 0.0 }, colors[i % colors.size]) }
-    var selection by remember(data) { mutableStateOf<Views.ChartSelection?>(null) }
+    var selection by remember(data) { mutableStateOf<ChartSelection?>(null) }
     var tapAt by remember(data) { mutableStateOf(IntOffset.Zero) }
     val drill = def.drill
     val select: ((Int, Int?) -> Unit)? = if (drill == ChartDrill.NONE) null else { ci, si ->
-        selection = Views.chartSelection(data, ci, si, state.overlayIndex())
+        selection = data.selection(ci, si, state.overlayIndex())
     }
     Column(modifier.fillMaxWidth().border(1.dp, Palette.Border, PanelShape).background(Palette.Surface, PanelShape).padding(10.dp)) {
         Row(Modifier.fillMaxWidth()) {
@@ -162,7 +165,7 @@ private fun Modifier.tapPosition(onTap: (IntOffset) -> Unit): Modifier = pointer
 private fun MaterialsPanel(
     state: AppState,
     data: ChartData,
-    selection: Views.ChartSelection,
+    selection: ChartSelection,
     onOpenEntity: (String) -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
@@ -215,35 +218,22 @@ private fun MaterialsPanel(
     }
 }
 
-/** 台帳のビュータブでチャートを選んだとき: 元の表を同じ索引・未保存編集で解決して描く。 */
-@Composable
-internal fun ChartGridView(state: AppState, loaded: Views.LoadResult, chart: VirtualChartDef) {
-    val data = remember(chart, loaded, state.indexVersion, state.editVersion) {
-        Views.resolveChart(chart, loaded, state.overlayIndex(), state.unsavedFirstTree(), state::schemaFor)
-    }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp)) {
-        if (data == null) {
-            Text("元の表「${chart.view}」が見つかりません（グリッドかクロス集計のビュー ID を view に書きます）", fontSize = 12.sp, color = Palette.WarnOrange)
-        } else {
-            ChartCard(state, data, height = 320.dp)
-            Spacer(Modifier.width(8.dp))
+/** チャートの描画（ViewRenderers の一覧に並ぶ）。台帳のビュータブ・文書ビューの区画・ダッシュボードの区画で共用。 */
+internal object ChartRenderer : ViewRenderer {
+    override val kind: String = ChartViewKind.id
+
+    override fun choiceName(def: ExtensionViewDef): String = def.name + "（${(def as VirtualChartDef).kind.label}）"
+
+    override fun choiceSubtitle(def: ExtensionViewDef): String = "${def.id} — 元の表: ${(def as VirtualChartDef).view}"
+
+    @Composable
+    override fun Content(state: AppState, result: ExtensionViewResult, place: ViewPlace, onOpenEntity: ((String) -> Unit)?) {
+        val data = result as ChartData
+        when (place) {
+            ViewPlace.LEDGER -> ChartCard(state, data, height = 320.dp)
+            ViewPlace.SECTION -> ChartCard(state, data, height = 240.dp)
+            // 材料の ID は業務詳細へ（表の行と同じ行き先）
+            ViewPlace.DASHBOARD -> ChartCard(state, data, onOpenEntity = onOpenEntity ?: { state.openDashboardEntity(it) })
         }
     }
-}
-
-/** 文書ビューの区画（`chart: {view}`）に埋め込むチャート。フロー図の埋め込みと同じ位置づけ。 */
-@Composable
-internal fun EmbeddedChartPane(state: AppState, chartId: String) {
-    val ws = state.workspace ?: return
-    val loaded = remember(ws, state.indexVersion) { Views.load(ws, state.schemas) }
-    val chart = loaded.chartView(chartId)
-    if (chart == null) {
-        Text("チャート「$chartId」が見つかりません", fontSize = 11.sp, color = Palette.WarnOrange)
-        return
-    }
-    val data = remember(chart, loaded, state.indexVersion, state.editVersion) {
-        Views.resolveChart(chart, loaded, state.overlayIndex(), state.unsavedFirstTree(), state::schemaFor)
-    }
-    if (data == null) Text("元の表「${chart.view}」が見つかりません", fontSize = 11.sp, color = Palette.WarnOrange)
-    else ChartCard(state, data, height = 240.dp)
 }

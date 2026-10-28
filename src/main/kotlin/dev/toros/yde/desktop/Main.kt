@@ -53,7 +53,7 @@ import java.util.prefs.Preferences
 private val uiPreferences: Preferences = Preferences.userRoot().node("yaml-design-editor/ui")
 
 fun main(args: Array<String>) = application {
-    Extensions.install(DesktopExtensions.registry)  // 拡張（入出力の形式）の登録は入口の一覧 1 ファイル（app-core に POI を入れない）
+    Extensions.install(DesktopExtensions.registry)  // 拡張（入出力の形式・ビューの種類）の登録は入口の一覧 1 ファイル（app-core に POI を入れない）
     val state = remember { AppState() }
     var confirmExit by remember { mutableStateOf(false) }
     var darkMode by remember { mutableStateOf(uiPreferences.getBoolean("darkMode", false)) }

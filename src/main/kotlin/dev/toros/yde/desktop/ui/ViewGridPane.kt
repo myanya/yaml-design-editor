@@ -3,6 +3,7 @@ package dev.toros.yde.desktop.ui
 import androidx.compose.foundation.HorizontalScrollbar
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -77,8 +78,8 @@ fun ViewGridView(state: AppState) {
     // レポート（R30-04）も同じ一覧から選ぶ（ID は表・チャートと共有）
     val reports = remember(state.indexVersion, ws) { Reports.load(ws) }
     val report = reports.report(state.viewGridId ?: "")
-    // 選んだ ID がチャート（P46）なら、表の代わりに図を描く
-    val chart = if (report != null) null else loaded.chartView(state.viewGridId ?: "")
+    // 選んだ ID が拡張の種類（チャートなど。ADR-0014）なら、表の代わりにその種類の描画
+    val chart = if (report != null) null else loaded.extensionView(state.viewGridId ?: "")
     val view = if (chart != null || report != null) null else loaded.view(state.viewGridId ?: "") ?: loaded.views.firstOrNull()
     val errors = loaded.errors + reports.errors
 
@@ -94,7 +95,9 @@ fun ViewGridView(state: AppState) {
         if (report != null) {
             ReportPane(state, report, loaded)
         } else if (chart != null) {
-            ChartGridView(state, loaded, chart)
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp)) {
+                ExtensionViewPane(state, loaded, chart, ViewPlace.LEDGER)
+            }
         } else if (view == null) {
             Column(
                 Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally,
@@ -114,7 +117,7 @@ fun ViewGridView(state: AppState) {
 
 @Composable
 private fun HeaderBar(
-    state: AppState, loaded: Views.LoadResult, view: ViewDef?, chart: dev.toros.yde.semantic.VirtualChartDef? = null,
+    state: AppState, loaded: Views.LoadResult, view: ViewDef?, chart: dev.toros.yde.semantic.ExtensionViewDef? = null,
     report: Reports.Loaded? = null, reports: Reports.LoadResult = Reports.LoadResult(emptyList(), emptyList()),
 ) {
     var selectorOpen by remember { mutableStateOf(false) }
@@ -123,24 +126,26 @@ private fun HeaderBar(
         Modifier.fillMaxWidth().background(Palette.Surface).padding(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(if (report != null) "レポート" else if (chart != null) "チャート" else "ビューグリッド", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text(if (report != null) "レポート" else chart?.kindLabel ?: "ビューグリッド", fontWeight = FontWeight.Bold, fontSize = 14.sp)
         Spacer(Modifier.width(12.dp))
         Box {
             OutlinedButton(
-                enabled = loaded.views.isNotEmpty() || loaded.chartViews.isNotEmpty() || reports.reports.isNotEmpty(),
+                enabled = loaded.views.isNotEmpty() || loaded.extensionViews.isNotEmpty() || reports.reports.isNotEmpty(),
                 onClick = { selectorOpen = true },
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
             ) {
                 Text(report?.def?.name ?: chart?.name ?: view?.name ?: "（ビューなし）", fontSize = 12.sp)
                 Icon(Icons.Default.ArrowDropDown, contentDescription = null)
             }
-            // 表（グリッド・クロス集計）とチャート（P46）を同じ一覧から選ぶ
+            // 表（グリッド・クロス集計）と拡張の種類（チャートなど）を同じ一覧から選ぶ
             ChoiceMenu(selectorOpen, { selectorOpen = false }, loaded.views.map { v ->
                 ChoiceOption(v.id, v.name,
                     "${v.id} — " + (v.rows?.let { "idPattern: ${it.idPattern}" } ?: v.matrix?.rowsValue?.let { "行は値の軸（${it.text}）" } ?: "matchクエリ（行キー: ${v.rowKey}）"),
                     description = v.description, selected = v.id == view?.id)
-            } + loaded.chartViews.map { c ->
-                ChoiceOption(c.id, c.name + "（${c.kind.label}）", "${c.id} — 元の表: ${c.view}", description = c.description, selected = c.id == chart?.id)
+            } + loaded.extensionViews.map { c ->
+                val renderer = ViewRenderers.of(c.viewKind)
+                ChoiceOption(c.id, renderer?.choiceName(c) ?: "${c.name}（${c.kindLabel}）", renderer?.choiceSubtitle(c) ?: "${c.id} — ${c.listingText()}",
+                    description = c.description, selected = c.id == chart?.id)
             } + reports.reports.map { r ->
                 ChoiceOption(r.def.id, r.def.name + "（レポート）", reportSubtitle(r), description = r.def.description, selected = r.def.id == report?.def?.id)
             }, onSelect = { state.openViewGrid(it) })

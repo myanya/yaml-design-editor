@@ -22,9 +22,13 @@ object BuiltinSchemaResources {
             "組込みスキーマ資源が見つかりません: $name"
         }.use { it.readBytes().decodeToString() }
 
+    /** ビューのメタスキーマの原文に、拡張の種類（chart など）の断片を合成したもの（ADR-0014。kinds が空なら中核の種類だけ）。 */
+    fun viewText(kinds: List<ViewKind>): String = ViewSchemaFragments.compose(text("view"), kinds)
+
     /**
      * メタスキーマ（builtin-schema）とビューのメタスキーマ（builtin-view）の項目の木。スキーマ文書・ビュー定義のどの項目が
      * 値の式を受け取るか（expression: true の印。P31）は、この木だけが知る——読み取り（ExpressionFields）が沿って辿る。
+     * ビューの木は中核の種類の項目だけ（拡張の種類の断片は含まない。中核の種類の読み取りだけが使う）。
      */
     val metaSchemaTree: SchemaTree by lazy { tree("schema") }
     val viewSchemaTree: SchemaTree by lazy { tree("view") }
@@ -50,11 +54,12 @@ object BuiltinSchemaResources {
     /**
      * 組込みスキーマをコアの WorkspaceSchema 形で供給する（C-4 第2弾・RC-07。cli / ヘッドレスの
      * セッション注入用）。レイアウトに合わせて match を各ゾーンの実ディレクトリへ書き換える。
+     * kinds は入口が登録した拡張の種類（ビューのメタスキーマに断片を足す）。
      * root（アプリ）側は併存期は従来どおり root SchemaLoader のパース（BuiltinSchemas.kernelSchemas）を
      * 使う——同じ資源原文の2経路パースで、統一は P27（SchemaDef 解体）で行う。
      */
-    fun kernelSchemas(layout: WorkspaceLayout): List<WorkspaceSchema> {
-        val parsed = WorkspaceReader.parseSchemas(names.map { DocumentId("(builtin)/$it.yaml") to text(it) })
+    fun kernelSchemas(layout: WorkspaceLayout, kinds: List<ViewKind> = emptyList()): List<WorkspaceSchema> {
+        val parsed = WorkspaceReader.parseSchemas(names.map { DocumentId("(builtin)/$it.yaml") to (if (it == "view") viewText(kinds) else text(it)) })
         require(parsed.errors.isEmpty()) { "組込みスキーマのパースに失敗しました: ${parsed.errors.first()}" }
         // メタスキーマの type には、組込みの型の名前（text など。P33）を足す（利用者の型は WorkspaceReader.buildSchemas が足す）
         val builtinTypeNames = MetaSchemaTypes.typeNames(SchemaCatalog.linked(emptyList()))

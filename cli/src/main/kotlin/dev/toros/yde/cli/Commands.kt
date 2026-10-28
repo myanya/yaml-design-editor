@@ -1,5 +1,6 @@
 package dev.toros.yde.cli
 
+import dev.toros.yde.app.ext.Extensions
 import dev.toros.yde.semantic.SemanticDelta
 import dev.toros.yde.semantic.SemanticEngine
 import dev.toros.yde.workspace.BuiltinSchemaResources
@@ -39,7 +40,7 @@ internal fun loadWorkspace(root: String?): LoadedWorkspace {
     val dir = requireDir(root)
     return WorkspaceReader.load(
         FileSystemDocumentStore(dir),
-        builtins = BuiltinSchemaResources.kernelSchemas(WorkspaceLayout.of(dir)),
+        builtins = BuiltinSchemaResources.kernelSchemas(WorkspaceLayout.of(dir), Extensions.viewKinds),
     )
 }
 
@@ -48,7 +49,7 @@ internal fun openSession(root: String?): WorkspaceSession {
     val dir = requireDir(root)
     return WorkspaceSession(
         FileSystemDocumentStore(dir),
-        builtins = BuiltinSchemaResources.kernelSchemas(WorkspaceLayout.of(dir)),
+        builtins = BuiltinSchemaResources.kernelSchemas(WorkspaceLayout.of(dir), Extensions.viewKinds), viewKinds = Extensions.viewKinds,
     )
 }
 

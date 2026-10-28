@@ -119,13 +119,12 @@ private fun ColumnScope.SectionBody(state: AppState, view: VirtualDashboardDef, 
     Text(section.definition.label, Modifier.padding(12.dp), fontSize = 14.sp, fontWeight = FontWeight.Bold)
     section.error?.let { Text(it, Modifier.padding(12.dp), color = Palette.WarnOrange, fontSize = 12.sp) }
     PendingRows(state, section)
-    if (section.error == null && section.chart == null && section.rows.isEmpty()) Text("該当する対象はありません", Modifier.padding(16.dp), color = Palette.SubText)
+    if (section.error == null && section.embedded == null && section.rows.isEmpty()) Text("該当する対象はありません", Modifier.padding(16.dp), color = Palette.SubText)
     val sectionKey = view.id to section.definition.id
-    // チャートの区画（P46）: 表の代わりに図を描く。元の表へは図の下のボタンから
-    section.chart?.let { data -> key(sectionKey) {
-        // 材料の ID は業務詳細へ（表の行と同じ行き先）
+    // 拡張の種類の区画（チャートなど。ADR-0014）: 表の代わりにその種類の描画。材料の ID は業務詳細へ（表の行と同じ行き先）
+    section.embedded?.let { result -> key(sectionKey) {
         Box(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(12.dp)) {
-            ChartCard(state, data, onOpenEntity = { state.openDashboardEntity(it) })
+            ExtensionViewContent(state, result, ViewPlace.DASHBOARD, onOpenEntity = { state.openDashboardEntity(it) })
         }
     } }
     section.view?.let { grid -> key(sectionKey) {
@@ -178,7 +177,7 @@ private fun SectionTile(state: AppState, view: VirtualDashboardDef, item: Dashbo
         .border(1.dp, if (selected) Palette.Primary else Palette.Border, PanelShape)
         .background(if (selected) Palette.Selected else Palette.Surface, PanelShape)
         .clickable { state.memory.dashboardSection[view.id] = item.definition.id }
-    val count = if (item.error == null) item.count + (if (item.chart != null) " 項目" else " 行") +
+    val count = if (item.error == null) item.count + " " + (item.embedded?.unit ?: "行") +
         (item.truncation?.let { "（limit ${it.limit} で打ち切り）" } ?: "") else "表示できません"
     val countColor = if (item.error == null) Palette.Primary else Palette.WarnOrange
     if (line) Column(base.padding(horizontal = 8.dp, vertical = 6.dp)) {

@@ -74,64 +74,7 @@ root:
         - value: dashboard
           label: ダッシュボード
           description: 既存ビューの件数・一覧・対象の詳細・操作を業務の入口として合成する
-        - value: chart
-          label: チャート
-          description: 元の表（グリッドかクロス集計）の行を横軸の項目、数の列を系列にして描く（棒・積み上げ棒・横棒・折れ線・面・円・散布図）。データは元の表が持つ
       default: grid
-    - key: chart
-      label: 図の種類（chart）
-      type: enum
-      values:
-        - { value: bar, label: 棒 }
-        - { value: stacked-bar, label: 積み上げ棒 }
-        - { value: horizontal-bar, label: 横棒（名前は左・値は棒の端） }
-        - { value: stacked-horizontal-bar, label: 積み上げ横棒 }
-        - { value: line, label: 折れ線 }
-        - { value: area, label: 面（線の下を塗る） }
-        - { value: stacked-area, label: 積み上げ面（系列を下から積んだ帯） }
-        - { value: scatter, label: 散布図（x は横軸の数の列・点＝行） }
-        - { value: pie, label: 円（最初の系列だけ） }
-    - key: view
-      label: 元の表（chart）
-      type: ref
-      scope: {schemaIds: [builtin-view]}
-      description: 一意なグリッドまたはクロス集計のID。行＝横軸の項目、列＝系列
-    - key: series
-      label: 系列にする列（chart）
-      type: array
-      item: {type: string}
-      description: 列の見出しの並び。省略すると数として読める列すべて（クロス集計の合計と未分類の列は除く。合計を描くなら series に「合計」と書く）
-    - key: x
-      label: 横軸の文字にする列（chart）
-      type: string
-      description: 省略すると行のタイトル（無ければ ID）。散布図（scatter）では横軸にする数の列（必須）
-    - key: label
-      label: "点の名前の列（chart: scatter）"
-      type: string
-      description: 散布図で点の名前にする列。省略すると行のタイトル（無ければ ID）。他の図では x が項目の文字
-    - key: "y"
-      label: 縦軸（chart）
-      type: object
-      fields:
-        - { key: label, label: 見出し, type: string }
-        - { key: format, label: 値の形, type: string, description: "DecimalFormat のパターン（例 #,##0）。軸とマウスを載せたときの文字" }
-    - key: drill
-      label: 押したときの材料の一覧（chart）
-      type: enum
-      values:
-        - { value: popup, label: 押した場所に浮いた一覧（既定） }
-        - { value: below, label: 図の下に一覧 }
-        - { value: right, label: 図の右に一覧 }
-        - { value: none, label: 出さない }
-      default: popup
-      description: 棒・点・扇形を押すと、そのセルの材料（集めた要素と値）が並び、各要素の業務詳細か原本へ進める
-    - key: scale
-      label: "軸の種類（chart: scatter）"
-      type: object
-      description: 散布図の軸を対数にする（値が桁で散るとき）。対数の軸では 0 以下の値は描かない
-      fields:
-        - { key: x, label: 横軸, type: enum, values: [linear, log], default: linear }
-        - { key: "y", label: 縦軸, type: enum, values: [linear, log], default: linear }
     - key: actions
       label: 主な操作（dashboard）
       type: array
@@ -364,17 +307,6 @@ root:
             fields:
               - key: view
                 label: フロービューID
-                type: ref
-                scope:
-                  schemaIds: [builtin-view]
-                required: true
-          - key: chart
-            label: チャートセクション
-            type: object
-            description: "チャート（kind: chart）を文書の表示に埋め込む。fields / backlinks / flow とは併用不可"
-            fields:
-              - key: view
-                label: チャートID
                 type: ref
                 scope:
                   schemaIds: [builtin-view]

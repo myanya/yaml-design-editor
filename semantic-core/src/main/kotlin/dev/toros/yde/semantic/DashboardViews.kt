@@ -93,13 +93,13 @@ data class DashboardSectionResult(
     val rows: List<VirtualRow>,
     val pending: List<DashboardPending> = emptyList(),
     val error: String? = null,
-    /** チャートの区画（P46）: 元の表を解決して数にしたもの。view は null。 */
-    val chart: ChartData? = null,
+    /** 拡張の種類の区画（チャートなど。ADR-0014）: 解決した結果。view は null。 */
+    val embedded: ExtensionViewResult? = null,
     /** 元の表のクエリ行が `limit` で切れていたとき（件数は切れた後の数。黙らずに示す）。 */
     val truncation: ResolvedRows? = null,
 ) {
-    /** 件数とドリルダウンの母集団は同じ。合計行は原本を持たないため含めない（値の軸の行は数える）。チャートは項目の数。 */
-    val count: String get() = chart?.categories?.size?.toString()
+    /** 件数とドリルダウンの母集団は同じ。合計行は原本を持たないため含めない（値の軸の行は数える）。拡張の種類の区画は、その結果の件数。 */
+    val count: String get() = embedded?.count
         ?: SemanticExpression.aggregate(ValueExpr.AggregateFn.COUNT, rows.filter { it.occurrences.isNotEmpty() || it.valueRow }.map { it.key })!!
 
     fun selected(key: String?): VirtualRow? = rows.singleOrNull { it.key == key && it.occurrences.isNotEmpty() }
@@ -121,8 +121,8 @@ object DashboardViews {
         graph: SemanticEntityGraph,
         loader: (DocumentId) -> YNode?,
         fieldAt: FieldResolver = NO_FIELDS,
-        /** チャートの区画（P46）: ID からチャートの宣言を引く（無ければ null）。 */
-        chart: (String) -> VirtualChartDef? = { null },
+        /** 拡張の種類の区画（チャートなど。ADR-0014）: ID から定義を引く（無ければ null）。 */
+        embedded: (String) -> ExtensionViewDef? = { null },
         /** 共有の入力の値（鍵＝入力の名前。空か null＝絞らない）。 */
         inputs: Map<String, String?> = emptyMap(),
     ): DashboardResolution {
@@ -135,17 +135,20 @@ object DashboardViews {
             return cache.getOrPut(grid.id to params) { rows(grid, params) }
         }
         return DashboardResolution(date, dashboard.sections.map { section ->
-            chart(section.view)?.let { chartDef ->
+            embedded(section.view)?.let { def ->
                 return@map runCatching {
-                    require(section.filter == null) { "チャートの区画にはfilterを指定できません（絞り込みは元の表で）" }
-                    val source = view(chartDef.view) ?: error("チャート「${chartDef.id}」の元の表「${chartDef.view}」は一意なグリッドまたはクロス集計を参照してください")
-                    val data = ChartViews.resolve(chartDef, source, rowsOf(source).rows)
-                    DashboardSectionResult(section, null, emptyList(), chart = data)
-                }.getOrElse { DashboardSectionResult(section, null, emptyList(), error = it.message ?: "チャートを解決できません") }
+                    require(section.filter == null) { "${def.kindLabel}の区画にはfilterを指定できません（絞り込みは元の表で）" }
+                    // 元の表は区画と同じ受け取る値で、一度だけ解決する
+                    val result = def.resolve(object : ViewContext {
+                        override fun grid(id: String): VirtualGridDef? = view(id)
+                        override fun rows(grid: VirtualGridDef): List<VirtualRow> = rowsOf(grid).rows
+                    })
+                    DashboardSectionResult(section, null, emptyList(), embedded = result)
+                }.getOrElse { DashboardSectionResult(section, null, emptyList(), error = it.message ?: "${def.kindLabel}を解決できません") }
             }
             val grid = view(section.view)
             if (grid == null) return@map DashboardSectionResult(section, null, emptyList(),
-                error = "ビュー「${section.view}」は一意なグリッド・クロス集計・チャートを参照してください")
+                error = "ビュー「${section.view}」は一意なグリッド・クロス集計か、区画に置ける種類のビューを参照してください")
             runCatching {
                 require(grid.matrix == null || section.filter == null) { "クロス集計の区画にはfilterを指定できません" }
                 val resolved = rowsOf(grid)

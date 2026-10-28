@@ -1,5 +1,6 @@
 package dev.toros.yde.cli
 
+import dev.toros.yde.app.ext.Extensions
 import dev.toros.yde.workspace.BuiltinSchemaResources
 import dev.toros.yde.workspace.layout.WorkspaceLayout
 import dev.toros.yde.yaml.edit.YamlOperation
@@ -22,7 +23,7 @@ import dev.toros.yde.yaml.YamlIO
  */
 fun workspaceShell(root: String?, readLine: () -> String?, out: (String) -> Unit): Int {
     val dir = requireDir(root)
-    val session = WorkspaceSession(FileSystemDocumentStore(dir), builtins = BuiltinSchemaResources.kernelSchemas(WorkspaceLayout.of(dir)))
+    val session = WorkspaceSession(FileSystemDocumentStore(dir), builtins = BuiltinSchemaResources.kernelSchemas(WorkspaceLayout.of(dir), Extensions.viewKinds), viewKinds = Extensions.viewKinds)
     out("ワークスペース: $dir（文書 ${session.snapshot.documents.size} 件・version ${session.version}）")
     out("コマンド: status / validate / set <file> <path> <値> / refactor <op> … [--apply] / undo / redo / save / reload / help / exit")
     while (true) {

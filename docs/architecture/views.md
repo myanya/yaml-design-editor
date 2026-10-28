@@ -12,8 +12,11 @@
 | `VirtualGridDef` / `VirtualDocViewDef` / `VirtualViewDefinition`（root の `ViewDef` / `DocViewDef` は別名） | semantic-core/semantic/VirtualViews.kt | ビュー定義の宣言の型と解決（仮想文書・テキスト表現） |
 | `VirtualFlowDef` / `FlowViews` / `FlowResolution` | semantic-core/semantic/FlowViews.kt | Constructによる文書の射影、原本対応、表示契約と接続先の診断 |
 | `VirtualLensDef` / `VirtualLensRelation` / `LensArrow` | semantic-core/semantic/LensViews.kt | レンズの見え方の定義（`kind: lens`＝関係ごとの矢印の向き・表示だけ・消費は `Views.LoadResult.reversedRelations` → `LensGraphs`） |
-| `VirtualChartDef` / `ChartKind` / `ChartViews` / `ChartData` | semantic-core/semantic/ChartViews.kt | チャート（`kind: chart`）の宣言と解決（元の表の解決結果を項目 × 系列の数に。`report` / `renderText` で CLI・read_view へ） |
-| `ChartCard` / `ChartGridView` / `EmbeddedChartPane` | ui/ChartViewPane.kt | チャートの描画（台帳のビュータブ・文書ビューの区画・ダッシュボードの区画で共用）。図の部品は `ui/Charts.kt`（Vico を包む `BarChart` / `LineChart`〔面・積み上げ面も〕・自前の `PieChart` / `HorizontalBarChart`） |
+| `ExtensionViewDef` / `ExtensionViewResult` / `ViewContext` / `VirtualDocEmbed` | semantic-core/semantic/ExtensionViews.kt | 拡張の種類のビューの共通の形（定義・解決の結果・解決に使う中核の表の窓口・文書ビューの区画への埋め込み）。中核はこの窓口だけで扱う |
+| `ViewKind` / `ViewSchemaFragments` | workspace-core/workspace/ViewKind.kt・ViewSchemaFragments.kt | ビューの種類の差し込み口（読む・点検・断片・埋め込みのキー）と、メタスキーマへの断片の合成 |
+| `ChartViewKind` / `VirtualChartDef` / `ChartKind` / `ChartData` / `ChartSelection` | view-chart（拡張）の view/chart/ChartViewKind.kt・ChartViews.kt・ChartSelection.kt | チャート（`kind: chart`）の読み取りと点検・宣言と解決（元の表の解決結果を項目 × 系列の数に）・押した形の材料。定義の形の断片は資源 `view-chart/schema.yaml` |
+| `ViewRenderer` / `ViewRenderers` / `ExtensionViewPane` | ui/ViewRenderers.kt | 拡張の種類の描画の一覧と、解決して描く入口（台帳のビュータブ・文書ビューの区画・ダッシュボードの区画） |
+| `ChartRenderer` / `ChartCard` | ui/ChartViewPane.kt | チャートの描画。図の部品は `ui/Charts.kt`（Vico を包む `BarChart` / `LineChart`〔面・積み上げ面も〕・自前の `PieChart` / `HorizontalBarChart`） |
 | フロー表示契約 | semantic-core資源 `builtin-structures/flow-model.yaml` | 表示モデルの型・必須項目・形状をStructureValidatorで検査 |
 | `FlowReports` | core/FlowReports.kt | CLI・read_viewへ同じ表示モデルと座標・診断を開示 |
 | `GraphLayouts.arrangeFlow` / `FlowSelection` | ui/GraphLayouts.kt・semantic-core/semantic/FlowSelection.kt | 計測寸法からの決定的配置と文書・版を考慮した選択の再解決 |
@@ -40,8 +43,8 @@
   ヘッダを描く側は `Views.effective`（同じ索引で `lower`）を使う。セルの集計の宣言は `all` の中身を書かれたまま（raw）持つ。
 - **軸を値の式で広げるクロス集計**（`rows.value`＝`VirtualMatrixDef.rowsValue`・`cells.columns.value`＝`VirtualMatrixKey.Expr`）は `lower` では列が決まらない（値を読むには原本が要る）ので、`VirtualViews.resolvePivot` が解決のときに軸を決める: 起点（行が値の軸なら照合の最初の node に合う要素すべて・ID の軸なら rows.idPattern の ID）ごとに cells の照合（`all` の形。path を外して要素そのものを集める）を起点を固定して評価し、集めた要素を行の値（起点で計算）× 列の値（参照先・項目の値・要素で計算した式）で振り分けて `SemanticExpression.aggregate` で畳む。値の軸は順序の種類（`comparatorFor`）で並べる。
   値の軸の行は `VirtualRow.valueRow`（原本の出現を持たないが合計の行ではない。ダッシュボードの件数に数える）。ヘッダと書き出しの見出しは `VirtualViews.columnsOf(view, rows)`（解決した行の列。ふつうのビューでは lower の列と同じ）から取る。
-- **チャート**（`kind: chart`＝`VirtualChartDef`）は元の表（grid / matrix）の解決結果を受け取る純粋な変換（`ChartViews.resolve`）: 行＝横軸の項目（クロス集計の合計の行は除く）、系列＝`series` の列か数として読める列すべて〔散布図は `x` の数の列を項目ごとの横軸の値 `xValues` にして系列から除き、名前は `label` の列〕（合計・未分類の列は除く）、値は `SemanticExpression.numberOf`、並びは元の表の行の順か `order`（系列の値の順。項目と全系列と材料を同じ置換で並べ替える）。データも評価器も持たず、描画は画面（`ChartCard`）だけで、CLI `view` / `read_view` は `ChartViews.report` / `renderText` の数を返す。
-  形を押したときの材料は `Views.chartSelection`: 対応するセルの来歴の入力（集めた要素の値と場所）に、その場所を含む最も内側の ID を索引から添える（表のセルの来歴メニューと同じ材料）。押した位置から項目と系列を決めるのは `ui/Charts.kt`（Vico のマーカーの対象を `CartesianMarkerVisibilityListener` で覚え、消費しない押下 `tapWithoutConsuming` で読む。積み上げ棒は高さで系列・円は角度）。一覧の置き方は `VirtualChartDef.drill`（popup / below / right / none）で、`ChartCard` が組む。置き場は台帳のビュータブ（`ViewGridView` がチャートの ID なら `ChartGridView`）・文書ビューの区画（`VirtualDocSection.chartView`）・ダッシュボードの区画（`DashboardSectionResult.chart`）。
+- **チャート**（`kind: chart`＝`VirtualChartDef`。拡張 view-chart）は元の表（grid / matrix）の解決結果を受け取る純粋な変換（`ChartViews.resolve`）: 行＝横軸の項目（クロス集計の合計の行は除く）、系列＝`series` の列か数として読める列すべて〔散布図は `x` の数の列を項目ごとの横軸の値 `xValues` にして系列から除き、名前は `label` の列〕（合計・未分類の列は除く）、値は `SemanticExpression.numberOf`、並びは元の表の行の順か `order`（系列の値の順。項目と全系列と材料を同じ置換で並べ替える）。データも評価器も持たず、描画は画面（`ChartCard`）だけで、CLI `view` / `read_view` は結果の `report` / `text` の数を返す。
+  形を押したときの材料は `ChartData.selection`: 対応するセルの来歴の入力（集めた要素の値と場所）に、その場所を含む最も内側の ID を索引から添える（表のセルの来歴メニューと同じ材料）。押した位置から項目と系列を決めるのは `ui/Charts.kt`（Vico のマーカーの対象を `CartesianMarkerVisibilityListener` で覚え、消費しない押下 `tapWithoutConsuming` で読む。積み上げ棒は高さで系列・円は角度）。一覧の置き方は `VirtualChartDef.drill`（popup / below / right / none）で、`ChartCard` が組む。置き場は台帳のビュータブ（`ViewGridView` が拡張の種類の ID なら `ExtensionViewPane`）・文書ビューの区画（`VirtualDocSection.embed`）・ダッシュボードの区画（`DashboardSectionResult.embedded`）で、どれも下の「ビューの種類の差し込み口」を通る。
 - **要素ごとに列を広げる**（columns の `each`＝`VirtualEachDef`）は、クロス集計と同じ `VirtualViews.lower` で索引の要素ごとの列に広がる。値の式は書かれたまま（raw）を持ち、列ごとに `$bind` の文字をその要素の ID に置き換えて（`substituteColumnRef`）値の式にする。
   置き換え前の式でも `$cat` は決まった ID の文字として読めるので、定義の文書の検証（メタスキーマの式の点検）とリントはそのまま通る（`{same: …}` は「前のステップの束縛」の点検に引っかかるので使わない）。列の集まりの並べ方（`entitiesOf`）はクロス集計と共有。
 - **セルの併記は画面だけ**（`ViewGridPane`）: 編集できない列の enum は `FieldDef.optionFor` のラベル、参照は索引のタイトルを「値（ラベル）」「ID（名前）」で添える。編集できる参照のセルは入力欄の下に名前を出す。セルの値・CLI・書き出し・`read_view` は変えない（`read_view` は元から「ID（タイトル）」を注記する）。
@@ -117,11 +120,22 @@
   読み取りは `parseView` の 1 経路、リントは関係レジストリがあるときだけ関係名の宣言を見る。関係の改名は言及を警告で開示する（`flowDefinitionWarnings`）。消費はレンズだけ（[graph-query.md](graph-query.md)「スキーマレンズ（型の段）」）。
 - スキーマと関係レジストリに見え方を足さない。レンズの見え方の要望（矢印の向き・色・既定の配置）は `kind: lens` の語彙で受ける。
 
+## ビューの種類の差し込み口
+
+- 中核の種類は grid・document・matrix・flow・lens・dashboard で、`ViewDefinitions.parseView` が直接読む。拡張の種類（今は chart）は拡張モジュール（view-*）にあり、差し込み口 `ViewKind`（workspace-core）を実装する（ADR-0014）。
+- 登録は入口の一覧（desktop/ext/DesktopExtensions.kt・cli/CliExtensions.kt）で、app-core の `Extensions.viewKinds` がそれを持つ。カーネルは大域の登録簿を持たず、`ViewDefinitions.load` / `parseView` / `lintDocument`・`BuiltinSchemaResources.kernelSchemas`・`WorkspaceSession`（改名の影響が読む）が引数 `kinds` で受け取る。
+- 読むときは、kind が中核でなければ登録した種類の `parse` に渡す。登録していない種類は使える種類を並べた誤りになる。定義一式を見た点検（チャートの元の表の有無など）は種類の `lint` で、文の前にファイル名を付けるのは `ViewDefinitions.load`。
+- 中核は拡張の種類の中身を知らない。一覧・CLI・read_view は `ExtensionViewDef.listing` / `listingText`、解決は `resolve(ViewContext)`（元の表は呼ぶ側が同じ索引・原本・受け取る値で解決して渡す）、結果は `ExtensionViewResult` の件数・`report`・`text` で扱う。
+- 文書ビューの区画には `<sectionKey>: {view: ID}` で埋め込み（`VirtualDocEmbed`）、ダッシュボードの区画には `inDashboard` の種類を置ける。
+- 定義の形はメタスキーマの断片（拡張の資源 `<名前>/schema.yaml`）で、`ViewSchemaFragments` が `builtin-view` に合成する。足せるのは kind の選択肢・ルートの項目・文書ビューの区画の項目だけで、名前がぶつかれば誤り。複数の種類が使う項目（`order`）は中核に残す。`viewSchemaTree`（値の式の印を読む木）は中核の項目だけ。
+- 描画は desktop の `ViewRenderers`（ui/ViewRenderers.kt）の一覧で、種類の ID から引く。拡張の種類の描画が読む型（`VirtualChartDef`・`ChartData` など）は拡張が公開する。
+
 ## 規律
 
 - ビュー専用の書込経路を作らない。UI は docCache の木の直接編集、エージェントは `read_view` → `apply_patch`。
 - ビュー定義の型はカーネルの型（`semantic/VirtualViews.kt`）で、root の型はその別名。root にビュー定義の型や読み取りを書き足さない。
-- 定義項目の追加は、宣言の型・`ViewDefinitions.parseView`・メタスキーマ `builtin-view`（`builtin-schemas/view.yaml`）を対で更新する。
+- 定義項目の追加は、宣言の型・`ViewDefinitions.parseView`・メタスキーマ `builtin-view`（`builtin-schemas/view.yaml`）を対で更新する。拡張の種類なら、その拡張の型・`ViewKind.parse`・断片を対で更新する。
+- 中核（カーネル・app-core・画面の共通部）に拡張の種類ごとの分岐（`is VirtualChartDef` や kind の文字での分岐）を書かない。拡張の種類は `ExtensionViewDef` / `ExtensionViewResult` の窓口と `ViewRenderers` で扱う。
 - 画面合成のためのオプションをスキーマ（`FieldDef`）へ足さない。合成の要望はビュー側の語彙で受ける。
 - リファクタリングの計画をアプリ側で補強しない（入口によって計画が食い違う）。
 - チャートに集計を書かない（集計は元の表の仕事。チャートは見せ方だけ）。図の部品（Vico）の型は `ui/Charts.kt` の外へ出さない。
@@ -131,6 +145,7 @@
 ## 拡張ポイント
 
 - **ビュー定義の項目追加**: 宣言の型・`parseView`・`builtin-view` を対で更新する。
-- **図の種類の追加**: `ChartKind` に種類を足し、`ChartCard` の分岐と `ui/Charts.kt` の部品を足す（宣言・解決・CLI は変わらない。横軸の項目 × 系列の数という形に収まる図だけ。散布図は項目ごとの横軸の値 `xValues` を添える）。積み上げ面のように積んだ値で描く図は、積むのを部品の中で行い、解決の数は元の値のまま。横棒のように Vico に無い図は自前で描く（円と同じ）。
+- **ビューの種類の追加**: 拡張モジュール view-<名前> を作り（形は format-* と同じ。例は view-chart）、`ViewKind` の実装・定義の型（`ExtensionViewDef`）・解決の結果（`ExtensionViewResult`）・断片 `<名前>/schema.yaml` を置く。入口の 2 つの一覧に登録し、desktop の `ViewRenderers` に描画を 1 行足す。中核の種類の読み取りには手を入れない。
+- **図の種類の追加**: view-chart の `ChartKind` に種類を足し、`ChartCard` の分岐と `ui/Charts.kt` の部品を足す（宣言・解決・CLI は変わらない。横軸の項目 × 系列の数という形に収まる図だけ。散布図は項目ごとの横軸の値 `xValues` を添える）。積み上げ面のように積んだ値で描く図は、積むのを部品の中で行い、解決の数は元の値のまま。横棒のように Vico に無い図は自前で描く（円と同じ）。
 - **横断ビューの追加**: データソースとして `AppState.workspaceRecords()` と `IdIndex` を使い、`ui/Shell.kt` の `LedgerSpace` に足す。1 行要約は `Display` を使う。
 - **セルの型の追加**: `Views.fieldAt` の解決と `ViewGridPane` のセルエディタに足し、書込は `Slot` ＋ `markEdited()` のまま。

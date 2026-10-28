@@ -27,7 +27,7 @@ object Dashboards {
         return DashboardViews.resolve(view, date, catalog::dashboardGrid,
             { grid, params -> Views.resolveDetailed(grid, index, ::tree, schemaFor, params) }, index.entries, index.refs, index.graph, ::tree,
             fieldAt = { d, path -> tree(d)?.let { schemaFor(d)?.fieldAt(it, path) } },
-            chart = catalog::chartView, inputs = values)
+            embedded = catalog::extensionView, inputs = values)
     }
 
     /** CLIとread_viewは同じ解決結果を、原本の座標と判定できなかった対象つきで開示する。 */
@@ -52,9 +52,10 @@ object Dashboards {
                     ) },
                 ) },
                 "pending" to section.pending.map { linkedMapOf("id" to it.row.id, "reason" to it.reason) },
-                // チャートの区画（P46）: 項目×系列の数（描画は画面だけ）
-                "chart" to section.chart?.let { dev.toros.yde.semantic.ChartViews.report(it) },
-                "error" to section.error,
-            ) }, "errors" to errors,
+            ).also { m ->
+                // 拡張の種類の区画（チャートなど）: 種類の ID を鍵に、その結果の値（描画は画面だけ）
+                section.embedded?.let { m[it.def.viewKind] = it.report() }
+                m["error"] = section.error
+            } }, "errors" to errors,
         )
 }

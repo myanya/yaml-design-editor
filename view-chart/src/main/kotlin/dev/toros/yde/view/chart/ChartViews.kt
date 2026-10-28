@@ -1,5 +1,14 @@
-package dev.toros.yde.semantic
+package dev.toros.yde.view.chart
 
+import dev.toros.yde.app.index.IdIndex
+import dev.toros.yde.semantic.ExtensionViewDef
+import dev.toros.yde.semantic.ExtensionViewResult
+import dev.toros.yde.semantic.SemanticExpression
+import dev.toros.yde.semantic.ViewContext
+import dev.toros.yde.semantic.VirtualCell
+import dev.toros.yde.semantic.VirtualGridDef
+import dev.toros.yde.semantic.VirtualRow
+import dev.toros.yde.semantic.VirtualViews
 import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.scalarText
 
@@ -7,6 +16,7 @@ import dev.toros.yde.yaml.model.scalarText
  * チャート（`kind: chart`。P46）。元の表（グリッドかクロス集計）の解決結果を、項目（行）× 系列（列）の数に直して描く「ビューの部品」。
  * データを持たず、集計は元の表がする（Excel の「表を作ってからグラフにする」と同じ）。描画は画面だけで、CLI と read_view は数を返す。
  * 置き場は台帳のビュータブ・文書ビューの区画（`chart: {view}`）・ダッシュボードの区画（`view: チャートID`）。
+ * 拡張の種類（ADR-0014）で、定義を読むのは ChartViewKind。ここは定義と解決の結果の型で、描画（desktop）が読むので公開する。
  */
 
 /** 図の種類。解決（項目 × 系列の数）はどれも同じで、違いは描き方だけ。 */
@@ -90,7 +100,23 @@ data class VirtualChartDef(
     /** 散布図の軸の種類（`scale: {x, y}`）。 */
     val xScale: ChartScale = ChartScale.LINEAR,
     val yScale: ChartScale = ChartScale.LINEAR,
-) : VirtualViewDefinition
+) : ExtensionViewDef {
+    override val viewKind: String get() = ChartViewKind.id
+    override val kindLabel: String get() = ChartViewKind.label
+
+    override fun listing(): Map<String, Any?> = linkedMapOf<String, Any?>(
+        "id" to id, "name" to name, "kind" to viewKind, "chart" to kind.id, "source" to view,
+        "series" to series.takeIf { it.isNotEmpty() },
+    ).filterValues { it != null }
+
+    override fun listingText(): String = "チャート（${kind.label}） 元の表=$view" + (if (series.isEmpty()) "" else " 系列=" + series.joinToString("/"))
+
+    /** 元の表（グリッドかクロス集計）を同じ索引・原本で解決し、項目（行）× 系列（列）の数にする。 */
+    override fun resolve(context: ViewContext): ChartData {
+        val source = context.grid(view) ?: error("チャート「$id」の元の表「$view」が見つかりません（グリッドかクロス集計のビュー ID を view に書きます）")
+        return ChartViews.resolve(this, source, context.rows(source))
+    }
+}
 
 /** 横軸の項目 1 つ（元の表の 1 行）。 */
 data class ChartCategory(val key: String, val label: String, val rowId: String, val hasOrigin: Boolean)
@@ -100,7 +126,7 @@ data class ChartSeriesResolved(val label: String, val values: List<Double?>, val
 
 /** 解決したチャート。 */
 data class ChartData(
-    val def: VirtualChartDef,
+    override val def: VirtualChartDef,
     val sourceView: VirtualGridDef,
     val categories: List<ChartCategory>,
     val series: List<ChartSeriesResolved>,
@@ -108,9 +134,23 @@ data class ChartData(
     val notes: List<String>,
     /** 散布図の横軸の値（項目ごと。数として読めない項目は null。散布図でなければ null）。 */
     val xValues: List<Double?>? = null,
-)
+) : ExtensionViewResult {
+    override val count: String get() = categories.size.toString()
+    override val unit: String get() = "項目"
 
-object ChartViews {
+    override fun report(errors: List<String>): Map<String, Any?> = ChartViews.report(this, errors)
+
+    override fun text(): String = ChartViews.renderText(this)
+
+    /**
+     * 押した形の材料を集める: 対応するセル（項目 × 系列）の来歴の入力（集めた要素・計算の材料）を並べ、各入力の場所を含む
+     * 最も内側の ID（索引から）を添える。表のセルを押したときと同じ材料で、業務詳細（ID）か原本（場所）へ進める。
+     * seriesIndex が null ならその項目のすべての系列。
+     */
+    fun selection(categoryIndex: Int, seriesIndex: Int?, index: IdIndex): ChartSelection? = ChartSelections.select(this, categoryIndex, seriesIndex, index)
+}
+
+internal object ChartViews {
 
     /**
      * 元の表の解決結果からチャートの数を取り出す。クロス集計の合計の行・合計と未分類の列は既定で除く（series に書けば入る）。

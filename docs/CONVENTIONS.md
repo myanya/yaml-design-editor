@@ -106,9 +106,9 @@
 
 [decisions/](decisions/README.md) の ADR は本規約と同格。矛盾があれば ADR を正として規約側を直す。
 
-- **依存方向**（ADR-0002）: `yaml-core ← semantic-core ← workspace-core ← app-core ← agent ← アプリ（root）`（cli は app-core・agent・拡張まで・拡張 format-* は app-core まで）。コアからアプリ・Compose・AI・agent・skill へ依存しない。
+- **依存方向**（ADR-0002）: `yaml-core ← semantic-core ← workspace-core ← app-core ← agent ← アプリ（root）`（cli は app-core・agent・拡張まで・拡張 format-*・view-* は app-core まで）。コアからアプリ・Compose・AI・agent・skill へ依存しない。
 - yaml-core と semantic-core の main ソースへ `java.nio.file.Path` を持ち込まない（テストが fixture 読込に使うのは可）。
-- **パッケージ名**: 接頭辞は `dev.toros.yde`、その下にモジュールの根（yaml-core `yaml` / semantic-core `semantic` / workspace-core `workspace` / cli `cli` / app-core `app` / agent `agent` / 拡張 format-* `format.<名前>` / アプリ（root）`desktop`）。
+- **パッケージ名**: 接頭辞は `dev.toros.yde`、その下にモジュールの根（yaml-core `yaml` / semantic-core `semantic` / workspace-core `workspace` / cli `cli` / app-core `app` / agent `agent` / 拡張 format-* `format.<名前>`・view-* `view.<名前>` / アプリ（root）`desktop`）。
 - モジュール名と同じ名前のクラス（`YamlIO`・`SemanticEngine`・`WorkspaceSession`・`AppState`）とアプリの `Main.kt` は根に置き、ほかは根の下に置く（`semantic.schema`・`desktop.ui` など。対応表は architecture/README.md「モジュールと依存方向」）。同じ裸の名前を複数のモジュールに作らない。
 - **文書とコメントでは接頭辞を省いた短い形**（`schema.FieldDef`・`validate/Validator.kt`）で書き、同じ短い名前が複数のモジュールにあるとき（`schema`・`validate`・`core`）はモジュール名を添える。
 - **移動であって複製ではない**: ファイルをモジュール間で移すときは `git mv` し、旧位置に残さない。各ステップで `./gradlew test` を緑に保つ。

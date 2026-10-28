@@ -37,8 +37,8 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 
 ## モジュールと依存方向
 
-パッケージは `dev.toros.yde.<モジュール>.*`（規則は CONVENTIONS「モジュールの規約」）。依存方向は ADR-0002（app-core は ADR-0013）が正: `yaml-core ← semantic-core ← workspace-core ← app-core ← agent ← アプリ（root）`（cli は app-core・agent・拡張まで・拡張 format-* は app-core まで）。
-目指す構成（画面を持たない応用層 app-core・agent・入口 desktop／cli／mcp・形式とビューの種類の拡張）は ADR-0013 にあり、移行は ROADMAP の計画で進める。下の表は移る前の今の姿。
+パッケージは `dev.toros.yde.<モジュール>.*`（規則は CONVENTIONS「モジュールの規約」）。依存方向は ADR-0002（app-core は ADR-0013）が正: `yaml-core ← semantic-core ← workspace-core ← app-core ← agent ← アプリ（root）`（cli は app-core・agent・拡張まで・拡張 format-*・view-* は app-core まで）。
+目指す構成（画面を持たない応用層 app-core・agent・入口 desktop／cli／mcp・形式とビューの種類の拡張）は ADR-0013（ビューの種類は ADR-0014）にあり、移行は ROADMAP の計画で進める。下の表は移る前の今の姿。
 文書とコメントでは接頭辞を省いて `schema.FieldDef`・`validate/Validator.kt` のように書き、同じ短い名前が複数のモジュールにあるとき（`schema`・`validate`・`core`）はモジュール名を添える。
 
 | モジュール | パッケージ | 中身 |
@@ -51,7 +51,7 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 | | `yaml.validate` | `Severity`・`StructuralIssue`・`StructuralIssueKind` |
 | semantic-core | `semantic` | 意味解析の評価器（`SemanticEngine`・走査・グラフ・クエリ・検査の判定・書き換え・変換・仮想文書） |
 | | `semantic.schema` | 利用者が書くスキーマの宣言（`FieldDef`・`SchemaTree`・`EntityDecl`・`QuerySpec`・検査の定義・変換定義・ひな型） |
-| workspace-core | `workspace` | セッション・ストア・読み込み・スキーマ文書の読み取り・検査の定義の読み込み・変更セットの適用・ひな型の文書・ビュー定義・リファクタリングの影響 |
+| workspace-core | `workspace` | セッション・ストア・読み込み・スキーマ文書の読み取り・検査の定義の読み込み・変更セットの適用・ひな型の文書・ビュー定義・ビューの種類の差し込み口（`ViewKind`）とメタスキーマの断片の合成・リファクタリングの影響 |
 | | `workspace.layout` | `WorkspaceLayout`（配置の判定） |
 | | `workspace.changeset` | `ChangeSet` / `FileChange` / `ChangeSets` |
 | | `workspace.validate` | 文書の検証の組み立てと検査の配り方（`DocumentValidator`・`WorkspaceChecks`・`CodedChecks`・`IssueSource`） |
@@ -62,7 +62,7 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 | | `app.schema` | `SchemaDef`（カーネルのスキーマにファイルの場所を足す薄い型）・`SchemaLoader`・表示解決 `Display`・ID 候補・スキーマ推測 |
 | | `app.validate` | `Validator`（窓口）・`Readiness` |
 | | `app.tools` | ツールの一式（ADR-0013「窓口の形」）: 中核のツール `Toolset`・`Tool`・`ToolContext`／`ToolPolicy`・作業コピー `WorkingCopy`・読み出しの文 `Readouts`・JSON の値と JSON Schema の変換（`JsonValues` / `JsonSchemas`）。入口（agent の LLM 宣言・MCP・CLI）が包む |
-| | `app.ext` | 拡張の差し込み口と登録簿（`FormatCodec`・`ExtensionRegistry`／`Extensions`・表 `Table`）。入口が `Extensions.install` で一覧を渡す（自動発見はしない） |
+| | `app.ext` | 拡張の差し込み口と登録簿（`FormatCodec`・`ExtensionRegistry`／`Extensions`・表 `Table`）。入口が `Extensions.install` で一覧を渡す（自動発見はしない）。登録したビューの種類（`Extensions.viewKinds`。差し込み口はカーネルの `ViewKind`）もここから読む |
 | | `app.session` | セッション側の状態（Compose 非依存）: `DocumentSession`（コアとカーネルの保持・索引の写し・開いている文書・未保存編集を重ねた索引と派生・編集の記録・開き直しと同期）と 1 文書の論理 `DocumentState`。再読込・保存・履歴の一手・全体検証と検索・一括変更・リファクタリング・文書の作成・配置の計画と前後・操作（アクション）の論理もここ。画面側に残るのは開く手順と場所・通知・パネルの作業 |
 | | `app.text` | 純粋な文字の計算（行の差分と 3 者併合 `LineMerge`・履歴の値を優先した書式の差し込み `SourceHistorySync`） |
 | | `app.skill` | 入出力変換（skill 定義・表形式の読み書き・インポート・エクスポート） |
@@ -74,19 +74,20 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 | format-text | `format.text` | 拡張: 文字の形式（csv・json・markdown・html）の `FormatCodec`（`TextFormats.kt`） |
 | format-xlsx | `format.xlsx` | 拡張: Excel の表（Apache POI）の `FormatCodec`（`XlsxFormat.kt`） |
 | format-docx | `format.docx` | 拡張: Word 文書の中の表（Apache POI。読むだけ）の `FormatCodec`（`DocxFormat.kt`） |
+| view-chart | `view.chart` | 拡張: ビューの種類 `kind: chart` の `ViewKind`（`ChartViewKind.kt`）と、描画が読む定義と結果の型（`ChartViews.kt`・`ChartSelection.kt`）。定義の形の断片は資源 `view-chart/schema.yaml` |
 | アプリ（root） | `desktop` | `Main.kt`（エントリポイント・ウィンドウ・ショートカット・スタート画面）・`AppState` / `OpenDocument` |
-| | `desktop.ui` | Compose の画面一式（骨格は `ui/Shell.kt`） |
-| | `desktop.ext` | 拡張の登録の一覧（`DesktopExtensions`。入出力の形式 6 つ）。入口が `Extensions.install` に渡す 1 ファイル |
+| | `desktop.ui` | Compose の画面一式（骨格は `ui/Shell.kt`）。拡張の種類のビューの描画の一覧 `ViewRenderers` もここ（ADR-0014） |
+| | `desktop.ext` | 拡張の登録の一覧（`DesktopExtensions`。入出力の形式 6 つとビューの種類 1 つ）。入口が `Extensions.install` に渡す 1 ファイル |
 
-応用層の中の依存は `app.core` → `app.session` → `app.tools` → `app.ext` → `app.skill`（app-core）→ `agent.llm` → `agent` → `agent.run` → `agent.auto` → `agent.eval`（agent）→ `desktop`（AppState・`desktop.ext`）→ `desktop.ui` の一方向。`app.index` / `app.schema` / `app.validate` / `app.text` は `app.core` より下。
-app-core（`app.core` / `app.index` / `app.schema` / `app.validate` / `app.text` / `app.session` / `app.tools` / `app.ext` / `app.skill`）と agent（`agent` / `agent.llm` / `agent.run` / `agent.auto` / `agent.eval`）と拡張（format-*）は Compose 非依存の純粋ロジックで、単体テストはこの層に書く。拡張は app-core とカーネルだけを使い、拡張どうし・agent・入口に依存しない。入口が登録の一覧（`desktop/ext/DesktopExtensions.kt`）で `Extensions.install` に渡す。`desktop`（AppState）は `mutableStateOf` だけに依存する。
+応用層の中の依存は `app.ext`（登録簿。カーネルだけを使う）→ `app.core` → `app.session` → `app.tools` → `app.skill`（app-core）→ `agent.llm` → `agent` → `agent.run` → `agent.auto` → `agent.eval`（agent）→ `desktop`（AppState・`desktop.ext`）→ `desktop.ui` の一方向。`app.index` / `app.schema` / `app.validate` / `app.text` は `app.core` より下。
+app-core（`app.core` / `app.index` / `app.schema` / `app.validate` / `app.text` / `app.session` / `app.tools` / `app.ext` / `app.skill`）と agent（`agent` / `agent.llm` / `agent.run` / `agent.auto` / `agent.eval`）と拡張（format-*・view-*）は Compose 非依存の純粋ロジックで、単体テストはこの層に書く。拡張は app-core とカーネルだけを使い、拡張どうし・agent・入口に依存しない。入口が登録の一覧（`desktop/ext/DesktopExtensions.kt`）で `Extensions.install` に渡す。`desktop`（AppState）は `mutableStateOf` だけに依存する。
 
 ## ソース規則テスト
 
 上の依存方向と各主題の「規律」のうち機械で確かめられるものは、root のテスト `rules/SourceRulesTest`（規則の表は `rules/SourceRules`）が全モジュールの main のソース（テストの書き方の規則は test のソース）を走査して守る。構文解析はせず、import 行と文字の一致で見る。
 規則は 18 本。純粋ロジック層に Compose を持ち込まない・app の層は一方向・yaml-core と semantic-core にファイルの場所を持ち込まない・等幅は `AppFonts.Mono`・外部の UI ライブラリは包む 1 ファイルだけ・AI の HTTP は `agent/llm/Http.kt` だけ。
 `JFileChooser` と `Dispatchers.Main` を使わない・生の色は `Palette` だけ・UI は `state.index` を読まない・`FieldType` は基底の種類だけ・`Files.exists` は許可リストのファイルだけ・同じ裸の名前のファイルを作らない・テストに OS 固有の絶対パス（ドライブ文字）を書かない。
-モジュールの形の規則（`rules/ModuleRules`）: settings.gradle.kts の全モジュールを走査する・拡張の実装は入口の登録の一覧に載せる・拡張は app-core とカーネルだけを使う・拡張は決まった形（README・共通の設定の build・テスト・モジュール名どおりのパッケージ・公開は差し込み口の実装だけ）・agent のファイルの間に循環を作らない。
+モジュールの形の規則（`rules/ModuleRules`）: settings.gradle.kts の全モジュールを走査する・拡張の実装は入口の登録の一覧に載せる・拡張は app-core とカーネルだけを使う・拡張は決まった形（README・共通の設定の build・テスト・モジュール名どおりのパッケージ・公開は差し込み口の実装だけ。ビューの種類は描画が読む型も）・agent のファイルの間に循環を作らない。
 文書の参照（今の姿の文書が指す `.kt` の名前・テスト名・「ファイル名＋見出し」）の実在は同じ場所の `rules/DocReferencesTest` が見る。
 落ちたらメッセージの「説明」の見出しを読む。規則を足すときは表に 1 つ足し、テストを 1 つ足す。今は直せていない違反は表の `known` に理由つきで書き、直したら消す（残っているとテストが「不要」と知らせる）。
 800 行を超える main のファイルは目安として報告するだけで失敗にしない（文書の字数と同じ扱い。`build/reports/source-rules/large-files.txt` に書き、pre-commit のフックが表示する）。

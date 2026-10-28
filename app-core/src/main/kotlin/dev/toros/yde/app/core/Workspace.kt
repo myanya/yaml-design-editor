@@ -1,5 +1,6 @@
 package dev.toros.yde.app.core
 
+import dev.toros.yde.app.ext.Extensions
 import dev.toros.yde.app.index.IdIndex
 import dev.toros.yde.app.schema.BuiltinSchemas
 import dev.toros.yde.app.validate.ValidationResult
@@ -194,7 +195,7 @@ class Workspace private constructor(val root: Path) {
         // アプリだけに残る点検を足す——以前は root の SchemaLoader でもう一度読んでいた（P27 段C の C-3b・意図的差分 D-32）
         val opened = WorkspaceSession(
             FileSystemDocumentStore(root),
-            builtins = BuiltinSchemas.kernelSchemas(layout),
+            builtins = BuiltinSchemas.kernelSchemas(layout), viewKinds = Extensions.viewKinds,
         )
         session = opened
         val loaded = SchemaLoader.fromKernel(root, opened.schemas, opened.declarations, opened.schemaErrors)

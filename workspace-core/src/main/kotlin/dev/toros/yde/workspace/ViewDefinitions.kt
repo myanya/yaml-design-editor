@@ -40,11 +40,6 @@ import dev.toros.yde.semantic.DashboardSection
 import dev.toros.yde.semantic.schema.ActionRequire
 import dev.toros.yde.semantic.schema.TransformDef
 import dev.toros.yde.semantic.VirtualMatrixCells
-import dev.toros.yde.semantic.ChartDrill
-import dev.toros.yde.semantic.ChartKind
-import dev.toros.yde.semantic.ChartOrder
-import dev.toros.yde.semantic.ChartScale
-import dev.toros.yde.semantic.VirtualChartDef
 import dev.toros.yde.semantic.VirtualMatrixDef
 import dev.toros.yde.semantic.VirtualMatrixKey
 import dev.toros.yde.semantic.VirtualNewRowDef
@@ -52,6 +47,8 @@ import dev.toros.yde.semantic.schema.ExpressionValue
 import dev.toros.yde.semantic.VirtualRowsDef
 import dev.toros.yde.semantic.VirtualViewColumn
 import dev.toros.yde.semantic.VirtualViewDefinition
+import dev.toros.yde.semantic.ExtensionViewDef
+import dev.toros.yde.semantic.VirtualDocEmbed
 import dev.toros.yde.semantic.VirtualViewSource
 import dev.toros.yde.yaml.YamlIO
 
@@ -64,8 +61,8 @@ data class ViewCatalog(
     /** レンズの見え方（kind: lens）。レンズは全部の定義を合わせて読む。 */
     val lensViews: List<VirtualLensDef> = emptyList(),
     val dashboards: List<VirtualDashboardDef> = emptyList(),
-    /** チャート（kind: chart。P46）。元の表（グリッドかクロス集計）を数にして描く部品。 */
-    val chartViews: List<VirtualChartDef> = emptyList(),
+    /** 拡張の種類のビュー（chart など。ADR-0014）。読めるのは入口が登録した種類だけ。 */
+    val extensionViews: List<ExtensionViewDef> = emptyList(),
 ) {
     fun view(id: String): VirtualGridDef? = views.firstOrNull { it.id == id }
 
@@ -73,7 +70,7 @@ data class ViewCatalog(
 
     fun flowView(id: String): VirtualFlowDef? = flowViews.firstOrNull { it.id == id }
 
-    fun chartView(id: String): VirtualChartDef? = chartViews.firstOrNull { it.id == id }
+    fun extensionView(id: String): ExtensionViewDef? = extensionViews.firstOrNull { it.id == id }
 
     /** 文書に適用する文書ビュー。スキーマの match と同じ「定義ファイル名順の先勝ち」。 */
     fun docViewFor(relPath: String, schemaId: String?): VirtualDocViewDef? =
@@ -87,21 +84,25 @@ data class ViewCatalog(
  */
 object ViewDefinitions {
 
+    /** 中核の種類（拡張の種類はこれと重ねない。ADR-0014）。 */
+    val CORE_KINDS: List<String> = listOf("grid", "document", "matrix", "flow", "lens", "dashboard")
+
     /** ビュー定義文書のファイル名（エラーの文面の先頭に使う）。 */
     private fun fileName(source: DocumentId): String = source.value.substringAfterLast('/')
 
     /**
      * ビュー定義の一式を読み込む（エラー収集つき）。sources は（文書ID, 本文）の、定義ファイル名順。
      * schemas を渡すと、definition 参照の列展開（R14-02）と、ビュー→スキーマの整合検査（リント）が有効になる。
+     * kinds は入口が登録した拡張の種類（chart など。ADR-0014）。渡さなければ中核の種類だけを読む。
      */
-    fun load(sources: List<Pair<DocumentId, String>>, schemas: List<WorkspaceSchema> = emptyList()): ViewCatalog {
+    fun load(sources: List<Pair<DocumentId, String>>, schemas: List<WorkspaceSchema> = emptyList(), kinds: List<ViewKind> = emptyList()): ViewCatalog {
         val all = mutableListOf<VirtualViewDefinition>()
         val errors = mutableListOf<String>()
         sources.forEach { (source, text) ->
             runCatching {
                 val raw = YamlIO.parseToRaw(text) as? Map<*, *>
                     ?: error("ルートはobjectである必要があります")
-                parseView(raw, source, schemas)
+                parseView(raw, source, schemas, kinds)
             }.onSuccess { all += it }
                 .onFailure { errors += "${fileName(source)}: ${it.message ?: it::class.simpleName}" }
         }
@@ -113,34 +114,30 @@ object ViewDefinitions {
         val flowViews = all.filterIsInstance<VirtualFlowDef>()
         val lensViews = all.filterIsInstance<VirtualLensDef>()
         val dashboards = all.filterIsInstance<VirtualDashboardDef>()
-        val chartViews = all.filterIsInstance<VirtualChartDef>()
+        val extensionViews = all.filterIsInstance<ExtensionViewDef>()
+        fun kindOf(def: ExtensionViewDef): ViewKind? = kinds.firstOrNull { it.id == def.viewKind }
+        // ダッシュボードの区画に置けるもの: グリッド・クロス集計と、区画に置ける拡張の種類
+        val dashboardTargets = (listOf("グリッド", "クロス集計") + kinds.filter { it.inDashboard }.map { it.label }).joinToString("・")
         if (dashboards.count { it.default } > 1) errors += "既定のダッシュボード（default: true）は1件だけ指定してください"
         dashboards.forEach { dashboard ->
             dashboard.sections.forEach { section ->
                 val target = all.filter { it.id == section.view }
                 val single = target.singleOrNull()
                 when {
-                    single is VirtualChartDef -> if (section.filter != null) {
-                        errors += "${fileName(dashboard.source)}: チャートの区画にはfilterを指定できません（絞り込みは元の表で）"
+                    single is ExtensionViewDef && kindOf(single)?.inDashboard == true -> if (section.filter != null) {
+                        errors += "${fileName(dashboard.source)}: ${single.kindLabel}の区画にはfilterを指定できません（絞り込みは元の表で）"
                     }
                     single !is VirtualGridDef ->
-                        errors += "${fileName(dashboard.source)}: sections.${section.id}.view「${section.view}」は一意なグリッド・クロス集計・チャートを参照してください"
+                        errors += "${fileName(dashboard.source)}: sections.${section.id}.view「${section.view}」は一意な${dashboardTargets}を参照してください"
                     single.matrix != null && section.filter != null ->
                         errors += "${fileName(dashboard.source)}: クロス集計の区画にはfilterを指定できません（合計との不一致を防ぐため）"
                 }
             }
             if (schemas.isNotEmpty()) errors += lintDashboard(dashboard, schemas)
         }
-        // チャート（P46）: 元の表が一意なグリッドかクロス集計であること。系列と横軸の列は、列が宣言で決まるグリッドだけ点検する
-        chartViews.forEach { chart ->
-            val source = all.filter { it.id == chart.view }.singleOrNull() as? VirtualGridDef
-            if (source == null) {
-                errors += "${fileName(chart.source)}: チャート「${chart.id}」の元の表（view）「${chart.view}」は一意なグリッドまたはクロス集計を参照してください"
-            } else if (source.matrix == null && source.columns.none { it.each != null }) {
-                (chart.series + listOfNotNull(chart.x, chart.label, chart.order?.series)).filterNot { label -> source.columns.any { it.label == label } }.forEach {
-                    errors += "${fileName(chart.source)}: チャート「${chart.id}」の列「$it」は元の表「${source.id}」にありません"
-                }
-            }
+        // 拡張の種類の点検（チャートの元の表の有無など）は種類が行う
+        extensionViews.forEach { def ->
+            kindOf(def)?.lint(def, all, schemas)?.forEach { errors += "${fileName(def.source)}: $it" }
         }
         if (schemas.isNotEmpty()) errors += lint(views, docViews, schemas)
         if (schemas.isNotEmpty()) errors += lintFlows(flowViews, schemas)
@@ -152,16 +149,17 @@ object ViewDefinitions {
                     errors += "${fileName(doc.source)}: sections[$i].flow.view「$target」は一意なflowビューを参照してください"
                 }
             }
-            section.chartView?.let { target ->
-                val matches = all.filter { it.id == target }
-                if (matches.size != 1 || matches.singleOrNull() !is VirtualChartDef) {
-                    errors += "${fileName(doc.source)}: sections[$i].chart.view「$target」は一意なチャート（kind: chart）を参照してください"
+            section.embed?.let { embed ->
+                val matches = all.filter { it.id == embed.view }
+                if (matches.size != 1 || (matches.single() as? ExtensionViewDef)?.viewKind != embed.kind) {
+                    val label = kinds.firstOrNull { it.id == embed.kind }?.label ?: embed.kind
+                    errors += "${fileName(doc.source)}: sections[$i].${embed.kind}.view「${embed.view}」は一意な$label（kind: ${embed.kind}）を参照してください"
                 }
             }
         } }
         return ViewCatalog(
             views = views, docViews = docViews, errors = errors, flowViews = flowViews, lensViews = lensViews, dashboards = dashboards,
-            chartViews = chartViews,
+            extensionViews = extensionViews,
         )
     }
 
@@ -170,11 +168,11 @@ object ViewDefinitions {
      * パース不能はその内容を1件、パースできればリント（ビュー→スキーマの整合検査）の指摘を返す。
      * 検証パネルが `_views` の文書を開いている間、保存を待たずにその場で指摘を出すために使う。
      */
-    fun lintDocument(root: YNode?, source: DocumentId, schemas: List<WorkspaceSchema>): List<String> {
+    fun lintDocument(root: YNode?, source: DocumentId, schemas: List<WorkspaceSchema>, kinds: List<ViewKind> = emptyList()): List<String> {
         if (root == null) return emptyList()  // パースエラーは検証本体が報告する
         val raw = runCatching { YamlIO.parseToRaw(YamlIO.dumpPlain(root)) }.getOrNull() as? Map<*, *>
             ?: return listOf("ビュー定義のルートはobjectである必要があります")
-        val def = runCatching { parseView(raw, source, schemas) }
+        val def = runCatching { parseView(raw, source, schemas, kinds) }
             .getOrElse { return listOf(it.message ?: (it::class.simpleName ?: "定義を解析できません")) }
         return when (def) {
             is VirtualGridDef -> lint(listOf(def), emptyList(), schemas)
@@ -182,78 +180,29 @@ object ViewDefinitions {
             is VirtualFlowDef -> lintFlows(listOf(def), schemas)
             is VirtualLensDef -> lintLens(listOf(def), schemas)
             is VirtualDashboardDef -> lintDashboard(def, schemas)
-            // チャートの点検（元の表の有無・列）はカタログ全体でしか決まらない（load で行う）
-            is VirtualChartDef -> emptyList()
+            // 拡張の種類の点検（チャートの元の表の有無など）はカタログ全体でしか決まらない（load で行う）
+            is ExtensionViewDef -> emptyList()
         }
     }
 
     /**
      * ビュー定義1件のパース（kind で分岐）。ステージングの定義ゲート（Staging）からも使う。
      * schemas は definition 参照の解決に使う（未指定時は definition を使う定義がパースエラーになる）。
+     * kinds は入口が登録した拡張の種類（ADR-0014）。登録していない種類は「使える種類」を並べた誤りになる。
      */
-    fun parseView(raw: Map<*, *>, source: DocumentId, schemas: List<WorkspaceSchema> = emptyList()): VirtualViewDefinition =
+    fun parseView(
+        raw: Map<*, *>, source: DocumentId, schemas: List<WorkspaceSchema> = emptyList(), kinds: List<ViewKind> = emptyList(),
+    ): VirtualViewDefinition =
         when (val kind = raw["kind"]?.toString()) {
             null, "grid" -> parseGridView(raw, source, schemas)
-            "document" -> parseDocView(raw, source, schemas)
+            "document" -> parseDocView(raw, source, schemas, kinds)
             "matrix" -> parseMatrixView(raw, source)
             "flow" -> parseFlowView(raw, source)
             "lens" -> parseLensView(raw, source)
             "dashboard" -> parseDashboard(raw, source)
-            "chart" -> parseChartView(raw, source)
-            else -> error("kind は grid / document / matrix / flow / lens / dashboard / chart のいずれかである必要があります: $kind")
+            else -> kinds.firstOrNull { it.id == kind }?.parse(raw, source)
+                ?: error("kind は ${(CORE_KINDS + kinds.map { it.id }).joinToString(" / ")} のいずれかである必要があります: $kind")
         }
-
-    /**
-     * チャート（kind: chart。P46）のパース: 図の種類（chart）・元の表（view）・系列にする列（series）・横軸の列（x。散布図では数の列）・点の名前の列（label。散布図）・縦軸の見出しと形（y）。
-     * 元の表との整合（存在・列の有無）はカタログの読み込みで点検する。
-     */
-    private fun parseChartView(raw: Map<*, *>, source: DocumentId): VirtualChartDef {
-        val keys = setOf("id", "name", "description", "kind", "chart", "view", "series", "x", "y", "drill", "order", "label", "scale")
-        raw.keys.firstOrNull { it !in keys }?.let { error("kind: chart では使えないキーです: $it（使えるキー: ${keys.joinToString(", ")}）") }
-        fun text(key: String): String? = if (!raw.containsKey(key)) null else
-            (raw[key] as? String)?.takeIf { it.isNotBlank() } ?: error("$key は空でない文字列で書きます")
-        val id = text("id") ?: error("id が必要です")
-        val kind = ChartKind.parse(text("chart") ?: error("chart（図の種類: ${ChartKind.entries.joinToString(" / ") { it.id }}）が必要です"), "chart")
-        val view = text("view") ?: error("view（元の表＝グリッドかクロス集計のビュー ID）が必要です")
-        val x = text("x")
-        // 散布図: x は横軸の数の列（必須）、label は点の名前の列。他の図では x が項目の文字で、label は書けない
-        val label = text("label")
-        if (kind == ChartKind.SCATTER && x == null) error("chart: scatter には x（横軸にする数の列）が必要です")
-        if (label != null && kind != ChartKind.SCATTER) error("label（点の名前の列）は chart: scatter で使います（他の図では x が項目の文字です）")
-        // 軸の種類（散布図だけ）: {x: linear | log, y: linear | log}
-        val scale = raw["scale"]?.let { s ->
-            val sm = s as? Map<*, *> ?: error("scale は {x: linear | log, y: linear | log} で書きます")
-            if (kind != ChartKind.SCATTER) error("scale（軸の種類）は chart: scatter で使います")
-            sm.keys.firstOrNull { it != "x" && it != "y" }?.let { error("scale に書けるキーは x / y です: $it") }
-            ChartScale.parse(sm["x"]?.toString() ?: "linear", "scale.x") to ChartScale.parse(sm["y"]?.toString() ?: "linear", "scale.y")
-        }
-        val series = when (val s = raw["series"]) {
-            null -> emptyList()
-            is List<*> -> s.map { it?.toString()?.takeIf { t -> t.isNotBlank() } ?: error("series は列の見出しの配列で書きます") }
-            else -> error("series は列の見出しの配列で書きます")
-        }
-        val y = raw["y"]?.let { it as? Map<*, *> ?: error("y は {label, format} で書きます") }
-        y?.keys?.firstOrNull { it != "label" && it != "format" }?.let { error("y に書けるキーは label / format です: $it") }
-        val format = y?.get("format")?.toString()?.takeIf { it.isNotBlank() }?.also { f ->
-            require(f.any { it == '0' || it == '#' } && runCatching { java.text.DecimalFormat(f) }.isSuccess) { "y.format は数の形（DecimalFormat のパターン。例 #,##0）で書きます: $f" }
-        }
-        // 押したときの材料の見せ方（省略時は浮いた一覧）
-        val drill = if (!raw.containsKey("drill")) ChartDrill.POPUP else ChartDrill.parse(raw["drill"]?.toString(), "drill")
-        // 項目の並び: {series: 列の見出し（省略＝最初の系列）, direction: asc | desc}
-        val order = raw["order"]?.let { o ->
-            val om = o as? Map<*, *> ?: error("order は {series, direction} で書きます（例 {direction: desc}）")
-            om.keys.firstOrNull { it != "series" && it != "direction" }?.let { error("order に書けるキーは series / direction です: $it") }
-            val direction = om["direction"]?.toString() ?: "asc"
-            require(direction == "asc" || direction == "desc") { "order.direction は asc / desc で書きます: $direction" }
-            ChartOrder(series = om["series"]?.toString()?.takeIf { it.isNotBlank() }, descending = direction == "desc")
-        }
-        return VirtualChartDef(
-            id = id, name = text("name") ?: id, description = text("description"), source = source,
-            kind = kind, view = view, series = series, x = x, label = label,
-            xScale = scale?.first ?: ChartScale.LINEAR, yScale = scale?.second ?: ChartScale.LINEAR,
-            yLabel = y?.get("label")?.toString()?.takeIf { it.isNotBlank() }, format = format, drill = drill, order = order,
-        )
-    }
 
     private val PARAM_NAME = Regex("""[A-Za-z][A-Za-z0-9_]*""")
 
@@ -717,7 +666,7 @@ object ViewDefinitions {
     }
 
     /** 文書ビュー（kind: document。R14-01）のパース。 */
-    private fun parseDocView(raw: Map<*, *>, source: DocumentId, schemas: List<WorkspaceSchema>): VirtualDocViewDef {
+    private fun parseDocView(raw: Map<*, *>, source: DocumentId, schemas: List<WorkspaceSchema>, kinds: List<ViewKind>): VirtualDocViewDef {
         val id = raw["id"]?.toString()?.takeIf { it.isNotBlank() } ?: error("id が必要です")
         listOf("rows", "columns", "order", "detail", "newRow").firstOrNull { raw.containsKey(it) }
             ?.let { error("$it は kind: grid のビューでのみ使えます") }
@@ -734,15 +683,16 @@ object ViewDefinitions {
             val fieldsRaw = m["fields"]
             val backlinksRaw = m["backlinks"]
             val flowRaw = m["flow"]
-            val chartRaw = m["chart"]
-            if (listOf(fieldsRaw, backlinksRaw, flowRaw, chartRaw).count { it != null } != 1) {
-                error("sections[$i]: fields / backlinks / flow / chart のいずれか一方が必要です")
+            // 拡張の種類の埋め込み（`chart: {view}` など。キーは種類の sectionKey）
+            val embeds = kinds.mapNotNull { k -> k.sectionKey?.let { key -> m[key]?.let { key to it } } }
+            if (listOf(fieldsRaw, backlinksRaw, flowRaw).count { it != null } + embeds.size != 1) {
+                error("sections[$i]: ${(listOf("fields", "backlinks", "flow") + kinds.mapNotNull { it.sectionKey }).joinToString(" / ")} のいずれか一方が必要です")
             }
-            if (chartRaw != null) {
-                val cm = chartRaw as? Map<*, *> ?: error("sections[$i].chart はobjectである必要があります")
-                require(cm.keys.all { it == "view" }) { "sections[$i].chartにはviewだけを指定できます" }
-                val target = (cm["view"] as? String)?.takeIf { it.isNotBlank() } ?: error("sections[$i].chart.viewが必要です")
-                return@mapIndexed VirtualDocSection(label = label, chartView = target)
+            embeds.singleOrNull()?.let { (key, value) ->
+                val em = value as? Map<*, *> ?: error("sections[$i].$key はobjectである必要があります")
+                require(em.keys.all { it == "view" }) { "sections[$i].${key}にはviewだけを指定できます" }
+                val target = (em["view"] as? String)?.takeIf { it.isNotBlank() } ?: error("sections[$i].$key.viewが必要です")
+                return@mapIndexed VirtualDocSection(label = label, embed = VirtualDocEmbed(kinds.first { it.sectionKey == key }.id, target))
             }
             if (fieldsRaw != null) {
                 val fm = fieldsRaw as? Map<*, *> ?: error("sections[$i].fields はobjectである必要があります（空なら {}）")

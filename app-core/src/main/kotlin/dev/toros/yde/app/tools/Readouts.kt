@@ -91,7 +91,8 @@ class Readouts(private val ctx: ToolContext) {
         val loaded = Views.load(ws.root, ws.schemas) { copy.tree(it.value) }
         require(date == null || viewId?.let(loaded::dashboard) != null) { "dateはダッシュボードを指定したときだけ使えます" }
         if (viewId.isNullOrBlank()) {
-            if (loaded.views.isEmpty() && loaded.docViews.isEmpty() && loaded.flowViews.isEmpty() && loaded.lensViews.isEmpty() && loaded.dashboards.isEmpty()) return "（ビュー定義がありません）"
+            if (loaded.views.isEmpty() && loaded.docViews.isEmpty() && loaded.flowViews.isEmpty() && loaded.lensViews.isEmpty() && loaded.dashboards.isEmpty() &&
+                loaded.extensionViews.isEmpty()) return "（ビュー定義がありません）"
             val lines = loaded.views.map { v ->
                 val rowsLabel = v.rows?.let { "idPattern=${it.idPattern}" } ?: "matchクエリ（行キー: ${v.rowKey}）"
                 val columnsLabel = if (v.matrix != null) "クロス集計（列は cells.columns から）" else v.columns.joinToString("/") { it.label }
@@ -107,19 +108,14 @@ class Readouts(private val ctx: ToolContext) {
             } + loaded.lensViews.map { v ->
                 "- ${v.id}（${v.name}）: レンズの見え方（表示だけ。読めるデータは無い） 関係=" +
                     v.relations.joinToString(", ") { "${it.name}:${it.arrow.id}" }.ifEmpty { "なし" }
-            } + loaded.chartViews.map { v ->
-                "- ${v.id}（${v.name}）: チャート（${v.kind.label}） 元の表=${v.view}" +
-                    (if (v.series.isEmpty()) "" else " 系列=" + v.series.joinToString("/"))
-            }
+            } + loaded.extensionViews.map { v -> "- ${v.id}（${v.name}）: ${v.listingText()}" }
             return lines.joinToString("\n") +
                 (if (loaded.errors.isEmpty()) "" else "\n定義エラー:\n" + loaded.errors.joinToString("\n") { "- $it" })
         }
-        // チャート（P46）: 元の表をステージングの索引で解決し、項目×系列の数を返す
-        loaded.chartView(viewId)?.let { chart ->
-            require(fileRel == null && rowsPattern == null && columns == null) { "チャートではfile / rows / columnsを指定しません" }
-            val data = Views.resolveChart(chart, loaded, copy.index(), { d -> copy.tree(d.value) }, ws::schemaFor)
-                ?: error("チャート「${chart.id}」の元の表「${chart.view}」が見つかりません")
-            return dev.toros.yde.semantic.ChartViews.renderText(data)
+        // 拡張の種類（チャートなど。ADR-0014）: 元の表をステージングの索引で解決し、種類の文で返す
+        loaded.extensionView(viewId)?.let { def ->
+            require(fileRel == null && rowsPattern == null && columns == null) { "${def.kindLabel}ではfile / rows / columnsを指定しません" }
+            return Views.resolveExtension(def, loaded, copy.index(), { d -> copy.tree(d.value) }, ws::schemaFor).text()
         }
         loaded.dashboard(viewId)?.let { dashboard ->
             require(fileRel == null && rowsPattern == null && columns == null) { "ダッシュボードではfile / rows / columnsを指定しません" }

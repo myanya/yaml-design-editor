@@ -64,6 +64,7 @@ object SourceScanner {
         "format-text" to "format-text/src/main/kotlin",
         "format-xlsx" to "format-xlsx/src/main/kotlin",
         "format-docx" to "format-docx/src/main/kotlin",
+        "view-chart" to "view-chart/src/main/kotlin",
         "app" to "src/main/kotlin",
     )
 

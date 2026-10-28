@@ -1,5 +1,15 @@
-package dev.toros.yde.semantic
+package dev.toros.yde.view.chart
 
+import dev.toros.yde.semantic.ScannedId
+import dev.toros.yde.semantic.VirtualCell
+import dev.toros.yde.semantic.VirtualGridDef
+import dev.toros.yde.semantic.VirtualMatrixCells
+import dev.toros.yde.semantic.VirtualMatrixDef
+import dev.toros.yde.semantic.VirtualMatrixKey
+import dev.toros.yde.semantic.VirtualRow
+import dev.toros.yde.semantic.VirtualRowsDef
+import dev.toros.yde.semantic.VirtualViewColumn
+import dev.toros.yde.semantic.VirtualViews
 import dev.toros.yde.semantic.schema.ValueExpr
 import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.YNode

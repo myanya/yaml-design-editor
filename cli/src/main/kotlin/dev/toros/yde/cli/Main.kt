@@ -19,7 +19,7 @@ import kotlin.system.exitProcess
  * 応用の命令は 0 成功 / 1 誤り（標準エラー出力に「エラー: …」）。
  */
 fun main(args: Array<String>) {
-    Extensions.install(CliExtensions.registry)  // 拡張（入出力の形式）の登録は入口の一覧 1 ファイル（app-core に POI を入れない）
+    Extensions.install(CliExtensions.registry)  // 拡張（入出力の形式・ビューの種類）の登録は入口の一覧 1 ファイル（app-core に POI を入れない）
     // プラットフォームの既定文字コードに依存せず、常に UTF-8 で出力する（機械可読性のため）
     System.setOut(java.io.PrintStream(java.io.FileOutputStream(java.io.FileDescriptor.out), true, Charsets.UTF_8))
     System.setErr(java.io.PrintStream(java.io.FileOutputStream(java.io.FileDescriptor.err), true, Charsets.UTF_8))

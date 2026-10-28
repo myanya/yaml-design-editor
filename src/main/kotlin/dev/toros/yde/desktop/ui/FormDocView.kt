@@ -110,10 +110,10 @@ internal fun DocViewSections(ctx: FormCtx, view: DocViewDef, root: YNode.Map, lo
                 }
             } else {
                 val flowView = section.flowView
-                val chartView = section.chartView
+                val embed = section.embed
                 when {
                     flowView != null -> EmbeddedFlowPane(state, doc, flowView)
-                    chartView != null -> EmbeddedChartPane(state, chartView)
+                    embed != null -> EmbeddedExtensionPane(state, embed)
                     else -> BacklinkSectionTable(state, sectionResolved)
                 }
             }
@@ -199,4 +199,14 @@ internal fun AttachedBacklinks(ctx: FormCtx, path: YPath) {
             BacklinkItems(ctx.state, attachment.backlinks, row)
         }
     }
+}
+
+/** 文書ビューの区画に埋め込んだ拡張の種類のビュー（`chart: {view}` など。ADR-0014）。フロー図の埋め込みと同じ位置づけ。 */
+@Composable
+private fun EmbeddedExtensionPane(state: AppState, embed: dev.toros.yde.semantic.VirtualDocEmbed) {
+    val ws = state.workspace ?: return
+    val loaded = remember(ws, state.indexVersion) { Views.load(ws, state.schemas) }
+    val def = loaded.extensionView(embed.view)?.takeIf { it.viewKind == embed.kind }
+    if (def == null) Text("${embed.kind}「${embed.view}」が見つかりません", fontSize = 11.sp, color = Palette.WarnOrange)
+    else ExtensionViewPane(state, loaded, def, ViewPlace.SECTION)
 }

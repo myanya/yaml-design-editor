@@ -34,11 +34,11 @@ object SourceRules {
 
     /** app の中の層（下から上）。同じ層の中は互いに使ってよく、上の層を import してはいけない。 */
     val appLayers: List<List<String>> = listOf(
+        listOf("$APP.ext"), // 拡張の登録簿（カーネルだけを使う。中核の読み出しが登録した種類を読むので一番下。ADR-0014）
         listOf("$APP.index", "$APP.schema", "$APP.validate", "$APP.text"),
         listOf("$APP.core"),
         listOf("$APP.session"),
         listOf("$APP.tools"),
-        listOf("$APP.ext"),
         listOf("$APP.skill"),
         listOf("$AGENT.llm"),
         listOf(AGENT), // agent の根＝定義（Definitions・Evals・ForeachDef）
@@ -97,7 +97,7 @@ object SourceRules {
         },
         Rule(
             2, "app の層は一方向",
-            why = "index・schema・validate・text、core、session、tools、ext、skill、agent.llm、agent（定義）、agent.run、agent.auto、agent.eval、desktop の根（AppState・ext）、desktop.ui の順に下から上へ重なり、上の層を import しない",
+            why = "ext、index・schema・validate・text、core、session、tools、skill、agent.llm、agent（定義）、agent.run、agent.auto、agent.eval、desktop の根（AppState・ext）、desktop.ui の順に下から上へ重なり、上の層を import しない",
             doc = "architecture/README.md「モジュールと依存方向」",
             known = listOf(
                 Known("app-core/src/main/kotlin/dev/toros/yde/app/validate/Readiness.kt", "core.Workspace を使っていて validate と core が循環している（BACKLOG）"),
@@ -188,7 +188,7 @@ object SourceRules {
         ) { files -> ModuleRules.extensionDependencies(files) },
         Rule(
             17, "拡張は決まった形にする",
-            why = "README・共通の設定の build・テスト・モジュール名どおりのパッケージ・公開は差し込み口の実装だけ、の同じ形なら、見る範囲が 1 モジュールに絞れる（ADR-0013「モジュールの中の形」）",
+            why = "README・共通の設定の build・テスト・モジュール名どおりのパッケージ・公開は差し込み口の実装だけ（ビューの種類は描画が読む型も。ADR-0014）、の同じ形なら、見る範囲が 1 モジュールに絞れる（ADR-0013「モジュールの中の形」）",
             doc = "architecture/agents.md「拡張ポイント」",
         ) { files -> ModuleRules.extensionShape(files) },
         Rule(

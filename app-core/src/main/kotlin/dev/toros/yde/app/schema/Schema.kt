@@ -19,7 +19,6 @@ import dev.toros.yde.semantic.schema.SchemaKind
 import dev.toros.yde.semantic.schema.SchemaScaffold
 import dev.toros.yde.semantic.schema.SchemaTree
 import dev.toros.yde.semantic.schema.VocabularySource
-import dev.toros.yde.workspace.BuiltinSchemaResources
 import dev.toros.yde.workspace.CheckCatalog
 import dev.toros.yde.workspace.DerivedStructures
 import dev.toros.yde.workspace.FileSystemDocumentStore
@@ -245,7 +244,7 @@ object SchemaLoader {
     fun loadAllWithErrors(workspace: Path, layout: WorkspaceLayout = WorkspaceLayout.of(workspace)): LoadResult {
         if (!Files.isDirectory(workspace)) return LoadResult(emptyList(), emptyList())
         val loaded = WorkspaceReader.load(
-            FileSystemDocumentStore(workspace), builtins = BuiltinSchemaResources.kernelSchemas(layout),
+            FileSystemDocumentStore(workspace), builtins = BuiltinSchemas.kernelSchemas(layout),
         )
         return fromKernel(workspace, loaded.schemas, loaded.declarations, loaded.schemaErrors)
     }
