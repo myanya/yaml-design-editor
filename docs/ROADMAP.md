@@ -481,7 +481,7 @@ R47-10 の最初の規則（既知の違反を除いて守られているので�
 | ID | 項目 | 内容 | 判断 | 状態 |
 |---|---|---|---|---|
 | R47-50 | Compose の UI テストの試行 | `runComposeUiTest`（ヘッドレス）で FormView に test-fixtures の文書を出し、項目の名前と値・閲覧専用の分岐を semantics で確かめる 3 本。`./gradlew test` で 10 秒以内に収まれば本採用 | 依存を足してよい（オーナー 2026-10-27） | ✅ 2026-10-27（依存を足してよい＝オーナー。`FormViewUiTest` 3 本＝項目の名前と値・閲覧専用で編集欄 0・入力が木に届き未保存。3 本で約 7.5 秒（R47-22 で 5 本に広げて約 9 秒）。クラスを作り直した直後の 1 回目だけ最初のテストが 10〜16 秒かかることがある（手元の Windows。順には依らない））。本採用 |
-| R47-51 | 画面確認の手順を skill に | Hot Reload MCP の手順（起動 → status が connected → reload → get_semantic_tree で確認 → 触った状態を戻す）を `.claude/skills/ui-check/` に置く | なし | 未着手 |
+| R47-51 | 画面確認の手順を skill に | Hot Reload MCP の手順（起動 → status が connected → reload → get_semantic_tree で確認 → 触った状態を戻す）を `.claude/skills/ui-check/` に置く | なし | ✅ 2026-10-28（`.claude/skills/ui-check/`: SKILL.md＝使う・使わないの判断と 8 段の手順・MCP でできないこと、scripts＝写す prepare.sh・起動を待つ wait-ready.sh・保存した木を探す tree_find.py・アプリだけを止める stop.ps1。AGENTS.md と CLAUDE.md・CONVENTIONS は skill を指す） |
 
 #### 段階 6: 拡張の機構（コンパイル時プラグイン・明示的な登録）
 

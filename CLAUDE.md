@@ -21,7 +21,7 @@ git config core.hooksPath scripts/git-hooks   # コミット前フック（ク�
 scripts/docs-lint.sh                        # 文書の形の機械チェック
 ```
 
-要件: ビルドと実行は JDK 21（toolchain。無ければ Gradle が自動で取得する。`./gradlew` 自体は JDK 17 以上で動く）。初回ビルドは等幅フォント Cica の取得でネットワークが要る。GUI アプリのため `run` / `hotRun` は対話的に閉じる必要がある（検証はテスト・ビルド・`runCli` で行い、画面の確認は `.mcp.json` の Hot Reload MCP サーバ＝スクリーンショット・クリック・入力で行える）。
+要件: ビルドと実行は JDK 21（toolchain。無ければ Gradle が自動で取得する。`./gradlew` 自体は JDK 17 以上で動く）。初回ビルドは等幅フォント Cica の取得でネットワークが要る。GUI アプリのため `run` / `hotRun` は対話的に閉じる必要がある（検証はテスト・ビルド・`runCli` で行い、画面の確認は `.mcp.json` の Hot Reload MCP サーバで行い、手順は skill `ui-check`＝`.claude/skills/ui-check/SKILL.md`）。
 環境の癖（Python の呼び方・CLI 出力の文字コード・画面確認の手順・`labs/` と一時ファイルの扱い）は [AGENTS.md](AGENTS.md)「この Windows 環境」にある。
 
 ## 文書

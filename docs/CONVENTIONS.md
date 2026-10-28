@@ -39,6 +39,7 @@
 - **新設するテストのメソッド名は日本語**のバッククォート文で書き、意図を文で表す（例: `` fun `保存後もUndoできる`() ``）。既存の英語名テスト（例: `idPatterns filter candidates`）は無理に改名せず、そのファイルへ手を入れる機会に合わせて直してよい。
 - **テストしたいロジックはコンポーザブルから純粋関数へ切り出し**、`internal` にしてテストする（例: `calculateDiff`, `combineProposal`, `parseResponse`）。
 - 画面の振る舞い（項目が出る・閲覧専用の分岐・入力が文書の木に届く）は Compose の UI テスト（`runComposeUiTest`。画面無しで描き、semantics＝部品が持つ文字と操作で確かめる）で確かめてよい。見た目（色・配置）は見ない。fixture は一時ディレクトリへ写して使い、1 本は数秒に収める（例 `FormViewUiTest`）。
+- テストに書きにくい画面の流れ（画面の行き来・ダッシュボード・図）は、実際の画面で確かめる。手順は `.claude/skills/ui-check/SKILL.md`（起動・画面の木の読み方・片付け）。
 - ネットワークは叩かない。APIクライアントはレスポンス解析関数（`parseResponse(statusCode, body)`）を単体テストする。
 - **OS に依存する絶対パスを書かない**: 全テストは GitHub Actions（Linux）でも回る。`Path.of("C:/ws")` は Linux では相対パスになり、`\` は区切りでなく名前の一部になる。絶対パスが要るテストは `Path.of("").toAbsolutePath().root` から組むか、一時ディレクトリを使う（文字だけを見る検査＝`FilePath` の入力に `C:/` を書くのは可）。
 - 実行: `./gradlew test`（コミット前に通すこと）。コミット前フック（`scripts/git-hooks/pre-commit`）は docs-lint と規則・参照のテストだけを回し、全テストは GitHub Actions（`.github/workflows/test.yml`）が push ごとに回す。
