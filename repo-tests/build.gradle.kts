@@ -39,3 +39,17 @@ tasks.register<JavaExec>("fileTreeBenchmark") {
     mainClass.set("dev.toros.yde.app.core.FileTreeBenchmark")
     javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) })
 }
+
+// 規則テストと文書の参照のテストは、全モジュールのソースと文書をファイルとして読む（クラスパスには入らない）。
+// 入力に宣言しないと、文書やコメントだけを変えたときに UP-TO-DATE で走らない（コミット前のフックが見逃す）
+val repoDir = rootProject.layout.projectDirectory
+tasks.named<Test>("test") {
+    inputs.files(
+        repoDir.files("CLAUDE.md", "AGENTS.md", "settings.gradle.kts"),
+        repoDir.dir("docs").asFileTree.matching { include("**/*.md") },
+        fileTree(rootDir) {
+            include("*/src/**/*.kt", "*/build.gradle.kts", "*/README.md", "src/**")
+            exclude(".*/**", "build/**", "scratchpad/**", "labs/**", "samples/**", "local/**")
+        },
+    ).withPropertyName("repoSources").withPathSensitivity(PathSensitivity.RELATIVE)
+}

@@ -10,6 +10,7 @@
 |---|---|---|---|---|---|
 | UX-214 | 2026-10-28 desktop をモジュールにする議論の下調べ中 | **`verifyWindowsDistribution`（と、それを使う `windowsRelease`）が今は必ず止まるはず**（`scripts/test-distribution.ps1` は `DistributionSmoke.class` の有無を `dev/toros/yde/app/` で見ているが、根パッケージの改名（07f6d60）でクラスは `dev/toros/yde/desktop/` に移った。実行する行は直したが、有無を見る行が古いまま。「先に testClasses を実行してください」で止まる） | 有無を見るパスを `desktop/` に直し、`verifyWindowsDistribution` を実際に通して確かめる。パッケージ名を 2 か所に書かないよう、クラス名を 1 つの変数にする | ✅ | R47-27 |
 | UX-215 | 2026-10-28 desktop をモジュールにする議論の下調べ中 | **CLAUDE.md の落とし穴の 2 行が、移す前の「root」を指したまま**（「root の `Validator` に検査を書き足さない」の `Validator` は今は app-core。「root に適用規則を書かない」も、今の root は画面だけ） | 「app-core の `Validator`」「入口（desktop・cli）に適用規則を書かない」のように今の置き場で書き直す。R47-14（CLAUDE.md を縮める）と一緒でもよい | ✅ | R47-27 |
+| UX-213 | 2026-10-28 用語集（R47-32）中 | **文書だけを変えたコミットでは、コミット前のフックの `DocReferencesTest`・`SourceRulesTest` が実行されない**（root の test タスクが docs/ とソースを入力に宣言していないので UP-TO-DATE になる。わざと見出しを壊しても通った。CI は毎回まっさらなので落ちる） | root の test タスクに `inputs.files`（docs/ の .md・CLAUDE.md・各モジュールの src。`PathSensitivity.RELATIVE`）を宣言するか、フックの呼び出しに `--rerun` を付ける | ✅ | R47-27（repo-tests の test タスクに文書とソースを入力として宣言） |
 
 ## 注文管理サンプル（2026-10-26）
 
