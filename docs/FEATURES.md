@@ -69,7 +69,7 @@
 
 | ID | 機能 | 主な実装 | テスト | 設計 |
 |---|---|---|---|---|
-| S-01 | スキーマ読込（`match` glob 先勝ち・id 重複検出・読むのはカーネルの経路だけ・root の `SchemaDef` は薄い型） | `workspace-core/workspace/SchemaDocuments.kt`・`WorkspaceReader.kt`, `schema/Schema.kt` | 単体 `SchemaLoaderTest`, `KernelCheckLoadingTest` | [schema](architecture/schema.md) |
+| S-01 | スキーマ読込（`match` glob 先勝ち・id 重複検出・読むのはカーネルの経路だけ・app-core の `SchemaDef` は薄い型） | `workspace-core/workspace/SchemaDocuments.kt`・`WorkspaceReader.kt`, `schema/Schema.kt` | 単体 `SchemaLoaderTest`, `KernelCheckLoadingTest` | [schema](architecture/schema.md) |
 | S-02 | 型システム: 基底の種類 14 種（表現の基底 9＋意味の基底型 `id` / `ref` / `date` / `time` / `datetime`。存在の検証）＋組込みの定義体 `text` / `line` / `word` | `semantic-core/schema/Fields.kt`・`ValueSemantics.kt`・`BuiltinTypes.kt` | 単体 `MetaSchemaTest`, `TypeDefinitionsTest` | [schema](architecture/schema.md) |
 | S-03 | 名前付き定義と再帰参照（`definitions` / `$ref`・狭める規則の合成） | `semantic-core/schema/SchemaTree.kt`（`resolve`） | 単体 `TypeDefinitionsTest` | [schema](architecture/schema.md) |
 | S-04 | メタスキーマ検証と宣言のない関係名の点検（実体はカーネル・読み込みエラーへ足す） | `workspace-core/workspace/SchemaDefinitionChecks.kt` | 単体 `SchemaLoaderTest`, `KernelOnlyChecksTest` | [schema](architecture/schema.md) |
@@ -139,7 +139,7 @@
 | I-09 | ID インスペクタ（右パネルの検証・関係・出現の 3 タブ） | `ui/SidePanel.kt` | 手動 | [ui](architecture/ui.md) |
 | I-10 | 導出グラフ（走査結果から導出する読み取り専用のエンティティグラフ・索引の更新で無効化） | `semantic-core/semantic/`（`SemanticEntityGraph`）, `index/IdIndex.kt`（`graph`） | 単体 `EntityGraphTest` | [graph-query](architecture/graph-query.md) |
 | I-11 | 文書参照（`target: document`・文書ノードへの参照・エンティティ参照とは混ぜない） | `index/IdIndex.kt`（`RefEntry.targetKind`）, `ui/RefEditors.kt`（`DocRefScalarEditor`） | 単体 `DocRefTest` | [graph-query](architecture/graph-query.md) |
-| I-12 | 場所は文書 ID（索引・検証・ビュー・クエリの場所はワークスペース相対の `DocumentId`・root の型はカーネルの別名・編集用セッションは `fork`） | `index/IdIndex.kt`, `workspace-core/workspace/WorkspaceSession.kt`（`fork`） | 単体 `SessionForkTest`, `EditingSessionForkTest` | [index-references](architecture/index-references.md) |
+| I-12 | 場所は文書 ID（索引・検証・ビュー・クエリの場所はワークスペース相対の `DocumentId`・app-core の型はカーネルの別名・編集用セッションは `fork`） | `index/IdIndex.kt`, `workspace-core/workspace/WorkspaceSession.kt`（`fork`） | 単体 `SessionForkTest`, `EditingSessionForkTest` | [index-references](architecture/index-references.md) |
 | I-13 | 保有と所属（入れ子で決まる関係に名前＝子を書く項目の `relation` かキー名・レジストリの宣言が効く・関係パネルと related・削除の注意事項） | `semantic-core/semantic/Graph.kt`（`SemanticHolding`）, `semantic-core/semantic/Refactor.kt` | 単体 `HoldingDeleteTest`, `SemanticEntityGraphTest` | [graph-query](architecture/graph-query.md) |
 
 ## 6. ワークスペース横断ビュー

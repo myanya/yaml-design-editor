@@ -59,7 +59,7 @@
 - `OpenDocument` は `EditBuffer` のシェル（[editing-history.md](editing-history.md)）。編集 API の意味を変えるときは `EditBuffer` を直す。
 - `docCache` は `mutableStateMapOf` で、文書と内部の State を同じスナップショットから参照する。描画開始後に生成した文書は次の描画から見え、破棄したスナップショットの文書は公開しない。
 - 一覧・一括編集（`WorkspaceRecords`）は「未保存編集を優先する木の取得」を注入で受ける。UI は docCache を、ヘッドレス経路はディスクを渡す。
-- `Workspace.refresh` は、開いたセッションが読んだ結果を `SchemaLoader.fromKernel` でアプリの形にする。root でファイルからスキーマを読み直さない。
+- `Workspace.refresh` は、開いたセッションが読んだ結果を `SchemaLoader.fromKernel` でアプリの形にする。app-core でファイルからスキーマを読み直さない。
 
 ## 外部変更の取り込み
 
@@ -102,10 +102,10 @@
 
 - `ChangeSetApplier.apply(base, changeSet, dryRun, requireValid, target)`: ①変更ごとにストアの内容に対して競合を判定し（`create` は既にあれば競合・`base` のハッシュの食い違いは競合）、メモリの上で操作を当てる。1 件でも失敗すれば何も書かない。
 - ②適用後の姿を重ねた派生状態の上で、変更した文書をアプリの検証と同じ組み立て（`DocumentValidator`）で検証する。③`requireValid` なら検証のエラーが残るときも書かない。④書き込みはセッションの 1 つのトランザクション＋保存。Undo 1 回で全部の文書が戻る。
-- `base` は競合の判定と検証の基準にするセッション、`target` は書き込み先。CLI と root の `Workspace.apply` は同じセッションを両方に使う。アプリの承認の経路（`applyViaSession`）は `base` にディスクを映した内部のセッション、`target` に編集用のセッションを渡す（検証の基準はディスクの内容）。
+- `base` は競合の判定と検証の基準にするセッション、`target` は書き込み先。CLI と app-core の `Workspace.apply` は同じセッションを両方に使う。アプリの承認の経路（`applyViaSession`）は `base` にディスクを映した内部のセッション、`target` に編集用のセッションを渡す（検証の基準はディスクの内容）。
 - 適用できるのはセッションが読み込んでいる YAML 文書と新しく作る文書だけ。変更セットの `file` はワークスペース相対のパスだけ。
 - 保存時に自動で入る値（更新日・版。[auto-values.md](auto-values.md)）は、操作を当てた木へ検証の前に入れる（必須の更新日が無い新しい要素も通る）。同じトランザクションに含まれ、Undo 1 回で一緒に戻る。「今」は `apply` の `now` で渡す。
-- root の `Workspace.apply` / `applyViaSession` はカーネルの適用を呼び、結果をファイルの座標へ写して、書いたファイルの分だけ索引を更新する。カーネル側の CLI は `workspace apply <root> <変更セット.yaml> [--dry-run] [--require-valid]`（終了コード 0＝成功・2＝競合や操作のエラー・3＝検証エラーで書き込まず）。
+- app-core の `Workspace.apply` / `applyViaSession` はカーネルの適用を呼び、結果をファイルの座標へ写して、書いたファイルの分だけ索引を更新する。カーネル側の CLI は `workspace apply <root> <変更セット.yaml> [--dry-run] [--require-valid]`（終了コード 0＝成功・2＝競合や操作のエラー・3＝検証エラーで書き込まず）。
 
 ## リファクタリングの影響
 
@@ -114,8 +114,8 @@
 埋め込みのビュー参照はref型として通常の改名計画へ含まれ、専用の書込経路を持たない。
 
 - リファクタリングの計画のうちワークスペースの定義文書を見て決まる分（フィールドの改名へのビュー定義の追随・宣言節と定義文書の言及の警告・フィールドの削除の言及の警告・文書の移動でビュー定義の対象から外れる警告）は `RefactoringImpact` が作り、`WorkspaceSession.planRefactoring` が計画に含める。
-- ビュー定義・スキーマ文書・定義文書の内容は保存されている内容から読む（`storedText` / `storedDocuments`。ディレクトリの直下のファイルだけ・ファイル名順）。どの入口（アプリ・CLI・シェル）でも同じ計画になる。root の `core.RefactorImpact` は窓口。
-- root に意図して残す読み出しモデル: 画面とエージェントの文脈づくりのためのもの（`Traverse`・`Disclosure`・`Search`・`SchemaInference`・`IdSuggest`・`Aspects`・`Readiness`）。
+- ビュー定義・スキーマ文書・定義文書の内容は保存されている内容から読む（`storedText` / `storedDocuments`。ディレクトリの直下のファイルだけ・ファイル名順）。どの入口（アプリ・CLI・シェル）でも同じ計画になる。app-core の `core.RefactorImpact` は窓口。
+- app-core に意図して残す読み出しモデル: 画面とエージェントの文脈づくりのためのもの（`Traverse`・`Disclosure`・`Search`・`SchemaInference`・`IdSuggest`・`Aspects`・`Readiness`）。
 
 ## 規律
 
@@ -124,8 +124,8 @@
 - 配置判定は `WorkspaceLayout` に一元化する。機能側で `startsWith("_")` やディレクトリ名の直書き判定を書かない。
 - ディスクの変更の取り込みの振り分けは `Workspace.noteDiskChanges` だけ。AppState 側に振り分けを書かない。
 - ディスクを映すセッションと編集用のセッションを 1 つにまとめない。読み込みは 1 回で、編集用は `fork()` で起こす。
-- root の `Workspace.apply` / `applyViaSession` はカーネルの適用を呼ぶだけ。適用の規則を root に書き足さない。ファイルへ直接書く適用の経路を作らない。
-- root でスキーマをファイルから読む処理を書き足さない。
+- app-core の `Workspace.apply` / `applyViaSession` はカーネルの適用を呼ぶだけ。適用の規則を app-core に書き足さない。ファイルへ直接書く適用の経路を作らない。
+- app-core でスキーマをファイルから読む処理を書き足さない。
 - リファクタリングの計画をアプリ側で補強しない。
 - 破壊的操作（削除・一括編集・ワークスペース切替・終了）は未保存文書があれば拒否または確認ダイアログを挟む。
 - 初期化の計画は `WorkspaceInit` だけが作る。テンプレートの中身を Kotlin の文字列で組み立てない。初期化済みの判定に印を使わない。
@@ -137,7 +137,7 @@
 
 - **ゾーンや台帳の決まりの追加**: `WorkspaceLayout` の述語に足し、消費側（走査・書込権限・スキーマ適用・監視）はそれを読む。
 - **セッションの操作の追加**: `WorkspaceOperation` / `YamlOperation` として表し、トランザクションと履歴に載せる。
-- **変更セットの形式の拡張**: `ChangeSets` の読み取りと `ChangeSetApplier` に足し、CLI `workspace apply` と root の `apply` の両方で同じ結果になることを `ChangeSetApplierTest` で確かめる。
+- **変更セットの形式の拡張**: `ChangeSets` の読み取りと `ChangeSetApplier` に足し、CLI `workspace apply` と app-core の `apply` の両方で同じ結果になることを `ChangeSetApplierTest` で確かめる。
 
 ## ファイル配置の変更
 

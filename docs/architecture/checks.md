@@ -23,7 +23,7 @@
 | `ElementRule` / `SemanticElementChecks` | semantic-core/schema/ElementRule.kt・semantic/ElementChecks.kt | 型の検査（オブジェクト型の要素ごとの検査）の宣言と評価（グラフを使わない。`SemanticValues` で要素を「いまの要素」として `where` / `check` を評価） |
 | `DocumentValidator` / `DocumentValidation` | workspace-core/validate/DocumentValidator.kt | 文書 1 つの検証の全体の組み立て |
 | `WorkspaceCheckRunner` | workspace-core/workspace/WorkspaceCheckRunner.kt | カーネル側の CLI の全文書の検証（`validateAll` / `deliverAll`） |
-| `Validator` / `Issue`（＝`CheckIssue`）/ `IssueResponse`（＝`CheckResponse`） | validate/Validator.kt | root の窓口（索引とスキーマを渡して `DocumentValidator` を呼ぶ）。`validateDetailed` は保留も返す |
+| `Validator` / `Issue`（＝`CheckIssue`）/ `IssueResponse`（＝`CheckResponse`） | validate/Validator.kt | app-core の窓口（索引とスキーマを渡して `DocumentValidator` を呼ぶ）。`validateDetailed` は保留も返す |
 | `Readiness` | validate/Readiness.kt | 準備完了レポート（指摘をエンティティへ帰属し、エラー 0 で準備完了） |
 | `Staging.newErrors` | agent/run/Staging.kt | 提出ゲート `no-new-errors`（出どころの `identity` で見分ける） |
 | `SidePanel`（`IssueRow`） | ui/SidePanel.kt | 検証パネル。指摘のクリックは対応（`responses`）の選択メニュー |
@@ -106,8 +106,8 @@
 ## 検査の定義の読み込み
 
 - `CheckCatalog`（workspace-core）: 組込み定義体（`builtinLibrary` / `builtinChecks` / `builtinRules` / `builtinCheckers`）・ワークスペースの定義の一式の収集（`libraryOf`）・スキーマ 1 件の検査の展開とパース（`checksOf`。出どころつき）・展開後の検査のパース（`rulesOf`）・語彙のキーのメタスキーマへの合成（`withVocabularyKeys`）。
-- root の `SchemaLoader` とカーネルの `WorkspaceReader` が共有する。カーネルは、スキーマ文書の生の値から先に定義の一式を集め、スキーマごとに検査を展開して `WorkspaceSchema.constraints` / `checkers` / `expandedChecks` に持つ。
-- `KernelCheckLoadingTest` が、検査の中身と出どころ・実行した結果が root とカーネルで一致することを確かめる。
+- app-core の `SchemaLoader` とカーネルの `WorkspaceReader` が共有する。カーネルは、スキーマ文書の生の値から先に定義の一式を集め、スキーマごとに検査を展開して `WorkspaceSchema.constraints` / `checkers` / `expandedChecks` に持つ。
+- `KernelCheckLoadingTest` が、検査の中身と出どころ・実行した結果が app-core とカーネルで一致することを確かめる。
 
 ## 配り方
 
@@ -126,7 +126,7 @@
 - **file 型の値の検査**（`CodedDocumentChecks.fileIssues`）: 書き方（`FilePath`）・拡張子（`FieldDef.extensions`）・ワークスペースの外・存在。外と無いファイルの扱いは `WorkspaceLayout.files`（`.yde/workspace.yaml` の `files:`＝`FilePolicy`）で、存在は `fileExists`（ストアに聞く。CLI は読み込んだストア、アプリはワークスペースのルート）に聞く。`fileExists` が無ければ存在は見ない。
 - 台帳の外の文書（`indexed = false`）では、相手の見つからない参照を情報レベルへ降格し、ワークスペースの他の文書も見る検査を行わない（[workspace.md「エディタ層と台帳層」](workspace.md)）。中身が空の文書は空のマップとして検証する。
 - 構造の検証は導出した最小の構造のスキーマで行う（[schema.md「構造スキーマの導出」](schema.md)）。参照の解決はエンティティと文書の名前空間を分ける。ID の重複は同一文書内だけ。
-- root の `Validator` は索引とスキーマを渡して呼ぶ窓口。カーネル側の CLI `workspace validate` は `WorkspaceCheckRunner.validateAll` で全文書を同じ部品で検証する（出力の区分＝構造・意味・検査は出どころで分ける）。変更セットの適用も適用後の姿の上で同じ組み立てを使う。`KernelCheckLoadingTest` が文書ごとの指摘（並び順まで）と保留がアプリとカーネルで一致することを確かめる。
+- app-core の `Validator` は索引とスキーマを渡して呼ぶ窓口。カーネル側の CLI `workspace validate` は `WorkspaceCheckRunner.validateAll` で全文書を同じ部品で検証する（出力の区分＝構造・意味・検査は出どころで分ける）。変更セットの適用も適用後の姿の上で同じ組み立てを使う。`KernelCheckLoadingTest` が文書ごとの指摘（並び順まで）と保留がアプリとカーネルで一致することを確かめる。
 
 ## 準備完了レポート
 
@@ -140,7 +140,7 @@
 - チェッカーを足すときは `CheckerKind`・渡す値の型・`SemanticCheckers`・メタスキーマを揃える。「何段でも辿る」だけで足りる検査は専用チェッカーにしない。
 - どの結果になるかの判定は `SemanticRules` の 1 箇所。「指摘が出ない＝充足」という判定を書かない（保留を充足に数えてしまう）。
 - 指摘を作るときは必ず出どころを付ける（定義体は `WorkspaceChecks`、コードは `CodedChecks`）。指摘の種類は文面から読み取らず、作る場所がデータとして付ける。同じ指摘かどうかは `IssueSource.identity` で見る。
-- 検証の組み立て・定義体の検査の配り方や文面を root に書き足さない。カーネル側の CLI と結果が食い違う。
+- 検証の組み立て・定義体の検査の配り方や文面を app-core に書き足さない。カーネル側の CLI と結果が食い違う。
 - 全体を回す経路から `Validator.validate` を呼ぶときは `shareEvaluations = true` を渡す。索引に重ねていない内容の検証では渡さない。
 - 検査やクエリの評価の中で全要素・全参照を総なめする処理を「評価のたび」に置かない。
 - 値どうしの比較・出現からの値の読み出し・出現選択は `SemanticExpression` を通す。`toDoubleOrNull` の比較や `firstOrNull { selector.matches }` を機能側へ書かない。

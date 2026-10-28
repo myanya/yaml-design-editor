@@ -14,7 +14,7 @@ import kotlin.streams.asSequence
  * 構文解析はしない。import 行と文字の一致で足りる規則だけを扱い、足りなくなったら Konsist のような解析器を検討する。
  */
 class SourceFile(
-    /** モジュール名（yaml-core / semantic-core / workspace-core / cli / app） */
+    /** モジュール名（settings.gradle.kts の include の名前。yaml-core / app-core / desktop / repo-tests など） */
     val module: String,
     /** リポジトリのルートからの相対パス（区切りは /） */
     val path: String,
@@ -66,11 +66,12 @@ object SourceScanner {
         "format-docx" to "format-docx/src/main/kotlin",
         "view-chart" to "view-chart/src/main/kotlin",
         "view-flow" to "view-flow/src/main/kotlin",
-        "app" to "src/main/kotlin",
+        "desktop" to "desktop/src/main/kotlin",
     )
 
-    /** モジュール名と test ソースの場所（scope が TEST の規則が読む）。 */
-    val testModules: Map<String, String> = modules.mapValues { it.value.replace("/main/", "/test/") }
+    /** モジュール名と test ソースの場所（scope が TEST の規則が読む）。repo-tests はテストだけのモジュールで main が無い。 */
+    val testModules: Map<String, String> =
+        modules.mapValues { it.value.replace("/main/", "/test/") } + ("repo-tests" to "repo-tests/src/test/kotlin")
 
     /** 全モジュールの main の Kotlin ソース（1 回だけ読む）。 */
     val mainSources: List<SourceFile> by lazy { collect(modules) }

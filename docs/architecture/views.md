@@ -9,7 +9,7 @@
 
 | 部品 | ファイル | 責務 |
 |---|---|---|
-| `VirtualGridDef` / `VirtualDocViewDef` / `VirtualViewDefinition`（root の `ViewDef` / `DocViewDef` は別名） | semantic-core/semantic/VirtualViews.kt | ビュー定義の宣言の型と解決（仮想文書・テキスト表現） |
+| `VirtualGridDef` / `VirtualDocViewDef` / `VirtualViewDefinition`（app-core の `ViewDef` / `DocViewDef` は別名） | semantic-core/semantic/VirtualViews.kt | ビュー定義の宣言の型と解決（仮想文書・テキスト表現） |
 | `FlowViewKind` / `VirtualFlowDef` / `FlowViews` / `FlowResolution` / `FlowViewResult` | view-flow（拡張）の view/flow/FlowViewKind.kt・FlowViews.kt | フロー（`kind: flow`）の読み取りと点検・移動と改名の影響、Constructによる文書の射影、原本対応、表示契約と接続先の診断 |
 | `VirtualLensDef` / `VirtualLensRelation` / `LensArrow` | semantic-core/semantic/LensViews.kt | レンズの見え方の定義（`kind: lens`＝関係ごとの矢印の向き・表示だけ・消費は `Views.LoadResult.reversedRelations` → `LensGraphs`） |
 | `ExtensionViewDef` / `ExtensionViewResult` / `ViewContext` / `VirtualDocEmbed` | semantic-core/semantic/ExtensionViews.kt | 拡張の種類のビューの共通の形（定義・解決の結果・解決に使う中核の表の窓口・文書ビューの区画への埋め込み）。中核はこの窓口だけで扱う |
@@ -22,7 +22,7 @@
 | `GraphLayouts.arrangeFlow` / `FlowSelection` / `FlowDisplayOptions` | ui/GraphLayouts.kt・view-flow の view/flow/FlowSelection.kt・FlowDisplayOptions.kt | 計測寸法からの決定的配置と文書・版を考慮した選択の再解決・表示の設定 |
 | `FlowViewPane` / `FlowRenderer` | ui/FlowViewPane.kt | 単独表示・文書埋め込み・Canvas描画と既存の原本フォームへの委譲。`FlowRenderer` は描画の一覧の 1 行 |
 | `ViewDefinitions` / `ViewCatalog` | workspace-core/workspace/ViewDefinitions.kt | 読み取り（`parseView`＝definition 参照の列展開を含む）とリント（`lint` / `lintDocument`＝ビュー → スキーマの整合・`staticFieldAt` / `idElements`） |
-| `Views` | core/Views.kt | root の窓口（views ゾーンのファイルを読んで渡す `load`・行 × セルの解決 `resolve`・文書ビューの解決 `resolveDocument` / `resolveAttachments`・`renderText` / `renderDocText`・`fieldAt`＝`SchemaDef.fieldAt` へ委譲） |
+| `Views` | core/Views.kt | app-core の窓口（views ゾーンのファイルを読んで渡す `load`・行 × セルの解決 `resolve`・文書ビューの解決 `resolveDocument` / `resolveAttachments`・`renderText` / `renderDocText`・`fieldAt`＝`SchemaDef.fieldAt` へ委譲） |
 | `ViewRow`（＝`VirtualRow`）/ `ViewCell` | core/Views.kt | 解決の結果（別名） |
 | `ViewGridPane` | ui/ViewGridPane.kt | ビューグリッド。セル編集は文書キャッシュの木の直接編集、行アクションで詳細文書の作成・新規行 |
 | `DocViewSections` / `AttachedBacklinks` | ui/FormDocView.kt | 文書ビューの描画（fields セクションは既存フォームへの委譲・backlinks と attachments は読み取り専用の表） |
@@ -135,7 +135,7 @@
 ## 規律
 
 - ビュー専用の書込経路を作らない。UI は docCache の木の直接編集、エージェントは `read_view` → `apply_patch`。
-- ビュー定義の型はカーネルの型（`semantic/VirtualViews.kt`）で、root の型はその別名。root にビュー定義の型や読み取りを書き足さない。
+- ビュー定義の型はカーネルの型（`semantic/VirtualViews.kt`）で、app-core の型はその別名。app-core にビュー定義の型や読み取りを書き足さない。
 - 定義項目の追加は、宣言の型・`ViewDefinitions.parseView`・メタスキーマ `builtin-view`（`builtin-schemas/view.yaml`）を対で更新する。拡張の種類なら、その拡張の型・`ViewKind.parse`・断片を対で更新する。
 - 中核（カーネル・app-core・画面の共通部）に拡張の種類ごとの分岐（`is VirtualChartDef` や kind の文字での分岐）を書かない。拡張の種類は `ExtensionViewDef` / `ExtensionViewResult` の窓口と `ViewRenderers` で扱う。
 - 画面合成のためのオプションをスキーマ（`FieldDef`）へ足さない。合成の要望はビュー側の語彙で受ける。

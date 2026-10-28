@@ -1,6 +1,6 @@
-// Compose を使わないモジュール（カーネル・app-core・agent・cli・拡張）の共通設定。
+// Compose を使わないモジュール（カーネル・app-core・agent・cli・拡張・repo-tests）の共通設定。
 // モジュール側は `plugins { id("yde.kotlin-module") }` と dependencies、固有の設定（資源の生成・作業ディレクトリなど）だけを書く。
-// Compose を使うモジュール（root。将来の view-*-ui）は Compose の版と JUnit 4 が絡むので別に書く。
+// Compose を使うモジュール（desktop。将来の view-*-ui）は Compose の版と JUnit 4 が絡むので別に書く。
 plugins {
     kotlin("jvm")
 }

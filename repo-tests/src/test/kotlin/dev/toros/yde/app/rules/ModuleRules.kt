@@ -23,7 +23,7 @@ internal object ModuleRules {
 
     /** 入口ごとの拡張の登録の一覧。 */
     private val entryLists = listOf(
-        "src/main/kotlin/dev/toros/yde/desktop/ext/DesktopExtensions.kt",
+        "desktop/src/main/kotlin/dev/toros/yde/desktop/ext/DesktopExtensions.kt",
         "cli/src/main/kotlin/dev/toros/yde/cli/CliExtensions.kt",
     )
 
@@ -43,16 +43,17 @@ internal object ModuleRules {
 
     // ---------------------------------------------------------------- 規則 14
 
-    /** settings.gradle.kts の include にあって、走査（SourceScanner.modules）に無いモジュール。root（"app"）は include に書かない。 */
+    /** settings.gradle.kts の include にあって、走査（SourceScanner.modules か testModules）に無いモジュールと、root の src/。 */
     fun unscannedModules(): List<Hit> {
-        val settings = pseudo("app", "settings.gradle.kts")
+        val rootSources = if (root.resolve("src").exists()) listOf(Hit(pseudo("root", "src"), 1, "root に src/ がある（ソースはモジュールに置く）", key = "src")) else emptyList()
+        val settings = pseudo("settings", "settings.gradle.kts")
         val include = Regex(""""\s*:([\w-]+)\s*"""")
         return settings.lines.flatMapIndexed { i, line ->
             include.findAll(line).map { it.groupValues[1] }
-                .filter { it !in SourceScanner.modules }
+                .filter { it !in SourceScanner.modules && it !in SourceScanner.testModules }
                 .map { Hit(settings, i + 1, "モジュール :$it が SourceScanner.modules に無い", key = it) }
                 .toList()
-        }
+        } + rootSources
     }
 
     // ---------------------------------------------------------------- 規則 15

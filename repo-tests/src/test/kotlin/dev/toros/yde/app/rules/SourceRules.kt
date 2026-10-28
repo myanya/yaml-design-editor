@@ -27,7 +27,7 @@ object SourceRules {
     private const val APP = "dev.toros.yde.app"
     private const val DESKTOP = "dev.toros.yde.desktop"
     private const val AGENT = "dev.toros.yde.agent"
-    private const val UI = "src/main/kotlin/dev/toros/yde/desktop/ui"
+    private const val UI = "desktop/src/main/kotlin/dev/toros/yde/desktop/ui"
 
     /** 大きなファイルの目安（行）。超えても失敗にしない（文書の字数と同じ扱い）。SourceRulesTest が報告し、pre-commit が表示する */
     const val LARGE_FILE_LINES = 800
@@ -69,7 +69,7 @@ object SourceRules {
 
     /** Files.exists / notExists を直接呼んでよいファイル（ストア・配置・初期化・実行記録など、ファイルそのものを扱う所）。減らす方向。 */
     private val fileExistsAllowed = setOf(
-        "src/main/kotlin/dev/toros/yde/desktop/AppState.kt",
+        "desktop/src/main/kotlin/dev/toros/yde/desktop/AppState.kt",
         "app-core/src/main/kotlin/dev/toros/yde/app/session/DocumentSession.kt",
         "cli/src/main/kotlin/dev/toros/yde/cli/commands/QueryCommands.kt",
         "cli/src/main/kotlin/dev/toros/yde/cli/commands/InitCommands.kt",
@@ -101,7 +101,7 @@ object SourceRules {
             doc = "architecture/README.md「モジュールと依存方向」",
             known = listOf(
                 Known("app-core/src/main/kotlin/dev/toros/yde/app/validate/Readiness.kt", "core.Workspace を使っていて validate と core が循環している（BACKLOG）"),
-                Known("src/main/kotlin/dev/toros/yde/desktop/AppState.kt", "ui の DesktopUiDispatcher を使っている（BACKLOG）"),
+                Known("desktop/src/main/kotlin/dev/toros/yde/desktop/AppState.kt", "ui の DesktopUiDispatcher を使っている（BACKLOG）"),
             ),
         ) { files -> layerViolations(files) },
         Rule(
@@ -172,8 +172,8 @@ object SourceRules {
             scope = Rule.Scope.TEST,
         ) { files -> files.flatMap { it.find(drivePathLiteral) } },
         Rule(
-            14, "settings.gradle.kts の全モジュールを規則テストが走査する",
-            why = "新しいモジュールを走査の一覧（SourceScanner.modules）に足し忘れると、そのモジュールだけ全部の規則の外になる",
+            14, "settings.gradle.kts の全モジュールを規則テストが走査し、root にソースを置かない",
+            why = "新しいモジュールを走査の一覧（SourceScanner.modules）に足し忘れると、そのモジュールだけ全部の規則の外になる。root の src/ もどのモジュールにも属さず走査の外になる",
             doc = "architecture/README.md「ソース規則テスト」",
         ) { _ -> ModuleRules.unscannedModules() },
         Rule(

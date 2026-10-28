@@ -32,7 +32,7 @@ try {
 } finally { $archive.Dispose() }
 [IO.Compression.ZipFile]::ExtractToDirectory($ArchivePath, $stage)
 $distribution = Join-Path $stage 'yaml-design-editor'
-$image = Join-Path $repoRoot 'build/compose/binaries/main/app/yaml-design-editor'
+$image = Join-Path $repoRoot 'desktop/build/compose/binaries/main/app/yaml-design-editor'
 
 # 配布物以外のローカル設定・ログ等が入っていないこと、内容が元の生成物と一致することを検査する。
 $imageFiles = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
@@ -49,7 +49,7 @@ foreach ($file in [IO.Directory]::GetFiles($distribution, '*', [IO.SearchOption]
     if ($imageFiles.Contains($relative)) { continue }
     $source = switch -Regex ($relative) {
         '^README\.txt$' { Join-Path $repoRoot 'distribution/windows/README.txt'; break }
-        '^(BUILD-INFO|RUNTIME-RELEASE)\.txt$' { Join-Path $repoRoot "build/generated/windows-release/$relative"; break }
+        '^(BUILD-INFO|RUNTIME-RELEASE)\.txt$' { Join-Path $repoRoot "desktop/build/generated/windows-release/$relative"; break }
         '^examples/todos/(README\.md|\.yde/workspace\.yaml|\.yde/(schemas|views)/[^/]+\.yaml|todos/([^/]+|details/[^/]+)\.yaml)$' {
             Join-Path $repoRoot ('samples/todos/' + $relative.Substring('examples/todos/'.Length)); break
         }

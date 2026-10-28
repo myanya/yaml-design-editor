@@ -32,13 +32,13 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 - AI 連携: Java 11 HttpClient + kotlinx-serialization-json（外部 SDK 不使用）。HttpClient の生成は `agent/llm/Http.kt` の単一ファクトリ
 - Excel・Word 入出力: Apache POI（skill のインポート・エクスポートのみ）
 - 永続化: `java.util.prefs.Preferences`（UI レイアウト・テーマ・履歴・AI モデル設定）
-- ビルド: Gradle（Wrapper 同梱）マルチモジュール。ルート＝Compose アプリ＋ `yaml-core` / `semantic-core` / `workspace-core` / `cli`。テスト: kotlin.test
+- ビルド: Gradle（Wrapper 同梱）マルチモジュール。root はビルド全体の設定だけでソースを置かない（モジュールの一覧は下の表）。テスト: kotlin.test
 - ヘッドレス CLI: `./gradlew runCli --args="…"`（[manual/cli.md](../manual/cli.md)）
 
 ## モジュールと依存方向
 
-パッケージは `dev.toros.yde.<モジュール>.*`（規則は CONVENTIONS「モジュールの規約」）。依存方向は ADR-0002（app-core は ADR-0013）が正: `yaml-core ← semantic-core ← workspace-core ← app-core ← agent ← アプリ（root）`（cli は app-core・agent・拡張まで・拡張 format-*・view-* は app-core まで）。
-目指す構成（画面を持たない応用層 app-core・agent・入口 desktop／cli／mcp・形式とビューの種類の拡張）は ADR-0013（ビューの種類は ADR-0014）にあり、移行は ROADMAP の計画で進める。下の表は移る前の今の姿。
+パッケージは `dev.toros.yde.<モジュール>.*`（規則は CONVENTIONS「モジュールの規約」）。依存方向は ADR-0002（app-core は ADR-0013）が正: `yaml-core ← semantic-core ← workspace-core ← app-core ← agent ← desktop`（cli は app-core・agent・拡張まで・拡張 format-*・view-* は app-core まで）。repo-tests はテストだけのモジュールで、全モジュールに依存してよい。
+構成（画面を持たない応用層 app-core・agent・入口 desktop／cli／mcp・形式とビューの種類の拡張）は ADR-0013（ビューの種類は ADR-0014）が正。入口の mcp はまだ無い。
 文書とコメントでは接頭辞を省いて `schema.FieldDef`・`validate/Validator.kt` のように書き、同じ短い名前が複数のモジュールにあるとき（`schema`・`validate`・`core`）はモジュール名を添える。
 
 | モジュール | パッケージ | 中身 |
@@ -76,22 +76,23 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 | format-docx | `format.docx` | 拡張: Word 文書の中の表（Apache POI。読むだけ）の `FormatCodec`（`DocxFormat.kt`） |
 | view-chart | `view.chart` | 拡張: ビューの種類 `kind: chart` の `ViewKind`（`ChartViewKind.kt`）と、描画が読む定義と結果の型（`ChartViews.kt`・`ChartSelection.kt`）。定義の形の断片は資源 `view-chart/schema.yaml` |
 | view-flow | `view.flow` | 拡張: ビューの種類 `kind: flow` の `ViewKind`（`FlowViewKind.kt`）と、描画が読む定義・図のモデル・選択・表示の設定（`FlowViews.kt`・`FlowSelection.kt`・`FlowDisplayOptions.kt`）。CLI・read_view の値は `FlowReports.kt`。資源は断片 `view-flow/schema.yaml` と図の構造 `view-flow/flow-model.yaml` |
-| アプリ（root） | `desktop` | `Main.kt`（エントリポイント・ウィンドウ・ショートカット・スタート画面）・`AppState` / `OpenDocument` |
+| desktop | `desktop` | `Main.kt`（エントリポイント・ウィンドウ・ショートカット・スタート画面）・`AppState` / `OpenDocument` |
 | | `desktop.ui` | Compose の画面一式（骨格は `ui/Shell.kt`）。拡張の種類のビューの描画の一覧 `ViewRenderers` もここ（ADR-0014） |
 | | `desktop.ext` | 拡張の登録の一覧（`DesktopExtensions`。入出力の形式 6 つとビューの種類 2 つ）。入口が `Extensions.install` に渡す 1 ファイル |
+| repo-tests | `app.rules` ほか | テストだけ（main は無い）。規則テスト（`rules/SourceRulesTest`・`rules/ModuleRules`・`rules/DocReferencesTest`）と、入口（desktop・cli）や拡張の一覧をまたぐテスト（CLI と画面の結果の突き合わせ・テンプレート・取り込み・家計簿の試作）。パッケージは試す対象のもの（`app.core` など） |
 
 応用層の中の依存は `app.ext`（登録簿。カーネルだけを使う）→ `app.core` → `app.session` → `app.tools` → `app.skill`（app-core）→ `agent.llm` → `agent` → `agent.run` → `agent.auto` → `agent.eval`（agent）→ `desktop`（AppState・`desktop.ext`）→ `desktop.ui` の一方向。`app.index` / `app.schema` / `app.validate` / `app.text` は `app.core` より下。
 app-core（`app.core` / `app.index` / `app.schema` / `app.validate` / `app.text` / `app.session` / `app.tools` / `app.ext` / `app.skill`）と agent（`agent` / `agent.llm` / `agent.run` / `agent.auto` / `agent.eval`）と拡張（format-*・view-*）は Compose 非依存の純粋ロジックで、単体テストはこの層に書く。拡張は app-core とカーネルだけを使い、拡張どうし・agent・入口に依存しない。入口が登録の一覧（`desktop/ext/DesktopExtensions.kt`）で `Extensions.install` に渡す。`desktop`（AppState）は `mutableStateOf` だけに依存する。
 
 ## ソース規則テスト
 
-上の依存方向と各主題の「規律」のうち機械で確かめられるものは、root のテスト `rules/SourceRulesTest`（規則の表は `rules/SourceRules`）が全モジュールの main のソース（テストの書き方の規則は test のソース）を走査して守る。構文解析はせず、import 行と文字の一致で見る。
+上の依存方向と各主題の「規律」のうち機械で確かめられるものは、repo-tests のテスト `rules/SourceRulesTest`（規則の表は `rules/SourceRules`）が全モジュールの main のソース（テストの書き方の規則は test のソース）を走査して守る。構文解析はせず、import 行と文字の一致で見る。
 規則は 18 本。純粋ロジック層に Compose を持ち込まない・app の層は一方向・yaml-core と semantic-core にファイルの場所を持ち込まない・等幅は `AppFonts.Mono`・外部の UI ライブラリは包む 1 ファイルだけ・AI の HTTP は `agent/llm/Http.kt` だけ。
 `JFileChooser` と `Dispatchers.Main` を使わない・生の色は `Palette` だけ・UI は `state.index` を読まない・`FieldType` は基底の種類だけ・`Files.exists` は許可リストのファイルだけ・同じ裸の名前のファイルを作らない・テストに OS 固有の絶対パス（ドライブ文字）を書かない。
-モジュールの形の規則（`rules/ModuleRules`）: settings.gradle.kts の全モジュールを走査する・拡張の実装は入口の登録の一覧に載せる・拡張は app-core とカーネルだけを使う・拡張は決まった形（README・共通の設定の build・テスト・モジュール名どおりのパッケージ・公開は差し込み口の実装だけ。ビューの種類は描画が読む型も）・agent のファイルの間に循環を作らない。
+モジュールの形の規則（`rules/ModuleRules`）: settings.gradle.kts の全モジュールを走査し root にソースを置かない・拡張の実装は入口の登録の一覧に載せる・拡張は app-core とカーネルだけを使う・拡張は決まった形（README・共通の設定の build・テスト・モジュール名どおりのパッケージ・公開は差し込み口の実装だけ。ビューの種類は描画が読む型も）・agent のファイルの間に循環を作らない。
 文書の参照（今の姿の文書が指す `.kt` の名前・テスト名・「ファイル名＋見出し」）の実在は同じ場所の `rules/DocReferencesTest` が見る。
 落ちたらメッセージの「説明」の見出しを読む。規則を足すときは表に 1 つ足し、テストを 1 つ足す。今は直せていない違反は表の `known` に理由つきで書き、直したら消す（残っているとテストが「不要」と知らせる）。
-800 行を超える main のファイルは目安として報告するだけで失敗にしない（文書の字数と同じ扱い。`build/reports/source-rules/large-files.txt` に書き、pre-commit のフックが表示する）。
+800 行を超える main のファイルは目安として報告するだけで失敗にしない（文書の字数と同じ扱い。`repo-tests/build/reports/source-rules/large-files.txt` に書き、pre-commit のフックが表示する）。
 
 ## 入口のクラス
 

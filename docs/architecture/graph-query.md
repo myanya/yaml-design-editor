@@ -9,7 +9,7 @@
 |---|---|---|
 | `EntityDecl` / `EntityRole` / `entityFor` | semantic-core/schema/Relations.kt | スキーマの `entity:` 宣言（型・`idPattern` / `idType`・`defines`・`aspect` / `owns`。ID の判定は `matchesId`） |
 | `RelationDef` / `Relations` / `EntityTypeDef` / `AspectDecl` / `EnforcementDef` | semantic-core/schema/Relations.kt | 関係レジストリ（`kind: relations`）の宣言。`labelOf` / `inverseLabelOf`・`ownedFieldKeys` |
-| `SemanticEntityGraph`（root の `EntityGraph` は別名） | semantic-core/semantic/ | 走査結果から導出する読み取り専用のグラフ。エンティティ表・隣接（`ownRefs` / `outgoingRefs` / 入次）・文書ノード表・入れ子（`childIds` / `parentIds` / `topLevelIds`）・保有の線（`holdings` / `holdingsOf` / `holdersOf` / `holdingsIn`）・参照の逆引き表（`refIndexFor`） |
+| `SemanticEntityGraph`（app-core の `EntityGraph` は別名） | semantic-core/semantic/ | 走査結果から導出する読み取り専用のグラフ。エンティティ表・隣接（`ownRefs` / `outgoingRefs` / 入次）・文書ノード表・入れ子（`childIds` / `parentIds` / `topLevelIds`）・保有の線（`holdings` / `holdingsOf` / `holdersOf` / `holdingsIn`）・参照の逆引き表（`refIndexFor`） |
 | `SemanticHolding` | semantic-core/semantic/Graph.kt | 保有の線 1 本（親の出現・子の出現・名前＝子を書く項目の `relation` かキー名・宣言の有無）。走査が `ScannedId.holderKey / holderRelation` に写した事実から作る |
 | `QuerySpec` / `QueryNodeStep` / `QueryEdgeStep` / `QueryWhere` | semantic-core/schema/QuerySpec.kt | クエリの宣言モデルとパース（1 実装をビュー・foreach・制約・変換・CLI が共用） |
 | `SemanticQuery` | semantic-core/semantic/SemanticQuery.kt | パターン照合エンジン（`run`・`neighborIds`・`reach`・`matchesFrom` / `countMatchesFrom` / `checkFrom` / `forAllFrom`） |
@@ -20,7 +20,7 @@
 | `Traverse` | core/Traverse.kt | 経路パターンで多段に辿る評価器（`neighborIds` の上の emit レンダラ） |
 | `IdCrossView` / `GraphLensView` | ui/IdCrossView.kt・ui/GraphLensView.kt | エンティティページとグラフレンズ（配置は ui/GraphLayouts.kt） |
 | `LensGraphs` | ui/LensGraph.kt | レンズの節点・辺・箱の入れ子を作る純ロジック（一体＝箱はエンティティ・側面で分ける＝箱は出現・型の段＝箱は型 `buildTypes`。矢印の反転・絞り込み・起点の近傍・畳みと辺の付け替え） |
-| `SemanticSchemaGraph` / `SchemaGraphSource` | semantic-core/semantic/SchemaGraph.kt | スキーマと関係レジストリから導いた型レベルのグラフ（型・関係の線＝宣言と導出・保有の宣言・線にできなかった参照項目と理由・文書を読まない）。root の `Workspace.schemaGraph` がスキーマの再読込ごとに作り、レンズの「型」の段と CLI `schema-graph` が写す |
+| `SemanticSchemaGraph` / `SchemaGraphSource` | semantic-core/semantic/SchemaGraph.kt | スキーマと関係レジストリから導いた型レベルのグラフ（型・関係の線＝宣言と導出・保有の宣言・線にできなかった参照項目と理由・文書を読まない）。app-core の `Workspace.schemaGraph` がスキーマの再読込ごとに作り、レンズの「型」の段と CLI `schema-graph` が写す |
 
 ## 融合の原則
 
@@ -119,7 +119,7 @@ limit: 100
 
 レンズの「実体／型」の切替（`LensLevel`。画面の覚え `lensSchemaLevel`）で、同じ画面を一段上に上げる: 箱＝エンティティ型・線＝関係・入れ子＝保有の宣言。文書を読まず、スキーマと関係レジストリだけから導く（文書の無いワークスペースでも図が出る）。
 
-- **導出は `SemanticSchemaGraph.build`（semantic-core）の 1 つ**。材料は文書スキーマ（組込みスキーマ・library・レジストリ・derive の宣言側は含めない）と、レジストリの関係・型。root の `Workspace.refresh` が作り `AppState.schemaGraph` に写す。レンズは `LensGraphs.buildTypes` で実体の段と同じ `LensGraph` に写し、絞り込み（`select`）・配置・描画・PNG を共有する。CLI `schema-graph` は同じ材料を YAML で出す。
+- **導出は `SemanticSchemaGraph.build`（semantic-core）の 1 つ**。材料は文書スキーマ（組込みスキーマ・library・レジストリ・derive の宣言側は含めない）と、レジストリの関係・型。app-core の `Workspace.refresh` が作り `AppState.schemaGraph` に写す。レンズは `LensGraphs.buildTypes` で実体の段と同じ `LensGraph` に写し、絞り込み（`select`）・配置・描画・PNG を共有する。CLI `schema-graph` は同じ材料を YAML で出す。
 - **型**（箱）: レジストリの `entities:`・スキーマの `entity:`・object の `entity`・線の端に現れる型名。表示名はレジストリの label（型の label を含む `entityTypes`）。箱の添え書きは現れるスキーマ。
 - **要素の型の決め方**（スキーマを歩くとき。走査の「ID の形で判別」を文書なしで近似する）: object の `entity` ＞ ID の項目の型が宣言の `idType` に合う ＞ スキーマの宣言が 1 つ ＞ 宣言の並び（外側の要素から順。`inferred`＝推定の印）。推定で足りないスキーマは object に `entity` を書けば決まる。
 - **線の出どころは 2 つ**: 宣言（レジストリの source × target）と導出（参照項目を囲む ID を持つ要素の型 → `scope.schemaIds` のスキーマに現れる型を `idPattern` の層で絞ったもの。

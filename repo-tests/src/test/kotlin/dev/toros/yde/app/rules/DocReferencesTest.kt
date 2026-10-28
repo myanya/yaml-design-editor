@@ -37,13 +37,11 @@ class DocReferencesTest {
 
     private fun rel(p: Path): String = root.relativize(p).toString().replace('\\', '/')
 
-    /** 5 モジュールの main と test の Kotlin ファイル名（裸の名前）。 */
+    /** 全モジュールの main と test の Kotlin ファイル名（裸の名前）。 */
     private val kotlinFileNames: Set<String> by lazy {
         val names = mutableSetOf<String>()
-        for (dir in SourceScanner.modules.values) {
-            for (base in listOf(dir, dir.replace("/main/", "/test/"))) {
-                for (f in kotlinFilesUnder(root.resolve(base))) names += f.name
-            }
+        for (dir in SourceScanner.modules.values + SourceScanner.testModules.values) {
+            for (f in kotlinFilesUnder(root.resolve(dir))) names += f.name
         }
         names
     }
@@ -51,8 +49,8 @@ class DocReferencesTest {
     /** test のソースで宣言しているクラス名と object 名。 */
     private val declaredTestNames: Set<String> by lazy {
         val names = mutableSetOf<String>()
-        for (dir in SourceScanner.modules.values) {
-            for (f in kotlinFilesUnder(root.resolve(dir.replace("/main/", "/test/")))) {
+        for (dir in SourceScanner.testModules.values) {
+            for (f in kotlinFilesUnder(root.resolve(dir))) {
                 for (m in DECL.findAll(f.readText())) names += m.groupValues[1]
             }
         }

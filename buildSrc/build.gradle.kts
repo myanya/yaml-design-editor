@@ -10,6 +10,6 @@ repositories {
 }
 
 dependencies {
-    // Kotlin の版はここが正。root の build.gradle.kts の compose 用プラグイン（org.jetbrains.kotlin.plugin.compose）も同じ版にそろえる
+    // Kotlin の版はここが正。desktop/build.gradle.kts の compose 用プラグイン（org.jetbrains.kotlin.plugin.compose）も同じ版にそろえる
     implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.21")
 }

@@ -41,14 +41,14 @@ class SourceRulesTest {
         assertTrue(sources.size > 200, "ソースが少なすぎる: ${sources.size}")
         val appState = sources.first { it.name == "AppState.kt" }
         assertEquals("dev.toros.yde.desktop", appState.packageName)
-        assertEquals("src/main/kotlin/dev/toros/yde/desktop/AppState.kt", appState.path)
+        assertEquals("desktop/src/main/kotlin/dev/toros/yde/desktop/AppState.kt", appState.path)
     }
 
     @Test
     fun `全モジュールの test のソースを読める`() {
         val sources = SourceScanner.testSources
         assertEquals(SourceScanner.testModules.keys, sources.map { it.module }.toSet())
-        assertTrue(sources.any { it.path == "src/test/kotlin/dev/toros/yde/app/rules/SourceRulesTest.kt" })
+        assertTrue(sources.any { it.path == "repo-tests/src/test/kotlin/dev/toros/yde/app/rules/SourceRulesTest.kt" })
     }
 
     @Test
@@ -60,7 +60,7 @@ class SourceRulesTest {
             import x.y.W as V // 別名
             import x.z.*
         """.trimIndent()
-        val file = SourceScanner.parse("app", "a/b/F.kt", text)
+        val file = SourceScanner.parse("desktop", "a/b/F.kt", text)
         assertEquals("a.b", file.packageName)
         assertEquals(listOf("x.y.Z" to 3, "x.y.W" to 4, "x.z" to 5), file.imports.map { it.name to it.line })
         assertEquals(listOf(3, 4), file.importsStartingWith("x.y.").map { it.line })
@@ -144,7 +144,7 @@ class SourceRulesTest {
     @Test
     fun `規則15 は入口の一覧に無い拡張の実装を見つける`() {
         val codec = SourceScanner.parse("format-x", "format-x/X.kt", "package dev.toros.yde.format.x\nobject XFormat : FormatCodec\nobject YFormat : FormatCodec\n")
-        val desktop = SourceScanner.parse("app", "src/main/kotlin/dev/toros/yde/desktop/ext/DesktopExtensions.kt", "val l = listOf(XFormat, YFormat)\n")
+        val desktop = SourceScanner.parse("desktop", "desktop/src/main/kotlin/dev/toros/yde/desktop/ext/DesktopExtensions.kt", "val l = listOf(XFormat, YFormat)\n")
         val cli = SourceScanner.parse("cli", "cli/src/main/kotlin/dev/toros/yde/cli/CliExtensions.kt", "val l = listOf(XFormat)\n")
         val hits = ModuleRules.unregisteredExtensions(listOf(codec, desktop, cli))
         assertEquals(1, hits.size, hits.toString())
@@ -159,7 +159,7 @@ class SourceRulesTest {
 
     // ================================================================ 目安（失敗にしない）
 
-    /** 800 行を超える main のファイルを報告する。文書の字数と同じく目安で、build/reports/source-rules/large-files.txt にも書く（pre-commit が表示する）。 */
+    /** 800 行を超える main のファイルを報告する。文書の字数と同じく目安で、repo-tests/build/reports/source-rules/large-files.txt にも書く（pre-commit が表示する）。 */
     @Test
     fun `大きな main のファイルを目安として報告する`() {
         val limit = SourceRules.LARGE_FILE_LINES
@@ -168,7 +168,7 @@ class SourceRulesTest {
             appendLine("目安（失敗にしない）: $limit 行を超える main のファイル ${large.size} 件")
             large.forEach { appendLine("LINES  ${it.path}: ${it.lines.size} 行") }
         }
-        val out = SourceScanner.repoRoot.resolve("build/reports/source-rules/large-files.txt")
+        val out = SourceScanner.repoRoot.resolve("repo-tests/build/reports/source-rules/large-files.txt")
         Files.createDirectories(out.parent)
         Files.writeString(out, report)
         println(report)

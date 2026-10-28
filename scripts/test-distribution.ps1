@@ -9,11 +9,12 @@ $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $OutputEncoding = [Console]::OutputEncoding
 $repoRoot = Split-Path $PSScriptRoot -Parent
-if (-not $Distribution) { $Distribution = Join-Path $repoRoot 'build/compose/binaries/main/app/yaml-design-editor' }
+if (-not $Distribution) { $Distribution = Join-Path $repoRoot 'desktop/build/compose/binaries/main/app/yaml-design-editor' }
 $runtime = Join-Path $distribution 'runtime'
-$testClasses = Join-Path $repoRoot 'build/classes/kotlin/test'
+$testClasses = Join-Path $repoRoot 'desktop/build/classes/kotlin/test'
+$smoke = 'dev.toros.yde.desktop.DistributionSmoke'
 if (-not (Test-Path "$runtime/lib/modules")) { throw '先に createDistributable を実行してください' }
-if (-not (Test-Path "$testClasses/dev/toros/yde/app/DistributionSmoke.class")) { throw '先に testClasses を実行してください' }
+if (-not (Test-Path (Join-Path $testClasses (($smoke -replace '\.', '/') + '.class')))) { throw '先に testClasses を実行してください' }
 $runtimeVersion = (Get-Content "$runtime/release" | Where-Object { $_ -like 'JAVA_VERSION=*' })
 $jdkVersion = (Get-Content "$JdkHome/release" | Where-Object { $_ -like 'JAVA_VERSION=*' })
 if ($runtimeVersion -ne $jdkVersion) { throw '配布ビルドと同じバージョンの JDK を指定してください' }
@@ -38,5 +39,5 @@ foreach ($relative in @('LICENSE', 'THIRD-PARTY-NOTICES.txt', 'SOURCES.txt', 'de
 }
 $expected = @()
 if ($AppVersion) { $expected = @($AppVersion, $BuildVersion, $Commit) }
-& "$stage/runtime/bin/java.exe" '-Djava.awt.headless=true' '-cp' "$testClasses;$distribution/app/*" 'dev.toros.yde.desktop.DistributionSmoke' @expected
+& "$stage/runtime/bin/java.exe" '-Djava.awt.headless=true' '-cp' "$testClasses;$distribution/app/*" $smoke @expected
 if ($LASTEXITCODE -ne 0) { throw "同梱ランタイムの検査に失敗しました: $LASTEXITCODE" }

@@ -45,10 +45,10 @@ import dev.toros.yde.workspace.ActionPlan
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.validate.Severity
 
-internal data class ActionPanelContext(val document: OpenDocument?, val targetId: String?, val elementTypes: List<String>)
+data class ActionPanelContext(val document: OpenDocument?, val targetId: String?, val elementTypes: List<String>)
 
-/** 表示中の画面の選択を入口の対象にする。開始済みの ActionWork は書き換えない。 */
-internal fun actionPanelContext(state: AppState, doc: OpenDocument?, localIds: List<IdEntry>): ActionPanelContext {
+/** 表示中の画面の選択を入口の対象にする。開始済みの ActionWork は書き換えない。repo-tests の DashboardsTest も読むので公開。 */
+fun actionPanelContext(state: AppState, doc: OpenDocument?, localIds: List<IdEntry>): ActionPanelContext {
     if (state.uiSpace == UiSpace.DASHBOARD) {
         return ActionPanelContext(null, dashboardActionTarget(state), emptyList())
     }

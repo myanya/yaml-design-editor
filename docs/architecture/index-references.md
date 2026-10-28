@@ -52,7 +52,7 @@ ID 索引はディスク基準（正）で、UI は未保存の編集を重ね�
 ## 場所は文書ID
 
 - 索引・検証・ビュー・クエリ・エンティティの全体像は、場所をワークスペース相対の文書ID（`model.DocumentId`。例 `screens/index.yaml`）と YPath で表す。
-- root の `IdEntry` / `RefEntry` / `EntityGraph` / `Issue` / `IssueResponse` / `ValidationResult` / `ViewRow` / `QueryResult` / `AspectField` はカーネルの型の別名（`typealias`）。写しの型を持たない。
+- app-core の `IdEntry` / `RefEntry` / `EntityGraph` / `Issue` / `IssueResponse` / `ValidationResult` / `ViewRow` / `QueryResult` / `AspectField` はカーネルの型の別名（`typealias`）。写しの型を持たない。
 - `Path` が要るのはファイルを開く・文書キャッシュを引く・ディスクから読む端だけ。行き来は `Workspace.fileOf` / `documentOf` / `treeOf` と `AppState.fileOf` / `documentOf` / `unsavedFirstTree()` を通す。
 - 他の文書の中身を読む関数（loader）は `(DocumentId) -> YNode?` で、`Validator`・`Query`・`Views`・`Aspects`・`Traverse` は呼び出し側から必ず受け取る。省いたときにディスクから読む既定は無い（どの内容で判定するかを呼び出し側が決める）。
 
@@ -68,9 +68,9 @@ ID 索引はディスク基準（正）で、UI は未保存の編集を重ね�
 ## 規律
 
 - UI 層は `state.index` でなく `state.overlayIndex()` を読み、`remember` のキーに `state.editVersion` を含める。ヘッドレス経路はディスク索引のまま。
-- 索引の中身はセッションの意味解析の結果そのもの。走査・集約を root に書き足さない。
+- 索引の中身はセッションの意味解析の結果そのもの。走査・集約を app-core に書き足さない。
 - ディスクを映すセッションと編集用のセッションを 1 つにまとめない。
-- root に `Path` を持つ写しの型を作り直さない。`Path.of(d.value)` と書かない。別名を通して入れ子の型は引けない（`IssueResponse.Jump` ではなく `CheckResponse.Jump`）。
+- app-core に `Path` を持つ写しの型を作り直さない。`Path.of(d.value)` と書かない。別名を通して入れ子の型は引けない（`IssueResponse.Jump` ではなく `CheckResponse.Jump`）。
 - `DocumentId == Path` の比較はコンパイルが通って常に偽。`state.documentOf(doc.file)` に直してから比べる。
 - `Validator` の `loader` を省くと他の文書を読まない。ディスクから読むなら `Workspace::treeOf`、未保存の編集を優先するなら `AppState.unsavedFirstTree()` を渡す。
 - 一覧・候補・要約の表示に独自のタイトル抽出を書かない。

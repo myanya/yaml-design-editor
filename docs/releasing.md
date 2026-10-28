@@ -21,7 +21,7 @@ $env:GRADLE_USER_HOME = Join-Path $env:USERPROFILE '.gradle'
 開発中の検証は `-PdistributionPreview=true` を加える。ファイル名に `-preview` が付き、公開用とは別の場所に出力する。
 プレビューは公開用の代わりにアップロードしない。コミット後に上記コマンドで作り直す。
 
-出力先は `build/release/yaml-design-editor-<版>-windows-x64/`。
+出力先は `desktop/build/release/yaml-design-editor-<版>-windows-x64/`。
 
 | ファイル | 用途 |
 |---|---|

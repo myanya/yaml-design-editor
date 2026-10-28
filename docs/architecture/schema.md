@@ -1,6 +1,6 @@
 # スキーマ
 
-利用者が書くスキーマは意味のスキーマ（ID・参照・関係・フェーズ・表示のヒントを持つ項目の木）で、semantic-core が持つ。読むのはカーネルの経路だけで、root の `SchemaDef` はカーネルの `WorkspaceSchema` にファイルの場所を足す薄い型。
+利用者が書くスキーマは意味のスキーマ（ID・参照・関係・フェーズ・表示のヒントを持つ項目の木）で、semantic-core が持つ。読むのはカーネルの経路だけで、app-core の `SchemaDef` はカーネルの `WorkspaceSchema` にファイルの場所を足す薄い型。
 フェーズ・派生・推測・値の式・リファクタリング・ひな型もここに置く。
 
 ## 部品
@@ -13,7 +13,7 @@
 | `BuiltinTypes` | semantic-core/schema/BuiltinTypes.kt・資源 `builtin-types/` | 組込みの型（定義体 `text` / `line` / `word`）。モジュール `builtin-types` としてカタログ（`SchemaCatalog`）に常に含まれ、非修飾の名前は自分のモジュールの次に引く |
 | `MetaSchemaTypes` | workspace-core/workspace/MetaSchemaTypes.kt | 読み込み時に、型の名前をメタスキーマの `type` の選択肢と `cases` へ足す |
 | `WorkspaceSchema` | workspace-core/workspace/WorkspaceReader.kt | スキーマの中身の原本（名前・説明・項目の木・関係の宣言・検査・式・導出した構造 `structures`） |
-| `SchemaDef` / `SchemaLoader` / `SchemaCatalog` | schema/Schema.kt | root の薄い型（`WorkspaceSchema` ＋ ファイルの場所）と、カーネルの読み込み結果をアプリの形にする `fromKernel`。`SchemaCatalog` は全スキーマと library の定義を `(moduleId, definitionName)` でリンクする |
+| `SchemaDef` / `SchemaLoader` / `SchemaCatalog` | schema/Schema.kt | app-core の薄い型（`WorkspaceSchema` ＋ ファイルの場所）と、カーネルの読み込み結果をアプリの形にする `fromKernel`。`SchemaCatalog` は全スキーマと library の定義を `(moduleId, definitionName)` でリンクする |
 | `SchemaDocuments` | workspace-core/workspace/SchemaDocuments.kt | スキーマ文書 1 件の読み取り（ID・種類・適用先・derive・エンティティ型・関係レジストリ・項目の木・検査の展開）と関係レジストリの集約の 1 実装 |
 | `WorkspaceReader` | workspace-core | スキーマ文書・組込みスキーマ・derive の展開を読み込み、スキーマの定義の点検を読み込みエラーへ足す（`buildSchemas`） |
 | `SchemaDefinitionChecks` | workspace-core/workspace/SchemaDefinitionChecks.kt | スキーマの定義の点検（種別ごとに書けるもの・型と制約の食い違い・`$ref` の参照先・cases・フェーズ・`filePattern`）と宣言のない関係名の点検 |
@@ -34,7 +34,7 @@
 ## スキーマの読み込み
 
 - スキーマを読むのはカーネルの経路だけ。`Workspace.refresh` は、開いたセッションが読んだ結果を `SchemaLoader.fromKernel` でアプリの形にする。
-- スキーマ文書 1 件の読み取りと関係レジストリの集約は `SchemaDocuments` の 1 実装。root とカーネルに別々の読み取りを持たない。
+- スキーマ文書 1 件の読み取りと関係レジストリの集約は `SchemaDocuments` の 1 実装。app-core とカーネルに別々の読み取りを持たない。
 - 読み込みは「パース → リンク → 導出」の三段階。全ファイルをパースしてから `SchemaCatalog` を構築するため、ファイル順に関係なく横断参照を解決できる。
 - `kind: library` の文書は `definitions` だけを公開し、文書には適用されない（`match` / `root` / `phases` / `coverage` を持たない）。`kind: relations` は関係レジストリ（[graph-query.md](graph-query.md)）。
 - 検査の定義の読み込み（展開・パース・出どころ・メタスキーマへの語彙のキーの合成）は `CheckCatalog` の 1 実装（[checks.md「検査の定義の読み込み」](checks.md)）。
@@ -105,7 +105,7 @@
 - 型の連鎖（`type: 名前` と、スカラーの定義への `$ref`）は導出の前に解決して、基底の種類と合成した決まりを写す（「型の連鎖と狭める規則」）。`$ref` のまま写すのは、追加の無い入れ物の定義への参照だけ（項目を足した使い方は展開する）。組込みの定義体 `text` / `line` / `word` と意味の基底型 `date` / `time` / `datetime`・`id` / `ref`・`file` は構造のスキーマでは `string`（＋形式）。
 - 分け方の基準: その値 1 つとその項目の決まりだけで決まるチェックは yaml-core。他の値・要素・文書・索引・フェーズを見るチェックは semantic-core。`cases` だけは選択肢の一部として yaml-core に残す。ID の形式（`pattern`）と日付の形式は yaml-core、参照先の絞り込み（`idPatterns`・`scope`）とエンティティ型の ID のパターンからの逸脱は semantic-core。
 - 導出の規則（組込みの変換定義）: ID と参照は文字列にする。属性付き参照は値の形ごとの決まりにする。フェーズに達したら必須は素の必須へ畳む。意味と表示の語彙（`role`・`display`・`description`・`default`・`relation`・`scope`・`idPatterns`・`target`・選択肢のラベル）は落とす。`$ref` は写すだけで辿らない。式を受け取る項目は「文字列か object」の形として通す。
-- 導出の入口は `DerivedStructures` の 1 つ。アプリ（root の `Validator`）とカーネル（`WorkspaceReader.validateOne`・セッションの増分導出・cli）が同じ `validate(root)` を通る。派生スキーマや語彙のキーを足したメタスキーマのように、読み込みの後で組み立てたスキーマも同じ経路。
+- 導出の入口は `DerivedStructures` の 1 つ。アプリ（app-core の `Validator`）とカーネル（`WorkspaceReader.validateOne`・セッションの増分導出・cli）が同じ `validate(root)` を通る。派生スキーマや語彙のキーを足したメタスキーマのように、読み込みの後で組み立てたスキーマも同じ経路。
 - `DerivedStructures` が文書のフェーズを読み、到達したフェーズの一覧を変換へ渡す。導出した構造のスキーマは文書のフェーズごとに 1 つを覚える。定義されていないフェーズの申告の警告も意味の側が出す。
 - 導出はスキーマごと・フェーズごとに 1 回（数十ミリ秒の固定費）で、文書ごとの検証の時間は増えない。
 

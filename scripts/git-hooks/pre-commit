@@ -5,8 +5,8 @@
 set -eu
 cd "$(git rev-parse --show-toplevel)"
 bash scripts/docs-lint.sh
-./gradlew :test --tests '*SourceRulesTest*' --tests '*DocReferencesTest*' -q --console=plain
+./gradlew :repo-tests:test --tests '*SourceRulesTest*' --tests '*DocReferencesTest*' -q --console=plain
 # 目安（失敗にしない）: 800 行を超える main のファイル（SourceRulesTest が書く）
-report=build/reports/source-rules/large-files.txt
+report=repo-tests/build/reports/source-rules/large-files.txt
 [ -f "$report" ] && cat "$report"
 exit 0

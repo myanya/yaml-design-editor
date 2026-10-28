@@ -1,6 +1,5 @@
-package dev.toros.yde.app.core
+package dev.toros.yde.cli
 
-import dev.toros.yde.cli.runCli
 import dev.toros.yde.yaml.YamlIO
 import java.nio.file.Files
 import java.nio.file.Path
