@@ -5,6 +5,7 @@ AIコーディングエージェント向けの作業ガイドは [CLAUDE.md](CL
 - プロジェクト概要・コマンド・落とし穴: [CLAUDE.md](CLAUDE.md)
 - 機能一覧と実装状況: [docs/FEATURES.md](docs/FEATURES.md)
 - クラス設計・設計方針: [docs/architecture/](docs/architecture/README.md)
+- このプロジェクトで決めた語の意味: [docs/GLOSSARY.md](docs/GLOSSARY.md)
 - 開発規約（ドキュメント更新規約を含む）: [docs/CONVENTIONS.md](docs/CONVENTIONS.md)
 
 ## この Windows 環境（どのエージェントも）

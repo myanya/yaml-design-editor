@@ -5,7 +5,7 @@
 # 終了コード: 失敗の指摘（TICKET・LINK）があれば 1、なければ 0。目安の指摘（SIZE・LINE・CELL）は報告するだけで失敗にしない。
 #
 # 失敗にするもの:
-#   TICKET 設計・マニュアル・規約・機能索引・CLAUDE.md にチケット番号（P／R／D／UX 等）がない
+#   TICKET 設計・マニュアル・規約・機能索引・用語集・CLAUDE.md にチケット番号（P／R／D／UX 等）がない
 #   LINK   相対リンクの先が存在し、大文字小文字も一致する（archive を含む全文書。Linux の CI で切れないため）
 # 目安として報告するもの（長さの上限は良い方法ではないため、別の方法を考えるまでの目安）:
 #   SIZE   1 ファイルの文字数（既定 40,000。機能索引と台帳は 80,000。manual/ と tutorial は 60,000）
@@ -28,7 +28,7 @@ size_limit() {
 
 is_state_doc() {
   case "$1" in
-    CLAUDE.md|docs/README.md|docs/CONVENTIONS.md|docs/FEATURES.md|docs/architecture/*|docs/manual/*) return 0 ;;
+    CLAUDE.md|docs/README.md|docs/CONVENTIONS.md|docs/FEATURES.md|docs/GLOSSARY.md|docs/architecture/*|docs/manual/*) return 0 ;;
     *) return 1 ;;
   esac
 }

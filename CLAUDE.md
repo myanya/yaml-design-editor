@@ -28,6 +28,7 @@ scripts/docs-lint.sh                        # 文書の形の機械チェック
 
 - 役割と更新のタイミングは [docs/README.md](docs/README.md) の表が正。規則は [docs/CONVENTIONS.md](docs/CONVENTIONS.md)「ドキュメント更新規約」。
 - 着手前に読むのは [docs/FEATURES.md](docs/FEATURES.md) の該当行と [docs/architecture/](docs/architecture/README.md) の該当する主題。
+- このプロジェクトで決めた語（定義体・保有・受け手・射影など）は [docs/GLOSSARY.md](docs/GLOSSARY.md) で引く。
 - 記録（[docs/archive/](docs/archive/README.md)）は経緯を調べるときだけ読む。
 
 ## ワークフロー
