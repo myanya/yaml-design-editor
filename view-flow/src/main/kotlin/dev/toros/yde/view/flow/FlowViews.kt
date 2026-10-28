@@ -1,5 +1,12 @@
-package dev.toros.yde.semantic
+package dev.toros.yde.view.flow
 
+import dev.toros.yde.semantic.ExtensionViewDef
+import dev.toros.yde.semantic.ExtensionViewResult
+import dev.toros.yde.semantic.SemanticTransform
+import dev.toros.yde.semantic.TransformOrigin
+import dev.toros.yde.semantic.ViewContext
+import dev.toros.yde.semantic.schema.FieldType
+import dev.toros.yde.semantic.schema.RefTarget
 import dev.toros.yde.semantic.schema.Template
 import dev.toros.yde.semantic.schema.TransformDef
 import dev.toros.yde.semantic.schema.globToRegex
@@ -13,7 +20,11 @@ import dev.toros.yde.yaml.structure.StructureParser
 import dev.toros.yde.yaml.structure.StructureValidator
 import dev.toros.yde.yaml.validate.Severity
 
-/** 文書単位のフロー。業務の項目名はprojectionだけが知り、解決結果を保存しない。 */
+/**
+ * 文書単位のフロー（`kind: flow`。拡張の種類。ADR-0014）。業務の項目名はprojectionだけが知り、解決結果を保存しない。
+ * 文書に縛られる種類で、解決には対象の文書が要る（ViewContext.document）。定義を読むのは FlowViewKind。
+ * 型は描画（desktop の ui/FlowViewPane.kt・ui/FlowSwimlanes.kt・ui/GraphLayouts.kt）が読むので公開する。
+ */
 data class VirtualFlowDef(
     override val id: String,
     override val name: String,
@@ -23,11 +34,47 @@ data class VirtualFlowDef(
     val schemaId: String? = null,
     val direction: String = "down",
     val projection: TransformDef,
-) : VirtualViewDefinition {
+) : ExtensionViewDef {
     private val regex by lazy { match?.let(::globToRegex) }
 
-    fun appliesTo(document: DocumentId, schemaId: String?): Boolean =
+    override val viewKind: String get() = FlowViewKind.id
+    override val kindLabel: String get() = FlowViewKind.label
+    override val perDocument: Boolean get() = true
+
+    override fun appliesTo(document: DocumentId, schemaId: String?): Boolean =
         (regex?.matches(document.value) != false) && (this.schemaId == null || this.schemaId == schemaId)
+
+    override fun listing(): Map<String, Any?> = linkedMapOf<String, Any?>(
+        "id" to id, "name" to name, "kind" to viewKind, "match" to match, "schemaId" to schemaId,
+    ).filterValues { it != null }
+
+    override fun listingText(): String = "フロービュー 適用先=" + listOfNotNull(match, schemaId?.let { "schema:$it" }).joinToString(" & ")
+
+    /**
+     * 対象の文書（context.document）を projection で射影する。接続先の状態は、スキーマ上の参照（ref 型の項目に書かれ、
+     * 索引に載った参照）だけを「外」か「未解決」と言い、それ以外は「不明」のまま（断定しない）。
+     */
+    override fun resolve(context: ViewContext): FlowViewResult {
+        val document = context.document ?: error("フロービュー「$id」は対象の文書を指定して開きます")
+        val input = context.tree(document)
+        val resolution = FlowViews.resolve(this, document, context.schemaId(document), input) { location, key ->
+            val field = if (location.document == document && input != null) context.fieldAt(document, location.path) else null
+            val ref = context.refsAt(document, location.path).singleOrNull { it.targetId == key }
+            if (field?.type != FieldType.REF || ref == null || ref.targetKind != RefTarget.ENTITY) FlowConnectionState.UNKNOWN
+            else if (!context.resolves(ref)) FlowConnectionState.UNRESOLVED else FlowConnectionState.OUTSIDE
+        }
+        return FlowViewResult(this, document, resolution)
+    }
+}
+
+/** 解決したフロー（どの文書を射影したかと、その結果）。CLI・read_view へは FlowReports の形で出す。 */
+data class FlowViewResult(override val def: VirtualFlowDef, val document: DocumentId, val resolution: FlowResolution) : ExtensionViewResult {
+    override val count: String get() = resolution.model?.nodes?.size?.toString() ?: "0"
+    override val unit: String get() = "ノード"
+
+    override fun report(errors: List<String>): Map<String, Any?> = FlowReports.toMap(def, document, resolution, errors)
+
+    override fun text(): String = YamlIO.dump(YamlIO.fromAny(report()))
 }
 
 data class FlowLocation(val document: DocumentId, val path: YPath)
@@ -77,9 +124,9 @@ data class FlowResolution(
 )
 
 /** Constructで射影し、組込みの構造契約と図内の対応を検査する。原本・索引への変更は行わない。 */
-object FlowViews {
+internal object FlowViews {
     private val contract by lazy {
-        val text = requireNotNull(javaClass.getResourceAsStream("/builtin-structures/flow-model.yaml")) {
+        val text = requireNotNull(javaClass.getResourceAsStream("/view-flow/flow-model.yaml")) {
             "フロー表示モデルの構造スキーマが見つかりません"
         }.bufferedReader(Charsets.UTF_8).use { it.readText() }
         StructureParser.parse(YamlIO.parseToRaw(text), "flow-model")

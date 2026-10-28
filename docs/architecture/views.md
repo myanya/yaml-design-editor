@@ -10,17 +10,17 @@
 | 部品 | ファイル | 責務 |
 |---|---|---|
 | `VirtualGridDef` / `VirtualDocViewDef` / `VirtualViewDefinition`（root の `ViewDef` / `DocViewDef` は別名） | semantic-core/semantic/VirtualViews.kt | ビュー定義の宣言の型と解決（仮想文書・テキスト表現） |
-| `VirtualFlowDef` / `FlowViews` / `FlowResolution` | semantic-core/semantic/FlowViews.kt | Constructによる文書の射影、原本対応、表示契約と接続先の診断 |
+| `FlowViewKind` / `VirtualFlowDef` / `FlowViews` / `FlowResolution` / `FlowViewResult` | view-flow（拡張）の view/flow/FlowViewKind.kt・FlowViews.kt | フロー（`kind: flow`）の読み取りと点検・移動と改名の影響、Constructによる文書の射影、原本対応、表示契約と接続先の診断 |
 | `VirtualLensDef` / `VirtualLensRelation` / `LensArrow` | semantic-core/semantic/LensViews.kt | レンズの見え方の定義（`kind: lens`＝関係ごとの矢印の向き・表示だけ・消費は `Views.LoadResult.reversedRelations` → `LensGraphs`） |
 | `ExtensionViewDef` / `ExtensionViewResult` / `ViewContext` / `VirtualDocEmbed` | semantic-core/semantic/ExtensionViews.kt | 拡張の種類のビューの共通の形（定義・解決の結果・解決に使う中核の表の窓口・文書ビューの区画への埋め込み）。中核はこの窓口だけで扱う |
 | `ViewKind` / `ViewSchemaFragments` | workspace-core/workspace/ViewKind.kt・ViewSchemaFragments.kt | ビューの種類の差し込み口（読む・点検・断片・埋め込みのキー）と、メタスキーマへの断片の合成 |
 | `ChartViewKind` / `VirtualChartDef` / `ChartKind` / `ChartData` / `ChartSelection` | view-chart（拡張）の view/chart/ChartViewKind.kt・ChartViews.kt・ChartSelection.kt | チャート（`kind: chart`）の読み取りと点検・宣言と解決（元の表の解決結果を項目 × 系列の数に）・押した形の材料。定義の形の断片は資源 `view-chart/schema.yaml` |
 | `ViewRenderer` / `ViewRenderers` / `ExtensionViewPane` | ui/ViewRenderers.kt | 拡張の種類の描画の一覧と、解決して描く入口（台帳のビュータブ・文書ビューの区画・ダッシュボードの区画） |
 | `ChartRenderer` / `ChartCard` | ui/ChartViewPane.kt | チャートの描画。図の部品は `ui/Charts.kt`（Vico を包む `BarChart` / `LineChart`〔面・積み上げ面も〕・自前の `PieChart` / `HorizontalBarChart`） |
-| フロー表示契約 | semantic-core資源 `builtin-structures/flow-model.yaml` | 表示モデルの型・必須項目・形状をStructureValidatorで検査 |
-| `FlowReports` | core/FlowReports.kt | CLI・read_viewへ同じ表示モデルと座標・診断を開示 |
-| `GraphLayouts.arrangeFlow` / `FlowSelection` | ui/GraphLayouts.kt・semantic-core/semantic/FlowSelection.kt | 計測寸法からの決定的配置と文書・版を考慮した選択の再解決 |
-| `FlowViewPane` | ui/FlowViewPane.kt | 単独表示・文書埋め込み・Canvas描画と既存の原本フォームへの委譲 |
+| フロー表示契約 | view-flow の資源 `view-flow/flow-model.yaml` | 表示モデルの型・必須項目・形状をStructureValidatorで検査 |
+| `FlowReports` | view-flow の view/flow/FlowReports.kt | CLI・read_viewへ同じ表示モデルと座標・診断を開示（`FlowViewResult.report`） |
+| `GraphLayouts.arrangeFlow` / `FlowSelection` / `FlowDisplayOptions` | ui/GraphLayouts.kt・view-flow の view/flow/FlowSelection.kt・FlowDisplayOptions.kt | 計測寸法からの決定的配置と文書・版を考慮した選択の再解決・表示の設定 |
+| `FlowViewPane` / `FlowRenderer` | ui/FlowViewPane.kt | 単独表示・文書埋め込み・Canvas描画と既存の原本フォームへの委譲。`FlowRenderer` は描画の一覧の 1 行 |
 | `ViewDefinitions` / `ViewCatalog` | workspace-core/workspace/ViewDefinitions.kt | 読み取り（`parseView`＝definition 参照の列展開を含む）とリント（`lint` / `lintDocument`＝ビュー → スキーマの整合・`staticFieldAt` / `idElements`） |
 | `Views` | core/Views.kt | root の窓口（views ゾーンのファイルを読んで渡す `load`・行 × セルの解決 `resolve`・文書ビューの解決 `resolveDocument` / `resolveAttachments`・`renderText` / `renderDocText`・`fieldAt`＝`SchemaDef.fieldAt` へ委譲） |
 | `ViewRow`（＝`VirtualRow`）/ `ViewCell` | core/Views.kt | 解決の結果（別名） |
@@ -66,7 +66,7 @@
 
 ## フローの解決
 
-`kind: flow`は文書の項目を、ノード・辺・任意のレーンへ射影する。GUI・CLI・read_viewは同じコア解決を使う。
+`kind: flow`は文書の項目を、ノード・辺・任意のレーンへ射影する。拡張 view-flow の種類で、文書に縛られる（`perDocument`。解決に対象の文書が要る）。GUI・CLI・read_viewは同じ解決（`Views.resolveExtension` に文書を渡す）を使う。
 `match`と`schemaId`をANDで適用し、`projection`は既存のTransformDefを読む。入力は呼び出し側が渡す1文書で、fromと外部paramsは認めない。
 
 - 値の導出はSemanticTransformに委譲し、FlowResolutionに表示モデル・TransformOrigin・診断を分けて返す。
@@ -95,8 +95,8 @@
 - detailは編集用の木ではない。適格な単一原本座標をensureDoc・slotAt・FormCtx・FieldRowへ渡し、通常のUndo・保存・閲覧専用を適用する。
 - 選択はビューID・文書ID・種別・keyで現在のモデルへ再解決する。keyなしの辺だけ出力座標と原本・定義の版を使い、どちらかの変更で解除する。
   OpenDocumentの生成番号も版に含め、文書が再生成されても誤復元しない。NavLocationは図の対象文書と選択を保持する。
-- sections[].flow.viewは一意なflowビューを参照する。静的リントは存在・種別を確認し、globの包含は判定しない。
-  適用条件は現在の文書に対する通常のフロー解決で診断する。CLI・read_viewも同じ文書を渡す。
+- sections[].flow.viewは一意なflowビューを参照する（文書ビューの区画への埋め込み `VirtualDocEmbed`）。静的リントは存在・種別を確認し、globの包含は判定しない。
+  適用条件は現在の文書に対する通常のフロー解決で診断する。CLI・read_viewも同じ文書を渡す（`Views.embeddedReport`）。
 
 ## definition 参照とリント
 
@@ -115,20 +115,22 @@
 - リファクタリングのビュー定義の追随（フィールド改名）と言及の警告は、カーネルの `RefactoringImpact` が作り `planRefactoring` が計画に含める（[workspace.md「リファクタリングの影響」](workspace.md)）。
 - `flow.view`は組込みスキーマのref型で、ビューIDの改名・被参照の削除拒否は既存の意味的リファクタリングを使う。
 - projectionの相対パス・規則・固定値は自動改名せず、`RefactoringImpact`がキーと値の言及を場所付きで計画へ開示する。
-- 原本文書の移動でflowのmatchから外れる場合も計画で警告する。
+- 原本文書の移動でflowのmatchから外れる場合も計画で警告する（差し込み口の `moveWarnings`）。projectionの言及の場所も種類が返す（`mentionSites`）。
 - レンズの定義（`kind: lens`）が持つのは見え方（関係ごとの矢印の向き）だけ。節点の選択（型・関係の絞り込み・起点・畳み）は画面の操作（`ScreenMemory`）のままで、定義に持たせない。
-  読み取りは `parseView` の 1 経路、リントは関係レジストリがあるときだけ関係名の宣言を見る。関係の改名は言及を警告で開示する（`flowDefinitionWarnings`）。消費はレンズだけ（[graph-query.md](graph-query.md)「スキーマレンズ（型の段）」）。
+  読み取りは `parseView` の 1 経路、リントは関係レジストリがあるときだけ関係名の宣言を見る。関係の改名は言及を警告で開示する（`viewMentionWarnings`）。消費はレンズだけ（[graph-query.md](graph-query.md)「スキーマレンズ（型の段）」）。
 - スキーマと関係レジストリに見え方を足さない。レンズの見え方の要望（矢印の向き・色・既定の配置）は `kind: lens` の語彙で受ける。
 
 ## ビューの種類の差し込み口
 
-- 中核の種類は grid・document・matrix・flow・lens・dashboard で、`ViewDefinitions.parseView` が直接読む。拡張の種類（今は chart）は拡張モジュール（view-*）にあり、差し込み口 `ViewKind`（workspace-core）を実装する（ADR-0014）。
+- 中核の種類は grid・document・matrix・lens・dashboard で、`ViewDefinitions.parseView` が直接読む。拡張の種類（chart・flow）は拡張モジュール（view-chart・view-flow）にあり、差し込み口 `ViewKind`（workspace-core）を実装する（ADR-0014）。
 - 登録は入口の一覧（desktop/ext/DesktopExtensions.kt・cli/CliExtensions.kt）で、app-core の `Extensions.viewKinds` がそれを持つ。カーネルは大域の登録簿を持たず、`ViewDefinitions.load` / `parseView` / `lintDocument`・`BuiltinSchemaResources.kernelSchemas`・`WorkspaceSession`（改名の影響が読む）が引数 `kinds` で受け取る。
-- 読むときは、kind が中核でなければ登録した種類の `parse` に渡す。登録していない種類は使える種類を並べた誤りになる。定義一式を見た点検（チャートの元の表の有無など）は種類の `lint` で、文の前にファイル名を付けるのは `ViewDefinitions.load`。
-- 中核は拡張の種類の中身を知らない。一覧・CLI・read_view は `ExtensionViewDef.listing` / `listingText`、解決は `resolve(ViewContext)`（元の表は呼ぶ側が同じ索引・原本・受け取る値で解決して渡す）、結果は `ExtensionViewResult` の件数・`report`・`text` で扱う。
+- 読むときは、kind が中核でなければ登録した種類の `parse` に渡す。登録していない種類は使える種類を並べた誤りになる。定義一式を見た点検（チャートの元の表の有無など）は種類の `lint`、定義 1 件とスキーマで分かる点検（フローの適用先のスキーマ）は `lintDefinition` で、文の前にファイル名を付けるのは `ViewDefinitions.load`。
+- リファクタリングでは、文書の移動で対象から外れる警告を `moveWarnings`、改名で自動に書き換えない言及の場所を `mentionSites`（探すのは `DefinitionMentions`）で種類が返し、`RefactoringImpact` が文に組む。
+- 中核は拡張の種類の中身を知らない。一覧・CLI・read_view は `ExtensionViewDef.listing` / `listingText`、解決は `resolve(ViewContext)`（元の表・対象の文書・項目・参照は呼ぶ側が同じ索引・原本・受け取る値で答える）、結果は `ExtensionViewResult` の件数・`report`・`text` で扱う。
+- 文書に縛られる種類（`perDocument`。フロー）は `appliesTo` で当たる文書を選び、CLI `view <id> <file>`・read_view の `file` で対象を受け取る。台帳のビュータブの一覧には並べない。
 - 文書ビューの区画には `<sectionKey>: {view: ID}` で埋め込み（`VirtualDocEmbed`）、ダッシュボードの区画には `inDashboard` の種類を置ける。
 - 定義の形はメタスキーマの断片（拡張の資源 `<名前>/schema.yaml`）で、`ViewSchemaFragments` が `builtin-view` に合成する。足せるのは kind の選択肢・ルートの項目・文書ビューの区画の項目だけで、名前がぶつかれば誤り。複数の種類が使う項目（`order`）は中核に残す。`viewSchemaTree`（値の式の印を読む木）は中核の項目だけ。
-- 描画は desktop の `ViewRenderers`（ui/ViewRenderers.kt）の一覧で、種類の ID から引く。拡張の種類の描画が読む型（`VirtualChartDef`・`ChartData` など）は拡張が公開する。
+- 描画は desktop の `ViewRenderers`（ui/ViewRenderers.kt）の一覧で、種類の ID から引く。文書ビューの区画は `ViewRenderer.Section`（既定はその文書で解決して描く。フローは原本の文書を編集に使うので自分で描く）。拡張の種類の描画が読む型（`VirtualChartDef`・`ChartData`・`VirtualFlowDef`・`FlowModel` など）は拡張が公開する。
 
 ## 規律
 

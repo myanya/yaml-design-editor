@@ -5,7 +5,6 @@ import dev.toros.yde.cli.CliResult
 import dev.toros.yde.app.core.Dashboards
 import dev.toros.yde.app.core.DocBacklinkRow
 import dev.toros.yde.app.core.DocBacklinksDef
-import dev.toros.yde.app.core.FlowReports
 import dev.toros.yde.app.core.Views
 import dev.toros.yde.cli.stringFlags
 import dev.toros.yde.cli.workspaceOf
@@ -40,11 +39,6 @@ internal fun viewCommand(rest: List<String>): CliResult = run {
                         "id" to v.id, "name" to v.name, "kind" to "document",
                         "match" to v.match, "schemaId" to v.schemaId,
                     ).filterValues { it != null }
-                } + loaded.flowViews.map { v ->
-                    linkedMapOf(
-                        "id" to v.id, "name" to v.name, "kind" to "flow",
-                        "match" to v.match, "schemaId" to v.schemaId,
-                    ).filterValues { it != null }
                 } + loaded.dashboards.map { v ->
                     linkedMapOf("id" to v.id, "name" to v.name, "kind" to "dashboard")
                 } + loaded.lensViews.map { v ->
@@ -56,9 +50,25 @@ internal fun viewCommand(rest: List<String>): CliResult = run {
                 "errors" to loaded.errors,
             )
         )
-    // 拡張の種類（チャートなど。ADR-0014）: 元の表を解決して、種類の値を返す（描画は画面だけ）
+    // 拡張の種類（チャート・フローなど。ADR-0014）: 解決して種類の値を返す（描画は画面だけ）。
+    // 文書に縛られる種類（フロー）は view <workspace> <id> <file> で対象の文書を選ぶ（当たる文書が 1 つなら省ける）
     loaded.extensionView(viewId)?.let { def ->
-        return asData(Views.resolveExtension(def, loaded, ws.index, ws::treeOf, ws::schemaFor).report(loaded.errors))
+        val document = if (!def.perDocument) null else {
+            val fileArg = rest.getOrNull(2)?.takeIf { !it.startsWith("--") }
+            val candidates = ws.files.map { ws.relPath(it) }.filter {
+                def.appliesTo(DocumentId(it), ws.schemaFor(ws.resolve(it))?.id)
+            }.sorted()
+            val rel = fileArg?.let {
+                val path = ws.resolve(it).toAbsolutePath().normalize()
+                require(path.startsWith(ws.root.toAbsolutePath().normalize())) { "${def.kindLabel}の原本はワークスペース内で指定してください" }
+                ws.relPath(path).replace('\\', '/')
+            } ?: candidates.singleOrNull() ?: return asData(linkedMapOf(
+                "view" to def.id, "kind" to def.viewKind, "files" to candidates,
+                "hint" to "view <workspace> ${def.id} <file> で対象文書を指定してください",
+            ))
+            DocumentId(rel)
+        }
+        return asData(Views.resolveExtension(def, loaded, ws.index, ws::treeOf, ws::schemaFor, document).report(loaded.errors))
     }
     loaded.dashboard(viewId)?.let { dashboard ->
         val dateIndex = rest.indexOf("--date")
@@ -75,22 +85,6 @@ internal fun viewCommand(rest: List<String>): CliResult = run {
             ?.let { error("ダッシュボード「${dashboard.id}」に入力「$it」はありません（inputs: ${dashboard.inputs.joinToString(", ") { i -> i.key }.ifEmpty { "なし" }}）") }
         val result = Dashboards.resolve(dashboard, date, loaded, ws.index, ws::schemaFor, ws::treeOf, inputs)
         return asData(Dashboards.report(dashboard, result, loaded.errors))
-    }
-    loaded.flowView(viewId)?.let { flow ->
-        val fileArg = rest.getOrNull(2)?.takeIf { !it.startsWith("--") }
-        val candidates = ws.files.map { ws.relPath(it) }.filter {
-            flow.appliesTo(DocumentId(it), ws.schemaFor(ws.resolve(it))?.id)
-        }.sorted()
-        val rel = fileArg?.let {
-            val path = ws.resolve(it).toAbsolutePath().normalize()
-            require(path.startsWith(ws.root.toAbsolutePath().normalize())) { "フローの原本はワークスペース内で指定してください" }
-            ws.relPath(path).replace('\\', '/')
-        } ?: candidates.singleOrNull() ?: return asData(linkedMapOf(
-            "view" to flow.id, "kind" to "flow", "files" to candidates,
-            "hint" to "view <workspace> ${flow.id} <file> で対象文書を指定してください",
-        ))
-        val result = Views.resolveFlow(flow, DocumentId(rel), ws.index, ws::schemaFor, ws::treeOf)
-        return asData(FlowReports.toMap(flow, DocumentId(rel), result, loaded.errors))
     }
     // 文書ビュー（R14-01）: view <workspace> <view-id> [file] で対象文書を解決する
     loaded.docView(viewId)?.let { dv ->
@@ -142,10 +136,10 @@ internal fun viewCommand(rest: List<String>): CliResult = run {
                         "include" to section.fieldsInclude.takeIf { it.isNotEmpty() },
                         "exclude" to section.fieldsExclude.takeIf { it.isNotEmpty() },
                         "rows" to rowMaps(resolved.rows, section.backlinks),
-                        "flow" to section.flowView?.let {
-                            FlowReports.embedded(it, DocumentId(rel), loaded, ws.index, ws::schemaFor, ws::treeOf)
-                        },
-                    ).filterValues { it != null }
+                    ).also { m ->
+                        // 埋め込んだ拡張の種類（フロー・チャート）: 種類の ID を鍵に、この文書で解決した値
+                        section.embed?.let { embed -> m[embed.kind] = Views.embeddedReport(embed, DocumentId(rel), loaded, ws.index, ws::treeOf, ws::schemaFor) }
+                    }.filterValues { it != null }
                 },
                 "attachments" to attachments.map { resolved ->
                     linkedMapOf<String, Any?>(

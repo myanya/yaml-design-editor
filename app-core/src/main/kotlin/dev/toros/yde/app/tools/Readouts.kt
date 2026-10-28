@@ -3,7 +3,6 @@ package dev.toros.yde.app.tools
 import dev.toros.yde.app.core.Dashboards
 import dev.toros.yde.app.core.Disclosure
 import dev.toros.yde.app.core.DocViewDef
-import dev.toros.yde.app.core.FlowReports
 import dev.toros.yde.app.core.TraverseSpec
 import dev.toros.yde.app.core.TraverseStep
 import dev.toros.yde.app.core.Views
@@ -91,7 +90,7 @@ class Readouts(private val ctx: ToolContext) {
         val loaded = Views.load(ws.root, ws.schemas) { copy.tree(it.value) }
         require(date == null || viewId?.let(loaded::dashboard) != null) { "dateはダッシュボードを指定したときだけ使えます" }
         if (viewId.isNullOrBlank()) {
-            if (loaded.views.isEmpty() && loaded.docViews.isEmpty() && loaded.flowViews.isEmpty() && loaded.lensViews.isEmpty() && loaded.dashboards.isEmpty() &&
+            if (loaded.views.isEmpty() && loaded.docViews.isEmpty() && loaded.lensViews.isEmpty() && loaded.dashboards.isEmpty() &&
                 loaded.extensionViews.isEmpty()) return "（ビュー定義がありません）"
             val lines = loaded.views.map { v ->
                 val rowsLabel = v.rows?.let { "idPattern=${it.idPattern}" } ?: "matchクエリ（行キー: ${v.rowKey}）"
@@ -99,9 +98,6 @@ class Readouts(private val ctx: ToolContext) {
                 "- ${v.id}（${v.name}）: $rowsLabel, 列=$columnsLabel"
             } + loaded.docViews.map { v ->
                 "- ${v.id}（${v.name}）: 文書ビュー 適用先=" +
-                    listOfNotNull(v.match, v.schemaId?.let { "schema:$it" }).joinToString(" & ")
-            } + loaded.flowViews.map { v ->
-                "- ${v.id}（${v.name}）: フロービュー 適用先=" +
                     listOfNotNull(v.match, v.schemaId?.let { "schema:$it" }).joinToString(" & ")
             } + loaded.dashboards.map { v ->
                 "- ${v.id}（${v.name}）: ダッシュボード 区画=" + v.sections.joinToString(" / ") { it.label }
@@ -112,10 +108,24 @@ class Readouts(private val ctx: ToolContext) {
             return lines.joinToString("\n") +
                 (if (loaded.errors.isEmpty()) "" else "\n定義エラー:\n" + loaded.errors.joinToString("\n") { "- $it" })
         }
-        // 拡張の種類（チャートなど。ADR-0014）: 元の表をステージングの索引で解決し、種類の文で返す
+        // 拡張の種類（チャート・フローなど。ADR-0014）: ステージングの索引と木で解決し、種類の文で返す。
+        // 文書に縛られる種類（フロー）は file で対象の文書を選ぶ（当たる文書が 1 つなら省ける）
         loaded.extensionView(viewId)?.let { def ->
-            require(fileRel == null && rowsPattern == null && columns == null) { "${def.kindLabel}ではfile / rows / columnsを指定しません" }
-            return Views.resolveExtension(def, loaded, copy.index(), { d -> copy.tree(d.value) }, ws::schemaFor).text()
+            require(rowsPattern == null && columns == null) { "rows / columns の絞り込みは横断グリッドのビューでのみ使えます" }
+            val document = if (!def.perDocument) {
+                require(fileRel == null) { "${def.kindLabel}ではfileを指定しません" }
+                null
+            } else {
+                val candidates = ws.files.map { ws.relPath(it) }
+                    .filter { def.appliesTo(DocumentId(it), ws.schemaFor(ws.resolve(it))?.id) }.sorted()
+                val rel = fileRel?.let {
+                    val path = ws.resolve(it).toAbsolutePath().normalize()
+                    require(path.startsWith(ws.root.toAbsolutePath().normalize())) { "${def.kindLabel}の原本はワークスペース内で指定してください" }
+                    ws.relPath(path).replace('\\', '/')
+                } ?: candidates.singleOrNull() ?: return "file で対象文書を指定してください:\n" + candidates.joinToString("\n")
+                DocumentId(rel)
+            }
+            return Views.resolveExtension(def, loaded, copy.index(), { d -> copy.tree(d.value) }, ws::schemaFor, document).text()
         }
         loaded.dashboard(viewId)?.let { dashboard ->
             require(fileRel == null && rowsPattern == null && columns == null) { "ダッシュボードではfile / rows / columnsを指定しません" }
@@ -130,23 +140,10 @@ class Readouts(private val ctx: ToolContext) {
             require(rowsPattern == null && columns == null) { "rows / columns の絞り込みは横断グリッドのビューでのみ使えます" }
             return docViewText(it, fileRel)
         }
-        loaded.flowView(viewId)?.let { flow ->
-            require(rowsPattern == null && columns == null) { "rows / columns の絞り込みは横断グリッドのビューでのみ使えます" }
-            val candidates = ws.files.map { ws.relPath(it) }
-                .filter { flow.appliesTo(DocumentId(it), ws.schemaFor(ws.resolve(it))?.id) }.sorted()
-            val rel = fileRel?.let {
-                val path = ws.resolve(it).toAbsolutePath().normalize()
-                require(path.startsWith(ws.root.toAbsolutePath().normalize())) { "フローの原本はワークスペース内で指定してください" }
-                ws.relPath(path).replace('\\', '/')
-            } ?: candidates.singleOrNull() ?: return "file で対象文書を指定してください:\n" + candidates.joinToString("\n")
-            val document = DocumentId(rel)
-            val result = Views.resolveFlow(flow, document, copy.index(), ws::schemaFor) { copy.tree(it.value) }
-            return YamlIO.dump(YamlIO.fromAny(dev.toros.yde.app.core.FlowReports.toMap(flow, document, result, loaded.errors)))
-        }
         val view = loaded.view(viewId)
             ?: error(
                 "ビュー「$viewId」が見つかりません" +
-                    "（利用可能: ${(loaded.views + loaded.docViews + loaded.flowViews).joinToString(", ") { it.id }.ifEmpty { "なし" }}）"
+                    "（利用可能: ${(loaded.views + loaded.docViews + loaded.extensionViews).joinToString(", ") { it.id }.ifEmpty { "なし" }}）"
             )
         val index = copy.index()
         val rows = Views.resolve(view, index, { d -> copy.tree(d.value) }, ws::schemaFor)
@@ -179,12 +176,11 @@ class Readouts(private val ctx: ToolContext) {
         val sections = Views.resolveDocument(view, document, index, loader = loader)
         val attachments = Views.resolveAttachments(view, document, index, loader = loader)
         val catalog = Views.load(ws.root, ws.schemas, loader)
-        val flows = sections.mapNotNull { it.section.flowView }.map { id ->
-            YamlIO.dump(YamlIO.fromAny(dev.toros.yde.app.core.FlowReports.embedded(
-                id, document, catalog, index, ws::schemaFor, loader,
-            )))
+        // 埋め込んだ拡張の種類（フロー・チャート）は、この文書で解決した値を後ろに添える
+        val embedded = sections.mapNotNull { it.section.embed }.map { embed ->
+            YamlIO.dump(YamlIO.fromAny(Views.embeddedReport(embed, document, catalog, index, loader, ws::schemaFor)))
         }
-        return (listOf(Views.renderDocText(view, rel, sections, attachments)) + flows).joinToString("\n")
+        return (listOf(Views.renderDocText(view, rel, sections, attachments)) + embedded).joinToString("\n")
     }
 
     /** グラフトラバース（R19-04）。ツール・レシピ項目（agent）の双方から呼ぶ（評価器は core.Traverse の1実装）。 */

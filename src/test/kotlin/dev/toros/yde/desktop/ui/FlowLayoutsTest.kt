@@ -1,7 +1,7 @@
 package dev.toros.yde.desktop.ui
 
 import dev.toros.yde.semantic.*
-import dev.toros.yde.app.core.FlowLayoutMode
+import dev.toros.yde.view.flow.*
 import dev.toros.yde.yaml.model.YPath
 import java.awt.BasicStroke
 import java.awt.Color

@@ -243,8 +243,7 @@ data class VirtualDocSection(
     val fieldsInclude: List<String> = emptyList(),
     val fieldsExclude: List<String> = emptyList(),
     val backlinks: VirtualDocBacklinksDef? = null,
-    val flowView: String? = null,
-    /** 埋め込む拡張の種類のビュー（`chart: {view}` など。ADR-0014）。フロー図と同じ「ビューの部品」。 */
+    /** 埋め込む拡張の種類のビュー（`flow: {view}`・`chart: {view}` など。ADR-0014）。 */
     val embed: VirtualDocEmbed? = null,
 )
 
@@ -1226,10 +1225,8 @@ object VirtualViews {
                 appendLine()
             } else {
                 val embed = section.embed
-                if (section.flowView != null) {
-                    appendLine("セクション${i + 1}: ${section.label ?: "フロー"}（フロー: ${section.flowView}） [$rel]")
-                } else if (embed != null) {
-                    appendLine("セクション${i + 1}: ${section.label ?: embed.kind}（${embed.kind}: ${embed.view}） [$rel]")
+                if (embed != null) {
+                    appendLine("セクション${i + 1}: ${section.label ?: embed.label}（${embed.label}: ${embed.view}） [$rel]")
                 } else {
                     appendLine("セクション${i + 1}: ${section.label ?: "被参照"}（被参照表）")
                     appendBacklinkRows(rel, section.backlinks, resolved.rows.orEmpty(), relOf)

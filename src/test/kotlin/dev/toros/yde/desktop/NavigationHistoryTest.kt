@@ -19,10 +19,10 @@ class NavigationHistoryTest {
     fun `フローから参照先へ移動して戻ると文書と選択が復元される`() {
         val state = AppState()
         val doc = dev.toros.yde.yaml.model.DocumentId("a.yaml")
-        val selection = dev.toros.yde.semantic.FlowSelection("diagram", doc,
-            dev.toros.yde.semantic.FlowElementKind.NODE, "A", listOf("nodes", 0), 1, 2)
+        val selection = dev.toros.yde.view.flow.FlowSelection("diagram", doc,
+            dev.toros.yde.view.flow.FlowElementKind.NODE, "A", listOf("nodes", 0), 1, 2)
         state.openFlowView("diagram", doc)
-        val display = dev.toros.yde.app.core.FlowDisplayOptions(dev.toros.yde.app.core.FlowLayoutMode.SWIMLANES, "right")
+        val display = dev.toros.yde.view.flow.FlowDisplayOptions(dev.toros.yde.view.flow.FlowLayoutMode.SWIMLANES, "right")
         state.flowDisplayOptions = mapOf(("diagram" to doc) to display)
         state.selectFlow("diagram", doc, selection)
         state.openFile(newFile("target.yaml"))

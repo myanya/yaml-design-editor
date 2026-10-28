@@ -23,10 +23,8 @@ import dev.toros.yde.semantic.VirtualDocSection
 import dev.toros.yde.semantic.VirtualDocSectionResolved
 import dev.toros.yde.semantic.VirtualDocViewDef
 import dev.toros.yde.semantic.VirtualGridDef
-import dev.toros.yde.semantic.VirtualFlowDef
-import dev.toros.yde.semantic.FlowViews
-import dev.toros.yde.semantic.FlowResolution
-import dev.toros.yde.semantic.FlowConnectionState
+import dev.toros.yde.semantic.ScannedRef
+import dev.toros.yde.semantic.VirtualDocEmbed
 import dev.toros.yde.semantic.VirtualNewRowDef
 import dev.toros.yde.semantic.VirtualRow
 import dev.toros.yde.semantic.VirtualRowsDef
@@ -109,7 +107,6 @@ object Views {
 
     data class LoadResult(
         val views: List<ViewDef>, val docViews: List<DocViewDef>, val errors: List<String>,
-        val flowViews: List<VirtualFlowDef> = emptyList(),
         /** レンズの見え方（kind: lens）。レンズは全部の定義を合わせて読む。 */
         val lensViews: List<dev.toros.yde.semantic.VirtualLensDef> = emptyList(),
         val dashboards: List<dev.toros.yde.semantic.VirtualDashboardDef> = emptyList(),
@@ -117,10 +114,10 @@ object Views {
         val extensionViews: List<ExtensionViewDef> = emptyList(),
     ) {
         fun dashboard(id: String): dev.toros.yde.semantic.VirtualDashboardDef? =
-            (views + docViews + flowViews + lensViews + dashboards).singleOrNull { it.id == id } as? dev.toros.yde.semantic.VirtualDashboardDef
+            (views + docViews + lensViews + dashboards + extensionViews).singleOrNull { it.id == id } as? dev.toros.yde.semantic.VirtualDashboardDef
 
         fun extensionView(id: String): ExtensionViewDef? =
-            (views + docViews + flowViews + lensViews + dashboards + extensionViews).singleOrNull { it.id == id } as? ExtensionViewDef
+            (views + docViews + lensViews + dashboards + extensionViews).singleOrNull { it.id == id } as? ExtensionViewDef
 
         /** 既定指定が重複したときは勝手に選ばず、先頭の一意な定義と診断を表示する。 */
         fun defaultDashboard(): dev.toros.yde.semantic.VirtualDashboardDef? =
@@ -128,7 +125,7 @@ object Views {
                 ?: dashboards.firstNotNullOfOrNull { dashboard(it.id) }
 
         fun dashboardGrid(id: String): ViewDef? =
-            (views + docViews + flowViews + lensViews + dashboards).singleOrNull { it.id == id } as? ViewDef
+            (views + docViews + lensViews + dashboards + extensionViews).singleOrNull { it.id == id } as? ViewDef
 
         fun view(id: String): ViewDef? = views.firstOrNull { it.id == id }
 
@@ -137,8 +134,6 @@ object Views {
 
         fun docView(id: String): DocViewDef? = docViews.firstOrNull { it.id == id }
 
-        fun flowView(id: String): VirtualFlowDef? =
-            (views + docViews + flowViews).singleOrNull { it.id == id } as? VirtualFlowDef
 
         /** 文書に適用する文書ビュー。スキーマの match と同じ「定義ファイル名順の先勝ち」。 */
         fun docViewFor(relPath: String, schemaId: String?): DocViewDef? =
@@ -169,20 +164,51 @@ object Views {
             document to if (loader == null) Files.readString(file) else loader(document)?.let(YamlIO::dumpPlain).orEmpty()
         }
         val catalog = ViewDefinitions.load(sources, schemas.map { it.kernel }, Extensions.viewKinds)
-        return LoadResult(catalog.views, catalog.docViews, catalog.errors, catalog.flowViews, catalog.lensViews, catalog.dashboards, catalog.extensionViews)
+        return LoadResult(catalog.views, catalog.docViews, catalog.errors, catalog.lensViews, catalog.dashboards, catalog.extensionViews)
     }
 
     /**
-     * 拡張の種類のビュー（チャートなど。ADR-0014）を解決する: 元の表（グリッドかクロス集計）を同じ索引・原本で解決して渡す。
+     * 拡張の種類のビュー（チャート・フローなど。ADR-0014）を解決する: 元の表（グリッドかクロス集計）・対象の文書・項目・参照を、
+     * 同じ索引・原本（未保存の編集を重ねたもの）で答える。文書に縛られる種類（perDocument）は document が要る。
      * 解決できなければ誤りの文で例外（元の表が無いなど）。描画は画面だけで、CLI と read_view は結果の値と文を返す。
      */
     fun resolveExtension(
-        def: ExtensionViewDef, loaded: LoadResult, index: IdIndex, loader: (DocumentId) -> YNode?,
+        def: ExtensionViewDef, loaded: LoadResult?, index: IdIndex, loader: (DocumentId) -> YNode?,
+        schemaFor: (DocumentId) -> SchemaDef? = { null }, document: DocumentId? = null,
+    ): ExtensionViewResult {
+        val refsByDocument: Map<DocumentId, Map<YPath, List<ScannedRef>>> by lazy { index.refs.groupBy { it.document }.mapValues { (_, r) -> r.groupBy { it.path } } }
+        return def.resolve(object : ViewContext {
+            override fun grid(id: String): VirtualGridDef? = loaded?.view(id)
+            override fun rows(grid: VirtualGridDef): List<VirtualRow> = resolve(grid, index, loader, schemaFor)
+            override val document: DocumentId? = document
+            override fun tree(document: DocumentId): YNode? = loader(document)
+            override fun schemaId(document: DocumentId): String? = schemaFor(document)?.id
+            override fun fieldAt(document: DocumentId, path: YPath): FieldDef? = loader(document)?.let { schemaFor(document)?.fieldAt(it, path) }
+            override fun refsAt(document: DocumentId, path: YPath): List<ScannedRef> = refsByDocument[document]?.get(path).orEmpty()
+            override fun resolves(ref: ScannedRef): Boolean = index.resolve(ref).isNotEmpty()
+        })
+    }
+
+    /**
+     * 文書ビューの区画に埋め込んだ拡張の種類のビュー（`flow: {view}`・`chart: {view}`）を、その文書で解決する。
+     * 埋め込み先が一意なその種類のビューでなければ誤りの文で例外。
+     */
+    fun resolveEmbedded(
+        embed: VirtualDocEmbed, document: DocumentId, loaded: LoadResult, index: IdIndex, loader: (DocumentId) -> YNode?,
         schemaFor: (DocumentId) -> SchemaDef? = { null },
-    ): ExtensionViewResult = def.resolve(object : ViewContext {
-        override fun grid(id: String): VirtualGridDef? = loaded.view(id)
-        override fun rows(grid: VirtualGridDef): List<VirtualRow> = resolve(grid, index, loader, schemaFor)
-    })
+    ): ExtensionViewResult {
+        val def = loaded.extensionView(embed.view)?.takeIf { it.viewKind == embed.kind }
+            ?: error("埋め込み先「${embed.view}」は一意な${embed.label}（kind: ${embed.kind}）を参照してください")
+        return resolveExtension(def, loaded, index, loader, schemaFor, document)
+    }
+
+    /** 埋め込みの CLI・read_view の値（解決できなければ誤りの値）。 */
+    fun embeddedReport(
+        embed: VirtualDocEmbed, document: DocumentId, loaded: LoadResult, index: IdIndex, loader: (DocumentId) -> YNode?,
+        schemaFor: (DocumentId) -> SchemaDef? = { null },
+    ): Map<String, Any?> = runCatching { resolveEmbedded(embed, document, loaded, index, loader, schemaFor).report() }.getOrElse {
+        linkedMapOf("view" to embed.view, "kind" to embed.kind, "file" to document.value, "errors" to listOf(it.message ?: "${embed.label}を解決できません"))
+    }
 
     /** 解決した行の列（軸を値の式で広げたクロス集計は、列が解決のときに決まる）。ヘッダと書き出しはこれを使う。 */
     fun columnsOf(view: ViewDef, rows: List<ViewRow>): List<ViewColumn> = VirtualViews.columnsOf(view, rows)
@@ -211,26 +237,6 @@ object Views {
 
     // ---------------------------------------------------------------- 解決
     // 解決の本体はカーネル（semantic.VirtualViews。RC-01・RC-02）。索引も結果もカーネルの型そのものなので、ここは呼ぶだけの窓口
-
-    /** 未保存編集を扱う呼び出し側は、同じスナップショットの索引・原本loader・スキーマを渡す。 */
-    fun resolveFlow(
-        view: VirtualFlowDef,
-        document: DocumentId,
-        index: IdIndex,
-        schemaFor: (DocumentId) -> SchemaDef?,
-        loader: (DocumentId) -> YNode?,
-    ): FlowResolution {
-        val input = loader(document)
-        val schema = schemaFor(document)
-        val refs = index.refs.filter { it.document == document }.groupBy { it.path }
-        return FlowViews.resolve(view, document, schema?.id, input) { location, key ->
-            val field = if (location.document == document && input != null) schema?.fieldAt(input, location.path) else null
-            val ref = refs[location.path]?.singleOrNull { it.targetId == key }
-            if (field?.type != FieldType.REF || ref == null || ref.targetKind != dev.toros.yde.semantic.schema.RefTarget.ENTITY) {
-                FlowConnectionState.UNKNOWN
-            } else if (index.resolve(ref).isEmpty()) FlowConnectionState.UNRESOLVED else FlowConnectionState.OUTSIDE
-        }
-    }
 
     /**
      * ビューを行×セルに解決する。

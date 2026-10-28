@@ -18,4 +18,5 @@ include(
     ":format-xlsx",
     ":format-docx",
     ":view-chart",
+    ":view-flow",
 )

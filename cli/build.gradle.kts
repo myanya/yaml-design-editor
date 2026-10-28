@@ -37,6 +37,7 @@ dependencies {
     implementation(project(":format-xlsx"))
     implementation(project(":format-docx"))
     implementation(project(":view-chart"))
+    implementation(project(":view-flow"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")   // agent / watch / eval の runBlocking（agent と同じ版）
 }
 

@@ -126,7 +126,7 @@ sections:
     fields: {}
 ```
 
-各セクションはfields・backlinks・flowのいずれか1つを持ちます。flow.viewは一意なflowビューのIDを指定します。
+各セクションはfields・backlinks・flow・chartのいずれか1つを持ちます。flow.viewは一意なflowビューのIDを指定します。
 埋め込み先は現在の文書です。match・schemaIdへの適合は表示時に判定し、不一致は診断として表示します。
 図の高さは固定し、「拡大表示」で同じ文書を台帳のフローへ開きます。原本・フロー定義の未保存編集にも追随します。
 CLIの文書ビュー結果は各セクションのflowに表示モデルを含み、read_viewでも同じモデルと座標を確認できます。

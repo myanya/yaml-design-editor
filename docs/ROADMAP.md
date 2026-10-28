@@ -111,7 +111,7 @@
 | P44 | 業務の入口としてのダッシュボード | 初期版と独立した業務導線が完了（2026-10-25）、試用後の拡張判断は下記 |
 | P45 | ワークスペースの初期化（新しいワークスペースを作るウィザード。テンプレートから・自分の項目で・既存フォルダに後入れ） | 完了（2026-10-25）。本文は [記録](archive/roadmap-history.md) |
 | P46 | チャート（`kind: chart`＝表を図にするビューの部品）と、軸を値の式で広げるクロス集計 | 第一弾完了（2026-10-26）。残りは下記 |
-| P47 | 開発を AI エージェントに向く形にする（規則の機械化・応用層の切り出し・読む量・入口・UI の確認・拡張の機構・MCP） | 段階 0 完了・段階 1 の R47-10〜13 完了・段階 2 の R47-20（AppState の分割）と R47-24（app-core の切り出しと desktop への改名）・R47-25（agent モジュールの切り出しと run・auto・eval への分割）・R47-26（共通の Gradle 設定）・R47-23（行数の目安）完了。段階 6 の R47-60（形式の差し込み口）は R47-41 のために前倒しで完了。段階 4 の R47-41（CLI を 1 つに）完了。段階 5 の R47-61（ビューの種類の差し込み口）は段 1（chart）完了。目指す構成は ADR-0013（承認 2026-10-27）と ADR-0014（2026-10-28）。次は R47-61 段 2（flow） |
+| P47 | 開発を AI エージェントに向く形にする（規則の機械化・応用層の切り出し・読む量・入口・UI の確認・拡張の機構・MCP） | 段階 0 完了・段階 1 の R47-10〜13 完了・段階 2 の R47-20（AppState の分割）と R47-24（app-core の切り出しと desktop への改名）・R47-25（agent モジュールの切り出しと run・auto・eval への分割）・R47-26（共通の Gradle 設定）・R47-23（行数の目安）完了。段階 6 の R47-60（形式の差し込み口）は R47-41 のために前倒しで完了。段階 4 の R47-41（CLI を 1 つに）完了。段階 5 の R47-61（ビューの種類の差し込み口。chart と flow を拡張へ）完了。目指す構成は ADR-0013（承認 2026-10-27）と ADR-0014（2026-10-28）。残りは段階 3 の議論（R47-30・31・33）と R47-14・32・51・70 |
 
 ## 未完のテーマ
 
@@ -488,7 +488,7 @@ R47-10 の最初の規則（既知の違反を除いて守られているので�
 | ID | 項目 | 内容 | 判断 | 状態 |
 |---|---|---|---|---|
 | R47-60 | 形式の差し込み口 | app-core に `FormatCodec`（ID・拡張子・読む・書く）と登録簿を置き、skill の形式 enum を置き換える。format-xlsx・format-docx（POI）・format-text（csv・json・markdown）の 3 モジュール。対応づけは skill 定義の YAML のまま。登録は入口の 1 ファイルの一覧 | 決定（形式を先に。ADR-0013） | ✅ 2026-10-27（R47-41 のため前倒し。`app.ext` の `FormatCodec`／`ExtensionRegistry`／`Extensions`、3 モジュール、登録は `desktop/ext/DesktopExtensions.kt`。root の POI は test だけ） |
-| R47-61 | ビューの種類の差し込み口 | app-core に `ViewKind`（種類・定義の形の断片・読み取り・解決）を置き、`ViewDefinitions` の `when(kind)` を登録簿に置き換える。メタスキーマへ断片を kind ごとに合成する仕組みを作る。chart・lens・flow・matrix を view-* モジュールへ出し、grid・document・dashboard は中核に残す。描画は desktop.views の登録簿（`ViewRenderer`）で、大きくなった種類から view-*-ui へ | 決定（ADR-0013。置き場と出す種類は ADR-0014＝オーナー 2026-10-28） | 段 1 ✅ 2026-10-28（差し込み口 `ViewKind` を workspace-core に・拡張の種類の共通の形 `ExtensionViewDef` / `ExtensionViewResult` を semantic-core に・メタスキーマの断片の合成 `ViewSchemaFragments`・chart を view-chart へ・描画の一覧 `ViewRenderers`。matrix・lens は中核に残す）。段 2＝flow は未着手 |
+| R47-61 | ビューの種類の差し込み口 | app-core に `ViewKind`（種類・定義の形の断片・読み取り・解決）を置き、`ViewDefinitions` の `when(kind)` を登録簿に置き換える。メタスキーマへ断片を kind ごとに合成する仕組みを作る。chart・lens・flow・matrix を view-* モジュールへ出し、grid・document・dashboard は中核に残す。描画は desktop.views の登録簿（`ViewRenderer`）で、大きくなった種類から view-*-ui へ | 決定（ADR-0013。置き場と出す種類は ADR-0014＝オーナー 2026-10-28） | 段 1 ✅ 2026-10-28（差し込み口 `ViewKind` を workspace-core に・拡張の種類の共通の形 `ExtensionViewDef` / `ExtensionViewResult` を semantic-core に・メタスキーマの断片の合成 `ViewSchemaFragments`・chart を view-chart へ・描画の一覧 `ViewRenderers`。matrix・lens は中核に残す）。段 2 ✅ 2026-10-28（flow を view-flow へ。文書に縛られる種類の口＝`perDocument`・`appliesTo`・`ViewContext.document`、差し込み口に `lintDefinition`・`moveWarnings`・`mentionSites`。フローのタブと文書ビューの区画は `ViewRenderer.Section`） |
 | R47-62 | 拡張の規則テスト | 拡張の全モジュールが入口の一覧に登録されている・拡張どうしが依存しない・Compose を持つのは desktop と view-*-ui だけ、を規則テストに足す。拡張の形（README・3 行の build・実装 1 つ・断片・テスト）も検査する | なし | ✅ 2026-10-27（規則 14〜18＝走査の漏れ・入口の一覧への登録・拡張の依存・拡張の形・agent のファイルの循環。`rules/ModuleRules`。規則 18 が agent.llm の循環を見つけ、生成の入出力を llm/AiGeneration.kt に出して解いた）。Compose を持つのは desktop と view-*-ui だけ、は規則 1 が拡張を含めて見る |
 
 #### 段階 7: MCP の入口

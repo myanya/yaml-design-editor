@@ -1,6 +1,6 @@
-package dev.toros.yde.app.core
+package dev.toros.yde.view.flow
 
-/** フロー原本やビュー定義へ書き込まない、利用者の表示設定。 */
+/** フロー原本やビュー定義へ書き込まない、利用者の表示設定（画面が読むので公開する）。 */
 enum class FlowLayoutMode(val label: String) {
     GROUPED("グループ"),
     SWIMLANES("スイムレーン"),

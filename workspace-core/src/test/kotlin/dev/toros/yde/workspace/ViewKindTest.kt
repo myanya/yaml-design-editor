@@ -74,8 +74,8 @@ class ViewKindTest {
         // 登録していなければ、使える種類を並べた誤り（文書ビューの区画のキーも知らない）
         val bare = ViewDefinitions.load(sources)
         assertTrue(bare.extensionViews.isEmpty())
-        assertTrue(bare.errors.any { it == "a.yaml: kind は grid / document / matrix / flow / lens / dashboard のいずれかである必要があります: note" }, bare.errors.toString())
-        assertTrue(bare.errors.any { "d.yaml" in it && "fields / backlinks / flow のいずれか一方" in it }, bare.errors.toString())
+        assertTrue(bare.errors.any { it == "a.yaml: kind は grid / document / matrix / lens / dashboard のいずれかである必要があります: note" }, bare.errors.toString())
+        assertTrue(bare.errors.any { "d.yaml" in it && "fields / backlinks のいずれか一方" in it }, bare.errors.toString())
     }
 
     @Test

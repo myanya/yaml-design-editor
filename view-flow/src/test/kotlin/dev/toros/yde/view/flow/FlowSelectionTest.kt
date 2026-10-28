@@ -1,4 +1,4 @@
-package dev.toros.yde.semantic
+package dev.toros.yde.view.flow
 
 import dev.toros.yde.yaml.model.DocumentId
 import kotlin.test.*

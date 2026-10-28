@@ -244,6 +244,6 @@ class ChartViewKindTest {
         val loaded = Views.load(ws, workspace.schemas)
         assertTrue(loaded.extensionViews.isEmpty())
         val error = loaded.errors.first { "monthly-chart" in it }
-        assertTrue("kind は grid / document / matrix / flow / lens / dashboard のいずれか" in error && error.endsWith(": chart"), error)
+        assertTrue("kind は grid / document / matrix / lens / dashboard のいずれか" in error && error.endsWith(": chart"), error)
     }
 }

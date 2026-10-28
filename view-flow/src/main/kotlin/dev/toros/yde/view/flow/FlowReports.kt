@@ -1,35 +1,19 @@
-package dev.toros.yde.app.core
+package dev.toros.yde.view.flow
 
-import dev.toros.yde.semantic.FlowResolution
-import dev.toros.yde.semantic.VirtualFlowDef
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.pretty
 
-/** CLIとエージェントが同じ原本座標・診断を開示するための出力形式。 */
-object FlowReports {
-    /** 埋め込み先は現在の文書に固定し、適用条件は通常のフロー解決で判定する。 */
-    fun embedded(
-        id: String, document: DocumentId, catalog: Views.LoadResult,
-        index: dev.toros.yde.app.index.IdIndex,
-        schemaFor: (DocumentId) -> dev.toros.yde.app.schema.SchemaDef?,
-        loader: (DocumentId) -> dev.toros.yde.yaml.model.YNode?,
-    ): Map<String, Any?> {
-        val targets = (catalog.views + catalog.docViews + catalog.flowViews).filter { it.id == id }
-        val view = targets.singleOrNull() as? VirtualFlowDef
-            ?: return linkedMapOf("view" to id, "kind" to "flow", "file" to document.value,
-                "errors" to listOf("埋め込み先「$id」は一意なflowビューを参照してください"))
-        return toMap(view, document, Views.resolveFlow(view, document, index, schemaFor, loader))
-    }
-
+/** CLIとエージェントが同じ原本座標・診断を開示するための出力形式（FlowViewResult.report）。 */
+internal object FlowReports {
     fun toMap(view: VirtualFlowDef, document: DocumentId, result: FlowResolution, errors: List<String> = emptyList()): Map<String, Any?> {
-        fun location(value: dev.toros.yde.semantic.FlowLocation) =
+        fun location(value: FlowLocation) =
             linkedMapOf("file" to value.document.value, "path" to value.path.pretty())
-        fun detail(value: dev.toros.yde.semantic.FlowDetail) = linkedMapOf(
+        fun detail(value: FlowDetail) = linkedMapOf(
             "value" to value.value?.let { YamlIO.toAny(it) },
             "origins" to value.origins.map(::location), "editable" to value.editable,
         )
-        fun connection(value: dev.toros.yde.semantic.FlowConnection) = linkedMapOf(
+        fun connection(value: FlowConnection) = linkedMapOf(
             "key" to value.key, "state" to value.state.name.lowercase(), "target" to value.target?.pretty(),
         )
         return linkedMapOf(

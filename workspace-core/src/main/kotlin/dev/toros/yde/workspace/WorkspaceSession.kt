@@ -630,13 +630,13 @@ class WorkspaceSession private constructor(
             is RefactoringRequest.DeleteField ->
                 plan.copy(warnings = RefactoringImpact.fieldDeleteWarnings(this, request.fieldPath))
             is RefactoringRequest.RenameEntity ->
-                plan.copy(warnings = plan.warnings + RefactoringImpact.flowDefinitionWarnings(this, request.oldId))
+                plan.copy(warnings = plan.warnings + RefactoringImpact.viewMentionWarnings(this, request.oldId))
             is RefactoringRequest.RenameRelation ->
-                plan.copy(warnings = plan.warnings + RefactoringImpact.flowDefinitionWarnings(this, request.oldName))
+                plan.copy(warnings = plan.warnings + RefactoringImpact.viewMentionWarnings(this, request.oldName))
             is RefactoringRequest.RenameSchemaId ->
-                plan.copy(warnings = plan.warnings + RefactoringImpact.flowDefinitionWarnings(this, request.oldId))
+                plan.copy(warnings = plan.warnings + RefactoringImpact.viewMentionWarnings(this, request.oldId))
             is RefactoringRequest.MoveField ->
-                plan.copy(warnings = plan.warnings + RefactoringImpact.flowDefinitionWarnings(
+                plan.copy(warnings = plan.warnings + RefactoringImpact.viewMentionWarnings(
                     this, request.fieldPath.substringAfterLast('.'),
                 ))
             else -> plan

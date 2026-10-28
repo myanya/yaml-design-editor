@@ -75,9 +75,10 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 | format-xlsx | `format.xlsx` | 拡張: Excel の表（Apache POI）の `FormatCodec`（`XlsxFormat.kt`） |
 | format-docx | `format.docx` | 拡張: Word 文書の中の表（Apache POI。読むだけ）の `FormatCodec`（`DocxFormat.kt`） |
 | view-chart | `view.chart` | 拡張: ビューの種類 `kind: chart` の `ViewKind`（`ChartViewKind.kt`）と、描画が読む定義と結果の型（`ChartViews.kt`・`ChartSelection.kt`）。定義の形の断片は資源 `view-chart/schema.yaml` |
+| view-flow | `view.flow` | 拡張: ビューの種類 `kind: flow` の `ViewKind`（`FlowViewKind.kt`）と、描画が読む定義・図のモデル・選択・表示の設定（`FlowViews.kt`・`FlowSelection.kt`・`FlowDisplayOptions.kt`）。CLI・read_view の値は `FlowReports.kt`。資源は断片 `view-flow/schema.yaml` と図の構造 `view-flow/flow-model.yaml` |
 | アプリ（root） | `desktop` | `Main.kt`（エントリポイント・ウィンドウ・ショートカット・スタート画面）・`AppState` / `OpenDocument` |
 | | `desktop.ui` | Compose の画面一式（骨格は `ui/Shell.kt`）。拡張の種類のビューの描画の一覧 `ViewRenderers` もここ（ADR-0014） |
-| | `desktop.ext` | 拡張の登録の一覧（`DesktopExtensions`。入出力の形式 6 つとビューの種類 1 つ）。入口が `Extensions.install` に渡す 1 ファイル |
+| | `desktop.ext` | 拡張の登録の一覧（`DesktopExtensions`。入出力の形式 6 つとビューの種類 2 つ）。入口が `Extensions.install` に渡す 1 ファイル |
 
 応用層の中の依存は `app.ext`（登録簿。カーネルだけを使う）→ `app.core` → `app.session` → `app.tools` → `app.skill`（app-core）→ `agent.llm` → `agent` → `agent.run` → `agent.auto` → `agent.eval`（agent）→ `desktop`（AppState・`desktop.ext`）→ `desktop.ui` の一方向。`app.index` / `app.schema` / `app.validate` / `app.text` は `app.core` より下。
 app-core（`app.core` / `app.index` / `app.schema` / `app.validate` / `app.text` / `app.session` / `app.tools` / `app.ext` / `app.skill`）と agent（`agent` / `agent.llm` / `agent.run` / `agent.auto` / `agent.eval`）と拡張（format-*・view-*）は Compose 非依存の純粋ロジックで、単体テストはこの層に書く。拡張は app-core とカーネルだけを使い、拡張どうし・agent・入口に依存しない。入口が登録の一覧（`desktop/ext/DesktopExtensions.kt`）で `Extensions.install` に渡す。`desktop`（AppState）は `mutableStateOf` だけに依存する。

@@ -86,8 +86,9 @@ object RefactoringImpact {
         for (docView in viewDefs.docViews) {
             if (leaves(docView.match)) warnings += "文書ビュー「${docView.id}」の match がこのファイルを対象にしなくなります"
         }
-        for (flowView in viewDefs.flowViews) {
-            if (leaves(flowView.match)) warnings += "フロービュー「${flowView.id}」の match がこのファイルを対象にしなくなります"
+        // 拡張の種類（flow など）の対象から外れる警告は種類が作る
+        for (def in viewDefs.extensionViews) {
+            warnings += session.viewKinds.firstOrNull { it.id == def.viewKind }?.moveWarnings(def, ::leaves).orEmpty()
         }
         return warnings
     }
@@ -97,7 +98,7 @@ object RefactoringImpact {
      * これは意味の評価ではなく保守的な言及の列挙。規則・条件・辞書キー・未知の指示も漏らさない。
      * レンズの見え方（kind: lens）の関係名も同じ扱い（関係の改名で言及を開示する）。
      */
-    internal fun flowDefinitionWarnings(session: WorkspaceSession, token: String): List<String> =
+    internal fun viewMentionWarnings(session: WorkspaceSession, token: String): List<String> =
         viewDocuments(session).flatMap { file ->
             val raw = runCatching { YamlIO.parseToRaw(session.storedText(file) ?: "") }.getOrNull() as? Map<*, *>
                 ?: return@flatMap emptyList()
@@ -108,36 +109,14 @@ object RefactoringImpact {
             }
             if (raw["kind"] == "dashboard") {
                 val sites = (raw["sections"] as? List<*>).orEmpty().flatMapIndexed { i, section ->
-                    literalMentions((section as? Map<*, *>)?.get("filter"), token, "sections[${i + 1}].filter")
-                } + literalMentions(raw["actions"], token, "actions")
+                    DefinitionMentions.literal((section as? Map<*, *>)?.get("filter"), token, "sections[${i + 1}].filter")
+                } + DefinitionMentions.literal(raw["actions"], token, "actions")
                 return@flatMap sites.map { "${file.value}: $it に「$token」の言及があります（自動書換の対象外・要確認）" }
             }
-            if (raw["kind"] != "flow") return@flatMap emptyList()
-            val sites = literalMentions(raw["projection"], token, "projection") +
-                listOf("schemaId", "match").filter { key ->
-                    raw[key]?.toString()?.let { tokenRegex(token).containsMatchIn(it) } == true
-                }
-            sites.map { "${file.value}: $it に「$token」の言及があります（自動書換の対象外・要確認）" }
+            // 拡張の種類（flow の projection など）の言及の場所は種類が知る
+            val kind = session.viewKinds.firstOrNull { it.id == raw["kind"] } ?: return@flatMap emptyList()
+            kind.mentionSites(raw, token).map { "${file.value}: $it に「$token」の言及があります（自動書換の対象外・要確認）" }
         }
-
-    private fun literalMentions(raw: Any?, token: String, crumb: String): List<String> {
-        val pattern = tokenRegex(token)
-        val out = linkedSetOf<String>()
-        fun walk(node: Any?, at: String) {
-            when (node) {
-                is Map<*, *> -> node.forEach { (key, value) ->
-                    val here = "$at.$key"
-                    if (pattern.containsMatchIn(key.toString())) out += here
-                    walk(value, here)
-                }
-                is List<*> -> node.forEachIndexed { i, value -> walk(value, "$at[${i + 1}]") }
-                is String -> if (pattern.containsMatchIn(node)) out += at
-                else -> Unit
-            }
-        }
-        walk(raw, crumb)
-        return out.toList()
-    }
 
     // ================================================================ スキーマ側の解決（読み取り専用の簡約版）
 
@@ -272,8 +251,7 @@ object RefactoringImpact {
         )
     }
 
-    private fun tokenRegex(token: String): Regex =
-        Regex("(?<![A-Za-z0-9_])" + Regex.escape(token) + "(?![A-Za-z0-9_])")
+    private fun tokenRegex(token: String): Regex = DefinitionMentions.tokenRegex(token)
 
     // ================================================================ ビュー定義の追随（旧 core/Views.kt から移設）
 
@@ -556,7 +534,7 @@ object RefactoringImpact {
                     val here = if (crumb.isEmpty()) key else "$crumb.$key"
                     when {
                         // Transformの相対パス・規則・条件を静的な列パスとして扱わない。
-                        key == "projection" -> out += literalMentions(v, oldName, here)
+                        key == "projection" -> out += DefinitionMentions.literal(v, oldName, here)
                         key in setOf("path", "via", "at") && v != null && v !is Map<*, *> && v !is List<*> ->
                             if (containsOld(v.toString())) out += here
                         key in setOf("value", "format") && v is String ->

@@ -6,8 +6,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.sp
 import dev.toros.yde.app.core.Views
 import dev.toros.yde.desktop.AppState
+import dev.toros.yde.desktop.OpenDocument
 import dev.toros.yde.semantic.ExtensionViewDef
 import dev.toros.yde.semantic.ExtensionViewResult
+import dev.toros.yde.yaml.model.DocumentId
 
 // ================================================================ 拡張の種類のビューの描画（ADR-0013 の ViewRenderer。置き場は ADR-0014 で desktop.ui）
 //
@@ -31,11 +33,17 @@ internal interface ViewRenderer {
     /** 解決した結果を描く。onOpenEntity は材料の ID の行き先（null＝その場所の既定）。 */
     @Composable
     fun Content(state: AppState, result: ExtensionViewResult, place: ViewPlace, onOpenEntity: ((String) -> Unit)?)
+
+    /** 文書ビューの区画に描く。既定はその文書で解決して Content。文書を編集に使う種類（フロー）は自分で描く。 */
+    @Composable
+    fun Section(state: AppState, loaded: Views.LoadResult, def: ExtensionViewDef, doc: OpenDocument) {
+        ExtensionViewPane(state, loaded, def, ViewPlace.SECTION, document = state.documentOf(doc.file))
+    }
 }
 
 /** 描画の一覧。拡張の種類を足したら、desktop/ext/DesktopExtensions.kt の登録と一緒にここに 1 行足す（自動発見はしない）。 */
 internal object ViewRenderers {
-    private val all: List<ViewRenderer> = listOf(ChartRenderer)
+    private val all: List<ViewRenderer> = listOf(FlowRenderer, ChartRenderer)
 
     fun of(kind: String): ViewRenderer? = all.firstOrNull { it.kind == kind }
 }
@@ -48,11 +56,14 @@ internal fun ExtensionViewContent(state: AppState, result: ExtensionViewResult, 
     else renderer.Content(state, result, place, onOpenEntity)
 }
 
-/** 拡張の種類のビューを、同じ索引・未保存の編集で解決して描く（台帳のビュータブ・文書ビューの区画）。解決できなければ誤りの文。 */
+/**
+ * 拡張の種類のビューを、同じ索引・未保存の編集で解決して描く（台帳のビュータブ・文書ビューの区画）。解決できなければ誤りの文。
+ * document は文書に縛られる種類（フロー）が射影する文書。
+ */
 @Composable
-internal fun ExtensionViewPane(state: AppState, loaded: Views.LoadResult, def: ExtensionViewDef, place: ViewPlace) {
-    val result = remember(def, loaded, state.indexVersion, state.editVersion) {
-        runCatching { Views.resolveExtension(def, loaded, state.overlayIndex(), state.unsavedFirstTree(), state::schemaFor) }
+internal fun ExtensionViewPane(state: AppState, loaded: Views.LoadResult, def: ExtensionViewDef, place: ViewPlace, document: DocumentId? = null) {
+    val result = remember(def, loaded, document, state.indexVersion, state.editVersion) {
+        runCatching { Views.resolveExtension(def, loaded, state.overlayIndex(), state.unsavedFirstTree(), state::schemaFor, document) }
     }
     val resolved = result.getOrNull()
     if (resolved == null) {

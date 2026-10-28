@@ -79,7 +79,7 @@ fun ViewGridView(state: AppState) {
     val reports = remember(state.indexVersion, ws) { Reports.load(ws) }
     val report = reports.report(state.viewGridId ?: "")
     // 選んだ ID が拡張の種類（チャートなど。ADR-0014）なら、表の代わりにその種類の描画
-    val chart = if (report != null) null else loaded.extensionView(state.viewGridId ?: "")
+    val chart = if (report != null) null else loaded.extensionView(state.viewGridId ?: "")?.takeIf { !it.perDocument }
     val view = if (chart != null || report != null) null else loaded.view(state.viewGridId ?: "") ?: loaded.views.firstOrNull()
     val errors = loaded.errors + reports.errors
 
@@ -130,7 +130,7 @@ private fun HeaderBar(
         Spacer(Modifier.width(12.dp))
         Box {
             OutlinedButton(
-                enabled = loaded.views.isNotEmpty() || loaded.extensionViews.isNotEmpty() || reports.reports.isNotEmpty(),
+                enabled = loaded.views.isNotEmpty() || loaded.extensionViews.any { !it.perDocument } || reports.reports.isNotEmpty(),
                 onClick = { selectorOpen = true },
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
             ) {
@@ -142,7 +142,7 @@ private fun HeaderBar(
                 ChoiceOption(v.id, v.name,
                     "${v.id} — " + (v.rows?.let { "idPattern: ${it.idPattern}" } ?: v.matrix?.rowsValue?.let { "行は値の軸（${it.text}）" } ?: "matchクエリ（行キー: ${v.rowKey}）"),
                     description = v.description, selected = v.id == view?.id)
-            } + loaded.extensionViews.map { c ->
+            } + loaded.extensionViews.filter { !it.perDocument }.map { c ->
                 val renderer = ViewRenderers.of(c.viewKind)
                 ChoiceOption(c.id, renderer?.choiceName(c) ?: "${c.name}（${c.kindLabel}）", renderer?.choiceSubtitle(c) ?: "${c.id} — ${c.listingText()}",
                     description = c.description, selected = c.id == chart?.id)

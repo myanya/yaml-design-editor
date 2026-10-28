@@ -1,8 +1,9 @@
-package dev.toros.yde.semantic
+package dev.toros.yde.view.flow
 
 import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.YPath
 
+/** 図で選んだ要素の種類（画面の選択。描画が読むので公開する）。 */
 enum class FlowElementKind { NODE, EDGE }
 
 /** 無key辺は原本と定義の同じ版の間だけ有効。版は呼び出し側がセッション内で発行する。 */

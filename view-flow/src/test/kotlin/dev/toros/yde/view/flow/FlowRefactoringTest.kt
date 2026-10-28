@@ -1,7 +1,10 @@
-package dev.toros.yde.workspace
+package dev.toros.yde.view.flow
 
-import dev.toros.yde.semantic.FlowViews
 import dev.toros.yde.semantic.RefactoringRequest
+import dev.toros.yde.workspace.BuiltinSchemaResources
+import dev.toros.yde.workspace.InMemoryDocumentStore
+import dev.toros.yde.workspace.ViewDefinitions
+import dev.toros.yde.workspace.WorkspaceSession
 import dev.toros.yde.workspace.layout.WorkspaceLayout
 import dev.toros.yde.yaml.DefaultYamlCodec
 import dev.toros.yde.yaml.model.DocumentId
@@ -22,8 +25,8 @@ class FlowRefactoringTest {
         assertTrue(s.applyRefactoring(plan).ok)
         val catalog = catalog(s)
         assertTrue(catalog.errors.isEmpty(), catalog.errors.toString())
-        assertEquals("renamed", catalog.docViews.single().sections.single().flowView)
-        assertEquals("renamed", catalog.flowViews.single().id)
+        assertEquals("renamed", catalog.docViews.single().sections.single().embed?.view)
+        assertEquals("renamed", catalog.extensionViews.single().id)
         assertTrue(s.derived.semantic.issues.isEmpty(), s.derived.semantic.issues.toString())
         assertTrue(s.undo().ok)
         assertEquals(before, texts(s))
@@ -46,7 +49,7 @@ class FlowRefactoringTest {
         assertTrue(plan.warnings.isEmpty(), plan.warnings.toString())
         assertTrue(s.applyRefactoring(plan).ok)
         val input = s.snapshot.documents.getValue(DocumentId("flows/a.yaml")).document.documents.first()
-        val result = FlowViews.resolve(catalog(s).flowViews.single(), DocumentId("flows/a.yaml"), "process", input)
+        val result = FlowViews.resolve(catalog(s).extensionViews.single() as VirtualFlowDef, DocumentId("flows/a.yaml"), "process", input)
         assertTrue(result.diagnostics.isEmpty(), result.diagnostics.toString())
         assertEquals(listOf("ACT-9", "ACT-2"), result.model!!.nodes.map { it.key })
         assertEquals("ACT-9", result.model!!.edges.single().from.key)
@@ -98,7 +101,7 @@ class FlowRefactoringTest {
 
     private fun texts(s: WorkspaceSession) = s.snapshot.documents.mapValues { DefaultYamlCodec.dump(it.value.document) }
     private fun catalog(s: WorkspaceSession) = ViewDefinitions.load(
-        texts(s).filterKeys { it.value.startsWith("_views/") }.toList(), s.schemas,
+        texts(s).filterKeys { it.value.startsWith("_views/") }.toList(), s.schemas, listOf(FlowViewKind),
     )
 }
 
@@ -174,6 +177,7 @@ internal object FlowRefactoringFixture {
                 sections: [{flow: {view: diagram}}]
             """.trimIndent(),
         ))
-        return WorkspaceSession(store, builtins = BuiltinSchemaResources.kernelSchemas(WorkspaceLayout.LEGACY)) { Instant.EPOCH }
+        val kinds = listOf(FlowViewKind)
+        return WorkspaceSession(store, builtins = BuiltinSchemaResources.kernelSchemas(WorkspaceLayout.LEGACY, kinds), viewKinds = kinds) { Instant.EPOCH }
     }
 }

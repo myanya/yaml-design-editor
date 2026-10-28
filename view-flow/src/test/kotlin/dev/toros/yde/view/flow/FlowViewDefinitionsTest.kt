@@ -1,5 +1,7 @@
-package dev.toros.yde.workspace
+package dev.toros.yde.view.flow
 
+import dev.toros.yde.workspace.ViewDefinitions
+import dev.toros.yde.workspace.WorkspaceReader
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.yaml.model.DocumentId
 import kotlin.test.Test
@@ -7,24 +9,27 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
+/** フローの定義の読み取りと点検（元は workspace-core。flow を拡張の種類にしたので view-flow へ。ADR-0014）。 */
 class FlowViewDefinitionsTest {
+    private val kinds = listOf(FlowViewKind)
+
     @Test
     fun `文書埋め込みは一意なフローだけを参照し適用条件は静的に比較しない`() {
         val doc = "id: doc\nkind: document\nmatch: 'other/*.yaml'\nsections: [{flow: {view: flow}}]"
         val source = DocumentId("doc.yaml")
-        val good = ViewDefinitions.load(listOf(source to doc, this.source to flow))
+        val good = ViewDefinitions.load(listOf(source to doc, this.source to flow), kinds = kinds)
         assertTrue(good.errors.isEmpty(), good.errors.toString())
-        assertEquals("flow", good.docViews.single().sections.single().flowView)
-        assertTrue(ViewDefinitions.load(listOf(source to doc)).errors.single().contains("flow"))
+        assertEquals("flow", good.docViews.single().sections.single().embed?.view)
+        assertTrue(ViewDefinitions.load(listOf(source to doc), kinds = kinds).errors.single().contains("flow"))
         val grid = "id: flow\nrows: {idPattern: '*'}\ncolumns: [{label: ID, path: id}]"
-        assertTrue(ViewDefinitions.load(listOf(source to doc, this.source to grid)).errors.single().contains("flow"))
+        assertTrue(ViewDefinitions.load(listOf(source to doc, this.source to grid), kinds = kinds).errors.single().contains("flow"))
     }
 
     @Test
     fun `フローセクションの混在と空の参照を拒否する`() {
         for (section in listOf("{fields: {}, flow: {view: flow}}", "{flow: {}}", "{flow: {view: ''}}", "{flow: {view: flow, file: x}}")) {
             val text = "id: doc\nkind: document\nmatch: '*.yaml'\nsections: [$section]"
-            assertTrue(ViewDefinitions.load(listOf(source to text)).docViews.isEmpty(), section)
+            assertTrue(ViewDefinitions.load(listOf(source to text), kinds = kinds).docViews.isEmpty(), section)
         }
     }
 
@@ -45,11 +50,11 @@ class FlowViewDefinitionsTest {
             source to flow,
             DocumentId(".yde/views/grid.yaml") to "id: grid\nrows: {idPattern: '*'}\ncolumns: [{label: ID, path: id}]",
             DocumentId(".yde/views/doc.yaml") to "id: doc\nkind: document\nschemaId: example\nsections: [{fields: {}}]",
-        ))
+        ), kinds = kinds)
         assertTrue(catalog.errors.isEmpty(), catalog.errors.toString())
         assertNotNull(catalog.view("grid"))
         assertNotNull(catalog.docView("doc"))
-        val definition = assertNotNull(catalog.flowView("flow"))
+        val definition = assertNotNull(catalog.extensionView("flow") as? VirtualFlowDef)
         assertEquals("down", definition.direction)
         assertTrue(definition.appliesTo(DocumentId("flows/test.yaml"), "example"))
         assertTrue(!definition.appliesTo(DocumentId("elsewhere/test.yaml"), "example"))
@@ -68,8 +73,8 @@ class FlowViewDefinitionsTest {
             flow.replace("build: {nodes: [], edges: []}", "build: {nodes: {${'$'}unknown: a}}"),
         )
         invalid.forEach { text ->
-            val catalog = ViewDefinitions.load(listOf(source to text))
-            assertTrue(catalog.flowViews.isEmpty(), text)
+            val catalog = ViewDefinitions.load(listOf(source to text), kinds = kinds)
+            assertTrue(catalog.extensionViews.isEmpty(), text)
             assertTrue(catalog.errors.isNotEmpty(), text)
         }
     }
@@ -77,7 +82,7 @@ class FlowViewDefinitionsTest {
     @Test
     fun `フローと他種別のビューでIDが重複しても指摘する`() {
         val result = ViewDefinitions.load(listOf(source to flow,
-            DocumentId(".yde/views/doc.yaml") to "id: flow\nkind: document\nschemaId: example\nsections: [{fields: {}}]"))
+            DocumentId(".yde/views/doc.yaml") to "id: flow\nkind: document\nschemaId: example\nsections: [{fields: {}}]"), kinds = kinds)
         assertTrue(result.errors.single().contains("重複"))
     }
 
@@ -86,8 +91,8 @@ class FlowViewDefinitionsTest {
         val schemas = WorkspaceReader.parseSchemas(listOf(
             DocumentId("other.yaml") to "id: other\nmatch: '*.yaml'\nroot: {type: object}",
         )).schemas
-        val result = ViewDefinitions.load(listOf(source to flow), schemas)
+        val result = ViewDefinitions.load(listOf(source to flow), schemas, kinds)
         assertTrue(result.errors.single().contains("example"))
-        assertTrue(ViewDefinitions.lintDocument(YamlIO.parse(flow), source, schemas).single().contains("example"))
+        assertTrue(ViewDefinitions.lintDocument(YamlIO.parse(flow), source, schemas, kinds).single().contains("example"))
     }
 }

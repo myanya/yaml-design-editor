@@ -272,27 +272,6 @@ class RefactoringPlanGoldenTest {
         assertGolden(resource, actual)
     }
 
-    @Test
-    fun `フローの追随と投影の要確認箇所を含む計画が期待値と一致する`() {
-        val requests = listOf(
-            RefactoringRequest.RenameEntity("diagram", "renamed"),
-            RefactoringRequest.RenameEntity("ACT-1", "ACT-9"),
-            RefactoringRequest.RenameField("process", "activities.title", "name"),
-            RefactoringRequest.RenameField("process", "activities", "steps"),
-            RefactoringRequest.RenameRelation("next", "follows"),
-            RefactoringRequest.RenameSchemaId("process", "procedure"),
-            RefactoringRequest.MoveDocument(DocumentId("flows/a.yaml"), DocumentId("elsewhere/a.yaml")),
-        )
-        val actual = buildString {
-            for (request in requests) {
-                appendLine("### $request")
-                append(planText(FlowRefactoringFixture.session(extraRule = true).planRefactoring(request)))
-                appendLine()
-            }
-        }
-        assertGolden("flow-refactoring-plans.golden.txt", actual.replace("\r\n", "\n"))
-    }
-
     private fun assertGolden(resource: String, actual: String) {
         if (System.getProperty("updateGolden") == "true") {
             val target = Path.of("src/test/resources", resource)

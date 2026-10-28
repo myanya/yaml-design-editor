@@ -1,7 +1,16 @@
 package dev.toros.yde.app.core
 
 import dev.toros.yde.cli.runCli
-import dev.toros.yde.semantic.FlowConnectionState
+import dev.toros.yde.app.ext.Extensions
+import dev.toros.yde.app.index.IdIndex
+import dev.toros.yde.app.schema.SchemaDef
+import dev.toros.yde.desktop.ext.DesktopExtensions
+import dev.toros.yde.semantic.VirtualDocEmbed
+import dev.toros.yde.view.flow.FlowConnectionState
+import dev.toros.yde.view.flow.FlowResolution
+import dev.toros.yde.view.flow.FlowViewResult
+import dev.toros.yde.view.flow.VirtualFlowDef
+import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.getAt
@@ -19,6 +28,14 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class FlowViewsIntegrationTest {
+    init { Extensions.install(DesktopExtensions.registry) }   // フロー（kind: flow）は拡張の種類。登録は入口の一覧（ADR-0014）
+
+    private fun Views.LoadResult.flow(id: String): VirtualFlowDef? = extensionView(id) as? VirtualFlowDef
+
+    private fun resolveFlow(
+        def: VirtualFlowDef, document: DocumentId, index: IdIndex, schemaFor: (DocumentId) -> SchemaDef?, loader: (DocumentId) -> YNode?,
+    ): FlowResolution = (Views.resolveExtension(def, null, index, loader, schemaFor, document) as FlowViewResult).resolution
+
     @Test
     fun `埋め込みもCLIで同じモデルを返し適用外は診断する`() {
         write(".yde/views/document.yaml", """
@@ -38,10 +55,10 @@ class FlowViewsIntegrationTest {
         val root = YamlIO.parse(Files.readString(directory.resolve(".yde/views/document.yaml")))
         assertTrue(dev.toros.yde.workspace.DerivedStructures(schema.tree).validate(root).isEmpty())
         val catalog = Views.load(directory, ws.schemas)
-        val outside = FlowReports.embedded("diagram", DocumentId("outside.yaml"), catalog, ws.index, { null }, { root })
+        val outside = Views.embeddedReport(VirtualDocEmbed("flow", "diagram", "フロー"), DocumentId("outside.yaml"), catalog, ws.index, { root }, { null })
         assertTrue(outside.toString().contains("not-applicable"))
-        assertTrue(FlowReports.embedded("missing", DocumentId("flows/one.yaml"), catalog, ws.index, ws::schemaFor, ws::treeOf)
-            .toString().contains("一意なflow"))
+        assertTrue(Views.embeddedReport(VirtualDocEmbed("flow", "missing", "フロー"), DocumentId("flows/one.yaml"), catalog, ws.index, ws::treeOf, ws::schemaFor)
+            .toString().contains("一意なフロー（kind: flow）"))
     }
 
     @Test
@@ -52,8 +69,8 @@ class FlowViewsIntegrationTest {
         val ctx = dev.toros.yde.desktop.ui.FormCtx(state, doc, emptyList())
         val slot = assertNotNull(dev.toros.yde.desktop.ui.slotAt(assertNotNull(doc.root), parseYPath("items[0].title")))
         ctx.setScalar(slot, "変更後", dev.toros.yde.semantic.schema.FieldType.STRING)
-        fun resolve() = Views.resolveFlow(assertNotNull(Views.load(directory, state.schemas, state.unsavedFirstTree())
-            .flowView("diagram")), document, state.overlayIndex(), state::schemaFor, state.unsavedFirstTree())
+        fun resolve() = resolveFlow(assertNotNull(Views.load(directory, state.schemas, state.unsavedFirstTree())
+            .flow("diagram")), document, state.overlayIndex(), state::schemaFor, state.unsavedFirstTree())
         assertEquals("変更後", resolve().model!!.nodes.single().label)
         assertTrue(doc.dirty)
         state.undo()
@@ -62,7 +79,7 @@ class FlowViewsIntegrationTest {
         val defRoot = definition.root as dev.toros.yde.yaml.model.YNode.Map
         defRoot.entries["layout"] = YamlIO.parse("direction: right")
         definition.markEdited()
-        assertEquals("right", Views.load(directory, state.schemas, state.unsavedFirstTree()).flowView("diagram")?.direction)
+        assertEquals("right", Views.load(directory, state.schemas, state.unsavedFirstTree()).flow("diagram")?.direction)
         val readOnly = dev.toros.yde.desktop.ui.FormCtx(state, doc, emptyList(), readOnly = true)
         kotlin.test.assertFailsWith<IllegalStateException> { readOnly.markEdited() }
     }
@@ -153,17 +170,17 @@ class FlowViewsIntegrationTest {
         val schemaPath = directory.resolve(".yde/schemas/flow.yaml")
         Files.writeString(schemaPath, Files.readString(schemaPath).replace("key: to, type: ref", "key: to, type: string"))
         val ws = Workspace.open(directory)
-        val definition = assertNotNull(Views.load(directory, ws.schemas).flowView("diagram"))
-        val result = Views.resolveFlow(definition, DocumentId("flows/one.yaml"), ws.index, ws::schemaFor, ws::treeOf)
+        val definition = assertNotNull(Views.load(directory, ws.schemas).flow("diagram"))
+        val result = resolveFlow(definition, DocumentId("flows/one.yaml"), ws.index, ws::schemaFor, ws::treeOf)
         assertTrue(result.model!!.edges.all { it.to.state == FlowConnectionState.UNKNOWN })
     }
 
     @Test
     fun `未保存の原本を渡すと表示内容が追随する`() {
         val ws = Workspace.open(directory)
-        val definition = assertNotNull(Views.load(directory, ws.schemas).flowView("diagram"))
+        val definition = assertNotNull(Views.load(directory, ws.schemas).flow("diagram"))
         val input = YamlIO.parse("items: [{id: A, title: 未保存の編集}]\nlinks: []")
-        val result = Views.resolveFlow(definition, DocumentId("flows/one.yaml"), ws.index, ws::schemaFor) { input }
+        val result = resolveFlow(definition, DocumentId("flows/one.yaml"), ws.index, ws::schemaFor) { input }
         assertEquals("未保存の編集", result.model!!.nodes.single().label)
         assertTrue(result.diagnostics.isEmpty(), result.diagnostics.toString())
         assertTrue(Files.readString(directory.resolve("flows/one.yaml")).contains("title: 活動"))

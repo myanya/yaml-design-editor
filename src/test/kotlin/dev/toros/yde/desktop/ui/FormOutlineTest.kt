@@ -103,7 +103,7 @@ class FormOutlineTest {
         val items = documentOutline(YamlIO.parse("title: 一覧\nextra: 5\nrows: []"), schema)
         val view = DocViewDef("view", "表示", sections = listOf(
             DocViewSection(fieldsPath = emptyList(), fieldsInclude = listOf("title", "rows"), fieldsExclude = listOf("rows")),
-            DocViewSection(label = "関連", flowView = "flow")), source = DocumentId("view.yaml"))
+            DocViewSection(label = "関連", embed = dev.toros.yde.semantic.VirtualDocEmbed("flow", "flow", "フロー"))), source = DocumentId("view.yaml"))
         val projected = documentViewOutline(items, view)
         assertEquals(listOf(emptyList(), listOf("title"), listOf("@view", 1)), projected.map { it.path })
         assertEquals("関連", projected.last().title)

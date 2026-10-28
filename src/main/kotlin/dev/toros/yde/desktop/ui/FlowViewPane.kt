@@ -32,10 +32,9 @@ import androidx.compose.ui.unit.sp
 import dev.toros.yde.desktop.AppState
 import dev.toros.yde.desktop.OpenDocument
 import dev.toros.yde.app.core.Views
-import dev.toros.yde.app.core.FlowDisplayOptions
-import dev.toros.yde.app.core.FlowLayoutMode
 import dev.toros.yde.app.index.DocScanner
 import dev.toros.yde.semantic.*
+import dev.toros.yde.view.flow.*
 import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.yaml.model.*
@@ -56,10 +55,10 @@ private fun flowCatalog(state: AppState): Views.LoadResult {
 @Composable
 fun FlowViewPane(state: AppState) {
     val catalog = flowCatalog(state)
-    val view = state.flowViewId?.let(catalog::flowView)
+    val view = state.flowViewId?.let { catalog.extensionView(it) as? VirtualFlowDef }
     Column(Modifier.fillMaxSize().background(Palette.EditorBg).padding(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            FlowChooser("フロービュー", view?.id, catalog.flowViews.map { it.id to it.name }) {
+            FlowChooser("フロービュー", view?.id, catalog.extensionViews.filterIsInstance<VirtualFlowDef>().map { it.id to it.name }) {
                 state.openFlowView(it)
             }
             if (view != null) {
@@ -108,11 +107,11 @@ private fun FlowChooser(
 @Composable
 fun EmbeddedFlowPane(state: AppState, doc: OpenDocument, viewId: String) {
     val catalog = flowCatalog(state)
-    val view = catalog.flowView(viewId)
+    val view = catalog.extensionView(viewId) as? VirtualFlowDef
     if (view == null) {
         Text("フロービュー「$viewId」が見つからないか、IDが重複しています", color = Palette.ErrorRed, fontSize = 12.sp)
         catalog.errors.forEach { Text(it, color = Palette.WarnOrange, fontSize = 11.sp) }
-        catalog.docViews.filter { parent -> parent.sections.any { it.flowView == viewId } }.forEach { parent ->
+        catalog.docViews.filter { parent -> parent.sections.any { it.embed?.kind == FlowViewKind.id && it.embed?.view == viewId } }.forEach { parent ->
             TextButton(onClick = { state.openFile(parent.source) }) { Text("埋め込み元のビュー定義") }
         }
         return
@@ -133,7 +132,7 @@ private fun FlowPane(state: AppState, doc: OpenDocument, view: VirtualFlowDef, m
     val definition = state.ensureDoc(view.source)
     definition.version
     val resolution = remember(doc, doc.version, view, state.indexVersion, state.editVersion) {
-        Views.resolveFlow(view, document, state.overlayIndex(), state::schemaFor, state.unsavedFirstTree())
+        (Views.resolveExtension(view, null, state.overlayIndex(), state.unsavedFirstTree(), state::schemaFor, document) as FlowViewResult).resolution
     }
     val selection = state.flowSelections[view.id to document]
     val model = resolution.model
@@ -352,4 +351,24 @@ private fun nearSegment(p: FlowPoint, a: FlowPoint, b: FlowPoint, tolerance: Flo
     val t = if (length == 0f) 0f else (((p.x - a.x) * dx + (p.y - a.y) * dy) / length).coerceIn(0f, 1f)
     val x = p.x - a.x - t * dx; val y = p.y - a.y - t * dy
     return x * x + y * y <= tolerance * tolerance
+}
+
+/** フローの描画（ViewRenderers の一覧に並ぶ）。フローは文書に縛られるので、台帳の「フロー」タブと文書ビューの区画で描く。 */
+internal object FlowRenderer : ViewRenderer {
+    override val kind: String = FlowViewKind.id
+
+    override fun choiceName(def: ExtensionViewDef): String = def.name
+
+    override fun choiceSubtitle(def: ExtensionViewDef): String = "${def.id} — ${def.listingText()}"
+
+    @Composable
+    override fun Content(state: AppState, result: ExtensionViewResult, place: ViewPlace, onOpenEntity: ((String) -> Unit)?) {
+        val flow = result as FlowViewResult
+        EmbeddedFlowPane(state, state.ensureDoc(flow.document), flow.def.id)
+    }
+
+    @Composable
+    override fun Section(state: AppState, loaded: Views.LoadResult, def: ExtensionViewDef, doc: OpenDocument) {
+        EmbeddedFlowPane(state, doc, def.id)
+    }
 }
