@@ -14,7 +14,6 @@ UX試験・レビュー・開発中に見つかった「今のタスクとは本
 | UX-206 | 2026-10-26 ソース規則テストの実装中 | **app.validate の `Readiness.kt` が `core.Workspace` を使い、validate と core が循環している**（設計は index・schema・validate を core より下に置く） | `Readiness` が要るものを core より下の型（索引・スキーマ・文書の読み出し）に絞って受け取るか、`Readiness` を core へ移す。規則テスト（`rules/SourceRules`）の known に登録済みで、直したら消す | 📋 | P47 |
 | UX-207 | 2026-10-26 ソース規則テストの実装中 | **AppState（根のパッケージ）が ui の `DesktopUiDispatcher` を使い、根から ui への逆向きの依存がある**（設計は ui が根に依存する一方向。`LineMerge`・`SourceHistorySync` は app.text へ移して解消済み） | `DesktopUiDispatcher` は EDT へ戻す道具で、Compose に依存しないなら根か core へ移せば解ける。規則テスト（`rules/SourceRules`）の known に登録済みで、直したら消す | 📋 | P47 |
 | UX-208 | 2026-10-27 app-core の切り出し（テストの移動）中 | **`core/KakeiboLabTest`（repo-tests）が `labs/kakeibo` を、cli の `ActionCliTest` が `labs/sysdev-template` を読んでいる**（CONVENTIONS §8「`labs/` 配下をテストから読まない」に反する。両モジュールのテストは作業ディレクトリをリポジトリの根にそろえて通している） | 読む対象を `test-fixtures/` の複製に変えるか、labs の検証は labs 側の手順にする | 📋 | — |
-| UX-209 | 2026-10-27 FormView.kt の分割（FEATURES の参照の書き換え）中 | **FEATURES の機能 ID が 5 つ重なっている**（E-15・E-16・E-17・X-10・X-13 がそれぞれ 2 行ある。例: E-16 は「配列要素のドラッグ並べ替え」と「ソースでスキーマと索引を使う」）。ID で行を引くと取り違える | 後から足した側の行に空いている番号を振り直す（BACKLOG・ROADMAP・archive の参照も確かめる）。再発を防ぐなら、DocReferencesTest か docs-lint に「FEATURES の ID が重ならない」を足す | 📋 | — |
 | UX-210 | 2026-10-28 ビューの種類の差し込み口（R47-61）中 | **repo-tests のテストは拡張の登録をクラスごとに `Extensions.install(DesktopExtensions.registry)` で入れている**（登録簿は大域。chart と flow が拡張になったので、入れ忘れたテストクラスは同じ JVM で先に走ったクラス次第で通ったり落ちたりしうる） | repo-tests のテストの起動時に desktop の一覧を 1 回入れる仕組み（JUnit Platform の起動の聞き手など）を検討する。入れない前提のテストは今のように空の登録簿を入れて後で戻す | 📋 | — |
 | UX-211 | 2026-10-28 ビューの種類の差し込み口（R47-61 段 2）中 | **カーネルの `RefactoringImpact.collectMentions`（フィールド改名の言及）が `projection` というキーを特別に扱っている**（flow のキー名。flow は拡張の種類になったが、ここは種類でなくキー名で見るので残した） | フィールド改名の言及も差し込み口（`mentionSites` か、改名用の口）に寄せるかを決める。寄せるなら golden（FlowRefactoringGoldenTest）で同じ計画になることを確かめる | 📋 | — |
 | UX-212 | 2026-10-28 用語集（R47-32）中 | **manual/README.md「画面構成」が「4つのスペース」と書いているが、レールと表は 5 つ**（ダッシュボード・編集・台帳・実行・設計） | 数を書かない（「スペースからなります」）か 5 に直す。内蔵ヘルプにも同じ文が入る | 📋 | — |
@@ -28,7 +27,6 @@ UX試験・レビュー・開発中に見つかった「今のタスクとは本
 | UX-183 | 2026-10-24〜25 TODO試用 | エンティティ参照の候補にないものを入力途中で追加したい | カテゴリを題材に、作成先・作成操作の選択・入力の保持・追加IDの返却・取消と保存の境界を検討する | 💬 | T-03 |
 | UX-181 | 2026-10-24 TODO操作サンプル | actionsだけを持つlibraryが実行できても定義検査ではエラーになる | `SchemaDefinitionChecks`のlibrary必須内容にactionsが含まれない；マニュアルとの整合を検討する | 📋 | — |
 | UX-180 | 2026-10-24 スキーマの試用 | `.yde/schemas` に置いたスキーマが認識されなかったように見えた | 規定配置の最小例は認識するため、実際の定義・対象パス・画面での表示を確認して切り分ける | 📋（再現条件未確認） | — |
-| UX-175 | 2026-10-23 ソース表示の文書更新 | FEATURES の編集機能 ID に重複があり、番号だけでは機能を一意に参照できない | E-15〜E-17 が別機能にも使われているため、参照元を確認して採番を整理する | 📋 | — |
 | UX-173 | 2026-10-19 UI 改善時のコード確認 | 編集タブとソースの畳みの覚えがワークスペース切替・文書改名・削除に追随していない | `ScreenMemory.editorTab` と `sourceFolds` が `clear` / `forgetDocument` / `renameDocument` の対象外；同じ相対パスの別ワークスペースへの持越しを確認する | 📋 | — |
 | UX-171 | 2026-10-18 フォーム編集のエラーログ | Windows の IME 候補表示で `NullPointerException: peer` が発生する | `WInputMethod.openCandidateWindow` の対象参照が null；実行 JDK・IME・フォーカス移動の再現条件を確認し、配列描画の例外とは別に切り分ける | 📋 | — |
 | UX-170 | 2026-10-15 公開準備 | 大きな Office 入力の資源制限 | POI 更新に加え、サイズ・行数・処理時間の上限を検討。0.1 は内容を確認した入力を前提とする | 📋 | — |

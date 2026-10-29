@@ -465,7 +465,7 @@ R47-10 の最初の規則（既知の違反を除いて守られているので�
 
 | ID | 項目 | 内容 | 判断 | 状態 |
 |---|---|---|---|---|
-| R47-30 | FEATURES の分割 | 1 表 6 万字を主題ごとのファイル（docs/features/ に workspace・editing・schema …）と索引に分ける。行の形と ID は変えない。docs-lint の特別扱い（8 万字）を外す | 分ける単位（今の 1 章を 1 ファイルでよいか） | 判断待ち |
+| R47-30 | FEATURES の分割 | 1 表 6 万字を主題ごとのファイル（docs/features/ に workspace・editing・schema …）と索引に分ける。行の形と ID は変えない。docs-lint の特別扱い（8 万字）を外す | 分けない（AI は ID や語で該当行を引くので分けても効かない。実際は約 4.3 万字。オーナー 2026-10-30） | ✅ 2026-10-30（分けずに、重なった機能 ID を振り直し E-26〜28・X-16・X-17、DocReferencesTest が重なりを見る） |
 | R47-31 | 置き場に近い案内 | ui/・semantic-core/・workspace-core/ などに、その場所の規律だけを書いた CLAUDE.md を置く（Claude Code は作業中のディレクトリのものを読む。Codex 向けに AGENTS.md を同内容で）。ルートの CLAUDE.md は手順と共通の規律だけにする | 作業ガイドの本文は AGENTS.md 1 枚（CLAUDE.md は `@AGENTS.md` の取り込み）・モジュールの AGENTS.md（隣の CLAUDE.md は取り込むだけ）・基準は「間違いが起きる場所」・クエリの線と保有の線は root に残す（オーナー 2026-10-29） | ✅ 2026-10-29（desktop 5 項目・semantic-core 3 項目を移し、root の落とし穴は 26 項目。Codex は下のフォルダを自動では読まないので root に場所の表。DocReferencesTest と docs-lint がモジュールの AGENTS.md も見る） |
 | R47-32 | 用語の対応表 | 造語（定義体・保有・受け手・手・レンズ・覚え・台帳・変更セット・射影）の 1 行定義と設計文書の見出しへのリンクを docs/GLOSSARY.md に置く | なし | ✅ 2026-10-28（9 語に、CLAUDE.md の落とし穴と設計文書に出る語を足して 7 群 68 語。列は語・意味・近い一般の語・詳しく。docs/README.md の表・CLAUDE.md・AGENTS.md から引け、参照の実在は `DocReferencesTest`、番号の混入は docs-lint が見る） |
 | R47-33 | 台帳の分割 | BACKLOG を「指摘」「テーマ管理」「所感」に、UX-SCENARIOS を台本ごとに分ける | 要るか（字数は目安なので急がない） | 判断待ち |

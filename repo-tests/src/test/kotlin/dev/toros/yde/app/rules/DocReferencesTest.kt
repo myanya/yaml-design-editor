@@ -117,6 +117,19 @@ class DocReferencesTest {
     }
 
     @Test
+    fun `FEATURES の機能 ID が重ならない`() {
+        val features = docs.resolve("FEATURES.md")
+        val seen = mutableMapOf<String, Int>()
+        val duplicated = mutableListOf<String>()
+        features.readText().lines().forEachIndexed { i, line ->
+            val id = FEATURE_ID.find(line)?.groupValues?.get(1) ?: return@forEachIndexed
+            seen[id]?.let { first -> duplicated += "docs/FEATURES.md:${i + 1}: $id（${first} 行目と同じ。後から足した行に空いている番号を振る）" }
+            seen.putIfAbsent(id, i + 1)
+        }
+        assertTrue(duplicated.isEmpty(), "FEATURES の機能 ID が重なっています（ID で行を引くと取り違える）:\n" + duplicated.joinToString("\n") { "  $it" })
+    }
+
+    @Test
     fun `「ファイル名＋見出し」の参照が実在する`() {
         val broken = mutableListOf<String>()
         for (src in sources) {
@@ -151,6 +164,8 @@ class DocReferencesTest {
         /** `core/Cli.kt` のような語（.kts は除く）。glob（星印を含む語）は呼び出し側で除く。KDoc の中に「スラッシュ＋星」を書くと入れ子のコメントになるので書かない */
         val KT_TOKEN = Regex("""([\w\-/*.]+\.kt)(?![A-Za-z])""")
         val TEST_NAME = Regex("""\b([A-Z][A-Za-z0-9]*Test)\b""")
+        /** FEATURES の表の行の先頭の機能 ID（`| E-15 |`）。 */
+        val FEATURE_ID = Regex("""^\|\s*([A-Z]+-\d+)\s*\|""")
 
         /** `architecture/checks.md「4 つの結果」`・`CONVENTIONS「モジュールの規約」`・`README.md「規模の計測」` の形。 */
         val HEADING_REF = Regex("""((?:[\w\-]+/)?[A-Za-z][\w\-]*\.md|CORE-CALCULUS|DESIGN-CHECK-CATALOG|CONVENTIONS|FEATURES)「([^」]+)」""")
