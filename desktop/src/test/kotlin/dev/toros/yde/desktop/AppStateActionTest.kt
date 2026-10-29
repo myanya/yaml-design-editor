@@ -4,7 +4,6 @@ import dev.toros.yde.workspace.validate.CheckResponse
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.parseYPath
 import dev.toros.yde.yaml.patch.PatchOp
-import dev.toros.yde.desktop.ui.actionPanelContext
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.createTempDirectory
@@ -16,6 +15,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import dev.toros.yde.desktop.ui.action.actionPanelContext
 
 /**
  * 画面からの操作（右ペインの「操作」タブ。architecture/actions.md）の AppState の経路。

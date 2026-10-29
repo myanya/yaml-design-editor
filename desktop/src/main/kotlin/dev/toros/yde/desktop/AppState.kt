@@ -5,7 +5,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.setValue
 import dev.toros.yde.app.core.ChangeSetResult
-import dev.toros.yde.desktop.ui.DesktopUiDispatcher
 import dev.toros.yde.app.core.SearchHit
 import dev.toros.yde.app.core.ViewDef
 import dev.toros.yde.app.core.WorkspaceRecord
@@ -495,7 +494,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     // ---------------------------------------------------------------- 操作（型の操作とアクション）
 
     /**
-     * 操作の作業（対象と受け取る値の入力 → 計画 → 適用）。浮いたパネル（ui/ActionPane.kt の ActionPanelHost）に出す。入力の途中・
+     * 操作の作業（対象と受け取る値の入力 → 計画 → 適用）。浮いたパネル（ui/action/ActionPane.kt の ActionPanelHost）に出す。入力の途中・
      * 計画・結果はコンポーザブルの外（ここ）に置き、パネルを隠しても画面を離れても消えない。受け取る値はフォームの部品（FormCtx）で
      * 編集するため、値の木を持つ仮の文書を 1 つ持つ（どこにも保存しない。編集の記録先が無いので、セッションの履歴や dirty には載らない）。
      */
@@ -548,7 +547,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     /** 初期化ウィザードの作業。`fixedRoot` は、開いている未初期化のワークスペースから起動したときの場所（変えられない）。 */
     class InitWizardWork(val fixedRoot: Path?)
 
-    /** 開いているウィザード。null = 閉じている。浮いたパネル（ui/InitWizard.kt）が Main からスペースに関係なく載せる。 */
+    /** 開いているウィザード。null = 閉じている。浮いたパネル（ui/shell/InitWizard.kt）が Main からスペースに関係なく載せる。 */
     var initWizard by mutableStateOf<InitWizardWork?>(null)
 
     fun startInitWizard(root: Path? = null) { initWizard = InitWizardWork(root) }

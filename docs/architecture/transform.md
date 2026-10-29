@@ -55,7 +55,7 @@
 | `TextTemplate` | semantic-core/semantic/TextTemplate.kt | 文字のひな形（穴 `{パス}` / `{パス:形}`・`{#each}`・`{#if}`・`{{`）。タグだけの行は消す。埋まらない穴は名前を返す |
 | `ReportDef` / `ReportDefinitions` | workspace-core/workspace/ReportDefinitions.kt | 定義のパース（`params` と `build` は `TransformDef`。`template` は同じ場所の相対パス、`output` はワークスペース相対で YAML 不可） |
 | `core/Reports` | core/Reports.kt | `.yde/reports` の読み込み（ひな形の点検も）・実行（`$view` は `Views.resolve` の行）・派生物の書き込み |
-| `ReportPane` | ui/ReportPane.kt | ビュータブの一覧から選ぶ。受け取る値の欄・表示（`MarkdownView`）・保存 |
+| `ReportPane` | ui/view/ReportPane.kt | ビュータブの一覧から選ぶ。受け取る値の欄・表示（`MarkdownView`）・保存 |
 
 - **流れ**: `Reports.run` → `SemanticTransform.run(def.transform, 空のマップ, params, views)` → `TextTemplate.render(ひな形, 項)` → 文字と埋まらない穴。`output` も同じひな形で埋める。
 - **規律**: 出力は派生物で、YAML と `.yde/` の下には書かない（`Reports.write` が拒む）。ひな形にコードや計算を足さない（並べ替え・集計はビューか `build`）。`$view` の行に出どころは持たせない（解決した行は派生）。レポートの定義は REPORTS ゾーン（メタスキーマ `builtin-report`。エージェントの提出ゲートも同じパース）。

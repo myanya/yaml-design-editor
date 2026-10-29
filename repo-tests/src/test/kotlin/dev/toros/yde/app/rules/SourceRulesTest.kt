@@ -114,6 +114,17 @@ class SourceRulesTest {
 
     @Test fun `規則1 純粋ロジック層に Compose を持ち込まない`() = check(1)
     @Test fun `規則2 app の層は一方向`() = check(2)
+
+    @Test
+    fun `規則2 は * の import も見て、入口の Main_kt は除く`() {
+        val dir = "desktop/src/main/kotlin/dev/toros/yde/desktop"
+        val text = "package dev.toros.yde.desktop\nimport dev.toros.yde.desktop.ui.common.*\n"
+        val state = SourceScanner.parse("desktop", "$dir/X.kt", text)
+        val main = SourceScanner.parse("desktop", "$dir/Main.kt", text)
+        val ui = SourceScanner.parse("desktop", "$dir/ui/common/Y.kt", "package dev.toros.yde.desktop.ui.common\n")
+        val hits = SourceRules.all.first { it.number == 2 }.check(listOf(state, main, ui))
+        assertEquals(listOf(state.path), hits.map { it.file.path })
+    }
     @Test fun `規則3 yaml-core と semantic-core にファイルの場所を持ち込まない`() = check(3)
     @Test fun `規則4 等幅の文字は AppFonts Mono`() = check(4)
     @Test fun `規則5 外部の UI ライブラリは包む 1 ファイルの外へ出さない`() = check(5)

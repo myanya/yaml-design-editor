@@ -18,8 +18,8 @@
 | `SemanticRefactor` | semantic-core/semantic/Refactor.kt | エンティティ操作（rename / merge / delete）と文書移動の計画 |
 | `Aspects` | core/Aspects.kt | エンティティ合成（`compose` → `EntityComposite`。`ownerSection` は書き先解決） |
 | `Traverse` | core/Traverse.kt | 経路パターンで多段に辿る評価器（`neighborIds` の上の emit レンダラ） |
-| `IdCrossView` / `GraphLensView` | ui/IdCrossView.kt・ui/GraphLensView.kt | エンティティページとグラフレンズ（配置は ui/GraphLayouts.kt） |
-| `LensGraphs` | ui/LensGraph.kt | レンズの節点・辺・箱の入れ子を作る純ロジック（一体＝箱はエンティティ・側面で分ける＝箱は出現・型の段＝箱は型 `buildTypes`。矢印の反転・絞り込み・起点の近傍・畳みと辺の付け替え） |
+| `IdCrossView` / `GraphLensView` | ui/graph/IdCrossView.kt・ui/graph/GraphLensView.kt | エンティティページとグラフレンズ（配置は ui/graph/GraphLayouts.kt） |
+| `LensGraphs` | ui/graph/LensGraph.kt | レンズの節点・辺・箱の入れ子を作る純ロジック（一体＝箱はエンティティ・側面で分ける＝箱は出現・型の段＝箱は型 `buildTypes`。矢印の反転・絞り込み・起点の近傍・畳みと辺の付け替え） |
 | `SemanticSchemaGraph` / `SchemaGraphSource` | semantic-core/semantic/SchemaGraph.kt | スキーマと関係レジストリから導いた型レベルのグラフ（型・関係の線＝宣言と導出・保有の宣言・線にできなかった参照項目と理由・文書を読まない）。app-core の `Workspace.schemaGraph` がスキーマの再読込ごとに作り、レンズの「型」の段と CLI `schema-graph` が写す |
 
 ## 融合の原則

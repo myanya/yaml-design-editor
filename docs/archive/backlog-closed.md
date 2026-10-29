@@ -4,6 +4,12 @@
 当時の文中のリンクと §番号は、移した時点の文書構成を指す。
 
 
+## desktop の画面のパッケージ分け（2026-10-30）
+
+| ID | 起点 | 指摘 | 技術メモ（対応の当たり） | 状態 | 対応先 |
+|---|---|---|---|---|---|
+| UX-207 | 2026-10-26 ソース規則テストの実装中 | **AppState（根のパッケージ）が ui の `DesktopUiDispatcher` を使い、根から ui への逆向きの依存がある**（設計は ui が根に依存する一方向。`LineMerge`・`SourceHistorySync` は app.text へ移して解消済み） | `DesktopUiDispatcher` は EDT へ戻す道具で、Compose に依存しないなら根か core へ移せば解ける。規則テスト（`rules/SourceRules`）の known に登録済みで、直したら消す | ✅ | R47-28（DesktopUiDispatcher を根のパッケージへ移した） |
+
 ## FEATURES と台帳の整え（2026-10-30）
 
 | ID | 起点 | 指摘 | 技術メモ（対応の当たり） | 状態 | 対応先 |

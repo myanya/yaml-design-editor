@@ -1,7 +1,6 @@
 package dev.toros.yde.desktop
 
 import androidx.compose.runtime.snapshots.Snapshot
-import dev.toros.yde.desktop.ui.DesktopUiDispatcher
 import java.nio.file.Files
 import kotlin.io.path.createTempDirectory
 import kotlin.test.Test

@@ -24,8 +24,8 @@
 | `AiConnection` / `AiHttp` | agent/llm/Connection.kt・Http.kt | OpenAI 互換の接続先の解決と、HttpClient の単一ファクトリ（プロキシ・Basic 認証・リトライ） |
 | `Traverse` | core/Traverse.kt | 経路パターンの多段トラバース（`neighborIds` の上の emit レンダラ） |
 | `SkillDef` / `Skills` / `Runner` / `Tables` / `Importer` / `Exporter` | skill/ | skill 定義・コード実行 skill・表形式の読み書き・インポート・エクスポート |
-| `RunController` / `RunsSpace` | ui/RunsSpace.kt | 実行スペース（受信箱・手動実行・自動化・計測評価）。実行状態機械は `RunController` が持つ |
-| `AiGenerationHost` | ui/AiGenerationDialog.kt | AI 生成ダイアログの状態機械（入力 → 生成 → プレビュー → 適用）と提案合成 |
+| `RunController` / `RunsSpace` | ui/run/RunsSpace.kt | 実行スペース（受信箱・手動実行・自動化・計測評価）。実行状態機械は `RunController` が持つ |
+| `AiGenerationHost` | ui/run/AiGenerationDialog.kt | AI 生成ダイアログの状態機械（入力 → 生成 → プレビュー → 適用）と提案合成 |
 
 ## 安全性
 

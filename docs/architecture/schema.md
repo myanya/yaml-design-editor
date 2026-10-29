@@ -29,7 +29,7 @@
 | `SchemaScaffold` | semantic-core/schema/SchemaScaffold.kt | 項目の木から文書の中身を作る（`defaultTree`＝必須の初期値・`sample`＝プレビュー用） |
 | `DocumentScaffolds` / `ScaffoldSource` / `FileNameRules` | workspace-core/workspace/DocumentScaffold.kt | 新しい文書のひな型（作り先 `pathFor`・初期の内容・ID）とファイル名の決まりと文面の表 |
 | `SemanticSchemaRefactor` / `SemanticRewrite` | semantic-core/semantic/SchemaRefactor.kt・Rewrite.kt | スキーマ・リファクタリングの計画の生成と、書き換えの共有基盤 |
-| `SchemaEditor` | ui/SchemaEditor.kt | `_schemas` 用の構造化エディタ |
+| `SchemaEditor` | ui/schema/SchemaEditor.kt | `_schemas` 用の構造化エディタ |
 
 ## スキーマの読み込み
 
@@ -67,7 +67,7 @@
 - **意味の基底型の直列化**: `id` / `ref` は `word`（空白なし）で、導出が同じ形式を足す。`date` / `time` / `datetime` は正準の形（`ValueSemantics.canonicalPattern`）を足した `string`。存在の検証はコードの検査 `value`（`CodedDocumentChecks.valueIssues`）が行う。
 - **ファイルの場所（`file`）**も `string` のままで、書き方の判別と正規化は `FilePath`、許す拡張子は `FieldDef.extensions`（狭める制約）、存在と許可はコードの検査 `fileIssues`。
 - **メタスキーマ**: `builtin-schema` の `type` は基底の種類の選択肢だけを持ち、`MetaSchemaTypes` が読み込み時に型の名前（入れ物の定義を含む）を選択肢と `cases` へ足す。`$ref` ＋決まりのキーの警告は残る（型は `type:` で書くのが正）。
-- **道具**: `extract-definition` はスカラーなら `type: 名前` を書き、`rename-definition` / `rename-schema-id` は `type` の言及も書き換える。設計 UI の型の選択肢は `TypeChoices`（ui/SchemaEditor.kt）。
+- **道具**: `extract-definition` はスカラーなら `type: 名前` を書き、`rename-definition` / `rename-schema-id` は `type` の言及も書き換える。設計 UI の型の選択肢は `TypeChoices`（ui/schema/SchemaEditor.kt）。
 - **ヒントは型から引き継ぐ**: 表示のヒントは `FieldHints.over` で使う側が優先し、無ければ型のもの。UI は型の名前でなくヒントで判定する（`FieldDef.multiline` / `placeholder`）。
 - 意味の基底型は基底の種類で判定し（`type == FieldType.DATE`。列幅・AI 生成の `format`）、案内とサンプル値はヒントが無ければ `ValueSemantics` の既定。
 - **順序は型から**: 順序の種類（`OrderKind.ofType`）は読んだ項目の型で決まり、式の `type` は上書き。項目の定義を引く `fieldAt` を渡すのはスキーマを知る側（`WorkspaceChecks`・`Views.resolve`。「値の式」）。

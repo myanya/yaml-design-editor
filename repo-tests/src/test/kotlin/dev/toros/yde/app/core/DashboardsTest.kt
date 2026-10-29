@@ -1,11 +1,6 @@
 package dev.toros.yde.app.core
 
 import dev.toros.yde.cli.runCli
-import dev.toros.yde.desktop.AppState
-import dev.toros.yde.desktop.UiSpace
-import dev.toros.yde.desktop.ui.FormCtx
-import dev.toros.yde.desktop.ui.actionPanelContext
-import dev.toros.yde.desktop.ui.slotAt
 import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.yaml.model.DocumentId
@@ -15,6 +10,12 @@ import java.nio.file.Path
 import java.time.LocalDate
 import kotlin.io.path.createTempDirectory
 import kotlin.test.*
+import dev.toros.yde.desktop.AppState
+import dev.toros.yde.desktop.TableScrollPosition
+import dev.toros.yde.desktop.UiSpace
+import dev.toros.yde.desktop.ui.action.actionPanelContext
+import dev.toros.yde.desktop.ui.common.slotAt
+import dev.toros.yde.desktop.ui.form.FormCtx
 
 class DashboardsTest {
     private lateinit var dir: Path

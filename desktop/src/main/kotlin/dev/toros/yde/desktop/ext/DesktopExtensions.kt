@@ -17,7 +17,7 @@ import dev.toros.yde.view.flow.FlowViewKind
 object DesktopExtensions {
     val registry = ExtensionRegistry(
         formats = listOf(CsvFormat, JsonFormat, MarkdownFormat, HtmlFormat, XlsxFormat, DocxFormat),
-        // ビューの種類（ADR-0014）。描画は ui/ViewRenderers.kt の一覧に 1 行足す
+        // ビューの種類（ADR-0014）。描画は ui/view/ViewRenderers.kt の一覧に 1 行足す
         views = listOf(FlowViewKind, ChartViewKind),
     )
 }

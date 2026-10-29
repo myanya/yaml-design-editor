@@ -1,11 +1,11 @@
 package dev.toros.yde.desktop
 
-import dev.toros.yde.desktop.ui.SourceStructure
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.yaml.model.YNode
 import java.nio.file.Files
 import kotlin.io.path.createTempDirectory
 import kotlin.test.*
+import dev.toros.yde.desktop.ui.source.SourceStructure
 
 class HistoryConsistencyTest {
     private val dir = createTempDirectory("yde-history-consistency")

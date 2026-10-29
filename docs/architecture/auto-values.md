@@ -19,7 +19,7 @@ samples/todos の「更新日はコメントの最大日付」（ビューの列
 | メタスキーマ `auto` | workspace-core/resources/builtin-schemas/schema.yaml | 項目のキー `auto` の選択肢と説明 |
 | `DocumentSession.save` / `saveAll` / `createDocument` | session/DocumentSession.kt | 保存の直前に当てて UI の木を写し直す・新しい文書を新しい要素の値で埋める・状態表示 |
 | `WorkspaceRecords.bulkUpdateViaSession` | core/Documents.kt | 一括変更と自動値を一つのトランザクションにまとめてから保存する |
-| `FormView` / `SchemaEditor` | ui/FormCtx.kt・ui/SchemaEditor.kt | 項目の説明の下の案内文（`autoValueHint`）・設計 UI の選択（型に合う印だけ） |
+| `FormView` / `SchemaEditor` | ui/form/FormCtx.kt・ui/schema/SchemaEditor.kt | 項目の説明の下の案内文（`autoValueHint`）・設計 UI の選択（型に合う印だけ） |
 
 ## 流れ
 

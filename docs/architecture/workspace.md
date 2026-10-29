@@ -18,10 +18,10 @@
 | `RefactoringImpact` | workspace-core/workspace/RefactoringImpact.kt | リファクタリングの計画のうち定義文書を見て決まる分 |
 | `Disclosure` | core/Disclosure.kt | 段階的開示（カタログ → 骨子 → ノード全文・文字数予算つきバンドル） |
 | `Bench` | core/Bench.kt | 合成ワークスペースの生成と計測（[README.md「規模の計測」](README.md)） |
-| `BuildInfo` | desktop/BuildInfo.kt | ビルド時に生成される `build-info.properties`（外部バージョン・内部バージョン・コミット）を読む |
+| `BuildInfo` | core/BuildInfo.kt | ビルド時に生成される `build-info.properties`（外部バージョン・内部バージョン・コミット）を読む |
 | `WorkspaceTemplate` / `WorkspaceTemplates` | workspace-core/WorkspaceTemplates.kt | 出発点のテンプレート（資源 `templates/`。台帳 `template.yaml` の名前・説明・問い `params` と、写すファイル） |
 | `WorkspaceInit` / `InitRequest` / `InitPlan` | workspace-core/WorkspaceInit.kt | ワークスペースの初期化の計画と書き込み（テンプレートの展開・後入れ・答えの整形と点検・初期化済みの判定・後入れの候補） |
-| `InitWizardHost` | ui/InitWizard.kt | 初期化ウィザード（浮いたパネル。場所 → 始め方 → 内容 → 確認 → 作成して開く） |
+| `InitWizardHost` | ui/shell/InitWizard.kt | 初期化ウィザード（浮いたパネル。場所 → 始め方 → 内容 → 確認 → 作成して開く） |
 
 ## ワークスペース構造と layout
 
@@ -133,7 +133,7 @@
 ## 拡張ポイント
 
 - **テンプレートの追加**: `templates/<id>/` にフォルダを作り `template.yaml` と写すファイルを置く（書き方は templates/README.md）。`WorkspaceTemplatesTest` が自動で拾い、サンプルデータの有無の両方で検証エラー 0 とダッシュボードの解決を確かめる。
-- **問いの種類の追加**: 問いは項目の定義なので、入力欄は `ui/InitWizard.kt` の `ParamEditor`（文字・選択肢・はい／いいえ・数・一覧・項目の組の一覧）に足し、点検は `WorkspaceInit.checkAnswers` に足す。
+- **問いの種類の追加**: 問いは項目の定義なので、入力欄は `ui/shell/InitWizard.kt` の `ParamEditor`（文字・選択肢・はい／いいえ・数・一覧・項目の組の一覧）に足し、点検は `WorkspaceInit.checkAnswers` に足す。
 
 - **ゾーンや台帳の決まりの追加**: `WorkspaceLayout` の述語に足し、消費側（走査・書込権限・スキーマ適用・監視）はそれを読む。
 - **セッションの操作の追加**: `WorkspaceOperation` / `YamlOperation` として表し、トランザクションと履歴に載せる。

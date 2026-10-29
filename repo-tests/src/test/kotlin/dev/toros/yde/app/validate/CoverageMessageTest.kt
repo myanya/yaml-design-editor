@@ -1,6 +1,5 @@
 package dev.toros.yde.app.validate
 
-import dev.toros.yde.desktop.AppState
 import dev.toros.yde.app.core.Views
 import dev.toros.yde.app.core.Workspace
 import dev.toros.yde.workspace.validate.CheckResponse
@@ -11,6 +10,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import dev.toros.yde.desktop.AppState
 
 /**
  * カバレッジ指摘メッセージの作成場所案内（R28-05・UX-97）のテスト。

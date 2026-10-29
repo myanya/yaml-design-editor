@@ -14,21 +14,21 @@
 | `DocumentSession.prepareHistoryStep` / `applyHistoryStep` / `afterHistoryStep` / `syncSourcesAfterHistory` | session/DocumentSession.kt | 横断 Undo の一手の論理: 下書きの反映・対象の決定・拒否と確認の判定・カーネルの呼び出し・開いている文書の作り直し・ソースの差し込み・予告の文 |
 | `AppState.undo` / `redo` / `historyFromUi` / `historyNotice` | desktop/AppState.kt | 一手の段取り（確認の表示・ファイル配置の一手を IO へ・通知・編集元へ戻る移動） |
 | `DocumentSession.createDocument` / `afterHistoryStep` | session/DocumentSession.kt | 文書の新規作成の単一経路（作った文書を開くのは `AppState` の入口）と、作成・削除を含む履歴の確定 |
-| `FormCtx.writeScalar` | ui/FormCtx.kt | スカラー入力の書込。合体キーを渡す |
+| `FormCtx.writeScalar` | ui/form/FormCtx.kt | スカラー入力の書込。合体キーを渡す |
 | `OpenDocument.source`（文字列とカーソル）と `DocumentState.applyParsed` / `syncSourceFromTree` / `discardDraft` / `enterTextOnly`（計算） | desktop/OpenDocument.kt・session/DocumentState.kt | ソースの下書き（文字列・カーソル・解析エラー）の所有と、木との同期 |
 | `SourceHistorySync` | text/SourceHistorySync.kt | 履歴の値を優先した書式の差し込みと、全 YAML 文書の再解析による内容一致の確認 |
-| `SourcePane` / `SourceDraftBanner` | ui/SourcePane.kt | ソースの表示と入力（入力が止まってから背景で解析）。他のタブに出す書きかけ・壊れたまま保存のバナー |
-| `SourceSyntaxBar` / `sourceErrorLocation` | ui/SourceSyntaxBar.kt | 本文の位置を変えない構文状態と詳細の表示、解析エラー文面からの問題位置の取得 |
+| `SourcePane` / `SourceDraftBanner` | ui/source/SourcePane.kt | ソースの表示と入力（入力が止まってから背景で解析）。他のタブに出す書きかけ・壊れたまま保存のバナー |
+| `SourceSyntaxBar` / `sourceErrorLocation` | ui/source/SourceSyntaxBar.kt | 本文の位置を変えない構文状態と詳細の表示、解析エラー文面からの問題位置の取得 |
 | `LineMerge` | text/LineMerge.kt | 行の差分（共通部分の切り落とし＋LCS）と 3 者マージ・文字列とカーソルへの適用（純ロジック） |
-| `SourceEditing` | ui/SourceEditing.kt | 基本操作の規則（改行のインデント・インデント・コメント切替・行の移動と複製・検索と置換）。文字列と選択範囲を受けて返す純ロジック |
-| `SourceContext` | ui/SourceContext.kt | カーソル位置の文脈（親のパス・キーか値か・打ちかけの語）。木でなく文字列のインデントから読むので、解析できない書きかけでも働く（純ロジック） |
-| `SourceCompletion` | ui/SourceCompletion.kt | Ctrl+Space の候補（キー名＝スキーマの実効フィールド・ID＝上書き索引・enum の値・真偽値・file＝ワークスペースのファイル） |
+| `SourceEditing` | ui/source/SourceEditing.kt | 基本操作の規則（改行のインデント・インデント・コメント切替・行の移動と複製・検索と置換）。文字列と選択範囲を受けて返す純ロジック |
+| `SourceContext` | ui/source/SourceContext.kt | カーソル位置の文脈（親のパス・キーか値か・打ちかけの語）。木でなく文字列のインデントから読むので、解析できない書きかけでも働く（純ロジック） |
+| `SourceCompletion` | ui/source/SourceCompletion.kt | Ctrl+Space の候補（キー名＝スキーマの実効フィールド・ID＝上書き索引・enum の値・真偽値・file＝ワークスペースのファイル） |
 | `YamlPositions` / `SourcePositions` | yaml-core yaml/YamlPositions.kt | 解析できた文字列のノードの位置の表（パス→行・列、位置→パス、行→見出しのキー）。指摘の行・ホバー・Ctrl+クリック・折り畳みの鍵 |
-| `SourceStructure` | ui/SourceStructure.kt | 折り畳める区画と畳んだ見え方（隠れる範囲・表示と元の位置の行き来）・保存済みとの差分の印・木のノード→パス・選択範囲の整形（純ロジック） |
-| `YamlHighlighter` | ui/SourceHighlight.kt | 行ごとの覚えつきの色分け（純ロジック） |
+| `SourceStructure` | ui/source/SourceStructure.kt | 折り畳める区画と畳んだ見え方（隠れる範囲・表示と元の位置の行き来）・保存済みとの差分の印・木のノード→パス・選択範囲の整形（純ロジック） |
+| `YamlHighlighter` | ui/source/SourceHighlight.kt | 行ごとの覚えつきの色分け（純ロジック） |
 | `DocumentSession.save` / `saveDraftAsText` / `ensureAttached` / `prepareHistoryStep` | session/DocumentSession.kt | 壊れたまま保存、下書きを捨てる確認つきの Undo/Redo、テキスト文書を文書集合へ戻す |
 | `WorkspaceSession.saveAsText` / `attachDocument` | workspace-core | テキストのまま保存して文書集合から外す（履歴は残す）。解析できる内容で文書集合へ戻す |
-| `DiffPane.calculateDiff` / `charDiffRanges` | ui/DiffPane.kt | 保存済みと編集中の差分（行整列・文字単位の強調。純ロジック） |
+| `DiffPane.calculateDiff` / `charDiffRanges` | ui/common/DiffPane.kt | 保存済みと編集中の差分（行整列・文字単位の強調。純ロジック） |
 
 ## 編集の経路
 

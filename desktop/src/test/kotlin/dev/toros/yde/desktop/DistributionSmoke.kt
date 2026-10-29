@@ -2,14 +2,14 @@ package dev.toros.yde.desktop
 
 import dev.toros.yde.app.core.BuildInfo
 import dev.toros.yde.agent.llm.AiHttp
-import dev.toros.yde.desktop.ui.GraphLayouts
-import dev.toros.yde.desktop.ui.LensEdgeSpec
-import dev.toros.yde.desktop.ui.LensLayoutKind
-import dev.toros.yde.desktop.ui.LensNodeSize
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import org.apache.poi.xwpf.usermodel.XWPFDocument
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import dev.toros.yde.desktop.ui.graph.GraphLayouts
+import dev.toros.yde.desktop.ui.graph.LensEdgeSpec
+import dev.toros.yde.desktop.ui.graph.LensLayoutKind
+import dev.toros.yde.desktop.ui.graph.LensNodeSize
 
 /** 同梱ランタイムと配布 JAR だけで実行するスモーク検査。外部 API には接続しない。 */
 object DistributionSmoke {

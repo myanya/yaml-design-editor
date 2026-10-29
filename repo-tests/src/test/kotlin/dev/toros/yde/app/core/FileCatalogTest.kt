@@ -1,9 +1,10 @@
 package dev.toros.yde.app.core
 
-import dev.toros.yde.desktop.FileTreePreferences
 import java.nio.file.Files
 import java.util.prefs.Preferences
 import kotlin.test.*
+import dev.toros.yde.desktop.FileTreePreferences
+import dev.toros.yde.desktop.main
 
 class FileCatalogTest {
     private val root = Files.createTempDirectory("file-catalog")

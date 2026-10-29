@@ -11,6 +11,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import dev.toros.yde.desktop.ui.schema.scalar
 
 /**
  * 保存時に自動で入る値（印 `auto`）のアプリ側: 保存の直前に更新日と版が入って UI の木にも映る・Ctrl+Z で日付と版だけ戻る・

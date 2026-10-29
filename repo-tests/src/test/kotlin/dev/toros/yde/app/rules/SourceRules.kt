@@ -55,11 +55,11 @@ object SourceRules {
 
     /** 外部の UI ライブラリの import の接頭辞と、それを包む 1 ファイル。 */
     private val wrappedLibraries = mapOf(
-        "io.github.vinceglb." to "$UI/FilePickers.kt",
-        "sh.calvin.reorderable." to "$UI/Reorder.kt",
-        "com.mikepenz." to "$UI/MarkdownView.kt",
-        "com.patrykandpatrick.vico." to "$UI/Charts.kt",
-        "org.eclipse.elk." to "$UI/GraphLayouts.kt",
+        "io.github.vinceglb." to "$UI/common/FilePickers.kt",
+        "sh.calvin.reorderable." to "$UI/common/Reorder.kt",
+        "com.mikepenz." to "$UI/common/MarkdownView.kt",
+        "com.patrykandpatrick.vico." to "$UI/view/Charts.kt",
+        "org.eclipse.elk." to "$UI/graph/GraphLayouts.kt",
     )
 
     /** FieldType の値（基底の種類だけ）。足すときは architecture/schema.md「型の連鎖と狭める規則」を読んでからここも更新する。 */
@@ -77,8 +77,8 @@ object SourceRules {
         "agent/src/main/kotlin/dev/toros/yde/agent/eval/EvalRunner.kt",
         "agent/src/main/kotlin/dev/toros/yde/agent/run/RunLog.kt",
         "app-core/src/main/kotlin/dev/toros/yde/app/tools/WorkingCopy.kt",
-        "$UI/InitWizard.kt",
-        "$UI/MarkdownPane.kt",
+        "$UI/shell/InitWizard.kt",
+        "$UI/file/MarkdownPane.kt",
         "workspace-core/src/main/kotlin/dev/toros/yde/workspace/DocumentStore.kt",
         "workspace-core/src/main/kotlin/dev/toros/yde/workspace/FileArrangement.kt",
         "workspace-core/src/main/kotlin/dev/toros/yde/workspace/FileArrangementPlanner.kt",
@@ -97,11 +97,10 @@ object SourceRules {
         },
         Rule(
             2, "app の層は一方向",
-            why = "ext、index・schema・validate・text、core、session、tools、skill、agent.llm、agent（定義）、agent.run、agent.auto、agent.eval、desktop の根（AppState・ext）、desktop.ui の順に下から上へ重なり、上の層を import しない",
+            why = "ext、index・schema・validate・text、core、session、tools、skill、agent.llm、agent（定義）、agent.run、agent.auto、agent.eval、desktop の根（AppState・ext）、desktop.ui の順に下から上へ重なり、上の層を import しない（`*` の import も見る）。入口の Main.kt だけは窓に画面を載せるので除く",
             doc = "architecture/README.md「モジュールと依存方向」",
             known = listOf(
                 Known("app-core/src/main/kotlin/dev/toros/yde/app/validate/Readiness.kt", "core.Workspace を使っていて validate と core が循環している（BACKLOG）"),
-                Known("desktop/src/main/kotlin/dev/toros/yde/desktop/AppState.kt", "ui の DesktopUiDispatcher を使っている（BACKLOG）"),
             ),
         ) { files -> layerViolations(files) },
         Rule(
@@ -115,7 +114,7 @@ object SourceRules {
             4, "等幅の文字は AppFonts.Mono",
             why = "FontFamily.Monospace は OS 任せで日本語の幅が揃わない。同梱の Cica を使う",
             doc = "architecture/ui.md「規律」",
-        ) { files -> onlyIn(files, Regex("""FontFamily\.Monospace"""), setOf("$UI/Common.kt")) },
+        ) { files -> onlyIn(files, Regex("""FontFamily\.Monospace"""), setOf("$UI/common/Common.kt")) },
         Rule(
             5, "外部の UI ライブラリは包む 1 ファイルの外へ出さない",
             why = "より良いライブラリが見つかったとき、その 1 ファイルだけ書き換えれば済むようにする",
@@ -141,7 +140,7 @@ object SourceRules {
             8, "生の色は Palette だけ",
             why = "Color(0x…) をビューに直接書くとテーマ切替が壊れる。色は Palette を通す",
             doc = "CONVENTIONS「Compose UI の書き方」",
-        ) { files -> onlyIn(files, Regex("""\bColor\(0x"""), setOf("$UI/Common.kt")) },
+        ) { files -> onlyIn(files, Regex("""\bColor\(0x"""), setOf("$UI/common/Common.kt")) },
         Rule(
             9, "UI は state.index でなく overlayIndex() を読む",
             why = "索引は二層で、未保存の編集を重ねたものを UI が読む",
@@ -218,8 +217,9 @@ object SourceRules {
 
     private fun layerViolations(files: List<SourceFile>): List<Hit> {
         val packages = files.map { it.packageName }.toSet()
-        fun packageOf(importName: String): String? = packages.filter { importName.startsWith("$it.") }.maxByOrNull { it.length }
-        return files.flatMap { f ->
+        // `import a.b.*` は走査で `a.b` になるので、パッケージそのものとの一致も見る
+        fun packageOf(importName: String): String? = packages.filter { importName == it || importName.startsWith("$it.") }.maxByOrNull { it.length }
+        return files.filter { !(it.packageName == DESKTOP && it.name == "Main.kt") }.flatMap { f ->
             val from = layerOf(f.packageName) ?: return@flatMap emptyList()
             f.imports.mapNotNull { imp ->
                 val to = packageOf(imp.name)?.let { layerOf(it) } ?: return@mapNotNull null

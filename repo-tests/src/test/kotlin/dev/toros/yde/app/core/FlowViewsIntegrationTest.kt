@@ -26,6 +26,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import dev.toros.yde.desktop.AppState
+import dev.toros.yde.desktop.ui.common.slotAt
+import dev.toros.yde.desktop.ui.form.FormCtx
 
 class FlowViewsIntegrationTest {
     init { Extensions.install(DesktopExtensions.registry) }   // フロー（kind: flow）は拡張の種類。登録は入口の一覧（ADR-0014）
@@ -66,8 +69,8 @@ class FlowViewsIntegrationTest {
         val state = dev.toros.yde.desktop.AppState().also { it.openWorkspace(directory) }
         val document = DocumentId("flows/one.yaml")
         val doc = state.ensureDoc(document)
-        val ctx = dev.toros.yde.desktop.ui.FormCtx(state, doc, emptyList())
-        val slot = assertNotNull(dev.toros.yde.desktop.ui.slotAt(assertNotNull(doc.root), parseYPath("items[0].title")))
+        val ctx = dev.toros.yde.desktop.ui.form.FormCtx(state, doc, emptyList())
+        val slot = assertNotNull(dev.toros.yde.desktop.ui.common.slotAt(assertNotNull(doc.root), parseYPath("items[0].title")))
         ctx.setScalar(slot, "変更後", dev.toros.yde.semantic.schema.FieldType.STRING)
         fun resolve() = resolveFlow(assertNotNull(Views.load(directory, state.schemas, state.unsavedFirstTree())
             .flow("diagram")), document, state.overlayIndex(), state::schemaFor, state.unsavedFirstTree())
@@ -80,7 +83,7 @@ class FlowViewsIntegrationTest {
         defRoot.entries["layout"] = YamlIO.parse("direction: right")
         definition.markEdited()
         assertEquals("right", Views.load(directory, state.schemas, state.unsavedFirstTree()).flow("diagram")?.direction)
-        val readOnly = dev.toros.yde.desktop.ui.FormCtx(state, doc, emptyList(), readOnly = true)
+        val readOnly = dev.toros.yde.desktop.ui.form.FormCtx(state, doc, emptyList(), readOnly = true)
         kotlin.test.assertFailsWith<IllegalStateException> { readOnly.markEdited() }
     }
 

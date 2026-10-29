@@ -50,11 +50,11 @@ dependencies {
     // Material Icons（拡張）は 1.7.3 で凍結された配布物（更新されない。移行先は Material Symbols＝BACKLOG）
     implementation("org.jetbrains.compose.material:material-icons-extended:1.7.3")
     // 外部の UI ライブラリは ui/ の 1 ファイルで包んで使う（差し替えられるように。CONVENTIONS「Compose UI の書き方」）
-    implementation("io.github.vinceglb:filekit-dialogs-compose:0.16.0")        // OS ネイティブのファイル・フォルダ選択（ui/FilePickers.kt）
-    implementation("sh.calvin.reorderable:reorderable:3.1.0")                   // ドラッグで並べ替え（ui/Reorder.kt）
-    implementation("com.mikepenz:multiplatform-markdown-renderer-m3:0.45.0")   // Markdown の描画（ui/MarkdownView.kt）
-    implementation("com.patrykandpatrick.vico:compose-m3:3.3.1")              // グラフ（ui/Charts.kt）
-    // 節点と辺の配置（ELK＝Eclipse Layout Kernel。ui/GraphLayouts.kt に閉じる。応力配置は alg.force に同梱・spore は重なり除去）
+    implementation("io.github.vinceglb:filekit-dialogs-compose:0.16.0")        // OS ネイティブのファイル・フォルダ選択（ui/common/FilePickers.kt）
+    implementation("sh.calvin.reorderable:reorderable:3.1.0")                   // ドラッグで並べ替え（ui/common/Reorder.kt）
+    implementation("com.mikepenz:multiplatform-markdown-renderer-m3:0.45.0")   // Markdown の描画（ui/common/MarkdownView.kt）
+    implementation("com.patrykandpatrick.vico:compose-m3:3.3.1")              // グラフ（ui/view/Charts.kt）
+    // 節点と辺の配置（ELK＝Eclipse Layout Kernel。ui/graph/GraphLayouts.kt に閉じる。応力配置は alg.force に同梱・spore は重なり除去）
     val elk = "0.12.0"
     implementation("org.eclipse.elk:org.eclipse.elk.core:$elk")
     implementation("org.eclipse.elk:org.eclipse.elk.alg.layered:$elk")
@@ -88,7 +88,7 @@ tasks.withType<Test>().configureEach {
     workingDir = rootDir
 }
 
-// 等幅フォント Cica の同梱（ui/Common.kt の AppFonts.Mono）。TTF は git に入れない（.gitignore の *.ttf）ので、
+// 等幅フォント Cica の同梱（ui/common/Common.kt の AppFonts.Mono）。TTF は git に入れない（.gitignore の *.ttf）ので、
 // ビルド時に配布物を取得して検証し、資源（fonts/cica/）へ入れる。取得した zip は Gradle のユーザーホームに置き、clean でも消えない
 val cicaVersion = "5.0.3"
 val cicaZipUrl = "https://github.com/miiton/Cica/releases/download/v$cicaVersion/Cica_v$cicaVersion.zip"

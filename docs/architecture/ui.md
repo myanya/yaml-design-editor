@@ -3,51 +3,80 @@
 UI シェルは「ダッシュボード・編集・台帳・実行・設計」の 5 スペースと左端のアクティビティレール。画面はモーダルでなくスペース内の常設画面で、エージェント実行の状態はコンポーザブルの外（`RunController`）に置く。
 フォームは `FormCtx` が編集操作と参照解決を仲介し、閲覧専用モードは `FormCtx` の共有で全ビューへ波及する。
 
+## 画面のパッケージ
+
+画面（`desktop.ui`）は役割で 10 のパッケージに分ける。機能ごとにまとめ、共通の部品を一番下に置く。上の箱が下の箱を使う。
+
+```
+              ui.shell（骨格・スペース・右パネル・ツールバー・ウィザード）
+  ui.view  ui.graph  ui.file  ui.run  ui.schema  ui.source  ui.action   ← 機能
+              ui.form（フォーム編集の部品）
+              ui.common（土台の部品）
+  desktop の根（AppState・OpenDocument・ScreenMemory・UiPreferences・DesktopUiDispatcher・Main の main）
+```
+
+| パッケージ | 中身 | 主なファイル |
+|---|---|---|
+| `ui.common` | 色と字体・選択メニュー・項目説明・Markdown の描画・ファイル選択・並べ替え・仮想表・差分 | ui/common/Common.kt・ui/common/ChoiceMenu.kt・ui/common/FieldHelp.kt・ui/common/DiffPane.kt |
+| `ui.form` | フォーム編集（`FormCtx`・項目の行・表・汎用エディタ・値の種類ごとの欄・配列の削除・表示方式） | ui/form/FormCtx.kt・ui/form/FormFields.kt・ui/form/FormTables.kt・ui/form/GenericEditor.kt |
+| `ui.source` | ソースエディタ（編集・補完・強調・構造・構文の状態） | ui/source/SourcePane.kt・ui/source/SourceEditing.kt |
+| `ui.schema` | スキーマ設計の画面 | ui/schema/SchemaEditor.kt・ui/schema/SchemaDesignWorkspace.kt |
+| `ui.view` | ビューの描画（表・チャート・フロー・レポート・ダッシュボード・準備完了）と、拡張の種類の描画の一覧 | ui/view/ViewRenderers.kt・ui/view/ViewGridPane.kt・ui/view/DashboardPane.kt |
+| `ui.graph` | グラフレンズとエンティティページ（配置は ELK） | ui/graph/GraphLensView.kt・ui/graph/GraphLayouts.kt・ui/graph/IdCrossView.kt |
+| `ui.file` | ファイル一覧・プレビュー・移動・Markdown の画面・file 型の欄と画像 | ui/file/FileTreePane.kt・ui/file/FileEditor.kt・ui/file/ImagePane.kt |
+| `ui.run` | 実行スペース・自動化・計測・AI の接続と生成 | ui/run/RunsSpace.kt・ui/run/AiGenerationDialog.kt |
+| `ui.action` | 操作のパネル（型の操作とアクション） | ui/action/ActionPane.kt |
+| `ui.shell` | 骨格（`AppRoot`・編集領域・ステータスバー）・スタート画面・コマンドパレット・スペース・右パネル・ツールバー・ウィザード・連携（skill）の設定 | ui/shell/AppRoot.kt・ui/shell/Shell.kt・ui/shell/SidePanel.kt |
+
+- 入口の `Main.kt` は `main`（窓）とショートカットの `handleShortcut` だけを持ち、画面は `ui.shell` に置く。
+- パッケージの間には、下の箱が上の箱を使う循環が残っている（common ⇄ form・form ⇄ action・action ⇄ view・form ⇄ schema・form ⇄ shell・form ⇄ view）。新しく増やさない。
+
 ## 部品
 
 | 部品 | ファイル | 責務 |
 |---|---|---|
-| `Main.kt` | desktop/Main.kt | エントリポイント・ウィンドウ・ショートカット（`handleShortcut`）・スタート画面・コマンドパレット・ステータスバー・`uiPreferences` |
+| `Main.kt` | desktop/Main.kt | エントリポイント・ウィンドウ・ショートカット（`handleShortcut`）。画面は `ui.shell` に置く |
+| `AppRoot` / `StartScreen` / `CommandPalette` | ui/shell/AppRoot.kt・ui/shell/StartScreen.kt・ui/shell/CommandPalette.kt | 骨格（左右の領域・編集領域 `EditorArea`・ステータスバー `StatusBar`・改名の確認）・スタート画面・コマンドパレット。配置と表示の設定は `UiPreferences.kt` の `uiPreferences` |
 | `UiSpace` / `showSpace` / `showWorkspaceView` / `navigateToPath` / `openCrossView` / `openViewGrid` / `goBack` / `goForward` | desktop/AppState.kt | スペースとナビゲーション履歴（`NavLocation`） |
 | `ScreenMemory` | desktop/ScreenMemory.kt | 画面の覚え（畳み・タブ・絞り込み・チェック・ツリーの展開。画面を離れても保持し、切替時は初期化してツリーの展開を復元する） |
-| `ActivityRail` / `LedgerSpace` | ui/Shell.kt | 5 スペースを切り替えるレールと、一覧・ビューグリッド・グラフ・エンティティをタブで束ねる台帳スペース |
-| `RunController` / `RunsSpace` | ui/RunsSpace.kt | 実行スペース（受信箱・手動実行・自動化・計測評価）。実行状態機械（AppRoot 生存期間） |
-| `DesignSpace` | ui/DesignSpace.kt | 設計スペース（定義文書の種類別カタログ・新規作成・スキーマ推測・skill） |
-| `FormView` / `DocumentMetadataEditor` / `SameIdOccurrencesStrip` | ui/FormView.kt | フォームの入口（文書を開いたときの描画の振り分け）・文書の情報・同じ ID の出現の帯 |
-| `FormCtx` / `defaultNode` / `autoValueHint` | ui/FormCtx.kt | フォームの文脈（編集の入口・閲覧専用の封じ・展開の覚え）と項目の既定値 |
-| `SchemaRootForm` / `DocViewSections` | ui/FormDocView.kt | スキーマ駆動フォームの既定の描画と、文書ビューの節・被参照の表 |
-| `ObjectFields` / `FieldRow` / `FormFieldLayout` / `ValueEditor` | ui/FormFields.kt | フォームの骨組み: 項目の並び・1 行の形・値の種類で編集欄を選ぶ・型の不一致の直し |
-| `ScalarTextEditor` / `BooleanEditor` / `EnumEditor` / `IdEditor` | ui/ScalarEditors.kt | 一つの値の編集欄（文字・真偽・選択肢・ID） |
-| `RefEditor` / `RefScalarEditor` / `DocRefScalarEditor` | ui/RefEditors.kt | 参照の編集欄（エンティティへの参照・文書への参照。参照先の名前と飛び先） |
-| `ArrayEditor` / `NestedObjectEditor` / `MapEditor` | ui/CollectionEditors.kt | 入れ物の編集欄（配列・入れ子のオブジェクト・map。畳みと要約） |
-| `GenericEditor` / `GenericMapEntryRow` | ui/GenericEditor.kt | 汎用エディタ（スキーマの無い文書・スキーマの外のキー。キーの改名は表記と順序を保つ） |
-| `isStructuredFormValue` / `stackFormField` | ui/FormLayout.kt | 解決済みの型・実際の値と利用可能幅によるフォーム配置の判定（純ロジック） |
-| `FieldHelp` / `FieldHelpPosition` | ui/FieldHelp.kt | 説明の短い表示とホバー・固定表示、画面内への位置調整 |
-| `TextFieldEscape` | ui/TextFieldEscape.kt | Esc の一押しと変換状態を追跡し、候補の閉鎖とフォーカス解除を分ける |
-| `TextFieldHistory` / `HistoryShortcut` | ui/TextFieldHistory.kt | 文書入力の Undo/Redo を接続し、IME 変換中の一押しが全体履歴へ伝わるのを防ぐ |
-| `ChoiceMenuItem` | ui/ChoiceMenuItem.kt | 選択一覧の現在値をチェック・背景色・selected で示す共通行 |
-| `ChoiceMenu`・`ChoiceOption` | ui/ChoiceMenu.kt・ChoiceOptions.kt | 高さ制限・遅延描画・現在値への初期スクロール・検索・説明全文を共有 |
-| `FlowViewPane` / `EmbeddedFlowPane` | ui/FlowViewPane.kt | 図と原本フォームを併記する単独・埋め込み表示（[views](views.md)） |
-| `ObjectTable` / `ArrayTable` / `MapTable` / `RefCell` / `tableColumnWidths` | ui/FormTables.kt | 配列と map のテーブル表示（参照セルは ID・参照先の名前・横ぐしへの Hub） |
-| `AppToolbar` / `PaneHeader` / `UiTooltip` | ui/AppToolbar.kt | 全体メニュー・移動と検索・左右ペインの開閉・操作名の補足 |
-| `Highlightable` / `slotAt` / `CompactTextField` / `Palette` / `PanelShape` / `AppFonts` | ui/Common.kt | ハイライトとスクロール・Slot の解決・共通の入力欄と色と角丸・同梱フォント（等幅 Cica。資源が無ければ OS の等幅へ戻す） |
-| `VirtualTable` / `TableColumn` / `visibleColumnRange` | ui/VirtualTable.kt | 共通の表。見出し行と左の固定列は動かず、行は遅延描画、列は見える範囲だけ組み立てる（ビューグリッド・一覧ビューが使う） |
-| `ReorderableList` / `ReorderRowScope` | ui/Reorder.kt | ドラッグで並べ替える縦リスト（取っ手からだけ掴める。ライブラリ Reorderable を包む） |
-| `TemporalPickerButton` / `TemporalPick` | ui/TemporalEditor.kt | 日付・時刻・日時のピッカー（ポップアップ）と、正準の文字列との変換（純ロジック） |
-| `FilePickers` / `rememberDirectoryChooser` / `rememberFileChooser` / `rememberFileSaver` / `LocalDialogParentWindow` | ui/FilePickers.kt | OS ネイティブのファイル・フォルダ選択と保存先の選択、最後に選んだ場所の記憶（ライブラリ FileKit を包む） |
-| `MarkdownView` / `openExternally` | ui/MarkdownView.kt | Markdown の描画（ライブラリ multiplatform-markdown-renderer を包む。色と文字は Palette） |
-| `MarkdownPane` / `resolveMarkdownLink` | ui/MarkdownPane.kt | Markdown 文書と内蔵ヘルプの表示（表示とソースの 2 タブ・リンクの行き先の判定は純ロジック） |
+| `ActivityRail` / `LedgerSpace` | ui/shell/Shell.kt | 5 スペースを切り替えるレールと、一覧・ビューグリッド・グラフ・エンティティをタブで束ねる台帳スペース |
+| `RunController` / `RunsSpace` | ui/run/RunsSpace.kt | 実行スペース（受信箱・手動実行・自動化・計測評価）。実行状態機械（AppRoot 生存期間） |
+| `DesignSpace` | ui/shell/DesignSpace.kt | 設計スペース（定義文書の種類別カタログ・新規作成・スキーマ推測・skill） |
+| `FormView` / `DocumentMetadataEditor` / `SameIdOccurrencesStrip` | ui/form/FormView.kt | フォームの入口（文書を開いたときの描画の振り分け）・文書の情報・同じ ID の出現の帯 |
+| `FormCtx` / `defaultNode` / `autoValueHint` | ui/form/FormCtx.kt | フォームの文脈（編集の入口・閲覧専用の封じ・展開の覚え）と項目の既定値 |
+| `SchemaRootForm` / `DocViewSections` | ui/form/FormDocView.kt | スキーマ駆動フォームの既定の描画と、文書ビューの節・被参照の表 |
+| `ObjectFields` / `FieldRow` / `FormFieldLayout` / `ValueEditor` | ui/form/FormFields.kt | フォームの骨組み: 項目の並び・1 行の形・値の種類で編集欄を選ぶ・型の不一致の直し |
+| `ScalarTextEditor` / `BooleanEditor` / `EnumEditor` / `IdEditor` | ui/form/ScalarEditors.kt | 一つの値の編集欄（文字・真偽・選択肢・ID） |
+| `RefEditor` / `RefScalarEditor` / `DocRefScalarEditor` | ui/form/RefEditors.kt | 参照の編集欄（エンティティへの参照・文書への参照。参照先の名前と飛び先） |
+| `ArrayEditor` / `NestedObjectEditor` / `MapEditor` | ui/form/CollectionEditors.kt | 入れ物の編集欄（配列・入れ子のオブジェクト・map。畳みと要約） |
+| `GenericEditor` / `GenericMapEntryRow` | ui/form/GenericEditor.kt | 汎用エディタ（スキーマの無い文書・スキーマの外のキー。キーの改名は表記と順序を保つ） |
+| `isStructuredFormValue` / `stackFormField` | ui/form/FormLayout.kt | 解決済みの型・実際の値と利用可能幅によるフォーム配置の判定（純ロジック） |
+| `FieldHelp` / `FieldHelpPosition` | ui/common/FieldHelp.kt | 説明の短い表示とホバー・固定表示、画面内への位置調整 |
+| `TextFieldEscape` | ui/common/TextFieldEscape.kt | Esc の一押しと変換状態を追跡し、候補の閉鎖とフォーカス解除を分ける |
+| `TextFieldHistory` / `HistoryShortcut` | ui/common/TextFieldHistory.kt | 文書入力の Undo/Redo を接続し、IME 変換中の一押しが全体履歴へ伝わるのを防ぐ |
+| `ChoiceMenuItem` | ui/common/ChoiceMenuItem.kt | 選択一覧の現在値をチェック・背景色・selected で示す共通行 |
+| `ChoiceMenu`・`ChoiceOption` | ui/common/ChoiceMenu.kt・ChoiceOptions.kt | 高さ制限・遅延描画・現在値への初期スクロール・検索・説明全文を共有 |
+| `FlowViewPane` / `EmbeddedFlowPane` | ui/view/FlowViewPane.kt | 図と原本フォームを併記する単独・埋め込み表示（[views](views.md)） |
+| `ObjectTable` / `ArrayTable` / `MapTable` / `RefCell` / `tableColumnWidths` | ui/form/FormTables.kt | 配列と map のテーブル表示（参照セルは ID・参照先の名前・横ぐしへの Hub） |
+| `AppToolbar` / `PaneHeader` / `UiTooltip` | ui/shell/AppToolbar.kt | 全体メニュー・移動と検索・左右ペインの開閉・操作名の補足 |
+| `Highlightable` / `slotAt` / `CompactTextField` / `Palette` / `PanelShape` / `AppFonts` | ui/common/Common.kt | ハイライトとスクロール・Slot の解決・共通の入力欄と色と角丸・同梱フォント（等幅 Cica。資源が無ければ OS の等幅へ戻す） |
+| `VirtualTable` / `TableColumn` / `visibleColumnRange` | ui/common/VirtualTable.kt | 共通の表。見出し行と左の固定列は動かず、行は遅延描画、列は見える範囲だけ組み立てる（ビューグリッド・一覧ビューが使う） |
+| `ReorderableList` / `ReorderRowScope` | ui/common/Reorder.kt | ドラッグで並べ替える縦リスト（取っ手からだけ掴める。ライブラリ Reorderable を包む） |
+| `TemporalPickerButton` / `TemporalPick` | ui/form/TemporalEditor.kt | 日付・時刻・日時のピッカー（ポップアップ）と、正準の文字列との変換（純ロジック） |
+| `FilePickers` / `rememberDirectoryChooser` / `rememberFileChooser` / `rememberFileSaver` / `LocalDialogParentWindow` | ui/common/FilePickers.kt | OS ネイティブのファイル・フォルダ選択と保存先の選択、最後に選んだ場所の記憶（ライブラリ FileKit を包む） |
+| `MarkdownView` / `openExternally` | ui/common/MarkdownView.kt | Markdown の描画（ライブラリ multiplatform-markdown-renderer を包む。色と文字は Palette） |
+| `MarkdownPane` / `resolveMarkdownLink` | ui/file/MarkdownPane.kt | Markdown 文書と内蔵ヘルプの表示（表示とソースの 2 タブ・リンクの行き先の判定は純ロジック） |
 | `Help` | desktop/Help.kt | 内蔵ヘルプの題目と本文（ビルド時に資源 `help/` へ入れた利用者マニュアル） |
-| `FileEditor` / `resolveFilePath` / `fileValueFor` | ui/FileEditor.kt | file 型の入力欄（選ぶ・OS で開く・解決した場所と有無の 1 行・画像なら下に表示）。場所の解決と選んだファイルの書き方は純ロジック |
-| `ImagePane` / `EmbeddedImagePane` / `ImageCanvas` / `fitZoom` | ui/ImagePane.kt | 画像の表示（幅に合わせる・100%・±・Ctrl＋ホイール・ドラッグ＝フロービューと同じ操作）の埋め込みと全面表示で、更新時刻で読み直す |
-| `BarChart` / `ChartSeries` | ui/Charts.kt | 縦棒グラフ（積み上げ・並べ・凡例・マウスで値。ライブラリ Vico を包み、系列の色は Palette の `ChartReady` / `ChartPending` など意味で決める） |
-| `ReadinessPane` / `readinessChartData` | ui/ReadinessPane.kt | 準備完了レポート（台帳の「準備」タブ: タイル・型別とフェーズ別の図・エンティティの表、図のデータ整形は純ロジック） |
-| `SidePanel` | ui/SidePanel.kt | ID インスペクタ（検証・関係・出現・操作の 4 タブ。台帳スペースでレンズを表示しているときは Main が右ペインに `LensSidePanel`＝ui/GraphLensView.kt の型・関係・辺の 3 タブを出し、右ペインの開閉は `AppState.rightPaneOpen`） |
-| `ActionTabContent` / `ActionPanelHost` / `TargetPicker` | ui/ActionPane.kt | 右ペインの「操作」タブ（使える操作の一覧と作業中の操作の開き直し）と、操作の浮いたパネル（対象の欄・受け取る値・確認・差分・適用。[actions](actions.md)） |
-| `InitWizardHost` | ui/InitWizard.kt | 初期化ウィザード（新しいワークスペースを作る浮いたパネル＝場所・始め方・内容・確認の 4 歩と、問いの素朴な入力欄。計画はカーネルの `WorkspaceInit`、[workspace](workspace.md)） |
+| `FileEditor` / `resolveFilePath` / `fileValueFor` | ui/file/FileEditor.kt | file 型の入力欄（選ぶ・OS で開く・解決した場所と有無の 1 行・画像なら下に表示）。場所の解決と選んだファイルの書き方は純ロジック |
+| `ImagePane` / `EmbeddedImagePane` / `ImageCanvas` / `fitZoom` | ui/file/ImagePane.kt | 画像の表示（幅に合わせる・100%・±・Ctrl＋ホイール・ドラッグ＝フロービューと同じ操作）の埋め込みと全面表示で、更新時刻で読み直す |
+| `BarChart` / `ChartSeries` | ui/view/Charts.kt | 縦棒グラフ（積み上げ・並べ・凡例・マウスで値。ライブラリ Vico を包み、系列の色は Palette の `ChartReady` / `ChartPending` など意味で決める） |
+| `ReadinessPane` / `readinessChartData` | ui/view/ReadinessPane.kt | 準備完了レポート（台帳の「準備」タブ: タイル・型別とフェーズ別の図・エンティティの表、図のデータ整形は純ロジック） |
+| `SidePanel` | ui/shell/SidePanel.kt | ID インスペクタ（検証・関係・出現・操作の 4 タブ。台帳スペースでレンズを表示しているときは Main が右ペインに `LensSidePanel`＝ui/graph/GraphLensView.kt の型・関係・辺の 3 タブを出し、右ペインの開閉は `AppState.rightPaneOpen`） |
+| `ActionTabContent` / `ActionPanelHost` / `TargetPicker` | ui/action/ActionPane.kt | 右ペインの「操作」タブ（使える操作の一覧と作業中の操作の開き直し）と、操作の浮いたパネル（対象の欄・受け取る値・確認・差分・適用。[actions](actions.md)） |
+| `InitWizardHost` | ui/shell/InitWizard.kt | 初期化ウィザード（新しいワークスペースを作る浮いたパネル＝場所・始め方・内容・確認の 4 歩と、問いの素朴な入力欄。計画はカーネルの `WorkspaceInit`、[workspace](workspace.md)） |
 | `FileTreePane` / `SourcePane` / `DiffPane` / `SchemaEditor` / `IdCrossView` / `ViewGridPane` / `WorkspaceViews` / `AiGenerationDialog` / `AutomationPanel` / `ImprovementPanel` / `SkillsPanel` | ui/ | 各ペイン |
-| `GraphLensView` | ui/GraphLensView.kt | グラフレンズ（配置の切替・箱の入れ子と矢印・ひし形・点線の描画・クリックでエンティティページへ着地し、配置は背景で計算し、できるまで前の絵を出す）と操作（ホイール拡縮・箱のドラッグ＝`withMovedNested`・見出しの印で開く・畳む・ホバー強調・右クリック・PNG 保存・ミニマップ）。節点と辺の決め方は ui/LensGraph.kt（[graph-query](graph-query.md)） |
-| `GraphLayouts` / `LensLayoutKind` / `LensArrangement` / `fitViewport` | ui/GraphLayouts.kt | 節点と辺の配置（放射・階層・応力はライブラリ ELK を包み、力学は `GraphLayout`）と画面に収める倍率の計算（Compose に依存しない純ロジック） |
+| `GraphLensView` | ui/graph/GraphLensView.kt | グラフレンズ（配置の切替・箱の入れ子と矢印・ひし形・点線の描画・クリックでエンティティページへ着地し、配置は背景で計算し、できるまで前の絵を出す）と操作（ホイール拡縮・箱のドラッグ＝`withMovedNested`・見出しの印で開く・畳む・ホバー強調・右クリック・PNG 保存・ミニマップ）。節点と辺の決め方は ui/graph/LensGraph.kt（[graph-query](graph-query.md)） |
+| `GraphLayouts` / `LensLayoutKind` / `LensArrangement` / `fitViewport` | ui/graph/GraphLayouts.kt | 節点と辺の配置（放射・階層・応力はライブラリ ELK を包み、力学は `GraphLayout`）と画面に収める倍率の計算（Compose に依存しない純ロジック） |
 | `SourceHighlight` / `SourceMerge` / `SourceEditing` / `GraphLayout` / `DiffPane.calculateDiff` | ui/ | テスト可能な純ロジック（YAML トークナイザ・行差分と 3 者マージ・ソースの基本操作と検索・軽い力学レイアウト・差分） |
 
 ## UI シェル
@@ -190,6 +219,7 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 - フォーム系の新しい編集 UI は `FormCtx` を通し、閲覧専用モードの表示分岐を入れる。
 - `uiSpace` の書き換えは `showSpace` / `showWorkspaceView` / ナビゲーション系メソッド経由に限る。新しい画面をモーダルで作らない（確認ダイアログと、値を集めて 1 回で適用する短い作業の浮いたパネルを除く）。エージェント実行の状態を `remember` へ戻さない。
 - アプリ全体のショートカットは `Main.kt` の `handleShortcut` に足す。
+- 画面のファイルは「画面のパッケージ」の役割に合うパッケージに置く。`ui.common` に機能の画面を足さない。
 - 新しく畳みを持つ UI は `FormCtx.expanded` / `setExpanded` を通す（ジャンプ先の自動展開と画面の覚えが付いてくる）。
 - 画面を離れても残したい見え方（畳み・タブ・絞り込み・チェック・展開）は `remember` に置かず `state.memory`（`ScreenMemory`）へ。覚えは「あれば使う・無ければ既定」で、古い鍵を誤りにしない。操作の途中は `remember` のまま。
 - `Dispatchers.Main` は使わない。背景処理からの文書生成・公開・画面遷移は `DesktopUiDispatcher` で EDT へ戻す（CONVENTIONS「Compose UI の書き方」）。
@@ -206,7 +236,7 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 
 - **新しい画面**: スペース内の常設画面として `ui/` に 1 ファイル。状態はコンポーザブルの外に置く（見え方は `ScreenMemory`、実行のような長い処理の状態は専用のコントローラ）。
 - **新しい編集面**: `FormCtx` を通し、書込は `Slot` ＋ `markEdited()`。連続入力なら合体キー（[editing-history.md](editing-history.md)）。
-- **基底の種類の追加**: `ValueEditor`（ui/FormFields.kt）に分岐を足し、編集欄は種類のファイル（ScalarEditors.kt・RefEditors.kt・CollectionEditors.kt）に置く（他の変更箇所は [schema.md「拡張ポイント」](schema.md)）。組込みの型に専用の編集欄を付けるときは `FieldType` の分岐でなく、解決した項目の連鎖で判定する（`isA(BuiltinTypes.TEXT)` が複数行の欄を出す例）。
+- **基底の種類の追加**: `ValueEditor`（ui/form/FormFields.kt）に分岐を足し、編集欄は種類のファイル（ScalarEditors.kt・RefEditors.kt・CollectionEditors.kt）に置く（他の変更箇所は [schema.md「拡張ポイント」](schema.md)）。組込みの型に専用の編集欄を付けるときは `FieldType` の分岐でなく、解決した項目の連鎖で判定する（`isA(BuiltinTypes.TEXT)` が複数行の欄を出す例）。
 - **横断ビューの追加**: `LedgerSpace` のタブと `workspaceView` の分岐に足す。
 
 ## ファイル一覧と参考資料

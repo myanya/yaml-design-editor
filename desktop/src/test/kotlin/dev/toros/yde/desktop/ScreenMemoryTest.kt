@@ -1,6 +1,5 @@
 package dev.toros.yde.desktop
 
-import dev.toros.yde.desktop.ui.FormCtx
 import dev.toros.yde.yaml.model.DocumentId
 import java.nio.file.Files
 import java.nio.file.Path
@@ -10,6 +9,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import dev.toros.yde.desktop.ui.form.FormCtx
 
 /**
  * 画面の覚え（ScreenMemory）のテスト。画面の描画は手動確認だが、

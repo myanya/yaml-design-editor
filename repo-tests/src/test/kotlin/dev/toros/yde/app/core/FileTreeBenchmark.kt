@@ -2,6 +2,8 @@ package dev.toros.yde.app.core
 
 import java.nio.file.Files
 import kotlin.system.measureTimeMillis
+import dev.toros.yde.desktop.AppState
+import dev.toros.yde.desktop.main
 
 /** 実ファイルを使う任意実行の計測。通常の全テストへ大量のファイル作成を持ち込まない。 */
 object FileTreeBenchmark {

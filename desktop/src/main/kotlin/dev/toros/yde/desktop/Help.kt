@@ -2,7 +2,7 @@ package dev.toros.yde.desktop
 
 /**
  * 内蔵ヘルプ。利用者マニュアル（docs/manual の .md ファイル）をビルド時に資源 help へ入れたもの（build.gradle.kts の copyHelp）。
- * 題目は資源名（`schema.md` など）。本文の相対リンク（`views.md` など）は題目どうしの移動として扱う（ui/MarkdownPane.kt）。
+ * 題目は資源名（`schema.md` など）。本文の相対リンク（`views.md` など）は題目どうしの移動として扱う（ui/file/MarkdownPane.kt）。
  */
 object Help {
     /** 入口の題目（マニュアルの目次）。 */

@@ -82,7 +82,7 @@ scripts/docs-lint.sh                        # 文書の形の機械チェック
 - 配置判定は `WorkspaceLayout` に一元化。`_schemas/` にはメタスキーマだけ。定義文書への書込は `meta: true` のアクティビティのみ → architecture/workspace.md「ワークスペース構造と layout」・architecture/schema.md「推測・メタスキーマ・派生」・architecture/agents.md「エージェント実行と Staging」
 - ビューは射影で、専用の書込経路を作らない → architecture/views.md「ビュー機構」
 - レポート（YAML から文字へ）は 2 段＝変換（`$view` でビューの行）→ `TextTemplate`（穴・繰り返し・条件だけ）。文字の組み立てを Kotlin に書かず、出力は派生物（`output`。YAML と `.yde/` の下には書かない） → architecture/transform.md「レポート」
-- チャート（`kind: chart`）に集計を書かない（集計は元の表）。軸を値の式で広げたクロス集計は `lower` で列が決まらないので、ヘッダと書き出しの見出しは `view.columns` でなく `columnsOf(view, rows)` から取る。図の部品（Vico）は `ui/Charts.kt` に閉じる → architecture/views.md「ビュー機構」
+- チャート（`kind: chart`）に集計を書かない（集計は元の表）。軸を値の式で広げたクロス集計は `lower` で列が決まらないので、ヘッダと書き出しの見出しは `view.columns` でなく `columnsOf(view, rows)` から取る。図の部品（Vico）は `ui/view/Charts.kt` に閉じる → architecture/views.md「ビュー機構」
 - カーネルのテストは疑似セッション注入、自動化のテストは `tick(now)` を直接呼ぶ。実 API を叩かない → architecture/agents.md「エージェント実行と Staging」・architecture/agents.md「自動実行」
 - 型はヒントと基底の種類で判定する（`field.multiline`・`field.placeholder`・`field.type == FieldType.DATE`）。`FieldType` は基底の種類（表現の基底と、値を持つ意味の基底型＝`ValueSemantics`）だけで、組込みの定義体（text / line / word）は `builtin-types/` の YAML。使う側の決まりは狭めるだけ → architecture/schema.md「型の連鎖と狭める規則」
 - スキーマの図（レンズの「型」の段）の導出は `SemanticSchemaGraph` の 1 つで、レンズ・CLI でスキーマの木を歩き直さない。矢印の向きのような見え方は `_views` の `kind: lens`（`VirtualLensDef`）に置き、スキーマ・レジストリに足さない（反転は `LensGraphs` の 1 か所） → architecture/graph-query.md「スキーマレンズ（型の段）」・architecture/views.md「規律」

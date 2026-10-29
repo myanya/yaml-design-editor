@@ -39,13 +39,24 @@ class DocReferencesTest {
 
     private fun rel(p: Path): String = root.relativize(p).toString().replace('\\', '/')
 
-    /** 全モジュールの main と test の Kotlin ファイル名（裸の名前）。 */
-    private val kotlinFileNames: Set<String> by lazy {
-        val names = mutableSetOf<String>()
+    /**
+     * 全モジュールの main と test の Kotlin ファイルを、文書が書きうる形で並べたもの。
+     * 実際のパスの後ろの部分（`ui/form/FormView.kt`・`FormView.kt`）と、モジュール名＋パッケージの道の後ろの部分
+     * （`workspace-core/workspace/SchemaDocuments.kt`）。フォルダまで照合し、移した後の古い場所を見逃さない。
+     */
+    private val kotlinPathForms: Set<String> by lazy {
+        val forms = mutableSetOf<String>()
         for (dir in SourceScanner.modules.values + SourceScanner.testModules.values) {
-            for (f in kotlinFilesUnder(root.resolve(dir))) names += f.name
+            for (f in kotlinFilesUnder(root.resolve(dir))) {
+                val full = rel(f)
+                val parts = full.split('/')
+                for (i in parts.indices) forms += parts.drop(i).joinToString("/")
+                val module = parts.first()
+                val packagePath = full.substringAfter("/kotlin/dev/toros/yde/").split('/')
+                for (i in packagePath.indices) forms += "$module/" + packagePath.drop(i).joinToString("/")
+            }
         }
-        names
+        forms
     }
 
     /** test のソースで宣言しているクラス名と object 名。 */
@@ -93,8 +104,7 @@ class DocReferencesTest {
                 for (m in KT_TOKEN.findAll(line)) {
                     val token = m.groupValues[1]
                     if ('*' in token) continue
-                    val name = token.substringAfterLast('/')
-                    if (name !in kotlinFileNames) missing += "${rel(src)}:${i + 1}: $name"
+                    if (token !in kotlinPathForms) missing += "${rel(src)}:${i + 1}: $token"
                 }
             }
         }
