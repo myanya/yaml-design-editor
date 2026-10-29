@@ -29,7 +29,7 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 | `ui.shell` | 骨格（`AppRoot`・編集領域・ステータスバー）・スタート画面・コマンドパレット・スペース・右パネル・ツールバー・ウィザード・連携（skill）の設定 | ui/shell/AppRoot.kt・ui/shell/Shell.kt・ui/shell/SidePanel.kt |
 
 - 入口の `Main.kt` は `main`（窓）とショートカットの `handleShortcut` だけを持ち、画面は `ui.shell` に置く。
-- パッケージの間には、下の箱が上の箱を使う循環が残っている（common ⇄ form・form ⇄ action・action ⇄ view・form ⇄ schema・form ⇄ shell・form ⇄ view）。新しく増やさない。
+- パッケージの間には、下の箱が上の箱を使う循環が 9 つ残っている。common ⇄ form（フォームの CompositionLocal）・form ⇄ action と view → action（行の ⋯ の `ActionMenuItem`）・action ⇄ view（`dashboardActionTarget`）・form ⇄ file（file 型の欄 `FileEditor`）・form ⇄ schema（スキーマ専用の削除ボタンと値エディタ）・form ⇄ view（`FormDocView` が区画を描く）・form ⇄ shell・schema ⇄ shell・file ⇄ shell（ツールバーの部品 `UiTooltip`・`PaneHeader`）。新しく増やさない。
 
 ## 部品
 
