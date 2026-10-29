@@ -8,6 +8,7 @@ object Help {
     /** 入口の題目（マニュアルの目次）。 */
     const val INDEX = "README.md"
 
+    /** ヘルプの題目。file は help/ 内の資源名、title は一覧に表示する題名。 */
     data class Topic(val file: String, val title: String)
 
     private val loader: ClassLoader get() = Thread.currentThread().contextClassLoader ?: Help::class.java.classLoader
