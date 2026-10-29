@@ -48,7 +48,7 @@ tasks.named<Test>("test") {
         repoDir.files("CLAUDE.md", "AGENTS.md", "settings.gradle.kts"),
         repoDir.dir("docs").asFileTree.matching { include("**/*.md") },
         fileTree(rootDir) {
-            include("*/src/**/*.kt", "*/build.gradle.kts", "*/README.md", "src/**")
+            include("*/src/**/*.kt", "*/build.gradle.kts", "*/README.md", "*/AGENTS.md", "src/**")
             exclude(".*/**", "build/**", "scratchpad/**", "labs/**", "samples/**", "local/**")
         },
     ).withPropertyName("repoSources").withPathSensitivity(PathSensitivity.RELATIVE)

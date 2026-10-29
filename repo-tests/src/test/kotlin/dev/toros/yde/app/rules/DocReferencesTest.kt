@@ -11,7 +11,7 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * 今の姿の文書（CLAUDE.md・docs/README.md・CONVENTIONS・FEATURES・GLOSSARY・CORE-CALCULUS・DESIGN-CHECK-CATALOG・architecture/・manual/）が指す
+ * 今の姿の文書（AGENTS.md・モジュールの AGENTS.md・docs/README.md・CONVENTIONS・FEATURES・GLOSSARY・CORE-CALCULUS・DESIGN-CHECK-CATALOG・architecture/・manual/）が指す
  * ソースファイル名・テスト名・「ファイル名＋見出し」が実在することを確かめる。
  * 形の検査（チケット番号・リンク切れ・字数）は scripts/docs-lint.sh が持ち、ここは中身の参照だけを見る。
  * 落ちたら、参照を今の名前に直すか、その行を FEATURES から外す（経緯は archive と git log にある）。
@@ -22,10 +22,12 @@ class DocReferencesTest {
 
     /** 参照元（今の姿の文書）。台帳（ROADMAP・BACKLOG・UX-SCENARIOS）・決定（decisions/）・記録（archive/）は経緯を持つので見ない。 */
     private val sources: List<Path> by lazy {
-        val fixed = listOf("CLAUDE.md", "docs/README.md", "docs/CONVENTIONS.md", "docs/FEATURES.md", "docs/GLOSSARY.md", "docs/CORE-CALCULUS.md", "docs/DESIGN-CHECK-CATALOG.md")
+        val fixed = listOf("AGENTS.md", "docs/README.md", "docs/CONVENTIONS.md", "docs/FEATURES.md", "docs/GLOSSARY.md", "docs/CORE-CALCULUS.md", "docs/DESIGN-CHECK-CATALOG.md")
             .map { root.resolve(it) }
         val dirs = listOf("architecture", "manual").flatMap { d -> markdownIn(docs.resolve(d)) }
-        (fixed + dirs).filter { Files.exists(it) }
+        // モジュールの場所の案内（desktop/AGENTS.md など）
+        val places = (SourceScanner.modules.keys + SourceScanner.testModules.keys).map { root.resolve("$it/AGENTS.md") }
+        (fixed + dirs + places).filter { Files.exists(it) }
     }
 
     private fun markdownIn(dir: Path): List<Path> =

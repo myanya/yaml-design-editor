@@ -10,4 +10,4 @@
 - `reference/`のSQLは手書きの検討例です。モデルと自動同期せず、網羅した実装とも扱いません。
 - 確認はYDEの検証とREADMEの試用手順で行います。
 - 個人情報や認証情報をサンプルへ含めないでください。
-- リポジトリ内ではルートのCLAUDE.md・docs/CONVENTIONS.mdに従います。
+- リポジトリ内ではルートのAGENTS.md・docs/CONVENTIONS.mdに従います。
