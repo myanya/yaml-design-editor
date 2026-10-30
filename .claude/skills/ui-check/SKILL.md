@@ -19,6 +19,8 @@ description: 実際の画面（Compose for Desktop）で変更を確かめる手
 1. **つながりを見る。** MCP の `status` を呼ぶ。
    - `connected: true` なら、オーナーが起動したアプリにつながっていることがある。勝手に閉じない。使うなら自分の変更を `./gradlew reload -q`（手順 6）で差し込む。使わないなら触らずに報告する。
    - `connected: false` なら手順 2 へ。MCP サーバはセッションの開始時に `.mcp.json` から起動している（サーバより先にアプリを起動すると、つながらないことがある）。
+   - MCP の道具が「サーバが無い・切れた」で失敗するときは、このセッションで先に止めている（手順 7）。オーナーに `/mcp` で compose-hot-reload の再接続を頼む。
+   - MCP サーバは起動スクリプト `scripts/hot-mcp-server.ps1` から動く。Gradle の呼び出し側・使い捨てのデーモン・MCP の本体の 3 つの Java（合わせて 400〜550MB）ができ、セッションが終わると一緒に止まる。前のセッションの取り残しは、次のセッションの起動時に片付く。
 2. **ワークスペースを写す。** 確かめたい中身に合うものを選び、`bash .claude/skills/ui-check/scripts/prepare.sh <元のフォルダ> [名前]` を実行する。リポジトリの `scratchpad/ui-check/<名前>`（git 管理外）に写し、写した先の絶対パスを出す。
    - samples/orders: ダッシュボード・チャート・クロス集計・表
    - samples/todos: フォーム・表の配列・参照・選択肢
@@ -43,8 +45,10 @@ description: 実際の画面（Compose for Desktop）で変更を確かめる手
 6. **変更を差し込む（起動したまま直すとき）。** 既存のファイルの変更は、シェルで `./gradlew reload -q` を実行する（MCP の `reload` は `gradlew.bat` を見つけられずに失敗することがある）。`status` の `successfulReloads` が増えれば入っている。新しいファイルやクラスを足したときは MCP の `restart` で起動し直す。
 7. **片付ける。**
    - 触った状態（畳み・チェック・閲覧専用モード）を元に戻す。
-   - 背景の hotRun を止め、`powershell -NoProfile -ExecutionPolicy Bypass -File .claude/skills/ui-check/scripts/stop.ps1` で残った Java のプロセスを止める（止めたプロセスの番号を出す）。背景の実行を止めただけでは、Gradle の呼び出し側とアプリが残る。
-     止めるのはアプリと hotRun の Gradle だけで、MCP サーバと Gradle デーモンは残す（次の確認でもそのまま `status` が使える）。mac / Linux では `pkill -f 'dev.toros.yde.desktop.MainKt'` で代える。
+   - 背景の hotRun を止め、`powershell -NoProfile -ExecutionPolicy Bypass -File .claude/skills/ui-check/scripts/stop.ps1 -Mcp` で残ったプロセスを止める（止めたプロセスの番号を出す）。背景の実行を止めただけでは、Gradle の呼び出し側とアプリが残る。
+     止めるのは、アプリと hotRun の Gradle、このセッションの MCP サーバの系列、前のセッションの取り残しの MCP サーバ。ほかのセッションの MCP サーバと Gradle デーモンは止めない。
+     オーナーの指示（2026-10-31）で、確認を終えたら MCP サーバも止める。同じセッションでまた画面を確かめるなら、オーナーに `/mcp` で再接続を頼む。続けて確かめる予定があるときだけ `-Mcp` を外し、最後の確認の後に付けて止める。
+     mac / Linux では `pkill -f 'dev.toros.yde.desktop.MainKt'` で代える。
    - 写したワークスペースは消してよい（`scratchpad/ui-check/`）。
 8. **書き残す。** 報告と確認待ちの記録に、操作と、木で見えたもの（部品の文字）を書く。押して確かめていない操作は「未確認・オーナー確認」と書く。
 

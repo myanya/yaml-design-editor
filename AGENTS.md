@@ -100,7 +100,7 @@ scripts/docs-lint.sh                        # 文書の形の機械チェック
 
   PowerShell なら同じプロセスで `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8` と `$env:GRADLE_OPTS = "-Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8"` を設定してから `.\gradlew.bat` を呼ぶ（実測済み）。人が端末で読むだけなら指定しない（端末が MS932 のため）。
 - **テストを絞る**: `./gradlew test --tests '*WorkspaceInitTest*'`。一致するテストが無いモジュールは失敗にしない設定なので、ルートから回せる。
-- **画面の確認**は [.claude/skills/ui-check/SKILL.md](.claude/skills/ui-check/SKILL.md) の手順で行う（Claude Code では skill `ui-check`。ほかのエージェントも同じ文書を読む）。ワークスペースを写して hotRun で起動し、Hot Reload の MCP（`.mcp.json`）で画面の木を読んで操作し、最後にアプリだけを止める。
+- **画面の確認**は [.claude/skills/ui-check/SKILL.md](.claude/skills/ui-check/SKILL.md) の手順で行う（Claude Code では skill `ui-check`。ほかのエージェントも同じ文書を読む）。ワークスペースを写して hotRun で起動し、Hot Reload の MCP（`.mcp.json`）で画面の木を読んで操作し、最後にアプリとこのセッションの MCP サーバを止める（`stop.ps1 -Mcp`）。MCP サーバは `scripts/hot-mcp-server.ps1` から起動し、セッションが終わると一緒に止まる。
 - **コミット前のフックと CI**。クローンごとに 1 回 `git config core.hooksPath scripts/git-hooks` を実行する。コミットのたびに docs-lint とソースの規則・文書の参照のテストだけが回る（30 秒ほど）。全モジュールの単体テストは GitHub Actions（`.github/workflows/test.yml`）が push ごとに回す。手元でも `./gradlew test` をコミット前に通す決まりは変わらない。
 - **`labs/` の未コミット差分に触れない**。オーナーが別セッションで整備していることがある。自分の変更と混ぜず、コミットにも含めない。
 - **一時ファイル**はリポジトリの `scratchpad/`（`.gitignore` 済み）か、エージェントの一時領域に置く。背景で動かすコマンドの出力先は先に作る。長いスクリプトや文書は、シェルのヒアドキュメントに入れず、ファイルに書いてから実行する（長文のヒアドキュメントは失敗することがある）。

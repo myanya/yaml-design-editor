@@ -164,7 +164,7 @@ JDK 21 が必要です。無ければ Gradle が自動で取得します（`./gr
 ```
 
 - モジュールは `yaml-core ← semantic-core ← workspace-core ← app-core ← agent ← desktop`（画面のアプリ）の順に、一方向だけ依存します（cli は app-core・agent・拡張まで・拡張 format-office は app-core まで）。リポジトリ全体のテストは repo-tests にあります。
-- 起動中の画面を AI エージェントから操作するための MCP サーバ（スクリーンショット、クリック、入力、再読込）の設定を `.mcp.json` に置いています。Windows 向けの設定なので、mac や Linux では `cmd /c gradlew.bat` を `./gradlew` に読み替えてください。
+- 起動中の画面を AI エージェントから操作するための MCP サーバ（スクリーンショット、クリック、入力、再読込）の設定を `.mcp.json` に置いています。MCP サーバは `scripts/hot-mcp-server.ps1` から起動し、エージェントのセッションが終わると一緒に止まります。Windows 向けの設定なので、mac や Linux では `./gradlew hotMcpServer` を起動する設定に読み替えてください。
 - バージョンは、利用者に見せる外部バージョン（`gradle.properties` の `appVersion`）と、開発管理用の内部バージョン（ビルド時に git から算出）の 2 つを持ちます。
 
 ## いまの状態
