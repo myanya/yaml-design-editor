@@ -7,7 +7,7 @@ import dev.toros.yde.yaml.model.YPath
 
 // ================================================================ 拡張の種類のビュー（ADR-0014。architecture/views.md「ビューの種類の差し込み口」）
 //
-// chart・flow のような拡張の種類は、拡張モジュール（view-*）が定義の型と解決を持つ。定義を読む差し込み口は workspace-core の ViewKind。
+// chart・flow のような差し込み口を通る種類は、カーネルの外（app-core の app.view。ADR-0015）が定義の型と解決を持つ。定義を読む差し込み口は workspace-core の ViewKind。
 // ここは、読んだ定義と解決した結果を中核（文書ビューの区画・ダッシュボードの区画・CLI・read_view）が扱うための形で、
 // 中核は中身を知らずに ID・件数・値・文だけを使う。
 

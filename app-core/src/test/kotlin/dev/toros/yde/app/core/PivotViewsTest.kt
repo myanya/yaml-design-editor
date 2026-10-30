@@ -14,7 +14,7 @@ import kotlin.test.assertTrue
 /**
  * 軸を値の式で広げるクロス集計（`rows.value` / `cells.columns.value`）のテスト（P46）。
  * 月の文書を置かずに、注文の受付日から `yearMonth` で月ごとの行（列）を作れることを固定する。
- * チャート（`kind: chart`）のテストは拡張 view-chart の ChartViewKindTest（ADR-0014）。
+ * チャート（`kind: chart`）のテストは app.view.chart の ChartViewKindTest。
  */
 class PivotViewsTest {
 

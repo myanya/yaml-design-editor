@@ -67,10 +67,12 @@ class ExtensionsTest {
     }
 
     @Test
-    fun `ビューの種類は二重にも中核の種類とも重ねて登録できない`() {
+    fun `ビューの種類は組込みのあとに足し 二重にも中核の種類とも重ねて登録できない`() {
+        assertEquals(listOf("flow", "chart"), ExtensionRegistry().views.map { it.id }, "組込みは入口が渡さなくても入っている")
         Extensions.install(ExtensionRegistry(views = listOf(FakeKind("note"))))
-        assertEquals(listOf("note"), Extensions.viewKinds.map { it.id })
+        assertEquals(listOf("flow", "chart", "note"), Extensions.viewKinds.map { it.id })
         assertFailsWith<IllegalStateException> { ExtensionRegistry(views = listOf(FakeKind("note"), FakeKind("note"))) }
+        assertFailsWith<IllegalStateException> { ExtensionRegistry(views = listOf(FakeKind("chart"))) }
         val e = assertFailsWith<IllegalStateException> { ExtensionRegistry(views = listOf(FakeKind("grid"))) }
         assertTrue("中核の種類と重なります" in e.message.orEmpty(), e.message)
     }

@@ -47,7 +47,7 @@ object BuiltinSchemas {
 
     /**
      * 組込みスキーマを、カーネルの reader / session へ注入する形で返す（実体は workspace-core の資源供給）。
-     * ビューのメタスキーマには、入口が登録した拡張の種類（chart など）の断片が足される（ADR-0014）。
+     * ビューのメタスキーマには、差し込み口を通る種類（組込みの chart・flow と入口が足したもの）の断片が足される（ADR-0014）。
      */
     fun kernelSchemas(layout: WorkspaceLayout): List<WorkspaceSchema> =
         dev.toros.yde.workspace.BuiltinSchemaResources.kernelSchemas(layout, Extensions.viewKinds)

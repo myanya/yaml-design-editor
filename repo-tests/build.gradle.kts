@@ -17,7 +17,6 @@ dependencies {
     testImplementation(project(":format-text"))
     testImplementation(project(":format-xlsx"))
     testImplementation(project(":format-docx"))
-    testImplementation(project(":view-flow"))
     testImplementation(project(":workspace-core"))
     testImplementation(project(":semantic-core"))
     testImplementation(project(":yaml-core"))

@@ -45,7 +45,8 @@ object SourceRules {
 
     /** app の中の層（下から上）。同じ層の中は互いに使ってよく、上の層を import してはいけない。 */
     val appLayers: List<List<String>> = listOf(
-        listOf("$APP.ext"), // 拡張の登録簿（カーネルだけを使う。中核の読み出しが登録した種類を読むので一番下。ADR-0014）
+        listOf("$APP.view"), // 組込みのビューの種類 chart・flow（カーネルだけを使う。ADR-0015）
+        listOf("$APP.ext"), // 形式とビューの種類の登録簿（組込みを最初から持つ。中核の読み出しが登録した種類を読むので下のほう。ADR-0014・ADR-0015）
         listOf("$APP.index", "$APP.schema", "$APP.validate", "$APP.text"),
         listOf("$APP.core"),
         listOf("$APP.session"),
@@ -60,7 +61,7 @@ object SourceRules {
     ) + uiLayers
 
     /** Compose 非依存の純粋ロジック層。 */
-    private val purePackages = arrayOf("$APP.core", "$APP.index", "$APP.schema", "$APP.validate", "$APP.text", "$APP.session", "$APP.tools", "$APP.ext", "$APP.skill")
+    private val purePackages = arrayOf("$APP.core", "$APP.index", "$APP.schema", "$APP.validate", "$APP.text", "$APP.session", "$APP.tools", "$APP.ext", "$APP.skill", "$APP.view")
     private val coreModules = setOf("yaml-core", "semantic-core", "workspace-core", "cli", "app-core", "agent")
 
     /** 外部の UI ライブラリの import の接頭辞と、それを包む 1 ファイル。 */
@@ -107,7 +108,7 @@ object SourceRules {
         },
         Rule(
             2, "app の層は一方向",
-            why = "ext、index・schema・validate・text、core、session、tools、skill、agent.llm、agent（定義）、agent.run、agent.auto、agent.eval、desktop の根（AppState・ext）、画面の common・form・機能・shell の順に下から上へ重なり、上の層を import しない（`*` の import も見る）。入口の Main.kt だけは窓に画面を載せるので除く",
+            why = "view（組込みのビューの種類）、ext、index・schema・validate・text、core、session、tools、skill、agent.llm、agent（定義）、agent.run、agent.auto、agent.eval、desktop の根（AppState・ext）、画面の common・form・機能・shell の順に下から上へ重なり、上の層を import しない（`*` の import も見る）。入口の Main.kt だけは窓に画面を載せるので除く",
             doc = "architecture/README.md「モジュールと依存方向」",
             known = listOf(
                 Known("app-core/src/main/kotlin/dev/toros/yde/app/validate/Readiness.kt", "core.Workspace を使っていて validate と core が循環している（BACKLOG）"),

@@ -15,7 +15,7 @@ import kotlin.test.assertTrue
 /**
  * ビューの種類の差し込み口（ADR-0014）がカーネルだけで動くこと: 登録した種類だけを読み、定義の一式を見た点検を種類に任せ、
  * 文書ビューの区画に埋め込め、メタスキーマに断片が合成される。登録していない種類は使える種類を並べた誤り。
- * 本物の種類（chart）のテストは拡張 view-chart の ChartViewKindTest。
+ * 本物の種類（chart）のテストは app-core の ChartViewKindTest。
  */
 class ViewKindTest {
 

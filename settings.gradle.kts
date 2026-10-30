@@ -19,7 +19,5 @@ include(
     ":format-text",
     ":format-xlsx",
     ":format-docx",
-    ":view-chart",
-    ":view-flow",
     ":repo-tests",
 )

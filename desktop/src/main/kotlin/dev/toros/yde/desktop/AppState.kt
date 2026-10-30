@@ -380,11 +380,11 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
 
     var flowViewId by mutableStateOf<String?>(null)
     var flowDocument by mutableStateOf<DocumentId?>(null)
-    var flowSelections by mutableStateOf<Map<Pair<String, DocumentId>, dev.toros.yde.view.flow.FlowSelection>>(emptyMap())
+    var flowSelections by mutableStateOf<Map<Pair<String, DocumentId>, dev.toros.yde.app.view.flow.FlowSelection>>(emptyMap())
     /** ビューと文書ごとに保持し、単独表示と文書埋め込みで共有する。履歴・Undoには含めない。 */
-    var flowDisplayOptions by mutableStateOf<Map<Pair<String, DocumentId>, dev.toros.yde.view.flow.FlowDisplayOptions>>(emptyMap())
+    var flowDisplayOptions by mutableStateOf<Map<Pair<String, DocumentId>, dev.toros.yde.app.view.flow.FlowDisplayOptions>>(emptyMap())
 
-    fun selectFlow(view: String, document: DocumentId, selection: dev.toros.yde.view.flow.FlowSelection?) {
+    fun selectFlow(view: String, document: DocumentId, selection: dev.toros.yde.app.view.flow.FlowSelection?) {
         val key = view to document
         flowSelections = if (selection == null) flowSelections - key else flowSelections + (key to selection)
     }
@@ -1378,7 +1378,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         val gridId: String?,
         val flowId: String? = null,
         val flowDocument: DocumentId? = null,
-        val flowSelections: Map<Pair<String, DocumentId>, dev.toros.yde.view.flow.FlowSelection> = emptyMap(),
+        val flowSelections: Map<Pair<String, DocumentId>, dev.toros.yde.app.view.flow.FlowSelection> = emptyMap(),
         /** 内蔵ヘルプの題目（編集スペースにヘルプを出しているとき。file は null）。 */
         val help: String? = null,
         /** エディタのタブ（0=フォーム・1=ソース・2=差分・3=スキーマ文書のフォーム）。下位ビューと同じく場所の一部。 */
@@ -1410,7 +1410,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
                 val grid = if (loc.view == 4) loc.gridId ?: catalog?.views?.firstOrNull()?.id else null
                 loc.copy(file = null, path = null, help = null, tab = 0, reference = false, referenceLine = 1,
                     crossId = loc.crossId.takeIf { loc.view == 3 }, gridId = grid,
-                    flowId = if (loc.view == 5) loc.flowId ?: catalog?.extensionViews?.firstOrNull { it is dev.toros.yde.view.flow.VirtualFlowDef }?.id else null,
+                    flowId = if (loc.view == 5) loc.flowId ?: catalog?.extensionViews?.firstOrNull { it is dev.toros.yde.app.view.flow.VirtualFlowDef }?.id else null,
                     flowDocument = loc.flowDocument.takeIf { loc.view == 5 },
                     flowSelections = if (loc.view == 5) loc.flowSelections.toMap() else emptyMap(),
                     dashboardId = null, dashboardEntityId = null)
@@ -1426,7 +1426,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
             (session?.hasDocument(documentOf(loc.file)) == true || Files.isRegularFile(loc.file))
         loc.space == UiSpace.LEDGER && loc.view == 4 -> historyViewCatalog()?.view(loc.gridId.orEmpty()) != null
         loc.space == UiSpace.LEDGER && loc.view == 3 -> loc.crossId != null && overlayIndex().occurrences(loc.crossId).isNotEmpty()
-        loc.space == UiSpace.LEDGER && loc.view == 5 -> historyViewCatalog()?.extensionViews?.any { it.id == loc.flowId && it is dev.toros.yde.view.flow.VirtualFlowDef } == true
+        loc.space == UiSpace.LEDGER && loc.view == 5 -> historyViewCatalog()?.extensionViews?.any { it.id == loc.flowId && it is dev.toros.yde.app.view.flow.VirtualFlowDef } == true
         loc.space == UiSpace.DASHBOARD -> historyViewCatalog()?.dashboard(loc.dashboardId.orEmpty()) != null
         else -> true
     }

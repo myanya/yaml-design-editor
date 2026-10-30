@@ -32,7 +32,7 @@ import androidx.compose.ui.unit.sp
 import dev.toros.yde.app.core.Views
 import dev.toros.yde.app.index.DocScanner
 import dev.toros.yde.semantic.*
-import dev.toros.yde.view.flow.*
+import dev.toros.yde.app.view.flow.*
 import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.yaml.model.*

@@ -1,15 +1,13 @@
 package dev.toros.yde.app.core
 
 import dev.toros.yde.cli.runCli
-import dev.toros.yde.app.ext.Extensions
 import dev.toros.yde.app.index.IdIndex
 import dev.toros.yde.app.schema.SchemaDef
-import dev.toros.yde.desktop.ext.DesktopExtensions
 import dev.toros.yde.semantic.VirtualDocEmbed
-import dev.toros.yde.view.flow.FlowConnectionState
-import dev.toros.yde.view.flow.FlowResolution
-import dev.toros.yde.view.flow.FlowViewResult
-import dev.toros.yde.view.flow.VirtualFlowDef
+import dev.toros.yde.app.view.flow.FlowConnectionState
+import dev.toros.yde.app.view.flow.FlowResolution
+import dev.toros.yde.app.view.flow.FlowViewResult
+import dev.toros.yde.app.view.flow.VirtualFlowDef
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.yaml.model.DocumentId
@@ -31,7 +29,6 @@ import dev.toros.yde.desktop.ui.common.slotAt
 import dev.toros.yde.desktop.ui.form.FormCtx
 
 class FlowViewsIntegrationTest {
-    init { Extensions.install(DesktopExtensions.registry) }   // フロー（kind: flow）は拡張の種類。登録は入口の一覧（ADR-0014）
 
     private fun Views.LoadResult.flow(id: String): VirtualFlowDef? = extensionView(id) as? VirtualFlowDef
 

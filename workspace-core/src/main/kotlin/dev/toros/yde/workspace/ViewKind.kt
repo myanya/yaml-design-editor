@@ -6,8 +6,8 @@ import dev.toros.yde.yaml.model.DocumentId
 
 /**
  * ビューの種類の差し込み口（ADR-0014。architecture/views.md「ビューの種類の差し込み口」）。
- * JDBC の Driver と同じ形で、差し込み口はカーネルにあり、実装は拡張モジュール（view-chart など）にあり、使うものを入口が登録する
- * （app.ext.ExtensionRegistry）。カーネルは大域の登録簿を持たず、使う種類を引数（kinds）で受け取る。
+ * JDBC の Driver と同じ形で、差し込み口はカーネルにあり、実装はその外（app-core の組込み app.view の chart・flow。ADR-0015）にあり、
+ * 使うものは登録簿（app.ext.ExtensionRegistry）が持つ。カーネルは大域の登録簿を持たず、使う種類を引数（kinds）で受け取る。
  *
  * 中核の種類（grid・document・matrix・lens・dashboard）はここを通らない。
  */
