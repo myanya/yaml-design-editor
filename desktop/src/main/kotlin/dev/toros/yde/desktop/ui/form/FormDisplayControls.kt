@@ -26,7 +26,7 @@ import dev.toros.yde.desktop.ui.common.ChoiceMenu
 import dev.toros.yde.desktop.ui.common.ChoiceOption
 import dev.toros.yde.desktop.ui.common.Palette
 import dev.toros.yde.desktop.ui.common.PanelShape
-import dev.toros.yde.desktop.ui.shell.UiTooltip
+import dev.toros.yde.desktop.ui.common.UiTooltip
 
 private val FormDisplayMode.description: String
     get() = when (this) {

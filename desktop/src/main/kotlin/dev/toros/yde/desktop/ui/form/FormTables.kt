@@ -29,8 +29,7 @@ import dev.toros.yde.app.schema.Display
 import dev.toros.yde.yaml.validate.Severity
 import dev.toros.yde.semantic.schema.FieldDef
 import dev.toros.yde.semantic.schema.FieldType
-import dev.toros.yde.desktop.ui.action.ActionMenuItem
-import dev.toros.yde.desktop.ui.common.Highlightable
+import dev.toros.yde.desktop.ui.common.ActionMenuItem
 import dev.toros.yde.desktop.ui.common.MapSlot
 import dev.toros.yde.desktop.ui.common.Palette
 import dev.toros.yde.desktop.ui.common.PanelShape

@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.sp
 import dev.toros.yde.desktop.AppState
 import dev.toros.yde.desktop.ui.common.Palette
 import dev.toros.yde.desktop.ui.common.PanelShape
+import dev.toros.yde.desktop.ui.common.UiTooltip
 
 /** 編集元への移動後も、複数文書への影響と保存状態を確認できる通知。 */
 @Composable

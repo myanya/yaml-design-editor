@@ -55,11 +55,11 @@ import dev.toros.yde.desktop.AppState
 import dev.toros.yde.desktop.FileTreePreferences
 import dev.toros.yde.desktop.ui.common.CompactTextField
 import dev.toros.yde.desktop.ui.common.Palette
+import dev.toros.yde.desktop.ui.common.PaneHeader
+import dev.toros.yde.desktop.ui.common.UiTooltip
 import dev.toros.yde.desktop.ui.common.confirmOnEnter
 import dev.toros.yde.desktop.ui.common.openExternally
 import dev.toros.yde.desktop.ui.run.requestDocumentDraft
-import dev.toros.yde.desktop.ui.shell.PaneHeader
-import dev.toros.yde.desktop.ui.shell.UiTooltip
 
 private data class TreeRow(
     val path: Path, val depth: Int, val isDir: Boolean,

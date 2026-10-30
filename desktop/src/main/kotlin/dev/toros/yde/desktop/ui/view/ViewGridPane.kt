@@ -52,7 +52,7 @@ import java.nio.file.Files
 import dev.toros.yde.desktop.AppState
 import dev.toros.yde.desktop.TableScrollPosition
 import dev.toros.yde.desktop.UiSpace
-import dev.toros.yde.desktop.ui.action.ActionMenuItem
+import dev.toros.yde.desktop.ui.common.ActionMenuItem
 import dev.toros.yde.desktop.ui.common.ChoiceMenu
 import dev.toros.yde.desktop.ui.common.ChoiceOption
 import dev.toros.yde.desktop.ui.common.CompactTextField

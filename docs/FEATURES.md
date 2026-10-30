@@ -130,7 +130,7 @@
 |---|---|---|---|---|
 | I-01 | ID 索引（ディスク基準・`type: id` とキー名 `id`・変更ファイルだけの増分更新） | `index/IdIndex.kt`（`DocScanner`, `update`） | 単体 `IdIndexIncrementalTest` | [index-references](architecture/index-references.md) |
 | I-02 | 参照認識（`type: ref` と命名規約） | `index/IdIndex.kt`（`DocScanner`） | 手動 | [index-references](architecture/index-references.md) |
-| I-03 | リンクジャンプ（→ボタン・ハイライト・複数出現の選択） | `AppState.navigateToId`, `ui/common/Common.kt`（`Highlightable`） | 手動 | [ui](architecture/ui.md) |
+| I-03 | リンクジャンプ（→ボタン・ハイライト・複数出現の選択） | `AppState.navigateToId`, `ui/form/StructuredForm.kt`（`Highlightable`） | 手動 | [ui](architecture/ui.md) |
 | I-04 | 参照候補の補完（`idPatterns` / `scope` で絞り込み・解決先タイトルの併記・行き先の選択メニュー） | `ui/form/RefEditors.kt`（`RefEditor`） | 手動 | [ui](architecture/ui.md) |
 | I-05 | バックリンク（被参照一覧・参照元の ID とタイトル） | `IdIndex.backlinksTo`, `ui/shell/SidePanel.kt` | 手動 | [index-references](architecture/index-references.md) |
 | I-06 | ID 検索（コマンドパレット・ID とタイトルの部分一致・オーバーレイ索引） | `ui/shell/CommandPalette.kt` | 手動 | [ui](architecture/ui.md) |

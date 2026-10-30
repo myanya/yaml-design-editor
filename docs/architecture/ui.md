@@ -29,7 +29,7 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 | `ui.shell` | 骨格（`AppRoot`・編集領域・ステータスバー）・スタート画面・コマンドパレット・スペース・右パネル・ツールバー・ウィザード・連携（skill）の設定 | ui/shell/AppRoot.kt・ui/shell/Shell.kt・ui/shell/SidePanel.kt |
 
 - 入口の `Main.kt` は `main`（窓）とショートカットの `handleShortcut` だけを持ち、画面は `ui.shell` に置く。
-- パッケージの間には、下の箱が上の箱を使う循環が 9 つ残っている。common ⇄ form（フォームの CompositionLocal）・form ⇄ action と view → action（行の ⋯ の `ActionMenuItem`）・action ⇄ view（`dashboardActionTarget`）・form ⇄ file（file 型の欄 `FileEditor`）・form ⇄ schema（スキーマ専用の削除ボタンと値エディタ）・form ⇄ view（`FormDocView` が区画を描く）・form ⇄ shell・schema ⇄ shell・file ⇄ shell（ツールバーの部品 `UiTooltip`・`PaneHeader`）。新しく増やさない。
+- パッケージの間には、下の箱が上の箱を使う循環が 3 つ残っている。form ⇄ file（file 型の欄 `FileEditor`）・form ⇄ schema（スキーマ専用の削除ボタンと値エディタ）・form ⇄ view（`FormDocView` が区画を描く）。新しく増やさない。
 
 ## 部品
 
@@ -42,6 +42,7 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 | `ActivityRail` / `LedgerSpace` | ui/shell/Shell.kt | 5 スペースを切り替えるレールと、一覧・ビューグリッド・グラフ・エンティティをタブで束ねる台帳スペース |
 | `RunController` / `RunsSpace` | ui/run/RunsSpace.kt | 実行スペース（受信箱・手動実行・自動化・計測評価）。実行状態機械（AppRoot 生存期間） |
 | `DesignSpace` | ui/shell/DesignSpace.kt | 設計スペース（定義文書の種類別カタログ・新規作成・スキーマ推測・skill） |
+| `StructuredForm` / `FormAnchor` / `Highlightable` | ui/form/StructuredForm.kt | スキーマと通常文書が共有する構成一覧とスクロール連動・項目の位置の登録・ハイライトとスクロール |
 | `FormView` / `DocumentMetadataEditor` / `SameIdOccurrencesStrip` | ui/form/FormView.kt | フォームの入口（文書を開いたときの描画の振り分け）・文書の情報・同じ ID の出現の帯 |
 | `FormCtx` / `defaultNode` / `autoValueHint` | ui/form/FormCtx.kt | フォームの文脈（編集の入口・閲覧専用の封じ・展開の覚え）と項目の既定値 |
 | `SchemaRootForm` / `DocViewSections` | ui/form/FormDocView.kt | スキーマ駆動フォームの既定の描画と、文書ビューの節・被参照の表 |
@@ -58,8 +59,9 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 | `ChoiceMenu`・`ChoiceOption` | ui/common/ChoiceMenu.kt・ChoiceOptions.kt | 高さ制限・遅延描画・現在値への初期スクロール・検索・説明全文を共有 |
 | `FlowViewPane` / `EmbeddedFlowPane` | ui/view/FlowViewPane.kt | 図と原本フォームを併記する単独・埋め込み表示（[views](views.md)） |
 | `ObjectTable` / `ArrayTable` / `MapTable` / `RefCell` / `tableColumnWidths` | ui/form/FormTables.kt | 配列と map のテーブル表示（参照セルは ID・参照先の名前・横ぐしへの Hub） |
-| `AppToolbar` / `PaneHeader` / `UiTooltip` | ui/shell/AppToolbar.kt | 全体メニュー・移動と検索・左右ペインの開閉・操作名の補足 |
-| `Highlightable` / `slotAt` / `CompactTextField` / `Palette` / `PanelShape` / `AppFonts` | ui/common/Common.kt | ハイライトとスクロール・Slot の解決・共通の入力欄と色と角丸・同梱フォント（等幅 Cica。資源が無ければ OS の等幅へ戻す） |
+| `AppToolbar` | ui/shell/AppToolbar.kt | 全体メニュー・移動と検索・左右ペインの開閉 |
+| `slotAt` / `CompactTextField` / `Palette` / `PanelShape` / `AppFonts` / `PaneHeader` / `UiTooltip` | ui/common/Common.kt | Slot の解決・共通の入力欄と色と角丸・同梱フォント（等幅 Cica。資源が無ければ OS の等幅へ戻す）・ペインの見出しと操作名の補足 |
+| `ActionMenuItem` | ui/common/ActionMenuItem.kt | 操作のメニューの 1 行（行の ⋯・個票・文書ヘッダーで同じ前提と理由を出す） |
 | `VirtualTable` / `TableColumn` / `visibleColumnRange` | ui/common/VirtualTable.kt | 共通の表。見出し行と左の固定列は動かず、行は遅延描画、列は見える範囲だけ組み立てる（ビューグリッド・一覧ビューが使う） |
 | `ReorderableList` / `ReorderRowScope` | ui/common/Reorder.kt | ドラッグで並べ替える縦リスト（取っ手からだけ掴める。ライブラリ Reorderable を包む） |
 | `TemporalPickerButton` / `TemporalPick` | ui/form/TemporalEditor.kt | 日付・時刻・日時のピッカー（ポップアップ）と、正準の文字列との変換（純ロジック） |

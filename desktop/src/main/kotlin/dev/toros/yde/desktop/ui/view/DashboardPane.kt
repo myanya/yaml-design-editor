@@ -32,7 +32,7 @@ import kotlin.math.ceil
 import kotlinx.coroutines.delay
 import dev.toros.yde.desktop.AppState
 import dev.toros.yde.desktop.TableScrollPosition
-import dev.toros.yde.desktop.ui.action.ActionMenuItem
+import dev.toros.yde.desktop.ui.common.ActionMenuItem
 import dev.toros.yde.desktop.ui.common.CompactTextField
 import dev.toros.yde.desktop.ui.common.Palette
 import dev.toros.yde.desktop.ui.common.PanelShape
@@ -299,7 +299,3 @@ private fun DashboardInputs(state: AppState, view: VirtualDashboardDef, date: Lo
         texts.clear()
     }) { Text("入力を戻す") }
 }
-
-/** 開いている業務対象だけを使い、削除された対象は使わない。 */
-internal fun dashboardActionTarget(state: AppState): String? =
-    state.dashboardEntityId?.takeIf { state.overlayIndex().occurrences(it).isNotEmpty() }

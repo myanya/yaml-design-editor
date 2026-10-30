@@ -22,7 +22,6 @@ import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.app.schema.effectiveFields
 import dev.toros.yde.desktop.ui.common.FieldHelp
 import dev.toros.yde.desktop.ui.common.FormSpacing
-import dev.toros.yde.desktop.ui.common.Highlightable
 import dev.toros.yde.desktop.ui.common.MapSlot
 import dev.toros.yde.desktop.ui.common.Palette
 import dev.toros.yde.desktop.ui.common.PanelShape

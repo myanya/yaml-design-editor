@@ -40,13 +40,13 @@ import dev.toros.yde.desktop.ui.common.Palette
 import dev.toros.yde.desktop.ui.common.PanelShape
 import dev.toros.yde.desktop.ui.common.SeqSlot
 import dev.toros.yde.desktop.ui.common.Slot
+import dev.toros.yde.desktop.ui.common.UiTooltip
 import dev.toros.yde.desktop.ui.form.FieldRow
 import dev.toros.yde.desktop.ui.form.FormAnchor
 import dev.toros.yde.desktop.ui.form.FormCtx
 import dev.toros.yde.desktop.ui.form.FormFold
 import dev.toros.yde.desktop.ui.form.FormOutlineItem
 import dev.toros.yde.desktop.ui.form.StructuredForm
-import dev.toros.yde.desktop.ui.shell.UiTooltip
 
 internal val LocalSchemaReadOnly = compositionLocalOf { false }
 internal val LocalSchemaHistory = compositionLocalOf<((HistoryShortcut) -> Unit)?> { null }

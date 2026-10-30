@@ -17,8 +17,8 @@ import dev.toros.yde.yaml.model.pretty
 import dev.toros.yde.desktop.ui.common.FormSpacing
 import dev.toros.yde.desktop.ui.common.Palette
 import dev.toros.yde.desktop.ui.common.PanelShape
+import dev.toros.yde.desktop.ui.common.UiTooltip
 import dev.toros.yde.desktop.ui.common.slotAt
-import dev.toros.yde.desktop.ui.shell.UiTooltip
 
 internal val LocalActionTargetSelection = compositionLocalOf<((YPath) -> Unit)?> { null }
 

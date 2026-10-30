@@ -25,11 +25,21 @@ import dev.toros.yde.yaml.model.YPath
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.withTimeoutOrNull
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntSize
+import kotlinx.coroutines.delay
+import dev.toros.yde.desktop.AppState
 import dev.toros.yde.desktop.FormDisplayMode
 import dev.toros.yde.desktop.ui.common.FormSpacing
 import dev.toros.yde.desktop.ui.common.Palette
 import dev.toros.yde.desktop.ui.common.PanelShape
-import dev.toros.yde.desktop.ui.shell.UiTooltip
+import dev.toros.yde.desktop.ui.common.UiTooltip
 
 /** 一時的なレイアウト座標は画面の寿命だけに閉じ、文書や履歴に書かない。 */
 internal class FormPositions(val scroll: ScrollState) {
@@ -67,6 +77,54 @@ internal fun FormAnchor(path: YPath, content: @Composable () -> Unit) {
     Column(Modifier.fillMaxWidth().onGloballyPositioned {
         positions?.place(path, owner, it.positionInRoot().y, it.size.height.toFloat())
     }) { content() }
+}
+
+/**
+ * highlightPath と一致する要素を強調表示し、ビューポート内へスクロールする。
+ * 一定時間後にハイライトを自動解除する。
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun Highlightable(
+    state: AppState,
+    path: YPath,
+    content: @Composable () -> Unit,
+) {
+    val highlighted = state.highlightPath == path
+    val requester = remember { BringIntoViewRequester() }
+    var size by remember { mutableStateOf(IntSize.Zero) }
+    // 対象を画面端でなく中央寄りに出すための余白（UX-10）。bringIntoView は「矩形が見える最小のスクロール」の
+    // ため、素の呼び出しだと対象が画面の上下端に張り付く。要素の上下に余白を含めた矩形を可視化要求することで、
+    // どちら向きのスクロールでも対象が端から余白ぶん内側（≒中央寄り）に収まる
+    val centerMargin = with(LocalDensity.current) { 280.dp.toPx() }
+    val formPositions = LocalFormPositions.current
+    LaunchedEffect(highlighted) {
+        if (highlighted) {
+            if (formPositions == null) requester.bringIntoView(
+                Rect(0f, -centerMargin, size.width.toFloat().coerceAtLeast(1f), size.height + centerMargin)
+            )
+            delay(2500)
+            if (state.highlightPath == path) state.highlightPath = null
+        }
+    }
+    val selectTarget by rememberUpdatedState(LocalActionTargetSelection.current)
+    FormAnchor(path) {
+        Box(
+            Modifier
+                .pointerInput(path) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            if (event.type == PointerEventType.Press) selectTarget?.invoke(path)
+                        }
+                    }
+                }
+                .fillMaxWidth()
+                .bringIntoViewRequester(requester)
+                .onSizeChanged { size = it }
+                .background(if (highlighted) Palette.Highlight else Color.Transparent, PanelShape)
+        ) { content() }
+    }
 }
 
 /** スキーマと通常文書が共有する構成一覧・狭幅切替・全体フォームのスクロール連動。 */

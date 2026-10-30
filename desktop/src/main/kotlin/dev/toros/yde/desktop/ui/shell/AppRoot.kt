@@ -38,6 +38,7 @@ import dev.toros.yde.desktop.ui.common.CompactTextField
 import dev.toros.yde.desktop.ui.common.DiffPane
 import dev.toros.yde.desktop.ui.common.FilePickers
 import dev.toros.yde.desktop.ui.common.Palette
+import dev.toros.yde.desktop.ui.common.PaneHeader
 import dev.toros.yde.desktop.ui.common.PanelShape
 import dev.toros.yde.desktop.ui.common.rememberDirectoryChooser
 import dev.toros.yde.desktop.ui.file.FilePreviewPane

@@ -10,18 +10,12 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,7 +24,6 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -42,10 +35,7 @@ import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.TextFieldValue
@@ -60,15 +50,19 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.Shapes
-import kotlinx.coroutines.delay
+import androidx.compose.foundation.TooltipArea
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.model.getAt
-import dev.toros.yde.desktop.AppState
 import dev.toros.yde.desktop.OpenDocument
-import dev.toros.yde.desktop.ui.form.FormAnchor
-import dev.toros.yde.desktop.ui.form.LocalActionTargetSelection
-import dev.toros.yde.desktop.ui.form.LocalFormPositions
 
 // ---------------------------------------------------------------- カラーパレット
 
@@ -381,52 +375,27 @@ fun slotAt(root: YNode, path: YPath): Slot? {
     }
 }
 
-// ---------------------------------------------------------------- ハイライト
+// ---------------------------------------------------------------- ツールチップと区画の見出し
 
-/**
- * highlightPath と一致する要素を強調表示し、ビューポート内へスクロールする。
- * 一定時間後にハイライトを自動解除する。
- */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun Highlightable(
-    state: AppState,
-    path: YPath,
-    content: @Composable () -> Unit,
-) {
-    val highlighted = state.highlightPath == path
-    val requester = remember { BringIntoViewRequester() }
-    var size by remember { mutableStateOf(IntSize.Zero) }
-    // 対象を画面端でなく中央寄りに出すための余白（UX-10）。bringIntoView は「矩形が見える最小のスクロール」の
-    // ため、素の呼び出しだと対象が画面の上下端に張り付く。要素の上下に余白を含めた矩形を可視化要求することで、
-    // どちら向きのスクロールでも対象が端から余白ぶん内側（≒中央寄り）に収まる
-    val centerMargin = with(LocalDensity.current) { 280.dp.toPx() }
-    val formPositions = LocalFormPositions.current
-    LaunchedEffect(highlighted) {
-        if (highlighted) {
-            if (formPositions == null) requester.bringIntoView(
-                Rect(0f, -centerMargin, size.width.toFloat().coerceAtLeast(1f), size.height + centerMargin)
-            )
-            delay(2500)
-            if (state.highlightPath == path) state.highlightPath = null
+fun PaneHeader(title: String, onClose: () -> Unit) {
+    Row(Modifier.fillMaxWidth().height(36.dp).background(Palette.PanelBg).padding(start = 12.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Text(title, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+        UiTooltip("$title ペインを閉じる") {
+            IconButton(onClick = onClose, modifier = Modifier.size(28.dp)) {
+                Icon(Icons.Default.Close, "$title ペインを閉じる", Modifier.size(16.dp))
+            }
         }
     }
-    val selectTarget by rememberUpdatedState(LocalActionTargetSelection.current)
-    FormAnchor(path) {
-        Box(
-            Modifier
-                .pointerInput(path) {
-                    awaitPointerEventScope {
-                        while (true) {
-                            val event = awaitPointerEvent(PointerEventPass.Initial)
-                            if (event.type == PointerEventType.Press) selectTarget?.invoke(path)
-                        }
-                    }
-                }
-                .fillMaxWidth()
-                .bringIntoViewRequester(requester)
-                .onSizeChanged { size = it }
-                .background(if (highlighted) Palette.Highlight else Color.Transparent, PanelShape)
-        ) { content() }
-    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun UiTooltip(text: String, content: @Composable () -> Unit) {
+    TooltipArea(tooltip = {
+        Surface(shape = PanelShape, color = Palette.Surface, shadowElevation = 3.dp) {
+            Text(text, Modifier.padding(horizontal = 10.dp, vertical = 6.dp), fontSize = 11.sp)
+        }
+    }, content = content)
 }

@@ -55,7 +55,10 @@ import dev.toros.yde.desktop.ui.common.calculateDiff
 import dev.toros.yde.desktop.ui.form.FieldRow
 import dev.toros.yde.desktop.ui.form.FormCtx
 import dev.toros.yde.desktop.ui.form.activeActionTarget
-import dev.toros.yde.desktop.ui.view.dashboardActionTarget
+
+/** 開いている業務対象だけを使い、削除された対象は使わない。 */
+internal fun dashboardActionTarget(state: AppState): String? =
+    state.dashboardEntityId?.takeIf { state.overlayIndex().occurrences(it).isNotEmpty() }
 
 data class ActionPanelContext(val document: OpenDocument?, val targetId: String?, val elementTypes: List<String>)
 
@@ -179,18 +182,6 @@ private fun ActionRow(state: AppState, entry: ActionEntry, target: String?, onCl
         entry.description?.let { Text(it, fontSize = 11.sp, color = Palette.SubText) }
         available.reason?.let { Text(it, fontSize = 11.sp, color = Palette.SubText) }
     }
-}
-
-/** 行・個票・文書ヘッダーで同じ前提と理由を表示する。 */
-@Composable
-internal fun ActionMenuItem(state: AppState, entry: ActionEntry, target: String?, onClick: () -> Unit) {
-    val available = remember(entry, target, state.indexVersion, state.editVersion) { state.actionAvailability(entry, target) }
-    DropdownMenuItem(enabled = available.enabled, text = {
-        Column {
-            Text(entry.label ?: entry.name, fontSize = 12.sp)
-            available.reason?.let { Text(it, fontSize = 11.sp, color = Palette.SubText) }
-        }
-    }, onClick = onClick)
 }
 
 // ================================================================ 浮いたパネル

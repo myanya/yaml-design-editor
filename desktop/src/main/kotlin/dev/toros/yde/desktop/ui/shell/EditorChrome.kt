@@ -21,11 +21,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.toros.yde.desktop.AppState
 import dev.toros.yde.desktop.OpenDocument
-import dev.toros.yde.desktop.ui.action.ActionMenuItem
+import dev.toros.yde.desktop.ui.common.ActionMenuItem
 import dev.toros.yde.desktop.ui.common.ChoiceMenu
 import dev.toros.yde.desktop.ui.common.ChoiceOption
 import dev.toros.yde.desktop.ui.common.Palette
 import dev.toros.yde.desktop.ui.common.PanelShape
+import dev.toros.yde.desktop.ui.common.UiTooltip
 import dev.toros.yde.desktop.ui.form.FormDisplayControls
 
 /** 文書の状態と操作を一段に収める。補助情報は文書名から開く。 */

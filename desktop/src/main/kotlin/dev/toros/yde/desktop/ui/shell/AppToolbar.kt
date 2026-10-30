@@ -1,13 +1,10 @@
 package dev.toros.yde.desktop.ui.shell
 
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.TooltipArea
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.automirrored.filled.ViewSidebar
@@ -18,7 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -28,6 +24,7 @@ import dev.toros.yde.desktop.Help
 import dev.toros.yde.desktop.UiSpace
 import dev.toros.yde.desktop.ui.common.Palette
 import dev.toros.yde.desktop.ui.common.PanelShape
+import dev.toros.yde.desktop.ui.common.UiTooltip
 
 /** 低頻度の操作はメニューに集め、移動・検索・左右の領域操作を常設する。 */
 @Composable
@@ -154,27 +151,4 @@ private fun PaneToggle(label: String, left: Boolean, open: Boolean, enabled: Boo
             Text(label, fontSize = 12.sp)
         }
     }
-}
-
-@Composable
-fun PaneHeader(title: String, onClose: () -> Unit) {
-    Row(Modifier.fillMaxWidth().height(36.dp).background(Palette.PanelBg).padding(start = 12.dp, end = 4.dp),
-        verticalAlignment = Alignment.CenterVertically) {
-        Text(title, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-        UiTooltip("$title ペインを閉じる") {
-            IconButton(onClick = onClose, modifier = Modifier.size(28.dp)) {
-                Icon(Icons.Default.Close, "$title ペインを閉じる", Modifier.size(16.dp))
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-fun UiTooltip(text: String, content: @Composable () -> Unit) {
-    TooltipArea(tooltip = {
-        Surface(shape = PanelShape, color = Palette.Surface, shadowElevation = 3.dp) {
-            Text(text, Modifier.padding(horizontal = 10.dp, vertical = 6.dp), fontSize = 11.sp)
-        }
-    }, content = content)
 }

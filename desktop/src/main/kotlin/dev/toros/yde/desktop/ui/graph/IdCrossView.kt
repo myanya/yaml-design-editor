@@ -55,7 +55,7 @@ import dev.toros.yde.desktop.AppState
 import dev.toros.yde.desktop.OpenDocument
 import dev.toros.yde.desktop.UiSpace
 import dev.toros.yde.desktop.main
-import dev.toros.yde.desktop.ui.action.ActionMenuItem
+import dev.toros.yde.desktop.ui.common.ActionMenuItem
 import dev.toros.yde.desktop.ui.common.CompactTextField
 import dev.toros.yde.desktop.ui.common.Palette
 import dev.toros.yde.desktop.ui.common.PanelShape
