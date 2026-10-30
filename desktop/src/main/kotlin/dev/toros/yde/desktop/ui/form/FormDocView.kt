@@ -26,12 +26,10 @@ import dev.toros.yde.yaml.model.getAt
 import dev.toros.yde.yaml.model.pretty
 import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.desktop.AppState
-import dev.toros.yde.desktop.OpenDocument
 import dev.toros.yde.desktop.ui.common.Palette
 import dev.toros.yde.desktop.ui.common.PanelShape
 import dev.toros.yde.desktop.ui.common.RootSlot
 import dev.toros.yde.desktop.ui.common.slotAt
-import dev.toros.yde.desktop.ui.view.ViewRenderers
 
 /*
  * 文書ビュー（R14-01）: スキーマ駆動フォームの既定の描画（SchemaRootForm）と、文書ビューの節・被参照の表。
@@ -117,7 +115,7 @@ internal fun DocViewSections(ctx: FormCtx, view: DocViewDef, root: YNode.Map, lo
             } else {
                 val embed = section.embed
                 when {
-                    embed != null -> EmbeddedExtensionPane(state, doc, embed)
+                    embed != null -> LocalFormSlots.current.embeddedView(state, doc, embed)
                     else -> BacklinkSectionTable(state, sectionResolved)
                 }
             }
@@ -202,19 +200,5 @@ internal fun AttachedBacklinks(ctx: FormCtx, path: YPath) {
             }
             BacklinkItems(ctx.state, attachment.backlinks, row)
         }
-    }
-}
-
-/** 文書ビューの区画に埋め込んだ拡張の種類のビュー（`flow: {view}`・`chart: {view}` など。ADR-0014）。描き方は種類の描画が決める。 */
-@Composable
-private fun EmbeddedExtensionPane(state: AppState, doc: OpenDocument, embed: dev.toros.yde.semantic.VirtualDocEmbed) {
-    val ws = state.workspace ?: return
-    val loaded = remember(ws, state.indexVersion) { Views.load(ws, state.schemas) }
-    val def = loaded.extensionView(embed.view)?.takeIf { it.viewKind == embed.kind }
-    val renderer = ViewRenderers.of(embed.kind)
-    when {
-        def == null -> Text("${embed.label}「${embed.view}」が見つからないか、IDが重複しています", fontSize = 11.sp, color = Palette.WarnOrange)
-        renderer == null -> Text("「${embed.label}」（kind: ${embed.kind}）を描く部品がありません", fontSize = 11.sp, color = Palette.WarnOrange)
-        else -> renderer.Section(state, loaded, def, doc)
     }
 }

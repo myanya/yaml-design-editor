@@ -35,7 +35,6 @@ import dev.toros.yde.desktop.ui.common.Palette
 import dev.toros.yde.desktop.ui.common.PanelShape
 import dev.toros.yde.desktop.ui.common.ReorderableList
 import dev.toros.yde.desktop.ui.common.Slot
-import dev.toros.yde.desktop.ui.file.FileEditor
 
 /*
  * 表の表示（R12-06）: 配列と map を行 × 列で見せる（ObjectTable・ArrayTable・MapTable）。列の幅・セルの描画・行の操作。
@@ -308,7 +307,7 @@ private fun ObjectTableCell(ctx: FormCtx, col: FieldDef, map: YNode.Map, itemPat
             ctx.readOnly && col.type == FieldType.ID -> ReadOnlyIdCell(ctx, value as? YNode.Scalar)
             ctx.readOnly || col.multiline -> TableCellText(readOnlyCellText(col, value as? YNode.Scalar))
             // ファイルの場所はセルでは画像を出さない（編集は行の展開フォームで画像つき）
-            col.type == FieldType.FILE -> FileEditor(ctx, col, slot, itemPath + key, preview = false)
+            col.type == FieldType.FILE -> LocalFormSlots.current.fileField(ctx, col, slot, itemPath + key, false)
             else -> ValueEditor(ctx, col, slot, itemPath + key)
         }
     }

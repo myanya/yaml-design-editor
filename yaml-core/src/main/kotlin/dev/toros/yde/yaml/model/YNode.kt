@@ -126,6 +126,16 @@ fun getAt(root: YNode, path: YPath): YNode? {
     return cur
 }
 
+/** 木の中のノード（値の等しさでなく同じノード）のパス。無ければ null。getAt の逆。 */
+fun pathOfNode(root: YNode, target: YNode): YPath? {
+    if (root === target) return emptyList()
+    return when (root) {
+        is YNode.Map -> root.entries.entries.firstNotNullOfOrNull { (k, v) -> pathOfNode(v, target)?.let { listOf<Any>(k) + it } }
+        is YNode.Seq -> root.items.withIndex().firstNotNullOfOrNull { (i, v) -> pathOfNode(v, target)?.let { listOf<Any>(i) + it } }
+        else -> null
+    }
+}
+
 /** スカラーノードのテキスト表現（非スカラーや空文字は null）。 */
 fun scalarText(node: YNode?): String? {
     val s = (node as? YNode.Scalar)?.value?.toString()

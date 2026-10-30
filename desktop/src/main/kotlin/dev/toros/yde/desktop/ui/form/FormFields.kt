@@ -26,10 +26,6 @@ import dev.toros.yde.desktop.ui.common.MapSlot
 import dev.toros.yde.desktop.ui.common.Palette
 import dev.toros.yde.desktop.ui.common.PanelShape
 import dev.toros.yde.desktop.ui.common.Slot
-import dev.toros.yde.desktop.ui.file.FileEditor
-import dev.toros.yde.desktop.ui.schema.LocalSchemaAuthoring
-import dev.toros.yde.desktop.ui.schema.SchemaDeleteButton
-import dev.toros.yde.desktop.ui.schema.SchemaValueEditor
 
 /*
  * スキーマ駆動フォームの骨組み: 項目の並び（ObjectFields）・1 行の形（FieldRow・FormFieldLayout）・値の種類で編集欄を選ぶ（ValueEditor）・型の不一致の直し。
@@ -163,8 +159,9 @@ internal fun FieldRow(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
                                 Text(" *$it〜", color = Palette.WarnOrange, fontSize = 10.sp)
                             }
                             helpButton()
-                            if (LocalSchemaAuthoring.current && !ctx.readOnly && slot.get() != null) {
-                                SchemaDeleteButton("設定「${effective.displayLabel}」を削除") {
+                            val authoring = LocalFormSlots.current.schemaAuthoring
+                            if (authoring != null && !ctx.readOnly && slot.get() != null) {
+                                authoring.DeleteButton("設定「${effective.displayLabel}」を削除") {
                                     slot.remove(); ctx.markEdited()
                                 }
                             }
@@ -209,8 +206,10 @@ internal fun FieldRow(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
 @Composable
 fun ValueEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
     val effective = ctx.doc.schema?.resolve(field) ?: field
-    if (LocalSchemaAuthoring.current && effective.expression) {
-        SchemaValueEditor(ctx, slot, path)
+    val slots = LocalFormSlots.current
+    val authoring = slots.schemaAuthoring
+    if (authoring != null && effective.expression) {
+        authoring.ValueEditor(ctx, slot, path)
         return
     }
     // 型変更後の残留値（UX-70）: スキーマの型と現在値の構造が合わないと各エディタが編集不能になる
@@ -231,8 +230,8 @@ fun ValueEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
         FieldType.DATE, FieldType.TIME, FieldType.DATETIME ->
             ScalarTextEditor(ctx, effective, slot, singleLine = true, trailing = { TemporalPickerButton(ctx, effective, slot) })
         FieldType.INT, FieldType.NUMBER -> ScalarTextEditor(ctx, effective, slot, singleLine = true)
-        // ファイルの場所: 入力欄＋選択＋OS で開く。画像なら下に表示（ui/file/FileEditor.kt）
-        FieldType.FILE -> FileEditor(ctx, effective, slot, path)
+        // ファイルの場所: 入力欄＋選択＋OS で開く。画像なら下に表示（ui/file/FileEditor.kt を差し込み口から）
+        FieldType.FILE -> slots.fileField(ctx, effective, slot, path, true)
         FieldType.BOOLEAN -> BooleanEditor(ctx, slot)
         FieldType.ENUM -> EnumEditor(ctx, effective, slot)
         FieldType.ID -> IdEditor(ctx, effective, slot)
@@ -241,7 +240,7 @@ fun ValueEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
         FieldType.MAP -> MapEditor(ctx, effective, slot, path)
         FieldType.OBJECT -> NestedObjectEditor(ctx, effective, slot, path)
         // any は型を定めないため汎用エディタで編集する（R11-02）
-        FieldType.ANY -> if (LocalSchemaAuthoring.current) SchemaValueEditor(ctx, slot, path)
+        FieldType.ANY -> if (authoring != null) authoring.ValueEditor(ctx, slot, path)
             else GenericEditor(ctx, slot, path, refHint = false)
     }
 }

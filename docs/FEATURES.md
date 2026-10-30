@@ -62,7 +62,7 @@
 | E-14 | 保存時に自動で入る値（印 `auto`＝更新日・作成日・版。保存の直前の 1 トランザクション・変更セットの適用にも） | `semantic-core/semantic/AutoValues.kt`, `workspace-core/workspace/WorkspaceSession.kt` | 単体 `SemanticAutoValuesTest`, `AutoValuesKernelTest`, `AppStateAutoValuesTest` | [auto-values](architecture/auto-values.md) |
 | E-26 | ソースの基本操作（Ctrl+F / H / G の検索・置換・行へ移動、一致の強調と F3 の移動、Aa と .*、Enter の自動インデント、選択行の Tab / Shift+Tab、Ctrl+/ コメント、Alt+↑↓ 行の移動、Ctrl+D 複製、現在行の強調） | `ui/source/SourceEditing.kt`, `ui/source/SourcePane.kt` | 単体 `SourceEditingTest` | [editing-history](architecture/editing-history.md) |
 | E-27 | ソースでスキーマと索引を使う（指摘を左端の印と値の色で出し右パネルの指摘から行へ、Ctrl+Space でキー名・ID・enum・file の補完、ホバーで項目の説明、Ctrl+クリックで参照先へ） | `ui/source/SourceContext.kt`, `ui/source/SourceCompletion.kt`, `yaml-core/yaml/YamlPositions.kt` | `SourceCompletionTest` ほか | [editing-history](architecture/editing-history.md) |
-| E-28 | ソースの構造（キーの入れ子単位の折り畳み＝行番号の ▾ か Ctrl+Shift+[・覚えは文書ごと、保存済みとの差分の印を左端に、フォームで最後に編集した項目とソースのカーソルの項目を行き来で揃える、選択範囲だけの整形） | `ui/source/SourceStructure.kt`, `ui/source/SourcePane.kt` | `SourceStructureTest` | [editing-history](architecture/editing-history.md) |
+| E-28 | ソースの構造（キーの入れ子単位の折り畳み＝行番号の ▾ か Ctrl+Shift+[・覚えは文書ごと、保存済みとの差分の印を左端に、フォームで最後に編集した項目とソースのカーソルの項目を行き来で揃える、選択範囲だけの整形） | `ui/source/SourceStructure.kt`, `ui/source/SourcePane.kt` | `SourceStructureTest`・`YPathTest` | [editing-history](architecture/editing-history.md) |
 | E-24 | ソースの構文状態（固定高の正常・確認中・エラー表示、全文・コピー・行移動の詳細ポップアップ） | `ui/source/SourceSyntaxBar.kt` | 単体 `SourceSyntaxBarTest`・手動 | [editing-history](architecture/editing-history.md) |
 
 ## 3. スキーマ

@@ -7,6 +7,7 @@ import androidx.compose.ui.unit.sp
 import dev.toros.yde.app.core.Views
 import dev.toros.yde.semantic.ExtensionViewDef
 import dev.toros.yde.semantic.ExtensionViewResult
+import dev.toros.yde.semantic.VirtualDocEmbed
 import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.desktop.AppState
 import dev.toros.yde.desktop.OpenDocument
@@ -71,5 +72,19 @@ internal fun ExtensionViewPane(state: AppState, loaded: Views.LoadResult, def: E
         Text(result.exceptionOrNull()?.message ?: "${def.kindLabel}「${def.id}」を解決できません", fontSize = 11.sp, color = Palette.WarnOrange)
     } else {
         ExtensionViewContent(state, resolved, place)
+    }
+}
+
+/** 文書ビューの区画に埋め込んだ拡張の種類のビュー（`flow: {view}`・`chart: {view}` など。ADR-0014）。描き方は種類の描画が決める。form の差し込み口（ui/form/FormSlots.kt）へ骨格が渡す。 */
+@Composable
+internal fun EmbeddedExtensionPane(state: AppState, doc: OpenDocument, embed: VirtualDocEmbed) {
+    val ws = state.workspace ?: return
+    val loaded = remember(ws, state.indexVersion) { Views.load(ws, state.schemas) }
+    val def = loaded.extensionView(embed.view)?.takeIf { it.viewKind == embed.kind }
+    val renderer = ViewRenderers.of(embed.kind)
+    when {
+        def == null -> Text("${embed.label}「${embed.view}」が見つからないか、IDが重複しています", fontSize = 11.sp, color = Palette.WarnOrange)
+        renderer == null -> Text("「${embed.label}」（kind: ${embed.kind}）を描く部品がありません", fontSize = 11.sp, color = Palette.WarnOrange)
+        else -> renderer.Section(state, loaded, def, doc)
     }
 }

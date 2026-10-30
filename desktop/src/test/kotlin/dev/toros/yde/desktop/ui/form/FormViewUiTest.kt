@@ -1,5 +1,12 @@
 package dev.toros.yde.desktop.ui.form
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsNodeInteractionsProvider
 import androidx.compose.ui.test.hasSetTextAction
@@ -7,7 +14,10 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.runComposeUiTest
+import dev.toros.yde.semantic.schema.FieldDef
+import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.yaml.model.YNode
+import dev.toros.yde.yaml.model.YPath
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.createTempDirectory
@@ -19,6 +29,8 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import dev.toros.yde.desktop.AppState
 import dev.toros.yde.desktop.OpenDocument
+import dev.toros.yde.desktop.ui.common.MapSlot
+import dev.toros.yde.desktop.ui.common.Slot
 
 /**
  * フォームを画面無しで描いて確かめる（R47-50 の試行。Compose の UI テスト runComposeUiTest）。
@@ -27,9 +39,10 @@ import dev.toros.yde.desktop.OpenDocument
  * - 閲覧専用では編集できる欄が 1 つも出ない（FormCtx.readOnly の分岐が画面まで届く）
  * - 欄に入力すると文書の木が変わり、未保存（dirty）になる
  * - 表示が表の配列は列の見出しと行の値を並べる（FormTables）・スキーマの無い文書は汎用エディタでキーと値を出す（GenericEditor）
+ * - file 型の欄とスキーマを書くときの欄は、差し込み口（FormSlots）に渡された部品で描く（form は ui.file・ui.schema を import しない）
  * fixture は test-fixtures/workspaces/todos を一時ディレクトリへ写して使う（読み取り専用の決まり）。
  */
-// 時間: 続けて回すと 5 本で約 9 秒。クラスを作り直した直後の 1 回目だけ、最初のテストが 10〜16 秒かかることがある（手元の Windows。順には依らない）
+// 時間: 続けて回すと 6 本で約 4 秒（2026-10-30）。クラスを作り直した直後の 1 回目だけ、最初のテストが 10〜16 秒かかることがある（手元の Windows。順には依らない）
 @OptIn(ExperimentalTestApi::class)
 class FormViewUiTest {
 
@@ -128,5 +141,39 @@ class FormViewUiTest {
         val value = ((doc.root as YNode.Map).entries["result"] as YNode.Scalar).value
         assertEquals("画面のテストで書き換えた", value)
         assertTrue(doc.dirty, "入力したのに未保存になっていない")
+    }
+
+    @Test
+    fun `file 型の欄とスキーマを書くときの欄は差し込み口に渡された部品で描く`() = runComposeUiTest {
+        val (state, doc) = openTodo()
+        val root = doc.root as YNode.Map
+        val ctx = FormCtx(state, doc, emptyList())
+        val slots = FormSlots(
+            fileField = { _, _, _, _, _ -> Text("差し込んだ file 型の欄") },
+            schemaAuthoring = object : SchemaAuthoring {
+                @Composable
+                override fun ValueEditor(ctx: FormCtx, slot: Slot, path: YPath) = Text("差し込んだスキーマの欄")
+
+                @Composable
+                override fun DeleteButton(title: String, onDelete: () -> Unit) = Unit
+            },
+        )
+        var provided by mutableStateOf(true)
+        setContent {
+            val fields = @Composable {
+                Column {
+                    ValueEditor(ctx, FieldDef(key = "file", type = FieldType.FILE), MapSlot(root, "file"), listOf("file"))
+                    ValueEditor(ctx, FieldDef(key = "any", type = FieldType.ANY), MapSlot(root, "any"), listOf("any"))
+                }
+            }
+            if (provided) CompositionLocalProvider(LocalFormSlots provides slots) { fields() } else fields()
+        }
+        assertTrue(shows("差し込んだ file 型の欄"))
+        assertTrue(shows("差し込んだスキーマの欄"))
+        // 渡されていなければ、描く部品が無い旨を出す。業務の文書（スキーマを書いていない）の any は汎用エディタ
+        provided = false
+        waitForIdle()
+        assertTrue(shows("file 型の欄 を描く部品が渡されていません"))
+        assertFalse(shows("差し込んだスキーマの欄"))
     }
 }

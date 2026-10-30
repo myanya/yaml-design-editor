@@ -24,7 +24,7 @@
 | `SourceContext` | ui/source/SourceContext.kt | カーソル位置の文脈（親のパス・キーか値か・打ちかけの語）。木でなく文字列のインデントから読むので、解析できない書きかけでも働く（純ロジック） |
 | `SourceCompletion` | ui/source/SourceCompletion.kt | Ctrl+Space の候補（キー名＝スキーマの実効フィールド・ID＝上書き索引・enum の値・真偽値・file＝ワークスペースのファイル） |
 | `YamlPositions` / `SourcePositions` | yaml-core yaml/YamlPositions.kt | 解析できた文字列のノードの位置の表（パス→行・列、位置→パス、行→見出しのキー）。指摘の行・ホバー・Ctrl+クリック・折り畳みの鍵 |
-| `SourceStructure` | ui/source/SourceStructure.kt | 折り畳める区画と畳んだ見え方（隠れる範囲・表示と元の位置の行き来）・保存済みとの差分の印・木のノード→パス・選択範囲の整形（純ロジック） |
+| `SourceStructure` | ui/source/SourceStructure.kt | 折り畳める区画と畳んだ見え方（隠れる範囲・表示と元の位置の行き来）・保存済みとの差分の印・選択範囲の整形（純ロジック） |
 | `YamlHighlighter` | ui/source/SourceHighlight.kt | 行ごとの覚えつきの色分け（純ロジック） |
 | `DocumentSession.save` / `saveDraftAsText` / `ensureAttached` / `prepareHistoryStep` | session/DocumentSession.kt | 壊れたまま保存、下書きを捨てる確認つきの Undo/Redo、テキスト文書を文書集合へ戻す |
 | `WorkspaceSession.saveAsText` / `attachDocument` | workspace-core | テキストのまま保存して文書集合から外す（履歴は残す）。解析できる内容で文書集合へ戻す |
@@ -106,7 +106,7 @@ Core Calculus 上は既存の変更記録のまとめ方に限り、Rewrite の�
 - **指摘からソースへ**: 右パネルの指摘・参照のクリックは、ソースを見ている間は `highlightPath` をソースの行に写す（`navigateToPath` / `navigateToOccurrence` はソースのタブを保つ）。
 - **折り畳みは表示だけ**: 文字列（`TextFieldState`）は変えず、`OutputTransformation` で隠れた範囲を抜いて見出しの末尾に「⋯ n 行」を添える。欄の配置は表示の文字列のものになるので、カーソル・一致・ホバーの位置は `FoldView.displayOffset` / `originalOffset` で行き来し、行番号は表示の行を描いて元の行の番号を出す。
 - **折り畳みの覚えと解除**: 覚えは見出しのキーのパス（`ScreenMemory.sourceFolds`）で、行は位置の表から引く＝行がずれても追随する。検索・ジャンプで隠れた行へ行く前に `unfoldAt` で広げ、畳んだ区画にカーソルが入ったら見出しの末尾へ寄せる。
-- **フォームとの位置同期**: フォームのスカラー編集は `markEdited(coalesceWith = node)` のノードを `OpenDocument.lastEditedNode` に残し、ソースへ移ったとき 1 回だけ（`formSyncPending`。木と下書きが揃ってから）そのパス（`SourceStructure.pathOfNode`）の行へ寄せる。ソースを離れてフォームへ移るときは、カーソルの位置のパスを `highlightPath` に入れる（フォームの `Highlightable` が寄せて強調する）。
+- **フォームとの位置同期**: フォームのスカラー編集は `markEdited(coalesceWith = node)` のノードを `OpenDocument.lastEditedNode` に残し、ソースへ移ったとき 1 回だけ（`formSyncPending`。木と下書きが揃ってから）そのパス（yaml-core の `pathOfNode`。`getAt` の逆）の行へ寄せる。ソースを離れてフォームへ移るときは、カーソルの位置のパスを `highlightPath` に入れる（フォームの `Highlightable` が寄せて強調する）。
 - **保存済みとの差分の印**: `doc.rawText`（開いたとき・保存したときのディスクの内容）と今の下書きの行差分（`LineMerge.diff`）を今の行番号に写し、行番号の左に出す。
 - **大きな文書**: 解析・出力・色分けは 1 万行で 20ms 程度（行ごとの覚え `YamlHighlighter`・共通部分を落とす `LineMerge.diff`）。Compose の欄は全文を配置し直すので上限がある（manual/limits.md）。
 

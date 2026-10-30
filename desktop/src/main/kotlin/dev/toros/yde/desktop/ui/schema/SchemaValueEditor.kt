@@ -20,9 +20,17 @@ import dev.toros.yde.desktop.ui.form.FormFieldLayout
 import dev.toros.yde.desktop.ui.form.FormFoldHeader
 import dev.toros.yde.desktop.ui.form.FormGroup
 import dev.toros.yde.desktop.ui.form.GenericEditor
+import dev.toros.yde.desktop.ui.form.SchemaAuthoring
+import dev.toros.yde.desktop.ui.form.ValueEditor
 
-/** スキーマの自由な値にも、形の選択・条件・手順の入力支援を提供する。業務フォームには適用しない。 */
-internal val LocalSchemaAuthoring = compositionLocalOf { false }
+/** スキーマを書くときのフォームの欄。SchemaEditor が form の差し込み口（ui/form/FormSlots.kt）へ渡し、業務フォームには渡さない。 */
+internal object SchemaFormAuthoring : SchemaAuthoring {
+    @Composable
+    override fun ValueEditor(ctx: FormCtx, slot: Slot, path: YPath) = SchemaValueEditor(ctx, slot, path)
+
+    @Composable
+    override fun DeleteButton(title: String, onDelete: () -> Unit) = SchemaDeleteButton(title, onDelete)
+}
 
 @Composable
 internal fun SchemaValueEditor(ctx: FormCtx, slot: Slot, path: YPath) {

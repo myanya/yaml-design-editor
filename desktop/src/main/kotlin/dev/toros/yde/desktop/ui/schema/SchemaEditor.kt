@@ -47,6 +47,7 @@ import dev.toros.yde.desktop.ui.form.FormCtx
 import dev.toros.yde.desktop.ui.form.FormDisplayControls
 import dev.toros.yde.desktop.ui.form.FormFieldLayout
 import dev.toros.yde.desktop.ui.form.FormView
+import dev.toros.yde.desktop.ui.form.LocalFormSlots
 
 /** `_schemas` 用の構造化エディタ。YAML の表現を意識せずフィールド定義を編集できる。 */
 @Composable
@@ -103,7 +104,7 @@ private fun SchemaEditorContent(state: AppState, doc: OpenDocument) {
     }
     Column(Modifier.fillMaxSize()) {
         CompositionLocalProvider(LocalTypeChoices provides typeChoices,
-            LocalSchemaAuthoring provides (mode == 0),
+            LocalFormSlots provides LocalFormSlots.current.copy(schemaAuthoring = SchemaFormAuthoring.takeIf { mode == 0 }),
             LocalSchemaReadOnly provides (state.readOnlyMode || doc.draftBroken),
             LocalSchemaHistory provides state.historyHandler(doc)) { when (mode) {
             0 -> SchemaDesignWorkspace(

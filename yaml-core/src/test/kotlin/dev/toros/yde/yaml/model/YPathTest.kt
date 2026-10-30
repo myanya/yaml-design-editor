@@ -1,10 +1,23 @@
 package dev.toros.yde.yaml.model
 
+import dev.toros.yde.yaml.YamlIO
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 
 class YPathTest {
+
+    @Test
+    fun `path of a node is found by identity`() {
+        val root = YamlIO.parse("items:\n  - name: x\n  - name: y\n")
+        val second = ((root as YNode.Map).entries["items"] as YNode.Seq).items[1]
+        val name = (second as YNode.Map).entries["name"]!!
+        assertEquals(listOf("items", 1, "name"), pathOfNode(root, name))
+        assertEquals(name, getAt(root, pathOfNode(root, name)!!))
+        // 値が等しくても別のノードは見つけない
+        assertNull(pathOfNode(root, YNode.Scalar("y")))
+    }
 
     @Test
     fun `parses keys and indexes`() {

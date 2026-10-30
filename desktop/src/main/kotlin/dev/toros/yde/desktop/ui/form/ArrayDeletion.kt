@@ -1,14 +1,14 @@
 package dev.toros.yde.desktop.ui.form
 
 import dev.toros.yde.yaml.model.YNode
+import dev.toros.yde.yaml.model.pathOfNode
 import dev.toros.yde.yaml.model.getAt
 import dev.toros.yde.desktop.OpenDocument
-import dev.toros.yde.desktop.ui.source.SourceStructure
 
 /** 確認を開いた時点の配列要素。再読込や並べ替え後に同じ行番号を削除しない。 */
 internal class ArrayDeletion(private val document: OpenDocument, private val array: YNode.Seq, val index: Int) {
     private val root = document.root
-    val path = root?.let { SourceStructure.pathOfNode(it, array) }
+    val path = root?.let { pathOfNode(it, array) }
     private val version = document.version
     private val sourceOrder = document.sourceInputOrder
     private val sourceEpoch = document.sourceEpoch

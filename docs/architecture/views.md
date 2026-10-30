@@ -15,7 +15,7 @@
 | `ExtensionViewDef` / `ExtensionViewResult` / `ViewContext` / `VirtualDocEmbed` | semantic-core/semantic/ExtensionViews.kt | 拡張の種類のビューの共通の形（定義・解決の結果・解決に使う中核の表の窓口・文書ビューの区画への埋め込み）。中核はこの窓口だけで扱う |
 | `ViewKind` / `ViewSchemaFragments` | workspace-core/workspace/ViewKind.kt・ViewSchemaFragments.kt | ビューの種類の差し込み口（読む・点検・断片・埋め込みのキー）と、メタスキーマへの断片の合成 |
 | `ChartViewKind` / `VirtualChartDef` / `ChartKind` / `ChartData` / `ChartSelection` | view-chart（拡張）の view/chart/ChartViewKind.kt・ChartViews.kt・ChartSelection.kt | チャート（`kind: chart`）の読み取りと点検・宣言と解決（元の表の解決結果を項目 × 系列の数に）・押した形の材料。定義の形の断片は資源 `view-chart/schema.yaml` |
-| `ViewRenderer` / `ViewRenderers` / `ExtensionViewPane` | ui/view/ViewRenderers.kt | 拡張の種類の描画の一覧と、解決して描く入口（台帳のビュータブ・文書ビューの区画・ダッシュボードの区画） |
+| `ViewRenderer` / `ViewRenderers` / `ExtensionViewPane` / `EmbeddedExtensionPane` | ui/view/ViewRenderers.kt | 拡張の種類の描画の一覧と、解決して描く入口（台帳のビュータブ・文書ビューの区画・ダッシュボードの区画。文書ビューの区画へはフォームの差し込み口 `FormSlots` から） |
 | `ChartRenderer` / `ChartCard` | ui/view/ChartViewPane.kt | チャートの描画。図の部品は `ui/view/Charts.kt`（Vico を包む `BarChart` / `LineChart`〔面・積み上げ面も〕・自前の `PieChart` / `HorizontalBarChart`） |
 | フロー表示契約 | view-flow の資源 `view-flow/flow-model.yaml` | 表示モデルの型・必須項目・形状をStructureValidatorで検査 |
 | `FlowReports` | view-flow の view/flow/FlowReports.kt | CLI・read_viewへ同じ表示モデルと座標・診断を開示（`FlowViewResult.report`） |

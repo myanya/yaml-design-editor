@@ -73,15 +73,6 @@ class SourceStructureTest {
     }
 
     @Test
-    fun `path of a node is found by identity`() {
-        val root = YamlIO.parse("items:\n  - name: x\n  - name: y\n")
-        val second = ((root as dev.toros.yde.yaml.model.YNode.Map).entries["items"] as dev.toros.yde.yaml.model.YNode.Seq).items[1]
-        val name = (second as dev.toros.yde.yaml.model.YNode.Map).entries["name"]!!
-        assertEquals(listOf("items", 1, "name"), SourceStructure.pathOfNode(root, name))
-        assertNull(SourceStructure.pathOfNode(root, dev.toros.yde.yaml.model.YNode.Scalar("z")))
-    }
-
-    @Test
     fun `format selection normalizes only the selected block and keeps its depth`() {
         val t = "a:\n  b:   1\n  c: {x: 1,   y: 2}\nd: 2"
         val r = SourceStructure.formatSelection(t, 3, 24)   // 2〜3 行目

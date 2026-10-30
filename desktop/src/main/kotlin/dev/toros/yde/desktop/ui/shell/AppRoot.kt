@@ -41,11 +41,14 @@ import dev.toros.yde.desktop.ui.common.Palette
 import dev.toros.yde.desktop.ui.common.PaneHeader
 import dev.toros.yde.desktop.ui.common.PanelShape
 import dev.toros.yde.desktop.ui.common.rememberDirectoryChooser
+import dev.toros.yde.desktop.ui.file.FileEditor
 import dev.toros.yde.desktop.ui.file.FilePreviewPane
 import dev.toros.yde.desktop.ui.file.FileTreePane
 import dev.toros.yde.desktop.ui.file.ImagePane
 import dev.toros.yde.desktop.ui.file.MarkdownPane
+import dev.toros.yde.desktop.ui.form.FormSlots
 import dev.toros.yde.desktop.ui.form.FormView
+import dev.toros.yde.desktop.ui.form.LocalFormSlots
 import dev.toros.yde.desktop.ui.graph.LensSidePanel
 import dev.toros.yde.desktop.ui.run.AiGenerationHost
 import dev.toros.yde.desktop.ui.run.AiSettings
@@ -55,10 +58,30 @@ import dev.toros.yde.desktop.ui.schema.SchemaEditor
 import dev.toros.yde.desktop.ui.source.SourceDraftBanner
 import dev.toros.yde.desktop.ui.source.SourcePane
 import dev.toros.yde.desktop.ui.view.DashboardPane
+import dev.toros.yde.desktop.ui.view.EmbeddedExtensionPane
 import dev.toros.yde.desktop.uiPreferences
+
+/** フォームの差し込み口の中身。file 型の欄は ui.file、文書ビューに埋め込む拡張のビューは ui.view が描く。 */
+private val appFormSlots = FormSlots(
+    fileField = { ctx, field, slot, path, preview -> FileEditor(ctx, field, slot, path, preview) },
+    embeddedView = { state, doc, embed -> EmbeddedExtensionPane(state, doc, embed) },
+)
 
 @Composable
 fun AppRoot(
+    state: AppState,
+    darkMode: Boolean,
+    commandOpen: Boolean,
+    setCommandOpen: (Boolean) -> Unit,
+    toggleDarkMode: () -> Unit,
+) {
+    CompositionLocalProvider(LocalFormSlots provides appFormSlots) {
+        AppRootContent(state, darkMode, commandOpen, setCommandOpen, toggleDarkMode)
+    }
+}
+
+@Composable
+private fun AppRootContent(
     state: AppState,
     darkMode: Boolean,
     commandOpen: Boolean,

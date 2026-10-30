@@ -14,7 +14,7 @@ YAML 文書は可変の木 `YNode` として扱い、位置は `YPath` で表す
 | `YamlOperation` | yaml-core/edit | 変更の基礎命令（Set / Insert / Delete / Move / RenameKey / ReorderKeys）の型付き操作。逆操作を持つ内部の正準 |
 | `PatchOp` / `Patcher` | yaml-core/patch/Patch.kt | 同じ基礎命令の交換形式（YPath パッチ）。エージェント・CLI・skill が使う |
 | `Slot`（Map / Seq / Root） | ui/common/Common.kt | 「値の置き場所」の抽象（get / set / remove）。`slotAt` が絶対 `YPath` から `Slot` を得る |
-| `parseYPath` | yaml-core/model/YNode.kt | YPath 文字列のパース |
+| `parseYPath` / `getAt` / `pathOfNode` | yaml-core/model/YNode.kt | YPath 文字列のパース・パスからノードへ・ノード（同じノード）からパスへ |
 
 ## 木が単一の正
 

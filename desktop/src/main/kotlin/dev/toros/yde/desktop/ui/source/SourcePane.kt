@@ -59,6 +59,7 @@ import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.yaml.SourcePositions
 import dev.toros.yde.yaml.YamlPositions
 import dev.toros.yde.yaml.model.YNode
+import dev.toros.yde.yaml.model.pathOfNode
 import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.model.getAt
 import dev.toros.yde.yaml.model.pretty
@@ -243,7 +244,7 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
         ui.formSyncPending = false
         val node = doc.lastEditedNode ?: return@LaunchedEffect
         val root = doc.root ?: return@LaunchedEffect
-        val path = SourceStructure.pathOfNode(root, node) ?: return@LaunchedEffect
+        val path = pathOfNode(root, node) ?: return@LaunchedEffect
         val line = positions.lineOf(path) ?: return@LaunchedEffect
         val starts = LineMerge.lineStarts(text)
         if (line < starts.size - 1) {

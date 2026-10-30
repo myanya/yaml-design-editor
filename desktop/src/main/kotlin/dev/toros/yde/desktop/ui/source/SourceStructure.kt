@@ -2,12 +2,10 @@ package dev.toros.yde.desktop.ui.source
 
 import dev.toros.yde.app.text.LineMerge
 import dev.toros.yde.yaml.YamlIO
-import dev.toros.yde.yaml.model.YNode
-import dev.toros.yde.yaml.model.YPath
 
 /**
  * ソースの構造に関わる純ロジック（P43 段階 3）: 折り畳める区画・畳んだときの見え方・保存済みとの差分の印・
- * 木のノードからパスへ・選択範囲だけの整形。画面（SourcePane）はここで決めた範囲を欄と行番号に当てるだけ。
+ * 選択範囲だけの整形。画面（SourcePane）はここで決めた範囲を欄と行番号に当てるだけ。
  */
 internal object SourceStructure {
     /** 折り畳める区画: 見出しの行（残る）と、隠れる最後の行（両端含む）。 */
@@ -149,18 +147,6 @@ internal object SourceStructure {
             shift += h.lines.size - removed
         }
         return marks
-    }
-
-    // ---------------------------------------------------------------- 木のノード → パス
-
-    /** 木の中のノード（同一性）のパス。無ければ null。 */
-    fun pathOfNode(root: YNode, target: YNode): YPath? {
-        if (root === target) return emptyList()
-        return when (root) {
-            is YNode.Map -> root.entries.entries.firstNotNullOfOrNull { (k, v) -> pathOfNode(v, target)?.let { listOf<Any>(k) + it } }
-            is YNode.Seq -> root.items.withIndex().firstNotNullOfOrNull { (i, v) -> pathOfNode(v, target)?.let { listOf<Any>(i) + it } }
-            else -> null
-        }
     }
 
     // ---------------------------------------------------------------- 選択範囲だけの整形
