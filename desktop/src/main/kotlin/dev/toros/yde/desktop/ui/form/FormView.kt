@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.toros.yde.app.core.DocViewDef
 import dev.toros.yde.app.core.Views
 import dev.toros.yde.app.index.DocScanner
 import dev.toros.yde.app.index.IdEntry
@@ -38,8 +39,11 @@ import dev.toros.yde.desktop.ui.common.historyHandler
 
 // ================================================================ FormView
 
+/**
+ * 文書のフォーム。docView が null ならスキーマから作る既定のフォーム（フォームのタブ）、あれば文書ビューで合成した画面（ビューのタブ）。
+ */
 @Composable
-fun FormView(state: AppState, doc: OpenDocument) {
+fun FormView(state: AppState, doc: OpenDocument, docView: DocViewDef? = null) {
     // 編集・索引更新のたびに再コンポーズさせる
     doc.version
     state.indexVersion
@@ -60,13 +64,8 @@ fun FormView(state: AppState, doc: OpenDocument) {
         val documentId = IdIndex.documentIdOf(root, state.relPath(doc.file))
         DocScanner.scan(root, state.documentOf(doc.file), doc.schema, documentId).first
     }
-    // 文書ビュー（R14-01）: マッチする定義があれば表示合成をビューに委ねる。ビューは台帳層の機構のため台帳の文書に限る
-    val docView = remember(state.indexVersion, state.editVersion, doc.file, doc.schema) {
-        val ws = state.workspace
-        val rel = state.relPath(doc.file)
-        if (ws == null || !state.layout.inLedger(rel)) null
-        else Views.load(ws, state.schemas, state.unsavedFirstTree()).docViewFor(rel, doc.schema?.id)
-    }
+    // 文書ビュー（R14-01）: ビューのタブでは、選んだ文書ビューに表示合成を委ねる（docView）。フォームのタブでは null＝スキーマから作る既定のフォーム。
+    // どのビューが当たるか・どれを選ぶかは呼び出し側（AppRoot の編集画面。AppState.docViewsFor）が決める
     // 要素単位アタッチ（R14-03）: 要素パス → 被参照 に解決して FormCtx へ載せる（描画は ObjectFields）
     val attachments = remember(doc, doc.version, state.indexVersion, docView) {
         val ws = state.workspace

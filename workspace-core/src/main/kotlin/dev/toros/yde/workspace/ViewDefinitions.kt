@@ -158,6 +158,18 @@ object ViewDefinitions {
                         errors += "${fileName(doc.source)}: sections[$i].grid.params「$name」はビュー「${grid.view}」の params にありません" +
                             "（params: ${target.params.joinToString(", ").ifEmpty { "なし" }}）"
                     }
+                    // 見せる列: クロス集計は列が軸から決まるので選べない。グリッドは見出しが列にあること（要素ごとに広げる列は選べない）
+                    if (grid.columns.isNotEmpty()) {
+                        if (target.matrix != null) {
+                            errors += "${fileName(doc.source)}: sections[$i].grid.columns はクロス集計（kind: matrix）の表には書けません（列は軸から決まります）"
+                        } else {
+                            val labels = target.columns.filter { it.each == null }.map { it.label }
+                            grid.columns.filterNot { it in labels }.forEach { label ->
+                                errors += "${fileName(doc.source)}: sections[$i].grid.columns「$label」はビュー「${grid.view}」の列にありません" +
+                                    "（列: ${labels.joinToString(", ").ifEmpty { "なし" }}）"
+                            }
+                        }
+                    }
                 }
             }
         } }
@@ -665,11 +677,11 @@ object ViewDefinitions {
             if (listOf(fieldsRaw, backlinksRaw, gridRaw).count { it != null } + embeds.size != 1) {
                 error("sections[$i]: ${(listOf("fields", "backlinks", "grid") + kinds.mapNotNull { it.sectionKey }).joinToString(" / ")} のいずれか一方が必要です")
             }
-            // 表の埋め込み（複合文書ビュー 段階 1）: `grid: {view, params: {名前: {path}}}`。受け取る値は開いた文書の値
+            // 表の埋め込み（複合文書ビュー 段階 1）: `grid: {view, params: {名前: {path}}, columns: [見出し…]}`。受け取る値は開いた文書の値
             if (gridRaw != null) {
                 val gm = gridRaw as? Map<*, *> ?: error("sections[$i].grid はobjectである必要があります")
-                gm.keys.map { it.toString() }.firstOrNull { it !in setOf("view", "params") }
-                    ?.let { error("sections[$i].grid: 未知のキーです: $it（使えるキー: view / params）") }
+                gm.keys.map { it.toString() }.firstOrNull { it !in setOf("view", "params", "columns") }
+                    ?.let { error("sections[$i].grid: 未知のキーです: $it（使えるキー: view / params / columns）") }
                 val target = (gm["view"] as? String)?.takeIf { it.isNotBlank() } ?: error("sections[$i].grid.view が必要です")
                 val params = when (val p = gm["params"]) {
                     null -> emptyMap()
@@ -683,7 +695,15 @@ object ViewDefinitions {
                     }
                     else -> error("sections[$i].grid.params は {名前: {path: 文書の中のパス}} で書きます")
                 }
-                return@mapIndexed VirtualDocSection(label = label, grid = VirtualDocGrid(target, params))
+                // 見せる列（見出しの並び。空なら表の全部の列）
+                val columns = when (val c = gm["columns"]) {
+                    null -> emptyList()
+                    is List<*> -> c.map { it?.toString()?.takeIf { l -> l.isNotBlank() } ?: error("sections[$i].grid.columns は列の見出しの並びで書きます") }
+                    else -> error("sections[$i].grid.columns は列の見出しの並びで書きます（例 [物理名, 論理名]）")
+                }
+                columns.groupingBy { it }.eachCount().filterValues { it > 1 }.keys.firstOrNull()
+                    ?.let { error("sections[$i].grid.columns: 見出し「$it」が重複しています") }
+                return@mapIndexed VirtualDocSection(label = label, grid = VirtualDocGrid(target, params, columns))
             }
             embeds.singleOrNull()?.let { (key, value) ->
                 val em = value as? Map<*, *> ?: error("sections[$i].$key はobjectである必要があります")

@@ -35,6 +35,35 @@ internal fun ArrayDeleteButton(
     afterDelete: () -> Unit = {},
     markEdited: () -> Unit = { doc.markEdited() },
 ) {
+    val request = rememberArrayDeleteRequest(doc, array, index, readOnly, label, itemField, titleLookup, afterDelete, markEdited)
+    if (!readOnly) {
+        if (textButton) {
+            TextButton(onClick = request, shape = PanelShape) {
+                Text("削除", color = Palette.ErrorRed, fontSize = 12.sp)
+            }
+        } else IconButton(onClick = request, modifier = modifier) {
+            Icon(Icons.Default.Delete, contentDescription = "配列要素を削除", modifier = Modifier.size(iconSize),
+                tint = Palette.SubText)
+        }
+    }
+}
+
+/**
+ * 配列要素の削除の確認（ダイアログ）を描き、確認を始める関数を返す。ボタンでもメニューの項目（表の行の ⋯）でも、同じ確認と削除を通す。
+ * ダイアログはこの関数を呼んだ場所に描くので、メニューを閉じても消えない場所（メニューの外）で呼ぶ。
+ */
+@Composable
+internal fun rememberArrayDeleteRequest(
+    doc: OpenDocument,
+    array: YNode.Seq,
+    index: Int,
+    readOnly: Boolean,
+    label: String? = null,
+    itemField: FieldDef? = null,
+    titleLookup: ((String) -> String?)? = null,
+    afterDelete: () -> Unit = {},
+    markEdited: () -> Unit = { doc.markEdited() },
+): () -> Unit {
     doc.version
     var pending by remember(doc) { mutableStateOf<ArrayDeletion?>(null) }
     var summary by remember(doc) { mutableStateOf("") }
@@ -45,16 +74,6 @@ internal fun ArrayDeleteButton(
             maxLength = 120, titleLookup = titleLookup).ifBlank { "（空の値）" }
         location = "${label ?: deletion.path?.lastOrNull()?.toString() ?: "配列"}／${index + 1}行目"
         pending = deletion
-    }
-    if (!readOnly) {
-        if (textButton) {
-            TextButton(onClick = request, shape = PanelShape) {
-                Text("削除", color = Palette.ErrorRed, fontSize = 12.sp)
-            }
-        } else IconButton(onClick = request, modifier = modifier) {
-            Icon(Icons.Default.Delete, contentDescription = "配列要素を削除", modifier = Modifier.size(iconSize),
-                tint = Palette.SubText)
-        }
     }
     pending?.let { deletion ->
         val problem = deletion.problem(doc, readOnly)
@@ -80,4 +99,5 @@ internal fun ArrayDeleteButton(
             dismissButton = { TextButton(onClick = { pending = null }) { Text("キャンセル") } },
         )
     }
+    return request
 }

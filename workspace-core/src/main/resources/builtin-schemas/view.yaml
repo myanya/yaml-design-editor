@@ -309,6 +309,11 @@ root:
                   type: object
                   fields:
                     - {key: path, label: 文書の中のパス, type: string, required: true}
+              - key: columns
+                label: 見せる列
+                type: array
+                item: {type: string}
+                description: "見せる列の見出しをこの順に並べる（省略すると表の全部の列）。文書の中では全行が同じ値になる列（テーブルID など）を外すのに使う。クロス集計の表には書けない"
     - key: attachments
       label: 要素単位アタッチ
       type: array

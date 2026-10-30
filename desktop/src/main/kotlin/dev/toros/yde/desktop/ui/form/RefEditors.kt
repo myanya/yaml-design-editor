@@ -90,7 +90,7 @@ fun RefEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath = emptyList
  * titleInField=false は参照先の名前を欄の中に出さない（テーブルの参照セルが欄の下に出す）。
  */
 @Composable
-internal fun RefScalarEditor(ctx: FormCtx, field: FieldDef, slot: Slot, titleInField: Boolean = true) {
+internal fun RefScalarEditor(ctx: FormCtx, field: FieldDef, slot: Slot, titleInField: Boolean = true, jumpButtonSize: Dp = 38.dp) {
     if (field.refTarget == RefTarget.DOCUMENT) {
         DocRefScalarEditor(ctx, slot)
         return
@@ -167,7 +167,7 @@ internal fun RefScalarEditor(ctx: FormCtx, field: FieldDef, slot: Slot, titleInF
                 onSelect = { ctx.setScalar(slot, it, FieldType.REF) },
             )
         }
-        RefJumpButton(ctx, current, enabled = resolved, iconButtonSize = 38.dp)
+        RefJumpButton(ctx, current, enabled = resolved, iconButtonSize = jumpButtonSize, iconSize = if (jumpButtonSize < 38.dp) 18.dp else 24.dp)
     }
     if (current.isNotBlank() && !resolved) {
         Text("未解決の参照です", fontSize = 11.sp, color = Palette.ErrorRed)

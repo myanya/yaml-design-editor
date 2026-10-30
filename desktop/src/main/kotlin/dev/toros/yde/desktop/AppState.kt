@@ -7,6 +7,8 @@ import androidx.compose.runtime.setValue
 import dev.toros.yde.app.core.ChangeSetResult
 import dev.toros.yde.app.core.SearchHit
 import dev.toros.yde.app.core.ViewDef
+import dev.toros.yde.app.core.DocViewDef
+import dev.toros.yde.app.core.Views
 import dev.toros.yde.app.core.WorkspaceRecord
 import dev.toros.yde.app.index.DocScanner
 import dev.toros.yde.app.index.IdIndex
@@ -249,20 +251,40 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     var navigationCandidates by mutableStateOf<List<IdEntry>>(emptyList())
         private set
 
-    private val editorTabState = mutableStateOf(0)
+    private val editorTabState = mutableStateOf(EditorTab.FORM)
 
     /**
-     * 0 = フォーム（スキーマ文書ではスキーマ設計）, 1 = ソース, 2 = 差分, 3 = スキーマ文書のメタスキーマフォーム（R11-02）。
-     * 文書ごとに最後に見ていたタブを覚え（`memory.editorTab`）、覚えの無い文書は直前のタブで開く（`showFile`）＝
+     * 編集画面のタブ（フォーム・ビュー・ソース・差分。スキーマ文書は設計とメタスキーマのフォーム。[EditorTab]）。
+     * 文書ごとに最後に見ていたタブを覚え（`memory.editorTab`）、覚えの無い文書は直前のタブから決める（`showFile`・[EditorTab.opening]）＝
      * ソースで書いている最中に別の文書へ移ってもソースのまま、戻れば戻った文書も最後に見ていたタブ。
      */
-    var editorTab: Int
+    var editorTab: EditorTab
         get() = editorTabState.value
         set(value) {
             if (editorTabState.value != value) finishEditGroup()
             editorTabState.value = value
             openDoc?.let { memory.editorTab[documentOf(it.file)] = value }
         }
+
+    /**
+     * この文書に当たる文書ビュー（kind: document。台帳の文書だけ・定義ファイル名順・未保存の定義も見る）。
+     * ビューのタブを押せるか・ビューの画面に何を出すか・開いたときの既定のタブに使う。
+     */
+    fun docViewsFor(file: Path): List<DocViewDef> {
+        val ws = workspace ?: return emptyList()
+        val rel = relPath(file)
+        if (!layout.inLedger(rel) || isSchemaDocument(file)) return emptyList()
+        return Views.load(ws, schemas, unsavedFirstTree()).docViewsFor(rel, schemaFor(file)?.id)
+    }
+
+    /**
+     * 開いている文書で、フォームの仲間のタブへ着地する（指摘・被参照・出現からのジャンプ）。ビューを見ていればビューのまま、
+     * 差分などからはビューが当たればビュー・無ければフォーム。keepSource ならソースはソースのまま（ソースの行へ着地する）。
+     */
+    fun landOnForm(keepSource: Boolean = true) {
+        val doc = openDoc ?: return
+        editorTab = EditorTab.landing(editorTab, isSchemaDocument(doc.file), docViewsFor(doc.file).isNotEmpty(), keepSource)
+    }
     /** 0 = 文書, 1 = 一覧, 2 = 参照グラフ, 3 = ID横ぐし, 4 = ビューグリッド */
     var workspaceView by mutableStateOf(0)
 
@@ -976,10 +998,15 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         syncSpaceFromView()
         recentFiles = (listOf(file) + recentFiles.filter { it != file }).take(12)
         recentPrefs.put(workspaceKey(), recentFiles.joinToString("\n") { relPath(it) })
-        // 解析できない文書はソース。それ以外は、この文書で最後に見ていたタブ → 無ければ直前の文書のタブ（メタスキーマのフォームは
-        // スキーマ文書にしか無いので、そうでなければフォーム）
-        val previous = if (editorTab == 3 && !isSchemaDocument(file)) 0 else editorTab
-        editorTab = if (doc.root == null) 1 else (memory.editorTab[documentOf(file)] ?: previous)
+        // 解析できない文書はソース。それ以外は、この文書で最後に見ていたタブ → 無ければ直前の文書のタブから
+        // （フォームの仲間なら、ビューが当たればビュー・無ければフォーム。EditorTab.opening）
+        editorTab = EditorTab.opening(
+            remembered = memory.editorTab[documentOf(file)],
+            previous = editorTab,
+            parsed = doc.root != null,
+            schemaDocument = isSchemaDocument(file),
+            hasView = doc.root != null && docViewsFor(file).isNotEmpty(),
+        )
         highlightPath = focus
         status = "開いています: ${relPath(file)}" + (doc.schema?.let { "（スキーマ: ${it.name}）" } ?: "（スキーマなし・汎用ビュー）")
     }
@@ -1381,8 +1408,8 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         val flowSelections: Map<Pair<String, DocumentId>, dev.toros.yde.app.view.flow.FlowSelection> = emptyMap(),
         /** 内蔵ヘルプの題目（編集スペースにヘルプを出しているとき。file は null）。 */
         val help: String? = null,
-        /** エディタのタブ（0=フォーム・1=ソース・2=差分・3=スキーマ文書のフォーム）。下位ビューと同じく場所の一部。 */
-        val tab: Int = 0,
+        /** エディタのタブ（フォーム・ビュー・ソース・差分・スキーマ文書のメタスキーマのフォーム）。下位ビューと同じく場所の一部。 */
+        val tab: EditorTab = EditorTab.FORM,
         val reference: Boolean = false,
         val referenceLine: Int = 1,
         val dashboardId: String? = null,
@@ -1395,7 +1422,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     /** 履歴の所有者はセッションのまま。記録 ID に編集元の画面だけを添える。 */
     private val historyLocations = mutableMapOf<Long, NavLocation>()
 
-    private fun documentHistoryLocation(file: Path, tab: Int = 0) =
+    private fun documentHistoryLocation(file: Path, tab: EditorTab = EditorTab.FORM) =
         NavLocation(UiSpace.EDIT, 0, file, null, null, null, tab = tab)
 
     private fun historyLocation(): NavLocation {
@@ -1408,7 +1435,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
             UiSpace.LEDGER -> {
                 val catalog = if ((loc.view == 4 && loc.gridId == null) || (loc.view == 5 && loc.flowId == null)) historyViewCatalog() else null
                 val grid = if (loc.view == 4) loc.gridId ?: catalog?.views?.firstOrNull()?.id else null
-                loc.copy(file = null, path = null, help = null, tab = 0, reference = false, referenceLine = 1,
+                loc.copy(file = null, path = null, help = null, tab = EditorTab.FORM, reference = false, referenceLine = 1,
                     crossId = loc.crossId.takeIf { loc.view == 3 }, gridId = grid,
                     flowId = if (loc.view == 5) loc.flowId ?: catalog?.extensionViews?.firstOrNull { it is dev.toros.yde.app.view.flow.VirtualFlowDef }?.id else null,
                     flowDocument = loc.flowDocument.takeIf { loc.view == 5 },
@@ -1479,7 +1506,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         when (loc.space) {
             UiSpace.EDIT -> {
                 loc.help?.let { showHelp(it) } ?: loc.file?.let { if (loc.reference) showReference(it, loc.referenceLine) else showFile(it, loc.path) }
-                // エディタのタブも場所の一部（パースできない文書は showFile が選んだソースのまま）
+                // エディタのタブも場所の一部（パースできない文書は showFile が選んだソースのまま。ビューが無くなった文書は画面が fit で直す）
                 if (openDoc?.root != null) editorTab = loc.tab
             }
             UiSpace.LEDGER -> {
@@ -1538,7 +1565,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         if (cur.space != UiSpace.EDIT || cur.path != path) pushBack(cur)
         workspaceView = 0
         syncSpaceFromView()
-        if (editorTab != 1) editorTab = 0   // ソースで見ている最中の指摘のジャンプは、ソースの行へ（SourcePane が highlightPath を行に写す）
+        landOnForm()   // ソースで見ている最中の指摘のジャンプは、ソースの行へ（SourcePane が highlightPath を行に写す）。ビューを見ていればビューのまま
         highlightPath = path
     }
 
@@ -1572,7 +1599,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     fun navigateToOccurrence(entry: IdEntry) {
         navigationCandidates = emptyList()
         openFile(entry.document, entry.path)
-        if (editorTab != 1) editorTab = 0   // ソースから飛んだらソースの行へ
+        landOnForm()   // ソースから飛んだらソースの行へ。ビューを見ていればビューのまま
     }
 
     fun dismissNavigationCandidates() { navigationCandidates = emptyList() }
@@ -1601,9 +1628,9 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         documents.onEdited = { dismissLocalHistoryNotice() }
         documents.editOrigin = { doc, coalesceWith ->
             // ソースの解析完了が画面切替より遅れても、編集元はその文書のソースタブ。
-            if (coalesceWith == "source") documentHistoryLocation(doc.file, tab = 1)
+            if (coalesceWith == "source") documentHistoryLocation(doc.file, tab = EditorTab.SOURCE)
             else if (uiSpace == UiSpace.LEDGER || uiSpace == UiSpace.DASHBOARD) historyLocation()
-            else documentHistoryLocation(doc.file, if (openDoc?.state === doc) editorTab else memory.editorTab[documentOf(doc.file)] ?: 0)
+            else documentHistoryLocation(doc.file, if (openDoc?.state === doc) editorTab else memory.editorTab[documentOf(doc.file)] ?: EditorTab.FORM)
         }
         documents.onEditRecorded = { id, origin -> (origin as? NavLocation)?.let { historyLocations.putIfAbsent(id, it) } }
         documents.onKernelReplaced = { historyLocations.clear() }

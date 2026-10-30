@@ -213,7 +213,7 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                             Text(
                                 "${state.relPath(file)}（${fileIssues.size}）",
                                 Modifier.fillMaxWidth()
-                                    .clickable { state.openFile(file); state.editorTab = 0 }
+                                    .clickable { state.openFile(file); state.landOnForm(keepSource = false) }
                                     .padding(start = 12.dp, top = 8.dp, bottom = 2.dp),
                                 fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
                             )
@@ -330,7 +330,7 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                             .clickable {
                                 // 参照元の位置へジャンプ（参照値そのものの位置を指す）
                                 state.openFile(bl.document, bl.path)
-                                state.editorTab = 0
+                                state.landOnForm(keepSource = false)
                             }
                             .padding(horizontal = 12.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -367,7 +367,7 @@ fun SidePanel(state: AppState, width: androidx.compose.ui.unit.Dp = 320.dp) {
                             Modifier.fillMaxWidth()
                                 .clickable {
                                     state.openFile(bl.document, bl.path)
-                                    state.editorTab = 0
+                                    state.landOnForm(keepSource = false)
                                 }
                                 .padding(horizontal = 12.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -541,7 +541,7 @@ private fun IssueRow(state: AppState, file: Path, issue: Issue) {
                     onClick = {
                         menuOpen = false
                         if (file == state.openDoc?.file) state.navigateToPath(issue.path)
-                        else { state.openFile(file, issue.path.takeIf { it.isNotEmpty() }); if (state.editorTab != 1) state.editorTab = 0 }
+                        else { state.openFile(file, issue.path.takeIf { it.isNotEmpty() }); state.landOnForm() }
                     },
                 )
                 // エラー時の対応（SP-09。P29 Phase 6）: 検査の定義（YAML）が宣言した対応を、宣言の順に並べる。
@@ -566,7 +566,7 @@ private fun IssueRow(state: AppState, file: Path, issue: Issue) {
                             onClick = {
                                 menuOpen = false
                                 state.openFile(response.document, response.path)
-                                if (response.path == null) state.editorTab = 0
+                                if (response.path == null) state.landOnForm(keepSource = false)
                             },
                         )
                         is CheckResponse.ApplyValue -> if (!state.readOnlyMode) {

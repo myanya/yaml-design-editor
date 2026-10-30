@@ -11,6 +11,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.toros.yde.app.core.DocViewDef
 import dev.toros.yde.app.index.IdEntry
+import dev.toros.yde.desktop.FormSurface
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.model.pretty
@@ -67,7 +68,12 @@ internal fun documentViewOutline(items: List<FormOutlineItem>, view: DocViewDef?
 internal fun DocumentFormWorkspace(ctx: FormCtx, root: YNode, view: DocViewDef?, localIds: List<IdEntry>) {
     val doc = ctx.doc
     doc.version
-    val memory = ctx.state.memory.navigation(ctx.state.documentOf(doc.file), false)
+    // 目次の選択と開閉は面ごと（フォームとビューで目次の項目が違う）。操作の対象は面によらず文書ごとなので、フォームの面に覚える
+    // （右ペインの操作タブがそこを読む）
+    val document = ctx.state.documentOf(doc.file)
+    val surface = if (view != null) FormSurface.VIEW else FormSurface.FORM
+    val memory = ctx.state.memory.navigation(document, surface)
+    val targetMemory = ctx.state.memory.navigation(document, FormSurface.FORM)
     val items = remember(doc, doc.version, doc.schema, view) {
         val outline = documentOutline(root, doc.schema).filter { item ->
             item.path.firstOrNull() != "_document" || item.path.size <= 1 || item.path.getOrNull(1) in listOf("name", "description")
@@ -79,7 +85,7 @@ internal fun DocumentFormWorkspace(ctx: FormCtx, root: YNode, view: DocViewDef?,
     val selected = items.firstOrNull { it.path == selectedPath }
     SideEffect { memory.selected = selectedPath; previous = items }
     fun select(path: YPath) { previous = emptyList(); memory.selected = path }
-    fun activate(path: YPath) { memory.actionTarget = actionTargetAt(localIds, path) }
+    fun activate(path: YPath) { targetMemory.actionTarget = actionTargetAt(localIds, path) }
     fun reveal(path: YPath) {
         // 表の行詳細も同じ畳みを使うので、セルの選択は行詳細を開いて到達する。
         for (size in 0..path.size) ctx.setExpanded(path.take(size), true)
@@ -98,7 +104,7 @@ internal fun DocumentFormWorkspace(ctx: FormCtx, root: YNode, view: DocViewDef?,
         }
     }
     CompositionLocalProvider(LocalActionTargetSelection provides ::activate) {
-    StructuredForm(ctx, false, items, selectedPath, ::select, ::reveal, onActivate = ::activate,
+    StructuredForm(ctx, surface, items, selectedPath, ::select, ::reveal, onActivate = ::activate,
         selectedContent = { modifier ->
             val scroll = remember(doc, selectedPath) { ScrollState(0) }
             Box(modifier.background(Palette.Surface, PanelShape).border(1.dp, Palette.Border, PanelShape)) {

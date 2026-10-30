@@ -144,6 +144,9 @@ object Validator {
      * 満たしているか・不足しているか・保留か・フェーズ未到達かを、いまの値つきで返す。判定は検証と同じ経路（カーネルの WorkspaceChecks）。
      * definingRoot は、この ID がこのスキーマの文書に書かれている、その文書のルート（activeFrom のフェーズ判定に使う。null なら常時判定）。
      */
+    /** このスキーマの要素に状態（充足・不足）を出す検査があるか（カバレッジなど。表の状態の列を出すかの判定と ruleStatuses の前提）。 */
+    fun reportsStatus(schema: SchemaDef): Boolean = schema.constraints.any { it.status != null }
+
     fun ruleStatuses(
         id: String,
         schema: SchemaDef,
@@ -152,7 +155,7 @@ object Validator {
         allSchemas: List<SchemaDef> = emptyList(),
         loader: (DocumentId) -> YNode? = { null },
     ): List<RuleStatus> {
-        if (schema.constraints.none { it.status != null }) return emptyList()
+        if (!reportsStatus(schema)) return emptyList()
         val trees = mutableMapOf<DocumentId, YNode?>()
         val checks = WorkspaceChecks(
             allSchemas.map { it.kernel }, emptyMap(), EnforcementDef(), indexObj.entries, indexObj.refs, indexObj.graph,

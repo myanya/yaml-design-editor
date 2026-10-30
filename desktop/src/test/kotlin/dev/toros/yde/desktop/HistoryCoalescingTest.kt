@@ -23,7 +23,7 @@ class HistoryCoalescingTest {
         Files.walk(dir).use { it.sorted(Comparator.reverseOrder()).forEach(Files::deleteIfExists) }
     }
 
-    private fun state() = AppState { now }.also { it.openWorkspace(dir); it.openFile(a); it.editorTab = 0 }
+    private fun state() = AppState { now }.also { it.openWorkspace(dir); it.openFile(a); it.editorTab = EditorTab.FORM }
     private fun edit(doc: OpenDocument, text: String) {
         val node = (doc.root as YNode.Map).entries["title"] as YNode.Scalar
         node.value = text
@@ -38,7 +38,7 @@ class HistoryCoalescingTest {
         val doc = s.openDoc!!
         edit(doc, "途中")
         now = 500
-        s.editorTab = 0
+        s.editorTab = EditorTab.FORM
         s.openFile(a)
         edit(doc, "最後")
         s.undo()
@@ -77,8 +77,8 @@ class HistoryCoalescingTest {
         val s = state()
         val doc = s.openDoc!!
         edit(doc, "移動前")
-        s.editorTab = 2
-        s.editorTab = 0
+        s.editorTab = EditorTab.DIFF
+        s.editorTab = EditorTab.FORM
         edit(doc, "移動後")
         s.undo()
         assertEquals("移動前", title(doc))
@@ -133,7 +133,7 @@ class HistoryCoalescingTest {
     fun `解析待ちの入力は移動前に含め復帰後の入力とは分ける`() {
         val s = state()
         val doc = s.openDoc!!
-        s.editorTab = 1
+        s.editorTab = EditorTab.SOURCE
         source(doc, "途中")
         doc.flushDraft()
         source(doc, "移動前")
@@ -154,11 +154,11 @@ class HistoryCoalescingTest {
     fun `ソースのタブ切替は解析待ちを取り込んでから区切る`() {
         val s = state()
         val doc = s.openDoc!!
-        s.editorTab = 1
+        s.editorTab = EditorTab.SOURCE
         source(doc, "移動前")
-        s.editorTab = 2
+        s.editorTab = EditorTab.DIFF
         assertEquals("移動前", title(doc))
-        s.editorTab = 1
+        s.editorTab = EditorTab.SOURCE
         source(doc, "移動後")
         s.undo()
         assertEquals("移動前", title(doc))
@@ -183,7 +183,7 @@ class HistoryCoalescingTest {
     fun `すべて保存は解析待ちを保存して次の入力と区切る`() {
         val s = state()
         val doc = s.openDoc!!
-        s.editorTab = 1
+        s.editorTab = EditorTab.SOURCE
         source(doc, "保存する値")
         s.saveAll()
         source(doc, "保存後")

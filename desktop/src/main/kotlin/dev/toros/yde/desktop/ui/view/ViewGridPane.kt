@@ -16,6 +16,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import dev.toros.yde.desktop.ui.common.UiTooltip
+import dev.toros.yde.desktop.ui.common.ColumnWidths
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Hub
@@ -66,9 +70,7 @@ import dev.toros.yde.desktop.ui.common.slotAt
 import dev.toros.yde.desktop.ui.form.FormCtx
 import dev.toros.yde.desktop.ui.form.ValueEditor
 
-/** グリッドの列幅。 */
-private val ID_WIDTH = 170.dp
-private val CELL_WIDTH = 230.dp
+/** グリッドの列幅（詳細と状態の列は決まった幅。ID とセルの列は見出しと値から決める＝GridWidths）。 */
 private val DETAIL_WIDTH = 150.dp
 private val STATUS_WIDTH = 90.dp
 
@@ -332,20 +334,43 @@ internal fun ResolvedViewGrid(
     // （軸を値の式で広げたクロス集計は列が解決のときに決まるので、解決した行の列から取る＝columnsOf）
     val effectiveView = remember(view, state.indexVersion, state.editVersion) { Views.effective(view, state.overlayIndex()) }
     val headerColumns = remember(effectiveView, rows) { Views.columnsOf(effectiveView, rows) }
-    // 表は共通部品（VirtualTable）: ID 列と見出し行を固定し、列は見える範囲だけ組み立てる（クロス集計で列が広がっても軽い）
-    val columns = remember(headerColumns, view.detail) {
+    // 編集できる列の値の型（入力欄の飾りの幅に使う）: 列ごとに、座標のある最初のセルの項目を引く
+    val editableTypes = remember(headerColumns, rows, state.indexVersion) {
+        headerColumns.mapIndexed { i, column ->
+            if (!column.editable) null
+            else rows.asSequence().mapNotNull { it.cells.getOrNull(i) }.firstOrNull { it.document != null && it.path != null }?.let { cell ->
+                val document = cell.document!!
+                val root = state.unsavedFirstTree()(document)
+                root?.let { r -> state.schemaFor(document)?.let { Views.fieldAt(it, r, cell.path!!) } }?.type
+            }
+        }
+    }
+    // 状態の列は、行の要素のスキーマに状態を出す検査（カバレッジなど）があるときだけ出す（無ければ全部「—」の列になるため）
+    val showStatus = remember(rows, state.schemas) {
+        val reporting = state.schemas.filter(Validator::reportsStatus).map { it.id }.toSet()
+        reporting.isNotEmpty() && rows.any { row -> row.occurrences.any { it.schemaId in reporting } }
+    }
+    // 表は共通部品（VirtualTable）: ID 列と見出し行を固定し、列は見える範囲だけ組み立てる（クロス集計で列が広がっても軽い）。
+    // 列幅は見出しと値から決める（GridWidths）。編集できる列・被参照の列は見出しに印を付ける（以前の「（参照）」「（被参照）」の代わり）
+    val columns = remember(headerColumns, rows, editableTypes, view.detail, showStatus, state.readOnlyMode) {
         buildList<TableColumn<GridColumn>> {
-            add(TableColumn<GridColumn>(GridColumn.Id, ID_WIDTH, pinned = true))
+            val idWidth = GridWidths.idWidth(rows.map { it.id }, rows.mapNotNull { it.title })
+            add(TableColumn<GridColumn>(GridColumn.Id, idWidth.dp, pinned = true))
             headerColumns.forEachIndexed { i, column ->
-                val suffix = when {
-                    column.backlinks != null -> "（被参照）"
-                    column.editable -> ""
-                    else -> "（参照）"
+                val kind = when {
+                    column.backlinks != null -> GridWidths.Kind.BACKLINKS
+                    column.editable && !state.readOnlyMode -> GridWidths.Kind.EDITABLE
+                    else -> GridWidths.Kind.READ
                 }
-                add(TableColumn(GridColumn.Cell(i, column.label + suffix), CELL_WIDTH))
+                val values = rows.asSequence().take(ColumnWidths.SAMPLE_ROWS).mapNotNull { it.cells.getOrNull(i) }.flatMap { cell ->
+                    cell.backlinks?.let { links -> links.take(5).map { it.sourceId ?: it.document.value.substringAfterLast('/') }.asSequence() }
+                        ?: sequenceOf(if (cell.computed) computedCellText(cell.value) else Views.cellText(cell.value))
+                }.toList()
+                val width = GridWidths.cellWidth(GridWidths.Column(column.label, kind, editableTypes.getOrNull(i), values), state.readOnlyMode)
+                add(TableColumn(GridColumn.Cell(i, column.label, kind), width.dp))
             }
             if (view.detail != null) add(TableColumn<GridColumn>(GridColumn.Detail, DETAIL_WIDTH))
-            add(TableColumn<GridColumn>(GridColumn.Status, STATUS_WIDTH))
+            if (showStatus) add(TableColumn<GridColumn>(GridColumn.Status, STATUS_WIDTH))
         }
     }
     // 行キーは ViewRow.key（クエリ行の結合ではIDが行間で重複しうるため。R22-02）
@@ -354,11 +379,11 @@ internal fun ResolvedViewGrid(
         position = position,
         modifier = Modifier.fillMaxSize(),
         rowPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
-        header = { col -> GridHeaderCell(col.key.label, col.width) },
+        header = { col -> GridHeaderCell(col.key, col.width) },
         cell = { row, col ->
             when (val k = col.key) {
-                GridColumn.Id -> IdCell(state, row, selectedKey == row.key, onSelect?.let { { it(row) } })
-                is GridColumn.Cell -> row.cells.getOrNull(k.index)?.let { GridCell(state, it, onSelect?.let { { it(row) } }) }
+                GridColumn.Id -> IdCell(state, row, col.width, selectedKey == row.key, onSelect?.let { { it(row) } })
+                is GridColumn.Cell -> row.cells.getOrNull(k.index)?.let { GridCell(state, it, col.width, onSelect?.let { { it(row) } }) }
                 GridColumn.Detail -> if (onSelect != null) {
                     TextButton(enabled = row.occurrences.isNotEmpty(), onClick = { onSelect(row) }) { Text("詳細を開く", fontSize = 12.sp) }
                 } else DetailCell(state, view, row)
@@ -371,18 +396,37 @@ internal fun ResolvedViewGrid(
 /** グリッドの列の種類（VirtualTable の列キー）。セルの列はビューの列の位置で引く。 */
 private sealed class GridColumn(val label: String) {
     object Id : GridColumn("ID")
-    class Cell(val index: Int, label: String) : GridColumn(label)
+    class Cell(val index: Int, label: String, val kind: GridWidths.Kind) : GridColumn(label)
     object Detail : GridColumn("詳細")
     object Status : GridColumn("状態")
 }
 
+/** 見出し。編集できる列は鉛筆、被参照の列は ← の印を添え、ホバーで列の種類を説明する（以前は見出しの文字に「（参照）」を足していた）。 */
 @Composable
-private fun GridHeaderCell(text: String, width: androidx.compose.ui.unit.Dp) =
-    Text(text, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(width).padding(end = 8.dp))
+private fun GridHeaderCell(column: GridColumn, width: androidx.compose.ui.unit.Dp) {
+    val kind = (column as? GridColumn.Cell)?.kind
+    val explain = when (kind) {
+        GridWidths.Kind.EDITABLE -> "編集できる列（セルを直すと原本の文書が変わります）"
+        GridWidths.Kind.BACKLINKS -> "被参照の列（この行を参照している要素。押すと参照元へ）"
+        GridWidths.Kind.READ -> "表示だけの列（参照・計算した値。押すと原本へ）"
+        null -> null
+    }
+    val content = @Composable {
+        Row(Modifier.width(width).padding(end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(column.label, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f, fill = false))
+            when (kind) {
+                GridWidths.Kind.EDITABLE -> Icon(Icons.Default.Edit, contentDescription = "編集できる列", Modifier.padding(start = 2.dp).size(11.dp), tint = Palette.Primary)
+                GridWidths.Kind.BACKLINKS -> Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "被参照の列", Modifier.padding(start = 2.dp).size(11.dp), tint = Palette.SubText)
+                else -> Unit
+            }
+        }
+    }
+    if (explain != null) UiTooltip(explain) { content() } else content()
+}
 
 @Composable
-private fun IdCell(state: AppState, row: ViewRow, selected: Boolean = false, onSelect: (() -> Unit)? = null) {
-    Column(Modifier.width(ID_WIDTH).background(if (selected) Palette.Selected else Palette.EditorBg).padding(end = 8.dp, top = 6.dp)) {
+private fun IdCell(state: AppState, row: ViewRow, width: androidx.compose.ui.unit.Dp, selected: Boolean = false, onSelect: (() -> Unit)? = null) {
+    Column(Modifier.width(width).background(if (selected) Palette.Selected else Palette.EditorBg).padding(end = 8.dp, top = 6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 row.id, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
@@ -422,8 +466,8 @@ private fun IdCell(state: AppState, row: ViewRow, selected: Boolean = false, onS
 
 /** 1セル。出現があり、スカラー系フィールドで editable 宣言されていれば直接編集できる。 */
 @Composable
-private fun GridCell(state: AppState, cell: ViewCell, onOpen: (() -> Unit)? = null) {
-    Box(Modifier.width(CELL_WIDTH).padding(end = 8.dp)) {
+private fun GridCell(state: AppState, cell: ViewCell, width: androidx.compose.ui.unit.Dp, onOpen: (() -> Unit)? = null) {
+    Box(Modifier.width(width).padding(end = 8.dp)) {
         val backlinks = cell.backlinks
         if (backlinks != null) {
             BacklinkCell(state, backlinks)
@@ -434,7 +478,7 @@ private fun GridCell(state: AppState, cell: ViewCell, onOpen: (() -> Unit)? = nu
             // 文書キャッシュから再読すると元値（テンプレート）が見えてしまうため、評価結果をそのまま出す。
             // クリックは直接ジャンプではなく、導出の説明と行き先の選択（規則・入力値）を提示する。
             // 値の出どころが特定の 1 か所に無いセル（座標なし）も、値と来歴は出す
-            if (onOpen != null) CellLink(state, cell, Views.cellText(cell.value), onOpen)
+            if (onOpen != null) CellLink(state, cell, computedCellText(cell.value), onOpen)
             else ComputedCellLink(state, cell)
             return@Box
         }
@@ -586,7 +630,7 @@ private fun BacklinkCell(state: AppState, backlinks: List<ViewBacklink>) {
 private fun ComputedCellLink(state: AppState, cell: ViewCell) {
     var menuOpen by remember { mutableStateOf(false) }
     // 表示の形と桁区切りは列の宣言（値の式の列は型が分からないので、数か日付として読めれば整形する）
-    val text = Views.cellText(cell.value).let { t ->
+    val text = computedCellText(cell.value).let { t ->
         cell.column.format?.let { ValueFormat.display(FieldType.ANY, it, t) } ?: cell.column.display?.format(t) ?: t
     }
     Box {

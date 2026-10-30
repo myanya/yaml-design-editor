@@ -42,6 +42,7 @@ import dev.toros.yde.workspace.ActionPlan
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.validate.Severity
 import dev.toros.yde.desktop.AppState
+import dev.toros.yde.desktop.FormSurface
 import dev.toros.yde.desktop.OpenDocument
 import dev.toros.yde.desktop.UiSpace
 import dev.toros.yde.desktop.ui.common.ChoiceMenu
@@ -72,7 +73,7 @@ fun actionPanelContext(state: AppState, doc: OpenDocument?, localIds: List<IdEnt
         // 横ぐしは文書をまたぐ画面。背後で開いている文書や、その行選択へはフォールバックしない。
         return ActionPanelContext(null, selected, emptyList())
     }
-    val chosen = doc?.let { state.memory.navigation(state.documentOf(it.file), false).actionTarget }
+    val chosen = doc?.let { state.memory.navigation(state.documentOf(it.file), FormSurface.FORM).actionTarget }
     return ActionPanelContext(doc, activeActionTarget(localIds, chosen),
         localIds.filter { it.path.isNotEmpty() }.mapNotNull { it.entityType }.distinct())
 }

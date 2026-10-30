@@ -69,6 +69,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.withContext
 import dev.toros.yde.desktop.AppState
+import dev.toros.yde.desktop.EditorTab
 import dev.toros.yde.desktop.OpenDocument
 import dev.toros.yde.desktop.ui.common.AppFonts
 import dev.toros.yde.desktop.ui.common.CompactTextField
@@ -258,7 +259,7 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
     DisposableEffect(doc) {
         onDispose {
             doc.flushDraft()
-            if (state.openDoc === doc && state.editorTab != 1 && state.highlightPath == null) {
+            if (state.openDoc === doc && state.editorTab != EditorTab.SOURCE && state.highlightPath == null) {
                 val parsed = doc.sourceParsed
                 val caret = doc.source.selection.start
                 if (parsed.isNotEmpty() && caret <= parsed.length) {
@@ -1028,7 +1029,7 @@ fun SourceDraftBanner(state: AppState, doc: OpenDocument) {
             else "ソースに解析できない書きかけがあります$where。フォームは最後に解析できた内容で、閲覧専用です。",
             fontSize = 12.sp, color = Palette.ErrorRed, modifier = Modifier.weight(1f),
         )
-        TextButton(onClick = { state.editorTab = 1 }) { Text("ソースで直す", fontSize = 11.sp) }
+        TextButton(onClick = { state.editorTab = EditorTab.SOURCE }) { Text("ソースで直す", fontSize = 11.sp) }
         if (textOnly && doc.canRestoreLastParsed) {
             TextButton(onClick = { doc.restoreLastParsed(); state.status = "最後に解析できた内容に戻しました（未保存）" }) {
                 Text("解析できた内容に戻す", fontSize = 11.sp)

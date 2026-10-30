@@ -30,6 +30,7 @@ import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.model.getAt
 import dev.toros.yde.yaml.model.pretty
 import dev.toros.yde.desktop.AppState
+import dev.toros.yde.desktop.FormSurface
 import dev.toros.yde.desktop.FormDisplayMode
 import dev.toros.yde.desktop.OpenDocument
 import dev.toros.yde.desktop.ui.common.CompactTextField
@@ -308,7 +309,7 @@ private fun SchemaStructureEditor(
             }
         }
     }
-    StructuredForm(ctx, true, allOutlineItems, selectedPath, ::select, reveal = { path ->
+    StructuredForm(ctx, FormSurface.SCHEMA, allOutlineItems, selectedPath, ::select, reveal = { path ->
         if (schemaNavigationTarget(path).section == 3)
             for (size in 1..path.size) ctx.setExpanded(path.take(size), true)
     },

@@ -35,6 +35,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
 import kotlinx.coroutines.delay
 import dev.toros.yde.desktop.AppState
+import dev.toros.yde.desktop.FormSurface
 import dev.toros.yde.desktop.FormDisplayMode
 import dev.toros.yde.desktop.ui.common.FormSpacing
 import dev.toros.yde.desktop.ui.common.Palette
@@ -130,7 +131,7 @@ fun Highlightable(
 /** スキーマと通常文書が共有する構成一覧・狭幅切替・全体フォームのスクロール連動。 */
 @Composable
 internal fun StructuredForm(
-    ctx: FormCtx, schema: Boolean, items: List<FormOutlineItem>, selected: YPath?, onSelect: (YPath) -> Unit,
+    ctx: FormCtx, surface: FormSurface, items: List<FormOutlineItem>, selected: YPath?, onSelect: (YPath) -> Unit,
     reveal: (YPath) -> Unit,
     onActivate: (YPath) -> Unit = {},
     beforeItem: @Composable (FormOutlineItem) -> Unit = {},
@@ -140,7 +141,7 @@ internal fun StructuredForm(
     wholeContent: @Composable () -> Unit,
 ) {
     val document = ctx.state.documentOf(ctx.doc.file)
-    val memory = ctx.state.memory.navigation(document, schema)
+    val memory = ctx.state.memory.navigation(document, surface)
     val display = ctx.state.memory.formDisplay
     val mode = display.modeFor(document)
     val scroll = remember(ctx.doc) { ScrollState(0) }

@@ -8,7 +8,12 @@ sections:
   # 同じ ID の概念の側面（model/business.yaml の要素）。編集は business.yaml へ
   - { label: 業務上の意味（概念）, fields: { in: { schemaId: todos-business }, include: [meaning] } }
   # カラム定義の表: 受け取る値 table にこの文書の ID を渡し、論理属性・業務型・型対応を辿った型・NULL 可否・PK・FK 先を導く
-  - { label: カラム定義, grid: { view: tm-table-columns, params: { table: { path: id } } } }
+  # 見せる列を選ぶ（テーブルID・テーブルは全行が同じ値。最大文字数・形式・選択肢・元となる情報は業務型と論理の区画にある）
+  - label: カラム定義
+    grid:
+      view: tm-table-columns
+      params: { table: { path: id } }
+      columns: [物理名, 論理名, 型, PK, FK先テーブル, FK先カラム, 業務型]
   # 同じ ID の論理の側面（model/20_logical/ENT-*.yaml）。編集は論理の文書へ
   - { label: 属性と識別子（論理）, fields: { in: { schemaId: tm-logical }, include: [attributes, key, notes] } }
   - { label: キー・索引・条件, fields: { include: [primary_key, foreign_keys, indexes, checks] } }

@@ -48,6 +48,7 @@
   形を押したときの材料は `ChartData.selection`（索引を使うので app.core）: 対応するセルの来歴の入力（集めた要素の値と場所）に、その場所を含む最も内側の ID を索引から添える（表のセルの来歴メニューと同じ材料）。押した位置から項目と系列を決めるのは `ui/view/Charts.kt`（Vico のマーカーの対象を `CartesianMarkerVisibilityListener` で覚え、消費しない押下 `tapWithoutConsuming` で読む。積み上げ棒は高さで系列・円は角度）。一覧の置き方は `VirtualChartDef.drill`（popup / below / right / none）で、`ChartCard` が組む。置き場は台帳のビュータブ（`ViewGridView` が差し込み口を通る種類の ID なら `ExtensionViewPane`）・文書ビューの区画（`VirtualDocSection.embed`）・ダッシュボードの区画（`DashboardSectionResult.embedded`）で、どれも下の「ビューの種類の差し込み口」を通る。
 - **要素ごとに列を広げる**（columns の `each`＝`VirtualEachDef`）は、クロス集計と同じ `VirtualViews.lower` で索引の要素ごとの列に広がる。値の式は書かれたまま（raw）を持ち、列ごとに `$bind` の文字をその要素の ID に置き換えて（`substituteColumnRef`）値の式にする。
   置き換え前の式でも `$cat` は決まった ID の文字として読めるので、定義の文書の検証（メタスキーマの式の点検）とリントはそのまま通る（`{same: …}` は「前のステップの束縛」の点検に引っかかるので使わない）。列の集まりの並べ方（`entitiesOf`）はクロス集計と共有。
+- **列幅と見出しの印は画面だけ**（`ViewGridPane`・`GridWidths`）: 列幅は見出しと値の文字の幅から決める（表示だけの列・編集できる列は値の型ごとの飾りと最小幅・被参照の列・ID の列）。見出しは編集できる列に鉛筆、被参照の列に ← の印（以前の「（参照）」「（被参照）」の文字の代わり）。状態の列は、行の要素のスキーマに状態を出す検査（`Validator.reportsStatus`）があるときだけ。
 - **セルの併記は画面だけ**（`ViewGridPane`）: 編集できない列の enum は `FieldDef.optionFor` のラベル、参照は索引のタイトルを「値（ラベル）」「ID（名前）」で添える。編集できる参照のセルは入力欄の下に名前を出す。セルの値・CLI・書き出し・`read_view` は変えない（`read_view` は元から「ID（タイトル）」を注記する）。
 - **行の並びは 3 段**（`VirtualViews.sortRows`）: `order.path`（`VirtualOrderValue`）があれば並び基準の出現から読んだ値の順、無ければ `order` の出現の文書内順、どちらも無ければ ID 順。値の読み出しは `resolve` の木の読み込みを共有する。
   値の順の種類は `type` の宣言か、読む項目の型（`resolve` に渡す `fieldAt` で引く）。数値は `SemanticExpression.numberOf`・日付などは `ValueSemantics.orderKey`・決まらなければ文字の順。読めない行は後ろ、同値は ID 順。
@@ -59,11 +60,12 @@
 ## 文書ビュー
 
 - **スキーマ＝データ契約、ビュー＝画面の合成**。表示決定の優先順位は「①文書ビュー（合成）＞ ②スキーマの固有表示ヒント（`role` / `display` / `label`）＞ ③予約語規約」。画面合成のためのオプションをスキーマへ足さない。
-- **マッチしない文書は従来のスキーマ駆動フォーム**（暗黙の既定ビュー）。適用は `match`（glob）と `schemaId` の AND、複数定義は定義ファイル名順の先勝ち。台帳の文書に限る。
+- **文書ビューは編集画面のビューのタブ**（フォームのタブはいつでもスキーマ駆動フォーム）。適用は `match`（glob）と `schemaId` の AND で台帳の文書に限る。当たるビューは `Views.LoadResult.docViewsFor`（定義ファイル名順）で、既定は先頭（`docViewFor`）、画面はビューのタブの ▾ で選ぶ。マッチしない文書はビューのタブが押せない形（[ui](ui.md)「UI シェル」）。
 - **fields セクションは既存フォームへの委譲**: ルート全体は従来のルート描画、部分表示（`path`）は `Views.fieldAt` ＋ `slotAt` ＋ `FieldRow`。`include` / `exclude` は描画対象の選別で、編集経路・実効フィールド合成は変えない。
 - **backlinks セクションは編集不可の派生表示**: グリッドのバックリンク列と同じ解決規則。行＝文書内の ID（`idPattern` で絞る）。`columns` は参照元要素からの相対 YPath の値を表示専用で添える。
 - **要素単位アタッチ（`attachments`）**: `at` パターン（YPath ＋ `[*]`）に一致する要素の展開フォーム内に、その要素の ID への被参照表を差し込む。解決結果を `FormCtx.attachments` で運び、`ObjectFields` の末尾で描画する（全描画経路に効く。専用の分岐を作らない）。
 - **複合文書ビュー（段階 1）**: 区画に `fields.in`（同じ ID の別の出現＝側面。`VirtualDocSection.fieldsIn`）と `grid`（受け取る値つきの表の埋め込み。`VirtualDocGrid`）を足した。解決は `VirtualViews.resolveDocument` の `DocResolver` が、区画から**変換のひな型**を組んで `SemanticTransform.build` で評価する: 側面は束縛 `self`（ルートの ID の出現を選び方で選ぶ）への写し `Template.Copy`、表は `Template.ViewRows`（行は呼び出し側の `gridRows` が受け取る値で解決）。結果は `VirtualDocSectionResolved` の `term`（組み立てた項）と `origins`（出どころ）で、側面の区画は出どころが原本 1 か所の部分木なので `occurrence`（出現の座標）をそのまま編集面にする。表の行は派生（出どころ無し）。解決できなければ `reason`。
+  表の区画の `columns`（`VirtualDocGrid.columns`）は見せる列の見出しで、`VirtualViews.selectColumns` が定義に当ててから解く（解決の呼び出し側は `gridDef` で定義を引き、`gridRows` で列を選んだ定義を受け取る値で解く）。クロス集計と要素ごとに広げる列は選べない（読み込み時の点検）。
   画面（`DocViewSections`）は側面の区画を `OccurrenceSection`（出現の文書を `ensureDoc` で取り込み、エンティティページの側面カードと同じ `FormCtx`＋`Slot` の経路で編集）、表の区画を `GridSection`（`FormSlots.embeddedGrid`＝台帳のビュータブと同じ `ResolvedViewGrid`。遅延描画の表に行数で高さを与える）で描く。表の定義は呼び出し側が `catalog`（`Views.LoadResult`）で渡し、CLI `view`・`read_view`・画面が同じ `resolveDocument` を使う。骨子（`documentViewOutline`）では側面・表の区画は「関連情報」の 1 項目（`isLocalFields` が偽）。
   段階 2 以降（線を辿った要素の区画・場所から要素へ・射影ビュー・出どころで編集）は [ROADMAP「複合文書ビューと射影ビュー」](../ROADMAP.md)。区画の種類を足すときは、変換のひな型に写せる形で足し、`DocResolver` に評価を書かない。
 - **人間と AI が同じ面を見る**: `read_view`（`file` 引数）・CLI `view <id> [file]` が同じ解決（`resolveDocument` / `resolveAttachments` / `renderDocText`）を返す。エクスポートはグリッドのみ。

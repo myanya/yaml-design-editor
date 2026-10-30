@@ -40,7 +40,11 @@ class CompositeDocViewTest {
     }
 
     private val gridDef = VirtualGridDef(
-        id = "columns", name = "カラム", columns = listOf(VirtualViewColumn(label = "物理名", path = listOf("physical_name"))),
+        id = "columns", name = "カラム",
+        columns = listOf(
+            VirtualViewColumn(label = "テーブルID", path = listOf("id")),
+            VirtualViewColumn(label = "物理名", path = listOf("physical_name")),
+        ),
         source = DocumentId("_views/columns.yaml"), params = listOf("table"),
     )
 
@@ -48,15 +52,19 @@ class CompositeDocViewTest {
         id = "doc", name = "物理テーブル定義書", schemaId = "phys", sections = sections.toList(), source = DocumentId("_views/doc.yaml"),
     )
 
-    private fun resolve(view: VirtualDocViewDef, document: DocumentId, received: MutableList<Pair<String, Map<String, Any?>>> = mutableListOf()) =
+    /** received: 表を解いたときの（表の ID・見せる列の見出し・受け取る値）。 */
+    private fun resolve(view: VirtualDocViewDef, document: DocumentId, received: MutableList<Triple<String, List<String>, Map<String, Any?>>> = mutableListOf()) =
         VirtualViews.resolveDocument(
             view, document, ids, emptyList(), graphOf(), localIds = null, rel = { it.value }, tree = { trees[it.value] },
-            gridRows = { id, params ->
-                received += id to params
-                if (id != gridDef.id) null else gridDef to listOf(
+            gridDef = { id -> gridDef.takeIf { it.id == id } },
+            gridRows = { def, params ->
+                received += Triple(def.id, def.columns.map { it.label }, params)
+                listOf(
                     VirtualRow(
                         id = "COL-1", title = "todo_id", occurrences = listOf(table),
-                        cells = listOf(VirtualCell(gridDef.columns[0], physical, listOf("columns", 0, "physical_name"), YNode.Scalar("todo_id"))),
+                        cells = def.columns.map { column ->
+                            VirtualCell(column, physical, listOf("columns", 0) + column.path, YNode.Scalar(if (column.label == "物理名") "todo_id" else "ENT-1"))
+                        },
                         detailDocument = null, detailPath = null,
                     ),
                 )
@@ -99,9 +107,10 @@ class CompositeDocViewTest {
     @Test
     fun `表の区画は 開いた文書の値を受け取る値にして行を受け取り 値が無ければ理由を残す`() {
         val grid = VirtualDocSection(label = "カラム定義", grid = VirtualDocGrid("columns", mapOf("table" to listOf("id"))))
-        val received = mutableListOf<Pair<String, Map<String, Any?>>>()
+        val received = mutableListOf<Triple<String, List<String>, Map<String, Any?>>>()
         val resolved = resolve(view(grid), physical, received).single()
-        assertEquals(listOf("columns" to mapOf<String, Any?>("table" to "ENT-1")), received, "表の ID と、文書から読んだ受け取る値")
+        assertEquals(listOf(Triple("columns", listOf("テーブルID", "物理名"), mapOf<String, Any?>("table" to "ENT-1"))), received,
+            "表の ID・全部の列・文書から読んだ受け取る値")
         assertEquals(mapOf<String, Any?>("table" to "ENT-1"), resolved.gridParams)
         assertEquals(listOf("COL-1"), resolved.gridRows!!.map { it.id })
         assertEquals(gridDef, resolved.gridView)
@@ -121,5 +130,18 @@ class CompositeDocViewTest {
         val unknown = resolve(view(VirtualDocSection(grid = VirtualDocGrid("nosuch"))), physical).single()
         assertNull(unknown.gridRows)
         assertEquals("表「nosuch」が無いか、行の供給元が渡されていません", unknown.reason)
+    }
+
+    @Test
+    fun `表の区画で見せる列を選ぶと 列を選んだ定義で解き 見出しの順に並ぶ`() {
+        val grid = VirtualDocSection(label = "カラム定義", grid = VirtualDocGrid("columns", mapOf("table" to listOf("id")), columns = listOf("物理名")))
+        val received = mutableListOf<Triple<String, List<String>, Map<String, Any?>>>()
+        val resolved = resolve(view(grid), physical, received).single()
+        assertEquals(listOf("物理名"), received.single().second, "全行が同じ値の テーブルID は外す")
+        assertEquals(listOf("物理名"), resolved.gridView!!.columns.map { it.label })
+        assertEquals(listOf("todo_id"), resolved.gridRows!!.single().cells.map { scalarText(it.value) })
+        // 選別の関数そのもの: 見出しの順・無い見出しは落とす・空なら定義のまま
+        assertEquals(listOf("物理名", "テーブルID"), VirtualViews.selectColumns(gridDef, listOf("物理名", "なし", "テーブルID")).columns.map { it.label })
+        assertEquals(gridDef, VirtualViews.selectColumns(gridDef, emptyList()))
     }
 }

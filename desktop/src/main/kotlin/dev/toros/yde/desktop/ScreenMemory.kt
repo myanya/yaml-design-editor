@@ -17,6 +17,9 @@ class TableScrollPosition {
     var horizontal by mutableStateOf(0)
 }
 
+/** フォームの面（目次の覚えの鍵）。FORM＝既定のフォーム・VIEW＝文書ビュー・SCHEMA＝スキーマの設計。 */
+enum class FormSurface { FORM, VIEW, SCHEMA }
+
 enum class FormDisplayMode(val label: String) {
     SELECTED("選択項目"), LINKED("全体・ツリー連動"), WHOLE("全体のみ")
 }
@@ -44,10 +47,10 @@ class FormNavigationMemory {
 class ScreenMemory {
     /** 表示方式の固定・引き継ぎと、ファイル単位の明示指定。 */
     val formDisplay = FormDisplayMemory()
-    /** 文書 × スキーマ設計か。汎用フォームとは覚えを分ける。 */
-    val formNavigation = mutableStateMapOf<Pair<DocumentId, Boolean>, FormNavigationMemory>()
-    fun navigation(document: DocumentId, schema: Boolean): FormNavigationMemory =
-        formNavigation.getOrPut(document to schema) { FormNavigationMemory() }
+    /** 文書 × 面（フォーム・ビュー・スキーマ設計）。面ごとに目次の項目が違うので、選択と開閉の覚えを分ける。 */
+    val formNavigation = mutableStateMapOf<Pair<DocumentId, FormSurface>, FormNavigationMemory>()
+    fun navigation(document: DocumentId, surface: FormSurface): FormNavigationMemory =
+        formNavigation.getOrPut(document to surface) { FormNavigationMemory() }
 
     // ================================================================ フォームの畳み（文書 × パス）
 
@@ -189,8 +192,11 @@ class ScreenMemory {
     val schemaDefinition = mutableStateMapOf<DocumentId, String>()
     val schemaSelection = mutableStateMapOf<Pair<DocumentId, YPath>, YPath>()
 
-    /** 編集画面のタブ（0 = フォーム、1 = ソース、2 = 差分、3 = メタスキーマのフォーム）。文書ごとに最後に見ていたもの。 */
-    val editorTab = mutableStateMapOf<DocumentId, Int>()
+    /** 編集画面のタブ（フォーム・ビュー・ソース・差分・メタスキーマのフォーム）。文書ごとに最後に見ていたもの。 */
+    val editorTab = mutableStateMapOf<DocumentId, EditorTab>()
+
+    /** ビューのタブで選んだ文書ビューの ID（当たるビューが複数のとき）。文書ごと。今は当たらない ID は画面が読み捨てる。 */
+    val docViewChoice = mutableStateMapOf<DocumentId, String>()
 
     // ================================================================ 寿命
 
@@ -253,6 +259,8 @@ class ScreenMemory {
         schemaSection.clear()
         schemaDefinition.clear()
         schemaSelection.clear()
+        editorTab.clear()
+        docViewChoice.clear()
     }
 
     /** 文書（ディレクトリならその下の文書すべて）の覚えを忘れる（削除）。 */
@@ -265,6 +273,8 @@ class ScreenMemory {
         schemaSection.keys.filter { it.isUnder(document) }.forEach(schemaSection::remove)
         schemaDefinition.keys.filter { it.isUnder(document) }.forEach(schemaDefinition::remove)
         schemaSelection.keys.filter { it.first.isUnder(document) }.forEach(schemaSelection::remove)
+        editorTab.keys.filter { it.isUnder(document) }.forEach(editorTab::remove)
+        docViewChoice.keys.filter { it.isUnder(document) }.forEach(docViewChoice::remove)
     }
 
     /** 文書（ディレクトリならその下の文書すべて）の覚えを新しい場所へ移す（改名）。 */
@@ -295,6 +305,14 @@ class ScreenMemory {
         schemaTab.keys.filter { it.isUnder(from) }.forEach { key ->
             val value = schemaTab.remove(key) ?: return@forEach
             schemaTab[key.moved(from, to)] = value
+        }
+        editorTab.keys.filter { it.isUnder(from) }.forEach { key ->
+            val value = editorTab.remove(key) ?: return@forEach
+            editorTab[key.moved(from, to)] = value
+        }
+        docViewChoice.keys.filter { it.isUnder(from) }.forEach { key ->
+            val value = docViewChoice.remove(key) ?: return@forEach
+            docViewChoice[key.moved(from, to)] = value
         }
     }
 

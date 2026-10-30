@@ -105,6 +105,18 @@ class CompositeDocViewDefinitionsTest {
         assertTrue("grid.view が必要です" in errorOf("id: bad\nkind: document\nschemaId: phys\nsections:\n  - { grid: { params: {} } }"))
         assertTrue("{path: 文書の中のパス}" in errorOf(doc.replace("table: { path: id }", "table: id")))
         assertTrue("未知のキーです: limit" in errorOf(doc.replace("params: { table: { path: id } }", "params: { table: { path: id } }, limit: 3")))
+        assertTrue("列の見出しの並び" in errorOf(doc.replace("params: { table: { path: id } }", "params: { table: { path: id } }, columns: 物理名")))
+        assertTrue("見出し「物理名」が重複" in errorOf(doc.replace("params: { table: { path: id } }", "params: { table: { path: id } }, columns: [物理名, 物理名]")))
+    }
+
+    @Test
+    fun `見せる列は表の列の見出しで選び 無い見出しは点検で知らせる`() {
+        val withColumns = doc.replace("params: { table: { path: id } }", "params: { table: { path: id } }, columns: [物理名]")
+        val catalog = load("columns" to grid, "physical-doc" to withColumns)
+        assertTrue(catalog.errors.isEmpty(), catalog.errors.toString())
+        assertEquals(listOf("物理名"), catalog.docView("physical-doc")!!.sections[1].grid!!.columns)
+        val errors = load("columns" to grid, "physical-doc" to withColumns.replace("columns: [物理名]", "columns: [物理名, 論理名]")).errors
+        assertTrue(errors.any { "grid.columns「論理名」はビュー「columns」の列にありません（列: 物理名）" in it }, errors.toString())
     }
 
     @Test

@@ -245,6 +245,8 @@ data class VirtualDocGrid(
     val view: String,
     /** 受け取る値の名前 → 開いた文書の中のパス（値が無ければ区画は解決しない）。 */
     val params: Map<String, YPath> = emptyMap(),
+    /** 見せる列の見出し（この順。空＝表の全部の列）。文書の中では全行が同じ値の列（テーブルID など）を外すのに使う。 */
+    val columns: List<String> = emptyList(),
 )
 
 /**
@@ -986,6 +988,14 @@ object VirtualViews {
     }
 
     /**
+     * グリッドの列を見出しで選ぶ（文書ビューに埋め込む表の `grid.columns`）。labels の順に並べ、見出しが無い列は落とす（読み込み時の点検が先に知らせる）。
+     * 空なら定義のまま。クロス集計（matrix）と要素ごとに広げる列（each）は列が解決のときに決まるので、そのまま（点検で拒む）。
+     */
+    fun selectColumns(view: VirtualGridDef, labels: List<String>): VirtualGridDef =
+        if (labels.isEmpty() || view.matrix != null) view
+        else view.copy(columns = labels.mapNotNull { label -> view.columns.firstOrNull { it.label == label && it.each == null } })
+
+    /**
      * 文書ビューを解決する（RC-02・複合文書ビュー 段階 1）。
      * - 開いた文書の fields セクションは描画側が文書ツリーから直接描く（ここでは何もしない）
      * - backlinks セクションは被参照表を原本座標つきで解決する
@@ -993,7 +1003,8 @@ object VirtualViews {
      *   SemanticTransform で評価し、出どころ（origins）で原本に結ぶ（段階 2 の射影ビューと同じ経路。architecture/views.md「複合文書ビュー」）
      * - localIds: 未保存編集を含む文書内のID一覧（null なら ids から引く）。
      *   被参照は refs 基準＝入力索引の状態。行（文書内ID）だけが編集中ツリーへ追随する
-     * - gridRows: 表の行の供給元（ビュー ID と受け取る値 → 表の定義と行。表を知らない呼び出し側は省く＝表の区画は理由つきで解決しない）
+     * - gridDef / gridRows: 表の定義の引き方（ビュー ID → グリッドかクロス集計）と、列を選んだ定義を受け取る値で解いた行。
+     *   表を知らない呼び出し側は省く＝表の区画は理由つきで解決しない。列の選別（`grid.columns`）はここで定義に当ててから解く（selectColumns）
      */
     fun resolveDocument(
         view: VirtualDocViewDef,
@@ -1004,13 +1015,14 @@ object VirtualViews {
         localIds: List<ScannedId>? = null,
         rel: (DocumentId) -> String,
         tree: (DocumentId) -> YNode?,
-        gridRows: (String, Map<String, Any?>) -> Pair<VirtualGridDef, List<VirtualRow>>? = { _, _ -> null },
+        gridDef: (String) -> VirtualGridDef? = { null },
+        gridRows: (VirtualGridDef, Map<String, Any?>) -> List<VirtualRow> = { _, _ -> emptyList() },
     ): List<VirtualDocSectionResolved> {
         val resolver = DocResolver(document, ids, refs, graph, localIds, rel, tree)
         return view.sections.map { section ->
             section.backlinks?.let { return@map VirtualDocSectionResolved(section, resolver.rowsFor(it)) }
             if (section.fieldsIn != null) return@map resolver.occurrenceSection(section)
-            section.grid?.let { return@map resolver.gridSection(section, it, gridRows) }
+            section.grid?.let { return@map resolver.gridSection(section, it, gridDef, gridRows) }
             VirtualDocSectionResolved(section)
         }
     }
@@ -1098,7 +1110,8 @@ object VirtualViews {
         fun gridSection(
             section: VirtualDocSection,
             grid: VirtualDocGrid,
-            gridRows: (String, Map<String, Any?>) -> Pair<VirtualGridDef, List<VirtualRow>>?,
+            gridDef: (String) -> VirtualGridDef?,
+            gridRows: (VirtualGridDef, Map<String, Any?>) -> List<VirtualRow>,
         ): VirtualDocSectionResolved {
             val root = cachedTree(document) ?: return VirtualDocSectionResolved(section, reason = "文書を読めません")
             val params = LinkedHashMap<String, Any?>()
@@ -1110,11 +1123,12 @@ object VirtualViews {
                     )
                 params[name] = value
             }
-            val (def, rows) = gridRows(grid.view, params)
+            val def = gridDef(grid.view)?.let { selectColumns(it, grid.columns) }
                 ?: return VirtualDocSectionResolved(
                     section, gridParams = params,
                     reason = "表「${grid.view}」が無いか、行の供給元が渡されていません",
                 )
+            val rows = gridRows(def, params)
             val result = SemanticTransform.build(
                 Template.ViewRows(grid.view), emptyMap(), here,
                 views = { id -> if (id == grid.view) ReportRows.node(rows) else null },

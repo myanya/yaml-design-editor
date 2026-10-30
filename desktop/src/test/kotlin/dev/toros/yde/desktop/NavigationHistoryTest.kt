@@ -295,21 +295,21 @@ class NavigationHistoryTest {
         val a = newFile("a.yaml")
         val b = newFile("b.yaml")
         state.openFile(a)
-        state.editorTab = 1
+        state.editorTab = EditorTab.SOURCE
         state.openFile(b)
-        assertEquals(1, state.editorTab, "初めて開く文書は直前のタブ（ソース）のまま")
-        state.editorTab = 0
+        assertEquals(EditorTab.SOURCE, state.editorTab, "初めて開く文書は直前のタブ（ソース）のまま")
+        state.editorTab = EditorTab.FORM
 
         state.goBack()
         assertEquals(a, state.openDoc?.file)
-        assertEquals(1, state.editorTab, "戻った文書は見ていたタブ")
+        assertEquals(EditorTab.SOURCE, state.editorTab, "戻った文書は見ていたタブ")
 
         state.goForward()
         assertEquals(b, state.openDoc?.file)
-        assertEquals(0, state.editorTab, "進んだ文書も見ていたタブ")
+        assertEquals(EditorTab.FORM, state.editorTab, "進んだ文書も見ていたタブ")
 
         // 履歴を使わずに開き直しても、その文書で最後に見ていたタブ
         state.openFile(a)
-        assertEquals(1, state.editorTab, "覚えがある文書は最後のタブで開く")
+        assertEquals(EditorTab.SOURCE, state.editorTab, "覚えがある文書は最後のタブで開く")
     }
 }

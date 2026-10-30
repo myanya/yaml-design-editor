@@ -30,6 +30,7 @@ import dev.toros.yde.yaml.validate.Severity
 import dev.toros.yde.semantic.schema.FieldDef
 import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.desktop.ui.common.ActionMenuItem
+import dev.toros.yde.desktop.ui.common.ColumnWidths
 import dev.toros.yde.desktop.ui.common.MapSlot
 import dev.toros.yde.desktop.ui.common.Palette
 import dev.toros.yde.desktop.ui.common.PanelShape
@@ -43,25 +44,34 @@ import dev.toros.yde.desktop.ui.common.Slot
 
 // ================================================================ テーブル表示（R12-06: 配列・map）
 
-/** 列の型に応じたセルの最小幅（余白があれば tableColumnWidths が広げ、収まらなければ横スクロール）。列は `$ref` 解決済み。 */
-private fun tableCellWidth(column: FieldDef): Dp = when {
-    column.multiline -> 240.dp                 // 複数行の文字列（ヒント display: multiline。組込みの型 text）
+/**
+ * 列の型ごとのセルの飾り（入力欄の余白・ボタン）・最小幅・上限（dp）。列幅は「見出しと値の文字の幅＋飾り」を最小と上限の間に収める
+ * （tableColumnWidths）。閲覧専用は文字だけ（ID と参照は横ぐしの印の分）。列は `$ref` 解決済み。
+ */
+internal data class CellSizing(val chrome: Float, val min: Float, val max: Float)
+
+internal fun cellSizing(column: FieldDef, readOnly: Boolean): CellSizing = when {
+    column.multiline -> CellSizing(12f, 120f, 320f)       // 複数行の文字列は表では表示だけ（編集は行の展開）
+    readOnly -> when (column.type) {
+        FieldType.ID, FieldType.REF -> CellSizing(36f, 80f, 300f)   // 横ぐしの印
+        else -> CellSizing(12f, 56f, 320f)
+    }
     else -> when (column.type) {
-        FieldType.BOOLEAN -> 90.dp
-        FieldType.INT, FieldType.NUMBER -> 90.dp
-        FieldType.DATE -> 140.dp                 // ピッカーのボタン分を含む
-        FieldType.TIME -> 120.dp
-        FieldType.DATETIME -> 190.dp
-        FieldType.FILE -> 240.dp                 // 選択と OS で開くの 2 つのボタン分を含む
-        FieldType.ENUM -> 140.dp
-        FieldType.ID -> 180.dp                 // 候補の▼と横ぐしの Hub の 2 つのボタン分を含む
-        FieldType.REF -> 240.dp                // 候補の▼・→・横ぐしの Hub の 3 つのボタン分を含む（名前は欄の下）
-        else -> 170.dp
+        FieldType.BOOLEAN -> CellSizing(16f, 56f, 120f)
+        FieldType.INT, FieldType.NUMBER -> CellSizing(32f, 72f, 160f)
+        FieldType.DATE -> CellSizing(76f, 150f, 180f)          // ピッカーのボタン分を含む
+        FieldType.TIME -> CellSizing(76f, 120f, 160f)
+        FieldType.DATETIME -> CellSizing(76f, 190f, 240f)
+        FieldType.FILE -> CellSizing(96f, 240f, 360f)          // 選択と OS で開くの 2 つのボタン
+        FieldType.ENUM -> CellSizing(48f, 110f, 260f)          // 選択の ▼
+        FieldType.ID -> CellSizing(84f, 150f, 300f)            // 採番の ▼ と横ぐしの Hub
+        FieldType.REF -> CellSizing(86f, 170f, 320f)           // 候補の ▼ と参照先へ →（横ぐしは → のメニューにある。名前は欄の下）
+        else -> CellSizing(32f, 96f, 320f)
     }
 }
 
 private val TABLE_EXPAND_WIDTH = 28.dp
-private val TABLE_OPS_WIDTH = 120.dp       // 配列の行操作（取っ手・上へ・下へ・削除・操作メニュー）
+private val TABLE_OPS_WIDTH = 56.dp        // 配列の行操作（取っ手と ⋯。上へ・下へ・削除・型の操作は ⋯ のメニュー）
 private val TABLE_MENU_WIDTH = 28.dp       // 閲覧専用のときの行の操作メニュー（⋯）だけの列
 
 /** 配列の要素を from から to へ動かす（ドラッグの並べ替え。木の変異だけで、markEdited は呼び出し側）。 */
@@ -79,12 +89,20 @@ private val FLEX_CELL_TYPES = setOf(
 )
 
 /**
- * 列幅の割付（R12-06）: 型別の最小幅を保証しつつ、利用可能幅に余りがあれば文字系の列で
- * 等分して表を右端まで使う。文字系の列がなければ伸ばさない（数値だけの表を間延びさせない）。
- * 利用可能幅に収まらない場合は最小幅のまま＝横スクロールに委ねる。列は `$ref` 解決済みの項目。
+ * 列幅の割付（R12-06）: 列ごとに見出しと値の文字の幅から基本の幅を決め（cellSizing の飾り・最小・上限。values は列ごとの値の文字）、
+ * 利用可能幅に余りがあれば文字系の列で等分して表を右端まで使う。文字系の列がなければ伸ばさない（数値だけの表を間延びさせない）。
+ * 利用可能幅に収まらない場合は基本の幅のまま＝横スクロールに委ねる。列は `$ref` 解決済みの項目。
  */
-internal fun tableColumnWidths(columns: List<FieldDef>, available: Dp, fixed: Dp): List<Dp> {
-    val base = columns.map { tableCellWidth(it) }
+internal fun tableColumnWidths(
+    columns: List<FieldDef>, available: Dp, fixed: Dp,
+    values: List<List<String>> = emptyList(), readOnly: Boolean = false,
+): List<Dp> {
+    val base = columns.mapIndexed { i, column ->
+        val sizing = cellSizing(column, readOnly)
+        val header = column.displayLabel + if (column.required) " *" else ""
+        ColumnWidths.fit(header, values.getOrNull(i).orEmpty(), headerSp = 11f, valueSp = 13f,
+            chrome = sizing.chrome, min = sizing.min, max = sizing.max).dp
+    }
     val natural = fixed + base.fold(0.dp) { acc, w -> acc + w }
     val flexCount = columns.count { it.type in FLEX_CELL_TYPES }
     if (available <= natural || flexCount == 0) return base
@@ -112,12 +130,16 @@ private fun ObjectTable(
     rowMenu: (@Composable (Int) -> Unit)? = null,     // 行の操作メニュー（⋯）。閲覧専用でも出す（操作は編集ではない）
 ) {
     val hScroll = rememberScrollState()
+    // 列ごとの値の文字（列幅の見積もり）。入力のたびに列幅が揺れないよう、行数・列・閲覧専用が変わったときだけ読み直す
+    val values = remember(columns, rows.size, ctx.readOnly, path) {
+        columns.map { col -> rows.asSequence().take(ColumnWidths.SAMPLE_ROWS).mapNotNull { (_, element) -> tableCellText(col, element, ctx.readOnly) }.toList() }
+    }
     // 利用可能幅を測り、余白は文字系の列へ配って表を右端まで使う
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val keyWidth = if (keyHeader != null) TABLE_KEY_WIDTH else 0.dp
         val trailing = if (!ctx.readOnly && ops != null) opsWidth else if (rowMenu != null) TABLE_MENU_WIDTH else 0.dp
         val fixed = TABLE_EXPAND_WIDTH + keyWidth + trailing
-        val widths = tableColumnWidths(columns, maxWidth, fixed)
+        val widths = tableColumnWidths(columns, maxWidth, fixed, values, ctx.readOnly)
         val rowWidth = fixed + widths.fold(0.dp) { acc, w -> acc + w }
         Column(Modifier.fillMaxWidth()) {
             // 列だけを横スクロールし、展開フォームには表示領域の幅を渡す。
@@ -179,7 +201,6 @@ private fun ObjectTable(
                                     Row(Modifier.width(opsWidth).padding(top = 7.dp), verticalAlignment = Alignment.CenterVertically) {
                                         if (onMove != null) Handle(Modifier.padding(end = 2.dp))
                                         ops(i)
-                                        rowMenu?.invoke(i)
                                     }
                                 } else if (rowMenu != null) {
                                     Box(Modifier.width(TABLE_MENU_WIDTH)) { rowMenu(i) }
@@ -203,38 +224,64 @@ private fun ObjectTable(
     }
 }
 
-/** 配列のテーブル表示。行操作は並べ替え＋削除。 */
+/** 配列のテーブル表示。行操作は取っ手のドラッグと ⋯ のメニュー（上へ・下へ・削除・型の操作）。 */
 @Composable
 internal fun ArrayTable(ctx: FormCtx, field: FieldDef, columns: List<FieldDef>, node: YNode.Seq, path: YPath) {
     val itemDef = ctx.doc.schema?.resolve(field.item) ?: field.item
     val rows = node.items.mapIndexedNotNull { i, item -> (item as? YNode.Map)?.let { i to it } }
     ObjectTable(ctx, itemDef, columns, rows, path, opsWidth = TABLE_OPS_WIDTH,
         onMove = { from, to -> moveSeqItem(node, from, to); ctx.markEdited() },
-        ops = { i ->
-        IconButton(
-            onClick = {
-                if (i > 0) {
-                    val tmp = node.items[i - 1]; node.items[i - 1] = node.items[i]; node.items[i] = tmp
-                    ctx.markEdited()
+        ops = { i -> ArrayRowMenu(ctx, field, node, i, path) },
+        rowMenu = { i -> ElementOpsButton(ctx, path + i) })
+}
+
+/**
+ * 配列の表の行の ⋯（編集中）: 上へ・下へ・削除（確認つき）と、行の要素に使える操作（型の操作と、その型を受け手にするアクション）を 1 つのメニューに。
+ * 以前は上へ・下へ・削除・⋯ の 4 つのボタンで、行操作の列が 120dp あった。
+ */
+@Composable
+private fun ArrayRowMenu(ctx: FormCtx, field: FieldDef, node: YNode.Seq, i: Int, path: YPath) {
+    var open by remember { mutableStateOf(false) }
+    val requestDelete = rememberArrayDeleteRequest(ctx.doc, node, i, ctx.readOnly,
+        label = field.displayLabel, itemField = field.item, titleLookup = ctx.indexTitleLookup(), markEdited = { ctx.markEdited() })
+    val entry = ctx.localIds.firstOrNull { it.path == path + i }
+    val actions = remember(entry?.id, entry?.entityType, ctx.state.indexVersion) {
+        entry?.let { e -> e.entityType?.let { ctx.state.actionsForEntityType(it) } ?: ctx.state.actionsForEntity(e.id) }.orEmpty()
+    }
+    fun swap(a: Int, b: Int) {
+        if (a !in node.items.indices || b !in node.items.indices) return
+        val tmp = node.items[a]; node.items[a] = node.items[b]; node.items[b] = tmp
+        ctx.markEdited()
+    }
+    Box {
+        IconButton(onClick = { open = true }, modifier = Modifier.size(24.dp)) {
+            Icon(Icons.Default.MoreVert, contentDescription = "行の操作", Modifier.size(16.dp), tint = Palette.SubText)
+        }
+        DropdownMenu(open, { open = false }) {
+            DropdownMenuItem(
+                text = { Text("上へ移動", fontSize = 12.sp) }, enabled = i > 0,
+                leadingIcon = { Icon(Icons.Default.KeyboardArrowUp, contentDescription = null, Modifier.size(16.dp)) },
+                onClick = { open = false; swap(i, i - 1) },
+            )
+            DropdownMenuItem(
+                text = { Text("下へ移動", fontSize = 12.sp) }, enabled = i < node.items.size - 1,
+                leadingIcon = { Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, Modifier.size(16.dp)) },
+                onClick = { open = false; swap(i, i + 1) },
+            )
+            DropdownMenuItem(
+                text = { Text("削除…", fontSize = 12.sp, color = Palette.ErrorRed) },
+                leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, Modifier.size(16.dp), tint = Palette.ErrorRed) },
+                onClick = { open = false; requestDelete() },
+            )
+            if (entry != null && actions.isNotEmpty()) {
+                HorizontalDivider()
+                Text("${entry.id} の操作", Modifier.padding(horizontal = 12.dp, vertical = 4.dp), fontSize = 10.sp, color = Palette.SubText)
+                actions.forEach { e ->
+                    ActionMenuItem(ctx.state, e, entry.id, onClick = { open = false; ctx.state.startAction(e, entry.id) })
                 }
-            },
-            enabled = i > 0,
-            modifier = Modifier.size(24.dp),
-        ) { Icon(Icons.Default.KeyboardArrowUp, contentDescription = "上へ", Modifier.size(16.dp)) }
-        IconButton(
-            onClick = {
-                if (i < node.items.size - 1) {
-                    val tmp = node.items[i + 1]; node.items[i + 1] = node.items[i]; node.items[i] = tmp
-                    ctx.markEdited()
-                }
-            },
-            enabled = i < node.items.size - 1,
-            modifier = Modifier.size(24.dp),
-        ) { Icon(Icons.Default.KeyboardArrowDown, contentDescription = "下へ", Modifier.size(16.dp)) }
-        ArrayDeleteButton(ctx.doc, node, i, ctx.readOnly, iconSize = 14.dp,
-            label = field.displayLabel, itemField = field.item, titleLookup = ctx.indexTitleLookup(),
-            markEdited = { ctx.markEdited() })
-    }, rowMenu = { i -> ElementOpsButton(ctx, path + i) })
+            }
+        }
+    }
 }
 
 /**
@@ -313,6 +360,14 @@ private fun ObjectTableCell(ctx: FormCtx, col: FieldDef, map: YNode.Map, itemPat
     }
 }
 
+/** 列幅の見積もりに使うセルの文字（値が無ければ null）。閲覧専用は表示の文字、属性付き参照は to の ID、複合値は数えない。 */
+private fun tableCellText(col: FieldDef, element: YNode.Map, readOnly: Boolean): String? {
+    val key = col.key ?: return null
+    val node = element.entries[key]
+    val scalar = (node as? YNode.Map)?.entries?.get("to") as? YNode.Scalar ?: node as? YNode.Scalar ?: return null
+    return if (readOnly) readOnlyCellText(col, scalar) else scalar.value?.toString()?.replace("\n", " ")
+}
+
 /** 閲覧セルの表示文字列（null = 未設定）。enum は表示ラベル、boolean は はい／いいえ。 */
 private fun readOnlyCellText(col: FieldDef, node: YNode.Scalar?): String? {
     val raw = node?.value ?: return null
@@ -357,8 +412,8 @@ private fun RefCell(ctx: FormCtx, col: FieldDef, slot: Slot) {
                 Box(Modifier.weight(1f, fill = false)) { TableCellText(id.ifBlank { null }) }
                 if (inIndex) EntityPageButton(ctx, id, iconButtonSize = 24.dp, iconSize = 14.dp)
             } else {
-                Box(Modifier.weight(1f)) { RefScalarEditor(ctx, col, idSlot, titleInField = false) }
-                EntityPageButton(ctx, id, enabled = inIndex)
+                // 横ぐしは → のメニュー（エンティティページで開く）にあるので、表のセルでは Hub を出さない（セルの幅を空ける）
+                Box(Modifier.weight(1f)) { RefScalarEditor(ctx, col, idSlot, titleInField = false, jumpButtonSize = 30.dp) }
             }
         }
         if (title != null) {

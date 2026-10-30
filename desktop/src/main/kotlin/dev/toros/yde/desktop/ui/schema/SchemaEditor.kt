@@ -31,6 +31,7 @@ import dev.toros.yde.app.schema.validateDefinition
 import dev.toros.yde.workspace.SchemaIssue
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.desktop.AppState
+import dev.toros.yde.desktop.FormSurface
 import dev.toros.yde.desktop.OpenDocument
 import dev.toros.yde.desktop.ui.common.AppFonts
 import dev.toros.yde.desktop.ui.common.ChoiceMenu
@@ -236,7 +237,7 @@ private fun SchemaPreview(state: AppState, sourceDoc: OpenDocument, schema: Sche
             Text("サンプルデータ", fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             if (!source) {
                 val document = state.documentOf(sourceDoc.file)
-                FormDisplayControls(state.memory.formDisplay, document, state.memory.navigation(document, false))
+                FormDisplayControls(state.memory.formDisplay, document, state.memory.navigation(document, FormSurface.FORM))
             }
             TextButton(onClick = { source = false }) { Text("フォーム", fontSize = 11.sp) }
             TextButton(onClick = { source = true }) { Text("YAML", fontSize = 11.sp) }

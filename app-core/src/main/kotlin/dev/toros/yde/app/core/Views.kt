@@ -138,6 +138,10 @@ object Views {
         /** 文書に適用する文書ビュー。スキーマの match と同じ「定義ファイル名順の先勝ち」。 */
         fun docViewFor(relPath: String, schemaId: String?): DocViewDef? =
             docViews.firstOrNull { it.appliesTo(relPath, schemaId) }
+
+        /** 文書に当たる文書ビューのすべて（定義ファイル名順。画面のビューのタブで選ぶ。先頭が docViewFor と同じ既定）。 */
+        fun docViewsFor(relPath: String, schemaId: String?): List<DocViewDef> =
+            docViews.filter { it.appliesTo(relPath, schemaId) }
     }
 
     /**
@@ -298,7 +302,8 @@ object Views {
         fun treeOf(d: DocumentId): YNode? = trees.getOrPut(d) { loader(d) }
         return VirtualViews.resolveDocument(
             view, document, index.entries, index.refs, index.graph, localIds, { it.value }, ::treeOf,
-            gridRows = { id, params -> catalog?.view(id)?.let { grid -> grid to resolve(grid, index, ::treeOf, schemaFor, params) } },
+            gridDef = { id -> catalog?.view(id) },
+            gridRows = { grid, params -> resolve(grid, index, ::treeOf, schemaFor, params) },
         )
     }
 

@@ -6,6 +6,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
@@ -19,7 +20,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.toros.yde.app.core.DocViewDef
 import dev.toros.yde.desktop.AppState
+import dev.toros.yde.desktop.EditorTab
+import dev.toros.yde.desktop.FormSurface
 import dev.toros.yde.desktop.OpenDocument
 import dev.toros.yde.desktop.ui.common.ActionMenuItem
 import dev.toros.yde.desktop.ui.common.ChoiceMenu
@@ -103,33 +107,68 @@ internal fun EditorDocumentHeader(state: AppState, doc: OpenDocument, title: Str
     }
 }
 
-/** 編集方式とスキーマの補助画面を一段で切り替える。保存済みのタブの値は変更しない。 */
+/**
+ * 編集方式とスキーマの補助画面を一段で切り替える。保存済みのタブの値は変更しない。
+ * 業務の文書は「フォーム・ビュー・ソース・差分」。docViews が null ならビューのタブを出さない（スキーマの文書・台帳の外の文書）。
+ * 空なら押せない形で出し、文書ビューの書き方を添える。複数当たるときはビューのタブの ▾ で選び、選んだものを文書ごとに覚える。
+ */
 @Composable
-internal fun EditorModeBar(state: AppState, doc: OpenDocument, schemaDocument: Boolean, tab: Int) {
+internal fun EditorModeBar(
+    state: AppState, doc: OpenDocument, schemaDocument: Boolean, tab: EditorTab,
+    docViews: List<DocViewDef>? = null, chosenView: DocViewDef? = null,
+) {
     val document = state.documentOf(doc.file)
     val schemaMode = state.memory.schemaTab[document] ?: 0
     var menu by remember(doc) { mutableStateOf(false) }
-    fun openSchema(mode: Int) { state.memory.schemaTab[document] = mode; state.editorTab = 0 }
+    var viewMenu by remember(doc) { mutableStateOf(false) }
+    fun openSchema(mode: Int) { state.memory.schemaTab[document] = mode; state.editorTab = EditorTab.FORM }
     Row(Modifier.fillMaxWidth().background(Palette.Surface).padding(horizontal = 8.dp).height(40.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        EditorModeButton(if (schemaDocument) "設計" else "フォーム", tab == 0 && (!schemaDocument || schemaMode == 0)) {
-            if (schemaDocument) openSchema(0) else state.editorTab = 0
+        EditorModeButton(if (schemaDocument) "設計" else "フォーム", tab == EditorTab.FORM && (!schemaDocument || schemaMode == 0)) {
+            if (schemaDocument) openSchema(0) else state.editorTab = EditorTab.FORM
         }
-        EditorModeButton("ソース", tab == 1) { state.editorTab = 1 }
-        EditorModeButton("差分", tab == 2) { state.editorTab = 2 }
+        if (docViews != null) {
+            if (docViews.isEmpty()) {
+                UiTooltip("この文書に当たる文書ビューはありません。ビューの定義（.yde/views）に kind: document と、" +
+                    "適用先の match（ファイルの glob）か schemaId を書くと、ここで表示を合成できます") {
+                    EditorModeButton("ビュー", selected = false, enabled = false) {}
+                }
+            } else {
+                EditorModeButton("ビュー: ${chosenView?.name ?: docViews.first().name}", tab == EditorTab.VIEW) {
+                    state.editorTab = EditorTab.VIEW
+                }
+                if (docViews.size > 1) Box {
+                    UiTooltip("当たる文書ビューを選ぶ（${docViews.size} 件）") {
+                        IconButton(onClick = { viewMenu = true }, modifier = Modifier.size(28.dp)) {
+                            Icon(Icons.Default.ArrowDropDown, "ビューを選ぶ", Modifier.size(18.dp))
+                        }
+                    }
+                    ChoiceMenu(viewMenu, { viewMenu = false }, docViews.map { v ->
+                        ChoiceOption(v.id, v.name, v.id, selected = v.id == chosenView?.id)
+                    }, onSelect = { id -> state.memory.docViewChoice[document] = id; state.editorTab = EditorTab.VIEW })
+                }
+            }
+        }
+        EditorModeButton("ソース", tab == EditorTab.SOURCE) { state.editorTab = EditorTab.SOURCE }
+        EditorModeButton("差分", tab == EditorTab.DIFF) { state.editorTab = EditorTab.DIFF }
         Spacer(Modifier.weight(1f))
-        if (tab == 0 && (!schemaDocument || schemaMode == 0) || tab == 3) {
-            FormDisplayControls(state.memory.formDisplay, document, state.memory.navigation(document, schemaDocument && tab == 0))
+        if (tab.formFamily && (!schemaDocument || schemaMode == 0) || tab == EditorTab.META_FORM) {
+            val surface = when {
+                tab == EditorTab.VIEW -> FormSurface.VIEW
+                schemaDocument && tab == EditorTab.FORM -> FormSurface.SCHEMA
+                else -> FormSurface.FORM
+            }
+            FormDisplayControls(state.memory.formDisplay, document, state.memory.navigation(document, surface))
         }
         if (schemaDocument) {
             val auxiliary = when {
-                tab == 3 -> "汎用フォーム"
-                tab == 0 && schemaMode == 2 -> "適用対象"
+                tab == EditorTab.META_FORM -> "汎用フォーム"
+                tab == EditorTab.FORM && schemaMode == 2 -> "適用対象"
                 else -> "プレビュー"
             }
-            EditorModeButton(auxiliary, tab == 3 || tab == 0 && schemaMode != 0) {
+            EditorModeButton(auxiliary, tab == EditorTab.META_FORM || tab == EditorTab.FORM && schemaMode != 0) {
                 when (auxiliary) {
-                    "汎用フォーム" -> state.editorTab = 3
+                    "汎用フォーム" -> state.editorTab = EditorTab.META_FORM
                     "適用対象" -> openSchema(2)
                     else -> openSchema(1)
                 }
@@ -141,21 +180,23 @@ internal fun EditorModeBar(state: AppState, doc: OpenDocument, schemaDocument: B
                     }
                 }
                 ChoiceMenu(menu, { menu = false }, listOf(
-                    ChoiceOption(1, "プレビュー", selected = tab == 0 && schemaMode == 1),
-                    ChoiceOption(2, "適用対象", selected = tab == 0 && schemaMode == 2),
-                    ChoiceOption(3, "汎用フォーム", selected = tab == 3),
-                ), onSelect = { if (it == 3) state.editorTab = 3 else openSchema(it) })
+                    ChoiceOption(1, "プレビュー", selected = tab == EditorTab.FORM && schemaMode == 1),
+                    ChoiceOption(2, "適用対象", selected = tab == EditorTab.FORM && schemaMode == 2),
+                    ChoiceOption(3, "汎用フォーム", selected = tab == EditorTab.META_FORM),
+                ), onSelect = { if (it == 3) state.editorTab = EditorTab.META_FORM else openSchema(it) })
             }
         }
     }
 }
 
 @Composable
-private fun EditorModeButton(label: String, selected: Boolean, onClick: () -> Unit) {
-    Column(Modifier.width(IntrinsicSize.Max).widthIn(min = 56.dp).fillMaxHeight().selectable(selected, role = Role.Tab, onClick = onClick)) {
+private fun EditorModeButton(label: String, selected: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
+    Column(Modifier.width(IntrinsicSize.Max).widthIn(min = 56.dp, max = 320.dp).fillMaxHeight()
+        .selectable(selected, enabled = enabled, role = Role.Tab, onClick = onClick)) {
         Box(Modifier.weight(1f).padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
-            Text(label, fontSize = 12.sp, color = if (selected) Palette.Primary else Palette.SubText,
-                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal, maxLines = 1)
+            Text(label, fontSize = 12.sp,
+                color = when { !enabled -> Palette.Border; selected -> Palette.Primary; else -> Palette.SubText },
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Box(Modifier.fillMaxWidth().height(2.dp).background(if (selected) Palette.Primary else Palette.Surface))
     }

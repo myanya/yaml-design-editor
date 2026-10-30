@@ -36,12 +36,12 @@ class HistoryLocationTest {
     fun `UndoとRedoは元のファイルとタブへ戻り移動前の場所へも戻れる`() {
         val s = state()
         s.openFile(a)
-        s.editorTab = 0
+        s.editorTab = EditorTab.FORM
         edit(s.openDoc!!, "編集後")
         s.openFile(b)
         s.undo()
         assertEquals(a, s.openDoc!!.file)
-        assertEquals(0, s.editorTab)
+        assertEquals(EditorTab.FORM, s.editorTab)
         assertEquals("最初", title(s.openDoc!!))
         s.goBack()
         assertEquals(b, s.openDoc!!.file)
@@ -89,18 +89,18 @@ class HistoryLocationTest {
     fun `ソースの反映前に別画面へ移動してもソースタブへ戻る`() {
         val s = state()
         s.openFile(a)
-        s.editorTab = 1
+        s.editorTab = EditorTab.SOURCE
         s.openDoc!!.editSource { replace(0, length, "id: A\ntitle: ソース編集\n") }
         s.openViewGrid("tasks")
         s.undo()
         assertEquals(UiSpace.EDIT, s.uiSpace)
         assertEquals(a, s.openDoc!!.file)
-        assertEquals(1, s.editorTab)
+        assertEquals(EditorTab.SOURCE, s.editorTab)
         assertEquals("最初", title(s.openDoc!!))
         s.openFile(b)
         s.redo()
         assertEquals(a, s.openDoc!!.file)
-        assertEquals(1, s.editorTab)
+        assertEquals(EditorTab.SOURCE, s.editorTab)
         assertEquals("ソース編集", title(s.openDoc!!))
     }
 

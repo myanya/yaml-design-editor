@@ -140,7 +140,7 @@ class AppStateActionTest {
         state.openFile(dir.resolve("list.yaml"))
         val doc = state.openDoc!!
         val ids = listOf("IT-1", "IT-2").flatMap { state.overlayIndex().occurrences(it) }
-        state.memory.navigation(state.documentOf(doc.file), false).actionTarget = "IT-1"
+        state.memory.navigation(state.documentOf(doc.file), FormSurface.FORM).actionTarget = "IT-1"
         state.openCrossView("IT-2")
         val selected = actionPanelContext(state, doc, ids)
         assertEquals("IT-2", selected.targetId)

@@ -261,7 +261,7 @@ private fun BacklinkItems(state: AppState, def: DocBacklinksDef, row: DocBacklin
                 .clickable {
                     // 参照元の位置へジャンプ（参照値そのものの位置。SidePanel の被参照と同じ経路）
                     state.openFile(b.document, b.refPath)
-                    state.editorTab = 0
+                    state.landOnForm(keepSource = false)
                 }
                 .padding(vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,

@@ -32,6 +32,7 @@ import dev.toros.yde.yaml.validate.Severity
 import dev.toros.yde.app.validate.Validator
 import java.nio.file.Path
 import dev.toros.yde.desktop.AppState
+import dev.toros.yde.desktop.EditorTab
 import dev.toros.yde.desktop.UiSpace
 import dev.toros.yde.desktop.ui.action.ActionPanelHost
 import dev.toros.yde.desktop.ui.common.CompactTextField
@@ -437,17 +438,27 @@ fun EditorArea(state: AppState) {
         }
         EditorDocumentHeader(state, doc,
             if (isSchemaFile) doc.file.fileName.toString() else documentName ?: doc.file.fileName.toString())
-        // スキーマ文書ではタブ3にメタスキーマ（R11-02）のフォーム編集を追加する（設計UIが主要UXのまま）
-        val tab = if (!isSchemaFile && state.editorTab == 3) 0 else state.editorTab
+        // ビューのタブ: 台帳の文書だけに出し（スキーマの文書・台帳の外は null）、当たる文書ビューを定義ファイル名順に並べる。
+        // 選んだもの（覚え）が今は当たらなければ先頭（定義ファイル名順の先勝ち＝今までの既定）
+        val document = state.documentOf(doc.file)
+        val rel = state.relPath(doc.file)
+        val ledgerDocument = !isSchemaZone && state.layout.inLedger(rel)
+        val docViews = remember(state.indexVersion, state.editVersion, doc.file, doc.schema, ledgerDocument) {
+            if (ledgerDocument) state.docViewsFor(doc.file) else emptyList()
+        }
+        val chosenView = docViews.firstOrNull { it.id == state.memory.docViewChoice[document] } ?: docViews.firstOrNull()
+        // 今の文書で出せるタブに直して描く（ビューが無くなった・スキーマ文書でない文書のメタスキーマのフォーム → フォーム）。覚えは変えない
+        val tab = EditorTab.fit(state.editorTab, isSchemaFile, docViews.isNotEmpty())
         // ソースの書きかけ・壊れたまま保存の案内（P43 R43-02・04）。ソースタブ自身は欄の上に出すので除く
-        if (tab != 1) SourceDraftBanner(state, doc)
-        EditorModeBar(state, doc, isSchemaFile, tab)
+        if (tab != EditorTab.SOURCE) SourceDraftBanner(state, doc)
+        EditorModeBar(state, doc, isSchemaFile, tab, docViews = if (ledgerDocument) docViews else null, chosenView = chosenView)
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when (tab) {
-                0 -> if (isSchemaFile) SchemaEditor(state, doc) else FormView(state, doc)
-                1 -> SourcePane(state, doc)
-                2 -> DiffPane(doc)
-                else -> FormView(state, doc)
+                EditorTab.FORM -> if (isSchemaFile) SchemaEditor(state, doc) else FormView(state, doc)
+                EditorTab.VIEW -> FormView(state, doc, docView = chosenView)
+                EditorTab.SOURCE -> SourcePane(state, doc)
+                EditorTab.DIFF -> DiffPane(doc)
+                EditorTab.META_FORM -> FormView(state, doc)
             }
         }
     }
