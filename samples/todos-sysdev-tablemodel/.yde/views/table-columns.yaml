@@ -1,0 +1,66 @@
+id: tm-table-columns
+name: テーブル定義（カラム）
+description: テーブル（業務エンティティの物理の側面）が持つカラムごとに、論理の側と業務型・型対応を辿って、物理名・論理名・SQL 型・NULL 可否・主キー・外部キー先を 1 行にする。受け取る値 table（テーブルの ID。空なら全テーブル）で絞る。物理テーブルの文書を開くと、複合文書ビューがこの表を埋め込む。
+params: [table]
+rows:
+  match:
+    - node: { entity: todo-concept, bind: t }
+    - edge: { relation: has-column }
+    - node: { entity: todo-attribute, bind: a }
+    - edge: { relation: attribute-type }
+    - node: { entity: todo-datatype, bind: d }
+  where:
+    - { of: t, path: id, equals: $table }
+  rowKey: a
+columns:
+  - { label: テーブルID, of: t, path: id }
+  - { label: テーブル, of: t, schemaId: tm-physical, path: physical_name }
+  - { label: 物理名, of: a, schemaId: tm-physical, path: physical_name, editable: true }
+  - { label: 論理名, of: a, schemaId: tm-logical, path: name }
+  - { label: SQL型, of: d, schemaId: tm-mapping, path: sql_type }
+  - label: NULL可否
+    of: a
+    schemaId: tm-logical
+    value: { map: { path: required }, using: { "true": "NOT NULL", "false": "NULL" } }
+  - label: PK
+    of: a
+    value:
+      count:
+        all:
+          from: a
+          of: pk
+          match:
+            - node: { entity: todo-attribute, bind: col }
+            - edge: { relation: primary-key, dir: in }
+            - node: { entity: todo-concept, bind: pk }
+  - label: FK先テーブル
+    of: a
+    value:
+      all:
+        from: a
+        of: tt
+        in: { schemaId: tm-physical }
+        path: physical_name
+        match:
+          - node: { entity: todo-attribute, bind: col }
+          - edge: { row: { from: { relation: column-use }, to: { relation: foreign-key-target } } }
+          - node: { entity: todo-attribute, bind: tgt }
+          - edge: { relation: has-column, dir: in }
+          - node: { entity: todo-concept, bind: tt }
+  - label: FK先カラム
+    of: a
+    value:
+      all:
+        from: a
+        of: tgt
+        in: { schemaId: tm-physical }
+        path: physical_name
+        match:
+          - node: { entity: todo-attribute, bind: col }
+          - edge: { row: { from: { relation: column-use }, to: { relation: foreign-key-target } } }
+          - node: { entity: todo-attribute, bind: tgt }
+  - { label: 業務型, of: d, schemaId: tm-types, path: name }
+  - { label: 最大文字数, of: d, schemaId: tm-types, path: max_length }
+  - { label: 形式, of: d, schemaId: tm-types, path: pattern }
+  - { label: 選択肢, of: d, schemaId: tm-types, path: values }
+  - { label: 元となる情報, of: a, schemaId: tm-logical, path: source }

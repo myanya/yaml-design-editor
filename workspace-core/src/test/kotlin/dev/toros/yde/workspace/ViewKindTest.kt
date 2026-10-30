@@ -75,7 +75,7 @@ class ViewKindTest {
         val bare = ViewDefinitions.load(sources)
         assertTrue(bare.extensionViews.isEmpty())
         assertTrue(bare.errors.any { it == "a.yaml: kind は grid / document / matrix / lens / dashboard のいずれかである必要があります: note" }, bare.errors.toString())
-        assertTrue(bare.errors.any { "d.yaml" in it && "fields / backlinks のいずれか一方" in it }, bare.errors.toString())
+        assertTrue(bare.errors.any { "d.yaml" in it && "fields / backlinks / grid のいずれか一方" in it }, bare.errors.toString())
     }
 
     @Test

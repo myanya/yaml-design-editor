@@ -1,0 +1,18 @@
+id: tm-physical-doc
+name: 物理テーブル定義書
+kind: document
+schemaId: tm-physical
+description: 物理テーブルの文書を開いたとき、同じ ID の概念・論理の側面（別の文書）と、このテーブルのカラム定義表を 1 枚に合成する複合文書ビュー。側面の区画の編集はそれぞれの文書へ流れる。
+sections:
+  - { label: テーブル（物理）, fields: { include: [id, physical_name] } }
+  # 同じ ID の概念の側面（model/business.yaml の要素）。編集は business.yaml へ
+  - { label: 業務上の意味（概念）, fields: { in: { schemaId: todos-business }, include: [meaning] } }
+  # カラム定義の表: 受け取る値 table にこの文書の ID を渡し、論理属性・業務型・型対応を辿った型・NULL 可否・PK・FK 先を導く
+  - { label: カラム定義, grid: { view: tm-table-columns, params: { table: { path: id } } } }
+  # 同じ ID の論理の側面（model/20_logical/ENT-*.yaml）。編集は論理の文書へ
+  - { label: 属性と識別子（論理）, fields: { in: { schemaId: tm-logical }, include: [attributes, key, notes] } }
+  - { label: キー・索引・条件, fields: { include: [primary_key, foreign_keys, indexes, checks] } }
+  - { label: 物理設計の判断, fields: { include: [physical_notes] } }
+  - { label: このテーブルのカラムを参照する外部キー, backlinks: { idPattern: "ATTR-*", relation: foreign-key-target } }
+attachments:
+  - { at: "columns[*]", label: このカラムを使う索引, backlinks: { relation: index-column } }

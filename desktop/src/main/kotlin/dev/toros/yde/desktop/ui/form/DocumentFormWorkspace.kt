@@ -36,7 +36,8 @@ internal fun documentViewOutline(items: List<FormOutlineItem>, view: DocViewDef?
     items.firstOrNull()?.let { visible[it.path] = it }
     items.filter { it.path.firstOrNull() == "_document" }.forEach { visible[it.path] = it }
     view.sections.forEachIndexed { i, section ->
-        val path = section.fieldsPath
+        // 開いた文書のフォーム区画だけが原本項目を映す。別の出現・表・被参照・埋め込みは「関連情報」の 1 項目
+        val path = section.fieldsPath?.takeIf { section.isLocalFields }
         if (path == null) {
             val key = listOf("@view", i)
             visible[key] = FormOutlineItem(key, emptyList(), section.label ?: "関連情報 ${i + 1}", depth = 1)
@@ -112,8 +113,8 @@ internal fun DocumentFormWorkspace(ctx: FormCtx, root: YNode, view: DocViewDef?,
                             DocViewSections(ctx, view.copy(sections = listOf(view.sections[viewIndex])), root, localIds)
                         } else if (selectedPath == listOf("_document") && root is YNode.Map) {
                             DocumentMetadataEditor(ctx, root)
-                        } else if (view != null && root is YNode.Map && view.sections.any { it.fieldsPath == selectedPath }) {
-                            DocViewSections(ctx, view.copy(sections = view.sections.filter { it.fieldsPath == selectedPath }), root, localIds)
+                        } else if (view != null && root is YNode.Map && view.sections.any { it.isLocalFields && it.fieldsPath == selectedPath }) {
+                            DocViewSections(ctx, view.copy(sections = view.sections.filter { it.isLocalFields && it.fieldsPath == selectedPath }), root, localIds)
                         } else {
                             val slot = slotAt(root, selectedPath)
                             if (slot != null) {

@@ -18,7 +18,9 @@ import dev.toros.yde.app.core.DocBacklinksDef
 import dev.toros.yde.app.core.DocSectionResolved
 import dev.toros.yde.app.core.DocViewDef
 import dev.toros.yde.app.core.Views
+import dev.toros.yde.app.index.DocScanner
 import dev.toros.yde.app.index.IdEntry
+import dev.toros.yde.app.index.IdIndex
 import dev.toros.yde.semantic.schema.Relations
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.YPath
@@ -73,24 +75,31 @@ internal fun SchemaRootForm(
 internal fun DocViewSections(ctx: FormCtx, view: DocViewDef, root: YNode.Map, localIds: List<IdEntry>) {
     val state = ctx.state
     val doc = ctx.doc
-    // 行（文書内ID）は未保存編集を反映（localIds）、被参照は索引＝保存済み状態基準（SidePanel と同じ）
-    val resolved = remember(doc, doc.version, state.indexVersion, view) {
-        state.workspace?.let { ws ->
-            Views.resolveDocument(view, state.documentOf(doc.file), state.overlayIndex(), localIds) { d ->
-                state.unsavedFirstTree()(d)
-            }
-        }.orEmpty()
+    val ws = state.workspace
+    // 表の区画（grid）は表の定義を目録から引く（索引の更新ごとに読み直す）
+    val catalog = remember(ws, state.indexVersion) { ws?.let { Views.load(it, state.schemas, state.unsavedFirstTree()) } }
+    // 行（文書内ID）は未保存編集を反映（localIds）、被参照は索引＝保存済み状態基準（SidePanel と同じ）。
+    // 表の区画は未保存の編集にも追随する（editVersion）
+    val resolved = remember(doc, doc.version, state.indexVersion, state.editVersion, view, catalog) {
+        if (ws == null) emptyList() else Views.resolveDocument(
+            view, state.documentOf(doc.file), state.overlayIndex(), localIds,
+            loader = state.unsavedFirstTree(), schemaFor = state::schemaFor, catalog = catalog,
+        )
     }
     resolved.forEachIndexed { i, sectionResolved ->
         val section = sectionResolved.section
-        FormAnchor(section.fieldsPath ?: listOf("@view", i)) { Column(Modifier.fillMaxWidth()) {
+        FormAnchor(if (section.isLocalFields) section.fieldsPath!! else listOf("@view", i)) { Column(Modifier.fillMaxWidth()) {
             if (i > 0) Spacer(Modifier.height(12.dp))
             section.label?.let {
                 Text(it, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Palette.Primary)
                 Spacer(Modifier.height(4.dp))
             }
             val fieldsPath = section.fieldsPath
-            if (fieldsPath != null) {
+            if (section.fieldsIn != null) {
+                OccurrenceSection(state, sectionResolved)
+            } else if (section.grid != null) {
+                GridSection(state, sectionResolved)
+            } else if (fieldsPath != null) {
                 val include = section.fieldsInclude.ifEmpty { null }
                 val exclude = section.fieldsExclude.toSet()
                 if (fieldsPath.isEmpty()) {
@@ -120,6 +129,100 @@ internal fun DocViewSections(ctx: FormCtx, view: DocViewDef, root: YNode.Map, lo
                 }
             }
         } }
+    }
+}
+
+/**
+ * 同じ ID の別の出現（側面）の区画（`fields: {in: …}`。複合文書ビュー 段階 1）。出現の文書を `state.ensureDoc` で docCache へ取り込み、
+ * その要素の所有フィールドをエンティティページの側面カードと同じ経路（FormCtx ＋ Slot ＋ markEdited）で編集する。
+ * 出どころが原本 1 か所の部分木なので、そのままフォームとして編集できる（ビュー専用の書込経路は作らない）。
+ */
+@Composable
+private fun OccurrenceSection(state: AppState, resolved: DocSectionResolved) {
+    val section = resolved.section
+    val occ = resolved.occurrence
+    if (occ == null) {
+        Text(resolved.reason ?: "同じ ID の出現がありません", fontSize = 11.sp, color = Palette.WarnOrange)
+        return
+    }
+    val doc = state.ensureDoc(occ.document)
+    doc.version
+    state.indexVersion
+    val root = doc.root
+    val map = root?.let { getAt(it, occ.path) as? YNode.Map }
+    val objectField = remember(doc, doc.version) {
+        root?.let { r -> doc.schema?.let { Views.fieldAt(it, r, occ.path) } }
+    }
+    Column(
+        Modifier.fillMaxWidth().background(Palette.Surface, PanelShape)
+            .border(1.dp, Palette.Border, PanelShape).padding(10.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                listOfNotNull(
+                    occ.document.value,
+                    occ.schemaId?.let { "スキーマ: $it" },
+                    occ.path.pretty().takeIf { it != "(root)" },
+                ).joinToString(" ／ "),
+                fontSize = 10.sp, color = Palette.SubText, modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = { state.navigateToOccurrence(occ) }, modifier = Modifier.size(30.dp)) {
+                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "開く", Modifier.size(16.dp), tint = Palette.Primary)
+            }
+        }
+        if (root == null) {
+            Text(
+                "YAML を解析できないため編集できません: ${doc.parseError ?: "不明なエラー"}",
+                fontSize = 11.sp, color = Palette.ErrorRed,
+            )
+            return@Column
+        }
+        val localIds = remember(doc, doc.version) {
+            val documentId = IdIndex.documentIdOf(root, state.relPath(doc.file))
+            DocScanner.scan(root, state.documentOf(doc.file), doc.schema, documentId).first
+        }
+        val ctx = remember(doc, doc.version, state.indexVersion, state.readOnlyMode, doc.draftBroken) {
+            FormCtx(state, doc, localIds, baseDepth = occ.path.size)
+        }
+        val include = section.fieldsInclude.ifEmpty { null }
+        val exclude = section.fieldsExclude.toSet()
+        when {
+            map == null -> Text(
+                "この要素が見つかりません（構造が変わった可能性があります）",
+                fontSize = 11.sp, color = Palette.WarnOrange,
+            )
+            objectField?.type == FieldType.OBJECT -> ObjectFields(ctx, objectField.fields, map, occ.path, include, exclude)
+            else -> {
+                val slot = if (occ.path.isEmpty()) RootSlot(doc) else slotAt(root, occ.path)
+                if (slot != null) GenericEditor(ctx, slot, occ.path, refHint = true)
+                else Text("この要素を編集できません", fontSize = 11.sp, color = Palette.WarnOrange)
+            }
+        }
+    }
+}
+
+/**
+ * 表の区画（`grid: {view, params}`。複合文書ビュー 段階 1）。受け取る値は開いた文書の値で、行は台帳のビュータブと同じ表で描く
+ * （セルの編集は表の経路＝原本の木の直接編集）。表は遅延描画でフォームの縦スクロールの中にあるので、行数に応じた高さを与える。
+ */
+@Composable
+private fun GridSection(state: AppState, resolved: DocSectionResolved) {
+    val grid = resolved.section.grid ?: return
+    val rows = resolved.gridRows
+    val view = resolved.gridView
+    if (rows == null || view == null) {
+        Text("表「${grid.view}」を解決できません: ${resolved.reason ?: "不明"}", fontSize = 11.sp, color = Palette.WarnOrange)
+        return
+    }
+    val params = resolved.gridParams.orEmpty().entries.joinToString(", ") { (k, v) -> "$k = $v" }
+    Text(
+        "表: ${view.name}" + (if (params.isNotEmpty()) "（$params）" else "") + "  ${rows.size} 行",
+        fontSize = 10.sp, color = Palette.SubText,
+    )
+    Spacer(Modifier.height(4.dp))
+    val height = (40 + rows.size.coerceIn(1, 12) * 46).dp
+    Box(Modifier.fillMaxWidth().height(height).border(1.dp, Palette.Border, PanelShape)) {
+        LocalFormSlots.current.embeddedGrid(state, view, rows)
     }
 }
 

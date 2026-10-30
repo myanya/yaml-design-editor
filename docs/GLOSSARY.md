@@ -87,6 +87,8 @@
 | 射影 | 原本から導いて見せるだけで自分のデータを持たないもの（ビュー・計算列・受信箱）で、編集は原本の座標へ戻す | データベースのビュー・CQRS の読み取りモデル | [architecture/views.md「ビュー機構」](architecture/views.md)・[architecture/transform.md「計算列と決定論的射影」](architecture/transform.md) |
 | ビュー | 原本の要素を表・クロス集計・図・文書の形に並べる定義（`_views`）で、射影の 1 つ | スプレッドシートのピボット・DB のビュー | [architecture/views.md「ビュー機構」](architecture/views.md) |
 | ビューの種類 | ビューの定義の `kind`（grid・document・matrix・lens・dashboard は中核、chart・flow は差し込み口を通る組込み） | プラグインの種別 | [architecture/views.md「ビューの種類の差し込み口」](architecture/views.md) |
+| 複合文書ビュー | 文書ビュー（`kind: document`）の区画に、同じ ID の別の側面のフォーム（`fields.in`）や、その文書の値を受け取る値にした表（`grid`）を置き、複数の文書を 1 枚で読み書きする形 | マスター詳細画面・合成ビュー | [architecture/views.md「文書ビュー」](architecture/views.md)・[manual/views.md「複合文書ビュー」](manual/views.md) |
+| 射影ビュー | （構想）変換のひな型で組んだ任意の木を、見せ方の契約（スキーマと同じ書き方）と出どころで編集面にするビュー。複合文書ビューはその部分集合 | テンプレートで組んだ画面・XSLT の出力 | [ROADMAP「複合文書ビューと射影ビュー」](ROADMAP.md) |
 | 区画 | ダッシュボードの 1 枚のタイルで、表の行を条件で絞った件数と一覧を出し、詳細と操作へ進む | ダッシュボードのウィジェット | [architecture/dashboards.md「流れ」](architecture/dashboards.md) |
 | 共有の入力 | ダッシュボードの全区画に渡す入力（`inputs`）で、空のときは絞らない | ダッシュボードのフィルタ・パラメータ | [architecture/dashboards.md「規律」](architecture/dashboards.md) |
 | レンズ | エンティティと線を箱と矢印で描く図（グラフレンズ）で、起点の近くや型・関係で絞って見る | グラフの可視化 | [architecture/graph-query.md「スキーマレンズ」](architecture/graph-query.md)・[manual/views.md「レンズの見え方」](manual/views.md) |

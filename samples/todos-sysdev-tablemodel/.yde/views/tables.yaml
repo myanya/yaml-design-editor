@@ -1,0 +1,30 @@
+id: tm-tables
+name: テーブル一覧
+description: テーブル（業務エンティティの物理の側面）ごとに、名称・意味・主キー・外部キー・索引・条件・設計判断を 1 行にする。レポート「テーブル定義書」の入力。
+rows:
+  idPattern: ENT-*
+columns:
+  - { label: 物理名, schemaId: tm-physical, path: physical_name }
+  - { label: 論理名, schemaId: todos-business, path: name }
+  - { label: 業務上の意味, schemaId: todos-business, path: meaning }
+  - label: 主キー
+    schemaId: tm-physical
+    value:
+      all:
+        of: pk
+        in: { schemaId: tm-physical }
+        path: physical_name
+        match:
+          - node: { entity: todo-concept, bind: tb }
+          - edge: { relation: primary-key }
+          - node: { entity: todo-attribute, bind: pk }
+  # カラムの物理名を定義順に（物理の文書の columns の並び）
+  - label: カラム（定義順）
+    schemaId: tm-physical
+    value:
+      each: { path: columns }
+      value: { format: "{physical_name}" }
+  - { label: 外部キー, schemaId: tm-physical, path: foreign_keys }
+  - { label: 索引, schemaId: tm-physical, path: indexes }
+  - { label: 条件, schemaId: tm-physical, path: checks }
+  - { label: 物理設計の判断, schemaId: tm-physical, path: physical_notes }

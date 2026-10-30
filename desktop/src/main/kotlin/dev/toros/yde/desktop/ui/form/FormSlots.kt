@@ -4,6 +4,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.unit.sp
+import dev.toros.yde.app.core.ViewDef
+import dev.toros.yde.app.core.ViewRow
 import dev.toros.yde.semantic.VirtualDocEmbed
 import dev.toros.yde.semantic.schema.FieldDef
 import dev.toros.yde.yaml.model.YPath
@@ -25,6 +27,9 @@ internal data class FormSlots(
     /** 文書ビューの区画に埋め込んだ拡張の種類のビュー（`flow: {view}`・`chart: {view}` など）。 */
     val embeddedView: @Composable (state: AppState, doc: OpenDocument, embed: VirtualDocEmbed) -> Unit =
         { _, _, embed -> MissingPart("「${embed.label}」（kind: ${embed.kind}）") },
+    /** 文書ビューの区画に埋め込んだ表（`grid: {view, params}`。複合文書ビュー 段階 1）。解決した行を台帳のビュータブと同じ表で描く。 */
+    val embeddedGrid: @Composable (state: AppState, view: ViewDef, rows: List<ViewRow>) -> Unit =
+        { _, view, _ -> MissingPart("表「${view.id}」") },
     /** スキーマを書いているときだけ渡す。null は業務の文書のフォーム。 */
     val schemaAuthoring: SchemaAuthoring? = null,
 )

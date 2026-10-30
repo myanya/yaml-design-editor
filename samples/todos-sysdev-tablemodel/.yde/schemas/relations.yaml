@@ -4,130 +4,29 @@ entities:
   - type: todo-concept
     label: 業務エンティティ
     aspects:
-      - name: conceptual
-        label: 概念
-      - name: logical
-        label: 論理
+      - { name: conceptual, label: 概念 }
+      - { name: logical, label: 論理 }
+      - { name: physical, label: 物理 }
+  - type: todo-attribute
+    label: 属性
+    aspects:
+      - { name: logical, label: 論理 }
+      - { name: physical, label: 物理（カラム） }
+  - type: todo-datatype
+    label: 業務データ型
+    aspects:
+      - { name: logical, label: 論理 }
+      - { name: physical, label: 物理（SQLの型） }
 relations:
-  - name: association-source
-    label: association-source
-    inverseLabel: "被参照: association-source"
-    source:
-      - todo-association
-    target:
-      - todo-concept
-  - name: association-target
-    label: association-target
-    inverseLabel: "被参照: association-target"
-    source:
-      - todo-association
-    target:
-      - todo-concept
-  - name: operates-on
-    label: operates-on
-    inverseLabel: "被参照: operates-on"
-    source:
-      - todo-operation
-    target:
-      - todo-concept
-  - name: has-attribute
-    label: has-attribute
-    inverseLabel: "被参照: has-attribute"
-    source:
-      - todo-concept
-    target:
-      - todo-attribute
-  - name: attribute-type
-    label: attribute-type
-    inverseLabel: "被参照: attribute-type"
-    source:
-      - todo-attribute
-    target:
-      - todo-datatype
-  - name: attribute-reference
-    label: attribute-reference
-    inverseLabel: "被参照: attribute-reference"
-    source:
-      - todo-attribute
-    target:
-      - todo-concept
-  - name: logical-key
-    label: logical-key
-    inverseLabel: "被参照: logical-key"
-    source:
-      - todo-concept
-    target:
-      - todo-attribute
-  - name: maps-type
-    label: maps-type
-    inverseLabel: "被参照: maps-type"
-    source:
-      - todo-type-mapping
-    target:
-      - todo-datatype
-    cardinality:
-      outMin: 1
-      outMax: 1
-      inMin: 1
-      inMax: 1
-    level: error
-  - name: implements-entity
-    label: implements-entity
-    inverseLabel: "被参照: implements-entity"
-    source:
-      - todo-table
-    target:
-      - todo-concept
-    cardinality:
-      outMin: 1
-      outMax: 1
-      inMin: 1
-    level: error
-  - name: implements-attribute
-    label: implements-attribute
-    inverseLabel: "被参照: implements-attribute"
-    source:
-      - todo-column
-    target:
-      - todo-attribute
-    cardinality:
-      outMin: 1
-      outMax: 1
-      inMin: 1
-      inMax: 1
-    level: error
-  - name: has-column
-    label: has-column
-    inverseLabel: "被参照: has-column"
-    source:
-      - todo-table
-    target:
-      - todo-column
-  - name: primary-key
-    label: primary-key
-    inverseLabel: "被参照: primary-key"
-    source:
-      - todo-table
-    target:
-      - todo-column
-  - name: column-use
-    label: column-use
-    inverseLabel: "被参照: column-use"
-    source:
-      - todo-table
-    target:
-      - todo-column
-  - name: foreign-key-target
-    label: foreign-key-target
-    inverseLabel: "被参照: foreign-key-target"
-    source:
-      - todo-table
-    target:
-      - todo-column
-  - name: index-column
-    label: index-column
-    inverseLabel: "被参照: index-column"
-    source:
-      - todo-table
-    target:
-      - todo-column
+  - { name: association-source, label: 関連の元, inverseLabel: 元となる関連, source: [todo-association], target: [todo-concept] }
+  - { name: association-target, label: 関連の先, inverseLabel: 先となる関連, source: [todo-association], target: [todo-concept] }
+  - { name: operates-on, label: 操作の対象, inverseLabel: 対象とする操作, source: [todo-operation], target: [todo-concept] }
+  - { name: has-attribute, label: 属性, inverseLabel: 属するエンティティ, source: [todo-concept], target: [todo-attribute] }
+  - { name: attribute-type, label: 業務データ型, inverseLabel: この型の属性, source: [todo-attribute], target: [todo-datatype] }
+  - { name: attribute-reference, label: 参照先エンティティ, inverseLabel: 参照してくる属性, source: [todo-attribute], target: [todo-concept] }
+  - { name: logical-key, label: 識別子, inverseLabel: 識別子とするエンティティ, source: [todo-concept], target: [todo-attribute] }
+  - { name: has-column, label: カラム, inverseLabel: 所属テーブル, source: [todo-concept], target: [todo-attribute] }
+  - { name: primary-key, label: 主キー, inverseLabel: 主キーとするテーブル, source: [todo-concept], target: [todo-attribute] }
+  - { name: column-use, label: 対象カラム, inverseLabel: 使うキー・条件, source: [todo-concept], target: [todo-attribute] }
+  - { name: foreign-key-target, label: 外部キーの参照先, inverseLabel: 参照してくる外部キー, source: [todo-concept], target: [todo-attribute] }
+  - { name: index-column, label: 索引のカラム, inverseLabel: 索引, source: [todo-concept], target: [todo-attribute] }

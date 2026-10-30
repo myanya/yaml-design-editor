@@ -104,15 +104,17 @@ object SemanticTransform {
 
     /**
      * ひな型 1 つを、受け取った値（params）・いまの場所（here）・束縛（名前 → 文書の指定に合う場所）で組み立てる
-     * （操作の計画＝workspace-core の ActionPlanner が使う。変換定義の rules は無いので `$apply` は「無い」になる）。
+     * （操作の計画＝workspace-core の ActionPlanner と、複合文書ビューの区画＝VirtualViews.resolveDocument が使う。
+     * 変換定義の rules は無いので `$apply` は「無い」になる）。views はビューの行（`$view`）の供給元（文書ビューの表の区画）。
      */
     fun build(
         template: Template,
         params: Map<String, Any?>,
         here: TemplatePlace?,
         bindings: Map<String, (DerivationSelector?) -> TemplatePlace?> = emptyMap(),
+        views: (String) -> YNode? = { null },
     ): TransformResult {
-        val run = Run(TransformDef("template", null, params.keys.toList(), null, template, emptyList()), params, bindings)
+        val run = Run(TransformDef("template", null, params.keys.toList(), null, template, emptyList()), params, bindings, views)
         return TransformResult(run.build(template, here, emptyList(), emptyMap()), run.origins)
     }
 

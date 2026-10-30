@@ -1355,7 +1355,7 @@ class ViewsTest {
         write("_views/doc-bad5.yaml", "id: d5\nrows: { idPattern: \"*\" }\ncolumns:\n  - { label: A, path: name }\nsections: []")
         val loaded = Views.load(ws)
         assertTrue(loaded.errors.any { "doc-bad1.yaml" in it && "match" in it }, loaded.errors.toString())
-        assertTrue(loaded.errors.any { "doc-bad2.yaml" in it && "fields / backlinks / flow" in it }, loaded.errors.toString())
+        assertTrue(loaded.errors.any { "doc-bad2.yaml" in it && "fields / backlinks / grid / flow" in it }, loaded.errors.toString())
         assertTrue(loaded.errors.any { "doc-bad3.yaml" in it && "rows" in it }, loaded.errors.toString())
         assertTrue(loaded.errors.any { "doc-bad4.yaml" in it && "kind" in it }, loaded.errors.toString())
         assertTrue(loaded.errors.any { "doc-bad5.yaml" in it && "sections" in it }, loaded.errors.toString())

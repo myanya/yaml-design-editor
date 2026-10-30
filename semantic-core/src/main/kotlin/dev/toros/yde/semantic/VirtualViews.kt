@@ -17,6 +17,8 @@ import dev.toros.yde.semantic.schema.idGlobToRegex
 import dev.toros.yde.semantic.schema.QueryEdgeStep
 import dev.toros.yde.semantic.schema.QueryNodeKind
 import dev.toros.yde.semantic.schema.QuerySpec
+import dev.toros.yde.semantic.schema.Template
+import dev.toros.yde.semantic.schema.TemplateSite
 import dev.toros.yde.semantic.schema.ValueExpr
 import dev.toros.yde.semantic.schema.globToRegex
 
@@ -235,7 +237,20 @@ data class VirtualDocBacklinksDef(
     val columns: List<VirtualDocBacklinkColumn> = emptyList(),
 )
 
-/** 文書ビューのセクション1件。fields（フォーム射影）か backlinks（被参照表）のどちらか一方を持つ。 */
+/**
+ * 表の埋め込み（複合文書ビュー 段階 1。`grid: {view, params}`）: グリッドかクロス集計のビューを区画に置き、
+ * 受け取る値（表の `params`）には、開いた文書の値（文書ルートからのパス）を差し込む。
+ */
+data class VirtualDocGrid(
+    val view: String,
+    /** 受け取る値の名前 → 開いた文書の中のパス（値が無ければ区画は解決しない）。 */
+    val params: Map<String, YPath> = emptyMap(),
+)
+
+/**
+ * 文書ビューのセクション1件。fields（フォーム射影）・backlinks（被参照表）・grid（表の埋め込み）・embed（拡張の種類）のどれか一方を持つ。
+ * fields に `in`（fieldsIn）を書いた区画は、開いた文書ではなく「同じ ID の別の出現（側面）」のフォーム（複合文書ビュー 段階 1）。
+ */
 data class VirtualDocSection(
     val label: String? = null,
     val fieldsPath: YPath? = null,
@@ -245,7 +260,14 @@ data class VirtualDocSection(
     val backlinks: VirtualDocBacklinksDef? = null,
     /** 埋め込む拡張の種類のビュー（`flow: {view}`・`chart: {view}` など。ADR-0014）。 */
     val embed: VirtualDocEmbed? = null,
-)
+    /** 同じ ID の別の出現（側面）を編集する区画の、出現の選び方（`fields.in`）。null＝開いた文書の fields。 */
+    val fieldsIn: DerivationSelector? = null,
+    /** 表の埋め込み（`grid: {view, params}`）。 */
+    val grid: VirtualDocGrid? = null,
+) {
+    /** 開いた文書そのもののフォーム区画か（別の出現の区画・表・被参照・埋め込みではない）。 */
+    val isLocalFields: Boolean get() = fieldsPath != null && fieldsIn == null
+}
 
 /** 要素単位アタッチ。at パターンに一致する要素の展開フォーム内へ、その要素のIDの被参照表を差し込む。 */
 data class VirtualDocAttachment(
@@ -341,10 +363,29 @@ data class VirtualDocBacklinkRow(
     val backlinks: List<VirtualDocBacklinkItem>,
 )
 
-/** 解決済みの文書ビューセクション。rows は backlinks セクションのみ非null。 */
+/**
+ * 解決済みの文書ビューセクション。rows は backlinks セクションのみ非null。
+ * 複合文書ビュー（段階 1）の区画は、変換のひな型（写し `$copy`・ビューの行 `$view`）を組んで評価した結果を持つ:
+ * term＝組み立てた項（別の出現の写し・表の行）、origins＝出どころ（出力の場所 → 原本の文書と場所）。
+ * 編集は出どころの座標へ結ぶ（`fields.in` の区画は occurrence＝原本 1 か所の部分木なので、そのフォームをそのまま編集できる）。
+ */
 data class VirtualDocSectionResolved(
     val section: VirtualDocSection,
     val rows: List<VirtualDocBacklinkRow>? = null,
+    /** `fields.in` の区画: 同じ ID の別の出現（無ければ null で reason に理由）。 */
+    val occurrence: ScannedId? = null,
+    /** 変換で組み立てた区画の項（`fields.in` は出現の写し・`grid` は行の配列）。無ければ null。 */
+    val term: YNode? = null,
+    /** 項の出どころ（出力の場所 → 原本の文書と場所）。表の行は派生なので持たない。 */
+    val origins: List<TransformOrigin> = emptyList(),
+    /** `grid` の区画: 開いた文書から読んだ受け取る値（名前 → 値）。 */
+    val gridParams: Map<String, Any?>? = null,
+    /** `grid` の区画: 受け取る値で解決した表の行（表が無い・値が無いときは null で reason に理由）。 */
+    val gridRows: List<VirtualRow>? = null,
+    /** `grid` の区画: 解決に使った表の定義。 */
+    val gridView: VirtualGridDef? = null,
+    /** 解決できなかった理由（ルートに ID が無い・出現が無い・表が無い・受け取る値が無い）。 */
+    val reason: String? = null,
 )
 
 /** 解決済みの要素単位アタッチ。rows の各行が「差し込み先の要素（path）とその被参照」。 */
@@ -945,10 +986,14 @@ object VirtualViews {
     }
 
     /**
-     * 文書ビューを解決する（RC-02）。fields セクションは描画側が文書ツリーから直接描くため、
-     * ここでは backlinks セクションの被参照表だけを原本座標つきで解決する。
+     * 文書ビューを解決する（RC-02・複合文書ビュー 段階 1）。
+     * - 開いた文書の fields セクションは描画側が文書ツリーから直接描く（ここでは何もしない）
+     * - backlinks セクションは被参照表を原本座標つきで解決する
+     * - `fields.in`（同じ ID の別の出現）と `grid`（表の埋め込み）は、区画から変換のひな型（写し `$copy`・ビューの行 `$view`）を組んで
+     *   SemanticTransform で評価し、出どころ（origins）で原本に結ぶ（段階 2 の射影ビューと同じ経路。architecture/views.md「複合文書ビュー」）
      * - localIds: 未保存編集を含む文書内のID一覧（null なら ids から引く）。
      *   被参照は refs 基準＝入力索引の状態。行（文書内ID）だけが編集中ツリーへ追随する
+     * - gridRows: 表の行の供給元（ビュー ID と受け取る値 → 表の定義と行。表を知らない呼び出し側は省く＝表の区画は理由つきで解決しない）
      */
     fun resolveDocument(
         view: VirtualDocViewDef,
@@ -959,11 +1004,14 @@ object VirtualViews {
         localIds: List<ScannedId>? = null,
         rel: (DocumentId) -> String,
         tree: (DocumentId) -> YNode?,
+        gridRows: (String, Map<String, Any?>) -> Pair<VirtualGridDef, List<VirtualRow>>? = { _, _ -> null },
     ): List<VirtualDocSectionResolved> {
         val resolver = DocResolver(document, ids, refs, graph, localIds, rel, tree)
         return view.sections.map { section ->
-            val def = section.backlinks ?: return@map VirtualDocSectionResolved(section)
-            VirtualDocSectionResolved(section, resolver.rowsFor(def))
+            section.backlinks?.let { return@map VirtualDocSectionResolved(section, resolver.rowsFor(it)) }
+            if (section.fieldsIn != null) return@map resolver.occurrenceSection(section)
+            section.grid?.let { return@map resolver.gridSection(section, it, gridRows) }
+            VirtualDocSectionResolved(section)
         }
     }
 
@@ -993,7 +1041,7 @@ object VirtualViews {
 
     /** 文書ビュー解決の共有部（文書内ID・参照元ツリーのキャッシュ・被参照行の構築）。 */
     private class DocResolver(
-        document: DocumentId,
+        private val document: DocumentId,
         ids: Map<String, List<ScannedId>>,
         private val refs: List<ScannedRef>,
         private val graph: SemanticEntityGraph,
@@ -1005,6 +1053,76 @@ object VirtualViews {
         private val docIds: List<ScannedId> = localIds ?: ids.values.flatten().filter { it.document == document }
 
         private fun cachedTree(d: DocumentId): YNode? = trees.getOrPut(d) { tree(d) }
+
+        /** 開いた文書のルート要素の ID（文書ルートに書かれた ID。無ければ null）。 */
+        private val rootId: String? = docIds.firstOrNull { it.path.isEmpty() }?.id
+
+        /** 変換の「いまの場所」＝開いた文書のルート。 */
+        private val here: SemanticTransform.TemplatePlace?
+            get() = cachedTree(document)?.let { SemanticTransform.TemplatePlace(it, document, emptyList()) }
+
+        /**
+         * `fields.in` の区画: ルートの ID の出現のうち、選び方（schemaId / fileGlob）に合うものを束縛 `self` にし、
+         * 写し（`$copy` に `$of: self`・`$in`）のひな型を変換で評価する。出どころが原本の座標（文書と場所）で、
+         * 区画のフォームはその座標の原本をそのまま編集する（出どころが 1 か所の部分木＝編集できる、の規則）。
+         */
+        fun occurrenceSection(section: VirtualDocSection): VirtualDocSectionResolved {
+            val selector = section.fieldsIn ?: return VirtualDocSectionResolved(section)
+            val id = rootId ?: return VirtualDocSectionResolved(
+                section, reason = "この文書のルートに ID がありません（fields.in の区画は、ルートの ID の別の出現を出します）",
+            )
+            val occurrences = SemanticExpression.preferDefining(graph.entities[id]?.occurrences.orEmpty())
+            fun placeOf(sel: DerivationSelector?): SemanticTransform.TemplatePlace? =
+                occurrences.firstOrNull { sel == null || sel.matches(it.schemaId, rel(it.document)) }
+                    ?.let { occ -> cachedTree(occ.document)?.let { getAt(it, occ.path) }?.let { SemanticTransform.TemplatePlace(it, occ.document, occ.path) } }
+            val occ = occurrences.firstOrNull { selector.matches(it.schemaId, rel(it.document)) }
+            val result = SemanticTransform.build(
+                Template.Copy(TemplateSite(of = "self", inDoc = selector, path = emptyList())),
+                emptyMap(), here, bindings = mapOf("self" to ::placeOf),
+            )
+            if (occ == null || result.term == null) {
+                val where = listOfNotNull(selector.schemaId?.let { "スキーマ「$it」" }, selector.fileGlob?.let { "「$it」" })
+                    .joinToString("・").ifEmpty { "指定" }
+                return VirtualDocSectionResolved(
+                    section,
+                    reason = if (occ == null) "同じ ID「$id」の出現が${where}の文書にありません" else "出現の文書「${rel(occ.document)}」を読めません",
+                )
+            }
+            return VirtualDocSectionResolved(section, occurrence = occ, term = result.term, origins = result.origins)
+        }
+
+        /**
+         * `grid` の区画: 開いた文書の値（params のパス）を受け取る値にして表を解決し、行をビューの行のひな型（`$view`）で受け取る。
+         * 行は派生なので出どころは持たない（セルの座標は行の中にある）。
+         */
+        fun gridSection(
+            section: VirtualDocSection,
+            grid: VirtualDocGrid,
+            gridRows: (String, Map<String, Any?>) -> Pair<VirtualGridDef, List<VirtualRow>>?,
+        ): VirtualDocSectionResolved {
+            val root = cachedTree(document) ?: return VirtualDocSectionResolved(section, reason = "文書を読めません")
+            val params = LinkedHashMap<String, Any?>()
+            for ((name, path) in grid.params) {
+                val value = scalarText(getAt(root, path))?.takeIf { it.isNotBlank() }
+                    ?: return VirtualDocSectionResolved(
+                        section, gridParams = params,
+                        reason = "受け取る値「$name」の元の項目「${path.pretty()}」に値がありません",
+                    )
+                params[name] = value
+            }
+            val (def, rows) = gridRows(grid.view, params)
+                ?: return VirtualDocSectionResolved(
+                    section, gridParams = params,
+                    reason = "表「${grid.view}」が無いか、行の供給元が渡されていません",
+                )
+            val result = SemanticTransform.build(
+                Template.ViewRows(grid.view), emptyMap(), here,
+                views = { id -> if (id == grid.view) ReportRows.node(rows) else null },
+            )
+            return VirtualDocSectionResolved(
+                section, term = result.term, gridParams = params, gridRows = rows, gridView = def,
+            )
+        }
 
         fun rowsFor(def: VirtualDocBacklinksDef, elementFilter: (ScannedId) -> Boolean = { true }): List<VirtualDocBacklinkRow> =
             docIds.asSequence()
@@ -1217,7 +1335,25 @@ object VirtualViews {
         sections.forEachIndexed { i, resolved ->
             val section = resolved.section
             val fieldsPath = section.fieldsPath
-            if (fieldsPath != null) {
+            val grid = section.grid
+            if (section.fieldsIn != null) {
+                // 同じ ID の別の出現（側面）のフォーム: 座標は出現の文書と場所（無ければ理由）
+                val occ = resolved.occurrence
+                append("セクション${i + 1}: ${section.label ?: "フォーム"}（フォーム: 同じ ID の別の出現）")
+                if (occ != null) append("  [${relOf(occ.document)} :: ${if (occ.path.isEmpty()) "(root)" else occ.path.pretty()}]")
+                else append("  （${resolved.reason ?: "出現がありません"}）")
+                if (section.fieldsInclude.isNotEmpty()) append("（選別: ${section.fieldsInclude.joinToString(", ")}）")
+                if (section.fieldsExclude.isNotEmpty()) append("（除外: ${section.fieldsExclude.joinToString(", ")}）")
+                appendLine()
+            } else if (grid != null) {
+                // 表の埋め込み: 受け取る値（開いた文書の値）と、その値で解決した行（グリッドの機械可読テキストと同じ形）
+                val params = resolved.gridParams.orEmpty().entries.joinToString(", ") { (k, v) -> "$k=$v" }.ifEmpty { "なし" }
+                appendLine("セクション${i + 1}: ${section.label ?: "表"}（表: ${grid.view}。受け取る値: $params）")
+                val rows = resolved.gridRows
+                val def = resolved.gridView
+                if (rows == null || def == null) appendLine("    （${resolved.reason ?: "解決できません"}）")
+                else appendLine(renderText(def, rows, rel = relOf).prependIndent("    "))
+            } else if (fieldsPath != null) {
                 val at = if (fieldsPath.isEmpty()) "(root)" else fieldsPath.pretty()
                 append("セクション${i + 1}: ${section.label ?: "フォーム"}（フォーム）  [$rel :: $at]")
                 if (section.fieldsInclude.isNotEmpty()) append("（選別: ${section.fieldsInclude.joinToString(", ")}）")

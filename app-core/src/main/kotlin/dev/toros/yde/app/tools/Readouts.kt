@@ -173,9 +173,9 @@ class Readouts(private val ctx: ToolContext) {
         val document = DocumentId(ws.relPath(ws.resolve(rel)))
         val index = copy.index()
         val loader = { d: DocumentId -> copy.tree(d.value) }
-        val sections = Views.resolveDocument(view, document, index, loader = loader)
-        val attachments = Views.resolveAttachments(view, document, index, loader = loader)
         val catalog = Views.load(ws.root, ws.schemas, loader)
+        val sections = Views.resolveDocument(view, document, index, loader = loader, schemaFor = ws::schemaFor, catalog = catalog)
+        val attachments = Views.resolveAttachments(view, document, index, loader = loader)
         // 埋め込んだ拡張の種類（フロー・チャート）は、この文書で解決した値を後ろに添える
         val embedded = sections.mapNotNull { it.section.embed }.map { embed ->
             YamlIO.dump(YamlIO.fromAny(Views.embeddedReport(embed, document, catalog, index, loader, ws::schemaFor)))

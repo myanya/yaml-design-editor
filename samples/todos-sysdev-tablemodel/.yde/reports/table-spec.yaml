@@ -1,0 +1,9 @@
+id: table-spec
+name: テーブル定義書
+description: テーブル 1 つの定義書（Markdown）。カラムの型・NULL 可否・キーは、論理属性・業務型・型対応表から辿った値で、ここには書かない。受け取る値はテーブルの ID（例 ENT-TODO）。
+params: [table]
+build:
+  table: { $view: tm-tables, $where: [{ path: id, equals: $table }], $one: true }
+  columns: { $view: tm-table-columns, $where: [{ path: values.テーブルID, equals: $table }] }
+template: table-spec.md
+output: "output/table-spec/{table}.md"

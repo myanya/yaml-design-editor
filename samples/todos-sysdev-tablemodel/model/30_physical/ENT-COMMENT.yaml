@@ -1,0 +1,17 @@
+id: ENT-COMMENT
+physical_name: comments
+columns:
+  - { id: ATTR-COMMENT-TODO, physical_name: todo_id }
+  - { id: ATTR-COMMENT-NUMBER, physical_name: comment_no }
+  - { id: ATTR-COMMENT-DATE, physical_name: recorded_on }
+  - { id: ATTR-COMMENT-BODY, physical_name: body }
+primary_key: [ATTR-COMMENT-TODO, ATTR-COMMENT-NUMBER]
+foreign_keys:
+  - { column: ATTR-COMMENT-TODO, target: ATTR-TODO-ID, on_delete: RESTRICT, on_update: RESTRICT }
+indexes: []
+checks: []
+physical_notes: |
+  TODO番号とコメント番号で一意に識別する。
+  コメント番号はTODO内で正の整数を割り当てる。既存の配列を移す場合は配列順を保持し、その後は変更しない。
+  同時追加時の採番と衝突処理はアプリケーション設計で決める。MAX+1だけで安全とみなさない。
+  コメントがあるTODOの削除とキー変更は拒否する。履歴の削除方針は業務側で別途決める。

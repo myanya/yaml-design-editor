@@ -15,7 +15,7 @@
 | `MethodDef` / `InsertRule` / `IdNumbering` / `ActionParams` | semantic-core/schema/Action.kt | 型の操作（予約名 `create`）・配列の追加の決まり（採番 `id`・同じ明細 `key`）・受け取る値の宣言 |
 | `FieldDef.methods` / `insertRule` | semantic-core/schema/Fields.kt | object と配列の項目に載せた操作の定義。読み取りは `SchemaTreeParser.parseField`、引き継ぎは `SchemaTree.narrowOnto` |
 | `IdSeries` | semantic-core/schema/IdSeries.kt | 接頭辞を決めた系列の採番（skill の取り込みと共有） |
-| `SemanticTransform.build` / `holds` / `TemplatePlace` | semantic-core/semantic/Transform.kt | ひな型 1 つの組み立てと条件の判定（受け取った値・いまの場所・束縛） |
+| `SemanticTransform.build` / `holds` / `TemplatePlace` | semantic-core/semantic/Transform.kt | ひな型 1 つの組み立てと条件の判定（受け取った値・いまの場所・束縛。複合文書ビューの区画の解決も同じ入口で、ビューの行の供給元 `views` を添える） |
 | `ActionPlanner` / `ActionRequest` / `ActionPlan` / `ActionEntry` / `ActionFailure` | workspace-core/workspace/ActionPlanner.kt | 計画器（手を順に当てて変更セットを作る）と、使える操作の一覧（`catalog`・受け手ごとの `forEntity` / `forEntityType` / `forDocument` / `forWorkspace`。`ActionEntry.entityType` / `documentSchema` が受け手の種類） |
 | `WorkspaceSchema.actions` | workspace-core/workspace/WorkspaceReader.kt・SchemaDocuments.kt | スキーマ文書の `actions:` の読み込み |
 | CLI `action` | cli/ActionCommands.kt | 一覧・計画・適用（`--apply`・`--allow-errors`） |

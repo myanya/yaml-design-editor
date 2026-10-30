@@ -1,27 +1,11 @@
 id: tm-columns
 name: 属性とカラムの対応
+description: 行＝属性（ATTR-*）。論理の側（名称・業務型・必須）と物理の側（物理名）を同じ行に並べ、SQL型は業務型の参照を辿って型対応から読む。
 rows:
-  match:
-    - node:
-        entity: todo-column
-        bind: c
-    - edge:
-        relation: implements-attribute
-    - node:
-        entity: todo-attribute
-        bind: a
-  rowKey: c
+  idPattern: ATTR-*
 columns:
-  - label: 物理名
-    of: c
-    path: physical_name
-    editable: true
-  - label: 論理属性
-    of: a
-    path: name
-  - label: 業務型
-    of: a
-    path: dtype
-  - label: 必須
-    of: a
-    path: required
+  - { label: 物理名, schemaId: tm-physical, path: physical_name, editable: true }
+  - { label: 論理名, schemaId: tm-logical, path: name }
+  - { label: 業務型, schemaId: tm-logical, path: dtype }
+  - { label: SQL型, schemaId: tm-logical, value: { via: dtype, in: { schemaId: tm-mapping }, path: sql_type } }
+  - { label: 必須, schemaId: tm-logical, path: required }

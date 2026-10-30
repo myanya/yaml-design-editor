@@ -60,12 +60,14 @@ import dev.toros.yde.desktop.ui.source.SourceDraftBanner
 import dev.toros.yde.desktop.ui.source.SourcePane
 import dev.toros.yde.desktop.ui.view.DashboardPane
 import dev.toros.yde.desktop.ui.view.EmbeddedExtensionPane
+import dev.toros.yde.desktop.ui.view.ResolvedViewGrid
 import dev.toros.yde.desktop.uiPreferences
 
-/** フォームの差し込み口の中身。file 型の欄は ui.file、文書ビューに埋め込む拡張のビューは ui.view が描く。 */
+/** フォームの差し込み口の中身。file 型の欄は ui.file、文書ビューに埋め込む拡張のビューと表は ui.view が描く。 */
 private val appFormSlots = FormSlots(
     fileField = { ctx, field, slot, path, preview -> FileEditor(ctx, field, slot, path, preview) },
     embeddedView = { state, doc, embed -> EmbeddedExtensionPane(state, doc, embed) },
+    embeddedGrid = { state, view, rows -> ResolvedViewGrid(state, view, rows) },
 )
 
 @Composable

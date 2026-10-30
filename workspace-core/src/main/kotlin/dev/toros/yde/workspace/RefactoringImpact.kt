@@ -450,12 +450,25 @@ object RefactoringImpact {
                 (raw["sections"] as? List<*>)?.forEachIndexed { i, entry ->
                     val m = entry as? Map<*, *> ?: return@forEachIndexed
                     (m["fields"] as? Map<*, *>)?.let { fm ->
+                        // 同じ ID の別の出現（in）の区画は、選別キーがその出現のスキーマの ID 要素の子項目で、静的に 1 つに決まらない。
+                        // 自動では書き換えず、言及の警告（collectMentions）に任せる
+                        if (fm["in"] != null) return@let
                         tryRewrite(
                             fm["path"], "sections[${i + 1}].fields.path", listOf("sections", i, "fields", "path"),
                             docCtx,
                         ) { s -> listOf(s.tree.root) }
                         tryRewriteSelection(fm, "include", "sections[${i + 1}].fields.include", listOf("sections", i, "fields"), docCtx)
                         tryRewriteSelection(fm, "exclude", "sections[${i + 1}].fields.exclude", listOf("sections", i, "fields"), docCtx)
+                    }
+                    // 表の埋め込み: 受け取る値のパスは開いた文書のルートから（文書ビューの fields.path と同じ扱い）
+                    (m["grid"] as? Map<*, *>)?.let { gm ->
+                        (gm["params"] as? Map<*, *>)?.forEach { (name, v) ->
+                            val pm = v as? Map<*, *> ?: return@forEach
+                            tryRewrite(
+                                pm["path"], "sections[${i + 1}].grid.params.$name.path",
+                                listOf("sections", i, "grid", "params", name.toString(), "path"), docCtx,
+                            ) { s -> listOf(s.tree.root) }
+                        }
                     }
                     (m["backlinks"] as? Map<*, *>)?.let { bm ->
                         val ctx = stringListOf(bm["schemaIds"]).mapNotNull { byId[it] }

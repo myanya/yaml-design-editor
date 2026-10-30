@@ -216,7 +216,7 @@ root:
     - key: sections
       label: セクションの定義
       type: array
-      description: "documentはfields / backlinks（拡張の種類の flow・chart などは種類が足す）のいずれか、dashboardはid・view・任意のfilterを持つ区画"
+      description: "documentはfields / backlinks / grid（拡張の種類の flow・chart などは種類が足す）のいずれか、dashboardはid・view・任意のfilterを持つ区画"
       item:
         type: object
         fields:
@@ -257,12 +257,19 @@ root:
           - key: fields
             label: フォームセクション
             type: object
-            description: スキーマ駆動フォームの射影（path 省略時はルート全体。backlinks とは併用不可）
+            description: スキーマ駆動フォームの射影（path 省略時はルート全体。backlinks / grid とは併用不可）。in を書くと、開いた文書ではなく同じ ID の別の出現（側面）のフォームになる
             fields:
               - key: path
                 label: 表示するデータのYPath
                 type: string
-                description: 文書ルートからの相対YPath（例 actors）。省略時はルート全体
+                description: 文書ルートからの相対YPath（例 actors）。省略時はルート全体（in とは併用不可）
+              - key: in
+                label: 別の出現の選び方
+                type: object
+                description: "開いた文書のルートの ID について、同じ ID の別の出現（側面）をこの条件で選び、その要素のフォームを出す（編集はその文書へ）。例 {schemaId: tm-logical}"
+                fields:
+                  - {key: schemaId, label: 出現のスキーマ, type: string}
+                  - {key: fileGlob, label: 出現の文書（glob）, type: string}
               - key: definition
                 label: 定義参照
                 type: string
@@ -283,6 +290,25 @@ root:
             label: 被参照表セクション
             description: 文書内のIDへの被参照（参照元）を一覧表示する（fields とは併用不可）
             $ref: docBacklinks
+          - key: grid
+            label: 表の埋め込み
+            type: object
+            description: "グリッドかクロス集計のビューを区画に置く（fields / backlinks とは併用不可）。受け取る値（表の params）には開いた文書の値を差し込む。例 {view: tm-table-columns, params: {table: {path: id}}}"
+            fields:
+              - key: view
+                label: 表のビューID
+                type: ref
+                scope: {schemaIds: [builtin-view]}
+                required: true
+                description: 一意なgridまたはmatrixのID
+              - key: params
+                label: 受け取る値
+                type: map
+                description: 表の params の名前 → 開いた文書の中のパス（値が無ければ区画は解決しない）
+                value:
+                  type: object
+                  fields:
+                    - {key: path, label: 文書の中のパス, type: string, required: true}
     - key: attachments
       label: 要素単位アタッチ
       type: array

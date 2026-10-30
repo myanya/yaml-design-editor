@@ -6,71 +6,42 @@ entity:
   idPattern: ENT-*
   defines: false
   aspect: logical
-  owns:
-    - attributes
-    - key
-    - notes
+  owns: [attributes, key, notes]
 coverage:
   - idPattern: ENT-*
-    detailIn:
-      schemaIds:
-        - todos-business
+    detailIn: { schemaIds: [todos-business] }
     level: error
+    description: 論理エンティティは概念設計（業務モデル）に定義があること
+  - idPattern: ENT-*
+    detailIn: { schemaIds: [tm-physical] }
+    level: error
+    description: 論理エンティティは物理テーブルを持つこと
+  - idPattern: ATTR-*
+    detailIn: { schemaIds: [tm-physical] }
+    level: error
+    description: 論理属性はカラムとして実装されること
 root:
   type: object
   fields:
-    - key: id
-      type: id
-      required: true
-      label: 設計ID
+    - { key: id, type: id, required: true, label: 設計ID }
     - key: attributes
       type: array
       required: true
-      item:
-        type: object
-        entity:
-          type: todo-attribute
-          defines: true
-        fields:
-          - key: id
-            type: id
-            required: true
-            label: 設計ID
-          - key: name
-            type: line
-            required: true
-            role: title
-            label: 名称
-          - key: dtype
-            type: ref
-            required: true
-            idPattern: DT-*
-            relation: attribute-type
-            label: 業務データ型
-          - key: required
-            type: boolean
-            required: true
-            label: 必須
-          - key: source
-            type: line
-            required: true
-            label: 元となる情報
-          - key: references
-            type: ref
-            idPattern: ENT-*
-            relation: attribute-reference
-            label: 参照先エンティティ
       relation: has-attribute
       label: 属性
+      item:
+        type: object
+        entity: { type: todo-attribute, defines: true, aspect: logical, owns: [name, dtype, required, source, references] }
+        fields:
+          - { key: id, type: id, required: true, label: 設計ID }
+          - { key: name, type: line, required: true, role: title, label: 名称 }
+          - { key: dtype, type: ref, required: true, idPattern: DT-*, relation: attribute-type, label: 業務データ型 }
+          - { key: required, type: boolean, required: true, label: 必須 }
+          - { key: source, type: line, required: true, label: 元となる情報 }
+          - { key: references, type: ref, idPattern: ENT-*, relation: attribute-reference, label: 参照先エンティティ }
     - key: key
       type: array
       required: true
-      item:
-        type: ref
-        idPattern: ATTR-*
-        relation: logical-key
       label: 識別子
-    - key: notes
-      type: text
-      required: true
-      label: 設計判断
+      item: { type: ref, idPattern: ATTR-*, relation: logical-key }
+    - { key: notes, type: text, required: true, label: 設計判断 }

@@ -1,0 +1,29 @@
+id: ENT-TODO
+physical_name: todos
+columns:
+  - { id: ATTR-TODO-ID, physical_name: todo_id }
+  - { id: ATTR-TODO-TITLE, physical_name: title }
+  - { id: ATTR-TODO-SUMMARY, physical_name: summary }
+  - { id: ATTR-TODO-CATEGORY, physical_name: category_id }
+  - { id: ATTR-TODO-STATUS, physical_name: status }
+  - { id: ATTR-TODO-CREATED, physical_name: created_on }
+  - { id: ATTR-TODO-DUE, physical_name: due_on }
+  - { id: ATTR-TODO-COMPLETED, physical_name: completed_on }
+  - { id: ATTR-TODO-DETAILS, physical_name: details }
+  - { id: ATTR-TODO-RESULT, physical_name: result }
+primary_key: [ATTR-TODO-ID]
+foreign_keys:
+  - { column: ATTR-TODO-CATEGORY, target: ATTR-CATEGORY-ID, on_delete: RESTRICT, on_update: RESTRICT }
+indexes:
+  - { name: idx_todos_category, unique: false, columns: [ATTR-TODO-CATEGORY] }
+  - { name: idx_todos_due, unique: false, columns: [ATTR-TODO-DUE] }
+checks:
+  - { name: ck_todos_due, columns: [ATTR-TODO-DUE, ATTR-TODO-CREATED], condition: 期限はNULL、または作成日以降とする。 }
+  - { name: ck_todos_completed, columns: [ATTR-TODO-COMPLETED, ATTR-TODO-CREATED], condition: 完了日はNULL、または作成日以降とする。 }
+  - { name: ck_todos_completion, columns: [ATTR-TODO-STATUS, ATTR-TODO-COMPLETED, ATTR-TODO-RESULT], condition: CLOSEDなら完了日と空白だけではない結果が必要。CLOSED以外では完了日をNULLにする。 }
+physical_notes: |
+  一覧と個票を一つのレコードにまとめる。
+  初期状態OPENと登録日は登録操作から渡し、DB既定値や自動採番に依存しない。
+  カテゴリ別一覧と期限順一覧の検索を想定し、二つの非一意索引を置く。性能測定による確定は後続の検討とする。
+  カテゴリの削除とキー変更は参照中なら拒否する。未分類への変更は明示的な操作で行う。
+  状態遷移の前提と再開コメントの追加はアプリケーション側の責務とし、DBでは現在の状態の整合を保証する。

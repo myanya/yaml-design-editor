@@ -100,7 +100,7 @@ internal fun viewCommand(rest: List<String>): CliResult = run {
                 "hint" to "view <workspace> ${dv.id} <file> で対象文書を指定してください",
             )
         )
-        val sections = Views.resolveDocument(dv, DocumentId(rel), ws.index, loader = ws::treeOf)
+        val sections = Views.resolveDocument(dv, DocumentId(rel), ws.index, loader = ws::treeOf, schemaFor = ws::schemaFor, catalog = loaded)
         val attachments = Views.resolveAttachments(dv, DocumentId(rel), ws.index, loader = ws::treeOf)
         // 被参照行 → YAML 構造（セクション・アタッチ共用）
         fun rowMaps(rows: List<DocBacklinkRow>?, def: DocBacklinksDef?): List<Map<String, Any?>>? =
@@ -133,9 +133,24 @@ internal fun viewCommand(rest: List<String>): CliResult = run {
                     linkedMapOf<String, Any?>(
                         "label" to section.label,
                         "fields" to section.fieldsPath?.let { p -> if (p.isEmpty()) "(root)" else p.pretty() },
+                        // 同じ ID の別の出現（側面）の区画: 出現の選び方と、解決した出現の座標（無ければ理由）
+                        "in" to section.fieldsIn?.let { sel ->
+                            linkedMapOf("schemaId" to sel.schemaId, "fileGlob" to sel.fileGlob).filterValues { it != null }
+                        },
+                        "file" to resolved.occurrence?.document?.value,
+                        "path" to resolved.occurrence?.let { if (it.path.isEmpty()) "(root)" else it.path.pretty() },
                         "include" to section.fieldsInclude.takeIf { it.isNotEmpty() },
                         "exclude" to section.fieldsExclude.takeIf { it.isNotEmpty() },
                         "rows" to rowMaps(resolved.rows, section.backlinks),
+                        // 表の埋め込み: 受け取る値（この文書の値）と、その値で解決した行（グリッドの出力と同じ形）
+                        "grid" to section.grid?.let { grid ->
+                            linkedMapOf<String, Any?>(
+                                "view" to grid.view,
+                                "params" to resolved.gridParams?.takeIf { it.isNotEmpty() },
+                                "rows" to resolved.gridView?.let { gv -> resolved.gridRows?.map { gridRowMap(ws, gv, it) } },
+                            ).filterValues { it != null }
+                        },
+                        "reason" to resolved.reason,
                     ).also { m ->
                         // 埋め込んだ拡張の種類（フロー・チャート）: 種類の ID を鍵に、この文書で解決した値
                         section.embed?.let { embed -> m[embed.kind] = Views.embeddedReport(embed, DocumentId(rel), loaded, ws.index, ws::treeOf, ws::schemaFor) }
@@ -166,59 +181,61 @@ internal fun viewCommand(rest: List<String>): CliResult = run {
                 if (nr.filePattern != null) linkedMapOf("filePattern" to nr.filePattern!!.text)
                 else linkedMapOf("file" to nr.file, "path" to nr.path.pretty())
             },
-            "rows" to rows.map { row ->
-                linkedMapOf<String, Any?>(
-                    "id" to row.id,
-                    "title" to row.title,
-                    "cells" to row.cells.map { cell ->
-                        // 複合値は要約に留める（全文は read コマンドで座標を指定して取得する）
-                        val value = when (cell.value) {
-                            is YNode.Scalar -> dev.toros.yde.yaml.YamlIO.toAny(cell.value!!)
-                            null -> null
-                            else -> Views.cellText(cell.value)
-                        }
-                        linkedMapOf<String, Any?>(
-                            "column" to cell.column.label,
-                            "value" to value,
-                            "file" to cell.document?.value,
-                            "path" to cell.path?.pretty(),
-                            "editable" to cell.column.editable.takeIf { it },
-                            // 計算列（値の式の列）: 値は評価済み・座標は値の出どころ（ひな型・読み出した値・選ばれた要素）。
-                            // derivation が来歴（元値と入力値の座標。値が得られなければ raw がその理由）
-                            "computed" to cell.computed.takeIf { it },
-                            "derivation" to cell.trace?.takeIf { it.inputs.isNotEmpty() || cell.value == null }?.let { t ->
-                                linkedMapOf<String, Any?>(
-                                    "raw" to t.raw,
-                                    "inputs" to t.inputs.map { input ->
-                                        linkedMapOf<String, Any?>(
-                                            "placeholder" to input.placeholder,
-                                            "value" to input.value,
-                                            "file" to input.document?.value,
-                                            "path" to input.path?.pretty(),
-                                        ).filterValues { it != null }
-                                    },
-                                )
-                            },
-                            // バックリンク列: 参照元のIDと座標（参照元の要素へは read コマンドで辿る）
-                            "backlinks" to cell.backlinks?.map { b ->
-                                linkedMapOf(
-                                    "id" to b.sourceId,
-                                    "file" to b.document.value,
-                                    "path" to b.path.pretty(),
-                                ).filterValues { it != null }
-                            },
-                        ).filterValues { it != null }
-                    },
-                    "detail" to row.detailDocument?.value,
-                    // 詳細が未作成の行の作り先（filePattern を行の要素で評価。決められなければ出さない）
-                    "detailCreatePath" to if (row.detailDocument?.value == null)
-                        view.detail?.filePattern?.let { p ->
-                            runCatching {
-                                DocumentScaffolds.pathFor(p, ScaffoldSource.of(row.id, ws.index.occurrences(row.id), ws::treeOf, ws.index.graph))
-                            }.getOrNull()
-                        } else null,
-                ).filterValues { it != null }
-            },
+            "rows" to rows.map { row -> gridRowMap(ws, view, row) },
         ).filterValues { it != null }
     )
 }
+
+/** グリッドの行 1 件の YAML 構造（ビューの命令と、文書ビューに埋め込んだ表の区画で共用）。 */
+private fun gridRowMap(ws: dev.toros.yde.app.core.Workspace, view: dev.toros.yde.app.core.ViewDef, row: dev.toros.yde.app.core.ViewRow): Map<String, Any?> =
+    linkedMapOf<String, Any?>(
+        "id" to row.id,
+        "title" to row.title,
+        "cells" to row.cells.map { cell ->
+            // 複合値は要約に留める（全文は read コマンドで座標を指定して取得する）
+            val value = when (cell.value) {
+                is YNode.Scalar -> dev.toros.yde.yaml.YamlIO.toAny(cell.value!!)
+                null -> null
+                else -> Views.cellText(cell.value)
+            }
+            linkedMapOf<String, Any?>(
+                "column" to cell.column.label,
+                "value" to value,
+                "file" to cell.document?.value,
+                "path" to cell.path?.pretty(),
+                "editable" to cell.column.editable.takeIf { it },
+                // 計算列（値の式の列）: 値は評価済み・座標は値の出どころ（ひな型・読み出した値・選ばれた要素）。
+                // derivation が来歴（元値と入力値の座標。値が得られなければ raw がその理由）
+                "computed" to cell.computed.takeIf { it },
+                "derivation" to cell.trace?.takeIf { it.inputs.isNotEmpty() || cell.value == null }?.let { t ->
+                    linkedMapOf<String, Any?>(
+                        "raw" to t.raw,
+                        "inputs" to t.inputs.map { input ->
+                            linkedMapOf<String, Any?>(
+                                "placeholder" to input.placeholder,
+                                "value" to input.value,
+                                "file" to input.document?.value,
+                                "path" to input.path?.pretty(),
+                            ).filterValues { it != null }
+                        },
+                    )
+                },
+                // バックリンク列: 参照元のIDと座標（参照元の要素へは read コマンドで辿る）
+                "backlinks" to cell.backlinks?.map { b ->
+                    linkedMapOf(
+                        "id" to b.sourceId,
+                        "file" to b.document.value,
+                        "path" to b.path.pretty(),
+                    ).filterValues { it != null }
+                },
+            ).filterValues { it != null }
+        },
+        "detail" to row.detailDocument?.value,
+        // 詳細が未作成の行の作り先（filePattern を行の要素で評価。決められなければ出さない）
+        "detailCreatePath" to if (row.detailDocument?.value == null)
+            view.detail?.filePattern?.let { p ->
+                runCatching {
+                    DocumentScaffolds.pathFor(p, ScaffoldSource.of(row.id, ws.index.occurrences(row.id), ws::treeOf, ws.index.graph))
+                }.getOrNull()
+            } else null,
+    ).filterValues { it != null }

@@ -10,6 +10,7 @@
 | 部品 | ファイル | 責務 |
 |---|---|---|
 | `VirtualGridDef` / `VirtualDocViewDef` / `VirtualViewDefinition`（app-core の `ViewDef` / `DocViewDef` は別名） | semantic-core/semantic/VirtualViews.kt | ビュー定義の宣言の型と解決（仮想文書・テキスト表現） |
+| `VirtualDocSection`（`fieldsIn`・`grid`）/ `VirtualDocGrid` / `VirtualDocSectionResolved`（`occurrence`・`term`・`origins`・`gridRows`・`reason`） | semantic-core/semantic/VirtualViews.kt | 複合文書ビューの区画の宣言と解決の結果。解決は `DocResolver` が区画から変換のひな型を組んで `SemanticTransform.build` で評価する |
 | `FlowViewKind` / `VirtualFlowDef` / `FlowViews` / `FlowResolution` / `FlowViewResult` | app-core の view/flow/FlowViewKind.kt・FlowViews.kt | フロー（`kind: flow`）の読み取りと点検・移動と改名の影響、Constructによる文書の射影、原本対応、表示契約と接続先の診断 |
 | `VirtualLensDef` / `VirtualLensRelation` / `LensArrow` | semantic-core/semantic/LensViews.kt | レンズの見え方の定義（`kind: lens`＝関係ごとの矢印の向き・表示だけ・消費は `Views.LoadResult.reversedRelations` → `LensGraphs`） |
 | `ExtensionViewDef` / `ExtensionViewResult` / `ViewContext` / `VirtualDocEmbed` | semantic-core/semantic/ExtensionViews.kt | 差し込み口を通る種類（chart・flow）のビューの共通の形（定義・解決の結果・解決に使う中核の表の窓口・文書ビューの区画への埋め込み）。中核はこの窓口だけで扱う |
@@ -62,6 +63,9 @@
 - **fields セクションは既存フォームへの委譲**: ルート全体は従来のルート描画、部分表示（`path`）は `Views.fieldAt` ＋ `slotAt` ＋ `FieldRow`。`include` / `exclude` は描画対象の選別で、編集経路・実効フィールド合成は変えない。
 - **backlinks セクションは編集不可の派生表示**: グリッドのバックリンク列と同じ解決規則。行＝文書内の ID（`idPattern` で絞る）。`columns` は参照元要素からの相対 YPath の値を表示専用で添える。
 - **要素単位アタッチ（`attachments`）**: `at` パターン（YPath ＋ `[*]`）に一致する要素の展開フォーム内に、その要素の ID への被参照表を差し込む。解決結果を `FormCtx.attachments` で運び、`ObjectFields` の末尾で描画する（全描画経路に効く。専用の分岐を作らない）。
+- **複合文書ビュー（段階 1）**: 区画に `fields.in`（同じ ID の別の出現＝側面。`VirtualDocSection.fieldsIn`）と `grid`（受け取る値つきの表の埋め込み。`VirtualDocGrid`）を足した。解決は `VirtualViews.resolveDocument` の `DocResolver` が、区画から**変換のひな型**を組んで `SemanticTransform.build` で評価する: 側面は束縛 `self`（ルートの ID の出現を選び方で選ぶ）への写し `Template.Copy`、表は `Template.ViewRows`（行は呼び出し側の `gridRows` が受け取る値で解決）。結果は `VirtualDocSectionResolved` の `term`（組み立てた項）と `origins`（出どころ）で、側面の区画は出どころが原本 1 か所の部分木なので `occurrence`（出現の座標）をそのまま編集面にする。表の行は派生（出どころ無し）。解決できなければ `reason`。
+  画面（`DocViewSections`）は側面の区画を `OccurrenceSection`（出現の文書を `ensureDoc` で取り込み、エンティティページの側面カードと同じ `FormCtx`＋`Slot` の経路で編集）、表の区画を `GridSection`（`FormSlots.embeddedGrid`＝台帳のビュータブと同じ `ResolvedViewGrid`。遅延描画の表に行数で高さを与える）で描く。表の定義は呼び出し側が `catalog`（`Views.LoadResult`）で渡し、CLI `view`・`read_view`・画面が同じ `resolveDocument` を使う。骨子（`documentViewOutline`）では側面・表の区画は「関連情報」の 1 項目（`isLocalFields` が偽）。
+  段階 2 以降（線を辿った要素の区画・場所から要素へ・射影ビュー・出どころで編集）は [ROADMAP「複合文書ビューと射影ビュー」](../ROADMAP.md)。区画の種類を足すときは、変換のひな型に写せる形で足し、`DocResolver` に評価を書かない。
 - **人間と AI が同じ面を見る**: `read_view`（`file` 引数）・CLI `view <id> [file]` が同じ解決（`resolveDocument` / `resolveAttachments` / `renderDocText`）を返す。エクスポートはグリッドのみ。
 
 ## フローの解決

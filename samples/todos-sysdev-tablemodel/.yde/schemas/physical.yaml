@@ -1,117 +1,63 @@
 id: tm-physical
 name: 物理テーブル
-match: model/30_physical/TBL-*.yaml
+match: model/30_physical/ENT-*.yaml
+entity:
+  type: todo-concept
+  idPattern: ENT-*
+  defines: false
+  aspect: physical
+  owns: [physical_name, columns, primary_key, foreign_keys, indexes, checks, physical_notes]
 root:
   type: object
-  entity:
-    type: todo-table
-    defines: true
   fields:
-    - key: id
-      type: id
-      required: true
-      label: 設計ID
-    - key: physical_name
-      type: word
-      required: true
-      role: title
-      pattern: ^[a-z][a-z0-9_]*$
-      label: 物理名
-    - key: implements
-      type: ref
-      required: true
-      idPattern: ENT-*
-      relation: implements-entity
-      label: 実装する要素
+    - { key: id, type: id, required: true, label: 設計ID }
+    - { key: physical_name, type: word, required: true, role: title, pattern: '^[a-z][a-z0-9_]*$', label: 物理名 }
     - key: columns
       type: array
       required: true
-      item:
-        type: object
-        entity:
-          type: todo-column
-          defines: true
-        fields:
-          - key: id
-            type: id
-            required: true
-            label: 設計ID
-          - key: physical_name
-            type: word
-            required: true
-            role: title
-            pattern: ^[a-z][a-z0-9_]*$
-            label: 物理名
-          - key: implements
-            type: ref
-            required: true
-            idPattern: ATTR-*
-            relation: implements-attribute
-            label: 実装する要素
       relation: has-column
       label: カラム
+      item:
+        type: object
+        entity: { type: todo-attribute, defines: false, aspect: physical, owns: [physical_name] }
+        fields:
+          - { key: id, type: id, required: true, label: 属性 }
+          - { key: physical_name, type: word, required: true, role: title, pattern: '^[a-z][a-z0-9_]*$', label: 物理名 }
     - key: primary_key
       type: array
       required: true
-      item:
-        type: ref
-        idPattern: COL-*
-        relation: primary-key
       label: 主キー
+      item: { type: ref, idPattern: ATTR-*, relation: primary-key }
     - key: foreign_keys
       type: array
       required: true
+      label: 外部キー
       item:
         type: object
         fields:
-          - key: column
-            type: ref
-            required: true
-            idPattern: COL-*
-            relation: column-use
-            label: 対象カラム
-          - key: target
-            type: ref
-            required: true
-            idPattern: COL-*
-            relation: foreign-key-target
-            label: 対象
+          - { key: column, type: ref, required: true, idPattern: ATTR-*, relation: column-use, label: 対象カラム }
+          - { key: target, type: ref, required: true, idPattern: ATTR-*, relation: foreign-key-target, label: 参照先 }
           - { key: on_delete, label: 参照先の削除時, type: enum, values: [RESTRICT, CASCADE, SET_NULL], required: true }
           - { key: on_update, label: 参照先のキー更新時, type: enum, values: [RESTRICT, CASCADE], required: true }
-      label: 外部キー
     - key: indexes
       type: array
       required: true
+      label: 索引
       item:
         type: object
         fields:
-          - key: name
-            type: word
-            required: true
-            label: 名称
-          - key: columns
-            type: array
-            required: true
-            item:
-              type: ref
-              idPattern: COL-*
-              relation: index-column
-            label: カラム
+          - { key: name, type: word, required: true, label: 名称 }
+          - { key: columns, type: array, required: true, label: カラム, item: { type: ref, idPattern: ATTR-*, relation: index-column } }
           - { key: unique, label: 一意性を要求する, type: boolean, required: true }
-      label: 索引
     - key: checks
       type: array
       required: true
+      label: DBで保証する条件の設計
+      description: 条件は設計上の文章であり、YDEが業務データへ適用する実行式ではありません。
       item:
         type: object
         fields:
           - { key: name, label: 制約名, type: word, required: true }
-          - key: columns
-            label: 関係するカラム
-            type: array
-            required: true
-            item: { type: ref, idPattern: 'COL-*', relation: column-use }
+          - { key: columns, label: 関係するカラム, type: array, required: true, item: { type: ref, idPattern: ATTR-*, relation: column-use } }
           - { key: condition, label: 満たすべき条件, type: text, required: true }
-      label: DBで保証する条件の設計
-      description: 条件は設計上の文章であり、YDEが業務データへ適用する実行式ではありません。
-    - { key: notes, label: 物理設計の判断, type: text, required: true }
+    - { key: physical_notes, label: 物理設計の判断, type: text, required: true }

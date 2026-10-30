@@ -4,25 +4,11 @@ policy: |
   日付はYYYY-MM-DDのTEXT、コメント番号はINTEGERとする。SQL型だけでは業務型の制約をすべて表せない。
   最大長・改行禁止・選択肢・ID形式・整数の下限・実在する日付の検査は、DB制約への対応を別途検討する。
   論理属性のrequired=trueはNOT NULLとし、required=falseはNULLを許す。空文字の扱いはNULLと分けて決める。
-mappings:
-  - id: MAP-TODO-ID
-    dtype: DT-TODO-ID
-    sql_type: TEXT
-  - id: MAP-CATEGORY-ID
-    dtype: DT-CATEGORY-ID
-    sql_type: TEXT
-  - id: MAP-LINE
-    dtype: DT-LINE
-    sql_type: TEXT
-  - id: MAP-TEXT
-    dtype: DT-TEXT
-    sql_type: TEXT
-  - id: MAP-DATE
-    dtype: DT-DATE
-    sql_type: TEXT
-  - id: MAP-STATUS
-    dtype: DT-STATUS
-    sql_type: TEXT
-  - id: MAP-NUMBER
-    dtype: DT-NUMBER
-    sql_type: INTEGER
+types:
+  - { id: DT-TODO-ID, sql_type: TEXT }
+  - { id: DT-CATEGORY-ID, sql_type: TEXT }
+  - { id: DT-LINE, sql_type: TEXT }
+  - { id: DT-TEXT, sql_type: TEXT }
+  - { id: DT-DATE, sql_type: TEXT }
+  - { id: DT-STATUS, sql_type: TEXT }
+  - { id: DT-NUMBER, sql_type: INTEGER }

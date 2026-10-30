@@ -46,7 +46,7 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 | `StructuredForm` / `FormAnchor` / `Highlightable` | ui/form/StructuredForm.kt | スキーマと通常文書が共有する構成一覧とスクロール連動・項目の位置の登録・ハイライトとスクロール |
 | `FormView` / `DocumentMetadataEditor` / `SameIdOccurrencesStrip` | ui/form/FormView.kt | フォームの入口（文書を開いたときの描画の振り分け）・文書の情報・同じ ID の出現の帯 |
 | `FormCtx` / `defaultNode` / `autoValueHint` | ui/form/FormCtx.kt | フォームの文脈（編集の入口・閲覧専用の封じ・展開の覚え）と項目の既定値 |
-| `FormSlots` / `LocalFormSlots` / `SchemaAuthoring` | ui/form/FormSlots.kt | フォームの差し込み口（file 型の欄・文書ビューに埋め込む拡張のビューは `AppRoot` が、スキーマを書くときの欄は `SchemaEditor` が渡す） |
+| `FormSlots` / `LocalFormSlots` / `SchemaAuthoring` | ui/form/FormSlots.kt | フォームの差し込み口（file 型の欄・文書ビューに埋め込む拡張のビューと表〔`embeddedGrid`＝`ResolvedViewGrid`〕は `AppRoot` が、スキーマを書くときの欄は `SchemaEditor` が渡す） |
 | `SchemaRootForm` / `DocViewSections` | ui/form/FormDocView.kt | スキーマ駆動フォームの既定の描画と、文書ビューの節・被参照の表 |
 | `ObjectFields` / `FieldRow` / `FormFieldLayout` / `ValueEditor` | ui/form/FormFields.kt | フォームの骨組み: 項目の並び・1 行の形・値の種類で編集欄を選ぶ・型の不一致の直し |
 | `ScalarTextEditor` / `BooleanEditor` / `EnumEditor` / `IdEditor` | ui/form/ScalarEditors.kt | 一つの値の編集欄（文字・真偽・選択肢・ID） |

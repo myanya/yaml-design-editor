@@ -277,11 +277,13 @@ object Views {
     fun effective(view: ViewDef, index: IdIndex): ViewDef = VirtualViews.lower(view, index.entries) { it.value }
 
     /**
-     * 文書ビューを解決する。fields セクションは描画側（フォーム／テキスト表現）が文書ツリーから直接
-     * 描くため、ここでは backlinks セクションの被参照表だけを座標つきで解決する。
+     * 文書ビューを解決する。開いた文書の fields セクションは描画側（フォーム／テキスト表現）が文書ツリーから直接
+     * 描くため、ここでは backlinks セクションの被参照表と、複合文書ビューの区画（`fields.in`＝同じ ID の別の出現・
+     * `grid`＝受け取る値つきの表）を座標つきで解決する。
      * - document: 適用先の文書
      * - localIds: 未保存編集を含む文書内のID一覧（UIは DocScanner の結果を渡す。null なら索引から引く）
      * - 被参照は索引（refs）基準＝保存済み状態。行（文書内ID）だけが編集中ツリーへ追随する
+     * - schemaFor / catalog: 表の区画の解決に使う（文書のスキーマと、表の定義を引くビューの目録）。catalog を省くと表の区画は理由つきで解決しない
      */
     fun resolveDocument(
         view: DocViewDef,
@@ -289,11 +291,15 @@ object Views {
         index: IdIndex,
         localIds: List<IdEntry>? = null,
         loader: (DocumentId) -> YNode?,
+        schemaFor: (DocumentId) -> SchemaDef? = { null },
+        catalog: LoadResult? = null,
     ): List<DocSectionResolved> {
         val trees = mutableMapOf<DocumentId, YNode?>()
-        return VirtualViews.resolveDocument(view, document, index.entries, index.refs, index.graph, localIds, { it.value }) { d ->
-            trees.getOrPut(d) { loader(d) }
-        }
+        fun treeOf(d: DocumentId): YNode? = trees.getOrPut(d) { loader(d) }
+        return VirtualViews.resolveDocument(
+            view, document, index.entries, index.refs, index.graph, localIds, { it.value }, ::treeOf,
+            gridRows = { id, params -> catalog?.view(id)?.let { grid -> grid to resolve(grid, index, ::treeOf, schemaFor, params) } },
+        )
     }
 
     /**
