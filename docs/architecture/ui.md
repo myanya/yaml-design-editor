@@ -21,7 +21,7 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 | `ui.form` | フォーム編集（`FormCtx`・項目の行・表・汎用エディタ・値の種類ごとの欄・配列の削除・表示方式）と、上の部品を差し込む口 | ui/form/FormCtx.kt・ui/form/FormFields.kt・ui/form/FormTables.kt・ui/form/GenericEditor.kt・ui/form/FormSlots.kt |
 | `ui.source` | ソースエディタ（編集・補完・強調・構造・構文の状態） | ui/source/SourcePane.kt・ui/source/SourceEditing.kt |
 | `ui.schema` | スキーマ設計の画面 | ui/schema/SchemaEditor.kt・ui/schema/SchemaDesignWorkspace.kt |
-| `ui.view` | ビューの描画（表・チャート・フロー・レポート・ダッシュボード・準備完了）と、拡張の種類の描画の一覧 | ui/view/ViewRenderers.kt・ui/view/ViewGridPane.kt・ui/view/DashboardPane.kt |
+| `ui.view` | ビューの描画（表・チャート・フロー・レポート・ダッシュボード・準備完了）と、差し込み口を通る種類（chart・flow）の描画の一覧 | ui/view/ViewRenderers.kt・ui/view/ViewGridPane.kt・ui/view/DashboardPane.kt |
 | `ui.graph` | グラフレンズとエンティティページ | ui/graph/GraphLensView.kt・ui/graph/LensGraph.kt・ui/graph/IdCrossView.kt |
 | `ui.file` | ファイル一覧・プレビュー・移動・Markdown の画面・file 型の欄と画像 | ui/file/FileTreePane.kt・ui/file/FileEditor.kt・ui/file/ImagePane.kt |
 | `ui.run` | 実行スペース・自動化・計測・AI の接続と生成 | ui/run/RunsSpace.kt・ui/run/AiGenerationDialog.kt |

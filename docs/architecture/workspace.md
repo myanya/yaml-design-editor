@@ -109,7 +109,7 @@
 
 ## リファクタリングの影響
 
-フローのprojection内の言及は、フィールド・ID・関係名・スキーマIDの変更計画に含める。フローは拡張の種類なので、言及の場所と文書の移動の警告は差し込み口（`ViewKind.mentionSites` / `moveWarnings`）が返し、`RefactoringImpact` が文に組む（[views.md「ビューの種類の差し込み口」](views.md)）。
+フローのprojection内の言及は、フィールド・ID・関係名・スキーマIDの変更計画に含める。フローは差し込み口を通る種類なので、言及の場所と文書の移動の警告は差し込み口（`ViewKind.mentionSites` / `moveWarnings`）が返し、`RefactoringImpact` が文に組む（[views.md「ビューの種類の差し込み口」](views.md)）。
 静的な意味を保証しない保守的な走査であり、規則・条件・辞書キーも確認対象として列挙し、自動置換しない。
 埋め込みのビュー参照はref型として通常の改名計画へ含まれ、専用の書込経路を持たない。
 

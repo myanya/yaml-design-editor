@@ -11,7 +11,7 @@
 | カーネル | yaml-core・semantic-core・workspace-core の 3 モジュールで、画面も AI も知らない中核 | コアライブラリ・ドメイン層 | [ADR-0013](decisions/0013-application-layer-and-extensions.md)・[architecture/README.md「モジュールと依存方向」](architecture/README.md) |
 | 応用層 | app-core と agent で、ワークスペースを画面無しで開き・読み・検証し・変える | アプリケーション層・サービス層 | [ADR-0013](decisions/0013-application-layer-and-extensions.md) |
 | 入口 | desktop（画面）や cli のように、応用層を呼んで人や機械に見せるモジュール | エントリポイント・プレゼンテーション層 | [ADR-0013](decisions/0013-application-layer-and-extensions.md) |
-| 拡張 | 形式（format-*）やビューの種類（view-*）を足すモジュールで、入口の一覧に書いて登録する | プラグイン（JDBC のドライバの登録） | [architecture/views.md「ビューの種類の差し込み口」](architecture/views.md) |
+| 拡張 | app-core の外のモジュールで、差し込み口の実装を足すもの（今は Excel・Word の形式の format-office）。入口の一覧に書いて登録する。chart・flow と文字の形式は app-core の組込みで、登録簿が最初から持つ | プラグイン（JDBC のドライバの登録） | [architecture/views.md「ビューの種類の差し込み口」](architecture/views.md) |
 | 原本 | ワークスペースの YAML 文書そのもので、索引・グラフ・ビューはすべてここから導き、別の保存先を持たない | 信頼できる唯一の情報源（source of truth） | [architecture/graph-query.md「融合の原則」](architecture/graph-query.md) |
 | 計算体系 | YAML に対する読み取り・判定・書き換え・組み立ての演算の決まり（Core Calculus）で、新しい決定論的機能はまずこの言葉で設計する | クエリ言語と評価器の設計 | [CORE-CALCULUS.md](CORE-CALCULUS.md) |
 
@@ -86,7 +86,7 @@
 |---|---|---|---|
 | 射影 | 原本から導いて見せるだけで自分のデータを持たないもの（ビュー・計算列・受信箱）で、編集は原本の座標へ戻す | データベースのビュー・CQRS の読み取りモデル | [architecture/views.md「ビュー機構」](architecture/views.md)・[architecture/transform.md「計算列と決定論的射影」](architecture/transform.md) |
 | ビュー | 原本の要素を表・クロス集計・図・文書の形に並べる定義（`_views`）で、射影の 1 つ | スプレッドシートのピボット・DB のビュー | [architecture/views.md「ビュー機構」](architecture/views.md) |
-| ビューの種類 | ビューの定義の `kind`（grid・document・matrix・lens・dashboard は中核、chart・flow は拡張） | プラグインの種別 | [architecture/views.md「ビューの種類の差し込み口」](architecture/views.md) |
+| ビューの種類 | ビューの定義の `kind`（grid・document・matrix・lens・dashboard は中核、chart・flow は差し込み口を通る組込み） | プラグインの種別 | [architecture/views.md「ビューの種類の差し込み口」](architecture/views.md) |
 | 区画 | ダッシュボードの 1 枚のタイルで、表の行を条件で絞った件数と一覧を出し、詳細と操作へ進む | ダッシュボードのウィジェット | [architecture/dashboards.md「流れ」](architecture/dashboards.md) |
 | 共有の入力 | ダッシュボードの全区画に渡す入力（`inputs`）で、空のときは絞らない | ダッシュボードのフィルタ・パラメータ | [architecture/dashboards.md「規律」](architecture/dashboards.md) |
 | レンズ | エンティティと線を箱と矢印で描く図（グラフレンズ）で、起点の近くや型・関係で絞って見る | グラフの可視化 | [architecture/graph-query.md「スキーマレンズ」](architecture/graph-query.md)・[manual/views.md「レンズの見え方」](manual/views.md) |

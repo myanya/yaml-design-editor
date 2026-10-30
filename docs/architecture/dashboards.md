@@ -12,7 +12,7 @@
 | 部品 | 責務 |
 |---|---|
 | `VirtualDashboardDef`・`DashboardSection` | 区画とビュー・操作の参照、タイルの並べ方（`placement`）と群（`group`。`sectionGroups()` が無名の群を先頭に、名前のある群を最初に現れた順に分ける） |
-| `DashboardViews` | 既存の行と条件の評価を合成し、選択された行と保留理由を返す。拡張の種類の区画（チャートなど）は元の表を同じ受け取る値で解決して渡し、種類の解決の結果を `DashboardSectionResult.embedded` に持つ（[views.md「ビューの種類の差し込み口」](views.md)） |
+| `DashboardViews` | 既存の行と条件の評価を合成し、選択された行と保留理由を返す。差し込み口を通る種類の区画（チャートなど）は元の表を同じ受け取る値で解決して渡し、種類の解決の結果を `DashboardSectionResult.embedded` に持つ（[views.md「ビューの種類の差し込み口」](views.md)） |
 | `ViewDefinitions` | 定義のパース、区画ID・参照先・操作の点検 |
 | `core/Dashboards` | 同じ索引・原本の読み手・基準日を渡し、CLIとread_viewへ開示 |
 | `DashboardPane` | 件数から区画を選び、一覧から詳細を表示。タイルは群ごとに見出しを付けて横に折り返すか、左の縦一覧に並べる |

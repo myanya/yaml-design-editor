@@ -37,8 +37,8 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 
 ## モジュールと依存方向
 
-パッケージは `dev.toros.yde.<モジュール>.*`（規則は CONVENTIONS「モジュールの規約」）。依存方向は ADR-0002（app-core は ADR-0013）が正: `yaml-core ← semantic-core ← workspace-core ← app-core ← agent ← desktop`（cli は app-core・agent・拡張まで・拡張 format-*・view-* は app-core まで）。repo-tests はテストだけのモジュールで、全モジュールに依存してよい。
-構成（画面を持たない応用層 app-core・agent・入口 desktop／cli／mcp・形式とビューの種類の拡張）は ADR-0013（ビューの種類は ADR-0014）が正。入口の mcp はまだ無い。
+パッケージは `dev.toros.yde.<モジュール>.*`（規則は CONVENTIONS「モジュールの規約」）。依存方向は ADR-0002（app-core は ADR-0013）が正: `yaml-core ← semantic-core ← workspace-core ← app-core ← agent ← desktop`（cli は app-core・agent・拡張まで・拡張 format-office は app-core まで）。repo-tests はテストだけのモジュールで、全モジュールに依存してよい。
+構成（画面を持たない応用層 app-core・agent・入口 desktop／cli／mcp・Excel と Word の形式の拡張）は ADR-0013 が正で、ビューの種類の差し込み口は ADR-0014、組込みと拡張の分け方は ADR-0015。入口の mcp はまだ無い。
 文書とコメントでは接頭辞を省いて `schema.FieldDef`・`validate/Validator.kt` のように書き、同じ短い名前が複数のモジュールにあるとき（`schema`・`validate`・`core`）はモジュール名を添える。
 
 | モジュール | パッケージ | 中身 |
@@ -62,7 +62,9 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 | | `app.schema` | `SchemaDef`（カーネルのスキーマにファイルの場所を足す薄い型）・`SchemaLoader`・表示解決 `Display`・ID 候補・スキーマ推測 |
 | | `app.validate` | `Validator`（窓口）・`Readiness` |
 | | `app.tools` | ツールの一式（ADR-0013「窓口の形」）: 中核のツール `Toolset`・`Tool`・`ToolContext`／`ToolPolicy`・作業コピー `WorkingCopy`・読み出しの文 `Readouts`・JSON の値と JSON Schema の変換（`JsonValues` / `JsonSchemas`）。入口（agent の LLM 宣言・MCP・CLI）が包む |
-| | `app.ext` | 拡張の差し込み口と登録簿（`FormatCodec`・`ExtensionRegistry`／`Extensions`・表 `Table`）。入口が `Extensions.install` で一覧を渡す（自動発見はしない）。登録したビューの種類（`Extensions.viewKinds`。差し込み口はカーネルの `ViewKind`）もここから読む |
+| | `app.ext` | 形式とビューの種類の登録簿（`ExtensionRegistry`／`Extensions`）。組込み（文字の形式・chart・flow）を最初から持ち、入口が別モジュールの拡張を `Extensions.install` で足す（自動発見はしない）。カーネルに渡すビューの種類（`Extensions.viewKinds`。差し込み口はカーネルの `ViewKind`）もここから読む |
+| | `app.format` | 形式の差し込み口 `FormatCodec`・表 `Table` と、組込みの文字の形式（csv・json・markdown・html。`TextFormats.kt`） |
+| | `app.view` | 組込みのビューの種類。`app.view.chart`＝`kind: chart` の `ChartViewKind` と、描画が読む定義と結果の型（`ChartViews.kt`・`ChartSelection.kt`）。`app.view.flow`＝`kind: flow` の `FlowViewKind` と、描画が読む定義・図のモデル・選択・表示の設定（`FlowViews.kt`・`FlowSelection.kt`・`FlowDisplayOptions.kt`）と CLI・read_view の値（`FlowReports.kt`）。資源は `view/chart/schema.yaml`・`view/flow/schema.yaml`・`view/flow/flow-model.yaml` |
 | | `app.session` | セッション側の状態（Compose 非依存）: `DocumentSession`（コアとカーネルの保持・索引の写し・開いている文書・未保存編集を重ねた索引と派生・編集の記録・開き直しと同期）と 1 文書の論理 `DocumentState`。再読込・保存・履歴の一手・全体検証と検索・一括変更・リファクタリング・文書の作成・配置の計画と前後・操作（アクション）の論理もここ。画面側に残るのは開く手順と場所・通知・パネルの作業 |
 | | `app.text` | 純粋な文字の計算（行の差分と 3 者併合 `LineMerge`・履歴の値を優先した書式の差し込み `SourceHistorySync`） |
 | | `app.skill` | 入出力変換（skill 定義・表形式の読み書き・インポート・エクスポート） |
@@ -71,18 +73,14 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 | | `agent.auto` | 自動実行: `AutomationEngine`（トリガ・キュー・承認・連鎖・リトライ）・`AutoApply`（巻き戻せる自動適用）・`Foreach`（一括実行の対象の列挙） |
 | | `agent.eval` | 評価と指標: `EvalRunner`（評価セット・比較実験）・`RunMetrics`（実行記録の集計） |
 | | `agent.llm` | LLM との接続（`AiGenerator`・各プロバイダの生成器・`Connection`・`Http`・ツール呼び出しの往復 `ToolChat`） |
-| format-text | `format.text` | 拡張: 文字の形式（csv・json・markdown・html）の `FormatCodec`（`TextFormats.kt`） |
-| format-xlsx | `format.xlsx` | 拡張: Excel の表（Apache POI）の `FormatCodec`（`XlsxFormat.kt`） |
-| format-docx | `format.docx` | 拡張: Word 文書の中の表（Apache POI。読むだけ）の `FormatCodec`（`DocxFormat.kt`） |
-| view-chart | `view.chart` | 拡張: ビューの種類 `kind: chart` の `ViewKind`（`ChartViewKind.kt`）と、描画が読む定義と結果の型（`ChartViews.kt`・`ChartSelection.kt`）。定義の形の断片は資源 `view-chart/schema.yaml` |
-| view-flow | `view.flow` | 拡張: ビューの種類 `kind: flow` の `ViewKind`（`FlowViewKind.kt`）と、描画が読む定義・図のモデル・選択・表示の設定（`FlowViews.kt`・`FlowSelection.kt`・`FlowDisplayOptions.kt`）。CLI・read_view の値は `FlowReports.kt`。資源は断片 `view-flow/schema.yaml` と図の構造 `view-flow/flow-model.yaml` |
+| format-office | `format.office` | 拡張: Excel の表の読み書きと Word 文書の中の表の読み取り（Apache POI）の `FormatCodec`（`XlsxFormat.kt`・`DocxFormat.kt`）。POI はここだけ |
 | desktop | `desktop` | `Main.kt`（エントリポイント・ウィンドウ・ショートカット）・`AppState` / `OpenDocument`・画面の設定 `UiPreferences`・EDT へ戻す `DesktopUiDispatcher`・AI 生成の要求 `AiRequests` |
-| | `desktop.ui` | Compose の画面一式。役割で 10 のパッケージ（common・form・source・schema・view・graph・file・run・action・shell）に分ける（ui.md「画面のパッケージ」。骨格は `ui/shell/AppRoot.kt`）。拡張の種類のビューの描画の一覧 `ViewRenderers` もここ（ADR-0014） |
-| | `desktop.ext` | 拡張の登録の一覧（`DesktopExtensions`。入出力の形式 6 つとビューの種類 2 つ）。入口が `Extensions.install` に渡す 1 ファイル |
+| | `desktop.ui` | Compose の画面一式。役割で 10 のパッケージ（common・form・source・schema・view・graph・file・run・action・shell）に分ける（ui.md「画面のパッケージ」。骨格は `ui/shell/AppRoot.kt`）。差し込み口を通る種類（chart・flow）の描画の一覧 `ViewRenderers` もここ（ADR-0014） |
+| | `desktop.ext` | 拡張の登録の一覧（`DesktopExtensions`。Excel と Word の形式）。入口が `Extensions.install` に渡す 1 ファイル |
 | repo-tests | `app.rules` ほか | テストだけ（main は無い）。規則テスト（`rules/SourceRulesTest`・`rules/ModuleRules`・`rules/DocReferencesTest`）と、入口（desktop・cli）や拡張の一覧をまたぐテスト（CLI と画面の結果の突き合わせ・テンプレート・取り込み・家計簿の試作）。パッケージは試す対象のもの（`app.core` など） |
 
-応用層の中の依存は `app.ext`（登録簿。カーネルだけを使う）→ `app.core` → `app.session` → `app.tools` → `app.skill`（app-core）→ `agent.llm` → `agent` → `agent.run` → `agent.auto` → `agent.eval`（agent）→ `desktop`（AppState・`desktop.ext`）→ `desktop.ui` の一方向。`app.index` / `app.schema` / `app.validate` / `app.text` は `app.core` より下。
-app-core（`app.core` / `app.index` / `app.schema` / `app.validate` / `app.text` / `app.session` / `app.tools` / `app.ext` / `app.skill`）と agent（`agent` / `agent.llm` / `agent.run` / `agent.auto` / `agent.eval`）と拡張（format-*・view-*）は Compose 非依存の純粋ロジックで、単体テストはこの層に書く。拡張は app-core とカーネルだけを使い、拡張どうし・agent・入口に依存しない。入口が登録の一覧（`desktop/ext/DesktopExtensions.kt`）で `Extensions.install` に渡す。`desktop`（AppState）は `mutableStateOf` だけに依存する。
+応用層の中の依存は `app.view`・`app.format`（組込みの種類と形式。カーネルだけを使う）→ `app.ext`（登録簿）→ `app.core` → `app.session` → `app.tools` → `app.skill`（app-core）→ `agent.llm` → `agent` → `agent.run` → `agent.auto` → `agent.eval`（agent）→ `desktop`（AppState・`desktop.ext`）→ `desktop.ui` の一方向。`app.index` / `app.schema` / `app.validate` / `app.text` は `app.core` より下。
+app-core（`app.core` / `app.index` / `app.schema` / `app.validate` / `app.text` / `app.session` / `app.tools` / `app.ext` / `app.skill` / `app.format` / `app.view`）と agent（`agent` / `agent.llm` / `agent.run` / `agent.auto` / `agent.eval`）と拡張（format-office）は Compose 非依存の純粋ロジックで、単体テストはこの層に書く。拡張は app-core とカーネルだけを使い、拡張どうし・agent・入口に依存しない。入口が登録の一覧（`desktop/ext/DesktopExtensions.kt`）で `Extensions.install` に渡す。`desktop`（AppState）は `mutableStateOf` だけに依存する。
 
 ## ソース規則テスト
 

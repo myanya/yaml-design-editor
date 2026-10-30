@@ -107,9 +107,9 @@
 
 [decisions/](decisions/README.md) の ADR は本規約と同格。矛盾があれば ADR を正として規約側を直す。
 
-- **依存方向**（ADR-0002）: `yaml-core ← semantic-core ← workspace-core ← app-core ← agent ← desktop`（cli は app-core・agent・拡張まで・拡張 format-*・view-* は app-core まで）。コアからアプリ・Compose・AI・agent・skill へ依存しない。
+- **依存方向**（ADR-0002）: `yaml-core ← semantic-core ← workspace-core ← app-core ← agent ← desktop`（cli は app-core・agent・拡張まで・拡張 format-office は app-core まで）。コアからアプリ・Compose・AI・agent・skill へ依存しない。
 - yaml-core と semantic-core の main ソースへ `java.nio.file.Path` を持ち込まない（テストが fixture 読込に使うのは可）。
-- **パッケージ名**: 接頭辞は `dev.toros.yde`、その下にモジュールの根（yaml-core `yaml` / semantic-core `semantic` / workspace-core `workspace` / cli `cli` / app-core `app` / agent `agent` / 拡張 format-* `format.<名前>`・view-* `view.<名前>` / desktop `desktop`）。
+- **パッケージ名**: 接頭辞は `dev.toros.yde`、その下にモジュールの根（yaml-core `yaml` / semantic-core `semantic` / workspace-core `workspace` / cli `cli` / app-core `app` / agent `agent` / 拡張 format-office `format.office` / desktop `desktop`）。
 - モジュール名と同じ名前のクラス（`YamlIO`・`SemanticEngine`・`WorkspaceSession`・`AppState`）とアプリの `Main.kt` は根に置き、ほかは根の下に置く（`semantic.schema`・`desktop.ui` など。対応表は architecture/README.md「モジュールと依存方向」）。同じ裸の名前を複数のモジュールに作らない。
 - **文書とコメントでは接頭辞を省いた短い形**（`schema.FieldDef`・`validate/Validator.kt`）で書き、同じ短い名前が複数のモジュールにあるとき（`schema`・`validate`・`core`）はモジュール名を添える。
 - **root にソースを置かない**: root はビルド全体の設定（settings.gradle.kts・buildSrc）だけ。テストは試す対象のモジュールに置き、1 つのモジュールの依存で書けないもの（入口どうし・入口と拡張の一覧をまたぐもの）と規則テストだけを repo-tests（テストだけのモジュール）に置く。
@@ -117,7 +117,7 @@
 - **fixture は読み取り専用**: `test-fixtures/` の期待結果は [test-fixtures/README.md](../test-fixtures/README.md) にある。変更を伴うテストは一時ディレクトリへコピーして使う。`labs/` 配下をテストから読まない。
 - **設計の決定を変えるとき**は、既存の ADR を書き換えず、新しい ADR で上書きを宣言する。
 - **機械で確かめられる規約は規則テストに足す**: 依存の向き・禁止する API・置き場の決まりのような規約は、文章に書くだけでなく `rules/SourceRules` の表に 1 つ足す（architecture/README.md「ソース規則テスト」）。
-- **新しいモジュールの build.gradle.kts は 3 行から**: `plugins { id("yde.kotlin-module") }` と dependencies、固有の設定（資源の生成・テストの作業ディレクトリなど）だけを書く。共通の設定（Kotlin の版・toolchain 21・テストの依存・JUnit Platform・`fixtures.root`・絞り込みで失敗にしない）は buildSrc の convention plugin `yde.kotlin-module` が持つ。Kotlin の版は buildSrc/build.gradle.kts が正で、desktop の compose 用プラグインも同じ版にそろえる。Compose を使うモジュール（desktop。将来の view-*-ui）は Compose の版と JUnit 4 が絡むので別に書く。
+- **新しいモジュールの build.gradle.kts は 3 行から**: `plugins { id("yde.kotlin-module") }` と dependencies、固有の設定（資源の生成・テストの作業ディレクトリなど）だけを書く。共通の設定（Kotlin の版・toolchain 21・テストの依存・JUnit Platform・`fixtures.root`・絞り込みで失敗にしない）は buildSrc の convention plugin `yde.kotlin-module` が持つ。Kotlin の版は buildSrc/build.gradle.kts が正で、desktop の compose 用プラグインも同じ版にそろえる。Compose を使うモジュール（desktop）は Compose の版と JUnit 4 が絡むので別に書く。
 - **Gradle のタスクの実行時の処理（`doLast`）からスクリプトの値を直接参照しない**: 手元の `val` に取ってから使う（`generateBuildInfo` / `copyHelp` の書き方）。Hot Reload の再コンパイルは構成キャッシュを再利用し、スクリプトの参照を持つタスクは復元できずに失敗する。
 
 ## 9. Core Calculus（新しい決定論的機能の設計レビュー）
