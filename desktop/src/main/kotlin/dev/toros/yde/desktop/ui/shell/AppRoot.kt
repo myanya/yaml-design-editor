@@ -49,6 +49,7 @@ import dev.toros.yde.desktop.ui.file.MarkdownPane
 import dev.toros.yde.desktop.ui.form.FormSlots
 import dev.toros.yde.desktop.ui.form.FormView
 import dev.toros.yde.desktop.ui.form.LocalFormSlots
+import dev.toros.yde.desktop.ui.graph.EntityPage
 import dev.toros.yde.desktop.ui.graph.LensSidePanel
 import dev.toros.yde.desktop.ui.run.AiGenerationHost
 import dev.toros.yde.desktop.ui.run.AiSettings
@@ -183,7 +184,7 @@ private fun AppRootContent(
             Box(Modifier.width(1.dp).fillMaxHeight().background(Palette.Border))
             when (state.uiSpace) {
                 UiSpace.DASHBOARD -> Box(Modifier.weight(1f).fillMaxHeight()) {
-                    DashboardPane(state)
+                    DashboardPane(state, entityPage = { EntityPage(state, it, business = true) })
                 }
                 UiSpace.RUNS -> Box(Modifier.weight(1f).fillMaxHeight()) {
                     RunsSpace(state, automation, runController, automationVersion)

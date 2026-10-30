@@ -64,8 +64,15 @@ import kotlin.math.roundToInt
 import kotlin.math.sqrt
 import dev.toros.yde.desktop.AppState
 import dev.toros.yde.desktop.ui.common.FilePickers
+import dev.toros.yde.desktop.ui.common.GraphLayouts
+import dev.toros.yde.desktop.ui.common.LensArrangement
+import dev.toros.yde.desktop.ui.common.LensEdgeSpec
+import dev.toros.yde.desktop.ui.common.LensLayoutKind
+import dev.toros.yde.desktop.ui.common.LensNestedNode
+import dev.toros.yde.desktop.ui.common.LensPoint
 import dev.toros.yde.desktop.ui.common.Palette
 import dev.toros.yde.desktop.ui.common.PanelShape
+import dev.toros.yde.desktop.ui.common.fitViewport
 import dev.toros.yde.desktop.ui.common.rememberFileSaver
 
 // ================================================================ グラフレンズ（architecture/graph-query.md「エンティティページ」）

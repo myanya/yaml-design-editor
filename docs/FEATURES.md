@@ -149,7 +149,7 @@
 | X-13 | ダッシュボード（開始画面・業務詳細と参照・共通基準日・区画の群と並べ方・共有の入力 `inputs`〔区画の filter と表の params へ。空＝絞らない〕・CLIとread_view） | `semantic/DashboardViews.kt`, `core/Dashboards.kt`, `ui/view/DashboardPane.kt` | `DashboardDefinitionsTest`, `DashboardsTest` | [dashboards](architecture/dashboards.md) |
 | X-01 | 一覧ビュー（ID・タイトル・状態・担当・種別・絞り込み・未保存編集に追随・チェックと ID の列を左に固定） | `ui/view/WorkspaceViews.kt`, `ui/common/VirtualTable.kt`, `AppState.workspaceRecords` | 単体 `VirtualTableTest` | [views](architecture/views.md) |
 | X-02 | 一括編集（自動値も含め Undo 1 回） | `DocumentSession.bulkUpdate`, `WorkspaceSession.applyWithAutoValues` | `AppStateAutoValuesTest`・`AutoValuesKernelTest`・`SessionWriteParityTest` | [editing-history](architecture/editing-history.md) |
-| X-03 | グラフレンズ（近傍・型と関係の絞り込み・配置・保有・側面・PNG・ミニマップ） | `ui/graph/GraphLensView.kt`, `ui/graph/LensGraph.kt`, `ui/graph/GraphLayouts.kt` | `LensGraphTest`, `GraphLayoutsTest` | [graph-query](architecture/graph-query.md) |
+| X-03 | グラフレンズ（近傍・型と関係の絞り込み・配置・保有・側面・PNG・ミニマップ） | `ui/graph/GraphLensView.kt`, `ui/graph/LensGraph.kt`, `ui/common/GraphLayouts.kt` | `LensGraphTest`, `GraphLayoutsTest` | [graph-query](architecture/graph-query.md) |
 | X-11 | スキーマレンズ（「型」の段＝箱は型・線は関係の宣言と導出・入れ子は保有の宣言。箱を押すとスキーマへ・CLI `schema-graph`） | `semantic-core/semantic/SchemaGraph.kt`, `ui/graph/LensGraph.kt`（`buildTypes`）, `cli/SchemaCommands.kt` | 単体 `SemanticSchemaGraphTest`, `LensGraphTest`, `WorkspaceCliTest` | [graph-query](architecture/graph-query.md) |
 | X-12 | レンズの見え方の定義（`_views` の `kind: lens`＝関係ごとの矢印の向き。表示だけ・レジストリに無い関係名はリント・関係の改名は警告で開示） | `semantic-core/semantic/LensViews.kt`, `workspace-core/workspace/ViewDefinitions.kt`（`parseLensView`）, `ui/graph/LensGraph.kt` | 単体 `ViewDefinitionsTest`, `LensGraphTest` | [views](architecture/views.md) |
 | X-04 | コマンドパレット（Ctrl+K・ID・ファイル・本文検索・ビュー切替・スペース切替・保存） | `ui/shell/CommandPalette.kt`, `session/DocumentSession.kt`（`searchContent`） | 手動 | [ui](architecture/ui.md) |
@@ -183,8 +183,8 @@
 | A-13 | レート制限と一時エラーの自動リトライ（408 / 429 / 5xx・`retry-after` と指数バックオフ） | `agent/llm/Http.kt`（`retryLoop`） | 単体 `HttpTest` | [agents](architecture/agents.md) |
 | A-14 | Anthropic prompt caching（system・ツール定義・最新メッセージの 3 点） | `agent/llm/ToolChat.kt`（`AnthropicToolSession`） | 単体 `ToolChatParseTest` | [agents](architecture/agents.md) |
 | A-15 | 入口のスペース非依存化（`AiRequest` が対象文書を持ち・ホストはシェル直下） | `desktop/AppState.kt`（`AiRequest` / `requestAi`）, `ui/run/AiGenerationDialog.kt` | 手動 | [agents](architecture/agents.md) |
-| A-16 | エンティティ文脈と出現単位の生成（関連文書の注入・所有キー限定の生成・キー単位マージ） | `agent/llm/AiGenerator.kt`（`contextDocs`）, `ui/run/AiGenerationDialog.kt`（`mergeGenField`） | 単体 `AiGeneratorTest`, `AiProposalTest` | [agents](architecture/agents.md) |
-| A-17 | 新規作成のたたき台生成（作成 → 開く → 生成の連結・ルート object のキー単位マージ） | `ui/run/AiGenerationDialog.kt`（`requestDocumentDraft`） | 単体 `GenerationRunTest` | [agents](architecture/agents.md) |
+| A-16 | エンティティ文脈と出現単位の生成（関連文書の注入・所有キー限定の生成・キー単位マージ） | `agent/llm/AiGenerator.kt`（`contextDocs`）, `AiRequests.kt`（`mergeGenField`） | 単体 `AiGeneratorTest`, `AiProposalTest` | [agents](architecture/agents.md) |
+| A-17 | 新規作成のたたき台生成（作成 → 開く → 生成の連結・ルート object のキー単位マージ） | `AiRequests.kt`（`requestDocumentDraft`）, `ui/run/AiGenerationDialog.kt` | 単体 `GenerationRunTest` | [agents](architecture/agents.md) |
 
 ## 8. エージェント実行（アクティビティ）
 
@@ -244,7 +244,7 @@
 | C-15 | YAML から YAML への変換（選ぶ × 組み立てる × 規則を子に当てる・値をそろえる `$date` `$number`（`$as` で形）`$trim`・値の式で計算する `$value`・繰り返しの `$index` / `$no`・出どころつき・保存しない・CLI `transform`） | `semantic-core/schema/TransformDef.kt`, `semantic-core/semantic/Transform.kt` | 単体 `SemanticTransformTest`, `TemplateValueTest`, `StructuralDerivationTransformTest` | [transform](architecture/transform.md) |
 | C-16 | バージョン表示（外部 `appVersion`・内部 `yyyymmdd.ビルド番号`・コミット・CLI `version` とスタート画面） | `core/BuildInfo.kt`, `build.gradle.kts` | 単体 `BuildInfoTest` | [workspace](architecture/workspace.md) |
 | C-17 | フロービューの解決・CLI・read_view | 拡張 view-flow（`view/flow/FlowViewKind.kt`・`FlowViews.kt`・`FlowReports.kt`・資源 `view-flow/schema.yaml`） | `FlowViewsTest`, `FlowViewDefinitionsTest`, `FlowViewsIntegrationTest` | [views](architecture/views.md) |
-| C-18 | フローの配置切替・スイムレーン・文書埋め込み・原本フォームと履歴・改名影響 | `ui/graph/GraphLayouts.kt`, `ui/graph/FlowSwimlanes.kt`, `ui/view/FlowViewPane.kt` | `FlowLayoutsTest`, `FlowSelectionTest`, `NavigationHistoryTest`, `FlowRefactoringTest`, `FlowRefactoringGoldenTest` | [views](architecture/views.md) |
+| C-18 | フローの配置切替・スイムレーン・文書埋め込み・原本フォームと履歴・改名影響 | `ui/common/GraphLayouts.kt`, `ui/common/FlowSwimlanes.kt`, `ui/view/FlowViewPane.kt` | `FlowLayoutsTest`, `FlowSelectionTest`, `NavigationHistoryTest`, `FlowRefactoringTest`, `FlowRefactoringGoldenTest` | [views](architecture/views.md) |
 
 ## 10. skill（フォーマット適合）
 

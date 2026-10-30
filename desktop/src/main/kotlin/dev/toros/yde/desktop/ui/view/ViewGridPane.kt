@@ -52,6 +52,7 @@ import java.nio.file.Files
 import dev.toros.yde.desktop.AppState
 import dev.toros.yde.desktop.TableScrollPosition
 import dev.toros.yde.desktop.UiSpace
+import dev.toros.yde.desktop.requestDocumentDraft
 import dev.toros.yde.desktop.ui.common.ActionMenuItem
 import dev.toros.yde.desktop.ui.common.ChoiceMenu
 import dev.toros.yde.desktop.ui.common.ChoiceOption
@@ -64,7 +65,6 @@ import dev.toros.yde.desktop.ui.common.historyHandler
 import dev.toros.yde.desktop.ui.common.slotAt
 import dev.toros.yde.desktop.ui.form.FormCtx
 import dev.toros.yde.desktop.ui.form.ValueEditor
-import dev.toros.yde.desktop.ui.run.requestDocumentDraft
 
 /** グリッドの列幅。 */
 private val ID_WIDTH = 170.dp

@@ -59,7 +59,7 @@ object SourceRules {
         "sh.calvin.reorderable." to "$UI/common/Reorder.kt",
         "com.mikepenz." to "$UI/common/MarkdownView.kt",
         "com.patrykandpatrick.vico." to "$UI/view/Charts.kt",
-        "org.eclipse.elk." to "$UI/graph/GraphLayouts.kt",
+        "org.eclipse.elk." to "$UI/common/GraphLayouts.kt",
     )
 
     /** FieldType の値（基底の種類だけ）。足すときは architecture/schema.md「型の連鎖と狭める規則」を読んでからここも更新する。 */

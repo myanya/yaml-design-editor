@@ -55,6 +55,7 @@ import dev.toros.yde.desktop.AppState
 import dev.toros.yde.desktop.OpenDocument
 import dev.toros.yde.desktop.UiSpace
 import dev.toros.yde.desktop.main
+import dev.toros.yde.desktop.mergeGenField
 import dev.toros.yde.desktop.ui.common.ActionMenuItem
 import dev.toros.yde.desktop.ui.common.CompactTextField
 import dev.toros.yde.desktop.ui.common.Palette
@@ -64,7 +65,6 @@ import dev.toros.yde.desktop.ui.common.slotAt
 import dev.toros.yde.desktop.ui.form.FormCtx
 import dev.toros.yde.desktop.ui.form.GenericEditor
 import dev.toros.yde.desktop.ui.form.ObjectFields
-import dev.toros.yde.desktop.ui.run.mergeGenField
 
 /**
  * エンティティページ（R23-02。architecture/graph-query.md「エンティティページ」）。ID横ぐしビュー（R1-05 / R7-04）の改築:

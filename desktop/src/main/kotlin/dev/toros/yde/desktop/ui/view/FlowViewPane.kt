@@ -43,15 +43,15 @@ import dev.toros.yde.desktop.AppState
 import dev.toros.yde.desktop.OpenDocument
 import dev.toros.yde.desktop.ui.common.ChoiceMenu
 import dev.toros.yde.desktop.ui.common.ChoiceOption
+import dev.toros.yde.desktop.ui.common.GraphLayouts
 import dev.toros.yde.desktop.ui.common.Palette
 import dev.toros.yde.desktop.ui.common.PanelShape
+import dev.toros.yde.desktop.ui.common.fitViewport
 import dev.toros.yde.desktop.ui.common.slotAt
 import dev.toros.yde.desktop.ui.form.FieldRow
 import dev.toros.yde.desktop.ui.form.FormCtx
 import dev.toros.yde.desktop.ui.form.GenericEditor
 import dev.toros.yde.desktop.ui.form.ObjectFields
-import dev.toros.yde.desktop.ui.graph.GraphLayouts
-import dev.toros.yde.desktop.ui.graph.fitViewport
 
 /** 定義と原本を同じ未保存優先loaderで解決する。 */
 @Composable

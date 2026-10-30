@@ -19,7 +19,7 @@
 | `ChartRenderer` / `ChartCard` | ui/view/ChartViewPane.kt | チャートの描画。図の部品は `ui/view/Charts.kt`（Vico を包む `BarChart` / `LineChart`〔面・積み上げ面も〕・自前の `PieChart` / `HorizontalBarChart`） |
 | フロー表示契約 | view-flow の資源 `view-flow/flow-model.yaml` | 表示モデルの型・必須項目・形状をStructureValidatorで検査 |
 | `FlowReports` | view-flow の view/flow/FlowReports.kt | CLI・read_viewへ同じ表示モデルと座標・診断を開示（`FlowViewResult.report`） |
-| `GraphLayouts.arrangeFlow` / `FlowSelection` / `FlowDisplayOptions` | ui/graph/GraphLayouts.kt・view-flow の view/flow/FlowSelection.kt・FlowDisplayOptions.kt | 計測寸法からの決定的配置と文書・版を考慮した選択の再解決・表示の設定 |
+| `GraphLayouts.arrangeFlow` / `FlowSelection` / `FlowDisplayOptions` | ui/common/GraphLayouts.kt・view-flow の view/flow/FlowSelection.kt・FlowDisplayOptions.kt | 計測寸法からの決定的配置と文書・版を考慮した選択の再解決・表示の設定 |
 | `FlowViewPane` / `FlowRenderer` | ui/view/FlowViewPane.kt | 単独表示・文書埋め込み・Canvas描画と既存の原本フォームへの委譲。`FlowRenderer` は描画の一覧の 1 行 |
 | `ViewDefinitions` / `ViewCatalog` | workspace-core/workspace/ViewDefinitions.kt | 読み取り（`parseView`＝definition 参照の列展開を含む）とリント（`lint` / `lintDocument`＝ビュー → スキーマの整合・`staticFieldAt` / `idElements`） |
 | `Views` | core/Views.kt | app-core の窓口（views ゾーンのファイルを読んで渡す `load`・行 × セルの解決 `resolve`・文書ビューの解決 `resolveDocument` / `resolveAttachments`・`renderText` / `renderDocText`・`fieldAt`＝`SchemaDef.fieldAt` へ委譲） |

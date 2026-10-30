@@ -36,11 +36,13 @@ import dev.toros.yde.desktop.ui.common.ActionMenuItem
 import dev.toros.yde.desktop.ui.common.CompactTextField
 import dev.toros.yde.desktop.ui.common.Palette
 import dev.toros.yde.desktop.ui.common.PanelShape
-import dev.toros.yde.desktop.ui.graph.EntityPage
 
-/** 業務の入口と詳細は同じスペースに置き、原本を開くときだけ編集へ移る。 */
+/**
+ * 業務の入口と詳細は同じスペースに置き、原本を開くときだけ編集へ移る。
+ * 詳細（エンティティページ）は骨格が entityPage で渡す（ui.view は ui.graph を import しない）。
+ */
 @Composable
-fun DashboardPane(state: AppState) {
+fun DashboardPane(state: AppState, entityPage: @Composable (id: String) -> Unit) {
     val ws = state.workspace ?: return
     val catalog = remember(ws, state.indexVersion, state.editVersion) {
         Views.load(ws, state.schemas, state.unsavedFirstTree())
@@ -108,7 +110,7 @@ fun DashboardPane(state: AppState) {
                     if (state.overlayIndex().occurrences(entity).isEmpty()) {
                         Text("対象「" + entity + "」は削除されたか、現在の索引にありません。一覧へ戻るか、Undoで確認してください。",
                             Modifier.padding(16.dp), color = Palette.WarnOrange)
-                    } else key(view.id, entity) { EntityPage(state, entity, business = true) }
+                    } else key(view.id, entity) { entityPage(entity) }
                 }
             }
         }

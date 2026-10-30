@@ -76,7 +76,7 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 | format-docx | `format.docx` | 拡張: Word 文書の中の表（Apache POI。読むだけ）の `FormatCodec`（`DocxFormat.kt`） |
 | view-chart | `view.chart` | 拡張: ビューの種類 `kind: chart` の `ViewKind`（`ChartViewKind.kt`）と、描画が読む定義と結果の型（`ChartViews.kt`・`ChartSelection.kt`）。定義の形の断片は資源 `view-chart/schema.yaml` |
 | view-flow | `view.flow` | 拡張: ビューの種類 `kind: flow` の `ViewKind`（`FlowViewKind.kt`）と、描画が読む定義・図のモデル・選択・表示の設定（`FlowViews.kt`・`FlowSelection.kt`・`FlowDisplayOptions.kt`）。CLI・read_view の値は `FlowReports.kt`。資源は断片 `view-flow/schema.yaml` と図の構造 `view-flow/flow-model.yaml` |
-| desktop | `desktop` | `Main.kt`（エントリポイント・ウィンドウ・ショートカット）・`AppState` / `OpenDocument`・画面の設定 `UiPreferences`・EDT へ戻す `DesktopUiDispatcher` |
+| desktop | `desktop` | `Main.kt`（エントリポイント・ウィンドウ・ショートカット）・`AppState` / `OpenDocument`・画面の設定 `UiPreferences`・EDT へ戻す `DesktopUiDispatcher`・AI 生成の要求 `AiRequests` |
 | | `desktop.ui` | Compose の画面一式。役割で 10 のパッケージ（common・form・source・schema・view・graph・file・run・action・shell）に分ける（ui.md「画面のパッケージ」。骨格は `ui/shell/AppRoot.kt`）。拡張の種類のビューの描画の一覧 `ViewRenderers` もここ（ADR-0014） |
 | | `desktop.ext` | 拡張の登録の一覧（`DesktopExtensions`。入出力の形式 6 つとビューの種類 2 つ）。入口が `Extensions.install` に渡す 1 ファイル |
 | repo-tests | `app.rules` ほか | テストだけ（main は無い）。規則テスト（`rules/SourceRulesTest`・`rules/ModuleRules`・`rules/DocReferencesTest`）と、入口（desktop・cli）や拡張の一覧をまたぐテスト（CLI と画面の結果の突き合わせ・テンプレート・取り込み・家計簿の試作）。パッケージは試す対象のもの（`app.core` など） |

@@ -1,4 +1,4 @@
-package dev.toros.yde.desktop.ui.graph
+package dev.toros.yde.desktop.ui.common
 
 import dev.toros.yde.semantic.*
 import dev.toros.yde.view.flow.*

@@ -6,10 +6,10 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import org.apache.poi.xwpf.usermodel.XWPFDocument
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
-import dev.toros.yde.desktop.ui.graph.GraphLayouts
-import dev.toros.yde.desktop.ui.graph.LensEdgeSpec
-import dev.toros.yde.desktop.ui.graph.LensLayoutKind
-import dev.toros.yde.desktop.ui.graph.LensNodeSize
+import dev.toros.yde.desktop.ui.common.GraphLayouts
+import dev.toros.yde.desktop.ui.common.LensEdgeSpec
+import dev.toros.yde.desktop.ui.common.LensLayoutKind
+import dev.toros.yde.desktop.ui.common.LensNodeSize
 
 /** 同梱ランタイムと配布 JAR だけで実行するスモーク検査。外部 API には接続しない。 */
 object DistributionSmoke {

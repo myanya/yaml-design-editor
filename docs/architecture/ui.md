@@ -17,12 +17,12 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 
 | パッケージ | 中身 | 主なファイル |
 |---|---|---|
-| `ui.common` | 色と字体・選択メニュー・項目説明・Markdown の描画・ファイル選択・並べ替え・仮想表・差分 | ui/common/Common.kt・ui/common/ChoiceMenu.kt・ui/common/FieldHelp.kt・ui/common/DiffPane.kt |
+| `ui.common` | 色と字体・選択メニュー・項目説明・Markdown の描画・ファイル選択・並べ替え・仮想表・差分・図の配置（ELK。グラフレンズとフロー図が使う） | ui/common/Common.kt・ui/common/ChoiceMenu.kt・ui/common/FieldHelp.kt・ui/common/DiffPane.kt・ui/common/GraphLayouts.kt |
 | `ui.form` | フォーム編集（`FormCtx`・項目の行・表・汎用エディタ・値の種類ごとの欄・配列の削除・表示方式） | ui/form/FormCtx.kt・ui/form/FormFields.kt・ui/form/FormTables.kt・ui/form/GenericEditor.kt |
 | `ui.source` | ソースエディタ（編集・補完・強調・構造・構文の状態） | ui/source/SourcePane.kt・ui/source/SourceEditing.kt |
 | `ui.schema` | スキーマ設計の画面 | ui/schema/SchemaEditor.kt・ui/schema/SchemaDesignWorkspace.kt |
 | `ui.view` | ビューの描画（表・チャート・フロー・レポート・ダッシュボード・準備完了）と、拡張の種類の描画の一覧 | ui/view/ViewRenderers.kt・ui/view/ViewGridPane.kt・ui/view/DashboardPane.kt |
-| `ui.graph` | グラフレンズとエンティティページ（配置は ELK） | ui/graph/GraphLensView.kt・ui/graph/GraphLayouts.kt・ui/graph/IdCrossView.kt |
+| `ui.graph` | グラフレンズとエンティティページ | ui/graph/GraphLensView.kt・ui/graph/LensGraph.kt・ui/graph/IdCrossView.kt |
 | `ui.file` | ファイル一覧・プレビュー・移動・Markdown の画面・file 型の欄と画像 | ui/file/FileTreePane.kt・ui/file/FileEditor.kt・ui/file/ImagePane.kt |
 | `ui.run` | 実行スペース・自動化・計測・AI の接続と生成 | ui/run/RunsSpace.kt・ui/run/AiGenerationDialog.kt |
 | `ui.action` | 操作のパネル（型の操作とアクション） | ui/action/ActionPane.kt |
@@ -30,7 +30,7 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 
 - 入口の `Main.kt` は `main`（窓）とショートカットの `handleShortcut` だけを持ち、画面は `ui.shell` に置く。
 - form は機能のパッケージを import しない。file 型の欄・文書ビューに埋め込む拡張のビュー・スキーマを書くときの欄は、form の差し込み口 `FormSlots`（ui/form/FormSlots.kt）へ上から渡す。
-- パッケージの間に循環は無い。機能どうしの矢印が 4 本残っている（view → graph・view → run・file → run・graph → run）。新しく増やさない。
+- 機能のパッケージは互いを使わない。AI 生成の要求のように画面を持たない頼みごとは根（`AiRequests.kt`）から AppState に置き、ダッシュボードのエンティティページのように別の機能の画面を出すときは、骨格が中身を渡す（`DashboardPane` の `entityPage`）。
 
 ## 部品
 
@@ -80,8 +80,8 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 | `InitWizardHost` | ui/shell/InitWizard.kt | 初期化ウィザード（新しいワークスペースを作る浮いたパネル＝場所・始め方・内容・確認の 4 歩と、問いの素朴な入力欄。計画はカーネルの `WorkspaceInit`、[workspace](workspace.md)） |
 | `FileTreePane` / `SourcePane` / `DiffPane` / `SchemaEditor` / `IdCrossView` / `ViewGridPane` / `WorkspaceViews` / `AiGenerationDialog` / `AutomationPanel` / `ImprovementPanel` / `SkillsPanel` | ui/ | 各ペイン |
 | `GraphLensView` | ui/graph/GraphLensView.kt | グラフレンズ（配置の切替・箱の入れ子と矢印・ひし形・点線の描画・クリックでエンティティページへ着地し、配置は背景で計算し、できるまで前の絵を出す）と操作（ホイール拡縮・箱のドラッグ＝`withMovedNested`・見出しの印で開く・畳む・ホバー強調・右クリック・PNG 保存・ミニマップ）。節点と辺の決め方は ui/graph/LensGraph.kt（[graph-query](graph-query.md)） |
-| `GraphLayouts` / `LensLayoutKind` / `LensArrangement` / `fitViewport` | ui/graph/GraphLayouts.kt | 節点と辺の配置（放射・階層・応力はライブラリ ELK を包み、力学は `GraphLayout`）と画面に収める倍率の計算（Compose に依存しない純ロジック） |
-| `SourceHighlight` / `SourceMerge` / `SourceEditing` / `GraphLayout` / `DiffPane.calculateDiff` | ui/ | テスト可能な純ロジック（YAML トークナイザ・行差分と 3 者マージ・ソースの基本操作と検索・軽い力学レイアウト・差分） |
+| `GraphLayouts` / `LensLayoutKind` / `LensArrangement` / `fitViewport` | ui/common/GraphLayouts.kt | 節点と辺の配置（放射・階層・応力はライブラリ ELK を包み、力学は `GraphLayout`）と画面に収める倍率の計算（Compose に依存しない純ロジック） |
+| `SourceHighlight` / `SourceMerge` / `SourceEditing` / `GraphLayout` / `DiffPane.calculateDiff` | ui/source・ui/common | テスト可能な純ロジック（YAML トークナイザ・行差分と 3 者マージ・ソースの基本操作と検索・軽い力学レイアウト・差分） |
 
 ## UI シェル
 

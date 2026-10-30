@@ -23,7 +23,7 @@ import dev.toros.yde.yaml.validate.Severity
 /**
  * 文書単位のフロー（`kind: flow`。拡張の種類。ADR-0014）。業務の項目名はprojectionだけが知り、解決結果を保存しない。
  * 文書に縛られる種類で、解決には対象の文書が要る（ViewContext.document）。定義を読むのは FlowViewKind。
- * 型は描画（desktop の ui/view/FlowViewPane.kt・ui/graph/FlowSwimlanes.kt・ui/graph/GraphLayouts.kt）が読むので公開する。
+ * 型は描画（desktop の ui/view/FlowViewPane.kt・ui/common/FlowSwimlanes.kt・ui/common/GraphLayouts.kt）が読むので公開する。
  */
 data class VirtualFlowDef(
     override val id: String,

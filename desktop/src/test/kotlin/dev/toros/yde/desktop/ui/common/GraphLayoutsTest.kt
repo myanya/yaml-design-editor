@@ -1,4 +1,4 @@
-package dev.toros.yde.desktop.ui.graph
+package dev.toros.yde.desktop.ui.common
 
 import kotlin.math.hypot
 import kotlin.test.Test
