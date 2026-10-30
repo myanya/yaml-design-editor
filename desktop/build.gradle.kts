@@ -34,10 +34,8 @@ dependencies {
     // 応用層（app-core・agent）。カーネルの 3 つにも直接依存してよい（ADR-0013。共通の語彙＝文書 ID・YNode・スキーマの宣言を使うため）
     implementation(project(":app-core"))
     implementation(project(":agent"))
-    // 拡張（入出力の形式）。登録は desktop/ext/DesktopExtensions.kt の一覧
-    implementation(project(":format-text"))
-    implementation(project(":format-xlsx"))
-    implementation(project(":format-docx"))
+    // 拡張（Excel・Word の形式）。登録は desktop/ext/DesktopExtensions.kt の一覧
+    implementation(project(":format-office"))
     implementation(project(":workspace-core"))
     implementation(project(":semantic-core"))
     implementation(project(":yaml-core"))
@@ -72,7 +70,7 @@ dependencies {
     testImplementation(kotlin("test"))
     // Compose の UI テスト（runComposeUiTest。画面無しで描いて semantics で確かめる。R47-50）。版は compose プラグインと同じ
     testImplementation("org.jetbrains.compose.ui:ui-test-junit4:1.12.1")
-    testImplementation("org.apache.poi:poi-ooxml:5.5.1")   // DistributionSmoke が Office の文書を組み立てる（本体は format-xlsx / format-docx）
+    testImplementation("org.apache.poi:poi-ooxml:5.5.1")   // DistributionSmoke が Office の文書を組み立てる（本体は format-office）
 }
 
 kotlin {
@@ -284,7 +282,7 @@ val verifyWindowsZip by tasks.registering(Exec::class) {
 tasks.register("windowsRelease") {
     group = "distribution"
     description = "全テスト・ZIP 検査後にチェックサムと GitHub Releases 用の説明を生成する"
-    dependsOn(verifyWindowsZip, "test", ":yaml-core:test", ":semantic-core:test", ":workspace-core:test", ":cli:test", ":app-core:test", ":agent:test", ":format-text:test", ":format-xlsx:test", ":format-docx:test", ":repo-tests:test")
+    dependsOn(verifyWindowsZip, "test", ":yaml-core:test", ":semantic-core:test", ":workspace-core:test", ":cli:test", ":app-core:test", ":agent:test", ":format-office:test", ":repo-tests:test")
     val releaseNotes = repo.file("distribution/windows/release-notes.md")
     inputs.file(releaseNotes)
     doLast {

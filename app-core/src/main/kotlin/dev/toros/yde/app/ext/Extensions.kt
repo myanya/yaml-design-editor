@@ -1,22 +1,31 @@
 package dev.toros.yde.app.ext
 
+import dev.toros.yde.app.format.CsvFormat
+import dev.toros.yde.app.format.FormatCodec
+import dev.toros.yde.app.format.HtmlFormat
+import dev.toros.yde.app.format.JsonFormat
+import dev.toros.yde.app.format.MarkdownFormat
 import dev.toros.yde.app.view.chart.ChartViewKind
 import dev.toros.yde.app.view.flow.FlowViewKind
 import dev.toros.yde.workspace.ViewDefinitions
 import dev.toros.yde.workspace.ViewKind
 
 /**
- * 形式とビューの種類の登録簿（ADR-0013「窓口の形」・ADR-0015）。app-core の組込み（ビューの種類 chart・flow）は最初から入っていて、
- * 入口（desktop・cli）は別モジュールの拡張だけを `listOf(…)` で組み立てて `Extensions.install` で渡す。
+ * 形式とビューの種類の登録簿（ADR-0013「窓口の形」・ADR-0015）。app-core の組込み（文字の形式 csv・json・markdown・html と
+ * ビューの種類 chart・flow）は最初から入っていて、入口（desktop・cli）は別モジュールの拡張（Excel・Word の format-office）だけを
+ * `listOf(…)` で組み立てて `Extensions.install` で渡す。
  * 自動発見（ServiceLoader）はしない: どこで何が足されたかを、入口の 1 ファイルで読めるようにするため。
  * ビューの種類の差し込み口 ViewKind はカーネルにあり、ここから引数で渡す（ADR-0014）。ツールも後でここに足す。
  */
-class ExtensionRegistry(val formats: List<FormatCodec> = emptyList(), views: List<ViewKind> = emptyList()) {
+class ExtensionRegistry(formats: List<FormatCodec> = emptyList(), views: List<ViewKind> = emptyList()) {
+    /** 組込みの形式のあとに、入口が足した形式。 */
+    val formats: List<FormatCodec> = BUILTIN_FORMATS + formats
+
     /** 組込みの種類のあとに、入口が足した種類。 */
     val views: List<ViewKind> = BUILTIN_VIEWS + views
 
     init {
-        formats.groupBy { it.id }.filterValues { it.size > 1 }.keys.firstOrNull()?.let { error("形式「$it」が二重に登録されています") }
+        this.formats.groupBy { it.id }.filterValues { it.size > 1 }.keys.firstOrNull()?.let { error("形式「$it」が二重に登録されています") }
         this.views.groupBy { it.id }.filterValues { it.size > 1 }.keys.firstOrNull()?.let { error("ビューの種類「$it」が二重に登録されています") }
         this.views.firstOrNull { it.id in ViewDefinitions.CORE_KINDS }?.let { error("ビューの種類「${it.id}」は中核の種類と重なります") }
     }
@@ -37,6 +46,9 @@ class ExtensionRegistry(val formats: List<FormatCodec> = emptyList(), views: Lis
     val writableExtensions: List<String> get() = formats.filter { it.canWrite }.flatMap { it.extensions }
 
     companion object {
+        /** app-core の組込みの形式（app.format の文字の形式）。入口が渡さなくても入っている。 */
+        val BUILTIN_FORMATS: List<FormatCodec> = listOf(CsvFormat, JsonFormat, MarkdownFormat, HtmlFormat)
+
         /** app-core の組込みのビューの種類（app.view）。入口が渡さなくても入っている。 */
         val BUILTIN_VIEWS: List<ViewKind> = listOf(FlowViewKind, ChartViewKind)
     }

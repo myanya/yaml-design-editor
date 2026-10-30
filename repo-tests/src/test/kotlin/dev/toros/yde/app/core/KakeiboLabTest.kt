@@ -1,7 +1,5 @@
 package dev.toros.yde.app.core
 
-import dev.toros.yde.app.ext.Extensions
-import dev.toros.yde.desktop.ext.DesktopExtensions
 import dev.toros.yde.app.skill.Importer
 import dev.toros.yde.app.skill.Skills
 import dev.toros.yde.yaml.YamlIO
@@ -25,7 +23,6 @@ import kotlin.test.assertTrue
  * labs は読み取り専用に扱い、一時ディレクトリへ写してから開く。
  */
 class KakeiboLabTest {
-    init { Extensions.install(DesktopExtensions.registry) }   // 形式（csv・xlsx …）は入口の一覧で登録する
 
 
     private lateinit var dir: Path

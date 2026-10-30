@@ -1,16 +1,16 @@
 package dev.toros.yde.app.skill
 
 import dev.toros.yde.app.ext.Extensions
-import dev.toros.yde.app.ext.FormatCodec
-import dev.toros.yde.app.ext.ReadOptions
-import dev.toros.yde.app.ext.Table
-import dev.toros.yde.app.ext.WriteOptions
+import dev.toros.yde.app.format.FormatCodec
+import dev.toros.yde.app.format.ReadOptions
+import dev.toros.yde.app.format.Table
+import dev.toros.yde.app.format.WriteOptions
 import java.nio.charset.CharacterCodingException
 import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * 表の読み書きの窓口（R5-02 / R5-03）。形式の実装は拡張（`FormatCodec`。format-text・format-xlsx・format-docx）にあり、
+ * 表の読み書きの窓口（R5-02 / R5-03）。形式の実装は `FormatCodec`（文字の形式は app.format の組込み・Excel と Word は拡張 format-office）にあり、
  * ここは skill 定義（`ImportDef` / 出力ファイル名）から形式を選び、ファイルと bytes の間を受け持つ。
  * 中核（app-core）は特定の形式のライブラリ（POI など）を持たない。
  */
@@ -21,7 +21,7 @@ object Tables {
     /** skill 定義の `format` の値から読む形式を選ぶ。登録されていない値は誤り（使える形式を添える）。 */
     fun codecFor(id: String): FormatCodec =
         Extensions.format(id) ?: error(
-            "format「$id」は使えません（使える形式: ${Extensions.registry.formatIds.joinToString(" / ").ifEmpty { "なし。入口が形式を登録します" }}）"
+            "format「$id」は使えません（使える形式: ${Extensions.registry.formatIds.joinToString(" / ").ifEmpty { "なし" }}）"
         )
 
     /** 出力ファイルの拡張子から書く形式を選ぶ。 */

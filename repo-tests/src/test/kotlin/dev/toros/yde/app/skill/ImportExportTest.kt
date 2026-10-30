@@ -4,13 +4,13 @@ import dev.toros.yde.agent.Definitions
 import dev.toros.yde.agent.Evals
 import dev.toros.yde.app.core.Workspace
 import dev.toros.yde.app.ext.Extensions
-import dev.toros.yde.app.ext.ReadOptions
-import dev.toros.yde.app.ext.Table
+import dev.toros.yde.app.format.ReadOptions
+import dev.toros.yde.app.format.Table
 import dev.toros.yde.desktop.ext.DesktopExtensions
-import dev.toros.yde.format.docx.DocxFormat
-import dev.toros.yde.format.text.CsvFormat
-import dev.toros.yde.format.text.JsonFormat
-import dev.toros.yde.format.xlsx.XlsxFormat
+import dev.toros.yde.format.office.DocxFormat
+import dev.toros.yde.app.format.CsvFormat
+import dev.toros.yde.app.format.JsonFormat
+import dev.toros.yde.format.office.XlsxFormat
 import dev.toros.yde.workspace.InitRequest
 import dev.toros.yde.workspace.WorkspaceInit
 import dev.toros.yde.workspace.WorkspaceTemplates
@@ -31,7 +31,7 @@ import kotlin.test.assertTrue
  * ledger テンプレートの上で一気通貫に検証する。
  */
 class ImportExportTest {
-    init { Extensions.install(DesktopExtensions.registry) }   // 形式（csv・xlsx …）は入口の一覧で登録する
+    init { Extensions.install(DesktopExtensions.registry) }   // Excel・Word の形式（format-office）は入口の一覧で登録する
 
     private lateinit var dir: Path
 

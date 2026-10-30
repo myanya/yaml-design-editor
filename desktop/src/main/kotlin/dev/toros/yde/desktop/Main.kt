@@ -26,7 +26,7 @@ import dev.toros.yde.desktop.ui.shell.ReloadConfirmationDialog
 import dev.toros.yde.desktop.ui.shell.StartScreen
 
 fun main(args: Array<String>) = application {
-    Extensions.install(DesktopExtensions.registry)  // 拡張（入出力の形式・ビューの種類）の登録は入口の一覧 1 ファイル（app-core に POI を入れない）
+    Extensions.install(DesktopExtensions.registry)  // 拡張（Excel・Word の形式）の登録は入口の一覧 1 ファイル（app-core に POI を入れない。組込みは最初から入っている）
     val state = remember { AppState() }
     var confirmExit by remember { mutableStateOf(false) }
     var darkMode by remember { mutableStateOf(uiPreferences.getBoolean("darkMode", false)) }

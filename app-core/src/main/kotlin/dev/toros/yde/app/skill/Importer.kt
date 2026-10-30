@@ -1,7 +1,7 @@
 package dev.toros.yde.app.skill
 
 import dev.toros.yde.app.core.Workspace
-import dev.toros.yde.app.ext.Table
+import dev.toros.yde.app.format.Table
 import dev.toros.yde.app.schema.IdSuggest
 import dev.toros.yde.semantic.SemanticTransform
 import dev.toros.yde.semantic.schema.FileNames

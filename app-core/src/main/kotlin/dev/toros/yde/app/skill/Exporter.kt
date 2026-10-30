@@ -3,7 +3,7 @@ package dev.toros.yde.app.skill
 import dev.toros.yde.app.core.ViewCell
 import dev.toros.yde.app.core.Views
 import dev.toros.yde.app.core.Workspace
-import dev.toros.yde.app.ext.Table
+import dev.toros.yde.app.format.Table
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.parseYPath
 import dev.toros.yde.yaml.model.getAt

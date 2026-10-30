@@ -32,7 +32,7 @@ import kotlin.test.assertTrue
  * ダッシュボードが解決でき、登録の操作が計画・適用できる。CLI `init` も同じ計画を使う。
  */
 class WorkspaceTemplatesTest {
-    init { Extensions.install(DesktopExtensions.registry) }   // 形式（csv・xlsx …）は入口の一覧で登録する
+    init { Extensions.install(DesktopExtensions.registry) }   // Excel・Word の形式（format-office）は入口の一覧で登録する
 
 
     private lateinit var base: Path

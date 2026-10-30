@@ -18,7 +18,7 @@ internal object ModuleRules {
     fun isExtension(module: String): Boolean =
         (module.startsWith("format-") || module.startsWith("view-")) && !module.endsWith("-ui")
 
-    /** 拡張のパッケージの根（format-text → dev.toros.yde.format.text）。 */
+    /** 拡張のパッケージの根（format-office → dev.toros.yde.format.office）。 */
     fun extensionPackage(module: String): String = "dev.toros.yde." + module.replace('-', '.')
 
     /** 入口ごとの拡張の登録の一覧。 */

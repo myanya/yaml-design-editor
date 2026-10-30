@@ -14,16 +14,14 @@ dependencies {
     testImplementation(project(":cli"))
     testImplementation(project(":agent"))
     testImplementation(project(":app-core"))
-    testImplementation(project(":format-text"))
-    testImplementation(project(":format-xlsx"))
-    testImplementation(project(":format-docx"))
+    testImplementation(project(":format-office"))
     testImplementation(project(":workspace-core"))
     testImplementation(project(":semantic-core"))
     testImplementation(project(":yaml-core"))
     // desktop の AppState の型（Compose の状態）をテストから読むため。版は desktop の compose プラグインと同じ
     testImplementation("org.jetbrains.compose.runtime:runtime:1.12.1")
     testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
-    testImplementation("org.apache.poi:poi-ooxml:5.5.1")   // ImportExportTest が Office の文書を組み立てる（本体は format-xlsx / format-docx）
+    testImplementation("org.apache.poi:poi-ooxml:5.5.1")   // ImportExportTest が Office の文書を組み立てる（本体は format-office）
 }
 
 tasks.withType<Test>().configureEach {

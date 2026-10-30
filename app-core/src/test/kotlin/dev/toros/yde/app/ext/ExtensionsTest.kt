@@ -1,5 +1,10 @@
 package dev.toros.yde.app.ext
 
+import dev.toros.yde.app.format.FormatCodec
+import dev.toros.yde.app.format.ReadOptions
+import dev.toros.yde.app.format.Table
+import dev.toros.yde.app.format.WriteOptions
+import dev.toros.yde.app.format.decodeStrict
 import dev.toros.yde.app.skill.Tables
 import dev.toros.yde.semantic.ExtensionViewDef
 import dev.toros.yde.workspace.ViewKind
@@ -12,12 +17,12 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * 拡張の登録簿: 入口が入れた形式だけが skill の format と出力ファイルの拡張子から選べる。
- * 中核には形式が 1 つも無く、登録されていない形式は使える形式を添えた誤りになる。
+ * 登録簿: 組込みの形式（csv・json・markdown・html）と入口が入れた形式が skill の format と出力ファイルの拡張子から選べる。
+ * 登録されていない形式は使える形式を添えた誤りになる。
  */
 class ExtensionsTest {
 
-    /** 1 行 1 セルの試験用の形式（本物の形式は拡張モジュールにある）。 */
+    /** 1 行 1 セルの試験用の形式（本物の形式は app.format と format-office にある）。 */
     private object FakeFormat : FormatCodec {
         override val id = "fake"
         override val extensions = listOf("fk", "fake")
@@ -46,14 +51,16 @@ class ExtensionsTest {
         assertEquals(FakeFormat, Extensions.formatForFile("out/a.FAKE"))
         assertNull(Extensions.formatForFile("a.ro"), "読むだけの形式は拡張子から選ばない")
         assertNull(Extensions.formatForFile("a"))
-        assertEquals(listOf("fk", "fake"), Extensions.registry.writableExtensions)
+        assertEquals(listOf("csv", "json", "markdown", "html", "fake", "ro"), Extensions.registry.formatIds, "組込みのあとに足した形式")
+        assertEquals(listOf("fk", "fake"), Extensions.registry.writableExtensions.takeLast(2))
+        assertEquals("csv", Extensions.formatForFile("out/a.csv")?.id, "組込みは入口が渡さなくても入っている")
     }
 
     @Test
     fun `登録の無い形式は使える形式を添えて断る`() {
         Extensions.install(ExtensionRegistry(listOf(FakeFormat)))
         val e = assertFailsWith<IllegalStateException> { Tables.codecFor("xlsx") }
-        assertTrue("format「xlsx」は使えません（使える形式: fake）" in e.message.orEmpty(), e.message)
+        assertTrue("format「xlsx」は使えません（使える形式: csv / json / markdown / html / fake）" in e.message.orEmpty(), e.message)
         val w = assertFailsWith<IllegalStateException> { Tables.writerFor("a.xlsx") }
         assertTrue(".fk / .fake" in w.message.orEmpty(), w.message)
         assertFailsWith<IllegalStateException> { ExtensionRegistry(listOf(FakeFormat, FakeFormat)) }

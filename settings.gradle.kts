@@ -16,8 +16,6 @@ include(
     ":desktop",
     ":app-core",
     ":agent",
-    ":format-text",
-    ":format-xlsx",
-    ":format-docx",
+    ":format-office",
     ":repo-tests",
 )
