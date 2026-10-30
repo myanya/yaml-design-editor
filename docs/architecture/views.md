@@ -51,10 +51,11 @@
 - **列幅と見出しの印は画面だけ**（`ViewGridPane`・`GridWidths`）: 列幅は見出しと値の文字の幅から決める（表示だけの列・編集できる列は値の型ごとの飾りと最小幅・被参照の列・ID の列）。見出しは編集できる列に鉛筆、被参照の列に ← の印（以前の「（参照）」「（被参照）」の文字の代わり）。状態の列は、行の要素のスキーマに状態を出す検査（`Validator.reportsStatus`）があるときだけ。
 - **セルの併記は画面だけ**（`ViewGridPane`）: 編集できない列の enum は `FieldDef.optionFor` のラベル、参照は索引のタイトルを「値（ラベル）」「ID（名前）」で添える。編集できる参照のセルは入力欄の下に名前を出す。セルの値・CLI・書き出し・`read_view` は変えない（`read_view` は元から「ID（タイトル）」を注記する）。
 - **行の並びは 3 段**（`VirtualViews.sortRows`）: `order.path`（`VirtualOrderValue`）があれば並び基準の出現から読んだ値の順、無ければ `order` の出現の文書内順、どちらも無ければ ID 順。値の読み出しは `resolve` の木の読み込みを共有する。
-  値の順の種類は `type` の宣言か、読む項目の型（`resolve` に渡す `fieldAt` で引く）。数値は `SemanticExpression.numberOf`・日付などは `ValueSemantics.orderKey`・決まらなければ文字の順。読めない行は後ろ、同値は ID 順。
+  値の順の種類は `type` の宣言か、読む項目の型（`resolve` に渡す `fieldAt` で引く）。数値は `SemanticExpression.numberOf`・日付などは `ValueSemantics.orderKey`・決まらなければ文字の順。読めない行は後ろ、同値は ID 順（クエリ行ではクエリの順。安定な並べ替えで、元の並びを残す）。
 - **項目の型を知るのは呼び出し側**: `VirtualViews.resolve` の `fieldAt`（文書とパス → 解決済みの項目）はアプリの `Views.resolve` が `schemaFor` から組み立てて渡す（CLI・エクスポート・エージェント・グリッドの全経路）。値の式の列の順序の種類（`SemanticCheckSide.kind`）と合計の行の畳み方（`VirtualCell.kind`）もこれで決まる。
 - **桁区切りと表示の形は見せ方だけ**: 列の `display: grouped` / `format`（`VirtualViewColumn.display` / `format`）か、`path` の列の項目のヒント（`FieldHints.numberDisplay` / `format`）で、グリッドのセルの文字を `ValueFormat.display` に通す（値の式の列は値が数か日付として読めれば整形）。セルの値・`read_view`・CLI `view`・エクスポートは元のまま。編集できる列はエディタに同じヒントを渡す。
-- **クエリ行**（`rows: match:`。`rows: idPattern` と排他）: 行＝クエリの束縛行（`limit` を書かなければ上限なし。書けば打ち切り、全行数は `ResolvedRows.total` で一覧・ダッシュボード・CLI に示す）。行キーは `rowKey:`（省略時は先頭の束縛。kind: entity 限定）。列の `of:` で結合先ノードの値をセル化でき、セルは各束縛ノードの原本座標へ解決される。バックリンク列・値の式の列も `of` の束縛 ID を対象にでき、値の式は行の束縛を式の `of` で読める。行の同一性は `ViewRow.key`（束縛値の組）。`order` は併用不可。
+- **クエリ行**（`rows: match:`。`rows: idPattern` と排他）: 行＝クエリの束縛行（`limit` を書かなければ上限なし。書けば打ち切り、全行数は `ResolvedRows.total` で一覧・ダッシュボード・CLI に示す）。行キーは `rowKey:`（省略時は先頭の束縛。kind: entity 限定）。列の `of:` で結合先ノードの値をセル化でき、セルは各束縛ノードの原本座標へ解決される。バックリンク列・値の式の列も `of` の束縛 ID を対象にでき、値の式は行の束縛を式の `of` で読める。行の同一性は `ViewRow.key`（束縛値の組）。
+  並びは、`order` が無ければクエリの決定的順序で `sortRows` を通さない。`order` があれば行キーの要素の出現で `sortRows` に通し、`limit` は並べた後で切る（照合は上限なしで回す）。
 - **新規行の入口は 2 モード**: `newRow` は配列モード（`file` ＋ `path`: 一覧文書の配列へ要素追加＝未保存編集として積む）とファイルモード（`filePattern`: 詳細文書をスキャフォールドしてディスクへ書込＝索引更新で行が現れる）の排他。スキャフォールドは `detail.filePattern` の「作成」と共通（[schema.md「ひな型」](schema.md)）。`newRow.filePattern` に書ける穴は `{id}` だけ。ビューが宣言するのは「新しい原本がどこで生まれるか」だけ。
 
 ## 文書ビュー

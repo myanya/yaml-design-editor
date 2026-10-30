@@ -1964,23 +1964,84 @@ class ViewsTest {
                 ws.resolve("_views/x.yaml"),
             )
         }
-        // order はクエリ行と併用不可
-        assertFailsWith<RuntimeException> {
-            Views.parseView(
-                YamlIO.parseToRaw(
-                    """
-                    id: x
-                    rows:
-                      match:
-                        - node: { entity: qscreen, bind: scr }
-                    order: { schemaId: qscreen }
-                    columns:
-                      - { label: A, path: name }
-                    """.trimIndent()
-                ) as Map<*, *>,
-                ws.resolve("_views/x.yaml"),
-            )
-        }
+    }
+
+    @Test
+    fun `query rows keep the query order unless order is written and are sorted before limit`() {
+        write(
+            "_schemas/qitems.yaml",
+            """
+            id: qitems
+            match: "qitems/*.yaml"
+            entity: { type: qitem, idPattern: "QI-*", defines: true }
+            root:
+              type: object
+              fields:
+                - key: items
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: id, type: id, required: true }
+                      - { key: name, type: string, role: title }
+                      - { key: rank, type: int }
+            """,
+        )
+        write(
+            "_schemas/qgroups.yaml",
+            """
+            id: qgroups
+            match: "qgroups/*.yaml"
+            entity: { type: qgroup, idPattern: "QG-*", defines: true }
+            root:
+              type: object
+              fields:
+                - { key: id, type: id, required: true }
+                - key: members
+                  type: array
+                  item: { type: ref, relation: member, scope: { schemaIds: [qitems] } }
+            """,
+        )
+        // 文書内の順（C → A → B）が ID 順と違う。QI-C は 2 つのグループに入る
+        write("qitems/list.yaml", "items:\n  - { id: QI-C, name: C, rank: 2 }\n  - { id: QI-A, name: A, rank: 3 }\n  - { id: QI-B, name: B, rank: 1 }")
+        write("qgroups/QG-1.yaml", "id: QG-1\nmembers: [QI-A, QI-B, QI-C]")
+        write("qgroups/QG-2.yaml", "id: QG-2\nmembers: [QI-C]")
+        fun view(id: String, order: String, limit: Int = 0) = write(
+            "_views/$id.yaml",
+            """
+            id: $id
+            rows:
+              match:
+                - node: { entity: qgroup, bind: g }
+                - edge: { relation: member }
+                - node: { entity: qitem, bind: i }
+              rowKey: i
+              ${if (limit > 0) "limit: $limit" else ""}
+            ${if (order.isNotEmpty()) "order: $order" else ""}
+            columns:
+              - { label: 名前, path: name }
+            """,
+        )
+        view("plain", "")
+        view("by-doc", "{ schemaId: qitems }")
+        view("by-rank", "{ schemaId: qitems, path: rank, type: number }")
+        view("by-doc-limited", "{ schemaId: qitems }", limit = 2)
+        val workspace = Workspace.open(ws)
+        val loaded = Views.load(ws, workspace.schemas)
+        assertTrue(loaded.errors.isEmpty(), loaded.errors.toString())
+        fun resolved(id: String) = Views.resolveDetailed(loaded.view(id)!!, workspace.index, workspace::treeOf)
+        fun keys(id: String) = resolved(id).rows.map { it.key }
+        // 書かなければクエリの順（束縛名の辞書順 g → i で、束縛した要素の ID 順）
+        assertEquals(listOf("g=QG-1|i=QI-A", "g=QG-1|i=QI-B", "g=QG-1|i=QI-C", "g=QG-2|i=QI-C"), keys("plain"))
+        // 行キーの要素の出現の文書内順。同じ要素の行はクエリの順のまま
+        assertEquals(listOf("g=QG-1|i=QI-C", "g=QG-2|i=QI-C", "g=QG-1|i=QI-A", "g=QG-1|i=QI-B"), keys("by-doc"))
+        // 値の順（rank）も書ける
+        assertEquals(listOf("QI-B", "QI-C", "QI-C", "QI-A"), resolved("by-rank").rows.map { it.id })
+        // limit は並べてから切る（ID 順の先頭 2 行ではない）。全行数は打ち切り前
+        val limited = resolved("by-doc-limited")
+        assertEquals(listOf("g=QG-1|i=QI-C", "g=QG-2|i=QI-C"), limited.rows.map { it.key })
+        assertEquals(4, limited.total)
+        assertTrue(limited.truncated)
     }
 
     @Test

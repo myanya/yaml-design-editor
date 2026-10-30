@@ -12,6 +12,8 @@ rows:
   where:
     - { of: t, path: id, equals: $table }
   rowKey: a
+# 並びは物理の文書のカラムの順（書かなければクエリの順＝属性の ID 順）
+order: { schemaId: tm-physical }
 columns:
   - { label: テーブルID, of: t, path: id }
   - { label: テーブル, of: t, schemaId: tm-physical, path: physical_name }

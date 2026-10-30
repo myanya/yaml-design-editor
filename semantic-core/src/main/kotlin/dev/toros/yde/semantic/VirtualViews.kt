@@ -555,13 +555,15 @@ object VirtualViews {
             path = occurrences.firstOrNull()?.path ?: emptyList(),
         )
 
-        // クエリ行（rows: match）: 行 = パターン照合の束縛行。並びはクエリの決定的順序（sortRows は通さない）
+        // クエリ行（rows: match）: 行 = パターン照合の束縛行。並びはクエリの決定的順序で、order を書いたときだけ
+        // 行キーの要素の出現で並べ直す（sortRows。同じ並びの行はクエリの順のまま）
         val query = view.rowsQuery
         if (query != null) {
             val rowKeyName = view.rowKey ?: query.binds.first()
-            val result = SemanticQuery.run(ids, refs, graph, query, fieldAt, ::cachedTree)
-            // limit を書いたときだけ打ち切りがありうる（書かなければ上限なし＝Int.MAX_VALUE）
-            return ResolvedRows(result.rows.map { qr ->
+            val ordered = view.orderBy != null || view.orderValue != null
+            // limit を書いたときだけ打ち切りがありうる（書かなければ上限なし＝Int.MAX_VALUE）。order があれば並べてから切る
+            val result = SemanticQuery.run(ids, refs, graph, if (ordered) query.copy(limit = Int.MAX_VALUE) else query, fieldAt, ::cachedTree)
+            val rows = result.rows.map { qr ->
                 val keyNode = qr.bindings.getValue(rowKeyName)
                 val occurrences = occurrencesOf(keyNode.id)
                 val cells = view.columns.map { column ->
@@ -601,7 +603,9 @@ object VirtualViews {
                     key = qr.bindings.entries.joinToString("|") { (k, v) -> "$k=${v.id}" },
                     bindings = qr.bindings.mapValues { it.value.id },
                 )
-            }, result.total, query.limit.takeIf { it != Int.MAX_VALUE })
+            }
+            val shown = if (ordered) sortRows(view, rows, rel, ::cachedTree, fieldAt).take(query.limit) else rows
+            return ResolvedRows(shown, result.total, query.limit.takeIf { it != Int.MAX_VALUE })
         }
 
         val rowsDef = view.rows ?: error("ビュー「${view.id}」に行の定義（rows）がありません")
@@ -1175,8 +1179,9 @@ object VirtualViews {
 
     /**
      * 行の並び。order.path があれば、並び基準の出現（orderBy に合う出現。無ければどの出現でも）から読んだ値の順
-     * （type: number / date か文字の順。読めない行は向きによらず後ろ。同じ値は ID 順）。
-     * 無ければ orderBy 出現の（ファイル→文書内パス）順 → それ以外はID順で後ろに。
+     * （type: number / date か文字の順。読めない行は向きによらず後ろ）。
+     * 無ければ orderBy 出現の（ファイル→文書内パス）順 → 合う出現の無い行は後ろに。
+     * 同じ並びの行は、クエリ行ではクエリの決定的順序のまま、それ以外は ID 順。
      */
     private fun sortRows(
         view: VirtualGridDef,
@@ -1185,13 +1190,15 @@ object VirtualViews {
         tree: (DocumentId) -> YNode?,
         fieldAt: FieldResolver,
     ): List<VirtualRow> {
+        // sortedWith は安定なので、同じ並びの行は base の順に残る
+        val base = if (view.rowsQuery != null) rows else rows.sortedBy { it.id }
         val orderValue = view.orderValue
         if (orderValue != null) {
             val source = view.orderBy
             fun occurrencesOf(row: VirtualRow) = row.occurrences.asSequence()
                 .filter { occ -> source == null || source.matches(occ, rel(occ.document)) }
             // 順序の種類: 宣言（type）か、並びの値を読む項目の型（行のどれかの出現から。決まらなければ文字の順）
-            val kind = orderValue.kind ?: rows.asSequence().flatMap(::occurrencesOf)
+            val kind = orderValue.kind ?: base.asSequence().flatMap(::occurrencesOf)
                 .firstNotNullOfOrNull { occ -> fieldAt(occ.document, occ.path + orderValue.path)?.let { dev.toros.yde.semantic.schema.ValueExpr.OrderKind.ofType(it.type) } }
             // 鍵は、数値なら数・意味の基底型なら値の表現・それ以外は文字（読めない行は鍵なし＝後ろ）
             data class Keyed(val row: VirtualRow, val key: Comparable<Any>?)
@@ -1211,18 +1218,16 @@ object VirtualViews {
             val byValue: Comparator<Keyed> = compareBy { it.key }
             val comparator = compareBy<Keyed> { if (it.key == null) 1 else 0 }
                 .then(if (orderValue.descending) byValue.reversed() else byValue)
-                .thenBy { it.row.id }
-            return rows.map(::keyOf).sortedWith(comparator).map { it.row }
+            return base.map(::keyOf).sortedWith(comparator).map { it.row }
         }
-        val orderBy = view.orderBy ?: return rows.sortedBy { it.id }
+        val orderBy = view.orderBy ?: return base
         fun anchor(row: VirtualRow): ScannedId? = row.occurrences.firstOrNull { orderBy.matches(it, rel(it.document)) }
         val comparator = compareBy<Pair<VirtualRow, ScannedId?>>(
             { (_, a) -> if (a == null) 1 else 0 },
             { (_, a) -> a?.let { rel(it.document) } ?: "" },
             { (_, a) -> a?.path?.let(::pathSortKey) ?: "" },
-            { (row, _) -> row.id },
         )
-        return rows.map { it to anchor(it) }.sortedWith(comparator).map { it.first }
+        return base.map { it to anchor(it) }.sortedWith(comparator).map { it.first }
     }
 
     /** YPath の文書内順を保つソートキー（配列インデックスはゼロ詰めで桁を揃える）。 */

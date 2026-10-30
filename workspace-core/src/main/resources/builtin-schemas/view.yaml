@@ -402,7 +402,7 @@ root:
           values: [asc, desc]
           default: asc
           description: desc は大きい順・新しい順（値の無い行はどちらでも後ろ）。path と一緒に書く
-      description: 条件に一致する出現の文書内順、または path の値の順で並べる（省略時はID順）
+      description: 条件に一致する出現の文書内順、または path の値の順で並べる（省略時はID順）。クエリ行では行キーの要素の出現で並べ、省略時はクエリの順
     - key: columns
       label: 列の定義
       type: array

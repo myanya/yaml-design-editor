@@ -3,6 +3,8 @@ name: 属性とカラムの対応
 description: 行＝属性（ATTR-*）。論理の側（名称・業務型・必須）と物理の側（物理名）を同じ行に並べ、SQL型は業務型の参照を辿って型対応から読む。
 rows:
   idPattern: ATTR-*
+# 並びは物理の文書のカラムの順（テーブルの間はファイル名の順）
+order: { schemaId: tm-physical }
 columns:
   - { label: 物理名, schemaId: tm-physical, path: physical_name, editable: true }
   - { label: 論理名, schemaId: tm-logical, path: name }

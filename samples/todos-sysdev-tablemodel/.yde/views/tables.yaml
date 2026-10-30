@@ -3,6 +3,8 @@ name: テーブル一覧
 description: テーブル（業務エンティティの物理の側面）ごとに、名称・意味・主キー・外部キー・索引・条件・設計判断を 1 行にする。レポート「テーブル定義書」の入力。
 rows:
   idPattern: ENT-*
+# 並びは業務エンティティの文書の順
+order: { schemaId: todos-business }
 columns:
   - { label: 物理名, schemaId: tm-physical, path: physical_name }
   - { label: 論理名, schemaId: todos-business, path: name }

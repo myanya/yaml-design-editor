@@ -467,7 +467,6 @@ object ViewDefinitions {
         if (rowsMap.containsKey("match")) {
             listOf("idPattern", "schemaIds").firstOrNull { rowsMap.containsKey(it) }
                 ?.let { error("rows: match と $it は併用できません（従来の行定義とクエリ行は排他）") }
-            if (raw.containsKey("order")) error("rows: match のビューに order は使えません（並びはクエリの決定的順序）")
             // 上限は limit を書いたときだけ（書かなければ上限なし＝値の式の all と同じ。黙って切れないように）
             val spec = QuerySpec.parse(rowsMap, "rows", ignoreKeys = setOf("rowKey"))
                 .let { if (rowsMap.containsKey("limit")) it else it.copy(limit = Int.MAX_VALUE) }
