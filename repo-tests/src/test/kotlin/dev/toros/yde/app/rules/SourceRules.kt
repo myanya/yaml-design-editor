@@ -32,6 +32,17 @@ object SourceRules {
     /** 大きなファイルの目安（行）。超えても失敗にしない（文書の字数と同じ扱い）。SourceRulesTest が報告し、pre-commit が表示する */
     const val LARGE_FILE_LINES = 800
 
+    /** 画面の機能のパッケージ。互いを使わない（規則 19）。 */
+    val uiFeatures: List<String> = listOf("view", "graph", "file", "run", "schema", "source", "action").map { "$DESKTOP.ui.$it" }
+
+    /** 画面のパッケージの層（下から上）。architecture/ui.md「画面のパッケージ」の図と同じで、パッケージを足すときは図も直す。 */
+    val uiLayers: List<List<String>> = listOf(
+        listOf("$DESKTOP.ui.common"),
+        listOf("$DESKTOP.ui.form"),
+        uiFeatures,
+        listOf("$DESKTOP.ui.shell"),
+    )
+
     /** app の中の層（下から上）。同じ層の中は互いに使ってよく、上の層を import してはいけない。 */
     val appLayers: List<List<String>> = listOf(
         listOf("$APP.ext"), // 拡張の登録簿（カーネルだけを使う。中核の読み出しが登録した種類を読むので一番下。ADR-0014）
@@ -46,8 +57,7 @@ object SourceRules {
         listOf("$AGENT.auto"),
         listOf("$AGENT.eval"),
         listOf(DESKTOP), // desktop の根（AppState・Main・ScreenMemory・拡張の登録 ext）
-        listOf("$DESKTOP.ui"),
-    )
+    ) + uiLayers
 
     /** Compose 非依存の純粋ロジック層。 */
     private val purePackages = arrayOf("$APP.core", "$APP.index", "$APP.schema", "$APP.validate", "$APP.text", "$APP.session", "$APP.tools", "$APP.ext", "$APP.skill")
@@ -97,7 +107,7 @@ object SourceRules {
         },
         Rule(
             2, "app の層は一方向",
-            why = "ext、index・schema・validate・text、core、session、tools、skill、agent.llm、agent（定義）、agent.run、agent.auto、agent.eval、desktop の根（AppState・ext）、desktop.ui の順に下から上へ重なり、上の層を import しない（`*` の import も見る）。入口の Main.kt だけは窓に画面を載せるので除く",
+            why = "ext、index・schema・validate・text、core、session、tools、skill、agent.llm、agent（定義）、agent.run、agent.auto、agent.eval、desktop の根（AppState・ext）、画面の common・form・機能・shell の順に下から上へ重なり、上の層を import しない（`*` の import も見る）。入口の Main.kt だけは窓に画面を載せるので除く",
             doc = "architecture/README.md「モジュールと依存方向」",
             known = listOf(
                 Known("app-core/src/main/kotlin/dev/toros/yde/app/validate/Readiness.kt", "core.Workspace を使っていて validate と core が循環している（BACKLOG）"),
@@ -195,6 +205,13 @@ object SourceRules {
             why = "パッケージの向き（規則 2）は同じパッケージの中のファイルの循環を見ない。共に使う小さな型は土台のファイル（run/AgentHost.kt）に置き、定義と実行器を分ける",
             doc = "architecture/agents.md「規律」",
         ) { files -> ModuleRules.agentFileCycles(files) },
+        Rule(
+            19, "画面は決めたパッケージに置き、機能のパッケージは互いを使わない",
+            why = "画面は common・form・機能（view・graph・file・run・schema・source・action）・shell の 10 に分ける（上下の向きは規則 2）。" +
+                "機能どうしの頼みごとは根（AppState・AiRequests）に置き、別の機能の画面を出すときは骨格（shell）が中身を渡し、" +
+                "form が上の部品を要るときは差し込み口 FormSlots を使う。パッケージを足すときはこの表と ui.md の図を一緒に直す",
+            doc = "architecture/ui.md「画面のパッケージ」",
+        ) { files -> uiPackageViolations(files) },
     )
 
     /** `Path.of("C:/…")`・`Paths.get("C:\\…")` のようなドライブ文字の絶対パスの直書き。 */
@@ -224,6 +241,22 @@ object SourceRules {
             f.imports.mapNotNull { imp ->
                 val to = packageOf(imp.name)?.let { layerOf(it) } ?: return@mapNotNull null
                 if (to > from) Hit(f, imp.line, "import ${imp.name}（上の層）") else null
+            }
+        }
+    }
+
+    /** 表に無い画面のパッケージと、機能のパッケージから別の機能のパッケージへの import。 */
+    private fun uiPackageViolations(files: List<SourceFile>): List<Hit> {
+        val known = uiLayers.flatten().toSet()
+        return files.filter { it.inPackage("$DESKTOP.ui") }.flatMap { f ->
+            when {
+                f.packageName !in known ->
+                    listOf(Hit(f, f.lines.indexOfFirst { it.startsWith("package ") } + 1, "package ${f.packageName}（表に無いパッケージ）"))
+                f.packageName !in uiFeatures -> emptyList()
+                else -> f.imports.mapNotNull { imp ->
+                    val to = uiFeatures.firstOrNull { imp.name == it || imp.name.startsWith("$it.") }
+                    if (to != null && to != f.packageName) Hit(f, imp.line, "import ${imp.name}（別の機能）") else null
+                }
             }
         }
     }

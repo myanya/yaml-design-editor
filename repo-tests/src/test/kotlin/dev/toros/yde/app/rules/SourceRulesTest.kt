@@ -141,6 +141,19 @@ class SourceRulesTest {
     @Test fun `規則16 拡張は app-core とカーネルだけを使う`() = check(16)
     @Test fun `規則17 拡張は決まった形にする`() = check(17)
     @Test fun `規則18 agent のファイルの間に循環を作らない`() = check(18)
+    @Test fun `規則19 画面は決めたパッケージに置き、機能のパッケージは互いを使わない`() = check(19)
+
+    @Test
+    fun `規則19 は表に無い画面のパッケージと機能どうしの import を見つける`() {
+        val ui = "desktop/src/main/kotlin/dev/toros/yde/desktop/ui"
+        val view = SourceScanner.parse("desktop", "$ui/view/A.kt",
+            "package dev.toros.yde.desktop.ui.view\nimport dev.toros.yde.desktop.ui.graph.EntityPage\nimport dev.toros.yde.desktop.ui.form.FormCtx\n")
+        // 骨格は機能を並べるので、機能を使ってよい
+        val shell = SourceScanner.parse("desktop", "$ui/shell/B.kt", "package dev.toros.yde.desktop.ui.shell\nimport dev.toros.yde.desktop.ui.graph.EntityPage\n")
+        val stray = SourceScanner.parse("desktop", "$ui/C.kt", "package dev.toros.yde.desktop.ui\n")
+        val hits = SourceRules.all.first { it.number == 19 }.check(listOf(view, shell, stray))
+        assertEquals(listOf(view.path to 2, stray.path to 1), hits.map { it.file.path to it.line })
+    }
 
     @Test
     fun `規則18 はファイルの相互の参照を循環として見つける`() {

@@ -5,20 +5,20 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 
 ## 画面のパッケージ
 
-画面（`desktop.ui`）は役割で 10 のパッケージに分ける。機能ごとにまとめ、共通の部品を一番下に置く。上の箱が下の箱を使う。
+画面（`desktop.ui`）は役割で 10 のパッケージに分ける。機能ごとにまとめ、共通の部品を一番下に置く。上の箱が下の箱を使い、下から上へも、横の機能どうしも使わない（repo-tests の規則テストが守る。README.md「ソース規則テスト」）。
 
 ```
-              ui.shell（骨格・スペース・右パネル・ツールバー・ウィザード）
-  ui.view  ui.graph  ui.file  ui.run  ui.schema  ui.source  ui.action   ← 機能
-              ui.form（フォーム編集の部品）
-              ui.common（土台の部品）
-  desktop の根（AppState・OpenDocument・ScreenMemory・UiPreferences・DesktopUiDispatcher・Main の main）
+              ui.shell（骨格。機能を並べ、別の機能の画面や差し込み口の中身を渡す）
+  ui.view  ui.graph  ui.file  ui.run  ui.schema  ui.source  ui.action   ← 機能（互いを使わない）
+              ui.form（フォーム編集の部品・差し込み口 FormSlots）
+              ui.common（土台の部品・図の配置）
+  desktop の根（AppState・OpenDocument・ScreenMemory・UiPreferences・DesktopUiDispatcher・AiRequests・Main の main）
 ```
 
 | パッケージ | 中身 | 主なファイル |
 |---|---|---|
 | `ui.common` | 色と字体・選択メニュー・項目説明・Markdown の描画・ファイル選択・並べ替え・仮想表・差分・図の配置（ELK。グラフレンズとフロー図が使う） | ui/common/Common.kt・ui/common/ChoiceMenu.kt・ui/common/FieldHelp.kt・ui/common/DiffPane.kt・ui/common/GraphLayouts.kt |
-| `ui.form` | フォーム編集（`FormCtx`・項目の行・表・汎用エディタ・値の種類ごとの欄・配列の削除・表示方式） | ui/form/FormCtx.kt・ui/form/FormFields.kt・ui/form/FormTables.kt・ui/form/GenericEditor.kt |
+| `ui.form` | フォーム編集（`FormCtx`・項目の行・表・汎用エディタ・値の種類ごとの欄・配列の削除・表示方式）と、上の部品を差し込む口 | ui/form/FormCtx.kt・ui/form/FormFields.kt・ui/form/FormTables.kt・ui/form/GenericEditor.kt・ui/form/FormSlots.kt |
 | `ui.source` | ソースエディタ（編集・補完・強調・構造・構文の状態） | ui/source/SourcePane.kt・ui/source/SourceEditing.kt |
 | `ui.schema` | スキーマ設計の画面 | ui/schema/SchemaEditor.kt・ui/schema/SchemaDesignWorkspace.kt |
 | `ui.view` | ビューの描画（表・チャート・フロー・レポート・ダッシュボード・準備完了）と、拡張の種類の描画の一覧 | ui/view/ViewRenderers.kt・ui/view/ViewGridPane.kt・ui/view/DashboardPane.kt |
@@ -223,7 +223,7 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 - フォーム系の新しい編集 UI は `FormCtx` を通し、閲覧専用モードの表示分岐を入れる。
 - `uiSpace` の書き換えは `showSpace` / `showWorkspaceView` / ナビゲーション系メソッド経由に限る。新しい画面をモーダルで作らない（確認ダイアログと、値を集めて 1 回で適用する短い作業の浮いたパネルを除く）。エージェント実行の状態を `remember` へ戻さない。
 - アプリ全体のショートカットは `Main.kt` の `handleShortcut` に足す。
-- 画面のファイルは「画面のパッケージ」の役割に合うパッケージに置く。`ui.common` に機能の画面を足さない。
+- 画面のファイルは「画面のパッケージ」の役割に合うパッケージに置く。`ui.common` に機能の画面を足さない。2 つ以上の機能が使う部品は form か common へ下ろす。
 - 新しく畳みを持つ UI は `FormCtx.expanded` / `setExpanded` を通す（ジャンプ先の自動展開と画面の覚えが付いてくる）。
 - 画面を離れても残したい見え方（畳み・タブ・絞り込み・チェック・展開）は `remember` に置かず `state.memory`（`ScreenMemory`）へ。覚えは「あれば使う・無ければ既定」で、古い鍵を誤りにしない。操作の途中は `remember` のまま。
 - `Dispatchers.Main` は使わない。背景処理からの文書生成・公開・画面遷移は `DesktopUiDispatcher` で EDT へ戻す（CONVENTIONS「Compose UI の書き方」）。
