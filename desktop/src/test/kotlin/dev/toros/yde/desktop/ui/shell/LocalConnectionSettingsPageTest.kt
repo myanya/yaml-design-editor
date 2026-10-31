@@ -2,6 +2,7 @@ package dev.toros.yde.desktop.ui.shell
 
 import androidx.compose.ui.test.*
 import dev.toros.yde.app.service.ConnectionPermissions
+import dev.toros.yde.app.service.ConnectionReadScope
 import dev.toros.yde.desktop.connections.ConnectionSettingsFixture
 import dev.toros.yde.server.*
 import dev.toros.yde.yaml.model.DocumentId
@@ -10,6 +11,73 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class LocalConnectionSettingsPageTest {
+    @Test fun `既存登録の簡単設定への切替は確認と保存を経て初めて反映する`() = runComposeUiTest {
+        val f = ConnectionSettingsFixture()
+        try {
+            val previous = ConnectionPermissions(readable = setOf(DocumentId("a.yaml")), proposable = setOf(DocumentId("a.yaml")))
+            val client = runBlocking {
+                f.controller.initialize()
+                assertNotNull(f.controller.register(LocalFeature.API, "既存ツール", previous))
+            }
+            setContent { LocalConnectionSettingsPage(f.controller, "試験ワークスペース") {} }
+            onNodeWithText("権限を編集").performScrollTo().performClick()
+            onNodeWithContentDescription("詳細設定").performScrollTo().assertIsSelected()
+            onNodeWithContentDescription("簡単設定").performClick()
+            onNodeWithText("キャンセル").performClick()
+            onNodeWithContentDescription("詳細設定").assertIsSelected()
+            assertEquals(previous, f.grants.get(client.caller)?.permissions)
+            onNodeWithContentDescription("簡単設定").performClick()
+            onNodeWithText("簡単設定に切り替える").performClick()
+            onNodeWithContentDescription("簡単設定").assertIsSelected()
+            assertEquals(previous, f.grants.get(client.caller)?.permissions)
+            onNodeWithText("登録権限を保存").performScrollTo().performClick()
+            waitUntil(timeoutMillis = 10_000) { f.grants.get(client.caller)?.permissions?.readScope == ConnectionReadScope.WORKSPACE && !f.controller.state.value.busy }
+            assertNull(f.grants.workGrant(client.caller))
+            assertTrue(f.grants.get(client.caller)!!.permissions.canRead(DocumentId("future.yaml")))
+            assertTrue(f.server.connections.status.value.stopped)
+            assertFalse(f.store.saved.settings.requiresListener)
+        } finally { runBlocking { f.close() } }
+    }
+
+    @Test fun `文書ツリーの選択と検索は取消でき保存後も追加文書を自動許可しない`() = runComposeUiTest {
+        val f = ConnectionSettingsFixture()
+        val a = DocumentId("tasks/a.yaml")
+        val b = DocumentId("tasks/b.yaml")
+        val c = DocumentId("tasks/c.yaml")
+        try {
+            f.documents = listOf(a, b, DocumentId("other.yaml"))
+            val client = runBlocking {
+                f.controller.initialize()
+                assertNotNull(f.controller.register(LocalFeature.API, "個別ツール", ConnectionPermissions(readable = setOf(a))))
+            }
+            setContent { LocalConnectionSettingsPage(f.controller, "試験ワークスペース") {} }
+            onNodeWithText("権限を編集").performScrollTo().performClick()
+            onNodeWithContentDescription("閲覧する文書 を選択").performScrollTo().performClick()
+            waitUntil(timeoutMillis = 10_000) { onAllNodesWithContentDescription("許可フォルダー tasks/").fetchSemanticsNodes().isNotEmpty() }
+            onNodeWithContentDescription("許可フォルダー tasks/").performClick()
+            onNodeWithContentDescription("許可文書の検索").performTextInput("b.yaml")
+            onNodeWithContentDescription("許可文書 tasks/b.yaml").assertIsOn()
+            onNodeWithText("キャンセル").performClick()
+            onNodeWithContentDescription("閲覧する文書").assertTextContains("tasks/a.yaml")
+            assertEquals(setOf(a), f.grants.get(client.caller)?.permissions?.readable)
+            onNodeWithContentDescription("閲覧する文書 を選択").performClick()
+            waitUntil(timeoutMillis = 10_000) { onAllNodesWithContentDescription("許可フォルダー tasks/").fetchSemanticsNodes().isNotEmpty() }
+            onNodeWithContentDescription("許可フォルダー tasks/").performClick()
+            onNodeWithText("選択を反映").performClick()
+            assertEquals(setOf(a), f.grants.get(client.caller)?.permissions?.readable)
+            onNodeWithText("登録権限を保存").performScrollTo().performClick()
+            waitUntil(timeoutMillis = 10_000) { f.grants.get(client.caller)?.permissions?.readable == setOf(a, b) && !f.controller.state.value.busy }
+            f.documents = f.documents + c
+            onNodeWithText("権限を編集").performScrollTo().performClick()
+            onNodeWithContentDescription("閲覧する文書 を選択").performScrollTo().performClick()
+            waitUntil(timeoutMillis = 10_000) { onAllNodesWithContentDescription("許可フォルダー tasks/").fetchSemanticsNodes().isNotEmpty() }
+            onNodeWithContentDescription("許可文書の検索").performTextInput("c.yaml")
+            onNodeWithContentDescription("許可文書 tasks/c.yaml").assertIsOff()
+            onNodeWithText("キャンセル").performClick()
+            assertFalse(f.grants.get(client.caller)!!.permissions.canRead(c))
+        } finally { runBlocking { f.close() } }
+    }
+
     @Test fun `APIだけが有効ならMCP登録に発行できない理由を示し追加ではAPIを選ぶ`() = runComposeUiTest {
         val f = ConnectionSettingsFixture()
         try {
@@ -24,11 +92,13 @@ class LocalConnectionSettingsPageTest {
             onNodeWithText("接続者を追加").performScrollTo().performClick()
             onNodeWithContentDescription("登録する機能 API").performScrollTo().assertIsSelected()
             onNodeWithContentDescription("接続名").performScrollTo().performTextInput("自作ツール")
-            onNodeWithContentDescription("閲覧する文書").performScrollTo().performTextInput("a.yaml")
+            onNodeWithContentDescription("簡単設定").assertIsSelected()
             onNodeWithText("登録権限を保存").performScrollTo().performClick()
             waitUntil(timeoutMillis = 10_000) { f.controller.state.value.registrations.size == 2 && !f.controller.state.value.busy }
             val client = f.server.access.clients().single { it.name == "自作ツール" }
             assertEquals(LocalFeature.API, client.feature)
+            assertEquals(ConnectionReadScope.WORKSPACE, f.grants.get(client.caller)?.permissions?.readScope)
+            assertNull(f.grants.workGrant(client.caller)); assertNull(f.grants.operationGrant(client.caller))
             onAllNodesWithText("トークンを発行")[1].performScrollTo().assertIsEnabled().performClick()
             waitUntil(timeoutMillis = 10_000) { f.server.access.credentialExpiry(client.id) != null && !f.controller.state.value.busy }
             onNodeWithText("トークンをコピー").assertExists()
@@ -104,6 +174,8 @@ class LocalConnectionSettingsPageTest {
             setContent { LocalConnectionSettingsPage(f.controller, "試験ワークスペース") {} }
             onNodeWithText("接続者を追加").performScrollTo().performClick()
             onNodeWithContentDescription("接続名").performScrollTo().performTextInput("外部エージェント")
+            onNodeWithContentDescription("詳細設定").performScrollTo().performClick()
+            onNodeWithContentDescription("閲覧範囲 指定した文書のみ").performScrollTo().performClick()
             onNodeWithContentDescription("閲覧する文書").performScrollTo().performTextInput("tasks.yaml")
             onNodeWithContentDescription("変更提案する文書").performScrollTo().performTextInput("tasks.yaml")
             onNodeWithText("登録権限を保存").performScrollTo().performClick()

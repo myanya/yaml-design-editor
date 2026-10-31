@@ -2,6 +2,7 @@ package dev.toros.yde.desktop.connections
 
 import dev.toros.yde.app.service.ConnectionGrants
 import dev.toros.yde.app.service.ConnectionPermissions
+import dev.toros.yde.app.service.ConnectionReadScope
 import dev.toros.yde.app.service.OperationCaller
 import dev.toros.yde.server.LocalConnectionSettings
 import dev.toros.yde.server.LocalFeature
@@ -61,7 +62,7 @@ internal class FileConnectionSettingsStore(private val directory: Path = Path.of
 /** 不明な版・不正な真偽値・権限は部分復元せず、起動側で全 OFF として扱う。 */
 internal object ConnectionSettingsCodec {
     fun encode(value: SavedConnections): String = buildJsonObject {
-        put("version", 1)
+        put("version", 2)
         put("api", value.settings.apiEnabled); put("mcp", value.settings.mcpEnabled); put("web", value.settings.webEnabled)
         put("port", value.settings.port)
         put("tray", value.resident.trayEnabled); put("startHidden", value.resident.startHidden)
@@ -69,13 +70,15 @@ internal object ConnectionSettingsCodec {
             put("id", client.id); put("name", client.name); put("feature", client.feature.name); put("workspace", client.caller.workspaceId)
             fun documents(key: String, values: Set<DocumentId>) { putJsonArray(key) { values.sortedBy { it.value }.forEach { add(it.value) } } }
             documents("read", p.readable); documents("propose", p.proposable); documents("apply", p.actionable)
+            put("readScope", p.readScope.name)
             putJsonArray("actions") { p.actions.sorted().forEach { add(it) } }
         }) } }
     }.toString()
 
     fun decode(text: String): SavedConnections {
         val obj = Json.parseToJsonElement(text).jsonObject
-        require(obj["version"]?.jsonPrimitive?.int == 1) { "未対応の接続設定です" }
+        val version = obj["version"]?.jsonPrimitive?.int
+        require(version == 1 || version == 2) { "未対応の接続設定です" }
         fun enabled(key: String): Boolean = obj[key]?.jsonPrimitive?.let {
             require(!it.isString) { "接続設定の真偽値が不正です" }; requireNotNull(it.booleanOrNull)
         } ?: false
@@ -93,7 +96,8 @@ internal object ConnectionSettingsCodec {
             require(name.isNotBlank() && name.length <= 100) { "接続名が不正です" }
             val client = LocalClient(id, name, LocalFeature.valueOf(string("feature")), OperationCaller(string("workspace"), id))
             val p = ConnectionPermissions(strings("read").map(::DocumentId).toSet(), strings("propose").map(::DocumentId).toSet(),
-                strings("apply").map(::DocumentId).toSet(), strings("actions"))
+                strings("apply").map(::DocumentId).toSet(), strings("actions"),
+                if (version == 1) ConnectionReadScope.SELECTED else ConnectionReadScope.valueOf(string("readScope")))
             ClientRegistration(client, grants.put(client.caller, p).permissions)
         }
         require(registrations.map { it.client.id }.toSet().size == registrations.size) { "接続者が重複しています" }

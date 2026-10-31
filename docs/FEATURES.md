@@ -286,7 +286,7 @@
 | LC-07 | 受信箱の外部提出・差分再確認・承認保存・却下と文書別の結果 | `ExternalWorkController.kt`・`ui/run/ExternalWorkPane.kt` | `ExternalWorkPaneTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-08 | API・MCP・Web の独立 ON/OFF・状態通知・世代失効・要求の取消と保存完了待ち | `server/LocalConnections.kt`・`server/transport/LocalConnectionGate.kt` | `LocalConnectionsTest`・`LocalConnectionGateTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-09 | 全 OFF 時の非待受・他機能を残した停止・最後の停止で接続終了とポート解放 | `server/transport/LoopbackEngine.kt`・`DesktopRuntime.kt` | `LocalListenerLifecycleTest`・`DesktopRuntimeTest` | [ローカル接続](architecture/local-connections.md) |
-| LC-10 | 接続者・ワークスペース別の閲覧・提案・業務操作の権限と共通サービスの再確認 | `service/ConnectionGrants.kt` | `ConnectionGrantsTest` | [ローカル接続](architecture/local-connections.md) |
+| LC-10 | 接続者・ワークスペース別の指定文書／全体閲覧と、提案・業務操作の権限 | `service/ConnectionGrants.kt` | `ConnectionGrantsTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-11 | 機能別の資格情報・期限・失効と要求・MCP セッションの接続者への結付け | `server/auth/LocalAccess.kt` | `LocalAccessTest`・`LocalProtocolAuthenticationTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-12 | HTTP の Host/Origin・認証・CSRF・要求量の検査と能力別の受付 | `server/transport/LocalAuthentication.kt`・`server/LocalServer.kt` | `LocalAuthenticationTest`・`DesktopRuntimeTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-13 | 接続・常駐設定の独立した保存と復元、接続者の登録・権限変更 | `connections/LocalConnectionController.kt` | `LocalConnectionControllerTest` | [ローカル接続](architecture/local-connections.md) |
@@ -298,6 +298,7 @@
 | LC-19 | 待受しないワークスペース所有・競合拒否・終了後の引継ぎ | `service/WorkspaceOwnership.kt`・`DesktopRuntime.kt` | `WorkspaceOwnershipTest`・`DesktopRuntimeTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-20 | 所有中の独立 CLI の書込拒否と参照・プレビューの継続 | `cli/CliOwnership.kt` | `CliOwnershipTest` | [CLI](manual/cli.md) |
 | LC-21 | 保存版の読取 API・原本座標・権限境界・OpenAPI 契約 | `service/WorkspaceReads.kt`・`server/api/ReadApi.kt` | `WorkspaceReadsTest`・`ReadApiTest` | [ローカル接続](architecture/local-connections.md) |
+| LC-22 | 簡単な全体閲覧設定と文書の検索・選択、旧権限の維持 | `ConnectionPermissionEditor.kt`・`PermissionDocumentPicker.kt` | `LocalConnectionSettingsPageTest`・`ConnectionSettingsStoreTest` | [接続の設定](manual/local-connections.md) |
 
 ## 公開サンプル
 

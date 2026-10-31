@@ -6,22 +6,32 @@ import java.util.Collections
 
 enum class ConnectionCapability { READ, PROPOSE, APPLY }
 
-/** 空集合は許可なし。提案・適用は読取可能な文書の範囲へ狭める。ワイルドカードは扱わない。 */
+/** WORKSPACE は今後の追加も含む。保存済み YAML の採取範囲とワークスペースの境界は読取サービスが守る。 */
+enum class ConnectionReadScope { SELECTED, WORKSPACE }
+
+/** 指定文書の空集合は許可なし。全体閲覧は明示した範囲で表し、提案・適用を暗黙に許可しない。 */
 data class ConnectionPermissions(
     val readable: Set<DocumentId> = emptySet(),
     val proposable: Set<DocumentId> = emptySet(),
     val actionable: Set<DocumentId> = emptySet(),
     val actions: Set<String> = emptySet(),
+    val readScope: ConnectionReadScope = ConnectionReadScope.SELECTED,
 ) {
     internal fun frozen(): ConnectionPermissions {
-        require(readable.size <= 10_000 && actions.size <= 1_000) { "接続権限の対象が多すぎます" }
-        require(readable.containsAll(proposable) && readable.containsAll(actionable)) { "変更対象には閲覧権限も必要です" }
-        require(readable.all { it.value.length <= 1024 && WorkspacePaths.relative(it.value).toString().replace('\\', '/') == it.value }) {
+        require(listOf(readable, proposable, actionable).all { it.size <= 10_000 } && actions.size <= 1_000) { "接続権限の対象が多すぎます" }
+        require(readScope != ConnectionReadScope.WORKSPACE || readable.isEmpty()) { "全体閲覧と指定文書を同時に保存できません" }
+        require(proposable.all(::canRead) && actionable.all(::canRead)) { "変更対象には閲覧権限も必要です" }
+        require((readable + proposable + actionable).all(::canonicalDocument)) {
             "文書はワークスペース相対の識別子で指定してください"
         }
         require(actions.all { it.isNotBlank() && it.length <= 200 }) { "操作名が不正です" }
         fun <T> Set<T>.freeze(): Set<T> = Collections.unmodifiableSet(LinkedHashSet(this))
         return copy(readable = readable.freeze(), proposable = proposable.freeze(), actionable = actionable.freeze(), actions = actions.freeze())
+    }
+
+    fun canRead(document: DocumentId): Boolean = when (readScope) {
+        ConnectionReadScope.SELECTED -> document in readable
+        ConnectionReadScope.WORKSPACE -> canonicalDocument(document)
     }
 
     fun documents(capability: ConnectionCapability): Set<DocumentId> = when (capability) {
@@ -30,13 +40,22 @@ data class ConnectionPermissions(
         ConnectionCapability.APPLY -> actionable
     }
 
-    fun allows(capability: ConnectionCapability): Boolean = documents(capability).isNotEmpty() &&
-        (capability != ConnectionCapability.APPLY || actions.isNotEmpty())
+    fun allows(capability: ConnectionCapability): Boolean = when (capability) {
+        ConnectionCapability.READ -> readScope == ConnectionReadScope.WORKSPACE || readable.isNotEmpty()
+        ConnectionCapability.PROPOSE -> proposable.isNotEmpty()
+        ConnectionCapability.APPLY -> actionable.isNotEmpty() && actions.isNotEmpty()
+    }
 }
+
+private fun canonicalDocument(id: DocumentId): Boolean = id.value.length <= 1024 && runCatching {
+    WorkspacePaths.relative(id.value).toString().replace('\\', '/') == id.value
+}.getOrDefault(false)
 
 data class ConnectionGrant(val caller: OperationCaller, val revision: Long, val permissions: ConnectionPermissions) {
     fun allows(capability: ConnectionCapability, documents: Set<DocumentId> = emptySet(), action: String? = null): Boolean =
-        permissions.allows(capability) && permissions.documents(capability).containsAll(documents) &&
+        permissions.allows(capability) &&
+            (if (capability == ConnectionCapability.READ) documents.all(permissions::canRead)
+             else permissions.documents(capability).containsAll(documents)) &&
             (action == null || capability == ConnectionCapability.APPLY && action in permissions.actions)
 }
 

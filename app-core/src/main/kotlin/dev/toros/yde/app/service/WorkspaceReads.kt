@@ -86,20 +86,20 @@ class WorkspaceReads(
             return withTimeout(limits.timeoutMillis) {
                 val access = authorize(caller)
                 query.document?.let {
-                    readRequire(it in access.grant.permissions.readable, ReadFailureCode.FORBIDDEN, "文書の閲覧が許可されていません")
+                    readRequire(access.grant.permissions.canRead(it), ReadFailureCode.FORBIDDEN, "文書の閲覧が許可されていません")
                 }
                 val result = withContext(Dispatchers.IO) {
                     readRequire(workspaceId(access.root) == caller.workspaceId, ReadFailureCode.FORBIDDEN, "ワークスペースが一致しません")
                     val captured = capture(access.root)
                     afterCapture()
                     currentCoroutineContext().ensureActive()
-                    val visible = captured.texts.filterKeys { it in access.grant.permissions.readable }
+                    val visible = captured.texts.filterKeys(access.grant.permissions::canRead)
                     val revision = ChangeSets.contentHash(visible.entries.joinToString("") { (id, text) ->
                         "${id.value.length}:${id.value}${text.length}:$text"
                     })
                     readRequire(query.revision == null || query.revision == revision, ReadFailureCode.STALE_REVISION, "保存済みの版が変わりました。最初から取得してください")
                     if (query.resource in setOf(ReadResource.ENTITY, ReadResource.VIEWS, ReadResource.VIEW, ReadResource.VALIDATION)) {
-                        readRequire(access.grant.permissions.readable.containsAll(captured.texts.keys), ReadFailureCode.FORBIDDEN,
+                        readRequire(captured.texts.keys.all(access.grant.permissions::canRead), ReadFailureCode.FORBIDDEN,
                             "派生結果に必要な文書の閲覧権限がありません")
                     }
                     val data = SavedReadReports(access.root, captured.texts, captured.layout).read(query, visible, today())
@@ -115,6 +115,18 @@ class WorkspaceReads(
             currentCoroutineContext().ensureActive()
             throw ReadFailure(ReadFailureCode.BUSY, "読み取りが時間内に完了しませんでした。対象を絞って再試行してください")
         } finally { permits.release() }
+    }
+
+    /** 信頼するデスクトップの設定専用。外部の一覧とは別で、登録前にも保存済み文書を選べる。 */
+    suspend fun documentsForSettings(): List<DocumentId> = withTimeout(limits.timeoutMillis) {
+        val before = withContext(host.owner) { host.currentStatus() }
+        require(!before.closed && before.workspace != null && before.busy == null) { "ワークスペースを開き、処理の完了を待ってください" }
+        val documents = withContext(Dispatchers.IO) { capture(requireNotNull(before.workspace)).texts.keys.toList() }
+        val after = withContext(host.owner) { host.currentStatus() }
+        require(!after.closed && after.workspace == before.workspace && after.epoch == before.epoch && after.busy == null) {
+            "ワークスペースが変わりました。文書一覧を再読込してください"
+        }
+        documents
     }
 
     private data class Capture(val texts: Map<DocumentId, String>, val layout: WorkspaceLayout)

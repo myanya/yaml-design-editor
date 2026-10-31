@@ -8,6 +8,7 @@ import dev.toros.yde.desktop.lifecycle.ResidentSettings
 import java.nio.file.*
 import java.nio.file.attribute.*
 import java.util.UUID
+import kotlinx.serialization.json.*
 import kotlin.test.*
 
 class ConnectionSettingsStoreTest {
@@ -97,7 +98,7 @@ class ConnectionSettingsStoreTest {
     }
 
     @Test fun `不正な設定や権限を部分復元しない`() {
-        listOf("{", "{\"version\":2,\"api\":true}", "{\"version\":1,\"api\":\"true\"}",
+        listOf("{", "{\"version\":3,\"api\":true}", "{\"version\":1,\"api\":\"true\"}",
             "{\"version\":1,\"api\":null}", "{\"version\":1,\"port\":0}",
             "{\"version\":1,\"startHidden\":true}", "{\"version\":1,\"tray\":\"true\"}").forEach { invalid ->
             assertFails { ConnectionSettingsCodec.decode(invalid) }
@@ -108,6 +109,35 @@ class ConnectionSettingsStoreTest {
         assertFails { ConnectionSettingsCodec.decode(ConnectionSettingsCodec.encode(invalid)) }
         val duplicate = invalid.copy(registrations = List(2) { ClientRegistration(client, ConnectionPermissions()) })
         assertFails { ConnectionSettingsCodec.decode(ConnectionSettingsCodec.encode(duplicate)) }
+    }
+
+    @Test fun `旧設定は文書指定のまま移行し全体閲覧は明示して保存した場合だけ復元する`() {
+        val id = UUID.randomUUID().toString()
+        val client = LocalClient(id, "既存の接続者", LocalFeature.API, OperationCaller("workspace", id))
+        val explicit = ConnectionPermissions(readable = setOf(DocumentId("a.yaml")))
+        val value = SavedConnections(registrations = listOf(ClientRegistration(client, explicit)))
+        val encoded = Json.parseToJsonElement(ConnectionSettingsCodec.encode(value)).jsonObject
+        val legacyClient = JsonObject(encoded.getValue("clients").jsonArray.single().jsonObject - "readScope")
+        val legacy = JsonObject(encoded + mapOf("version" to JsonPrimitive(1), "clients" to JsonArray(listOf(legacyClient))))
+        assertEquals(value, ConnectionSettingsCodec.decode(legacy.toString()))
+        val restored = ConnectionSettingsCodec.decode(ConnectionSettingsCodec.encode(ConnectionSettingsCodec.decode(legacy.toString())))
+        assertEquals(value, restored)
+        assertFalse(restored.registrations.single().permissions.canRead(DocumentId("new.yaml")))
+        val all = value.copy(registrations = listOf(ClientRegistration(client, ConnectionPermissions(readScope = ConnectionReadScope.WORKSPACE))))
+        store.save(all)
+        assertEquals(all, store.load())
+        assertTrue(store.load().registrations.single().permissions.canRead(DocumentId("new.yaml")))
+        // 旧形式に未知のキーが紛れていても、明示した全体閲覧へ読み替えない。
+        val misleading = Json.parseToJsonElement(ConnectionSettingsCodec.encode(all)).jsonObject
+        val oldEmpty = ConnectionSettingsCodec.decode(JsonObject(misleading + ("version" to JsonPrimitive(1))).toString())
+        assertFalse(oldEmpty.registrations.single().permissions.allows(ConnectionCapability.READ))
+        val clients = encoded.getValue("clients").jsonArray
+        for (scope in listOf<JsonElement?>(null, JsonNull, JsonPrimitive("ALL"))) {
+            val entry = clients.single().jsonObject.toMutableMap()
+            if (scope == null) entry.remove("readScope") else entry["readScope"] = scope
+            val invalid = JsonObject(encoded + ("clients" to JsonArray(listOf(JsonObject(entry)))))
+            assertFails { ConnectionSettingsCodec.decode(invalid.toString()) }
+        }
     }
 
     @Test fun `保存ファイルの破損は既定値で上書きせず利用者の修復を待つ`() {

@@ -49,11 +49,12 @@ internal class DesktopRuntime(
     val operations = WorkspaceOperations(host, grants = grants::operationGrant)
     val work = WorkspaceWork(host, grants = grants::workGrant)
     @Volatile private var connectionWorkspace: Pair<Path, String>? = null
-    private val server = LocalServer(scope, grants, WorkspaceReads(host, grants::get), ::accessWorkspace)
+    private val reads = WorkspaceReads(host, grants::get)
+    private val server = LocalServer(scope, grants, reads, ::accessWorkspace)
     val access = server.access
     /** 起動時の設定復元でだけ有効化する。Window の開閉では起動・終了しない。 */
     val connections = server.connections
-    val connectionSettings = LocalConnectionController(connections, access, FileConnectionSettingsStore(), ::accessWorkspace)
+    val connectionSettings = LocalConnectionController(connections, access, FileConnectionSettingsStore(), reads::documentsForSettings, ::accessWorkspace)
     private val connectionSubscription = host.observe { access.workspaceChanged() }
     private var jobs: WorkspaceJobs? = null
     private var stopping = false

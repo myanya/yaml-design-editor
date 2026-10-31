@@ -700,10 +700,11 @@ Core Calculus の位置づけは、読取が Term / Query、表示値が Express
 | R49-20 | 接続の状態機械と三つのスイッチ | local-server・desktop | R49-10 | 全八組合せと起動中・停止中の切替で、待受と経路が上の表に一致 | ✅ 2026-10-31（[記録](archive/roadmap-history.md)） |
 | R49-21 | 接続認証と能力別の受付 | local-server・app-core | R49-20 | 無権限・別機能の資格情報・停止後の接続・不正 Origin を拒否 | ✅ 2026-10-31（[記録](archive/roadmap-history.md)） |
 | R49-22 | 設定画面と旧版からの更新 | desktop | R49-20・21 | 初期値 OFF、状態・URL・エラーの表示、設定復元、資格情報の失効が操作できる | ✅ 2026-10-31（[記録](archive/roadmap-history.md)） |
+| R49-23 | 閲覧の簡単設定と文書選択 | app-core・desktop | R49-22・40 | 全体閲覧で追加文書も取得でき、指定文書と旧設定の権限を広げず、検索・選択で設定できる | ✅ 2026-11-01（[記録](archive/roadmap-history.md)） |
 | R49-30 | トレイと画面非表示での起動 | desktop | R49-10・12・22 | 窓なし起動・隠す・戻す・承認待ちを開く・終了が機能し、常駐だけでは待受しない | ✅ 2026-10-31（[記録](archive/roadmap-history.md)） |
 | R49-31 | ワークスペース所有と独立 CLI の制御 | app-core・desktop・cli | R49-11・20 | 二重起動と所有中の独立 CLI の書込を防ぎ、終了後は所有を引き継げる | ✅ 2026-10-31（[記録](archive/roadmap-history.md)） |
 | R49-40 | API の型・契約・読み取り | local-server・app-core | R49-11・21・31 | OpenAPI と実応答が一致し、検索・詳細・ビュー・検証の版と出どころが返る | ✅ 2026-11-01（[記録](archive/roadmap-history.md)） |
-| R49-41 | API の業務操作と変更提案 | local-server・app-core | R49-12・31・40 | 自作ツールから計画・明示適用・提案・結果照会が既存適用経路で完結 | 未着手 |
+| R49-41 | API の業務操作と変更提案 | local-server・app-core・desktop | R49-12・23・31・40 | 業務データへの変更権限と操作名を選択でき、計画・明示適用・提案・結果照会が既存経路で完結 | 未着手 |
 | R49-42 | CLI の明示的な接続モード | cli・local-server の client | R49-41 | 対応する読取・業務操作を API 経由で行い、API OFF・無権限では独立書込へ迂回しない | 未着手 |
 | R49-50 | MCP のツールと作業管理 | local-server・app-core | R49-12・21・31 | 外部 AI の読取・編集・検証・提出・破棄が動き、内蔵 LLM に依存しない | 未着手 |
 | R49-51 | MCP の相互運用と再接続 | local-server・repo-tests | R49-50 | SDK クライアントと Inspector で、初期化・取消・期限切れ・再接続・停止を確認 | 未着手 |
@@ -720,6 +721,8 @@ API の公開前に R49-31 の所有権管理まで通し、各経路の試験�
 R49-00 では新モジュールを SourceScanner・ModuleRules・SourceRules の検査へ登録し、app-core とカーネルへ通信・画面依存が入ることを機械で止める。
 
 R49-11・12・20・21・22・30 の実装と受入検証の記録は [実装記録](archive/roadmap-history.md)、現在の契約と部品は [ローカル接続](architecture/local-connections.md) にある。
+R49-41 では簡単設定へ「変更提案」「業務操作」の追加を接続する。業務データの範囲は WorkspaceLayout に従い、定義・構成の変更を含めない。
+業務操作は定義済み操作の一覧から選び、新しく追加された操作名を自動許可しない。提案はデスクトップ承認、業務操作は計画と明示確定を維持する。
 
 #### 必須受入条件
 

@@ -90,6 +90,20 @@ class ReadApiTest {
 
     private suspend fun HttpResponse.json() = Json.parseToJsonElement(bodyAsText()).jsonObject
 
+    @Test fun `全体閲覧の同じトークンで追加文書とビューを読め権限変更で失効する`() = withApi { f ->
+        val registration = f.access.client(LocalFeature.API, ConnectionPermissions(readScope = ConnectionReadScope.WORKSPACE))
+        val token = f.access.access.issueBearer(registration.id)
+        assertEquals(HttpStatusCode.OK, get("view?id=summary", token).status)
+        Files.writeString(f.root.resolve("added.yaml"), "id: T-3\ntitle: added\namount: 30\n")
+        for (path in listOf("document?document=added.yaml", "view?id=tasks", "view?id=summary", "validation")) {
+            assertEquals(HttpStatusCode.OK, get(path, token).status, path)
+        }
+        assertEquals(HttpStatusCode.Forbidden, get("document?document=added.yaml", f.token).status)
+        assertEquals(HttpStatusCode.Forbidden, get("view?id=summary", f.token).status)
+        f.access.access.setPermissions(registration.id, ConnectionPermissions(readable = setOf(DocumentId("a.yaml"))))
+        assertEquals(HttpStatusCode.Unauthorized, get("documents", token).status)
+    }
+
     @Test fun `全ての読取経路と業務ビューの実応答が公開契約に一致する`() = withApi { f ->
         val spec = get("openapi.json", f.token).json()
         assertEquals("3.1.1", spec["openapi"]?.jsonPrimitive?.content)

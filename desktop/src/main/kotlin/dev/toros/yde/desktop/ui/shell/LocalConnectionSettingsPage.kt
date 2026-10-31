@@ -14,8 +14,6 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import dev.toros.yde.app.service.ConnectionPermissions
-import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.desktop.connections.LocalConnectionController
 import dev.toros.yde.desktop.connections.ConnectionSettingsState
 import dev.toros.yde.desktop.lifecycle.PresenceStatus
@@ -122,7 +120,7 @@ internal fun LocalConnectionSettingsPage(
                 Column(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     Text("${client.name} / ${client.feature.label()}${if (current) "" else "（別のワークスペース）"}", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     val p = registration.permissions
-                    Text("閲覧 ${p.readable.size} 文書・提案 ${p.proposable.size} 文書・業務操作 ${p.actionable.size} 文書 / ${p.actions.size} 操作", fontSize = 12.sp)
+                    Text(connectionPermissionSummary(p), fontSize = 12.sp)
                     Text(expiry?.let { "資格情報の期限: ${time(it)}" } ?: "有効な資格情報なし", fontSize = 12.sp, color = Palette.SubText)
                     issueUnavailable?.let { Text(it, fontSize = 12.sp, color = Palette.SubText) }
                     if (client.feature == LocalFeature.MCP && !status.desired.mcpEnabled && status.desired.apiEnabled) {
@@ -147,7 +145,7 @@ internal fun LocalConnectionSettingsPage(
             }
             editor?.let { draft ->
                 model.error?.let { Text(it, color = Palette.ErrorRed, fontSize = 13.sp) }
-                ClientPermissionEditor(draft, usable, onCancel = { editor = null }) {
+                ClientPermissionEditor(draft, usable, workspaceLabel, controller::documentsForSettings, onCancel = { editor = null }) {
                     scope.launch {
                         if (draft.id == null) {
                             if (controller.register(draft.feature, draft.name.trim(), draft.permissions()) != null) editor = null
@@ -195,50 +193,6 @@ internal fun tokenIssueUnavailableReason(
             ConnectionPhase.ERROR -> "${feature.label()} の起動・停止に失敗しています。上のエラーを確認し、「設定保存と接続を再試行」を押してください。"
             ConnectionPhase.STOPPED -> "${feature.label()} が停止しています。「設定保存と接続を再試行」を押して、稼働中になるまで待ってください。"
             ConnectionPhase.RUNNING -> null
-        }
-    }
-}
-
-private class ClientEditor(registration: ClientRegistration? = null, initialFeature: LocalFeature = LocalFeature.MCP) {
-    val id = registration?.client?.id
-    var name by mutableStateOf(registration?.client?.name.orEmpty())
-    var feature by mutableStateOf(registration?.client?.feature ?: initialFeature)
-    var readable by mutableStateOf(registration?.permissions?.readable?.joinToString("\n") { it.value }.orEmpty())
-    var proposable by mutableStateOf(registration?.permissions?.proposable?.joinToString("\n") { it.value }.orEmpty())
-    var actionable by mutableStateOf(registration?.permissions?.actionable?.joinToString("\n") { it.value }.orEmpty())
-    var actions by mutableStateOf(registration?.permissions?.actions?.joinToString("\n").orEmpty())
-    fun permissions(): ConnectionPermissions {
-        fun lines(text: String) = text.lineSequence().map(String::trim).filter(String::isNotEmpty).toSet()
-        fun documents(text: String) = lines(text).map(::DocumentId).toSet()
-        return ConnectionPermissions(documents(readable), documents(proposable), documents(actionable), lines(actions))
-    }
-}
-
-@Composable
-private fun ClientPermissionEditor(draft: ClientEditor, enabled: Boolean, onCancel: () -> Unit, onSave: () -> Unit) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(if (draft.id == null) "接続者の追加" else "${draft.name} の権限", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-        if (draft.id == null) {
-            CompactTextField(draft.name, { draft.name = it }, Modifier.fillMaxWidth().semantics { contentDescription = "接続名" }, singleLine = true, placeholder = { Text("接続名") }, readOnly = !enabled)
-            Text("利用する機能（API の呼び出しには API を選択）", fontSize = 13.sp)
-            Row(verticalAlignment = Alignment.CenterVertically) { LocalFeature.entries.forEach { feature ->
-                RadioButton(selected = draft.feature == feature, enabled = enabled, onClick = { draft.feature = feature }, modifier = Modifier.semantics { contentDescription = "登録する機能 ${feature.label()}" })
-                Text(feature.label(), fontSize = 13.sp)
-            } }
-        }
-        Text("対象は 1 行に 1 文書を、ワークスペースからの相対パスで指定します。提案・業務操作の対象には閲覧権限も必要です。空欄は許可なしです。", fontSize = 12.sp)
-        @Composable fun field(label: String, text: String, onChange: (String) -> Unit) {
-            Text(label, fontSize = 13.sp)
-            CompactTextField(text, onChange, Modifier.fillMaxWidth().heightIn(min = 64.dp, max = 140.dp).semantics { contentDescription = label }, readOnly = !enabled)
-        }
-        field("閲覧する文書", draft.readable) { draft.readable = it }
-        field("変更提案する文書", draft.proposable) { draft.proposable = it }
-        field("業務操作の対象文書", draft.actionable) { draft.actionable = it }
-        field("許可する業務操作名（1 行に 1 操作）", draft.actions) { draft.actions = it }
-        Text("権限を変更すると、発行済みの資格情報は失効します。", fontSize = 12.sp, color = Palette.SubText)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(enabled = enabled && draft.name.isNotBlank(), onClick = onSave) { Text("登録権限を保存") }
-            TextButton(enabled = enabled, onClick = onCancel) { Text("入力を取消") }
         }
     }
 }

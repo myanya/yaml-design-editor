@@ -5,6 +5,7 @@ import dev.toros.yde.app.service.ConnectionPermissions
 import dev.toros.yde.server.*
 import dev.toros.yde.server.auth.*
 import dev.toros.yde.desktop.lifecycle.ResidentSettings
+import dev.toros.yde.yaml.model.DocumentId
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,6 +24,7 @@ internal class LocalConnectionController(
     val connections: LocalConnections,
     val access: LocalAccess,
     private val store: ConnectionSettingsStore,
+    private val documentCatalog: suspend () -> List<DocumentId> = { emptyList() },
     private val workspace: () -> AccessWorkspace?,
 ) {
     private val mutex = Mutex()
@@ -30,6 +32,12 @@ internal class LocalConnectionController(
     private var closing = false
     val state = mutableState.asStateFlow()
     fun workspaceId(): String? = workspace()?.id
+    suspend fun documentsForSettings(): List<DocumentId> {
+        val before = requireNotNull(workspace()) { "ワークスペースを開いてください" }
+        val documents = documentCatalog()
+        check(!closing && workspace() == before) { "ワークスペースが変わりました。文書一覧を再読込してください" }
+        return documents
+    }
     suspend fun stopAccepting() = mutex.withLock { closing = true }
     fun resumeAccepting() { closing = false }
 

@@ -124,4 +124,31 @@ class WorkspaceReadsTest {
         assertEquals(before, read(service))
     }
 
+    @Test fun `全体閲覧は追加した保存文書と派生結果を読めるが指定文書の範囲は広がらない`() = runCase {
+        grants.put(caller, ConnectionPermissions(readScope = ConnectionReadScope.WORKSPACE))
+        val revision = grants.get(caller)!!.revision
+        val before = read()
+        Files.createDirectories(root.resolve("new"))
+        val added = DocumentId("new/c.yaml")
+        Files.writeString(root.resolve(added.value), "title: added\n")
+        assertEquals("title: added\n", read(query = ReadQuery(ReadResource.DOCUMENT, document = added)).data["text"])
+        assertNotEquals(before.revision, read().revision)
+        read(query = ReadQuery(ReadResource.VALIDATION))
+        assertEquals(revision, grants.get(caller)!!.revision)
+        assertEquals(setOf(a, b, added), service().documentsForSettings().toSet())
+        grants.put(caller, ConnectionPermissions(readable = setOf(a, b)))
+        assertEquals(ReadFailureCode.FORBIDDEN, assertFailsWith<ReadFailure> {
+            read(query = ReadQuery(ReadResource.DOCUMENT, document = added))
+        }.code)
+        assertEquals(ReadFailureCode.FORBIDDEN, assertFailsWith<ReadFailure> {
+            read(query = ReadQuery(ReadResource.VALIDATION))
+        }.code)
+    }
+
+    @Test fun `読取中に全体閲覧を指定文書へ狭めたら結果を返さない`() = runCase {
+        grants.put(caller, ConnectionPermissions(readScope = ConnectionReadScope.WORKSPACE))
+        assertEquals(ReadFailureCode.CHANGED_DURING_READ, assertFailsWith<ReadFailure> {
+            read(service { grants.put(caller, ConnectionPermissions(readable = setOf(a))) })
+        }.code)
+    }
 }

@@ -11,6 +11,30 @@ class ConnectionGrantsTest {
     private val a = DocumentId("a.yaml")
     private val b = DocumentId("b.yaml")
 
+    @Test fun `全体閲覧は新しい相対文書を許可するが変更権限と別ワークスペースを許可しない`() {
+        val grants = ConnectionGrants()
+        val grant = grants.put(caller, ConnectionPermissions(readScope = ConnectionReadScope.WORKSPACE))
+        assertTrue(grant.allows(ConnectionCapability.READ, setOf(DocumentId("future/new.yaml"))))
+        for (path in listOf("../outside.yaml", "/outside.yaml", "a/../b.yaml", "./a.yaml")) {
+            assertFalse(grant.allows(ConnectionCapability.READ, setOf(DocumentId(path))))
+        }
+        assertFalse(grant.allows(ConnectionCapability.PROPOSE, setOf(a)))
+        assertFalse(grant.allows(ConnectionCapability.APPLY, setOf(a), "complete"))
+        assertNull(grants.workGrant(caller)); assertNull(grants.operationGrant(caller))
+        assertNull(grants.get(caller.copy(workspaceId = "other")))
+        assertFailsWith<IllegalArgumentException> {
+            grants.put(caller, ConnectionPermissions(readScope = ConnectionReadScope.WORKSPACE, proposable = setOf(DocumentId("../outside.yaml"))))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            grants.put(caller, ConnectionPermissions(readable = setOf(a), readScope = ConnectionReadScope.WORKSPACE))
+        }
+        val changed = grants.put(caller, ConnectionPermissions(readScope = ConnectionReadScope.WORKSPACE,
+            actionable = setOf(a), actions = setOf("complete")))
+        assertTrue(changed.allows(ConnectionCapability.APPLY, setOf(a), "complete"))
+        assertFalse(changed.allows(ConnectionCapability.APPLY, setOf(b), "complete"))
+        assertFalse(changed.allows(ConnectionCapability.APPLY, setOf(a), "new-action"))
+    }
+
     @Test fun `未登録と空集合は全拒否し閲覧と提案と業務適用を分ける`() {
         val grants = ConnectionGrants()
         assertNull(grants.get(caller)); assertNull(grants.operationGrant(caller)); assertNull(grants.workGrant(caller))

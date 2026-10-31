@@ -22,6 +22,7 @@
 | [ADR-0015](0015-builtin-kinds-and-office-extension.md) | chart・flow と文字の形式は app-core の組込みにし、拡張は Office の形式だけにする | 承認済み |
 | [ADR-0016](0016-local-connections-and-shared-host.md) | ローカル接続を組込みサーバへ集約し、編集状態を入口間で共有する | 承認済み（一部を ADR-0017 で上書き） |
 | [ADR-0017](0017-external-commit-and-desktop-history.md) | 外部の確定とデスクトップの取り消しを分ける | 承認済み |
+| [ADR-0018](0018-connection-read-scopes.md) | 接続権限の全体閲覧と指定文書を分ける | 承認済み |
 
 関連文書:
 
