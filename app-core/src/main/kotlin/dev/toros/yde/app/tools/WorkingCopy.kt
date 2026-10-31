@@ -64,8 +64,9 @@ open class WorkingCopy(val ws: Workspace) {
     fun applyOps(rel: String, ops: List<PatchOp>) {
         val entry = entryForEdit(rel)
         for (op in ops) {
-            Patcher.apply(entry.root, op)
-            entry.ops += op
+            val recorded = ChangeSets.copyOp(op)
+            Patcher.apply(entry.root, ChangeSets.copyOp(recorded))
+            entry.ops += recorded
         }
         stagedIndex = null
     }
@@ -76,7 +77,7 @@ open class WorkingCopy(val ws: Workspace) {
         val file = ws.resolve(rel)
         require(!Files.exists(file)) { "既に同名のファイルが存在します: $rel" }
         require(rel.endsWith(".yaml") || rel.endsWith(".yml")) { "YAMLファイル（.yaml / .yml）を指定してください: $rel" }
-        entries[rel] = Entry(rel = rel, file = file, baseText = null, root = root, created = true)
+        entries[rel] = Entry(rel = rel, file = file, baseText = null, root = root.deepCopy(), created = true)
         stagedIndex = null
     }
 

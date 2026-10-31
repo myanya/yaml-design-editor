@@ -71,6 +71,8 @@ class AppState(
         internal set
     var runController by mutableStateOf<RunController?>(null)
         internal set
+    var externalWork by mutableStateOf<ExternalWorkController?>(null)
+        internal set
     var automationVersion by mutableStateOf(0)
         internal set
     private companion object {

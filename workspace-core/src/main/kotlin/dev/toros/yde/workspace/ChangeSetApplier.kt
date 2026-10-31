@@ -40,7 +40,7 @@ object ChangeSetApplier {
                 } else {
                     require(before != null) { "ファイルが存在しません: ${id.value}" }
                     require(change.baseHash == null || ChangeSets.contentHash(before) == change.baseHash) { "競合: ディスク内容が変更の前提（base）から変わっています" }
-                    YamlIO.parse(before).also { tree -> change.ops.forEach { Patcher.apply(tree, it) } }
+                    YamlIO.parse(before).also { tree -> change.ops.forEach { Patcher.apply(tree, ChangeSets.copyOp(it)) } }
                 }
                 val doc = YDocument(id, listOf(root))
                 val sid = if (base.layout.isReserved(id.value) && base.layout.zoneOf(id.value) == null) null

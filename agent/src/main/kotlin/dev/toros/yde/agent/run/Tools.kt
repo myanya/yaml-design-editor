@@ -21,8 +21,6 @@ import dev.toros.yde.app.tools.Toolset
 import dev.toros.yde.app.tools.toolArgs
 import dev.toros.yde.app.tools.toolText
 import dev.toros.yde.yaml.model.parseYPath
-import dev.toros.yde.yaml.model.pretty
-import dev.toros.yde.yaml.validate.Severity
 import kotlinx.serialization.json.*
 
 /**
@@ -153,30 +151,8 @@ class AgentToolbox(
             }
             "submit_changeset" -> {
                 val summary = requireArg("summary")
-                if (activity.gate == ValidationGate.ERROR_FREE) {
-                    val errors = staging.validateAll().flatMap { (rel, issues) ->
-                        issues.filter { it.severity == Severity.ERROR }.map { "$rel :: ${it.path.pretty()}: ${it.message}" }
-                    }
-                    if (errors.isNotEmpty()) {
-                        return Outcome(
-                            "提出は拒否されました。検証エラーを解消してください（${errors.size} 件）:\n" +
-                                errors.take(20).joinToString("\n") { "- $it" }
-                        )
-                    }
-                }
-                if (activity.gate == ValidationGate.NO_NEW_ERRORS) {
-                    // 点検系ゲート（R28-05b・UX-47）: 既存エラーで提出を塞がず、この変更で増えたエラーのみ拒否理由にする
-                    val fresh = staging.newErrors().flatMap { (rel, issues) ->
-                        issues.map { "$rel :: ${it.path.pretty()}: ${it.message}" }
-                    }
-                    if (fresh.isNotEmpty()) {
-                        return Outcome(
-                            "提出は拒否されました。この変更で新しく増えた検証エラーを解消してください" +
-                                "（${fresh.size} 件。適用前からある既存エラーは提出を妨げません）:\n" +
-                                fresh.take(20).joinToString("\n") { "- $it" }
-                        )
-                    }
-                }
+                val policy = dev.toros.yde.app.tools.SubmissionPolicy.valueOf(activity.gate.name)
+                dev.toros.yde.app.tools.SubmissionChecks.rejection(staging, policy)?.let { return Outcome(it) }
                 Outcome("提出しました", Terminal(RunStatus.SUBMITTED, summary))
             }
             "abort" -> Outcome("中断しました", Terminal(RunStatus.ABORTED, requireArg("reason")))

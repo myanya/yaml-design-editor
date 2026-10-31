@@ -143,6 +143,10 @@ class WorkspaceOperations(
             withContext(Dispatchers.IO) { journal.write(record) }
             record = record.copy(state = OperationState.APPLYING)
             withContext(Dispatchers.IO) { journal.write(record) }
+            // 記録の永続化にも IO の待ちがある。保存を始める直前の権限と編集状態をもう一度確認する。
+            require(authorize(caller).second == grant) { "権限が変更されました" }
+            checkSnapshot(plan.epoch, plan.revision)
+            host.documents.checkExternalTargets(ids)
             started = true
             val result = withContext(Dispatchers.IO) {
                 require(base.readStoreState() == plan.before) { "書込前にデータが変わりました" }
@@ -204,13 +208,7 @@ class WorkspaceOperations(
         }
     }
 
-    private fun readRecords(journal: OperationJournal): List<OperationRecord> = journal.readAll().map {
-        when (it.state) {
-            OperationState.APPLYING -> it.copy(state = OperationState.UNKNOWN, message = "中断した確定の結果を照合してください")
-            OperationState.RECEIVED -> it.copy(state = OperationState.REJECTED, message = "書込開始前に中断しました")
-            else -> it
-        }
-    }
+    private fun readRecords(journal: OperationJournal): List<OperationRecord> = journal.readAll().map { it.recovered() }
 
     private fun authorize(caller: OperationCaller): Pair<Path, OperationGrant> {
         require(caller.callerId.isNotBlank() && caller.callerId.length <= 200) { "接続者の識別子が不正です" }

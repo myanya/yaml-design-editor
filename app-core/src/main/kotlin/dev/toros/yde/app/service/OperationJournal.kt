@@ -21,6 +21,13 @@ data class OperationRecord(
     val persistence: Map<String, String> = emptyMap(), val message: String? = null,
 )
 
+/** 中断した要求は再実行せず、照会時の状態に写す。 */
+internal fun OperationRecord.recovered(): OperationRecord = when (state) {
+    OperationState.APPLYING -> copy(state = OperationState.UNKNOWN, message = "中断した確定の結果を照合してください")
+    OperationState.RECEIVED -> copy(state = OperationState.REJECTED, message = "書込開始前に中断しました")
+    else -> this
+}
+
 /** 要求記録の永続化ポート。テストは保存の各段階で失敗を注入する。 */
 interface OperationJournal {
     fun readAll(): List<OperationRecord>

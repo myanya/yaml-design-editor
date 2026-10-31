@@ -24,7 +24,7 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 | `ui.view` | ビューの描画（表・チャート・フロー・レポート・ダッシュボード・準備完了）と、差し込み口を通る種類（chart・flow）の描画の一覧 | ui/view/ViewRenderers.kt・ui/view/ViewGridPane.kt・ui/view/DashboardPane.kt |
 | `ui.graph` | グラフレンズとエンティティページ | ui/graph/GraphLensView.kt・ui/graph/LensGraph.kt・ui/graph/IdCrossView.kt |
 | `ui.file` | ファイル一覧・プレビュー・移動・Markdown の画面・file 型の欄と画像 | ui/file/FileTreePane.kt・ui/file/FileEditor.kt・ui/file/ImagePane.kt |
-| `ui.run` | 実行スペース・自動化・計測・AI の接続と生成 | ui/run/RunsSpace.kt・ui/run/AiGenerationDialog.kt |
+| `ui.run` | 実行スペース・外部提出の受信箱・自動化・計測・AI の接続と生成 | ui/run/RunsSpace.kt・ui/run/ExternalWorkPane.kt・ui/run/AiGenerationDialog.kt |
 | `ui.action` | 操作のパネル（型の操作とアクション） | ui/action/ActionPane.kt |
 | `ui.shell` | 骨格（`AppRoot`・編集領域・ステータスバー）・スタート画面・コマンドパレット・スペース・右パネル・ツールバー・ウィザード・連携（skill）の設定 | ui/shell/AppRoot.kt・ui/shell/Shell.kt・ui/shell/SidePanel.kt |
 

@@ -174,6 +174,7 @@ class ScreenMemory {
 
     /** 受信箱で開いているレビュー対象。承認待ちから消えたものは画面が読み捨てる。 */
     var runsReview by mutableStateOf<AutomationEngine.PendingReview?>(null)
+    var externalWorkReview by mutableStateOf<String?>(null)
 
     /** 設計スペースで選んでいる定義の種類。null = 先頭。 */
     var designZone by mutableStateOf<WorkspaceLayout.Zone?>(null)
@@ -252,6 +253,7 @@ class ScreenMemory {
         readinessQuery = ""
         runsTab = 0
         runsReview = null
+        externalWorkReview = null
         designZone = null
         initBannerDismissed = false
         markdownTab.clear()

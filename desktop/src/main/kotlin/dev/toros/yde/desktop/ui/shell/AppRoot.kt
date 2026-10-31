@@ -117,7 +117,7 @@ private fun AppRootContent(
         // 受信箱の件数（R12-02）: 承認待ち変更セット＋エージェントの質問＋外部変更の競合
         val inboxCount = (automation?.pendingSnapshot()?.size ?: 0) +
             state.conflictedDocs().size +
-            (if (runController?.pendingQuestion != null) 1 else 0)
+            (if (runController?.pendingQuestion != null) 1 else 0) + (state.externalWork?.pendingCount ?: 0)
         AppToolbar(state, leftOpen, rightOpen, darkMode, toggleDarkMode, { setCommandOpen(true) },
             openWorkspaceDialog = openWorkspaceDialog,
             switchWorkspace = switchWorkspace,

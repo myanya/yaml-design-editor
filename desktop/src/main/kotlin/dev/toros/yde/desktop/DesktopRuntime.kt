@@ -6,6 +6,7 @@ import dev.toros.yde.app.core.FileWatcher
 import dev.toros.yde.app.service.SourceDraftWorker
 import dev.toros.yde.app.service.WorkspaceHost
 import dev.toros.yde.app.service.WorkspaceOperations
+import dev.toros.yde.app.service.WorkspaceWork
 import java.awt.EventQueue
 import java.nio.file.Path
 import kotlinx.coroutines.*
@@ -35,6 +36,7 @@ internal class DesktopRuntime(
     val state: AppState = AppState(host, scope)
     /** 接続の認証・登録がつながるまでは、共通窓口の権限は既定で全て拒否する。 */
     val operations = WorkspaceOperations(host)
+    val work = WorkspaceWork(host)
     private var jobs: WorkspaceJobs? = null
     private var stopping = false
 
@@ -100,10 +102,16 @@ internal class DesktopRuntime(
             },
         )
         private val controller = RunController(root, workspaceScope)
+        private val external = ExternalWorkController(work, workspaceScope)
 
         init {
             state.automation = engine
             state.runController = controller
+            state.externalWork = external
+            workspaceScope.launch {
+                host.status.first { it.busy == null }
+                external.refresh()
+            }
             engine.onUpdate = {
                 workspaceScope.launch { if (state.automation === engine) state.automationVersion++ }
             }
@@ -138,7 +146,7 @@ internal class DesktopRuntime(
         suspend fun stop() {
             cancel()
             job.join()
-            if (state.automation === engine) { state.automation = null; state.runController = null }
+            if (state.automation === engine) { state.automation = null; state.runController = null; state.externalWork = null }
         }
     }
 }

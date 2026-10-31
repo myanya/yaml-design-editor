@@ -12,6 +12,7 @@
 | `Toolset` / `Tool` / `ToolContext`・`ToolPolicy` | app-core tools/Toolset.kt・Tool.kt・ToolContext.kt | 中核のツール（読む 8・作業コピーへ書く 2・検証 1・許可した操作）と書込権限のツール側での強制。入口（agent・MCP・CLI）に依らず、引数と結果は JSON の値 |
 | `Readouts` | app-core tools/Readouts.kt | 読み出しの文（`catalogText`・`phaseText`・`viewText`・`traverseText`・`relatedText`・`entityText`・`refsFooterText`・`sampleText`・`validationText`）。ツールの結果と初期文脈が共用 |
 | `WorkingCopy` | app-core tools/WorkingCopy.kt | 作業コピー（パッチ記録・新規文書・重ねた索引・影響ファイルを含む横断検証・変更セット化・`newErrors`）。`Staging` の土台 |
+| `SubmissionChecks` / `SubmissionPolicy` | app-core tools/SubmissionChecks.kt | 提出の検証ゲートと拒否理由。内蔵エージェントの設定と外部提出のエラー必須解消を分ける |
 | `AgentToolbox` | agent/run/Tools.kt | `Toolset` をアクティビティのツール分類で選んで `ToolSpec` に包む。ask_human・delegate・plan・note・submit_changeset・abort はここだけ。`contextItemSection`（レシピ項目 → 読み出しの文） |
 | `Staging` | agent/run/Staging.kt | `WorkingCopy` に定義文書のゲート（ステージした定義が実際のローダで読めること）を足したもの |
 | `RunLog` / `RunMetrics` | agent/run/RunLog.kt・agent/eval/Metrics.kt | 実行記録の保存（会話記録・`exchange`・会計）と集計 |
@@ -48,6 +49,7 @@
 - **実行記録** `_runs`: ターン・ツール呼び出し・質問と回答・採否・トークン・会話記録（`transcript`。1 件 2 万字上限）。索引対象外。
 - **テスト容易性**: LLM セッションは `sessionFactory` 注入で疑似化し、ツール実行・ステージング・検証は本物を通す結合テスト（`KernelTest`）。
 - 変更セットの適用（人間の承認 `Workspace.apply`）の本体はカーネル（[workspace.md「変更セットの適用」](workspace.md)）。
+- 外部接続の作業は [ローカル接続「外部作業と提出・承認」](local-connections.md) の WorkspaceWork が持つ。内蔵実行の会話・会計・定義読込は agent に残し、作業コピーと提出ゲートを共用する。
 
 ## 自動実行
 

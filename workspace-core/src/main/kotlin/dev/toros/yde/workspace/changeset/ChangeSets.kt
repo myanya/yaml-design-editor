@@ -34,15 +34,18 @@ object ChangeSets {
 
     /** 背景計画へ渡す独立した入力。YAML との往復でコメントや表記を失わせない。 */
     fun copyOf(changeSet: ChangeSet): ChangeSet = ChangeSet(changeSet.changes.map { change ->
-        change.copy(content = change.content?.deepCopy(), ops = change.ops.map { op -> when (op) {
-            is PatchOp.Set -> op.copy(path = op.path.toList(), value = op.value.deepCopy())
-            is PatchOp.Insert -> op.copy(path = op.path.toList(), value = op.value.deepCopy())
-            is PatchOp.Delete -> op.copy(path = op.path.toList())
-            is PatchOp.Move -> op.copy(from = op.from.toList(), to = op.to.toList())
-            is PatchOp.RenameKey -> op.copy(path = op.path.toList())
-            is PatchOp.ReorderKeys -> op.copy(path = op.path.toList(), order = op.order.toList())
-        } })
+        change.copy(content = change.content?.deepCopy(), ops = change.ops.map(::copyOp))
     })
+
+    /** パッチの値と適用先の木を共有しない。後続の入れ子編集で過去の操作値を変えないための複製。 */
+    fun copyOp(op: PatchOp): PatchOp = when (op) {
+        is PatchOp.Set -> op.copy(path = op.path.toList(), value = op.value.deepCopy())
+        is PatchOp.Insert -> op.copy(path = op.path.toList(), value = op.value.deepCopy())
+        is PatchOp.Delete -> op.copy(path = op.path.toList())
+        is PatchOp.Move -> op.copy(from = op.from.toList(), to = op.to.toList())
+        is PatchOp.RenameKey -> op.copy(path = op.path.toList(), newName = op.newName)
+        is PatchOp.ReorderKeys -> op.copy(path = op.path.toList(), order = op.order.toList())
+    }
 
     /** ディスク内容の競合検出に使うハッシュ（SHA-256 の16進表現）。 */
     fun contentHash(text: String): String =

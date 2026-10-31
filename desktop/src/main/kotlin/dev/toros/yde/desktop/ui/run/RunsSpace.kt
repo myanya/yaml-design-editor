@@ -84,7 +84,9 @@ fun RunsSpace(state: AppState, engine: AutomationEngine?, controller: RunControl
     val reviewTarget = state.memory.runsReview
     val pending = engine.pendingSnapshot()
     val conflicts = state.conflictedDocs()
-    val inboxCount = pending.size + conflicts.size + (if (controller.pendingQuestion != null) 1 else 0)
+    val external = state.externalWork
+    val externalReview = external?.records?.firstOrNull { it.id == state.memory.externalWorkReview }
+    val inboxCount = pending.size + conflicts.size + (if (controller.pendingQuestion != null) 1 else 0) + (external?.pendingCount ?: 0)
 
     Column(Modifier.fillMaxSize().background(Palette.EditorBg)) {
         TabRow(selectedTabIndex = tab, containerColor = Palette.Surface, contentColor = Palette.Primary) {
@@ -97,7 +99,9 @@ fun RunsSpace(state: AppState, engine: AutomationEngine?, controller: RunControl
             when (tab) {
                 0 -> {
                     val review = reviewTarget
-                    if (review != null && pending.contains(review)) {
+                    if (external != null && externalReview != null) {
+                        ExternalWorkPane(external, externalReview) { state.memory.externalWorkReview = null }
+                    } else if (review != null && pending.contains(review)) {
                         PendingReviewPane(state, engine, review) { state.memory.runsReview = null }
                     } else {
                         InboxTab(state, engine, controller, onReview = { state.memory.runsReview = it })
@@ -127,11 +131,16 @@ private fun InboxTab(
         Text("人間の判断を待っているものが、ここに集まります", fontSize = 11.sp, color = Palette.SubText)
         Spacer(Modifier.height(10.dp))
 
-        if (question == null && pending.isEmpty() && conflicts.isEmpty()) {
+        state.externalWork?.let { external ->
+            ExternalWorkList(external) { state.memory.externalWorkReview = it }
+            Spacer(Modifier.height(10.dp))
+        }
+
+        if (question == null && pending.isEmpty() && conflicts.isEmpty() && (state.externalWork?.pendingCount ?: 0) == 0) {
             Text("判断待ちはありません", fontSize = 13.sp, color = Palette.OkGreen)
             Spacer(Modifier.height(4.dp))
             Text(
-                "エージェントの承認待ち変更セット・実行中の質問・外部変更の競合が発生すると、ここに表示されます。",
+                "エージェントや外部接続の承認待ち変更セット・実行中の質問・外部変更の競合が発生すると、ここに表示されます。",
                 fontSize = 12.sp, color = Palette.SubText,
             )
             return@Column
