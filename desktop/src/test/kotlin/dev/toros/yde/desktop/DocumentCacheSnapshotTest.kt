@@ -116,8 +116,10 @@ class DocumentCacheSnapshotTest {
             } finally {
                 accepted.dispose()
             }
-            assertNotNull(state.docFor(file))
+            val doc = assertNotNull(state.docFor(file))
             assertFalse(state.hasDirtyDocs())
+            doc.applySourceText("title: 編集\n")
+            assertTrue(doc.dirty, "破棄済みの描画の購読へ書き戻さず、採用した文書を更新できる")
         } finally {
             Files.walk(dir).use { it.sorted(Comparator.reverseOrder()).forEach(Files::deleteIfExists) }
         }

@@ -1,5 +1,7 @@
 package dev.toros.yde.desktop.ui.run
 
+import dev.toros.yde.desktop.AiSettings
+
 import dev.toros.yde.agent.auto.AutomationEngine
 import dev.toros.yde.agent.EvalDef
 import dev.toros.yde.agent.eval.EvalRunner

@@ -142,6 +142,21 @@ class SourceRulesTest {
     @Test fun `規則17 拡張は決まった形にする`() = check(17)
     @Test fun `規則18 agent のファイルの間に循環を作らない`() = check(18)
     @Test fun `規則19 画面は決めたパッケージに置き、機能のパッケージは互いを使わない`() = check(19)
+    @Test fun `規則20 ローカル接続の通信依存と入口を隔離する`() = check(20)
+
+    @Test
+    fun `規則20 は通信の漏れとサーバから入口への逆依存を拒否する`() {
+        val app = SourceScanner.parse("app-core", "app-core/A.kt", "package dev.toros.yde.app.service\nimport io.ktor.server.application.Application\nimport dev.toros.yde.server.LocalConnectionSettings\n")
+        val server = SourceScanner.parse("local-server", "local-server/B.kt", "package dev.toros.yde.server\nimport dev.toros.yde.agent.run.Staging\nimport dev.toros.yde.app.core.Workspace\n")
+        val hits = ModuleRules.localConnectionDependencies(listOf(app, server)).filter { it.file in listOf(app, server) }
+        assertEquals(listOf(app.path to 2, app.path to 3, server.path to 2), hits.map { it.file.path to it.line })
+        fun build(module: String, text: String) = ModuleRules.localConnectionBuildDependencies(module, SourceScanner.parse(module, "$module/build.gradle.kts", text))
+        assertEquals(1, build("app-core", "implementation(libs.ktor.server.cio)").size)
+        assertEquals(1, build("agent", "implementation(project(\":local-server\"))").size)
+        assertEquals(1, build("local-server", "implementation(project(\":desktop\"))").size)
+        assertTrue(build("desktop", "implementation(project(\":local-server\"))").isEmpty())
+        assertTrue(build("local-server", "implementation(project(\":app-core\"))").isEmpty())
+    }
 
     @Test
     fun `規則19 は表に無い画面のパッケージと機能どうしの import を見つける`() {

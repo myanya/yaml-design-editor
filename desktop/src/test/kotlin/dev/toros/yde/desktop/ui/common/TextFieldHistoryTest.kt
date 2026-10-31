@@ -6,6 +6,7 @@ import dev.toros.yde.yaml.model.YNode
 import java.nio.file.Files
 import kotlin.io.path.createTempDirectory
 import kotlin.test.*
+import kotlinx.coroutines.runBlocking
 import dev.toros.yde.desktop.AppState
 import dev.toros.yde.desktop.OpenDocument
 import dev.toros.yde.desktop.ui.form.FormCtx
@@ -106,10 +107,10 @@ class TextFieldHistoryTest {
     fun `ファイル操作中はキーを消費してフォームの文字列履歴にも戻らない`() = withWorkspace { state, a, _ ->
         val ctx = FormCtx(state, a, emptyList(), readOnly = false)
         edit(ctx, "編集")
-        state.fileOperationBusy = true
-        assertTrue(TextFieldHistory().preview(HistoryShortcut.UNDO, true, false, ctx.historyHandler))
-        assertEquals("編集", title(a))
-        state.fileOperationBusy = false
+        runBlocking { state.host.exclusive("ファイル操作") {
+            assertTrue(TextFieldHistory().preview(HistoryShortcut.UNDO, true, false, ctx.historyHandler))
+            assertEquals("編集", title(a))
+        } }
         state.undoFromUi()
         assertEquals("A", title(a))
     }

@@ -24,7 +24,7 @@
 | `AiConnection` / `AiHttp` | agent/llm/Connection.kt・Http.kt | OpenAI 互換の接続先の解決と、HttpClient の単一ファクトリ（プロキシ・Basic 認証・リトライ） |
 | `Traverse` | core/Traverse.kt | 経路パターンの多段トラバース（`neighborIds` の上の emit レンダラ） |
 | `SkillDef` / `Skills` / `Runner` / `Tables` / `Importer` / `Exporter` | skill/ | skill 定義・コード実行 skill・表形式の読み書き・インポート・エクスポート |
-| `RunController` / `RunsSpace` | ui/run/RunsSpace.kt | 実行スペース（受信箱・手動実行・自動化・計測評価）。実行状態機械は `RunController` が持つ |
+| `RunController` / `RunsSpace` | RunController.kt・ui/run/RunsSpace.kt | DesktopRuntime が保持する実行状態と、受信箱・手動実行・自動化・計測評価の画面 |
 | `AiGenerationHost` | ui/run/AiGenerationDialog.kt | AI 生成ダイアログの状態機械（入力 → 生成 → プレビュー → 適用）と提案合成 |
 
 ## 安全性
@@ -84,7 +84,7 @@
 ## AI 接続
 
 - HttpClient は `AiHttp` だけが生成する。プロキシ（システム設定尊重 / DIRECT / MANUAL）と Basic 認証はここで一元管理。HTTPS トンネルの Basic 認証は初期化で許可する。
-- OpenAI 互換の接続先は `AiConnection` が解決する（ベース URL・認証ヘッダ形式・API バージョン。公式 OpenAI・Azure OpenAI・ollama / vLLM 等）。接続先の分岐をクライアント側に書かない。設定の永続化は `ui/AiSettings`、CLI は環境変数（`AZURE_OPENAI_ENDPOINT` / `AZURE_OPENAI_API_VERSION` / `OPENAI_BASE_URL`）が初期値。
+- OpenAI 互換の接続先は `AiConnection` が解決する（ベース URL・認証ヘッダ形式・API バージョン。公式 OpenAI・Azure OpenAI・ollama / vLLM 等）。接続先の分岐をクライアント側に書かない。設定の永続化は `desktop.AiSettings`、CLI は環境変数（`AZURE_OPENAI_ENDPOINT` / `AZURE_OPENAI_API_VERSION` / `OPENAI_BASE_URL`）が初期値。
 - 一時エラーの自動リトライは送信経路に一元化: `AiHttp.post` は 408 / 429 / 5xx を `retry-after`（なければ指数バックオフ＋ジッタ、上限 60 秒／回・3 回）で待機して再送する。待機は `delay` ベースでキャンセルで即中断。判定と待機計算は純粋関数（`HttpTest`）。
 - Anthropic prompt caching: `cache_control` の切れ目を system・ツール定義の末尾・最新メッセージの末尾ブロック（毎ターン前進）の 3 点に自動配置する。トラバースやレシピの決定的出力はこのプレフィクス安定性を壊さないための前提。
 

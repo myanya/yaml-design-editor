@@ -330,8 +330,7 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp, o
                 } else null,
                 onDismiss = { dialog = null },
                 onConfirm = { value, atRoot, withAi ->
-                    state.fileOperationBusy = true
-                    try {
+                    run {
                     val parent = if (atRoot) ws else selectedParent
                     val result = when (kind) {
                         TreeDialog.NewFile -> state.createYaml(parent, value).onSuccess { file ->
@@ -349,7 +348,7 @@ fun FileTreePane(state: AppState, width: androidx.compose.ui.unit.Dp = 280.dp, o
                     if (result.isSuccess) { dialog = null; if (kind != TreeDialog.NewFile) state.memory.treeSelection = null }
                     // 失敗はダイアログ内に表示する（ステータスバーだけでは気づけない。UX-41）
                     result.exceptionOrNull()?.let { it.message ?: "操作に失敗しました" }
-                    } finally { state.fileOperationBusy = false }
+                    }
                 },
             )
         }

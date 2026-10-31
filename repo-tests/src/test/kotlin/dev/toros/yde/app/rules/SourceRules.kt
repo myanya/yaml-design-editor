@@ -52,6 +52,7 @@ object SourceRules {
         listOf("$APP.session"),
         listOf("$APP.tools"),
         listOf("$APP.skill"),
+        listOf("$APP.service"),
         listOf("$AGENT.llm"),
         listOf(AGENT), // agent の根＝定義（Definitions・Evals・ForeachDef）
         listOf("$AGENT.run"),
@@ -62,7 +63,7 @@ object SourceRules {
 
     /** Compose 非依存の純粋ロジック層。 */
     private val purePackages = arrayOf("$APP.core", "$APP.index", "$APP.schema", "$APP.validate", "$APP.text", "$APP.session", "$APP.tools", "$APP.ext", "$APP.skill", "$APP.view", "$APP.format")
-    private val coreModules = setOf("yaml-core", "semantic-core", "workspace-core", "cli", "app-core", "agent")
+    private val coreModules = setOf("yaml-core", "semantic-core", "workspace-core", "cli", "app-core", "agent", "local-server")
 
     /** 外部の UI ライブラリの import の接頭辞と、それを包む 1 ファイル。 */
     private val wrappedLibraries = mapOf(
@@ -213,6 +214,11 @@ object SourceRules {
                 "form が上の部品を要るときは差し込み口 FormSlots を使う。パッケージを足すときはこの表と ui.md の図を一緒に直す",
             doc = "architecture/ui.md「画面のパッケージ」",
         ) { files -> uiPackageViolations(files) },
+        Rule(
+            20, "ローカル接続の通信依存と入口を隔離する",
+            why = "Ktor・MCP は local-server だけに置く。local-server は app-core とカーネルまでを使い、app-core・agent・拡張からは依存しない",
+            doc = "architecture/local-connections.md「規律」",
+        ) { files -> ModuleRules.localConnectionDependencies(files) },
     )
 
     /** `Path.of("C:/…")`・`Paths.get("C:\\…")` のようなドライブ文字の絶対パスの直書き。 */

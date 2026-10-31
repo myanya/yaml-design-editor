@@ -11,7 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.automirrored.filled.Redo
 import dev.toros.yde.agent.auto.AutomationEngine
-import dev.toros.yde.agent.llm.AiProvider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,7 +21,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.input.key.*
-import dev.toros.yde.app.core.FileWatcher
 import dev.toros.yde.app.schema.BuiltinSchemas
 import dev.toros.yde.workspace.layout.WorkspaceLayout
 import kotlinx.coroutines.delay
@@ -53,8 +51,6 @@ import dev.toros.yde.desktop.ui.form.LocalFormSlots
 import dev.toros.yde.desktop.ui.graph.EntityPage
 import dev.toros.yde.desktop.ui.graph.LensSidePanel
 import dev.toros.yde.desktop.ui.run.AiGenerationHost
-import dev.toros.yde.desktop.ui.run.AiSettings
-import dev.toros.yde.desktop.ui.run.RunController
 import dev.toros.yde.desktop.ui.run.RunsSpace
 import dev.toros.yde.desktop.ui.schema.SchemaEditor
 import dev.toros.yde.desktop.ui.source.SourceDraftBanner
@@ -112,57 +108,9 @@ private fun AppRootContent(
         onError = { state.status = it },
         onChosen = switchWorkspace,
     )
-    var automationVersion by remember { mutableStateOf(0) }
-    // 自動化エンジン（ワークスペースごとに生成。既定は停止状態で、パネルから有効化する）
-    val automation = remember(state.workspace) {
-        state.workspace?.let { wsDir ->
-            AutomationEngine(
-                wsDir,
-                credentials = {
-                    AutomationEngine.Credentials(
-                        provider = AiSettings.provider,
-                        models = AiProvider.entries.associateWith { AiSettings.modelFor(it) },
-                        apiKeys = AiProvider.entries.associateWith { AiSettings.apiKeyFor(it) }
-                            .filterValues { it.isNotBlank() },
-                    )
-                },
-                dirtyChecker = { p -> state.docFor(p)?.dirty == true },
-            )
-        }
-    }
-    // エージェント実行の状態機械（R12-01）: スペース切替で実行が中断しないよう AppRoot 生存期間で保持する
-    val runScope = rememberCoroutineScope()
-    val runController = remember(state.workspace) { state.workspace?.let { RunController(state, it, runScope) } }
-    DisposableEffect(runController) {
-        onDispose { runController?.cancel() }
-    }
-    LaunchedEffect(automation) {
-        automation?.let { engine ->
-            engine.onUpdate = { automationVersion++ }
-            engine.start(this)
-        }
-    }
-    DisposableEffect(automation) {
-        onDispose { automation?.stopAll() }
-    }
-    LaunchedEffect(state.workspace) {
-        // 外部変更検出: WatchService によるOSネイティブ監視を優先し、
-        // 使えない環境（ネットワークドライブ等）では従来の1秒ポーリングへフォールバックする（R8-03）
-        val watcher = state.workspace?.let { root -> kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { FileWatcher.open(root) } }
-        try {
-            while (true) {
-                if (watcher != null) {
-                    delay(250)
-                    state.noteFileEvents(watcher.consumePaths())
-                } else {
-                    delay(1000)
-                    state.pollExternalChanges()
-                }
-            }
-        } finally {
-            watcher?.close()
-        }
-    }
+    val automationVersion = state.automationVersion
+    val automation = state.automation
+    val runController = state.runController
     // ショートカット（Alt+←/→・Ctrl+S・Ctrl+Z・Ctrl+K）は main の Window.onKeyEvent（handleShortcut）で受ける（UX-120）
     Column(Modifier.fillMaxSize()) {
         automationVersion  // エンジン状態の変化でレール・受信箱バッジ・ステータスバーを再描画する

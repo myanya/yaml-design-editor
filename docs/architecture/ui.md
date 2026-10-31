@@ -12,7 +12,7 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
   ui.view  ui.graph  ui.file  ui.run  ui.schema  ui.source  ui.action   ← 機能（互いを使わない）
               ui.form（フォーム編集の部品・差し込み口 FormSlots）
               ui.common（土台の部品・図の配置）
-  desktop の根（AppState・OpenDocument・ScreenMemory・UiPreferences・DesktopUiDispatcher・AiRequests・Main の main）
+  desktop の根（DesktopRuntime・AppState・OpenDocument・ScreenMemory・UiPreferences・DesktopUiDispatcher・RunController・AiSettings・AiRequests・Main の main）
 ```
 
 | パッケージ | 中身 | 主なファイル |
@@ -41,7 +41,7 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 | `UiSpace` / `showSpace` / `showWorkspaceView` / `navigateToPath` / `openCrossView` / `openViewGrid` / `goBack` / `goForward` | desktop/AppState.kt | スペースとナビゲーション履歴（`NavLocation`） |
 | `ScreenMemory` | desktop/ScreenMemory.kt | 画面の覚え（畳み・タブ・絞り込み・チェック・ツリーの展開。画面を離れても保持し、切替時は初期化してツリーの展開を復元する） |
 | `ActivityRail` / `LedgerSpace` | ui/shell/Shell.kt | 5 スペースを切り替えるレールと、一覧・ビューグリッド・グラフ・エンティティをタブで束ねる台帳スペース |
-| `RunController` / `RunsSpace` | ui/run/RunsSpace.kt | 実行スペース（受信箱・手動実行・自動化・計測評価）。実行状態機械（AppRoot 生存期間） |
+| `RunController` / `RunsSpace` | RunController.kt・ui/run/RunsSpace.kt | DesktopRuntime が保持する実行状態と、受信箱・手動実行・自動化・計測評価の画面 |
 | `DesignSpace` | ui/shell/DesignSpace.kt | 設計スペース（定義文書の種類別カタログ・新規作成・スキーマ推測・skill） |
 | `StructuredForm` / `FormAnchor` / `Highlightable` | ui/form/StructuredForm.kt | スキーマと通常文書が共有する構成一覧とスクロール連動・項目の位置の登録・ハイライトとスクロール |
 | `FormView` / `DocumentMetadataEditor` / `SameIdOccurrencesStrip` | ui/form/FormView.kt | フォームの入口（文書を開いたときの描画の振り分け）・文書の情報・同じ ID の出現の帯 |
@@ -103,7 +103,7 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
   - 覚えは「あれば使う・無ければ既定」。再読込で無くなった文書・型・種別の鍵は読まれないだけにし、画面側で今の候補と突き合わせる（一覧の種別と状態・ツリーの選択・レンズの配置）。
   - 寿命はワークスペース（切替で初期化し、ツリーの展開と表示設定は永続化した覚えから復元する）。文書の削除・改名はその文書のぶんだけ消す・移す。操作の途中（ダイアログ・メニュー・入力途中の欄）は `remember` のまま（`ScreenMemoryTest`）。
 - **常設画面と浮いたパネルの線引き**: エージェント実行・自動化・計測評価・skill 操作のような、実行の状態を持つ・長く続く作業は実行／設計スペースの常設画面。値を集めて 1 回で適用する短い作業（AI 生成・改名・統合・スキーマ推測・操作）は浮いたパネル（AlertDialog）にできる。それ以外の AlertDialog は破壊的操作と承認の確認だけ。エージェントの質問はモーダルにせず非モーダルカード。気づきはレールとステータスバーのバッジ。
-- **エージェント実行の状態は `RunController`**（AppRoot 生存期間・ワークスペース単位）。スペースを切り替えて実行画面がコンポジションから外れても状態が失われない。
+- **エージェント実行の状態は `RunController`**（DesktopRuntime がワークスペース単位で保持）。AppRoot や Window がコンポジションから外れても実行・質問待ち・レビューが失われない。
 - **操作は浮いたパネル**: 入口（エンティティページの操作メニュー・フォームとビューの行の ⋯・文書ヘッダーの「文書操作」メニュー・コマンドパレット・右ペインの「操作」タブ）はどこでも `AppState.startAction` を呼び、パネルは `Main` が `ActionPanelHost` でスペースに関係なく載せる。
 - **初期化ウィザードも浮いたパネル**: スタート画面（ワークスペースが無い）からも開いている画面からも `AppState.startInitWizard` で開き、`Main` が `InitWizardHost` を窓の直下に載せる。値を集めて 1 回で書く短い作業なので常設画面にしない。スタート画面の第一のボタンはこれで、「ワークスペースを開く…」が隣に並ぶ。作業の状態は `AppState.actionWork`（`remember` に置かない）で、隠しても残り「操作」タブから開き直せる。受け取る値はフォームの部品で編集する（[actions](actions.md)）。
 - **受信箱はデータを持たない射影**: 承認待ち（`AutomationEngine.pendingSnapshot`）・質問（`RunController.pendingQuestion`）・外部変更競合（`AppState.conflictedDocs`）を集約表示するだけ。バッジ数もこの集約から導出する。

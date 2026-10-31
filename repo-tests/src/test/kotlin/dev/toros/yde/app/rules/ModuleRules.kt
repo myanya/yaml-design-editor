@@ -41,6 +41,38 @@ internal object ModuleRules {
 
     private fun extensionModules(): List<String> = SourceScanner.modules.keys.filter(::isExtension)
 
+    /** 通信の import と Gradle の依存を両方見る。未使用の直接依存でも境界を越えさせない。 */
+    fun localConnectionDependencies(files: List<SourceFile>): List<Hit> {
+        val allowed = setOf("app-core", "workspace-core", "semantic-core", "yaml-core")
+        val callers = setOf("desktop", "cli", "local-server")
+        val forbiddenPackages = listOf("dev.toros.yde.agent", "dev.toros.yde.desktop", "dev.toros.yde.cli", "dev.toros.yde.format")
+        fun String.under(prefix: String): Boolean = this == prefix || startsWith("$prefix.")
+        val imports = files.flatMap { f ->
+            f.imports.filter { imp ->
+                (f.module != "local-server" && (imp.name.under("io.ktor") || imp.name.under("io.modelcontextprotocol"))) ||
+                    (f.module !in callers && imp.name.under("dev.toros.yde.server")) ||
+                    (f.module == "local-server" && forbiddenPackages.any { imp.name.under(it) })
+            }.map { Hit(f, it.line, "import ${it.name}") }
+        }
+        val builds = SourceScanner.modules.keys.flatMap { module ->
+            localConnectionBuildDependencies(module, pseudo(module, "$module/build.gradle.kts"), allowed, callers)
+        }
+        return imports + builds
+    }
+
+    internal fun localConnectionBuildDependencies(
+        module: String,
+        build: SourceFile,
+        allowed: Set<String> = setOf("app-core", "workspace-core", "semantic-core", "yaml-core"),
+        callers: Set<String> = setOf("desktop", "cli", "local-server"),
+    ): List<Hit> = build.lines.flatMapIndexed { i, line ->
+        val projects = Regex("""project\(\s*":([\w-]+)"\s*\)""").findAll(line).map { it.groupValues[1] }
+        val invalid = projects.any { (module == "local-server" && it !in allowed) || (module !in callers && it == "local-server") }
+        val transport = module != "local-server" && Regex("""\b(?:implementation|api|runtimeOnly)\(""").containsMatchIn(line) &&
+            Regex("""io\.(?:ktor|modelcontextprotocol):|libs\.(?:ktor|mcp)\.""").containsMatchIn(line)
+        if (invalid || transport) listOf(Hit(build, i + 1, line.trim())) else emptyList()
+    }
+
     // ---------------------------------------------------------------- 規則 14
 
     /** settings.gradle.kts の include にあって、走査（SourceScanner.modules か testModules）に無いモジュールと、root の src/。 */

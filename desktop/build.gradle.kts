@@ -34,6 +34,7 @@ dependencies {
     // 応用層（app-core・agent）。カーネルの 3 つにも直接依存してよい（ADR-0013。共通の語彙＝文書 ID・YNode・スキーマの宣言を使うため）
     implementation(project(":app-core"))
     implementation(project(":agent"))
+    implementation(project(":local-server"))
     // 拡張（Excel・Word の形式）。登録は desktop/ext/DesktopExtensions.kt の一覧
     implementation(project(":format-office"))
     implementation(project(":workspace-core"))
@@ -66,7 +67,7 @@ dependencies {
         }
     }
     implementation("org.yaml:snakeyaml:2.3")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+    implementation(libs.kotlinx.serialization.json)
     testImplementation(kotlin("test"))
     // Compose の UI テスト（runComposeUiTest。画面無しで描いて semantics で確かめる。R47-50）。版は compose プラグインと同じ
     testImplementation("org.jetbrains.compose.ui:ui-test-junit4:1.12.1")
@@ -200,7 +201,7 @@ tasks.matching { it.name in setOf("prepareAppResources", "prepareReleaseAppResou
 tasks.register<Exec>("verifyWindowsDistribution") {
     description = "Windows 配布ランタイムで HTTP・Office・グラフ・同梱表示を検査する"
     group = "verification"
-    dependsOn("testClasses", "createDistributable")
+    dependsOn("testClasses", ":local-server:testClasses", "createDistributable")
     val jdk = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) }
     onlyIf { System.getProperty("os.name").startsWith("Windows") }
     commandLine("powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
@@ -282,7 +283,7 @@ val verifyWindowsZip by tasks.registering(Exec::class) {
 tasks.register("windowsRelease") {
     group = "distribution"
     description = "全テスト・ZIP 検査後にチェックサムと GitHub Releases 用の説明を生成する"
-    dependsOn(verifyWindowsZip, "test", ":yaml-core:test", ":semantic-core:test", ":workspace-core:test", ":cli:test", ":app-core:test", ":agent:test", ":format-office:test", ":repo-tests:test")
+    dependsOn(verifyWindowsZip, "test", ":yaml-core:test", ":semantic-core:test", ":workspace-core:test", ":cli:test", ":app-core:test", ":agent:test", ":format-office:test", ":local-server:test", ":repo-tests:test")
     val releaseNotes = repo.file("distribution/windows/release-notes.md")
     inputs.file(releaseNotes)
     doLast {

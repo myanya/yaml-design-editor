@@ -49,7 +49,7 @@ class FormCtx(
     val state: AppState,
     val doc: OpenDocument,
     val localIds: List<IdEntry>,
-    val readOnly: Boolean = state.readOnlyMode || doc.draftBroken,
+    val readOnly: Boolean = state.readOnlyMode || state.fileOperationBusy || doc.draftBroken,
     val baseDepth: Int = 0,
     /** 文書ビューの要素単位アタッチ（R14-03）: 要素パス → その位置に差し込む被参照。ObjectFields が描画する。 */
     val attachments: Map<YPath, List<Pair<DocViewAttachment, DocBacklinkRow>>> = emptyMap(),

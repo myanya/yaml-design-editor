@@ -34,7 +34,7 @@ dependencies {
     implementation(project(":agent"))
     // 拡張（Excel・Word の形式）。登録は CliExtensions.kt の一覧
     implementation(project(":format-office"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")   // agent / watch / eval の runBlocking（agent と同じ版）
+    implementation(libs.kotlinx.coroutines.core)   // agent / watch / eval の runBlocking（agent と同じ版）
 }
 
 tasks.withType<Test>().configureEach {

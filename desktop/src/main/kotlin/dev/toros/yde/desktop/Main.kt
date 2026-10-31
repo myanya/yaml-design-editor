@@ -15,6 +15,7 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlinx.coroutines.launch
 import dev.toros.yde.desktop.ui.common.AppTheme
 import dev.toros.yde.desktop.ui.common.HistoryShortcut
 import dev.toros.yde.desktop.ui.common.LocalDialogParentWindow
@@ -27,7 +28,17 @@ import dev.toros.yde.desktop.ui.shell.StartScreen
 
 fun main(args: Array<String>) = application {
     Extensions.install(DesktopExtensions.registry)  // 拡張（Excel・Word の形式）の登録は入口の一覧 1 ファイル（app-core に POI を入れない。組込みは最初から入っている）
-    val state = remember { AppState() }
+    val runtime = remember { DesktopRuntime() }
+    val state = runtime.state
+    val appScope = rememberCoroutineScope()
+    var exiting by remember { mutableStateOf(false) }
+    val quit: () -> Unit = {
+        if (!exiting) {
+            exiting = true
+            appScope.launch { runtime.shutdown(); exitApplication() }
+        }
+    }
+    DisposableEffect(runtime) { onDispose { runtime.cancel() } }
     var confirmExit by remember { mutableStateOf(false) }
     var darkMode by remember { mutableStateOf(uiPreferences.getBoolean("darkMode", false)) }
     var commandOpen by remember { mutableStateOf(false) }
@@ -39,7 +50,11 @@ fun main(args: Array<String>) = application {
     }
 
     Window(
-        onCloseRequest = { if (state.hasDirtyDocs()) confirmExit = true else exitApplication() },
+        onCloseRequest = {
+            if (!state.fileOperationBusy && !exiting) {
+                if (state.hasDirtyDocs()) confirmExit = true else quit()
+            }
+        },
         title = (state.workspace?.toAbsolutePath()?.normalize()?.let { "$it — " } ?: "") +
             "YAML Design Editor" + if (state.hasDirtyDocs()) " ●" else "",
         state = rememberWindowState(width = 1440.dp, height = 920.dp),
@@ -65,10 +80,16 @@ fun main(args: Array<String>) = application {
                 onDismissRequest = { confirmExit = false },
                 title = { Text("未保存の変更があります") },
                 text = { Text("変更を保存せずに終了しますか？") },
-                confirmButton = { TextButton(onClick = { exitApplication() }) { Text("保存せず終了", color = Palette.ErrorRed) } },
+                confirmButton = { TextButton(onClick = quit) { Text("保存せず終了", color = Palette.ErrorRed) } },
                 dismissButton = { TextButton(onClick = { confirmExit = false }) { Text("キャンセル") } },
             )
             ReloadConfirmationDialog(state)
+            if (state.fileOperationBusy || exiting) AlertDialog(
+                onDismissRequest = {},
+                title = { Text(if (exiting) "終了しています" else "処理しています") },
+                text = { Text(runtime.host.status.value.busy ?: "処理の完了を待っています") },
+                confirmButton = {},
+            )
             // 解析できない書きかけを捨てて Undo/Redo するかの確認（P43 R43-02）
             state.pendingHistory?.let { pending ->
                 AlertDialog(

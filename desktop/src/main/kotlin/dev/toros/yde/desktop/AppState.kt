@@ -26,6 +26,7 @@ import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.app.schema.SchemaDef
 import dev.toros.yde.semantic.schema.FieldDef
 import dev.toros.yde.app.session.DocumentSession
+import dev.toros.yde.app.service.WorkspaceHost
 import dev.toros.yde.semantic.RefactoringPlan
 import dev.toros.yde.semantic.RefactoringRequest
 import dev.toros.yde.agent.run.Staging
@@ -42,8 +43,10 @@ import java.time.LocalDateTime
 import java.util.prefs.Preferences
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 
 /**
  * UIシェルのスペース（ROADMAP P12 / architecture/ui.md「UI シェル」）。
@@ -55,9 +58,21 @@ enum class UiSpace { DASHBOARD, EDIT, LEDGER, RUNS, DESIGN }
 /**
  * アプリケーション状態。
  */
-class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
+class AppState(
+    val host: WorkspaceHost,
+    internal val operationScope: CoroutineScope = CoroutineScope(SupervisorJob() + DesktopUiDispatcher),
+) : AutoCloseable {
+    constructor(editClock: () -> Long = System::currentTimeMillis) : this(WorkspaceHost(editClock))
     /** セッション側の状態（Compose 非依存。session.DocumentSession）。画面側はここから Compose の状態へ写し、画面の場所・通知・確認を担う。 */
-    internal val documents = DocumentSession(editClock)
+    internal val documents = host.documents
+    private val subscriptions = mutableListOf<AutoCloseable>()
+    internal var workspaceOpener: ((Path) -> Unit)? = null
+    var automation by mutableStateOf<dev.toros.yde.agent.auto.AutomationEngine?>(null)
+        internal set
+    var runController by mutableStateOf<RunController?>(null)
+        internal set
+    var automationVersion by mutableStateOf(0)
+        internal set
     private companion object {
         /** ナビゲーション履歴（戻る／進む）の保持上限。 */
         const val HISTORY_LIMIT = 50
@@ -81,6 +96,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     fun saveSourceOutline(source: Path, outline: dev.toros.yde.app.core.SourceOutline.Outline, destination: String): Result<Path> =
         runCatching { documents.saveSourceOutline(source, outline, destination).also { openFile(it) } }
     var fileOperationBusy by mutableStateOf(false)
+        private set
     var fileHistoryBusy by mutableStateOf(false)
     fun undoFromUi() { historyFromUi(true) }
     fun redoFromUi() { historyFromUi(false) }
@@ -88,16 +104,19 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         if (fileOperationBusy) return null
         val step = prepareHistoryStep(undoing, confirmation) ?: return null
         if (step.kernel.fileArrangement(step.record.id) == null) { executeHistoryStep(step); return null }
-        fileOperationBusy = true; fileHistoryBusy = true
-        return kotlinx.coroutines.CoroutineScope(DesktopUiDispatcher).launch {
+        val pending = step.kernel.prepareFileHistory(step.undo)
+        fileHistoryBusy = true
+        return operationScope.launch {
             try {
-                val result = withContext(Dispatchers.IO) { applyHistoryStep(step) }
-                completeHistoryStep(step, result)
+                host.exclusiveIo("履歴のファイル操作", pending::execute) {
+                    completeHistoryStep(step, pending.finish())
+                }
             }
-            finally { fileOperationBusy = false; fileHistoryBusy = false }
+            finally { fileHistoryBusy = false; drainFileEvents() }
         }
     }
     private var deferredFileEvents = false
+    private fun drainFileEvents() { if (deferredFileEvents && !fileOperationBusy) noteFileEvents(null) }
     var fileTreeRevision by mutableStateOf(0)
     val activeFile: Path? get() = openDoc?.file ?: openMarkdown ?: openImage ?: openPreview
     fun refreshFileTree() { fileTreeRevision++ }
@@ -828,7 +847,16 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
      * ディスクから読む。既定のダッシュボードがあればそこへ着地する。
      */
     fun openWorkspace(dir: Path) {
+        workspaceOpener?.let { it(dir); return }
         val ws = dir.toAbsolutePath().normalize()
+        runCatching { host.openWorkspace(ws) }.getOrElse {
+            status = "ワークスペースを開けません: ${it.message}"
+            return
+        }
+        afterWorkspaceOpened(ws)
+    }
+
+    internal fun afterWorkspaceOpened(ws: Path) {
         dismissHistoryNotice()
         pendingReload = null
         memory.clear()
@@ -857,7 +885,6 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         // ワークスペース履歴（R10-05）: アプリグローバルに永続化し、スタート画面・パレットの切替候補にする
         recentWorkspaces = (listOf(ws) + recentWorkspaces.filter { it != ws }).take(10)
         appPrefs.put("recentWorkspaces", recentWorkspaces.joinToString("\n"))
-        documents.openWorkspace(ws)
         recentFiles = recentPrefs.get(workspaceKey(), "").lineSequence().filter { it.isNotBlank() }
             .map { ws.resolve(it).normalize() }.filter(Files::exists).take(12).toList()
         historyViewCatalog()?.let { catalog ->
@@ -1321,13 +1348,33 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     fun planFileRename(path: Path, name: String, definitions: Boolean = true, permissions: Boolean = false): dev.toros.yde.workspace.FileArrangementPlan =
         documents.planFileRename(path, name, definitions, permissions)
 
+    suspend fun planFileArrangementFromUi(paths: List<Path>, destination: String, rename: Boolean, definitions: Boolean, permissions: Boolean): Result<dev.toros.yde.workspace.FileArrangementPlan> =
+        withContext(DesktopUiDispatcher) { runCatching {
+            host.assertAvailable()
+            val plan = documents.prepareFilePlan(paths, destination, rename, definitions, permissions)
+            try { host.exclusiveIo("ファイル配置の確認", plan) { it } }
+            finally { drainFileEvents() }
+        } }
+
     fun applyFileArrangement(plan: dev.toros.yde.workspace.FileArrangementPlan): Result<Unit> =
         applyFileArrangement(plan) { it.applyFileArrangement(plan) }
 
     /** UI の準備と反映は EDT、カーネルのファイル操作だけを IO へ送る。 */
     suspend fun applyFileArrangementFromUi(plan: dev.toros.yde.workspace.FileArrangementPlan): Result<Unit> =
         withContext(DesktopUiDispatcher) {
-            applyFileArrangement(plan) { s -> withContext(Dispatchers.IO) { s.applyFileArrangement(plan) } }
+            runCatching {
+                host.assertAvailable()
+                val s = documents.prepareFileArrangement(plan)
+                val pending = s.prepareFileArrangement(plan)
+                try {
+                    documents.withHistoryOrigin(s) { host.exclusiveIo("ファイル配置の変更", pending::execute) {
+                        val result = pending.finish()
+                        require(result.ok) { result.message ?: "ファイル操作に失敗しました" }
+                        followFileArrangement(plan, reverse = false)
+                        status = plan.transaction.intent.description + "（Ctrl+Z で戻せます）"
+                    } }
+                } finally { drainFileEvents() }
+            }
         }
 
     /** 準備（下書きの反映・未保存の拒否）と文書側の追随はセッション側。ここは履歴の編集元・画面の追随・通知。 */
@@ -1623,7 +1670,8 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
     }
 
     init {
-        documents.onChanged = ::mirrorSession
+        subscriptions += documents.observeChanges(::mirrorSession)
+        subscriptions += host.observe { fileOperationBusy = host.status.value.busy != null }
         documents.onNotice = { status = it }
         documents.onEdited = { dismissLocalHistoryNotice() }
         documents.editOrigin = { doc, coalesceWith ->
@@ -1635,7 +1683,7 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
         documents.onEditRecorded = { id, origin -> (origin as? NavLocation)?.let { historyLocations.putIfAbsent(id, it) } }
         documents.onKernelReplaced = { historyLocations.clear() }
         documents.onFilesChanged = { directories = emptyList(); fileTreeRevision++ }
-        documents.onDocumentClosed = { file -> docCache.remove(file); if (openDoc?.file == file) openDoc = null }
+        documents.onDocumentClosed = { file -> docCache.remove(file)?.close(); if (openDoc?.file == file) openDoc = null }
         documents.reloadAllowed = { !fileOperationBusy }
         documents.historyOrigin = { historyLocation() }
         documents.onReloaded = { outcome ->
@@ -1646,5 +1694,14 @@ class AppState(private val editClock: () -> Long = System::currentTimeMillis) {
             }
             outcome.message?.let { status = it }
         }
+        mirrorSession()
+        fileOperationBusy = host.status.value.busy != null
+    }
+
+    /** ウィンドウの非表示では呼ばない。完全終了時だけ購読と操作ジョブを解放する。 */
+    override fun close() {
+        subscriptions.forEach(AutoCloseable::close)
+        docCache.values.forEach(OpenDocument::close)
+        operationScope.cancel()
     }
 }

@@ -1,5 +1,7 @@
 package dev.toros.yde.desktop.ui.run
 
+import dev.toros.yde.desktop.AiSettings
+
 import dev.toros.yde.agent.run.GenerationRun
 import dev.toros.yde.agent.llm.AiGenerationInput
 import dev.toros.yde.agent.llm.AiProvider

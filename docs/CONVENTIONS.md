@@ -40,7 +40,8 @@
 - **テストしたいロジックはコンポーザブルから純粋関数へ切り出し**、`internal` にしてテストする（例: `calculateDiff`, `combineProposal`, `parseResponse`）。
 - 画面の振る舞い（項目が出る・閲覧専用の分岐・入力が文書の木に届く）は Compose の UI テスト（`runComposeUiTest`。画面無しで描き、semantics＝部品が持つ文字と操作で確かめる）で確かめてよい。見た目（色・配置）は見ない。fixture は一時ディレクトリへ写して使い、1 本は数秒に収める（例 `FormViewUiTest`）。
 - テストに書きにくい画面の流れ（画面の行き来・ダッシュボード・図）は、実際の画面で確かめる。手順は `.claude/skills/ui-check/SKILL.md`（起動・画面の木の読み方・片付け）。
-- ネットワークは叩かない。APIクライアントはレスポンス解析関数（`parseResponse(statusCode, body)`）を単体テストする。
+- 外部のネットワークは叩かない。APIクライアントはレスポンス解析関数（`parseResponse(statusCode, body)`）を単体テストする。
+  ローカル接続の契約試験はインメモリ通信を優先し、待受と同梱ランタイムの検査だけは自分が起動した loopback と一時ポートを使って必ず閉じる。
 - **OS に依存する絶対パスを書かない**: 全テストは GitHub Actions（Linux）でも回る。`Path.of("C:/ws")` は Linux では相対パスになり、`\` は区切りでなく名前の一部になる。絶対パスが要るテストは `Path.of("").toAbsolutePath().root` から組むか、一時ディレクトリを使う（文字だけを見る検査＝`FilePath` の入力に `C:/` を書くのは可）。
 - 実行: `./gradlew test`（コミット前に通すこと）。コミット前フック（`scripts/git-hooks/pre-commit`）は docs-lint と規則・参照のテストだけを回し、全テストは GitHub Actions（`.github/workflows/test.yml`）が push ごとに回す。
 
@@ -108,8 +109,9 @@
 [decisions/](decisions/README.md) の ADR は本規約と同格。矛盾があれば ADR を正として規約側を直す。
 
 - **依存方向**（ADR-0002）: `yaml-core ← semantic-core ← workspace-core ← app-core ← agent ← desktop`（cli は app-core・agent・拡張まで・拡張 format-office は app-core まで）。コアからアプリ・Compose・AI・agent・skill へ依存しない。
+- ローカル接続は `app-core ← local-server ← desktop / cli`。Ktor・MCP は local-server だけに閉じ、agent・拡張へ依存しない（[ローカル接続](architecture/local-connections.md)）。
 - yaml-core と semantic-core の main ソースへ `java.nio.file.Path` を持ち込まない（テストが fixture 読込に使うのは可）。
-- **パッケージ名**: 接頭辞は `dev.toros.yde`、その下にモジュールの根（yaml-core `yaml` / semantic-core `semantic` / workspace-core `workspace` / cli `cli` / app-core `app` / agent `agent` / 拡張 format-office `format.office` / desktop `desktop`）。
+- **パッケージ名**: 接頭辞は `dev.toros.yde`、その下にモジュールの根（yaml-core `yaml` / semantic-core `semantic` / workspace-core `workspace` / cli `cli` / app-core `app` / agent `agent` / local-server `server` / 拡張 format-office `format.office` / desktop `desktop`）。
 - モジュール名と同じ名前のクラス（`YamlIO`・`SemanticEngine`・`WorkspaceSession`・`AppState`）とアプリの `Main.kt` は根に置き、ほかは根の下に置く（`semantic.schema`・`desktop.ui` など。対応表は architecture/README.md「モジュールと依存方向」）。同じ裸の名前を複数のモジュールに作らない。
 - **文書とコメントでは接頭辞を省いた短い形**（`schema.FieldDef`・`validate/Validator.kt`）で書き、同じ短い名前が複数のモジュールにあるとき（`schema`・`validate`・`core`）はモジュール名を添える。
 - **root にソースを置かない**: root はビルド全体の設定（settings.gradle.kts・buildSrc）だけ。テストは試す対象のモジュールに置き、1 つのモジュールの依存で書けないもの（入口どうし・入口と拡張の一覧をまたぐもの）と規則テストだけを repo-tests（テストだけのモジュール）に置く。

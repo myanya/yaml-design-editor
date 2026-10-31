@@ -51,7 +51,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
-import dev.toros.yde.app.core.EditBuffer
 import dev.toros.yde.app.schema.fieldAt
 import dev.toros.yde.app.validate.Issue
 import dev.toros.yde.app.validate.Validator
@@ -64,10 +63,7 @@ import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.model.getAt
 import dev.toros.yde.yaml.model.pretty
 import dev.toros.yde.yaml.validate.Severity
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.withContext
 import dev.toros.yde.desktop.AppState
 import dev.toros.yde.desktop.EditorTab
 import dev.toros.yde.desktop.OpenDocument
@@ -91,27 +87,12 @@ import dev.toros.yde.desktop.ui.common.PanelShape
 @Composable
 fun SourcePane(state: AppState, doc: OpenDocument) {
     doc.version
-    val readOnly = state.readOnlyMode
+    val readOnly = state.readOnlyMode || state.fileOperationBusy
     val wrap = state.memory.sourceWrap
     val ui = remember(doc) { SourceUi() }
     val vScroll = remember(doc) { ScrollState(0) }
 
-    // 他所（フォーム・Undo・操作・再読込）の変更を下書きへ差し込む。自分の反映は syncedVersion を進めているので対象外
-    LaunchedEffect(doc, doc.version) {
-        if (doc.version != doc.sourceSyncedVersion) {
-            val conflicts = doc.syncSourceFromTree().conflicts
-            if (conflicts > 0) state.status = "下書きと食い違う変更が $conflicts か所あり、下書きを優先しました（「整形」で木に揃えられます）"
-        }
-    }
-    // 入力が止まってから解析して反映: 解析は背景、木の更新は UI 側（スナップショット状態の更新）
-    LaunchedEffect(doc) {
-        snapshotFlow { Triple(doc.source.text.toString(), doc.version, doc.sourceEpoch) }.collectLatest {
-            val request = doc.sourceParseRequest() ?: return@collectLatest
-            delay(APPLY_DELAY_MS)
-            val parsed = withContext(Dispatchers.Default) { EditBuffer.parse(request.text) }
-            doc.applyParsed(request, parsed)
-        }
-    }
+    // 下書きの解析・木との同期は DesktopRuntime の SourceDraftWorker が画面と独立して続ける。
 
     // 検索の一致（文字列・検索語・条件が変わるたびに引き直す。1 万行でも数 ms）
     val text = doc.source.text.toString()
@@ -351,7 +332,6 @@ fun SourcePane(state: AppState, doc: OpenDocument) {
 }
 
 /** 入力が止まってから木へ反映するまでの待ち。 */
-private const val APPLY_DELAY_MS = 300L
 
 /** 画面の中だけの状態（操作の途中）: 検索・置換の入力と現在の一致、焦点、見せたい位置の要求、補完。文書ごとに作り直す。 */
 private class SourceUi {

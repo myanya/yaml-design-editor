@@ -80,7 +80,11 @@ import java.util.UUID
 class DocumentSession(private val editClock: () -> Long = System::currentTimeMillis) {
     /** 状態の変化の聞き手（殻が Compose の状態へ写す）。 */
     var onChanged: (() -> Unit)? = null
-    private fun changed() { onChanged?.invoke() }
+    private val changes = ChangeListeners<Unit>()
+    private val sourceInputs = ChangeListeners<DocumentState>()
+    fun observeChanges(listener: () -> Unit): AutoCloseable = changes.observe { listener() }
+    fun observeSourceInput(listener: (DocumentState) -> Unit): AutoCloseable = sourceInputs.observe(listener)
+    private fun changed() { onChanged?.invoke(); changes.emit(Unit) }
 
     /** 利用者への短い知らせ（殻が status に出す）。 */
     var onNotice: ((String) -> Unit)? = null
@@ -269,6 +273,7 @@ class DocumentSession(private val editClock: () -> Long = System::currentTimeMil
     // ---------------------------------------------------------------- 開いている文書
 
     private val documentMap = LinkedHashMap<Path, DocumentState>()
+    private val documentSubscriptions = mutableMapOf<Path, List<AutoCloseable>>()
 
     /** 開いたことのある文書（未保存編集をファイル切替時にも保持する）。 */
     val documents: Map<Path, DocumentState> get() = documentMap
@@ -276,10 +281,24 @@ class DocumentSession(private val editClock: () -> Long = System::currentTimeMil
     fun document(file: Path): DocumentState? = documentMap[file]
 
     /** 文書を開く（開いていれば同じもの）。取り込んだ文書は dirty 管理・保存・外部変更検出の対象になる。 */
-    fun ensureDocument(file: Path): DocumentState = documentMap.getOrPut(file) { loadDocument(file) }
+    fun ensureDocument(file: Path): DocumentState {
+        documentMap[file]?.let { return it }
+        val doc = loadDocument(file)
+        documentMap[file] = doc
+        documentSubscriptions[file] = listOf(
+            doc.observeChanges { changed() },
+            doc.observeSourceInput { sourceInputs.emit(doc) },
+        )
+        changed()
+        return doc
+    }
 
     /** 文書を閉じる。殻には onDocumentClosed で知らせる。 */
-    fun closeDocument(file: Path): DocumentState? = documentMap.remove(file)?.also { onDocumentClosed?.invoke(file) }
+    fun closeDocument(file: Path): DocumentState? = documentMap.remove(file)?.also {
+        documentSubscriptions.remove(file)?.forEach(AutoCloseable::close)
+        onDocumentClosed?.invoke(file)
+        changed()
+    }
 
     fun clearDocuments() { documentMap.keys.toList().forEach(::closeDocument) }
 
@@ -391,14 +410,18 @@ class DocumentSession(private val editClock: () -> Long = System::currentTimeMil
 
     // ---------------------------------------------------------------- カーネルのセッションの開閉と同期
 
-    /** ワークスペースを開く: 場所を変え、コア・カーネル・開いている文書を捨ててから、ディスクから読む。画面の状態を戻すのは殻（先に行う）。 */
+    /** 読込成功後に交換する。失敗時には開いている編集・下書き・履歴を残す。 */
     fun openWorkspace(dir: Path) {
-        workspace = dir.toAbsolutePath().normalize()
-        core = null
-        kernel = null
-        clearDocuments()
-        onChanged?.invoke()
-        reload()
+        val path = dir.toAbsolutePath().normalize()
+        val candidate = prepareReload(path)
+        val fresh = candidate.workspace.mirror.fork()
+        activateWorkspace(path, candidate, fresh)
+    }
+
+    /** 準備済みの候補を採用する。開く前の読込と実際の交換を所有側が分けられるようにする。 */
+    fun activateWorkspace(path: Path, candidate: ReloadCandidate, fresh: WorkspaceSession) {
+        workspace = path
+        adoptCandidate(candidate, fresh)
     }
 
     /**
@@ -777,7 +800,7 @@ class DocumentSession(private val editClock: () -> Long = System::currentTimeMil
     /** 未保存の文書（カーネルの dirty と削除予約、開いている文書の dirty と壊れた下書き）。 */
     fun dirtyFiles(): Set<Path> =
         kernel?.dirtyDocuments().orEmpty().mapTo(linkedSetOf(), ::fileOf).also { files ->
-            documentMap.values.filter { it.dirty || it.draftDirty }.forEach { files.add(it.file) }
+            documentMap.values.filter { it.dirty || it.draftDirty || it.hasPendingSourceInput }.forEach { files.add(it.file) }
         }
 
     /**
@@ -1365,6 +1388,19 @@ class DocumentSession(private val editClock: () -> Long = System::currentTimeMil
         return FileArrangementPlanner.plan(s, ws, listOf(PathMove(relPath(path), relPath(path.resolveSibling(name.trim())))), definitions, permissions)
     }
 
+    /** 所有スレッドで入力を確定し、背景では独立したセッションで配置計画を作る。 */
+    fun prepareFilePlan(paths: List<Path>, destination: String, rename: Boolean, definitions: Boolean, permissions: Boolean): () -> FileArrangementPlan {
+        val ws = workspace ?: error("ワークスペース未選択")
+        val copy = DocumentSession(editClock)
+        copy.workspace = ws
+        copy.kernel = (kernel ?: error("セッション未選択")).snapshotForFilePlanning()
+        val selected = paths.toList()
+        return {
+            if (rename) copy.planFileRename(selected.single(), destination, definitions, permissions)
+            else copy.planFileMoves(selected, ws.resolve(destination.trim()).normalize(), definitions, permissions)
+        }
+    }
+
     /** フォルダー作成の計画。戻り値は作るフォルダーと計画。 */
     fun planCreateDirectory(parent: Path, name: String): Pair<Path, FileArrangementPlan> {
         requireFileName(name)
@@ -1389,7 +1425,7 @@ class DocumentSession(private val editClock: () -> Long = System::currentTimeMil
 
     /**
      * 配置変更の適用の前: ワークスペースが変わっていないことを確かめ、対象と参照元の下書きを反映し、未保存があれば拒む。
-     * 戻り値は適用するカーネル（殻は withHistoryOrigin の中で、IO スレッドからでも applyFileArrangement を呼ぶ）。
+     * 戻り値は適用するカーネル。背景実行では prepareFileArrangement の独立した作業を使い、共有セッションを IO へ渡さない。
      */
     fun prepareFileArrangement(plan: FileArrangementPlan): WorkspaceSession {
         val s = kernel ?: error("セッション未選択")

@@ -6,8 +6,8 @@ plugins {
 
 dependencies {
     api(project(":app-core"))
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")   // LLM の要求と応答の JSON（直列化プラグインは使わない）
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")     // 自動実行と評価の並行処理（desktop の Compose と同じ版）
+    implementation(libs.kotlinx.serialization.json)   // LLM の要求と応答の JSON（直列化プラグインは使わない）
+    implementation(libs.kotlinx.coroutines.core)     // 自動実行と評価の並行処理（desktop の Compose と同じ版）
 }
 
 tasks.withType<Test>().configureEach {

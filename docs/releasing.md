@@ -47,6 +47,7 @@ $env:GRADLE_USER_HOME = Join-Path $env:USERPROFILE '.gradle'
 - `BUILD-INFO.txt` に外部版・内部版・コミット・未コミット状態、`RUNTIME-RELEASE.txt` に同梱 JDK の対象版と供給元を記録する。
 - `verifyWindowsZip` が ZIP を新しい場所へ展開し、元の配布イメージとの全ファイルの一致、追加資源、必須ファイル、版を確認する。
 - 展開後のランタイムでも HTTP クライアント生成・Office 往復・グラフ配置を検査する。実 API に接続する試験ではない。
+- ローカル接続の検査は、配布 JAR と縮小ランタイムで CIO の一時待受・MCP 初期化とツール呼出し・停止とポート解放を確認する。テスト用の経路とツールは配布しない。
 - `windowsRelease` は全モジュールのテストと ZIP 検査が成功してから、チェックサムと説明を出力する。
 - 検証用の写しは `build/zv/` と `build/distribution-smoke/` に残る（Windows のパス長を考慮して展開先を短くする）。
 

@@ -296,6 +296,80 @@ class WorkspaceSession private constructor(
     }
 
     /**
+     * ファイル操作専用の独立した作業。元のセッションを IO へ渡さず、履歴を含む結果を所有スレッドで採用する。
+     * prepare から finish までは所有側が更新を止める。読み取りは元の確定済み状態を使える。
+     * 通常の fork と違い、未保存状態と履歴も保持する。一般の編集セッション作成には使わない。
+     */
+    class PendingFileOperation internal constructor(
+        private val executeAction: () -> TransactionResult,
+        private val finishAction: (TransactionResult) -> TransactionResult,
+    ) {
+        private var started = false
+        private var finished = false
+        private var result: TransactionResult? = null
+        fun execute() {
+            check(!started) { "ファイル操作は実行済みです" }
+            started = true
+            result = executeAction()
+        }
+        fun finish(): TransactionResult {
+            check(!finished) { "ファイル操作は反映済みです" }
+            val completed = checkNotNull(result) { "ファイル操作が完了していません" }
+            finished = true
+            return finishAction(completed)
+        }
+    }
+
+    fun prepareFileArrangement(plan: FileArrangementPlan): PendingFileOperation =
+        prepareFileOperation { it.applyFileArrangement(plan) }
+
+    fun prepareFileHistory(undo: Boolean): PendingFileOperation =
+        prepareFileOperation { if (undo) it.undo() else it.redo() }
+
+    /** 背景の配置計画が読む独立した状態。履歴のない fork と違い未保存の本文も読めるが、原本へ採用しない。 */
+    fun snapshotForFilePlanning(): WorkspaceSession {
+        val loaded = LoadedWorkspace(
+            layout = layout, schemas = schemas, declarations = declarations, schemaErrors = schemaErrors,
+            parseErrors = emptyMap(), snapshot = WorkspaceSnapshot(version, workingDocuments.toMap()), derived = derived,
+        )
+        return WorkspaceSession(store, incrementalDerive, builtins, viewKinds, Seed(loaded, storeTexts.toMap()), clock)
+    }
+
+    private fun prepareFileOperation(action: (WorkspaceSession) -> TransactionResult): PendingFileOperation {
+        val baseVersion = version
+        val baseTexts = storeTexts.toMap()
+        val loaded = LoadedWorkspace(
+            layout = layout, schemas = schemas, declarations = declarations, schemaErrors = schemaErrors,
+            parseErrors = emptyMap(), snapshot = WorkspaceSnapshot(version, workingDocuments.toMap()), derived = derived,
+        )
+        val work = WorkspaceSession(store, incrementalDerive, builtins, viewKinds, Seed(loaded, baseTexts), clock)
+        work.copyMutableStateFrom(this)
+        return PendingFileOperation(
+            executeAction = { action(work) },
+            finishAction = { result ->
+                check(version == baseVersion && storeTexts == baseTexts) { "ファイル操作中に編集状態が変わりました" }
+                if (result.ok) copyMutableStateFrom(work)
+                result
+            },
+        )
+    }
+
+    private fun copyMutableStateFrom(other: WorkspaceSession) {
+        workingDocuments = LinkedHashMap(other.workingDocuments)
+        storeTexts.clear(); storeTexts.putAll(other.storeTexts)
+        pendingDeletes.clear(); pendingDeletes.addAll(other.pendingDeletes)
+        layout = other.layout; schemas = other.schemas; schemaErrors = other.schemaErrors
+        declarations = other.declarations; builtins = other.builtins; derived = other.derived; version = other.version
+        undoStack.clear(); undoStack.addAll(other.undoStack)
+        redoStack.clear(); redoStack.addAll(other.redoStack)
+        invalidatedHistory.clear(); invalidatedHistory.putAll(other.invalidatedHistory)
+        fileArrangements.clear(); other.fileArrangements.forEach { (id, journal) -> fileArrangements[id] = journal.copyForWork() }
+        recordCounter = other.recordCounter
+        lastCoalesceKey = other.lastCoalesceKey; lastCoalesceDoc = other.lastCoalesceDoc
+        lastCoalesceAtMillis = other.lastCoalesceAtMillis; lastCoalesceRecordId = other.lastCoalesceRecordId
+    }
+
+    /**
      * 読み込み済みのディスク版を取り込み、未保存文書と下書きは保存基準ごと保持する。
      * 採用した外部版と衝突する履歴は無効化し、構成を継承できない場合は全体を拒否する。
      * 候補の導出が成功するまで現在値・保存基準・履歴を変更せず、ストアへの書込も行わない。

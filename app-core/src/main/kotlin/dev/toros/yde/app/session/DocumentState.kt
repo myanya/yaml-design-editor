@@ -35,7 +35,12 @@ class DocumentState(
 
     /** 状態の変化の聞き手（殻が Compose の状態へ写す）。 */
     var onChanged: (() -> Unit)? = null
-    private fun changed() { onChanged?.invoke() }
+    private val changes = ChangeListeners<Unit>()
+    private val sourceInputsChanged = ChangeListeners<Unit>()
+    fun observeChanges(listener: () -> Unit): AutoCloseable = changes.observe { listener() }
+    /** 入力変換内からも届く。購読側は木・Compose 状態を変更せず、後続処理を予約する。 */
+    fun observeSourceInput(listener: () -> Unit): AutoCloseable = sourceInputsChanged.observe { listener() }
+    private fun changed() { onChanged?.invoke(); changes.emit(Unit) }
 
     var schema: SchemaDef? = schema
         set(value) { field = value; changed() }
@@ -194,6 +199,7 @@ class DocumentState(
         if (text == observedSourceText) return
         observedSourceText = text
         sourceInputOrder = sourceInputs.incrementAndGet()
+        sourceInputsChanged.emit(Unit)
     }
 
     class SourceParseRequest(

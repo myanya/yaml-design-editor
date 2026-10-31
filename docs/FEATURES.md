@@ -273,6 +273,14 @@
 | OP-08 | 作成経路の寄せ（追加ボタン・新規行・文書の作成を型の `create` と配列の `insert` で。追加のパネルからアクションへ橋渡し） | `workspace-core/workspace/ActionPlanner.kt`, `workspace-core/workspace/DocumentScaffold.kt`, `session/DocumentSession.kt`（`arrayInsert` / `insertArrayElement`）, `desktop/AppState.kt`（`addArrayElement`） | 単体 `ActionPlannerTest`, `AppStateActionTest` | [actions](architecture/actions.md) |
 | OP-09 | 現在値・本日の入力準備と変更分の送信 | `semantic-core/schema/ActionInput.kt`, `AppState.kt` | `ActionInputTest`, `AppStateActionInputTest` | [actions](architecture/actions.md) |
 
+## ローカル接続の基盤
+
+| ID | 機能 | 実装 | テスト | 設計 |
+|---|---|---|---|---|
+| LC-01 | 初期値 OFF の接続設定型と明示起動する loopback 待受（画面・業務経路は未接続） | `server/LocalConnectionSettings.kt`, `server/transport/LoopbackEngine.kt` | `TransportCompatibilityTest`, `LocalServerDistributionSmoke` | [ローカル接続](architecture/local-connections.md) |
+| LC-02 | 画面から独立した共通状態と監視・実行・下書き解析 | `service/WorkspaceHost.kt`・`DesktopRuntime.kt` | `WorkspaceHostTest`・`DesktopRuntimeTest` | [ローカル接続](architecture/local-connections.md) |
+| LC-03 | 背景のファイル操作と履歴の独立実行・完了反映 | `WorkspaceSession.PendingFileOperation` | `BackgroundFileOperationTest`・`AppStateFileArrangementTest` | [ローカル接続](architecture/local-connections.md) |
+
 ## 公開サンプル
 
 [todos](../samples/todos/README.md)と[テーブルモデル](../samples/todos-sysdev-tablemodel/README.md): 操作・詳細化・SQL生成の検討。

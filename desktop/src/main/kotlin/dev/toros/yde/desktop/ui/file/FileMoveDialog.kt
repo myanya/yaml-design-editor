@@ -9,9 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.toros.yde.workspace.FileArrangementPlan
 import dev.toros.yde.yaml.model.pretty
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.nio.file.Path
 import dev.toros.yde.desktop.AppState
 import dev.toros.yde.desktop.ui.common.CompactTextField
@@ -55,16 +53,12 @@ internal fun FileMoveDialog(state: AppState, paths: List<Path>, rename: Boolean 
                     Text("台帳範囲・書込許可の修正も含める")
                 }
                 TextButton(enabled = !busy, onClick = {
-                    busy = true; state.fileOperationBusy = true; error = null
+                    busy = true; error = null
                     scope.launch {
                         try {
-                            val result = withContext(Dispatchers.IO) { runCatching {
-                                val root = state.workspace ?: error("ワークスペース未選択")
-                                if (rename) state.planFileRename(paths.single(), destination, definitions, permissions)
-                                else state.planFileMoves(paths, root.resolve(destination.trim()).normalize(), definitions, permissions)
-                            } }
+                            val result = state.planFileArrangementFromUi(paths, destination, rename, definitions, permissions)
                             plan = result.getOrNull(); error = result.exceptionOrNull()?.message
-                        } finally { busy = false; state.fileOperationBusy = false }
+                        } finally { busy = false }
                     }
                 }) { Text(if (busy) "確認中…" else "影響を確認") }
                 plan?.let { preview ->
@@ -92,12 +86,12 @@ internal fun FileMoveDialog(state: AppState, paths: List<Path>, rename: Boolean 
         confirmButton = {
             TextButton(enabled = plan != null && !busy, onClick = {
                 val confirmed = plan ?: return@TextButton
-                busy = true; state.fileOperationBusy = true
+                busy = true
                 scope.launch {
                     try {
                         val result = state.applyFileArrangementFromUi(confirmed)
                         if (result.isSuccess) onDismiss() else { error = result.exceptionOrNull()?.message; plan = null }
-                    } finally { busy = false; state.fileOperationBusy = false }
+                    } finally { busy = false }
                 }
             }) { Text("移動して設定を適用") }
         },

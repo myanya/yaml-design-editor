@@ -37,6 +37,9 @@ data class FileArrangementPlan(
  */
 internal class FileArrangementJournal(val plan: FileArrangementPlan) {
     private var expected = plan.signature
+
+    /** 背景のファイル操作は照合用の印も独立させ、完了時に所有側へ戻す。 */
+    fun copyForWork(): FileArrangementJournal = FileArrangementJournal(plan).also { it.expected = expected.toMap() }
     private fun path(rel: String) = WorkspacePaths.resolve(plan.root, rel, allowLinks = false)
     private fun locations() = (plan.moves.flatMap { listOf(it.from, it.to) } +
         plan.documentIds.map { it.value } + plan.texts.flatMap { listOf(it.document.value, it.destination.value) } + listOfNotNull(plan.createDirectory)).distinct()

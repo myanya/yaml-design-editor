@@ -18,7 +18,7 @@ import java.nio.file.Path
 class OpenDocument(
     /** 論理（Compose 非依存）。セッション側の処理はこちらを使う。 */
     val state: DocumentState,
-) {
+) : AutoCloseable {
     /** 単体の文書を作る（一時フォーム・プレビュー・テスト用。セッションに載せるものは DocumentSession が作った論理を包む）。 */
     constructor(
         file: Path,
@@ -45,8 +45,11 @@ class OpenDocument(
     private val sourceEpochState = mutableStateOf(state.sourceEpoch)
     private val sourceErrorState = mutableStateOf(state.sourceError)
 
+    // Compose の未採用スナップショットで作った殻を購読一覧へ残さない。
+    // UI の殻は最後の一つだけを接続し、共通側の複数購読とは分ける。
+    private val mirrorListener: () -> Unit = ::mirror
     init {
-        state.onChanged = ::mirror
+        state.onChanged = mirrorListener
         state.draftCaret = { source.selection.start }
         state.onDraftReplaced = { text, caret -> source.edit { replace(0, length, text); placeCursorBeforeCharAt(caret) } }
     }
@@ -213,4 +216,12 @@ class OpenDocument(
 
     /** テキスト文書を、最後に解析できた木に戻す（未保存になる）。 */
     fun restoreLastParsed(): Boolean = state.restoreLastParsed()
+
+    override fun close() {
+        if (state.onChanged === mirrorListener) {
+            state.onChanged = null
+            state.draftCaret = null
+            state.onDraftReplaced = null
+        }
+    }
 }

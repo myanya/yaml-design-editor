@@ -7,7 +7,8 @@ plugins {
 
 dependencies {
     api(project(":workspace-core"))
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")   // tools/ のツールの引数と JSON Schema（直列化プラグインは使わない）
+    api(libs.kotlinx.coroutines.core) // service/ の実行順と通知（画面・通信には依存しない）
+    implementation(libs.kotlinx.serialization.json)   // tools/ のツールの引数と JSON Schema（直列化プラグインは使わない）
 }
 
 tasks.withType<Test>().configureEach {
