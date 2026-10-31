@@ -186,6 +186,18 @@ class Workspace private constructor(val root: Path) {
             require(Files.isDirectory(dir)) { "ワークスペースが存在しません: $dir" }
             return Workspace(dir.toAbsolutePath().normalize()).also { it.refresh() }
         }
+
+        /** 読取サービス専用の索引・定義の窓口。本文の loader は呼出し側が同じ texts から渡す。 */
+        internal fun fromReadSnapshot(root: Path, texts: Map<DocumentId, String>, layout: WorkspaceLayout): Workspace =
+            Workspace(root).also { workspace ->
+                workspace.layout = layout
+                workspace.acceptSession(WorkspaceSession(
+                    dev.toros.yde.workspace.InMemoryDocumentStore(texts.mapKeys { it.key.value }),
+                    builtins = BuiltinSchemas.kernelSchemas(layout), viewKinds = Extensions.viewKinds,
+                ))
+                workspace.files = texts.keys.filter { layout.inLedger(it.value) || layout.isReserved(it.value) }
+                    .map { root.resolve(it.value) }
+            }
     }
 
     /** スキーマ・ファイル一覧・索引をディスクから再構築する。 */
@@ -197,6 +209,11 @@ class Workspace private constructor(val root: Path) {
             FileSystemDocumentStore(root),
             builtins = BuiltinSchemas.kernelSchemas(layout), viewKinds = Extensions.viewKinds,
         )
+        acceptSession(opened)
+        files = WorkspaceScan.yamlFiles(root, layout)
+    }
+
+    private fun acceptSession(opened: WorkspaceSession) {
         session = opened
         val loaded = SchemaLoader.fromKernel(root, opened.schemas, opened.declarations, opened.schemaErrors)
         schemas = loaded.schemas
@@ -210,7 +227,6 @@ class Workspace private constructor(val root: Path) {
                 .map { SchemaGraphSource(it.id, it.name, it.tree, it.entities) },
             relations.values, entityTypes.values,
         )
-        files = WorkspaceScan.yamlFiles(root, layout)
         repopulateIndex()
     }
 

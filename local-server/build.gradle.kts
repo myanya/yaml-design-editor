@@ -13,3 +13,6 @@ dependencies {
 }
 
 dependencyLocking { lockAllConfigurations() }
+
+// 公開サンプルは一時ディレクトリへ写して契約試験に使う。
+tasks.withType<Test>().configureEach { workingDir = rootDir }

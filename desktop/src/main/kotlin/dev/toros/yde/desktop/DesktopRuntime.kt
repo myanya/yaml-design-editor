@@ -9,6 +9,7 @@ import dev.toros.yde.app.service.WorkspaceOwnership
 import dev.toros.yde.workspace.WorkspaceInit
 import dev.toros.yde.app.service.WorkspaceOperations
 import dev.toros.yde.app.service.WorkspaceWork
+import dev.toros.yde.app.service.WorkspaceReads
 import dev.toros.yde.app.service.ConnectionGrants
 import dev.toros.yde.server.LocalServer
 import dev.toros.yde.server.auth.AccessWorkspace
@@ -48,7 +49,7 @@ internal class DesktopRuntime(
     val operations = WorkspaceOperations(host, grants = grants::operationGrant)
     val work = WorkspaceWork(host, grants = grants::workGrant)
     @Volatile private var connectionWorkspace: Pair<Path, String>? = null
-    private val server = LocalServer(scope, grants, ::accessWorkspace)
+    private val server = LocalServer(scope, grants, WorkspaceReads(host, grants::get), ::accessWorkspace)
     val access = server.access
     /** 起動時の設定復元でだけ有効化する。Window の開閉では起動・終了しない。 */
     val connections = server.connections

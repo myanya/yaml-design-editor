@@ -3,8 +3,8 @@
 ## 概要
 
 ローカル接続は、通信ライブラリを local-server に閉じる組込み構成を取る。
-現在は設定型・機能別の状態機械・loopback 待受・接続者の認証と権限、および SDK・HTTP・同梱ランタイムの互換性検査がある。
-DesktopRuntime が接続管理を所有し、設定画面から三機能を個別に切り替える。設定のない起動では全て OFF のまま待受しない。業務経路は未接続。
+現在は設定型・機能別の状態機械・loopback 待受・接続者の認証と権限・保存済みの読取 API、および SDK・HTTP・同梱ランタイムの互換性検査がある。
+DesktopRuntime が接続管理を所有し、設定画面から三機能を個別に切り替える。設定のない起動では全て OFF のまま待受しない。変更操作・MCP・Web の業務経路は未接続。
 全体の設計契約は [ローカル接続の決定](../decisions/0016-local-connections-and-shared-host.md)、実施順序は ROADMAP にある。
 外部確定と Undo の扱いは [履歴の決定](../decisions/0017-external-commit-and-desktop-history.md) が補足する。
 
@@ -20,6 +20,9 @@ DesktopRuntime が接続管理を所有し、設定画面から三機能を個�
 | `server.auth.LocalAccess` | 接続登録、機能別の資格情報と失効、要求の寿命、MCP セッションの接続者との対応 |
 | `server.transport.LocalAuthentication` | Host/Origin・認証・CSRF・要求量の検査、業務ハンドラでの能力と対象の再確認 |
 | `service.WorkspaceHost` / `WorkspaceStatus` | 共通セッションの所有、状態の世代・版・未保存・競合・処理中の通知、所有スレッドへの受付 |
+| `service.WorkspaceReads` / `ReadQuery` / `ReadResult` | 保存済みの読取条件・版・権限・量と寿命の制御 |
+| `service.SavedReadReports` | 同じ保存済み入力から既存の検索・合成・ビュー・検証を呼び、値と原本座標へ写す |
+| `server.api.ReadApi` | HTTP の条件・JSON・エラーへの変換と OpenAPI 契約の配信 |
 | `service.WorkspaceOwnership` | 利用者専用領域の OS ファイルロックによる入口間のワークスペース所有と解放 |
 | `cli/CliOwnership.kt` | 書込を伴う命令・モードの分類と、独立 CLI の処理全体の所有 |
 | `service.SourceDraftWorker` | 画面と独立した下書きの遅延解析・木との同期、古い入力の採用防止 |
@@ -65,7 +68,7 @@ LocalConnections の構築時は三機能とも OFF で、待受の構築も行�
 
 受付ゲートはルーティング前に機能の希望値と実状態を確認する。停止・起動途中の機能、上記に属さない経路は 404 とし、health 用の別口も作らない。
 Web 専用の通信は API の設定を参照しない。`/api/v10` など、接頭辞だけが同じ別経路を許可しない。
-機能ゲートの後に LocalAuthentication が認証・Host/Origin・CSRF を検査する。製品側の業務経路はまだ登録していない。
+機能ゲートの後に LocalAuthentication が認証・Host/Origin・CSRF を検査する。ReadApi はその内側で保存済みの読取を受け付ける。
 
 OFF の受付時点で新規要求を止め、その機能の世代を変える。要求の子ジョブだけを取り消し、他機能の受付と共有待受を維持する。
 要求の本体が返った後も、子のストリームが完了するまで登録を保持する。onDisabled は MCP セッション等の終了口で、失敗時に再試行するため繰り返し呼べる実装を渡す。
@@ -249,7 +252,7 @@ ResidentSettingsPaneTest は設定の依存と今回だけの常駐解除、設�
 
 WorkspaceOperations は Host の排他区間で計画・確定を受ける。結果照会は背景で記録を読み、前後に世代と権限を確認して、照会だけでは編集を待たせない。
 DesktopRuntime が一つ持ち、ConnectionGrants の現在の登録権限を供給する。未登録の既定状態では全て拒否する。
-接続登録は設定画面から操作できる。業務経路は未公開であり、待受を有効にしても原本を外部から変更する経路はまだない。
+接続登録は設定画面から操作できる。読取 API が公開されており、原本を外部から変更する通信経路はまだない。
 ワークスペース ID の解決は注入する。既定は実パスのハッシュで、要求から任意の場所を開かせない。
 
 計画は保存済みの独立したセッションで ActionPlanner と ChangeSetApplier.prepare を通す。
@@ -319,6 +322,30 @@ review・approve・reject・refresh と inbox の購読はデスクトップ専�
 結果照会と受信箱の再読込は編集を待たせず、背景での読込の前後に世代と権限を確認する。
 
 WorkspaceWorkTest と ExternalWorkPaneTest が、再起動・権限変更・競合・取消・記録故障・画面からの確認と保存・却下を検証する。
+
+## 保存済みの読取 API
+
+WorkspaceReads は所有スレッドで場所・世代・閲覧権限だけを取り出し、IO 側で本文をサイズ制限付きで採取する。
+メモリの DocumentStore からカーネルのセッションと索引を組み立て、本文・スキーマ割当・ビュー定義の loader に同じ採取結果を渡す。
+Workspace.fromReadSnapshot は索引と定義の窓口を作るだけで、通常の Workspace.treeOf・load・schemaFor のディスク読込は使わない。
+共有の編集セッションや Undo を読取中の作業へ持ち出さず、未保存編集・作業コピーを重ねない。
+
+読取後はディスクの再採取と比較し、所有側で世代・場所・権限の版を再確認する。途中の変更を検出した結果は破棄する。
+応答の revision は許可された本文を順序と長さ付きで連結したハッシュで、デスクトップ編集の revision とは別物である。
+任意のエディタの瞬間的な書戻しまで追跡する分散スナップショットではない。複数の HTTP 要求をまたぐ読取は revision の条件と epoch の照合で整合を確認する。
+
+文書一覧・原本取得・文字列検索は許可された文書だけを返す。対象文書の権限を存在の確認より先に判定する。
+エンティティ合成・ビュー・検証は全入力への閲覧権限を要求し、権限外の入力を含む導出から本文・題名・件数・診断を漏らさない。
+この初期の制約は、依存文書の閉包を正確に求める権限付き評価を導入するまで維持する。空集合を全許可へ読み替えない。
+
+業務計算は Search・Aspects・Views・Dashboards・Validator へ委ねる。未知・重複所有・保留を成功や空値に読み替えず、既存の原本座標・導出情報・指摘と保留を写す。
+file 型の実在検査は保存版の対象外として応答で明示し、ファイルへの追加の読取権限を与えない。
+同時実行・文書数・本文量・時間はサービスで、パラメーター・JSON の深さと応答量は HTTP アダプターで制限する。
+取消は採取の途中と同期評価の前後で確認し、同期計算の強制停止は行わない。
+
+契約の原本は [openapi.json](../../local-server/src/main/resources/api/openapi.json)。形式は [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.1.html) で、契約の取得にも API の機能ゲートと認証を適用する。
+ReadApiTest は Ktor のインメモリ通信で実応答を契約の型へ当て、WorkspaceReadsTest は保存・未保存・権限・世代・取消の境界を検査する。
+経路・上限・利用例は [API の読み取り](../manual/local-connections.md#api-の読み取り) を参照。
 
 ## 拡張ポイント
 

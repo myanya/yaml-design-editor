@@ -14,6 +14,7 @@ import io.ktor.util.AttributeKey
 import io.ktor.utils.io.*
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.io.readByteArray
+import kotlinx.serialization.json.*
 
 internal const val WEB_SESSION_COOKIE = "yde_web_session"
 internal const val CSRF_HEADER = "X-YDE-CSRF"
@@ -59,7 +60,11 @@ internal fun Application.localAuthentication(connections: LocalConnections, acce
             if (failure.status == 401 && featureForPath(call.request.path()) != LocalFeature.WEB) {
                 call.response.headers.append(HttpHeaders.WWWAuthenticate, "Bearer realm=\"yde-local\"")
             }
-            call.respondText(failure.message.orEmpty(), status = HttpStatusCode.fromValue(failure.status))
+            if (featureForPath(call.request.path()) == LocalFeature.API) {
+                val code = when (failure.status) { 401 -> "unauthorized"; 403 -> "forbidden"; 413 -> "limit_exceeded"; else -> "invalid_request" }
+                val body = buildJsonObject { put("error", buildJsonObject { put("code", code); put("message", failure.message.orEmpty()) }) }
+                call.respondText(body.toString(), ContentType.Application.Json, HttpStatusCode.fromValue(failure.status))
+            } else call.respondText(failure.message.orEmpty(), status = HttpStatusCode.fromValue(failure.status))
             finish()
         }
     }

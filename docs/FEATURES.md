@@ -277,7 +277,7 @@
 
 | ID | 機能 | 実装 | テスト | 設計 |
 |---|---|---|---|---|
-| LC-01 | 初期値 OFF の接続設定型と明示起動する loopback 待受（業務経路は未接続） | `server/LocalConnectionSettings.kt`, `server/transport/LoopbackEngine.kt` | `TransportCompatibilityTest`, `LocalServerDistributionSmoke` | [ローカル接続](architecture/local-connections.md) |
+| LC-01 | 初期値 OFF の接続設定型と明示起動する loopback 待受 | `server/LocalConnectionSettings.kt`, `server/transport/LoopbackEngine.kt` | `TransportCompatibilityTest`, `LocalServerDistributionSmoke` | [ローカル接続](architecture/local-connections.md) |
 | LC-02 | 画面から独立した共通状態と監視・実行・下書き解析 | `service/WorkspaceHost.kt`・`DesktopRuntime.kt` | `WorkspaceHostTest`・`DesktopRuntimeTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-03 | 背景のファイル操作と履歴の独立実行・完了反映 | `WorkspaceSession.PendingFileOperation` | `BackgroundFileOperationTest`・`AppStateFileArrangementTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-04 | 外部操作の計画・厳格な検証・確定と履歴失効（通信は未接続） | `service/WorkspaceOperations.kt`・`ChangeSetApplier.kt` | `WorkspaceOperationsTest`・`ExternalCommitTest` | [ローカル接続](architecture/local-connections.md) |
@@ -297,6 +297,7 @@
 | LC-18 | 常駐と非表示起動の設定、今回だけの常駐解除 | `ui/shell/ResidentSettingsPane.kt` | `ResidentSettingsPaneTest` | [接続の設定](manual/local-connections.md) |
 | LC-19 | 待受しないワークスペース所有・競合拒否・終了後の引継ぎ | `service/WorkspaceOwnership.kt`・`DesktopRuntime.kt` | `WorkspaceOwnershipTest`・`DesktopRuntimeTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-20 | 所有中の独立 CLI の書込拒否と参照・プレビューの継続 | `cli/CliOwnership.kt` | `CliOwnershipTest` | [CLI](manual/cli.md) |
+| LC-21 | 保存版の読取 API・原本座標・権限境界・OpenAPI 契約 | `service/WorkspaceReads.kt`・`server/api/ReadApi.kt` | `WorkspaceReadsTest`・`ReadApiTest` | [ローカル接続](architecture/local-connections.md) |
 
 ## 公開サンプル
 
