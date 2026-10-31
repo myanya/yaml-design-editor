@@ -113,7 +113,7 @@
 | P46 | チャート（`kind: chart`＝表を図にするビューの部品）と、軸を値の式で広げるクロス集計 | 第一弾完了（2026-10-26）。残りは下記 |
 | P48 | 複合文書ビューと射影ビュー（文書を開いたとき、同じ ID の側面・受け取る値つきの表・クエリで着いた要素を 1 枚に合成し、最終的には変換のひな型で組んだ任意の木を出どころで編集する） | 段階 1 完了（2026-10-31）。タブの分割と表の横長対策（飾りを減らす・列幅を中身から・埋め込む表の列の選別）も完了（同日）。残りは下記 |
 | P47 | 開発を AI エージェントに向く形にする（規則の機械化・応用層の切り出し・読む量・入口・UI の確認・拡張の機構・MCP） | 段階 0 完了・段階 1 の R47-10〜13 完了・段階 2 の R47-20（AppState の分割）と R47-24（app-core の切り出しと desktop への改名）・R47-25（agent モジュールの切り出しと run・auto・eval への分割）・R47-26（共通の Gradle 設定）・R47-27（desktop と repo-tests のモジュール化）・R47-28（画面のパッケージ分け）・R47-23（行数の目安）完了。段階 6 の R47-60（形式の差し込み口）は R47-41 のために前倒しで完了。段階 4 の R47-41（CLI を 1 つに）完了。段階 5 の R47-61（ビューの種類の差し込み口。chart と flow を拡張へ）と R47-51（画面確認の skill）・段階 3 の R47-32（用語集）と R47-31（置き場に近い案内）完了。目指す構成は ADR-0013（承認 2026-10-27）と ADR-0014（2026-10-28）。段階 6 の R47-63（拡張を畳む。ADR-0015）完了。段階 3 の R47-30・33 は分けないと決めて完了。残りは R47-14 と、P49 で実施する R47-70 |
-| P49 | ローカル接続と業務 Web・トレイ常駐 | v0.3.0 向けに実装中、R49-00・01・10・11・12・20・21 完了、次は設定画面と設定保存、利用者向けの接続は未公開 |
+| P49 | ローカル接続と業務 Web・トレイ常駐 | v0.3.0 向けに実装中、R49-00・01・10・11・12・20・21・22 完了、接続設定を公開、次はトレイと画面非表示での起動、業務経路は未公開 |
 
 ## 未完のテーマ
 
@@ -613,7 +613,7 @@ API を OFF にしても Web は単独で動き、Web を OFF にしたら画面
 通信基盤の採用版は MCP SDK 0.16.0・Ktor 3.5.2・Serialization 1.11.0。
 Kotlin 2.4.21・Coroutines 1.11.0 と組み合わせ、依存の宣言を version catalog、local-server の解決結果を lockfile に固定した。
 既存機能の回帰と同梱ランタイムの最小起動の結果は [初期工程の記録](archive/roadmap-history.md) にある。
-認証基盤の受入は完了し、業務経路・設定画面・ブラウザへのログイン導線は後続の工程で行う。ライブラリを更新するときは同じ検査を通す。
+認証基盤と設定画面の受入は完了し、業務経路・ブラウザへのログイン導線は後続の工程で行う。ライブラリを更新するときは同じ検査を通す。
 
 選定の参照: [MCP SDK の版](https://github.com/modelcontextprotocol/kotlin-sdk/releases/tag/0.16.0)・[同タグの依存定義](https://github.com/modelcontextprotocol/kotlin-sdk/blob/0.16.0/gradle/libs.versions.toml)・[Ktor](https://ktor.io/docs/server-engines.html)。
 Web の参照: [React](https://react.dev/learn/build-a-react-app-from-scratch)・[MUI](https://mui.com/material-ui/getting-started/installation/)・[Query](https://tanstack.com/query/latest/docs/framework/react/overview)・[ECharts](https://echarts.apache.org/handbook/en/basics/import/)。
@@ -676,7 +676,7 @@ Node・npm・フロントエンドの版はロックし、利用者の PC には
   既存の外部ファイル変更検出は維持し、他ツールの書込まで排他できるとは扱わない。
 - ローカルでも接続認証・Host/Origin 検査・ブラウザの CSRF 対策・入力サイズと実行量の上限を設ける。
   Web の本文はデータとして表示し、レポートや Markdown の HTML・リンクから任意コードを実行させない。
-  接続トークンはワークスペース・URL・通常ログへ保存せず、OS ユーザーの専用領域で保護する。
+  接続設定と登録権限は OS ユーザーの専用領域で保護し、接続トークンはメモリだけで保持する。ワークスペース・URL・通常ログへ資格情報を書かない。
 - MCP は Streamable HTTP を必須とし、HTTP クライアントと Inspector で相互運用を確認する。
   stdio の中継は初期版の必須外とし、追加時も MCP が OFF なら拒否し、サーバを暗黙に有効化しない。
 
@@ -699,7 +699,7 @@ Core Calculus の位置づけは、読取が Term / Query、表示値が Express
 | R49-12 | 作業と提出・承認を共通化 | app-core・agent・desktop | R49-11 | 外部作業の提出を受信箱で承認でき、再起動後も提出と結果が残る | ✅ 2026-10-31（[記録](archive/roadmap-history.md)） |
 | R49-20 | 接続の状態機械と三つのスイッチ | local-server・desktop | R49-10 | 全八組合せと起動中・停止中の切替で、待受と経路が上の表に一致 | ✅ 2026-10-31（[記録](archive/roadmap-history.md)） |
 | R49-21 | 接続認証と能力別の受付 | local-server・app-core | R49-20 | 無権限・別機能の資格情報・停止後の接続・不正 Origin を拒否 | ✅ 2026-10-31（[記録](archive/roadmap-history.md)） |
-| R49-22 | 設定画面と旧版からの更新 | desktop | R49-20・21 | 初期値 OFF、状態・URL・エラーの表示、設定復元、資格情報の失効が操作できる | 未着手 |
+| R49-22 | 設定画面と旧版からの更新 | desktop | R49-20・21 | 初期値 OFF、状態・URL・エラーの表示、設定復元、資格情報の失効が操作できる | ✅ 2026-10-31（[記録](archive/roadmap-history.md)） |
 | R49-30 | トレイと画面非表示での起動 | desktop | R49-10・12・22 | 窓なし起動・隠す・戻す・承認待ちを開く・終了が機能し、常駐だけでは待受しない | 未着手 |
 | R49-31 | ワークスペース所有と独立 CLI の制御 | app-core・desktop・cli | R49-11・20 | 二重起動と所有中の独立 CLI の書込を防ぎ、終了後は所有を引き継げる | 未着手 |
 | R49-40 | API の型・契約・読み取り | local-server・app-core | R49-11・21・31 | OpenAPI と実応答が一致し、検索・詳細・ビュー・検証の版と出どころが返る | 未着手 |
@@ -719,7 +719,7 @@ Core Calculus の位置づけは、読取が Term / Query、表示値が Express
 API の公開前に R49-31 の所有権管理まで通し、各経路の試験中も設定を暗黙に ON にしない。
 R49-00 では新モジュールを SourceScanner・ModuleRules・SourceRules の検査へ登録し、app-core とカーネルへ通信・画面依存が入ることを機械で止める。
 
-R49-11・12・20・21 の実装と受入検証の記録は [実装記録](archive/roadmap-history.md)、現在の契約と部品は [ローカル接続](architecture/local-connections.md) にある。
+R49-11・12・20・21・22 の実装と受入検証の記録は [実装記録](archive/roadmap-history.md)、現在の契約と部品は [ローカル接続](architecture/local-connections.md) にある。
 
 #### 必須受入条件
 

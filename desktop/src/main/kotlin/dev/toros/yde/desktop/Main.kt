@@ -26,6 +26,7 @@ import dev.toros.yde.desktop.ui.shell.AppRoot
 import dev.toros.yde.desktop.ui.shell.InitWizardHost
 import dev.toros.yde.desktop.ui.shell.ReloadConfirmationDialog
 import dev.toros.yde.desktop.ui.shell.StartScreen
+import dev.toros.yde.desktop.ui.shell.LocalConnectionSettingsPage
 
 fun main(args: Array<String>) = application {
     Extensions.install(DesktopExtensions.registry)  // 拡張（Excel・Word の形式）の登録は入口の一覧 1 ファイル（app-core に POI を入れない。組込みは最初から入っている）
@@ -48,6 +49,9 @@ fun main(args: Array<String>) = application {
     var confirmExit by remember { mutableStateOf(false) }
     var darkMode by remember { mutableStateOf(uiPreferences.getBoolean("darkMode", false)) }
     var commandOpen by remember { mutableStateOf(false) }
+    var settingsOpen by remember { mutableStateOf(false) }
+
+    LaunchedEffect(runtime) { runtime.connectionSettings.initialize() }
 
     LaunchedEffect(Unit) {
         state.readOnlyMode = uiPreferences.getBoolean("readOnly", false)
@@ -66,15 +70,18 @@ fun main(args: Array<String>) = application {
         state = rememberWindowState(width = 1440.dp, height = 920.dp),
         // ショートカットはウィンドウで受ける（UX-120）: 焦点のある部品が消費しなかったキーが、画面のどこにも焦点が無い
         // とき（ジャンプの直後など）でも届く。画面の部品の Modifier.onKeyEvent は、焦点のある子がいるときにしか呼ばれない
-        onKeyEvent = { event -> state.workspace != null && handleShortcut(event, state) { commandOpen = true } },
+        onKeyEvent = { event -> !settingsOpen && state.workspace != null && handleShortcut(event, state) { commandOpen = true } },
     ) {
         AppTheme(darkMode) {
             // ネイティブのファイル・フォルダ選択（ui/common/FilePickers.kt）の親ウィンドウを提供する
             CompositionLocalProvider(LocalDialogParentWindow provides window) {
                 Surface(Modifier.fillMaxSize(), color = Palette.EditorBg) {
-                    if (state.workspace == null) {
-                        StartScreen(state)
-                    } else AppRoot(state, darkMode, commandOpen, { commandOpen = it }) {
+                    if (settingsOpen) {
+                        val workspaceStatus by runtime.host.status.collectAsState()
+                        LocalConnectionSettingsPage(runtime.connectionSettings, workspaceStatus.workspace?.toString()) { settingsOpen = false }
+                    } else if (state.workspace == null) {
+                        StartScreen(state, openSettings = { settingsOpen = true })
+                    } else AppRoot(state, darkMode, commandOpen, { commandOpen = it }, openSettings = { settingsOpen = true }) {
                         darkMode = !darkMode
                         uiPreferences.putBoolean("darkMode", darkMode)
                     }

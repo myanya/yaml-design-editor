@@ -15,6 +15,7 @@ import kotlinx.coroutines.*
 
 data class AccessWorkspace(val id: String, val epoch: String)
 data class LocalClient(val id: String, val name: String, val feature: LocalFeature, val caller: OperationCaller)
+data class ClientRegistration(val client: LocalClient, val permissions: ConnectionPermissions)
 
 /** 平文は発行の戻り値だけに出す。ログや状態一覧へ自動展開しない。永続化は設定側の専用保管庫が担う。 */
 class IssuedCredential internal constructor(val value: String, val csrfToken: String?, val expiresAt: Instant) {
@@ -58,6 +59,30 @@ class LocalAccess(
 
     fun clients(): List<LocalClient> = synchronized(monitor) { clients.values.toList() }
     fun grant(clientId: String): ConnectionGrant? = synchronized(monitor) { clients[clientId]?.let { grants.get(it.caller) } }
+    fun registrations(): List<ClientRegistration> = synchronized(monitor) {
+        clients.values.map { ClientRegistration(it, requireNotNull(grants.get(it.caller)).permissions) }
+    }
+
+    /** 起動時だけ登録を復元する。資格情報・作業中の計画・世代は復元しない。全件を検査してから採用する。 */
+    fun restoreRegistrations(values: List<ClientRegistration>) = synchronized(monitor) {
+        check(clients.isEmpty() && credentials.isEmpty()) { "接続登録は起動時だけ復元できます" }
+        require(values.size <= 256 && values.map { it.client.id }.toSet().size == values.size) { "接続登録が不正です" }
+        val validated = ConnectionGrants()
+        values.forEach { (client, permissions) ->
+            require(client.id == client.caller.callerId && client.id == UUID.fromString(client.id).toString() &&
+                client.name.isNotBlank() && client.name.length <= 100) { "接続登録が不正です" }
+            validated.put(client.caller, permissions)
+        }
+        values.forEach { (client, _) ->
+            grants.put(client.caller, requireNotNull(validated.get(client.caller)).permissions)
+            clients[client.id] = client
+        }
+    }
+
+    /** 設定画面用の期限だけを返す。失効済みの資格情報や秘密の値は返さない。 */
+    fun credentialExpiry(clientId: String): Instant? = synchronized(monitor) {
+        credentials.values.firstOrNull { it.identity.client.id == clientId && runCatching { current(it.identity) }.isSuccess }?.expires
+    }
 
     fun setPermissions(clientId: String, permissions: ConnectionPermissions) = synchronized(monitor) {
         val client = requireNotNull(clients[clientId]) { "接続登録が見つかりません" }

@@ -73,10 +73,11 @@ fun AppRoot(
     darkMode: Boolean,
     commandOpen: Boolean,
     setCommandOpen: (Boolean) -> Unit,
+    openSettings: () -> Unit = {},
     toggleDarkMode: () -> Unit,
 ) {
     CompositionLocalProvider(LocalFormSlots provides appFormSlots) {
-        AppRootContent(state, darkMode, commandOpen, setCommandOpen, toggleDarkMode)
+        AppRootContent(state, darkMode, commandOpen, setCommandOpen, openSettings, toggleDarkMode)
     }
 }
 
@@ -86,6 +87,7 @@ private fun AppRootContent(
     darkMode: Boolean,
     commandOpen: Boolean,
     setCommandOpen: (Boolean) -> Unit,
+    openSettings: () -> Unit,
     toggleDarkMode: () -> Unit,
 ) {
     var leftWidth by remember { mutableStateOf(uiPreferences.getFloat("leftWidth", 240f).dp) }
@@ -119,6 +121,7 @@ private fun AppRootContent(
             state.conflictedDocs().size +
             (if (runController?.pendingQuestion != null) 1 else 0) + (state.externalWork?.pendingCount ?: 0)
         AppToolbar(state, leftOpen, rightOpen, darkMode, toggleDarkMode, { setCommandOpen(true) },
+            openSettings = openSettings,
             openWorkspaceDialog = openWorkspaceDialog,
             switchWorkspace = switchWorkspace,
             toggleReadOnly = {

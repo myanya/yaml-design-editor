@@ -33,13 +33,14 @@ fun AppToolbar(
     toggleDarkMode: () -> Unit, openCommands: () -> Unit, openWorkspaceDialog: () -> Unit,
     switchWorkspace: (Path) -> Unit, toggleReadOnly: () -> Unit,
     toggleLeft: () -> Unit, toggleRight: () -> Unit,
+    openSettings: () -> Unit = {},
 ) {
     var menu by remember { mutableStateOf<String?>(null) }
     var recentOpen by remember { mutableStateOf(false) }
     val paneAvailable = state.uiSpace == UiSpace.EDIT || state.uiSpace == UiSpace.LEDGER
     Column(Modifier.fillMaxWidth().background(Palette.PanelBg)) {
         Row(Modifier.height(30.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            listOf("ファイル", "編集", "表示", "ヘルプ").forEach { label ->
+            listOf("ファイル", "編集", "表示", "設定", "ヘルプ").forEach { label ->
                 Box(Modifier.height(30.dp)) {
                     TextButton(shape = PanelShape, onClick = { menu = label }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)) {
                         Text(label, fontSize = 12.sp, color = Palette.Text)
@@ -87,6 +88,7 @@ fun AppToolbar(
                                 action("${if (!darkMode) "✓ " else ""}ライトモード") { if (darkMode) toggleDarkMode() }
                                 action("${if (darkMode) "✓ " else ""}ダークモード") { if (!darkMode) toggleDarkMode() }
                             }
+                            "設定" -> action("ローカル接続", run = openSettings)
                             "ヘルプ" -> action("利用者マニュアル") { state.openHelp(Help.INDEX) }
                         }
                     }

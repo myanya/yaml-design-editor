@@ -20,7 +20,7 @@
 | [workspace.md](workspace.md) | ワークスペース構造と layout・ワークスペースの初期化（テンプレートとウィザード）・文書キャッシュと Workspace・外部変更の取り込み・変更セットの適用・セッションの fork |
 | [actions.md](actions.md) | 操作（型の操作 `methods` とアクション `actions`。受け手・受け取った値・前提・手・変更セットへの計画・CLI） |
 | [agents.md](agents.md) | 安全性・エージェント実行と Staging・自動実行・自己改善・AI 生成・AI 接続・コンテキスト・一括実行・skill |
-| [local-connections.md](local-connections.md) | 共通状態と監視・実行の寿命・通信依存の隔離・明示起動と停止・同梱ランタイムの検査 |
+| [local-connections.md](local-connections.md) | 共通状態と寿命・機能別の接続・認証と権限・設定画面と保存・同梱ランタイムの検査 |
 | [ui.md](ui.md) | UI シェル・フォームと FormCtx・閲覧専用・テーブル表示・畳みとハイライト・エラー処理 |
 | [ui-interactions.md](ui-interactions.md) | UI 操作規則の適用範囲・例外・入力からの退出・項目説明 |
 
@@ -40,7 +40,7 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 
 パッケージは `dev.toros.yde.<モジュール>.*`（規則は CONVENTIONS「モジュールの規約」）。依存方向は ADR-0002（app-core は ADR-0013）が正: `yaml-core ← semantic-core ← workspace-core ← app-core ← agent ← desktop`（cli は app-core・agent・拡張まで・拡張 format-office は app-core まで）。repo-tests はテストだけのモジュールで、全モジュールに依存してよい。
 構成（画面を持たない応用層 app-core・agent・入口と拡張）は ADR-0013 が正で、ビューの種類の差し込み口は ADR-0014、組込みと拡張の分け方は ADR-0015。
-ローカル接続は [ローカル接続の決定](../decisions/0016-local-connections-and-shared-host.md) に従い、`app-core ← local-server ← desktop / cli` とする。現在は通信基盤だけで、利用者向けの入口は未接続。
+ローカル接続は [ローカル接続の決定](../decisions/0016-local-connections-and-shared-host.md) に従い、`app-core ← local-server ← desktop / cli` とする。接続設定と認証基盤があり、業務経路は未接続。
 文書とコメントでは接頭辞を省いて `schema.FieldDef`・`validate/Validator.kt` のように書き、同じ短い名前が複数のモジュールにあるとき（`schema`・`validate`・`core`）はモジュール名を添える。
 
 | モジュール | パッケージ | 中身 |

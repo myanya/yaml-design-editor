@@ -24,7 +24,7 @@ import dev.toros.yde.desktop.ui.common.rememberDirectoryChooser
 
 /** ワークスペース未選択時のスタート画面（R10-05）。履歴からの選択で起動引数なしの切替を完結させる。 */
 @Composable
-fun StartScreen(state: AppState) {
+fun StartScreen(state: AppState, openSettings: () -> Unit = {}) {
     Column(
         Modifier.fillMaxSize().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -32,6 +32,7 @@ fun StartScreen(state: AppState) {
     ) {
         Text("YAML Design Editor", fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Text(BuildInfo.display, fontSize = 11.sp, color = Palette.SubText)
+        TextButton(onClick = openSettings) { Text("設定 → ローカル接続", fontSize = 12.sp) }
         Spacer(Modifier.height(4.dp))
         Text(
             "スキーマ駆動のYAML編集・検証・エージェント実行環境",

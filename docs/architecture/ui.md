@@ -38,6 +38,7 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 |---|---|---|
 | `Main.kt` | desktop/Main.kt | エントリポイント・ウィンドウ・ショートカット（`handleShortcut`）。画面は `ui.shell` に置く |
 | `AppRoot` / `StartScreen` / `CommandPalette` | ui/shell/AppRoot.kt・ui/shell/StartScreen.kt・ui/shell/CommandPalette.kt | 骨格（左右の領域・編集領域 `EditorArea`・ステータスバー `StatusBar`・改名の確認）・スタート画面・コマンドパレット。配置と表示の設定は `UiPreferences.kt` の `uiPreferences` |
+| `LocalConnectionSettingsPage` | ui/shell/LocalConnectionSettingsPage.kt | スタート画面と設定メニューから開く常設ページ。接続・権限・発行の処理は [ローカル接続](local-connections.md) の Controller へ渡す |
 | `UiSpace` / `showSpace` / `showWorkspaceView` / `navigateToPath` / `openCrossView` / `openViewGrid` / `goBack` / `goForward` | desktop/AppState.kt | スペースとナビゲーション履歴（`NavLocation`） |
 | `ScreenMemory` | desktop/ScreenMemory.kt | 画面の覚え（畳み・タブ・絞り込み・チェック・ツリーの展開。画面を離れても保持し、切替時は初期化してツリーの展開を復元する） |
 | `ActivityRail` / `LedgerSpace` | ui/shell/Shell.kt | 5 スペースを切り替えるレールと、一覧・ビューグリッド・グラフ・エンティティをタブで束ねる台帳スペース |

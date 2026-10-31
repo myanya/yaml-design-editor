@@ -11,6 +11,8 @@ import dev.toros.yde.app.service.ConnectionGrants
 import dev.toros.yde.server.LocalServer
 import dev.toros.yde.server.auth.AccessWorkspace
 import dev.toros.yde.workspace.changeset.ChangeSets
+import dev.toros.yde.desktop.connections.FileConnectionSettingsStore
+import dev.toros.yde.desktop.connections.LocalConnectionController
 import java.awt.EventQueue
 import java.nio.file.Path
 import kotlinx.coroutines.*
@@ -43,16 +45,19 @@ internal class DesktopRuntime(
     val operations = WorkspaceOperations(host, grants = grants::operationGrant)
     val work = WorkspaceWork(host, grants = grants::workGrant)
     @Volatile private var connectionWorkspace: Pair<Path, String>? = null
-    private val server = LocalServer(scope, grants) {
-        val status = host.status.value
-        connectionWorkspace?.takeIf { it.first == status.workspace && !status.closed }?.let { AccessWorkspace(it.second, status.epoch) }
-    }
+    private val server = LocalServer(scope, grants, ::accessWorkspace)
     val access = server.access
-    /** 設定画面を接続するまでは全 OFF。Window の開閉では起動・終了しない。 */
+    /** 起動時の設定復元でだけ有効化する。Window の開閉では起動・終了しない。 */
     val connections = server.connections
+    val connectionSettings = LocalConnectionController(connections, access, FileConnectionSettingsStore(), ::accessWorkspace)
     private val connectionSubscription = host.observe { access.workspaceChanged() }
     private var jobs: WorkspaceJobs? = null
     private var stopping = false
+
+    private fun accessWorkspace(): AccessWorkspace? {
+        val status = host.status.value
+        return connectionWorkspace?.takeIf { it.first == status.workspace && !status.closed }?.let { AccessWorkspace(it.second, status.epoch) }
+    }
 
     init {
         state.workspaceOpener = { path ->
@@ -88,9 +93,11 @@ internal class DesktopRuntime(
     suspend fun shutdown() = withContext(host.owner) {
         if (stopping) return@withContext
         stopping = true
+        connectionSettings.stopAccepting()
         try { connections.shutdown() }
         catch (failure: Exception) {
             stopping = false
+            connectionSettings.resumeAccepting()
             state.status = "接続を停止できないため終了を中断しました: ${failure.message}"
             throw failure
         }

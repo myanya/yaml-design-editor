@@ -7,6 +7,23 @@ import kotlinx.coroutines.*
 import kotlin.test.*
 
 class LocalAccessTest {
+    @Test fun `保存した登録を復元しても資格情報と別ワークスペースの許可は復活しない`() = runCase {
+        enable()
+        val id = java.util.UUID.randomUUID().toString()
+        val caller = dev.toros.yde.app.service.OperationCaller("workspace", id)
+        val registration = ClientRegistration(LocalClient(id, "保存した接続", LocalFeature.API, caller),
+            ConnectionPermissions(readable = setOf(dev.toros.yde.yaml.model.DocumentId("a.yaml"))))
+        access.restoreRegistrations(listOf(registration))
+        assertEquals(listOf(registration), access.registrations())
+        assertNull(access.credentialExpiry(id))
+        assertNotNull(access.issueBearer(id))
+        assertFailsWith<IllegalStateException> { access.restoreRegistrations(listOf(registration)) }
+        workspace = AccessWorkspace("other", "epoch-2")
+        access.workspaceChanged()
+        assertNull(access.credentialExpiry(id))
+        assertFailsWith<IllegalArgumentException> { access.issueBearer(id) }
+    }
+
     private fun runCase(block: suspend AccessFixture.() -> Unit): Unit = runBlocking {
         val f = AccessFixture()
         try { withTimeout(15_000) { f.block() } } finally { f.close() }
