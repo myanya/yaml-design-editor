@@ -61,14 +61,16 @@ fun main(args: Array<String>) = application {
     LaunchedEffect(runtime) {
         runtime.connectionSettings.initialize()
         state.readOnlyMode = uiPreferences.getBoolean("readOnly", false)
-        var failure = launch.exceptionOrNull()?.message
+        val failure = launch.exceptionOrNull()?.message
         val options = launch.getOrDefault(DesktopLaunch())
-        options.workspace?.let { if (!runtime.openWorkspace(it)) failure = state.status }
+        val openFailed = options.workspace?.let { !runtime.openWorkspace(it) } == true
         val resident = runtime.connectionSettings.state.value.resident
         appliedResident = resident
         val blocked = runtime.connectionSettings.state.value.blocked
         if (blocked) settingsOpen = true
         presence.start(resident, if (blocked) StartupVisibility.SHOW else options.visibility, failure)
+        // 開く失敗は専用の通知で示す。非表示起動でも画面を戻し、常駐の通知と重ねない。
+        if (openFailed) presence.show()
     }
     LaunchedEffect(settings.resident, display.ready) {
         if (display.ready && appliedResident != settings.resident) {

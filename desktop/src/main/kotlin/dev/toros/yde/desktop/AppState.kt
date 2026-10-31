@@ -27,6 +27,7 @@ import dev.toros.yde.app.schema.SchemaDef
 import dev.toros.yde.semantic.schema.FieldDef
 import dev.toros.yde.app.session.DocumentSession
 import dev.toros.yde.app.service.WorkspaceHost
+import dev.toros.yde.app.service.WorkspaceInUseException
 import dev.toros.yde.semantic.RefactoringPlan
 import dev.toros.yde.semantic.RefactoringRequest
 import dev.toros.yde.agent.run.Staging
@@ -55,6 +56,9 @@ import kotlinx.coroutines.cancel
  */
 enum class UiSpace { DASHBOARD, EDIT, LEDGER, RUNS, DESIGN }
 
+/** 開く操作の失敗。未選択画面でも対象と理由を表示し、通常のステータス更新で消さない。 */
+data class WorkspaceOpenFailure(val path: Path?, val message: String)
+
 /**
  * アプリケーション状態。
  */
@@ -67,6 +71,30 @@ class AppState(
     internal val documents = host.documents
     private val subscriptions = mutableListOf<AutoCloseable>()
     internal var workspaceOpener: ((Path) -> Unit)? = null
+    var workspaceOpenFailure by mutableStateOf<WorkspaceOpenFailure?>(null)
+        private set
+
+    fun dismissWorkspaceOpenFailure() { workspaceOpenFailure = null }
+
+    internal fun reportWorkspaceOpenFailure(path: Path?, message: String) {
+        workspaceOpenFailure = WorkspaceOpenFailure(path?.toAbsolutePath()?.normalize(), message)
+        status = "ワークスペースを開けません: $message"
+    }
+
+    internal fun reportWorkspaceOpenFailure(path: Path, failure: Throwable) {
+        val message = if (failure is WorkspaceInUseException) {
+            "別の YAML Design Editor または CLI で使用中です。\n" +
+                "開いている画面を利用してください。常駐中ならトレイの「画面を表示」で戻れます。\n" +
+                "この画面で開く場合は、使用中のアプリを「完全終了」するか CLI を終了してから「再試行」を押してください。"
+        } else failure.message?.takeIf { it.isNotBlank() } ?: "読み込みに失敗しました。フォルダの存在とアクセス権を確認してください。"
+        reportWorkspaceOpenFailure(path, message)
+    }
+    internal var workspaceInitializer: ((Path, dev.toros.yde.workspace.InitPlan) -> dev.toros.yde.workspace.InitResult)? = null
+
+    fun initializeWorkspace(root: Path, plan: dev.toros.yde.workspace.InitPlan): dev.toros.yde.workspace.InitResult =
+        workspaceInitializer?.invoke(root, plan) ?: dev.toros.yde.app.service.WorkspaceOwnership().acquire(root).use {
+            WorkspaceInit.apply(root, plan)
+        }
     var automation by mutableStateOf<dev.toros.yde.agent.auto.AutomationEngine?>(null)
         internal set
     var runController by mutableStateOf<RunController?>(null)
@@ -850,15 +878,17 @@ class AppState(
      */
     fun openWorkspace(dir: Path) {
         workspaceOpener?.let { it(dir); return }
+        dismissWorkspaceOpenFailure()
         val ws = dir.toAbsolutePath().normalize()
         runCatching { host.openWorkspace(ws) }.getOrElse {
-            status = "ワークスペースを開けません: ${it.message}"
+            reportWorkspaceOpenFailure(ws, it)
             return
         }
         afterWorkspaceOpened(ws)
     }
 
     internal fun afterWorkspaceOpened(ws: Path) {
+        dismissWorkspaceOpenFailure()
         dismissHistoryNotice()
         pendingReload = null
         memory.clear()

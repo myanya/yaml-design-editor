@@ -36,6 +36,7 @@
 新しいワークスペースを作る入口。1 つのワークスペースに 1 度だけ動く前提で、初期化済みかどうかは `.yde/` かレガシーの `_schemas/` の有無で決め、印やフラグを残さない。
 
 - **計画は 1 つ**: `WorkspaceInit.plan(root, request)` が「どの相対パスにどんな中身を書くか」（`InitPlan`）を作り、画面（`InitWizardHost`）と CLI `init` はそれを見せて `WorkspaceInit.apply` で書く。入口に組み立てや書き込みの規則を書かない。
+- **所有を確認して書く**: 画面は `AppState.initializeWorkspace`、CLI は命令の入口で [ワークスペースの所有](local-connections.md#ワークスペースの所有) を取得してから適用する。カーネルの初期化計画・適用規則には OS の排他を混ぜない。
 - **求めは 2 つ**: テンプレートの展開（`InitRequest.FromTemplate`＝テンプレート・答え・サンプルデータの有無）と、既存のフォルダへの後入れ（`InitRequest.Adopt`＝`.yde/workspace.yaml` の `ledger:` の宣言だけ）。どちらも `.yde` 構成で書く。
 - **テンプレートはファイル**: リポジトリの `templates/<id>/` を workspace-core のビルドが資源 `templates/` へ写し（一覧は `index.txt`、各テンプレートのファイルは `files.txt`）、`WorkspaceTemplates` が読む。Kotlin に埋め込まない。
   `template.yaml` の `params`（操作の `params` と同じ、項目の定義の配列）を持つテンプレートは「問いを持つ」テンプレートで、「自分の項目で」の実体（`WorkspaceTemplates.CUSTOM`）。持たないものが「テンプレートから」に並ぶ。

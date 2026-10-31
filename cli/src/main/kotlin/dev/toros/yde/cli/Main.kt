@@ -10,7 +10,7 @@ import kotlin.system.exitProcess
 
 /**
  * 1 つの CLI（ADR-0013。R47-41）。入口はここだけで、引数の解釈と標準入出力の配線を持つ。
- * - カーネルの命令（`yaml …` / `workspace …`。3 層コアだけで動き、--format text|yaml|json）: Commands.kt / Shell.kt
+ * - カーネルの命令（`yaml …` / `workspace …`。処理は 3 層コア、所有権は app-core。--format text|yaml|json）: Commands.kt / CliShell.kt
  * - 応用の命令（catalog・view・validate・agent・import …。app-core と agent を使い、出力は YAML）: AppCli.kt と commands/
  * 業務ロジックは置かない——引数を窓口（Workspace・ActionPlanner・AgentKernel …）の入力へ写し、結果を表示形式へ写すだけ。
  *

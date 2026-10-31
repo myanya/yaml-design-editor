@@ -169,7 +169,7 @@ private fun InitWizardDialog(state: AppState, w: WizardState) {
     fun create() {
         val plan = w.plan ?: return
         val root = target ?: return
-        runCatching { WorkspaceInit.apply(root, plan) }
+        runCatching { state.initializeWorkspace(root, plan) }
             .onSuccess { result ->
                 state.status = "ワークスペースを作りました: ${result.written.size} ファイル" +
                     (if (result.skipped.isNotEmpty()) "（既にあった ${result.skipped.size} ファイルは書いていません）" else "")

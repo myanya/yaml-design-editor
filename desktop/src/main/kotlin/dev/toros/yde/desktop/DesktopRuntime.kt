@@ -5,6 +5,8 @@ import dev.toros.yde.agent.llm.AiProvider
 import dev.toros.yde.app.core.FileWatcher
 import dev.toros.yde.app.service.SourceDraftWorker
 import dev.toros.yde.app.service.WorkspaceHost
+import dev.toros.yde.app.service.WorkspaceOwnership
+import dev.toros.yde.workspace.WorkspaceInit
 import dev.toros.yde.app.service.WorkspaceOperations
 import dev.toros.yde.app.service.WorkspaceWork
 import dev.toros.yde.app.service.ConnectionGrants
@@ -34,6 +36,7 @@ internal class DesktopRuntime(
             override fun close() = watcher.close()
         } }
     },
+    private val ownership: WorkspaceOwnership = WorkspaceOwnership(),
 ) {
     private val lifetime = SupervisorJob()
     private val scope: CoroutineScope = CoroutineScope(lifetime + host.owner + CoroutineExceptionHandler { _, failure ->
@@ -53,6 +56,7 @@ internal class DesktopRuntime(
     private val connectionSubscription = host.observe { access.workspaceChanged() }
     private var jobs: WorkspaceJobs? = null
     private var stopping = false
+    private var lease: WorkspaceOwnership.Lease? = null
 
     private fun accessWorkspace(): AccessWorkspace? {
         val status = host.status.value
@@ -63,28 +67,46 @@ internal class DesktopRuntime(
         state.workspaceOpener = { path ->
             scope.launch { openWorkspace(path) }
         }
+        state.workspaceInitializer = { root, plan ->
+            host.assertAvailable()
+            check(!stopping) { "終了中は初期化できません" }
+            if (lease?.root == ownership.identity(root)) WorkspaceInit.apply(root, plan)
+            else ownership.acquire(root).use { WorkspaceInit.apply(root, plan) }
+        }
     }
 
     suspend fun openWorkspace(path: Path): Boolean = withContext(host.owner) {
         if (stopping) return@withContext false
+        state.dismissWorkspaceOpenFailure()
         try {
             host.exclusive("ワークスペースの切替") {
                 val root = path.toAbsolutePath().normalize()
-                // 候補の準備は現セッションを変えない。失敗したら旧ジョブもそのまま残す。
-                val (candidate, workspaceId) = withContext(Dispatchers.IO) {
-                    host.documents.prepareReload(root) to ChangeSets.contentHash(root.toRealPath().toString())
+                val previous = lease
+                var next = previous
+                try {
+                    // 所有権を取ってから読む。読込失敗では旧所有権と旧ジョブを保つ。
+                    val (candidate, workspaceId) = withContext(Dispatchers.IO) {
+                        if (previous?.root != ownership.identity(root)) next = ownership.acquire(root)
+                        host.documents.prepareReload(root) to ChangeSets.contentHash(root.toRealPath().toString())
+                    }
+                    check(!stopping) { "終了中はワークスペースを切り替えられません" }
+                    val fresh = candidate.workspace.mirror.fork()
+                    jobs?.stop()
+                    // activateWorkspace は最初に workspace を切り替える。以降は新しい場所の所有権を持つ。
+                    lease = next
+                    try { host.activateWorkspace(root, candidate, fresh) }
+                    finally { if (previous !== next) previous?.close() }
+                    connectionWorkspace = root to workspaceId
+                    state.afterWorkspaceOpened(root)
+                    jobs = WorkspaceJobs(root)
+                } finally {
+                    if (next !== lease) next?.close()
                 }
-                val fresh = candidate.workspace.mirror.fork()
-                jobs?.stop()
-                host.activateWorkspace(root, candidate, fresh)
-                connectionWorkspace = root to workspaceId
-                state.afterWorkspaceOpened(root)
-                jobs = WorkspaceJobs(root)
             }
             true
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (failure: Exception) {
-            state.status = "ワークスペースを開けません: ${failure.message}"
+            state.reportWorkspaceOpenFailure(path, failure)
             false
         }
     }
@@ -104,14 +126,17 @@ internal class DesktopRuntime(
         host.status.first { it.busy == null }
         host.exclusive("終了") { jobs?.stop(); jobs = null }
         state.workspaceOpener = null
+        state.workspaceInitializer = null
         connectionSubscription.close()
         state.close()
         host.close()
+        lease?.close()
+        lease = null
         lifetime.cancel()
     }
 
     /** application 自体が破棄された場合の後始末。通常の終了は shutdown を待つ。 */
-    fun cancel() { jobs?.cancel(); lifetime.cancel() }
+    fun cancel() { scope.launch { shutdown() } }
 
     private inner class WorkspaceJobs(val root: Path) {
         private val job = SupervisorJob(lifetime)

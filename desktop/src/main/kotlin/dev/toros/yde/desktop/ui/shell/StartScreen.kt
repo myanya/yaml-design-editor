@@ -3,6 +3,8 @@ package dev.toros.yde.desktop.ui.shell
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
@@ -25,8 +27,12 @@ import dev.toros.yde.desktop.ui.common.rememberDirectoryChooser
 /** ワークスペース未選択時のスタート画面（R10-05）。履歴からの選択で起動引数なしの切替を完結させる。 */
 @Composable
 fun StartScreen(state: AppState, openSettings: () -> Unit = {}) {
+    val scroll = rememberScrollState()
+    LaunchedEffect(state.workspaceOpenFailure) {
+        if (state.workspaceOpenFailure != null) scroll.scrollTo(0)
+    }
     Column(
-        Modifier.fillMaxSize().padding(32.dp),
+        Modifier.fillMaxSize().verticalScroll(scroll).padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -42,7 +48,7 @@ fun StartScreen(state: AppState, openSettings: () -> Unit = {}) {
         val chooseWorkspace = rememberDirectoryChooser(
             FilePickers.Purpose.WORKSPACE, "ワークスペース（ディレクトリ）を選択",
             fallback = state.recentWorkspaces.firstOrNull()?.parent,
-            onError = { state.status = it },
+            onError = { state.reportWorkspaceOpenFailure(null, it) },
         ) { state.openWorkspace(it) }
         Row(verticalAlignment = Alignment.CenterVertically) {
             // 新しいワークスペースを作る（初期化ウィザード。ui/shell/InitWizard.kt）: 1 つのフォルダに 1 度だけ
@@ -63,6 +69,12 @@ fun StartScreen(state: AppState, openSettings: () -> Unit = {}) {
             "初めてなら「新しいワークスペースを作る…」から、テンプレートか自分の項目で始められます",
             fontSize = 11.sp, color = Palette.SubText,
         )
+        if (state.workspaceOpenFailure != null) {
+            Spacer(Modifier.height(16.dp))
+            Box(Modifier.widthIn(max = 680.dp).fillMaxWidth()) {
+                WorkspaceOpenNotice(state, state::openWorkspace)
+            }
+        }
         if (state.recentWorkspaces.isNotEmpty()) {
             Spacer(Modifier.height(24.dp))
             Text("最近開いたワークスペース", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Palette.SubText)

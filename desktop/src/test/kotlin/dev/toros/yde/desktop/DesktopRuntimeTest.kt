@@ -4,6 +4,8 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicInteger
 import dev.toros.yde.app.service.ConnectionPermissions
+import dev.toros.yde.app.service.WorkspaceOwnership
+import dev.toros.yde.app.service.WorkspaceInUseException
 import dev.toros.yde.server.LocalFeature
 import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.desktop.lifecycle.*
@@ -14,6 +16,60 @@ import kotlin.test.*
 class DesktopRuntimeTest {
     private val root = Files.createTempDirectory("desktop-runtime")
     @AfterTest fun cleanup() { root.toFile().deleteRecursively() }
+
+    @Test fun `競合と読込失敗で旧所有権を保ち切替と完全終了で解放する`(): Unit = runBlocking {
+        val locks = WorkspaceOwnership(root.resolve("locks"))
+        val first = Files.createDirectory(root.resolve("first"))
+        val second = Files.createDirectory(root.resolve("second"))
+        withContext(DesktopUiDispatcher) {
+            val a = DesktopRuntime(monitorFactory = { null }, ownership = locks)
+            val b = DesktopRuntime(monitorFactory = { null }, ownership = locks)
+            try {
+                assertTrue(a.openWorkspace(first))
+                assertTrue(a.openWorkspace(first.resolve(".")), "自分の場所は開き直せる")
+                assertFalse(b.openWorkspace(first))
+                assertContains(b.state.status, "使用中")
+                assertTrue(b.connections.status.value.stopped)
+                assertTrue(b.openWorkspace(second))
+                assertFalse(a.openWorkspace(second))
+                assertEquals(first, a.state.workspace)
+                assertFalse(a.openWorkspace(root.resolve("missing")))
+                assertFailsWith<WorkspaceInUseException> { locks.acquire(first) }
+                locks.acquire(root.resolve("missing")).close()
+                assertFailsWith<WorkspaceInUseException> {
+                    b.state.initializeWorkspace(first, dev.toros.yde.workspace.InitPlan(emptyList()))
+                }
+                assertFalse(Files.exists(first.resolve(".yde")))
+                b.shutdown()
+                assertTrue(a.openWorkspace(second))
+                locks.acquire(first).close()
+                assertFailsWith<WorkspaceInUseException> { locks.acquire(second) }
+            } finally { a.shutdown(); b.shutdown() }
+            locks.acquire(second).close()
+        }
+    }
+
+    @Test fun `破棄時も実行中の処理が終わるまで所有権を解放しない`(): Unit = runBlocking {
+        val locks = WorkspaceOwnership(root.resolve("locks"))
+        val ws = Files.createDirectory(root.resolve("workspace"))
+        withContext(DesktopUiDispatcher) {
+            val runtime = DesktopRuntime(monitorFactory = { null }, ownership = locks)
+            val entered = CompletableDeferred<Unit>()
+            val finish = CompletableDeferred<Unit>()
+            try {
+                assertTrue(runtime.openWorkspace(ws))
+                val saving = launch { runtime.host.exclusive("保存の試験") { entered.complete(Unit); finish.await() } }
+                entered.await()
+                runtime.cancel()
+                yield()
+                assertFailsWith<WorkspaceInUseException> { locks.acquire(ws) }
+                finish.complete(Unit)
+                saving.join()
+                withTimeout(5_000) { runtime.host.status.first { it.closed } }
+                locks.acquire(ws).close()
+            } finally { finish.complete(Unit); runtime.shutdown() }
+        }
+    }
 
     @Test fun `隠しても編集中の文書と実行を保ち受信箱から同じ状態へ戻れる`(): Unit = runBlocking {
         val file = root.resolve("a.yaml")

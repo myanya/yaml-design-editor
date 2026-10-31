@@ -22,6 +22,10 @@ import dev.toros.yde.yaml.YamlIO
  * readLine を注入して JUnit から台本でテストできる（Main.kt が標準入力を配線する）。
  */
 fun workspaceShell(root: String?, readLine: () -> String?, out: (String) -> Unit): Int {
+    return withCliOwnership(root, true) { workspaceShellOwned(root, readLine, out) }
+}
+
+private fun workspaceShellOwned(root: String?, readLine: () -> String?, out: (String) -> Unit): Int {
     val dir = requireDir(root)
     val session = WorkspaceSession(FileSystemDocumentStore(dir), builtins = BuiltinSchemaResources.kernelSchemas(WorkspaceLayout.of(dir), Extensions.viewKinds), viewKinds = Extensions.viewKinds)
     out("ワークスペース: $dir（文書 ${session.snapshot.documents.size} 件・version ${session.version}）")

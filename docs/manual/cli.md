@@ -9,6 +9,28 @@ GUIを起動せずに、ワークスペースの探索・検索・部分変更�
 
 `kind: flow`のモデル・原本座標・診断を取得する例は [フロービュー](flow-views.md)を参照してください。
 
+## ワークスペースの所有と書込
+
+同じ OS 利用者のデスクトップ（非表示で常駐中も含む）または別の書込 CLI が対象を使用中なら、書込を始める前に「使用中」と終了コード 1 を返します。
+デスクトップはトレイから完全終了してください。CLI は処理終了時、shell と watch はセッション終了時に所有権を解放します。
+API への自動転送や待受の自動有効化はしません。接続先を明示して操作する CLI モードはまだありません。
+
+| 所有権を取得する処理 | 所有中でも利用できるモード |
+|---|---|
+| apply / workspace apply | --dry-run |
+| action / import / infer-schema / infer-relations / workspace refactor の --apply | --apply なし |
+| agent / watch / revert / export / migrate | 読取専用モードなし（agent は --apply なしでも実行記録を書く） |
+| eval の実行、report のファイル出力 | 一覧、report --print |
+| run-skill --yes | --yes なしの内容表示 |
+| init --template / --adopt | テンプレート一覧、--dry-run |
+| workspace shell | 対話中は保存前でも所有を保持 |
+| bench --keep | 指定先の各 mN を所有、--keep なしは一時領域で計測 |
+
+catalog・read・view・query・validate などの参照は使えます。保存済みのディスクを読み、デスクトップの未保存内容や複数文書の同時点での読取は保証しません。
+所有権の保存先と範囲は [接続と常駐](local-connections.md#ワークスペースの二重利用) を参照してください。
+
+## コマンド例
+
 ```bash
 ./gradlew runCli -q --args="catalog sample-workspace"                     # 文書カタログ（_document要約・スキーマ・ID数）
 ./gradlew runCli -q --args="outline sample-workspace path/to/doc.yaml"    # 骨子（キー構造・配列件数。長文は文字数表示）

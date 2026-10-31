@@ -10,7 +10,7 @@
 
 | ID | 機能 | 主な実装 | テスト | 設計 |
 |---|---|---|---|---|
-| W-01 | ワークスペースの選択と管理（起動引数・OS ネイティブのフォルダ選択・スタート画面・最近開いた履歴・パレットからの切替・選んだ場所の記憶） | `ui/shell/StartScreen.kt`, `ui/common/FilePickers.kt`, `AppState.openWorkspace` | 手動 | [ui](architecture/ui.md) |
+| W-01 | ワークスペース選択・履歴・開けない理由の通知と再試行 | `ui/shell/StartScreen.kt`・`WorkspaceOpenNotice.kt`・`ui/common/FilePickers.kt` | `WorkspaceOpenNoticeTest` | [ui](architecture/ui.md) |
 | W-02 | ファイルツリー（全形式・隠し項目・除外・パス検索・展開の永続化・現在地） | `ui/file/FileTreePane.kt`, `core/FileCatalog.kt` | `FileCatalogTest`・画面は手動 | [ui](architecture/ui.md) |
 | W-03 | ファイル・フォルダーの配置変更と Undo | `FileArrangementPlanner`, `FileArrangementJournal`, `FileMoveDialog` | `AppStateFileArrangementTest`・`DocumentCacheSnapshotTest` ほか | [workspace](architecture/workspace.md) |
 | W-04 | 外部監視と再読込（履歴保持・競合保護・確認付き破棄） | `session/DocumentSession.kt`（`reload`）, `WorkspaceSession.refreshFrom`, `ReloadConfirmationDialog` | `ReloadHistoryTest`・`SessionRefreshTest` | [workspace](architecture/workspace.md) |
@@ -295,6 +295,8 @@
 | LC-16 | 常駐・非表示起動・復帰・終了確認とトレイ失敗時の画面表示 | `lifecycle/DesktopPresence.kt` | `DesktopPresenceTest`・`DesktopRuntimeTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-17 | トレイの受信箱件数・画面と設定への移動・完全終了 | `ui/shell/DesktopTray.kt`・`InboxNavigation.kt` | `DesktopTraySmoke`・`DesktopRuntimeTest` | [接続の設定](manual/local-connections.md) |
 | LC-18 | 常駐と非表示起動の設定、今回だけの常駐解除 | `ui/shell/ResidentSettingsPane.kt` | `ResidentSettingsPaneTest` | [接続の設定](manual/local-connections.md) |
+| LC-19 | 待受しないワークスペース所有・競合拒否・終了後の引継ぎ | `service/WorkspaceOwnership.kt`・`DesktopRuntime.kt` | `WorkspaceOwnershipTest`・`DesktopRuntimeTest` | [ローカル接続](architecture/local-connections.md) |
+| LC-20 | 所有中の独立 CLI の書込拒否と参照・プレビューの継続 | `cli/CliOwnership.kt` | `CliOwnershipTest` | [CLI](manual/cli.md) |
 
 ## 公開サンプル
 

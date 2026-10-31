@@ -108,7 +108,7 @@ private fun AppRootContent(
     val openWorkspaceDialog = rememberDirectoryChooser(
         FilePickers.Purpose.WORKSPACE, "ワークスペース（ディレクトリ）を選択",
         fallback = state.workspace?.parent ?: state.recentWorkspaces.firstOrNull()?.parent,
-        onError = { state.status = it },
+        onError = { state.reportWorkspaceOpenFailure(null, it) },
         onChosen = switchWorkspace,
     )
     val automationVersion = state.automationVersion
@@ -130,6 +130,7 @@ private fun AppRootContent(
             toggleLeft = { leftOpen = !leftOpen; uiPreferences.putBoolean("leftOpen", leftOpen) },
             toggleRight = { state.rightPaneOpen = !state.rightPaneOpen })
         HorizontalDivider(color = Palette.Border)
+        WorkspaceOpenNotice(state, switchWorkspace)
         HistoryNoticeBanner(state)
         Row(Modifier.weight(1f).fillMaxWidth()) {
             // 実行スペースは定義が空でも常時表示する（UX-20。定義ゼロのときは RunsSpace の空状態が導線を案内する）

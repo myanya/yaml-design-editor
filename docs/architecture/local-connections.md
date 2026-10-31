@@ -20,6 +20,8 @@ DesktopRuntime が接続管理を所有し、設定画面から三機能を個�
 | `server.auth.LocalAccess` | 接続登録、機能別の資格情報と失効、要求の寿命、MCP セッションの接続者との対応 |
 | `server.transport.LocalAuthentication` | Host/Origin・認証・CSRF・要求量の検査、業務ハンドラでの能力と対象の再確認 |
 | `service.WorkspaceHost` / `WorkspaceStatus` | 共通セッションの所有、状態の世代・版・未保存・競合・処理中の通知、所有スレッドへの受付 |
+| `service.WorkspaceOwnership` | 利用者専用領域の OS ファイルロックによる入口間のワークスペース所有と解放 |
+| `cli/CliOwnership.kt` | 書込を伴う命令・モードの分類と、独立 CLI の処理全体の所有 |
 | `service.SourceDraftWorker` | 画面と独立した下書きの遅延解析・木との同期、古い入力の採用防止 |
 | `desktop.DesktopRuntime` | アプリ全体とワークスペース単位の寿命、監視・自動実行・手動実行・終了の統括 |
 | `desktop.lifecycle.DesktopPresence` / `DesktopLaunch` | 表示・常駐・終了確認の状態と起動引数、トレイ失敗時の画面復帰 |
@@ -192,6 +194,33 @@ AppRoot と SourcePane はこれらを起動・停止しない。画面がなく
 書込が始まった作業は呼出し元の取消で途中放棄せず、結果の反映まで完了してから処理中を解除する。
 
 試験は WorkspaceHostTest・DesktopRuntimeTest・BackgroundFileOperationTest と、既存の編集・履歴・外部変更の試験で行う。
+
+## ワークスペースの所有
+
+WorkspaceOwnership はルートの実体パスを鍵とし、利用者ホームの `.yaml-design-editor-locks/<SHA-256>.lock` を FileChannel.tryLock で排他取得する。
+未作成の初期化先は、既存の祖先の実体パスと残りの相対部分から識別する。Windows では鍵の大文字小文字を統一する。
+ワークスペース内へファイルや `.yde` を作らず、TCP の探索・待受・プロセス ID による生存判定も行わない。
+通常でないロック保存先や取得エラーは所有成功にせず、使用中なら WorkspaceInUseException で直ちに拒否する。
+
+同じ JVM の取得済みファイルは静的な集合で管理し、競合する追加チャネルを開かない。OS によっては別チャネルの close でも既存ロックが外れるためである。
+close は繰り返せる。空のファイルは残し、ロック解放時に削除・置換しない。ファイルの存在だけでは使用中と判定しない。
+別 JVM の通常終了・強制終了で OS が解放し、次のプロセスが引き継ぐ。動作と制約は [JDK の FileLock](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/nio/channels/FileLock.html) に従う。
+Windows の [LockFileEx](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-lockfileex) は終了後の解放時点が OS の資源状況に依存するため、プロセス終了の試験は終了確認後に上限付きで再取得を待つ。
+
+DesktopRuntime は候補を読む前に取得し、表示・非表示や接続設定とは独立して保持する。
+取得・読込の失敗は AppState の専用通知にも渡し、ステータス欄のない初期画面で理由を見落とさない（[UI シェル](ui.md#ui-シェル)）。
+同じ実体の再読込では自分の所有権を再利用する。別の場所の取得・読込に失敗したら旧所有権と状態を保持し、成功時は旧ジョブを止めて切り替える。
+完全終了と application の破棄は進行中の保存・接続・子ジョブの収束後に解放する。終了中断では保持する。
+初期化ウィザードも AppState の入口から同じ所有権を取得し、既存の WorkspaceInit.apply を呼ぶ。
+
+独立 CLI は書込モードの入口で、読込より前から処理完了まで取得する。shell と watch はセッション全体で保持する。
+実行記録・派生出力・初期化・移行も書込に含む。bench --keep は生成するルートごとに取得する。参照・一覧・プレビューは取得しない。
+所有中の書込拒否は終了コード 1。API への暗黙の転送・API の自動有効化はしない。通信で操作する CLI モードは未実装である。
+命令を追加するときは CliOwnership の分類も更新する。未分類の命令は実行前に拒否する。
+
+保証は同じ OS 利用者・同じ実体ルート・この規約を使う入口間の協調排他に限る。別利用者・別 PC・旧版・他ツールや、異なるルートの重複領域を排除する仕組みではない。
+閲覧 CLI はディスク上の保存済みを読むため、デスクトップの未保存編集は見えず、複数ファイルの読取スナップショットも保証しない。外部変更の検出は引き続き Workspace.noteDiskChanges が担う。
+WorkspaceOwnershipTest は別 JVM・異常終了・別名と初期化前の場所を、DesktopRuntimeTest は切替・終了待ちを、CliOwnershipTest は書込拒否と参照継続を検証する。
 
 ## トレイと画面の寿命
 

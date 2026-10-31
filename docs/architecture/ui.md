@@ -38,6 +38,7 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 |---|---|---|
 | `Main.kt` | desktop/Main.kt | エントリポイント・ウィンドウ・ショートカット（`handleShortcut`）。画面は `ui.shell` に置く |
 | `AppRoot` / `StartScreen` / `CommandPalette` | ui/shell/AppRoot.kt・ui/shell/StartScreen.kt・ui/shell/CommandPalette.kt | 骨格（左右の領域・編集領域 `EditorArea`・ステータスバー `StatusBar`・改名の確認）・スタート画面・コマンドパレット。配置と表示の設定は `UiPreferences.kt` の `uiPreferences` |
+| `WorkspaceOpenNotice` | ui/shell/WorkspaceOpenNotice.kt | 開けなかった対象・理由・対処方法の通知と、既存の切替確認を通る再試行 |
 | `LocalConnectionSettingsPage` | ui/shell/LocalConnectionSettingsPage.kt | スタート画面と設定メニューから開く常設ページ。接続・権限・発行の処理は [ローカル接続](local-connections.md) の Controller へ渡す |
 | `DesktopPresence` / `AwtDesktopTray` | lifecycle/DesktopPresence.kt・ui/shell/DesktopTray.kt | 表示と常駐の状態、登録失敗時の復帰、完全終了の確認（[トレイと画面の寿命](local-connections.md)） |
 | `UiSpace` / `showSpace` / `showWorkspaceView` / `navigateToPath` / `openCrossView` / `openViewGrid` / `goBack` / `goForward` | desktop/AppState.kt | スペースとナビゲーション履歴（`NavLocation`） |
@@ -105,6 +106,8 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
   - 覚えは「あれば使う・無ければ既定」。再読込で無くなった文書・型・種別の鍵は読まれないだけにし、画面側で今の候補と突き合わせる（一覧の種別と状態・ツリーの選択・レンズの配置）。
   - 寿命はワークスペース（切替で初期化し、ツリーの展開と表示設定は永続化した覚えから復元する）。文書の削除・改名はその文書のぶんだけ消す・移す。操作の途中（ダイアログ・メニュー・入力途中の欄）は `remember` のまま（`ScreenMemoryTest`）。
 - **常設画面と浮いたパネルの線引き**: エージェント実行・自動化・計測評価・skill 操作のような、実行の状態を持つ・長く続く作業は実行／設計スペースの常設画面。値を集めて 1 回で適用する短い作業（AI 生成・改名・統合・スキーマ推測・操作）は浮いたパネル（AlertDialog）にできる。それ以外の AlertDialog は破壊的操作と承認の確認だけ。エージェントの質問はモーダルにせず非モーダルカード。気づきはレールとステータスバーのバッジ。
+- **ワークスペースを開けない場合**: AppState.workspaceOpenFailure に対象と理由を持ち、StartScreen と AppRoot に WorkspaceOpenNotice を出す。ステータス欄のない初期画面でも理由を伝え、履歴をスクロールしていたら通知へ戻す。他のステータス更新では消さず、閉じる・次の読込開始・読込成功で解除する。
+- **開く操作の再試行**: 初期画面は通常の openWorkspace、開いている画面は既存の switchWorkspace を通す。通知が出た後に編集しても未保存確認を省かない。所有権の競合は既存画面への復帰と完全終了後の再試行を案内し、非表示起動でも画面を戻す。WorkspaceOpenNoticeTest が履歴のクリック・失敗通知・再試行・未保存確認を検証する。
 - **エージェント実行の状態は `RunController`**（DesktopRuntime がワークスペース単位で保持）。AppRoot や Window がコンポジションから外れても実行・質問待ち・レビューが失われない。
 - **操作は浮いたパネル**: 入口（エンティティページの操作メニュー・フォームとビューの行の ⋯・文書ヘッダーの「文書操作」メニュー・コマンドパレット・右ペインの「操作」タブ）はどこでも `AppState.startAction` を呼び、パネルは `Main` が `ActionPanelHost` でスペースに関係なく載せる。
 - **初期化ウィザードも浮いたパネル**: スタート画面（ワークスペースが無い）からも開いている画面からも `AppState.startInitWizard` で開き、`Main` が `InitWizardHost` を窓の直下に載せる。値を集めて 1 回で書く短い作業なので常設画面にしない。スタート画面の第一のボタンはこれで、「ワークスペースを開く…」が隣に並ぶ。作業の状態は `AppState.actionWork`（`remember` に置かない）で、隠しても残り「操作」タブから開き直せる。受け取る値はフォームの部品で編集する（[actions](actions.md)）。

@@ -177,6 +177,10 @@ fun workspaceValidate(root: String?, args: List<String>, out: (String) -> Unit):
  * 3 = 適用後の検証にエラーが残るため書き込まなかった（--require-valid）。
  */
 fun workspaceApply(root: String?, args: List<String>, out: (String) -> Unit): Int {
+    return withCliOwnership(root, "--dry-run" !in args) { workspaceApplyOwned(root, args, out) }
+}
+
+private fun workspaceApplyOwned(root: String?, args: List<String>, out: (String) -> Unit): Int {
     val format = CliArgs.format(args)
     val file = args.firstOrNull { !it.startsWith("--") && it != CliArgs.stringFlag(args, "--format") }
         ?: error("変更セットの YAML ファイルを指定してください")
@@ -437,6 +441,10 @@ internal fun refactorRequest(params: List<String>): RefactoringRequest {
  * exit: 0 = 成功／1 = 入力・計画エラー／4 = baseVersion の拒否／5 = 保存失敗。
  */
 fun workspaceRefactor(root: String?, params: List<String>, out: (String) -> Unit): Int {
+    return withCliOwnership(root, "--apply" in params) { workspaceRefactorOwned(root, params, out) }
+}
+
+private fun workspaceRefactorOwned(root: String?, params: List<String>, out: (String) -> Unit): Int {
     val format = CliArgs.format(params)
     val session = openSession(root)
     val plan = session.planRefactoring(refactorRequest(params))

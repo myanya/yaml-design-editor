@@ -4,6 +4,7 @@ import dev.toros.yde.cli.asData
 import dev.toros.yde.cli.CliResult
 import dev.toros.yde.app.core.Bench
 import dev.toros.yde.cli.stringFlag
+import dev.toros.yde.cli.withCliOwnership
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -22,9 +23,12 @@ internal fun benchCommand(rest: List<String>): CliResult = run {
     }
     var previous: Bench.Result? = null
     val rows = sizes.map { modules ->
-        val dir = keep?.resolve("m$modules")?.also { Files.createDirectories(it) } ?: Files.createTempDirectory("yde-bench")
+        val dir = keep?.resolve("m$modules") ?: Files.createTempDirectory("yde-bench")
         try {
-            val result = Bench.measure(dir, Bench.generate(dir, modules))
+            val result = withCliOwnership(dir.toString(), keep != null) {
+                Files.createDirectories(dir)
+                Bench.measure(dir, Bench.generate(dir, modules))
+            }
             val prev = previous
             // 伸び方: 時間の伸び ÷ 文書数の伸び（1.0 前後なら文書数に比例。2.0 なら、規模が2倍で時間が4倍）
             fun growth(now: Long, before: Long?): String? = prev?.let { p ->

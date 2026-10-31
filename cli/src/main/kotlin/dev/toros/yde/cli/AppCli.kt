@@ -133,7 +133,12 @@ fun runCli(args: Array<String>): String {
     val command = args[0]
     val format = CliArgs.format(args.toList())
     val rest = withoutFormat(args.drop(1))
-    val result: CliResult = when (command) {
+    val result = withCliOwnership(rest.firstOrNull(), appCommandWrites(command, rest)) { dispatchAppCommand(command, rest) }
+    return render(result, format)
+}
+
+private fun dispatchAppCommand(command: String, rest: List<String>): CliResult {
+    return when (command) {
         "version" -> asText(versionText())
         "catalog" -> catalogCommand(rest)
         "outline" -> outlineCommand(rest)
@@ -172,7 +177,6 @@ fun runCli(args: Array<String>): String {
         "revert" -> revertCommand(rest)
         else -> error("不明なコマンドです: $command\n$CLI_USAGE")
     }
-    return render(result, format)
 }
 
 /**
