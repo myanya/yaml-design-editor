@@ -3,6 +3,9 @@ package dev.toros.yde.desktop
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicInteger
+import dev.toros.yde.app.service.ConnectionPermissions
+import dev.toros.yde.server.LocalFeature
+import dev.toros.yde.yaml.model.DocumentId
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
 import kotlin.test.*
@@ -25,6 +28,7 @@ class DesktopRuntimeTest {
                 }
             })
             try {
+                assertFailsWith<IllegalArgumentException> { runtime.access.register(LocalFeature.MCP, "試験", ConnectionPermissions()) }
                 assertTrue(runtime.openWorkspace(root))
                 withTimeout(5_000) { opened.await() }
                 val state = runtime.state
@@ -35,6 +39,9 @@ class DesktopRuntimeTest {
                 assertFalse(automation.enabled)
                 val connections = runtime.connections
                 assertTrue(connections.status.value.stopped, "画面とワークスペースを開くだけでは待受しない")
+                val client = runtime.access.register(LocalFeature.MCP, "試験", ConnectionPermissions(readable = setOf(DocumentId("a.yaml"))))
+                assertEquals(runtime.operations.currentWorkspaceId(), client.caller.workspaceId)
+                assertFailsWith<IllegalStateException> { runtime.access.issueBearer(client.id) }
                 doc.editSource { replace(0, length, "name: edited\n") }
                 assertTrue(state.hasDirtyDocs(), "解析前の入力も終了確認の対象")
                 withTimeout(5_000) { runtime.host.status.first { !doc.hasPendingSourceInput && doc.dirty } }
@@ -48,6 +55,7 @@ class DesktopRuntimeTest {
                 assertSame(automation, state.automation)
                 assertSame(connections, runtime.connections)
                 assertTrue(connections.status.value.stopped)
+                assertEquals(listOf(client), runtime.access.clients())
                 assertEquals(0, closed.get())
                 doc.editSource { replace(0, length, "name: [") }
                 withTimeout(5_000) { runtime.host.status.first { doc.draftBroken } }

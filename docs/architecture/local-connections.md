@@ -3,7 +3,7 @@
 ## 概要
 
 ローカル接続は、通信ライブラリを local-server に閉じる組込み構成を取る。
-現在は設定型・機能別の状態機械・loopback 待受と、SDK・HTTP・同梱ランタイムの互換性検査がある。
+現在は設定型・機能別の状態機械・loopback 待受・接続者の認証と権限、および SDK・HTTP・同梱ランタイムの互換性検査がある。
 DesktopRuntime が接続管理を所有するが、設定画面と業務経路は未接続で、通常起動では全て OFF のまま待受しない。
 全体の設計契約は [ローカル接続の決定](../decisions/0016-local-connections-and-shared-host.md)、実施順序は ROADMAP にある。
 外部確定と Undo の扱いは [履歴の決定](../decisions/0017-external-commit-and-desktop-history.md) が補足する。
@@ -14,7 +14,11 @@ DesktopRuntime が接続管理を所有するが、設定画面と業務経路�
 |---|---|
 | `server.LocalConnectionSettings` | API・MCP・Web の初期値 OFF と利用者指定ポートの範囲 |
 | `server.LocalConnections` / `LocalConnectionStatus` | 希望値と実状態の通知、三機能の受付・停止・要求の収束と一つの待受の寿命 |
+| `server.LocalServer` | 機能ゲートと認証を組み込んだ製品の通信入口の組立て |
 | `server.transport.LocalConnectionGate` / `server.LocalRequest` | HTTP 経路の機能判定、停止時の 404、要求と子ストリームの取消、保存完了待ち |
+| `service.ConnectionGrants` / `ConnectionPermissions` | 接続者とワークスペース別の閲覧・提案・業務操作の許可、変更版と共通サービスへの権限供給 |
+| `server.auth.LocalAccess` | 接続登録、機能別の資格情報と失効、要求の寿命、MCP セッションの接続者との対応 |
+| `server.transport.LocalAuthentication` | Host/Origin・認証・CSRF・要求量の検査、業務ハンドラでの能力と対象の再確認 |
 | `service.WorkspaceHost` / `WorkspaceStatus` | 共通セッションの所有、状態の世代・版・未保存・競合・処理中の通知、所有スレッドへの受付 |
 | `service.SourceDraftWorker` | 画面と独立した下書きの遅延解析・木との同期、古い入力の採用防止 |
 | `desktop.DesktopRuntime` | アプリ全体とワークスペース単位の寿命、監視・自動実行・手動実行・終了の統括 |
@@ -53,12 +57,12 @@ LocalConnections の構築時は三機能とも OFF で、待受の構築も行�
 
 受付ゲートはルーティング前に機能の希望値と実状態を確認する。停止・起動途中の機能、上記に属さない経路は 404 とし、health 用の別口も作らない。
 Web 専用の通信は API の設定を参照しない。`/api/v10` など、接頭辞だけが同じ別経路を許可しない。
-これは機能の受付制御であり、認証・Host/Origin・CSRF 検査の代わりにはならない。製品側の業務経路はまだ登録していない。
+機能ゲートの後に LocalAuthentication が認証・Host/Origin・CSRF を検査する。製品側の業務経路はまだ登録していない。
 
 OFF の受付時点で新規要求を止め、その機能の世代を変える。要求の子ジョブだけを取り消し、他機能の受付と共有待受を維持する。
 要求の本体が返った後も、子のストリームが完了するまで登録を保持する。onDisabled は MCP セッション等の終了口で、失敗時に再試行するため繰り返し呼べる実装を渡す。
 機能に結び付く認可やセッションは、受付時に accepts で世代も照合する。OFF → ON でも古い世代には戻さない。
-認証と SDK セッション管理への接続は後続工程で行う。
+LocalAccess は資格情報にも世代を結び、停止時に資格情報と MCP セッションの対応を破棄する。SDK 本体の作業・セッションの終了は MCP アダプターが担う。
 
 保存の入口は LocalRequest.finishWrite で失効前であることを確認し、開始した保存・結果記録だけを取消から保護する。
 停止処理は要求の Job 全体の完了を待つ。これは WorkspaceOperations の確定を包む境界であり、検証・権限を省いた書込や任意要求の取消免除には使わない。
@@ -72,6 +76,50 @@ DesktopRuntime の通常終了は接続の停止を待つ。停止失敗では�
 
 LocalConnectionsTest・LocalConnectionGateTest が全八組合せ・切替競合・世代失効・読取取消・保存待ち・停止失敗を検証する。
 LocalListenerLifecycleTest は試験自身の loopback で他機能の継続、keep-alive の切断、ポート再利用、占有時の拒否を確認する。
+
+## 接続者と権限
+
+登録・権限変更・発行・失効は信頼するデスクトップ側の LocalAccess だけが受ける。HTTP の要求本文から接続者や権限を作らない。
+登録は機能と現在のワークスペース ID に結ぶ。ConnectionGrants が閲覧文書・提案文書・業務操作の対象文書と操作名を持ち、空集合は許可なしとする。
+文書は正規の相対 DocumentId を明示し、提案・業務操作の文書は閲覧可能な集合に含める。ワイルドカードや任意の絶対パスで対象を広げない。
+共通サービスは提案の許可を WorkGrant、業務操作を OperationGrant として受け、変更版・対象・操作を従来どおり再確認する。
+外部登録から任意変更セットの直接確定・結果不明の復旧・デスクトップの承認権限は得られない。
+
+登録権限と通信資格情報は別である。OFF・資格情報の期限切れ・再発行はネットワークからの操作を失効させるが、提出物と登録権限を削除しない。
+提出後に通信を停止しても、デスクトップは現在の提案権限を再確認して承認できる。登録削除や権限変更は承認にも反映する。
+権限は集合を凍結して保持し、変更・再登録で新しい版を発行する。以前の版で作った作業や確認を再利用しない。
+
+DesktopRuntime が権限管理を共通サービスへ渡し、ワークスペースの正規パスからサービスと同じ ID を用意する。
+Host の世代変更で旧資格情報と要求を失効させ、新しい対象を既存の接続者へ自動公開しない。同じ場所の再読込でも旧セッションは失効する。
+登録したワークスペースへ戻れば、登録を使って新しい資格情報を発行できる。
+
+## 要求の認証
+
+API・MCP は機能別の Bearer トークン、Web の業務通信は専用 Cookie を使う。他機能の資格情報は受け付けない。
+資格情報と CSRF トークンは SecureRandom の 32 バイトから作り、内部は SHA-256 のハッシュを保持する。平文は発行時の戻り値だけで渡し、文字列表示では隠す。
+同じ登録の再発行は旧資格情報を失効させる。現在の実装はメモリ内だけで、設定保存・専用保管庫・ブラウザへのログイン導線はまだ接続していない。
+Bearer の既定期限は 8 時間（指定上限 30 日）、Web は 30 分（上限 8 時間）。稼働していない機能の資格情報は発行しない。
+
+資格情報は機能の世代、接続者、権限の版、ワークスペースの世代と期限に結ぶ。毎要求と本文受信後・保存開始前・応答直前に再確認する。
+業務ハンドラは対象を解決してから requireLocalAccess で必要な能力・文書・操作名を照合し、戻った認証済み caller で共通サービスを呼ぶ。
+権限変更・資格情報の失効・期限切れは読取と子ストリームを取り消す。開始した保存は LocalRequest の規律に従って結果記録まで待つ。
+MCP のセッション ID は資格情報の代わりにせず、認証済みの接続者との対応を要求ごとに確認する。別の接続者や再発行前のセッションは再初期化を求める。
+
+- Host は現在の `127.0.0.1:ポート` だけ許可する。`localhost`・他ポート・Forwarded 系ヘッダーを受け付けない。
+- Origin があれば `http://127.0.0.1:ポート` と完全一致させる。ブラウザ以外の API・MCP は Origin を省略できる。
+- Web の更新要求は Origin を必須にし、専用 Cookie と `X-YDE-CSRF` の両方を照合する。Cookie は HttpOnly・SameSite=Strict・Path=/web-api で、HTTP loopback 用とする。
+- `Sec-Fetch-Site` が別サイトや別オリジンを示す要求を拒否し、CORS は有効にしない。資格情報を URL から読み取らず、認証エラーへ値を反映しない。
+- `/app` 配下は GET/HEAD の静的資源だけ認証を省ける。業務データは `/web-api` の認証を通す。応答は no-store・no-referrer と同一オリジンを基本にした CSP を付ける。
+- 経路のドット区間、符号化した区切りや二重符号化など、機能判定とルーターで解決先が変わる表記を拒否する。
+
+登録は 256 件、閲覧対象は登録ごとに 10,000 文書、操作名は 1,000 件まで。要求は全体 64 件・資格情報ごとに 16 件を上限とし、失効後の保存待ちも全体の枠に数える。
+MCP セッションの対応は全体 256 件・資格情報ごとに 8 件まで。SDK 自身のセッション制限も別途必要となる。
+要求ヘッダーは 16 KiB、経路は 4,096 文字、本文は 4 MiB、本文受信は 10 秒まで。長さ不明の本文も変換前に上限を確認し、圧縮本文は受け付けない。
+JSON の型と業務操作の実行量は、公開する各アダプターでも制限する。
+
+ConnectionGrantsTest・LocalAccessTest・LocalAuthenticationTest が権限分離・失効・偽装・CSRF・本文制限を検証する。
+LocalProtocolAuthenticationTest は公式 MCP クライアントの往復、接続者をまたぐセッションの拒否、Cookie の保護属性を確認する。
+照合の参照は [MCP の通信保護](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#security-warning) と [OWASP の CSRF 対策](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html)。
 
 ## 規律
 
@@ -110,8 +158,8 @@ AppRoot と SourcePane はこれらを起動・停止しない。画面がなく
 ## 操作の計画と外部確定
 
 WorkspaceOperations は Host の排他区間で計画・確定を受ける。結果照会は背景で記録を読み、前後に世代と権限を確認して、照会だけでは編集を待たせない。
-DesktopRuntime が一つ持ち、権限の供給がない既定状態では全て拒否する。
-接続の認証と権限登録は後続の接続口であり、通常起動から外部に公開する経路はまだない。
+DesktopRuntime が一つ持ち、ConnectionGrants の現在の登録権限を供給する。未登録の既定状態では全て拒否する。
+接続登録の画面と業務経路は未公開であり、通常起動から外部に公開する経路はまだない。
 ワークスペース ID の解決は注入する。既定は実パスのハッシュで、要求から任意の場所を開かせない。
 
 計画は保存済みの独立したセッションで ActionPlanner と ChangeSetApplier.prepare を通す。
@@ -184,8 +232,8 @@ WorkspaceWorkTest と ExternalWorkPaneTest が、再起動・権限変更・競�
 
 ## 拡張ポイント
 
-共通状態と接続の状態機械へ認証・能力別の受付を足してから、HTTP API・MCP・Web の経路をサービスへ接続する。
+LocalServer の機能ゲート・認証・能力別の受付を通して、HTTP API・MCP・Web の経路を共通サービスへ接続する。
 設定画面は希望値の更新を LocalConnections.configure に集め、状態の表示と停止完了の確認に StateFlow を使う。
 Web の業務通信と外部向け API の有効化は分け、同じ app-core の操作窓口を使う。
-SDK 内蔵の Origin 検査はホスト名の比較なので、機能を公開するときは scheme・port も照合する受付側の検査を追加する。
+SDK 内蔵の Origin 検査に加え、LocalAuthentication が scheme・port まで照合する。
 SDK の既定保護だけでブラウザの認証・CSRF 対策が完成したとは扱わない。

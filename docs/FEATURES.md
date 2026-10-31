@@ -286,6 +286,9 @@
 | LC-07 | 受信箱の外部提出・差分再確認・承認保存・却下と文書別の結果 | `ExternalWorkController.kt`・`ui/run/ExternalWorkPane.kt` | `ExternalWorkPaneTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-08 | API・MCP・Web の独立 ON/OFF・状態通知・世代失効・要求の取消と保存完了待ち（設定画面は未接続） | `server/LocalConnections.kt`・`server/transport/LocalConnectionGate.kt` | `LocalConnectionsTest`・`LocalConnectionGateTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-09 | 全 OFF 時の非待受・他機能を残した停止・最後の停止で接続終了とポート解放 | `server/transport/LoopbackEngine.kt`・`DesktopRuntime.kt` | `LocalListenerLifecycleTest`・`DesktopRuntimeTest` | [ローカル接続](architecture/local-connections.md) |
+| LC-10 | 接続者・ワークスペース別の閲覧・提案・業務操作の権限と共通サービスの再確認 | `service/ConnectionGrants.kt` | `ConnectionGrantsTest` | [ローカル接続](architecture/local-connections.md) |
+| LC-11 | 機能別の資格情報・期限・失効と要求・MCP セッションの接続者への結付け（設定画面は未接続） | `server/auth/LocalAccess.kt` | `LocalAccessTest`・`LocalProtocolAuthenticationTest` | [ローカル接続](architecture/local-connections.md) |
+| LC-12 | HTTP の Host/Origin・認証・CSRF・要求量の検査と能力別の受付 | `server/transport/LocalAuthentication.kt`・`server/LocalServer.kt` | `LocalAuthenticationTest`・`DesktopRuntimeTest` | [ローカル接続](architecture/local-connections.md) |
 
 ## 公開サンプル
 

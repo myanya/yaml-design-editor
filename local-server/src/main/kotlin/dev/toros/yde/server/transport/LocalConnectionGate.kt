@@ -4,6 +4,7 @@ import dev.toros.yde.server.LocalConnections
 import dev.toros.yde.server.LocalFeature
 import dev.toros.yde.server.LocalRequest
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.decodeURLPart
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCallPipeline
 import io.ktor.server.application.call
@@ -28,6 +29,11 @@ internal fun Application.localConnectionGate(connections: LocalConnections) {
 }
 
 internal fun featureForPath(path: String): LocalFeature? {
+    // ルーターと機能判定で異なる場所に解決される表記を受付前に拒否する。
+    if (!path.startsWith('/') || path.contains("//") || path.split('/').drop(1).any {
+        val part = runCatching { it.decodeURLPart() }.getOrNull()
+        part == null || part in setOf(".", "..") || part.any { char -> char in "/\\%" || char.code < 32 }
+    }) return null
     fun under(prefix: String) = path == prefix || path.startsWith("$prefix/")
     return when {
         under("/api/v1") -> LocalFeature.API

@@ -66,12 +66,17 @@ class LocalConnections internal constructor(
     }
 
     /** 同じ値の再指定は明示的な再試行にも使う。戻り値の版で処理完了を待てる。 */
-    fun configure(settings: LocalConnectionSettings): Long = synchronized(monitor) {
-        check(!closing && !terminated && worker.isActive) { "接続管理は終了しています" }
-        require(settings.port == desired.port || (snapshot().stopped && !desired.requiresListener)) {
-            "ポート番号は全機能の停止が完了してから変更してください"
+    fun configure(settings: LocalConnectionSettings): Long {
+        val requested = synchronized(monitor) {
+            check(!closing && !terminated && worker.isActive) { "接続管理は終了しています" }
+            require(settings.port == desired.port || (snapshot().stopped && !desired.requiresListener)) {
+                "ポート番号は全機能の停止が完了してから変更してください"
+            }
+            changeDesired(settings)
         }
-        changeDesired(settings)
+        cancelDisabledRequests()
+        signals.trySend(Unit)
+        return requested
     }
 
     private fun changeDesired(settings: LocalConnectionSettings): Long {
@@ -82,13 +87,17 @@ class LocalConnections internal constructor(
                 val old = features.getValue(feature)
                 features[feature] = old.copy(phase = ConnectionPhase.STOPPING, generation = UUID.randomUUID().toString(), error = null)
                 stops += feature
-                requests.getValue(feature).toList().forEach { it.job.cancel(CancellationException("接続機能が停止されました")) }
             }
         }
         desired = settings
         publish()
-        signals.trySend(Unit)
         return revision
+    }
+
+    private fun cancelDisabledRequests() {
+        // 完了コールバックは認証側の管理にも戻るため、接続のロックを持ったまま取消しない。
+        val jobs = synchronized(monitor) { stops.flatMap { requests.getValue(it).map { request -> request.job } } }
+        jobs.forEach { it.cancel(CancellationException("接続機能が停止されました")) }
     }
 
     suspend fun awaitSettled(atLeast: Long): LocalConnectionStatus = status.first { it.settledRevision >= atLeast }
@@ -100,6 +109,8 @@ class LocalConnections internal constructor(
             closing = true
             changeDesired(desired.copy(apiEnabled = false, mcpEnabled = false, webEnabled = false))
         }
+        cancelDisabledRequests()
+        signals.trySend(Unit)
         val final = awaitSettled(requested)
         check(final.stopped) { final.error ?: final.features.values.firstNotNullOfOrNull { it.error } ?: "接続を停止できませんでした" }
         signals.close()
@@ -244,6 +255,7 @@ class LocalConnections internal constructor(
             closing = true
             changeDesired(desired.copy(apiEnabled = false, mcpEnabled = false, webEnabled = false))
         }
+        cancelDisabledRequests()
         val pending = synchronized(monitor) { stops.toList() }
         pending.forEach { feature -> stopFeature(feature, synchronized(monitor) { requests.getValue(feature).map { it.job } }) }
         synchronized(monitor) { listener }?.let { close(it) }
@@ -259,8 +271,12 @@ class LocalConnections internal constructor(
 internal class LocalRequest(
     val feature: LocalFeature, val generation: String, val job: Job, private val connections: LocalConnections,
 ) {
+    private var authorization: (() -> Unit)? = null
+    internal fun authorizeWith(check: () -> Unit) { authorization = check }
+
     suspend fun <T> finishWrite(block: suspend () -> T): T {
         connections.checkRequest(this)
+        authorization?.invoke()
         return withContext(NonCancellable) { block() }
     }
 }

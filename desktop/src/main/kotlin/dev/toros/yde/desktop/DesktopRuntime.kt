@@ -7,7 +7,10 @@ import dev.toros.yde.app.service.SourceDraftWorker
 import dev.toros.yde.app.service.WorkspaceHost
 import dev.toros.yde.app.service.WorkspaceOperations
 import dev.toros.yde.app.service.WorkspaceWork
-import dev.toros.yde.server.LocalConnections
+import dev.toros.yde.app.service.ConnectionGrants
+import dev.toros.yde.server.LocalServer
+import dev.toros.yde.server.auth.AccessWorkspace
+import dev.toros.yde.workspace.changeset.ChangeSets
 import java.awt.EventQueue
 import java.nio.file.Path
 import kotlinx.coroutines.*
@@ -35,11 +38,19 @@ internal class DesktopRuntime(
         state.status = "バックグラウンド処理に失敗しました: ${failure.message}"
     })
     val state: AppState = AppState(host, scope)
-    /** 接続の認証・登録がつながるまでは、共通窓口の権限は既定で全て拒否する。 */
-    val operations = WorkspaceOperations(host)
-    val work = WorkspaceWork(host)
+    /** 登録がない既定状態は全拒否。共通窓口も現在の登録権限を保存直前まで再確認する。 */
+    private val grants = ConnectionGrants()
+    val operations = WorkspaceOperations(host, grants = grants::operationGrant)
+    val work = WorkspaceWork(host, grants = grants::workGrant)
+    @Volatile private var connectionWorkspace: Pair<Path, String>? = null
+    private val server = LocalServer(scope, grants) {
+        val status = host.status.value
+        connectionWorkspace?.takeIf { it.first == status.workspace && !status.closed }?.let { AccessWorkspace(it.second, status.epoch) }
+    }
+    val access = server.access
     /** 設定画面を接続するまでは全 OFF。Window の開閉では起動・終了しない。 */
-    val connections = LocalConnections(scope)
+    val connections = server.connections
+    private val connectionSubscription = host.observe { access.workspaceChanged() }
     private var jobs: WorkspaceJobs? = null
     private var stopping = false
 
@@ -55,10 +66,13 @@ internal class DesktopRuntime(
             host.exclusive("ワークスペースの切替") {
                 val root = path.toAbsolutePath().normalize()
                 // 候補の準備は現セッションを変えない。失敗したら旧ジョブもそのまま残す。
-                val candidate = withContext(Dispatchers.IO) { host.documents.prepareReload(root) }
+                val (candidate, workspaceId) = withContext(Dispatchers.IO) {
+                    host.documents.prepareReload(root) to ChangeSets.contentHash(root.toRealPath().toString())
+                }
                 val fresh = candidate.workspace.mirror.fork()
                 jobs?.stop()
                 host.activateWorkspace(root, candidate, fresh)
+                connectionWorkspace = root to workspaceId
                 state.afterWorkspaceOpened(root)
                 jobs = WorkspaceJobs(root)
             }
@@ -83,6 +97,7 @@ internal class DesktopRuntime(
         host.status.first { it.busy == null }
         host.exclusive("終了") { jobs?.stop(); jobs = null }
         state.workspaceOpener = null
+        connectionSubscription.close()
         state.close()
         host.close()
         lifetime.cancel()
