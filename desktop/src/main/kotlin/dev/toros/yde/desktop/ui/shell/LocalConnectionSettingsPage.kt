@@ -15,7 +15,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.toros.yde.app.service.ConnectionPermissions
+import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.desktop.connections.LocalConnectionController
+import dev.toros.yde.desktop.connections.ConnectionSettingsState
 import dev.toros.yde.desktop.lifecycle.PresenceStatus
 import dev.toros.yde.desktop.lifecycle.ResidentSettings
 import dev.toros.yde.desktop.ui.common.CompactTextField
@@ -23,7 +25,6 @@ import dev.toros.yde.desktop.ui.common.Palette
 import dev.toros.yde.server.*
 import dev.toros.yde.server.auth.ClientRegistration
 import dev.toros.yde.server.auth.IssuedCredential
-import dev.toros.yde.yaml.model.DocumentId
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.delay
@@ -110,20 +111,26 @@ internal fun LocalConnectionSettingsPage(
             Text("接続者と権限", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             Text(workspaceLabel?.let { "現在のワークスペース: $it" } ?: "接続者を登録するにはワークスペースを開いてください。", fontSize = 13.sp)
             Text("登録権限は保存します。トークンは発行時だけ表示し、再起動・機能 OFF・ワークスペース切替後には再発行が必要です。", fontSize = 12.sp, color = Palette.SubText)
-            OutlinedButton(enabled = usable && controller.workspaceId() != null && editor == null, onClick = { editor = ClientEditor() }) { Text("接続者を追加") }
+            OutlinedButton(enabled = usable && controller.workspaceId() != null && editor == null, onClick = {
+                editor = ClientEditor(initialFeature = LocalFeature.entries.singleOrNull { status.desired.enabled(it) } ?: LocalFeature.MCP)
+            }) { Text("接続者を追加") }
             model.registrations.forEach { registration ->
                 val client = registration.client
                 val current = client.caller.workspaceId == controller.workspaceId()
                 val expiry = tick.let { controller.access.credentialExpiry(client.id) }
+                val issueUnavailable = tokenIssueUnavailableReason(model, status, registration, controller.workspaceId())
                 Column(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     Text("${client.name} / ${client.feature.label()}${if (current) "" else "（別のワークスペース）"}", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     val p = registration.permissions
                     Text("閲覧 ${p.readable.size} 文書・提案 ${p.proposable.size} 文書・業務操作 ${p.actionable.size} 文書 / ${p.actions.size} 操作", fontSize = 12.sp)
                     Text(expiry?.let { "資格情報の期限: ${time(it)}" } ?: "有効な資格情報なし", fontSize = 12.sp, color = Palette.SubText)
-                    if (client.feature == LocalFeature.WEB) Text("Web のログインとセッション発行は、Web 画面の公開後に利用できます。", fontSize = 12.sp, color = Palette.SubText)
+                    issueUnavailable?.let { Text(it, fontSize = 12.sp, color = Palette.SubText) }
+                    if (client.feature == LocalFeature.MCP && !status.desired.mcpEnabled && status.desired.apiEnabled) {
+                        Text("この登録は MCP 用です。API を使う場合は、API を選んで接続者を追加してください。", fontSize = 12.sp, color = Palette.SubText)
+                    }
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         TextButton(enabled = usable && current && editor == null, onClick = { editor = ClientEditor(registration) }) { Text("権限を編集") }
-                        TextButton(enabled = usable && current && client.feature != LocalFeature.WEB && status.features.getValue(client.feature).phase == ConnectionPhase.RUNNING,
+                        TextButton(enabled = issueUnavailable == null,
                             onClick = {
                                 val issue: suspend () -> Unit = { controller.issue(client.id)?.let { issuedTo = client.id; issued = it }; Unit }
                                 if (expiry == null) scope.launch { issue() }
@@ -169,10 +176,33 @@ private fun ConnectionPhase.label() = when (this) {
 }
 private fun time(value: java.time.Instant) = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault()).format(value)
 
-private class ClientEditor(registration: ClientRegistration? = null) {
+/** ボタンの可否と説明を同じ条件から求め、OFF の指定も直ちに反映する。実際の発行条件は LocalAccess が再確認する。 */
+internal fun tokenIssueUnavailableReason(
+    model: ConnectionSettingsState, status: LocalConnectionStatus, registration: ClientRegistration, workspaceId: String?,
+): String? {
+    val feature = registration.client.feature
+    return when {
+        !model.ready -> "接続設定の読込が完了するまで、トークンを発行できません。"
+        model.blocked -> "接続設定を読み込めないため発行できません。上のエラーを確認し、「設定を再読込」を押してください。"
+        model.busy -> "接続設定を処理しています。完了するまで、トークンを発行できません。"
+        workspaceId == null -> "トークンを発行するには、接続者を登録したワークスペースを開いてください。"
+        registration.client.caller.workspaceId != workspaceId -> "別のワークスペースの登録です。登録したワークスペースを開いてから発行してください。"
+        feature == LocalFeature.WEB -> "Web のログインとセッション発行は、Web 画面の公開後に利用できます。"
+        !status.desired.enabled(feature) -> "${feature.label()} が OFF のため発行できません。上の ${feature.label()} を ON にして、稼働中になるまで待ってください。"
+        else -> when (status.features.getValue(feature).phase) {
+            ConnectionPhase.STARTING -> "${feature.label()} を起動しています。稼働中になるとトークンを発行できます。"
+            ConnectionPhase.STOPPING -> "${feature.label()} の停止処理が終わるまで、トークンを発行できません。"
+            ConnectionPhase.ERROR -> "${feature.label()} の起動・停止に失敗しています。上のエラーを確認し、「設定保存と接続を再試行」を押してください。"
+            ConnectionPhase.STOPPED -> "${feature.label()} が停止しています。「設定保存と接続を再試行」を押して、稼働中になるまで待ってください。"
+            ConnectionPhase.RUNNING -> null
+        }
+    }
+}
+
+private class ClientEditor(registration: ClientRegistration? = null, initialFeature: LocalFeature = LocalFeature.MCP) {
     val id = registration?.client?.id
     var name by mutableStateOf(registration?.client?.name.orEmpty())
-    var feature by mutableStateOf(registration?.client?.feature ?: LocalFeature.MCP)
+    var feature by mutableStateOf(registration?.client?.feature ?: initialFeature)
     var readable by mutableStateOf(registration?.permissions?.readable?.joinToString("\n") { it.value }.orEmpty())
     var proposable by mutableStateOf(registration?.permissions?.proposable?.joinToString("\n") { it.value }.orEmpty())
     var actionable by mutableStateOf(registration?.permissions?.actionable?.joinToString("\n") { it.value }.orEmpty())
@@ -190,6 +220,7 @@ private fun ClientPermissionEditor(draft: ClientEditor, enabled: Boolean, onCanc
         Text(if (draft.id == null) "接続者の追加" else "${draft.name} の権限", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
         if (draft.id == null) {
             CompactTextField(draft.name, { draft.name = it }, Modifier.fillMaxWidth().semantics { contentDescription = "接続名" }, singleLine = true, placeholder = { Text("接続名") }, readOnly = !enabled)
+            Text("利用する機能（API の呼び出しには API を選択）", fontSize = 13.sp)
             Row(verticalAlignment = Alignment.CenterVertically) { LocalFeature.entries.forEach { feature ->
                 RadioButton(selected = draft.feature == feature, enabled = enabled, onClick = { draft.feature = feature }, modifier = Modifier.semantics { contentDescription = "登録する機能 ${feature.label()}" })
                 Text(feature.label(), fontSize = 13.sp)

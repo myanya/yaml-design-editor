@@ -10,6 +10,54 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class LocalConnectionSettingsPageTest {
+    @Test fun `APIだけが有効ならMCP登録に発行できない理由を示し追加ではAPIを選ぶ`() = runComposeUiTest {
+        val f = ConnectionSettingsFixture()
+        try {
+            runBlocking {
+                f.controller.initialize(); f.controller.setPort(f.port().toString())
+                f.controller.setEnabled(LocalFeature.API, true); f.settle()
+                assertNotNull(f.controller.register(LocalFeature.MCP, "外部エージェント", ConnectionPermissions(readable = setOf(DocumentId("a.yaml")))))
+            }
+            setContent { LocalConnectionSettingsPage(f.controller, "試験ワークスペース") {} }
+            onNodeWithText("トークンを発行").performScrollTo().assertIsNotEnabled()
+            onNodeWithText("この登録は MCP 用です。API を使う場合は、API を選んで接続者を追加してください。").assertExists()
+            onNodeWithText("接続者を追加").performScrollTo().performClick()
+            onNodeWithContentDescription("登録する機能 API").performScrollTo().assertIsSelected()
+            onNodeWithContentDescription("接続名").performScrollTo().performTextInput("自作ツール")
+            onNodeWithContentDescription("閲覧する文書").performScrollTo().performTextInput("a.yaml")
+            onNodeWithText("登録権限を保存").performScrollTo().performClick()
+            waitUntil(timeoutMillis = 10_000) { f.controller.state.value.registrations.size == 2 && !f.controller.state.value.busy }
+            val client = f.server.access.clients().single { it.name == "自作ツール" }
+            assertEquals(LocalFeature.API, client.feature)
+            onAllNodesWithText("トークンを発行")[1].performScrollTo().assertIsEnabled().performClick()
+            waitUntil(timeoutMillis = 10_000) { f.server.access.credentialExpiry(client.id) != null && !f.controller.state.value.busy }
+            onNodeWithText("トークンをコピー").assertExists()
+            assertEquals(ConnectionPhase.STOPPED, f.server.connections.status.value.features.getValue(LocalFeature.MCP).phase)
+        } finally { runBlocking { f.close() } }
+    }
+
+    @Test fun `API停止中の理由は画面を開いたまま起動すると消えて発行可能になる`() = runComposeUiTest {
+        val f = ConnectionSettingsFixture()
+        try {
+            runBlocking {
+                f.controller.initialize(); f.controller.setPort(f.port().toString())
+                assertNotNull(f.controller.register(LocalFeature.API, "自作ツール", ConnectionPermissions(readable = setOf(DocumentId("a.yaml")))))
+            }
+            setContent { LocalConnectionSettingsPage(f.controller, "試験ワークスペース") {} }
+            val reason = "API が OFF のため発行できません。上の API を ON にして、稼働中になるまで待ってください。"
+            onNodeWithText(reason).assertExists()
+            onNodeWithText("トークンを発行").performScrollTo().assertIsNotEnabled()
+            onNodeWithContentDescription("API を有効にする").performScrollTo().performClick()
+            waitUntil(timeoutMillis = 10_000) { f.server.connections.status.value.features.getValue(LocalFeature.API).phase == ConnectionPhase.RUNNING && !f.controller.state.value.busy }
+            onNodeWithText(reason).assertDoesNotExist()
+            onNodeWithText("トークンを発行").performScrollTo().assertIsEnabled()
+            onNodeWithContentDescription("API を有効にする").performScrollTo().performClick()
+            waitUntil(timeoutMillis = 10_000) { f.server.connections.status.value.stopped && !f.controller.state.value.busy }
+            onNodeWithText(reason).assertExists()
+            onNodeWithText("トークンを発行").performScrollTo().assertIsNotEnabled()
+        } finally { runBlocking { f.close() } }
+    }
+
     @Test fun `読込エラーの修復後に再読込すると常駐を操作できる`() = runComposeUiTest {
         val f = ConnectionSettingsFixture()
         try {
