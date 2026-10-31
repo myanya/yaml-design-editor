@@ -284,6 +284,8 @@
 | LC-05 | 外部要求の永続記録・再送抑止・部分保存と結果不明の照合 | `service/OperationJournal.kt` | `WorkspaceOperationsTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-06 | 外部作業の編集・検証・提出・破棄と再起動後の結果復元（通信は未接続） | `service/WorkspaceWork.kt`・`service/WorkJournal.kt` | `WorkspaceWorkTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-07 | 受信箱の外部提出・差分再確認・承認保存・却下と文書別の結果 | `ExternalWorkController.kt`・`ui/run/ExternalWorkPane.kt` | `ExternalWorkPaneTest` | [ローカル接続](architecture/local-connections.md) |
+| LC-08 | API・MCP・Web の独立 ON/OFF・状態通知・世代失効・要求の取消と保存完了待ち（設定画面は未接続） | `server/LocalConnections.kt`・`server/transport/LocalConnectionGate.kt` | `LocalConnectionsTest`・`LocalConnectionGateTest` | [ローカル接続](architecture/local-connections.md) |
+| LC-09 | 全 OFF 時の非待受・他機能を残した停止・最後の停止で接続終了とポート解放 | `server/transport/LoopbackEngine.kt`・`DesktopRuntime.kt` | `LocalListenerLifecycleTest`・`DesktopRuntimeTest` | [ローカル接続](architecture/local-connections.md) |
 
 ## 公開サンプル
 

@@ -10,4 +10,10 @@ data class LocalConnectionSettings(
     init { require(port in 1..65535) { "ポート番号は 1〜65535 で指定してください" } }
 
     val requiresListener: Boolean get() = apiEnabled || mcpEnabled || webEnabled
+
+    fun enabled(feature: LocalFeature): Boolean = when (feature) {
+        LocalFeature.API -> apiEnabled
+        LocalFeature.MCP -> mcpEnabled
+        LocalFeature.WEB -> webEnabled
+    }
 }

@@ -7,6 +7,7 @@ import dev.toros.yde.app.service.SourceDraftWorker
 import dev.toros.yde.app.service.WorkspaceHost
 import dev.toros.yde.app.service.WorkspaceOperations
 import dev.toros.yde.app.service.WorkspaceWork
+import dev.toros.yde.server.LocalConnections
 import java.awt.EventQueue
 import java.nio.file.Path
 import kotlinx.coroutines.*
@@ -37,6 +38,8 @@ internal class DesktopRuntime(
     /** 接続の認証・登録がつながるまでは、共通窓口の権限は既定で全て拒否する。 */
     val operations = WorkspaceOperations(host)
     val work = WorkspaceWork(host)
+    /** 設定画面を接続するまでは全 OFF。Window の開閉では起動・終了しない。 */
+    val connections = LocalConnections(scope)
     private var jobs: WorkspaceJobs? = null
     private var stopping = false
 
@@ -71,6 +74,12 @@ internal class DesktopRuntime(
     suspend fun shutdown() = withContext(host.owner) {
         if (stopping) return@withContext
         stopping = true
+        try { connections.shutdown() }
+        catch (failure: Exception) {
+            stopping = false
+            state.status = "接続を停止できないため終了を中断しました: ${failure.message}"
+            throw failure
+        }
         host.status.first { it.busy == null }
         host.exclusive("終了") { jobs?.stop(); jobs = null }
         state.workspaceOpener = null

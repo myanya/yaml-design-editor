@@ -19,7 +19,7 @@
 | [CONVENTIONS.md](CONVENTIONS.md) | 開発規約。スタイル・Compose・テスト・文書・UX フィードバック・モジュール・計算体系 | 実装中 | 規約を変えるとき |
 | [ROADMAP.md](ROADMAP.md) | ビジョンと未完のテーマ。全テーマの状態表 | テーマの目的と残りを確かめるとき | 方向性の変更、テーマの着手・完了。完了したら本文を archive へ |
 | [BACKLOG.md](BACKLOG.md) | 未解決の指摘台帳とテーマ | 気になりポイントを登録・確認するとき | 気づいたとき即時。解決したら行を archive へ |
-| [UX-SCENARIOS.md](UX-SCENARIOS.md) | UX 試験の台本 | 試験の前 | 操作手順が変わったとき |
+| [UX-SCENARIOS.md](UX-SCENARIOS.md) | オーナーが操作して使用感を確かめるシナリオ | 使用感を確認するとき | 再利用する利用場面を追加するとき、既存シナリオの操作が変わったとき |
 | [CORE-CALCULUS.md](CORE-CALCULUS.md) | YAML に対する計算体系の設計方針 | 決定論的機能を足す前 | 体系の原則を変えるとき。ADR とセット |
 | [DESIGN-CHECK-CATALOG.md](DESIGN-CHECK-CATALOG.md) | 設計チェックのパターン台帳 | 検査を足す前 | 検証機構の追加・変更 |
 | [decisions/](decisions/README.md) | ADR（設計決定） | 設計の決定を確かめるとき | 決定の追加。既存は書き換えず新しい ADR で上書き |
@@ -28,7 +28,8 @@
 Codex 用の [release の入口](../.agents/skills/release/SKILL.md)は、`.claude/skills/release/SKILL.md` の共通手順を読む。
 
 共通の UI 操作規則は [architecture/ui-interactions.md](architecture/ui-interactions.md) に集約し、適用範囲と例外も管理する。
-操作の意味はこの設計文書、実装への接続は `architecture/ui.md`、利用者への案内は manual、再現・確認手順は UX-SCENARIOS が持つ。
+操作の意味はこの設計文書、実装への接続は `architecture/ui.md`、利用者への案内は manual、使用感を確認するシナリオは UX-SCENARIOS が持つ。
+個別の動作確認依頼はチャット、開発段階の検証結果は実装記録に置く。
 未解決の指摘は BACKLOG、実施計画が必要なテーマは ROADMAP、アーキテクチャ上の決定の変更は ADR で扱い、完了した細かな調整を未完台帳に残さない。
 
 ## 記録

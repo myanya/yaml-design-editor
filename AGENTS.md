@@ -39,7 +39,7 @@ scripts/docs-lint.sh                        # 文書の形の機械チェック
 1. **着手前**: FEATURES で対象機能の実装ファイルとテストを引き、architecture/ の該当する主題（部品・流れ・規律・拡張ポイント）を読む。
 2. **実装中**: CONVENTIONS に従う。UI 文言・コメント・エラーメッセージは日本語。純粋ロジック層に Compose を持ち込まない。ツリー変更には `markEdited()`。
 3. **完了前**: `./gradlew test` を通し、docs/README.md の表に従って文書を更新し、完了したものは archive へ移す。skill `sync-docs`（[.claude/skills/sync-docs/SKILL.md](.claude/skills/sync-docs/SKILL.md)）と `scripts/docs-lint.sh` で確かめる。
-4. **完了報告**: 機能を追加・変更したら**試し方**（操作手順＋見てほしい観点）を必ず含める。本題と異なる気になりポイントは直しに行かず [docs/BACKLOG.md](docs/BACKLOG.md) へ即時登録する。
+4. **完了報告**: 利用者が操作できる機能を追加・変更したら、チャットに**試し方**（操作手順＋見てほしい観点）を含める。内部基盤だけの段階は検証結果と未公開の範囲を報告する。UX シナリオへの記載は [CONVENTIONS「UXフィードバック運用」](docs/CONVENTIONS.md) に従う。本題と異なる気になりポイントは直しに行かず [docs/BACKLOG.md](docs/BACKLOG.md) へ即時登録する。
 
 ## 規約の要点
 

@@ -11,7 +11,7 @@ class DesktopRuntimeTest {
     private val root = Files.createTempDirectory("desktop-runtime")
     @AfterTest fun cleanup() { root.toFile().deleteRecursively() }
 
-    @Test fun `Windowなしでも下書きと履歴と実行状態を持ち失敗した切替で失わない`() = runBlocking {
+    @Test fun `Windowなしでも下書きと履歴と実行状態を持ち失敗した切替で失わない`(): Unit = runBlocking {
         val file = root.resolve("a.yaml")
         Files.writeString(file, "name: A\n")
         val opened = CompletableDeferred<Unit>()
@@ -33,6 +33,8 @@ class DesktopRuntimeTest {
                 val controller = assertNotNull(state.runController)
                 val automation = assertNotNull(state.automation)
                 assertFalse(automation.enabled)
+                val connections = runtime.connections
+                assertTrue(connections.status.value.stopped, "画面とワークスペースを開くだけでは待受しない")
                 doc.editSource { replace(0, length, "name: edited\n") }
                 assertTrue(state.hasDirtyDocs(), "解析前の入力も終了確認の対象")
                 withTimeout(5_000) { runtime.host.status.first { !doc.hasPendingSourceInput && doc.dirty } }
@@ -44,6 +46,8 @@ class DesktopRuntimeTest {
                 assertSame(doc, state.openDoc)
                 assertSame(controller, state.runController)
                 assertSame(automation, state.automation)
+                assertSame(connections, runtime.connections)
+                assertTrue(connections.status.value.stopped)
                 assertEquals(0, closed.get())
                 doc.editSource { replace(0, length, "name: [") }
                 withTimeout(5_000) { runtime.host.status.first { doc.draftBroken } }
@@ -54,6 +58,8 @@ class DesktopRuntimeTest {
             } finally { runtime.shutdown() }
             assertEquals(1, closed.get())
             assertTrue(runtime.host.status.value.closed)
+            assertTrue(runtime.connections.status.value.stopped)
+            assertFailsWith<IllegalStateException> { runtime.connections.configure(dev.toros.yde.server.LocalConnectionSettings(apiEnabled = true)) }
         }
     }
 

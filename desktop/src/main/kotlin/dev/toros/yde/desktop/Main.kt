@@ -15,6 +15,7 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import dev.toros.yde.desktop.ui.common.AppTheme
 import dev.toros.yde.desktop.ui.common.HistoryShortcut
@@ -35,7 +36,12 @@ fun main(args: Array<String>) = application {
     val quit: () -> Unit = {
         if (!exiting) {
             exiting = true
-            appScope.launch { runtime.shutdown(); exitApplication() }
+            appScope.launch {
+                try { runtime.shutdown(); exitApplication() }
+                catch (cancelled: CancellationException) { throw cancelled }
+                catch (failure: Exception) { state.status = "終了できませんでした: ${failure.message}" }
+                finally { exiting = false }
+            }
         }
     }
     DisposableEffect(runtime) { onDispose { runtime.cancel() } }
