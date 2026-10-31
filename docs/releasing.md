@@ -4,6 +4,17 @@
 利用者は ZIP を展開して exe を起動し、更新時は新版を別フォルダへ展開する。
 MSI・署名・自動更新・他 OS の配布はこの手順の対象外。
 
+エージェントでの版の更新・差分整理・検証・公開は [release スキル](../.claude/skills/release/SKILL.md)を使う。
+「公開準備」ではローカルの成果物と確認結果までを作り、タグの push と Release の公開は公開の依頼時に行う。
+
+## 版と公開本文
+
+`gradle.properties` の `appVersion`、README の版の案内、`docs/archive/changelog.md` を更新する。
+`distribution/windows/release-notes.md` は今回の版の公開本文のひな形で、変更要約と比較元もリリースごとに更新する。
+版・ファイル名・コミットなどの `@…@` は `windowsRelease` が置換するため、そのまま残す。
+比較元は最後に公開した Release を確認して選ぶ。ローカルの途中のタグを公開済みとみなさない。
+公開区分（プレリリースか通常公開か）も過去の Release と依頼内容を確認する。
+
 ## 作成
 
 リポジトリのルートで、Windows x64 の JDK を使って実行する。

@@ -10,7 +10,7 @@
 | [README.md](../README.md) | 公開の入口。概要・クイックスタート・文書一覧 | 初見 | 概要やクイックスタートが変わったとき |
 | [AGENTS.md](../AGENTS.md) | AI エージェント向けの作業ガイド（どのエージェントも同じ 1 枚。CLAUDE.md は取り込むだけ）。コマンド・ワークフロー・規約の要点・落とし穴 | 毎セッション自動 | 落とし穴が増減したとき。説明は設計文書へ書く |
 | モジュールの AGENTS.md（[desktop](../desktop/AGENTS.md)・[semantic-core](../semantic-core/AGENTS.md)） | そのモジュールの中でだけ起きる落とし穴。隣の CLAUDE.md は取り込むだけ | そのモジュールのファイルを書く・直すとき（Claude Code は自動） | そのモジュールだけの落とし穴が増減したとき |
-| [.claude/skills/](../.claude/skills/) | エージェントの作業手順（skill）。文書の同期 `sync-docs`・画面の確認 `ui-check` | その作業をするとき（Claude Code では skill として呼ぶ。ほかのエージェントは SKILL.md を読む） | 手順や道具（Gradle のタスク・MCP）の癖が変わったとき |
+| [.claude/skills/](../.claude/skills/) | エージェントの作業手順（skill）。文書の同期 `sync-docs`・画面の確認 `ui-check`・配布の準備と公開 `release` | その作業をするとき（Claude Code では skill として呼ぶ。ほかのエージェントは SKILL.md を読む） | 手順や道具（Gradle のタスク・MCP）の癖が変わったとき |
 | [manual/](manual/README.md) | 利用者マニュアル。主題ごとに 1 ファイル（画面・スキーマ定義・検証・ファイル・ビュー・ID・AI・CLI・既知の制約） | 利用者に見える仕様を確かめるとき | 利用者に見える仕様・操作・UI が変わったとき |
 | [tutorial.md](tutorial.md) | 利用者向けの手引き。タスク管理を題材に、文書の作成とスキーマ設計を順に説明する | 初めて使うとき | 操作手順やスキーマの書き方が変わったとき |
 | [FEATURES.md](FEATURES.md) | 機能索引。機能から実装ファイルとテストを引く | 着手前に対象機能の場所を引くとき | 機能の追加・削除・テストの追加 |
@@ -25,6 +25,7 @@
 | [decisions/](decisions/README.md) | ADR（設計決定） | 設計の決定を確かめるとき | 決定の追加。既存は書き換えず新しい ADR で上書き |
 
 配布担当者向けの [releasing.md](releasing.md) は、Windows ZIP の作成・検査・公開手順を管理する。配布工程を変更したときに更新する。
+Codex 用の [release の入口](../.agents/skills/release/SKILL.md)は、`.claude/skills/release/SKILL.md` の共通手順を読む。
 
 共通の UI 操作規則は [architecture/ui-interactions.md](architecture/ui-interactions.md) に集約し、適用範囲と例外も管理する。
 操作の意味はこの設計文書、実装への接続は `architecture/ui.md`、利用者への案内は manual、再現・確認手順は UX-SCENARIOS が持つ。
