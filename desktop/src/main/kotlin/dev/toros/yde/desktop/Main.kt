@@ -13,9 +13,9 @@ import dev.toros.yde.desktop.ext.DesktopExtensions
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
-import java.nio.file.Files
-import java.nio.file.Path
+import dev.toros.yde.desktop.lifecycle.*
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import dev.toros.yde.desktop.ui.common.AppTheme
 import dev.toros.yde.desktop.ui.common.HistoryShortcut
@@ -27,111 +27,164 @@ import dev.toros.yde.desktop.ui.shell.InitWizardHost
 import dev.toros.yde.desktop.ui.shell.ReloadConfirmationDialog
 import dev.toros.yde.desktop.ui.shell.StartScreen
 import dev.toros.yde.desktop.ui.shell.LocalConnectionSettingsPage
+import dev.toros.yde.desktop.ui.shell.AwtDesktopTray
+import dev.toros.yde.desktop.ui.shell.ResidentNotice
 
 fun main(args: Array<String>) = application {
     Extensions.install(DesktopExtensions.registry)  // 拡張（Excel・Word の形式）の登録は入口の一覧 1 ファイル（app-core に POI を入れない。組込みは最初から入っている）
     val runtime = remember { DesktopRuntime() }
     val state = runtime.state
     val appScope = rememberCoroutineScope()
-    var exiting by remember { mutableStateOf(false) }
-    val quit: () -> Unit = {
-        if (!exiting) {
-            exiting = true
-            appScope.launch {
-                try { runtime.shutdown(); exitApplication() }
-                catch (cancelled: CancellationException) { throw cancelled }
-                catch (failure: Exception) { state.status = "終了できませんでした: ${failure.message}" }
-                finally { exiting = false }
+    val launch = remember { runCatching { DesktopLaunch.parse(args) } }
+    val trayCommands = remember { Channel<TrayCommand>(Channel.UNLIMITED) }
+    val presence = remember { DesktopPresence(AwtDesktopTray::open) { trayCommands.trySend(it) } }
+    val display by presence.status.collectAsState()
+    val settings by runtime.connectionSettings.state.collectAsState()
+    var appliedResident by remember { mutableStateOf<ResidentSettings?>(null) }
+    val stop: () -> Unit = {
+        appScope.launch {
+            try { runtime.shutdown(); presence.close(); exitApplication() }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (failure: Exception) {
+                val message = "終了できませんでした: ${failure.message}"
+                state.status = message
+                presence.exitFailed(message)
             }
         }
     }
-    DisposableEffect(runtime) { onDispose { runtime.cancel() } }
-    var confirmExit by remember { mutableStateOf(false) }
+    val quit: () -> Unit = { if (presence.requestExit(state.hasDirtyDocs())) stop() }
+    DisposableEffect(runtime) { onDispose { presence.close(); trayCommands.close(); runtime.cancel() } }
     var darkMode by remember { mutableStateOf(uiPreferences.getBoolean("darkMode", false)) }
     var commandOpen by remember { mutableStateOf(false) }
     var settingsOpen by remember { mutableStateOf(false) }
 
-    LaunchedEffect(runtime) { runtime.connectionSettings.initialize() }
-
-    LaunchedEffect(Unit) {
+    LaunchedEffect(runtime) {
+        runtime.connectionSettings.initialize()
         state.readOnlyMode = uiPreferences.getBoolean("readOnly", false)
-        // 起動引数でワークスペース指定可。未指定ならスタート画面（履歴からの選択。R10-05）を表示する。
-        args.firstOrNull()?.let { Path.of(it) }?.takeIf(Files::isDirectory)?.let { state.openWorkspace(it) }
+        var failure = launch.exceptionOrNull()?.message
+        val options = launch.getOrDefault(DesktopLaunch())
+        options.workspace?.let { if (!runtime.openWorkspace(it)) failure = state.status }
+        val resident = runtime.connectionSettings.state.value.resident
+        appliedResident = resident
+        val blocked = runtime.connectionSettings.state.value.blocked
+        if (blocked) settingsOpen = true
+        presence.start(resident, if (blocked) StartupVisibility.SHOW else options.visibility, failure)
+    }
+    LaunchedEffect(settings.resident, display.ready) {
+        if (display.ready && appliedResident != settings.resident) {
+            appliedResident = settings.resident
+            presence.configure(settings.resident)
+        }
+    }
+    LaunchedEffect(runtime) {
+        snapshotFlow { (state.workspace != null) to state.pendingInboxCount() }
+            .collect { (opened, count) -> presence.updateInbox(opened, count) }
+    }
+    LaunchedEffect(trayCommands) {
+        for (command in trayCommands) {
+            if (presence.status.value.exiting && command != TrayCommand.SHOW) continue
+            when (command) {
+                TrayCommand.SHOW -> presence.show()
+                TrayCommand.HIDE -> presence.hide()
+                TrayCommand.INBOX -> {
+                    settingsOpen = false
+                    if (state.workspace != null) state.openInbox()
+                    presence.show()
+                }
+                TrayCommand.SETTINGS -> { settingsOpen = true; presence.show() }
+                TrayCommand.EXIT -> quit()
+            }
+        }
     }
 
-    Window(
+    val windowState = rememberWindowState(width = 1440.dp, height = 920.dp)
+    if (display.windowCreated) Window(
         onCloseRequest = {
-            if (!state.fileOperationBusy && !exiting) {
-                if (state.hasDirtyDocs()) confirmExit = true else quit()
+            if (!display.exiting && !display.confirmExit) {
+                if (display.trayActive) presence.hide() else quit()
             }
         },
         title = (state.workspace?.toAbsolutePath()?.normalize()?.let { "$it — " } ?: "") +
             "YAML Design Editor" + if (state.hasDirtyDocs()) " ●" else "",
-        state = rememberWindowState(width = 1440.dp, height = 920.dp),
+        state = windowState,
+        visible = display.visible,
         // ショートカットはウィンドウで受ける（UX-120）: 焦点のある部品が消費しなかったキーが、画面のどこにも焦点が無い
         // とき（ジャンプの直後など）でも届く。画面の部品の Modifier.onKeyEvent は、焦点のある子がいるときにしか呼ばれない
         onKeyEvent = { event -> !settingsOpen && state.workspace != null && handleShortcut(event, state) { commandOpen = true } },
     ) {
+        LaunchedEffect(display.reveal, display.visible) {
+            if (display.visible) { windowState.isMinimized = false; window.toFront(); window.requestFocus() }
+        }
         AppTheme(darkMode) {
             // ネイティブのファイル・フォルダ選択（ui/common/FilePickers.kt）の親ウィンドウを提供する
             CompositionLocalProvider(LocalDialogParentWindow provides window) {
                 Surface(Modifier.fillMaxSize(), color = Palette.EditorBg) {
-                    if (settingsOpen) {
-                        val workspaceStatus by runtime.host.status.collectAsState()
-                        LocalConnectionSettingsPage(runtime.connectionSettings, workspaceStatus.workspace?.toString()) { settingsOpen = false }
-                    } else if (state.workspace == null) {
-                        StartScreen(state, openSettings = { settingsOpen = true })
-                    } else AppRoot(state, darkMode, commandOpen, { commandOpen = it }, openSettings = { settingsOpen = true }) {
-                        darkMode = !darkMode
-                        uiPreferences.putBoolean("darkMode", darkMode)
+                    Column(Modifier.fillMaxSize()) {
+                        display.error?.let { ResidentNotice(it, presence::dismissError) }
+                        Box(Modifier.weight(1f).fillMaxWidth()) {
+                            if (settingsOpen) {
+                                val workspaceStatus by runtime.host.status.collectAsState()
+                                LocalConnectionSettingsPage(runtime.connectionSettings, workspaceStatus.workspace?.toString(),
+                                    presence = display, onHide = { presence.hide() },
+                                    onResidentChanged = { appliedResident = it; presence.configure(it) }) { settingsOpen = false }
+                            } else if (state.workspace == null) {
+                                StartScreen(state, openSettings = { settingsOpen = true })
+                            } else AppRoot(state, darkMode, commandOpen, { commandOpen = it }, openSettings = { settingsOpen = true }) {
+                                darkMode = !darkMode
+                                uiPreferences.putBoolean("darkMode", darkMode)
+                            }
+                        }
                     }
                 }
             }
-            // 初期化ウィザード（新しいワークスペースを作る）はスタート画面からも、開いている画面からも浮く
-            InitWizardHost(state)
-            if (confirmExit) AlertDialog(
-                onDismissRequest = { confirmExit = false },
-                title = { Text("未保存の変更があります") },
-                text = { Text("変更を保存せずに終了しますか？") },
-                confirmButton = { TextButton(onClick = quit) { Text("保存せず終了", color = Palette.ErrorRed) } },
-                dismissButton = { TextButton(onClick = { confirmExit = false }) { Text("キャンセル") } },
-            )
-            ReloadConfirmationDialog(state)
-            if (state.fileOperationBusy || exiting) AlertDialog(
-                onDismissRequest = {},
-                title = { Text(if (exiting) "終了しています" else "処理しています") },
-                text = { Text(runtime.host.status.value.busy ?: "処理の完了を待っています") },
-                confirmButton = {},
-            )
-            // 解析できない書きかけを捨てて Undo/Redo するかの確認（P43 R43-02）
-            state.pendingHistory?.let { pending ->
-                AlertDialog(
-                    onDismissRequest = { state.pendingHistory = null },
-                    title = { Text("ソースに解析できない書きかけがあります") },
-                    text = {
-                        Text(
-                            pending.docs.joinToString("・") { state.relPath(it.file) } +
-                                " の書きかけを捨てて、" + (if (pending.undo) "元に戻し" else "やり直し") + "ますか？"
-                        )
-                    },
-                    confirmButton = { TextButton(onClick = state::confirmPendingHistory) { Text("書きかけを捨てて進める", color = Palette.ErrorRed) } },
-                    dismissButton = { TextButton(onClick = { state.pendingHistory = null }) { Text("キャンセル") } },
+            // 非表示中に処理中・確認の別ウィンドウだけを出さない。確認の状態は保持する。
+            if (display.visible) {
+                // 初期化ウィザード（新しいワークスペースを作る）はスタート画面からも、開いている画面からも浮く
+                InitWizardHost(state)
+                if (display.confirmExit) AlertDialog(
+                    onDismissRequest = presence::cancelExit,
+                    title = { Text("未保存の変更があります") },
+                    text = { Text("変更を保存せずに終了しますか？") },
+                    confirmButton = { TextButton(onClick = { if (presence.requestExit(false)) stop() }) { Text("保存せず終了", color = Palette.ErrorRed) } },
+                    dismissButton = { TextButton(onClick = presence::cancelExit) { Text("キャンセル") } },
                 )
-            }
-            // スキーマ文書を壊れたまま保存するかの確認（P43 R43-04。波及が大きい文書だけ止める）
-            state.pendingTextSave?.let { doc ->
-                AlertDialog(
-                    onDismissRequest = { state.pendingTextSave = null },
-                    title = { Text("スキーマ文書を壊れたまま保存しますか") },
-                    text = {
-                        Text(
-                            "${state.relPath(doc.file)} は解析できない状態です。このまま保存すると、直して保存するまで、" +
-                                "このスキーマを使う全文書の検証と索引が止まります。"
-                        )
-                    },
-                    confirmButton = { TextButton(onClick = state::confirmTextSave) { Text("壊れたまま保存", color = Palette.ErrorRed) } },
-                    dismissButton = { TextButton(onClick = { state.pendingTextSave = null }) { Text("キャンセル") } },
+                ReloadConfirmationDialog(state)
+                if (state.fileOperationBusy || display.exiting) AlertDialog(
+                    onDismissRequest = {},
+                    title = { Text(if (display.exiting) "終了しています" else "処理しています") },
+                    text = { Text(runtime.host.status.value.busy ?: "処理の完了を待っています") },
+                    confirmButton = {},
                 )
+                // 解析できない書きかけを捨てて Undo/Redo するかの確認（P43 R43-02）
+                state.pendingHistory?.let { pending ->
+                    AlertDialog(
+                        onDismissRequest = { state.pendingHistory = null },
+                        title = { Text("ソースに解析できない書きかけがあります") },
+                        text = {
+                            Text(
+                                pending.docs.joinToString("・") { state.relPath(it.file) } +
+                                    " の書きかけを捨てて、" + (if (pending.undo) "元に戻し" else "やり直し") + "ますか？"
+                            )
+                        },
+                        confirmButton = { TextButton(onClick = state::confirmPendingHistory) { Text("書きかけを捨てて進める", color = Palette.ErrorRed) } },
+                        dismissButton = { TextButton(onClick = { state.pendingHistory = null }) { Text("キャンセル") } },
+                    )
+                }
+                // スキーマ文書を壊れたまま保存するかの確認（P43 R43-04。波及が大きい文書だけ止める）
+                state.pendingTextSave?.let { doc ->
+                    AlertDialog(
+                        onDismissRequest = { state.pendingTextSave = null },
+                        title = { Text("スキーマ文書を壊れたまま保存しますか") },
+                        text = {
+                            Text(
+                                "${state.relPath(doc.file)} は解析できない状態です。このまま保存すると、直して保存するまで、" +
+                                    "このスキーマを使う全文書の検証と索引が止まります。"
+                            )
+                        },
+                        confirmButton = { TextButton(onClick = state::confirmTextSave) { Text("壊れたまま保存", color = Palette.ErrorRed) } },
+                        dismissButton = { TextButton(onClick = { state.pendingTextSave = null }) { Text("キャンセル") } },
+                    )
+                }
             }
         }
     }

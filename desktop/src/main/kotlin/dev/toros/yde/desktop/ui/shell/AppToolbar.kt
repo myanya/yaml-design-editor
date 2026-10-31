@@ -88,7 +88,7 @@ fun AppToolbar(
                                 action("${if (!darkMode) "✓ " else ""}ライトモード") { if (darkMode) toggleDarkMode() }
                                 action("${if (darkMode) "✓ " else ""}ダークモード") { if (!darkMode) toggleDarkMode() }
                             }
-                            "設定" -> action("ローカル接続", run = openSettings)
+                            "設定" -> action("接続と常駐", run = openSettings)
                             "ヘルプ" -> action("利用者マニュアル") { state.openHelp(Help.INDEX) }
                         }
                     }

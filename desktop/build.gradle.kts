@@ -85,6 +85,17 @@ tasks.withType<Test>().configureEach {
     workingDir = rootDir
 }
 
+// 常駐のネイティブ部分は対話セッションでだけ検査する（通常の test / CI では OS トレイを使わない）。
+tasks.register<JavaExec>("verifyDesktopTray") {
+    group = "verification"
+    description = "実トレイの登録・更新・解除を検査する（対話セッションが必要）"
+    dependsOn("testClasses")
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("dev.toros.yde.desktop.ui.shell.DesktopTraySmoke")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) })
+    systemProperty("java.awt.headless", "false")
+}
+
 // 等幅フォント Cica の同梱（ui/common/Common.kt の AppFonts.Mono）。TTF は git に入れない（.gitignore の *.ttf）ので、
 // ビルド時に配布物を取得して検証し、資源（fonts/cica/）へ入れる。取得した zip は Gradle のユーザーホームに置き、clean でも消えない
 val cicaVersion = "5.0.3"

@@ -8,6 +8,7 @@ import dev.toros.yde.server.LocalFeature
 import dev.toros.yde.server.auth.ClientRegistration
 import dev.toros.yde.server.auth.LocalClient
 import dev.toros.yde.yaml.model.DocumentId
+import dev.toros.yde.desktop.lifecycle.ResidentSettings
 import java.nio.file.*
 import java.nio.channels.FileChannel
 import java.nio.ByteBuffer
@@ -16,6 +17,7 @@ import kotlinx.serialization.json.*
 internal data class SavedConnections(
     val settings: LocalConnectionSettings = LocalConnectionSettings(),
     val registrations: List<ClientRegistration> = emptyList(),
+    val resident: ResidentSettings = ResidentSettings(),
 )
 
 internal interface ConnectionSettingsStore {
@@ -43,7 +45,7 @@ internal class FileConnectionSettingsStore(private val directory: Path = Path.of
         if (Files.exists(file, LinkOption.NOFOLLOW_LINKS)) PrivateConnectionFiles.verify(file)
         val temporary = Files.createTempFile(directory, ".settings-", ".tmp", PrivateConnectionFiles.attribute(directory, false))
         try {
-            PrivateConnectionFiles.verify(temporary)
+            PrivateConnectionFiles.protectNewFile(temporary)
             FileChannel.open(temporary, StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS).use { channel ->
                 val buffer = ByteBuffer.wrap(bytes)
                 while (buffer.hasRemaining()) channel.write(buffer)
@@ -62,6 +64,7 @@ internal object ConnectionSettingsCodec {
         put("version", 1)
         put("api", value.settings.apiEnabled); put("mcp", value.settings.mcpEnabled); put("web", value.settings.webEnabled)
         put("port", value.settings.port)
+        put("tray", value.resident.trayEnabled); put("startHidden", value.resident.startHidden)
         putJsonArray("clients") { value.registrations.forEach { (client, p) -> add(buildJsonObject {
             put("id", client.id); put("name", client.name); put("feature", client.feature.name); put("workspace", client.caller.workspaceId)
             fun documents(key: String, values: Set<DocumentId>) { putJsonArray(key) { values.sortedBy { it.value }.forEach { add(it.value) } } }
@@ -94,6 +97,6 @@ internal object ConnectionSettingsCodec {
             ClientRegistration(client, grants.put(client.caller, p).permissions)
         }
         require(registrations.map { it.client.id }.toSet().size == registrations.size) { "接続者が重複しています" }
-        return SavedConnections(settings, registrations)
+        return SavedConnections(settings, registrations, ResidentSettings(enabled("tray"), enabled("startHidden")))
     }
 }

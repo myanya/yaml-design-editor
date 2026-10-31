@@ -6,6 +6,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import dev.toros.yde.app.service.ConnectionPermissions
 import dev.toros.yde.server.LocalFeature
 import dev.toros.yde.yaml.model.DocumentId
+import dev.toros.yde.desktop.lifecycle.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
 import kotlin.test.*
@@ -13,6 +14,48 @@ import kotlin.test.*
 class DesktopRuntimeTest {
     private val root = Files.createTempDirectory("desktop-runtime")
     @AfterTest fun cleanup() { root.toFile().deleteRecursively() }
+
+    @Test fun `隠しても編集中の文書と実行を保ち受信箱から同じ状態へ戻れる`(): Unit = runBlocking {
+        val file = root.resolve("a.yaml")
+        Files.writeString(file, "name: A\n")
+        withContext(DesktopUiDispatcher) {
+            val runtime = DesktopRuntime(monitorFactory = { null })
+            var last: DesktopTrayStatus? = null
+            val presence = DesktopPresence({ object : DesktopTray {
+                override fun update(status: DesktopTrayStatus) { last = status }
+                override fun close() {}
+            } }, {})
+            try {
+                assertTrue(runtime.openWorkspace(root))
+                presence.start(ResidentSettings(true), StartupVisibility.DEFAULT)
+                val state = runtime.state
+                state.openFile(file)
+                val doc = assertNotNull(state.openDoc)
+                val runs = assertNotNull(state.runController)
+                doc.editSource { replace(0, length, "name: edited\n") }
+                assertTrue(presence.hide())
+                withTimeout(5_000) { runtime.host.status.first { !doc.hasPendingSourceInput && doc.dirty } }
+                Files.writeString(file, "name: external\n")
+                state.noteFileEvents(setOf(file))
+                presence.updateInbox(true, state.pendingInboxCount())
+                assertEquals(1, last?.inboxCount)
+                assertFalse(presence.status.value.visible)
+                state.memory.runsTab = 3
+                state.memory.externalWorkReview = "old"
+                state.openInbox(); presence.show()
+                assertSame(doc, state.openDoc)
+                assertSame(runs, state.runController)
+                assertEquals(UiSpace.RUNS, state.uiSpace)
+                assertEquals(0, state.memory.runsTab)
+                assertNull(state.memory.externalWorkReview)
+                assertTrue(state.hasDirtyDocs())
+                assertFalse(presence.requestExit(state.hasDirtyDocs()))
+                presence.cancelExit()
+                assertTrue(runtime.connections.status.value.stopped)
+                assertEquals("name: external\n", Files.readString(file), "隠す・戻す・終了中断は保存しない")
+            } finally { presence.close(); runtime.shutdown() }
+        }
+    }
 
     @Test fun `Windowなしでも下書きと履歴と実行状態を持ち失敗した切替で失わない`(): Unit = runBlocking {
         val file = root.resolve("a.yaml")

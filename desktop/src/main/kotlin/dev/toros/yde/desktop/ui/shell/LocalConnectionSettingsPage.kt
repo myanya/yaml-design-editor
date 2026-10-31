@@ -16,6 +16,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.toros.yde.app.service.ConnectionPermissions
 import dev.toros.yde.desktop.connections.LocalConnectionController
+import dev.toros.yde.desktop.lifecycle.PresenceStatus
+import dev.toros.yde.desktop.lifecycle.ResidentSettings
 import dev.toros.yde.desktop.ui.common.CompactTextField
 import dev.toros.yde.desktop.ui.common.Palette
 import dev.toros.yde.server.*
@@ -29,7 +31,11 @@ import kotlinx.coroutines.launch
 
 /** ワークスペース未選択でも開ける常設の設定ページ。通信や保存の規則は Controller に委ねる。 */
 @Composable
-internal fun LocalConnectionSettingsPage(controller: LocalConnectionController, workspaceLabel: String?, onBack: () -> Unit) {
+internal fun LocalConnectionSettingsPage(
+    controller: LocalConnectionController, workspaceLabel: String?,
+    presence: PresenceStatus? = null, onHide: () -> Unit = {},
+    onResidentChanged: (ResidentSettings) -> Unit = {}, onBack: () -> Unit,
+) {
     val model by controller.state.collectAsState()
     val status by controller.connections.status.collectAsState()
     val scope = rememberCoroutineScope()
@@ -52,20 +58,26 @@ internal fun LocalConnectionSettingsPage(controller: LocalConnectionController, 
                 if (editor != null || port != status.desired.port.toString()) confirmation = "入力中の設定を破棄して戻りますか？" to { editor = null; onBack() }
                 else onBack()
             }) { Text("戻る") }
-            Text("設定 / ローカル接続", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            Text("設定 / 接続と常駐", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
         }
         HorizontalDivider(color = Palette.Border)
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 28.dp, vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("この PC 内の接続", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-            Text("使う機能だけを ON にしてください。すべて OFF で停止が完了すると、待受ポートを閉じます。設定は次回起動時に復元します。", fontSize = 13.sp)
-            Text("この開発版では接続の設定・認証まで利用できます。API・MCP の業務操作と Web 画面は順次公開予定です。", fontSize = 12.sp, color = Palette.SubText)
             if (!model.ready) Text("設定を読み込んでいます…")
             if (editor == null) model.error?.let { Text(it, color = Palette.ErrorRed, fontSize = 13.sp) }
             model.message?.let { Text(it, fontSize = 13.sp) }
-            if (model.blocked) TextButton(enabled = !model.busy, onClick = {
-                confirmation = "保存した接続設定と登録権限を初期化しますか？全機能を OFF にします。提出済みの作業は残ります。" to { controller.reset() }
-            }) { Text("接続設定を初期化", color = Palette.ErrorRed) }
+            if (model.blocked) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedButton(enabled = !model.busy, onClick = { scope.launch { controller.initialize() } }) { Text("設定を再読込") }
+                TextButton(enabled = !model.busy, onClick = {
+                    confirmation = "保存した接続・常駐設定と登録権限を初期化しますか？全機能を OFF にします。提出済みの作業は残ります。" to { controller.reset() }
+                }) { Text("接続設定を初期化", color = Palette.ErrorRed) }
+            }
+            ResidentSettingsPane(model.resident, presence, usable,
+                onChange = { scope.launch { if (controller.setResident(it) != null) onResidentChanged(it) } }, onHide = onHide)
+            HorizontalDivider(color = Palette.Border)
+            Text("この PC 内の接続", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Text("使う機能だけを ON にしてください。すべて OFF で停止が完了すると、待受ポートを閉じます。設定は次回起動時に復元します。", fontSize = 13.sp)
+            Text("この開発版では接続の設定・認証まで利用できます。API・MCP の業務操作と Web 画面は順次公開予定です。", fontSize = 12.sp, color = Palette.SubText)
             LocalFeature.entries.forEach { feature ->
                 val actual = status.features.getValue(feature)
                 Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {

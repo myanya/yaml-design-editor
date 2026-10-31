@@ -289,9 +289,12 @@
 | LC-10 | 接続者・ワークスペース別の閲覧・提案・業務操作の権限と共通サービスの再確認 | `service/ConnectionGrants.kt` | `ConnectionGrantsTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-11 | 機能別の資格情報・期限・失効と要求・MCP セッションの接続者への結付け | `server/auth/LocalAccess.kt` | `LocalAccessTest`・`LocalProtocolAuthenticationTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-12 | HTTP の Host/Origin・認証・CSRF・要求量の検査と能力別の受付 | `server/transport/LocalAuthentication.kt`・`server/LocalServer.kt` | `LocalAuthenticationTest`・`DesktopRuntimeTest` | [ローカル接続](architecture/local-connections.md) |
-| LC-13 | 接続設定の保存・復元・保存失敗時の停止と接続者の登録・権限変更 | `connections/LocalConnectionController.kt` | `LocalConnectionControllerTest` | [ローカル接続](architecture/local-connections.md) |
-| LC-14 | 利用者専用領域の設定保存と破損・不正権限の拒否 | `connections/ConnectionSettingsStore.kt`・`PrivateConnectionFiles.kt` | `ConnectionSettingsStoreTest` | [ローカル接続](architecture/local-connections.md) |
-| LC-15 | 設定画面の三つのスイッチ・状態・URL・エラー・権限と資格情報の管理 | `ui/shell/LocalConnectionSettingsPage.kt` | `LocalConnectionSettingsPageTest` | [接続の設定](manual/local-connections.md) |
+| LC-13 | 接続・常駐設定の独立した保存と復元、接続者の登録・権限変更 | `connections/LocalConnectionController.kt` | `LocalConnectionControllerTest` | [ローカル接続](architecture/local-connections.md) |
+| LC-14 | 設定保存の権限保護・Windows ACL 継承の停止・破損と不正権限の拒否 | `connections/ConnectionSettingsStore.kt`・`PrivateConnectionFiles.kt` | `ConnectionSettingsStoreTest` | [ローカル接続](architecture/local-connections.md) |
+| LC-15 | 接続設定と資格情報の管理・読込失敗の理由と修復後の再読込 | `ui/shell/LocalConnectionSettingsPage.kt` | `LocalConnectionSettingsPageTest` | [接続の設定](manual/local-connections.md) |
+| LC-16 | 常駐・非表示起動・復帰・終了確認とトレイ失敗時の画面表示 | `lifecycle/DesktopPresence.kt` | `DesktopPresenceTest`・`DesktopRuntimeTest` | [ローカル接続](architecture/local-connections.md) |
+| LC-17 | トレイの受信箱件数・画面と設定への移動・完全終了 | `ui/shell/DesktopTray.kt`・`InboxNavigation.kt` | `DesktopTraySmoke`・`DesktopRuntimeTest` | [接続の設定](manual/local-connections.md) |
+| LC-18 | 常駐と非表示起動の設定、今回だけの常駐解除 | `ui/shell/ResidentSettingsPane.kt` | `ResidentSettingsPaneTest` | [接続の設定](manual/local-connections.md) |
 
 ## 公開サンプル
 

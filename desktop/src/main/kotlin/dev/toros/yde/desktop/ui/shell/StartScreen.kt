@@ -32,7 +32,7 @@ fun StartScreen(state: AppState, openSettings: () -> Unit = {}) {
     ) {
         Text("YAML Design Editor", fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Text(BuildInfo.display, fontSize = 11.sp, color = Palette.SubText)
-        TextButton(onClick = openSettings) { Text("設定 → ローカル接続", fontSize = 12.sp) }
+        TextButton(onClick = openSettings) { Text("設定 → 接続と常駐", fontSize = 12.sp) }
         Spacer(Modifier.height(4.dp))
         Text(
             "スキーマ駆動のYAML編集・検証・エージェント実行環境",

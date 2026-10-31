@@ -1,5 +1,7 @@
 package dev.toros.yde.desktop.ui.run
 
+import dev.toros.yde.desktop.pendingInboxCount
+
 import dev.toros.yde.desktop.statusLabel
 
 import dev.toros.yde.desktop.RunController
@@ -83,10 +85,9 @@ fun RunsSpace(state: AppState, engine: AutomationEngine?, controller: RunControl
     val tab = state.memory.runsTab
     val reviewTarget = state.memory.runsReview
     val pending = engine.pendingSnapshot()
-    val conflicts = state.conflictedDocs()
     val external = state.externalWork
     val externalReview = external?.records?.firstOrNull { it.id == state.memory.externalWorkReview }
-    val inboxCount = pending.size + conflicts.size + (if (controller.pendingQuestion != null) 1 else 0) + (external?.pendingCount ?: 0)
+    val inboxCount = state.pendingInboxCount()
 
     Column(Modifier.fillMaxSize().background(Palette.EditorBg)) {
         TabRow(selectedTabIndex = tab, containerColor = Palette.Surface, contentColor = Palette.Primary) {

@@ -3,10 +3,68 @@ package dev.toros.yde.desktop.connections
 import dev.toros.yde.app.service.ConnectionPermissions
 import dev.toros.yde.server.*
 import dev.toros.yde.yaml.model.DocumentId
+import dev.toros.yde.desktop.lifecycle.ResidentSettings
 import kotlinx.coroutines.*
 import kotlin.test.*
 
 class LocalConnectionControllerTest {
+    @Test fun `読込失敗の理由を表示し修復後は設定を上書きせず再読込できる`() = runBlocking {
+        val saved = SavedConnections(resident = ResidentSettings(true, true))
+        val f = ConnectionSettingsFixture(MemoryConnectionSettingsStore(saved))
+        try {
+            f.store.failRead = true
+            f.store.readFailure = ConnectionProtectionException("他の利用者への許可が含まれています")
+            f.controller.initialize()
+            assertTrue(f.controller.state.value.blocked)
+            assertContains(f.controller.state.value.error.orEmpty(), "他の利用者への許可")
+            f.store.readFailure = kotlinx.serialization.SerializationException("設定本文に含まれる秘密の文字列")
+            f.controller.initialize()
+            assertContains(f.controller.state.value.error.orEmpty(), "JSON")
+            assertFalse(f.controller.state.value.error.orEmpty().contains("秘密の文字列"))
+            f.store.failRead = false
+            f.store.beforeSave = { error("再読込で設定を書き換えてはいけない") }
+            f.controller.initialize()
+            assertFalse(f.controller.state.value.blocked)
+            assertNull(f.controller.state.value.error)
+            assertEquals(saved.resident, f.controller.state.value.resident)
+            assertEquals(saved, f.store.saved)
+            assertTrue(f.server.connections.status.value.stopped)
+        } finally { f.close() }
+    }
+
+    @Test fun `常駐設定を保存して復元しても接続と資格情報を変更しない`() = runBlocking {
+        val f = ConnectionSettingsFixture()
+        try {
+            f.controller.initialize()
+            val revision = f.server.connections.status.value.revision
+            assertNotNull(f.controller.setResident(ResidentSettings(true, true)))
+            assertTrue(f.server.connections.status.value.stopped)
+            assertEquals(revision, f.server.connections.status.value.revision)
+            f.controller.setPort(f.port().toString())
+            f.controller.setEnabled(LocalFeature.API, true); f.settle()
+            val client = assertNotNull(f.controller.register(LocalFeature.API, "常駐試験", ConnectionPermissions()))
+            assertNotNull(f.controller.issue(client.id))
+            val activeRevision = f.server.connections.status.value.revision
+            f.controller.setResident(ResidentSettings(true))
+            assertEquals(activeRevision, f.server.connections.status.value.revision)
+            assertNotNull(f.server.access.credentialExpiry(client.id))
+            assertTrue(f.store.saved.settings.apiEnabled)
+            assertEquals(ResidentSettings(true), f.store.saved.resident)
+            f.store.failWrite = true
+            assertNull(f.controller.setResident(ResidentSettings()))
+            assertEquals(ResidentSettings(true), f.controller.state.value.resident)
+            assertNotNull(f.controller.state.value.error)
+            f.store.failWrite = false
+            f.controller.setEnabled(LocalFeature.API, false); f.settle()
+        } finally { f.close() }
+        val restored = ConnectionSettingsFixture(f.store)
+        try {
+            restored.controller.initialize()
+            assertEquals(ResidentSettings(true), restored.controller.state.value.resident)
+            assertTrue(restored.server.connections.status.value.stopped)
+        } finally { restored.close() }
+    }
+
     @Test fun `初期値は全停止で不正な設定の復元も接続を開始しない`() = runBlocking {
         val f = ConnectionSettingsFixture()
         try {

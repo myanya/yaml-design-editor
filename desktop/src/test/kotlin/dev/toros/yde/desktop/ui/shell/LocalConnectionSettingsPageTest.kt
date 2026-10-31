@@ -10,21 +10,40 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class LocalConnectionSettingsPageTest {
+    @Test fun `読込エラーの修復後に再読込すると常駐を操作できる`() = runComposeUiTest {
+        val f = ConnectionSettingsFixture()
+        try {
+            f.store.failRead = true
+            f.store.readFailure = dev.toros.yde.desktop.connections.ConnectionProtectionException("保存先の権限を修復してください")
+            runBlocking { f.controller.initialize() }
+            setContent { LocalConnectionSettingsPage(f.controller, null) {} }
+            onNodeWithContentDescription("トレイ常駐を有効にする").assertIsNotEnabled()
+            f.store.failRead = false
+            onNodeWithText("設定を再読込").performClick()
+            waitUntil(timeoutMillis = 10_000) { !f.controller.state.value.blocked && !f.controller.state.value.busy }
+            onNodeWithText("設定を再読込").assertDoesNotExist()
+            onNodeWithContentDescription("トレイ常駐を有効にする").performClick()
+            waitUntil(timeoutMillis = 10_000) { f.store.saved.resident.trayEnabled && !f.controller.state.value.busy }
+            onNodeWithContentDescription("トレイ常駐を有効にする").assertIsOn()
+            assertTrue(f.server.connections.status.value.stopped)
+        } finally { runBlocking { f.close() } }
+    }
+
     @Test fun `スイッチの指定と稼働状態を分けて表示しWebだけを残して停止できる`() = runComposeUiTest {
         val f = ConnectionSettingsFixture()
         try {
             runBlocking { f.controller.initialize(); f.controller.setPort(f.port().toString()) }
             setContent { LocalConnectionSettingsPage(f.controller, "試験ワークスペース") {} }
             onNodeWithText("待受なし").assertExists()
-            onNodeWithContentDescription("API を有効にする").performClick()
+            onNodeWithContentDescription("API を有効にする").performScrollTo().performClick()
             waitUntil(timeoutMillis = 10_000) { f.server.connections.status.value.features.getValue(LocalFeature.API).phase == ConnectionPhase.RUNNING && !f.controller.state.value.busy }
-            onNodeWithContentDescription("Web を有効にする").performClick()
+            onNodeWithContentDescription("Web を有効にする").performScrollTo().performClick()
             waitUntil(timeoutMillis = 10_000) { f.server.connections.status.value.features.getValue(LocalFeature.WEB).phase == ConnectionPhase.RUNNING && !f.controller.state.value.busy }
-            onNodeWithContentDescription("API を有効にする").performClick()
+            onNodeWithContentDescription("API を有効にする").performScrollTo().performClick()
             waitUntil(timeoutMillis = 10_000) { f.server.connections.status.value.features.getValue(LocalFeature.API).phase == ConnectionPhase.STOPPED && !f.controller.state.value.busy }
             onNodeWithContentDescription("Web を有効にする").assertIsOn()
             onNodeWithContentDescription("API を有効にする").assertIsOff()
-            onNodeWithContentDescription("Web を有効にする").performClick()
+            onNodeWithContentDescription("Web を有効にする").performScrollTo().performClick()
             waitUntil(timeoutMillis = 10_000) { f.server.connections.status.value.stopped && !f.controller.state.value.busy }
             onNodeWithText("待受なし").assertExists()
         } finally { runBlocking { f.close() } }

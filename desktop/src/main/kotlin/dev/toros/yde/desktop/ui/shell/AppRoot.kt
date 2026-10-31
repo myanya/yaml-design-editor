@@ -30,6 +30,7 @@ import dev.toros.yde.yaml.validate.Severity
 import dev.toros.yde.app.validate.Validator
 import java.nio.file.Path
 import dev.toros.yde.desktop.AppState
+import dev.toros.yde.desktop.pendingInboxCount
 import dev.toros.yde.desktop.EditorTab
 import dev.toros.yde.desktop.UiSpace
 import dev.toros.yde.desktop.ui.action.ActionPanelHost
@@ -117,9 +118,7 @@ private fun AppRootContent(
     Column(Modifier.fillMaxSize()) {
         automationVersion  // エンジン状態の変化でレール・受信箱バッジ・ステータスバーを再描画する
         // 受信箱の件数（R12-02）: 承認待ち変更セット＋エージェントの質問＋外部変更の競合
-        val inboxCount = (automation?.pendingSnapshot()?.size ?: 0) +
-            state.conflictedDocs().size +
-            (if (runController?.pendingQuestion != null) 1 else 0) + (state.externalWork?.pendingCount ?: 0)
+        val inboxCount = state.pendingInboxCount()
         AppToolbar(state, leftOpen, rightOpen, darkMode, toggleDarkMode, { setCommandOpen(true) },
             openSettings = openSettings,
             openWorkspaceDialog = openWorkspaceDialog,

@@ -9,9 +9,10 @@ import kotlinx.coroutines.*
 
 internal class MemoryConnectionSettingsStore(var saved: SavedConnections = SavedConnections()) : ConnectionSettingsStore {
     var failRead = false
+    var readFailure: Exception = IllegalStateException("読込の試験エラー")
     var failWrite = false
     var beforeSave: (() -> Unit)? = null
-    override fun load(): SavedConnections { check(!failRead); return saved }
+    override fun load(): SavedConnections { if (failRead) throw readFailure; return saved }
     override fun save(value: SavedConnections) { check(!failWrite); beforeSave?.invoke(); saved = value }
 }
 

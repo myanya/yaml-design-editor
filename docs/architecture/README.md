@@ -20,7 +20,7 @@
 | [workspace.md](workspace.md) | ワークスペース構造と layout・ワークスペースの初期化（テンプレートとウィザード）・文書キャッシュと Workspace・外部変更の取り込み・変更セットの適用・セッションの fork |
 | [actions.md](actions.md) | 操作（型の操作 `methods` とアクション `actions`。受け手・受け取った値・前提・手・変更セットへの計画・CLI） |
 | [agents.md](agents.md) | 安全性・エージェント実行と Staging・自動実行・自己改善・AI 生成・AI 接続・コンテキスト・一括実行・skill |
-| [local-connections.md](local-connections.md) | 共通状態と寿命・機能別の接続・認証と権限・設定画面と保存・同梱ランタイムの検査 |
+| [local-connections.md](local-connections.md) | 共通状態と寿命・接続と認証・設定保存・トレイと画面の寿命・同梱ランタイムの検査 |
 | [ui.md](ui.md) | UI シェル・フォームと FormCtx・閲覧専用・テーブル表示・畳みとハイライト・エラー処理 |
 | [ui-interactions.md](ui-interactions.md) | UI 操作規則の適用範囲・例外・入力からの退出・項目説明 |
 
