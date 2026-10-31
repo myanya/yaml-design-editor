@@ -1220,6 +1220,36 @@ class DocumentSession(private val editClock: () -> Long = System::currentTimeMil
         return if (s != null) cw.applyViaSession(s, changeSet, requireValid = requireValid) else cw.apply(changeSet, requireValid = requireValid)
     }
 
+    /** 外部確定では未解析・解析不能の下書きも上書きしない。 */
+    fun checkExternalTargets(ids: Set<DocumentId>) {
+        val protected = protectedDocumentIds() + kernel?.dirtyDocuments().orEmpty()
+        val conflicts = documentMap.values.filter { it.externalConflict }.map { documentOf(it.file) }.toSet()
+        require(ids.intersect(protected + conflicts).isEmpty()) { "対象に未保存の編集・下書き・外部変更の競合があります" }
+    }
+
+    /** 独立した作業の保存結果を採用する。履歴を追加せず、他文書の編集と Redo を維持する。 */
+    fun acceptExternalCommit(ids: Set<DocumentId>) {
+        if (ids.isEmpty()) return
+        val cw = core ?: error("ワークスペースが開かれていません")
+        val s = kernel ?: error("セッションが開かれていません")
+        val files = ids.map(::fileOf)
+        cw.noteDiskChanges(files.filter { Files.exists(it) }, files.filterNot { Files.exists(it) })
+        val result = s.refreshFrom(cw.mirror, protectedDocumentIds())
+        require(result.ok) { result.message ?: "確定結果を取り込めません" }
+        s.invalidateExternalHistory(ids)
+        mirrorCore(cw)
+        ids.forEach { id -> documentMap[fileOf(id)]?.let { doc ->
+            if (id in protectedDocumentIds()) doc.externalConflict = true
+            else if (s.expectedStoreText(id) == null) closeDocument(doc.file)
+            else reloadDocumentFromDisk(doc, force = true, knownText = s.expectedStoreText(id))
+        } }
+        documentMap.values.forEach { it.schema = schemaFor(it.file) }
+        onFilesChanged?.invoke()
+        workspace?.let { workspaceStamp = snapshotFiles(it) }
+        indexVersion++
+        editVersion++
+    }
+
     /**
      * リファクタリング計画の適用（B-1・RB-01）: 1 トランザクションとして適用→保存する。reload しない＝全体が Undo 1 回で戻る（D-12）。
      * 対象に未保存編集があれば拒む（適用→保存が未保存編集まで書いてしまうのを防ぐ）。戻り値は書き込んだ文書。

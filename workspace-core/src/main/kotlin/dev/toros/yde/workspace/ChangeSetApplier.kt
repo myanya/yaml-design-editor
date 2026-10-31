@@ -3,166 +3,121 @@ package dev.toros.yde.workspace
 import dev.toros.yde.semantic.SemanticAutoValues
 import dev.toros.yde.workspace.changeset.ChangeSet
 import dev.toros.yde.workspace.changeset.ChangeSets
-import dev.toros.yde.workspace.changeset.FileChange
+import dev.toros.yde.workspace.validate.CheckIssue
 import dev.toros.yde.yaml.patch.Patcher
 import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.YDocument
-import dev.toros.yde.yaml.model.YNode
-import dev.toros.yde.workspace.layout.WorkspaceLayout
-import dev.toros.yde.workspace.validate.CheckIssue
+import dev.toros.yde.yaml.model.deepCopy
 import dev.toros.yde.yaml.validate.Severity
 import dev.toros.yde.yaml.YamlIO
 import java.time.LocalDateTime
 
-/** 変更セットの適用の、文書1つ分の結果。 */
-data class DocumentChangeResult(
-    /** ワークスペース相対パス（変更セットに書かれたとおり）。 */
-    val file: String,
-    val applied: Boolean,
-    /** 競合・操作のエラー・書き込みの失敗の内容（成功時は null）。 */
-    val message: String?,
-    /** 適用後（またはドライラン後）の姿の検証の結果。 */
-    val issues: List<CheckIssue>,
-)
+data class DocumentChangeResult(val file: String, val applied: Boolean, val message: String?, val issues: List<CheckIssue>)
 
-/** 変更セットの適用の結果。 */
 data class ChangeSetApplication(
-    /** 全部の文書に適用（またはドライランに成功）できたか。 */
     val ok: Boolean,
     val dryRun: Boolean,
     val results: List<DocumentChangeResult>,
+    val persistence: Map<DocumentId, ChangePersistence> = emptyMap(),
 ) {
     val errorIssueCount: Int get() = results.sumOf { r -> r.issues.count { it.severity == Severity.ERROR } }
 }
 
-/**
- * 変更セットの適用（R1-02 / R2-05。P27 段D の D-b で、root の Workspace.apply から移した。意図的差分 D-35）。
- * アプリ（root の Workspace は、結果をファイルの座標へ写すだけ）と、カーネル側の CLI（`workspace apply`）が共有する。
- * - 全部の文書の競合の判定と操作の適用を先に行い、1件でも失敗すれば何も書き込まない。
- * - create = true の変更は新しい文書の作成（既にあれば競合）。
- * - 検証は「適用後の全部の文書を重ねた走査結果」に対して行うため、ID の改名と参照元の修正のような、複数の文書が連動する変更も
- *   正しく判定される。検証の組み立ては、アプリの検証と同じ（validate.DocumentValidator）。
- * - dryRun = true では書き込まず、適用後の検証の結果だけを返す。
- * - requireValid = true では、適用後に検証のエラーが残る場合も書き込まない。
- * - 書き込みは、セッションの1つのトランザクション（CreateDocument / ReplaceDocument）＋保存（ストアの atomic な書き込み）。
- *   Undo 1回で全部の文書が戻る。
- * - 保存時に自動で入る値（印 `auto`。SemanticAutoValues）は、操作を当てた後・検証の前に、適用後の木へ入れる
- *   （必須の更新日が無い新しい要素も通る。同じトランザクションに含まれ、Undo 1回で一緒に戻る）。「今」は now で渡す。
- */
+/** 計画・検証・保存の単一経路。既存の適用は編集用セッションへ、外部確定は独立したセッションへ書く。 */
 object ChangeSetApplier {
-
-    /** 適用後の木と、保存済みの内容の木（新しい文書は null。保存時に自動で入る値の比較の元）。 */
-    private class Staged(val change: FileChange, val id: DocumentId, val newRoot: YNode, val baseRoot: YNode?)
-
-    /**
-     * base は、競合の判定と検証の基準にするセッション（ストアの内容を映したもの）。target は、書き込み先のセッション
-     * （省略時は base。アプリは、未保存の編集を持つ編集用のセッションを渡す——検証の基準は、今までどおりストアの内容）。
-     */
-    fun apply(
-        base: WorkspaceSession,
-        changeSet: ChangeSet,
-        dryRun: Boolean = false,
-        requireValid: Boolean = false,
-        target: WorkspaceSession = base,
-        now: LocalDateTime = LocalDateTime.now(),
-    ): ChangeSetApplication {
-        val results = mutableListOf<DocumentChangeResult>()
-        val staged = mutableListOf<Staged>()
-        var failed = false
-        val layout = base.layout
-
-        for (change in changeSet.changes) {
-            val outcome = runCatching {
+    fun prepare(base: WorkspaceSession, changeSet: ChangeSet, now: LocalDateTime = LocalDateTime.now(), includeAffected: Boolean = true): PreparedChangeSet {
+        val changes = mutableListOf<PreparedDocumentChange>()
+        val failures = linkedMapOf<String, String>()
+        val seen = mutableSetOf<DocumentId>()
+        changeSet.changes.forEach { change ->
+            runCatching {
                 val id = DocumentId(normalize(change.file))
-                val stagedChange = if (change.create) {
-                    require(base.storedText(id) == null) { "競合: 既に同名のファイルが存在します: ${change.file}" }
-                    Staged(change, id, change.content ?: error("createにはcontentが必要です"), baseRoot = null)
+                require(seen.add(id)) { "変更対象が重複しています: ${id.value}" }
+                val before = base.storedText(id)
+                val root = if (change.create) {
+                    require(before == null) { "競合: 既に同名のファイルが存在します: ${id.value}" }
+                    (change.content ?: error("createにはcontentが必要です")).deepCopy()
                 } else {
-                    val stored = base.storedText(id) ?: error("ファイルが存在しません: ${change.file}")
-                    if (change.baseHash != null && ChangeSets.contentHash(stored) != change.baseHash) {
-                        error("競合: ディスク内容が変更の前提（base）から変わっています")
-                    }
-                    val tree = YamlIO.parse(stored)
-                    change.ops.forEach { Patcher.apply(tree, it) }
-                    Staged(change, id, tree, baseRoot = YamlIO.parse(stored))
+                    require(before != null) { "ファイルが存在しません: ${id.value}" }
+                    require(change.baseHash == null || ChangeSets.contentHash(before) == change.baseHash) { "競合: ディスク内容が変更の前提（base）から変わっています" }
+                    YamlIO.parse(before).also { tree -> change.ops.forEach { Patcher.apply(tree, it) } }
                 }
-                // 保存時に自動で入る値: 適用後の木に、保存済みの内容との違いから入れる（検証の前）
-                schemaIdFor(id.value, YDocument(id, listOf(stagedChange.newRoot)), base.schemas, layout)
-                    ?.let { sid -> base.schemas.firstOrNull { it.id == sid }?.tree }
-                    ?.let { tree -> SemanticAutoValues.stamp(tree, stagedChange.baseRoot, stagedChange.newRoot, now) }
-                stagedChange
-            }
-            outcome.onSuccess { staged += it }.onFailure {
-                failed = true
-                results += DocumentChangeResult(change.file, applied = false, message = it.message, issues = emptyList())
-            }
+                val doc = YDocument(id, listOf(root))
+                val sid = if (base.layout.isReserved(id.value) && base.layout.zoneOf(id.value) == null) null
+                    else WorkspaceReader.assignSchemaId(id.value, doc, base.schemas, base.layout)
+                base.schemas.firstOrNull { it.id == sid }?.tree?.let { tree ->
+                    SemanticAutoValues.stamp(tree, before?.let(YamlIO::parse), root, now)
+                }
+                changes += PreparedDocumentChange(id, before, YamlIO.dump(root))
+            }.onFailure { failures[change.file] = it.message ?: "計画に失敗しました" }
         }
-
-        // 適用後の姿を重ねた走査結果の上で検証する（書き込みの前）。他の文書の中身も、適用後の姿で読む（索引と同じ基準を保つ。R16-03a）
-        val overlays = staged.associate { it.id to YDocument(it.id, listOf(it.newRoot)) }
-        val derived = base.derivedWith(overlays)
-        val documents = LinkedHashMap(base.snapshot.documents)
-        for ((id, document) in overlays) {
-            documents[id] = WorkspaceDocument(
-                document = document, persistedText = null,
-                schemaId = schemaIdFor(id.value, document, base.schemas, layout), inLedger = layout.inLedger(id.value),
-            )
-        }
-        val validations = WorkspaceCheckRunner.validateAll(
-            base.schemas, base.declarations, layout, documents, derived,
-            only = overlays.keys,
-            // 変更セットの適用の検証は、今までどおり、どの文書も索引に載る文書として扱う
-            indexedOf = { true },
-            fileExists = base::fileExists,
-        )
-        val validated = staged.map { it to validations[it.id]?.issues.orEmpty() }
-        if (requireValid && validated.any { (_, issues) -> issues.any { it.severity == Severity.ERROR } }) failed = true
-
-        val write = !dryRun && !failed
-        val writeError = if (write) write(target, staged) else null
-        validated.forEach { (s, issues) ->
-            results += DocumentChangeResult(s.change.file, applied = write && writeError == null, message = writeError, issues = issues)
-        }
-        return ChangeSetApplication(ok = !failed && writeError == null, dryRun = dryRun, results = results)
+        val overlays = changes.associate { it.id to YDocument(it.id, listOf(YamlIO.parse(it.after))) }
+        return PreparedChangeSet(changes.toList(), ChangeSetValidation.validate(base, overlays, includeAffected), failures.toMap())
     }
 
-    /** 1つのトランザクションとして適用して、保存する。失敗の理由を返す（null = 成功）。 */
-    private fun write(target: WorkspaceSession, staged: List<Staged>): String? {
-        if (staged.isEmpty()) return null
-        val operations = staged.map { s ->
-            val document = YDocument(s.id, listOf(s.newRoot))
-            if (s.change.create) WorkspaceOperation.CreateDocument(s.id, document)
-            else WorkspaceOperation.ReplaceDocument(s.id, document)
+    /** 既存のデスクトップ・CLI の互換窓口。検証の対象も従来どおり変更文書。 */
+    fun apply(base: WorkspaceSession, changeSet: ChangeSet, dryRun: Boolean = false, requireValid: Boolean = false,
+              target: WorkspaceSession = base, now: LocalDateTime = LocalDateTime.now()): ChangeSetApplication =
+        applyPrepared(target, prepare(base, changeSet, now, includeAffected = false), dryRun, requireValid)
+
+    /** 自動値を再計算せず、確認した候補を保存する。部分保存でも文書ごとの実結果を返す。 */
+    fun applyPrepared(target: WorkspaceSession, prepared: PreparedChangeSet, dryRun: Boolean = false, requireValid: Boolean = true): ChangeSetApplication {
+        val failures = prepared.failures.toMutableMap()
+        val persistence = linkedMapOf<DocumentId, ChangePersistence>()
+        val eligible = failures.isEmpty() && (!requireValid || prepared.valid)
+        if (!dryRun && eligible && prepared.documents.isNotEmpty()) {
+            prepared.documents.forEach { change ->
+                runCatching { require(target.storedText(change.id) == change.before && target.expectedStoreText(change.id) == change.before) { "競合: 確認後にディスク内容が変わりました" } }
+                    .onFailure { failures[change.id.value] = it.message ?: "競合の確認に失敗しました" }
+            }
+            if (failures.isEmpty()) {
+                val operations = prepared.documents.map { c ->
+                    val doc = YDocument(c.id, listOf(YamlIO.parse(c.after)))
+                    if (c.before == null) WorkspaceOperation.CreateDocument(c.id, doc) else WorkspaceOperation.ReplaceDocument(c.id, doc)
+                }
+                val applied = target.apply(WorkspaceTransaction(target.version, ChangeIntent("変更セットの適用（${operations.size} ファイル）"), operations))
+                if (!applied.ok) prepared.documents.forEach { failures[it.id.value] = applied.message ?: "適用できません" }
+                else {
+                    val saved = target.save(prepared.documents.map { it.id }.toSet())
+                    saved.failures.forEach { (id, message) -> failures[id.value] = message }
+                    prepared.documents.forEach { c ->
+                        persistence[c.id] = runCatching {
+                            val actual = target.storedText(c.id)
+                            when {
+                                c.id in saved.failures -> if (actual == c.before) ChangePersistence.NOT_WRITTEN else ChangePersistence.UNKNOWN
+                                actual != c.after -> ChangePersistence.UNKNOWN
+                                c.before == c.after -> ChangePersistence.UNCHANGED
+                                else -> ChangePersistence.WRITTEN
+                            }
+                        }.getOrDefault(ChangePersistence.UNKNOWN)
+                    }
+                }
+            }
         }
-        val applied = target.apply(
-            WorkspaceTransaction(
-                baseVersion = target.version,
-                intent = ChangeIntent("変更セットの適用（${staged.size} ファイル）"),
-                operations = operations,
-            )
-        )
-        if (!applied.ok) return applied.message ?: "セッションへの適用に失敗しました"
-        val saved = target.save(staged.map { it.id }.toSet())
-        return if (saved.ok) null
-        else saved.failures.entries.firstOrNull()?.let { (id, m) -> "${id.value}: $m" } ?: "書込に失敗しました"
+        prepared.documents.forEach { persistence.putIfAbsent(it.id, ChangePersistence.NOT_WRITTEN) }
+        val results = linkedMapOf<String, DocumentChangeResult>()
+        (prepared.documents.map { it.id } + prepared.issues.keys).distinct().forEach { id ->
+            val state = persistence[id]
+            results[id.value] = DocumentChangeResult(id.value,
+                !dryRun && state in setOf(ChangePersistence.WRITTEN, ChangePersistence.UNCHANGED),
+                failures[id.value] ?: if (state == ChangePersistence.UNKNOWN) "保存結果を確認できません" else null,
+                prepared.issues[id].orEmpty())
+        }
+        failures.forEach { (file, message) -> results[file] = results[file]?.copy(message = message)
+            ?: DocumentChangeResult(file, false, message, emptyList()) }
+        return ChangeSetApplication(eligible && failures.isEmpty() && (dryRun || persistence.values.all {
+            it == ChangePersistence.WRITTEN || it == ChangePersistence.UNCHANGED
+        }), dryRun, results.values.toList(), persistence)
     }
 
-    /** 文書に当てるスキーマ。ゾーンの外の構成ファイル（`.yde/workspace.yaml` など）には当てない（architecture/workspace.md「ワークスペース構造と layout」）。 */
-    private fun schemaIdFor(rel: String, document: YDocument, schemas: List<WorkspaceSchema>, layout: WorkspaceLayout): String? =
-        if (layout.isReserved(rel) && layout.zoneOf(rel) == null) null
-        else WorkspaceReader.assignSchemaId(rel, document, schemas, layout)
-
-    /** 相対パスを、区切り `/` の形に整える。ワークスペースの外へ出るパスは拒否する。 */
     private fun normalize(rel: String): String {
         val segments = ArrayList<String>()
         val text = rel.replace('\\', '/')
         require(!text.startsWith("/") && !Regex("^[A-Za-z]:").containsMatchIn(text)) { "ワークスペース外のパスは扱えません: $rel" }
-        for (segment in text.split('/')) {
-            when (segment) {
-                "", "." -> Unit
-                ".." -> require(segments.isNotEmpty()) { "ワークスペース外のパスは扱えません: $rel" }.also { segments.removeAt(segments.size - 1) }
-                else -> segments += segment
-            }
+        for (segment in text.split('/')) when (segment) {
+            "", "." -> Unit
+            ".." -> require(segments.isNotEmpty()) { "ワークスペース外のパスは扱えません: $rel" }.also { segments.removeAt(segments.size - 1) }
+            else -> segments += segment
         }
         require(segments.isNotEmpty()) { "ワークスペース外のパスは扱えません: $rel" }
         return segments.joinToString("/")

@@ -280,6 +280,8 @@
 | LC-01 | 初期値 OFF の接続設定型と明示起動する loopback 待受（画面・業務経路は未接続） | `server/LocalConnectionSettings.kt`, `server/transport/LoopbackEngine.kt` | `TransportCompatibilityTest`, `LocalServerDistributionSmoke` | [ローカル接続](architecture/local-connections.md) |
 | LC-02 | 画面から独立した共通状態と監視・実行・下書き解析 | `service/WorkspaceHost.kt`・`DesktopRuntime.kt` | `WorkspaceHostTest`・`DesktopRuntimeTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-03 | 背景のファイル操作と履歴の独立実行・完了反映 | `WorkspaceSession.PendingFileOperation` | `BackgroundFileOperationTest`・`AppStateFileArrangementTest` | [ローカル接続](architecture/local-connections.md) |
+| LC-04 | 外部操作の計画・厳格な検証・確定と履歴失効（通信は未接続） | `service/WorkspaceOperations.kt`・`ChangeSetApplier.kt` | `WorkspaceOperationsTest`・`ExternalCommitTest` | [ローカル接続](architecture/local-connections.md) |
+| LC-05 | 外部要求の永続記録・再送抑止・部分保存と結果不明の照合 | `service/OperationJournal.kt` | `WorkspaceOperationsTest` | [ローカル接続](architecture/local-connections.md) |
 
 ## 公開サンプル
 

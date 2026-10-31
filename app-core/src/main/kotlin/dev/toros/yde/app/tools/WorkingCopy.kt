@@ -9,14 +9,13 @@ import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.patch.PatchOp
 import dev.toros.yde.yaml.patch.Patcher
 import dev.toros.yde.app.core.Workspace
-import dev.toros.yde.app.index.DocScanner
 import dev.toros.yde.app.index.IdIndex
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.pretty
 import dev.toros.yde.app.schema.SchemaLoader
 import dev.toros.yde.app.validate.Issue
 import dev.toros.yde.yaml.validate.Severity
-import dev.toros.yde.app.validate.Validator
+import dev.toros.yde.yaml.model.deepCopy
 import dev.toros.yde.yaml.YamlIO
 import java.nio.file.Files
 import java.nio.file.Path
@@ -99,44 +98,12 @@ open class WorkingCopy(val ws: Workspace) {
      * （ワークスペース全体は検証しない: エージェントと無関係な既存エラーで提出を塞がないため）。
      */
     fun validateAll(): Map<String, List<Issue>> {
-        val idx = index()
-        val targets = LinkedHashMap<String, Pair<Path, YNode>>()
-        entries.values.forEach { targets[it.rel] = it.file to it.root }
-
-        // 変更前後に定義されていたIDを集める
-        val affectedIds = mutableSetOf<String>()
-        entries.values.forEach { e ->
-            val schemaDef = ws.schemaFor(e.file)
-            e.baseText?.let { base ->
-                runCatching { YamlIO.parse(base) }.getOrNull()?.let { beforeRoot ->
-                    val docId = IdIndex.documentIdOf(beforeRoot, e.rel)
-                    affectedIds += DocScanner.scan(beforeRoot, DocumentId(e.rel), schemaDef, docId).first.map { it.id }
-                }
-            }
-            val docId = IdIndex.documentIdOf(e.root, e.rel)
-            affectedIds += DocScanner.scan(e.root, DocumentId(e.rel), schemaDef, docId).first.map { it.id }
+        val overlays = entries.values.associate { e ->
+            val id = DocumentId(e.rel)
+            id to dev.toros.yde.yaml.model.YDocument(id, listOf(e.root.deepCopy()))
         }
-        // それらのIDを参照しているファイルを検証対象に加える（ディスク索引＋オーバーレイ索引の双方から）
-        (ws.index.refs + idx.refs).asSequence()
-            .filter { it.targetId in affectedIds }
-            .map { it.document }
-            .distinct()
-            .forEach { d ->
-                val rel = d.value
-                if (rel !in targets) tree(rel)?.let { targets[rel] = ws.fileOf(d) to it }
-            }
-        val results = targets.mapValues { (_, target) ->
-            // 整合検証の材料もステージング（オーバーレイ）優先で読む（R16-03a）
-            Validator.validate(
-                target.second, null, ws.documentOf(target.first), ws.schemaFor(target.first), idx,
-                allSchemas = ws.schemas,
-                loader = { d -> tree(d.value) },
-                // グラフ整合検証（R21-01）も提出ゲートに乗せる（循環を作る変更セットの拒否。architecture/graph-query.md「エンティティ操作」）
-                relations = ws.relations, enforcement = ws.enforcement,
-                shareEvaluations = true,  // ステージングを重ねた索引と、ステージングの内容を読む loader
-                files = ws.layout.files, fileExists = ws::fileExists,
-            )
-        }.toMutableMap()
+        val results = dev.toros.yde.workspace.ChangeSetValidation.validate(ws.mirror, overlays)
+            .mapKeys { it.key.value }.toMutableMap()
         // メタアクティビティ（R4-03）: ステージされた定義文書は実際のローダでパースできることもゲート条件にする
         // （スキーマ検証だけでは「schedule に everyMinutes がない」等の意味的エラーを見逃すため）
         entries.values.forEach { e ->

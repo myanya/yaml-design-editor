@@ -472,6 +472,22 @@ class WorkspaceSession private constructor(
     /** 読み込み済みの生テキスト。再読込候補を画面へ反映する際にストアを読み直さない。 */
     fun expectedStoreText(id: DocumentId): String? = storeTexts[id]
 
+    /** 操作の前提。実行記録の増加では計画を失効させない。 */
+    fun storedState(): Map<DocumentId, String> = storeTexts.filterKeys { layout.zoneOf(it.value) != WorkspaceLayout.Zone.RUNS }
+
+    /** 監視の通知前でも、本文と一覧の変化を確認する。 */
+    fun readStoreState(): Map<DocumentId, String> = store.list().map { it.id }
+        .filter { layout.zoneOf(it.value) != WorkspaceLayout.Zone.RUNS }
+        .associateWith { requireNotNull(store.read(it)) { "読込中に文書が消えました: ${it.value}" }.text }
+
+    /** 外部確定は新しい Undo を作らない。前提を広く変える更新は全ての古い一手を止める。 */
+    fun invalidateExternalHistory(ids: Set<DocumentId>) {
+        if (ids.any { layout.isReserved(it.value) && layout.zoneOf(it.value) != WorkspaceLayout.Zone.RUNS }) {
+            (undoStack + redoStack).forEach { invalidatedHistory[it.id] = invalidatedHistory[it.id].orEmpty() + ids }
+        } else invalidateHistory(ids)
+        resetCoalesce()
+    }
+
     /** 保存直前の検査。dirty や履歴、保存済みの意味内容は変えない。 */
     fun checkSave(id: DocumentId) = store.checkUnchanged(id, storeTexts[id])
 

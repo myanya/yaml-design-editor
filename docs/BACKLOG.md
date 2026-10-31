@@ -11,6 +11,7 @@ UX試験・レビュー・開発中に見つかった「今のタスクとは本
 
 | ID | 起点 | 指摘 | 技術メモ（対応の当たり） | 状態 | 対応先 |
 |---|---|---|---|---|---|
+| UX-226 | 2026-10-31 外部確定の入力コピー検証 | 変更セット YAML の `create.content` 内のコメントは読み込み時に失われる | `ChangeSets.parse` は raw 値経由で組み直す。YAML 交換形式での表記保持は別途検討する。作業コピーの YNode を直接受ける外部確定ではコピー時に保持する | 📋 | — |
 | UX-225 | 2026-10-31 リリース準備 | 設計の技術スタックが「Kotlin (JVM 17)」のままで、ビルド要件の JDK 21 と一致しない | `docs/architecture/README.md` と各モジュールの toolchain・JVM ターゲットの表記を照合する。配布手順は JDK 21 を案内済み | 📋 | — |
 | UX-206 | 2026-10-26 ソース規則テストの実装中 | **app.validate の `Readiness.kt` が `core.Workspace` を使い、validate と core が循環している**（設計は index・schema・validate を core より下に置く） | `Readiness` が要るものを core より下の型（索引・スキーマ・文書の読み出し）に絞って受け取るか、`Readiness` を core へ移す。規則テスト（`rules/SourceRules`）の known に登録済みで、直したら消す | 📋 | P47 |
 | UX-208 | 2026-10-27 app-core の切り出し（テストの移動）中 | **`core/KakeiboLabTest`（repo-tests）が `labs/kakeibo` を、cli の `ActionCliTest` が `labs/sysdev-template` を読んでいる**（CONVENTIONS §8「`labs/` 配下をテストから読まない」に反する。両モジュールのテストは作業ディレクトリをリポジトリの根にそろえて通している） | 読む対象を `test-fixtures/` の複製に変えるか、labs の検証は labs 側の手順にする | 📋 | — |

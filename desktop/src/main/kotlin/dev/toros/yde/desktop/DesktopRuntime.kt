@@ -5,6 +5,7 @@ import dev.toros.yde.agent.llm.AiProvider
 import dev.toros.yde.app.core.FileWatcher
 import dev.toros.yde.app.service.SourceDraftWorker
 import dev.toros.yde.app.service.WorkspaceHost
+import dev.toros.yde.app.service.WorkspaceOperations
 import java.awt.EventQueue
 import java.nio.file.Path
 import kotlinx.coroutines.*
@@ -32,6 +33,8 @@ internal class DesktopRuntime(
         state.status = "バックグラウンド処理に失敗しました: ${failure.message}"
     })
     val state: AppState = AppState(host, scope)
+    /** 接続の認証・登録がつながるまでは、共通窓口の権限は既定で全て拒否する。 */
+    val operations = WorkspaceOperations(host)
     private var jobs: WorkspaceJobs? = null
     private var stopping = false
 
