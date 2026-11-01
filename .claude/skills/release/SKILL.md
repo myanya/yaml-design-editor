@@ -31,7 +31,7 @@ Claude Code では `/release`、Codex では `.agents/skills/release` の入口�
 5. 作業ツリーが空であることを確かめ、配布手順の `windowsRelease --no-parallel --no-daemon --console=plain` を実行する。
    このタスクが全テスト、配布イメージ、ZIP 展開後のランタイム・内容・版を検査する。途中で失敗した場合、残った ZIP を合格成果物として扱わない。
 6. 出力先の ZIP・`SHA256SUMS.txt`・`RELEASE-NOTES.md` を確認する。SHA-256 を再計算し、ZIP の `BUILD-INFO.txt` の版・コミット・`dirty=false`・`preview=false`、本文の置換漏れとリンク先の版を照合する。
-   検証結果、対象コミット、ハッシュ、残る実機確認を `scratchpad/` に記録する。配布後の記録を履歴へ追加する場合は archive を使い、ビルド対象のコミットと区別する。
+   検証結果、対象コミット、ハッシュ、残る実機確認を `scratchpad/release-<版>/` に記録する。この記録は公開を終えるまで残し、終えたら消す。配布後の記録を履歴へ追加する場合は archive を使い、ビルド対象のコミットと区別する。
 
 ビルド中はソースを変えない。準備内容を変更した場合は検証・コミット後に公開用を作り直す。
 プレビューを改名して公開用にしない。失敗時に検査や dirty 判定を外して通さない。
