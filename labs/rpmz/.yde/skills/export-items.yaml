@@ -1,0 +1,44 @@
+id: export-items
+name: アイテムの書き出し（MZ の Items.json）
+kind: export
+description: db/items/ を MZ の Items.json に書き出します（取り込み import-items の逆向き。アイコンの画像 iconImage は書き出しません）。
+source: { match: "db/items/*.yaml" }
+build:
+  id: { $number: { $value: { extract: [ { path: id }, "[0-9]+$" ] } } }
+  animationId: { $first: [ { $apply: num, $at: animationId }, 0 ] }
+  consumable: { $first: [ { $copy: consumable }, true ] }
+  damage: { $apply: damage }
+  description: { $first: [ { $copy: description }, "" ] }
+  effects: { $first: [ { $each: effects, $apply: effect }, [] ] }
+  hitType: { $first: [ { $copy: hitType }, 0 ] }
+  iconIndex: { $first: [ { $copy: iconIndex }, 0 ] }
+  itypeId: { $first: [ { $copy: itypeId }, 1 ] }
+  name: { $first: [ { $copy: name }, "" ] }
+  note: { $first: [ { $copy: note }, "" ] }
+  occasion: { $first: [ { $copy: occasion }, 0 ] }
+  price: { $first: [ { $copy: price }, 0 ] }
+  repeats: { $first: [ { $copy: repeats }, 1 ] }
+  scope: { $first: [ { $copy: scope }, 0 ] }
+  speed: { $first: [ { $copy: speed }, 0 ] }
+  successRate: { $first: [ { $copy: successRate }, 100 ] }
+  tpGain: { $first: [ { $copy: tpGain }, 0 ] }
+output: { file: out/data/Items.json, index: id, style: lines, finalNewline: false }
+rules:
+  # ---- ここから下は、書き出しの定義に共通の規則（同じものを各定義に置きます） ----
+  # ID → MZ の番号。特別な値は MZ の -1 / 0。数はそのまま。空の欄（~）は規則が当たらず、使う側で 0 にする
+  - { id: num, when: { path: ., equals: ELM-NORMAL }, build: -1 }
+  - { id: num, when: { path: ., equals: ANI-NORMAL }, build: -1 }
+  - { id: num, when: { path: ., equals: STA-NORMAL }, build: 0 }
+  - { id: num, when: { path: ., matches: "^[A-Z]{3}-[0-9]+$" }, build: { $number: { $value: { extract: [ { path: "." }, "[0-9]+$" ] } } } }
+  - { id: num, when: { path: ., empty: false }, build: { $copy: . } }
+  # ダメージ（書いていなければ「なし」）
+  - id: damage
+    build:
+      critical: { $first: [ { $copy: damage.critical }, false ] }
+      elementId: { $first: [ { $apply: num, $at: damage.elementId }, 0 ] }
+      formula: { $first: [ { $copy: damage.formula }, "0" ] }
+      type: { $first: [ { $copy: damage.type }, 0 ] }
+      variance: { $first: [ { $copy: damage.variance }, 20 ] }
+  # 使用効果
+  - id: effect
+    build: { code: { $copy: code }, dataId: { $first: [ { $apply: num, $at: dataId }, 0 ] }, value1: { $first: [ { $copy: value1 }, 0 ] }, value2: { $first: [ { $copy: value2 }, 0 ] } }

@@ -1,0 +1,8 @@
+id: export-all
+name: MZ のデータベースをまとめて書き出す
+kind: export
+description: |
+  アクターからタイプまでの書き出しを束ねて、MZ のプロジェクトの data フォルダへ一式を書きます。
+  書き出し先には MZ のプロジェクトの data フォルダを選びます（System.json は既存のファイルに書き込むため、そのフォルダに要ります）。
+  既存のファイルを上書きするときは、書く前に一括で確認します。マップ・コモンイベント・アニメーション・タイルセットは MZ のまま残ります。
+include: [export-actors, export-classes, export-skills, export-items, export-weapons, export-armors, export-enemies, export-troops, export-states, export-system]

@@ -1,0 +1,42 @@
+id: export-classes
+name: 職業の書き出し（MZ の Classes.json）
+kind: export
+description: |
+  db/classes/ を MZ の Classes.json に書き出します（取り込み import-classes の逆向き）。
+  レベルごとの能力値の行を、能力値ごとの 100 個の並びに戻します。0 レベル目（エンジンは使わない）には 1 レベル目の値を書きます。
+source: { match: "db/classes/*.yaml" }
+build:
+  id: { $number: { $value: { extract: [ { path: id }, "[0-9]+$" ] } } }
+  expParams:
+    - { $first: [ { $copy: expParams.basis }, 30 ] }
+    - { $first: [ { $copy: expParams.extra }, 20 ] }
+    - { $first: [ { $copy: expParams.accA }, 30 ] }
+    - { $first: [ { $copy: expParams.accB }, 30 ] }
+  traits: { $first: [ { $each: traits, $apply: trait }, [] ] }
+  learnings: { $first: [ { $each: learnings, $apply: learning }, [] ] }
+  name: { $first: [ { $copy: name }, "" ] }
+  note: { $first: [ { $copy: note }, "" ] }
+  params:
+    - { $concat: [ [ { $copy: "params[0].mhp" } ], { $each: params, $build: { $copy: mhp } } ] }
+    - { $concat: [ [ { $copy: "params[0].mmp" } ], { $each: params, $build: { $copy: mmp } } ] }
+    - { $concat: [ [ { $copy: "params[0].atk" } ], { $each: params, $build: { $copy: atk } } ] }
+    - { $concat: [ [ { $copy: "params[0].def" } ], { $each: params, $build: { $copy: def } } ] }
+    - { $concat: [ [ { $copy: "params[0].mat" } ], { $each: params, $build: { $copy: mat } } ] }
+    - { $concat: [ [ { $copy: "params[0].mdf" } ], { $each: params, $build: { $copy: mdf } } ] }
+    - { $concat: [ [ { $copy: "params[0].agi" } ], { $each: params, $build: { $copy: agi } } ] }
+    - { $concat: [ [ { $copy: "params[0].luk" } ], { $each: params, $build: { $copy: luk } } ] }
+output: { file: out/data/Classes.json, index: id, style: lines, finalNewline: false }
+rules:
+  - id: learning
+    build: { level: { $copy: level }, note: { $first: [ { $copy: note }, "" ] }, skillId: { $first: [ { $apply: num, $at: skillId }, 0 ] } }
+
+  # ---- ここから下は、書き出しの定義に共通の規則（同じものを各定義に置きます） ----
+  # ID → MZ の番号。特別な値は MZ の -1 / 0。数はそのまま。空の欄（~）は規則が当たらず、使う側で 0 にする
+  - { id: num, when: { path: ., equals: ELM-NORMAL }, build: -1 }
+  - { id: num, when: { path: ., equals: ANI-NORMAL }, build: -1 }
+  - { id: num, when: { path: ., equals: STA-NORMAL }, build: 0 }
+  - { id: num, when: { path: ., matches: "^[A-Z]{3}-[0-9]+$" }, build: { $number: { $value: { extract: [ { path: "." }, "[0-9]+$" ] } } } }
+  - { id: num, when: { path: ., empty: false }, build: { $copy: . } }
+  # 特徴
+  - id: trait
+    build: { code: { $copy: code }, dataId: { $first: [ { $apply: num, $at: dataId }, 0 ] }, value: { $first: [ { $copy: value }, 0 ] } }

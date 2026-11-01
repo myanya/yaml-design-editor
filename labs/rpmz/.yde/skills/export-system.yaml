@@ -1,0 +1,33 @@
+id: export-system
+name: タイプと初期パーティの書き出し（MZ の System.json）
+kind: export
+description: |
+  db/types.yaml と db/system.yaml を、MZ の既存の System.json に書き込みます（mode: merge。ほかの設定とキーの並びはそのまま）。
+  書き込むのはタイプ（属性・スキルタイプ・武器タイプと攻撃モーション・防具タイプ・装備タイプ）と、初期パーティ・戦闘テストです。
+  スキルタイプの「魔法スキル」（magicSkills）とスイッチ・変数の名前は、MZ の値のままにします（書き込みません）。
+source: { match: "db/{types,system}.yaml" }
+build:
+  elements: { $when: { path: elements, exists: true }, $then: { $concat: [ [ "" ], { $each: elements, $build: { $copy: name } } ] } }
+  skillTypes: { $when: { path: skillTypes, exists: true }, $then: { $concat: [ [ "" ], { $each: skillTypes, $build: { $copy: name } } ] } }
+  weaponTypes: { $when: { path: weaponTypes, exists: true }, $then: { $concat: [ [ "" ], { $each: weaponTypes, $build: { $copy: name } } ] } }
+  attackMotions:
+    $when: { path: weaponTypes, exists: true }
+    $then:
+      $concat:
+        - [ { type: 0, weaponImageId: 0 } ]
+        - { $each: weaponTypes, $build: { type: { $first: [ { $copy: motion }, 0 ] }, weaponImageId: { $first: [ { $copy: weaponImageId }, 0 ] } } }
+  armorTypes: { $when: { path: armorTypes, exists: true }, $then: { $concat: [ [ "" ], { $each: armorTypes, $build: { $copy: name } } ] } }
+  equipTypes: { $when: { path: equipTypes, exists: true }, $then: { $concat: [ [ "" ], { $each: equipTypes, $build: { $copy: name } } ] } }
+  partyMembers: { $each: partyMembers, $apply: num }
+  testBattlers: { $each: testBattlers, $apply: battler }
+  testTroopId: { $when: { path: partyMembers, exists: true }, $then: { $first: [ { $apply: num, $at: testTroopId }, 0 ] } }
+output: { file: out/data/System.json, mode: merge, style: compact, finalNewline: false }
+rules:
+  - id: battler
+    build:
+      actorId: { $apply: num, $at: actorId }
+      level: { $first: [ { $copy: level }, 1 ] }
+      equips: { $first: [ { $each: equips, $build: { $first: [ { $apply: num }, 0 ] } }, [] ] }
+  # ID → MZ の番号（数はそのまま。空の欄は規則が当たらず、使う側で 0 にする）
+  - { id: num, when: { path: ., matches: "^[A-Z]{3}-[0-9]+$" }, build: { $number: { $value: { extract: [ { path: "." }, "[0-9]+$" ] } } } }
+  - { id: num, when: { path: ., empty: false }, build: { $copy: . } }

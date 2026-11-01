@@ -1,0 +1,49 @@
+id: export-skills
+name: スキルの書き出し（MZ の Skills.json）
+kind: export
+description: db/skills/ を MZ の Skills.json に書き出します（取り込み import-skills の逆向き）。
+source: { match: "db/skills/*.yaml" }
+build:
+  id: { $number: { $value: { extract: [ { path: id }, "[0-9]+$" ] } } }
+  animationId: { $first: [ { $apply: num, $at: animationId }, 0 ] }
+  damage: { $apply: damage }
+  description: { $first: [ { $copy: description }, "" ] }
+  effects: { $first: [ { $each: effects, $apply: effect }, [] ] }
+  hitType: { $first: [ { $copy: hitType }, 0 ] }
+  iconIndex: { $first: [ { $copy: iconIndex }, 0 ] }
+  message1: { $first: [ { $copy: message1 }, "" ] }
+  message2: { $first: [ { $copy: message2 }, "" ] }
+  mpCost: { $first: [ { $copy: mpCost }, 0 ] }
+  name: { $first: [ { $copy: name }, "" ] }
+  note: { $first: [ { $copy: note }, "" ] }
+  occasion: { $first: [ { $copy: occasion }, 0 ] }
+  repeats: { $first: [ { $copy: repeats }, 1 ] }
+  requiredWtypeId1: { $first: [ { $apply: num, $at: requiredWtypeId1 }, 0 ] }
+  requiredWtypeId2: { $first: [ { $apply: num, $at: requiredWtypeId2 }, 0 ] }
+  scope: { $first: [ { $copy: scope }, 0 ] }
+  speed: { $first: [ { $copy: speed }, 0 ] }
+  stypeId: { $first: [ { $apply: num, $at: stypeId }, 0 ] }
+  successRate: { $first: [ { $copy: successRate }, 100 ] }
+  tpCost: { $first: [ { $copy: tpCost }, 0 ] }
+  tpGain: { $first: [ { $copy: tpGain }, 0 ] }
+  messageType: { $first: [ { $copy: messageType }, 1 ] }
+output: { file: out/data/Skills.json, index: id, style: lines, finalNewline: false }
+rules:
+  # ---- ここから下は、書き出しの定義に共通の規則（同じものを各定義に置きます） ----
+  # ID → MZ の番号。特別な値は MZ の -1 / 0。数はそのまま。空の欄（~）は規則が当たらず、使う側で 0 にする
+  - { id: num, when: { path: ., equals: ELM-NORMAL }, build: -1 }
+  - { id: num, when: { path: ., equals: ANI-NORMAL }, build: -1 }
+  - { id: num, when: { path: ., equals: STA-NORMAL }, build: 0 }
+  - { id: num, when: { path: ., matches: "^[A-Z]{3}-[0-9]+$" }, build: { $number: { $value: { extract: [ { path: "." }, "[0-9]+$" ] } } } }
+  - { id: num, when: { path: ., empty: false }, build: { $copy: . } }
+  # ダメージ（書いていなければ「なし」）
+  - id: damage
+    build:
+      critical: { $first: [ { $copy: damage.critical }, false ] }
+      elementId: { $first: [ { $apply: num, $at: damage.elementId }, 0 ] }
+      formula: { $first: [ { $copy: damage.formula }, "0" ] }
+      type: { $first: [ { $copy: damage.type }, 0 ] }
+      variance: { $first: [ { $copy: damage.variance }, 20 ] }
+  # 使用効果
+  - id: effect
+    build: { code: { $copy: code }, dataId: { $first: [ { $apply: num, $at: dataId }, 0 ] }, value1: { $first: [ { $copy: value1 }, 0 ] }, value2: { $first: [ { $copy: value2 }, 0 ] } }

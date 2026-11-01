@@ -1,0 +1,44 @@
+id: export-states
+name: ステートの書き出し（MZ の States.json）
+kind: export
+description: |
+  db/states/ を MZ の States.json に書き出します（取り込み import-states の逆向き）。
+  キーの並びは MZ の新しいステートの並びです（MZ は読んだときの並びのまま保存するので、既存のファイルとは並びだけが違うことがあります）。
+source: { match: "db/states/*.yaml" }
+build:
+  id: { $number: { $value: { extract: [ { path: id }, "[0-9]+$" ] } } }
+  autoRemovalTiming: { $first: [ { $copy: autoRemovalTiming }, 0 ] }
+  chanceByDamage: { $first: [ { $copy: chanceByDamage }, 100 ] }
+  traits: { $first: [ { $each: traits, $apply: trait }, [] ] }
+  iconIndex: { $first: [ { $copy: iconIndex }, 0 ] }
+  maxTurns: { $first: [ { $copy: maxTurns }, 1 ] }
+  message1: { $first: [ { $copy: message1 }, "" ] }
+  message2: { $first: [ { $copy: message2 }, "" ] }
+  message3: { $first: [ { $copy: message3 }, "" ] }
+  message4: { $first: [ { $copy: message4 }, "" ] }
+  minTurns: { $first: [ { $copy: minTurns }, 1 ] }
+  motion: { $first: [ { $copy: motion }, 0 ] }
+  name: { $first: [ { $copy: name }, "" ] }
+  note: { $first: [ { $copy: note }, "" ] }
+  overlay: { $first: [ { $copy: overlay }, 0 ] }
+  priority: { $first: [ { $copy: priority }, 50 ] }
+  releaseByDamage: { $copy: releaseByDamage }
+  removeAtBattleEnd: { $first: [ { $copy: removeAtBattleEnd }, false ] }
+  removeByDamage: { $first: [ { $copy: removeByDamage }, false ] }
+  removeByRestriction: { $first: [ { $copy: removeByRestriction }, false ] }
+  removeByWalking: { $first: [ { $copy: removeByWalking }, false ] }
+  restriction: { $first: [ { $copy: restriction }, 0 ] }
+  stepsToRemove: { $first: [ { $copy: stepsToRemove }, 100 ] }
+  messageType: { $first: [ { $copy: messageType }, 1 ] }
+output: { file: out/data/States.json, index: id, style: lines, finalNewline: false }
+rules:
+  # ---- ここから下は、書き出しの定義に共通の規則（同じものを各定義に置きます） ----
+  # ID → MZ の番号。特別な値は MZ の -1 / 0。数はそのまま。空の欄（~）は規則が当たらず、使う側で 0 にする
+  - { id: num, when: { path: ., equals: ELM-NORMAL }, build: -1 }
+  - { id: num, when: { path: ., equals: ANI-NORMAL }, build: -1 }
+  - { id: num, when: { path: ., equals: STA-NORMAL }, build: 0 }
+  - { id: num, when: { path: ., matches: "^[A-Z]{3}-[0-9]+$" }, build: { $number: { $value: { extract: [ { path: "." }, "[0-9]+$" ] } } } }
+  - { id: num, when: { path: ., empty: false }, build: { $copy: . } }
+  # 特徴
+  - id: trait
+    build: { code: { $copy: code }, dataId: { $first: [ { $apply: num, $at: dataId }, 0 ] }, value: { $first: [ { $copy: value }, 0 ] } }

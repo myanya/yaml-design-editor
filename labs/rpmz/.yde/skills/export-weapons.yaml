@@ -1,0 +1,40 @@
+id: export-weapons
+name: 武器の書き出し（MZ の Weapons.json）
+kind: export
+description: db/weapons/ を MZ の Weapons.json に書き出します（取り込み import-weapons の逆向き。アイコンの画像 iconImage は書き出しません）。
+source: { match: "db/weapons/*.yaml" }
+build:
+  id: { $number: { $value: { extract: [ { path: id }, "[0-9]+$" ] } } }
+  animationId: { $first: [ { $apply: num, $at: animationId }, 0 ] }
+  description: { $first: [ { $copy: description }, "" ] }
+  etypeId: { $first: [ { $apply: num, $at: etypeId }, 1 ] }
+  traits: { $first: [ { $each: traits, $apply: trait }, [] ] }
+  iconIndex: { $first: [ { $copy: iconIndex }, 0 ] }
+  name: { $first: [ { $copy: name }, "" ] }
+  note: { $first: [ { $copy: note }, "" ] }
+  params: { $apply: params }
+  price: { $first: [ { $copy: price }, 0 ] }
+  wtypeId: { $first: [ { $apply: num, $at: wtypeId }, 0 ] }
+output: { file: out/data/Weapons.json, index: id, style: lines, finalNewline: false }
+rules:
+  # ---- ここから下は、書き出しの定義に共通の規則（同じものを各定義に置きます） ----
+  # ID → MZ の番号。特別な値は MZ の -1 / 0。数はそのまま。空の欄（~）は規則が当たらず、使う側で 0 にする
+  - { id: num, when: { path: ., equals: ELM-NORMAL }, build: -1 }
+  - { id: num, when: { path: ., equals: ANI-NORMAL }, build: -1 }
+  - { id: num, when: { path: ., equals: STA-NORMAL }, build: 0 }
+  - { id: num, when: { path: ., matches: "^[A-Z]{3}-[0-9]+$" }, build: { $number: { $value: { extract: [ { path: "." }, "[0-9]+$" ] } } } }
+  - { id: num, when: { path: ., empty: false }, build: { $copy: . } }
+  # 能力値の名前 → 8 個の並び（書いていない能力値は 0）
+  - id: params
+    build:
+      - { $first: [ { $copy: params.mhp }, 0 ] }
+      - { $first: [ { $copy: params.mmp }, 0 ] }
+      - { $first: [ { $copy: params.atk }, 0 ] }
+      - { $first: [ { $copy: params.def }, 0 ] }
+      - { $first: [ { $copy: params.mat }, 0 ] }
+      - { $first: [ { $copy: params.mdf }, 0 ] }
+      - { $first: [ { $copy: params.agi }, 0 ] }
+      - { $first: [ { $copy: params.luk }, 0 ] }
+  # 特徴
+  - id: trait
+    build: { code: { $copy: code }, dataId: { $first: [ { $apply: num, $at: dataId }, 0 ] }, value: { $first: [ { $copy: value }, 0 ] } }

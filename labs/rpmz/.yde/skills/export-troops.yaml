@@ -1,0 +1,25 @@
+id: export-troops
+name: 敵グループの書き出し（MZ の Troops.json）
+kind: export
+description: |
+  db/troops/ を MZ の Troops.json に書き出します（取り込み import-troops の逆向き）。
+  バトルイベント（pages）はそのまま書き、書いていなければ MZ の空のページを 1 つ置きます。
+source: { match: "db/troops/*.yaml" }
+build:
+  id: { $number: { $value: { extract: [ { path: id }, "[0-9]+$" ] } } }
+  members: { $first: [ { $each: members, $apply: member }, [] ] }
+  name: { $first: [ { $copy: name }, "" ] }
+  pages:
+    $first:
+      - { $copy: pages }
+      - - conditions: { actorHp: 50, actorId: 1, actorValid: false, enemyHp: 50, enemyIndex: 0, enemyValid: false, switchId: 1, switchValid: false, turnA: 0, turnB: 0, turnEnding: false, turnValid: false }
+          list: [ { code: 0, indent: 0, parameters: [] } ]
+          span: 0
+output: { file: out/data/Troops.json, index: id, style: lines, finalNewline: false }
+rules:
+  - id: member
+    build:
+      enemyId: { $number: { $value: { extract: [ { path: enemyId }, "[0-9]+$" ] } } }
+      x: { $copy: x }
+      y: { $copy: y }
+      hidden: { $first: [ { $copy: hidden }, false ] }

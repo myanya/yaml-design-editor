@@ -1,0 +1,55 @@
+id: export-enemies
+name: 敵キャラの書き出し（MZ の Enemies.json）
+kind: export
+description: |
+  db/enemies/ を MZ の Enemies.json に書き出します（取り込み import-enemies の逆向き）。
+  ドロップアイテムは MZ の 3 つの枠に埋め、使わない枠は MZ の既定（種類 0）にします。
+source: { match: "db/enemies/*.yaml" }
+build:
+  id: { $number: { $value: { extract: [ { path: id }, "[0-9]+$" ] } } }
+  actions: { $first: [ { $each: actions, $apply: action }, [] ] }
+  battlerHue: { $first: [ { $copy: battlerHue }, 0 ] }
+  battlerName: { $first: [ { $copy: battlerName }, "" ] }
+  dropItems:
+    - { $first: [ { $apply: drop, $at: "dropItems[0]" }, { dataId: 1, denominator: 1, kind: 0 } ] }
+    - { $first: [ { $apply: drop, $at: "dropItems[1]" }, { dataId: 1, denominator: 1, kind: 0 } ] }
+    - { $first: [ { $apply: drop, $at: "dropItems[2]" }, { dataId: 1, denominator: 1, kind: 0 } ] }
+  exp: { $first: [ { $copy: exp }, 0 ] }
+  traits: { $first: [ { $each: traits, $apply: trait }, [] ] }
+  gold: { $first: [ { $copy: gold }, 0 ] }
+  name: { $first: [ { $copy: name }, "" ] }
+  note: { $first: [ { $copy: note }, "" ] }
+  params: { $apply: params }
+output: { file: out/data/Enemies.json, index: id, style: lines, finalNewline: false }
+rules:
+  - id: drop
+    build: { dataId: { $apply: num, $at: dataId }, denominator: { $first: [ { $copy: denominator }, 1 ] }, kind: { $copy: kind } }
+  - id: action
+    build:
+      conditionParam1: { $first: [ { $apply: num, $at: conditionParam1 }, 0 ] }
+      conditionParam2: { $first: [ { $copy: conditionParam2 }, 0 ] }
+      conditionType: { $first: [ { $copy: conditionType }, 0 ] }
+      rating: { $first: [ { $copy: rating }, 5 ] }
+      skillId: { $first: [ { $apply: num, $at: skillId }, 1 ] }
+
+  # ---- ここから下は、書き出しの定義に共通の規則（同じものを各定義に置きます） ----
+  # ID → MZ の番号。特別な値は MZ の -1 / 0。数はそのまま。空の欄（~）は規則が当たらず、使う側で 0 にする
+  - { id: num, when: { path: ., equals: ELM-NORMAL }, build: -1 }
+  - { id: num, when: { path: ., equals: ANI-NORMAL }, build: -1 }
+  - { id: num, when: { path: ., equals: STA-NORMAL }, build: 0 }
+  - { id: num, when: { path: ., matches: "^[A-Z]{3}-[0-9]+$" }, build: { $number: { $value: { extract: [ { path: "." }, "[0-9]+$" ] } } } }
+  - { id: num, when: { path: ., empty: false }, build: { $copy: . } }
+  # 能力値の名前 → 8 個の並び（書いていない能力値は 0）
+  - id: params
+    build:
+      - { $first: [ { $copy: params.mhp }, 0 ] }
+      - { $first: [ { $copy: params.mmp }, 0 ] }
+      - { $first: [ { $copy: params.atk }, 0 ] }
+      - { $first: [ { $copy: params.def }, 0 ] }
+      - { $first: [ { $copy: params.mat }, 0 ] }
+      - { $first: [ { $copy: params.mdf }, 0 ] }
+      - { $first: [ { $copy: params.agi }, 0 ] }
+      - { $first: [ { $copy: params.luk }, 0 ] }
+  # 特徴
+  - id: trait
+    build: { code: { $copy: code }, dataId: { $first: [ { $apply: num, $at: dataId }, 0 ] }, value: { $first: [ { $copy: value }, 0 ] } }

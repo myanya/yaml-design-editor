@@ -1,0 +1,37 @@
+id: export-actors
+name: アクターの書き出し（MZ の Actors.json）
+kind: export
+description: |
+  db/actors/ を MZ の Actors.json に書き出します（取り込み import-actors の逆向き）。
+  ID は番号に、画像の場所は名前（拡張子なし）に戻し、書いていない項目は MZ の既定の値（空の文字・0）を書きます。
+source: { match: "db/actors/*.yaml" }
+build:
+  id: { $number: { $value: { extract: [ { path: id }, "[0-9]+$" ] } } }
+  battlerName: { $first: [ { $apply: image, $at: battlerName }, "" ] }
+  characterIndex: { $first: [ { $copy: characterIndex }, 0 ] }
+  characterName: { $first: [ { $apply: image, $at: characterName }, "" ] }
+  classId: { $first: [ { $apply: num, $at: classId }, 0 ] }
+  equips: { $first: [ { $each: equips, $build: { $first: [ { $apply: num }, 0 ] } }, [] ] }
+  faceIndex: { $first: [ { $copy: faceIndex }, 0 ] }
+  faceName: { $first: [ { $apply: image, $at: faceName }, "" ] }
+  traits: { $first: [ { $each: traits, $apply: trait }, [] ] }
+  initialLevel: { $first: [ { $copy: initialLevel }, 1 ] }
+  maxLevel: { $first: [ { $copy: maxLevel }, 99 ] }
+  name: { $first: [ { $copy: name }, "" ] }
+  nickname: { $first: [ { $copy: nickname }, "" ] }
+  note: { $first: [ { $copy: note }, "" ] }
+  profile: { $first: [ { $copy: profile }, "" ] }
+output: { file: out/data/Actors.json, index: id, style: lines, finalNewline: false }
+rules:
+  # ---- ここから下は、書き出しの定義に共通の規則（同じものを各定義に置きます） ----
+  # ID → MZ の番号。特別な値は MZ の -1 / 0。数はそのまま。空の欄（~）は規則が当たらず、使う側で 0 にする
+  - { id: num, when: { path: ., equals: ELM-NORMAL }, build: -1 }
+  - { id: num, when: { path: ., equals: ANI-NORMAL }, build: -1 }
+  - { id: num, when: { path: ., equals: STA-NORMAL }, build: 0 }
+  - { id: num, when: { path: ., matches: "^[A-Z]{3}-[0-9]+$" }, build: { $number: { $value: { extract: [ { path: "." }, "[0-9]+$" ] } } } }
+  - { id: num, when: { path: ., empty: false }, build: { $copy: . } }
+  # 画像の場所 → MZ の画像の名前（拡張子なし）
+  - { id: image, build: { $value: { extract: [ { path: "." }, "([^/]+)\\.png$" ] } } }
+  # 特徴
+  - id: trait
+    build: { code: { $copy: code }, dataId: { $first: [ { $apply: num, $at: dataId }, 0 ] }, value: { $first: [ { $copy: value }, 0 ] } }
