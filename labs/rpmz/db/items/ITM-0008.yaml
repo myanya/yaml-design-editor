@@ -1,0 +1,9 @@
+id: ITM-0008
+name: 古い写真
+description: 依頼人から預かった写真。写っている人の顔だけがにじんでいる。
+itypeId: 2
+price: 0
+consumable: false
+scope: 0
+occasion: 3
+hitType: 0

@@ -1,0 +1,32 @@
+# 関係レジストリ: データベースの関係の語彙。表示名と参照の向きを 1 か所に書きます
+id: rpmz-relations
+kind: relations
+entities:
+  - { type: actor, label: アクター }
+  - { type: class, label: 職業 }
+  - { type: skill, label: スキル }
+  - { type: item, label: アイテム }
+  - { type: weapon, label: 武器 }
+  - { type: armor, label: 防具 }
+  - { type: enemy, label: 敵キャラ }
+  - { type: troop, label: 敵グループ }
+  - { type: state, label: ステート }
+  - { type: element, label: 属性 }
+  - { type: skill-type, label: スキルタイプ }
+  - { type: weapon-type, label: 武器タイプ }
+  - { type: armor-type, label: 防具タイプ }
+  - { type: equip-type, label: 装備タイプ }
+  - { type: animation, label: アニメーション }
+  - { type: common-event, label: コモンイベント }
+  - { type: switch, label: スイッチ }
+  - { type: variable, label: 変数 }
+  - { type: special, label: 特別な値 }
+relations:
+  - { name: has-class, label: 職業, inverseLabel: この職業のアクター, source: [actor], target: [class] }
+  - { name: equips, label: 初期装備, inverseLabel: 初期装備にしているアクター, source: [actor], target: [weapon, armor] }
+  - { name: learns, label: 習得スキル, inverseLabel: 習得する職業, source: [class], target: [skill] }
+  - { name: uses, label: 行動, inverseLabel: 使う敵キャラ, source: [enemy], target: [skill] }
+  - { name: drops, label: ドロップ, inverseLabel: 落とす敵キャラ, source: [enemy], target: [item, weapon, armor] }
+  - { name: has-member, label: 構成員, inverseLabel: 出現する敵グループ, source: [troop], target: [enemy] }
+  - { name: inflicts, label: 付加するステート, inverseLabel: 付加するスキル・アイテム, source: [skill, item], target: [state, special] }
+  - { name: removes, label: 解除するステート, inverseLabel: 解除するスキル・アイテム, source: [skill, item], target: [state] }

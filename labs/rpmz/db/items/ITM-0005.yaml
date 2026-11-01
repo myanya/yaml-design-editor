@@ -1,0 +1,13 @@
+id: ITM-0005
+name: 鎮静剤
+description: 恐怖と錯乱をしずめる。
+itypeId: 1
+price: 150
+consumable: true
+scope: 7
+occasion: 0
+hitType: 0
+animationId: ANI-0041
+effects:
+  - { code: 22, dataId: STA-0003, value1: 1 }
+  - { code: 22, dataId: STA-0004, value1: 1 }

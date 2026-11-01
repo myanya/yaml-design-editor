@@ -1,0 +1,43 @@
+id: state
+name: ステート
+kind: document
+description: ステート 1 つを 1 ファイルで管理します。1 番は戦闘不能に使われます（MZ のエンジンの約束）。
+match: "db/states/*.yaml"
+filePattern: "db/states/{id}.yaml"
+definitions:
+  ステート:
+    type: object
+    label: ステート
+    entity: { type: state, defines: true }
+    fields:
+      - { key: id, label: ステートID, type: common#ステートID, required: true }
+      - { key: name, label: 名前, type: line, role: title, required: true }
+      - { key: iconIndex, label: アイコン, type: common#アイコン番号, default: 0 }
+      - { key: restriction, label: 行動制約, type: common#行動制約, required: true, default: 0 }
+      - { key: priority, label: 優先度, type: int, min: 0, max: 100, default: 50 }
+      - { key: motion, label: SV モーション, type: common#SVモーション, default: 0 }
+      - { key: overlay, label: SV 重ね合わせ, type: int, min: 0, max: 10, default: 0, description: サイドビューの状態異常の重ね合わせ画像の番号（画像は MZ 側）。 }
+      - { key: removeAtBattleEnd, label: 戦闘終了時に解除, type: boolean, default: false }
+      - { key: removeByRestriction, label: 行動制約によって解除, type: boolean, default: false }
+      - { key: autoRemovalTiming, label: 自動解除のタイミング, type: common#自動解除のタイミング, default: 0 }
+      - { key: minTurns, label: 継続ターン数（最小）, type: int, min: 1, default: 1 }
+      - { key: maxTurns, label: 継続ターン数（最大）, type: int, min: 1, default: 1 }
+      - { key: removeByDamage, label: ダメージで解除, type: boolean, default: false }
+      - { key: chanceByDamage, label: ダメージで解除する確率（%）, type: int, min: 0, max: 100, default: 100 }
+      - { key: removeByWalking, label: 歩数で解除, type: boolean, default: false }
+      - { key: stepsToRemove, label: 解除までの歩数, type: int, min: 0, default: 100 }
+      - { key: releaseByDamage, label: ダメージで解除（旧）, type: boolean, description: 古い版の MZ が書く項目。取り込んだときだけ持ちます。 }
+      - { key: messageType, label: メッセージの形式, type: int, default: 1, description: MZ のメッセージの形式（通常は 1）。 }
+      - { key: message1, label: アクターがかかったとき, type: line, description: "%1 は対象の名前に置き換わります。" }
+      - { key: message2, label: 敵がかかったとき, type: line }
+      - { key: message3, label: かかっているとき, type: line }
+      - { key: message4, label: 解除されたとき, type: line }
+      - { key: traits, label: 特徴, type: array, item: { type: parts#特徴 } }
+      - { key: note, label: メモ, type: common#メモ }
+    constraints:
+      - id: min-turns-within-max
+        description: 継続ターン数は、最小が最大以下であること（両方を書いたステートだけ）
+        where: [ { path: minTurns, exists: true }, { path: maxTurns, exists: true } ]
+        check: [ { lte: [ { path: minTurns }, { path: maxTurns } ] } ]
+        level: error
+root: { type: ステート }

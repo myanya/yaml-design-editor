@@ -1,0 +1,11 @@
+id: SKL-0023
+name: 這い寄る
+description: 床を這って近づく。
+scope: 1
+hitType: 1
+animationId: ANI-0076
+message1: "%1は這い寄ってきた！"
+damage: { type: 1, elementId: ELM-04, formula: a.atk * 3 - b.def, variance: 20, critical: false }
+effects:
+  - { code: 21, dataId: STA-0004, value1: 0.3 }
+occasion: 1

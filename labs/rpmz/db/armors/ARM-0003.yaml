@@ -1,0 +1,7 @@
+id: ARM-0003
+name: ハンチング帽
+description: 使い込んだ帽子。
+atypeId: ATY-01
+etypeId: ETY-03
+price: 200
+params: { def: 3, luk: 2 }

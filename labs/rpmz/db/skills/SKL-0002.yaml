@@ -1,0 +1,12 @@
+id: SKL-0002
+name: 防御
+description: 身を守り、受けるダメージを減らす。
+scope: 11
+occasion: 1
+hitType: 0
+speed: 2000
+tpGain: 10
+message1: "%1は身を守っている。"
+effects:
+  - { code: 21, dataId: STA-0002, value1: 1 }
+note: MZ のエンジンは 2 番のスキルを防御に使います。

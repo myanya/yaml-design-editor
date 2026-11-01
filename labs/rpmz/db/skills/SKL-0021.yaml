@@ -1,0 +1,10 @@
+id: SKL-0021
+name: 呪詛
+description: 呪いの言葉を吐く。
+scope: 1
+hitType: 2
+animationId: ANI-0076
+message1: "%1は呪いの言葉を吐いた！"
+effects:
+  - { code: 21, dataId: STA-0005, value1: 0.6 }
+occasion: 1

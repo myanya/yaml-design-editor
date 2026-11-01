@@ -1,0 +1,14 @@
+id: STA-0005
+name: 呪い
+iconIndex: 2
+restriction: 0
+priority: 50
+overlay: 9
+removeByWalking: true
+stepsToRemove: 100
+traits:
+  - { code: 22, dataId: 7, value: -0.1 }
+message1: "%1は呪われた！"
+message2: "%1は呪われた！"
+message3: "%1は呪いに蝕まれている…"
+message4: "%1の呪いが解けた！"

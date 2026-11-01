@@ -1,0 +1,9 @@
+id: ARM-0008
+name: 古い懐中時計
+description: 止まったはずの針が動いている。
+atypeId: ATY-03
+etypeId: ETY-05
+price: 1000
+params: { agi: 6 }
+traits:
+  - { code: 22, dataId: 1, value: 0.05 }

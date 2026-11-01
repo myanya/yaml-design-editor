@@ -1,0 +1,14 @@
+id: ENM-0005
+name: 黒い犬
+params: { mhp: 140, mmp: 0, atk: 20, def: 10, mat: 4, mdf: 6, agi: 28, luk: 14 }
+exp: 10
+gold: 8
+dropItems:
+  - { kind: 1, dataId: ITM-0002, denominator: 5 }
+actions:
+  - { skillId: SKL-0020, rating: 5, conditionType: 0 }
+  - { skillId: SKL-0001, rating: 5, conditionType: 0 }
+traits:
+  - { code: 22, dataId: 0, value: 0.95 }
+  - { code: 22, dataId: 1, value: 0.05 }
+  - { code: 11, dataId: ELM-03, value: 1.5 }

@@ -1,0 +1,13 @@
+id: ITM-0003
+name: 気付け薬
+description: 意識を失った仲間を起こし、HP を 25% 回復する。
+itypeId: 1
+price: 300
+consumable: true
+scope: 9
+occasion: 0
+hitType: 0
+animationId: ANI-0041
+effects:
+  - { code: 22, dataId: STA-0001, value1: 1 }
+  - { code: 11, value1: 0.25, value2: 0 }

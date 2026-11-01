@@ -1,0 +1,16 @@
+id: STA-0004
+name: 錯乱
+iconIndex: 6
+restriction: 2
+priority: 70
+motion: 1
+overlay: 5
+removeAtBattleEnd: true
+autoRemovalTiming: 1
+minTurns: 2
+maxTurns: 3
+removeByDamage: true
+chanceByDamage: 50
+message1: "%1は錯乱した！"
+message2: "%1は錯乱した！"
+message4: "%1は我に返った！"

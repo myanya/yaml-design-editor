@@ -1,0 +1,15 @@
+id: STA-0008
+name: 金縛り
+iconIndex: 7
+restriction: 4
+priority: 90
+motion: 2
+overlay: 8
+removeAtBattleEnd: true
+autoRemovalTiming: 2
+minTurns: 1
+maxTurns: 2
+message1: "%1は金縛りにあった！"
+message2: "%1は動けなくなった！"
+message3: "%1は動けない！"
+message4: "%1の金縛りが解けた！"

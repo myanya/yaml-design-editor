@@ -1,0 +1,16 @@
+id: SKL-0004
+name: 看破
+description: 急所を見抜いて打つ。会心が出やすい。
+stypeId: STY-01
+mpCost: 5
+scope: 1
+hitType: 1
+animationId: ANI-NORMAL
+message1: "%1は急所を見抜いた！"
+damage:
+  type: 1
+  elementId: ELM-01
+  formula: a.atk * 4 + a.luk * 2 - b.def * 2
+  variance: 20
+  critical: true
+occasion: 1

@@ -1,0 +1,5 @@
+id: TRP-0003
+name: 呪いの人形と這い寄る女
+members:
+  - { enemyId: ENM-0003, x: 330, y: 430 }
+  - { enemyId: ENM-0002, x: 480, y: 440 }

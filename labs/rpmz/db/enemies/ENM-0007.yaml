@@ -1,0 +1,15 @@
+id: ENM-0007
+name: 鏡の中の顔
+params: { mhp: 300, mmp: 60, atk: 16, def: 20, mat: 26, mdf: 26, agi: 14, luk: 16 }
+exp: 30
+gold: 50
+dropItems:
+  - { kind: 3, dataId: ARM-0007, denominator: 6 }
+actions:
+  - { skillId: SKL-0025, rating: 5, conditionType: 0 }
+  - { skillId: SKL-0024, rating: 3, conditionType: 2, conditionParam1: 0, conditionParam2: 0.5 }
+traits:
+  - { code: 22, dataId: 0, value: 0.95 }
+  - { code: 22, dataId: 1, value: 0.05 }
+  - { code: 11, dataId: ELM-01, value: 0.3 }
+  - { code: 11, dataId: ELM-03, value: 2.0 }

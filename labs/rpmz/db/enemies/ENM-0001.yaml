@@ -1,0 +1,16 @@
+id: ENM-0001
+name: 影法師
+params: { mhp: 120, mmp: 0, atk: 14, def: 10, mat: 10, mdf: 10, agi: 16, luk: 10 }
+exp: 8
+gold: 10
+dropItems:
+  - { kind: 1, dataId: ITM-0001, denominator: 4 }
+actions:
+  - { skillId: SKL-0020, rating: 5, conditionType: 0 }
+  - { skillId: SKL-0025, rating: 3, conditionType: 1, conditionParam1: 2, conditionParam2: 2 }
+traits:
+  - { code: 22, dataId: 0, value: 0.95 }
+  - { code: 22, dataId: 1, value: 0.05 }
+  - { code: 11, dataId: ELM-03, value: 2.0 }
+  - { code: 11, dataId: ELM-01, value: 0.5 }
+  - { code: 11, dataId: ELM-05, value: 1.5 }

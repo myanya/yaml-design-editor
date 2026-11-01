@@ -1,0 +1,14 @@
+id: ENM-0006
+name: 赤い傘の子ども
+params: { mhp: 180, mmp: 30, atk: 10, def: 12, mat: 18, mdf: 18, agi: 18, luk: 24 }
+exp: 16
+gold: 15
+dropItems:
+  - { kind: 1, dataId: ITM-0007, denominator: 4 }
+actions:
+  - { skillId: SKL-0024, rating: 4, conditionType: 0 }
+  - { skillId: SKL-0022, rating: 3, conditionType: 0 }
+traits:
+  - { code: 22, dataId: 0, value: 0.95 }
+  - { code: 22, dataId: 1, value: 0.05 }
+  - { code: 11, dataId: ELM-05, value: 1.5 }

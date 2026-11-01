@@ -1,0 +1,5 @@
+id: TRP-0001
+name: 影法師×2
+members:
+  - { enemyId: ENM-0001, x: 330, y: 430 }
+  - { enemyId: ENM-0001, x: 480, y: 430 }

@@ -1,0 +1,10 @@
+id: ACT-0002
+name: 白鷺 灯
+nickname: 見える助手
+classId: CLS-0002
+initialLevel: 1
+maxLevel: 50
+profile: |-
+  事務所で働く大学生。幼いころから、
+  見えてはいけないものが見える。
+equips: [WPN-0005, ~, ~, ARM-0001, ARM-0006]

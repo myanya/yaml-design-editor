@@ -1,0 +1,11 @@
+id: SKL-0015
+name: 連打
+description: ランダムな敵 3 体に拳を叩き込む。
+stypeId: STY-03
+tpCost: 30
+scope: 5
+hitType: 1
+animationId: ANI-0001
+message1: "%1は拳を叩き込んだ！"
+damage: { type: 1, elementId: ELM-01, formula: a.atk * 3 - b.def * 2, variance: 20, critical: true }
+occasion: 1

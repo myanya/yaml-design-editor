@@ -1,0 +1,12 @@
+id: SKL-0016
+name: 封じの札
+description: 敵 1 体を金縛りにする。
+stypeId: STY-04
+mpCost: 8
+scope: 1
+hitType: 2
+animationId: ANI-0051
+message1: "%1は封じの札を貼りつけた！"
+effects:
+  - { code: 21, dataId: STA-0008, value1: 0.5 }
+occasion: 1

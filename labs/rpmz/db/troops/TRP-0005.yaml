@@ -1,0 +1,4 @@
+id: TRP-0005
+name: 鏡の中の顔
+members:
+  - { enemyId: ENM-0007, x: 408, y: 420 }

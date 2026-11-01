@@ -1,0 +1,30 @@
+id: enemy
+name: 敵キャラ
+kind: document
+description: 敵キャラ 1 体を 1 ファイルで管理します。
+match: "db/enemies/*.yaml"
+filePattern: "db/enemies/{id}.yaml"
+definitions:
+  敵キャラ:
+    type: object
+    label: 敵キャラ
+    entity: { type: enemy, defines: true }
+    fields:
+      - { key: id, label: 敵キャラID, type: common#敵キャラID, required: true }
+      - { key: name, label: 名前, type: line, role: title, required: true }
+      - { key: battlerName, label: 画像, type: common#画像名 }
+      - { key: battlerHue, label: 色相, type: int, min: 0, max: 360, default: 0 }
+      - { key: params, label: 能力値, type: parts#能力値, required: true }
+      - { key: exp, label: 経験値, type: int, min: 0, default: 0 }
+      - { key: gold, label: 所持金, type: int, min: 0, default: 0 }
+      - { key: dropItems, label: ドロップアイテム, type: array, display: table, item: { type: parts#ドロップアイテム } }
+      - { key: actions, label: 行動パターン, type: array, item: { type: parts#行動パターン } }
+      - { key: traits, label: 特徴, type: array, item: { type: parts#特徴 } }
+      - { key: note, label: メモ, type: common#メモ }
+    constraints:
+      - id: at-most-three-drops
+        description: ドロップアイテムは 3 つまで（MZ の枠は 3 つ）
+        check: [ { lte: [ { count: { path: dropItems } }, 3 ] } ]
+        level: error
+        message: "敵キャラ「{id}」のドロップアイテムが 4 つ以上あります（MZ の枠は 3 つです）"
+root: { type: 敵キャラ }

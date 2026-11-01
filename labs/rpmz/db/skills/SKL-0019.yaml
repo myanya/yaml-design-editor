@@ -1,0 +1,12 @@
+id: SKL-0019
+name: 照射
+description: 懐中電灯で敵全体を照らす。懐中電灯を装備しているときだけ使える。
+stypeId: STY-01
+mpCost: 4
+scope: 2
+hitType: 1
+requiredWtypeId1: WTY-01
+animationId: ANI-0066
+message1: "%1はライトを向けた！"
+damage: { type: 1, elementId: ELM-03, formula: a.atk * 2 + a.mat - b.def, variance: 20, critical: false }
+occasion: 1

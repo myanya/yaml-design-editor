@@ -1,0 +1,10 @@
+id: WPN-0006
+name: 水晶の数珠
+description: 澄んだ水晶の数珠。
+wtypeId: WTY-03
+etypeId: ETY-01
+price: 1800
+animationId: ANI-0001
+params: { atk: 8, mat: 24 }
+traits:
+  - { code: 31, dataId: ELM-05 }

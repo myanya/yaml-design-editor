@@ -1,0 +1,10 @@
+id: ACT-0003
+name: 大槻 鉄平
+nickname: 元刑事
+classId: CLS-0003
+initialLevel: 1
+maxLevel: 50
+profile: |-
+  県警を辞めた元刑事。迷宮入りになった事件を、
+  今もひとりで追っている。
+equips: [WPN-0003, ARM-0005, ~, ARM-0002, ~]

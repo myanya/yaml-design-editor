@@ -1,0 +1,15 @@
+id: ENM-0008
+name: 濡れた足跡
+params: { mhp: 220, mmp: 0, atk: 18, def: 30, mat: 8, mdf: 14, agi: 24, luk: 10 }
+exp: 24
+gold: 30
+dropItems:
+  - { kind: 1, dataId: ITM-0003, denominator: 6 }
+actions:
+  - { skillId: SKL-0020, rating: 5, conditionType: 0 }
+  - { skillId: SKL-0023, rating: 3, conditionType: 0 }
+traits:
+  - { code: 22, dataId: 0, value: 0.95 }
+  - { code: 22, dataId: 1, value: 0.05 }
+  - { code: 11, dataId: ELM-02, value: 2.0 }
+  - { code: 22, dataId: 1, value: 0.3 }

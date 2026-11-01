@@ -1,0 +1,11 @@
+id: SKL-0006
+name: 閃き
+description: 仲間 1 人の攻撃力を 3 ターン上げる。
+stypeId: STY-01
+mpCost: 6
+scope: 7
+hitType: 0
+message1: "%1は手がかりを閃いた！"
+effects:
+  - { code: 31, dataId: 2, value1: 3 }
+occasion: 1

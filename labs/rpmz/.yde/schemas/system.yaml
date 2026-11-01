@@ -1,0 +1,34 @@
+id: system
+name: システム（YDE が持つ部分）
+kind: document
+description: |
+  MZ の System.json のうち、YDE で持つ部分です（初期パーティと戦闘テスト）。ほかのシステム設定は MZ で編集します。
+  engine は MZ のエンジンが決めている番号で、書き出しはしません。ここに書くことで、その番号のステートとスキルがあるかを検証します。
+match: "db/system.yaml"
+root:
+  type: object
+  fields:
+    - key: partyMembers
+      label: 初期パーティ
+      type: array
+      required: true
+      item: { type: common#アクター参照 }
+    - key: testBattlers
+      label: 戦闘テストのメンバー
+      type: array
+      item:
+        type: object
+        fields:
+          - { key: actorId, label: アクター, type: common#アクター参照, required: true }
+          - { key: level, label: レベル, type: int, min: 1, max: 99, required: true, default: 1 }
+          - { key: equips, label: 装備, type: array, description: 装備タイプの並びの順。空の欄は ~ と書きます。, item: { type: common#装備品参照 } }
+    - { key: testTroopId, label: 戦闘テストの敵グループ, type: common#敵グループ参照 }
+    - key: engine
+      label: エンジンの約束
+      type: object
+      required: true
+      description: MZ のエンジンが番号で決めているもの。変えられません（書き出しもしません）。
+      fields:
+        - { key: deathStateId, label: 戦闘不能のステート, type: ref, idPattern: STA-0001, scope: { schemaIds: [state] }, required: true }
+        - { key: attackSkillId, label: 通常攻撃のスキル, type: ref, idPattern: SKL-0001, scope: { schemaIds: [skill] }, required: true }
+        - { key: guardSkillId, label: 防御のスキル, type: ref, idPattern: SKL-0002, scope: { schemaIds: [skill] }, required: true }

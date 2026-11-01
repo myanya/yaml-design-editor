@@ -1,0 +1,7 @@
+id: ARM-0002
+name: 防刃ベスト
+description: 刃物を通さないベスト。少し動きにくい。
+atypeId: ATY-02
+etypeId: ETY-04
+price: 1400
+params: { def: 22, agi: -3 }

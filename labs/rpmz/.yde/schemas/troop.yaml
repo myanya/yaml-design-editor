@@ -1,0 +1,20 @@
+id: troop
+name: 敵グループ
+kind: document
+description: 敵グループ 1 つを 1 ファイルで管理します。バトルイベント（pages）は MZ で編集し、YDE は中身を解釈せずに持ちます。
+match: "db/troops/*.yaml"
+filePattern: "db/troops/{id}.yaml"
+definitions:
+  敵グループ:
+    type: object
+    label: 敵グループ
+    entity: { type: troop, defines: true }
+    fields:
+      - { key: id, label: 敵グループID, type: common#敵グループID, required: true }
+      - { key: name, label: 名前, type: line, role: title, required: true }
+      - { key: members, label: 構成員, type: array, display: table, required: true, item: { type: parts#構成員 } }
+      - key: pages
+        label: バトルイベント
+        type: any
+        description: MZ のバトルイベントのページ（条件とイベントコマンドの列）。MZ で編集し、取り込んだまま持ちます。書かなければ、書き出しで空のページを 1 つ置きます。
+root: { type: 敵グループ }

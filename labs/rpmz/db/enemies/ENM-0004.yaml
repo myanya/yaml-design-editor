@@ -1,0 +1,16 @@
+id: ENM-0004
+name: 首の無い配達員
+params: { mhp: 260, mmp: 0, atk: 24, def: 18, mat: 6, mdf: 8, agi: 20, luk: 10 }
+exp: 22
+gold: 40
+dropItems:
+  - { kind: 1, dataId: ITM-0002, denominator: 3 }
+  - { kind: 2, dataId: WPN-0004, denominator: 10 }
+actions:
+  - { skillId: SKL-0001, rating: 5, conditionType: 0 }
+  - { skillId: SKL-0020, rating: 4, conditionType: 0 }
+traits:
+  - { code: 22, dataId: 0, value: 0.95 }
+  - { code: 22, dataId: 1, value: 0.05 }
+  - { code: 11, dataId: ELM-04, value: 0.5 }
+  - { code: 11, dataId: ELM-05, value: 1.5 }

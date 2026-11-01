@@ -1,0 +1,10 @@
+id: WPN-0004
+name: 鉄製警棒
+description: ずしりと重い鉄の警棒。
+wtypeId: WTY-02
+etypeId: ETY-01
+price: 1600
+animationId: ANI-0001
+params: { atk: 28 }
+traits:
+  - { code: 31, dataId: ELM-01 }

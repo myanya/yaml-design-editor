@@ -1,0 +1,9 @@
+# MZ の System.json のうち YDE が持つ部分（初期パーティと戦闘テスト）と、エンジンの約束
+partyMembers: [ACT-0001, ACT-0002, ACT-0003, ACT-0004]
+testBattlers:
+  - { actorId: ACT-0001, level: 5, equips: [WPN-0001, ARM-0004, ARM-0003, ARM-0001, ~] }
+  - { actorId: ACT-0002, level: 5, equips: [WPN-0005, ~, ~, ARM-0001, ARM-0006] }
+  - { actorId: ACT-0003, level: 5, equips: [WPN-0003, ARM-0005, ~, ARM-0002, ~] }
+  - { actorId: ACT-0004, level: 5, equips: [WPN-0007, ARM-0004, ~, ARM-0001, ARM-0007] }
+testTroopId: TRP-0003
+engine: { deathStateId: STA-0001, attackSkillId: SKL-0001, guardSkillId: SKL-0002 }

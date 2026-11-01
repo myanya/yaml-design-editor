@@ -1,0 +1,12 @@
+id: SKL-0005
+name: 冷静
+description: 深呼吸して恐怖を払い、TP を 15 得る。
+stypeId: STY-01
+mpCost: 2
+scope: 11
+occasion: 0
+hitType: 0
+message1: "%1は深呼吸した。"
+effects:
+  - { code: 22, dataId: STA-0003, value1: 1 }
+  - { code: 13, value1: 15 }

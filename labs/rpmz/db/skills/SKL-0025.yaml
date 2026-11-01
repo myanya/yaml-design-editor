@@ -1,0 +1,9 @@
+id: SKL-0025
+name: 闇の手
+description: 影から伸びる手。
+scope: 1
+hitType: 2
+animationId: ANI-0076
+message1: "%1の影から手が伸びた！"
+damage: { type: 1, elementId: ELM-04, formula: 80 + a.mat * 2 - b.mdf * 2, variance: 20, critical: false }
+occasion: 1

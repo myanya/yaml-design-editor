@@ -1,0 +1,16 @@
+id: ENM-0002
+name: 這い寄る女
+params: { mhp: 200, mmp: 20, atk: 18, def: 12, mat: 14, mdf: 14, agi: 10, luk: 12 }
+exp: 15
+gold: 20
+dropItems:
+  - { kind: 1, dataId: ITM-0005, denominator: 3 }
+actions:
+  - { skillId: SKL-0023, rating: 5, conditionType: 0 }
+  - { skillId: SKL-0022, rating: 4, conditionType: 0 }
+traits:
+  - { code: 22, dataId: 0, value: 0.95 }
+  - { code: 22, dataId: 1, value: 0.05 }
+  - { code: 11, dataId: ELM-05, value: 2.0 }
+  - { code: 11, dataId: ELM-03, value: 1.5 }
+  - { code: 14, dataId: STA-0003 }

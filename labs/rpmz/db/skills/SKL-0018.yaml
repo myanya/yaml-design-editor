@@ -1,0 +1,12 @@
+id: SKL-0018
+name: 言霊
+description: 敵全体の攻撃力を 3 ターン下げる。
+stypeId: STY-04
+mpCost: 12
+scope: 2
+hitType: 2
+animationId: ANI-0051
+message1: "%1は古い言葉を唱えた！"
+effects:
+  - { code: 32, dataId: 2, value1: 3 }
+occasion: 1

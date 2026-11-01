@@ -1,0 +1,11 @@
+id: SKL-0014
+name: 身構え
+description: 自分の防御力を 3 ターン上げる。
+stypeId: STY-03
+tpCost: 10
+scope: 11
+hitType: 0
+message1: "%1は身構えた。"
+effects:
+  - { code: 31, dataId: 3, value1: 3 }
+occasion: 1

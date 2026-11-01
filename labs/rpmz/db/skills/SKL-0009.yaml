@@ -1,0 +1,11 @@
+id: SKL-0009
+name: 癒やし
+description: 仲間 1 人の HP を回復する。
+stypeId: STY-02
+mpCost: 5
+scope: 7
+occasion: 0
+hitType: 0
+animationId: ANI-0041
+message1: "%1は癒やしの祈りを捧げた。"
+damage: { type: 3, formula: 200 + a.mat, variance: 20, critical: false }

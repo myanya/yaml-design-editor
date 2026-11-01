@@ -1,0 +1,7 @@
+id: ARM-0004
+name: 探偵手帳
+description: 事件の記録で埋まった手帳。
+atypeId: ATY-01
+etypeId: ETY-02
+price: 250
+params: { def: 2, mat: 3 }

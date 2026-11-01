@@ -1,0 +1,17 @@
+id: STA-0003
+name: 恐怖
+iconIndex: 4
+restriction: 0
+priority: 60
+motion: 1
+overlay: 10
+removeAtBattleEnd: true
+autoRemovalTiming: 2
+minTurns: 2
+maxTurns: 4
+traits:
+  - { code: 22, dataId: 0, value: -0.3 }
+  - { code: 22, dataId: 1, value: -0.1 }
+message1: "%1は恐怖にすくんだ！"
+message2: "%1は怯えている！"
+message4: "%1は落ち着きを取り戻した。"

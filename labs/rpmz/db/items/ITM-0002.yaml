@@ -1,0 +1,12 @@
+id: ITM-0002
+name: 救急箱
+description: HP を 300 回復する。
+itypeId: 1
+price: 120
+consumable: true
+scope: 7
+occasion: 0
+hitType: 0
+animationId: ANI-0041
+effects:
+  - { code: 11, value1: 0, value2: 300 }

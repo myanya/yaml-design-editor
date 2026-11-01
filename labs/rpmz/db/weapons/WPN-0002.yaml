@@ -1,0 +1,11 @@
+id: WPN-0002
+name: 強力ライト
+description: 闇を遠くまで照らす大きなライト。
+wtypeId: WTY-01
+etypeId: ETY-01
+price: 1200
+animationId: ANI-0001
+params: { atk: 18, mat: 6 }
+traits:
+  - { code: 31, dataId: ELM-03 }
+  - { code: 22, dataId: 0, value: 0.05 }

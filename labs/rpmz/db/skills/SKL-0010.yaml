@@ -1,0 +1,11 @@
+id: SKL-0010
+name: 鎮魂
+description: 仲間全員の HP を回復する。
+stypeId: STY-02
+mpCost: 14
+scope: 8
+occasion: 0
+hitType: 0
+animationId: ANI-0041
+message1: "%1は鎮魂の歌を歌った。"
+damage: { type: 3, formula: 150 + a.mat, variance: 20, critical: false }

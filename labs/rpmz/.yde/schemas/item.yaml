@@ -1,0 +1,31 @@
+id: item
+name: アイテム
+kind: document
+description: アイテム 1 つを 1 ファイルで管理します。
+match: "db/items/*.yaml"
+filePattern: "db/items/{id}.yaml"
+definitions:
+  アイテム:
+    type: object
+    label: アイテム
+    entity: { type: item, defines: true }
+    fields:
+      - { key: id, label: アイテムID, type: common#アイテムID, required: true }
+      - { key: name, label: 名前, type: line, role: title, required: true }
+      - { key: iconIndex, label: アイコン, type: common#アイコン番号, default: 0 }
+      - { key: description, label: 説明, type: text, rows: 2 }
+      - { key: itypeId, label: アイテムタイプ, type: common#アイテムタイプ, required: true, default: 1 }
+      - { key: price, label: 価格, type: common#価格, default: 0 }
+      - { key: consumable, label: 消耗, type: boolean, default: true }
+      - { key: scope, label: 範囲, type: common#効果範囲, required: true, default: 7 }
+      - { key: occasion, label: 使用可能時, type: common#使用可能時, required: true, default: 0 }
+      - { key: speed, label: 速度補正, type: int, min: -2000, max: 2000, default: 0 }
+      - { key: successRate, label: 成功率, type: int, min: 0, max: 100, default: 100 }
+      - { key: repeats, label: 連続回数, type: int, min: 1, max: 9, default: 1 }
+      - { key: tpGain, label: 得TP, type: int, min: 0, max: 100, default: 0 }
+      - { key: hitType, label: 命中タイプ, type: common#命中タイプ, required: true, default: 0 }
+      - { key: animationId, label: アニメーション, type: common#使用時のアニメーション参照 }
+      - { key: damage, label: ダメージ, type: parts#ダメージ }
+      - { key: effects, label: 使用効果, type: array, item: { type: parts#使用効果 } }
+      - { key: note, label: メモ, type: common#メモ }
+root: { type: アイテム }

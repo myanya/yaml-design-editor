@@ -1,0 +1,10 @@
+id: SKL-0024
+name: 取り憑く
+description: 体に入り込もうとする。
+scope: 1
+hitType: 2
+animationId: ANI-0076
+message1: "%1は体に入り込もうとした！"
+effects:
+  - { code: 21, dataId: STA-0006, value1: 0.4 }
+occasion: 1

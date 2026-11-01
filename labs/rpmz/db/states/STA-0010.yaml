@@ -1,0 +1,15 @@
+id: STA-0010
+name: 清めの加護
+iconIndex: 10
+restriction: 0
+priority: 30
+removeAtBattleEnd: true
+autoRemovalTiming: 2
+minTurns: 3
+maxTurns: 3
+traits:
+  - { code: 11, dataId: ELM-04, value: 0.5 }
+  - { code: 13, dataId: STA-0005, value: 0 }
+  - { code: 13, dataId: STA-0006, value: 0.5 }
+message1: "%1は清めの加護に包まれた！"
+message4: "%1の加護が消えた。"

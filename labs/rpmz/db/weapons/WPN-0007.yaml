@@ -1,0 +1,10 @@
+id: WPN-0007
+name: 魔除けの鈴
+description: 古い神社で授かった鈴。
+wtypeId: WTY-04
+etypeId: ETY-01
+price: 450
+animationId: ANI-0001
+params: { atk: 6, mat: 8 }
+traits:
+  - { code: 31, dataId: ELM-03 }

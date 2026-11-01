@@ -1,0 +1,10 @@
+id: WPN-0001
+name: ペンライト
+description: 胸ポケットに入る小さなライト。
+wtypeId: WTY-01
+etypeId: ETY-01
+price: 300
+animationId: ANI-0001
+params: { atk: 8, mat: 2 }
+traits:
+  - { code: 31, dataId: ELM-03 }

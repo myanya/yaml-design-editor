@@ -1,0 +1,32 @@
+id: class
+name: 職業
+kind: document
+description: 職業 1 つを 1 ファイルで管理します。レベルごとの能力値は、レベル 1〜99 の表で持ちます。
+match: "db/classes/*.yaml"
+filePattern: "db/classes/{id}.yaml"
+definitions:
+  職業:
+    type: object
+    label: 職業
+    entity: { type: class, defines: true }
+    fields:
+      - { key: id, label: 職業ID, type: common#職業ID, required: true }
+      - { key: name, label: 名前, type: line, role: title, required: true }
+      - { key: expParams, label: 経験値曲線, type: parts#経験値曲線 }
+      - { key: learnings, label: 習得するスキル, type: array, display: table, item: { type: parts#習得スキル } }
+      - { key: traits, label: 特徴, type: array, item: { type: parts#特徴 } }
+      - { key: note, label: メモ, type: common#メモ }
+      - key: params
+        label: レベルごとの能力値
+        type: array
+        display: table
+        required: true
+        description: レベル 1〜99 を 1 行ずつ。MZ の「能力値曲線」で作った値を、レベルを行にして持ちます。
+        item: { type: parts#成長 }
+    constraints:
+      - id: growth-has-99-levels
+        description: レベルごとの能力値が、レベル 1〜99 の 99 行あること
+        check: [ { eq: [ { count: { path: params } }, 99 ] } ]
+        level: warning
+        message: "職業「{id}」のレベルごとの能力値が 99 行ではありません（MZ はレベル 1〜99 の値を持ちます）"
+root: { type: 職業 }

@@ -1,0 +1,4 @@
+id: TRP-0006
+name: 宵坂の主
+members:
+  - { enemyId: ENM-0010, x: 408, y: 420 }

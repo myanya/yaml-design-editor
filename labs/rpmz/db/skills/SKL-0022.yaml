@@ -1,0 +1,10 @@
+id: SKL-0022
+name: 金切り声
+description: 耳をつんざく叫び声。
+scope: 2
+hitType: 2
+animationId: ANI-0051
+message1: "%1は金切り声を上げた！"
+effects:
+  - { code: 21, dataId: STA-0003, value1: 0.5 }
+occasion: 1

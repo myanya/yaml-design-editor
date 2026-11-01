@@ -1,0 +1,12 @@
+id: ITM-0006
+name: お神酒
+description: 仲間全員の MP を 50% 回復する。
+itypeId: 1
+price: 800
+consumable: true
+scope: 8
+occasion: 0
+hitType: 0
+animationId: ANI-0041
+effects:
+  - { code: 12, value1: 0.5, value2: 0 }

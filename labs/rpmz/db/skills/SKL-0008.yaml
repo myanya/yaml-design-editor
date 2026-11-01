@@ -1,0 +1,11 @@
+id: SKL-0008
+name: 大祓
+description: 敵全体を清めの力で打つ。
+stypeId: STY-02
+mpCost: 16
+scope: 2
+hitType: 2
+animationId: ANI-0066
+message1: "%1は大祓の祝詞を奏上した！"
+damage: { type: 1, elementId: ELM-05, formula: 150 + a.mat * 2 - b.mdf * 2, variance: 20, critical: false }
+occasion: 1

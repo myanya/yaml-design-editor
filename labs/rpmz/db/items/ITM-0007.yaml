@@ -1,0 +1,11 @@
+id: ITM-0007
+name: 予備の電池
+description: TP を 30 増やす。
+itypeId: 1
+price: 60
+consumable: true
+scope: 7
+occasion: 1
+hitType: 0
+effects:
+  - { code: 13, value1: 30 }

@@ -1,0 +1,7 @@
+id: ARM-0001
+name: トレンチコート
+description: 探偵の定番。
+atypeId: ATY-01
+etypeId: ETY-04
+price: 300
+params: { def: 8 }

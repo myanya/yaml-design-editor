@@ -1,0 +1,12 @@
+id: refs
+name: MZ が持つものの番号と名前
+kind: document
+description: アニメーション・コモンイベント・スイッチ・変数は MZ で作ります。ここには、データベースから参照するものの番号と名前だけを置きます（書き出しはしません）。
+match: "db/refs/*.yaml"
+root:
+  type: object
+  fields:
+    - { key: animations, label: アニメーション, type: array, display: table, item: { type: parts#アニメーション } }
+    - { key: commonEvents, label: コモンイベント, type: array, display: table, item: { type: parts#コモンイベント } }
+    - { key: switches, label: スイッチ, type: array, display: table, item: { type: parts#スイッチ } }
+    - { key: variables, label: 変数, type: array, display: table, item: { type: parts#変数 } }

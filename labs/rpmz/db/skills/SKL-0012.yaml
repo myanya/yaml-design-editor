@@ -1,0 +1,12 @@
+id: SKL-0012
+name: 結界
+description: 仲間全員を清めの加護で包む。
+stypeId: STY-02
+mpCost: 12
+scope: 8
+hitType: 0
+animationId: ANI-0066
+message1: "%1は結界を張った！"
+effects:
+  - { code: 21, dataId: STA-0010, value1: 1 }
+occasion: 1

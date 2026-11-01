@@ -1,0 +1,7 @@
+# MZ のアニメーションの番号と名前（アニメーションは MZ 側。番号の中身は MZ のプロジェクトで確かめます）
+animations:
+  - { id: ANI-0001, name: 打撃 }
+  - { id: ANI-0041, name: 回復 }
+  - { id: ANI-0051, name: 状態異常 }
+  - { id: ANI-0066, name: 光 }
+  - { id: ANI-0076, name: 闇 }

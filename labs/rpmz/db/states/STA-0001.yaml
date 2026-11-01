@@ -1,0 +1,12 @@
+id: STA-0001
+name: 意識不明
+iconIndex: 1
+restriction: 4
+priority: 100
+motion: 3
+traits:
+  - { code: 23, dataId: 9, value: 0 }
+message1: "%1は意識を失った！"
+message2: "%1を退けた！"
+message4: "%1は意識を取り戻した！"
+note: MZ のエンジンは 1 番のステートを戦闘不能に使います。

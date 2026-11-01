@@ -1,0 +1,116 @@
+id: CLS-0003
+name: 元刑事
+expParams: { basis: 30, extra: 20, accA: 30, accB: 30 }
+learnings:
+  - { level: 1, skillId: SKL-0013 }
+  - { level: 4, skillId: SKL-0014 }
+  - { level: 10, skillId: SKL-0015 }
+traits:
+  - { code: 22, dataId: 0, value: 0.95 }
+  - { code: 22, dataId: 1, value: 0.05 }
+  - { code: 22, dataId: 2, value: 0.04 }
+  - { code: 23, dataId: 0, value: 1.5 }
+  - { code: 41, dataId: STY-03 }
+  - { code: 51, dataId: WTY-02 }
+  - { code: 52, dataId: ATY-01 }
+  - { code: 52, dataId: ATY-02 }
+params:
+  - { level: 1, mhp: 480, mmp: 20, atk: 22, def: 20, mat: 8, mdf: 10, agi: 18, luk: 14 }
+  - { level: 2, mhp: 510, mmp: 21, atk: 24, def: 21, mat: 9, mdf: 11, agi: 19, luk: 15 }
+  - { level: 3, mhp: 547, mmp: 23, atk: 25, def: 23, mat: 9, mdf: 12, agi: 21, luk: 16 }
+  - { level: 4, mhp: 587, mmp: 25, atk: 27, def: 25, mat: 10, mdf: 13, agi: 22, luk: 17 }
+  - { level: 5, mhp: 630, mmp: 27, atk: 30, def: 27, mat: 11, mdf: 14, agi: 24, luk: 19 }
+  - { level: 6, mhp: 673, mmp: 29, atk: 32, def: 29, mat: 12, mdf: 15, agi: 25, luk: 20 }
+  - { level: 7, mhp: 718, mmp: 31, atk: 34, def: 31, mat: 13, mdf: 16, agi: 27, luk: 21 }
+  - { level: 8, mhp: 765, mmp: 33, atk: 36, def: 33, mat: 13, mdf: 17, agi: 29, luk: 23 }
+  - { level: 9, mhp: 812, mmp: 36, atk: 39, def: 36, mat: 14, mdf: 18, agi: 30, luk: 24 }
+  - { level: 10, mhp: 860, mmp: 38, atk: 41, def: 38, mat: 15, mdf: 20, agi: 32, luk: 26 }
+  - { level: 11, mhp: 909, mmp: 40, atk: 44, def: 40, mat: 16, mdf: 21, agi: 34, luk: 27 }
+  - { level: 12, mhp: 959, mmp: 43, atk: 46, def: 43, mat: 17, mdf: 22, agi: 36, luk: 29 }
+  - { level: 13, mhp: 1009, mmp: 45, atk: 49, def: 45, mat: 18, mdf: 23, agi: 38, luk: 31 }
+  - { level: 14, mhp: 1060, mmp: 47, atk: 51, def: 47, mat: 19, mdf: 25, agi: 40, luk: 32 }
+  - { level: 15, mhp: 1112, mmp: 50, atk: 54, def: 50, mat: 20, mdf: 26, agi: 42, luk: 34 }
+  - { level: 16, mhp: 1164, mmp: 52, atk: 56, def: 52, mat: 21, mdf: 27, agi: 44, luk: 35 }
+  - { level: 17, mhp: 1216, mmp: 55, atk: 59, def: 55, mat: 22, mdf: 29, agi: 46, luk: 37 }
+  - { level: 18, mhp: 1270, mmp: 57, atk: 62, def: 57, mat: 23, mdf: 30, agi: 48, luk: 39 }
+  - { level: 19, mhp: 1323, mmp: 60, atk: 64, def: 60, mat: 24, mdf: 31, agi: 50, luk: 40 }
+  - { level: 20, mhp: 1377, mmp: 62, atk: 67, def: 62, mat: 25, mdf: 33, agi: 52, luk: 42 }
+  - { level: 21, mhp: 1432, mmp: 65, atk: 70, def: 65, mat: 26, mdf: 34, agi: 54, luk: 44 }
+  - { level: 22, mhp: 1487, mmp: 68, atk: 73, def: 68, mat: 27, mdf: 36, agi: 56, luk: 46 }
+  - { level: 23, mhp: 1542, mmp: 70, atk: 75, def: 70, mat: 28, mdf: 37, agi: 58, luk: 47 }
+  - { level: 24, mhp: 1598, mmp: 73, atk: 78, def: 73, mat: 29, mdf: 38, agi: 60, luk: 49 }
+  - { level: 25, mhp: 1654, mmp: 76, atk: 81, def: 76, mat: 30, mdf: 40, agi: 62, luk: 51 }
+  - { level: 26, mhp: 1710, mmp: 78, atk: 84, def: 78, mat: 31, mdf: 41, agi: 64, luk: 53 }
+  - { level: 27, mhp: 1767, mmp: 81, atk: 87, def: 81, mat: 32, mdf: 43, agi: 66, luk: 54 }
+  - { level: 28, mhp: 1824, mmp: 84, atk: 90, def: 84, mat: 33, mdf: 44, agi: 68, luk: 56 }
+  - { level: 29, mhp: 1882, mmp: 86, atk: 93, def: 86, mat: 35, mdf: 46, agi: 71, luk: 58 }
+  - { level: 30, mhp: 1939, mmp: 89, atk: 95, def: 89, mat: 36, mdf: 47, agi: 73, luk: 60 }
+  - { level: 31, mhp: 1997, mmp: 92, atk: 98, def: 92, mat: 37, mdf: 48, agi: 75, luk: 62 }
+  - { level: 32, mhp: 2056, mmp: 95, atk: 101, def: 95, mat: 38, mdf: 50, agi: 77, luk: 64 }
+  - { level: 33, mhp: 2114, mmp: 97, atk: 104, def: 97, mat: 39, mdf: 51, agi: 79, luk: 65 }
+  - { level: 34, mhp: 2173, mmp: 100, atk: 107, def: 100, mat: 40, mdf: 53, agi: 81, luk: 67 }
+  - { level: 35, mhp: 2232, mmp: 103, atk: 110, def: 103, mat: 41, mdf: 54, agi: 84, luk: 69 }
+  - { level: 36, mhp: 2292, mmp: 106, atk: 113, def: 106, mat: 42, mdf: 56, agi: 86, luk: 71 }
+  - { level: 37, mhp: 2351, mmp: 109, atk: 116, def: 109, mat: 43, mdf: 57, agi: 88, luk: 73 }
+  - { level: 38, mhp: 2411, mmp: 111, atk: 119, def: 111, mat: 45, mdf: 59, agi: 90, luk: 75 }
+  - { level: 39, mhp: 2471, mmp: 114, atk: 122, def: 114, mat: 46, mdf: 60, agi: 93, luk: 77 }
+  - { level: 40, mhp: 2532, mmp: 117, atk: 125, def: 117, mat: 47, mdf: 62, agi: 95, luk: 78 }
+  - { level: 41, mhp: 2592, mmp: 120, atk: 128, def: 120, mat: 48, mdf: 64, agi: 97, luk: 80 }
+  - { level: 42, mhp: 2653, mmp: 123, atk: 131, def: 123, mat: 49, mdf: 65, agi: 99, luk: 82 }
+  - { level: 43, mhp: 2714, mmp: 126, atk: 134, def: 126, mat: 50, mdf: 67, agi: 102, luk: 84 }
+  - { level: 44, mhp: 2776, mmp: 129, atk: 138, def: 129, mat: 51, mdf: 68, agi: 104, luk: 86 }
+  - { level: 45, mhp: 2837, mmp: 131, atk: 141, def: 131, mat: 53, mdf: 70, agi: 106, luk: 88 }
+  - { level: 46, mhp: 2899, mmp: 134, atk: 144, def: 134, mat: 54, mdf: 71, agi: 109, luk: 90 }
+  - { level: 47, mhp: 2961, mmp: 137, atk: 147, def: 137, mat: 55, mdf: 73, agi: 111, luk: 92 }
+  - { level: 48, mhp: 3023, mmp: 140, atk: 150, def: 140, mat: 56, mdf: 74, agi: 113, luk: 94 }
+  - { level: 49, mhp: 3085, mmp: 143, atk: 153, def: 143, mat: 57, mdf: 76, agi: 116, luk: 96 }
+  - { level: 50, mhp: 3148, mmp: 146, atk: 156, def: 146, mat: 58, mdf: 78, agi: 118, luk: 98 }
+  - { level: 51, mhp: 3210, mmp: 149, atk: 159, def: 149, mat: 60, mdf: 79, agi: 120, luk: 100 }
+  - { level: 52, mhp: 3273, mmp: 152, atk: 163, def: 152, mat: 61, mdf: 81, agi: 123, luk: 102 }
+  - { level: 53, mhp: 3336, mmp: 155, atk: 166, def: 155, mat: 62, mdf: 82, agi: 125, luk: 104 }
+  - { level: 54, mhp: 3400, mmp: 158, atk: 169, def: 158, mat: 63, mdf: 84, agi: 127, luk: 106 }
+  - { level: 55, mhp: 3463, mmp: 161, atk: 172, def: 161, mat: 64, mdf: 86, agi: 130, luk: 108 }
+  - { level: 56, mhp: 3527, mmp: 164, atk: 175, def: 164, mat: 66, mdf: 87, agi: 132, luk: 110 }
+  - { level: 57, mhp: 3590, mmp: 167, atk: 179, def: 167, mat: 67, mdf: 89, agi: 135, luk: 112 }
+  - { level: 58, mhp: 3654, mmp: 170, atk: 182, def: 170, mat: 68, mdf: 90, agi: 137, luk: 114 }
+  - { level: 59, mhp: 3719, mmp: 173, atk: 185, def: 173, mat: 69, mdf: 92, agi: 139, luk: 116 }
+  - { level: 60, mhp: 3783, mmp: 176, atk: 188, def: 176, mat: 70, mdf: 94, agi: 142, luk: 118 }
+  - { level: 61, mhp: 3847, mmp: 179, atk: 192, def: 179, mat: 72, mdf: 95, agi: 144, luk: 120 }
+  - { level: 62, mhp: 3912, mmp: 182, atk: 195, def: 182, mat: 73, mdf: 97, agi: 147, luk: 122 }
+  - { level: 63, mhp: 3977, mmp: 185, atk: 198, def: 185, mat: 74, mdf: 99, agi: 149, luk: 124 }
+  - { level: 64, mhp: 4042, mmp: 188, atk: 201, def: 188, mat: 75, mdf: 100, agi: 152, luk: 126 }
+  - { level: 65, mhp: 4107, mmp: 192, atk: 205, def: 192, mat: 77, mdf: 102, agi: 154, luk: 128 }
+  - { level: 66, mhp: 4172, mmp: 195, atk: 208, def: 195, mat: 78, mdf: 104, agi: 156, luk: 130 }
+  - { level: 67, mhp: 4237, mmp: 198, atk: 211, def: 198, mat: 79, mdf: 105, agi: 159, luk: 132 }
+  - { level: 68, mhp: 4303, mmp: 201, atk: 214, def: 201, mat: 80, mdf: 107, agi: 161, luk: 134 }
+  - { level: 69, mhp: 4369, mmp: 204, atk: 218, def: 204, mat: 82, mdf: 109, agi: 164, luk: 136 }
+  - { level: 70, mhp: 4434, mmp: 207, atk: 221, def: 207, mat: 83, mdf: 110, agi: 166, luk: 138 }
+  - { level: 71, mhp: 4500, mmp: 210, atk: 224, def: 210, mat: 84, mdf: 112, agi: 169, luk: 140 }
+  - { level: 72, mhp: 4567, mmp: 213, atk: 228, def: 213, mat: 85, mdf: 114, agi: 171, luk: 142 }
+  - { level: 73, mhp: 4633, mmp: 216, atk: 231, def: 216, mat: 87, mdf: 115, agi: 174, luk: 144 }
+  - { level: 74, mhp: 4699, mmp: 220, atk: 234, def: 220, mat: 88, mdf: 117, agi: 176, luk: 147 }
+  - { level: 75, mhp: 4766, mmp: 223, atk: 238, def: 223, mat: 89, mdf: 119, agi: 179, luk: 149 }
+  - { level: 76, mhp: 4832, mmp: 226, atk: 241, def: 226, mat: 90, mdf: 120, agi: 181, luk: 151 }
+  - { level: 77, mhp: 4899, mmp: 229, atk: 244, def: 229, mat: 92, mdf: 122, agi: 184, luk: 153 }
+  - { level: 78, mhp: 4966, mmp: 232, atk: 248, def: 232, mat: 93, mdf: 124, agi: 186, luk: 155 }
+  - { level: 79, mhp: 5033, mmp: 235, atk: 251, def: 235, mat: 94, mdf: 125, agi: 189, luk: 157 }
+  - { level: 80, mhp: 5100, mmp: 239, atk: 255, def: 239, mat: 95, mdf: 127, agi: 191, luk: 159 }
+  - { level: 81, mhp: 5168, mmp: 242, atk: 258, def: 242, mat: 97, mdf: 129, agi: 194, luk: 161 }
+  - { level: 82, mhp: 5235, mmp: 245, atk: 261, def: 245, mat: 98, mdf: 130, agi: 196, luk: 163 }
+  - { level: 83, mhp: 5303, mmp: 248, atk: 265, def: 248, mat: 99, mdf: 132, agi: 199, luk: 166 }
+  - { level: 84, mhp: 5370, mmp: 251, atk: 268, def: 251, mat: 101, mdf: 134, agi: 201, luk: 168 }
+  - { level: 85, mhp: 5438, mmp: 255, atk: 272, def: 255, mat: 102, mdf: 136, agi: 204, luk: 170 }
+  - { level: 86, mhp: 5506, mmp: 258, atk: 275, def: 258, mat: 103, mdf: 137, agi: 206, luk: 172 }
+  - { level: 87, mhp: 5574, mmp: 261, atk: 278, def: 261, mat: 104, mdf: 139, agi: 209, luk: 174 }
+  - { level: 88, mhp: 5642, mmp: 264, atk: 282, def: 264, mat: 106, mdf: 141, agi: 212, luk: 176 }
+  - { level: 89, mhp: 5711, mmp: 267, atk: 285, def: 267, mat: 107, mdf: 143, agi: 214, luk: 178 }
+  - { level: 90, mhp: 5779, mmp: 271, atk: 289, def: 271, mat: 108, mdf: 144, agi: 217, luk: 180 }
+  - { level: 91, mhp: 5848, mmp: 274, atk: 292, def: 274, mat: 110, mdf: 146, agi: 219, luk: 183 }
+  - { level: 92, mhp: 5916, mmp: 277, atk: 296, def: 277, mat: 111, mdf: 148, agi: 222, luk: 185 }
+  - { level: 93, mhp: 5985, mmp: 280, atk: 299, def: 280, mat: 112, mdf: 149, agi: 224, luk: 187 }
+  - { level: 94, mhp: 6054, mmp: 284, atk: 303, def: 284, mat: 113, mdf: 151, agi: 227, luk: 189 }
+  - { level: 95, mhp: 6123, mmp: 287, atk: 306, def: 287, mat: 115, mdf: 153, agi: 230, luk: 191 }
+  - { level: 96, mhp: 6192, mmp: 290, atk: 310, def: 290, mat: 116, mdf: 155, agi: 232, luk: 193 }
+  - { level: 97, mhp: 6261, mmp: 293, atk: 313, def: 293, mat: 117, mdf: 156, agi: 235, luk: 196 }
+  - { level: 98, mhp: 6331, mmp: 297, atk: 317, def: 297, mat: 119, mdf: 158, agi: 237, luk: 198 }
+  - { level: 99, mhp: 6400, mmp: 300, atk: 320, def: 300, mat: 120, mdf: 160, agi: 240, luk: 200 }

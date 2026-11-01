@@ -1,0 +1,6 @@
+id: TRP-0004
+name: 首の無い配達員と群がる蛾
+members:
+  - { enemyId: ENM-0004, x: 408, y: 430 }
+  - { enemyId: ENM-0009, x: 260, y: 380 }
+  - { enemyId: ENM-0009, x: 556, y: 380, hidden: true }

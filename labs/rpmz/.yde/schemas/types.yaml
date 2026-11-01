@@ -1,0 +1,18 @@
+id: types
+name: タイプ
+kind: document
+description: MZ のデータベースの「タイプ」（属性・スキルタイプ・武器タイプ・防具タイプ・装備タイプ）です。番号は並びの順と同じにします（ELM-01 が 1 番目）。MZ では System.json の一部です。
+match: "db/types.yaml"
+root:
+  type: object
+  fields:
+    - { key: elements, label: 属性, type: array, display: table, item: { type: parts#属性 } }
+    - { key: skillTypes, label: スキルタイプ, type: array, display: table, item: { type: parts#スキルタイプ } }
+    - { key: weaponTypes, label: 武器タイプ, type: array, display: table, item: { type: parts#武器タイプ } }
+    - { key: armorTypes, label: 防具タイプ, type: array, display: table, item: { type: parts#防具タイプ } }
+    - key: equipTypes
+      label: 装備タイプ
+      type: array
+      display: table
+      description: 並びがアクターの装備欄の並びになります（1 番目が武器の欄）。
+      item: { type: parts#装備タイプ }

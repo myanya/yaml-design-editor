@@ -1,0 +1,12 @@
+id: SKL-0003
+name: 観察
+description: 敵 1 体をじっと見て、防御力を 3 ターン下げる。
+stypeId: STY-01
+mpCost: 3
+scope: 1
+hitType: 0
+animationId: ANI-0051
+message1: "%1は相手をじっと観察した！"
+effects:
+  - { code: 32, dataId: 3, value1: 3 }
+occasion: 1

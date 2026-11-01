@@ -1,0 +1,9 @@
+id: STA-0002
+name: 防御
+iconIndex: 0
+restriction: 0
+priority: 0
+removeAtBattleEnd: true
+autoRemovalTiming: 2
+traits:
+  - { code: 62, dataId: 1 }

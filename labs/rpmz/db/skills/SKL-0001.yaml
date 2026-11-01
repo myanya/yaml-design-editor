@@ -1,0 +1,13 @@
+id: SKL-0001
+name: 攻撃
+description: ふつうの攻撃。
+scope: 1
+occasion: 1
+hitType: 1
+animationId: ANI-NORMAL
+tpGain: 10
+message1: "%1の攻撃！"
+damage: { type: 1, elementId: ELM-NORMAL, formula: a.atk * 4 - b.def * 2, variance: 20, critical: true }
+effects:
+  - { code: 21, dataId: STA-NORMAL, value1: 1 }
+note: MZ のエンジンは 1 番のスキルを通常攻撃に使います。

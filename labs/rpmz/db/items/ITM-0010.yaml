@@ -1,0 +1,9 @@
+id: ITM-0010
+name: 依頼人の手紙
+description: 宵坂市の旧家から届いた手紙。差出人の名前が読めない。
+itypeId: 2
+price: 0
+consumable: false
+scope: 0
+occasion: 3
+hitType: 0

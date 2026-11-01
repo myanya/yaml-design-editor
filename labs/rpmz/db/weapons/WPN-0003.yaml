@@ -1,0 +1,10 @@
+id: WPN-0003
+name: 特殊警棒
+description: 伸縮式の警棒。
+wtypeId: WTY-02
+etypeId: ETY-01
+price: 500
+animationId: ANI-0001
+params: { atk: 14 }
+traits:
+  - { code: 31, dataId: ELM-01 }

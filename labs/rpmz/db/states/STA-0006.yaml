@@ -1,0 +1,16 @@
+id: STA-0006
+name: 憑依
+iconIndex: 8
+restriction: 3
+priority: 80
+motion: 1
+overlay: 6
+removeAtBattleEnd: true
+autoRemovalTiming: 1
+minTurns: 1
+maxTurns: 3
+removeByDamage: true
+chanceByDamage: 100
+message1: "%1は何かに取り憑かれた！"
+message2: "%1は何かに取り憑かれた！"
+message4: "%1から何かが抜けていった。"

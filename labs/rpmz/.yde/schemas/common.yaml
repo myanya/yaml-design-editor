@@ -1,0 +1,200 @@
+id: common
+name: 共通の型
+kind: library
+description: |
+  RPG Maker MZ（以下 MZ）のデータベースの値の型です。番号（ID）の形、参照、MZ が数で持つ区分の選択肢をまとめます。
+  項目名は MZ のデータ（data/*.json）のまま、ラベルは MZ のエディタの日本語の名前に合わせます。
+  区分の値は MZ の数のままで、画面では日本語のラベルで見せます。
+definitions:
+  # ---- 番号（ID）の型 ----
+  # 数字は MZ のデータベースの番号（配列の位置）そのものです。書き出すと、この番号の位置に並びます
+  アクターID: { type: id, pattern: "^ACT-[0-9]{4}$", placeholder: ACT-0001, sample: ACT-0001, description: 「ACT-」と 4 桁の数字。数字は MZ のアクターの番号です。 }
+  職業ID: { type: id, pattern: "^CLS-[0-9]{4}$", placeholder: CLS-0001, sample: CLS-0001, description: 「CLS-」と 4 桁の数字。数字は MZ の職業の番号です。 }
+  スキルID: { type: id, pattern: "^SKL-[0-9]{4}$", placeholder: SKL-0001, sample: SKL-0001, description: 「SKL-」と 4 桁の数字。数字は MZ のスキルの番号です。1 番は通常攻撃、2 番は防御に使われます。 }
+  アイテムID: { type: id, pattern: "^ITM-[0-9]{4}$", placeholder: ITM-0001, sample: ITM-0001, description: 「ITM-」と 4 桁の数字。数字は MZ のアイテムの番号です。 }
+  武器ID: { type: id, pattern: "^WPN-[0-9]{4}$", placeholder: WPN-0001, sample: WPN-0001, description: 「WPN-」と 4 桁の数字。数字は MZ の武器の番号です。 }
+  防具ID: { type: id, pattern: "^ARM-[0-9]{4}$", placeholder: ARM-0001, sample: ARM-0001, description: 「ARM-」と 4 桁の数字。数字は MZ の防具の番号です。 }
+  敵キャラID: { type: id, pattern: "^ENM-[0-9]{4}$", placeholder: ENM-0001, sample: ENM-0001, description: 「ENM-」と 4 桁の数字。数字は MZ の敵キャラの番号です。 }
+  敵グループID: { type: id, pattern: "^TRP-[0-9]{4}$", placeholder: TRP-0001, sample: TRP-0001, description: 「TRP-」と 4 桁の数字。数字は MZ の敵グループの番号です。 }
+  ステートID: { type: id, pattern: "^STA-[0-9]{4}$", placeholder: STA-0001, sample: STA-0001, description: 「STA-」と 4 桁の数字。数字は MZ のステートの番号です。1 番は戦闘不能に使われます。 }
+  属性ID: { type: id, pattern: "^ELM-[0-9]{2}$", placeholder: ELM-01, sample: ELM-01, description: 「ELM-」と 2 桁の数字。数字は MZ のタイプ（属性）の番号です。 }
+  スキルタイプID: { type: id, pattern: "^STY-[0-9]{2}$", placeholder: STY-01, sample: STY-01, description: 「STY-」と 2 桁の数字。数字は MZ のタイプ（スキルタイプ）の番号です。 }
+  武器タイプID: { type: id, pattern: "^WTY-[0-9]{2}$", placeholder: WTY-01, sample: WTY-01, description: 「WTY-」と 2 桁の数字。数字は MZ のタイプ（武器タイプ）の番号です。 }
+  防具タイプID: { type: id, pattern: "^ATY-[0-9]{2}$", placeholder: ATY-01, sample: ATY-01, description: 「ATY-」と 2 桁の数字。数字は MZ のタイプ（防具タイプ）の番号です。 }
+  装備タイプID: { type: id, pattern: "^ETY-[0-9]{2}$", placeholder: ETY-01, sample: ETY-01, description: 「ETY-」と 2 桁の数字。数字は MZ のタイプ（装備タイプ）の番号で、アクターの装備欄の並びになります。 }
+  アニメーションID: { type: id, pattern: "^ANI-[0-9]{4}$", placeholder: ANI-0001, description: 「ANI-」と 4 桁の数字。アニメーションは MZ が持ち、ここには番号と名前だけを置きます。 }
+  コモンイベントID: { type: id, pattern: "^CEV-[0-9]{4}$", placeholder: CEV-0001, description: 「CEV-」と 4 桁の数字。コモンイベントは MZ が持ち、ここには番号と名前だけを置きます。 }
+  スイッチID: { type: id, pattern: "^SWI-[0-9]{4}$", placeholder: SWI-0001, description: 「SWI-」と 4 桁の数字。スイッチは MZ が持ち、ここには番号と名前だけを置きます。 }
+  変数ID: { type: id, pattern: "^VAR-[0-9]{4}$", placeholder: VAR-0001, description: 「VAR-」と 4 桁の数字。変数は MZ が持ち、ここには番号と名前だけを置きます。 }
+  特別な値ID:
+    type: id
+    pattern: "^[A-Z]{3}-NORMAL$"
+    description: MZ が「-1」や「0」で表す特別な選択肢（通常攻撃の属性・アニメーション・ステート）に付けた名前です。選べる項目は参照の型が決めます。
+
+  # ---- 参照の型 ----
+  # 候補と検証の対象をその種類の文書に限ります。特別な値（*-NORMAL）を選べるのは、MZ がそれを許す項目だけです
+  アクター参照: { type: ref, idPattern: "ACT-*", scope: { schemaIds: [actor] }, description: アクターを 1 件。 }
+  職業参照: { type: ref, idPattern: "CLS-*", scope: { schemaIds: [class] }, description: 職業を 1 件。 }
+  スキル参照: { type: ref, idPattern: "SKL-*", scope: { schemaIds: [skill] }, description: スキルを 1 件。 }
+  アイテム参照: { type: ref, idPattern: "ITM-*", scope: { schemaIds: [item] }, description: アイテムを 1 件。 }
+  武器参照: { type: ref, idPattern: "WPN-*", scope: { schemaIds: [weapon] }, description: 武器を 1 件。 }
+  防具参照: { type: ref, idPattern: "ARM-*", scope: { schemaIds: [armor] }, description: 防具を 1 件。 }
+  装備品参照: { type: ref, idPatterns: ["WPN-*", "ARM-*"], scope: { schemaIds: [weapon, armor] }, description: 武器か防具を 1 件。 }
+  敵キャラ参照: { type: ref, idPattern: "ENM-*", scope: { schemaIds: [enemy] }, description: 敵キャラを 1 件。 }
+  敵グループ参照: { type: ref, idPattern: "TRP-*", scope: { schemaIds: [troop] }, description: 敵グループを 1 件。 }
+  ステート参照: { type: ref, idPattern: "STA-????", scope: { schemaIds: [state] }, description: ステートを 1 件。 }
+  付加するステート参照:
+    type: ref
+    idPatterns: ["STA-????", "STA-NORMAL"]
+    scope: { schemaIds: [state, specials] }
+    description: ステートを 1 件。STA-NORMAL は「通常攻撃」（使用者の攻撃時ステートを付加する。MZ の 0）。
+  属性参照: { type: ref, idPattern: "ELM-??", scope: { schemaIds: [types] }, description: 属性を 1 件。 }
+  ダメージの属性参照:
+    type: ref
+    idPatterns: ["ELM-??", "ELM-NORMAL"]
+    scope: { schemaIds: [types, specials] }
+    description: 属性を 1 件。ELM-NORMAL は「通常攻撃」（使用者の攻撃時属性。MZ の -1）。書かなければ「なし」（MZ の 0）。
+  スキルタイプ参照: { type: ref, idPattern: "STY-*", scope: { schemaIds: [types] }, description: スキルタイプを 1 件。 }
+  武器タイプ参照: { type: ref, idPattern: "WTY-*", scope: { schemaIds: [types] }, description: 武器タイプを 1 件。 }
+  防具タイプ参照: { type: ref, idPattern: "ATY-*", scope: { schemaIds: [types] }, description: 防具タイプを 1 件。 }
+  装備タイプ参照: { type: ref, idPattern: "ETY-*", scope: { schemaIds: [types] }, description: 装備タイプを 1 件。 }
+  アニメーション参照: { type: ref, idPattern: "ANI-????", scope: { schemaIds: [refs] }, description: アニメーションを 1 件。書かなければ「なし」（MZ の 0）。 }
+  使用時のアニメーション参照:
+    type: ref
+    idPatterns: ["ANI-????", "ANI-NORMAL"]
+    scope: { schemaIds: [refs, specials] }
+    description: アニメーションを 1 件。ANI-NORMAL は「通常攻撃」（使用者の武器のアニメーション。MZ の -1）。書かなければ「なし」（MZ の 0）。
+  コモンイベント参照: { type: ref, idPattern: "CEV-*", scope: { schemaIds: [refs] }, description: コモンイベントを 1 件。 }
+  スイッチ参照: { type: ref, idPattern: "SWI-*", scope: { schemaIds: [refs] }, description: スイッチを 1 件。 }
+
+  # ---- 数の型 ----
+  倍率:
+    type: number
+    min: 0
+    format: "0.##%"
+    description: 1 が 100%（例 0.5 は 50%）。ファイルには MZ と同じく小数で書きます。
+  確率: { type: number, min: 0, max: 1, format: "0.##%", description: 1 が 100%。 }
+  価格: { type: int, min: 0, display: grouped }
+  アイコン番号: { type: int, min: 0, description: MZ のアイコンセットの番号（画像は MZ 側にあります）。 }
+  画像名:
+    type: line
+    description: MZ の img フォルダの画像のファイル名（拡張子なし）。画像は取り込まないので、空のままでも構いません。
+  メモ:
+    type: text
+    rows: 3
+    description: MZ の「メモ」欄。プラグイン用のタグ（<タグ:値>）もここに書きます。
+  ダメージ計算式:
+    type: line
+    placeholder: a.atk * 4 - b.def * 2
+    description: MZ のダメージ計算式（a＝使用者・b＝対象・v＝変数）。
+
+  # ---- 区分（MZ の数の値。ラベルは MZ のエディタの名前） ----
+  通常能力値:
+    type: enum
+    values:
+      - { value: 0, label: 最大HP }
+      - { value: 1, label: 最大MP }
+      - { value: 2, label: 攻撃力 }
+      - { value: 3, label: 防御力 }
+      - { value: 4, label: 魔法力 }
+      - { value: 5, label: 魔法防御 }
+      - { value: 6, label: 敏捷性 }
+      - { value: 7, label: 運 }
+  追加能力値:
+    type: enum
+    values:
+      - { value: 0, label: 命中率 }
+      - { value: 1, label: 回避率 }
+      - { value: 2, label: 会心率 }
+      - { value: 3, label: 会心回避率 }
+      - { value: 4, label: 魔法回避率 }
+      - { value: 5, label: 魔法反射率 }
+      - { value: 6, label: 反撃率 }
+      - { value: 7, label: HP再生率 }
+      - { value: 8, label: MP再生率 }
+      - { value: 9, label: TP再生率 }
+  特殊能力値:
+    type: enum
+    values:
+      - { value: 0, label: 狙われ率 }
+      - { value: 1, label: 防御効果率 }
+      - { value: 2, label: 回復効果率 }
+      - { value: 3, label: 薬の知識 }
+      - { value: 4, label: MP消費率 }
+      - { value: 5, label: TPチャージ率 }
+      - { value: 6, label: 物理ダメージ率 }
+      - { value: 7, label: 魔法ダメージ率 }
+      - { value: 8, label: 床ダメージ率 }
+      - { value: 9, label: 経験獲得率 }
+  スロットタイプ:
+    type: enum
+    values: [ { value: 0, label: 通常 }, { value: 1, label: 二刀流 } ]
+  特殊フラグ:
+    type: enum
+    values: [ { value: 0, label: 自動戦闘 }, { value: 1, label: 防御 }, { value: 2, label: 身代わり }, { value: 3, label: TP持ち越し } ]
+  消滅エフェクト:
+    type: enum
+    values: [ { value: 0, label: 通常 }, { value: 1, label: ボス }, { value: 2, label: 瞬間消去 }, { value: 3, label: 消えない } ]
+  パーティ能力:
+    type: enum
+    values:
+      - { value: 0, label: エンカウント半減 }
+      - { value: 1, label: エンカウント無効 }
+      - { value: 2, label: 不意打ち無効 }
+      - { value: 3, label: 先制攻撃率アップ }
+      - { value: 4, label: 獲得金額2倍 }
+      - { value: 5, label: アイテム入手率2倍 }
+  効果範囲:
+    type: enum
+    values:
+      - { value: 0, label: なし }
+      - { value: 1, label: 敵単体 }
+      - { value: 2, label: 敵全体 }
+      - { value: 3, label: 敵1体 ランダム }
+      - { value: 4, label: 敵2体 ランダム }
+      - { value: 5, label: 敵3体 ランダム }
+      - { value: 6, label: 敵4体 ランダム }
+      - { value: 7, label: 味方単体（生存者） }
+      - { value: 8, label: 味方全体（生存者） }
+      - { value: 9, label: 味方単体（戦闘不能） }
+      - { value: 10, label: 味方全体（戦闘不能） }
+      - { value: 11, label: 使用者 }
+      - { value: 12, label: 味方単体（無条件） }
+      - { value: 13, label: 味方全体（無条件） }
+      - { value: 14, label: 敵味方全体 }
+  使用可能時:
+    type: enum
+    values: [ { value: 0, label: 常時 }, { value: 1, label: バトル画面 }, { value: 2, label: メニュー画面 }, { value: 3, label: 使用不可 } ]
+  命中タイプ:
+    type: enum
+    values: [ { value: 0, label: 必中 }, { value: 1, label: 物理攻撃 }, { value: 2, label: 魔法攻撃 } ]
+  ダメージタイプ:
+    type: enum
+    values:
+      - { value: 0, label: なし }
+      - { value: 1, label: HPダメージ }
+      - { value: 2, label: MPダメージ }
+      - { value: 3, label: HP回復 }
+      - { value: 4, label: MP回復 }
+      - { value: 5, label: HP吸収 }
+      - { value: 6, label: MP吸収 }
+  アイテムタイプ:
+    type: enum
+    values: [ { value: 1, label: 通常アイテム }, { value: 2, label: 大事なもの }, { value: 3, label: 隠しアイテムA }, { value: 4, label: 隠しアイテムB } ]
+  行動制約:
+    type: enum
+    values:
+      - { value: 0, label: なし }
+      - { value: 1, label: 敵を攻撃 }
+      - { value: 2, label: 誰かを攻撃 }
+      - { value: 3, label: 味方を攻撃 }
+      - { value: 4, label: 行動できない }
+  自動解除のタイミング:
+    type: enum
+    values: [ { value: 0, label: なし }, { value: 1, label: 行動終了時 }, { value: 2, label: ターン終了時 } ]
+  SVモーション:
+    type: enum
+    values: [ { value: 0, label: 通常 }, { value: 1, label: 状態異常 }, { value: 2, label: 睡眠 }, { value: 3, label: 戦闘不能 } ]
+  攻撃モーション:
+    type: enum
+    values: [ { value: 0, label: 突き }, { value: 1, label: 振り }, { value: 2, label: 飛び道具 } ]

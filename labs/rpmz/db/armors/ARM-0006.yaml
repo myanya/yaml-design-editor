@@ -1,0 +1,9 @@
+id: ARM-0006
+name: 厄除けのお守り
+description: 呪いにかかりにくくなる。
+atypeId: ATY-03
+etypeId: ETY-05
+price: 600
+params: { mdf: 5 }
+traits:
+  - { code: 13, dataId: STA-0005, value: 0.5 }

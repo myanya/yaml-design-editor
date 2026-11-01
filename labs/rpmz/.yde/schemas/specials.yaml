@@ -1,0 +1,9 @@
+id: specials
+name: 特別な値
+kind: document
+description: MZ が -1 や 0 で表す特別な選択肢（通常攻撃の属性・アニメーション・ステート）に名前を付けた一覧です。選べる項目は参照の型が決めます（書き出しはしません）。
+match: "db/specials.yaml"
+root:
+  type: object
+  fields:
+    - { key: specials, label: 特別な値, type: array, display: table, item: { type: parts#特別な値 } }

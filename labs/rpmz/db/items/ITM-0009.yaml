@@ -1,0 +1,9 @@
+id: ITM-0009
+name: 事務所の鍵
+description: 霜月探偵事務所の鍵。
+itypeId: 2
+price: 0
+consumable: false
+scope: 0
+occasion: 3
+hitType: 0

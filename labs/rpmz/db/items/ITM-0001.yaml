@@ -1,0 +1,13 @@
+id: ITM-0001
+name: 清めの塩
+description: 呪いと憑依を祓う。
+itypeId: 1
+price: 80
+consumable: true
+scope: 7
+occasion: 0
+hitType: 0
+animationId: ANI-0041
+effects:
+  - { code: 22, dataId: STA-0005, value1: 1 }
+  - { code: 22, dataId: STA-0006, value1: 1 }

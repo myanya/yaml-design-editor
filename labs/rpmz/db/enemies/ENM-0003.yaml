@@ -1,0 +1,17 @@
+id: ENM-0003
+name: 呪いの人形
+params: { mhp: 160, mmp: 40, atk: 12, def: 16, mat: 22, mdf: 20, agi: 12, luk: 20 }
+exp: 18
+gold: 25
+dropItems:
+  - { kind: 1, dataId: ITM-0001, denominator: 2 }
+  - { kind: 3, dataId: ARM-0006, denominator: 8 }
+actions:
+  - { skillId: SKL-0021, rating: 5, conditionType: 0 }
+  - { skillId: SKL-0001, rating: 3, conditionType: 0 }
+traits:
+  - { code: 22, dataId: 0, value: 0.95 }
+  - { code: 22, dataId: 1, value: 0.05 }
+  - { code: 11, dataId: ELM-02, value: 2.0 }
+  - { code: 11, dataId: ELM-05, value: 1.5 }
+  - { code: 13, dataId: STA-0005, value: 0 }

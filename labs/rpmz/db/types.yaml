@@ -1,0 +1,28 @@
+# MZ の「タイプ」。番号は並びの順と同じにします（ELM-01 が 1 番目）
+elements:
+  - { id: ELM-01, name: 物理 }
+  - { id: ELM-02, name: 火 }
+  - { id: ELM-03, name: 光 }
+  - { id: ELM-04, name: 霊 }
+  - { id: ELM-05, name: 清め }
+  - { id: ELM-06, name: 呪い }
+skillTypes:
+  - { id: STY-01, name: 推理 }
+  - { id: STY-02, name: 霊術, magic: true }
+  - { id: STY-03, name: 体術 }
+  - { id: STY-04, name: 民俗, magic: true }
+weaponTypes:
+  - { id: WTY-01, name: 懐中電灯, motion: 1, weaponImageId: 0 }
+  - { id: WTY-02, name: 警棒, motion: 1, weaponImageId: 0 }
+  - { id: WTY-03, name: 数珠, motion: 0, weaponImageId: 0 }
+  - { id: WTY-04, name: 呪具, motion: 2, weaponImageId: 0 }
+armorTypes:
+  - { id: ATY-01, name: 衣服 }
+  - { id: ATY-02, name: 防護具 }
+  - { id: ATY-03, name: お守り }
+equipTypes:
+  - { id: ETY-01, name: 武器 }
+  - { id: ETY-02, name: 補助具 }
+  - { id: ETY-03, name: 頭 }
+  - { id: ETY-04, name: 身体 }
+  - { id: ETY-05, name: 装飾品 }

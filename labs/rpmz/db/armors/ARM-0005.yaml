@@ -1,0 +1,7 @@
+id: ARM-0005
+name: 革の手袋
+description: 厚手の革の手袋。
+atypeId: ATY-02
+etypeId: ETY-02
+price: 350
+params: { atk: 2, def: 6 }

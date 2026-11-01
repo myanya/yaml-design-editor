@@ -1,0 +1,12 @@
+id: STA-0007
+name: 出血
+iconIndex: 3
+restriction: 0
+priority: 40
+removeByWalking: true
+stepsToRemove: 50
+traits:
+  - { code: 22, dataId: 7, value: -0.05 }
+message1: "%1は出血した！"
+message2: "%1は出血した！"
+message4: "%1の血が止まった。"

@@ -1,0 +1,11 @@
+id: SKL-0017
+name: 鈴の音
+description: 敵全体を澄んだ音で打つ。
+stypeId: STY-04
+mpCost: 10
+scope: 2
+hitType: 2
+animationId: ANI-0066
+message1: "%1は鈴を鳴らした！"
+damage: { type: 1, elementId: ELM-03, formula: 60 + a.mat * 2 - b.mdf, variance: 20, critical: false }
+occasion: 1

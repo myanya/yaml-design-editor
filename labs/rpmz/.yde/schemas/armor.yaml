@@ -1,0 +1,23 @@
+id: armor
+name: 防具
+kind: document
+description: 防具 1 つを 1 ファイルで管理します。
+match: "db/armors/*.yaml"
+filePattern: "db/armors/{id}.yaml"
+definitions:
+  防具:
+    type: object
+    label: 防具
+    entity: { type: armor, defines: true }
+    fields:
+      - { key: id, label: 防具ID, type: common#防具ID, required: true }
+      - { key: name, label: 名前, type: line, role: title, required: true }
+      - { key: iconIndex, label: アイコン, type: common#アイコン番号, default: 0 }
+      - { key: description, label: 説明, type: text, rows: 2 }
+      - { key: atypeId, label: 防具タイプ, type: common#防具タイプ参照 }
+      - { key: etypeId, label: 装備タイプ, type: common#装備タイプ参照, required: true }
+      - { key: price, label: 価格, type: common#価格, default: 0 }
+      - { key: params, label: 能力値の変化, type: parts#能力値 }
+      - { key: traits, label: 特徴, type: array, item: { type: parts#特徴 } }
+      - { key: note, label: メモ, type: common#メモ }
+root: { type: 防具 }

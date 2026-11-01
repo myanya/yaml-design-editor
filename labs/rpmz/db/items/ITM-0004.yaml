@@ -1,0 +1,12 @@
+id: ITM-0004
+name: 缶コーヒー
+description: MP を 30 回復する。苦い。
+itypeId: 1
+price: 100
+consumable: true
+scope: 7
+occasion: 0
+hitType: 0
+animationId: ANI-0041
+effects:
+  - { code: 12, value1: 0, value2: 30 }

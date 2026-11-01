@@ -1,0 +1,13 @@
+id: SKL-0013
+name: 制圧
+description: 敵 1 体を取り押さえる。金縛りにすることがある。
+stypeId: STY-03
+tpCost: 20
+scope: 1
+hitType: 1
+animationId: ANI-NORMAL
+message1: "%1は相手を取り押さえた！"
+damage: { type: 1, elementId: ELM-01, formula: a.atk * 4 - b.def * 2, variance: 20, critical: true }
+effects:
+  - { code: 21, dataId: STA-0008, value1: 0.3 }
+occasion: 1

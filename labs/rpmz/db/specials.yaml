@@ -1,0 +1,5 @@
+# MZ が -1 や 0 で表す特別な選択肢
+specials:
+  - { id: ELM-NORMAL, name: 通常攻撃の属性, mzValue: -1 }
+  - { id: ANI-NORMAL, name: 通常攻撃のアニメーション, mzValue: -1 }
+  - { id: STA-NORMAL, name: 通常攻撃のステート, mzValue: 0 }

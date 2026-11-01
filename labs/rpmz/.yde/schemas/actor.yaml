@@ -1,0 +1,37 @@
+id: actor
+name: アクター
+kind: document
+description: アクター 1 人を 1 ファイルで管理します。ファイル名は ID です（db/actors/ACT-0001.yaml）。
+match: "db/actors/*.yaml"
+filePattern: "db/actors/{id}.yaml"
+definitions:
+  アクター:
+    type: object
+    label: アクター
+    entity: { type: actor, defines: true }
+    fields:
+      - { key: id, label: アクターID, type: common#アクターID, required: true }
+      - { key: name, label: 名前, type: line, role: title, required: true }
+      - { key: nickname, label: 二つ名, type: line, role: subtitle }
+      - { key: classId, label: 職業, type: common#職業参照, relation: has-class, required: true }
+      - { key: initialLevel, label: 初期レベル, type: int, min: 1, max: 99, required: true, default: 1 }
+      - { key: maxLevel, label: 最大レベル, type: int, min: 1, max: 99, required: true, default: 99 }
+      - { key: profile, label: プロフィール, type: text, rows: 2 }
+      - { key: characterName, label: 歩行キャラ, type: common#画像名 }
+      - { key: characterIndex, label: 歩行キャラの番号, type: int, min: 0, max: 7, default: 0 }
+      - { key: faceName, label: 顔, type: common#画像名 }
+      - { key: faceIndex, label: 顔の番号, type: int, min: 0, max: 7, default: 0 }
+      - { key: battlerName, label: サイドビューの戦闘キャラ, type: common#画像名 }
+      - key: equips
+        label: 初期装備
+        type: array
+        description: 装備タイプの並びの順（1 番目が武器）。空の欄は ~ と書きます。
+        item: { type: common#装備品参照, relation: equips }
+      - { key: traits, label: 特徴, type: array, item: { type: parts#特徴 } }
+      - { key: note, label: メモ, type: common#メモ }
+    constraints:
+      - id: initial-level-within-max
+        description: 初期レベルは最大レベル以下であること
+        check: [ { lte: [ { path: initialLevel }, { path: maxLevel } ] } ]
+        level: error
+root: { type: アクター }

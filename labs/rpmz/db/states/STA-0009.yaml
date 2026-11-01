@@ -1,0 +1,16 @@
+id: STA-0009
+name: 沈黙
+iconIndex: 5
+restriction: 0
+priority: 55
+overlay: 3
+removeAtBattleEnd: true
+autoRemovalTiming: 2
+minTurns: 3
+maxTurns: 5
+traits:
+  - { code: 42, dataId: STY-02 }
+  - { code: 42, dataId: STY-04 }
+message1: "%1は声が出なくなった！"
+message2: "%1は声を封じられた！"
+message4: "%1の声が戻った。"

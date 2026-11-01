@@ -1,0 +1,15 @@
+id: ENM-0009
+name: 群がる蛾
+params: { mhp: 90, mmp: 0, atk: 10, def: 6, mat: 8, mdf: 8, agi: 30, luk: 10 }
+exp: 6
+gold: 4
+dropItems:
+  - { kind: 1, dataId: ITM-0004, denominator: 5 }
+actions:
+  - { skillId: SKL-0020, rating: 5, conditionType: 0 }
+  - { skillId: SKL-0022, rating: 2, conditionType: 0 }
+traits:
+  - { code: 22, dataId: 0, value: 0.95 }
+  - { code: 22, dataId: 1, value: 0.05 }
+  - { code: 11, dataId: ELM-02, value: 2.0 }
+  - { code: 11, dataId: ELM-03, value: 1.5 }
