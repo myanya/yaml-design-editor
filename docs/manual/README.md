@@ -40,6 +40,7 @@ YAML で設計項目（要求・設計・課題など）を管理するための
 | [actions.md](actions.md) | 操作（型の操作 `methods`・配列の追加の決まり・アクション `actions`・前提・CLI `action`） |
 | [ai.md](ai.md) | AI による作成支援・エージェント・自動実行・自己改善・skill |
 | [cli.md](cli.md) | ヘッドレス CLI |
+| [cli-connect.md](cli-connect.md) | CLI から同じ PC の API へ接続する参照・変更・結果照会 |
 | [local-connections.md](local-connections.md) | API・MCP・Web の接続設定、権限・トークン管理、保存済みの読取 API、トレイ常駐・非表示起動 |
 | [local-api-changes.md](local-api-changes.md) | API の変更提案・直接確定・定義済み操作・結果照会 |
 | [limits.md](limits.md) | 既知の制約 |

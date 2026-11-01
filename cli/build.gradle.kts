@@ -31,6 +31,7 @@ tasks.named<JavaExec>("run") {
 
 dependencies {
     implementation(project(":app-core"))
+    implementation(project(":local-server"))  // 明示的な connect の通信だけ。待受は起動しない
     implementation(project(":agent"))
     // 拡張（Excel・Word の形式）。登録は CliExtensions.kt の一覧
     implementation(project(":format-office"))

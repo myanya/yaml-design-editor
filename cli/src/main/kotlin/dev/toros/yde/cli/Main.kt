@@ -17,6 +17,7 @@ import kotlin.system.exitProcess
  * exit code（カーネルの命令。計画書 Phase 10 で固定）: 0 成功（警告は影響しない）/ 1 コマンドまたは入力エラー /
  * 2 構造の検証エラー（スキーマ・文書のパース失敗を含む）/ 3 意味の検証エラー / 4 古い baseVersion の拒否 / 5 保存失敗。
  * 応用の命令は 0 成功 / 1 誤り（標準エラー出力に「エラー: …」）。
+ * connect はさらに 2 検証・確定不可 / 5 保存失敗・未確定（API の結果を標準出力に保持）。
  */
 fun main(args: Array<String>) {
     Extensions.install(CliExtensions.registry)  // 拡張（Excel・Word の形式）の登録は入口の一覧 1 ファイル（app-core に POI を入れない。組込みは最初から入っている）
@@ -26,6 +27,10 @@ fun main(args: Array<String>) {
     if (isKernelCommand(args)) exitProcess(run(args) { println(it) })
     try {
         print(runCli(args))
+    } catch (e: ConnectedResultFailure) {
+        print(e.output)
+        System.err.println("エラー: ${e.message}")
+        exitProcess(e.exitCode)
     } catch (e: Exception) {
         System.err.println("エラー: ${e.message ?: e.toString()}")
         exitProcess(1)

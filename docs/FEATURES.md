@@ -300,6 +300,7 @@
 | LC-21 | 保存版の読取 API・原本座標・権限境界・OpenAPI 契約 | `service/WorkspaceReads.kt`・`server/api/ReadApi.kt` | `WorkspaceReadsTest`・`ReadApiTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-22 | 簡単な閲覧・変更設定と文書・操作名の選択、旧権限の維持 | `ConnectionPermissionEditor.kt`・`PermissionDocumentPicker.kt` | `LocalConnectionSettingsPageTest`・`ConnectionSettingsStoreTest` | [接続の設定](manual/local-connections.md) |
 | LC-23 | 作業の提案・直接確定と定義済み操作の API、差分・結果照会と再送 | `server/api/WriteApi.kt`・`WriteReports.kt` | `WriteApiTest`・`WorkspaceWorkTest` | [API による変更](manual/local-api-changes.md) |
+| LC-24 | CLI の明示接続・参照・変更と失敗時の迂回禁止 | `cli/ConnectedCli.kt`・`server/client/LocalApiClient.kt` | `ConnectedCliTest`・`ConnectedCliIntegrationTest`・`LocalApiClientTest` | [接続 CLI](manual/cli-connect.md) |
 
 ## 公開サンプル
 

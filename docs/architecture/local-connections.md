@@ -27,6 +27,8 @@ DesktopRuntime が接続管理を所有し、設定画面から三機能を個�
 | `ui.shell.PermissionActionPicker` | 定義済み操作名の明示選択 |
 | `service.WorkspaceOwnership` | 利用者専用領域の OS ファイルロックによる入口間のワークスペース所有と解放 |
 | `cli/CliOwnership.kt` | 書込を伴う命令・モードの分類と、独立 CLI の処理全体の所有 |
+| `cli/ConnectedCommands.kt` / `ConnectedCli.kt` | 明示的な connect の引数・環境変数・入力ファイルと、API 応答・終了コードの変換 |
+| `server.client.LocalApiClient` | CLI 用の loopback 通信、認証ヘッダー・期限・量の制御と通信例外の秘匿 |
 | `service.SourceDraftWorker` | 画面と独立した下書きの遅延解析・木との同期、古い入力の採用防止 |
 | `desktop.DesktopRuntime` | アプリ全体とワークスペース単位の寿命、監視・自動実行・手動実行・終了の統括 |
 | `desktop.lifecycle.DesktopPresence` / `DesktopLaunch` | 表示・常駐・終了確認の状態と起動引数、トレイ失敗時の画面復帰 |
@@ -233,11 +235,26 @@ DesktopRuntime は候補を読む前に取得し、表示・非表示や接続�
 
 独立 CLI は書込モードの入口で、読込より前から処理完了まで取得する。shell と watch はセッション全体で保持する。
 実行記録・派生出力・初期化・移行も書込に含む。bench --keep は生成するルートごとに取得する。参照・一覧・プレビューは取得しない。
-所有中の書込拒否は終了コード 1。API への暗黙の転送・API の自動有効化はしない。通信で操作する CLI モードは未実装である。
+所有中の書込拒否は終了コード 1。API への暗黙の転送・API の自動有効化はしない。
+通信で操作する場合は `connect` を明示する。独立 CLI の所有権取得より前に別の入口へ振り分け、API が OFF・無権限でも独立書込へ戻らない。
 命令を追加するときは CliOwnership の分類も更新する。未分類の命令は実行前に拒否する。
 
 保証は同じ OS 利用者・同じ実体ルート・この規約を使う入口間の協調排他に限る。別利用者・別 PC・旧版・他ツールや、異なるルートの重複領域を排除する仕組みではない。
 閲覧 CLI はディスク上の保存済みを読むため、デスクトップの未保存編集は見えず、複数ファイルの読取スナップショットも保証しない。外部変更の検出は引き続き Workspace.noteDiskChanges が担う。
+
+### CLI の明示接続
+
+ConnectedCommands は引数から LocalApiRequest を作り、ConnectedCli がトークンを環境変数から取得する。
+通信は local-server/client の LocalApiConnection を通す。Ktor Client/CIO の依存・JSON の相互変換は local-server に閉じる。
+接続先は `127.0.0.1` の指定ポートで、別 URL への転送・プロキシ・自動再送・API の起動を行わない。
+クライアントは呼び出し単位で閉じ、全体の期限と入出力のバイト上限を持つ。
+認証情報を引数・URL・エラーメッセージへ載せず、HTTP の拒否は状態コードから固定の説明へ写す。
+
+命令は公開 API の読取・作業・操作に対応する。作業の YAML 入力は値に変換するだけで、変更セットの意味と検証は WriteApi 以降へ委譲する。
+入力ファイルの読取以外にローカルワークスペースへのアクセスはない。Query・Predicate・Rewrite・保存・Undo の判断を CLI へ複製しない。
+計画と確定を別命令にして、確定・結果照会・再送で同じ作業 ID / 要求 ID / 計画 ID を使う。
+API の保存版とデータを表示へ渡し、valid / canCommit・state・返された検証ページの指摘を終了コードへ写す。
+HTTP 200 でも不成功の結果は非ゼロにするが、元の結果を標準出力に残す。詳細は [CLI の接続モード](../manual/cli-connect.md)。
 WorkspaceOwnershipTest は別 JVM・異常終了・別名と初期化前の場所を、DesktopRuntimeTest は切替・終了待ちを、CliOwnershipTest は書込拒否と参照継続を検証する。
 
 ## トレイと画面の寿命

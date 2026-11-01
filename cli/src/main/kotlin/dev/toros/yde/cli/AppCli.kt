@@ -122,6 +122,7 @@ internal const val CLI_USAGE = """コマンド:
   workspace bench <root> [--iterations N]       意味解析の全再構築と増分更新を計測する
   workspace shell <root>                        対話 shell（set / refactor / undo / redo / save / reload）
   --- 共通 ---
+  connect ...                                   同じ PC の API に明示接続する（connect help）。ローカル書込へ迂回しない
   --format text|yaml|json                       出力の形式。応用の命令の既定は yaml（text は yaml と同じ）。骨子・全文・ドラフトのような文字の結果は形式に依らずそのまま
   version                                       バージョン（appVersion＝外部・buildVersion＝内部 yyyymmdd.ビルド番号・commit）
   help                                          このヘルプ
@@ -130,6 +131,7 @@ internal const val CLI_USAGE = """コマンド:
 /** 応用の命令を名前で振り分ける（テストと入口が呼ぶ）。help は使い方、不明な命令は使い方を添えて断る。 */
 fun runCli(args: Array<String>): String {
     if (args.isEmpty() || args[0] == "help" || args[0] == "--help") return CLI_USAGE
+    if (args[0] == "connect") return runConnectedCli(args.drop(1))
     val command = args[0]
     val format = CliArgs.format(args.toList())
     val rest = withoutFormat(args.drop(1))
