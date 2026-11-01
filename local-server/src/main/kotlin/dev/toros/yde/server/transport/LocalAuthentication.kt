@@ -13,6 +13,8 @@ import io.ktor.server.response.*
 import io.ktor.util.AttributeKey
 import io.ktor.utils.io.*
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.io.readByteArray
 import kotlinx.serialization.json.*
 
@@ -21,12 +23,15 @@ internal const val CSRF_HEADER = "X-YDE-CSRF"
 private val identityKey = AttributeKey<LocalIdentity>("LocalIdentity")
 private val accessKey = AttributeKey<LocalAccess>("LocalAccess")
 private val rejectedKey = AttributeKey<Boolean>("LocalAccessRejected")
+internal class McpSessionHooks(val bound: (String) -> Unit, val finish: suspend (Boolean) -> Unit)
+internal val McpSessionHooksKey = AttributeKey<McpSessionHooks>("McpSessionHooks")
 
 internal data class LocalRequestLimits(val bodyBytes: Int = 4 * 1024 * 1024, val headerBytes: Int = 16 * 1024, val bodyTimeoutMillis: Long = 10_000)
 
 /** 機能ゲートの後に組み込む。静的資源以外は毎要求認証し、資格情報を経路・本文・ログに置かない。 */
 internal fun Application.localAuthentication(connections: LocalConnections, access: LocalAccess, limits: LocalRequestLimits = LocalRequestLimits()) {
     intercept(ApplicationCallPipeline.Plugins) {
+        var completed = false
         try {
             val feature = featureForPath(call.request.path()) ?: throw LocalAccessFailure(404, "接続経路が見つかりません")
             val port = connections.status.value.boundPort ?: throw LocalAccessFailure(404, "接続は停止しています")
@@ -55,6 +60,7 @@ internal fun Application.localAuthentication(connections: LocalConnections, acce
                 call.attributes[LocalRequestKey].authorizeWith { access.check(identity) }
                 access.withIdentity(identity) { proceed() }
             }
+            completed = true
         } catch (failure: LocalAccessFailure) {
             call.attributes.put(rejectedKey, true)
             if (failure.status == 401 && featureForPath(call.request.path()) != LocalFeature.WEB) {
@@ -66,6 +72,11 @@ internal fun Application.localAuthentication(connections: LocalConnections, acce
                 call.respondText(body.toString(), ContentType.Application.Json, HttpStatusCode.fromValue(failure.status))
             } else call.respondText(failure.message.orEmpty(), status = HttpStatusCode.fromValue(failure.status))
             finish()
+        } finally {
+            // SDK は初期化応答の認証が拒否されてもセッションを保持するため、成功した応答以外は終了口へ戻す。
+            call.attributes.getOrNull(McpSessionHooksKey)?.let { hooks ->
+                withContext(NonCancellable) { hooks.finish(completed) }
+            }
         }
     }
     receivePipeline.intercept(ApplicationReceivePipeline.Before) { body ->
@@ -81,7 +92,10 @@ internal fun Application.localAuthentication(connections: LocalConnections, acce
         if (!call.attributes.contains(rejectedKey)) call.attributes.getOrNull(identityKey)?.let { identity ->
             access.check(identity)
             if (identity.client.feature == LocalFeature.MCP) {
-                call.response.headers["Mcp-Session-Id"]?.let { access.bindMcpSession(identity, it) }
+                call.response.headers["Mcp-Session-Id"]?.let {
+                    access.bindMcpSession(identity, it)
+                    call.attributes.getOrNull(McpSessionHooksKey)?.bound(it)
+                }
                 if (call.request.httpMethod == HttpMethod.Delete && (call.response.status()?.value ?: 200) in 200..299) {
                     single(call, "Mcp-Session-Id")?.let { access.endMcpSession(identity, it) }
                 }
@@ -92,9 +106,13 @@ internal fun Application.localAuthentication(connections: LocalConnections, acce
 
 /** 各業務ハンドラは、対象を解決した後とサービスへ渡す直前に必要な能力・文書・操作を照合する。 */
 internal fun ApplicationCall.requireLocalAccess(capability: ConnectionCapability, documents: Set<DocumentId> = emptySet(), action: String? = null): ConnectionGrant {
-    val identity = attributes.getOrNull(identityKey) ?: throw LocalAccessFailure(401, "接続の認証が必要です")
+    val identity = authenticatedIdentity()
     return attributes[accessKey].check(identity, capability, documents, action)
 }
+
+/** SDK のセッションへ渡す証明は、認証済みの HTTP 属性からのみ取得する。引数からは作らない。 */
+internal fun ApplicationCall.authenticatedIdentity(): LocalIdentity =
+    attributes.getOrNull(identityKey) ?: throw LocalAccessFailure(401, "接続の認証が必要です")
 
 /** Cookie の配送先と保護属性を固定する。loopback の HTTP 専用なので Secure は付けない。 */
 internal fun ApplicationCall.setLocalWebSession(credential: IssuedCredential) {

@@ -40,7 +40,7 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 
 パッケージは `dev.toros.yde.<モジュール>.*`（規則は CONVENTIONS「モジュールの規約」）。依存方向は ADR-0002（app-core は ADR-0013）が正: `yaml-core ← semantic-core ← workspace-core ← app-core ← agent ← desktop`（cli は app-core・agent・拡張まで・拡張 format-office は app-core まで）。repo-tests はテストだけのモジュールで、全モジュールに依存してよい。
 構成（画面を持たない応用層 app-core・agent・入口と拡張）は ADR-0013 が正で、ビューの種類の差し込み口は ADR-0014、組込みと拡張の分け方は ADR-0015。
-ローカル接続は [ローカル接続の決定](../decisions/0016-local-connections-and-shared-host.md) に従い、`app-core ← local-server ← desktop / cli` とする。接続設定・認証・読取と変更の API・CLI の明示接続があり、MCP・Web の業務経路は未接続。
+ローカル接続は [ローカル接続の決定](../decisions/0016-local-connections-and-shared-host.md) に従い、`app-core ← local-server ← desktop / cli` とする。接続設定・認証・参照と変更の API / MCP・CLI の明示接続があり、Web の業務経路は未接続。
 文書とコメントでは接頭辞を省いて `schema.FieldDef`・`validate/Validator.kt` のように書き、同じ短い名前が複数のモジュールにあるとき（`schema`・`validate`・`core`）はモジュール名を添える。
 
 | モジュール | パッケージ | 中身 |
@@ -76,7 +76,7 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 | | `agent.eval` | 評価と指標: `EvalRunner`（評価セット・比較実験）・`RunMetrics`（実行記録の集計） |
 | | `agent.llm` | LLM との接続（`AiGenerator`・各プロバイダの生成器・`Connection`・`Http`・ツール呼び出しの往復 `ToolChat`） |
 | format-office | `format.office` | 拡張: Excel の表の読み書きと Word 文書の中の表の読み取り（Apache POI）の `FormatCodec`（`XlsxFormat.kt`・`DocxFormat.kt`）。POI はここだけ |
-| local-server | `server`・`server.transport`・`server.api`・`server.client` | 接続設定・待受・認証・読取と変更の API・CLI 用クライアント（Ktor/CIO・MCP SDK の隔離） |
+| local-server | `server`・`server.transport`・`server.api`・`server.mcp`・`server.protocol`・`server.client` | 接続設定・待受・認証・API / MCP・共通の通信形式・CLI 用クライアント（Ktor/CIO・MCP SDK の隔離） |
 | desktop | `desktop` | `Main.kt`（エントリポイント・ウィンドウ・ショートカット）・`AppState` / `OpenDocument`・画面の設定 `UiPreferences`・EDT へ戻す `DesktopUiDispatcher`・AI 生成の要求 `AiRequests` |
 | | `desktop.ui` | Compose の画面一式。役割で 10 のパッケージ（common・form・source・schema・view・graph・file・run・action・shell）に分ける（ui.md「画面のパッケージ」。骨格は `ui/shell/AppRoot.kt`）。差し込み口を通る種類（chart・flow）の描画の一覧 `ViewRenderers` もここ（ADR-0014） |
 | | `desktop.ext` | 拡張の登録の一覧（`DesktopExtensions`。Excel と Word の形式）。入口が `Extensions.install` に渡す 1 ファイル |

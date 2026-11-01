@@ -8,6 +8,7 @@ import dev.toros.yde.server.api.readApi
 import dev.toros.yde.server.api.writeApi
 import dev.toros.yde.server.auth.AccessWorkspace
 import dev.toros.yde.server.auth.LocalAccess
+import dev.toros.yde.server.mcp.workspaceMcp
 import dev.toros.yde.server.transport.LoopbackEngine
 import dev.toros.yde.server.transport.localAuthentication
 import dev.toros.yde.server.transport.localConnectionGate
@@ -22,6 +23,7 @@ class LocalServer(scope: CoroutineScope, grants: ConnectionGrants, reads: Worksp
             localAuthentication(connections, access)
             reads?.let { readApi(it) }
             if (work != null && operations != null) writeApi(work, operations)
+            if (reads != null && work != null && operations != null) workspaceMcp(connections, access, reads, work, operations)
         }
     }, onDisabled = { access.featureStopped(it) })
     val access: LocalAccess = LocalAccess(scope, connections, grants, workspace)

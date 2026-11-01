@@ -16,3 +16,19 @@ dependencyLocking { lockAllConfigurations() }
 
 // 公開サンプルは一時ディレクトリへ写して契約試験に使う。
 tasks.withType<Test>().configureEach { workingDir = rootDir }
+
+// Node と Inspector は開発時の任意検査だけで使い、製品や通常の test には要求しない。
+tasks.register<JavaExec>("verifyMcpInspector") {
+    description = "取得済みの公式 Inspector CLI から一時ワークスペースへ実接続する"
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("dev.toros.yde.server.mcp.McpInspectorCheck")
+    jvmArgs("-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8")
+    workingDir = rootDir
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) })
+    doFirst {
+        val cli = providers.gradleProperty("inspectorCli").orNull
+            ?: error("-PinspectorCli=取得したInspectorのclients/launcher/build/index.jsを指定してください")
+        args(rootProject.file(cli).absolutePath, providers.gradleProperty("inspectorNode").getOrElse("node"))
+    }
+}

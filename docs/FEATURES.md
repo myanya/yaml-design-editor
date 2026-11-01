@@ -299,8 +299,10 @@
 | LC-20 | 所有中の独立 CLI の書込拒否と参照・プレビューの継続 | `cli/CliOwnership.kt` | `CliOwnershipTest` | [CLI](manual/cli.md) |
 | LC-21 | 保存版の読取 API・原本座標・権限境界・OpenAPI 契約 | `service/WorkspaceReads.kt`・`server/api/ReadApi.kt` | `WorkspaceReadsTest`・`ReadApiTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-22 | 簡単な閲覧・変更設定と文書・操作名の選択、旧権限の維持 | `ConnectionPermissionEditor.kt`・`PermissionDocumentPicker.kt` | `LocalConnectionSettingsPageTest`・`ConnectionSettingsStoreTest` | [接続の設定](manual/local-connections.md) |
-| LC-23 | 作業の提案・直接確定と定義済み操作の API、差分・結果照会と再送 | `server/api/WriteApi.kt`・`WriteReports.kt` | `WriteApiTest`・`WorkspaceWorkTest` | [API による変更](manual/local-api-changes.md) |
+| LC-23 | 作業の提案・直接確定と定義済み操作の API、差分・結果照会と再送 | `server/api/WriteApi.kt`・`server/protocol/WriteReports.kt` | `WriteApiTest`・`WorkspaceWorkTest` | [API による変更](manual/local-api-changes.md) |
 | LC-24 | CLI の明示接続・参照・変更と失敗時の迂回禁止 | `cli/ConnectedCli.kt`・`server/client/LocalApiClient.kt` | `ConnectedCliTest`・`ConnectedCliIntegrationTest`・`LocalApiClientTest` | [接続 CLI](manual/cli-connect.md) |
+| LC-25 | MCP の参照・提案・直接確定・操作と、停止・失効・保存完了待ち | `server/mcp/McpEndpoint.kt`・`McpTools.kt`・`McpSchemas.kt` | `WorkspaceMcpTest`・`McpCallerTest` | [MCP](manual/local-mcp.md) |
+| LC-26 | MCP の実通信・再接続・取消・期限切れ・初期化拒否後の解放と Inspector との相互運用 | `server/mcp/McpEndpoint.kt`・`transport/LocalAuthentication.kt` | `McpHttpTest`・`McpInspectorCheck` | [検査手順](../local-server/README.md) |
 
 ## 公開サンプル
 

@@ -1,4 +1,4 @@
-package dev.toros.yde.server.api
+package dev.toros.yde.server.protocol
 
 import dev.toros.yde.app.service.*
 import dev.toros.yde.workspace.PreparedDocumentChange

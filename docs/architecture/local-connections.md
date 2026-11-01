@@ -4,7 +4,7 @@
 
 ローカル接続は、通信ライブラリを local-server に閉じる組込み構成を取る。
 現在は設定型・機能別の状態機械・loopback 待受・接続者の認証と権限・保存版の閲覧と変更の API、および SDK・HTTP・同梱ランタイムの互換性検査がある。
-DesktopRuntime が接続管理を所有し、設定画面から三機能を個別に切り替える。設定のない起動では全て OFF のまま待受しない。MCP・Web の業務経路は未接続。
+DesktopRuntime が接続管理を所有し、設定画面から三機能を個別に切り替える。設定のない起動では全て OFF のまま待受しない。MCP は同じ共通サービスで参照・変更を扱い、Web の業務経路は未接続。
 全体の設計契約は [ローカル接続の決定](../decisions/0016-local-connections-and-shared-host.md)、実施順序は ROADMAP にある。
 外部確定と Undo は [履歴の決定](../decisions/0017-external-commit-and-desktop-history.md)、提案と直接確定は [作業方式の決定](../decisions/0019-external-work-commit-routes.md) が補足する。
 
@@ -23,7 +23,10 @@ DesktopRuntime が接続管理を所有し、設定画面から三機能を個�
 | `service.WorkspaceReads` / `ReadQuery` / `ReadResult` | 保存済みの読取条件・版・権限・量と寿命の制御 |
 | `service.SavedReadReports` | 同じ保存済み入力から既存の検索・合成・ビュー・検証を呼び、値と原本座標へ写す |
 | `server.api.ReadApi` | HTTP の条件・JSON・エラーへの変換と OpenAPI 契約の配信 |
-| `server.api.WriteApi` / `WriteReports` | 作業の提案・直接確定と定義済み操作の HTTP 変換、値だけの応答 |
+| `server.api.WriteApi` | 作業の提案・直接確定と定義済み操作の HTTP 変換 |
+| `server.protocol.ExternalJson` / `WriteReports` | API・MCP 共通の入力形式・パッチ検査・値だけの応答 |
+| `server.mcp.McpEndpoint` / `McpCaller` | 認証済みセッションとツール実行の停止・失効・保存完了待ち |
+| `server.mcp.McpTools` / `McpSchemas` | 権限に応じたツール一覧・入力の記述と、共通サービスへの変換 |
 | `ui.shell.PermissionActionPicker` | 定義済み操作名の明示選択 |
 | `service.WorkspaceOwnership` | 利用者専用領域の OS ファイルロックによる入口間のワークスペース所有と解放 |
 | `cli/CliOwnership.kt` | 書込を伴う命令・モードの分類と、独立 CLI の処理全体の所有 |
@@ -173,7 +176,7 @@ MCP のセッション ID は資格情報の代わりにせず、認証済みの
 - 経路のドット区間、符号化した区切りや二重符号化など、機能判定とルーターで解決先が変わる表記を拒否する。
 
 登録は 256 件、閲覧対象は登録ごとに 10,000 文書、操作名は 1,000 件まで。要求は全体 64 件・資格情報ごとに 16 件を上限とし、失効後の保存待ちも全体の枠に数える。
-MCP セッションの対応は全体 256 件・資格情報ごとに 8 件まで。SDK 自身のセッション制限も別途必要となる。
+MCP セッションの対応は全体 256 件・資格情報ごとに 8 件まで。製品の SDK 待受は 64 セッション・無操作 15 分で制限する。
 要求ヘッダーは 16 KiB、経路は 4,096 文字、本文は 4 MiB、本文受信は 10 秒まで。長さ不明の本文も変換前に上限を確認し、圧縮本文は受け付けない。
 JSON の型と業務操作の実行量は、公開する各アダプターでも制限する。
 
@@ -182,6 +185,8 @@ LocalProtocolAuthenticationTest は公式 MCP クライアントの往復、接�
 照合の参照は [MCP の通信保護](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#security-warning) と [OWASP の CSRF 対策](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html)。
 
 ## 規律
+
+MCP の通信セッションとツール実行は共通の要求上限へ数える。セッション ID を権限や作業 ID の代わりに使わない。
 
 - Ktor と MCP SDK の import と実行時の直接依存は local-server だけに置く。
 - local-server は app-core とカーネルまでに依存し、Compose・agent・desktop・cli・形式の拡張に依存しない。
@@ -389,6 +394,28 @@ POST の JSON・未知項目・深さ・容量を検査し、変更セットは�
 定義済み操作の要求 ID は action/、作業の確定は work/ の接頭辞で分離し、API の結果照会から別経路の記録へ到達させない。
 応答は差分・検証・状態・文書別結果の値に限定し、OS や定義の例外本文を返さない。保存済みカタログは ActionPlanner.catalog から取得し、閲覧と実行の許可を分ける。
 契約は OpenAPI に集約し、WriteApiTest で認証・両方式・再送・検証・範囲・原本保護と実応答を検査する。利用例は [API による変更](../manual/local-api-changes.md) にある。
+
+## MCP のツールと寿命
+
+McpEndpoint は公式 SDK の Streamable HTTP を `/mcp` に取り付ける。API を経由せず、WorkspaceReads・WorkspaceWork・WorkspaceOperations を直接共用する。
+ツール一覧は認証済みの能力で絞り、McpSchemas が入力形式と読み取り・変更・再送のヒントを公開する。
+変更セットのスキーマは OpenAPI の原本から参照を `$defs` へ写し、形式の検査と JSON 変換・結果の表現は server.protocol で共用する。
+ツールの業務処理に意味計算・保存の規則を作らず、入力の変換と既存サービスの呼出だけを置く。内蔵 LLM・agent・Compose へ依存しない。
+
+認証済みの LocalIdentity を初期 HTTP の属性から SDK セッションへ渡す。引数の caller・権限・作業方式で証明を代替しない。
+SDK のハンドラは HTTP の coroutine と別に動くため、McpCaller がセッションの寿命と各ツールを LocalConnections.withRequest / LocalAccess.withIdentity へ登録する。
+ツールの実行前後に能力を再確認し、確定だけ LocalRequest.finishWrite を通す。OFF・失効・取消は読取と未確定処理を止め、開始済みの保存は結果記録まで待つ。
+セッションの寿命が終わると Server.close で SDK の処理と transport を閉じる。SDK が DELETE・無操作の期限で閉じた場合も寿命を取り消す。
+HTTP セッション ID は応答の Mcp-Session-Id を認証が結び付けた時点で受け取り、SDK の内部 ID と混同しない。終了時は認証側のセッション枠も解放する。
+初期化の HTTP が成功しなかった場合も SDK セッションを閉じる。LocalAuthentication は初期応答の完了をアダプターへ戻し、上限拒否・応答時の失効・取消で内部の寿命登録を残さない。
+
+McpTools は構造化された応答と同じ JSON のテキストを返し、ツールの失敗は isError と値だけの結果へ写す。
+HTTP・SDK の初期化エラーとツールの業務エラーを分け、未知の例外本文・絶対パスを SDK のエラー応答やログへ流さない。
+引数は 2 MiB・入れ子 64 段、テキストと構造化値を含む応答全体は 4 MiB。通常のツールは 30 秒で打ち切り、保存開始後は完了を待つ。
+参照は保存済み、作業内の差分は validate_work / plan_work で確認する。提案・直接確定・定義済み操作の結果照会は、それぞれ同じ作業 ID / 要求 ID で行う。
+使い方は [MCP マニュアル](../manual/local-mcp.md)。WorkspaceMcpTest は公式クライアントで業務経路、McpCallerTest は停止・失効・保存完了待ちを検査する。
+McpHttpTest は CIO の実ポートで取消通知・期限切れ・再接続・上限拒否・部分停止と保存結果を検査する。通常の無操作期限は 15 分のままで、試験だけ短い期限を注入する。
+外部 Inspector の CLI による検査は任意タスクで実行し、Node と Inspector を製品の依存へ持ち込まない。手順は [local-server](../../local-server/README.md) にある。
 
 ## 拡張ポイント
 

@@ -2,10 +2,10 @@ package dev.toros.yde.server.api
 
 import dev.toros.yde.app.service.*
 import dev.toros.yde.server.auth.LocalAccessFailure
+import dev.toros.yde.server.protocol.*
 import dev.toros.yde.server.transport.LocalRequestKey
 import dev.toros.yde.server.transport.requireLocalAccess
 import dev.toros.yde.workspace.ActionRequest
-import dev.toros.yde.workspace.changeset.ChangeSets
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
@@ -31,8 +31,7 @@ internal fun Application.writeApi(work: WorkspaceWork, operations: WorkspaceOper
         post("/works/{id}/changes") { call.writeResponse {
             val caller = workCaller()
             val body = writeBody("changes")
-            checkChanges(body)
-            val changes = try { ChangeSets.parse(body.toString()) } catch (_: Exception) { invalidWrite() }
+            val changes = inputChanges(body)
             work.stage(caller, workId(), changes).report()
         } }
         post("/works/{id}/validate") { call.writeResponse {
@@ -86,13 +85,6 @@ private fun ApplicationCall.workCaller(): OperationCaller {
     return grant.caller
 }
 private fun ApplicationCall.workId() = parameters["id"]?.takeIf { it.isNotBlank() && it.length <= 180 } ?: invalidWrite()
-private fun actionRequestId(id: String): String {
-    if (!id.matches(Regex("[A-Za-z0-9_-]{1,180}"))) invalidWrite()
-    return "action/$id"
-}
-private fun invalidWrite(): Nothing = throw LocalAccessFailure(400, "要求の JSON 形式・項目を確認してください")
-private fun JsonObject.string(key: String, maxLength: Int = 200): String = (this[key] as? JsonPrimitive)
-    ?.takeIf { it.isString }?.content?.takeIf { it.isNotBlank() && it.length <= maxLength } ?: invalidWrite()
 private suspend fun ApplicationCall.writeBody(vararg keys: String): JsonObject {
     if (!request.contentType().match(ContentType.Application.Json)) throw LocalAccessFailure(415, "application/json を指定してください")
     val body = try { Json.parseToJsonElement(receiveText()) as? JsonObject ?: invalidWrite() }
@@ -103,54 +95,11 @@ private suspend fun ApplicationCall.writeBody(vararg keys: String): JsonObject {
     jsonValue(body) // 値を既存の変更セットへ渡す前に入れ子の上限を検査する。
     return body
 }
-private fun jsonValue(value: JsonElement, depth: Int = 0): Any? {
-    if (depth > 64) invalidWrite()
-    return when (value) {
-        JsonNull -> null
-        is JsonObject -> value.mapValues { jsonValue(it.value, depth + 1) }
-        is JsonArray -> value.map { jsonValue(it, depth + 1) }
-        is JsonPrimitive -> if (value.isString) value.content else value.booleanOrNull ?: value.longOrNull ?: value.doubleOrNull ?: invalidWrite()
-    }
-}
-private fun checkChanges(body: JsonObject) {
-    val changes = body["changes"] as? JsonArray ?: invalidWrite()
-    if (changes.isEmpty()) invalidWrite()
-    for (item in changes) {
-        val file = item as? JsonObject ?: invalidWrite()
-        if (file.keys.any { it !in setOf("file", "base", "create", "content", "ops") }) invalidWrite()
-        file.string("file", 1024)
-        file["base"]?.let { file.string("base") }
-        val create = file["create"]?.let { (it as? JsonPrimitive)?.takeIf { !it.isString }?.booleanOrNull ?: invalidWrite() } ?: false
-        if (create) {
-            if (file["content"] == null || file["content"] == JsonNull || "ops" in file || "base" in file) invalidWrite()
-        } else {
-            if ("content" in file) invalidWrite()
-            for (entry in file["ops"] as? JsonArray ?: invalidWrite()) {
-                val op = entry as? JsonObject ?: invalidWrite()
-                val keys = when (op.string("op")) {
-                    "set", "insert" -> setOf("op", "path", "value")
-                    "delete" -> setOf("op", "path")
-                    "move" -> setOf("op", "from", "to")
-                    "rename" -> setOf("op", "path", "to")
-                    "reorder" -> setOf("op", "path", "order")
-                    else -> invalidWrite()
-                }
-                if (op.keys != keys) invalidWrite()
-                for (key in keys - setOf("op", "value", "order")) {
-                    if ((op[key] as? JsonPrimitive)?.isString != true) invalidWrite()
-                }
-                op["order"]?.let { order ->
-                    if (order !is JsonArray || order.any { (it as? JsonPrimitive)?.isString != true }) invalidWrite()
-                }
-            }
-        }
-    }
-}
 private suspend fun ApplicationCall.writeResponse(block: suspend ApplicationCall.() -> Map<String, Any?>) {
     try {
         if (!request.queryParameters.isEmpty()) invalidWrite()
         val data = block()
-        val body = apiJson(mapOf("data" to data)).toString()
+        val body = externalJson(mapOf("data" to data)).toString()
         if (body.toByteArray(Charsets.UTF_8).size > 4 * 1024 * 1024) throw LocalAccessFailure(413, "応答が大きすぎます。作業を分割してください")
         requireLocalAccess(ConnectionCapability.READ)
         respondText(body, ContentType.Application.Json)
@@ -158,7 +107,7 @@ private suspend fun ApplicationCall.writeResponse(block: suspend ApplicationCall
     catch (failure: LocalAccessFailure) { throw failure }
     catch (_: Exception) {
         // 定義・ファイル IO の例外から原本や絶対パスを漏らさない。詳しい結果は検証かデスクトップで確認する。
-        respondText(apiJson(mapOf("error" to mapOf("code" to "work_conflict",
+        respondText(externalJson(mapOf("error" to mapOf("code" to "work_conflict",
             "message" to "作業を進められません。権限・作業方式・検証結果・未保存の編集・計画の有効性を確認してください"))).toString(),
             ContentType.Application.Json, HttpStatusCode.Conflict)
     }

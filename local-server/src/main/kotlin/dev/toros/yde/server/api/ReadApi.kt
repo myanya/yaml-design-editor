@@ -1,6 +1,7 @@
 package dev.toros.yde.server.api
 
 import dev.toros.yde.app.service.*
+import dev.toros.yde.server.protocol.externalJson
 import dev.toros.yde.server.transport.requireLocalAccess
 import dev.toros.yde.server.auth.LocalAccessFailure
 import dev.toros.yde.yaml.model.DocumentId
@@ -11,7 +12,6 @@ import io.ktor.server.routing.*
 import java.io.IOException
 import java.time.LocalDate
 import kotlinx.coroutines.CancellationException
-import kotlinx.serialization.json.*
 
 internal object ReadApiContract {
     val text: String by lazy { requireNotNull(javaClass.getResourceAsStream("/api/openapi.json")).bufferedReader().use { it.readText() } }
@@ -31,7 +31,7 @@ internal fun Application.readApi(reads: WorkspaceReads, responseBytes: Int = 4 *
                     try {
                         val grant = call.requireLocalAccess(ConnectionCapability.READ)
                         val result = reads.read(grant.caller, call.readQuery(resource))
-                        val body = apiJson(mapOf("workspaceId" to result.workspaceId, "epoch" to result.epoch,
+                        val body = externalJson(mapOf("workspaceId" to result.workspaceId, "epoch" to result.epoch,
                             "revision" to result.revision, "data" to result.data)).toString()
                         if (body.toByteArray(Charsets.UTF_8).size > responseBytes) {
                             throw ReadFailure(ReadFailureCode.LIMIT_EXCEEDED, "応答が大きすぎます。対象やページを絞ってください")
@@ -89,22 +89,6 @@ private suspend fun ApplicationCall.readFailure(failure: ReadFailure) {
         ReadFailureCode.INVALID_DEFINITIONS, ReadFailureCode.UNSUPPORTED_VIEW -> 422
         ReadFailureCode.BUSY -> 503
     }
-    respondText(apiJson(mapOf("error" to mapOf("code" to failure.code.name.lowercase(), "message" to failure.message))).toString(),
+    respondText(externalJson(mapOf("error" to mapOf("code" to failure.code.name.lowercase(), "message" to failure.message))).toString(),
         ContentType.Application.Json, HttpStatusCode.fromValue(status))
-}
-
-/** YAML の値を JSON の値へ写す。JSON にない非有限数は表記を残し、未知の実装型は漏らさない。 */
-internal fun apiJson(value: Any?, depth: Int = 0): JsonElement {
-    if (depth > 128) throw ReadFailure(ReadFailureCode.LIMIT_EXCEEDED, "値の入れ子が深すぎます")
-    return when (value) {
-        null -> JsonNull
-        is String -> JsonPrimitive(value)
-        is Boolean -> JsonPrimitive(value)
-        is Double -> if (value.isFinite()) JsonPrimitive(value) else JsonPrimitive(value.toString())
-        is Float -> if (value.isFinite()) JsonPrimitive(value) else JsonPrimitive(value.toString())
-        is Number -> JsonPrimitive(value)
-        is Map<*, *> -> JsonObject(value.entries.associate { (key, item) -> require(key is String); key to apiJson(item, depth + 1) })
-        is List<*> -> JsonArray(value.map { apiJson(it, depth + 1) })
-        else -> error("公開できない値の型です")
-    }
 }
