@@ -136,11 +136,21 @@ class McpHttpTest {
 
     @Test fun `初期化の上限拒否を繰り返してもセッションと同時要求の枠が漏れない`() = withMcpHttp { f ->
         val token = f.access.issueBearer(f.register().id)
-        val sessions = List(8) { f.initialize(token) }
-        repeat(12) { assertEquals(HttpStatusCode.TooManyRequests, f.post(token, null, initialization).status) }
-        sessions.forEach { assertEquals(HttpStatusCode.OK, f.terminate(token, it).status) }
+        repeat(3) {
+            val sessions = List(8) { f.initialize(token) }
+            repeat(12) { assertEquals(HttpStatusCode.TooManyRequests, f.post(token, null, initialization).status) }
+            sessions.forEach { assertEquals(HttpStatusCode.OK, f.terminate(token, it).status) }
+        }
         // 拒否されたセッションが寿命の登録を残すと、ここで同時要求上限に達する。
         repeat(8) { f.initialize(token) }
+    }
+
+    @Test fun `初期化の本文送信後にHTTPが取り消されてもMCPセッションを維持する`() = withMcpHttp(cancelAfterInitializationResponse = true) { f ->
+        val token = f.access.issueBearer(f.register().id)
+        val session = f.initialize(token)
+        assertEquals(HttpStatusCode.OK, f.post(token, session, ping).status)
+        assertEquals(HttpStatusCode.OK, f.terminate(token, session).status)
+        assertEquals(HttpStatusCode.NotFound, f.post(token, session, ping).status)
     }
 
     @Test fun `確定中の取消とMCP停止は開始した保存と記録を待ち再接続後に同じ結果を返す`() {

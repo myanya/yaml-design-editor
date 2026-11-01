@@ -91,9 +91,11 @@ internal fun Application.localAuthentication(connections: LocalConnections, acce
             } else call.respondText(failure.message.orEmpty(), status = HttpStatusCode.fromValue(failure.status))
             finish()
         } finally {
-            // SDK は初期化応答の認証が拒否されてもセッションを保持するため、成功した応答以外は終了口へ戻す。
+            // 送信完了後の HTTP 取消は MCP セッション終了ではない。ヘッダ確定だけでは成功とせず、本文の送信完了も確認する。
+            // SDK は認証で拒否された初期化も保持するため、未送信・拒否された応答は終了口へ戻す。
             call.attributes.getOrNull(McpSessionHooksKey)?.let { hooks ->
-                withContext(NonCancellable) { hooks.finish(completed) }
+                val sent = call.response.isSent && (call.response.status()?.value ?: 0) in 200..299 && !call.attributes.contains(rejectedKey)
+                withContext(NonCancellable) { hooks.finish(completed || sent) }
             }
         }
     }

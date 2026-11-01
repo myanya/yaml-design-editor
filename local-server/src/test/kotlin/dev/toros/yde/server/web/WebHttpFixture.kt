@@ -34,12 +34,13 @@ internal class WebHttpFixture {
     })
     val http = HttpClient(CIO)
     val url: String get() = "http://127.0.0.1:${connections.status.value.boundPort}"
-    suspend fun start(sample: Path? = null) {
+    suspend fun start(sample: Path? = null, prepare: (Path) -> Unit = {}) {
         if (sample == null) Files.writeString(root.resolve("a.yaml"), "title: 保存済み\n")
         else Files.walk(sample).use { paths -> paths.forEach { source ->
             val target = root.resolve(sample.relativize(source))
             if (Files.isDirectory(source)) Files.createDirectories(target) else Files.copy(source, target)
         } }
+        prepare(root)
         withContext(owner) { host.openWorkspace(root) }
         configure(LocalConnectionSettings(webEnabled = true))
     }

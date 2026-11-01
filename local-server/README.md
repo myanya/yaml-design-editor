@@ -13,6 +13,7 @@ Ktor/CIO と公式 MCP Kotlin SDK を応用層から隔離する組込み JVM �
 HTTP と MCP の契約はインメモリで、CIO の起動・停止・ポート解放と CLI 用クライアントの通信は一時的な loopback ポートで確かめる。
 `LocalServerDistributionSmoke` はテストにだけ置き、`verifyWindowsDistribution` が同梱 JAR と縮小ランタイムでも実行する。
 検査用の経路・ツールは製品へ含めない。
+製品のデスクトップ所有状態と三つの入口を合わせた検査は、desktop の `LocalConnectionAcceptanceTest` が担当する。
 
 依存の宣言は `gradle/libs.versions.toml`、解決結果は `gradle.lockfile`。
 依存を変更したときだけ `./gradlew :local-server:test :local-server:dependencies --configuration runtimeClasspath --write-locks` で更新し、差分を確認する。

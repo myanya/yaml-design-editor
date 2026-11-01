@@ -23,14 +23,16 @@ export function BusinessWorkspace({ session, revision, refresh }: { session: api
   const scope = [session.workspaceId, session.clientId, revision];
   const catalog = useQuery({ ...readOptions, queryKey: ['business', ...scope, 'views'], queryFn: ({ signal }) => api.views(revision, signal) });
   const available = catalog.data?.filter((view) => view.supported) ?? [];
+  const unsupported = catalog.data?.filter((view) => !view.supported) ?? [];
   const defaults = available.filter((view) => view.kind === 'dashboard' && view.default);
   const defaultId = (defaults.length === 1 ? defaults[0] : available.find((view) => view.kind === 'dashboard') ?? available[0])?.id;
   const viewId = location.get('view') ?? defaultId;
+  const selectedDefinition = catalog.data?.find((view) => view.id === viewId);
   const entityId = location.get('entity');
   const memory = viewId ? memories[viewId] ?? initial : initial;
   const setMemory = (change: Partial<Selection>) => { if (viewId) setMemories((old) => ({ ...old, [viewId]: { ...(old[viewId] ?? initial), ...change } })); };
   const selected = useQuery({ ...readOptions, queryKey: ['business', ...scope, 'view', viewId, memory.date, memory.inputs, memory.offset],
-    enabled: !!viewId && !entityId && catalog.isSuccess,
+    enabled: !!selectedDefinition?.supported && !entityId && catalog.isSuccess,
     refetchInterval: !memory.date && available.find((view) => view.id === viewId)?.kind === 'dashboard' ? 60_000 : false,
     queryFn: ({ signal }) => api.view({ id: viewId!, revision, date: memory.date, inputs: memory.inputs, offset: memory.offset }, session.csrfToken, signal) });
   const detail = useQuery({ ...readOptions, queryKey: ['business', ...scope, 'entity', entityId], enabled: !!entityId,
@@ -45,16 +47,21 @@ export function BusinessWorkspace({ session, revision, refresh }: { session: api
   const error = catalog.error ?? (entityId ? detail.error : selected.error);
   return <Stack spacing={3}>
     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ alignItems: { sm: 'center' } }}>
-      <TextField select size="small" label="業務ビュー" value={available.some((view) => view.id === viewId) ? viewId : ''} sx={{ minWidth: 240 }} disabled={!available.length}
-        onChange={(event) => setLocation({ view: event.target.value })}>{available.map((view) => <MenuItem key={view.id} value={view.id}>{view.name}</MenuItem>)}</TextField>
+      <TextField select size="small" label="業務ビュー" value={selectedDefinition ? viewId : ''} sx={{ minWidth: 240 }} disabled={!available.length}
+        onChange={(event) => setLocation({ view: event.target.value })}>{catalog.data?.map((view) => <MenuItem key={view.id} value={view.id} disabled={!view.supported}>{view.name}{!view.supported && '（デスクトップで表示）'}</MenuItem>)}</TextField>
       <Chip label="保存済みデータ" size="small" variant="outlined" />
       <Button onClick={reload}>最新の保存内容を取得</Button>
     </Stack>
+    {catalog.isSuccess && unsupported.length > 0 && <Alert severity="info">
+      <Typography>デスクトップで表示するビュー</Typography>
+      {unsupported.map((view) => <Typography key={view.id} variant="body2">{view.name}: {view.reason ?? 'この種類のビューは Web では表示できません。デスクトップで開いてください。'}</Typography>)}
+    </Alert>}
     {error ? <Alert severity="warning" action={<Button onClick={reload}>再取得</Button>}>{error.message}</Alert> :
       catalog.isPending ? <Loading /> : entityId ? <Paper variant="outlined" sx={{ p: { xs: 2, md: 4 } }}>
         <Button onClick={back} sx={{ mb: 2 }}>一覧へ戻る</Button>
         {detail.isPending ? <Loading /> : detail.data && <EntityDetails entity={detail.data.data} open={open} />}
-      </Paper> : !viewId ? <Alert severity="info">利用できる業務ビューがありません。デスクトップでダッシュボードや表の定義を追加してください。</Alert> :
+      </Paper> : !viewId ? <Alert severity="info">{unsupported.length ? 'このワークスペースのビューはデスクトップで開いてください。' : '利用できる業務ビューがありません。デスクトップでダッシュボードや表の定義を追加してください。'}</Alert> :
+        !selectedDefinition?.supported ? <Alert severity="info">選択したビューは Web で表示できません。別のビューを選ぶか、デスクトップで開いてください。</Alert> :
         selected.isPending ? <Loading /> : selected.data && <ViewContent key={viewId} view={selected.data.data} memory={memory} change={setMemory} open={open} />}
     <BusinessOperations session={session} revision={revision} entity={entityId} refresh={reload} />
     <Typography variant="caption" color="text.secondary">未保存の編集は含みません。文書の編集はデスクトップで行います。</Typography>

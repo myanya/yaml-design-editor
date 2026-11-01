@@ -13,6 +13,8 @@ import io.ktor.client.plugins.sse.SSE
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.server.application.*
+import io.ktor.server.response.*
 import io.modelcontextprotocol.kotlin.sdk.client.Client
 import io.modelcontextprotocol.kotlin.sdk.client.StreamableHttpClientTransport
 import io.modelcontextprotocol.kotlin.sdk.types.*
@@ -26,7 +28,7 @@ import kotlin.time.Duration.Companion.minutes
 
 /** 製品と同じゲート・認証・アダプターを CIO の実ポートで組み立てる。一時領域以外は操作しない。 */
 internal class McpHttpFixture(idleTimeout: Duration = 15.minutes, afterCapture: suspend () -> Unit = {},
-    afterJournal: (OperationRecord) -> Unit = {},
+    afterJournal: (OperationRecord) -> Unit = {}, cancelAfterInitializationResponse: Boolean = false,
 ) {
     val root = Files.createTempDirectory("yde-mcp-http")
     private val owner = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
@@ -49,6 +51,12 @@ internal class McpHttpFixture(idleTimeout: Duration = 15.minutes, afterCapture: 
             readApi(reads)
             writeApi(work, operations)
             workspaceMcp(connections, access, reads, work, operations, idleTimeout)
+            if (cancelAfterInitializationResponse) sendPipeline.intercept(ApplicationSendPipeline.After) {
+                if (call.request.headers["Mcp-Session-Id"] == null && call.response.headers["Mcp-Session-Id"] != null && call.response.status() == HttpStatusCode.OK) {
+                    currentCoroutineContext().cancel(CancellationException("試験: 本文を送信した直後の HTTP 終了"))
+                    currentCoroutineContext().ensureActive()
+                }
+            }
         }
     }, onDisabled = { access.featureStopped(it) })
     val access = LocalAccess(scope, connections, grants, {
@@ -106,8 +114,8 @@ internal class McpHttpFixture(idleTimeout: Duration = 15.minutes, afterCapture: 
         val response = post(token, null, initialization)
         assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
         val session = assertNotNull(response.headers["Mcp-Session-Id"])
-        assertEquals(HttpStatusCode.Accepted, post(token, session,
-            mapOf("jsonrpc" to "2.0", "method" to "notifications/initialized")).status)
+        val notification = post(token, session, mapOf("jsonrpc" to "2.0", "method" to "notifications/initialized"))
+        assertEquals(HttpStatusCode.Accepted, notification.status, notification.bodyAsText())
         return session
     }
 
@@ -151,10 +159,10 @@ internal val initialization = mapOf("jsonrpc" to "2.0", "id" to 1, "method" to "
 internal fun changes(title: String) = listOf(mapOf("file" to "a.yaml", "ops" to listOf(mapOf("op" to "set", "path" to "title", "value" to title))))
 
 internal fun withMcpHttp(idleTimeout: Duration = 15.minutes, afterCapture: suspend () -> Unit = {},
-    afterJournal: (OperationRecord) -> Unit = {},
+    afterJournal: (OperationRecord) -> Unit = {}, cancelAfterInitializationResponse: Boolean = false,
     block: suspend CoroutineScope.(McpHttpFixture) -> Unit,
 ): Unit = runBlocking {
-    val fixture = McpHttpFixture(idleTimeout, afterCapture, afterJournal)
+    val fixture = McpHttpFixture(idleTimeout, afterCapture, afterJournal, cancelAfterInitializationResponse)
     try { withTimeout(30_000) { fixture.start(); block(fixture) } }
     finally { withContext(NonCancellable) { fixture.close() } }
 }

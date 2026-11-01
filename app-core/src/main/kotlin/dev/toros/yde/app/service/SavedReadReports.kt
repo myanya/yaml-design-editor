@@ -64,7 +64,7 @@ internal class SavedReadReports(private val root: Path, private val texts: Map<D
                 val supported = definition.viewKind in setOf("grid", "matrix", "dashboard", "chart")
                 mapOf("id" to definition.id, "name" to definition.name, "kind" to definition.viewKind,
                     "origin" to origin(definition.source, emptyList()), "supported" to supported,
-                    "reason" to if (supported) null else "この種類のビューは API の対象外です") +
+                    "reason" to if (supported) null else if (query.business) "この種類のビューは Web では表示できません。デスクトップで開いてください。" else "この種類のビューは API の対象外です") +
                     if (query.business) mapOf("default" to ((definition as? VirtualDashboardDef)?.default == true), "description" to definition.description) else emptyMap()
             }, query)
             ReadResource.VIEW -> view(query, query.date ?: date)

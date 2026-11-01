@@ -1386,3 +1386,39 @@ Playwright の接続・注文・TODO・業務操作の 4 シナリオが成功�
 Core Calculus 上は既存の Construct / Expression による初期値、Predicate による前提・検証、Rewrite / ChangeSetApplier による変更の組合せで、業務の評価器と保存経路を新設しない。
 新しい依存と版の変更はなく、外部版は 0.2.0 のまま。次は R49-70 の通し試験と操作体験の確認、続いて R49-71 の配布検査へ進む。
 全モジュールの test と verifyWebBrowser が成功した（13 分 48 秒、70 タスク）。Vitest の 4 件も成功し、文書同期後の docs-lint は失敗なし（既存の目安の指摘 87 件）、git diff --check も成功した。
+
+### P49: ローカル接続の通し試験と操作体験（R49-70、2026-11-01）
+
+オーナーが試用した Web の業務操作を a15d80f にコミットした後、製品の Runtime と三つの入口を組み合わせて検証した。
+オーナーの「非常に良いと思いました」という評価を所感に記録した。今回も UX-SCENARIOS に段階ごとの検査手順やテスト実行案内は追加していない。
+
+- LocalConnectionAcceptanceTest は DesktopRuntime を所有スレッド上で動かし、製品の LocalServer へ実 HTTP で API・MCP・Web を接続する。ライブラリの追加や検査用の製品経路はない。
+- Runtime の再起動と実行中の切替で全八組合せを確認した。API と MCP の認証済み要求、Web の同梱画面・コード交換・Cookie 通信、停止した経路の拒否、最後の OFF で接続失敗とポート再確保を検査した。
+- 同じ保存版から三入口の計画を作り、API の確定後は Web と MCP の古い確認を拒否した。画面非表示の状態でも処理が続き、無関係な未保存編集・Undo/Redo を保持し、競合する古い一手では停止する。
+- 三入口の確定要求を同時に送る検査も行い、保存は一つだけ、残りは処理中または古い計画として拒否され、ディスクと編集セッションが同じ結果になることを確認した。
+- MCP の提案を記録へ提出し、Runtime の再起動後に復元した。再発行した資格情報で結果を確認し、デスクトップの受信箱から再確認・承認して保存できた。ワークスペース切替後は旧資格情報で別の場所へアクセスできない。
+- UX-229 は上限拒否と終了の反復で再現した。初期化の本文を送信済みでも、その直後に HTTP の取消が届くと completed が false のままになり、初期化失敗として MCP セッションを閉じていた。
+- LocalAuthentication は Ktor の isSent・成功の状態コード・認証で拒否されていないことを確認する。ヘッダ確定だけでは成功とせず、送信前の取消・上限拒否・失効では終了処理を維持する。送信直後に取消を入れる決定的な回帰試験と、上限拒否・終了を繰り返す試験が成功した。
+- UX-230 は、対応外のビューも名前・理由を表示し、選択候補を無効にした。対応外のみと定義がない場合を区別し、URL で直接指定しても対象外の読取を行わない。通常 API / MCP のカタログ表現は変更しない。
+
+開発環境での受入条件と主な確認先:
+
+| 観点 | 確認先と結果 |
+|---|---|
+| 未使用時・八組合せ・単独利用 | LocalConnectionAcceptanceTest の実 Runtime・実ソケットと、設定復元の LocalConnectionControllerTest / ConnectionSettingsStoreTest |
+| 停止・切替競合・占有 | LocalConnectionsTest / LocalListenerLifecycleTest / McpHttpTest の取消・収束・停止失敗・指定ポート占有と、通し試験の最終停止 |
+| 認証・権限・Origin・CSRF | LocalAuthenticationTest / LocalProtocolAuthenticationTest / LocalAccessTest と Web・API・MCP の契約試験 |
+| ワークスペース切替・並行操作・古い確認 | LocalConnectionAcceptanceTest の三入口の計画・順次確定・同時確定・未保存保護と、WorkspaceOperationsTest の版・権限・定義変更 |
+| 再送・保存中断・部分保存・結果不明 | WorkspaceOperationsTest / WorkspaceWorkTest / McpHttpTest と、ブラウザの実保存後の応答喪失・結果照会 |
+| 履歴・監視・提出と復旧 | LocalConnectionAcceptanceTest / DesktopRuntimeTest / ExternalCommitTest / ExternalWorkPaneTest の状態保持・履歴の停止・復元と承認 |
+| 複数プロセス・CLI | WorkspaceOwnershipTest の別 JVM・通常終了・強制終了と、CliOwnershipTest / ConnectedCliIntegrationTest の書込拒否・明示接続 |
+| Web の意味と表示 | WebBusinessTest と Playwright の接続・注文・TODO・操作・対応外のみ・混在の六シナリオ |
+| 常駐の寿命 | DesktopPresenceTest / DesktopRuntimeTest / LocalConnectionAcceptanceTest と、実トレイの DesktopTraySmoke |
+| 配布物固有の検査 | R49-71 で同梱ランタイム・Node なし・ライセンス・配布プロセスの PID に属する OS 待受一覧を確認する |
+
+新しい通し試験 4 件、MCP の実通信 9 件、ブラウザ 6 シナリオ、実トレイの登録・更新・コマンド通知・解除が成功した。対応外ビューの案内は画像でも確認した。
+全モジュールの test と verifyMcpInspector が成功した（10 分 40 秒、70 タスク）。Inspector で初期化から確定・再接続後の結果照会、停止時の拒否・資格情報の再発行・同じ確定の再送を確認した。ブラウザ試験の TypeScript 型検査も成功した。
+文書同期後の docs-lint は失敗なし（既存の目安の指摘 87 件）、git diff --check も成功した。
+すべての試験は一時ワークスペースと専用ポートを使い、終了時に Runtime・サーバ・ブラウザ・クライアントを回収した。samples / labs と利用者の設定は変更していない。
+Core Calculus 上は通信の寿命の修正・カタログ結果の表示・既存機能の結合検査で、意味の評価器や保存経路の追加はない。
+配布物固有の受入は次の R49-71 に残し、開発環境の確認と区別する。外部版は 0.2.0 のまま、約 2 週間の試用・機能追加と改善を経て v0.3.0 にする順序も維持する。

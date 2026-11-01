@@ -285,7 +285,7 @@
 | LC-06 | 外部作業の提案・直接確定・破棄と再起動後の結果復元 | `service/WorkspaceWork.kt`・`service/WorkJournal.kt` | `WorkspaceWorkTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-07 | 受信箱の外部提出・差分再確認・承認保存・却下と文書別の結果 | `ExternalWorkController.kt`・`ui/run/ExternalWorkPane.kt` | `ExternalWorkPaneTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-08 | API・MCP・Web の独立 ON/OFF・状態通知・世代失効・要求の取消と保存完了待ち | `server/LocalConnections.kt`・`server/transport/LocalConnectionGate.kt` | `LocalConnectionsTest`・`LocalConnectionGateTest` | [ローカル接続](architecture/local-connections.md) |
-| LC-09 | 全 OFF 時の非待受・他機能を残した停止・最後の停止で接続終了とポート解放 | `server/transport/LoopbackEngine.kt`・`DesktopRuntime.kt` | `LocalListenerLifecycleTest`・`DesktopRuntimeTest` | [ローカル接続](architecture/local-connections.md) |
+| LC-09 | 全 OFF 時の非待受・他機能を残した停止・最後の停止で接続終了とポート解放 | `server/transport/LoopbackEngine.kt`・`DesktopRuntime.kt` | `LocalListenerLifecycleTest`・`LocalConnectionAcceptanceTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-10 | 接続者・ワークスペース別の指定文書／全体閲覧と、提案・直接確定・業務操作の権限 | `service/ConnectionGrants.kt` | `ConnectionGrantsTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-11 | 機能別の資格情報・期限・失効と要求・MCP セッションの接続者への結付け | `server/auth/LocalAccess.kt` | `LocalAccessTest`・`LocalProtocolAuthenticationTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-12 | HTTP の Host/Origin・認証・CSRF・要求量の検査と能力別の受付 | `server/transport/LocalAuthentication.kt`・`server/LocalServer.kt` | `LocalAuthenticationTest`・`DesktopRuntimeTest` | [ローカル接続](architecture/local-connections.md) |
@@ -304,7 +304,7 @@
 | LC-25 | MCP の参照・提案・直接確定・操作と、停止・失効・保存完了待ち | `server/mcp/McpEndpoint.kt`・`McpTools.kt`・`McpSchemas.kt` | `WorkspaceMcpTest`・`McpCallerTest` | [MCP](manual/local-mcp.md) |
 | LC-26 | MCP の実通信・再接続・取消・期限切れ・初期化拒否後の解放と Inspector との相互運用 | `server/mcp/McpEndpoint.kt`・`transport/LocalAuthentication.kt` | `McpHttpTest`・`McpInspectorCheck` | [検査手順](../local-server/README.md) |
 | LC-27 | 同梱 Web・接続コード・Cookie・ログアウト・保存版概要 | `server/web`・`auth/WebLogins.kt`・`web-ui/src` | `WebLoginsTest`・`WebHttpTest`・`WebBrowserCheck` | [業務 Web](manual/local-web.md) |
-| LC-28 | Web のダッシュボード・表・チャート・業務詳細と共有入力・参照 | `BusinessReadPresentation.kt`・`BusinessWorkspace.tsx` | `WebBusinessTest`・`WebBrowserCheck` | [業務 Web](manual/local-web.md) |
+| LC-28 | Web のダッシュボード・表・チャート・業務詳細と共有入力・参照・対応外の案内 | `BusinessReadPresentation.kt`・`BusinessWorkspace.tsx` | `WebBusinessTest`・`WebBrowserCheck` | [業務 Web](manual/local-web.md) |
 | LC-29 | Web の業務操作・入力準備・変更確認・保存と結果照会 | `BusinessActionForms.kt`・`WebOperations.kt`・`BusinessOperations.tsx` | `WebOperationsTest`・`WorkspaceOperationsTest`・`WebBrowserCheck` | [業務 Web](manual/local-web.md) |
 
 ## 公開サンプル
