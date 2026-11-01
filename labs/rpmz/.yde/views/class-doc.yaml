@@ -1,0 +1,12 @@
+id: class-doc
+name: 職業（成長曲線つき）
+kind: document
+description: 職業を開いたときの「ビュー」タブ。レベルごとの能力値を折れ線で見ます（HP・MP と、ほかの能力値は桁が違うので図を分けます）。点を押すと、そのレベルの行へ進めます。
+schemaId: class
+sections:
+  - { label: 職業, fields: { exclude: [params] } }
+  - label: 成長（HP・MP）
+    chart: { rows: params, x: level, series: [mhp, mmp], chart: line }
+  - label: 成長（能力値）
+    chart: { rows: params, x: level, series: [atk, def, mat, mdf, agi, luk], chart: line }
+  - { label: レベルごとの能力値, fields: { include: [params] } }
