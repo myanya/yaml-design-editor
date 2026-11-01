@@ -23,7 +23,8 @@ internal class ConnectionSettingsFixture(val store: MemoryConnectionSettingsStor
     val grants = ConnectionGrants()
     val server = LocalServer(scope, grants) { workspace }
     var documents: List<DocumentId> = emptyList()
-    val controller = LocalConnectionController(server.connections, server.access, store, { documents }) { workspace }
+    var actions: List<String> = emptyList()
+    val controller = LocalConnectionController(server.connections, server.access, store, { documents }, { actions }) { workspace }
     suspend fun settle() = withTimeout(10_000) { server.connections.awaitSettled(server.connections.status.value.revision) }
     suspend fun close() { try { server.connections.shutdown() } finally { scope.cancel() } }
     fun port() = ServerSocket(0, 1, InetAddress.getByName("127.0.0.1")).use { it.localPort }

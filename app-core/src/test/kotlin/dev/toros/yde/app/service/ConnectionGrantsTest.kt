@@ -11,6 +11,25 @@ class ConnectionGrantsTest {
     private val a = DocumentId("a.yaml")
     private val b = DocumentId("b.yaml")
 
+    @Test fun `業務全体の提案と直接確定は別権限で全体閲覧を必要とする`() {
+        val grants = ConnectionGrants()
+        assertFails { grants.put(caller, ConnectionPermissions(commitScope = ConnectionWriteScope.LEDGER)) }
+        val permission = ConnectionPermissions(readScope = ConnectionReadScope.WORKSPACE, proposalScope = ConnectionWriteScope.LEDGER)
+        grants.put(caller, permission)
+        assertNotNull(grants.workGrant(caller))
+        assertNull(grants.directWorkGrant(caller))
+        val grant = grants.put(caller, permission.copy(proposalScope = ConnectionWriteScope.SELECTED, commitScope = ConnectionWriteScope.LEDGER))
+        assertNull(grants.workGrant(caller))
+        assertNotNull(grants.directWorkGrant(caller))
+        val layout = dev.toros.yde.workspace.layout.WorkspaceLayout(null, emptyList())
+        assertTrue(grant.allows(ConnectionCapability.COMMIT, setOf(DocumentId("future.yaml")), layout = layout))
+        for (path in listOf("_schemas/item.yaml", "_views/a.yaml", ".yde/workspace.yaml", "../a.yaml")) {
+            assertFalse(grant.allows(ConnectionCapability.COMMIT, setOf(DocumentId(path)), layout = layout))
+        }
+        assertFalse(grant.allows(ConnectionCapability.COMMIT, setOf(a)), "配置の確認を省略して全体指定を解釈しない")
+        assertNull(grants.operationGrant(caller))
+    }
+
     @Test fun `全体閲覧は新しい相対文書を許可するが変更権限と別ワークスペースを許可しない`() {
         val grants = ConnectionGrants()
         val grant = grants.put(caller, ConnectionPermissions(readScope = ConnectionReadScope.WORKSPACE))

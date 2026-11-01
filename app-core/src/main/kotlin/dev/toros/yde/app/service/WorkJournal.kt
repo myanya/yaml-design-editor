@@ -14,6 +14,7 @@ import java.nio.file.StandardOpenOption.WRITE
 import kotlinx.serialization.json.*
 
 enum class WorkState { WORKING, VALIDATED, AWAITING_APPROVAL, APPLYING, APPLIED, REJECTED, DISCARDED, FAILED, PARTIAL, UNKNOWN, RECONCILED }
+enum class WorkMode { PROPOSAL, DIRECT }
 
 /** 不変の提出物。資格情報・会話・実行プロンプトは持たない。変更内容は作業者の権限内の本文を含む。 */
 data class WorkRecord(
@@ -22,6 +23,7 @@ data class WorkRecord(
     val changes: String? = null, val documents: List<PreparedDocumentChange> = emptyList(),
     val requestId: String? = null, val planId: String? = null, val message: String? = null,
     val persistence: Map<String, String> = emptyMap(),
+    val mode: WorkMode = WorkMode.PROPOSAL,
 )
 
 interface WorkJournal {
@@ -51,14 +53,16 @@ class FileWorkJournal(root: Path, layout: WorkspaceLayout, private val maxRecord
         val o = Json.parseToJsonElement(requireNotNull(store.read(DocumentId("$directory/${file.fileName}"))).text).jsonObject
         fun field(key: String) = o.getValue(key).jsonPrimitive.content
         fun optional(key: String) = o[key]?.jsonPrimitive?.contentOrNull
-        require(field("version") == "1") { "未対応の提出記録です" }
+        val version = field("version")
+        require(version in setOf("1", "2")) { "未対応の提出記録です" }
         WorkRecord(field("id"), OperationCaller(field("workspace"), field("caller")), field("title"), WorkState.valueOf(field("state")),
             field("created"), optional("submitted"), optional("changes"), o.getValue("documents").jsonArray.map {
                 val d = it.jsonObject
                 PreparedDocumentChange(DocumentId(d.getValue("file").jsonPrimitive.content),
                     d.getValue("before").jsonPrimitive.contentOrNull, d.getValue("after").jsonPrimitive.content)
             }, optional("request"), optional("plan"), optional("message"),
-            o.getValue("persistence").jsonObject.mapValues { it.value.jsonPrimitive.content }).also {
+            o.getValue("persistence").jsonObject.mapValues { it.value.jsonPrimitive.content },
+            if (version == "1") WorkMode.PROPOSAL else WorkMode.valueOf(field("mode"))).also {
             require(file.fileName.toString() == name(it)) { "提出記録の識別子が一致しません" }
         }
     }
@@ -68,7 +72,7 @@ class FileWorkJournal(root: Path, layout: WorkspaceLayout, private val maxRecord
         require(store.read(id) != null || files().size < maxRecords) { "提出記録の保管上限に達しました" }
         val text = buildJsonObject {
             fun optional(key: String, value: String?) = put(key, value?.let(::JsonPrimitive) ?: JsonNull)
-            put("version", 1); put("id", record.id); put("workspace", record.caller.workspaceId); put("caller", record.caller.callerId)
+            put("version", 2); put("mode", record.mode.name); put("id", record.id); put("workspace", record.caller.workspaceId); put("caller", record.caller.callerId)
             put("title", record.title); put("state", record.state.name); put("created", record.createdAt)
             optional("submitted", record.submittedAt); optional("changes", record.changes)
             optional("request", record.requestId); optional("plan", record.planId); optional("message", record.message)

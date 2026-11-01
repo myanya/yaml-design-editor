@@ -14,7 +14,7 @@ import java.time.LocalDate
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Semaphore
 
-enum class ReadResource { WORKSPACE, DOCUMENTS, DOCUMENT, SEARCH, ENTITY, VIEWS, VIEW, VALIDATION }
+enum class ReadResource { WORKSPACE, DOCUMENTS, DOCUMENT, SEARCH, ENTITY, VIEWS, VIEW, VALIDATION, ACTIONS }
 
 /** 通信方式に依存しない読み取り条件。通常の読取は保存済みの内容に限定する。 */
 data class ReadQuery(
@@ -98,7 +98,7 @@ class WorkspaceReads(
                         "${id.value.length}:${id.value}${text.length}:$text"
                     })
                     readRequire(query.revision == null || query.revision == revision, ReadFailureCode.STALE_REVISION, "保存済みの版が変わりました。最初から取得してください")
-                    if (query.resource in setOf(ReadResource.ENTITY, ReadResource.VIEWS, ReadResource.VIEW, ReadResource.VALIDATION)) {
+                    if (query.resource in setOf(ReadResource.ENTITY, ReadResource.VIEWS, ReadResource.VIEW, ReadResource.VALIDATION, ReadResource.ACTIONS)) {
                         readRequire(captured.texts.keys.all(access.grant.permissions::canRead), ReadFailureCode.FORBIDDEN,
                             "派生結果に必要な文書の閲覧権限がありません")
                     }
@@ -130,6 +130,22 @@ class WorkspaceReads(
     }
 
     private data class Capture(val texts: Map<DocumentId, String>, val layout: WorkspaceLayout)
+
+    /** 登録時の選択肢。操作名はカーネルのカタログから取得し、将来の追加を自動許可しない。 */
+    suspend fun actionsForSettings(): List<String> = withTimeout(limits.timeoutMillis) {
+        val before = withContext(host.owner) { host.currentStatus() }
+        require(!before.closed && before.workspace != null && before.busy == null) { "ワークスペースを開き、処理の完了を待ってください" }
+        val names = withContext(Dispatchers.IO) {
+            val root = requireNotNull(before.workspace)
+            val saved = capture(root)
+            SavedReadReports(root, saved.texts, saved.layout).actions().map { it.name }
+        }
+        val after = withContext(host.owner) { host.currentStatus() }
+        require(!after.closed && after.workspace == before.workspace && after.epoch == before.epoch && after.busy == null) {
+            "ワークスペースが変わりました。操作一覧を再読込してください"
+        }
+        names
+    }
 
     private suspend fun capture(root: Path): Capture {
         // 定義の解析より先に本文量を制限する。readNBytes で走査後のファイル増大も制限する。

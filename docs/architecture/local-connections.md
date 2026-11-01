@@ -3,10 +3,10 @@
 ## 概要
 
 ローカル接続は、通信ライブラリを local-server に閉じる組込み構成を取る。
-現在は設定型・機能別の状態機械・loopback 待受・接続者の認証と権限・保存済みの読取 API、および SDK・HTTP・同梱ランタイムの互換性検査がある。
-DesktopRuntime が接続管理を所有し、設定画面から三機能を個別に切り替える。設定のない起動では全て OFF のまま待受しない。変更操作・MCP・Web の業務経路は未接続。
+現在は設定型・機能別の状態機械・loopback 待受・接続者の認証と権限・保存版の閲覧と変更の API、および SDK・HTTP・同梱ランタイムの互換性検査がある。
+DesktopRuntime が接続管理を所有し、設定画面から三機能を個別に切り替える。設定のない起動では全て OFF のまま待受しない。MCP・Web の業務経路は未接続。
 全体の設計契約は [ローカル接続の決定](../decisions/0016-local-connections-and-shared-host.md)、実施順序は ROADMAP にある。
-外部確定と Undo の扱いは [履歴の決定](../decisions/0017-external-commit-and-desktop-history.md) が補足する。
+外部確定と Undo は [履歴の決定](../decisions/0017-external-commit-and-desktop-history.md)、提案と直接確定は [作業方式の決定](../decisions/0019-external-work-commit-routes.md) が補足する。
 
 ## 部品
 
@@ -16,13 +16,15 @@ DesktopRuntime が接続管理を所有し、設定画面から三機能を個�
 | `server.LocalConnections` / `LocalConnectionStatus` | 希望値と実状態の通知、三機能の受付・停止・要求の収束と一つの待受の寿命 |
 | `server.LocalServer` | 機能ゲートと認証を組み込んだ製品の通信入口の組立て |
 | `server.transport.LocalConnectionGate` / `server.LocalRequest` | HTTP 経路の機能判定、停止時の 404、要求と子ストリームの取消、保存完了待ち |
-| `service.ConnectionGrants` / `ConnectionPermissions` | 接続者とワークスペース別の閲覧・提案・業務操作の許可、変更版と共通サービスへの権限供給 |
+| `service.ConnectionGrants` / `ConnectionPermissions` | 接続者とワークスペース別の閲覧・提案・直接確定・業務操作の許可、変更版と共通サービスへの権限供給 |
 | `server.auth.LocalAccess` | 接続登録、機能別の資格情報と失効、要求の寿命、MCP セッションの接続者との対応 |
 | `server.transport.LocalAuthentication` | Host/Origin・認証・CSRF・要求量の検査、業務ハンドラでの能力と対象の再確認 |
 | `service.WorkspaceHost` / `WorkspaceStatus` | 共通セッションの所有、状態の世代・版・未保存・競合・処理中の通知、所有スレッドへの受付 |
 | `service.WorkspaceReads` / `ReadQuery` / `ReadResult` | 保存済みの読取条件・版・権限・量と寿命の制御 |
 | `service.SavedReadReports` | 同じ保存済み入力から既存の検索・合成・ビュー・検証を呼び、値と原本座標へ写す |
 | `server.api.ReadApi` | HTTP の条件・JSON・エラーへの変換と OpenAPI 契約の配信 |
+| `server.api.WriteApi` / `WriteReports` | 作業の提案・直接確定と定義済み操作の HTTP 変換、値だけの応答 |
+| `ui.shell.PermissionActionPicker` | 定義済み操作名の明示選択 |
 | `service.WorkspaceOwnership` | 利用者専用領域の OS ファイルロックによる入口間のワークスペース所有と解放 |
 | `cli/CliOwnership.kt` | 書込を伴う命令・モードの分類と、独立 CLI の処理全体の所有 |
 | `service.SourceDraftWorker` | 画面と独立した下書きの遅延解析・木との同期、古い入力の採用防止 |
@@ -35,7 +37,7 @@ DesktopRuntime が接続管理を所有し、設定画面から三機能を個�
 | `desktop.ui.shell.LocalConnectionSettingsPage` | ワークスペース未選択でも開く設定ページ、状態と操作結果・権限の表示 |
 | `service.WorkspaceOperations` | 計画の保管・前提と権限の再確認・外部確定・再送と復旧の共通窓口 |
 | `service.OperationJournal` / `FileOperationJournal` | 要求 ID と結果の永続化、記録の破損・保管上限での受付停止 |
-| `service.WorkspaceWork` / `WorkRecord` | 外部作業の開始・編集・検証・提出・破棄と、デスクトップ専用の確認・承認・却下 |
+| `service.WorkspaceWork` / `WorkRecord` | 外部作業の編集・検証・提案・直接確定・破棄と、デスクトップ専用の確認・承認・却下 |
 | `service.WorkJournal` / `WorkChanges` | 提出内容と採否の永続化、コメントと型付きのパスを保持した変更セットの復元 |
 | `desktop.ExternalWorkController` / `ui/run/ExternalWorkPane.kt` | 受信箱の外部提出、確認時の差分・検証・保存結果の表示 |
 | `server.transport.LoopbackEngine` | CIO の明示起動と終了、`127.0.0.1` の固定、確定したポートの取得 |
@@ -97,6 +99,7 @@ Main は起動時に一度 LocalConnectionController.initialize を呼ぶ。読�
 トークン発行ボタンの可否と無効理由は tokenIssueUnavailableReason の同じ条件から求める。設定の準備・処理中・対象ワークスペース・機能の希望値と稼働状態を表示へ反映し、発行時は LocalAccess が再確認する。
 新規登録では ON の機能が一つならその機能を初期選択し、API だけ ON のときに停止中の MCP 用登録を作る取り違えを防ぐ。既存登録の機能は変更しない。
 ConnectionPermissionEditor は新規登録を全体閲覧だけの簡単設定で始め、詳細設定では範囲と指定文書を編集する。登録前に対象と権限の要約を表示する。
+簡単設定は提案・直接確定・業務操作を独立して追加する。PermissionActionPicker は保存済みの操作名を選び、将来の操作は自動許可しない。候補の取得は WorkspaceReads.actionsForSettings が担う。
 既存の指定文書・変更権限を簡単設定へ変えるときは確認し、保存前の下書きだけを変更する。詳細設定へ表示を切り替えるだけでは権限を変えない。
 PermissionDocumentPicker は保存済み文書をツリー・検索・複数選択で扱う。フォルダー・一括選択も具体的な文書集合を返し、再読込では選択を増やさない。入力済みの未作成文書も選択から外せる。
 候補は信頼するデスクトップ専用の WorkspaceReads.documentsForSettings で採取する。外部の閲覧権限を使わず、通常読取と同じ採取範囲・上限、取得前後のワークスペース世代を確認する。通信経路へ公開しない。
@@ -114,8 +117,8 @@ Windows のフォルダは他者による一覧参照・通過だけを許容し
 通常でないファイル・リンクを拒否し、設定は 8 MiB まで。保護した一時ファイルへ書き、force 後に同じディレクトリ内で原子的に置き換える。
 保存するのは三つの希望値・ポート・接続者 ID・ワークスペース ID・登録権限だけ。トークン・Cookie・CSRF トークンは保存しない。
 登録 ID は復元して提出との対応を保つが、作業中の計画や資格情報の世代は復元しない。
-設定形式の version は 2 で、接続者の readScope に SELECTED または WORKSPACE を保存する。旧形式の version 1 は全件 SELECTED として復元し、次の保存で新形式へ写す。読込だけでは書き換えない。
-新形式の範囲が欠落・不明なら拒否する。全体閲覧と指定した閲覧文書を同時に保存せず、解釈の曖昧な設定を採用しない。
+設定形式は version 3。readScope と、提案・直接確定・業務操作の範囲を保存する。version 1 の閲覧は SELECTED、version 1・2 の変更は指定文書のまま、直接確定は無許可で復元する。読込だけでは書き換えない。
+新形式の範囲が欠落・不明なら拒否する。全体指定と具体的な文書集合を併記せず、業務データ全体の変更には全体閲覧を要求する。
 
 設定変更は Mutex で直列化する。ON とポート変更は保存成功後に反映し、OFF は保存の成否にかかわらず直ちに受付を止める。
 OFF の保存に失敗したら、次回起動で保存済みの希望値へ戻ることと再試行操作を画面へ出す。失敗した保存を成功扱いしない。
@@ -131,13 +134,14 @@ ConnectionSettingsStoreTest・LocalConnectionControllerTest・LocalConnectionSet
 ## 接続者と権限
 
 登録・権限変更・発行・失効は信頼するデスクトップ側の LocalAccess だけが受ける。HTTP の要求本文から接続者や権限を作らない。
-登録は機能と現在のワークスペース ID に結ぶ。ConnectionGrants が閲覧範囲・指定文書・提案文書・業務操作の対象文書と操作名を持つ。
+登録は機能と現在のワークスペース ID に結ぶ。ConnectionGrants が閲覧・提案・直接確定・業務操作の範囲と操作名を持つ。
 ConnectionReadScope の SELECTED は指定文書だけを許可し、空集合は許可なし。WORKSPACE は今後の追加も含む全体閲覧を明示する。範囲の決定は [接続権限の決定](../decisions/0018-connection-read-scopes.md) にある。
 ConnectionPermissions.canRead が閲覧判定の正であり、通信の受付と読取サービスから共用する。採取した保存版に判定を当て、列挙時と評価時で異なる文書集合を使わない。
-文書は正規の相対 DocumentId に限定し、提案・業務操作の文書は閲覧可能な範囲に含める。全体閲覧でも変更文書と操作名は列挙した集合に閉じ、ワイルドカードや絶対パスで対象を広げない。
+文書は正規の相対 DocumentId に限定し、変更対象には閲覧も許可する。ConnectionWriteScope の SELECTED は固定集合、LEDGER は保存版の WorkspaceLayout.inLedger で判定する。操作名は列挙した集合に閉じる。
+ExternalWritePaths は変更先の実在する綴りも検査し、Windows の大小文字別名やリンクによる配置の迂回を拒否する。既存文書の編集は保存版に含まれる YAML へ限定する。
 全体閲覧に含まれる文書が増えても権限設定の版を変更せず、応答の保存版を変える。登録権限自体を変更すれば、従来どおり旧資格情報・古い計画を失効させる。
-共通サービスは提案の許可を WorkGrant、業務操作を OperationGrant として受け、変更版・対象・操作を従来どおり再確認する。
-外部登録から任意変更セットの直接確定・結果不明の復旧・デスクトップの承認権限は得られない。
+共通サービスは提案と直接確定の許可を別々の WorkGrant 供給口、業務操作を OperationGrant として受ける。元の閲覧権限も渡し、計算前に全入力を読めることを確認する。
+COMMIT を明示した接続者だけが直接確定の作業を開始する。外部登録から結果不明の復旧・デスクトップの承認権限は得られない。
 
 登録権限と通信資格情報は別である。OFF・資格情報の期限切れ・再発行はネットワークからの操作を失効させるが、提出物と登録権限を削除しない。
 提出後に通信を停止しても、デスクトップは現在の提案権限を再確認して承認できる。登録削除や権限変更は承認にも反映する。
@@ -263,7 +267,7 @@ ResidentSettingsPaneTest は設定の依存と今回だけの常駐解除、設�
 
 WorkspaceOperations は Host の排他区間で計画・確定を受ける。結果照会は背景で記録を読み、前後に世代と権限を確認して、照会だけでは編集を待たせない。
 DesktopRuntime が一つ持ち、ConnectionGrants の現在の登録権限を供給する。未登録の既定状態では全て拒否する。
-接続登録は設定画面から操作できる。読取 API が公開されており、原本を外部から変更する通信経路はまだない。
+接続登録は設定画面から操作でき、API は定義済み操作と、作業コピーからの提案・直接確定を公開する。
 ワークスペース ID の解決は注入する。既定は実パスのハッシュで、要求から任意の場所を開かせない。
 
 計画は保存済みの独立したセッションで ActionPlanner と ChangeSetApplier.prepare を通す。
@@ -277,7 +281,7 @@ DesktopRuntime が一つ持ち、ConnectionGrants の現在の登録権限を供
 - 影響先の検証はカーネルの ChangeSetValidation を WorkingCopy と共用する。前後の ID・文書への参照元と、横断検査の結果が変わる文書を含める。
 - 業務操作の前提は ActionPlanner で再確認する。前提の違反・保留をエラー数だけで判定し直さない。
 - 権限は信頼できる入口から供給する。操作名と書込文書を照合し、定義・記録文書は外部確定の対象にしない。
-  任意の変更セットの確定権限は外部提案の承認など専用の入口に限る。通常の業務操作の権限では任意パッチを確定できない。
+  任意の変更セットの確定権限は、提案の承認か直接確定の許可を検査した WorkspaceWork の内部ゲートに限る。業務操作の権限では任意パッチを確定できない。
 
 確定は独立したセッションへ ChangeSetApplier.applyPrepared を当て、確認済みの自動値を再計算せず保存する。
 文書別に保存済み・変更なし・未保存・結果不明を返す。一部の保存だけ成功しても全体を成功と扱わない。
@@ -306,8 +310,8 @@ DocumentSession.acceptExternalCommit が Workspace.noteDiskChanges に取り込�
 ## 外部作業と提出・承認
 
 WorkspaceWork は通信接続と別の作業 ID を発行する。接続の切断で作業を破棄しない。
-begin・stage・validate・submit・discard・result は認証済みの OperationCaller を受け取り、接続者とワークスペースを照合する。
-WorkGrant は提案を許した文書の集合と権限の版だけを持つ。空集合・供給なしは拒否で、提案権限だけで原本を書き換えるメソッドはない。
+begin・stage・validate・submit・planCommit・commit・discard・result は認証済みの OperationCaller を受け取り、接続者とワークスペースを照合する。
+WorkGrant は変更範囲・権限の版・閲覧許可を持つ。開始時の WorkMode を固定し、PROPOSAL は提出とデスクトップ承認、DIRECT は外部からの計画・確定に進む。提案権限だけでは直接確定できない。
 review・approve・reject・refresh と inbox の購読はデスクトップ専用で、通信アダプターへ公開しない。
 
 未提出の WorkingCopy はメモリに保持する。開始時の保存内容と権限が変われば新しい作業を求め、サービス内の Mutex と Host でアクセス順を守る。
@@ -321,7 +325,10 @@ review・approve・reject・refresh と inbox の購読はデスクトップ専�
 権限は承認直前にも元の接続者について再確認し、検証の免除は認めない。複数文書の提出は全体を承認し、画面からファイル単位の部分採用はしない。
 却下・破棄は原本に書かず、提出済みなら内容と結果を残す。確定失敗後の修正は新しい作業で提出する。
 
-記録は WorkspaceLayout の runs 領域の `local-work/*.json`。RunLog の会話・トークン会計と分け、資格情報を保存しない。
+直接確定は planCommit の差分・自動値・計画 ID を確認し、commit で確定意図を記録してから WorkspaceOperations を呼ぶ。編集・再検証・破棄で作業の計画を無効にする。
+作業 ID を要求 ID（work/接頭辞）に用い、同じ作業と計画の再送は結果を返す。方式変更や異なる計画の再送は拒否し、直接確定の記録は承認待ちの受信箱へ載せない。
+
+記録は WorkspaceLayout の runs 領域の `local-work/*.json`。version 2 で方式を保存し、version 1 は提案として読む。RunLog の会話・トークン会計と分け、資格情報を保存しない。
 変更セットの値を YAML 文字列、パスを文字列と添字の配列で保存し、新規文書とパッチのコメントを復元する。
 提出には差分用の本文を含むため、操作のハッシュ記録と異なり作業対象の内容も保存される。
 未提出は最大 64 件・変更セット 2 MiB、提出記録は既定 10,000 件・1 件 4 MiB。上限・破損・保存失敗は無視せず、提出失敗では作業コピーを残す。
@@ -346,7 +353,7 @@ Workspace.fromReadSnapshot は索引と定義の窓口を作るだけで、通�
 任意のエディタの瞬間的な書戻しまで追跡する分散スナップショットではない。複数の HTTP 要求をまたぐ読取は revision の条件と epoch の照合で整合を確認する。
 
 文書一覧・原本取得・文字列検索は許可された文書だけを返す。対象文書の権限を存在の確認より先に判定する。
-エンティティ合成・ビュー・検証は全入力への閲覧権限を要求し、権限外の入力を含む導出から本文・題名・件数・診断を漏らさない。
+エンティティ合成・ビュー・検証・操作カタログは全入力への閲覧権限を要求し、権限外の入力を含む導出から本文・題名・件数・診断を漏らさない。
 この初期の制約は、依存文書の閉包を正確に求める権限付き評価を導入するまで維持する。空集合を全許可へ読み替えない。
 
 業務計算は Search・Aspects・Views・Dashboards・Validator へ委ねる。未知・重複所有・保留を成功や空値に読み替えず、既存の原本座標・導出情報・指摘と保留を写す。
@@ -357,6 +364,14 @@ file 型の実在検査は保存版の対象外として応答で明示し、フ
 契約の原本は [openapi.json](../../local-server/src/main/resources/api/openapi.json)。形式は [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.1.html) で、契約の取得にも API の機能ゲートと認証を適用する。
 ReadApiTest は Ktor のインメモリ通信で実応答を契約の型へ当て、WorkspaceReadsTest は保存・未保存・権限・世代・取消の境界を検査する。
 経路・上限・利用例は [API の読み取り](../manual/local-connections.md#api-の読み取り) を参照。
+
+## 変更 API
+
+WriteApi は認証済みの接続者を共通サービスへ渡し、作業の両ルートと定義済み操作を公開する。デスクトップの承認・却下・復旧は通信へ公開しない。
+POST の JSON・未知項目・深さ・容量を検査し、変更セットは共通の ChangeSets.parse へ渡す。確定だけ LocalRequest.finishWrite で開始後の保存と記録を保護する。
+定義済み操作の要求 ID は action/、作業の確定は work/ の接頭辞で分離し、API の結果照会から別経路の記録へ到達させない。
+応答は差分・検証・状態・文書別結果の値に限定し、OS や定義の例外本文を返さない。保存済みカタログは ActionPlanner.catalog から取得し、閲覧と実行の許可を分ける。
+契約は OpenAPI に集約し、WriteApiTest で認証・両方式・再送・検証・範囲・原本保護と実応答を検査する。利用例は [API による変更](../manual/local-api-changes.md) にある。
 
 ## 拡張ポイント
 

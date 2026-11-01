@@ -25,6 +25,7 @@ internal class LocalConnectionController(
     val access: LocalAccess,
     private val store: ConnectionSettingsStore,
     private val documentCatalog: suspend () -> List<DocumentId> = { emptyList() },
+    private val actionCatalog: suspend () -> List<String> = { emptyList() },
     private val workspace: () -> AccessWorkspace?,
 ) {
     private val mutex = Mutex()
@@ -32,6 +33,12 @@ internal class LocalConnectionController(
     private var closing = false
     val state = mutableState.asStateFlow()
     fun workspaceId(): String? = workspace()?.id
+    suspend fun actionsForSettings(): List<String> {
+        val before = requireNotNull(workspace()) { "ワークスペースを開いてください" }
+        val actions = actionCatalog()
+        check(!closing && workspace() == before) { "ワークスペースが変わりました。操作一覧を再読込してください" }
+        return actions
+    }
     suspend fun documentsForSettings(): List<DocumentId> {
         val before = requireNotNull(workspace()) { "ワークスペースを開いてください" }
         val documents = documentCatalog()

@@ -69,7 +69,9 @@
 
 | 語 | 意味 | 近い一般の語 | 詳しく |
 |---|---|---|---|
-| 変更セット | 複数の文書への変更（文書ごとのパッチか新しい文書の作成と、元の内容のハッシュ）をまとめたもので、競合と検証を確かめて全部を書くか何も書かず、Undo 1 回で戻る | パッチの束・トランザクション | [architecture/workspace.md「変更セットの適用」](architecture/workspace.md) |
+| 変更セット | 文書ごとのパッチ・新規作成・元の内容のハッシュをまとめた適用単位で、競合と検証を確認して適用する | パッチの束・トランザクション | [architecture/workspace.md「変更セットの適用」](architecture/workspace.md) |
+| 変更提案 | 外部作業の変更セットを固定して提出し、デスクトップの確認・承認を待つ方式 | レビュー依頼 | [architecture/local-connections.md「外部作業と提出・承認」](architecture/local-connections.md) |
+| 直接確定 | 専用の許可を持つ外部接続者が、作業コピーの計画を指定してデスクトップの承認なしに保存する方式 | 明示的なコミット | [architecture/local-connections.md「外部作業と提出・承認」](architecture/local-connections.md) |
 | 操作 | スキーマに書いた、受け取った値と前提から変更セットを作る定義で、型の操作（`methods`）と横断の操作（`actions`）がある | ストアドプロシージャ・メソッド | [architecture/actions.md「流れ」](architecture/actions.md) |
 | 受け手 | 操作が働きかける相手（要素か文書）で、定義のキーは `target` | メソッドのレシーバ（`this`） | [architecture/actions.md「流れ」](architecture/actions.md) |
 | 前提 | 操作を使える条件（`require`）で、合わなければ理由を見せて計画しない | 事前条件 | [architecture/actions.md「流れ」](architecture/actions.md) |
@@ -77,7 +79,7 @@
 | 一手 | Undo・Redo の 1 回分で、ワークスペースをまたぐ単一の履歴から戻す | Undo の 1 段 | [architecture/editing-history.md「履歴と dirty」](architecture/editing-history.md) |
 | ツール | エージェントなどの入口に出す読み書きの一式（`Toolset`）で、スキーマの「操作」とは別 | 関数呼び出し（function calling）のツール | [architecture/agents.md「部品」](architecture/agents.md) |
 | アクティビティ | エージェントに任せる仕事の定義（`_activities`）で、使えるツール・書いてよい範囲・提出ゲート・自動実行を決める | ジョブの定義・CI のワークフロー | [architecture/agents.md「エージェント実行と Staging」](architecture/agents.md) |
-| 作業コピー | エージェントの書き込みを原本でなく記録しておく場所（`WorkingCopy`・`Staging`）で、提出したものが変更セットになる | Git の作業ツリーとステージ | [architecture/agents.md「エージェント実行と Staging」](architecture/agents.md) |
+| 作業コピー | エージェント・外部接続者の書き込みを原本と分けて記録し、提出や確定に使う変更セットを作る場所（`WorkingCopy`・`Staging`） | Git の作業ツリーとステージ | [architecture/agents.md「エージェント実行と Staging」](architecture/agents.md) |
 | 保存時に自動で入る値 | 項目の印 `auto`（作成日・更新日・版）で、保存の直前か変更セットの適用で入る値 | DB の `updated_at` のトリガ | [architecture/auto-values.md「流れ」](architecture/auto-values.md) |
 
 ## ビューと画面

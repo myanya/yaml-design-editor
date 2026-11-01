@@ -280,13 +280,13 @@
 | LC-01 | 初期値 OFF の接続設定型と明示起動する loopback 待受 | `server/LocalConnectionSettings.kt`, `server/transport/LoopbackEngine.kt` | `TransportCompatibilityTest`, `LocalServerDistributionSmoke` | [ローカル接続](architecture/local-connections.md) |
 | LC-02 | 画面から独立した共通状態と監視・実行・下書き解析 | `service/WorkspaceHost.kt`・`DesktopRuntime.kt` | `WorkspaceHostTest`・`DesktopRuntimeTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-03 | 背景のファイル操作と履歴の独立実行・完了反映 | `WorkspaceSession.PendingFileOperation` | `BackgroundFileOperationTest`・`AppStateFileArrangementTest` | [ローカル接続](architecture/local-connections.md) |
-| LC-04 | 外部操作の計画・厳格な検証・確定と履歴失効（通信は未接続） | `service/WorkspaceOperations.kt`・`ChangeSetApplier.kt` | `WorkspaceOperationsTest`・`ExternalCommitTest` | [ローカル接続](architecture/local-connections.md) |
+| LC-04 | 外部操作の計画・厳格な検証・確定と履歴失効 | `service/WorkspaceOperations.kt`・`ChangeSetApplier.kt` | `WorkspaceOperationsTest`・`ExternalCommitTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-05 | 外部要求の永続記録・再送抑止・部分保存と結果不明の照合 | `service/OperationJournal.kt` | `WorkspaceOperationsTest` | [ローカル接続](architecture/local-connections.md) |
-| LC-06 | 外部作業の編集・検証・提出・破棄と再起動後の結果復元（通信は未接続） | `service/WorkspaceWork.kt`・`service/WorkJournal.kt` | `WorkspaceWorkTest` | [ローカル接続](architecture/local-connections.md) |
+| LC-06 | 外部作業の提案・直接確定・破棄と再起動後の結果復元 | `service/WorkspaceWork.kt`・`service/WorkJournal.kt` | `WorkspaceWorkTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-07 | 受信箱の外部提出・差分再確認・承認保存・却下と文書別の結果 | `ExternalWorkController.kt`・`ui/run/ExternalWorkPane.kt` | `ExternalWorkPaneTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-08 | API・MCP・Web の独立 ON/OFF・状態通知・世代失効・要求の取消と保存完了待ち | `server/LocalConnections.kt`・`server/transport/LocalConnectionGate.kt` | `LocalConnectionsTest`・`LocalConnectionGateTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-09 | 全 OFF 時の非待受・他機能を残した停止・最後の停止で接続終了とポート解放 | `server/transport/LoopbackEngine.kt`・`DesktopRuntime.kt` | `LocalListenerLifecycleTest`・`DesktopRuntimeTest` | [ローカル接続](architecture/local-connections.md) |
-| LC-10 | 接続者・ワークスペース別の指定文書／全体閲覧と、提案・業務操作の権限 | `service/ConnectionGrants.kt` | `ConnectionGrantsTest` | [ローカル接続](architecture/local-connections.md) |
+| LC-10 | 接続者・ワークスペース別の指定文書／全体閲覧と、提案・直接確定・業務操作の権限 | `service/ConnectionGrants.kt` | `ConnectionGrantsTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-11 | 機能別の資格情報・期限・失効と要求・MCP セッションの接続者への結付け | `server/auth/LocalAccess.kt` | `LocalAccessTest`・`LocalProtocolAuthenticationTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-12 | HTTP の Host/Origin・認証・CSRF・要求量の検査と能力別の受付 | `server/transport/LocalAuthentication.kt`・`server/LocalServer.kt` | `LocalAuthenticationTest`・`DesktopRuntimeTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-13 | 接続・常駐設定の独立した保存と復元、接続者の登録・権限変更 | `connections/LocalConnectionController.kt` | `LocalConnectionControllerTest` | [ローカル接続](architecture/local-connections.md) |
@@ -298,7 +298,8 @@
 | LC-19 | 待受しないワークスペース所有・競合拒否・終了後の引継ぎ | `service/WorkspaceOwnership.kt`・`DesktopRuntime.kt` | `WorkspaceOwnershipTest`・`DesktopRuntimeTest` | [ローカル接続](architecture/local-connections.md) |
 | LC-20 | 所有中の独立 CLI の書込拒否と参照・プレビューの継続 | `cli/CliOwnership.kt` | `CliOwnershipTest` | [CLI](manual/cli.md) |
 | LC-21 | 保存版の読取 API・原本座標・権限境界・OpenAPI 契約 | `service/WorkspaceReads.kt`・`server/api/ReadApi.kt` | `WorkspaceReadsTest`・`ReadApiTest` | [ローカル接続](architecture/local-connections.md) |
-| LC-22 | 簡単な全体閲覧設定と文書の検索・選択、旧権限の維持 | `ConnectionPermissionEditor.kt`・`PermissionDocumentPicker.kt` | `LocalConnectionSettingsPageTest`・`ConnectionSettingsStoreTest` | [接続の設定](manual/local-connections.md) |
+| LC-22 | 簡単な閲覧・変更設定と文書・操作名の選択、旧権限の維持 | `ConnectionPermissionEditor.kt`・`PermissionDocumentPicker.kt` | `LocalConnectionSettingsPageTest`・`ConnectionSettingsStoreTest` | [接続の設定](manual/local-connections.md) |
+| LC-23 | 作業の提案・直接確定と定義済み操作の API、差分・結果照会と再送 | `server/api/WriteApi.kt`・`WriteReports.kt` | `WriteApiTest`・`WorkspaceWorkTest` | [API による変更](manual/local-api-changes.md) |
 
 ## 公開サンプル
 

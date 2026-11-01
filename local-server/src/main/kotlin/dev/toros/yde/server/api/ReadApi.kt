@@ -54,7 +54,7 @@ internal fun Application.readApi(reads: WorkspaceReads, responseBytes: Int = 4 *
 }
 
 private fun ApplicationCall.readQuery(resource: ReadResource): ReadQuery {
-    val page = setOf(ReadResource.DOCUMENTS, ReadResource.SEARCH, ReadResource.VIEWS, ReadResource.VIEW, ReadResource.VALIDATION)
+    val page = setOf(ReadResource.DOCUMENTS, ReadResource.SEARCH, ReadResource.VIEWS, ReadResource.VIEW, ReadResource.VALIDATION, ReadResource.ACTIONS)
     val allowed = buildSet {
         add("revision")
         if (resource in page) addAll(listOf("offset", "limit"))

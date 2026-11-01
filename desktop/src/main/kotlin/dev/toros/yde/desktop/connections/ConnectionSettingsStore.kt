@@ -3,6 +3,7 @@ package dev.toros.yde.desktop.connections
 import dev.toros.yde.app.service.ConnectionGrants
 import dev.toros.yde.app.service.ConnectionPermissions
 import dev.toros.yde.app.service.ConnectionReadScope
+import dev.toros.yde.app.service.ConnectionWriteScope
 import dev.toros.yde.app.service.OperationCaller
 import dev.toros.yde.server.LocalConnectionSettings
 import dev.toros.yde.server.LocalFeature
@@ -62,7 +63,7 @@ internal class FileConnectionSettingsStore(private val directory: Path = Path.of
 /** 不明な版・不正な真偽値・権限は部分復元せず、起動側で全 OFF として扱う。 */
 internal object ConnectionSettingsCodec {
     fun encode(value: SavedConnections): String = buildJsonObject {
-        put("version", 2)
+        put("version", 3)
         put("api", value.settings.apiEnabled); put("mcp", value.settings.mcpEnabled); put("web", value.settings.webEnabled)
         put("port", value.settings.port)
         put("tray", value.resident.trayEnabled); put("startHidden", value.resident.startHidden)
@@ -71,6 +72,8 @@ internal object ConnectionSettingsCodec {
             fun documents(key: String, values: Set<DocumentId>) { putJsonArray(key) { values.sortedBy { it.value }.forEach { add(it.value) } } }
             documents("read", p.readable); documents("propose", p.proposable); documents("apply", p.actionable)
             put("readScope", p.readScope.name)
+            documents("commit", p.committable)
+            put("proposalScope", p.proposalScope.name); put("commitScope", p.commitScope.name); put("actionScope", p.actionScope.name)
             putJsonArray("actions") { p.actions.sorted().forEach { add(it) } }
         }) } }
     }.toString()
@@ -78,7 +81,7 @@ internal object ConnectionSettingsCodec {
     fun decode(text: String): SavedConnections {
         val obj = Json.parseToJsonElement(text).jsonObject
         val version = obj["version"]?.jsonPrimitive?.int
-        require(version == 1 || version == 2) { "未対応の接続設定です" }
+        require(version in setOf(1, 2, 3)) { "未対応の接続設定です" }
         fun enabled(key: String): Boolean = obj[key]?.jsonPrimitive?.let {
             require(!it.isString) { "接続設定の真偽値が不正です" }; requireNotNull(it.booleanOrNull)
         } ?: false
@@ -97,7 +100,11 @@ internal object ConnectionSettingsCodec {
             val client = LocalClient(id, name, LocalFeature.valueOf(string("feature")), OperationCaller(string("workspace"), id))
             val p = ConnectionPermissions(strings("read").map(::DocumentId).toSet(), strings("propose").map(::DocumentId).toSet(),
                 strings("apply").map(::DocumentId).toSet(), strings("actions"),
-                if (version == 1) ConnectionReadScope.SELECTED else ConnectionReadScope.valueOf(string("readScope")))
+                if (version == 1) ConnectionReadScope.SELECTED else ConnectionReadScope.valueOf(string("readScope")),
+                if (version == 3) strings("commit").map(::DocumentId).toSet() else emptySet(),
+                if (version == 3) ConnectionWriteScope.valueOf(string("proposalScope")) else ConnectionWriteScope.SELECTED,
+                if (version == 3) ConnectionWriteScope.valueOf(string("commitScope")) else ConnectionWriteScope.SELECTED,
+                if (version == 3) ConnectionWriteScope.valueOf(string("actionScope")) else ConnectionWriteScope.SELECTED)
             ClientRegistration(client, grants.put(client.caller, p).permissions)
         }
         require(registrations.map { it.client.id }.toSet().size == registrations.size) { "接続者が重複しています" }

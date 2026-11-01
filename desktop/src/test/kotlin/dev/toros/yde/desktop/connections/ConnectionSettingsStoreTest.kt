@@ -17,6 +17,25 @@ class ConnectionSettingsStoreTest {
     private val store = FileConnectionSettingsStore(directory)
     @AfterTest fun cleanup() { root.toFile().deleteRecursively() }
 
+    @Test fun `新しい変更権限は保存復元でき旧形式には直接確定を付与しない`() {
+        val id = UUID.randomUUID().toString()
+        val client = LocalClient(id, "自作ツール", LocalFeature.API, OperationCaller("workspace", id))
+        val p = ConnectionPermissions(readScope = ConnectionReadScope.WORKSPACE, proposalScope = ConnectionWriteScope.LEDGER,
+            commitScope = ConnectionWriteScope.LEDGER, actionScope = ConnectionWriteScope.LEDGER, actions = setOf("rename"))
+        val saved = SavedConnections(registrations = listOf(ClientRegistration(client, p)))
+        assertEquals(saved, ConnectionSettingsCodec.decode(ConnectionSettingsCodec.encode(saved)))
+        val json = Json.parseToJsonElement(ConnectionSettingsCodec.encode(saved)).jsonObject
+        for (version in listOf(1, 2)) {
+            val legacy = JsonObject(json + ("version" to JsonPrimitive(version)))
+            val old = ConnectionSettingsCodec.decode(legacy.toString()).registrations.single().permissions
+            assertEquals(ConnectionWriteScope.SELECTED, old.proposalScope)
+            assertEquals(ConnectionWriteScope.SELECTED, old.commitScope)
+            assertEquals(ConnectionWriteScope.SELECTED, old.actionScope)
+            assertTrue(old.committable.isEmpty())
+            assertFalse(old.allows(ConnectionCapability.COMMIT))
+        }
+    }
+
     @Test fun `Windowsの保存先と置換後の設定ファイルはACLの継承を無効にする`() {
         if (!Files.getFileStore(root).supportsFileAttributeView(AclFileAttributeView::class.java)) return
         store.save(SavedConnections(resident = ResidentSettings(true)))
@@ -98,7 +117,7 @@ class ConnectionSettingsStoreTest {
     }
 
     @Test fun `不正な設定や権限を部分復元しない`() {
-        listOf("{", "{\"version\":3,\"api\":true}", "{\"version\":1,\"api\":\"true\"}",
+        listOf("{", "{\"version\":4,\"api\":true}", "{\"version\":1,\"api\":\"true\"}",
             "{\"version\":1,\"api\":null}", "{\"version\":1,\"port\":0}",
             "{\"version\":1,\"startHidden\":true}", "{\"version\":1,\"tray\":\"true\"}").forEach { invalid ->
             assertFails { ConnectionSettingsCodec.decode(invalid) }

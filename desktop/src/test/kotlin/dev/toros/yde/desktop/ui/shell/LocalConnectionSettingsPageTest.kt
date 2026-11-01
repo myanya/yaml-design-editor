@@ -3,6 +3,7 @@ package dev.toros.yde.desktop.ui.shell
 import androidx.compose.ui.test.*
 import dev.toros.yde.app.service.ConnectionPermissions
 import dev.toros.yde.app.service.ConnectionReadScope
+import dev.toros.yde.app.service.ConnectionWriteScope
 import dev.toros.yde.desktop.connections.ConnectionSettingsFixture
 import dev.toros.yde.server.*
 import dev.toros.yde.yaml.model.DocumentId
@@ -11,6 +12,38 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class LocalConnectionSettingsPageTest {
+    @Test fun `簡単設定で提案と直接確定を別々に選び業務操作名を選択する`() = runComposeUiTest {
+        val f = ConnectionSettingsFixture()
+        try {
+            f.actions = listOf("rename", "complete")
+            runBlocking { f.controller.initialize() }
+            setContent { LocalConnectionSettingsPage(f.controller, "試験ワークスペース") {} }
+            onNodeWithText("接続者を追加").performScrollTo().performClick()
+            onNodeWithContentDescription("接続名").performScrollTo().performTextInput("両ルート")
+            onNodeWithContentDescription("変更提案を許可（デスクトップで承認）").performScrollTo().assertIsOff().performClick()
+            onNodeWithContentDescription("直接確定を許可（外部ツールで保存）").performScrollTo().assertIsOff().performClick()
+            onNodeWithContentDescription("選択した業務操作を許可").performScrollTo().performClick()
+            onNodeWithText("業務操作を選択（0 件）").performScrollTo().performClick()
+            waitUntil(timeoutMillis = 10_000) { onAllNodesWithContentDescription("操作 rename を許可").fetchSemanticsNodes().isNotEmpty() }
+            onNodeWithContentDescription("操作 rename を許可").performClick()
+            onNodeWithContentDescription("操作 complete を許可").assertIsOff()
+            onNodeWithText("選択を反映").performClick()
+            onNodeWithText("登録権限を保存").performScrollTo().performClick()
+            waitUntil(timeoutMillis = 10_000) { f.controller.state.value.registrations.size == 1 && !f.controller.state.value.busy }
+            val caller = f.server.access.clients().single().caller
+            val p = f.grants.get(caller)!!.permissions
+            assertEquals(ConnectionWriteScope.LEDGER, p.proposalScope)
+            assertEquals(ConnectionWriteScope.LEDGER, p.commitScope)
+            assertEquals(setOf("rename"), p.actions)
+            assertTrue(f.server.connections.status.value.stopped)
+            onNodeWithText("権限を編集").performScrollTo().performClick()
+            onNodeWithContentDescription("簡単設定").performScrollTo().assertIsSelected()
+            onNodeWithContentDescription("直接確定を許可（外部ツールで保存）").performScrollTo().performClick()
+            onNodeWithText("登録権限を保存").performScrollTo().performClick()
+            waitUntil(timeoutMillis = 10_000) { f.grants.directWorkGrant(caller) == null && !f.controller.state.value.busy }
+            assertNotNull(f.grants.workGrant(caller))
+        } finally { runBlocking { f.close() } }
+    }
     @Test fun `既存登録の簡単設定への切替は確認と保存を経て初めて反映する`() = runComposeUiTest {
         val f = ConnectionSettingsFixture()
         try {

@@ -41,6 +41,7 @@ YAML で設計項目（要求・設計・課題など）を管理するための
 | [ai.md](ai.md) | AI による作成支援・エージェント・自動実行・自己改善・skill |
 | [cli.md](cli.md) | ヘッドレス CLI |
 | [local-connections.md](local-connections.md) | API・MCP・Web の接続設定、権限・トークン管理、保存済みの読取 API、トレイ常駐・非表示起動 |
+| [local-api-changes.md](local-api-changes.md) | API の変更提案・直接確定・定義済み操作・結果照会 |
 | [limits.md](limits.md) | 既知の制約 |
 
 ## ビルドと起動

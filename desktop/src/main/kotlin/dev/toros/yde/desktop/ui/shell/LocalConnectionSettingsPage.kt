@@ -76,7 +76,7 @@ internal fun LocalConnectionSettingsPage(
             HorizontalDivider(color = Palette.Border)
             Text("この PC 内の接続", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             Text("使う機能だけを ON にしてください。すべて OFF で停止が完了すると、待受ポートを閉じます。設定は次回起動時に復元します。", fontSize = 13.sp)
-            Text("API は保存済みの文書・検索・ビュー・検証を取得できます。API の変更操作・MCP の業務経路・Web 画面は順次公開予定です。", fontSize = 12.sp, color = Palette.SubText)
+            Text("API は保存版の閲覧・業務操作・変更提案・直接確定に対応しています。MCP の業務経路・Web 画面は順次公開予定です。", fontSize = 12.sp, color = Palette.SubText)
             LocalFeature.entries.forEach { feature ->
                 val actual = status.features.getValue(feature)
                 Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -145,7 +145,7 @@ internal fun LocalConnectionSettingsPage(
             }
             editor?.let { draft ->
                 model.error?.let { Text(it, color = Palette.ErrorRed, fontSize = 13.sp) }
-                ClientPermissionEditor(draft, usable, workspaceLabel, controller::documentsForSettings, onCancel = { editor = null }) {
+                ClientPermissionEditor(draft, usable, workspaceLabel, controller::documentsForSettings, onCancel = { editor = null }, loadActions = controller::actionsForSettings) {
                     scope.launch {
                         if (draft.id == null) {
                             if (controller.register(draft.feature, draft.name.trim(), draft.permissions()) != null) editor = null

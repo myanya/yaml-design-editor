@@ -27,9 +27,11 @@ data class OperationGrant(
     val revision: Long,
     val documents: Set<DocumentId>,
     val actions: Set<String> = emptySet(),
-    /** 外部提案の承認など、信頼できる入口にだけ与える。 */
+    /** 提案の承認・直接確定の作業ゲートなど、信頼できる入口にだけ与える。 */
     val applyChanges: Boolean = false,
     val recover: Boolean = false,
+    val scope: ConnectionWriteScope = ConnectionWriteScope.SELECTED,
+    val readPermission: ConnectionPermissions? = null,
 )
 
 data class OperationPreview(
@@ -64,7 +66,7 @@ class WorkspaceOperations(
         return plan(caller, frozen) { base, now -> ActionPlanner.plan(base, frozen, now).changeSet }
     }
 
-    /** 確認済み提案用。権限を持たない外部接続から直接呼んでも確定権限は得られない。 */
+    /** 作業ゲート用。提案の承認か直接確定の権限を確認した入口だけが呼ぶ。 */
     suspend fun planChanges(caller: OperationCaller, changes: ChangeSet): OperationPreview {
         val frozen = ChangeSets.copyOf(changes)
         return plan(caller, null) { _, _ -> frozen }
@@ -82,8 +84,10 @@ class WorkspaceOperations(
                 val base = load(root)
                 require(base.schemaErrors.isEmpty()) { "スキーマの読込エラーがあるため計画できません" }
                 val before = base.storedState()
+                checkReadInputs(grant.readPermission, before.keys)
                 require(before == base.readStoreState()) { "読込中に変更されました。再計画してください" }
                 val prepared = ChangeSetApplier.prepare(base, make(base, LocalDateTime.ofInstant(now, zone)), LocalDateTime.ofInstant(now, zone))
+                checkExternalWritePaths(root, prepared.documents.map { it.id }, base.layout)
                 require(before == base.readStoreState()) { "計画中に変更されました。再計画してください" }
                 Triple(before, prepared, base.layout)
             }
@@ -104,7 +108,7 @@ class WorkspaceOperations(
         val hash = ChangeSets.contentHash(buildJsonArray { add(caller.workspaceId); add(caller.callerId); add(planId) }.toString())
         val records = withContext(Dispatchers.IO) { readRecords(journal) }
         records.firstOrNull { it.workspaceId == caller.workspaceId && it.callerId == caller.callerId && it.requestId == requestId }?.let {
-            require(it.after.keys.all { file -> DocumentId(file) in grant.documents }) { "結果の対象文書は現在許可されていません" }
+            checkResultTargets(grant, it)
             require(it.requestHash == hash) { "同じ要求 ID が異なる内容に使われています" }
             return@exclusive it
         }
@@ -130,6 +134,7 @@ class WorkspaceOperations(
                 load(root).also { fresh ->
                     require(fresh.schemaErrors.isEmpty()) { "スキーマの読込エラーがあるため確定できません" }
                     checkTargets(grant, plan.prepared, fresh.layout)
+                    checkExternalWritePaths(root, plan.prepared.documents.map { it.id }, fresh.layout)
                     require(fresh.storedState() == plan.before && fresh.readStoreState() == plan.before) { "確認後にデータや定義が変わりました。再計画してください" }
                     plan.action?.let { ActionPlanner.checkPreconditions(fresh, it) }
                     val overlays = plan.prepared.documents.associate { it.id to YDocument(it.id, listOf(YamlIO.parse(it.after))) }
@@ -183,7 +188,7 @@ class WorkspaceOperations(
             .firstOrNull { it.workspaceId == caller.workspaceId && it.callerId == caller.callerId && it.requestId == requestId }
         return host.access(epoch) {
             val (_, grant) = authorize(caller)
-            found?.also { require(it.after.keys.all { file -> DocumentId(file) in grant.documents }) { "結果の対象文書は現在許可されていません" } }
+            found?.also { checkResultTargets(grant, it) }
         }
     }
 
@@ -196,7 +201,7 @@ class WorkspaceOperations(
             it.workspaceId == caller.workspaceId && it.callerId == caller.callerId && it.requestId == requestId
         }
         require(record.state == OperationState.UNKNOWN) { "結果不明の操作ではありません" }
-        require(record.after.keys.all { DocumentId(it) in grant.documents }) { "復旧の対象文書は現在許可されていません" }
+        checkResultTargets(grant, record)
         require(observed.keys == record.after.keys) { "全ての対象の確認が必要です" }
         withContext(Dispatchers.IO) {
             val store = FileSystemDocumentStore(root)
@@ -223,7 +228,14 @@ class WorkspaceOperations(
     }
 
     private fun checkTargets(grant: OperationGrant, prepared: PreparedChangeSet, layout: WorkspaceLayout) {
-        require(prepared.documents.all { it.id in grant.documents && layout.inLedger(it.id.value) }) { "許可していない文書・定義文書への変更です" }
+        require(prepared.documents.all { allowsWrite(grant.documents, grant.scope, it.id, layout) }) { "許可していない文書・定義文書への変更です" }
+    }
+
+    private fun checkResultTargets(grant: OperationGrant, record: OperationRecord) {
+        val layout = requireNotNull(host.documents.core).layout
+        require(record.after.keys.all { allowsWrite(grant.documents, grant.scope, DocumentId(it), layout) }) {
+            "結果の対象文書は現在許可されていません"
+        }
     }
 
     private fun checkSnapshot(epoch: String, revision: Long) {

@@ -11,17 +11,19 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.Executors
 import kotlinx.coroutines.*
+import kotlinx.serialization.json.*
 import kotlin.test.*
 
 class WorkspaceWorkTest {
     private class Fixture(val root: Path, val host: WorkspaceHost) {
         val caller = OperationCaller("workspace", "external")
         var grant: WorkGrant? = WorkGrant(1, setOf("a.yaml", "b.yaml", "new.yaml").map(::DocumentId).toSet())
+        var directGrant: WorkGrant? = null
         val journal get() = FileWorkJournal(root, host.documents.core!!.layout)
         val operations get() = FileOperationJournal(root, host.documents.core!!.layout)
         fun service(log: WorkJournal = journal, operationLog: OperationJournal = operations) = WorkspaceWork(host,
             grants = { if (it == caller) grant else null }, workspaceId = { "workspace" }, journals = { _, _ -> log },
-            operationJournals = { _, _ -> operationLog })
+            operationJournals = { _, _ -> operationLog }, directGrants = { if (it == caller) directGrant else null })
         fun changes(value: String = "external", file: String = "a.yaml") = ChangeSets.parse(
             "changes:\n  - file: $file\n    ops:\n      - {op: set, path: title, value: $value}\n")
         suspend fun submit(service: WorkspaceWork): WorkRecord {
@@ -61,6 +63,93 @@ class WorkspaceWorkTest {
         assertEquals(WorkState.APPLIED, service().result(caller, work.id).state)
         assertFailsWith<IllegalStateException> { restarted.approve(work.id, plan.id) }
         assertEquals(1, operations.readAll().size)
+    }
+
+    @Test fun `直接確定は別権限と計画を要求し再送と再起動でも一度しか保存しない`() = runCase {
+        val service = service()
+        assertFails { service.begin(caller, "無許可", WorkMode.DIRECT) }
+        directGrant = grant
+        grant = null
+        val work = service.begin(caller, "直接更新", WorkMode.DIRECT)
+        service.stage(caller, work.id, changes())
+        assertFails { service.commit(caller, work.id, "計画なし") }
+        assertTrue(service.validate(caller, work.id).valid)
+        val plan = service.planCommit(caller, work.id)
+        assertTrue(plan.canCommit)
+        assertContains(Files.readString(root.resolve("a.yaml")), "original")
+        assertTrue(service.inbox.value.isEmpty())
+        assertFails { service.submit(caller, work.id) }
+        assertFails { service.approve(work.id, plan.id) }
+        val saved = service.commit(caller, work.id, plan.id)
+        assertEquals(WorkState.APPLIED, saved.state)
+        assertEquals(saved, service.commit(caller, work.id, plan.id))
+        assertEquals(saved, service().commit(caller, work.id, plan.id))
+        assertEquals(saved, service().result(caller, work.id))
+        assertFails { service().commit(caller, work.id, "別の計画") }
+        assertContains(Files.readString(root.resolve("a.yaml")), "external")
+        assertEquals(1, operations.readAll().size)
+        assertEquals(0, host.documents.kernel!!.historySize)
+        assertTrue(service.refresh().isEmpty())
+    }
+
+    @Test fun `方式を持たない旧記録は承認待ちの提案として復元する`() = runCase {
+        val original = submit(service())
+        val directory = root.resolve("${host.documents.core!!.layout.runsDir}/local-work")
+        val file = Files.list(directory).use { it.toList().single() }
+        val current = Json.parseToJsonElement(Files.readString(file)).jsonObject
+        val legacy = JsonObject((current - "mode") + ("version" to JsonPrimitive(1)))
+        Files.writeString(file, legacy.toString())
+        val restored = service()
+        assertEquals(original, restored.refresh().single())
+        directGrant = grant
+        assertFails { restored.planCommit(caller, original.id) }
+        val plan = restored.review(original.id)
+        assertEquals(WorkState.APPLIED, restored.approve(original.id, plan.id).state)
+    }
+
+    @Test fun `Windowsでは未作成の予約フォルダーも大小文字と末尾ドットで迂回できない`() = runCase {
+        if (root.resolve("a") != root.resolve("A")) return@runCase
+        directGrant = WorkGrant(1, emptySet(), ConnectionWriteScope.LEDGER)
+        val service = service()
+        val work = service.begin(caller, "配置の保護", WorkMode.DIRECT)
+        for (file in listOf("_SCHEMAS/new.yaml", "_schemas./new.yaml", "_schemas /new.yaml")) {
+            val changes = ChangeSet(listOf(FileChange(file, null, emptyList(), create = true, content = YamlIO.parse("title: value"))))
+            assertFails { service.stage(caller, work.id, changes) }
+        }
+        assertFalse(Files.exists(root.resolve("_schemas")))
+    }
+
+    @Test fun `両権限があっても提案を直接確定に切り替えず破棄と再編集で古い計画を無効にする`() = runCase {
+        directGrant = grant
+        val service = service()
+        val proposal = submit(service)
+        assertFails { service.planCommit(caller, proposal.id) }
+        val review = service.review(proposal.id)
+        assertFails { service.commit(caller, proposal.id, review.id) }
+        val direct = service.begin(caller, "直接更新", WorkMode.DIRECT)
+        service.stage(caller, direct.id, changes())
+        assertFails { service.submit(caller, direct.id) }
+        val first = service.planCommit(caller, direct.id)
+        service.stage(caller, direct.id, changes("revised"))
+        assertFails { service.commit(caller, direct.id, first.id) }
+        val next = service.planCommit(caller, direct.id)
+        service.discard(caller, direct.id)
+        assertFails { service.commit(caller, direct.id, next.id) }
+        assertContains(Files.readString(root.resolve("a.yaml")), "original")
+    }
+
+    @Test fun `直接確定でも古い保存版と失効した権限を拒否する`() = runCase {
+        directGrant = grant
+        val service = service()
+        val work = service.begin(caller, "直接更新", WorkMode.DIRECT)
+        service.stage(caller, work.id, changes())
+        val plan = service.planCommit(caller, work.id)
+        directGrant = directGrant!!.copy(revision = 2)
+        assertFails { service.commit(caller, work.id, plan.id) }
+        directGrant = grant
+        Files.writeString(root.resolve("b.yaml"), "title: disk\n")
+        assertEquals(WorkState.FAILED, service.commit(caller, work.id, plan.id).state)
+        assertContains(Files.readString(root.resolve("a.yaml")), "original")
     }
 
     @Test fun `結果照会で編集を待たせず読み取り中の権限失効を再確認する`() = runCase {

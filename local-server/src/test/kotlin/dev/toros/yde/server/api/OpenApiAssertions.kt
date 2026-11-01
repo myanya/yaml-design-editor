@@ -5,8 +5,8 @@ import kotlin.test.*
 
 /** 公開契約で使う JSON Schema の語彙を実応答へ当てる。未知の語彙は黙って無視しない。 */
 internal class OpenApiAssertions(private val specification: JsonObject) {
-    fun response(path: String, status: Int, value: JsonElement) {
-        val response = specification.getValue("paths").jsonObject.getValue(path).jsonObject.getValue("get").jsonObject
+    fun response(path: String, status: Int, value: JsonElement, method: String = "get") {
+        val response = specification.getValue("paths").jsonObject.getValue(path).jsonObject.getValue(method).jsonObject
             .getValue("responses").jsonObject.getValue(status.toString())
         val schema = resolve(response).jsonObject.getValue("content").jsonObject
             .getValue("application/json").jsonObject.getValue("schema")

@@ -6,6 +6,7 @@ import dev.toros.yde.app.schema.SchemaDef
 import dev.toros.yde.app.validate.Validator
 import dev.toros.yde.semantic.*
 import dev.toros.yde.workspace.ViewDefinitions
+import dev.toros.yde.workspace.ActionPlanner
 import dev.toros.yde.workspace.changeset.ChangeSets
 import dev.toros.yde.workspace.layout.WorkspaceLayout
 import dev.toros.yde.yaml.YamlIO
@@ -33,10 +34,18 @@ internal class SavedReadReports(private val root: Path, private val texts: Map<D
     }
 
     fun read(query: ReadQuery, visible: Map<DocumentId, String>, date: LocalDate): Map<String, Any?> {
-        if (query.resource in setOf(ReadResource.ENTITY, ReadResource.VIEWS, ReadResource.VIEW, ReadResource.VALIDATION)) {
+        if (query.resource in setOf(ReadResource.ENTITY, ReadResource.VIEWS, ReadResource.VIEW, ReadResource.VALIDATION, ReadResource.ACTIONS)) {
             readRequire(workspace.schemaErrors.isEmpty(), ReadFailureCode.INVALID_DEFINITIONS, "スキーマ定義に誤りがあります。デスクトップで確認してください")
         }
         return when (query.resource) {
+            ReadResource.ACTIONS -> page(actions().map { action -> mapOf(
+                "name" to action.name, "kind" to action.kind, "label" to action.label, "description" to action.description,
+                "target" to action.target, "definedIn" to action.definedIn,
+                "params" to action.params.map { param ->
+                    val resolved = workspace.schemas.firstOrNull { it.id == action.definedIn }?.resolve(param) ?: param
+                    mapOf("key" to param.key, "type" to resolved.type.name.lowercase(), "required" to param.required)
+                },
+            ) }, query)
             ReadResource.WORKSPACE -> mapOf("documents" to visible.size, "state" to "saved")
             ReadResource.DOCUMENTS -> page(visible.entries.map { (id, text) -> mapOf("document" to id.value, "hash" to ChangeSets.contentHash(text)) }, query)
             ReadResource.DOCUMENT -> {
@@ -71,6 +80,11 @@ internal class SavedReadReports(private val root: Path, private val texts: Map<D
     }
 
     private fun definitions(): List<VirtualViewDefinition> = with(catalog) { views + docViews + lensViews + dashboards + extensionViews }
+
+    fun actions(): List<dev.toros.yde.workspace.ActionEntry> {
+        readRequire(workspace.schemaErrors.isEmpty(), ReadFailureCode.INVALID_DEFINITIONS, "スキーマ定義に誤りがあります。デスクトップで確認してください")
+        return ActionPlanner.catalog(workspace.mirror.schemas).filter { it.kind != "create" }.sortedBy { it.name }
+    }
 
     private val VirtualViewDefinition.viewKind: String get() = when (this) {
         is VirtualGridDef -> if (matrix == null) "grid" else "matrix"

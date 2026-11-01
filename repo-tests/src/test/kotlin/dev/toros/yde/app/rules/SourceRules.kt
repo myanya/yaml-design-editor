@@ -85,6 +85,8 @@ object SourceRules {
         // ワークスペースの file 型ではなく、利用者専用のアプリ設定の存否とアクセス権を扱う。
         "desktop/src/main/kotlin/dev/toros/yde/desktop/connections/ConnectionSettingsStore.kt",
         "desktop/src/main/kotlin/dev/toros/yde/desktop/connections/PrivateConnectionFiles.kt",
+        // YAML の file 型の値ではなく、外部書込先そのものの既存の親・実在する綴りを検査する。
+        "app-core/src/main/kotlin/dev/toros/yde/app/service/ExternalWritePaths.kt",
         "app-core/src/main/kotlin/dev/toros/yde/app/session/DocumentSession.kt",
         "cli/src/main/kotlin/dev/toros/yde/cli/commands/QueryCommands.kt",
         "cli/src/main/kotlin/dev/toros/yde/cli/commands/InitCommands.kt",

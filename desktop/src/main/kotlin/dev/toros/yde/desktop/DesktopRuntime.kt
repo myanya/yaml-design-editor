@@ -47,14 +47,14 @@ internal class DesktopRuntime(
     /** 登録がない既定状態は全拒否。共通窓口も現在の登録権限を保存直前まで再確認する。 */
     private val grants = ConnectionGrants()
     val operations = WorkspaceOperations(host, grants = grants::operationGrant)
-    val work = WorkspaceWork(host, grants = grants::workGrant)
+    val work = WorkspaceWork(host, grants = grants::workGrant, directGrants = grants::directWorkGrant)
     @Volatile private var connectionWorkspace: Pair<Path, String>? = null
     private val reads = WorkspaceReads(host, grants::get)
-    private val server = LocalServer(scope, grants, reads, ::accessWorkspace)
+    private val server = LocalServer(scope, grants, reads, work, operations, ::accessWorkspace)
     val access = server.access
     /** 起動時の設定復元でだけ有効化する。Window の開閉では起動・終了しない。 */
     val connections = server.connections
-    val connectionSettings = LocalConnectionController(connections, access, FileConnectionSettingsStore(), reads::documentsForSettings, ::accessWorkspace)
+    val connectionSettings = LocalConnectionController(connections, access, FileConnectionSettingsStore(), reads::documentsForSettings, reads::actionsForSettings, ::accessWorkspace)
     private val connectionSubscription = host.observe { access.workspaceChanged() }
     private var jobs: WorkspaceJobs? = null
     private var stopping = false
