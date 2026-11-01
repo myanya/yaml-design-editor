@@ -22,7 +22,7 @@ RPG Maker MZ（以下 MZ）のデータベースを、YDE のワークスペー�
 | `db/refs/` | MZ が持つもの（アニメーション・スイッチ）の番号と名前です。中身は MZ で作ります |
 | `.yde/schemas/` | 型（`common.yaml`・`parts.yaml`）と、種類ごとのスキーマ、関係の語彙（`relations.yaml`）です |
 | `.yde/views/` | ビューです。`class-doc.yaml` は職業を開いたときの「ビュー」タブで、成長曲線を図にします |
-| `.yde/skills/` | MZ の JSON の取り込み（`import-*.yaml`）です。職業の成長表は、まだ取り込めません（[計画](PLAN.md)） |
+| `.yde/skills/` | MZ の JSON の取り込み（`import-*.yaml`）です。スキルタイプの「魔法スキル」は、まだ取り込みません（[計画](PLAN.md)） |
 
 番号の数字は、MZ のデータベースの番号そのものです（`SKL-0010` はスキルの 10 番）。
 

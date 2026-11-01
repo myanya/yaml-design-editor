@@ -25,12 +25,8 @@ build:
 rules:
   # 初期装備: 並びの 1 番目は武器の欄、ほかは防具の欄（二刀流のアクターは 2 番目も武器。MZ の既定のデータには無い）。0 は空の欄
   - { id: equip, when: { path: ., equals: 0 }, build: { $first: [ ~ ] } }
-  - id: equip
-    build:
-      $format: "{kind}-{n}"
-      $with:
-        kind: { $map: $index, $using: { "0": WPN, "1": ARM, "2": ARM, "3": ARM, "4": ARM, "5": ARM, "6": ARM, "7": ARM, "8": ARM, "9": ARM } }
-        n: { $number: { $copy: . }, $as: "0000" }
+  - { id: equip, when: { path: $index, equals: 0 }, build: { $format: "WPN-{n}", $with: { n: { $number: { $copy: . }, $as: "0000" } } } }
+  - { id: equip, build: { $format: "ARM-{n}", $with: { n: { $number: { $copy: . }, $as: "0000" } } } }
 
   # ---- ここから下は、取り込みの定義に共通の規則（同じものを各定義に置きます） ----
   # 空の文字は書かない（MZ は空の欄も "" で持つ）

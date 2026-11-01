@@ -4,7 +4,7 @@ kind: import
 description: |
   MZ の Classes.json を、1 つ 1 ファイル（db/classes/CLS-0001.yaml）へ取り込みます。
   経験値曲線の 4 個の並びには名前を付けます。
-  レベルごとの能力値（params）は、能力値ごとの 100 個の並びをレベルの行に組み替える書き方が無いため、まだ取り込みません（PLAN.md「段階 2 で分かったこと」）。
+  レベルごとの能力値（params）は、能力値ごとの 100 個の並びを、同じ番号で並べてレベルの行にします（$zip）。0 レベル目はエンジンが使わないので持ちません。
 input: { format: json, tree: true }
 target: { file: "db/classes/{id}.yaml" }
 build:
@@ -14,6 +14,20 @@ build:
   learnings: { $each: learnings, $apply: learning }
   traits: { $each: traits, $apply: trait }
   note: { $apply: text, $at: note }
+  params:
+    $zip: { mhp: "params[0]", mmp: "params[1]", atk: "params[2]", def: "params[3]", mat: "params[4]", mdf: "params[5]", agi: "params[6]", luk: "params[7]" }
+    $build:
+      $when: { path: $index, gt: 0 }
+      $then:
+        level: $index
+        mhp: { $copy: mhp }
+        mmp: { $copy: mmp }
+        atk: { $copy: atk }
+        def: { $copy: def }
+        mat: { $copy: mat }
+        mdf: { $copy: mdf }
+        agi: { $copy: agi }
+        luk: { $copy: luk }
 rules:
   - id: learning
     build: { level: { $copy: level }, skillId: { $apply: skl, $at: skillId }, note: { $apply: text, $at: note } }
