@@ -6,7 +6,7 @@ Ktor/CIO と公式 MCP Kotlin SDK を応用層から隔離する組込み JVM �
 初期値はすべて OFF。デスクトップの設定から loopback 待受を明示起動し、認証済み API で参照・提案・直接確定・定義済み操作を行う。
 `server.mcp` は MCP 単独で参照・作業と定義済み操作を利用でき、API と共通のサービスを呼ぶ。
 `server.client` は CLI の明示接続用で、通信だけを担い、待受を起動しない。
-`server.web` は同梱画面と Cookie による接続・概要を配信する。画面のビルドとブラウザ検査は [web-ui](../web-ui/README.md)。
+`server.web` は同梱画面と Cookie による接続・業務閲覧を配信する。画面のビルドとブラウザ検査は [web-ui](../web-ui/README.md)。
 モジュールがクラスパスにあるだけではポートを開かない。
 
 検査は `./gradlew :local-server:test`。

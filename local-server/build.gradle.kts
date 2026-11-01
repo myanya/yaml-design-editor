@@ -39,10 +39,11 @@ tasks.register<JavaExec>("verifyMcpInspector") {
 }
 
 tasks.register<JavaExec>("verifyWebBrowser") {
-    description = "同梱 Web 画面のログイン・再読込・ログアウトを実ブラウザで検査する"
+    description = "同梱 Web 画面の接続・ダッシュボード・業務詳細を実ブラウザで検査する"
     dependsOn(tasks.testClasses)
     classpath = sourceSets["test"].runtimeClasspath
     mainClass.set("dev.toros.yde.server.web.WebBrowserCheck")
+    jvmArgs("-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8")
     workingDir = rootDir
     javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) })
     doFirst { args(providers.gradleProperty("webNode").getOrElse("node")) }

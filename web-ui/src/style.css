@@ -7,4 +7,11 @@ body { margin: 0; }
 .connect-intro { max-width: 490px; }
 .connect-card { padding: 40px; border-color: #dce3e8; box-shadow: 0 12px 40px #20304408; }
 .app-footer { padding-bottom: 24px; }
+.business-fields { margin: 0; }
+.business-field { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(0, 3fr); gap: 20px; padding: 14px 0; border-bottom: 1px solid #edf0f2; }
+.dashboard-tiles { display: flex; flex-wrap: wrap; gap: 12px; }
+.dashboard-vertical { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 24px; }
+.dashboard-vertical .dashboard-tiles { flex-direction: column; }
+.dashboard-vertical > :last-child { margin-top: 0; }
+@media (max-width: 760px) { .business-field { grid-template-columns: minmax(0, 1fr); gap: 6px; } .dashboard-vertical { display: block; } .dashboard-vertical .dashboard-tiles { flex-direction: row; } .dashboard-vertical > :last-child { margin-top: 24px; } }
 @media (max-width: 760px) { .main-content { padding-top: 28px; padding-bottom: 32px; } .connect-layout { grid-template-columns: 1fr; gap: 28px; padding: 0; } .connect-card { padding: 24px; } }

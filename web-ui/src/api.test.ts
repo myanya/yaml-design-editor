@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from 'vitest';
-import { login, logout, session, workspace } from './api';
+import { login, logout, session, workspace, view } from './api';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -24,4 +24,14 @@ test('失効と停止を区別し、通信失敗を日本語で案内する', as
   await expect(workspace()).rejects.toMatchObject({ status: 404 });
   fetch.mockRejectedValue(new TypeError('Failed to fetch'));
   await expect(workspace()).rejects.toMatchObject({ status: 0, message: expect.stringContaining('アプリが起動し') });
+});
+
+test('共有入力を URL に置かず、要求の版と CSRF を送り競合の種別を保持する', async () => {
+  const fetch = vi.fn().mockResolvedValue(new Response('{"error":{"code":"stale_revision","message":"保存版が変わりました"}}', { status: 409 }));
+  vi.stubGlobal('fetch', fetch);
+  const query = { id: 'orders', revision: 'a'.repeat(64), date: '2026-01-01', inputs: { customer: '顧客名' } };
+  await expect(view(query, 'csrf')).rejects.toMatchObject({ status: 409, code: 'stale_revision' });
+  expect(fetch).toHaveBeenCalledWith('/web-api/view', expect.objectContaining({
+    method: 'POST', body: JSON.stringify(query), headers: { 'Content-Type': 'application/json', 'X-YDE-CSRF': 'csrf' },
+  }));
 });

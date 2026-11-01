@@ -1,7 +1,7 @@
 package dev.toros.yde.server.api
 
 import dev.toros.yde.app.service.*
-import dev.toros.yde.server.protocol.externalJson
+import dev.toros.yde.server.transport.respondSavedRead
 import dev.toros.yde.server.transport.requireLocalAccess
 import dev.toros.yde.server.auth.LocalAccessFailure
 import dev.toros.yde.yaml.model.DocumentId
@@ -9,9 +9,7 @@ import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import java.io.IOException
 import java.time.LocalDate
-import kotlinx.coroutines.CancellationException
 
 internal object ReadApiContract {
     val text: String by lazy { requireNotNull(javaClass.getResourceAsStream("/api/openapi.json")).bufferedReader().use { it.readText() } }
@@ -28,25 +26,7 @@ internal fun Application.readApi(reads: WorkspaceReads, responseBytes: Int = 4 *
             }
             for (resource in ReadResource.entries) {
                 get("/" + resource.name.lowercase()) {
-                    try {
-                        val grant = call.requireLocalAccess(ConnectionCapability.READ)
-                        val result = reads.read(grant.caller, call.readQuery(resource))
-                        val body = externalJson(mapOf("workspaceId" to result.workspaceId, "epoch" to result.epoch,
-                            "revision" to result.revision, "data" to result.data)).toString()
-                        if (body.toByteArray(Charsets.UTF_8).size > responseBytes) {
-                            throw ReadFailure(ReadFailureCode.LIMIT_EXCEEDED, "応答が大きすぎます。対象やページを絞ってください")
-                        }
-                        call.requireLocalAccess(ConnectionCapability.READ)
-                        call.respondText(body, ContentType.Application.Json)
-                    } catch (failure: CancellationException) { throw failure }
-                    catch (failure: LocalAccessFailure) { throw failure }
-                    catch (failure: ReadFailure) { call.readFailure(failure) }
-                    catch (_: IOException) {
-                        call.readFailure(ReadFailure(ReadFailureCode.CHANGED_DURING_READ, "保存内容を読み取れませんでした。再試行してください"))
-                    } catch (_: Exception) {
-                        // 定義や OS の例外に含まれる原本本文・絶対パスを応答へ流さない。
-                        call.readFailure(ReadFailure(ReadFailureCode.INVALID_DEFINITIONS, "読み取りを解決できません。デスクトップで定義と文書を確認してください"))
-                    }
+                    call.respondSavedRead(reads, responseBytes) { call.readQuery(resource) }
                 }
             }
         }
@@ -78,17 +58,3 @@ private fun ApplicationCall.readQuery(resource: ReadResource): ReadQuery {
 }
 
 private fun invalidQuery(): Nothing = throw ReadFailure(ReadFailureCode.INVALID_REQUEST, "要求のパラメーターが不正です")
-
-private suspend fun ApplicationCall.readFailure(failure: ReadFailure) {
-    val status = when (failure.code) {
-        ReadFailureCode.INVALID_REQUEST -> 400
-        ReadFailureCode.FORBIDDEN -> 403
-        ReadFailureCode.NOT_FOUND -> 404
-        ReadFailureCode.STALE_REVISION, ReadFailureCode.CHANGED_DURING_READ -> 409
-        ReadFailureCode.LIMIT_EXCEEDED -> 413
-        ReadFailureCode.INVALID_DEFINITIONS, ReadFailureCode.UNSUPPORTED_VIEW -> 422
-        ReadFailureCode.BUSY -> 503
-    }
-    respondText(externalJson(mapOf("error" to mapOf("code" to failure.code.name.lowercase(), "message" to failure.message))).toString(),
-        ContentType.Application.Json, HttpStatusCode.fromValue(status))
-}

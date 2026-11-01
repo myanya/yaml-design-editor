@@ -2,8 +2,15 @@ import type { components } from '../build/generated/web-api';
 
 export type Session = components['schemas']['Session'];
 export type Workspace = components['schemas']['Workspace'];
+export type View = components['schemas']['View'];
+export type Row = components['schemas']['Row'];
+export type Entity = components['schemas']['Entity'];
+export type Chart = components['schemas']['ChartReport'];
+export type Dashboard = components['schemas']['DashboardReport'];
+export type Reference = components['schemas']['BusinessReference'];
+export type ViewRequest = components['schemas']['ViewRequest'];
 export class ConnectionError extends Error {
-  constructor(readonly status: number, message: string) { super(message); }
+  constructor(readonly status: number, message: string, readonly code?: string) { super(message); }
 }
 
 // Cookie はブラウザだけが保持する。コード・CSRF を URL や永続ストレージへ書かない。
@@ -13,7 +20,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const response = await fetch(`/web-api/${path}`, { ...options, signal, credentials: 'same-origin', mode: 'same-origin', cache: 'no-store', redirect: 'error' });
     if (!response.ok) {
       const error = await response.json().catch(() => null) as components['schemas']['Error'] | null;
-      throw new ConnectionError(response.status, error?.error?.message ?? '接続できません。デスクトップで Web の稼働状態を確認してください。');
+      throw new ConnectionError(response.status, error?.error?.message ?? '接続できません。デスクトップで Web の稼働状態を確認してください。', error?.error?.code);
     }
     if (response.status === 204) return undefined as T;
     return await response.json() as T;
@@ -28,3 +35,19 @@ export const login = (code: string) => request<Session>('session/login', {
   method: 'POST', headers: { 'Content-Type': 'application/json', 'X-YDE-Login': '1' }, body: JSON.stringify({ code }),
 });
 export const logout = (csrf: string) => request<void>('session/logout', { method: 'POST', headers: { 'X-YDE-CSRF': csrf } });
+
+export async function views(revision: string, signal?: AbortSignal) {
+  const items: components['schemas']['Views']['items'] = [];
+  let offset: number | null = 0;
+  while (offset !== null) {
+    const page: components['schemas']['ViewsResponse'] = await request(`views?${new URLSearchParams({ revision, offset: String(offset) })}`, { signal });
+    items.push(...page.data.items);
+    if (page.data.truncated) throw new ConnectionError(413, 'ビューが多すぎます。デスクトップで定義を確認してください。');
+    offset = page.data.nextOffset;
+  }
+  return items;
+}
+export const view = (query: ViewRequest, csrf: string, signal?: AbortSignal) => request<components['schemas']['ViewResponse']>('view', {
+  method: 'POST', headers: { 'Content-Type': 'application/json', 'X-YDE-CSRF': csrf }, body: JSON.stringify(query), signal,
+});
+export const entity = (id: string, revision: string, signal?: AbortSignal) => request<components['schemas']['EntityResponse']>(`entity?${new URLSearchParams({ id, revision })}`, { signal });

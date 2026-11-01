@@ -7,6 +7,7 @@ import dev.toros.yde.server.transport.*
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import java.nio.file.Files
+import java.nio.file.Path
 import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlin.test.assertNull
@@ -32,8 +33,12 @@ internal class WebHttpFixture {
     })
     val http = HttpClient(CIO)
     val url: String get() = "http://127.0.0.1:${connections.status.value.boundPort}"
-    suspend fun start() {
-        Files.writeString(root.resolve("a.yaml"), "title: 保存済み\n")
+    suspend fun start(sample: Path? = null) {
+        if (sample == null) Files.writeString(root.resolve("a.yaml"), "title: 保存済み\n")
+        else Files.walk(sample).use { paths -> paths.forEach { source ->
+            val target = root.resolve(sample.relativize(source))
+            if (Files.isDirectory(source)) Files.createDirectories(target) else Files.copy(source, target)
+        } }
         withContext(owner) { host.openWorkspace(root) }
         configure(LocalConnectionSettings(webEnabled = true))
     }

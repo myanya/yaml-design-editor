@@ -4,7 +4,7 @@
 
 ローカル接続は、通信ライブラリを local-server に閉じる組込み構成を取る。
 現在は設定型・機能別の状態機械・loopback 待受・接続者の認証と権限・保存版の閲覧と変更の API、および SDK・HTTP・同梱ランタイムの互換性検査がある。
-DesktopRuntime が接続管理を所有し、設定画面から三機能を個別に切り替える。設定のない起動では全て OFF のまま待受しない。MCP は同じ共通サービスで参照・変更を扱い、Web は接続と保存版の概要を公開する。
+DesktopRuntime が接続管理を所有し、設定画面から三機能を個別に切り替える。設定のない起動では全て OFF のまま待受しない。MCP は同じ共通サービスで参照・変更を扱い、Web は接続と保存版の業務閲覧を公開する。
 全体の設計契約は [ローカル接続の決定](../decisions/0016-local-connections-and-shared-host.md)、実施順序は ROADMAP にある。
 外部確定と Undo は [履歴の決定](../decisions/0017-external-commit-and-desktop-history.md)、提案と直接確定は [作業方式の決定](../decisions/0019-external-work-commit-routes.md) が補足する。
 
@@ -21,6 +21,9 @@ DesktopRuntime が接続管理を所有し、設定画面から三機能を個�
 | `server.auth.WebLogins` | 一回限りの接続コードと Cookie の交換、CSRF の再取得とログアウト |
 | `server.web.WebAssets` / `WebApi` | 同梱資源の限定配信と Web 専用の通信経路 |
 | `web-ui/src/api.ts` / `ui/App.tsx` | OpenAPI 生成型による通信と接続・概要画面、失効時の表示解除 |
+| `service.BusinessReadPresentation` | 同じ保存版の項目・索引から表示ラベルと参照先・参照元を添える |
+| `web-ui/src/ui/BusinessWorkspace.tsx` | 版を指定した業務閲覧、区画・共有入力・詳細の画面状態 |
+| `server.transport.SavedReadResponse` | API と Web の読取応答・失敗・量の制限と応答直前の認証 |
 | `server.transport.LocalAuthentication` | Host/Origin・認証・CSRF・要求量の検査、業務ハンドラでの能力と対象の再確認 |
 | `service.WorkspaceHost` / `WorkspaceStatus` | 共通セッションの所有、状態の世代・版・未保存・競合・処理中の通知、所有スレッドへの受付 |
 | `service.WorkspaceReads` / `ReadQuery` / `ReadResult` | 保存済みの読取条件・版・権限・量と寿命の制御 |
@@ -436,9 +439,33 @@ Cookie の証明は既存の LocalAccess が所有し、機能世代・ワーク
 `GET /web-api/workspace` は WorkspaceReads の保存版概要を返す。API のスイッチや Bearer トークンを使わない。
 
 契約は `local-server/src/main/resources/web-api/openapi.json` に置き、TypeScript の型を生成する。
-画面は Query のメモリーだけへ結果を保持し、5 秒間隔・再フォーカスで再取得する。認証失敗時は概要を消して接続画面へ戻す。
+画面は Query のメモリーだけへ結果を保持し、接続と概要を 5 秒間隔・再フォーカスで再取得する。認証失敗時は業務データを消して接続画面へ戻す。
 資格情報は localStorage / sessionStorage に保存せず、Service Worker や永続キャッシュも使わない。
 この層は表示と通信だけを担当し、Query・Rewrite の評価器や保存の規則を追加しない。
+
+### Web の業務閲覧
+
+`GET /web-api/views` と `GET /web-api/entity`、`POST /web-api/view` は WorkspaceReads の同じ採取・権限検査を通る。
+ビューの共有入力は URL に置かず、JSON 本文で送り、読み取りでも POST の Origin と CSRF を照合する。
+詳細とビューは revision の指定を必須とし、画面は概要で得た保存版をすべての読取に渡す。
+Query の鍵にワークスペース・接続者・版・条件を含め、版の不一致では旧本文を隠して概要を取り直す。手動の再取得は同じ版の失敗も再試行する。
+同じ保存版の業務データは戻る操作でも再利用し、重複する再評価を避ける。一時的な読取混雑だけは短い待ちで再試行し、権限・定義・版の失敗を自動再送しない。
+
+ReadQuery の business 指定で SavedReadReports が業務表示の情報を添える。通常 API と MCP の応答形式は変えない。
+BusinessReadPresentation は既存の項目解決・ValueFormat・索引を使い、enum のラベルと参照・逆参照を返す。
+値の見た目から ID を推測せず、索引が参照と判断し、解決した対象だけをリンクにする。未解決参照と文書参照は表示に留める。
+集計表の動的列は columnsOf から、基準日・共有入力・既定値・保留理由は Dashboards.resolve から取る。
+同じ結果の原本座標を表と詳細へ写し、app-core に独自の式・条件・集計評価を持たない。
+
+BusinessWorkspace がビュー選択・区画・基準日・共有入力を保持する。場所の ID はブラウザ履歴へ、入力値はメモリーだけへ置く。
+基準日の未指定時は毎分サーバ結果を取り直し、日付の切替と入力の既定値をサーバに委ねる。
+BusinessTable と BusinessValues は表示と対象への移動だけを担う。通常の編集・ソース・定義の編集画面は公開しない。
+BusinessChart は ECharts の描画を一つのファイルへ閉じ、必要な部品を遅延読込する。集計済み系列の順序と欠損を保ち、数値表も付ける。
+横棒と積み上げ横棒は、結果の先頭を上に描いてデスクトップと数値表の項目順に揃える。
+チャートと詳細の元データも全入力の閲覧許可を要し、派生結果だけを許可文書で濾過しない。
+
+WebBusinessTest はインメモリ通信の実応答を Web 契約へ当て、共通計算との一致・参照・版・入力・権限を検査する。
+WebBrowserCheck は注文・TODO のコピーで、条件変更・詳細と参照・図・狭幅・競合後の再取得・失効時の表示解除を確認する。
 
 ## 拡張ポイント
 

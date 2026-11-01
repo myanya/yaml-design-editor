@@ -4,6 +4,7 @@ import { Alert, Box, Button, Chip, CircularProgress, Container, Divider, Paper, 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Route, Routes, useNavigate } from 'react-router-dom';
 import * as api from '../api';
+import { BusinessWorkspace } from './BusinessWorkspace';
 
 export function App() {
   const client = useQueryClient();
@@ -11,7 +12,10 @@ export function App() {
   const navigate = useNavigate();
   const disconnected = useCallback(() => { client.clear(); navigate('/connect', { replace: true }); }, [client, navigate]);
   useEffect(() => {
-    if (connection.isError) client.removeQueries({ queryKey: ['workspace'] });
+    if (connection.isError) {
+      client.removeQueries({ queryKey: ['workspace'] });
+      client.removeQueries({ queryKey: ['business'] });
+    }
   }, [connection.isError, client]);
   const active = connection.data && !connection.isError;
   return <>
@@ -67,27 +71,26 @@ function Connect({ error, connected }: { error: Error | null; connected: (sessio
 }
 
 function WorkspaceHome({ session, disconnected }: { session: api.Session; disconnected: () => void }) {
-  const overview = useQuery({ queryKey: ['workspace', session.clientId, session.workspaceId], queryFn: ({ signal }) => api.workspace(signal), refetchInterval: 5_000 });
+  const overview = useQuery({ queryKey: ['workspace', session.clientId, session.workspaceId], queryFn: ({ signal }) => api.workspace(signal), refetchInterval: 5_000,
+    retry: (failures, error) => failures < 2 && error instanceof api.ConnectionError && error.code === 'busy', retryDelay: 1_000 });
+  const refresh = useCallback(async () => { await overview.refetch(); }, [overview.refetch]);
   const exit = useMutation({ mutationFn: () => api.logout(session.csrfToken), onSuccess: disconnected,
     onError: (error) => { if (error instanceof api.ConnectionError && error.status === 401) disconnected(); } });
   useEffect(() => { if (overview.error instanceof api.ConnectionError && overview.error.status === 401) disconnected(); }, [overview.error, disconnected]);
   return <Stack spacing={4}>
-    <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ justifyContent: 'space-between', gap: 2 }}>
+    <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' }, gap: 2 }}>
       <div><Typography variant="overline" color="primary" sx={{ fontWeight: 700 }}>WORKSPACE</Typography><Typography component="h1" variant="h4" sx={{ fontWeight: 700 }}>ワークスペース概要</Typography></div>
       <Button variant="outlined" onClick={() => exit.mutate()} disabled={exit.isPending}>ログアウト</Button>
     </Stack>
-    <Paper variant="outlined" sx={{ p: { xs: 3, md: 4 } }}>
-      <Stack spacing={2}>
+    <Paper variant="outlined" sx={{ p: 2 }}>
+      <Stack spacing={1.5}>
         {exit.error && <Alert severity="error">ログアウトを確認できませんでした。{exit.error.message}</Alert>}
         <Stack direction="row" sx={{ gap: 1, alignItems: 'center', flexWrap: 'wrap' }}><Chip label="接続済み" color="success" size="small" /><Typography sx={{ fontWeight: 600 }}>{session.clientName}</Typography></Stack>
-        <Typography color="text.secondary">この接続者に許可された、保存済みの文書を確認しています。</Typography>
-        <Divider />
         {overview.isPending ? <Typography>概要を読み込んでいます…</Typography> : overview.isError ?
-          <Alert severity="warning">{overview.error.message}</Alert> : <Box><Typography variant="body2" color="text.secondary">閲覧できる文書</Typography><Typography variant="h2" component="p" sx={{ fontWeight: 700 }}>{overview.data.data.documents}<Typography component="span" sx={{ ml: 1, fontSize: 16 }}>件</Typography></Typography></Box>}
-        <Box><Button variant="outlined" disabled={overview.isFetching} onClick={() => { void overview.refetch(); }}>概要を更新</Button></Box>
+          <Alert severity="warning" action={<Button onClick={refresh}>再取得</Button>}>{overview.error.message}</Alert> : <Stack direction="row" spacing={1}><Typography color="text.secondary">閲覧できる文書</Typography><Typography sx={{ fontWeight: 700 }}>{overview.data.data.documents}件</Typography></Stack>}
         <Typography variant="caption" color="text.secondary">接続の期限: {new Date(session.expiresAt).toLocaleString('ja-JP')}</Typography>
       </Stack>
     </Paper>
-    <Alert severity="info">現在は接続と概要の確認に対応しています。ダッシュボードや業務操作は今後追加します。文書の編集はデスクトップで行ってください。</Alert>
+    {overview.isSuccess && <BusinessWorkspace session={session} revision={overview.data.revision} refresh={refresh} />}
   </Stack>;
 }

@@ -164,6 +164,145 @@
           }
         }
       }
+    },
+    "/web-api/views": {
+      "get": {
+        "operationId": "views",
+        "parameters": [
+          {
+            "name": "revision",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "保存版の業務表示",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewsResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "権限・版・要求のエラー",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/web-api/entity": {
+      "get": {
+        "operationId": "entity",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "revision",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "保存版の業務表示",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntityResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "権限・版・要求のエラー",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/web-api/view": {
+      "post": {
+        "operationId": "view",
+        "parameters": [
+          {
+            "name": "X-YDE-CSRF",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "保存版の業務表示",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "権限・版・要求のエラー",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "読み取り専用。共有入力を URL に置かず、同じ Origin と CSRF を照合する。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ViewRequest"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -260,6 +399,1305 @@
             }
           }
         }
+      },
+      "ViewsResponse": {
+        "type": "object",
+        "properties": {
+          "workspaceId": {
+            "type": "string"
+          },
+          "epoch": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Views"
+          }
+        },
+        "required": [
+          "workspaceId",
+          "epoch",
+          "revision",
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "Views": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "origin": {
+                  "$ref": "#/components/schemas/Origin"
+                },
+                "supported": {
+                  "type": "boolean"
+                },
+                "reason": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "default": {
+                  "type": "boolean"
+                },
+                "description": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "kind",
+                "origin",
+                "supported",
+                "reason",
+                "default",
+                "description"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "nextOffset": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "offset",
+          "nextOffset",
+          "truncated"
+        ],
+        "additionalProperties": false
+      },
+      "Origin": {
+        "type": "object",
+        "properties": {
+          "document": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "document",
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "ViewResponse": {
+        "type": "object",
+        "properties": {
+          "workspaceId": {
+            "type": "string"
+          },
+          "epoch": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "data": {
+            "$ref": "#/components/schemas/View"
+          }
+        },
+        "required": [
+          "workspaceId",
+          "epoch",
+          "revision",
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "View": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "grid"
+                ]
+              },
+              "origin": {
+                "$ref": "#/components/schemas/Origin"
+              },
+              "report": {
+                "$ref": "#/components/schemas/GridReport"
+              },
+              "name": {
+                "type": "string"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "origin",
+              "report",
+              "name",
+              "description"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "matrix"
+                ]
+              },
+              "origin": {
+                "$ref": "#/components/schemas/Origin"
+              },
+              "report": {
+                "$ref": "#/components/schemas/GridReport"
+              },
+              "name": {
+                "type": "string"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "origin",
+              "report",
+              "name",
+              "description"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "dashboard"
+                ]
+              },
+              "origin": {
+                "$ref": "#/components/schemas/Origin"
+              },
+              "report": {
+                "$ref": "#/components/schemas/DashboardReport"
+              },
+              "name": {
+                "type": "string"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "origin",
+              "report",
+              "name",
+              "description"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "chart"
+                ]
+              },
+              "origin": {
+                "$ref": "#/components/schemas/Origin"
+              },
+              "report": {
+                "$ref": "#/components/schemas/ChartReport"
+              },
+              "name": {
+                "type": "string"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "origin",
+              "report",
+              "name",
+              "description"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "GridReport": {
+        "type": "object",
+        "properties": {
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Row"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "definitionLimit": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "nextOffset": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "columns",
+          "rows",
+          "total",
+          "definitionLimit",
+          "offset",
+          "nextOffset",
+          "truncated"
+        ],
+        "additionalProperties": false
+      },
+      "Row": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "origins": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Origin"
+            }
+          },
+          "cells": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Cell"
+            }
+          }
+        },
+        "required": [
+          "key",
+          "id",
+          "title",
+          "origins",
+          "cells"
+        ],
+        "additionalProperties": false
+      },
+      "Cell": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "$ref": "#/components/schemas/JsonValue"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Origin"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "computed": {
+            "type": "boolean"
+          },
+          "trace": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Trace"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "backlinks": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "origin": {
+                      "$ref": "#/components/schemas/Origin"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "origin"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "display": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BusinessReference"
+            }
+          }
+        },
+        "required": [
+          "label",
+          "value",
+          "origin",
+          "computed",
+          "trace",
+          "backlinks",
+          "display",
+          "references"
+        ],
+        "additionalProperties": false
+      },
+      "JsonValue": {
+        "anyOf": [
+          {
+            "type": "null"
+          },
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JsonValue"
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            }
+          }
+        ]
+      },
+      "Trace": {
+        "type": "object",
+        "properties": {
+          "raw": {
+            "type": "string"
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "placeholder": {
+                  "type": "string"
+                },
+                "value": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "origin": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/Origin"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "placeholder",
+                "value",
+                "origin"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "raw",
+          "inputs"
+        ],
+        "additionalProperties": false
+      },
+      "DashboardReport": {
+        "type": "object",
+        "properties": {
+          "view": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "dashboard"
+            ]
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "placement": {
+            "type": "string"
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "value": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "default": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "options": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "value": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "value",
+                      "label"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "key",
+                "label",
+                "type",
+                "value",
+                "default",
+                "options"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "view": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "group": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "count": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "truncated": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "limit": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "total": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "limit",
+                        "total"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "rows": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Row"
+                  }
+                },
+                "pending": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "reason": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "reason"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "chart": {
+                  "$ref": "#/components/schemas/ChartReport"
+                },
+                "error": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "columns": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "label",
+                "view",
+                "group",
+                "count",
+                "truncated",
+                "rows",
+                "pending",
+                "error",
+                "columns"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "view",
+          "kind",
+          "date",
+          "actions",
+          "placement",
+          "inputs",
+          "sections",
+          "errors"
+        ],
+        "additionalProperties": false
+      },
+      "ChartReport": {
+        "type": "object",
+        "properties": {
+          "view": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "chart"
+            ]
+          },
+          "chart": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "x": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scale": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "string"
+              },
+              "y": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "x",
+              "y"
+            ],
+            "additionalProperties": false
+          },
+          "y": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "drill": {
+            "type": "string"
+          },
+          "order": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "series": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "asc",
+                      "desc"
+                    ]
+                  }
+                },
+                "required": [
+                  "series",
+                  "direction"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "x": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "key",
+                "label",
+                "id"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "values": {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "label",
+                "values"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "view",
+          "kind",
+          "chart",
+          "name",
+          "source",
+          "x",
+          "label",
+          "scale",
+          "y",
+          "drill",
+          "order",
+          "categories",
+          "series",
+          "notes",
+          "errors"
+        ],
+        "additionalProperties": false
+      },
+      "EntityResponse": {
+        "type": "object",
+        "properties": {
+          "workspaceId": {
+            "type": "string"
+          },
+          "epoch": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Entity"
+          }
+        },
+        "required": [
+          "workspaceId",
+          "epoch",
+          "revision",
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "Entity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "aspect": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "origin": {
+                  "$ref": "#/components/schemas/Origin"
+                },
+                "fields": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": "string"
+                      },
+                      "value": {
+                        "$ref": "#/components/schemas/JsonValue"
+                      },
+                      "origin": {
+                        "$ref": "#/components/schemas/Origin"
+                      },
+                      "duplicateOf": {
+                        "anyOf": [
+                          {
+                            "$ref": "#/components/schemas/Origin"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "display": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "references": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/components/schemas/BusinessReference"
+                        }
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "label",
+                      "value",
+                      "origin",
+                      "duplicateOf",
+                      "display",
+                      "references"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "aspect",
+                "label",
+                "origin",
+                "fields"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "unassigned": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Origin"
+            }
+          },
+          "backlinks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "relation": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "relation"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "title",
+          "sections",
+          "unassigned",
+          "backlinks"
+        ],
+        "additionalProperties": false
+      },
+      "BusinessReference": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "entity",
+              "document"
+            ]
+          },
+          "resolved": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "kind",
+          "resolved"
+        ],
+        "additionalProperties": false
+      },
+      "ViewRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "revision": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "inputs": {
+            "type": "object",
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          }
+        },
+        "required": [
+          "id",
+          "revision"
+        ],
+        "additionalProperties": false
       }
     },
     "securitySchemes": {

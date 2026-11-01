@@ -81,7 +81,7 @@ internal fun LocalConnectionSettingsPage(
             HorizontalDivider(color = Palette.Border)
             Text("この PC 内の接続", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             Text("使う機能だけを ON にしてください。すべて OFF で停止が完了すると、待受ポートを閉じます。設定は次回起動時に復元します。", fontSize = 13.sp)
-            Text("API・MCP は保存版の閲覧・業務操作・変更提案・直接確定に対応しています。Web は接続とワークスペース概要に対応し、ダッシュボードは順次追加します。", fontSize = 12.sp, color = Palette.SubText)
+            Text("API・MCP は保存版の閲覧・業務操作・変更提案・直接確定に対応しています。Web はダッシュボード・表・チャートと業務詳細の閲覧に対応しています。", fontSize = 12.sp, color = Palette.SubText)
             LocalFeature.entries.forEach { feature ->
                 val actual = status.features.getValue(feature)
                 Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {

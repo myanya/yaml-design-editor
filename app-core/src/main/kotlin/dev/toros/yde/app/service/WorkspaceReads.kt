@@ -26,8 +26,14 @@ data class ReadQuery(
     val limit: Int = 50,
     val date: LocalDate? = null,
     val revision: String? = null,
+    /** 業務表示用のラベル・参照・入力候補を同じ保存版から添える。通常 API の形は維持する。 */
+    val business: Boolean = false,
+    val inputs: Map<String, String?> = emptyMap(),
 ) {
     internal fun check() {
+        readRequire(inputs.isEmpty() || resource == ReadResource.VIEW, ReadFailureCode.INVALID_REQUEST, "共有入力はビューに指定してください")
+        readRequire(inputs.size <= 32 && inputs.all { (key, value) -> key.length in 1..100 && (value?.length ?: 0) <= 500 },
+            ReadFailureCode.INVALID_REQUEST, "共有入力が大きすぎます")
         readRequire(offset in 0..10_000 && limit in 1..200, ReadFailureCode.INVALID_REQUEST, "取得範囲が不正です")
         readRequire(id == null || id.isNotBlank() && id.length <= 200, ReadFailureCode.INVALID_REQUEST, "ID は 1〜200 文字で指定してください")
         readRequire(text == null || text.isNotBlank() && text.length <= 500, ReadFailureCode.INVALID_REQUEST, "検索語は 1〜500 文字で指定してください")

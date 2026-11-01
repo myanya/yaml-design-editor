@@ -78,7 +78,7 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 | | `agent.llm` | LLM との接続（`AiGenerator`・各プロバイダの生成器・`Connection`・`Http`・ツール呼び出しの往復 `ToolChat`） |
 | format-office | `format.office` | 拡張: Excel の表の読み書きと Word 文書の中の表の読み取り（Apache POI）の `FormatCodec`（`XlsxFormat.kt`・`DocxFormat.kt`）。POI はここだけ |
 | local-server | `server`・`server.transport`・`server.auth`・`server.api`・`server.mcp`・`server.web`・`server.protocol`・`server.client` | 接続設定・待受・認証・API / MCP / Web・共通の通信形式・CLI 用クライアント（Ktor/CIO・MCP SDK の隔離） |
-| web-ui | `src/api.ts`・`src/ui/` | Web 専用通信と接続・概要画面（JVM に直接依存しない TypeScript モジュール） |
+| web-ui | `src/api.ts`・`src/ui/` | Web 専用通信と接続・ダッシュボード・業務詳細（JVM に直接依存しない TypeScript モジュール） |
 | desktop | `desktop` | `Main.kt`（エントリポイント・ウィンドウ・ショートカット）・`AppState` / `OpenDocument`・画面の設定 `UiPreferences`・EDT へ戻す `DesktopUiDispatcher`・AI 生成の要求 `AiRequests` |
 | | `desktop.ui` | Compose の画面一式。役割で 10 のパッケージ（common・form・source・schema・view・graph・file・run・action・shell）に分ける（ui.md「画面のパッケージ」。骨格は `ui/shell/AppRoot.kt`）。差し込み口を通る種類（chart・flow）の描画の一覧 `ViewRenderers` もここ（ADR-0014） |
 | | `desktop.ext` | 拡張の登録の一覧（`DesktopExtensions`。Excel と Word の形式）。入口が `Extensions.install` に渡す 1 ファイル |

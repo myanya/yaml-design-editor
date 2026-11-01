@@ -23,6 +23,7 @@ internal class SavedReadReports(private val root: Path, private val texts: Map<D
     private fun schema(id: DocumentId): SchemaDef? = workspace.mirror.snapshot.documents[id]?.schemaId?.let { schemaId ->
         workspace.schemas.firstOrNull { it.id == schemaId }
     }
+    private val presentation by lazy { BusinessReadPresentation(workspace, ::tree, ::schema) }
     private val catalog by lazy {
         val source = texts.filterKeys { id ->
             val prefix = layout.viewsDir + "/"
@@ -58,12 +59,13 @@ internal class SavedReadReports(private val root: Path, private val texts: Map<D
                     files = visible.keys.map { root.resolve(it.value) }, loader = { tree(workspace.documentOf(it)) })
                 page(hits.map { mapOf("origin" to mapOf("document" to it.file, "path" to it.path), "kind" to it.kind, "excerpt" to it.excerpt) }, query)
             }
-            ReadResource.ENTITY -> entity(requireNotNull(query.id))
-            ReadResource.VIEWS -> page(definitions().sortedBy { it.id }.map { definition ->
+            ReadResource.ENTITY -> entity(requireNotNull(query.id), query.business)
+            ReadResource.VIEWS -> page(definitions().sortedBy { if (query.business) it.source.value else it.id }.map { definition ->
                 val supported = definition.viewKind in setOf("grid", "matrix", "dashboard", "chart")
                 mapOf("id" to definition.id, "name" to definition.name, "kind" to definition.viewKind,
                     "origin" to origin(definition.source, emptyList()), "supported" to supported,
-                    "reason" to if (supported) null else "この種類のビューは API の対象外です")
+                    "reason" to if (supported) null else "この種類のビューは API の対象外です") +
+                    if (query.business) mapOf("default" to ((definition as? VirtualDashboardDef)?.default == true), "description" to definition.description) else emptyMap()
             }, query)
             ReadResource.VIEW -> view(query, query.date ?: date)
             ReadResource.VALIDATION -> {
@@ -94,7 +96,7 @@ internal class SavedReadReports(private val root: Path, private val texts: Map<D
         is ExtensionViewDef -> viewKind
     }
 
-    private fun entity(id: String): Map<String, Any?> {
+    private fun entity(id: String, business: Boolean): Map<String, Any?> {
         val value = Aspects.compose(id, workspace.index, workspace.schemas, workspace.entityTypes, ::tree)
             ?: throw ReadFailure(ReadFailureCode.NOT_FOUND, "エンティティが見つかりません")
         return mapOf("id" to value.id, "type" to value.entityType, "title" to value.title,
@@ -104,26 +106,49 @@ internal class SavedReadReports(private val root: Path, private val texts: Map<D
                     "key" to field.key, "label" to field.label, "value" to field.value?.let(YamlIO::toAny),
                     "origin" to origin(field.document, field.path),
                     "duplicateOf" to field.duplicateOf?.let { origin(it.first, it.second) },
-                ) },
-            ) }, "unassigned" to value.unassigned.map { origin(it.document, it.path) })
+                ) + if (business) presentation.value(field.value, field.document, field.path) else emptyMap() },
+            ) }, "unassigned" to value.unassigned.map { origin(it.document, it.path) }) +
+            if (business) mapOf("backlinks" to presentation.backlinks(id)) else emptyMap()
     }
 
     private fun view(query: ReadQuery, date: LocalDate): Map<String, Any?> {
         val definition = definitions().singleOrNull { it.id == query.id }
             ?: throw ReadFailure(ReadFailureCode.NOT_FOUND, "一意なビューが見つかりません")
+        readRequire(query.inputs.isEmpty() || definition is VirtualDashboardDef, ReadFailureCode.INVALID_REQUEST, "共有入力はダッシュボードに指定してください")
         val report: Map<String, Any?> = when (definition.viewKind) {
             "grid", "matrix" -> {
                 val view = requireNotNull(catalog.view(definition.id))
                 val resolved = Views.resolveDetailed(view, workspace.index, ::tree, ::schema)
                 mapOf("columns" to Views.columnsOf(view, resolved.rows).map { it.label },
-                    "rows" to resolved.rows.drop(query.offset).take(query.limit).map(::row),
+                    "rows" to resolved.rows.drop(query.offset).take(query.limit).map { row(it, query.business) },
                     "total" to resolved.total, "definitionLimit" to resolved.limit,
                     "offset" to query.offset, "nextOffset" to nextOffset(resolved.rows.size, query), "truncated" to truncated(resolved.rows.size, query))
             }
             "dashboard" -> {
                 readRequire(query.offset == 0 && query.limit == 50, ReadFailureCode.INVALID_REQUEST, "ダッシュボードにはページ範囲を指定できません")
                 val view = requireNotNull(catalog.dashboard(definition.id))
-                Dashboards.report(view, Dashboards.resolve(view, date, catalog, workspace.index, ::schema, ::tree))
+                readRequire(query.inputs.keys.all { key -> view.inputs.any { it.key == key } }, ReadFailureCode.INVALID_REQUEST, "未定義の共有入力があります")
+                view.inputs.forEach { input -> query.inputs[input.key]?.takeIf(String::isNotBlank)?.let { value ->
+                    val valid = when (input.type) {
+                        DashboardInputType.DATE -> runCatching { LocalDate.parse(value) }.isSuccess
+                        DashboardInputType.ENUM -> input.values.any { it.first == value }
+                        DashboardInputType.STRING -> true
+                    }
+                    readRequire(valid, ReadFailureCode.INVALID_REQUEST, "共有入力「${input.label}」の値を確認してください")
+                } }
+                val result = Dashboards.resolve(view, date, catalog, workspace.index, ::schema, ::tree, query.inputs)
+                val report = Dashboards.report(view, result)
+                if (!query.business) report else report + mapOf(
+                    "inputs" to view.inputs.map { i -> mapOf("key" to i.key, "label" to i.label, "type" to i.type.id,
+                        "value" to result.inputs[i.key], "default" to i.default,
+                        "options" to i.values.map { (value, label) -> mapOf("value" to value, "label" to (label ?: value)) }) },
+                    "sections" to result.sections.mapIndexed { index, section ->
+                        @Suppress("UNCHECKED_CAST")
+                        val raw = (report["sections"] as List<Map<String, Any?>>)[index]
+                        raw + mapOf("rows" to section.rows.map { row(it, true) },
+                            "columns" to section.view?.let { Views.columnsOf(it, section.rows).map { column -> column.label } }.orEmpty())
+                    },
+                )
             }
             "chart" -> {
                 readRequire(query.offset == 0 && query.limit == 50, ReadFailureCode.INVALID_REQUEST, "チャートにはページ範囲を指定できません")
@@ -131,10 +156,11 @@ internal class SavedReadReports(private val root: Path, private val texts: Map<D
             }
             else -> throw ReadFailure(ReadFailureCode.UNSUPPORTED_VIEW, "この種類のビューは API の対象外です")
         }
-        return mapOf("id" to definition.id, "kind" to definition.viewKind, "origin" to origin(definition.source, emptyList()), "report" to report)
+        return mapOf("id" to definition.id, "kind" to definition.viewKind, "origin" to origin(definition.source, emptyList()), "report" to report) +
+            if (query.business) mapOf("name" to definition.name, "description" to definition.description) else emptyMap()
     }
 
-    private fun row(row: VirtualRow): Map<String, Any?> = mapOf(
+    private fun row(row: VirtualRow, business: Boolean = false): Map<String, Any?> = mapOf(
         "key" to row.key, "id" to row.id, "title" to row.title,
         "origins" to row.occurrences.map { origin(it.document, it.path) },
         "cells" to row.cells.map { cell -> mapOf(
@@ -145,7 +171,7 @@ internal class SavedReadReports(private val root: Path, private val texts: Map<D
                 "origin" to input.document?.let { origin(it, input.path ?: emptyList()) },
             ) }) },
             "backlinks" to cell.backlinks?.map { mapOf("id" to it.sourceId, "origin" to origin(it.document, it.path)) },
-        ) },
+        ) + if (business) presentation.cell(cell) else emptyMap() },
     )
 
     private fun validation(id: DocumentId): Map<String, Any?> {
