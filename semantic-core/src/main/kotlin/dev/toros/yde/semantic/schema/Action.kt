@@ -165,7 +165,10 @@ object ActionSteps {
     fun paramNames(steps: List<ActionStep>): Set<String> {
         val out = LinkedHashSet<String>()
         fun conditions(list: List<TemplateCondition>) = list.forEach { c ->
-            c.alternatives.forEach { t -> t.operands.filterIsInstance<Template.Param>().forEach { out += it.name } }
+            c.alternatives.forEach { t ->
+                t.operands.filterIsInstance<Template.Param>().forEach { out += it.name }
+                t.param?.takeIf { it !in TransformDef.LOOP_NAMES }?.let { out += it }
+            }
         }
         fun walk(s: ActionStep) {
             conditions(s.conditions)
@@ -226,10 +229,16 @@ internal fun Template.paramNames(): Set<String> {
             is Template.ValueOf -> Unit
             is Template.ViewRows -> Unit
             is Template.Each -> walk(t.body)
+            is Template.Zip -> walk(t.body)
             is Template.Apply -> Unit
             is Template.Concat -> t.parts.forEach(::walk)
             is Template.Guarded -> {
-                t.conditions.forEach { c -> c.alternatives.forEach { a -> a.operands.filterIsInstance<Template.Param>().forEach { out += it.name } } }
+                t.conditions.forEach { c ->
+                    c.alternatives.forEach { a ->
+                        a.operands.filterIsInstance<Template.Param>().forEach { out += it.name }
+                        a.param?.takeIf { it !in TransformDef.LOOP_NAMES }?.let { out += it }
+                    }
+                }
                 walk(t.inner)
             }
         }
@@ -257,6 +266,7 @@ internal fun Template.bindNames(): Set<String> {
             is Template.ValueOf -> out += t.expr.binds()
             is Template.ViewRows -> Unit
             is Template.Each -> { site(t.site); walk(t.body) }
+            is Template.Zip -> { t.sites.forEach { site(it.second) }; walk(t.body) }
             is Template.Concat -> t.parts.forEach(::walk)
             is Template.Guarded -> { t.conditions.forEach { c -> c.alternatives.forEach { a -> site(a.site) } }; walk(t.inner) }
         }

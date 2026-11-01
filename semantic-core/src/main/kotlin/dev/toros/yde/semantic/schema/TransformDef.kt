@@ -32,6 +32,8 @@ import java.text.DecimalFormat
  *   {$trim: ひな型}                       前後の空白を落とし、続く空白を 1 つにまとめる（全角の空白も。空なら「無い」）
  *   {$each: パス, $build: ひな型}         配列の要素ごとに組み立てて、配列を作る（`$apply: 規則名` とも書ける）
  *   {$eachEntry: パス, $build: ひな型}    マップの項目ごとに組み立てて、同じキーのマップを作る（同上）
+ *   {$zip: {名前: パス, …}, $build: ひな型}  並んだ配列を同じ番号で 1 行（{名前: その番号の要素, …}）にまとめ、行ごとに組み立てて配列を作る
+ *                                         （同上。長さが違えば長い方に合わせ、足りない配列の名前は行に無い。行の中のパスは元の配列の場所を指す）
  *   {$apply: 規則名, $at: パス}           名前を付けた規則を、その場所に当てる
  *   {$concat: [ひな型, …]}                配列をつなげる
  *   {$when: 条件, $then: ひな型}          条件に合うときだけ、その値
@@ -42,6 +44,7 @@ import java.text.DecimalFormat
  *
  * 条件は、クエリの where と同じ書き方（path ＋ equals / notEquals / exists / empty / oneOf / matches / startsWith / endsWith /
  * contains / lt / lte / gt / gte。`{not: 条件}`・`{or: [条件, …]}`。並べて書けば「かつ」）。`of` は省略できる（いまの場所）。
+ * `path` に `$名前` を書くと、場所の値の代わりに受け取った値・繰り返しの番号を比べる（例 `{path: $index, gt: 0}`）。
  */
 
 /** 値を読む場所の指定: どの束縛の（null＝いまの場所）・どの文書の出現の・どのパスか。 */
@@ -88,6 +91,9 @@ sealed interface Template {
 
     /** 繰り返し。entries = true はマップの項目ごと（出力もマップ）・false は配列の要素ごと（出力も配列）。 */
     data class Each(val site: TemplateSite, val entries: Boolean, val body: Template) : Template
+
+    /** 並べて組む（`$zip`）。sites は行の名前 → 配列の場所。番号ごとの行（いまの場所）で body を組み立て、出力は配列。 */
+    data class Zip(val sites: List<Pair<String, TemplateSite>>, val body: Template) : Template
     data class Apply(val rule: String, val site: TemplateSite) : Template
     data class Concat(val parts: List<Template>) : Template
 
@@ -95,7 +101,10 @@ sealed interface Template {
     data class Guarded(val conditions: List<TemplateCondition>, val inner: Template) : Template
 }
 
-/** 条件1つ（where と同じ書き方）。operands は比べる値（決まった値か、受け取った値への参照）。 */
+/**
+ * 条件1つ（where と同じ書き方）。operands は比べる値（決まった値か、受け取った値への参照）。
+ * param があれば、場所（site）の値の代わりに、その受け取った値・繰り返しの番号（`path: $index`）を比べる。
+ */
 data class TemplateTest(
     val site: TemplateSite,
     val kind: Kind,
@@ -103,6 +112,7 @@ data class TemplateTest(
     val operands: List<Template> = emptyList(),
     val flag: Boolean = true,
     val negated: Boolean = false,
+    val param: String? = null,
 ) {
     enum class Kind { EQUALS, NOT_EQUALS, EXISTS, EMPTY, TEST }
 }
@@ -141,6 +151,7 @@ data class TransformDef(
         private const val FIRST = "\$first"
         private const val EACH = "\$each"
         private const val EACH_ENTRY = "\$eachEntry"
+        private const val ZIP = "\$zip"
         private const val APPLY = "\$apply"
         private const val CONCAT = "\$concat"
         private const val THEN = "\$then"
@@ -159,7 +170,7 @@ data class TransformDef(
         private const val VIEW = "\$view"
         private const val WHERE = "\$where"
         private const val ONE = "\$one"
-        private val PRIMARY = listOf(COPY, FORMAT, MAP, FIRST, EACH, EACH_ENTRY, APPLY, CONCAT, THEN, DATE, NUMBER, TRIM, VALUE, VIEW)
+        private val PRIMARY = listOf(COPY, FORMAT, MAP, FIRST, EACH, EACH_ENTRY, ZIP, APPLY, CONCAT, THEN, DATE, NUMBER, TRIM, VALUE, VIEW)
         private val DIRECTIVE_KEYS = PRIMARY + listOf(OF, IN, USING, BUILD, AT, WHEN, AS, WITH, WHERE, ONE)
 
         /** `$as`（日付の出力の形）に書ける文字: 年 y・月 M・日 d と区切り。 */
@@ -246,8 +257,8 @@ data class TransformDef(
                     .map { (k, v) -> unescape(k.toString()) to parseTemplate(v, "$where.$k") }
                 return guarded(Template.MapOf(entries))
             }
-            // $each / $eachEntry は、繰り返す中身として $apply を取れる（それ以外は、指示は1つだけ）
-            val main = primary.firstOrNull { it == EACH || it == EACH_ENTRY } ?: primary.first()
+            // $each / $eachEntry / $zip は、繰り返す中身として $apply を取れる（それ以外は、指示は1つだけ）
+            val main = primary.firstOrNull { it == EACH || it == EACH_ENTRY || it == ZIP } ?: primary.first()
             keys.firstOrNull { !it.startsWith("\$") || it.startsWith("\$\$") }
                 ?.let { error("$where: 指示（$main）と、出力のキー（$it）は一緒に書けません") }
             fun allow(vararg modifiers: String) {
@@ -319,7 +330,7 @@ data class TransformDef(
                         val list = (m[FIRST] as? List<*>)?.takeIf { it.isNotEmpty() } ?: error("$where.$FIRST はひな型の配列（1つ以上）である必要があります")
                         Template.First(list.mapIndexed { i, e -> parseTemplate(e, "$where.$FIRST[$i]") })
                     }
-                    EACH, EACH_ENTRY -> {
+                    EACH, EACH_ENTRY, ZIP -> {
                         allow(OF, IN, BUILD, APPLY)
                         val body = when {
                             m.containsKey(BUILD) && m.containsKey(APPLY) -> error("$where: $BUILD と $APPLY は、どちらか一方を書きます")
@@ -327,7 +338,13 @@ data class TransformDef(
                             m.containsKey(APPLY) -> Template.Apply(ruleName(m[APPLY], "$where.$APPLY"), TemplateSite())
                             else -> error("$where: $main には、$BUILD（ひな型）か $APPLY（規則名）が必要です")
                         }
-                        Template.Each(site(m[main], "$where.$main"), entries = main == EACH_ENTRY, body = body)
+                        if (main == ZIP) {
+                            val columns = (m[ZIP] as? Map<*, *>)?.takeIf { it.isNotEmpty() }
+                                ?: error("$where.$ZIP は {行の名前: 配列のパス, …} で書きます（例 {mhp: \"params[0]\", mmp: \"params[1]\"}）")
+                            Template.Zip(columns.entries.map { (k, v) -> k.toString() to site(v, "$where.$ZIP.$k") }, body)
+                        } else {
+                            Template.Each(site(m[main], "$where.$main"), entries = main == EACH_ENTRY, body = body)
+                        }
                     }
                     APPLY -> { allow(OF, IN, AT); Template.Apply(ruleName(m[APPLY], "$where.$APPLY"), site(m[AT], "$where.$AT")) }
                     CONCAT -> {
@@ -379,18 +396,21 @@ data class TransformDef(
             val given = CONDITION_KEYS.filter { m[it] != null }
             if (given.size != 1) error("$where: 条件（${CONDITION_KEYS.joinToString(" / ")}）のいずれか一つが必要です")
             val pathText = m["path"]?.toString() ?: ""
+            // path: $名前 は、場所の値の代わりに受け取った値・繰り返しの番号を比べる
+            val param = (parseString(pathText) as? Template.Param)?.name
+            if (param != null && (m["of"] != null || m["in"] != null)) error("$where: path に \$$param を書くときは of / in を書きません")
             val site = TemplateSite(
                 of = m["of"]?.toString()?.takeIf { it.isNotBlank() },
                 inDoc = ValueExpr.parseSelector(m["in"], "$where.in"),
-                path = if (pathText == "." || pathText.isBlank()) emptyList() else parseYPath(unescape(pathText)),
+                path = if (param != null || pathText == "." || pathText.isBlank()) emptyList() else parseYPath(unescape(pathText)),
             )
             fun flag(key: String): Boolean = m[key] as? Boolean ?: error("$where.$key は true / false で書きます")
             fun operand(v: Any?): Template = if (v is String) parseString(v) else Template.Literal(v)
             return when (val key = given.single()) {
-                "equals" -> TemplateTest(site, TemplateTest.Kind.EQUALS, operands = listOf(operand(m[key])))
-                "notEquals" -> TemplateTest(site, TemplateTest.Kind.NOT_EQUALS, operands = listOf(operand(m[key])))
-                "exists" -> TemplateTest(site, TemplateTest.Kind.EXISTS, flag = flag(key))
-                "empty" -> TemplateTest(site, TemplateTest.Kind.EMPTY, flag = flag(key))
+                "equals" -> TemplateTest(site, TemplateTest.Kind.EQUALS, operands = listOf(operand(m[key])), param = param)
+                "notEquals" -> TemplateTest(site, TemplateTest.Kind.NOT_EQUALS, operands = listOf(operand(m[key])), param = param)
+                "exists" -> TemplateTest(site, TemplateTest.Kind.EXISTS, flag = flag(key), param = param)
+                "empty" -> TemplateTest(site, TemplateTest.Kind.EMPTY, flag = flag(key), param = param)
                 else -> {
                     val op = CheckOp.parse(key, where)
                     val v = m[key]
@@ -400,7 +420,7 @@ data class TransformDef(
                         else -> listOf(operand(v))
                     }
                     operands.filterIsInstance<Template.Literal>().forEach { op.requireValidOperand(it.value.toString(), "$where.$key") }
-                    TemplateTest(site, TemplateTest.Kind.TEST, op = op, operands = operands)
+                    TemplateTest(site, TemplateTest.Kind.TEST, op = op, operands = operands, param = param)
                 }
             }
         }
@@ -433,6 +453,7 @@ data class TransformDef(
                 }
                 is Template.ViewRows -> t.conditions.forEach(::condition)
                 is Template.Each -> { site(t.site); walk(t.body) }
+                is Template.Zip -> { t.sites.forEach { site(it.second) }; walk(t.body) }
                 is Template.Apply -> {
                     site(t.site)
                     require(t.rule in ruleIds) { "$where: 規則「${t.rule}」が rules にありません（ある規則: ${ruleIds.joinToString(", ").ifEmpty { "なし" }}）" }
@@ -447,8 +468,8 @@ data class TransformDef(
 
     private fun condition(c: TemplateCondition) {
         c.alternatives.forEach { test ->
-            test.operands.filterIsInstance<Template.Param>().forEach { p ->
-                require(p.name in params || p.name in LOOP_NAMES) { "条件の「\$${p.name}」が params に宣言されていません" }
+            (test.operands.filterIsInstance<Template.Param>().map { it.name } + listOfNotNull(test.param)).forEach { name ->
+                require(name in params || name in LOOP_NAMES) { "条件の「\$$name」が params に宣言されていません" }
             }
         }
     }

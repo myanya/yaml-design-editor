@@ -338,6 +338,7 @@ object Importer {
                 is Template.ValueOf -> t.expr.reads().filter { it.of == null }.forEach { g -> (g.path.firstOrNull() as? String)?.let(names::add) }
                 is Template.ViewRows -> Unit
                 is Template.Each -> { site(t.site); walk(t.body) }
+                is Template.Zip -> { t.sites.forEach { site(it.second) }; walk(t.body) }
                 is Template.Apply -> site(t.site)
                 is Template.Concat -> t.parts.forEach(::walk)
                 is Template.Guarded -> { t.conditions.forEach(::condition); walk(t.inner) }

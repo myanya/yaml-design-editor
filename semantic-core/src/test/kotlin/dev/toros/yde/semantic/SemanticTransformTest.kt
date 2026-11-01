@@ -218,6 +218,41 @@ class SemanticTransformTest {
     }
 
     @Test
+    fun `zip は並んだ配列を同じ番号で 1 行にまとめ 条件の path に番号を書ける`() {
+        // 能力値ごとの並び（0 番目は使わない）を、レベルごとの行に組み替える
+        val transform = def(
+            """
+            id: t
+            build:
+              rows:
+                ${'$'}zip: { mhp: "params[0]", atk: "params[1]" }
+                ${'$'}build:
+                  ${'$'}when: { path: ${'$'}index, gt: 0 }
+                  ${'$'}then: { level: ${'$'}index, mhp: { ${'$'}copy: mhp }, atk: { ${'$'}copy: atk } }
+              pairs: { ${'$'}zip: { name: names, motion: motions }, ${'$'}apply: pair }
+            rules:
+              - { id: pair, when: { path: name, empty: false }, build: { name: { ${'$'}copy: name }, type: { ${'$'}copy: motion.type } } }
+            """
+        )
+        val input = YamlIO.parse("params: [[0, 450, 480], [9, 16, 18]]\nnames: ['', 剣]\nmotions: [{ type: 0 }, { type: 1 }, { type: 2 }]")
+        val result = SemanticTransform.run(transform, input, DocumentId("in.yaml"))
+        assertEquals(
+            expected("{ rows: [ { level: 1, mhp: 450, atk: 16 }, { level: 2, mhp: 480, atk: 18 } ], pairs: [ { name: 剣, type: 1 } ] }"),
+            plain(result.term),
+        )
+        // 行の中のパスは元の配列の場所を指す（出どころ）。長い方に合わせ、足りない名前は行に無い（3 番目の motion だけの行は条件で落ちる）
+        val origins = result.origins.associate { it.output to it.path }
+        assertEquals(parseYPath("params[0][2]"), origins[parseYPath("rows[1].mhp")])
+        assertEquals(parseYPath("motions[1].type"), origins[parseYPath("pairs[0].type")])
+        // どの名前も配列でなければ「無い」・書き方の誤りは読み込みで分かる
+        assertEquals(expected("{}"), plain(SemanticTransform.run(transform, YamlIO.parse("other: 1")).term))
+        val error = assertFailsWith<IllegalStateException> { def("id: t\nbuild: { ${'$'}zip: params, ${'$'}build: { a: 1 } }") }
+        assertTrue("行の名前: 配列のパス" in error.message.orEmpty(), error.message)
+        val undeclared = assertFailsWith<IllegalArgumentException> { def("id: t\nbuild: { ${'$'}when: { path: ${'$'}month, equals: 1 }, ${'$'}then: 1 }") }
+        assertTrue("「${'$'}month」" in undeclared.message.orEmpty(), undeclared.message)
+    }
+
+    @Test
     fun `extract で文字の一部を取り出し number で数にする`() {
         val transform = def(
             """

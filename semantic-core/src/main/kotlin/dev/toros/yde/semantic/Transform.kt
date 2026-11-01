@@ -140,9 +140,21 @@ object SemanticTransform {
     private val NUMBER_SYMBOLS: DecimalFormatSymbols = DecimalFormatSymbols(Locale.US)
 
     /** 入力の中の場所1つ（項と、その座標）。 */
-    class TemplatePlace(val node: YNode, val document: DocumentId?, val path: YPath) {
-        fun at(relative: YPath): TemplatePlace? =
+    open class TemplatePlace(val node: YNode, val document: DocumentId?, val path: YPath) {
+        open fun at(relative: YPath): TemplatePlace? =
             if (relative.isEmpty()) this else getAt(node, relative)?.let { TemplatePlace(it, document, path + relative) }
+    }
+
+    /**
+     * `$zip` の 1 行: 名前 → 並んだ配列のその番号の要素。項は {名前: 要素} のマップで、名前から先のパスは元の配列の場所へ進む
+     * （`{$copy: mhp}` の出どころは `params[0][i]`）。行そのものは入力に無いので、座標は持たない。
+     */
+    private class ZipRow(private val cells: Map<String, TemplatePlace>) :
+        TemplatePlace(YNode.Map(cells.mapValuesTo(LinkedHashMap()) { it.value.node }), null, emptyList()) {
+        override fun at(relative: YPath): TemplatePlace? {
+            if (relative.isEmpty()) return this
+            return cells[relative.first() as? String]?.at(relative.drop(1))
+        }
     }
 
     /** 1回の組み立て（1つの入力、またはクエリの1行）。 */
@@ -223,6 +235,7 @@ object SemanticTransform {
             }
             is Template.First -> t.options.firstNotNullOfOrNull { build(it, here, out, loop) }
             is Template.Each -> place(t.site, here)?.let { found -> each(t, found, out, loop) }
+            is Template.Zip -> zip(t, here, out, loop)
             is Template.Apply -> place(t.site, here)?.let { found -> apply(t.rule, found, out, loop) }
             is Template.Concat -> {
                 val items = mutableListOf<YNode>()
@@ -287,6 +300,23 @@ object SemanticTransform {
             is YNode.Scalar -> null
         }
 
+        /**
+         * 並べて組む（`$zip`）: 名前ごとの配列の i 番目を 1 行にまとめて組み立てる。長さが違えば長い方に合わせ、足りない配列の名前は行に無い。
+         * どの名前も配列でなければ「無い」。
+         */
+        private fun zip(t: Template.Zip, here: TemplatePlace?, out: YPath, loop: Map<String, Any?>): YNode? {
+            val columns = t.sites.mapNotNull { (name, site) -> place(site, here)?.takeIf { it.node is YNode.Seq }?.let { name to it } }
+            if (columns.isEmpty()) return null
+            val size = columns.maxOf { (_, found) -> (found.node as YNode.Seq).items.size }
+            val items = mutableListOf<YNode>()
+            for (i in 0 until size) {
+                val cells = LinkedHashMap<String, TemplatePlace>()
+                for ((name, found) in columns) found.at(listOf(i))?.let { cells[name] = it }
+                build(t.body, ZipRow(cells), out + items.size, loop + ("index" to i) + ("position" to i + 1))?.let { items += it }
+            }
+            return YNode.Seq(items)
+        }
+
         /** 名前の規則を、その場所に当てる。同じ名前の規則は上から順に条件を調べ、最初に合ったものを使う（どれも合わなければ「無い」）。 */
         private fun apply(ruleId: String, found: TemplatePlace, out: YPath, loop: Map<String, Any?>): YNode? {
             val entered = active.getOrPut(found.node) { mutableSetOf() }
@@ -309,7 +339,9 @@ object SemanticTransform {
             }
 
         private fun evaluate(test: TemplateTest, here: TemplatePlace?, loop: Map<String, Any?>): Boolean? {
-            val node = place(test.site, here)?.node
+            // path: $名前 は、受け取った値・繰り返しの番号を比べる
+            val node = if (test.param != null) (if (test.param in loop) loop[test.param] else params[test.param])?.let { YamlIO.fromAny(it) }
+                else place(test.site, here)?.node
             fun operands(): List<String?> = test.operands.flatMap { operand ->
                 when (operand) {
                     is Template.Literal -> listOf(operand.value?.toString())
