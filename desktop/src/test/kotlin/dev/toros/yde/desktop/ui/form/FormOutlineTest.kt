@@ -51,6 +51,8 @@ class FormOutlineTest {
         assertFalse(items.any { it.path == listOf("optional", "child") })
         assertTrue(items.any { it.path == listOf("extra") })
         assertEquals("1. 一行目", items.single { it.path == listOf("rows", 0) }.title)
+        // 見出しにした語を下の行で繰り返さない（ID と副題だけ）
+        assertEquals("A", items.single { it.path == listOf("rows", 0) }.subtitle)
         assertEquals(before, YamlIO.dumpPlain(root))
     }
 

@@ -89,10 +89,11 @@ fun ChartCard(
     Column(modifier.fillMaxWidth().border(1.dp, Palette.Border, PanelShape).background(Palette.Surface, PanelShape).padding(10.dp)) {
         Row(Modifier.fillMaxWidth()) {
             Column(Modifier.weight(1f)) {
-                Text(def.name, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Palette.Text)
+                if (def.name.isNotBlank()) Text(def.name, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Palette.Text)
                 def.description?.let { Text(it.replace("\n", " "), fontSize = 11.sp, color = Palette.SubText) }
             }
-            if (showSourceButton) TextButton(onClick = { state.openViewGrid(def.view) }) { Text("元の表を開く", fontSize = 11.sp) }
+            // 開いた文書の配列が元のチャート（文書ビューの区画のその場の定義）には、開く表が無い
+            if (showSourceButton && !data.fromDocument) TextButton(onClick = { state.openViewGrid(def.view) }) { Text("元の表を開く", fontSize = 11.sp) }
         }
         val chart: @Composable () -> Unit = {
             when {
@@ -143,7 +144,10 @@ fun ChartCard(
         }
         data.notes.forEach { Text("注意: $it", fontSize = 11.sp, color = Palette.WarnOrange) }
         if (drill != ChartDrill.NONE && current == null && data.categories.isNotEmpty() && series.isNotEmpty()) {
-            Text("棒・点・帯を押すと、その値の材料（集めた要素）が出ます", fontSize = 10.sp, color = Palette.SubText)
+            Text(
+                if (data.fromDocument) "棒・点・帯を押すと、その値と原本の場所が出ます" else "棒・点・帯を押すと、その値の材料（集めた要素）が出ます",
+                fontSize = 10.sp, color = Palette.SubText,
+            )
         }
     }
 }
@@ -217,7 +221,7 @@ private fun MaterialsPanel(
                 }
             }
         }
-        TextButton(onClick = { state.openViewGrid(data.sourceView.id) }) { Text("元の表を開く", fontSize = 11.sp) }
+        if (!data.fromDocument) TextButton(onClick = { state.openViewGrid(data.sourceView.id) }) { Text("元の表を開く", fontSize = 11.sp) }
     }
 }
 

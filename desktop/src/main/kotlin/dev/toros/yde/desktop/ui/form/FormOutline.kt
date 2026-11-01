@@ -22,9 +22,9 @@ internal fun documentOutline(root: YNode, schema: SchemaDef?): List<FormOutlineI
 internal fun formValueOutline(
     root: YNode?, schema: SchemaDef?, field: FieldDef?, path: YPath, title: String,
 ): List<FormOutlineItem> = buildList {
-    fun visit(node: YNode?, field: FieldDef?, path: YPath, parent: YPath?, title: String, depth: Int) {
+    fun visit(node: YNode?, field: FieldDef?, path: YPath, parent: YPath?, title: String, depth: Int, subtitle: String? = null) {
         val effective = field?.let { schema?.resolve(it) ?: it }
-        add(FormOutlineItem(path, parent, title, Display.inline(node, schema, effective), depth,
+        add(FormOutlineItem(path, parent, title, subtitle ?: Display.inline(node, schema, effective), depth,
             if (effective?.required == true) "必須" else null, node, effective, Display.summarize(node, schema, effective).id))
         if (depth >= 64) return
         when (node) {
@@ -42,8 +42,11 @@ internal fun formValueOutline(
             }
             is YNode.Seq -> node.items.forEachIndexed { i, value ->
                 val child = effective?.item
-                val summary = Display.titleOf(value, schema, child)
-                visit(value, child, path + i, path, "${i + 1}." + (summary?.let { " $it" } ?: " 要素"), depth + 1)
+                // 要素の見出しは画面の要約（選択肢は label。例「1. ステート解除」）。見出しにした語を下の行で繰り返さず、副題を出す
+                val summary = Display.summarize(value, schema, child?.let { schema?.resolve(it) ?: it }, display = true)
+                val title = summary.title
+                visit(value, child, path + i, path, "${i + 1}." + (title?.let { " $it" } ?: " 要素"), depth + 1,
+                    subtitle = if (title == null) null else listOfNotNull(summary.id, summary.subtitle).joinToString(" "))
             }
             else -> Unit // 未作成の複合値を表示のために生成・再帰展開しない。
         }

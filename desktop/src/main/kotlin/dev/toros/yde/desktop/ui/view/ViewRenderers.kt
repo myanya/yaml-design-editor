@@ -80,7 +80,7 @@ internal fun ExtensionViewPane(state: AppState, loaded: Views.LoadResult, def: E
 internal fun EmbeddedExtensionPane(state: AppState, doc: OpenDocument, embed: VirtualDocEmbed) {
     val ws = state.workspace ?: return
     val loaded = remember(ws, state.indexVersion) { Views.load(ws, state.schemas) }
-    val def = loaded.extensionView(embed.view)?.takeIf { it.viewKind == embed.kind }
+    val def = runCatching { Views.embeddedDef(embed, loaded) }.getOrNull()
     val renderer = ViewRenderers.of(embed.kind)
     when {
         def == null -> Text("${embed.label}「${embed.view}」が見つからないか、IDが重複しています", fontSize = 11.sp, color = Palette.WarnOrange)

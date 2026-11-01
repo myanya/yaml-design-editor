@@ -221,6 +221,72 @@ class ChartViewKindTest {
     }
 
     @Test
+    fun `文書ビューの区画のその場のチャートは 開いた文書の配列を行にし 見出しはスキーマの名前`() {
+        write(
+            "_schemas/job.yaml",
+            """
+            id: job
+            match: "jobs/*.yaml"
+            root:
+              type: object
+              fields:
+                - { key: id, type: id, required: true }
+                - key: params
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: level, label: レベル, type: int }
+                      - { key: mhp, label: 最大HP, type: int }
+                      - { key: atk, label: 攻撃力, type: int }
+            """,
+        )
+        write("jobs/J1.yaml", "id: J1\nparams:\n  - { level: 1, mhp: 400, atk: 16 }\n  - { level: 2, mhp: 450, atk: 18 }\n  - { level: 3, mhp: 510, atk: 21 }")
+        write(
+            "_views/job-doc.yaml",
+            """
+            id: job-doc
+            kind: document
+            schemaId: job
+            sections:
+              - { label: HP, chart: { rows: params, name: 最大HP の伸び, x: level, series: [mhp], chart: line } }
+              - { label: 全部, chart: { rows: params, x: level, chart: line } }
+            """,
+        )
+        write("_views/bad-inline.yaml", "id: bad-inline\nkind: document\nschemaId: job\nsections:\n  - { chart: { rows: params, chart: line, view: monthly-chart } }\n")
+        write("_views/bad-inline2.yaml", "id: bad-inline2\nkind: document\nschemaId: job\nsections:\n  - { chart: { series: [mhp], chart: line } }\n")
+        write("_views/bad-inline3.yaml", "id: bad-inline3\nkind: document\nschemaId: job\nsections:\n  - { chart: { rows: params, chart: line, bogus: 1 } }\n")
+        val workspace = Workspace.open(ws)
+        val loaded = Views.load(ws, workspace.schemas)
+        assertTrue(loaded.errors.none { "job-doc" in it }, loaded.errors.toString())
+        assertTrue(loaded.errors.any { "bad-inline.yaml" in it && "view" in it }, loaded.errors.toString())
+        assertTrue(loaded.errors.any { "bad-inline2" in it && "rows" in it }, loaded.errors.toString())
+        assertTrue(loaded.errors.any { "bad-inline3" in it && "bogus" in it }, loaded.errors.toString())
+
+        val doc = assertNotNull(loaded.docView("job-doc"))
+        val embed = assertNotNull(doc.sections.first().embed)
+        assertNotNull(embed.inline)
+        val document = DocumentId("jobs/J1.yaml")
+        val data = Views.resolveEmbedded(embed, document, loaded, workspace.index, workspace::treeOf, workspace::schemaFor) as ChartData
+        assertTrue(data.fromDocument)
+        assertEquals("最大HP の伸び", data.def.name)
+        assertEquals(listOf("1", "2", "3"), data.categories.map { it.label })
+        assertEquals(listOf("最大HP"), data.series.map { it.label })
+        assertEquals(listOf(400.0, 450.0, 510.0), data.series.single().values)
+        assertEquals("文書の params", data.report()["source"])
+        // 系列を書かなければ数のキーすべて（横軸にしたキーは除く。見出しはスキーマの名前）
+        val all = Views.resolveEmbedded(doc.sections[1].embed!!, document, loaded, workspace.index, workspace::treeOf, workspace::schemaFor) as ChartData
+        assertEquals(listOf("最大HP", "攻撃力"), all.series.map { it.label })
+        // 押すと、そのセルの原本の場所へ進める（要素の 2 番目の mhp）
+        val picked = assertNotNull(data.selection(1, 0, workspace.index))
+        val cell = assertNotNull(picked.groups.single().cell)
+        assertEquals("jobs/J1.yaml", cell.document?.value)
+        assertEquals(listOf("params", 1, "mhp"), cell.path)
+        // 定義文書はメタスキーマの検証を通る
+        assertEquals(emptyList(), workspace.validate("_views/job-doc.yaml").map { it.message })
+    }
+
+    @Test
     fun `メタスキーマに断片が合成され チャートの定義文書がそのまま検証を通る`() {
         val view = BuiltinSchemaResources.kernelSchemas(WorkspaceLayout.LEGACY, listOf(ChartViewKind)).single { it.id == "builtin-view" }
         val keys = view.tree.root.fields.map { it.key }

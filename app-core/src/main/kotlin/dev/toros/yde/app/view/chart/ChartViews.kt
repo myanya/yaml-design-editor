@@ -7,14 +7,19 @@ import dev.toros.yde.semantic.ViewContext
 import dev.toros.yde.semantic.VirtualCell
 import dev.toros.yde.semantic.VirtualGridDef
 import dev.toros.yde.semantic.VirtualRow
+import dev.toros.yde.semantic.VirtualViewColumn
 import dev.toros.yde.semantic.VirtualViews
 import dev.toros.yde.yaml.model.DocumentId
+import dev.toros.yde.yaml.model.YNode
+import dev.toros.yde.yaml.model.YPath
+import dev.toros.yde.yaml.model.getAt
+import dev.toros.yde.yaml.model.pretty
 import dev.toros.yde.yaml.model.scalarText
 
 /**
  * チャート（`kind: chart`。P46）。元の表（グリッドかクロス集計）の解決結果を、項目（行）× 系列（列）の数に直して描く「ビューの部品」。
  * データを持たず、集計は元の表がする（Excel の「表を作ってからグラフにする」と同じ）。描画は画面だけで、CLI と read_view は数を返す。
- * 置き場は台帳のビュータブ・文書ビューの区画（`chart: {view}`）・ダッシュボードの区画（`view: チャートID`）。
+ * 置き場は台帳のビュータブ・文書ビューの区画（`chart: {view}`。その場の定義 `chart: {rows, …}` なら開いた文書の配列が元）・ダッシュボードの区画（`view: チャートID`）。
  * 差し込み口を通る種類（ADR-0014・ADR-0015）で、定義を読むのは ChartViewKind。ここは定義と解決の結果の型で、描画（desktop）が読むので公開する。
  */
 
@@ -99,6 +104,11 @@ data class VirtualChartDef(
     /** 散布図の軸の種類（`scale: {x, y}`）。 */
     val xScale: ChartScale = ChartScale.LINEAR,
     val yScale: ChartScale = ChartScale.LINEAR,
+    /**
+     * 文書ビューの区画にその場で書いたチャートの元（`rows`）: 開いた文書の中の配列のパス。非 null なら元の表（view）を使わず、
+     * 配列の要素を行にし、series・x・label は要素のキーで書く。
+     */
+    val rowsPath: YPath? = null,
 ) : ExtensionViewDef {
     override val viewKind: String get() = ChartViewKind.id
     override val kindLabel: String get() = ChartViewKind.label
@@ -110,8 +120,9 @@ data class VirtualChartDef(
 
     override fun listingText(): String = "チャート（${kind.label}） 元の表=$view" + (if (series.isEmpty()) "" else " 系列=" + series.joinToString("/"))
 
-    /** 元の表（グリッドかクロス集計）を同じ索引・原本で解決し、項目（行）× 系列（列）の数にする。 */
+    /** 元の表（グリッドかクロス集計）か、開いた文書の配列（rowsPath）を同じ索引・原本で解決し、項目（行）× 系列（列）の数にする。 */
     override fun resolve(context: ViewContext): ChartData {
+        if (rowsPath != null) return ChartViews.resolveDocument(this, rowsPath, context)
         val source = context.grid(view) ?: error("チャート「$id」の元の表「$view」が見つかりません（グリッドかクロス集計のビュー ID を view に書きます）")
         return ChartViews.resolve(this, source, context.rows(source))
     }
@@ -134,6 +145,12 @@ data class ChartData(
     /** 散布図の横軸の値（項目ごと。数として読めない項目は null。散布図でなければ null）。 */
     val xValues: List<Double?>? = null,
 ) : ExtensionViewResult {
+    /** 元が開いた文書の配列か（元の表が無いので「元の表を開く」は出さない）。 */
+    val fromDocument: Boolean get() = def.rowsPath != null
+
+    /** 元の名前（表のビュー ID か、文書の配列のパス）。 */
+    val sourceName: String get() = def.rowsPath?.let { "文書の ${it.pretty()}" } ?: sourceView.id
+
     override val count: String get() = categories.size.toString()
     override val unit: String get() = "項目"
 
@@ -146,7 +163,7 @@ internal object ChartViews {
 
     /**
      * 元の表の解決結果からチャートの数を取り出す。クロス集計の合計の行・合計と未分類の列は既定で除く（series に書けば入る）。
-     * 系列を書かなければ、数として読めるセルを持つ列すべて（被参照の列は除く）。
+     * 系列を書かなければ、数として読めるセルを持つ列すべて（被参照の列と、横軸にした列 x は除く）。
      */
     fun resolve(def: VirtualChartDef, source: VirtualGridDef, rows: List<VirtualRow>): ChartData {
         val matrix = source.matrix
@@ -168,7 +185,7 @@ internal object ChartViews {
         val seriesIndexes: List<Int> = if (def.series.isEmpty()) {
             columns.indices.filter { i ->
                 val c = columns[i]
-                c.backlinks == null && c.label !in excluded && !(scatter && i == xIndex) && dataRows.any { r -> numberOf(r.cells.getOrNull(i)) != null }
+                c.backlinks == null && c.label !in excluded && i != xIndex && dataRows.any { r -> numberOf(r.cells.getOrNull(i)) != null }
             }
         } else {
             def.series.mapNotNull { columnIndex(it, "系列") }
@@ -217,6 +234,36 @@ internal object ChartViews {
         )
     }
 
+    /**
+     * 開いた文書の配列（path）の要素を行にした、ID の無い表を元にする（文書ビューの区画のその場のチャート）。
+     * 列は要素のキー（初めに出てきた順）で、見出しはスキーマの項目の名前（無ければキー）。セルは原本の場所を持つので、押すと原本へ進める。
+     * 系列・横軸・名前・並びはキーで書かれているので、見出しに直してから表と同じ解決へ渡す。
+     */
+    fun resolveDocument(def: VirtualChartDef, path: YPath, context: ViewContext): ChartData {
+        val document = context.document ?: error("チャート「${def.id}」は開いた文書の配列から描きます（文書が渡されていません）")
+        val tree = context.tree(document) ?: error("文書「${document.value}」を読めません")
+        val items = (getAt(tree, path) as? YNode.Seq)?.items ?: error("文書の「${path.pretty()}」が配列ではありません（rows には配列のパスを書きます）")
+        val keys = LinkedHashSet<String>()
+        items.forEach { (it as? YNode.Map)?.entries?.keys?.let(keys::addAll) }
+        val labelOf = keys.associateWith { key ->
+            items.indices.firstNotNullOfOrNull { i -> context.fieldAt(document, path + i + key)?.label } ?: key
+        }
+        val columns = keys.map { key -> VirtualViewColumn(label = labelOf.getValue(key), path = listOf(key)) }
+        val grid = VirtualGridDef(id = def.id, name = def.name, columns = columns, source = def.source)
+        val rows = items.mapIndexed { i, item ->
+            val cells = keys.zip(columns).map { (key, column) -> VirtualCell(column, document, path + i + key, (item as? YNode.Map)?.entries?.get(key)) }
+            VirtualRow(id = "${i + 1}", title = null, occurrences = emptyList(), cells = cells, detailDocument = document, detailPath = path + i, key = "$i")
+        }
+        fun label(key: String?): String? = key?.let { labelOf[it] ?: it }
+        val named = def.copy(
+            series = def.series.map { label(it)!! },
+            x = label(def.x),
+            label = label(def.label),
+            order = def.order?.let { it.copy(series = label(it.series)) },
+        )
+        return resolve(named, grid, rows)
+    }
+
     private fun numberOf(cell: VirtualCell?): Double? = scalarText(cell?.value)?.let { SemanticExpression.numberOf(it) }?.toDouble()
 
     /** CLI と read_view の出力（数のまま。描画は画面だけ）。 */
@@ -225,7 +272,7 @@ internal object ChartViews {
         "kind" to "chart",
         "chart" to data.def.kind.id,
         "name" to data.def.name,
-        "source" to data.sourceView.id,
+        "source" to data.sourceName,
         "x" to data.def.x,
         "label" to data.def.label,
         "scale" to linkedMapOf("x" to data.def.xScale.id, "y" to data.def.yScale.id),
@@ -245,7 +292,7 @@ internal object ChartViews {
 
     /** エージェントへの開示テキスト（項目ごとに系列の値を並べる）。 */
     fun renderText(data: ChartData): String = buildString {
-        appendLine("チャート: ${data.def.name}（${data.def.id}・${data.def.kind.label}・元の表: ${data.sourceView.id}）")
+        appendLine("チャート: ${data.def.name.ifBlank { data.def.id }}（${data.def.id}・${data.def.kind.label}・元: ${data.sourceName}）")
         data.def.description?.let { appendLine(it.trim()) }
         appendLine("項目: ${data.categories.size} 件、系列: ${data.series.joinToString("・") { it.label }.ifEmpty { "なし" }}")
         data.categories.forEachIndexed { i, c ->

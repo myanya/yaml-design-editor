@@ -6,6 +6,7 @@ import dev.toros.yde.semantic.VirtualViewDefinition
 import dev.toros.yde.workspace.ViewKind
 import dev.toros.yde.workspace.WorkspaceSchema
 import dev.toros.yde.yaml.model.DocumentId
+import dev.toros.yde.yaml.model.parseYPath
 
 /**
  * チャート（`kind: chart`）の差し込み口の実装（ADR-0014）。app-core の組込みで、登録簿（app.ext.ExtensionRegistry）が最初から持つ（ADR-0015）。
@@ -73,6 +74,26 @@ object ChartViewKind : ViewKind {
             xScale = scale?.first ?: ChartScale.LINEAR, yScale = scale?.second ?: ChartScale.LINEAR,
             yLabel = y?.get("label")?.toString()?.takeIf { it.isNotBlank() }, format = format, drill = drill, order = order,
         )
+    }
+
+    private val sectionKeys = setOf("rows", "name", "chart", "series", "x", "label", "y", "drill", "scale")
+
+    /**
+     * 文書ビューの区画にその場で書くチャート（`chart: {rows: params, x: level, series: [mhp, mmp], chart: line}`）。
+     * 元の表の代わりに、開いた文書の rows の配列の要素を行にする。x・series・label は要素のキー（見出しはスキーマの項目の名前）。
+     * ほかのキーの読み方はビューの定義と同じ。ID は区画の場所。
+     */
+    override fun parseSection(raw: Map<*, *>, source: DocumentId, where: String): VirtualChartDef {
+        raw.keys.firstOrNull { it !in sectionKeys }?.let {
+            error("$where: その場のチャートでは使えないキーです: $it（使えるキー: ${sectionKeys.joinToString(", ")}。表から描くなら view だけを書きます）")
+        }
+        val rowsText = (raw["rows"] as? String)?.takeIf { it.isNotBlank() }
+            ?: error("$where: rows（開いた文書の配列のパス。例 params）か view（チャートの ID）が必要です")
+        val rows = runCatching { parseYPath(rowsText) }.getOrElse { error("$where.rows が読めません: $rowsText") }
+        require(rows.isNotEmpty()) { "$where.rows には配列のパスを書きます" }
+        val def = runCatching { parse(raw.filterKeys { it != "rows" && it != "name" } + mapOf("id" to where, "view" to rowsText), source) }
+            .getOrElse { error("$where: ${it.message}") }
+        return def.copy(name = (raw["name"] as? String)?.takeIf { it.isNotBlank() } ?: "", view = "", rowsPath = rows)
     }
 
     /** 元の表が一意なグリッドかクロス集計であること。系列と横軸の列は、列が宣言で決まるグリッドだけ点検する。 */

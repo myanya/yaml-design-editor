@@ -30,12 +30,15 @@ object DisplayCore {
      * 要素の表示要約を解決する。field はその要素に対応するスキーマ定義（`resolve` 済みでなくてよい）。
      * スキーマがない・object でない場合は予約語規約だけで解決する。
      * titleLookup（任意）は「要素自身にタイトルがないとき、論理IDから他出現のタイトルを借りる」注入点（UX-71）。
+     * display は画面の要約（畳んだ見出し・1 行要約）向けで、role の項目が選択肢なら label、参照なら参照先の名前を添えた文字にする。
+     * 索引のタイトル（titleOf）は値のまま（display = false）。
      */
     fun summarize(
         node: YNode?,
         schema: SchemaTree?,
         field: FieldDef? = null,
         titleLookup: ((String) -> String?)? = null,
+        display: Boolean = false,
     ): Summary {
         val map = node as? YNode.Map ?: return Summary(null, null, null, 0)
         val effective = schema?.resolve(field)
@@ -46,7 +49,10 @@ object DisplayCore {
 
         fun roleValue(role: FieldRole): String? = objectFields?.firstNotNullOfOrNull { child ->
             val key = child.key ?: return@firstNotNullOfOrNull null
-            if ((schema?.resolve(child) ?: child).role == role) scalarText(map.entries[key]) else null
+            val effectiveChild = schema?.resolve(child) ?: child
+            if (effectiveChild.role != role) return@firstNotNullOfOrNull null
+            val raw = scalarText(map.entries[key]) ?: return@firstNotNullOfOrNull null
+            if (display) displayValue(raw, effectiveChild, titleLookup) else raw
         }
 
         fun reserved(keys: List<String>): String? = keys.firstNotNullOfOrNull { scalarText(map.entries[it]) }
@@ -79,7 +85,7 @@ object DisplayCore {
         fallback: String = "詳細",
         titleLookup: ((String) -> String?)? = null,
     ): String {
-        val summary = summarize(node, schema, field, titleLookup)
+        val summary = summarize(node, schema, field, titleLookup, display = true)
         val head = listOfNotNull(summary.id, summary.title?.let { clip(it, 40) }).joinToString(" ").ifBlank { fallback }
         val sub = summary.subtitle?.let { " — " + clip(it, 40) } ?: ""
         return "$head$sub（${summary.keyCount}項目）"
@@ -114,19 +120,25 @@ object DisplayCore {
             null -> "（未設定）"
             is YNode.Scalar -> {
                 val raw = node.value?.toString() ?: "null"
-                val title = (schema?.resolve(field) ?: field)
-                    ?.takeIf { it.type == FieldType.REF && it.refTarget != RefTarget.DOCUMENT }
-                    ?.let { titleLookup?.invoke(raw)?.takeIf { t -> t.isNotBlank() && t != raw } }
-                clip(listOfNotNull(raw, title).joinToString(" "), maxLength)
+                val effective = schema?.resolve(field) ?: field
+                clip(effective?.let { displayValue(raw, it, titleLookup) } ?: raw, maxLength)
             }
             is YNode.Seq -> "（配列 ${node.items.size} 件）"
             is YNode.Map -> {
-                val summary = summarize(node, schema, field, titleLookup)
+                val summary = summarize(node, schema, field, titleLookup, display = true)
                 listOfNotNull(summary.id, (summary.title ?: summary.subtitle)?.let { clip(it, maxLength) })
                     .joinToString(" ")
                     .ifBlank { "（${summary.keyCount}項目）" }
             }
         }
+
+    /** 画面の要約に出す値: 選択肢（enum）は label、エンティティ参照は「ID 参照先の名前」、ほかは値のまま。 */
+    fun displayValue(raw: String, field: FieldDef, titleLookup: ((String) -> String?)? = null): String = when {
+        field.type == FieldType.ENUM -> field.optionFor(raw)?.label ?: raw
+        field.type == FieldType.REF && field.refTarget != RefTarget.DOCUMENT ->
+            titleLookup?.invoke(raw)?.takeIf { it.isNotBlank() && it != raw }?.let { "$raw $it" } ?: raw
+        else -> raw
+    }
 
     private fun clip(text: String, maxLength: Int): String {
         val single = text.replace("\n", " ")
@@ -160,9 +172,12 @@ object DisplayCore {
         if (item.type != FieldType.OBJECT) return null
         val fields = item.fields.filter { it.key != null }.map { schema?.resolve(it) ?: it }
         val columns = fields.filter { it.type in CELL_TYPES }
+        // 選択肢で項目が変わる要素（enum の cases）は、表の列に変わる項目が出ないので、自動では表にしない（明示の table はそのまま）
+        val varies = fields.any { it.cases.isNotEmpty() }
         return when {
             columns.isEmpty() -> null
             container.display == CollectionDisplay.TABLE -> columns
+            varies -> null
             columns.size in 2..MAX_AUTO_TABLE_COLUMNS && columns.size * 2 >= fields.size -> columns
             else -> null
         }

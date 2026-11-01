@@ -85,5 +85,9 @@ interface ExtensionViewResult {
     fun text(): String
 }
 
-/** 文書ビューの区画に埋め込んだ拡張の種類のビュー（`chart: {view}` なら kind は chart）。label は種類の名前（区画の既定の見出し）。 */
-data class VirtualDocEmbed(val kind: String, val view: String, val label: String = kind)
+/**
+ * 文書ビューの区画に埋め込んだ拡張の種類のビュー（`chart: {view}` なら kind は chart）。label は種類の名前（区画の既定の見出し）。
+ * inline は区画にその場で書いた定義（`chart: {rows: params, …}` のように view を書かない形。種類が ViewKind.parseSection で読む）で、
+ * あれば view は表示用の名前（区画の場所）になり、ビュー ID として引かない。
+ */
+data class VirtualDocEmbed(val kind: String, val view: String, val label: String = kind, val inline: ExtensionViewDef? = null)

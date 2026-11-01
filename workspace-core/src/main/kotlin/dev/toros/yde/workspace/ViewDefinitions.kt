@@ -142,7 +142,7 @@ object ViewDefinitions {
         if (schemas.isNotEmpty()) errors += lint(views, docViews, schemas)
         if (schemas.isNotEmpty()) errors += lintLens(lensViews, schemas)
         docViews.forEach { doc -> doc.sections.forEachIndexed { i, section ->
-            section.embed?.let { embed ->
+            section.embed?.takeIf { it.inline == null }?.let { embed ->
                 val matches = all.filter { it.id == embed.view }
                 if (matches.size != 1 || (matches.single() as? ExtensionViewDef)?.viewKind != embed.kind) {
                     errors += "${fileName(doc.source)}: sections[$i].${embed.kind}.view「${embed.view}」は一意な${embed.label}（kind: ${embed.kind}）を参照してください"
@@ -706,9 +706,15 @@ object ViewDefinitions {
             }
             embeds.singleOrNull()?.let { (key, value) ->
                 val em = value as? Map<*, *> ?: error("sections[$i].$key はobjectである必要があります")
-                require(em.keys.all { it == "view" }) { "sections[$i].${key}にはviewだけを指定できます" }
-                val target = (em["view"] as? String)?.takeIf { it.isNotBlank() } ?: error("sections[$i].$key.viewが必要です")
                 val kind = kinds.first { it.sectionKey == key }
+                // view を書かない形は、その場の定義（開いた文書から解決する。種類が読めなければ view だけを書ける）
+                if (!em.containsKey("view")) {
+                    val where = "sections[$i].$key"
+                    val inline = kind.parseSection(em, source, where) ?: error("${where}にはviewが必要です")
+                    return@mapIndexed VirtualDocSection(label = label, embed = VirtualDocEmbed(kind.id, where, kind.label, inline))
+                }
+                require(em.keys.all { it == "view" }) { "sections[$i].${key}にはviewだけを指定できます（その場の定義なら view を書きません）" }
+                val target = (em["view"] as? String)?.takeIf { it.isNotBlank() } ?: error("sections[$i].$key.viewが必要です")
                 return@mapIndexed VirtualDocSection(label = label, embed = VirtualDocEmbed(kind.id, target, kind.label))
             }
             if (fieldsRaw != null) {

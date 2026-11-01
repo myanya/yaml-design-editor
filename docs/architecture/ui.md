@@ -166,7 +166,7 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 
 ## テーブル表示
 
-- フォーム内の配列（object 要素）と map（object 値）をテーブルにするかの適否と列集合は `Display.tableColumns`（自動判定「列 2〜8 かつ宣言フィールドの過半がセル型」＋スキーマの `display: table / list`）だけが決める。
+- フォーム内の配列（object 要素）と map（object 値）をテーブルにするかの適否と列集合は `Display.tableColumns`（自動判定「列 2〜8 かつ宣言フィールドの過半がセル型、かつ `cases` を持つ項目が無い」＋スキーマの `display: table / list`）だけが決める。
 - 列は要素 object の宣言フィールドのうちセル型だけ。enum `cases` の追加項目など列外の項目は展開フォームで編集する。map は `MapTable` が表示専用のキー列を先頭に足す。
 - セル編集は通常の `Slot` 経路を再利用し、テーブル専用の書込経路を作らない。列幅は見出しと値の文字の幅＋型ごとの飾りを、型ごとの最小と上限の間に収め（`cellSizing`・`ColumnWidths.fit`。値は行数・列・閲覧専用が変わったときだけ読み直し、入力中は揺れない）、余白を文字系の列へ等分し、収まらなければ横スクロール。閲覧専用モードはテキストセル。
 - 配列の表の行操作は取っ手と ⋯（`ArrayRowMenu`＝上へ・下へ・削除・型の操作）。削除の確認は `rememberArrayDeleteRequest` をボタンとメニューで共有する（ダイアログはメニューの外に描く）。
@@ -182,14 +182,14 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 
 - 要素位置は YPath で紐付き、`state.highlightPath` に設定すると `Highlightable` がスクロール＋一時ハイライトする（対象を画面端でなく中央寄りに出す）。
 - ハイライト対象が畳みの中にある場合は自動展開する。畳まれた区画の中は `Highlightable` がコンポーズされないため、畳みを持つエディタ（配列・ネスト object・map・テーブル行展開）は `FormCtx.expanded(path)` で開閉を決める（ジャンプ先が中なら開く）。開閉は `ScreenMemory` が文書とパスで持ち、ジャンプ後も画面を離れても維持する。
-- 畳み込みサマリ: 畳んだ object は「ID タイトル（n 項目）」、array は「n 件: 先頭要素の要約, …」（`Display`）。既定はルートから 2 階層まで展開、以深は畳む（`FormCtx.defaultExpanded`。エンティティページの埋め込みフォームは要素基準の相対深さ）。モード切替でも展開状態を維持する。
+- 畳み込みサマリ: 畳んだ object は「ID タイトル（n 項目）」、array は「n 件: 先頭要素の要約, …」（`Display`）。要約の値は、選択肢なら label、参照なら「ID 参照先の名前」（`DisplayCore.displayValue`。構成ツリーの値も同じ）。既定はルートから 2 階層まで展開、以深は畳む（`FormCtx.defaultExpanded`。エンティティページの埋め込みフォームは要素基準の相対深さ）。モード切替でも展開状態を維持する。
 - 移動は必ずナビゲーション系メソッド（`openFile` / `navigateToPath` / `openCrossView` / `openViewGrid`）を通す。`highlightPath` / `crossViewId` / `viewGridId` を直接代入すると履歴に残らない。
 
 ## 構成ツリーとフォーム表示
 
 - `StructuredForm` が選択項目・全体とツリー連動・全体のみの配置を共有する。`EditorChrome` の `FormDisplayControls` は三つの方式アイコン・固定ピン・指定パネルを既存の編集方式の行に置く。
 - 通常文書は `DocumentFormWorkspace`、スキーマ設計は `SchemaDesignWorkspace` が内容を渡す。幅が足りなければツリーと編集を切り替える。
-- `FormOutline` は原本パスの表示用射影で、型・条件付き項目・要約・ID は既存の `resolve`・`effectiveFields`・`Display` に委ねる。未作成値を表示のために作らない。
+- `FormOutline` は原本パスの表示用射影で、型・条件付き項目・要約・ID は既存の `resolve`・`effectiveFields`・`Display` に委ねる。未作成値を表示のために作らない。配列の要素は画面の要約のタイトルを見出しにし、下の行には ID と副題を出す（見出しの語を繰り返さない）。
 - 文書ビューの順序・選別を反映し、同じ原本パスはツリーに一度だけ載せる。配列の選択はノード同一性で追随し、Undo による置換時は一意な解決済み ID を使う。
 - 選択・ツリーの畳みは `ScreenMemory.formNavigation` に文書と設計／通常フォームの組で保持する。フォームの畳みとは独立し、改名・削除・ワークスペース切替に追随する。
 - `ScreenMemory.formDisplay`（`FormDisplayMemory`）は固定フラグ・直前表示・ファイルの明示指定を持つ。通常フォーム・スキーマ設計・汎用フォームは方式の指定を共有する。

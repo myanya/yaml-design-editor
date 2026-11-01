@@ -29,7 +29,8 @@ object Display {
         schema: SchemaDef?,
         field: FieldDef? = null,
         titleLookup: ((String) -> String?)? = null,
-    ): DisplayCore.Summary = DisplayCore.summarize(node, schema?.tree, field, titleLookup)
+        display: Boolean = false,
+    ): DisplayCore.Summary = DisplayCore.summarize(node, schema?.tree, field, titleLookup, display)
 
     /** 要素のタイトルのみ（role ＞ 予約語。なければ null）。 */
     fun titleOf(node: YNode?, schema: SchemaDef?, field: FieldDef? = null): String? =

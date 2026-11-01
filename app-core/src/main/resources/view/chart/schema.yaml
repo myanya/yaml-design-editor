@@ -64,11 +64,39 @@ section:
   key: chart
   label: チャートセクション
   type: object
-  description: "チャート（kind: chart）を文書の表示に埋め込む。fields / backlinks / flow とは併用不可"
+  description: "チャートを文書の表示に埋め込む。view でチャート（kind: chart）を指すか、rows で開いた文書の配列から描く（その場の定義）。fields / backlinks / flow とは併用不可"
   fields:
     - key: view
       label: チャートID
       type: ref
       scope:
         schemaIds: [builtin-view]
-      required: true
+      description: 一意なチャートの ID。rows と一緒には書かない
+    - key: rows
+      label: 文書の配列（その場のチャート）
+      type: string
+      description: 開いた文書の中の配列のパス（例 params）。要素を行（横軸の項目）にし、series・x・label は要素のキーで書く。見出しはスキーマの項目の名前
+    - { key: name, label: 図の見出し（その場のチャート）, type: string }
+    - key: chart
+      label: 図の種類（その場のチャート）
+      type: enum
+      values: [bar, stacked-bar, horizontal-bar, stacked-horizontal-bar, line, area, stacked-area, scatter, pie]
+    - { key: series, label: 系列にするキー（その場のチャート）, type: array, item: { type: string }, description: 要素のキーの並び。省略すると数のキーすべて }
+    - { key: x, label: 横軸の項目にするキー（その場のチャート）, type: string, description: 省略すると要素の番号（1 から）。散布図では横軸にする数のキー }
+    - { key: label, label: "点の名前のキー（その場のチャート・scatter）", type: string }
+    - key: "y"
+      label: 縦軸（その場のチャート）
+      type: object
+      fields:
+        - { key: label, label: 見出し, type: string }
+        - { key: format, label: 値の形, type: string }
+    - key: drill
+      label: 押したときの一覧（その場のチャート）
+      type: enum
+      values: [popup, below, right, none]
+    - key: scale
+      label: "軸の種類（その場のチャート・scatter）"
+      type: object
+      fields:
+        - { key: x, label: 横軸, type: enum, values: [linear, log] }
+        - { key: "y", label: 縦軸, type: enum, values: [linear, log] }

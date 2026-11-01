@@ -135,7 +135,7 @@
 - リファクタリングでは、文書の移動で対象から外れる警告を `moveWarnings`、改名で自動に書き換えない言及の場所を `mentionSites`（探すのは `DefinitionMentions`）で種類が返し、`RefactoringImpact` が文に組む。
 - 中核は差し込み口を通る種類の中身を知らない。一覧・CLI・read_view は `ExtensionViewDef.listing` / `listingText`、解決は `resolve(ViewContext)`（元の表・対象の文書・項目・参照は呼ぶ側が同じ索引・原本・受け取る値で答える）、結果は `ExtensionViewResult` の件数・`report`・`text` で扱う。
 - 文書に縛られる種類（`perDocument`。フロー）は `appliesTo` で当たる文書を選び、CLI `view <id> <file>`・read_view の `file` で対象を受け取る。台帳のビュータブの一覧には並べない。
-- 文書ビューの区画には `<sectionKey>: {view: ID}` で埋め込み（`VirtualDocEmbed`）、ダッシュボードの区画には `inDashboard` の種類を置ける。
+- 文書ビューの区画には `<sectionKey>: {view: ID}` で埋め込み（`VirtualDocEmbed`）、ダッシュボードの区画には `inDashboard` の種類を置ける。`view` を書かない区画は種類の `parseSection` が読む「その場の定義」（`VirtualDocEmbed.inline`）で、開いた文書（`ViewContext.document`）から解決する。読む・解決・描く・点検はどれも `Views.embeddedDef` でその場の定義か ID の定義を選び、中身は知らない。チャートのその場の定義（`rows`）は、開いた文書の配列の要素を行にした ID の無い表（`ChartViews.resolveDocument`。セルは原本の場所を持つ）を元にし、元の表の解決と同じ規則で数にする。
 - 定義の形はメタスキーマの断片（種類の資源 `view/<名前>/schema.yaml`）で、`ViewSchemaFragments` が `builtin-view` に合成する。足せるのは kind の選択肢・ルートの項目・文書ビューの区画の項目だけで、名前がぶつかれば誤り。複数の種類が使う項目（`order`）は中核に残す。`viewSchemaTree`（値の式の印を読む木）は中核の項目だけ。
 - 描画は desktop の `ViewRenderers`（ui/view/ViewRenderers.kt）の一覧で、種類の ID から引く。文書ビューの区画は `ViewRenderer.Section`（既定はその文書で解決して描く。フローは原本の文書を編集に使うので自分で描く）。描画が読む型（`VirtualChartDef`・`ChartData`・`VirtualFlowDef`・`FlowModel` など）は app-core の `app.view` が公開する。
 
@@ -147,7 +147,7 @@
 - 中核（カーネル・app-core の読み出し・画面の共通部）に種類ごとの分岐（`is VirtualChartDef` や kind の文字での分岐）を書かない。差し込み口を通る種類は `ExtensionViewDef` / `ExtensionViewResult` の窓口と `ViewRenderers` で扱う。
 - 画面合成のためのオプションをスキーマ（`FieldDef`）へ足さない。合成の要望はビュー側の語彙で受ける。
 - リファクタリングの計画をアプリ側で補強しない（入口によって計画が食い違う）。
-- チャートに集計を書かない（集計は元の表の仕事。チャートは見せ方だけ）。図の部品（Vico）の型は `ui/view/Charts.kt` の外へ出さない。
+- チャートに集計を書かない（集計は元の表の仕事。チャートは見せ方だけ。文書の配列が元のときも、要素の値をそのまま描く）。図の部品（Vico）の型は `ui/view/Charts.kt` の外へ出さない。
 - 受け取る値（`params`）は解決のときに差し込む（`VirtualViews.bindParams`＝クエリ行の原文 `rowsRaw` とクロス集計の `cells.all` の `$名前`）。値の無い名前の条件は `ActionRequire.prune` で外す（空＝絞らない）。定義の読み取りで `$名前` が `params` に無ければ誤り。
 - 列がデータから決まるビュー（軸を値の式で広げたクロス集計）のヘッダは `view.columns` でなく `columnsOf(view, rows)` から取る。
 

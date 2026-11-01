@@ -194,17 +194,18 @@ object Views {
     }
 
     /**
-     * 文書ビューの区画に埋め込んだ拡張の種類のビュー（`flow: {view}`・`chart: {view}`）を、その文書で解決する。
+     * 文書ビューの区画に埋め込んだ拡張の種類のビュー（`flow: {view}`・`chart: {view}`・その場の定義 `chart: {rows, …}`）を、その文書で解決する。
      * 埋め込み先が一意なその種類のビューでなければ誤りの文で例外。
      */
     fun resolveEmbedded(
         embed: VirtualDocEmbed, document: DocumentId, loaded: LoadResult, index: IdIndex, loader: (DocumentId) -> YNode?,
         schemaFor: (DocumentId) -> SchemaDef? = { null },
-    ): ExtensionViewResult {
-        val def = loaded.extensionView(embed.view)?.takeIf { it.viewKind == embed.kind }
+    ): ExtensionViewResult = resolveExtension(embeddedDef(embed, loaded), loaded, index, loader, schemaFor, document)
+
+    /** 埋め込みの定義: その場の定義か、ID で引いたその種類のビュー。見つからなければ誤りの文で例外。 */
+    fun embeddedDef(embed: VirtualDocEmbed, loaded: LoadResult): ExtensionViewDef =
+        embed.inline ?: loaded.extensionView(embed.view)?.takeIf { it.viewKind == embed.kind }
             ?: error("埋め込み先「${embed.view}」は一意な${embed.label}（kind: ${embed.kind}）を参照してください")
-        return resolveExtension(def, loaded, index, loader, schemaFor, document)
-    }
 
     /** 埋め込みの CLI・read_view の値（解決できなければ誤りの値）。 */
     fun embeddedReport(

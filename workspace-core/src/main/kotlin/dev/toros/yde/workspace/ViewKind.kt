@@ -34,6 +34,12 @@ interface ViewKind {
     fun parse(raw: Map<*, *>, source: DocumentId): ExtensionViewDef
 
     /**
+     * 文書ビューの区画に `<キー>: {…}` でその場に書いた定義（`view` を書かない形）を読む。where は区画の場所（`sections[2].chart`）で、
+     * 定義の ID と誤りの文に使う。その場の定義を持たない種類は null（`view` だけを書ける）。解決では開いた文書が ViewContext.document に渡る。
+     */
+    fun parseSection(raw: Map<*, *>, source: DocumentId, where: String): ExtensionViewDef? = null
+
+    /**
      * 定義の一式を見た点検（元の表の有無など）。all は読めたすべての定義。schemas は空のことがある（リントを省くとき）。
      * 文はファイル名を付けずに返す（呼ぶ側が前に付ける）。
      */

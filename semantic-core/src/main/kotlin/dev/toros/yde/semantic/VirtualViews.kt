@@ -1381,7 +1381,8 @@ object VirtualViews {
             } else {
                 val embed = section.embed
                 if (embed != null) {
-                    appendLine("セクション${i + 1}: ${section.label ?: embed.label}（${embed.label}: ${embed.view}） [$rel]")
+                    val target = if (embed.inline != null) "その場の定義" else embed.view
+                    appendLine("セクション${i + 1}: ${section.label ?: embed.label}（${embed.label}: $target） [$rel]")
                 } else {
                     appendLine("セクション${i + 1}: ${section.label ?: "被参照"}（被参照表）")
                     appendBacklinkRows(rel, section.backlinks, resolved.rows.orEmpty(), relOf)

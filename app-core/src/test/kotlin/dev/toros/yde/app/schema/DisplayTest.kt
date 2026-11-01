@@ -465,6 +465,57 @@ class DisplayTest {
     }
 
     @Test
+    fun `選択肢で項目が変わる要素は自動ではテーブルにせず 要約は選択肢のラベルと参照先の名前`() {
+        val schema = schemaOf(
+            """
+            id: t
+            name: t
+            match: "docs/**/*.yaml"
+            root:
+              type: object
+              fields:
+                - key: effects
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - key: code
+                        type: enum
+                        role: title
+                        values: [ { value: 21, label: ステート付加 }, { value: 13, label: TP増加 } ]
+                        cases:
+                          21: [ { key: dataId, type: ref, role: subtitle } ]
+                      - { key: value1, type: number }
+                      - { key: value2, type: number }
+                - key: forced
+                  type: array
+                  display: table
+                  item:
+                    type: object
+                    fields:
+                      - { key: code, type: enum, values: [a, b], cases: { a: [ { key: x, type: string } ] } }
+                      - { key: n, type: int }
+            """
+        )
+        val fields = schema.resolve(schema.root)!!.fields
+        // 3 列の object 配列でも、種類で dataId が変わるので表にしない。明示の table はそのまま
+        assertNull(Display.tableColumns(schema, fields[0]))
+        assertEquals(listOf("code", "n"), Display.tableColumns(schema, fields[1])!!.map { it.key })
+
+        val item = schema.resolve(fields[0])!!.item
+        val node = parse("{ code: 21, dataId: STA-0005, value1: 1 }")
+        val lookup: (String) -> String? = { if (it == "STA-0005") "呪い" else null }
+        // 畳んだ見出しは「ステート付加 — STA-0005 呪い」（選択肢は label、参照は名前を添える）
+        assertEquals("ステート付加 — STA-0005 呪い（3項目）", Display.headerText(node, schema, item, titleLookup = lookup))
+        assertEquals("ステート付加", Display.inline(node, schema, item))
+        // 索引のタイトル（titleOf）は値のまま
+        assertEquals("21", Display.titleOf(node, schema, item))
+        // スカラーの 1 行要約も選択肢は label（構成ツリーの「範囲 7」→「範囲 TP増加」のように）
+        val code = schema.resolve(item)!!.fields.first()
+        assertEquals("TP増加", Display.inline(YamlIO.parse("13"), schema, code))
+    }
+
+    @Test
     fun `ref 先の display が合成される`() {
         val schema = schemaOf(
             """
