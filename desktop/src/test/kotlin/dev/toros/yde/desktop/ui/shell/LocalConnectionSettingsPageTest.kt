@@ -12,6 +12,25 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class LocalConnectionSettingsPageTest {
+    @Test fun `Web単独で接続コードを発行しOFFで表示も失効する`() = runComposeUiTest {
+        val f = ConnectionSettingsFixture()
+        try {
+            runBlocking {
+                f.controller.initialize(); f.controller.setPort(f.port().toString())
+                f.controller.setEnabled(LocalFeature.WEB, true); f.settle()
+                assertNotNull(f.controller.register(LocalFeature.WEB, "ブラウザ", ConnectionPermissions(readScope = ConnectionReadScope.WORKSPACE)))
+            }
+            setContent { LocalConnectionSettingsPage(f.controller, "試験ワークスペース") {} }
+            onNodeWithText("接続コードを発行").performScrollTo().assertIsEnabled().performClick()
+            waitUntil(timeoutMillis = 10_000) { onAllNodesWithText("接続コードをコピー").fetchSemanticsNodes().isNotEmpty() }
+            onNodeWithText("Web を開く").assertIsEnabled()
+            assertFalse(f.server.connections.status.value.desired.apiEnabled)
+            runBlocking { f.controller.setEnabled(LocalFeature.WEB, false); f.settle() }
+            waitUntil(timeoutMillis = 5_000) { onAllNodesWithText("接続コードをコピー").fetchSemanticsNodes().isEmpty() }
+            onNodeWithText("接続コードを発行").performScrollTo().assertIsNotEnabled()
+        } finally { runBlocking { f.close() } }
+    }
+
     @Test fun `簡単設定で提案と直接確定を別々に選び業務操作名を選択する`() = runComposeUiTest {
         val f = ConnectionSettingsFixture()
         try {

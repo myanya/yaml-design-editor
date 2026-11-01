@@ -82,7 +82,7 @@ internal object ModuleRules {
         val include = Regex(""""\s*:([\w-]+)\s*"""")
         return settings.lines.flatMapIndexed { i, line ->
             include.findAll(line).map { it.groupValues[1] }
-                .filter { it !in SourceScanner.modules && it !in SourceScanner.testModules }
+                .filter { it !in SourceScanner.modules && it !in SourceScanner.testModules && it !in SourceScanner.nonJvmModules }
                 .map { Hit(settings, i + 1, "モジュール :$it が SourceScanner.modules に無い", key = it) }
                 .toList()
         } + rootSources

@@ -17,6 +17,7 @@ include(
     ":desktop",
     ":app-core",
     ":local-server",
+    ":web-ui",
     ":agent",
     ":format-office",
     ":repo-tests",

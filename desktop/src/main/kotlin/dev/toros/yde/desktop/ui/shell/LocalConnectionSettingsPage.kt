@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
@@ -23,6 +24,7 @@ import dev.toros.yde.desktop.ui.common.Palette
 import dev.toros.yde.server.*
 import dev.toros.yde.server.auth.ClientRegistration
 import dev.toros.yde.server.auth.IssuedCredential
+import dev.toros.yde.server.auth.WebLoginCode
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.delay
@@ -39,17 +41,20 @@ internal fun LocalConnectionSettingsPage(
     val status by controller.connections.status.collectAsState()
     val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
+    val uriHandler = LocalUriHandler.current
     var port by remember(status.desired.port) { mutableStateOf(status.desired.port.toString()) }
     var editor by remember { mutableStateOf<ClientEditor?>(null) }
     var issued by remember { mutableStateOf<IssuedCredential?>(null) }
+    var webLogin by remember { mutableStateOf<WebLoginCode?>(null) }
+    var browserError by remember { mutableStateOf<String?>(null) }
     var issuedTo by remember { mutableStateOf<String?>(null) }
     var confirmation by remember { mutableStateOf<Pair<String, suspend () -> Unit>?>(null) }
     var tick by remember { mutableIntStateOf(0) }
     LaunchedEffect(controller) { while (true) { delay(1000); tick++ } }
     val usable = model.ready && !model.busy && !model.blocked
-    LaunchedEffect(controller.workspaceId()) { editor = null; issued = null; issuedTo = null }
+    LaunchedEffect(controller.workspaceId()) { editor = null; issued = null; webLogin = null; issuedTo = null }
     val expires = issuedTo?.let { tick; controller.access.credentialExpiry(it) }
-    LaunchedEffect(expires) { if (expires == null) { issued = null; issuedTo = null } }
+    LaunchedEffect(expires) { if (expires == null) { issued = null; webLogin = null; issuedTo = null } }
 
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -76,7 +81,7 @@ internal fun LocalConnectionSettingsPage(
             HorizontalDivider(color = Palette.Border)
             Text("この PC 内の接続", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             Text("使う機能だけを ON にしてください。すべて OFF で停止が完了すると、待受ポートを閉じます。設定は次回起動時に復元します。", fontSize = 13.sp)
-            Text("API は保存版の閲覧・業務操作・変更提案・直接確定に対応しています。MCP の業務経路・Web 画面は順次公開予定です。", fontSize = 12.sp, color = Palette.SubText)
+            Text("API・MCP は保存版の閲覧・業務操作・変更提案・直接確定に対応しています。Web は接続とワークスペース概要に対応し、ダッシュボードは順次追加します。", fontSize = 12.sp, color = Palette.SubText)
             LocalFeature.entries.forEach { feature ->
                 val actual = status.features.getValue(feature)
                 Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -130,10 +135,13 @@ internal fun LocalConnectionSettingsPage(
                         TextButton(enabled = usable && current && editor == null, onClick = { editor = ClientEditor(registration) }) { Text("権限を編集") }
                         TextButton(enabled = issueUnavailable == null,
                             onClick = {
-                                val issue: suspend () -> Unit = { controller.issue(client.id)?.let { issuedTo = client.id; issued = it }; Unit }
+                                val issue: suspend () -> Unit = {
+                                    if (client.feature == LocalFeature.WEB) controller.issueWebLogin(client.id)?.let { issuedTo = client.id; webLogin = it; browserError = null }
+                                    else controller.issue(client.id)?.let { issuedTo = client.id; issued = it }
+                                }
                                 if (expiry == null) scope.launch { issue() }
-                                else confirmation = "「${client.name}」のトークンを再発行しますか？旧トークンを失効させ、実行中の要求を停止します。開始した保存の完了は待ちます。" to issue
-                            }) { Text(if (expiry == null) "トークンを発行" else "トークンを再発行") }
+                                else confirmation = "「${client.name}」の資格情報を再発行しますか？旧資格情報を失効させ、実行中の要求を停止します。開始した保存の完了は待ちます。" to issue
+                            }) { Text((if (client.feature == LocalFeature.WEB) "接続コードを" else "トークンを") + if (expiry == null) "発行" else "再発行") }
                         TextButton(enabled = usable && expiry != null, onClick = {
                             confirmation = "「${client.name}」の資格情報を失効させますか？実行中の要求は停止し、開始した保存の完了を待ちます。" to { controller.revoke(client.id) }
                         }) { Text("失効", color = Palette.ErrorRed) }
@@ -161,6 +169,22 @@ internal fun LocalConnectionSettingsPage(
             TextButton(onClick = { clipboard.setText(AnnotatedString(credential.value)) }) { Text("トークンをコピー") }
             Text("コピーした値を接続先ツールに設定してください。", fontSize = 12.sp)
         } }, confirmButton = { TextButton(onClick = { issued = null; issuedTo = null }) { Text("閉じる") } }) }
+    webLogin?.let { code ->
+        val expired = tick.let { !java.time.Instant.now().isBefore(code.expiresAt) }
+        val url = "http://127.0.0.1:${status.desired.port}/app/"
+        AlertDialog(onDismissRequest = { webLogin = null; issuedTo = null }, title = { Text("Web の接続コード") },
+            text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(if (expired) "接続コードの期限が切れました。閉じて再発行してください。" else "期限: ${time(code.expiresAt)}。2 分以内に 1 回だけ使えます。コードをコピーし、Web 画面に貼り付けて接続してください。")
+                TextButton(enabled = !expired, onClick = { clipboard.setText(AnnotatedString(code.value)) }) { Text("接続コードをコピー") }
+                TextButton(enabled = !expired, onClick = {
+                    browserError = runCatching { uriHandler.openUri(url) }.exceptionOrNull()?.let { "ブラウザを開けませんでした。下の接続先をコピーして開いてください。" }
+                }) { Text("Web を開く") }
+                TextButton(onClick = { clipboard.setText(AnnotatedString(url)) }) { Text("接続先をコピー") }
+                Text(url, fontSize = 12.sp)
+                browserError?.let { Text(it, color = Palette.ErrorRed) }
+                Text("ログイン後の有効期間は発行から 30 分です。再発行・Web OFF・権限変更・ワークスペース切替で接続は失効します。", fontSize = 12.sp)
+            } }, confirmButton = { TextButton(onClick = { webLogin = null; issuedTo = null }) { Text("閉じる") } })
+    }
     confirmation?.let { (message, action) -> AlertDialog(onDismissRequest = { confirmation = null }, title = { Text("確認") }, text = { Text(message) },
         confirmButton = { TextButton(onClick = { confirmation = null; scope.launch { action() } }) { Text("実行", color = Palette.ErrorRed) } },
         dismissButton = { TextButton(onClick = { confirmation = null }) { Text("キャンセル") } }) }
@@ -185,7 +209,6 @@ internal fun tokenIssueUnavailableReason(
         model.busy -> "接続設定を処理しています。完了するまで、トークンを発行できません。"
         workspaceId == null -> "トークンを発行するには、接続者を登録したワークスペースを開いてください。"
         registration.client.caller.workspaceId != workspaceId -> "別のワークスペースの登録です。登録したワークスペースを開いてから発行してください。"
-        feature == LocalFeature.WEB -> "Web のログインとセッション発行は、Web 画面の公開後に利用できます。"
         !status.desired.enabled(feature) -> "${feature.label()} が OFF のため発行できません。上の ${feature.label()} を ON にして、稼働中になるまで待ってください。"
         else -> when (status.features.getValue(feature).phase) {
             ConnectionPhase.STARTING -> "${feature.label()} を起動しています。稼働中になるとトークンを発行できます。"

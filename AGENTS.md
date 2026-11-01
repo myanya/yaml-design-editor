@@ -8,6 +8,7 @@ Kotlin + Compose for Desktop 製のスキーマ駆動 YAML エディタ。ワー
 
 ```bash
 ./gradlew test                              # 単体テスト（コミット前に必ず実行）
+./gradlew :web-ui:bundle                    # Web 資源の型検査・ビルド（通常のアプリビルドにも含む）
 ./gradlew test --tests '*WorkspaceInitTest*'  # 絞って実行（一致しないモジュールは失敗にしない）
 git config core.hooksPath scripts/git-hooks   # コミット前フック（クローンごとに 1 回。docs-lint と規則・参照のテスト。全テストは GitHub Actions）
 ./gradlew fileTreeBenchmark                 # 任意: 一時領域で1000・10万ファイルの一覧・検索を計測
@@ -27,6 +28,8 @@ scripts/docs-lint.sh                        # 文書の形の機械チェック
 
 要件: ビルドと実行は JDK 21（toolchain。無ければ Gradle が自動で取得する。`./gradlew` 自体は JDK 17 以上で動く）。初回ビルドは等幅フォント Cica の取得でネットワークが要る。GUI アプリのため `run` / `hotRun` は対話的に閉じる必要がある（検証はテスト・ビルド・`runCli` で行い、画面の確認は `.mcp.json` の Hot Reload MCP サーバで行い、手順は skill `ui-check`＝`.claude/skills/ui-check/SKILL.md`）。
 環境の癖（Python の呼び方・CLI 出力の文字コード・画面確認の手順・`labs/` と一時ファイルの扱い）は下の「この Windows 環境」にある。
+
+Web のビルドは Gradle が固定版の Node・npm を取得し、`web-ui/package-lock.json` から `npm ci` する。初回はネットワークが必要で、製品の利用時には Node を要しない。ブラウザ検査は [web-ui/README.md](web-ui/README.md)。
 
 ## 文書
 

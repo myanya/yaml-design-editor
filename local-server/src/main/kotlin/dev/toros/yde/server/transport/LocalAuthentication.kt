@@ -17,6 +17,8 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import kotlinx.io.readByteArray
 import kotlinx.serialization.json.*
+import java.security.SecureRandom
+import java.util.Base64
 
 internal const val WEB_SESSION_COOKIE = "yde_web_session"
 internal const val CSRF_HEADER = "X-YDE-CSRF"
@@ -25,10 +27,12 @@ private val accessKey = AttributeKey<LocalAccess>("LocalAccess")
 private val rejectedKey = AttributeKey<Boolean>("LocalAccessRejected")
 internal class McpSessionHooks(val bound: (String) -> Unit, val finish: suspend (Boolean) -> Unit)
 internal val McpSessionHooksKey = AttributeKey<McpSessionHooks>("McpSessionHooks")
+internal val WebStyleNonceKey = AttributeKey<String>("WebStyleNonce")
+private val webNonceRandom = SecureRandom()
 
 internal data class LocalRequestLimits(val bodyBytes: Int = 4 * 1024 * 1024, val headerBytes: Int = 16 * 1024, val bodyTimeoutMillis: Long = 10_000)
 
-/** 機能ゲートの後に組み込む。静的資源以外は毎要求認証し、資格情報を経路・本文・ログに置かない。 */
+/** 機能ゲートの後に組み込む。静的資源とコード交換以外は毎要求認証し、Cookie・Bearer を経路や本文へ置かない。 */
 internal fun Application.localAuthentication(connections: LocalConnections, access: LocalAccess, limits: LocalRequestLimits = LocalRequestLimits()) {
     intercept(ApplicationCallPipeline.Plugins) {
         var completed = false
@@ -39,11 +43,25 @@ internal fun Application.localAuthentication(connections: LocalConnections, acce
             call.response.headers.append(HttpHeaders.CacheControl, "no-store")
             call.response.headers.append("Referrer-Policy", "no-referrer")
             call.response.headers.append("X-Content-Type-Options", "nosniff")
-            call.response.headers.append("Content-Security-Policy", "default-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'")
+            val policy = "default-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'"
             if (call.request.path() == "/app" || call.request.path().startsWith("/app/")) {
+                val nonce = Base64.getEncoder().encodeToString(ByteArray(24).also(webNonceRandom::nextBytes))
+                call.attributes.put(WebStyleNonceKey, nonce)
+                call.response.headers.append("Content-Security-Policy", "$policy; style-src-elem 'self' 'nonce-$nonce'; style-src-attr 'unsafe-inline'")
                 if (call.request.httpMethod !in setOf(HttpMethod.Get, HttpMethod.Head)) throw LocalAccessFailure(405, "この要求方法は使えません")
                 proceed()
             } else {
+                call.response.headers.append("Content-Security-Policy", policy)
+                if (call.request.path() == "/web-api/session/login") {
+                    if (call.request.httpMethod != HttpMethod.Post || call.request.headers.getAll(HttpHeaders.Origin) != listOf(origin(port)) ||
+                        call.request.contentType().withoutParameters() != ContentType.Application.Json ||
+                        call.request.headers.getAll("X-YDE-Login") != listOf("1") || call.request.headers.contains(HttpHeaders.Authorization)) {
+                        throw LocalAccessFailure(403, "Web の接続画面から操作してください")
+                    }
+                    proceed()
+                    completed = true
+                    return@intercept
+                }
                 val identity = access.authenticate(feature, credential(call, feature))
                 access.check(identity, ConnectionCapability.READ)
                 val sessionIds = call.request.headers.getAll("Mcp-Session-Id")
@@ -66,7 +84,7 @@ internal fun Application.localAuthentication(connections: LocalConnections, acce
             if (failure.status == 401 && featureForPath(call.request.path()) != LocalFeature.WEB) {
                 call.response.headers.append(HttpHeaders.WWWAuthenticate, "Bearer realm=\"yde-local\"")
             }
-            if (featureForPath(call.request.path()) == LocalFeature.API) {
+            if (featureForPath(call.request.path()) in setOf(LocalFeature.API, LocalFeature.WEB)) {
                 val code = when (failure.status) { 401 -> "unauthorized"; 403 -> "forbidden"; 413 -> "limit_exceeded"; else -> "invalid_request" }
                 val body = buildJsonObject { put("error", buildJsonObject { put("code", code); put("message", failure.message.orEmpty()) }) }
                 call.respondText(body.toString(), ContentType.Application.Json, HttpStatusCode.fromValue(failure.status))
@@ -121,6 +139,23 @@ internal fun ApplicationCall.setLocalWebSession(credential: IssuedCredential) {
         extensions = mapOf("SameSite" to "Strict")))
 }
 
+/** 一回限りのコード交換後も、Cookie 応答の直前まで同じ証明を検査する。 */
+internal suspend fun ApplicationCall.acceptLocalWebSession(access: LocalAccess, credential: IssuedCredential, block: suspend () -> Unit) {
+    val identity = access.authenticate(LocalFeature.WEB, credential.value)
+    attributes.put(identityKey, identity)
+    attributes.put(accessKey, access)
+    attributes[LocalRequestKey].authorizeWith { access.check(identity) }
+    access.withIdentity(identity) { setLocalWebSession(credential); block() }
+}
+
+/** 認証・CSRF 検査済みのログアウトでのみ呼ぶ。失効済み証明で再認証せず、Cookie の解除だけを返す。 */
+internal fun ApplicationCall.forgetLocalWebSession() {
+    attributes.remove(identityKey)
+    attributes.remove(accessKey)
+    response.cookies.append(Cookie(WEB_SESSION_COOKIE, "", path = "/web-api", httpOnly = true, maxAge = 0,
+        extensions = mapOf("SameSite" to "Strict")))
+}
+
 private fun origin(port: Int) = "http://127.0.0.1" + if (port == 80) "" else ":$port"
 private fun single(call: ApplicationCall, name: String): String? = call.request.headers.getAll(name)?.singleOrNull()
 
@@ -151,7 +186,7 @@ private fun checkHeaders(call: ApplicationCall, port: Int, limits: LocalRequestL
     val sites = headers.getAll("Sec-Fetch-Site")
     if (sites != null && sites.singleOrNull() !in setOf("same-origin", "none")) throw LocalAccessFailure(403, "別のサイトからの要求は受け付けません")
     if (call.request.httpMethod.value in setOf("TRACE", "CONNECT")) throw LocalAccessFailure(405, "この要求方法は使えません")
-    if (call.request.queryParameters.names().any { it.lowercase() in setOf("token", "access_token", "authorization", "csrf", "session") }) {
+    if (call.request.queryParameters.names().any { it.lowercase() in setOf("token", "access_token", "authorization", "csrf", "session", "code") }) {
         throw LocalAccessFailure(400, "資格情報を URL に含めないでください")
     }
     val lengths = headers.getAll(HttpHeaders.ContentLength)

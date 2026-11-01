@@ -11,6 +11,8 @@ local.properties
 *.ttf
 .kotlin/
 /scratchpad/
+node_modules/
+**/dist/
 
 # AI の実行記録には会話・原文バックアップが含まれる
 _runs/

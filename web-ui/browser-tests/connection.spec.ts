@@ -1,0 +1,34 @@
+import { expect, test } from '@playwright/test';
+
+test('Web 単独で接続・再読込・ログアウトでき資格情報を永続保存しない', async ({ page, context }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', (message) => { if (/Content Security Policy|Refused to/.test(message.text())) errors.push(message.text()); });
+  await page.goto('/app/');
+  await expect(page.getByRole('heading', { name: '接続コードを入力' })).toBeVisible();
+  await page.screenshot({ path: 'build/browser-results/connect.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole('button', { name: '接続する', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: 'build/browser-results/mobile.png', fullPage: true });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.getByLabel('接続コード', { exact: true }).fill(process.env.YDE_WEB_CODE!);
+  await page.getByRole('button', { name: '接続する', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'ワークスペース概要' })).toBeVisible();
+  await expect(page.getByText('1件', { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByText('ブラウザ試験', { exact: true })).toBeVisible();
+  await expect(page.getByText('1件', { exact: true })).toBeVisible();
+  await page.screenshot({ path: 'build/browser-results/workspace.png', fullPage: true });
+  const cookie = (await context.cookies()).find((value) => value.name === 'yde_web_session');
+  expect(cookie?.httpOnly).toBe(true); expect(cookie?.sameSite).toBe('Strict'); expect(cookie?.path).toBe('/web-api');
+  expect(await page.evaluate(() => ({ local: localStorage.length, session: sessionStorage.length, cookie: document.cookie }))).toEqual({ local: 0, session: 0, cookie: '' });
+  expect(new URL(page.url()).search).toBe('');
+  expect((await context.request.get('/api/v1/workspace')).status()).toBe(404);
+  await page.getByRole('button', { name: 'ログアウト', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '接続コードを入力' })).toBeVisible();
+  expect((await context.cookies()).some((value) => value.name === 'yde_web_session')).toBe(false);
+  await page.reload();
+  await expect(page.getByRole('heading', { name: '接続コードを入力' })).toBeVisible();
+  expect(errors).toEqual([]);
+});

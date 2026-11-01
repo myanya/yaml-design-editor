@@ -44,6 +44,7 @@ YAML で設計項目（要求・設計・課題など）を管理するための
 | [local-connections.md](local-connections.md) | API・MCP・Web の接続設定、権限・トークン管理、保存済みの読取 API、トレイ常駐・非表示起動 |
 | [local-api-changes.md](local-api-changes.md) | API の変更提案・直接確定・定義済み操作・結果照会 |
 | [local-mcp.md](local-mcp.md) | 外部 AI からの MCP 接続・参照・作業と定義済み操作 |
+| [local-web.md](local-web.md) | ブラウザの接続コード・ログイン・概要・ログアウト |
 | [limits.md](limits.md) | 既知の制約 |
 
 ## ビルドと起動

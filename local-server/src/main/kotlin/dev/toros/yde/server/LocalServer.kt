@@ -9,6 +9,8 @@ import dev.toros.yde.server.api.writeApi
 import dev.toros.yde.server.auth.AccessWorkspace
 import dev.toros.yde.server.auth.LocalAccess
 import dev.toros.yde.server.mcp.workspaceMcp
+import dev.toros.yde.server.web.webApi
+import dev.toros.yde.server.web.webAssets
 import dev.toros.yde.server.transport.LoopbackEngine
 import dev.toros.yde.server.transport.localAuthentication
 import dev.toros.yde.server.transport.localConnectionGate
@@ -21,6 +23,8 @@ class LocalServer(scope: CoroutineScope, grants: ConnectionGrants, reads: Worksp
         LoopbackEngine(port) {
             localConnectionGate(connections)
             localAuthentication(connections, access)
+            webAssets()
+            reads?.let { webApi(access, it) }
             reads?.let { readApi(it) }
             if (work != null && operations != null) writeApi(work, operations)
             if (reads != null && work != null && operations != null) workspaceMcp(connections, access, reads, work, operations)

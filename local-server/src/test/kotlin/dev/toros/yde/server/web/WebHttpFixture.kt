@@ -1,0 +1,48 @@
+package dev.toros.yde.server.web
+
+import dev.toros.yde.app.service.*
+import dev.toros.yde.server.*
+import dev.toros.yde.server.auth.*
+import dev.toros.yde.server.transport.*
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.cio.CIO
+import java.nio.file.Files
+import java.util.concurrent.Executors
+import kotlinx.coroutines.*
+import kotlin.test.assertNull
+
+/** 配布する資源を実際の CIO から配信し、一時ワークスペースだけを公開する。 */
+internal class WebHttpFixture {
+    val root = Files.createTempDirectory("yde-web-http")
+    private val owner = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+    val host = WorkspaceHost(owner = owner)
+    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    val grants = ConnectionGrants()
+    val reads = WorkspaceReads(host, grants::get, { "web-test" })
+    val connections: LocalConnections = LocalConnections(scope, { _, connections ->
+        LoopbackEngine(0) {
+            localConnectionGate(connections)
+            localAuthentication(connections, access)
+            webAssets()
+            webApi(access, reads)
+        }
+    }, onDisabled = { access.featureStopped(it) })
+    val access = LocalAccess(scope, connections, grants, {
+        host.status.value.let { if (it.workspace != null) AccessWorkspace("web-test", it.epoch) else null }
+    })
+    val http = HttpClient(CIO)
+    val url: String get() = "http://127.0.0.1:${connections.status.value.boundPort}"
+    suspend fun start() {
+        Files.writeString(root.resolve("a.yaml"), "title: 保存済み\n")
+        withContext(owner) { host.openWorkspace(root) }
+        configure(LocalConnectionSettings(webEnabled = true))
+    }
+    suspend fun configure(settings: LocalConnectionSettings) {
+        assertNull(withTimeout(10_000) { connections.awaitSettled(connections.configure(settings)) }.error)
+    }
+    fun register() = access.register(LocalFeature.WEB, "ブラウザ試験", ConnectionPermissions(readScope = ConnectionReadScope.WORKSPACE))
+    suspend fun close() {
+        try { connections.shutdown() }
+        finally { http.close(); withContext(owner) { host.close() }; scope.cancel(); owner.close(); root.toFile().deleteRecursively() }
+    }
+}

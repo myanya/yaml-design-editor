@@ -14,10 +14,15 @@ dependencies {
 
 dependencyLocking { lockAllConfigurations() }
 
+tasks.processResources {
+    dependsOn(":web-ui:bundle")
+    from(rootProject.layout.projectDirectory.dir("web-ui/build/dist")) { into("web-ui") }
+}
+
 // 公開サンプルは一時ディレクトリへ写して契約試験に使う。
 tasks.withType<Test>().configureEach { workingDir = rootDir }
 
-// Node と Inspector は開発時の任意検査だけで使い、製品や通常の test には要求しない。
+// Inspector は開発時の任意検査だけで使い、製品や通常の test には要求しない。
 tasks.register<JavaExec>("verifyMcpInspector") {
     description = "取得済みの公式 Inspector CLI から一時ワークスペースへ実接続する"
     dependsOn(tasks.testClasses)
@@ -31,4 +36,14 @@ tasks.register<JavaExec>("verifyMcpInspector") {
             ?: error("-PinspectorCli=取得したInspectorのclients/launcher/build/index.jsを指定してください")
         args(rootProject.file(cli).absolutePath, providers.gradleProperty("inspectorNode").getOrElse("node"))
     }
+}
+
+tasks.register<JavaExec>("verifyWebBrowser") {
+    description = "同梱 Web 画面のログイン・再読込・ログアウトを実ブラウザで検査する"
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("dev.toros.yde.server.web.WebBrowserCheck")
+    workingDir = rootDir
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) })
+    doFirst { args(providers.gradleProperty("webNode").getOrElse("node")) }
 }

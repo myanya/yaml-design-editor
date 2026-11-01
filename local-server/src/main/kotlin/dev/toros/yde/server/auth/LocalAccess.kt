@@ -46,6 +46,7 @@ class LocalAccess(
     private val credentials = linkedMapOf<String, Credential>()
     private val mcpSessions = linkedMapOf<String, String>()
     private val activeRequests = linkedSetOf<Job>()
+    val webLogins = WebLogins(this, clock)
 
     fun register(feature: LocalFeature, name: String, permissions: ConnectionPermissions): LocalClient = synchronized(monitor) {
         val current = requireNotNull(workspace()) { "ワークスペースが開かれていません" }
@@ -199,6 +200,10 @@ class LocalAccess(
     }
 
     internal fun featureStopped(feature: LocalFeature) = synchronized(monitor) { invalidate { it.identity.client.feature == feature } }
+    internal fun endWebSession(identity: LocalIdentity) = synchronized(monitor) {
+        require(identity.client.feature == LocalFeature.WEB)
+        invalidate { it.identity === identity }
+    }
     fun workspaceChanged() = synchronized(monitor) {
         val current = workspace()
         invalidate { it.identity.client.caller.workspaceId != current?.id || it.epoch != current.epoch }

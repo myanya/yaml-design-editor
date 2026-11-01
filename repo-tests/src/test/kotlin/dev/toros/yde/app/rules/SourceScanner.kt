@@ -46,6 +46,8 @@ data class Hit(val file: SourceFile, val line: Int, val text: String, val key: S
 }
 
 object SourceScanner {
+    /** TypeScript は web-ui の型検査・Vitest・ブラウザ試験で検査し、Kotlin の構文走査へ混ぜない。 */
+    val nonJvmModules = setOf("web-ui")
     /** リポジトリのルート（settings.gradle.kts のある場所）。テストの作業ディレクトリから上へ探す。 */
     val repoRoot: Path by lazy {
         val start = Paths.get("").toAbsolutePath()

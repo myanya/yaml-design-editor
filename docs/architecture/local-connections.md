@@ -4,7 +4,7 @@
 
 ローカル接続は、通信ライブラリを local-server に閉じる組込み構成を取る。
 現在は設定型・機能別の状態機械・loopback 待受・接続者の認証と権限・保存版の閲覧と変更の API、および SDK・HTTP・同梱ランタイムの互換性検査がある。
-DesktopRuntime が接続管理を所有し、設定画面から三機能を個別に切り替える。設定のない起動では全て OFF のまま待受しない。MCP は同じ共通サービスで参照・変更を扱い、Web の業務経路は未接続。
+DesktopRuntime が接続管理を所有し、設定画面から三機能を個別に切り替える。設定のない起動では全て OFF のまま待受しない。MCP は同じ共通サービスで参照・変更を扱い、Web は接続と保存版の概要を公開する。
 全体の設計契約は [ローカル接続の決定](../decisions/0016-local-connections-and-shared-host.md)、実施順序は ROADMAP にある。
 外部確定と Undo は [履歴の決定](../decisions/0017-external-commit-and-desktop-history.md)、提案と直接確定は [作業方式の決定](../decisions/0019-external-work-commit-routes.md) が補足する。
 
@@ -18,6 +18,9 @@ DesktopRuntime が接続管理を所有し、設定画面から三機能を個�
 | `server.transport.LocalConnectionGate` / `server.LocalRequest` | HTTP 経路の機能判定、停止時の 404、要求と子ストリームの取消、保存完了待ち |
 | `service.ConnectionGrants` / `ConnectionPermissions` | 接続者とワークスペース別の閲覧・提案・直接確定・業務操作の許可、変更版と共通サービスへの権限供給 |
 | `server.auth.LocalAccess` | 接続登録、機能別の資格情報と失効、要求の寿命、MCP セッションの接続者との対応 |
+| `server.auth.WebLogins` | 一回限りの接続コードと Cookie の交換、CSRF の再取得とログアウト |
+| `server.web.WebAssets` / `WebApi` | 同梱資源の限定配信と Web 専用の通信経路 |
+| `web-ui/src/api.ts` / `ui/App.tsx` | OpenAPI 生成型による通信と接続・概要画面、失効時の表示解除 |
 | `server.transport.LocalAuthentication` | Host/Origin・認証・CSRF・要求量の検査、業務ハンドラでの能力と対象の再確認 |
 | `service.WorkspaceHost` / `WorkspaceStatus` | 共通セッションの所有、状態の世代・版・未保存・競合・処理中の通知、所有スレッドへの受付 |
 | `service.WorkspaceReads` / `ReadQuery` / `ReadResult` | 保存済みの読取条件・版・権限・量と寿命の制御 |
@@ -132,7 +135,7 @@ OFF の保存に失敗したら、次回起動で保存済みの希望値へ戻�
 アプリ終了による停止は保存した希望値を書き換えない。
 
 設定画面は資格情報の期限だけを表示し、API・MCP の発行時だけコピー用の値を保持する。閉じた表示から値を再取得しない。
-再起動・OFF・ワークスペースの世代変更では再発行が必要になる。Web のログインと Cookie の配送は Web アダプターの責務で、未接続である。
+再起動・OFF・ワークスペースの世代変更では再発行が必要になる。Web のログインと Cookie の配送は Web アダプターが行う。
 ConnectionSettingsStoreTest・LocalConnectionControllerTest・LocalConnectionSettingsPageTest が復元、保存失敗、画面の操作と取消・終了を検証する。
 ファイル保護の参照は [JDK の ACL 属性](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/nio/file/attribute/AclFileAttributeView.html) にある。
 
@@ -416,6 +419,26 @@ HTTP・SDK の初期化エラーとツールの業務エラーを分け、未知
 使い方は [MCP マニュアル](../manual/local-mcp.md)。WorkspaceMcpTest は公式クライアントで業務経路、McpCallerTest は停止・失効・保存完了待ちを検査する。
 McpHttpTest は CIO の実ポートで取消通知・期限切れ・再接続・上限拒否・部分停止と保存結果を検査する。通常の無操作期限は 15 分のままで、試験だけ短い期限を注入する。
 外部 Inspector の CLI による検査は任意タスクで実行し、Node と Inspector を製品の依存へ持ち込まない。手順は [local-server](../../local-server/README.md) にある。
+
+### Web の配信と接続
+
+`web-ui` は React・TypeScript・Vite の独立モジュールで、MUI・React Router・TanStack Query を使う。
+Gradle が固定版の Node・npm とロックファイルからビルドし、`build/dist` を local-server の資源へ同梱する。
+実行時は Node や外部 CDN を使わず、配信一覧に載った資源と接続ページだけを `/app` から返す。
+ワークスペースの任意ファイルやクラスパスは配信しない。CSP は同じ接続先のスクリプトだけを許し、Emotion の style 要素には応答ごとの nonce を使う。
+
+デスクトップで Web 登録に対して発行したコードは、2 分以内・1 回だけ交換できる。
+コードのハッシュと未配送の資格情報をメモリーで保持し、URL・設定・ログには置かない。
+`POST /web-api/session/login` は厳密な Origin、JSON、専用ヘッダーを要求し、交換後に専用 Cookie を返す。
+Cookie の証明は既存の LocalAccess が所有し、機能世代・ワークスペース・登録権限・期限による失効を共有する。
+`GET /web-api/session` は接続者・期限・CSRF を返し、再読込後も接続を継続する。
+`POST /web-api/session/logout` は Origin と CSRF を照合し、証明を失効させて Cookie を消す。
+`GET /web-api/workspace` は WorkspaceReads の保存版概要を返す。API のスイッチや Bearer トークンを使わない。
+
+契約は `local-server/src/main/resources/web-api/openapi.json` に置き、TypeScript の型を生成する。
+画面は Query のメモリーだけへ結果を保持し、5 秒間隔・再フォーカスで再取得する。認証失敗時は概要を消して接続画面へ戻す。
+資格情報は localStorage / sessionStorage に保存せず、Service Worker や永続キャッシュも使わない。
+この層は表示と通信だけを担当し、Query・Rewrite の評価器や保存の規則を追加しない。
 
 ## 拡張ポイント
 

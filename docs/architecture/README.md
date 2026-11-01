@@ -35,12 +35,13 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 - 永続化: `java.util.prefs.Preferences`（UI レイアウト・テーマ・履歴・AI モデル設定）
 - ビルド: Gradle（Wrapper 同梱）マルチモジュール。root はビルド全体の設定だけでソースを置かない（モジュールの一覧は下の表）。テスト: kotlin.test
 - ヘッドレス CLI: `./gradlew runCli --args="…"`（[manual/cli.md](../manual/cli.md)）
+- 業務 Web: React・TypeScript・Vite、MUI・React Router・TanStack Query（[web-ui](../../web-ui/README.md)）。型は OpenAPI から生成し、Vitest・Playwright で検査する。
 
 ## モジュールと依存方向
 
 パッケージは `dev.toros.yde.<モジュール>.*`（規則は CONVENTIONS「モジュールの規約」）。依存方向は ADR-0002（app-core は ADR-0013）が正: `yaml-core ← semantic-core ← workspace-core ← app-core ← agent ← desktop`（cli は app-core・agent・拡張まで・拡張 format-office は app-core まで）。repo-tests はテストだけのモジュールで、全モジュールに依存してよい。
 構成（画面を持たない応用層 app-core・agent・入口と拡張）は ADR-0013 が正で、ビューの種類の差し込み口は ADR-0014、組込みと拡張の分け方は ADR-0015。
-ローカル接続は [ローカル接続の決定](../decisions/0016-local-connections-and-shared-host.md) に従い、`app-core ← local-server ← desktop / cli` とする。接続設定・認証・参照と変更の API / MCP・CLI の明示接続があり、Web の業務経路は未接続。
+ローカル接続は [ローカル接続の決定](../decisions/0016-local-connections-and-shared-host.md) に従い、`app-core ← local-server ← desktop / cli` とする。Web は HTTP で接続し、ビルド済み資源を local-server に同梱する。
 文書とコメントでは接頭辞を省いて `schema.FieldDef`・`validate/Validator.kt` のように書き、同じ短い名前が複数のモジュールにあるとき（`schema`・`validate`・`core`）はモジュール名を添える。
 
 | モジュール | パッケージ | 中身 |
@@ -76,7 +77,8 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 | | `agent.eval` | 評価と指標: `EvalRunner`（評価セット・比較実験）・`RunMetrics`（実行記録の集計） |
 | | `agent.llm` | LLM との接続（`AiGenerator`・各プロバイダの生成器・`Connection`・`Http`・ツール呼び出しの往復 `ToolChat`） |
 | format-office | `format.office` | 拡張: Excel の表の読み書きと Word 文書の中の表の読み取り（Apache POI）の `FormatCodec`（`XlsxFormat.kt`・`DocxFormat.kt`）。POI はここだけ |
-| local-server | `server`・`server.transport`・`server.api`・`server.mcp`・`server.protocol`・`server.client` | 接続設定・待受・認証・API / MCP・共通の通信形式・CLI 用クライアント（Ktor/CIO・MCP SDK の隔離） |
+| local-server | `server`・`server.transport`・`server.auth`・`server.api`・`server.mcp`・`server.web`・`server.protocol`・`server.client` | 接続設定・待受・認証・API / MCP / Web・共通の通信形式・CLI 用クライアント（Ktor/CIO・MCP SDK の隔離） |
+| web-ui | `src/api.ts`・`src/ui/` | Web 専用通信と接続・概要画面（JVM に直接依存しない TypeScript モジュール） |
 | desktop | `desktop` | `Main.kt`（エントリポイント・ウィンドウ・ショートカット）・`AppState` / `OpenDocument`・画面の設定 `UiPreferences`・EDT へ戻す `DesktopUiDispatcher`・AI 生成の要求 `AiRequests` |
 | | `desktop.ui` | Compose の画面一式。役割で 10 のパッケージ（common・form・source・schema・view・graph・file・run・action・shell）に分ける（ui.md「画面のパッケージ」。骨格は `ui/shell/AppRoot.kt`）。差し込み口を通る種類（chart・flow）の描画の一覧 `ViewRenderers` もここ（ADR-0014） |
 | | `desktop.ext` | 拡張の登録の一覧（`DesktopExtensions`。Excel と Word の形式）。入口が `Extensions.install` に渡す 1 ファイル |
@@ -93,6 +95,7 @@ app-core（`app.core` / `app.index` / `app.schema` / `app.validate` / `app.text`
 モジュールの形の規則（`rules/ModuleRules`）: settings.gradle.kts の全モジュールを走査し root にソースを置かない・拡張の実装は入口の登録の一覧に載せる・拡張は app-core とカーネルだけを使う・拡張は決まった形（README・共通の設定の build・テスト・モジュール名どおりのパッケージ・公開は差し込み口の実装だけ。ビューの種類は描画が読む型も）・agent のファイルの間に循環を作らない。
 文書の参照（今の姿の文書が指す `.kt` の名前・テスト名・「ファイル名＋見出し」）の実在は同じ場所の `rules/DocReferencesTest` が見る。
 ローカル接続の規則は Ktor・MCP の import と Gradle の直接依存、local-server から入口への逆依存を止める。app.service は app-core の最上層として扱う。
+TypeScript の web-ui は nonJvmModules に明示登録し、Kotlin の構文走査と分ける。型検査・Vitest を Gradle に接続し、ブラウザ検査で配信との整合を確認する。
 落ちたらメッセージの「説明」の見出しを読む。規則を足すときは表に 1 つ足し、テストを 1 つ足す。今は直せていない違反は表の `known` に理由つきで書き、直したら消す（残っているとテストが「不要」と知らせる）。
 800 行を超える main のファイルは目安として報告するだけで失敗にしない（文書の字数と同じ扱い。`repo-tests/build/reports/source-rules/large-files.txt` に書き、pre-commit のフックが表示する）。
 

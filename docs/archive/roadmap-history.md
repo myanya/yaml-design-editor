@@ -1323,3 +1323,21 @@ MCP の既存業務経路を CIO の実ポート、公式 Kotlin SDK 0.16.0 と 
 Core Calculus 上は通信と寿命の管理・既存サービスの結合試験で、Query・Predicate・Rewrite や保存経路の新設・変更はない。
 R47-70 の MCP の入口も本工程で完了。次は R49-60 の Web のビルド・配信・認証を進める。
 全モジュールの test が成功し、MCP 関連は既存分を含む 18 件が失敗なし。文書同期後の docs-lint は失敗なし（既存の目安の指摘 87 件）、git diff --check も成功した。
+
+### P49: Web のビルドと配信・認証（R49-60、2026-11-01）
+
+確認済みの MCP 対応を 4474aae にコミットした後、独立した web-ui と Web 専用の通信を追加した。
+
+- React 19.3.1・TypeScript 5.9.3・Vite 8.3.5、MUI 9.5.0・React Router 7.18.5・TanStack Query 5.105.0 を固定した。Node 24.21.0・npm 11.19.0 は Gradle が取得し、package-lock.json に従って npm ci する。
+- Web の OpenAPI から TypeScript 型を生成し、型検査・Vite ビルド・配信一覧の作成を Gradle に接続した。同じ型の同時生成を避ける共通タスクを置き、通常の test は Vitest も実行する。JVM の --tests による絞込みも維持した。
+- ビルド済み資源だけを local-server に同梱し、API が OFF でも /app と /web-api を Web のスイッチだけで利用できる。Node・外部 CDN・ワークスペース内の任意ファイルの配信には依存しない。
+- デスクトップで発行する 2 分・1 回限りの接続コードを、同じ Origin の JSON 要求で専用 Cookie へ交換する。コードを URL に置かず、Cookie は HttpOnly・SameSite=Strict・Path=/web-api とする。ログアウトには Origin と CSRF の照合を要求する。
+- 資格情報の期限・再発行・Web OFF・権限変更・ワークスペース世代の失効は LocalAccess に統一した。画面再読込は Cookie で継続し、失効・通信失敗では概要を隠す。接続情報と応答は永続ストレージへ置かない。
+- 接続画面・保存済み文書の件数・ログアウトを実装した。デスクトップの「接続コードをコピー」「Web を開く」を追加し、コードの期限と失効を表示へ反映する。
+
+WebLoginsTest の 2 件で一回性・期限境界・権限変更・停止・世代変更を、WebHttpTest の 2 件で実 CIO のログイン・契約・CSRF・Cookie・ログアウト・限定配信・部分停止を検査した。
+Compose の設定画面 11 件（新規 1 件）と Vitest 2 件が成功した。Playwright 1.64.1 の Chromium で実サーバへ接続し、ログイン・再読込・ログアウト、API OFF、Cookie 属性、永続ストレージ不使用、CSP 違反なしを確認した。幅 1280 と 390 の画面を画像でも確認した。
+利用方法は manual/local-web.md、構成と寿命は architecture/local-connections.md、開発手順は web-ui/README.md に記載した。UX-SCENARIOS は変更していない。
+Core Calculus 上は通信・認証と既存 WorkspaceReads の呼出で、意味の計算・編集・保存経路を追加していない。
+外部版は 0.2.0 のまま。次は R49-61 のダッシュボードと業務詳細、R49-62 の業務操作で、配布物と npm ライセンスの通し検査は R49-71 に残す。
+全モジュールの test が成功した（8 分 50 秒、69 タスク）。文書同期後の docs-lint は失敗なし（既存の目安の指摘 87 件）、git diff --check も成功した。

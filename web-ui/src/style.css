@@ -1,0 +1,10 @@
+:root { color-scheme: light; font-synthesis: none; text-rendering: optimizeLegibility; }
+body { margin: 0; }
+.app-header { padding: 22px 0; background: white; border-bottom: 1px solid #dce3e8; }
+.brand-mark { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; background: #176b61; color: white; font-size: 24px; font-weight: 700; }
+.main-content { padding-top: 64px; padding-bottom: 64px; min-height: calc(100vh - 156px); }
+.connect-layout { display: grid; grid-template-columns: 1.1fr 1fr; gap: 80px; align-items: center; padding: 40px 0; }
+.connect-intro { max-width: 490px; }
+.connect-card { padding: 40px; border-color: #dce3e8; box-shadow: 0 12px 40px #20304408; }
+.app-footer { padding-bottom: 24px; }
+@media (max-width: 760px) { .main-content { padding-top: 28px; padding-bottom: 32px; } .connect-layout { grid-template-columns: 1fr; gap: 28px; padding: 0; } .connect-card { padding: 24px; } }

@@ -709,7 +709,7 @@ Core Calculus の位置づけは、読取が Term / Query、表示値が Express
 | R49-42 | CLI の明示的な接続モード | cli・local-server の client | R49-41 | 対応する読取・業務操作を API 経由で行い、API OFF・無権限では独立書込へ迂回しない | ✅ 2026-11-01（[記録](archive/roadmap-history.md)） |
 | R49-50 | MCP のツールと作業管理 | local-server・app-core | R49-12・21・31・41 | 外部 AI の読取・編集・検証・提案・直接確定・破棄が動き、内蔵 LLM に依存しない | ✅ 2026-11-01（[記録](archive/roadmap-history.md)） |
 | R49-51 | MCP の相互運用と再接続 | local-server・repo-tests | R49-50 | SDK クライアントと Inspector で、初期化・取消・期限切れ・再接続・停止を確認 | ✅ 2026-11-01（[記録](archive/roadmap-history.md)） |
-| R49-60 | Web のビルドと配信・認証 | web-ui・local-server・desktop | R49-21・40 | 同梱資源だけで画面を開け、API OFF・Web ON で業務通信が成立 | 未着手 |
+| R49-60 | Web のビルドと配信・認証 | web-ui・local-server・desktop | R49-21・40 | 同梱資源だけで画面を開け、API OFF・Web ON で業務通信が成立 | ✅ 2026-11-01（[記録](archive/roadmap-history.md)） |
 | R49-61 | ダッシュボードと業務詳細 | web-ui・app-core | R49-60 | 表・集計・チャート・基準日・参照・保留理由が同じ版のサーバ結果と一致 | 未着手 |
 | R49-62 | 業務操作の入力・確認・適用 | web-ui・app-core | R49-41・61 | 定義から入力を作り、古い確認と未保存の競合を止めて適用後に再取得 | 未着手 |
 | R49-70 | 通し試験と操作体験の確認 | 各モジュール・repo-tests・UX-SCENARIOS | R49-30・42・51・62 | 下記の必須受入条件がすべて通り、制約と試し方を記録 | 未着手 |

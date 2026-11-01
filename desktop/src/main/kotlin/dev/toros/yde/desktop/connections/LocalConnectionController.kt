@@ -154,9 +154,11 @@ internal class LocalConnectionController(
 
     suspend fun issue(id: String): IssuedCredential? = edit {
         val client = access.clients().first { it.id == id }
-        require(client.feature != LocalFeature.WEB) { "Web のログインは画面配信の公開後に利用できます" }
+        require(client.feature != LocalFeature.WEB) { "Web では接続コードを発行してください" }
         access.issueBearer(id)
     }
+
+    suspend fun issueWebLogin(id: String): WebLoginCode? = edit { access.webLogins.issue(id) }
 
     suspend fun reset() = mutex.withLock {
         if (closing) return@withLock
