@@ -12,6 +12,71 @@ import kotlinx.coroutines.*
 import kotlin.test.*
 
 class WorkspaceOperationsTest {
+    private fun Fixture.formService(): WorkspaceOperations {
+        Files.createDirectories(root.resolve("_schemas"))
+        Files.writeString(root.resolve("_schemas/item.yaml"), """
+            id: item
+            match: '*.yaml'
+            root:
+              type: object
+              fields:
+                - {key: title, type: string, required: true}
+            actions:
+              - id: rename
+                label: 名称変更
+                target: {schema: item}
+                input:
+                  submit: changed
+                  initial:
+                    title: {${'$'}copy: title, ${'$'}of: self}
+                params:
+                  - {key: title, label: 名前, type: string, required: true}
+                  - {key: note, type: string, default: 既定値}
+                do:
+                  - set: {path: title, value: ${'$'}title}
+        """.trimIndent())
+        grant = grant!!.copy(actions = setOf("rename"), applyChanges = false)
+        return service()
+    }
+    private fun Fixture.savedVersion() = savedRevision(Workspace.open(root).mirror.storedState())
+
+    @Test fun `入力は定義から準備し初期値と必須を共有して確認済みの内容だけ保存する`() = runCase {
+        val service = formService()
+        val input = service.prepareActionInput(caller, ActionRequest("rename", "a.yaml"), savedVersion())
+        assertEquals("a", input.values["title"])
+        assertEquals("既定値", input.values["note"])
+        assertTrue(input.changedOnly)
+        assertEquals(true, input.fields.first()["required"])
+        val unchanged = service.planActionInput(caller, input.id, input.values)
+        assertTrue(unchanged.canCommit, unchanged.failures.toString()) // 必須の title は changed でも省略しない。
+        val plan = service.planActionInput(caller, input.id, input.values + ("title" to "変更後"))
+        assertContains(Files.readString(root.resolve("a.yaml")), "title: a")
+        val result = service.commit(caller, plan.id, "form")
+        assertEquals(OperationState.COMMITTED, result.state, result.message)
+        assertContains(Files.readString(root.resolve("a.yaml")), "変更後")
+        assertEquals(result, service.commit(caller, plan.id, "form"))
+    }
+
+    @Test fun `入力開始後の保存版と権限と期限を照合し別の接続者へ入力を渡さない`() = runCase {
+        val service = formService()
+        suspend fun prepare() = service.prepareActionInput(caller, ActionRequest("rename", "a.yaml"), savedVersion())
+        val input = prepare()
+        assertFailsWith<IllegalArgumentException> { service.planActionInput(caller.copy(callerId = "other"), input.id, input.values) }
+        assertFailsWith<ReadFailure> { service.prepareActionInput(caller, ActionRequest("rename", "a.yaml"), "0".repeat(64)) }
+        Files.writeString(root.resolve("b.yaml"), "title: 外部の変更\n")
+        assertEquals(ReadFailureCode.STALE_REVISION, assertFailsWith<ReadFailure> { service.planActionInput(caller, input.id, input.values) }.code)
+        val changedGrant = prepare()
+        grant = grant!!.copy(revision = grant!!.revision + 1)
+        assertFailsWith<ReadFailure> { service.planActionInput(caller, changedGrant.id, changedGrant.values) }
+        val expired = prepare()
+        now = now.plusSeconds(601)
+        assertFailsWith<ReadFailure> { service.planActionInput(caller, expired.id, expired.values) }
+        val edited = prepare()
+        host.documents.ensureDocument(root.resolve("a.yaml")).noteSourceInput("title: 未保存")
+        assertFailsWith<ReadFailure> { service.planActionInput(caller, edited.id, edited.values) }
+        assertContains(Files.readString(root.resolve("a.yaml")), "title: a")
+    }
+
     private class MemoryJournal : OperationJournal {
         val records = linkedMapOf<String, OperationRecord>()
         var fail: (OperationRecord) -> Boolean = { false }

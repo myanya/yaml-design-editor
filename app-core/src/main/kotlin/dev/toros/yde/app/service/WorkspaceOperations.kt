@@ -1,6 +1,7 @@
 package dev.toros.yde.app.service
 
 import dev.toros.yde.app.core.Workspace
+import dev.toros.yde.semantic.schema.ActionInput
 import dev.toros.yde.workspace.*
 import dev.toros.yde.workspace.changeset.ChangeSet
 import dev.toros.yde.workspace.changeset.ChangeSets
@@ -39,6 +40,11 @@ data class OperationPreview(
     val issues: Map<DocumentId, List<CheckIssue>>, val failures: Map<String, String>, val canCommit: Boolean,
 )
 
+data class OperationInput(
+    val id: String, val name: String, val label: String, val target: String?, val expiresAt: Instant,
+    val fields: List<Map<String, Any?>>, val values: Map<String, Any?>, val changedOnly: Boolean,
+)
+
 /** 通信非依存の外部確定窓口。全入口を Host の所有スレッドと排他へ集める。 */
 class WorkspaceOperations(
     private val host: WorkspaceHost,
@@ -56,6 +62,63 @@ class WorkspaceOperations(
         val prepared: PreparedChangeSet, val action: ActionRequest?,
     )
     private val plans = linkedMapOf<String, Plan>()
+    private data class Input(
+        val caller: OperationCaller, val epoch: String, val revision: Long, val grant: OperationGrant,
+        val savedRevision: String, val preparedAt: Instant, val expires: Instant,
+        val request: ActionRequest, val entry: ActionEntry, val tree: dev.toros.yde.semantic.schema.SchemaTree, val values: Map<String, Any?>,
+    )
+    private val inputs = linkedMapOf<String, Input>()
+
+    /** 初期値の出どころと対象をサーバで保持し、フォームから任意の計画へ付け替えさせない。 */
+    suspend fun prepareActionInput(caller: OperationCaller, request: ActionRequest, revision: String): OperationInput =
+        host.exclusive("操作の入力準備") {
+            require(request.params.isEmpty()) { "初期値は定義から準備します" }
+            val (root, grant) = authorize(caller)
+            checkKind(grant, request)
+            val status = host.currentStatus()
+            val now = clock()
+            inputs.entries.removeIf { !now.isBefore(it.value.expires) || it.value.epoch != status.epoch }
+            require(inputs.size < 256) { "入力の作業が多すぎます。期限切れを待ってください" }
+            val prepared = withContext(Dispatchers.IO) {
+                val base = load(root)
+                require(base.schemaErrors.isEmpty()) { "スキーマの読込エラーがあります" }
+                val before = base.storedState()
+                checkReadInputs(grant.readPermission, before.keys)
+                readRequire(savedRevision(before) == revision, ReadFailureCode.STALE_REVISION, "保存内容が変わりました。最新の内容から操作を開き直してください")
+                val entry = ActionPlanner.catalog(base.schemas).single { it.name == request.name && it.kind != "create" }
+                require(entry.target == null && request.target == null || entry.target != null && request.target != null) { "操作の対象を確認してください" }
+                val availability = ActionPlanner.availability(base, request)
+                if (!availability.enabled) throw ActionFailure(availability.reason ?: "この操作は実行できません")
+                val values = ActionPlanner.prepareInput(base, request, LocalDateTime.ofInstant(now, zone)).values
+                val fields = BusinessActionForms.fields(base, entry)
+                readRequire(before == base.readStoreState(), ReadFailureCode.STALE_REVISION, "入力の準備中に保存内容が変わりました")
+                Triple(Input(caller, status.epoch, status.revision, grant, revision, now, now.plus(planLifetime), request, entry,
+                    base.schemas.single { it.id == entry.definedIn }.tree, values), fields, values)
+            }
+            checkSnapshot(status.epoch, status.revision)
+            require(authorize(caller).second == grant) { "権限が変わりました" }
+            val id = UUID.randomUUID().toString()
+            inputs[id] = prepared.first
+            OperationInput(id, request.name, prepared.first.entry.label ?: request.name, request.target, prepared.first.expires,
+                prepared.second, freezeValues(prepared.third), prepared.first.entry.input?.submit == "changed")
+        }
+
+    suspend fun planActionInput(caller: OperationCaller, inputId: String, values: Map<String, Any?>): OperationPreview {
+        val input = host.access {
+            requireNotNull(inputs[inputId]) { "入力の作業がありません。操作を開き直してください" }.also {
+                require(it.caller == caller) { "別の接続者の入力です" }
+            }
+        }
+        require(values.keys.all { key -> input.entry.params.any { it.key == key } }) { "未定義の入力があります" }
+        val params = ActionInput.submitted(input.entry.params, input.entry.input, YamlIO.fromAny(freezeValues(values)) as dev.toros.yde.yaml.model.YNode.Map,
+            input.tree, emptyMap(), input.values)
+        val request = input.request.copy(params = params)
+        return plan(caller, request, input) { base, now -> ActionPlanner.plan(base, request, now).changeSet }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun freezeValues(values: Map<String, Any?>): Map<String, Any?> =
+        YamlIO.toAny(YamlIO.parse(YamlIO.dumpPlain(YamlIO.fromAny(values)))) as Map<String, Any?>
 
     /** 後続の接続登録が別の識別子を使う場合も、この解決だけを差し替える。 */
     suspend fun currentWorkspaceId(): String = host.access { workspaceId(requireNotNull(it.workspace)) }
@@ -72,12 +135,16 @@ class WorkspaceOperations(
         return plan(caller, null) { _, _ -> frozen }
     }
 
-    private suspend fun plan(caller: OperationCaller, action: ActionRequest?, make: (WorkspaceSession, LocalDateTime) -> ChangeSet): OperationPreview =
+    private suspend fun plan(caller: OperationCaller, action: ActionRequest?, input: Input? = null, make: (WorkspaceSession, LocalDateTime) -> ChangeSet): OperationPreview =
         host.exclusive("操作の計画") {
             val (root, grant) = authorize(caller)
             checkKind(grant, action)
             val status = host.currentStatus()
             val now = clock()
+            input?.let {
+                readRequire(it.caller == caller && it.grant == grant && it.epoch == status.epoch && it.revision == status.revision && now.isBefore(it.expires),
+                    ReadFailureCode.STALE_REVISION, "入力の開始後に状態が変わったか期限が切れました。操作を開き直してください")
+            }
             plans.entries.removeIf { !now.isBefore(it.value.expires) || it.value.epoch != status.epoch }
             require(plans.size < 256) { "計画が多すぎます。期限切れを待って再計画してください" }
             val (before, prepared, layout) = withContext(Dispatchers.IO) {
@@ -85,8 +152,9 @@ class WorkspaceOperations(
                 require(base.schemaErrors.isEmpty()) { "スキーマの読込エラーがあるため計画できません" }
                 val before = base.storedState()
                 checkReadInputs(grant.readPermission, before.keys)
+                readRequire(input == null || savedRevision(before) == input.savedRevision, ReadFailureCode.STALE_REVISION, "入力の開始後に保存内容が変わりました。操作を開き直してください")
                 require(before == base.readStoreState()) { "読込中に変更されました。再計画してください" }
-                val prepared = ChangeSetApplier.prepare(base, make(base, LocalDateTime.ofInstant(now, zone)), LocalDateTime.ofInstant(now, zone))
+                val prepared = ChangeSetApplier.prepare(base, make(base, LocalDateTime.ofInstant(input?.preparedAt ?: now, zone)), LocalDateTime.ofInstant(now, zone))
                 checkExternalWritePaths(root, prepared.documents.map { it.id }, base.layout)
                 require(before == base.readStoreState()) { "計画中に変更されました。再計画してください" }
                 Triple(before, prepared, base.layout)

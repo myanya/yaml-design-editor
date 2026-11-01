@@ -91,6 +91,6 @@ function WorkspaceHome({ session, disconnected }: { session: api.Session; discon
         <Typography variant="caption" color="text.secondary">接続の期限: {new Date(session.expiresAt).toLocaleString('ja-JP')}</Typography>
       </Stack>
     </Paper>
-    {overview.isSuccess && <BusinessWorkspace session={session} revision={overview.data.revision} refresh={refresh} />}
+    {overview.data && <BusinessWorkspace session={session} revision={overview.data.revision} refresh={refresh} />}
   </Stack>;
 }

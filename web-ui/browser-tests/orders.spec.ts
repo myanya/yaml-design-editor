@@ -35,8 +35,8 @@ test('注文の集計を絞り込み、詳細と参照をたどり、チャー�
   await expect(page.getByRole('table', { name: '図の数値' })).toBeVisible();
   await page.screenshot({ path: 'build/browser-results/order-dashboard.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({ path: 'build/browser-results/order-mobile.png', fullPage: true });
+  try { await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true); }
+  finally { await page.screenshot({ path: 'build/browser-results/order-mobile.png', fullPage: true }); }
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.getByRole('button', { name: /^顧客別の順位\s/ }).click();
   const ranking = page.getByRole('img', { name: '顧客別の順位' });

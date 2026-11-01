@@ -303,6 +303,237 @@
           }
         }
       }
+    },
+    "/web-api/operations/prepare": {
+      "post": {
+        "operationId": "prepareOperation",
+        "parameters": [
+          {
+            "name": "X-YDE-CSRF",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OperationPrepareRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "業務操作の結果",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationInputResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "業務操作の結果",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/web-api/operations/plan": {
+      "post": {
+        "operationId": "planOperation",
+        "parameters": [
+          {
+            "name": "X-YDE-CSRF",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OperationPlanRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "業務操作の結果",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationPreviewResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "業務操作の結果",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/web-api/operations/commit": {
+      "post": {
+        "operationId": "commitOperation",
+        "parameters": [
+          {
+            "name": "X-YDE-CSRF",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OperationCommitRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "業務操作の結果",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationResultResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "業務操作の結果",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/web-api/operations": {
+      "get": {
+        "operationId": "businessOperations",
+        "parameters": [
+          {
+            "name": "entity",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "revision",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "業務操作の結果",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessActionsResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "業務操作の結果",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/web-api/operations/results/{id}": {
+      "get": {
+        "operationId": "operationResult",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "業務操作の結果",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationResultResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "業務操作の結果",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1696,6 +1927,548 @@
         "required": [
           "id",
           "revision"
+        ],
+        "additionalProperties": false
+      },
+      "OperationPreviewResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/OperationPreview"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "OperationPreview": {
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string"
+          },
+          "canCommit": {
+            "type": "boolean"
+          },
+          "documents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChangedDocument"
+            }
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WriteIssue"
+            }
+          },
+          "failedDocuments": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "planId",
+          "expiresAt",
+          "canCommit",
+          "documents",
+          "issues",
+          "failedDocuments"
+        ],
+        "additionalProperties": false
+      },
+      "ChangedDocument": {
+        "type": "object",
+        "properties": {
+          "document": {
+            "type": "string"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "after": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "document",
+          "before",
+          "after"
+        ],
+        "additionalProperties": false
+      },
+      "WriteIssue": {
+        "type": "object",
+        "properties": {
+          "document": {
+            "type": "string"
+          },
+          "path": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            }
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "error",
+              "warning",
+              "info"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "document",
+          "path",
+          "severity",
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "OperationResultResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/OperationResult"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "OperationResult": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string"
+          },
+          "planId": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "received",
+              "applying",
+              "committed",
+              "rejected",
+              "partial",
+              "unknown",
+              "reconciled"
+            ]
+          },
+          "before": {
+            "type": "object",
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "after": {
+            "type": "object",
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "persistence": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "requestId",
+          "planId",
+          "state",
+          "before",
+          "after",
+          "persistence"
+        ],
+        "additionalProperties": false
+      },
+      "BusinessAction": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "label",
+          "description",
+          "target",
+          "enabled",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "BusinessActions": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BusinessAction"
+            }
+          },
+          "offset": {
+            "type": "integer"
+          },
+          "nextOffset": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "offset",
+          "nextOffset",
+          "truncated"
+        ],
+        "additionalProperties": false
+      },
+      "BusinessActionsResponse": {
+        "type": "object",
+        "properties": {
+          "workspaceId": {
+            "type": "string"
+          },
+          "epoch": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "data": {
+            "$ref": "#/components/schemas/BusinessActions"
+          }
+        },
+        "required": [
+          "workspaceId",
+          "epoch",
+          "revision",
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "ActionField": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "string",
+              "int",
+              "number",
+              "boolean",
+              "enum",
+              "date",
+              "time",
+              "datetime",
+              "file",
+              "id",
+              "ref",
+              "array",
+              "object"
+            ]
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "placeholder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "multiline": {
+            "type": "boolean"
+          },
+          "default": {
+            "$ref": "#/components/schemas/JsonValue"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "value",
+                "label"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActionField"
+            }
+          },
+          "item": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActionField"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "type",
+          "required",
+          "description",
+          "placeholder",
+          "multiline",
+          "default",
+          "options",
+          "fields",
+          "item"
+        ],
+        "additionalProperties": false
+      },
+      "OperationInput": {
+        "type": "object",
+        "properties": {
+          "inputId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expiresAt": {
+            "type": "string"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActionField"
+            }
+          },
+          "values": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            }
+          },
+          "changedOnly": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "inputId",
+          "name",
+          "label",
+          "target",
+          "expiresAt",
+          "fields",
+          "values",
+          "changedOnly"
+        ],
+        "additionalProperties": false
+      },
+      "OperationInputResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/OperationInput"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "OperationPrepareRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "name",
+          "revision"
+        ],
+        "additionalProperties": false
+      },
+      "OperationPlanRequest": {
+        "type": "object",
+        "properties": {
+          "inputId": {
+            "type": "string"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            }
+          }
+        },
+        "required": [
+          "inputId",
+          "params"
+        ],
+        "additionalProperties": false
+      },
+      "OperationCommitRequest": {
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,180}$"
+          }
+        },
+        "required": [
+          "planId",
+          "requestId"
         ],
         "additionalProperties": false
       }

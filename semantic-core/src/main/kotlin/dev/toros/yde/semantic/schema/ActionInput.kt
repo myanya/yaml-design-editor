@@ -1,9 +1,23 @@
 package dev.toros.yde.semantic.schema
 
+import dev.toros.yde.yaml.YamlIO
+import dev.toros.yde.yaml.model.YNode
+
 /** フォームの準備だけの定義。CLIの省略値や実行時のdefaultを変更しない。 */
 data class ActionInput(val initial: Map<String, Template>, val submit: String = "all") {
     companion object {
         const val CONTEXT = "context"
+
+        /** デスクトップと外部フォームで同じ送信値を選ぶ。空欄と未変更と明示指定を区別する。 */
+        fun submitted(params: List<FieldDef>, input: ActionInput?, values: YNode.Map, tree: SchemaTree?,
+                      explicit: Map<String, Any?>, baseline: Map<String, Any?>): Map<String, Any?> {
+            val required = params.filter { p -> tree?.requiredAt(tree.resolve(p) ?: p, null) ?: p.required }.mapNotNull { it.key }.toSet()
+            return values.entries.entries
+                .filterNot { (_, v) -> input == null && v is YNode.Scalar && v.value?.toString().isNullOrBlank() }
+                .filter { (key, value) -> input?.submit != "changed" || key in explicit || key !in baseline ||
+                    key in required || YamlIO.dumpPlain(value) != YamlIO.dumpPlain(YamlIO.fromAny(baseline[key])) }
+                .associate { (k, v) -> k to YamlIO.toAny(v) }
+        }
 
         fun parse(raw: Any?, params: List<FieldDef>, receiver: String?, where: String): ActionInput? {
             if (raw == null) return null

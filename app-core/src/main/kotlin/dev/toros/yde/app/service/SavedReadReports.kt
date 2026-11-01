@@ -34,12 +34,12 @@ internal class SavedReadReports(private val root: Path, private val texts: Map<D
         Views.LoadResult(loaded.views, loaded.docViews, loaded.errors, loaded.lensViews, loaded.dashboards, loaded.extensionViews)
     }
 
-    fun read(query: ReadQuery, visible: Map<DocumentId, String>, date: LocalDate): Map<String, Any?> {
+    fun read(query: ReadQuery, visible: Map<DocumentId, String>, date: LocalDate, allowedActions: Set<String> = emptySet()): Map<String, Any?> {
         if (query.resource in setOf(ReadResource.ENTITY, ReadResource.VIEWS, ReadResource.VIEW, ReadResource.VALIDATION, ReadResource.ACTIONS)) {
             readRequire(workspace.schemaErrors.isEmpty(), ReadFailureCode.INVALID_DEFINITIONS, "スキーマ定義に誤りがあります。デスクトップで確認してください")
         }
         return when (query.resource) {
-            ReadResource.ACTIONS -> page(actions().map { action -> mapOf(
+            ReadResource.ACTIONS -> if (query.business) page(BusinessActionForms.entries(workspace.mirror, query.id, allowedActions), query) else page(actions().map { action -> mapOf(
                 "name" to action.name, "kind" to action.kind, "label" to action.label, "description" to action.description,
                 "target" to action.target, "definedIn" to action.definedIn,
                 "params" to action.params.map { param ->

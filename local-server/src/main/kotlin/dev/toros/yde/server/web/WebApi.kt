@@ -14,7 +14,8 @@ import kotlinx.serialization.json.*
 import java.time.LocalDate
 
 /** Web 専用の Cookie と CSRF で共通サービスを呼ぶ。公開 API や任意編集へ迂回しない。 */
-internal fun Application.webApi(access: LocalAccess, reads: WorkspaceReads) {
+internal fun Application.webApi(access: LocalAccess, reads: WorkspaceReads, operations: WorkspaceOperations? = null) {
+    if (operations != null) webOperations(reads, operations)
     routing {
         route("/web-api") {
             post("/session/login") {

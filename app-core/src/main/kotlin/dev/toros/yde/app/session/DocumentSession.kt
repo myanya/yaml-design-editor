@@ -1519,12 +1519,7 @@ class DocumentSession(private val editClock: () -> Long = System::currentTimeMil
 
     /** 受け取る値のうち渡すもの: input のない従来の操作は空欄を省略する。submit が changed なら初期値との差分と必須・明示指定だけ。 */
     fun actionParams(entry: ActionEntry, values: YNode.Map, tree: SchemaTree?, explicit: Map<String, Any?>, baseline: Map<String, Any?>): Map<String, Any?> {
-        val required = entry.params.filter { p -> tree?.requiredAt(tree.resolve(p) ?: p, null) ?: p.required }.mapNotNull { it.key }.toSet()
-        return values.entries.entries
-            .filterNot { (_, v) -> entry.input == null && v is YNode.Scalar && v.value?.toString().isNullOrBlank() }
-            .filter { (key, value) -> entry.input?.submit != "changed" || key in explicit || key !in baseline ||
-                key in required || YamlIO.dumpPlain(value) != YamlIO.dumpPlain(YamlIO.fromAny(baseline[key])) }
-            .associate { (k, v) -> k to YamlIO.toAny(v) }
+        return dev.toros.yde.semantic.schema.ActionInput.submitted(entry.params, entry.input, values, tree, explicit, baseline)
     }
 
     /** 計画を作る（原本は変えない）。読み取りだけの前提は今の状態（編集用のセッション）で検査し、計画はディスクの写しが基準。 */

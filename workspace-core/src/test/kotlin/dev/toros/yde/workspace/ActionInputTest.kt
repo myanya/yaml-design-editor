@@ -10,6 +10,21 @@ import kotlin.test.assertTrue
 
 /** 公開サンプルと独立した、フォーム準備のカーネル契約。 */
 class ActionInputTest {
+    @Test fun `フォームの送信は未変更と空文字と空配列と必須を区別する`() {
+        val params = listOf(
+            dev.toros.yde.semantic.schema.FieldDef(key = "name"),
+            dev.toros.yde.semantic.schema.FieldDef(key = "note"),
+            dev.toros.yde.semantic.schema.FieldDef(key = "items"),
+            dev.toros.yde.semantic.schema.FieldDef(key = "date", required = true),
+        )
+        val baseline = mapOf("name" to "元の名前", "note" to "元のメモ", "items" to listOf("x"), "date" to "2026-11-01")
+        val values = baseline + mapOf("note" to "", "items" to emptyList<String>())
+        val submitted = dev.toros.yde.semantic.schema.ActionInput.submitted(params,
+            dev.toros.yde.semantic.schema.ActionInput(emptyMap(), "changed"),
+            dev.toros.yde.yaml.YamlIO.fromAny(values) as dev.toros.yde.yaml.model.YNode.Map, null, emptyMap(), baseline)
+        assertEquals(mapOf("note" to "", "items" to emptyList<String>(), "date" to "2026-11-01"), submitted)
+    }
+
     private val now = LocalDateTime.of(2026, 10, 25, 23, 59)
     private val schema = """
         id: items

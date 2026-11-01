@@ -24,7 +24,7 @@ class LocalServer(scope: CoroutineScope, grants: ConnectionGrants, reads: Worksp
             localConnectionGate(connections)
             localAuthentication(connections, access)
             webAssets()
-            reads?.let { webApi(access, it) }
+            reads?.let { webApi(access, it, operations) }
             reads?.let { readApi(it) }
             if (work != null && operations != null) writeApi(work, operations)
             if (reads != null && work != null && operations != null) workspaceMcp(connections, access, reads, work, operations)

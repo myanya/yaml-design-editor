@@ -305,6 +305,7 @@
 | LC-26 | MCP の実通信・再接続・取消・期限切れ・初期化拒否後の解放と Inspector との相互運用 | `server/mcp/McpEndpoint.kt`・`transport/LocalAuthentication.kt` | `McpHttpTest`・`McpInspectorCheck` | [検査手順](../local-server/README.md) |
 | LC-27 | 同梱 Web・接続コード・Cookie・ログアウト・保存版概要 | `server/web`・`auth/WebLogins.kt`・`web-ui/src` | `WebLoginsTest`・`WebHttpTest`・`WebBrowserCheck` | [業務 Web](manual/local-web.md) |
 | LC-28 | Web のダッシュボード・表・チャート・業務詳細と共有入力・参照 | `BusinessReadPresentation.kt`・`BusinessWorkspace.tsx` | `WebBusinessTest`・`WebBrowserCheck` | [業務 Web](manual/local-web.md) |
+| LC-29 | Web の業務操作・入力準備・変更確認・保存と結果照会 | `BusinessActionForms.kt`・`WebOperations.kt`・`BusinessOperations.tsx` | `WebOperationsTest`・`WorkspaceOperationsTest`・`WebBrowserCheck` | [業務 Web](manual/local-web.md) |
 
 ## 公開サンプル
 

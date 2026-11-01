@@ -77,7 +77,7 @@ YDE が向いているのは、情報をスキーマで構造化でき、成果�
 - AI 支援は OpenAI、Anthropic、Azure、OpenAI 互換サーバに接続し、スキーマに沿った構造化出力で生成します。API キーはメモリにだけ保持し、ファイルには保存しません。
 - ヘッドレス CLI から、探索、検索、検証、部分的なパッチ、操作、エージェントの実行、YAML から YAML への変換を行えます。出力は機械可読な YAML です。
 - 同じ PC の外部 AI は [MCP](docs/manual/local-mcp.md)、自作ツールは [API](docs/manual/local-connections.md) から接続できます。参照・変更提案・直接確定・業務操作を権限で選び、接続機能は設定から個別に ON/OFF できます。
-- [業務 Web](docs/manual/local-web.md) はダッシュボード・表・チャート・業務詳細の閲覧に対応します。Web だけを ON にして利用できます。
+- [業務 Web](docs/manual/local-web.md) はダッシュボード・表・チャート・業務詳細の閲覧と、定義済み業務操作の入力・確認・保存に対応します。Web だけを ON にして利用できます。
 
 | ![フォームでの編集](docs/images/todos/todo-04.png) | ![ソースでの編集](docs/images/todos/todo-05.png) |
 |:--:|:--:|

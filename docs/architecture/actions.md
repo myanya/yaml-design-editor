@@ -57,7 +57,7 @@
 - `prepareInput(session, request, now)` は `params.default`、`input.initial`、明示指定の順で値を重ねる。`SemanticTransform.build` を使い、受け手の束縛と日時の `context` を渡す。出現は既存の `entityPlace`（定義出現優先・`$in` 絞り込み）に従い、無い値は補完しない。
 - 入力準備は Construct、対象選択と差分比較は Term、利用可否は Query / Predicate。時計は呼出側が採取した引数で、評価器内では読まない。出どころは対象の出現・文書・パスと内容の比較値に保持する。新しい評価器・書込経路・検査語彙は追加しない。
 - `ActionWork` が開始日時・初期値・明示指定・対象・入力元の比較値を保持する。対象変更は候補の確定後に再設定し、入力破棄は画面で確認する。初期値の読み直しでも開始日時は変えない。
-- `submit: changed` は初期値との差だけを送る（必須項目と明示指定は含める）。未変更・空文字・空配列を区別し、項目の削除は操作の入力と手で明示する。実行の省略値、CLI・AI、保存時の自動値は変えない。
+- `submit: changed` は初期値との差だけを送る（必須項目と明示指定は含める）。ActionInput.submitted をデスクトップと Web のフォームで共用し、未変更・空文字・空配列を区別する。項目の削除は操作の入力と手で明示し、実行の省略値、CLI・AI、保存時の自動値は変えない。
 - 確認時に入力元を照合する。確認済みの入力・対象・ディスク側と編集側セッションの版を保存し、フォーム編集や版の変更で古い差分を取り下げる。適用直前にも照合し、同じ計画時刻で前提を再検査してから確認済みの変更セットを適用する。
 - `input` の語彙はメタスキーマ、追加区画の共通ツリー、ひな型入力例にも載せる。`ActionInputTest` / `AppStateActionInputTest` が準備と適用の境界、`SchemaDefinitionCoverageTest` / `SchemaAdditionalOutlineTest` が定義UIの追従を検査する。
 

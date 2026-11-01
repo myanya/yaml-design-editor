@@ -58,6 +58,11 @@ internal fun readRequire(condition: Boolean, code: ReadFailureCode, message: Str
     if (!condition) throw ReadFailure(code, message)
 }
 
+/** 閲覧と操作フォームの開始版は同じ保存済み本文から求める。 */
+internal fun savedRevision(texts: Map<DocumentId, String>): String = ChangeSets.contentHash(
+    texts.toSortedMap(compareBy { it.value }).entries.joinToString("") { (id, text) -> "${id.value.length}:${id.value}${text.length}:$text" },
+)
+
 data class ReadLimits(val documents: Int = 10_000, val bytes: Int = 32 * 1024 * 1024, val timeoutMillis: Long = 15_000)
 
 /**
@@ -100,15 +105,14 @@ class WorkspaceReads(
                     afterCapture()
                     currentCoroutineContext().ensureActive()
                     val visible = captured.texts.filterKeys(access.grant.permissions::canRead)
-                    val revision = ChangeSets.contentHash(visible.entries.joinToString("") { (id, text) ->
-                        "${id.value.length}:${id.value}${text.length}:$text"
-                    })
+                    val revision = savedRevision(visible)
                     readRequire(query.revision == null || query.revision == revision, ReadFailureCode.STALE_REVISION, "保存済みの版が変わりました。最初から取得してください")
                     if (query.resource in setOf(ReadResource.ENTITY, ReadResource.VIEWS, ReadResource.VIEW, ReadResource.VALIDATION, ReadResource.ACTIONS)) {
                         readRequire(captured.texts.keys.all(access.grant.permissions::canRead), ReadFailureCode.FORBIDDEN,
                             "派生結果に必要な文書の閲覧権限がありません")
                     }
-                    val data = SavedReadReports(access.root, captured.texts, captured.layout).read(query, visible, today())
+                    val data = SavedReadReports(access.root, captured.texts, captured.layout).read(query, visible, today(),
+                        if (access.grant.allows(ConnectionCapability.APPLY)) access.grant.permissions.actions else emptySet())
                     currentCoroutineContext().ensureActive()
                     readRequire(capture(access.root) == captured, ReadFailureCode.CHANGED_DURING_READ, "読み取り中に保存内容が変わりました。再試行してください")
                     ReadResult(caller.workspaceId, access.epoch, revision, data)

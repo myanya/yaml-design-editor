@@ -28,7 +28,7 @@ internal suspend fun ApplicationCall.respondSavedRead(reads: WorkspaceReads, res
     }
 }
 
-private suspend fun ApplicationCall.respondReadFailure(failure: ReadFailure) {
+internal suspend fun ApplicationCall.respondReadFailure(failure: ReadFailure) {
     val status = when (failure.code) {
         ReadFailureCode.INVALID_REQUEST -> 400
         ReadFailureCode.FORBIDDEN -> 403

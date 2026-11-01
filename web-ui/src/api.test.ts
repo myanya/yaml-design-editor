@@ -1,7 +1,20 @@
 import { afterEach, expect, test, vi } from 'vitest';
-import { login, logout, session, workspace, view } from './api';
+import { login, logout, session, workspace, view, commitOperation, operationResult } from './api';
 
 afterEach(() => vi.unstubAllGlobals());
+
+test('保存の通信失敗を自動再送せず同じ要求 ID の結果だけを照会する', async () => {
+  const fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+  vi.stubGlobal('fetch', fetch);
+  await expect(commitOperation('plan', 'request', 'csrf')).rejects.toMatchObject({ status: 0 });
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(fetch).toHaveBeenCalledWith('/web-api/operations/commit', expect.objectContaining({
+    method: 'POST', body: '{"planId":"plan","requestId":"request"}', headers: { 'Content-Type': 'application/json', 'X-YDE-CSRF': 'csrf' },
+  }));
+  fetch.mockResolvedValue(new Response('{"data":{"state":"committed"}}', { status: 200 }));
+  await expect(operationResult('request')).resolves.toMatchObject({ data: { state: 'committed' } });
+  expect(fetch).toHaveBeenLastCalledWith('/web-api/operations/results/request', expect.not.objectContaining({ method: 'POST' }));
+});
 
 test('資格情報を URL に置かず、同じ接続先だけへ送る', async () => {
   const fetch = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));

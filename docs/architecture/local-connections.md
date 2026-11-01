@@ -467,6 +467,24 @@ BusinessChart は ECharts の描画を一つのファイルへ閉じ、必要な
 WebBusinessTest はインメモリ通信の実応答を Web 契約へ当て、共通計算との一致・参照・版・入力・権限を検査する。
 WebBrowserCheck は注文・TODO のコピーで、条件変更・詳細と参照・図・狭幅・競合後の再取得・失効時の表示解除を確認する。
 
+### Web の業務操作
+
+WebOperations は Cookie・Origin・CSRF と APPLY の能力を照合し、WorkspaceOperations の入力準備・計画・確定・結果照会を呼ぶ。
+API の ON/OFF に依存せず、任意の変更セット・検証免除・Undo は Web へ公開しない。
+操作一覧は WorkspaceReads の同じ保存版から、ActionPlanner の対象別カタログと前提判定を使い、許可された操作名だけを返す。
+
+BusinessActionForms は解決済みの項目の表示情報をフォームへ写す。初期値は ActionPlanner.prepareInput、送信値は ActionInput.submitted で決める。
+後者は DocumentSession も共有する。ブラウザに初期値・前提・検証の評価器を追加しない。
+入力準備は対象・操作・初期値・準備時刻・権限・編集版・保存版をサーバの期限付き作業 ID へ結ぶ。
+保存版の指紋は閲覧と共通で、計画時に全入力と照合する。計画後は既存の WorkspaceOperations の失効・未保存・検証・永続記録の規則を適用する。
+フォームの対応範囲は [業務 Web](../manual/local-web.md#業務操作) にある。未対応の定義は操作を無効にして理由を表示する。
+
+BusinessOperations は入力・変更前後・確認期限・保存結果を表示する。入力変更で旧確認を捨て、保存開始後は入力や再適用を止める。
+通信失敗でも同じ要求 ID を保持し、GET の結果照会だけで確定状態を確認する。要求 ID を控えた場合は接続し直した後も照会できる。
+一時的な概要の読取混雑で作業中の画面を破棄しない。資格情報が失効した場合は従来どおり業務画面を解除する。
+WebOperationsTest は契約・Web 単独利用・権限・CSRF・初期値・古い確認・未保存・検証拒否・再送・結果照会を検査する。
+実ブラウザでは TODO 完了の入力と確認後の修正、確定応答の喪失と照会による復帰を確認する。
+
 ## 拡張ポイント
 
 LocalServer の機能ゲート・認証・能力別の受付を通して、HTTP API・MCP・Web の経路を共通サービスへ接続する。

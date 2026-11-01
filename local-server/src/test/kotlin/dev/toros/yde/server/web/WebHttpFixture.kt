@@ -20,12 +20,13 @@ internal class WebHttpFixture {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val grants = ConnectionGrants()
     val reads = WorkspaceReads(host, grants::get, { "web-test" })
+    val operations = WorkspaceOperations(host, grants::operationGrant, { "web-test" })
     val connections: LocalConnections = LocalConnections(scope, { _, connections ->
         LoopbackEngine(0) {
             localConnectionGate(connections)
             localAuthentication(connections, access)
             webAssets()
-            webApi(access, reads)
+            webApi(access, reads, operations)
         }
     }, onDisabled = { access.featureStopped(it) })
     val access = LocalAccess(scope, connections, grants, {
@@ -45,7 +46,8 @@ internal class WebHttpFixture {
     suspend fun configure(settings: LocalConnectionSettings) {
         assertNull(withTimeout(10_000) { connections.awaitSettled(connections.configure(settings)) }.error)
     }
-    fun register() = access.register(LocalFeature.WEB, "ブラウザ試験", ConnectionPermissions(readScope = ConnectionReadScope.WORKSPACE))
+    fun register(actions: Set<String> = emptySet()) = access.register(LocalFeature.WEB, "ブラウザ試験", ConnectionPermissions(readScope = ConnectionReadScope.WORKSPACE,
+        actionScope = if (actions.isEmpty()) ConnectionWriteScope.SELECTED else ConnectionWriteScope.LEDGER, actions = actions))
     suspend fun close() {
         try { connections.shutdown() }
         finally { http.close(); withContext(owner) { host.close() }; scope.cancel(); owner.close(); root.toFile().deleteRecursively() }

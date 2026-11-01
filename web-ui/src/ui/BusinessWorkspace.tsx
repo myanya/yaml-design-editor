@@ -5,6 +5,7 @@ import { useSearchParams } from 'react-router-dom';
 import * as api from '../api';
 import { BusinessTable } from './BusinessTable';
 import { EntityDetails, EntityLink } from './BusinessValues';
+import { BusinessOperations } from './BusinessOperations';
 
 const BusinessChart = lazy(() => import('./BusinessChart'));
 type Selection = { date?: string; inputs: Record<string, string | null>; section?: string; offset: number };
@@ -55,7 +56,8 @@ export function BusinessWorkspace({ session, revision, refresh }: { session: api
         {detail.isPending ? <Loading /> : detail.data && <EntityDetails entity={detail.data.data} open={open} />}
       </Paper> : !viewId ? <Alert severity="info">利用できる業務ビューがありません。デスクトップでダッシュボードや表の定義を追加してください。</Alert> :
         selected.isPending ? <Loading /> : selected.data && <ViewContent key={viewId} view={selected.data.data} memory={memory} change={setMemory} open={open} />}
-    <Typography variant="caption" color="text.secondary">未保存の編集は含みません。文書の編集はデスクトップで行います。業務操作の実行は今後追加します。</Typography>
+    <BusinessOperations session={session} revision={revision} entity={entityId} refresh={reload} />
+    <Typography variant="caption" color="text.secondary">未保存の編集は含みません。文書の編集はデスクトップで行います。</Typography>
   </Stack>;
 }
 

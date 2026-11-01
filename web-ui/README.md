@@ -1,6 +1,6 @@
 # 業務 Web
 
-React・TypeScript のブラウザ画面。接続コードでログインし、保存済みのダッシュボード・表・チャートと業務詳細を表示する。
+React・TypeScript のブラウザ画面。接続コードでログインし、保存済みのダッシュボード・表・チャートと業務詳細を表示し、許可された業務操作を入力・確認・保存する。
 利用方法は [業務 Web](../docs/manual/local-web.md)、認証と責務は [ローカル接続](../docs/architecture/local-connections.md) にある。
 
 ## 構成
@@ -12,6 +12,7 @@ React・TypeScript のブラウザ画面。接続コードでログインし、�
 | `src/ui/BusinessWorkspace.tsx` | 保存版ごとの取得、ビュー・区画・基準日・共有入力と詳細への遷移 |
 | `src/ui/BusinessTable.tsx` / `BusinessValues.tsx` | 表・合成された詳細・ラベル・索引で解決した参照の表示 |
 | `src/ui/BusinessChart.tsx` | ECharts の SVG 描画と数値表、図の依存を閉じる部品 |
+| `src/ui/BusinessOperations.tsx` / `ActionFields.tsx` | 操作の選択と定義からの入力、変更確認と保存結果の照会 |
 | `src/api.ts` | Cookie 通信、Origin と CSRF の前提、期限と日本語エラー |
 | `local-server/src/main/resources/web-api/openapi.json` | Web 通信の契約、TypeScript 型の生成元 |
 | `scripts/asset-manifest.mjs` | 配信可能な同梱資源の一覧 |
@@ -39,6 +40,6 @@ node web-ui/node_modules/@playwright/test/cli.js install chromium
 
 PATH にない Node は `-PwebNode=実行ファイルの絶対パス` で指定する。
 検査用の JVM が一時ワークスペースと loopback サーバを用意し、接続コードを子プロセスの環境へ渡す。
-接続だけの最小例に加え、注文・TODO サンプルのコピーで条件変更・参照・チャート・保存版の競合・失効を検査する。
+接続だけの最小例に加え、注文・TODO サンプルのコピーで条件変更・参照・チャート・保存版の競合・失効を検査する。業務操作では入力変更による確認解除と、保存応答の喪失後の結果照会も検査する。
 終了時にサーバ・ブラウザ・一時ワークスペースを回収する。画像は `build/browser-results` に残す。
 所有中のデスクトップや利用者のワークスペースは操作しない。
