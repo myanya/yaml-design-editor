@@ -25,6 +25,8 @@ import dev.toros.yde.yaml.model.pretty
  *   `{number: 式}`（数値として読み直して表記を揃える。`12.0` → `12`。数値として読めなければ「得られない」）・
  *   日付の部分 `{year: 式}`（年）・`{month: 式}`（月。1〜12）・`{day: 式}`（日）は数、`{yearMonth: 式}`（年月。`2026-10` の文字）は
  *   月ごとの集計の鍵（日付 YYYY-MM-DD か日時として読めなければ「得られない」。表記から意味を決めないため、値は正準の形で読む）
+ * - 文字の一部を取り出す `{extract: [式, "正規表現"]}`（最初に合った部分。正規表現に括弧があれば 1 つ目の括弧の中身。
+ *   `{extract: [{path: id}, "[0-9]+$"]}`＝ID の末尾の番号。合わなければ「得られない」。正規表現は決まった値だけ）
  * - 四則演算 `{add: [式, ...]}`・`{multiply: [式, ...]}`（2つ以上）・`{subtract: [式, 式]}`・`{divide: [式, 式]}`
  *   （どれかが数値として読めない・0 で割る場合は「得られない」。結果の表記は number と同じに揃える）
  * - 集計 `{sum | min | max: {配列を返す式, type: number | date}}`・`{count: 配列を返す式}`（配列を受け取る関数。
@@ -77,6 +79,9 @@ sealed interface ValueExpr {
 
     /** 値を1つ受け取る計算（文字数・大文字へ・小文字へ・数値として読み直す）。 */
     data class Unary(val fn: UnaryFn, val input: ValueExpr) : ValueExpr
+
+    /** 文字の一部を取り出す（pattern は決まった正規表現。最初に合った部分か、1 つ目の括弧の中身）。 */
+    data class Extract(val input: ValueExpr, val pattern: String) : ValueExpr
 
     /** 四則演算（数値として読めない値があれば「得られない」）。 */
     data class Arith(val op: ArithOp, val operands: List<ValueExpr>) : ValueExpr
@@ -196,6 +201,7 @@ sealed interface ValueExpr {
         is MapValue -> input.sources()
         is First -> options.flatMap { it.sources() }.distinct()
         is Unary -> input.sources()
+        is Extract -> input.sources()
         is Arith -> operands.flatMap { it.sources() }.distinct()
         is Aggregate -> input.sources()
         is Each -> (input.sources() + value.sources().filter { it.of != null }).distinct()
@@ -214,6 +220,7 @@ sealed interface ValueExpr {
         is MapValue -> input.binds()
         is First -> options.flatMap { it.binds() }.distinct()
         is Unary -> input.binds()
+        is Extract -> input.binds()
         is Arith -> operands.flatMap { it.binds() }.distinct()
         is Get -> listOfNotNull(of)
         is Literal -> emptyList()
@@ -231,6 +238,7 @@ sealed interface ValueExpr {
         is MapValue -> input.needsSolutions()
         is First -> options.any { it.needsSolutions() }
         is Unary -> input.needsSolutions()
+        is Extract -> input.needsSolutions()
         is Arith -> operands.any { it.needsSolutions() }
         is Get, is Literal, is RefCount, is OccurrenceCount -> false
     }
@@ -245,6 +253,7 @@ sealed interface ValueExpr {
         is MapValue -> input.templateReads()
         is First -> options.flatMap { it.templateReads() }
         is Unary -> input.templateReads()
+        is Extract -> input.templateReads()
         is Arith -> operands.flatMap { it.templateReads() }
         is Aggregate -> input.templateReads()
         is Each -> input.templateReads()
@@ -258,6 +267,7 @@ sealed interface ValueExpr {
         is MapValue -> input.reads()
         is First -> options.flatMap { it.reads() }
         is Unary -> input.reads()
+        is Extract -> input.reads()
         is Arith -> operands.flatMap { it.reads() }
         is Aggregate -> input.reads()
         is Each -> input.reads()
@@ -276,6 +286,7 @@ sealed interface ValueExpr {
         is MapValue -> input.currentReads()
         is First -> options.flatMap { it.currentReads() }.distinct()
         is Unary -> input.currentReads()
+        is Extract -> input.currentReads()
         is Arith -> operands.flatMap { it.currentReads() }.distinct()
         is Aggregate -> input.currentReads()
         is Each -> input.currentReads()
@@ -291,6 +302,7 @@ sealed interface ValueExpr {
         is MapValue -> input.holes()
         is First -> options.flatMap { it.holes() }.distinct()
         is Unary -> input.holes()
+        is Extract -> input.holes()
         is Arith -> operands.flatMap { it.holes() }.distinct()
         is Aggregate -> input.holes()
         is Each -> input.holes()
@@ -310,6 +322,7 @@ sealed interface ValueExpr {
         is MapValue -> input.aggregates()
         is First -> options.flatMap { it.aggregates() }
         is Unary -> input.aggregates()
+        is Extract -> input.aggregates()
         is Arith -> operands.flatMap { it.aggregates() }
         is Each -> input.aggregates()
         is Get, is Literal, is RefCount, is OccurrenceCount, is All -> emptyList()
@@ -427,6 +440,14 @@ sealed interface ValueExpr {
                             require(it == "type") { "$where.occurrenceCount.distinct に書けるのは type（エンティティ型の種類を数える）だけです: $it" }
                         },
                     )
+                }
+                m.containsKey("extract") -> {
+                    onlyKeys(setOf("extract"))
+                    val list = m["extract"] as? List<*>
+                    require(list != null && list.size == 2) { "$where.extract は [式, \"正規表現\"] の2要素配列である必要があります" }
+                    val pattern = list[1] as? String ?: error("$where.extract の 2 つ目は正規表現の文字列（決まった値）で書きます")
+                    runCatching { Regex(pattern) }.onFailure { error("$where.extract は正規表現として読めません: $pattern") }
+                    Extract(parse(list[0], "$where.extract[0]", current), pattern)
                 }
                 aggregate != null -> {
                     onlyKeys(setOf(aggregate.id))

@@ -230,6 +230,13 @@ object SemanticValues {
                     }
                 }
             }
+            // 文字の一部を取り出す: 結果は文字（数として使うなら number で読み直す）
+            is ValueExpr.Extract -> eval(expr.input)?.let { input ->
+                if (!input.isScalar) fail("extract はスカラーだけを受け取ります: ${input.text}")
+                else SemanticExpression.extract(input.text, expr.pattern)
+                    ?.let { input.copy(text = it, raw = input.raw ?: input.text, kind = null) }
+                    ?: fail("「${input.text}」に「${expr.pattern}」に合う部分がありません")
+            }
             // 参照の本数（SP-03）: グラフの隣接から数える。出ていく参照は相手が見つからないものも数え（CALC-20）、
             // 入ってくる参照はエンティティへの参照を数える。値の読み出しではないため、出現は選ばない
             is ValueExpr.RefCount -> node(expr.of)?.takeIf { it.kind == QueryNodeKind.ENTITY }?.let { node ->

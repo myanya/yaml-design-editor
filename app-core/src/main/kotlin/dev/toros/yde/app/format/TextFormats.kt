@@ -1,5 +1,6 @@
 package dev.toros.yde.app.format
 
+import dev.toros.yde.yaml.model.YNode
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -10,7 +11,7 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.longOrNull
 
-// 文字の形式（csv・json・markdown・html）の表の読み書き。app-core の組込みで、登録簿（app.ext.ExtensionRegistry）が最初から持つ（ADR-0015）。
+// 文字の形式（csv・json・markdown・html）の表の読み書き（json は木の読み書きも）。app-core の組込みで、登録簿（app.ext.ExtensionRegistry）が最初から持つ（ADR-0015）。
 
 /**
  * 文字の形式に共通の決まり: 読むときは文字コード（`ReadOptions.encoding`）で厳密に解読し（合わなければ `CharacterCodingException`）、
@@ -126,13 +127,30 @@ object MarkdownFormat : TextFormat() {
     }
 }
 
-/** JSON（オブジェクトの配列）。path 指定時はルートオブジェクト内の配列を辿る。値の型を保持し、読み書きで往復できる（R9-05）。 */
+/**
+ * JSON。表としては object の配列（path 指定時はルートオブジェクト内の配列を辿る。値の型を保持し、読み書きで往復できる＝R9-05）。
+ * 木としては入れ子のまま読み書きする（`JsonTree`。skill の `input.tree` と、`build` で組み立てる書き出し）。
+ */
 object JsonFormat : TextFormat() {
     override val id = "json"
     override val extensions = listOf("json")
 
     override fun readText(text: String, options: ReadOptions): Table = readJson(text, options.jsonPath)
     override fun writeText(table: Table, options: WriteOptions): String = writeJson(table)
+
+    override val canReadTree: Boolean get() = true
+    override val canWriteTree: Boolean get() = true
+
+    override fun readTree(bytes: ByteArray, options: ReadOptions): YNode {
+        var node = JsonTree.parse(bytes.decodeStrict(options.encoding))
+        options.jsonPath?.takeIf { it.isNotBlank() }?.split('.')?.forEach { key ->
+            node = (node as? YNode.Map)?.entries?.get(key) ?: error("JSONのパス「${options.jsonPath}」が見つかりません")
+        }
+        return node
+    }
+
+    override fun writeTree(node: YNode, options: WriteOptions): ByteArray =
+        JsonTree.write(node, options.style, options.finalNewline).toByteArray(Charsets.UTF_8)
 
     fun readJson(text: String, path: String?): Table {
         var element: JsonElement = Json.parseToJsonElement(text)

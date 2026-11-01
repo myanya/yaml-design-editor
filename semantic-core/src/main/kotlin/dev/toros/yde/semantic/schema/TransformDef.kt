@@ -38,6 +38,7 @@ import java.text.DecimalFormat
  * 場所の指定には、`$of: 束縛名`（クエリで付けた名前。省略＝いまの場所）と `$in: {schemaId, fileGlob}`（どの文書の出現か）を添えられる。
  * 文字列 `$名前` は受け取った値（params）への参照。`$$` は文字 `$`（出力のキーや値を `$` で始めたいとき）。
  * 繰り返しの中では `$key`（マップの項目のキー）と `$index`（配列の番号。0 始まり）と `$position`（何番目か。1 始まり）が使える。
+ * 入力が並びの 1 件のとき（skill の取り込みの行）も、呼び出し側が渡せば `$index` / `$position` でその番号を読める（SemanticTransform.run の loop）。
  *
  * 条件は、クエリの where と同じ書き方（path ＋ equals / notEquals / exists / empty / oneOf / matches / startsWith / endsWith /
  * contains / lt / lte / gt / gte。`{not: 条件}`・`{or: [条件, …]}`。並べて書けば「かつ」）。`of` は省略できる（いまの場所）。

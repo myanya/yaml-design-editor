@@ -26,12 +26,13 @@ import dev.toros.yde.desktop.ui.common.CompactTextField
 import dev.toros.yde.desktop.ui.common.FilePickers
 import dev.toros.yde.desktop.ui.common.Palette
 import dev.toros.yde.desktop.ui.common.PanelShape
+import dev.toros.yde.desktop.ui.common.rememberDirectoryChooser
 import dev.toros.yde.desktop.ui.common.rememberFileChooser
 
 /**
  * 連携（skill）セクション（R5のUI）。設計スペースに常設表示する（R12-01。モーダルにしない）。
- * `_skills` の入出力変換を一覧し、エクスポートは即実行、インポートは「ファイル選択→プレビュー→適用」の
- * 二段階で行う。コード実行skill（R9-06）は承認ダイアログを必ず経由する。
+ * `_skills` の入出力変換を一覧し、エクスポートは即実行（「出力先を選ぶ…」なら選んだフォルダへ。ワークスペースの外も可）、
+ * インポートは「ファイル選択→プレビュー→適用」の二段階で行う。コード実行skill（R9-06）は承認ダイアログを必ず経由する。
  */
 @Composable
 fun SkillsSection(state: AppState) {
@@ -55,12 +56,22 @@ fun SkillsSection(state: AppState) {
     }
     LaunchedEffect(wsDir, state.indexVersion) { reload() }
 
-    fun runExport(def: SkillDef) {
+    /** まとめて書き出す定義の、上書きの確認待ち（一括で上書きするか取りやめるか）。 */
+    var bundleConfirm by remember { mutableStateOf<Pair<SkillDef, List<Exporter.Plan>>?>(null) }
+
+    /** まとめて書き出した結果の一文。 */
+    fun bundleMessage(results: List<Exporter.Result>): String {
+        val written = results.count { it.changed }
+        return if (written == 0) "変更はありません（${results.size} ファイル。どれもそのまま）"
+        else "まとめて出力しました: ${results.size} ファイルのうち $written ファイルを書きました"
+    }
+
+    /** 確認の後に書く（確認している間に書き出し先が変わっていれば、何も書かずに知らせる）。 */
+    fun writeBundle(plans: List<Exporter.Plan>) {
         busy = true
         scope.launch {
             try {
-                val result = withContext(Dispatchers.IO) { Exporter.run(Workspace.open(wsDir), def) }
-                message = "出力しました: ${result.rel}（${result.rows} 行）"
+                message = bundleMessage(withContext(Dispatchers.IO) { Exporter.write(plans) })
             } catch (e: Exception) {
                 message = "エクスポート失敗: ${e.message}"
             } finally {
@@ -68,6 +79,37 @@ fun SkillsSection(state: AppState) {
             }
         }
     }
+
+    /**
+     * outDir は実行のときに選んだ書き出し先のフォルダ（null＝定義の output.file）。中身が同じならファイルに触れない。
+     * まとめて書き出す定義は、全部を計画してから、既存のファイルを上書きするときだけ一括の確認を出す。
+     */
+    fun runExport(def: SkillDef, outDir: Path? = null) {
+        busy = true
+        scope.launch {
+            try {
+                if (def.export?.isBundle == true) {
+                    val plans = withContext(Dispatchers.IO) { Exporter.plans(Workspace.open(wsDir), def, outDir) }
+                    if (plans.any { it.previous != null && it.changed }) bundleConfirm = def to plans
+                    else message = bundleMessage(withContext(Dispatchers.IO) { Exporter.write(plans) })
+                    return@launch
+                }
+                val result = withContext(Dispatchers.IO) { Exporter.run(Workspace.open(wsDir), def, outDir) }
+                message = if (result.changed) "出力しました: ${result.rel}（${result.rows} 件）"
+                else "変更はありません: ${result.rel}（${result.rows} 件。ファイルはそのまま）"
+            } catch (e: Exception) {
+                message = "エクスポート失敗: ${e.message}"
+            } finally {
+                busy = false
+            }
+        }
+    }
+    // 書き出し先のフォルダを選んで出力する（ワークスペースの外も可。定義に絶対パスを書かないため、場所は実行のときに選ぶ）
+    var exportTarget by remember { mutableStateOf<SkillDef?>(null) }
+    val chooseExportDir = rememberDirectoryChooser(
+        FilePickers.Purpose.EXPORT, "書き出し先のフォルダを選択",
+        fallback = wsDir, onError = { state.status = it },
+    ) { dir -> exportTarget?.let { runExport(it, dir) } }
 
     fun runPreview(def: SkillDef, source: String) {
         busy = true
@@ -167,20 +209,34 @@ fun SkillsSection(state: AppState) {
                         Text(
                             when (def.kind) {
                                 SkillKind.IMPORT -> "取り込み → ${def.import?.targetFile}"
-                                SkillKind.EXPORT ->
-                                    if (def.export?.viewId != null) "出力（ビュー ${def.export?.viewId}） → ${def.export?.outputFile}"
-                                    else "出力 → ${def.export?.outputFile}"
+                                SkillKind.EXPORT -> {
+                                    val export = def.export
+                                    when {
+                                        export == null -> ""
+                                        export.isBundle -> "まとめて出力 → ${export.include.joinToString("・")}"
+                                        export.viewId != null -> "出力（ビュー ${export.viewId}） → ${export.outputFile}"
+                                        else -> "出力 → ${export.outputFile}"
+                                    }
+                                }
                                 SkillKind.RUN -> "コード実行 → ${def.run?.command?.joinToString(" ")?.take(80)}"
                             },
                             fontSize = 11.sp, color = Palette.SubText,
                         )
                     }
                     when (def.kind) {
-                        SkillKind.EXPORT -> Button(
-                            enabled = !busy,
-                            onClick = { runExport(def) },
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
-                        ) { Text("出力", fontSize = 12.sp) }
+                        SkillKind.EXPORT -> Row(verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedButton(
+                                enabled = !busy,
+                                onClick = { exportTarget = def; chooseExportDir() },
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                            ) { Text("出力先を選ぶ…", fontSize = 12.sp) }
+                            Spacer(Modifier.width(6.dp))
+                            Button(
+                                enabled = !busy,
+                                onClick = { runExport(def) },
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
+                            ) { Text("出力", fontSize = 12.sp) }
+                        }
                         SkillKind.IMPORT -> Button(
                             enabled = !busy,
                             onClick = {
@@ -229,6 +285,9 @@ fun SkillsSection(state: AppState) {
                             if (p.skippedRows > 0) {
                                 Text("条件に合わず飛ばした行: ${p.skippedRows}", fontSize = 10.sp, color = Palette.SubText)
                             }
+                            if (p.skippedNulls > 0) {
+                                Text("空き（null）として飛ばした要素: ${p.skippedNulls}", fontSize = 10.sp, color = Palette.SubText)
+                            }
                             Row {
                                 Button(
                                     enabled = !busy && p.changeSet.changes.isNotEmpty(),
@@ -254,6 +313,45 @@ fun SkillsSection(state: AppState) {
         Text(
             "インポートは既存文書のマップした項目だけを更新します（YAML側の追記は保持）。エクスポートは原本から再生成できる派生成果物です。",
             fontSize = 10.sp, color = Palette.SubText,
+        )
+    }
+
+    // まとめて書き出すときの上書きの確認（ファイルごとではなく一括で上書きするか取りやめるか）
+    bundleConfirm?.let { (def, plans) ->
+        val overwritten = plans.filter { it.previous != null && it.changed }
+        val folder = plans.firstOrNull()?.file?.toAbsolutePath()?.parent?.toString().orEmpty()
+        AlertDialog(
+            onDismissRequest = { bundleConfirm = null },
+            title = { Text("まとめて上書きします: ${def.name}") },
+            text = {
+                Column(Modifier.width(640.dp)) {
+                    Text("書き出し先: $folder", fontSize = 12.sp)
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "${plans.size} ファイルのうち、${overwritten.size} ファイルを上書きします" +
+                            "（新規 ${plans.count { it.previous == null }}・変更なし ${plans.count { !it.changed }}）。",
+                        fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        "上書き: " + overwritten.joinToString("・") { it.file.fileName.toString() },
+                        fontSize = 11.sp, color = Palette.SubText,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "上書きした元のファイルは残りません。書き出し先を他のアプリで開いているときは、閉じてから上書きしてください。",
+                        fontSize = 11.sp, color = Palette.SubText,
+                    )
+                }
+            },
+            confirmButton = {
+                Button(enabled = !busy, onClick = {
+                    bundleConfirm = null
+                    writeBundle(plans)
+                }) { Text("上書きする") }
+            },
+            dismissButton = {
+                TextButton(onClick = { bundleConfirm = null; message = "まとめての出力を取りやめました（何も書いていません）" }) { Text("キャンセル") }
+            },
         )
     }
 

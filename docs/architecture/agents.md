@@ -24,7 +24,7 @@
 | `ToolChat` / `ToolChatSession` | agent/llm/ToolChat.kt | ツール使用対応のチャット抽象と OpenAI Responses / Anthropic Messages 実装（prompt caching の印つけ） |
 | `AiConnection` / `AiHttp` | agent/llm/Connection.kt・Http.kt | OpenAI 互換の接続先の解決と、HttpClient の単一ファクトリ（プロキシ・Basic 認証・リトライ） |
 | `Traverse` | core/Traverse.kt | 経路パターンの多段トラバース（`neighborIds` の上の emit レンダラ） |
-| `SkillDef` / `Skills` / `Runner` / `Tables` / `Importer` / `Exporter` | skill/ | skill 定義・コード実行 skill・表形式の読み書き・インポート・エクスポート |
+| `SkillDef` / `Skills` / `Runner` / `Tables` / `Importer` / `Exporter` | skill/ | skill 定義・コード実行 skill・表と木の読み書き・インポート・エクスポート |
 | `RunController` / `RunsSpace` | RunController.kt・ui/run/RunsSpace.kt | DesktopRuntime が保持する実行状態と、受信箱・手動実行・自動化・計測評価の画面 |
 | `AiGenerationHost` | ui/run/AiGenerationDialog.kt | AI 生成ダイアログの状態機械（入力 → 生成 → プレビュー → 適用）と提案合成 |
 
@@ -112,10 +112,14 @@
 
 - **YAML が唯一の原本**: インポートは取り込んだ時点で YAML 側を正とする。エクスポートは派生成果物で、YAML への出力は定義段階で拒否する。
 - **インポートは変更セット経由**: 直接ファイルへ書かず `Workspace.apply` を通す。既存文書はマップした項目だけを、値が変わる場合だけ set する（エクスポート → 再インポートが空の変更セットになる）。
-- **行の組み立ては変換定義**: 列の対応表 `mapping` は素朴な形で、複雑な行は `build`（`TransformDef`）に書く。`Importer` は行を項（見出し → セル）にして `SemanticTransform.run` に渡すだけで、組み立ての語彙（`$format` `$first` `$when` `$date` `$number` `$trim`）を Importer に持たない。取り込み先（`target.file`）と採番の接頭辞（`target.id.prefix`）も同じひな型で、組み立てた明細を「いまの場所」として埋める。
+- **行の組み立ては変換定義**: 列の対応表 `mapping` は素朴な形で、複雑な行は `build`（`TransformDef`）に書く。`Importer` は行を項（見出し → セル）にして `SemanticTransform.run` に渡すだけで、組み立ての語彙（`$format` `$first` `$when` `$date` `$number` `$trim`）を Importer に持たない。行の番号は `loop`（`$index` / `$position`）で渡す。取り込み先（`target.file`）と採番の接頭辞（`target.id.prefix`）も同じひな型で、組み立てた明細を「いまの場所」として埋める。
+- **木のままの取り込み**（`input.tree`）: 表を通さず、`FormatCodec.readTree` の木（`input.path` の場所）が配列なら要素ごと、配列でなければ全体を 1 件として同じ `build` に渡す。`null` の要素は空きとして飛ばし（`Preview.skippedNulls`）、組み立てた後の取り込み先の決め方と変更セットの組み立ては表と共通（`Importer.assemble`）。
 - **配列への取り込みは追記と採番**（`target.path`）: 明細は配列の末尾へ `PatchOp.Insert`。`target.key` が同じ明細は飛ばす（更新しない＝手で直した値を戻さない）。ID の無い明細は `IdSuggest.nextInSeries`（接頭辞を決めた系列の次）で番号を付け、既存の ID は索引と取り込み先の配列から集める。1 行 1 文書の取り込み（`target.file` だけ）の意味は変えていない。
+- **木を組み立てる書き出し**（export の `build`）: 行（文書か `source.rows` の要素）ごとに `SemanticTransform.run` で値を組み立て、`TreeOutput` の置き方（`array`・番号の位置 `index` と空き `fill`・`value`・既存の object への `merge`）で 1 つの木にして `FormatCodec.writeTree` に渡す。組み立ての語彙を Exporter に持たない。
+- **書き出しは計画してから書く**: `Exporter.plan` が書き出し先・中身・今あるファイルを返し（CLI の `--dry-run` はその行の差分 `LineMerge.diff`）、`run` は中身が変わるときだけ書く。書き出し先は定義の `output.file`（ワークスペース相対）か、実行のときに人が選んだフォルダ（同じファイル名。ワークスペースの外も可。中なら予約・隠しディレクトリは拒否）。エージェントのツールに書き出しは無い。
+- **まとめて書き出す**（`include`）: `Exporter.plans` が束ねた定義の計画を全部作り（どれかの誤り・書き出し先の重なりは例外＝何も書かない）、`Exporter.write` が書く。`write` は先に全ての書き出し先が計画のときから変わっていないことを確かめ（確認の間の変化は全体を中止）、変わるファイルだけを同じフォルダの一時ファイルから置き換える。上書きの確認は入口が一括で行う（画面のダイアログ・CLI の `--yes`）。束ねる先の存在と入れ子の禁止は `Skills.load` が確かめ、誤りの定義は外す。
 - **宣言型が既定**: import / export にコード実行はない。宣言型で書けない変換・定型手順だけがコード実行 skill（kind: run）の対象。
-- **形式は Table 抽象に集約**: xlsx / csv / json / markdown / docx / html の差は `FormatCodec` の実装（文字の形式は app-core の `app.format`・Excel と Word は拡張 format-office）に閉じ、中核の `skill/Tables.kt` は skill 定義から形式を選んでファイルと bytes の間を受け持つだけ。`source.view` は `Views.load` / `Views.resolve` の結果をそのまま表にする。
+- **形式は FormatCodec に集約**: xlsx / csv / json / markdown / docx / html の差は `FormatCodec` の実装（文字の形式は app-core の `app.format`・Excel と Word は拡張 format-office）に閉じ、中核の `skill/Tables.kt` は skill 定義から形式を選んでファイルと bytes の間を受け持つだけ。表は `read` / `write`、木（入れ子を持つ形式＝json だけ）は `readTree` / `writeTree`。JSON の木の書き方は JavaScript の `JSON.stringify` に合わせる（`format/JsonTree.kt`。他のツールが書いた JSON を読んで書き戻すと同じ文字になる）。`source.view` は `Views.load` / `Views.resolve` の結果をそのまま表にする。
 - **コード実行 skill の明示許可制**: `Runner.run` は `Runner.Approval` を必須引数に取り、`Approval` は `approve(def)` でしか作れない。承認はコマンド・作業ディレクトリ・書込宣言・タイムアウトの指紋に紐づき、定義が変わると失効する。エージェント・自動実行からは起動不可。実行後に `writes` 宣言外の変更を警告し、予約ディレクトリの変更を逸脱として報告する。プロセス起動は注入可能（`RunSkillTest`）。
 - `_skills` も予約ディレクトリ（メタアクティビティのみ提案可・監視対象外）。
 
@@ -139,5 +143,5 @@
 - **AI プロバイダの追加**: OpenAI 互換なら `AiConnection` で足りる。独自 API は `AiProvider` に enum を足し、`AiGenerator.generate` の分岐と専用クライアント・`ToolChat.newSession` の分岐を実装する。HTTP 送信は `AiHttp.post`。
 - **ツールの追加**: 中核なら app-core の `Toolset`（`coreTools`）に、拡張なら `extra` で足す（引数と結果は JSON の値。書込は作業コピー越し）。会話の相手が要るものだけ `AgentToolbox` に置く。書込権限の強制と実行記録への載せ方を揃える。
 - **レシピ項目の追加**: `ContextItemDef` のパース・`contextItemSection` の解決・`builtin-activity` メタスキーマをそろえて更新する。
-- **入出力形式の追加**: まず app-core の `app.format` に `FormatCodec` の実装を置き、登録簿の組込みの一覧（`ExtensionRegistry.BUILTIN_FORMATS`）に 1 行足す。中核に入れたくない大きな依存（POI など）を持つときだけ、拡張モジュール（format-office に足すか、同じ形の `format-<名前>`。README・3 行の build・実装・テスト）に置き、入口の登録の一覧（`desktop/ext/DesktopExtensions.kt` と `cli/CliExtensions.kt`）に 1 行ずつ足す（ADR-0015）。拡張の形・依存・登録の漏れは規則テスト 15〜17 が見る。skill 定義の `format` の値が `id`、出力ファイルの拡張子が `extensions`。
+- **入出力形式の追加**: まず app-core の `app.format` に `FormatCodec` の実装を置き、登録簿の組込みの一覧（`ExtensionRegistry.BUILTIN_FORMATS`）に 1 行足す。中核に入れたくない大きな依存（POI など）を持つときだけ、拡張モジュール（format-office に足すか、同じ形の `format-<名前>`。README・3 行の build・実装・テスト）に置き、入口の登録の一覧（`desktop/ext/DesktopExtensions.kt` と `cli/CliExtensions.kt`）に 1 行ずつ足す（ADR-0015）。拡張の形・依存・登録の漏れは規則テスト 15〜17 が見る。skill 定義の `format` の値が `id`、出力ファイルの拡張子が `extensions`。入れ子を持つ形式なら `canReadTree` / `canWriteTree` と `readTree` / `writeTree` も実装すると、`input.tree` と export の `build` で使える。
 - **出発点のテンプレートの追加**: `templates/` に置く（[workspace.md「ワークスペースの初期化」](workspace.md)）。skill を含むテンプレートも、展開後の検証エラー 0 を `WorkspaceTemplatesTest` が保証する。

@@ -123,6 +123,16 @@ object SemanticExpression {
     private val YEAR_MONTH_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM")
 
     /**
+     * 文字の一部を取り出す（値の式の extract）: 正規表現に最初に合った部分。括弧があれば 1 つ目の括弧の中身。
+     * 合わない・取り出した部分が空なら null（得られない）。
+     */
+    fun extract(text: String, pattern: String): String? {
+        val match = regexOf(pattern)?.find(text) ?: return null
+        val part = if (match.groups.size > 1) match.groups[1]?.value else match.value
+        return part?.takeIf { it.isNotEmpty() }
+    }
+
+    /**
      * 日付の部分を取り出すための読み（日付 `YYYY-MM-DD` か日時 `YYYY-MM-DD HH:MM[:SS]`。意味の基底型の正準の形と存在の規則を共有する）。
      * 時刻だけの値や、`2026/10/1` のような表記は読まない（表記から意味を決めない）。
      */

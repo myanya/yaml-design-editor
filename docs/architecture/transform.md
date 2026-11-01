@@ -41,7 +41,7 @@
 - **出どころ**: `TransformResult` は組み立てた項と、出力の場所 → 入力の文書と場所の一覧を持つ。`$concat` でつなげた配列も、つなげた後の番号で入力の場所を指す。
 - **定義の誤りは読み込みの段階で分かる**: 未知の指示・指示と出力のキーの混在・宣言されていない規則名と受け取る値・クエリで付けていない束縛名は `TransformDef.parse` がエラーにする。
 - **既存の共有部品を使う**: クエリは `SemanticQuery.run`、値の条件は `SemanticExpression.test` / `isEmpty`、文字のひな型と辞書は `Projection`、出現の選び方は `SemanticExpression.preferDefining`。
-- **使いどころ**: CLI `transform <workspace> <定義.yaml> [--input] [--param] [--origins]`（定義に `builtin:structural-schema` と書くと組込みの定義）・構造のスキーマの導出（[schema.md「構造スキーマの導出」](schema.md)）・スキーマの `scaffold`（新しい文書のひな型の中身）・skill の取り込みの `build`（表の行を項にして当てる。取り込み先と採番の接頭辞も同じひな型。[agents.md「skill」](agents.md)）。
+- **使いどころ**: CLI `transform <workspace> <定義.yaml> [--input] [--param] [--origins]`（定義に `builtin:structural-schema` と書くと組込みの定義）・構造のスキーマの導出（[schema.md「構造スキーマの導出」](schema.md)）・スキーマの `scaffold`（新しい文書のひな型の中身）・skill の取り込みの `build`（表の行か JSON の要素を項にして当てる。行の番号は `run` の `loop` で `$index` / `$position` に。取り込み先と採番の接頭辞も同じひな型）と書き出しの `build`（文書ごとに JSON の値を組み立てる。番号の位置 `output.index` と空き `output.fill` も同じひな型。[agents.md「skill」](agents.md)）。
 - 拡張と応用（繰り返しの源にクエリ・値の式をひな型の指示として・利用者の変換定義の置き場・Markdown への派生）は ROADMAP の変換のテーマ。
 
 ## レポート（YAML から文字へ）

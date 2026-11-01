@@ -85,9 +85,12 @@ internal const val CLI_USAGE = """コマンド:
            サンドボックスコピー上で実行し、レポートを _runs/ に保存する
   skills   <workspace>                          skill定義（_skills。入出力変換）の一覧と検証
   import   <workspace> <skill-id> <file> [--apply] [--require-valid]
-           表形式ファイル（xlsx/csv/json/markdown）を変更セットへ変換する。
+           表形式ファイル（xlsx/csv/json/markdown）か、木のままの JSON（input.tree）を変更セットへ変換する。
            既定はプレビューのみ。--apply で適用（既存文書はマップした項目だけ更新）
-  export   <workspace> <skill-id>               YAML原本から派生成果物（xlsx/csv/md/json/html）を再生成する
+  export   <workspace> <skill-id> [--out dir] [--dry-run] [--yes]
+           YAML原本から派生成果物（xlsx/csv/md/json/html。build なら木のままの JSON）を再生成する。
+           --out で書き出し先のフォルダ（ワークスペースの外も可）。--dry-run は書かずに今あるファイルとの違いを返す。
+           まとめて書き出す定義（include）は、既存のファイルを上書きするとき --yes が要る
   run-skill <workspace> <skill-id> [--yes]      コード実行skill（kind: run）。--yes なしでは
            コマンド内容の表示のみ。人間が内容を確認し --yes を付けたときだけ実行する（明示許可制）
   init     <dir> [--template name] [--answers file.yaml] [--param 名前=値]... [--no-sample-data] [--adopt] [--ledger dir]... [--dry-run]

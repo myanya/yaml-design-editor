@@ -209,6 +209,32 @@ class SemanticTransformTest {
     }
 
     @Test
+    fun `入力が並びの 1 件なら その番号を index と position で読める`() {
+        val transform = def("id: t\nbuild: { name: { ${'$'}copy: . }, at: ${'$'}index, pos: ${'$'}position }")
+        val result = SemanticTransform.run(transform, YamlIO.parse("炎"), loop = mapOf("index" to 2, "position" to 3))
+        assertEquals(expected("{ name: 炎, at: 2, pos: 3 }"), plain(result.term))
+        // 繰り返しの名前でないものは渡せない（受け取る値は params で宣言する）
+        assertFailsWith<IllegalStateException> { SemanticTransform.run(transform, YamlIO.parse("炎"), loop = mapOf("month" to 1)) }
+    }
+
+    @Test
+    fun `extract で文字の一部を取り出し number で数にする`() {
+        val transform = def(
+            """
+            id: t
+            build:
+              id: { ${'$'}number: { ${'$'}value: { extract: [ { path: id }, "[0-9]+${'$'}" ] } } }
+              kind: { ${'$'}value: { extract: [ { path: id }, "^([A-Z]+)-" ] } }
+              none: { ${'$'}value: { extract: [ { path: id }, "^X" ] } }
+            """
+        )
+        // 番号は 0 詰めを落とした数の項。括弧があれば中身。合わなければ「無い」でキーごと落ちる
+        assertEquals(expected("{ id: 10, kind: SKL }"), plain(SemanticTransform.run(transform, YamlIO.parse("id: SKL-0010")).term))
+        val error = assertFailsWith<IllegalStateException> { def("id: t\nbuild: { ${'$'}value: { extract: [ { path: id }, \"[\" ] } }") }
+        assertTrue("正規表現として読めません" in error.message.orEmpty(), error.message)
+    }
+
+    @Test
     fun `配列をつなげる 出力のキーをドル記号で始める`() {
         val transform = def(
             """

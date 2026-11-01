@@ -26,7 +26,8 @@ internal fun skillsCommand(rest: List<String>): CliResult = run {
                 linkedMapOf<String, Any?>(
                     "id" to s.id, "name" to s.name, "kind" to s.kind.id,
                     "target" to s.import?.targetFile,
-                    "output" to s.export?.outputFile,
+                    "output" to s.export?.outputFile?.takeIf { it.isNotEmpty() },
+                    "include" to s.export?.include?.takeIf { it.isNotEmpty() },
                 ).filterValues { it != null }
             },
             "errors" to loaded.errors,
@@ -34,13 +35,59 @@ internal fun skillsCommand(rest: List<String>): CliResult = run {
     )
 }
 
+/**
+ * 派生成果物を書き出す。`--out <フォルダ>` は書き出し先のフォルダ（output.file のファイル名で書く。ワークスペースの外も可）。
+ * `--dry-run` は書かずに、今あるファイルとの違い（変わる行の範囲）だけを返す。
+ * まとめて書き出す定義（include）は、既存のファイルを上書きするなら `--yes` が要る（無ければ一覧だけ返して書かない）。
+ */
 internal fun exportCommand(rest: List<String>): CliResult = run {
     val ws = workspaceOf(rest)
     val skillId = rest.getOrNull(1)?.takeIf { !it.startsWith("--") } ?: error("skill IDを指定してください")
     val loaded = Skills.load(ws.root)
     val def = loaded.skill(skillId) ?: error("skill「$skillId」が見つかりません（skills コマンドで確認できます）")
-    val result = Exporter.run(ws, def)
-    asData(linkedMapOf("file" to result.rel, "rows" to result.rows))
+    val outDir = rest.indexOf("--out").takeIf { it >= 0 }?.let { i ->
+        val dir = rest.getOrNull(i + 1)?.takeIf { !it.startsWith("--") } ?: error("--out に書き出し先のフォルダを指定してください")
+        Path.of(dir).also { require(Files.isDirectory(it)) { "書き出し先のフォルダが見つかりません: $dir" } }
+    }
+    if (def.export?.isBundle == true) {
+        val plans = Exporter.plans(ws, def, outDir)
+        fun state(p: Exporter.Plan) = when {
+            p.previous == null -> "created"
+            p.changed -> "overwritten"
+            else -> "unchanged"
+        }
+        val summary = linkedMapOf<String, Any?>(
+            "files" to plans.map { p -> linkedMapOf("file" to p.rel, "rows" to p.rows, "state" to state(p)) },
+            "overwritten" to plans.count { state(it) == "overwritten" },
+            "created" to plans.count { state(it) == "created" },
+            "unchanged" to plans.count { state(it) == "unchanged" },
+        )
+        val overwriting = plans.any { state(it) == "overwritten" }
+        return@run when {
+            "--dry-run" in rest -> asData(summary)
+            overwriting && "--yes" !in rest ->
+                asData(summary, note = "既存のファイルを上書きします。内容を確かめ、上書きするには --yes を付けてください（何も書いていません）")
+            else -> {
+                Exporter.write(plans)
+                asData(summary.also { it["written"] = true })
+            }
+        }
+    }
+    if ("--dry-run" in rest) {
+        val plan = Exporter.plan(ws, def, outDir)
+        val summary = linkedMapOf<String, Any?>("file" to plan.rel, "rows" to plan.rows, "changed" to plan.changed)
+        if (plan.previous == null) summary["created"] = true
+        plan.lineDiff()?.takeIf { it.isNotEmpty() }?.let { hunks ->
+            // 変わる行の範囲（今あるファイルの行番号。1 始まり）と、置き換わる行の数
+            summary["diff"] = hunks.take(50).map { h ->
+                linkedMapOf("line" to h.start + 1, "removed" to h.end - h.start, "added" to h.lines.size)
+            }
+            if (hunks.size > 50) summary["diffOmitted"] = hunks.size - 50
+        }
+        return@run asData(summary)
+    }
+    val result = Exporter.run(ws, def, outDir)
+    asData(linkedMapOf("file" to result.rel, "rows" to result.rows, "changed" to result.changed))
 }
 
 internal fun runSkillCommand(rest: List<String>): CliResult = run {
@@ -99,6 +146,7 @@ internal fun importCommand(rest: List<String>): CliResult {
     )
     if (preview.details.isNotEmpty()) summary["details"] = preview.details
     if (preview.skippedRows > 0) summary["skippedRows"] = preview.skippedRows
+    if (preview.skippedNulls > 0) summary["skippedNulls"] = preview.skippedNulls
     if ("--apply" !in rest) {
         return asData(summary, changeSet = preview.changeSet)
     }

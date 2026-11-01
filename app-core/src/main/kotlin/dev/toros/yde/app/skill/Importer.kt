@@ -25,8 +25,9 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * インポート（R5-02）: 表形式データを skill 定義で変更セットへ変換する。
- * - 行の組み立ては、列の対応表（mapping）か、行（列名 → セル）を項として当てるひな型（build＝変換定義 SemanticTransform）
+ * インポート（R5-02）: 表形式データか、木のままの JSON（input.tree）を skill 定義で変更セットへ変換する。
+ * - 行の組み立ては、列の対応表（mapping）か、行（列名 → セル。木なら配列の要素）を項として当てるひな型（build＝変換定義 SemanticTransform）。
+ *   行の番号はひな型の `$index` / `$position` で読める
  * - 1 行 1 文書（target.file だけ）: 新規行は文書の作成、既存ファイルは**組み立てた項目だけの set 操作**（値が変わる場合のみ）
  *   → 人間がYAML側に追記した項目を再インポートが消さない（取り込んだ時点からYAMLが原本）
  * - 文書の中の配列への追記（target.path）: 明細を配列の末尾へ足す。`key` が同じ明細が既にあれば飛ばす（手で直した値を戻さない）。
@@ -46,20 +47,63 @@ object Importer {
         val details: Map<String, String> = emptyMap(),
         /** ひな型の条件に合わず飛ばした行の数（build の $when。見出しの行や小計の行など）。 */
         val skippedRows: Int = 0,
+        /** 木のままの取り込みで飛ばした null の要素の数（配列の空き）。 */
+        val skippedNulls: Int = 0,
     ) {
         val ok: Boolean get() = errors.isEmpty()
     }
 
     private val placeholder = Regex("\\{([^}]+)}")
 
-    /** 表を読み、変更セットのプレビューを作る（この時点では原本に書かない）。 */
+    /** 行（表の 1 行・木の 1 要素）→ 取り込み先ファイルと明細（組み立てた項）。label は誤りの文面の「行3」「要素[2]」。 */
+    private class RowPlan(val label: String, val rel: String, val entry: YNode.Map)
+
+    /** 行の番号（ひな型の `$index`＝0 始まり・`$position`＝1 始まり）。 */
+    private fun loopOf(index: Int): Map<String, Any?> = mapOf("index" to index, "position" to index + 1)
+
+    /** 表か木を読み、変更セットのプレビューを作る（この時点では原本に書かない）。 */
     fun build(ws: Workspace, skill: SkillDef, sourceFile: Path): Preview {
         val def = skill.import ?: error("skill「${skill.id}」は import ではありません")
-        // 表が読めない（文字コードが合わない・形式が違う）ことも、定義の誤りと同じくプレビューの誤りとして返す
-        val table = runCatching { Tables.read(sourceFile, def) }.getOrElse { e ->
-            return Preview(ChangeSet(emptyList()), emptyList(), emptyList(), emptyList(), listOf(e.message ?: e::class.simpleName.orEmpty()))
+        // 読めない（文字コードが合わない・形式が違う）ことも、定義の誤りと同じくプレビューの誤りとして返す
+        fun unreadable(e: Throwable) =
+            Preview(ChangeSet(emptyList()), emptyList(), emptyList(), emptyList(), listOf(e.message ?: e::class.simpleName.orEmpty()))
+        if (def.tree) {
+            val tree = runCatching { Tables.readTree(sourceFile, def) }.getOrElse { return unreadable(it) }
+            return build(ws, def, tree)
         }
+        val table = runCatching { Tables.read(sourceFile, def) }.getOrElse { return unreadable(it) }
         return build(ws, def, table)
+    }
+
+    /**
+     * 木のまま取り込む（input.tree）: 選んだ場所が配列なら要素ごと（null の要素は飛ばす）、配列でなければ全体を 1 件として
+     * build に当てる。要素の番号は `$index` / `$position` で読める（配列の位置を ID にするときなど）。
+     */
+    fun build(ws: Workspace, def: ImportDef, tree: YNode): Preview {
+        val build = def.build ?: error("木のままの取り込みには build が必要です")
+        val errors = mutableListOf<String>()
+        val items = (tree as? YNode.Seq)?.items ?: listOf(tree)
+        val plans = mutableListOf<RowPlan>()
+        var skippedRows = 0
+        var skippedNulls = 0
+        items.forEachIndexed { index, item ->
+            if (item is YNode.Scalar && item.value == null) { skippedNulls++; return@forEachIndexed }
+            val label = if (tree is YNode.Seq) "要素[$index]" else "全体"
+            val built = runCatching { SemanticTransform.run(build, item, loop = loopOf(index)).term }
+                .getOrElse { errors += "$label: ${it.message}"; return@forEachIndexed }
+            if (built == null) { skippedRows++; return@forEachIndexed }
+            planOf(def, label, built, errors)?.let { plans += it }
+        }
+        return assemble(ws, def, plans, errors, skippedRows, skippedNulls)
+    }
+
+    /** build で組み立てた明細から、取り込み先を決める（誤りは errors へ足して null）。 */
+    private fun planOf(def: ImportDef, label: String, built: YNode, errors: MutableList<String>): RowPlan? {
+        val entry = built as? YNode.Map
+            ?: run { errors += "$label: build は項目の組（マップ）を組み立てる必要があります"; return null }
+        val rel = runCatching { resolveTemplateFile(def.fileTemplate!!, entry) }
+            .getOrElse { errors += "$label: ${it.message}"; return null }
+        return RowPlan(label, rel, entry)
     }
 
     fun build(ws: Workspace, def: ImportDef, table: Table): Preview {
@@ -89,29 +133,36 @@ object Importer {
         }
 
         // 行 → 取り込み先ファイルと明細（組み立てた項）
-        class RowPlan(val rowNo: Int, val rel: String, val entry: YNode.Map)
         val plans = mutableListOf<RowPlan>()
         var skippedRows = 0
         table.rows.forEachIndexed { index, row ->
             val rowNo = index + 1
             fun cellOf(column: String): Any? = row.getOrNull(table.columnIndex(column))
-            val entry: YNode.Map
-            val rel: String
             if (def.build == null) {
-                entry = mappedEntry(def, rowNo, ::cellOf, errors)
-                rel = runCatching { resolveTargetFile(def.targetFile, ::cellOf) }
+                val entry = mappedEntry(def, rowNo, ::cellOf, errors)
+                val rel = runCatching { resolveTargetFile(def.targetFile, ::cellOf) }
                     .getOrElse { errors += "行$rowNo: ${it.message}"; return@forEachIndexed }
+                plans += RowPlan("行$rowNo", rel, entry)
             } else {
-                val built = runCatching { SemanticTransform.run(def.build, rowTerm(table, row)).term }
+                val built = runCatching { SemanticTransform.run(def.build, rowTerm(table, row), loop = loopOf(index)).term }
                     .getOrElse { errors += "行$rowNo: ${it.message}"; return@forEachIndexed }
                 if (built == null) { skippedRows++; return@forEachIndexed }  // 条件に合わない行（$when）は飛ばす
-                entry = built as? YNode.Map
-                    ?: run { errors += "行$rowNo: build は項目の組（マップ）を組み立てる必要があります"; return@forEachIndexed }
-                rel = runCatching { resolveTemplateFile(def.fileTemplate!!, entry) }
-                    .getOrElse { errors += "行$rowNo: ${it.message}"; return@forEachIndexed }
+                planOf(def, "行$rowNo", built, errors)?.let { plans += it }
             }
-            plans += RowPlan(rowNo, rel, entry)
         }
+        return assemble(ws, def, plans, errors, skippedRows, skippedNulls = 0)
+    }
+
+    /** 行ごとの計画から変更セットを組み立てる（表と木で共通）。 */
+    private fun assemble(
+        ws: Workspace,
+        def: ImportDef,
+        plans: List<RowPlan>,
+        errors: MutableList<String>,
+        skippedRows: Int,
+        skippedNulls: Int,
+    ): Preview {
+        fun failed() = Preview(ChangeSet(emptyList()), emptyList(), emptyList(), emptyList(), errors)
         if (def.targetPath == null) {
             plans.groupBy { it.rel }.filterValues { it.size > 1 }.forEach { (rel, group) ->
                 // build で同じ内容に組み立てられた行（例: 表の見出しの値から 1 つの文書を作る）は 1 つに畳む。内容が違えば誤り
@@ -189,9 +240,9 @@ object Importer {
                 def.idRule?.let { rule ->
                     if (getAt(plan.entry, rule.path) != null) return@let
                     val prefix = runCatching { SemanticTransform.run(rule.prefix, plan.entry).term?.let(::scalarText) }
-                        .getOrElse { errors += "行${plan.rowNo}: ${it.message}"; return@let }
+                        .getOrElse { errors += "${plan.label}: ${it.message}"; return@let }
                         ?: run {
-                            errors += "行${plan.rowNo}: 採番の接頭辞が決まりません（target.id.prefix の穴が、組み立てた明細の値で埋まりません）"
+                            errors += "${plan.label}: 採番の接頭辞が決まりません（target.id.prefix の穴が、組み立てた明細の値で埋まりません）"
                             return@let
                         }
                     val id = IdSuggest.nextInSeries(existingIds, prefix, rule.digits)
@@ -225,7 +276,7 @@ object Importer {
             }
         }
         if (errors.isNotEmpty()) return failed()
-        return Preview(ChangeSet(changes), created, updated, unchanged, emptyList(), details, skippedRows)
+        return Preview(ChangeSet(changes), created, updated, unchanged, emptyList(), details, skippedRows, skippedNulls)
     }
 
     // ---------------------------------------------------------------- 行の組み立て

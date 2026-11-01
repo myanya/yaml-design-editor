@@ -36,6 +36,11 @@ root:
         - key: path
           label: 行配列へのパス（json）
           type: string
+          description: ドット区切りのキー（例 data.items）。省略時はルート。tree のときは取り込む場所
+        - key: tree
+          label: 木のまま取り込む（json）
+          type: boolean
+          description: 配列の要素を、入れ子・数の型・null を保ったまま 1 件ずつ build に渡す（null の要素は飛ばす。配列でなければ全体を 1 件）。要素の番号は $index（0 始まり）・$position（1 始まり）で読める。build が要る
         - key: table
           label: 表の番号（docx・1始まり）
           type: int
@@ -82,11 +87,11 @@ root:
           description: この項目の値が同じ明細が既にあれば取り込まない（配列への取り込みだけ）
           item: { type: string }
     - key: build
-      label: 行のひな型（import）
+      label: 行のひな型（import / export）
       type: any
-      description: 行（列名 → セル）を項として当てる変換のひな型。mapping の代わりに書く（$when で行を飛ばせる）
+      description: import では行（列名 → セル、tree なら JSON の要素）を項として当てる変換のひな型で、mapping の代わりに書く（$when で行を飛ばせる）。export では文書（rows なら配列の要素）ごとに JSON の値を組み立てるひな型で、columns の代わりに書く
     - key: rules
-      label: ひな型の規則（import）
+      label: ひな型の規則（import / export）
       type: any
       description: build から $apply で当てる名前付きの規則（変換定義の rules と同じ）
     - key: mapping
@@ -120,6 +125,11 @@ root:
           - key: split
             label: 配列化の区切り
             type: string
+    - key: include
+      label: まとめて書き出す定義（export）
+      type: array
+      item: { type: string }
+      description: 束ねる書き出しの skill ID。同じ書き出し先へ 1 回で書く（全部を計画してから書き、どれかが誤りなら何も書かない。既存のファイルを上書きするときは一括で確認する）。このときは source・columns・build・output を書かない
     - key: source
       label: 対象文書（export）
       type: object
@@ -159,10 +169,38 @@ root:
         - key: file
           label: 出力ファイル
           type: string
-          description: 拡張子で形式が決まる（.xlsx / .csv / .md / .json / .html）。YAMLへの出力は不可
+          description: 拡張子で形式が決まる（.xlsx / .csv / .md / .json / .html）。YAMLへの出力は不可。実行のときに書き出し先のフォルダを選ぶと、このファイル名でそのフォルダに書く
         - key: sheet
           label: シート名（xlsx）
           type: string
+        - key: mode
+          label: 置き方（build）
+          type: enum
+          values:
+            - { value: array, label: 配列に並べる, description: 組み立てた値を配列に並べる（index があれば番号の位置に） }
+            - { value: value, label: 1 つの値, description: ちょうど 1 つの値をファイル全体にする }
+            - { value: merge, label: 既存の object に書き込む, description: 書き出し先の既存の JSON（object）に、組み立てた object の項目を書き込む。ほかの項目と順はそのまま }
+          default: array
+        - key: index
+          label: 番号（build・array）
+          type: any
+          description: 組み立てた値を番号の位置に並べる。組み立てた値から 0 以上の整数を読むひな型（文字列はパスの略記。例 id）
+        - key: fill
+          label: 番号の空きに置く値（build・index）
+          type: any
+          description: 番号が無い位置に置く値のひな型（$index が空きの番号）。省略時は null
+        - key: style
+          label: 書式（build）
+          type: enum
+          values:
+            - { value: pretty, label: 字下げ, description: 字下げ 2 つで入れ子を 1 行ずつ }
+            - { value: compact, label: 1 行, description: 空白を入れず 1 行 }
+            - { value: lines, label: 要素ごとに 1 行, description: 一番外の配列の要素（object なら項目）を 1 行に 1 つ }
+          default: pretty
+        - key: finalNewline
+          label: 末尾の改行（build）
+          type: boolean
+          default: true
     - key: run
       label: コード実行（run）
       type: object

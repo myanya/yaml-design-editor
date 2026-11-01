@@ -66,7 +66,7 @@ Windows ZIP の構成と検査経路は [配布手順](../releasing.md) にま�
 | | `app.validate` | `Validator`（窓口）・`Readiness` |
 | | `app.tools` | ツールの一式（ADR-0013「窓口の形」）: 中核のツール `Toolset`・`Tool`・`ToolContext`／`ToolPolicy`・作業コピー `WorkingCopy`・読み出しの文 `Readouts`・JSON の値と JSON Schema の変換（`JsonValues` / `JsonSchemas`）。入口（agent の LLM 宣言・MCP・CLI）が包む |
 | | `app.ext` | 形式とビューの種類の登録簿（`ExtensionRegistry`／`Extensions`）。組込み（文字の形式・chart・flow）を最初から持ち、入口が別モジュールの拡張を `Extensions.install` で足す（自動発見はしない）。カーネルに渡すビューの種類（`Extensions.viewKinds`。差し込み口はカーネルの `ViewKind`）もここから読む |
-| | `app.format` | 形式の差し込み口 `FormatCodec`・表 `Table` と、組込みの文字の形式（csv・json・markdown・html。`TextFormats.kt`） |
+| | `app.format` | 形式の差し込み口 `FormatCodec`・表 `Table` と、組込みの文字の形式（csv・json・markdown・html。`TextFormats.kt`）・JSON の木の読み書き（`JsonTree.kt`） |
 | | `app.view` | 組込みのビューの種類。`app.view.chart`＝`kind: chart` の `ChartViewKind` と、描画が読む定義と結果の型（`ChartViews.kt`・`ChartSelection.kt`）。`app.view.flow`＝`kind: flow` の `FlowViewKind` と、描画が読む定義・図のモデル・選択・表示の設定（`FlowViews.kt`・`FlowSelection.kt`・`FlowDisplayOptions.kt`）と CLI・read_view の値（`FlowReports.kt`）。資源は `view/chart/schema.yaml`・`view/flow/schema.yaml`・`view/flow/flow-model.yaml` |
 | | `app.session` | セッション側の状態（Compose 非依存）: `DocumentSession`（コアとカーネルの保持・索引の写し・開いている文書・未保存編集を重ねた索引と派生・編集の記録・開き直しと同期）と 1 文書の論理 `DocumentState`。再読込・保存・履歴の一手・全体検証と検索・一括変更・リファクタリング・文書の作成・配置の計画と前後・操作（アクション）の論理もここ。画面側に残るのは開く手順と場所・通知・パネルの作業 |
 | | `app.text` | 純粋な文字の計算（行の差分と 3 者併合 `LineMerge`・履歴の値を優先した書式の差し込み `SourceHistorySync`） |

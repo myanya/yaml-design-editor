@@ -319,6 +319,35 @@ build:
 - **値をそろえる指示**: `$date`（`2021/8/21`・`20210821`・`2021年8月21日` を `yyyy-MM-dd` に。`$as` で `yyyyMMdd`・`yyyy-MM` などの形）・`$number`（`¥` と桁区切りと全角、`▲` の負を許して数に。`$as` で `00` のような形の文字に）・`$trim`（前後の空白を落とし、続く空白を 1 つに。空なら「無い」）・`$format` の `$with`（計算した値を穴へ）・`$value`（値の式で計算する。例 `{$value: {multiply: [{path: 単価}, {path: 数量}]}}`）。ひな型の指示の一覧は [schema.md](schema.md)「新しい文書の置き場所とひな型」。
 - `mapping` でも `target.path` は書けます（列の対応表で組み立てた明細を配列へ追記）。`target.id` と `target.key` は配列への取り込み（`target.path`）だけで使えます。
 - 1 行 1 文書の取り込み（`target.path` なし）で、`build` が複数の行を同じ文書に**同じ内容**で組み立てたときは 1 つに畳みます（例: 明細の表の見出しの値から、期間の文書を 1 つ作る）。内容が違えば誤りです。
+- `build` の中では、行の番号を `$index`（0 始まり）と `$position`（1 始まり）で読めます。
+
+#### JSON を木のまま取り込む（`input.tree`）
+
+入れ子を持つ JSON（ゲームエンジンのデータ、アプリの設定ファイルなど）は、`input: { format: json, tree: true }` と書くと、表にせず木のまま取り込めます。
+選んだ場所（`input.path`。省略時はルート）が配列なら要素を 1 件ずつ、配列でなければ全体を 1 件として `build` に渡します。入れ子・数の型（整数と小数）・キーの順は、そのまま `build` から読めます。
+
+```yaml
+# .yde/skills/import-items.yaml —— 番号が配列の位置で、先頭が null の JSON を、1 件 1 文書へ
+id: import-items
+kind: import
+input: { format: json, tree: true }
+target: { file: "db/items/{id}.yaml" }
+build:
+  id: { $format: "ITM-{n}", $with: { n: { $number: { $copy: id }, $as: "0000" } } }   # 1 → ITM-0001
+  name: { $copy: name }
+  params: { mhp: { $copy: "params[0]" }, atk: { $copy: "params[1]" } }                # 並びに名前を付ける
+  effects: { $each: effects, $apply: effect }
+rules:
+  - id: effect
+    when: { path: code, equals: 21 }       # コードで dataId の意味が変わる: 21 ならステートの番号
+    build: { code: 21, dataId: { $format: "STA-{n}", $with: { n: { $number: { $copy: dataId }, $as: "0000" } } } }
+  - id: effect                             # ほかのコードはそのまま写す
+    build: { code: { $copy: code }, dataId: { $copy: dataId } }
+```
+
+- 配列の `null` の要素は空きとして飛ばし、プレビューに件数を出します。
+- 要素の番号は `$index` / `$position` で読めます。文字の配列（例 `["", "物理", "炎"]`）を、位置を ID にした一覧へ取り込むときに使います（`id: { $format: "ELM-{n}", $with: { n: { $number: $index, $as: "00" } } }`）。
+- 木のときは `mapping` を使えず、`build` で組み立てます。取り込み先（`target`）・採番・同じ明細の見分けは、表の取り込みと同じです。
 
 ### エクスポート（YAML原本 → 派生成果物）
 
@@ -345,6 +374,68 @@ kind: export
 source: { view: screen-catalog }
 output: { file: exports/screens.html }
 ```
+
+#### JSON を木のまま組み立てて書き出す（`build`）
+
+`columns` の代わりに `build`（取り込みと同じひな型）を書くと、文書（`source.rows` なら配列の要素）ごとに JSON の値を組み立て、表を通さずに書き出します（出力は `.json`）。
+値の無い項目はキーごと書かず、組み立てた値が無い行は飛ばします。取り込みの `build` と逆向きの定義を書けば、取り込んで書き出すと元の JSON に戻ります。
+
+```yaml
+# .yde/skills/export-items.yaml —— 上の取り込みの逆向き
+id: export-items
+kind: export
+source: { match: "db/items/*.yaml" }
+build:
+  id: { $number: { $value: { extract: [ { path: id }, "[0-9]+$" ] } } }    # ITM-0001 → 1
+  name: { $copy: name }
+  params: [ { $first: [ { $copy: params.mhp }, 0 ] }, { $first: [ { $copy: params.atk }, 0 ] } ]
+  effects: { $each: effects, $apply: effect }
+rules: [ … ]                     # 取り込みと逆向きの規則
+output:
+  file: out/data/Items.json
+  index: id                      # 組み立てた値の id の位置に並べる（0 番と空きは null）
+  style: lines                   # 要素を 1 行に 1 つ
+  finalNewline: false            # 末尾に改行を付けない
+```
+
+| `output` の項目 | 意味 |
+|---|---|
+| `mode` | `array`（既定。行ごとの値を配列に並べる）・`value`（ちょうど 1 つの値をファイル全体にする）・`merge`（書き出し先の既存の JSON の object に、組み立てた object の項目を書き込む。ほかの項目とキーの順はそのまま） |
+| `index` | 番号の位置に並べる（`array` のとき）。組み立てた値から 0 以上の整数を読むひな型で、文字列はパスの略記（`index: id`）。番号が重なれば誤り |
+| `fill` | 番号の空きに置く値のひな型（`index` のとき。`$index` が空きの番号。省略時は `null`） |
+| `style` | `pretty`（既定。字下げ 2 つ）・`compact`（1 行）・`lines`（一番外の配列の要素、object なら項目を 1 行に 1 つ） |
+| `finalNewline` | 末尾に改行を付けるか（既定 `true`） |
+
+- 数と文字は JavaScript の `JSON.stringify` と同じ書き方です（小数部の無い数は整数・日本語はそのまま）。他のツールが書いた JSON を取り込んで書き戻しても、値が同じなら同じ文字になり、差分は変えた要素の行だけに出ます。
+- `merge` は、1 つのファイルに他のツールの設定と YDE が持つ値が同居するときに使います（例 種別の一覧だけを書き換える）。書き出し先にファイルが無ければ誤りです。
+
+#### 書き出し先を選ぶ
+
+書き出し先は、定義の `output.file`（ワークスペース相対）が既定です。実行のときに書き出し先のフォルダを選ぶと、同じファイル名でそのフォルダへ書きます。ワークスペースの外（別のアプリのデータのフォルダなど）も選べます。
+
+- 画面: 連携（skill）の「出力先を選ぶ…」でフォルダを選びます。「出力」は既定の場所へ書きます。
+- CLI: `export <workspace> <skill-id> --out <フォルダ>`。`--dry-run` を付けると書かずに、今あるファイルとの違い（変わる行の範囲）を返します。
+- 定義には絶対パスを書けません（環境ごとの場所をワークスペースに残さないため）。エージェントは書き出しを実行できません。
+- 中身が今あるファイルと同じなら、ファイルに触れません。書くときは一時ファイルに書いてから置き換えるので、途中で止まっても書きかけのファイルは残りません。
+- 書き出し先を他のアプリが開いているときは、そのアプリを閉じてから書き出してください（開いたままだと、そのアプリが手元の古い内容で上書き保存することがあります）。
+
+#### まとめて書き出す（`include`）
+
+別のアプリのデータのフォルダ（例: ゲームの data フォルダ）を一式書き換えるときは、書き出しの定義を束ねる定義を置きます。束ねた定義はそれぞれ単独でも使えます。
+
+```yaml
+# .yde/skills/export-all.yaml
+id: export-all
+name: データ一式をまとめて書き出す
+kind: export
+include: [export-actors, export-items, export-system]   # 束ねる書き出しの skill ID（書いた順に書く）
+```
+
+- 書き出し先は 1 回だけ選びます（画面の「出力先を選ぶ…」・CLI の `--out`）。束ねた定義は、そのフォルダへそれぞれのファイル名で書きます。
+- 全部を計画してから書きます。どれか 1 つでも誤りがあれば（例: `mode: merge` の書き込み先が無い）、何も書きません。書き出し先が重なる束ね方も誤りです。
+- 既存のファイルを上書きするときは、書く前に一括で確認します（画面は「上書きする」かキャンセル。CLI は `--yes` を付けたときだけ書き、付けなければ一覧だけ返します）。上書きした元のファイルは残りません。
+- 確認している間に書き出し先のファイルが変わったら、何も書かずに知らせます。
+- `include` の定義には `source`・`columns`・`build`・`output` を書きません。束ねる定義は書き出しの定義で、まとめる定義を入れ子にはできません。
 
 ### コード実行skill（kind: run・明示許可制）
 

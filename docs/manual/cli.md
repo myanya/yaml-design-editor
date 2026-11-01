@@ -19,7 +19,8 @@ API への自動転送や待受の自動有効化はしません。起動中の�
 |---|---|
 | apply / workspace apply | --dry-run |
 | action / import / infer-schema / infer-relations / workspace refactor の --apply | --apply なし |
-| agent / watch / revert / export / migrate | 読取専用モードなし（agent は --apply なしでも実行記録を書く） |
+| export | --dry-run |
+| agent / watch / revert / migrate | 読取専用モードなし（agent は --apply なしでも実行記録を書く） |
 | eval の実行、report のファイル出力 | 一覧、report --print |
 | run-skill --yes | --yes なしの内容表示 |
 | init --template / --adopt | テンプレート一覧、--dry-run |
@@ -72,6 +73,8 @@ catalog・read・view・query・validate などの参照は使えます。保存
 ./gradlew runCli -q --args="skills sample-workspace"                      # skill定義の一覧と検証
 ./gradlew runCli -q --args="import my-ws import-issues ledger.xlsx --apply"  # 表形式の取り込み（既定はプレビュー）
 ./gradlew runCli -q --args="export sample-workspace export-actors"        # 派生成果物の再生成
+./gradlew runCli -q --args="export my-ws export-items --out ../game/data --dry-run"  # 書き出し先のフォルダを選び、書かずに今あるファイルとの違いを見る（--dry-run を外すと書く）
+./gradlew runCli -q --args="export my-ws export-all --out ../game/data --yes"         # まとめて書き出す定義（include）。既存のファイルを上書きするときは --yes が要る（無ければ一覧だけ返して書かない）
 ./gradlew runCli -q --args="run-skill my-ws normalize --yes"              # コード実行skill（--yes なしは内容表示のみ）
 ./gradlew runCli -q --args="init new-ws"                                  # 新しいワークスペースを作る（引数なしはテンプレートの一覧。[README.md](README.md)「新しいワークスペースを作る」）
 ./gradlew runCli -q --args="init new-ws --template issues --no-sample-data"  # テンプレート「課題管理」を展開（--no-sample-data で台帳の中を写さない。--dry-run で計画だけ）

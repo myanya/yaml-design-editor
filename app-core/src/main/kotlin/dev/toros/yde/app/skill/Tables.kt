@@ -5,6 +5,7 @@ import dev.toros.yde.app.format.FormatCodec
 import dev.toros.yde.app.format.ReadOptions
 import dev.toros.yde.app.format.Table
 import dev.toros.yde.app.format.WriteOptions
+import dev.toros.yde.yaml.model.YNode
 import java.nio.charset.CharacterCodingException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -47,12 +48,36 @@ object Tables {
         }
     }
 
+    /** 木のまま読む（input.tree）。`input.path` があればその場所の部分木。 */
+    fun readTree(file: Path, def: ImportDef): YNode {
+        val codec = codecFor(def.format)
+        require(codec.canReadTree) { "${codec.id} は木のままの取り込みに対応していません" }
+        return try {
+            codec.readTree(Files.readAllBytes(file), ReadOptions(jsonPath = def.jsonPath, encoding = def.encoding))
+        } catch (e: CharacterCodingException) {
+            error("文字コード ${def.encoding.name()} として読めません: ${file.fileName}")
+        }
+    }
+
     // ---------------------------------------------------------------- 書き出し
 
-    /** 出力ファイルの拡張子で形式を選んで書く。sheet は xlsx のシート名（html では題名）。 */
+    /** 出力ファイルの拡張子で形式を選んで bytes にする。sheet は xlsx のシート名（html では題名）。 */
+    fun encode(table: Table, fileName: String, sheet: String): ByteArray =
+        writerFor(fileName).write(table, WriteOptions(sheet = sheet, title = sheet))
+
+    /** 出力ファイルの拡張子で形式を選んで書く。 */
     fun write(table: Table, file: Path, sheet: String) {
-        val codec = writerFor(file.fileName.toString())
         Files.createDirectories(file.parent ?: file.toAbsolutePath().parent)
-        Files.write(file, codec.write(table, WriteOptions(sheet = sheet, title = sheet)))
+        Files.write(file, encode(table, file.fileName.toString(), sheet))
     }
+
+    /** 出力ファイルの拡張子で形式を選んで、木を bytes にする。 */
+    fun encodeTree(node: YNode, fileName: String, options: WriteOptions): ByteArray {
+        val codec = writerFor(fileName)
+        require(codec.canWriteTree) { "${codec.id} は木を書けません: $fileName" }
+        return codec.writeTree(node, options)
+    }
+
+    /** 書き出し先の既存の木（mode: merge）。 */
+    fun decodeTree(bytes: ByteArray, fileName: String): YNode = writerFor(fileName).readTree(bytes, ReadOptions())
 }

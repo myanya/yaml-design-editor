@@ -47,10 +47,16 @@ object SemanticTransform {
         params: Map<String, Any?> = emptyMap(),
         /** ビューの行（`$view`。レポート）の供給元: ビュー ID → 行の配列（無ければ null）。 */
         views: (String) -> YNode? = { null },
+        /**
+         * 入力が並びの 1 件のとき、その番号（`$index`＝0 始まり・`$position`＝1 始まり）。skill の取り込みが行ごとに渡す。
+         * 名前は繰り返しの中と同じ（LOOP_NAMES）で、params には宣言しない。
+         */
+        loop: Map<String, Any?> = emptyMap(),
     ): TransformResult {
         require(def.from == null) { "変換「${def.id}」はクエリで入力を選ぶ定義です（from.match）。索引を渡して実行してください" }
+        loop.keys.firstOrNull { it !in TransformDef.LOOP_NAMES }?.let { error("変換「${def.id}」: 繰り返しの名前ではありません: $it") }
         val run = Run(def, params, bindings = emptyMap(), views = views)
-        val term = run.build(def.build, TemplatePlace(input, document, emptyList()), emptyList(), emptyMap())
+        val term = run.build(def.build, TemplatePlace(input, document, emptyList()), emptyList(), loop)
         return TransformResult(term, run.origins)
     }
 

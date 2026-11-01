@@ -12,7 +12,8 @@ internal fun <T> withCliOwnership(root: String?, writing: Boolean, block: () -> 
 internal fun appCommandWrites(command: String, rest: List<String>): Boolean = when (command) {
     "apply" -> "--dry-run" !in rest
     "action", "import", "infer-schema", "infer-relations" -> "--apply" in rest
-    "agent", "watch", "revert", "export", "migrate" -> true
+    "export" -> "--dry-run" !in rest
+    "agent", "watch", "revert", "migrate" -> true
     "eval" -> rest.getOrNull(1)?.startsWith("--") == false
     "report" -> rest.getOrNull(1)?.startsWith("--") == false && "--print" !in rest
     "run-skill" -> "--yes" in rest

@@ -1,5 +1,6 @@
 package dev.toros.yde.app.skill
 
+import dev.toros.yde.app.format.TreeStyle
 import dev.toros.yde.app.schema.SchemaLoader
 import dev.toros.yde.semantic.schema.TransformDef
 import dev.toros.yde.workspace.layout.WorkspaceLayout
@@ -45,12 +46,14 @@ data class IdRule(val path: YPath, val prefix: TransformDef, val digits: Int)
 /**
  * インポートの定義。行の組み立ては、列の対応表（mapping）か、行を項として当てるひな型（build＝変換定義）のどちらか 1 つ。
  * 取り込み先は 1 行 1 文書（targetPath == null）か、文書の中の配列への追記（targetPath）。
+ * tree のときは表を通さず、選んだ場所の配列の要素（配列でなければ全体を 1 件）を木のまま build に渡す（json）。
  */
 data class ImportDef(
     val format: String,              // 形式の id（登録簿の FormatCodec。xlsx / csv / json / markdown / docx …）
     val sheet: String? = null,       // xlsx: シート名（省略時は先頭）
     val headerRow: Int = 1,          // xlsx: ヘッダ行（1始まり）
-    val jsonPath: String? = null,    // json: 行配列へのドット区切りパス（省略時はルート配列）
+    val jsonPath: String? = null,    // json: 行配列（tree なら取り込む場所）へのドット区切りパス（省略時はルート）
+    val tree: Boolean = false,       // 木のまま取り込む（入れ子・数の型・null を保つ。build が要る）
     val tableIndex: Int = 1,         // docx: 文書内の何番目の表か（1始まり）
     val encoding: Charset = Charsets.UTF_8,  // csv / json / markdown の文字コード（例 windows-31j）
     val columns: List<String> = emptyList(), // csv: 見出しの行が無いとき、列の名前の並び（1 行目からデータ）
@@ -74,9 +77,40 @@ data class ExportDef(
     val rowsPath: String = "",       // "" = 1文書1行。配列パス指定でその要素ごとに1行
     val columns: List<ExportColumn> = emptyList(),
     val viewId: String? = null,      // `_views` のビュー定義を行×列の源にする（R9-05。match / columns と排他）
-    val outputFile: String,          // 出力先（ワークスペース相対。拡張子で形式決定）
+    val outputFile: String,          // 出力先（ワークスペース相対。拡張子で形式決定。実行のときに別のフォルダを選べる）
     val sheet: String = "Sheet1",    // xlsx: シート名
+    val build: TransformDef? = null, // 木を組み立てる書き出し: 行ごとに値を組み立てるひな型（columns の代わり）
+    val tree: TreeOutput? = null,    // build のときの並べ方と書式
+    val include: List<String> = emptyList(),  // まとめて書き出す: 束ねる書き出しの skill ID（このとき自分は source も output も持たない）
+) {
+    val isBundle: Boolean get() = include.isNotEmpty()
+}
+
+/** 木を組み立てる書き出しの並べ方と書式。 */
+data class TreeOutput(
+    val mode: TreeMode = TreeMode.ARRAY,
+    /** 番号の位置に並べる（array のとき）: 組み立てた値を「いまの場所」として 0 以上の整数を返すひな型。 */
+    val index: TransformDef? = null,
+    /** 番号の空き（index のとき）: 置く値のひな型（`$index` が空きの番号）。null＝JSON の null。 */
+    val fill: TransformDef? = null,
+    val style: TreeStyle = TreeStyle.PRETTY,
+    val finalNewline: Boolean = true,
 )
+
+/** 組み立てた値の置き方。 */
+enum class TreeMode(val id: String) {
+    /** 行ごとの値を配列に並べる（index があれば番号の位置に）。 */
+    ARRAY("array"),
+    /** 1 行の値をそのままファイル全体にする。 */
+    VALUE("value"),
+    /** 書き出し先の既存の object に、組み立てた object の項目を書き込む（ほかの項目と順はそのまま）。 */
+    MERGE("merge");
+
+    companion object {
+        fun parse(raw: String): TreeMode =
+            entries.firstOrNull { it.id == raw } ?: error("output.mode は ${entries.joinToString(" / ") { it.id }} のいずれかです: $raw")
+    }
+}
 
 /**
  * コード実行skill（R9-06）の宣言部分。コマンドはワークスペース相対の workdir で実行される。
@@ -126,7 +160,7 @@ object Skills {
             }.onFailure { errors += "${file.fileName}: ${it.message ?: it::class.simpleName}" }.getOrNull()
         }
         skills.groupBy { it.id }.filterValues { it.size > 1 }.keys.forEach { errors += "skillID「$it」が重複しています" }
-        return LoadResult(skills, errors)
+        return LoadResult(checkBundles(skills, errors), errors)
     }
 
     fun parseSkill(raw: Map<*, *>, source: Path): SkillDef {
@@ -262,11 +296,22 @@ object Skills {
             require(columns.none { it.isEmpty() }) { "input.columns に空の名前があります" }
             columns.groupBy { it }.filterValues { it.size > 1 }.keys.firstOrNull()?.let { error("input.columns の名前「$it」が重複しています") }
         }
+        // 木のまま取り込む: 表の列は無いので、組み立ては build（ひな型）で書く
+        val tree = when (val t = input["tree"]) {
+            null -> false
+            is Boolean -> t
+            else -> error("input.tree は true / false で書きます")
+        }
+        if (tree) {
+            require(codec.canReadTree) { "${codec.id} は木のままの取り込み（input.tree）に対応していません（使えるのは json）" }
+            require(hasBuild) { "input.tree（木のまま取り込む）では build（ひな型）で組み立てます。mapping は表の取り込みで使います" }
+        }
         return ImportDef(
             format = format,
             sheet = input["sheet"]?.toString(),
             headerRow = headerRow,
             jsonPath = input["path"]?.toString(),
+            tree = tree,
             tableIndex = tableIndex,
             encoding = encoding,
             columns = columns,
@@ -307,6 +352,7 @@ object Skills {
     }
 
     private fun parseExport(raw: Map<*, *>): ExportDef {
+        raw["include"]?.let { return parseBundle(raw, it) }
         val sourceMap = raw["source"] as? Map<*, *> ?: error("export には source.match または source.view が必要です")
         val output = raw["output"] as? Map<*, *> ?: error("export には output.file が必要です")
         val outputFile = output["file"]?.toString()?.takeIf { it.isNotBlank() } ?: error("output.file が必要です")
@@ -315,9 +361,30 @@ object Skills {
         }
         val outputNorm = outputFile.replace('\\', '/')
         require(!outputNorm.startsWith("_") && !outputNorm.startsWith(".")) { "予約ディレクトリ・隠しディレクトリへの出力はできません: $outputFile" }
-        Tables.writerFor(outputFile)  // 拡張子の妥当性（書ける形式が登録されているか）を先に検査
+        val writer = Tables.writerFor(outputFile)  // 拡張子の妥当性（書ける形式が登録されているか）を先に検査
         val viewId = sourceMap["view"]?.toString()?.takeIf { it.isNotBlank() }
         val match = sourceMap["match"]?.toString()?.takeIf { it.isNotBlank() }
+        val treeKeys = listOf("mode", "index", "fill", "style", "finalNewline")
+        if (raw["build"] != null) {
+            // 木を組み立てる書き出し: 行ごとの値は build（ひな型）で組み立て、output の並べ方と書式で書く
+            require(viewId == null) { "source.view と build は併用できません（build の行は source.match の文書か source.rows の要素です）" }
+            require(raw["columns"] == null) { "build（木を組み立てる書き出し）では columns を書きません" }
+            require(writer.canWriteTree) { "build で書き出せるのは木を書ける形式だけです（.json）: $outputFile" }
+            val skillId = raw["id"]?.toString().orEmpty().ifBlank { "export" }
+            val build = TransformDef.parse(
+                linkedMapOf<String, Any?>("id" to skillId, "build" to raw["build"]).also { m -> raw["rules"]?.let { m["rules"] = it } },
+                "build",
+            )
+            return ExportDef(
+                match = match ?: error("source.match が必要です"),
+                rowsPath = sourceMap["rows"]?.toString() ?: "",
+                outputFile = outputFile,
+                build = build,
+                tree = parseTreeOutput(output, skillId),
+            )
+        }
+        require(raw["rules"] == null) { "rules は build と一緒に書きます" }
+        treeKeys.firstOrNull { output.containsKey(it) }?.let { error("output.$it は build（木を組み立てる書き出し）と一緒に書きます") }
         if (viewId != null) {
             // ビュー参照エクスポート（R9-05）: 行×列はビュー定義が持つため、match / rows / columns は指定できない
             require(match == null) { "source.view と source.match は併用できません" }
@@ -345,5 +412,59 @@ object Skills {
             outputFile = outputFile,
             sheet = output["sheet"]?.toString() ?: "Sheet1",
         )
+    }
+
+    /**
+     * まとめて書き出す（include）: 既存の書き出しの定義を並べ、同じ書き出し先へ 1 回で書く。自分は行も出力も持たない
+     * （束ねた定義がそれぞれ持つ）。束ねた定義が在るか・入れ子でないかは、全部を読んでから load が確かめる。
+     */
+    private fun parseBundle(raw: Map<*, *>, includeRaw: Any): ExportDef {
+        val ids = (includeRaw as? List<*>)?.map { it?.toString()?.trim().orEmpty() }
+            ?: error("include は束ねる書き出しの skill ID の配列で書きます")
+        require(ids.isNotEmpty()) { "include には 1 つ以上の skill ID を書きます" }
+        require(ids.none { it.isEmpty() }) { "include に空の skill ID があります" }
+        ids.groupBy { it }.filterValues { it.size > 1 }.keys.firstOrNull()?.let { error("include の「$it」が重複しています") }
+        listOf("source", "columns", "build", "rules", "output").firstOrNull { raw[it] != null }
+            ?.let { error("include（まとめて書き出す）では $it を書きません（束ねた定義がそれぞれ持ちます）") }
+        return ExportDef(outputFile = "", include = ids)
+    }
+
+    /** まとめて書き出す定義が束ねる skill は、在って、書き出しで、それ自体はまとめる定義でないこと（読み込みの誤りにして外す）。 */
+    private fun checkBundles(skills: List<SkillDef>, errors: MutableList<String>): List<SkillDef> {
+        val byId = skills.associateBy { it.id }
+        return skills.filter { skill ->
+            val export = skill.export?.takeIf { it.isBundle } ?: return@filter true
+            val problem = export.include.firstNotNullOfOrNull { id ->
+                val target = byId[id]
+                when {
+                    target == null -> "include の「$id」が見つかりません"
+                    target.export == null -> "include の「$id」は書き出し（kind: export）ではありません"
+                    target.export.isBundle -> "include の「$id」もまとめて書き出す定義です（入れ子にはできません）"
+                    else -> null
+                }
+            }
+            if (problem != null) errors += "${skill.source.fileName}: $problem"
+            problem == null
+        }
+    }
+
+    /** 木の書き出しの output（並べ方 mode・番号 index・空き fill・書式 style・末尾の改行 finalNewline）。 */
+    private fun parseTreeOutput(output: Map<*, *>, skillId: String): TreeOutput {
+        val mode = output["mode"]?.toString()?.let(TreeMode::parse) ?: TreeMode.ARRAY
+        val index = output["index"]?.let { raw ->
+            require(mode == TreeMode.ARRAY) { "output.index（番号の位置に並べる）は mode: array で書きます" }
+            TransformDef.ofTemplate("$skillId.output.index", if (raw is String && !raw.startsWith("\$")) mapOf("\$copy" to raw) else raw, "output.index")
+        }
+        val fill = output["fill"]?.let { raw ->
+            require(index != null) { "output.fill（番号の空きに置く値）は output.index と一緒に書きます" }
+            TransformDef.ofTemplate("$skillId.output.fill", raw, "output.fill")
+        }
+        val style = output["style"]?.toString()?.let(TreeStyle::parse) ?: TreeStyle.PRETTY
+        val finalNewline = when (val f = output["finalNewline"]) {
+            null -> true
+            is Boolean -> f
+            else -> error("output.finalNewline は true / false で書きます")
+        }
+        return TreeOutput(mode, index, fill, style, finalNewline)
     }
 }
