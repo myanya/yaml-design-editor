@@ -14,7 +14,7 @@ definitions:
       - { key: name, label: 名前, type: line, role: title, required: true }
       - { key: expParams, label: 経験値曲線, type: parts#経験値曲線 }
       - { key: learnings, label: 習得するスキル, type: array, display: table, item: { type: parts#習得スキル } }
-      - { key: traits, label: 特徴, type: array, item: { type: parts#特徴 } }
+      - { key: traits, label: 特徴, type: array, display: list, item: { type: parts#特徴 } }
       - { key: note, label: メモ, type: common#メモ }
       - key: params
         label: レベルごとの能力値

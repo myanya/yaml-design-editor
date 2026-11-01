@@ -32,7 +32,7 @@ definitions:
       - { key: message2, label: 敵がかかったとき, type: line }
       - { key: message3, label: かかっているとき, type: line }
       - { key: message4, label: 解除されたとき, type: line }
-      - { key: traits, label: 特徴, type: array, item: { type: parts#特徴 } }
+      - { key: traits, label: 特徴, type: array, display: list, item: { type: parts#特徴 } }
       - { key: note, label: メモ, type: common#メモ }
     constraints:
       - id: min-turns-within-max

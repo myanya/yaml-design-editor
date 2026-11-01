@@ -4,30 +4,33 @@ kind: library
 description: |
   MZ のデータベースの部品（特徴・使用効果・ダメージ・能力値・成長・行動パターン・ドロップなど）と、
   一覧の要素（属性・タイプ・MZ が持つものの番号と名前・特別な値）の形です。
-  特徴と使用効果は、MZ と同じく「コード」で中身が決まります。コードを選ぶと、dataId に選べるものが変わります。
+  特徴と使用効果は、MZ と同じく「種類（code）」で中身が決まります。種類を選ぶと、dataId と値の項目がその種類のものに変わります。
 definitions:
   # ---- 特徴（traits）: アクター・職業・武器・防具・敵キャラ・ステート ----
+  # 種類（code）を選ぶと、その種類の項目（dataId と値）が出ます。MZ が使わない値は、取り込んだときだけ持ちます（unknownFields: allow）
   特徴:
     type: object
     label: 特徴
+    unknownFields: allow
     fields:
       - key: code
         label: 種類
         type: enum
+        role: title
         required: true
         values:
-          - { value: 11, label: 属性有効度, description: 属性のダメージの倍率（値＝倍率。1 が 100%） }
-          - { value: 12, label: 弱体有効度, description: 能力値の弱体がかかる倍率（値＝倍率） }
-          - { value: 13, label: ステート有効度, description: ステートがかかる倍率（値＝倍率） }
-          - { value: 14, label: ステート無効化, description: ステートにかからない（値は使わない） }
-          - { value: 21, label: 通常能力値, description: 能力値の倍率（値＝倍率） }
-          - { value: 22, label: 追加能力値, description: 命中率などへの加算（値＝加算。0.05 が +5%） }
-          - { value: 23, label: 特殊能力値, description: 狙われ率などの倍率（値＝倍率） }
-          - { value: 31, label: 攻撃時属性, description: 通常攻撃の属性（値は使わない） }
-          - { value: 32, label: 攻撃時ステート, description: 通常攻撃で付加するステート（値＝確率） }
-          - { value: 33, label: 攻撃速度補正, description: 通常攻撃の速度（値＝加算） }
-          - { value: 34, label: 攻撃追加回数, description: 通常攻撃の回数（値＝加算） }
-          - { value: 35, label: 攻撃スキル, description: 通常攻撃に使うスキル（値は使わない） }
+          - { value: 11, label: 属性有効度, description: 属性のダメージの倍率 }
+          - { value: 12, label: 弱体有効度, description: 能力値の弱体がかかる倍率 }
+          - { value: 13, label: ステート有効度, description: ステートがかかる倍率 }
+          - { value: 14, label: ステート無効化, description: ステートにかからない }
+          - { value: 21, label: 通常能力値, description: 能力値の倍率 }
+          - { value: 22, label: 追加能力値, description: 命中率などへの加算 }
+          - { value: 23, label: 特殊能力値, description: 狙われ率などの倍率 }
+          - { value: 31, label: 攻撃時属性, description: 通常攻撃の属性 }
+          - { value: 32, label: 攻撃時ステート, description: 通常攻撃で付加するステート }
+          - { value: 33, label: 攻撃速度補正, description: 通常攻撃の速度 }
+          - { value: 34, label: 攻撃追加回数, description: 通常攻撃の回数 }
+          - { value: 35, label: 攻撃スキル, description: 通常攻撃に使うスキル }
           - { value: 41, label: スキルタイプ追加, description: 使えるスキルタイプ }
           - { value: 42, label: スキルタイプ封印, description: 使えなくするスキルタイプ }
           - { value: 43, label: スキル追加, description: 使えるスキル }
@@ -37,74 +40,76 @@ definitions:
           - { value: 53, label: 装備固定, description: 外せない装備欄 }
           - { value: 54, label: 装備封印, description: 使えない装備欄 }
           - { value: 55, label: スロットタイプ, description: 通常か二刀流 }
-          - { value: 61, label: 行動回数追加, description: 1 ターンにもう一度行動する確率（値＝確率） }
+          - { value: 61, label: 行動回数追加, description: 1 ターンにもう一度行動する確率 }
           - { value: 62, label: 特殊フラグ, description: 自動戦闘・防御・身代わり・TP持ち越し }
           - { value: 63, label: 消滅エフェクト, description: 敵キャラが倒れたときの消え方 }
           - { value: 64, label: パーティ能力, description: エンカウント半減など }
         cases:
-          11: [ { key: dataId, label: 属性, type: common#属性参照, required: true } ]
-          12: [ { key: dataId, label: 能力値, type: common#通常能力値, required: true } ]
-          13: [ { key: dataId, label: ステート, type: common#ステート参照, required: true } ]
-          14: [ { key: dataId, label: ステート, type: common#ステート参照, required: true } ]
-          21: [ { key: dataId, label: 能力値, type: common#通常能力値, required: true } ]
-          22: [ { key: dataId, label: 能力値, type: common#追加能力値, required: true } ]
-          23: [ { key: dataId, label: 能力値, type: common#特殊能力値, required: true } ]
-          31: [ { key: dataId, label: 属性, type: common#属性参照, required: true } ]
-          32: [ { key: dataId, label: ステート, type: common#ステート参照, required: true } ]
-          35: [ { key: dataId, label: スキル, type: common#スキル参照, required: true } ]
-          41: [ { key: dataId, label: スキルタイプ, type: common#スキルタイプ参照, required: true } ]
-          42: [ { key: dataId, label: スキルタイプ, type: common#スキルタイプ参照, required: true } ]
-          43: [ { key: dataId, label: スキル, type: common#スキル参照, required: true } ]
-          44: [ { key: dataId, label: スキル, type: common#スキル参照, required: true } ]
-          51: [ { key: dataId, label: 武器タイプ, type: common#武器タイプ参照, required: true } ]
-          52: [ { key: dataId, label: 防具タイプ, type: common#防具タイプ参照, required: true } ]
-          53: [ { key: dataId, label: 装備タイプ, type: common#装備タイプ参照, required: true } ]
-          54: [ { key: dataId, label: 装備タイプ, type: common#装備タイプ参照, required: true } ]
-          55: [ { key: dataId, label: スロットタイプ, type: common#スロットタイプ, required: true } ]
-          62: [ { key: dataId, label: フラグ, type: common#特殊フラグ, required: true } ]
-          63: [ { key: dataId, label: エフェクト, type: common#消滅エフェクト, required: true } ]
-          64: [ { key: dataId, label: 能力, type: common#パーティ能力, required: true } ]
-      - key: value
-        label: 値
-        type: number
-        description: 種類ごとに意味が変わります（倍率・確率は 1 が 100%、追加能力値は加算）。使わない種類では書きません（MZ には 0 を書き出します）。
+          11: [ { key: dataId, label: 属性, type: common#属性参照, role: subtitle, required: true }, { key: value, label: 倍率, type: common#倍率, required: true } ]
+          12: [ { key: dataId, label: 能力値, type: common#通常能力値, role: subtitle, required: true }, { key: value, label: 倍率, type: common#倍率, required: true } ]
+          13: [ { key: dataId, label: ステート, type: common#ステート参照, role: subtitle, required: true }, { key: value, label: 倍率, type: common#倍率, required: true } ]
+          14: [ { key: dataId, label: ステート, type: common#ステート参照, role: subtitle, required: true } ]
+          21: [ { key: dataId, label: 能力値, type: common#通常能力値, role: subtitle, required: true }, { key: value, label: 倍率, type: common#倍率, required: true } ]
+          22: [ { key: dataId, label: 能力値, type: common#追加能力値, role: subtitle, required: true }, { key: value, label: 加算, type: common#加算率, required: true } ]
+          23: [ { key: dataId, label: 能力値, type: common#特殊能力値, role: subtitle, required: true }, { key: value, label: 倍率, type: common#倍率, required: true } ]
+          31: [ { key: dataId, label: 属性, type: common#属性参照, role: subtitle, required: true } ]
+          32: [ { key: dataId, label: ステート, type: common#ステート参照, role: subtitle, required: true }, { key: value, label: 確率, type: common#確率, required: true } ]
+          33: [ { key: value, label: 速度, type: int, required: true } ]
+          34: [ { key: value, label: 回数, type: int, required: true } ]
+          35: [ { key: dataId, label: スキル, type: common#スキル参照, role: subtitle, required: true } ]
+          41: [ { key: dataId, label: スキルタイプ, type: common#スキルタイプ参照, role: subtitle, required: true } ]
+          42: [ { key: dataId, label: スキルタイプ, type: common#スキルタイプ参照, role: subtitle, required: true } ]
+          43: [ { key: dataId, label: スキル, type: common#スキル参照, role: subtitle, required: true } ]
+          44: [ { key: dataId, label: スキル, type: common#スキル参照, role: subtitle, required: true } ]
+          51: [ { key: dataId, label: 武器タイプ, type: common#武器タイプ参照, role: subtitle, required: true } ]
+          52: [ { key: dataId, label: 防具タイプ, type: common#防具タイプ参照, role: subtitle, required: true } ]
+          53: [ { key: dataId, label: 装備タイプ, type: common#装備タイプ参照, role: subtitle, required: true } ]
+          54: [ { key: dataId, label: 装備タイプ, type: common#装備タイプ参照, role: subtitle, required: true } ]
+          55: [ { key: dataId, label: スロットタイプ, type: common#スロットタイプ, role: subtitle, required: true } ]
+          61: [ { key: value, label: 確率, type: common#確率, required: true } ]
+          62: [ { key: dataId, label: フラグ, type: common#特殊フラグ, role: subtitle, required: true } ]
+          63: [ { key: dataId, label: エフェクト, type: common#消滅エフェクト, role: subtitle, required: true } ]
+          64: [ { key: dataId, label: 能力, type: common#パーティ能力, role: subtitle, required: true } ]
 
   # ---- 使用効果（effects）: スキル・アイテム ----
   使用効果:
     type: object
     label: 使用効果
+    unknownFields: allow
     fields:
       - key: code
         label: 種類
         type: enum
+        role: title
         required: true
         values:
-          - { value: 11, label: HP回復, description: value1＝割合（1 が 100%）・value2＝固定値 }
-          - { value: 12, label: MP回復, description: value1＝割合・value2＝固定値 }
-          - { value: 13, label: TP増加, description: value1＝量 }
-          - { value: 21, label: ステート付加, description: value1＝確率 }
-          - { value: 22, label: ステート解除, description: value1＝確率 }
-          - { value: 31, label: 強化, description: value1＝ターン数 }
-          - { value: 32, label: 弱体, description: value1＝ターン数 }
+          - { value: 11, label: HP回復 }
+          - { value: 12, label: MP回復 }
+          - { value: 13, label: TP増加 }
+          - { value: 21, label: ステート付加 }
+          - { value: 22, label: ステート解除 }
+          - { value: 31, label: 強化 }
+          - { value: 32, label: 弱体 }
           - { value: 33, label: 強化の解除 }
           - { value: 34, label: 弱体の解除 }
           - { value: 41, label: 特殊効果 }
-          - { value: 42, label: 成長, description: value1＝上がる量 }
+          - { value: 42, label: 成長 }
           - { value: 43, label: スキル習得 }
           - { value: 44, label: コモンイベント }
         cases:
-          21: [ { key: dataId, label: ステート, type: common#付加するステート参照, relation: inflicts, required: true } ]
-          22: [ { key: dataId, label: ステート, type: common#ステート参照, relation: removes, required: true } ]
-          31: [ { key: dataId, label: 能力値, type: common#通常能力値, required: true } ]
-          32: [ { key: dataId, label: 能力値, type: common#通常能力値, required: true } ]
-          33: [ { key: dataId, label: 能力値, type: common#通常能力値, required: true } ]
-          34: [ { key: dataId, label: 能力値, type: common#通常能力値, required: true } ]
-          41: [ { key: dataId, label: 特殊効果, type: enum, values: [ { value: 0, label: 逃げる } ], required: true } ]
-          42: [ { key: dataId, label: 能力値, type: common#通常能力値, required: true } ]
-          43: [ { key: dataId, label: スキル, type: common#スキル参照, required: true } ]
-          44: [ { key: dataId, label: コモンイベント, type: common#コモンイベント参照, required: true } ]
-      - { key: value1, label: 値1, type: number, description: 種類ごとに意味が変わります（割合・確率は 1 が 100%）。 }
-      - { key: value2, label: 値2, type: number, description: HP回復・MP回復の固定値。 }
+          11: [ { key: value1, label: 割合, type: common#倍率, required: true }, { key: value2, label: 固定値, type: int, required: true } ]
+          12: [ { key: value1, label: 割合, type: common#倍率, required: true }, { key: value2, label: 固定値, type: int, required: true } ]
+          13: [ { key: value1, label: TP の量, type: int, required: true } ]
+          21: [ { key: dataId, label: ステート, type: common#付加するステート参照, relation: inflicts, role: subtitle, required: true }, { key: value1, label: 確率, type: common#確率, required: true } ]
+          22: [ { key: dataId, label: ステート, type: common#ステート参照, relation: removes, role: subtitle, required: true }, { key: value1, label: 確率, type: common#確率, required: true } ]
+          31: [ { key: dataId, label: 能力値, type: common#通常能力値, role: subtitle, required: true }, { key: value1, label: ターン数, type: int, min: 1, required: true } ]
+          32: [ { key: dataId, label: 能力値, type: common#通常能力値, role: subtitle, required: true }, { key: value1, label: ターン数, type: int, min: 1, required: true } ]
+          33: [ { key: dataId, label: 能力値, type: common#通常能力値, role: subtitle, required: true } ]
+          34: [ { key: dataId, label: 能力値, type: common#通常能力値, role: subtitle, required: true } ]
+          41: [ { key: dataId, label: 特殊効果, type: enum, values: [ { value: 0, label: 逃げる } ], role: subtitle, required: true } ]
+          42: [ { key: dataId, label: 能力値, type: common#通常能力値, role: subtitle, required: true }, { key: value1, label: 上がる量, type: int, required: true } ]
+          43: [ { key: dataId, label: スキル, type: common#スキル参照, role: subtitle, required: true } ]
+          44: [ { key: dataId, label: コモンイベント, type: common#コモンイベント参照, role: subtitle, required: true } ]
 
   # ---- ダメージ: スキル・アイテム ----
   ダメージ:
@@ -176,11 +181,12 @@ definitions:
     type: object
     label: 行動パターン
     fields:
-      - { key: skillId, label: スキル, type: common#スキル参照, relation: uses, required: true }
+      - { key: skillId, label: スキル, type: common#スキル参照, relation: uses, role: title, required: true }
       - { key: rating, label: レーティング, type: int, min: 1, max: 9, default: 5, required: true }
       - key: conditionType
         label: 条件
         type: enum
+        role: subtitle
         required: true
         default: 0
         values:
@@ -206,12 +212,13 @@ definitions:
       - key: kind
         label: 種類
         type: enum
+        role: subtitle
         required: true
         values: [ { value: 1, label: アイテム }, { value: 2, label: 武器 }, { value: 3, label: 防具 } ]
         cases:
-          1: [ { key: dataId, label: アイテム, type: common#アイテム参照, relation: drops, required: true } ]
-          2: [ { key: dataId, label: 武器, type: common#武器参照, relation: drops, required: true } ]
-          3: [ { key: dataId, label: 防具, type: common#防具参照, relation: drops, required: true } ]
+          1: [ { key: dataId, label: アイテム, type: common#アイテム参照, relation: drops, role: title, required: true } ]
+          2: [ { key: dataId, label: 武器, type: common#武器参照, relation: drops, role: title, required: true } ]
+          3: [ { key: dataId, label: 防具, type: common#防具参照, relation: drops, role: title, required: true } ]
       - { key: denominator, label: 出現率（1/N の N）, type: int, min: 1, required: true, default: 1 }
 
   # ---- 敵グループ ----

@@ -74,6 +74,10 @@ definitions:
     format: "0.##%"
     description: 1 が 100%（例 0.5 は 50%）。ファイルには MZ と同じく小数で書きます。
   確率: { type: number, min: 0, max: 1, format: "0.##%", description: 1 が 100%。 }
+  加算率:
+    type: number
+    format: "+0.##%;-0.##%"
+    description: 命中率などに足す割合。0.05 が +5%（ファイルには小数で書きます）。
   価格: { type: int, min: 0, display: grouped }
   アイコン番号: { type: int, min: 0, description: MZ のアイコンセットの番号（画像は MZ 側にあります）。 }
   画像名:

@@ -26,6 +26,6 @@ definitions:
       - { key: hitType, label: 命中タイプ, type: common#命中タイプ, required: true, default: 0 }
       - { key: animationId, label: アニメーション, type: common#使用時のアニメーション参照 }
       - { key: damage, label: ダメージ, type: parts#ダメージ }
-      - { key: effects, label: 使用効果, type: array, item: { type: parts#使用効果 } }
+      - { key: effects, label: 使用効果, type: array, display: list, item: { type: parts#使用効果 } }
       - { key: note, label: メモ, type: common#メモ }
 root: { type: アイテム }

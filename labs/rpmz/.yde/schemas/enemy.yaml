@@ -17,9 +17,9 @@ definitions:
       - { key: params, label: 能力値, type: parts#能力値, required: true }
       - { key: exp, label: 経験値, type: int, min: 0, default: 0 }
       - { key: gold, label: 所持金, type: int, min: 0, default: 0 }
-      - { key: dropItems, label: ドロップアイテム, type: array, display: table, item: { type: parts#ドロップアイテム } }
-      - { key: actions, label: 行動パターン, type: array, item: { type: parts#行動パターン } }
-      - { key: traits, label: 特徴, type: array, item: { type: parts#特徴 } }
+      - { key: dropItems, label: ドロップアイテム, type: array, display: list, item: { type: parts#ドロップアイテム } }
+      - { key: actions, label: 行動パターン, type: array, display: list, item: { type: parts#行動パターン } }
+      - { key: traits, label: 特徴, type: array, display: list, item: { type: parts#特徴 } }
       - { key: note, label: メモ, type: common#メモ }
     constraints:
       - id: at-most-three-drops

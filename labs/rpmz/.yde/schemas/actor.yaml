@@ -27,7 +27,7 @@ definitions:
         type: array
         description: 装備タイプの並びの順（1 番目が武器）。空の欄は ~ と書きます。
         item: { type: common#装備品参照, relation: equips }
-      - { key: traits, label: 特徴, type: array, item: { type: parts#特徴 } }
+      - { key: traits, label: 特徴, type: array, display: list, item: { type: parts#特徴 } }
       - { key: note, label: メモ, type: common#メモ }
     constraints:
       - id: initial-level-within-max

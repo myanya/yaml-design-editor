@@ -18,6 +18,6 @@ definitions:
       - { key: etypeId, label: 装備タイプ, type: common#装備タイプ参照, required: true }
       - { key: price, label: 価格, type: common#価格, default: 0 }
       - { key: params, label: 能力値の変化, type: parts#能力値 }
-      - { key: traits, label: 特徴, type: array, item: { type: parts#特徴 } }
+      - { key: traits, label: 特徴, type: array, display: list, item: { type: parts#特徴 } }
       - { key: note, label: メモ, type: common#メモ }
 root: { type: 防具 }
