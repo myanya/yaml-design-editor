@@ -1,5 +1,6 @@
 id: ARM-0007
 name: 魔除けの手鏡
+iconImage: img/icons/Protective_Hand_Mirror_32.png
 description: 霊の力を跳ね返す小さな鏡。
 atypeId: ATY-03
 etypeId: ETY-05

@@ -1,5 +1,6 @@
 id: WPN-0007
 name: 魔除けの鈴
+iconImage: img/icons/Protective_Shrine_Bell_32.png
 description: 古い神社で授かった鈴。
 wtypeId: WTY-04
 etypeId: ETY-01

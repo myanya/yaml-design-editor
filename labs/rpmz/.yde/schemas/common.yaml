@@ -82,7 +82,19 @@ definitions:
   アイコン番号: { type: int, min: 0, description: MZ のアイコンセットの番号（画像は MZ 側にあります）。 }
   画像名:
     type: line
-    description: MZ の img フォルダの画像のファイル名（拡張子なし）。画像は取り込まないので、空のままでも構いません。
+    description: MZ の img フォルダの画像のファイル名（拡張子なし）。画像は MZ のプロジェクトにあり、ここには取り込みません。
+  # 画像の場所（ワークスペースのルートから。MZ と同じ img/ の並び）。フォームで画像が見えます。
+  # 書き出しではファイル名（拡張子なし）に戻します。無いファイルは警告です（MZ のプロジェクトにだけある画像のため。.yde/workspace.yaml の files）
+  歩行キャラ画像: { type: file, extensions: [png], placeholder: "img/characters/$Actor1.png", description: 歩行キャラの画像（img/characters/ の PNG）。1 人 1 枚のシートは名前を $ で始めます。 }
+  顔画像: { type: file, extensions: [png], placeholder: img/faces/Actor1.png, description: 顔の画像（img/faces/ の PNG）。144×144 の顔を 4 列 × 2 行に並べたシートです。 }
+  SV戦闘キャラ画像: { type: file, extensions: [png], placeholder: img/sv_actors/Actor1_1.png, description: サイドビューの戦闘キャラの画像（img/sv_actors/ の PNG）。 }
+  アイコン画像:
+    type: file
+    extensions: [png]
+    placeholder: img/icons/Penlight_32.png
+    description: |
+      YDE で見るためのアイコンの画像（32×32 の PNG。書き出しません）。
+      MZ では、この画像を img/system/IconSet.png の空いた枠に足して、その枠の番号を「アイコン」に書きます。
   メモ:
     type: text
     rows: 3

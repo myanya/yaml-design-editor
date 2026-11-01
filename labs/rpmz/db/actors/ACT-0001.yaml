@@ -7,4 +7,8 @@ maxLevel: 50
 profile: |-
   霜月探偵事務所の所長。怪異は信じていないが、
   怪異がらみの依頼ばかりが舞い込む。
+characterName: img/characters/$Shimotsuki_Ritsu_48.png
+characterIndex: 0
+faceName: img/faces/Shimotsuki_Ritsu_Faces_8expressions.png
+faceIndex: 0
 equips: [WPN-0001, ARM-0004, ARM-0003, ARM-0001, ~]

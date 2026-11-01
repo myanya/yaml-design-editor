@@ -13,6 +13,7 @@ definitions:
       - { key: id, label: 防具ID, type: common#防具ID, required: true }
       - { key: name, label: 名前, type: line, role: title, description: 名前の無い項目は、MZ の空きの番号です。 }
       - { key: iconIndex, label: アイコン, type: common#アイコン番号, default: 0 }
+      - { key: iconImage, label: アイコンの画像（YDE だけ）, type: common#アイコン画像 }
       - { key: description, label: 説明, type: text, rows: 2 }
       - { key: atypeId, label: 防具タイプ, type: common#防具タイプ参照 }
       - { key: etypeId, label: 装備タイプ, type: common#装備タイプ参照, required: true }

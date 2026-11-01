@@ -4,6 +4,7 @@ kind: import
 description: |
   MZ の Actors.json を、1 人 1 ファイル（db/actors/ACT-0001.yaml）へ取り込みます。
   番号は ID に（classId 1 → CLS-0001）、0（なし）と空の文字は書かず、初期装備の空の欄は ~ にします。
+  画像の名前は、MZ と同じ img/ の並びの場所にします（faceName Actor1 → img/faces/Actor1.png）。
 input: { format: json, tree: true }
 target: { file: "db/actors/{id}.yaml" }
 build:
@@ -14,11 +15,11 @@ build:
   initialLevel: { $copy: initialLevel }
   maxLevel: { $copy: maxLevel }
   profile: { $apply: text, $at: profile }
-  characterName: { $apply: text, $at: characterName }
+  characterName: { $when: { path: characterName, empty: false }, $then: { $format: "img/characters/{characterName}.png" } }
   characterIndex: { $copy: characterIndex }
-  faceName: { $apply: text, $at: faceName }
+  faceName: { $when: { path: faceName, empty: false }, $then: { $format: "img/faces/{faceName}.png" } }
   faceIndex: { $copy: faceIndex }
-  battlerName: { $apply: text, $at: battlerName }
+  battlerName: { $when: { path: battlerName, empty: false }, $then: { $format: "img/sv_actors/{battlerName}.png" } }
   equips: { $each: equips, $apply: equip }
   traits: { $each: traits, $apply: trait }
   note: { $apply: text, $at: note }

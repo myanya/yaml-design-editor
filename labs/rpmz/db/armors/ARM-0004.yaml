@@ -1,5 +1,6 @@
 id: ARM-0004
 name: 探偵手帳
+iconImage: img/icons/Detective_Notebook_32.png
 description: 事件の記録で埋まった手帳。
 atypeId: ATY-01
 etypeId: ETY-02

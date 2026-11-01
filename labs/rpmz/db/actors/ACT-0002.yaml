@@ -7,4 +7,8 @@ maxLevel: 50
 profile: |-
   事務所で働く大学生。幼いころから、
   見えてはいけないものが見える。
+characterName: img/characters/$ACT0002_Shirasagi_48.png
+characterIndex: 0
+faceName: img/faces/ACT0002_Shirasagi_Faces_8.png
+faceIndex: 0
 equips: [WPN-0005, ~, ~, ARM-0001, ARM-0006]

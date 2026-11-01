@@ -1,5 +1,6 @@
 id: WPN-0003
 name: 特殊警棒
+iconImage: img/icons/Telescopic_Baton_32.png
 description: 伸縮式の警棒。
 wtypeId: WTY-02
 etypeId: ETY-01

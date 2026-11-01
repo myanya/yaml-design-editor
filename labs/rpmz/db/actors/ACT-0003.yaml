@@ -7,4 +7,8 @@ maxLevel: 50
 profile: |-
   県警を辞めた元刑事。迷宮入りになった事件を、
   今もひとりで追っている。
+characterName: img/characters/$ACT0003_Otsuki_48.png
+characterIndex: 0
+faceName: img/faces/ACT0003_Otsuki_Faces_8.png
+faceIndex: 0
 equips: [WPN-0003, ARM-0005, ~, ARM-0002, ~]

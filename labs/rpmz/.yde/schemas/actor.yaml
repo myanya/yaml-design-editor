@@ -17,11 +17,11 @@ definitions:
       - { key: initialLevel, label: 初期レベル, type: int, min: 1, max: 99, required: true, default: 1 }
       - { key: maxLevel, label: 最大レベル, type: int, min: 1, max: 99, required: true, default: 99 }
       - { key: profile, label: プロフィール, type: text, rows: 2 }
-      - { key: characterName, label: 歩行キャラ, type: common#画像名 }
+      - { key: characterName, label: 歩行キャラ, type: common#歩行キャラ画像 }
       - { key: characterIndex, label: 歩行キャラの番号, type: int, min: 0, max: 7, default: 0 }
-      - { key: faceName, label: 顔, type: common#画像名 }
+      - { key: faceName, label: 顔, type: common#顔画像 }
       - { key: faceIndex, label: 顔の番号, type: int, min: 0, max: 7, default: 0 }
-      - { key: battlerName, label: サイドビューの戦闘キャラ, type: common#画像名 }
+      - { key: battlerName, label: サイドビューの戦闘キャラ, type: common#SV戦闘キャラ画像 }
       - key: equips
         label: 初期装備
         type: array

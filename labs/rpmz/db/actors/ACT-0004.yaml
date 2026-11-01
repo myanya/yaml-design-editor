@@ -5,4 +5,8 @@ classId: CLS-0004
 initialLevel: 1
 maxLevel: 50
 profile: 大学で民俗学を教える講師。宵坂に残る古い祭りを調べている。
+characterName: img/characters/$ACT0004_Mikuriya_48.png
+characterIndex: 0
+faceName: img/faces/ACT0004_Mikuriya_Faces_8.png
+faceIndex: 0
 equips: [WPN-0007, ARM-0004, ~, ARM-0001, ARM-0007]

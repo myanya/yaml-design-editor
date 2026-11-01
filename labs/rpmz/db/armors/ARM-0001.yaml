@@ -1,5 +1,6 @@
 id: ARM-0001
 name: トレンチコート
+iconImage: img/icons/Trench_Coat_32.png
 description: 探偵の定番。
 atypeId: ATY-01
 etypeId: ETY-04

@@ -13,6 +13,7 @@ definitions:
       - { key: id, label: 武器ID, type: common#武器ID, required: true }
       - { key: name, label: 名前, type: line, role: title, description: 名前の無い項目は、MZ の空きの番号です。 }
       - { key: iconIndex, label: アイコン, type: common#アイコン番号, default: 0 }
+      - { key: iconImage, label: アイコンの画像（YDE だけ）, type: common#アイコン画像 }
       - { key: description, label: 説明, type: text, rows: 2 }
       - { key: wtypeId, label: 武器タイプ, type: common#武器タイプ参照, description: 書かなければ「なし」（MZ の 0。空きの番号の武器）。 }
       - { key: etypeId, label: 装備タイプ, type: common#装備タイプ参照, required: true, default: ETY-01 }

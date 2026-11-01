@@ -1,5 +1,6 @@
 id: WPN-0001
 name: ペンライト
+iconImage: img/icons/Penlight_32.png
 description: 胸ポケットに入る小さなライト。
 wtypeId: WTY-01
 etypeId: ETY-01

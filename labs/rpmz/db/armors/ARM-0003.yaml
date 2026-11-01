@@ -1,5 +1,6 @@
 id: ARM-0003
 name: ハンチング帽
+iconImage: img/icons/Hunting_Cap_32.png
 description: 使い込んだ帽子。
 atypeId: ATY-01
 etypeId: ETY-03

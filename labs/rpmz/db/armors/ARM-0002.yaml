@@ -1,5 +1,6 @@
 id: ARM-0002
 name: 防刃ベスト
+iconImage: img/icons/Stab_Resistant_Vest_32.png
 description: 刃物を通さないベスト。少し動きにくい。
 atypeId: ATY-02
 etypeId: ETY-04
