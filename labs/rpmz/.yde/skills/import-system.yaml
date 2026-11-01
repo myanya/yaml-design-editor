@@ -1,0 +1,26 @@
+id: import-system
+name: 初期パーティと戦闘テストの取り込み（MZ の System.json）
+kind: import
+description: |
+  MZ の System.json のうち、初期パーティと戦闘テストを db/system.yaml へ取り込みます。
+  エンジンの約束（engine）は MZ のエンジンが決めている番号なので、取り込みのたびに同じものを書きます。
+input: { format: json, tree: true }
+target: { file: db/system.yaml }
+build:
+  partyMembers: { $each: partyMembers, $apply: act }
+  testBattlers: { $each: testBattlers, $apply: battler }
+  testTroopId: { $apply: trp, $at: testTroopId }
+  engine: { deathStateId: STA-0001, attackSkillId: SKL-0001, guardSkillId: SKL-0002 }
+rules:
+  - id: battler
+    build: { actorId: { $apply: act, $at: actorId }, level: { $copy: level }, equips: { $each: equips, $apply: equip } }
+  # 装備: 並びの 1 番目は武器の欄、ほかは防具の欄。0 は空の欄
+  - { id: equip, when: { path: ., equals: 0 }, build: { $first: [ ~ ] } }
+  - id: equip
+    build:
+      $format: "{kind}-{n}"
+      $with:
+        kind: { $map: $index, $using: { "0": WPN, "1": ARM, "2": ARM, "3": ARM, "4": ARM, "5": ARM, "6": ARM, "7": ARM, "8": ARM, "9": ARM } }
+        n: { $number: { $copy: . }, $as: "0000" }
+  - { id: act, when: { path: ., gt: 0 }, build: { $format: "ACT-{n}", $with: { n: { $number: { $copy: . }, $as: "0000" } } } }
+  - { id: trp, when: { path: ., gt: 0 }, build: { $format: "TRP-{n}", $with: { n: { $number: { $copy: . }, $as: "0000" } } } }

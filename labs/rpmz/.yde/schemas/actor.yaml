@@ -11,7 +11,7 @@ definitions:
     entity: { type: actor, defines: true }
     fields:
       - { key: id, label: アクターID, type: common#アクターID, required: true }
-      - { key: name, label: 名前, type: line, role: title, required: true }
+      - { key: name, label: 名前, type: line, role: title, description: 名前の無い項目は、MZ の空きの番号です。 }
       - { key: nickname, label: 二つ名, type: line, role: subtitle }
       - { key: classId, label: 職業, type: common#職業参照, relation: has-class, required: true }
       - { key: initialLevel, label: 初期レベル, type: int, min: 1, max: 99, required: true, default: 1 }

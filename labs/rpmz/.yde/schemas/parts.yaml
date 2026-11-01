@@ -276,14 +276,14 @@ definitions:
     entity: { type: animation, defines: true }
     fields:
       - { key: id, label: アニメーションID, type: common#アニメーションID, required: true }
-      - { key: name, label: 名前, type: line, role: title, required: true }
+      - { key: name, label: 名前, type: line, role: title }
   コモンイベント:
     type: object
     label: コモンイベント
     entity: { type: common-event, defines: true }
     fields:
       - { key: id, label: コモンイベントID, type: common#コモンイベントID, required: true }
-      - { key: name, label: 名前, type: line, role: title, required: true }
+      - { key: name, label: 名前, type: line, role: title }
   スイッチ:
     type: object
     label: スイッチ

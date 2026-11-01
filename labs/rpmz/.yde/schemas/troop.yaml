@@ -11,7 +11,7 @@ definitions:
     entity: { type: troop, defines: true }
     fields:
       - { key: id, label: 敵グループID, type: common#敵グループID, required: true }
-      - { key: name, label: 名前, type: line, role: title, required: true }
+      - { key: name, label: 名前, type: line, role: title, description: 名前の無い項目は、MZ の空きの番号です。 }
       - { key: members, label: 構成員, type: array, display: table, required: true, item: { type: parts#構成員 } }
       - key: pages
         label: バトルイベント

@@ -1,0 +1,20 @@
+id: import-troops
+name: 敵グループの取り込み（MZ の Troops.json）
+kind: import
+description: |
+  MZ の Troops.json を、1 つ 1 ファイル（db/troops/TRP-0001.yaml）へ取り込みます。
+  バトルイベント（pages）は中身を解釈せず、そのまま持ちます。
+input: { format: json, tree: true }
+target: { file: "db/troops/{id}.yaml" }
+build:
+  id: { $format: "TRP-{n}", $with: { n: { $number: { $copy: id }, $as: "0000" } } }
+  name: { $copy: name }
+  members: { $each: members, $apply: member }
+  pages: { $copy: pages }
+rules:
+  - id: member
+    build:
+      enemyId: { $format: "ENM-{n}", $with: { n: { $number: { $copy: enemyId }, $as: "0000" } } }
+      x: { $copy: x }
+      y: { $copy: y }
+      hidden: { $copy: hidden }

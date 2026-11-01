@@ -11,7 +11,7 @@ definitions:
     entity: { type: state, defines: true }
     fields:
       - { key: id, label: ステートID, type: common#ステートID, required: true }
-      - { key: name, label: 名前, type: line, role: title, required: true }
+      - { key: name, label: 名前, type: line, role: title, description: 名前の無い項目は、MZ の空きの番号です。 }
       - { key: iconIndex, label: アイコン, type: common#アイコン番号, default: 0 }
       - { key: restriction, label: 行動制約, type: common#行動制約, required: true, default: 0 }
       - { key: priority, label: 優先度, type: int, min: 0, max: 100, default: 50 }

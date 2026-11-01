@@ -11,7 +11,7 @@ definitions:
     entity: { type: enemy, defines: true }
     fields:
       - { key: id, label: 敵キャラID, type: common#敵キャラID, required: true }
-      - { key: name, label: 名前, type: line, role: title, required: true }
+      - { key: name, label: 名前, type: line, role: title, description: 名前の無い項目は、MZ の空きの番号です。 }
       - { key: battlerName, label: 画像, type: common#画像名 }
       - { key: battlerHue, label: 色相, type: int, min: 0, max: 360, default: 0 }
       - { key: params, label: 能力値, type: parts#能力値, required: true }

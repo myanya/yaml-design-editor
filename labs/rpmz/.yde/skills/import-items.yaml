@@ -1,0 +1,59 @@
+id: import-items
+name: アイテムの取り込み（MZ の Items.json）
+kind: import
+description: |
+  MZ の Items.json を、1 つ 1 ファイル（db/items/ITM-0001.yaml）へ取り込みます。
+  ダメージの属性とアニメーションの -1（通常攻撃）は ELM-NORMAL・ANI-NORMAL に、ステート付加の 0（通常攻撃）は STA-NORMAL にします。
+input: { format: json, tree: true }
+target: { file: "db/items/{id}.yaml" }
+build:
+  id: { $format: "ITM-{n}", $with: { n: { $number: { $copy: id }, $as: "0000" } } }
+  name: { $copy: name }
+  iconIndex: { $copy: iconIndex }
+  description: { $apply: text, $at: description }
+  itypeId: { $copy: itypeId }
+  price: { $copy: price }
+  consumable: { $copy: consumable }
+  scope: { $copy: scope }
+  occasion: { $copy: occasion }
+  speed: { $copy: speed }
+  successRate: { $copy: successRate }
+  repeats: { $copy: repeats }
+  tpGain: { $copy: tpGain }
+  hitType: { $copy: hitType }
+  animationId: { $apply: animation, $at: animationId }
+  damage: { $apply: damage, $at: damage }
+  effects: { $each: effects, $apply: effect }
+  note: { $apply: text, $at: note }
+rules:
+  # ---- ここから下は、取り込みの定義に共通の規則（同じものを各定義に置きます） ----
+  # 空の文字は書かない（MZ は空の欄も "" で持つ）
+  - { id: text, when: { path: ., empty: false }, build: { $copy: . } }
+  # MZ の番号 → ID（0 は「なし」で書かない）
+  - { id: skl, when: { path: ., gt: 0 }, build: { $format: "SKL-{n}", $with: { n: { $number: { $copy: . }, $as: "0000" } } } }
+  - { id: sta, when: { path: ., gt: 0 }, build: { $format: "STA-{n}", $with: { n: { $number: { $copy: . }, $as: "0000" } } } }
+  - { id: cev, when: { path: ., gt: 0 }, build: { $format: "CEV-{n}", $with: { n: { $number: { $copy: . }, $as: "0000" } } } }
+  - { id: elm, when: { path: ., gt: 0 }, build: { $format: "ELM-{n}", $with: { n: { $number: { $copy: . }, $as: "00" } } } }
+  # アニメーション: -1 は通常攻撃、0 はなし
+  - { id: animation, when: { path: ., equals: -1 }, build: ANI-NORMAL }
+  - { id: animation, when: { path: ., gt: 0 }, build: { $format: "ANI-{n}", $with: { n: { $number: { $copy: . }, $as: "0000" } } } }
+  # ダメージ: 属性の -1 は通常攻撃、0 はなし
+  - id: damage
+    build:
+      type: { $copy: type }
+      elementId: { $first: [ { $when: { path: elementId, equals: -1 }, $then: ELM-NORMAL }, { $apply: elm, $at: elementId } ] }
+      formula: { $apply: text, $at: formula }
+      variance: { $copy: variance }
+      critical: { $copy: critical }
+  # 使用効果: 種類（code）で dataId の意味が変わる。値（value1・value2）はそのまま
+  - id: effect
+    when: { path: code, equals: 21 }
+    build:
+      code: 21
+      dataId: { $first: [ { $when: { path: dataId, equals: 0 }, $then: STA-NORMAL }, { $apply: sta, $at: dataId } ] }
+      value1: { $copy: value1 }
+      value2: { $copy: value2 }
+  - { id: effect, when: { path: code, equals: 22 }, build: { code: 22, dataId: { $apply: sta, $at: dataId }, value1: { $copy: value1 }, value2: { $copy: value2 } } }
+  - { id: effect, when: { path: code, equals: 43 }, build: { code: 43, dataId: { $apply: skl, $at: dataId }, value1: { $copy: value1 }, value2: { $copy: value2 } } }
+  - { id: effect, when: { path: code, equals: 44 }, build: { code: 44, dataId: { $apply: cev, $at: dataId }, value1: { $copy: value1 }, value2: { $copy: value2 } } }
+  - { id: effect, build: { code: { $copy: code }, dataId: { $copy: dataId }, value1: { $copy: value1 }, value2: { $copy: value2 } } }

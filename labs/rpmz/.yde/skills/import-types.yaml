@@ -1,0 +1,21 @@
+id: import-types
+name: タイプの取り込み（MZ の System.json）
+kind: import
+description: |
+  MZ の System.json のうち、タイプ（属性・スキルタイプ・武器タイプ・防具タイプ・装備タイプ）を db/types.yaml へ取り込みます。
+  並びの位置が番号です（属性の 1 番目 → ELM-01）。0 番目の空の名前は取り込みません。
+  スキルタイプの「魔法スキル」（magicSkills）と武器タイプの攻撃モーション（attackMotions）は、並びの同じ位置を読む書き方が無いため、まだ取り込みません（PLAN.md「段階 2 で分かったこと」）。
+input: { format: json, tree: true }
+target: { file: db/types.yaml }
+build:
+  elements: { $each: elements, $apply: element }
+  skillTypes: { $each: skillTypes, $apply: skillType }
+  weaponTypes: { $each: weaponTypes, $apply: weaponType }
+  armorTypes: { $each: armorTypes, $apply: armorType }
+  equipTypes: { $each: equipTypes, $apply: equipType }
+rules:
+  - { id: element, when: { path: ., empty: false }, build: { id: { $format: "ELM-{n}", $with: { n: { $number: $index, $as: "00" } } }, name: { $copy: . } } }
+  - { id: skillType, when: { path: ., empty: false }, build: { id: { $format: "STY-{n}", $with: { n: { $number: $index, $as: "00" } } }, name: { $copy: . } } }
+  - { id: weaponType, when: { path: ., empty: false }, build: { id: { $format: "WTY-{n}", $with: { n: { $number: $index, $as: "00" } } }, name: { $copy: . } } }
+  - { id: armorType, when: { path: ., empty: false }, build: { id: { $format: "ATY-{n}", $with: { n: { $number: $index, $as: "00" } } }, name: { $copy: . } } }
+  - { id: equipType, when: { path: ., empty: false }, build: { id: { $format: "ETY-{n}", $with: { n: { $number: $index, $as: "00" } } }, name: { $copy: . } } }

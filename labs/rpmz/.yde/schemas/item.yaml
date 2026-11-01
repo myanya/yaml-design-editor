@@ -11,7 +11,7 @@ definitions:
     entity: { type: item, defines: true }
     fields:
       - { key: id, label: アイテムID, type: common#アイテムID, required: true }
-      - { key: name, label: 名前, type: line, role: title, required: true }
+      - { key: name, label: 名前, type: line, role: title, description: 名前の無い項目は、MZ の空きの番号です。 }
       - { key: iconIndex, label: アイコン, type: common#アイコン番号, default: 0 }
       - { key: description, label: 説明, type: text, rows: 2 }
       - { key: itypeId, label: アイテムタイプ, type: common#アイテムタイプ, required: true, default: 1 }

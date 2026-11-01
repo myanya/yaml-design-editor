@@ -22,6 +22,7 @@ RPG Maker MZ（以下 MZ）のデータベースを、YDE のワークスペー�
 | `db/refs/` | MZ が持つもの（アニメーション・スイッチ）の番号と名前です。中身は MZ で作ります |
 | `.yde/schemas/` | 型（`common.yaml`・`parts.yaml`）と、種類ごとのスキーマ、関係の語彙（`relations.yaml`）です |
 | `.yde/views/` | ビューです。`class-doc.yaml` は職業を開いたときの「ビュー」タブで、成長曲線を図にします |
+| `.yde/skills/` | MZ の JSON の取り込み（`import-*.yaml`）です。職業の成長表は、まだ取り込めません（[計画](PLAN.md)） |
 
 番号の数字は、MZ のデータベースの番号そのものです（`SKL-0010` はスキルの 10 番）。
 
@@ -54,6 +55,7 @@ RPG Maker MZ（以下 MZ）のデータベースを、YDE のワークスペー�
 3. `STA-0005`（呪い）のエンティティページを開くと、呪いを付加するスキル（呪詛・呪いの炎）と、呪いを解くアイテム（清めの塩）がつながって見えます。
 4. `db/classes/CLS-0001.yaml`（探偵）の「ビュー」タブを開くと、HP・MP と 6 つの能力値の成長が、レベルを横軸にした折れ線で見えます。表の行を書き換えると、図も変わります。
 5. 参照を存在しない ID に書き換えると、検証パネルに誤りが出ます。CLI では `./gradlew runCli -q --args="validate labs/rpmz"` で検証できます。
+6. MZ のプロジェクトの JSON を取り込むときは、このフォルダの `.yde/` と `db/specials.yaml` だけを空のフォルダへ写し、そこへ取り込みます（架空のデータと混ざらないように）。取り込みの定義は種類ごとに 1 つで、CLI では `import <写した先> import-skills <MZ のプロジェクト>/data/Skills.json --apply` のように実行します（タイプ・初期パーティ・スイッチの名前は System.json から `import-types`・`import-system`・`import-refs` で）。
 
 ## データについて
 

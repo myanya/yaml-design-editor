@@ -1,0 +1,14 @@
+id: import-refs
+name: スイッチと変数の名前の取り込み（MZ の System.json）
+kind: import
+description: |
+  MZ の System.json のうち、名前を付けたスイッチと変数の番号と名前を db/refs/switches.yaml へ取り込みます。
+  並びの位置が番号です（1 番目 → SWI-0001）。名前の無いものは取り込みません。
+input: { format: json, tree: true }
+target: { file: db/refs/switches.yaml }
+build:
+  switches: { $each: switches, $apply: switch }
+  variables: { $each: variables, $apply: variable }
+rules:
+  - { id: switch, when: { path: ., empty: false }, build: { id: { $format: "SWI-{n}", $with: { n: { $number: $index, $as: "0000" } } }, name: { $copy: . } } }
+  - { id: variable, when: { path: ., empty: false }, build: { id: { $format: "VAR-{n}", $with: { n: { $number: $index, $as: "0000" } } }, name: { $copy: . } } }

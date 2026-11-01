@@ -1,0 +1,55 @@
+id: import-weapons
+name: 武器の取り込み（MZ の Weapons.json）
+kind: import
+description: |
+  MZ の Weapons.json を、1 つ 1 ファイル（db/weapons/WPN-0001.yaml）へ取り込みます。
+  能力値の 8 個の並びには名前を付け、0 の能力値は書きません。
+input: { format: json, tree: true }
+target: { file: "db/weapons/{id}.yaml" }
+build:
+  id: { $format: "WPN-{n}", $with: { n: { $number: { $copy: id }, $as: "0000" } } }
+  name: { $copy: name }
+  iconIndex: { $copy: iconIndex }
+  description: { $apply: text, $at: description }
+  wtypeId: { $apply: wty, $at: wtypeId }
+  etypeId: { $apply: ety, $at: etypeId }
+  price: { $copy: price }
+  animationId: { $apply: animation, $at: animationId }
+  params: { $apply: params, $at: params }
+  traits: { $each: traits, $apply: trait }
+  note: { $apply: text, $at: note }
+rules:
+  # ---- ここから下は、取り込みの定義に共通の規則（同じものを各定義に置きます） ----
+  # 空の文字は書かない（MZ は空の欄も "" で持つ）
+  - { id: text, when: { path: ., empty: false }, build: { $copy: . } }
+  # 0 の数は書かない（能力値）
+  - { id: nonzero, when: { path: ., notEquals: 0 }, build: { $copy: . } }
+  # 能力値の 8 個の並びに名前を付ける
+  - id: params
+    build:
+      mhp: { $apply: nonzero, $at: "[0]" }
+      mmp: { $apply: nonzero, $at: "[1]" }
+      atk: { $apply: nonzero, $at: "[2]" }
+      def: { $apply: nonzero, $at: "[3]" }
+      mat: { $apply: nonzero, $at: "[4]" }
+      mdf: { $apply: nonzero, $at: "[5]" }
+      agi: { $apply: nonzero, $at: "[6]" }
+      luk: { $apply: nonzero, $at: "[7]" }
+  # MZ の番号 → ID（0 は「なし」で書かない）
+  - { id: skl, when: { path: ., gt: 0 }, build: { $format: "SKL-{n}", $with: { n: { $number: { $copy: . }, $as: "0000" } } } }
+  - { id: sta, when: { path: ., gt: 0 }, build: { $format: "STA-{n}", $with: { n: { $number: { $copy: . }, $as: "0000" } } } }
+  - { id: elm, when: { path: ., gt: 0 }, build: { $format: "ELM-{n}", $with: { n: { $number: { $copy: . }, $as: "00" } } } }
+  - { id: sty, when: { path: ., gt: 0 }, build: { $format: "STY-{n}", $with: { n: { $number: { $copy: . }, $as: "00" } } } }
+  - { id: wty, when: { path: ., gt: 0 }, build: { $format: "WTY-{n}", $with: { n: { $number: { $copy: . }, $as: "00" } } } }
+  - { id: aty, when: { path: ., gt: 0 }, build: { $format: "ATY-{n}", $with: { n: { $number: { $copy: . }, $as: "00" } } } }
+  - { id: ety, when: { path: ., gt: 0 }, build: { $format: "ETY-{n}", $with: { n: { $number: { $copy: . }, $as: "00" } } } }
+  - { id: animation, when: { path: ., gt: 0 }, build: { $format: "ANI-{n}", $with: { n: { $number: { $copy: . }, $as: "0000" } } } }
+  # 特徴: 種類（code）で dataId の意味が変わる。値（value）はそのまま
+  - { id: trait, when: { path: code, oneOf: [11, 31] }, build: { code: { $copy: code }, dataId: { $apply: elm, $at: dataId }, value: { $copy: value } } }
+  - { id: trait, when: { path: code, oneOf: [13, 14, 32] }, build: { code: { $copy: code }, dataId: { $apply: sta, $at: dataId }, value: { $copy: value } } }
+  - { id: trait, when: { path: code, oneOf: [35, 43, 44] }, build: { code: { $copy: code }, dataId: { $apply: skl, $at: dataId }, value: { $copy: value } } }
+  - { id: trait, when: { path: code, oneOf: [41, 42] }, build: { code: { $copy: code }, dataId: { $apply: sty, $at: dataId }, value: { $copy: value } } }
+  - { id: trait, when: { path: code, equals: 51 }, build: { code: 51, dataId: { $apply: wty, $at: dataId }, value: { $copy: value } } }
+  - { id: trait, when: { path: code, equals: 52 }, build: { code: 52, dataId: { $apply: aty, $at: dataId }, value: { $copy: value } } }
+  - { id: trait, when: { path: code, oneOf: [53, 54] }, build: { code: { $copy: code }, dataId: { $apply: ety, $at: dataId }, value: { $copy: value } } }
+  - { id: trait, build: { code: { $copy: code }, dataId: { $copy: dataId }, value: { $copy: value } } }

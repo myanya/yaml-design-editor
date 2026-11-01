@@ -1,0 +1,56 @@
+id: import-actors
+name: アクターの取り込み（MZ の Actors.json）
+kind: import
+description: |
+  MZ の Actors.json を、1 人 1 ファイル（db/actors/ACT-0001.yaml）へ取り込みます。
+  番号は ID に（classId 1 → CLS-0001）、0（なし）と空の文字は書かず、初期装備の空の欄は ~ にします。
+input: { format: json, tree: true }
+target: { file: "db/actors/{id}.yaml" }
+build:
+  id: { $apply: act, $at: id }
+  name: { $copy: name }
+  nickname: { $apply: text, $at: nickname }
+  classId: { $apply: cls, $at: classId }
+  initialLevel: { $copy: initialLevel }
+  maxLevel: { $copy: maxLevel }
+  profile: { $apply: text, $at: profile }
+  characterName: { $apply: text, $at: characterName }
+  characterIndex: { $copy: characterIndex }
+  faceName: { $apply: text, $at: faceName }
+  faceIndex: { $copy: faceIndex }
+  battlerName: { $apply: text, $at: battlerName }
+  equips: { $each: equips, $apply: equip }
+  traits: { $each: traits, $apply: trait }
+  note: { $apply: text, $at: note }
+rules:
+  # 初期装備: 並びの 1 番目は武器の欄、ほかは防具の欄（二刀流のアクターは 2 番目も武器。MZ の既定のデータには無い）。0 は空の欄
+  - { id: equip, when: { path: ., equals: 0 }, build: { $first: [ ~ ] } }
+  - id: equip
+    build:
+      $format: "{kind}-{n}"
+      $with:
+        kind: { $map: $index, $using: { "0": WPN, "1": ARM, "2": ARM, "3": ARM, "4": ARM, "5": ARM, "6": ARM, "7": ARM, "8": ARM, "9": ARM } }
+        n: { $number: { $copy: . }, $as: "0000" }
+
+  # ---- ここから下は、取り込みの定義に共通の規則（同じものを各定義に置きます） ----
+  # 空の文字は書かない（MZ は空の欄も "" で持つ）
+  - { id: text, when: { path: ., empty: false }, build: { $copy: . } }
+  # MZ の番号 → ID（0 は「なし」で書かない）
+  - { id: act, when: { path: ., gt: 0 }, build: { $format: "ACT-{n}", $with: { n: { $number: { $copy: . }, $as: "0000" } } } }
+  - { id: cls, when: { path: ., gt: 0 }, build: { $format: "CLS-{n}", $with: { n: { $number: { $copy: . }, $as: "0000" } } } }
+  - { id: skl, when: { path: ., gt: 0 }, build: { $format: "SKL-{n}", $with: { n: { $number: { $copy: . }, $as: "0000" } } } }
+  - { id: sta, when: { path: ., gt: 0 }, build: { $format: "STA-{n}", $with: { n: { $number: { $copy: . }, $as: "0000" } } } }
+  - { id: elm, when: { path: ., gt: 0 }, build: { $format: "ELM-{n}", $with: { n: { $number: { $copy: . }, $as: "00" } } } }
+  - { id: sty, when: { path: ., gt: 0 }, build: { $format: "STY-{n}", $with: { n: { $number: { $copy: . }, $as: "00" } } } }
+  - { id: wty, when: { path: ., gt: 0 }, build: { $format: "WTY-{n}", $with: { n: { $number: { $copy: . }, $as: "00" } } } }
+  - { id: aty, when: { path: ., gt: 0 }, build: { $format: "ATY-{n}", $with: { n: { $number: { $copy: . }, $as: "00" } } } }
+  - { id: ety, when: { path: ., gt: 0 }, build: { $format: "ETY-{n}", $with: { n: { $number: { $copy: . }, $as: "00" } } } }
+  # 特徴: 種類（code）で dataId の意味が変わる。値（value）はそのまま
+  - { id: trait, when: { path: code, oneOf: [11, 31] }, build: { code: { $copy: code }, dataId: { $apply: elm, $at: dataId }, value: { $copy: value } } }
+  - { id: trait, when: { path: code, oneOf: [13, 14, 32] }, build: { code: { $copy: code }, dataId: { $apply: sta, $at: dataId }, value: { $copy: value } } }
+  - { id: trait, when: { path: code, oneOf: [35, 43, 44] }, build: { code: { $copy: code }, dataId: { $apply: skl, $at: dataId }, value: { $copy: value } } }
+  - { id: trait, when: { path: code, oneOf: [41, 42] }, build: { code: { $copy: code }, dataId: { $apply: sty, $at: dataId }, value: { $copy: value } } }
+  - { id: trait, when: { path: code, equals: 51 }, build: { code: 51, dataId: { $apply: wty, $at: dataId }, value: { $copy: value } } }
+  - { id: trait, when: { path: code, equals: 52 }, build: { code: 52, dataId: { $apply: aty, $at: dataId }, value: { $copy: value } } }
+  - { id: trait, when: { path: code, oneOf: [53, 54] }, build: { code: { $copy: code }, dataId: { $apply: ety, $at: dataId }, value: { $copy: value } } }
+  - { id: trait, build: { code: { $copy: code }, dataId: { $copy: dataId }, value: { $copy: value } } }

@@ -11,7 +11,7 @@ definitions:
     entity: { type: class, defines: true }
     fields:
       - { key: id, label: 職業ID, type: common#職業ID, required: true }
-      - { key: name, label: 名前, type: line, role: title, required: true }
+      - { key: name, label: 名前, type: line, role: title, description: 名前の無い項目は、MZ の空きの番号です。 }
       - { key: expParams, label: 経験値曲線, type: parts#経験値曲線 }
       - { key: learnings, label: 習得するスキル, type: array, display: table, item: { type: parts#習得スキル } }
       - { key: traits, label: 特徴, type: array, display: list, item: { type: parts#特徴 } }

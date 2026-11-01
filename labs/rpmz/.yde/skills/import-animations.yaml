@@ -1,0 +1,10 @@
+id: import-animations
+name: アニメーションの名前の取り込み（MZ の Animations.json）
+kind: import
+description: |
+  MZ の Animations.json から、アニメーションの番号と名前だけを db/refs/animations.yaml へ取り込みます（効果の中身は MZ が持ちます）。
+input: { format: json, tree: true }
+target: { file: db/refs/animations.yaml, path: animations, key: [id] }
+build:
+  id: { $format: "ANI-{n}", $with: { n: { $number: { $copy: id }, $as: "0000" } } }
+  name: { $copy: name }
