@@ -78,7 +78,7 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 | `MarkdownPane` / `resolveMarkdownLink` | ui/file/MarkdownPane.kt | Markdown 文書と内蔵ヘルプの表示（表示とソースの 2 タブ・リンクの行き先の判定は純ロジック） |
 | `Help` | desktop/Help.kt | 内蔵ヘルプの題目と本文（ビルド時に資源 `help/` へ入れた利用者マニュアル） |
 | `FileEditor` / `resolveFilePath` / `fileValueFor` | ui/file/FileEditor.kt | file 型の入力欄（選ぶ・OS で開く・解決した場所と有無の 1 行・画像なら下に表示）。場所の解決と選んだファイルの書き方は純ロジック |
-| `ImagePane` / `EmbeddedImagePane` / `ImageCanvas` / `fitZoom` | ui/file/ImagePane.kt | 画像の表示（幅に合わせる・100%・±・Ctrl＋ホイール・ドラッグ＝フロービューと同じ操作）の埋め込みと全面表示で、更新時刻で読み直す |
+| `ImagePane` / `EmbeddedImagePane` / `ImageCanvas` / `fitZoom` / `viewportSize` | ui/file/ImagePane.kt | 画像の表示（幅に合わせる・100%・±・Ctrl＋ホイール・ドラッグ＝フロービューと同じ操作）の埋め込みと全面表示で、更新時刻で読み直す。表示領域は拡大率をかけた画像の大きさまで縮める |
 | `BarChart` / `ChartSeries` | ui/view/Charts.kt | 縦棒グラフ（積み上げ・並べ・凡例・マウスで値。ライブラリ Vico を包み、系列の色は Palette の `ChartReady` / `ChartPending` など意味で決める） |
 | `ReadinessPane` / `readinessChartData` | ui/view/ReadinessPane.kt | 準備完了レポート（台帳の「準備」タブ: タイル・型別とフェーズ別の図・エンティティの表、図のデータ整形は純ロジック） |
 | `SidePanel` | ui/shell/SidePanel.kt | ID インスペクタ（検証・関係・出現・操作の 4 タブ。台帳スペースでレンズを表示しているときは Main が右ペインに `LensSidePanel`＝ui/graph/GraphLensView.kt の型・関係・辺の 3 タブを出し、右ペインの開閉は `AppState.rightPaneOpen`） |

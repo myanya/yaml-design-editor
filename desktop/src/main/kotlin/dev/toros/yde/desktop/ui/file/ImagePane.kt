@@ -5,14 +5,16 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -43,12 +45,14 @@ import androidx.compose.ui.res.loadImageBitmap
 import androidx.compose.ui.res.loadSvgPainter
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.toros.yde.semantic.schema.FilePath
 import kotlinx.coroutines.delay
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlin.math.ceil
 import dev.toros.yde.desktop.AppState
 import dev.toros.yde.desktop.ui.common.Palette
 import dev.toros.yde.desktop.ui.common.PanelShape
@@ -58,6 +62,13 @@ import dev.toros.yde.desktop.ui.common.PanelShape
 /** 「幅に合わせる」の拡大率（純ロジック）。拡大はしない（1 を上限）。測れていなければ 1。 */
 internal fun fitZoom(viewportWidthPx: Int, imageWidthPx: Int): Float =
     if (viewportWidthPx <= 0 || imageWidthPx <= 0) 1f else (viewportWidthPx.toFloat() / imageWidthPx).coerceAtMost(1f)
+
+/** 表示領域の大きさ（純ロジック）。拡大率をかけた画像が使える広さより小さければ、画像の大きさまで縮める。 */
+internal fun viewportSize(maxWidthPx: Int, maxHeightPx: Int, imageWidthPx: Int, imageHeightPx: Int, zoom: Float): IntSize =
+    IntSize(
+        minOf(maxWidthPx, ceil(imageWidthPx * zoom).toInt()),
+        minOf(maxHeightPx, ceil(imageHeightPx * zoom).toInt()),
+    )
 
 /** 読み込んだ画像。ラスタ（PNG など）はビットマップ、SVG は描画器、読めなければ理由。 */
 internal sealed class LoadedImage {
@@ -102,6 +113,7 @@ internal fun rememberLoadedImage(file: Path): LoadedImage {
 
 /**
  * 画像の表示面。既定は「幅に合わせる」（拡大はしない）。「100%」「−」「＋」と Ctrl＋ホイールで拡大率を変え、ドラッグで動かす。
+ * 表示領域は使える広さ（`modifier` の幅と高さの上限）までで、画像の方が小さければ画像の大きさに縮める。
  * 拡大率と位置は画面の中の状態で、YAML には書かない。
  */
 @OptIn(ExperimentalComposeUiApi::class)
@@ -109,7 +121,7 @@ internal fun rememberLoadedImage(file: Path): LoadedImage {
 internal fun ImageCanvas(image: LoadedImage, modifier: Modifier = Modifier) {
     var zoom by remember(image) { mutableStateOf<Float?>(null) }   // null = 幅に合わせる
     var pan by remember(image) { mutableStateOf(Offset.Zero) }
-    var viewportPx by remember { mutableStateOf(0) }
+    var viewportPx by remember { mutableStateOf(0) }   // 使える幅
     val current = zoom ?: fitZoom(viewportPx, image.widthPx)
     Column(modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -127,30 +139,37 @@ internal fun ImageCanvas(image: LoadedImage, modifier: Modifier = Modifier) {
         val density = LocalDensity.current
         val wDp = with(density) { image.widthPx.toDp() }
         val hDp = with(density) { image.heightPx.toDp() }
-        Box(
-            Modifier.weight(1f).fillMaxWidth().clipToBounds().background(Palette.PanelBg)
-                .onSizeChanged { viewportPx = it.width }
-                .pointerInput(Unit) { detectDragGestures { change, drag -> change.consume(); pan += drag } }
-                .onPointerEvent(PointerEventType.Scroll) { event ->
-                    if (event.keyboardModifiers.isCtrlPressed) {
-                        val dy = event.changes.firstOrNull()?.scrollDelta?.y ?: 0f
-                        if (dy != 0f) {
-                            zoom = (if (dy < 0) current * 1.1f else current / 1.1f).coerceIn(0.05f, 8f)
-                            event.changes.forEach { it.consume() }
-                        }
-                    }
-                },
-        ) {
+        // 外の箱は使える広さを測るだけで、灰色の表示領域は画像の大きさまで縮む（fill = false で高さも詰める）
+        BoxWithConstraints(Modifier.weight(1f, fill = false).fillMaxWidth().onSizeChanged { viewportPx = it.width }) {
+            val area = viewportSize(
+                constraints.maxWidth, if (constraints.hasBoundedHeight) constraints.maxHeight else Int.MAX_VALUE,
+                image.widthPx, image.heightPx, current,
+            )
             Box(
-                Modifier.graphicsLayer(
-                    scaleX = current, scaleY = current, translationX = pan.x, translationY = pan.y,
-                    transformOrigin = TransformOrigin(0f, 0f),
-                ),
+                Modifier.size(with(density) { area.width.toDp() }, with(density) { area.height.toDp() })
+                    .clipToBounds().background(Palette.PanelBg)
+                    .pointerInput(Unit) { detectDragGestures { change, drag -> change.consume(); pan += drag } }
+                    .onPointerEvent(PointerEventType.Scroll) { event ->
+                        if (event.keyboardModifiers.isCtrlPressed) {
+                            val dy = event.changes.firstOrNull()?.scrollDelta?.y ?: 0f
+                            if (dy != 0f) {
+                                zoom = (if (dy < 0) current * 1.1f else current / 1.1f).coerceIn(0.05f, 8f)
+                                event.changes.forEach { it.consume() }
+                            }
+                        }
+                    },
             ) {
-                when (image) {
-                    is LoadedImage.Raster -> Image(image.bitmap, contentDescription = null, Modifier.requiredSize(wDp, hDp), contentScale = ContentScale.FillBounds)
-                    is LoadedImage.Vector -> Image(image.painter, contentDescription = null, Modifier.requiredSize(wDp, hDp), contentScale = ContentScale.FillBounds)
-                    is LoadedImage.Failed -> {}
+                Box(
+                    Modifier.graphicsLayer(
+                        scaleX = current, scaleY = current, translationX = pan.x, translationY = pan.y,
+                        transformOrigin = TransformOrigin(0f, 0f),
+                    ),
+                ) {
+                    when (image) {
+                        is LoadedImage.Raster -> Image(image.bitmap, contentDescription = null, Modifier.requiredSize(wDp, hDp), contentScale = ContentScale.FillBounds)
+                        is LoadedImage.Vector -> Image(image.painter, contentDescription = null, Modifier.requiredSize(wDp, hDp), contentScale = ContentScale.FillBounds)
+                        is LoadedImage.Failed -> {}
+                    }
                 }
             }
         }
@@ -166,7 +185,7 @@ internal fun EmbeddedImagePane(state: AppState, file: Path) {
             Text(file.fileName.toString(), fontSize = 13.sp, modifier = Modifier.weight(1f))
             TextButton(onClick = { state.openFile(file) }) { Text("拡大表示") }
         }
-        ImageCanvas(image, Modifier.fillMaxWidth().height(360.dp))
+        ImageCanvas(image, Modifier.fillMaxWidth().heightIn(max = 360.dp))
     }
 }
 

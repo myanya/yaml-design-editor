@@ -1,5 +1,6 @@
 package dev.toros.yde.desktop.ui.file
 
+import androidx.compose.ui.unit.IntSize
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -37,5 +38,17 @@ class FileEditorTest {
         assertEquals(0.5f, fitZoom(500, 1000))
         assertEquals(1f, fitZoom(1500, 1000))
         assertEquals(1f, fitZoom(0, 1000))
+    }
+
+    @Test
+    fun `the viewport shrinks to a small image and stops at the available area`() {
+        // 32×32 のアイコンは、使える広さが 800×360 でも 32×32 の領域になる
+        assertEquals(IntSize(32, 32), viewportSize(800, 360, 32, 32, 1f))
+        // 大きな画像は使える広さで止まる（高さの上限は 360）
+        assertEquals(IntSize(800, 360), viewportSize(800, 360, 1600, 1200, 0.5f))
+        // 拡大すると、上限まで領域も広がる
+        assertEquals(IntSize(64, 64), viewportSize(800, 360, 32, 32, 2f))
+        // 高さの上限が無いとき（Int.MAX_VALUE）は画像の高さ
+        assertEquals(IntSize(144, 192), viewportSize(800, Int.MAX_VALUE, 144, 192, 1f))
     }
 }
