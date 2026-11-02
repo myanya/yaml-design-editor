@@ -33,6 +33,7 @@ YDE の考え方は、この一行に尽きます。
 | 注文管理 | 注文、注文明細、顧客、会社、商品、商品カテゴリー | 明細の金額と合計の検査、顧客別・会社別・カテゴリー別・月別の集計とチャート、出荷と取消の操作 | [samples/orders](samples/orders/README.md) |
 | 家計簿 | 月、費目、取引、期首残高 | 銀行の CSV の取り込み、月と費目ごとの集計、残高の検査 | [labs/kakeibo](labs/kakeibo/README.md) |
 | システム開発の設計情報 | 要件、業務フロー、画面、API、テーブル、試験 | 参照の網羅、多重度、状態遷移の到達性の検査と、準備完了レポート | [labs/sysdev-template](labs/sysdev-template/README.md) |
+| ゲームのデータベース（RPG Maker MZ） | アクター、職業、スキル、アイテム、武器、防具、敵キャラ、敵グループ、ステート | 参照の切れとエンジンの約束の検査、敵キャラとドロップの一覧とチャート、敵グループを作る操作、ゲームが読む JSON の取り込みと書き出し | [labs/rpmz](labs/rpmz/README.md) |
 | 原稿、用語集、顧客台帳、点検記録など | 項目と ID をスキーマに書きます | 検査、ビュー、操作、エージェントを必要な分だけ足します | 「新しいワークスペースを作る…」の「自分の項目で」から始めます |
 
 YDE が向いているのは、情報をスキーマで構造化でき、成果を差分で確かめられ、少しずつ積み上げていく仕事です。
@@ -133,6 +134,7 @@ JDK 21 が必要です。無ければ Gradle が自動で取得します（`./gr
 | [samples/todos-sysdev-tablemodel](samples/todos-sysdev-tablemodel/README.md) | 同じ TODO 管理を専用のシステムとして作るときの、概念・論理・物理モデルと、SQL 生成の検討です |
 | [samples/orders](samples/orders/README.md) | 注文管理です。注文が顧客を、顧客が会社を、明細が商品を、商品がカテゴリーを参照する複数の種類の情報を、金額の検査と顧客別・会社別・カテゴリー別・月別の集計、チャート、出荷と取消の操作つきで管理します |
 | [labs/kakeibo](labs/kakeibo/README.md) | 家計簿を題材に、月と費目ごとの集計、残高の検査、銀行の CSV の取り込みを試しています |
+| [labs/rpmz](labs/rpmz/README.md) | RPG Maker MZ のデータベースを題材に、ゲームが読む入れ子の JSON を YAML の原本で管理し、取り込みと書き出しで往復させることを試しています。データは架空のオリジナルで、MZ の既定のデータと素材は含みません |
 | [labs/sysdev-template](labs/sysdev-template/README.md) | 会議室予約システムを題材に、要件から設計、試験までの文書体系と、設計の機械的な検証を試しています |
 | [labs/sysdev-todo](labs/sysdev-todo/README.md) | TODO Web アプリの設計体系です。ドメインの定義から画面、API、テーブルの設計を導きます |
 | [labs/user-man](labs/user-man/README.md) | 架空のユーザ管理システムを題材に、業務フローから設計情報をどう表すかを試しています |
