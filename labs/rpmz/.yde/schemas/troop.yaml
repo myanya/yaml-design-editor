@@ -17,4 +17,26 @@ definitions:
         label: バトルイベント
         type: any
         description: MZ のバトルイベントのページ（条件とイベントコマンドの列）。MZ で編集し、取り込んだまま持ちます。書かなければ、書き出しで空のページを 1 つ置きます。
+    constraints:
+      - id: at-most-eight-members
+        description: 構成員は 8 体まで（MZ の敵グループの上限）
+        check: [ { lte: [ { count: { path: members } }, 8 ] } ]
+        level: error
+        message: "敵グループ「{id}」の構成員が 9 体以上います（MZ の上限は 8 体です）"
 root: { type: 敵グループ }
+# 操作（エンティティページの ⋮・一覧の行の ⋯ から）
+actions:
+  - id: add-enemy
+    label: 敵キャラを加える
+    description: この敵グループの構成員に、敵キャラを 1 体加えます。座標は画面の中ほどで始まるので、重なったら直します（MZ の「整列」でも並べ直せます）。
+    target: { entity: troop, bind: t }
+    params:
+      - { key: enemyId, label: 敵キャラ, type: common#敵キャラ参照, required: true }
+      - { key: x, label: X 座標, type: int, required: true, default: 408 }
+      - { key: y, label: Y 座標, type: int, required: true, default: 430 }
+    require:
+      - match: [ { node: { entity: troop, bind: tr } } ]
+        check: [ { lt: [ { count: { all: { of: tr, path: "members[*]" } } }, 8 ] } ]
+        message: "敵グループ「{id}」の構成員は既に 8 体です（MZ の上限）"
+    do:
+      - insert: { of: t, path: members, value: { enemyId: $enemyId, x: $x, y: $y } }

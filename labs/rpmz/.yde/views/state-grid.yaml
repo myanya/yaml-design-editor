@@ -1,0 +1,15 @@
+id: state-grid
+name: ステート一覧
+description: ステートの行動制約・優先度・継続ターン数と、付加するもの・解除するもの（スキル・アイテムの使用効果と、特徴の「攻撃時ステート」からの逆引き）です。
+rows:
+  idPattern: "STA-*"
+columns:
+  - { label: 名前, schemaId: state, path: name, editable: true }
+  - { label: 行動制約, schemaId: state, path: restriction, editable: true }
+  - { label: 優先度, schemaId: state, path: priority, editable: true }
+  - { label: 継続ターン数（最小）, schemaId: state, path: minTurns, editable: true }
+  - { label: 継続ターン数（最大）, schemaId: state, path: maxTurns, editable: true }
+  - label: 付加するもの
+    backlinks: { relation: inflicts }
+  - label: 解除するもの
+    backlinks: { relation: removes }

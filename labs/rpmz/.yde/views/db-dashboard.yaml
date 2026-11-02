@@ -1,0 +1,43 @@
+id: db-dashboard
+name: データベースの状況
+kind: dashboard
+default: true
+description: MZ のデータベースの確認と見比べです。「確認」の群は 0 件が正常で、件数があれば一覧から対象を開いて直します。敵キャラは「操作」から作れます。
+actions: [new-enemy]
+sections:
+  # 確認: 0 件が正常（検査の警告と同じ条件）
+  - id: enemies-unused
+    label: 敵グループに出てこない敵キャラ
+    group: 確認
+    view: enemy-grid
+    filter:
+      match:
+        - node: { entity: enemy, bind: e }
+        - edge: { relation: has-member, dir: in }
+        - node: { entity: troop }
+      where: [ { of: e, path: name, empty: false } ]
+      expect: absent
+  - id: states-not-inflicted
+    label: どこからも付加されないステート
+    group: 確認
+    view: state-grid
+    filter:
+      match:
+        - node: { entity: state, bind: s }
+        - edge: { relation: inflicts, dir: in }
+        - node: {}
+      where:
+        - { of: s, path: id, notEquals: STA-0001 }
+        - { of: s, path: name, empty: false }
+        - { or: [ { of: s, path: addedByEvent, exists: false }, { of: s, path: addedByEvent, equals: false } ] }
+      expect: absent
+  # 敵: 一覧・ドロップ表・HP と報酬の散布図
+  - { id: enemies, label: 敵キャラ, group: 敵, view: enemy-grid }
+  - { id: drops, label: ドロップ表, group: 敵, view: drop-grid }
+  - { id: enemy-rewards, label: HP と報酬, group: 敵, view: enemy-scatter-chart }
+  # 職業: レベル 99 の能力値の比較
+  - { id: classes, label: 職業, group: 職業, view: class-grid }
+  - { id: class-stats, label: 能力値, group: 職業, view: class-stats-chart }
+  - { id: class-hpmp, label: HP・MP, group: 職業, view: class-hpmp-chart }
+  # ステート: 付加するもの・解除するものの逆引き
+  - { id: states, label: ステート, group: ステート, view: state-grid }

@@ -35,3 +35,62 @@ definitions:
         check: [ { lte: [ { path: initialLevel }, { path: maxLevel } ] } ]
         level: error
 root: { type: アクター }
+# 他の要素へ線を辿る検査（スキーマの constraints）
+# 初期装備が職業で装備できるか。MZ と同じく、武器は武器タイプ・防具は防具タイプを、職業の特徴（武器タイプ装備・防具タイプ装備）で見る。
+# 「装備した武器の数」と「職業が装備できるタイプの武器の数」が同じなら、どれも装備できる（アクター自身や装備品の特徴で足したタイプは見ない）。
+# MZ はゲームの開始時に、装備できない初期装備を黙って外すので、警告にする（MZ の既定のデータにも 1 件ある）
+constraints:
+  - id: initial-weapons-allowed-by-class
+    description: 初期装備の武器は、職業の特徴「武器タイプ装備」のタイプであること
+    match: [ { node: { entity: actor, bind: a } } ]
+    check:
+      - eq:
+          - count:
+              all:
+                from: a
+                match: [ { node: { entity: actor } }, { edge: { relation: equips } }, { node: { entity: weapon, bind: w } } ]
+                of: w
+          - count:
+              all:
+                from: a
+                match:
+                  - node: { entity: actor, bind: me }
+                  - edge: { relation: equips }
+                  - node: { entity: weapon, bind: w }
+                  - edge: { via: wtypeId }
+                  - node: { entity: weapon-type }
+                  - edge: { via: dataId, dir: in }
+                  - node: { entity: class }
+                  - edge: { relation: has-class, dir: in }
+                  - node: { same: me }
+                of: w
+    level: warning
+    reportAt: { of: a, path: equips }
+    message: "アクター「{id}」の初期装備に、職業で装備できない武器があります（武器 {left} 本のうち、職業の「武器タイプ装備」に合うのは {right} 本）。MZ はゲームの開始時に、装備できない装備を外します"
+  - id: initial-armors-allowed-by-class
+    description: 初期装備の防具は、職業の特徴「防具タイプ装備」のタイプであること
+    match: [ { node: { entity: actor, bind: a } } ]
+    check:
+      - eq:
+          - count:
+              all:
+                from: a
+                match: [ { node: { entity: actor } }, { edge: { relation: equips } }, { node: { entity: armor, bind: r } } ]
+                of: r
+          - count:
+              all:
+                from: a
+                match:
+                  - node: { entity: actor, bind: me }
+                  - edge: { relation: equips }
+                  - node: { entity: armor, bind: r }
+                  - edge: { via: atypeId }
+                  - node: { entity: armor-type }
+                  - edge: { via: dataId, dir: in }
+                  - node: { entity: class }
+                  - edge: { relation: has-class, dir: in }
+                  - node: { same: me }
+                of: r
+    level: warning
+    reportAt: { of: a, path: equips }
+    message: "アクター「{id}」の初期装備に、職業で装備できない防具があります（防具 {left} 個のうち、職業の「防具タイプ装備」に合うのは {right} 個）。MZ はゲームの開始時に、装備できない装備を外します"

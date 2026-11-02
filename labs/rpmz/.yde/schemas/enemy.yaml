@@ -23,8 +23,67 @@ definitions:
       - { key: note, label: メモ, type: common#メモ }
     constraints:
       - id: at-most-three-drops
-        description: ドロップアイテムは 3 つまで（MZ の枠は 3 つ）
+        description: ドロップアイテムは 3 つまで（MZ の枠は 3 つ。ドロップの無い敵キャラは見ない）
+        where: [ { path: dropItems, exists: true } ]
         check: [ { lte: [ { count: { path: dropItems } }, 3 ] } ]
         level: error
         message: "敵キャラ「{id}」のドロップアイテムが 4 つ以上あります（MZ の枠は 3 つです）"
 root: { type: 敵キャラ }
+# 他の要素へ線を辿る検査（スキーマの constraints）
+constraints:
+  - id: appears-in-troop
+    description: どれかの敵グループに出てくること（出てこない敵キャラは戦闘に出ず、ドロップアイテムも手に入らない）
+    match:
+      - node: { entity: enemy, bind: e }
+      - edge: { relation: has-member, dir: in }
+      - node: { entity: troop }
+    where: [ { of: e, path: name, empty: false } ]
+    expect: exists
+    level: warning
+    message: "敵キャラ「{id}」は、どの敵グループにも出てきません（戦闘に出ず、ドロップアイテムも手に入りません）"
+    responses:
+      - { action: make-troop, label: この敵キャラの敵グループを作る }
+# 操作（エンティティページの ⋮・一覧の行の ⋯・検査の指摘・ダッシュボードの「操作」から）
+actions:
+  - id: make-troop
+    label: この敵キャラの敵グループを作る
+    description: この敵キャラ 1 体の敵グループを新しく作ります。数や並びは、作った後に敵グループの構成員で直します（MZ の「整列」でも並べ直せます）。
+    target: { entity: enemy, bind: e }
+    params:
+      - { key: id, label: 敵グループID, type: common#敵グループID, required: true }
+      - { key: name, label: 名前, type: line, required: true }
+    input:
+      initial:
+        name: { $copy: name, $of: e }
+    do:
+      - create: { schema: troop, params: { id: $id, name: $name, members: [ { enemyId: { $copy: id, $of: e }, x: 408, y: 430 } ] } }
+  - id: new-enemy
+    label: 敵キャラを作る
+    description: 名前と能力値・経験値・所持金を入れて、敵キャラを 1 体作ります。行動は通常攻撃（スキル 1 番）だけで始まります。作った敵キャラは、敵グループに入れるまで戦闘に出ません（検査の警告から敵グループを作れます）。
+    params:
+      - { key: id, label: 敵キャラID, type: common#敵キャラID, required: true }
+      - { key: name, label: 名前, type: line, required: true }
+      - { key: mhp, label: 最大HP, type: int, min: 1, required: true, default: 100 }
+      - { key: mmp, label: 最大MP, type: int, min: 0, required: true, default: 0 }
+      - { key: atk, label: 攻撃力, type: int, min: 0, required: true, default: 10 }
+      - { key: def, label: 防御力, type: int, min: 0, required: true, default: 10 }
+      - { key: mat, label: 魔法力, type: int, min: 0, required: true, default: 10 }
+      - { key: mdf, label: 魔法防御, type: int, min: 0, required: true, default: 10 }
+      - { key: agi, label: 敏捷性, type: int, min: 0, required: true, default: 10 }
+      - { key: luk, label: 運, type: int, min: 0, required: true, default: 10 }
+      - { key: exp, label: 経験値, type: int, min: 0, required: true, default: 0 }
+      - { key: gold, label: 所持金, type: int, min: 0, required: true, default: 0 }
+    require:
+      - match: [ { node: { id: $id } } ]
+        expect: absent
+        message: "$id は既にあります"
+    do:
+      - create:
+          schema: enemy
+          params:
+            id: $id
+            name: $name
+            params: { mhp: $mhp, mmp: $mmp, atk: $atk, def: $def, mat: $mat, mdf: $mdf, agi: $agi, luk: $luk }
+            exp: $exp
+            gold: $gold
+            actions: [ { skillId: SKL-0001, rating: 5, conditionType: 0 } ]

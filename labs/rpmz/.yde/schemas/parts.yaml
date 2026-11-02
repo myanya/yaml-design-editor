@@ -53,7 +53,7 @@ definitions:
           22: [ { key: dataId, label: 能力値, type: common#追加能力値, role: subtitle, required: true }, { key: value, label: 加算, type: common#加算率, required: true } ]
           23: [ { key: dataId, label: 能力値, type: common#特殊能力値, role: subtitle, required: true }, { key: value, label: 倍率, type: common#倍率, required: true } ]
           31: [ { key: dataId, label: 属性, type: common#属性参照, role: subtitle, required: true } ]
-          32: [ { key: dataId, label: ステート, type: common#ステート参照, role: subtitle, required: true }, { key: value, label: 確率, type: common#確率, required: true } ]
+          32: [ { key: dataId, label: ステート, type: common#ステート参照, relation: inflicts, role: subtitle, required: true }, { key: value, label: 確率, type: common#確率, required: true } ]
           33: [ { key: value, label: 速度, type: int, required: true } ]
           34: [ { key: value, label: 回数, type: int, required: true } ]
           35: [ { key: dataId, label: スキル, type: common#スキル参照, role: subtitle, required: true } ]

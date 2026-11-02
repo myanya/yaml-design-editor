@@ -1,0 +1,24 @@
+id: enemy-grid
+name: 敵キャラ一覧
+description: 敵キャラの能力値・経験値・所持金とドロップアイテムを 1 行ずつ並べます。「HP 100 あたりの経験値」は、倒す手間に見合う経験値かの目安です。出現する敵グループは、敵グループの構成員からの逆引きです。
+rows:
+  idPattern: "ENM-*"
+columns:
+  - { label: 名前, schemaId: enemy, path: name, editable: true }
+  - { label: 最大HP, schemaId: enemy, path: params.mhp, editable: true }
+  - { label: 攻撃力, schemaId: enemy, path: params.atk, editable: true }
+  - { label: 防御力, schemaId: enemy, path: params.def, editable: true }
+  - { label: 魔法力, schemaId: enemy, path: params.mat, editable: true }
+  - { label: 魔法防御, schemaId: enemy, path: params.mdf, editable: true }
+  - { label: 敏捷性, schemaId: enemy, path: params.agi, editable: true }
+  - { label: 経験値, schemaId: enemy, path: exp, editable: true }
+  - { label: 所持金, schemaId: enemy, path: gold, editable: true }
+  - label: HP 100 あたりの経験値
+    schemaId: enemy
+    format: "0.0"
+    value: { multiply: [ { divide: [ { path: exp }, { path: params.mhp } ] }, 100 ] }
+  - { label: ドロップアイテム, schemaId: enemy, path: dropItems }
+  - label: 出現する敵グループ
+    backlinks: { relation: has-member }
+newRow:
+  filePattern: "db/enemies/{id}.yaml"

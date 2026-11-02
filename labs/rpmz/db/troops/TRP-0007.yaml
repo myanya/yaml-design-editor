@@ -1,0 +1,4 @@
+id: TRP-0007
+name: 赤い傘の子ども
+members:
+  - { enemyId: ENM-0006, x: 408, y: 430 }

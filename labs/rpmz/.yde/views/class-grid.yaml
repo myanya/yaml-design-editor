@@ -1,0 +1,20 @@
+id: class-grid
+name: 職業の比較
+description: 職業ごとの、レベル 99 の能力値（レベルごとの能力値の最大）と、装備できる武器・防具のタイプの数、習得するスキルの数です。成長の途中は、職業を開いた「ビュー」タブの成長曲線で見ます。
+rows:
+  idPattern: "CLS-*"
+columns:
+  - { label: 名前, schemaId: class, path: name, editable: true }
+  - { label: 最大HP, schemaId: class, value: { max: { path: "params[*].mhp" } } }
+  - { label: 最大MP, schemaId: class, value: { max: { path: "params[*].mmp" } } }
+  - { label: 攻撃力, schemaId: class, value: { max: { path: "params[*].atk" } } }
+  - { label: 防御力, schemaId: class, value: { max: { path: "params[*].def" } } }
+  - { label: 魔法力, schemaId: class, value: { max: { path: "params[*].mat" } } }
+  - { label: 魔法防御, schemaId: class, value: { max: { path: "params[*].mdf" } } }
+  - { label: 敏捷性, schemaId: class, value: { max: { path: "params[*].agi" } } }
+  - { label: 運, schemaId: class, value: { max: { path: "params[*].luk" } } }
+  - label: 習得するスキル
+    schemaId: class
+    value: { count: { path: "learnings[*]" } }
+  - label: この職業のアクター
+    backlinks: { relation: has-class }

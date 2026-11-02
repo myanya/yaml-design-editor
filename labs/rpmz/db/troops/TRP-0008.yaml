@@ -1,0 +1,4 @@
+id: TRP-0008
+name: 濡れた足跡
+members:
+  - { enemyId: ENM-0008, x: 408, y: 430 }

@@ -1,0 +1,21 @@
+id: drop-grid
+name: ドロップ表
+description: 敵キャラが落とすアイテム・武器・防具を、落とすものごとに並べます（1 行＝落とすもの × 敵キャラ）。MZ のエディタでは敵キャラの側からしか見えない入手先を、アイテムの側から引けます。出現率は敵キャラの「ドロップアイテム」で見ます。
+rows:
+  match:
+    - node: { entity: [item, weapon, armor], bind: drop }
+    - edge: { relation: drops, dir: in }
+    - node: { entity: enemy, bind: enemy }
+  rowKey: drop
+columns:
+  - { label: 落とすもの, path: name }
+  - { label: 価格, path: price }
+  - { label: 敵キャラ, of: enemy, path: name }
+  - { label: 敵キャラの経験値, of: enemy, path: exp }
+  - label: 出現する敵グループ
+    of: enemy
+    value:
+      count:
+        all:
+          match: [ { node: { entity: enemy } }, { edge: { relation: has-member, dir: in } }, { node: { entity: troop, bind: t } } ]
+          of: t

@@ -34,6 +34,7 @@ definitions:
       - { key: message4, label: 解除されたとき, type: line }
       - { key: traits, label: 特徴, type: array, display: list, item: { type: parts#特徴 } }
       - { key: note, label: メモ, type: common#メモ }
+      - { key: addedByEvent, label: イベントで付ける（YDE だけ）, type: boolean, default: false, description: MZ のイベントのコマンド（ステートの変更）だけで付けるステートに印を付けます。「どこからも付加されない」の警告が出なくなります。書き出しません。 }
     constraints:
       - id: min-turns-within-max
         description: 継続ターン数は、最小が最大以下であること（両方を書いたステートだけ）
@@ -41,3 +42,18 @@ definitions:
         check: [ { lte: [ { path: minTurns }, { path: maxTurns } ] } ]
         level: error
 root: { type: ステート }
+# 他の要素へ線を辿る検査（スキーマの constraints）
+constraints:
+  - id: inflicted-somewhere
+    description: スキル・アイテム・特徴のどれかで付加されること（1 番の戦闘不能はエンジンが付けるので除く。イベントで付けると印を付けたステートも除く）
+    match:
+      - node: { entity: state, bind: s }
+      - edge: { relation: inflicts, dir: in }
+      - node: { bind: by }
+    where:
+      - { of: s, path: id, notEquals: STA-0001 }
+      - { of: s, path: name, empty: false }
+      - { or: [ { of: s, path: addedByEvent, exists: false }, { of: s, path: addedByEvent, equals: false } ] }
+    expect: exists
+    level: warning
+    message: "ステート「{id}」を付加するスキル・アイテム・特徴がありません（MZ のイベントのコマンドだけで付けるなら、ステートの「イベントで付ける」に印を付けます）"

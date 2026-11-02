@@ -1,9 +1,11 @@
 id: SKL-0020
 name: ひっかく
-description: 爪を立てる。
+description: 爪を立てる。傷から血が流れることがある。
 scope: 1
 hitType: 1
 animationId: ANI-0001
 message1: "%1は爪を立てた！"
 damage: { type: 1, elementId: ELM-01, formula: a.atk * 4 - b.def * 2, variance: 20, critical: false }
+effects:
+  - { code: 21, dataId: STA-0007, value1: 0.2 }
 occasion: 1

@@ -28,5 +28,6 @@ relations:
   - { name: uses, label: 行動, inverseLabel: 使う敵キャラ, source: [enemy], target: [skill] }
   - { name: drops, label: ドロップ, inverseLabel: 落とす敵キャラ, source: [enemy], target: [item, weapon, armor] }
   - { name: has-member, label: 構成員, inverseLabel: 出現する敵グループ, source: [troop], target: [enemy] }
-  - { name: inflicts, label: 付加するステート, inverseLabel: 付加するスキル・アイテム, source: [skill, item], target: [state, special] }
+  # 使用効果の「ステート付加」と、特徴の「攻撃時ステート」（通常攻撃で付加する）
+  - { name: inflicts, label: 付加するステート, inverseLabel: 付加するもの, source: [skill, item, actor, class, weapon, armor, enemy, state], target: [state, special] }
   - { name: removes, label: 解除するステート, inverseLabel: 解除するスキル・アイテム, source: [skill, item], target: [state] }

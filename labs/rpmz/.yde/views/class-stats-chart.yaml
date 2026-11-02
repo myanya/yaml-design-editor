@@ -1,0 +1,8 @@
+id: class-stats-chart
+name: 職業の能力値（レベル 99）
+kind: chart
+chart: bar
+description: 職業の比較の表から、レベル 99 の 6 つの能力値を職業ごとに並べた棒グラフです（HP・MP は桁が違うので別の図）。
+view: class-grid
+x: 名前
+series: [攻撃力, 防御力, 魔法力, 魔法防御, 敏捷性, 運]

@@ -1,0 +1,11 @@
+id: enemy-scatter-chart
+name: 敵キャラの HP と報酬
+kind: chart
+chart: scatter
+description: 敵キャラ一覧の最大HP を横軸、経験値と所持金を縦軸にした散布図です。点＝敵キャラ。HP に対して報酬が多すぎる・少なすぎる敵（右下や左上に外れた点）を見つけます。ボスは HP も報酬も桁が違うので、両方の軸を対数にしています。
+view: enemy-grid
+x: 最大HP
+series: [経験値, 所持金]
+label: 名前
+y: { label: 経験値・所持金 }
+scale: { x: log, y: log }

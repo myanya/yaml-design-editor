@@ -1,0 +1,8 @@
+id: class-hpmp-chart
+name: 職業の HP・MP（レベル 99）
+kind: chart
+chart: bar
+description: 職業の比較の表から、レベル 99 の最大HP と最大MP を職業ごとに並べた棒グラフです。
+view: class-grid
+x: 名前
+series: [最大HP, 最大MP]
