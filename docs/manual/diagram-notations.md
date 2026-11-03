@@ -145,3 +145,49 @@ build:
 
 適用条件の未指定は全対象に当たります。同じ対象に複数の指定が当たる場合は診断します。
 優先順位で上書きする方式ではありません。条件ごとの組み立ては一つの記法の中に書きます。
+
+## 条件付き表示
+
+値の条件は既存の `$when`、候補の切替は `$first`、配列は `$each` を使います。
+例えば次の部品は、入力の `status` が `away` のときだけ出ます。
+
+```yaml
+- $when: {path: status, equals: away}
+  $then: {kind: text, text: 留守, tone: warning}
+```
+
+構文は変換ひな型と共通です。式を持つ文字列として独自に解釈したり、記法の中で原本を書き換えたりしません。
+
+## 型の属性を表示する
+
+レンズの「型」の段に使う適用指定は `level: type` です。
+`data.attributes` は既存のスキーマグラフが導いた直下の属性で、
+`key`・`label`・`type`・`required`・`requiredFrom`・`condition`・`schema`・`path` を持ちます。
+複数のスキーマで現れる属性は出どころを残し、ケース固有の属性には条件が付きます。
+
+```yaml
+appearance:
+  nodes:
+    - level: type
+      notation: uml-class
+      inputs:
+        title: {$copy: title}
+        attributes:
+          $each: data.attributes
+          $build: {$format: '{key}: {type}'}
+```
+
+ここでの属性はスキーマから導いた説明です。データの編集座標とは扱わず、クリックでは従来のスキーマへの移動を使います。
+YDEの型の操作をプログラムのメソッドへ自動変換しません。
+
+## 出力と定義の読み取り
+
+レンズとフローの「PNG に保存」は、画面と同じ計測・描画を使います。
+画像・区画・端点記号・端のラベルも含め、長辺は最大8000ピクセルです。
+保存ダイアログから出力先を選びます。
+
+CLIの `view <workspace>` はビュー一覧と記法一覧を返します。
+`view <workspace> uml-class` のように記法IDを指定すると、同梱記法を含むYAML定義を読めます。
+エージェントの `read_view` も同じ記法を読めます。
+フローの解決結果には `rendering.model` と `rendering.origins` が加わり、原本と表示の対応を確認できます。
+CLIの `schema-graph` は型の `members` に属性の材料を返します。

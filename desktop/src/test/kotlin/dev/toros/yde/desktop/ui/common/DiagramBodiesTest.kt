@@ -50,5 +50,19 @@ class DiagramBodiesTest {
         val pixels = exported.toAwtImage()
         assertEquals(java.awt.Color.RED.rgb, pixels.getRGB(80, 30), "画像出力でも画像を同じ場所に描く")
         assertEquals(0, pixels.getRGB(190, 230), "部品の外へ描かない")
+        val diamond = measureDiagram(DiagramPart(emptyList(), "box", shape = "diamond", width = 240f,
+            children = listOf(DiagramPart(listOf("children", 0), "text", text = "判断する項目"))), measurer, colors)
+        val child = diamond.children.single()
+        assertTrue(child.first.x >= diamond.size.width / 4)
+        assertTrue(child.first.y >= diamond.size.height / 4)
+        assertNull(diamond.hit(Offset(1f, 1f)))
+    }
+
+    @Test fun `菱形の接続点は直交線を保ち輪郭へ延ばす`() {
+        val result = LensArrangement(LensLayoutKind.LAYERED, listOf(LensBox(0f, 0f, 100f, 80f), LensBox(200f, 0f, 100f, 80f)),
+            listOf(LensRoute(listOf(LensPoint(100f, 60f), LensPoint(200f, 60f)), null)), 324f, 104f)
+        val adjusted = GraphLayouts.withDiamondOutlines(result, setOf(0), listOf(LensEdgeSpec(0, 1)))
+        assertEquals(LensPoint(75f, 60f), adjusted.routes.single().points.first())
+        assertEquals(result.routes.single().points.last(), adjusted.routes.single().points.last())
     }
 }

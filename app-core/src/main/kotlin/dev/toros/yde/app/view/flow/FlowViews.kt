@@ -105,7 +105,9 @@ data class FlowNode(
     val lane: FlowConnection?,
     val detail: FlowDetail,
     val rendering: DiagramRendering? = null,
-)
+) {
+    val displayShape: String get() = rendering?.node?.let { if (it.kind == "box") it.shape else "box" } ?: shape
+}
 
 data class FlowEdge(
     val output: YPath,

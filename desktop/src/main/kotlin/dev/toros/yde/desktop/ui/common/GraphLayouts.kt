@@ -89,6 +89,36 @@ internal fun fitViewport(contentWidth: Float, contentHeight: Float, viewWidth: F
 }
 
 object GraphLayouts {
+    /** 記法で菱形を選んだ葉の接続点を輪郭へ延ばす。直交・直線の方向は変えない。 */
+    internal fun withDiamondOutlines(result: LensArrangement, diamonds: Set<Int>, edges: List<LensEdgeSpec>): LensArrangement {
+        if (diamonds.isEmpty()) return result
+        fun point(index: Int, p: LensPoint, outside: LensPoint): LensPoint {
+            if (index !in diamonds) return p
+            val box = result.boxes[index]
+            val vertices = listOf(LensPoint(box.centerX, box.y), LensPoint(box.x + box.width, box.centerY),
+                LensPoint(box.centerX, box.y + box.height), LensPoint(box.x, box.centerY))
+            val dx = p.x - outside.x; val dy = p.y - outside.y
+            val t = vertices.indices.mapNotNull { i ->
+                val a = vertices[i]; val b = vertices[(i + 1) % vertices.size]
+                val ex = b.x - a.x; val ey = b.y - a.y
+                val cross = dx * ey - dy * ex
+                if (abs(cross) < 0.001f) return@mapNotNull null
+                val ax = a.x - p.x; val ay = a.y - p.y
+                val along = (ax * ey - ay * ex) / cross
+                val side = (ax * dy - ay * dx) / cross
+                along.takeIf { it >= -0.001f && side in -0.001f..1.001f }
+            }.minOrNull() ?: return p
+            return LensPoint(p.x + dx * t, p.y + dy * t)
+        }
+        return result.copy(routes = result.routes.mapIndexed { i, route ->
+            val edge = edges.getOrNull(i) ?: return@mapIndexed route
+            if (route.points.size < 2) route else route.copy(points = route.points.toMutableList().apply {
+                this[0] = point(edge.from, first(), this[1])
+                this[lastIndex] = point(edge.to, last(), this[lastIndex - 1])
+            })
+        })
+    }
+
     /** 応力配置を許す節点数の上限（全対の計算で、これを超えると数十秒かかる）。 */
     const val STRESS_MAX_NODES = 150
     private const val MARGIN = 24f
@@ -129,7 +159,7 @@ object GraphLayouts {
             fun dimensions(node: FlowNode): FlowSize {
                 nodeSizes[node.output]?.let { return it }
                 val text = size(node.output)
-                val factor = if (node.shape == "diamond") 2f else 1f
+                val factor = if (node.displayShape == "diamond") 2f else 1f
                 return FlowSize(maxOf(140f, (text.width + 32f) * factor), maxOf(60f, (text.height + 24f) * factor))
             }
             val lanes = (if (mode == FlowLayoutMode.GROUPED) model.lanes else emptyList()).associate { lane ->
@@ -182,7 +212,7 @@ object GraphLayouts {
                 return FlowRect(p.x, p.y, node.width.toFloat(), node.height.toFloat())
             }
             var unresolvedY = graph.height.toFloat() + MARGIN * 2
-            val diamonds = model.nodes.filter { it.shape == "diamond" }.map { it.output }.toSet()
+            val diamonds = model.nodes.filter { it.displayShape == "diamond" }.map { it.output }.toSet()
             // ELKの接続点は外接矩形上。直交線の向きを保ったまま菱形の輪郭まで延ばす。
             fun outline(path: YPath?, point: FlowPoint): FlowPoint {
                 if (path !in diamonds) return point

@@ -8,11 +8,8 @@ import androidx.compose.ui.graphics.drawscope.*
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.LayoutDirection
 import dev.toros.yde.desktop.ui.common.*
 import java.nio.file.Path as FilePath
-import javax.imageio.ImageIO
-import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 /**
@@ -176,28 +173,23 @@ internal fun DrawScope.drawLens(scene: LensScene, zoom: Float, hovered: Int?, ad
     }
 }
 
-/** 配置の全体を等倍で PNG に書き出す（長辺は 8,000 px まで縮める）。 */
-internal fun exportLensPng(path: FilePath, scene: LensScene, background: Color, density: Density) {
+/** 端ラベルと動かした箱も「全体」とPNGの境界へ含める。 */
+internal fun lensBounds(scene: LensScene): androidx.compose.ui.geometry.Rect {
     val result = scene.arranged.result
-    // 動かした箱が左上の外に出ていれば、その分だけ寄せて全部を入れる
-    val points = result.routes.flatMap { it.points }
-    val minX = minOf(0f, result.boxes.minOfOrNull { it.x } ?: 0f, points.minOfOrNull { it.x } ?: 0f)
-    val minY = minOf(0f, result.boxes.minOfOrNull { it.y } ?: 0f, points.minOfOrNull { it.y } ?: 0f)
-    val shiftX = if (minX < 0f) 24f - minX else 0f
-    val shiftY = if (minY < 0f) 24f - minY else 0f
-    val contentWidth = (result.width + shiftX).coerceAtLeast(1f)
-    val contentHeight = (result.height + shiftY).coerceAtLeast(1f)
-    val scale = minOf(1f, 8000f / maxOf(contentWidth, contentHeight))
-    val width = (contentWidth * scale).roundToInt().coerceAtLeast(1)
-    val height = (contentHeight * scale).roundToInt().coerceAtLeast(1)
-    val bitmap = ImageBitmap(width, height)
-    val canvas = androidx.compose.ui.graphics.Canvas(bitmap)
-    CanvasDrawScope().draw(density, LayoutDirection.Ltr, canvas, Size(width.toFloat(), height.toFloat())) {
-        drawRect(background)
-        scale(scale, pivot = Offset.Zero) {
-            translate(shiftX, shiftY) { drawLens(scene, 1f, null, LensAdjacency(emptyList(), emptyList())) }
+    val rectangles = result.boxes.map { androidx.compose.ui.geometry.Rect(it.x, it.y, it.x + it.width, it.y + it.height) }
+    val labels = result.routes.flatMapIndexed { i, route ->
+        val edge = scene.arranged.edges.getOrNull(i)
+        if (edge?.visual != null) diagramEdgeLabels(edge.visual, route.points.map { Offset(it.x, it.y) },
+            route.label?.let { Offset(it.x, it.y) }).map { it.bounds }
+        else {
+            val text = edge?.label?.let { scene.labelTexts[it] }
+            val at = route.label
+            if (text == null || at == null) emptyList() else listOf(androidx.compose.ui.geometry.Rect(
+                Offset(at.x - text.size.width / 2, at.y - text.size.height / 2), Size(text.size.width.toFloat(), text.size.height.toFloat())))
         }
     }
-    val target = if (path.fileName.toString().lowercase().endsWith(".png")) path else path.resolveSibling(path.fileName.toString() + ".png")
-    ImageIO.write(bitmap.toAwtImage(), "png", target.toFile())
+    return diagramBounds(rectangles + labels, result.routes.flatMap { it.points }.map { Offset(it.x, it.y) })
 }
+
+internal fun exportLensPng(path: FilePath, scene: LensScene, background: Color, density: Density) =
+    exportDiagramPng(path, lensBounds(scene), background, density) { drawLens(scene, 1f, null, LensAdjacency(emptyList(), emptyList())) }

@@ -19,6 +19,15 @@ import kotlin.test.assertTrue
  */
 class RefactoringTest {
 
+    @Test fun `図の適用指定と記法の式も改名時の言及として開示する`() {
+        val store = renameFieldStore()
+        store.write(DocumentId("_views/lens.yaml"), "id: lens\nkind: lens\nappearance: {nodes: [{notation: card, inputs: {title: {\$copy: data.priority}}}]}\n")
+        store.write(DocumentId("_views/card.yaml"), "id: card\nkind: diagram-notation\ntarget: node\nbuild: {kind: text, text: {\$copy: priority}}\n")
+        val warnings = RefactoringImpact.viewMentionWarnings(session(store), "priority")
+        assertTrue(warnings.any { "lens.yaml" in it && "appearance" in it })
+        assertTrue(warnings.any { "card.yaml" in it && "build" in it })
+    }
+
     private val a = DocumentId("items/a.yaml")
     private val b = DocumentId("items/b.yaml")
     private val c = DocumentId("items/c.yaml")

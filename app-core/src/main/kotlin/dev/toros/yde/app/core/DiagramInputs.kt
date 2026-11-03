@@ -59,6 +59,11 @@ object DiagramInputs {
         return Input(DiagramInputPlace(YNode.Map(fields), origins))
     }
 
-    fun type(type: String, label: String): Input = Input(DiagramInputPlace(
-        YamlIO.fromAny(mapOf("id" to type, "entityType" to type, "title" to label, "data" to emptyMap<String, Any>())), emptyList()))
+    fun type(type: String, label: String, schemaType: SchemaGraphType? = null): Input = Input(DiagramInputPlace(
+        YamlIO.fromAny(mapOf("id" to type, "entityType" to type, "title" to label, "data" to mapOf(
+            "attributes" to schemaType?.members.orEmpty().map { member -> mapOf(
+                "key" to member.key, "label" to (member.label ?: member.key), "type" to member.type,
+                "required" to member.required, "requiredFrom" to member.requiredFrom, "condition" to member.condition,
+                "schema" to member.site.schemaId, "path" to member.site.path,
+            ) }))), emptyList()))
 }

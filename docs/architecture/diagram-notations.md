@@ -14,6 +14,7 @@
 | `DiagramInputs` | app-core/core/DiagramInputs.kt | 既存のエンティティ合成から値と来歴を渡す |
 | `DiagramBodies` / `ImageAssets` | desktop/ui/common/ | 共通の計測・描画・画像読込 |
 | `DiagramEdges` | desktop/ui/common/DiagramEdges.kt | 線種・端点記号・中央と両端のラベルの計測描画 |
+| `DiagramPng` / `FlowDrawing` / `GraphLensDrawing` | desktop/ui/common/・ui/view/・ui/graph/ | 共通の画像出力境界と画面・PNGで共有する描画 |
 | `FileLocations` / `FilePolicy.outsideLevel` | app-core/core/・workspace-core/layout/ | file型と画像の場所・許可の共通境界 |
 
 ## 流れ
@@ -41,6 +42,16 @@ LensGraphsは表示する辺と別にDiagramLinkSourceを保持し、重複排�
 描画の端点記号とラベルだけをLensGraphsのreversedに従って交換する。
 来歴が複数の部品はlocationsに全件を残し、locationは一つに決まる場合だけ返す。
 ノード内の文字・画像からの移動は既存のopenFileへ渡し、図専用の書込を作らない。
+
+型の属性はSemanticSchemaGraphのSchemaGraphMemberから渡す。
+共通項目とケースの属性を条件付きで列挙し、子エンティティの属性は子の型に閉じる。
+これはスキーマの説明であり、データ文書の編集座標を作らない。
+CLIのschema-graphも同じmembersを写す。
+
+フローの報告は記法の表示モデルと来歴を含み、CLIとread_viewが共有する。
+同梱・利用者の記法定義は読み込んだYAMLを保持し、同じ入口から開示する。
+レンズのappearanceと記法のひな型は既存のRefactoringImpactで言及を点検する。
+PNGは全ノード・経路・端のラベルの境界を取り、画面と同じ描画へ渡す。
 
 ## 規律
 

@@ -47,9 +47,11 @@ internal fun viewCommand(rest: List<String>): CliResult = run {
                         "relations" to v.relations.map { "${it.name}: ${it.arrow.id}" },
                     )
                 } + loaded.extensionViews.map { v -> v.listing() }),
+                "notations" to loaded.notations.map { mapOf("id" to it.id, "name" to it.name, "target" to it.target, "source" to it.source.value) },
                 "errors" to loaded.errors,
             )
         )
+    loaded.notations.singleOrNull { it.id == viewId }?.let { return asData(YamlIO.parseToRaw(it.definitionYaml)) }
     // 拡張の種類（チャート・フローなど。ADR-0014）: 解決して種類の値を返す（描画は画面だけ）。
     // 文書に縛られる種類（フロー）は view <workspace> <id> <file> で対象の文書を選ぶ（当たる文書が 1 つなら省ける）
     loaded.extensionView(viewId)?.let { def ->

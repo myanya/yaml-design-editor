@@ -33,7 +33,7 @@ internal object FlowSwimlanes {
         val valid = model.edges.filter { it.from.target in base && it.to.target in base }
         val outgoing = valid.groupBy { it.from.target }
         val incoming = valid.groupBy { it.to.target }
-        val shapes = model.nodes.associate { it.output to it.shape }
+        val shapes = model.nodes.associate { it.output to it.displayShape }
         fun adjacent(e: FlowEdge) = rank.getValue(e.to.target!!) == rank.getValue(e.from.target!!) + 1
         val longEdges = valid.filterNot(::adjacent)
         val rails = longEdges.groupBy { laneOf.getValue(it.from.target!!) }

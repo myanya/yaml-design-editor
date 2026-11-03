@@ -1,5 +1,8 @@
 # ヘッドレス CLI（エージェント向け基盤）
 
+図の記法は `view <workspace>` の `notations` に並び、記法IDを指定すると同梱記法もYAMLで読めます。
+フローの表示モデルと来歴、型グラフの属性も開示します（[図の記法](diagram-notations.md#出力と定義の読み取り)）。
+
 ダッシュボードは `view <workspace> <dashboard-id> --date YYYY-MM-DD` で参照できます。
 出力と基準日の規則は [ダッシュボード](dashboards.md#cliとエージェント) を参照してください。
 チャート（`kind: chart`）は `view <workspace> <chart-id>` で、元の表を解決した横軸の項目（`categories`）と系列ごとの数（`series`）を返します。図そのものは画面だけで描きます（[ビュー](views.md#チャートkind-chart-表を図に)）。

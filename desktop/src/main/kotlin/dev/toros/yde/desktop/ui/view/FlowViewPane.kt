@@ -11,20 +11,17 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
@@ -36,21 +33,11 @@ import dev.toros.yde.app.view.flow.*
 import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.yaml.model.*
-import kotlin.math.sqrt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import dev.toros.yde.desktop.AppState
 import dev.toros.yde.desktop.OpenDocument
 import dev.toros.yde.desktop.ui.common.*
-import dev.toros.yde.desktop.ui.common.rememberDiagramBodies
-import dev.toros.yde.desktop.ui.common.drawDiagram
-import dev.toros.yde.desktop.ui.common.ChoiceMenu
-import dev.toros.yde.desktop.ui.common.ChoiceOption
-import dev.toros.yde.desktop.ui.common.GraphLayouts
-import dev.toros.yde.desktop.ui.common.Palette
-import dev.toros.yde.desktop.ui.common.PanelShape
-import dev.toros.yde.desktop.ui.common.fitViewport
-import dev.toros.yde.desktop.ui.common.slotAt
 import dev.toros.yde.desktop.ui.form.FieldRow
 import dev.toros.yde.desktop.ui.form.FormCtx
 import dev.toros.yde.desktop.ui.form.GenericEditor
@@ -284,13 +271,22 @@ private fun FlowCanvas(
     var zoom by remember { mutableStateOf(1f) }
     var pan by remember { mutableStateOf(Offset.Zero) }
     var canvasSize by remember { mutableStateOf(Size.Zero) }
+    val scene = FlowScene(model, arrangement, texts, bodies, edgeVisuals, diagramColors(), Palette.Selected)
     fun fit() {
         if (canvasSize.width <= 0 || canvasSize.height <= 0) return
-        val viewport = fitViewport(arrangement.size.width, arrangement.size.height, canvasSize.width, canvasSize.height)
+        val bounds = flowBounds(scene)
+        val viewport = fitViewport(bounds.width, bounds.height, canvasSize.width, canvasSize.height)
         zoom = viewport.zoom
-        pan = Offset(viewport.panX, viewport.panY)
+        pan = Offset(viewport.panX - bounds.left * zoom, viewport.panY - bounds.top * zoom)
     }
     LaunchedEffect(arrangement, canvasSize) { fit() }
+    val density = LocalDensity.current
+    val saveImage = rememberFileSaver(FilePickers.Purpose.EXPORT, "フローの画像を保存", "png", fallback = state.workspace,
+        onError = { state.status = it }) { path ->
+        runCatching { exportFlowPng(path, scene, Palette.PanelBg, density) }
+            .onSuccess { state.status = "画像を保存しました: $path" }
+            .onFailure { state.status = "画像の保存に失敗しました: ${it.message ?: it::class.simpleName}" }
+    }
     val latestChoose by rememberUpdatedState(choose)
     val latestBodies by rememberUpdatedState(bodies)
     Column(modifier) {
@@ -299,13 +295,9 @@ private fun FlowCanvas(
             TextButton(onClick = { zoom = (zoom * 1.25f).coerceAtMost(3f) }) { Text("＋") }
             TextButton(onClick = { zoom = 1f; pan = Offset.Zero }) { Text("表示をリセット") }
             TextButton(onClick = { fit() }) { Text("全体") }
+            TextButton(onClick = { saveImage("flow") }) { Text("PNG に保存") }
             Text("${(zoom * 100).toInt()}%", fontSize = 11.sp, modifier = Modifier.align(Alignment.CenterVertically))
         }
-        val border = Palette.Border
-        val primary = Palette.Primary
-        val surface = Palette.Surface
-        val selectedColor = Palette.Selected
-        val subtext = Palette.SubText
         Canvas(Modifier.weight(1f).fillMaxWidth().clipToBounds().background(Palette.PanelBg)
             .onSizeChanged { canvasSize = Size(it.width.toFloat(), it.height.toFloat()) }
             .pointerInput(Unit) { detectDragGestures { change, drag -> change.consume(); pan += drag } }
@@ -324,59 +316,7 @@ private fun FlowCanvas(
                 }?.let { latestChoose(FlowElementKind.EDGE, it.output) }
             } }) {
             translate(pan.x, pan.y) { scale(zoom, pivot = Offset.Zero) {
-                arrangement.lanes.forEach { (path, r) ->
-                    drawRect(border, Offset(r.x, r.y), Size(r.width, r.height), style = Stroke(1f))
-                    val header = arrangement.laneHeaders[path]
-                    texts[path]?.let { drawText(it, topLeft = Offset(header?.x ?: (r.x + 8f), header?.y ?: (r.y + 8f))) }
-                }
-                arrangement.edges.forEach { route ->
-                    val visual = edgeVisuals[route.output]
-                    if (visual != null) {
-                        drawDiagramEdge(visual, route.points.map { Offset(it.x, it.y) }, emphasized = route.output == selected)
-                        return@forEach
-                    }
-                    val color = if (route.output == selected) primary else subtext
-                    route.points.zipWithNext().forEach { (a, b) -> drawLine(color, Offset(a.x, a.y), Offset(b.x, b.y), 2f) }
-                    if (route.points.size >= 2) {
-                        val b = route.points.last(); val a = route.points[route.points.lastIndex - 1]
-                        val length = sqrt((b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y)).coerceAtLeast(1f)
-                        val dx = (b.x - a.x) / length; val dy = (b.y - a.y) / length
-                        drawLine(color, Offset(b.x, b.y), Offset(b.x - dx * 10 + dy * 5, b.y - dy * 10 - dx * 5), 2f)
-                        drawLine(color, Offset(b.x, b.y), Offset(b.x - dx * 10 - dy * 5, b.y - dy * 10 + dx * 5), 2f)
-                    }
-                }
-                // 後続の接続線で条件の文字を上書きしないよう、ラベルは線の後にまとめて描く。
-                arrangement.edges.forEach { route ->
-                    val r = route.label
-                    val visual = edgeVisuals[route.output]
-                    if (visual != null) {
-                        drawDiagramEdgeLabels(visual, route.points.map { Offset(it.x, it.y) }, Offset(r.center.x, r.center.y))
-                        return@forEach
-                    }
-                    drawRect(if (route.output == selected) selectedColor else surface, Offset(r.x, r.y), Size(r.width, r.height))
-                    texts[route.output]?.let { drawText(it, topLeft = Offset(r.x + 6, r.y + 6)) }
-                }
-                model.nodes.forEach { n ->
-                    val r = arrangement.nodes.getValue(n.output)
-                    val fill = if (n.output == selected) selectedColor else surface
-                    val outline = if (n.output == selected) primary else border
-                    val offset = Offset(r.x, r.y); val size = Size(r.width, r.height)
-                    val body = bodies[n.output]
-                    if (body != null) drawDiagram(body, offset) else when (n.shape) {
-                        "diamond" -> {
-                            val path = Path().apply { moveTo(r.center.x, r.y); lineTo(r.right, r.center.y)
-                                lineTo(r.center.x, r.bottom); lineTo(r.x, r.center.y); close() }
-                            drawPath(path, fill); drawPath(path, outline, style = Stroke(2f))
-                        }
-                        "rounded" -> {
-                            drawRoundRect(fill, offset, size, CornerRadius(20f))
-                            drawRoundRect(outline, offset, size, CornerRadius(20f), style = Stroke(2f))
-                        }
-                        else -> { drawRect(fill, offset, size); drawRect(outline, offset, size, style = Stroke(2f)) }
-                    }
-                    if (body != null && n.output == selected) drawRect(primary, offset, size, style = Stroke(3f))
-                    if (body == null) texts[n.output]?.let { drawText(it, topLeft = Offset(r.center.x - it.size.width / 2, r.center.y - it.size.height / 2)) }
-                }
+                drawFlow(scene, selected)
             } }
         }
     }

@@ -117,6 +117,10 @@ limit: 100
 
 ## スキーマレンズ（型の段）
 
+型の直下の属性は `SchemaGraphMember` に型・必須・フェーズ・ケース条件と根拠の場所を持つ。
+導出は同じ `SemanticSchemaGraph` の走査で行い、図の記法とCLIがその結果を使う。
+型の再利用を継承、YDEの操作をプログラムのメソッドとは解釈しない。
+
 レンズの「実体／型」の切替（`LensLevel`。画面の覚え `lensSchemaLevel`）で、同じ画面を一段上に上げる: 箱＝エンティティ型・線＝関係・入れ子＝保有の宣言。文書を読まず、スキーマと関係レジストリだけから導く（文書の無いワークスペースでも図が出る）。
 
 - **導出は `SemanticSchemaGraph.build`（semantic-core）の 1 つ**。材料は文書スキーマ（組込みスキーマ・library・レジストリ・derive の宣言側は含めない）と、レジストリの関係・型。app-core の `Workspace.refresh` が作り `AppState.schemaGraph` に写す。レンズは `LensGraphs.buildTypes` で実体の段と同じ `LensGraph` に写し、絞り込み（`select`）・配置・描画・PNG を共有する。CLI `schema-graph` は同じ材料を YAML で出す。

@@ -20,6 +20,7 @@ data class VirtualDiagramNotationDef(
     val target: String,
     val input: StructureSchema,
     val transform: TransformDef,
+    val definitionYaml: String = "",
 ) : VirtualViewDefinition
 
 /** 対象の種類で一意に選ぶ記法と、既存の変換で組む入力。未指定の条件は全対象に当たる。 */

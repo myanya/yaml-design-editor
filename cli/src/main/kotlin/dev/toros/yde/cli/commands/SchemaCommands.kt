@@ -89,6 +89,8 @@ internal fun schemaGraphCommand(rest: List<String>): CliResult = run {
             "types" to g.types.map { t ->
                 compact(
                     "type" to t.type, "label" to t.label,
+                    "members" to t.members.map { m -> compact("key" to m.key, "label" to m.label, "type" to m.type,
+                        "required" to m.required, "requiredFrom" to m.requiredFrom, "condition" to m.condition, "site" to site(m.site)) },
                     "schemas" to t.appearances.map { a ->
                         compact(
                             "schema" to a.schemaId, "path" to a.path, "role" to (if (a.defines) "defines" else "detail"),

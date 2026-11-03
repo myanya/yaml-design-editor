@@ -18,6 +18,36 @@ import kotlin.test.assertTrue
  */
 class SemanticSchemaGraphTest {
 
+    @Test fun `型の直下の属性は解決済みの型と条件を持ち子の属性を混ぜない`() {
+        val schema = parse("items", """
+            id: items
+            definitions:
+              price: {type: number, min: 0}
+            root:
+              type: object
+              entity: {type: order, defines: true}
+              fields:
+                - {key: id, type: id}
+                - {key: total, type: price, required: true}
+                - key: mode
+                  type: enum
+                  values: [delivery, pickup]
+                  cases:
+                    delivery: [{key: address, type: string}]
+                - key: child
+                  type: object
+                  entity: {type: item, defines: true}
+                  fields: [{key: id, type: id}, {key: quantity, type: int}]
+        """)
+        val graph = SemanticSchemaGraph.build(listOf(SchemaGraphSource("items", "注文", schema, emptyList())), emptyList(), emptyList())
+        val order = graph.typeMap.getValue("order").members
+        assertEquals(listOf("id", "total", "mode", "address", "child"), order.map { it.key })
+        assertEquals("price", order.single { it.key == "total" }.type)
+        assertTrue(order.single { it.key == "total" }.required)
+        assertEquals("mode=delivery", order.single { it.key == "address" }.condition)
+        assertEquals("child.quantity", graph.typeMap.getValue("item").members.single { it.key == "quantity" }.site.path)
+    }
+
     private fun parse(id: String, yaml: String) = SchemaTreeParser.parse(yaml.trimIndent(), fallbackId = id)
 
     private val screenList = SchemaGraphSource(

@@ -17,7 +17,10 @@ import kotlin.math.roundToInt
 
 /** 画像の基準文書は値の来歴。定数の画像だけは記法定義から解決する。 */
 internal data class DiagramImageKey(val document: DocumentId?, val source: String)
-private fun DiagramRendering.imageKey(part: DiagramPart) = DiagramImageKey(location(part.path + "source")?.document ?: definition, part.source.orEmpty())
+private fun DiagramRendering.imageKey(part: DiagramPart): DiagramImageKey {
+    val places = locations(part.path + "source")
+    return DiagramImageKey(if (places.isEmpty()) definition else places.singleOrNull()?.document, part.source.orEmpty())
+}
 
 internal data class DiagramColors(
     val text: Color, val muted: Color, val accent: Color, val warning: Color,
@@ -38,6 +41,8 @@ internal data class DiagramMeasured(
 ) {
     fun hit(point: Offset): DiagramPart? {
         if (point.x !in 0f..size.width || point.y !in 0f..size.height) return null
+        if (part.kind == "box" && part.shape == "diamond" &&
+            kotlin.math.abs(point.x - size.width / 2) / (size.width / 2) + kotlin.math.abs(point.y - size.height / 2) / (size.height / 2) > 1f) return null
         return children.asReversed().firstNotNullOfOrNull { (at, child) -> child.hit(point - at) } ?: part
     }
 }
@@ -85,22 +90,24 @@ internal fun measureDiagram(part: DiagramPart, measurer: TextMeasurer, colors: D
     }
     if (part.kind in setOf("image", "icon")) return DiagramMeasured(part, Size(part.width ?: 64f, part.height ?: 64f))
     if (part.kind == "divider") return DiagramMeasured(part, Size(width, part.height ?: 1f))
-    val inner = (width - part.padding * 2).coerceAtLeast(1f)
+    val factor = if (part.kind == "box" && part.shape == "diamond") 2f else 1f
+    val inner = (width / factor - part.padding * 2).coerceAtLeast(1f)
     val row = part.layout == "row"
     val childWidth = if (row) ((inner - part.gap * (part.children.size - 1)) / part.children.size.coerceAtLeast(1)).coerceAtLeast(1f) else inner
     val children = part.children.map { measureDiagram(it, measurer, colors, childWidth) }
     val gaps = part.gap * (children.size - 1).coerceAtLeast(0)
     val contentWidth = if (row) children.sumOf { it.size.width.toDouble() }.toFloat() + gaps else children.maxOfOrNull { it.size.width } ?: 0f
     val contentHeight = if (row) children.maxOfOrNull { it.size.height } ?: 0f else children.sumOf { it.size.height.toDouble() }.toFloat() + gaps
-    val size = Size(part.width ?: (contentWidth + part.padding * 2).coerceIn(1f, width),
-        part.height ?: (contentHeight + part.padding * 2).coerceIn(1f, 2048f))
+    val size = Size(part.width ?: ((contentWidth + part.padding * 2) * factor).coerceIn(1f, width),
+        part.height ?: ((contentHeight + part.padding * 2) * factor).coerceIn(1f, 2048f))
+    val inset = Offset((size.width - size.width / factor) / 2, (size.height - size.height / factor) / 2)
     var cursor = part.padding
     val placed = children.map { child ->
-        val spare = if (row) size.height - part.padding * 2 - child.size.height else size.width - part.padding * 2 - child.size.width
+        val spare = if (row) size.height / factor - part.padding * 2 - child.size.height else size.width / factor - part.padding * 2 - child.size.width
         val cross = part.padding + when (part.align) { "center" -> spare / 2; "end" -> spare; else -> 0f }.coerceAtLeast(0f)
         val offset = if (row) Offset(cursor, cross) else Offset(cross, cursor)
         cursor += (if (row) child.size.width else child.size.height) + part.gap
-        offset to child
+        (offset + inset) to child
     }
     return DiagramMeasured(part, size, children = placed)
 }

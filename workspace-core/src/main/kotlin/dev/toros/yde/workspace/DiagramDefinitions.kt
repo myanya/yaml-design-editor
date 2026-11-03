@@ -22,6 +22,7 @@ object DiagramDefinitions {
             id, raw["name"]?.toString() ?: id, raw["description"]?.toString(), source, target!!,
             StructureParser.parse(mapOf("root" to (raw["input"] ?: mapOf("type" to "object", "unknownFields" to "allow"))), id),
             TransformDef.parse(mapOf("id" to id, "build" to raw["build"], "rules" to raw["rules"])),
+            YamlIO.dumpPlain(YamlIO.fromAny(raw)),
         )
     }
 

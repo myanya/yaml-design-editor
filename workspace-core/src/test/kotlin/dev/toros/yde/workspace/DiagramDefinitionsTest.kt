@@ -95,6 +95,29 @@ class DiagramDefinitionsTest {
         assertEquals(2, copied.origins.size)
     }
 
+    @Test fun `記法の条件と繰り返しは既存の変換で評価し原本を変更しない`() {
+        val def = definition("""
+            id: conditional
+            target: node
+            build:
+              kind: box
+              children:
+                - {kind: text, text: {${'$'}copy: title}}
+                - ${'$'}when: {path: urgent, equals: true}
+                  ${'$'}then: {kind: text, text: 要確認, tone: warning}
+        """)
+        val bind = DiagramBinding(def.id, TransformDef.ofTemplate("input", mapOf("${'$'}copy" to "."), "input"))
+        for (urgent in listOf(false, true)) {
+            val tree = YamlIO.parse("title: 注文\nurgent: $urgent")
+            val before = YamlIO.dumpPlain(tree)
+            val result = DiagramNotations.resolve(listOf(def), listOf(bind), SemanticTransform.TemplatePlace(tree, source, emptyList()), source, "node")!!
+            assertTrue(result.notices.isEmpty(), result.notices.toString())
+            assertEquals(if (urgent) 2 else 1, result.node!!.children.size)
+            assertEquals(before, YamlIO.dumpPlain(tree))
+        }
+        assertTrue(DiagramDefinitions.builtins.single { it.id == "uml-class" }.definitionYaml.contains("attributes"))
+    }
+
     @Test
     fun `カタログは記法の重複と対象違いを診断し従来の矢印指定も読める`() {
         val loaded = ViewDefinitions.load(listOf(

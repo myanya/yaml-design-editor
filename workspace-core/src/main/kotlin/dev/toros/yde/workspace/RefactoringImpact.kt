@@ -103,8 +103,16 @@ object RefactoringImpact {
             val raw = runCatching { YamlIO.parseToRaw(session.storedText(file) ?: "") }.getOrNull() as? Map<*, *>
                 ?: return@flatMap emptyList()
             if (raw["kind"] == "lens") {
-                return@flatMap (raw["relations"] as? List<*>).orEmpty().mapIndexedNotNull { i, e ->
+                val relations = (raw["relations"] as? List<*>).orEmpty().mapIndexedNotNull { i, e ->
                     if ((e as? Map<*, *>)?.get("name") == token) "${file.value}: relations[${i + 1}].name に「$token」の言及があります（自動書換の対象外・要確認）" else null
+                }
+                return@flatMap relations + DefinitionMentions.literal(raw["appearance"], token, "appearance").map {
+                    "${file.value}: $it に「$token」の言及があります（自動書換の対象外・要確認）"
+                }
+            }
+            if (raw["kind"] == "diagram-notation") {
+                return@flatMap listOf("input", "build", "rules").flatMap { key -> DefinitionMentions.literal(raw[key], token, key) }.map {
+                    "${file.value}: $it に「$token」の言及があります（自動書換の対象外・要確認）"
                 }
             }
             if (raw["kind"] == "dashboard") {

@@ -35,6 +35,11 @@ class DiagramFlowTest {
         assertEquals("花子", rendering.node!!.children[1].text)
         assertEquals(DiagramLocation(document, listOf("people", 0, "portrait")), rendering.location(listOf("children", 0, "source")))
         assertEquals(before, YamlIO.dumpPlain(input))
+        val report = FlowReports.toMap(def, document, result)
+        val reported = ((report["model"] as Map<*, *>)["nodes"] as List<*>).single() as Map<*, *>
+        val visible = reported["rendering"] as Map<*, *>
+        assertNotNull(visible["model"])
+        assertTrue((visible["origins"] as List<*>).isNotEmpty(), "CLIとread_viewにも記法の来歴を開示する")
         val bad = def.copy(appearance = DiagramDefinitions.appearance(mapOf("nodes" to listOf(mapOf("notation" to "missing")))))
         val invalid = FlowViews.resolve(bad, document, null, input)
         assertEquals("notation", invalid.diagnostics.single().code)

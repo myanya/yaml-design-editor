@@ -1,5 +1,6 @@
 package dev.toros.yde.app.view.flow
 
+import dev.toros.yde.semantic.DiagramRendering
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.pretty
@@ -13,6 +14,10 @@ internal object FlowReports {
             "value" to value.value?.let { YamlIO.toAny(it) },
             "origins" to value.origins.map(::location), "editable" to value.editable,
         )
+        fun rendering(value: DiagramRendering?) = if (value == null) emptyMap<String, Any?>() else mapOf("rendering" to mapOf(
+            "model" to value.term?.let(YamlIO::toAny),
+            "origins" to value.origins.map { mapOf("output" to it.output.pretty(), "file" to it.document?.value, "path" to it.path.pretty()) },
+        ))
         fun connection(value: FlowConnection) = linkedMapOf(
             "key" to value.key, "state" to value.state.name.lowercase(), "target" to value.target?.pretty(),
         )
@@ -22,11 +27,11 @@ internal object FlowReports {
                 "nodes" to model.nodes.map { node -> linkedMapOf(
                     "output" to node.output.pretty(), "key" to node.key, "label" to node.label,
                     "shape" to node.shape, "lane" to node.lane?.let(::connection), "detail" to detail(node.detail),
-                ) },
+                ) + rendering(node.rendering) },
                 "edges" to model.edges.map { edge -> linkedMapOf(
                     "output" to edge.output.pretty(), "key" to edge.key, "label" to edge.label,
                     "from" to connection(edge.from), "to" to connection(edge.to), "detail" to detail(edge.detail),
-                ) },
+                ) + rendering(edge.rendering) },
                 "lanes" to model.lanes.map { lane -> linkedMapOf(
                     "output" to lane.output.pretty(), "key" to lane.key, "label" to lane.label,
                 ) },

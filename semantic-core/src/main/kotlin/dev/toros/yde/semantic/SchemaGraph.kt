@@ -37,11 +37,18 @@ data class SchemaGraphAppearance(
     val inferred: Boolean,
 )
 
+/** 型の直下の属性。値の文書ではなくスキーマから導いた情報なので編集座標には使わない。 */
+data class SchemaGraphMember(
+    val key: String, val label: String?, val type: String, val required: Boolean, val requiredFrom: String?,
+    val site: SchemaGraphSite, val condition: String? = null,
+)
+
 /** 型（箱）。 */
 data class SchemaGraphType(
     val type: String,
     val label: String?,
     val appearances: List<SchemaGraphAppearance>,
+    val members: List<SchemaGraphMember> = emptyList(),
 ) {
     val displayLabel: String get() = label ?: type
 
@@ -216,6 +223,7 @@ class SemanticSchemaGraph(
                     appearances.filter { it.type == t }
                         .map { SchemaGraphAppearance(it.site.schemaId, it.site.path, it.decl?.defines ?: false, it.decl?.aspect, it.decl?.idPattern, it.inferred) }
                         .sortedWith(compareBy({ !it.defines }, { it.schemaId }, { it.path })),
+                    appearances.filter { it.type == t }.flatMap { it.members }.distinct(),
                 )
             }
             return SemanticSchemaGraph(types, edges, holdings, unresolved.sortedWith(compareBy({ it.site.schemaId }, { it.site.path })), beyondDeclaration)
@@ -223,7 +231,7 @@ class SemanticSchemaGraph(
 
         // ---------------- 1 スキーマの歩き（文書は読まない）
 
-        private class Element(val site: SchemaGraphSite, val type: String?, val decl: EntityDecl?, val inferred: Boolean)
+        private class Element(val site: SchemaGraphSite, val type: String?, val decl: EntityDecl?, val inferred: Boolean, val members: List<SchemaGraphMember>)
         private class Ref(val site: SchemaGraphSite, val fromType: String?, val relation: String?, val scopeSchemaIds: List<String>, val layers: List<List<String>>)
         private class Holding(val parent: String, val child: String, val relation: String, val site: SchemaGraphSite, val childDefines: Boolean)
         private class Walked(val elements: List<Element>, val refs: List<Ref>, val holdings: List<Holding>)
@@ -236,6 +244,21 @@ class SemanticSchemaGraph(
 
             /** 項目に宣言した保有の関係名（使う側の宣言、無ければ型の定義の宣言。走査と同じ）。 */
             fun relationOf(def: FieldDef?): String? = def?.relation ?: tree.resolve(def)?.relation
+
+            // 図は特定の値を持たないため、共通項目と全caseの属性を条件付きで列挙する。
+            // 子エンティティの属性は別のElementに属する。型のmethodsをプログラムの操作へ推定しない。
+            fun members(fields: List<FieldDef>, parent: String, condition: String? = null, depth: Int = 0): List<SchemaGraphMember> {
+                if (depth > MAX_DEPTH) return emptyList()
+                return fields.flatMap { field ->
+                    val key = field.key ?: return@flatMap emptyList()
+                    val resolved = tree.resolve(field) ?: field
+                    val site = SchemaGraphSite(source.id, if (parent.isEmpty()) key else "$parent.$key")
+                    listOf(SchemaGraphMember(key, resolved.label, field.typeName ?: field.ref ?: resolved.type.name.lowercase(),
+                        resolved.required, resolved.requiredFrom, site, condition)) +
+                        resolved.cases.flatMap { (value, children) -> members(children, parent,
+                            listOfNotNull(condition, "$key=$value").joinToString(" & "), depth + 1) }
+                }
+            }
 
             /** ID を持つ要素の型を決める（object の entity ＞ ID の項目の型 ＞ 単一の宣言 ＞ 宣言の並びで推定）。 */
             fun declFor(eff: FieldDef, idField: FieldDef, depth: Int): Pair<EntityDecl?, Boolean> {
@@ -278,7 +301,7 @@ class SemanticSchemaGraph(
                         var nextDepth = depth
                         if (idField != null) {
                             val (decl, inferred) = declFor(eff, idField, depth)
-                            val element = Element(site, decl?.type, decl, inferred)
+                            val element = Element(site, decl?.type, decl, inferred, members(eff.fields, path))
                             elements += element
                             if (parent?.type != null && element.type != null && path.isNotEmpty()) {
                                 holdings += Holding(parent.type, element.type, holderRelation ?: holderKey ?: "contains", site, decl?.defines ?: false)

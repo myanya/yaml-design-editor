@@ -268,7 +268,7 @@ fun GraphLensView(state: AppState) {
         if (profile == null) emptyMap() else nodes.mapNotNull { n ->
             val bindings = profile.appearance?.node(if (level == LensLevel.TYPE) "type" else "entity", typeOf(n.node.id)).orEmpty()
             if (bindings.isEmpty()) return@mapNotNull null
-            val input = if (level == LensLevel.TYPE) DiagramInputs.type(n.node.id, schemaGraph.typeMap[n.node.id]?.label ?: n.node.id)
+            val input = if (level == LensLevel.TYPE) DiagramInputs.type(n.node.id, schemaGraph.typeMap[n.node.id]?.label ?: n.node.id, schemaGraph.typeMap[n.node.id])
                 else DiagramInputs.entity(n.node.id, n.node.occurrence, state.overlayIndex(), state.schemas, state.entityTypes, state.unsavedFirstTree())
             DiagramNotations.resolve(model.catalog?.notations.orEmpty(), bindings, input.place, profile.source, "node")
                 ?.let { n.node.key to it.copy(notices = it.notices + input.notices) }
@@ -346,8 +346,13 @@ fun GraphLensView(state: AppState) {
     val pins = remember(arranged) { mutableStateMapOf<Int, LensPoint>() }
     val effective: LensArranged? = remember(arranged, pins.toMap()) {
         arranged?.let { a ->
-            if (pins.isEmpty()) a
-            else a.copy(result = GraphLayouts.withMovedNested(a.result, a.nested, a.edges.map { LensEdgeSpec(it.from, it.to) }, pins.toMap()))
+            val edges = a.edges.map { LensEdgeSpec(it.from, it.to) }
+            val moved = if (pins.isEmpty()) a.result else GraphLayouts.withMovedNested(a.result, a.nested, edges, pins.toMap())
+            val diamonds = a.nodes.indices.filter { i ->
+                val n = a.nodes[i]
+                !n.expanded && n.hiddenChildren == 0 && a.bodies[n.node.key]?.rendering?.node?.let { it.kind == "box" && it.shape == "diamond" } == true
+            }.toSet()
+            a.copy(result = GraphLayouts.withDiamondOutlines(moved, diamonds, edges))
         }
     }
     val adjacency = remember(effective) {
@@ -379,10 +384,10 @@ fun GraphLensView(state: AppState) {
         zoom = next
     }
     fun fitAll() {
-        val a = effective ?: return
-        val fit = fitViewport(a.result.width, a.result.height, canvasSize.width, canvasSize.height)
+        val bounds = scene?.let(::lensBounds) ?: return
+        val fit = fitViewport(bounds.width, bounds.height, canvasSize.width, canvasSize.height)
         zoom = fit.zoom
-        pan = Offset(fit.panX, fit.panY)
+        pan = Offset(fit.panX - bounds.left * zoom, fit.panY - bounds.top * zoom)
     }
     var hovered by remember { mutableStateOf<Int?>(null) }
     var dragging by remember { mutableStateOf<Int?>(null) }
@@ -537,9 +542,10 @@ fun GraphLensView(state: AppState) {
             val current = arranged
             LaunchedEffect(current) {
                 current?.let {
-                    val fit = fitViewport(it.result.width, it.result.height, widthPx, heightPx)
+                    val bounds = scene?.let(::lensBounds) ?: return@let
+                    val fit = fitViewport(bounds.width, bounds.height, widthPx, heightPx)
                     zoom = fit.zoom
-                    pan = Offset(fit.panX, fit.panY)
+                    pan = Offset(fit.panX - bounds.left * zoom, fit.panY - bounds.top * zoom)
                 }
             }
             Canvas(
@@ -583,7 +589,7 @@ fun GraphLensView(state: AppState) {
                             else pan += amount
                         }
                     }
-                    .pointerInput(Unit) {
+                    .pointerInput(level, mode) {
                         detectTapGestures { tap ->
                             // ズーム・パンを逆変換して箱の中を拾う。見出しの左の印なら開く・畳む、それ以外はエンティティページへ着地する
                             val a = latest ?: return@detectTapGestures

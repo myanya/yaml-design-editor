@@ -91,7 +91,7 @@ class Readouts(private val ctx: ToolContext) {
         require(date == null || viewId?.let(loaded::dashboard) != null) { "dateはダッシュボードを指定したときだけ使えます" }
         if (viewId.isNullOrBlank()) {
             if (loaded.views.isEmpty() && loaded.docViews.isEmpty() && loaded.lensViews.isEmpty() && loaded.dashboards.isEmpty() &&
-                loaded.extensionViews.isEmpty()) return "（ビュー定義がありません）"
+                loaded.extensionViews.isEmpty() && loaded.notations.isEmpty()) return "（ビュー定義がありません）"
             val lines = loaded.views.map { v ->
                 val rowsLabel = v.rows?.let { "idPattern=${it.idPattern}" } ?: "matchクエリ（行キー: ${v.rowKey}）"
                 val columnsLabel = if (v.matrix != null) "クロス集計（列は cells.columns から）" else v.columns.joinToString("/") { it.label }
@@ -104,9 +104,14 @@ class Readouts(private val ctx: ToolContext) {
             } + loaded.lensViews.map { v ->
                 "- ${v.id}（${v.name}）: レンズの見え方（表示だけ。読めるデータは無い） 関係=" +
                     v.relations.joinToString(", ") { "${it.name}:${it.arrow.id}" }.ifEmpty { "なし" }
-            } + loaded.extensionViews.map { v -> "- ${v.id}（${v.name}）: ${v.listingText()}" }
+            } + loaded.extensionViews.map { v -> "- ${v.id}（${v.name}）: ${v.listingText()}" } +
+                loaded.notations.map { v -> "- ${v.id}（${v.name}）: 図の記法 target=${v.target}" }
             return lines.joinToString("\n") +
                 (if (loaded.errors.isEmpty()) "" else "\n定義エラー:\n" + loaded.errors.joinToString("\n") { "- $it" })
+        }
+        loaded.notations.singleOrNull { it.id == viewId }?.let {
+            require(fileRel == null && rowsPattern == null && columns == null) { "図の記法ではfile / rows / columnsを指定しません" }
+            return it.definitionYaml
         }
         // 拡張の種類（チャート・フローなど。ADR-0014）: ステージングの索引と木で解決し、種類の文で返す。
         // 文書に縛られる種類（フロー）は file で対象の文書を選ぶ（当たる文書が 1 つなら省ける）
