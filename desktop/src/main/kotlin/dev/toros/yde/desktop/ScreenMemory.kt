@@ -161,6 +161,9 @@ class ScreenMemory {
     /** レンズの段: 型（箱＝エンティティ型＝スキーマの図。P42）。既定は実体（箱＝エンティティ）。 */
     var lensSchemaLevel by mutableStateOf(false)
 
+    /** 選んだ見え方。消えた定義は標準表示に戻す。 */
+    var lensAppearanceId by mutableStateOf<String?>(null)
+
     /** 型の図の起点（型名）。無ければ全体。実体の起点は AppState.lensOriginId（移動の履歴に乗る）。 */
     var lensTypeOrigin by mutableStateOf<String?>(null)
 
@@ -248,6 +251,7 @@ class ScreenMemory {
         lensExpanded.clear()
         lensPanelTab = 0
         lensSchemaLevel = false
+        lensAppearanceId = null
         lensTypeOrigin = null
         readinessPendingOnly = false
         readinessQuery = ""

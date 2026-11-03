@@ -33,7 +33,7 @@ class DiagramDefinitionsTest {
         val missing = DiagramNotations.resolve(listOf(def), listOf(binding()), SemanticTransform.TemplatePlace(YamlIO.parse("{}"), null, emptyList()), source, "node")!!
         assertNull(missing.node)
         assertTrue(missing.notices.isNotEmpty())
-        assertEquals(setOf("plain-node", "plain-link", "directed-link"), DiagramDefinitions.builtins.map { it.id }.toSet())
+        assertTrue(DiagramDefinitions.builtins.map { it.id }.containsAll(listOf("plain-node", "plain-link", "directed-link")))
     }
 
     @Test

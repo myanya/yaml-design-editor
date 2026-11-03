@@ -1,5 +1,6 @@
 package dev.toros.yde.desktop.ui.file
 
+import dev.toros.yde.desktop.ui.common.LoadedImage
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.heightIn

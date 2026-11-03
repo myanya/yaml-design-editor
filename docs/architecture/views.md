@@ -12,7 +12,7 @@
 | `VirtualGridDef` / `VirtualDocViewDef` / `VirtualViewDefinition`（app-core の `ViewDef` / `DocViewDef` は別名） | semantic-core/semantic/VirtualViews.kt | ビュー定義の宣言の型と解決（仮想文書・テキスト表現） |
 | `VirtualDocSection`（`fieldsIn`・`grid`）/ `VirtualDocGrid` / `VirtualDocSectionResolved`（`occurrence`・`term`・`origins`・`gridRows`・`reason`） | semantic-core/semantic/VirtualViews.kt | 複合文書ビューの区画の宣言と解決の結果。解決は `DocResolver` が区画から変換のひな型を組んで `SemanticTransform.build` で評価する |
 | `FlowViewKind` / `VirtualFlowDef` / `FlowViews` / `FlowResolution` / `FlowViewResult` | app-core の view/flow/FlowViewKind.kt・FlowViews.kt | フロー（`kind: flow`）の読み取りと点検・移動と改名の影響、Constructによる文書の射影、原本対応、表示契約と接続先の診断 |
-| `VirtualLensDef` / `VirtualLensRelation` / `LensArrow` | semantic-core/semantic/LensViews.kt | レンズの見え方の定義（`kind: lens`＝関係ごとの矢印の向き・表示だけ・消費は `Views.LoadResult.reversedRelations` → `LensGraphs`） |
+| `VirtualLensDef` / `VirtualLensRelation` / `LensArrow` | semantic-core/semantic/LensViews.kt | レンズの記法と関係ごとの矢印の向き（[図の記法](diagram-notations.md)） |
 | `ExtensionViewDef` / `ExtensionViewResult` / `ViewContext` / `VirtualDocEmbed` | semantic-core/semantic/ExtensionViews.kt | 差し込み口を通る種類（chart・flow）のビューの共通の形（定義・解決の結果・解決に使う中核の表の窓口・文書ビューの区画への埋め込み）。中核はこの窓口だけで扱う |
 | `ViewKind` / `ViewSchemaFragments` | workspace-core/workspace/ViewKind.kt・ViewSchemaFragments.kt | ビューの種類の差し込み口（読む・点検・断片・埋め込みのキー）と、メタスキーマへの断片の合成 |
 | `ChartViewKind` / `VirtualChartDef` / `ChartKind` / `ChartData` / `ChartSelection` | app-core の view/chart/ChartViewKind.kt・ChartViews.kt・ChartSelection.kt・core/ChartMaterials.kt | チャート（`kind: chart`）の読み取りと点検・宣言と解決（元の表の解決結果を項目 × 系列の数に）・押した形の材料（索引を使う `ChartData.selection` は app.core）。定義の形の断片は資源 `view/chart/schema.yaml` |
@@ -123,7 +123,7 @@
 - `flow.view`は組込みスキーマのref型で、ビューIDの改名・被参照の削除拒否は既存の意味的リファクタリングを使う。
 - projectionの相対パス・規則・固定値は自動改名せず、`RefactoringImpact`がキーと値の言及を場所付きで計画へ開示する。
 - 原本文書の移動でflowのmatchから外れる場合も計画で警告する（差し込み口の `moveWarnings`）。projectionの言及の場所も種類が返す（`mentionSites`）。
-- レンズの定義（`kind: lens`）が持つのは見え方（関係ごとの矢印の向き）だけ。節点の選択（型・関係の絞り込み・起点・畳み）は画面の操作（`ScreenMemory`）のままで、定義に持たせない。
+- レンズの定義（`kind: lens`）は記法と矢印の見え方を持つ。節点の選択（型・関係の絞り込み・起点・畳み）は画面の操作（`ScreenMemory`）のままで、定義に持たせない。
   読み取りは `parseView` の 1 経路、リントは関係レジストリがあるときだけ関係名の宣言を見る。関係の改名は言及を警告で開示する（`viewMentionWarnings`）。消費はレンズだけ（[graph-query.md](graph-query.md)「スキーマレンズ（型の段）」）。
 - スキーマと関係レジストリに見え方を足さない。レンズの見え方の要望（矢印の向き・色・既定の配置）は `kind: lens` の語彙で受ける。
 

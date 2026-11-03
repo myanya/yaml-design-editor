@@ -1,5 +1,6 @@
 package dev.toros.yde.app.view.flow
 
+import dev.toros.yde.semantic.*
 import dev.toros.yde.semantic.ExtensionViewDef
 import dev.toros.yde.semantic.ExtensionViewResult
 import dev.toros.yde.semantic.SemanticTransform
@@ -34,6 +35,7 @@ data class VirtualFlowDef(
     val schemaId: String? = null,
     val direction: String = "down",
     val projection: TransformDef,
+    val appearance: DiagramAppearance? = null,
 ) : ExtensionViewDef {
     private val regex by lazy { match?.let(::globToRegex) }
 
@@ -57,7 +59,7 @@ data class VirtualFlowDef(
     override fun resolve(context: ViewContext): FlowViewResult {
         val document = context.document ?: error("フロービュー「$id」は対象の文書を指定して開きます")
         val input = context.tree(document)
-        val resolution = FlowViews.resolve(this, document, context.schemaId(document), input) { location, key ->
+        val resolution = FlowViews.resolve(this, document, context.schemaId(document), input, context.notations) { location, key ->
             val field = if (location.document == document && input != null) context.fieldAt(document, location.path) else null
             val ref = context.refsAt(document, location.path).singleOrNull { it.targetId == key }
             if (field?.type != FieldType.REF || ref == null || ref.targetKind != RefTarget.ENTITY) FlowConnectionState.UNKNOWN
@@ -102,6 +104,7 @@ data class FlowNode(
     val shape: String,
     val lane: FlowConnection?,
     val detail: FlowDetail,
+    val rendering: DiagramRendering? = null,
 )
 
 data class FlowEdge(
@@ -111,6 +114,7 @@ data class FlowEdge(
     val from: FlowConnection,
     val to: FlowConnection,
     val detail: FlowDetail,
+    val rendering: DiagramRendering? = null,
 )
 
 data class FlowLane(val output: YPath, val key: String?, val label: String?)
@@ -138,6 +142,7 @@ internal object FlowViews {
         document: DocumentId,
         schemaId: String?,
         input: YNode?,
+        notations: List<VirtualDiagramNotationDef> = dev.toros.yde.workspace.DiagramDefinitions.builtins,
         referenceState: (FlowLocation, String) -> FlowConnectionState = { _, _ -> FlowConnectionState.UNKNOWN },
     ): FlowResolution {
         fun failure(code: String, message: String, location: FlowLocation) = FlowResolution(
@@ -219,20 +224,42 @@ internal object FlowViews {
         }
         val editableNodes = editablePaths(build?.entries?.find { it.first == "nodes" }?.second, input)
         val editableEdges = editablePaths(build?.entries?.find { it.first == "edges" }?.second, input)
+        fun rendering(node: YNode, path: YPath, target: String): DiagramRendering? {
+            val bindings = if (target == "node") view.appearance?.node("entity", text(node, "entityType")) else view.appearance?.edge(text(node, "relation"))
+            val result = DiagramNotations.resolve(notations, bindings.orEmpty(), diagramInput(node, path, transformed.origins), view.source, target)
+            result?.notices.orEmpty().forEach { notice -> diagnostics += FlowDiagnostic("notation", Severity.ERROR, notice.message, path,
+                listOf(FlowLocation(notice.location.document, notice.location.path))) }
+            return result
+        }
         val nodes = elements("nodes").mapIndexed { i, node ->
             val path = listOf<Any>("nodes", i)
             val shape = text(node, "shape")?.takeIf { it in setOf("box", "diamond", "rounded") } ?: "box"
             FlowNode(path, key(node), text(node, "label"), shape,
                 if ((node as? YNode.Map)?.entries?.containsKey("lane") == true) connection(node, "lane", path + "lane", lanesByKey, true) else null,
-                detail("nodes", i, node, editableNodes))
+                detail("nodes", i, node, editableNodes), rendering(node, path, "node"))
         }
         val edges = elements("edges").mapIndexed { i, node ->
             val path = listOf<Any>("edges", i)
             FlowEdge(path, key(node), text(node, "label"), connection(node, "from", path + "from", nodesByKey),
-                connection(node, "to", path + "to", nodesByKey), detail("edges", i, node, editableEdges))
+                connection(node, "to", path + "to", nodesByKey), detail("edges", i, node, editableEdges), rendering(node, path, "edge"))
         }
         val lanes = elements("lanes").mapIndexed { i, node -> FlowLane(listOf("lanes", i), key(node), text(node, "label")) }
         return FlowResolution(FlowModel(nodes, edges, lanes), transformed.origins, diagnostics)
+    }
+
+    /** 射影結果のdetailをdataとしても渡す。射影の来歴は二段目の記法まで保持する。 */
+    private fun diagramInput(node: YNode, output: YPath, origins: List<TransformOrigin>): DiagramInputPlace {
+        val fields = (node as? YNode.Map)?.entries.orEmpty()
+        val context = YNode.Map(LinkedHashMap(fields).apply {
+            fields["key"]?.let { put("id", it) }
+            fields["label"]?.let { put("title", it) }
+            fields["detail"]?.let { put("data", it) }
+        })
+        val local = origins.filter { it.output.take(output.size) == output }.map { it.copy(output = it.output.drop(output.size)) }
+        val aliases = mapOf("key" to "id", "label" to "title", "detail" to "data")
+        return DiagramInputPlace(context, local + local.mapNotNull { origin ->
+            aliases[origin.output.firstOrNull()]?.let { origin.copy(output = listOf(it) + origin.output.drop(1)) }
+        })
     }
 
     /** 評価器を作らず、直接eachまたはそのconcatだけの出力番号と原本位置を照合する。 */

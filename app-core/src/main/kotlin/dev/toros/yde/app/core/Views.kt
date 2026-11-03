@@ -130,7 +130,7 @@ object Views {
 
         fun view(id: String): ViewDef? = views.firstOrNull { it.id == id }
 
-        /** 矢印を逆向きに描く関係名（全部のレンズの定義の和）。 */
+        /** 矢印だけを持つ従来のレンズ定義の和。外観を持つ定義は選択したときだけ適用する。 */
         val reversedRelations: Set<String> get() = lensViews.filter { it.appearance == null }.flatMap { it.reversedRelations }.toSet()
 
         fun docView(id: String): DocViewDef? = docViews.firstOrNull { it.id == id }
@@ -183,6 +183,7 @@ object Views {
     ): ExtensionViewResult {
         val refsByDocument: Map<DocumentId, Map<YPath, List<ScannedRef>>> by lazy { index.refs.groupBy { it.document }.mapValues { (_, r) -> r.groupBy { it.path } } }
         return def.resolve(object : ViewContext {
+            override val notations get() = loaded?.notations ?: dev.toros.yde.workspace.DiagramDefinitions.builtins
             override fun grid(id: String): VirtualGridDef? = loaded?.view(id)
             override fun rows(grid: VirtualGridDef): List<VirtualRow> = resolve(grid, index, loader, schemaFor)
             override val document: DocumentId? = document

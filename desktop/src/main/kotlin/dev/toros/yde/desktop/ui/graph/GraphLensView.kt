@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.material3.*
@@ -49,6 +50,9 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.toros.yde.desktop.ui.common.*
+import dev.toros.yde.semantic.*
+import dev.toros.yde.app.core.DiagramInputs
 import dev.toros.yde.app.core.Aspects
 import dev.toros.yde.app.core.Views
 import dev.toros.yde.semantic.ScannedId
@@ -77,49 +81,14 @@ import dev.toros.yde.desktop.ui.common.rememberFileSaver
 
 // ================================================================ グラフレンズ（architecture/graph-query.md「エンティティページ」）
 
-/**
- * 配置に渡した辺（箱の添字）。描画は kind で矢じり（参照）・ひし形（保有）・点線（同じエンティティ）を描き分ける。
- * label は辺に添える文字（関係の label。逆向きに描く辺は inverseLabel）。
- */
-private data class LensArrangedEdge(val from: Int, val to: Int, val relation: String?, val kind: LensEdgeKind, val label: String?)
-
-/**
- * 配置に渡した箱・辺と、その結果。箱の集合が変わって計算し直している間も、前の絵を描き続けるために一緒に持つ。
- * nested は配置に渡した箱（見出しの大きさと親）で、描画が見出しの高さと入れ子に使う。
- */
-private data class LensArranged(
-    val nodes: List<LensVisibleNode>,
-    val nested: List<LensNestedNode>,
-    val edges: List<LensArrangedEdge>,
-    val result: LensArrangement,
-)
-
 /** 配置の入力（文字を計測した大きさ込み）。変わったときだけ配置を計算し直す。 */
 private data class LensInput(val nodes: List<LensNestedNode>, val edges: List<LensEdgeSpec>, val origin: Int?)
-
-/** 箱ごとの隣（箱の添字）とつながる辺（辺の添字）。ホバーの強調に使う。 */
-private data class LensAdjacency(val neighbors: List<Set<Int>>, val incident: List<Set<Int>>)
-
-/** 描画に使う色（Palette から 1 度だけ読む。DrawScope の中で Palette を読まない）。 */
-private data class LensPaint(val border: Color, val surface: Color, val primary: Color, val subText: Color)
-
-/** 描く材料の一式（画面の Canvas と PNG の書き出しで同じ描き方をする）。文字は箱の鍵で引く。 */
-private class LensScene(
-    val arranged: LensArranged,
-    val originKeys: Set<String>,
-    val typeColorOf: (String) -> Color,
-    val idTexts: Map<String, TextLayoutResult>,
-    val titleTexts: Map<String, TextLayoutResult>,
-    val subTexts: Map<String, TextLayoutResult>,
-    val labelTexts: Map<String, TextLayoutResult>,
-    val paint: LensPaint,
-)
 
 /** 未宣言の参照（relation なし）を絞り込みの行に並べるときの名前。 */
 private const val UNDECLARED = "（未宣言）"
 
 /** 箱の見出しの左にある開閉の印の幅（この中を押すと開く・畳む。それ以外はエンティティページへ）。 */
-private const val TOGGLE_ZONE = 22f
+internal const val TOGGLE_ZONE = 22f
 
 /** 辺に添える文字: 関係の label。逆向きに描く辺（レジストリの `arrow: reverse`）は、矢印の読む向きに合わせて inverseLabel。 */
 private fun lensEdgeLabel(relations: Map<String, RelationDef>, edge: LensGraphEdge): String? =
@@ -148,6 +117,8 @@ private fun openTypeSchema(state: AppState, type: String) {
  * 画面の覚え（型・関係の隠し・開いた箱・深さ・見え方）と索引から作る。
  */
 private class LensModel(
+    val catalog: Views.LoadResult?,
+    val profile: VirtualLensDef?,
     val level: LensLevel,
     /** 矢印を逆向きに描く関係名（_views の kind: lens の定義）。 */
     val reversed: Set<String>,
@@ -179,9 +150,11 @@ private fun rememberLensModel(state: AppState): LensModel {
     val mode = if (level == LensLevel.ENTITY && state.memory.lensSplitOccurrences) LensMode.OCCURRENCE else LensMode.ENTITY
     // 矢印を逆向きに描く関係（_views の kind: lens の定義。表示だけ）。定義は未保存優先で読む
     val ws = state.workspace
-    val reversed: Set<String> = remember(ws, state.indexVersion, state.editVersion) {
-        if (ws == null) emptySet() else Views.load(ws, state.schemas, state.unsavedFirstTree()).reversedRelations
+    val catalog = remember(ws, state.indexVersion, state.editVersion) {
+        ws?.let { Views.load(it, state.schemas, state.unsavedFirstTree()) }
     }
+    val profile = catalog?.lensViews?.filter { it.appearance != null }?.singleOrNull { it.id == state.memory.lensAppearanceId }
+    val reversed = catalog?.reversedRelations.orEmpty() + profile?.reversedRelations.orEmpty()
     // 節点と辺（段と見え方ごと）。箱の入れ子は保有の線（型の段では保有の宣言）
     val lensGraph = remember(state.indexVersion, state.editVersion, mode, level, schemaGraph, reversed) {
         if (level == LensLevel.TYPE) LensGraphs.buildTypes(schemaGraph, reversed) else LensGraphs.build(graph, overlay.refs, mode, reversed)
@@ -218,8 +191,8 @@ private fun rememberLensModel(state: AppState): LensModel {
         selection.edges.filter { !(it.kind == LensEdgeKind.REF && it.relation == null && UNDECLARED in hiddenRelations) }
     }
     val keyIndex = remember(selection) { selection.nodes.withIndex().associate { (i, n) -> n.node.key to i } }
-    return remember(selection, visibleEdges, keyIndex, types, typeColors, relations, holdingNames, origin, mode, level, reversed) {
-        LensModel(level, reversed, typeOf, types, typeColors, relations, holdingNames, origin, mode, selection.nodes, keyIndex, visibleEdges)
+    return remember(selection, visibleEdges, keyIndex, types, typeColors, relations, holdingNames, origin, mode, level, reversed, catalog, profile) {
+        LensModel(catalog, profile, level, reversed, typeOf, types, typeColors, relations, holdingNames, origin, mode, selection.nodes, keyIndex, visibleEdges)
     }
 }
 
@@ -272,6 +245,18 @@ fun GraphLensView(state: AppState) {
     }
 
     // 箱の文字（開閉の印・ID・タイトル・添え書き）と辺のラベルを計測し、箱の大きさを配置に渡す
+    val renderings = remember(model, state.editVersion, state.indexVersion) {
+        val profile = model.profile
+        if (profile == null) emptyMap() else nodes.mapNotNull { n ->
+            val bindings = profile.appearance?.node(if (level == LensLevel.TYPE) "type" else "entity", typeOf(n.node.id)).orEmpty()
+            if (bindings.isEmpty()) return@mapNotNull null
+            val input = if (level == LensLevel.TYPE) DiagramInputs.type(n.node.id, schemaGraph.typeMap[n.node.id]?.label ?: n.node.id)
+                else DiagramInputs.entity(n.node.id, n.node.occurrence, state.overlayIndex(), state.schemas, state.entityTypes, state.unsavedFirstTree())
+            DiagramNotations.resolve(model.catalog?.notations.orEmpty(), bindings, input.place, profile.source, "node")
+                ?.let { n.node.key to it.copy(notices = it.notices + input.notices) }
+        }.toMap()
+    }
+    val bodies = rememberDiagramBodies(renderings, state)
     val textMeasurer = rememberTextMeasurer()
     val idStyle = TextStyle(fontSize = 11.sp, color = Palette.Text, fontWeight = FontWeight.SemiBold)
     val titleStyle = TextStyle(fontSize = 10.sp, color = Palette.SubText)
@@ -304,16 +289,18 @@ fun GraphLensView(state: AppState) {
     val labelTexts: Map<String, TextLayoutResult> = remember(edgeIndices, edgeLabelStyle) {
         edgeIndices.mapNotNull { it.label }.distinct().associateWith { textMeasurer.measure(it, edgeLabelStyle) }
     }
-    val input = remember(nodes, edgeIndices, idTexts, titleTexts, subTexts, labelTexts, origin, keyIndex) {
+    val input = remember(nodes, edgeIndices, idTexts, titleTexts, subTexts, labelTexts, origin, keyIndex, bodies) {
         val sizes = nodes.map { n ->
             val key = n.node.key
             val idText = idTexts.getValue(key)
             val title = titleTexts[key]
             val sub = subTexts[key]
+            val body = bodies[key]
             LensNestedNode(
                 key,
-                maxOf(idText.size.width, title?.size?.width ?: 0, sub?.size?.width ?: 0) + 20f,
-                idText.size.height + (title?.size?.height ?: 0) + (sub?.size?.height ?: 0) + 12f,
+                body?.let { it.size.width + if (n.expanded || n.hiddenChildren > 0) TOGGLE_ZONE else 0f }
+                    ?: (maxOf(idText.size.width, title?.size?.width ?: 0, sub?.size?.width ?: 0) + 20f),
+                body?.size?.height ?: (idText.size.height + (title?.size?.height ?: 0) + (sub?.size?.height ?: 0) + 12f),
                 n.parent?.let { keyIndex[it] },
             )
         }
@@ -332,9 +319,9 @@ fun GraphLensView(state: AppState) {
     var arranged by remember { mutableStateOf<LensArranged?>(null) }
     var arrangedFor by remember { mutableStateOf<Pair<LensInput, LensLayoutKind>?>(null) }
     val computing = nodes.isNotEmpty() && arrangedFor != (input to layoutKind)
-    LaunchedEffect(input, layoutKind) {
+    LaunchedEffect(input, layoutKind, bodies) {
         val result = withContext(Dispatchers.Default) { GraphLayouts.arrangeNested(input.nodes, input.edges, layoutKind, input.origin) }
-        arranged = LensArranged(nodes, input.nodes, edgeIndices, result)
+        arranged = LensArranged(nodes, input.nodes, edgeIndices, result, bodies)
         arrangedFor = input to layoutKind
     }
     // 利用者が動かした箱（添字 → 左上）。配置が変わったら忘れる。中の箱も一緒に動く
@@ -411,11 +398,29 @@ fun GraphLensView(state: AppState) {
     }
 
     Column(Modifier.fillMaxSize().background(Palette.EditorBg)) {
+        val notices = renderings.values.flatMap { it.notices }.distinct()
+        model.catalog?.errors.orEmpty().forEach { Text(it, color = Palette.WarnOrange, fontSize = 11.sp) }
+        if (notices.isNotEmpty()) Column(Modifier.fillMaxWidth().heightIn(max = 100.dp).verticalScroll(rememberScrollState())) {
+            notices.forEach { notice -> TextButton(onClick = { state.openFile(notice.location.document, notice.location.path) }) {
+                Text(notice.message, color = Palette.WarnOrange, fontSize = 11.sp)
+            } }
+        }
         Row(
             Modifier.fillMaxWidth().background(Palette.Surface).horizontalScroll(rememberScrollState()).padding(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("グラフレンズ", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Box {
+                var menuOpen by remember { mutableStateOf(false) }
+                TextButton(onClick = { menuOpen = true }) { Text("記法: ${model.profile?.name ?: "標準"}", fontSize = 11.sp) }
+                DropdownMenu(menuOpen, onDismissRequest = { menuOpen = false }) {
+                    DropdownMenuItem(text = { Text("標準") }, onClick = { state.memory.lensAppearanceId = null; menuOpen = false })
+                    model.catalog?.lensViews.orEmpty().filter { it.appearance != null }.forEach { profile ->
+                        DropdownMenuItem(text = { Text(profile.name) }, onClick = { state.memory.lensAppearanceId = profile.id; menuOpen = false })
+                    }
+                }
+            }
+            model.profile?.let { profile -> TextButton(onClick = { state.openFile(profile.source) }) { Text("記法の適用定義", fontSize = 11.sp) } }
             Spacer(Modifier.width(8.dp))
             // 段: 実体（箱＝エンティティ・線＝参照）か型（箱＝エンティティ型・線＝関係＝スキーマの図）。型・関係の絞り込みは両方で同じ覚え
             LensLevel.entries.forEach { lv ->
@@ -799,135 +804,4 @@ private fun LensFilterItem(checked: Boolean, onChange: (Boolean) -> Unit, label:
         Checkbox(checked, onChange, modifier = Modifier.size(26.dp))
         label()
     }
-}
-
-// ================================================================ 描画（画面と PNG で共通）
-
-/**
- * 配置を描く。`zoom` は文字を出すかの判定に使う（縮小すると省く）。
- * `hovered` があれば、その箱と隣だけを濃く、他を薄くする。
- * 箱は親が先に並ぶので、そのまま順に描けば中の箱が上に乗る。開いた箱は見出しの下に薄い区画を持つ。
- */
-private fun DrawScope.drawLens(scene: LensScene, zoom: Float, hovered: Int?, adjacency: LensAdjacency) {
-    val a = scene.arranged
-    val result = a.result
-    val paint = scene.paint
-    val neighbors = hovered?.let { adjacency.neighbors.getOrNull(it) }
-    val incident = hovered?.let { adjacency.incident.getOrNull(it) }
-    fun edgeAlpha(i: Int) = if (incident == null) 1f else if (i in incident) 1f else 0.15f
-    fun nodeAlpha(i: Int) = if (hovered == null) 1f else if (i == hovered || neighbors?.contains(i) == true) 1f else 0.25f
-    // 箱: 型の色で縁取った箱に ID とタイトル。起点は太い縁、ホバー中は太く。開いた箱は塗りを薄くして中の箱を目立たせる
-    result.boxes.forEachIndexed { i, b ->
-        val node = a.nodes.getOrNull(i) ?: return@forEachIndexed
-        val key = node.node.key
-        val color = scene.typeColorOf(key)
-        val alpha = nodeAlpha(i)
-        val topLeft = Offset(b.x, b.y)
-        val size = Size(b.width, b.height)
-        val isOrigin = key in scene.originKeys
-        drawRoundRect(color.copy(alpha = if (i == hovered) 0.3f else if (node.expanded) 0.05f else 0.12f), topLeft, size, CornerRadius(8f), alpha = alpha)
-        drawRoundRect(
-            if (isOrigin) paint.primary else color, topLeft, size, CornerRadius(8f), alpha = alpha,
-            style = Stroke(if (isOrigin || i == hovered) 3.5f else 1.5f),
-        )
-        if (node.expanded) {
-            val header = a.nested.getOrNull(i)?.height ?: 0f
-            drawLine(color, Offset(b.x, b.y + header), Offset(b.x + b.width, b.y + header), strokeWidth = 1f, alpha = alpha * 0.6f)
-        }
-        if (zoom >= 0.4f) {
-            val idText = scene.idTexts[key] ?: return@forEachIndexed
-            var y = b.y + 6f
-            drawText(idText, topLeft = Offset(b.x + 10f, y), alpha = alpha)
-            y += idText.size.height
-            scene.titleTexts[key]?.let { drawText(it, topLeft = Offset(b.x + 10f, y), alpha = alpha); y += it.size.height }
-            scene.subTexts[key]?.let { drawText(it, topLeft = Offset(b.x + 10f, y), alpha = alpha) }
-        }
-    }
-    // 辺: 折れ線に、参照は矢じり・保有は親の側のひし形・同じエンティティは点線。ラベルは読める倍率のときだけ
-    val dashed = PathEffect.dashPathEffect(floatArrayOf(6f, 5f))
-    result.routes.forEachIndexed { i, route ->
-        val pts = route.points
-        if (pts.size < 2) return@forEachIndexed
-        val edge = a.edges.getOrNull(i)
-        val emphasized = incident != null && i in incident
-        val alpha = edgeAlpha(i)
-        val lineColor = if (emphasized) paint.primary else paint.border
-        val path = Path().apply {
-            moveTo(pts[0].x, pts[0].y)
-            pts.drop(1).forEach { lineTo(it.x, it.y) }
-        }
-        val strokeWidth = (if (emphasized) 2.2f else 1.2f) / zoom.coerceIn(0.3f, 1f)
-        drawPath(
-            path, lineColor, alpha = alpha,
-            style = if (edge?.kind == LensEdgeKind.TIE) Stroke(strokeWidth, pathEffect = dashed) else Stroke(strokeWidth),
-        )
-        val markColor = if (emphasized) paint.primary else paint.subText
-        when (edge?.kind) {
-            LensEdgeKind.HOLDING -> {
-                // 保有の線: 親の側（出発点）に塗りつぶしのひし形（UML の合成と同じ印）。矢じりは付けない
-                val p0 = pts[0]
-                val p1 = pts[1]
-                val len0 = sqrt((p1.x - p0.x) * (p1.x - p0.x) + (p1.y - p0.y) * (p1.y - p0.y)).coerceAtLeast(1f)
-                val ux = (p1.x - p0.x) / len0
-                val uy = (p1.y - p0.y) / len0
-                val diamond = Path().apply {
-                    moveTo(p0.x, p0.y)
-                    lineTo(p0.x + ux * 7 + uy * 4, p0.y + uy * 7 - ux * 4)
-                    lineTo(p0.x + ux * 14, p0.y + uy * 14)
-                    lineTo(p0.x + ux * 7 - uy * 4, p0.y + uy * 7 + ux * 4)
-                    close()
-                }
-                drawPath(diamond, markColor, alpha = alpha)
-            }
-            LensEdgeKind.TIE -> Unit
-            else -> {
-                val p = pts[pts.size - 2]
-                val q = pts.last()
-                val length = sqrt((q.x - p.x) * (q.x - p.x) + (q.y - p.y) * (q.y - p.y)).coerceAtLeast(1f)
-                val dx = (q.x - p.x) / length
-                val dy = (q.y - p.y) / length
-                val arrow = Path().apply {
-                    moveTo(q.x, q.y)
-                    lineTo(q.x - dx * 9 + dy * 4, q.y - dy * 9 - dx * 4)
-                    lineTo(q.x - dx * 9 - dy * 4, q.y - dy * 9 + dx * 4)
-                    close()
-                }
-                drawPath(arrow, markColor, alpha = alpha)
-            }
-        }
-        if (zoom >= 0.5f) {
-            val text = edge?.label?.let { scene.labelTexts[it] } ?: return@forEachIndexed
-            val c = route.label ?: return@forEachIndexed
-            val w = text.size.width.toFloat()
-            val h = text.size.height.toFloat()
-            drawRect(paint.surface, Offset(c.x - w / 2 - 2, c.y - h / 2), Size(w + 4, h), alpha = alpha)
-            drawText(text, topLeft = Offset(c.x - w / 2, c.y - h / 2), alpha = alpha)
-        }
-    }
-}
-
-/** 配置の全体を等倍で PNG に書き出す（長辺は 8,000 px まで縮める）。 */
-private fun exportLensPng(path: FilePath, scene: LensScene, background: Color, density: Density) {
-    val result = scene.arranged.result
-    // 動かした箱が左上の外に出ていれば、その分だけ寄せて全部を入れる
-    val points = result.routes.flatMap { it.points }
-    val minX = minOf(0f, result.boxes.minOfOrNull { it.x } ?: 0f, points.minOfOrNull { it.x } ?: 0f)
-    val minY = minOf(0f, result.boxes.minOfOrNull { it.y } ?: 0f, points.minOfOrNull { it.y } ?: 0f)
-    val shiftX = if (minX < 0f) 24f - minX else 0f
-    val shiftY = if (minY < 0f) 24f - minY else 0f
-    val contentWidth = (result.width + shiftX).coerceAtLeast(1f)
-    val contentHeight = (result.height + shiftY).coerceAtLeast(1f)
-    val scale = minOf(1f, 8000f / maxOf(contentWidth, contentHeight))
-    val width = (contentWidth * scale).roundToInt().coerceAtLeast(1)
-    val height = (contentHeight * scale).roundToInt().coerceAtLeast(1)
-    val bitmap = ImageBitmap(width, height)
-    val canvas = androidx.compose.ui.graphics.Canvas(bitmap)
-    CanvasDrawScope().draw(density, LayoutDirection.Ltr, canvas, Size(width.toFloat(), height.toFloat())) {
-        drawRect(background)
-        scale(scale, pivot = Offset.Zero) {
-            translate(shiftX, shiftY) { drawLens(scene, 1f, null, LensAdjacency(emptyList(), emptyList())) }
-        }
-    }
-    val target = if (path.fileName.toString().lowercase().endsWith(".png")) path else path.resolveSibling(path.fileName.toString() + ".png")
-    ImageIO.write(bitmap.toAwtImage(), "png", target.toFile())
 }

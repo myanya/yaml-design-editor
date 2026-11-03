@@ -107,9 +107,9 @@ object GraphLayouts {
     /** フローの循環・レーン・条件ラベルを同じ配置問題として解く。ELKの型はこの窓口の外へ出さない。 */
     @JvmOverloads
     fun arrangeFlow(model: FlowModel, labels: Map<YPath, FlowSize>, direction: String = "down",
-                    mode: FlowLayoutMode = FlowLayoutMode.GROUPED): FlowArrangement {
+                    mode: FlowLayoutMode = FlowLayoutMode.GROUPED, nodeSizes: Map<YPath, FlowSize> = emptyMap()): FlowArrangement {
         if (mode == FlowLayoutMode.SWIMLANES) {
-            val seed = arrangeFlow(model, labels, direction, FlowLayoutMode.PLAIN)
+            val seed = arrangeFlow(model, labels, direction, FlowLayoutMode.PLAIN, nodeSizes)
             return FlowSwimlanes.arrange(model, labels, seed, direction)
         }
         return synchronized(lock) {
@@ -127,6 +127,7 @@ object GraphLayouts {
             graph.setProperty(CoreOptions.RANDOM_SEED, 1)
             fun size(path: YPath) = labels[path] ?: FlowSize(100f, 24f)
             fun dimensions(node: FlowNode): FlowSize {
+                nodeSizes[node.output]?.let { return it }
                 val text = size(node.output)
                 val factor = if (node.shape == "diamond") 2f else 1f
                 return FlowSize(maxOf(140f, (text.width + 32f) * factor), maxOf(60f, (text.height + 24f) * factor))

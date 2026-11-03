@@ -11,6 +11,8 @@ import dev.toros.yde.yaml.structure.StructureParser
 /** 記法と適用指定の読み取り。表示の契約をビューのカタログで一度だけ解決する。 */
 object DiagramDefinitions {
     fun parse(raw: Map<*, *>, source: DocumentId): VirtualDiagramNotationDef {
+        val keys = setOf("id", "name", "description", "kind", "target", "input", "build", "rules")
+        require(raw.keys.all { it in keys }) { "kind: diagram-notationに未知の項目があります" }
         val id = raw["id"]?.toString()?.takeIf { it.isNotBlank() } ?: error("記法のidが必要です")
         val target = raw["target"]?.toString()
         require(target in listOf("node", "edge")) { "記法のtargetはnode / edgeで指定します" }
@@ -50,7 +52,7 @@ object DiagramDefinitions {
 
     /** 同梱も利用者と同じYAML・同じ読み取りを通す。IDの衝突はカタログが診断する。 */
     val builtins: List<VirtualDiagramNotationDef> by lazy {
-        listOf("plain-node", "plain-link", "directed-link").map { name ->
+        listOf("plain-node", "plain-link", "directed-link", "portrait-card").map { name ->
             val text = requireNotNull(javaClass.getResourceAsStream("/builtin-diagram-notations/$name.yaml")) {
                 "同梱記法が見つかりません: $name"
             }.bufferedReader(Charsets.UTF_8).use { it.readText() }

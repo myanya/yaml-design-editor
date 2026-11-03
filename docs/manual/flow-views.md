@@ -155,6 +155,7 @@ editableは利用者の編集権限を表しません。値は表示用のコピ
 - directionはdownまたはright、既定はdownです。
 - ノードにはkey・label・detail、辺にはfrom・to・detailを持たせます。辺のkey・labelは任意です。
 - ノードのshapeはbox・diamond・roundedです。未知のshapeは診断付きでboxへ代替します。
+- `appearance.nodes` で[図の記法](diagram-notations.md)を適用できます。射影ノードの任意の `entityType` は適用を選ぶための明示的な分類です。
 - lanesは任意の配列で、各要素にkey・labelを持たせ、ノードのlaneからkeyを参照します。
 - 任意活動など別配列の要素も表示するときは、nodesの変換でeach同士をconcatします。
 - 詳細の直接編集に適格なのは、配列eachの通常マップ直下に`detail: {$copy: .}`を置く形と、そのeach同士のconcatです。

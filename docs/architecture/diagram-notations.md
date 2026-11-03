@@ -11,6 +11,9 @@
 | `VirtualDiagramNotationDef` / `DiagramAppearance` | semantic-core/semantic/DiagramNotations.kt | 記法と適用指定の型 |
 | `DiagramNotations` / `DiagramInputPlace` | semantic-core/semantic/DiagramNotations.kt | Constructによる入力と出力の組み立て・契約検査・来歴の保持 |
 | `DiagramDefinitions` | workspace-core/workspace/DiagramDefinitions.kt | 定義の読み取り・同梱記法・参照の点検 |
+| `DiagramInputs` | app-core/core/DiagramInputs.kt | 既存のエンティティ合成から値と来歴を渡す |
+| `DiagramBodies` / `ImageAssets` | desktop/ui/common/ | 共通の計測・描画・画像読込 |
+| `FileLocations` / `FilePolicy.outsideLevel` | app-core/core/・workspace-core/layout/ | file型と画像の場所・許可の共通境界 |
 
 ## 流れ
 
@@ -20,6 +23,17 @@
 入力の検査後、記法の `build` と `rules` で表示モデルを作り、同梱の表示契約で検査する。
 `DiagramInputPlace` は合成した入力のパスを最長一致の来歴で原本へ戻す。
 `SemanticTransform.runAt` は原本座標を持つ入力を受け取る共通の入口で、通常の変換と評価器を共有する。
+
+レンズは外観を持つ定義を一つ選び、選択はScreenMemoryが持つ。
+外観のない従来のレンズ定義は矢印指定の和として適用する。
+実体の入力はAspectsの所有項目、出現の入力は原本の部分木から作る。
+所有が重複した項目は診断して合成入力から外す。
+フローは射影後のノードへ記法を適用し、ViewContextからカタログを受け取る。
+フロー固有の入力の対応付けはFlowViewsが持ち、app.coreへ依存しない。
+
+計測した部品の寸法をGraphLayoutsへ渡し、同じ計測結果を描画する。
+レンズのPNGも同じ描画を使う。画像は値の来歴の文書からFileLocationsで解決する。
+ImageAssetsはfile画面と図で共有し、画像の更新時刻の変化に追随する。
 
 ## 規律
 

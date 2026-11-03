@@ -78,7 +78,7 @@ internal class CodedDocumentChecks(
             }
             val location = FilePath.toWorkspaceRelative(text, document) ?: run {
                 val outside = FilePath.normalize(text)
-                if (!FilePath.underAny(outside, files.allowedRoots)) {
+                if (files.outsideLevel(text, document) != FilePolicyLevel.ALLOW) {
                     severity(files.outside)?.let { sev ->
                         report(sev, "file-outside", "「$label」はワークスペースの外のファイルです（現在値: $text）", path)
                     }

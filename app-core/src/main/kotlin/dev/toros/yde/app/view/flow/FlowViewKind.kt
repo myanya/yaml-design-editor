@@ -22,7 +22,7 @@ object FlowViewKind : ViewKind {
             .use { it.readBytes().decodeToString() }
     }
 
-    private val keys = setOf("id", "name", "description", "kind", "match", "schemaId", "layout", "projection")
+    private val keys = setOf("id", "name", "description", "kind", "match", "schemaId", "layout", "projection", "appearance")
 
     /** 適用先（match か schemaId）・配置（layout.direction）・射影（projection＝変換定義。from と外部の params は書けない）。 */
     override fun parse(raw: Map<*, *>, source: DocumentId): VirtualFlowDef {
@@ -40,8 +40,11 @@ object FlowViewKind : ViewKind {
         require(direction in listOf("down", "right")) { "layout.direction は down / right で書きます" }
         val projection = TransformDef.parse(raw["projection"], "projection")
         require(projection.from == null && projection.params.isEmpty()) { "フローのprojectionには from・外部paramsを指定できません" }
-        return VirtualFlowDef(id, text("name") ?: id, text("description"), source, match, schemaId, direction!!, projection)
+        return VirtualFlowDef(id, text("name") ?: id, text("description"), source, match, schemaId, direction!!, projection, dev.toros.yde.workspace.DiagramDefinitions.appearance(raw["appearance"]))
     }
+
+    override fun lint(def: ExtensionViewDef, all: List<dev.toros.yde.semantic.VirtualViewDefinition>, schemas: List<WorkspaceSchema>): List<String> =
+        dev.toros.yde.workspace.DiagramDefinitions.lint((def as VirtualFlowDef).appearance, all.filterIsInstance<dev.toros.yde.semantic.VirtualDiagramNotationDef>())
 
     /** 適用先のスキーマ（schemaId）があること。 */
     override fun lintDefinition(def: ExtensionViewDef, schemas: List<WorkspaceSchema>): List<String> {
@@ -57,5 +60,6 @@ object FlowViewKind : ViewKind {
     /** 投影の中の固定 ID・関係名・相対パスは参照型の裏付けが無いので、自動で書き換えず場所を開示する。適用先（schemaId・match）も。 */
     override fun mentionSites(raw: Map<*, *>, token: String): List<String> =
         DefinitionMentions.literal(raw["projection"], token, "projection") +
+            DefinitionMentions.literal(raw["appearance"], token, "appearance") +
             listOf("schemaId", "match").filter { key -> raw[key]?.toString()?.let { DefinitionMentions.tokenRegex(token).containsMatchIn(it) } == true }
 }

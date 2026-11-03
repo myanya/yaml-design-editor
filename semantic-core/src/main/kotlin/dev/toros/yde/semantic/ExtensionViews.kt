@@ -46,6 +46,9 @@ interface ViewContext {
     /** ID から一意なグリッドかクロス集計の定義（無ければ null）。 */
     fun grid(id: String): VirtualGridDef?
 
+    /** 図の記法。定義の読込はカタログの側で一度だけ行う。 */
+    val notations: List<VirtualDiagramNotationDef> get() = emptyList()
+
     /** 表の行。 */
     fun rows(grid: VirtualGridDef): List<VirtualRow>
 

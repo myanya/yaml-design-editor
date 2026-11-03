@@ -41,6 +41,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import dev.toros.yde.desktop.AppState
 import dev.toros.yde.desktop.OpenDocument
+import dev.toros.yde.desktop.ui.common.rememberDiagramBodies
+import dev.toros.yde.desktop.ui.common.drawDiagram
 import dev.toros.yde.desktop.ui.common.ChoiceMenu
 import dev.toros.yde.desktop.ui.common.ChoiceOption
 import dev.toros.yde.desktop.ui.common.GraphLayouts
@@ -143,7 +145,7 @@ private fun FlowPane(state: AppState, doc: OpenDocument, view: VirtualFlowDef, m
     val definition = state.ensureDoc(view.source)
     definition.version
     val resolution = remember(doc, doc.version, view, state.indexVersion, state.editVersion) {
-        (Views.resolveExtension(view, null, state.overlayIndex(), state.unsavedFirstTree(), state::schemaFor, document) as FlowViewResult).resolution
+        (Views.resolveExtension(view, state.workspace?.let { Views.load(it, state.schemas, state.unsavedFirstTree()) }, state.overlayIndex(), state.unsavedFirstTree(), state::schemaFor, document) as FlowViewResult).resolution
     }
     val selection = state.flowSelections[view.id to document]
     val model = resolution.model
@@ -186,7 +188,7 @@ private fun FlowPane(state: AppState, doc: OpenDocument, view: VirtualFlowDef, m
                 fontSize = 11.sp, color = Palette.SubText)
         }
         Row(Modifier.weight(1f).fillMaxWidth()) {
-            if (model != null) FlowCanvas(model, display.directionOrDefault(view.direction), display.mode,
+            if (model != null) FlowCanvas(state, model, display.directionOrDefault(view.direction), display.mode,
                 selected, Modifier.weight(1f).fillMaxHeight(), choose)
             else Text("フローを表示できません", color = Palette.ErrorRed, modifier = Modifier.weight(1f))
             Column(Modifier.width(360.dp).fillMaxHeight().verticalScroll(rememberScrollState()).padding(8.dp)) {
@@ -250,9 +252,11 @@ private fun FlowDetailForm(state: AppState, detail: FlowDetail) {
 
 @Composable
 private fun FlowCanvas(
-    model: FlowModel, direction: String, mode: FlowLayoutMode, selected: YPath?, modifier: Modifier,
+    state: AppState, model: FlowModel, direction: String, mode: FlowLayoutMode, selected: YPath?, modifier: Modifier,
     choose: (FlowElementKind, YPath) -> Unit,
 ) {
+    val renderings = remember(model) { model.nodes.mapNotNull { n -> n.rendering?.let { n.output to it } }.toMap() }
+    val bodies = rememberDiagramBodies(renderings, state)
     val measurer = rememberTextMeasurer()
     val style = TextStyle(fontSize = 12.sp, color = Palette.Text)
     val texts = remember(model, style, measurer) {
@@ -261,11 +265,11 @@ private fun FlowCanvas(
             model.lanes.map { it.output to (it.label ?: "（レーン名なし）") })
             .associate { (p, text) -> p to measurer.measure(text, style, constraints = Constraints(maxWidth = 220)) }
     }
-    var layout by remember(model, direction, mode, texts) { mutableStateOf<Result<FlowArrangement>?>(null) }
-    LaunchedEffect(model, direction, mode, texts) {
+    var layout by remember(model, direction, mode, texts, bodies) { mutableStateOf<Result<FlowArrangement>?>(null) }
+    LaunchedEffect(model, direction, mode, texts, bodies) {
         layout = withContext(Dispatchers.Default) {
             runCatching { GraphLayouts.arrangeFlow(model,
-                texts.mapValues { FlowSize(it.value.size.width.toFloat(), it.value.size.height.toFloat()) }, direction, mode) }
+                texts.mapValues { FlowSize(it.value.size.width.toFloat(), it.value.size.height.toFloat()) }, direction, mode, bodies.mapValues { FlowSize(it.value.size.width, it.value.size.height) }) }
         }
     }
     val arrangement = layout?.getOrNull()
@@ -337,7 +341,8 @@ private fun FlowCanvas(
                     val fill = if (n.output == selected) selectedColor else surface
                     val outline = if (n.output == selected) primary else border
                     val offset = Offset(r.x, r.y); val size = Size(r.width, r.height)
-                    when (n.shape) {
+                    val body = bodies[n.output]
+                    if (body != null) drawDiagram(body, offset) else when (n.shape) {
                         "diamond" -> {
                             val path = Path().apply { moveTo(r.center.x, r.y); lineTo(r.right, r.center.y)
                                 lineTo(r.center.x, r.bottom); lineTo(r.x, r.center.y); close() }
@@ -349,7 +354,8 @@ private fun FlowCanvas(
                         }
                         else -> { drawRect(fill, offset, size); drawRect(outline, offset, size, style = Stroke(2f)) }
                     }
-                    texts[n.output]?.let { drawText(it, topLeft = Offset(r.center.x - it.size.width / 2, r.center.y - it.size.height / 2)) }
+                    if (body != null && n.output == selected) drawRect(primary, offset, size, style = Stroke(3f))
+                    if (body == null) texts[n.output]?.let { drawText(it, topLeft = Offset(r.center.x - it.size.width / 2, r.center.y - it.size.height / 2)) }
                 }
             } }
         }

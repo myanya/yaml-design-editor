@@ -12,6 +12,7 @@ root:
         fields:
           - {key: key, type: string, required: true, minLength: 1, pattern: '.*\S.*'}
           - {key: label, type: string, required: true}
+          - {key: entityType, type: string}
           - {key: shape, type: enum, values: [box, diamond, rounded]}
           - {key: lane, type: string, minLength: 1, pattern: '.*\S.*'}
           - {key: detail, type: any, required: true}
@@ -23,6 +24,7 @@ root:
         unknownFields: error
         fields:
           - {key: key, type: string, minLength: 1, pattern: '.*\S.*'}
+          - {key: relation, type: string}
           - {key: from, type: string, required: true, minLength: 1, pattern: '.*\S.*'}
           - {key: to, type: string, required: true, minLength: 1, pattern: '.*\S.*'}
           - {key: label, type: string}

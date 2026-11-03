@@ -311,7 +311,7 @@ object ViewDefinitions {
 
     /**
      * レンズの見え方（kind: lens）のパース: 関係ごとの矢印の向き（architecture/views.md「レンズの見え方」）。
-     * 表示だけの定義なので、ここで読むのは関係名と向きだけ。節点の選択は画面の操作のまま。
+     * 記法の適用と関係の見え方を読む。節点の選択は画面の操作のまま。
      */
     private fun parseLensView(raw: Map<*, *>, source: DocumentId): VirtualLensDef {
         val keys = setOf("id", "name", "description", "kind", "relations", "appearance")

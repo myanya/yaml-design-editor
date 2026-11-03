@@ -38,17 +38,8 @@ import dev.toros.yde.desktop.ui.form.FormCtx
  * file 型の値を実際のファイルの場所へ直す（純ロジック）。書き方の判定は FilePath（接頭辞なし＝ワークスペースのルートから・
  * `./` か `../`＝この文書の場所から・絶対）。読めない形は null。
  */
-internal fun resolveFilePath(text: String, documentFile: Path, workspace: Path): Path? {
-    val t = FilePath.normalize(text)
-    if (!FilePath.isWellFormed(t)) return null
-    return runCatching {
-        when (FilePath.kindOf(t)) {
-            FilePathKind.ABSOLUTE -> Path.of(t.removePrefix("file:///").removePrefix("file:")).normalize()
-            FilePathKind.DOCUMENT -> (documentFile.parent ?: workspace).resolve(t).normalize()
-            FilePathKind.WORKSPACE -> workspace.resolve(t).normalize()
-        }
-    }.getOrNull()
-}
+internal fun resolveFilePath(text: String, documentFile: Path, workspace: Path): Path? =
+    dev.toros.yde.app.core.FileLocations.resolve(text, documentFile, workspace)
 
 /** 選択ダイアログで選んだファイルを値の書き方にする: ワークスペースの中ならルートからの相対、外なら絶対（区切りは `/`）。 */
 internal fun fileValueFor(chosen: Path, workspace: Path): String {

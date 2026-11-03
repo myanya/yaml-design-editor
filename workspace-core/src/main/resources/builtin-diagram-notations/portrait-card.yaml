@@ -1,0 +1,26 @@
+id: portrait-card
+name: 人物カード
+kind: diagram-notation
+target: node
+input:
+  type: object
+  fields:
+    - {key: title, type: string, required: true}
+    - {key: portrait, type: string}
+    - {key: subtitle, type: string}
+build:
+  kind: box
+  shape: rounded
+  width: 160
+  align: center
+  gap: 8
+  children:
+    - kind: image
+      source: {$copy: portrait}
+      width: 80
+      height: 80
+      fit: cover
+      fallback: person
+    - {kind: text, text: {$copy: title}, maxLines: 3}
+    - $when: {path: subtitle, empty: false}
+      $then: {kind: text, text: {$copy: subtitle}, maxLines: 2, tone: muted}

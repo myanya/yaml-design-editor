@@ -28,6 +28,13 @@ data class FilePolicy(
     val allowedRoots: List<String> = emptyList(),
     val missing: FilePolicyLevel = FilePolicyLevel.ERROR,
 ) {
+    /** 検証と資源読込が共有する外部ファイルの判定。存在確認とOSのパス解決は呼ぶ側で行う。 */
+    fun outsideLevel(text: String, document: dev.toros.yde.yaml.model.DocumentId): FilePolicyLevel {
+        if (dev.toros.yde.semantic.schema.FilePath.toWorkspaceRelative(text, document) != null) return FilePolicyLevel.ALLOW
+        return if (dev.toros.yde.semantic.schema.FilePath.underAny(dev.toros.yde.semantic.schema.FilePath.normalize(text), allowedRoots))
+            FilePolicyLevel.ALLOW else outside
+    }
+
     companion object {
         val DEFAULT = FilePolicy()
 
