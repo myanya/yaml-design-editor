@@ -1,0 +1,43 @@
+id: er-flow
+name: ER図のフロー
+kind: flow
+schemaId: er
+layout: {direction: right}
+projection:
+  id: er-projection
+  build:
+    nodes:
+      $each: tables
+      $build: {key: {$copy: id}, label: {$copy: name}, entityType: er-table, detail: {$copy: .}}
+    edges:
+      $each: tables
+      $bind: table
+      $flatten: true
+      $build:
+        $each: foreignKeys
+        $build:
+          key: {$format: '{table}/{column}/{to}', $with: {table: {$copy: id, $of: table}}}
+          from: {$copy: id, $of: table}
+          to: {$copy: to}
+          relation: er-references
+          detail: {$copy: .}
+appearance:
+  nodes:
+    - level: entity
+      entityType: er-table
+      notation: er-table-card
+      inputs:
+        name: {$copy: data.name}
+        physicalName: {$copy: data.physicalName}
+        columns: {$copy: data.columns}
+        foreignKeys:
+          $each: data.foreignKeys
+          $build: {column: {$copy: column}, targetColumn: {$copy: targetColumn}}
+  edges:
+    - relation: er-references
+      notation: er-reference
+      inputs:
+        column: {$copy: data.column}
+        targetColumn: {$copy: data.targetColumn}
+        sourceMultiplicity: {$copy: data.sourceMultiplicity}
+        targetMultiplicity: {$copy: data.targetMultiplicity}

@@ -22,6 +22,41 @@ class FlowViewsTest {
         FlowViews.resolve(view(build), document, "flow", YamlIO.parse(input.trimIndent()))
 
     @Test
+    fun `入れ子の参照を親IDからの辺へ写し直接編集はテーブルの原本に限定する`() {
+        val definition = view("""
+            nodes:
+              ${'$'}each: tables
+              ${'$'}build: {key: {${'$'}copy: id}, label: {${'$'}copy: id}, detail: {${'$'}copy: .}}
+            edges:
+              ${'$'}each: tables
+              ${'$'}bind: table
+              ${'$'}flatten: true
+              ${'$'}build:
+                ${'$'}each: refs
+                ${'$'}build:
+                  from: {${'$'}copy: id, ${'$'}of: table}
+                  to: {${'$'}copy: to}
+                  detail: {${'$'}copy: .}
+        """)
+        val result = FlowViews.resolve(definition, document, "flow", YamlIO.parse("""
+            tables:
+              - {id: A, refs: []}
+              - {id: B, refs: [{to: A}, {to: C}, {to: D}]}
+              - {id: C, refs: [{to: D}]}
+              - {id: D, refs: []}
+        """.trimIndent()))
+        assertTrue(result.diagnostics.isEmpty(), result.diagnostics.toString())
+        val model = assertNotNull(result.model)
+        assertEquals(4, model.nodes.size)
+        assertTrue(model.nodes.all { it.detail.editable })
+        assertEquals(listOf("B" to "A", "B" to "C", "B" to "D", "C" to "D"),
+            model.edges.map { it.from.key to it.to.key })
+        assertTrue(model.edges.all { it.from.state == FlowConnectionState.RESOLVED && it.to.state == FlowConnectionState.RESOLVED })
+        assertEquals(listOf(FlowLocation(document, listOf("tables", 1, "refs", 2))), model.edges[2].detail.origins)
+        assertFalse(model.edges[2].detail.editable)
+    }
+
+    @Test
     fun `任意活動を結合しても各要素の原本位置と直接編集の適格性を保持する`() {
         val input = YamlIO.parse("main: [{id: A, title: 主活動}]\noptional: [{id: B, title: 任意活動}]\nlinks: [{id: L, from: A, to: B}]")
         val before = YamlIO.dumpPlain(input)

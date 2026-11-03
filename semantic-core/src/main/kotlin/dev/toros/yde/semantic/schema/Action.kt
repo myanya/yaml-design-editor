@@ -247,34 +247,6 @@ internal fun Template.paramNames(): Set<String> {
     return out
 }
 
-/** ひな型の中で指している束縛名（`$of`）。 */
-internal fun Template.bindNames(): Set<String> {
-    val out = LinkedHashSet<String>()
-    fun site(s: TemplateSite) { s.of?.let { out += it } }
-    fun walk(t: Template) {
-        when (t) {
-            is Template.Literal, is Template.Param, is Template.Apply -> Unit
-            is Template.MapOf -> t.entries.forEach { walk(it.second) }
-            is Template.ListOf -> t.items.forEach(::walk)
-            is Template.Copy -> site(t.site)
-            is Template.Format -> { site(t.site); t.with.forEach { walk(it.second) } }
-            is Template.MapValue -> walk(t.input)
-            is Template.First -> t.options.forEach(::walk)
-            is Template.DateOf -> walk(t.input)
-            is Template.NumberOf -> walk(t.input)
-            is Template.TrimOf -> walk(t.input)
-            is Template.ValueOf -> out += t.expr.binds()
-            is Template.ViewRows -> Unit
-            is Template.Each -> { site(t.site); walk(t.body) }
-            is Template.Zip -> { t.sites.forEach { site(it.second) }; walk(t.body) }
-            is Template.Concat -> t.parts.forEach(::walk)
-            is Template.Guarded -> { t.conditions.forEach { c -> c.alternatives.forEach { a -> site(a.site) } }; walk(t.inner) }
-        }
-    }
-    walk(this)
-    return out
-}
-
 /** 配列の追加の決まり（配列の項目の `methods.insert`）: 採番と、同じ明細の見分け。skill の取り込みの `target.id` / `target.key` と同じ綴り。 */
 data class InsertRule(val id: IdNumbering?, val key: List<YPath>, val origin: String) {
     companion object {

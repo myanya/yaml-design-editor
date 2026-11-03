@@ -27,6 +27,23 @@ class SchemaAdditionalOutlineTest {
     private fun root(text: String) = YamlIO.parse(text) as YNode.Map
 
     @Test
+    fun `入れ子のひな型の親束縛と子のコピーを構成から選択編集できる`() {
+        val preset = SchemaValueForms.presets.single { it.label == "親の値を使って子配列を連結する" }
+        val root = YNode.Map(linkedMapOf("scaffold" to preset.node()))
+        val before = outline(root)
+        val flatten = before.single { it.path == listOf("scaffold", "${'$'}flatten") }
+        assertEquals(true, (flatten.node as YNode.Scalar).value)
+        val path = listOf("scaffold", "${'$'}build", "${'$'}build", "child", "${'$'}copy")
+        val copy = before.single { it.path == path }
+        assertEquals(path.dropLast(1), copy.parent)
+        schemaSlot(root, path)!!.set(YNode.Scalar("code"))
+        val after = outline(root)
+        assertEquals(path, schemaAdditionalSelection(after, path, before))
+        assertEquals("code", (after.single { it.path == path }.node as YNode.Scalar).value)
+        assertEquals("parent", (getAt(root, listOf("scaffold", "${'$'}bind")) as YNode.Scalar).value)
+    }
+
+    @Test
     fun `操作の入力条件手順と未知の区画の全子項目へ原本パスで到達できる`() {
         val root = root("""
             actions:

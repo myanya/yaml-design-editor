@@ -1,0 +1,18 @@
+id: er-reference
+name: ERの外部キー
+kind: diagram-notation
+target: edge
+input:
+  type: object
+  fields:
+    - {key: column, type: string, required: true}
+    - {key: targetColumn, type: string, required: true}
+    - {key: sourceMultiplicity, type: string, required: true}
+    - {key: targetMultiplicity, type: string, required: true}
+build:
+  stroke: solid
+  sourceMarker: none
+  targetMarker: none
+  label: {$format: '{column} → {targetColumn}'}
+  sourceLabel: {$copy: sourceMultiplicity}
+  targetLabel: {$copy: targetMultiplicity}

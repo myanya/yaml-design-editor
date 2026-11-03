@@ -253,6 +253,7 @@
 | C-16 | バージョン表示（外部 `appVersion`・内部 `yyyymmdd.ビルド番号`・コミット・CLI `version` とスタート画面） | `core/BuildInfo.kt`, `build.gradle.kts` | 単体 `BuildInfoTest` | [workspace](architecture/workspace.md) |
 | C-17 | フロービューの解決・CLI・read_view | `view/flow/FlowViewKind.kt`・`FlowViews.kt`・`FlowReports.kt`・資源 `view/flow/schema.yaml` | `FlowViewsTest`, `FlowViewDefinitionsTest`, `FlowViewsIntegrationTest` | [views](architecture/views.md) |
 | C-18 | フローの配置切替・スイムレーン・文書埋め込み・原本フォームと履歴・改名影響 | `ui/common/GraphLayouts.kt`, `ui/common/FlowSwimlanes.kt`, `ui/view/FlowViewPane.kt` | `FlowLayoutsTest`, `FlowSelectionTest`, `NavigationHistoryTest`, `FlowRefactoringTest`, `FlowRefactoringGoldenTest` | [views](architecture/views.md) |
+| C-19 | 変換の局所名と可変長の連結（`$bind`・`$flatten`） | `schema/TemplateBindings.kt`・`TransformDef.kt`・`semantic/Transform.kt` | `NestedTransformTest`・`FlowViewsTest` | [transform](architecture/transform.md) |
 
 ## 10. skill（フォーマット適合）
 
@@ -318,4 +319,5 @@
 
 [todos](../samples/todos/README.md)と[テーブルモデル](../samples/todos-sysdev-tablemodel/README.md): 操作・詳細化・SQL生成の検討。
 [orders](../samples/orders/README.md): 複数の種類の参照・入れ子の明細（保有）・金額の整合の検査・参照を辿る集計・参照を 2 段辿るカテゴリー別の売上・出荷と取消の操作。
+[diagrams](../samples/diagrams/README.md): 人物相関図・クラス図・受注のER図。レンズとフローで共通の記法を使い、列・主キー・外部キー・多重度を表示。
 確認: YDEの検証と各READMEの試用手順。

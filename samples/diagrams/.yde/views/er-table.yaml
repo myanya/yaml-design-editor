@@ -1,0 +1,68 @@
+id: er-table-card
+name: ERのテーブル
+kind: diagram-notation
+target: node
+input:
+  type: object
+  fields:
+    - {key: name, type: string, required: true}
+    - {key: physicalName, type: string, required: true}
+    - key: columns
+      type: array
+      required: true
+      item:
+        type: object
+        fields:
+          - {key: name, type: string, required: true}
+          - {key: dataType, type: string, required: true}
+          - {key: primaryKey, type: boolean, required: true}
+    - key: foreignKeys
+      type: array
+      item:
+        type: object
+        fields:
+          - {key: column, type: string, required: true}
+          - {key: targetColumn, type: string, required: true}
+build:
+  kind: box
+  width: 300
+  padding: 0
+  gap: 0
+  children:
+    - kind: group
+      width: 300
+      align: center
+      children:
+        - {kind: text, text: {$copy: name}, tone: accent}
+        - {kind: text, text: {$copy: physicalName}, tone: muted}
+    - {kind: divider}
+    - kind: group
+      width: 300
+      children:
+        $each: columns
+        $build:
+          kind: group
+          layout: row
+          padding: 0
+          children:
+            - kind: text
+              width: 28
+              text:
+                $first:
+                  - {$when: {path: primaryKey, equals: true}, $then: PK}
+                  - '·'
+              tone: accent
+            - {kind: text, text: {$copy: name}, width: 150}
+            - {kind: text, text: {$copy: dataType}, tone: muted}
+    - $when: {path: foreignKeys, empty: false}
+      $then:
+        kind: group
+        width: 300
+        children:
+          - {kind: divider}
+          - {kind: text, text: 外部キー, tone: muted}
+          - kind: group
+            padding: 0
+            children:
+              $each: foreignKeys
+              $build: {kind: text, text: {$format: 'FK {column} → {targetColumn}'}}

@@ -25,6 +25,20 @@ class SchemaValueFormsTest {
     }
 
     @Test
+    fun `入れ子の連結例は閉じた変換で往復し修飾子を正しい型で追加できる`() {
+        val preset = SchemaValueForms.presets.single { it.label == "親の値を使って子配列を連結する" }
+        val roundTrip = YamlIO.parseToRaw(YamlIO.dumpPlain(preset.node()))
+        assertEquals(preset.value, roundTrip)
+        TransformDef.ofTemplate("nested", roundTrip, "入れ子の連結例")
+        val each = YamlIO.parse("${'$'}each: items\n${'$'}build: []") as YNode.Map
+        assertTrue(SchemaValueForms.suggestedKeys(listOf("scaffold"), each).containsAll(listOf("${'$'}bind", "${'$'}flatten")))
+        val entry = YamlIO.parse("${'$'}eachEntry: items\n${'$'}build: {}") as YNode.Map
+        val keys = SchemaValueForms.suggestedKeys(listOf("scaffold"), entry)
+        assertTrue("${'$'}bind" in keys && "${'$'}flatten" !in keys)
+        assertEquals(true, (SchemaValueForms.propertyNode("${'$'}flatten") as YNode.Scalar).value)
+    }
+
+    @Test
     fun `型の操作には横断操作を提案せず追加した形は相互に独立している`() {
         val choices = SchemaValueForms.choices("手順", listOf("definitions", "Task", "methods", "update", "do", 0))
         assertEquals(4, choices.size)

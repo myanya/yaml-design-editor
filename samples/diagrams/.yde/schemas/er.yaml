@@ -1,0 +1,46 @@
+id: er
+name: ERモデル
+kind: document
+match: data/er.yaml
+description: テーブルの設計を原本として持ちます。業務レコードやYDE自身のスキーマの図ではありません。
+definitions:
+  column:
+    type: object
+    fields:
+      - {key: name, label: 列名, type: word, required: true}
+      - {key: dataType, label: データ型, type: enum, values: [integer, text, date, decimal], required: true}
+      - {key: primaryKey, label: 主キーの一部, type: boolean, required: true}
+  foreign-key:
+    type: ref
+    relation: er-references
+    idPattern: 'ER-*'
+    scope: {schemaIds: [er]}
+    fields:
+      - {key: column, label: 参照元の列, type: word, required: true}
+      - {key: targetColumn, label: 参照先の列, type: word, required: true}
+      - key: sourceMultiplicity
+        label: 参照先1件に対する参照元の件数
+        type: enum
+        values: ['0..1', '1', '0..*', '1..*']
+        required: true
+      - key: targetMultiplicity
+        label: 参照元1件に対する参照先の件数
+        type: enum
+        values: ['0..1', '1']
+        required: true
+root:
+  type: object
+  fields:
+    - key: tables
+      label: テーブル
+      type: array
+      required: true
+      item:
+        type: object
+        entity: {type: er-table, defines: true}
+        fields:
+          - {key: id, label: 設計ID, type: id, required: true}
+          - {key: name, label: 論理名, type: line, role: title, required: true}
+          - {key: physicalName, label: テーブル名, type: word, required: true}
+          - {key: columns, label: 列, type: array, required: true, item: {type: column}}
+          - {key: foreignKeys, label: 外部キー, type: array, required: true, item: {type: foreign-key}}

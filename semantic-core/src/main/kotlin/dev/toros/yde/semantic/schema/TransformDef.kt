@@ -90,7 +90,10 @@ sealed interface Template {
     data class ViewRows(val view: String, val conditions: List<TemplateCondition> = emptyList(), val one: Boolean = false) : Template
 
     /** 繰り返し。entries = true はマップの項目ごと（出力もマップ）・false は配列の要素ごと（出力も配列）。 */
-    data class Each(val site: TemplateSite, val entries: Boolean, val body: Template) : Template
+    data class Each(
+        val site: TemplateSite, val entries: Boolean, val body: Template,
+        val bind: String? = null, val flatten: Boolean = false,
+    ) : Template
 
     /** 並べて組む（`$zip`）。sites は行の名前 → 配列の場所。番号ごとの行（いまの場所）で body を組み立て、出力は配列。 */
     data class Zip(val sites: List<Pair<String, TemplateSite>>, val body: Template) : Template
@@ -170,8 +173,10 @@ data class TransformDef(
         private const val VIEW = "\$view"
         private const val WHERE = "\$where"
         private const val ONE = "\$one"
+        private const val BIND = "\$bind"
+        private const val FLATTEN = "\$flatten"
         private val PRIMARY = listOf(COPY, FORMAT, MAP, FIRST, EACH, EACH_ENTRY, ZIP, APPLY, CONCAT, THEN, DATE, NUMBER, TRIM, VALUE, VIEW)
-        private val DIRECTIVE_KEYS = PRIMARY + listOf(OF, IN, USING, BUILD, AT, WHEN, AS, WITH, WHERE, ONE)
+        private val DIRECTIVE_KEYS = PRIMARY + listOf(OF, IN, USING, BUILD, AT, WHEN, AS, WITH, WHERE, ONE, BIND, FLATTEN)
 
         /** `$as`（日付の出力の形）に書ける文字: 年 y・月 M・日 d と区切り。 */
         private val DATE_PATTERN = Regex("""[yMd\-/.]+""")
@@ -331,7 +336,17 @@ data class TransformDef(
                         Template.First(list.mapIndexed { i, e -> parseTemplate(e, "$where.$FIRST[$i]") })
                     }
                     EACH, EACH_ENTRY, ZIP -> {
-                        allow(OF, IN, BUILD, APPLY)
+                        when (main) {
+                            EACH -> allow(OF, IN, BUILD, APPLY, BIND, FLATTEN)
+                            EACH_ENTRY -> allow(OF, IN, BUILD, APPLY, BIND)
+                            else -> allow(OF, IN, BUILD, APPLY)
+                        }
+                        val bind = if (m.containsKey(BIND)) {
+                            (m[BIND] as? String)?.takeIf { PARAM_NAME.matches(it) && it !in LOOP_NAMES }
+                                ?: error("$where.$BIND は英字で始まる名前で書きます（key・index・position は予約名です）")
+                        } else null
+                        val flatten = if (m.containsKey(FLATTEN)) m[FLATTEN] as? Boolean
+                            ?: error("$where.$FLATTEN は true / false で書きます") else false
                         val body = when {
                             m.containsKey(BUILD) && m.containsKey(APPLY) -> error("$where: $BUILD と $APPLY は、どちらか一方を書きます")
                             m.containsKey(BUILD) -> parseTemplate(m[BUILD], "$where.$BUILD")
@@ -343,7 +358,7 @@ data class TransformDef(
                                 ?: error("$where.$ZIP は {行の名前: 配列のパス, …} で書きます（例 {mhp: \"params[0]\", mmp: \"params[1]\"}）")
                             Template.Zip(columns.entries.map { (k, v) -> k.toString() to site(v, "$where.$ZIP.$k") }, body)
                         } else {
-                            Template.Each(site(m[main], "$where.$main"), entries = main == EACH_ENTRY, body = body)
+                            Template.Each(site(m[main], "$where.$main"), entries = main == EACH_ENTRY, body = body, bind = bind, flatten = flatten)
                         }
                     }
                     APPLY -> { allow(OF, IN, AT); Template.Apply(ruleName(m[APPLY], "$where.$APPLY"), site(m[AT], "$where.$AT")) }
@@ -430,8 +445,10 @@ data class TransformDef(
     private fun requireClosed(where: String) {
         val ruleIds = rules.map { it.id }.toSet()
         val binds = from?.binds.orEmpty().toSet()
-        fun site(s: TemplateSite) {
-            s.of?.let { require(it in binds) { "$where: \$of / of の「$it」は、from のクエリで付けた名前ではありません（付けた名前: ${binds.joinToString(", ").ifEmpty { "なし" }}）" } }
+        fun checkBindings(t: Template) {
+            t.bindNames().forEach { name ->
+                require(name in binds) { "$where: \$of / of の「$name」は、from のクエリで付けた名前ではありません（繰り返しの \$bind はその中だけで使えます）" }
+            }
         }
         fun walk(t: Template) {
             when (t) {
@@ -441,29 +458,31 @@ data class TransformDef(
                 }
                 is Template.MapOf -> t.entries.forEach { walk(it.second) }
                 is Template.ListOf -> t.items.forEach(::walk)
-                is Template.Copy -> site(t.site)
-                is Template.Format -> { site(t.site); t.with.forEach { walk(it.second) } }
+                is Template.Copy -> Unit
+                is Template.Format -> t.with.forEach { walk(it.second) }
                 is Template.MapValue -> walk(t.input)
                 is Template.First -> t.options.forEach(::walk)
                 is Template.DateOf -> walk(t.input)
                 is Template.NumberOf -> walk(t.input)
                 is Template.TrimOf -> walk(t.input)
-                is Template.ValueOf -> t.expr.binds().forEach { name ->
-                    require(name in binds) { "$where: \$value の「of: $name」は、from のクエリで付けた名前ではありません（付けた名前: ${binds.joinToString(", ").ifEmpty { "なし" }}）" }
-                }
+                is Template.ValueOf -> Unit
                 is Template.ViewRows -> t.conditions.forEach(::condition)
-                is Template.Each -> { site(t.site); walk(t.body) }
-                is Template.Zip -> { t.sites.forEach { site(it.second) }; walk(t.body) }
+                is Template.Each -> walk(t.body)
+                is Template.Zip -> walk(t.body)
                 is Template.Apply -> {
-                    site(t.site)
                     require(t.rule in ruleIds) { "$where: 規則「${t.rule}」が rules にありません（ある規則: ${ruleIds.joinToString(", ").ifEmpty { "なし" }}）" }
                 }
                 is Template.Concat -> t.parts.forEach(::walk)
                 is Template.Guarded -> { t.conditions.forEach(::condition); walk(t.inner) }
             }
         }
+        checkBindings(build)
         walk(build)
-        rules.forEach { r -> r.conditions.forEach(::condition); walk(r.build) }
+        rules.forEach { r ->
+            checkBindings(Template.Guarded(r.conditions, r.build))
+            r.conditions.forEach(::condition)
+            walk(r.build)
+        }
     }
 
     private fun condition(c: TemplateCondition) {

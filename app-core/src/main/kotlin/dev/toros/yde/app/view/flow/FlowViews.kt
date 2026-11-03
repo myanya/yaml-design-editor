@@ -269,7 +269,7 @@ internal object FlowViews {
         is Template.Each -> {
             val body = template.body as? Template.MapOf
             val copy = body?.entries?.find { it.first == "detail" }?.second as? Template.Copy
-            if (template.entries || template.site.of != null || template.site.inDoc != null || copy == null ||
+            if (template.entries || template.flatten || template.site.of != null || template.site.inDoc != null || copy == null ||
                 copy.site.of != null || copy.site.inDoc != null || copy.site.path.isNotEmpty()) null
             else (getAt(input, template.site.path) as? YNode.Seq)?.items?.indices?.map { template.site.path + it }.orEmpty()
         }

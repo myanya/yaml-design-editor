@@ -21,7 +21,8 @@ internal object SchemaValueForms {
         "call" to "操作を呼ぶ", "each" to "繰り返す", "do" to "処理手順", "method" to "操作名",
         "equals" to "等しい値", "notEquals" to "等しくない値", "exists" to "存在する", "empty" to "空である",
         "or" to "いずれか", "not" to "否定", "\$copy" to "コピーする項目", "\$of" to "コピー元の束縛名",
-        "\$in" to "コピー元の文書", "\$format" to "文字列のひな型", "\$when" to "使用条件")
+        "\$in" to "コピー元の文書", "\$format" to "文字列のひな型", "\$when" to "使用条件",
+        "\$bind" to "要素に付ける名前", "\$flatten" to "子配列を連結")
     fun label(key: String): String = labels[key]?.let { "$it（$key）" } ?: key
     private fun obj(vararg pairs: Pair<String, Any?>) = linkedMapOf(*pairs)
     private fun preset(group: String, label: String, vararg pairs: Pair<String, Any?>) = SchemaValuePreset(group, label, obj(*pairs))
@@ -67,6 +68,8 @@ internal object SchemaValueForms {
         preset("ひな型", "辞書で置き換える", "\$map" to "OPEN", "\$using" to obj("OPEN" to "未着手")),
         preset("ひな型", "最初に得られる値", "\$first" to listOf(obj("\$copy" to "title"), "未設定")),
         preset("ひな型", "配列の各要素を組み立てる", "\$each" to "items", "\$build" to obj("\$copy" to "title")),
+        preset("ひな型", "親の値を使って子配列を連結する", "\$each" to "items", "\$bind" to "parent", "\$flatten" to true,
+            "\$build" to obj("\$each" to "children", "\$build" to obj("parent" to obj("\$copy" to "id", "\$of" to "parent"), "child" to obj("\$copy" to "id")))),
         preset("ひな型", "マップの各項目を組み立てる", "\$eachEntry" to "items", "\$build" to obj("\$copy" to ".")),
         preset("ひな型", "規則を適用する", "\$apply" to "rule"),
         preset("ひな型", "配列を連結する", "\$concat" to listOf(listOf("a"), listOf("b"))),
@@ -124,6 +127,8 @@ internal object SchemaValueForms {
                 node.entries.keys.any { it in setOf("set", "insert", "delete", "create", "call", "each") } -> listOf("when")
                 "\$copy" in node.entries -> listOf("\$of", "\$in", "\$when")
                 "\$format" in node.entries -> listOf("\$of", "\$in", "\$at", "\$with", "\$when")
+                "\$each" in node.entries -> listOf("\$of", "\$in", "\$bind", "\$flatten", "\$when")
+                "\$eachEntry" in node.entries -> listOf("\$of", "\$in", "\$bind", "\$when")
                 "path" in node.entries && groupFor(path) == "値の式" -> listOf("of", "in", "via")
                 groupFor(path) == "条件" -> listOf("of", "in", "path")
                 groupFor(path) == "型の検査" -> listOf("id", "description", "where", "check", "expect", "level", "message")
@@ -138,7 +143,7 @@ internal object SchemaValueForms {
     fun propertyNode(key: String): YNode = YamlIO.fromAny(when (key) {
         "when", "where", "\$when", "do", "match", "check", "responses" -> emptyList<Any?>()
         "params", "in", "\$in", "\$with", "count", "not", "row" -> emptyMap<String, Any?>()
-        "exists", "empty", "typed", "contains", "repeat" -> true
+        "exists", "empty", "typed", "contains", "repeat", "\$flatten" -> true
         "limit" -> 100
         else -> ""
     })

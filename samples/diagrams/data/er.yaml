@@ -1,0 +1,41 @@
+# 受注の設計モデル。ここに書くのはテーブルの定義で、注文などの実レコードではありません。
+tables:
+  - id: ER-CUSTOMER
+    name: 顧客
+    physicalName: customers
+    columns:
+      - {name: customer_id, dataType: integer, primaryKey: true}
+      - {name: name, dataType: text, primaryKey: false}
+    foreignKeys: []
+  - id: ER-ORDER
+    name: 注文
+    physicalName: orders
+    columns:
+      - {name: order_id, dataType: integer, primaryKey: true}
+      - {name: customer_id, dataType: integer, primaryKey: false}
+      - {name: ordered_on, dataType: date, primaryKey: false}
+    foreignKeys:
+      # ゲスト注文を許すため、注文から見た顧客は0または1件。
+      - {to: ER-CUSTOMER, column: customer_id, targetColumn: customer_id, sourceMultiplicity: '0..*', targetMultiplicity: '0..1'}
+  - id: ER-ORDER-LINE
+    name: 注文明細
+    physicalName: order_lines
+    columns:
+      # 主キーはorder_idとline_noの組。注文内で同じ商品を複数行に分けられます。
+      - {name: order_id, dataType: integer, primaryKey: true}
+      - {name: line_no, dataType: integer, primaryKey: true}
+      - {name: product_id, dataType: integer, primaryKey: false}
+      - {name: quantity, dataType: integer, primaryKey: false}
+      - {name: unit_price, dataType: decimal, primaryKey: false}
+    foreignKeys:
+      # 入力途中の注文には明細がなくてもよい。各明細には必ず注文と商品がある。
+      - {to: ER-ORDER, column: order_id, targetColumn: order_id, sourceMultiplicity: '0..*', targetMultiplicity: '1'}
+      - {to: ER-PRODUCT, column: product_id, targetColumn: product_id, sourceMultiplicity: '0..*', targetMultiplicity: '1'}
+  - id: ER-PRODUCT
+    name: 商品
+    physicalName: products
+    columns:
+      - {name: product_id, dataType: integer, primaryKey: true}
+      - {name: name, dataType: text, primaryKey: false}
+      - {name: price, dataType: decimal, primaryKey: false}
+    foreignKeys: []

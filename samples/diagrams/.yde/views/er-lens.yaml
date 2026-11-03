@@ -1,0 +1,19 @@
+id: er-lens
+name: ER図
+kind: lens
+appearance:
+  nodes:
+    - level: entity
+      entityType: er-table
+      notation: er-table-card
+      inputs:
+        name: {$copy: data.name}
+        physicalName: {$copy: data.physicalName}
+        columns: {$copy: data.columns}
+        foreignKeys:
+          $each: data.foreignKeys
+          $build: {column: {$copy: column}, targetColumn: {$copy: targetColumn}}
+  edges:
+    - relation: er-references
+      notation: er-reference
+      inputs: {$copy: data}

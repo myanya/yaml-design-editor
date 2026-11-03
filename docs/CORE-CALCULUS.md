@@ -768,6 +768,7 @@ Core Calculus = 定義を実行する
 | relation acyclic（非循環） | Query（何段でも辿る線 `repeat` ＋ノード一致 `same`）＋ Predicate（**組込み定義体**。辿る計算だけが専用アルゴリズムで、判定は YAML。専用チェッカー `cycle` は廃止） |
 | Validator | Constraint executor |
 | Transform（YAML → YAML） | Query + Construct（＋Predicate＝項目を出す条件） |
+| 入れ子の配列の射影（`$each` の `$bind`・`$flatten`） | Construct（要素の局所的な場所の束縛・可変長の連結。原本座標を保持） |
 | 構造のスキーマの導出・スキーマの図 | Construct（変換定義・宣言からの導出） |
 | ワークスペースの初期化（テンプレートの展開） | Construct（答えを「いまの場所」として変換定義のひな型で YAML を組み立てる。書き込みは開く前の 1 回で、Rewrite も履歴も通らない） |
 | Scaffold・Import | Expression ＋ Construct（`scaffold` / `build`）＋ Rewrite（作成・追記・採番） |

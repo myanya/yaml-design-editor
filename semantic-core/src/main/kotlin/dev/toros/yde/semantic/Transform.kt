@@ -181,6 +181,7 @@ object SemanticTransform {
 
         /** 当てている最中の「規則 × 場所」（同じ組へもう一度入ったら、止まらない定義）。 */
         private val active = IdentityHashMap<YNode, MutableSet<String>>()
+        private val localBindings = LinkedHashMap<String, TemplatePlace>()
 
         init {
             params.keys.firstOrNull { it !in def.params }
@@ -188,8 +189,19 @@ object SemanticTransform {
         }
 
         private fun place(site: TemplateSite, here: TemplatePlace?): TemplatePlace? {
-            val base = if (site.of == null) here else bindings[site.of]?.invoke(site.inDoc)
+            val base = if (site.of == null) here else if (site.of in localBindings) {
+                localBindings[site.of].takeIf { site.inDoc == null }
+            } else bindings[site.of]?.invoke(site.inDoc)
             return base?.at(site.path)
+        }
+
+        /** 局所的な名前は繰り返す中身だけで有効。同名の外側の場所は、評価後に戻す。 */
+        private fun boundBody(t: Template.Each, child: TemplatePlace, out: YPath, loop: Map<String, Any?>): YNode? {
+            val name = t.bind ?: return build(t.body, child, out, loop)
+            val previous = localBindings.put(name, child)
+            return try { build(t.body, child, out, loop) } finally {
+                if (previous == null) localBindings.remove(name) else localBindings[name] = previous
+            }
         }
 
         /** ひな型を、いまの場所（here）で組み立てる。out は出力の中の場所（出どころの記録用）。loop は繰り返しの中の `$key` / `$index`。 */
@@ -294,17 +306,27 @@ object SemanticTransform {
         private fun each(t: Template.Each, found: TemplatePlace, out: YPath, loop: Map<String, Any?>): YNode? = when (val node = found.node) {
             is YNode.Seq -> if (t.entries) null else {
                 val items = mutableListOf<YNode>()
-                node.items.forEachIndexed { i, child ->
+                node.items.indices.forEach { i ->
                     // `$index` は 0 始まり・`$position` は 1 始まり（明細番号のような「何番目か」に）
-                    build(t.body, TemplatePlace(child, found.document, found.path + i), out + items.size, loop + ("index" to i) + ("position" to i + 1))
-                        ?.let { items += it }
+                    val base = items.size
+                    val recordedBefore = origins.size
+                    val built = boundBody(t, found.at(listOf(i))!!, out + base, loop + ("index" to i) + ("position" to i + 1))
+                    when {
+                        built == null -> Unit
+                        !t.flatten -> items += built
+                        built is YNode.Seq -> {
+                            relocateOrigins(recordedBefore, out + base, out, base, built.items.size)
+                            items += built.items
+                        }
+                        else -> error("変換「${def.id}」: \$flatten: true の中身は配列になるひな型で書きます（${out.pretty()}）")
+                    }
                 }
                 YNode.Seq(items)
             }
             is YNode.Map -> if (!t.entries) null else {
                 val entries = LinkedHashMap<String, YNode>()
-                for ((key, child) in node.entries) {
-                    build(t.body, TemplatePlace(child, found.document, found.path + key), out + key, loop + ("key" to key))?.let { entries[key] = it }
+                for (key in node.entries.keys) {
+                    boundBody(t, found.at(listOf(key))!!, out + key, loop + ("key" to key))?.let { entries[key] = it }
                 }
                 YNode.Map(entries)
             }
@@ -335,10 +357,14 @@ object SemanticTransform {
             if (!entered.add(ruleId)) {
                 error("変換「${def.id}」: 規則「$ruleId」を、同じ場所（${found.path.pretty()}）へ当てている最中に、もう一度当てています。規則は、入力の木の子へ向かって当ててください（\$at・\$each・\$eachEntry）")
             }
+            // 名前付き規則は宣言された場所の束縛だけを使い、呼出し側の局所名を取り込まない。
+            val savedBindings = localBindings.toMap()
+            localBindings.clear()
             try {
                 val rule = def.rules.firstOrNull { r -> r.id == ruleId && r.conditions.all { holds(it, found, loop) } } ?: return null
                 return build(rule.build, found, out, loop)
             } finally {
+                localBindings.putAll(savedBindings)
                 entered.remove(ruleId)
             }
         }
@@ -398,7 +424,7 @@ object SemanticTransform {
             val nodes = HashMap<String, SemanticQueryNodeRef>()
             val assignment = HashMap<ValueExpr.ScopeRef, SemanticExpression.Occurrence?>()
             for (name in expr.binds()) {
-                val place = bindings[name]?.invoke(null) ?: continue
+                val place = place(TemplateSite(of = name), here) ?: continue
                 val doc = DocumentId("\$bind:$name")
                 docs[doc] = place.node
                 nodes[name] = SemanticQueryNodeRef(QueryNodeKind.ENTITY, name, null, null, doc, emptyList())
