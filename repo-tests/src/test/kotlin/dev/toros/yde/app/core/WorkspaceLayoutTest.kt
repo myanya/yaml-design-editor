@@ -45,6 +45,44 @@ class WorkspaceLayoutTest {
 
     // ---------------------------------------------------------------- レイアウト判定（R13-02）
 
+    @Test fun `表示状態は構成ごとの予約領域で台帳と読込と外部変更の対象外`() {
+        for (configured in listOf(false, true)) {
+            if (configured) write(".yde/workspace.yaml", "ledger: doc")
+            val layout = WorkspaceLayout.of(ws)
+            val rel = "${layout.diagramStateDir}/example/selection.yaml"
+            write(rel, "id: SHOULD-NOT-APPEAR\ninvalid: [")
+            write("doc/a.yaml", "title: a")
+            assertTrue(layout.isState(rel))
+            assertTrue(layout.isReserved(rel))
+            assertTrue(layout.indexExcluded(rel))
+            assertFalse(layout.inLedger(rel))
+            assertFalse(layout.writableByMeta(rel))
+            assertFalse(WorkspaceScan.yamlFiles(ws).contains(ws.resolve(rel)))
+            val store = dev.toros.yde.workspace.FileSystemDocumentStore(ws)
+            assertFalse(store.list().any { it.id.value == rel })
+            val loaded = dev.toros.yde.workspace.WorkspaceReader.load(dev.toros.yde.workspace.InMemoryDocumentStore(
+                mapOf(rel to "invalid: [", "doc/a.yaml" to "title: a") +
+                    if (configured) mapOf(".yde/workspace.yaml" to "ledger: doc") else emptyMap()))
+            assertFalse(loaded.storeTexts.keys.any { it.value == rel })
+            val workspace = Workspace.open(ws)
+            val before = workspace.mirror
+            workspace.noteDiskChanges(listOf(ws.resolve(rel)))
+            assertTrue(before === workspace.mirror)
+            val id = dev.toros.yde.yaml.model.DocumentId(rel)
+            assertFalse(workspace.mirror.acceptsDocument(id))
+            workspace.mirror.noteStoreChanges(listOf(id))
+            assertFalse(workspace.mirror.snapshot.documents.keys.any { it.value == rel })
+        }
+    }
+
+    @Test fun `構成移行は表示状態も移動し内容を変更しない`() {
+        write("_state/diagrams/example/selection.yaml", "unit: dip\npins: []")
+        val text = Files.readString(ws.resolve("_state/diagrams/example/selection.yaml"))
+        runCli(arrayOf("migrate", ws.toString()))
+        assertEquals(text, Files.readString(ws.resolve(".yde/state/diagrams/example/selection.yaml")))
+        assertFalse(Files.exists(ws.resolve("_state")))
+    }
+
     @Test
     fun `legacy layout when config dir is absent`() {
         val layout = WorkspaceLayout.of(ws)

@@ -45,6 +45,7 @@ class FormNavigationMemory {
  * - 値は Compose の状態で、画面は読むだけで購読できる。
  */
 class ScreenMemory {
+    val diagramPositions = mutableStateMapOf<DiagramContext, DiagramPositionMemory>()
     /** 表示方式の固定・引き継ぎと、ファイル単位の明示指定。 */
     val formDisplay = FormDisplayMemory()
     /** 文書 × 面（フォーム・ビュー・スキーマ設計）。面ごとに目次の項目が違うので、選択と開閉の覚えを分ける。 */
@@ -206,6 +207,7 @@ class ScreenMemory {
 
     /** 全部忘れる（ワークスペース切替）。 */
     fun clear() {
+        diagramPositions.clear()
         formDisplay.clear()
         formNavigation.clear()
         folds.clear()

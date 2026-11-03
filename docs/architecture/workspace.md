@@ -30,6 +30,7 @@
 - `.yde/workspace.yaml` の変更は走査規則が変わるためスキーマ変更と同じ扱い（全再構築）。レガシー → `.yde` の移行は CLI `migrate`（ディレクトリ移動と構成ファイル作成だけ）。
 - `.yde/workspace.yaml` の `files:`（`FilePolicy`＝`WorkspaceLayout.files`）は file 型の値の許可: `outside`（ワークスペースの外）・`allowedRoots`（外でも許す場所）・`missing`（無いファイル）。読めない値は既定（外は警告・無いファイルは違反）。ファイルの存在は `DocumentStore.exists`（YAML 以外も）が答え、`LoadedWorkspace.fileExists` と `WorkspaceSession.fileExists` が検証へ渡す。
 - 構成ファイル（`workspace.yaml`）にはスキーマを当てない（`schemaFor` は null）。`_runs/`（runs ゾーン）は索引対象外。
+- 表示状態は `WorkspaceLayout.stateDir`（レガシーは `_state`、`.yde` 構成は `.yde/state`）。文書集合・台帳・索引から除外し、外部変更通知でも意味の再計算を行わない。CLI `migrate` はこの領域も移す（[図の手動位置](diagram-positions.md)）。
 
 ## ワークスペースの初期化
 

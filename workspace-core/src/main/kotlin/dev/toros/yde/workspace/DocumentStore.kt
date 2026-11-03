@@ -127,12 +127,14 @@ class FileSystemDocumentStore(private val root: Path) : DocumentStore {
     }
 
     private fun scan(boundary: WorkspacePaths.ReadBoundary, includeMarkdown: Boolean): FileSystemListing {
+        val layout = dev.toros.yde.workspace.layout.WorkspaceLayout.of(root)
         val yaml = linkedMapOf<DocumentId, Long>()
         val markdown = mutableListOf<DocumentId>()
         Files.walkFileTree(root, object : java.nio.file.SimpleFileVisitor<Path>() {
             override fun preVisitDirectory(dir: Path, attrs: java.nio.file.attribute.BasicFileAttributes): java.nio.file.FileVisitResult {
                 if (dir != root) {
                     val relative = root.relativize(dir).toString().replace('\\', '/')
+                    if (layout.isState(relative)) return java.nio.file.FileVisitResult.SKIP_SUBTREE
                     if (dir.fileName.toString().startsWith(".") && relative != ".yde") return java.nio.file.FileVisitResult.SKIP_SUBTREE
                     if (runCatching { boundary.resolve(relative) }.isFailure) return java.nio.file.FileVisitResult.SKIP_SUBTREE
                 }

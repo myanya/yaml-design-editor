@@ -237,6 +237,7 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 - 画面のファイルは「画面のパッケージ」の役割に合うパッケージに置く。`ui.common` に機能の画面を足さない。2 つ以上の機能が使う部品は form か common へ下ろす。
 - 新しく畳みを持つ UI は `FormCtx.expanded` / `setExpanded` を通す（ジャンプ先の自動展開と画面の覚えが付いてくる）。
 - 画面を離れても残したい見え方（畳み・タブ・絞り込み・チェック・展開）は `remember` に置かず `state.memory`（`ScreenMemory`）へ。覚えは「あれば使う・無ければ既定」で、古い鍵を誤りにしない。操作の途中は `remember` のまま。
+- 図の全ての現在位置と固定は `ScreenMemory.diagramPositions` とワークスペース内の専用ファイルで保持する。ドラッグ中の位置は画面内に置き、保存成功後に再計算せず確定する（[図の手動位置](diagram-positions.md)）。
 - `Dispatchers.Main` は使わない。背景処理からの文書生成・公開・画面遷移は `DesktopUiDispatcher` で EDT へ戻す（CONVENTIONS「Compose UI の書き方」）。
 - 入力欄は `CompactTextField`、色は `Palette.*`、角丸は `PanelShape`。生の色や Material 既定色をビューに直接書かない。
 - 等幅の文字は `AppFonts.Mono`（同梱の Cica。TTF は git に入れず、build.gradle.kts の `downloadFonts` がビルド時に取得して資源 `fonts/cica/` に入れる）。`FontFamily.Monospace` を書かない。

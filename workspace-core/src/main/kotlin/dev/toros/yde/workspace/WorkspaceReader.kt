@@ -378,13 +378,14 @@ object WorkspaceReader {
         store: DocumentStore, version: Long = 0, builtins: List<WorkspaceSchema> = emptyList(),
         sourceTexts: Map<DocumentId, String>? = null,
     ): LoadedWorkspace {
-        val texts = sourceTexts?.toMap() ?: buildMap {
+        val allTexts = sourceTexts?.toMap() ?: buildMap {
             // 構成ファイルは一覧から除外された外部リンクでも拒否する（従来の detectLayout と同じ境界）。
             val configId = DocumentId("${WorkspaceLayout.CONFIG_DIR}/${WorkspaceLayout.CONFIG_FILE}")
             store.read(configId)?.let { put(configId, it.text) }
             for (doc in store.list()) if (doc.id != configId) store.read(doc.id)?.let { put(doc.id, it.text) }
         }
-        val layout = detectLayout(texts)
+        val layout = detectLayout(allTexts)
+        val texts = allTexts.filterKeys { !layout.isState(it.value) }
 
         // 1) 文書ロード（構成ファイルを除く全YAML。schemas / runs / agents 等の定義・記録ゾーンも
         //    エディタ層の編集対象として文書に含む——スキーマ・リファクタリング（RF-002）は
@@ -508,6 +509,7 @@ object WorkspaceReader {
      * （その配下の更なる隠しディレクトリには降りない）。store.list は全YAMLを返すため、ここで絞る。
      */
     fun hiddenPath(rel: String, layout: WorkspaceLayout): Boolean {
+        if (layout.isState(rel)) return true
         val parts = rel.split('/')
         if (parts.last().startsWith(".")) return true
         var prefix = ""

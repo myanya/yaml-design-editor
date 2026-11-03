@@ -5,6 +5,11 @@ import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.*
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
@@ -67,6 +72,13 @@ import javax.imageio.ImageIO
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 import dev.toros.yde.desktop.AppState
+import dev.toros.yde.desktop.DiagramContext
+import dev.toros.yde.desktop.DiagramNodeId
+import dev.toros.yde.desktop.sameDiagramPositions
+import dev.toros.yde.desktop.diagramPositions
+import dev.toros.yde.desktop.saveDiagramPositions
+import dev.toros.yde.desktop.reloadDiagramPositions
+import dev.toros.yde.yaml.model.pretty
 import dev.toros.yde.desktop.ui.common.FilePickers
 import dev.toros.yde.desktop.ui.common.GraphLayouts
 import dev.toros.yde.desktop.ui.common.LensArrangement
@@ -256,6 +268,23 @@ fun GraphLensView(state: AppState) {
         ?.takeIf { it != LensLayoutKind.RADIAL || origin != null }
         ?: if (origin != null) LensLayoutKind.RADIAL else LensLayoutKind.STRESS
 
+    val density = LocalDensity.current
+    val context = DiagramContext(mapOf("kind" to "lens", "level" to level.name.lowercase(), "mode" to mode.name.lowercase()),
+        mapOf("layout" to listOf(layoutKind.name.lowercase()), "origin" to listOfNotNull(origin), "depth" to listOf(depth.toString()),
+            "hiddenTypes" to hiddenTypes.keys.sorted(), "hiddenRelations" to state.memory.lensHiddenRelations.keys.sorted(),
+            "appearance" to listOfNotNull(state.memory.lensAppearanceId)))
+    val positionMemory = remember(state.workspace, context) { state.diagramPositions(context) }
+    fun nodeId(n: LensNode) = if (level == LensLevel.TYPE) DiagramNodeId("type", n.id)
+        else n.occurrence?.let { DiagramNodeId("occurrence", n.id, it.document.value, it.path.pretty()) }
+            ?: DiagramNodeId("entity", n.id)
+    val retained = nodes.mapNotNull { n ->
+        val frame = n.parent?.let { parent -> nodes.firstOrNull { it.node.key == parent }?.node?.let(::nodeId) }
+        positionMemory.positions[nodeId(n.node)]?.takeIf { it.frame == frame }?.let {
+            n.node.key to LensPoint(it.x * density.density, it.y * density.density)
+        }
+    }.toMap()
+    val fixed = retained.filterKeys { key -> nodes.firstOrNull { it.node.key == key }?.let { positionMemory.positions[nodeId(it.node)]?.pinned } == true }
+
     // 出現の箱の添え書き（側面で分けるとき）: 側面の表示名（合成の見出しと同じ決まり）と「定義」
     fun aspectLabelOf(e: ScannedId): String {
         val label = Aspects.aspectLabelOf(e, state.schemas, state.entityTypes)
@@ -334,16 +363,48 @@ fun GraphLensView(state: AppState) {
         LensInput(sizes, specs, originIndex)
     }
     // 配置はバックグラウンドで計算し、できるまでは前の絵を出す（スナップショット状態の直接更新。Dispatchers.Main は使わない）
-    var arranged by remember { mutableStateOf<LensArranged?>(null) }
-    var arrangedFor by remember { mutableStateOf<Pair<LensInput, LensLayoutKind>?>(null) }
+    var arranged by remember(context) { mutableStateOf<LensArranged?>(null) }
+    var arrangedFor by remember(context) { mutableStateOf<Pair<LensInput, LensLayoutKind>?>(null) }
+    var layoutError by remember(context) { mutableStateOf<String?>(null) }
+    var arranging by remember(context) { mutableStateOf(false) }
+    var rearrange by remember(context) { mutableStateOf(0) }
+    var appliedRearrange by remember(context) { mutableStateOf(0) }
+    val pins = remember(context) { mutableStateMapOf<Int, LensPoint>() }
+    fun snapshot(a: LensArranged, pin: Int? = null) = lensPositionSnapshot(a.nested, a.nodes.map { nodeId(it.node) },
+        a.result, density.density, positionMemory.positions, pin)
     val computing = nodes.isNotEmpty() && arrangedFor != (input to layoutKind)
-    LaunchedEffect(input, layoutKind, bodies, edgeIndices) {
-        val result = withContext(Dispatchers.Default) { GraphLayouts.arrangeNested(input.nodes, input.edges, layoutKind, input.origin) }
-        arranged = LensArranged(nodes, input.nodes, edgeIndices, result, bodies)
-        arrangedFor = input to layoutKind
+    LaunchedEffect(input, layoutKind, bodies, edgeIndices, retained, positionMemory.positions, positionMemory.ready, rearrange) {
+        if (!positionMemory.ready) { arranging = false; return@LaunchedEffect }
+        val reflow = rearrange != appliedRearrange
+        val candidate = arranged?.let { a -> a.copy(result = GraphLayouts.withMovedNested(a.result, a.nested,
+            a.edges.map { LensEdgeSpec(it.from, it.to) }, pins.toMap())) }
+        if (!reflow && arrangedFor == (input to layoutKind) && candidate != null && candidate.bodies == bodies && candidate.edges == edgeIndices &&
+            candidate.nodes == nodes && sameDiagramPositions(snapshot(candidate), positionMemory.positions)) {
+            arranged = candidate; pins.clear(); arranging = false
+            return@LaunchedEffect
+        }
+        arranging = true
+        val result = withContext(Dispatchers.Default) { runCatching { GraphLayouts.arrangeNested(input.nodes, input.edges, layoutKind, input.origin, if (reflow) fixed else retained) } }
+        result.onSuccess {
+            val next = LensArranged(nodes, input.nodes, edgeIndices, it, bodies)
+            arranged = next
+            arrangedFor = input to layoutKind; layoutError = null
+            if (reflow) state.saveDiagramPositions(context, positionMemory.positions + snapshot(next))
+        }.onFailure { layoutError = "配置を計算できません: ${it.message}" }
+        appliedRearrange = rearrange
+        arranging = false
     }
-    // 利用者が動かした箱（添字 → 左上）。配置が変わったら忘れる。中の箱も一緒に動く
-    val pins = remember(arranged) { mutableStateMapOf<Int, LensPoint>() }
+    // ドラッグ中だけの絶対位置。保存された固定位置は別に持ち、親の移動で子も一緒に動かす。
+    LaunchedEffect(arranged, positionMemory.ready, positionMemory.saving, positionMemory.positions, positionMemory.warning, pins.toMap(), arranging) {
+        val a = arranged
+        if (a != null && !computing && positionMemory.ready && positionMemory.writable && !positionMemory.saving && positionMemory.warning == null && pins.isEmpty() && !arranging) {
+            val positions = positionMemory.positions + snapshot(a)
+            if (!sameDiagramPositions(positions, positionMemory.positions)) state.saveDiagramPositions(context, positions)
+        }
+    }
+    LaunchedEffect(positionMemory.saving, positionMemory.warning) {
+        if (!positionMemory.saving && positionMemory.warning != null) pins.clear()
+    }
     val effective: LensArranged? = remember(arranged, pins.toMap()) {
         arranged?.let { a ->
             val edges = a.edges.map { LensEdgeSpec(it.from, it.to) }
@@ -390,7 +451,10 @@ fun GraphLensView(state: AppState) {
         pan = Offset(fit.panX - bounds.left * zoom, fit.panY - bounds.top * zoom)
     }
     var hovered by remember { mutableStateOf<Int?>(null) }
-    var dragging by remember { mutableStateOf<Int?>(null) }
+    var dragging by remember(context) { mutableStateOf<Int?>(null) }
+    var cancelled by remember(context) { mutableStateOf(false) }
+    LaunchedEffect(arranged, input) { pins.clear(); dragging = null; cancelled = true }
+    val focus = remember { FocusRequester() }
     var menu by remember { mutableStateOf<Pair<Int, Offset>?>(null) }
     val latest by rememberUpdatedState(effective)
     /** 画面の点を配置の座標に戻す。 */
@@ -407,8 +471,41 @@ fun GraphLensView(state: AppState) {
         expandedBoxes[n.node.key] = !n.expanded
     }
 
+    val startDrag by rememberUpdatedState<(Offset) -> Unit>({ start ->
+        focus.requestFocus()
+        val hit = hitNode(start)
+        val enabled = positionMemory.ready && positionMemory.writable && !positionMemory.saving && !computing && !arranging
+        cancelled = hit != null && !enabled
+        dragging = hit.takeIf { enabled }
+        if (enabled) pins.clear()
+    })
+    val moveDrag by rememberUpdatedState<(Offset) -> Unit>({ amount ->
+        val index = dragging
+        val a = latest
+        val box = index?.let { a?.result?.boxes?.getOrNull(it) }
+        if (!cancelled && index != null && box != null && a != null) {
+            val previous = pins[index] ?: LensPoint(box.x, box.y)
+            var x = previous.x + amount.x / zoom; var y = previous.y + amount.y / zoom
+            a.nested[index].parent?.let { parent ->
+                val p = a.result.boxes[parent]
+                val top = p.y + a.nested[parent].height
+                x = x.coerceIn(p.x, maxOf(p.x, p.x + p.width - box.width))
+                y = y.coerceIn(top, maxOf(top, p.y + p.height - box.height))
+            }
+            pins[index] = LensPoint(x, y)
+        } else if (!cancelled && index == null) pan += amount
+    })
+    val endDrag by rememberUpdatedState<() -> Unit>({
+        val a = latest
+        val index = dragging
+        val point = index?.let { pins[it] }
+        if (!cancelled && a != null && index != null && point != null) {
+            state.saveDiagramPositions(context, positionMemory.positions + snapshot(a, index))
+        }
+        dragging = null
+    })
+
     // PNG の書き出し（配置の全体を等倍で描く。保存先は OS のダイアログで選ぶ）
-    val density = LocalDensity.current
     val saveImage = rememberFileSaver(
         FilePickers.Purpose.EXPORT, "レンズの画像を保存", "png", fallback = state.workspace,
         onError = { state.status = it },
@@ -421,6 +518,8 @@ fun GraphLensView(state: AppState) {
     }
 
     Column(Modifier.fillMaxSize().background(Palette.EditorBg)) {
+        positionMemory.warning?.let { Text(it, color = Palette.WarnOrange, fontSize = 11.sp) }
+        layoutError?.let { Text(it, color = Palette.WarnOrange, fontSize = 11.sp) }
         val notices = (renderings.values + edgeRenderings.values).flatMap { it.notices }.distinct()
         model.catalog?.errors.orEmpty().forEach { Text(it, color = Palette.WarnOrange, fontSize = 11.sp) }
         if (notices.isNotEmpty()) Column(Modifier.fillMaxWidth().heightIn(max = 100.dp).verticalScroll(rememberScrollState())) {
@@ -492,8 +591,17 @@ fun GraphLensView(state: AppState) {
             TextButton(onClick = { zoomAt(Offset(canvasSize.width / 2, canvasSize.height / 2), 1.25f) }) { Text("＋", fontSize = 13.sp) }
             TextButton(onClick = { zoomAt(Offset(canvasSize.width / 2, canvasSize.height / 2), 1 / 1.25f) }) { Text("－", fontSize = 13.sp) }
             TextButton(onClick = { fitAll() }) { Text("全体", fontSize = 11.sp) }
-            if (pins.isNotEmpty()) {
-                TextButton(onClick = { pins.clear() }) { Text("動かした ${pins.size} 件を戻す", fontSize = 11.sp) }
+            TextButton(onClick = { pins.clear(); state.reloadDiagramPositions(context) }, enabled = positionMemory.ready && !positionMemory.saving) {
+                Text("配置を再読込", fontSize = 11.sp)
+            }
+            if (positionMemory.saving) Text("配置を保存中…", fontSize = 11.sp)
+            TextButton(onClick = { pins.clear(); rearrange++ }, enabled = positionMemory.ready && positionMemory.writable && !positionMemory.saving && !computing && !arranging) {
+                Text("再配置", fontSize = 11.sp)
+            }
+            if (positionMemory.positions.isNotEmpty() || positionMemory.warning != null && positionMemory.writable) {
+                TextButton(onClick = { pins.clear(); state.saveDiagramPositions(context, emptyMap()) }, enabled = positionMemory.writable && !positionMemory.saving && !computing && !arranging) {
+                    Text("配置を初期化", fontSize = 11.sp)
+                }
             }
             TextButton(onClick = { saveImage((if (level == LensLevel.TYPE) "schema-lens-" else "lens-") + (origin ?: "all")) }, enabled = scene != null) {
                 Text("PNG に保存", fontSize = 11.sp)
@@ -526,7 +634,7 @@ fun GraphLensView(state: AppState) {
                 }
             }
             Spacer(Modifier.width(8.dp))
-            Text(layoutKind.description, fontSize = 10.sp, color = Palette.SubText)
+            Text(if (fixed.isEmpty()) layoutKind.description else "再配置では未固定ノードだけを並べ直します（固定 ${fixed.size} 件）", fontSize = 10.sp, color = Palette.SubText)
             arranged?.result?.note?.let { note ->
                 Spacer(Modifier.width(8.dp))
                 Text(note, fontSize = 10.sp, color = Palette.WarnOrange)
@@ -540,19 +648,26 @@ fun GraphLensView(state: AppState) {
             val widthPx = constraints.maxWidth.toFloat().coerceAtLeast(1f)
             val heightPx = constraints.maxHeight.toFloat().coerceAtLeast(1f)
             val current = arranged
-            LaunchedEffect(current) {
-                current?.let {
+            var fitted by remember(context) { mutableStateOf(false) }
+            LaunchedEffect(current, widthPx, heightPx) {
+                current?.takeIf { !fitted }?.let {
                     val bounds = scene?.let(::lensBounds) ?: return@let
                     val fit = fitViewport(bounds.width, bounds.height, widthPx, heightPx)
                     zoom = fit.zoom
                     pan = Offset(fit.panX - bounds.left * zoom, fit.panY - bounds.top * zoom)
+                    fitted = true
                 }
             }
             Canvas(
                 Modifier.fillMaxSize().clipToBounds()
+                    .testTag("lens-canvas").focusRequester(focus).onPreviewKeyEvent {
+                        if (it.key == Key.Escape && it.type == KeyEventType.KeyDown && dragging != null) {
+                            cancelled = true; pins.clear(); dragging = null; true
+                        } else false
+                    }.focusable()
                     .onSizeChanged { canvasSize = Size(it.width.toFloat(), it.height.toFloat()) }
                     // ホバー・ホイール・右クリックは最初の経路で見る（タップの検出より先に受け、右クリックは消費してタップにしない）
-                    .pointerInput(Unit) {
+                    .pointerInput(context) {
                         awaitPointerEventScope {
                             while (true) {
                                 val event = awaitPointerEvent(PointerEventPass.Initial)
@@ -576,20 +691,17 @@ fun GraphLensView(state: AppState) {
                         }
                     }
                     // ドラッグ: 箱の上なら箱を動かす（位置を固定。中の箱も一緒）、それ以外は全体を動かす
-                    .pointerInput(Unit) {
+                    .pointerInput(context) {
                         detectDragGestures(
-                            onDragStart = { start -> dragging = hitNode(start) },
-                            onDragEnd = { dragging = null },
-                            onDragCancel = { dragging = null },
+                            onDragStart = { startDrag(it) },
+                            onDragEnd = { endDrag() },
+                            onDragCancel = { pins.clear(); dragging = null },
                         ) { change, amount ->
                             change.consume()
-                            val index = dragging
-                            val box = index?.let { latest?.result?.boxes?.getOrNull(it) }
-                            if (index != null && box != null) pins[index] = LensPoint(box.x + amount.x / zoom, box.y + amount.y / zoom)
-                            else pan += amount
+                            moveDrag(amount)
                         }
                     }
-                    .pointerInput(level, mode) {
+                    .pointerInput(context) {
                         detectTapGestures { tap ->
                             // ズーム・パンを逆変換して箱の中を拾う。見出しの左の印なら開く・畳む、それ以外はエンティティページへ着地する
                             val a = latest ?: return@detectTapGestures
@@ -613,6 +725,11 @@ fun GraphLensView(state: AppState) {
                 translate(pan.x, pan.y) {
                     scale(zoom, pivot = Offset.Zero) {
                         drawLens(s, zoom, hovered, adjacency)
+                        s.arranged.nodes.forEachIndexed { i, n ->
+                            if (n.node.key in fixed) s.arranged.result.boxes.getOrNull(i)?.let { b ->
+                                drawCircle(paint.primary, 3f / zoom, Offset(b.x + b.width - 5f / zoom, b.y + 5f / zoom))
+                            }
+                        }
                     }
                 }
             }
@@ -625,12 +742,13 @@ fun GraphLensView(state: AppState) {
             }
             // ミニマップ: 全体が画面に収まっていないときだけ右下に出す。押した・なぞった場所を画面の中央にする
             val a = effective
-            if (a != null && (a.result.width * zoom > widthPx + 1f || a.result.height * zoom > heightPx + 1f)) {
+            val bounds = scene?.let(::lensBounds)
+            if (a != null && bounds != null && (bounds.width * zoom > widthPx + 1f || bounds.height * zoom > heightPx + 1f)) {
                 val mapWidth = with(density) { 200.dp.toPx() }
                 val mapHeight = with(density) { 140.dp.toPx() }
-                val mapScale = minOf((mapWidth - 8f) / a.result.width, (mapHeight - 8f) / a.result.height)
-                val mapOx = (mapWidth - a.result.width * mapScale) / 2
-                val mapOy = (mapHeight - a.result.height * mapScale) / 2
+                val mapScale = minOf((mapWidth - 8f) / bounds.width, (mapHeight - 8f) / bounds.height)
+                val mapOx = (mapWidth - bounds.width * mapScale) / 2 - bounds.left * mapScale
+                val mapOy = (mapHeight - bounds.height * mapScale) / 2 - bounds.top * mapScale
                 fun centerOn(p: Offset) {
                     val cx = (p.x - mapOx) / mapScale
                     val cy = (p.y - mapOy) / mapScale
@@ -718,8 +836,12 @@ fun GraphLensView(state: AppState) {
                                 enabled = id != origin && type !in hiddenTypes,
                                 onClick = { menu = null; hiddenTypes[type] = true },
                             )
-                            if (index in pins) {
-                                DropdownMenuItem(text = { Text("動かした位置を戻す", fontSize = 12.sp) }, onClick = { menu = null; pins.remove(index) })
+                            val idForPosition = nodeId(node.node)
+                            if (positionMemory.positions[idForPosition]?.pinned == true) {
+                                DropdownMenuItem(text = { Text("固定を解除", fontSize = 12.sp) }, onClick = {
+                                    menu = null; pins.clear()
+                                    positionMemory.positions[idForPosition]?.let { state.saveDiagramPositions(context, positionMemory.positions + (idForPosition to it.copy(pinned = false))) }
+                                }, enabled = !positionMemory.saving)
                             }
                         }
                     }

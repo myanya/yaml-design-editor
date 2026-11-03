@@ -1038,7 +1038,7 @@ class AppState(
         previewLine = 1
         openPreview = null
         val ext = file.fileName.toString().substringAfterLast('.', "").lowercase()
-        if (ext !in setOf("yaml", "yml", "md") && !isImage(file)) {
+        if (layout.isState(relPath(file)) || ext !in setOf("yaml", "yml", "md") && !isImage(file)) {
             openDoc = null; openMarkdown = null; openHelp = null; openImage = null
             openPreview = file
             workspaceView = 0

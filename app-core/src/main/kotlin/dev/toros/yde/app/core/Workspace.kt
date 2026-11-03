@@ -80,6 +80,7 @@ object WorkspaceScan {
     private fun walk(ws: Path, layout: WorkspaceLayout, includeFile: (Path) -> Boolean, visit: (Path) -> Unit) {
         Files.walkFileTree(ws, object : java.nio.file.SimpleFileVisitor<Path>() {
             override fun preVisitDirectory(dir: Path, attrs: java.nio.file.attribute.BasicFileAttributes): java.nio.file.FileVisitResult {
+                if (dir != ws && layout.isState(IdIndex.relPathOf(ws, dir))) return java.nio.file.FileVisitResult.SKIP_SUBTREE
                 if (dir != ws && runCatching { WorkspacePaths.resolve(ws, ws.relativize(dir).toString()) }.isFailure) {
                     return java.nio.file.FileVisitResult.SKIP_SUBTREE
                 }
@@ -328,6 +329,13 @@ class Workspace private constructor(val root: Path) {
      * UI（AppState）の保存・外部変更検出もこの経路を通る。
      */
     fun noteDiskChanges(changed: Collection<Path>, removed: Collection<Path> = emptyList()) {
+        val contentChanged = changed.filterNot { layout.isState(relPath(it)) }
+        val contentRemoved = removed.filterNot { layout.isState(relPath(it)) }
+        if (contentChanged.isEmpty() && contentRemoved.isEmpty()) return
+        if (contentChanged.size != changed.size || contentRemoved.size != removed.size) {
+            noteDiskChanges(contentChanged, contentRemoved)
+            return
+        }
         val rels = (changed + removed).map { relPath(it) }
         // スキーマ本体・派生スキーマの導出元文書（R11-03）に加え、構成ファイル（.yde/workspace.yaml。R13-02）の
         // 変更も走査規則・検証ルールを変えるため全再構築する

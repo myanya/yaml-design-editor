@@ -55,7 +55,7 @@ object WorkspaceInit {
     /** 後入れの台帳の候補: 直下のフォルダと、その中の YAML の数（隠しフォルダと予約ディレクトリは除く）。 */
     fun ledgerCandidates(root: Path): List<Pair<String, Int>> {
         if (!Files.isDirectory(root)) return emptyList()
-        val reserved = WorkspaceLayout.Zone.entries.map { it.legacyDir }.toSet() + WorkspaceLayout.CONFIG_DIR
+        val reserved = WorkspaceLayout.Zone.entries.map { it.legacyDir }.toSet() + WorkspaceLayout.CONFIG_DIR + WorkspaceLayout.LEGACY.stateDir
         return Files.list(root).use { stream ->
             stream.filter { Files.isDirectory(it) }
                 .map { it.fileName.toString() }

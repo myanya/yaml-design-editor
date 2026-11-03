@@ -109,6 +109,12 @@ internal fun migrateCommand(rest: List<String>): CliResult = run {
             moved += "${zone.legacyDir} -> ${WorkspaceLayout.CONFIG_DIR}/${zone.ydeName}"
         }
     }
+    val oldState = root.resolve(WorkspaceLayout.LEGACY.stateDir)
+    if (Files.isDirectory(oldState)) {
+        val newState = WorkspaceLayout.of(root).stateDir
+        Files.move(oldState, root.resolve(newState))
+        moved += "${WorkspaceLayout.LEGACY.stateDir} -> $newState"
+    }
     val configText = buildString {
         appendLine("# ワークスペース構成（R13-02。architecture/workspace.md「ワークスペース構造と layout」）")
         appendLine("# ledger: 台帳ディレクトリの宣言（文字列またはリスト）。未宣言ならワークスペース全体が台帳。")

@@ -50,6 +50,11 @@ data class WorkspaceLayout(
     val viewsDir: String get() = dir(Zone.VIEWS)
     val reportsDir: String get() = dir(Zone.REPORTS)
 
+    /** 配布できる表示状態。定義ゾーン・台帳・編集履歴には載せない。 */
+    val stateDir: String get() = configDir?.let { "$it/state" } ?: "_state"
+    val diagramStateDir: String get() = "$stateDir/diagrams"
+    fun isState(rel: String): Boolean = under(norm(rel), stateDir)
+
     private fun norm(rel: String): String = rel.replace('\\', '/').trimStart('/')
 
     private fun under(rel: String, dir: String): Boolean = rel == dir || rel.startsWith("$dir/")
@@ -63,6 +68,7 @@ data class WorkspaceLayout(
     /** 予約領域（定義・記録ゾーンおよび構成ディレクトリ全体）か。台帳の文書ではない。 */
     fun isReserved(rel: String): Boolean {
         val n = norm(rel)
+        if (isState(n)) return true
         if (configDir != null && under(n, configDir)) return true
         return zoneOf(n) != null
     }
@@ -90,6 +96,7 @@ data class WorkspaceLayout(
     fun indexExcluded(rel: String): Boolean {
         val n = norm(rel)
         val zone = zoneOf(n)
+        if (isState(n)) return true
         if (zone == Zone.SCHEMAS || zone == Zone.RUNS) return true
         return zone == null && configDir != null && under(n, configDir)
     }

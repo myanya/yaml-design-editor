@@ -19,6 +19,11 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.*
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.TextStyle
@@ -37,6 +42,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import dev.toros.yde.desktop.AppState
 import dev.toros.yde.desktop.OpenDocument
+import dev.toros.yde.desktop.DiagramContext
+import dev.toros.yde.desktop.DiagramNodeId
+import dev.toros.yde.desktop.sameDiagramPositions
+import dev.toros.yde.desktop.diagramPositions
+import dev.toros.yde.desktop.saveDiagramPositions
+import dev.toros.yde.desktop.reloadDiagramPositions
 import dev.toros.yde.desktop.ui.common.*
 import dev.toros.yde.desktop.ui.form.FieldRow
 import dev.toros.yde.desktop.ui.form.FormCtx
@@ -151,7 +162,7 @@ private fun FlowPane(state: AppState, doc: OpenDocument, view: VirtualFlowDef, m
     }
     Column(modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("枠・辺で詳細／記法の項目で原本／ドラッグで移動", fontSize = 11.sp, color = Palette.SubText,
+            Text("枠・辺で詳細／ノードをドラッグで固定／背景をドラッグで画面移動", fontSize = 11.sp, color = Palette.SubText,
                 modifier = Modifier.weight(1f))
             TextButton(onClick = { state.openFile(view.source) }) { Text("ビュー定義", fontSize = 11.sp) }
             TextButton(onClick = state::saveAll, enabled = !state.readOnlyMode && state.hasDirtyDocs()) {
@@ -177,7 +188,9 @@ private fun FlowPane(state: AppState, doc: OpenDocument, view: VirtualFlowDef, m
         }
         Row(Modifier.weight(1f).fillMaxWidth()) {
             if (model != null) FlowCanvas(state, model, display.directionOrDefault(view.direction), display.mode,
-                selected, Modifier.weight(1f).fillMaxHeight(), choose)
+                selected, Modifier.weight(1f).fillMaxHeight(), DiagramContext(
+                    mapOf("kind" to "flow", "view" to view.id, "document" to document.value),
+                    mapOf("mode" to listOf(display.mode.name.lowercase()), "direction" to listOf(display.directionOrDefault(view.direction)))), choose)
             else Text("フローを表示できません", color = Palette.ErrorRed, modifier = Modifier.weight(1f))
             Column(Modifier.width(360.dp).fillMaxHeight().verticalScroll(rememberScrollState()).padding(8.dp)) {
                 val detail = when (selection?.kind) {
@@ -239,10 +252,30 @@ private fun FlowDetailForm(state: AppState, detail: FlowDetail) {
 }
 
 @Composable
-private fun FlowCanvas(
+internal fun FlowCanvas(
     state: AppState, model: FlowModel, direction: String, mode: FlowLayoutMode, selected: YPath?, modifier: Modifier,
+    context: DiagramContext,
     choose: (FlowElementKind, YPath) -> Unit,
 ) {
+    val memory = remember(state.workspace, context) { state.diagramPositions(context) }
+    val density = LocalDensity.current
+    val ids = remember(model) { flowPositionIds(model) }
+    val frames = remember(model, mode) { flowPositionFrames(model, mode) }
+    var temporary by remember(model, context) { mutableStateOf<Map<YPath, FlowPoint>>(emptyMap()) }
+    val retained = remember(memory.positions, ids, frames, density.density, temporary) {
+        ids.mapNotNull { (path, id) -> memory.positions[id]?.takeIf { path in frames && it.frame == frames[path] }
+            ?.let { path to FlowPoint(it.x * density.density, it.y * density.density) } }.toMap() + temporary
+    }
+    val fixed = retained.filterKeys { memory.positions[ids[it]]?.pinned == true || it in temporary }
+    val lanePositions = flowLaneIds(model).mapNotNull { (path, id) -> memory.positions[id]?.takeIf { it.frame == null }
+        ?.let { path to FlowPoint(it.x * density.density, it.y * density.density) } }.toMap()
+    var preview by remember(model, context) { mutableStateOf<Pair<YPath, FlowPoint>?>(null) }
+    var dragging by remember(model, context) { mutableStateOf<YPath?>(null) }
+    var cancelled by remember(context) { mutableStateOf(false) }
+    LaunchedEffect(memory.saving, memory.warning) {
+        if (!memory.saving && memory.warning != null) preview = null
+    }
+    val focus = remember { FocusRequester() }
     val renderings = remember(model) { model.nodes.mapNotNull { n -> n.rendering?.let { n.output to it } }.toMap() }
     val bodies = rememberDiagramBodies(renderings, state)
     val edgeStyles = remember(model) { model.edges.mapNotNull { e -> e.rendering?.edge?.let { e.output to it.copy(label = it.label ?: e.label ?: e.key ?: "（遷移）") } }.toMap() }
@@ -255,19 +288,54 @@ private fun FlowCanvas(
             model.lanes.map { it.output to (it.label ?: "（レーン名なし）") })
             .associate { (p, text) -> p to measurer.measure(text, style, constraints = Constraints(maxWidth = 220)) }
     }
-    var layout by remember(model, direction, mode, texts, bodies) { mutableStateOf<Result<FlowArrangement>?>(null) }
-    LaunchedEffect(model, direction, mode, texts, bodies) {
+    val labelSizes = remember(texts) { texts.mapValues { FlowSize(it.value.size.width.toFloat(), it.value.size.height.toFloat()) } }
+    var layout by remember(context) { mutableStateOf<Result<FlowArrangement>?>(null) }
+    var computing by remember(context) { mutableStateOf(false) }
+    var rearrange by remember(context) { mutableStateOf(0) }
+    var appliedRearrange by remember(context) { mutableStateOf(0) }
+    val input = listOf(model, direction, mode, labelSizes, bodies)
+    var layoutFor by remember(context) { mutableStateOf<List<Any>?>(null) }
+    fun snapshot(a: FlowArrangement, pin: YPath? = null) =
+        flowPositionSnapshot(model, mode, direction, labelSizes, a, density.density, memory.positions, pin)
+    LaunchedEffect(input, retained, lanePositions, memory.positions, memory.ready, rearrange) {
+        if (!memory.ready) { computing = false; return@LaunchedEffect }
+        val reflow = rearrange != appliedRearrange
+        val current = layout?.getOrNull()
+        val candidate = current?.let { a -> preview?.let { flowDragPreview(a, it.first, it.second, model) } ?: a }
+        // ドラッグの確定と固定解除は位置を計算しない。既存の辺もそのまま使う。
+        if (!reflow && layoutFor == input && candidate != null && sameDiagramPositions(snapshot(candidate), memory.positions)) {
+            layout = Result.success(candidate); preview = null; computing = false
+            return@LaunchedEffect
+        }
+        computing = true
         layout = withContext(Dispatchers.Default) {
             runCatching { GraphLayouts.arrangeFlow(model,
-                texts.mapValues { FlowSize(it.value.size.width.toFloat(), it.value.size.height.toFloat()) }, direction, mode, bodies.mapValues { FlowSize(it.value.size.width, it.value.size.height) }) }
+                labelSizes, direction, mode, bodies.mapValues { FlowSize(it.value.size.width, it.value.size.height) },
+                if (reflow) fixed else retained, if (reflow) emptyMap() else lanePositions) }
+        }
+        layoutFor = input; appliedRearrange = rearrange
+        if (reflow) layout?.getOrNull()?.let { state.saveDiagramPositions(context, memory.positions + snapshot(it)) }
+        computing = false
+        if (dragging == null) preview = null
+    }
+    val base = layout?.getOrNull()
+    LaunchedEffect(base, memory.ready, memory.saving, memory.positions, memory.warning, preview, computing) {
+        if (base != null && base === layout?.getOrNull() && layoutFor == input && memory.ready && memory.writable && !memory.saving && memory.warning == null && preview == null && !computing) {
+            val positions = memory.positions + snapshot(base)
+            if (!sameDiagramPositions(positions, memory.positions)) state.saveDiagramPositions(context, positions)
         }
     }
-    val arrangement = layout?.getOrNull()
-    if (arrangement == null) {
-        Text(layout?.exceptionOrNull()?.let { "配置を計算できません: ${it.message}" } ?: "フローを配置しています…",
-            modifier = modifier.padding(16.dp), color = if (layout == null) Palette.SubText else Palette.ErrorRed)
+    fun reset() { temporary = emptyMap(); preview = null; state.saveDiagramPositions(context, emptyMap()) }
+    if (base == null) {
+        Column(modifier.padding(16.dp)) {
+            Text(memory.warning ?: layout?.exceptionOrNull()?.let { "配置を計算できません: ${it.message}" } ?: "フローを配置しています…",
+                color = if (layout == null) Palette.SubText else Palette.ErrorRed)
+            TextButton(onClick = { state.reloadDiagramPositions(context) }, enabled = memory.ready && !memory.saving) { Text("配置を再読込") }
+            if (memory.positions.isNotEmpty()) TextButton(onClick = ::reset, enabled = memory.writable && !memory.saving) { Text("配置を初期化") }
+        }
         return
     }
+    val arrangement = preview?.let { flowDragPreview(base, it.first, it.second, model) } ?: base
     var zoom by remember { mutableStateOf(1f) }
     var pan by remember { mutableStateOf(Offset.Zero) }
     var canvasSize by remember { mutableStateOf(Size.Zero) }
@@ -279,8 +347,8 @@ private fun FlowCanvas(
         zoom = viewport.zoom
         pan = Offset(viewport.panX - bounds.left * zoom, viewport.panY - bounds.top * zoom)
     }
-    LaunchedEffect(arrangement, canvasSize) { fit() }
-    val density = LocalDensity.current
+    var fitted by remember(context) { mutableStateOf(false) }
+    LaunchedEffect(base, canvasSize) { if (!fitted && canvasSize.width > 0 && canvasSize.height > 0) { fit(); fitted = true } }
     val saveImage = rememberFileSaver(FilePickers.Purpose.EXPORT, "フローの画像を保存", "png", fallback = state.workspace,
         onError = { state.status = it }) { path ->
         runCatching { exportFlowPng(path, scene, Palette.PanelBg, density) }
@@ -289,26 +357,96 @@ private fun FlowCanvas(
     }
     val latestChoose by rememberUpdatedState(choose)
     val latestBodies by rememberUpdatedState(bodies)
+    val latestArrangement by rememberUpdatedState(arrangement)
+    val latestBase by rememberUpdatedState(base)
+    fun toContent(at: Offset) = FlowPoint((at.x - pan.x) / zoom, (at.y - pan.y) / zoom)
+    fun finishDrag() {
+        val moved = preview
+        if (!cancelled && moved != null) {
+            val (path, point) = moved
+            val frame = frames[path]
+            val lane = model.nodes.firstOrNull { it.output == path }?.lane?.target
+            val r = lane?.let { latestBase.lanes[it] }
+            val origin = if (r != null) PinnedFlow.inset(labelSizes, lane, mode, direction, model.lanes.map { it.output }).let { FlowPoint(r.x + it.x, r.y + it.y) } else FlowPoint(0f, 0f)
+            val local = FlowPoint(point.x - origin.x, point.y - origin.y)
+            val id = ids[path]
+            if (id == null || r != null && frame == null) {
+                temporary = temporary + (path to local)
+                layout = Result.success(flowDragPreview(latestBase, path, point, model)); preview = null
+                state.status = "識別子が無いか重複しているため、この表示中だけ位置を保持します"
+            } else state.saveDiagramPositions(context, memory.positions + snapshot(flowDragPreview(latestBase, path, point, model), path))
+        }
+        dragging = null
+    }
+    val startDrag by rememberUpdatedState<(Offset) -> Unit>({ at ->
+        focus.requestFocus()
+        val hit = latestArrangement.nodes.entries.lastOrNull { it.value.contains(toContent(at)) }?.key
+        val enabled = memory.ready && memory.writable && !memory.saving && !computing
+        cancelled = hit != null && !enabled
+        dragging = hit.takeIf { enabled }
+    })
+    val moveDrag by rememberUpdatedState<(Offset) -> Unit>({ amount ->
+        val path = dragging
+        val box = path?.let { latestArrangement.nodes[it] }
+        if (!cancelled && path != null && box != null) {
+            val previous = preview?.takeIf { it.first == path }?.second ?: FlowPoint(box.x, box.y)
+            var x = previous.x + amount.x / zoom; var y = previous.y + amount.y / zoom
+            val lanePath = model.nodes.firstOrNull { it.output == path }?.lane?.target
+            val lane = lanePath?.let { latestBase.lanes[it] }
+            if (lane != null) {
+                val inset = PinnedFlow.inset(labelSizes, lanePath, mode, direction, model.lanes.map { it.output })
+                x = x.coerceIn(lane.x + inset.x, maxOf(lane.x + inset.x, lane.right - box.width - 24f))
+                y = y.coerceIn(lane.y + inset.y, maxOf(lane.y + inset.y, lane.bottom - box.height - 24f))
+            } else if (mode == FlowLayoutMode.SWIMLANES && latestBase.lanes.isNotEmpty()) {
+                if (direction == "right") y = maxOf(y, latestBase.lanes.values.maxOf { it.bottom } + 16f)
+                else x = maxOf(x, latestBase.lanes.values.maxOf { it.right } + 16f)
+            }
+            preview = path to FlowPoint(x, y)
+        } else if (!cancelled && path == null) pan += amount
+    })
+    val endDrag by rememberUpdatedState(::finishDrag)
     Column(modifier) {
-        Row {
+        memory.warning?.let { Text(it, fontSize = 11.sp, color = Palette.WarnOrange) }
+        Text("手動で固定したノード: ${fixed.size} 件（再配置でも保持）", fontSize = 11.sp, color = Palette.SubText)
+        val fixedBoxes = arrangement.nodes.values.map { LensBox(it.x, it.y, it.width, it.height) }
+        if (fixedBoxes.indices.any { i -> fixedBoxes.drop(i + 1).any { PinnedLayout.overlap(fixedBoxes[i], it) } })
+            Text("ノード同士が重なっています。位置を調整してください", fontSize = 11.sp, color = Palette.WarnOrange)
+        if (arrangement.edges.any { e -> e.points.isEmpty() && model.edges.any { it.output == e.output && it.from.target != null && it.to.target != null } })
+            Text("一部の辺は経路を確保できません。固定位置を調整してください", fontSize = 11.sp, color = Palette.WarnOrange)
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
             TextButton(onClick = { zoom = (zoom / 1.25f).coerceAtLeast(0.02f) }) { Text("−") }
             TextButton(onClick = { zoom = (zoom * 1.25f).coerceAtMost(3f) }) { Text("＋") }
             TextButton(onClick = { zoom = 1f; pan = Offset.Zero }) { Text("表示をリセット") }
             TextButton(onClick = { fit() }) { Text("全体") }
             TextButton(onClick = { saveImage("flow") }) { Text("PNG に保存") }
+            TextButton(onClick = { preview = null; rearrange++ }, enabled = memory.ready && memory.writable && !memory.saving && !computing) { Text("再配置") }
+            TextButton(onClick = { preview = null; state.reloadDiagramPositions(context) }, enabled = memory.ready && !memory.saving) { Text("配置を再読込") }
+            if (fixed.isNotEmpty() || memory.positions.isNotEmpty() || memory.warning != null && memory.writable) TextButton(onClick = ::reset, enabled = memory.writable && !memory.saving && !computing) { Text("配置を初期化") }
+            val selectedId = selected?.let { ids[it] }
+            if (selected != null && selected in fixed) TextButton(onClick = {
+                temporary = temporary - setOf(selected)
+                memory.positions[selectedId]?.let { state.saveDiagramPositions(context, memory.positions + (it.node to it.copy(pinned = false))) }
+            }, enabled = !memory.saving && !computing) { Text("選択ノードの固定を解除") }
+            if (memory.saving) Text("配置を保存中…", fontSize = 11.sp, modifier = Modifier.align(Alignment.CenterVertically))
             Text("${(zoom * 100).toInt()}%", fontSize = 11.sp, modifier = Modifier.align(Alignment.CenterVertically))
         }
         Canvas(Modifier.weight(1f).fillMaxWidth().clipToBounds().background(Palette.PanelBg)
+            .testTag("flow-canvas").focusRequester(focus).onPreviewKeyEvent {
+                if (it.key == Key.Escape && it.type == KeyEventType.KeyDown && dragging != null) {
+                    cancelled = true; preview = null; dragging = null; true
+                } else false
+            }.focusable()
             .onSizeChanged { canvasSize = Size(it.width.toFloat(), it.height.toFloat()) }
-            .pointerInput(Unit) { detectDragGestures { change, drag -> change.consume(); pan += drag } }
-            .pointerInput(arrangement, zoom, pan) { detectTapGestures { at ->
+            .pointerInput(context, model) { detectDragGestures(onDragStart = { startDrag(it) }, onDragEnd = { endDrag() },
+                onDragCancel = { preview = null; dragging = null }) { change, drag -> change.consume(); moveDrag(drag) } }
+            .pointerInput(context, model) { detectTapGestures { at ->
                 val p = FlowPoint((at.x - pan.x) / zoom, (at.y - pan.y) / zoom)
-                val node = arrangement.nodes.entries.lastOrNull { it.value.contains(p) }
+                val node = latestArrangement.nodes.entries.lastOrNull { it.value.contains(p) }
                 if (node != null) {
                     val location = latestBodies[node.key]?.locationAt(Offset(p.x - node.value.x, p.y - node.value.y))
                     if (location != null) state.openFile(location.document, location.path) else latestChoose(FlowElementKind.NODE, node.key)
                 }
-                else arrangement.edges.lastOrNull { route ->
+                else latestArrangement.edges.lastOrNull { route ->
                     route.label.contains(p) || edgeVisuals[route.output]?.let { visual ->
                         diagramEdgeLabels(visual, route.points.map { Offset(it.x, it.y) }, Offset(route.label.center.x, route.label.center.y))
                             .any { it.bounds.contains(Offset(p.x, p.y)) }
@@ -317,6 +455,9 @@ private fun FlowCanvas(
             } }) {
             translate(pan.x, pan.y) { scale(zoom, pivot = Offset.Zero) {
                 drawFlow(scene, selected)
+                fixed.keys.forEach { path -> arrangement.nodes[path]?.let { b ->
+                    drawCircle(Palette.Primary, 3f / zoom, Offset(b.right - 5f / zoom, b.y + 5f / zoom))
+                } }
             } }
         }
     }

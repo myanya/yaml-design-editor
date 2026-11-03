@@ -137,7 +137,9 @@ object GraphLayouts {
     /** フローの循環・レーン・条件ラベルを同じ配置問題として解く。ELKの型はこの窓口の外へ出さない。 */
     @JvmOverloads
     fun arrangeFlow(model: FlowModel, labels: Map<YPath, FlowSize>, direction: String = "down",
-                    mode: FlowLayoutMode = FlowLayoutMode.GROUPED, nodeSizes: Map<YPath, FlowSize> = emptyMap()): FlowArrangement {
+                    mode: FlowLayoutMode = FlowLayoutMode.GROUPED, nodeSizes: Map<YPath, FlowSize> = emptyMap(),
+                    pins: Map<YPath, FlowPoint> = emptyMap(), lanePositions: Map<YPath, FlowPoint> = emptyMap()): FlowArrangement {
+        if (pins.isNotEmpty() || lanePositions.isNotEmpty()) return PinnedFlow.arrange(model, labels, direction, mode, nodeSizes, pins, lanePositions)
         if (mode == FlowLayoutMode.SWIMLANES) {
             val seed = arrangeFlow(model, labels, direction, FlowLayoutMode.PLAIN, nodeSizes)
             return FlowSwimlanes.arrange(model, labels, seed, direction)
@@ -321,6 +323,7 @@ object GraphLayouts {
         edges: List<LensEdgeSpec>,
         kind: LensLayoutKind,
         origin: Int? = null,
+        pins: Map<String, LensPoint> = emptyMap(),
     ): LensArrangement {
         if (nodes.isEmpty()) return LensArrangement(kind, emptyList(), emptyList(), 0f, 0f)
         // 親の添字（範囲外・自分自身・循環は無視して外側の箱にする）
@@ -334,6 +337,8 @@ object GraphLayouts {
             if (!cyclic) parent[i] = p
         }
         if (parent.all { it < 0 }) {
+            if (pins.isNotEmpty()) return PinnedLayout.lens(nodes.map { LensNodeSize(it.id, it.width, it.height) }, edges,
+                nodes.mapIndexedNotNull { i, n -> pins[n.id]?.let { i to it } }.toMap(), kind)
             return arrange(nodes.map { LensNodeSize(it.id, it.width, it.height) }, edges, kind, origin)
         }
         val children = List(nodes.size) { mutableListOf<Int>() }
@@ -373,7 +378,10 @@ object GraphLayouts {
                 else memberAt(level, e.from)?.let { f -> memberAt(level, e.to)?.let { t -> LensEdgeSpec(localIndex.getValue(f), localIndex.getValue(t), e.labelWidth, e.labelHeight) } }
             }
             val localOrigin = origin?.let { memberAt(level, it) }?.let { localIndex[it] }
-            return arrange(members.map { m -> LensNodeSize(nodes[m].id, size[m].first, size[m].second) }, localEdges, kind, localOrigin)
+            val sizes = members.map { m -> LensNodeSize(nodes[m].id, size[m].first, size[m].second) }
+            val fixed = members.mapIndexedNotNull { i, m -> pins[nodes[m].id]?.let { i to it } }.toMap()
+            return (if (pins.isNotEmpty()) PinnedLayout.lens(sizes, localEdges, fixed, kind, inside = level >= 0)
+                else arrange(sizes, localEdges, kind, localOrigin))
                 .also { a ->
                     if (level >= 0) {
                         // 箱の大きさ = 見出しと、中の配置（余白込み）を収める大きさ
@@ -392,7 +400,7 @@ object GraphLayouts {
                 boxes[m] = LensBox(b.x + offsetX, b.y + offsetY, b.width, b.height)
                 inner[m]?.let { a ->
                     val box = boxes[m]!!
-                    place(m, a, box.x + (box.width - a.width) / 2, box.y + nodes[m].height)
+                    place(m, a, box.x + if (pins.isEmpty()) (box.width - a.width) / 2 else 0f, box.y + nodes[m].height)
                 }
             }
         }
@@ -406,7 +414,7 @@ object GraphLayouts {
                 inner[m]?.let { a ->
                     val b = arrangement.boxes[i]
                     val box = LensBox(b.x + offsetX, b.y + offsetY, b.width, b.height)
-                    collect(m, a, box.x + (box.width - a.width) / 2, box.y + nodes[m].height)
+                    collect(m, a, box.x + if (pins.isEmpty()) (box.width - a.width) / 2 else 0f, box.y + nodes[m].height)
                 }
             }
         }
@@ -431,7 +439,8 @@ object GraphLayouts {
         val points = routes.flatMap { it.points } + routes.mapNotNull { it.label }
         val width = maxOf(top.width, placed.maxOf { it.x + it.width } + MARGIN, (points.maxOfOrNull { it.x } ?: 0f) + MARGIN)
         val height = maxOf(top.height, placed.maxOf { it.y + it.height } + MARGIN, (points.maxOfOrNull { it.y } ?: 0f) + MARGIN)
-        return LensArrangement(top.kind, placed, routes, width, height, top.note)
+        val note = (listOfNotNull(top.note) + inner.values.mapNotNull { it.note }).distinct().joinToString("。")
+        return LensArrangement(top.kind, placed, routes, width, height, note.ifEmpty { null })
     }
 
     /**
