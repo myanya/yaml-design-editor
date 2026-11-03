@@ -1,0 +1,19 @@
+id: class-lens
+name: クラス図
+kind: lens
+appearance:
+  nodes:
+    - level: entity
+      entityType: class
+      notation: uml-class
+      inputs:
+        title: {$copy: data.name}
+        stereotype: {$copy: data.stereotype}
+        attributes: {$copy: data.attributes}
+        operations: {$copy: data.operations}
+  edges:
+    - {relation: inherits, notation: uml-generalization}
+    - {relation: realizes, notation: uml-realization}
+    - relation: owns
+      notation: uml-composition
+      inputs: {sourceLabel: {$copy: data.sourceMultiplicity}, targetLabel: {$copy: data.targetMultiplicity}}

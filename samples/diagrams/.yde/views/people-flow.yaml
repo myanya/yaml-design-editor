@@ -1,0 +1,23 @@
+id: people-flow
+name: 人物カードのフロー
+kind: flow
+schemaId: people
+layout: {direction: right}
+projection:
+  id: people-projection
+  build:
+    nodes:
+      $each: people
+      $build: {key: {$copy: id}, label: {$copy: name}, detail: {$copy: .}}
+    edges:
+      $each: people
+      $build:
+        $when: {path: friend, empty: false}
+        $then: {from: {$copy: id}, to: {$copy: friend.to}, label: {$copy: friend.role}, detail: {$copy: friend}}
+appearance:
+  nodes:
+    - notation: status-card
+      inputs: {title: {$copy: title}, portrait: {$copy: data.portrait}, status: {$copy: data.status}}
+  edges:
+    - notation: directed-link
+      inputs: {label: {$copy: label}}

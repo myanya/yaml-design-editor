@@ -1,0 +1,23 @@
+id: people
+name: 登場人物
+kind: document
+match: data/people.yaml
+root:
+  type: object
+  fields:
+    - key: people
+      type: array
+      item:
+        type: object
+        entity: {type: person, defines: true}
+        fields:
+          - {key: id, type: id, required: true}
+          - {key: name, type: string, role: title, required: true}
+          - {key: portrait, type: file, extensions: [svg]}
+          - {key: status, type: enum, values: [active, away]}
+          - key: friend
+            type: ref
+            relation: friend
+            idPattern: 'P-*'
+            scope: {schemaIds: [people]}
+            fields: [{key: role, type: string}]

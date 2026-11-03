@@ -1,0 +1,15 @@
+people:
+  - id: P-AOI
+    name: 葵
+    portrait: ./../assets/aoi.svg
+    status: active
+    friend: {to: P-REN, role: 先輩}
+  - id: P-REN
+    name: 蓮
+    portrait: ./../assets/ren.svg
+    status: away
+    friend: {to: P-YUI, role: 同僚}
+  - id: P-YUI
+    name: 結衣
+    status: active
+    friend: {to: P-AOI, role: 幼なじみ}

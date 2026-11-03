@@ -1,0 +1,20 @@
+classes:
+  - id: CLS-DOC
+    name: Document
+    attributes: ['+ id: String']
+    operations: ['+ save(): void']
+  - id: CLS-ORDER
+    name: Order
+    attributes: ['- number: String', '- total: Decimal']
+    operations: ['+ submit(): void', '+ print(): String']
+    base: CLS-DOC
+    interface: CLS-PRINT
+    part: {to: CLS-LINE, sourceMultiplicity: '1', targetMultiplicity: '1..*'}
+  - id: CLS-LINE
+    name: OrderLine
+    attributes: ['+ quantity: Integer', '+ unitPrice: Decimal']
+    operations: ['+ subtotal(): Decimal']
+  - id: CLS-PRINT
+    name: Printable
+    stereotype: interface
+    operations: ['+ print(): String']

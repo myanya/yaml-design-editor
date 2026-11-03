@@ -1,0 +1,13 @@
+id: people-lens
+name: 人物相関図
+kind: lens
+appearance:
+  nodes:
+    - level: entity
+      entityType: person
+      notation: portrait-card
+      inputs: {title: {$copy: data.name}, portrait: {$copy: data.portrait}}
+  edges:
+    - relation: friend
+      notation: directed-link
+      inputs: {label: {$copy: data.role}}

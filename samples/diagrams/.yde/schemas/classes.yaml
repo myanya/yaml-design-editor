@@ -1,0 +1,28 @@
+id: classes
+name: クラス設計
+kind: document
+match: data/classes.yaml
+root:
+  type: object
+  fields:
+    - key: classes
+      type: array
+      item:
+        type: object
+        entity: {type: class, defines: true}
+        fields:
+          - {key: id, type: id, required: true}
+          - {key: name, type: string, role: title, required: true}
+          - {key: stereotype, type: string}
+          - {key: attributes, type: array, item: {type: string}}
+          - {key: operations, type: array, item: {type: string}}
+          - {key: base, type: ref, relation: inherits, idPattern: 'CLS-*', scope: {schemaIds: [classes]}}
+          - {key: interface, type: ref, relation: realizes, idPattern: 'CLS-*', scope: {schemaIds: [classes]}}
+          - key: part
+            type: ref
+            relation: owns
+            idPattern: 'CLS-*'
+            scope: {schemaIds: [classes]}
+            fields:
+              - {key: sourceMultiplicity, type: string}
+              - {key: targetMultiplicity, type: string}

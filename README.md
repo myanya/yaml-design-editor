@@ -133,6 +133,7 @@ JDK 21 が必要です。無ければ Gradle が自動で取得します（`./gr
 | [samples/todos](samples/todos/README.md) | 個人向けの TODO 管理です。型、検査、操作、ビュー、ダッシュボードが一式そろっていて、AI に接続しなくてもそのまま使えます |
 | [samples/todos-sysdev-tablemodel](samples/todos-sysdev-tablemodel/README.md) | 同じ TODO 管理を専用のシステムとして作るときの、概念・論理・物理モデルと、SQL 生成の検討です |
 | [samples/orders](samples/orders/README.md) | 注文管理です。注文が顧客を、顧客が会社を、明細が商品を、商品がカテゴリーを参照する複数の種類の情報を、金額の検査と顧客別・会社別・カテゴリー別・月別の集計、チャート、出荷と取消の操作つきで管理します |
+| [samples/diagrams](samples/diagrams/README.md) | 人物の画像と名前、クラスの区画とUMLの辺を、YAMLの記法でレンズとフローに表示します |
 | [labs/kakeibo](labs/kakeibo/README.md) | 家計簿を題材に、月と費目ごとの集計、残高の検査、銀行の CSV の取り込みを試しています |
 | [labs/rpmz](labs/rpmz/README.md) | RPG Maker MZ のデータベースを題材に、ゲームが読む入れ子の JSON を YAML の原本で管理し、取り込みと書き出しで往復させることを試しています。データは架空のオリジナルで、MZ の既定のデータと素材は含みません |
 | [labs/sysdev-template](labs/sysdev-template/README.md) | 会議室予約システムを題材に、要件から設計、試験までの文書体系と、設計の機械的な検証を試しています |

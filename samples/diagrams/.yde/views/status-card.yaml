@@ -1,0 +1,24 @@
+id: status-card
+name: 状態付き人物カード
+kind: diagram-notation
+target: node
+input:
+  type: object
+  fields:
+    - {key: title, type: string, required: true}
+    - {key: portrait, type: string}
+    - {key: status, type: string}
+build:
+  kind: box
+  shape: rounded
+  width: 160
+  align: center
+  tone:
+    $first:
+      - {$when: {path: status, equals: away}, $then: warning}
+      - default
+  children:
+    - {kind: image, source: {$copy: portrait}, width: 80, height: 80, fit: cover}
+    - {kind: text, text: {$copy: title}}
+    - $when: {path: status, equals: away}
+      $then: {kind: text, text: 留守, tone: warning}

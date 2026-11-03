@@ -1,0 +1,13 @@
+id: schema-lens
+name: スキーマの属性
+kind: lens
+appearance:
+  nodes:
+    - level: type
+      notation: uml-class
+      inputs:
+        title: {$copy: title}
+        stereotype: YDE entity
+        attributes:
+          $each: data.attributes
+          $build: {$format: '{key}: {type}'}
