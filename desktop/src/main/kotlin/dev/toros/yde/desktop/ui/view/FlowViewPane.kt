@@ -41,6 +41,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import dev.toros.yde.desktop.AppState
 import dev.toros.yde.desktop.OpenDocument
+import dev.toros.yde.desktop.ui.common.*
 import dev.toros.yde.desktop.ui.common.rememberDiagramBodies
 import dev.toros.yde.desktop.ui.common.drawDiagram
 import dev.toros.yde.desktop.ui.common.ChoiceMenu
@@ -163,7 +164,7 @@ private fun FlowPane(state: AppState, doc: OpenDocument, view: VirtualFlowDef, m
     }
     Column(modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("ノード・辺をクリックで詳細／ドラッグで移動", fontSize = 11.sp, color = Palette.SubText,
+            Text("枠・辺で詳細／記法の項目で原本／ドラッグで移動", fontSize = 11.sp, color = Palette.SubText,
                 modifier = Modifier.weight(1f))
             TextButton(onClick = { state.openFile(view.source) }) { Text("ビュー定義", fontSize = 11.sp) }
             TextButton(onClick = state::saveAll, enabled = !state.readOnlyMode && state.hasDirtyDocs()) {
@@ -257,11 +258,13 @@ private fun FlowCanvas(
 ) {
     val renderings = remember(model) { model.nodes.mapNotNull { n -> n.rendering?.let { n.output to it } }.toMap() }
     val bodies = rememberDiagramBodies(renderings, state)
+    val edgeStyles = remember(model) { model.edges.mapNotNull { e -> e.rendering?.edge?.let { e.output to it.copy(label = it.label ?: e.label ?: e.key ?: "（遷移）") } }.toMap() }
+    val edgeVisuals = rememberDiagramEdges(edgeStyles)
     val measurer = rememberTextMeasurer()
     val style = TextStyle(fontSize = 12.sp, color = Palette.Text)
     val texts = remember(model, style, measurer) {
         (model.nodes.map { it.output to (it.label ?: "（名称なし）") } +
-            model.edges.map { it.output to (it.label ?: it.key ?: "（遷移）") } +
+            model.edges.map { it.output to (edgeStyles[it.output]?.label ?: it.label ?: it.key ?: "（遷移）") } +
             model.lanes.map { it.output to (it.label ?: "（レーン名なし）") })
             .associate { (p, text) -> p to measurer.measure(text, style, constraints = Constraints(maxWidth = 220)) }
     }
@@ -289,6 +292,7 @@ private fun FlowCanvas(
     }
     LaunchedEffect(arrangement, canvasSize) { fit() }
     val latestChoose by rememberUpdatedState(choose)
+    val latestBodies by rememberUpdatedState(bodies)
     Column(modifier) {
         Row {
             TextButton(onClick = { zoom = (zoom / 1.25f).coerceAtLeast(0.02f) }) { Text("−") }
@@ -308,9 +312,15 @@ private fun FlowCanvas(
             .pointerInput(arrangement, zoom, pan) { detectTapGestures { at ->
                 val p = FlowPoint((at.x - pan.x) / zoom, (at.y - pan.y) / zoom)
                 val node = arrangement.nodes.entries.lastOrNull { it.value.contains(p) }
-                if (node != null) latestChoose(FlowElementKind.NODE, node.key)
+                if (node != null) {
+                    val location = latestBodies[node.key]?.locationAt(Offset(p.x - node.value.x, p.y - node.value.y))
+                    if (location != null) state.openFile(location.document, location.path) else latestChoose(FlowElementKind.NODE, node.key)
+                }
                 else arrangement.edges.lastOrNull { route ->
-                    route.label.contains(p) || route.points.zipWithNext().any { (a, b) -> nearSegment(p, a, b, 8f / zoom) }
+                    route.label.contains(p) || edgeVisuals[route.output]?.let { visual ->
+                        diagramEdgeLabels(visual, route.points.map { Offset(it.x, it.y) }, Offset(route.label.center.x, route.label.center.y))
+                            .any { it.bounds.contains(Offset(p.x, p.y)) }
+                    } == true || route.points.zipWithNext().any { (a, b) -> nearSegment(p, a, b, 8f / zoom) }
                 }?.let { latestChoose(FlowElementKind.EDGE, it.output) }
             } }) {
             translate(pan.x, pan.y) { scale(zoom, pivot = Offset.Zero) {
@@ -320,6 +330,11 @@ private fun FlowCanvas(
                     texts[path]?.let { drawText(it, topLeft = Offset(header?.x ?: (r.x + 8f), header?.y ?: (r.y + 8f))) }
                 }
                 arrangement.edges.forEach { route ->
+                    val visual = edgeVisuals[route.output]
+                    if (visual != null) {
+                        drawDiagramEdge(visual, route.points.map { Offset(it.x, it.y) }, emphasized = route.output == selected)
+                        return@forEach
+                    }
                     val color = if (route.output == selected) primary else subtext
                     route.points.zipWithNext().forEach { (a, b) -> drawLine(color, Offset(a.x, a.y), Offset(b.x, b.y), 2f) }
                     if (route.points.size >= 2) {
@@ -333,6 +348,11 @@ private fun FlowCanvas(
                 // 後続の接続線で条件の文字を上書きしないよう、ラベルは線の後にまとめて描く。
                 arrangement.edges.forEach { route ->
                     val r = route.label
+                    val visual = edgeVisuals[route.output]
+                    if (visual != null) {
+                        drawDiagramEdgeLabels(visual, route.points.map { Offset(it.x, it.y) }, Offset(r.center.x, r.center.y))
+                        return@forEach
+                    }
                     drawRect(if (route.output == selected) selectedColor else surface, Offset(r.x, r.y), Size(r.width, r.height))
                     texts[route.output]?.let { drawText(it, topLeft = Offset(r.x + 6, r.y + 6)) }
                 }

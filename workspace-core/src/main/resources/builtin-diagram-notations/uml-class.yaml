@@ -1,0 +1,36 @@
+id: uml-class
+name: UML クラス
+kind: diagram-notation
+target: node
+input:
+  type: object
+  fields:
+    - {key: title, type: string, required: true}
+    - {key: stereotype, type: string}
+    - {key: attributes, type: array, item: {type: string}}
+    - {key: operations, type: array, item: {type: string}}
+build:
+  kind: box
+  width: 240
+  padding: 0
+  gap: 0
+  children:
+    - kind: group
+      width: 240
+      align: center
+      children:
+        - $when: {path: stereotype, empty: false}
+          $then: {kind: text, text: {$format: '«{stereotype}»'}, tone: muted}
+        - {kind: text, text: {$copy: title}, maxLines: 3}
+    - {kind: divider}
+    - kind: group
+      width: 240
+      children:
+        $each: attributes
+        $build: {kind: text, text: {$copy: .}, maxLines: 4}
+    - {kind: divider}
+    - kind: group
+      width: 240
+      children:
+        $each: operations
+        $build: {kind: text, text: {$copy: .}, maxLines: 4}

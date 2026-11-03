@@ -1,5 +1,6 @@
 package dev.toros.yde.desktop.ui.graph
 
+import dev.toros.yde.semantic.DiagramLinkSource
 import dev.toros.yde.semantic.ScannedId
 import dev.toros.yde.semantic.ScannedRef
 import dev.toros.yde.semantic.SemanticEntityGraph
@@ -50,7 +51,8 @@ enum class LensEdgeKind { REF, HOLDING, TIE }
  */
 data class LensGraphEdge(val from: String, val to: String, val relation: String?, val kind: LensEdgeKind, val reversed: Boolean = false)
 
-data class LensGraph(val mode: LensMode, val nodes: List<LensNode>, val edges: List<LensGraphEdge>)
+data class LensGraph(val mode: LensMode, val nodes: List<LensNode>, val edges: List<LensGraphEdge>,
+    val sources: Map<LensGraphEdge, List<DiagramLinkSource>> = emptyMap())
 
 /** 絞り込みと畳みの指定。 */
 data class LensSelectParams(
@@ -74,9 +76,17 @@ data class LensVisibleNode(
 )
 
 /** 絞り込みと畳みを当てた見える部分。nodes は親が先（深さ優先）、edges は畳んだ箱の中の端を見える箱へ付け替えたもの。 */
-data class LensSelection(val nodes: List<LensVisibleNode>, val edges: List<LensGraphEdge>)
+data class LensSelection(val nodes: List<LensVisibleNode>, val edges: List<LensGraphEdge>,
+    val sources: Map<LensGraphEdge, List<DiagramLinkSource>> = emptyMap())
 
 object LensGraphs {
+    private fun sourcesOf(nodes: List<LensNode>, edges: Collection<LensGraphEdge>, refs: Map<LensGraphEdge, List<DiagramLinkSource>>): Map<LensGraphEdge, List<DiagramLinkSource>> {
+        val ids = nodes.associate { it.key to it.id }
+        return edges.associateWith { edge -> refs[edge]?.distinct() ?: listOf(DiagramLinkSource(
+            ids[if (edge.reversed) edge.to else edge.from] ?: edge.from,
+            ids[if (edge.reversed) edge.from else edge.to] ?: edge.to)) }
+    }
+
 
     /** 出現の箱の鍵（ID・文書・パス）。 */
     fun occurrenceKey(e: ScannedId): String = "${e.id}@${e.document.value}#${e.path.pretty()}"
@@ -120,11 +130,12 @@ object LensGraphs {
         }
         val nodes = types.map { t -> LensNode(t, t, null, birth[t]?.parent, birth[t]?.relation) }
         val edges = LinkedHashSet<LensGraphEdge>()
+        val sources = linkedMapOf<LensGraphEdge, MutableList<DiagramLinkSource>>()
         graph.edges.forEach { e -> if (e.from != e.to) edges += refEdge(e.from, e.to, e.relation, reversed) }
         graph.holdings.forEach { h ->
             if (h.parent != h.child && birth[h.child] !== h) edges += LensGraphEdge(h.parent, h.child, h.relation, LensEdgeKind.HOLDING)
         }
-        return LensGraph(LensMode.ENTITY, nodes, edges.toList())
+        return LensGraph(LensMode.ENTITY, nodes, edges.toList(), sourcesOf(nodes, edges, sources))
     }
 
     private fun resolvedRefs(graph: SemanticEntityGraph, refs: List<ScannedRef>): List<Pair<ScannedId, ScannedRef>> =
@@ -150,8 +161,13 @@ object LensGraphs {
         }
         val nodes = ids.map { id -> LensNode(id, id, null, birth[id]?.parent?.id, birth[id]?.relation) }
         val edges = LinkedHashSet<LensGraphEdge>()
+        val sources = linkedMapOf<LensGraphEdge, MutableList<DiagramLinkSource>>()
         resolvedRefs(graph, refs).forEach { (src, r) ->
-            if (src.id != r.targetId) edges += refEdge(src.id, r.targetId, r.relation, reversed)
+            if (src.id != r.targetId) {
+                val edge = refEdge(src.id, r.targetId, r.relation, reversed)
+                edges += edge
+                sources.getOrPut(edge) { mutableListOf() } += DiagramLinkSource(src.id, r.targetId, r)
+            }
         }
         // 箱に入れない保有（詳細化の出現の保有・誕生の場所に選ばれなかった保有）は線
         graph.holdings.forEach { h ->
@@ -159,13 +175,14 @@ object LensGraphs {
                 edges += LensGraphEdge(h.parent.id, h.child.id, h.relation, LensEdgeKind.HOLDING)
             }
         }
-        return LensGraph(LensMode.ENTITY, nodes, edges.toList())
+        return LensGraph(LensMode.ENTITY, nodes, edges.toList(), sourcesOf(nodes, edges, sources))
     }
 
     private fun buildOccurrences(graph: SemanticEntityGraph, refs: List<ScannedRef>, reversed: Set<String>): LensGraph {
         val ids = graph.entities.keys.sorted()
         val nodes = mutableListOf<LensNode>()
         val edges = LinkedHashSet<LensGraphEdge>()
+        val sources = linkedMapOf<LensGraphEdge, MutableList<DiagramLinkSource>>()
         ids.forEach { id ->
             val occurrences = orderedOccurrences(graph, id)
             val holders = graph.holdersOf(id)
@@ -184,9 +201,13 @@ object LensGraphs {
             val target = representative(r.targetId) ?: return@forEach
             val from = occurrenceKey(src)
             val to = occurrenceKey(target)
-            if (from != to) edges += refEdge(from, to, r.relation, reversed)
+            if (from != to) {
+                val edge = refEdge(from, to, r.relation, reversed)
+                edges += edge
+                sources.getOrPut(edge) { mutableListOf() } += DiagramLinkSource(src.id, r.targetId, r)
+            }
         }
-        return LensGraph(LensMode.OCCURRENCE, nodes, edges.toList())
+        return LensGraph(LensMode.OCCURRENCE, nodes, edges.toList(), sourcesOf(nodes, edges, sources))
     }
 
     /**
@@ -267,11 +288,16 @@ object LensGraphs {
         val visibleKeys = visible.map { it.node.key }.toSet()
         fun shownEnd(key: String): String? = if (key in visibleKeys) key else visibleAncestor[key]
         val shownEdges = LinkedHashSet<LensGraphEdge>()
+        val shownSources = linkedMapOf<LensGraphEdge, MutableList<DiagramLinkSource>>()
         edges.forEach { e ->
             val from = shownEnd(e.from) ?: return@forEach
             val to = shownEnd(e.to) ?: return@forEach
-            if (from != to) shownEdges += LensGraphEdge(from, to, e.relation, e.kind, e.reversed)
+            if (from != to) {
+                val shown = LensGraphEdge(from, to, e.relation, e.kind, e.reversed)
+                shownEdges += shown
+                shownSources.getOrPut(shown) { mutableListOf() } += graph.sources[e].orEmpty()
+            }
         }
-        return LensSelection(visible, shownEdges.toList())
+        return LensSelection(visible, shownEdges.toList(), shownSources.mapValues { it.value.distinct() })
     }
 }

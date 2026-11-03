@@ -116,6 +116,19 @@ class LensGraphTest {
         ),
     )
 
+    @Test fun `反転と畳みの後も元の参照と論理的な端点を保持する`() {
+        val g = LensGraphs.build(snapshot.graph, snapshot.refs, LensMode.ENTITY, setOf("source"))
+        val selected = LensGraphs.select(g, LensSelectParams(typeOf))
+        val edge = selected.edges.single { it.relation == "source" }
+        assertEquals("EA-1", edge.from)
+        assertEquals("SCR-1", edge.to)
+        val origin = selected.sources.getValue(edge).single()
+        assertEquals("SI-1", origin.sourceId)
+        assertEquals("EA-1", origin.targetId)
+        assertEquals(listOf("items", 0, "source"), origin.reference!!.path)
+        assertEquals(DocumentId("screens/SCR-1.yaml"), origin.reference!!.document)
+    }
+
     private val typeOf: (String) -> String = { id -> snapshot.graph.entities[id]?.entityType ?: "" }
 
     @Test

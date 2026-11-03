@@ -52,7 +52,8 @@ object DiagramDefinitions {
 
     /** 同梱も利用者と同じYAML・同じ読み取りを通す。IDの衝突はカタログが診断する。 */
     val builtins: List<VirtualDiagramNotationDef> by lazy {
-        listOf("plain-node", "plain-link", "directed-link", "portrait-card").map { name ->
+        listOf("plain-node", "plain-link", "directed-link", "portrait-card", "uml-class",
+            "uml-association", "uml-generalization", "uml-realization", "uml-dependency", "uml-aggregation", "uml-composition").map { name ->
             val text = requireNotNull(javaClass.getResourceAsStream("/builtin-diagram-notations/$name.yaml")) {
                 "同梱記法が見つかりません: $name"
             }.bufferedReader(Charsets.UTF_8).use { it.readText() }

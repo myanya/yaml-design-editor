@@ -80,6 +80,21 @@ class DiagramDefinitionsTest {
         }
     }
 
+    @Test fun `UMLの区画は原本の配列へ戻り複数の来歴を一つへ決めない`() {
+        val input = YamlIO.parse("title: 注文\nattributes: ['+ id: String', '- total: Number']\noperations: ['+ submit(): void']")
+        val bind = DiagramBinding("uml-class", TransformDef.ofTemplate("input", mapOf("${'$'}copy" to "."), "input"))
+        val rendered = DiagramNotations.resolve(DiagramDefinitions.builtins, listOf(bind), SemanticTransform.TemplatePlace(input, source, emptyList()), source, "node")!!
+        assertTrue(rendered.notices.isEmpty(), rendered.notices.toString())
+        assertEquals("- total: Number", rendered.node!!.children[2].children[1].text)
+        assertEquals(DiagramLocation(source, listOf("attributes", 1)), rendered.location(listOf("children", 2, "children", 1, "text")))
+        val ambiguous = rendered.copy(origins = listOf(
+            TransformOrigin(emptyList(), source, listOf("first")), TransformOrigin(emptyList(), DocumentId("other.yaml"), listOf("second"))))
+        assertNull(ambiguous.location(emptyList()))
+        assertEquals(2, ambiguous.locations(emptyList()).size)
+        val copied = SemanticTransform.runAt(bind.inputs, DiagramInputPlace(input, ambiguous.origins))
+        assertEquals(2, copied.origins.size)
+    }
+
     @Test
     fun `カタログは記法の重複と対象違いを診断し従来の矢印指定も読める`() {
         val loaded = ViewDefinitions.load(listOf(

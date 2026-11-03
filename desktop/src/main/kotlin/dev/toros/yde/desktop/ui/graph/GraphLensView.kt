@@ -132,6 +132,7 @@ private class LensModel(
     val nodes: List<LensVisibleNode>,
     val keyIndex: Map<String, Int>,
     val visibleEdges: List<LensGraphEdge>,
+    val sources: Map<LensGraphEdge, List<DiagramLinkSource>>,
 ) {
     /** 辺の端（箱の鍵）のエンティティ ID。 */
     fun idOf(key: String): String = nodes.getOrNull(keyIndex[key] ?: -1)?.node?.id ?: key
@@ -192,7 +193,7 @@ private fun rememberLensModel(state: AppState): LensModel {
     }
     val keyIndex = remember(selection) { selection.nodes.withIndex().associate { (i, n) -> n.node.key to i } }
     return remember(selection, visibleEdges, keyIndex, types, typeColors, relations, holdingNames, origin, mode, level, reversed, catalog, profile) {
-        LensModel(catalog, profile, level, reversed, typeOf, types, typeColors, relations, holdingNames, origin, mode, selection.nodes, keyIndex, visibleEdges)
+        LensModel(catalog, profile, level, reversed, typeOf, types, typeColors, relations, holdingNames, origin, mode, selection.nodes, keyIndex, visibleEdges, selection.sources)
     }
 }
 
@@ -222,11 +223,28 @@ fun GraphLensView(state: AppState) {
     val hiddenTypes = state.memory.lensHiddenTypes
     val expandedBoxes = state.memory.lensExpanded
     val depth = state.memory.lensDepth
-    val edgeIndices = remember(visibleEdges, keyIndex, state.relations) {
+    val edgeRenderings = remember(model, state.indexVersion, state.editVersion, state.relations) {
+        val profile = model.profile
+        if (profile == null) emptyMap() else visibleEdges.filter { it.kind != LensEdgeKind.TIE }.mapNotNull { edge ->
+            val bindings = profile.appearance?.edge(edge.relation).orEmpty()
+            if (bindings.isEmpty()) return@mapNotNull null
+            val input = DiagramInputs.edge(model.sources[edge].orEmpty(), edge.relation, lensEdgeLabel(state.relations, edge),
+                edge.kind.name.lowercase(), state.unsavedFirstTree())
+            DiagramNotations.resolve(model.catalog?.notations.orEmpty(), bindings, input.place, profile.source, "edge")?.let { edge to it }
+        }.toMap()
+    }
+    val edgeStyles = remember(edgeRenderings, state.relations) {
+        edgeRenderings.mapNotNull { (edge, rendering) -> rendering.edge?.let { style ->
+            val directed = if (edge.reversed) style.reversedEndpoints() else style
+            edge to directed.copy(label = directed.label ?: lensEdgeLabel(state.relations, edge))
+        } }.toMap()
+    }
+    val edgeVisuals = rememberDiagramEdges(edgeStyles)
+    val edgeIndices = remember(visibleEdges, keyIndex, state.relations, edgeVisuals) {
         visibleEdges.mapNotNull { e ->
             val s = keyIndex[e.from] ?: return@mapNotNull null
             val t = keyIndex[e.to] ?: return@mapNotNull null
-            LensArrangedEdge(s, t, e.relation, e.kind, lensEdgeLabel(state.relations, e))
+            LensArrangedEdge(s, t, e.relation, e.kind, edgeStyles[e]?.label ?: lensEdgeLabel(state.relations, e), edgeVisuals[e])
         }
     }
     val paint = LensPaint(Palette.Border, Palette.Surface, Palette.Primary, Palette.SubText)
@@ -305,7 +323,7 @@ fun GraphLensView(state: AppState) {
             )
         }
         val specs = edgeIndices.map { e ->
-            val label = e.label?.let { labelTexts[it] }
+            val label = e.label?.let { e.visual?.texts?.get(it) ?: labelTexts[it] }
             LensEdgeSpec(e.from, e.to, label?.let { it.size.width + 6f } ?: 0f, label?.size?.height?.toFloat() ?: 0f)
         }
         // 起点の箱（側面で分けるときは定義出現の箱、見えていなければその ID の最初の箱）
@@ -319,7 +337,7 @@ fun GraphLensView(state: AppState) {
     var arranged by remember { mutableStateOf<LensArranged?>(null) }
     var arrangedFor by remember { mutableStateOf<Pair<LensInput, LensLayoutKind>?>(null) }
     val computing = nodes.isNotEmpty() && arrangedFor != (input to layoutKind)
-    LaunchedEffect(input, layoutKind, bodies) {
+    LaunchedEffect(input, layoutKind, bodies, edgeIndices) {
         val result = withContext(Dispatchers.Default) { GraphLayouts.arrangeNested(input.nodes, input.edges, layoutKind, input.origin) }
         arranged = LensArranged(nodes, input.nodes, edgeIndices, result, bodies)
         arrangedFor = input to layoutKind
@@ -398,7 +416,7 @@ fun GraphLensView(state: AppState) {
     }
 
     Column(Modifier.fillMaxSize().background(Palette.EditorBg)) {
-        val notices = renderings.values.flatMap { it.notices }.distinct()
+        val notices = (renderings.values + edgeRenderings.values).flatMap { it.notices }.distinct()
         model.catalog?.errors.orEmpty().forEach { Text(it, color = Palette.WarnOrange, fontSize = 11.sp) }
         if (notices.isNotEmpty()) Column(Modifier.fillMaxWidth().heightIn(max = 100.dp).verticalScroll(rememberScrollState())) {
             notices.forEach { notice -> TextButton(onClick = { state.openFile(notice.location.document, notice.location.path) }) {
@@ -575,8 +593,13 @@ fun GraphLensView(state: AppState) {
                             val header = a.nested.getOrNull(index)?.height ?: box.height
                             val c = toContent(tap)
                             if (hasChildren(node) && c.x <= box.x + TOGGLE_ZONE && c.y <= box.y + header) toggle(node)
-                            else if (level == LensLevel.TYPE) openTypeSchema(state, node.node.id)
-                            else state.openCrossView(node.node.id)
+                            else {
+                                val gutter = if (hasChildren(node)) TOGGLE_ZONE else 0f
+                                val location = a.bodies[node.node.key]?.locationAt(c - Offset(box.x + gutter, box.y))
+                                if (location != null) state.openFile(location.document, location.path)
+                                else if (level == LensLevel.TYPE) openTypeSchema(state, node.node.id)
+                                else state.openCrossView(node.node.id)
+                            }
                         }
                     }
             ) {

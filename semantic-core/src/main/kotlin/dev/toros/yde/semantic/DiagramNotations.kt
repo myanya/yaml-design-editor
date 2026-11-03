@@ -38,6 +38,9 @@ data class DiagramAppearance(val nodes: List<DiagramBinding> = emptyList(), val 
     fun edge(relation: String?): List<DiagramBinding> = edges.filter { it.relation == null || it.relation == relation }
 }
 
+/** 描画の向きや畳みの前の論理的な端点。参照の属性と原本を残す。 */
+data class DiagramLinkSource(val sourceId: String, val targetId: String, val reference: ScannedRef? = null)
+
 data class DiagramLocation(val document: DocumentId, val path: YPath)
 data class DiagramNotice(val message: String, val location: DiagramLocation)
 
@@ -70,7 +73,11 @@ data class DiagramEdgeStyle(
     val sourceLabel: String? = null,
     val targetLabel: String? = null,
     val tone: String = "default",
-)
+) {
+    /** 反転の決定はLensGraphsだけ。描画側ではその印に従って端の記号と文字を交換する。 */
+    fun reversedEndpoints(): DiagramEdgeStyle = copy(sourceMarker = targetMarker, targetMarker = sourceMarker,
+        sourceLabel = targetLabel, targetLabel = sourceLabel)
+}
 
 data class DiagramRendering(
     val node: DiagramPart? = null,
@@ -80,10 +87,16 @@ data class DiagramRendering(
     val term: YNode? = null,
     val definition: DocumentId? = null,
 ) {
-    fun location(path: YPath): DiagramLocation? = origins
-        .filter { path.take(it.output.size) == it.output && it.document != null }
-        .maxByOrNull { it.output.size }
-        ?.let { DiagramLocation(it.document!!, it.path + path.drop(it.output.size)) }
+    fun locations(path: YPath): List<DiagramLocation> {
+        val matches = origins.filter { path.take(it.output.size) == it.output }
+        val length = matches.maxOfOrNull { it.output.size } ?: return emptyList()
+        return matches.filter { it.output.size == length }.mapNotNull { origin ->
+            origin.document?.let { DiagramLocation(it, origin.path + path.drop(origin.output.size)) }
+        }.distinct()
+    }
+
+    /** 複数の出どころのうち一つを恣意的に編集先へ選ばない。 */
+    fun location(path: YPath): DiagramLocation? = locations(path).singleOrNull()
 }
 
 /** 合成した入力でも最長一致の来歴を保ち、画像の相対パス・項目への移動を原本文書に戻す。 */
@@ -99,7 +112,7 @@ class DiagramInputPlace(
     }
 
     override fun copyOrigins(output: YPath): List<TransformOrigin> = buildList {
-        originAt(origins, this@DiagramInputPlace.output)?.let {
+        closest(origins, this@DiagramInputPlace.output).forEach {
             add(TransformOrigin(output, it.document, it.path + this@DiagramInputPlace.output.drop(it.output.size)))
         }
         origins.filter { it.output.size > this@DiagramInputPlace.output.size && it.output.take(this@DiagramInputPlace.output.size) == this@DiagramInputPlace.output }
@@ -107,8 +120,12 @@ class DiagramInputPlace(
     }
 
     companion object {
-        private fun originAt(origins: List<TransformOrigin>, path: YPath) = origins
-            .filter { path.take(it.output.size) == it.output }.maxByOrNull { it.output.size }
+        private fun closest(origins: List<TransformOrigin>, path: YPath): List<TransformOrigin> {
+            val matches = origins.filter { path.take(it.output.size) == it.output }
+            val length = matches.maxOfOrNull { it.output.size } ?: return emptyList()
+            return matches.filter { it.output.size == length }.distinct()
+        }
+        private fun originAt(origins: List<TransformOrigin>, path: YPath) = closest(origins, path).singleOrNull()
     }
 }
 

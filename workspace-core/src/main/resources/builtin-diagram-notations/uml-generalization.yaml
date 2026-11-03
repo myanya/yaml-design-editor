@@ -1,0 +1,17 @@
+id: uml-generalization
+name: UML 汎化
+kind: diagram-notation
+target: edge
+input:
+  type: object
+  fields:
+    - {key: label, type: string}
+    - {key: sourceLabel, type: string}
+    - {key: targetLabel, type: string}
+build:
+  stroke: solid
+  sourceMarker: none
+  targetMarker: triangle
+  label: {$copy: label}
+  sourceLabel: {$copy: sourceLabel}
+  targetLabel: {$copy: targetLabel}

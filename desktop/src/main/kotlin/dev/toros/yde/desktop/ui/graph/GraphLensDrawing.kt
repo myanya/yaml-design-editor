@@ -19,7 +19,7 @@ import kotlin.math.sqrt
  * 配置に渡した辺（箱の添字）。描画は kind で矢じり（参照）・ひし形（保有）・点線（同じエンティティ）を描き分ける。
  * label は辺に添える文字（関係の label。逆向きに描く辺は inverseLabel）。
  */
-internal data class LensArrangedEdge(val from: Int, val to: Int, val relation: String?, val kind: LensEdgeKind, val label: String?)
+internal data class LensArrangedEdge(val from: Int, val to: Int, val relation: String?, val kind: LensEdgeKind, val label: String?, val visual: DiagramEdgeVisual? = null)
 
 /**
  * 配置に渡した箱・辺と、その結果。箱の集合が変わって計算し直している間も、前の絵を描き続けるために一緒に持つ。
@@ -111,6 +111,10 @@ internal fun DrawScope.drawLens(scene: LensScene, zoom: Float, hovered: Int?, ad
         val pts = route.points
         if (pts.size < 2) return@forEachIndexed
         val edge = a.edges.getOrNull(i)
+        if (edge?.visual != null) {
+            drawDiagramEdge(edge.visual, pts.map { Offset(it.x, it.y) }, edgeAlpha(i), incident?.contains(i) == true)
+            return@forEachIndexed
+        }
         val emphasized = incident != null && i in incident
         val alpha = edgeAlpha(i)
         val lineColor = if (emphasized) paint.primary else paint.border
@@ -165,6 +169,10 @@ internal fun DrawScope.drawLens(scene: LensScene, zoom: Float, hovered: Int?, ad
             drawRect(paint.surface, Offset(c.x - w / 2 - 2, c.y - h / 2), Size(w + 4, h), alpha = alpha)
             drawText(text, topLeft = Offset(c.x - w / 2, c.y - h / 2), alpha = alpha)
         }
+    }
+    if (zoom >= 0.5f) result.routes.forEachIndexed { i, route ->
+        a.edges.getOrNull(i)?.visual?.let { visual -> drawDiagramEdgeLabels(visual, route.points.map { Offset(it.x, it.y) },
+            route.label?.let { Offset(it.x, it.y) }, edgeAlpha(i)) }
     }
 }
 

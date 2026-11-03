@@ -36,6 +36,29 @@ object DiagramInputs {
         return Input(DiagramInputPlace(node, origins), notices)
     }
 
+    fun edge(sources: List<DiagramLinkSource>, relation: String?, label: String?, kind: String, loader: (DocumentId) -> YNode?): Input {
+        val origins = mutableListOf<TransformOrigin>()
+        val references = sources.mapIndexed { i, link ->
+            val data = linkedMapOf<String, YNode>()
+            link.reference?.let { ref ->
+                val parent = ref.path.dropLast(1)
+                val root = loader(ref.document)
+                ref.attributes.forEach { (key, value) ->
+                    data[key] = root?.let { getAt(it, parent + key) } ?: YNode.Scalar(value)
+                    origins += TransformOrigin(listOf("references", i, "data", key), ref.document, parent + key)
+                    if (sources.size == 1) origins += TransformOrigin(listOf("data", key), ref.document, parent + key)
+                }
+            }
+            YNode.Map(linkedMapOf("source" to YNode.Scalar(link.sourceId), "target" to YNode.Scalar(link.targetId), "data" to YNode.Map(data)))
+        }
+        fun endpoint(ids: List<String>): YNode = YamlIO.fromAny(mapOf("id" to ids.distinct().singleOrNull(), "ids" to ids.distinct()))
+        val fields = linkedMapOf<String, YNode>("relation" to YNode.Scalar(relation), "label" to YNode.Scalar(label),
+            "kind" to YNode.Scalar(kind), "source" to endpoint(sources.map { it.sourceId }), "target" to endpoint(sources.map { it.targetId }),
+            "references" to YNode.Seq(references.toMutableList()))
+        if (sources.size == 1) fields["data"] = references.single().entries.getValue("data")
+        return Input(DiagramInputPlace(YNode.Map(fields), origins))
+    }
+
     fun type(type: String, label: String): Input = Input(DiagramInputPlace(
         YamlIO.fromAny(mapOf("id" to type, "entityType" to type, "title" to label, "data" to emptyMap<String, Any>())), emptyList()))
 }

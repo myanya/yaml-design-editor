@@ -1,6 +1,6 @@
 # 図の記法
 
-グラフレンズとフローのノードを、YAMLで定義した枠・文字・画像で描けます。
+グラフレンズとフローのノードや辺を、YAMLで定義した枠・文字・画像・端点記号で描けます。
 記法の定義と適用指定はビュー領域（`_views/`、構成により `.yde/views/`）に置きます。
 図は派生表示です。原本の編集・参照・検証は既存の仕組みを使います。
 
@@ -43,6 +43,63 @@ PNG・JPEG・SVGなどを読み、無い・読めない画像は代替アイコ�
 `inputs` からは射影したノードの項目を読み、`data` は `detail`、`title` は `label`、`id` は `key` と同じ値を指します。
 分類が必要な場合は `projection` のノードに `entityType` を明示し、適用指定の `entityType` で選びます。
 記法が変わっても、詳細欄の編集適格性や接続先の解決はフローの射影が決めます。
+
+## クラス図を使う
+
+`uml-class` はクラス名・属性・操作の区画を持ちます。
+属性と操作は文字列の配列です。業務データの形に合わせて既存の変換ひな型で組み立てます。
+
+```yaml
+id: class-lens
+name: クラス図
+kind: lens
+appearance:
+  nodes:
+    - level: entity
+      entityType: class
+      notation: uml-class
+      inputs:
+        title: {$copy: data.name}
+        stereotype: {$copy: data.stereotype}
+        attributes: {$copy: data.attributes}
+        operations: {$copy: data.operations}
+  edges:
+    - relation: inherits
+      notation: uml-generalization
+      inputs: {}
+    - relation: owns
+      notation: uml-composition
+      inputs:
+        label: {$copy: label}
+        sourceLabel: {$copy: data.sourceMultiplicity}
+        targetLabel: {$copy: data.targetMultiplicity}
+```
+
+`$ref` は型の再利用であり、UMLの継承へ自動変換しません。
+汎化などの意味は原本で関係として表し、記法を明示します。
+区画の文字をクリックすると、来歴が一つに決まる場合は元の項目を開きます。
+複数の原本から合成した文字は任意の一つを編集先に選びません。
+
+| 同梱の辺記法 | 線と記号 |
+|---|---|
+| `plain-link` / `directed-link` | 実線／終点に矢印 |
+| `uml-association` | 実線 |
+| `uml-generalization` | 実線、終点に白三角 |
+| `uml-realization` | 破線、終点に白三角 |
+| `uml-dependency` | 破線、終点に矢印 |
+| `uml-aggregation` / `uml-composition` | 始点に白／塗りつぶし菱形 |
+
+UMLの辺は `label`（中央）・`sourceLabel`（始点側）・`targetLabel`（終点側）を受け取ります。
+レンズの辺の入力は `relation`・`label`・`kind`・`source`・`target`・`references` です。
+`source` と `target` は論理的な端点で、`ids` と一件の場合の `id` を持ちます。
+参照一件の辺では、スキーマで定義した参照属性を `data` から読めます。
+折り畳み等でまとめた辺は、各参照の `source`・`target`・`data` を `references` の配列から読みます。
+表示を反転すると、論理的な始点・終点の記号と文字も一緒に入れ替わります。
+フローの辺では射影した項目と `data`（`detail`）を使い、分類は `relation` に明示します。
+
+独自の辺記法は `target: edge` とし、`build` に `stroke`（`solid` / `dashed` / `dotted`）、
+`width`、`sourceMarker` / `targetMarker`、三つのラベル、`tone` を指定します。
+端点記号は `none` / `arrow` / `triangle` / `diamond` / `filled-diamond` です。
 
 ## 記法を定義する
 

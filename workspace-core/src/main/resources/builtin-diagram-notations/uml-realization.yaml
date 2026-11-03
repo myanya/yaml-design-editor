@@ -1,0 +1,17 @@
+id: uml-realization
+name: UML 実現
+kind: diagram-notation
+target: edge
+input:
+  type: object
+  fields:
+    - {key: label, type: string}
+    - {key: sourceLabel, type: string}
+    - {key: targetLabel, type: string}
+build:
+  stroke: dashed
+  sourceMarker: none
+  targetMarker: triangle
+  label: {$copy: label}
+  sourceLabel: {$copy: sourceLabel}
+  targetLabel: {$copy: targetLabel}

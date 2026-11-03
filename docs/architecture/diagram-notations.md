@@ -13,6 +13,7 @@
 | `DiagramDefinitions` | workspace-core/workspace/DiagramDefinitions.kt | 定義の読み取り・同梱記法・参照の点検 |
 | `DiagramInputs` | app-core/core/DiagramInputs.kt | 既存のエンティティ合成から値と来歴を渡す |
 | `DiagramBodies` / `ImageAssets` | desktop/ui/common/ | 共通の計測・描画・画像読込 |
+| `DiagramEdges` | desktop/ui/common/DiagramEdges.kt | 線種・端点記号・中央と両端のラベルの計測描画 |
 | `FileLocations` / `FilePolicy.outsideLevel` | app-core/core/・workspace-core/layout/ | file型と画像の場所・許可の共通境界 |
 
 ## 流れ
@@ -34,6 +35,12 @@
 計測した部品の寸法をGraphLayoutsへ渡し、同じ計測結果を描画する。
 レンズのPNGも同じ描画を使う。画像は値の来歴の文書からFileLocationsで解決する。
 ImageAssetsはfile画面と図で共有し、画像の更新時刻の変化に追随する。
+
+LensGraphsは表示する辺と別にDiagramLinkSourceを保持し、重複排除・畳みでも原本の参照を残す。
+参照属性はScannedRef.attributesから読み、記法入力の論理的な端点は表示反転に影響されない。
+描画の端点記号とラベルだけをLensGraphsのreversedに従って交換する。
+来歴が複数の部品はlocationsに全件を残し、locationは一つに決まる場合だけ返す。
+ノード内の文字・画像からの移動は既存のopenFileへ渡し、図専用の書込を作らない。
 
 ## 規律
 
