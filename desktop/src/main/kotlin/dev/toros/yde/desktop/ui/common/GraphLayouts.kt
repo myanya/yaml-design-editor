@@ -445,7 +445,7 @@ object GraphLayouts {
 
     /**
      * 利用者が動かした箱を反映した入れ子の配置。動かした箱の中の箱も一緒に動く（中の箱を別に動かしていればそちらが勝つ）。
-     * 動いた箱につながる辺は直線に引き直し、他の辺は元の経路のまま。全体の大きさも広げる。
+     * 動いた箱につながる直交線は接続面を保って引き直し、他の辺は元の経路のまま。全体の大きさも広げる。
      */
     fun withMovedNested(
         arrangement: LensArrangement,
@@ -468,7 +468,28 @@ object GraphLayouts {
         fun movedIndex(i: Int) = deltas.getOrNull(i)?.let { it.first != 0f || it.second != 0f } ?: false
         val touched = edges.map { e -> e.takeIf { (movedIndex(it.from) || movedIndex(it.to)) && it.from in boxes.indices && it.to in boxes.indices && it.from != it.to } }
         val rerouted = straightRoutes(boxes, touched)
-        val routes = arrangement.routes.mapIndexed { i, r -> if (touched.getOrNull(i) != null) rerouted[i] else r }
+        fun ancestors(i: Int) = generateSequence(nodes.getOrNull(i)?.parent) { nodes.getOrNull(it)?.parent }.toSet()
+        val labels = arrangement.routes.mapIndexedNotNull { i, r ->
+            val e = edges.getOrNull(i) ?: return@mapIndexedNotNull null
+            r.label?.takeIf { touched[i] == null && !(e.from == e.to && movedIndex(e.from)) && e.labelWidth > 0f }
+                ?.let { LensBox(it.x - e.labelWidth / 2, it.y - e.labelHeight / 2, e.labelWidth, e.labelHeight) }
+        }.toMutableList()
+        val parallels = edges.indices.groupBy { setOf(edges[it].from, edges[it].to) }
+        val routes = arrangement.routes.mapIndexed { i, r ->
+            val e = edges.getOrNull(i) ?: return@mapIndexed r
+            if (touched.getOrNull(i) == null && !(e.from == e.to && movedIndex(e.from))) return@mapIndexed r
+            val parents = ancestors(e.from) + ancestors(e.to)
+            val orthogonal = r.points.size >= 2 && r.points.zipWithNext().all { (a, b) -> a.x == b.x || a.y == b.y }
+            if (!orthogonal || e.from in parents || e.to in parents) return@mapIndexed rerouted[i]
+            val obstacles = boxes.filterIndexed { j, _ -> j !in parents }
+            val hint = OrthogonalRouting.hint(old[e.from], old[e.to], r.points)
+            val points = OrthogonalRouting.route(boxes[e.from], boxes[e.to], obstacles,
+                right = hint?.from?.side?.horizontal == true, ordinal = parallels.getValue(setOf(e.from, e.to)).indexOf(i), hint = hint)
+            val center = points.getOrNull(points.size / 2) ?: LensPoint(boxes[e.from].centerX, boxes[e.from].centerY)
+            val label = if (e.labelWidth > 0f) OrthogonalRouting.label(points, LensNodeSize("", e.labelWidth, e.labelHeight), obstacles + labels, center)
+                .also { labels += it }.let { LensPoint(it.centerX, it.centerY) } else center
+            LensRoute(points, label)
+        }
         val points = routes.flatMap { it.points } + routes.mapNotNull { it.label }
         val width = maxOf(arrangement.width, boxes.maxOf { it.x + it.width } + MARGIN, (points.maxOfOrNull { it.x } ?: 0f) + MARGIN)
         val height = maxOf(arrangement.height, boxes.maxOf { it.y + it.height } + MARGIN, (points.maxOfOrNull { it.y } ?: 0f) + MARGIN)

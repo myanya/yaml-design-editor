@@ -130,7 +130,8 @@ class GraphLayoutsTest {
         assertEquals(a.boxes[1].x + 300f, moved.boxes[1].x, 0.01f, "中の箱も同じだけ動く")
         assertEquals(a.boxes[1].y + 50f, moved.boxes[1].y, 0.01f)
         assertEquals(a.boxes[2], moved.boxes[2], "外の箱は動かない")
-        assertEquals(2, moved.routes[0].points.size, "動いた箱につながる辺は直線")
+        assertTrue(moved.routes[0].points.size >= 2)
+        assertTrue(moved.routes[0].points.zipWithNext().all { (p, q) -> p.x == q.x || p.y == q.y }, "元の直交線の折れ方を保つ")
         assertTrue(moved.width >= moved.boxes[0].x + moved.boxes[0].width, "全体の大きさが広がる")
     }
 

@@ -52,21 +52,10 @@ internal fun flowPositionSnapshot(model: FlowModel, mode: FlowLayoutMode, direct
 }
 
 /** 対象とその辺だけを追従させる。確定時にも他のノードの配置は計算し直さない。 */
-internal fun flowDragPreview(base: FlowArrangement, path: YPath, point: FlowPoint, model: FlowModel): FlowArrangement {
+internal fun flowDragPreview(base: FlowArrangement, path: YPath, point: FlowPoint, model: FlowModel, direction: String = "down"): FlowArrangement {
     val old = base.nodes[path] ?: return base
-    val dx = point.x - old.x; val dy = point.y - old.y
-    fun move(p: FlowPoint) = FlowPoint(p.x + dx, p.y + dy)
-    val edges = model.edges.associateBy { it.output }
-    return base.copy(nodes = base.nodes + (path to old.copy(x = point.x, y = point.y)), edges = base.edges.map { route ->
-        val edge = edges[route.output] ?: return@map route
-        val from = edge.from.target == path; val to = edge.to.target == path
-        if (route.points.size < 2 || !from && !to) route
-        else if (from && to) route.copy(points = route.points.map(::move), label = route.label.copy(x = route.label.x + dx, y = route.label.y + dy))
-        else {
-            val start = if (from) move(route.points.first()) else route.points.first()
-            val end = if (to) move(route.points.last()) else route.points.last()
-            val mid = (start.y + end.y) / 2
-            route.copy(points = listOf(start, FlowPoint(start.x, mid), FlowPoint(end.x, mid), end))
-        }
-    })
+    if (old.x == point.x && old.y == point.y) return base
+    val labels = base.edges.associate { it.output to FlowSize(it.label.width - 12f, it.label.height - 12f) }
+    return PinnedFlow.routed(model, labels, base.nodes + (path to old.copy(x = point.x, y = point.y)), base.lanes,
+        direction, base, setOf(path))
 }

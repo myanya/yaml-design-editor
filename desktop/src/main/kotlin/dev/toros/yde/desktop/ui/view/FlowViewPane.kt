@@ -301,7 +301,7 @@ internal fun FlowCanvas(
         if (!memory.ready) { computing = false; return@LaunchedEffect }
         val reflow = rearrange != appliedRearrange
         val current = layout?.getOrNull()
-        val candidate = current?.let { a -> preview?.let { flowDragPreview(a, it.first, it.second, model) } ?: a }
+        val candidate = current?.let { a -> preview?.let { flowDragPreview(a, it.first, it.second, model, direction) } ?: a }
         // ドラッグの確定と固定解除は位置を計算しない。既存の辺もそのまま使う。
         if (!reflow && layoutFor == input && candidate != null && sameDiagramPositions(snapshot(candidate), memory.positions)) {
             layout = Result.success(candidate); preview = null; computing = false
@@ -335,7 +335,7 @@ internal fun FlowCanvas(
         }
         return
     }
-    val arrangement = preview?.let { flowDragPreview(base, it.first, it.second, model) } ?: base
+    val arrangement = preview?.let { flowDragPreview(base, it.first, it.second, model, direction) } ?: base
     var zoom by remember { mutableStateOf(1f) }
     var pan by remember { mutableStateOf(Offset.Zero) }
     var canvasSize by remember { mutableStateOf(Size.Zero) }
@@ -372,9 +372,9 @@ internal fun FlowCanvas(
             val id = ids[path]
             if (id == null || r != null && frame == null) {
                 temporary = temporary + (path to local)
-                layout = Result.success(flowDragPreview(latestBase, path, point, model)); preview = null
+                layout = Result.success(flowDragPreview(latestBase, path, point, model, direction)); preview = null
                 state.status = "識別子が無いか重複しているため、この表示中だけ位置を保持します"
-            } else state.saveDiagramPositions(context, memory.positions + snapshot(flowDragPreview(latestBase, path, point, model), path))
+            } else state.saveDiagramPositions(context, memory.positions + snapshot(flowDragPreview(latestBase, path, point, model, direction), path))
         }
         dragging = null
     }

@@ -74,84 +74,20 @@ internal object PinnedLayout {
         error("親の内容領域に配置できません。固定位置または図の表示を見直してください")
     }
 
-    /** 矩形の内部を横切らない直交線。往路・戻り線・自己ループで同じ探索を使う。 */
-    fun route(a: LensBox, b: LensBox, obstacles: List<LensBox>, right: Boolean = false, ordinal: Int = 0): List<LensPoint> {
-        val clearance = 20f + (ordinal % 5) * 8f
-        val port = 0.5f + listOf(0f, .12f, -.12f, .24f, -.24f)[ordinal % 5]
-        val start = if (right) LensPoint(a.x + a.width, a.y + a.height * port) else LensPoint(a.x + a.width * port, a.y + a.height)
-        val end = if (right) LensPoint(b.x, b.y + b.height * port) else LensPoint(b.x + b.width * port, b.y)
-        val outsideA = if (right) start.copy(x = start.x + clearance) else start.copy(y = start.y + clearance)
-        val outsideB = if (right) end.copy(x = end.x - clearance) else end.copy(y = end.y - clearance)
-        fun blocked(p: LensPoint, q: LensPoint) = obstacles.any { r ->
-            if (p.x == q.x) p.x > r.x && p.x < r.x + r.width &&
-                maxOf(minOf(p.y, q.y), r.y) < minOf(maxOf(p.y, q.y), r.y + r.height)
-            else p.y > r.y && p.y < r.y + r.height &&
-                maxOf(minOf(p.x, q.x), r.x) < minOf(maxOf(p.x, q.x), r.x + r.width)
-        }
-        if (blocked(start, outsideA) || blocked(outsideB, end)) return emptyList()
-        fun simplify(points: List<LensPoint>): List<LensPoint> {
-            val path = points.distinctConsecutive()
-            return path.filterIndexed { i, p -> i == 0 || i == path.lastIndex ||
-                !(path[i - 1].x == p.x && p.x == path[i + 1].x || path[i - 1].y == p.y && p.y == path[i + 1].y) }
-        }
-        val shortPaths = listOf(
-            listOf(start, outsideA, LensPoint(outsideA.x, outsideB.y), outsideB, end),
-            listOf(start, outsideA, LensPoint(outsideB.x, outsideA.y), outsideB, end),
-        )
-        shortPaths.firstOrNull { it.zipWithNext().none { (p, q) -> blocked(p, q) } }?.let { return simplify(it) }
-        val xs = (listOf(outsideA.x, outsideB.x) + obstacles.flatMap { listOf(it.x - clearance, it.x + it.width + clearance) }).distinct().sorted()
-        val ys = (listOf(outsideA.y, outsideB.y) + obstacles.flatMap { listOf(it.y - clearance, it.y + it.height + clearance) }).distinct().sorted()
-        val width = xs.size
-        // 経路が混雑する大図でも、巨大な格子でメモリを使い切らない。未確保の辺は呼出元で通知する。
-        if (width.toLong() * ys.size > 250_000) return emptyList()
-        val begin = ys.indexOf(outsideA.y) * width + xs.indexOf(outsideA.x)
-        val finish = ys.indexOf(outsideB.y) * width + xs.indexOf(outsideB.x)
-        val costs = FloatArray(width * ys.size) { Float.POSITIVE_INFINITY }
-        val previous = IntArray(costs.size) { -1 }
-        fun point(index: Int) = LensPoint(xs[index % width], ys[index / width])
-        fun distance(p: LensPoint, q: LensPoint) = abs(p.x - q.x) + abs(p.y - q.y)
-        data class Visit(val index: Int, val cost: Float, val estimate: Float)
-        val queue = PriorityQueue(compareBy<Visit>({ it.estimate }, { it.index }))
-        costs[begin] = 0f; queue += Visit(begin, 0f, distance(outsideA, outsideB))
-        var visits = 0
-        while (queue.isNotEmpty() && visits++ < 100_000) {
-            val visit = queue.remove()
-            if (visit.cost != costs[visit.index]) continue
-            if (visit.index == finish) {
-                val result = mutableListOf(end)
-                var at = finish
-                while (at >= 0) { result += point(at); at = previous[at] }
-                result += start
-                return simplify(result.reversed())
-            }
-            val x = visit.index % width; val y = visit.index / width
-            val next = listOfNotNull(if (x > 0) visit.index - 1 else null, if (x + 1 < width) visit.index + 1 else null,
-                if (y > 0) visit.index - width else null, if (y + 1 < ys.size) visit.index + width else null)
-            val p = point(visit.index)
-            for (index in next) {
-                val q = point(index)
-                if (blocked(p, q)) continue
-                val cost = visit.cost + distance(p, q)
-                if (cost < costs[index]) {
-                    costs[index] = cost; previous[index] = visit.index
-                    queue += Visit(index, cost, cost + distance(q, outsideB))
-                }
-            }
-        }
-        return emptyList()
-    }
-
-    private fun List<LensPoint>.distinctConsecutive() = filterIndexed { i, p -> i == 0 || p != this[i - 1] }
+    /** 位置の保持と経路の決定を分け、移動時も同じ規則でつなぐ。 */
+    fun route(a: LensBox, b: LensBox, obstacles: List<LensBox>, right: Boolean = false, ordinal: Int = 0): List<LensPoint> =
+        OrthogonalRouting.route(a, b, obstacles, right, ordinal)
 
     fun lens(sizes: List<LensNodeSize>, edges: List<LensEdgeSpec>, pins: Map<Int, LensPoint>, kind: LensLayoutKind,
              inside: Boolean = false): LensArrangement {
         val boxes = arrange(sizes, edges, pins, inside = inside)
         val labels = mutableListOf<LensBox>()
+        val parallels = edges.indices.groupBy { setOf(edges[it].from, edges[it].to) }
         val routes = edges.mapIndexed { i, e ->
             if (e.from !in boxes.indices || e.to !in boxes.indices) return@mapIndexed LensRoute(emptyList(), null)
-            val points = route(boxes[e.from], boxes[e.to], boxes, ordinal = i)
+            val points = route(boxes[e.from], boxes[e.to], boxes, ordinal = parallels.getValue(setOf(e.from, e.to)).indexOf(i))
             val center = points.getOrNull(points.size / 2) ?: LensPoint(boxes[e.from].centerX, boxes[e.from].centerY)
-            val label = if (e.labelWidth > 0f) vacant(LensNodeSize("", e.labelWidth, e.labelHeight), center, boxes + labels, inside = inside)
+            val label = if (e.labelWidth > 0f) OrthogonalRouting.label(points, LensNodeSize("", e.labelWidth, e.labelHeight), boxes + labels, center, inside)
                 .also { labels += it }.let { LensPoint(it.centerX, it.centerY) } else center
             LensRoute(points, label)
         }

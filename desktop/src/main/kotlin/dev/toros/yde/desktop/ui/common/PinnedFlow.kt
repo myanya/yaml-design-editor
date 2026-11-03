@@ -91,24 +91,64 @@ internal object PinnedFlow {
 
     /** ドラッグの途中にも使う。ノードを動かさずに経路とラベルだけを求める。 */
     fun routed(model: FlowModel, labels: Map<YPath, FlowSize>, boxes: Map<YPath, FlowRect>, lanes: Map<YPath, FlowRect>,
-               direction: String): FlowArrangement {
+               direction: String, previous: FlowArrangement? = null, changed: Set<YPath>? = null): FlowArrangement {
+        fun FlowRect.box() = LensBox(x, y, width, height)
         val obstacles = boxes.values.map { LensBox(it.x, it.y, it.width, it.height) }
+        val oldRoutes = previous?.edges?.associateBy { it.output }.orEmpty()
+        val moved = changed.orEmpty().mapNotNull { boxes[it]?.box() }
+        val unchanged = if (changed == null) emptyMap() else model.edges.mapNotNull { e ->
+            oldRoutes[e.output]?.takeIf { old -> e.from.target !in changed && e.to.target !in changed && moved.none { r ->
+                PinnedLayout.overlap(r, old.label.box()) || old.points.zipWithNext().any { (p, q) ->
+                    OrthogonalRouting.intersects(LensPoint(p.x, p.y), LensPoint(q.x, q.y), r)
+                }
+            } }?.let { e.output to it }
+        }.toMap()
+        val parallels = model.edges.groupBy { setOf(it.from.target, it.to.target) }
+        fun ordinal(e: FlowEdge) = parallels.getValue(setOf(e.from.target, e.to.target)).indexOf(e)
+        val hints = model.edges.mapNotNull { e ->
+            val a = boxes[e.from.target]?.box() ?: return@mapNotNull null
+            val b = boxes[e.to.target]?.box() ?: return@mapNotNull null
+            val oldA = previous?.nodes?.get(e.from.target)?.box() ?: return@mapNotNull null
+            val oldB = previous.nodes[e.to.target]?.box() ?: return@mapNotNull null
+            val points = oldRoutes[e.output]?.points?.map { LensPoint(it.x, it.y) }.orEmpty()
+            OrthogonalRouting.hint(oldA, oldB, points)?.takeIf { OrthogonalRouting.faces(a, b, it) }?.let { e.output to it }
+        }.toMap()
+        val ports = model.edges.mapNotNull { e ->
+            val a = boxes[e.from.target]?.box() ?: return@mapNotNull null
+            val b = boxes[e.to.target]?.box() ?: return@mapNotNull null
+            e.output to (hints[e.output] ?: OrthogonalRouting.preferred(a, b, direction == "right", ordinal(e)))
+        }.toMap()
+        // 同じ面につながる辺を相手の位置の順で分ける。図中の無関係な辺の番号ではずらさない。
+        val incidents = model.edges.flatMap { e -> ports[e.output]?.let { p -> listOf(
+            (e.from.target to p.from.side) to (e.output to true), (e.to.target to p.to.side) to (e.output to false)) }.orEmpty()
+        }.groupBy({ it.first }, { it.second })
+        fun allocated(e: FlowEdge, source: Boolean, port: OrthogonalRouting.Port): OrthogonalRouting.Port {
+            if (e.output in hints || e.from.target == e.to.target) return port
+            val group = incidents.getValue((if (source) e.from.target else e.to.target) to port.side).sortedBy { (path, from) ->
+                val edge = model.edges.first { it.output == path }
+                val other = boxes[if (from) edge.to.target else edge.from.target]
+                if (port.side.horizontal) other?.center?.y ?: 0f else other?.center?.x ?: 0f
+            }
+            return port.copy(fraction = .2f + .6f * (group.indexOf(e.output to source) + 1) / (group.size + 1))
+        }
         val diamonds = model.nodes.filter { it.displayShape == "diamond" }.map { it.output }.toSet()
         fun outline(path: YPath?, p: LensPoint): LensPoint {
             val r = boxes[path]?.takeIf { path in diamonds } ?: return p
-            return if (direction == "right") LensPoint(r.center.x + (if (p.x < r.center.x) -1 else 1) *
+            return if (kotlin.math.abs(kotlin.math.abs(p.x - r.center.x) - r.width / 2) < .01f) LensPoint(r.center.x + (if (p.x < r.center.x) -1 else 1) *
                 r.width / 2 * (1 - kotlin.math.abs(p.y - r.center.y) / (r.height / 2)), p.y)
             else LensPoint(p.x, r.center.y + (if (p.y < r.center.y) -1 else 1) *
                 r.height / 2 * (1 - kotlin.math.abs(p.x - r.center.x) / (r.width / 2)))
         }
-        val usedLabels = mutableListOf<LensBox>()
-        val routes = model.edges.mapIndexed { i, e ->
+        val usedLabels = unchanged.values.map { it.label.box() }.toMutableList()
+        val routes = model.edges.map { e ->
+            unchanged[e.output]?.let { return@map it }
             val a = boxes[e.from.target]; val b = boxes[e.to.target]
-            val points = if (a == null || b == null) emptyList() else PinnedLayout.route(
-                LensBox(a.x, a.y, a.width, a.height), LensBox(b.x, b.y, b.width, b.height), obstacles, direction == "right", i)
+            val p = ports[e.output]?.let { OrthogonalRouting.Ports(allocated(e, true, it.from), allocated(e, false, it.to)) }
+            val points = if (a == null || b == null) emptyList() else OrthogonalRouting.route(
+                a.box(), b.box(), obstacles, direction == "right", ordinal(e), p)
             val preferred = points.getOrNull(points.size / 2) ?: LensPoint(24f, (obstacles.maxOfOrNull { it.y + it.height } ?: 0f) + 40f)
             val size = labels[e.output] ?: FlowSize(100f, 24f)
-            val label = PinnedLayout.vacant(LensNodeSize("", size.width + 12f, size.height + 12f), preferred, obstacles + usedLabels)
+            val label = OrthogonalRouting.label(points, LensNodeSize("", size.width + 12f, size.height + 12f), obstacles + usedLabels, preferred)
             usedLabels += label
             val outlined = points.mapIndexed { index, p ->
                 val point = when (index) { 0 -> outline(e.from.target, p); points.lastIndex -> outline(e.to.target, p); else -> p }
@@ -122,6 +162,6 @@ internal object PinnedFlow {
         val top = minOf(0f, rects.minOfOrNull { it.y } ?: 0f, points.minOfOrNull { it.y } ?: 0f)
         return FlowArrangement(boxes, lanes, routes, FlowSize(
             maxOf(0f, rects.maxOfOrNull { it.right } ?: 0f, points.maxOfOrNull { it.x } ?: 0f) - left + 24f,
-            maxOf(0f, rects.maxOfOrNull { it.bottom } ?: 0f, points.maxOfOrNull { it.y } ?: 0f) - top + 24f))
+            maxOf(0f, rects.maxOfOrNull { it.bottom } ?: 0f, points.maxOfOrNull { it.y } ?: 0f) - top + 24f), previous?.laneHeaders.orEmpty())
     }
 }

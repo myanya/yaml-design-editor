@@ -372,12 +372,16 @@ fun GraphLensView(state: AppState) {
     val pins = remember(context) { mutableStateMapOf<Int, LensPoint>() }
     fun snapshot(a: LensArranged, pin: Int? = null) = lensPositionSnapshot(a.nested, a.nodes.map { nodeId(it.node) },
         a.result, density.density, positionMemory.positions, pin)
+    fun routeSpecs(a: LensArranged) = a.edges.map { e ->
+        val label = e.label?.let { e.visual?.texts?.get(it) ?: labelTexts[it] }
+        LensEdgeSpec(e.from, e.to, label?.let { it.size.width + 6f } ?: 0f, label?.size?.height?.toFloat() ?: 0f)
+    }
     val computing = nodes.isNotEmpty() && arrangedFor != (input to layoutKind)
     LaunchedEffect(input, layoutKind, bodies, edgeIndices, retained, positionMemory.positions, positionMemory.ready, rearrange) {
         if (!positionMemory.ready) { arranging = false; return@LaunchedEffect }
         val reflow = rearrange != appliedRearrange
         val candidate = arranged?.let { a -> a.copy(result = GraphLayouts.withMovedNested(a.result, a.nested,
-            a.edges.map { LensEdgeSpec(it.from, it.to) }, pins.toMap())) }
+            routeSpecs(a), pins.toMap())) }
         if (!reflow && arrangedFor == (input to layoutKind) && candidate != null && candidate.bodies == bodies && candidate.edges == edgeIndices &&
             candidate.nodes == nodes && sameDiagramPositions(snapshot(candidate), positionMemory.positions)) {
             arranged = candidate; pins.clear(); arranging = false
@@ -407,7 +411,7 @@ fun GraphLensView(state: AppState) {
     }
     val effective: LensArranged? = remember(arranged, pins.toMap()) {
         arranged?.let { a ->
-            val edges = a.edges.map { LensEdgeSpec(it.from, it.to) }
+            val edges = routeSpecs(a)
             val moved = if (pins.isEmpty()) a.result else GraphLayouts.withMovedNested(a.result, a.nested, edges, pins.toMap())
             val diamonds = a.nodes.indices.filter { i ->
                 val n = a.nodes[i]
