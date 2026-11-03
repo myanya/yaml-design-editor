@@ -14,6 +14,12 @@ local.properties
 node_modules/
 **/dist/
 
+# サンプルと実験用ワークスペースの表示状態は手元だけに保持する
+/samples/**/.yde/state/
+/samples/**/_state/
+/labs/**/.yde/state/
+/labs/**/_state/
+
 # AI の実行記録には会話・原文バックアップが含まれる
 _runs/
 **/.yde/runs/

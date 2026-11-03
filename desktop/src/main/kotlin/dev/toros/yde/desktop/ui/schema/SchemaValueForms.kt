@@ -4,6 +4,7 @@ import dev.toros.yde.semantic.schema.CheckOp
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.YPath
+import dev.toros.yde.yaml.model.scalarText
 
 /** 編集開始用の形。評価・検証は既存の Query / Predicate / Construct に任せる。 */
 internal data class SchemaValuePreset(val group: String, val label: String, val value: Any?) {
@@ -22,7 +23,8 @@ internal object SchemaValueForms {
         "equals" to "等しい値", "notEquals" to "等しくない値", "exists" to "存在する", "empty" to "空である",
         "or" to "いずれか", "not" to "否定", "\$copy" to "コピーする項目", "\$of" to "コピー元の束縛名",
         "\$in" to "コピー元の文書", "\$format" to "文字列のひな型", "\$when" to "使用条件",
-        "\$bind" to "要素に付ける名前", "\$flatten" to "子配列を連結")
+        "\$bind" to "要素に付ける名前", "\$flatten" to "子配列を連結",
+        "port" to "ポート名", "portSide" to "接続する面", "sourcePort" to "始点のポート", "targetPort" to "終点のポート")
     fun label(key: String): String = labels[key]?.let { "$it（$key）" } ?: key
     private fun obj(vararg pairs: Pair<String, Any?>) = linkedMapOf(*pairs)
     private fun preset(group: String, label: String, vararg pairs: Pair<String, Any?>) = SchemaValuePreset(group, label, obj(*pairs))
@@ -77,6 +79,10 @@ internal object SchemaValueForms {
         preset("ひな型", "数値の表記を揃える", "\$number" to "1"),
         preset("ひな型", "前後の空白を除く", "\$trim" to " 値 "),
         preset("ひな型", "条件を満たすときだけ使う", "\$when" to leaf, "\$then" to "値"),
+        preset("ひな型", "ポート付きの行", "kind" to "group", "port" to obj("\$copy" to "name"), "portSide" to "auto",
+            "children" to listOf(obj("kind" to "text", "text" to obj("\$copy" to "name")))),
+        preset("ひな型", "ポート間の線", "stroke" to "solid", "sourcePort" to obj("\$copy" to "column"),
+            "targetPort" to obj("\$copy" to "targetColumn")),
         preset("値の式", "項目の値を読む", "path" to "title"),
         preset("値の式", "文字列を組み立てる", "format" to "{title}"),
         preset("値の式", "最初に得られる値", "first" to listOf(obj("path" to "title"), "未設定")),
@@ -124,6 +130,8 @@ internal object SchemaValueForms {
             "edge" -> listOf("relation", "dir", "via", "in", "bind", "repeat", "row", "contains")
             "in", "\$in" -> listOf("schemaId", "fileGlob")
             else -> when {
+                scalarText(node.entries["kind"]) in setOf("box", "group", "text", "image", "divider", "icon") -> listOf("port", "portSide")
+                node.entries.keys.any { it in setOf("stroke", "sourceMarker", "targetMarker", "sourcePort", "targetPort") } -> listOf("sourcePort", "targetPort")
                 node.entries.keys.any { it in setOf("set", "insert", "delete", "create", "call", "each") } -> listOf("when")
                 "\$copy" in node.entries -> listOf("\$of", "\$in", "\$when")
                 "\$format" in node.entries -> listOf("\$of", "\$in", "\$at", "\$with", "\$when")
@@ -145,6 +153,7 @@ internal object SchemaValueForms {
         "params", "in", "\$in", "\$with", "count", "not", "row" -> emptyMap<String, Any?>()
         "exists", "empty", "typed", "contains", "repeat", "\$flatten" -> true
         "limit" -> 100
+        "portSide" -> "auto"
         else -> ""
     })
 }

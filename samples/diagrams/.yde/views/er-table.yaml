@@ -42,6 +42,7 @@ build:
         $each: columns
         $build:
           kind: group
+          port: {$copy: name}
           layout: row
           padding: 0
           children:

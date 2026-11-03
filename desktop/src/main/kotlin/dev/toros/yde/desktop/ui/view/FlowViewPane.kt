@@ -289,7 +289,10 @@ internal fun FlowCanvas(
             model.lanes.map { it.output to (it.label ?: "（レーン名なし）") })
             .associate { (p, text) -> p to measurer.measure(text, style, constraints = Constraints(maxWidth = 220)) }
     }
-    val labelSizes = remember(texts) { texts.mapValues { FlowSize(it.value.size.width.toFloat(), it.value.size.height.toFloat()) } }
+    val labelMeasures = remember(model, texts, edgeVisuals, measurer) { measureFlowLabels(model, texts, edgeVisuals, measurer) }
+    val labelSizes = remember(texts, labelMeasures) {
+        (texts + labelMeasures.mapValues { it.value.first() }).mapValues { FlowSize(it.value.size.width.toFloat(), it.value.size.height.toFloat()) }
+    }
     var layout by remember(context) { mutableStateOf<Result<FlowArrangement>?>(null) }
     var computing by remember(context) { mutableStateOf(false) }
     var rearrange by remember(context) { mutableStateOf(0) }
@@ -336,11 +339,16 @@ internal fun FlowCanvas(
         }
         return
     }
-    val arrangement = preview?.let { flowDragPreview(base, it.first, it.second, model, direction) } ?: base
+    val moved = preview?.let { flowDragPreview(base, it.first, it.second, model, direction) } ?: base
+    val routed = remember(moved, model, bodies) { withFlowPorts(moved, model, bodies) }
     var zoom by remember { mutableStateOf(1f) }
     var pan by remember { mutableStateOf(Offset.Zero) }
     var canvasSize by remember { mutableStateOf(Size.Zero) }
-    val scene = FlowScene(model, arrangement, texts, bodies, edgeVisuals, diagramColors(), Palette.Selected)
+    val colors = diagramColors()
+    val scene = remember(model, routed, texts, bodies, edgeVisuals, colors, labelMeasures) {
+        withFlowLabels(FlowScene(model, routed, texts, bodies, edgeVisuals, colors, Palette.Selected), labelMeasures)
+    }
+    val arrangement = scene.arrangement
     fun fit() {
         if (canvasSize.width <= 0 || canvasSize.height <= 0) return
         val bounds = flowBounds(scene)
@@ -419,7 +427,8 @@ internal fun FlowCanvas(
         if (fixedBoxes.indices.any { i -> fixedBoxes.drop(i + 1).any { PinnedLayout.overlap(fixedBoxes[i], it) } })
             Text("ノード同士が重なっています。位置を調整してください", fontSize = 11.sp, color = Palette.WarnOrange)
         if (arrangement.edges.any { e -> e.points.isEmpty() && model.edges.any { it.output == e.output && it.from.target != null && it.to.target != null } })
-            Text("一部の辺は経路を確保できません。固定位置を調整してください", fontSize = 11.sp, color = Palette.WarnOrange)
+            Text(if (model.edges.any { it.rendering?.edge?.hasPorts == true }) "一部の辺を描けません。ポートの指定・表示範囲・固定位置を確認してください"
+                else "一部の辺は経路を確保できません。固定位置を調整してください", fontSize = 11.sp, color = Palette.WarnOrange)
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
             TextButton(onClick = { zoom = (zoom / 1.25f).coerceAtLeast(0.02f) }) { Text("−") }
             TextButton(onClick = { zoom = (zoom * 1.25f).coerceAtMost(3f) }) { Text("＋") }
@@ -457,7 +466,7 @@ internal fun FlowCanvas(
                     if (location != null) state.openFile(location.document, location.path) else latestChoose(FlowElementKind.NODE, node.key)
                 }
                 else latestArrangement.edges.lastOrNull { route ->
-                    route.label.contains(p) || edgeVisuals[route.output]?.let { visual ->
+                    route.label.contains(p) || scene.edgeVisuals[route.output]?.let { visual ->
                         diagramEdgeLabels(visual, route.points.map { Offset(it.x, it.y) }, Offset(route.label.center.x, route.label.center.y))
                             .any { it.bounds.contains(Offset(p.x, p.y)) }
                     } == true || route.points.zipWithNext().any { (a, b) -> nearSegment(p, a, b, 8f / zoom) }

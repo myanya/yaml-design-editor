@@ -14,6 +14,8 @@
 | `DiagramInputs` | app-core/core/DiagramInputs.kt | 既存のエンティティ合成から値と来歴を渡す |
 | `DiagramBodies` / `ImageAssets` | desktop/ui/common/ | 共通の計測・描画・画像読込 |
 | `DiagramEdges` | desktop/ui/common/DiagramEdges.kt | 線種・端点記号・中央と両端のラベルの計測描画 |
+| `DiagramPorts` / `DiagramPortRouting` | semantic-core/semantic/DiagramPorts.kt・desktop/ui/common/DiagramPortRouting.kt | ポート名の解決・計測した部品から輪郭上の接続点を導出 |
+| `FlowPortLayout` / `LensPortLayout` | desktop/ui/view/・ui/graph/ | 配置と移動後のポート配線を画面とPNGで共有 |
 | `DiagramPng` / `FlowDrawing` / `GraphLensDrawing` | desktop/ui/common/・ui/view/・ui/graph/ | 共通の画像出力境界と画面・PNGで共有する描画 |
 | `FileLocations` / `FilePolicy.outsideLevel` | app-core/core/・workspace-core/layout/ | file型と画像の場所・許可の共通境界 |
 
@@ -39,7 +41,7 @@ ImageAssetsはfile画面と図で共有し、画像の更新時刻の変化に�
 
 LensGraphsは表示する辺と別にDiagramLinkSourceを保持し、重複排除・畳みでも原本の参照を残す。
 参照属性はScannedRef.attributesから読み、記法入力の論理的な端点は表示反転に影響されない。
-描画の端点記号とラベルだけをLensGraphsのreversedに従って交換する。
+描画の端点記号・ラベル・ポートをLensGraphsのreversedに従って交換する。
 来歴が複数の部品はlocationsに全件を残し、locationは一つに決まる場合だけ返す。
 ノード内の文字・画像からの移動は既存のopenFileへ渡し、図専用の書込を作らない。
 
@@ -55,8 +57,25 @@ PNGは全ノード・経路・端のラベルの境界を取り、画面と同�
 
 ## 規律
 
+- 接続点は表示部品から導き、原本に座標を書かない（下記「ポート」）。
+
 - 部品の入れ子と、グラフの保有を混同しない。
 - 表示の変更は原本の意味・参照・検証を変えない。
 - 入力不足、未知の部品、対象違い、複数の適用は理由を持つ診断にする。
 - 組込みだけが使える部品を作らず、条件・値・繰り返しは既存の変換記法へ委譲する。
 - 来歴の無い文字を、編集できる原本座標と見なさない。
+
+## ポート
+
+表示部品の `port` はノード内で一意な接続口で、辺の `sourcePort`・`targetPort` から選ぶ。
+形は同梱の表示契約で検査し、空の明示名・重複・端点の名前解決は共通のDiagramPortsで診断する。
+ポート名の来歴は既存のConstructで保ち、flowの診断とlensの通知から原本へ戻す。
+
+計測した部品の中心を外側のノードの輪郭へ投影し、配置と移動の後でOrthogonalRoutingへ固定した端点として渡す。
+固定端点は近接した高さの平均や別の面への自動変更を行わない。親の箱は通過でき、他のノードを避ける。
+指定先が表示外・不在・曖昧、または経路を確保できなければ線を出さない。
+描画・当たり判定・PNGは同じ配線を読み、接続点や経路を保存しない。
+
+LensGraphs.withPortReferencesは、個々の参照の記法がポートを使う場合、その集約辺を元参照ごとの表示辺へ展開する。
+真の自己参照を保持し、畳みによってできた自己ループは省く。畳まれた端のポートは外し、祖先の枠へ接続する。
+ポートを使わない関係は従来の集約を保ち、SemanticEntityGraphの辺やID索引は変えない。

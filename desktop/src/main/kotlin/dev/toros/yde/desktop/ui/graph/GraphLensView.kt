@@ -169,8 +169,16 @@ private fun rememberLensModel(state: AppState): LensModel {
     val profile = catalog?.lensViews?.filter { it.appearance != null }?.singleOrNull { it.id == state.memory.lensAppearanceId }
     val reversed = catalog?.reversedRelations.orEmpty() + profile?.reversedRelations.orEmpty()
     // 節点と辺（段と見え方ごと）。箱の入れ子は保有の線（型の段では保有の宣言）
-    val lensGraph = remember(state.indexVersion, state.editVersion, mode, level, schemaGraph, reversed) {
-        if (level == LensLevel.TYPE) LensGraphs.buildTypes(schemaGraph, reversed) else LensGraphs.build(graph, overlay.refs, mode, reversed)
+    val lensGraph = remember(state.indexVersion, state.editVersion, mode, level, schemaGraph, reversed, catalog, profile) {
+        if (level == LensLevel.TYPE) LensGraphs.buildTypes(schemaGraph, reversed)
+        else LensGraphs.withPortReferences(LensGraphs.build(graph, overlay.refs, mode, reversed, includeSelfReferences = true)) { edge, source ->
+            val bindings = profile?.appearance?.edge(edge.relation).orEmpty()
+            if (profile == null || bindings.isEmpty()) false else {
+                val input = DiagramInputs.edge(listOf(source), edge.relation, lensEdgeLabel(state.relations, edge),
+                    edge.kind.name.lowercase(), state.unsavedFirstTree())
+                DiagramNotations.resolve(catalog.notations, bindings, input.place, profile.source, "edge")?.edge?.hasPorts == true
+            }
+        }
     }
     // 型の一覧は ID 一覧から（参照を持たない型も出す。型の段ではスキーマの図の型）。関係の一覧は辺と入れ子から（保有の名前には印を付ける）
     val types = remember(state.indexVersion, state.editVersion, level, schemaGraph) {
@@ -245,9 +253,9 @@ fun GraphLensView(state: AppState) {
             DiagramNotations.resolve(model.catalog?.notations.orEmpty(), bindings, input.place, profile.source, "edge")?.let { edge to it }
         }.toMap()
     }
-    val edgeStyles = remember(edgeRenderings, state.relations) {
+    val edgeStyles = remember(edgeRenderings, state.relations, model) {
         edgeRenderings.mapNotNull { (edge, rendering) -> rendering.edge?.let { style ->
-            val directed = if (edge.reversed) style.reversedEndpoints() else style
+            val directed = lensEndpointStyle(style, edge, model.sources[edge].orEmpty(), model.idOf(edge.from), model.idOf(edge.to))
             edge to directed.copy(label = directed.label ?: lensEdgeLabel(state.relations, edge))
         } }.toMap()
     }
@@ -304,6 +312,19 @@ fun GraphLensView(state: AppState) {
         }.toMap()
     }
     val bodies = rememberDiagramBodies(renderings, state)
+    val portNotices = remember(renderings, edgeRenderings, edgeStyles) {
+        edgeStyles.flatMap { (edge, style) ->
+            listOf(Triple("sourcePort", style.sourcePort, edge.from), Triple("targetPort", style.targetPort, edge.to)).flatMap { (field, port, key) ->
+                val message = DiagramPorts.issue(port, renderings[key]?.node) ?: return@flatMap emptyList()
+                val originalField = if (!edge.reversed) field else if (field == "sourcePort") "targetPort" else "sourcePort"
+                val rendering = edgeRenderings.getValue(edge)
+                val locations = rendering.locations(listOf(originalField)).ifEmpty {
+                    rendering.definition?.let { listOf(DiagramLocation(it, listOf("build", originalField))) }.orEmpty()
+                }
+                locations.map { DiagramNotice(message, it) }
+            }
+        }
+    }
     val textMeasurer = rememberTextMeasurer()
     val idStyle = TextStyle(fontSize = 11.sp, color = Palette.Text, fontWeight = FontWeight.SemiBold)
     val titleStyle = TextStyle(fontSize = 10.sp, color = Palette.SubText)
@@ -417,7 +438,7 @@ fun GraphLensView(state: AppState) {
                 val n = a.nodes[i]
                 !n.expanded && n.hiddenChildren == 0 && a.bodies[n.node.key]?.rendering?.node?.let { it.kind == "box" && it.shape == "diamond" } == true
             }.toSet()
-            a.copy(result = GraphLayouts.withDiamondOutlines(moved, diamonds, edges))
+            withLensPorts(a.copy(result = GraphLayouts.withDiamondOutlines(moved, diamonds, edges)))
         }
     }
     val adjacency = remember(effective) {
@@ -525,7 +546,9 @@ fun GraphLensView(state: AppState) {
     Column(Modifier.fillMaxSize().background(Palette.EditorBg)) {
         positionMemory.warning?.let { Text(it, color = Palette.WarnOrange, fontSize = 11.sp) }
         layoutError?.let { Text(it, color = Palette.WarnOrange, fontSize = 11.sp) }
-        val notices = (renderings.values + edgeRenderings.values).flatMap { it.notices }.distinct()
+        if (effective?.let { a -> a.edges.indices.any { i -> a.edges[i].visual?.style?.hasPorts == true && a.result.routes[i].points.isEmpty() } } == true)
+            Text("一部の辺を描けません。ポートの指定・表示範囲・固定位置を確認してください", color = Palette.WarnOrange, fontSize = 11.sp)
+        val notices = ((renderings.values + edgeRenderings.values).flatMap { it.notices } + portNotices).distinct()
         model.catalog?.errors.orEmpty().forEach { Text(it, color = Palette.WarnOrange, fontSize = 11.sp) }
         if (notices.isNotEmpty()) Column(Modifier.fillMaxWidth().heightIn(max = 100.dp).verticalScroll(rememberScrollState())) {
             notices.forEach { notice -> TextButton(onClick = { state.openFile(notice.location.document, notice.location.path) }) {

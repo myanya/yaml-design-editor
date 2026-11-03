@@ -3,6 +3,20 @@ package dev.toros.yde.desktop.ui.common
 import kotlin.test.*
 
 class OrthogonalRoutingTest {
+    @Test fun `狭い経路の退避先は前のラベル位置に引きずられず線との距離で決まる`() {
+        val boxes = listOf(LensBox(520f, 25f, 300f, 238f), LensBox(965f, 96f, 300f, 137f))
+        val points = listOf(LensPoint(820f, 142f), LensPoint(892.5f, 142f), LensPoint(892.5f, 185f), LensPoint(965f, 185f))
+        val size = LensNodeSize("", 231f, 36f)
+        assertNull(OrthogonalRouting.labelNear(points, size, boxes))
+        val label = OrthogonalRouting.label(points, size, boxes, LensPoint(1123f, 301f))
+        assertTrue(boxes.none { PinnedLayout.overlap(label, it) })
+        assertTrue(label.y + label.height / 2 < 290f, "以前の遠い位置へ退避しない: $label")
+        assertEquals(label, OrthogonalRouting.label(points, size, boxes, LensPoint(label.centerX, label.centerY)))
+        val empty = OrthogonalRouting.label(emptyList(), size, emptyList(), LensPoint(400f, 200f))
+        assertEquals(400f, empty.centerX)
+        assertEquals(200f, empty.centerY)
+    }
+
     private fun clear(points: List<LensPoint>, boxes: List<LensBox>) {
         assertTrue(points.size >= 2)
         points.zipWithNext().forEach { (a, b) ->

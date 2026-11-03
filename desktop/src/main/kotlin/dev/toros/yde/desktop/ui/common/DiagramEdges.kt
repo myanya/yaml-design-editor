@@ -18,7 +18,8 @@ import dev.toros.yde.semantic.DiagramEdgeStyle
 import kotlin.math.abs
 import kotlin.math.hypot
 
-internal data class DiagramEdgeVisual(val style: DiagramEdgeStyle, val texts: Map<String, TextLayoutResult>, val colors: DiagramColors)
+internal data class DiagramEdgeVisual(val style: DiagramEdgeStyle, val texts: Map<String, TextLayoutResult>, val colors: DiagramColors,
+    val labelText: TextLayoutResult? = null)
 internal data class DiagramEdgeLabel(val text: TextLayoutResult, val bounds: Rect)
 
 @Composable
@@ -74,6 +75,17 @@ private fun middle(points: List<Offset>): Offset {
 /** 端ラベルは論理的な始点・終点に合わせたstyleを使い、線と記号の横へ離す。 */
 internal fun diagramEdgeLabels(visual: DiagramEdgeVisual, raw: List<Offset>, center: Offset? = null): List<DiagramEdgeLabel> {
     val points = cleanPoints(raw)
+    val central = (visual.labelText ?: visual.style.label?.let { visual.texts[it] })?.let { text ->
+        val at = center ?: middle(points)
+        DiagramEdgeLabel(text, Rect(at - Offset(text.size.width / 2f, text.size.height / 2f), Size(text.size.width.toFloat(), text.size.height.toFloat())))
+    }
+    return listOfNotNull(central) + diagramEdgeEndLabels(visual, points)
+}
+
+/** 中央ラベルの配置前に、端の多重度が占める領域を確保する。 */
+internal fun diagramEdgeEndLabels(visual: DiagramEdgeVisual, raw: List<Offset>): List<DiagramEdgeLabel> {
+    val points = cleanPoints(raw)
+    if (points.size < 2) return emptyList()
     fun label(text: String?, at: Offset): DiagramEdgeLabel? = text?.let { visual.texts[it] }?.let {
         DiagramEdgeLabel(it, Rect(at - Offset(it.size.width / 2f, it.size.height / 2f), Size(it.size.width.toFloat(), it.size.height.toFloat())))
     }
@@ -85,9 +97,7 @@ internal fun diagramEdgeLabels(visual: DiagramEdgeVisual, raw: List<Offset>, cen
         val across = if (abs(u.x) > 0.5f) measured.size.height / 2f else measured.size.width / 2f
         return label(text, tip + u * (diagramMarkerLength(marker) + 6f + along) + normal * (across + 5f))
     }
-    val central = label(visual.style.label, center ?: middle(points))
-    if (points.size < 2) return listOfNotNull(central)
-    return listOfNotNull(central,
+    return listOfNotNull(
         endpoint(visual.style.sourceLabel, visual.style.sourceMarker, points.first(), points[1]),
         endpoint(visual.style.targetLabel, visual.style.targetMarker, points.last(), points[points.lastIndex - 1]))
 }

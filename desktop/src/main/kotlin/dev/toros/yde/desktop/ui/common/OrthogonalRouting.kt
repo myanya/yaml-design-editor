@@ -88,10 +88,10 @@ internal object OrthogonalRouting {
     }
 
     fun route(a: LensBox, b: LensBox, obstacles: List<LensBox>, right: Boolean = false, ordinal: Int = 0,
-        hint: Ports? = null): List<LensPoint> {
-        var primary = hint?.takeIf { faces(a, b, it) } ?: preferred(a, b, right, ordinal)
+        hint: Ports? = null, fixedPorts: Boolean = false): List<LensPoint> {
+        var primary = hint?.takeIf { fixedPorts || faces(a, b, it) } ?: preferred(a, b, right, ordinal)
         // 寸法や接続点の端数による、ごく短い段差を作らない。
-        if (primary.from.side.dx == -primary.to.side.dx && primary.from.side.dy == -primary.to.side.dy) {
+        if (!fixedPorts && primary.from.side.dx == -primary.to.side.dx && primary.from.side.dy == -primary.to.side.dy) {
             val p = primary.from.at(a); val q = primary.to.at(b)
             if (primary.from.side.horizontal && abs(p.y - q.y) <= 8f) {
                 val y = (p.y + q.y) / 2
@@ -139,7 +139,7 @@ internal object OrthogonalRouting {
         val first = ends(primary)
         first?.let { short(it)?.let { path -> return path } }
         val detourSides = if (right) listOf(Side.NORTH, Side.SOUTH, Side.WEST, Side.EAST) else listOf(Side.WEST, Side.EAST, Side.NORTH, Side.SOUTH)
-        val alternatives = (listOf(preferred(a, b, !right, ordinal)) + detourSides.map { side ->
+        val alternatives = (if (fixedPorts) emptyList() else listOf(preferred(a, b, !right, ordinal)) + detourSides.map { side ->
             Ports(Port(side, primary.from.fraction), Port(side, primary.to.fraction))
         }).distinct().filter { it != primary }.mapNotNull(::ends)
         alternatives.mapNotNull(::short).minByOrNull(::cost)?.let { return it }
@@ -197,8 +197,8 @@ internal object OrthogonalRouting {
         return (listOfNotNull(first) + alternatives).mapNotNull(::search).minByOrNull(::cost).orEmpty()
     }
 
-    /** ラベルを折れ点へ置き去りにせず、線分のそばの空きへ置く。 */
-    fun label(points: List<LensPoint>, size: LensNodeSize, obstacles: List<LensBox>, fallback: LensPoint, inside: Boolean = false): LensBox {
+    /** 折り返し幅を選ぶ側も、通常の配置と同じ近傍候補を使う。 */
+    fun labelNear(points: List<LensPoint>, size: LensNodeSize, obstacles: List<LensBox>, inside: Boolean = false): LensBox? {
         val segments = points.zipWithNext().filter { (a, b) -> distance(a, b) > 0f }
         val total = segments.sumOf { (a, b) -> distance(a, b).toDouble() }.toFloat()
         var traveled = 0f
@@ -212,11 +212,16 @@ internal object OrthogonalRouting {
                     if (sign > 0) center.y + gap else center.y - gap - size.height, size.width, size.height)
                 else LensBox(if (sign > 0) center.x + gap else center.x - gap - size.width,
                     center.y - size.height / 2, size.width, size.height)
-                if ((!inside || box.x >= 0f && box.y >= 0f) && obstacles.none { PinnedLayout.overlap(box, it, 2f) }) candidates +=
+                if ((!inside || box.x >= 0f && box.y >= 0f) && obstacles.none { PinnedLayout.overlap(box, it, 2f) } &&
+                    segments.none { (p, q) -> intersects(p, q, box) }) candidates +=
                     (abs(traveled + length * fraction - total / 2) + gap * 2 + if (horizontal) 0f else 24f) to box
             }
             traveled += length
         }
-        return candidates.minByOrNull { it.first }?.second ?: PinnedLayout.vacant(size, fallback, obstacles, inside = inside)
+        return candidates.minByOrNull { it.first }?.second
     }
+
+    /** fallback は中心。線がある場合は以前のラベル位置でなく、その線からの距離で退避先を選ぶ。 */
+    fun label(points: List<LensPoint>, size: LensNodeSize, obstacles: List<LensBox>, fallback: LensPoint, inside: Boolean = false): LensBox =
+        labelNear(points, size, obstacles, inside) ?: GraphLabelPlacement.closest(points, size, obstacles, fallback, inside)
 }

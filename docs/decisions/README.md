@@ -28,6 +28,7 @@
 | [ADR-0021](0021-workspace-diagram-positions.md) | 図の手動位置をワークスペースの表示状態に分離する | 承認済み（一部を ADR-0022 で上書き） |
 | [ADR-0022](0022-stable-diagram-positions.md) | 図の現在位置を保持し、再配置を明示操作にする | 承認済み |
 | [ADR-0023](0023-diagram-grid-editing.md) | グリッド編集補助を図の表示状態として保存する | 承認済み |
+| [ADR-0024](0024-diagram-ports.md) | ポートを図の表示モデルに導入する | 承認済み |
 
 関連文書:
 

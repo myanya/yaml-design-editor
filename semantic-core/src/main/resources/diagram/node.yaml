@@ -18,6 +18,8 @@ definitions:
       - {key: fit, type: enum, values: [contain, cover]}
       - {key: fallback, type: enum, values: [person, image]}
       - {key: tone, type: enum, values: [default, muted, accent, warning, error]}
+      - {key: port, type: string, minLength: 1, pattern: '.*\S.*'}
+      - {key: portSide, type: enum, values: [auto, left, right, top, bottom]}
       - key: children
         type: array
         item: {$ref: part}

@@ -49,7 +49,9 @@ enum class LensEdgeKind { REF, HOLDING, TIE }
  * 辺。reversed は、関係レジストリの `arrow: reverse` で向きを逆にした参照の線（from が相手・to が参照を書いた側。文字は inverseLabel）。
  * 向きは描く絵と階層配置のためだけで、起点の近傍（向きを問わない）には効かない。
  */
-data class LensGraphEdge(val from: String, val to: String, val relation: String?, val kind: LensEdgeKind, val reversed: Boolean = false)
+data class LensGraphEdge(val from: String, val to: String, val relation: String?, val kind: LensEdgeKind, val reversed: Boolean = false,
+    /** ポート付きの線だけを元の参照ごとに区別する。意味グラフの辺は変えない。 */
+    val reference: DiagramLinkSource? = null)
 
 data class LensGraph(val mode: LensMode, val nodes: List<LensNode>, val edges: List<LensGraphEdge>,
     val sources: Map<LensGraphEdge, List<DiagramLinkSource>> = emptyMap())
@@ -100,9 +102,22 @@ object LensGraphs {
      * エンティティグラフから、見え方ごとの節点と辺を作る。節点は ID 昇順（側面で分けるときは ID → 出現の並び）。
      * reversed は矢印を逆向きに描く関係名（レジストリの `arrow: reverse`）。
      */
-    fun build(graph: SemanticEntityGraph, refs: List<ScannedRef>, mode: LensMode, reversed: Set<String> = emptySet()): LensGraph = when (mode) {
-        LensMode.ENTITY -> buildEntities(graph, refs, reversed)
-        LensMode.OCCURRENCE -> buildOccurrences(graph, refs, reversed)
+    fun build(graph: SemanticEntityGraph, refs: List<ScannedRef>, mode: LensMode, reversed: Set<String> = emptySet(),
+        includeSelfReferences: Boolean = false): LensGraph = when (mode) {
+        LensMode.ENTITY -> buildEntities(graph, refs, reversed, includeSelfReferences)
+        LensMode.OCCURRENCE -> buildOccurrences(graph, refs, reversed, includeSelfReferences)
+    }
+
+    /** ポートを使う参照は個々の入力で描く。自己参照も残すが、従来の表示では集約と省略を保つ。 */
+    fun withPortReferences(graph: LensGraph, usesPorts: (LensGraphEdge, DiagramLinkSource) -> Boolean): LensGraph {
+        val sources = linkedMapOf<LensGraphEdge, List<DiagramLinkSource>>()
+        graph.edges.forEach { edge ->
+            val refs = graph.sources[edge].orEmpty()
+            if (edge.kind == LensEdgeKind.REF && refs.any { usesPorts(edge, it) }) {
+                refs.forEach { ref -> sources[edge.copy(reference = ref)] = listOf(ref) }
+            } else if (edge.from != edge.to) sources[edge] = refs
+        }
+        return graph.copy(edges = sources.keys.toList(), sources = sources)
     }
 
     /** 参照の辺（関係が reversed にあれば向きを逆にする）。 */
@@ -144,7 +159,7 @@ object LensGraphs {
             .mapNotNull { r -> graph.sourceEntryOf(r)?.let { it to r } }
             .toList()
 
-    private fun buildEntities(graph: SemanticEntityGraph, refs: List<ScannedRef>, reversed: Set<String>): LensGraph {
+    private fun buildEntities(graph: SemanticEntityGraph, refs: List<ScannedRef>, reversed: Set<String>, includeSelfReferences: Boolean): LensGraph {
         val ids = graph.entities.keys.sorted()
         // 誕生の場所: 定義出現を直下に書いている外側の要素（親の ID 昇順の先頭）。親の連鎖が自分へ戻るなら切る
         val birth = HashMap<String, SemanticHolding>()
@@ -163,7 +178,7 @@ object LensGraphs {
         val edges = LinkedHashSet<LensGraphEdge>()
         val sources = linkedMapOf<LensGraphEdge, MutableList<DiagramLinkSource>>()
         resolvedRefs(graph, refs).forEach { (src, r) ->
-            if (src.id != r.targetId) {
+            if (src.id != r.targetId || includeSelfReferences) {
                 val edge = refEdge(src.id, r.targetId, r.relation, reversed)
                 edges += edge
                 sources.getOrPut(edge) { mutableListOf() } += DiagramLinkSource(src.id, r.targetId, r)
@@ -178,7 +193,7 @@ object LensGraphs {
         return LensGraph(LensMode.ENTITY, nodes, edges.toList(), sourcesOf(nodes, edges, sources))
     }
 
-    private fun buildOccurrences(graph: SemanticEntityGraph, refs: List<ScannedRef>, reversed: Set<String>): LensGraph {
+    private fun buildOccurrences(graph: SemanticEntityGraph, refs: List<ScannedRef>, reversed: Set<String>, includeSelfReferences: Boolean): LensGraph {
         val ids = graph.entities.keys.sorted()
         val nodes = mutableListOf<LensNode>()
         val edges = LinkedHashSet<LensGraphEdge>()
@@ -201,7 +216,7 @@ object LensGraphs {
             val target = representative(r.targetId) ?: return@forEach
             val from = occurrenceKey(src)
             val to = occurrenceKey(target)
-            if (from != to) {
+            if (from != to || includeSelfReferences) {
                 val edge = refEdge(from, to, r.relation, reversed)
                 edges += edge
                 sources.getOrPut(edge) { mutableListOf() } += DiagramLinkSource(src.id, r.targetId, r)
@@ -292,8 +307,8 @@ object LensGraphs {
         edges.forEach { e ->
             val from = shownEnd(e.from) ?: return@forEach
             val to = shownEnd(e.to) ?: return@forEach
-            if (from != to) {
-                val shown = LensGraphEdge(from, to, e.relation, e.kind, e.reversed)
+            if (from != to || (e.from == e.to && e.reference != null && from == e.from)) {
+                val shown = e.copy(from = from, to = to)
                 shownEdges += shown
                 shownSources.getOrPut(shown) { mutableListOf() } += graph.sources[e].orEmpty()
             }

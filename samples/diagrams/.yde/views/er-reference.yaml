@@ -10,6 +10,8 @@ input:
     - {key: sourceMultiplicity, type: string, required: true}
     - {key: targetMultiplicity, type: string, required: true}
 build:
+  sourcePort: {$copy: column}
+  targetPort: {$copy: targetColumn}
   stroke: solid
   sourceMarker: none
   targetMarker: none

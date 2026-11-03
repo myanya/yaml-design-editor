@@ -8,6 +8,14 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class SchemaValueFormsTest {
+    @Test fun `図の部品と線にポートの追加候補がある`() {
+        val row = YamlIO.parse("kind: group") as YNode.Map
+        assertEquals(listOf("port", "portSide"), SchemaValueForms.suggestedKeys(listOf("build"), row))
+        val edge = YamlIO.parse("sourcePort: fk") as YNode.Map
+        assertEquals(listOf("targetPort"), SchemaValueForms.suggestedKeys(listOf("build"), edge))
+        assertEquals("auto", (SchemaValueForms.propertyNode("portSide") as YNode.Scalar).value)
+        assertTrue(SchemaValueForms.label("targetPort").contains("終点"))
+    }
     @Test
     fun `入力支援の手順と条件とひな型は既存パーサーで読める`() {
         SchemaValueForms.presets.forEach { p ->

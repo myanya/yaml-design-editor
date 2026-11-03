@@ -11,6 +11,20 @@ import java.nio.file.Path
 import kotlin.test.*
 
 class SchemaAdditionalOutlineTest {
+    @Test fun `ポートの名前とコピー元を構成ツリーから選択編集できる`() {
+        for ((label, key) in listOf("ポート付きの行" to "port", "ポート間の線" to "sourcePort")) {
+            val preset = SchemaValueForms.presets.single { it.label == label }
+            val root = YNode.Map(linkedMapOf("scaffold" to preset.node()))
+            val before = outline(root)
+            val path = listOf("scaffold", key, "${'$'}copy")
+            assertEquals(path.dropLast(1), before.single { it.path == path }.parent)
+            schemaSlot(root, path)!!.set(YNode.Scalar("code"))
+            val after = outline(root)
+            assertEquals(path, schemaAdditionalSelection(after, path, before))
+            assertEquals("code", (after.single { it.path == path }.node as YNode.Scalar).value)
+            assertEquals(YamlIO.dumpPlain(root), YamlIO.dumpPlain(YamlIO.parse(YamlIO.dumpPlain(root))))
+        }
+    }
     @Test
     fun `操作の初期設定と送信方式を子まで選んで編集できる`() {
         val root = root("actions: [{id: edit, input: {submit: changed, initial: {title: {${'$'}copy: title, ${'$'}of: self}}}}]")

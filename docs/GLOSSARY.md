@@ -94,6 +94,7 @@
 | 区画 | ダッシュボードの 1 枚のタイルで、表の行を条件で絞った件数と一覧を出し、詳細と操作へ進む | ダッシュボードのウィジェット | [architecture/dashboards.md「流れ」](architecture/dashboards.md) |
 | 共有の入力 | ダッシュボードの全区画に渡す入力（`inputs`）で、空のときは絞らない | ダッシュボードのフィルタ・パラメータ | [architecture/dashboards.md「規律」](architecture/dashboards.md) |
 | レンズ | エンティティと線を箱と矢印で描く図（グラフレンズ）で、起点の近くや型・関係で絞って見る | グラフの可視化 | [architecture/graph-query.md「スキーマレンズ」](architecture/graph-query.md)・[manual/views.md「レンズの見え方」](manual/views.md) |
+| ポート | 図のノード内の表示部品に付けた一意な名前の接続口で、辺がその名前を選び、座標は部品の計測から求める | グラフの接続点 | [図の記法「ポートで行へ接続する」](manual/diagram-notations.md) |
 | 実体の段・型の段 | レンズの切り替えで、実体の段は要素と参照、型の段はエンティティ型と関係を描く | インスタンス図とクラス図 | [architecture/graph-query.md「スキーマレンズ」](architecture/graph-query.md) |
 | エンティティページ | 1 つの ID の全ての出現をアスペクトごとに合成した 1 枚の画面で、人と AI が同じ全体像を見る | 詳細ページ・レコードの詳細 | [architecture/graph-query.md「エンティティページ」](architecture/graph-query.md) |
 | スペース | 左のレールで切り替える画面の大きな区分（ダッシュボード・編集・台帳・実行・設計） | アクティビティバーの切り替え（VS Code） | [architecture/ui.md「UI シェル」](architecture/ui.md) |

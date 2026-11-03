@@ -63,6 +63,8 @@ data class DiagramPart(
     val fit: String = "contain",
     val fallback: String = "person",
     val tone: String = "default",
+    val port: String? = null,
+    val portSide: String = "auto",
 )
 
 data class DiagramEdgeStyle(
@@ -74,10 +76,15 @@ data class DiagramEdgeStyle(
     val sourceLabel: String? = null,
     val targetLabel: String? = null,
     val tone: String = "default",
+    val sourcePort: String? = null,
+    val targetPort: String? = null,
+    /** 表示契約で端点指定が拒否された辺は、箱への通常接続に代替しない。YAMLの語彙ではない。 */
+    val portsValid: Boolean = true,
 ) {
+    val hasPorts: Boolean get() = !portsValid || sourcePort != null || targetPort != null
     /** 反転の決定はLensGraphsだけ。描画側ではその印に従って端の記号と文字を交換する。 */
     fun reversedEndpoints(): DiagramEdgeStyle = copy(sourceMarker = targetMarker, targetMarker = sourceMarker,
-        sourceLabel = targetLabel, targetLabel = sourceLabel)
+        sourceLabel = targetLabel, targetLabel = sourceLabel, sourcePort = targetPort, targetPort = sourcePort)
 }
 
 data class DiagramRendering(
@@ -161,13 +168,20 @@ object DiagramNotations {
             val result = SemanticTransform.runAt(def.transform, DiagramInputPlace(value, values.origins))
             val term = result.term ?: return@runCatching failure("記法「${def.id}」の結果がありません")
             val issues = StructureValidator.validate(term, if (target == "node") nodeContract else edgeContract)
-            val notices = issues.map { DiagramNotice(it.message, DiagramLocation(def.source, listOf("build") + it.path)) }
-            if (notices.isNotEmpty()) DiagramRendering(notices = notices, definition = def.source)
+            val notices = issues.map { DiagramNotice(it.message, DiagramLocation(def.source, listOf("build") + it.path)) } +
+                DiagramPorts.emptyNames(term, target).flatMap { path ->
+                    DiagramRendering(origins = result.origins).locations(path)
+                        .ifEmpty { listOf(DiagramLocation(def.source, listOf("build") + path)) }
+                        .map { DiagramNotice("ポート名には空でない名前を指定してください", it) }
+                }
+            if (notices.isNotEmpty()) DiagramRendering(notices = notices, definition = def.source,
+                edge = if (target == "edge" && (term as? YNode.Map)?.entries?.keys?.any { it == "sourcePort" || it == "targetPort" } == true)
+                    edge(term).copy(portsValid = false) else null)
             else DiagramRendering(
                 node = if (target == "node") part(term, emptyList()) else null,
                 edge = if (target == "edge") edge(term) else null,
                 origins = result.origins, term = term, definition = def.source,
-            )
+            ).let { rendering -> rendering.copy(notices = DiagramPorts.duplicates(rendering)) }
         }.getOrElse { failure("記法「${def.id}」を解決できません: ${it.message}") }
     }
 
@@ -179,10 +193,12 @@ object DiagramNotations {
         text(n, "layout") ?: "column", text(n, "align") ?: "start", text(n, "shape") ?: "box",
         number(n, "width"), number(n, "height"), number(n, "padding") ?: 8f, number(n, "gap") ?: 4f,
         number(n, "maxLines")?.toInt() ?: 12, text(n, "fit") ?: "contain", text(n, "fallback") ?: "person", text(n, "tone") ?: "default",
+        text(n, "port"), text(n, "portSide") ?: "auto",
     )
     private fun edge(n: YNode): DiagramEdgeStyle = DiagramEdgeStyle(
         text(n, "stroke") ?: "solid", number(n, "width") ?: 1.5f,
         text(n, "sourceMarker") ?: "none", text(n, "targetMarker") ?: "arrow",
         text(n, "label"), text(n, "sourceLabel"), text(n, "targetLabel"), text(n, "tone") ?: "default",
+        text(n, "sourcePort"), text(n, "targetPort"),
     )
 }

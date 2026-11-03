@@ -11,3 +11,5 @@ root:
     - {key: sourceLabel, type: string}
     - {key: targetLabel, type: string}
     - {key: tone, type: enum, values: [default, muted, accent, warning, error]}
+    - {key: sourcePort, type: string, minLength: 1, pattern: '.*\S.*'}
+    - {key: targetPort, type: string, minLength: 1, pattern: '.*\S.*'}

@@ -245,6 +245,16 @@ internal object FlowViews {
             FlowEdge(path, key(node), text(node, "label"), connection(node, "from", path + "from", nodesByKey),
                 connection(node, "to", path + "to", nodesByKey), detail("edges", i, node, editableEdges), rendering(node, path, "edge"))
         }
+        edges.forEach { edge ->
+            val style = edge.rendering?.edge ?: return@forEach
+            listOf(Triple("sourcePort", style.sourcePort, edge.from), Triple("targetPort", style.targetPort, edge.to)).forEach { (field, port, end) ->
+                if (end.state == FlowConnectionState.RESOLVED) DiagramPorts.issue(port, nodes.find { it.output == end.target }?.rendering?.node)?.let { message ->
+                    val places = edge.rendering.locations(listOf(field)).map { FlowLocation(it.document, it.path) }
+                    diagnostics += FlowDiagnostic("port-unresolved", Severity.ERROR, message, edge.output,
+                        places.ifEmpty { diagnosticLocations(edge.output) })
+                }
+            }
+        }
         val lanes = elements("lanes").mapIndexed { i, node -> FlowLane(listOf("lanes", i), key(node), text(node, "label")) }
         return FlowResolution(FlowModel(nodes, edges, lanes), transformed.origins, diagnostics)
     }
@@ -257,10 +267,11 @@ internal object FlowViews {
             fields["label"]?.let { put("title", it) }
             fields["detail"]?.let { put("data", it) }
         })
-        val local = origins.filter { it.output.take(output.size) == output }.map { it.copy(output = it.output.drop(output.size)) }
+        val place = DiagramInputPlace(node, origins, output)
+        val local = place.copyOrigins(emptyList())
         val aliases = mapOf("key" to "id", "label" to "title", "detail" to "data")
-        return DiagramInputPlace(context, local + local.mapNotNull { origin ->
-            aliases[origin.output.firstOrNull()]?.let { origin.copy(output = listOf(it) + origin.output.drop(1)) }
+        return DiagramInputPlace(context, local + aliases.flatMap { (field, alias) ->
+            place.at(listOf(field))?.copyOrigins(listOf(alias)).orEmpty()
         })
     }
 
