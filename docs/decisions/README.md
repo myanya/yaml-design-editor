@@ -24,6 +24,7 @@
 | [ADR-0017](0017-external-commit-and-desktop-history.md) | 外部の確定とデスクトップの取り消しを分ける | 承認済み |
 | [ADR-0018](0018-connection-read-scopes.md) | 接続権限の全体閲覧と指定文書を分ける | 承認済み（一部を ADR-0019 で上書き） |
 | [ADR-0019](0019-external-work-commit-routes.md) | 外部作業の提案と直接確定を分ける | 承認済み |
+| [ADR-0020](0020-diagram-notation-definitions.md) | 図の記法を共有するYAML定義にする | 承認済み |
 
 関連文書:
 

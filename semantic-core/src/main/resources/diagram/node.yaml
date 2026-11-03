@@ -1,0 +1,24 @@
+id: diagram-node
+definitions:
+  part:
+    type: object
+    unknownFields: error
+    fields:
+      - {key: kind, type: enum, values: [box, group, text, image, icon, divider], required: true}
+      - {key: text, type: string}
+      - {key: source, type: string}
+      - {key: shape, type: enum, values: [box, rounded, diamond]}
+      - {key: layout, type: enum, values: [column, row]}
+      - {key: align, type: enum, values: [start, center, end]}
+      - {key: width, type: number, min: 1, max: 2048}
+      - {key: height, type: number, min: 1, max: 2048}
+      - {key: padding, type: number, min: 0, max: 64}
+      - {key: gap, type: number, min: 0, max: 64}
+      - {key: maxLines, type: int, min: 1, max: 100}
+      - {key: fit, type: enum, values: [contain, cover]}
+      - {key: fallback, type: enum, values: [person, image]}
+      - {key: tone, type: enum, values: [default, muted, accent, warning, error]}
+      - key: children
+        type: array
+        item: {$ref: part}
+root: {$ref: part}

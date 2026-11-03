@@ -1,0 +1,13 @@
+id: diagram-edge
+root:
+  type: object
+  unknownFields: error
+  fields:
+    - {key: stroke, type: enum, values: [solid, dashed, dotted]}
+    - {key: width, type: number, min: 0.5, max: 8}
+    - {key: sourceMarker, type: enum, values: [none, arrow, triangle, diamond, filled-diamond]}
+    - {key: targetMarker, type: enum, values: [none, arrow, triangle, diamond, filled-diamond]}
+    - {key: label, type: string}
+    - {key: sourceLabel, type: string}
+    - {key: targetLabel, type: string}
+    - {key: tone, type: enum, values: [default, muted, accent, warning, error]}

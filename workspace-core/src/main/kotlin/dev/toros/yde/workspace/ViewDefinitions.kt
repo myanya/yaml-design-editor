@@ -31,6 +31,7 @@ import dev.toros.yde.semantic.VirtualDocViewDef
 import dev.toros.yde.semantic.VirtualEachDef
 import dev.toros.yde.semantic.VirtualGridDef
 import dev.toros.yde.semantic.LensArrow
+import dev.toros.yde.semantic.VirtualDiagramNotationDef
 import dev.toros.yde.semantic.VirtualLensDef
 import dev.toros.yde.semantic.VirtualLensRelation
 import dev.toros.yde.semantic.VirtualDashboardDef
@@ -63,6 +64,7 @@ data class ViewCatalog(
     val dashboards: List<VirtualDashboardDef> = emptyList(),
     /** 拡張の種類のビュー（chart など。ADR-0014）。読めるのは入口が登録した種類だけ。 */
     val extensionViews: List<ExtensionViewDef> = emptyList(),
+    val notations: List<VirtualDiagramNotationDef> = emptyList(),
 ) {
     fun view(id: String): VirtualGridDef? = views.firstOrNull { it.id == id }
 
@@ -84,7 +86,7 @@ data class ViewCatalog(
 object ViewDefinitions {
 
     /** 中核の種類（拡張の種類はこれと重ねない。ADR-0014）。 */
-    val CORE_KINDS: List<String> = listOf("grid", "document", "matrix", "lens", "dashboard")
+    val CORE_KINDS: List<String> = listOf("grid", "document", "matrix", "lens", "dashboard", "diagram-notation")
 
     /** ビュー定義文書のファイル名（エラーの文面の先頭に使う）。 */
     private fun fileName(source: DocumentId): String = source.value.substringAfterLast('/')
@@ -95,7 +97,7 @@ object ViewDefinitions {
      * kinds は入口が登録した拡張の種類（chart など。ADR-0014）。渡さなければ中核の種類だけを読む。
      */
     fun load(sources: List<Pair<DocumentId, String>>, schemas: List<WorkspaceSchema> = emptyList(), kinds: List<ViewKind> = emptyList()): ViewCatalog {
-        val all = mutableListOf<VirtualViewDefinition>()
+        val all = mutableListOf<VirtualViewDefinition>().apply { addAll(DiagramDefinitions.builtins) }
         val errors = mutableListOf<String>()
         sources.forEach { (source, text) ->
             runCatching {
@@ -111,6 +113,8 @@ object ViewDefinitions {
         val views = all.filterIsInstance<VirtualGridDef>()
         val docViews = all.filterIsInstance<VirtualDocViewDef>()
         val lensViews = all.filterIsInstance<VirtualLensDef>()
+        val notations = all.filterIsInstance<VirtualDiagramNotationDef>()
+        lensViews.forEach { lens -> DiagramDefinitions.lint(lens.appearance, notations).forEach { errors += "${fileName(lens.source)}: $it" } }
         val dashboards = all.filterIsInstance<VirtualDashboardDef>()
         val extensionViews = all.filterIsInstance<ExtensionViewDef>()
         fun kindOf(def: ExtensionViewDef): ViewKind? = kinds.firstOrNull { it.id == def.viewKind }
@@ -175,7 +179,7 @@ object ViewDefinitions {
         } }
         return ViewCatalog(
             views = views, docViews = docViews, errors = errors, lensViews = lensViews, dashboards = dashboards,
-            extensionViews = extensionViews,
+            extensionViews = extensionViews, notations = notations,
         )
     }
 
@@ -194,6 +198,7 @@ object ViewDefinitions {
             is VirtualGridDef -> lint(listOf(def), emptyList(), schemas)
             is VirtualDocViewDef -> lint(emptyList(), listOf(def), schemas)
             is VirtualLensDef -> lintLens(listOf(def), schemas)
+            is VirtualDiagramNotationDef -> emptyList()
             is VirtualDashboardDef -> lintDashboard(def, schemas)
             // 拡張の種類: 定義 1 件で分かる点検だけ（チャートの元の表の有無のような一式を見る点検は load で行う）
             is ExtensionViewDef -> kinds.firstOrNull { it.id == def.viewKind }?.lintDefinition(def, schemas).orEmpty()
@@ -213,6 +218,7 @@ object ViewDefinitions {
             "document" -> parseDocView(raw, source, schemas, kinds)
             "matrix" -> parseMatrixView(raw, source)
             "lens" -> parseLensView(raw, source)
+            "diagram-notation" -> DiagramDefinitions.parse(raw, source)
             "dashboard" -> parseDashboard(raw, source)
             else -> kinds.firstOrNull { it.id == kind }?.parse(raw, source)
                 ?: error("kind は ${(CORE_KINDS + kinds.map { it.id }).joinToString(" / ")} のいずれかである必要があります: $kind")
@@ -308,7 +314,7 @@ object ViewDefinitions {
      * 表示だけの定義なので、ここで読むのは関係名と向きだけ。節点の選択は画面の操作のまま。
      */
     private fun parseLensView(raw: Map<*, *>, source: DocumentId): VirtualLensDef {
-        val keys = setOf("id", "name", "description", "kind", "relations")
+        val keys = setOf("id", "name", "description", "kind", "relations", "appearance")
         raw.keys.firstOrNull { it !in keys }?.let { error("kind: lens では使えないキーです: $it") }
         fun text(key: String): String? = if (!raw.containsKey(key)) null else
             (raw[key] as? String)?.takeIf { it.isNotBlank() } ?: error("$key は空でない文字列で書きます")
@@ -323,7 +329,7 @@ object ViewDefinitions {
             VirtualLensRelation(name, arrow)
         }
         relations.groupBy { it.name }.filterValues { it.size > 1 }.keys.firstOrNull()?.let { error("relations に関係「$it」が重複しています") }
-        return VirtualLensDef(id, text("name") ?: id, text("description"), source, relations)
+        return VirtualLensDef(id, text("name") ?: id, text("description"), source, relations, DiagramDefinitions.appearance(raw["appearance"]))
     }
 
     /** レンズの定義のリント: 関係レジストリがあれば、関係名が宣言されているか（レジストリが無ければ判定しない）。 */

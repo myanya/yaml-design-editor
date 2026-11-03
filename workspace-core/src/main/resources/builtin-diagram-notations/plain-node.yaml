@@ -1,0 +1,13 @@
+id: plain-node
+name: 基本の箱
+kind: diagram-notation
+target: node
+input:
+  type: object
+  fields:
+    - {key: title, type: string, required: true}
+build:
+  kind: box
+  shape: rounded
+  children:
+    - {kind: text, text: {$copy: title}}

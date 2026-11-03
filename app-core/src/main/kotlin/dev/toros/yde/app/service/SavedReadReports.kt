@@ -31,7 +31,7 @@ internal class SavedReadReports(private val root: Path, private val texts: Map<D
         }.toList()
         val loaded = ViewDefinitions.load(source, workspace.schemas.map { it.kernel }, Extensions.viewKinds)
         readRequire(loaded.errors.isEmpty(), ReadFailureCode.INVALID_DEFINITIONS, "ビュー定義に誤りがあります。デスクトップで確認してください")
-        Views.LoadResult(loaded.views, loaded.docViews, loaded.errors, loaded.lensViews, loaded.dashboards, loaded.extensionViews)
+        Views.LoadResult(loaded.views, loaded.docViews, loaded.errors, loaded.lensViews, loaded.dashboards, loaded.extensionViews, loaded.notations)
     }
 
     fun read(query: ReadQuery, visible: Map<DocumentId, String>, date: LocalDate, allowedActions: Set<String> = emptySet()): Map<String, Any?> {
@@ -93,6 +93,7 @@ internal class SavedReadReports(private val root: Path, private val texts: Map<D
         is VirtualDashboardDef -> "dashboard"
         is VirtualDocViewDef -> "document"
         is VirtualLensDef -> "lens"
+        is VirtualDiagramNotationDef -> "diagram-notation"
         is ExtensionViewDef -> viewKind
     }
 

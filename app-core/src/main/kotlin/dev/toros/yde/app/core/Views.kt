@@ -112,12 +112,13 @@ object Views {
         val dashboards: List<dev.toros.yde.semantic.VirtualDashboardDef> = emptyList(),
         /** 拡張の種類のビュー（chart など。ADR-0014）。読めるのは入口が登録した種類だけ。 */
         val extensionViews: List<ExtensionViewDef> = emptyList(),
+        val notations: List<dev.toros.yde.semantic.VirtualDiagramNotationDef> = dev.toros.yde.workspace.DiagramDefinitions.builtins,
     ) {
         fun dashboard(id: String): dev.toros.yde.semantic.VirtualDashboardDef? =
-            (views + docViews + lensViews + dashboards + extensionViews).singleOrNull { it.id == id } as? dev.toros.yde.semantic.VirtualDashboardDef
+            (views + docViews + lensViews + dashboards + extensionViews + notations).singleOrNull { it.id == id } as? dev.toros.yde.semantic.VirtualDashboardDef
 
         fun extensionView(id: String): ExtensionViewDef? =
-            (views + docViews + lensViews + dashboards + extensionViews).singleOrNull { it.id == id } as? ExtensionViewDef
+            (views + docViews + lensViews + dashboards + extensionViews + notations).singleOrNull { it.id == id } as? ExtensionViewDef
 
         /** 既定指定が重複したときは勝手に選ばず、先頭の一意な定義と診断を表示する。 */
         fun defaultDashboard(): dev.toros.yde.semantic.VirtualDashboardDef? =
@@ -125,12 +126,12 @@ object Views {
                 ?: dashboards.firstNotNullOfOrNull { dashboard(it.id) }
 
         fun dashboardGrid(id: String): ViewDef? =
-            (views + docViews + lensViews + dashboards + extensionViews).singleOrNull { it.id == id } as? ViewDef
+            (views + docViews + lensViews + dashboards + extensionViews + notations).singleOrNull { it.id == id } as? ViewDef
 
         fun view(id: String): ViewDef? = views.firstOrNull { it.id == id }
 
         /** 矢印を逆向きに描く関係名（全部のレンズの定義の和）。 */
-        val reversedRelations: Set<String> get() = lensViews.flatMap { it.reversedRelations }.toSet()
+        val reversedRelations: Set<String> get() = lensViews.filter { it.appearance == null }.flatMap { it.reversedRelations }.toSet()
 
         fun docView(id: String): DocViewDef? = docViews.firstOrNull { it.id == id }
 
@@ -168,7 +169,7 @@ object Views {
             document to if (loader == null) Files.readString(file) else loader(document)?.let(YamlIO::dumpPlain).orEmpty()
         }
         val catalog = ViewDefinitions.load(sources, schemas.map { it.kernel }, Extensions.viewKinds)
-        return LoadResult(catalog.views, catalog.docViews, catalog.errors, catalog.lensViews, catalog.dashboards, catalog.extensionViews)
+        return LoadResult(catalog.views, catalog.docViews, catalog.errors, catalog.lensViews, catalog.dashboards, catalog.extensionViews, catalog.notations)
     }
 
     /**

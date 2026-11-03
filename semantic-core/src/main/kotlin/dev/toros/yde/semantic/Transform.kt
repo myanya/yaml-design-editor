@@ -55,9 +55,18 @@ object SemanticTransform {
     ): TransformResult {
         require(def.from == null) { "変換「${def.id}」はクエリで入力を選ぶ定義です（from.match）。索引を渡して実行してください" }
         loop.keys.firstOrNull { it !in TransformDef.LOOP_NAMES }?.let { error("変換「${def.id}」: 繰り返しの名前ではありません: $it") }
+        return runAt(def, TemplatePlace(input, document, emptyList()), params, views, loop)
+    }
+
+    /** 合成した入力の来歴を保つ入口。図の入力なども同じ Construct と規則を使う。 */
+    fun runAt(
+        def: TransformDef, input: TemplatePlace, params: Map<String, Any?> = emptyMap(),
+        views: (String) -> YNode? = { null }, loop: Map<String, Any?> = emptyMap(),
+    ): TransformResult {
+        require(def.from == null) { "変換「${def.id}」はクエリで入力を選ぶ定義です" }
+        require(loop.keys.all { it in TransformDef.LOOP_NAMES }) { "繰り返しの名前ではない入力があります" }
         val run = Run(def, params, bindings = emptyMap(), views = views)
-        val term = run.build(def.build, TemplatePlace(input, document, emptyList()), emptyList(), loop)
-        return TransformResult(term, run.origins)
+        return TransformResult(run.build(def.build, input, emptyList(), loop), run.origins)
     }
 
     /**
@@ -143,6 +152,9 @@ object SemanticTransform {
     open class TemplatePlace(val node: YNode, val document: DocumentId?, val path: YPath) {
         open fun at(relative: YPath): TemplatePlace? =
             if (relative.isEmpty()) this else getAt(node, relative)?.let { TemplatePlace(it, document, path + relative) }
+
+        /** 部分木を写したときの来歴。合成した入力は子ごとの原本を保持できる。 */
+        open fun copyOrigins(output: YPath): List<TransformOrigin> = listOf(TransformOrigin(output, document, path))
     }
 
     /**
@@ -195,7 +207,7 @@ object SemanticTransform {
                 YNode.Seq(items)
             }
             is Template.Copy -> place(t.site, here)?.let { found ->
-                origins += TransformOrigin(out, found.document, found.path)
+                origins += found.copyOrigins(out)
                 copyOf(found.node)
             }
             is Template.Format -> place(t.site, here)?.let { found ->

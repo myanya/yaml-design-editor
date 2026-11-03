@@ -2,6 +2,23 @@ id: builtin-view
 name: ビュー定義（横断一覧・文書ビュー）
 match: "_views/**/*.{yaml,yml}"
 definitions:
+  notationInput:
+    type: object
+    fields:
+      - {key: key, label: 名前, type: string}
+      - {key: label, label: 表示名, type: string}
+      - {key: type, label: 構造の型, type: enum, values: [string, int, number, boolean, enum, array, map, object, any]}
+      - {key: required, label: 必須, type: boolean}
+      - {key: values, label: 選択肢, type: array, item: {type: string}}
+      - {key: fields, label: 子項目, type: array, item: {$ref: notationInput}}
+      - {key: item, label: 配列の要素, $ref: notationInput}
+      - {key: value, label: 辞書の値, $ref: notationInput}
+      - {key: min, label: 最小値, type: number}
+      - {key: max, label: 最大値, type: number}
+      - {key: minLength, label: 最短, type: int}
+      - {key: maxLength, label: 最長, type: int}
+      - {key: pattern, label: 形式, type: string}
+      - {key: unknownFields, label: 未定義項目, type: enum, values: [allow, warning, error]}
   docBacklinks:
     type: object
     fields:
@@ -38,6 +55,50 @@ definitions:
 root:
   type: object
   fields:
+    - key: target
+      label: 記法の対象
+      type: enum
+      values: [node, edge]
+    - key: input
+      label: 記法の入力契約
+      type: object
+      fields:
+        - {key: type, type: enum, values: [object], default: object}
+        - key: fields
+          label: 入力項目
+          type: array
+          item: {$ref: notationInput}
+    - key: build
+      label: 描画部品を組み立てるひな型
+      type: any
+      description: 既存の変換記法でbox・text・imageなどの表示モデルを組み立てる
+    - key: rules
+      label: 記法の変換規則
+      type: array
+      item: {type: any}
+    - key: appearance
+      label: 図の見え方
+      type: object
+      fields:
+        - key: nodes
+          label: ノードの記法
+          type: array
+          item:
+            type: object
+            fields:
+              - {key: level, label: 段, type: enum, values: [entity, type]}
+              - {key: entityType, label: エンティティ型, type: string}
+              - {key: notation, label: 記法ID, type: string, required: true}
+              - {key: inputs, label: 入力のひな型, type: any}
+        - key: edges
+          label: 辺の記法
+          type: array
+          item:
+            type: object
+            fields:
+              - {key: relation, label: 関係名, type: string}
+              - {key: notation, label: 記法ID, type: string, required: true}
+              - {key: inputs, label: 入力のひな型, type: any}
     - key: default
       label: 開始時に表示（dashboard）
       type: boolean
@@ -68,6 +129,9 @@ root:
         - value: lens
           label: レンズの見え方
           description: グラフレンズ（実体・型の段）の見え方をワークスペースで共有する（関係ごとの矢印の向き）。表示だけの定義
+        - value: diagram-notation
+          label: 図の記法
+          description: 入力からノードの部品や線の見え方を組み立てる共有定義
         - value: dashboard
           label: ダッシュボード
           description: 既存ビューの件数・一覧・対象の詳細・操作を業務の入口として合成する

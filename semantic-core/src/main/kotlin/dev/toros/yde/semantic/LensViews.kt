@@ -31,6 +31,7 @@ data class VirtualLensDef(
     override val description: String? = null,
     override val source: DocumentId,
     val relations: List<VirtualLensRelation> = emptyList(),
+    val appearance: DiagramAppearance? = null,
 ) : VirtualViewDefinition {
     /** 矢印を逆向きに描く関係名。 */
     val reversedRelations: Set<String> get() = relations.filter { it.arrow == LensArrow.REVERSE }.map { it.name }.toSet()

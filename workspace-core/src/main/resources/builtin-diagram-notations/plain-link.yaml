@@ -1,0 +1,8 @@
+id: plain-link
+name: 矢印のない線
+kind: diagram-notation
+target: edge
+build:
+  stroke: solid
+  targetMarker: none
+  label: {$copy: label}

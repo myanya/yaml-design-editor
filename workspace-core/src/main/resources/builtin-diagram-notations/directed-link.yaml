@@ -1,0 +1,8 @@
+id: directed-link
+name: 矢印のある線
+kind: diagram-notation
+target: edge
+build:
+  stroke: solid
+  targetMarker: arrow
+  label: {$copy: label}

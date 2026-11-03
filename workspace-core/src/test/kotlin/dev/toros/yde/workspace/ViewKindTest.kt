@@ -39,7 +39,7 @@ class ViewKindTest {
             kind: { value: note, label: メモ }
             fields:
               - { key: text, label: 文（note）, type: string }
-              - { key: target, label: 相手（note）, type: string }
+              - { key: noteTarget, label: 相手（note）, type: string }
             section:
               key: note
               type: object
@@ -49,7 +49,7 @@ class ViewKindTest {
 
         override fun parse(raw: Map<*, *>, source: DocumentId): ExtensionViewDef {
             val id = raw["id"]?.toString() ?: error("id が必要です")
-            return NoteDef(id, id, null, source, raw["text"]?.toString() ?: error("text が必要です"), raw["target"]?.toString())
+            return NoteDef(id, id, null, source, raw["text"]?.toString() ?: error("text が必要です"), raw["noteTarget"]?.toString())
         }
 
         override fun lint(def: ExtensionViewDef, all: List<VirtualViewDefinition>, schemas: List<WorkspaceSchema>): List<String> {
@@ -63,7 +63,7 @@ class ViewKindTest {
     @Test
     fun `登録した種類だけを読み 点検は種類に任せ 文書ビューの区画に埋め込める`() {
         val sources = listOf(
-            doc("a") to "id: a\nkind: note\ntext: こんにちは\ntarget: nosuch\n",
+            doc("a") to "id: a\nkind: note\ntext: こんにちは\nnoteTarget: nosuch\n",
             doc("d") to "id: d\nkind: document\nmatch: \"x/*.yaml\"\nsections:\n  - { label: メモ, note: { view: a } }\n",
         )
         val catalog = ViewDefinitions.load(sources, kinds = listOf(NoteKind))
@@ -74,7 +74,7 @@ class ViewKindTest {
         // 登録していなければ、使える種類を並べた誤り（文書ビューの区画のキーも知らない）
         val bare = ViewDefinitions.load(sources)
         assertTrue(bare.extensionViews.isEmpty())
-        assertTrue(bare.errors.any { it == "a.yaml: kind は grid / document / matrix / lens / dashboard のいずれかである必要があります: note" }, bare.errors.toString())
+        assertTrue(bare.errors.any { it == "a.yaml: kind は grid / document / matrix / lens / dashboard / diagram-notation のいずれかである必要があります: note" }, bare.errors.toString())
         assertTrue(bare.errors.any { "d.yaml" in it && "fields / backlinks / grid のいずれか一方" in it }, bare.errors.toString())
     }
 
@@ -83,7 +83,7 @@ class ViewKindTest {
         val view = BuiltinSchemaResources.kernelSchemas(WorkspaceLayout.LEGACY, listOf(NoteKind)).single { it.id == "builtin-view" }
         val root = view.tree.root.fields
         assertTrue("note" in root.single { it.key == "kind" }.values)
-        assertTrue(root.any { it.key == "text" } && root.any { it.key == "target" })
+        assertTrue(root.any { it.key == "text" } && root.any { it.key == "noteTarget" })
         val section = root.single { it.key == "sections" }.item!!.fields
         assertTrue(section.any { it.key == "note" })
         // 中核の項目（name）と同じ名前は足せない
