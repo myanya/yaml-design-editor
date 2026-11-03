@@ -17,7 +17,7 @@ class LensPositionsTest {
             val saved = lensPositionSnapshot(nodes, ids, moved, 2f, emptyMap(), 0)
             assertEquals(listOf(ids[0]), saved.values.filter { it.pinned }.map { it.node })
             val context = DiagramContext(mapOf("kind" to "lens"), emptyMap())
-            val read = DiagramPositionCodec.decode(DiagramPositionCodec.encode(context, saved), context)
+            val read = DiagramPositionCodec.decode(DiagramPositionCodec.encode(context, saved), context).positions
             val retained = read.values.associate { it.node.key to LensPoint(it.x * 2, it.y * 2) }
             for (next in listOf(nodes, nodes + LensNestedNode("NEW", 80f, 50f, 0))) {
                 val restored = GraphLayouts.arrangeNested(next, edges, kind, 0, retained)

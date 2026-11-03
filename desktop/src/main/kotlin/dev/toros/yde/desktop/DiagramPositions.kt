@@ -31,7 +31,16 @@ data class DiagramNodeId(val kind: String, val key: String, val document: String
 /** frame が無いときは図の原点、それ以外は親の内容領域の左上を基準にする。単位は dip。 */
 data class DiagramPosition(val node: DiagramNodeId, val frame: DiagramNodeId?, val x: Float, val y: Float, val pinned: Boolean)
 
-data class DiagramPositionRead(val positions: Map<DiagramNodeId, DiagramPosition>, val text: String?, val warning: String? = null)
+/** 図ごとの編集補助。間隔の単位は保存座標と同じ dip。 */
+data class DiagramGrid(val enabled: Boolean = false, val spacing: Int = 16) {
+    init { require(spacing in SPACINGS) { "グリッド間隔は 8・16・32 から選んでください" } }
+    companion object { val SPACINGS = listOf(8, 16, 32) }
+}
+
+data class DiagramPositionRead(val positions: Map<DiagramNodeId, DiagramPosition>, val text: String?, val warning: String? = null,
+    val grid: DiagramGrid = DiagramGrid())
+
+internal data class DiagramPositionData(val positions: Map<DiagramNodeId, DiagramPosition>, val grid: DiagramGrid)
 
 /** 計算結果の保存で再配置を起動しない。密度変換の丸めだけを許容する。 */
 internal fun sameDiagramPositions(actual: Map<DiagramNodeId, DiagramPosition>, saved: Map<DiagramNodeId, DiagramPosition>): Boolean =
@@ -41,7 +50,7 @@ internal fun sameDiagramPositions(actual: Map<DiagramNodeId, DiagramPosition>, s
 
 /** 現在位置と手動固定を保存する現行形式。過去形式の読込・移行は持たない。 */
 internal object DiagramPositionCodec {
-    fun encode(context: DiagramContext, positions: Map<DiagramNodeId, DiagramPosition>): String {
+    fun encode(context: DiagramContext, positions: Map<DiagramNodeId, DiagramPosition>, grid: DiagramGrid = DiagramGrid()): String {
         require(positions.size <= 10000) { "位置の件数が上限を超えています" }
         val values = positions.values.sortedBy { YamlIO.dumpPlain(YamlIO.fromAny(it.node.value())) }.map { pin ->
             require(pin.x.isFinite() && pin.y.isFinite() && kotlin.math.abs(pin.x) <= 1_000_000f && kotlin.math.abs(pin.y) <= 1_000_000f) { "固定位置の値が範囲外です" }
@@ -49,10 +58,11 @@ internal object DiagramPositionCodec {
                 "at" to mapOf("x" to pin.x.toDouble(), "y" to pin.y.toDouble()), "pinned" to pin.pinned)
         }
         return YamlIO.dumpPlain(YamlIO.fromAny(linkedMapOf("diagram" to context.diagramValue(),
-            "selection" to context.selectionValue(), "unit" to "dip", "positions" to values)))
+            "selection" to context.selectionValue(), "unit" to "dip",
+            "grid" to mapOf("enabled" to grid.enabled, "spacing" to grid.spacing), "positions" to values)))
     }
 
-    fun decode(text: String, context: DiagramContext): Map<DiagramNodeId, DiagramPosition> {
+    fun decode(text: String, context: DiagramContext): DiagramPositionData {
         fun map(value: Any?) = value as? Map<*, *> ?: error("配置記録の項目がマップではありません")
         fun keys(value: Map<*, *>, allowed: Set<String>) {
             require(value.keys.all { it in allowed }) { "配置記録に未対応の項目があります" }
@@ -63,10 +73,17 @@ internal object DiagramPositionCodec {
             return DiagramNodeId(requireNotNull(string("kind")) { "ノードの種類がありません" },
                 requireNotNull(string("key")) { "ノードの識別子がありません" }, string("document"), string("path"))
         }
-        val root = map(YamlIO.parseToRaw(text)); keys(root, setOf("diagram", "selection", "unit", "positions"))
+        val root = map(YamlIO.parseToRaw(text)); keys(root, setOf("diagram", "selection", "unit", "grid", "positions"))
         require(root["unit"] == "dip") { "配置記録の座標単位を読み取れません" }
         require(root["diagram"] == context.diagramValue() && root["selection"] == context.selectionValue()) {
             "配置記録の対象・選択条件が一致しません"
+        }
+        val grid = if ("grid" !in root) DiagramGrid() else {
+            val m = map(root["grid"]); keys(m, setOf("enabled", "spacing"))
+            val enabled = m["enabled"] as? Boolean ?: error("グリッド吸着の有無は真偽値で指定してください")
+            val spacing = m["spacing"] as? Number ?: error("グリッド間隔は数で指定してください")
+            require(spacing.toDouble() in DiagramGrid.SPACINGS.map { it.toDouble() }) { "グリッド間隔は 8・16・32 から選んでください" }
+            DiagramGrid(enabled, spacing.toInt())
         }
         val pins = root["positions"] as? List<*> ?: error("位置の一覧がありません")
         require(pins.size <= 10000) { "固定位置の件数が上限を超えています" }
@@ -83,7 +100,7 @@ internal object DiagramPositionCodec {
             val pinned = m["pinned"] as? Boolean ?: error("固定の有無は真偽値で指定してください")
             result[id] = DiagramPosition(id, frame, coordinate("x"), coordinate("y"), pinned)
         }
-        return result
+        return DiagramPositionData(result, grid)
     }
 }
 
@@ -105,13 +122,13 @@ internal class DiagramPositionStore(private val root: Path, private val layout: 
 
     fun load(context: DiagramContext): DiagramPositionRead {
         val text = readText(context) ?: return DiagramPositionRead(emptyMap(), null)
-        return runCatching { DiagramPositionRead(DiagramPositionCodec.decode(text, context), text) }
+        return runCatching { DiagramPositionCodec.decode(text, context).let { DiagramPositionRead(it.positions, text, grid = it.grid) } }
             .getOrElse { DiagramPositionRead(emptyMap(), text, "配置記録を読み込めないため自動配置に戻しました: ${it.message}") }
     }
 
-    fun save(context: DiagramContext, positions: Map<DiagramNodeId, DiagramPosition>, expected: String?): String {
+    fun save(context: DiagramContext, positions: Map<DiagramNodeId, DiagramPosition>, expected: String?, grid: DiagramGrid = DiagramGrid()): String {
         require(readText(context) == expected) { "配置記録が外部で変更されています。「配置を再読込」してから操作してください" }
-        val text = DiagramPositionCodec.encode(context, positions)
+        val text = DiagramPositionCodec.encode(context, positions, grid)
         require(text.toByteArray(Charsets.UTF_8).size <= 2 * 1024 * 1024) { "配置記録のサイズが上限を超えています" }
         val file = WorkspacePaths.resolve(root, relative(context))
         Files.createDirectories(file.parent)
@@ -127,6 +144,8 @@ internal class DiagramPositionStore(private val root: Path, private val layout: 
 }
 
 class DiagramPositionMemory {
+    var grid by mutableStateOf(DiagramGrid())
+        internal set
     var positions by mutableStateOf<Map<DiagramNodeId, DiagramPosition>>(emptyMap())
         internal set
     var ready by mutableStateOf(false)
@@ -160,18 +179,19 @@ fun AppState.reloadDiagramPositions(context: DiagramContext) {
     val store = DiagramPositionStore(root, layout)
     operationScope.launch {
         runCatching { withContext(Dispatchers.IO) { store.load(key) } }
-            .onSuccess { position.positions = it.positions; position.text = it.text; position.warning = it.warning; position.writable = true }
+            .onSuccess { position.positions = it.positions; position.grid = it.grid; position.text = it.text; position.warning = it.warning; position.writable = true }
             .onFailure { position.warning = "配置記録を読み込めません: ${it.message}" }
         position.ready = true
     }
 }
 
-fun AppState.saveDiagramPositions(context: DiagramContext, positions: Map<DiagramNodeId, DiagramPosition>) {
+fun AppState.saveDiagramPositions(context: DiagramContext, positions: Map<DiagramNodeId, DiagramPosition>, grid: DiagramGrid? = null) {
     val key = context.canonical()
     val position = memory.diagramPositions[key] ?: return
     val root = workspace ?: return
     if (!position.ready || !position.writable || position.saving) return
     val savedLayout = layout
+    val savedGrid = grid ?: position.grid
     val store = DiagramPositionStore(root, savedLayout)
     position.saving = true
     operationScope.launch {
@@ -179,8 +199,8 @@ fun AppState.saveDiagramPositions(context: DiagramContext, positions: Map<Diagra
             host.exclusive("図の配置を保存") {
                 check(workspace == root && layout == savedLayout && memory.diagramPositions[key] === position) { "ワークスペースが切り替わりました" }
                 val expected = position.text
-                val text = withContext(Dispatchers.IO) { store.save(key, positions, expected) }
-                position.text = text; position.positions = positions.toMap(); position.warning = null
+                val text = withContext(Dispatchers.IO) { store.save(key, positions, expected, savedGrid) }
+                position.text = text; position.positions = positions.toMap(); position.grid = savedGrid; position.warning = null
             }
         } catch (e: Exception) { position.warning = "配置を保存できません: ${e.message}" }
         finally { position.saving = false }

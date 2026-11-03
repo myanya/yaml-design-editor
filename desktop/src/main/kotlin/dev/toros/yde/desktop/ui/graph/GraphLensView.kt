@@ -456,8 +456,9 @@ fun GraphLensView(state: AppState) {
     }
     var hovered by remember { mutableStateOf<Int?>(null) }
     var dragging by remember(context) { mutableStateOf<Int?>(null) }
+    var dragMotion by remember(context) { mutableStateOf<DiagramDrag?>(null) }
     var cancelled by remember(context) { mutableStateOf(false) }
-    LaunchedEffect(arranged, input) { pins.clear(); dragging = null; cancelled = true }
+    LaunchedEffect(arranged, input) { pins.clear(); dragging = null; dragMotion = null; cancelled = true }
     val focus = remember { FocusRequester() }
     var menu by remember { mutableStateOf<Pair<Int, Offset>?>(null) }
     val latest by rememberUpdatedState(effective)
@@ -481,6 +482,7 @@ fun GraphLensView(state: AppState) {
         val enabled = positionMemory.ready && positionMemory.writable && !positionMemory.saving && !computing && !arranging
         cancelled = hit != null && !enabled
         dragging = hit.takeIf { enabled }
+        dragMotion = dragging?.let { latest?.result?.boxes?.getOrNull(it) }?.let { DiagramDrag(LensPoint(it.x, it.y)) }
         if (enabled) pins.clear()
     })
     val moveDrag by rememberUpdatedState<(Offset) -> Unit>({ amount ->
@@ -488,15 +490,13 @@ fun GraphLensView(state: AppState) {
         val a = latest
         val box = index?.let { a?.result?.boxes?.getOrNull(it) }
         if (!cancelled && index != null && box != null && a != null) {
-            val previous = pins[index] ?: LensPoint(box.x, box.y)
-            var x = previous.x + amount.x / zoom; var y = previous.y + amount.y / zoom
-            a.nested[index].parent?.let { parent ->
+            val frame = a.nested[index].parent?.let { parent ->
                 val p = a.result.boxes[parent]
                 val top = p.y + a.nested[parent].height
-                x = x.coerceIn(p.x, maxOf(p.x, p.x + p.width - box.width))
-                y = y.coerceIn(top, maxOf(top, p.y + p.height - box.height))
-            }
-            pins[index] = LensPoint(x, y)
+                DiagramDragFrame(LensPoint(p.x, top), p.x, top,
+                    maxOf(p.x, p.x + p.width - box.width), maxOf(top, p.y + p.height - box.height))
+            } ?: DiagramDragFrame()
+            dragMotion?.move(amount.x, amount.y, zoom, positionMemory.grid, density.density, frame)?.let { pins[index] = it }
         } else if (!cancelled && index == null) pan += amount
     })
     val endDrag by rememberUpdatedState<() -> Unit>({
@@ -507,6 +507,7 @@ fun GraphLensView(state: AppState) {
             state.saveDiagramPositions(context, positionMemory.positions + snapshot(a, index))
         }
         dragging = null
+        dragMotion = null
     })
 
     // PNG の書き出し（配置の全体を等倍で描く。保存先は OS のダイアログで選ぶ）
@@ -595,6 +596,10 @@ fun GraphLensView(state: AppState) {
             TextButton(onClick = { zoomAt(Offset(canvasSize.width / 2, canvasSize.height / 2), 1.25f) }) { Text("＋", fontSize = 13.sp) }
             TextButton(onClick = { zoomAt(Offset(canvasSize.width / 2, canvasSize.height / 2), 1 / 1.25f) }) { Text("－", fontSize = 13.sp) }
             TextButton(onClick = { fitAll() }) { Text("全体", fontSize = 11.sp) }
+            DiagramGridControls(positionMemory.grid,
+                scene != null && positionMemory.ready && positionMemory.writable && !positionMemory.saving && !computing && !arranging && dragging == null) {
+                effective?.let { a -> state.saveDiagramPositions(context, positionMemory.positions + snapshot(a), it) }
+            }
             TextButton(onClick = { pins.clear(); state.reloadDiagramPositions(context) }, enabled = positionMemory.ready && !positionMemory.saving) {
                 Text("配置を再読込", fontSize = 11.sp)
             }
@@ -666,7 +671,7 @@ fun GraphLensView(state: AppState) {
                 Modifier.fillMaxSize().clipToBounds()
                     .testTag("lens-canvas").focusRequester(focus).onPreviewKeyEvent {
                         if (it.key == Key.Escape && it.type == KeyEventType.KeyDown && dragging != null) {
-                            cancelled = true; pins.clear(); dragging = null; true
+                            cancelled = true; pins.clear(); dragging = null; dragMotion = null; true
                         } else false
                     }.focusable()
                     .onSizeChanged { canvasSize = Size(it.width.toFloat(), it.height.toFloat()) }
@@ -699,7 +704,7 @@ fun GraphLensView(state: AppState) {
                         detectDragGestures(
                             onDragStart = { startDrag(it) },
                             onDragEnd = { endDrag() },
-                            onDragCancel = { pins.clear(); dragging = null },
+                            onDragCancel = { pins.clear(); dragging = null; dragMotion = null },
                         ) { change, amount ->
                             change.consume()
                             moveDrag(amount)
@@ -726,6 +731,18 @@ fun GraphLensView(state: AppState) {
                     }
             ) {
                 val s = scene ?: return@Canvas
+                if (positionMemory.grid.enabled) {
+                    val a = s.arranged
+                    val children = a.nested.indices.groupBy { a.nested[it].parent }
+                    val regions = listOf(DiagramGridRegion(LensPoint(0f, 0f), excluded = a.result.boxes)) +
+                        a.nodes.indices.filter { a.nodes[it].expanded }.map { i ->
+                            val b = a.result.boxes[i]
+                            val top = b.y + a.nested[i].height
+                            DiagramGridRegion(LensPoint(b.x, top), LensBox(b.x, top, b.width, maxOf(0f, b.y + b.height - top)),
+                                children[i].orEmpty().map { a.result.boxes[it] })
+                        }
+                    drawDiagramGrid(positionMemory.grid, pan, zoom, density.density, regions)
+                }
                 translate(pan.x, pan.y) {
                     scale(zoom, pivot = Offset.Zero) {
                         drawLens(s, zoom, hovered, adjacency)

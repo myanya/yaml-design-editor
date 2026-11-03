@@ -6,7 +6,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.*
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import dev.toros.yde.app.view.flow.*
 import dev.toros.yde.desktop.*
@@ -20,6 +22,62 @@ import kotlin.test.*
 /** OS のポインタを動かさず、実際の Canvas のジェスチャーと保存を検査する。 */
 @OptIn(ExperimentalTestApi::class)
 class DiagramPositionUiTest {
+    @Test fun `フローのグリッド変更は配置を保ち細かいドラッグだけ吸着して設定を復元する`() = runComposeUiTest {
+        val root = createTempDirectory("flow-grid-ui")
+        val state = AppState()
+        try {
+            state.openWorkspace(root)
+            val context = DiagramContext(mapOf("kind" to "flow", "view" to "grid", "document" to "doc.yaml"), emptyMap())
+            val node = FlowNode(listOf("nodes", 0), "A", "工程", "box", null, FlowDetail(null, emptyList(), false))
+            val model = FlowModel(listOf(node, node.copy(output = listOf("nodes", 1), key = "B")), emptyList(), emptyList())
+            var visible by mutableStateOf(true)
+            setContent { CompositionLocalProvider(LocalDensity provides Density(1.5f)) {
+                Box(Modifier.size(1000.dp, 700.dp)) { if (visible) FlowCanvas(state, model, "down", FlowLayoutMode.PLAIN,
+                    null, Modifier.size(1000.dp, 700.dp), context) { _, _ -> } }
+            } }
+            val memory = state.diagramPositions(context)
+            waitUntil(timeoutMillis = 15_000) { memory.positions.size == 2 && !memory.saving }
+            val initial = memory.positions
+            onNodeWithTag("diagram-grid-toggle").performScrollTo().performClick()
+            waitUntil(timeoutMillis = 10_000) { memory.grid.enabled && !memory.saving }
+            assertEquals(initial, memory.positions)
+            onNodeWithText("表示をリセット").performScrollTo().performClick()
+            val first = initial.getValue(DiagramNodeId("flow", "A"))
+            onNodeWithTag("flow-canvas").performMouseInput {
+                moveTo(Offset(first.x * 1.5f + 20f, first.y * 1.5f + 20f)); press()
+                repeat(40) { moveBy(Offset(2f, 1f), 16) }; release()
+            }
+            waitUntil(timeoutMillis = 10_000) { memory.positions[first.node]?.pinned == true && !memory.saving }
+            val moved = memory.positions.getValue(first.node)
+            assertEquals(0f, moved.x % 16f, .001f)
+            assertEquals(0f, moved.y % 16f, .001f)
+            assertTrue(moved.x > first.x + 32f, "細かい移動も累積する")
+            val other = DiagramNodeId("flow", "B")
+            assertEquals(initial[other], memory.positions[other])
+            val saved = memory.positions
+            onNodeWithTag("diagram-grid-spacing").performScrollTo().performClick()
+            onNodeWithText("32 dip").performClick()
+            waitUntil(timeoutMillis = 10_000) { memory.grid.spacing == 32 && !memory.saving }
+            assertEquals(saved, memory.positions, "間隔変更では吸着し直さない")
+            onNodeWithTag("diagram-grid-toggle").performScrollTo().performClick()
+            waitUntil(timeoutMillis = 10_000) { !memory.grid.enabled && !memory.saving }
+            assertEquals(saved, memory.positions)
+            val store = DiagramPositionStore(root, state.layout)
+            assertEquals(DiagramGrid(false, 32), store.load(context).grid)
+            runOnIdle { visible = false }; waitForIdle()
+            runOnIdle { state.memory.diagramPositions.clear(); visible = true }
+            waitUntil(timeoutMillis = 15_000) { state.diagramPositions(context).let { it.ready && it.positions.isNotEmpty() && !it.saving } }
+            assertEquals(saved, state.diagramPositions(context).positions)
+            onNodeWithTag("diagram-grid-spacing").assertTextContains("間隔: 32")
+            onNodeWithText("配置を初期化").performScrollTo().performClick()
+            waitUntil(timeoutMillis = 10_000) { state.diagramPositions(context).let { it.positions.isNotEmpty() && it.positions.values.none { p -> p.pinned } && !it.saving } }
+            assertEquals(DiagramGrid(false, 32), store.load(context).grid, "位置の初期化でも編集補助を保持")
+        } finally {
+            state.close()
+            Files.walk(root).use { it.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
+        }
+    }
+
     @Test fun `フローの移動を保存し連続ドラッグのキャンセルと解除と背景パンを区別する`() = runComposeUiTest {
         val root = createTempDirectory("flow-drag-ui")
         val state = AppState()
@@ -99,15 +157,23 @@ class DiagramPositionUiTest {
             setContent { Box(Modifier.size(1000.dp, 700.dp)) { if (visible) GraphLensView(state) } }
             waitUntil(timeoutMillis = 15_000) { state.memory.diagramPositions.values.any { it.ready && it.positions.isNotEmpty() && !it.saving } &&
                 onAllNodesWithText("配置を計算中…").fetchSemanticsNodes().isEmpty() }
+            val memory = state.memory.diagramPositions.values.single()
+            val initial = memory.positions
+            onNodeWithTag("diagram-grid-toggle").performScrollTo().performClick()
+            waitUntil(timeoutMillis = 10_000) { memory.grid.enabled && !memory.saving }
+            assertEquals(initial, memory.positions)
             onNodeWithText("全体").performScrollTo().performClick()
             onNodeWithTag("lens-canvas").performMouseInput {
                 moveTo(center); press(); repeat(5) { moveBy(Offset(20f, 10f), 40) }; release()
             }
-            val memory = state.memory.diagramPositions.values.single()
             waitUntil(timeoutMillis = 10_000) { memory.positions.values.any { it.pinned } && !memory.saving }
+            val snapped = memory.positions.values.single()
+            assertEquals(0f, snapped.x % 16f, .001f)
+            assertEquals(0f, snapped.y % 16f, .001f)
             assertEquals("N-001", memory.positions.values.single().node.key)
             val context = state.memory.diagramPositions.keys.single()
             assertEquals(memory.positions, DiagramPositionStore(root, state.layout).load(context).positions)
+            assertEquals(DiagramGrid(true), DiagramPositionStore(root, state.layout).load(context).grid)
             val saved = memory.positions
             onNodeWithText("全体").performScrollTo().performClick()
             onNodeWithTag("lens-canvas").performMouseInput { moveTo(center); press(); moveBy(Offset(-70f, -60f), 100) }

@@ -271,6 +271,7 @@ internal fun FlowCanvas(
         ?.let { path to FlowPoint(it.x * density.density, it.y * density.density) } }.toMap()
     var preview by remember(model, context) { mutableStateOf<Pair<YPath, FlowPoint>?>(null) }
     var dragging by remember(model, context) { mutableStateOf<YPath?>(null) }
+    var dragMotion by remember(model, context) { mutableStateOf<DiagramDrag?>(null) }
     var cancelled by remember(context) { mutableStateOf(false) }
     LaunchedEffect(memory.saving, memory.warning) {
         if (!memory.saving && memory.warning != null) preview = null
@@ -359,6 +360,10 @@ internal fun FlowCanvas(
     val latestBodies by rememberUpdatedState(bodies)
     val latestArrangement by rememberUpdatedState(arrangement)
     val latestBase by rememberUpdatedState(base)
+    fun laneContent(path: YPath, r: FlowRect): LensBox {
+        val inset = PinnedFlow.inset(labelSizes, path, mode, direction, model.lanes.map { it.output })
+        return LensBox(r.x + inset.x, r.y + inset.y, maxOf(0f, r.width - inset.x - 24f), maxOf(0f, r.height - inset.y - 24f))
+    }
     fun toContent(at: Offset) = FlowPoint((at.x - pan.x) / zoom, (at.y - pan.y) / zoom)
     fun finishDrag() {
         val moved = preview
@@ -377,6 +382,7 @@ internal fun FlowCanvas(
             } else state.saveDiagramPositions(context, memory.positions + snapshot(flowDragPreview(latestBase, path, point, model, direction), path))
         }
         dragging = null
+        dragMotion = null
     }
     val startDrag by rememberUpdatedState<(Offset) -> Unit>({ at ->
         focus.requestFocus()
@@ -384,24 +390,25 @@ internal fun FlowCanvas(
         val enabled = memory.ready && memory.writable && !memory.saving && !computing
         cancelled = hit != null && !enabled
         dragging = hit.takeIf { enabled }
+        dragMotion = dragging?.let { latestArrangement.nodes[it] }?.let { DiagramDrag(LensPoint(it.x, it.y)) }
     })
     val moveDrag by rememberUpdatedState<(Offset) -> Unit>({ amount ->
         val path = dragging
         val box = path?.let { latestArrangement.nodes[it] }
         if (!cancelled && path != null && box != null) {
-            val previous = preview?.takeIf { it.first == path }?.second ?: FlowPoint(box.x, box.y)
-            var x = previous.x + amount.x / zoom; var y = previous.y + amount.y / zoom
             val lanePath = model.nodes.firstOrNull { it.output == path }?.lane?.target
             val lane = lanePath?.let { latestBase.lanes[it] }
-            if (lane != null) {
-                val inset = PinnedFlow.inset(labelSizes, lanePath, mode, direction, model.lanes.map { it.output })
-                x = x.coerceIn(lane.x + inset.x, maxOf(lane.x + inset.x, lane.right - box.width - 24f))
-                y = y.coerceIn(lane.y + inset.y, maxOf(lane.y + inset.y, lane.bottom - box.height - 24f))
+            val frame = if (lane != null) {
+                val content = laneContent(lanePath, lane)
+                DiagramDragFrame(LensPoint(content.x, content.y), content.x, content.y,
+                    content.x + maxOf(0f, content.width - box.width), content.y + maxOf(0f, content.height - box.height))
             } else if (mode == FlowLayoutMode.SWIMLANES && latestBase.lanes.isNotEmpty()) {
-                if (direction == "right") y = maxOf(y, latestBase.lanes.values.maxOf { it.bottom } + 16f)
-                else x = maxOf(x, latestBase.lanes.values.maxOf { it.right } + 16f)
+                if (direction == "right") DiagramDragFrame(minY = latestBase.lanes.values.maxOf { it.bottom } + 16f)
+                else DiagramDragFrame(minX = latestBase.lanes.values.maxOf { it.right } + 16f)
+            } else DiagramDragFrame()
+            dragMotion?.move(amount.x, amount.y, zoom, memory.grid, density.density, frame)?.let {
+                preview = path to FlowPoint(it.x, it.y)
             }
-            preview = path to FlowPoint(x, y)
         } else if (!cancelled && path == null) pan += amount
     })
     val endDrag by rememberUpdatedState(::finishDrag)
@@ -418,6 +425,9 @@ internal fun FlowCanvas(
             TextButton(onClick = { zoom = (zoom * 1.25f).coerceAtMost(3f) }) { Text("＋") }
             TextButton(onClick = { zoom = 1f; pan = Offset.Zero }) { Text("表示をリセット") }
             TextButton(onClick = { fit() }) { Text("全体") }
+            DiagramGridControls(memory.grid, memory.ready && memory.writable && !memory.saving && !computing && dragging == null) {
+                state.saveDiagramPositions(context, memory.positions + snapshot(base), it)
+            }
             TextButton(onClick = { saveImage("flow") }) { Text("PNG に保存") }
             TextButton(onClick = { preview = null; rearrange++ }, enabled = memory.ready && memory.writable && !memory.saving && !computing) { Text("再配置") }
             TextButton(onClick = { preview = null; state.reloadDiagramPositions(context) }, enabled = memory.ready && !memory.saving) { Text("配置を再読込") }
@@ -433,12 +443,12 @@ internal fun FlowCanvas(
         Canvas(Modifier.weight(1f).fillMaxWidth().clipToBounds().background(Palette.PanelBg)
             .testTag("flow-canvas").focusRequester(focus).onPreviewKeyEvent {
                 if (it.key == Key.Escape && it.type == KeyEventType.KeyDown && dragging != null) {
-                    cancelled = true; preview = null; dragging = null; true
+                    cancelled = true; preview = null; dragging = null; dragMotion = null; true
                 } else false
             }.focusable()
             .onSizeChanged { canvasSize = Size(it.width.toFloat(), it.height.toFloat()) }
             .pointerInput(context, model) { detectDragGestures(onDragStart = { startDrag(it) }, onDragEnd = { endDrag() },
-                onDragCancel = { preview = null; dragging = null }) { change, drag -> change.consume(); moveDrag(drag) } }
+                onDragCancel = { preview = null; dragging = null; dragMotion = null }) { change, drag -> change.consume(); moveDrag(drag) } }
             .pointerInput(context, model) { detectTapGestures { at ->
                 val p = FlowPoint((at.x - pan.x) / zoom, (at.y - pan.y) / zoom)
                 val node = latestArrangement.nodes.entries.lastOrNull { it.value.contains(p) }
@@ -453,6 +463,16 @@ internal fun FlowCanvas(
                     } == true || route.points.zipWithNext().any { (a, b) -> nearSegment(p, a, b, 8f / zoom) }
                 }?.let { latestChoose(FlowElementKind.EDGE, it.output) }
             } }) {
+            if (memory.grid.enabled) {
+                val boxes = arrangement.nodes.values.map { LensBox(it.x, it.y, it.width, it.height) }
+                val regions = listOf(DiagramGridRegion(LensPoint(0f, 0f), excluded = boxes + arrangement.lanes.values.map {
+                    LensBox(it.x, it.y, it.width, it.height)
+                })) + arrangement.lanes.map { (path, lane) ->
+                    val content = laneContent(path, lane)
+                    DiagramGridRegion(LensPoint(content.x, content.y), content, boxes)
+                }
+                drawDiagramGrid(memory.grid, pan, zoom, density.density, regions)
+            }
             translate(pan.x, pan.y) { scale(zoom, pivot = Offset.Zero) {
                 drawFlow(scene, selected)
                 fixed.keys.forEach { path -> arrangement.nodes[path]?.let { b ->

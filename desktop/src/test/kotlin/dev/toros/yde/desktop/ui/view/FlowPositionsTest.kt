@@ -40,7 +40,7 @@ class FlowPositionsTest {
             val saved = flowPositionSnapshot(model, mode, direction, emptyMap(), moved, 1.5f, emptyMap(), target)
             assertEquals(1, saved.values.count { it.pinned })
             val context = DiagramContext(mapOf("kind" to "flow"), emptyMap())
-            val restored = DiagramPositionCodec.decode(DiagramPositionCodec.encode(context, saved), context)
+            val restored = DiagramPositionCodec.decode(DiagramPositionCodec.encode(context, saved), context).positions
             fun arrange(next: FlowModel): FlowArrangement {
                 val nodes = flowPositionIds(next).mapNotNull { (path, id) -> restored[id]?.let { path to FlowPoint(it.x * 1.5f, it.y * 1.5f) } }.toMap()
                 val roots = flowLaneIds(next).mapNotNull { (path, id) -> restored[id]?.let { path to FlowPoint(it.x * 1.5f, it.y * 1.5f) } }.toMap()

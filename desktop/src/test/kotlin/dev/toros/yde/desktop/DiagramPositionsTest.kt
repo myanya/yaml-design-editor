@@ -1,6 +1,7 @@
 package dev.toros.yde.desktop
 
 import dev.toros.yde.workspace.layout.WorkspaceLayout
+import dev.toros.yde.yaml.YamlIO
 import java.nio.file.Files
 import kotlin.io.path.createTempDirectory
 import kotlin.test.*
@@ -17,12 +18,26 @@ class DiagramPositionsTest {
         val pins = mapOf(id to pin, rootId to DiagramPosition(rootId, null, -200.25f, -50f, false),
             occurrence to DiagramPosition(occurrence, rootId, 10f, 20f, true))
         val text = DiagramPositionCodec.encode(context, pins)
-        assertEquals(pins, DiagramPositionCodec.decode(text, context.copy(selection = context.selection + ("types" to listOf("A", "B")))))
+        assertEquals(pins, DiagramPositionCodec.decode(text, context.copy(selection = context.selection + ("types" to listOf("A", "B")))).positions)
         assertFalse(text.contains("version", ignoreCase = true))
         assertFalse(text.contains("zoom"))
         assertFalse(text.contains("width"))
         assertEquals(text, DiagramPositionCodec.encode(context, pins.entries.reversed().associate { it.toPair() }))
         assertFails { DiagramPositionCodec.decode(text, context.copy(diagram = context.diagram + ("document" to "doc/b.yaml"))) }
+    }
+
+    @Test fun `グリッドの省略は既定値で間隔や型が不正な設定は適用しない`() {
+        val text = DiagramPositionCodec.encode(context, mapOf(id to pin), DiagramGrid(true, 32))
+        assertEquals(DiagramGrid(true, 32), DiagramPositionCodec.decode(text, context).grid)
+        val raw = YamlIO.parseToRaw(text) as Map<*, *>
+        val omitted = YamlIO.dumpPlain(YamlIO.fromAny(raw.filterKeys { it != "grid" }))
+        assertEquals(DiagramGrid(), DiagramPositionCodec.decode(omitted, context).grid)
+        assertEquals(mapOf(id to pin), DiagramPositionCodec.decode(omitted, context).positions)
+        for (grid in listOf(null, true, mapOf("enabled" to "true", "spacing" to 16),
+            mapOf("enabled" to true, "spacing" to 16.5), mapOf("enabled" to true, "spacing" to 0),
+            mapOf("enabled" to true, "spacing" to 16, "origin" to 0))) {
+            assertFails { DiagramPositionCodec.decode(YamlIO.dumpPlain(YamlIO.fromAny(raw + ("grid" to grid))), context) }
+        }
     }
 
     @Test fun `未対応項目と不正な座標を推測して適用しない`() {
@@ -42,17 +57,22 @@ class DiagramPositionsTest {
         try {
             for (layout in listOf(WorkspaceLayout.LEGACY, WorkspaceLayout(".yde", emptyList()))) {
                 val store = DiagramPositionStore(root, layout)
-                val first = store.save(context, mapOf(id to pin), null)
+                val first = store.save(context, mapOf(id to pin), null, DiagramGrid(true, 8))
                 val other = context.copy(selection = context.selection + ("direction" to listOf("right")))
                 assertNotEquals(store.relative(context), store.relative(other))
                 assertTrue(store.load(other).positions.isEmpty())
+                assertEquals(DiagramGrid(), store.load(other).grid)
                 assertEquals(mapOf(id to pin), DiagramPositionStore(root, layout).load(context).positions)
                 val target = copy.resolve(store.relative(context))
                 Files.createDirectories(target.parent)
                 Files.copy(root.resolve(store.relative(context)), target)
                 assertEquals(mapOf(id to pin), DiagramPositionStore(copy, layout).load(context).positions)
+                assertEquals(DiagramGrid(true, 8), DiagramPositionStore(copy, layout).load(context).grid)
+                val second = store.save(context, mapOf(id to pin), first, DiagramGrid(false, 32))
+                assertEquals(mapOf(id to pin), store.load(context).positions, "設定変更では位置と固定を変えない")
+                assertFails { store.save(context, emptyMap(), first, DiagramGrid()) }
                 assertFalse(store.relative(context).contains("views"))
-                assertTrue(store.load(context).text == first)
+                assertTrue(store.load(context).text == second)
             }
         } finally {
             for (dir in listOf(root, copy)) Files.walk(dir).use { it.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
