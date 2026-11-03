@@ -18,6 +18,41 @@ import kotlin.test.assertTrue
  */
 class SessionForkTest {
 
+    @Test
+    fun `読込中の変更を新しい保存基準で隠さず原文とスキーマを一度だけ読む`() {
+        val original = "id: A\ntitle: before\n"
+        val changed = "id: A\ntitle: external\n"
+        val id = DocumentId("item.yaml")
+        val schemaId = DocumentId("_schemas/item.yaml")
+        val inner = InMemoryDocumentStore(mapOf(
+            id.value to original,
+            schemaId.value to "id: item\nmatch: '*.yaml'\nroot: {type: object}\n",
+            "broken.yaml" to "broken: [",
+        ))
+        val reads = mutableMapOf<DocumentId, Int>()
+        var listings = 0
+        val store = object : DocumentStore by inner {
+            override fun list() = inner.list().also { listings++ }
+            override fun read(id: DocumentId): StoredContent? {
+                reads[id] = reads.getOrDefault(id, 0) + 1
+                return inner.read(id).also {
+                    if (id.value == "item.yaml") inner.write(id, changed)
+                }
+            }
+        }
+        val loaded = WorkspaceSession(store)
+        assertEquals(1, listings)
+        assertEquals(1, reads[id])
+        assertEquals(1, reads[schemaId])
+        assertEquals(original, loaded.expectedStoreText(id))
+        assertEquals("before", titleOf(loaded, id))
+        assertEquals("broken: [", loaded.expectedStoreText(DocumentId("broken.yaml")))
+        assertEquals(listOf(id), loaded.externalChanges())
+        assertTrue(setTitle(loaded, id, "edit").ok)
+        assertFalse(loaded.save().ok, "読込後に変わった原文を保存で上書きしない")
+        assertEquals(changed, inner.read(id)?.text)
+    }
+
     private val a = DocumentId("items/a.yaml")
     private val b = DocumentId("items/b.yaml")
 

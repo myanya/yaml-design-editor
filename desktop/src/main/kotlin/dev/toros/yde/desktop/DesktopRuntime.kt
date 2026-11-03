@@ -87,12 +87,12 @@ internal class DesktopRuntime(
                 var next = previous
                 try {
                     // 所有権を取ってから読む。読込失敗では旧所有権と旧ジョブを保つ。
-                    val (candidate, workspaceId) = withContext(Dispatchers.IO) {
+                    val (candidate, fresh, workspaceId) = withContext(Dispatchers.IO) {
                         if (previous?.root != ownership.identity(root)) next = ownership.acquire(root)
-                        host.documents.prepareReload(root) to ChangeSets.contentHash(root.toRealPath().toString())
+                        val loaded = host.documents.prepareReload(root)
+                        Triple(loaded, loaded.workspace.mirror.fork(), ChangeSets.contentHash(root.toRealPath().toString()))
                     }
                     check(!stopping) { "終了中はワークスペースを切り替えられません" }
-                    val fresh = candidate.workspace.mirror.fork()
                     jobs?.stop()
                     // activateWorkspace は最初に workspace を切り替える。以降は新しい場所の所有権を持つ。
                     lease = next
@@ -179,8 +179,14 @@ internal class DesktopRuntime(
                 try {
                     // キャンセルと open の完了が重なっても、取得した監視を必ず finally で閉じる。
                     withContext(NonCancellable + Dispatchers.IO) { monitor = monitorFactory(root) }
-                    // 候補の読込から監視登録までの隙間も、本文比較を含めて取り込む。
-                    poll(null)
+                    // 候補の読込から監視登録までの隙間を照合する。共有セッションは IO へ渡さない。
+                    val epoch = host.currentStatus().epoch
+                    val check = host.documents.prepareDiskCheck()
+                    val changed = withContext(Dispatchers.IO) { check?.changedFiles().orEmpty() }
+                    if (job.isActive && host.currentStatus().epoch == epoch && host.documents.workspace == root) {
+                        state.refreshFileTree()
+                        poll(changed)
+                    }
                     while (isActive) {
                         delay(if (monitor != null) 250L else 1_000L)
                         poll(monitor?.consumePaths())

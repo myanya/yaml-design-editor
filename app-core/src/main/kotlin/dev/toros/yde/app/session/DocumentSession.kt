@@ -149,9 +149,11 @@ class DocumentSession(private val editClock: () -> Long = System::currentTimeMil
     var editVersion: Int = 0
         set(value) { field = value; changed() }
 
-    fun editorOnlyFilesOf(cw: dev.toros.yde.app.core.Workspace): List<Path> =
-        if (cw.layout.ledger.isEmpty()) emptyList()
-        else WorkspaceScan.editorYamlFiles(cw.root).filter { it !in cw.files.toSet() }
+    fun editorOnlyFilesOf(cw: dev.toros.yde.app.core.Workspace): List<Path> {
+        if (cw.layout.ledger.isEmpty()) return emptyList()
+        val indexed = cw.files.toSet()
+        return WorkspaceScan.editorYamlFiles(cw.root).filter { it !in indexed }
+    }
 
     /** core.Workspace の状態を写しへ反映する。走査は状態反映より先に行う。 */
     fun mirrorCore(
@@ -509,7 +511,15 @@ class DocumentSession(private val editClock: () -> Long = System::currentTimeMil
     fun prepareReload(ws: Path): ReloadCandidate {
         require(Files.isDirectory(ws)) { "ワークスペースのフォルダーがありません: $ws" }
         val cw = dev.toros.yde.app.core.Workspace.open(ws)
-        return ReloadCandidate(cw, WorkspaceScan.markdownFiles(ws), editorOnlyFilesOf(cw), snapshotFiles(ws))
+        val listing = cw.loadedFiles
+        val indexed = cw.files.toSet()
+        val editorOnly = if (cw.layout.ledger.isEmpty()) emptyList() else listing.yamlTimes.keys
+            .filter { id -> id.value.split('/').none { it.startsWith(".") } }
+            .map { cw.root.resolve(it.value) }.filter { it !in indexed }
+            .sortedBy { it.toString() }
+        val stamps = cw.files.associateWith { listing.yamlTimes.getValue(cw.documentOf(it)) }
+        val markdown = listing.markdown.map { cw.root.resolve(it.value) }.sortedBy { it.toString() }
+        return ReloadCandidate(cw, markdown, editorOnly, stamps)
     }
 
     /** ディスク版を候補として読み、編集・下書き・履歴を保持できる場合だけ取り込む。 */
@@ -636,6 +646,20 @@ class DocumentSession(private val editClock: () -> Long = System::currentTimeMil
 
     fun readStoreText(doc: DocumentState): String? =
         FileSystemDocumentStore(workspace ?: error("ワークスペース未選択")).read(documentOf(doc.file))?.text
+
+    /** 監視開始時の照合用。背景へ渡すのはパスと不変の原文だけ。 */
+    class DiskCheck internal constructor(private val root: Path, private val expected: Map<DocumentId, String>) {
+        fun changedFiles(): Set<Path> {
+            val current = FileSystemDocumentStore(root).capture().texts
+            return (expected.keys + current.keys).filter { expected[it] != current[it] }
+                .mapTo(linkedSetOf()) { root.resolve(it.value) }
+        }
+    }
+
+    fun prepareDiskCheck(): DiskCheck? {
+        val root = workspace ?: return null
+        return kernel?.let { DiskCheck(root, it.storeBaseline()) }
+    }
 
     /**
      * 周期処理・ファイル監視から呼び、外部での作成・変更・削除を検出する。

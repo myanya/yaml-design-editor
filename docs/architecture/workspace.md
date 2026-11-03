@@ -62,6 +62,9 @@
 - `docCache` は `mutableStateMapOf` で、文書と内部の State を同じスナップショットから参照する。描画開始後に生成した文書は次の描画から見え、破棄したスナップショットの文書は公開しない。
 - 一覧・一括編集（`WorkspaceRecords`）は「未保存編集を優先する木の取得」を注入で受ける。UI は docCache を、ヘッドレス経路はディスクを渡す。
 - `Workspace.refresh` は、開いたセッションが読んだ結果を `SchemaLoader.fromKernel` でアプリの形にする。app-core でファイルからスキーマを読み直さない。
+- 全読込では `FileSystemDocumentStore.capture` が YAML 本文・更新時刻・Markdown の一覧を一回の走査から集める。`Workspace.loadedFiles` は読込候補の採用にだけ使い、監視時には取り直す。
+- `WorkspaceReader.load` の原文を `LoadedWorkspace.storeTexts` から保存基準へ渡す。解析後に原文を読み直して基準だけを新しくせず、読込中の変更も後の照合・保存競合で検出する。
+- `WorkspacePaths.ReadBoundary` は一回の列挙・読込の間だけルート実パスを固定し、対象の実パスは本文へのアクセス直前にも確認する。外部リンクを拒否し、対象の検査結果や書込の境界を操作間で使い回さない。
 
 ## 外部変更の取り込み
 

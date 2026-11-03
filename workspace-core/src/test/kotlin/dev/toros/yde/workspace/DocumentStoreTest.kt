@@ -10,6 +10,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /** 永続化ポート（DocumentStore）の契約テスト（Phase 7・WS-001）。メモリ実装とファイル実装で同じ契約を固定する。 */
 class DocumentStoreTest {
@@ -35,9 +36,73 @@ class DocumentStoreTest {
             assertFailsWith<IllegalArgumentException> { store.move(DocumentId("inside.yaml"), DocumentId("linked/moved.yaml")) }
             assertEquals("original", Files.readString(marker))
             assertEquals(listOf("inside.yaml"), store.list().map { it.id.value })
+            assertEquals(setOf(DocumentId("inside.yaml")), store.capture().texts.keys)
         } finally {
             Files.delete(link)
         }
+    }
+
+    private fun linkDirectory(link: Path, target: Path) {
+        if (System.getProperty("os.name").startsWith("Windows")) {
+            val process = ProcessBuilder("cmd", "/c", "mklink", "/J", link.toString(), target.toString())
+                .redirectErrorStream(true).start()
+            val output = process.inputStream.bufferedReader().readText()
+            assertEquals(0, process.waitFor(), output)
+        } else Files.createSymbolicLink(link, target)
+    }
+
+    @Test
+    fun `読込の境界は親リンクの差替えを毎回検査する`() {
+        val root = Files.createDirectory(dir.resolve("workspace"))
+        val inside = Files.createDirectory(root.resolve("inside"))
+        val outside = Files.createDirectory(dir.resolve("outside"))
+        Files.writeString(inside.resolve("a.yaml"), "inside")
+        val marker = Files.writeString(outside.resolve("a.yaml"), "outside")
+        val link = root.resolve("linked")
+        linkDirectory(link, inside)
+        try {
+            val boundary = WorkspacePaths.ReadBoundary(root)
+            assertEquals("inside", Files.readString(boundary.resolve("linked/a.yaml")))
+            Files.delete(link)
+            linkDirectory(link, outside)
+            assertFailsWith<IllegalArgumentException> { boundary.resolve("linked/a.yaml") }
+            assertFailsWith<IllegalArgumentException> { boundary.resolve("linked/new/deep.yaml") }
+            val store = FileSystemDocumentStore(root)
+            assertFailsWith<IllegalArgumentException> { store.write(DocumentId("linked/a.yaml"), "changed") }
+            assertEquals("outside", Files.readString(marker))
+            assertTrue(store.capture().texts.keys.none { it.value.startsWith("linked/") })
+        } finally { Files.delete(link) }
+    }
+
+    @Test
+    fun `読込中のルート差替えも開始時の境界の外なら拒否する`() {
+        val root = Files.createDirectory(dir.resolve("workspace"))
+        val outside = Files.createDirectory(dir.resolve("outside"))
+        Files.writeString(root.resolve("a.yaml"), "inside")
+        Files.writeString(outside.resolve("a.yaml"), "outside")
+        val boundary = WorkspacePaths.ReadBoundary(root)
+        val moved = dir.resolve("original")
+        Files.move(root, moved)
+        linkDirectory(root, outside)
+        try {
+            assertFailsWith<IllegalArgumentException> { boundary.resolve("a.yaml") }
+        } finally { Files.delete(root) }
+    }
+
+    @Test
+    fun `全読込の一覧は構成YAMLを含め隠しMarkdownと領域外を含めない`() {
+        Files.createDirectories(dir.resolve(".yde/schemas"))
+        Files.createDirectories(dir.resolve(".hidden"))
+        Files.writeString(dir.resolve("a.yaml"), "a: 1")
+        Files.writeString(dir.resolve(".yde/schemas/a.yaml"), "id: a")
+        Files.writeString(dir.resolve(".hidden/private.yaml"), "private")
+        Files.writeString(dir.resolve("README.MD"), "visible")
+        Files.writeString(dir.resolve(".yde/private.md"), "hidden")
+        val captured = FileSystemDocumentStore(dir).capture()
+        assertEquals(setOf(DocumentId("a.yaml"), DocumentId(".yde/schemas/a.yaml")), captured.texts.keys)
+        assertEquals(captured.texts.keys, captured.listing.yamlTimes.keys)
+        assertEquals(listOf(DocumentId("README.MD")), captured.listing.markdown)
+        assertEquals(Files.getLastModifiedTime(dir.resolve("a.yaml")).toMillis(), captured.listing.yamlTimes[DocumentId("a.yaml")])
     }
 
     private lateinit var dir: Path

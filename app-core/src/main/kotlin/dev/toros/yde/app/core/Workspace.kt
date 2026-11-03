@@ -10,6 +10,7 @@ import dev.toros.yde.semantic.schema.EnforcementDef
 import dev.toros.yde.semantic.schema.EntityTypeDef
 import dev.toros.yde.semantic.schema.SchemaKind
 import dev.toros.yde.workspace.FileSystemDocumentStore
+import dev.toros.yde.workspace.FileSystemListing
 import dev.toros.yde.workspace.WorkspacePaths
 import dev.toros.yde.workspace.WorkspaceSession
 import dev.toros.yde.workspace.changeset.ChangeSet
@@ -165,6 +166,9 @@ class Workspace private constructor(val root: Path) {
         private set
     var files: List<Path> = emptyList()
         private set
+    /** 直近の全読込に使った一覧。読込候補の採用時だけ使い、後の監視には使い回さない。 */
+    var loadedFiles: FileSystemListing = FileSystemListing(emptyMap(), emptyList())
+        private set
     /** ワークスペースの配置ポリシー（R13-02）。refresh のたびに再評価する。 */
     var layout: WorkspaceLayout = WorkspaceLayout.LEGACY
         private set
@@ -203,14 +207,22 @@ class Workspace private constructor(val root: Path) {
     /** スキーマ・ファイル一覧・索引をディスクから再構築する。 */
     fun refresh() {
         layout = WorkspaceLayout.of(root)
+        val store = FileSystemDocumentStore(root)
+        val read = store.capture()
+        val capturedLayout = dev.toros.yde.workspace.WorkspaceReader.detectLayout(read.texts)
+        // 構成も本文と同じ読取から解釈する。空の .yde はディレクトリの判定を保つ。
+        if (capturedLayout.configDir != null || layout.configDir == null) layout = capturedLayout
         // スキーマを読むのは、カーネルの経路（セッション）だけ。ここは、その結果からアプリの形（SchemaDef）を作り、
         // アプリだけに残る点検を足す——以前は root の SchemaLoader でもう一度読んでいた（P27 段C の C-3b・意図的差分 D-32）
         val opened = WorkspaceSession(
-            FileSystemDocumentStore(root),
+            store,
             builtins = BuiltinSchemas.kernelSchemas(layout), viewKinds = Extensions.viewKinds,
+            sourceTexts = read.texts,
         )
         acceptSession(opened)
-        files = WorkspaceScan.yamlFiles(root, layout)
+        loadedFiles = read.listing
+        files = read.listing.yamlTimes.keys.filter { layout.inLedger(it.value) || layout.isReserved(it.value) }
+            .map { root.resolve(it.value) }.sortedBy { it.toString() }
     }
 
     private fun acceptSession(opened: WorkspaceSession) {

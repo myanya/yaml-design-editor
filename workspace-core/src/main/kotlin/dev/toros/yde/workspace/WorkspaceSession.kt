@@ -139,8 +139,12 @@ class WorkspaceSession private constructor(
         incrementalDerive: Boolean = true,
         builtins: List<WorkspaceSchema> = emptyList(),
         viewKinds: List<ViewKind> = emptyList(),
+        sourceTexts: Map<DocumentId, String>? = null,
         clock: () -> Instant = { Instant.now() },
-    ) : this(store, incrementalDerive, builtins, viewKinds, null, clock)
+    ) : this(store, incrementalDerive, builtins, viewKinds, sourceTexts?.let {
+        val loaded = WorkspaceReader.load(store, builtins = builtins, sourceTexts = it)
+        Seed(loaded, loaded.storeTexts)
+    }, clock)
 
     /** fork が渡す、読み込み済みの状態（読み取り専用の写し）。 */
     private class Seed(val loaded: LoadedWorkspace, val storeTexts: Map<DocumentId, String>)
@@ -276,7 +280,7 @@ class WorkspaceSession private constructor(
         workingDocuments = LinkedHashMap(loaded.snapshot.documents)
         version = loaded.snapshot.version
         derived = loaded.derived
-        if (seed != null) storeTexts.putAll(seed.storeTexts) else refreshStoreTexts()
+        storeTexts.putAll(seed?.storeTexts ?: loaded.storeTexts)
     }
 
     /**
@@ -447,14 +451,6 @@ class WorkspaceSession private constructor(
         TransactionResult(false, e.message ?: "再読込に失敗しました", version)
     }
 
-    /** ストア生テキストの追跡を読み直す（外部変更検出の基準を今のストア内容に合わせる）。 */
-    private fun refreshStoreTexts() {
-        storeTexts.clear()
-        for (id in store.list().map { it.id }) {
-            store.read(id)?.let { storeTexts[id] = it.text }
-        }
-    }
-
     /** working snapshot（読み取り専用ビュー）。 */
     val snapshot: WorkspaceSnapshot get() = WorkspaceSnapshot(version, workingDocuments.toMap())
 
@@ -471,6 +467,9 @@ class WorkspaceSession private constructor(
 
     /** 読み込み済みの生テキスト。再読込候補を画面へ反映する際にストアを読み直さない。 */
     fun expectedStoreText(id: DocumentId): String? = storeTexts[id]
+
+    /** 背景で外部変更を照合するための原文の写し。可変の文書やセッションを渡さない。 */
+    fun storeBaseline(): Map<DocumentId, String> = storeTexts.toMap()
 
     /** 操作の前提。実行記録の増加では計画を失効させない。 */
     fun storedState(): Map<DocumentId, String> = storeTexts.filterKeys { layout.zoneOf(it.value) != WorkspaceLayout.Zone.RUNS }
@@ -1101,7 +1100,8 @@ class WorkspaceSession private constructor(
         fileArrangements.clear()
         version += 1
         derived = loaded.derived
-        refreshStoreTexts()
+        storeTexts.clear()
+        storeTexts.putAll(loaded.storeTexts)
         return TransactionResult(true, null, version)
     }
 

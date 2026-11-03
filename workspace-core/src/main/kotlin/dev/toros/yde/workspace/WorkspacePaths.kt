@@ -17,17 +17,31 @@ object WorkspacePaths {
     }
 
     fun resolve(root: Path, path: String, allowLinks: Boolean = true): Path {
-        val base = root.toAbsolutePath().normalize()
-        val target = base.resolve(relative(path)).normalize()
-        require(target != base && target.startsWith(base)) { "ワークスペース外のパスは扱えません: $path" }
-        val realRoot = base.toRealPath()
-        // 新規ファイルでも、既存の親が外部リンクなら拒否する。壊れたリンクも toRealPath で失敗する。
-        var existing = target
-        while (!Files.exists(existing, NOFOLLOW_LINKS)) existing = existing.parent
-        require(existing.toRealPath().startsWith(realRoot)) { "ワークスペース外を指すリンクは扱えません: $path" }
-        require(allowLinks || existing.toRealPath() == realRoot.resolve(base.relativize(existing))) {
-            "AI の書込先にリンクは使えません: $path"
+        relative(path)
+        return ReadBoundary(root).resolve(path, allowLinks)
+    }
+
+    /**
+     * 一回の列挙・読込で共有する境界。固定するのはルートだけで、対象はアクセスごとに解決する。
+     * 途中でルートや親のリンクが外へ差し替わっても、開始時の境界の外なら拒否する。
+     * ストアには保持せず、書込・別の読込操作では新しい境界を使う。
+     */
+    class ReadBoundary(root: Path) {
+        private val base = root.toAbsolutePath().normalize()
+        private val realRoot = base.toRealPath()
+
+        fun resolve(path: String, allowLinks: Boolean = true): Path {
+            val target = base.resolve(relative(path)).normalize()
+            require(target != base && target.startsWith(base)) { "ワークスペース外のパスは扱えません: $path" }
+            // 新規ファイルでも既存の親を調べる。壊れたリンクは toRealPath で失敗する。
+            var existing = target
+            while (!Files.exists(existing, NOFOLLOW_LINKS)) existing = existing.parent
+            val realTarget = existing.toRealPath()
+            require(realTarget.startsWith(realRoot)) { "ワークスペース外を指すリンクは扱えません: $path" }
+            require(allowLinks || realTarget == realRoot.resolve(base.relativize(existing))) {
+                "AI の書込先にリンクは使えません: $path"
+            }
+            return target
         }
-        return target
     }
 }

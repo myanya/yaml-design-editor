@@ -221,4 +221,37 @@ class DesktopRuntimeTest {
             } finally { runtime.shutdown() }
         }
     }
+
+    @Test fun `監視登録を待つ間の未保存編集を初回の背景照合で失わない`() = runBlocking {
+        val file = root.resolve("a.yaml")
+        Files.writeString(file, "name: before\n")
+        val stamp = Files.getLastModifiedTime(file)
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        withContext(DesktopUiDispatcher) {
+            val runtime = DesktopRuntime(monitorFactory = {
+                entered.complete(Unit)
+                runBlocking { release.await() }
+                Files.writeString(file, "name: external\n")
+                Files.setLastModifiedTime(file, stamp)
+                object : WorkspaceMonitor {
+                    override fun consumePaths(): Set<Path> = emptySet()
+                    override fun close() {}
+                }
+            })
+            try {
+                assertTrue(runtime.openWorkspace(root))
+                withTimeout(5_000) { entered.await() }
+                runtime.state.openFile(file)
+                val doc = assertNotNull(runtime.state.openDoc)
+                doc.editSource { replace(0, length, "name: edited\n") }
+                withTimeout(5_000) { runtime.host.status.first { doc.dirty && !doc.hasPendingSourceInput } }
+                release.complete(Unit)
+                withTimeout(5_000) { runtime.host.status.first { doc.externalConflict } }
+                assertContains(doc.canonicalText(), "edited")
+                assertEquals("name: external\n", Files.readString(file))
+                assertTrue(runtime.state.hasDirtyDocs())
+            } finally { release.complete(Unit); runtime.shutdown() }
+        }
+    }
 }

@@ -186,6 +186,8 @@ class LoadedWorkspace(
     val derived: WorkspaceDerivedState,
     /** ファイル（YAML 以外も）があるか（file 型の値の存在の検査。読み込んだストアに聞く）。 */
     val fileExists: (String) -> Boolean = { false },
+    /** パースした時点の原文。保存基準を後からディスクから読み直さない。 */
+    val storeTexts: Map<DocumentId, String> = emptyMap(),
 )
 
 /** スキーマ読込の結果（load と、セッション内のスキーマ再構築＝WS-006 が共有する）。 */
@@ -372,32 +374,38 @@ object WorkspaceReader {
      * builtins は組込スキーマ（メタスキーマ等）の注入口（C-2。実体は当面ルート BuiltinSchemas＝
      * C-4 の資源化で core 自身が持つ予定。未注入時はメタスキーマ適用が無いだけで他は同じ）。
      */
-    fun load(store: DocumentStore, version: Long = 0, builtins: List<WorkspaceSchema> = emptyList()): LoadedWorkspace {
-        val layout = detectLayout(store)
-        val listing = store.list()
+    fun load(
+        store: DocumentStore, version: Long = 0, builtins: List<WorkspaceSchema> = emptyList(),
+        sourceTexts: Map<DocumentId, String>? = null,
+    ): LoadedWorkspace {
+        val texts = sourceTexts?.toMap() ?: buildMap {
+            // 構成ファイルは一覧から除外された外部リンクでも拒否する（従来の detectLayout と同じ境界）。
+            val configId = DocumentId("${WorkspaceLayout.CONFIG_DIR}/${WorkspaceLayout.CONFIG_FILE}")
+            store.read(configId)?.let { put(configId, it.text) }
+            for (doc in store.list()) if (doc.id != configId) store.read(doc.id)?.let { put(doc.id, it.text) }
+        }
+        val layout = detectLayout(texts)
 
         // 1) 文書ロード（構成ファイルを除く全YAML。schemas / runs / agents 等の定義・記録ゾーンも
         //    エディタ層の編集対象として文書に含む——スキーマ・リファクタリング（RF-002）は
         //    `_schemas` 文書への EditDocument で自身を書き換える。意味解析への載せ方は derive 側で絞る
         val rawDocuments = linkedMapOf<DocumentId, YDocument>()
         val parseErrors = linkedMapOf<DocumentId, String>()
-        for (doc in listing) {
-            val rel = doc.id.value
+        for ((id, text) in texts) {
+            val rel = id.value
             if (layout.zoneOf(rel) == null && layout.configDir != null &&
                 (rel == layout.configDir || rel.startsWith("${layout.configDir}/"))
             ) continue
             if (hiddenPath(rel, layout)) continue
-            val text = store.read(doc.id)?.text ?: continue
             try {
-                rawDocuments[doc.id] = DefaultYamlCodec.parse(doc.id, text)
+                rawDocuments[id] = DefaultYamlCodec.parse(id, text)
             } catch (e: Exception) {
-                parseErrors[doc.id] = e.message ?: e.toString()
+                parseErrors[id] = e.message ?: e.toString()
             }
         }
 
         // 2) スキーマ束の組み立て（利用者スキーマ→組込→derive 展開。導出元は台帳の一般文書＝C-2）
-        val schemaSources = listing.filter { layout.zoneOf(it.id.value) == WorkspaceLayout.Zone.SCHEMAS }
-            .mapNotNull { doc -> store.read(doc.id)?.let { doc.id to it.text } }
+        val schemaSources = texts.filterKeys { layout.zoneOf(it.value) == WorkspaceLayout.Zone.SCHEMAS }.toList()
         val built = buildSchemas(schemaSources, builtins, rawDocuments.map { (id, d) -> id to d }, layout)
         val linked = built.schemas
 
@@ -426,6 +434,7 @@ object WorkspaceReader {
             snapshot = WorkspaceSnapshot(version, documents),
             derived = derived,
             fileExists = store::exists,
+            storeTexts = texts,
         )
     }
 
@@ -514,9 +523,19 @@ object WorkspaceReader {
         val configFile = store.read(DocumentId("${WorkspaceLayout.CONFIG_DIR}/${WorkspaceLayout.CONFIG_FILE}"))
         val hasConfigDir = configFile != null ||
             store.list().any { it.id.value.startsWith("${WorkspaceLayout.CONFIG_DIR}/") }
+        return detectLayout(configFile?.text, hasConfigDir)
+    }
+
+    /** 同じ読込で得た構成と文書一覧を使う。本文を再取得しない。 */
+    fun detectLayout(texts: Map<DocumentId, String>): WorkspaceLayout = detectLayout(
+        texts[DocumentId("${WorkspaceLayout.CONFIG_DIR}/${WorkspaceLayout.CONFIG_FILE}")],
+        texts.keys.any { it.value.startsWith("${WorkspaceLayout.CONFIG_DIR}/") },
+    )
+
+    private fun detectLayout(configText: String?, hasConfigDir: Boolean): WorkspaceLayout {
         if (!hasConfigDir) return WorkspaceLayout.LEGACY
-        val ledger = configFile?.let { runCatching { WorkspaceLayout.parseLedgerText(it.text) }.getOrDefault(emptyList()) }.orEmpty()
-        val files = configFile?.let { runCatching { WorkspaceLayout.parseFilesText(it.text) }.getOrDefault(FilePolicy.DEFAULT) } ?: FilePolicy.DEFAULT
+        val ledger = configText?.let { runCatching { WorkspaceLayout.parseLedgerText(it) }.getOrDefault(emptyList()) }.orEmpty()
+        val files = configText?.let { runCatching { WorkspaceLayout.parseFilesText(it) }.getOrDefault(FilePolicy.DEFAULT) } ?: FilePolicy.DEFAULT
         return WorkspaceLayout(configDir = WorkspaceLayout.CONFIG_DIR, ledger = ledger, files = files)
     }
 }

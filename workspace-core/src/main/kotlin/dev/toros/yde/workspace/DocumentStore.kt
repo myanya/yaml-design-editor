@@ -5,8 +5,6 @@ import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
-import kotlin.io.path.isRegularFile
-import kotlin.streams.asSequence
 
 /**
  * 文書の永続化ポート（3層コア移行 Phase 7・WS-001。計画書§4.3）。
@@ -21,6 +19,12 @@ data class StoredDocument(val id: DocumentId)
 
 /** 読み出した内容。 */
 data class StoredContent(val text: String)
+
+/** 一回のディスク走査の結果。時刻は本文の一致判定の代わりには使わない。 */
+class FileSystemListing(val yamlTimes: Map<DocumentId, Long>, val markdown: List<DocumentId>)
+
+/** 読んだ本文と、その読込に用いた一覧。保存・外部変更の基準もこの本文から作る。 */
+class FileSystemRead(val texts: Map<DocumentId, String>, val listing: FileSystemListing)
 
 /** 保存基準と現在のストア内容が異なる。読み取り失敗とは区別して画面へ知らせる。 */
 class StoreConflictException(val documentId: DocumentId) : IllegalStateException(
@@ -108,31 +112,59 @@ class FileSystemDocumentStore(private val root: Path) : DocumentStore {
     }
 
     override fun list(): List<StoredDocument> {
-        val result = mutableListOf<StoredDocument>()
+        return scan(WorkspacePaths.ReadBoundary(root), includeMarkdown = false).yamlTimes.keys.map(::StoredDocument)
+    }
+
+    /** 全読込の候補。本文の直前にも対象の実パスを確認し、一覧の検査結果を使い回さない。 */
+    fun capture(): FileSystemRead {
+        val boundary = WorkspacePaths.ReadBoundary(root)
+        val listing = scan(boundary, includeMarkdown = true)
+        val texts = linkedMapOf<DocumentId, String>()
+        for (id in listing.yamlTimes.keys) {
+            readFile(boundary.resolve(id.value))?.let { texts[id] = it.text }
+        }
+        return FileSystemRead(texts, FileSystemListing(listing.yamlTimes.filterKeys { it in texts }, listing.markdown))
+    }
+
+    private fun scan(boundary: WorkspacePaths.ReadBoundary, includeMarkdown: Boolean): FileSystemListing {
+        val yaml = linkedMapOf<DocumentId, Long>()
+        val markdown = mutableListOf<DocumentId>()
         Files.walkFileTree(root, object : java.nio.file.SimpleFileVisitor<Path>() {
             override fun preVisitDirectory(dir: Path, attrs: java.nio.file.attribute.BasicFileAttributes): java.nio.file.FileVisitResult {
                 if (dir != root) {
                     val relative = root.relativize(dir).toString().replace('\\', '/')
                     if (dir.fileName.toString().startsWith(".") && relative != ".yde") return java.nio.file.FileVisitResult.SKIP_SUBTREE
-                    if (runCatching { resolve(DocumentId(relative)) }.isFailure) return java.nio.file.FileVisitResult.SKIP_SUBTREE
+                    if (runCatching { boundary.resolve(relative) }.isFailure) return java.nio.file.FileVisitResult.SKIP_SUBTREE
                 }
                 return java.nio.file.FileVisitResult.CONTINUE
             }
             override fun visitFile(file: Path, attrs: java.nio.file.attribute.BasicFileAttributes): java.nio.file.FileVisitResult {
                 val name = file.fileName.toString()
-                if (!name.startsWith(".") && (name.endsWith(".yaml") || name.endsWith(".yml"))) {
+                val isYaml = name.endsWith(".yaml") || name.endsWith(".yml")
+                val isMarkdown = includeMarkdown && name.endsWith(".md", ignoreCase = true)
+                if (!name.startsWith(".") && (isYaml || isMarkdown)) {
                     val id = DocumentId(root.relativize(file).toString().replace('\\', '/'))
-                    if (runCatching { resolve(id) }.isSuccess) result.add(StoredDocument(id))
+                    if (runCatching { boundary.resolve(id.value) }.isSuccess) {
+                        if (isYaml) yaml[id] = if (attrs.isSymbolicLink) {
+                            runCatching { Files.getLastModifiedTime(file).toMillis() }.getOrDefault(0L)
+                        } else attrs.lastModifiedTime().toMillis()
+                        // 構成領域の Markdown はエディタの一覧には出さない。
+                        else if (id.value.split('/').none { it.startsWith(".") } &&
+                            (attrs.isRegularFile || Files.isRegularFile(file))) markdown += id
+                    }
                 }
                 return java.nio.file.FileVisitResult.CONTINUE
             }
             override fun visitFileFailed(file: Path, exc: java.io.IOException) = java.nio.file.FileVisitResult.CONTINUE
         })
-        return result.sortedBy { it.id.value }
+        return FileSystemListing(yaml.toSortedMap(compareBy { it.value }), markdown.sortedBy { it.value })
     }
 
     override fun read(id: DocumentId): StoredContent? {
-        val file = resolve(id)
+        return readFile(resolve(id))
+    }
+
+    private fun readFile(file: Path): StoredContent? {
         return try { StoredContent(Files.readString(file)) }
         catch (_: java.nio.file.NoSuchFileException) { null }
     }
